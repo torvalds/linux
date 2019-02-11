@@ -516,7 +516,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			}
 		}
 
-		msleep(1);
+		udelay(1000);
 	}
 	return false;
 }

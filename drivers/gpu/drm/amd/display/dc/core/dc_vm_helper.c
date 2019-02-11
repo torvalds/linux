@@ -112,16 +112,12 @@ uint8_t get_vmid_for_ptb(struct vm_helper *vm_helper, int64_t ptb, uint8_t hubp_
 	return vmid;
 }
 
-struct vm_helper init_vm_helper(unsigned int num_vmid, unsigned int num_hubp)
+void init_vm_helper(struct vm_helper *vm_helper, unsigned int num_vmid, unsigned int num_hubp)
 {
-	static uint64_t ptb_assigned_to_vmid[MAX_VMID];
-	static struct vmid_usage hubp_vmid_usage[MAX_HUBP];
+	vm_helper->num_vmid = num_vmid;
+	vm_helper->num_hubp = num_hubp;
+	vm_helper->num_vmids_available = num_vmid - 1;
 
-	return (struct vm_helper){
-		.num_vmid = num_vmid,
-		.num_hubp = num_hubp,
-		.num_vmids_available = num_vmid - 1,
-		.ptb_assigned_to_vmid = ptb_assigned_to_vmid,
-		.hubp_vmid_usage = hubp_vmid_usage
-	};
+	memset(vm_helper->hubp_vmid_usage, 0, sizeof(vm_helper->hubp_vmid_usage[0]) * MAX_HUBP);
+	memset(vm_helper->ptb_assigned_to_vmid, 0, sizeof(vm_helper->ptb_assigned_to_vmid[0]) * MAX_VMID);
 }

@@ -119,6 +119,10 @@ bool edp_receiver_ready_T9(struct dc_link *link)
 			break;
 		udelay(100); //MAx T9
 	} while (++tries < 50);
+
+	if (link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off > 0)
+		udelay(link->local_sink->edid_caps.panel_patch.extra_delay_backlight_off * 1000);
+
 	return result;
 }
 bool edp_receiver_ready_T7(struct dc_link *link)

@@ -435,7 +435,7 @@ struct optc {
 	const struct dcn_optc_shift *tg_shift;
 	const struct dcn_optc_mask *tg_mask;
 
-	enum controller_id controller_id;
+	int comb_opp_id;
 
 	uint32_t max_h_total;
 	uint32_t max_v_total;
@@ -483,9 +483,11 @@ void optc1_program_timing(
 	const struct dc_crtc_timing *dc_crtc_timing,
 	bool use_vbios);
 
-void optc1_program_vline_interrupt(struct timing_generator *optc,
+void optc1_program_vline_interrupt(
+		struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing,
 		enum vline_select vline,
-		struct vline_config vline_config);
+		const union vline_config *vline_config);
 
 void optc1_program_global_sync(
 		struct timing_generator *optc);

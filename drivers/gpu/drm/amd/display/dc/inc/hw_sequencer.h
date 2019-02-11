@@ -70,6 +70,8 @@ struct hw_sequencer_funcs {
 
 	void (*init_hw)(struct dc *dc);
 
+	void (*init_pipes)(struct dc *dc, struct dc_state *context);
+
 	enum dc_status (*apply_ctx_to_hw)(
 			struct dc *dc, struct dc_state *context);
 

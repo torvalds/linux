@@ -2297,11 +2297,14 @@ static bool fill_plane_dcc_attributes(struct amdgpu_device *adev,
 				      uint64_t info)
 {
 	struct dc *dc = adev->dm.dc;
-	struct dc_dcc_surface_param input = {0};
-	struct dc_surface_dcc_cap output = {0};
+	struct dc_dcc_surface_param input;
+	struct dc_surface_dcc_cap output;
 	uint32_t offset = AMDGPU_TILING_GET(info, DCC_OFFSET_256B);
 	uint32_t i64b = AMDGPU_TILING_GET(info, DCC_INDEPENDENT_64B) != 0;
 	uint64_t dcc_address;
+
+	memset(&input, 0, sizeof(input));
+	memset(&output, 0, sizeof(output));
 
 	if (!offset)
 		return false;
@@ -2956,11 +2959,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	drm_connector = &aconnector->base;
 
 	if (!aconnector->dc_sink) {
-		if (!aconnector->mst_port) {
-			sink = create_fake_sink(aconnector);
-			if (!sink)
-				return stream;
-		}
+		sink = create_fake_sink(aconnector);
+		if (!sink)
+			return stream;
 	} else {
 		sink = aconnector->dc_sink;
 	}
@@ -3026,9 +3027,6 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		sink);
 
 	update_stream_signal(stream, sink);
-
-	if (dm_state && dm_state->freesync_capable)
-		stream->ignore_msa_timing_param = true;
 
 finish:
 	if (sink && sink->sink_signal == SIGNAL_TYPE_VIRTUAL && aconnector->base.force != DRM_FORCE_ON)
@@ -4610,12 +4608,6 @@ static void update_freesync_state_on_stream(
 			      new_crtc_state->base.crtc->base.id,
 			      (int)new_crtc_state->base.vrr_enabled,
 			      (int)vrr_params.state);
-
-	if (new_crtc_state->freesync_timing_changed)
-		DRM_DEBUG_KMS("VRR timing update: crtc=%u min=%u max=%u\n",
-			      new_crtc_state->base.crtc->base.id,
-				  vrr_params.adjust.v_total_min,
-				  vrr_params.adjust.v_total_max);
 }
 
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
@@ -4639,7 +4631,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags, dcc_address;
-	struct dc_stream_status *stream_status;
 	uint32_t target, target_vblank;
 
 	struct {
@@ -4670,7 +4661,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
 		bool pflip_needed;
-		struct dc_plane_state *surface, *dc_plane;
+		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
 		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
@@ -4733,38 +4724,21 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			timestamp_ns = ktime_get_ns();
 			flip->flip_addrs[flip_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
 			flip->surface_updates[flip_count].flip_addr = &flip->flip_addrs[flip_count];
+			flip->surface_updates[flip_count].surface = dc_plane;
 
-			stream_status = dc_stream_get_status(acrtc_state->stream);
-			if (!stream_status) {
-				DRM_ERROR("No stream status for CRTC: id=%d\n",
-						acrtc_attach->crtc_id);
-				continue;
-			}
-
-			surface = stream_status->plane_states[0];
-			flip->surface_updates[flip_count].surface = surface;
 			if (!flip->surface_updates[flip_count].surface) {
 				DRM_ERROR("No surface for CRTC: id=%d\n",
 						acrtc_attach->crtc_id);
 				continue;
 			}
 
-			if (acrtc_state->stream)
+			if (plane == pcrtc->primary)
 				update_freesync_state_on_stream(
 					dm,
 					acrtc_state,
 					acrtc_state->stream,
-					surface,
+					dc_plane,
 					flip->flip_addrs[flip_count].flip_timestamp_in_us);
-
-			/* Update surface timing information. */
-			surface->time.time_elapsed_in_us[surface->time.index] =
-				flip->flip_addrs[flip_count].flip_timestamp_in_us -
-				surface->time.prev_update_time_in_us;
-			surface->time.prev_update_time_in_us = flip->flip_addrs[flip_count].flip_timestamp_in_us;
-			surface->time.index++;
-			if (surface->time.index >= DC_PLANE_UPDATE_TIMES_MAX)
-				surface->time.index = 0;
 
 			DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x\n",
 					 __func__,
@@ -4902,7 +4876,8 @@ cleanup:
 static void amdgpu_dm_crtc_copy_transient_flags(struct drm_crtc_state *crtc_state,
 						struct dc_stream_state *stream_state)
 {
-	stream_state->mode_changed = crtc_state->mode_changed;
+	stream_state->mode_changed =
+		crtc_state->mode_changed || crtc_state->active_changed;
 }
 
 static int amdgpu_dm_atomic_commit(struct drm_device *dev,
@@ -5094,9 +5069,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
-		struct dc_surface_update dummy_updates[MAX_SURFACES] = { 0 };
-		struct dc_stream_update stream_update = { 0 };
+		struct dc_surface_update dummy_updates[MAX_SURFACES];
+		struct dc_stream_update stream_update;
 		struct dc_stream_status *status = NULL;
+
+		memset(&dummy_updates, 0, sizeof(dummy_updates));
+		memset(&stream_update, 0, sizeof(stream_update));
 
 		if (acrtc) {
 			new_crtc_state = drm_atomic_get_new_crtc_state(state, &acrtc->base);
@@ -5174,9 +5152,11 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		manage_dm_interrupts(adev, acrtc, true);
 
+#ifdef CONFIG_DEBUG_FS
 		/* The stream has changed so CRC capture needs to re-enabled. */
 		if (dm_new_crtc_state->crc_enabled)
 			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
+#endif
 	}
 
 	/* update planes when needed per crtc*/
@@ -5372,10 +5352,13 @@ static void get_freesync_config_for_crtc(
 	struct mod_freesync_config config = {0};
 	struct amdgpu_dm_connector *aconnector =
 			to_amdgpu_dm_connector(new_con_state->base.connector);
+	struct drm_display_mode *mode = &new_crtc_state->base.mode;
 
-	new_crtc_state->vrr_supported = new_con_state->freesync_capable;
+	new_crtc_state->vrr_supported = new_con_state->freesync_capable &&
+		aconnector->min_vfreq <= drm_mode_vrefresh(mode);
 
-	if (new_con_state->freesync_capable) {
+	if (new_crtc_state->vrr_supported) {
+		new_crtc_state->stream->ignore_msa_timing_param = true;
 		config.state = new_crtc_state->base.vrr_enabled ?
 				VRR_STATE_ACTIVE_VARIABLE :
 				VRR_STATE_INACTIVE;
@@ -5783,7 +5766,6 @@ dm_determine_update_type_for_commit(struct dc *dc,
 
 	struct dc_surface_update *updates;
 	struct dc_plane_state *surface;
-	struct dc_stream_update stream_update;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
 
 	updates = kcalloc(MAX_SURFACES, sizeof(*updates), GFP_KERNEL);
@@ -5797,79 +5779,85 @@ dm_determine_update_type_for_commit(struct dc *dc,
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		struct dc_stream_update stream_update = { 0 };
+
 		new_dm_crtc_state = to_dm_crtc_state(new_crtc_state);
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
 		num_plane = 0;
 
-		if (new_dm_crtc_state->stream) {
-
-			for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
-				new_plane_crtc = new_plane_state->crtc;
-				old_plane_crtc = old_plane_state->crtc;
-				new_dm_plane_state = to_dm_plane_state(new_plane_state);
-				old_dm_plane_state = to_dm_plane_state(old_plane_state);
-
-				if (plane->type == DRM_PLANE_TYPE_CURSOR)
-					continue;
-
-				if (!state->allow_modeset)
-					continue;
-
-				if (crtc == new_plane_crtc) {
-					updates[num_plane].surface = &surface[num_plane];
-
-					if (new_crtc_state->mode_changed) {
-						updates[num_plane].surface->src_rect =
-									new_dm_plane_state->dc_state->src_rect;
-						updates[num_plane].surface->dst_rect =
-									new_dm_plane_state->dc_state->dst_rect;
-						updates[num_plane].surface->rotation =
-									new_dm_plane_state->dc_state->rotation;
-						updates[num_plane].surface->in_transfer_func =
-									new_dm_plane_state->dc_state->in_transfer_func;
-						stream_update.dst = new_dm_crtc_state->stream->dst;
-						stream_update.src = new_dm_crtc_state->stream->src;
-					}
-
-					if (new_crtc_state->color_mgmt_changed) {
-						updates[num_plane].gamma =
-								new_dm_plane_state->dc_state->gamma_correction;
-						updates[num_plane].in_transfer_func =
-								new_dm_plane_state->dc_state->in_transfer_func;
-						stream_update.gamut_remap =
-								&new_dm_crtc_state->stream->gamut_remap_matrix;
-						stream_update.out_transfer_func =
-								new_dm_crtc_state->stream->out_transfer_func;
-					}
-
-					num_plane++;
-				}
+		if (!new_dm_crtc_state->stream) {
+			if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
+				update_type = UPDATE_TYPE_FULL;
+				goto cleanup;
 			}
 
-			if (num_plane > 0) {
-				ret = dm_atomic_get_state(state, &dm_state);
-				if (ret)
-					goto cleanup;
+			continue;
+		}
 
-				old_dm_state = dm_atomic_get_old_state(state);
-				if (!old_dm_state) {
-					ret = -EINVAL;
-					goto cleanup;
-				}
+		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
+			new_plane_crtc = new_plane_state->crtc;
+			old_plane_crtc = old_plane_state->crtc;
+			new_dm_plane_state = to_dm_plane_state(new_plane_state);
+			old_dm_plane_state = to_dm_plane_state(old_plane_state);
 
-				status = dc_stream_get_status_from_state(old_dm_state->context,
-									 new_dm_crtc_state->stream);
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
 
-				update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
-										  &stream_update, status);
+			if (!state->allow_modeset)
+				continue;
 
-				if (update_type > UPDATE_TYPE_MED) {
-					update_type = UPDATE_TYPE_FULL;
-					goto cleanup;
-				}
+			if (crtc != new_plane_crtc)
+				continue;
+
+			updates[num_plane].surface = &surface[num_plane];
+
+			if (new_crtc_state->mode_changed) {
+				updates[num_plane].surface->src_rect =
+						new_dm_plane_state->dc_state->src_rect;
+				updates[num_plane].surface->dst_rect =
+						new_dm_plane_state->dc_state->dst_rect;
+				updates[num_plane].surface->rotation =
+						new_dm_plane_state->dc_state->rotation;
+				updates[num_plane].surface->in_transfer_func =
+						new_dm_plane_state->dc_state->in_transfer_func;
+				stream_update.dst = new_dm_crtc_state->stream->dst;
+				stream_update.src = new_dm_crtc_state->stream->src;
 			}
 
-		} else if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
+			if (new_crtc_state->color_mgmt_changed) {
+				updates[num_plane].gamma =
+						new_dm_plane_state->dc_state->gamma_correction;
+				updates[num_plane].in_transfer_func =
+						new_dm_plane_state->dc_state->in_transfer_func;
+				stream_update.gamut_remap =
+						&new_dm_crtc_state->stream->gamut_remap_matrix;
+				stream_update.out_transfer_func =
+						new_dm_crtc_state->stream->out_transfer_func;
+			}
+
+			num_plane++;
+		}
+
+		if (num_plane == 0)
+			continue;
+
+		ret = dm_atomic_get_state(state, &dm_state);
+		if (ret)
+			goto cleanup;
+
+		old_dm_state = dm_atomic_get_old_state(state);
+		if (!old_dm_state) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+
+		status = dc_stream_get_status_from_state(old_dm_state->context,
+							 new_dm_crtc_state->stream);
+
+		update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
+								  &stream_update, status);
+
+		if (update_type > UPDATE_TYPE_MED) {
 			update_type = UPDATE_TYPE_FULL;
 			goto cleanup;
 		}

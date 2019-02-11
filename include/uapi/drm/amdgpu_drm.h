@@ -523,6 +523,7 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_SYNCOBJ_IN      0x04
 #define AMDGPU_CHUNK_ID_SYNCOBJ_OUT     0x05
 #define AMDGPU_CHUNK_ID_BO_HANDLES      0x06
+#define AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES	0x07
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;
@@ -564,6 +565,11 @@ union drm_amdgpu_cs {
 /* The IB fence should do the L2 writeback but not invalidate any shader
  * caches (L2/vL1/sL1/I$). */
 #define AMDGPU_IB_FLAG_TC_WB_NOT_INVALIDATE (1 << 3)
+
+/* Set GDS_COMPUTE_MAX_WAVE_ID = DEFAULT before PACKET3_INDIRECT_BUFFER.
+ * This will reset wave ID counters for the IB.
+ */
+#define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;

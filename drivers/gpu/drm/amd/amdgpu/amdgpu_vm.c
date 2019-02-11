@@ -107,14 +107,6 @@ struct amdgpu_pte_update_params {
 	 * DMA addresses to use for mapping, used during VM update by CPU
 	 */
 	dma_addr_t *pages_addr;
-
-	/**
-	 * @kptr:
-	 *
-	 * Kernel pointer of PD/PT BO that needs to be updated,
-	 * used during VM update by CPU
-	 */
-	void *kptr;
 };
 
 /**
@@ -1789,12 +1781,19 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		if (pages_addr)
 			params.src = ~0;
 
-		/* Wait for PT BOs to be free. PTs share the same resv. object
+		/* Wait for PT BOs to be idle. PTs share the same resv. object
 		 * as the root PD BO
 		 */
 		r = amdgpu_vm_wait_pd(adev, vm, owner);
 		if (unlikely(r))
 			return r;
+
+		/* Wait for any BO move to be completed */
+		if (exclusive) {
+			r = dma_fence_wait(exclusive, true);
+			if (unlikely(r))
+				return r;
+		}
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 		params.pages_addr = pages_addr;
@@ -1809,13 +1808,12 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	/*
 	 * reserve space for two commands every (1 << BLOCK_SIZE)
 	 *  entries or 2k dwords (whatever is smaller)
-         *
-         * The second command is for the shadow pagetables.
 	 */
+	ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1);
+
+	/* The second command is for the shadow pagetables. */
 	if (vm->root.base.bo->shadow)
-		ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1) * 2;
-	else
-		ncmds = ((nptes >> min(adev->vm_manager.block_size, 11u)) + 1);
+		ncmds *= 2;
 
 	/* padding, etc. */
 	ndw = 64;
@@ -1834,10 +1832,11 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 		ndw += ncmds * 10;
 
 		/* extra commands for begin/end fragments */
+		ncmds = 2 * adev->vm_manager.fragment_size;
 		if (vm->root.base.bo->shadow)
-		        ndw += 2 * 10 * adev->vm_manager.fragment_size * 2;
-		else
-		        ndw += 2 * 10 * adev->vm_manager.fragment_size;
+			ncmds *= 2;
+
+		ndw += 10 * ncmds;
 
 		params.func = amdgpu_vm_do_set_ptes;
 	}

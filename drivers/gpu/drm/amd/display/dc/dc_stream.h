@@ -32,11 +32,17 @@
 /*******************************************************************************
  * Stream Interfaces
  ******************************************************************************/
+struct timing_sync_info {
+	int group_id;
+	int group_size;
+	bool master;
+};
 
 struct dc_stream_status {
 	int primary_otg_inst;
 	int stream_enc_inst;
 	int plane_count;
+	struct timing_sync_info timing_sync_info;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 };
 
@@ -45,10 +51,11 @@ struct freesync_context {
 	bool dummy;
 };
 
-struct vline_config {
-	unsigned int start_line;
-	unsigned int end_line;
+union vline_config {
+	unsigned int line_number;
+	unsigned long long delta_in_ns;
 };
+
 
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
@@ -99,8 +106,8 @@ struct dc_stream_state {
 	/* DMCU info */
 	unsigned int abm_level;
 
-	struct vline_config vline0_config;
-	struct vline_config vline1_config;
+	union vline_config periodic_vsync_config;
+	union vline_config enhanced_sync_config;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -112,7 +119,6 @@ struct dc_stream_state {
 	int phy_pix_clk;
 	enum signal_type signal;
 	bool dpms_off;
-	bool apply_edp_fast_boot_optimization;
 
 	void *dm_stream_context;
 
@@ -139,6 +145,9 @@ struct dc_stream_state {
 		uint8_t otg_offset;
 	} out;
 
+	bool apply_edp_fast_boot_optimization;
+	bool apply_seamless_boot_optimization;
+
 	uint32_t stream_id;
 };
 
@@ -149,8 +158,8 @@ struct dc_stream_update {
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
 
-	struct vline_config *vline0_config;
-	struct vline_config *vline1_config;
+	union vline_config *periodic_vsync_config;
+	union vline_config *enhanced_sync_config;
 
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;

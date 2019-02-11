@@ -88,11 +88,18 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
 }
 
-void hubbub1_disable_allow_self_refresh(struct hubbub *hubbub)
+void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow)
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
-	REG_UPDATE(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, 0);
+
+	/*
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 1 means do not allow stutter
+	 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0 means allow stutter
+	 */
+
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, !allow);
 }
 
 bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubbub)
@@ -262,8 +269,6 @@ void hubbub1_program_watermarks(
 		bool safe_to_lower)
 {
 	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
-
-	uint32_t force_en = hubbub1->base.ctx->dc->debug.disable_stutter ? 1 : 0;
 	/*
 	 * Need to clamp to max of the register values (i.e. no wrap)
 	 * for dcn1, all wm registers are 21-bit wide
@@ -537,9 +542,7 @@ void hubbub1_program_watermarks(
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
 			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 68);
 
-	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
-			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
-			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, force_en);
+	hubbub1_allow_self_refresh_control(hubbub, !hubbub->ctx->dc->debug.disable_stutter);
 
 #if 0
 	REG_UPDATE_2(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,

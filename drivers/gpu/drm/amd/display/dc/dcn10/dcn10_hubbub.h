@@ -204,7 +204,7 @@ void hubbub1_program_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 
-void hubbub1_disable_allow_self_refresh(struct hubbub *hubbub);
+void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow);
 
 bool hububu1_is_allow_self_refresh_enabled(struct hubbub *hubub);
 

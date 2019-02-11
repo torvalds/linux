@@ -1032,8 +1032,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct dc_link *link = stream->link;
 
 	/* only 3 items below are used by unblank */
-	params.pixel_clk_khz =
-		pipe_ctx->stream->timing.pix_clk_100hz / 10;
+	params.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1043,6 +1042,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		link->dc->hwss.edp_backlight_control(link, true);
 	}
 }
+
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1250,8 +1250,6 @@ static enum dc_status dce110_enable_stream_timing(
 	struct pipe_ctx *pipe_ctx_old = &dc->current_state->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0;
 
 	if (!pipe_ctx_old->stream) {
 
@@ -1280,20 +1278,6 @@ static enum dc_status dce110_enable_stream_timing(
 				pipe_ctx->stream_res.tg,
 				&stream->timing,
 				true);
-
-		params.vertical_total_min = stream->adjust.v_total_min;
-		params.vertical_total_max = stream->adjust.v_total_max;
-		if (pipe_ctx->stream_res.tg->funcs->set_drr)
-			pipe_ctx->stream_res.tg->funcs->set_drr(
-				pipe_ctx->stream_res.tg, &params);
-
-		// DRR should set trigger event to monitor surface update event
-		if (stream->adjust.v_total_min != 0 &&
-				stream->adjust.v_total_max != 0)
-			event_triggers = 0x80;
-		if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
-			pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
 	}
 
 	if (!pipe_ctx_old->stream) {
@@ -1313,6 +1297,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct drr_params params = {0};
+	unsigned int event_triggers = 0;
 
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
@@ -1339,7 +1325,27 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	}
 
 	/*  */
-	dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
+	/* Do not touch stream timing on seamless boot optimization. */
+	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
+		dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
+
+	if (pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt)
+		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
+						pipe_ctx->stream_res.tg,
+							&stream->timing);
+
+	params.vertical_total_min = stream->adjust.v_total_min;
+	params.vertical_total_max = stream->adjust.v_total_max;
+	if (pipe_ctx->stream_res.tg->funcs->set_drr)
+		pipe_ctx->stream_res.tg->funcs->set_drr(
+			pipe_ctx->stream_res.tg, &params);
+
+	// DRR should set trigger event to monitor surface update event
+	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
+		event_triggers = 0x80;
+	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
+		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg, event_triggers);
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
@@ -2269,6 +2275,11 @@ static void dce110_enable_per_frame_crtc_position_reset(
 
 }
 
+static void init_pipes(struct dc *dc, struct dc_state *context)
+{
+	// Do nothing
+}
+
 static void init_hw(struct dc *dc)
 {
 	int i;
@@ -2535,7 +2546,7 @@ static void dce110_apply_ctx_for_surface(
 	}
 
 	if (dc->fbc_compressor)
-		enable_fbc(dc, dc->current_state);
+		enable_fbc(dc, context);
 }
 
 static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
@@ -2636,6 +2647,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
 	.init_hw = init_hw,
+	.init_pipes = init_pipes,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,
 	.update_plane_addr = update_plane_addr,

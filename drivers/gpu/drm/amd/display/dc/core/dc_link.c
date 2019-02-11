@@ -76,6 +76,12 @@ static void destruct(struct dc_link *link)
 {
 	int i;
 
+	if (link->hpd_gpio != NULL) {
+		dal_gpio_close(link->hpd_gpio);
+		dal_gpio_destroy_irq(&link->hpd_gpio);
+		link->hpd_gpio = NULL;
+	}
+
 	if (link->ddc)
 		dal_ddc_service_destroy(&link->ddc);
 
@@ -931,18 +937,11 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 
 bool dc_link_get_hpd_state(struct dc_link *dc_link)
 {
-	struct gpio *hpd_pin;
 	uint32_t state;
 
-	hpd_pin = get_hpd_gpio(dc_link->ctx->dc_bios,
-					dc_link->link_id, dc_link->ctx->gpio_service);
-	if (hpd_pin == NULL)
-		ASSERT(false);
-
-	dal_gpio_open(hpd_pin, GPIO_MODE_INTERRUPT);
-	dal_gpio_get_value(hpd_pin, &state);
-	dal_gpio_close(hpd_pin);
-	dal_gpio_destroy_irq(&hpd_pin);
+	dal_gpio_lock_pin(dc_link->hpd_gpio);
+	dal_gpio_get_value(dc_link->hpd_gpio, &state);
+	dal_gpio_unlock_pin(dc_link->hpd_gpio);
 
 	return state;
 }
@@ -1098,7 +1097,6 @@ static bool construct(
 	const struct link_init_data *init_params)
 {
 	uint8_t i;
-	struct gpio *hpd_gpio = NULL;
 	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
@@ -1128,10 +1126,12 @@ static bool construct(
 	if (link->dc->res_pool->funcs->link_init)
 		link->dc->res_pool->funcs->link_init(link);
 
-	hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
-
-	if (hpd_gpio != NULL)
-		link->irq_source_hpd = dal_irq_get_source(hpd_gpio);
+	link->hpd_gpio = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
+	if (link->hpd_gpio != NULL) {
+		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
+		dal_gpio_unlock_pin(link->hpd_gpio);
+		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
+	}
 
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A:
@@ -1149,18 +1149,18 @@ static bool construct(
 	case CONNECTOR_ID_DISPLAY_PORT:
 		link->connector_signal =	SIGNAL_TYPE_DISPLAY_PORT;
 
-		if (hpd_gpio != NULL)
+		if (link->hpd_gpio != NULL)
 			link->irq_source_hpd_rx =
-					dal_irq_get_rx_source(hpd_gpio);
+					dal_irq_get_rx_source(link->hpd_gpio);
 
 		break;
 	case CONNECTOR_ID_EDP:
 		link->connector_signal = SIGNAL_TYPE_EDP;
 
-		if (hpd_gpio != NULL) {
+		if (link->hpd_gpio != NULL) {
 			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 			link->irq_source_hpd_rx =
-					dal_irq_get_rx_source(hpd_gpio);
+					dal_irq_get_rx_source(link->hpd_gpio);
 		}
 		break;
 	case CONNECTOR_ID_LVDS:
@@ -1171,10 +1171,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	if (hpd_gpio != NULL) {
-		dal_gpio_destroy_irq(&hpd_gpio);
-		hpd_gpio = NULL;
-	}
+
 
 	/* TODO: #DAL3 Implement id to str function.*/
 	LINK_INFO("Connector[%d] description:"
@@ -1277,8 +1274,9 @@ link_enc_create_fail:
 ddc_create_fail:
 create_fail:
 
-	if (hpd_gpio != NULL) {
-		dal_gpio_destroy_irq(&hpd_gpio);
+	if (link->hpd_gpio != NULL) {
+		dal_gpio_destroy_irq(&link->hpd_gpio);
+		link->hpd_gpio = NULL;
 	}
 
 	return false;
@@ -2582,13 +2580,23 @@ void core_link_enable_stream(
 			&stream->timing);
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		bool apply_edp_fast_boot_optimization =
+			pipe_ctx->stream->apply_edp_fast_boot_optimization;
+
+		pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+
 		resource_build_info_frame(pipe_ctx);
 		core_dc->hwss.update_info_frame(pipe_ctx);
 
+		/* Do not touch link on seamless boot optimization. */
+		if (pipe_ctx->stream->apply_seamless_boot_optimization) {
+			pipe_ctx->stream->dpms_off = false;
+			return;
+		}
+
 		/* eDP lit up by bios already, no need to enable again. */
 		if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
-				pipe_ctx->stream->apply_edp_fast_boot_optimization) {
-			pipe_ctx->stream->apply_edp_fast_boot_optimization = false;
+					apply_edp_fast_boot_optimization) {
 			pipe_ctx->stream->dpms_off = false;
 			return;
 		}
@@ -2614,6 +2622,8 @@ void core_link_enable_stream(
 				return;
 			}
 		}
+
+		stream->link->link_status.link_active = true;
 
 		core_dc->hwss.enable_audio_stream(pipe_ctx);
 
@@ -2649,6 +2659,8 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
+
+	pipe_ctx->stream->link->link_status.link_active = false;
 }
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)

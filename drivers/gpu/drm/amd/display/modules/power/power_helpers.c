@@ -47,10 +47,10 @@ static const unsigned char min_reduction_table_v_2_2[13] = {
 
 /* Possible ABM 2.2 Max Reduction configs from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
- * 96.1 89.8 85.1  80.3  69.4  64.7  54.9  45.1  30.2  25.1  19.6  12.5  12.5 %
+ * 96.1 89.8 74.9  69.4  64.7  52.2  48.6  39.6  30.2  25.1  19.6  12.5  12.5 %
  */
 static const unsigned char max_reduction_table_v_2_2[13] = {
-0xf5, 0xe5, 0xd9, 0xcd, 0xb1, 0xa5, 0x8c, 0x73, 0x4d, 0x40, 0x32, 0x20, 0x20};
+0xf5, 0xe5, 0xbf, 0xb1, 0xa5, 0x85, 0x7c, 0x65, 0x4d, 0x40, 0x32, 0x20, 0x20};
 
 /* Predefined ABM configuration sets. We may have different configuration sets
  * in order to satisfy different power/quality requirements.
@@ -67,8 +67,13 @@ static const unsigned char abm_config[abm_defines_max_config][abm_defines_max_le
 #define NUM_AGGR_LEVEL    4
 #define NUM_POWER_FN_SEGS 8
 #define NUM_BL_CURVE_SEGS 16
-#define IRAM_RESERVE_AREA_START 0xF0  // reserve 0xF0~0xFF are write by DMCU only
 #define IRAM_SIZE 256
+
+#define IRAM_RESERVE_AREA_START_V2 0xF0  // reserve 0xF0~0xF6 are write by DMCU only
+#define IRAM_RESERVE_AREA_END_V2 0xF6  // reserve 0xF0~0xF6 are write by DMCU only
+
+#define IRAM_RESERVE_AREA_START_V2_2 0xF0  // reserve 0xF0~0xFF are write by DMCU only
+#define IRAM_RESERVE_AREA_END_V2_2 0xFF  // reserve 0xF0~0xFF are write by DMCU only
 
 #pragma pack(push, 1)
 /* NOTE: iRAM is 256B in size */
@@ -148,8 +153,10 @@ struct iram_table_v_2_2 {
 	uint16_t dmcu_version;										/* 0xf4       */
 	uint8_t dmcu_state;											/* 0xf6       */
 
-	uint16_t blRampReduction;									/* 0xf7       */
-	uint16_t blRampStart;										/* 0xf9       */
+	uint8_t dummy1;												/* 0xf7       */
+	uint8_t dummy2;												/* 0xf8       */
+	uint8_t dummy3;												/* 0xf9       */
+	uint8_t dummy4;												/* 0xfa       */
 	uint8_t dummy5;												/* 0xfb       */
 	uint8_t dummy6;												/* 0xfc       */
 	uint8_t dummy7;												/* 0xfd       */
@@ -420,11 +427,6 @@ void fill_iram_v_2_2(struct iram_table_v_2_2 *ram_table, struct dmcu_iram_parame
 	ram_table->deviation_gain[2] = 0xb3;
 	ram_table->deviation_gain[3] = 0xb3;
 
-	ram_table->blRampReduction =
-		cpu_to_be16(params.backlight_ramping_reduction);
-	ram_table->blRampStart =
-		cpu_to_be16(params.backlight_ramping_start);
-
 	ram_table->min_reduction[0][0] = min_reduction_table_v_2_2[abm_config[set][0]];
 	ram_table->min_reduction[1][0] = min_reduction_table_v_2_2[abm_config[set][0]];
 	ram_table->min_reduction[2][0] = min_reduction_table_v_2_2[abm_config[set][0]];
@@ -561,6 +563,7 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 	struct dmcu_iram_parameters params)
 {
 	unsigned char ram_table[IRAM_SIZE];
+	bool result = false;
 
 	if (dmcu == NULL)
 		return false;
@@ -572,10 +575,21 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	if (dmcu->dmcu_version.abm_version == 0x22) {
 		fill_iram_v_2_2((struct iram_table_v_2_2 *)ram_table, params);
+
+		result = dmcu->funcs->load_iram(
+				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
 	} else {
 		fill_iram_v_2((struct iram_table_v_2 *)ram_table, params);
+
+		result = dmcu->funcs->load_iram(
+				dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2);
+
+		if (result)
+			result = dmcu->funcs->load_iram(
+					dmcu, IRAM_RESERVE_AREA_END_V2 + 1,
+					(char *)(&ram_table) + IRAM_RESERVE_AREA_END_V2 + 1,
+					sizeof(ram_table) - IRAM_RESERVE_AREA_END_V2 - 1);
 	}
 
-	return dmcu->funcs->load_iram(
-			dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START);
+	return result;
 }

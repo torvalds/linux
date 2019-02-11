@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.15"
+#define DC_VER "3.2.17"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -255,6 +255,7 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 };
 
@@ -263,7 +264,6 @@ struct dc_debug_data {
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
 };
-
 
 struct dc_state;
 struct resource_pool;
@@ -593,6 +593,10 @@ struct dc_validation_set {
 	struct dc_plane_state *plane_states[MAX_SURFACES];
 	uint8_t plane_count;
 };
+
+bool dc_validate_seamless_boot_timing(struct dc *dc,
+				const struct dc_sink *sink,
+				struct dc_crtc_timing *crtc_timing);
 
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
