@@ -273,7 +273,7 @@ struct tcf_proto_ops {
 					    const struct tcf_proto *,
 					    struct tcf_result *);
 	int			(*init)(struct tcf_proto*);
-	void			(*destroy)(struct tcf_proto *tp,
+	void			(*destroy)(struct tcf_proto *tp, bool rtnl_held,
 					   struct netlink_ext_ack *extack);
 
 	void*			(*get)(struct tcf_proto*, u32 handle);
@@ -281,12 +281,13 @@ struct tcf_proto_ops {
 	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
-					void **, bool,
+					void **, bool, bool,
 					struct netlink_ext_ack *);
 	int			(*delete)(struct tcf_proto *tp, void *arg,
-					  bool *last,
+					  bool *last, bool rtnl_held,
 					  struct netlink_ext_ack *);
-	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
+	void			(*walk)(struct tcf_proto *tp,
+					struct tcf_walker *arg, bool rtnl_held);
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
 					     tc_setup_cb_t *cb, void *cb_priv,
 					     struct netlink_ext_ack *extack);
@@ -299,12 +300,18 @@ struct tcf_proto_ops {
 
 	/* rtnetlink specific */
 	int			(*dump)(struct net*, struct tcf_proto*, void *,
-					struct sk_buff *skb, struct tcmsg*);
+					struct sk_buff *skb, struct tcmsg*,
+					bool);
 	int			(*tmplt_dump)(struct sk_buff *skb,
 					      struct net *net,
 					      void *tmplt_priv);
 
 	struct module		*owner;
+	int			flags;
+};
+
+enum tcf_proto_ops_flags {
+	TCF_PROTO_OPS_DOIT_UNLOCKED = 1,
 };
 
 struct tcf_proto {

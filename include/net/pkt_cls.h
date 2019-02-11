@@ -47,7 +47,7 @@ void tcf_chain_put_by_act(struct tcf_chain *chain);
 struct tcf_chain *tcf_get_next_chain(struct tcf_block *block,
 				     struct tcf_chain *chain);
 struct tcf_proto *tcf_get_next_proto(struct tcf_chain *chain,
-				     struct tcf_proto *tp);
+				     struct tcf_proto *tp, bool rtnl_held);
 void tcf_block_netif_keep_dst(struct tcf_block *block);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
