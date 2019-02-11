@@ -3533,8 +3533,6 @@ again:
 		ctx->total_len = ctx->len - iov_iter_count(to);
 	}
 
-	cifs_stats_bytes_read(tcon, ctx->total_len);
-
 	/* mask nodata case */
 	if (rc == -ENODATA)
 		rc = 0;
