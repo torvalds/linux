@@ -141,7 +141,7 @@ struct nvm_chk_meta *pblk_get_chunk_meta(struct pblk *pblk)
 
 	ret = nvm_get_chunk_meta(dev, ppa, geo->all_chunks, meta);
 	if (ret) {
-		kfree(meta);
+		vfree(meta);
 		return ERR_PTR(-EIO);
 	}
 
