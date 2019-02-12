@@ -201,11 +201,9 @@ static const struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_LAN_OFFLINE,		"STRTLAN_LAN_DISABLED - LAN offline"},
 	{IPA_RC_VEPA_TO_VEB_TRANSITION,	"Adj. switch disabled port mode RR"},
 	{IPA_RC_INVALID_IP_VERSION2,	"Invalid IP version"},
-	{IPA_RC_ENOMEM,			"Memory problem"},
+	/* default for qeth_get_ipa_msg(): */
 	{IPA_RC_FFFF,			"Unknown Error"}
 };
-
-
 
 const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
 {

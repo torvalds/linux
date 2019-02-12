@@ -253,8 +253,7 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		} else
 			rc = qeth_l3_register_addr_entry(card, addr);
 
-		if (!rc || (rc == IPA_RC_DUPLICATE_IP_ADDRESS) ||
-				(rc == IPA_RC_LAN_OFFLINE)) {
+		if (!rc || rc == -EADDRINUSE || rc == -ENETDOWN) {
 			addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 			if (addr->ref_counter < 1) {
 				qeth_l3_deregister_addr_entry(card, addr);
@@ -338,10 +337,28 @@ static void qeth_l3_recover_ip(struct qeth_card *card)
 
 }
 
+static int qeth_l3_setdelip_cb(struct qeth_card *card, struct qeth_reply *reply,
+			       unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+
+	switch (cmd->hdr.return_code) {
+	case IPA_RC_SUCCESS:
+		return 0;
+	case IPA_RC_DUPLICATE_IP_ADDRESS:
+		return -EADDRINUSE;
+	case IPA_RC_MC_ADDR_NOT_FOUND:
+		return -ENOENT;
+	case IPA_RC_LAN_OFFLINE:
+		return -ENETDOWN;
+	default:
+		return -EIO;
+	}
+}
+
 static int qeth_l3_send_setdelmc(struct qeth_card *card,
 			struct qeth_ipaddr *addr, int ipacmd)
 {
-	int rc;
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
 
@@ -358,9 +375,7 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 	else
 		memcpy(&cmd->data.setdelipm.ip4, &addr->u.a4.addr, 4);
 
-	rc = qeth_send_ipa_cmd(card, iob, NULL, NULL);
-
-	return rc;
+	return qeth_send_ipa_cmd(card, iob, qeth_l3_setdelip_cb, NULL);
 }
 
 static void qeth_l3_fill_netmask(u8 *netmask, unsigned int len)
@@ -422,7 +437,7 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 		cmd->data.setdelip4.flags = flags;
 	}
 
-	return qeth_send_ipa_cmd(card, iob, NULL, NULL);
+	return qeth_send_ipa_cmd(card, iob, qeth_l3_setdelip_cb, NULL);
 }
 
 static int qeth_l3_send_setrouting(struct qeth_card *card,
@@ -1481,14 +1496,14 @@ static void qeth_l3_set_rx_mode(struct net_device *dev)
 			switch (addr->disp_flag) {
 			case QETH_DISP_ADDR_DELETE:
 				rc = qeth_l3_deregister_addr_entry(card, addr);
-				if (!rc || rc == IPA_RC_MC_ADDR_NOT_FOUND) {
+				if (!rc || rc == -ENOENT) {
 					hash_del(&addr->hnode);
 					kfree(addr);
 				}
 				break;
 			case QETH_DISP_ADDR_ADD:
 				rc = qeth_l3_register_addr_entry(card, addr);
-				if (rc && rc != IPA_RC_LAN_OFFLINE) {
+				if (rc && rc != -ENETDOWN) {
 					hash_del(&addr->hnode);
 					kfree(addr);
 					break;
@@ -1599,7 +1614,6 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 	struct qeth_ipa_cmd *cmd;
 	struct qeth_arp_query_data *qdata;
 	struct qeth_arp_query_info *qinfo;
-	int i;
 	int e;
 	int entrybytes_done;
 	int stripped_bytes;
@@ -1613,13 +1627,13 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 	if (cmd->hdr.return_code) {
 		QETH_CARD_TEXT(card, 4, "arpcberr");
 		QETH_CARD_TEXT_(card, 4, "%i", cmd->hdr.return_code);
-		return 0;
+		return qeth_l3_arp_makerc(cmd->hdr.return_code);
 	}
 	if (cmd->data.setassparms.hdr.return_code) {
 		cmd->hdr.return_code = cmd->data.setassparms.hdr.return_code;
 		QETH_CARD_TEXT(card, 4, "setaperr");
 		QETH_CARD_TEXT_(card, 4, "%i", cmd->hdr.return_code);
-		return 0;
+		return qeth_l3_arp_makerc(cmd->hdr.return_code);
 	}
 	qdata = &cmd->data.setassparms.data.query_arp;
 	QETH_CARD_TEXT_(card, 4, "anoen%i", qdata->no_entries);
@@ -1646,9 +1660,9 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 			break;
 
 		if ((qinfo->udata_len - qinfo->udata_offset) < esize) {
-			QETH_CARD_TEXT_(card, 4, "qaer3%i", -ENOMEM);
-			cmd->hdr.return_code = IPA_RC_ENOMEM;
-			goto out_error;
+			QETH_CARD_TEXT_(card, 4, "qaer3%i", -ENOSPC);
+			memset(qinfo->udata, 0, 4);
+			return -ENOSPC;
 		}
 
 		memcpy(qinfo->udata + qinfo->udata_offset,
@@ -1670,10 +1684,6 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 		qdata->reply_bits |= QETH_QARP_STRIP_ENTRIES;
 	memcpy(qinfo->udata + QETH_QARP_MASK_OFFSET, &qdata->reply_bits, 2);
 	QETH_CARD_TEXT_(card, 4, "rc%i", 0);
-	return 0;
-out_error:
-	i = 0;
-	memcpy(qinfo->udata, &i, 4);
 	return 0;
 }
 
@@ -1700,7 +1710,7 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Error while querying ARP cache on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
-	return qeth_l3_arp_makerc(rc);
+	return rc;
 }
 
 static int qeth_l3_arp_query(struct qeth_card *card, char __user *udata)

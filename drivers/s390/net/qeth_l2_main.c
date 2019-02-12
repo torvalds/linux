@@ -393,7 +393,7 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 
 	if (!IS_OSN(card)) {
 		rc = qeth_setadpparms_change_macaddr(card);
-		if (!rc && is_valid_ether_addr(card->dev->dev_addr))
+		if (!rc)
 			goto out;
 		QETH_DBF_MESSAGE(2, "READ_MAC Assist failed on device %x: %#x\n",
 				 CARD_DEVID(card), rc);

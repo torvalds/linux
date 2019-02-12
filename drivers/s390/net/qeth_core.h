@@ -597,7 +597,6 @@ struct qeth_cmd_buffer {
 	struct qeth_channel *channel;
 	struct qeth_reply *reply;
 	unsigned char *data;
-	int rc;
 	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
 			 struct qeth_cmd_buffer *iob);
 };
