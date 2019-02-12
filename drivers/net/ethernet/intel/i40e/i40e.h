@@ -1096,20 +1096,6 @@ static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 	return !!vsi->xdp_prog;
 }
 
-static inline struct xdp_umem *i40e_xsk_umem(struct i40e_ring *ring)
-{
-	bool xdp_on = i40e_enabled_xdp_vsi(ring->vsi);
-	int qid = ring->queue_index;
-
-	if (ring_is_xdp(ring))
-		qid -= ring->vsi->alloc_queue_pairs;
-
-	if (!xdp_on)
-		return NULL;
-
-	return xdp_get_umem_from_qid(ring->vsi->netdev, qid);
-}
-
 int i40e_create_queue_channel(struct i40e_vsi *vsi, struct i40e_channel *ch);
 int i40e_set_bw_limit(struct i40e_vsi *vsi, u16 seid, u64 max_tx_rate);
 int i40e_add_del_cloud_filter(struct i40e_vsi *vsi,
