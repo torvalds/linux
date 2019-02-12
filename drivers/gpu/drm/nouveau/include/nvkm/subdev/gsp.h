@@ -5,5 +5,10 @@
 
 struct nvkm_gsp {
 	struct nvkm_subdev subdev;
+	u32 addr;
+
+	struct nvkm_falcon *falcon;
 };
+
+int gv100_gsp_new(struct nvkm_device *, int, struct nvkm_gsp **);
 #endif
