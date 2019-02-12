@@ -136,6 +136,7 @@ fairphone	Fairphone B.V.
 faraday	Faraday Technology Corporation
 fastrax	Fastrax Oy
 fcs	Fairchild Semiconductor
+feiyang	Shenzhen Fly Young Technology Co.,LTD.
 firefly	Firefly
 focaltech	FocalTech Systems Co.,Ltd
 friendlyarm	Guangzhou FriendlyARM Computer Tech Co., Ltd
