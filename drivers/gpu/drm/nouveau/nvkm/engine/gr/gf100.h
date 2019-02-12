@@ -128,6 +128,7 @@ struct gf100_gr {
 	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
+	u32 size_zcull;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
