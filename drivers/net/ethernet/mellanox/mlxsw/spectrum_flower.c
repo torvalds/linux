@@ -102,8 +102,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return err;
 			}
 			break;
-		case FLOW_ACTION_VLAN_PUSH:
-		case FLOW_ACTION_VLAN_POP: {
+		case FLOW_ACTION_VLAN_MANGLE: {
 			u16 proto = be16_to_cpu(act->vlan.proto);
 			u8 prio = act->vlan.prio;
 			u16 vid = act->vlan.vid;
