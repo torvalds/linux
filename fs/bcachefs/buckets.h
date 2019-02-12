@@ -87,7 +87,9 @@ static inline u16 bucket_last_io(struct bch_fs *c, struct bucket *g, int rw)
 
 static inline u8 bucket_gc_gen(struct bch_dev *ca, size_t b)
 {
-	return bucket(ca, b)->mark.gen - ca->oldest_gens[b];
+	struct bucket *g = bucket(ca, b);
+
+	return g->mark.gen - g->oldest_gen;
 }
 
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,

@@ -830,7 +830,8 @@ struct bch_alloc {
 	x(write_time, 2)			\
 	x(data_type, 1)				\
 	x(dirty_sectors, 2)			\
-	x(cached_sectors, 2)
+	x(cached_sectors, 2)			\
+	x(oldest_gen, 1)
 
 enum {
 #define x(name, bytes) BCH_ALLOC_FIELD_##name,

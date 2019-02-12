@@ -183,6 +183,7 @@ static void __alloc_read_key(struct bucket *g, const struct bch_alloc *a)
 	g->_mark.data_type	= get_alloc_field(a, &d, idx++);
 	g->_mark.dirty_sectors	= get_alloc_field(a, &d, idx++);
 	g->_mark.cached_sectors	= get_alloc_field(a, &d, idx++);
+	g->oldest_gen		= get_alloc_field(a, &d, idx++);
 }
 
 static void __alloc_write_key(struct bkey_i_alloc *a, struct bucket *g,
@@ -200,6 +201,7 @@ static void __alloc_write_key(struct bkey_i_alloc *a, struct bucket *g,
 	put_alloc_field(a, &d, idx++, m.data_type);
 	put_alloc_field(a, &d, idx++, m.dirty_sectors);
 	put_alloc_field(a, &d, idx++, m.cached_sectors);
+	put_alloc_field(a, &d, idx++, g->oldest_gen);
 
 	set_bkey_val_bytes(&a->k, (void *) d - (void *) &a->v);
 }
