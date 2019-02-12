@@ -141,7 +141,8 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static int mlx5e_gen_vxlan_header(char buf[], struct ip_tunnel_key *tun_key)
+static int mlx5e_gen_vxlan_header(char buf[],
+				  const struct ip_tunnel_key *tun_key)
 {
 	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
 	struct udphdr *udp = (struct udphdr *)(buf);
@@ -155,7 +156,7 @@ static int mlx5e_gen_vxlan_header(char buf[], struct ip_tunnel_key *tun_key)
 	return 0;
 }
 
-static int mlx5e_gen_gre_header(char buf[], struct ip_tunnel_key *tun_key)
+static int mlx5e_gen_gre_header(char buf[], const struct ip_tunnel_key *tun_key)
 {
 	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
 	int hdr_len;
@@ -183,7 +184,7 @@ static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 				      struct mlx5e_encap_entry *e)
 {
 	int err = 0;
-	struct ip_tunnel_key *key = &e->tun_info.key;
+	const struct ip_tunnel_key *key = &e->tun_info->key;
 
 	if (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
 		*ip_proto = IPPROTO_UDP;
@@ -229,7 +230,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 				    struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	struct ip_tunnel_key *tun_key = &e->tun_info.key;
+	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
 	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
@@ -345,7 +346,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				    struct mlx5e_encap_entry *e)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
-	struct ip_tunnel_key *tun_key = &e->tun_info.key;
+	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
 	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
@@ -489,7 +490,7 @@ int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,
 	e->tunnel_type = mlx5e_tc_tun_get_type(tunnel_dev);
 
 	if (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
-		int dst_port =  be16_to_cpu(e->tun_info.key.tp_dst);
+		int dst_port = be16_to_cpu(e->tun_info->key.tp_dst);
 
 		if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, dst_port)) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -503,7 +504,7 @@ int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,
 		e->tunnel_hlen = VXLAN_HLEN;
 	} else if (e->tunnel_type == MLX5E_TC_TUNNEL_TYPE_GRETAP) {
 		e->reformat_type = MLX5_REFORMAT_TYPE_L2_TO_NVGRE;
-		e->tunnel_hlen = gre_calc_hlen(e->tun_info.key.tun_flags);
+		e->tunnel_hlen = gre_calc_hlen(e->tun_info->key.tun_flags);
 	} else {
 		e->reformat_type = -1;
 		e->tunnel_hlen = -1;

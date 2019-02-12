@@ -126,7 +126,7 @@ struct mlx5e_tc_flow {
 };
 
 struct mlx5e_tc_flow_parse_attr {
-	struct ip_tunnel_info tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
+	const struct ip_tunnel_info *tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
@@ -2568,7 +2568,7 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 }
 
 struct encap_key {
-	struct ip_tunnel_key *ip_tun_key;
+	const struct ip_tunnel_key *ip_tun_key;
 	int tunnel_type;
 };
 
@@ -2612,7 +2612,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct ip_tunnel_info *tun_info;
+	const struct ip_tunnel_info *tun_info;
 	struct encap_key key, e_key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
@@ -2621,7 +2621,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
-	tun_info = &parse_attr->tun_info[out_index];
+	tun_info = parse_attr->tun_info[out_index];
 	family = ip_tunnel_info_af(tun_info);
 	key.ip_tun_key = &tun_info->key;
 	key.tunnel_type = mlx5e_tc_tun_get_type(mirred_dev);
@@ -2630,7 +2630,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
 				   encap_hlist, hash_key) {
-		e_key.ip_tun_key = &e->tun_info.key;
+		e_key.ip_tun_key = &e->tun_info->key;
 		e_key.tunnel_type = e->tunnel_type;
 		if (!cmp_encap_info(&e_key, &key)) {
 			found = true;
@@ -2646,7 +2646,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	if (!e)
 		return -ENOMEM;
 
-	e->tun_info = *tun_info;
+	e->tun_info = tun_info;
 	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
 	if (err)
 		goto out_err;
@@ -2885,7 +2885,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			} else if (encap) {
 				parse_attr->mirred_ifindex[attr->out_count] =
 					out_dev->ifindex;
-				parse_attr->tun_info[attr->out_count] = *info;
+				parse_attr->tun_info[attr->out_count] = info;
 				encap = false;
 				attr->dests[attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;
