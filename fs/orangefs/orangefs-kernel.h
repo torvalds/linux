@@ -193,9 +193,11 @@ struct orangefs_inode_s {
 	sector_t last_failed_block_index_read;
 
 	unsigned long getattr_time;
+	unsigned long mapping_time;
 	int attr_valid;
 	kuid_t attr_uid;
 	kgid_t attr_gid;
+	unsigned long bitlock;
 
 	DECLARE_HASHTABLE(xattr_cache, 4);
 };
@@ -390,6 +392,7 @@ bool __is_daemon_in_service(void);
 /*
  * defined in file.c
  */
+int orangefs_revalidate_mapping(struct inode *);
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type, struct inode *, loff_t *,
     struct iov_iter *, size_t, loff_t, struct orangefs_write_range *);
 ssize_t do_readv_writev(enum ORANGEFS_io_type, struct file *, loff_t *,
@@ -427,6 +430,7 @@ int orangefs_normalize_to_errno(__s32 error_code);
 extern struct mutex orangefs_request_mutex;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int orangefs_cache_timeout_msecs;
 extern int orangefs_dcache_timeout_msecs;
 extern int orangefs_getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;

@@ -241,18 +241,78 @@ out:
 	return ret;
 }
 
+int orangefs_revalidate_mapping(struct inode *inode)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long *bitlock = &orangefs_inode->bitlock;
+	int ret;
+
+	while (1) {
+		ret = wait_on_bit(bitlock, 1, TASK_KILLABLE);
+		if (ret)
+			return ret;
+		spin_lock(&inode->i_lock);
+		if (test_bit(1, bitlock)) {
+			spin_unlock(&inode->i_lock);
+			continue;
+		}
+		if (!time_before(jiffies, orangefs_inode->mapping_time))
+			break;
+		spin_unlock(&inode->i_lock);
+		return 0;
+	}
+
+	set_bit(1, bitlock);
+	smp_wmb();
+	spin_unlock(&inode->i_lock);
+
+	unmap_mapping_range(mapping, 0, 0, 0);
+	ret = filemap_write_and_wait(mapping);
+	if (!ret)
+		ret = invalidate_inode_pages2(mapping);
+
+	orangefs_inode->mapping_time = jiffies +
+	    orangefs_cache_timeout_msecs*HZ/1000;
+
+	clear_bit(1, bitlock);
+	smp_mb__after_atomic();
+	wake_up_bit(bitlock, 1);
+
+	return ret;
+}
+
 static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
+	int ret;
 	orangefs_stats.reads++;
-	return generic_file_read_iter(iocb, iter);
+
+	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
+	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	if (ret)
+		goto out;
+
+	ret = generic_file_read_iter(iocb, iter);
+out:
+	up_read(&file_inode(iocb->ki_filp)->i_rwsem);
+	return ret;
 }
 
 static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
+	int ret;
 	orangefs_stats.writes++;
-	return generic_file_write_iter(iocb, iter);
+
+	if (iocb->ki_pos > i_size_read(file_inode(iocb->ki_filp))) {
+		ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+		if (ret)
+			return ret;
+	}
+
+	ret = generic_file_write_iter(iocb, iter);
+	return ret;
 }
 
 /*
@@ -341,6 +401,12 @@ static const struct vm_operations_struct orangefs_file_vm_ops = {
  */
 static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	int ret;
+
+	ret = orangefs_revalidate_mapping(file_inode(file));
+	if (ret)
+		return ret;
+
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_mmap: called on %s\n",
 		     (file ?
