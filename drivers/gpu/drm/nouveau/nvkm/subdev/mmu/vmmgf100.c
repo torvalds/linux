@@ -178,15 +178,10 @@ gf100_vmm_desc_16_16[] = {
 };
 
 void
-gf100_vmm_flush_(struct nvkm_vmm *vmm, int depth)
+gf100_vmm_invalidate(struct nvkm_vmm *vmm, u32 type)
 {
 	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 type = depth << 24;
-
-	type = 0x00000001; /* PAGE_ALL */
-	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
-		type |= 0x00000004; /* HUB_ONLY */
 
 	mutex_lock(&subdev->mutex);
 	/* Looks like maybe a "free flush slots" counter, the
@@ -211,7 +206,10 @@ gf100_vmm_flush_(struct nvkm_vmm *vmm, int depth)
 void
 gf100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
-	gf100_vmm_flush_(vmm, 0);
+	u32 type = 0x00000001; /* PAGE_ALL */
+	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
+		type |= 0x00000004; /* HUB_ONLY */
+	gf100_vmm_invalidate(vmm, type);
 }
 
 int

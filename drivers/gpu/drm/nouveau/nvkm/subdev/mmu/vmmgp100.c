@@ -309,7 +309,12 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 void
 gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
-	gf100_vmm_flush_(vmm, 5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth);
+	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
+	type = 0; /*XXX: need to confirm stuff works with depth enabled... */
+	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
+		type |= 0x00000004; /* HUB_ONLY */
+	type |= 0x00000001; /* PAGE_ALL */
+	gf100_vmm_invalidate(vmm, type);
 }
 
 int
