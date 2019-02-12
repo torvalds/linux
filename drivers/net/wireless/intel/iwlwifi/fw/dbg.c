@@ -804,8 +804,8 @@ static void iwl_dump_paging(struct iwl_fw_runtime *fwrt,
 }
 
 static struct iwl_fw_error_dump_file *
-_iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
-		   struct iwl_fw_dump_ptrs *fw_error_dump)
+iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
+		       struct iwl_fw_dump_ptrs *fw_error_dump)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
@@ -1791,16 +1791,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 }
 
 static struct iwl_fw_error_dump_file *
-_iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
-		       struct iwl_fw_dump_ptrs *fw_error_dump)
+iwl_fw_error_ini_dump_file(struct iwl_fw_runtime *fwrt)
 {
-	int size, id = le32_to_cpu(fwrt->dump.desc->trig_desc.type);
+	int size;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_ini_trigger *trigger;
-
-	if (id == FW_DBG_TRIGGER_FW_ASSERT)
-		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
+	enum iwl_fw_ini_trigger_id id = fwrt->dump.ini_trig_id;
 
 	if (!iwl_fw_ini_trigger_on(fwrt, id))
 		return NULL;
@@ -1817,8 +1814,6 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 	if (!dump_file)
 		return NULL;
 
-	fw_error_dump->fwrt_ptr = dump_file;
-
 	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
 	dump_data = (void *)dump_file->data;
 	dump_file->file_len = cpu_to_le32(size);
@@ -1828,47 +1823,27 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 	return dump_file;
 }
 
-void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
+static void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 {
-	struct iwl_fw_dump_ptrs *fw_error_dump;
+	struct iwl_fw_dump_ptrs fw_error_dump = {};
 	struct iwl_fw_error_dump_file *dump_file;
 	struct scatterlist *sg_dump_data;
 	u32 file_len;
 	u32 dump_mask = fwrt->fw->dbg.dump_mask;
 
-	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
-
-	/* there's no point in fw dump if the bus is dead */
-	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
-		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
+	dump_file = iwl_fw_error_dump_file(fwrt, &fw_error_dump);
+	if (!dump_file)
 		goto out;
-	}
-
-	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
-	if (!fw_error_dump)
-		goto out;
-
-	if (fwrt->trans->ini_valid)
-		dump_file = _iwl_fw_error_ini_dump(fwrt, fw_error_dump);
-	else
-		dump_file = _iwl_fw_error_dump(fwrt, fw_error_dump);
-
-	if (!dump_file) {
-		kfree(fw_error_dump);
-		goto out;
-	}
 
 	if (!fwrt->trans->ini_valid && fwrt->dump.monitor_only)
 		dump_mask &= IWL_FW_ERROR_DUMP_FW_MONITOR;
 
-	if (!fwrt->trans->ini_valid)
-		fw_error_dump->trans_ptr =
-			iwl_trans_dump_data(fwrt->trans, dump_mask);
-
+	fw_error_dump.trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
 	file_len = le32_to_cpu(dump_file->file_len);
-	fw_error_dump->fwrt_len = file_len;
-	if (fw_error_dump->trans_ptr) {
-		file_len += fw_error_dump->trans_ptr->len;
+	fw_error_dump.fwrt_len = file_len;
+
+	if (fw_error_dump.trans_ptr) {
+		file_len += fw_error_dump.trans_ptr->len;
 		dump_file->file_len = cpu_to_le32(file_len);
 	}
 
@@ -1876,27 +1851,49 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	if (sg_dump_data) {
 		sg_pcopy_from_buffer(sg_dump_data,
 				     sg_nents(sg_dump_data),
-				     fw_error_dump->fwrt_ptr,
-				     fw_error_dump->fwrt_len, 0);
-		if (fw_error_dump->trans_ptr)
+				     fw_error_dump.fwrt_ptr,
+				     fw_error_dump.fwrt_len, 0);
+		if (fw_error_dump.trans_ptr)
 			sg_pcopy_from_buffer(sg_dump_data,
 					     sg_nents(sg_dump_data),
-					     fw_error_dump->trans_ptr->data,
-					     fw_error_dump->trans_ptr->len,
-					     fw_error_dump->fwrt_len);
+					     fw_error_dump.trans_ptr->data,
+					     fw_error_dump.trans_ptr->len,
+					     fw_error_dump.fwrt_len);
 		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
 			       GFP_KERNEL);
 	}
-	vfree(fw_error_dump->fwrt_ptr);
-	vfree(fw_error_dump->trans_ptr);
-	kfree(fw_error_dump);
+	vfree(fw_error_dump.fwrt_ptr);
+	vfree(fw_error_dump.trans_ptr);
 
 out:
 	iwl_fw_free_dump_desc(fwrt);
 	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
-	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 }
-IWL_EXPORT_SYMBOL(iwl_fw_error_dump);
+
+static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_error_dump_file *dump_file;
+	struct scatterlist *sg_dump_data;
+	u32 file_len;
+
+	dump_file = iwl_fw_error_ini_dump_file(fwrt);
+	if (!dump_file)
+		goto out;
+
+	file_len = le32_to_cpu(dump_file->file_len);
+
+	sg_dump_data = alloc_sgtable(file_len);
+	if (sg_dump_data) {
+		sg_pcopy_from_buffer(sg_dump_data, sg_nents(sg_dump_data),
+				     dump_file, file_len, 0);
+		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
+			       GFP_KERNEL);
+	}
+	vfree(dump_file);
+out:
+	fwrt->dump.ini_trig_id = IWL_FW_TRIGGER_ID_INVALID;
+	clear_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status);
+}
 
 const struct iwl_fw_dump_desc iwl_dump_desc_assert = {
 	.trig_desc = {
@@ -1910,6 +1907,17 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 			    bool monitor_only,
 			    unsigned int delay)
 {
+	u32 trig_type = le32_to_cpu(desc->trig_desc.type);
+	int ret;
+
+	if (fwrt->trans->ini_valid) {
+		ret = iwl_fw_dbg_ini_collect(fwrt, trig_type);
+		if (!ret)
+			iwl_fw_free_dump_desc(fwrt);
+
+		return ret;
+	}
+
 	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
 		return -EBUSY;
 
@@ -1955,10 +1963,10 @@ int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_error_collect);
 
-int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-			enum iwl_fw_dbg_trigger trig,
-			const char *str, size_t len,
-			struct iwl_fw_dbg_trigger_tlv *trigger)
+int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+		       enum iwl_fw_dbg_trigger trig,
+		       const char *str, size_t len,
+		       struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
@@ -1995,30 +2003,27 @@ int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 
 	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
 }
-IWL_EXPORT_SYMBOL(_iwl_fw_dbg_collect);
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
-int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
-		       u32 id, const char *str, size_t len)
+int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_trigger_id id)
 {
-	struct iwl_fw_dump_desc *desc;
 	struct iwl_fw_ini_active_triggers *active;
 	u32 occur, delay;
 
-	if (!fwrt->trans->ini_valid)
-		return _iwl_fw_dbg_collect(fwrt, id, str, len, NULL);
-
-	if (id == FW_DBG_TRIGGER_USER)
-		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
-
-	active = &fwrt->dump.active_trigs[id];
-
-	if (WARN_ON(!active->active))
+	if (WARN_ON(!iwl_fw_ini_trigger_on(fwrt, id)))
 		return -EINVAL;
 
+	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+		return -EBUSY;
+
+	active = &fwrt->dump.active_trigs[id];
 	delay = le32_to_cpu(active->trig->dump_delay);
 	occur = le32_to_cpu(active->trig->occurrences);
 	if (!occur)
 		return 0;
+
+	active->trig->occurrences = cpu_to_le32(--occur);
 
 	if (le32_to_cpu(active->trig->force_restart)) {
 		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
@@ -2026,19 +2031,36 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		return 0;
 	}
 
-	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
-	if (!desc)
-		return -ENOMEM;
+	fwrt->dump.ini_trig_id = id;
 
-	active->trig->occurrences = cpu_to_le32(--occur);
+	IWL_WARN(fwrt, "Collecting data: ini trigger %d fired.\n", id);
 
-	desc->len = len;
-	desc->trig_desc.type = cpu_to_le32(id);
-	memcpy(desc->trig_desc.data, str, len);
+	schedule_delayed_work(&fwrt->dump.wk, usecs_to_jiffies(delay));
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, true, delay);
+	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
+IWL_EXPORT_SYMBOL(_iwl_fw_dbg_ini_collect);
+
+int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt, u32 legacy_trigger_id)
+{
+	int id;
+
+	switch (legacy_trigger_id) {
+	case FW_DBG_TRIGGER_FW_ASSERT:
+	case FW_DBG_TRIGGER_ALIVE_TIMEOUT:
+	case FW_DBG_TRIGGER_DRIVER:
+		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
+		break;
+	case FW_DBG_TRIGGER_USER:
+		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
+		break;
+	default:
+		return -EIO;
+	}
+
+	return _iwl_fw_dbg_ini_collect(fwrt, id);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_ini_collect);
 
 int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
@@ -2066,8 +2088,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 		len = strlen(buf) + 1;
 	}
 
-	ret = _iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
-				  trigger);
+	ret = iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
+				 trigger);
 
 	if (ret)
 		return ret;
@@ -2141,9 +2163,20 @@ void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
 		return;
 	}
 
+	/* there's no point in fw dump if the bus is dead */
+	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
+		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
+		return;
+	}
+
 	iwl_fw_dbg_stop_recording(fwrt, &params);
 
-	iwl_fw_error_dump(fwrt);
+	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
+	if (fwrt->trans->ini_valid)
+		iwl_fw_error_ini_dump(fwrt);
+	else
+		iwl_fw_error_dump(fwrt);
+	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
 
 	/* start recording again if the firmware is not crashed */
 	if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
