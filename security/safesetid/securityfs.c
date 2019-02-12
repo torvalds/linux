@@ -167,7 +167,7 @@ static int __init safesetid_init_securityfs(void)
 		return 0;
 
 	safesetid_policy_dir = securityfs_create_dir("safesetid", NULL);
-	if (!safesetid_policy_dir) {
+	if (IS_ERR(safesetid_policy_dir)) {
 		ret = PTR_ERR(safesetid_policy_dir);
 		goto error;
 	}
