@@ -629,7 +629,8 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 	return -ENOENT;
 }
 
-static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void u32_destroy(struct tcf_proto *tp, bool rtnl_held,
+			struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
@@ -663,7 +664,7 @@ static void u32_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
 }
 
 static int u32_delete(struct tcf_proto *tp, void *arg, bool *last,
-		      struct netlink_ext_ack *extack)
+		      bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct tc_u_hnode *ht = arg;
 	struct tc_u_common *tp_c = tp->data;
@@ -726,7 +727,7 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr, true, extack);
 	if (err < 0)
 		return err;
 
@@ -858,7 +859,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca, void **arg, bool ovr,
+		      struct nlattr **tca, void **arg, bool ovr, bool rtnl_held,
 		      struct netlink_ext_ack *extack)
 {
 	struct tc_u_common *tp_c = tp->data;
@@ -1123,7 +1124,8 @@ erridr:
 	return err;
 }
 
-static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		     bool rtnl_held)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -1281,7 +1283,7 @@ static void u32_bind_class(void *fh, u32 classid, unsigned long cl)
 }
 
 static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		    struct sk_buff *skb, struct tcmsg *t)
+		    struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct tc_u_knode *n = fh;
 	struct tc_u_hnode *ht_up, *ht_down;

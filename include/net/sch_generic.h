@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -178,6 +179,7 @@ static inline int qdisc_avail_bulklimit(const struct netdev_queue *txq)
 }
 
 struct Qdisc_class_ops {
+	unsigned int		flags;
 	/* Child qdisc manipulation */
 	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
@@ -207,6 +209,13 @@ struct Qdisc_class_ops {
 					struct sk_buff *skb, struct tcmsg*);
 	int			(*dump_stats)(struct Qdisc *, unsigned long,
 					struct gnet_dump *);
+};
+
+/* Qdisc_class_ops flag values */
+
+/* Implements API that doesn't require rtnl lock */
+enum qdisc_class_ops_flags {
+	QDISC_CLASS_OPS_DOIT_UNLOCKED = 1,
 };
 
 struct Qdisc_ops {
@@ -272,19 +281,21 @@ struct tcf_proto_ops {
 					    const struct tcf_proto *,
 					    struct tcf_result *);
 	int			(*init)(struct tcf_proto*);
-	void			(*destroy)(struct tcf_proto *tp,
+	void			(*destroy)(struct tcf_proto *tp, bool rtnl_held,
 					   struct netlink_ext_ack *extack);
 
 	void*			(*get)(struct tcf_proto*, u32 handle);
+	void			(*put)(struct tcf_proto *tp, void *f);
 	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
-					void **, bool,
+					void **, bool, bool,
 					struct netlink_ext_ack *);
 	int			(*delete)(struct tcf_proto *tp, void *arg,
-					  bool *last,
+					  bool *last, bool rtnl_held,
 					  struct netlink_ext_ack *);
-	void			(*walk)(struct tcf_proto*, struct tcf_walker *arg);
+	void			(*walk)(struct tcf_proto *tp,
+					struct tcf_walker *arg, bool rtnl_held);
 	int			(*reoffload)(struct tcf_proto *tp, bool add,
 					     tc_setup_cb_t *cb, void *cb_priv,
 					     struct netlink_ext_ack *extack);
@@ -297,12 +308,18 @@ struct tcf_proto_ops {
 
 	/* rtnetlink specific */
 	int			(*dump)(struct net*, struct tcf_proto*, void *,
-					struct sk_buff *skb, struct tcmsg*);
+					struct sk_buff *skb, struct tcmsg*,
+					bool);
 	int			(*tmplt_dump)(struct sk_buff *skb,
 					      struct net *net,
 					      void *tmplt_priv);
 
 	struct module		*owner;
+	int			flags;
+};
+
+enum tcf_proto_ops_flags {
+	TCF_PROTO_OPS_DOIT_UNLOCKED = 1,
 };
 
 struct tcf_proto {
@@ -321,6 +338,12 @@ struct tcf_proto {
 	void			*data;
 	const struct tcf_proto_ops	*ops;
 	struct tcf_chain	*chain;
+	/* Lock protects tcf_proto shared state and can be used by unlocked
+	 * classifiers to protect their private data.
+	 */
+	spinlock_t		lock;
+	bool			deleting;
+	refcount_t		refcnt;
 	struct rcu_head		rcu;
 };
 
@@ -340,6 +363,8 @@ struct qdisc_skb_cb {
 typedef void tcf_chain_head_change_t(struct tcf_proto *tp_head, void *priv);
 
 struct tcf_chain {
+	/* Protects filter_chain. */
+	struct mutex filter_chain_lock;
 	struct tcf_proto __rcu *filter_chain;
 	struct list_head list;
 	struct tcf_block *block;
@@ -347,11 +372,16 @@ struct tcf_chain {
 	unsigned int refcnt;
 	unsigned int action_refcnt;
 	bool explicitly_created;
+	bool flushing;
 	const struct tcf_proto_ops *tmplt_ops;
 	void *tmplt_priv;
 };
 
 struct tcf_block {
+	/* Lock protects tcf_block and lifetime-management data of chains
+	 * attached to the block (refcnt, action_refcnt, explicitly_created).
+	 */
+	struct mutex lock;
 	struct list_head chain_list;
 	u32 index; /* block index for shared blocks */
 	refcount_t refcnt;
@@ -368,6 +398,34 @@ struct tcf_block {
 	} chain0;
 	struct rcu_head rcu;
 };
+
+#ifdef CONFIG_PROVE_LOCKING
+static inline bool lockdep_tcf_chain_is_locked(struct tcf_chain *chain)
+{
+	return lockdep_is_held(&chain->filter_chain_lock);
+}
+
+static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
+{
+	return lockdep_is_held(&tp->lock);
+}
+#else
+static inline bool lockdep_tcf_chain_is_locked(struct tcf_block *chain)
+{
+	return true;
+}
+
+static inline bool lockdep_tcf_proto_is_locked(struct tcf_proto *tp)
+{
+	return true;
+}
+#endif /* #ifdef CONFIG_PROVE_LOCKING */
+
+#define tcf_chain_dereference(p, chain)					\
+	rcu_dereference_protected(p, lockdep_tcf_chain_is_locked(chain))
+
+#define tcf_proto_dereference(p, tp)					\
+	rcu_dereference_protected(p, lockdep_tcf_proto_is_locked(tp))
 
 static inline void tcf_block_offload_inc(struct tcf_block *block, u32 *flags)
 {
