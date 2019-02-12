@@ -790,6 +790,8 @@ struct i40e_vsi {
 
 	/* VSI specific handlers */
 	irqreturn_t (*irq_handler)(int irq, void *data);
+
+	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled qps */
 } ____cacheline_internodealigned_in_smp;
 
 struct i40e_netdev_priv {
