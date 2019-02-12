@@ -834,15 +834,10 @@ enum qeth_ipa_arp_return_codes {
 extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
 extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
-#define QETH_SETASS_BASE_LEN (IPA_PDU_HEADER_SIZE + \
-			      sizeof(struct qeth_ipacmd_hdr) + \
-			      sizeof(struct qeth_ipacmd_setassparms_hdr))
 #define QETH_SETADP_BASE_LEN (sizeof(struct qeth_ipacmd_hdr) + \
 			      sizeof(struct qeth_ipacmd_setadpparms_hdr))
 #define QETH_SNMP_SETADP_CMDLENGTH 16
 
-#define QETH_ARP_DATA_SIZE 3968
-#define QETH_ARP_CMD_LEN (QETH_ARP_DATA_SIZE + 8)
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST) || \
 			   (cmd->hdr.initiator == IPA_CMD_INITIATOR_OSA_REPLY))

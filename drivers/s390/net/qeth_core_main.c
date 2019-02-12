@@ -2020,12 +2020,12 @@ EXPORT_SYMBOL_GPL(qeth_prepare_control_data);
  * field 'param' of the structure qeth_reply.
  */
 
-int qeth_send_control_data(struct qeth_card *card, int len,
-		struct qeth_cmd_buffer *iob,
-		int (*reply_cb)(struct qeth_card *cb_card,
-				struct qeth_reply *cb_reply,
-				unsigned long cb_cmd),
-		void *reply_param)
+static int qeth_send_control_data(struct qeth_card *card, int len,
+				  struct qeth_cmd_buffer *iob,
+				  int (*reply_cb)(struct qeth_card *cb_card,
+						  struct qeth_reply *cb_reply,
+						  unsigned long cb_cmd),
+				  void *reply_param)
 {
 	struct qeth_channel *channel = iob->channel;
 	int rc;
@@ -2116,7 +2116,6 @@ time_err:
 	qeth_put_reply(reply);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(qeth_send_control_data);
 
 static int qeth_cm_enable_cb(struct qeth_card *card, struct qeth_reply *reply,
 		unsigned long data)

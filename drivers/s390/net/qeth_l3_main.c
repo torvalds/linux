@@ -1696,9 +1696,7 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
 	cmd->data.setassparms.data.query_arp.request_bits = 0x000F;
-	rc = qeth_send_control_data(card,
-				    QETH_SETASS_BASE_LEN + QETH_ARP_CMD_LEN,
-				    iob, qeth_l3_arp_query_cb, qinfo);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_arp_query_cb, qinfo);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Error while querying ARP cache on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
