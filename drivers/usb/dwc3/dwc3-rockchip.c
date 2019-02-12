@@ -50,6 +50,7 @@ struct dwc3_rockchip {
 	bool			skip_suspend;
 	bool			suspended;
 	bool			force_mode;
+	bool			reset_on_resume;
 	enum usb_dr_mode	original_dr_mode;
 	struct device		*dev;
 	struct clk		**clks;
@@ -659,6 +660,9 @@ static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 
 	mutex_lock(&rockchip->lock);
 
+	rockchip->reset_on_resume =
+		device_property_read_bool(dev, "needs-reset-on-resume");
+
 	if (rockchip->edev) {
 		ret = extcon_register_notifier(rockchip->edev, EXTCON_USB,
 					       &rockchip->device_nb);
@@ -704,6 +708,21 @@ static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 		 * usb device to be reenumerated.
 		 */
 		rockchip->connected = true;
+
+		if (!rockchip->reset_on_resume &&
+		    of_machine_is_compatible("rockchip,rk3399")) {
+			/*
+			 * RK3399 USB 3.0 PHY is Type-C PHY, needs to
+			 * power on USB 3.0 PHY here in addition to
+			 * dwc3_core_init() to prevent it powering
+			 * off USB 3.0 PHY during suspend.
+			 */
+			ret = phy_power_on(dwc->usb3_generic_phy);
+			if (ret < 0) {
+				dev_err(dwc->dev, "Failed to power on usb3 phy\n");
+				goto err;
+			}
+		}
 	}
 
 	ret = sysfs_create_group(&dev->kobj, &dwc3_rockchip_attr_group);
@@ -958,7 +977,7 @@ static int __maybe_unused dwc3_rockchip_resume(struct device *dev)
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
 	struct dwc3 *dwc = rockchip->dwc;
 
-	if (!rockchip->connected) {
+	if (!rockchip->connected || rockchip->reset_on_resume) {
 		reset_control_assert(rockchip->otg_rst);
 		udelay(1);
 		reset_control_deassert(rockchip->otg_rst);
