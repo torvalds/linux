@@ -516,6 +516,7 @@ static int dmatest_func(void *data)
 	enum dma_ctrl_flags 	flags;
 	u8			*pq_coefs = NULL;
 	int			ret;
+	unsigned int 		buf_size;
 	struct dmatest_data	*src;
 	struct dmatest_data	*dst;
 	int			i;
@@ -580,9 +581,10 @@ static int dmatest_func(void *data)
 		goto err_free_coefs;
 	}
 
-	if (1 << align > params->buf_size) {
+	buf_size = params->buf_size;
+	if (1 << align > buf_size) {
 		pr_err("%u-byte buffer too small for %d-byte alignment\n",
-		       params->buf_size, 1 << align);
+		       buf_size, 1 << align);
 		goto err_free_coefs;
 	}
 
@@ -595,7 +597,7 @@ static int dmatest_func(void *data)
 		goto err_usrcs;
 
 	for (i = 0; i < src->cnt; i++) {
-		src->raw[i] = kmalloc(params->buf_size + align,
+		src->raw[i] = kmalloc(buf_size + align,
 					   GFP_KERNEL);
 		if (!src->raw[i])
 			goto err_srcbuf;
@@ -617,7 +619,7 @@ static int dmatest_func(void *data)
 		goto err_udsts;
 
 	for (i = 0; i < dst->cnt; i++) {
-		dst->raw[i] = kmalloc(params->buf_size + align,
+		dst->raw[i] = kmalloc(buf_size + align,
 					   GFP_KERNEL);
 		if (!dst->raw[i])
 			goto err_dstbuf;
@@ -656,16 +658,16 @@ static int dmatest_func(void *data)
 		total_tests++;
 
 		if (params->transfer_size) {
-			if (params->transfer_size >= params->buf_size) {
+			if (params->transfer_size >= buf_size) {
 				pr_err("%u-byte transfer size must be lower than %u-buffer size\n",
-				       params->transfer_size, params->buf_size);
+				       params->transfer_size, buf_size);
 				break;
 			}
 			len = params->transfer_size;
 		} else if (params->norandom) {
-			len = params->buf_size;
+			len = buf_size;
 		} else {
-			len = dmatest_random() % params->buf_size + 1;
+			len = dmatest_random() % buf_size + 1;
 		}
 
 		/* Do not alter transfer size explicitly defined by user */
@@ -680,8 +682,8 @@ static int dmatest_func(void *data)
 			src->off = 0;
 			dst->off = 0;
 		} else {
-			src->off = dmatest_random() % (params->buf_size - len + 1);
-			dst->off = dmatest_random() % (params->buf_size - len + 1);
+			src->off = dmatest_random() % (buf_size - len + 1);
+			dst->off = dmatest_random() % (buf_size - len + 1);
 
 			src->off = (src->off >> align) << align;
 			dst->off = (dst->off >> align) << align;
@@ -690,9 +692,9 @@ static int dmatest_func(void *data)
 		if (!params->noverify) {
 			start = ktime_get();
 			dmatest_init_srcs(src->aligned, src->off, len,
-					  params->buf_size, is_memset);
+					  buf_size, is_memset);
 			dmatest_init_dsts(dst->aligned, dst->off, len,
-					  params->buf_size, is_memset);
+					  buf_size, is_memset);
 
 			diff = ktime_sub(ktime_get(), start);
 			filltime = ktime_add(filltime, diff);
@@ -707,7 +709,7 @@ static int dmatest_func(void *data)
 			continue;
 		}
 
-		um->len = params->buf_size;
+		um->len = buf_size;
 		for (i = 0; i < src->cnt; i++) {
 			void *buf = src->aligned[i];
 			struct page *pg = virt_to_page(buf);
@@ -827,7 +829,7 @@ static int dmatest_func(void *data)
 				src->off + len, src->off,
 				PATTERN_SRC | PATTERN_COPY, true, is_memset);
 		error_count += dmatest_verify(src->aligned, src->off + len,
-				params->buf_size, src->off + len,
+				buf_size, src->off + len,
 				PATTERN_SRC, true, is_memset);
 
 		pr_debug("%s: verifying dest buffer...\n", current->comm);
@@ -839,7 +841,7 @@ static int dmatest_func(void *data)
 				PATTERN_SRC | PATTERN_COPY, false, is_memset);
 
 		error_count += dmatest_verify(dst->aligned, dst->off + len,
-				params->buf_size, dst->off + len,
+				buf_size, dst->off + len,
 				PATTERN_DST, false, is_memset);
 
 		diff = ktime_sub(ktime_get(), start);
