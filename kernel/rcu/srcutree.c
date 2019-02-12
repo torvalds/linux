@@ -387,6 +387,8 @@ void _cleanup_srcu_struct(struct srcu_struct *ssp, bool quiesced)
 			del_timer_sync(&sdp->delay_work);
 			flush_work(&sdp->work);
 		}
+		if (WARN_ON(rcu_segcblist_n_cbs(&sdp->srcu_cblist)))
+			return; /* Forgot srcu_barrier(), so just leak it! */
 	}
 	if (WARN_ON(rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq)) != SRCU_STATE_IDLE) ||
 	    WARN_ON(srcu_readers_active(ssp))) {
