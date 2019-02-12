@@ -102,7 +102,7 @@ include ../scripts/utilities.mak
 # When selected, pass LLVM_CONFIG=/path/to/llvm-config to `make' if
 # llvm-config is not in $PATH.
 #
-# Define NO_CORESIGHT if you do not want support for CoreSight trace decoding.
+# Define CORESIGHT if you DO WANT support for CoreSight trace decoding.
 #
 # Define NO_AIO if you do not want support of Posix AIO based trace
 # streaming for record mode. Currently Posix AIO trace streaming is

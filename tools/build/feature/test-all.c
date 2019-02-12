@@ -170,10 +170,6 @@
 # include "test-setns.c"
 #undef main
 
-#define main main_test_libopencsd
-# include "test-libopencsd.c"
-#undef main
-
 #define main main_test_libaio
 # include "test-libaio.c"
 #undef main
@@ -217,7 +213,6 @@ int main(int argc, char *argv[])
 	main_test_sched_getcpu();
 	main_test_sdt();
 	main_test_setns();
-	main_test_libopencsd();
 	main_test_libaio();
 
 	return 0;
