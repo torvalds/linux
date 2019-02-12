@@ -830,6 +830,9 @@ init_generic_condition(struct nvbios_init *init)
 		if (!(init_rdauxr(init, 0x0d) & 1))
 			init_exec_set(init, false);
 		break;
+	case 7: /* CONDITION_ID_NO_PANEL_SEQ_DELAYS. */
+		init_exec_set(init, false);
+		break;
 	default:
 		warn("INIT_GENERIC_CONDITON: unknown 0x%02x\n", cond);
 		init->offset += size;
