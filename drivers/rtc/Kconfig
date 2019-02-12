@@ -626,6 +626,15 @@ config RTC_DRV_EM3027
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-em3027.
 
+config RTC_DRV_RV3028
+	tristate "Micro Crystal RV3028"
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV3028.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv3028.
+
 config RTC_DRV_RV8803
 	tristate "Micro Crystal RV8803, Epson RX8900"
 	help
