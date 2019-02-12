@@ -3763,7 +3763,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 			dev->stats.tx_errors++;
 
 		if (lp->skb) {
-			dev_kfree_skb_irq(lp->skb);
+			dev_consume_skb_irq(lp->skb);
 			lp->skb = NULL;
 			dma_unmap_single(&lp->pdev->dev, lp->skb_physaddr,
 					 lp->skb_length, DMA_TO_DEVICE);
