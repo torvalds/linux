@@ -273,24 +273,18 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smp_mb__after_atomic();
 		smc->sk.sk_data_ready(&smc->sk);
 	} else {
-		if (conn->local_rx_ctrl.prod_flags.write_blocked ||
-		    conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
-		    conn->local_rx_ctrl.prod_flags.urg_data_pending) {
-			if (conn->local_rx_ctrl.prod_flags.urg_data_pending)
-				conn->urg_state = SMC_URG_NOTYET;
-			/* force immediate tx of current consumer cursor, but
-			 * under send_lock to guarantee arrival in seqno-order
-			 */
-			if (smc->sk.sk_state != SMC_INIT)
-				smc_tx_sndbuf_nonempty(conn);
-		}
+		if (conn->local_rx_ctrl.prod_flags.write_blocked)
+			smc->sk.sk_data_ready(&smc->sk);
+		if (conn->local_rx_ctrl.prod_flags.urg_data_pending)
+			conn->urg_state = SMC_URG_NOTYET;
 	}
 
-	/* piggy backed tx info */
 	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
-	if (diff_cons && smc_tx_prepared_sends(conn)) {
+	if ((diff_cons && smc_tx_prepared_sends(conn)) ||
+	    conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
+	    conn->local_rx_ctrl.prod_flags.urg_data_pending)
 		smc_tx_sndbuf_nonempty(conn);
-	}
+
 	if (diff_cons && conn->urg_tx_pend &&
 	    atomic_read(&conn->peer_rmbe_space) == conn->peer_rmbe_size) {
 		/* urg data confirmed by peer, indicate we're ready for more */
