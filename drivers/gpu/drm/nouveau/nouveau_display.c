@@ -461,7 +461,7 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 		cancel_work_sync(&drm->hpd_work);
 
 	drm_kms_helper_poll_disable(dev);
-	disp->fini(dev);
+	disp->fini(dev, suspend);
 }
 
 static void
@@ -614,7 +614,6 @@ int
 nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
-	struct drm_crtc *crtc;
 
 	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
@@ -625,32 +624,9 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 				return ret;
 			}
 		}
-
-		nouveau_display_fini(dev, true, runtime);
-		return 0;
 	}
 
 	nouveau_display_fini(dev, true, runtime);
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_framebuffer *nouveau_fb;
-
-		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
-		if (!nouveau_fb || !nouveau_fb->nvbo)
-			continue;
-
-		nouveau_bo_unpin(nouveau_fb->nvbo);
-	}
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->cursor.nvbo) {
-			if (nv_crtc->cursor.set_offset)
-				nouveau_bo_unmap(nv_crtc->cursor.nvbo);
-			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
-		}
-	}
-
 	return 0;
 }
 

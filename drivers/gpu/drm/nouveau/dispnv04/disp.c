@@ -30,13 +30,15 @@
 #include "hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
+#include "nouveau_bo.h"
 
 #include <nvif/if0004.h>
 
 static void
-nv04_display_fini(struct drm_device *dev)
+nv04_display_fini(struct drm_device *dev, bool suspend)
 {
 	struct nv04_display *disp = nv04_display(dev);
+	struct drm_crtc *crtc;
 
 	/* Disable flip completion events. */
 	nvif_notify_put(&disp->flip);
@@ -45,6 +47,29 @@ nv04_display_fini(struct drm_device *dev)
 	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
 	if (nv_two_heads(dev))
 		NVWriteCRTC(dev, 1, NV_PCRTC_INTR_EN_0, 0);
+
+	if (!suspend)
+		return;
+
+	/* Un-pin FB and cursors so they'll be evicted to system memory. */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_framebuffer *nouveau_fb;
+
+		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
+		if (!nouveau_fb || !nouveau_fb->nvbo)
+			continue;
+
+		nouveau_bo_unpin(nouveau_fb->nvbo);
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (nv_crtc->cursor.nvbo) {
+			if (nv_crtc->cursor.set_offset)
+				nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
+		}
+	}
 }
 
 static int

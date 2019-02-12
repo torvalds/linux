@@ -2222,7 +2222,7 @@ nv50_disp_func = {
  *****************************************************************************/
 
 static void
-nv50_display_fini(struct drm_device *dev)
+nv50_display_fini(struct drm_device *dev, bool suspend)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
