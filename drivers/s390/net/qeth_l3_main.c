@@ -957,12 +957,13 @@ static int qeth_l3_start_ipassists(struct qeth_card *card)
 static int qeth_l3_iqd_read_initial_mac_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
-	struct qeth_ipa_cmd *cmd;
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 
-	cmd = (struct qeth_ipa_cmd *) data;
-	if (cmd->hdr.return_code == 0)
-		ether_addr_copy(card->dev->dev_addr,
-				cmd->data.create_destroy_addr.unique_id);
+	if (cmd->hdr.return_code)
+		return -EIO;
+
+	ether_addr_copy(card->dev->dev_addr,
+			cmd->data.create_destroy_addr.unique_id);
 	return 0;
 }
 
@@ -990,19 +991,18 @@ static int qeth_l3_iqd_read_initial_mac(struct qeth_card *card)
 static int qeth_l3_get_unique_id_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
 {
-	struct qeth_ipa_cmd *cmd;
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
 
-	cmd = (struct qeth_ipa_cmd *) data;
-	if (cmd->hdr.return_code == 0)
+	if (cmd->hdr.return_code == 0) {
 		card->info.unique_id = *((__u16 *)
 				&cmd->data.create_destroy_addr.unique_id[6]);
-	else {
-		card->info.unique_id =  UNIQUE_ID_IF_CREATE_ADDR_FAILED |
-					UNIQUE_ID_NOT_BY_CARD;
-		dev_warn(&card->gdev->dev, "The network adapter failed to "
-			"generate a unique ID\n");
+		return 0;
 	}
-	return 0;
+
+	card->info.unique_id = UNIQUE_ID_IF_CREATE_ADDR_FAILED |
+			       UNIQUE_ID_NOT_BY_CARD;
+	dev_warn(&card->gdev->dev, "The network adapter failed to generate a unique ID\n");
+	return -EIO;
 }
 
 static int qeth_l3_get_unique_id(struct qeth_card *card)
@@ -1085,7 +1085,7 @@ qeth_diags_trace_cb(struct qeth_card *card, struct qeth_reply *reply,
 				 cmd->data.diagass.action, CARD_DEVID(card));
 	}
 
-	return 0;
+	return rc ? -EIO : 0;
 }
 
 static int
@@ -1524,7 +1524,7 @@ static void qeth_l3_set_rx_mode(struct net_device *dev)
 	qeth_l3_handle_promisc_mode(card);
 }
 
-static int qeth_l3_arp_makerc(int rc)
+static int qeth_l3_arp_makerc(u16 rc)
 {
 	switch (rc) {
 	case IPA_RC_SUCCESS:
@@ -1541,8 +1541,18 @@ static int qeth_l3_arp_makerc(int rc)
 	}
 }
 
+static int qeth_l3_arp_cmd_cb(struct qeth_card *card, struct qeth_reply *reply,
+			      unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+
+	qeth_setassparms_cb(card, reply, data);
+	return qeth_l3_arp_makerc(cmd->hdr.return_code);
+}
+
 static int qeth_l3_arp_set_no_entries(struct qeth_card *card, int no_entries)
 {
+	struct qeth_cmd_buffer *iob;
 	int rc;
 
 	QETH_CARD_TEXT(card, 3, "arpstnoe");
@@ -1557,13 +1567,19 @@ static int qeth_l3_arp_set_no_entries(struct qeth_card *card, int no_entries)
 	if (!qeth_is_supported(card, IPA_ARP_PROCESSING)) {
 		return -EOPNOTSUPP;
 	}
-	rc = qeth_send_simple_setassparms(card, IPA_ARP_PROCESSING,
-					  IPA_CMD_ASS_ARP_SET_NO_ENTRIES,
-					  no_entries);
+
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
+				       IPA_CMD_ASS_ARP_SET_NO_ENTRIES, 4,
+				       QETH_PROT_IPV4);
+	if (!iob)
+		return -ENOMEM;
+
+	__ipa_cmd(iob)->data.setassparms.data.flags_32bit = (u32) no_entries;
+	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_arp_cmd_cb, NULL);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Could not set number of ARP entries on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
-	return qeth_l3_arp_makerc(rc);
+	return rc;
 }
 
 static __u32 get_arp_entry_size(struct qeth_card *card,
@@ -1792,16 +1808,16 @@ static int qeth_l3_arp_modify_entry(struct qeth_card *card,
 	cmd_entry = &__ipa_cmd(iob)->data.setassparms.data.arp_entry;
 	ether_addr_copy(cmd_entry->macaddr, entry->macaddr);
 	memcpy(cmd_entry->ipaddr, entry->ipaddr, 4);
-	rc = qeth_send_ipa_cmd(card, iob, qeth_setassparms_cb, NULL);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_arp_cmd_cb, NULL);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Could not modify (cmd: %#x) ARP entry on device %x: %#x\n",
 				 arp_cmd, CARD_DEVID(card), rc);
-
-	return qeth_l3_arp_makerc(rc);
+	return rc;
 }
 
 static int qeth_l3_arp_flush_cache(struct qeth_card *card)
 {
+	struct qeth_cmd_buffer *iob;
 	int rc;
 
 	QETH_CARD_TEXT(card, 3, "arpflush");
@@ -1816,12 +1832,18 @@ static int qeth_l3_arp_flush_cache(struct qeth_card *card)
 	if (!qeth_is_supported(card, IPA_ARP_PROCESSING)) {
 		return -EOPNOTSUPP;
 	}
-	rc = qeth_send_simple_setassparms(card, IPA_ARP_PROCESSING,
-					  IPA_CMD_ASS_ARP_FLUSH_CACHE, 0);
+
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
+				       IPA_CMD_ASS_ARP_FLUSH_CACHE, 0,
+				       QETH_PROT_IPV4);
+	if (!iob)
+		return -ENOMEM;
+
+	rc = qeth_send_ipa_cmd(card, iob, qeth_l3_arp_cmd_cb, NULL);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "Could not flush ARP cache on device %x: %#x\n",
 				 CARD_DEVID(card), rc);
-	return qeth_l3_arp_makerc(rc);
+	return rc;
 }
 
 static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

@@ -35,7 +35,7 @@ static void qeth_l2_vnicc_init(struct qeth_card *card);
 static bool qeth_l2_vnicc_recover_timeout(struct qeth_card *card, u32 vnicc,
 					  u32 *timeout);
 
-static int qeth_setdelmac_makerc(struct qeth_card *card, int retcode)
+static int qeth_l2_setdelmac_makerc(struct qeth_card *card, u16 retcode)
 {
 	int rc;
 
@@ -62,14 +62,20 @@ static int qeth_setdelmac_makerc(struct qeth_card *card, int retcode)
 	case IPA_RC_L2_MAC_NOT_FOUND:
 		rc = -ENOENT;
 		break;
-	case -ENOMEM:
-		rc = -ENOMEM;
-		break;
 	default:
 		rc = -EIO;
 		break;
 	}
 	return rc;
+}
+
+static int qeth_l2_send_setdelmac_cb(struct qeth_card *card,
+				     struct qeth_reply *reply,
+				     unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
+
+	return qeth_l2_setdelmac_makerc(card, cmd->hdr.return_code);
 }
 
 static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
@@ -85,8 +91,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	cmd = __ipa_cmd(iob);
 	cmd->data.setdelmac.mac_length = ETH_ALEN;
 	ether_addr_copy(cmd->data.setdelmac.mac, mac);
-	return qeth_setdelmac_makerc(card, qeth_send_ipa_cmd(card, iob,
-					   NULL, NULL));
+	return qeth_send_ipa_cmd(card, iob, qeth_l2_send_setdelmac_cb, NULL);
 }
 
 static int qeth_l2_send_setmac(struct qeth_card *card, __u8 *mac)
@@ -205,7 +210,7 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 }
 
-static int qeth_setdelvlan_makerc(struct qeth_card *card, int retcode)
+static int qeth_l2_setdelvlan_makerc(struct qeth_card *card, u16 retcode)
 {
 	if (retcode)
 		QETH_CARD_TEXT_(card, 2, "err%04x", retcode);
@@ -221,8 +226,6 @@ static int qeth_setdelvlan_makerc(struct qeth_card *card, int retcode)
 		return -ENOENT;
 	case IPA_RC_L2_VLAN_ID_NOT_ALLOWED:
 		return -EPERM;
-	case -ENOMEM:
-		return -ENOMEM;
 	default:
 		return -EIO;
 	}
@@ -240,9 +243,8 @@ static int qeth_l2_send_setdelvlan_cb(struct qeth_card *card,
 				 cmd->data.setdelvlan.vlan_id,
 				 CARD_DEVID(card), cmd->hdr.return_code);
 		QETH_CARD_TEXT_(card, 2, "L2VL%4x", cmd->hdr.command);
-		QETH_CARD_TEXT_(card, 2, "err%d", cmd->hdr.return_code);
 	}
-	return 0;
+	return qeth_l2_setdelvlan_makerc(card, cmd->hdr.return_code);
 }
 
 static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
@@ -257,8 +259,7 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
 	cmd->data.setdelvlan.vlan_id = i;
-	return qeth_setdelvlan_makerc(card, qeth_send_ipa_cmd(card, iob,
-					    qeth_l2_send_setdelvlan_cb, NULL));
+	return qeth_send_ipa_cmd(card, iob, qeth_l2_send_setdelvlan_cb, NULL);
 }
 
 static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
@@ -1790,7 +1791,7 @@ static bool qeth_bridgeport_is_in_use(struct qeth_card *card)
 /* VNIC Characteristics support */
 
 /* handle VNICC IPA command return codes; convert to error codes */
-static int qeth_l2_vnicc_makerc(struct qeth_card *card, int ipa_rc)
+static int qeth_l2_vnicc_makerc(struct qeth_card *card, u16 ipa_rc)
 {
 	int rc;
 
@@ -1848,7 +1849,7 @@ static int qeth_l2_vnicc_request_cb(struct qeth_card *card,
 
 	QETH_CARD_TEXT(card, 2, "vniccrcb");
 	if (cmd->hdr.return_code)
-		return 0;
+		return qeth_l2_vnicc_makerc(card, cmd->hdr.return_code);
 	/* return results to caller */
 	card->options.vnicc.sup_chars = rep->hdr.sup;
 	card->options.vnicc.cur_chars = rep->hdr.cur;
@@ -1869,7 +1870,6 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 	struct qeth_ipacmd_vnicc *req;
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
-	int rc;
 
 	QETH_CARD_TEXT(card, 2, "vniccreq");
 
@@ -1912,10 +1912,7 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 	}
 
 	/* send request */
-	rc = qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb,
-			       (void *) cbctl);
-
-	return qeth_l2_vnicc_makerc(card, rc);
+	return qeth_send_ipa_cmd(card, iob, qeth_l2_vnicc_request_cb, cbctl);
 }
 
 /* VNICC query VNIC characteristics request */
