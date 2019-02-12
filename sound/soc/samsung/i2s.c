@@ -109,6 +109,7 @@ static DEFINE_SPINLOCK(lock);
 
 struct samsung_i2s_priv {
 	struct platform_device *pdev;
+	struct platform_device *pdev_sec;
 
 	/* Spinlock protecting access to the device's registers */
 	spinlock_t spinlock;
@@ -1306,6 +1307,34 @@ static int i2s_register_clock_provider(struct platform_device *pdev)
 	return ret;
 }
 
+/* Create platform device for the secondary PCM */
+static int i2s_create_secondary_device(struct samsung_i2s_priv *priv)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	pdev = platform_device_register_simple("samsung-i2s-sec", -1, NULL, 0);
+	if (!pdev)
+		return -ENOMEM;
+
+	ret = device_attach(&pdev->dev);
+	if (ret < 0) {
+		dev_info(&pdev->dev, "device_attach() failed\n");
+		return ret;
+	}
+
+	priv->pdev_sec = pdev;
+
+	return 0;
+}
+
+static void i2s_delete_secondary_device(struct samsung_i2s_priv *priv)
+{
+	if (priv->pdev_sec) {
+		platform_device_del(priv->pdev_sec);
+		priv->pdev_sec = NULL;
+	}
+}
 static int samsung_i2s_probe(struct platform_device *pdev)
 {
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
@@ -1323,13 +1352,15 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		i2s_dai_data = (struct samsung_i2s_dai_data *)
 				platform_get_device_id(pdev)->driver_data;
 
+	/* Nothing to do if it is the secondary device probe */
+	if (!i2s_dai_data)
+		return 0;
+
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	quirks = np ? i2s_dai_data->quirks : i2s_pdata->type.quirks;
-	quirks &= ~(QUIRK_SEC_DAI | QUIRK_SUPPORTS_IDMA);
-
 	num_dais = (quirks & QUIRK_SEC_DAI) ? 2 : 1;
 	priv->pdev = pdev;
 
@@ -1419,8 +1450,13 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai->pri_dai = pri_dai;
 		pri_dai->sec_dai = sec_dai;
 
-		ret = samsung_asoc_dma_platform_register(&pdev->dev,
-					sec_dai->filter, "tx-sec", NULL, NULL);
+		ret = i2s_create_secondary_device(priv);
+		if (ret < 0)
+			goto err_disable_clk;
+
+		ret = samsung_asoc_dma_platform_register(&priv->pdev_sec->dev,
+						sec_dai->filter, "tx-sec", NULL,
+						&pdev->dev);
 		if (ret < 0)
 			goto err_disable_clk;
 
@@ -1455,6 +1491,7 @@ err_disable_pm:
 	pm_runtime_disable(&pdev->dev);
 err_disable_clk:
 	clk_disable_unprepare(pri_dai->clk);
+	i2s_delete_secondary_device(priv);
 	return ret;
 }
 
@@ -1463,12 +1500,17 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	struct samsung_i2s_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct i2s_dai *pri_dai = samsung_i2s_get_pri_dai(&pdev->dev);
 
+	/* The secondary device has no driver data assigned */
+	if (!priv)
+		return 0;
+
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	i2s_unregister_clock_provider(pdev);
 	clk_disable_unprepare(pri_dai->clk);
 	pm_runtime_put_noidle(&pdev->dev);
+	i2s_delete_secondary_device(priv);
 
 	return 0;
 }
@@ -1566,6 +1608,8 @@ static const struct platform_device_id samsung_i2s_driver_ids[] = {
 	{
 		.name           = "samsung-i2s",
 		.driver_data	= (kernel_ulong_t)&i2sv3_dai_type,
+	}, {
+		.name           = "samsung-i2s-sec",
 	},
 	{},
 };
