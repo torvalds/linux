@@ -105,8 +105,10 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 			    &conn->local_tx_ctrl, conn);
 	smc_curs_copy(&cfed, &((struct smc_host_cdc_msg *)wr_buf)->cons, conn);
 	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
-	if (!rc)
+	if (!rc) {
 		smc_curs_copy(&conn->rx_curs_confirmed, &cfed, conn);
+		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
+	}
 
 	return rc;
 }
@@ -194,6 +196,7 @@ int smcd_cdc_msg_send(struct smc_connection *conn)
 	if (rc)
 		return rc;
 	smc_curs_copy(&conn->rx_curs_confirmed, &curs, conn);
+	conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
 	/* Calculate transmitted data and increment free send buffer space */
 	diff = smc_curs_diff(conn->sndbuf_desc->len, &conn->tx_curs_fin,
 			     &conn->tx_curs_sent);

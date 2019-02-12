@@ -610,9 +610,6 @@ void smc_tx_consumer_update(struct smc_connection *conn, bool force)
 					      SMC_TX_WORK_DELAY);
 			return;
 		}
-		smc_curs_copy(&conn->rx_curs_confirmed,
-			      &conn->local_tx_ctrl.cons, conn);
-		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
 	}
 	if (conn->local_rx_ctrl.prod_flags.write_blocked &&
 	    !atomic_read(&conn->bytes_to_rcv))
