@@ -53,10 +53,6 @@ FEATURE_TESTS_BASIC :=                  \
         libslang                        \
         libcrypto                       \
         libunwind                       \
-        libunwind-x86                   \
-        libunwind-x86_64                \
-        libunwind-arm                   \
-        libunwind-aarch64               \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
         reallocarray                    \
@@ -84,6 +80,10 @@ FEATURE_TESTS_EXTRA :=                  \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
+         libunwind-x86                  \
+         libunwind-x86_64               \
+         libunwind-arm                  \
+         libunwind-aarch64              \
          libunwind-debug-frame          \
          libunwind-debug-frame-arm      \
          libunwind-debug-frame-aarch64  \
