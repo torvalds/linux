@@ -2733,6 +2733,30 @@ err_free:
 	return err;
 }
 
+static void
+mlx5e_flow_esw_attr_init(struct mlx5_esw_flow_attr *esw_attr,
+			 struct mlx5e_priv *priv,
+			 struct mlx5e_tc_flow_parse_attr *parse_attr,
+			 struct tc_cls_flower_offload *f,
+			 struct mlx5_eswitch_rep *in_rep,
+			 struct mlx5_core_dev *in_mdev)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+
+	esw_attr->parse_attr = parse_attr;
+	esw_attr->chain = f->common.chain_index;
+	esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
+
+	esw_attr->in_rep = in_rep;
+	esw_attr->in_mdev = in_mdev;
+
+	if (MLX5_CAP_ESW(esw->dev, counter_eswitch_affinity) ==
+	    MLX5_COUNTER_SOURCE_ESWITCH)
+		esw_attr->counter_dev = in_mdev;
+	else
+		esw_attr->counter_dev = priv->mdev;
+}
+
 static struct mlx5e_tc_flow *
 __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		     struct tc_cls_flower_offload *f,
@@ -2754,27 +2778,20 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 			       &parse_attr, &flow);
 	if (err)
 		goto out;
+
 	parse_attr->filter_dev = filter_dev;
-	flow->esw_attr->parse_attr = parse_attr;
+	mlx5e_flow_esw_attr_init(flow->esw_attr,
+				 priv, parse_attr,
+				 f, in_rep, in_mdev);
+
 	err = parse_cls_flower(flow->priv, flow, &parse_attr->spec,
 			       f, filter_dev);
 	if (err)
 		goto err_free;
 
-	flow->esw_attr->chain = f->common.chain_index;
-	flow->esw_attr->prio = TC_H_MAJ(f->common.prio) >> 16;
 	err = parse_tc_fdb_actions(priv, &rule->action, parse_attr, flow, extack);
 	if (err)
 		goto err_free;
-
-	flow->esw_attr->in_rep = in_rep;
-	flow->esw_attr->in_mdev = in_mdev;
-
-	if (MLX5_CAP_ESW(esw->dev, counter_eswitch_affinity) ==
-	    MLX5_COUNTER_SOURCE_ESWITCH)
-		flow->esw_attr->counter_dev = in_mdev;
-	else
-		flow->esw_attr->counter_dev = priv->mdev;
 
 	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
 	if (err)
