@@ -958,7 +958,7 @@ static void zpci_mem_exit(void)
 	kmem_cache_destroy(zdev_fmb_cache);
 }
 
-static unsigned int s390_pci_probe = 1;
+static unsigned int s390_pci_probe __initdata = 1;
 static unsigned int s390_pci_initialized;
 
 char * __init pcibios_setup(char *str)
