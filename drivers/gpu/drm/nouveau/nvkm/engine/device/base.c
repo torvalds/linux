@@ -2567,6 +2567,7 @@ nvkm_device_subdev(struct nvkm_device *device, int index)
 	_(FB      , device->fb      , &device->fb->subdev);
 	_(FUSE    , device->fuse    , &device->fuse->subdev);
 	_(GPIO    , device->gpio    , &device->gpio->subdev);
+	_(GSP     , device->gsp     , &device->gsp->subdev);
 	_(I2C     , device->i2c     , &device->i2c->subdev);
 	_(IBUS    , device->ibus    ,  device->ibus);
 	_(ICCSENSE, device->iccsense, &device->iccsense->subdev);
@@ -3050,6 +3051,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_SUBDEV_FB      ,       fb);
 		_(NVKM_SUBDEV_FUSE    ,     fuse);
 		_(NVKM_SUBDEV_GPIO    ,     gpio);
+		_(NVKM_SUBDEV_GSP     ,      gsp);
 		_(NVKM_SUBDEV_I2C     ,      i2c);
 		_(NVKM_SUBDEV_IBUS    ,     ibus);
 		_(NVKM_SUBDEV_ICCSENSE, iccsense);
