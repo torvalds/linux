@@ -300,7 +300,7 @@ static void moxart_tx_finished(struct net_device *ndev)
 		ndev->stats.tx_packets++;
 		ndev->stats.tx_bytes += priv->tx_skb[tx_tail]->len;
 
-		dev_kfree_skb_irq(priv->tx_skb[tx_tail]);
+		dev_consume_skb_irq(priv->tx_skb[tx_tail]);
 		priv->tx_skb[tx_tail] = NULL;
 
 		tx_tail = TX_NEXT(tx_tail);
