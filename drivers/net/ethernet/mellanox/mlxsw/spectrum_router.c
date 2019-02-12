@@ -6142,7 +6142,7 @@ static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
 
 	mlxsw_reg_ritr_rif_pack(ritr_pl, rif);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
-	if (WARN_ON_ONCE(err))
+	if (err)
 		return err;
 
 	mlxsw_reg_ritr_enable_set(ritr_pl, false);
