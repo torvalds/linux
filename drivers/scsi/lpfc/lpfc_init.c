@@ -10119,7 +10119,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_printk(KERN_ERR, &pdev->dev,
 				"ioremap failed for SLI4 PCI config "
 				"registers.\n");
-				goto out;
+			goto out;
 		}
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	}
