@@ -262,7 +262,8 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	int sq_num;
 	int i;
 
-	if (unlikely(!test_bit(MLX5E_STATE_OPENED, &priv->state)))
+	/* this flag is sufficient, no need to test internal sq state */
+	if (unlikely(!mlx5e_xdp_tx_is_enabled(priv)))
 		return -ENETDOWN;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
@@ -274,9 +275,6 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		return -ENXIO;
 
 	sq = &priv->channels.c[sq_num]->xdpsq;
-
-	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
-		return -ENETDOWN;
 
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];
