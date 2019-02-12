@@ -504,11 +504,12 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		ptp_qoriq->write = qoriq_write_be;
 	}
 
-	if (of_device_is_compatible(node, "fsl,fman-ptp-timer")) {
-		ptp_qoriq->regs.ctrl_regs = base + FMAN_CTRL_REGS_OFFSET;
-		ptp_qoriq->regs.alarm_regs = base + FMAN_ALARM_REGS_OFFSET;
-		ptp_qoriq->regs.fiper_regs = base + FMAN_FIPER_REGS_OFFSET;
-		ptp_qoriq->regs.etts_regs = base + FMAN_ETTS_REGS_OFFSET;
+	/* The eTSEC uses differnt memory map with DPAA/ENETC */
+	if (of_device_is_compatible(node, "fsl,etsec-ptp")) {
+		ptp_qoriq->regs.ctrl_regs = base + ETSEC_CTRL_REGS_OFFSET;
+		ptp_qoriq->regs.alarm_regs = base + ETSEC_ALARM_REGS_OFFSET;
+		ptp_qoriq->regs.fiper_regs = base + ETSEC_FIPER_REGS_OFFSET;
+		ptp_qoriq->regs.etts_regs = base + ETSEC_ETTS_REGS_OFFSET;
 	} else {
 		ptp_qoriq->regs.ctrl_regs = base + CTRL_REGS_OFFSET;
 		ptp_qoriq->regs.alarm_regs = base + ALARM_REGS_OFFSET;

@@ -58,15 +58,15 @@ struct ptp_qoriq_registers {
 };
 
 /* Offset definitions for the four register groups */
-#define CTRL_REGS_OFFSET	0x0
-#define ALARM_REGS_OFFSET	0x40
-#define FIPER_REGS_OFFSET	0x80
-#define ETTS_REGS_OFFSET	0xa0
+#define ETSEC_CTRL_REGS_OFFSET	0x0
+#define ETSEC_ALARM_REGS_OFFSET	0x40
+#define ETSEC_FIPER_REGS_OFFSET	0x80
+#define ETSEC_ETTS_REGS_OFFSET	0xa0
 
-#define FMAN_CTRL_REGS_OFFSET	0x80
-#define FMAN_ALARM_REGS_OFFSET	0xb8
-#define FMAN_FIPER_REGS_OFFSET	0xd0
-#define FMAN_ETTS_REGS_OFFSET	0xe0
+#define CTRL_REGS_OFFSET	0x80
+#define ALARM_REGS_OFFSET	0xb8
+#define FIPER_REGS_OFFSET	0xd0
+#define ETTS_REGS_OFFSET	0xe0
 
 
 /* Bit definitions for the TMR_CTRL register */
