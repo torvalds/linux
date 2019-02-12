@@ -295,6 +295,10 @@ struct dc_state {
 
 	struct clk_mgr *dccg;
 
+	struct {
+		bool full_update_needed : 1;
+	} commit_hints;
+
 	struct kref refcount;
 };
 
