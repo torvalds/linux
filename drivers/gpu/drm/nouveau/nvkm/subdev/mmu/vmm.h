@@ -141,6 +141,8 @@ struct nvkm_vmm_func {
 		     struct nvkm_vmm_map *);
 	void (*flush)(struct nvkm_vmm *, int depth);
 
+	void (*invalidate_pdb)(struct nvkm_vmm *, u64 addr);
+
 	u64 page_block;
 	const struct nvkm_vmm_page page[];
 };
@@ -186,8 +188,9 @@ int gf100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 void gf100_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
 int gf100_vmm_aper(enum nvkm_memory_target);
 int gf100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
-void gf100_vmm_invalidate(struct nvkm_vmm *, u32 type);
 void gf100_vmm_flush(struct nvkm_vmm *, int);
+void gf100_vmm_invalidate(struct nvkm_vmm *, u32 type);
+void gf100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gk20a_vmm_aper(enum nvkm_memory_target);
 
@@ -200,6 +203,7 @@ int gm200_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 int gp100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 int gp100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 void gp100_vmm_flush(struct nvkm_vmm *, int);
+void gp100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gv100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 

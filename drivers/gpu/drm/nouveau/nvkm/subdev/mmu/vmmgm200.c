@@ -113,6 +113,7 @@ gm200_vmm_17 = {
 	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
+	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
 		{ 27, &gm200_vmm_desc_17_17[1], NVKM_VMM_PAGE_Sxxx },
 		{ 17, &gm200_vmm_desc_17_17[0], NVKM_VMM_PAGE_SVxC },
@@ -128,6 +129,7 @@ gm200_vmm_16 = {
 	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
+	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
 		{ 27, &gm200_vmm_desc_16_16[1], NVKM_VMM_PAGE_Sxxx },
 		{ 16, &gm200_vmm_desc_16_16[0], NVKM_VMM_PAGE_SVxC },

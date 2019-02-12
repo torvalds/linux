@@ -307,6 +307,14 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 }
 
 void
+gp100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
+{
+	struct nvkm_device *device = vmm->mmu->subdev.device;
+	nvkm_wr32(device, 0x100cb8, lower_32_bits(addr));
+	nvkm_wr32(device, 0x100cec, upper_32_bits(addr));
+}
+
+void
 gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
 	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
@@ -331,6 +339,7 @@ gp100_vmm = {
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
+	.invalidate_pdb = gp100_vmm_invalidate_pdb,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },

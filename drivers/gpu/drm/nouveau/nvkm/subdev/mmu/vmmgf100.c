@@ -178,10 +178,19 @@ gf100_vmm_desc_16_16[] = {
 };
 
 void
+gf100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
+{
+	struct nvkm_device *device = vmm->mmu->subdev.device;
+	nvkm_wr32(device, 0x100cb8, addr);
+}
+
+void
 gf100_vmm_invalidate(struct nvkm_vmm *vmm, u32 type)
 {
 	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_mmu_pt *pd = vmm->pd->pt[0];
+	u64 addr = 0;
 
 	mutex_lock(&subdev->mutex);
 	/* Looks like maybe a "free flush slots" counter, the
@@ -192,7 +201,20 @@ gf100_vmm_invalidate(struct nvkm_vmm *vmm, u32 type)
 			break;
 	);
 
-	nvkm_wr32(device, 0x100cb8, vmm->pd->pt[0]->addr >> 8);
+	if (!(type & 0x00000002) /* ALL_PDB. */) {
+		switch (nvkm_memory_target(pd->memory)) {
+		case NVKM_MEM_TARGET_VRAM: addr |= 0x00000000; break;
+		case NVKM_MEM_TARGET_HOST: addr |= 0x00000002; break;
+		case NVKM_MEM_TARGET_NCOH: addr |= 0x00000003; break;
+		default:
+			WARN_ON(1);
+			break;
+		}
+		addr |= (vmm->pd->pt[0]->addr >> 12) << 4;
+
+		vmm->func->invalidate_pdb(vmm, addr);
+	}
+
 	nvkm_wr32(device, 0x100cbc, 0x80000000 | type);
 
 	/* Wait for flush to be queued? */
@@ -352,6 +374,7 @@ gf100_vmm_17 = {
 	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
+	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
 		{ 17, &gf100_vmm_desc_17_17[0], NVKM_VMM_PAGE_xVxC },
 		{ 12, &gf100_vmm_desc_17_12[0], NVKM_VMM_PAGE_xVHx },
@@ -366,6 +389,7 @@ gf100_vmm_16 = {
 	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
+	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
 		{ 16, &gf100_vmm_desc_16_16[0], NVKM_VMM_PAGE_xVxC },
 		{ 12, &gf100_vmm_desc_16_12[0], NVKM_VMM_PAGE_xVHx },
