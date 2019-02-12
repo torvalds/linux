@@ -1079,6 +1079,10 @@ static void gdlm_recover_prep(void *arg)
 	struct gfs2_sbd *sdp = arg;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
+	if (gfs2_withdrawn(sdp)) {
+		fs_err(sdp, "recover_prep ignored due to withdraw.\n");
+		return;
+	}
 	spin_lock(&ls->ls_recover_spin);
 	ls->ls_recover_block = ls->ls_recover_start;
 	set_bit(DFL_DLM_RECOVERY, &ls->ls_recover_flags);
@@ -1101,6 +1105,11 @@ static void gdlm_recover_slot(void *arg, struct dlm_slot *slot)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int jid = slot->slot - 1;
 
+	if (gfs2_withdrawn(sdp)) {
+		fs_err(sdp, "recover_slot jid %d ignored due to withdraw.\n",
+		       jid);
+		return;
+	}
 	spin_lock(&ls->ls_recover_spin);
 	if (ls->ls_recover_size < jid + 1) {
 		fs_err(sdp, "recover_slot jid %d gen %u short size %d\n",
@@ -1125,6 +1134,10 @@ static void gdlm_recover_done(void *arg, struct dlm_slot *slots, int num_slots,
 	struct gfs2_sbd *sdp = arg;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
+	if (gfs2_withdrawn(sdp)) {
+		fs_err(sdp, "recover_done ignored due to withdraw.\n");
+		return;
+	}
 	/* ensure the ls jid arrays are large enough */
 	set_recover_size(sdp, slots, num_slots);
 
@@ -1152,6 +1165,11 @@ static void gdlm_recovery_result(struct gfs2_sbd *sdp, unsigned int jid,
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
+	if (gfs2_withdrawn(sdp)) {
+		fs_err(sdp, "recovery_result jid %d ignored due to withdraw.\n",
+		       jid);
+		return;
+	}
 	if (test_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags))
 		return;
 
