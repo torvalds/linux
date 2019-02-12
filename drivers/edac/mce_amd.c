@@ -1051,8 +1051,24 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		((m->status & MCI_STATUS_UC)	? "UE"	  :
 		 (m->status & MCI_STATUS_DEFERRED) ? "-"  : "CE"),
 		((m->status & MCI_STATUS_MISCV)	? "MiscV" : "-"),
-		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"),
-		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"));
+		((m->status & MCI_STATUS_ADDRV)	? "AddrV" : "-"),
+		((m->status & MCI_STATUS_PCC)	? "PCC"	  : "-"));
+
+	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		u32 low, high;
+		u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
+
+		if (!rdmsr_safe(addr, &low, &high) &&
+		    (low & MCI_CONFIG_MCAX))
+			pr_cont("|%s", ((m->status & MCI_STATUS_TCC) ? "TCC" : "-"));
+
+		pr_cont("|%s", ((m->status & MCI_STATUS_SYNDV) ? "SyndV" : "-"));
+	}
+
+	/* do the two bits[14:13] together */
+	ecc = (m->status >> 45) & 0x3;
+	if (ecc)
+		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
 
 	if (fam >= 0x15) {
 		pr_cont("|%s", (m->status & MCI_STATUS_DEFERRED ? "Deferred" : "-"));
@@ -1061,22 +1077,6 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		if (fam != 0x15 || m->bank != 4)
 			pr_cont("|%s", (m->status & MCI_STATUS_POISON ? "Poison" : "-"));
 	}
-
-	if (boot_cpu_has(X86_FEATURE_SMCA)) {
-		u32 low, high;
-		u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
-
-		pr_cont("|%s", ((m->status & MCI_STATUS_SYNDV) ? "SyndV" : "-"));
-
-		if (!rdmsr_safe(addr, &low, &high) &&
-		    (low & MCI_CONFIG_MCAX))
-			pr_cont("|%s", ((m->status & MCI_STATUS_TCC) ? "TCC" : "-"));
-	}
-
-	/* do the two bits[14:13] together */
-	ecc = (m->status >> 45) & 0x3;
-	if (ecc)
-		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
 
 	if (fam >= 0x17)
 		pr_cont("|%s", (m->status & MCI_STATUS_SCRUB ? "Scrub" : "-"));
