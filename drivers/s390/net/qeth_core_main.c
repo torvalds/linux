@@ -6329,8 +6329,11 @@ static int qeth_send_checksum_on(struct qeth_card *card, int cstype,
 	struct qeth_checksum_cmd chksum_cb;
 	int rc;
 
-	if (prot == QETH_PROT_IPV4)
+	/* some L3 HW requires combined L3+L4 csum offload: */
+	if (IS_LAYER3(card) && prot == QETH_PROT_IPV4 &&
+	    cstype == IPA_OUTBOUND_CHECKSUM)
 		required_features |= QETH_IPA_CHECKSUM_IP_HDR;
+
 	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_START, 0,
 				       &chksum_cb, prot);
 	if (!rc) {
@@ -6351,8 +6354,12 @@ static int qeth_send_checksum_on(struct qeth_card *card, int cstype,
 			 prot, QETH_CARD_IFNAME(card));
 		return rc;
 	}
+
+	if (chksum_cb.supported & QETH_IPA_CHECKSUM_LP2LP)
+		required_features |= QETH_IPA_CHECKSUM_LP2LP;
+
 	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_ENABLE,
-				       chksum_cb.supported, &chksum_cb,
+				       required_features, &chksum_cb,
 				       prot);
 	if (!rc) {
 		if ((required_features & chksum_cb.enabled) !=
