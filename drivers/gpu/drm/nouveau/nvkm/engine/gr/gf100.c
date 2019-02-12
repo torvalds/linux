@@ -715,6 +715,22 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static int
+gf100_gr_fecs_discover_image_size(struct gf100_gr *gr, u32 *psize)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x00000000);
+	nvkm_wr32(device, 0x409504, 0x00000010);
+	nvkm_msec(device, 2000,
+		if ((*psize = nvkm_rd32(device, 0x409800)))
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
 static void
 gf100_gr_fecs_set_watchdog_timeout(struct gf100_gr *gr, u32 timeout)
 {
@@ -1497,6 +1513,7 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_secboot *sb = device->secboot;
 	u32 secboot_mask = 0;
+	int ret;
 
 	/* load fuc microcode */
 	nvkm_mc_unk260(device, 0);
@@ -1536,14 +1553,10 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 
 	gf100_gr_fecs_set_watchdog_timeout(gr, 0x7fffffff);
 
-	nvkm_wr32(device, 0x409840, 0xffffffff);
-	nvkm_wr32(device, 0x409500, 0x00000000);
-	nvkm_wr32(device, 0x409504, 0x00000010);
-	if (nvkm_msec(device, 2000,
-		if ((gr->size = nvkm_rd32(device, 0x409800)))
-			break;
-	) < 0)
-		return -EBUSY;
+	/* Determine how much memory is required to store main context image. */
+	ret = gf100_gr_fecs_discover_image_size(gr, &gr->size);
+	if (ret)
+		return ret;
 
 	nvkm_wr32(device, 0x409840, 0xffffffff);
 	nvkm_wr32(device, 0x409500, 0x00000000);
