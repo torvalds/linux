@@ -5,6 +5,8 @@ config SECURITY_APPARMOR
 	select SECURITY_PATH
 	select SECURITYFS
 	select SECURITY_NETWORK
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
 	default n
 	help
 	  This enables the AppArmor security module.
