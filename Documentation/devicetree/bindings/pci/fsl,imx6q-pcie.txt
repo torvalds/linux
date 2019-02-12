@@ -56,6 +56,10 @@ Additional required properties for imx7d-pcie and imx8mq-pcie:
 	       - "turnoff"
 - fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy node.
 
+Additional required properties for imx8mq-pcie:
+- clock-names: Must include the following additional entries:
+	- "pcie_aux"
+
 Example:
 
 	pcie@01000000 {
