@@ -187,7 +187,6 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		if (ipv4_addrs.mask->dst != cpu_to_be32(~0))
 			return -EOPNOTSUPP;
 
-
 		flow_rule_match_enc_ports(rule, &enc_ports);
 		if (enc_ports.mask->dst != cpu_to_be16(~0))
 			return -EOPNOTSUPP;
