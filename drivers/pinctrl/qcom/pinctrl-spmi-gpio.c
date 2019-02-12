@@ -962,7 +962,8 @@ static int pmic_gpio_domain_translate(struct irq_domain *domain,
 						     struct pmic_gpio_state,
 						     chip);
 
-	if (fwspec->param_count != 2 || fwspec->param[0] >= state->chip.ngpio)
+	if (fwspec->param_count != 2 ||
+	    fwspec->param[0] < 1 || fwspec->param[0] > state->chip.ngpio)
 		return -EINVAL;
 
 	*hwirq = fwspec->param[0] - PMIC_GPIO_PHYSICAL_OFFSET;
