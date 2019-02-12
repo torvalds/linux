@@ -158,6 +158,69 @@ class SmokeTest(unittest.TestCase):
             pass
         self.assertEqual(rejected, True)
 
+    def test_read_partial_resp(self):
+        try:
+            fmt = '>HIIH'
+            cmd = struct.pack(fmt,
+                              tpm2.TPM2_ST_NO_SESSIONS,
+                              struct.calcsize(fmt),
+                              tpm2.TPM2_CC_GET_RANDOM,
+                              0x20)
+            self.client.tpm.write(cmd)
+            hdr = self.client.tpm.read(10)
+            sz = struct.unpack('>I', hdr[2:6])[0]
+            rsp = self.client.tpm.read()
+        except:
+            pass
+        self.assertEqual(sz, 10 + 2 + 32)
+        self.assertEqual(len(rsp), 2 + 32)
+
+    def test_read_partial_overwrite(self):
+        try:
+            fmt = '>HIIH'
+            cmd = struct.pack(fmt,
+                              tpm2.TPM2_ST_NO_SESSIONS,
+                              struct.calcsize(fmt),
+                              tpm2.TPM2_CC_GET_RANDOM,
+                              0x20)
+            self.client.tpm.write(cmd)
+            # Read part of the respone
+            rsp1 = self.client.tpm.read(15)
+
+            # Send a new cmd
+            self.client.tpm.write(cmd)
+
+            # Read the whole respone
+            rsp2 = self.client.tpm.read()
+        except:
+            pass
+        self.assertEqual(len(rsp1), 15)
+        self.assertEqual(len(rsp2), 10 + 2 + 32)
+
+    def test_send_two_cmds(self):
+        rejected = False
+        try:
+            fmt = '>HIIH'
+            cmd = struct.pack(fmt,
+                              tpm2.TPM2_ST_NO_SESSIONS,
+                              struct.calcsize(fmt),
+                              tpm2.TPM2_CC_GET_RANDOM,
+                              0x20)
+            self.client.tpm.write(cmd)
+
+            # expect the second one to raise -EBUSY error
+            self.client.tpm.write(cmd)
+            rsp = self.client.tpm.read()
+
+        except IOError, e:
+            # read the response
+            rsp = self.client.tpm.read()
+            rejected = True
+            pass
+        except:
+            pass
+        self.assertEqual(rejected, True)
+
 class SpaceTest(unittest.TestCase):
     def setUp(self):
         logging.basicConfig(filename='SpaceTest.log', level=logging.DEBUG)
