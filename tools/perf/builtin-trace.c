@@ -2771,7 +2771,8 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		if (parent == NULL)
 			break;
 
-		if (!strcmp(thread__comm_str(parent), "sshd")) {
+		if (!strcmp(thread__comm_str(parent), "sshd") ||
+		    strstarts(thread__comm_str(parent), "gnome-terminal")) {
 			pids[nr++] = parent->tid;
 			break;
 		}
