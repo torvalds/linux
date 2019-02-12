@@ -21,8 +21,6 @@
 extern unsigned char IPA_PDU_HEADER[];
 #define QETH_IPA_CMD_DEST_ADDR(buffer) (buffer + 0x2c)
 
-#define IPA_CMD_LENGTH	(IPA_PDU_HEADER_SIZE + sizeof(struct qeth_ipa_cmd))
-
 #define QETH_SEQ_NO_LENGTH	4
 #define QETH_MPC_TOKEN_LENGTH	4
 #define QETH_MCL_LENGTH		4

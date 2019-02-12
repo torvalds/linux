@@ -1124,20 +1124,14 @@ static int qeth_osn_send_control_data(struct qeth_card *card, int len,
 }
 
 static int qeth_osn_send_ipa_cmd(struct qeth_card *card,
-			struct qeth_cmd_buffer *iob, int data_len)
+				 struct qeth_cmd_buffer *iob)
 {
-	u16 s1, s2;
+	u16 length;
 
 	QETH_CARD_TEXT(card, 4, "osndipa");
 
-	qeth_prepare_ipa_cmd(card, iob);
-	s1 = (u16)(IPA_PDU_HEADER_SIZE + data_len);
-	s2 = (u16)data_len;
-	memcpy(QETH_IPA_PDU_LEN_TOTAL(iob->data), &s1, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU1(iob->data), &s2, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU2(iob->data), &s2, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU3(iob->data), &s2, 2);
-	return qeth_osn_send_control_data(card, s1, iob);
+	memcpy(&length, QETH_IPA_PDU_LEN_TOTAL(iob->data), 2);
+	return qeth_osn_send_control_data(card, length, iob);
 }
 
 int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
@@ -1154,8 +1148,9 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 	iob = qeth_wait_for_buffer(&card->write);
+	qeth_prepare_ipa_cmd(card, iob, (u16) data_len);
 	memcpy(__ipa_cmd(iob), data, data_len);
-	return qeth_osn_send_ipa_cmd(card, iob, data_len);
+	return qeth_osn_send_ipa_cmd(card, iob);
 }
 EXPORT_SYMBOL(qeth_osn_assist);
 

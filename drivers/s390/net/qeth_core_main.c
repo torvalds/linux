@@ -2815,14 +2815,20 @@ static void qeth_fill_ipacmd_header(struct qeth_card *card,
 	cmd->hdr.prot_version = prot;
 }
 
-void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob)
+void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
+			  u16 cmd_length)
 {
+	u16 total_length = IPA_PDU_HEADER_SIZE + cmd_length;
 	u8 prot_type = qeth_mpc_select_prot_type(card);
 
 	memcpy(iob->data, IPA_PDU_HEADER, IPA_PDU_HEADER_SIZE);
+	memcpy(QETH_IPA_PDU_LEN_TOTAL(iob->data), &total_length, 2);
 	memcpy(QETH_IPA_CMD_PROT_TYPE(iob->data), &prot_type, 1);
+	memcpy(QETH_IPA_PDU_LEN_PDU1(iob->data), &cmd_length, 2);
+	memcpy(QETH_IPA_PDU_LEN_PDU2(iob->data), &cmd_length, 2);
 	memcpy(QETH_IPA_CMD_DEST_ADDR(iob->data),
 	       &card->token.ulp_connection_r, QETH_MPC_TOKEN_LENGTH);
+	memcpy(QETH_IPA_PDU_LEN_PDU3(iob->data), &cmd_length, 2);
 }
 EXPORT_SYMBOL_GPL(qeth_prepare_ipa_cmd);
 
@@ -2833,7 +2839,7 @@ struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *card,
 
 	iob = qeth_get_buffer(&card->write);
 	if (iob) {
-		qeth_prepare_ipa_cmd(card, iob);
+		qeth_prepare_ipa_cmd(card, iob, sizeof(struct qeth_ipa_cmd));
 		qeth_fill_ipacmd_header(card, __ipa_cmd(iob), ipacmd, prot);
 	} else {
 		dev_warn(&card->gdev->dev,
@@ -2857,11 +2863,12 @@ int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			unsigned long),
 		void *reply_param)
 {
+	u16 length;
 	int rc;
 
 	QETH_CARD_TEXT(card, 4, "sendipa");
-	rc = qeth_send_control_data(card, IPA_CMD_LENGTH,
-						iob, reply_cb, reply_param);
+	memcpy(&length, QETH_IPA_PDU_LEN_TOTAL(iob->data), 2);
+	rc = qeth_send_control_data(card, length, iob, reply_cb, reply_param);
 	if (rc == -ETIME) {
 		qeth_clear_ipacmd_list(card);
 		qeth_schedule_recovery(card);
@@ -4460,27 +4467,6 @@ static int qeth_mdio_read(struct net_device *dev, int phy_id, int regnum)
 	return rc;
 }
 
-static int qeth_send_ipa_snmp_cmd(struct qeth_card *card,
-		struct qeth_cmd_buffer *iob, int len,
-		int (*reply_cb)(struct qeth_card *, struct qeth_reply *,
-			unsigned long),
-		void *reply_param)
-{
-	u16 s1, s2;
-
-	QETH_CARD_TEXT(card, 4, "sendsnmp");
-
-	/* adjust PDU length fields in IPA_PDU_HEADER */
-	s1 = (u32) IPA_PDU_HEADER_SIZE + len;
-	s2 = (u32) len;
-	memcpy(QETH_IPA_PDU_LEN_TOTAL(iob->data), &s1, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU1(iob->data), &s2, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU2(iob->data), &s2, 2);
-	memcpy(QETH_IPA_PDU_LEN_PDU3(iob->data), &s2, 2);
-	return qeth_send_control_data(card, IPA_PDU_HEADER_SIZE + len, iob,
-				      reply_cb, reply_param);
-}
-
 static int qeth_snmp_command_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long sdata)
 {
@@ -4586,10 +4572,13 @@ static int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	/* for large requests, fix-up the length fields: */
+	qeth_prepare_ipa_cmd(card, iob, QETH_SETADP_BASE_LEN + req_len);
+
 	cmd = __ipa_cmd(iob);
 	memcpy(&cmd->data.setadapterparms.data.snmp, &ureq->cmd, req_len);
-	rc = qeth_send_ipa_snmp_cmd(card, iob, QETH_SETADP_BASE_LEN + req_len,
-				    qeth_snmp_command_cb, (void *)&qinfo);
+	rc = qeth_send_ipa_cmd(card, iob, qeth_snmp_command_cb, &qinfo);
 	if (rc)
 		QETH_DBF_MESSAGE(2, "SNMP command failed on device %x: (%#x)\n",
 				 CARD_DEVID(card), rc);

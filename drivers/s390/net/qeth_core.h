@@ -1000,7 +1000,8 @@ void qeth_tx_timeout(struct net_device *);
 void qeth_prepare_control_data(struct qeth_card *, int,
 				struct qeth_cmd_buffer *);
 void qeth_release_buffer(struct qeth_channel *, struct qeth_cmd_buffer *);
-void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob);
+void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
+			  u16 cmd_length);
 struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
