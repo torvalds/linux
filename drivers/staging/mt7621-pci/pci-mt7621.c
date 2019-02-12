@@ -39,9 +39,6 @@
 #define RALINK_RSTCTRL			0x34
 #define CHIP_REV_MT7621_E2		0x0101
 
-/* RALINK_RSTCTRL bits */
-#define RALINK_PCIE_RST			BIT(23)
-
 /* MediaTek specific configuration registers */
 #define PCIE_FTS_NUM			0x70c
 #define PCIE_FTS_NUM_MASK		GENMASK(15, 8)
@@ -125,6 +122,7 @@ struct mt7621_pcie_port {
  * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
  * @ports: pointer to PCIe port information
+ * @rst: pointer to pcie reset
  */
 struct mt7621_pcie {
 	void __iomem *base;
@@ -137,6 +135,7 @@ struct mt7621_pcie {
 		resource_size_t io;
 	} offset;
 	struct list_head ports;
+	struct reset_control *rst;
 };
 
 static inline u32 pcie_read(struct mt7621_pcie *pcie, u32 reg)
@@ -358,6 +357,12 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
+	pcie->rst = devm_reset_control_get_exclusive(dev, "pcie");
+	if (PTR_ERR(pcie->rst) == -EPROBE_DEFER) {
+		dev_err(dev, "failed to get pcie reset control\n");
+		return PTR_ERR(pcie->rst);
+	}
+
 	for_each_available_child_of_node(node, child) {
 		int slot;
 
@@ -442,13 +447,13 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 		}
 	}
 
-	rt_sysc_m32(0, RALINK_PCIE_RST, RALINK_RSTCTRL);
+	reset_control_assert(pcie->rst);
 	rt_sysc_m32(0x30, 2 << 4, SYSC_REG_SYSTEM_CONFIG1);
 	rt_sysc_m32(PCIE_CLK_GEN_EN, PCIE_CLK_GEN_DIS, RALINK_PCIE_CLK_GEN);
 	rt_sysc_m32(PCIE_CLK_GEN1_DIS, PCIE_CLK_GEN1_EN, RALINK_PCIE_CLK_GEN1);
 	rt_sysc_m32(PCIE_CLK_GEN_DIS, PCIE_CLK_GEN_EN, RALINK_PCIE_CLK_GEN);
 	msleep(50);
-	rt_sysc_m32(RALINK_PCIE_RST, 0, RALINK_RSTCTRL);
+	reset_control_deassert(pcie->rst);
 }
 
 static int mt7621_pcie_enable_port(struct mt7621_pcie_port *port)
