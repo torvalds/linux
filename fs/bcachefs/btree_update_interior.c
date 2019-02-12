@@ -484,7 +484,7 @@ static struct btree_reserve *bch2_btree_reserve_get(struct bch_fs *c,
 	struct btree *b;
 	struct disk_reservation disk_res = { 0, 0 };
 	unsigned sectors = nr_nodes * c->opts.btree_node_size;
-	int ret, disk_res_flags = BCH_DISK_RESERVATION_GC_LOCK_HELD;
+	int ret, disk_res_flags = 0;
 
 	if (flags & BTREE_INSERT_NOFAIL)
 		disk_res_flags |= BCH_DISK_RESERVATION_NOFAIL;
@@ -1947,8 +1947,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 	ret = bch2_disk_reservation_add(c, &as->reserve->disk_res,
 			c->opts.btree_node_size *
 			bch2_bkey_nr_ptrs(bkey_i_to_s_c(&new_key->k_i)),
-			BCH_DISK_RESERVATION_NOFAIL|
-			BCH_DISK_RESERVATION_GC_LOCK_HELD);
+			BCH_DISK_RESERVATION_NOFAIL);
 	BUG_ON(ret);
 
 	parent = btree_node_parent(iter, b);

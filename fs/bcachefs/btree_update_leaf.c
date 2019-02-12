@@ -719,18 +719,6 @@ err:
 			ret = -EINTR;
 		}
 		break;
-	case BTREE_INSERT_NEED_GC_LOCK:
-		ret = -EINTR;
-
-		if (!down_read_trylock(&c->gc_lock)) {
-			if (flags & BTREE_INSERT_NOUNLOCK)
-				goto out;
-
-			bch2_btree_iter_unlock(trans->entries[0].iter);
-			down_read(&c->gc_lock);
-		}
-		up_read(&c->gc_lock);
-		break;
 	case BTREE_INSERT_ENOSPC:
 		ret = -ENOSPC;
 		break;

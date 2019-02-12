@@ -141,24 +141,23 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 		bkey_for_each_ptr(ptrs, ptr) {
 			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			size_t b = PTR_BUCKET_NR(ca, ptr);
-			struct bucket *g = PTR_BUCKET(ca, ptr);
+			struct bucket *g = PTR_BUCKET(ca, ptr, true);
 
 			if (mustfix_fsck_err_on(!g->gen_valid, c,
 					"found ptr with missing gen in alloc btree,\n"
 					"type %u gen %u",
 					k.k->type, ptr->gen)) {
-				g->_mark.gen = ptr->gen;
-				g->gen_valid = 1;
-				bucket_set_dirty(ca, b);
+				g->_mark.gen	= ptr->gen;
+				g->_mark.dirty	= true;
+				g->gen_valid	= 1;
 			}
 
 			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
 					"%u ptr gen in the future: %u > %u",
 					k.k->type, ptr->gen, g->mark.gen)) {
-				g->_mark.gen = ptr->gen;
-				g->gen_valid = 1;
-				bucket_set_dirty(ca, b);
+				g->_mark.gen	= ptr->gen;
+				g->_mark.dirty	= true;
+				g->gen_valid	= 1;
 				set_bit(BCH_FS_FIXED_GENS, &c->flags);
 			}
 		}
@@ -166,8 +165,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		size_t b = PTR_BUCKET_NR(ca, ptr);
-		struct bucket *g = __bucket(ca, b, true);
+		struct bucket *g = PTR_BUCKET(ca, ptr, true);
 
 		if (gen_after(g->oldest_gen, ptr->gen))
 			g->oldest_gen = ptr->gen;
@@ -646,13 +644,14 @@ static int bch2_gc_start(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned i;
 
+	percpu_down_write(&c->mark_lock);
+
 	/*
 	 * indicate to stripe code that we need to allocate for the gc stripes
 	 * radix tree, too
 	 */
 	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
-	percpu_down_write(&c->mark_lock);
 	BUG_ON(c->usage[1]);
 
 	c->usage[1] = __alloc_percpu_gfp(sizeof(struct bch_fs_usage) +

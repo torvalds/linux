@@ -979,10 +979,8 @@ bch2_extent_can_insert(struct btree_insert *trans,
 
 	if (overlap == BCH_EXTENT_OVERLAP_MIDDLE &&
 	    (sectors = bch2_extent_is_compressed(k))) {
-		int flags = BCH_DISK_RESERVATION_BTREE_LOCKS_HELD;
-
-		if (trans->flags & BTREE_INSERT_NOFAIL)
-			flags |= BCH_DISK_RESERVATION_NOFAIL;
+		int flags = trans->flags & BTREE_INSERT_NOFAIL
+			? BCH_DISK_RESERVATION_NOFAIL : 0;
 
 		switch (bch2_disk_reservation_add(trans->c,
 				trans->disk_res,
@@ -991,8 +989,6 @@ bch2_extent_can_insert(struct btree_insert *trans,
 			break;
 		case -ENOSPC:
 			return BTREE_INSERT_ENOSPC;
-		case -EINTR:
-			return BTREE_INSERT_NEED_GC_LOCK;
 		default:
 			BUG();
 		}

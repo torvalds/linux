@@ -407,14 +407,14 @@ static inline void update_cached_sectors(struct bch_fs *c,
 }
 
 static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
-				     size_t b, struct bucket_mark *old,
+				     size_t b, struct bucket_mark *ret,
 				     bool gc)
 {
 	struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage[gc]);
 	struct bucket *g = __bucket(ca, b, gc);
-	struct bucket_mark new;
+	struct bucket_mark old, new;
 
-	*old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+	old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
 		BUG_ON(!is_available_bucket(new));
 
 		new.owned_by_allocator	= true;
@@ -425,9 +425,12 @@ static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.gen++;
 	}));
 
-	if (old->cached_sectors)
+	if (old.cached_sectors)
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
-				      -old->cached_sectors);
+				      -old.cached_sectors);
+
+	if (ret)
+		*ret = old;
 }
 
 void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -436,6 +439,9 @@ void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 	percpu_rwsem_assert_held(&c->mark_lock);
 
 	__bch2_invalidate_bucket(c, ca, b, old, false);
+
+	if (gc_visited(c, gc_phase(GC_PHASE_START)))
+		__bch2_invalidate_bucket(c, ca, b, NULL, true);
 
 	if (!old->owned_by_allocator && old->cached_sectors)
 		trace_invalidate(ca, bucket_to_sector(ca, b),
@@ -1091,24 +1097,8 @@ out:
 	return 0;
 
 recalculate:
-	/*
-	 * GC recalculates sectors_available when it starts, so that hopefully
-	 * we don't normally end up blocking here:
-	 */
-
-	/*
-	 * Piss fuck, we can be called from extent_insert_fixup() with btree
-	 * locks held:
-	 */
-
-	if (!(flags & BCH_DISK_RESERVATION_GC_LOCK_HELD)) {
-		if (!(flags & BCH_DISK_RESERVATION_BTREE_LOCKS_HELD))
-			down_read(&c->gc_lock);
-		else if (!down_read_trylock(&c->gc_lock))
-			return -EINTR;
-	}
-
 	percpu_down_write(&c->mark_lock);
+
 	sectors_available = bch2_recalc_sectors_available(c);
 
 	if (sectors <= sectors_available ||
@@ -1124,9 +1114,6 @@ recalculate:
 	}
 
 	percpu_up_write(&c->mark_lock);
-
-	if (!(flags & BCH_DISK_RESERVATION_GC_LOCK_HELD))
-		up_read(&c->gc_lock);
 
 	return ret;
 }

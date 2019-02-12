@@ -490,7 +490,6 @@ enum btree_insert_ret {
 	/* leaf node needs to be split */
 	BTREE_INSERT_BTREE_NODE_FULL,
 	BTREE_INSERT_ENOSPC,
-	BTREE_INSERT_NEED_GC_LOCK,
 	BTREE_INSERT_NEED_MARK_REPLICAS,
 };
 

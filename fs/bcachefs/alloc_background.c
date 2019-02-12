@@ -1474,7 +1474,6 @@ not_enough:
 							   &journal_seq);
 
 				fifo_push(&ca->free[RESERVE_BTREE], bu);
-				bucket_set_dirty(ca, bu);
 			}
 		}
 

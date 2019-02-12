@@ -57,18 +57,6 @@ static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
 	return __bucket(ca, b, false);
 }
 
-static inline void bucket_set_dirty(struct bch_dev *ca, size_t b)
-{
-	struct bucket *g;
-	struct bucket_mark m;
-
-	rcu_read_lock();
-	g = bucket(ca, b);
-	bucket_cmpxchg(g, m, m.dirty = true);
-	rcu_read_unlock();
-
-}
-
 static inline void bucket_io_clock_reset(struct bch_fs *c, struct bch_dev *ca,
 					 size_t b, int rw)
 {
@@ -99,7 +87,8 @@ static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 }
 
 static inline struct bucket *PTR_BUCKET(struct bch_dev *ca,
-					const struct bch_extent_ptr *ptr)
+					const struct bch_extent_ptr *ptr,
+					bool gc)
 {
 	return bucket(ca, PTR_BUCKET_NR(ca, ptr));
 }
@@ -285,8 +274,6 @@ static inline void bch2_disk_reservation_put(struct bch_fs *c,
 }
 
 #define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
-#define BCH_DISK_RESERVATION_GC_LOCK_HELD	(1 << 1)
-#define BCH_DISK_RESERVATION_BTREE_LOCKS_HELD	(1 << 2)
 
 int bch2_disk_reservation_add(struct bch_fs *,
 			     struct disk_reservation *,
