@@ -1809,11 +1809,11 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 
 	trigger = fwrt->dump.active_trigs[id].trig;
 
-	size = sizeof(*dump_file);
-	size += iwl_fw_ini_get_trigger_len(fwrt, trigger);
-
+	size = iwl_fw_ini_get_trigger_len(fwrt, trigger);
 	if (!size)
 		return NULL;
+
+	size += sizeof(*dump_file);
 
 	dump_file = vzalloc(size);
 	if (!dump_file)
