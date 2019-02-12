@@ -63,9 +63,9 @@ static int mt76x02u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 	struct mt76_usb *usb = &dev->usb;
 	struct mt76u_buf *buf = &usb->mcu.res;
 	struct urb *urb = buf->urb;
+	u8 *data = buf->buf;
 	int i, ret;
 	u32 rxfce;
-	u8 *data;
 
 	for (i = 0; i < 5; i++) {
 		if (!wait_for_completion_timeout(&usb->mcu.cmpl,
@@ -75,7 +75,6 @@ static int mt76x02u_mcu_wait_resp(struct mt76_dev *dev, u8 seq)
 		if (urb->status)
 			return -EIO;
 
-		data = sg_virt(&urb->sg[0]);
 		if (usb->mcu.rp)
 			mt76x02u_multiple_mcu_reads(dev, data + 4,
 						    urb->actual_length - 8);

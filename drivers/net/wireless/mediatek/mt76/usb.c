@@ -319,8 +319,9 @@ mt76u_fill_rx_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
 	return i ? : -ENOMEM;
 }
 
-int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
-		    int nsgs, int len, int sglen, gfp_t gfp)
+static int
+mt76u_buf_alloc_sg(struct mt76_dev *dev, struct mt76u_buf *buf,
+		   int nsgs, int len, int sglen, gfp_t gfp)
 {
 	buf->urb = usb_alloc_urb(0, gfp);
 	if (!buf->urb)
@@ -337,6 +338,25 @@ int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
 	return mt76u_fill_rx_sg(dev, buf, nsgs, len, sglen);
 }
 
+int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
+		    int len, int data_len, gfp_t gfp)
+{
+	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
+
+	buf->urb = usb_alloc_urb(0, gfp);
+	if (!buf->urb)
+		return -ENOMEM;
+
+	buf->buf = page_frag_alloc(&q->rx_page, len, gfp);
+	if (!buf->buf)
+		return -ENOMEM;
+
+	buf->len = data_len;
+	buf->dev = dev;
+
+	return 0;
+}
+
 void mt76u_buf_free(struct mt76u_buf *buf)
 {
 	struct urb *urb = buf->urb;
@@ -350,6 +370,9 @@ void mt76u_buf_free(struct mt76u_buf *buf)
 
 		skb_free_frag(sg_virt(sg));
 	}
+	if (buf->buf)
+		skb_free_frag(buf->buf);
+
 	usb_free_urb(buf->urb);
 }
 EXPORT_SYMBOL_GPL(mt76u_buf_free);
@@ -360,6 +383,7 @@ int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
 {
 	struct usb_interface *intf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
+	u8 *data = buf->urb->num_sgs ? NULL : buf->buf;
 	unsigned int pipe;
 
 	if (dir == USB_DIR_IN)
@@ -367,7 +391,7 @@ int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
 	else
 		pipe = usb_sndbulkpipe(udev, dev->usb.out_ep[index]);
 
-	usb_fill_bulk_urb(buf->urb, udev, pipe, NULL, buf->len,
+	usb_fill_bulk_urb(buf->urb, udev, pipe, data, buf->len,
 			  complete_fn, context);
 	trace_submit_urb(dev, buf->urb);
 
@@ -555,10 +579,10 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 
 	q->ndesc = MT_NUM_RX_ENTRIES;
 	for (i = 0; i < q->ndesc; i++) {
-		err = mt76u_buf_alloc(dev, &q->entry[i].ubuf,
-				      nsgs, q->buf_size,
-				      SKB_WITH_OVERHEAD(q->buf_size),
-				      GFP_KERNEL);
+		err = mt76u_buf_alloc_sg(dev, &q->entry[i].ubuf,
+					 nsgs, q->buf_size,
+					 SKB_WITH_OVERHEAD(q->buf_size),
+					 GFP_KERNEL);
 		if (err < 0)
 			return err;
 	}

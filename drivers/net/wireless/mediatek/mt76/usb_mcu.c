@@ -29,9 +29,8 @@ int mt76u_mcu_init_rx(struct mt76_dev *dev)
 	struct mt76_usb *usb = &dev->usb;
 	int err;
 
-	err = mt76u_buf_alloc(dev, &usb->mcu.res, 1,
-			      MCU_RESP_URB_SIZE, MCU_RESP_URB_SIZE,
-			      GFP_KERNEL);
+	err = mt76u_buf_alloc(dev, &usb->mcu.res, MCU_RESP_URB_SIZE,
+			      MCU_RESP_URB_SIZE, GFP_KERNEL);
 	if (err < 0)
 		return err;
 
