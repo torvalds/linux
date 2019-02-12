@@ -59,7 +59,7 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 }
 
 /**
- * rsi_sdio_stats_open() - This funtion calls single open function of seq_file
+ * rsi_sdio_stats_open() - This function calls single open function of seq_file
  *			   to open file and read contents from it.
  * @inode: Pointer to the inode structure.
  * @file: Pointer to the file structure.
@@ -93,7 +93,7 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 }
 
 /**
- * rsi_version_open() - This funtion calls single open function of seq_file to
+ * rsi_version_open() - This function calls single open function of seq_file to
  *			open file and read contents from it.
  * @inode: Pointer to the inode structure.
  * @file: Pointer to the file structure.
@@ -178,7 +178,7 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 }
 
 /**
- * rsi_stats_open() - This funtion calls single open function of seq_file to
+ * rsi_stats_open() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
  * @inode: Pointer to the inode structure.
  * @file: Pointer to the file structure.
@@ -207,7 +207,7 @@ static int rsi_debug_zone_read(struct seq_file *seq, void *data)
 }
 
 /**
- * rsi_debug_read() - This funtion calls single open function of seq_file to
+ * rsi_debug_read() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
  * @inode: Pointer to the inode structure.
  * @file: Pointer to the file structure.

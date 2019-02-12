@@ -409,8 +409,8 @@ static int rsi_load_radio_caps(struct rsi_common *common)
  * rsi_mgmt_pkt_to_core() - This function is the entry point for Mgmt module.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
- * @msg_len: Length of the recieved packet.
- * @type: Type of recieved packet.
+ * @msg_len: Length of the received packet.
+ * @type: Type of received packet.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -1547,7 +1547,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 }
 
 /**
- * rsi_set_antenna() - This fuction send antenna configuration request
+ * rsi_set_antenna() - This function send antenna configuration request
  *		       to device
  *
  * @common: Pointer to the driver private structure.
@@ -1955,7 +1955,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 
 /**
  * rsi_mgmt_pkt_recv() - This function processes the management packets
- *			 recieved from the hardware.
+ *			 received from the hardware.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to the received packet.
  *

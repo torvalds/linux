@@ -252,7 +252,7 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
 
 /**
  * rsi_rx_done_handler() - This function is called when a packet is received
- *			   from USB stack. This is callback to recieve done.
+ *			   from USB stack. This is callback to receive done.
  * @urb: Received URB.
  *
  * Return: None.
