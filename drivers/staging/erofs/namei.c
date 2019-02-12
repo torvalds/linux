@@ -144,7 +144,7 @@ exact_out:
 				head = mid + 1;
 				startprfx = matched;
 
-				if (likely(!IS_ERR(candidate)))
+				if (!IS_ERR(candidate))
 					put_page(candidate);
 				candidate = page;
 			} else {
@@ -177,7 +177,7 @@ int erofs_namei(struct inode *dir,
 	diff = 1;
 	page = find_target_block_classic(dir, name, &diff);
 
-	if (unlikely(IS_ERR(page)))
+	if (IS_ERR(page))
 		return PTR_ERR(page);
 
 	data = kmap_atomic(page);
@@ -187,7 +187,7 @@ int erofs_namei(struct inode *dir,
 		find_target_dirent(name, data, EROFS_BLKSIZ) :
 		(struct erofs_dirent *)data;
 
-	if (likely(!IS_ERR(de))) {
+	if (!IS_ERR(de)) {
 		*nid = le64_to_cpu(de->nid);
 		*d_type = de->file_type;
 	}
