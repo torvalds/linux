@@ -43,8 +43,8 @@ static u64 tmr_cnt_read(struct ptp_qoriq *ptp_qoriq)
 	u64 ns;
 	u32 lo, hi;
 
-	lo = qoriq_read(&regs->ctrl_regs->tmr_cnt_l);
-	hi = qoriq_read(&regs->ctrl_regs->tmr_cnt_h);
+	lo = ptp_qoriq->read(&regs->ctrl_regs->tmr_cnt_l);
+	hi = ptp_qoriq->read(&regs->ctrl_regs->tmr_cnt_h);
 	ns = ((u64) hi) << 32;
 	ns |= lo;
 	return ns;
@@ -57,8 +57,8 @@ static void tmr_cnt_write(struct ptp_qoriq *ptp_qoriq, u64 ns)
 	u32 hi = ns >> 32;
 	u32 lo = ns & 0xffffffff;
 
-	qoriq_write(&regs->ctrl_regs->tmr_cnt_l, lo);
-	qoriq_write(&regs->ctrl_regs->tmr_cnt_h, hi);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_cnt_l, lo);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_cnt_h, hi);
 }
 
 /* Caller must hold ptp_qoriq->lock. */
@@ -73,8 +73,8 @@ static void set_alarm(struct ptp_qoriq *ptp_qoriq)
 	ns -= ptp_qoriq->tclk_period;
 	hi = ns >> 32;
 	lo = ns & 0xffffffff;
-	qoriq_write(&regs->alarm_regs->tmr_alarm1_l, lo);
-	qoriq_write(&regs->alarm_regs->tmr_alarm1_h, hi);
+	ptp_qoriq->write(&regs->alarm_regs->tmr_alarm1_l, lo);
+	ptp_qoriq->write(&regs->alarm_regs->tmr_alarm1_h, hi);
 }
 
 /* Caller must hold ptp_qoriq->lock. */
@@ -83,8 +83,8 @@ static void set_fipers(struct ptp_qoriq *ptp_qoriq)
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 
 	set_alarm(ptp_qoriq);
-	qoriq_write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
-	qoriq_write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
+	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
+	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
 }
 
 static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
@@ -115,8 +115,8 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 	event.index = index;
 
 	do {
-		lo = qoriq_read(reg_etts_l);
-		hi = qoriq_read(reg_etts_h);
+		lo = ptp_qoriq->read(reg_etts_l);
+		hi = ptp_qoriq->read(reg_etts_h);
 
 		if (update_event) {
 			event.timestamp = ((u64) hi) << 32;
@@ -124,7 +124,7 @@ static int extts_clean_up(struct ptp_qoriq *ptp_qoriq, int index,
 			ptp_clock_event(ptp_qoriq->clock, &event);
 		}
 
-		stat = qoriq_read(&regs->ctrl_regs->tmr_stat);
+		stat = ptp_qoriq->read(&regs->ctrl_regs->tmr_stat);
 	} while (ptp_qoriq->extts_fifo_support && (stat & valid));
 
 	return 0;
@@ -144,8 +144,8 @@ irqreturn_t ptp_qoriq_isr(int irq, void *priv)
 
 	spin_lock(&ptp_qoriq->lock);
 
-	val = qoriq_read(&regs->ctrl_regs->tmr_tevent);
-	mask = qoriq_read(&regs->ctrl_regs->tmr_temask);
+	val = ptp_qoriq->read(&regs->ctrl_regs->tmr_tevent);
+	mask = ptp_qoriq->read(&regs->ctrl_regs->tmr_temask);
 
 	spin_unlock(&ptp_qoriq->lock);
 
@@ -173,14 +173,14 @@ irqreturn_t ptp_qoriq_isr(int irq, void *priv)
 			ns = ptp_qoriq->alarm_value + ptp_qoriq->alarm_interval;
 			hi = ns >> 32;
 			lo = ns & 0xffffffff;
-			qoriq_write(&regs->alarm_regs->tmr_alarm2_l, lo);
-			qoriq_write(&regs->alarm_regs->tmr_alarm2_h, hi);
+			ptp_qoriq->write(&regs->alarm_regs->tmr_alarm2_l, lo);
+			ptp_qoriq->write(&regs->alarm_regs->tmr_alarm2_h, hi);
 			ptp_qoriq->alarm_value = ns;
 		} else {
 			spin_lock(&ptp_qoriq->lock);
-			mask = qoriq_read(&regs->ctrl_regs->tmr_temask);
+			mask = ptp_qoriq->read(&regs->ctrl_regs->tmr_temask);
 			mask &= ~ALM2EN;
-			qoriq_write(&regs->ctrl_regs->tmr_temask, mask);
+			ptp_qoriq->write(&regs->ctrl_regs->tmr_temask, mask);
 			spin_unlock(&ptp_qoriq->lock);
 			ptp_qoriq->alarm_value = 0;
 			ptp_qoriq->alarm_interval = 0;
@@ -194,7 +194,7 @@ irqreturn_t ptp_qoriq_isr(int irq, void *priv)
 	}
 
 	if (ack) {
-		qoriq_write(&regs->ctrl_regs->tmr_tevent, ack);
+		ptp_qoriq->write(&regs->ctrl_regs->tmr_tevent, ack);
 		return IRQ_HANDLED;
 	} else
 		return IRQ_NONE;
@@ -229,7 +229,7 @@ int ptp_qoriq_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 
 	tmr_add = neg_adj ? tmr_add - diff : tmr_add + diff;
 
-	qoriq_write(&regs->ctrl_regs->tmr_add, tmr_add);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_add, tmr_add);
 
 	return 0;
 }
@@ -326,15 +326,15 @@ int ptp_qoriq_enable(struct ptp_clock_info *ptp,
 
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
 
-	mask = qoriq_read(&regs->ctrl_regs->tmr_temask);
+	mask = ptp_qoriq->read(&regs->ctrl_regs->tmr_temask);
 	if (on) {
 		mask |= bit;
-		qoriq_write(&regs->ctrl_regs->tmr_tevent, bit);
+		ptp_qoriq->write(&regs->ctrl_regs->tmr_tevent, bit);
 	} else {
 		mask &= ~bit;
 	}
 
-	qoriq_write(&regs->ctrl_regs->tmr_temask, mask);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_temask, mask);
 
 	spin_unlock_irqrestore(&ptp_qoriq->lock, flags);
 	return 0;
@@ -496,6 +496,14 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 			return -ENODEV;
 	}
 
+	if (of_property_read_bool(node, "little-endian")) {
+		ptp_qoriq->read = qoriq_read_le;
+		ptp_qoriq->write = qoriq_write_le;
+	} else {
+		ptp_qoriq->read = qoriq_read_be;
+		ptp_qoriq->write = qoriq_write_be;
+	}
+
 	if (of_device_is_compatible(node, "fsl,fman-ptp-timer")) {
 		ptp_qoriq->regs.ctrl_regs = base + FMAN_CTRL_REGS_OFFSET;
 		ptp_qoriq->regs.alarm_regs = base + FMAN_ALARM_REGS_OFFSET;
@@ -519,13 +527,14 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
 
 	regs = &ptp_qoriq->regs;
-	qoriq_write(&regs->ctrl_regs->tmr_ctrl,   tmr_ctrl);
-	qoriq_write(&regs->ctrl_regs->tmr_add,    ptp_qoriq->tmr_add);
-	qoriq_write(&regs->ctrl_regs->tmr_prsc,   ptp_qoriq->tmr_prsc);
-	qoriq_write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
-	qoriq_write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl, tmr_ctrl);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_add, ptp_qoriq->tmr_add);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_prsc, ptp_qoriq->tmr_prsc);
+	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper1, ptp_qoriq->tmr_fiper1);
+	ptp_qoriq->write(&regs->fiper_regs->tmr_fiper2, ptp_qoriq->tmr_fiper2);
 	set_alarm(ptp_qoriq);
-	qoriq_write(&regs->ctrl_regs->tmr_ctrl,   tmr_ctrl|FIPERST|RTPE|TE|FRD);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl,
+			 tmr_ctrl|FIPERST|RTPE|TE|FRD);
 
 	spin_unlock_irqrestore(&ptp_qoriq->lock, flags);
 
@@ -543,8 +552,8 @@ void ptp_qoriq_free(struct ptp_qoriq *ptp_qoriq)
 {
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 
-	qoriq_write(&regs->ctrl_regs->tmr_temask, 0);
-	qoriq_write(&regs->ctrl_regs->tmr_ctrl,   0);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_temask, 0);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl,   0);
 
 	ptp_qoriq_remove_debugfs(ptp_qoriq);
 	ptp_clock_unregister(ptp_qoriq->clock);

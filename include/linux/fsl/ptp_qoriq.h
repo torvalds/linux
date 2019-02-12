@@ -157,19 +157,28 @@ struct ptp_qoriq {
 	u32 cksel;
 	u32 tmr_fiper1;
 	u32 tmr_fiper2;
+	u32 (*read)(unsigned __iomem *addr);
+	void (*write)(unsigned __iomem *addr, u32 val);
 };
 
-static inline u32 qoriq_read(unsigned __iomem *addr)
+static inline u32 qoriq_read_be(unsigned __iomem *addr)
 {
-	u32 val;
-
-	val = ioread32be(addr);
-	return val;
+	return ioread32be(addr);
 }
 
-static inline void qoriq_write(unsigned __iomem *addr, u32 val)
+static inline void qoriq_write_be(unsigned __iomem *addr, u32 val)
 {
 	iowrite32be(val, addr);
+}
+
+static inline u32 qoriq_read_le(unsigned __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static inline void qoriq_write_le(unsigned __iomem *addr, u32 val)
+{
+	iowrite32(val, addr);
 }
 
 irqreturn_t ptp_qoriq_isr(int irq, void *priv);

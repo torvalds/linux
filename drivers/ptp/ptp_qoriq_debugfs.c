@@ -11,7 +11,7 @@ static int ptp_qoriq_fiper1_lpbk_get(void *data, u64 *val)
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
-	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
+	ctrl = ptp_qoriq->read(&regs->ctrl_regs->tmr_ctrl);
 	*val = ctrl & PP1L ? 1 : 0;
 
 	return 0;
@@ -23,13 +23,13 @@ static int ptp_qoriq_fiper1_lpbk_set(void *data, u64 val)
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
-	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
+	ctrl = ptp_qoriq->read(&regs->ctrl_regs->tmr_ctrl);
 	if (val == 0)
 		ctrl &= ~PP1L;
 	else
 		ctrl |= PP1L;
 
-	qoriq_write(&regs->ctrl_regs->tmr_ctrl, ctrl);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl, ctrl);
 	return 0;
 }
 
@@ -42,7 +42,7 @@ static int ptp_qoriq_fiper2_lpbk_get(void *data, u64 *val)
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
-	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
+	ctrl = ptp_qoriq->read(&regs->ctrl_regs->tmr_ctrl);
 	*val = ctrl & PP2L ? 1 : 0;
 
 	return 0;
@@ -54,13 +54,13 @@ static int ptp_qoriq_fiper2_lpbk_set(void *data, u64 val)
 	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
-	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
+	ctrl = ptp_qoriq->read(&regs->ctrl_regs->tmr_ctrl);
 	if (val == 0)
 		ctrl &= ~PP2L;
 	else
 		ctrl |= PP2L;
 
-	qoriq_write(&regs->ctrl_regs->tmr_ctrl, ctrl);
+	ptp_qoriq->write(&regs->ctrl_regs->tmr_ctrl, ctrl);
 	return 0;
 }
 
