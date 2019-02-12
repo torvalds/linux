@@ -24,6 +24,7 @@
 #include "smc.h"
 #include "smc_wr.h"
 #include "smc_cdc.h"
+#include "smc_close.h"
 #include "smc_ism.h"
 #include "smc_tx.h"
 
@@ -554,6 +555,12 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	else
 		rc = smcr_tx_sndbuf_nonempty(conn);
 
+	if (!rc) {
+		/* trigger socket release if connection is closing */
+		struct smc_sock *smc = container_of(conn, struct smc_sock,
+						    conn);
+		smc_close_wake_tx_prepared(smc);
+	}
 	return rc;
 }
 
