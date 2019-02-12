@@ -1078,6 +1078,9 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	if (ecc)
 		pr_cont("|%sECC", ((ecc == 2) ? "C" : "U"));
 
+	if (fam >= 0x17)
+		pr_cont("|%s", (m->status & MCI_STATUS_SCRUB ? "Scrub" : "-"));
+
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)

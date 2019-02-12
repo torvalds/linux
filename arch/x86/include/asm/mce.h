@@ -48,6 +48,7 @@
 #define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
 #define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
 #define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
+#define MCI_STATUS_SCRUB	BIT_ULL(40)  /* Error detected during scrub operation */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
