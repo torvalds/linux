@@ -255,8 +255,7 @@ static bool bucket_became_unavailable(struct bucket_mark old,
 
 int bch2_fs_usage_apply(struct bch_fs *c,
 			struct bch_fs_usage *fs_usage,
-			struct disk_reservation *disk_res,
-			struct gc_pos gc_pos)
+			struct disk_reservation *disk_res)
 {
 	s64 added = fs_usage->s.data + fs_usage->s.reserved;
 	s64 should_not_have_added;
@@ -285,13 +284,6 @@ int bch2_fs_usage_apply(struct bch_fs *c,
 	acc_u64s((u64 *) this_cpu_ptr(c->usage[0]),
 		 (u64 *) fs_usage,
 		 sizeof(*fs_usage) / sizeof(u64) + c->replicas.nr);
-
-	if (gc_visited(c, gc_pos)) {
-		BUG_ON(!c->usage[1]);
-		acc_u64s((u64 *) this_cpu_ptr(c->usage[1]),
-			 (u64 *) fs_usage,
-			 sizeof(*fs_usage) / sizeof(u64) + c->replicas.nr);
-	}
 	preempt_enable();
 
 	return ret;
@@ -1001,7 +993,7 @@ void bch2_mark_update(struct btree_insert *trans,
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}
 
-	if (bch2_fs_usage_apply(c, fs_usage, trans->disk_res, pos) &&
+	if (bch2_fs_usage_apply(c, fs_usage, trans->disk_res) &&
 	    !warned_disk_usage &&
 	    !xchg(&warned_disk_usage, 1)) {
 		char buf[200];

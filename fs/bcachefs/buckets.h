@@ -260,7 +260,7 @@ int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
 		  struct bch_fs_usage *, u64, unsigned);
 void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);
 int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
-			struct disk_reservation *, struct gc_pos);
+			struct disk_reservation *);
 
 /* disk reservations: */
 
