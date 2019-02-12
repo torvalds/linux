@@ -929,13 +929,13 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
-		      struct mlx5e_tc_flow_parse_attr *parse_attr,
 		      struct mlx5e_tc_flow *flow,
 		      struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	u32 max_chain = mlx5_eswitch_get_chain_range(esw);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
+	struct mlx5e_tc_flow_parse_attr *parse_attr = attr->parse_attr;
 	u16 max_prio = mlx5_eswitch_get_prio_range(esw);
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5_fc *counter = NULL;
@@ -967,7 +967,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		if (!(attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
 			continue;
 
-		mirred_ifindex = attr->parse_attr->mirred_ifindex[out_index];
+		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
 					     mirred_ifindex);
 		err = mlx5e_attach_encap(priv,
@@ -2793,7 +2793,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
-	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
+	err = mlx5e_tc_add_fdb_flow(priv, flow, extack);
 	if (err)
 		goto err_free;
 
