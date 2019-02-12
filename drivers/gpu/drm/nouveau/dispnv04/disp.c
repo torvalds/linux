@@ -73,11 +73,13 @@ nv04_display_fini(struct drm_device *dev, bool suspend)
 }
 
 static int
-nv04_display_init(struct drm_device *dev)
+nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv04_display *disp = nv04_display(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_encoder *encoder;
-	struct nouveau_crtc *crtc;
+	struct drm_crtc *crtc;
+	int ret;
 
 	/* meh.. modeset apparently doesn't setup all the regs and depends
 	 * on pre-existing state, for now load the state of the card *before*
@@ -87,14 +89,74 @@ nv04_display_init(struct drm_device *dev)
 	 * save/restore "pre-load" state, but more general so we can save
 	 * on suspend too.
 	 */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
-		crtc->save(&crtc->base);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		nv_crtc->save(&nv_crtc->base);
+	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.base.head)
 		encoder->enc_save(&encoder->base.base);
 
 	/* Enable flip completion events. */
 	nvif_notify_get(&disp->flip);
+
+	if (!resume)
+		return 0;
+
+	/* Re-pin FB/cursors. */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_framebuffer *nouveau_fb;
+
+		nouveau_fb = nouveau_framebuffer(crtc->primary->fb);
+		if (!nouveau_fb || !nouveau_fb->nvbo)
+			continue;
+
+		ret = nouveau_bo_pin(nouveau_fb->nvbo, TTM_PL_FLAG_VRAM, true);
+		if (ret)
+			NV_ERROR(drm, "Could not pin framebuffer\n");
+	}
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		if (!nv_crtc->cursor.nvbo)
+			continue;
+
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
+		if (!ret && nv_crtc->cursor.set_offset)
+			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+		if (ret)
+			NV_ERROR(drm, "Could not pin/map cursor.\n");
+	}
+
+	/* Force CLUT to get re-loaded during modeset. */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+
+		nv_crtc->lut.depth = 0;
+	}
+
+	/* This should ensure we don't hit a locking problem when someone
+	 * wakes us up via a connector.  We should never go into suspend
+	 * while the display is on anyways.
+	 */
+	if (runtime)
+		return 0;
+
+	/* Restore mode. */
+	drm_helper_resume_force_mode(dev);
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+
+		if (!nv_crtc->cursor.nvbo)
+			continue;
+
+		if (nv_crtc->cursor.set_offset)
+			nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
+		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
+						 nv_crtc->cursor_saved_y);
+	}
+
 	return 0;
 }
 

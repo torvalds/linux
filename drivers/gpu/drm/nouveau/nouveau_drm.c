@@ -498,7 +498,7 @@ nouveau_drm_device_init(struct drm_device *dev)
 		goto fail_dispctor;
 
 	if (dev->mode_config.num_crtc) {
-		ret = nouveau_display_init(dev);
+		ret = nouveau_display_init(dev, false, false);
 		if (ret)
 			goto fail_dispinit;
 	}

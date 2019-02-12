@@ -2244,7 +2244,7 @@ nv50_display_fini(struct drm_device *dev, bool suspend)
 }
 
 static int
-nv50_display_init(struct drm_device *dev)
+nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_encoder *encoder;

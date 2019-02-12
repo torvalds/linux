@@ -28,7 +28,7 @@ int nouveau_framebuffer_new(struct drm_device *,
 struct nouveau_display {
 	void *priv;
 	void (*dtor)(struct drm_device *);
-	int  (*init)(struct drm_device *);
+	int  (*init)(struct drm_device *, bool resume, bool runtime);
 	void (*fini)(struct drm_device *, bool suspend);
 
 	struct nvif_disp disp;
@@ -53,7 +53,7 @@ nouveau_display(struct drm_device *dev)
 
 int  nouveau_display_create(struct drm_device *dev);
 void nouveau_display_destroy(struct drm_device *dev);
-int  nouveau_display_init(struct drm_device *dev);
+int  nouveau_display_init(struct drm_device *dev, bool resume, bool runtime);
 void nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime);
 int  nouveau_display_suspend(struct drm_device *dev, bool runtime);
 void nouveau_display_resume(struct drm_device *dev, bool runtime);
