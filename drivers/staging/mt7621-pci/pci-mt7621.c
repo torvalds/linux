@@ -35,8 +35,6 @@
 
 /* sysctl */
 #define MT7621_CHIP_REV_ID		0x0c
-#define RALINK_CLKCFG1			0x30
-#define RALINK_RSTCTRL			0x34
 #define CHIP_REV_MT7621_E2		0x0101
 
 /* MediaTek specific configuration registers */
