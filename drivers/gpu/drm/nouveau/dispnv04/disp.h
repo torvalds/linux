@@ -92,9 +92,6 @@ nv04_display(struct drm_device *dev)
 
 /* nv04_display.c */
 int nv04_display_create(struct drm_device *);
-void nv04_display_destroy(struct drm_device *);
-int nv04_display_init(struct drm_device *);
-void nv04_display_fini(struct drm_device *);
 
 /* nv04_crtc.c */
 int nv04_crtc_create(struct drm_device *, int index);
