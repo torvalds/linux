@@ -125,9 +125,10 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	return 0;
 
 err_unreg_umem:
-	xdp_clear_umem_at_qid(dev, queue_id);
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
+	if (err)
+		xdp_clear_umem_at_qid(dev, queue_id);
 out_rtnl_unlock:
 	rtnl_unlock();
 	return err;
