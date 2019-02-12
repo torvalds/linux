@@ -3041,10 +3041,6 @@ iwl_trans_pcie_dump_pointers(struct iwl_trans *trans,
 		base_high = DBGC_CUR_DBGBUF_BASE_ADDR_MSB;
 		write_ptr = DBGC_CUR_DBGBUF_STATUS;
 		wrap_cnt = DBGC_DBGBUF_WRAP_AROUND;
-	} else if (trans->ini_valid) {
-		base = iwl_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2);
-		write_ptr = iwl_umac_prph(trans, MON_BUFF_WRPTR_VER2);
-		wrap_cnt = iwl_umac_prph(trans, MON_BUFF_CYCLE_CNT_VER2);
 	} else if (trans->dbg_dest_tlv) {
 		write_ptr = le32_to_cpu(trans->dbg_dest_tlv->write_ptr_reg);
 		wrap_cnt = le32_to_cpu(trans->dbg_dest_tlv->wrap_count);
@@ -3075,11 +3071,10 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 {
 	u32 len = 0;
 
-	if ((trans->num_blocks &&
+	if (trans->dbg_dest_tlv ||
+	    (trans->num_blocks &&
 	     (trans->cfg->device_family == IWL_DEVICE_FAMILY_7000 ||
-	      trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210 ||
-	      trans->ini_valid)) ||
-	    (trans->dbg_dest_tlv && !trans->ini_valid)) {
+	      trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210))) {
 		struct iwl_fw_error_dump_fw_mon *fw_mon_data;
 
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FW_MONITOR);

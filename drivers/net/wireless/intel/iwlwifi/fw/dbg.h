@@ -362,7 +362,7 @@ void iwl_fw_error_dump_wk(struct work_struct *work);
 
 static inline bool iwl_fw_dbg_type_on(struct iwl_fw_runtime *fwrt, u32 type)
 {
-	return (fwrt->fw->dbg.dump_mask & BIT(type) || fwrt->trans->ini_valid);
+	return (fwrt->fw->dbg.dump_mask & BIT(type));
 }
 
 static inline bool iwl_fw_dbg_is_d3_debug_enabled(struct iwl_fw_runtime *fwrt)

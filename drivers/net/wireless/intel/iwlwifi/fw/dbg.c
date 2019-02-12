@@ -2023,7 +2023,7 @@ static void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	if (!dump_file)
 		goto out;
 
-	if (!fwrt->trans->ini_valid && fwrt->dump.monitor_only)
+	if (fwrt->dump.monitor_only)
 		dump_mask &= IWL_FW_ERROR_DUMP_FW_MONITOR;
 
 	fw_error_dump.trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
@@ -2274,9 +2274,6 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 {
 	int ret, len = 0;
 	char buf[64];
-
-	if (fwrt->trans->ini_valid)
-		return 0;
 
 	if (fmt) {
 		va_list ap;
