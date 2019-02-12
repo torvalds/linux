@@ -250,7 +250,7 @@ static int mtk_btcvsd_snd_rx_init(struct mtk_btcvsd_snd *bt)
 	bt->rx->buf_size = BTCVSD_RX_BUF_SIZE;
 	bt->rx->timeout = 0;
 	bt->rx->rw_cnt = 0;
-	bt->tx->stream = SNDRV_PCM_STREAM_CAPTURE;
+	bt->rx->stream = SNDRV_PCM_STREAM_CAPTURE;
 	return 0;
 }
 
