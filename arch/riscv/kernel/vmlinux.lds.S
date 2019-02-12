@@ -18,8 +18,6 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 
-#define MAX_BYTES_PER_LONG	0x10
-
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
@@ -76,16 +74,14 @@ SECTIONS
 		*(.sbss*)
 	}
 
+	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, 0)
+
 	EXCEPTION_TABLE(0x10)
 	NOTES
 
 	.rel.dyn : {
 		*(.rel.dyn*)
 	}
-
-	BSS_SECTION(MAX_BYTES_PER_LONG,
-		    MAX_BYTES_PER_LONG,
-		    MAX_BYTES_PER_LONG)
 
 	_end = .;
 
