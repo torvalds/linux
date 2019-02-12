@@ -1305,6 +1305,9 @@ int i915_reset_trylock(struct drm_i915_private *i915)
 	struct i915_gpu_error *error = &i915->gpu_error;
 	int srcu;
 
+	might_lock(&error->reset_backoff_srcu);
+	might_sleep();
+
 	rcu_read_lock();
 	while (test_bit(I915_RESET_BACKOFF, &error->flags)) {
 		rcu_read_unlock();
