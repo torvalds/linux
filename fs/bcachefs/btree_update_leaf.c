@@ -624,6 +624,9 @@ int __bch2_btree_insert_at(struct btree_insert *trans)
 	/* for the sake of sanity: */
 	BUG_ON(trans->nr > 1 && !(trans->flags & BTREE_INSERT_ATOMIC));
 
+	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)
+		lockdep_assert_held(&c->gc_lock);
+
 	bubble_sort(trans->entries, trans->nr, btree_trans_cmp);
 
 	trans_for_each_entry(trans, i)
