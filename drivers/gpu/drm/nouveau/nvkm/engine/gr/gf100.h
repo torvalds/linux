@@ -82,8 +82,14 @@ struct gf100_gr {
 	const struct gf100_gr_func *func;
 	struct nvkm_gr base;
 
-	struct nvkm_falcon *fecs;
-	struct nvkm_falcon *gpccs;
+	struct {
+		struct nvkm_falcon *falcon;
+	} fecs;
+
+	struct {
+		struct nvkm_falcon *falcon;
+	} gpccs;
+
 	struct gf100_gr_fuc fuc409c;
 	struct gf100_gr_fuc fuc409d;
 	struct gf100_gr_fuc fuc41ac;
