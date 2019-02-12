@@ -121,78 +121,55 @@ static int i40iw_query_port(struct ib_device *ibdev,
 
 /**
  * i40iw_alloc_ucontext - Allocate the user context data structure
- * @ibdev: device pointer from stack
+ * @uctx: Uverbs context pointer from stack
  * @udata: user data
  *
  * This keeps track of all objects associated with a particular
  * user-mode client.
  */
-static struct ib_ucontext *i40iw_alloc_ucontext(struct ib_device *ibdev,
-						struct ib_udata *udata)
+static int i40iw_alloc_ucontext(struct ib_ucontext *uctx,
+				struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_alloc_ucontext_req req;
-	struct i40iw_alloc_ucontext_resp uresp;
-	struct i40iw_ucontext *ucontext;
+	struct i40iw_alloc_ucontext_resp uresp = {};
+	struct i40iw_ucontext *ucontext = to_ucontext(uctx);
 
 	if (ib_copy_from_udata(&req, udata, sizeof(req)))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (req.userspace_ver < 4 || req.userspace_ver > I40IW_ABI_VER) {
 		i40iw_pr_err("Unsupported provider library version %u.\n", req.userspace_ver);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
-	memset(&uresp, 0, sizeof(uresp));
 	uresp.max_qps = iwdev->max_qp;
 	uresp.max_pds = iwdev->max_pd;
 	uresp.wq_size = iwdev->max_qp_wr * 2;
 	uresp.kernel_ver = req.userspace_ver;
 
-	ucontext = kzalloc(sizeof(*ucontext), GFP_KERNEL);
-	if (!ucontext)
-		return ERR_PTR(-ENOMEM);
-
 	ucontext->iwdev = iwdev;
 	ucontext->abi_ver = req.userspace_ver;
 
-	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
-		kfree(ucontext);
-		return ERR_PTR(-EFAULT);
-	}
+	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp)))
+		return -EFAULT;
 
 	INIT_LIST_HEAD(&ucontext->cq_reg_mem_list);
 	spin_lock_init(&ucontext->cq_reg_mem_list_lock);
 	INIT_LIST_HEAD(&ucontext->qp_reg_mem_list);
 	spin_lock_init(&ucontext->qp_reg_mem_list_lock);
 
-	return &ucontext->ibucontext;
+	return 0;
 }
 
 /**
  * i40iw_dealloc_ucontext - deallocate the user context data structure
  * @context: user context created during alloc
  */
-static int i40iw_dealloc_ucontext(struct ib_ucontext *context)
+static void i40iw_dealloc_ucontext(struct ib_ucontext *context)
 {
-	struct i40iw_ucontext *ucontext = to_ucontext(context);
-	unsigned long flags;
-
-	spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
-	if (!list_empty(&ucontext->cq_reg_mem_list)) {
-		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
-	spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
-	if (!list_empty(&ucontext->qp_reg_mem_list)) {
-		spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
-
-	kfree(ucontext);
-	return 0;
+	return;
 }
 
 /**
@@ -2740,6 +2717,7 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.reg_user_mr = i40iw_reg_user_mr,
 	.req_notify_cq = i40iw_req_notify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, i40iw_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, i40iw_ucontext, ibucontext),
 };
 
 /**

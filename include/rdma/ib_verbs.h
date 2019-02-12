@@ -2389,9 +2389,9 @@ struct ib_device_ops {
 	int (*del_gid)(const struct ib_gid_attr *attr, void **context);
 	int (*query_pkey)(struct ib_device *device, u8 port_num, u16 index,
 			  u16 *pkey);
-	struct ib_ucontext *(*alloc_ucontext)(struct ib_device *device,
-					      struct ib_udata *udata);
-	int (*dealloc_ucontext)(struct ib_ucontext *context);
+	int (*alloc_ucontext)(struct ib_ucontext *context,
+			      struct ib_udata *udata);
+	void (*dealloc_ucontext)(struct ib_ucontext *context);
 	int (*mmap)(struct ib_ucontext *context, struct vm_area_struct *vma);
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	int (*alloc_pd)(struct ib_pd *pd, struct ib_ucontext *context,
@@ -2551,6 +2551,7 @@ struct ib_device_ops {
 	void (*dealloc_driver)(struct ib_device *dev);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
+	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };
 
 struct rdma_restrack_root;

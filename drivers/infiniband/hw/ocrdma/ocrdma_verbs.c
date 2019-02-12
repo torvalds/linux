@@ -440,7 +440,7 @@ err:
 	return status;
 }
 
-static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
+static void ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 {
 	struct ocrdma_pd *pd = uctx->cntxt_pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
@@ -451,8 +451,7 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 	}
 	kfree(uctx->cntxt_pd);
 	uctx->cntxt_pd = NULL;
-	(void)_ocrdma_dealloc_pd(dev, pd);
-	return 0;
+	_ocrdma_dealloc_pd(dev, pd);
 }
 
 static struct ocrdma_pd *ocrdma_get_ucontext_pd(struct ocrdma_ucontext *uctx)
@@ -476,33 +475,28 @@ static void ocrdma_release_ucontext_pd(struct ocrdma_ucontext *uctx)
 	mutex_unlock(&uctx->mm_list_lock);
 }
 
-struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
-					  struct ib_udata *udata)
+int ocrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	int status;
-	struct ocrdma_ucontext *ctx;
-	struct ocrdma_alloc_ucontext_resp resp;
+	struct ocrdma_ucontext *ctx = get_ocrdma_ucontext(uctx);
+	struct ocrdma_alloc_ucontext_resp resp = {};
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	u32 map_len = roundup(sizeof(u32) * 2048, PAGE_SIZE);
 
 	if (!udata)
-		return ERR_PTR(-EFAULT);
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return -EFAULT;
 	INIT_LIST_HEAD(&ctx->mm_head);
 	mutex_init(&ctx->mm_list_lock);
 
 	ctx->ah_tbl.va = dma_alloc_coherent(&pdev->dev, map_len,
 					    &ctx->ah_tbl.pa, GFP_KERNEL);
-	if (!ctx->ah_tbl.va) {
-		kfree(ctx);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (!ctx->ah_tbl.va)
+		return -ENOMEM;
+
 	ctx->ah_tbl.len = map_len;
 
-	memset(&resp, 0, sizeof(resp));
 	resp.ah_tbl_len = ctx->ah_tbl.len;
 	resp.ah_tbl_page = virt_to_phys(ctx->ah_tbl.va);
 
@@ -524,7 +518,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	status = ib_copy_to_udata(udata, &resp, sizeof(resp));
 	if (status)
 		goto cpy_err;
-	return &ctx->ibucontext;
+	return 0;
 
 cpy_err:
 	ocrdma_dealloc_ucontext_pd(ctx);
@@ -533,19 +527,17 @@ pd_err:
 map_err:
 	dma_free_coherent(&pdev->dev, ctx->ah_tbl.len, ctx->ah_tbl.va,
 			  ctx->ah_tbl.pa);
-	kfree(ctx);
-	return ERR_PTR(status);
+	return status;
 }
 
-int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
+void ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 {
-	int status;
 	struct ocrdma_mm *mm, *tmp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ibctx);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibctx->device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
 
-	status = ocrdma_dealloc_ucontext_pd(uctx);
+	ocrdma_dealloc_ucontext_pd(uctx);
 
 	ocrdma_del_mmap(uctx, uctx->ah_tbl.pa, uctx->ah_tbl.len);
 	dma_free_coherent(&pdev->dev, uctx->ah_tbl.len, uctx->ah_tbl.va,
@@ -555,8 +547,6 @@ int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 		list_del(&mm->entry);
 		kfree(mm);
 	}
-	kfree(uctx);
-	return status;
 }
 
 int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)

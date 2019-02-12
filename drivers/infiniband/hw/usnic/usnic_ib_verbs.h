@@ -68,9 +68,8 @@ struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 				u64 virt_addr, int access_flags,
 				struct ib_udata *udata);
 int usnic_ib_dereg_mr(struct ib_mr *ibmr);
-struct ib_ucontext *usnic_ib_alloc_ucontext(struct ib_device *ibdev,
-						struct ib_udata *udata);
-int usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext);
+int usnic_ib_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
+void usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext);
 int usnic_ib_mmap(struct ib_ucontext *context,
 			struct vm_area_struct *vma);
 #endif /* !USNIC_IB_VERBS_H */

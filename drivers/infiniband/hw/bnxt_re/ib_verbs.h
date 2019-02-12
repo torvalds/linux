@@ -135,8 +135,8 @@ struct bnxt_re_mw {
 };
 
 struct bnxt_re_ucontext {
+	struct ib_ucontext      ib_uctx;
 	struct bnxt_re_dev	*rdev;
-	struct ib_ucontext	ib_uctx;
 	struct bnxt_qplib_dpi	dpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
@@ -215,9 +215,8 @@ int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);
-struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
-					   struct ib_udata *udata);
-int bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
+int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
+void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp);

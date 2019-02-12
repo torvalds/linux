@@ -224,12 +224,13 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err;
 
-	ucontext = ib_dev->ops.alloc_ucontext(ib_dev, &attrs->driver_udata);
-	if (IS_ERR(ucontext)) {
-		ret = PTR_ERR(ucontext);
+	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
+	if (!ucontext) {
+		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
+	ucontext->res.type = RDMA_RESTRACK_CTX;
 	ucontext->device = ib_dev;
 	ucontext->cg_obj = cg_obj;
 	/* ufile is required when some objects are released */
@@ -240,10 +241,6 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 
 	mutex_init(&ucontext->per_mm_list_lock);
 	INIT_LIST_HEAD(&ucontext->per_mm_list);
-	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
-		ucontext->invalidate_range = NULL;
-
-	resp.num_comp_vectors = file->device->num_comp_vectors;
 
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
@@ -256,14 +253,21 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 		goto err_fd;
 	}
 
+	resp.num_comp_vectors = file->device->num_comp_vectors;
+
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_file;
 
-	fd_install(resp.async_fd, filp);
+	ret = ib_dev->ops.alloc_ucontext(ucontext, &attrs->driver_udata);
+	if (ret)
+		goto err_file;
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
+		ucontext->invalidate_range = NULL;
 
-	ucontext->res.type = RDMA_RESTRACK_CTX;
 	rdma_restrack_uadd(&ucontext->res);
+
+	fd_install(resp.async_fd, filp);
 
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
@@ -283,7 +287,7 @@ err_fd:
 	put_unused_fd(resp.async_fd);
 
 err_free:
-	ib_dev->ops.dealloc_ucontext(ucontext);
+	kfree(ucontext);
 
 err_alloc:
 	ib_rdmacg_uncharge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);

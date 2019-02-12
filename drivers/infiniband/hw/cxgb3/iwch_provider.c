@@ -62,7 +62,7 @@
 #include <rdma/cxgb3-abi.h>
 #include "common.h"
 
-static int iwch_dealloc_ucontext(struct ib_ucontext *context)
+static void iwch_dealloc_ucontext(struct ib_ucontext *context)
 {
 	struct iwch_dev *rhp = to_iwch_dev(context->device);
 	struct iwch_ucontext *ucontext = to_iwch_ucontext(context);
@@ -72,24 +72,20 @@ static int iwch_dealloc_ucontext(struct ib_ucontext *context)
 	list_for_each_entry_safe(mm, tmp, &ucontext->mmaps, entry)
 		kfree(mm);
 	cxio_release_ucontext(&rhp->rdev, &ucontext->uctx);
-	kfree(ucontext);
-	return 0;
 }
 
-static struct ib_ucontext *iwch_alloc_ucontext(struct ib_device *ibdev,
-					struct ib_udata *udata)
+static int iwch_alloc_ucontext(struct ib_ucontext *ucontext,
+			       struct ib_udata *udata)
 {
-	struct iwch_ucontext *context;
+	struct ib_device *ibdev = ucontext->device;
+	struct iwch_ucontext *context = to_iwch_ucontext(ucontext);
 	struct iwch_dev *rhp = to_iwch_dev(ibdev);
 
 	pr_debug("%s ibdev %p\n", __func__, ibdev);
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
 	cxio_init_ucontext(&rhp->rdev, &context->uctx);
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
-	return &context->ibucontext;
+	return 0;
 }
 
 static int iwch_destroy_cq(struct ib_cq *ib_cq)
@@ -1342,6 +1338,7 @@ static const struct ib_device_ops iwch_dev_ops = {
 	.req_notify_cq = iwch_arm_cq,
 	.resize_cq = iwch_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, iwch_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, iwch_ucontext, ibucontext),
 };
 
 int iwch_register_device(struct iwch_dev *dev)

@@ -292,28 +292,21 @@ static inline struct rvt_ucontext *to_iucontext(struct ib_ucontext
 
 /**
  * rvt_alloc_ucontext - Allocate a user context
- * @ibdev: Verbs IB dev
+ * @uctx: Verbs context
  * @udata: User data allocated
  */
-static struct ib_ucontext *rvt_alloc_ucontext(struct ib_device *ibdev,
-					      struct ib_udata *udata)
+static int rvt_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct rvt_ucontext *context;
-
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
-	return &context->ibucontext;
+	return 0;
 }
 
 /**
- *rvt_dealloc_ucontext - Free a user context
- *@context - Free this
+ * rvt_dealloc_ucontext - Free a user context
+ * @context - Free this
  */
-static int rvt_dealloc_ucontext(struct ib_ucontext *context)
+static void rvt_dealloc_ucontext(struct ib_ucontext *context)
 {
-	kfree(to_iucontext(context));
-	return 0;
+	return;
 }
 
 static int rvt_get_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -433,6 +426,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.resize_cq = rvt_resize_cq,
 	.unmap_fmr = rvt_unmap_fmr,
 	INIT_RDMA_OBJ_SIZE(ib_pd, rvt_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, rvt_ucontext, ibucontext),
 };
 
 static noinline int check_support(struct rvt_dev_info *rdi, int verb)

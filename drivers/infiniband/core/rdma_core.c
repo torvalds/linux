@@ -844,7 +844,6 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 {
 	struct ib_ucontext *ucontext = ufile->ucontext;
 	struct ib_device *ib_dev = ucontext->device;
-	int ret;
 
 	/*
 	 * If we are closing the FD then the user mmap VMAs must have
@@ -862,12 +861,8 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 
 	rdma_restrack_del(&ucontext->res);
 
-	/*
-	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
-	 * the error return.
-	 */
-	ret = ib_dev->ops.dealloc_ucontext(ucontext);
-	WARN_ON(ret);
+	ib_dev->ops.dealloc_ucontext(ucontext);
+	kfree(ucontext);
 
 	ufile->ucontext = NULL;
 }

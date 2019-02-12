@@ -316,28 +316,24 @@ static bool qedr_search_mmap(struct qedr_ucontext *uctx, u64 phy_addr,
 	return found;
 }
 
-struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *ibdev,
-					struct ib_udata *udata)
+int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	int rc;
-	struct qedr_ucontext *ctx;
-	struct qedr_alloc_ucontext_resp uresp;
+	struct qedr_ucontext *ctx = get_qedr_ucontext(uctx);
+	struct qedr_alloc_ucontext_resp uresp = {};
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 	struct qed_rdma_add_user_out_params oparams;
 
 	if (!udata)
-		return ERR_PTR(-EFAULT);
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+		return -EFAULT;
 
 	rc = dev->ops->rdma_add_user(dev->rdma_ctx, &oparams);
 	if (rc) {
 		DP_ERR(dev,
 		       "failed to allocate a DPI for a new RoCE application, rc=%d. To overcome this consider to increase the number of DPIs, increase the doorbell BAR size or just close unnecessary RoCE applications. In order to increase the number of DPIs consult the qedr readme\n",
 		       rc);
-		goto err;
+		return rc;
 	}
 
 	ctx->dpi = oparams.dpi;
@@ -346,8 +342,6 @@ struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *ibdev,
 	ctx->dpi_size = oparams.dpi_size;
 	INIT_LIST_HEAD(&ctx->mm_head);
 	mutex_init(&ctx->mm_list_lock);
-
-	memset(&uresp, 0, sizeof(uresp));
 
 	uresp.dpm_enabled = dev->user_dpm_enabled;
 	uresp.wids_enabled = 1;
@@ -364,28 +358,23 @@ struct ib_ucontext *qedr_alloc_ucontext(struct ib_device *ibdev,
 
 	rc = qedr_ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (rc)
-		goto err;
+		return rc;
 
 	ctx->dev = dev;
 
 	rc = qedr_add_mmap(ctx, ctx->dpi_phys_addr, ctx->dpi_size);
 	if (rc)
-		goto err;
+		return rc;
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Allocating user context %p\n",
 		 &ctx->ibucontext);
-	return &ctx->ibucontext;
-
-err:
-	kfree(ctx);
-	return ERR_PTR(rc);
+	return 0;
 }
 
-int qedr_dealloc_ucontext(struct ib_ucontext *ibctx)
+void qedr_dealloc_ucontext(struct ib_ucontext *ibctx)
 {
 	struct qedr_ucontext *uctx = get_qedr_ucontext(ibctx);
 	struct qedr_mm *mm, *tmp;
-	int status = 0;
 
 	DP_DEBUG(uctx->dev, QEDR_MSG_INIT, "Deallocating user context %p\n",
 		 uctx);
@@ -398,9 +387,6 @@ int qedr_dealloc_ucontext(struct ib_ucontext *ibctx)
 		list_del(&mm->entry);
 		kfree(mm);
 	}
-
-	kfree(uctx);
-	return status;
 }
 
 int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)

@@ -3671,13 +3671,14 @@ free_mr:
 	return ERR_PTR(rc);
 }
 
-struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
-					   struct ib_udata *udata)
+int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ctx->device;
+	struct bnxt_re_ucontext *uctx =
+		container_of(ctx, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
 	struct bnxt_re_uctx_resp resp;
-	struct bnxt_re_ucontext *uctx;
 	u32 chip_met_rev_num = 0;
 	int rc;
 
@@ -3687,12 +3688,8 @@ struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
 	if (ibdev->uverbs_abi_ver != BNXT_RE_ABI_VERSION) {
 		dev_dbg(rdev_to_dev(rdev), " is different from the device %d ",
 			BNXT_RE_ABI_VERSION);
-		return ERR_PTR(-EPERM);
+		return -EPERM;
 	}
-
-	uctx = kzalloc(sizeof(*uctx), GFP_KERNEL);
-	if (!uctx)
-		return ERR_PTR(-ENOMEM);
 
 	uctx->rdev = rdev;
 
@@ -3727,23 +3724,21 @@ struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
 		goto cfail;
 	}
 
-	return &uctx->ib_uctx;
+	return 0;
 cfail:
 	free_page((unsigned long)uctx->shpg);
 	uctx->shpg = NULL;
 fail:
-	kfree(uctx);
-	return ERR_PTR(rc);
+	return rc;
 }
 
-int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
+void bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 {
 	struct bnxt_re_ucontext *uctx = container_of(ib_uctx,
 						   struct bnxt_re_ucontext,
 						   ib_uctx);
 
 	struct bnxt_re_dev *rdev = uctx->rdev;
-	int rc = 0;
 
 	if (uctx->shpg)
 		free_page((unsigned long)uctx->shpg);
@@ -3752,17 +3747,10 @@ int bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 		/* Free DPI only if this is the first PD allocated by the
 		 * application and mark the context dpi as NULL
 		 */
-		rc = bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
-					    &rdev->qplib_res.dpi_tbl,
-					    &uctx->dpi);
-		if (rc)
-			dev_err(rdev_to_dev(rdev), "Deallocate HW DPI failed!");
-			/* Don't fail, continue*/
+		bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
+				       &rdev->qplib_res.dpi_tbl, &uctx->dpi);
 		uctx->dpi.dbr = NULL;
 	}
-
-	kfree(uctx);
-	return 0;
 }
 
 /* Helper function to mmap the virtual memory from user app */

@@ -240,6 +240,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.req_notify_cq = qedr_arm_cq,
 	.resize_cq = qedr_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
 };
 
 static int qedr_register_device(struct qedr_dev *dev)

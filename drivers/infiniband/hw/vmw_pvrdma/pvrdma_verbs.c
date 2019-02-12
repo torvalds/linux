@@ -306,41 +306,32 @@ out:
 
 /**
  * pvrdma_alloc_ucontext - allocate ucontext
- * @ibdev: the IB device
+ * @uctx: the uverbs countext
  * @udata: user data
  *
- * @return: the ib_ucontext pointer on success, otherwise errno.
+ * @return:  zero on success, otherwise errno.
  */
-struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
-					  struct ib_udata *udata)
+int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	struct pvrdma_dev *vdev = to_vdev(ibdev);
-	struct pvrdma_ucontext *context;
-	union pvrdma_cmd_req req;
-	union pvrdma_cmd_resp rsp;
+	struct pvrdma_ucontext *context = to_vucontext(uctx);
+	union pvrdma_cmd_req req = {};
+	union pvrdma_cmd_resp rsp = {};
 	struct pvrdma_cmd_create_uc *cmd = &req.create_uc;
 	struct pvrdma_cmd_create_uc_resp *resp = &rsp.create_uc_resp;
-	struct pvrdma_alloc_ucontext_resp uresp = {0};
+	struct pvrdma_alloc_ucontext_resp uresp = {};
 	int ret;
-	void *ptr;
 
 	if (!vdev->ib_active)
-		return ERR_PTR(-EAGAIN);
-
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
+		return -EAGAIN;
 
 	context->dev = vdev;
 	ret = pvrdma_uar_alloc(vdev, &context->uar);
-	if (ret) {
-		kfree(context);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (ret)
+		return -ENOMEM;
 
 	/* get ctx_handle from host */
-	memset(cmd, 0, sizeof(*cmd));
-
 	if (vdev->dsr_version < PVRDMA_PPN64_VERSION)
 		cmd->pfn = context->uar.pfn;
 	else
@@ -351,7 +342,6 @@ struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 	if (ret < 0) {
 		dev_warn(&vdev->pdev->dev,
 			 "could not create ucontext, error: %d\n", ret);
-		ptr = ERR_PTR(ret);
 		goto err;
 	}
 
@@ -362,33 +352,28 @@ struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 	ret = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (ret) {
 		pvrdma_uar_free(vdev, &context->uar);
-		context->ibucontext.device = ibdev;
 		pvrdma_dealloc_ucontext(&context->ibucontext);
-		return ERR_PTR(-EFAULT);
+		return -EFAULT;
 	}
 
-	return &context->ibucontext;
+	return 0;
 
 err:
 	pvrdma_uar_free(vdev, &context->uar);
-	kfree(context);
-	return ptr;
+	return ret;
 }
 
 /**
  * pvrdma_dealloc_ucontext - deallocate ucontext
  * @ibcontext: the ucontext
- *
- * @return: 0 on success, otherwise errno.
  */
-int pvrdma_dealloc_ucontext(struct ib_ucontext *ibcontext)
+void pvrdma_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct pvrdma_ucontext *context = to_vucontext(ibcontext);
-	union pvrdma_cmd_req req;
+	union pvrdma_cmd_req req = {};
 	struct pvrdma_cmd_destroy_uc *cmd = &req.destroy_uc;
 	int ret;
 
-	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_DESTROY_UC;
 	cmd->ctx_handle = context->ctx_handle;
 
@@ -399,9 +384,6 @@ int pvrdma_dealloc_ucontext(struct ib_ucontext *ibcontext)
 
 	/* Free the UAR even if the device command failed */
 	pvrdma_uar_free(to_vdev(ibcontext->device), &context->uar);
-	kfree(context);
-
-	return ret;
 }
 
 /**

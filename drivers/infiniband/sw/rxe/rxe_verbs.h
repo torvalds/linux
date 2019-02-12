@@ -61,8 +61,8 @@ static inline int psn_compare(u32 psn_a, u32 psn_b)
 }
 
 struct rxe_ucontext {
+	struct ib_ucontext ibuc;
 	struct rxe_pool_entry	pelem;
-	struct ib_ucontext	ibuc;
 };
 
 struct rxe_pd {

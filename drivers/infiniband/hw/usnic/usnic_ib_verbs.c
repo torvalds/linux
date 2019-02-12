@@ -653,37 +653,31 @@ int usnic_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_ucontext *usnic_ib_alloc_ucontext(struct ib_device *ibdev,
-							struct ib_udata *udata)
+int usnic_ib_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct usnic_ib_ucontext *context;
+	struct ib_device *ibdev = uctx->device;
+	struct usnic_ib_ucontext *context = to_ucontext(uctx);
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	usnic_dbg("\n");
-
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&context->qp_grp_list);
 	mutex_lock(&us_ibdev->usdev_lock);
 	list_add_tail(&context->link, &us_ibdev->ctx_list);
 	mutex_unlock(&us_ibdev->usdev_lock);
 
-	return &context->ibucontext;
+	return 0;
 }
 
-int usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
+void usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct usnic_ib_ucontext *context = to_uucontext(ibcontext);
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibcontext->device);
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	BUG_ON(!list_empty(&context->qp_grp_list));
+	WARN_ON_ONCE(!list_empty(&context->qp_grp_list));
 	list_del(&context->link);
 	mutex_unlock(&us_ibdev->usdev_lock);
-	kfree(context);
-	return 0;
 }
 
 int usnic_ib_mmap(struct ib_ucontext *context,

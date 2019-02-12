@@ -142,22 +142,19 @@ static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
 	return rxe_link_layer(rxe, port_num);
 }
 
-static struct ib_ucontext *rxe_alloc_ucontext(struct ib_device *dev,
-					      struct ib_udata *udata)
+static int rxe_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_ucontext *uc;
+	struct rxe_dev *rxe = to_rdev(uctx->device);
+	struct rxe_ucontext *uc = to_ruc(uctx);
 
-	uc = rxe_alloc(&rxe->uc_pool);
-	return uc ? &uc->ibuc : ERR_PTR(-ENOMEM);
+	return rxe_add_to_pool(&rxe->uc_pool, &uc->pelem);
 }
 
-static int rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
+static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 {
 	struct rxe_ucontext *uc = to_ruc(ibuc);
 
 	rxe_drop_ref(uc);
-	return 0;
 }
 
 static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
@@ -1180,6 +1177,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.req_notify_cq = rxe_req_notify_cq,
 	.resize_cq = rxe_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
 };
 
 int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)

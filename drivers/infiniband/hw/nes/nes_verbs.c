@@ -529,27 +529,27 @@ static int nes_query_gid(struct ib_device *ibdev, u8 port,
  * nes_alloc_ucontext - Allocate the user context data structure. This keeps track
  * of all objects associated with a particular user-mode client.
  */
-static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
-		struct ib_udata *udata)
+static int nes_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
+	struct ib_device *ibdev = uctx->device;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_alloc_ucontext_req req;
 	struct nes_alloc_ucontext_resp uresp = {};
-	struct nes_ucontext *nes_ucontext;
+	struct nes_ucontext *nes_ucontext = to_nesucontext(uctx);
 	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
 
 
 	if (ib_copy_from_udata(&req, udata, sizeof(struct nes_alloc_ucontext_req))) {
 		printk(KERN_ERR PFX "Invalid structure size on allocate user context.\n");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	if (req.userspace_ver != NES_ABI_USERSPACE_VER) {
 		printk(KERN_ERR PFX "Invalid userspace driver version detected. Detected version %d, should be %d\n",
 			req.userspace_ver, NES_ABI_USERSPACE_VER);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 
@@ -559,10 +559,6 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 	uresp.virtwq = nesadapter->virtwq;
 	uresp.kernel_ver = NES_ABI_KERNEL_VER;
 
-	nes_ucontext = kzalloc(sizeof *nes_ucontext, GFP_KERNEL);
-	if (!nes_ucontext)
-		return ERR_PTR(-ENOMEM);
-
 	nes_ucontext->nesdev = nesdev;
 	nes_ucontext->mmap_wq_offset = uresp.max_pds;
 	nes_ucontext->mmap_cq_offset = nes_ucontext->mmap_wq_offset +
@@ -570,28 +566,21 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 			PAGE_SIZE;
 
 
-	if (ib_copy_to_udata(udata, &uresp, sizeof uresp)) {
-		kfree(nes_ucontext);
-		return ERR_PTR(-EFAULT);
-	}
+	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp)))
+		return -EFAULT;
 
 	INIT_LIST_HEAD(&nes_ucontext->cq_reg_mem_list);
 	INIT_LIST_HEAD(&nes_ucontext->qp_reg_mem_list);
-	return &nes_ucontext->ibucontext;
+	return 0;
 }
-
 
 /**
  * nes_dealloc_ucontext
  */
-static int nes_dealloc_ucontext(struct ib_ucontext *context)
+static void nes_dealloc_ucontext(struct ib_ucontext *context)
 {
-	struct nes_ucontext *nes_ucontext = to_nesucontext(context);
-
-	kfree(nes_ucontext);
-	return 0;
+	return;
 }
-
 
 /**
  * nes_mmap
@@ -3599,6 +3588,7 @@ static const struct ib_device_ops nes_dev_ops = {
 	.reg_user_mr = nes_reg_user_mr,
 	.req_notify_cq = nes_req_notify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, nes_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, nes_ucontext, ibucontext),
 };
 
 /**

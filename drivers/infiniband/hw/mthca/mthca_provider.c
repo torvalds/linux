@@ -301,17 +301,16 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	return err;
 }
 
-static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
-						struct ib_udata *udata)
+static int mthca_alloc_ucontext(struct ib_ucontext *uctx,
+				struct ib_udata *udata)
 {
-	struct mthca_alloc_ucontext_resp uresp;
-	struct mthca_ucontext           *context;
+	struct ib_device *ibdev = uctx->device;
+	struct mthca_alloc_ucontext_resp uresp = {};
+	struct mthca_ucontext *context = to_mucontext(uctx);
 	int                              err;
 
 	if (!(to_mdev(ibdev)->active))
-		return ERR_PTR(-EAGAIN);
-
-	memset(&uresp, 0, sizeof uresp);
+		return -EAGAIN;
 
 	uresp.qp_tab_size = to_mdev(ibdev)->limits.num_qps;
 	if (mthca_is_memfree(to_mdev(ibdev)))
@@ -319,44 +318,33 @@ static struct ib_ucontext *mthca_alloc_ucontext(struct ib_device *ibdev,
 	else
 		uresp.uarc_size = 0;
 
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (!context)
-		return ERR_PTR(-ENOMEM);
-
 	err = mthca_uar_alloc(to_mdev(ibdev), &context->uar);
-	if (err) {
-		kfree(context);
-		return ERR_PTR(err);
-	}
+	if (err)
+		return err;
 
 	context->db_tab = mthca_init_user_db_tab(to_mdev(ibdev));
 	if (IS_ERR(context->db_tab)) {
 		err = PTR_ERR(context->db_tab);
 		mthca_uar_free(to_mdev(ibdev), &context->uar);
-		kfree(context);
-		return ERR_PTR(err);
+		return err;
 	}
 
-	if (ib_copy_to_udata(udata, &uresp, sizeof uresp)) {
+	if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 		mthca_cleanup_user_db_tab(to_mdev(ibdev), &context->uar, context->db_tab);
 		mthca_uar_free(to_mdev(ibdev), &context->uar);
-		kfree(context);
-		return ERR_PTR(-EFAULT);
+		return -EFAULT;
 	}
 
 	context->reg_mr_warned = 0;
 
-	return &context->ibucontext;
+	return 0;
 }
 
-static int mthca_dealloc_ucontext(struct ib_ucontext *context)
+static void mthca_dealloc_ucontext(struct ib_ucontext *context)
 {
 	mthca_cleanup_user_db_tab(to_mdev(context->device), &to_mucontext(context)->uar,
 				  to_mucontext(context)->db_tab);
 	mthca_uar_free(to_mdev(context->device), &to_mucontext(context)->uar);
-	kfree(to_mucontext(context));
-
-	return 0;
 }
 
 static int mthca_mmap_uar(struct ib_ucontext *context,
@@ -1213,6 +1201,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.reg_user_mr = mthca_reg_user_mr,
 	.resize_cq = mthca_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, mthca_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, mthca_ucontext, ibucontext),
 };
 
 static const struct ib_device_ops mthca_dev_arbel_srq_ops = {
