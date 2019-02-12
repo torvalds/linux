@@ -670,7 +670,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 				data->values[i] = AUDIT_UID_UNSET;
 				break;
 			}
-			/* fallthrough if set */
+			/* fall through - if set */
 		default:
 			data->values[i] = f->val;
 		}
