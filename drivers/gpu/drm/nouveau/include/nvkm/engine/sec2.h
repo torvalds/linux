@@ -13,4 +13,5 @@ struct nvkm_sec2 {
 };
 
 int gp102_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);
+int tu102_sec2_new(struct nvkm_device *, int, struct nvkm_sec2 **);
 #endif
