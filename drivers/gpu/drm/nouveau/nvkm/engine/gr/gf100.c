@@ -1684,12 +1684,7 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 			return ret;
 	}
 
-	if (device->chipset >= 0xe0) {
-		nvkm_wr32(device, 0x409614, 0x00000070);
-		nvkm_wr32(device, 0x409614, 0x00000770);
-		nvkm_wr32(device, 0x40802c, 0x00000001);
-	}
-
+	/* Generate golden context image. */
 	if (gr->data == NULL) {
 		int ret = gf100_grctx_generate(gr);
 		if (ret) {
