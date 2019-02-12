@@ -504,6 +504,8 @@ nouveau_drm_device_init(struct drm_device *dev)
 	if (ret)
 		goto fail_bios;
 
+	nouveau_accel_init(drm);
+
 	ret = nouveau_display_create(dev);
 	if (ret)
 		goto fail_dispctor;
@@ -516,7 +518,6 @@ nouveau_drm_device_init(struct drm_device *dev)
 
 	nouveau_debugfs_init(drm);
 	nouveau_hwmon_init(dev);
-	nouveau_accel_init(drm);
 	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
@@ -534,6 +535,7 @@ nouveau_drm_device_init(struct drm_device *dev)
 fail_dispinit:
 	nouveau_display_destroy(dev);
 fail_dispctor:
+	nouveau_accel_fini(drm);
 	nouveau_bios_takedown(dev);
 fail_bios:
 	nouveau_ttm_fini(drm);
@@ -559,7 +561,6 @@ nouveau_drm_device_fini(struct drm_device *dev)
 
 	nouveau_led_fini(dev);
 	nouveau_fbcon_fini(dev);
-	nouveau_accel_fini(drm);
 	nouveau_hwmon_fini(dev);
 	nouveau_debugfs_fini(drm);
 
@@ -567,6 +568,7 @@ nouveau_drm_device_fini(struct drm_device *dev)
 		nouveau_display_fini(dev, false, false);
 	nouveau_display_destroy(dev);
 
+	nouveau_accel_fini(drm);
 	nouveau_bios_takedown(dev);
 
 	nouveau_ttm_fini(drm);
