@@ -656,6 +656,7 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 	case NI_660X_PFI_OUTPUT_DIO:
 		if (chan > 31)
 			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
