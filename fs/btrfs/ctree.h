@@ -1082,7 +1082,6 @@ struct btrfs_fs_info {
 	refcount_t scrub_workers_refcnt;
 	struct btrfs_workqueue *scrub_workers;
 	struct btrfs_workqueue *scrub_wr_completion_workers;
-	struct btrfs_workqueue *scrub_nocow_workers;
 	struct btrfs_workqueue *scrub_parity_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
