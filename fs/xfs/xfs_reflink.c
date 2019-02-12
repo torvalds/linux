@@ -302,6 +302,7 @@ xfs_reflink_reserve_cow(
 	if (error)
 		return error;
 
+	xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
 	trace_xfs_reflink_cow_alloc(ip, &got);
 	return 0;
 }

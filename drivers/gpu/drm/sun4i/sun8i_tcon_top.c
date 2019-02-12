@@ -169,6 +169,13 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	}
 
 	/*
+	 * At least on H6, some registers have some bits set by default
+	 * which may cause issues. Clear them here.
+	 */
+	writel(0, regs + TCON_TOP_PORT_SEL_REG);
+	writel(0, regs + TCON_TOP_GATE_SRC_REG);
+
+	/*
 	 * TCON TOP has two muxes, which select parent clock for each TCON TV
 	 * channel clock. Parent could be either TCON TV or TVE clock. For now
 	 * we leave this fixed to TCON TV, since TVE driver for R40 is not yet

@@ -3420,6 +3420,11 @@ static int
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
 	int num_iomem, num_port, first_port = -1, i;
+	int rc;
+
+	rc = serial_pci_is_class_communication(dev);
+	if (rc)
+		return rc;
 
 	/*
 	 * Should we try to make guesses for multiport serial devices later?
@@ -3646,10 +3651,6 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	}
 
 	board = &pci_boards[ent->driver_data];
-
-	rc = serial_pci_is_class_communication(dev);
-	if (rc)
-		return rc;
 
 	rc = serial_pci_is_blacklisted(dev);
 	if (rc)

@@ -1175,9 +1175,9 @@ xfs_free_file_space(
 	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
 	 * Writeback of the eof page will do this, albeit clumsily.
 	 */
-	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
+	if (offset + len >= XFS_ISIZE(ip) && offset_in_page(offset + len) > 0) {
 		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
-				(offset + len) & ~PAGE_MASK, LLONG_MAX);
+				round_down(offset + len, PAGE_SIZE), LLONG_MAX);
 	}
 
 	return error;
@@ -1823,6 +1823,12 @@ xfs_swap_extents(
 	error = xfs_swap_extent_flush(tip);
 	if (error)
 		goto out_unlock;
+
+	if (xfs_inode_has_cow_data(tip)) {
+		error = xfs_reflink_cancel_cow_range(tip, 0, NULLFILEOFF, true);
+		if (error)
+			return error;
+	}
 
 	/*
 	 * Extent "swapping" with rmap requires a permanent reservation and
