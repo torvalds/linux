@@ -1694,6 +1694,42 @@ s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
 }
 #endif
 
+static int s3c24xx_serial_enable_baudclk(struct s3c24xx_uart_port *ourport)
+{
+	struct device *dev = ourport->port.dev;
+	struct s3c24xx_uart_info *info = ourport->info;
+	char clk_name[MAX_CLK_NAME_LENGTH];
+	unsigned int clk_sel;
+	struct clk *clk;
+	int clk_num;
+	int ret;
+
+	clk_sel = ourport->cfg->clk_sel ? : info->def_clk_sel;
+	for (clk_num = 0; clk_num < info->num_clks; clk_num++) {
+		if (!(clk_sel & (1 << clk_num)))
+			continue;
+
+		sprintf(clk_name, "clk_uart_baud%d", clk_num);
+		clk = clk_get(dev, clk_name);
+		if (IS_ERR(clk))
+			continue;
+
+		ret = clk_prepare_enable(clk);
+		if (ret) {
+			clk_put(clk);
+			continue;
+		}
+
+		ourport->baudclk = clk;
+		ourport->baudclk_rate = clk_get_rate(clk);
+		s3c24xx_serial_setsource(&ourport->port, clk_num);
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 /* s3c24xx_serial_init_port
  *
  * initialise a single serial port from the platform device given
@@ -1787,6 +1823,10 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		clk_put(ourport->clk);
 		goto err;
 	}
+
+	ret = s3c24xx_serial_enable_baudclk(ourport);
+	if (ret)
+		pr_warn("uart: failed to enable baudclk\n");
 
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
@@ -1901,6 +1941,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	 * and keeps the clock enabled in this case.
 	 */
 	clk_disable_unprepare(ourport->clk);
+	if (!IS_ERR(ourport->baudclk))
+		clk_disable_unprepare(ourport->baudclk);
 
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
