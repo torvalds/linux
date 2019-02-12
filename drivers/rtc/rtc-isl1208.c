@@ -115,6 +115,7 @@ MODULE_DEVICE_TABLE(of, isl1208_of_match);
 
 /* Device state */
 struct isl1208_state {
+	struct nvmem_config nvmem_config;
 	struct rtc_device *rtc;
 	const struct isl1208_config *config;
 };
@@ -742,6 +743,46 @@ static const struct attribute_group isl1219_rtc_sysfs_files = {
 	.attrs	= isl1219_rtc_attrs,
 };
 
+static int isl1208_nvmem_read(void *priv, unsigned int off, void *buf,
+			      size_t count)
+{
+	struct isl1208_state *isl1208 = priv;
+	struct i2c_client *client = to_i2c_client(isl1208->rtc->dev.parent);
+	int ret;
+
+	/* nvmem sanitizes offset/count for us, but count==0 is possible */
+	if (!count)
+		return count;
+	ret = isl1208_i2c_read_regs(client, ISL1208_REG_USR1 + off, buf,
+				    count);
+	return ret == 0 ? count : ret;
+}
+
+static int isl1208_nvmem_write(void *priv, unsigned int off, void *buf,
+			       size_t count)
+{
+	struct isl1208_state *isl1208 = priv;
+	struct i2c_client *client = to_i2c_client(isl1208->rtc->dev.parent);
+	int ret;
+
+	/* nvmem sanitizes off/count for us, but count==0 is possible */
+	if (!count)
+		return count;
+	ret = isl1208_i2c_set_regs(client, ISL1208_REG_USR1 + off, buf,
+				   count);
+
+	return ret == 0 ? count : ret;
+}
+
+static const struct nvmem_config isl1208_nvmem_config = {
+	.name = "isl1208_nvram",
+	.word_size = 1,
+	.stride = 1,
+	/* .size from chip specific config */
+	.reg_read = isl1208_nvmem_read,
+	.reg_write = isl1208_nvmem_write,
+};
+
 static int isl1208_setup_irq(struct i2c_client *client, int irq)
 {
 	int rc = devm_request_threaded_irq(&client->dev, irq, NULL,
@@ -796,6 +837,11 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	isl1208->rtc->ops = &isl1208_rtc_ops;
 
+	/* Setup nvmem configuration in driver state struct */
+	isl1208->nvmem_config = isl1208_nvmem_config;
+	isl1208->nvmem_config.size = isl1208->config->nvmem_length;
+	isl1208->nvmem_config.priv = isl1208;
+
 	rc = isl1208_i2c_get_sr(client);
 	if (rc < 0) {
 		dev_err(&client->dev, "reading status failed\n");
@@ -846,6 +892,10 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	if (evdet_irq > 0 && evdet_irq != client->irq)
 		rc = isl1208_setup_irq(client, evdet_irq);
+	if (rc)
+		return rc;
+
+	rc = rtc_nvmem_register(isl1208->rtc, &isl1208->nvmem_config);
 	if (rc)
 		return rc;
 
