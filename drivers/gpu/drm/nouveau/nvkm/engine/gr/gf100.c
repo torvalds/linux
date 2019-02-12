@@ -715,6 +715,25 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+int
+gf100_gr_fecs_bind_pointer(struct gf100_gr *gr, u32 inst)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409840, 0x00000030);
+	nvkm_wr32(device, 0x409500, inst);
+	nvkm_wr32(device, 0x409504, 0x00000003);
+	nvkm_msec(device, 2000,
+		u32 stat = nvkm_rd32(device, 0x409800);
+		if (stat & 0x00000020)
+			return -EIO;
+		if (stat & 0x00000010)
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
 static int
 gf100_gr_fecs_set_reglist_virtual_address(struct gf100_gr *gr, u64 addr)
 {

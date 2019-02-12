@@ -138,6 +138,8 @@ int gf100_gr_new_(const struct gf100_gr_func *, struct nvkm_device *,
 		  int, struct nvkm_gr **);
 void *gf100_gr_dtor(struct nvkm_gr *);
 
+int gf100_gr_fecs_bind_pointer(struct gf100_gr *, u32 inst);
+
 struct gf100_gr_func_zbc {
 	void (*clear_color)(struct gf100_gr *, int zbc);
 	void (*clear_depth)(struct gf100_gr *, int zbc);
