@@ -536,7 +536,7 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_alloc_ucontext_req req;
-	struct nes_alloc_ucontext_resp uresp;
+	struct nes_alloc_ucontext_resp uresp = {};
 	struct nes_ucontext *nes_ucontext;
 	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
 
@@ -552,8 +552,6 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-
-	memset(&uresp, 0, sizeof uresp);
 
 	uresp.max_qps = nesibdev->max_qp;
 	uresp.max_pds = nesibdev->max_pd;
@@ -579,7 +577,6 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
 
 	INIT_LIST_HEAD(&nes_ucontext->cq_reg_mem_list);
 	INIT_LIST_HEAD(&nes_ucontext->qp_reg_mem_list);
-	atomic_set(&nes_ucontext->usecnt, 1);
 	return &nes_ucontext->ibucontext;
 }
 
@@ -589,12 +586,8 @@ static struct ib_ucontext *nes_alloc_ucontext(struct ib_device *ibdev,
  */
 static int nes_dealloc_ucontext(struct ib_ucontext *context)
 {
-	/* struct nes_vnic *nesvnic = to_nesvnic(context->device); */
-	/* struct nes_device *nesdev = nesvnic->nesdev; */
 	struct nes_ucontext *nes_ucontext = to_nesucontext(context);
 
-	if (!atomic_dec_and_test(&nes_ucontext->usecnt))
-	  return 0;
 	kfree(nes_ucontext);
 	return 0;
 }
