@@ -5,6 +5,8 @@
 
 struct nvkm_sec2 {
 	struct nvkm_engine engine;
+	u32 addr;
+
 	struct nvkm_falcon *falcon;
 	struct nvkm_msgqueue *queue;
 	struct work_struct work;
