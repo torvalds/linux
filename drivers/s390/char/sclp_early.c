@@ -95,6 +95,7 @@ static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
 	sclp.mtid_prev = (sccb->fac42 & 0x80) ? (sccb->fac66 & 31) : 0;
 
 	sclp.hmfai = sccb->hmfai;
+	sclp.has_dirq = !!(sccb->cpudirq & 0x80);
 }
 
 /*

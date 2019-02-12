@@ -197,7 +197,7 @@ struct read_info_sccb {
 	u32	hmfai;			/* 124-127 */
 	u8	_pad_128[134 - 128];	/* 128-133 */
 	u8	byte_134;			/* 134 */
-	u8	_pad_135;		/* 135 */
+	u8	cpudirq;		/* 135 */
 	u16	cbl;			/* 136-137 */
 	u8	_pad_138[4096 - 138];	/* 138-4095 */
 } __packed __aligned(PAGE_SIZE);
