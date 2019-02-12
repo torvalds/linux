@@ -854,7 +854,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct net_device *mirred_dev,
 			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      struct net_device **encap_dev);
+			      struct net_device **encap_dev,
+			      bool *encap_valid);
 
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
@@ -940,7 +941,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
-	int err = 0, encap_err = 0;
+	bool encap_valid = true;
+	int err = 0;
 	int out_index;
 
 	if (!mlx5_eswitch_prios_supported(esw) && attr->prio != 1) {
@@ -970,11 +972,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
 					     mirred_ifindex);
 		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
-					 extack, &encap_dev);
-		if (err && err != -EAGAIN)
+					 extack, &encap_dev, &encap_valid);
+		if (err)
 			goto err_attach_encap;
-		if (err == -EAGAIN)
-			encap_err = err;
+
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
 		attr->dests[out_index].rep = rpriv->rep;
@@ -1002,10 +1003,11 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		attr->counter = counter;
 	}
 
-	/* we get here if (1) there's no error or when
-	 * (2) there's an encap action and we're on -EAGAIN (no valid neigh)
+	/* we get here if one of the following takes place:
+	 * (1) there's no error
+	 * (2) there's an encap action and we don't have valid neigh
 	 */
-	if (encap_err == -EAGAIN) {
+	if (!encap_valid) {
 		/* continue with goto slow path rule instead */
 		struct mlx5_esw_flow_attr slow_attr;
 
@@ -2343,7 +2345,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct net_device *mirred_dev,
 			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      struct net_device **encap_dev)
+			      struct net_device **encap_dev,
+			      bool *encap_valid)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
@@ -2391,7 +2394,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	else if (family == AF_INET6)
 		err = mlx5e_tc_tun_create_header_ipv6(priv, mirred_dev, e);
 
-	if (err && err != -EAGAIN)
+	if (err)
 		goto out_err;
 
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
@@ -2403,8 +2406,9 @@ attach_flow:
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
 		attr->dests[out_index].encap_id = e->encap_id;
 		attr->dests[out_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+		*encap_valid = true;
 	} else {
-		err = -EAGAIN;
+		*encap_valid = false;
 	}
 
 	return err;

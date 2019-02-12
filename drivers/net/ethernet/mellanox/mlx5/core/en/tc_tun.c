@@ -295,7 +295,9 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 
@@ -408,7 +410,9 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 
