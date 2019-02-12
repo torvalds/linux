@@ -7,8 +7,8 @@
 
 static int ptp_qoriq_fiper1_lpbk_get(void *data, u64 *val)
 {
-	struct qoriq_ptp *qoriq_ptp = data;
-	struct qoriq_ptp_registers *regs = &qoriq_ptp->regs;
+	struct ptp_qoriq *ptp_qoriq = data;
+	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
 	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
@@ -19,8 +19,8 @@ static int ptp_qoriq_fiper1_lpbk_get(void *data, u64 *val)
 
 static int ptp_qoriq_fiper1_lpbk_set(void *data, u64 val)
 {
-	struct qoriq_ptp *qoriq_ptp = data;
-	struct qoriq_ptp_registers *regs = &qoriq_ptp->regs;
+	struct ptp_qoriq *ptp_qoriq = data;
+	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
 	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
@@ -38,8 +38,8 @@ DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper1_fops, ptp_qoriq_fiper1_lpbk_get,
 
 static int ptp_qoriq_fiper2_lpbk_get(void *data, u64 *val)
 {
-	struct qoriq_ptp *qoriq_ptp = data;
-	struct qoriq_ptp_registers *regs = &qoriq_ptp->regs;
+	struct ptp_qoriq *ptp_qoriq = data;
+	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
 	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
@@ -50,8 +50,8 @@ static int ptp_qoriq_fiper2_lpbk_get(void *data, u64 *val)
 
 static int ptp_qoriq_fiper2_lpbk_set(void *data, u64 val)
 {
-	struct qoriq_ptp *qoriq_ptp = data;
-	struct qoriq_ptp_registers *regs = &qoriq_ptp->regs;
+	struct ptp_qoriq *ptp_qoriq = data;
+	struct ptp_qoriq_registers *regs = &ptp_qoriq->regs;
 	u32 ctrl;
 
 	ctrl = qoriq_read(&regs->ctrl_regs->tmr_ctrl);
@@ -67,35 +67,35 @@ static int ptp_qoriq_fiper2_lpbk_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(ptp_qoriq_fiper2_fops, ptp_qoriq_fiper2_lpbk_get,
 			 ptp_qoriq_fiper2_lpbk_set, "%llu\n");
 
-void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
+void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
 {
 	struct dentry *root;
 
-	root = debugfs_create_dir(dev_name(qoriq_ptp->dev), NULL);
+	root = debugfs_create_dir(dev_name(ptp_qoriq->dev), NULL);
 	if (IS_ERR(root))
 		return;
 	if (!root)
 		goto err_root;
 
-	qoriq_ptp->debugfs_root = root;
+	ptp_qoriq->debugfs_root = root;
 
 	if (!debugfs_create_file_unsafe("fiper1-loopback", 0600, root,
-					qoriq_ptp, &ptp_qoriq_fiper1_fops))
+					ptp_qoriq, &ptp_qoriq_fiper1_fops))
 		goto err_node;
 	if (!debugfs_create_file_unsafe("fiper2-loopback", 0600, root,
-					qoriq_ptp, &ptp_qoriq_fiper2_fops))
+					ptp_qoriq, &ptp_qoriq_fiper2_fops))
 		goto err_node;
 	return;
 
 err_node:
 	debugfs_remove_recursive(root);
-	qoriq_ptp->debugfs_root = NULL;
+	ptp_qoriq->debugfs_root = NULL;
 err_root:
-	dev_err(qoriq_ptp->dev, "failed to initialize debugfs\n");
+	dev_err(ptp_qoriq->dev, "failed to initialize debugfs\n");
 }
 
-void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp)
+void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq)
 {
-	debugfs_remove_recursive(qoriq_ptp->debugfs_root);
-	qoriq_ptp->debugfs_root = NULL;
+	debugfs_remove_recursive(ptp_qoriq->debugfs_root);
+	ptp_qoriq->debugfs_root = NULL;
 }

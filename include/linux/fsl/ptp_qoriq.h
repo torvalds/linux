@@ -49,7 +49,7 @@ struct etts_regs {
 	u32 tmr_etts2_l;  /* Timestamp of general purpose external trigger */
 };
 
-struct qoriq_ptp_registers {
+struct ptp_qoriq_registers {
 	struct ctrl_regs __iomem *ctrl_regs;
 	struct alarm_regs __iomem *alarm_regs;
 	struct fiper_regs __iomem *fiper_regs;
@@ -136,9 +136,9 @@ struct qoriq_ptp_registers {
 #define DEFAULT_FIPER1_PERIOD	1000000000
 #define DEFAULT_FIPER2_PERIOD	100000
 
-struct qoriq_ptp {
+struct ptp_qoriq {
 	void __iomem *base;
-	struct qoriq_ptp_registers regs;
+	struct ptp_qoriq_registers regs;
 	spinlock_t lock; /* protects regs */
 	struct ptp_clock *clock;
 	struct ptp_clock_info caps;
@@ -172,12 +172,12 @@ static inline void qoriq_write(unsigned __iomem *addr, u32 val)
 }
 
 #ifdef CONFIG_DEBUG_FS
-void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp);
-void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp);
+void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq);
+void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq);
 #else
-static inline void ptp_qoriq_create_debugfs(struct qoriq_ptp *qoriq_ptp)
+static inline void ptp_qoriq_create_debugfs(struct ptp_qoriq *ptp_qoriq)
 { }
-static inline void ptp_qoriq_remove_debugfs(struct qoriq_ptp *qoriq_ptp)
+static inline void ptp_qoriq_remove_debugfs(struct ptp_qoriq *ptp_qoriq)
 { }
 #endif
 
