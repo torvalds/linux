@@ -1827,9 +1827,6 @@ static int set_pedit_val(u8 hdr_type, u32 mask, u32 val, u32 offset,
 {
 	u32 *curr_pmask, *curr_pval;
 
-	if (hdr_type >= 2)
-		goto out_err;
-
 	curr_pmask = (u32 *)(pedit_header(&hdrs->masks, hdr_type) + offset);
 	curr_pval  = (u32 *)(pedit_header(&hdrs->vals, hdr_type) + offset);
 
