@@ -4040,8 +4040,8 @@ void close_ctree(struct btrfs_fs_info *fs_info)
 		btrfsic_unmount(fs_info->fs_devices);
 #endif
 
-	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+	btrfs_close_devices(fs_info->fs_devices);
 
 	percpu_counter_destroy(&fs_info->dirty_metadata_bytes);
 	percpu_counter_destroy(&fs_info->delalloc_bytes);
