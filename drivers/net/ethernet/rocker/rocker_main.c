@@ -1583,17 +1583,6 @@ rocker_world_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 }
 
 static int
-rocker_world_port_attr_bridge_flags_get(const struct rocker_port *rocker_port,
-					unsigned long *p_brport_flags)
-{
-	struct rocker_world_ops *wops = rocker_port->rocker->wops;
-
-	if (!wops->port_attr_bridge_flags_get)
-		return -EOPNOTSUPP;
-	return wops->port_attr_bridge_flags_get(rocker_port, p_brport_flags);
-}
-
-static int
 rocker_world_port_attr_bridge_flags_support_get(const struct rocker_port *
 						rocker_port,
 						unsigned long *
@@ -2061,10 +2050,6 @@ static int rocker_port_attr_get(struct net_device *dev,
 	int err = 0;
 
 	switch (attr->id) {
-	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
-		err = rocker_world_port_attr_bridge_flags_get(rocker_port,
-							      &attr->u.brport_flags);
-		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS_SUPPORT:
 		err = rocker_world_port_attr_bridge_flags_support_get(rocker_port,
 								      &attr->u.brport_flags_support);
