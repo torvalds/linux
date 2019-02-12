@@ -379,6 +379,7 @@ struct mt76_usb {
 	u16 out_max_packet;
 	u8 in_ep[__MT_EP_IN_MAX];
 	u16 in_max_packet;
+	bool sg_en;
 
 	struct mt76u_mcu {
 		struct mutex mutex;
@@ -724,16 +725,6 @@ static inline u8 q2ep(u8 qid)
 {
 	/* TODO: take management packets to queue 5 */
 	return qid + 1;
-}
-
-static inline bool mt76u_check_sg(struct mt76_dev *dev)
-{
-	struct usb_interface *intf = to_usb_interface(dev->dev);
-	struct usb_device *udev = interface_to_usbdev(intf);
-
-	return (udev->bus->sg_tablesize > 0 &&
-		(udev->bus->no_sg_constraint ||
-		 udev->speed == USB_SPEED_WIRELESS));
 }
 
 static inline int

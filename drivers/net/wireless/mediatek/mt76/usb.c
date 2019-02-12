@@ -241,6 +241,16 @@ mt76u_rd_rp(struct mt76_dev *dev, u32 base,
 		return mt76u_req_rd_rp(dev, base, data, n);
 }
 
+static bool mt76u_check_sg(struct mt76_dev *dev)
+{
+	struct usb_interface *intf = to_usb_interface(dev->dev);
+	struct usb_device *udev = interface_to_usbdev(intf);
+
+	return (udev->bus->sg_tablesize > 0 &&
+		(udev->bus->no_sg_constraint ||
+		 udev->speed == USB_SPEED_WIRELESS));
+}
+
 static int
 mt76u_set_endpoints(struct usb_interface *intf,
 		    struct mt76_usb *usb)
@@ -535,7 +545,7 @@ static int mt76u_alloc_rx(struct mt76_dev *dev)
 	if (!q->entry)
 		return -ENOMEM;
 
-	if (mt76u_check_sg(dev)) {
+	if (dev->usb.sg_en) {
 		q->buf_size = MT_RX_BUF_SIZE;
 		nsgs = MT_SG_MAX_SIZE;
 	} else {
@@ -879,6 +889,8 @@ int mt76u_init(struct mt76_dev *dev,
 	mutex_init(&usb->usb_ctrl_mtx);
 	dev->bus = &mt76u_ops;
 	dev->queue_ops = &usb_queue_ops;
+
+	usb->sg_en = mt76u_check_sg(dev);
 
 	return mt76u_set_endpoints(intf, usb);
 }
