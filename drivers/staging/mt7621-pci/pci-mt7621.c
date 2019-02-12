@@ -546,15 +546,15 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 		return -1;
 
 	/*
-	 * pcie(2/1/0) link status pcie2_num	pcie1_num	pcie0_num
-	 * 3'b000		   x	        x		x
-	 * 3'b001		   x	        x		0
-	 * 3'b010		   x	        0		x
-	 * 3'b011		   x	        1		0
-	 * 3'b100		   0	        x		x
-	 * 3'b101	           1 	        x		0
-	 * 3'b110	           1	        0		x
-	 * 3'b111		   2	        1		0
+	 * pcie(2/1/0) link status	pcie2_num	pcie1_num	pcie0_num
+	 * 3'b000			x		x		x
+	 * 3'b001			x		x		0
+	 * 3'b010			x		0		x
+	 * 3'b011			x		1		0
+	 * 3'b100			0		x		x
+	 * 3'b101			1		x		0
+	 * 3'b110			1		0		x
+	 * 3'b111			2		1		0
 	 */
 	switch (pcie_link_status) {
 	case 2:
