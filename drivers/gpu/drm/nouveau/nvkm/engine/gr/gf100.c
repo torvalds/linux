@@ -715,6 +715,16 @@ gf100_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
+static void
+gf100_gr_fecs_set_watchdog_timeout(struct gf100_gr *gr, u32 timeout)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, timeout);
+	nvkm_wr32(device, 0x409504, 0x00000021);
+}
+
 static bool
 gf100_gr_chsw_load(struct nvkm_gr *base)
 {
@@ -1524,9 +1534,7 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	) < 0)
 		return -EBUSY;
 
-	nvkm_wr32(device, 0x409840, 0xffffffff);
-	nvkm_wr32(device, 0x409500, 0x7fffffff);
-	nvkm_wr32(device, 0x409504, 0x00000021);
+	gf100_gr_fecs_set_watchdog_timeout(gr, 0x7fffffff);
 
 	nvkm_wr32(device, 0x409840, 0xffffffff);
 	nvkm_wr32(device, 0x409500, 0x00000000);
