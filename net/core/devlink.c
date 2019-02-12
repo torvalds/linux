@@ -3629,26 +3629,30 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 					     struct netlink_callback *cb)
 {
 	u64 ret_offset, start_offset, end_offset = 0;
-	struct nlattr *attrs[DEVLINK_ATTR_MAX + 1];
 	const struct genl_ops *ops = cb->data;
 	struct devlink_region *region;
 	struct nlattr *chunks_attr;
 	const char *region_name;
 	struct devlink *devlink;
+	struct nlattr **attrs;
 	bool dump = true;
 	void *hdr;
 	int err;
 
 	start_offset = *((u64 *)&cb->args[0]);
 
+	attrs = kmalloc_array(DEVLINK_ATTR_MAX + 1, sizeof(*attrs), GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
 	err = nlmsg_parse(cb->nlh, GENL_HDRLEN + devlink_nl_family.hdrsize,
 			  attrs, DEVLINK_ATTR_MAX, ops->policy, cb->extack);
 	if (err)
-		goto out;
+		goto out_free;
 
 	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
 	if (IS_ERR(devlink))
-		goto out;
+		goto out_free;
 
 	mutex_lock(&devlink_mutex);
 	mutex_lock(&devlink->lock);
@@ -3710,6 +3714,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	genlmsg_end(skb, hdr);
 	mutex_unlock(&devlink->lock);
 	mutex_unlock(&devlink_mutex);
+	kfree(attrs);
 
 	return skb->len;
 
@@ -3718,7 +3723,8 @@ nla_put_failure:
 out_unlock:
 	mutex_unlock(&devlink->lock);
 	mutex_unlock(&devlink_mutex);
-out:
+out_free:
+	kfree(attrs);
 	return 0;
 }
 
@@ -6393,7 +6399,7 @@ void devlink_compat_running_version(struct net_device *dev,
 	list_for_each_entry(devlink, &devlink_list, list) {
 		mutex_lock(&devlink->lock);
 		list_for_each_entry(devlink_port, &devlink->port_list, list) {
-			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH ||
+			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH &&
 			    devlink_port->type_dev == dev) {
 				__devlink_compat_running_version(devlink,
 								 buf, len);
