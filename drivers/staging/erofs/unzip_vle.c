@@ -539,7 +539,7 @@ repeat:
 	if (unlikely(work == ERR_PTR(-EAGAIN)))
 		goto repeat;
 
-	if (unlikely(IS_ERR(work)))
+	if (IS_ERR(work))
 		return PTR_ERR(work);
 got_it:
 	z_erofs_pagevec_ctor_init(&builder->vector,
