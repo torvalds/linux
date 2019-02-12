@@ -165,19 +165,6 @@ void device_pm_move_to_tail(struct device *dev)
 	device_links_read_unlock(idx);
 }
 
-static void device_link_rpm_prepare(struct device *consumer,
-				    struct device *supplier)
-{
-	pm_runtime_new_link(consumer);
-	/*
-	 * If the link is being added by the consumer driver at probe time,
-	 * balance the decrementation of the supplier's runtime PM usage counter
-	 * after consumer probe in driver_probe_device().
-	 */
-	if (consumer->links.status == DL_DEV_PROBING)
-		pm_runtime_get_noresume(supplier);
-}
-
 /**
  * device_link_add - Create a link between two devices.
  * @consumer: Consumer end of the link.
@@ -262,11 +249,11 @@ struct device_link *device_link_add(struct device *consumer,
 
 		if (flags & DL_FLAG_PM_RUNTIME) {
 			if (!(link->flags & DL_FLAG_PM_RUNTIME)) {
-				device_link_rpm_prepare(consumer, supplier);
+				pm_runtime_new_link(consumer);
 				link->flags |= DL_FLAG_PM_RUNTIME;
 			}
 			if (flags & DL_FLAG_RPM_ACTIVE)
-				refcount_inc(&link->rpm_active);
+				pm_runtime_active_link(link, supplier);
 		}
 
 		kref_get(&link->kref);
@@ -281,9 +268,9 @@ struct device_link *device_link_add(struct device *consumer,
 
 	if (flags & DL_FLAG_PM_RUNTIME) {
 		if (flags & DL_FLAG_RPM_ACTIVE)
-			refcount_inc(&link->rpm_active);
+			pm_runtime_active_link(link, supplier);
 
-		device_link_rpm_prepare(consumer, supplier);
+		pm_runtime_new_link(consumer);
 	}
 
 	get_device(supplier);

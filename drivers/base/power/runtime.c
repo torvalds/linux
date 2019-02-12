@@ -1570,8 +1570,10 @@ void pm_runtime_get_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
+		if (link->flags & DL_FLAG_PM_RUNTIME) {
+			refcount_inc(&link->rpm_active);
 			pm_runtime_get_sync(link->supplier);
+		}
 
 	device_links_read_unlock(idx);
 }
@@ -1588,7 +1590,8 @@ void pm_runtime_put_suppliers(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		if (link->flags & DL_FLAG_PM_RUNTIME)
+		if (link->flags & DL_FLAG_PM_RUNTIME &&
+		    refcount_dec_not_one(&link->rpm_active))
 			pm_runtime_put(link->supplier);
 
 	device_links_read_unlock(idx);
@@ -1599,6 +1602,26 @@ void pm_runtime_new_link(struct device *dev)
 	spin_lock_irq(&dev->power.lock);
 	dev->power.links_count++;
 	spin_unlock_irq(&dev->power.lock);
+}
+
+/**
+ * pm_runtime_active_link - Set up new device link as active for PM-runtime.
+ * @link: Device link to be set up as active.
+ * @supplier: Supplier end of the link.
+ *
+ * Add 2 to the rpm_active refcount of @link and increment the PM-runtime
+ * usage counter of @supplier once more in case the link is being added while
+ * the consumer driver is probing and pm_runtime_put_suppliers() will be called
+ * subsequently.
+ *
+ * Note that this doesn't prevent rpm_put_suppliers() from decreasing the link's
+ * rpm_active refcount down to one, so runtime suspend of the consumer end of
+ * @link is not affected.
+ */
+void pm_runtime_active_link(struct device_link *link, struct device *supplier)
+{
+	refcount_add(2, &link->rpm_active);
+	pm_runtime_get_noresume(supplier);
 }
 
 void pm_runtime_drop_link(struct device *dev)
