@@ -6267,66 +6267,33 @@ int qeth_core_ethtool_get_link_ksettings(struct net_device *netdev,
 }
 EXPORT_SYMBOL_GPL(qeth_core_ethtool_get_link_ksettings);
 
-/* Callback to handle checksum offload command reply from OSA card.
- * Verify that required features have been enabled on the card.
- * Return error in hdr->return_code as this value is checked by caller.
- *
- * Always returns zero to indicate no further messages from the OSA card.
- */
-static int qeth_ipa_checksum_run_cmd_cb(struct qeth_card *card,
-					struct qeth_reply *reply,
-					unsigned long data)
+static int qeth_start_csum_cb(struct qeth_card *card, struct qeth_reply *reply,
+			      unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *) data;
-	struct qeth_checksum_cmd *chksum_cb =
-				(struct qeth_checksum_cmd *)reply->param;
+	u32 *features = reply->param;
 
-	QETH_CARD_TEXT(card, 4, "chkdoccb");
 	if (qeth_setassparms_inspect_rc(cmd))
 		return 0;
 
-	memset(chksum_cb, 0, sizeof(*chksum_cb));
-	if (cmd->data.setassparms.hdr.command_code == IPA_CMD_ASS_START) {
-		chksum_cb->supported =
-				cmd->data.setassparms.data.chksum.supported;
-		QETH_CARD_TEXT_(card, 3, "strt:%x", chksum_cb->supported);
-	}
-	if (cmd->data.setassparms.hdr.command_code == IPA_CMD_ASS_ENABLE) {
-		chksum_cb->supported =
-				cmd->data.setassparms.data.chksum.supported;
-		chksum_cb->enabled =
-				cmd->data.setassparms.data.chksum.enabled;
-		QETH_CARD_TEXT_(card, 3, "supp:%x", chksum_cb->supported);
-		QETH_CARD_TEXT_(card, 3, "enab:%x", chksum_cb->enabled);
-	}
+	*features = cmd->data.setassparms.data.flags_32bit;
 	return 0;
 }
 
-/* Send command to OSA card and check results. */
-static int qeth_ipa_checksum_run_cmd(struct qeth_card *card,
-				     enum qeth_ipa_funcs ipa_func,
-				     __u16 cmd_code, long data,
-				     struct qeth_checksum_cmd *chksum_cb,
-				     enum qeth_prot_versions prot)
+static int qeth_set_csum_off(struct qeth_card *card, enum qeth_ipa_funcs cstype,
+			     enum qeth_prot_versions prot)
 {
-	struct qeth_cmd_buffer *iob;
-
-	QETH_CARD_TEXT(card, 4, "chkdocmd");
-	iob = qeth_get_setassparms_cmd(card, ipa_func, cmd_code,
-				       sizeof(__u32), prot);
-	if (!iob)
-		return -ENOMEM;
-
-	__ipa_cmd(iob)->data.setassparms.data.flags_32bit = (__u32) data;
-	return qeth_send_ipa_cmd(card, iob, qeth_ipa_checksum_run_cmd_cb,
-				 chksum_cb);
+	return qeth_send_simple_setassparms_prot(card, cstype,
+						 IPA_CMD_ASS_STOP, 0, prot);
 }
 
-static int qeth_send_checksum_on(struct qeth_card *card, int cstype,
-				 enum qeth_prot_versions prot)
+static int qeth_set_csum_on(struct qeth_card *card, enum qeth_ipa_funcs cstype,
+			    enum qeth_prot_versions prot)
 {
 	u32 required_features = QETH_IPA_CHECKSUM_UDP | QETH_IPA_CHECKSUM_TCP;
-	struct qeth_checksum_cmd chksum_cb;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_caps caps;
+	u32 features;
 	int rc;
 
 	/* some L3 HW requires combined L3+L4 csum offload: */
@@ -6334,59 +6301,57 @@ static int qeth_send_checksum_on(struct qeth_card *card, int cstype,
 	    cstype == IPA_OUTBOUND_CHECKSUM)
 		required_features |= QETH_IPA_CHECKSUM_IP_HDR;
 
-	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_START, 0,
-				       &chksum_cb, prot);
-	if (!rc) {
-		if ((required_features & chksum_cb.supported) !=
-		    required_features)
-			rc = -EIO;
-		else if (!(QETH_IPA_CHECKSUM_LP2LP & chksum_cb.supported) &&
-			 cstype == IPA_INBOUND_CHECKSUM)
-			dev_warn(&card->gdev->dev,
-				 "Hardware checksumming is performed only if %s and its peer use different OSA Express 3 ports\n",
-				 QETH_CARD_IFNAME(card));
-	}
-	if (rc) {
-		qeth_send_simple_setassparms_prot(card, cstype,
-						  IPA_CMD_ASS_STOP, 0, prot);
-		dev_warn(&card->gdev->dev,
-			 "Starting HW IPv%d checksumming for %s failed, using SW checksumming\n",
-			 prot, QETH_CARD_IFNAME(card));
-		return rc;
-	}
-
-	if (chksum_cb.supported & QETH_IPA_CHECKSUM_LP2LP)
-		required_features |= QETH_IPA_CHECKSUM_LP2LP;
-
-	rc = qeth_ipa_checksum_run_cmd(card, cstype, IPA_CMD_ASS_ENABLE,
-				       required_features, &chksum_cb,
+	iob = qeth_get_setassparms_cmd(card, cstype, IPA_CMD_ASS_START, 0,
 				       prot);
-	if (!rc) {
-		if ((required_features & chksum_cb.enabled) !=
-		    required_features)
-			rc = -EIO;
-	}
-	if (rc) {
-		qeth_send_simple_setassparms_prot(card, cstype,
-						  IPA_CMD_ASS_STOP, 0, prot);
-		dev_warn(&card->gdev->dev,
-			 "Enabling HW IPv%d checksumming for %s failed, using SW checksumming\n",
-			 prot, QETH_CARD_IFNAME(card));
+	if (!iob)
+		return -ENOMEM;
+
+	rc = qeth_send_ipa_cmd(card, iob, qeth_start_csum_cb, &features);
+	if (rc)
 		return rc;
+
+	if ((required_features & features) != required_features) {
+		qeth_set_csum_off(card, cstype, prot);
+		return -EOPNOTSUPP;
+	}
+
+	iob = qeth_get_setassparms_cmd(card, cstype, IPA_CMD_ASS_ENABLE, 4,
+				       prot);
+	if (!iob) {
+		qeth_set_csum_off(card, cstype, prot);
+		return -ENOMEM;
+	}
+
+	if (features & QETH_IPA_CHECKSUM_LP2LP)
+		required_features |= QETH_IPA_CHECKSUM_LP2LP;
+	__ipa_cmd(iob)->data.setassparms.data.flags_32bit = required_features;
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setassparms_get_caps_cb, &caps);
+	if (rc) {
+		qeth_set_csum_off(card, cstype, prot);
+		return rc;
+	}
+
+	if (!qeth_ipa_caps_supported(&caps, required_features) ||
+	    !qeth_ipa_caps_enabled(&caps, required_features)) {
+		qeth_set_csum_off(card, cstype, prot);
+		return -EOPNOTSUPP;
 	}
 
 	dev_info(&card->gdev->dev, "HW Checksumming (%sbound IPv%d) enabled\n",
 		 cstype == IPA_INBOUND_CHECKSUM ? "in" : "out", prot);
+	if (!qeth_ipa_caps_enabled(&caps, QETH_IPA_CHECKSUM_LP2LP) &&
+	    cstype == IPA_OUTBOUND_CHECKSUM)
+		dev_warn(&card->gdev->dev,
+			 "Hardware checksumming is performed only if %s and its peer use different OSA Express 3 ports\n",
+			 QETH_CARD_IFNAME(card));
 	return 0;
 }
 
 static int qeth_set_ipa_csum(struct qeth_card *card, bool on, int cstype,
 			     enum qeth_prot_versions prot)
 {
-	int rc = (on) ? qeth_send_checksum_on(card, cstype, prot)
-		      : qeth_send_simple_setassparms_prot(card, cstype,
-							  IPA_CMD_ASS_STOP, 0,
-							  prot);
+	int rc = (on) ? qeth_set_csum_on(card, cstype, prot) :
+			qeth_set_csum_off(card, cstype, prot);
 	return rc ? -EIO : 0;
 }
 

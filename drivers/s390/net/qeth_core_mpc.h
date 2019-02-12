@@ -417,12 +417,6 @@ enum qeth_ipa_checksum_bits {
 	QETH_IPA_CHECKSUM_LP2LP		= 0x0020
 };
 
-/* IPA Assist checksum offload reply layout. */
-struct qeth_checksum_cmd {
-	__u32 supported;
-	__u32 enabled;
-} __packed;
-
 enum qeth_ipa_large_send_caps {
 	QETH_IPA_LARGE_SEND_TCP		= 0x00000001,
 };
@@ -438,7 +432,6 @@ struct qeth_ipacmd_setassparms {
 	union {
 		__u32 flags_32bit;
 		struct qeth_ipa_caps caps;
-		struct qeth_checksum_cmd chksum;
 		struct qeth_arp_cache_entry arp_entry;
 		struct qeth_arp_query_data query_arp;
 		struct qeth_tso_start_data tso;
