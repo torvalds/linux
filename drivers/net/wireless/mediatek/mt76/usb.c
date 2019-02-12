@@ -22,6 +22,10 @@
 #define MT_VEND_REQ_MAX_RETRY	10
 #define MT_VEND_REQ_TOUT_MS	300
 
+static bool disable_usb_sg;
+module_param_named(disable_usb_sg, disable_usb_sg, bool, 0644);
+MODULE_PARM_DESC(disable_usb_sg, "Disable usb scatter-gather support");
+
 /* should be called with usb_ctrl_mtx locked */
 static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 				  u8 req_type, u16 val, u16 offset,
@@ -246,7 +250,7 @@ static bool mt76u_check_sg(struct mt76_dev *dev)
 	struct usb_interface *intf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	return (udev->bus->sg_tablesize > 0 &&
+	return (!disable_usb_sg && udev->bus->sg_tablesize > 0 &&
 		(udev->bus->no_sg_constraint ||
 		 udev->speed == USB_SPEED_WIRELESS));
 }
