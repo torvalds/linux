@@ -88,7 +88,6 @@
 #define PCIE_CLK_GEN_DIS		0
 #define PCIE_CLK_GEN1_DIS		GENMASK(30, 24)
 #define PCIE_CLK_GEN1_EN		(BIT(27) | BIT(25))
-#define RALINK_PCI_IO_MAP_BASE		0x1e160000
 #define MEMORY_BASE			0x0
 
 /**
@@ -665,9 +664,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		dev_err(dev, "Nothing is connected in virtual bridges. Exiting...");
 		return 0;
 	}
-
-	pcie_write(pcie, 0xffffffff, RALINK_PCI_MEMBASE);
-	pcie_write(pcie, RALINK_PCI_IO_MAP_BASE, RALINK_PCI_IOBASE);
 
 	mt7621_pcie_enable_ports(pcie);
 
