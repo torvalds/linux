@@ -457,6 +457,31 @@ static void drm_fs_inode_free(struct inode *inode)
 }
 
 /**
+ * DOC: component helper usage recommendations
+ *
+ * DRM drivers that drive hardware where a logical device consists of a pile of
+ * independent hardware blocks are recommended to use the :ref:`component helper
+ * library<component>`. For consistency and better options for code reuse the
+ * following guidelines apply:
+ *
+ *  - The entire device initialization procedure should be run from the
+ *    &component_master_ops.master_bind callback, starting with drm_dev_init(),
+ *    then binding all components with component_bind_all() and finishing with
+ *    drm_dev_register().
+ *
+ *  - The opaque pointer passed to all components through component_bind_all()
+ *    should point at &struct drm_device of the device instance, not some driver
+ *    specific private structure.
+ *
+ *  - The component helper fills the niche where further standardization of
+ *    interfaces is not practical. When there already is, or will be, a
+ *    standardized interface like &drm_bridge or &drm_panel, providing its own
+ *    functions to find such components at driver load time, like
+ *    drm_of_find_panel_or_bridge(), then the component helper should not be
+ *    used.
+ */
+
+/**
  * drm_dev_init - Initialise new DRM device
  * @dev: DRM device
  * @driver: DRM driver
