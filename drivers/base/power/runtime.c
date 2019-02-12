@@ -1106,6 +1106,22 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 	if (status != RPM_ACTIVE && status != RPM_SUSPENDED)
 		return -EINVAL;
 
+	spin_lock_irq(&dev->power.lock);
+
+	/*
+	 * Prevent PM-runtime from being enabled for the device or return an
+	 * error if it is enabled already and working.
+	 */
+	if (dev->power.runtime_error || dev->power.disable_depth)
+		dev->power.disable_depth++;
+	else
+		error = -EAGAIN;
+
+	spin_unlock_irq(&dev->power.lock);
+
+	if (error)
+		return error;
+
 	/*
 	 * If the new status is RPM_ACTIVE, the suppliers can be activated
 	 * upfront regardless of the current status, because next time
@@ -1123,12 +1139,6 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 	}
 
 	spin_lock_irq(&dev->power.lock);
-
-	if (!dev->power.runtime_error && !dev->power.disable_depth) {
-		status = dev->power.runtime_status;
-		error = -EAGAIN;
-		goto out;
-	}
 
 	if (dev->power.runtime_status == status || !parent)
 		goto out_set;
@@ -1181,6 +1191,8 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 
 		device_links_read_unlock(idx);
 	}
+
+	pm_runtime_enable(dev);
 
 	return error;
 }
