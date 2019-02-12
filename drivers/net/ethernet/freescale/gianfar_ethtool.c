@@ -1492,7 +1492,7 @@ static int gfar_get_ts_info(struct net_device *dev,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct platform_device *ptp_dev;
 	struct device_node *ptp_node;
-	struct qoriq_ptp *ptp = NULL;
+	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
 

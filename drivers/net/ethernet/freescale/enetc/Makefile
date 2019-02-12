@@ -13,3 +13,6 @@ fsl-enetc-vf-$(CONFIG_FSL_ENETC_VF) += enetc.o enetc_cbdr.o \
 				       enetc_ethtool.o
 fsl-enetc-vf-objs := enetc_vf.o $(fsl-enetc-vf-y)
 endif
+
+obj-$(CONFIG_FSL_ENETC_PTP_CLOCK) += fsl-enetc-ptp.o
+fsl-enetc-ptp-$(CONFIG_FSL_ENETC_PTP_CLOCK) += enetc_ptp.o
