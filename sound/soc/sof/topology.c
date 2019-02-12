@@ -1285,6 +1285,53 @@ static int sof_widget_load_mixer(struct snd_soc_component *scomp, int index,
 }
 
 /*
+ * Mux topology
+ */
+static int sof_widget_load_mux(struct snd_soc_component *scomp, int index,
+			       struct snd_sof_widget *swidget,
+			       struct snd_soc_tplg_dapm_widget *tw,
+			       struct sof_ipc_comp_reply *r)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_private *private = &tw->priv;
+	struct sof_ipc_comp_mux *mux;
+	int ret;
+
+	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	if (!mux)
+		return -ENOMEM;
+
+	/* configure mux IPC message */
+	mux->comp.hdr.size = sizeof(*mux);
+	mux->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	mux->comp.id = swidget->comp_id;
+	mux->comp.type = SOF_COMP_MUX;
+	mux->comp.pipeline_id = index;
+	mux->config.hdr.size = sizeof(mux->config);
+
+	ret = sof_parse_tokens(scomp, &mux->config, comp_tokens,
+			       ARRAY_SIZE(comp_tokens), private->array,
+			       le32_to_cpu(private->size));
+	if (ret != 0) {
+		dev_err(sdev->dev, "error: parse mux.cfg tokens failed %d\n",
+			private->size);
+		kfree(mux);
+		return ret;
+	}
+
+	sof_dbg_comp_config(scomp, &mux->config);
+
+	swidget->private = (void *)mux;
+
+	ret = sof_ipc_tx_message(sdev->ipc, mux->comp.hdr.cmd, mux,
+				 sizeof(*mux), r, sizeof(*r));
+	if (ret < 0)
+		kfree(mux);
+
+	return ret;
+}
+
+/*
  * PGA Topology
  */
 
@@ -1804,6 +1851,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		break;
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
+		ret = sof_widget_load_mux(scomp, index, swidget, tw, &reply);
+		break;
 	case snd_soc_dapm_switch:
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
