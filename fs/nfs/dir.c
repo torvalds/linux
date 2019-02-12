@@ -1727,7 +1727,7 @@ nfs4_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 reval_dentry:
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
-	return nfs_lookup_revalidate_dentry(dir, dentry, inode);;
+	return nfs_lookup_revalidate_dentry(dir, dentry, inode);
 
 full_reval:
 	return nfs_do_lookup_revalidate(dir, dentry, flags);
