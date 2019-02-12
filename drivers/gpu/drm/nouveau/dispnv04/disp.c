@@ -31,9 +31,16 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 
+#include <nvif/if0004.h>
+
 static void
 nv04_display_fini(struct drm_device *dev)
 {
+	struct nv04_display *disp = nv04_display(dev);
+
+	/* Disable flip completion events. */
+	nvif_notify_put(&disp->flip);
+
 	/* Disable vblank interrupts. */
 	NVWriteCRTC(dev, 0, NV_PCRTC_INTR_EN_0, 0);
 	if (nv_two_heads(dev))
@@ -43,6 +50,7 @@ nv04_display_fini(struct drm_device *dev)
 static int
 nv04_display_init(struct drm_device *dev)
 {
+	struct nv04_display *disp = nv04_display(dev);
 	struct nouveau_encoder *encoder;
 	struct nouveau_crtc *crtc;
 
@@ -60,6 +68,8 @@ nv04_display_init(struct drm_device *dev)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.base.head)
 		encoder->enc_save(&encoder->base.base);
 
+	/* Enable flip completion events. */
+	nvif_notify_get(&disp->flip);
 	return 0;
 }
 
@@ -79,6 +89,8 @@ nv04_display_destroy(struct drm_device *dev)
 		nv_crtc->restore(&nv_crtc->base);
 
 	nouveau_hw_save_vga_fonts(dev, 0);
+
+	nvif_notify_fini(&disp->flip);
 
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
@@ -112,6 +124,13 @@ nv04_display_create(struct drm_device *dev)
 
 	/* Pre-nv50 doesn't support atomic, so don't expose the ioctls */
 	dev->driver->driver_features &= ~DRIVER_ATOMIC;
+
+	/* Request page flip completion event. */
+	if (drm->nvsw.client) {
+		nvif_notify_init(&drm->nvsw, nv04_flip_complete,
+				 false, NV04_NVSW_NTFY_UEVENT,
+				 NULL, 0, 0, &disp->flip);
+	}
 
 	nouveau_hw_save_vga_fonts(dev, 1);
 
