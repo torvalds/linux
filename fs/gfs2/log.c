@@ -88,8 +88,7 @@ static void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 
 static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
 			       struct writeback_control *wbc,
-			       struct gfs2_trans *tr,
-			       bool *withdraw)
+			       struct gfs2_trans *tr)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
@@ -108,7 +107,7 @@ __acquires(&sdp->sd_ail_lock)
 			    !test_and_set_bit(SDF_AIL1_IO_ERROR,
 					      &sdp->sd_flags)) {
 				gfs2_io_error_bh(sdp, bh);
-				*withdraw = true;
+				gfs2_withdraw_delayed(sdp);
 			}
 			list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 			continue;
@@ -149,7 +148,6 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct list_head *head = &sdp->sd_ail1_list;
 	struct gfs2_trans *tr;
 	struct blk_plug plug;
-	bool withdraw = false;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	blk_start_plug(&plug);
@@ -158,13 +156,12 @@ restart:
 	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		if (gfs2_ail1_start_one(sdp, wbc, tr, &withdraw) &&
-		    !gfs2_withdrawn(sdp))
+		if (gfs2_ail1_start_one(sdp, wbc, tr) && !gfs2_withdrawn(sdp))
 			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
-	if (withdraw)
+	if (test_bit(SDF_WITHDRAWING, &sdp->sd_flags))
 		gfs2_withdraw(sdp);
 	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
@@ -193,8 +190,7 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
  *
  */
 
-static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
-				bool *withdraw)
+static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
@@ -208,7 +204,7 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
 		if (!buffer_uptodate(bh) &&
 		    !test_and_set_bit(SDF_AIL1_IO_ERROR, &sdp->sd_flags)) {
 			gfs2_io_error_bh(sdp, bh);
-			*withdraw = true;
+			gfs2_withdraw_delayed(sdp);
 		}
 		list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 	}
@@ -226,11 +222,10 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	struct gfs2_trans *tr, *s;
 	int oldest_tr = 1;
 	int ret;
-	bool withdraw = false;
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
-		gfs2_ail1_empty_one(sdp, tr, &withdraw);
+		gfs2_ail1_empty_one(sdp, tr);
 		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
 			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
@@ -239,7 +234,7 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
-	if (withdraw) {
+	if (test_bit(SDF_WITHDRAWING, &sdp->sd_flags)) {
 		gfs2_lm(sdp, "fatal: I/O error(s)\n");
 		gfs2_withdraw(sdp);
 	}

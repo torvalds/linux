@@ -173,12 +173,22 @@ static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 }
 
 /**
+ * gfs2_withdraw_delayed - withdraw as soon as possible without deadlocks
+ * @sdp: the superblock
+ */
+static inline void gfs2_withdraw_delayed(struct gfs2_sbd *sdp)
+{
+	set_bit(SDF_WITHDRAWING, &sdp->sd_flags);
+}
+
+/**
  * gfs2_withdrawn - test whether the file system is withdrawing or withdrawn
  * @sdp: the superblock
  */
 static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
 {
-	return test_bit(SDF_WITHDRAWN, &sdp->sd_flags);
+	return test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
+		test_bit(SDF_WITHDRAWING, &sdp->sd_flags);
 }
 
 #define gfs2_tune_get(sdp, field) \

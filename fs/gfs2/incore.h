@@ -618,6 +618,7 @@ enum {
 	SDF_FORCE_AIL_FLUSH     = 9,
 	SDF_AIL1_IO_ERROR	= 10,
 	SDF_FS_FROZEN           = 11,
+	SDF_WITHDRAWING		= 12, /* Will withdraw eventually */
 };
 
 enum gfs2_freeze_state {
