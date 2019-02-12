@@ -119,7 +119,7 @@ int ishtp_send_msg(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  * Return: This returns IPC send message status.
  */
 int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
-			unsigned char *buf)
+			void *buf)
 {
 	return ishtp_send_msg(dev, hdr, buf, NULL, NULL);
 }
