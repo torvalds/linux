@@ -716,6 +716,22 @@ gf100_gr_pack_mmio[] = {
  ******************************************************************************/
 
 static int
+gf100_gr_fecs_discover_pm_image_size(struct gf100_gr *gr, u32 *psize)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x00000000);
+	nvkm_wr32(device, 0x409504, 0x00000025);
+	nvkm_msec(device, 2000,
+		if ((*psize = nvkm_rd32(device, 0x409800)))
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+static int
 gf100_gr_fecs_discover_zcull_image_size(struct gf100_gr *gr, u32 *psize)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1579,14 +1595,10 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	if (ret)
 		return ret;
 
-	nvkm_wr32(device, 0x409840, 0xffffffff);
-	nvkm_wr32(device, 0x409500, 0x00000000);
-	nvkm_wr32(device, 0x409504, 0x00000025);
-	if (nvkm_msec(device, 2000,
-		if (nvkm_rd32(device, 0x409800))
-			break;
-	) < 0)
-		return -EBUSY;
+	/* Determine how much memory is required to store PerfMon image. */
+	ret = gf100_gr_fecs_discover_pm_image_size(gr, &gr->size_pm);
+	if (ret)
+		return ret;
 
 	if (device->chipset >= 0xe0) {
 		nvkm_wr32(device, 0x409800, 0x00000000);

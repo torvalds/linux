@@ -129,6 +129,7 @@ struct gf100_gr {
 	u32  size;
 	u32 *data;
 	u32 size_zcull;
+	u32 size_pm;
 };
 
 int gf100_gr_ctor(const struct gf100_gr_func *, struct nvkm_device *,
