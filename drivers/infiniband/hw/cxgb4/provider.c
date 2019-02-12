@@ -58,28 +58,19 @@ static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
 MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
-void _c4iw_free_ucontext(struct kref *kref)
+static int c4iw_dealloc_ucontext(struct ib_ucontext *context)
 {
-	struct c4iw_ucontext *ucontext;
+	struct c4iw_ucontext *ucontext = to_c4iw_ucontext(context);
 	struct c4iw_dev *rhp;
 	struct c4iw_mm_entry *mm, *tmp;
 
-	ucontext = container_of(kref, struct c4iw_ucontext, kref);
+	pr_debug("context %p\n", context);
 	rhp = to_c4iw_dev(ucontext->ibucontext.device);
 
-	pr_debug("ucontext %p\n", ucontext);
 	list_for_each_entry_safe(mm, tmp, &ucontext->mmaps, entry)
 		kfree(mm);
 	c4iw_release_dev_ucontext(&rhp->rdev, &ucontext->uctx);
 	kfree(ucontext);
-}
-
-static int c4iw_dealloc_ucontext(struct ib_ucontext *context)
-{
-	struct c4iw_ucontext *ucontext = to_c4iw_ucontext(context);
-
-	pr_debug("context %p\n", context);
-	c4iw_put_ucontext(ucontext);
 	return 0;
 }
 
@@ -102,7 +93,6 @@ static struct ib_ucontext *c4iw_alloc_ucontext(struct ib_device *ibdev,
 	c4iw_init_dev_ucontext(&rhp->rdev, &context->uctx);
 	INIT_LIST_HEAD(&context->mmaps);
 	spin_lock_init(&context->mmap_lock);
-	kref_init(&context->kref);
 
 	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
 		pr_err_once("Warning - downlevel libcxgb4 (non-fatal), device status page disabled\n");

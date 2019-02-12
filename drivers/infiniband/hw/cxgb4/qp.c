@@ -904,8 +904,6 @@ static void free_qp_work(struct work_struct *work)
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx, !qhp->srq);
 
-	if (ucontext)
-		c4iw_put_ucontext(ucontext);
 	c4iw_put_wr_wait(qhp->wr_waitp);
 	kfree(qhp);
 }
@@ -2338,7 +2336,6 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 			insert_mmap(ucontext, ma_sync_key_mm);
 		}
 
-		c4iw_get_ucontext(ucontext);
 		qhp->ucontext = ucontext;
 	}
 	if (!attrs->srq) {
