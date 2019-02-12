@@ -116,6 +116,8 @@ static struct devlink *devlink_get_from_attrs(struct net *net,
 	busname = nla_data(attrs[DEVLINK_ATTR_BUS_NAME]);
 	devname = nla_data(attrs[DEVLINK_ATTR_DEV_NAME]);
 
+	lockdep_assert_held(&devlink_mutex);
+
 	list_for_each_entry(devlink, &devlink_list, list) {
 		if (strcmp(devlink->dev->bus->name, busname) == 0 &&
 		    strcmp(dev_name(devlink->dev), devname) == 0 &&
@@ -3645,13 +3647,13 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	if (err)
 		goto out_free;
 
+	mutex_lock(&devlink_mutex);
 	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
 	if (IS_ERR(devlink)) {
 		err = PTR_ERR(devlink);
-		goto out_free;
+		goto out_dev;
 	}
 
-	mutex_lock(&devlink_mutex);
 	mutex_lock(&devlink->lock);
 
 	if (!attrs[DEVLINK_ATTR_REGION_NAME] ||
@@ -3729,6 +3731,7 @@ nla_put_failure:
 	genlmsg_cancel(skb, hdr);
 out_unlock:
 	mutex_unlock(&devlink->lock);
+out_dev:
 	mutex_unlock(&devlink_mutex);
 out_free:
 	kfree(attrs);
