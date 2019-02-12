@@ -314,14 +314,14 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 		memcpy(&reg, &r_buf[length >> 2], rem);
 		ish_reg_write(dev, reg_addr, reg);
 	}
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
+
 	/* Flush writes to msg registers and doorbell */
 	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	/* Update IPC counters */
 	++dev->ipc_tx_cnt;
 	dev->ipc_tx_bytes_cnt += IPC_HEADER_GET_LENGTH(doorbell_val);
-
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
 
 	ipc_send_compl = ipc_link->ipc_send_compl;
 	ipc_send_compl_prm = ipc_link->ipc_send_compl_prm;
