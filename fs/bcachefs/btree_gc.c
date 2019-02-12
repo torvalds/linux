@@ -232,11 +232,11 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		bch2_verify_btree_nr_keys(b);
 
+		gc_pos_set(c, gc_pos_btree_node(b));
+
 		ret = btree_gc_mark_node(c, b, &max_stale, initial);
 		if (ret)
 			break;
-
-		gc_pos_set(c, gc_pos_btree_node(b));
 
 		if (!initial) {
 			if (max_stale > 64)
@@ -623,10 +623,13 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 				      "persistent_reserved[%i]", i);
 
 		for (i = 0; i < c->replicas.nr; i++) {
-			/*
-			 * XXX: print out replicas entry
-			 */
-			copy_fs_field(data[i], "data[%i]", i);
+			struct bch_replicas_entry *e =
+				cpu_replicas_entry(&c->replicas, i);
+			char buf[80];
+
+			bch2_replicas_entry_to_text(&PBUF(buf), e);
+
+			copy_fs_field(data[i], "%s", buf);
 		}
 	}
 

@@ -398,9 +398,22 @@ static inline void update_cached_sectors(struct bch_fs *c,
 	update_replicas(c, fs_usage, &r.e, sectors);
 }
 
-static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
-				     size_t b, struct bucket_mark *ret,
-				     bool gc)
+#define do_mark_fn(fn, c, pos, flags, ...)				\
+({									\
+	int gc, ret = 0;						\
+									\
+	percpu_rwsem_assert_held(&c->mark_lock);			\
+									\
+	for (gc = 0; gc < 2 && !ret; gc++)				\
+		if (!gc == !(flags & BCH_BUCKET_MARK_GC) ||		\
+		    (gc && gc_visited(c, pos)))				\
+			ret = fn(c, __VA_ARGS__, gc);			\
+	ret;								\
+})
+
+static int __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
+				    size_t b, struct bucket_mark *ret,
+				    bool gc)
 {
 	struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage[gc]);
 	struct bucket *g = __bucket(ca, b, gc);
@@ -421,28 +434,25 @@ static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
 				      -old.cached_sectors);
 
-	if (ret)
+	if (!gc)
 		*ret = old;
+	return 0;
 }
 
 void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 			    size_t b, struct bucket_mark *old)
 {
-	percpu_rwsem_assert_held(&c->mark_lock);
-
-	__bch2_invalidate_bucket(c, ca, b, old, false);
-
-	if (gc_visited(c, gc_phase(GC_PHASE_START)))
-		__bch2_invalidate_bucket(c, ca, b, NULL, true);
+	do_mark_fn(__bch2_invalidate_bucket, c, gc_phase(GC_PHASE_START), 0,
+		   ca, b, old);
 
 	if (!old->owned_by_allocator && old->cached_sectors)
 		trace_invalidate(ca, bucket_to_sector(ca, b),
 				 old->cached_sectors);
 }
 
-static void __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
-				     size_t b, bool owned_by_allocator,
-				     bool gc)
+static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
+				    size_t b, bool owned_by_allocator,
+				    bool gc)
 {
 	struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage[gc]);
 	struct bucket *g = __bucket(ca, b, gc);
@@ -454,20 +464,16 @@ static void __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	BUG_ON(!gc &&
 	       !owned_by_allocator && !old.owned_by_allocator);
+
+	return 0;
 }
 
 void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 			    size_t b, bool owned_by_allocator,
 			    struct gc_pos pos, unsigned flags)
 {
-	percpu_rwsem_assert_held(&c->mark_lock);
-
-	if (!(flags & BCH_BUCKET_MARK_GC))
-		__bch2_mark_alloc_bucket(c, ca, b, owned_by_allocator, false);
-
-	if ((flags & BCH_BUCKET_MARK_GC) ||
-	    gc_visited(c, pos))
-		__bch2_mark_alloc_bucket(c, ca, b, owned_by_allocator, true);
+	do_mark_fn(__bch2_mark_alloc_bucket, c, pos, flags,
+		   ca, b, owned_by_allocator);
 }
 
 #define checked_add(a, b)					\
@@ -477,9 +483,9 @@ do {								\
 	BUG_ON((a) != _res);					\
 } while (0)
 
-static void __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-					size_t b, enum bch_data_type type,
-					unsigned sectors, bool gc)
+static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
+				       size_t b, enum bch_data_type type,
+				       unsigned sectors, bool gc)
 {
 	struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage[gc]);
 	struct bucket *g = __bucket(ca, b, gc);
@@ -493,6 +499,8 @@ static void __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.data_type	= type;
 		checked_add(new.dirty_sectors, sectors);
 	}));
+
+	return 0;
 }
 
 void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -506,15 +514,8 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	preempt_disable();
 
 	if (likely(c)) {
-		percpu_rwsem_assert_held(&c->mark_lock);
-
-		if (!(flags & BCH_BUCKET_MARK_GC))
-			__bch2_mark_metadata_bucket(c, ca, b, type, sectors,
-						    false);
-		if ((flags & BCH_BUCKET_MARK_GC) ||
-		    gc_visited(c, pos))
-			__bch2_mark_metadata_bucket(c, ca, b, type, sectors,
-						    true);
+		do_mark_fn(__bch2_mark_metadata_bucket, c, pos, flags,
+			   ca, b, type, sectors);
 	} else {
 		struct bucket *g;
 		struct bucket_mark new;
@@ -833,30 +834,28 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 			   unsigned journal_seq, unsigned flags,
 			   bool gc)
 {
-	int ret = 0;
+	if (!fs_usage || gc)
+		fs_usage = this_cpu_ptr(c->usage[gc]);
 
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr:
-		ret = bch2_mark_extent(c, k, inserting
-				       ?  c->opts.btree_node_size
-				       : -c->opts.btree_node_size,
-				       BCH_DATA_BTREE,
-				       fs_usage, journal_seq, flags, gc);
-		break;
+		return bch2_mark_extent(c, k, inserting
+					?  c->opts.btree_node_size
+					: -c->opts.btree_node_size,
+					BCH_DATA_BTREE,
+					fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_extent:
-		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
-				       fs_usage, journal_seq, flags, gc);
-		break;
+		return bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+					fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_stripe:
-		ret = bch2_mark_stripe(c, k, inserting,
-				       fs_usage, journal_seq, flags, gc);
-		break;
+		return bch2_mark_stripe(c, k, inserting,
+					fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_inode:
 		if (inserting)
 			fs_usage->s.nr_inodes++;
 		else
 			fs_usage->s.nr_inodes--;
-		break;
+		return 0;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 
@@ -866,13 +865,11 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 		fs_usage->s.reserved				+= sectors;
 		fs_usage->persistent_reserved[replicas - 1]	+= sectors;
-		break;
+		return 0;
 	}
 	default:
-		break;
+		return 0;
 	}
-
-	return ret;
 }
 
 int bch2_mark_key_locked(struct bch_fs *c,
@@ -882,26 +879,9 @@ int bch2_mark_key_locked(struct bch_fs *c,
 		   struct bch_fs_usage *fs_usage,
 		   u64 journal_seq, unsigned flags)
 {
-	int ret;
-
-	if (!(flags & BCH_BUCKET_MARK_GC)) {
-		ret = __bch2_mark_key(c, k, inserting, sectors,
-				      fs_usage ?: this_cpu_ptr(c->usage[0]),
-				      journal_seq, flags, false);
-		if (ret)
-			return ret;
-	}
-
-	if ((flags & BCH_BUCKET_MARK_GC) ||
-	    gc_visited(c, pos)) {
-		ret = __bch2_mark_key(c, k, inserting, sectors,
-				      this_cpu_ptr(c->usage[1]),
-				      journal_seq, flags, true);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return do_mark_fn(__bch2_mark_key, c, pos, flags,
+			  k, inserting, sectors, fs_usage,
+			  journal_seq, flags);
 }
 
 int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,

@@ -249,8 +249,8 @@ void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			       size_t, enum bch_data_type, unsigned,
 			       struct gc_pos, unsigned);
 
-#define BCH_BUCKET_MARK_NOATOMIC		(1 << 0)
-#define BCH_BUCKET_MARK_GC			(1 << 1)
+#define BCH_BUCKET_MARK_GC			(1 << 0)
+#define BCH_BUCKET_MARK_NOATOMIC		(1 << 1)
 
 int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
