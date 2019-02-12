@@ -79,6 +79,11 @@ enum {
 	TYPE_ISL1219,
 };
 
+/* Device state */
+struct isl1208_state {
+	struct rtc_device *rtc;
+};
+
 /* block read */
 static int
 isl1208_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[],
@@ -557,7 +562,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct i2c_client *client = data;
-	struct rtc_device *rtc = i2c_get_clientdata(client);
+	struct isl1208_state *isl1208 = i2c_get_clientdata(client);
 	int handled = 0, sr, err;
 
 	/*
@@ -580,7 +585,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 	if (sr & ISL1208_REG_SR_ALM) {
 		dev_dbg(&client->dev, "alarm!\n");
 
-		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
+		rtc_update_irq(isl1208->rtc, 1, RTC_IRQF | RTC_AF);
 
 		/* Clear the alarm */
 		sr &= ~ISL1208_REG_SR_ALM;
@@ -598,7 +603,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 	}
 
 	if (sr & ISL1208_REG_SR_EVT) {
-		sysfs_notify(&rtc->dev.kobj, NULL,
+		sysfs_notify(&isl1208->rtc->dev.kobj, NULL,
 			     dev_attr_timestamp0.attr.name);
 		dev_warn(&client->dev, "event detected");
 		handled = 1;
@@ -723,7 +728,7 @@ static int
 isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int rc = 0;
-	struct rtc_device *rtc;
+	struct isl1208_state *isl1208;
 	int evdet_irq = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -732,13 +737,17 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (isl1208_i2c_validate_client(client) < 0)
 		return -ENODEV;
 
-	rtc = devm_rtc_allocate_device(&client->dev);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	/* Allocate driver state, point i2c client data to it */
+	isl1208 = devm_kzalloc(&client->dev, sizeof(*isl1208), GFP_KERNEL);
+	if (!isl1208)
+		return -ENOMEM;
+	i2c_set_clientdata(client, isl1208);
 
-	rtc->ops = &isl1208_rtc_ops;
+	isl1208->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(isl1208->rtc))
+		return PTR_ERR(isl1208->rtc);
 
-	i2c_set_clientdata(client, rtc);
+	isl1208->rtc->ops = &isl1208_rtc_ops;
 
 	rc = isl1208_i2c_get_sr(client);
 	if (rc < 0) {
@@ -771,13 +780,13 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			dev_err(&client->dev, "could not enable tamper detection\n");
 			return rc;
 		}
-		rc = rtc_add_group(rtc, &isl1219_rtc_sysfs_files);
+		rc = rtc_add_group(isl1208->rtc, &isl1219_rtc_sysfs_files);
 		if (rc)
 			return rc;
 		evdet_irq = of_irq_get_byname(np, "evdet");
 	}
 
-	rc = rtc_add_group(rtc, &isl1208_rtc_sysfs_files);
+	rc = rtc_add_group(isl1208->rtc, &isl1208_rtc_sysfs_files);
 	if (rc)
 		return rc;
 
@@ -791,7 +800,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (rc)
 		return rc;
 
-	return rtc_register_device(rtc);
+	return rtc_register_device(isl1208->rtc);
 }
 
 static const struct i2c_device_id isl1208_id[] = {
