@@ -716,6 +716,78 @@ gf100_gr_pack_mmio[] = {
  ******************************************************************************/
 
 static int
+gf100_gr_fecs_set_reglist_virtual_address(struct gf100_gr *gr, u64 addr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409810, addr >> 8);
+	nvkm_wr32(device, 0x409800, 0x00000000);
+	nvkm_wr32(device, 0x409500, 0x00000001);
+	nvkm_wr32(device, 0x409504, 0x00000032);
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800) == 0x00000001)
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+static int
+gf100_gr_fecs_set_reglist_bind_instance(struct gf100_gr *gr, u32 inst)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409810, inst);
+	nvkm_wr32(device, 0x409800, 0x00000000);
+	nvkm_wr32(device, 0x409500, 0x00000001);
+	nvkm_wr32(device, 0x409504, 0x00000031);
+	nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800) == 0x00000001)
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+static int
+gf100_gr_fecs_discover_reglist_image_size(struct gf100_gr *gr, u32 *psize)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409800, 0x00000000);
+	nvkm_wr32(device, 0x409500, 0x00000001);
+	nvkm_wr32(device, 0x409504, 0x00000030);
+	nvkm_msec(device, 2000,
+		if ((*psize = nvkm_rd32(device, 0x409800)))
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+static int
+gf100_gr_fecs_elpg_bind(struct gf100_gr *gr)
+{
+	u32 size;
+	int ret;
+
+	ret = gf100_gr_fecs_discover_reglist_image_size(gr, &size);
+	if (ret)
+		return ret;
+
+	/*XXX: We need to allocate + map the above into PMU's inst block,
+	 *     which which means we probably need a proper PMU before we
+	 *     even bother.
+	 */
+
+	ret = gf100_gr_fecs_set_reglist_bind_instance(gr, 0);
+	if (ret)
+		return ret;
+
+	return gf100_gr_fecs_set_reglist_virtual_address(gr, 0);
+}
+
+static int
 gf100_gr_fecs_discover_pm_image_size(struct gf100_gr *gr, u32 *psize)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1600,36 +1672,19 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 	if (ret)
 		return ret;
 
+	/*XXX: We (likely) require PMU support to even bother with this.
+	 *
+	 *     Also, it seems like not all GPUs support ELPG.  Traces I
+	 *     have here show RM enabling it on Kepler/Turing, but none
+	 *     of the GPUs between those.  NVGPU decides this by PCIID.
+	 */
+	if (0) {
+		ret = gf100_gr_fecs_elpg_bind(gr);
+		if (ret)
+			return ret;
+	}
+
 	if (device->chipset >= 0xe0) {
-		nvkm_wr32(device, 0x409800, 0x00000000);
-		nvkm_wr32(device, 0x409500, 0x00000001);
-		nvkm_wr32(device, 0x409504, 0x00000030);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800))
-				break;
-		) < 0)
-			return -EBUSY;
-
-		nvkm_wr32(device, 0x409810, 0xb00095c8);
-		nvkm_wr32(device, 0x409800, 0x00000000);
-		nvkm_wr32(device, 0x409500, 0x00000001);
-		nvkm_wr32(device, 0x409504, 0x00000031);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800))
-				break;
-		) < 0)
-			return -EBUSY;
-
-		nvkm_wr32(device, 0x409810, 0x00080420);
-		nvkm_wr32(device, 0x409800, 0x00000000);
-		nvkm_wr32(device, 0x409500, 0x00000001);
-		nvkm_wr32(device, 0x409504, 0x00000032);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800))
-				break;
-		) < 0)
-			return -EBUSY;
-
 		nvkm_wr32(device, 0x409614, 0x00000070);
 		nvkm_wr32(device, 0x409614, 0x00000770);
 		nvkm_wr32(device, 0x40802c, 0x00000001);
