@@ -550,18 +550,6 @@
 			status = "disabled";
 		};
 
-		adc: adc@12d10000 {
-			compatible = "samsung,exynos-adc-v2";
-			reg = <0x12D10000 0x100>;
-			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clock CLK_TSADC>;
-			clock-names = "adc";
-			#io-channel-cells = <1>;
-			io-channel-ranges;
-			samsung,syscon-phandle = <&pmu_system_controller>;
-			status = "disabled";
-		};
-
 		hsi2c_8: i2c@12e00000 {
 			compatible = "samsung,exynos5250-hsi2c";
 			reg = <0x12E00000 0x1000>;
@@ -1363,6 +1351,12 @@
 		       #include "exynos5420-trip-points.dtsi"
 		};
 	};
+};
+
+&adc {
+	clocks = <&clock CLK_TSADC>;
+	clock-names = "adc";
+	samsung,syscon-phandle = <&pmu_system_controller>;
 };
 
 &dp {
