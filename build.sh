@@ -51,7 +51,7 @@ function parse_argv {
                 elif [[ "$arg" == '--norsync' ]]; then
                         USE_RSYNC=0
                 elif [[ "$arg" == '--rsync-only' ]]; then
-                        RSYNC_ONLY=0
+                        RSYNC_ONLY=1
                 elif [[ "$arg" == '-h' || "$arg" == '--help' || "$arg" == '-help' ]]; then
                         help
                 else
@@ -87,21 +87,19 @@ function delete_medusa {
 }
 
 function medusa_only {
-        if [[ `uname -a` != *medusa* ]]; then
-                echo "Sorry you can use parameter --medusa-only only when running medusa kernel"
-                help
-                exit 0
-        fi
         sudo make -j `expr $PROCESSORS + 1`
 
         [ $? -ne 0 ] && do_exit 1 "Medusa compilation failed"
 }
 
 function install_module {
-        sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`uname -r`
+        sudo cp arch/x86/boot/bzImage /boot/vmlinuz-`make kernelrelease`
         [ $? -ne 0 ] && do_exit 1 "Copying of medusa module failed"
 
-        sudo update-initramfs -u 
+        sudo cp System.map /boot/System.map-`make kernelrelease`
+        [ $? -ne 0 ] && do_exit 1 "Copying of System.map failed"
+
+        sudo update-initramfs -uk `make kernelrelease`
         [ $? -ne 0 ] && do_exit 1 "Update-initramfs failed"
 }
 
@@ -147,7 +145,7 @@ parse_argv $@
 
 if [ $RSYNC_ONLY -eq 1 ]; then
     rsync_repo
-    return 0
+    exit 0
 fi
 
 [ -f vmlinux ] && sudo rm -f vmlinux 2> /dev/null
