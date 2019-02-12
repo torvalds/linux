@@ -53,7 +53,7 @@ struct rt_dot11d_info {
 	enum dot11d_state state;
 };
 
-static inline void cpMacAddr(unsigned char *des, unsigned char *src)
+static inline void copy_mac_addr(unsigned char *des, unsigned char *src)
 {
 	memcpy(des, src, 6);
 }
@@ -70,7 +70,7 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 	 ether_addr_equal_unaligned( \
 		GET_DOT11D_INFO(__pIeeeDev)->country_src_addr, __pTa)
 #define UPDATE_CIE_SRC(__pIeeeDev, __pTa)		\
-	cpMacAddr(GET_DOT11D_INFO(__pIeeeDev)->country_src_addr, __pTa)
+	copy_mac_addr(GET_DOT11D_INFO(__pIeeeDev)->country_src_addr, __pTa)
 
 #define GET_CIE_WATCHDOG(__pIeeeDev)				\
 	 (GET_DOT11D_INFO(__pIeeeDev)->country_watchdog)
