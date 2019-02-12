@@ -595,6 +595,7 @@ struct qeth_channel;
 struct qeth_cmd_buffer {
 	enum qeth_cmd_buffer_state state;
 	struct qeth_channel *channel;
+	struct qeth_reply *reply;
 	unsigned char *data;
 	int rc;
 	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
