@@ -637,19 +637,6 @@ static int dwc3_rockchip_get_extcon_dev(struct dwc3_rockchip *rockchip)
 	return 0;
 }
 
-static void dwc3_rockchip_extcon_unregister(struct dwc3_rockchip *rockchip)
-{
-	if (!rockchip->edev)
-		return;
-
-	extcon_unregister_notifier(rockchip->edev, EXTCON_USB,
-				   &rockchip->device_nb);
-	extcon_unregister_notifier(rockchip->edev, EXTCON_USB_HOST,
-				   &rockchip->host_nb);
-
-	cancel_work_sync(&rockchip->otg_work);
-}
-
 static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 {
 	struct dwc3_rockchip	*rockchip = data;
@@ -664,20 +651,19 @@ static void dwc3_rockchip_async_probe(void *data, async_cookie_t cookie)
 		device_property_read_bool(dev, "needs-reset-on-resume");
 
 	if (rockchip->edev) {
-		ret = extcon_register_notifier(rockchip->edev, EXTCON_USB,
-					       &rockchip->device_nb);
+		ret = devm_extcon_register_notifier(dev, rockchip->edev,
+						    EXTCON_USB,
+						    &rockchip->device_nb);
 		if (ret < 0) {
 			dev_err(dev, "fail to register notifier for USB Dev\n");
 			goto err;
 		}
 
-		ret = extcon_register_notifier(rockchip->edev, EXTCON_USB_HOST,
-					       &rockchip->host_nb);
+		ret = devm_extcon_register_notifier(dev, rockchip->edev,
+						    EXTCON_USB_HOST,
+						    &rockchip->host_nb);
 		if (ret < 0) {
-			dev_err(dev,
-				"fail to register notifier for USB HOST\n");
-			extcon_unregister_notifier(rockchip->edev, EXTCON_USB,
-						   &rockchip->device_nb);
+			dev_err(dev, "fail to register notifier for USB HOST\n");
 			goto err;
 		}
 	}
@@ -878,7 +864,7 @@ static int dwc3_rockchip_remove(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			i;
 
-	dwc3_rockchip_extcon_unregister(rockchip);
+	cancel_work_sync(&rockchip->otg_work);
 
 	sysfs_remove_group(&dev->kobj, &dwc3_rockchip_attr_group);
 
