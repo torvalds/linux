@@ -28,7 +28,7 @@
 #include "smc_ism.h"
 #include "smc_tx.h"
 
-#define SMC_TX_WORK_DELAY	HZ
+#define SMC_TX_WORK_DELAY	0
 #define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
 
 /***************************** sndbuf producer *******************************/
