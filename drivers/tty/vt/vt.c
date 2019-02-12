@@ -935,8 +935,11 @@ static void flush_scrollback(struct vc_data *vc)
 {
 	WARN_CONSOLE_UNLOCKED();
 
+	set_origin(vc);
 	if (vc->vc_sw->con_flush_scrollback)
 		vc->vc_sw->con_flush_scrollback(vc);
+	else
+		vc->vc_sw->con_switch(vc);
 }
 
 /*
@@ -1506,8 +1509,10 @@ static void csi_J(struct vc_data *vc, int vpar)
 			count = ((vc->vc_pos - vc->vc_origin) >> 1) + 1;
 			start = (unsigned short *)vc->vc_origin;
 			break;
+		case 3: /* include scrollback */
+			flush_scrollback(vc);
+			/* fallthrough */
 		case 2: /* erase whole display */
-		case 3: /* (and scrollback buffer later) */
 			vc_uniscr_clear_lines(vc, 0, vc->vc_rows);
 			count = vc->vc_cols * vc->vc_rows;
 			start = (unsigned short *)vc->vc_origin;
@@ -1516,13 +1521,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			return;
 	}
 	scr_memsetw(start, vc->vc_video_erase_char, 2 * count);
-	if (vpar == 3) {
-		set_origin(vc);
-		flush_scrollback(vc);
-		if (con_is_visible(vc))
-			update_screen(vc);
-	} else if (con_should_update(vc))
-		do_update_region(vc, (unsigned long) start, count);
+	update_region(vc, (unsigned long) start, count);
 	vc->vc_need_wrap = 0;
 }
 
