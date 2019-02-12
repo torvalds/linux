@@ -111,7 +111,7 @@
 #define DPFE_MSG_TYPE_COMMAND	1
 #define DPFE_MSG_TYPE_RESPONSE	2
 
-#define DELAY_LOOP_MAX		200000
+#define DELAY_LOOP_MAX		1000
 
 enum dpfe_msg_fields {
 	MSG_HEADER,
@@ -323,7 +323,7 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		resp = readl_relaxed(regs + REG_TO_HOST_MBOX);
 		if (resp > 0)
 			break;
-		udelay(5);
+		msleep(1);
 	}
 
 	if (i == DELAY_LOOP_MAX) {
