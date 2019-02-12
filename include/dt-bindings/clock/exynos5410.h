@@ -45,6 +45,7 @@
 #define CLK_USI1		266
 #define CLK_USI2		267
 #define CLK_USI3		268
+#define CLK_TSADC		270
 #define CLK_PWM			279
 #define CLK_MCT			315
 #define CLK_WDT			316
