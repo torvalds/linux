@@ -26,6 +26,9 @@ int pci_proc_domain(struct pci_bus *);
 #define ZPCI_BUS_NR			0	/* default bus number */
 #define ZPCI_DEVFN			0	/* default device number */
 
+#define ZPCI_NR_DMA_SPACES		1
+#define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
+
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80
 #define ZPCI_FC_ERROR			0x40
@@ -218,6 +221,9 @@ struct zpci_dev *get_zdev_by_fid(u32);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
+
+int __init zpci_irq_init(void);
+void __init zpci_irq_exit(void);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);
