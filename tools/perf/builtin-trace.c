@@ -1041,6 +1041,9 @@ static const size_t trace__entry_str_size = 2048;
 
 static struct file *thread_trace__files_entry(struct thread_trace *ttrace, int fd)
 {
+	if (fd < 0)
+		return NULL;
+
 	if (fd > ttrace->files.max) {
 		struct file *nfiles = realloc(ttrace->files.table, (fd + 1) * sizeof(struct file));
 
