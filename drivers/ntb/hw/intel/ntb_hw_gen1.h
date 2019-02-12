@@ -147,6 +147,9 @@ extern struct intel_b2b_addr xeon_b2b_dsd_addr;
 int ndev_init_isr(struct intel_ntb_dev *ndev, int msix_min, int msix_max,
 		int msix_shift, int total_shift);
 enum ntb_topo xeon_ppd_topo(struct intel_ntb_dev *ndev, u8 ppd);
+void ndev_db_addr(struct intel_ntb_dev *ndev,
+				phys_addr_t *db_addr, resource_size_t *db_size,
+				phys_addr_t reg_addr, unsigned long reg);
 u64 ndev_db_read(struct intel_ntb_dev *ndev, void __iomem *mmio);
 int ndev_db_write(struct intel_ntb_dev *ndev, u64 db_bits,
 				void __iomem *mmio);
@@ -166,8 +169,6 @@ int intel_ntb_db_vector_count(struct ntb_dev *ntb);
 u64 intel_ntb_db_vector_mask(struct ntb_dev *ntb, int db_vector);
 int intel_ntb_db_set_mask(struct ntb_dev *ntb, u64 db_bits);
 int intel_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits);
-int intel_ntb_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
-		resource_size_t *db_size);
 int intel_ntb_spad_is_unsafe(struct ntb_dev *ntb);
 int intel_ntb_spad_count(struct ntb_dev *ntb);
 u32 intel_ntb_spad_read(struct ntb_dev *ntb, int idx);

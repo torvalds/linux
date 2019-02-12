@@ -710,10 +710,15 @@ static u64 switchtec_ntb_db_read_mask(struct ntb_dev *ntb)
 
 static int switchtec_ntb_peer_db_addr(struct ntb_dev *ntb,
 				      phys_addr_t *db_addr,
-				      resource_size_t *db_size)
+				      resource_size_t *db_size,
+				      u64 *db_data,
+				      int db_bit)
 {
 	struct switchtec_ntb *sndev = ntb_sndev(ntb);
 	unsigned long offset;
+
+	if (unlikely(db_bit >= BITS_PER_LONG_LONG))
+		return -EINVAL;
 
 	offset = (unsigned long)sndev->mmio_peer_dbmsg->odb -
 		(unsigned long)sndev->stdev->mmio;
@@ -724,6 +729,8 @@ static int switchtec_ntb_peer_db_addr(struct ntb_dev *ntb,
 		*db_addr = pci_resource_start(ntb->pdev, 0) + offset;
 	if (db_size)
 		*db_size = sizeof(u32);
+	if (db_data)
+		*db_data = BIT_ULL(db_bit) << sndev->db_peer_shift;
 
 	return 0;
 }
