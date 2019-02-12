@@ -37,8 +37,6 @@
 #include <asm/pci_clp.h>
 #include <asm/pci_dma.h>
 
-#define DEBUG				/* enable pr_debug */
-
 #define	SIC_IRQ_MODE_ALL		0
 #define	SIC_IRQ_MODE_SINGLE		1
 
