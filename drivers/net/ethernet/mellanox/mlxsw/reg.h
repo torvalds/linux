@@ -8055,13 +8055,41 @@ MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
  */
 MLXSW_ITEM32(reg, mcia, size, 0x08, 0, 16);
 
-#define MLXSW_SP_REG_MCIA_EEPROM_SIZE 48
+#define MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH	256
+#define MLXSW_REG_MCIA_EEPROM_SIZE		48
+#define MLXSW_REG_MCIA_I2C_ADDR_LOW		0x50
+#define MLXSW_REG_MCIA_I2C_ADDR_HIGH		0x51
+#define MLXSW_REG_MCIA_PAGE0_LO_OFF		0xa0
+#define MLXSW_REG_MCIA_TH_ITEM_SIZE		2
+#define MLXSW_REG_MCIA_TH_PAGE_NUM		3
+#define MLXSW_REG_MCIA_PAGE0_LO			0
+#define MLXSW_REG_MCIA_TH_PAGE_OFF		0x80
+
+enum mlxsw_reg_mcia_eeprom_module_info_rev_id {
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_UNSPC	= 0x00,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8436	= 0x01,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636	= 0x03,
+};
+
+enum mlxsw_reg_mcia_eeprom_module_info_id {
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP	= 0x03,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP	= 0x0C,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS	= 0x0D,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28	= 0x11,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_DD	= 0x18,
+};
+
+enum mlxsw_reg_mcia_eeprom_module_info {
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID,
+	MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE,
+};
 
 /* reg_mcia_eeprom
  * Bytes to read/write.
  * Access: RW
  */
-MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_SP_REG_MCIA_EEPROM_SIZE);
+MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
 
 static inline void mlxsw_reg_mcia_pack(char *payload, u8 module, u8 lock,
 				       u8 page_number, u16 device_addr,
