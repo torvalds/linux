@@ -547,21 +547,19 @@ int ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	unsigned long mask;
 	int ret;
 
-	if (ib_dev->ops.get_netdev) {
-		idev = ib_dev->ops.get_netdev(ib_dev, port);
-		if (idev && attr->ndev != idev) {
-			union ib_gid default_gid;
+	idev = ib_device_get_netdev(ib_dev, port);
+	if (idev && attr->ndev != idev) {
+		union ib_gid default_gid;
 
-			/* Adding default GIDs in not permitted */
-			make_default_gid(idev, &default_gid);
-			if (!memcmp(gid, &default_gid, sizeof(*gid))) {
-				dev_put(idev);
-				return -EPERM;
-			}
-		}
-		if (idev)
+		/* Adding default GIDs is not permitted */
+		make_default_gid(idev, &default_gid);
+		if (!memcmp(gid, &default_gid, sizeof(*gid))) {
 			dev_put(idev);
+			return -EPERM;
+		}
 	}
+	if (idev)
+		dev_put(idev);
 
 	mask = GID_ATTR_FIND_MASK_GID |
 	       GID_ATTR_FIND_MASK_GID_TYPE |

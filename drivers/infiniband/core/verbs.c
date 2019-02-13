@@ -1723,10 +1723,7 @@ int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width)
 	if (rdma_port_get_link_layer(dev, port_num) != IB_LINK_LAYER_ETHERNET)
 		return -EINVAL;
 
-	if (!dev->ops.get_netdev)
-		return -EOPNOTSUPP;
-
-	netdev = dev->ops.get_netdev(dev, port_num);
+	netdev = ib_device_get_netdev(dev, port_num);
 	if (!netdev)
 		return -ENODEV;
 

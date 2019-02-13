@@ -66,6 +66,9 @@ typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
 				   struct net_device *idev, void *cookie);
 
+struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
+					unsigned int port);
+
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,
 			 void *filter_cookie,

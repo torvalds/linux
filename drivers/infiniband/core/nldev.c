@@ -268,9 +268,7 @@ static int fill_port_info(struct sk_buff *msg,
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_PORT_PHYS_STATE, attr.phys_state))
 		return -EMSGSIZE;
 
-	if (device->ops.get_netdev)
-		netdev = device->ops.get_netdev(device, port);
-
+	netdev = ib_device_get_netdev(device, port);
 	if (netdev && net_eq(dev_net(netdev), net)) {
 		ret = nla_put_u32(msg,
 				  RDMA_NLDEV_ATTR_NDEV_INDEX, netdev->ifindex);
