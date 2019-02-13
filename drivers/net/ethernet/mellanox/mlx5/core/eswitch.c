@@ -52,7 +52,7 @@ enum {
 struct vport_addr {
 	struct l2addr_node     node;
 	u8                     action;
-	u32                    vport;
+	u16                    vport;
 	struct mlx5_flow_handle *flow_rule;
 	bool mpfs; /* UC MAC was added to MPFs */
 	/* A flag indicating that mac was added due to mc promiscuous vport */
@@ -115,7 +115,7 @@ static int modify_esw_vport_context_cmd(struct mlx5_core_dev *dev, u16 vport,
 	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
 }
 
-static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
+static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u16 vport,
 				  u16 vlan, u8 qos, u8 set_flags)
 {
 	u32 in[MLX5_ST_SZ_DW(modify_esw_vport_context_in)] = {0};
@@ -152,7 +152,7 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 
 /* E-Switch FDB */
 static struct mlx5_flow_handle *
-__esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
+__esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 			 u8 mac_c[ETH_ALEN], u8 mac_v[ETH_ALEN])
 {
 	int match_header = (is_zero_ether_addr(mac_c) ? 0 :
@@ -215,7 +215,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u32 vport, bool rx_rule,
 }
 
 static struct mlx5_flow_handle *
-esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
+esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u16 vport)
 {
 	u8 mac_c[ETH_ALEN];
 
@@ -224,7 +224,7 @@ esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 }
 
 static struct mlx5_flow_handle *
-esw_fdb_set_vport_allmulti_rule(struct mlx5_eswitch *esw, u32 vport)
+esw_fdb_set_vport_allmulti_rule(struct mlx5_eswitch *esw, u16 vport)
 {
 	u8 mac_c[ETH_ALEN];
 	u8 mac_v[ETH_ALEN];
@@ -237,7 +237,7 @@ esw_fdb_set_vport_allmulti_rule(struct mlx5_eswitch *esw, u32 vport)
 }
 
 static struct mlx5_flow_handle *
-esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u32 vport)
+esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u16 vport)
 {
 	u8 mac_c[ETH_ALEN];
 	u8 mac_v[ETH_ALEN];
@@ -377,7 +377,7 @@ typedef int (*vport_addr_action)(struct mlx5_eswitch *esw,
 static int esw_add_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 {
 	u8 *mac = vaddr->node.addr;
-	u32 vport = vaddr->vport;
+	u16 vport = vaddr->vport;
 	int err;
 
 	/* Skip mlx5_mpfs_add_mac for PFs,
@@ -409,7 +409,7 @@ fdb_add:
 static int esw_del_uc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 {
 	u8 *mac = vaddr->node.addr;
-	u32 vport = vaddr->vport;
+	u16 vport = vaddr->vport;
 	int err = 0;
 
 	/* Skip mlx5_mpfs_del_mac for PFs,
@@ -438,7 +438,7 @@ static void update_allmulti_vports(struct mlx5_eswitch *esw,
 				   struct esw_mc_addr *esw_mc)
 {
 	u8 *mac = vaddr->node.addr;
-	u32 vport_idx = 0;
+	u16 vport_idx = 0;
 
 	for (vport_idx = 0; vport_idx < esw->total_vports; vport_idx++) {
 		struct mlx5_vport *vport = &esw->vports[vport_idx];
@@ -485,7 +485,7 @@ static int esw_add_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	struct hlist_head *hash = esw->mc_table;
 	struct esw_mc_addr *esw_mc;
 	u8 *mac = vaddr->node.addr;
-	u32 vport = vaddr->vport;
+	u16 vport = vaddr->vport;
 
 	if (!esw->fdb_table.legacy.fdb)
 		return 0;
@@ -525,7 +525,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 	struct hlist_head *hash = esw->mc_table;
 	struct esw_mc_addr *esw_mc;
 	u8 *mac = vaddr->node.addr;
-	u32 vport = vaddr->vport;
+	u16 vport = vaddr->vport;
 
 	if (!esw->fdb_table.legacy.fdb)
 		return 0;
@@ -564,7 +564,7 @@ static int esw_del_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 
 /* Apply vport UC/MC list to HW l2 table and FDB table */
 static void esw_apply_vport_addr_list(struct mlx5_eswitch *esw,
-				      u32 vport_num, int list_type)
+				      u16 vport_num, int list_type)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 	bool is_uc = list_type == MLX5_NVPRT_LIST_TYPE_UC;
@@ -599,7 +599,7 @@ static void esw_apply_vport_addr_list(struct mlx5_eswitch *esw,
 
 /* Sync vport UC/MC list from vport context */
 static void esw_update_vport_addr_list(struct mlx5_eswitch *esw,
-				       u32 vport_num, int list_type)
+				       u16 vport_num, int list_type)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 	bool is_uc = list_type == MLX5_NVPRT_LIST_TYPE_UC;
@@ -686,7 +686,7 @@ out:
 /* Sync vport UC/MC list from vport context
  * Must be called after esw_update_vport_addr_list
  */
-static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u32 vport_num)
+static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 	struct l2addr_node *node;
@@ -721,7 +721,7 @@ static void esw_update_vport_mc_promisc(struct mlx5_eswitch *esw, u32 vport_num)
 }
 
 /* Apply vport rx mode to HW FDB table */
-static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num,
+static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u16 vport_num,
 				    bool promisc, bool mc_promisc)
 {
 	struct esw_mc_addr *allmulti_addr = &esw->mc_promisc;
@@ -764,7 +764,7 @@ promisc:
 }
 
 /* Sync vport rx mode from vport context */
-static void esw_update_vport_rx_mode(struct mlx5_eswitch *esw, u32 vport_num)
+static void esw_update_vport_rx_mode(struct mlx5_eswitch *esw, u16 vport_num)
 {
 	struct mlx5_vport *vport = &esw->vports[vport_num];
 	int promisc_all = 0;
