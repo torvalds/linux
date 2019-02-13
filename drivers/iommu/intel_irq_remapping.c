@@ -294,6 +294,18 @@ static void set_irte_sid(struct irte *irte, unsigned int svt,
 	irte->sid = sid;
 }
 
+/*
+ * Set an IRTE to match only the bus number. Interrupt requests that reference
+ * this IRTE must have a requester-id whose bus number is between or equal
+ * to the start_bus and end_bus arguments.
+ */
+static void set_irte_verify_bus(struct irte *irte, unsigned int start_bus,
+				unsigned int end_bus)
+{
+	set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
+		     (start_bus << 8) | end_bus);
+}
+
 static int set_ioapic_sid(struct irte *irte, int apic)
 {
 	int i;
@@ -391,9 +403,8 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	 * original device.
 	 */
 	if (PCI_BUS_NUM(data.alias) != data.pdev->bus->number)
-		set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
-			     PCI_DEVID(PCI_BUS_NUM(data.alias),
-				       dev->bus->number));
+		set_irte_verify_bus(irte, PCI_BUS_NUM(data.alias),
+				    dev->bus->number);
 	else if (data.pdev->bus->number != dev->bus->number)
 		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16, data.alias);
 	else
