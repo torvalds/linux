@@ -195,9 +195,9 @@ struct flow_stats {
 static inline void flow_stats_update(struct flow_stats *flow_stats,
 				     u64 bytes, u64 pkts, u64 lastused)
 {
-	flow_stats->pkts	= pkts;
-	flow_stats->bytes	= bytes;
-	flow_stats->lastused	= lastused;
+	flow_stats->pkts	+= pkts;
+	flow_stats->bytes	+= bytes;
+	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
 }
 
 #endif /* _NET_FLOW_OFFLOAD_H */
