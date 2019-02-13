@@ -48,23 +48,6 @@
 static LIST_HEAD(rxe_dev_list);
 static DEFINE_SPINLOCK(dev_list_lock); /* spinlock for device list */
 
-struct rxe_dev *net_to_rxe(struct net_device *ndev)
-{
-	struct rxe_dev *rxe;
-	struct rxe_dev *found = NULL;
-
-	spin_lock_bh(&dev_list_lock);
-	list_for_each_entry(rxe, &rxe_dev_list, list) {
-		if (rxe->ndev == ndev) {
-			found = rxe;
-			break;
-		}
-	}
-	spin_unlock_bh(&dev_list_lock);
-
-	return found;
-}
-
 struct rxe_dev *get_rxe_by_name(const char *name)
 {
 	struct rxe_dev *rxe;
@@ -80,7 +63,6 @@ struct rxe_dev *get_rxe_by_name(const char *name)
 	spin_unlock_bh(&dev_list_lock);
 	return found;
 }
-
 
 static struct rxe_recv_sockets recv_sockets;
 
@@ -229,18 +211,19 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	struct udphdr *udph;
 	struct net_device *ndev = skb->dev;
 	struct net_device *rdev = ndev;
-	struct rxe_dev *rxe = net_to_rxe(ndev);
+	struct rxe_dev *rxe = rxe_get_dev_from_net(ndev);
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
 	if (!rxe && is_vlan_dev(rdev)) {
 		rdev = vlan_dev_real_dev(ndev);
-		rxe = net_to_rxe(rdev);
+		rxe = rxe_get_dev_from_net(rdev);
 	}
 	if (!rxe)
 		goto drop;
 
 	if (skb_linearize(skb)) {
 		pr_err("skb_linearize failed\n");
+		ib_device_put(&rxe->ib_dev);
 		goto drop;
 	}
 
@@ -252,6 +235,12 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	pkt->paylen = be16_to_cpu(udph->len) - sizeof(*udph);
 
 	rxe_rcv(skb);
+
+	/*
+	 * FIXME: this is in the wrong place, it needs to be done when pkt is
+	 * destroyed
+	 */
+	ib_device_put(&rxe->ib_dev);
 
 	return 0;
 drop:
@@ -635,16 +624,17 @@ static int rxe_notify(struct notifier_block *not_blk,
 		      void *arg)
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(arg);
-	struct rxe_dev *rxe = net_to_rxe(ndev);
+	struct rxe_dev *rxe = rxe_get_dev_from_net(ndev);
 
 	if (!rxe)
-		goto out;
+		return NOTIFY_OK;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
 		list_del(&rxe->list);
+		ib_device_put(&rxe->ib_dev);
 		rxe_remove(rxe);
-		break;
+		return NOTIFY_OK;
 	case NETDEV_UP:
 		rxe_port_up(rxe);
 		break;
@@ -668,7 +658,8 @@ static int rxe_notify(struct notifier_block *not_blk,
 			event, ndev->name);
 		break;
 	}
-out:
+
+	ib_device_put(&rxe->ib_dev);
 	return NOTIFY_OK;
 }
 

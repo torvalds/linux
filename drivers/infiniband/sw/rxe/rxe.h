@@ -105,8 +105,18 @@ static inline void rxe_dev_put(struct rxe_dev *rxe)
 {
 	kref_put(&rxe->ref_cnt, rxe_release);
 }
-struct rxe_dev *net_to_rxe(struct net_device *ndev);
 struct rxe_dev *get_rxe_by_name(const char *name);
+
+/* The caller must do a matching ib_device_put(&dev->ib_dev) */
+static inline struct rxe_dev *rxe_get_dev_from_net(struct net_device *ndev)
+{
+	struct ib_device *ibdev =
+		ib_device_get_by_netdev(ndev, RDMA_DRIVER_RXE);
+
+	if (!ibdev)
+		return NULL;
+	return container_of(ibdev, struct rxe_dev, ib_dev);
+}
 
 void rxe_port_up(struct rxe_dev *rxe);
 void rxe_port_down(struct rxe_dev *rxe);

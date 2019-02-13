@@ -58,24 +58,25 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 	int len;
 	int err = 0;
 	char intf[32];
-	struct net_device *ndev = NULL;
+	struct net_device *ndev;
+	struct rxe_dev *exists;
 	struct rxe_dev *rxe;
 
 	len = sanitize_arg(val, intf, sizeof(intf));
 	if (!len) {
 		pr_err("add: invalid interface name\n");
-		err = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	ndev = dev_get_by_name(&init_net, intf);
 	if (!ndev) {
 		pr_err("interface %s not found\n", intf);
-		err = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
-	if (net_to_rxe(ndev)) {
+	exists = rxe_get_dev_from_net(ndev);
+	if (exists) {
+		ib_device_put(&exists->ib_dev);
 		pr_err("already configured on %s\n", intf);
 		err = -EINVAL;
 		goto err;
@@ -90,9 +91,9 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 
 	rxe_set_port_state(rxe);
 	dev_info(&rxe->ib_dev.dev, "added %s\n", intf);
+
 err:
-	if (ndev)
-		dev_put(ndev);
+	dev_put(ndev);
 	return err;
 }
 

@@ -80,19 +80,6 @@ static int rxe_query_port(struct ib_device *dev,
 	return rc;
 }
 
-static struct net_device *rxe_get_netdev(struct ib_device *device,
-					 u8 port_num)
-{
-	struct rxe_dev *rxe = to_rdev(device);
-
-	if (rxe->ndev) {
-		dev_hold(rxe->ndev);
-		return rxe->ndev;
-	}
-
-	return NULL;
-}
-
 static int rxe_query_pkey(struct ib_device *device,
 			  u8 port_num, u16 index, u16 *pkey)
 {
@@ -1159,7 +1146,6 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,
 	.get_link_layer = rxe_get_link_layer,
-	.get_netdev = rxe_get_netdev,
 	.get_port_immutable = rxe_port_immutable,
 	.map_mr_sg = rxe_map_mr_sg,
 	.mmap = rxe_mmap,
@@ -1240,6 +1226,9 @@ int rxe_register_device(struct rxe_dev *rxe)
 	    ;
 
 	ib_set_device_ops(dev, &rxe_dev_ops);
+	err = ib_device_set_netdev(&rxe->ib_dev, rxe->ndev, 1);
+	if (err)
+		return err;
 
 	tfm = crypto_alloc_shash("crc32", 0, 0);
 	if (IS_ERR(tfm)) {
