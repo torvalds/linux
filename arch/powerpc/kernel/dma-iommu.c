@@ -40,8 +40,7 @@ static void *dma_iommu_alloc_coherent(struct device *dev, size_t size,
 				      unsigned long attrs)
 {
 	if (dma_iommu_alloc_bypass(dev))
-		return __dma_nommu_alloc_coherent(dev, size, dma_handle, flag,
-				attrs);
+		return dma_direct_alloc(dev, size, dma_handle, flag, attrs);
 	return iommu_alloc_coherent(dev, get_iommu_table_base(dev), size,
 				    dma_handle, dev->coherent_dma_mask, flag,
 				    dev_to_node(dev));
@@ -52,7 +51,7 @@ static void dma_iommu_free_coherent(struct device *dev, size_t size,
 				    unsigned long attrs)
 {
 	if (dma_iommu_alloc_bypass(dev))
-		__dma_nommu_free_coherent(dev, size, vaddr, dma_handle, attrs);
+		dma_direct_free(dev, size, vaddr, dma_handle, attrs);
 	else
 		iommu_free_coherent(get_iommu_table_base(dev), size, vaddr,
 				dma_handle);

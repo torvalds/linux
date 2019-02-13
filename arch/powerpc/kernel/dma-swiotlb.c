@@ -32,8 +32,8 @@ unsigned int ppc_swiotlb_enable;
  * for everything else.
  */
 const struct dma_map_ops powerpc_swiotlb_dma_ops = {
-	.alloc = __dma_nommu_alloc_coherent,
-	.free = __dma_nommu_free_coherent,
+	.alloc = dma_direct_alloc,
+	.free = dma_direct_free,
 	.map_sg = dma_direct_map_sg,
 	.unmap_sg = dma_direct_unmap_sg,
 	.dma_supported = dma_direct_supported,
