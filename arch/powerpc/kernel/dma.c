@@ -27,77 +27,6 @@
  * default the offset is PCI_DRAM_OFFSET.
  */
 
-int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
-		int nents, enum dma_data_direction direction,
-		unsigned long attrs)
-{
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(sgl, sg, nents, i) {
-		sg->dma_address = phys_to_dma(dev, sg_phys(sg));
-		sg->dma_length = sg->length;
-
-		if (attrs & DMA_ATTR_SKIP_CPU_SYNC)
-			continue;
-
-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
-	}
-
-	return nents;
-}
-
-static void dma_nommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
-				int nents, enum dma_data_direction direction,
-				unsigned long attrs)
-{
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(sgl, sg, nents, i)
-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
-}
-
-dma_addr_t dma_nommu_map_page(struct device *dev, struct page *page,
-		unsigned long offset, size_t size,
-		enum dma_data_direction dir, unsigned long attrs)
-{
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		__dma_sync_page(page, offset, size, dir);
-
-	return phys_to_dma(dev, page_to_phys(page)) + offset;
-}
-
-static inline void dma_nommu_unmap_page(struct device *dev,
-					 dma_addr_t dma_address,
-					 size_t size,
-					 enum dma_data_direction direction,
-					 unsigned long attrs)
-{
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		__dma_sync(bus_to_virt(dma_address), size, direction);
-}
-
-#ifdef CONFIG_NOT_COHERENT_CACHE
-static inline void dma_nommu_sync_sg(struct device *dev,
-		struct scatterlist *sgl, int nents,
-		enum dma_data_direction direction)
-{
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(sgl, sg, nents, i)
-		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
-}
-
-static inline void dma_nommu_sync_single(struct device *dev,
-					  dma_addr_t dma_handle, size_t size,
-					  enum dma_data_direction direction)
-{
-	__dma_sync(bus_to_virt(dma_handle), size, direction);
-}
-#endif
-
 const struct dma_map_ops dma_nommu_ops = {
 #ifdef CONFIG_NOT_COHERENT_CACHE
 	.alloc				= __dma_nommu_alloc_coherent,
@@ -106,17 +35,17 @@ const struct dma_map_ops dma_nommu_ops = {
 	.alloc				= dma_direct_alloc,
 	.free				= dma_direct_free,
 #endif
-	.map_sg				= dma_nommu_map_sg,
-	.unmap_sg			= dma_nommu_unmap_sg,
+	.map_sg				= dma_direct_map_sg,
 	.dma_supported			= dma_direct_supported,
-	.map_page			= dma_nommu_map_page,
-	.unmap_page			= dma_nommu_unmap_page,
+	.map_page			= dma_direct_map_page,
 	.get_required_mask		= dma_direct_get_required_mask,
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	.sync_single_for_cpu 		= dma_nommu_sync_single,
-	.sync_single_for_device 	= dma_nommu_sync_single,
-	.sync_sg_for_cpu 		= dma_nommu_sync_sg,
-	.sync_sg_for_device 		= dma_nommu_sync_sg,
+	.unmap_sg			= dma_direct_unmap_sg,
+	.unmap_page			= dma_direct_unmap_page,
+	.sync_single_for_cpu 		= dma_direct_sync_single_for_cpu,
+	.sync_single_for_device 	= dma_direct_sync_single_for_device,
+	.sync_sg_for_cpu 		= dma_direct_sync_sg_for_cpu,
+	.sync_sg_for_device 		= dma_direct_sync_sg_for_device,
 #endif
 };
 EXPORT_SYMBOL(dma_nommu_ops);

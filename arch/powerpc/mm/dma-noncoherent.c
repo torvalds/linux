@@ -314,7 +314,7 @@ void __dma_nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
 /*
  * make an area consistent.
  */
-void __dma_sync(void *vaddr, size_t size, int direction)
+static void __dma_sync(void *vaddr, size_t size, int direction)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end   = start + size;
@@ -340,7 +340,6 @@ void __dma_sync(void *vaddr, size_t size, int direction)
 		break;
 	}
 }
-EXPORT_SYMBOL(__dma_sync);
 
 #ifdef CONFIG_HIGHMEM
 /*
@@ -387,21 +386,33 @@ static inline void __dma_sync_page_highmem(struct page *page,
  * __dma_sync_page makes memory consistent. identical to __dma_sync, but
  * takes a struct page instead of a virtual address
  */
-void __dma_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction)
+static void __dma_sync_page(phys_addr_t paddr, size_t size, int dir)
 {
+	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
+	unsigned offset = paddr & ~PAGE_MASK;
+
 #ifdef CONFIG_HIGHMEM
-	__dma_sync_page_highmem(page, offset, size, direction);
+	__dma_sync_page_highmem(page, offset, size, dir);
 #else
 	unsigned long start = (unsigned long)page_address(page) + offset;
-	__dma_sync((void *)start, size, direction);
+	__dma_sync((void *)start, size, dir);
 #endif
 }
-EXPORT_SYMBOL(__dma_sync_page);
+
+void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_sync_page(paddr, size, dir);
+}
+
+void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
+		size_t size, enum dma_data_direction dir)
+{
+	__dma_sync_page(paddr, size, dir);
+}
 
 /*
- * Return the PFN for a given cpu virtual address returned by
- * __dma_nommu_alloc_coherent.
+ * Return the PFN for a given cpu virtual address returned by arch_dma_alloc.
  */
 long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
 		dma_addr_t dma_addr)
