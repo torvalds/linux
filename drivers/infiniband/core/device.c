@@ -140,6 +140,8 @@ static DEFINE_SPINLOCK(ndev_hash_lock);
 static DECLARE_HASHTABLE(ndev_hash, 5);
 
 static void free_netdevs(struct ib_device *ib_dev);
+static void ib_unregister_work(struct work_struct *work);
+static void __ib_unregister_device(struct ib_device *device);
 static int ib_security_change(struct notifier_block *nb, unsigned long event,
 			      void *lsm_data);
 static void ib_policy_change_task(struct work_struct *work);
@@ -366,6 +368,7 @@ struct ib_device *_ib_alloc_device(size_t size)
 
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->event_handler_lock);
+	mutex_init(&device->unregistration_lock);
 	/*
 	 * client_data needs to be alloc because we don't want our mark to be
 	 * destroyed if the user stores NULL in the client data.
@@ -374,6 +377,7 @@ struct ib_device *_ib_alloc_device(size_t size)
 	init_rwsem(&device->client_data_rwsem);
 	INIT_LIST_HEAD(&device->port_list);
 	init_completion(&device->unreg_completion);
+	INIT_WORK(&device->unregistration_work, ib_unregister_work);
 
 	return device;
 }
@@ -387,6 +391,20 @@ EXPORT_SYMBOL(_ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
+	if (device->ops.dealloc_driver)
+		device->ops.dealloc_driver(device);
+
+	/*
+	 * ib_unregister_driver() requires all devices to remain in the xarray
+	 * while their ops are callable. The last op we call is dealloc_driver
+	 * above.  This is needed to create a fence on op callbacks prior to
+	 * allowing the driver module to unload.
+	 */
+	down_write(&devices_rwsem);
+	if (xa_load(&devices, device->index) == device)
+		xa_erase(&devices, device->index);
+	up_write(&devices_rwsem);
+
 	/* Expedite releasing netdev references */
 	free_netdevs(device);
 
@@ -599,7 +617,8 @@ static int ib_security_change(struct notifier_block *nb, unsigned long event,
 }
 
 /*
- * Assign the unique string device name and the unique device index.
+ * Assign the unique string device name and the unique device index. This is
+ * undone by ib_dealloc_device.
  */
 static int assign_name(struct ib_device *device, const char *name)
 {
@@ -638,13 +657,6 @@ static int assign_name(struct ib_device *device, const char *name)
 out:
 	up_write(&devices_rwsem);
 	return ret;
-}
-
-static void release_name(struct ib_device *device)
-{
-	down_write(&devices_rwsem);
-	xa_erase(&devices, device->index);
-	up_write(&devices_rwsem);
 }
 
 static void setup_dma_device(struct ib_device *device)
@@ -740,30 +752,38 @@ static void disable_device(struct ib_device *device)
 
 /*
  * An enabled device is visible to all clients and to all the public facing
- * APIs that return a device pointer.
+ * APIs that return a device pointer. This always returns with a new get, even
+ * if it fails.
  */
-static int enable_device(struct ib_device *device)
+static int enable_device_and_get(struct ib_device *device)
 {
 	struct ib_client *client;
 	unsigned long index;
-	int ret;
+	int ret = 0;
 
-	refcount_set(&device->refcount, 1);
+	/*
+	 * One ref belongs to the xa and the other belongs to this
+	 * thread. This is needed to guard against parallel unregistration.
+	 */
+	refcount_set(&device->refcount, 2);
 	down_write(&devices_rwsem);
 	xa_set_mark(&devices, device->index, DEVICE_REGISTERED);
-	up_write(&devices_rwsem);
+
+	/*
+	 * By using downgrade_write() we ensure that no other thread can clear
+	 * DEVICE_REGISTERED while we are completing the client setup.
+	 */
+	downgrade_write(&devices_rwsem);
 
 	down_read(&clients_rwsem);
 	xa_for_each_marked (&clients, index, client, CLIENT_REGISTERED) {
 		ret = add_client_context(device, client);
-		if (ret) {
-			up_read(&clients_rwsem);
-			disable_device(device);
-			return ret;
-		}
+		if (ret)
+			break;
 	}
 	up_read(&clients_rwsem);
-	return 0;
+	up_read(&devices_rwsem);
+	return ret;
 }
 
 /**
@@ -774,6 +794,10 @@ static int enable_device(struct ib_device *device)
  * devices with the IB core.  All registered clients will receive a
  * callback for each device that is added. @device must be allocated
  * with ib_alloc_device().
+ *
+ * If the driver uses ops.dealloc_driver and calls any ib_unregister_device()
+ * asynchronously then the device pointer may become freed as soon as this
+ * function returns.
  */
 int ib_register_device(struct ib_device *device, const char *name)
 {
@@ -785,13 +809,13 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 	ret = setup_device(device);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = ib_cache_setup_one(device);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't set up InfiniBand P_Key/GID cache\n");
-		goto out;
+		return ret;
 	}
 
 	ib_device_register_rdmacg(device);
@@ -807,41 +831,185 @@ int ib_register_device(struct ib_device *device, const char *name)
 		goto dev_cleanup;
 	}
 
-	ret = enable_device(device);
-	if (ret)
-		goto sysfs_cleanup;
+	ret = enable_device_and_get(device);
+	if (ret) {
+		void (*dealloc_fn)(struct ib_device *);
+
+		/*
+		 * If we hit this error flow then we don't want to
+		 * automatically dealloc the device since the caller is
+		 * expected to call ib_dealloc_device() after
+		 * ib_register_device() fails. This is tricky due to the
+		 * possibility for a parallel unregistration along with this
+		 * error flow. Since we have a refcount here we know any
+		 * parallel flow is stopped in disable_device and will see the
+		 * NULL pointers, causing the responsibility to
+		 * ib_dealloc_device() to revert back to this thread.
+		 */
+		dealloc_fn = device->ops.dealloc_driver;
+		device->ops.dealloc_driver = NULL;
+		ib_device_put(device);
+		__ib_unregister_device(device);
+		device->ops.dealloc_driver = dealloc_fn;
+		return ret;
+	}
+	ib_device_put(device);
 
 	return 0;
 
-sysfs_cleanup:
-	ib_device_unregister_sysfs(device);
 dev_cleanup:
 	device_del(&device->dev);
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
 	ib_cache_cleanup_one(device);
-out:
-	release_name(device);
 	return ret;
 }
 EXPORT_SYMBOL(ib_register_device);
 
+/* Callers must hold a get on the device. */
+static void __ib_unregister_device(struct ib_device *ib_dev)
+{
+	/*
+	 * We have a registration lock so that all the calls to unregister are
+	 * fully fenced, once any unregister returns the device is truely
+	 * unregistered even if multiple callers are unregistering it at the
+	 * same time. This also interacts with the registration flow and
+	 * provides sane semantics if register and unregister are racing.
+	 */
+	mutex_lock(&ib_dev->unregistration_lock);
+	if (!refcount_read(&ib_dev->refcount))
+		goto out;
+
+	disable_device(ib_dev);
+	ib_device_unregister_sysfs(ib_dev);
+	device_del(&ib_dev->dev);
+	ib_device_unregister_rdmacg(ib_dev);
+	ib_cache_cleanup_one(ib_dev);
+
+	/*
+	 * Drivers using the new flow may not call ib_dealloc_device except
+	 * in error unwind prior to registration success.
+	 */
+	if (ib_dev->ops.dealloc_driver) {
+		WARN_ON(kref_read(&ib_dev->dev.kobj.kref) <= 1);
+		ib_dealloc_device(ib_dev);
+	}
+out:
+	mutex_unlock(&ib_dev->unregistration_lock);
+}
+
 /**
  * ib_unregister_device - Unregister an IB device
- * @device:Device to unregister
+ * @device: The device to unregister
  *
  * Unregister an IB device.  All clients will receive a remove callback.
+ *
+ * Callers should call this routine only once, and protect against races with
+ * registration. Typically it should only be called as part of a remove
+ * callback in an implementation of driver core's struct device_driver and
+ * related.
+ *
+ * If ops.dealloc_driver is used then ib_dev will be freed upon return from
+ * this function.
  */
-void ib_unregister_device(struct ib_device *device)
+void ib_unregister_device(struct ib_device *ib_dev)
 {
-	disable_device(device);
-	ib_device_unregister_sysfs(device);
-	device_del(&device->dev);
-	ib_device_unregister_rdmacg(device);
-	ib_cache_cleanup_one(device);
-	release_name(device);
+	get_device(&ib_dev->dev);
+	__ib_unregister_device(ib_dev);
+	put_device(&ib_dev->dev);
 }
 EXPORT_SYMBOL(ib_unregister_device);
+
+/**
+ * ib_unregister_device_and_put - Unregister a device while holding a 'get'
+ * device: The device to unregister
+ *
+ * This is the same as ib_unregister_device(), except it includes an internal
+ * ib_device_put() that should match a 'get' obtained by the caller.
+ *
+ * It is safe to call this routine concurrently from multiple threads while
+ * holding the 'get'. When the function returns the device is fully
+ * unregistered.
+ *
+ * Drivers using this flow MUST use the driver_unregister callback to clean up
+ * their resources associated with the device and dealloc it.
+ */
+void ib_unregister_device_and_put(struct ib_device *ib_dev)
+{
+	WARN_ON(!ib_dev->ops.dealloc_driver);
+	get_device(&ib_dev->dev);
+	ib_device_put(ib_dev);
+	__ib_unregister_device(ib_dev);
+	put_device(&ib_dev->dev);
+}
+EXPORT_SYMBOL(ib_unregister_device_and_put);
+
+/**
+ * ib_unregister_driver - Unregister all IB devices for a driver
+ * @driver_id: The driver to unregister
+ *
+ * This implements a fence for device unregistration. It only returns once all
+ * devices associated with the driver_id have fully completed their
+ * unregistration and returned from ib_unregister_device*().
+ *
+ * If device's are not yet unregistered it goes ahead and starts unregistering
+ * them.
+ *
+ * This does not block creation of new devices with the given driver_id, that
+ * is the responsibility of the caller.
+ */
+void ib_unregister_driver(enum rdma_driver_id driver_id)
+{
+	struct ib_device *ib_dev;
+	unsigned long index;
+
+	down_read(&devices_rwsem);
+	xa_for_each (&devices, index, ib_dev) {
+		if (ib_dev->driver_id != driver_id)
+			continue;
+
+		get_device(&ib_dev->dev);
+		up_read(&devices_rwsem);
+
+		WARN_ON(!ib_dev->ops.dealloc_driver);
+		__ib_unregister_device(ib_dev);
+
+		put_device(&ib_dev->dev);
+		down_read(&devices_rwsem);
+	}
+	up_read(&devices_rwsem);
+}
+EXPORT_SYMBOL(ib_unregister_driver);
+
+static void ib_unregister_work(struct work_struct *work)
+{
+	struct ib_device *ib_dev =
+		container_of(work, struct ib_device, unregistration_work);
+
+	__ib_unregister_device(ib_dev);
+	put_device(&ib_dev->dev);
+}
+
+/**
+ * ib_unregister_device_queued - Unregister a device using a work queue
+ * device: The device to unregister
+ *
+ * This schedules an asynchronous unregistration using a WQ for the device. A
+ * driver should use this to avoid holding locks while doing unregistration,
+ * such as holding the RTNL lock.
+ *
+ * Drivers using this API must use ib_unregister_driver before module unload
+ * to ensure that all scheduled unregistrations have completed.
+ */
+void ib_unregister_device_queued(struct ib_device *ib_dev)
+{
+	WARN_ON(!refcount_read(&ib_dev->refcount));
+	WARN_ON(!ib_dev->ops.dealloc_driver);
+	get_device(&ib_dev->dev);
+	if (!queue_work(system_unbound_wq, &ib_dev->unregistration_work))
+		put_device(&ib_dev->dev);
+}
+EXPORT_SYMBOL(ib_unregister_device_queued);
 
 static int assign_client_id(struct ib_client *client)
 {
@@ -1558,6 +1726,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, create_srq);
 	SET_DEVICE_OP(dev_ops, create_wq);
 	SET_DEVICE_OP(dev_ops, dealloc_dm);
+	SET_DEVICE_OP(dev_ops, dealloc_driver);
 	SET_DEVICE_OP(dev_ops, dealloc_fmr);
 	SET_DEVICE_OP(dev_ops, dealloc_mw);
 	SET_DEVICE_OP(dev_ops, dealloc_pd);
@@ -1744,6 +1913,7 @@ static void __exit ib_core_cleanup(void)
 	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);
+	flush_workqueue(system_unbound_wq);
 	WARN_ON(!xa_empty(&clients));
 	WARN_ON(!xa_empty(&devices));
 }

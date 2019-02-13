@@ -2538,6 +2538,12 @@ struct ib_device_ops {
 	int (*fill_res_entry)(struct sk_buff *msg,
 			      struct rdma_restrack_entry *entry);
 
+	/* Device lifecycle callbacks */
+	/*
+	 * This is called as part of ib_dealloc_device().
+	 */
+	void (*dealloc_driver)(struct ib_device *dev);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 };
 
@@ -2555,6 +2561,7 @@ struct ib_device {
 
 	struct rw_semaphore	      client_data_rwsem;
 	struct xarray                 client_data;
+	struct mutex                  unregistration_lock;
 
 	struct ib_cache               cache;
 	/**
@@ -2609,6 +2616,7 @@ struct ib_device {
 	 */
 	refcount_t refcount;
 	struct completion unreg_completion;
+	struct work_struct unregistration_work;
 };
 
 struct ib_client {
@@ -2658,6 +2666,9 @@ void ib_get_device_fw_str(struct ib_device *device, char *str);
 
 int ib_register_device(struct ib_device *device, const char *name);
 void ib_unregister_device(struct ib_device *device);
+void ib_unregister_driver(enum rdma_driver_id driver_id);
+void ib_unregister_device_and_put(struct ib_device *device);
+void ib_unregister_device_queued(struct ib_device *ib_dev);
 
 int ib_register_client   (struct ib_client *client);
 void ib_unregister_client(struct ib_client *client);
