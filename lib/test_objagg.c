@@ -952,8 +952,8 @@ static int test_hints_case(const struct hints_case *hints_case)
 	}
 
 	objagg2 = objagg_create(&delta_ops, hints, &world2);
-	if (IS_ERR(objagg))
-		return PTR_ERR(objagg);
+	if (IS_ERR(objagg2))
+		return PTR_ERR(objagg2);
 
 	for (i = 0; i < hints_case->key_ids_count; i++) {
 		objagg_obj = world_obj_get(&world2, objagg2,
