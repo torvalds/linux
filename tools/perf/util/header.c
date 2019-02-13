@@ -1042,11 +1042,9 @@ static int write_cpuid(struct feat_fd *ff,
 	int ret;
 
 	ret = get_cpuid(buffer, sizeof(buffer));
-	if (!ret)
-		goto write_it;
+	if (ret)
+		return -1;
 
-	return -1;
-write_it:
 	return do_write_string(ff, buffer);
 }
 
