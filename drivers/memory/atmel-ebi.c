@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#include <soc/at91/atmel-sfr.h>
 
 struct atmel_ebi_dev_config {
 	int cs;
@@ -440,6 +441,15 @@ static const struct atmel_ebi_caps sama5d3_ebi_caps = {
 	.apply_config = sama5_ebi_apply_config,
 };
 
+static const struct atmel_ebi_caps sam9x60_ebi_caps = {
+	.available_cs = 0x3f,
+	.ebi_csa_offs = AT91_SFR_CCFG_EBICSA,
+	.regmap_name = "microchip,sfr",
+	.get_config = at91sam9_ebi_get_config,
+	.xlate_config = atmel_ebi_xslate_smc_config,
+	.apply_config = at91sam9_ebi_apply_config,
+};
+
 static const struct of_device_id atmel_ebi_id_table[] = {
 	{
 		.compatible = "atmel,at91sam9260-ebi",
@@ -472,6 +482,10 @@ static const struct of_device_id atmel_ebi_id_table[] = {
 	{
 		.compatible = "atmel,sama5d3-ebi",
 		.data = &sama5d3_ebi_caps,
+	},
+	{
+		.compatible = "microchip,sam9x60-ebi",
+		.data = &sam9x60_ebi_caps,
 	},
 	{ /* sentinel */ }
 };
