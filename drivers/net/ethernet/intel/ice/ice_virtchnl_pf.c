@@ -2611,7 +2611,7 @@ error_handler:
 		 * as it is busy with pending work.
 		 */
 		dev_info(&pf->pdev->dev,
-			 "PF failed to honor VF %d, opcode %d\n, error %d\n",
+			 "PF failed to honor VF %d, opcode %d, error %d\n",
 			 vf_id, v_opcode, err);
 	}
 }
@@ -2771,7 +2771,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	ether_addr_copy(vf->dflt_lan_addr.addr, mac);
 	vf->pf_set_mac = true;
 	netdev_info(netdev,
-		    "mac on VF %d set to %pM\n. VF driver will be reinitialized\n",
+		    "mac on VF %d set to %pM. VF driver will be reinitialized\n",
 		    vf_id, mac);
 
 	ice_vc_dis_vf(vf);
