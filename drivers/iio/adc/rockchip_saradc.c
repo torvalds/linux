@@ -93,6 +93,10 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
+		/* It is a dummy regulator */
+		if (info->uv_vref < 0)
+			return info->uv_vref;
+
 		*val = info->uv_vref / 1000;
 		*val2 = info->data->num_bits;
 		return IIO_VAL_FRACTIONAL_LOG2;
@@ -298,11 +302,6 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	}
 
 	info->uv_vref = regulator_get_voltage(info->vref);
-	if (info->uv_vref < 0) {
-		dev_err(&pdev->dev, "failed to get voltage\n");
-		ret = info->uv_vref;
-		goto err_reg_voltage;
-	}
 
 	ret = clk_prepare_enable(info->pclk);
 	if (ret < 0) {
