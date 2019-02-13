@@ -393,6 +393,7 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 			__vmw_cmdbuf_header_free(entry);
 			break;
 		case SVGA_CB_STATUS_COMMAND_ERROR:
+			WARN_ONCE(true, "Command buffer error.\n");
 			entry->cb_header->status = SVGA_CB_STATUS_NONE;
 			list_add_tail(&entry->list, &man->error);
 			schedule_work(&man->work);
@@ -533,19 +534,20 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		global_block = true;
 
 		if (!vmw_cmd_describe(header, &error_cmd_size, &cmd_name)) {
-			DRM_ERROR("Unknown command causing device error.\n");
-			DRM_ERROR("Command buffer offset is %lu\n",
-				  (unsigned long) cb_hdr->errorOffset);
+			VMW_DEBUG_USER("Unknown command causing device error.\n");
+			VMW_DEBUG_USER("Command buffer offset is %lu\n",
+				       (unsigned long) cb_hdr->errorOffset);
 			__vmw_cmdbuf_header_free(entry);
 			send_fence = true;
 			continue;
 		}
 
-		DRM_ERROR("Command \"%s\" causing device error.\n", cmd_name);
-		DRM_ERROR("Command buffer offset is %lu\n",
-			  (unsigned long) cb_hdr->errorOffset);
-		DRM_ERROR("Command size is %lu\n",
-			  (unsigned long) error_cmd_size);
+		VMW_DEBUG_USER("Command \"%s\" causing device error.\n",
+			       cmd_name);
+		VMW_DEBUG_USER("Command buffer offset is %lu\n",
+			       (unsigned long) cb_hdr->errorOffset);
+		VMW_DEBUG_USER("Command size is %lu\n",
+			       (unsigned long) error_cmd_size);
 
 		new_start_offset = cb_hdr->errorOffset + error_cmd_size;
 
