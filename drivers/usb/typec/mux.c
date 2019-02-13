@@ -48,7 +48,7 @@ struct typec_switch *typec_switch_get(struct device *dev)
 	struct typec_switch *sw;
 
 	mutex_lock(&switch_lock);
-	sw = device_connection_find_match(dev, "typec-switch", NULL,
+	sw = device_connection_find_match(dev, "orientation-switch", NULL,
 					  typec_switch_match);
 	if (!IS_ERR_OR_NULL(sw)) {
 		WARN_ON(!try_module_get(sw->dev->driver->owner));
@@ -128,19 +128,21 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 /**
  * typec_mux_get - Find USB Type-C Multiplexer
  * @dev: The caller device
- * @name: Mux identifier
+ * @desc: Alt Mode description
  *
  * Finds a mux linked to the caller. This function is primarily meant for the
  * Type-C drivers. Returns a reference to the mux on success, NULL if no
  * matching connection was found, or ERR_PTR(-EPROBE_DEFER) when a connection
  * was found but the mux has not been enumerated yet.
  */
-struct typec_mux *typec_mux_get(struct device *dev, const char *name)
+struct typec_mux *typec_mux_get(struct device *dev,
+				const struct typec_altmode_desc *desc)
 {
 	struct typec_mux *mux;
 
 	mutex_lock(&mux_lock);
-	mux = device_connection_find_match(dev, name, NULL, typec_mux_match);
+	mux = device_connection_find_match(dev, "mode-switch", (void *)desc,
+					   typec_mux_match);
 	if (!IS_ERR_OR_NULL(mux)) {
 		WARN_ON(!try_module_get(mux->dev->driver->owner));
 		get_device(mux->dev);
