@@ -1097,12 +1097,6 @@ static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
 		return pci_sriov_get_totalvfs(dev->pdev);
 }
 
-#define MLX5_TOTAL_VPORTS(mdev) (1 + mlx5_core_max_vfs(mdev))
-#define MLX5_VPORT_MANAGER(mdev) \
-	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
-	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
-	 mlx5_core_is_pf(mdev))
-
 static inline int mlx5_get_gid_table_len(u16 param)
 {
 	if (param > 4) {
