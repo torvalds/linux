@@ -121,6 +121,27 @@ static ssize_t mlxsw_hwmon_fan_rpm_show(struct device *dev,
 	return sprintf(buf, "%u\n", mlxsw_reg_mfsm_rpm_get(mfsm_pl));
 }
 
+static ssize_t mlxsw_hwmon_fan_fault_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
+			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
+	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
+	char fore_pl[MLXSW_REG_FORE_LEN];
+	bool fault;
+	int err;
+
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(fore), fore_pl);
+	if (err) {
+		dev_err(mlxsw_hwmon->bus_info->dev, "Failed to query fan\n");
+		return err;
+	}
+	mlxsw_reg_fore_unpack(fore_pl, mlwsw_hwmon_attr->type_index, &fault);
+
+	return sprintf(buf, "%u\n", fault);
+}
+
 static ssize_t mlxsw_hwmon_pwm_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
@@ -172,6 +193,7 @@ enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MAX,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_RST,
 	MLXSW_HWMON_ATTR_TYPE_FAN_RPM,
+	MLXSW_HWMON_ATTR_TYPE_FAN_FAULT,
 	MLXSW_HWMON_ATTR_TYPE_PWM,
 };
 
@@ -208,6 +230,12 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "fan%u_input", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_FAN_FAULT:
+		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_fan_fault_show;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "fan%u_fault", num + 1);
 		break;
 	case MLXSW_HWMON_ATTR_TYPE_PWM:
 		mlxsw_hwmon_attr->dev_attr.show = mlxsw_hwmon_pwm_show;
@@ -280,10 +308,14 @@ static int mlxsw_hwmon_fans_init(struct mlxsw_hwmon *mlxsw_hwmon)
 	mlxsw_reg_mfcr_unpack(mfcr_pl, &freq, &tacho_active, &pwm_active);
 	num = 0;
 	for (type_index = 0; type_index < MLXSW_MFCR_TACHOS_MAX; type_index++) {
-		if (tacho_active & BIT(type_index))
+		if (tacho_active & BIT(type_index)) {
 			mlxsw_hwmon_attr_add(mlxsw_hwmon,
 					     MLXSW_HWMON_ATTR_TYPE_FAN_RPM,
+					     type_index, num);
+			mlxsw_hwmon_attr_add(mlxsw_hwmon,
+					     MLXSW_HWMON_ATTR_TYPE_FAN_FAULT,
 					     type_index, num++);
+		}
 	}
 	num = 0;
 	for (type_index = 0; type_index < MLXSW_MFCR_PWMS_MAX; type_index++) {
