@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/bpf.h>
 #include <net/lwtunnel.h>
+#include <net/gre.h>
 
 struct bpf_lwt_prog {
 	struct bpf_prog *prog;
@@ -390,10 +391,72 @@ static const struct lwtunnel_encap_ops bpf_encap_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static int handle_gso_type(struct sk_buff *skb, unsigned int gso_type,
+			   int encap_len)
+{
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
+
+	gso_type |= SKB_GSO_DODGY;
+	shinfo->gso_type |= gso_type;
+	skb_decrease_gso_size(shinfo, encap_len);
+	shinfo->gso_segs = 0;
+	return 0;
+}
+
 static int handle_gso_encap(struct sk_buff *skb, bool ipv4, int encap_len)
 {
-	/* Handling of GSO-enabled packets is added in the next patch. */
-	return -EOPNOTSUPP;
+	int next_hdr_offset;
+	void *next_hdr;
+	__u8 protocol;
+
+	/* SCTP and UDP_L4 gso need more nuanced handling than what
+	 * handle_gso_type() does above: skb_decrease_gso_size() is not enough.
+	 * So at the moment only TCP GSO packets are let through.
+	 */
+	if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)))
+		return -ENOTSUPP;
+
+	if (ipv4) {
+		protocol = ip_hdr(skb)->protocol;
+		next_hdr_offset = sizeof(struct iphdr);
+		next_hdr = skb_network_header(skb) + next_hdr_offset;
+	} else {
+		protocol = ipv6_hdr(skb)->nexthdr;
+		next_hdr_offset = sizeof(struct ipv6hdr);
+		next_hdr = skb_network_header(skb) + next_hdr_offset;
+	}
+
+	switch (protocol) {
+	case IPPROTO_GRE:
+		next_hdr_offset += sizeof(struct gre_base_hdr);
+		if (next_hdr_offset > encap_len)
+			return -EINVAL;
+
+		if (((struct gre_base_hdr *)next_hdr)->flags & GRE_CSUM)
+			return handle_gso_type(skb, SKB_GSO_GRE_CSUM,
+					       encap_len);
+		return handle_gso_type(skb, SKB_GSO_GRE, encap_len);
+
+	case IPPROTO_UDP:
+		next_hdr_offset += sizeof(struct udphdr);
+		if (next_hdr_offset > encap_len)
+			return -EINVAL;
+
+		if (((struct udphdr *)next_hdr)->check)
+			return handle_gso_type(skb, SKB_GSO_UDP_TUNNEL_CSUM,
+					       encap_len);
+		return handle_gso_type(skb, SKB_GSO_UDP_TUNNEL, encap_len);
+
+	case IPPROTO_IP:
+	case IPPROTO_IPV6:
+		if (ipv4)
+			return handle_gso_type(skb, SKB_GSO_IPXIP4, encap_len);
+		else
+			return handle_gso_type(skb, SKB_GSO_IPXIP6, encap_len);
+
+	default:
+		return -EPROTONOSUPPORT;
+	}
 }
 
 int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len, bool ingress)
