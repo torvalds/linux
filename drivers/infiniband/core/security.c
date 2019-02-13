@@ -422,12 +422,15 @@ void ib_close_shared_qp_security(struct ib_qp_security *sec)
 
 int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 {
-	u8 i = rdma_start_port(dev);
+	unsigned int i;
 	bool is_ib = false;
 	int ret;
 
-	while (i <= rdma_end_port(dev) && !is_ib)
+	rdma_for_each_port (dev, i) {
 		is_ib = rdma_protocol_ib(dev, i++);
+		if (is_ib)
+			break;
+	}
 
 	/* If this isn't an IB device don't create the security context */
 	if (!is_ib)
@@ -561,9 +564,9 @@ void ib_security_cache_change(struct ib_device *device,
 void ib_security_release_port_pkey_list(struct ib_device *device)
 {
 	struct pkey_index_qp_list *pkey, *tmp_pkey;
-	int i;
+	unsigned int i;
 
-	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+	rdma_for_each_port (device, i) {
 		list_for_each_entry_safe(pkey,
 					 tmp_pkey,
 					 &device->port_pkey_list[i].pkey_list,

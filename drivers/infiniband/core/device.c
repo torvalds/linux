@@ -470,10 +470,8 @@ static int verify_immutable(const struct ib_device *dev, u8 port)
 
 static int read_port_immutable(struct ib_device *device)
 {
+	unsigned int port;
 	int ret;
-	u8 start_port = rdma_start_port(device);
-	u8 end_port = rdma_end_port(device);
-	u8 port;
 
 	/**
 	 * device->port_immutable is indexed directly by the port number to make
@@ -482,13 +480,13 @@ static int read_port_immutable(struct ib_device *device)
 	 * Therefore port_immutable is declared as a 1 based array with
 	 * potential empty slots at the beginning.
 	 */
-	device->port_immutable = kcalloc(end_port + 1,
-					 sizeof(*device->port_immutable),
-					 GFP_KERNEL);
+	device->port_immutable =
+		kcalloc(rdma_end_port(device) + 1,
+			sizeof(*device->port_immutable), GFP_KERNEL);
 	if (!device->port_immutable)
 		return -ENOMEM;
 
-	for (port = start_port; port <= end_port; ++port) {
+	rdma_for_each_port (device, port) {
 		ret = device->ops.get_port_immutable(
 			device, port, &device->port_immutable[port]);
 		if (ret)
@@ -540,9 +538,9 @@ static void ib_policy_change_task(struct work_struct *work)
 
 	down_read(&devices_rwsem);
 	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
-		int i;
+		unsigned int i;
 
-		for (i = rdma_start_port(dev); i <= rdma_end_port(dev); i++) {
+		rdma_for_each_port (dev, i) {
 			u64 sp;
 			int ret = ib_get_cached_subnet_prefix(dev,
 							      i,
@@ -1060,10 +1058,9 @@ void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_callback cb,
 			 void *cookie)
 {
-	u8 port;
+	unsigned int port;
 
-	for (port = rdma_start_port(ib_dev); port <= rdma_end_port(ib_dev);
-	     port++)
+	rdma_for_each_port (ib_dev, port)
 		if (rdma_protocol_roce(ib_dev, port)) {
 			struct net_device *idev = NULL;
 
@@ -1217,9 +1214,10 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 		u8 *port_num, u16 *index)
 {
 	union ib_gid tmp_gid;
-	int ret, port, i;
+	unsigned int port;
+	int ret, i;
 
-	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
+	rdma_for_each_port (device, port) {
 		if (!rdma_protocol_ib(device, port))
 			continue;
 

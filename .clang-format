@@ -361,6 +361,7 @@ ForEachMacros:
   - 'radix_tree_for_each_slot'
   - 'radix_tree_for_each_tagged'
   - 'rbtree_postorder_for_each_entry_safe'
+  - 'rdma_for_each_port'
   - 'resource_list_for_each_entry'
   - 'resource_list_for_each_entry_safe'
   - 'rhl_for_each_entry_rcu'

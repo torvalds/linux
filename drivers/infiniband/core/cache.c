@@ -1428,7 +1428,7 @@ static void ib_cache_event(struct ib_event_handler *handler,
 
 int ib_cache_setup_one(struct ib_device *device)
 {
-	int p;
+	unsigned int p;
 	int err;
 
 	rwlock_init(&device->cache.lock);
@@ -1447,8 +1447,8 @@ int ib_cache_setup_one(struct ib_device *device)
 		return err;
 	}
 
-	for (p = 0; p <= rdma_end_port(device) - rdma_start_port(device); ++p)
-		ib_cache_update(device, p + rdma_start_port(device), true);
+	rdma_for_each_port (device, p)
+		ib_cache_update(device, p, true);
 
 	INIT_IB_EVENT_HANDLER(&device->cache.event_handler,
 			      device, ib_cache_event);

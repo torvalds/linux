@@ -1308,23 +1308,17 @@ static void ib_free_port_attrs(struct ib_device *device)
 
 static int ib_setup_port_attrs(struct ib_device *device)
 {
+	unsigned int port;
 	int ret;
-	int i;
 
 	device->ports_kobj = kobject_create_and_add("ports", &device->dev.kobj);
 	if (!device->ports_kobj)
 		return -ENOMEM;
 
-	if (rdma_cap_ib_switch(device)) {
-		ret = add_port(device, 0);
+	rdma_for_each_port (device, port) {
+		ret = add_port(device, port);
 		if (ret)
 			goto err_put;
-	} else {
-		for (i = 1; i <= device->phys_port_cnt; ++i) {
-			ret = add_port(device, i);
-			if (ret)
-				goto err_put;
-		}
 	}
 
 	return 0;

@@ -1323,14 +1323,15 @@ free:
 static void ib_umad_remove_one(struct ib_device *device, void *client_data)
 {
 	struct ib_umad_device *umad_dev = client_data;
-	int i;
+	unsigned int i;
 
 	if (!umad_dev)
 		return;
 
-	for (i = 0; i <= rdma_end_port(device) - rdma_start_port(device); ++i) {
-		if (rdma_cap_ib_mad(device, i + rdma_start_port(device)))
-			ib_umad_kill_port(&umad_dev->ports[i]);
+	rdma_for_each_port (device, i) {
+		if (rdma_cap_ib_mad(device, i))
+			ib_umad_kill_port(
+				&umad_dev->ports[i - rdma_start_port(device)]);
 	}
 	/* balances kref_init() */
 	ib_umad_dev_put(umad_dev);

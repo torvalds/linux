@@ -2828,6 +2828,16 @@ static inline u8 rdma_start_port(const struct ib_device *device)
 }
 
 /**
+ * rdma_for_each_port - Iterate over all valid port numbers of the IB device
+ * @device - The struct ib_device * to iterate over
+ * @iter - The unsigned int to store the port number
+ */
+#define rdma_for_each_port(device, iter)                                       \
+	for (iter = rdma_start_port(device + BUILD_BUG_ON_ZERO(!__same_type(   \
+						     unsigned int, iter)));    \
+	     iter <= rdma_end_port(device); (iter)++)
+
+/**
  * rdma_end_port - Return the last valid port number for the device
  * specified
  *

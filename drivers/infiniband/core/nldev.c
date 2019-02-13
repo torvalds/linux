@@ -774,7 +774,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 	u32 idx = 0;
 	u32 ifindex;
 	int err;
-	u32 p;
+	unsigned int p;
 
 	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 			  nldev_policy, NULL);
@@ -786,7 +786,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 	if (!device)
 		return -EINVAL;
 
-	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
+	rdma_for_each_port (device, p) {
 		/*
 		 * The dumpit function returns all information from specific
 		 * index. This specific index is taken from the netlink

@@ -659,7 +659,7 @@ static int cma_acquire_dev_by_src_ip(struct rdma_id_private *id_priv)
 	struct cma_device *cma_dev;
 	enum ib_gid_type gid_type;
 	int ret = -ENODEV;
-	u8 port;
+	unsigned int port;
 
 	if (dev_addr->dev_type != ARPHRD_INFINIBAND &&
 	    id_priv->id.ps == RDMA_PS_IPOIB)
@@ -673,8 +673,7 @@ static int cma_acquire_dev_by_src_ip(struct rdma_id_private *id_priv)
 
 	mutex_lock(&lock);
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		for (port = rdma_start_port(cma_dev->device);
-		     port <= rdma_end_port(cma_dev->device); port++) {
+		rdma_for_each_port (cma_dev->device, port) {
 			gidp = rdma_protocol_roce(cma_dev->device, port) ?
 			       &iboe_gid : &gid;
 			gid_type = cma_dev->default_gid_type[port - 1];
@@ -4548,7 +4547,7 @@ static void cma_add_one(struct ib_device *device)
 	if (!cma_dev->default_roce_tos)
 		goto free_gid_type;
 
-	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+	rdma_for_each_port (device, i) {
 		supported_gids = roce_gid_type_mask_support(device, i);
 		WARN_ON(!supported_gids);
 		if (supported_gids & (1 << CMA_PREFERRED_ROCE_GID_TYPE))
