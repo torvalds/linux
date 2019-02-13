@@ -886,7 +886,8 @@ static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 		ret = __bch2_alloc_write_key(c, ca, b, &iter,
 				must_flush ? &journal_seq : NULL,
 				BTREE_INSERT_GC_LOCK_HELD|
-				!fifo_empty(&ca->free_inc) ? BTREE_INSERT_NOWAIT : 0);
+				(!fifo_empty(&ca->free_inc)
+				 ? BTREE_INSERT_NOWAIT : 0));
 	}
 
 	bch2_btree_iter_unlock(&iter);
