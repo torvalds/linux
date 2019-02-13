@@ -321,6 +321,18 @@ mlxsw_hwmon_module_temp_emergency_show(struct device *dev,
 	return sprintf(buf, "%u\n", temp);
 }
 
+static ssize_t
+mlxsw_hwmon_module_temp_label_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
+			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
+
+	return sprintf(buf, "front panel %03u\n",
+		       mlwsw_hwmon_attr->type_index);
+}
+
 enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MAX,
@@ -332,6 +344,7 @@ enum mlxsw_hwmon_attr_type {
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_FAULT,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_CRIT,
 	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_EMERG,
+	MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
 };
 
 static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
@@ -407,6 +420,13 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
 		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
 			 "temp%u_emergency", num + 1);
+		break;
+	case MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL:
+		mlxsw_hwmon_attr->dev_attr.show =
+			mlxsw_hwmon_module_temp_label_show;
+		mlxsw_hwmon_attr->dev_attr.attr.mode = 0444;
+		snprintf(mlxsw_hwmon_attr->name, sizeof(mlxsw_hwmon_attr->name),
+			 "temp%u_label", num + 1);
 		break;
 	default:
 		WARN_ON(1);
@@ -527,6 +547,9 @@ static int mlxsw_hwmon_module_init(struct mlxsw_hwmon *mlxsw_hwmon)
 				     index, index);
 		mlxsw_hwmon_attr_add(mlxsw_hwmon,
 				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_EMERG,
+				     index, index);
+		mlxsw_hwmon_attr_add(mlxsw_hwmon,
+				     MLXSW_HWMON_ATTR_TYPE_TEMP_MODULE_LABEL,
 				     index, index);
 		index++;
 	}
