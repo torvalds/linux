@@ -21,7 +21,7 @@
 static inline bool dma_iommu_alloc_bypass(struct device *dev)
 {
 	return dev->archdata.iommu_bypass && !iommu_fixed_is_weak &&
-		dma_nommu_dma_supported(dev, dev->coherent_dma_mask);
+		dma_direct_supported(dev, dev->coherent_dma_mask);
 }
 
 static inline bool dma_iommu_map_bypass(struct device *dev,
