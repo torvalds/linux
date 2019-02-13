@@ -1889,6 +1889,8 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	__tasklet_disable_sync_once(&execlists->tasklet);
 	GEM_BUG_ON(!reset_in_progress(execlists));
 
+	intel_engine_stop_cs(engine);
+
 	/* And flush any current direct submission. */
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	process_csb(engine); /* drain preemption events */

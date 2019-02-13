@@ -119,8 +119,10 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	const u32 base = engine->mmio_base;
 
+	GEM_TRACE("%s\n", engine->name);
+
 	if (intel_engine_stop_cs(engine))
-		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n", engine->name);
+		GEM_TRACE("%s: timed out on STOP_RING\n", engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
 	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
@@ -133,9 +135,9 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 	I915_WRITE_FW(RING_CTL(base), 0);
 
 	/* Check acts as a post */
-	if (I915_READ_FW(RING_HEAD(base)) != 0)
-		DRM_DEBUG_DRIVER("%s: ring head not parked\n",
-				 engine->name);
+	if (I915_READ_FW(RING_HEAD(base)))
+		GEM_TRACE("%s: ring head [%x] not parked\n",
+			  engine->name, I915_READ_FW(RING_HEAD(base)));
 }
 
 static void i915_stop_engines(struct drm_i915_private *i915,
@@ -579,7 +581,8 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 		 *
 		 * FIXME: Wa for more modern gens needs to be validated
 		 */
-		i915_stop_engines(i915, engine_mask);
+		if (retry)
+			i915_stop_engines(i915, engine_mask);
 
 		GEM_TRACE("engine_mask=%x\n", engine_mask);
 		preempt_disable();
