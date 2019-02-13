@@ -29,6 +29,14 @@ extern int dma_nommu_mmap_coherent(struct device *dev,
 				    struct vm_area_struct *vma,
 				    void *cpu_addr, dma_addr_t handle,
 				    size_t size, unsigned long attrs);
+int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction direction,
+		unsigned long attrs);
+dma_addr_t dma_nommu_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t size,
+		enum dma_data_direction dir, unsigned long attrs);
+int dma_nommu_dma_supported(struct device *dev, u64 mask);
+u64 dma_nommu_get_required_mask(struct device *dev);
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
 /*
