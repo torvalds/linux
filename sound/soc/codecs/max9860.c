@@ -615,7 +615,8 @@ static int max9860_probe(struct i2c_client *i2c)
 
 	max9860->dvddio_nb.notifier_call = max9860_dvddio_event;
 
-	ret = regulator_register_notifier(max9860->dvddio, &max9860->dvddio_nb);
+	ret = devm_regulator_register_notifier(max9860->dvddio,
+					       &max9860->dvddio_nb);
 	if (ret)
 		dev_err(dev, "Failed to register DVDDIO notifier: %d\n", ret);
 
