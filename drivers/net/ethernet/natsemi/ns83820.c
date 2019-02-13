@@ -1003,7 +1003,7 @@ static void do_tx_done(struct net_device *ndev)
 					addr,
 					len,
 					PCI_DMA_TODEVICE);
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 			atomic_dec(&dev->nr_tx_skbs);
 		} else
 			pci_unmap_page(dev->pci_dev,
