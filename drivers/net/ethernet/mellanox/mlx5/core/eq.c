@@ -530,6 +530,9 @@ static u64 gather_async_events_mask(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, max_num_of_monitor_counters))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_MONITOR_COUNTER);
 
+	if (mlx5_core_is_ecpf_esw_manager(dev))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_HOST_PARAMS_CHANGE);
+
 	return async_event_mask;
 }
 
