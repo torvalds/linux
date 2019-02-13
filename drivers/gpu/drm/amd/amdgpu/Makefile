@@ -135,6 +135,10 @@ amdgpu-y += \
 	amdgpu_vcn.o \
 	vcn_v1_0.o
 
+# add ATHUB block
+amdgpu-y += \
+	athub_v2_0.o
+
 # add amdkfd interfaces
 amdgpu-y += amdgpu_amdkfd.o
 
