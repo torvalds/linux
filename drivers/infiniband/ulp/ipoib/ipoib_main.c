@@ -613,7 +613,7 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 	while ((skb = __skb_dequeue(&path->queue)))
 		dev_kfree_skb_irq(skb);
 
-	ipoib_dbg(ipoib_priv(dev), "path_free\n");
+	ipoib_dbg(ipoib_priv(dev), "%s\n", __func__);
 
 	/* remove all neigh connected to this path */
 	ipoib_del_neighs_by_gid(dev, path->pathrec.dgid.raw);
@@ -1641,7 +1641,7 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	ipoib_dbg(priv, "ipoib_neigh_hash_uninit\n");
+	ipoib_dbg(priv, "%s\n", __func__);
 	init_completion(&priv->ntbl.deleted);
 
 	cancel_delayed_work_sync(&priv->neigh_reap_task);
