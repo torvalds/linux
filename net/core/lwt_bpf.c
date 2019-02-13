@@ -390,6 +390,71 @@ static const struct lwtunnel_encap_ops bpf_encap_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static int handle_gso_encap(struct sk_buff *skb, bool ipv4, int encap_len)
+{
+	/* Handling of GSO-enabled packets is added in the next patch. */
+	return -EOPNOTSUPP;
+}
+
+int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len, bool ingress)
+{
+	struct iphdr *iph;
+	bool ipv4;
+	int err;
+
+	if (unlikely(len < sizeof(struct iphdr) || len > LWT_BPF_MAX_HEADROOM))
+		return -EINVAL;
+
+	/* validate protocol and length */
+	iph = (struct iphdr *)hdr;
+	if (iph->version == 4) {
+		ipv4 = true;
+		if (unlikely(len < iph->ihl * 4))
+			return -EINVAL;
+	} else if (iph->version == 6) {
+		ipv4 = false;
+		if (unlikely(len < sizeof(struct ipv6hdr)))
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	if (ingress)
+		err = skb_cow_head(skb, len + skb->mac_len);
+	else
+		err = skb_cow_head(skb,
+				   len + LL_RESERVED_SPACE(skb_dst(skb)->dev));
+	if (unlikely(err))
+		return err;
+
+	/* push the encap headers and fix pointers */
+	skb_reset_inner_headers(skb);
+	skb->encapsulation = 1;
+	skb_push(skb, len);
+	if (ingress)
+		skb_postpush_rcsum(skb, iph, len);
+	skb_reset_network_header(skb);
+	memcpy(skb_network_header(skb), hdr, len);
+	bpf_compute_data_pointers(skb);
+	skb_clear_hash(skb);
+
+	if (ipv4) {
+		skb->protocol = htons(ETH_P_IP);
+		iph = ip_hdr(skb);
+
+		if (!iph->check)
+			iph->check = ip_fast_csum((unsigned char *)iph,
+						  iph->ihl);
+	} else {
+		skb->protocol = htons(ETH_P_IPV6);
+	}
+
+	if (skb_is_gso(skb))
+		return handle_gso_encap(skb, ipv4, len);
+
+	return 0;
+}
+
 static int __init bpf_lwt_init(void)
 {
 	return lwtunnel_encap_add_ops(&bpf_encap_ops, LWTUNNEL_ENCAP_BPF);
