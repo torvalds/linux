@@ -17,13 +17,14 @@
 
 #define bucket_cmpxchg(g, new, expr)				\
 ({								\
+	struct bucket *_g = g;					\
 	u64 _v = atomic64_read(&(g)->_mark.v);			\
 	struct bucket_mark _old;				\
 								\
 	do {							\
 		(new).v.counter = _old.v.counter = _v;		\
 		expr;						\
-	} while ((_v = atomic64_cmpxchg(&(g)->_mark.v,		\
+	} while ((_v = atomic64_cmpxchg(&(_g)->_mark.v,		\
 			       _old.v.counter,			\
 			       (new).v.counter)) != _old.v.counter);\
 	_old;							\

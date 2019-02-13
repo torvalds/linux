@@ -6,6 +6,15 @@
 #include "alloc_types.h"
 #include "debug.h"
 
+struct bkey_alloc_unpacked {
+	u8		gen;
+#define x(_name, _bits)	u##_bits _name;
+	BCH_ALLOC_FIELDS()
+#undef  x
+};
+
+struct bkey_alloc_unpacked bch2_alloc_unpack(const struct bch_alloc *);
+
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
 
 const char *bch2_alloc_invalid(const struct bch_fs *, struct bkey_s_c);

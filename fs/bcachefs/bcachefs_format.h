@@ -826,12 +826,12 @@ struct bch_alloc {
 } __attribute__((packed, aligned(8)));
 
 #define BCH_ALLOC_FIELDS()			\
-	x(read_time, 2)				\
-	x(write_time, 2)			\
-	x(data_type, 1)				\
-	x(dirty_sectors, 2)			\
-	x(cached_sectors, 2)			\
-	x(oldest_gen, 1)
+	x(read_time,		16)		\
+	x(write_time,		16)		\
+	x(data_type,		8)		\
+	x(dirty_sectors,	16)		\
+	x(cached_sectors,	16)		\
+	x(oldest_gen,		8)
 
 enum {
 #define x(name, bytes) BCH_ALLOC_FIELD_##name,
@@ -841,12 +841,12 @@ enum {
 };
 
 static const unsigned BCH_ALLOC_FIELD_BYTES[] = {
-#define x(name, bytes) [BCH_ALLOC_FIELD_##name] = bytes,
+#define x(name, bits) [BCH_ALLOC_FIELD_##name] = bits / 8,
 	BCH_ALLOC_FIELDS()
 #undef x
 };
 
-#define x(name, bytes) + bytes
+#define x(name, bits) + (bits / 8)
 static const unsigned BKEY_ALLOC_VAL_U64s_MAX =
 	DIV_ROUND_UP(offsetof(struct bch_alloc, data)
 		     BCH_ALLOC_FIELDS(), sizeof(u64));

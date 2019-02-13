@@ -476,6 +476,60 @@ void bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 		   ca, b, owned_by_allocator);
 }
 
+static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
+			   bool inserting,
+			   struct bch_fs_usage *fs_usage,
+			   unsigned journal_seq, unsigned flags,
+			   bool gc)
+{
+	struct bkey_alloc_unpacked u;
+	struct bch_dev *ca;
+	struct bucket *g;
+	struct bucket_mark old, m;
+
+	if (!inserting)
+		return 0;
+
+	/*
+	 * alloc btree is read in by bch2_alloc_read, not gc:
+	 */
+	if (flags & BCH_BUCKET_MARK_GC)
+		return 0;
+
+	u = bch2_alloc_unpack(bkey_s_c_to_alloc(k).v);
+	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+	g = __bucket(ca, k.k->p.offset, gc);
+
+	/*
+	 * this should currently only be getting called from the bucket
+	 * invalidate path:
+	 */
+	BUG_ON(u.dirty_sectors);
+	BUG_ON(u.cached_sectors);
+	BUG_ON(!g->mark.owned_by_allocator);
+
+	old = bucket_data_cmpxchg(c, ca, fs_usage, g, m, ({
+		m.gen			= u.gen;
+		m.data_type		= u.data_type;
+		m.dirty_sectors		= u.dirty_sectors;
+		m.cached_sectors	= u.cached_sectors;
+	}));
+
+	g->io_time[READ]	= u.read_time;
+	g->io_time[WRITE]	= u.write_time;
+	g->oldest_gen		= u.oldest_gen;
+	g->gen_valid		= 1;
+
+	if (old.cached_sectors) {
+		update_cached_sectors(c, fs_usage, ca->dev_idx,
+				      -old.cached_sectors);
+		trace_invalidate(ca, bucket_to_sector(ca, k.k->p.offset),
+				 old.cached_sectors);
+	}
+
+	return 0;
+}
+
 #define checked_add(a, b)					\
 do {								\
 	unsigned _res = (unsigned) (a) + (b);			\
@@ -840,18 +894,21 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		fs_usage = this_cpu_ptr(c->usage[gc]);
 
 	switch (k.k->type) {
+	case KEY_TYPE_alloc:
+		return bch2_mark_alloc(c, k, inserting,
+				fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_btree_ptr:
 		return bch2_mark_extent(c, k, inserting
-					?  c->opts.btree_node_size
-					: -c->opts.btree_node_size,
-					BCH_DATA_BTREE,
-					fs_usage, journal_seq, flags, gc);
+				?  c->opts.btree_node_size
+				: -c->opts.btree_node_size,
+				BCH_DATA_BTREE,
+				fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_extent:
 		return bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
-					fs_usage, journal_seq, flags, gc);
+				fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_stripe:
 		return bch2_mark_stripe(c, k, inserting,
-					fs_usage, journal_seq, flags, gc);
+				fs_usage, journal_seq, flags, gc);
 	case KEY_TYPE_inode:
 		if (inserting)
 			fs_usage->s.nr_inodes++;
@@ -922,7 +979,7 @@ void bch2_mark_update(struct btree_insert *trans,
 	preempt_disable();
 	fs_usage = bch2_fs_usage_get_scratch(c);
 
-	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
+	if (!(trans->flags & BTREE_INSERT_NOMARK))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
 			bpos_min(insert->k->k.p, b->key.k.p).offset -
 			bkey_start_offset(&insert->k->k),

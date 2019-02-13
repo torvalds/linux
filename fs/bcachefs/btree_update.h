@@ -82,6 +82,7 @@ enum {
 	__BTREE_INSERT_USE_RESERVE,
 	__BTREE_INSERT_USE_ALLOC_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
+	__BTREE_INSERT_NOMARK,
 	__BTREE_INSERT_NOWAIT,
 	__BTREE_INSERT_GC_LOCK_HELD,
 	__BCH_HASH_SET_MUST_CREATE,
@@ -108,11 +109,11 @@ enum {
 #define BTREE_INSERT_USE_RESERVE	(1 << __BTREE_INSERT_USE_RESERVE)
 #define BTREE_INSERT_USE_ALLOC_RESERVE	(1 << __BTREE_INSERT_USE_ALLOC_RESERVE)
 
-/*
- * Insert is for journal replay: don't get journal reservations, or mark extents
- * (bch_mark_key)
- */
+/* Insert is for journal replay - don't get journal reservations: */
 #define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)
+
+/* Don't call bch2_mark_key: */
+#define BTREE_INSERT_NOMARK		(1 << __BTREE_INSERT_NOMARK)
 
 /* Don't block on allocation failure (for new btree nodes: */
 #define BTREE_INSERT_NOWAIT		(1 << __BTREE_INSERT_NOWAIT)
