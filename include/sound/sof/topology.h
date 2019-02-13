@@ -32,8 +32,12 @@ enum sof_comp_type {
 	SOF_COMP_BUFFER,
 	SOF_COMP_EQ_IIR,
 	SOF_COMP_EQ_FIR,
-	SOF_COMP_FILEREAD,	/**< host test based file IO */
-	SOF_COMP_FILEWRITE,	/**< host test based file IO */
+	SOF_COMP_KEYWORD_DETECT,
+	SOF_COMP_KPB,			/* A key phrase buffer component */
+	SOF_COMP_SELECTOR,		/**< channel selector component */
+	/* keep FILEREAD/FILEWRITE as the last ones */
+	SOF_COMP_FILEREAD = 10000,	/**< host test based file IO */
+	SOF_COMP_FILEWRITE = 10001,	/**< host test based file IO */
 };
 
 /* XRUN action for component */
@@ -168,6 +172,9 @@ enum sof_ipc_process_type {
 	SOF_PROCESS_NONE = 0,		/**< None */
 	SOF_PROCESS_EQFIR,		/**< Intel FIR */
 	SOF_PROCESS_EQIIR,		/**< Intel IIR */
+	SOF_PROCESS_KEYWORD_DETECT,	/**< Keyword Detection */
+	SOF_PROCESS_KPB,		/**< KeyPhrase Buffer Manager */
+	SOF_PROCESS_CHAN_SELECTOR,	/**< Channel Selector */
 };
 
 /* generic "effect", "codec" or proprietary processing component */

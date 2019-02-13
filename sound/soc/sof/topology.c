@@ -244,6 +244,9 @@ struct sof_process_types {
 static const struct sof_process_types sof_process[] = {
 	{"EQFIR", SOF_PROCESS_EQFIR, SOF_COMP_EQ_FIR},
 	{"EQIIR", SOF_PROCESS_EQIIR, SOF_COMP_EQ_IIR},
+	{"KEYWORD_DETECT", SOF_PROCESS_KEYWORD_DETECT, SOF_COMP_KEYWORD_DETECT},
+	{"KPB", SOF_PROCESS_KPB, SOF_COMP_KPB},
+	{"CHAN_SELECTOR", SOF_PROCESS_CHAN_SELECTOR, SOF_COMP_SELECTOR},
 };
 
 static enum sof_ipc_process_type find_process(const char *name)
