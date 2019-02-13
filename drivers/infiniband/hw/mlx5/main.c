@@ -331,8 +331,8 @@ out:
 	spin_unlock(&port->mp.mpi_lock);
 }
 
-static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
-				    u8 *active_width)
+static int translate_eth_legacy_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+					   u8 *active_width)
 {
 	switch (eth_proto_oper) {
 	case MLX5E_PROT_MASK(MLX5E_1000BASE_CX_SGMII):
@@ -389,6 +389,61 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 	return 0;
 }
 
+static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+					u8 *active_width)
+{
+	switch (eth_proto_oper) {
+	case MLX5E_PROT_MASK(MLX5E_SGMII_100M):
+	case MLX5E_PROT_MASK(MLX5E_1000BASE_X_SGMII):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_SDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_5GBASE_R):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_DDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_10GBASE_XFI_XAUI_1):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_40GBASE_XLAUI_4_XLPPI_4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_25GAUI_1_25GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_EDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2):
+	case MLX5E_PROT_MASK(MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR):
+		*active_width = IB_WIDTH_1X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_100GAUI_2_100GBASE_CR2_KR2):
+		*active_width = IB_WIDTH_2X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	case MLX5E_PROT_MASK(MLX5E_200GAUI_4_200GBASE_CR4_KR4):
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_HDR;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
+				    u8 *active_width, bool ext)
+{
+	return ext ?
+		translate_eth_ext_proto_oper(eth_proto_oper, active_speed,
+					     active_width) :
+		translate_eth_legacy_proto_oper(eth_proto_oper, active_speed,
+						active_width);
+}
+
 static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				struct ib_port_attr *props)
 {
@@ -401,6 +456,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
 	u8 mdev_port_num;
+	bool ext;
 	int err;
 
 	mdev = mlx5_ib_get_native_port_mdev(dev, port_num, &mdev_port_num);
@@ -421,14 +477,14 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				   mdev_port_num);
 	if (err)
 		goto out;
-	eth_prot_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, false,
-					   eth_proto_oper);
+	ext = MLX5_CAP_PCAM_FEATURE(dev->mdev, ptys_extended_ethernet);
+	eth_prot_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext, eth_proto_oper);
 
 	props->active_width     = IB_WIDTH_4X;
 	props->active_speed     = IB_SPEED_QDR;
 
 	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
-				 &props->active_width);
+				 &props->active_width, ext);
 
 	props->port_cap_flags |= IB_PORT_CM_SUP;
 	props->ip_gids = true;
