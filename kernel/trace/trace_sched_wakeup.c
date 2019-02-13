@@ -486,7 +486,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 
 	if (likely(!is_tracing_stopped())) {
 		wakeup_trace->max_latency = delta;
-		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu);
+		update_max_tr(wakeup_trace, wakeup_task, wakeup_cpu, NULL);
 	}
 
 out_unlock:
