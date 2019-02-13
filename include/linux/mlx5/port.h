@@ -92,6 +92,22 @@ enum mlx5e_link_mode {
 	MLX5E_LINK_MODES_NUMBER,
 };
 
+enum mlx5e_ext_link_mode {
+	MLX5E_SGMII_100M			= 0,
+	MLX5E_1000BASE_X_SGMII			= 1,
+	MLX5E_5GBASE_R				= 3,
+	MLX5E_10GBASE_XFI_XAUI_1		= 4,
+	MLX5E_40GBASE_XLAUI_4_XLPPI_4		= 5,
+	MLX5E_25GAUI_1_25GBASE_CR_KR		= 6,
+	MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2	= 7,
+	MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR	= 8,
+	MLX5E_CAUI_4_100GBASE_CR4_KR4		= 9,
+	MLX5E_100GAUI_2_100GBASE_CR2_KR2	= 10,
+	MLX5E_200GAUI_4_200GBASE_CR4_KR4	= 12,
+	MLX5E_400GAUI_8				= 15,
+	MLX5E_EXT_LINK_MODES_NUMBER,
+};
+
 enum mlx5e_connector_type {
 	MLX5E_PORT_UNKNOWN	= 0,
 	MLX5E_PORT_NONE			= 1,
@@ -106,6 +122,9 @@ enum mlx5e_connector_type {
 };
 
 #define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
+#define MLX5_GET_ETH_PROTO(reg, out, ext, field)	\
+	(ext ? MLX5_GET(reg, out, ext_##field) :	\
+	MLX5_GET(reg, out, field))
 
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,

@@ -695,13 +695,14 @@ static void get_speed_duplex(struct net_device *netdev,
 			     u32 eth_proto_oper,
 			     struct ethtool_link_ksettings *link_ksettings)
 {
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 	u32 speed = SPEED_UNKNOWN;
 	u8 duplex = DUPLEX_UNKNOWN;
 
 	if (!netif_carrier_ok(netdev))
 		goto out;
 
-	speed = mlx5e_port_ptys2speed(eth_proto_oper);
+	speed = mlx5e_port_ptys2speed(priv->mdev, eth_proto_oper);
 	if (!speed) {
 		speed = SPEED_UNKNOWN;
 		goto out;
@@ -896,9 +897,9 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 
 	link_modes = link_ksettings->base.autoneg == AUTONEG_ENABLE ?
 		mlx5e_ethtool2ptys_adver_link(link_ksettings->link_modes.advertising) :
-		mlx5e_port_speed2linkmodes(speed);
+		mlx5e_port_speed2linkmodes(mdev, speed);
 
-	err = mlx5_port_query_eth_proto(mdev, 1, &eproto);
+	err = mlx5_port_query_eth_proto(mdev, 1, false, &eproto);
 	if (err) {
 		netdev_err(priv->netdev, "%s: query port eth proto failed: %d\n",
 			   __func__, err);
@@ -923,7 +924,7 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	if (!an_changes && link_modes == eproto.admin)
 		goto out;
 
-	mlx5_port_set_eth_ptys(mdev, an_disable, link_modes);
+	mlx5_port_set_eth_ptys(mdev, an_disable, link_modes, false);
 	mlx5_toggle_port_link(mdev);
 
 out:

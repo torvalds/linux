@@ -421,7 +421,8 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 				   mdev_port_num);
 	if (err)
 		goto out;
-	eth_prot_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
+	eth_prot_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, false,
+					   eth_proto_oper);
 
 	props->active_width     = IB_WIDTH_4X;
 	props->active_speed     = IB_SPEED_QDR;
