@@ -525,7 +525,7 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 			DPRINTK("RPTR points us here, but packet not done?\n");
 			break;
 		}
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		priv->tx_skbs[priv->tx_read] = NULL;
 		priv->tx_ring[priv->tx_read].header.raw = 0;
 		priv->tx_read = (priv->tx_read+1)&(TX_RING_ENTRIES-1);
