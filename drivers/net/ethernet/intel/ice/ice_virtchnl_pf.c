@@ -1927,6 +1927,9 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	 */
 	vsi->num_txq = qci->num_queue_pairs;
 	vsi->num_rxq = qci->num_queue_pairs;
+	/* All queues of VF VSI are in TC 0 */
+	vsi->tc_cfg.tc_info[0].qcount_tx = qci->num_queue_pairs;
+	vsi->tc_cfg.tc_info[0].qcount_rx = qci->num_queue_pairs;
 
 	if (!ice_vsi_cfg_lan_txqs(vsi) && !ice_vsi_cfg_rxqs(vsi))
 		aq_ret = 0;
