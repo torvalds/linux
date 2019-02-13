@@ -31,6 +31,11 @@
 #define MLXSW_THERMAL_SPEED_MAX		(MLXSW_THERMAL_MAX_STATE * 2)
 #define MLXSW_THERMAL_SPEED_MIN_LEVEL	2		/* 20% */
 
+/* External cooling devices, allowed for binding to mlxsw thermal zones. */
+static char * const mlxsw_thermal_external_allowed_cdev[] = {
+	"mlxreg_fan",
+};
+
 struct mlxsw_thermal_trip {
 	int	type;
 	int	temp;
@@ -106,6 +111,13 @@ static int mlxsw_get_cooling_device_idx(struct mlxsw_thermal *thermal,
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
 		if (thermal->cdevs[i] == cdev)
 			return i;
+
+	/* Allow mlxsw thermal zone binding to an external cooling device */
+	for (i = 0; i < ARRAY_SIZE(mlxsw_thermal_external_allowed_cdev); i++) {
+		if (strnstr(cdev->type, mlxsw_thermal_external_allowed_cdev[i],
+			    sizeof(cdev->type)))
+			return 0;
+	}
 
 	return -ENODEV;
 }
