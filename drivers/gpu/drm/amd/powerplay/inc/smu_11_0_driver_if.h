@@ -4,7 +4,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x2D
+#define SMU11_DRIVER_IF_VERSION 0x2E
 
 #define PPTABLE_NV10_SMU_VERSION 8
 
@@ -296,6 +296,15 @@ typedef struct {
   uint32_t     MmHubPadding[8]; // SMU internal use
   
 } SwI2cRequest_t; // SW I2C Request Table
+
+//D3HOT sequences
+typedef enum {
+  BACO_SEQUENCE,
+  MSR_SEQUENCE,
+  BAMACO_SEQUENCE,
+  ULPS_SEQUENCE,
+  D3HOT_SEQUENCE_COUNT,
+}D3HOTSequence_e;
 
 //THis is aligned with RSMU PGFSM Register Mapping
 typedef enum {
