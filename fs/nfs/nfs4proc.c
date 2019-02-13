@@ -8936,10 +8936,12 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 	if (status != 0)
 		goto out;
 
-	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
-	if (task->tk_status < 0 || lgp->res.layoutp->len == 0) {
+	if (task->tk_status < 0) {
 		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
 		*timeout = exception.timeout;
+	} else if (lgp->res.layoutp->len == 0) {
+		status = -EAGAIN;
+		*timeout = nfs4_update_delay(&exception.timeout);
 	} else
 		lseg = pnfs_layout_process(lgp);
 out:
