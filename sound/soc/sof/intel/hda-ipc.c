@@ -86,11 +86,24 @@ int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
 			  struct snd_sof_ipc_msg *msg)
 {
 	struct sof_ipc_reply reply;
+	struct sof_ipc_cmd_hdr *hdr;
 	int ret = 0;
 	u32 size;
 
-	/* get IPC reply from DSP in the mailbox */
-	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
+	hdr = (struct sof_ipc_cmd_hdr *)msg->msg_data;
+	if (hdr->cmd == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CTX_SAVE)) {
+		/*
+		 * memory windows are powered off before sending IPC reply,
+		 * so we can't read the mailbox for CTX_SAVE reply.
+		 */
+		reply.error = 0;
+		reply.hdr.cmd = SOF_IPC_GLB_REPLY;
+		reply.hdr.size = sizeof(reply);
+	} else {
+		/* get IPC reply from DSP in the mailbox */
+		sof_mailbox_read(sdev, sdev->host_box.offset, &reply,
+				 sizeof(reply));
+	}
 	if (reply.error < 0) {
 		size = sizeof(reply);
 		ret = reply.error;
