@@ -436,6 +436,7 @@ static const struct ib_device_ops rvt_dev_ops = {
 	.req_notify_cq = rvt_req_notify_cq,
 	.resize_cq = rvt_resize_cq,
 	.unmap_fmr = rvt_unmap_fmr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, rvt_pd, ibpd),
 };
 
 static noinline int check_support(struct rvt_dev_info *rdi, int verb)

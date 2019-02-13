@@ -2084,12 +2084,10 @@ static int hns_roce_v2_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 static int set_mtpt_pbl(struct hns_roce_v2_mpt_entry *mpt_entry,
 			struct hns_roce_mr *mr)
 {
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	u64 page_addr;
 	u64 *pages;
-	int i, j;
-	int len;
-	int entry;
+	int i;
 
 	mpt_entry->pbl_size = cpu_to_le32(mr->pbl_size);
 	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(mr->pbl_ba >> 3));
@@ -2102,17 +2100,14 @@ static int set_mtpt_pbl(struct hns_roce_v2_mpt_entry *mpt_entry,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (j = 0; j < len; ++j) {
-			page_addr = sg_dma_address(sg) +
-				(j << mr->umem->page_shift);
-			pages[i] = page_addr >> 6;
-			/* Record the first 2 entry directly to MTPT table */
-			if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
-				goto found;
-			i++;
-		}
+	for_each_sg_dma_page(mr->umem->sg_head.sgl, &sg_iter, mr->umem->nmap, 0) {
+		page_addr = sg_page_iter_dma_address(&sg_iter);
+		pages[i] = page_addr >> 6;
+
+		/* Record the first 2 entry directly to MTPT table */
+		if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+			goto found;
+		i++;
 	}
 found:
 	mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));

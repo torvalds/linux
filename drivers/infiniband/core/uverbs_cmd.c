@@ -407,9 +407,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->ops.alloc_pd(ib_dev, uobj->context, &attrs->driver_udata);
-	if (IS_ERR(pd)) {
-		ret = PTR_ERR(pd);
+	pd = rdma_zalloc_drv_obj(ib_dev, ib_pd);
+	if (!pd) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -417,11 +417,15 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	pd->uobject = uobj;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
+	pd->res.type = RDMA_RESTRACK_PD;
+
+	ret = ib_dev->ops.alloc_pd(pd, uobj->context, &attrs->driver_udata);
+	if (ret)
+		goto err_alloc;
 
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
-	pd->res.type = RDMA_RESTRACK_PD;
 	rdma_restrack_uadd(&pd->res);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
@@ -432,7 +436,8 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 
 err_copy:
 	ib_dealloc_pd(pd);
-
+err_alloc:
+	kfree(pd);
 err:
 	uobj_alloc_abort(uobj);
 	return ret;

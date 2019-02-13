@@ -367,16 +367,11 @@ static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 	return status;
 }
 
-static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
-					  struct ocrdma_ucontext *uctx,
-					  struct ib_udata *udata)
+static int _ocrdma_alloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
+			    struct ocrdma_ucontext *uctx,
+			    struct ib_udata *udata)
 {
-	struct ocrdma_pd *pd = NULL;
 	int status;
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	if (udata && uctx && dev->attr.max_dpp_pds) {
 		pd->dpp_enabled =
@@ -386,15 +381,8 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 					   dev->attr.wqe_size) : 0;
 	}
 
-	if (dev->pd_mgr->pd_prealloc_valid) {
-		status = ocrdma_get_pd_num(dev, pd);
-		if (status == 0) {
-			return pd;
-		} else {
-			kfree(pd);
-			return ERR_PTR(status);
-		}
-	}
+	if (dev->pd_mgr->pd_prealloc_valid)
+		return ocrdma_get_pd_num(dev, pd);
 
 retry:
 	status = ocrdma_mbx_alloc_pd(dev, pd);
@@ -403,13 +391,11 @@ retry:
 			pd->dpp_enabled = false;
 			pd->num_dpp_qp = 0;
 			goto retry;
-		} else {
-			kfree(pd);
-			return ERR_PTR(status);
 		}
+		return status;
 	}
 
-	return pd;
+	return 0;
 }
 
 static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
@@ -418,30 +404,33 @@ static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
 	return (uctx->cntxt_pd == pd);
 }
 
-static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
+static void _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
 			      struct ocrdma_pd *pd)
 {
-	int status;
-
 	if (dev->pd_mgr->pd_prealloc_valid)
-		status = ocrdma_put_pd_num(dev, pd->id, pd->dpp_enabled);
+		ocrdma_put_pd_num(dev, pd->id, pd->dpp_enabled);
 	else
-		status = ocrdma_mbx_dealloc_pd(dev, pd);
-
-	kfree(pd);
-	return status;
+		ocrdma_mbx_dealloc_pd(dev, pd);
 }
 
 static int ocrdma_alloc_ucontext_pd(struct ocrdma_dev *dev,
 				    struct ocrdma_ucontext *uctx,
 				    struct ib_udata *udata)
 {
-	int status = 0;
+	struct ib_device *ibdev = &dev->ibdev;
+	struct ib_pd *pd;
+	int status;
 
-	uctx->cntxt_pd = _ocrdma_alloc_pd(dev, uctx, udata);
-	if (IS_ERR(uctx->cntxt_pd)) {
-		status = PTR_ERR(uctx->cntxt_pd);
-		uctx->cntxt_pd = NULL;
+	pd = rdma_zalloc_drv_obj(ibdev, ib_pd);
+	if (!pd)
+		return -ENOMEM;
+
+	pd->device  = ibdev;
+	uctx->cntxt_pd = get_ocrdma_pd(pd);
+
+	status = _ocrdma_alloc_pd(dev, uctx->cntxt_pd, uctx, udata);
+	if (status) {
+		kfree(uctx->cntxt_pd);
 		goto err;
 	}
 
@@ -460,6 +449,7 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
 		       __func__, dev->id, pd->id);
 	}
+	kfree(uctx->cntxt_pd);
 	uctx->cntxt_pd = NULL;
 	(void)_ocrdma_dealloc_pd(dev, pd);
 	return 0;
@@ -537,6 +527,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	return &ctx->ibucontext;
 
 cpy_err:
+	ocrdma_dealloc_ucontext_pd(ctx);
 pd_err:
 	ocrdma_del_mmap(ctx, ctx->ah_tbl.pa, ctx->ah_tbl.len);
 map_err:
@@ -658,10 +649,10 @@ dpp_map_err:
 	return status;
 }
 
-struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
+int ocrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		    struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibpd->device;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_pd *pd;
 	struct ocrdma_ucontext *uctx = NULL;
@@ -677,11 +668,10 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 		}
 	}
 
-	pd = _ocrdma_alloc_pd(dev, uctx, udata);
-	if (IS_ERR(pd)) {
-		status = PTR_ERR(pd);
+	pd = get_ocrdma_pd(ibpd);
+	status = _ocrdma_alloc_pd(dev, pd, uctx, udata);
+	if (status)
 		goto exit;
-	}
 
 pd_mapping:
 	if (udata && context) {
@@ -689,25 +679,22 @@ pd_mapping:
 		if (status)
 			goto err;
 	}
-	return &pd->ibpd;
+	return 0;
 
 err:
-	if (is_uctx_pd) {
+	if (is_uctx_pd)
 		ocrdma_release_ucontext_pd(uctx);
-	} else {
-		if (_ocrdma_dealloc_pd(dev, pd))
-			pr_err("%s: _ocrdma_dealloc_pd() failed\n", __func__);
-	}
+	else
+		_ocrdma_dealloc_pd(dev, pd);
 exit:
-	return ERR_PTR(status);
+	return status;
 }
 
-int ocrdma_dealloc_pd(struct ib_pd *ibpd)
+void ocrdma_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_ucontext *uctx = NULL;
-	int status = 0;
 	u64 usr_db;
 
 	uctx = pd->uctx;
@@ -721,11 +708,10 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 
 		if (is_ucontext_pd(uctx, pd)) {
 			ocrdma_release_ucontext_pd(uctx);
-			return status;
+			return;
 		}
 	}
-	status = _ocrdma_dealloc_pd(dev, pd);
-	return status;
+	_ocrdma_dealloc_pd(dev, pd);
 }
 
 static int ocrdma_alloc_lkey(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
@@ -854,10 +840,11 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 			    u32 num_pbes)
 {
 	struct ocrdma_pbe *pbe;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	struct ocrdma_pbl *pbl_tbl = mr->hwmr.pbl_table;
 	struct ib_umem *umem = mr->umem;
-	int shift, pg_cnt, pages, pbe_cnt, entry, total_num_pbes = 0;
+	int pbe_cnt, total_num_pbes = 0;
+	u64 pg_addr;
 
 	if (!mr->hwmr.num_pbes)
 		return;
@@ -865,36 +852,26 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
 	pbe_cnt = 0;
 
-	shift = umem->page_shift;
+	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		/* store the page address in pbe */
+		pg_addr = sg_page_iter_dma_address(&sg_iter);
+		pbe->pa_lo = cpu_to_le32(pg_addr);
+		pbe->pa_hi = cpu_to_le32(upper_32_bits(pg_addr));
+		pbe_cnt += 1;
+		total_num_pbes += 1;
+		pbe++;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> shift;
-		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
-			/* store the page address in pbe */
-			pbe->pa_lo =
-			    cpu_to_le32(sg_dma_address(sg) +
-					(pg_cnt << shift));
-			pbe->pa_hi =
-			    cpu_to_le32(upper_32_bits(sg_dma_address(sg) +
-					 (pg_cnt << shift)));
-			pbe_cnt += 1;
-			total_num_pbes += 1;
-			pbe++;
+		/* if done building pbes, issue the mbx cmd. */
+		if (total_num_pbes == num_pbes)
+			return;
 
-			/* if done building pbes, issue the mbx cmd. */
-			if (total_num_pbes == num_pbes)
-				return;
-
-			/* if the given pbl is full storing the pbes,
-			 * move to next pbl.
-			 */
-			if (pbe_cnt ==
-				(mr->hwmr.pbl_size / sizeof(u64))) {
-				pbl_tbl++;
-				pbe = (struct ocrdma_pbe *)pbl_tbl->va;
-				pbe_cnt = 0;
-			}
-
+		/* if the given pbl is full storing the pbes,
+		 * move to next pbl.
+		 */
+		if (pbe_cnt == (mr->hwmr.pbl_size / sizeof(u64))) {
+			pbl_tbl++;
+			pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+			pbe_cnt = 0;
 		}
 	}
 }
@@ -926,7 +903,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (status)
 		goto umem_err;
 
-	mr->hwmr.pbe_size = BIT(mr->umem->page_shift);
+	mr->hwmr.pbe_size = PAGE_SIZE;
 	mr->hwmr.fbo = ib_umem_offset(mr->umem);
 	mr->hwmr.va = usr_addr;
 	mr->hwmr.len = len;

@@ -563,40 +563,28 @@ fail:
 }
 
 /* Protection Domains */
-int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
+void bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
-	int rc;
 
 	bnxt_re_destroy_fence_mr(pd);
 
-	if (pd->qplib_pd.id) {
-		rc = bnxt_qplib_dealloc_pd(&rdev->qplib_res,
-					   &rdev->qplib_res.pd_tbl,
-					   &pd->qplib_pd);
-		if (rc)
-			dev_err(rdev_to_dev(rdev), "Failed to deallocate HW PD");
-	}
-
-	kfree(pd);
-	return 0;
+	if (pd->qplib_pd.id)
+		bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
+				      &pd->qplib_pd);
 }
 
-struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *ucontext,
-			       struct ib_udata *udata)
+int bnxt_re_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *ucontext,
+		     struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibpd->device;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_re_ucontext *ucntx = container_of(ucontext,
 						      struct bnxt_re_ucontext,
 						      ib_uctx);
-	struct bnxt_re_pd *pd;
+	struct bnxt_re_pd *pd = container_of(ibpd, struct bnxt_re_pd, ib_pd);
 	int rc;
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	pd->rdev = rdev;
 	if (bnxt_qplib_alloc_pd(&rdev->qplib_res.pd_tbl, &pd->qplib_pd)) {
@@ -637,13 +625,12 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 		if (bnxt_re_create_fence_mr(pd))
 			dev_warn(rdev_to_dev(rdev),
 				 "Failed to create Fence-MR\n");
-	return &pd->ib_pd;
+	return 0;
 dbfail:
-	(void)bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
-				    &pd->qplib_pd);
+	bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
+			      &pd->qplib_pd);
 fail:
-	kfree(pd);
-	return ERR_PTR(rc);
+	return rc;
 }
 
 /* Address Handles */
@@ -3566,19 +3553,14 @@ static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 	u64 *pbl_tbl = pbl_tbl_orig;
 	u64 paddr;
 	u64 page_mask = (1ULL << page_shift) - 1;
-	int i, pages;
-	struct scatterlist *sg;
-	int entry;
+	struct sg_dma_page_iter sg_iter;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		pages = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (i = 0; i < pages; i++) {
-			paddr = sg_dma_address(sg) + (i << PAGE_SHIFT);
-			if (pbl_tbl == pbl_tbl_orig)
-				*pbl_tbl++ = paddr & ~page_mask;
-			else if ((paddr & page_mask) == 0)
-				*pbl_tbl++ = paddr;
-		}
+	for_each_sg_dma_page (umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		paddr = sg_page_iter_dma_address(&sg_iter);
+		if (pbl_tbl == pbl_tbl_orig)
+			*pbl_tbl++ = paddr & ~page_mask;
+		else if ((paddr & page_mask) == 0)
+			*pbl_tbl++ = paddr;
 	}
 	return pbl_tbl - pbl_tbl_orig;
 }
@@ -3641,7 +3623,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 		goto free_umem;
 	}
 
-	page_shift = umem->page_shift;
+	page_shift = PAGE_SHIFT;
 
 	if (!bnxt_re_page_size_ok(page_shift)) {
 		dev_err(rdev_to_dev(rdev), "umem page size unsupported!");
@@ -3720,7 +3702,7 @@ struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
 	}
 	spin_lock_init(&uctx->sh_lock);
 
-	resp.comp_mask |= BNXT_RE_UCNTX_CMASK_HAVE_CCTX;
+	resp.comp_mask = BNXT_RE_UCNTX_CMASK_HAVE_CCTX;
 	chip_met_rev_num = rdev->chip_ctx.chip_num;
 	chip_met_rev_num |= ((u32)rdev->chip_ctx.chip_rev & 0xFF) <<
 			     BNXT_RE_CHIP_ID0_CHIP_REV_SFT;

@@ -2264,6 +2264,19 @@ struct ib_counters_read_attr {
 
 struct uverbs_attr_bundle;
 
+#define INIT_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)                      \
+	.size_##ib_struct =                                                    \
+		(sizeof(struct drv_struct) +                                   \
+		 BUILD_BUG_ON_ZERO(offsetof(struct drv_struct, member)) +      \
+		 BUILD_BUG_ON_ZERO(                                            \
+			 !__same_type(((struct drv_struct *)NULL)->member,     \
+				      struct ib_struct)))
+
+#define rdma_zalloc_drv_obj(ib_dev, ib_type)                                   \
+	((struct ib_type *)kzalloc(ib_dev->ops.size_##ib_type, GFP_KERNEL))
+
+#define DECLARE_RDMA_OBJ_SIZE(ib_struct) size_t size_##ib_struct
+
 /**
  * struct ib_device_ops - InfiniBand device operations
  * This structure defines all the InfiniBand device operations, providers will
@@ -2372,10 +2385,9 @@ struct ib_device_ops {
 	int (*dealloc_ucontext)(struct ib_ucontext *context);
 	int (*mmap)(struct ib_ucontext *context, struct vm_area_struct *vma);
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
-	struct ib_pd *(*alloc_pd)(struct ib_device *device,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata);
-	int (*dealloc_pd)(struct ib_pd *pd);
+	int (*alloc_pd)(struct ib_pd *pd, struct ib_ucontext *context,
+			struct ib_udata *udata);
+	void (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *(*create_ah)(struct ib_pd *pd,
 				   struct rdma_ah_attr *ah_attr, u32 flags,
 				   struct ib_udata *udata);
@@ -2517,6 +2529,8 @@ struct ib_device_ops {
 	 */
 	int (*fill_res_entry)(struct sk_buff *msg,
 			      struct rdma_restrack_entry *entry);
+
+	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 };
 
 struct ib_device {
@@ -2528,12 +2542,8 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
-	rwlock_t			client_data_lock;
-	struct list_head              core_list;
-	/* Access to the client_data_list is protected by the client_data_lock
-	 * rwlock and the lists_rwsem read-write semaphore
-	 */
-	struct list_head              client_data_list;
+	struct rw_semaphore	      client_data_rwsem;
+	struct xarray                 client_data;
 
 	struct ib_cache               cache;
 	/**
@@ -2557,12 +2567,6 @@ struct ib_device {
 
 	struct kobject			*ports_kobj;
 	struct list_head             port_list;
-
-	enum {
-		IB_DEV_UNINITIALIZED,
-		IB_DEV_REGISTERED,
-		IB_DEV_UNREGISTERED
-	}                            reg_state;
 
 	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
@@ -2602,7 +2606,7 @@ struct ib_device {
 };
 
 struct ib_client {
-	char  *name;
+	const char *name;
 	void (*add)   (struct ib_device *);
 	void (*remove)(struct ib_device *, void *client_data);
 
@@ -2629,6 +2633,7 @@ struct ib_client {
 			const struct sockaddr *addr,
 			void *client_data);
 	struct list_head list;
+	u32 client_id;
 
 	/* kverbs are not required by the client */
 	u8 no_kverbs_req:1;
@@ -2651,7 +2656,21 @@ void ib_unregister_device(struct ib_device *device);
 int ib_register_client   (struct ib_client *client);
 void ib_unregister_client(struct ib_client *client);
 
-void *ib_get_client_data(struct ib_device *device, struct ib_client *client);
+/**
+ * ib_get_client_data - Get IB client context
+ * @device:Device to get context for
+ * @client:Client to get context for
+ *
+ * ib_get_client_data() returns the client context data set with
+ * ib_set_client_data(). This can only be called while the client is
+ * registered to the device, once the ib_client remove() callback returns this
+ * cannot be called.
+ */
+static inline void *ib_get_client_data(struct ib_device *device,
+				       struct ib_client *client)
+{
+	return xa_load(&device->client_data, client->client_id);
+}
 void  ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			 void *data);
 void ib_set_device_ops(struct ib_device *device,

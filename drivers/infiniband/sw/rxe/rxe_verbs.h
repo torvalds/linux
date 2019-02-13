@@ -66,8 +66,8 @@ struct rxe_ucontext {
 };
 
 struct rxe_pd {
+	struct ib_pd            ibpd;
 	struct rxe_pool_entry	pelem;
-	struct ib_pd		ibpd;
 };
 
 struct rxe_ah {

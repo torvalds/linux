@@ -640,19 +640,19 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
+		page_shift = PAGE_SHIFT;
 		if (hr_dev->caps.mtt_buf_pg_sz) {
 			npages = (ib_umem_page_count(hr_qp->umem) +
 				  (1 << hr_dev->caps.mtt_buf_pg_sz) - 1) /
-				  (1 << hr_dev->caps.mtt_buf_pg_sz);
-			page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
+				 (1 << hr_dev->caps.mtt_buf_pg_sz);
+			page_shift += hr_dev->caps.mtt_buf_pg_sz;
 			ret = hns_roce_mtt_init(hr_dev, npages,
 				    page_shift,
 				    &hr_qp->mtt);
 		} else {
 			ret = hns_roce_mtt_init(hr_dev,
-				    ib_umem_page_count(hr_qp->umem),
-				    hr_qp->umem->page_shift,
-				    &hr_qp->mtt);
+						ib_umem_page_count(hr_qp->umem),
+						page_shift, &hr_qp->mtt);
 		}
 		if (ret) {
 			dev_err(dev, "hns_roce_mtt_init error for create qp\n");

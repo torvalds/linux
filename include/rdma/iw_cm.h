@@ -94,7 +94,8 @@ struct iw_cm_id {
 	void (*add_ref)(struct iw_cm_id *);
 	void (*rem_ref)(struct iw_cm_id *);
 	u8  tos;
-	bool mapped;
+	bool tos_set:1;
+	bool mapped:1;
 };
 
 struct iw_cm_conn_param {

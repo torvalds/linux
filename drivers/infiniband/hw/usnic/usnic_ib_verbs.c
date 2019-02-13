@@ -456,37 +456,23 @@ int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	return 0;
 }
 
-struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
-					struct ib_ucontext *context,
-					struct ib_udata *udata)
+int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		      struct ib_udata *udata)
 {
-	struct usnic_ib_pd *pd;
+	struct usnic_ib_pd *pd = to_upd(ibpd);
 	void *umem_pd;
-
-	usnic_dbg("\n");
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	umem_pd = pd->umem_pd = usnic_uiom_alloc_pd();
 	if (IS_ERR_OR_NULL(umem_pd)) {
-		kfree(pd);
-		return ERR_PTR(umem_pd ? PTR_ERR(umem_pd) : -ENOMEM);
+		return umem_pd ? PTR_ERR(umem_pd) : -ENOMEM;
 	}
 
-	usnic_info("domain 0x%p allocated for context 0x%p and device %s\n",
-		   pd, context, dev_name(&ibdev->dev));
-	return &pd->ibpd;
+	return 0;
 }
 
-int usnic_ib_dealloc_pd(struct ib_pd *pd)
+void usnic_ib_dealloc_pd(struct ib_pd *pd)
 {
-	usnic_info("freeing domain 0x%p\n", pd);
-
 	usnic_uiom_dealloc_pd((to_upd(pd))->umem_pd);
-	kfree(pd);
-	return 0;
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,

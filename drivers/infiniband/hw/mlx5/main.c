@@ -2280,30 +2280,24 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm)
 	return 0;
 }
 
-static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
-				      struct ib_ucontext *context,
-				      struct ib_udata *udata)
+static int mlx5_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+			    struct ib_udata *udata)
 {
+	struct mlx5_ib_pd *pd = to_mpd(ibpd);
+	struct ib_device *ibdev = ibpd->device;
 	struct mlx5_ib_alloc_pd_resp resp;
-	struct mlx5_ib_pd *pd;
 	int err;
 	u32 out[MLX5_ST_SZ_DW(alloc_pd_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)]   = {};
 	u16 uid = 0;
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 
 	uid = context ? to_mucontext(context)->devx_uid : 0;
 	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
 	MLX5_SET(alloc_pd_in, in, uid, uid);
 	err = mlx5_cmd_exec(to_mdev(ibdev)->mdev, in, sizeof(in),
 			    out, sizeof(out));
-	if (err) {
-		kfree(pd);
-		return ERR_PTR(err);
-	}
+	if (err)
+		return err;
 
 	pd->pdn = MLX5_GET(alloc_pd_out, out, pd);
 	pd->uid = uid;
@@ -2311,23 +2305,19 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 		resp.pdn = pd->pdn;
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			mlx5_cmd_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn, uid);
-			kfree(pd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 
-	return &pd->ibpd;
+	return 0;
 }
 
-static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
+static void mlx5_ib_dealloc_pd(struct ib_pd *pd)
 {
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
 
 	mlx5_cmd_dealloc_pd(mdev->mdev, mpd->pdn, mpd->uid);
-	kfree(mpd);
-
-	return 0;
 }
 
 enum {
@@ -4680,22 +4670,27 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 {
 	struct ib_srq_init_attr attr;
 	struct mlx5_ib_dev *dev;
+	struct ib_device *ibdev;
 	struct ib_cq_init_attr cq_attr = {.cqe = 1};
 	int port;
 	int ret = 0;
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
+	ibdev = &dev->ib_dev;
 
 	mutex_init(&devr->mutex);
 
-	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
-	if (IS_ERR(devr->p0)) {
-		ret = PTR_ERR(devr->p0);
-		goto error0;
-	}
-	devr->p0->device  = &dev->ib_dev;
+	devr->p0 = rdma_zalloc_drv_obj(ibdev, ib_pd);
+	if (!devr->p0)
+		return -ENOMEM;
+
+	devr->p0->device  = ibdev;
 	devr->p0->uobject = NULL;
 	atomic_set(&devr->p0->usecnt, 0);
+
+	ret = mlx5_ib_alloc_pd(devr->p0, NULL, NULL);
+	if (ret)
+		goto error0;
 
 	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(devr->c0)) {
@@ -4794,6 +4789,7 @@ error2:
 error1:
 	mlx5_ib_dealloc_pd(devr->p0);
 error0:
+	kfree(devr->p0);
 	return ret;
 }
 
@@ -4809,6 +4805,7 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_xrcd(devr->x1);
 	mlx5_ib_destroy_cq(devr->c0);
 	mlx5_ib_dealloc_pd(devr->p0);
+	kfree(devr->p0);
 
 	/* Make sure no change P_Key work items are still executing */
 	for (port = 0; port < dev->num_ports; ++port)
@@ -5938,6 +5935,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.req_notify_cq = mlx5_ib_arm_cq,
 	.rereg_user_mr = mlx5_ib_rereg_user_mr,
 	.resize_cq = mlx5_ib_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, mlx5_ib_pd, ibpd),
 };
 
 static const struct ib_device_ops mlx5_ib_dev_flow_ipsec_ops = {

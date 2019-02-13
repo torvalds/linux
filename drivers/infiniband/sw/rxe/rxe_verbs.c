@@ -191,23 +191,20 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	return 0;
 }
 
-static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata)
+static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+			struct ib_udata *udata)
 {
-	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_pd *pd;
+	struct rxe_dev *rxe = to_rdev(ibpd->device);
+	struct rxe_pd *pd = to_rpd(ibpd);
 
-	pd = rxe_alloc(&rxe->pd_pool);
-	return pd ? &pd->ibpd : ERR_PTR(-ENOMEM);
+	return rxe_add_to_pool(&rxe->pd_pool, &pd->pelem);
 }
 
-static int rxe_dealloc_pd(struct ib_pd *ibpd)
+static void rxe_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 
 	rxe_drop_ref(pd);
-	return 0;
 }
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
@@ -1183,6 +1180,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.reg_user_mr = rxe_reg_user_mr,
 	.req_notify_cq = rxe_req_notify_cq,
 	.resize_cq = rxe_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 };
 
 int rxe_register_device(struct rxe_dev *rxe)

@@ -1460,6 +1460,9 @@ void ib_cache_release_one(struct ib_device *device)
 {
 	int p;
 
+	if (!device->cache.ports)
+		return;
+
 	/*
 	 * The release function frees all the cache elements.
 	 * This function should be called as part of freeing

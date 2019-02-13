@@ -51,10 +51,9 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 struct net_device *usnic_get_netdev(struct ib_device *device, u8 port_num);
 int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey);
-struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
-				struct ib_ucontext *context,
-				struct ib_udata *udata);
-int usnic_ib_dealloc_pd(struct ib_pd *pd);
+int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		      struct ib_udata *udata);
+void usnic_ib_dealloc_pd(struct ib_pd *pd);
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 					struct ib_qp_init_attr *init_attr,
 					struct ib_udata *udata);

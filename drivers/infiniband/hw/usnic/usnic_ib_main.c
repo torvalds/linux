@@ -352,6 +352,7 @@ static const struct ib_device_ops usnic_dev_ops = {
 	.query_port = usnic_ib_query_port,
 	.query_qp = usnic_ib_query_qp,
 	.reg_user_mr = usnic_ib_reg_mr,
+	INIT_RDMA_OBJ_SIZE(ib_pd, usnic_ib_pd, ibpd),
 };
 
 /* Start of PF discovery section */
@@ -470,15 +471,17 @@ static void usnic_ib_undiscover_pf(struct kref *kref)
 				&usnic_ib_ibdev_list, ib_dev_link) {
 		if (us_ibdev->pdev == dev) {
 			list_del(&us_ibdev->ib_dev_link);
-			usnic_ib_device_remove(us_ibdev);
 			found = true;
 			break;
 		}
 	}
 
-	WARN(!found, "Failed to remove PF %s\n", pci_name(dev));
 
 	mutex_unlock(&usnic_ib_ibdev_list_lock);
+	if (found)
+		usnic_ib_device_remove(us_ibdev);
+	else
+		WARN(1, "Failed to remove PF %s\n", pci_name(dev));
 }
 
 static struct usnic_ib_dev *usnic_ib_discover_pf(struct usnic_vnic *vnic)

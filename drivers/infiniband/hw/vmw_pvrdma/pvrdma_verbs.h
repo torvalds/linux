@@ -399,10 +399,9 @@ int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 struct ib_ucontext *pvrdma_alloc_ucontext(struct ib_device *ibdev,
 					  struct ib_udata *udata);
 int pvrdma_dealloc_ucontext(struct ib_ucontext *context);
-struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata);
-int pvrdma_dealloc_pd(struct ib_pd *ibpd);
+int pvrdma_alloc_pd(struct ib_pd *pd, struct ib_ucontext *context,
+		    struct ib_udata *udata);
+void pvrdma_dealloc_pd(struct ib_pd *ibpd);
 struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				 u64 virt_addr, int access_flags,

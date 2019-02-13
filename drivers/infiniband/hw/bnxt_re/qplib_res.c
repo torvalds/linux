@@ -85,7 +85,7 @@ static void __free_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 		       struct scatterlist *sghead, u32 pages, u32 pg_size)
 {
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	bool is_umem = false;
 	int i;
 
@@ -116,12 +116,13 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 	} else {
 		i = 0;
 		is_umem = true;
-		for_each_sg(sghead, sg, pages, i) {
-			pbl->pg_map_arr[i] = sg_dma_address(sg);
-			pbl->pg_arr[i] = sg_virt(sg);
+		for_each_sg_dma_page (sghead, &sg_iter, pages, 0) {
+			pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
+			pbl->pg_arr[i] = NULL;
 			if (!pbl->pg_arr[i])
 				goto fail;
 
+			i++;
 			pbl->pg_count++;
 		}
 	}

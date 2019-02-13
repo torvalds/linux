@@ -1204,14 +1204,15 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
 	if (err)
-		goto obj_destroy;
+		goto err_copy;
 
 	obj->obj_id = get_enc_obj_id(opcode, obj_id);
 	return 0;
 
-obj_destroy:
+err_copy:
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
 		devx_cleanup_mkey(obj);
+obj_destroy:
 	mlx5_cmd_exec(obj->mdev, obj->dinbox, obj->dinlen, out, sizeof(out));
 obj_free:
 	kfree(obj);

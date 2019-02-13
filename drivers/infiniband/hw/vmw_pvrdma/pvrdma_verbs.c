@@ -438,37 +438,29 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 
 /**
  * pvrdma_alloc_pd - allocate protection domain
- * @ibdev: the IB device
+ * @ibpd: PD pointer
  * @context: user context
  * @udata: user data
  *
  * @return: the ib_pd protection domain pointer on success, otherwise errno.
  */
-struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
+int pvrdma_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+		    struct ib_udata *udata)
 {
-	struct pvrdma_pd *pd;
+	struct ib_device *ibdev = ibpd->device;
+	struct pvrdma_pd *pd = to_vpd(ibpd);
 	struct pvrdma_dev *dev = to_vdev(ibdev);
-	union pvrdma_cmd_req req;
-	union pvrdma_cmd_resp rsp;
+	union pvrdma_cmd_req req = {};
+	union pvrdma_cmd_resp rsp = {};
 	struct pvrdma_cmd_create_pd *cmd = &req.create_pd;
 	struct pvrdma_cmd_create_pd_resp *resp = &rsp.create_pd_resp;
 	struct pvrdma_alloc_pd_resp pd_resp = {0};
 	int ret;
-	void *ptr;
 
 	/* Check allowed max pds */
 	if (!atomic_add_unless(&dev->num_pds, 1, dev->dsr->caps.max_pd))
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		ptr = ERR_PTR(-ENOMEM);
-		goto err;
-	}
-
-	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_CREATE_PD;
 	cmd->ctx_handle = (context) ? to_vucontext(context)->ctx_handle : 0;
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_PD_RESP);
@@ -476,8 +468,7 @@ struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 		dev_warn(&dev->pdev->dev,
 			 "failed to allocate protection domain, error: %d\n",
 			 ret);
-		ptr = ERR_PTR(ret);
-		goto freepd;
+		goto err;
 	}
 
 	pd->privileged = !context;
@@ -490,18 +481,16 @@ struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back protection domain\n");
 			pvrdma_dealloc_pd(&pd->ibpd);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 
 	/* u32 pd handle */
-	return &pd->ibpd;
+	return 0;
 
-freepd:
-	kfree(pd);
 err:
 	atomic_dec(&dev->num_pds);
-	return ptr;
+	return ret;
 }
 
 /**
@@ -510,14 +499,13 @@ err:
  *
  * @return: 0 on success, otherwise errno.
  */
-int pvrdma_dealloc_pd(struct ib_pd *pd)
+void pvrdma_dealloc_pd(struct ib_pd *pd)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
-	union pvrdma_cmd_req req;
+	union pvrdma_cmd_req req = {};
 	struct pvrdma_cmd_destroy_pd *cmd = &req.destroy_pd;
 	int ret;
 
-	memset(cmd, 0, sizeof(*cmd));
 	cmd->hdr.cmd = PVRDMA_CMD_DESTROY_PD;
 	cmd->pd_handle = to_vpd(pd)->pd_handle;
 
@@ -527,10 +515,7 @@ int pvrdma_dealloc_pd(struct ib_pd *pd)
 			 "could not dealloc protection domain, error: %d\n",
 			 ret);
 
-	kfree(to_vpd(pd));
 	atomic_dec(&dev->num_pds);
-
-	return 0;
 }
 
 /**
