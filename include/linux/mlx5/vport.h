@@ -42,6 +42,10 @@ enum {
 	MLX5_CAP_INLINE_MODE_NOT_REQUIRED,
 };
 
+enum {
+	MLX5_VPORT_UPLINK		= 0xffff
+};
+
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				  u16 vport, u8 state);

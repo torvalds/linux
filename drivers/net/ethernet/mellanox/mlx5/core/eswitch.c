@@ -40,8 +40,6 @@
 #include "eswitch.h"
 #include "fs_core.h"
 
-#define UPLINK_VPORT 0xFFFF
-
 enum {
 	MLX5_ACTION_NONE = 0,
 	MLX5_ACTION_ADD  = 1,
@@ -188,7 +186,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 					misc_parameters);
 		mc_misc  = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
 					misc_parameters);
-		MLX5_SET(fte_match_set_misc, mv_misc, source_port, UPLINK_VPORT);
+		MLX5_SET(fte_match_set_misc, mv_misc, source_port, MLX5_VPORT_UPLINK);
 		MLX5_SET_TO_ONES(fte_match_set_misc, mc_misc, source_port);
 	}
 
@@ -499,7 +497,7 @@ static int esw_add_mc_addr(struct mlx5_eswitch *esw, struct vport_addr *vaddr)
 		return -ENOMEM;
 
 	esw_mc->uplink_rule = /* Forward MC MAC to Uplink */
-		esw_fdb_set_vport_rule(esw, mac, UPLINK_VPORT);
+		esw_fdb_set_vport_rule(esw, mac, MLX5_VPORT_UPLINK);
 
 	/* Add this multicast mac to all the mc promiscuous vports */
 	update_allmulti_vports(esw, vaddr, esw_mc);
@@ -736,7 +734,7 @@ static void esw_apply_vport_rx_mode(struct mlx5_eswitch *esw, u16 vport_num,
 		if (!allmulti_addr->uplink_rule)
 			allmulti_addr->uplink_rule =
 				esw_fdb_set_vport_allmulti_rule(esw,
-								UPLINK_VPORT);
+								MLX5_VPORT_UPLINK);
 		allmulti_addr->refcnt++;
 	} else if (vport->allmulti_rule) {
 		mlx5_del_flow_rules(vport->allmulti_rule);

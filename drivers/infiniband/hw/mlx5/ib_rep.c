@@ -3,6 +3,7 @@
  * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
  */
 
+#include <linux/mlx5/vport.h>
 #include "ib_rep.h"
 #include "srq.h"
 
@@ -48,11 +49,10 @@ static const struct mlx5_ib_profile vf_rep_profile = {
 static int
 mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
-#define FDB_UPLINK_VPORT 0xffff
 	const struct mlx5_ib_profile *profile;
 	struct mlx5_ib_dev *ibdev;
 
-	if (rep->vport == FDB_UPLINK_VPORT)
+	if (rep->vport == MLX5_VPORT_UPLINK)
 		profile = &uplink_rep_profile;
 	else
 		profile = &vf_rep_profile;

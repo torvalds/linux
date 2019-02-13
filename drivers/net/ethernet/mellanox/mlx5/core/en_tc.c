@@ -1834,7 +1834,7 @@ static int parse_cls_flower(struct mlx5e_priv *priv,
 
 	if (!err && (flow->flags & MLX5E_TC_FLOW_ESWITCH)) {
 		rep = rpriv->rep;
-		if (rep->vport != FDB_UPLINK_VPORT &&
+		if (rep->vport != MLX5_VPORT_UPLINK &&
 		    (esw->offloads.inline_mode != MLX5_INLINE_MODE_NONE &&
 		    esw->offloads.inline_mode < match_level)) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -2724,7 +2724,7 @@ static struct rhashtable *get_tc_ht(struct mlx5e_priv *priv, int flags)
 static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-	bool is_rep_ingress = attr->in_rep->vport != FDB_UPLINK_VPORT &&
+	bool is_rep_ingress = attr->in_rep->vport != MLX5_VPORT_UPLINK &&
 			      flow->flags & MLX5E_TC_FLOW_INGRESS;
 	bool act_is_encap = !!(attr->action &
 			       MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT);
@@ -2849,7 +2849,7 @@ static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
 	 * original flow and packets redirected from uplink use the
 	 * peer mdev.
 	 */
-	if (flow->esw_attr->in_rep->vport == FDB_UPLINK_VPORT)
+	if (flow->esw_attr->in_rep->vport == MLX5_VPORT_UPLINK)
 		in_mdev = peer_priv->mdev;
 	else
 		in_mdev = priv->mdev;
