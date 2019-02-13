@@ -58,7 +58,7 @@ static int mmc_ocrbitnum_to_vdd(int vdd_bit, int *min_uV, int *max_uV)
  * regulator.  This would normally be called before registering the
  * MMC host adapter.
  */
-int mmc_regulator_get_ocrmask(struct regulator *supply)
+static int mmc_regulator_get_ocrmask(struct regulator *supply)
 {
 	int			result = 0;
 	int			count;
@@ -90,7 +90,6 @@ int mmc_regulator_get_ocrmask(struct regulator *supply)
 
 	return result;
 }
-EXPORT_SYMBOL_GPL(mmc_regulator_get_ocrmask);
 
 /**
  * mmc_regulator_set_ocr - set regulator to match host->ios voltage
