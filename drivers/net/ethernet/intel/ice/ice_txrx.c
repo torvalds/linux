@@ -283,7 +283,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 			continue;
 
 		dma_unmap_page(dev, rx_buf->dma, PAGE_SIZE, DMA_FROM_DEVICE);
-		__free_pages(rx_buf->page, 0);
+		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 
 		rx_buf->page = NULL;
 		rx_buf->page_offset = 0;
@@ -423,6 +423,8 @@ ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 	bi->dma = dma;
 	bi->page = page;
 	bi->page_offset = 0;
+	page_ref_add(page, USHRT_MAX - 1);
+	bi->pagecnt_bias = USHRT_MAX;
 
 	return true;
 }
@@ -509,6 +511,7 @@ static bool ice_page_is_reserved(struct page *page)
 static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf,
 				  unsigned int truesize)
 {
+	unsigned int pagecnt_bias = rx_buf->pagecnt_bias;
 	struct page *page = rx_buf->page;
 
 	/* avoid re-using remote pages */
@@ -517,7 +520,7 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf,
 
 #if (PAGE_SIZE < 8192)
 	/* if we are only owner of page we can reuse it */
-	if (unlikely(page_count(page) != 1))
+	if (unlikely((page_count(page) - pagecnt_bias) > 1))
 		return false;
 
 	/* flip page offset to other buffer */
@@ -530,10 +533,14 @@ static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf,
 		return false;
 #endif /* PAGE_SIZE < 8192) */
 
-	/* Even if we own the page, we are not allowed to use atomic_set()
-	 * This would break get_page_unless_zero() users.
+	/* If we have drained the page fragment pool we need to update
+	 * the pagecnt_bias and page count so that we fully restock the
+	 * number of references the driver holds.
 	 */
-	get_page(page);
+	if (unlikely(pagecnt_bias == 1)) {
+		page_ref_add(page, USHRT_MAX - 1);
+		rx_buf->pagecnt_bias = USHRT_MAX;
+	}
 
 	return true;
 }
@@ -576,11 +583,12 @@ ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* page is not reserved, we can reuse buffer as-is */
-		if (likely(!ice_page_is_reserved(page)))
+		if (likely(!ice_page_is_reserved(page))) {
+			rx_buf->pagecnt_bias++;
 			return true;
+		}
 
 		/* this page cannot be reused so discard it */
-		__free_pages(page, 0);
 		return false;
 	}
 
@@ -650,6 +658,9 @@ ice_get_rx_buf(struct ice_ring *rx_ring, const unsigned int size)
 				      rx_buf->page_offset, size,
 				      DMA_FROM_DEVICE);
 
+	/* We have pulled a buffer for use, so decrement pagecnt_bias */
+	rx_buf->pagecnt_bias--;
+
 	return rx_buf;
 }
 
@@ -703,6 +714,7 @@ ice_fetch_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 		/* we are not reusing the buffer so unmap it */
 		dma_unmap_page(rx_ring->dev, rx_buf->dma, PAGE_SIZE,
 			       DMA_FROM_DEVICE);
+		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
 	}
 
 	/* clear contents of buffer_info */

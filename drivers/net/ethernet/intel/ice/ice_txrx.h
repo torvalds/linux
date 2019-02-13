@@ -73,6 +73,7 @@ struct ice_rx_buf {
 	dma_addr_t dma;
 	struct page *page;
 	unsigned int page_offset;
+	u16 pagecnt_bias;
 };
 
 struct ice_q_stats {
