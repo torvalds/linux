@@ -58,28 +58,28 @@ static inline void copy_mac_addr(unsigned char *des, unsigned char *src)
 	memcpy(des, src, 6);
 }
 
-#define GET_DOT11D_INFO(__pIeeeDev)			\
-	 ((struct rt_dot11d_info *)((__pIeeeDev)->dot11d_info))
+#define GET_DOT11D_INFO(__ieee_dev)			\
+	 ((struct rt_dot11d_info *)((__ieee_dev)->dot11d_info))
 
-#define IS_DOT11D_ENABLE(__pIeeeDev)			\
-	 (GET_DOT11D_INFO(__pIeeeDev)->enabled)
-#define IS_COUNTRY_IE_VALID(__pIeeeDev)			\
-	(GET_DOT11D_INFO(__pIeeeDev)->country_len > 0)
+#define IS_DOT11D_ENABLE(__ieee_dev)			\
+	 (GET_DOT11D_INFO(__ieee_dev)->enabled)
+#define IS_COUNTRY_IE_VALID(__ieee_dev)			\
+	(GET_DOT11D_INFO(__ieee_dev)->country_len > 0)
 
-#define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa)		\
+#define IS_EQUAL_CIE_SRC(__ieee_dev, __address)		\
 	 ether_addr_equal_unaligned( \
-		GET_DOT11D_INFO(__pIeeeDev)->country_src_addr, __pTa)
-#define UPDATE_CIE_SRC(__pIeeeDev, __pTa)		\
-	copy_mac_addr(GET_DOT11D_INFO(__pIeeeDev)->country_src_addr, __pTa)
+		GET_DOT11D_INFO(__ieee_dev)->country_src_addr, __address)
+#define UPDATE_CIE_SRC(__ieee_dev, __address)		\
+	copy_mac_addr(GET_DOT11D_INFO(__ieee_dev)->country_src_addr, __address)
 
-#define GET_CIE_WATCHDOG(__pIeeeDev)				\
-	 (GET_DOT11D_INFO(__pIeeeDev)->country_watchdog)
-static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
+#define GET_CIE_WATCHDOG(__ieee_dev)				\
+	 (GET_DOT11D_INFO(__ieee_dev)->country_watchdog)
+static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__ieee_dev)
 {
-	GET_CIE_WATCHDOG(__pIeeeDev) = 0;
+	GET_CIE_WATCHDOG(__ieee_dev) = 0;
 }
 
-#define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
+#define UPDATE_CIE_WATCHDOG(__ieee_dev) (++GET_CIE_WATCHDOG(__ieee_dev))
 
 void dot11d_init(struct rtllib_device *dev);
 void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee);
