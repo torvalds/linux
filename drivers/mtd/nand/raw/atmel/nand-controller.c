@@ -65,6 +65,7 @@
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <soc/at91/atmel-sfr.h>
 
 #include "pmecc.h"
 
@@ -232,10 +233,15 @@ to_nand_controller(struct nand_controller *ctl)
 	return container_of(ctl, struct atmel_nand_controller, base);
 }
 
+struct atmel_smc_nand_ebi_csa_cfg {
+	u32 offs;
+	u32 nfd0_on_d16;
+};
+
 struct atmel_smc_nand_controller {
 	struct atmel_nand_controller base;
 	struct regmap *ebi_csa_regmap;
-	unsigned int ebi_csa_offs;
+	struct atmel_smc_nand_ebi_csa_cfg *ebi_csa;
 };
 
 static inline struct atmel_smc_nand_controller *
@@ -1513,8 +1519,15 @@ static void atmel_smc_nand_init(struct atmel_nand_controller *nc,
 
 	/* Attach the CS to the NAND Flash logic. */
 	for (i = 0; i < nand->numcs; i++)
-		regmap_update_bits(smc_nc->ebi_csa_regmap, smc_nc->ebi_csa_offs,
+		regmap_update_bits(smc_nc->ebi_csa_regmap,
+				   smc_nc->ebi_csa->offs,
 				   BIT(nand->cs[i].id), BIT(nand->cs[i].id));
+
+	if (smc_nc->ebi_csa->nfd0_on_d16)
+		regmap_update_bits(smc_nc->ebi_csa_regmap,
+				   smc_nc->ebi_csa->offs,
+				   smc_nc->ebi_csa->nfd0_on_d16,
+				   smc_nc->ebi_csa->nfd0_on_d16);
 }
 
 static void atmel_hsmc_nand_init(struct atmel_nand_controller *nc,
@@ -1834,34 +1847,71 @@ static void atmel_nand_controller_cleanup(struct atmel_nand_controller *nc)
 	clk_put(nc->mck);
 }
 
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9260_ebi_csa = {
+	.offs = AT91SAM9260_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9261_ebi_csa = {
+	.offs = AT91SAM9261_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9263_ebi_csa = {
+	.offs = AT91SAM9263_MATRIX_EBI0CSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9rl_ebi_csa = {
+	.offs = AT91SAM9RL_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9g45_ebi_csa = {
+	.offs = AT91SAM9G45_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9n12_ebi_csa = {
+	.offs = AT91SAM9N12_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg at91sam9x5_ebi_csa = {
+	.offs = AT91SAM9X5_MATRIX_EBICSA,
+};
+
+static const struct atmel_smc_nand_ebi_csa_cfg sam9x60_ebi_csa = {
+	.offs = AT91_SFR_CCFG_EBICSA,
+	.nfd0_on_d16 = AT91_SFR_CCFG_NFD0_ON_D16,
+};
+
 static const struct of_device_id atmel_ebi_csa_regmap_of_ids[] = {
 	{
 		.compatible = "atmel,at91sam9260-matrix",
-		.data = (void *)AT91SAM9260_MATRIX_EBICSA,
+		.data = &at91sam9260_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9261-matrix",
-		.data = (void *)AT91SAM9261_MATRIX_EBICSA,
+		.data = &at91sam9261_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9263-matrix",
-		.data = (void *)AT91SAM9263_MATRIX_EBI0CSA,
+		.data = &at91sam9263_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9rl-matrix",
-		.data = (void *)AT91SAM9RL_MATRIX_EBICSA,
+		.data = &at91sam9rl_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9g45-matrix",
-		.data = (void *)AT91SAM9G45_MATRIX_EBICSA,
+		.data = &at91sam9g45_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9n12-matrix",
-		.data = (void *)AT91SAM9N12_MATRIX_EBICSA,
+		.data = &at91sam9n12_ebi_csa,
 	},
 	{
 		.compatible = "atmel,at91sam9x5-matrix",
-		.data = (void *)AT91SAM9X5_MATRIX_EBICSA,
+		.data = &at91sam9x5_ebi_csa,
+	},
+	{
+		.compatible = "microchip,sam9x60-sfr",
+		.data = &sam9x60_ebi_csa,
 	},
 	{ /* sentinel */ },
 };
@@ -2006,15 +2056,15 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 		return ret;
 	}
 
-	nc->ebi_csa_offs = (uintptr_t)match->data;
+	nc->ebi_csa = (struct atmel_smc_nand_ebi_csa_cfg *)match->data;
 
 	/*
 	 * The at91sam9263 has 2 EBIs, if the NAND controller is under EBI1
-	 * add 4 to ->ebi_csa_offs.
+	 * add 4 to ->ebi_csa->offs.
 	 */
 	if (of_device_is_compatible(dev->parent->of_node,
 				    "atmel,at91sam9263-ebi1"))
-		nc->ebi_csa_offs += 4;
+		nc->ebi_csa->offs += 4;
 
 	return 0;
 }
@@ -2377,6 +2427,14 @@ static const struct atmel_nand_controller_caps atmel_sam9g45_nc_caps = {
 	.ops = &atmel_smc_nc_ops,
 };
 
+static const struct atmel_nand_controller_caps microchip_sam9x60_nc_caps = {
+	.has_dma = true,
+	.ale_offs = BIT(21),
+	.cle_offs = BIT(22),
+	.ebi_csa_regmap_name = "microchip,sfr",
+	.ops = &atmel_smc_nc_ops,
+};
+
 /* Only used to parse old bindings. */
 static const struct atmel_nand_controller_caps atmel_rm9200_nand_caps = {
 	.ale_offs = BIT(21),
@@ -2420,6 +2478,10 @@ static const struct of_device_id atmel_nand_controller_of_ids[] = {
 	{
 		.compatible = "atmel,sama5d3-nand-controller",
 		.data = &atmel_sama5_nc_caps,
+	},
+	{
+		.compatible = "microchip,sam9x60-nand-controller",
+		.data = &microchip_sam9x60_nc_caps,
 	},
 	/* Support for old/deprecated bindings: */
 	{
