@@ -6386,7 +6386,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_delay_drop_cleanup),
 };
 
-static const struct mlx5_ib_profile nic_rep_profile = {
+const struct mlx5_ib_profile uplink_rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_INIT,
 		     mlx5_ib_stage_init_init,
 		     mlx5_ib_stage_init_cleanup),
@@ -6479,6 +6479,12 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	printk_once(KERN_INFO "%s", mlx5_version);
 
+	if (MLX5_ESWITCH_MANAGER(mdev) &&
+	    mlx5_ib_eswitch_mode(mdev->priv.eswitch) == SRIOV_OFFLOADS) {
+		mlx5_ib_register_vport_reps(mdev);
+		return mdev;
+	}
+
 	port_type_cap = MLX5_CAP_GEN(mdev, port_type);
 	ll = mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 
@@ -6493,14 +6499,6 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->num_ports = max(MLX5_CAP_GEN(mdev, num_ports),
 			     MLX5_CAP_GEN(mdev, num_vhca_ports));
 
-	if (MLX5_ESWITCH_MANAGER(mdev) &&
-	    mlx5_ib_eswitch_mode(mdev->priv.eswitch) == SRIOV_OFFLOADS) {
-		dev->rep = mlx5_ib_vport_rep(mdev->priv.eswitch, 0);
-		dev->profile = &nic_rep_profile;
-		mlx5_ib_register_vport_reps(dev);
-		return dev;
-	}
-
 	return __mlx5_ib_add(dev, &pf_profile);
 }
 
@@ -6508,6 +6506,11 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 {
 	struct mlx5_ib_multiport_info *mpi;
 	struct mlx5_ib_dev *dev;
+
+	if (MLX5_ESWITCH_MANAGER(mdev) && context == mdev) {
+		mlx5_ib_unregister_vport_reps(mdev);
+		return;
+	}
 
 	if (mlx5_core_is_mp_slave(mdev)) {
 		mpi = context;
@@ -6520,10 +6523,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	}
 
 	dev = context;
-	if (dev->profile == &nic_rep_profile)
-		mlx5_ib_unregister_vport_reps(dev);
-	else
-		__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
+	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
 
 	ib_dealloc_device((struct ib_device *)dev);
 }
