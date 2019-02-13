@@ -27,6 +27,7 @@
 #define LOG_INODE_ALL 0
 #define LOG_INODE_EXISTS 1
 #define LOG_OTHER_INODE 2
+#define LOG_OTHER_INODE_ALL 3
 
 /*
  * directory trouble cases
@@ -4777,7 +4778,7 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 					 const int slot,
 					 const struct btrfs_key *key,
 					 struct btrfs_inode *inode,
-					 u64 *other_ino)
+					 u64 *other_ino, u64 *other_parent)
 {
 	int ret;
 	struct btrfs_path *search_path;
@@ -4843,6 +4844,7 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 				if (di_key.objectid != key->objectid) {
 					ret = 1;
 					*other_ino = di_key.objectid;
+					*other_parent = parent;
 				} else {
 					ret = 0;
 				}
@@ -4867,6 +4869,7 @@ out:
 
 struct btrfs_ino_list {
 	u64 ino;
+	u64 parent;
 	struct list_head list;
 };
 
@@ -4874,7 +4877,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct btrfs_path *path,
 				  struct btrfs_log_ctx *ctx,
-				  u64 ino)
+				  u64 ino, u64 parent)
 {
 	struct btrfs_ino_list *ino_elem;
 	LIST_HEAD(inode_list);
@@ -4884,6 +4887,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 	if (!ino_elem)
 		return -ENOMEM;
 	ino_elem->ino = ino;
+	ino_elem->parent = parent;
 	list_add_tail(&ino_elem->list, &inode_list);
 
 	while (!list_empty(&inode_list)) {
@@ -4894,6 +4898,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 		ino_elem = list_first_entry(&inode_list, struct btrfs_ino_list,
 					    list);
 		ino = ino_elem->ino;
+		parent = ino_elem->parent;
 		list_del(&ino_elem->list);
 		kfree(ino_elem);
 		if (ret)
@@ -4907,13 +4912,25 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 		inode = btrfs_iget(fs_info->sb, &key, root, NULL);
 		/*
 		 * If the other inode that had a conflicting dir entry was
-		 * deleted in the current transaction, we don't need to do more
-		 * work nor fallback to a transaction commit.
+		 * deleted in the current transaction, we need to log its parent
+		 * directory.
 		 */
 		if (IS_ERR(inode)) {
 			ret = PTR_ERR(inode);
-			if (ret == -ENOENT)
-				ret = 0;
+			if (ret == -ENOENT) {
+				key.objectid = parent;
+				inode = btrfs_iget(fs_info->sb, &key, root,
+						   NULL);
+				if (IS_ERR(inode)) {
+					ret = PTR_ERR(inode);
+				} else {
+					ret = btrfs_log_inode(trans, root,
+						      BTRFS_I(inode),
+						      LOG_OTHER_INODE_ALL,
+						      0, LLONG_MAX, ctx);
+					iput(inode);
+				}
+			}
 			continue;
 		}
 		/*
@@ -4943,6 +4960,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			struct extent_buffer *leaf = path->nodes[0];
 			int slot = path->slots[0];
 			u64 other_ino = 0;
+			u64 other_parent = 0;
 
 			if (slot >= btrfs_header_nritems(leaf)) {
 				ret = btrfs_next_leaf(root, path);
@@ -4964,7 +4982,8 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 			}
 
 			ret = btrfs_check_ref_name_override(leaf, slot, &key,
-					BTRFS_I(inode), &other_ino);
+					BTRFS_I(inode), &other_ino,
+					&other_parent);
 			if (ret < 0)
 				break;
 			if (ret > 0) {
@@ -4974,6 +4993,7 @@ static int log_conflicting_inodes(struct btrfs_trans_handle *trans,
 					break;
 				}
 				ino_elem->ino = other_ino;
+				ino_elem->parent = other_parent;
 				list_add_tail(&ino_elem->list, &inode_list);
 				ret = 0;
 			}
@@ -5024,7 +5044,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	u64 logged_isize = 0;
 	bool need_log_inode_item = true;
 	bool xattrs_logged = false;
-	bool recursive_logging = (inode_only == LOG_OTHER_INODE);
+	bool recursive_logging = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5070,8 +5090,12 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (inode_only == LOG_OTHER_INODE) {
-		inode_only = LOG_INODE_EXISTS;
+	if (inode_only == LOG_OTHER_INODE || inode_only == LOG_OTHER_INODE_ALL) {
+		recursive_logging = true;
+		if (inode_only == LOG_OTHER_INODE)
+			inode_only = LOG_INODE_EXISTS;
+		else
+			inode_only = LOG_INODE_ALL;
 		mutex_lock_nested(&inode->log_mutex, SINGLE_DEPTH_NESTING);
 	} else {
 		mutex_lock(&inode->log_mutex);
@@ -5169,10 +5193,11 @@ again:
 		    inode->generation == trans->transid &&
 		    !recursive_logging) {
 			u64 other_ino = 0;
+			u64 other_parent = 0;
 
 			ret = btrfs_check_ref_name_override(path->nodes[0],
 					path->slots[0], &min_key, inode,
-					&other_ino);
+					&other_ino, &other_parent);
 			if (ret < 0) {
 				err = ret;
 				goto out_unlock;
@@ -5195,7 +5220,7 @@ again:
 				ins_nr = 0;
 
 				err = log_conflicting_inodes(trans, root, path,
-							     ctx, other_ino);
+						ctx, other_ino, other_parent);
 				if (err)
 					goto out_unlock;
 				btrfs_release_path(path);
