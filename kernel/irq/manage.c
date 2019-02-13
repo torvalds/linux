@@ -2427,8 +2427,8 @@ EXPORT_SYMBOL_GPL(__request_percpu_irq);
  *	@dev_id: A percpu cookie passed back to the handler function
  *
  *	This call allocates interrupt resources for a per CPU NMI. Per CPU NMIs
- *	have to be setup on each CPU by calling ready_percpu_nmi() before being
- *	enabled on the same CPU by using enable_percpu_nmi().
+ *	have to be setup on each CPU by calling prepare_percpu_nmi() before
+ *	being enabled on the same CPU by using enable_percpu_nmi().
  *
  *	Dev_id must be globally unique. It is a per-cpu variable, and
  *	the handler gets called with the interrupted CPU's instance of
