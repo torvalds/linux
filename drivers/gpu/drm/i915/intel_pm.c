@@ -5053,11 +5053,12 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 {
 	u32 val = 0;
 
-	if (level->plane_en) {
+	if (level->plane_en)
 		val |= PLANE_WM_EN;
-		val |= level->plane_res_b;
-		val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
-	}
+	if (level->ignore_lines)
+		val |= PLANE_WM_IGNORE_LINES;
+	val |= level->plane_res_b;
+	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
 
 	I915_WRITE_FW(reg, val);
 }
@@ -5123,6 +5124,7 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2)
 {
 	return l1->plane_en == l2->plane_en &&
+		l1->ignore_lines == l2->ignore_lines &&
 		l1->plane_res_l == l2->plane_res_l &&
 		l1->plane_res_b == l2->plane_res_b;
 }
@@ -5331,19 +5333,28 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 				      enast(new_wm->wm[6].plane_en), enast(new_wm->wm[7].plane_en),
 				      enast(new_wm->trans_wm.plane_en));
 
-			DRM_DEBUG_KMS("[PLANE:%d:%s]   lines %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
-				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
+			DRM_DEBUG_KMS("[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d"
+				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d\n",
 				      plane->base.base.id, plane->base.name,
-				      old_wm->wm[0].plane_res_l, old_wm->wm[1].plane_res_l,
-				      old_wm->wm[2].plane_res_l, old_wm->wm[3].plane_res_l,
-				      old_wm->wm[4].plane_res_l, old_wm->wm[5].plane_res_l,
-				      old_wm->wm[6].plane_res_l, old_wm->wm[7].plane_res_l,
-				      old_wm->trans_wm.plane_res_l,
-				      new_wm->wm[0].plane_res_l, new_wm->wm[1].plane_res_l,
-				      new_wm->wm[2].plane_res_l, new_wm->wm[3].plane_res_l,
-				      new_wm->wm[4].plane_res_l, new_wm->wm[5].plane_res_l,
-				      new_wm->wm[6].plane_res_l, new_wm->wm[7].plane_res_l,
-				      new_wm->trans_wm.plane_res_l);
+				      enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].plane_res_l,
+				      enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].plane_res_l,
+				      enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].plane_res_l,
+				      enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].plane_res_l,
+				      enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].plane_res_l,
+				      enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].plane_res_l,
+				      enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].plane_res_l,
+				      enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].plane_res_l,
+				      enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.plane_res_l,
+
+				      enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].plane_res_l,
+				      enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].plane_res_l,
+				      enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].plane_res_l,
+				      enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].plane_res_l,
+				      enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].plane_res_l,
+				      enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].plane_res_l,
+				      enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].plane_res_l,
+				      enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].plane_res_l,
+				      enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.plane_res_l);
 
 			DRM_DEBUG_KMS("[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
 				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
@@ -5686,6 +5697,7 @@ static inline void skl_wm_level_from_reg_val(u32 val,
 					     struct skl_wm_level *level)
 {
 	level->plane_en = val & PLANE_WM_EN;
+	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
 	level->plane_res_b = val & PLANE_WM_BLOCKS_MASK;
 	level->plane_res_l = (val >> PLANE_WM_LINES_SHIFT) &
 		PLANE_WM_LINES_MASK;
