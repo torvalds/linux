@@ -757,33 +757,6 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
-/**
- *	mmc_align_data_size - pads a transfer size to a more optimal value
- *	@card: the MMC card associated with the data transfer
- *	@sz: original transfer size
- *
- *	Pads the original data size with a number of extra bytes in
- *	order to avoid controller bugs and/or performance hits
- *	(e.g. some controllers revert to PIO for certain sizes).
- *
- *	Returns the improved size, which might be unmodified.
- *
- *	Note that this function is only relevant when issuing a
- *	single scatter gather entry.
- */
-unsigned int mmc_align_data_size(struct mmc_card *card, unsigned int sz)
-{
-	/*
-	 * FIXME: We don't have a system for the controller to tell
-	 * the core about its problems yet, so for now we just 32-bit
-	 * align the size.
-	 */
-	sz = ((sz + 3) / 4) * 4;
-
-	return sz;
-}
-EXPORT_SYMBOL(mmc_align_data_size);
-
 /*
  * Allow claiming an already claimed host if the context is the same or there is
  * no context but the task is the same.
