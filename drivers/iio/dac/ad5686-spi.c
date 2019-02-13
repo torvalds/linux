@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AD5672R, AD5674R, AD5676, AD5676R, AD5679R,
  * AD5681R, AD5682R, AD5683, AD5683R, AD5684,

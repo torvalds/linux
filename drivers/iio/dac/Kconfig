@@ -375,6 +375,16 @@ config TI_DAC7311
 
 	  If compiled as a module, it will be called ti-dac7311.
 
+config TI_DAC7612
+	tristate "Texas Instruments 12-bit 2-channel DAC driver"
+	depends on SPI_MASTER && GPIOLIB
+	help
+	  Driver for the Texas Instruments DAC7612, DAC7612U, DAC7612UB
+	  The driver hand drive the load pin automatically, otherwise
+	  it needs to be toggled manually.
+
+	  If compiled as a module, it will be called ti-dac7612.
+
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
 	depends on OF
