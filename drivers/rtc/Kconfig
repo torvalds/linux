@@ -1835,8 +1835,7 @@ comment "HID Sensor RTC drivers"
 config RTC_DRV_HID_SENSOR_TIME
 	tristate "HID Sensor Time"
 	depends on USB_HID
-	select IIO
-	select HID_SENSOR_HUB
+	depends on HID_SENSOR_HUB && IIO
 	select HID_SENSOR_IIO_COMMON
 	help
 	  Say yes here to build support for the HID Sensors of type Time.
