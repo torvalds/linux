@@ -2186,7 +2186,6 @@ struct ib_port_cache {
 struct ib_cache {
 	rwlock_t                lock;
 	struct ib_event_handler event_handler;
-	struct ib_port_cache   *ports;
 };
 
 struct iw_cm_verbs;
@@ -2203,6 +2202,8 @@ struct ib_port_data {
 
 	spinlock_t pkey_list_lock;
 	struct list_head pkey_list;
+
+	struct ib_port_cache cache;
 };
 
 /* rdma netdev type - specifies protocol type */
