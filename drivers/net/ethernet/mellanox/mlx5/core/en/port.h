@@ -36,6 +36,18 @@
 #include <linux/mlx5/driver.h>
 #include "en.h"
 
+struct mlx5e_port_eth_proto {
+	u32 cap;
+	u32 admin;
+	u32 oper;
+};
+
+int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port,
+			      struct mlx5e_port_eth_proto *eproto);
+void mlx5_port_query_eth_autoneg(struct mlx5_core_dev *dev, u8 *an_status,
+				 u8 *an_disable_cap, u8 *an_disable_admin);
+int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
+			   u32 proto_admin);
 u32 mlx5e_port_ptys2speed(u32 eth_proto_oper);
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);

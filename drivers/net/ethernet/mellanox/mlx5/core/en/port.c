@@ -63,6 +63,67 @@ static const u32 mlx5e_link_speed[MLX5E_LINK_MODES_NUMBER] = {
 	[MLX5E_50GBASE_KR2]       = 50000,
 };
 
+int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port,
+			      struct mlx5e_port_eth_proto *eproto)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	if (!eproto)
+		return -EINVAL;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, port);
+	if (err)
+		return err;
+
+	eproto->cap   = MLX5_GET(ptys_reg, out, eth_proto_capability);
+	eproto->admin = MLX5_GET(ptys_reg, out, eth_proto_admin);
+	eproto->oper  = MLX5_GET(ptys_reg, out, eth_proto_oper);
+	return 0;
+}
+
+void mlx5_port_query_eth_autoneg(struct mlx5_core_dev *dev, u8 *an_status,
+				 u8 *an_disable_cap, u8 *an_disable_admin)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+
+	*an_status = 0;
+	*an_disable_cap = 0;
+	*an_disable_admin = 0;
+
+	if (mlx5_query_port_ptys(dev, out, sizeof(out), MLX5_PTYS_EN, 1))
+		return;
+
+	*an_status = MLX5_GET(ptys_reg, out, an_status);
+	*an_disable_cap = MLX5_GET(ptys_reg, out, an_disable_cap);
+	*an_disable_admin = MLX5_GET(ptys_reg, out, an_disable_admin);
+}
+
+int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
+			   u32 proto_admin)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
+	u8 an_disable_admin;
+	u8 an_disable_cap;
+	u8 an_status;
+
+	mlx5_port_query_eth_autoneg(dev, &an_status, &an_disable_cap,
+				    &an_disable_admin);
+	if (!an_disable_cap && an_disable)
+		return -EPERM;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, an_disable_admin, an_disable);
+	MLX5_SET(ptys_reg, in, proto_mask, MLX5_PTYS_EN);
+	MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
+
+	return mlx5_core_access_reg(dev, in, sizeof(in), out,
+			    sizeof(out), MLX5_REG_PTYS, 0, 1);
+}
+
 u32 mlx5e_port_ptys2speed(u32 eth_proto_oper)
 {
 	unsigned long temp = eth_proto_oper;
@@ -78,16 +139,14 @@ u32 mlx5e_port_ptys2speed(u32 eth_proto_oper)
 
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
-	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
-	u32 eth_proto_oper;
+	struct mlx5e_port_eth_proto eproto;
 	int err;
 
-	err = mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1);
+	err = mlx5_port_query_eth_proto(mdev, 1, &eproto);
 	if (err)
 		return err;
 
-	eth_proto_oper = MLX5_GET(ptys_reg, out, eth_proto_oper);
-	*speed = mlx5e_port_ptys2speed(eth_proto_oper);
+	*speed = mlx5e_port_ptys2speed(eproto.oper);
 	if (!(*speed))
 		err = -EINVAL;
 
@@ -96,17 +155,17 @@ int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 
 int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
+	struct mlx5e_port_eth_proto eproto;
 	u32 max_speed = 0;
-	u32 proto_cap;
 	int err;
 	int i;
 
-	err = mlx5_query_port_proto_cap(mdev, &proto_cap, MLX5_PTYS_EN);
+	err = mlx5_port_query_eth_proto(mdev, 1, &eproto);
 	if (err)
 		return err;
 
 	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i)
-		if (proto_cap & MLX5E_PROT_MASK(i))
+		if (eproto.cap & MLX5E_PROT_MASK(i))
 			max_speed = max(max_speed, mlx5e_link_speed[i]);
 
 	*speed = max_speed;
