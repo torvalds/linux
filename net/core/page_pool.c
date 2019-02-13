@@ -141,9 +141,9 @@ static struct page *__page_pool_alloc_pages_slow(struct page_pool *pool,
 	 * into page private data (i.e 32bit cpu with 64bit DMA caps)
 	 * This mapping is kept for lifetime of page, until leaving pool.
 	 */
-	dma = dma_map_page(pool->p.dev, page, 0,
-			   (PAGE_SIZE << pool->p.order),
-			   pool->p.dma_dir);
+	dma = dma_map_page_attrs(pool->p.dev, page, 0,
+				 (PAGE_SIZE << pool->p.order),
+				 pool->p.dma_dir, DMA_ATTR_SKIP_CPU_SYNC);
 	if (dma_mapping_error(pool->p.dev, dma)) {
 		put_page(page);
 		return NULL;
@@ -184,8 +184,9 @@ static void __page_pool_clean_page(struct page_pool *pool,
 
 	dma = page->dma_addr;
 	/* DMA unmap */
-	dma_unmap_page(pool->p.dev, dma,
-		       PAGE_SIZE << pool->p.order, pool->p.dma_dir);
+	dma_unmap_page_attrs(pool->p.dev, dma,
+			     PAGE_SIZE << pool->p.order, pool->p.dma_dir,
+			     DMA_ATTR_SKIP_CPU_SYNC);
 	page->dma_addr = 0;
 }
 
