@@ -3983,11 +3983,7 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_bbp_write(rt2x00dev, 196, reg);
 
 		/* AGC init */
-		if (rt2x00_rt(rt2x00dev, RT6352))
-			reg = 0x04;
-		else
-			reg = rf->channel <= 14 ? 0x1c : 0x24;
-
+		reg = rf->channel <= 14 ? 0x1c : 0x24;
 		reg += 2 * rt2x00dev->lna_gain;
 		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
 
