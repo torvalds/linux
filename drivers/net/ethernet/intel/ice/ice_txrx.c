@@ -497,6 +497,48 @@ static bool ice_page_is_reserved(struct page *page)
 }
 
 /**
+ * ice_can_reuse_rx_page - Determine if page can be reused for another Rx
+ * @rx_buf: buffer containing the page
+ * @truesize: the offset that needs to be applied to page
+ *
+ * If page is reusable, we have a green light for calling ice_reuse_rx_page,
+ * which will assign the current buffer to the buffer that next_to_alloc is
+ * pointing to; otherwise, the DMA mapping needs to be destroyed and
+ * page freed
+ */
+static bool ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf,
+				  unsigned int truesize)
+{
+	struct page *page = rx_buf->page;
+
+	/* avoid re-using remote pages */
+	if (unlikely(ice_page_is_reserved(page)))
+		return false;
+
+#if (PAGE_SIZE < 8192)
+	/* if we are only owner of page we can reuse it */
+	if (unlikely(page_count(page) != 1))
+		return false;
+
+	/* flip page offset to other buffer */
+	rx_buf->page_offset ^= truesize;
+#else
+	/* move offset up to the next cache line */
+	rx_buf->page_offset += truesize;
+
+	if (rx_buf->page_offset > PAGE_SIZE - ICE_RXBUF_2048)
+		return false;
+#endif /* PAGE_SIZE < 8192) */
+
+	/* Even if we own the page, we are not allowed to use atomic_set()
+	 * This would break get_page_unless_zero() users.
+	 */
+	get_page(page);
+
+	return true;
+}
+
+/**
  * ice_add_rx_frag - Add contents of Rx buffer to sk_buff
  * @rx_buf: buffer containing page to add
  * @skb: sk_buf to place the data into
@@ -517,17 +559,9 @@ ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ICE_RXBUF_2048;
 #else
-	unsigned int last_offset = PAGE_SIZE - ICE_RXBUF_2048;
-	unsigned int truesize;
+	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
 #endif /* PAGE_SIZE < 8192) */
-
-	struct page *page;
-
-	page = rx_buf->page;
-
-#if (PAGE_SIZE >= 8192)
-	truesize = ALIGN(size, L1_CACHE_BYTES);
-#endif /* PAGE_SIZE >= 8192) */
+	struct page *page = rx_buf->page;
 
 	/* will the data fit in the skb we allocated? if so, just
 	 * copy it as it is pretty small anyway
@@ -549,31 +583,7 @@ ice_add_rx_frag(struct ice_rx_buf *rx_buf, struct sk_buff *skb,
 	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
 			rx_buf->page_offset, size, truesize);
 
-	/* avoid re-using remote pages */
-	if (unlikely(ice_page_is_reserved(page)))
-		return false;
-
-#if (PAGE_SIZE < 8192)
-	/* if we are only owner of page we can reuse it */
-	if (unlikely(page_count(page) != 1))
-		return false;
-
-	/* flip page offset to other buffer */
-	rx_buf->page_offset ^= truesize;
-#else
-	/* move offset up to the next cache line */
-	rx_buf->page_offset += truesize;
-
-	if (rx_buf->page_offset > last_offset)
-		return false;
-#endif /* PAGE_SIZE < 8192) */
-
-	/* Even if we own the page, we are not allowed to use atomic_set()
-	 * This would break get_page_unless_zero() users.
-	 */
-	get_page(rx_buf->page);
-
-	return true;
+	return ice_can_reuse_rx_page(rx_buf, truesize);
 }
 
 /**
