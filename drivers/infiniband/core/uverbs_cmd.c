@@ -440,6 +440,7 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 
 err_copy:
 	ib_dealloc_pd(pd);
+	pd = NULL;
 err_alloc:
 	kfree(pd);
 err:
