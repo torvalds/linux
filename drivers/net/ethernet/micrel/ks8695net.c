@@ -391,7 +391,7 @@ ks8695_tx_irq(int irq, void *dev_id)
 					 ksp->tx_buffers[buff_n].dma_ptr,
 					 ksp->tx_buffers[buff_n].length,
 					 DMA_TO_DEVICE);
-			dev_kfree_skb_irq(ksp->tx_buffers[buff_n].skb);
+			dev_consume_skb_irq(ksp->tx_buffers[buff_n].skb);
 			ksp->tx_buffers[buff_n].skb = NULL;
 			ksp->tx_ring_used--;
 		}
