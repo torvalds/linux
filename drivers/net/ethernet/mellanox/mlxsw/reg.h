@@ -7875,6 +7875,35 @@ static inline void mlxsw_reg_mfsl_unpack(char *payload, u8 tacho,
 		*p_tach_max = mlxsw_reg_mfsl_tach_max_get(payload);
 }
 
+/* FORE - Fan Out of Range Event Register
+ * --------------------------------------
+ * This register reports the status of the controlled fans compared to the
+ * range defined by the MFSL register.
+ */
+#define MLXSW_REG_FORE_ID 0x9007
+#define MLXSW_REG_FORE_LEN 0x0C
+
+MLXSW_REG_DEFINE(fore, MLXSW_REG_FORE_ID, MLXSW_REG_FORE_LEN);
+
+/* fan_under_limit
+ * Fan speed is below the low limit defined in MFSL register. Each bit relates
+ * to a single tachometer and indicates the specific tachometer reading is
+ * below the threshold.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, fore, fan_under_limit, 0x00, 16, 10);
+
+static inline void mlxsw_reg_fore_unpack(char *payload, u8 tacho,
+					 bool *fault)
+{
+	u16 limit;
+
+	if (fault) {
+		limit = mlxsw_reg_fore_fan_under_limit_get(payload);
+		*fault = limit & BIT(tacho);
+	}
+}
+
 /* MTCAP - Management Temperature Capabilities
  * -------------------------------------------
  * This register exposes the capabilities of the device and
@@ -9851,6 +9880,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mfsc),
 	MLXSW_REG(mfsm),
 	MLXSW_REG(mfsl),
+	MLXSW_REG(fore),
 	MLXSW_REG(mtcap),
 	MLXSW_REG(mtmp),
 	MLXSW_REG(mtbr),
