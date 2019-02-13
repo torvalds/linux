@@ -1638,7 +1638,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-		err = esw_offloads_init(esw, nvfs + 1);
+		err = esw_offloads_init(esw, nvfs + MLX5_SPECIAL_VPORTS);
 	}
 
 	if (err)

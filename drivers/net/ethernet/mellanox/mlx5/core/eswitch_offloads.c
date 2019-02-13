@@ -46,6 +46,11 @@ enum {
 	FDB_SLOW_PATH
 };
 
+/* There are two match-all miss flows, one for unicast dst mac and
+ * one for multicast.
+ */
+#define MLX5_ESW_MISS_FLOWS (2)
+
 #define fdb_prio_table(esw, chain, prio, level) \
 	(esw)->fdb_table.offloads.fdb_prio[(chain)][(prio)][(level)]
 
@@ -904,8 +909,8 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 		esw->fdb_table.offloads.fdb_left[i] =
 			ESW_POOLS[i] <= fdb_max ? ESW_SIZE / ESW_POOLS[i] : 0;
 
-	table_size = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ + 2 +
-		esw->total_vports;
+	table_size = nvports * MAX_SQ_NVPORTS + MAX_PF_SQ +
+		MLX5_ESW_MISS_FLOWS + esw->total_vports;
 
 	/* create the slow path fdb with encap set, so further table instances
 	 * can be created at run time while VFs are probed if the FW allows that.
@@ -999,7 +1004,8 @@ static int esw_create_offloads_fdb_tables(struct mlx5_eswitch *esw, int nvports)
 	dmac[0] = 0x01;
 
 	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, ix);
-	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, ix + 2);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index,
+		 ix + MLX5_ESW_MISS_FLOWS);
 
 	g = mlx5_create_flow_group(fdb, flow_group_in);
 	if (IS_ERR(g)) {
@@ -1048,7 +1054,7 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_fast_fdb_tables(esw);
 }
 
-static int esw_create_offloads_table(struct mlx5_eswitch *esw)
+static int esw_create_offloads_table(struct mlx5_eswitch *esw, int nvports)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1062,7 +1068,7 @@ static int esw_create_offloads_table(struct mlx5_eswitch *esw)
 		return -EOPNOTSUPP;
 	}
 
-	ft_attr.max_fte = dev->priv.sriov.num_vfs + 2;
+	ft_attr.max_fte = nvports + MLX5_ESW_MISS_FLOWS;
 
 	ft_offloads = mlx5_create_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft_offloads)) {
@@ -1082,16 +1088,15 @@ static void esw_destroy_offloads_table(struct mlx5_eswitch *esw)
 	mlx5_destroy_flow_table(offloads->ft_offloads);
 }
 
-static int esw_create_vport_rx_group(struct mlx5_eswitch *esw)
+static int esw_create_vport_rx_group(struct mlx5_eswitch *esw, int nvports)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *g;
-	struct mlx5_priv *priv = &esw->dev->priv;
 	u32 *flow_group_in;
 	void *match_criteria, *misc;
 	int err = 0;
-	int nvports = priv->sriov.num_vfs + 2;
 
+	nvports = nvports + MLX5_ESW_MISS_FLOWS;
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
@@ -1407,11 +1412,11 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		return err;
 
-	err = esw_create_offloads_table(esw);
+	err = esw_create_offloads_table(esw, nvports);
 	if (err)
 		goto create_ft_err;
 
-	err = esw_create_vport_rx_group(esw);
+	err = esw_create_vport_rx_group(esw, nvports);
 	if (err)
 		goto create_fg_err;
 

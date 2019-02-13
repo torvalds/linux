@@ -36,7 +36,9 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
 
-#define MLX5_TOTAL_VPORTS(mdev)	(1 + mlx5_core_max_vfs(mdev))
+#define MLX5_VPORT_PF_PLACEHOLDER (1u)
+#define MLX5_SPECIAL_VPORTS (MLX5_VPORT_PF_PLACEHOLDER)
+#define MLX5_TOTAL_VPORTS(mdev) (MLX5_SPECIAL_VPORTS +	mlx5_core_max_vfs(mdev))
 
 #define MLX5_VPORT_MANAGER(mdev)					\
 	(MLX5_CAP_GEN(mdev, vport_group_manager) &&			\
