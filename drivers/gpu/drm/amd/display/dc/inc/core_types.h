@@ -154,6 +154,7 @@ struct resource_pool {
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
+
 	unsigned int ref_clock_inKhz;
 	unsigned int timing_generator_count;
 

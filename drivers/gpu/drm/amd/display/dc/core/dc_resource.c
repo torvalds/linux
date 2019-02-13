@@ -260,6 +260,7 @@ bool resource_construct(
 			pool->stream_enc_count++;
 		}
 	}
+
 	dc->caps.dynamic_audio = false;
 	if (pool->audio_count < pool->stream_enc_count) {
 		dc->caps.dynamic_audio = true;

@@ -874,10 +874,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 	for (i = 0; i < pool->base.stream_enc_count; i++) {
 		if (pool->base.stream_enc[i] != NULL) {
-			/* TODO: free dcn version of stream encoder once implemented
-			 * rather than using virtual stream encoder
-			 */
-			kfree(pool->base.stream_enc[i]);
+			kfree(DCN10STRENC_FROM_STRENC(pool->base.stream_enc[i]));
 			pool->base.stream_enc[i] = NULL;
 		}
 	}
@@ -929,9 +926,6 @@ static void destruct(struct dcn10_resource_pool *pool)
 			pool->base.sw_i2cs[i] = NULL;
 		}
 	}
-
-	for (i = 0; i < pool->base.stream_enc_count; i++)
-		kfree(pool->base.stream_enc[i]);
 
 	for (i = 0; i < pool->base.audio_count; i++) {
 		if (pool->base.audios[i])
