@@ -1279,17 +1279,17 @@ static const struct attribute_group dev_attr_group = {
 	.attrs = ib_dev_attrs,
 };
 
-static void free_port_list_attributes(struct ib_device *device)
+static void ib_free_port_attrs(struct ib_device *device)
 {
 	struct kobject *p, *t;
 
 	list_for_each_entry_safe(p, t, &device->port_list, entry) {
 		struct ib_port *port = container_of(p, struct ib_port, kobj);
+
 		list_del(&p->entry);
-		if (port->hw_stats) {
-			kfree(port->hw_stats);
+		if (port->hw_stats_ag)
 			free_hsag(&port->kobj, port->hw_stats_ag);
-		}
+		kfree(port->hw_stats);
 
 		if (port->pma_table)
 			sysfs_remove_group(p, port->pma_table);
@@ -1306,24 +1306,14 @@ static void free_port_list_attributes(struct ib_device *device)
 	kobject_put(device->ports_kobj);
 }
 
-int ib_device_register_sysfs(struct ib_device *device)
+static int ib_setup_port_attrs(struct ib_device *device)
 {
-	struct device *class_dev = &device->dev;
 	int ret;
 	int i;
 
-	device->groups[0] = &dev_attr_group;
-	class_dev->groups = device->groups;
-
-	ret = device_add(class_dev);
-	if (ret)
-		goto err;
-
-	device->ports_kobj = kobject_create_and_add("ports", &class_dev->kobj);
-	if (!device->ports_kobj) {
-		ret = -ENOMEM;
-		goto err_put;
-	}
+	device->ports_kobj = kobject_create_and_add("ports", &device->dev.kobj);
+	if (!device->ports_kobj)
+		return -ENOMEM;
 
 	if (rdma_cap_ib_switch(device)) {
 		ret = add_port(device, 0);
@@ -1337,26 +1327,42 @@ int ib_device_register_sysfs(struct ib_device *device)
 		}
 	}
 
+	return 0;
+
+err_put:
+	ib_free_port_attrs(device);
+	return ret;
+}
+
+int ib_device_register_sysfs(struct ib_device *device)
+{
+	int ret;
+
+	device->groups[0] = &dev_attr_group;
+	device->dev.groups = device->groups;
+
+	ret = device_add(&device->dev);
+	if (ret)
+		return ret;
+
+	ret = ib_setup_port_attrs(device);
+	if (ret) {
+		device_del(&device->dev);
+		return ret;
+	}
 	if (device->ops.alloc_hw_stats)
 		setup_hw_stats(device, NULL, 0);
 
 	return 0;
-
-err_put:
-	free_port_list_attributes(device);
-	device_del(class_dev);
-err:
-	return ret;
 }
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
-	free_port_list_attributes(device);
-
-	if (device->hw_stats) {
-		kfree(device->hw_stats);
+	if (device->hw_stats_ag)
 		free_hsag(&device->dev.kobj, device->hw_stats_ag);
-	}
+	kfree(device->hw_stats);
+
+	ib_free_port_attrs(device);
 	/* Balances with device_add */
 	device_del(&device->dev);
 }
