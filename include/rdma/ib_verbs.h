@@ -2540,6 +2540,11 @@ struct ib_device_ops {
 
 	/* Device lifecycle callbacks */
 	/*
+	 * Called after the device becomes registered, before clients are
+	 * attached
+	 */
+	int (*enable_driver)(struct ib_device *dev);
+	/*
 	 * This is called as part of ib_dealloc_device().
 	 */
 	void (*dealloc_driver)(struct ib_device *dev);

@@ -60,7 +60,6 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 	char intf[32];
 	struct net_device *ndev;
 	struct rxe_dev *exists;
-	struct rxe_dev *rxe;
 
 	len = sanitize_arg(val, intf, sizeof(intf));
 	if (!len) {
@@ -82,15 +81,11 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 		goto err;
 	}
 
-	rxe = rxe_net_add(ndev);
-	if (!rxe) {
+	err = rxe_net_add(ndev);
+	if (err) {
 		pr_err("failed to add %s\n", intf);
-		err = -EINVAL;
 		goto err;
 	}
-
-	rxe_set_port_state(rxe);
-	dev_info(&rxe->ib_dev.dev, "added %s\n", intf);
 
 err:
 	dev_put(ndev);

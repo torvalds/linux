@@ -1125,6 +1125,15 @@ static const struct attribute_group rxe_attr_group = {
 	.attrs = rxe_dev_attributes,
 };
 
+static int rxe_enable_driver(struct ib_device *ib_dev)
+{
+	struct rxe_dev *rxe = container_of(ib_dev, struct rxe_dev, ib_dev);
+
+	rxe_set_port_state(rxe);
+	dev_info(&rxe->ib_dev.dev, "added %s\n", netdev_name(rxe->ndev));
+	return 0;
+}
+
 static const struct ib_device_ops rxe_dev_ops = {
 	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
 	.alloc_mr = rxe_alloc_mr,
@@ -1144,6 +1153,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.destroy_qp = rxe_destroy_qp,
 	.destroy_srq = rxe_destroy_srq,
 	.detach_mcast = rxe_detach_mcast,
+	.enable_driver = rxe_enable_driver,
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,
 	.get_link_layer = rxe_get_link_layer,
@@ -1245,5 +1255,9 @@ int rxe_register_device(struct rxe_dev *rxe)
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);
 
+	/*
+	 * Note that rxe may be invalid at this point if another thread
+	 * unregistered it.
+	 */
 	return err;
 }

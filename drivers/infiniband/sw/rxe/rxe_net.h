@@ -43,7 +43,7 @@ struct rxe_recv_sockets {
 	struct socket *sk6;
 };
 
-struct rxe_dev *rxe_net_add(struct net_device *ndev);
+int rxe_net_add(struct net_device *ndev);
 
 int rxe_net_init(void);
 void rxe_net_exit(void);
