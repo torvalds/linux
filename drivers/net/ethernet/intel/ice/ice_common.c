@@ -358,22 +358,22 @@ static void ice_init_flex_flags(struct ice_hw *hw, enum ice_rxdid prof_id)
 	 */
 	case ICE_RXDID_FLEX_NIC:
 	case ICE_RXDID_FLEX_NIC_2:
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_FRG,
-				   ICE_RXFLG_UDP_GRE, ICE_RXFLG_PKT_DSI,
-				   ICE_RXFLG_FIN, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_FRG,
+				   ICE_FLG_UDP_GRE, ICE_FLG_PKT_DSI,
+				   ICE_FLG_FIN, idx++);
 		/* flex flag 1 is not used for flexi-flag programming, skipping
 		 * these four FLG64 bits.
 		 */
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_SYN, ICE_RXFLG_RST,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_PKT_DSI,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_EVLAN_x8100,
-				   ICE_RXFLG_EVLAN_x9100, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_VLAN_x8100,
-				   ICE_RXFLG_TNL_VLAN, ICE_RXFLG_TNL_MAC,
-				   ICE_RXFLG_TNL0, idx++);
-		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_RXFLG_TNL1, ICE_RXFLG_TNL2,
-				   ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_SYN, ICE_FLG_RST,
+				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_PKT_DSI,
+				   ICE_FLG_PKT_DSI, ICE_FLG_EVLAN_x8100,
+				   ICE_FLG_EVLAN_x9100, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_VLAN_x8100,
+				   ICE_FLG_TNL_VLAN, ICE_FLG_TNL_MAC,
+				   ICE_FLG_TNL0, idx++);
+		ICE_PROG_FLG_ENTRY(hw, prof_id, ICE_FLG_TNL1, ICE_FLG_TNL2,
+				   ICE_FLG_PKT_DSI, ICE_FLG_PKT_DSI, idx);
 		break;
 
 	default:
