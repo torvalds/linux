@@ -367,7 +367,7 @@ struct hdac_bus {
 	/* DRM component interface */
 	struct drm_audio_component *audio_component;
 	long display_power_status;
-	bool display_power_active;
+	unsigned long display_power_active;
 
 	/* parameters required for enhanced capabilities */
 	int num_streams;

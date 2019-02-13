@@ -741,27 +741,31 @@ void intel_init_audio_hooks(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void i915_audio_component_get_power(struct device *kdev)
+static unsigned long i915_audio_component_get_power(struct device *kdev)
 {
-	intel_display_power_get(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
+	/* Catch potential impedance mismatches before they occur! */
+	BUILD_BUG_ON(sizeof(intel_wakeref_t) > sizeof(unsigned long));
+
+	return intel_display_power_get(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO);
 }
 
-static void i915_audio_component_put_power(struct device *kdev)
+static void i915_audio_component_put_power(struct device *kdev,
+					   unsigned long cookie)
 {
-	intel_display_power_put_unchecked(kdev_to_i915(kdev),
-					  POWER_DOMAIN_AUDIO);
+	intel_display_power_put(kdev_to_i915(kdev), POWER_DOMAIN_AUDIO, cookie);
 }
 
 static void i915_audio_component_codec_wake_override(struct device *kdev,
 						     bool enable)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
+	unsigned long cookie;
 	u32 tmp;
 
 	if (!IS_GEN(dev_priv, 9))
 		return;
 
-	i915_audio_component_get_power(kdev);
+	cookie = i915_audio_component_get_power(kdev);
 
 	/*
 	 * Enable/disable generating the codec wake signal, overriding the
@@ -779,7 +783,7 @@ static void i915_audio_component_codec_wake_override(struct device *kdev,
 		usleep_range(1000, 1500);
 	}
 
-	i915_audio_component_put_power(kdev);
+	i915_audio_component_put_power(kdev, cookie);
 }
 
 /* Get CDCLK in kHz  */
@@ -850,12 +854,13 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 	struct i915_audio_component *acomp = dev_priv->audio_component;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
+	unsigned long cookie;
 	int err = 0;
 
 	if (!HAS_DDI(dev_priv))
 		return 0;
 
-	i915_audio_component_get_power(kdev);
+	cookie = i915_audio_component_get_power(kdev);
 	mutex_lock(&dev_priv->av_mutex);
 
 	/* 1. get the pipe */
@@ -875,7 +880,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 
  unlock:
 	mutex_unlock(&dev_priv->av_mutex);
-	i915_audio_component_put_power(kdev);
+	i915_audio_component_put_power(kdev, cookie);
 	return err;
 }
 
