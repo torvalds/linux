@@ -220,7 +220,7 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	 * their parent device so drivers shouldn't be doing DMA
 	 * operations directly on these devices.
 	 */
-	set_dma_ops(&npe->pdev->dev, NULL);
+	set_dma_ops(&npe->pdev->dev, &dma_dummy_ops);
 }
 
 /*

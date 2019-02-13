@@ -43,7 +43,6 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 		return false;
 	}
 
-	set_dma_ops(&dev->dev, &dma_nommu_ops);
 	set_dma_offset(&dev->dev, PAGE_OFFSET);
 
 	/*

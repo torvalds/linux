@@ -223,7 +223,3 @@ define_machine(corenet_generic) {
 };
 
 machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);
-
-#ifdef CONFIG_SWIOTLB
-machine_arch_initcall(corenet_generic, swiotlb_setup_bus_notifier);
-#endif

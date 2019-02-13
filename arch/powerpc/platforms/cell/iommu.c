@@ -600,8 +600,6 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 
 	if (cell_iommu_enabled)
 		dev->dma_ops = &dma_iommu_ops;
-	else
-		dev->dma_ops = &dma_nommu_ops;
 	cell_dma_dev_setup(dev);
 	return 0;
 }
@@ -727,7 +725,6 @@ static int __init cell_iommu_init_disabled(void)
 	unsigned long base = 0, size;
 
 	/* When no iommu is present, we use direct DMA ops */
-	set_pci_dma_ops(&dma_nommu_ops);
 
 	/* First make sure all IOC translation is turned off */
 	cell_disable_iommus();

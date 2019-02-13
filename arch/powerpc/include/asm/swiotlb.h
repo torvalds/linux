@@ -13,10 +13,7 @@
 
 #include <linux/swiotlb.h>
 
-extern const struct dma_map_ops powerpc_swiotlb_dma_ops;
-
 extern unsigned int ppc_swiotlb_enable;
-int __init swiotlb_setup_bus_notifier(void);
 
 #ifdef CONFIG_SWIOTLB
 void swiotlb_detect_4g(void);

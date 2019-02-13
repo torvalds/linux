@@ -124,10 +124,8 @@ static void pci_dma_dev_setup_swiotlb(struct pci_dev *pdev)
 
 static void setup_swiotlb_ops(struct pci_controller *hose)
 {
-	if (ppc_swiotlb_enable) {
+	if (ppc_swiotlb_enable)
 		hose->controller_ops.dma_dev_setup = pci_dma_dev_setup_swiotlb;
-		set_pci_dma_ops(&powerpc_swiotlb_dma_ops);
-	}
 }
 #else
 static inline void setup_swiotlb_ops(struct pci_controller *hose) {}
@@ -141,7 +139,6 @@ static void fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 	 */
 	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
 		dev->bus_dma_mask = 0;
-		set_dma_ops(dev, &dma_nommu_ops);
 		set_dma_offset(dev, pci64_dma_offset);
 	}
 }

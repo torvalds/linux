@@ -1699,3 +1699,10 @@ int vio_disable_interrupts(struct vio_dev *dev)
 }
 EXPORT_SYMBOL(vio_disable_interrupts);
 #endif /* CONFIG_PPC_PSERIES */
+
+static int __init vio_init(void)
+{
+	dma_debug_add_bus(&vio_bus_type);
+	return 0;
+}
+fs_initcall(vio_init);

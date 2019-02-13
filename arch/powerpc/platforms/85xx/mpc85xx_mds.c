@@ -367,10 +367,6 @@ machine_arch_initcall(mpc8568_mds, mpc85xx_publish_devices);
 machine_arch_initcall(mpc8569_mds, mpc85xx_publish_devices);
 machine_arch_initcall(p1021_mds, mpc85xx_common_publish_devices);
 
-machine_arch_initcall(mpc8568_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(mpc8569_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(p1021_mds, swiotlb_setup_bus_notifier);
-
 static void __init mpc85xx_mds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
