@@ -86,6 +86,7 @@ static const struct mfd_cell s2mps15_devs[] = {
 
 static const struct mfd_cell s2mpa01_devs[] = {
 	{ .name = "s2mpa01-pmic", },
+	{ .name = "s2mps14-rtc", },
 };
 
 static const struct mfd_cell s2mpu02_devs[] = {
