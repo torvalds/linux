@@ -2074,11 +2074,28 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 	}
 }
 
+static uint32_t get_timing_pixel_clock_100hz(const struct dc_crtc_timing *timing)
+{
+
+	uint32_t pxl_clk = timing->pix_clk_100hz;
+
+	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		pxl_clk /= 2;
+	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+		pxl_clk = pxl_clk * 2 / 3;
+
+	if (timing->display_color_depth == COLOR_DEPTH_101010)
+		pxl_clk = pxl_clk * 10 / 8;
+	else if (timing->display_color_depth == COLOR_DEPTH_121212)
+		pxl_clk = pxl_clk * 12 / 8;
+
+	return pxl_clk;
+}
+
 static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
 		const struct dpcd_caps *dpcd_caps)
 {
-	unsigned int required_pix_clk_100hz = timing->pix_clk_100hz;
 	const struct dc_dongle_caps *dongle_caps = &dpcd_caps->dongle_caps;
 
 	switch (dpcd_caps->dongle_type) {
@@ -2115,13 +2132,6 @@ static bool dp_active_dongle_validate_timing(
 		return false;
 	}
 
-
-	/* Check Color Depth and Pixel Clock */
-	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		required_pix_clk_100hz /= 2;
-	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-		required_pix_clk_100hz = required_pix_clk_100hz * 2 / 3;
-
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
 	case COLOR_DEPTH_888:
@@ -2130,14 +2140,11 @@ static bool dp_active_dongle_validate_timing(
 	case COLOR_DEPTH_101010:
 		if (dongle_caps->dp_hdmi_max_bpc < 10)
 			return false;
-		required_pix_clk_100hz = required_pix_clk_100hz * 10 / 8;
 		break;
 	case COLOR_DEPTH_121212:
 		if (dongle_caps->dp_hdmi_max_bpc < 12)
 			return false;
-		required_pix_clk_100hz = required_pix_clk_100hz * 12 / 8;
 		break;
-
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
@@ -2145,7 +2152,7 @@ static bool dp_active_dongle_validate_timing(
 		return false;
 	}
 
-	if (required_pix_clk_100hz > (dongle_caps->dp_hdmi_max_pixel_clk * 10))
+	if (get_timing_pixel_clock_100hz(timing) > (dongle_caps->dp_hdmi_max_pixel_clk * 10))
 		return false;
 
 	return true;
@@ -2166,7 +2173,7 @@ enum dc_status dc_link_validate_mode_timing(
 		return DC_OK;
 
 	/* Passive Dongle */
-	if (0 != max_pix_clk && timing->pix_clk_100hz > max_pix_clk)
+	if (max_pix_clk != 0 && get_timing_pixel_clock_100hz(timing) > max_pix_clk)
 		return DC_EXCEED_DONGLE_CAP;
 
 	/* Active Dongle*/
