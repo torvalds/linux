@@ -147,6 +147,7 @@ config MACVTAP
 
 config IPVLAN_L3S
 	depends on NETFILTER
+	depends on IPVLAN
 	def_bool y
 	select NET_L3_MASTER_DEV
 
