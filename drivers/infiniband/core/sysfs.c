@@ -1275,7 +1275,7 @@ static struct attribute *ib_dev_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group dev_attr_group = {
+const struct attribute_group ib_dev_attr_group = {
 	.attrs = ib_dev_attrs,
 };
 
@@ -1338,18 +1338,10 @@ int ib_device_register_sysfs(struct ib_device *device)
 {
 	int ret;
 
-	device->groups[0] = &dev_attr_group;
-	device->dev.groups = device->groups;
-
-	ret = device_add(&device->dev);
+	ret = ib_setup_port_attrs(device);
 	if (ret)
 		return ret;
 
-	ret = ib_setup_port_attrs(device);
-	if (ret) {
-		device_del(&device->dev);
-		return ret;
-	}
 	if (device->ops.alloc_hw_stats)
 		setup_hw_stats(device, NULL, 0);
 
@@ -1363,6 +1355,4 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 	kfree(device->hw_stats);
 
 	ib_free_port_attrs(device);
-	/* Balances with device_add */
-	device_del(&device->dev);
 }

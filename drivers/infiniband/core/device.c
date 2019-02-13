@@ -341,6 +341,8 @@ struct ib_device *_ib_alloc_device(size_t size)
 	rdma_restrack_init(device);
 
 	device->dev.class = &ib_class;
+	device->groups[0] = &ib_dev_attr_group;
+	device->dev.groups = device->groups;
 	device_initialize(&device->dev);
 
 	INIT_LIST_HEAD(&device->event_handler_list);
@@ -766,11 +768,15 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 	ib_device_register_rdmacg(device);
 
+	ret = device_add(&device->dev);
+	if (ret)
+		goto cg_cleanup;
+
 	ret = ib_device_register_sysfs(device);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't register device with driver model\n");
-		goto cg_cleanup;
+		goto dev_cleanup;
 	}
 
 	ret = enable_device(device);
@@ -781,6 +787,8 @@ int ib_register_device(struct ib_device *device, const char *name)
 
 sysfs_cleanup:
 	ib_device_unregister_sysfs(device);
+dev_cleanup:
+	device_del(&device->dev);
 cg_cleanup:
 	ib_device_unregister_rdmacg(device);
 	ib_cache_cleanup_one(device);
@@ -800,6 +808,7 @@ void ib_unregister_device(struct ib_device *device)
 {
 	disable_device(device);
 	ib_device_unregister_sysfs(device);
+	device_del(&device->dev);
 	ib_device_unregister_rdmacg(device);
 	ib_cache_cleanup_one(device);
 	release_name(device);

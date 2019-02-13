@@ -54,6 +54,8 @@ struct pkey_index_qp_list {
 	struct list_head    qp_list;
 };
 
+extern const struct attribute_group ib_dev_attr_group;
+
 int ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
