@@ -20,14 +20,15 @@
  */
 static inline bool dma_iommu_alloc_bypass(struct device *dev)
 {
-	return dev->archdata.iommu_bypass &&
+	return dev->archdata.iommu_bypass && !iommu_fixed_is_weak &&
 		dma_nommu_dma_supported(dev, dev->coherent_dma_mask);
 }
 
 static inline bool dma_iommu_map_bypass(struct device *dev,
 		unsigned long attrs)
 {
-	return dev->archdata.iommu_bypass;
+	return dev->archdata.iommu_bypass &&
+		(!iommu_fixed_is_weak || (attrs & DMA_ATTR_WEAK_ORDERING));
 }
 
 /* Allocates a contiguous real buffer and creates mappings over it.
@@ -163,7 +164,7 @@ u64 dma_iommu_get_required_mask(struct device *dev)
 	return mask;
 }
 
-struct dma_map_ops dma_iommu_ops = {
+const struct dma_map_ops dma_iommu_ops = {
 	.alloc			= dma_iommu_alloc_coherent,
 	.free			= dma_iommu_free_coherent,
 	.mmap			= dma_nommu_mmap_coherent,
