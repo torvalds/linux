@@ -112,6 +112,9 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
 	} else {
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
+		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
+			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top,
+					    _ALIGN(__pa(_einittext), 8 << 20));
 	}
 
 	mmu_patch_cmp_limit(&patch__dtlbmiss_linmem_top, mapped);
@@ -140,8 +143,8 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	 */
 	BUG_ON(first_memblock_base != 0);
 
-	/* 8xx can only access 24MB at the moment */
-	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x01800000));
+	/* 8xx can only access 32MB at the moment */
+	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x02000000));
 }
 
 /*

@@ -337,8 +337,8 @@ InstructionTLBMiss:
 	rlwinm	r10, r10, 16, 0xfff8
 	cmpli	cr0, r10, PAGE_OFFSET@h
 #ifndef CONFIG_PIN_TLB_TEXT
-	/* It is assumed that kernel code fits into the first 8M page */
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x0800000)@h
+	/* It is assumed that kernel code fits into the first 32M */
+0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
 	patch_site	0b, patch__itlbmiss_linmem_top
 #endif
 #endif
@@ -434,7 +434,7 @@ DataStoreTLBMiss:
 #ifndef CONFIG_PIN_TLB_IMMR
 	cmpli	cr6, r10, VIRT_IMMR_BASE@h
 #endif
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x1800000)@h
+0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
 	patch_site	0b, patch__dtlbmiss_linmem_top
 
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
@@ -886,27 +886,10 @@ initial_mmu:
 	mtspr	SPRN_MD_CTR, r10	/* remove PINNED DTLB entries */
 
 	tlbia			/* Invalidate all TLB entries */
-#ifdef CONFIG_PIN_TLB_TEXT
-	lis	r8, MI_RSV4I@h
-	ori	r8, r8, 0x1c00
-
-	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
-#endif
-
 #ifdef CONFIG_PIN_TLB_DATA
 	oris	r10, r10, MD_RSV4I@h
 	mtspr	SPRN_MD_CTR, r10	/* Set data TLB control */
 #endif
-
-	/* Now map the lower 8 Meg into the ITLB. */
-	lis	r8, KERNELBASE@h	/* Create vaddr for TLB */
-	ori	r8, r8, MI_EVALID	/* Mark it valid */
-	mtspr	SPRN_MI_EPN, r8
-	li	r8, MI_PS8MEG /* Set 8M byte page */
-	ori	r8, r8, MI_SVALID	/* Make it valid */
-	mtspr	SPRN_MI_TWC, r8
-	li	r8, MI_BOOTINIT		/* Create RPN for address 0 */
-	mtspr	SPRN_MI_RPN, r8		/* Store TLB entry */
 
 	lis	r8, MI_APG_INIT@h	/* Set protection modes */
 	ori	r8, r8, MI_APG_INIT@l
@@ -936,6 +919,34 @@ initial_mmu:
 	ori	r8, r8, MI_BOOTINIT|0x2 /* Inhibit cache -- Cort */
 	mtspr	SPRN_MD_RPN, r8
 #endif
+
+	/* Now map the lower RAM (up to 32 Mbytes) into the ITLB. */
+#ifdef CONFIG_PIN_TLB_TEXT
+	lis	r8, MI_RSV4I@h
+	ori	r8, r8, 0x1c00
+#endif
+	li	r9, 4				/* up to 4 pages of 8M */
+	mtctr	r9
+	lis	r9, KERNELBASE@h		/* Create vaddr for TLB */
+	li	r10, MI_PS8MEG | MI_SVALID	/* Set 8M byte page */
+	li	r11, MI_BOOTINIT		/* Create RPN for address 0 */
+	lis	r12, _einittext@h
+	ori	r12, r12, _einittext@l
+1:
+#ifdef CONFIG_PIN_TLB_TEXT
+	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
+	addi	r8, r8, 0x100
+#endif
+
+	ori	r0, r9, MI_EVALID		/* Mark it valid */
+	mtspr	SPRN_MI_EPN, r0
+	mtspr	SPRN_MI_TWC, r10
+	mtspr	SPRN_MI_RPN, r11		/* Store TLB entry */
+	addis	r9, r9, 0x80
+	addis	r11, r11, 0x80
+
+	cmpl	cr0, r9, r12
+	bdnzf	gt, 1b
 
 	/* Since the cache is enabled according to the information we
 	 * just loaded into the TLB, invalidate and enable the caches here.
