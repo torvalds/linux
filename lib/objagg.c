@@ -968,8 +968,10 @@ struct objagg_hints *objagg_hints_get(struct objagg *objagg,
 	if (err)
 		goto err_fillup_hints;
 
-	if (WARN_ON(objagg_hints->node_count != objagg->obj_count))
+	if (WARN_ON(objagg_hints->node_count != objagg->obj_count)) {
+		err = -EINVAL;
 		goto err_node_count_check;
+	}
 
 	return objagg_hints;
 
