@@ -196,11 +196,19 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			gpu_resources.sdma_doorbell[1][i+1] =
 				adev->doorbell_index.sdma_engine[1] + 0x200 + (i >> 1);
 		}
-		/* Doorbells 0x0e0-0ff and 0x2e0-2ff are reserved for
-		 * SDMA, IH and VCN. So don't use them for the CP.
+
+		/* Since SOC15, BIF starts to statically use the
+		 * lower 12 bits of doorbell addresses for routing
+		 * based on settings in registers like
+		 * SDMA0_DOORBELL_RANGE etc..
+		 * In order to route a doorbell to CP engine, the lower
+		 * 12 bits of its address has to be outside the range
+		 * set for SDMA, VCN, and IH blocks.
 		 */
-		gpu_resources.reserved_doorbell_mask = 0x1e0;
-		gpu_resources.reserved_doorbell_val  = 0x0e0;
+		gpu_resources.non_cp_doorbells_start =
+				adev->doorbell_index.first_non_cp;
+		gpu_resources.non_cp_doorbells_end =
+				adev->doorbell_index.last_non_cp;
 
 		kgd2kfd_device_init(adev->kfd.dev, &gpu_resources);
 	}
