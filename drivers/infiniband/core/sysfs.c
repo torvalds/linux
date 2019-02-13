@@ -1351,15 +1351,12 @@ err:
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
-	/* Hold device until ib_dealloc_device() */
-	get_device(&device->dev);
-
 	free_port_list_attributes(device);
 
 	if (device->hw_stats) {
 		kfree(device->hw_stats);
 		free_hsag(&device->dev.kobj, device->hw_stats_ag);
 	}
-
-	device_unregister(&device->dev);
+	/* Balances with device_add */
+	device_del(&device->dev);
 }
