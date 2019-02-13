@@ -236,6 +236,10 @@
 	};
 };
 
+&snvsrtc {
+	status = "disabled";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart0>;
