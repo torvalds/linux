@@ -66,26 +66,22 @@ unsigned long p_block_mapped(phys_addr_t pa)
 void __init MMU_init_hw(void)
 {
 	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
-#ifdef CONFIG_PIN_TLB_DATA
-	unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
-	unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
-#ifdef CONFIG_PIN_TLB_IMMR
-	int i = 29;
-#else
-	int i = 28;
-#endif
-	unsigned long addr = 0;
-	unsigned long mem = total_lowmem;
+	if (IS_ENABLED(CONFIG_PIN_TLB_DATA)) {
+		unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
+		unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
+		int i = IS_ENABLED(CONFIG_PIN_TLB_IMMR) ? 29 : 28;
+		unsigned long addr = 0;
+		unsigned long mem = total_lowmem;
 
-	for (; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
-		mtspr(SPRN_MD_CTR, ctr | (i << 8));
-		mtspr(SPRN_MD_EPN, (unsigned long)__va(addr) | MD_EVALID);
-		mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID);
-		mtspr(SPRN_MD_RPN, addr | flags | _PAGE_PRESENT);
-		addr += LARGE_PAGE_SIZE_8M;
-		mem -= LARGE_PAGE_SIZE_8M;
+		for (; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
+			mtspr(SPRN_MD_CTR, ctr | (i << 8));
+			mtspr(SPRN_MD_EPN, (unsigned long)__va(addr) | MD_EVALID);
+			mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID);
+			mtspr(SPRN_MD_RPN, addr | flags | _PAGE_PRESENT);
+			addr += LARGE_PAGE_SIZE_8M;
+			mem -= LARGE_PAGE_SIZE_8M;
+		}
 	}
-#endif
 }
 
 static void __init mmu_mapin_immr(void)
@@ -110,12 +106,10 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	if (__map_without_ltlbs) {
 		mapped = 0;
 		mmu_mapin_immr();
-#ifndef CONFIG_PIN_TLB_IMMR
-		patch_instruction_site(&patch__dtlbmiss_immr_jmp, PPC_INST_NOP);
-#endif
-#ifndef CONFIG_PIN_TLB_TEXT
-		mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
-#endif
+		if (!IS_ENABLED(CONFIG_PIN_TLB_IMMR))
+			patch_instruction_site(&patch__dtlbmiss_immr_jmp, PPC_INST_NOP);
+		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
+			mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, 0);
 	} else {
 		mapped = top & ~(LARGE_PAGE_SIZE_8M - 1);
 	}
