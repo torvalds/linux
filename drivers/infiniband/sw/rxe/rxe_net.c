@@ -45,25 +45,6 @@
 #include "rxe_net.h"
 #include "rxe_loc.h"
 
-static LIST_HEAD(rxe_dev_list);
-static DEFINE_SPINLOCK(dev_list_lock); /* spinlock for device list */
-
-struct rxe_dev *get_rxe_by_name(const char *name)
-{
-	struct rxe_dev *rxe;
-	struct rxe_dev *found = NULL;
-
-	spin_lock_bh(&dev_list_lock);
-	list_for_each_entry(rxe, &rxe_dev_list, list) {
-		if (!strcmp(name, dev_name(&rxe->ib_dev.dev))) {
-			found = rxe;
-			break;
-		}
-	}
-	spin_unlock_bh(&dev_list_lock);
-	return found;
-}
-
 static struct rxe_recv_sockets recv_sockets;
 
 struct device *rxe_dma_device(struct rxe_dev *rxe)
@@ -553,9 +534,6 @@ struct rxe_dev *rxe_net_add(struct net_device *ndev)
 		return NULL;
 	}
 
-	spin_lock_bh(&dev_list_lock);
-	list_add_tail(&rxe->list, &rxe_dev_list);
-	spin_unlock_bh(&dev_list_lock);
 	return rxe;
 }
 

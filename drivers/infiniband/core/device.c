@@ -240,6 +240,34 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	return NULL;
 }
 
+/**
+ * ib_device_get_by_name - Find an IB device by name
+ * @name: The name to look for
+ * @driver_id: The driver ID that must match (RDMA_DRIVER_UNKNOWN matches all)
+ *
+ * Find and hold an ib_device by its name. The caller must call
+ * ib_device_put() on the returned pointer.
+ */
+struct ib_device *ib_device_get_by_name(const char *name,
+					enum rdma_driver_id driver_id)
+{
+	struct ib_device *device;
+
+	down_read(&devices_rwsem);
+	device = __ib_device_get_by_name(name);
+	if (device && driver_id != RDMA_DRIVER_UNKNOWN &&
+	    device->driver_id != driver_id)
+		device = NULL;
+
+	if (device) {
+		if (!ib_device_try_get(device))
+			device = NULL;
+	}
+	up_read(&devices_rwsem);
+	return device;
+}
+EXPORT_SYMBOL(ib_device_get_by_name);
+
 int ib_device_rename(struct ib_device *ibdev, const char *name)
 {
 	int ret;

@@ -69,8 +69,6 @@ void rxe_dealloc(struct ib_device *ib_dev)
 
 	if (rxe->tfm)
 		crypto_free_shash(rxe->tfm);
-
-	list_del(&rxe->list);
 }
 
 /* initialize rxe device parameters */
@@ -275,7 +273,6 @@ static int rxe_init(struct rxe_dev *rxe)
 	spin_lock_init(&rxe->mmap_offset_lock);
 	spin_lock_init(&rxe->pending_lock);
 	INIT_LIST_HEAD(&rxe->pending_mmaps);
-	INIT_LIST_HEAD(&rxe->list);
 
 	mutex_init(&rxe->usdev_lock);
 

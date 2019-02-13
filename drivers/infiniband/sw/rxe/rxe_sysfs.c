@@ -101,7 +101,7 @@ static int rxe_param_set_remove(const char *val, const struct kernel_param *kp)
 {
 	int len;
 	char intf[32];
-	struct rxe_dev *rxe;
+	struct ib_device *ib_dev;
 
 	len = sanitize_arg(val, intf, sizeof(intf));
 	if (!len) {
@@ -115,14 +115,13 @@ static int rxe_param_set_remove(const char *val, const struct kernel_param *kp)
 		return 0;
 	}
 
-	rxe = get_rxe_by_name(intf);
-
-	if (!rxe) {
+	ib_dev = ib_device_get_by_name(intf, RDMA_DRIVER_RXE);
+	if (!ib_dev) {
 		pr_err("not configured on %s\n", intf);
 		return -EINVAL;
 	}
 
-	ib_unregister_device(&rxe->ib_dev);
+	ib_unregister_device_and_put(ib_dev);
 
 	return 0;
 }

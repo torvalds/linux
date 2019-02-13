@@ -99,8 +99,6 @@ int rxe_add(struct rxe_dev *rxe, unsigned int mtu);
 
 void rxe_rcv(struct sk_buff *skb);
 
-struct rxe_dev *get_rxe_by_name(const char *name);
-
 /* The caller must do a matching ib_device_put(&dev->ib_dev) */
 static inline struct rxe_dev *rxe_get_dev_from_net(struct net_device *ndev)
 {

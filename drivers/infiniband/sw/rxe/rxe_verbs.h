@@ -411,7 +411,6 @@ struct rxe_dev {
 	atomic64_t		stats_counters[RXE_NUM_OF_COUNTERS];
 
 	struct rxe_port		port;
-	struct list_head	list;
 	struct crypto_shash	*tfm;
 };
 
