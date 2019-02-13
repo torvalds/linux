@@ -2198,6 +2198,8 @@ struct ib_port_immutable {
 };
 
 struct ib_port_data {
+	struct ib_device *ib_dev;
+
 	struct ib_port_immutable immutable;
 
 	spinlock_t pkey_list_lock;
@@ -2206,7 +2208,8 @@ struct ib_port_data {
 	struct ib_port_cache cache;
 
 	spinlock_t netdev_lock;
-	struct net_device *netdev;
+	struct net_device __rcu *netdev;
+	struct hlist_node ndev_hash_link;
 };
 
 /* rdma netdev type - specifies protocol type */
@@ -2545,6 +2548,7 @@ struct ib_device {
 	struct device                *dma_device;
 	struct ib_device_ops	     ops;
 	char                          name[IB_DEVICE_NAME_MAX];
+	struct rcu_head rcu_head;
 
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
@@ -3996,6 +4000,10 @@ static inline bool ib_device_try_get(struct ib_device *dev)
 }
 
 void ib_device_put(struct ib_device *device);
+struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
+					  enum rdma_driver_id driver_id);
+struct ib_device *ib_device_get_by_name(const char *name,
+					enum rdma_driver_id driver_id);
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);

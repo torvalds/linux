@@ -40,6 +40,7 @@
 #include <linux/netdevice.h>
 #include <linux/security.h>
 #include <linux/notifier.h>
+#include <linux/hashtable.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
@@ -134,6 +135,10 @@ static void *xan_find_marked(struct xarray *xa, unsigned long *indexp,
 	     !xa_is_err(entry);                                                \
 	     (index)++, entry = xan_find_marked(xa, &(index), filter))
 
+/* RCU hash table mapping netdevice pointers to struct ib_port_data */
+static DEFINE_SPINLOCK(ndev_hash_lock);
+static DECLARE_HASHTABLE(ndev_hash, 5);
+
 static void free_netdevs(struct ib_device *ib_dev);
 static int ib_security_change(struct notifier_block *nb, unsigned long event,
 			      void *lsm_data);
@@ -142,6 +147,12 @@ static DECLARE_WORK(ib_policy_change_work, ib_policy_change_task);
 
 static struct notifier_block ibdev_lsm_nb = {
 	.notifier_call = ib_security_change,
+};
+
+/* Pointer to the RCU head at the start of the ib_port_data array */
+struct ib_port_data_rcu {
+	struct rcu_head rcu_head;
+	struct ib_port_data pdata[];
 };
 
 static int ib_device_check_mandatory(struct ib_device *device)
@@ -295,9 +306,12 @@ static void ib_device_release(struct device *device)
 	WARN_ON(refcount_read(&dev->refcount));
 	ib_cache_release_one(dev);
 	ib_security_release_port_pkey_list(dev);
-	kfree(dev->port_data);
 	xa_destroy(&dev->client_data);
-	kfree(dev);
+	if (dev->port_data)
+		kfree_rcu(container_of(dev->port_data, struct ib_port_data_rcu,
+				       pdata[0]),
+			  rcu_head);
+	kfree_rcu(dev, rcu_head);
 }
 
 static int ib_device_uevent(struct device *device,
@@ -468,6 +482,7 @@ static void remove_client_context(struct ib_device *device,
 
 static int alloc_port_data(struct ib_device *device)
 {
+	struct ib_port_data_rcu *pdata_rcu;
 	unsigned int port;
 
 	if (device->port_data)
@@ -484,17 +499,26 @@ static int alloc_port_data(struct ib_device *device)
 	 * Therefore port_data is declared as a 1 based array with potential
 	 * empty slots at the beginning.
 	 */
-	device->port_data = kcalloc(rdma_end_port(device) + 1,
-				    sizeof(*device->port_data), GFP_KERNEL);
-	if (!device->port_data)
+	pdata_rcu = kzalloc(struct_size(pdata_rcu, pdata,
+					rdma_end_port(device) + 1),
+			    GFP_KERNEL);
+	if (!pdata_rcu)
 		return -ENOMEM;
+	/*
+	 * The rcu_head is put in front of the port data array and the stored
+	 * pointer is adjusted since we never need to see that member until
+	 * kfree_rcu.
+	 */
+	device->port_data = pdata_rcu->pdata;
 
 	rdma_for_each_port (device, port) {
 		struct ib_port_data *pdata = &device->port_data[port];
 
+		pdata->ib_dev = device;
 		spin_lock_init(&pdata->pkey_list_lock);
 		INIT_LIST_HEAD(&pdata->pkey_list);
 		spin_lock_init(&pdata->netdev_lock);
+		INIT_HLIST_NODE(&pdata->ndev_hash_link);
 	}
 	return 0;
 }
@@ -1042,6 +1066,29 @@ int ib_query_port(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_query_port);
 
+static void add_ndev_hash(struct ib_port_data *pdata)
+{
+	unsigned long flags;
+
+	might_sleep();
+
+	spin_lock_irqsave(&ndev_hash_lock, flags);
+	if (hash_hashed(&pdata->ndev_hash_link)) {
+		hash_del_rcu(&pdata->ndev_hash_link);
+		spin_unlock_irqrestore(&ndev_hash_lock, flags);
+		/*
+		 * We cannot do hash_add_rcu after a hash_del_rcu until the
+		 * grace period
+		 */
+		synchronize_rcu();
+		spin_lock_irqsave(&ndev_hash_lock, flags);
+	}
+	if (pdata->netdev)
+		hash_add_rcu(ndev_hash, &pdata->ndev_hash_link,
+			     (uintptr_t)pdata->netdev);
+	spin_unlock_irqrestore(&ndev_hash_lock, flags);
+}
+
 /**
  * ib_device_set_netdev - Associate the ib_dev with an underlying net_device
  * @ib_dev: Device to modify
@@ -1078,17 +1125,19 @@ int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
 
 	pdata = &ib_dev->port_data[port];
 	spin_lock_irqsave(&pdata->netdev_lock, flags);
-	if (pdata->netdev == ndev) {
+	old_ndev = rcu_dereference_protected(
+		pdata->netdev, lockdep_is_held(&pdata->netdev_lock));
+	if (old_ndev == ndev) {
 		spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 		return 0;
 	}
-	old_ndev = pdata->netdev;
 
 	if (ndev)
 		dev_hold(ndev);
-	pdata->netdev = ndev;
+	rcu_assign_pointer(pdata->netdev, ndev);
 	spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 
+	add_ndev_hash(pdata);
 	if (old_ndev)
 		dev_put(old_ndev);
 
@@ -1103,11 +1152,24 @@ static void free_netdevs(struct ib_device *ib_dev)
 
 	rdma_for_each_port (ib_dev, port) {
 		struct ib_port_data *pdata = &ib_dev->port_data[port];
+		struct net_device *ndev;
 
 		spin_lock_irqsave(&pdata->netdev_lock, flags);
-		if (pdata->netdev) {
-			dev_put(pdata->netdev);
-			pdata->netdev = NULL;
+		ndev = rcu_dereference_protected(
+			pdata->netdev, lockdep_is_held(&pdata->netdev_lock));
+		if (ndev) {
+			spin_lock(&ndev_hash_lock);
+			hash_del_rcu(&pdata->ndev_hash_link);
+			spin_unlock(&ndev_hash_lock);
+
+			/*
+			 * If this is the last dev_put there is still a
+			 * synchronize_rcu before the netdev is kfreed, so we
+			 * can continue to rely on unlocked pointer
+			 * comparisons after the put
+			 */
+			rcu_assign_pointer(pdata->netdev, NULL);
+			dev_put(ndev);
 		}
 		spin_unlock_irqrestore(&pdata->netdev_lock, flags);
 	}
@@ -1132,7 +1194,8 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 		res = ib_dev->ops.get_netdev(ib_dev, port);
 	else {
 		spin_lock(&pdata->netdev_lock);
-		res = pdata->netdev;
+		res = rcu_dereference_protected(
+			pdata->netdev, lockdep_is_held(&pdata->netdev_lock));
 		if (res)
 			dev_hold(res);
 		spin_unlock(&pdata->netdev_lock);
@@ -1149,6 +1212,38 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 
 	return res;
 }
+
+/**
+ * ib_device_get_by_netdev - Find an IB device associated with a netdev
+ * @ndev: netdev to locate
+ * @driver_id: The driver ID that must match (RDMA_DRIVER_UNKNOWN matches all)
+ *
+ * Find and hold an ib_device that is associated with a netdev via
+ * ib_device_set_netdev(). The caller must call ib_device_put() on the
+ * returned pointer.
+ */
+struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
+					  enum rdma_driver_id driver_id)
+{
+	struct ib_device *res = NULL;
+	struct ib_port_data *cur;
+
+	rcu_read_lock();
+	hash_for_each_possible_rcu (ndev_hash, cur, ndev_hash_link,
+				    (uintptr_t)ndev) {
+		if (rcu_access_pointer(cur->netdev) == ndev &&
+		    (driver_id == RDMA_DRIVER_UNKNOWN ||
+		     cur->ib_dev->driver_id == driver_id) &&
+		    ib_device_try_get(cur->ib_dev)) {
+			res = cur->ib_dev;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return res;
+}
+EXPORT_SYMBOL(ib_device_get_by_netdev);
 
 /**
  * ib_enum_roce_netdev - enumerate all RoCE ports
