@@ -764,6 +764,7 @@ static inline bool nfs_error_is_fatal(int err)
 	case -EROFS:
 	case -ESTALE:
 	case -E2BIG:
+	case -ENOMEM:
 		return true;
 	default:
 		return false;
