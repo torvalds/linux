@@ -163,39 +163,22 @@ struct sof_ipc_comp_tone {
 	int32_t ramp_step;
 } __packed;
 
-/** \brief Types of EFFECT */
-enum sof_ipc_effect_type {
-	SOF_EFFECT_NONE = 0,		/**< None */
-	SOF_EFFECT_INTEL_EQFIR,		/**< Intel FIR */
-	SOF_EFFECT_INTEL_EQIIR,		/**< Intel IIR */
+/** \brief Types of processing components */
+enum sof_ipc_process_type {
+	SOF_PROCESS_NONE = 0,		/**< None */
+	SOF_PROCESS_EQFIR,		/**< Intel FIR */
+	SOF_PROCESS_EQIIR,		/**< Intel IIR */
 };
 
-/* general purpose EFFECT configuration */
-struct sof_ipc_comp_effect {
-	struct sof_ipc_hdr hdr;
-	uint32_t type;			/** sof_ipc_effect_type */
-} __packed;
-
-/* FIR equalizer component */
-struct sof_ipc_comp_eq_fir {
+/* generic "effect", "codec" or proprietary processing component */
+struct sof_ipc_comp_process {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-	uint32_t size;
+	uint32_t size;	/**< size of bespoke data section in bytes */
+	uint32_t type;	/**< sof_ipc_process_type */
 
 	/* reserved for future use */
-	uint32_t reserved[8];
-
-	unsigned char data[0];
-} __packed;
-
-/* IIR equalizer component */
-struct sof_ipc_comp_eq_iir {
-	struct sof_ipc_comp comp;
-	struct sof_ipc_comp_config config;
-	uint32_t size;
-
-	/* reserved for future use */
-	uint32_t reserved[8];
+	uint32_t reserved[7];
 
 	unsigned char data[0];
 } __packed;

@@ -235,26 +235,39 @@ static enum sof_ipc_frame find_format(const char *name)
 	return SOF_IPC_FRAME_S32_LE;
 }
 
-struct sof_effect_types {
+struct sof_process_types {
 	const char *name;
-	enum sof_ipc_effect_type type;
+	enum sof_ipc_process_type type;
+	enum sof_comp_type comp_type;
 };
 
-static const struct sof_effect_types sof_effects[] = {
-	{"EQFIR", SOF_EFFECT_INTEL_EQFIR},
-	{"EQIIR", SOF_EFFECT_INTEL_EQIIR},
+static const struct sof_process_types sof_process[] = {
+	{"EQFIR", SOF_PROCESS_EQFIR, SOF_COMP_EQ_FIR},
+	{"EQIIR", SOF_PROCESS_EQIIR, SOF_COMP_EQ_IIR},
 };
 
-static enum sof_ipc_effect_type find_effect(const char *name)
+static enum sof_ipc_process_type find_process(const char *name)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sof_effects); i++) {
-		if (strcmp(name, sof_effects[i].name) == 0)
-			return sof_effects[i].type;
+	for (i = 0; i < ARRAY_SIZE(sof_process); i++) {
+		if (strcmp(name, sof_process[i].name) == 0)
+			return sof_process[i].type;
 	}
 
-	return SOF_EFFECT_NONE;
+	return SOF_PROCESS_NONE;
+}
+
+static enum sof_comp_type find_process_comp_type(enum sof_ipc_process_type type)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sof_process); i++) {
+		if (sof_process[i].type == type)
+			return sof_process[i].comp_type;
+	}
+
+	return SOF_COMP_NONE;
 }
 
 /*
@@ -463,12 +476,13 @@ static int get_token_dai_type(void *elem, void *object, u32 offset, u32 size)
 	return 0;
 }
 
-static int get_token_effect_type(void *elem, void *object, u32 offset, u32 size)
+static int get_token_process_type(void *elem, void *object, u32 offset,
+				  u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
 	u32 *val = (u32 *)((u8 *)object + offset);
 
-	*val = find_effect(velem->string);
+	*val = find_process(velem->string);
 	return 0;
 }
 
@@ -536,10 +550,10 @@ static const struct sof_topology_token tone_tokens[] = {
 };
 
 /* EFFECT */
-static const struct sof_topology_token effect_tokens[] = {
-	{SOF_TKN_EFFECT_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING,
-		get_token_effect_type,
-		offsetof(struct sof_ipc_comp_effect, type), 0},
+static const struct sof_topology_token process_tokens[] = {
+	{SOF_TKN_PROCESS_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING,
+		get_token_process_type,
+		offsetof(struct sof_ipc_comp_process, type), 0},
 };
 
 /* PCM */
@@ -1557,212 +1571,195 @@ err:
 	return ret;
 }
 
-static int sof_effect_fir_load(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw,
-			       struct sof_ipc_comp_reply *r)
-
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_soc_tplg_private *private = &tw->priv;
-	struct snd_sof_control *scontrol = NULL;
-	struct snd_soc_dapm_widget *widget = swidget->widget;
-	const struct snd_kcontrol_new *kc = NULL;
-	struct soc_bytes_ext *sbe;
-	struct sof_abi_hdr *pdata = NULL;
-	struct sof_ipc_comp_eq_fir *fir;
-	size_t ipc_size = 0, fir_data_size = 0;
-	int ret;
-
-	/* get possible eq controls */
-	kc = &widget->kcontrol_news[0];
-	if (kc) {
-		sbe = (struct soc_bytes_ext *)kc->private_value;
-		scontrol = sbe->dobj.private;
-	}
-
-	/*
-	 * Check if there's eq parameters in control's private member and set
-	 * data size accordingly. If there's no parameters eq will use defaults
-	 * in firmware (which in this case is passthrough).
-	 */
-	if (scontrol && scontrol->cmd == SOF_CTRL_CMD_BINARY) {
-		pdata = scontrol->control_data->data;
-		if (pdata->size > 0 && pdata->magic == SOF_ABI_MAGIC)
-			fir_data_size = pdata->size;
-	}
-
-	ipc_size = sizeof(struct sof_ipc_comp_eq_fir) +
-		le32_to_cpu(private->size) +
-		fir_data_size;
-
-	fir = kzalloc(ipc_size, GFP_KERNEL);
-	if (!fir)
-		return -ENOMEM;
-
-	/* configure fir IPC message */
-	fir->comp.hdr.size = ipc_size;
-	fir->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	fir->comp.id = swidget->comp_id;
-	fir->comp.type = SOF_COMP_EQ_FIR;
-	fir->comp.pipeline_id = index;
-	fir->config.hdr.size = sizeof(fir->config);
-
-	ret = sof_parse_tokens(scomp, &fir->config, comp_tokens,
-			       ARRAY_SIZE(comp_tokens), private->array,
-			       le32_to_cpu(private->size));
-	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse fir.cfg tokens failed %d\n",
-			le32_to_cpu(private->size));
-		goto err;
-	}
-
-	sof_dbg_comp_config(scomp, &fir->config);
-
-	/* we have a private data found in control, so copy it */
-	if (fir_data_size > 0) {
-		memcpy(&fir->data, pdata->data, pdata->size);
-		fir->size = fir_data_size;
-	}
-
-	swidget->private = (void *)fir;
-
-	ret = sof_ipc_tx_message(sdev->ipc, fir->comp.hdr.cmd, fir,
-				 ipc_size, r, sizeof(*r));
-	if (ret >= 0)
-		return ret;
-err:
-	kfree(fir);
-	return ret;
-}
-
-static int sof_effect_iir_load(struct snd_soc_component *scomp, int index,
-			       struct snd_sof_widget *swidget,
-			       struct snd_soc_tplg_dapm_widget *tw,
-			       struct sof_ipc_comp_reply *r)
+static int sof_process_load(struct snd_soc_component *scomp, int index,
+			    struct snd_sof_widget *swidget,
+			    struct snd_soc_tplg_dapm_widget *tw,
+			    struct sof_ipc_comp_reply *r,
+			    int type)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct snd_soc_dapm_widget *widget = swidget->widget;
 	const struct snd_kcontrol_new *kc = NULL;
 	struct soc_bytes_ext *sbe;
+	struct soc_mixer_control *sm;
+	struct soc_enum *se;
 	struct snd_sof_control *scontrol = NULL;
 	struct sof_abi_hdr *pdata = NULL;
-	struct sof_ipc_comp_eq_iir *iir;
-	size_t ipc_size = 0, iir_data_size = 0;
-	int ret;
+	struct sof_ipc_comp_process *process;
+	size_t ipc_size = 0, ipc_data_size = 0;
+	int ret, i, offset = 0;
 
-	/* get possible eq controls */
-	kc = &widget->kcontrol_news[0];
-	if (kc) {
-		sbe = (struct soc_bytes_ext *)kc->private_value;
-		scontrol = sbe->dobj.private;
+	if (type == SOF_COMP_NONE) {
+		dev_err(sdev->dev, "error: invalid process comp type %d\n",
+			type);
+		return -EINVAL;
 	}
 
 	/*
-	 * Check if there's eq parameters in control's private member and set
-	 * data size accordingly. If there's no parameters eq will use defaults
-	 * in firmware (which in this case is passthrough).
+	 * get possible component controls - get size of all pdata,
+	 * then memcpy with headers
 	 */
-	if (scontrol && scontrol->cmd == SOF_CTRL_CMD_BINARY) {
+	for (i = 0; i < widget->num_kcontrols; i++) {
+
+		kc = &widget->kcontrol_news[i];
+
+		switch (widget->dobj.widget.kcontrol_type) {
+		case SND_SOC_TPLG_TYPE_MIXER:
+			sm = (struct soc_mixer_control *)kc->private_value;
+			scontrol = sm->dobj.private;
+			break;
+		case SND_SOC_TPLG_TYPE_BYTES:
+			sbe = (struct soc_bytes_ext *)kc->private_value;
+			scontrol = sbe->dobj.private;
+			break;
+		case SND_SOC_TPLG_TYPE_ENUM:
+			se = (struct soc_enum *)kc->private_value;
+			scontrol = se->dobj.private;
+			break;
+		default:
+			dev_err(sdev->dev, "error: unknown kcontrol type %d in widget %s\n",
+				widget->dobj.widget.kcontrol_type,
+				widget->name);
+			return -EINVAL;
+		}
+
+		if (!scontrol) {
+			dev_err(sdev->dev, "error: no scontrol for widget %s\n",
+				widget->name);
+			return -EINVAL;
+		}
+
+		/* don't include if no private data */
 		pdata = scontrol->control_data->data;
-		if (pdata->size > 0 && pdata->magic == SOF_ABI_MAGIC)
-			iir_data_size = pdata->size;
+		if (!pdata)
+			continue;
+
+		/* make sure data is valid - data can be updated at runtime */
+		if (pdata->magic != SOF_ABI_MAGIC)
+			continue;
+
+		ipc_data_size += pdata->size;
 	}
 
-	ipc_size = sizeof(struct sof_ipc_comp_eq_iir) +
+	ipc_size = sizeof(struct sof_ipc_comp_process) +
 		le32_to_cpu(private->size) +
-		iir_data_size;
+		ipc_data_size;
 
-	iir = kzalloc(ipc_size, GFP_KERNEL);
-	if (!iir)
+	process = kzalloc(ipc_size, GFP_KERNEL);
+	if (!process)
 		return -ENOMEM;
 
 	/* configure iir IPC message */
-	iir->comp.hdr.size = ipc_size;
-	iir->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
-	iir->comp.id = swidget->comp_id;
-	iir->comp.type = SOF_COMP_EQ_IIR;
-	iir->comp.pipeline_id = index;
-	iir->config.hdr.size = sizeof(iir->config);
+	process->comp.hdr.size = ipc_size;
+	process->comp.hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_NEW;
+	process->comp.id = swidget->comp_id;
+	process->comp.type = type;
+	process->comp.pipeline_id = index;
+	process->config.hdr.size = sizeof(process->config);
 
-	ret = sof_parse_tokens(scomp, &iir->config, comp_tokens,
+	ret = sof_parse_tokens(scomp, &process->config, comp_tokens,
 			       ARRAY_SIZE(comp_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse iir.cfg tokens failed %d\n",
+		dev_err(sdev->dev, "error: parse process.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
 	}
 
-	sof_dbg_comp_config(scomp, &iir->config);
+	sof_dbg_comp_config(scomp, &process->config);
 
-	/* we have a private data found in control, so copy it */
-	if (iir_data_size > 0) {
-		memcpy(&iir->data, pdata->data, pdata->size);
-		iir->size = iir_data_size;
+	/*
+	 * found private data in control, so copy it.
+	 * get possible component controls - get size of all pdata,
+	 * then memcpy with headers
+	 */
+	for (i = 0; i < widget->num_kcontrols; i++) {
+		kc = &widget->kcontrol_news[i];
+
+		switch (widget->dobj.widget.kcontrol_type) {
+		case SND_SOC_TPLG_TYPE_MIXER:
+			sm = (struct soc_mixer_control *)kc->private_value;
+			scontrol = sm->dobj.private;
+			break;
+		case SND_SOC_TPLG_TYPE_BYTES:
+			sbe = (struct soc_bytes_ext *)kc->private_value;
+			scontrol = sbe->dobj.private;
+			break;
+		case SND_SOC_TPLG_TYPE_ENUM:
+			se = (struct soc_enum *)kc->private_value;
+			scontrol = se->dobj.private;
+			break;
+		default:
+			dev_err(sdev->dev, "error: unknown kcontrol type %d in widget %s\n",
+				widget->dobj.widget.kcontrol_type,
+				widget->name);
+			return -EINVAL;
+		}
+
+		/* don't include if no private data */
+		pdata = scontrol->control_data->data;
+		if (!pdata)
+			continue;
+
+		/* make sure data is valid - data can be updated at runtime */
+		if (pdata->magic != SOF_ABI_MAGIC)
+			continue;
+
+		memcpy(&process->data + offset, pdata->data, pdata->size);
+		offset += pdata->size;
 	}
 
-	swidget->private = (void *)iir;
+	process->size = ipc_data_size;
+	swidget->private = (void *)process;
 
-	ret = sof_ipc_tx_message(sdev->ipc, iir->comp.hdr.cmd, iir,
+	ret = sof_ipc_tx_message(sdev->ipc, process->comp.hdr.cmd, process,
 				 ipc_size, r, sizeof(*r));
 	if (ret >= 0)
 		return ret;
 err:
-	kfree(iir);
+	kfree(process);
 	return ret;
 }
 
 /*
- * Effect Topology
+ * Processing Component Topology - can be "effect", "codec", or general
+ * "processing".
  */
 
-static int sof_widget_load_effect(struct snd_soc_component *scomp, int index,
-				  struct snd_sof_widget *swidget,
-				  struct snd_soc_tplg_dapm_widget *tw,
-				  struct sof_ipc_comp_reply *r)
+static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
+				   struct snd_sof_widget *swidget,
+				   struct snd_soc_tplg_dapm_widget *tw,
+				   struct sof_ipc_comp_reply *r)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
-	struct sof_ipc_comp_effect config;
+	struct sof_ipc_comp_process config;
 	int ret;
 
-	/* check we have some tokens - we need at least effect type */
+	/* check we have some tokens - we need at least process type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(sdev->dev, "error: effect tokens not found\n");
+		dev_err(sdev->dev, "error: process tokens not found\n");
 		return -EINVAL;
 	}
 
 	memset(&config, 0, sizeof(config));
 
-	/* get the effect token */
-	ret = sof_parse_tokens(scomp, &config, effect_tokens,
-			       ARRAY_SIZE(effect_tokens), private->array,
+	/* get the process token */
+	ret = sof_parse_tokens(scomp, &config, process_tokens,
+			       ARRAY_SIZE(process_tokens), private->array,
 			       le32_to_cpu(private->size));
 	if (ret != 0) {
-		dev_err(sdev->dev, "error: parse effect tokens failed %d\n",
+		dev_err(sdev->dev, "error: parse process tokens failed %d\n",
 			le32_to_cpu(private->size));
 		return ret;
 	}
 
-	/* now load effect specific data and send IPC */
-	switch (config.type) {
-	case SOF_EFFECT_INTEL_EQFIR:
-		ret = sof_effect_fir_load(scomp, index, swidget, tw, r);
-		break;
-	case SOF_EFFECT_INTEL_EQIIR:
-		ret = sof_effect_iir_load(scomp, index, swidget, tw, r);
-		break;
-	default:
-		dev_err(sdev->dev, "error: invalid effect type %d\n",
-			config.type);
-		ret = -EINVAL;
-		break;
-	}
-
+	/* now load process specific data and send IPC */
+	ret = sof_process_load(scomp, index, swidget, tw, r,
+			       find_process_comp_type(config.type));
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: effect loading failed\n");
+		dev_err(sdev->dev, "error: process loading failed\n");
 		return ret;
 	}
 
@@ -1854,7 +1851,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		ret = sof_widget_load_siggen(scomp, index, swidget, tw, &reply);
 		break;
 	case snd_soc_dapm_effect:
-		ret = sof_widget_load_effect(scomp, index, swidget, tw, &reply);
+		ret = sof_widget_load_process(scomp, index, swidget, tw,
+					      &reply);
 		break;
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
