@@ -503,6 +503,7 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	mlxsw_i2c->bus_info.device_kind = id->name;
 	mlxsw_i2c->bus_info.device_name = client->name;
 	mlxsw_i2c->bus_info.dev = &client->dev;
+	mlxsw_i2c->bus_info.low_frequency = true;
 	mlxsw_i2c->dev = &client->dev;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_i2c->bus_info,

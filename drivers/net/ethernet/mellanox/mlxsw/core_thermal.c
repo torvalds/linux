@@ -13,6 +13,7 @@
 #include "core.h"
 
 #define MLXSW_THERMAL_POLL_INT	1000	/* ms */
+#define MLXSW_THERMAL_SLOW_POLL_INT	20000	/* ms */
 #define MLXSW_THERMAL_MAX_TEMP	110000	/* 110C */
 #define MLXSW_THERMAL_MAX_STATE	10
 #define MLXSW_THERMAL_MAX_DUTY	255
@@ -76,6 +77,7 @@ struct mlxsw_thermal {
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	struct thermal_zone_device *tzdev;
+	int polling_delay;
 	struct thermal_cooling_device *cdevs[MLXSW_MFCR_PWMS_MAX];
 	u8 cooling_levels[MLXSW_THERMAL_MAX_STATE + 1];
 	struct mlxsw_thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
@@ -172,7 +174,7 @@ static int mlxsw_thermal_set_mode(struct thermal_zone_device *tzdev,
 	mutex_lock(&tzdev->lock);
 
 	if (mode == THERMAL_DEVICE_ENABLED)
-		tzdev->polling_delay = MLXSW_THERMAL_POLL_INT;
+		tzdev->polling_delay = thermal->polling_delay;
 	else
 		tzdev->polling_delay = 0;
 
@@ -423,13 +425,17 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 		thermal->cooling_levels[i] = max(MLXSW_THERMAL_SPEED_MIN_LEVEL,
 						 i);
 
+	thermal->polling_delay = bus_info->low_frequency ?
+				 MLXSW_THERMAL_SLOW_POLL_INT :
+				 MLXSW_THERMAL_POLL_INT;
+
 	thermal->tzdev = thermal_zone_device_register("mlxsw",
 						      MLXSW_THERMAL_NUM_TRIPS,
 						      MLXSW_THERMAL_TRIP_MASK,
 						      thermal,
 						      &mlxsw_thermal_ops,
 						      NULL, 0,
-						      MLXSW_THERMAL_POLL_INT);
+						      thermal->polling_delay);
 	if (IS_ERR(thermal->tzdev)) {
 		err = PTR_ERR(thermal->tzdev);
 		dev_err(dev, "Failed to register thermal zone\n");
