@@ -366,6 +366,9 @@ void __i915_request_submit(struct i915_request *request)
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline.lock);
 
+	if (i915_gem_context_is_banned(request->gem_context))
+		i915_request_skip(request, -EIO);
+
 	GEM_BUG_ON(request->global_seqno);
 
 	seqno = next_global_seqno(&engine->timeline);

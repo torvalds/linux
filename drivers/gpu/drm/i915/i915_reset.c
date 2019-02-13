@@ -22,24 +22,15 @@ static void engine_skip_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
 	struct i915_gem_context *hung_ctx = rq->gem_context;
-	struct i915_timeline *timeline = rq->timeline;
 
 	lockdep_assert_held(&engine->timeline.lock);
-	GEM_BUG_ON(timeline == &engine->timeline);
 
-	spin_lock(&timeline->lock);
+	if (!i915_request_is_active(rq))
+		return;
 
-	if (i915_request_is_active(rq)) {
-		list_for_each_entry_continue(rq,
-					     &engine->timeline.requests, link)
-			if (rq->gem_context == hung_ctx)
-				i915_request_skip(rq, -EIO);
-	}
-
-	list_for_each_entry(rq, &timeline->requests, link)
-		i915_request_skip(rq, -EIO);
-
-	spin_unlock(&timeline->lock);
+	list_for_each_entry_continue(rq, &engine->timeline.requests, link)
+		if (rq->gem_context == hung_ctx)
+			i915_request_skip(rq, -EIO);
 }
 
 static void client_mark_guilty(struct drm_i915_file_private *file_priv,
