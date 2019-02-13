@@ -2198,6 +2198,13 @@ struct ib_port_immutable {
 	u32                           max_mad_size;
 };
 
+struct ib_port_data {
+	struct ib_port_immutable immutable;
+
+	spinlock_t pkey_list_lock;
+	struct list_head pkey_list;
+};
+
 /* rdma netdev type - specifies protocol type */
 enum rdma_netdev_t {
 	RDMA_NETDEV_OPA_VNIC,
@@ -2241,12 +2248,6 @@ struct rdma_netdev_alloc_params {
 
 	int (*initialize_rdma_netdev)(struct ib_device *device, u8 port_num,
 				      struct net_device *netdev, void *param);
-};
-
-struct ib_port_pkey_list {
-	/* Lock to hold while modifying the list. */
-	spinlock_t                    list_lock;
-	struct list_head              pkey_list;
 };
 
 struct ib_counters {
@@ -2549,13 +2550,11 @@ struct ib_device {
 
 	struct ib_cache               cache;
 	/**
-	 * port_immutable is indexed by port number
+	 * port_data is indexed by port number
 	 */
-	struct ib_port_immutable     *port_immutable;
+	struct ib_port_data *port_data;
 
 	int			      num_comp_vectors;
-
-	struct ib_port_pkey_list     *port_pkey_list;
 
 	struct iw_cm_verbs	     *iwcm;
 
@@ -2860,34 +2859,38 @@ static inline int rdma_is_port_valid(const struct ib_device *device,
 static inline bool rdma_is_grh_required(const struct ib_device *device,
 					u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags &
-		RDMA_CORE_PORT_IB_GRH_REQUIRED;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_PORT_IB_GRH_REQUIRED;
 }
 
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_IB;
 }
 
 static inline bool rdma_protocol_roce(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags &
-		(RDMA_CORE_CAP_PROT_ROCE | RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP);
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       (RDMA_CORE_CAP_PROT_ROCE | RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP);
 }
 
 static inline bool rdma_protocol_roce_udp_encap(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 }
 
 static inline bool rdma_protocol_roce_eth_encap(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_ROCE;
 }
 
 static inline bool rdma_protocol_iwarp(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_IWARP;
 }
 
 static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
@@ -2898,12 +2901,14 @@ static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
 
 static inline bool rdma_protocol_raw_packet(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_RAW_PACKET;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_RAW_PACKET;
 }
 
 static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_USNIC;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_USNIC;
 }
 
 /**
@@ -2920,7 +2925,8 @@ static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_n
  */
 static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_MAD;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_MAD;
 }
 
 /**
@@ -2944,8 +2950,8 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
 {
-	return (device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_OPA_MAD)
-		== RDMA_CORE_CAP_OPA_MAD;
+	return (device->port_data[port_num].immutable.core_cap_flags &
+		RDMA_CORE_CAP_OPA_MAD) == RDMA_CORE_CAP_OPA_MAD;
 }
 
 /**
@@ -2970,7 +2976,8 @@ static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SMI;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_SMI;
 }
 
 /**
@@ -2990,7 +2997,8 @@ static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_CM;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_CM;
 }
 
 /**
@@ -3007,7 +3015,8 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IW_CM;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IW_CM;
 }
 
 /**
@@ -3027,7 +3036,8 @@ static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SA;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_SA;
 }
 
 /**
@@ -3067,7 +3077,8 @@ static inline bool rdma_cap_ib_mcast(const struct ib_device *device, u8 port_num
  */
 static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_AF_IB;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_AF_IB;
 }
 
 /**
@@ -3088,7 +3099,8 @@ static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_ETH_AH;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_ETH_AH;
 }
 
 /**
@@ -3102,7 +3114,7 @@ static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
 {
-	return (device->port_immutable[port_num].core_cap_flags &
+	return (device->port_data[port_num].immutable.core_cap_flags &
 		RDMA_CORE_CAP_OPA_AH) == RDMA_CORE_CAP_OPA_AH;
 }
 
@@ -3120,7 +3132,7 @@ static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
  */
 static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].max_mad_size;
+	return device->port_data[port_num].immutable.max_mad_size;
 }
 
 /**

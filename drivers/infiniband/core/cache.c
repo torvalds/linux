@@ -881,8 +881,8 @@ static int _gid_table_setup_one(struct ib_device *ib_dev)
 	for (port = 0; port < ib_dev->phys_port_cnt; port++) {
 		u8 rdma_port = port + rdma_start_port(ib_dev);
 
-		table =	alloc_gid_table(
-				ib_dev->port_immutable[rdma_port].gid_tbl_len);
+		table = alloc_gid_table(
+			ib_dev->port_data[rdma_port].immutable.gid_tbl_len);
 		if (!table)
 			goto rollback_table_setup;
 

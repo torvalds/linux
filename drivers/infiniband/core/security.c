@@ -49,16 +49,15 @@ static struct pkey_index_qp_list *get_pkey_idx_qp_list(struct ib_port_pkey *pp)
 	struct pkey_index_qp_list *tmp_pkey;
 	struct ib_device *dev = pp->sec->dev;
 
-	spin_lock(&dev->port_pkey_list[pp->port_num].list_lock);
-	list_for_each_entry(tmp_pkey,
-			    &dev->port_pkey_list[pp->port_num].pkey_list,
-			    pkey_index_list) {
+	spin_lock(&dev->port_data[pp->port_num].pkey_list_lock);
+	list_for_each_entry (tmp_pkey, &dev->port_data[pp->port_num].pkey_list,
+			     pkey_index_list) {
 		if (tmp_pkey->pkey_index == pp->pkey_index) {
 			pkey = tmp_pkey;
 			break;
 		}
 	}
-	spin_unlock(&dev->port_pkey_list[pp->port_num].list_lock);
+	spin_unlock(&dev->port_data[pp->port_num].pkey_list_lock);
 	return pkey;
 }
 
@@ -263,12 +262,12 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 		if (!pkey)
 			return -ENOMEM;
 
-		spin_lock(&dev->port_pkey_list[port_num].list_lock);
+		spin_lock(&dev->port_data[port_num].pkey_list_lock);
 		/* Check for the PKey again.  A racing process may
 		 * have created it.
 		 */
 		list_for_each_entry(tmp_pkey,
-				    &dev->port_pkey_list[port_num].pkey_list,
+				    &dev->port_data[port_num].pkey_list,
 				    pkey_index_list) {
 			if (tmp_pkey->pkey_index == pp->pkey_index) {
 				kfree(pkey);
@@ -283,9 +282,9 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 			spin_lock_init(&pkey->qp_list_lock);
 			INIT_LIST_HEAD(&pkey->qp_list);
 			list_add(&pkey->pkey_index_list,
-				 &dev->port_pkey_list[port_num].pkey_list);
+				 &dev->port_data[port_num].pkey_list);
 		}
-		spin_unlock(&dev->port_pkey_list[port_num].list_lock);
+		spin_unlock(&dev->port_data[port_num].pkey_list_lock);
 	}
 
 	spin_lock(&pkey->qp_list_lock);
@@ -551,9 +550,8 @@ void ib_security_cache_change(struct ib_device *device,
 {
 	struct pkey_index_qp_list *pkey;
 
-	list_for_each_entry(pkey,
-			    &device->port_pkey_list[port_num].pkey_list,
-			    pkey_index_list) {
+	list_for_each_entry (pkey, &device->port_data[port_num].pkey_list,
+			     pkey_index_list) {
 		check_pkey_qps(pkey,
 			       device,
 			       port_num,
@@ -569,7 +567,7 @@ void ib_security_release_port_pkey_list(struct ib_device *device)
 	rdma_for_each_port (device, i) {
 		list_for_each_entry_safe(pkey,
 					 tmp_pkey,
-					 &device->port_pkey_list[i].pkey_list,
+					 &device->port_data[i].pkey_list,
 					 pkey_index_list) {
 			list_del(&pkey->pkey_index_list);
 			kfree(pkey);

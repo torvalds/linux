@@ -293,8 +293,7 @@ static void ib_device_release(struct device *device)
 	WARN_ON(refcount_read(&dev->refcount));
 	ib_cache_release_one(dev);
 	ib_security_release_port_pkey_list(dev);
-	kfree(dev->port_pkey_list);
-	kfree(dev->port_immutable);
+	kfree(dev->port_data);
 	xa_destroy(&dev->client_data);
 	kfree(dev);
 }
@@ -468,27 +467,31 @@ static int verify_immutable(const struct ib_device *dev, u8 port)
 			    rdma_max_mad_size(dev, port) != 0);
 }
 
-static int read_port_immutable(struct ib_device *device)
+static int setup_port_data(struct ib_device *device)
 {
 	unsigned int port;
 	int ret;
 
-	/**
-	 * device->port_immutable is indexed directly by the port number to make
+	/*
+	 * device->port_data is indexed directly by the port number to make
 	 * access to this data as efficient as possible.
 	 *
-	 * Therefore port_immutable is declared as a 1 based array with
-	 * potential empty slots at the beginning.
+	 * Therefore port_data is declared as a 1 based array with potential
+	 * empty slots at the beginning.
 	 */
-	device->port_immutable =
-		kcalloc(rdma_end_port(device) + 1,
-			sizeof(*device->port_immutable), GFP_KERNEL);
-	if (!device->port_immutable)
+	device->port_data = kcalloc(rdma_end_port(device) + 1,
+				    sizeof(*device->port_data), GFP_KERNEL);
+	if (!device->port_data)
 		return -ENOMEM;
 
 	rdma_for_each_port (device, port) {
-		ret = device->ops.get_port_immutable(
-			device, port, &device->port_immutable[port]);
+		struct ib_port_data *pdata = &device->port_data[port];
+
+		spin_lock_init(&pdata->pkey_list_lock);
+		INIT_LIST_HEAD(&pdata->pkey_list);
+
+		ret = device->ops.get_port_immutable(device, port,
+						     &pdata->immutable);
 		if (ret)
 			return ret;
 
@@ -506,30 +509,6 @@ void ib_get_device_fw_str(struct ib_device *dev, char *str)
 		str[0] = '\0';
 }
 EXPORT_SYMBOL(ib_get_device_fw_str);
-
-static int setup_port_pkey_list(struct ib_device *device)
-{
-	int i;
-
-	/**
-	 * device->port_pkey_list is indexed directly by the port number,
-	 * Therefore it is declared as a 1 based array with potential empty
-	 * slots at the beginning.
-	 */
-	device->port_pkey_list = kcalloc(rdma_end_port(device) + 1,
-					 sizeof(*device->port_pkey_list),
-					 GFP_KERNEL);
-
-	if (!device->port_pkey_list)
-		return -ENOMEM;
-
-	for (i = 0; i < (rdma_end_port(device) + 1); i++) {
-		spin_lock_init(&device->port_pkey_list[i].list_lock);
-		INIT_LIST_HEAD(&device->port_pkey_list[i].pkey_list);
-	}
-
-	return 0;
-}
 
 static void ib_policy_change_task(struct work_struct *work)
 {
@@ -668,10 +647,9 @@ static int setup_device(struct ib_device *device)
 	if (ret)
 		return ret;
 
-	ret = read_port_immutable(device);
+	ret = setup_port_data(device);
 	if (ret) {
-		dev_warn(&device->dev,
-			 "Couldn't create per port immutable data\n");
+		dev_warn(&device->dev, "Couldn't create per-port data\n");
 		return ret;
 	}
 
@@ -680,12 +658,6 @@ static int setup_device(struct ib_device *device)
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't query the device attributes\n");
-		return ret;
-	}
-
-	ret = setup_port_pkey_list(device);
-	if (ret) {
-		dev_warn(&device->dev, "Couldn't create per port_pkey_list\n");
 		return ret;
 	}
 
@@ -1221,7 +1193,8 @@ int ib_find_gid(struct ib_device *device, union ib_gid *gid,
 		if (!rdma_protocol_ib(device, port))
 			continue;
 
-		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
+		for (i = 0; i < device->port_data[port].immutable.gid_tbl_len;
+		     ++i) {
 			ret = rdma_query_gid(device, port, i, &tmp_gid);
 			if (ret)
 				return ret;
@@ -1253,7 +1226,8 @@ int ib_find_pkey(struct ib_device *device,
 	u16 tmp_pkey;
 	int partial_ix = -1;
 
-	for (i = 0; i < device->port_immutable[port_num].pkey_tbl_len; ++i) {
+	for (i = 0; i < device->port_data[port_num].immutable.pkey_tbl_len;
+	     ++i) {
 		ret = ib_query_pkey(device, port_num, i, &tmp_pkey);
 		if (ret)
 			return ret;
