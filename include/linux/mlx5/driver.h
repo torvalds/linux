@@ -1088,7 +1088,16 @@ static inline bool mlx5_core_is_ecpf_esw_manager(struct mlx5_core_dev *dev)
 	return dev->caps.embedded_cpu && MLX5_CAP_GEN(dev, eswitch_manager);
 }
 
-#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs((mdev)->pdev))
+#define MLX5_HOST_PF_MAX_VFS	(127u)
+static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
+{
+	if (mlx5_core_is_ecpf_esw_manager(dev))
+		return MLX5_HOST_PF_MAX_VFS;
+	else
+		return pci_sriov_get_totalvfs(dev->pdev);
+}
+
+#define MLX5_TOTAL_VPORTS(mdev) (1 + mlx5_core_max_vfs(mdev))
 #define MLX5_VPORT_MANAGER(mdev) \
 	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
 	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
