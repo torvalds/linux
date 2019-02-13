@@ -407,8 +407,6 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		(const struct snd_ctl_tlv __user *)binary_data;
 	int ret;
 	int err;
-	int max_size = SOF_IPC_MSG_MAX_SIZE -
-		sizeof(const struct sof_ipc_ctrl_data);
 
 	/*
 	 * The beginning of bytes data contains a header from where
@@ -418,16 +416,10 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
 		return -EFAULT;
 
-	/*
-	 * The maximum length that can be copied is limited by IPC max
-	 * length and topology defined length for ext bytes control.
-	 */
-	if (be->max < max_size) /* min() not used to avoid sparse warnings */
-		max_size = be->max;
-	if (header.length > max_size) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: Bytes data size %d exceeds max %d.\n",
-				    header.length, max_size);
+	/* be->max is coming from topology */
+	if (header.length > be->max) {
+		dev_err_ratelimited(sdev->dev, "error: Bytes data size %d exceeds max %d.\n",
+				    header.length, be->max);
 		return -EINVAL;
 	}
 
@@ -455,9 +447,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (cdata->data->size + sizeof(const struct sof_abi_hdr) > max_size) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: Mismatch in ABI data size (truncated?).\n");
+	if (cdata->data->size + sizeof(const struct sof_abi_hdr) > be->max) {
+		dev_err_ratelimited(sdev->dev, "error: Mismatch in ABI data size (truncated?).\n");
 		return -EINVAL;
 	}
 
@@ -499,8 +490,6 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv header;
 	struct snd_ctl_tlv __user *tlvd =
 		(struct snd_ctl_tlv __user *)binary_data;
-	int max_size = SOF_IPC_MSG_MAX_SIZE -
-		sizeof(const struct sof_ipc_ctrl_data);
 	int data_size;
 	int err;
 	int ret;
@@ -534,15 +523,10 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	/* Prevent read of other kernel data or possibly corrupt response */
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
 
-	/* check size. min3() is not used to avoid sparse warnings */
-	if (size < max_size)
-		max_size = size;
-	if (be->max < max_size)
-		max_size = be->max;
-	if (data_size > max_size) {
-		dev_err_ratelimited(sdev->dev,
-				    "error: user data size %d exceeds max size %d.\n",
-				    data_size, max_size);
+	/* check data size doesn't exceed max coming from topology */
+	if (data_size > be->max) {
+		dev_err_ratelimited(sdev->dev, "error: user data size %d exceeds max size %d.\n",
+				    data_size, be->max);
 		ret = -EINVAL;
 		goto out;
 	}

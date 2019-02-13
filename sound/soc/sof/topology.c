@@ -365,12 +365,19 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	struct sof_ipc_ctrl_data *cdata;
 	struct snd_soc_tplg_bytes_control *control =
 		(struct snd_soc_tplg_bytes_control *)hdr;
-	const int max_size = SOF_IPC_MSG_MAX_SIZE -
-		sizeof(const struct sof_ipc_ctrl_data);
+	struct soc_bytes_ext *sbe = (struct soc_bytes_ext *)kc->private_value;
+	int max_size = sbe->max;
+
+	if (le32_to_cpu(control->priv.size) > max_size) {
+		dev_err(sdev->dev, "err: bytes data size %d exceeds max %d.\n",
+			control->priv.size, max_size);
+		return -EINVAL;
+	}
 
 	/* init the get/put bytes data */
-	scontrol->size = SOF_IPC_MSG_MAX_SIZE;
-	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	scontrol->size = sizeof(struct sof_ipc_ctrl_data) +
+		le32_to_cpu(control->priv.size);
+	scontrol->control_data = kzalloc(max_size, GFP_KERNEL);
 	cdata = scontrol->control_data;
 	if (!scontrol->control_data)
 		return -ENOMEM;
@@ -380,12 +387,6 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
-
-	if (le32_to_cpu(control->priv.size) > max_size) {
-		dev_err(sdev->dev, "error: bytes priv data size %d exceeds max %d.\n",
-			control->priv.size, max_size);
-		return -EINVAL;
-	}
 
 	if (le32_to_cpu(control->priv.size) > 0) {
 		memcpy(cdata->data, control->priv.data,
