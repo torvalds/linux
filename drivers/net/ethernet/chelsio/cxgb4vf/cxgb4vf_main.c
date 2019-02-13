@@ -1408,7 +1408,7 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
 		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
-		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
@@ -1417,6 +1417,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	default:
 		break;
+	}
+
+	if (fw_caps & FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M)) {
+		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
+		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
+	} else {
+		SET_LMM(FEC_NONE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
