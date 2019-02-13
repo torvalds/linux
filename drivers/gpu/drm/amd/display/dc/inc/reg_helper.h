@@ -52,7 +52,7 @@
 
 /* macro to set register fields. */
 #define REG_SET_N(reg_name, n, initial_val, ...)	\
-		generic_reg_update_ex(CTX, \
+		generic_reg_set_ex(CTX, \
 				REG(reg_name), \
 				initial_val, \
 				n, __VA_ARGS__)
@@ -225,7 +225,6 @@
 #define REG_UPDATE_N(reg_name, n, ...)	\
 		generic_reg_update_ex(CTX, \
 				REG(reg_name), \
-				REG_READ(reg_name), \
 				n, __VA_ARGS__)
 
 #define REG_UPDATE(reg_name, field, val)	\

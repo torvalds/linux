@@ -144,8 +144,12 @@ static inline uint32_t set_reg_field_value_ex(
 		reg_name ## __ ## reg_field ## _MASK,\
 		reg_name ## __ ## reg_field ## __SHIFT)
 
-uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 		uint32_t addr, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
+
+uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1, ...);
 
 #define FD(reg_field)	reg_field ## __SHIFT, \
@@ -172,11 +176,10 @@ unsigned int generic_reg_wait(const struct dc_context *ctx,
 
 #define generic_reg_update_soc15(ctx, inst_offset, reg_name, n, ...)\
 		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] +  mm##reg_name + inst_offset, \
-		dm_read_reg_func(ctx, mm##reg_name + DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + inst_offset, __func__), \
 		n, __VA_ARGS__)
 
 #define generic_reg_set_soc15(ctx, inst_offset, reg_name, n, ...)\
-		generic_reg_update_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + mm##reg_name + inst_offset, 0, \
+		generic_reg_set_ex(ctx, DCE_BASE.instance[0].segment[mm##reg_name##_BASE_IDX] + mm##reg_name + inst_offset, 0, \
 		n, __VA_ARGS__)
 
 #define get_reg_field_value_soc15(reg_value, block, reg_num, reg_name, reg_field)\

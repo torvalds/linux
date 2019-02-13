@@ -51,20 +51,16 @@ static inline void set_reg_field_value_masks(
 	field_value_mask->mask = field_value_mask->mask | mask;
 }
 
-uint32_t generic_reg_update_ex(const struct dc_context *ctx,
-		uint32_t addr, uint32_t reg_val, int n,
+static void set_reg_field_values(struct dc_reg_value_masks *field_value_mask,
+		uint32_t addr, int n,
 		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
-		...)
+		va_list ap)
 {
-	struct dc_reg_value_masks field_value_mask = {0};
 	uint32_t shift, mask, field_value;
 	int i = 1;
 
-	va_list ap;
-	va_start(ap, field_value1);
-
 	/* gather all bits value/mask getting updated in this register */
-	set_reg_field_value_masks(&field_value_mask,
+	set_reg_field_value_masks(field_value_mask,
 			field_value1, mask1, shift1);
 
 	while (i < n) {
@@ -72,10 +68,48 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 		mask = va_arg(ap, uint32_t);
 		field_value = va_arg(ap, uint32_t);
 
-		set_reg_field_value_masks(&field_value_mask,
+		set_reg_field_value_masks(field_value_mask,
 				field_value, mask, shift);
 		i++;
 	}
+}
+
+uint32_t generic_reg_update_ex(const struct dc_context *ctx,
+		uint32_t addr, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...)
+{
+	struct dc_reg_value_masks field_value_mask = {0};
+	uint32_t reg_val;
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	set_reg_field_values(&field_value_mask, addr, n, shift1, mask1,
+			field_value1, ap);
+
+	va_end(ap);
+
+	/* mmio write directly */
+	reg_val = dm_read_reg(ctx, addr);
+	reg_val = (reg_val & ~field_value_mask.mask) | field_value_mask.value;
+	dm_write_reg(ctx, addr, reg_val);
+	return reg_val;
+}
+
+uint32_t generic_reg_set_ex(const struct dc_context *ctx,
+		uint32_t addr, uint32_t reg_val, int n,
+		uint8_t shift1, uint32_t mask1, uint32_t field_value1,
+		...)
+{
+	struct dc_reg_value_masks field_value_mask = {0};
+	va_list ap;
+
+	va_start(ap, field_value1);
+
+	set_reg_field_values(&field_value_mask, addr, n, shift1, mask1,
+			field_value1, ap);
+
 	va_end(ap);
 
 
