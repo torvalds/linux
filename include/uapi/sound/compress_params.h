@@ -54,6 +54,9 @@
 
 #include <linux/types.h>
 
+/* Maximum PCM channels */
+#define MAX_PCM_DECODE_CHANNELS 32
+
 /* AUDIO CODECS SUPPORTED */
 #define MAX_NUM_CODECS 32
 #define MAX_NUM_CODEC_DESCRIPTORS 32
@@ -411,6 +414,15 @@ struct snd_dec_aptx {
 	__u32 nap;
 };
 
+/** struct snd_dec_pcm - codec options for PCM format
+ * @num_channels: Number of channels
+ * @ch_map: Channel map for the above corresponding channels
+ */
+struct snd_dec_pcm {
+	__u32 num_channels;
+	__u8 ch_map[MAX_PCM_DECODE_CHANNELS];
+} __attribute__((packed, aligned(4)));
+
 union snd_codec_options {
 	struct snd_enc_wma wma;
 	struct snd_enc_vorbis vorbis;
@@ -423,6 +435,7 @@ union snd_codec_options {
 	struct snd_dec_ape ape;
 	struct snd_dec_aptx aptx_dec;
 	struct snd_dec_thd truehd;
+	struct snd_dec_pcm pcm_dec;
 };
 
 /** struct snd_codec_desc - description of codec capabilities
