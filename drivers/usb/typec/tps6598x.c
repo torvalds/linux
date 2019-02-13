@@ -14,6 +14,8 @@
 #include <linux/usb/typec.h>
 
 /* Register offsets */
+#define TPS_REG_VID			0x00
+#define TPS_REG_MODE			0x03
 #define TPS_REG_CMD1			0x08
 #define TPS_REG_DATA1			0x09
 #define TPS_REG_INT_EVENT1		0x14
@@ -65,6 +67,20 @@ struct tps6598x_rx_identity_reg {
 /* Standard Task return codes */
 #define TPS_TASK_TIMEOUT		1
 #define TPS_TASK_REJECTED		3
+
+enum {
+	TPS_MODE_APP,
+	TPS_MODE_BOOT,
+	TPS_MODE_BIST,
+	TPS_MODE_DISC,
+};
+
+static const char *const modes[] = {
+	[TPS_MODE_APP]	= "APP ",
+	[TPS_MODE_BOOT]	= "BOOT",
+	[TPS_MODE_BIST]	= "BIST",
+	[TPS_MODE_DISC]	= "DISC",
+};
 
 /* Unrecognized commands will be replaced with "!CMD" */
 #define INVALID_CMD(_cmd_)		(_cmd_ == 0x444d4321)
@@ -384,6 +400,32 @@ err_unlock:
 	return IRQ_HANDLED;
 }
 
+static int tps6598x_check_mode(struct tps6598x *tps)
+{
+	char mode[5] = { };
+	int ret;
+
+	ret = tps6598x_read32(tps, TPS_REG_MODE, (void *)mode);
+	if (ret)
+		return ret;
+
+	switch (match_string(modes, ARRAY_SIZE(modes), mode)) {
+	case TPS_MODE_APP:
+		return 0;
+	case TPS_MODE_BOOT:
+		dev_warn(tps->dev, "dead-battery condition\n");
+		return 0;
+	case TPS_MODE_BIST:
+	case TPS_MODE_DISC:
+	default:
+		dev_err(tps->dev, "controller in unsupported mode \"%s\"\n",
+			mode);
+		break;
+	}
+
+	return -ENODEV;
+}
+
 static const struct regmap_config tps6598x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -409,10 +451,8 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (IS_ERR(tps->regmap))
 		return PTR_ERR(tps->regmap);
 
-	ret = tps6598x_read32(tps, 0, &vid);
-	if (ret < 0)
-		return ret;
-	if (!vid)
+	ret = tps6598x_read32(tps, TPS_REG_VID, &vid);
+	if (ret < 0 || !vid)
 		return -ENODEV;
 
 	/*
@@ -424,6 +464,11 @@ static int tps6598x_probe(struct i2c_client *client)
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		tps->i2c_protocol = true;
+
+	/* Make sure the controller has application firmware running */
+	ret = tps6598x_check_mode(tps);
+	if (ret)
+		return ret;
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret < 0)
