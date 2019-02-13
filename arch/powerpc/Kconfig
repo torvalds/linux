@@ -886,6 +886,7 @@ config FSL_SOC
 
 config FSL_PCI
  	bool
+	select ARCH_HAS_DMA_SET_MASK
 	select PPC_INDIRECT_PCI
 	select PCI_QUIRKS
 

@@ -110,7 +110,5 @@ static inline void set_dma_offset(struct device *dev, dma_addr_t off)
 		dev->archdata.dma_offset = off;
 }
 
-#define HAVE_ARCH_DMA_SET_MASK 1
-
 #endif /* __KERNEL__ */
 #endif	/* _ASM_DMA_MAPPING_H */
