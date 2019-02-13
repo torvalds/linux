@@ -612,6 +612,8 @@ int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
 
 	MLX5_SET(enable_hca_in, in, opcode, MLX5_CMD_OP_ENABLE_HCA);
 	MLX5_SET(enable_hca_in, in, function_id, func_id);
+	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
+		 dev->caps.embedded_cpu);
 	return mlx5_cmd_exec(dev, &in, sizeof(in), &out, sizeof(out));
 }
 
@@ -622,6 +624,8 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 
 	MLX5_SET(disable_hca_in, in, opcode, MLX5_CMD_OP_DISABLE_HCA);
 	MLX5_SET(disable_hca_in, in, function_id, func_id);
+	MLX5_SET(enable_hca_in, in, embedded_cpu_function,
+		 dev->caps.embedded_cpu);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
@@ -1071,6 +1075,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_sriov;
 	}
 
+	err = mlx5_ec_init(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init embedded CPU\n");
+		goto err_ec;
+	}
+
 	if (mlx5_device_registered(dev)) {
 		mlx5_attach_device(dev);
 	} else {
@@ -1088,6 +1098,9 @@ out:
 	return 0;
 
 err_reg_dev:
+	mlx5_ec_cleanup(dev);
+
+err_ec:
 	mlx5_sriov_detach(dev);
 
 err_sriov:
@@ -1162,6 +1175,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	if (mlx5_device_registered(dev))
 		mlx5_detach_device(dev);
 
+	mlx5_ec_cleanup(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
