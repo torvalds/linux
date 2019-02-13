@@ -211,6 +211,7 @@ struct atmel_nand_controller_caps {
 	bool legacy_of_bindings;
 	u32 ale_offs;
 	u32 cle_offs;
+	const char *ebi_csa_regmap_name;
 	const struct atmel_nand_controller_ops *ops;
 };
 
@@ -233,7 +234,7 @@ to_nand_controller(struct nand_controller *ctl)
 
 struct atmel_smc_nand_controller {
 	struct atmel_nand_controller base;
-	struct regmap *matrix;
+	struct regmap *ebi_csa_regmap;
 	unsigned int ebi_csa_offs;
 };
 
@@ -1507,12 +1508,12 @@ static void atmel_smc_nand_init(struct atmel_nand_controller *nc,
 	atmel_nand_init(nc, nand);
 
 	smc_nc = to_smc_nand_controller(chip->controller);
-	if (!smc_nc->matrix)
+	if (!smc_nc->ebi_csa_regmap)
 		return;
 
 	/* Attach the CS to the NAND Flash logic. */
 	for (i = 0; i < nand->numcs; i++)
-		regmap_update_bits(smc_nc->matrix, smc_nc->ebi_csa_offs,
+		regmap_update_bits(smc_nc->ebi_csa_regmap, smc_nc->ebi_csa_offs,
 				   BIT(nand->cs[i].id), BIT(nand->cs[i].id));
 }
 
@@ -1833,7 +1834,7 @@ static void atmel_nand_controller_cleanup(struct atmel_nand_controller *nc)
 	clk_put(nc->mck);
 }
 
-static const struct of_device_id atmel_matrix_of_ids[] = {
+static const struct of_device_id atmel_ebi_csa_regmap_of_ids[] = {
 	{
 		.compatible = "atmel,at91sam9260-matrix",
 		.data = (void *)AT91SAM9260_MATRIX_EBICSA,
@@ -1982,25 +1983,26 @@ atmel_smc_nand_controller_init(struct atmel_smc_nand_controller *nc)
 	struct device_node *np;
 	int ret;
 
-	/* We do not retrieve the matrix syscon when parsing old DTs. */
+	/* We do not retrieve the EBICSA regmap when parsing old DTs. */
 	if (nc->base.caps->legacy_of_bindings)
 		return 0;
 
-	np = of_parse_phandle(dev->parent->of_node, "atmel,matrix", 0);
+	np = of_parse_phandle(dev->parent->of_node,
+			      nc->base.caps->ebi_csa_regmap_name, 0);
 	if (!np)
 		return 0;
 
-	match = of_match_node(atmel_matrix_of_ids, np);
+	match = of_match_node(atmel_ebi_csa_regmap_of_ids, np);
 	if (!match) {
 		of_node_put(np);
 		return 0;
 	}
 
-	nc->matrix = syscon_node_to_regmap(np);
+	nc->ebi_csa_regmap = syscon_node_to_regmap(np);
 	of_node_put(np);
-	if (IS_ERR(nc->matrix)) {
-		ret = PTR_ERR(nc->matrix);
-		dev_err(dev, "Could not get Matrix regmap (err = %d)\n", ret);
+	if (IS_ERR(nc->ebi_csa_regmap)) {
+		ret = PTR_ERR(nc->ebi_csa_regmap);
+		dev_err(dev, "Could not get EBICSA regmap (err = %d)\n", ret);
 		return ret;
 	}
 
@@ -2341,6 +2343,7 @@ static const struct atmel_nand_controller_ops at91rm9200_nc_ops = {
 static const struct atmel_nand_controller_caps atmel_rm9200_nc_caps = {
 	.ale_offs = BIT(21),
 	.cle_offs = BIT(22),
+	.ebi_csa_regmap_name = "atmel,matrix",
 	.ops = &at91rm9200_nc_ops,
 };
 
@@ -2355,12 +2358,14 @@ static const struct atmel_nand_controller_ops atmel_smc_nc_ops = {
 static const struct atmel_nand_controller_caps atmel_sam9260_nc_caps = {
 	.ale_offs = BIT(21),
 	.cle_offs = BIT(22),
+	.ebi_csa_regmap_name = "atmel,matrix",
 	.ops = &atmel_smc_nc_ops,
 };
 
 static const struct atmel_nand_controller_caps atmel_sam9261_nc_caps = {
 	.ale_offs = BIT(22),
 	.cle_offs = BIT(21),
+	.ebi_csa_regmap_name = "atmel,matrix",
 	.ops = &atmel_smc_nc_ops,
 };
 
@@ -2368,6 +2373,7 @@ static const struct atmel_nand_controller_caps atmel_sam9g45_nc_caps = {
 	.has_dma = true,
 	.ale_offs = BIT(21),
 	.cle_offs = BIT(22),
+	.ebi_csa_regmap_name = "atmel,matrix",
 	.ops = &atmel_smc_nc_ops,
 };
 
