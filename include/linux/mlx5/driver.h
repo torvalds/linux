@@ -522,6 +522,7 @@ struct mlx5_priv {
 	atomic_t		reg_pages;
 	struct list_head	free_list;
 	int			vfs_pages;
+	int			peer_pf_pages;
 
 	struct mlx5_core_health health;
 
@@ -652,6 +653,7 @@ struct mlx5_core_dev {
 		u32 mcam[MLX5_ST_SZ_DW(mcam_reg)];
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
+		u8  embedded_cpu;
 	} caps;
 	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
@@ -922,7 +924,7 @@ void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
-				 s32 npages);
+				 s32 npages, bool ec_function);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
@@ -1074,6 +1076,11 @@ enum {
 static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 {
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
+}
+
+static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
+{
+	return dev->caps.embedded_cpu;
 }
 
 #define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs((mdev)->pdev))
