@@ -254,6 +254,10 @@
 	};
 };
 
+&wdoga5 {
+	status = "disabled";
+};
+
 &iomuxc {
 	pinctrl_dspi1: dspi1grp {
 		fsl,pins = <
