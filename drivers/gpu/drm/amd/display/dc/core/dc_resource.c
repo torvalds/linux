@@ -106,44 +106,43 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	return dc_version;
 }
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc  *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id)
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version)
 {
 	struct resource_pool *res_pool = NULL;
 
 	switch (dc_version) {
 	case DCE_VERSION_8_0:
 		res_pool = dce80_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_8_1:
 		res_pool = dce81_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_8_3:
 		res_pool = dce83_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_10_0:
 		res_pool = dce100_create_resource_pool(
-				num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_11_0:
 		res_pool = dce110_create_resource_pool(
-			num_virtual_links, dc, asic_id);
+				init_data->num_virtual_links, dc,
+				init_data->asic_id);
 		break;
 	case DCE_VERSION_11_2:
 	case DCE_VERSION_11_22:
 		res_pool = dce112_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 	case DCE_VERSION_12_0:
 	case DCE_VERSION_12_1:
 		res_pool = dce120_create_resource_pool(
-			num_virtual_links, dc);
+				init_data->num_virtual_links, dc);
 		break;
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
@@ -151,8 +150,7 @@ struct resource_pool *dc_create_resource_pool(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 	case DCN_VERSION_1_01:
 #endif
-		res_pool = dcn10_create_resource_pool(
-				num_virtual_links, dc);
+		res_pool = dcn10_create_resource_pool(init_data, dc);
 		break;
 #endif
 

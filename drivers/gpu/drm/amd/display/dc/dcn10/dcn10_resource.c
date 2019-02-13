@@ -1528,7 +1528,7 @@ fail:
 }
 
 struct resource_pool *dcn10_create_resource_pool(
-		uint8_t num_virtual_links,
+		const struct dc_init_data *init_data,
 		struct dc *dc)
 {
 	struct dcn10_resource_pool *pool =
@@ -1537,7 +1537,7 @@ struct resource_pool *dcn10_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(num_virtual_links, dc, pool))
+	if (construct(init_data->num_virtual_links, dc, pool))
 		return &pool->base;
 
 	BREAK_TO_DEBUGGER();

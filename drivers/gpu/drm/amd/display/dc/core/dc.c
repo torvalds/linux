@@ -735,11 +735,7 @@ static bool construct(struct dc *dc,
 		goto fail;
 	}
 
-	dc->res_pool = dc_create_resource_pool(
-			dc,
-			init_params->num_virtual_links,
-			dc_version,
-			init_params->asic_id);
+	dc->res_pool = dc_create_resource_pool(dc, init_params, dc_version);
 	if (!dc->res_pool)
 		goto fail;
 

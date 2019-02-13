@@ -70,11 +70,9 @@ bool resource_construct(
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id);
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version);
 
 void dc_destroy_resource_pool(struct dc *dc);
 
