@@ -2949,7 +2949,7 @@ ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_handle, u8 tc_bitmap,
 
 	mutex_lock(&pi->sched_lock);
 
-	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+	ice_for_each_traffic_class(i) {
 		/* configuration is possible only if TC node is present */
 		if (!ice_sched_get_tc_node(pi, i))
 			continue;
