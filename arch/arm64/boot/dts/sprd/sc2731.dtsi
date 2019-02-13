@@ -24,7 +24,7 @@
 		};
 
 		led-controller@200 {
-			compatible = "sprd,sc27xx-bltc", "sprd,sc2731-bltc";
+			compatible = "sprd,sc2731-bltc";
 			reg = <0x200>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -46,14 +46,14 @@
 		};
 
 		rtc@280 {
-			compatible = "sprd,sc27xx-rtc", "sprd,sc2731-rtc";
+			compatible = "sprd,sc2731-rtc";
 			reg = <0x280>;
 			interrupt-parent = <&sc2731_pmic>;
 			interrupts = <2>;
 		};
 
 		pmic_eic: gpio@300 {
-			compatible = "sprd,sc27xx-eic";
+			compatible = "sprd,sc2731-eic";
 			reg = <0x300>;
 			interrupt-parent = <&sc2731_pmic>;
 			interrupts = <5>;
@@ -64,7 +64,7 @@
 		};
 
 		efuse@380 {
-			compatible = "sprd,sc27xx-efuse", "sprd,sc2731-efuse";
+			compatible = "sprd,sc2731-efuse";
 			reg = <0x380>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -85,7 +85,7 @@
 		};
 
 		pmic_adc: adc@480 {
-			compatible = "sprd,sc27xx-adc", "sprd,sc2731-adc";
+			compatible = "sprd,sc2731-adc";
 			reg = <0x480>;
 			interrupt-parent = <&sc2731_pmic>;
 			interrupts = <0>;
@@ -109,12 +109,12 @@
 		};
 
 		vibrator@ec8 {
-			compatible = "sprd,sc27xx-vibrator", "sprd,sc2731-vibrator";
+			compatible = "sprd,sc2731-vibrator";
 			reg = <0xec8>;
 		};
 
 		regulators {
-			compatible = "sprd,sc27xx-regulator";
+			compatible = "sprd,sc2731-regulator";
 
 			vddarm0: BUCK_CPU0 {
 				regulator-name = "vddarm0";
