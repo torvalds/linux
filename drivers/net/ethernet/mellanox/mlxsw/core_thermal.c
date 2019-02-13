@@ -14,7 +14,10 @@
 
 #define MLXSW_THERMAL_POLL_INT	1000	/* ms */
 #define MLXSW_THERMAL_SLOW_POLL_INT	20000	/* ms */
-#define MLXSW_THERMAL_MAX_TEMP	110000	/* 110C */
+#define MLXSW_THERMAL_ASIC_TEMP_NORM	75000	/* 75C */
+#define MLXSW_THERMAL_ASIC_TEMP_HIGH	85000	/* 85C */
+#define MLXSW_THERMAL_ASIC_TEMP_HOT	105000	/* 105C */
+#define MLXSW_THERMAL_ASIC_TEMP_CRIT	110000	/* 110C */
 #define MLXSW_THERMAL_HYSTERESIS_TEMP	5000	/* 5C */
 #define MLXSW_THERMAL_MAX_STATE	10
 #define MLXSW_THERMAL_MAX_DUTY	255
@@ -39,7 +42,7 @@ struct mlxsw_thermal_trip {
 static const struct mlxsw_thermal_trip default_thermal_trips[] = {
 	{	/* In range - 0-40% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 75000,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_NORM,
 		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= 0,
 		.max_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
@@ -47,21 +50,21 @@ static const struct mlxsw_thermal_trip default_thermal_trips[] = {
 	{
 		/* In range - 40-100% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 80000,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_HIGH,
 		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
 	{	/* Warning */
 		.type		= THERMAL_TRIP_HOT,
-		.temp		= 85000,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_HOT,
 		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= MLXSW_THERMAL_MAX_STATE,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
 	{	/* Critical - soft poweroff */
 		.type		= THERMAL_TRIP_CRITICAL,
-		.temp		= MLXSW_THERMAL_MAX_TEMP,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_CRIT,
 		.min_state	= MLXSW_THERMAL_MAX_STATE,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	}
@@ -238,7 +241,7 @@ static int mlxsw_thermal_set_trip_temp(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal *thermal = tzdev->devdata;
 
 	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS ||
-	    temp > MLXSW_THERMAL_MAX_TEMP)
+	    temp > MLXSW_THERMAL_ASIC_TEMP_CRIT)
 		return -EINVAL;
 
 	thermal->trips[trip].temp = temp;
