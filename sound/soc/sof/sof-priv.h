@@ -499,14 +499,11 @@ int snd_sof_ipc_stream_posn(struct snd_sof_dev *sdev,
 /*
  * Mixer IPC
  */
-int snd_sof_ipc_set_comp_data(struct snd_sof_ipc *ipc,
-			      struct snd_sof_control *scontrol, u32 ipc_cmd,
-			      enum sof_ipc_ctrl_type ctrl_type,
-			      enum sof_ipc_ctrl_cmd ctrl_cmd);
-int snd_sof_ipc_get_comp_data(struct snd_sof_ipc *ipc,
-			      struct snd_sof_control *scontrol, u32 ipc_cmd,
-			      enum sof_ipc_ctrl_type ctrl_type,
-			      enum sof_ipc_ctrl_cmd ctrl_cmd);
+int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
+				  struct snd_sof_control *scontrol, u32 ipc_cmd,
+				  enum sof_ipc_ctrl_type ctrl_type,
+				  enum sof_ipc_ctrl_cmd ctrl_cmd,
+				  bool send);
 
 /*
  * Topology.

@@ -31,21 +31,24 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 		case SOF_CTRL_CMD_SWITCH:
 			ipc_cmd = SOF_IPC_COMP_SET_VALUE;
 			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_SET;
-			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,
-							ipc_cmd, ctrl_type,
-							scontrol->cmd);
+			ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+							    ipc_cmd, ctrl_type,
+							    scontrol->cmd,
+							    true);
 			break;
 		case SOF_CTRL_CMD_BINARY:
 			ipc_cmd = SOF_IPC_COMP_SET_DATA;
 			ctrl_type = SOF_CTRL_TYPE_DATA_SET;
-			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,
-							ipc_cmd, ctrl_type,
-							scontrol->cmd);
+			ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+							    ipc_cmd, ctrl_type,
+							    scontrol->cmd,
+							    true);
 			break;
 
 		default:
 			break;
 		}
+
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: failed kcontrol value set for widget: %d\n",

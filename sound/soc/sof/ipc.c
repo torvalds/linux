@@ -551,90 +551,60 @@ EXPORT_SYMBOL(snd_sof_ipc_stream_posn);
 /*
  * IPC get()/set() for kcontrols.
  */
-
-int snd_sof_ipc_set_comp_data(struct snd_sof_ipc *ipc,
-			      struct snd_sof_control *scontrol, u32 ipc_cmd,
-			      enum sof_ipc_ctrl_type ctrl_type,
-			      enum sof_ipc_ctrl_cmd ctrl_cmd)
+int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
+				  struct snd_sof_control *scontrol,
+				  u32 ipc_cmd,
+				  enum sof_ipc_ctrl_type ctrl_type,
+				  enum sof_ipc_ctrl_cmd ctrl_cmd,
+				  bool send)
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
-	int err;
+	size_t send_bytes;
+	int err = 0;
 
-	/* read firmware volume */
+	/* read or write firmware volume */
 	if (scontrol->readback_offset != 0) {
-		/* we can read value header via mmaped region */
-		snd_sof_dsp_block_write(sdev, sdev->mmio_bar,
-					scontrol->readback_offset, cdata->chanv,
-					sizeof(struct sof_ipc_ctrl_value_chan) *
-					cdata->num_elems);
+		/* write/read value header via mmaped region */
+		send_bytes = sizeof(struct sof_ipc_ctrl_value_chan) *
+		cdata->num_elems;
+		if (send)
+			snd_sof_dsp_block_write(sdev, sdev->mmio_bar,
+						scontrol->readback_offset,
+						cdata->chanv, send_bytes);
 
-	} else {
-		/* write value via slower IPC */
-		cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
-		cdata->cmd = ctrl_cmd;
-		cdata->type = ctrl_type;
-		cdata->rhdr.hdr.size = scontrol->size;
-		cdata->comp_id = scontrol->comp_id;
-		cdata->num_elems = scontrol->num_channels;
-
-		/* send IPC to the DSP */
-		err = sof_ipc_tx_message(sdev->ipc,
-					 cdata->rhdr.hdr.cmd, cdata,
-					 cdata->rhdr.hdr.size,
-					 cdata, cdata->rhdr.hdr.size);
-		if (err < 0) {
-			dev_err(sdev->dev, "error: failed to set control %d values\n",
-				cdata->comp_id);
-			return err;
-		}
+		else
+			snd_sof_dsp_block_read(sdev, sdev->mmio_bar,
+					       scontrol->readback_offset,
+					       cdata->chanv, send_bytes);
+		return 0;
 	}
 
-	return 0;
-}
-EXPORT_SYMBOL(snd_sof_ipc_set_comp_data);
+	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
+	cdata->cmd = ctrl_cmd;
+	cdata->type = ctrl_type;
+	cdata->rhdr.hdr.size = scontrol->size;
+	cdata->comp_id = scontrol->comp_id;
+	cdata->num_elems = scontrol->num_channels;
 
-int snd_sof_ipc_get_comp_data(struct snd_sof_ipc *ipc,
-			      struct snd_sof_control *scontrol, u32 ipc_cmd,
-			      enum sof_ipc_ctrl_type ctrl_type,
-			      enum sof_ipc_ctrl_cmd ctrl_cmd)
-{
-	struct snd_sof_dev *sdev = ipc->sdev;
-	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
-	int err;
-
-	/* read firmware byte counters */
-	if (scontrol->readback_offset != 0) {
-		/* we can read values via mmaped region */
-		snd_sof_dsp_block_read(sdev, sdev->mmio_bar,
-				       scontrol->readback_offset, cdata->chanv,
-				       sizeof(struct sof_ipc_ctrl_value_chan) *
-				       cdata->num_elems);
-
-	} else {
-		/* read position via slower IPC */
-		cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
-		cdata->cmd = ctrl_cmd;
-		cdata->type = ctrl_type;
-		cdata->rhdr.hdr.size = scontrol->size;
-		cdata->comp_id = scontrol->comp_id;
-		cdata->num_elems = scontrol->num_channels;
-
-		/* send IPC to the DSP */
-		err = sof_ipc_tx_message(sdev->ipc,
-					 cdata->rhdr.hdr.cmd, cdata,
-					 cdata->rhdr.hdr.size,
-					 cdata, cdata->rhdr.hdr.size);
-		if (err < 0) {
-			dev_err(sdev->dev, "error: failed to get control %d values\n",
-				cdata->comp_id);
-			return err;
-		}
+	/* write value via slower IPC */
+	if (cdata->rhdr.hdr.size > SOF_IPC_MSG_MAX_SIZE) {
+		dev_err(sdev->dev, "error: set/get size %d too big comp %d\n",
+			cdata->rhdr.hdr.size, cdata->comp_id);
+		return -EINVAL;
 	}
 
-	return 0;
+	err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
+				 cdata->rhdr.hdr.size, cdata,
+				 cdata->rhdr.hdr.size);
+
+	if (err < 0)
+		dev_err(sdev->dev, "error: set/get control ipc comp %d\n",
+			cdata->comp_id);
+
+	return err;
 }
-EXPORT_SYMBOL(snd_sof_ipc_get_comp_data);
+EXPORT_SYMBOL(snd_sof_ipc_set_get_comp_data);
 
 /*
  * IPC layer enumeration.
