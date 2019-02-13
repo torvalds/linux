@@ -2019,11 +2019,9 @@ static const char *rps_power_to_str(unsigned int power)
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	u32 act_freq = rps->cur_freq;
 	intel_wakeref_t wakeref;
-	struct drm_file *file;
 
 	with_intel_runtime_pm_if_in_use(dev_priv, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
@@ -2057,22 +2055,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(dev_priv, rps->efficient_freq),
 		   intel_gpu_freq(dev_priv, rps->boost_freq));
 
-	mutex_lock(&dev->filelist_mutex);
-	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct task_struct *task;
-
-		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_PID);
-		seq_printf(m, "%s [%d]: %d boosts\n",
-			   task ? task->comm : "<unknown>",
-			   task ? task->pid : -1,
-			   atomic_read(&file_priv->rps_client.boosts));
-		rcu_read_unlock();
-	}
-	seq_printf(m, "Kernel (anonymous) boosts: %d\n",
-		   atomic_read(&rps->boosts));
-	mutex_unlock(&dev->filelist_mutex);
+	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
 	if (INTEL_GEN(dev_priv) >= 6 &&
 	    rps->enabled &&
