@@ -38,7 +38,6 @@
 #include <net/tc_act/tc_csum.h>
 #include <net/tc_act/tc_gact.h>
 #include <net/tc_act/tc_skbedit.h>
-#include <net/tc_act/tc_mirred.h>
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];
 
