@@ -2473,6 +2473,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 	    (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id))
 		return -EINVAL;
 
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
+		return -EINVAL;
+
 	if (nested_cpu_has_ept(vmcs12) &&
 	    !valid_ept_address(vcpu, vmcs12->ept_pointer))
 		return -EINVAL;
