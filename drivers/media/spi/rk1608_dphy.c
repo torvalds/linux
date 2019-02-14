@@ -347,7 +347,8 @@ static int rk1608_initialize_controls(struct rk1608_dphy *dphy)
 		pixel_bit = 8;
 		break;
 	}
-	pixel_rate = V4L2_CID_LINK_FREQ * dphy->mipi_lane * 2 / pixel_bit;
+	pixel_rate = dphy->link_freqs * dphy->mipi_lane * 2;
+	do_div(pixel_rate, pixel_bit);
 	dphy->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 					     V4L2_CID_PIXEL_RATE,
 					     0, pixel_rate, 1, pixel_rate);
@@ -453,6 +454,12 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 	ret = of_property_read_u32(node, "mipi_lane", &dphy->mipi_lane);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get mipi_lane!");
+	ret = of_property_read_u32(node, "sensor_i2c_bus", &dphy->i2c_bus);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get sensor_i2c_bus!");
+	ret = of_property_read_u32(node, "sensor_i2c_addr", &dphy->i2c_addr);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get sensor_i2c_addr!");
 	ret = of_property_read_u32(node, "field", &dphy->mf.field);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get field!");
@@ -477,6 +484,41 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 	ret = of_property_read_u64(node, "link-freqs", &dphy->link_freqs);
 	if (ret)
 		dev_warn(dphy->dev, "Can not get link_freqs!");
+	ret = of_property_read_string(node, "sensor-name", &dphy->sensor_name);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get sensor-name!");
+	ret = of_property_read_u32_array(node, "inch0-info",
+		(u32 *)&dphy->in_ch[0], 5);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get inch0-info!");
+	ret = of_property_read_u32_array(node, "inch1-info",
+		(u32 *)&dphy->in_ch[1], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get inch1-info!");
+	ret = of_property_read_u32_array(node, "inch2-info",
+		(u32 *)&dphy->in_ch[2], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get inch2-info!");
+	ret = of_property_read_u32_array(node, "inch3-info",
+		(u32 *)&dphy->in_ch[3], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get inch3-info!");
+	ret = of_property_read_u32_array(node, "outch0-info",
+		(u32 *)&dphy->out_ch[0], 5);
+	if (ret)
+		dev_warn(dphy->dev, "Can not get outch0-info!");
+	ret = of_property_read_u32_array(node, "outch1-info",
+		(u32 *)&dphy->out_ch[1], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get outch1-info!");
+	ret = of_property_read_u32_array(node, "outch2-info",
+		(u32 *)&dphy->out_ch[2], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get outch2-info!");
+	ret = of_property_read_u32_array(node, "outch3-info",
+		(u32 *)&dphy->out_ch[3], 5);
+	if (ret)
+		dev_info(dphy->dev, "Can not get outch3-info!");
 
 	return ret;
 }

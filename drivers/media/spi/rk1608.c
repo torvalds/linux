@@ -472,8 +472,6 @@ static int rk1608_lsb_w32(struct spi_device *spi, s32 addr, s32 data)
 static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 				  struct msg_init *msg, int id)
 {
-	struct i2c_client *client;
-
 	msg->msg_head.size = sizeof(struct msg_init);
 	msg->msg_head.type = id_msg_init_sensor_t;
 	msg->msg_head.id.camera_id = id;
@@ -482,12 +480,11 @@ static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 	msg->out_mipi_phy = pdata->dphy[id]->out_mipi;
 	msg->mipi_lane = pdata->dphy[id]->mipi_lane;
 	msg->bayer = 0;
-	memcpy(msg->sensor_name, pdata->sensor[id]->name,
+	memcpy(msg->sensor_name, pdata->dphy[id]->sensor_name,
 	       sizeof(msg->sensor_name));
 
-	client = v4l2_get_subdevdata(pdata->sensor[id]);
-	msg->i2c_slave_addr = (client->addr) << 1;
-	msg->i2c_bus = 1;
+	msg->i2c_slave_addr = pdata->dphy[id]->i2c_addr;
+	msg->i2c_bus = pdata->dphy[id]->i2c_bus;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
@@ -495,22 +492,26 @@ static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
 				     struct msg_in_size *msg, int id)
 {
-	msg->msg_head.size = sizeof(struct msg_in_size) / sizeof(int);
+	u32 i;
+	u32 msg_size = sizeof(struct msg);
+
+	for (i = 0; i < 4; i++) {
+		if (pdata->dphy[id]->in_ch[i].width == 0)
+			break;
+
+		msg->channel[i].width = pdata->dphy[id]->in_ch[i].width;
+		msg->channel[i].height = pdata->dphy[id]->in_ch[i].height;
+		msg->channel[i].data_id = pdata->dphy[id]->in_ch[i].data_id;
+		msg->channel[i].decode_format =
+			pdata->dphy[id]->in_ch[i].decode_format;
+		msg->channel[i].flag = pdata->dphy[id]->in_ch[i].flag;
+		msg_size += sizeof(struct preisp_vc_cfg);
+	}
+
+	msg->msg_head.size = msg_size / sizeof(int);
 	msg->msg_head.type = id_msg_set_input_size_t;
 	msg->msg_head.id.camera_id = id;
 	msg->msg_head.mux.sync = 1;
-
-	msg->channel[0].data_id = 0x6b;
-	msg->channel[0].decode_format = 0x2b;
-	msg->channel[0].flag = 1;
-	msg->channel[0].width = pdata->dphy[id]->mf.width;
-	msg->channel[0].height = pdata->dphy[id]->mf.height * 2;
-
-	msg->channel[1].data_id = 0x2b;
-	msg->channel[1].decode_format = 0x2b;
-	msg->channel[1].flag = 2;
-	msg->channel[1].width = pdata->dphy[id]->mf.width;
-	msg->channel[1].height = pdata->dphy[id]->mf.height;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
@@ -518,7 +519,23 @@ static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
 static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 				      struct msg_set_output_size *msg, int id)
 {
-	msg->head.msg_head.size = sizeof(struct msg_set_output_size) / sizeof(int);
+	u32 i;
+	u32 msg_size = sizeof(struct msg_out_size_head);
+
+	for (i = 0; i < 4; i++) {
+		if (pdata->dphy[id]->out_ch[i].width == 0)
+			break;
+
+		msg->channel[i].width = pdata->dphy[id]->out_ch[i].width;
+		msg->channel[i].height = pdata->dphy[id]->out_ch[i].height;
+		msg->channel[i].data_id = pdata->dphy[id]->out_ch[i].data_id;
+		msg->channel[i].decode_format =
+			pdata->dphy[id]->out_ch[i].decode_format;
+		msg->channel[i].flag = pdata->dphy[id]->out_ch[i].flag;
+		msg_size += sizeof(struct preisp_vc_cfg);
+	}
+
+	msg->head.msg_head.size = msg_size / sizeof(int);
 	msg->head.msg_head.type = id_msg_set_output_size_t;
 	msg->head.msg_head.id.camera_id = id;
 	msg->head.msg_head.mux.sync = 1;
@@ -528,18 +545,6 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 	msg->head.line_length_pclk = pdata->dphy[id]->htotal;
 	msg->head.frame_length_lines = pdata->dphy[id]->vtotal;
 	msg->head.mipi_lane = pdata->dphy[id]->mipi_lane;
-
-	msg->channel[0].data_id = 0x2b;
-	msg->channel[0].decode_format = 0x2b;
-	msg->channel[0].flag = 1;
-	msg->channel[0].width = pdata->dphy[id]->mf.width;
-	msg->channel[0].height = pdata->dphy[id]->mf.height;
-
-	msg->channel[1].data_id = 0x30;
-	msg->channel[1].decode_format = 0x2b;
-	msg->channel[1].flag = 0;
-	msg->channel[1].width = pdata->dphy[id]->mf.width;
-	msg->channel[1].height = 2;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->head.msg_head);
 }
@@ -891,10 +896,13 @@ static int rk1608_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 	struct rk1608_state *pdata = to_state(sd);
 
-	if (enable)
+	if (enable) {
+		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, enable);
 		ret = rk1608_stream_on(pdata);
-	else
+	} else {
 		ret = rk1608_stream_off(pdata);
+		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, enable);
+	}
 
 	v4l2_subdev_call(pdata->sensor[sd->grp_id], video, s_stream, enable);
 

@@ -197,7 +197,7 @@ struct preisp_vc_cfg {
 
 struct msg_in_size {
 	struct msg msg_head;
-	struct preisp_vc_cfg channel[2];
+	struct preisp_vc_cfg channel[4];
 };
 
 struct msg_out_size_head {
@@ -212,7 +212,7 @@ struct msg_out_size_head {
 
 struct msg_set_output_size {
 	struct msg_out_size_head head;
-	struct preisp_vc_cfg channel[2];
+	struct preisp_vc_cfg channel[4];
 };
 
 enum ISP_AE_Bayer_Mode_e {
