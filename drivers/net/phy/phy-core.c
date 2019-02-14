@@ -421,45 +421,16 @@ void of_set_phy_eee_broken(struct phy_device *phydev)
 void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i;
 
 	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
 
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, common)) {
-		phydev->speed = SPEED_10000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_5000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_2500;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_1000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_1000;
-		phydev->duplex = DUPLEX_HALF;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_100;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_100;
-		phydev->duplex = DUPLEX_HALF;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_HALF;
-	}
+	for (i = 0; i < ARRAY_SIZE(settings); i++)
+		if (test_bit(settings[i].bit, common)) {
+			phydev->speed = settings[i].speed;
+			phydev->duplex = settings[i].duplex;
+			break;
+		}
 
 	if (phydev->duplex == DUPLEX_FULL) {
 		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
