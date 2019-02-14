@@ -265,6 +265,7 @@ extern void lockdep_reset(void);
 extern void lockdep_reset_lock(struct lockdep_map *lock);
 extern void lockdep_free_key_range(void *start, unsigned long size);
 extern asmlinkage void lockdep_sys_exit(void);
+extern void lockdep_set_selftest_task(struct task_struct *task);
 
 extern void lockdep_off(void);
 extern void lockdep_on(void);
@@ -392,6 +393,10 @@ static inline void lockdep_off(void)
 }
 
 static inline void lockdep_on(void)
+{
+}
+
+static inline void lockdep_set_selftest_task(struct task_struct *task)
 {
 }
 
