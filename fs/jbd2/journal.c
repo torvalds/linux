@@ -142,22 +142,6 @@ static __be32 jbd2_superblock_csum(journal_t *j, journal_superblock_t *sb)
 	return cpu_to_be32(csum);
 }
 
-static int jbd2_superblock_csum_verify(journal_t *j, journal_superblock_t *sb)
-{
-	if (!jbd2_journal_has_csum_v2or3(j))
-		return 1;
-
-	return sb->s_checksum == jbd2_superblock_csum(j, sb);
-}
-
-static void jbd2_superblock_csum_set(journal_t *j, journal_superblock_t *sb)
-{
-	if (!jbd2_journal_has_csum_v2or3(j))
-		return;
-
-	sb->s_checksum = jbd2_superblock_csum(j, sb);
-}
-
 /*
  * Helper function used to manage commit timeouts
  */
@@ -1384,7 +1368,8 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
 		clear_buffer_write_io_error(bh);
 		set_buffer_uptodate(bh);
 	}
-	jbd2_superblock_csum_set(journal, sb);
+	if (jbd2_journal_has_csum_v2or3(journal))
+		sb->s_checksum = jbd2_superblock_csum(journal, sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	ret = submit_bh(REQ_OP_WRITE, write_flags, bh);
@@ -1597,17 +1582,18 @@ static int journal_get_superblock(journal_t *journal)
 		}
 	}
 
-	/* Check superblock checksum */
-	if (!jbd2_superblock_csum_verify(journal, sb)) {
-		printk(KERN_ERR "JBD2: journal checksum error\n");
-		err = -EFSBADCRC;
-		goto out;
-	}
+	if (jbd2_journal_has_csum_v2or3(journal)) {
+		/* Check superblock checksum */
+		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
+			printk(KERN_ERR "JBD2: journal checksum error\n");
+			err = -EFSBADCRC;
+			goto out;
+		}
 
-	/* Precompute checksum seed for all metadata */
-	if (jbd2_journal_has_csum_v2or3(journal))
+		/* Precompute checksum seed for all metadata */
 		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
+	}
 
 	set_buffer_verified(bh);
 
