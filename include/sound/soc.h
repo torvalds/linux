@@ -1234,7 +1234,7 @@ struct snd_soc_pcm_runtime {
 	unsigned int pop_wait:1;
 
 	/* private data - core does not touch */
-	void *private; /* FIXME: still SOF-specific, needs to less ambiguous */
+	void *private;
 };
 #define for_each_rtd_codec_dai(rtd, i, dai)\
 	for ((i) = 0;						       \
