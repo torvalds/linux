@@ -30,20 +30,16 @@ struct stpmic1_regulator_cfg {
 
 /**
  * stpmic1 regulator data: this structure is used as driver data
- * @regul_id: regulator id
  * @reg_node: DT node of regulator (unused on non-DT platforms)
  * @cfg: stpmic specific regulator description
  * @mask_reset: mask_reset bit value
  * @irq_curlim: current limit interrupt number
- * @regmap: point to parent regmap structure
  */
 struct stpmic1_regulator {
-	unsigned int regul_id;
 	struct device_node *reg_node;
 	const struct stpmic1_regulator_cfg *cfg;
 	u8 mask_reset;
 	int irq_curlim;
-	struct regmap *regmap;
 };
 
 static int stpmic1_set_mode(struct regulator_dev *rdev, unsigned int mode);
@@ -475,9 +471,10 @@ static int stpmic1_set_mode(struct regulator_dev *rdev, unsigned int mode)
 static int stpmic1_set_icc(struct regulator_dev *rdev)
 {
 	struct stpmic1_regulator *regul = rdev_get_drvdata(rdev);
+	struct regmap *regmap = rdev_get_regmap(rdev);
 
 	/* enable switch off in case of over current */
-	return regmap_update_bits(regul->regmap, regul->cfg->icc_reg,
+	return regmap_update_bits(regmap, regul->cfg->icc_reg,
 				  regul->cfg->icc_mask, regul->cfg->icc_mask);
 }
 
@@ -501,11 +498,12 @@ static int stpmic1_regulator_init(struct platform_device *pdev,
 				  struct regulator_dev *rdev)
 {
 	struct stpmic1_regulator *regul = rdev_get_drvdata(rdev);
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	int ret = 0;
 
 	/* set mask reset */
 	if (regul->mask_reset && regul->cfg->mask_reset_reg != 0) {
-		ret = regmap_update_bits(regul->regmap,
+		ret = regmap_update_bits(regmap,
 					 regul->cfg->mask_reset_reg,
 					 regul->cfg->mask_reset_mask,
 					 regul->cfg->mask_reset_mask);
@@ -584,10 +582,8 @@ regulator_dev *stpmic1_regulator_register(struct platform_device *pdev, int id,
 	config.regmap = pmic_dev->regmap;
 	config.driver_data = regul;
 
-	regul->regul_id = id;
 	regul->reg_node = config.of_node;
 	regul->cfg = &stpmic1_regulator_cfgs[id];
-	regul->regmap = pmic_dev->regmap;
 
 	rdev = devm_regulator_register(&pdev->dev, &regul->cfg->desc, &config);
 	if (IS_ERR(rdev)) {
