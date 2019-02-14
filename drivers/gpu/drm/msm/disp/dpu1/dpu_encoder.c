@@ -962,6 +962,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct dpu_kms *dpu_kms;
 	struct list_head *connector_list;
 	struct drm_connector *conn = NULL, *conn_iter;
+	struct drm_crtc *drm_crtc;
 	struct dpu_rm_hw_iter pp_iter, ctl_iter;
 	struct msm_display_topology topology;
 	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
@@ -993,10 +994,14 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
+	drm_for_each_crtc(drm_crtc, drm_enc->dev)
+		if (drm_crtc->state->encoder_mask & drm_encoder_mask(drm_enc))
+			break;
+
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
 	/* Reserve dynamic resources now. Indicating non-AtomicTest phase */
-	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_enc->crtc->state,
+	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_crtc->state,
 			     topology, false);
 	if (ret) {
 		DPU_ERROR_ENC(dpu_enc,
