@@ -175,7 +175,8 @@ megasas_clear_intr_fusion(struct megasas_instance *instance)
 	/*
 	 * Check if it is our interrupt
 	 */
-	status = readl(&regs->outbound_intr_status);
+	status = megasas_readl(instance,
+			       &regs->outbound_intr_status);
 
 	if (status & 1) {
 		writel(status, &regs->outbound_intr_status);

@@ -306,14 +306,16 @@ static int mlx4_init_user_cqes(void *buf, int entries, int cqe_size)
 
 	if (entries_per_copy < entries) {
 		for (i = 0; i < entries / entries_per_copy; i++) {
-			err = copy_to_user(buf, init_ents, PAGE_SIZE);
+			err = copy_to_user((void __user *)buf, init_ents, PAGE_SIZE) ?
+				-EFAULT : 0;
 			if (err)
 				goto out;
 
 			buf += PAGE_SIZE;
 		}
 	} else {
-		err = copy_to_user(buf, init_ents, entries * cqe_size);
+		err = copy_to_user((void __user *)buf, init_ents, entries * cqe_size) ?
+			-EFAULT : 0;
 	}
 
 out:

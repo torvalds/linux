@@ -204,6 +204,9 @@ void ib_uverbs_release_file(struct kref *ref)
 	if (atomic_dec_and_test(&file->device->refcount))
 		ib_uverbs_comp_dev(file->device);
 
+	if (file->async_file)
+		kref_put(&file->async_file->ref,
+			 ib_uverbs_release_async_event_file);
 	put_device(&file->device->dev);
 	kfree(file);
 }
@@ -690,6 +693,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	buf += sizeof(hdr);
 
+	memset(bundle.attr_present, 0, sizeof(bundle.attr_present));
 	bundle.ufile = file;
 	if (!method_elm->is_ex) {
 		size_t in_len = hdr.in_words * 4 - sizeof(hdr);
@@ -963,11 +967,19 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 
 		/* Get an arbitrary mm pointer that hasn't been cleaned yet */
 		mutex_lock(&ufile->umap_lock);
-		if (!list_empty(&ufile->umaps)) {
-			mm = list_first_entry(&ufile->umaps,
-					      struct rdma_umap_priv, list)
-				     ->vma->vm_mm;
-			mmget(mm);
+		while (!list_empty(&ufile->umaps)) {
+			int ret;
+
+			priv = list_first_entry(&ufile->umaps,
+						struct rdma_umap_priv, list);
+			mm = priv->vma->vm_mm;
+			ret = mmget_not_zero(mm);
+			if (!ret) {
+				list_del_init(&priv->list);
+				mm = NULL;
+				continue;
+			}
+			break;
 		}
 		mutex_unlock(&ufile->umap_lock);
 		if (!mm)
@@ -1094,10 +1106,6 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 	mutex_lock(&file->device->lists_mutex);
 	list_del_init(&file->list);
 	mutex_unlock(&file->device->lists_mutex);
-
-	if (file->async_file)
-		kref_put(&file->async_file->ref,
-			 ib_uverbs_release_async_event_file);
 
 	kref_put(&file->ref, ib_uverbs_release_file);
 

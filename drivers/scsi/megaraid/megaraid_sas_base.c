@@ -6236,7 +6236,7 @@ megasas_set_dma_mask(struct megasas_instance *instance)
 		instance->consistent_mask_64bit = true;
 
 	dev_info(&pdev->dev, "%s bit DMA mask and %s bit consistent mask\n",
-		 ((*pdev->dev.dma_mask == DMA_BIT_MASK(64)) ? "63" : "32"),
+		 ((*pdev->dev.dma_mask == DMA_BIT_MASK(63)) ? "63" : "32"),
 		 (instance->consistent_mask_64bit ? "63" : "32"));
 
 	return 0;

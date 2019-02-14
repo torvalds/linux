@@ -463,7 +463,7 @@ void dpp1_set_cursor_position(
 	if (src_y_offset >= (int)param->viewport.height)
 		cur_en = 0;  /* not visible beyond bottom edge*/
 
-	if (src_y_offset < 0)
+	if (src_y_offset + (int)height <= 0)
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
