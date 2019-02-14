@@ -366,14 +366,16 @@ qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
 
 	sp->done = qla2x00_async_prlo_sp_done;
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
 
 	ql_dbg(ql_dbg_disc, vha, 0x2070,
 	    "Async-prlo - hdl=%x loop-id=%x portid=%02x%02x%02x.\n",
 	    sp->handle, fcport->loop_id, fcport->d_id.b.domain,
 	    fcport->d_id.b.area, fcport->d_id.b.al_pa);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
+
 	return rval;
 
 done_free_sp:
@@ -931,13 +933,13 @@ int qla24xx_async_gnl(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	sp->done = qla24xx_async_gnl_sp_done;
 
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
 	ql_dbg(ql_dbg_disc, vha, 0x20da,
 	    "Async-%s - OUT WWPN %8phC hndl %x\n",
 	    sp->name, fcport->port_name, sp->handle);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS)
+		goto done_free_sp;
 
 	return rval;
 
@@ -1072,17 +1074,17 @@ qla24xx_async_prli(struct scsi_qla_host *vha, fc_port_t *fcport)
 	if  (fcport->fc4f_nvme)
 		lio->u.logio.flags |= SRB_LOGIN_NVME_PRLI;
 
+	ql_dbg(ql_dbg_disc, vha, 0x211b,
+	    "Async-prli - %8phC hdl=%x, loopid=%x portid=%06x retries=%d %s.\n",
+	    fcport->port_name, sp->handle, fcport->loop_id, fcport->d_id.b24,
+	    fcport->login_retry, fcport->fc4f_nvme ? "nvme" : "fc");
+
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		fcport->flags |= FCF_LOGIN_NEEDED;
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		goto done_free_sp;
 	}
-
-	ql_dbg(ql_dbg_disc, vha, 0x211b,
-	    "Async-prli - %8phC hdl=%x, loopid=%x portid=%06x retries=%d %s.\n",
-	    fcport->port_name, sp->handle, fcport->loop_id, fcport->d_id.b24,
-	    fcport->login_retry, fcport->fc4f_nvme ? "nvme" : "fc");
 
 	return rval;
 
