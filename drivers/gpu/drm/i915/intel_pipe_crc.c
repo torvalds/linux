@@ -31,15 +31,15 @@
 #include "intel_drv.h"
 
 static const char * const pipe_crc_sources[] = {
-	"none",
-	"plane1",
-	"plane2",
-	"pipe",
-	"TV",
-	"DP-B",
-	"DP-C",
-	"DP-D",
-	"auto",
+	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",
+	[INTEL_PIPE_CRC_SOURCE_PLANE1] = "plane1",
+	[INTEL_PIPE_CRC_SOURCE_PLANE2] = "plane2",
+	[INTEL_PIPE_CRC_SOURCE_PIPE] = "pipe",
+	[INTEL_PIPE_CRC_SOURCE_TV] = "TV",
+	[INTEL_PIPE_CRC_SOURCE_DP_B] = "DP-B",
+	[INTEL_PIPE_CRC_SOURCE_DP_C] = "DP-C",
+	[INTEL_PIPE_CRC_SOURCE_DP_D] = "DP-D",
+	[INTEL_PIPE_CRC_SOURCE_AUTO] = "auto",
 };
 
 static int i8xx_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
