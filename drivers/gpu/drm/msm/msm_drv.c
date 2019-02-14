@@ -851,8 +851,9 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 			ret = -EINVAL;
 			break;
 		}
-		ret = copy_from_user(msm_obj->name,
-			u64_to_user_ptr(args->value), args->len);
+		if (copy_from_user(msm_obj->name, u64_to_user_ptr(args->value),
+				   args->len))
+			ret = -EFAULT;
 		msm_obj->name[args->len] = '\0';
 		for (i = 0; i < args->len; i++) {
 			if (!isprint(msm_obj->name[i])) {
@@ -868,8 +869,9 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		}
 		args->len = strlen(msm_obj->name);
 		if (args->value) {
-			ret = copy_to_user(u64_to_user_ptr(args->value),
-					msm_obj->name, args->len);
+			if (copy_to_user(u64_to_user_ptr(args->value),
+					 msm_obj->name, args->len))
+				ret = -EFAULT;
 		}
 		break;
 	}
