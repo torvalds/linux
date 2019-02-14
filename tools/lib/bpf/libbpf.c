@@ -2331,6 +2331,11 @@ unsigned int bpf_object__kversion(struct bpf_object *obj)
 	return obj ? obj->kern_version : 0;
 }
 
+struct btf *bpf_object__btf(struct bpf_object *obj)
+{
+	return obj ? obj->btf : NULL;
+}
+
 int bpf_object__btf_fd(const struct bpf_object *obj)
 {
 	return obj->btf ? btf__fd(obj->btf) : -1;
