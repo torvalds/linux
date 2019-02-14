@@ -719,8 +719,10 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 			break;
 	}
 
+	brcmf_chip_name(chip, chiprev, chipname, sizeof(chipname));
+
 	if (i == table_size) {
-		brcmf_err("Unknown chipid %d [%d]\n", chip, chiprev);
+		brcmf_err("Unknown chip %s\n", chipname);
 		return NULL;
 	}
 
@@ -728,8 +730,6 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 	fwreq = kzalloc(reqsz, GFP_KERNEL);
 	if (!fwreq)
 		return NULL;
-
-	brcmf_chip_name(chip, chiprev, chipname, sizeof(chipname));
 
 	brcmf_info("using %s for chip %s\n",
 		   mapping_table[i].fw_base, chipname);
