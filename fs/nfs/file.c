@@ -299,7 +299,7 @@ static int nfs_want_read_modify_write(struct file *file, struct page *page,
 	unsigned int end = offset + len;
 
 	if (pnfs_ld_read_whole_page(file->f_mapping->host)) {
-		if (!PageUptodate(page))
+		if (!PageUptodate(page) && !PagePrivate(page))
 			return 1;
 		return 0;
 	}
