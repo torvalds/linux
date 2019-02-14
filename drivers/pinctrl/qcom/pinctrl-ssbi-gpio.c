@@ -710,7 +710,8 @@ static int pm8xxx_domain_translate(struct irq_domain *domain,
 	struct pm8xxx_gpio *pctrl = container_of(domain->host_data,
 						 struct pm8xxx_gpio, chip);
 
-	if (fwspec->param_count != 2 || fwspec->param[0] >= pctrl->chip.ngpio)
+	if (fwspec->param_count != 2 || fwspec->param[0] < 1 ||
+	    fwspec->param[0] > pctrl->chip.ngpio)
 		return -EINVAL;
 
 	*hwirq = fwspec->param[0] - PM8XXX_GPIO_PHYSICAL_OFFSET;
