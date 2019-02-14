@@ -10597,7 +10597,7 @@ lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
 static void
 lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
-	int i, cpu, idx, phys_id;
+	int i, cpu, idx;
 	int max_phys_id, min_phys_id;
 	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
@@ -10615,7 +10615,6 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 	min_phys_id = 0xffff;
 	max_core_id = 0;
 	min_core_id = 0xffff;
-	phys_id = 0;
 
 	/* Update CPU map with physical id and core id of each CPU */
 	for_each_present_cpu(cpu) {
