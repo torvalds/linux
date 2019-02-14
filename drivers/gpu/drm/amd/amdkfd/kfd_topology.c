@@ -1082,8 +1082,9 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 			local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
-	buf[1] = gpu->pdev->subsystem_vendor;
-	buf[2] = gpu->pdev->subsystem_device;
+	buf[1] = gpu->pdev->subsystem_vendor |
+		(gpu->pdev->subsystem_device << 16);
+	buf[2] = pci_domain_nr(gpu->pdev->bus);
 	buf[3] = gpu->pdev->device;
 	buf[4] = gpu->pdev->bus->number;
 	buf[5] = lower_32_bits(local_mem_size);
