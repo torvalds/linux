@@ -34,34 +34,6 @@ int __init permission_acctype_init(void) {
 	return 0;
 }
 
-/**
- * evocate_dentry - divine the dentry by inode.
- * @inode: the inode to find a dentry for.
- *
- * This is another masterpiece, just like the evocate_mnt routine,
- * and shouldn't ever have existed, if the Linux virtual filesystem was
- * consistent and used the same data structures across the code.
- */
-static struct dentry * evocate_dentry(struct inode * inode)
-{
-	struct dentry * dentry;
-	struct hlist_node * p;
-
-	/* XXX: are we really supposed to grab a dcache lock here? */
-	//spin_lock(&dcache_lock); JK
-	spin_lock(&inode->i_lock); // Bugfix March 2015 JK
-	list_for_each(p, (inode->i_dentry.first)) {
-		if (d_count(list_entry(p, struct dentry, d_u.d_alias))) {
-			dentry = dget(list_entry(p, struct dentry, d_u.d_alias));
-			spin_unlock(&inode->i_lock); // Bugfix JK March 2015
-			return dentry;
-		}
-	}
-	spin_unlock(&inode->i_lock); // Bugfix JK March 2015
-	//spin_unlock(&dcache_lock);
-	return NULL;
-}
-
 medusa_answer_t medusa_do_permission(struct dentry * dentry, struct inode * inode, int mask);
 /**
  * medusa_permission - L1-called code to create access of type 'permission'.
@@ -71,14 +43,14 @@ medusa_answer_t medusa_do_permission(struct dentry * dentry, struct inode * inod
  */
 medusa_answer_t medusa_permission(struct inode * inode, int mask)
 {
-	medusa_answer_t retval = MED_OK;
+	medusa_answer_t retval = MED_YES;
 	struct dentry * dentry;
 
 	if (!MED_MAGIC_VALID(&task_security(current)) &&
 		process_kobj_validate_task(current) <= 0)
-		return MED_OK;
+		return MED_YES;
 
-	dentry = evocate_dentry(inode);
+	dentry = d_find_alias(inode);
 	if (!dentry || IS_ERR(dentry))
 		return retval;
 	if (!MED_MAGIC_VALID(&inode_security(inode)) &&
@@ -91,7 +63,7 @@ medusa_answer_t medusa_permission(struct inode * inode, int mask)
 		( (mask & S_IWUGO) &&
 		  	!VS_INTERSECT(VSW(&task_security(current)),VS(&inode_security(inode))) )
 	   ) {
-		retval = MED_NO;
+		retval = -EACCES;
 		goto out_dput;
 	}
 
@@ -120,8 +92,8 @@ medusa_answer_t medusa_do_permission(struct dentry * dentry, struct inode * inod
 	file_kobj_live_add(inode);
 	retval = MED_DECIDE(permission_access, &access, &process, &file);
 	file_kobj_live_remove(inode);
-	if (retval != MED_ERR)
-		return retval;
-	return MED_OK;
+	if (retval == MED_NO)
+		return -EACCES;
+	return MED_YES;
 }
 __initcall(permission_acctype_init);
