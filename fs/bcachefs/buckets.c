@@ -432,7 +432,7 @@ static int __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	if (old.cached_sectors)
 		update_cached_sectors(c, fs_usage, ca->dev_idx,
-				      -old.cached_sectors);
+				      -((s64) old.cached_sectors));
 
 	if (!gc)
 		*ret = old;
@@ -561,7 +561,7 @@ static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
  * loop, to avoid racing with the start of gc clearing all the marks - GC does
  * that with the gc pos seqlock held.
  */
-static void bch2_mark_pointer(struct bch_fs *c,
+static bool bch2_mark_pointer(struct bch_fs *c,
 			      struct extent_ptr_decoded p,
 			      s64 sectors, enum bch_data_type data_type,
 			      struct bch_fs_usage *fs_usage,
@@ -589,7 +589,7 @@ static void bch2_mark_pointer(struct bch_fs *c,
 			BUG_ON(!test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags));
 			EBUG_ON(!p.ptr.cached &&
 				test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags));
-			return;
+			return true;
 		}
 
 		if (!p.ptr.cached)
@@ -620,6 +620,8 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
 	BUG_ON(!gc && bucket_became_unavailable(old, new));
+
+	return false;
 }
 
 static int bch2_mark_stripe_ptr(struct bch_fs *c,
@@ -702,13 +704,13 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
 			: ptr_disk_sectors_delta(p, sectors);
-
-		bch2_mark_pointer(c, p, disk_sectors, data_type,
-				  fs_usage, journal_seq, flags, gc);
+		bool stale = bch2_mark_pointer(c, p, disk_sectors, data_type,
+					fs_usage, journal_seq, flags, gc);
 
 		if (p.ptr.cached) {
-			update_cached_sectors(c, fs_usage, p.ptr.dev,
-					      disk_sectors);
+			if (disk_sectors && !stale)
+				update_cached_sectors(c, fs_usage, p.ptr.dev,
+						      disk_sectors);
 		} else if (!p.ec_nr) {
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
