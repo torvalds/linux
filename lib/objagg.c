@@ -744,8 +744,6 @@ static unsigned int objagg_tmp_graph_node_weight(struct objagg_tmp_graph *graph,
 	 * that this node can represent with delta.
 	 */
 
-	if (node->crossed_out)
-		return 0;
 	for (j = 0; j < graph->nodes_count; j++) {
 		if (!objagg_tmp_graph_is_edge(graph, index, j))
 			continue;
@@ -759,14 +757,18 @@ static unsigned int objagg_tmp_graph_node_weight(struct objagg_tmp_graph *graph,
 
 static int objagg_tmp_graph_node_max_weight(struct objagg_tmp_graph *graph)
 {
+	struct objagg_tmp_node *node;
 	unsigned int max_weight = 0;
 	unsigned int weight;
 	int max_index = -1;
 	int i;
 
 	for (i = 0; i < graph->nodes_count; i++) {
+		node = &graph->nodes[i];
+		if (node->crossed_out)
+			continue;
 		weight = objagg_tmp_graph_node_weight(graph, i);
-		if (weight > max_weight) {
+		if (weight >= max_weight) {
 			max_weight = weight;
 			max_index = i;
 		}
