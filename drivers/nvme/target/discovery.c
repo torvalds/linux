@@ -331,7 +331,7 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 			       cmd->get_log_page.lid);
 			req->error_loc =
 				offsetof(struct nvme_get_log_page_command, lid);
-		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	case nvme_admin_identify:
 		req->data_len = NVME_IDENTIFY_DATA_SIZE;
