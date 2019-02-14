@@ -6713,6 +6713,47 @@ int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type)
 }
 
 /**
+ *	t4_read_sge_dbqtimers - reag SGE Doorbell Queue Timer values
+ *	@adap - the adapter
+ *	@ndbqtimers: size of the provided SGE Doorbell Queue Timer table
+ *	@dbqtimers: SGE Doorbell Queue Timer table
+ *
+ *	Reads the SGE Doorbell Queue Timer values into the provided table.
+ *	Returns 0 on success (Firmware and Hardware support this feature),
+ *	an error on failure.
+ */
+int t4_read_sge_dbqtimers(struct adapter *adap, unsigned int ndbqtimers,
+			  u16 *dbqtimers)
+{
+	int ret, dbqtimerix;
+
+	ret = 0;
+	dbqtimerix = 0;
+	while (dbqtimerix < ndbqtimers) {
+		int nparams, param;
+		u32 params[7], vals[7];
+
+		nparams = ndbqtimers - dbqtimerix;
+		if (nparams > ARRAY_SIZE(params))
+			nparams = ARRAY_SIZE(params);
+
+		for (param = 0; param < nparams; param++)
+			params[param] =
+			  (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			   FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMER) |
+			   FW_PARAMS_PARAM_Y_V(dbqtimerix + param));
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+				      nparams, params, vals);
+		if (ret)
+			break;
+
+		for (param = 0; param < nparams; param++)
+			dbqtimers[dbqtimerix++] = vals[param];
+	}
+	return ret;
+}
+
+/**
  *      t4_fw_hello - establish communication with FW
  *      @adap: the adapter
  *      @mbox: mailbox to use for the FW command
