@@ -594,6 +594,45 @@ int regulator_list_voltage_pickable_linear_range(struct regulator_dev *rdev,
 EXPORT_SYMBOL_GPL(regulator_list_voltage_pickable_linear_range);
 
 /**
+ * regulator_desc_list_voltage_linear_range - List voltages for linear ranges
+ *
+ * @desc: Regulator desc for regulator which volatges are to be listed
+ * @selector: Selector to convert into a voltage
+ *
+ * Regulators with a series of simple linear mappings between voltages
+ * and selectors who have set linear_ranges in the regulator descriptor
+ * can use this function prior regulator registration to list voltages.
+ * This is useful when voltages need to be listed during device-tree
+ * parsing.
+ */
+int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
+					     unsigned int selector)
+{
+	const struct regulator_linear_range *range;
+	int i;
+
+	if (!desc->n_linear_ranges) {
+		BUG_ON(!desc->n_linear_ranges);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < desc->n_linear_ranges; i++) {
+		range = &desc->linear_ranges[i];
+
+		if (!(selector >= range->min_sel &&
+		      selector <= range->max_sel))
+			continue;
+
+		selector -= range->min_sel;
+
+		return range->min_uV + (range->uV_step * selector);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_desc_list_voltage_linear_range);
+
+/**
  * regulator_list_voltage_linear_range - List voltages for linear ranges
  *
  * @rdev: Regulator device
@@ -606,27 +645,7 @@ EXPORT_SYMBOL_GPL(regulator_list_voltage_pickable_linear_range);
 int regulator_list_voltage_linear_range(struct regulator_dev *rdev,
 					unsigned int selector)
 {
-	const struct regulator_linear_range *range;
-	int i;
-
-	if (!rdev->desc->n_linear_ranges) {
-		BUG_ON(!rdev->desc->n_linear_ranges);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < rdev->desc->n_linear_ranges; i++) {
-		range = &rdev->desc->linear_ranges[i];
-
-		if (!(selector >= range->min_sel &&
-		      selector <= range->max_sel))
-			continue;
-
-		selector -= range->min_sel;
-
-		return range->min_uV + (range->uV_step * selector);
-	}
-
-	return -EINVAL;
+	return regulator_desc_list_voltage_linear_range(rdev->desc, selector);
 }
 EXPORT_SYMBOL_GPL(regulator_list_voltage_linear_range);
 
