@@ -151,11 +151,8 @@ int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_reset_ctrl_sync);
 
-static void nvme_delete_ctrl_work(struct work_struct *work)
+static void nvme_do_delete_ctrl(struct nvme_ctrl *ctrl)
 {
-	struct nvme_ctrl *ctrl =
-		container_of(work, struct nvme_ctrl, delete_work);
-
 	dev_info(ctrl->device,
 		 "Removing ctrl: NQN \"%s\"\n", ctrl->opts->subsysnqn);
 
@@ -165,6 +162,14 @@ static void nvme_delete_ctrl_work(struct work_struct *work)
 	ctrl->ops->delete_ctrl(ctrl);
 	nvme_uninit_ctrl(ctrl);
 	nvme_put_ctrl(ctrl);
+}
+
+static void nvme_delete_ctrl_work(struct work_struct *work)
+{
+	struct nvme_ctrl *ctrl =
+		container_of(work, struct nvme_ctrl, delete_work);
+
+	nvme_do_delete_ctrl(ctrl);
 }
 
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl)
