@@ -148,6 +148,36 @@ static const struct baco_cmd_entry clean_baco_tbl[] =
 	{ CMD_WRITE, mmBIOS_SCRATCH_7, 0, 0, 0, 0 }
 };
 
+static const struct baco_cmd_entry use_bclk_tbl_vg[] =
+{
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, ixCG_SPLL_FUNC_CNTL },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, CG_SPLL_FUNC_CNTL__SPLL_BYPASS_EN_MASK, CG_SPLL_FUNC_CNTL__SPLL_BYPASS_EN__SHIFT, 0, 0x1 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, 0xC0500170 },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, 0x4000000, 0x1a, 0, 0x1 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, ixGCK_DFS_BYPASS_CNTL },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, GCK_DFS_BYPASS_CNTL__BYPASSACLK_MASK, GCK_DFS_BYPASS_CNTL__BYPASSACLK__SHIFT, 0, 0x1 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, ixMPLL_BYPASSCLK_SEL },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, MPLL_BYPASSCLK_SEL__MPLL_CLKOUT_SEL_MASK, MPLL_BYPASSCLK_SEL__MPLL_CLKOUT_SEL__SHIFT, 0, 0x2 }
+};
+
+static const struct baco_cmd_entry turn_off_plls_tbl_vg[] =
+{
+	{ CMD_READMODIFYWRITE, mmDC_GPIO_PAD_STRENGTH_1, DC_GPIO_PAD_STRENGTH_1__GENLK_STRENGTH_SP_MASK, DC_GPIO_PAD_STRENGTH_1__GENLK_STRENGTH_SP__SHIFT, 0, 0x1 },
+	{ CMD_DELAY_US, 0, 0, 0, 1, 0x0 },
+	{ CMD_READMODIFYWRITE, mmMC_SEQ_DRAM, MC_SEQ_DRAM__RST_CTL_MASK, MC_SEQ_DRAM__RST_CTL__SHIFT, 0, 0x1 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, 0xC05002B0 },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, 0x10, 0x4, 0, 0x1 },
+	{ CMD_WAITFOR, mmGCK_SMC_IND_DATA, 0x10, 0, 1, 0 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, 0xC050032C },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, 0x10, 0x4, 0, 0x1 },
+	{ CMD_WAITFOR, mmGCK_SMC_IND_DATA, 0x10, 0, 1, 0 },
+	{ CMD_WRITE, mmGCK_SMC_IND_INDEX, 0, 0, 0, 0xC0500080 },
+	{ CMD_READMODIFYWRITE, mmGCK_SMC_IND_DATA, 0x1, 0x0, 0, 0x1 },
+	{ CMD_DELAY_US, 0, 0, 0, 3, 0x0 },
+	{ CMD_DELAY_US, 0, 0, 0, 3, 0x0 },
+	{ CMD_DELAY_US, 0, 0, 0, 5, 0x0 }
+};
+
 int polaris_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
@@ -194,9 +224,15 @@ int polaris_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 		baco_program_registers(hwmgr, gpio_tbl, ARRAY_SIZE(gpio_tbl));
 		baco_program_registers(hwmgr, enable_fb_req_rej_tbl,
 				       ARRAY_SIZE(enable_fb_req_rej_tbl));
-		baco_program_registers(hwmgr, use_bclk_tbl, ARRAY_SIZE(use_bclk_tbl));
-		baco_program_registers(hwmgr, turn_off_plls_tbl,
-				       ARRAY_SIZE(turn_off_plls_tbl));
+		if (hwmgr->chip_id == CHIP_VEGAM) {
+			baco_program_registers(hwmgr, use_bclk_tbl_vg, ARRAY_SIZE(use_bclk_tbl_vg));
+			baco_program_registers(hwmgr, turn_off_plls_tbl_vg,
+					       ARRAY_SIZE(turn_off_plls_tbl_vg));
+		} else {
+			baco_program_registers(hwmgr, use_bclk_tbl, ARRAY_SIZE(use_bclk_tbl));
+			baco_program_registers(hwmgr, turn_off_plls_tbl,
+					       ARRAY_SIZE(turn_off_plls_tbl));
+		}
 		baco_program_registers(hwmgr, clk_req_b_tbl, ARRAY_SIZE(clk_req_b_tbl));
 		if (baco_program_registers(hwmgr, enter_baco_tbl,
 					   ARRAY_SIZE(enter_baco_tbl)))
