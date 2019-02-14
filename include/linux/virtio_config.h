@@ -12,6 +12,11 @@ struct irq_affinity;
 
 /**
  * virtio_config_ops - operations for configuring a virtio device
+ * Note: Do not assume that a transport implements all of the operations
+ *       getting/setting a value as a simple read/write! Generally speaking,
+ *       any of @get/@set, @get_status/@set_status, or @get_features/
+ *       @finalize_features are NOT safe to be called from an atomic
+ *       context.
  * @get: read the value of a configuration field
  *	vdev: the virtio_device
  *	offset: the offset of the configuration field
@@ -22,7 +27,7 @@ struct irq_affinity;
  *	offset: the offset of the configuration field
  *	buf: the buffer to read the field value from.
  *	len: the length of the buffer
- * @generation: config generation counter
+ * @generation: config generation counter (optional)
  *	vdev: the virtio_device
  *	Returns the config generation counter
  * @get_status: read the status byte
@@ -48,17 +53,17 @@ struct irq_affinity;
  * @del_vqs: free virtqueues found by find_vqs().
  * @get_features: get the array of feature bits for this device.
  *	vdev: the virtio_device
- *	Returns the first 32 feature bits (all we currently need).
+ *	Returns the first 64 feature bits (all we currently need).
  * @finalize_features: confirm what device features we'll be using.
  *	vdev: the virtio_device
  *	This gives the final feature bits for the device: it can change
  *	the dev->feature bits if it wants.
  *	Returns 0 on success or error status
- * @bus_name: return the bus name associated with the device
+ * @bus_name: return the bus name associated with the device (optional)
  *	vdev: the virtio_device
  *      This returns a pointer to the bus name a la pci_name from which
  *      the caller can then copy.
- * @set_vq_affinity: set the affinity for a virtqueue.
+ * @set_vq_affinity: set the affinity for a virtqueue (optional).
  * @get_vq_affinity: get the affinity for a virtqueue (optional).
  */
 typedef void vq_callback_t(struct virtqueue *);

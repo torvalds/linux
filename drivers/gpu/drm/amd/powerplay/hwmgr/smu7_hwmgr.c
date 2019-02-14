@@ -77,8 +77,9 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-static const struct profile_mode_setting smu7_profiling[6] =
-					{{1, 0, 100, 30, 1, 0, 100, 10},
+static const struct profile_mode_setting smu7_profiling[7] =
+					{{0, 0, 0, 0, 0, 0, 0, 0},
+					 {1, 0, 100, 30, 1, 0, 100, 10},
 					 {1, 10, 0, 30, 0, 0, 0, 0},
 					 {0, 0, 0, 0, 1, 10, 16, 31},
 					 {1, 0, 11, 50, 1, 0, 100, 10},
@@ -4889,7 +4890,8 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	uint32_t i, size = 0;
 	uint32_t len;
 
-	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+	static const char *profile_name[7] = {"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
 					"POWER_SAVING",
 					"VIDEO",
 					"VR",

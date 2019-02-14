@@ -347,6 +347,20 @@ static char **parse_bytes(char **argv, const char *name, unsigned char *val,
 	return argv + i;
 }
 
+/* on per cpu maps we must copy the provided value on all value instances */
+static void fill_per_cpu_value(struct bpf_map_info *info, void *value)
+{
+	unsigned int i, n, step;
+
+	if (!map_is_per_cpu(info->type))
+		return;
+
+	n = get_possible_cpus();
+	step = round_up(info->value_size, 8);
+	for (i = 1; i < n; i++)
+		memcpy(value + i * step, value, info->value_size);
+}
+
 static int parse_elem(char **argv, struct bpf_map_info *info,
 		      void *key, void *value, __u32 key_size, __u32 value_size,
 		      __u32 *flags, __u32 **value_fd)
@@ -426,6 +440,8 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 			argv = parse_bytes(argv, "value", value, value_size);
 			if (!argv)
 				return -1;
+
+			fill_per_cpu_value(info, value);
 		}
 
 		return parse_elem(argv, info, key, NULL, key_size, value_size,
@@ -497,10 +513,9 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 				jsonw_uint_field(json_wtr, "owner_prog_type",
 						 prog_type);
 		}
-		if (atoi(owner_jited))
-			jsonw_bool_field(json_wtr, "owner_jited", true);
-		else
-			jsonw_bool_field(json_wtr, "owner_jited", false);
+		if (owner_jited)
+			jsonw_bool_field(json_wtr, "owner_jited",
+					 !!atoi(owner_jited));
 
 		free(owner_prog_type);
 		free(owner_jited);
@@ -553,7 +568,8 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
 		char *owner_jited = get_fdinfo(fd, "owner_jited");
 
-		printf("\n\t");
+		if (owner_prog_type || owner_jited)
+			printf("\n\t");
 		if (owner_prog_type) {
 			unsigned int prog_type = atoi(owner_prog_type);
 
@@ -563,10 +579,9 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 			else
 				printf("owner_prog_type %d  ", prog_type);
 		}
-		if (atoi(owner_jited))
-			printf("owner jited");
-		else
-			printf("owner not jited");
+		if (owner_jited)
+			printf("owner%s jited",
+			       atoi(owner_jited) ? "" : " not");
 
 		free(owner_prog_type);
 		free(owner_jited);

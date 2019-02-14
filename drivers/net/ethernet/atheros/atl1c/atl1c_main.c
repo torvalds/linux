@@ -1019,8 +1019,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
 		8 * 4;
 
-	ring_header->desc = dma_zalloc_coherent(&pdev->dev, ring_header->size,
-						&ring_header->dma, GFP_KERNEL);
+	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
+					       &ring_header->dma, GFP_KERNEL);
 	if (unlikely(!ring_header->desc)) {
 		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
 		goto err_nomem;

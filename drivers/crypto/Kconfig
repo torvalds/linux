@@ -692,6 +692,7 @@ config CRYPTO_DEV_BCM_SPU
 	depends on ARCH_BCM_IPROC
 	depends on MAILBOX
 	default m
+	select CRYPTO_AUTHENC
 	select CRYPTO_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1

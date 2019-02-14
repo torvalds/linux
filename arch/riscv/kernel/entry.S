@@ -144,6 +144,10 @@ _save_context:
 	REG_L x2,  PT_SP(sp)
 	.endm
 
+#if !IS_ENABLED(CONFIG_PREEMPT)
+.set resume_kernel, restore_all
+#endif
+
 ENTRY(handle_exception)
 	SAVE_ALL
 
@@ -201,7 +205,7 @@ handle_syscall:
 	REG_S s2, PT_SEPC(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_TRACE
+	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_enter
 check_syscall_nr:
 	/* Check to make sure we don't jump to a bogus syscall number. */
@@ -221,14 +225,14 @@ ret_from_syscall:
 	REG_S a0, PT_A0(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_TRACE
+	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_exit
 
 ret_from_exception:
 	REG_L s0, PT_SSTATUS(sp)
 	csrc sstatus, SR_SIE
 	andi s0, s0, SR_SPP
-	bnez s0, restore_all
+	bnez s0, resume_kernel
 
 resume_userspace:
 	/* Interrupts must be disabled here so flags are checked atomically */
@@ -249,6 +253,18 @@ resume_userspace:
 restore_all:
 	RESTORE_ALL
 	sret
+
+#if IS_ENABLED(CONFIG_PREEMPT)
+resume_kernel:
+	REG_L s0, TASK_TI_PREEMPT_COUNT(tp)
+	bnez s0, restore_all
+need_resched:
+	REG_L s0, TASK_TI_FLAGS(tp)
+	andi s0, s0, _TIF_NEED_RESCHED
+	beqz s0, restore_all
+	call preempt_schedule_irq
+	j need_resched
+#endif
 
 work_pending:
 	/* Enter slow path for supplementary processing */

@@ -604,6 +604,9 @@ int qed_sp_pf_update_stag(struct qed_hwfn *p_hwfn)
 
 	p_ent->ramrod.pf_update.update_mf_vlan_flag = true;
 	p_ent->ramrod.pf_update.mf_vlan = cpu_to_le16(p_hwfn->hw_info.ovlan);
+	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
+		p_ent->ramrod.pf_update.mf_vlan |=
+			cpu_to_le16(((u16)p_hwfn->ufp_info.tc << 13));
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
