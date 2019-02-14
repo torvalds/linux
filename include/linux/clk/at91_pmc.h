@@ -159,6 +159,7 @@
 
 #define AT91_PMC_FSMR		0x70		/* Fast Startup Mode Register */
 #define AT91_PMC_FSTT(n)	BIT(n)
+#define AT91_PMC_RTTAL		BIT(16)
 #define AT91_PMC_RTCAL		BIT(17)		/* RTC Alarm Enable */
 #define AT91_PMC_USBAL		BIT(18)		/* USB Resume Enable */
 #define AT91_PMC_SDMMC_CD	BIT(19)		/* SDMMC Card Detect Enable */

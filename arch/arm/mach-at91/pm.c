@@ -100,6 +100,8 @@ static const struct wakeup_source_info ws_info[] = {
 	{ .pmc_fsmr_bit = AT91_PMC_RTCAL,	.shdwc_mr_bit = BIT(17) },
 	{ .pmc_fsmr_bit = AT91_PMC_USBAL },
 	{ .pmc_fsmr_bit = AT91_PMC_SDMMC_CD },
+	{ .pmc_fsmr_bit = AT91_PMC_RTTAL },
+	{ .pmc_fsmr_bit = AT91_PMC_RXLP_MCE },
 };
 
 static const struct of_device_id sama5d2_ws_ids[] = {
@@ -111,6 +113,17 @@ static const struct of_device_id sama5d2_ws_ids[] = {
 	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
 	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
 	{ .compatible = "atmel,sama5d2-sdhci",		.data = &ws_info[3] },
+	{ /* sentinel */ }
+};
+
+static const struct of_device_id sam9x60_ws_ids[] = {
+	{ .compatible = "atmel,at91sam9x5-rtc",		.data = &ws_info[1] },
+	{ .compatible = "atmel,at91rm9200-ohci",	.data = &ws_info[2] },
+	{ .compatible = "usb-ohci",			.data = &ws_info[2] },
+	{ .compatible = "atmel,at91sam9g45-ehci",	.data = &ws_info[2] },
+	{ .compatible = "usb-ehci",			.data = &ws_info[2] },
+	{ .compatible = "atmel,at91sam9260-rtt",	.data = &ws_info[4] },
+	{ .compatible = "cdns,sam9x60-macb",		.data = &ws_info[5] },
 	{ /* sentinel */ }
 };
 
@@ -188,6 +201,13 @@ static int at91_sama5d2_config_pmc_ws(void __iomem *pmc, u32 mode, u32 polarity)
 {
 	writel(mode, pmc + AT91_PMC_FSMR);
 	writel(polarity, pmc + AT91_PMC_FSPR);
+
+	return 0;
+}
+
+static int at91_sam9x60_config_pmc_ws(void __iomem *pmc, u32 mode, u32 polarity)
+{
+	writel(mode, pmc + AT91_PMC_FSMR);
 
 	return 0;
 }
@@ -789,8 +809,12 @@ void __init sam9x60_pm_init(void)
 	if (!IS_ENABLED(CONFIG_SOC_AT91SAM9))
 		return;
 
+	at91_pm_modes_init();
 	at91_dt_ramc();
 	at91_pm_init(at91sam9x60_idle);
+
+	soc_pm.ws_ids = sam9x60_ws_ids;
+	soc_pm.config_pmc_ws = at91_sam9x60_config_pmc_ws;
 }
 
 void __init at91sam9_pm_init(void)
