@@ -161,6 +161,8 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	packet->bitfields2.engine_sel =
 		engine_sel__mes_map_queues__compute_vi;
 	packet->bitfields2.gws_control_queue = q->gws ? 1 : 0;
+	packet->bitfields2.extended_engine_sel =
+		extended_engine_sel__mes_map_queues__legacy_engine_sel;
 	packet->bitfields2.queue_type =
 		queue_type__mes_map_queues__normal_compute_vi;
 
@@ -176,9 +178,15 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
-				engine_sel__mes_map_queues__sdma0_vi;
 		use_static = false; /* no static queues under SDMA */
+		if (q->properties.sdma_engine_id < 2)
+			packet->bitfields2.engine_sel = q->properties.sdma_engine_id +
+				engine_sel__mes_map_queues__sdma0_vi;
+		else {
+			packet->bitfields2.extended_engine_sel =
+				extended_engine_sel__mes_map_queues__sdma0_to_7_sel;
+			packet->bitfields2.engine_sel = q->properties.sdma_engine_id;
+		}
 		break;
 	default:
 		WARN(1, "queue type %d", q->properties.type);
@@ -218,13 +226,23 @@ static int pm_unmap_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	switch (type) {
 	case KFD_QUEUE_TYPE_COMPUTE:
 	case KFD_QUEUE_TYPE_DIQ:
+		packet->bitfields2.extended_engine_sel =
+			extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
 		packet->bitfields2.engine_sel =
 			engine_sel__mes_unmap_queues__compute;
 		break;
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
-		packet->bitfields2.engine_sel =
-			engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
+		if (sdma_engine < 2) {
+			packet->bitfields2.extended_engine_sel =
+				extended_engine_sel__mes_unmap_queues__legacy_engine_sel;
+			packet->bitfields2.engine_sel =
+				engine_sel__mes_unmap_queues__sdma0 + sdma_engine;
+		} else {
+			packet->bitfields2.extended_engine_sel =
+				extended_engine_sel__mes_unmap_queues__sdma0_to_7_sel;
+			packet->bitfields2.engine_sel = sdma_engine;
+		}
 		break;
 	default:
 		WARN(1, "queue type %d", type);

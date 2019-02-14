@@ -260,6 +260,10 @@ enum mes_map_queues_engine_sel_enum {
 	engine_sel__mes_map_queues__sdma1_vi = 3
 };
 
+enum mes_map_queues_extended_engine_sel_enum {
+	extended_engine_sel__mes_map_queues__legacy_engine_sel = 0,
+	extended_engine_sel__mes_map_queues__sdma0_to_7_sel = 1
+};
 
 struct pm4_mes_map_queues {
 	union {
@@ -269,7 +273,8 @@ struct pm4_mes_map_queues {
 
 	union {
 		struct {
-			uint32_t reserved1:4;
+			uint32_t reserved1:2;
+			enum mes_map_queues_extended_engine_sel_enum extended_engine_sel:2;
 			enum mes_map_queues_queue_sel_enum queue_sel:2;
 			uint32_t reserved5:6;
 			uint32_t gws_control_queue:1;
@@ -382,6 +387,11 @@ enum mes_unmap_queues_engine_sel_enum {
 	engine_sel__mes_unmap_queues__sdmal = 3
 };
 
+enum mes_unmap_queues_extended_engine_sel_enum {
+	extended_engine_sel__mes_unmap_queues__legacy_engine_sel = 0,
+	extended_engine_sel__mes_unmap_queues__sdma0_to_7_sel = 1
+};
+
 struct pm4_mes_unmap_queues {
 	union {
 		union PM4_MES_TYPE_3_HEADER   header;            /* header */
@@ -391,7 +401,7 @@ struct pm4_mes_unmap_queues {
 	union {
 		struct {
 			enum mes_unmap_queues_action_enum action:2;
-			uint32_t reserved1:2;
+			enum mes_unmap_queues_extended_engine_sel_enum extended_engine_sel:2;
 			enum mes_unmap_queues_queue_sel_enum queue_sel:2;
 			uint32_t reserved2:20;
 			enum mes_unmap_queues_engine_sel_enum engine_sel:3;
