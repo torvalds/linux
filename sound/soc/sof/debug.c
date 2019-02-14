@@ -82,9 +82,9 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	kfree(buf);
 
 	/* update count & position if copy succeeded */
-	if (size_ret == count)
+	if (size_ret)
 		return -EFAULT;
-	count -= size_ret;
+
 	*ppos = pos + count;
 
 	return count;
