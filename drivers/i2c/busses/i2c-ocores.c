@@ -628,7 +628,10 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 		i2c->reg_shift = pdata->reg_shift;
 		i2c->reg_io_width = pdata->reg_io_width;
 		i2c->ip_clock_khz = pdata->clock_khz;
-		i2c->bus_clock_khz = 100;
+		if (pdata->bus_khz)
+			i2c->bus_clock_khz = pdata->bus_khz;
+		else
+			i2c->bus_clock_khz = 100;
 	} else {
 		ret = ocores_i2c_of_probe(pdev, i2c);
 		if (ret)
