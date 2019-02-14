@@ -586,7 +586,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		channels->max = 2;
 
 		snd_mask_none(fmt);
-		snd_mask_set(fmt, (__force int)SNDRV_PCM_FORMAT_S16_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 
 		return 0;
 	}
@@ -596,13 +596,13 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	switch (dai->comp_dai.config.frame_fmt) {
 	case SOF_IPC_FRAME_S16_LE:
-		snd_mask_set(fmt, (__force int)SNDRV_PCM_FORMAT_S16_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 		break;
 	case SOF_IPC_FRAME_S24_4LE:
-		snd_mask_set(fmt, (__force int)SNDRV_PCM_FORMAT_S24_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 		break;
 	case SOF_IPC_FRAME_S32_LE:
-		snd_mask_set(fmt, (__force int)SNDRV_PCM_FORMAT_S32_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
 		break;
 	default:
 		dev_err(sdev->dev, "error: No available DAI format!\n");
