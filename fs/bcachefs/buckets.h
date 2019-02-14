@@ -225,17 +225,10 @@ static inline struct bch_fs_usage *bch2_fs_usage_get_scratch(struct bch_fs *c)
 
 struct bch_fs_usage *bch2_fs_usage_read(struct bch_fs *);
 
-u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
+u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage *);
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
-
-static inline u64 bch2_fs_sectors_free(struct bch_fs *c)
-{
-	struct bch_fs_usage_short usage = bch2_fs_usage_read_short(c);
-
-	return usage.capacity - usage.used;
-}
 
 /* key/bucket marking: */
 

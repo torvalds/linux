@@ -244,17 +244,17 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 	pr_buf(&out, "capacity:\t\t\t%llu\n", c->capacity);
 
 	pr_buf(&out, "hidden:\t\t\t\t%llu\n",
-	       fs_usage->s.hidden);
+	       fs_usage->hidden);
 	pr_buf(&out, "data:\t\t\t\t%llu\n",
-	       fs_usage->s.data);
+	       fs_usage->data);
 	pr_buf(&out, "cached:\t\t\t\t%llu\n",
-	       fs_usage->s.cached);
+	       fs_usage->cached);
 	pr_buf(&out, "reserved:\t\t\t%llu\n",
-	       fs_usage->s.reserved);
+	       fs_usage->reserved);
 	pr_buf(&out, "nr_inodes:\t\t\t%llu\n",
-	       fs_usage->s.nr_inodes);
+	       fs_usage->nr_inodes);
 	pr_buf(&out, "online reserved:\t\t%llu\n",
-	       fs_usage->s.online_reserved);
+	       fs_usage->online_reserved);
 
 	for (i = 0;
 	     i < ARRAY_SIZE(fs_usage->persistent_reserved);
@@ -270,7 +270,7 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 
 		pr_buf(&out, "\t");
 		bch2_replicas_entry_to_text(&out, e);
-		pr_buf(&out, ":\t%llu\n", fs_usage->data[i]);
+		pr_buf(&out, ":\t%llu\n", fs_usage->replicas[i]);
 	}
 
 	percpu_up_read(&c->mark_lock);

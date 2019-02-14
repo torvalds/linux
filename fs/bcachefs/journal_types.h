@@ -142,6 +142,9 @@ struct journal {
 
 	spinlock_t		lock;
 
+	/* if nonzero, we may not open a new journal entry: */
+	unsigned		blocked;
+
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;

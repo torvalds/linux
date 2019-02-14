@@ -83,7 +83,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 					       le64_to_cpu(u->v));
 			break;
 		case FS_USAGE_INODES:
-			percpu_u64_set(&c->usage[0]->s.nr_inodes,
+			percpu_u64_set(&c->usage[0]->nr_inodes,
 				       le64_to_cpu(u->v));
 			break;
 		case FS_USAGE_KEY_VERSION:

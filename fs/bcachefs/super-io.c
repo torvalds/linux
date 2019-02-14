@@ -930,7 +930,7 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 	percpu_down_write(&c->mark_lock);
 
 	{
-		u64 nr_inodes = percpu_u64_get(&c->usage[0]->s.nr_inodes);
+		u64 nr_inodes = percpu_u64_get(&c->usage[0]->nr_inodes);
 		struct jset_entry_usage *u =
 			container_of(entry, struct jset_entry_usage, entry);
 
@@ -977,7 +977,7 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 	for (i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
-		u64 sectors = percpu_u64_get(&c->usage[0]->data[i]);
+		u64 sectors = percpu_u64_get(&c->usage[0]->replicas[i]);
 		struct jset_entry_data_usage *u =
 			container_of(entry, struct jset_entry_data_usage, entry);
 

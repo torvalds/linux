@@ -64,35 +64,33 @@ struct bch_dev_usage {
 struct bch_fs_usage {
 	/* all fields are in units of 512 byte sectors: */
 
-	/* summarized: */
-	struct bch_fs_usage_summarized {
-		u64		online_reserved;
+	u64			online_reserved;
 
-		/* fields after online_reserved are cleared/recalculated by gc: */
-		u64		gc_start[0];
+	/* fields after online_reserved are cleared/recalculated by gc: */
+	u64			gc_start[0];
 
-		u64		hidden;
-		u64		data;
-		u64		cached;
-		u64		reserved;
-		u64		nr_inodes;
+	u64			hidden;
+	u64			data;
+	u64			cached;
+	u64			reserved;
+	u64			nr_inodes;
 
-		/* XXX: add stats for compression ratio */
+	/* XXX: add stats for compression ratio */
 #if 0
-		u64		uncompressed;
-		u64		compressed;
+	u64			uncompressed;
+	u64			compressed;
 #endif
-	} s;
 
 	/* broken out: */
 
 	u64			persistent_reserved[BCH_REPLICAS_MAX];
-	u64			data[];
+	u64			replicas[];
 };
 
 struct bch_fs_usage_short {
 	u64			capacity;
 	u64			used;
+	u64			free;
 	u64			nr_inodes;
 };
 

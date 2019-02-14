@@ -370,6 +370,9 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 	set_bit(JOURNAL_REPLAY_DONE, &j->flags);
 }
 
+void bch2_journal_unblock(struct journal *);
+void bch2_journal_block(struct journal *);
+
 ssize_t bch2_journal_print_debug(struct journal *, char *);
 ssize_t bch2_journal_print_pins(struct journal *, char *);
 

@@ -245,14 +245,14 @@ static void __replicas_table_update(struct bch_fs_usage __percpu *dst_p,
 	*dst = *src;
 
 	for (src_idx = 0; src_idx < src_r->nr; src_idx++) {
-		if (!src->data[src_idx])
+		if (!src->replicas[src_idx])
 			continue;
 
 		dst_idx = __replicas_entry_idx(dst_r,
 				cpu_replicas_entry(src_r, src_idx));
 		BUG_ON(dst_idx < 0);
 
-		dst->data[dst_idx] = src->data[src_idx];
+		dst->replicas[dst_idx] = src->replicas[src_idx];
 	}
 }
 
@@ -457,7 +457,7 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 		if (__replicas_has_entry(&c->replicas_gc, e))
 			continue;
 
-		v = percpu_u64_get(&c->usage[0]->data[i]);
+		v = percpu_u64_get(&c->usage[0]->replicas[i]);
 		if (!v)
 			continue;
 
@@ -558,7 +558,7 @@ int bch2_replicas_set_usage(struct bch_fs *c,
 		BUG_ON(ret < 0);
 	}
 
-	percpu_u64_set(&c->usage[0]->data[idx], sectors);
+	percpu_u64_set(&c->usage[0]->replicas[idx], sectors);
 
 	return 0;
 }

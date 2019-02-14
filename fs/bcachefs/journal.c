@@ -212,6 +212,9 @@ static int journal_entry_open(struct journal *j)
 	lockdep_assert_held(&j->lock);
 	BUG_ON(journal_entry_is_open(j));
 
+	if (j->blocked)
+		return -EAGAIN;
+
 	if (!fifo_free(&j->pin))
 		return 0;
 
@@ -287,7 +290,7 @@ static bool __journal_entry_close(struct journal *j)
 		spin_unlock(&j->lock);
 		fallthrough;
 	case JOURNAL_UNLOCKED:
-		return true;
+		return false;
 	}
 }
 
@@ -295,6 +298,22 @@ static bool journal_entry_close(struct journal *j)
 {
 	spin_lock(&j->lock);
 	return __journal_entry_close(j);
+}
+
+static bool journal_quiesced(struct journal *j)
+{
+	bool ret;
+
+	spin_lock(&j->lock);
+	ret = !j->reservations.prev_buf_unwritten &&
+		!journal_entry_is_open(j);
+	__journal_entry_close(j);
+	return ret;
+}
+
+static void journal_quiesce(struct journal *j)
+{
+	wait_event(j->wait, journal_quiesced(j));
 }
 
 static void journal_write_work(struct work_struct *work)
@@ -722,6 +741,26 @@ int bch2_journal_flush(struct journal *j)
 	return bch2_journal_flush_seq(j, seq);
 }
 
+/* block/unlock the journal: */
+
+void bch2_journal_unblock(struct journal *j)
+{
+	spin_lock(&j->lock);
+	j->blocked--;
+	spin_unlock(&j->lock);
+
+	journal_wake(j);
+}
+
+void bch2_journal_block(struct journal *j)
+{
+	spin_lock(&j->lock);
+	j->blocked++;
+	spin_unlock(&j->lock);
+
+	journal_quiesce(j);
+}
+
 /* allocate journal on a device: */
 
 static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
@@ -931,8 +970,7 @@ void bch2_fs_journal_stop(struct journal *j)
 	    c->btree_roots_dirty)
 		bch2_journal_meta(j);
 
-	BUG_ON(journal_entry_is_open(j) ||
-	       j->reservations.prev_buf_unwritten);
+	journal_quiesce(j);
 
 	BUG_ON(!bch2_journal_error(j) &&
 	       test_bit(JOURNAL_NOT_EMPTY, &j->flags));

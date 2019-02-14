@@ -612,11 +612,11 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		struct bch_fs_usage *src = (void *)
 			bch2_acc_percpu_u64s((void *) c->usage[1], nr);
 
-		copy_fs_field(s.hidden,		"hidden");
-		copy_fs_field(s.data,		"data");
-		copy_fs_field(s.cached,		"cached");
-		copy_fs_field(s.reserved,	"reserved");
-		copy_fs_field(s.nr_inodes,	"nr_inodes");
+		copy_fs_field(hidden,		"hidden");
+		copy_fs_field(data,		"data");
+		copy_fs_field(cached,		"cached");
+		copy_fs_field(reserved,		"reserved");
+		copy_fs_field(nr_inodes,	"nr_inodes");
 
 		for (i = 0; i < BCH_REPLICAS_MAX; i++)
 			copy_fs_field(persistent_reserved[i],
@@ -629,7 +629,7 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 
 			bch2_replicas_entry_to_text(&PBUF(buf), e);
 
-			copy_fs_field(data[i], "%s", buf);
+			copy_fs_field(replicas[i], "%s", buf);
 		}
 	}
 

@@ -724,7 +724,7 @@ static struct write_point *__writepoint_find(struct hlist_head *head,
 static inline bool too_many_writepoints(struct bch_fs *c, unsigned factor)
 {
 	u64 stranded	= c->write_points_nr * c->bucket_size_max;
-	u64 free	= bch2_fs_sectors_free(c);
+	u64 free	= bch2_fs_usage_read_short(c).free;
 
 	return stranded * factor > free;
 }

@@ -403,10 +403,10 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 		if (!src)
 			return -ENOMEM;
 
-		percpu_up_read(&c->mark_lock);
+		dst.used		= bch2_fs_sectors_used(c, src);
+		dst.online_reserved	= src->online_reserved;
 
-		dst.used		= bch2_fs_sectors_used(c, *src);
-		dst.online_reserved	= src->s.online_reserved;
+		percpu_up_read(&c->mark_lock);
 
 		for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 			dst.persistent_reserved[i] =
