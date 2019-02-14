@@ -47,7 +47,8 @@ struct hash_testvec {
  * cipher_testvec:	structure to describe a symmetric cipher test
  * @key:	Pointer to key
  * @klen:	Length of @key in bytes
- * @iv:		Pointer to IV (optional for some ciphers)
+ * @iv:		Pointer to IV.  If NULL, an all-zeroes IV is used.
+ * @iv_out:	Pointer to output IV, if applicable for the cipher.
  * @ptext:	Pointer to plaintext
  * @ctext:	Pointer to ciphertext
  * @len:	Length of @ptext and @ctext in bytes
@@ -55,12 +56,13 @@ struct hash_testvec {
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @fips_skip:	Skip the test vector in FIPS mode
- * @generates_iv: Encryption should ignore the given IV, and output @iv.
- *		  Decryption takes @iv.  Needed for AES Keywrap ("kw(aes)").
+ * @generates_iv: Encryption should ignore the given IV, and output @iv_out.
+ *		  Decryption takes @iv_out.  Needed for AES Keywrap ("kw(aes)").
  */
 struct cipher_testvec {
 	const char *key;
 	const char *iv;
+	const char *iv_out;
 	const char *ptext;
 	const char *ctext;
 	bool fail;
@@ -21771,7 +21773,7 @@ static const struct cipher_testvec aes_kw_tv_template[] = {
 		.ctext	= "\xf6\x85\x94\x81\x6f\x64\xca\xa3"
 			  "\xf5\x6f\xab\xea\x25\x48\xf5\xfb",
 		.len	= 16,
-		.iv	= "\x03\x1f\x6b\xd7\xe6\x1e\x64\x3d",
+		.iv_out	= "\x03\x1f\x6b\xd7\xe6\x1e\x64\x3d",
 		.generates_iv = true,
 	}, {
 		.key	= "\x80\xaa\x99\x73\x27\xa4\x80\x6b"
@@ -21784,7 +21786,7 @@ static const struct cipher_testvec aes_kw_tv_template[] = {
 		.ctext	= "\xd3\x3d\x3d\x97\x7b\xf0\xa9\x15"
 			  "\x59\xf9\x9c\x8a\xcd\x29\x3d\x43",
 		.len	= 16,
-		.iv	= "\x42\x3c\x96\x0d\x8a\x2a\xc4\xc1",
+		.iv_out	= "\x42\x3c\x96\x0d\x8a\x2a\xc4\xc1",
 		.generates_iv = true,
 	},
 };

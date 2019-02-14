@@ -1542,7 +1542,9 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	if (ivsize) {
 		if (WARN_ON(ivsize > MAX_IVLEN))
 			return -EINVAL;
-		if (vec->iv && !(vec->generates_iv && enc))
+		if (vec->generates_iv && !enc)
+			memcpy(iv, vec->iv_out, ivsize);
+		else if (vec->iv)
 			memcpy(iv, vec->iv, ivsize);
 		else
 			memset(iv, 0, ivsize);
@@ -1635,7 +1637,7 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	}
 
 	/* If applicable, check that the algorithm generated the correct IV */
-	if (vec->generates_iv && enc && memcmp(iv, vec->iv, ivsize) != 0) {
+	if (vec->iv_out && memcmp(iv, vec->iv_out, ivsize) != 0) {
 		pr_err("alg: skcipher: %s %s test failed (wrong output IV) on test vector %u, cfg=\"%s\"\n",
 		       driver, op, vec_num, cfg->name);
 		hexdump(iv, ivsize);
