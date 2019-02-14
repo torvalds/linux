@@ -40,6 +40,9 @@ extern void at91_pinctrl_gpio_resume(void);
 #endif
 
 struct at91_soc_pm {
+	int (*config_shdwc_ws)(void __iomem *shdwc, u32 *mode, u32 *polarity);
+	int (*config_pmc_ws)(void __iomem *pmc, u32 mode, u32 polarity);
+	const struct of_device_id *ws_ids;
 	struct at91_pm_data data;
 };
 
@@ -122,7 +125,7 @@ static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 	if (pm_mode != AT91_PM_ULP1)
 		return 0;
 
-	if (!soc_pm.data.pmc || !soc_pm.data.shdwc)
+	if (!soc_pm.data.pmc || !soc_pm.data.shdwc || !soc_pm.ws_ids)
 		return -EPERM;
 
 	if (!set) {
@@ -130,16 +133,14 @@ static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 		return 0;
 	}
 
-	/* SHDWC.WUIR */
-	val = readl(soc_pm.data.shdwc + 0x0c);
-	mode |= (val & 0x3ff);
-	polarity |= ((val >> 16) & 0x3ff);
+	if (soc_pm.config_shdwc_ws)
+		soc_pm.config_shdwc_ws(soc_pm.data.shdwc, &mode, &polarity);
 
 	/* SHDWC.MR */
 	val = readl(soc_pm.data.shdwc + 0x04);
 
 	/* Loop through defined wakeup sources. */
-	for_each_matching_node_and_match(np, sama5d2_ws_ids, &match) {
+	for_each_matching_node_and_match(np, soc_pm.ws_ids, &match) {
 		pdev = of_find_device_by_node(np);
 		if (!pdev)
 			continue;
@@ -161,13 +162,34 @@ put_device:
 	}
 
 	if (mode) {
-		writel(mode, soc_pm.data.pmc + AT91_PMC_FSMR);
-		writel(polarity, soc_pm.data.pmc + AT91_PMC_FSPR);
+		if (soc_pm.config_pmc_ws)
+			soc_pm.config_pmc_ws(soc_pm.data.pmc, mode, polarity);
 	} else {
 		pr_err("AT91: PM: no ULP1 wakeup sources found!");
 	}
 
 	return mode ? 0 : -EPERM;
+}
+
+static int at91_sama5d2_config_shdwc_ws(void __iomem *shdwc, u32 *mode,
+					u32 *polarity)
+{
+	u32 val;
+
+	/* SHDWC.WUIR */
+	val = readl(shdwc + 0x0c);
+	*mode |= (val & 0x3ff);
+	*polarity |= ((val >> 16) & 0x3ff);
+
+	return 0;
+}
+
+static int at91_sama5d2_config_pmc_ws(void __iomem *pmc, u32 mode, u32 polarity)
+{
+	writel(mode, pmc + AT91_PMC_FSMR);
+	writel(polarity, pmc + AT91_PMC_FSPR);
+
+	return 0;
 }
 
 /*
@@ -796,6 +818,10 @@ void __init sama5d2_pm_init(void)
 
 	at91_pm_modes_init();
 	sama5_pm_init();
+
+	soc_pm.ws_ids = sama5d2_ws_ids;
+	soc_pm.config_shdwc_ws = at91_sama5d2_config_shdwc_ws;
+	soc_pm.config_pmc_ws = at91_sama5d2_config_pmc_ws;
 }
 
 static int __init at91_pm_modes_select(char *str)
