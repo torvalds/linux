@@ -1186,11 +1186,10 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		ret = -EFAULT;
 		goto out_put;
 	}
+	ret = 0;
 
 	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
 		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
-
-	ret = 0;
 
 out_put:
 	uobj_put_obj_read(cq);
