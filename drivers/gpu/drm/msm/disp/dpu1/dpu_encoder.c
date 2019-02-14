@@ -963,9 +963,12 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct list_head *connector_list;
 	struct drm_connector *conn = NULL, *conn_iter;
 	struct drm_crtc *drm_crtc;
-	struct dpu_rm_hw_iter pp_iter, ctl_iter;
+	struct dpu_crtc_state *cstate;
+	struct dpu_rm_hw_iter hw_iter;
 	struct msm_display_topology topology;
 	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
+	struct dpu_hw_mixer *hw_lm[MAX_CHANNELS_PER_ENC] = { NULL };
+	int num_lm = 0, num_ctl = 0;
 	int i = 0, ret;
 
 	if (!drm_enc) {
@@ -1009,20 +1012,40 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		return;
 	}
 
-	dpu_rm_init_hw_iter(&pp_iter, drm_enc->base.id, DPU_HW_BLK_PINGPONG);
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_PINGPONG);
 	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
 		dpu_enc->hw_pp[i] = NULL;
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &pp_iter))
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
 			break;
-		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) pp_iter.hw;
+		dpu_enc->hw_pp[i] = (struct dpu_hw_pingpong *) hw_iter.hw;
 	}
 
-	dpu_rm_init_hw_iter(&ctl_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_CTL);
 	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
-		if (!dpu_rm_get_hw(&dpu_kms->rm, &ctl_iter))
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
 			break;
-		hw_ctl[i] = (struct dpu_hw_ctl *)ctl_iter.hw;
+		hw_ctl[i] = (struct dpu_hw_ctl *)hw_iter.hw;
+		num_ctl++;
 	}
+
+	dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id, DPU_HW_BLK_LM);
+	for (i = 0; i < MAX_CHANNELS_PER_ENC; i++) {
+		if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
+			break;
+		hw_lm[i] = (struct dpu_hw_mixer *)hw_iter.hw;
+		num_lm++;
+	}
+
+	cstate = to_dpu_crtc_state(drm_crtc->state);
+
+	for (i = 0; i < num_lm; i++) {
+		int ctl_idx = (i < num_ctl) ? i : (num_ctl-1);
+
+		cstate->mixers[i].hw_lm = hw_lm[i];
+		cstate->mixers[i].lm_ctl = hw_ctl[ctl_idx];
+	}
+
+	cstate->num_mixers = num_lm;
 
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
 		struct dpu_encoder_phys *phys = dpu_enc->phys_encs[i];
