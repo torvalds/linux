@@ -1193,10 +1193,8 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	 */
 	copy_rd = kmemdup(regd, struct_size(regd, reg_rules, valid_rules),
 			  GFP_KERNEL);
-	if (!copy_rd) {
+	if (!copy_rd)
 		copy_rd = ERR_PTR(-ENOMEM);
-		goto out;
-	}
 
 out:
 	kfree(regdb_ptrs);
