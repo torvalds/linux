@@ -1734,7 +1734,7 @@ static int macb_pad_and_fcs(struct sk_buff **skb, struct net_device *ndev)
 		if (!nskb)
 			return -ENOMEM;
 
-		dev_kfree_skb_any(*skb);
+		dev_consume_skb_any(*skb);
 		*skb = nskb;
 	}
 
