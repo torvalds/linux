@@ -2268,7 +2268,7 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 	cmd.iqaddr = cpu_to_be64(rspq->phys_addr);
 
 	if (fl) {
-		enum chip_type chip =
+		unsigned int chip_ver =
 			CHELSIO_CHIP_VERSION(adapter->params.chip);
 		/*
 		 * Allocate the ring for the hardware free list (with space
@@ -2319,10 +2319,10 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		 */
 		cmd.fl0dcaen_to_fl0cidxfthresh =
 			cpu_to_be16(
-				FW_IQ_CMD_FL0FBMIN_V(chip <= CHELSIO_T5 ?
-						     FETCHBURSTMIN_128B_X :
-						     FETCHBURSTMIN_64B_X) |
-				FW_IQ_CMD_FL0FBMAX_V((chip <= CHELSIO_T5) ?
+				FW_IQ_CMD_FL0FBMIN_V(chip_ver <= CHELSIO_T5
+						     ? FETCHBURSTMIN_128B_X
+						     : FETCHBURSTMIN_64B_T6_X) |
+				FW_IQ_CMD_FL0FBMAX_V((chip_ver <= CHELSIO_T5) ?
 						     FETCHBURSTMAX_512B_X :
 						     FETCHBURSTMAX_256B_X));
 		cmd.fl0size = cpu_to_be16(flsz);
@@ -2411,10 +2411,11 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 			   struct net_device *dev, struct netdev_queue *devq,
 			   unsigned int iqid)
 {
+	unsigned int chip_ver = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	struct port_info *pi = netdev_priv(dev);
+	struct fw_eq_eth_cmd cmd, rpl;
 	struct sge *s = &adapter->sge;
 	int ret, nentries;
-	struct fw_eq_eth_cmd cmd, rpl;
-	struct port_info *pi = netdev_priv(dev);
 
 	/*
 	 * Calculate the size of the hardware TX Queue (including the Status
@@ -2448,17 +2449,19 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC_F |
 					 FW_EQ_ETH_CMD_EQSTART_F |
 					 FW_LEN16(cmd));
-	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
-				   FW_EQ_ETH_CMD_VIID_V(pi->viid));
+	cmd.autoequiqe_to_viid = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE_F |
+					     FW_EQ_ETH_CMD_VIID_V(pi->viid));
 	cmd.fetchszm_to_iqid =
 		cpu_to_be32(FW_EQ_ETH_CMD_HOSTFCMODE_V(SGE_HOSTFCMODE_STPG) |
 			    FW_EQ_ETH_CMD_PCIECHN_V(pi->port_id) |
 			    FW_EQ_ETH_CMD_IQID_V(iqid));
 	cmd.dcaen_to_eqsize =
-		cpu_to_be32(FW_EQ_ETH_CMD_FBMIN_V(SGE_FETCHBURSTMIN_64B) |
-			    FW_EQ_ETH_CMD_FBMAX_V(SGE_FETCHBURSTMAX_512B) |
+		cpu_to_be32(FW_EQ_ETH_CMD_FBMIN_V(chip_ver <= CHELSIO_T5
+						  ? FETCHBURSTMIN_64B_X
+						  : FETCHBURSTMIN_64B_T6_X) |
+			    FW_EQ_ETH_CMD_FBMAX_V(FETCHBURSTMAX_512B_X) |
 			    FW_EQ_ETH_CMD_CIDXFTHRESH_V(
-						SGE_CIDXFLUSHTHRESH_32) |
+						CIDXFLUSHTHRESH_32_X) |
 			    FW_EQ_ETH_CMD_EQSIZE_V(nentries));
 	cmd.eqaddr = cpu_to_be64(txq->q.phys_addr);
 

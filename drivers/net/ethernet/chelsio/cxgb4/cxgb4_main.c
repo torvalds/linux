@@ -575,7 +575,7 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 			struct sge_eth_txq *eq;
 
 			eq = container_of(txq, struct sge_eth_txq, q);
-			netif_tx_wake_queue(eq->txq);
+			t4_sge_eth_txq_egress_update(q->adap, eq, -1);
 		} else {
 			struct sge_uld_txq *oq;
 
@@ -933,10 +933,13 @@ static int setup_sge_queues(struct adapter *adap)
 			q->rspq.idx = j;
 			memset(&q->stats, 0, sizeof(q->stats));
 		}
-		for (j = 0; j < pi->nqsets; j++, t++) {
+
+		q = &s->ethrxq[pi->first_qset];
+		for (j = 0; j < pi->nqsets; j++, t++, q++) {
 			err = t4_sge_alloc_eth_txq(adap, t, dev,
 					netdev_get_tx_queue(dev, j),
-					s->fw_evtq.cntxt_id);
+					q->rspq.cntxt_id,
+					!!(adap->flags & SGE_DBQ_TIMER));
 			if (err)
 				goto freeout;
 		}
@@ -958,7 +961,7 @@ static int setup_sge_queues(struct adapter *adap)
 	if (!is_t4(adap->params.chip)) {
 		err = t4_sge_alloc_eth_txq(adap, &s->ptptxq, adap->port[0],
 					   netdev_get_tx_queue(adap->port[0], 0)
-					   , s->fw_evtq.cntxt_id);
+					   , s->fw_evtq.cntxt_id, false);
 		if (err)
 			goto freeout;
 	}
@@ -4324,6 +4327,24 @@ static int adap_init0(struct adapter *adap)
 	ret = t4_sge_init(adap);
 	if (ret < 0)
 		goto bye;
+
+	/* Grab the SGE Doorbell Queue Timer values.  If successful, that
+	 * indicates that the Firmware and Hardware support this.
+	 */
+	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK));
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+			      1, params, val);
+
+	if (!ret) {
+		adap->sge.dbqtimer_tick = val[0];
+		ret = t4_read_sge_dbqtimers(adap,
+					    ARRAY_SIZE(adap->sge.dbqtimer_val),
+					    adap->sge.dbqtimer_val);
+	}
+
+	if (!ret)
+		adap->flags |= SGE_DBQ_TIMER;
 
 	if (is_bypass_device(adap->pdev->device))
 		adap->params.bypass = 1;
