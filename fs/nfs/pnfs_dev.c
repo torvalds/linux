@@ -284,6 +284,16 @@ nfs4_put_deviceid_node(struct nfs4_deviceid_node *d)
 EXPORT_SYMBOL_GPL(nfs4_put_deviceid_node);
 
 void
+nfs4_mark_deviceid_available(struct nfs4_deviceid_node *node)
+{
+	if (test_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags)) {
+		clear_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+		smp_mb__after_atomic();
+	}
+}
+EXPORT_SYMBOL_GPL(nfs4_mark_deviceid_available);
+
+void
 nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node)
 {
 	node->timestamp_unavailable = jiffies;

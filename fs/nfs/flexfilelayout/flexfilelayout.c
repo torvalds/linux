@@ -788,10 +788,28 @@ ff_layout_alloc_commit_info(struct pnfs_layout_segment *lseg,
 	}
 }
 
+static void
+ff_layout_mark_ds_unreachable(struct pnfs_layout_segment *lseg, int idx)
+{
+	struct nfs4_deviceid_node *devid = FF_LAYOUT_DEVID_NODE(lseg, idx);
+
+	if (devid)
+		nfs4_mark_deviceid_unavailable(devid);
+}
+
+static void
+ff_layout_mark_ds_reachable(struct pnfs_layout_segment *lseg, int idx)
+{
+	struct nfs4_deviceid_node *devid = FF_LAYOUT_DEVID_NODE(lseg, idx);
+
+	if (devid)
+		nfs4_mark_deviceid_available(devid);
+}
+
 static struct nfs4_pnfs_ds *
-ff_layout_choose_best_ds_for_read(struct pnfs_layout_segment *lseg,
-				  int start_idx,
-				  int *best_idx)
+ff_layout_choose_ds_for_read(struct pnfs_layout_segment *lseg,
+			     int start_idx, int *best_idx,
+			     bool check_device)
 {
 	struct nfs4_ff_layout_segment *fls = FF_LAYOUT_LSEG(lseg);
 	struct nfs4_ff_layout_mirror *mirror;
@@ -799,23 +817,51 @@ ff_layout_choose_best_ds_for_read(struct pnfs_layout_segment *lseg,
 	bool fail_return = false;
 	int idx;
 
-	/* mirrors are sorted by efficiency */
+	/* mirrors are initially sorted by efficiency */
 	for (idx = start_idx; idx < fls->mirror_array_cnt; idx++) {
 		if (idx+1 == fls->mirror_array_cnt)
-			fail_return = true;
+			fail_return = !check_device;
 
 		mirror = FF_LAYOUT_COMP(lseg, idx);
-		if (ff_layout_test_devid_unavailable(&mirror->mirror_ds->id_node))
+		ds = nfs4_ff_layout_prepare_ds(lseg, mirror, fail_return);
+		if (!ds)
 			continue;
 
-		ds = nfs4_ff_layout_prepare_ds(lseg, mirror, fail_return);
-		if (ds) {
-			*best_idx = idx;
-			return ds;
-		}
+		if (check_device &&
+		    nfs4_test_deviceid_unavailable(&mirror->mirror_ds->id_node))
+			continue;
+
+		*best_idx = idx;
+		return ds;
 	}
 
 	return NULL;
+}
+
+static struct nfs4_pnfs_ds *
+ff_layout_choose_any_ds_for_read(struct pnfs_layout_segment *lseg,
+				 int start_idx, int *best_idx)
+{
+	return ff_layout_choose_ds_for_read(lseg, start_idx, best_idx, false);
+}
+
+static struct nfs4_pnfs_ds *
+ff_layout_choose_valid_ds_for_read(struct pnfs_layout_segment *lseg,
+				   int start_idx, int *best_idx)
+{
+	return ff_layout_choose_ds_for_read(lseg, start_idx, best_idx, true);
+}
+
+static struct nfs4_pnfs_ds *
+ff_layout_choose_best_ds_for_read(struct pnfs_layout_segment *lseg,
+				  int start_idx, int *best_idx)
+{
+	struct nfs4_pnfs_ds *ds;
+
+	ds = ff_layout_choose_valid_ds_for_read(lseg, start_idx, best_idx);
+	if (ds)
+		return ds;
+	return ff_layout_choose_any_ds_for_read(lseg, start_idx, best_idx);
 }
 
 static void
@@ -1167,8 +1213,10 @@ static int ff_layout_async_handle_error(struct rpc_task *task,
 {
 	int vers = clp->cl_nfs_mod->rpc_vers->number;
 
-	if (task->tk_status >= 0)
+	if (task->tk_status >= 0) {
+		ff_layout_mark_ds_reachable(lseg, idx);
 		return 0;
+	}
 
 	/* Handle the case of an invalid layout segment */
 	if (!pnfs_is_valid_lseg(lseg))
@@ -1231,6 +1279,8 @@ static void ff_layout_io_track_ds_error(struct pnfs_layout_segment *lseg,
 	err = ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
 				       mirror, offset, length, status, opnum,
 				       GFP_NOIO);
+	if (status == NFS4ERR_NXIO)
+		ff_layout_mark_ds_unreachable(lseg, idx);
 	pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode, lseg);
 	dprintk("%s: err %d op %d status %u\n", __func__, err, opnum, status);
 }
