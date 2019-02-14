@@ -682,7 +682,7 @@ swiotlb_dma_supported(struct device *hwdev, u64 mask)
 
 static int __init swiotlb_create_debugfs(void)
 {
-	static struct dentry *d_swiotlb_usage;
+	struct dentry *d_swiotlb_usage;
 	struct dentry *ent;
 
 	d_swiotlb_usage = debugfs_create_dir("swiotlb", NULL);
