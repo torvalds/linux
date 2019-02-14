@@ -1180,12 +1180,12 @@ static int generic_lr_enable_disable(struct opal_dev *dev,
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_u8(&err, dev, 5); /* ReadLockEnabled */
+	add_token_u8(&err, dev, OPAL_READLOCKENABLED);
 	add_token_u8(&err, dev, rle);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
 	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_u8(&err, dev, 6); /* WriteLockEnabled */
+	add_token_u8(&err, dev, OPAL_WRITELOCKENABLED);
 	add_token_u8(&err, dev, wle);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 
@@ -1238,22 +1238,22 @@ static int setup_locking_range(struct opal_dev *dev, void *data)
 		add_token_u8(&err, dev, OPAL_STARTLIST);
 
 		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, 3); /* Ranges Start */
+		add_token_u8(&err, dev, OPAL_RANGESTART);
 		add_token_u64(&err, dev, setup->range_start);
 		add_token_u8(&err, dev, OPAL_ENDNAME);
 
 		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, 4); /* Ranges length */
+		add_token_u8(&err, dev, OPAL_RANGELENGTH);
 		add_token_u64(&err, dev, setup->range_length);
 		add_token_u8(&err, dev, OPAL_ENDNAME);
 
 		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, 5); /*ReadLockEnabled */
+		add_token_u8(&err, dev, OPAL_READLOCKENABLED);
 		add_token_u64(&err, dev, !!setup->RLE);
 		add_token_u8(&err, dev, OPAL_ENDNAME);
 
 		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, 6); /*WriteLockEnabled*/
+		add_token_u8(&err, dev, OPAL_WRITELOCKENABLED);
 		add_token_u64(&err, dev, !!setup->WLE);
 		add_token_u8(&err, dev, OPAL_ENDNAME);
 
@@ -1472,7 +1472,7 @@ static int set_mbr_done(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_VALUES);
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_u8(&err, dev, 2); /* Done */
+	add_token_u8(&err, dev, OPAL_MBRDONE);
 	add_token_u8(&err, dev, *mbr_done_tf); /* Done T or F */
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
@@ -1498,7 +1498,7 @@ static int set_mbr_enable_disable(struct opal_dev *dev, void *data)
 	add_token_u8(&err, dev, OPAL_VALUES);
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_u8(&err, dev, 1);
+	add_token_u8(&err, dev, OPAL_MBRENABLE);
 	add_token_u8(&err, dev, *mbr_en_dis);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
@@ -1523,7 +1523,7 @@ static int generic_pw_cmd(u8 *key, size_t key_len, u8 *cpin_uid,
 	add_token_u8(&err, dev, OPAL_VALUES);
 	add_token_u8(&err, dev, OPAL_STARTLIST);
 	add_token_u8(&err, dev, OPAL_STARTNAME);
-	add_token_u8(&err, dev, 3); /* PIN */
+	add_token_u8(&err, dev, OPAL_PIN);
 	add_token_bytestring(&err, dev, key, key_len);
 	add_token_u8(&err, dev, OPAL_ENDNAME);
 	add_token_u8(&err, dev, OPAL_ENDLIST);
