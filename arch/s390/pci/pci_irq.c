@@ -14,8 +14,15 @@
 #define	SIC_IRQ_MODE_ALL		0
 #define	SIC_IRQ_MODE_SINGLE		1
 
-static struct airq_iv *zpci_aisb_iv;
-static struct airq_iv *zpci_aibv[ZPCI_NR_DEVICES];
+/*
+ * summary bit vector - one summary bit per function
+ */
+static struct airq_iv *zpci_sbv;
+
+/*
+ * interrupt bit vectors - one vector per function
+ */
+static struct airq_iv **zpci_ibv;
 
 /* Modify PCI: Register adapter interruptions */
 static int zpci_set_airq(struct zpci_dev *zdev)
@@ -29,7 +36,7 @@ static int zpci_set_airq(struct zpci_dev *zdev)
 	fib.noi = airq_iv_end(zdev->aibv);
 	fib.aibv = (unsigned long) zdev->aibv->vector;
 	fib.aibvo = 0;		/* each zdev has its own interrupt vector */
-	fib.aisb = (unsigned long) zpci_aisb_iv->vector + (zdev->aisb/64)*8;
+	fib.aisb = (unsigned long) zpci_sbv->vector + (zdev->aisb/64)*8;
 	fib.aisbo = zdev->aisb & 63;
 
 	return zpci_mod_fc(req, &fib, &status) ? -EIO : 0;
@@ -65,7 +72,7 @@ static void zpci_irq_handler(struct airq_struct *airq, bool floating)
 	inc_irq_stat(IRQIO_PCI);
 	for (si = 0;;) {
 		/* Scan adapter summary indicator bit vector */
-		si = airq_iv_scan(zpci_aisb_iv, si, airq_iv_end(zpci_aisb_iv));
+		si = airq_iv_scan(zpci_sbv, si, airq_iv_end(zpci_sbv));
 		if (si == -1UL) {
 			if (irqs_on++)
 				/* End of second scan with interrupts on. */
@@ -78,7 +85,7 @@ static void zpci_irq_handler(struct airq_struct *airq, bool floating)
 		}
 
 		/* Scan the adapter interrupt vector for this device. */
-		aibv = zpci_aibv[si];
+		aibv = zpci_ibv[si];
 		for (ai = 0;;) {
 			ai = airq_iv_scan(aibv, ai, airq_iv_end(aibv));
 			if (ai == -1UL)
@@ -106,7 +113,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	msi_vecs = min_t(unsigned int, nvec, zdev->max_msi);
 
 	/* Allocate adapter summary indicator bit */
-	aisb = airq_iv_alloc_bit(zpci_aisb_iv);
+	aisb = airq_iv_alloc_bit(zpci_sbv);
 	if (aisb == -1UL)
 		return -EIO;
 	zdev->aisb = aisb;
@@ -117,7 +124,7 @@ int arch_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		return -ENOMEM;
 
 	/* Wire up shortcut pointer */
-	zpci_aibv[aisb] = zdev->aibv;
+	zpci_ibv[aisb] = zdev->aibv;
 
 	/* Request MSI interrupts */
 	hwirq = 0;
@@ -176,8 +183,8 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	}
 
 	if (zdev->aisb != -1UL) {
-		zpci_aibv[zdev->aisb] = NULL;
-		airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
+		zpci_ibv[zdev->aisb] = NULL;
+		airq_iv_free_bit(zpci_sbv, zdev->aisb);
 		zdev->aisb = -1UL;
 	}
 	if (zdev->aibv) {
@@ -202,13 +209,19 @@ int __init zpci_irq_init(void)
 	*zpci_airq.lsi_ptr = 1;
 
 	rc = -ENOMEM;
-	zpci_aisb_iv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC);
-	if (!zpci_aisb_iv)
+	zpci_ibv = kcalloc(ZPCI_NR_DEVICES, sizeof(*zpci_ibv), GFP_KERNEL);
+	if (!zpci_ibv)
 		goto out_airq;
+
+	zpci_sbv = airq_iv_create(ZPCI_NR_DEVICES, AIRQ_IV_ALLOC);
+	if (!zpci_sbv)
+		goto out_free;
 
 	zpci_set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
 	return 0;
 
+out_free:
+	kfree(zpci_ibv);
 out_airq:
 	unregister_adapter_interrupt(&zpci_airq);
 out:
@@ -217,6 +230,7 @@ out:
 
 void __init zpci_irq_exit(void)
 {
-	airq_iv_release(zpci_aisb_iv);
+	airq_iv_release(zpci_sbv);
+	kfree(zpci_ibv);
 	unregister_adapter_interrupt(&zpci_airq);
 }
