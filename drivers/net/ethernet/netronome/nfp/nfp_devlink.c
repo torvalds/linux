@@ -330,6 +330,15 @@ err_close_nsp:
 	return err;
 }
 
+static int
+nfp_devlink_flash_update(struct devlink *devlink, const char *path,
+			 const char *component, struct netlink_ext_ack *extack)
+{
+	if (component)
+		return -EOPNOTSUPP;
+	return nfp_flash_update_common(devlink_priv(devlink), path, extack);
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
@@ -338,6 +347,7 @@ const struct devlink_ops nfp_devlink_ops = {
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
 	.info_get		= nfp_devlink_info_get,
+	.flash_update		= nfp_devlink_flash_update,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
