@@ -34,7 +34,6 @@ static const char * const pipe_crc_sources[] = {
 	"none",
 	"plane1",
 	"plane2",
-	"pf",
 	"pipe",
 	"TV",
 	"DP-B",
@@ -396,7 +395,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				bool set_wa)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
-		*source = INTEL_PIPE_CRC_SOURCE_PF;
+		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
 
 	switch (*source) {
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
@@ -405,7 +404,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PLANE2:
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_PF:
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
 		if (set_wa && (IS_HASWELL(dev_priv) ||
 		     IS_BROADWELL(dev_priv)) && pipe == PIPE_A)
 			hsw_pipe_A_crc_wa(dev_priv, true);
@@ -532,7 +531,6 @@ static int ivb_crc_source_valid(struct drm_i915_private *dev_priv,
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 	case INTEL_PIPE_CRC_SOURCE_PLANE1:
 	case INTEL_PIPE_CRC_SOURCE_PLANE2:
-	case INTEL_PIPE_CRC_SOURCE_PF:
 	case INTEL_PIPE_CRC_SOURCE_NONE:
 		return 0;
 	default:
