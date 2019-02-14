@@ -354,6 +354,35 @@ pvtm_value_out:
 	return ret;
 }
 
+int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage)
+{
+	struct device_node *np;
+	struct nvmem_cell *cell;
+	int ret;
+
+	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
+	if (!np) {
+		dev_warn(dev, "OPP-v2 not supported\n");
+		return -ENOENT;
+	}
+
+	cell = of_nvmem_cell_get(np, "leakage");
+	if (IS_ERR(cell)) {
+		ret = rockchip_get_efuse_value(np, lkg_name, leakage);
+	} else {
+		nvmem_cell_put(cell);
+		ret = rockchip_get_efuse_value(np, "leakage", leakage);
+	}
+	of_node_put(np);
+	if (ret) {
+		dev_err(dev, "Failed to get %s\n", lkg_name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_of_get_leakage);
+
 void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,
 			     int *volt_sel, int *scale_sel)

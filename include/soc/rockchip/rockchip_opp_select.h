@@ -48,6 +48,7 @@ struct thermal_opp_info {
 };
 
 #ifdef CONFIG_ROCKCHIP_OPP
+int rockchip_of_get_leakage(struct device *dev, char *lkg_name, int *leakage);
 void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 			     char *lkg_name, int process,
 			     int *volt_sel, int *scale_sel);
@@ -83,6 +84,12 @@ int rockchip_dev_low_temp_adjust(struct thermal_opp_info *info,
 int rockchip_dev_high_temp_adjust(struct thermal_opp_info *info,
 				  bool is_high);
 #else
+static inline int rockchip_of_get_leakage(struct device *dev, char *lkg_name,
+					  int *leakage)
+{
+	return -ENOTSUPP;
+}
+
 static inline void rockchip_of_get_lkg_sel(struct device *dev,
 					   struct device_node *np,
 					   char *lkg_name, int process,
