@@ -51,15 +51,6 @@ tmp2	.req	r5
 	.endm
 
 /*
- * Wait until PLLA has locked.
- */
-	.macro wait_pllalock
-1:	ldr	tmp1, [pmc, #AT91_PMC_SR]
-	tst	tmp1, #AT91_PMC_LOCKA
-	beq	1b
-	.endm
-
-/*
  * Put the processor to enter the idle state
  */
 	.macro at91_cpu_idle
@@ -351,14 +342,6 @@ ENTRY(at91_ulp_mode)
 
 	wait_mckrdy
 
-	/* Save PLLA setting and disable it */
-	ldr	tmp1, [pmc, #AT91_CKGR_PLLAR]
-	str	tmp1, .saved_pllar
-
-	mov	tmp1, #AT91_PMC_PLLCOUNT
-	orr	tmp1, tmp1, #(1 << 29)		/* bit 29 always set */
-	str	tmp1, [pmc, #AT91_CKGR_PLLAR]
-
 	ldr	r0, .pm_mode
 	cmp	r0, #AT91_PM_ULP1
 	beq	ulp1_mode
@@ -372,18 +355,6 @@ ulp1_mode:
 
 ulp_exit:
 	ldr	pmc, .pmc_base
-
-	/* Restore PLLA setting */
-	ldr	tmp1, .saved_pllar
-	str	tmp1, [pmc, #AT91_CKGR_PLLAR]
-
-	tst	tmp1, #(AT91_PMC_MUL &  0xff0000)
-	bne	3f
-	tst	tmp1, #(AT91_PMC_MUL & ~0xff0000)
-	beq	4f
-3:
-	wait_pllalock
-4:
 
 	/*
 	 * Restore master clock setting
@@ -536,8 +507,6 @@ ENDPROC(at91_sramc_self_refresh)
 .pm_mode:
 	.word 0
 .saved_mckr:
-	.word 0
-.saved_pllar:
 	.word 0
 .saved_sam9_lpr:
 	.word 0
