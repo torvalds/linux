@@ -919,19 +919,45 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 	return ret;
 }
 
+static int psp_execute_np_fw_load(struct psp_context *psp,
+			       struct amdgpu_firmware_info *ucode)
+{
+	int ret = 0;
+
+	ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
+	if (ret)
+		return ret;
+
+	ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
+				 psp->fence_buf_mc_addr);
+
+	return ret;
+}
+
 static int psp_np_fw_load(struct psp_context *psp)
 {
 	int i, ret;
 	struct amdgpu_firmware_info *ucode;
 	struct amdgpu_device* adev = psp->adev;
 
+	if (psp->autoload_supported) {
+		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
+		if (!ucode->fw)
+			goto out;
+
+		ret = psp_execute_np_fw_load(psp, ucode);
+		if (ret)
+			return ret;
+	}
+
+out:
 	for (i = 0; i < adev->firmware.max_ucodes; i++) {
 		ucode = &adev->firmware.ucode[i];
 		if (!ucode->fw)
 			continue;
 
 		if (ucode->ucode_id == AMDGPU_UCODE_ID_SMC &&
-		    psp_smu_reload_quirk(psp))
+		    (psp_smu_reload_quirk(psp) || psp->autoload_supported))
 			continue;
 		if (amdgpu_sriov_vf(adev) &&
 		   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
@@ -945,12 +971,7 @@ static int psp_np_fw_load(struct psp_context *psp)
 			/* skip mec JT when autoload is enabled */
 			continue;
 
-		ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
-		if (ret)
-			return ret;
-
-		ret = psp_cmd_submit_buf(psp, ucode, psp->cmd,
-					 psp->fence_buf_mc_addr);
+		ret = psp_execute_np_fw_load(psp, ucode);
 		if (ret)
 			return ret;
 
