@@ -883,7 +883,7 @@ static void _rtl8723e_phy_sw_rf_seting(struct ieee80211_hw *hw, u8 channel)
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version)) {
+	if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version)) {
 		if (channel == 6 && rtlphy->current_chan_bw ==
 				HT_CHANNEL_WIDTH_20)
 			rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1,

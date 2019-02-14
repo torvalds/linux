@@ -94,7 +94,7 @@
 #define IS_VENDOR_8723A_B_CUT(version)	((IS_8723_SERIES(version))\
 		? ((GET_CVID_CUT_VERSION(version) == \
 		B_CUT_VERSION) ? true : false) : false)
-#define IS_81xxC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version))\
+#define IS_81XXC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version))\
 		? ((GET_CVID_CUT_VERSION(version) == \
 		B_CUT_VERSION) ? true : false) : false)
 

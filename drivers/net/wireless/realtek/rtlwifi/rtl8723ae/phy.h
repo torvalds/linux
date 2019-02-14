@@ -26,7 +26,7 @@
 #define MAX_STALL_TIME				50
 #define ANTENNADIVERSITYVALUE			0x80
 #define MAX_TXPWR_IDX_NMODE_92S			63
-#define Reset_Cnt_Limit				3
+#define reset_cnt_limit				3
 
 #define IQK_ADDA_REG_NUM			16
 #define IQK_MAC_REG_NUM				4
