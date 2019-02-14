@@ -1746,8 +1746,6 @@ int genphy_read_status(struct phy_device *phydev)
 	int err;
 	int lpa;
 	int lpagb = 0;
-	int common_adv;
-	int common_adv_gb = 0;
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
@@ -1779,7 +1777,6 @@ int genphy_read_status(struct phy_device *phydev)
 
 			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
 							lpagb);
-			common_adv_gb = lpagb & adv << 2;
 		}
 
 		lpa = phy_read(phydev, MII_LPA);
@@ -1792,31 +1789,12 @@ int genphy_read_status(struct phy_device *phydev)
 		if (adv < 0)
 			return adv;
 
-		common_adv = lpa & adv;
-
 		phydev->speed = SPEED_10;
 		phydev->duplex = DUPLEX_HALF;
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
 
-		if (common_adv_gb & (LPA_1000FULL | LPA_1000HALF)) {
-			phydev->speed = SPEED_1000;
-
-			if (common_adv_gb & LPA_1000FULL)
-				phydev->duplex = DUPLEX_FULL;
-		} else if (common_adv & (LPA_100FULL | LPA_100HALF)) {
-			phydev->speed = SPEED_100;
-
-			if (common_adv & LPA_100FULL)
-				phydev->duplex = DUPLEX_FULL;
-		} else
-			if (common_adv & LPA_10FULL)
-				phydev->duplex = DUPLEX_FULL;
-
-		if (phydev->duplex == DUPLEX_FULL) {
-			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
-			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
-		}
+		phy_resolve_aneg_linkmode(phydev);
 	} else {
 		int bmcr = phy_read(phydev, MII_BMCR);
 
