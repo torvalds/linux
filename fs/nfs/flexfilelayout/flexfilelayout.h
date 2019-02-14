@@ -228,7 +228,8 @@ nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
 				nfs4_stateid *stateid);
 
 struct nfs4_pnfs_ds *
-nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx,
+nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
+			  struct nfs4_ff_layout_mirror *mirror,
 			  bool fail_return);
 
 struct rpc_clnt *
