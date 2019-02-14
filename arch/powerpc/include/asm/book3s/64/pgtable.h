@@ -851,11 +851,6 @@ static inline bool pte_ci(pte_t pte)
 	return false;
 }
 
-static inline void pmd_set(pmd_t *pmdp, unsigned long val)
-{
-	*pmdp = __pmd(val);
-}
-
 static inline void pmd_clear(pmd_t *pmdp)
 {
 	*pmdp = __pmd(0);
@@ -885,11 +880,6 @@ static inline int pmd_bad(pmd_t pmd)
 	if (radix_enabled())
 		return radix__pmd_bad(pmd);
 	return hash__pmd_bad(pmd);
-}
-
-static inline void pud_set(pud_t *pudp, unsigned long val)
-{
-	*pudp = __pud(val);
 }
 
 static inline void pud_clear(pud_t *pudp)
@@ -934,10 +924,6 @@ static inline bool pud_access_permitted(pud_t pud, bool write)
 }
 
 #define pgd_write(pgd)		pte_write(pgd_pte(pgd))
-static inline void pgd_set(pgd_t *pgdp, unsigned long val)
-{
-	*pgdp = __pgd(val);
-}
 
 static inline void pgd_clear(pgd_t *pgdp)
 {
