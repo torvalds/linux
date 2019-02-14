@@ -22,9 +22,9 @@
 
 #define LOOP_LIMIT			5
 #define MAX_STALL_TIME			50
-#define AntennaDiversityValue		0x80
+#define ANTENNADIVERSITYVALUE		0x80
 #define MAX_TXPWR_IDX_NMODE_92S		63
-#define Reset_Cnt_Limit			3
+#define RESET_CNT_LIMIT			3
 
 #define IQK_ADDA_REG_NUM		16
 #define IQK_MAC_REG_NUM			4
@@ -100,7 +100,7 @@ void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 void _rtl92c_phy_fw_rf_serial_write(struct ieee80211_hw *hw,
 				    enum radio_path rfpath, u32 offset,
 				    u32 data);
-void _rtl92c_store_pwrIndex_diffrate_offset(struct ieee80211_hw *hw,
+void _rtl92c_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 					    u32 regaddr, u32 bitmask, u32 data);
 bool _rtl92ce_phy_config_mac_with_headerfile(struct ieee80211_hw *hw);
 void _rtl92c_phy_init_bb_rf_register_definition(struct ieee80211_hw *hw);

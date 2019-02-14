@@ -14,7 +14,7 @@ static void _rtl92cu_init_led(struct ieee80211_hw *hw,
 	pled->ledon = false;
 }
 
-static void _rtl92cu_deInit_led(struct rtl_led *pled)
+static void rtl92cu_deinit_led(struct rtl_led *pled)
 {
 }
 
@@ -88,8 +88,8 @@ void rtl92cu_deinit_sw_leds(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	_rtl92cu_deInit_led(&rtlpriv->ledctl.sw_led0);
-	_rtl92cu_deInit_led(&rtlpriv->ledctl.sw_led1);
+	rtl92cu_deinit_led(&rtlpriv->ledctl.sw_led0);
+	rtl92cu_deinit_led(&rtlpriv->ledctl.sw_led1);
 }
 
 static void _rtl92cu_sw_led_control(struct ieee80211_hw *hw,

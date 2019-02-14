@@ -27,7 +27,7 @@
 #define DM_DIG_FA_TH1				0x100
 #define DM_DIG_FA_TH2				0x200
 
-#define RXPATHSELECTION_SS_TH_lOW		30
+#define RXPATHSELECTION_SS_TH_LOW		30
 #define RXPATHSELECTION_DIFF_TH			18
 
 #define DM_RATR_STA_INIT			0
@@ -38,7 +38,7 @@
 #define CTS2SELF_THVAL				30
 #define REGC38_TH				20
 
-#define WAIOTTHVal				25
+#define WAIOTTHVAL				25
 
 #define TXHIGHPWRLEVEL_NORMAL			0
 #define TXHIGHPWRLEVEL_LEVEL1			1

@@ -57,27 +57,27 @@ static void _rtl92c_write_fw(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, "FW size is %d bytes,\n", size);
 	is_version_b = IS_NORMAL_CHIP(version);
 	if (is_version_b) {
-		u32 pageNums, remainsize;
+		u32 pagenums, remainsize;
 		u32 page, offset;
 
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192CE)
 			rtl_fill_dummy(bufferptr, &size);
 
-		pageNums = size / FW_8192C_PAGE_SIZE;
+		pagenums = size / FW_8192C_PAGE_SIZE;
 		remainsize = size % FW_8192C_PAGE_SIZE;
 
-		if (pageNums > 4)
+		if (pagenums > 4)
 			pr_err("Page numbers should not greater then 4\n");
 
-		for (page = 0; page < pageNums; page++) {
+		for (page = 0; page < pagenums; page++) {
 			offset = page * FW_8192C_PAGE_SIZE;
 			rtl_fw_page_write(hw, page, (bufferptr + offset),
 					  FW_8192C_PAGE_SIZE);
 		}
 
 		if (remainsize) {
-			offset = pageNums * FW_8192C_PAGE_SIZE;
-			page = pageNums;
+			offset = pagenums * FW_8192C_PAGE_SIZE;
+			page = pagenums;
 			rtl_fw_page_write(hw, page, (bufferptr + offset),
 					  remainsize);
 		}
@@ -96,7 +96,7 @@ static int _rtl92c_fw_free_to_go(struct ieee80211_hw *hw)
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	} while ((counter++ < FW_8192C_POLLING_TIMEOUT_COUNT) &&
-		 (!(value32 & FWDL_ChkSum_rpt)));
+		 (!(value32 & FWDL_CHKSUM_RPT)));
 
 	if (counter >= FW_8192C_POLLING_TIMEOUT_COUNT) {
 		pr_err("chksum report fail! REG_MCUFWDL:0x%08x .\n",
