@@ -179,17 +179,17 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 	struct net_device *l3mdev = l3mdev_master_dev_rcu(skb_dst(skb)->dev);
 	int oif = l3mdev ? l3mdev->ifindex : 0;
 	struct dst_entry *dst = NULL;
+	int err = -EAFNOSUPPORT;
 	struct sock *sk;
 	struct net *net;
 	bool ipv4;
-	int err;
 
 	if (skb->protocol == htons(ETH_P_IP))
 		ipv4 = true;
 	else if (skb->protocol == htons(ETH_P_IPV6))
 		ipv4 = false;
 	else
-		return -EAFNOSUPPORT;
+		goto err;
 
 	sk = sk_to_full_sk(skb->sk);
 	if (sk) {
@@ -215,8 +215,10 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 		fl4.saddr = iph->saddr;
 
 		rt = ip_route_output_key(net, &fl4);
-		if (IS_ERR(rt))
-			return -EINVAL;
+		if (IS_ERR(rt)) {
+			err = PTR_ERR(rt);
+			goto err;
+		}
 		dst = &rt->dst;
 	} else {
 		struct ipv6hdr *iph6 = ipv6_hdr(skb);
@@ -231,12 +233,17 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 		fl6.saddr = iph6->saddr;
 
 		err = ipv6_stub->ipv6_dst_lookup(net, skb->sk, &dst, &fl6);
-		if (err || IS_ERR(dst))
-			return -EINVAL;
+		if (unlikely(err))
+			goto err;
+		if (IS_ERR(dst)) {
+			err = PTR_ERR(dst);
+			goto err;
+		}
 	}
 	if (unlikely(dst->error)) {
+		err = dst->error;
 		dst_release(dst);
-		return -EINVAL;
+		goto err;
 	}
 
 	/* Although skb header was reserved in bpf_lwt_push_ip_encap(), it
@@ -246,17 +253,21 @@ static int bpf_lwt_xmit_reroute(struct sk_buff *skb)
 	 */
 	err = skb_cow_head(skb, LL_RESERVED_SPACE(dst->dev));
 	if (unlikely(err))
-		return err;
+		goto err;
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 
 	err = dst_output(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 	if (unlikely(err))
-		return err;
+		goto err;
 
 	/* ip[6]_finish_output2 understand LWTUNNEL_XMIT_DONE */
 	return LWTUNNEL_XMIT_DONE;
+
+err:
+	kfree_skb(skb);
+	return err;
 }
 
 static int bpf_xmit(struct sk_buff *skb)
