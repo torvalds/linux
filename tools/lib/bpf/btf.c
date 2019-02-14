@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 #include <errno.h>
 #include <linux/err.h>
@@ -484,7 +483,7 @@ int btf__get_from_id(__u32 id, struct btf **btf)
 		goto exit_free;
 	}
 
-	bzero(ptr, last_size);
+	memset(ptr, 0, last_size);
 	btf_info.btf = ptr_to_u64(ptr);
 	err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
 
@@ -498,7 +497,7 @@ int btf__get_from_id(__u32 id, struct btf **btf)
 			goto exit_free;
 		}
 		ptr = temp_ptr;
-		bzero(ptr, last_size);
+		memset(ptr, 0, last_size);
 		btf_info.btf = ptr_to_u64(ptr);
 		err = bpf_obj_get_info_by_fd(btf_fd, &btf_info, &len);
 	}

@@ -18,7 +18,6 @@
 #include <libgen.h>
 #include <inttypes.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -308,7 +307,7 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 		return -EINVAL;
 	}
 
-	bzero(prog, sizeof(*prog));
+	memset(prog, 0, sizeof(*prog));
 
 	prog->section_name = strdup(section_name);
 	if (!prog->section_name) {
@@ -1577,7 +1576,7 @@ bpf_program__load(struct bpf_program *prog,
 		struct bpf_prog_prep_result result;
 		bpf_program_prep_t preprocessor = prog->preprocessor;
 
-		bzero(&result, sizeof(result));
+		memset(&result, 0, sizeof(result));
 		err = preprocessor(prog, i, prog->insns,
 				   prog->insns_cnt, &result);
 		if (err) {
