@@ -253,17 +253,6 @@ static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
 }
 
 /**
- * struct dpu_encoder_phys_vid - sub-class of dpu_encoder_phys to handle video
- *	mode specific operations
- * @base:	Baseclass physical encoder structure
- * @timing_params: Current timing parameter
- */
-struct dpu_encoder_phys_vid {
-	struct dpu_encoder_phys base;
-	struct intf_timing_params timing_params;
-};
-
-/**
  * struct dpu_encoder_phys_cmd - sub-class of dpu_encoder_phys to handle command
  *	mode specific operations
  * @base:	Baseclass physical encoder structure

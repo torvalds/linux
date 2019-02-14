@@ -240,7 +240,6 @@ static bool dpu_encoder_phys_vid_mode_fixup(
 static void dpu_encoder_phys_vid_setup_timing_engine(
 		struct dpu_encoder_phys *phys_enc)
 {
-	struct dpu_encoder_phys_vid *vid_enc;
 	struct drm_display_mode mode;
 	struct intf_timing_params timing_params = { 0 };
 	const struct dpu_format *fmt = NULL;
@@ -254,7 +253,6 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	}
 
 	mode = phys_enc->cached_mode;
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
 	if (!phys_enc->hw_intf->ops.setup_timing_gen) {
 		DPU_ERROR("timing engine setup is not supported\n");
 		return;
@@ -293,8 +291,6 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	programmable_fetch_config(phys_enc, &timing_params);
-
-	vid_enc->timing_params = timing_params;
 }
 
 static void dpu_encoder_phys_vid_vblank_irq(void *arg, int irq_idx)
@@ -515,16 +511,13 @@ skip_flush:
 
 static void dpu_encoder_phys_vid_destroy(struct dpu_encoder_phys *phys_enc)
 {
-	struct dpu_encoder_phys_vid *vid_enc;
-
 	if (!phys_enc) {
 		DPU_ERROR("invalid encoder\n");
 		return;
 	}
 
-	vid_enc = to_dpu_encoder_phys_vid(phys_enc);
 	DPU_DEBUG_VIDENC(phys_enc, "\n");
-	kfree(vid_enc);
+	kfree(phys_enc);
 }
 
 static void dpu_encoder_phys_vid_get_hw_resources(
@@ -746,7 +739,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		struct dpu_enc_phys_init_params *p)
 {
 	struct dpu_encoder_phys *phys_enc = NULL;
-	struct dpu_encoder_phys_vid *vid_enc = NULL;
 	struct dpu_encoder_irq *irq;
 	int i, ret = 0;
 
@@ -755,13 +747,11 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		goto fail;
 	}
 
-	vid_enc = kzalloc(sizeof(*vid_enc), GFP_KERNEL);
-	if (!vid_enc) {
+	phys_enc = kzalloc(sizeof(*phys_enc), GFP_KERNEL);
+	if (!phys_enc) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	phys_enc = &vid_enc->base;
 
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->intf_idx = p->intf_idx;
@@ -806,7 +796,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 
 fail:
 	DPU_ERROR("failed to create encoder\n");
-	if (vid_enc)
+	if (phys_enc)
 		dpu_encoder_phys_vid_destroy(phys_enc);
 
 	return ERR_PTR(ret);
