@@ -22,9 +22,23 @@
 #include <linux/i2c.h>
 #include <linux/nvmem-provider.h>
 #include <linux/regmap.h>
-#include <linux/platform_data/at24.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
+
+/* Address pointer is 16 bit. */
+#define AT24_FLAG_ADDR16	BIT(7)
+/* sysfs-entry will be read-only. */
+#define AT24_FLAG_READONLY	BIT(6)
+/* sysfs-entry will be world-readable. */
+#define AT24_FLAG_IRUGO		BIT(5)
+/* Take always 8 addresses (24c00). */
+#define AT24_FLAG_TAKE8ADDR	BIT(4)
+/* Factory-programmed serial number. */
+#define AT24_FLAG_SERIAL	BIT(3)
+/* Factory-programmed mac address. */
+#define AT24_FLAG_MAC		BIT(2)
+/* Does not auto-rollover reads to the next slave address. */
+#define AT24_FLAG_NO_RDROL	BIT(1)
 
 /*
  * I2C EEPROMs from most vendors are inexpensive and mostly interchangeable.
@@ -107,10 +121,6 @@ module_param_named(write_timeout, at24_write_timeout, uint, 0);
 MODULE_PARM_DESC(at24_write_timeout, "Time (in ms) to try writes (default 25)");
 
 struct at24_chip_data {
-	/*
-	 * these fields mirror their equivalents in
-	 * struct at24_platform_data
-	 */
 	u32 byte_len;
 	u8 flags;
 };
@@ -471,63 +481,11 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	return 0;
 }
 
-static void at24_properties_to_pdata(struct device *dev,
-				     struct at24_platform_data *chip)
-{
-	int err;
-	u32 val;
-
-	if (device_property_present(dev, "read-only"))
-		chip->flags |= AT24_FLAG_READONLY;
-	if (device_property_present(dev, "no-read-rollover"))
-		chip->flags |= AT24_FLAG_NO_RDROL;
-
-	err = device_property_read_u32(dev, "address-width", &val);
-	if (!err) {
-		switch (val) {
-		case 8:
-			if (chip->flags & AT24_FLAG_ADDR16)
-				dev_warn(dev, "Override address width to be 8, while default is 16\n");
-			chip->flags &= ~AT24_FLAG_ADDR16;
-			break;
-		case 16:
-			chip->flags |= AT24_FLAG_ADDR16;
-			break;
-		default:
-			dev_warn(dev, "Bad \"address-width\" property: %u\n",
-				 val);
-		}
-	}
-
-	err = device_property_read_u32(dev, "size", &val);
-	if (!err)
-		chip->byte_len = val;
-
-	err = device_property_read_u32(dev, "pagesize", &val);
-	if (!err) {
-		chip->page_size = val;
-	} else {
-		/*
-		 * This is slow, but we can't know all eeproms, so we better
-		 * play safe. Specifying custom eeprom-types via platform_data
-		 * is recommended anyhow.
-		 */
-		chip->page_size = 1;
-	}
-}
-
-static int at24_get_pdata(struct device *dev, struct at24_platform_data *pdata)
+static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
 {
 	struct device_node *of_node = dev->of_node;
 	const struct at24_chip_data *cdata;
 	const struct i2c_device_id *id;
-	struct at24_platform_data *pd;
-
-	pd = dev_get_platdata(dev);
-	if (pd) {
-		memcpy(pdata, pd, sizeof(*pdata));
-		return 0;
-	}
 
 	id = i2c_match_id(at24_ids, to_i2c_client(dev));
 
@@ -544,13 +502,9 @@ static int at24_get_pdata(struct device *dev, struct at24_platform_data *pdata)
 		cdata = acpi_device_get_match_data(dev);
 
 	if (!cdata)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
-	pdata->byte_len = cdata->byte_len;
-	pdata->flags = cdata->flags;
-	at24_properties_to_pdata(dev, pdata);
-
-	return 0;
+	return cdata;
 }
 
 static void at24_remove_dummy_clients(struct at24_data *at24)
@@ -619,7 +573,8 @@ static int at24_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config = { };
 	struct nvmem_config nvmem_config = { };
-	struct at24_platform_data pdata = { };
+	u32 byte_len, page_size, flags, addrw;
+	const struct at24_chip_data *cdata;
 	struct device *dev = &client->dev;
 	bool i2c_fn_i2c, i2c_fn_block;
 	unsigned int i, num_addresses;
@@ -634,35 +589,75 @@ static int at24_probe(struct i2c_client *client)
 	i2c_fn_block = i2c_check_functionality(client->adapter,
 					       I2C_FUNC_SMBUS_WRITE_I2C_BLOCK);
 
-	err = at24_get_pdata(dev, &pdata);
+	cdata = at24_get_chip_data(dev);
+	if (IS_ERR(cdata))
+		return PTR_ERR(cdata);
+
+	err = device_property_read_u32(dev, "pagesize", &page_size);
 	if (err)
-		return err;
+		/*
+		 * This is slow, but we can't know all eeproms, so we better
+		 * play safe. Specifying custom eeprom-types via platform_data
+		 * is recommended anyhow.
+		 */
+		page_size = 1;
+
+	flags = cdata->flags;
+	if (device_property_present(dev, "read-only"))
+		flags |= AT24_FLAG_READONLY;
+	if (device_property_present(dev, "no-read-rollover"))
+		flags |= AT24_FLAG_NO_RDROL;
+
+	err = device_property_read_u32(dev, "address-width", &addrw);
+	if (!err) {
+		switch (addrw) {
+		case 8:
+			if (flags & AT24_FLAG_ADDR16)
+				dev_warn(dev,
+					 "Override address width to be 8, while default is 16\n");
+			flags &= ~AT24_FLAG_ADDR16;
+			break;
+		case 16:
+			flags |= AT24_FLAG_ADDR16;
+			break;
+		default:
+			dev_warn(dev, "Bad \"address-width\" property: %u\n",
+				 addrw);
+		}
+	}
+
+	err = device_property_read_u32(dev, "size", &byte_len);
+	if (err)
+		byte_len = cdata->byte_len;
 
 	if (!i2c_fn_i2c && !i2c_fn_block)
-		pdata.page_size = 1;
+		page_size = 1;
 
-	if (!pdata.page_size) {
+	if (!page_size) {
 		dev_err(dev, "page_size must not be 0!\n");
 		return -EINVAL;
 	}
 
-	if (!is_power_of_2(pdata.page_size))
+	if (!is_power_of_2(page_size))
 		dev_warn(dev, "page_size looks suspicious (no power of 2)!\n");
 
-	if (pdata.flags & AT24_FLAG_TAKE8ADDR)
-		num_addresses = 8;
-	else
-		num_addresses =	DIV_ROUND_UP(pdata.byte_len,
-			(pdata.flags & AT24_FLAG_ADDR16) ? 65536 : 256);
+	err = device_property_read_u32(dev, "num-addresses", &num_addresses);
+	if (err) {
+		if (flags & AT24_FLAG_TAKE8ADDR)
+			num_addresses = 8;
+		else
+			num_addresses =	DIV_ROUND_UP(byte_len,
+				(flags & AT24_FLAG_ADDR16) ? 65536 : 256);
+	}
 
-	if ((pdata.flags & AT24_FLAG_SERIAL) && (pdata.flags & AT24_FLAG_MAC)) {
+	if ((flags & AT24_FLAG_SERIAL) && (flags & AT24_FLAG_MAC)) {
 		dev_err(dev,
 			"invalid device data - cannot have both AT24_FLAG_SERIAL & AT24_FLAG_MAC.");
 		return -EINVAL;
 	}
 
 	regmap_config.val_bits = 8;
-	regmap_config.reg_bits = (pdata.flags & AT24_FLAG_ADDR16) ? 16 : 8;
+	regmap_config.reg_bits = (flags & AT24_FLAG_ADDR16) ? 16 : 8;
 	regmap_config.disable_locking = true;
 
 	regmap = devm_regmap_init_i2c(client, &regmap_config);
@@ -675,11 +670,11 @@ static int at24_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&at24->lock);
-	at24->byte_len = pdata.byte_len;
-	at24->page_size = pdata.page_size;
-	at24->flags = pdata.flags;
+	at24->byte_len = byte_len;
+	at24->page_size = page_size;
+	at24->flags = flags;
 	at24->num_addresses = num_addresses;
-	at24->offset_adj = at24_get_offset_adj(pdata.flags, pdata.byte_len);
+	at24->offset_adj = at24_get_offset_adj(flags, byte_len);
 	at24->client[0].client = client;
 	at24->client[0].regmap = regmap;
 
@@ -687,10 +682,10 @@ static int at24_probe(struct i2c_client *client)
 	if (IS_ERR(at24->wp_gpio))
 		return PTR_ERR(at24->wp_gpio);
 
-	writable = !(pdata.flags & AT24_FLAG_READONLY);
+	writable = !(flags & AT24_FLAG_READONLY);
 	if (writable) {
 		at24->write_max = min_t(unsigned int,
-					pdata.page_size, at24_io_limit);
+					page_size, at24_io_limit);
 		if (!i2c_fn_i2c && at24->write_max > I2C_SMBUS_BLOCK_MAX)
 			at24->write_max = I2C_SMBUS_BLOCK_MAX;
 	}
@@ -733,7 +728,7 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.priv = at24;
 	nvmem_config.stride = 1;
 	nvmem_config.word_size = 1;
-	nvmem_config.size = pdata.byte_len;
+	nvmem_config.size = byte_len;
 
 	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
 	if (IS_ERR(at24->nvmem)) {
@@ -742,12 +737,8 @@ static int at24_probe(struct i2c_client *client)
 	}
 
 	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
-		 pdata.byte_len, client->name,
+		 byte_len, client->name,
 		 writable ? "writable" : "read-only", at24->write_max);
-
-	/* export data to kernel code */
-	if (pdata.setup)
-		pdata.setup(at24->nvmem, pdata.context);
 
 	return 0;
 
