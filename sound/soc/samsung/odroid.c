@@ -20,6 +20,11 @@ struct odroid_priv {
 	struct snd_soc_card card;
 	struct clk *clk_i2s_bus;
 	struct clk *sclk_i2s;
+
+	/* Spinlock protecting fields below */
+	spinlock_t lock;
+	unsigned int be_sample_rate;
+	bool be_active;
 };
 
 static int odroid_card_fe_startup(struct snd_pcm_substream *substream)
@@ -31,8 +36,25 @@ static int odroid_card_fe_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int odroid_card_fe_hw_params(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct odroid_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->be_active && priv->be_sample_rate != params_rate(params))
+		ret = -EINVAL;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return ret;
+}
+
 static const struct snd_soc_ops odroid_card_fe_ops = {
 	.startup = odroid_card_fe_startup,
+	.hw_params = odroid_card_fe_hw_params,
 };
 
 static int odroid_card_be_hw_params(struct snd_pcm_substream *substream,
@@ -41,6 +63,7 @@ static int odroid_card_be_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct odroid_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 	unsigned int pll_freq, rclk_freq, rfs;
+	unsigned long flags;
 	int ret;
 
 	switch (params_rate(params)) {
@@ -87,11 +110,43 @@ static int odroid_card_be_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 	}
 
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->be_sample_rate = params_rate(params);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static int odroid_card_be_trigger(struct snd_pcm_substream *substream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct odroid_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		priv->be_active = true;
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		priv->be_active = false;
+		break;
+	}
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	return 0;
 }
 
 static const struct snd_soc_ops odroid_card_be_ops = {
 	.hw_params = odroid_card_be_hw_params,
+	.trigger = odroid_card_be_trigger,
 };
 
 static struct snd_soc_dai_link odroid_card_dais[] = {
@@ -150,6 +205,7 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	card->owner = THIS_MODULE;
 	card->fully_routed = true;
 
+	spin_lock_init(&priv->lock);
 	snd_soc_card_set_drvdata(card, priv);
 
 	ret = snd_soc_of_parse_card_name(card, "model");
