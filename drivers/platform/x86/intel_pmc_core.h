@@ -214,6 +214,7 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *pll_sts;
 	const struct pmc_bit_map **slps0_dbg_maps;
 	const struct pmc_bit_map *ltr_show_sts;
+	const struct pmc_bit_map *msr_sts;
 	const u32 slp_s0_offset;
 	const u32 ltr_ignore_offset;
 	const int regmap_length;

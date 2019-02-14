@@ -22,10 +22,23 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #include "intel_pmc_core.h"
 
 static struct pmc_dev pmc;
+
+/* PKGC MSRs are common across Intel Core SoCs */
+static const struct pmc_bit_map msr_map[] = {
+	{"Package C2",                  MSR_PKG_C2_RESIDENCY},
+	{"Package C3",                  MSR_PKG_C3_RESIDENCY},
+	{"Package C6",                  MSR_PKG_C6_RESIDENCY},
+	{"Package C7",                  MSR_PKG_C7_RESIDENCY},
+	{"Package C8",                  MSR_PKG_C8_RESIDENCY},
+	{"Package C9",                  MSR_PKG_C9_RESIDENCY},
+	{"Package C10",                 MSR_PKG_C10_RESIDENCY},
+	{}
+};
 
 static const struct pmc_bit_map spt_pll_map[] = {
 	{"MIPI PLL",			SPT_PMC_BIT_MPHY_CMN_LANE0},
@@ -129,6 +142,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,
 	.ltr_show_sts = spt_ltr_show_map,
+	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
@@ -318,6 +332,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
+	.msr_sts = msr_map,
 	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
@@ -333,6 +348,7 @@ static const struct pmc_reg_map icl_reg_map = {
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
+	.msr_sts = msr_map,
 	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
@@ -709,6 +725,25 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map *map = pmcdev->map->msr_sts;
+	u64 pcstate_count;
+	int index;
+
+	for (index = 0; map[index].name ; index++) {
+		if (rdmsrl_safe(map[index].bit_mask, &pcstate_count))
+			continue;
+
+		seq_printf(s, "%-8s : 0x%llx\n", map[index].name,
+			   pcstate_count);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -734,6 +769,9 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 			    &pmc_core_ltr_ignore_ops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
+
+	debugfs_create_file("package_cstate_show", 0444, dir, pmcdev,
+			    &pmc_core_pkgc_fops);
 
 	if (pmcdev->map->pll_sts)
 		debugfs_create_file("pll_status", 0444, dir, pmcdev,
