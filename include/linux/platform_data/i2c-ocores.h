@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * i2c-ocores.h - definitions for the i2c-ocores interface
  *
  * Peter Korsgaard <peter@korsgaard.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #ifndef _LINUX_I2C_OCORES_H
