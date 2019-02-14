@@ -4266,7 +4266,7 @@ void __init lockdep_init(void)
 	printk("... MAX_LOCKDEP_CHAINS:      %lu\n", MAX_LOCKDEP_CHAINS);
 	printk("... CHAINHASH_SIZE:          %lu\n", CHAINHASH_SIZE);
 
-	printk(" memory used by lock dependency info: %lu kB\n",
+	printk(" memory used by lock dependency info: %zu kB\n",
 		(sizeof(struct lock_class) * MAX_LOCKDEP_KEYS +
 		sizeof(struct list_head) * CLASSHASH_SIZE +
 		sizeof(struct lock_list) * MAX_LOCKDEP_ENTRIES +
@@ -4278,7 +4278,7 @@ void __init lockdep_init(void)
 		) / 1024
 		);
 
-	printk(" per task-struct memory footprint: %lu bytes\n",
+	printk(" per task-struct memory footprint: %zu bytes\n",
 		sizeof(struct held_lock) * MAX_LOCK_DEPTH);
 }
 
