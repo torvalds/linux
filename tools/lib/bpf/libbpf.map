@@ -130,6 +130,7 @@ LIBBPF_0.0.2 {
 		bpf_probe_helper;
 		bpf_probe_map_type;
 		bpf_probe_prog_type;
+		bpf_map__resize;
 		bpf_map_lookup_elem_flags;
 		bpf_object__find_map_fd_by_name;
 		bpf_get_link_xdp_id;

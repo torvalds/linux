@@ -1113,6 +1113,20 @@ err_free_new_name:
 	return -errno;
 }
 
+int bpf_map__resize(struct bpf_map *map, __u32 max_entries)
+{
+	if (!map || !max_entries)
+		return -EINVAL;
+
+	/* If map already created, its attributes can't be changed. */
+	if (map->fd >= 0)
+		return -EBUSY;
+
+	map->def.max_entries = max_entries;
+
+	return 0;
+}
+
 static int
 bpf_object__probe_name(struct bpf_object *obj)
 {
