@@ -39,7 +39,6 @@
 #include <mach/mux.h>
 #include <mach/da8xx.h>
 
-#include "cp_intc.h"
 #include "irqs.h"
 
 #define DA830_EVM_PHY_ID		""

@@ -46,7 +46,6 @@
 #include <mach/da8xx.h>
 #include <mach/mux.h>
 
-#include "cp_intc.h"
 #include "irqs.h"
 #include "sram.h"
 
