@@ -4188,9 +4188,9 @@ static void __lockdep_free_key_range(void *start, unsigned long size)
  * Used in module.c to remove lock classes from memory that is going to be
  * freed; and possibly re-used by other modules.
  *
- * We will have had one sync_sched() before getting here, so we're guaranteed
- * nobody will look up these exact classes -- they're properly dead but still
- * allocated.
+ * We will have had one synchronize_rcu() before getting here, so we're
+ * guaranteed nobody will look up these exact classes -- they're properly dead
+ * but still allocated.
  */
 void lockdep_free_key_range(void *start, unsigned long size)
 {
@@ -4209,8 +4209,6 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	/*
 	 * Wait for any possible iterators from look_up_lock_class() to pass
 	 * before continuing to free the memory they refer to.
-	 *
-	 * sync_sched() is sufficient because the read-side is IRQ disable.
 	 */
 	synchronize_rcu();
 
