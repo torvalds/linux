@@ -28,6 +28,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <uapi/linux/batadv_packet.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "gateway_client.h"
 #include "log.h"
