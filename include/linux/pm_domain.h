@@ -341,7 +341,7 @@ int dev_pm_domain_attach(struct device *dev, bool power_on);
 struct device *dev_pm_domain_attach_by_id(struct device *dev,
 					  unsigned int index);
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
-					    char *name);
+					    const char *name);
 void dev_pm_domain_detach(struct device *dev, bool power_off);
 void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd);
 #else
@@ -355,7 +355,7 @@ static inline struct device *dev_pm_domain_attach_by_id(struct device *dev,
 	return NULL;
 }
 static inline struct device *dev_pm_domain_attach_by_name(struct device *dev,
-							  char *name)
+							  const char *name)
 {
 	return NULL;
 }
