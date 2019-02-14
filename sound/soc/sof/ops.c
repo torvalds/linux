@@ -11,18 +11,19 @@
 #include <linux/pci.h>
 #include "ops.h"
 
-int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
-				     u32 mask, u32 value)
+static
+bool snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
+				      u32 mask, u32 value)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	unsigned int old, new;
-	u32 ret = ~0; /* explicit init to remove uninitialized use warnings */
+	u32 ret;
 
 	pci_read_config_dword(pci, offset, &ret);
 	old = ret;
 	dev_dbg(sdev->dev, "Debug PCIR: %8.8x at  %8.8x\n", old & mask, offset);
 
-	new = (old & (~mask)) | (value & mask);
+	new = (old & ~mask) | (value & mask);
 
 	if (old == new)
 		return false;
@@ -33,10 +34,9 @@ int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 
 	return true;
 }
-EXPORT_SYMBOL(snd_sof_pci_update_bits_unlocked);
 
-int snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
-			    u32 mask, u32 value)
+bool snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
+			     u32 mask, u32 value)
 {
 	unsigned long flags;
 	bool change;
@@ -48,8 +48,8 @@ int snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
 }
 EXPORT_SYMBOL(snd_sof_pci_update_bits);
 
-int snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
-				     u32 offset, u32 mask, u32 value)
+bool snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
+				      u32 offset, u32 mask, u32 value)
 {
 	unsigned int old, new;
 	u32 ret;
@@ -57,7 +57,7 @@ int snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
 	ret = snd_sof_dsp_read(sdev, bar, offset);
 
 	old = ret;
-	new = (old & (~mask)) | (value & mask);
+	new = (old & ~mask) | (value & mask);
 
 	if (old == new)
 		return false;
@@ -68,14 +68,14 @@ int snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits_unlocked);
 
-int snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
-				       u32 offset, u64 mask, u64 value)
+bool snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
+					u32 offset, u64 mask, u64 value)
 {
 	u64 old, new;
 
 	old = snd_sof_dsp_read64(sdev, bar, offset);
 
-	new = (old & (~mask)) | (value & mask);
+	new = (old & ~mask) | (value & mask);
 
 	if (old == new)
 		return false;
@@ -86,24 +86,10 @@ int snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits64_unlocked);
 
+
 /* This is for registers bits with attribute RWC */
-void snd_sof_dsp_update_bits_forced_unlocked(struct snd_sof_dev *sdev, u32 bar,
-					     u32 offset, u32 mask, u32 value)
-{
-	unsigned int old, new;
-	u32 ret;
-
-	ret = snd_sof_dsp_read(sdev, bar, offset);
-
-	old = ret;
-	new = (old & (~mask)) | (value & mask);
-
-	snd_sof_dsp_write(sdev, bar, offset, new);
-}
-EXPORT_SYMBOL(snd_sof_dsp_update_bits_forced_unlocked);
-
-int snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
-			    u32 mask, u32 value)
+bool snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
+			     u32 mask, u32 value)
 {
 	unsigned long flags;
 	bool change;
@@ -116,8 +102,8 @@ int snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits);
 
-int snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar, u32 offset,
-			      u64 mask, u64 value)
+bool snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar, u32 offset,
+			       u64 mask, u64 value)
 {
 	unsigned long flags;
 	bool change;
@@ -129,6 +115,21 @@ int snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 	return change;
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits64);
+
+static
+void snd_sof_dsp_update_bits_forced_unlocked(struct snd_sof_dev *sdev, u32 bar,
+					     u32 offset, u32 mask, u32 value)
+{
+	unsigned int old, new;
+	u32 ret;
+
+	ret = snd_sof_dsp_read(sdev, bar, offset);
+
+	old = ret;
+	new = (old & ~mask) | (value & mask);
+
+	snd_sof_dsp_write(sdev, bar, offset, new);
+}
 
 /* This is for registers bits with attribute RWC */
 void snd_sof_dsp_update_bits_forced(struct snd_sof_dev *sdev, u32 bar,

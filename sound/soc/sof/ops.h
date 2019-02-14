@@ -385,31 +385,24 @@ static inline const struct snd_sof_dsp_ops
 	return NULL;
 }
 
-int snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
-				     u32 offset, u32 mask, u32 value);
-
-int snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
-				       u32 offset, u64 mask, u64 value);
-
 /* This is for registers bits with attribute RWC */
-void snd_sof_dsp_update_bits_forced_unlocked(struct snd_sof_dev *sdev, u32 bar,
-					     u32 offset, u32 mask, u32 value);
+bool snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
+			     u32 mask, u32 value);
 
-int snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
-			    u32 mask, u32 value);
+bool snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
+				      u32 offset, u32 mask, u32 value);
 
-int snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar,
-			      u32 offset, u64 mask, u64 value);
+bool snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
+					u32 offset, u64 mask, u64 value);
 
-/* This is for registers bits with attribute RWC */
+bool snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
+			     u32 mask, u32 value);
+
+bool snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar,
+			       u32 offset, u64 mask, u64 value);
+
 void snd_sof_dsp_update_bits_forced(struct snd_sof_dev *sdev, u32 bar,
 				    u32 offset, u32 mask, u32 value);
-
-int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
-				     u32 mask, u32 value);
-
-int snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
-			    u32 mask, u32 value);
 
 int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			      u32 mask, u32 target, u32 timeout_ms,
