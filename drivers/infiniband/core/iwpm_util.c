@@ -808,7 +808,6 @@ int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
 {
 	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
-	u32 msg_seq;
 	const char *err_str = "";
 	int ret = -EINVAL;
 
@@ -818,7 +817,6 @@ int iwpm_send_hello(u8 nl_client, int iwpm_pid, u16 abi_version)
 		goto hello_num_error;
 	}
 	nlh->nlmsg_seq = iwpm_get_nlmsg_seq();
-	msg_seq = 0;
 	err_str = "Unable to put attribute of abi_version into nlmsg";
 	ret = ibnl_put_attr(skb, nlh, sizeof(u16), &abi_version,
 			    IWPM_NLA_HELLO_ABI_VERSION);
