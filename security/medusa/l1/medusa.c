@@ -315,7 +315,19 @@ static int medusa_l1_inode_follow_link(struct dentry *dentry, struct inode* inod
 
 static int medusa_l1_inode_permission(struct inode *inode, int mask)
 {
-	return 0;
+	int no_block = mask & MAY_NOT_BLOCK;
+	if (no_block)
+		return -ECHILD;
+
+	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
+	/*
+	 * Existence test.
+	 * TODO What about Medusa SEE permission?
+	 */
+	if (mask == 0)
+		return 0;
+
+	return medusa_permission(inode, mask);
 }
 
 static int medusa_l1_inode_setattr(struct dentry *dentry, struct iattr *iattr)
