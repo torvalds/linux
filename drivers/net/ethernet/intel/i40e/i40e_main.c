@@ -6728,8 +6728,13 @@ void i40e_down(struct i40e_vsi *vsi)
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		i40e_clean_tx_ring(vsi->tx_rings[i]);
-		if (i40e_enabled_xdp_vsi(vsi))
+		if (i40e_enabled_xdp_vsi(vsi)) {
+			/* Make sure that in-progress ndo_xdp_xmit
+			 * calls are completed.
+			 */
+			synchronize_rcu();
 			i40e_clean_tx_ring(vsi->xdp_rings[i]);
+		}
 		i40e_clean_rx_ring(vsi->rx_rings[i]);
 	}
 
@@ -11966,8 +11971,13 @@ static void i40e_queue_pair_reset_stats(struct i40e_vsi *vsi, int queue_pair)
 static void i40e_queue_pair_clean_rings(struct i40e_vsi *vsi, int queue_pair)
 {
 	i40e_clean_tx_ring(vsi->tx_rings[queue_pair]);
-	if (i40e_enabled_xdp_vsi(vsi))
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		/* Make sure that in-progress ndo_xdp_xmit calls are
+		 * completed.
+		 */
+		synchronize_rcu();
 		i40e_clean_tx_ring(vsi->xdp_rings[queue_pair]);
+	}
 	i40e_clean_rx_ring(vsi->rx_rings[queue_pair]);
 }
 
