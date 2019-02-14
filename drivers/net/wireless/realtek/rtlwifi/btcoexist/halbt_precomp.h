@@ -28,8 +28,6 @@
 #include "halbtc8821a2ant.h"
 #include "halbtc8821a1ant.h"
 
-#define GetDefaultAdapter(padapter)	padapter
-
 #define BIT0	0x00000001
 #define BIT1	0x00000002
 #define BIT2	0x00000004
