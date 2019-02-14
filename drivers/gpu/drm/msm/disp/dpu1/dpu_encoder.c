@@ -1034,13 +1034,13 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 			if (!dpu_enc->hw_pp[i]) {
 				DPU_ERROR_ENC(dpu_enc, "no pp block assigned"
 					     "at idx: %d\n", i);
-				return;
+				goto error;
 			}
 
 			if (!hw_ctl[i]) {
 				DPU_ERROR_ENC(dpu_enc, "no ctl block assigned"
 					     "at idx: %d\n", i);
-				return;
+				goto error;
 			}
 
 			phys->hw_pp = dpu_enc->hw_pp[i];
@@ -1053,6 +1053,9 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	}
 
 	dpu_enc->mode_set_complete = true;
+
+error:
+	dpu_rm_release(&dpu_kms->rm, drm_enc);
 }
 
 static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
