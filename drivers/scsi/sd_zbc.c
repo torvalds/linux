@@ -142,10 +142,12 @@ int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
 		return -EOPNOTSUPP;
 
 	/*
-	 * Get a reply buffer for the number of requested zones plus a header.
-	 * For ATA, buffers must be aligned to 512B.
+	 * Get a reply buffer for the number of requested zones plus a header,
+	 * without exceeding the device maximum command size. For ATA disks,
+	 * buffers must be aligned to 512B.
 	 */
-	buflen = roundup((nrz + 1) * 64, 512);
+	buflen = min(queue_max_hw_sectors(disk->queue) << 9,
+		     roundup((nrz + 1) * 64, 512));
 	buf = kmalloc(buflen, gfp_mask);
 	if (!buf)
 		return -ENOMEM;
