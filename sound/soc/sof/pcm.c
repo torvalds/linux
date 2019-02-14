@@ -532,17 +532,10 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	dev_dbg(sdev->dev, "spcm: allocate %s playback DMA buffer size 0x%x max 0x%x\n",
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
 
-	ret = snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
-					    SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
-					    le32_to_cpu(caps->buffer_size_min),
-					    le32_to_cpu(caps->buffer_size_max));
-	if (ret) {
-		dev_err(sdev->dev, "error: can't alloc DMA buffer size 0x%x/0x%x for %s %d\n",
-			caps->buffer_size_min, caps->buffer_size_max,
-			caps->name, ret);
-		return ret;
-	}
-
+	snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
+				      SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
+				      le32_to_cpu(caps->buffer_size_min),
+				      le32_to_cpu(caps->buffer_size_max));
 capture:
 	stream = SNDRV_PCM_STREAM_CAPTURE;
 
@@ -556,14 +549,10 @@ capture:
 	dev_dbg(sdev->dev, "spcm: allocate %s capture DMA buffer size 0x%x max 0x%x\n",
 		caps->name, caps->buffer_size_min, caps->buffer_size_max);
 
-	ret = snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
-					    SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
-					    le32_to_cpu(caps->buffer_size_min),
-					    le32_to_cpu(caps->buffer_size_max));
-	if (ret)
-		dev_err(sdev->dev, "error: can't alloc DMA buffer size 0x%x/0x%x for %s %d\n",
-			caps->buffer_size_min, caps->buffer_size_max,
-			caps->name, ret);
+	snd_pcm_lib_preallocate_pages(pcm->streams[stream].substream,
+				      SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
+				      le32_to_cpu(caps->buffer_size_min),
+				      le32_to_cpu(caps->buffer_size_max));
 
 	return ret;
 }
