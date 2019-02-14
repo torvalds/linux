@@ -47,6 +47,16 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 		/* Assume 1000base-T */
 		ctrl2 |= MDIO_PMA_CTRL2_1000BT;
 		break;
+	case SPEED_2500:
+		ctrl1 |= MDIO_CTRL1_SPEED2_5G;
+		/* Assume 2.5Gbase-T */
+		ctrl2 |= MDIO_PMA_CTRL2_2_5GBT;
+		break;
+	case SPEED_5000:
+		ctrl1 |= MDIO_CTRL1_SPEED5G;
+		/* Assume 5Gbase-T */
+		ctrl2 |= MDIO_PMA_CTRL2_5GBT;
+		break;
 	case SPEED_10000:
 		ctrl1 |= MDIO_CTRL1_SPEED10G;
 		/* Assume 10Gbase-T */
@@ -194,6 +204,12 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
+	if (val & MDIO_AN_10GBT_STAT_LP2_5G)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 phydev->lp_advertising);
+	if (val & MDIO_AN_10GBT_STAT_LP5G)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				 phydev->lp_advertising);
 	if (val & MDIO_AN_10GBT_STAT_LP10G)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 				 phydev->lp_advertising);
@@ -223,6 +239,12 @@ int genphy_c45_read_pma(struct phy_device *phydev)
 		break;
 	case MDIO_PMA_CTRL1_SPEED1000:
 		phydev->speed = SPEED_1000;
+		break;
+	case MDIO_CTRL1_SPEED2_5G:
+		phydev->speed = SPEED_2500;
+		break;
+	case MDIO_CTRL1_SPEED5G:
+		phydev->speed = SPEED_5000;
 		break;
 	case MDIO_CTRL1_SPEED10G:
 		phydev->speed = SPEED_10000;
@@ -270,6 +292,95 @@ int genphy_c45_read_mdix(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
+
+/**
+ * genphy_c45_pma_read_abilities - read supported link modes from PMA
+ * @phydev: target phy_device struct
+ *
+ * Read the supported link modes from the PMA Status 2 (1.8) register. If bit
+ * 1.8.9 is set, the list of supported modes is build using the values in the
+ * PMA Extended Abilities (1.11) register, indicating 1000BASET an 10G related
+ * modes. If bit 1.11.14 is set, then the list is also extended with the modes
+ * in the 2.5G/5G PMA Extended register (1.21), indicating if 2.5GBASET and
+ * 5GBASET are supported.
+ */
+int genphy_c45_pma_read_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_STAT2);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_STAT2_10GBSR);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_STAT2_10GBLR);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_STAT2_10GBER);
+
+	if (val & MDIO_PMA_STAT2_EXTABLE) {
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
+		if (val < 0)
+			return val;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10GBLRM);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10GBT);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10GBKX4);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10GBKR);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_1000BT);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_1000BKX);
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_100BTX);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_100BTX);
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10BT);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_EXTABLE_10BT);
+
+		if (val & MDIO_PMA_EXTABLE_NBT) {
+			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+					   MDIO_PMA_NG_EXTABLE);
+			if (val < 0)
+				return val;
+
+			linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+					 phydev->supported,
+					 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
+
+			linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+					 phydev->supported,
+					 val & MDIO_PMA_NG_EXTABLE_5GBT);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_read_abilities);
 
 /* The gen10g_* functions are the old Clause 45 stub */
 
