@@ -191,8 +191,6 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				 enum intel_pipe_crc_source *source,
 				 u32 *val)
 {
-	bool need_stable_symbols = false;
-
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO) {
 		int ret = i9xx_pipe_crc_auto_source(dev_priv, pipe, source);
 		if (ret)
@@ -208,54 +206,21 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			return -EINVAL;
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_TV_PRE;
 		break;
-	case INTEL_PIPE_CRC_SOURCE_DP_B:
-		if (!IS_G4X(dev_priv))
-			return -EINVAL;
-		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_B_G4X;
-		need_stable_symbols = true;
-		break;
-	case INTEL_PIPE_CRC_SOURCE_DP_C:
-		if (!IS_G4X(dev_priv))
-			return -EINVAL;
-		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_C_G4X;
-		need_stable_symbols = true;
-		break;
-	case INTEL_PIPE_CRC_SOURCE_DP_D:
-		if (!IS_G4X(dev_priv))
-			return -EINVAL;
-		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DP_D_G4X;
-		need_stable_symbols = true;
-		break;
 	case INTEL_PIPE_CRC_SOURCE_NONE:
 		*val = 0;
 		break;
 	default:
+		/*
+		 * The DP CRC source doesn't work on g4x.
+		 * It can be made to work to some degree by selecting
+		 * the correct CRC source before the port is enabled,
+		 * and not touching the CRC source bits again until
+		 * the port is disabled. But even then the bits
+		 * eventually get stuck and a reboot is needed to get
+		 * working CRCs on the pipe again. Let's simply
+		 * refuse to use DP CRCs on g4x.
+		 */
 		return -EINVAL;
-	}
-
-	/*
-	 * When the pipe CRC tap point is after the transcoders we need
-	 * to tweak symbol-level features to produce a deterministic series of
-	 * symbols for a given frame. We need to reset those features only once
-	 * a frame (instead of every nth symbol):
-	 *   - DC-balance: used to ensure a better clock recovery from the data
-	 *     link (SDVO)
-	 *   - DisplayPort scrambling: used for EMI reduction
-	 */
-	if (need_stable_symbols) {
-		u32 tmp = I915_READ(PORT_DFT2_G4X);
-
-		WARN_ON(!IS_G4X(dev_priv));
-
-		I915_WRITE(PORT_DFT_I9XX,
-			   I915_READ(PORT_DFT_I9XX) | DC_BALANCE_RESET);
-
-		if (pipe == PIPE_A)
-			tmp |= PIPE_A_SCRAMBLE_RESET;
-		else
-			tmp |= PIPE_B_SCRAMBLE_RESET;
-
-		I915_WRITE(PORT_DFT2_G4X, tmp);
 	}
 
 	return 0;
@@ -282,24 +247,6 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
 		tmp &= ~DC_BALANCE_RESET_VLV;
 	I915_WRITE(PORT_DFT2_G4X, tmp);
-
-}
-
-static void g4x_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
-					 enum pipe pipe)
-{
-	u32 tmp = I915_READ(PORT_DFT2_G4X);
-
-	if (pipe == PIPE_A)
-		tmp &= ~PIPE_A_SCRAMBLE_RESET;
-	else
-		tmp &= ~PIPE_B_SCRAMBLE_RESET;
-	I915_WRITE(PORT_DFT2_G4X, tmp);
-
-	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK)) {
-		I915_WRITE(PORT_DFT_I9XX,
-			   I915_READ(PORT_DFT_I9XX) & ~DC_BALANCE_RESET);
-	}
 }
 
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
@@ -485,9 +432,6 @@ static int i9xx_crc_source_valid(struct drm_i915_private *dev_priv,
 	switch (source) {
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
 	case INTEL_PIPE_CRC_SOURCE_TV:
-	case INTEL_PIPE_CRC_SOURCE_DP_B:
-	case INTEL_PIPE_CRC_SOURCE_DP_C:
-	case INTEL_PIPE_CRC_SOURCE_DP_D:
 	case INTEL_PIPE_CRC_SOURCE_NONE:
 		return 0;
 	default:
@@ -612,9 +556,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	POSTING_READ(PIPE_CRC_CTL(crtc->index));
 
 	if (!source) {
-		if (IS_G4X(dev_priv))
-			g4x_undo_pipe_scramble_reset(dev_priv, crtc->index);
-		else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
 		else if ((IS_HASWELL(dev_priv) ||
 			  IS_BROADWELL(dev_priv)) && crtc->index == PIPE_A)
