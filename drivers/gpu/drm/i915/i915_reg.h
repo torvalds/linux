@@ -4017,6 +4017,15 @@ enum {
 /* Pipe A CRC regs */
 #define _PIPE_CRC_CTL_A			0x60050
 #define   PIPE_CRC_ENABLE		(1 << 31)
+/* skl+ source selection */
+#define   PIPE_CRC_SOURCE_PLANE_1_SKL	(0 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_2_SKL	(2 << 28)
+#define   PIPE_CRC_SOURCE_DMUX_SKL	(4 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_3_SKL	(6 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_4_SKL	(7 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_5_SKL	(5 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_6_SKL	(3 << 28)
+#define   PIPE_CRC_SOURCE_PLANE_7_SKL	(1 << 28)
 /* ivb+ source selection */
 #define   PIPE_CRC_SOURCE_PRIMARY_IVB	(0 << 29)
 #define   PIPE_CRC_SOURCE_SPRITE_IVB	(1 << 29)

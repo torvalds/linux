@@ -34,6 +34,11 @@ static const char * const pipe_crc_sources[] = {
 	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",
 	[INTEL_PIPE_CRC_SOURCE_PLANE1] = "plane1",
 	[INTEL_PIPE_CRC_SOURCE_PLANE2] = "plane2",
+	[INTEL_PIPE_CRC_SOURCE_PLANE3] = "plane3",
+	[INTEL_PIPE_CRC_SOURCE_PLANE4] = "plane4",
+	[INTEL_PIPE_CRC_SOURCE_PLANE5] = "plane5",
+	[INTEL_PIPE_CRC_SOURCE_PLANE6] = "plane6",
+	[INTEL_PIPE_CRC_SOURCE_PLANE7] = "plane7",
 	[INTEL_PIPE_CRC_SOURCE_PIPE] = "pipe",
 	[INTEL_PIPE_CRC_SOURCE_TV] = "TV",
 	[INTEL_PIPE_CRC_SOURCE_DP_B] = "DP-B",
@@ -368,6 +373,49 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static int skl_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
+				enum pipe pipe,
+				enum intel_pipe_crc_source *source,
+				uint32_t *val)
+{
+	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
+		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
+
+	switch (*source) {
+	case INTEL_PIPE_CRC_SOURCE_PLANE1:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_1_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE2:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_2_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE3:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_3_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE4:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_4_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE5:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_5_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE6:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_6_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PLANE7:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PLANE_7_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_DMUX_SKL;
+		break;
+	case INTEL_PIPE_CRC_SOURCE_NONE:
+		*val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
 			       enum intel_pipe_crc_source *source, u32 *val,
@@ -381,8 +429,10 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		return vlv_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_pipe_crc_ctl_reg(source, val);
-	else
+	else if (INTEL_GEN(dev_priv) < 9)
 		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val, set_wa);
+	else
+		return skl_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 }
 
 static int
@@ -482,6 +532,25 @@ static int ivb_crc_source_valid(struct drm_i915_private *dev_priv,
 	}
 }
 
+static int skl_crc_source_valid(struct drm_i915_private *dev_priv,
+				const enum intel_pipe_crc_source source)
+{
+	switch (source) {
+	case INTEL_PIPE_CRC_SOURCE_PIPE:
+	case INTEL_PIPE_CRC_SOURCE_PLANE1:
+	case INTEL_PIPE_CRC_SOURCE_PLANE2:
+	case INTEL_PIPE_CRC_SOURCE_PLANE3:
+	case INTEL_PIPE_CRC_SOURCE_PLANE4:
+	case INTEL_PIPE_CRC_SOURCE_PLANE5:
+	case INTEL_PIPE_CRC_SOURCE_PLANE6:
+	case INTEL_PIPE_CRC_SOURCE_PLANE7:
+	case INTEL_PIPE_CRC_SOURCE_NONE:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int
 intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 			  const enum intel_pipe_crc_source source)
@@ -494,8 +563,10 @@ intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 		return vlv_crc_source_valid(dev_priv, source);
 	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_crc_source_valid(dev_priv, source);
-	else
+	else if (INTEL_GEN(dev_priv) < 9)
 		return ivb_crc_source_valid(dev_priv, source);
+	else
+		return skl_crc_source_valid(dev_priv, source);
 }
 
 const char *const *intel_crtc_get_crc_sources(struct drm_crtc *crtc,
