@@ -172,46 +172,51 @@ nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *ext,
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
+		u16 tcp_flags, tcp_flags_mask;
 		struct flow_match_tcp match;
-		u16 tcp_flags;
 
 		flow_rule_match_tcp(rule, &match);
 		tcp_flags = be16_to_cpu(match.key->flags);
+		tcp_flags_mask = be16_to_cpu(match.mask->flags);
 
-		if (tcp_flags & TCPHDR_FIN) {
+		if (tcp_flags & TCPHDR_FIN)
 			ext->flags |= NFP_FL_TCP_FLAG_FIN;
+		if (tcp_flags_mask & TCPHDR_FIN)
 			msk->flags |= NFP_FL_TCP_FLAG_FIN;
-		}
-		if (tcp_flags & TCPHDR_SYN) {
+
+		if (tcp_flags & TCPHDR_SYN)
 			ext->flags |= NFP_FL_TCP_FLAG_SYN;
+		if (tcp_flags_mask & TCPHDR_SYN)
 			msk->flags |= NFP_FL_TCP_FLAG_SYN;
-		}
-		if (tcp_flags & TCPHDR_RST) {
+
+		if (tcp_flags & TCPHDR_RST)
 			ext->flags |= NFP_FL_TCP_FLAG_RST;
+		if (tcp_flags_mask & TCPHDR_RST)
 			msk->flags |= NFP_FL_TCP_FLAG_RST;
-		}
-		if (tcp_flags & TCPHDR_PSH) {
+
+		if (tcp_flags & TCPHDR_PSH)
 			ext->flags |= NFP_FL_TCP_FLAG_PSH;
+		if (tcp_flags_mask & TCPHDR_PSH)
 			msk->flags |= NFP_FL_TCP_FLAG_PSH;
-		}
-		if (tcp_flags & TCPHDR_URG) {
+
+		if (tcp_flags & TCPHDR_URG)
 			ext->flags |= NFP_FL_TCP_FLAG_URG;
+		if (tcp_flags_mask & TCPHDR_URG)
 			msk->flags |= NFP_FL_TCP_FLAG_URG;
-		}
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_match_control match;
 
 		flow_rule_match_control(rule, &match);
-		if (match.key->flags & FLOW_DIS_IS_FRAGMENT) {
+		if (match.key->flags & FLOW_DIS_IS_FRAGMENT)
 			ext->flags |= NFP_FL_IP_FRAGMENTED;
+		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT)
 			msk->flags |= NFP_FL_IP_FRAGMENTED;
-		}
-		if (match.key->flags & FLOW_DIS_FIRST_FRAG) {
+		if (match.key->flags & FLOW_DIS_FIRST_FRAG)
 			ext->flags |= NFP_FL_IP_FRAG_FIRST;
+		if (match.mask->flags & FLOW_DIS_FIRST_FRAG)
 			msk->flags |= NFP_FL_IP_FRAG_FIRST;
-		}
 	}
 }
 
