@@ -1195,10 +1195,17 @@ devlink_health_report(struct devlink_health_reporter *reporter,
 #if IS_REACHABLE(CONFIG_NET_DEVLINK)
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
 #else
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 {
+}
+
+static inline int
+devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

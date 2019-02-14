@@ -2038,11 +2038,17 @@ static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
 
 	if (copy_from_user(&efl, useraddr, sizeof(efl)))
 		return -EFAULT;
-
-	if (!dev->ethtool_ops->flash_device)
-		return -EOPNOTSUPP;
-
 	efl.data[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
+
+	if (!dev->ethtool_ops->flash_device) {
+		int ret;
+
+		rtnl_unlock();
+		ret = devlink_compat_flash_update(dev, efl.data);
+		rtnl_lock();
+
+		return ret;
+	}
 
 	return dev->ethtool_ops->flash_device(dev, &efl);
 }

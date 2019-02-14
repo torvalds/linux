@@ -6450,6 +6450,36 @@ out:
 	mutex_unlock(&devlink_mutex);
 }
 
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	struct devlink_port *devlink_port;
+	struct devlink *devlink;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(devlink_port, &devlink->port_list, list) {
+			int ret = -EOPNOTSUPP;
+
+			if (devlink_port->type != DEVLINK_PORT_TYPE_ETH ||
+			    devlink_port->type_dev != dev)
+				continue;
+
+			mutex_unlock(&devlink_mutex);
+			if (devlink->ops->flash_update)
+				ret = devlink->ops->flash_update(devlink,
+								 file_name,
+								 NULL, NULL);
+			mutex_unlock(&devlink->lock);
+			return ret;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+	mutex_unlock(&devlink_mutex);
+
+	return -EOPNOTSUPP;
+}
+
 static int __init devlink_module_init(void)
 {
 	return genl_register_family(&devlink_nl_family);
