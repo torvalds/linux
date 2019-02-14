@@ -95,6 +95,13 @@ struct page {
 			 */
 			unsigned long private;
 		};
+		struct {	/* page_pool used by netstack */
+			/**
+			 * @dma_addr: might require a 64-bit value even on
+			 * 32-bit architectures.
+			 */
+			dma_addr_t dma_addr;
+		};
 		struct {	/* slab, slob and slub */
 			union {
 				struct list_head slab_list;	/* uses lru */
