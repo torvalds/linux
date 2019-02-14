@@ -178,6 +178,10 @@ enum ppfear_regs {
 #define LTR_REQ_SNOOP				BIT(15)
 #define LTR_REQ_NONSNOOP			BIT(31)
 
+#define ICL_PPFEAR_NUM_ENTRIES			9
+#define ICL_NUM_IP_IGN_ALLOWED			20
+#define ICL_PMC_LTR_WIGIG			0x1BFC
+
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;

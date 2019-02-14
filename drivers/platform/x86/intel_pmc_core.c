@@ -166,25 +166,26 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"SDX",                 BIT(4)},
 	{"SPE",                 BIT(5)},
 	{"Fuse",                BIT(6)},
-	{"Res_23",              BIT(7)},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"SBR8",		BIT(7)},
 
 	{"CSME_FSC",            BIT(0)},
 	{"USB3_OTG",            BIT(1)},
 	{"EXI",                 BIT(2)},
 	{"CSE",                 BIT(3)},
-	{"csme_kvm",            BIT(4)},
-	{"csme_pmt",            BIT(5)},
-	{"csme_clink",          BIT(6)},
-	{"csme_ptio",           BIT(7)},
+	{"CSME_KVM",            BIT(4)},
+	{"CSME_PMT",            BIT(5)},
+	{"CSME_CLINK",          BIT(6)},
+	{"CSME_PTIO",           BIT(7)},
 
-	{"csme_usbr",           BIT(0)},
-	{"csme_susram",         BIT(1)},
-	{"csme_smt1",           BIT(2)},
+	{"CSME_USBR",           BIT(0)},
+	{"CSME_SUSRAM",         BIT(1)},
+	{"CSME_SMT1",           BIT(2)},
 	{"CSME_SMT4",           BIT(3)},
-	{"csme_sms2",           BIT(4)},
-	{"csme_sms1",           BIT(5)},
-	{"csme_rtc",            BIT(6)},
-	{"csme_psf",            BIT(7)},
+	{"CSME_SMS2",           BIT(4)},
+	{"CSME_SMS1",           BIT(5)},
+	{"CSME_RTC",            BIT(6)},
+	{"CSME_PSF",            BIT(7)},
 
 	{"SBR0",                BIT(0)},
 	{"SBR1",                BIT(1)},
@@ -209,6 +210,20 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"HDA_PGD4",            BIT(2)},
 	{"HDA_PGD5",            BIT(3)},
 	{"HDA_PGD6",            BIT(4)},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"PSF6",		BIT(5)},
+	{"PSF7",		BIT(6)},
+	{"PSF8",		BIT(7)},
+
+	/* Icelake generation onwards only */
+	{"RES_65",		BIT(0)},
+	{"RES_66",		BIT(1)},
+	{"RES_67",		BIT(2)},
+	{"TAM",			BIT(3)},
+	{"GBETSN",		BIT(4)},
+	{"TBTLSX",		BIT(5)},
+	{"RES_71",		BIT(6)},
+	{"RES_72",		BIT(7)},
 	{}
 };
 
@@ -290,6 +305,8 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"ISH",			CNP_PMC_LTR_ISH},
 	{"UFSX2",		CNP_PMC_LTR_UFSX2},
 	{"EMMC",		CNP_PMC_LTR_EMMC},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"WIGIG",		ICL_PMC_LTR_WIGIG},
 	/* Below two cannot be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
@@ -309,6 +326,21 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
+};
+
+static const struct pmc_reg_map icl_reg_map = {
+	.pfear_sts = cnp_pfear_map,
+	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slps0_dbg_maps = cnp_slps0_dbg_maps,
+	.ltr_show_sts = cnp_ltr_show_map,
+	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
+	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.regmap_length = CNP_PMC_MMIO_REG_LEN,
+	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
+	.ppfear_buckets = ICL_PPFEAR_NUM_ENTRIES,
+	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
+	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -740,6 +772,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	INTEL_CPU_FAM6(KABYLAKE_MOBILE, spt_reg_map),
 	INTEL_CPU_FAM6(KABYLAKE_DESKTOP, spt_reg_map),
 	INTEL_CPU_FAM6(CANNONLAKE_MOBILE, cnp_reg_map),
+	INTEL_CPU_FAM6(ICELAKE_MOBILE, icl_reg_map),
 	{}
 };
 
