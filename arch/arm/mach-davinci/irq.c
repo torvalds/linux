@@ -154,6 +154,6 @@ void __init davinci_irq_init(void)
 	for (i = 0, j = 0; i < davinci_soc_info.intc_irq_num; i += 32, j += 0x04)
 		davinci_irq_setup_gc(davinci_intc_base + j, irq_base + i, 32);
 
-	irq_set_handler(IRQ_TINT1_TINT34, handle_level_irq);
+	irq_set_handler(DAVINCI_INTC_IRQ(IRQ_TINT1_TINT34), handle_level_irq);
 	set_handle_irq(davinci_handle_irq);
 }

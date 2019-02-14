@@ -439,23 +439,23 @@ static struct davinci_id da850_ids[] = {
 static struct davinci_timer_instance da850_timer_instance[4] = {
 	{
 		.base		= DA8XX_TIMER64P0_BASE,
-		.bottom_irq	= IRQ_DA8XX_TINT12_0,
-		.top_irq	= IRQ_DA8XX_TINT34_0,
+		.bottom_irq	= DAVINCI_INTC_IRQ(IRQ_DA8XX_TINT12_0),
+		.top_irq	= DAVINCI_INTC_IRQ(IRQ_DA8XX_TINT34_0),
 	},
 	{
 		.base		= DA8XX_TIMER64P1_BASE,
-		.bottom_irq	= IRQ_DA8XX_TINT12_1,
-		.top_irq	= IRQ_DA8XX_TINT34_1,
+		.bottom_irq	= DAVINCI_INTC_IRQ(IRQ_DA8XX_TINT12_1),
+		.top_irq	= DAVINCI_INTC_IRQ(IRQ_DA8XX_TINT34_1),
 	},
 	{
 		.base		= DA850_TIMER64P2_BASE,
-		.bottom_irq	= IRQ_DA850_TINT12_2,
-		.top_irq	= IRQ_DA850_TINT34_2,
+		.bottom_irq	= DAVINCI_INTC_IRQ(IRQ_DA850_TINT12_2),
+		.top_irq	= DAVINCI_INTC_IRQ(IRQ_DA850_TINT34_2),
 	},
 	{
 		.base		= DA850_TIMER64P3_BASE,
-		.bottom_irq	= IRQ_DA850_TINT12_3,
-		.top_irq	= IRQ_DA850_TINT34_3,
+		.bottom_irq	= DAVINCI_INTC_IRQ(IRQ_DA850_TINT12_3),
+		.top_irq	= DAVINCI_INTC_IRQ(IRQ_DA850_TINT34_3),
 	},
 };
 
@@ -658,8 +658,8 @@ static struct platform_device da850_vpif_dev = {
 
 static struct resource da850_vpif_display_resource[] = {
 	{
-		.start = IRQ_DA850_VPIFINT,
-		.end   = IRQ_DA850_VPIFINT,
+		.start = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -677,13 +677,13 @@ static struct platform_device da850_vpif_display_dev = {
 
 static struct resource da850_vpif_capture_resource[] = {
 	{
-		.start = IRQ_DA850_VPIFINT,
-		.end   = IRQ_DA850_VPIFINT,
+		.start = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
 		.flags = IORESOURCE_IRQ,
 	},
 	{
-		.start = IRQ_DA850_VPIFINT,
-		.end   = IRQ_DA850_VPIFINT,
+		.start = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
+		.end   = DAVINCI_INTC_IRQ(IRQ_DA850_VPIFINT),
 		.flags = IORESOURCE_IRQ,
 	},
 };

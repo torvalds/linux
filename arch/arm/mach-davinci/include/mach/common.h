@@ -17,6 +17,9 @@
 #include <linux/types.h>
 #include <linux/reboot.h>
 
+#define DAVINCI_INTC_START		0
+#define DAVINCI_INTC_IRQ(_irqnum)	(DAVINCI_INTC_START + (_irqnum))
+
 void davinci_timer_init(struct clk *clk);
 
 extern void davinci_irq_init(void);
