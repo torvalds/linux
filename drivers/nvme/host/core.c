@@ -191,9 +191,10 @@ static int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl)
 	 * can free the controller.
 	 */
 	nvme_get_ctrl(ctrl);
-	ret = nvme_delete_ctrl(ctrl);
+	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_DELETING))
+		ret = -EBUSY;
 	if (!ret)
-		flush_work(&ctrl->delete_work);
+		nvme_do_delete_ctrl(ctrl);
 	nvme_put_ctrl(ctrl);
 	return ret;
 }
