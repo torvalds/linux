@@ -99,7 +99,6 @@ void __init davinci_irq_init(void)
 	const u8 *davinci_def_priorities = davinci_soc_info.intc_irq_prios;
 	int ret, irq_base;
 
-	davinci_intc_type = DAVINCI_INTC_TYPE_AINTC;
 	davinci_intc_base = ioremap(davinci_soc_info.intc_base, SZ_4K);
 	if (WARN_ON(!davinci_intc_base))
 		return;
