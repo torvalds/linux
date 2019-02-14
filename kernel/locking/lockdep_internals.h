@@ -100,7 +100,8 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i);
 
 extern unsigned long nr_lock_classes;
 extern unsigned long nr_list_entries;
-extern unsigned long nr_lock_chains;
+long lockdep_next_lockchain(long i);
+unsigned long lock_chain_count(void);
 extern int nr_chain_hlocks;
 extern unsigned long nr_stack_trace_entries;
 

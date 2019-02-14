@@ -2096,7 +2096,7 @@ out_bug:
 	return 0;
 }
 
-unsigned long nr_lock_chains;
+static unsigned long nr_lock_chains;
 struct lock_chain lock_chains[MAX_LOCKDEP_CHAINS];
 int nr_chain_hlocks;
 static u16 chain_hlocks[MAX_LOCKDEP_CHAIN_HLOCKS];
@@ -2228,6 +2228,20 @@ static int check_no_collision(struct task_struct *curr,
 	}
 #endif
 	return 1;
+}
+
+/*
+ * Given an index that is >= -1, return the index of the next lock chain.
+ * Return -2 if there is no next lock chain.
+ */
+long lockdep_next_lockchain(long i)
+{
+	return i + 1 < nr_lock_chains ? i + 1 : -2;
+}
+
+unsigned long lock_chain_count(void)
+{
+	return nr_lock_chains;
 }
 
 /*
