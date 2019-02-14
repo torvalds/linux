@@ -174,6 +174,10 @@
 # include "test-libaio.c"
 #undef main
 
+#define main main_test_reallocarray
+# include "test-reallocarray.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -214,6 +218,7 @@ int main(int argc, char *argv[])
 	main_test_sdt();
 	main_test_setns();
 	main_test_libaio();
+	main_test_reallocarray();
 
 	return 0;
 }
