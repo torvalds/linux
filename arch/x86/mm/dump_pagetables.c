@@ -444,7 +444,6 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
 	int i;
 	pud_t *start, *pud_start;
 	pgprotval_t prot, eff;
-	pud_t *prev_pud = NULL;
 
 	pud_start = start = (pud_t *)p4d_page_vaddr(addr);
 
@@ -462,7 +461,6 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
 		} else
 			note_page(m, st, __pgprot(0), 0, 3);
 
-		prev_pud = start;
 		start++;
 	}
 }
