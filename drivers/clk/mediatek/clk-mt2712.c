@@ -1463,7 +1463,6 @@ static struct platform_driver clk_mt2712_drv = {
 	.probe = clk_mt2712_probe,
 	.driver = {
 		.name = "clk-mt2712",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_clk_mt2712,
 	},
 };
