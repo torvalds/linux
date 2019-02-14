@@ -157,6 +157,8 @@ static int queue_count_set(const char *val, const struct kernel_param *kp)
 	int n = 0, ret;
 
 	ret = kstrtoint(val, 10, &n);
+	if (ret)
+		return ret;
 	if (n > num_possible_cpus())
 		n = num_possible_cpus();
 
