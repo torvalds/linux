@@ -2723,23 +2723,23 @@ static int mlxsw_sp_query_module_eeprom(struct mlxsw_sp_port *mlxsw_sp_port,
 					unsigned int *p_read_size)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char eeprom_tmp[MLXSW_SP_REG_MCIA_EEPROM_SIZE];
+	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
 	char mcia_pl[MLXSW_REG_MCIA_LEN];
 	u16 i2c_addr;
 	int status;
 	int err;
 
-	size = min_t(u16, size, MLXSW_SP_REG_MCIA_EEPROM_SIZE);
+	size = min_t(u16, size, MLXSW_REG_MCIA_EEPROM_SIZE);
 
-	if (offset < MLXSW_SP_EEPROM_PAGE_LENGTH &&
-	    offset + size > MLXSW_SP_EEPROM_PAGE_LENGTH)
+	if (offset < MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH &&
+	    offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
 		/* Cross pages read, read until offset 256 in low page */
-		size = MLXSW_SP_EEPROM_PAGE_LENGTH - offset;
+		size = MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH - offset;
 
-	i2c_addr = MLXSW_SP_I2C_ADDR_LOW;
-	if (offset >= MLXSW_SP_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLXSW_SP_I2C_ADDR_HIGH;
-		offset -= MLXSW_SP_EEPROM_PAGE_LENGTH;
+	i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_LOW;
+	if (offset >= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) {
+		i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
+		offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
 	}
 
 	mlxsw_reg_mcia_pack(mcia_pl, mlxsw_sp_port->mapping.module,
@@ -2760,55 +2760,37 @@ static int mlxsw_sp_query_module_eeprom(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
-enum mlxsw_sp_eeprom_module_info_rev_id {
-	MLXSW_SP_EEPROM_MODULE_INFO_REV_ID_UNSPC      = 0x00,
-	MLXSW_SP_EEPROM_MODULE_INFO_REV_ID_8436       = 0x01,
-	MLXSW_SP_EEPROM_MODULE_INFO_REV_ID_8636       = 0x03,
-};
-
-enum mlxsw_sp_eeprom_module_info_id {
-	MLXSW_SP_EEPROM_MODULE_INFO_ID_SFP              = 0x03,
-	MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP             = 0x0C,
-	MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP_PLUS        = 0x0D,
-	MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP28           = 0x11,
-};
-
-enum mlxsw_sp_eeprom_module_info {
-	MLXSW_SP_EEPROM_MODULE_INFO_ID,
-	MLXSW_SP_EEPROM_MODULE_INFO_REV_ID,
-	MLXSW_SP_EEPROM_MODULE_INFO_SIZE,
-};
-
 static int mlxsw_sp_get_module_info(struct net_device *netdev,
 				    struct ethtool_modinfo *modinfo)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
-	u8 module_info[MLXSW_SP_EEPROM_MODULE_INFO_SIZE];
+	u8 module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE];
+	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
 	u8 module_rev_id, module_id;
 	unsigned int read_size;
 	int err;
 
-	err = mlxsw_sp_query_module_eeprom(mlxsw_sp_port, 0,
-					   MLXSW_SP_EEPROM_MODULE_INFO_SIZE,
+	err = mlxsw_sp_query_module_eeprom(mlxsw_sp_port, 0, offset,
 					   module_info, &read_size);
 	if (err)
 		return err;
 
-	if (read_size < MLXSW_SP_EEPROM_MODULE_INFO_SIZE)
+	if (read_size < offset)
 		return -EIO;
 
-	module_rev_id = module_info[MLXSW_SP_EEPROM_MODULE_INFO_REV_ID];
-	module_id = module_info[MLXSW_SP_EEPROM_MODULE_INFO_ID];
+	module_rev_id = module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID];
+	module_id = module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID];
 
 	switch (module_id) {
-	case MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP:
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
 		modinfo->type       = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
-	case MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP_PLUS:
-	case MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP28:
-		if (module_id  == MLXSW_SP_EEPROM_MODULE_INFO_ID_QSFP28 ||
-		    module_rev_id >= MLXSW_SP_EEPROM_MODULE_INFO_REV_ID_8636) {
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
+		if (module_id == MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28 ||
+		    module_rev_id >=
+		    MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636) {
 			modinfo->type       = ETH_MODULE_SFF_8636;
 			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
 		} else {
@@ -2816,7 +2798,7 @@ static int mlxsw_sp_get_module_info(struct net_device *netdev,
 			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		}
 		break;
-	case MLXSW_SP_EEPROM_MODULE_INFO_ID_SFP:
+	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
 		modinfo->type       = ETH_MODULE_SFF_8472;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 		break;

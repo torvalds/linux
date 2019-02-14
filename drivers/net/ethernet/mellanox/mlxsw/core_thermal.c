@@ -13,7 +13,12 @@
 #include "core.h"
 
 #define MLXSW_THERMAL_POLL_INT	1000	/* ms */
-#define MLXSW_THERMAL_MAX_TEMP	110000	/* 110C */
+#define MLXSW_THERMAL_SLOW_POLL_INT	20000	/* ms */
+#define MLXSW_THERMAL_ASIC_TEMP_NORM	75000	/* 75C */
+#define MLXSW_THERMAL_ASIC_TEMP_HIGH	85000	/* 85C */
+#define MLXSW_THERMAL_ASIC_TEMP_HOT	105000	/* 105C */
+#define MLXSW_THERMAL_ASIC_TEMP_CRIT	110000	/* 110C */
+#define MLXSW_THERMAL_HYSTERESIS_TEMP	5000	/* 5C */
 #define MLXSW_THERMAL_MAX_STATE	10
 #define MLXSW_THERMAL_MAX_DUTY	255
 /* Minimum and maximum fan allowed speed in percent: from 20% to 100%. Values
@@ -26,9 +31,15 @@
 #define MLXSW_THERMAL_SPEED_MAX		(MLXSW_THERMAL_MAX_STATE * 2)
 #define MLXSW_THERMAL_SPEED_MIN_LEVEL	2		/* 20% */
 
+/* External cooling devices, allowed for binding to mlxsw thermal zones. */
+static char * const mlxsw_thermal_external_allowed_cdev[] = {
+	"mlxreg_fan",
+};
+
 struct mlxsw_thermal_trip {
 	int	type;
 	int	temp;
+	int	hyst;
 	int	min_state;
 	int	max_state;
 };
@@ -36,32 +47,29 @@ struct mlxsw_thermal_trip {
 static const struct mlxsw_thermal_trip default_thermal_trips[] = {
 	{	/* In range - 0-40% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 75000,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_NORM,
+		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= 0,
 		.max_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
 	},
-	{	/* High - 40-100% PWM */
-		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 80000,
-		.min_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
-		.max_state	= MLXSW_THERMAL_MAX_STATE,
-	},
 	{
-		/* Very high - 100% PWM */
+		/* In range - 40-100% PWM */
 		.type		= THERMAL_TRIP_ACTIVE,
-		.temp		= 85000,
-		.min_state	= MLXSW_THERMAL_MAX_STATE,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_HIGH,
+		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
+		.min_state	= (4 * MLXSW_THERMAL_MAX_STATE) / 10,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
 	{	/* Warning */
 		.type		= THERMAL_TRIP_HOT,
-		.temp		= 105000,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_HOT,
+		.hyst		= MLXSW_THERMAL_HYSTERESIS_TEMP,
 		.min_state	= MLXSW_THERMAL_MAX_STATE,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	},
 	{	/* Critical - soft poweroff */
 		.type		= THERMAL_TRIP_CRITICAL,
-		.temp		= MLXSW_THERMAL_MAX_TEMP,
+		.temp		= MLXSW_THERMAL_ASIC_TEMP_CRIT,
 		.min_state	= MLXSW_THERMAL_MAX_STATE,
 		.max_state	= MLXSW_THERMAL_MAX_STATE,
 	}
@@ -76,6 +84,7 @@ struct mlxsw_thermal {
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	struct thermal_zone_device *tzdev;
+	int polling_delay;
 	struct thermal_cooling_device *cdevs[MLXSW_MFCR_PWMS_MAX];
 	u8 cooling_levels[MLXSW_THERMAL_MAX_STATE + 1];
 	struct mlxsw_thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
@@ -102,6 +111,13 @@ static int mlxsw_get_cooling_device_idx(struct mlxsw_thermal *thermal,
 	for (i = 0; i < MLXSW_MFCR_PWMS_MAX; i++)
 		if (thermal->cdevs[i] == cdev)
 			return i;
+
+	/* Allow mlxsw thermal zone binding to an external cooling device */
+	for (i = 0; i < ARRAY_SIZE(mlxsw_thermal_external_allowed_cdev); i++) {
+		if (strnstr(cdev->type, mlxsw_thermal_external_allowed_cdev[i],
+			    sizeof(cdev->type)))
+			return 0;
+	}
 
 	return -ENODEV;
 }
@@ -172,7 +188,7 @@ static int mlxsw_thermal_set_mode(struct thermal_zone_device *tzdev,
 	mutex_lock(&tzdev->lock);
 
 	if (mode == THERMAL_DEVICE_ENABLED)
-		tzdev->polling_delay = MLXSW_THERMAL_POLL_INT;
+		tzdev->polling_delay = thermal->polling_delay;
 	else
 		tzdev->polling_delay = 0;
 
@@ -237,10 +253,28 @@ static int mlxsw_thermal_set_trip_temp(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal *thermal = tzdev->devdata;
 
 	if (trip < 0 || trip >= MLXSW_THERMAL_NUM_TRIPS ||
-	    temp > MLXSW_THERMAL_MAX_TEMP)
+	    temp > MLXSW_THERMAL_ASIC_TEMP_CRIT)
 		return -EINVAL;
 
 	thermal->trips[trip].temp = temp;
+	return 0;
+}
+
+static int mlxsw_thermal_get_trip_hyst(struct thermal_zone_device *tzdev,
+				       int trip, int *p_hyst)
+{
+	struct mlxsw_thermal *thermal = tzdev->devdata;
+
+	*p_hyst = thermal->trips[trip].hyst;
+	return 0;
+}
+
+static int mlxsw_thermal_set_trip_hyst(struct thermal_zone_device *tzdev,
+				       int trip, int hyst)
+{
+	struct mlxsw_thermal *thermal = tzdev->devdata;
+
+	thermal->trips[trip].hyst = hyst;
 	return 0;
 }
 
@@ -253,6 +287,8 @@ static struct thermal_zone_device_ops mlxsw_thermal_ops = {
 	.get_trip_type	= mlxsw_thermal_get_trip_type,
 	.get_trip_temp	= mlxsw_thermal_get_trip_temp,
 	.set_trip_temp	= mlxsw_thermal_set_trip_temp,
+	.get_trip_hyst	= mlxsw_thermal_get_trip_hyst,
+	.set_trip_hyst	= mlxsw_thermal_set_trip_hyst,
 };
 
 static int mlxsw_thermal_get_max_state(struct thermal_cooling_device *cdev,
@@ -407,8 +443,9 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 		if (pwm_active & BIT(i)) {
 			struct thermal_cooling_device *cdev;
 
-			cdev = thermal_cooling_device_register("Fan", thermal,
-							&mlxsw_cooling_ops);
+			cdev = thermal_cooling_device_register("mlxsw_fan",
+							       thermal,
+							       &mlxsw_cooling_ops);
 			if (IS_ERR(cdev)) {
 				err = PTR_ERR(cdev);
 				dev_err(dev, "Failed to register cooling device\n");
@@ -423,13 +460,17 @@ int mlxsw_thermal_init(struct mlxsw_core *core,
 		thermal->cooling_levels[i] = max(MLXSW_THERMAL_SPEED_MIN_LEVEL,
 						 i);
 
+	thermal->polling_delay = bus_info->low_frequency ?
+				 MLXSW_THERMAL_SLOW_POLL_INT :
+				 MLXSW_THERMAL_POLL_INT;
+
 	thermal->tzdev = thermal_zone_device_register("mlxsw",
 						      MLXSW_THERMAL_NUM_TRIPS,
 						      MLXSW_THERMAL_TRIP_MASK,
 						      thermal,
 						      &mlxsw_thermal_ops,
 						      NULL, 0,
-						      MLXSW_THERMAL_POLL_INT);
+						      thermal->polling_delay);
 	if (IS_ERR(thermal->tzdev)) {
 		err = PTR_ERR(thermal->tzdev);
 		dev_err(dev, "Failed to register thermal zone\n");
