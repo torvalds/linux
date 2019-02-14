@@ -2,6 +2,7 @@
 /* Copyright (c)  2018 Intel Corporation */
 
 /* ethtool support for igc */
+#include <linux/if_vlan.h>
 #include <linux/pm_runtime.h>
 
 #include "igc.h"
@@ -643,6 +644,605 @@ static int igc_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+#define ETHER_TYPE_FULL_MASK ((__force __be16)~0)
+static int igc_get_ethtool_nfc_entry(struct igc_adapter *adapter,
+				     struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
+	struct igc_nfc_filter *rule = NULL;
+
+	/* report total rule count */
+	cmd->data = IGC_MAX_RXNFC_FILTERS;
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+		if (fsp->location <= rule->sw_idx)
+			break;
+	}
+
+	if (!rule || fsp->location != rule->sw_idx)
+		return -EINVAL;
+
+	if (rule->filter.match_flags) {
+		fsp->flow_type = ETHER_FLOW;
+		fsp->ring_cookie = rule->action;
+		if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+			fsp->h_u.ether_spec.h_proto = rule->filter.etype;
+			fsp->m_u.ether_spec.h_proto = ETHER_TYPE_FULL_MASK;
+		}
+		if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+			fsp->flow_type |= FLOW_EXT;
+			fsp->h_ext.vlan_tci = rule->filter.vlan_tci;
+			fsp->m_ext.vlan_tci = htons(VLAN_PRIO_MASK);
+		}
+		if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
+			ether_addr_copy(fsp->h_u.ether_spec.h_dest,
+					rule->filter.dst_addr);
+			/* As we only support matching by the full
+			 * mask, return the mask to userspace
+			 */
+			eth_broadcast_addr(fsp->m_u.ether_spec.h_dest);
+		}
+		if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+			ether_addr_copy(fsp->h_u.ether_spec.h_source,
+					rule->filter.src_addr);
+			/* As we only support matching by the full
+			 * mask, return the mask to userspace
+			 */
+			eth_broadcast_addr(fsp->m_u.ether_spec.h_source);
+		}
+
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int igc_get_ethtool_nfc_all(struct igc_adapter *adapter,
+				   struct ethtool_rxnfc *cmd,
+				   u32 *rule_locs)
+{
+	struct igc_nfc_filter *rule;
+	int cnt = 0;
+
+	/* report total rule count */
+	cmd->data = IGC_MAX_RXNFC_FILTERS;
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+		if (cnt == cmd->rule_cnt)
+			return -EMSGSIZE;
+		rule_locs[cnt] = rule->sw_idx;
+		cnt++;
+	}
+
+	cmd->rule_cnt = cnt;
+
+	return 0;
+}
+
+static int igc_get_rss_hash_opts(struct igc_adapter *adapter,
+				 struct ethtool_rxnfc *cmd)
+{
+	cmd->data = 0;
+
+	/* Report default options for RSS on igc */
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case UDP_V4_FLOW:
+		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case SCTP_V4_FLOW:
+		/* Fall through */
+	case AH_ESP_V4_FLOW:
+		/* Fall through */
+	case AH_V4_FLOW:
+		/* Fall through */
+	case ESP_V4_FLOW:
+		/* Fall through */
+	case IPV4_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case TCP_V6_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case UDP_V6_FLOW:
+		if (adapter->flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		/* Fall through */
+	case SCTP_V6_FLOW:
+		/* Fall through */
+	case AH_ESP_V6_FLOW:
+		/* Fall through */
+	case AH_V6_FLOW:
+		/* Fall through */
+	case ESP_V6_FLOW:
+		/* Fall through */
+	case IPV6_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int igc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			 u32 *rule_locs)
+{
+	struct igc_adapter *adapter = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_queues;
+		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = adapter->nfc_filter_count;
+		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = igc_get_ethtool_nfc_entry(adapter, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		ret = igc_get_ethtool_nfc_all(adapter, cmd, rule_locs);
+		break;
+	case ETHTOOL_GRXFH:
+		ret = igc_get_rss_hash_opts(adapter, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+#define UDP_RSS_FLAGS (IGC_FLAG_RSS_FIELD_IPV4_UDP | \
+		       IGC_FLAG_RSS_FIELD_IPV6_UDP)
+static int igc_set_rss_hash_opt(struct igc_adapter *adapter,
+				struct ethtool_rxnfc *nfc)
+{
+	u32 flags = adapter->flags;
+
+	/* RSS does not support anything other than hashing
+	 * to queues on src and dst IPs and ports
+	 */
+	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
+			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		return -EINVAL;
+
+	switch (nfc->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    !(nfc->data & RXH_L4_B_0_1) ||
+		    !(nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	case UDP_V4_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			flags &= ~IGC_FLAG_RSS_FIELD_IPV4_UDP;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			flags |= IGC_FLAG_RSS_FIELD_IPV4_UDP;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case UDP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST))
+			return -EINVAL;
+		switch (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+		case 0:
+			flags &= ~IGC_FLAG_RSS_FIELD_IPV6_UDP;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			flags |= IGC_FLAG_RSS_FIELD_IPV6_UDP;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		if (!(nfc->data & RXH_IP_SRC) ||
+		    !(nfc->data & RXH_IP_DST) ||
+		    (nfc->data & RXH_L4_B_0_1) ||
+		    (nfc->data & RXH_L4_B_2_3))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* if we changed something we need to update flags */
+	if (flags != adapter->flags) {
+		struct igc_hw *hw = &adapter->hw;
+		u32 mrqc = rd32(IGC_MRQC);
+
+		if ((flags & UDP_RSS_FLAGS) &&
+		    !(adapter->flags & UDP_RSS_FLAGS))
+			dev_err(&adapter->pdev->dev,
+				"enabling UDP RSS: fragmented packets may arrive out of order to the stack above\n");
+
+		adapter->flags = flags;
+
+		/* Perform hash on these packet types */
+		mrqc |= IGC_MRQC_RSS_FIELD_IPV4 |
+			IGC_MRQC_RSS_FIELD_IPV4_TCP |
+			IGC_MRQC_RSS_FIELD_IPV6 |
+			IGC_MRQC_RSS_FIELD_IPV6_TCP;
+
+		mrqc &= ~(IGC_MRQC_RSS_FIELD_IPV4_UDP |
+			  IGC_MRQC_RSS_FIELD_IPV6_UDP);
+
+		if (flags & IGC_FLAG_RSS_FIELD_IPV4_UDP)
+			mrqc |= IGC_MRQC_RSS_FIELD_IPV4_UDP;
+
+		if (flags & IGC_FLAG_RSS_FIELD_IPV6_UDP)
+			mrqc |= IGC_MRQC_RSS_FIELD_IPV6_UDP;
+
+		wr32(IGC_MRQC, mrqc);
+	}
+
+	return 0;
+}
+
+static int igc_rxnfc_write_etype_filter(struct igc_adapter *adapter,
+					struct igc_nfc_filter *input)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u8 i;
+	u32 etqf;
+	u16 etype;
+
+	/* find an empty etype filter register */
+	for (i = 0; i < MAX_ETYPE_FILTER; ++i) {
+		if (!adapter->etype_bitmap[i])
+			break;
+	}
+	if (i == MAX_ETYPE_FILTER) {
+		dev_err(&adapter->pdev->dev, "ethtool -N: etype filters are all used.\n");
+		return -EINVAL;
+	}
+
+	adapter->etype_bitmap[i] = true;
+
+	etqf = rd32(IGC_ETQF(i));
+	etype = ntohs(input->filter.etype & ETHER_TYPE_FULL_MASK);
+
+	etqf |= IGC_ETQF_FILTER_ENABLE;
+	etqf &= ~IGC_ETQF_ETYPE_MASK;
+	etqf |= (etype & IGC_ETQF_ETYPE_MASK);
+
+	etqf &= ~IGC_ETQF_QUEUE_MASK;
+	etqf |= ((input->action << IGC_ETQF_QUEUE_SHIFT)
+		& IGC_ETQF_QUEUE_MASK);
+	etqf |= IGC_ETQF_QUEUE_ENABLE;
+
+	wr32(IGC_ETQF(i), etqf);
+
+	input->etype_reg_index = i;
+
+	return 0;
+}
+
+static int igc_rxnfc_write_vlan_prio_filter(struct igc_adapter *adapter,
+					    struct igc_nfc_filter *input)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u8 vlan_priority;
+	u16 queue_index;
+	u32 vlapqf;
+
+	vlapqf = rd32(IGC_VLAPQF);
+	vlan_priority = (ntohs(input->filter.vlan_tci) & VLAN_PRIO_MASK)
+				>> VLAN_PRIO_SHIFT;
+	queue_index = (vlapqf >> (vlan_priority * 4)) & IGC_VLAPQF_QUEUE_MASK;
+
+	/* check whether this vlan prio is already set */
+	if (vlapqf & IGC_VLAPQF_P_VALID(vlan_priority) &&
+	    queue_index != input->action) {
+		dev_err(&adapter->pdev->dev, "ethtool rxnfc set vlan prio filter failed.\n");
+		return -EEXIST;
+	}
+
+	vlapqf |= IGC_VLAPQF_P_VALID(vlan_priority);
+	vlapqf |= IGC_VLAPQF_QUEUE_SEL(vlan_priority, input->action);
+
+	wr32(IGC_VLAPQF, vlapqf);
+
+	return 0;
+}
+
+int igc_add_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int err = -EINVAL;
+
+	if (hw->mac.type == igc_i225 &&
+	    !(input->filter.match_flags & ~IGC_FILTER_FLAG_SRC_MAC_ADDR)) {
+		dev_err(&adapter->pdev->dev,
+			"i225 doesn't support flow classification rules specifying only source addresses.\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		err = igc_rxnfc_write_etype_filter(adapter, input);
+		if (err)
+			return err;
+	}
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
+		err = igc_add_mac_steering_filter(adapter,
+						  input->filter.dst_addr,
+						  input->action, 0);
+		err = min_t(int, err, 0);
+		if (err)
+			return err;
+	}
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+		err = igc_add_mac_steering_filter(adapter,
+						  input->filter.src_addr,
+						  input->action,
+						  IGC_MAC_STATE_SRC_ADDR);
+		err = min_t(int, err, 0);
+		if (err)
+			return err;
+	}
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI)
+		err = igc_rxnfc_write_vlan_prio_filter(adapter, input);
+
+	return err;
+}
+
+static void igc_clear_etype_filter_regs(struct igc_adapter *adapter,
+					u16 reg_index)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 etqf = rd32(IGC_ETQF(reg_index));
+
+	etqf &= ~IGC_ETQF_QUEUE_ENABLE;
+	etqf &= ~IGC_ETQF_QUEUE_MASK;
+	etqf &= ~IGC_ETQF_FILTER_ENABLE;
+
+	wr32(IGC_ETQF(reg_index), etqf);
+
+	adapter->etype_bitmap[reg_index] = false;
+}
+
+static void igc_clear_vlan_prio_filter(struct igc_adapter *adapter,
+				       u16 vlan_tci)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u8 vlan_priority;
+	u32 vlapqf;
+
+	vlan_priority = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+
+	vlapqf = rd32(IGC_VLAPQF);
+	vlapqf &= ~IGC_VLAPQF_P_VALID(vlan_priority);
+	vlapqf &= ~IGC_VLAPQF_QUEUE_SEL(vlan_priority,
+						IGC_VLAPQF_QUEUE_MASK);
+
+	wr32(IGC_VLAPQF, vlapqf);
+}
+
+int igc_erase_filter(struct igc_adapter *adapter, struct igc_nfc_filter *input)
+{
+	if (input->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
+		igc_clear_etype_filter_regs(adapter,
+					    input->etype_reg_index);
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI)
+		igc_clear_vlan_prio_filter(adapter,
+					   ntohs(input->filter.vlan_tci));
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
+		igc_del_mac_steering_filter(adapter, input->filter.src_addr,
+					    input->action,
+					    IGC_MAC_STATE_SRC_ADDR);
+
+	if (input->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
+		igc_del_mac_steering_filter(adapter, input->filter.dst_addr,
+					    input->action, 0);
+
+	return 0;
+}
+
+static int igc_update_ethtool_nfc_entry(struct igc_adapter *adapter,
+					struct igc_nfc_filter *input,
+					u16 sw_idx)
+{
+	struct igc_nfc_filter *rule, *parent;
+	int err = -EINVAL;
+
+	parent = NULL;
+	rule = NULL;
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+		/* hash found, or no matching entry */
+		if (rule->sw_idx >= sw_idx)
+			break;
+		parent = rule;
+	}
+
+	/* if there is an old rule occupying our place remove it */
+	if (rule && rule->sw_idx == sw_idx) {
+		if (!input)
+			err = igc_erase_filter(adapter, rule);
+
+		hlist_del(&rule->nfc_node);
+		kfree(rule);
+		adapter->nfc_filter_count--;
+	}
+
+	/* If no input this was a delete, err should be 0 if a rule was
+	 * successfully found and removed from the list else -EINVAL
+	 */
+	if (!input)
+		return err;
+
+	/* initialize node */
+	INIT_HLIST_NODE(&input->nfc_node);
+
+	/* add filter to the list */
+	if (parent)
+		hlist_add_behind(&input->nfc_node, &parent->nfc_node);
+	else
+		hlist_add_head(&input->nfc_node, &adapter->nfc_filter_list);
+
+	/* update counts */
+	adapter->nfc_filter_count++;
+
+	return 0;
+}
+
+static int igc_add_ethtool_nfc_entry(struct igc_adapter *adapter,
+				     struct ethtool_rxnfc *cmd)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct ethtool_rx_flow_spec *fsp =
+		(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct igc_nfc_filter *input, *rule;
+	int err = 0;
+
+	if (!(netdev->hw_features & NETIF_F_NTUPLE))
+		return -EOPNOTSUPP;
+
+	/* Don't allow programming if the action is a queue greater than
+	 * the number of online Rx queues.
+	 */
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC ||
+	    fsp->ring_cookie >= adapter->num_rx_queues) {
+		dev_err(&adapter->pdev->dev, "ethtool -N: The specified action is invalid\n");
+		return -EINVAL;
+	}
+
+	/* Don't allow indexes to exist outside of available space */
+	if (fsp->location >= IGC_MAX_RXNFC_FILTERS) {
+		dev_err(&adapter->pdev->dev, "Location out of range\n");
+		return -EINVAL;
+	}
+
+	if ((fsp->flow_type & ~FLOW_EXT) != ETHER_FLOW)
+		return -EINVAL;
+
+	input = kzalloc(sizeof(*input), GFP_KERNEL);
+	if (!input)
+		return -ENOMEM;
+
+	if (fsp->m_u.ether_spec.h_proto == ETHER_TYPE_FULL_MASK) {
+		input->filter.etype = fsp->h_u.ether_spec.h_proto;
+		input->filter.match_flags = IGC_FILTER_FLAG_ETHER_TYPE;
+	}
+
+	/* Only support matching addresses by the full mask */
+	if (is_broadcast_ether_addr(fsp->m_u.ether_spec.h_source)) {
+		input->filter.match_flags |= IGC_FILTER_FLAG_SRC_MAC_ADDR;
+		ether_addr_copy(input->filter.src_addr,
+				fsp->h_u.ether_spec.h_source);
+	}
+
+	/* Only support matching addresses by the full mask */
+	if (is_broadcast_ether_addr(fsp->m_u.ether_spec.h_dest)) {
+		input->filter.match_flags |= IGC_FILTER_FLAG_DST_MAC_ADDR;
+		ether_addr_copy(input->filter.dst_addr,
+				fsp->h_u.ether_spec.h_dest);
+	}
+
+	if ((fsp->flow_type & FLOW_EXT) && fsp->m_ext.vlan_tci) {
+		if (fsp->m_ext.vlan_tci != htons(VLAN_PRIO_MASK)) {
+			err = -EINVAL;
+			goto err_out;
+		}
+		input->filter.vlan_tci = fsp->h_ext.vlan_tci;
+		input->filter.match_flags |= IGC_FILTER_FLAG_VLAN_TCI;
+	}
+
+	input->action = fsp->ring_cookie;
+	input->sw_idx = fsp->location;
+
+	spin_lock(&adapter->nfc_lock);
+
+	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node) {
+		if (!memcmp(&input->filter, &rule->filter,
+			    sizeof(input->filter))) {
+			err = -EEXIST;
+			dev_err(&adapter->pdev->dev,
+				"ethtool: this filter is already set\n");
+			goto err_out_w_lock;
+		}
+	}
+
+	err = igc_add_filter(adapter, input);
+	if (err)
+		goto err_out_w_lock;
+
+	igc_update_ethtool_nfc_entry(adapter, input, input->sw_idx);
+
+	spin_unlock(&adapter->nfc_lock);
+	return 0;
+
+err_out_w_lock:
+	spin_unlock(&adapter->nfc_lock);
+err_out:
+	kfree(input);
+	return err;
+}
+
+static int igc_del_ethtool_nfc_entry(struct igc_adapter *adapter,
+				     struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp =
+		(struct ethtool_rx_flow_spec *)&cmd->fs;
+	int err;
+
+	spin_lock(&adapter->nfc_lock);
+	err = igc_update_ethtool_nfc_entry(adapter, NULL, fsp->location);
+	spin_unlock(&adapter->nfc_lock);
+
+	return err;
+}
+
+static int igc_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct igc_adapter *adapter = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		ret = igc_set_rss_hash_opt(adapter, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLINS:
+		ret = igc_add_ethtool_nfc_entry(adapter, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = igc_del_ethtool_nfc_entry(adapter, cmd);
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 void igc_write_rss_indir_tbl(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
@@ -1013,6 +1613,8 @@ static const struct ethtool_ops igc_ethtool_ops = {
 	.set_pauseparam		= igc_set_pauseparam,
 	.get_coalesce		= igc_get_coalesce,
 	.set_coalesce		= igc_set_coalesce,
+	.get_rxnfc		= igc_get_rxnfc,
+	.set_rxnfc		= igc_set_rxnfc,
 	.get_rxfh_indir_size	= igc_get_rxfh_indir_size,
 	.get_rxfh		= igc_get_rxfh,
 	.set_rxfh		= igc_set_rxfh,

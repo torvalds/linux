@@ -400,4 +400,8 @@
 
 #define IGC_N0_QUEUE -1
 
+#define IGC_VLAPQF_QUEUE_SEL(_n, q_idx) ((q_idx) << ((_n) * 4))
+#define IGC_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define IGC_VLAPQF_QUEUE_MASK	0x03
+
 #endif /* _IGC_DEFINES_H_ */
