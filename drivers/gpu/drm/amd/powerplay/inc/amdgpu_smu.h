@@ -518,7 +518,8 @@ struct smu_funcs
 	int (*notify_smu_enable_pwe)(struct smu_context *smu);
 	int (*set_watermarks_for_clock_ranges)(struct smu_context *smu,
 					       struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
-	int (*set_od8_default_settings)(struct smu_context *smu);
+	int (*set_od8_default_settings)(struct smu_context *smu,
+					bool initialize);
 	int (*get_activity_monitor_coeff)(struct smu_context *smu,
 				      uint8_t *table,
 				      uint16_t workload_type);
@@ -587,8 +588,8 @@ struct smu_funcs
 	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
 #define smu_init_max_sustainable_clocks(smu) \
 	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
-#define smu_set_od8_default_settings(smu) \
-	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu)) : 0)
+#define smu_set_od8_default_settings(smu, initialize) \
+	((smu)->funcs->set_od8_default_settings ? (smu)->funcs->set_od8_default_settings((smu), (initialize)) : 0)
 #define smu_update_od8_settings(smu, index, value) \
 	((smu)->funcs->update_od8_settings ? (smu)->funcs->update_od8_settings((smu), (index), (value)) : 0)
 #define smu_get_current_rpm(smu, speed) \

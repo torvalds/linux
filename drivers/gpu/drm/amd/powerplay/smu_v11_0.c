@@ -1432,26 +1432,29 @@ static uint32_t smu_v11_0_dpm_get_mclk(struct smu_context *smu, bool low)
 	return (mem_clk * 100);
 }
 
-static int smu_v11_0_set_od8_default_settings(struct smu_context *smu)
+static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
+					      bool initialize)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret;
 
-	if (table_context->overdrive_table)
-		 return -EINVAL;
+	if (initialize) {
+		if (table_context->overdrive_table)
+			return -EINVAL;
 
-	table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
+		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
 
-	if (!table_context->overdrive_table)
-		return -ENOMEM;
+		if (!table_context->overdrive_table)
+			return -ENOMEM;
 
-	ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
-	if (ret) {
-		pr_err("Failed to export over drive table!\n");
-		return ret;
+		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
+		if (ret) {
+			pr_err("Failed to export over drive table!\n");
+			return ret;
+		}
+
+		smu_set_default_od8_settings(smu);
 	}
-
-	smu_set_default_od8_settings(smu);
 
 	ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, true);
 	if (ret) {
