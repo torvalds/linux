@@ -246,7 +246,7 @@ static const struct regulator_desc bd70528_desc[] = {
 
 static int bd70528_probe(struct platform_device *pdev)
 {
-	struct bd70528 *bd70528;
+	struct rohm_regmap_dev *bd70528;
 	int i;
 	struct regulator_config config = {
 		.dev = pdev->dev.parent,
@@ -258,7 +258,7 @@ static int bd70528_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	config.regmap = bd70528->chip.regmap;
+	config.regmap = bd70528->regmap;
 
 	for (i = 0; i < ARRAY_SIZE(bd70528_desc); i++) {
 		struct regulator_dev *rdev;
