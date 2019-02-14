@@ -153,8 +153,6 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 
 	packet->header.u32All = pm_build_pm4_header(IT_MAP_QUEUES,
 					sizeof(struct pm4_mes_map_queues));
-	packet->bitfields2.alloc_format =
-		alloc_format__mes_map_queues__one_per_pipe_vi;
 	packet->bitfields2.num_queues = 1;
 	packet->bitfields2.queue_sel =
 		queue_sel__mes_map_queues__map_to_hws_determined_queue_slots_vi;
