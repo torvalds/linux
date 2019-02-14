@@ -347,22 +347,10 @@ static void dpu_encoder_phys_vid_underrun_irq(void *arg, int irq_idx)
 			phys_enc);
 }
 
-static bool _dpu_encoder_phys_is_dual_ctl(struct dpu_encoder_phys *phys_enc)
-{
-	struct dpu_crtc_state *dpu_cstate;
-
-	if (!phys_enc)
-		return false;
-
-	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
-
-	return dpu_cstate->num_ctls > 1;
-}
-
 static bool dpu_encoder_phys_vid_needs_single_flush(
 		struct dpu_encoder_phys *phys_enc)
 {
-	return (phys_enc && _dpu_encoder_phys_is_dual_ctl(phys_enc));
+	return phys_enc->split_role != ENC_ROLE_SOLO;
 }
 
 static void _dpu_encoder_phys_vid_setup_irq_hw_idx(
