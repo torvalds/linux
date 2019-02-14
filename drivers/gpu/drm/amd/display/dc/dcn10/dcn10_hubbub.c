@@ -642,50 +642,6 @@ void hubbub1_soft_reset(struct hubbub *hubbub, bool reset)
 			DCHUBBUB_GLOBAL_SOFT_RESET, reset_en);
 }
 
-static bool hubbub1_is_surf_still_in_update(struct hubbub *hubbub, uint32_t hbup_inst)
-{
-	struct dcn10_hubbub *hubbub1 = TO_DCN10_HUBBUB(hubbub);
-	uint32_t still_used_by_dcn = 0;
-
-	switch (hbup_inst) {
-	case 0:
-		REG_GET(SURFACE_CHECK0_ADDRESS_MSB,
-			CHECKER0_SURFACE_INUSE,
-			&still_used_by_dcn);
-		break;
-	case 1:
-		REG_GET(SURFACE_CHECK1_ADDRESS_MSB,
-			CHECKER1_SURFACE_INUSE,
-			&still_used_by_dcn);
-		break;
-	case 2:
-		REG_GET(SURFACE_CHECK2_ADDRESS_MSB,
-			CHECKER2_SURFACE_INUSE,
-			&still_used_by_dcn);
-		break;
-	case 3:
-		REG_GET(SURFACE_CHECK3_ADDRESS_MSB,
-			CHECKER3_SURFACE_INUSE,
-			&still_used_by_dcn);
-		break;
-	default:
-		break;
-	}
-	return (still_used_by_dcn == 1);
-}
-
-void hubbub1_wait_for_safe_surf_update(struct hubbub *hubbub, uint32_t hbup_inst)
-{
-	uint32_t still_used_by_dcn = 0, count = 0;
-
-	do {
-		still_used_by_dcn = hubbub1_is_surf_still_in_update(hubbub, hbup_inst);
-		udelay(1);
-		count++;
-	} while (still_used_by_dcn == 1 && count < 100);
-	ASSERT(count < 100);
-}
-
 static bool hubbub1_dcc_support_swizzle(
 		enum swizzle_mode_values swizzle,
 		unsigned int bytes_per_element,
@@ -904,14 +860,12 @@ static bool hubbub1_get_dcc_compression_cap(struct hubbub *hubbub,
 	return true;
 }
 
-
 static const struct hubbub_funcs hubbub1_funcs = {
 	.update_dchub = hubbub1_update_dchub,
 	.dcc_support_swizzle = hubbub1_dcc_support_swizzle,
 	.dcc_support_pixel_format = hubbub1_dcc_support_pixel_format,
 	.get_dcc_compression_cap = hubbub1_get_dcc_compression_cap,
 	.wm_read_state = hubbub1_wm_read_state,
-	.wait_for_surf_safe_update = hubbub1_wait_for_safe_surf_update,
 };
 
 void hubbub1_construct(struct hubbub *hubbub,

@@ -73,9 +73,6 @@ struct hubbub_funcs {
 
 	void (*wm_read_state)(struct hubbub *hubbub,
 			struct dcn_hubbub_wm *wm);
-
-	void (*wait_for_surf_safe_update)(struct hubbub *hubbub,
-			uint32_t hbup_inst);
 };
 
 struct hubbub {

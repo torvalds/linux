@@ -1746,9 +1746,6 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			if (!pipe_ctx->plane_state)
 				continue;
-			/*make sure hw finished surface update*/
-			if (dc->hwss.wait_surface_safe_to_update)
-				dc->hwss.wait_surface_safe_to_update(dc, pipe_ctx);
 
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)

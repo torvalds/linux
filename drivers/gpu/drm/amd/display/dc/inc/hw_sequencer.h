@@ -232,8 +232,6 @@ struct hw_sequencer_funcs {
 	void (*setup_periodic_interrupt)(struct pipe_ctx *pipe_ctx, enum vline_select vline);
 	void (*setup_vupdate_interrupt)(struct pipe_ctx *pipe_ctx);
 
-	void (*wait_surface_safe_to_update)(struct dc *dc,
-			struct pipe_ctx *pipe_ctx);
 };
 
 void color_space_to_black_color(

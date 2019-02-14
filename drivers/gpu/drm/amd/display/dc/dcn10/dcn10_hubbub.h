@@ -52,11 +52,7 @@
 	SR(DCHUBBUB_GLOBAL_TIMER_CNTL), \
 	SR(DCHUBBUB_TEST_DEBUG_INDEX), \
 	SR(DCHUBBUB_TEST_DEBUG_DATA),\
-	SR(DCHUBBUB_SOFT_RESET),\
-	SR(SURFACE_CHECK0_ADDRESS_MSB),\
-	SR(SURFACE_CHECK1_ADDRESS_MSB),\
-	SR(SURFACE_CHECK2_ADDRESS_MSB),\
-	SR(SURFACE_CHECK3_ADDRESS_MSB)
+	SR(DCHUBBUB_SOFT_RESET)
 
 #define HUBBUB_SR_WATERMARK_REG_LIST()\
 	SR(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A),\
@@ -120,10 +116,6 @@ struct dcn_hubbub_registers {
 	uint32_t DCN_VM_AGP_BOT;
 	uint32_t DCN_VM_AGP_TOP;
 	uint32_t DCN_VM_AGP_BASE;
-	uint32_t SURFACE_CHECK0_ADDRESS_MSB;
-	uint32_t SURFACE_CHECK1_ADDRESS_MSB;
-	uint32_t SURFACE_CHECK2_ADDRESS_MSB;
-	uint32_t SURFACE_CHECK3_ADDRESS_MSB;
 };
 
 /* set field name */
@@ -141,11 +133,7 @@ struct dcn_hubbub_registers {
 		HUBBUB_SF(DCHUBBUB_ARB_DRAM_STATE_CNTL, DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_VALUE, mask_sh), \
 		HUBBUB_SF(DCHUBBUB_ARB_DRAM_STATE_CNTL, DCHUBBUB_ARB_ALLOW_PSTATE_CHANGE_FORCE_ENABLE, mask_sh), \
 		HUBBUB_SF(DCHUBBUB_ARB_SAT_LEVEL, DCHUBBUB_ARB_SAT_LEVEL, mask_sh), \
-		HUBBUB_SF(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, mask_sh),\
-		HUBBUB_SF(SURFACE_CHECK0_ADDRESS_MSB, CHECKER0_SURFACE_INUSE, mask_sh),\
-		HUBBUB_SF(SURFACE_CHECK1_ADDRESS_MSB, CHECKER1_SURFACE_INUSE, mask_sh),\
-		HUBBUB_SF(SURFACE_CHECK2_ADDRESS_MSB, CHECKER2_SURFACE_INUSE, mask_sh),\
-		HUBBUB_SF(SURFACE_CHECK3_ADDRESS_MSB, CHECKER3_SURFACE_INUSE, mask_sh)
+		HUBBUB_SF(DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, mask_sh)
 
 #define HUBBUB_MASK_SH_LIST_DCN10(mask_sh)\
 		HUBBUB_MASK_SH_LIST_DCN(mask_sh), \
@@ -179,12 +167,7 @@ struct dcn_hubbub_registers {
 		type FB_OFFSET;\
 		type AGP_BOT;\
 		type AGP_TOP;\
-		type AGP_BASE;\
-		type CHECKER0_SURFACE_INUSE;\
-		type CHECKER1_SURFACE_INUSE;\
-		type CHECKER2_SURFACE_INUSE;\
-		type CHECKER3_SURFACE_INUSE
-
+		type AGP_BASE
 
 
 struct dcn_hubbub_shift {
@@ -232,8 +215,6 @@ void hubbub1_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm);
 
 void hubbub1_soft_reset(struct hubbub *hubbub, bool reset);
-
-void hubbub1_wait_for_safe_surf_update(struct hubbub *hubbub, uint32_t hbup_inst);
 void hubbub1_construct(struct hubbub *hubbub,
 	struct dc_context *ctx,
 	const struct dcn_hubbub_registers *hubbub_regs,

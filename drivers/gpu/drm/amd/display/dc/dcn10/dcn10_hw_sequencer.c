@@ -88,24 +88,6 @@ static void log_mpc_crc(struct dc *dc,
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 }
 
-void dcn10_wait_for_surface_safe_to_use(struct dc *dc,
-	struct pipe_ctx *pipe_ctx)
-{
-	struct hubbub *hubbub = dc->res_pool->hubbub;
-
-	if (!pipe_ctx->plane_state)
-		return;
-	if (!pipe_ctx->stream)
-		return;
-
-	if (!pipe_ctx->plane_state->visible)
-		return;
-	if (hubbub->funcs->wait_for_surf_safe_update) {
-		hubbub->funcs->wait_for_surf_safe_update(dc->res_pool->hubbub,
-			pipe_ctx->plane_res.hubp->inst);
-	}
-}
-
 void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -2969,9 +2951,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.setup_periodic_interrupt = dcn10_setup_periodic_interrupt,
-	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,
-	.wait_surface_safe_to_update = dcn10_wait_for_surface_safe_to_use,
-
+	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt
 };
 
 
