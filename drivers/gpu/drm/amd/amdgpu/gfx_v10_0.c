@@ -56,6 +56,9 @@
 #define F32_CE_PROGRAM_RAM_SIZE		65536
 #define RLCG_UCODE_LOADING_START_ADDRESS	0x00002000L
 
+#define mmCGTT_GS_NGG_CLK_CTRL	0x5087
+#define mmCGTT_GS_NGG_CLK_CTRL_BASE_IDX	1
+
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/navi10_me.bin");
