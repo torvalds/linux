@@ -1614,6 +1614,9 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 2;
 
+	/* Need 64 for max size write so ask for more in case not there yet */
+	req->sync_hdr.CreditRequest = cpu_to_le16(64);
+
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
 	rsp = (struct smb2_tree_connect_rsp *)rsp_iov.iov_base;
