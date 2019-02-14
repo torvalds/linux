@@ -745,6 +745,14 @@ static int dmabuf_imp_release(struct gntdev_dmabuf_priv *priv, u32 fd)
 	return 0;
 }
 
+static void dmabuf_imp_release_all(struct gntdev_dmabuf_priv *priv)
+{
+	struct gntdev_dmabuf *q, *gntdev_dmabuf;
+
+	list_for_each_entry_safe(gntdev_dmabuf, q, &priv->imp_list, next)
+		dmabuf_imp_release(priv, gntdev_dmabuf->fd);
+}
+
 /* DMA buffer IOCTL support. */
 
 long gntdev_ioctl_dmabuf_exp_from_refs(struct gntdev_priv *priv, int use_ptemod,
@@ -862,5 +870,6 @@ struct gntdev_dmabuf_priv *gntdev_dmabuf_init(struct file *filp)
 
 void gntdev_dmabuf_fini(struct gntdev_dmabuf_priv *priv)
 {
+	dmabuf_imp_release_all(priv);
 	kfree(priv);
 }
