@@ -86,8 +86,17 @@ davinci_aintc_handle_irq(struct pt_regs *regs)
 void __init davinci_aintc_init(const struct davinci_aintc_config *config)
 {
 	unsigned int irq_off, reg_off, prio, shift;
+	void __iomem *req;
 	int ret, irq_base;
 	const u8 *prios;
+
+	req = request_mem_region(config->reg.start,
+				 resource_size(&config->reg),
+				 "davinci-cp-intc");
+	if (!req) {
+		pr_err("%s: register range busy\n", __func__);
+		return;
+	}
 
 	davinci_aintc_base = ioremap(config->reg.start,
 				     resource_size(&config->reg));
