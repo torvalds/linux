@@ -927,7 +927,7 @@ config UCB1400_CORE
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on (ARM || HEXAGON || COMPILE_TEST)
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select MFD_CORE
 	select REGMAP
 	help
