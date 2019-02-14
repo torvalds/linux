@@ -547,14 +547,14 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 	return true;
 }
 
-void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 Mode)
+void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct h2c_set_pwrmode_parm	pwrmode;
 	u16 max_wakeup_period = 0;
 
-	pwrmode.mode = Mode;
+	pwrmode.mode = mode;
 	pwrmode.flag_low_traffic_en = 0;
 	pwrmode.flag_lpnav_en = 0;
 	pwrmode.flag_rf_low_snr_en = 0;

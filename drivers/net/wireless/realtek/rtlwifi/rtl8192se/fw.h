@@ -276,7 +276,7 @@ enum fw_h2c_cmd {
 	H2C_JOINBSS_CMD,
 	H2C_DISCONNECT_CMD,				/*15*/
 	H2C_CREATEBSS_CMD,
-	H2C_SETOPMode_CMD,
+	H2C_SETOPMODE_CMD,
 	H2C_SITESURVEY_CMD,
 	H2C_SETAUTH_CMD,
 	H2C_SETKEY_CMD,					/*20*/
@@ -315,10 +315,10 @@ enum fw_h2c_cmd {
 
 /* The following macros are used for FW
  * CMD map and parameter updated. */
-#define FW_CMD_IO_CLR(rtlpriv, _Bit)				\
+#define FW_CMD_IO_CLR(rtlpriv, _bit)				\
 	do {							\
 		udelay(1000);					\
-		rtlpriv->rtlhal.fwcmd_iomap &= (~_Bit);		\
+		rtlpriv->rtlhal.fwcmd_iomap &= (~_bit);		\
 	} while (0)
 
 #define FW_CMD_IO_UPDATE(rtlpriv, _val)				\
