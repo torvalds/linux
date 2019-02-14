@@ -783,6 +783,7 @@ void c4iw_init_dev_ucontext(struct c4iw_rdev *rdev,
 static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 {
 	int err;
+	unsigned int factor;
 
 	c4iw_init_dev_ucontext(rdev, &rdev->uctx);
 
@@ -806,8 +807,18 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		return -EINVAL;
 	}
 
-	rdev->qpmask = rdev->lldi.udb_density - 1;
-	rdev->cqmask = rdev->lldi.ucq_density - 1;
+	/* This implementation requires a sge_host_page_size <= PAGE_SIZE. */
+	if (rdev->lldi.sge_host_page_size > PAGE_SIZE) {
+		pr_err("%s: unsupported sge host page size %u\n",
+		       pci_name(rdev->lldi.pdev),
+		       rdev->lldi.sge_host_page_size);
+		return -EINVAL;
+	}
+
+	factor = PAGE_SIZE / rdev->lldi.sge_host_page_size;
+	rdev->qpmask = (rdev->lldi.udb_density * factor) - 1;
+	rdev->cqmask = (rdev->lldi.ucq_density * factor) - 1;
+
 	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u srq size %u\n",
 		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
