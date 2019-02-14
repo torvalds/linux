@@ -1046,14 +1046,17 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 			return -ENODEV;
 		}
 
-		if (of_address_to_resource(sysmgr_np, 0, &res))
+		if (of_address_to_resource(sysmgr_np, 0, &res)) {
+			of_node_put(sysmgr_np);
 			return -ENOMEM;
+		}
 
 		/* Need physical address for SMCC call */
 		base = res.start;
 
 		ecc_mgr_map = regmap_init(NULL, NULL, (void *)base,
 					  &s10_sdram_regmap_cfg);
+		of_node_put(sysmgr_np);
 	}
 	of_node_put(np_eccmgr);
 	if (IS_ERR(ecc_mgr_map)) {
