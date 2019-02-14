@@ -4267,19 +4267,19 @@ void __init lockdep_init(void)
 	printk("... CHAINHASH_SIZE:          %lu\n", CHAINHASH_SIZE);
 
 	printk(" memory used by lock dependency info: %zu kB\n",
-		(sizeof(struct lock_class) * MAX_LOCKDEP_KEYS +
-		sizeof(struct list_head) * CLASSHASH_SIZE +
-		sizeof(struct lock_list) * MAX_LOCKDEP_ENTRIES +
-		sizeof(struct lock_chain) * MAX_LOCKDEP_CHAINS +
-		sizeof(struct list_head) * CHAINHASH_SIZE
+	       (sizeof(lock_classes) +
+		sizeof(classhash_table) +
+		sizeof(list_entries) +
+		sizeof(lock_chains) +
+		sizeof(chainhash_table)
 #ifdef CONFIG_PROVE_LOCKING
-		+ sizeof(struct circular_queue)
+		+ sizeof(lock_cq)
 #endif
 		) / 1024
 		);
 
 	printk(" per task-struct memory footprint: %zu bytes\n",
-		sizeof(struct held_lock) * MAX_LOCK_DEPTH);
+	       sizeof(((struct task_struct *)NULL)->held_locks));
 }
 
 static void
