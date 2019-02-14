@@ -91,8 +91,10 @@ void __init davinci_aintc_init(const struct davinci_aintc_config *config)
 
 	davinci_aintc_base = ioremap(config->reg.start,
 				     resource_size(&config->reg));
-	if (WARN_ON(!davinci_aintc_base))
+	if (!davinci_aintc_base) {
+		pr_err("%s: unable to ioremap register range\n", __func__);
 		return;
+	}
 
 	/* Clear all interrupt requests */
 	davinci_aintc_writel(~0x0, DAVINCI_AINTC_FIQ_REG0);
@@ -125,20 +127,28 @@ void __init davinci_aintc_init(const struct davinci_aintc_config *config)
 	}
 
 	irq_base = irq_alloc_descs(-1, 0, config->num_irqs, 0);
-	if (WARN_ON(irq_base < 0))
+	if (irq_base < 0) {
+		pr_err("%s: unable to allocate interrupt descriptors: %d\n",
+		       __func__, irq_base);
 		return;
+	}
 
 	davinci_aintc_irq_domain = irq_domain_add_legacy(NULL,
 						config->num_irqs, irq_base, 0,
 						&irq_domain_simple_ops, NULL);
-	if (WARN_ON(!davinci_aintc_irq_domain))
+	if (!davinci_aintc_irq_domain) {
+		pr_err("%s: unable to create interrupt domain\n", __func__);
 		return;
+	}
 
 	ret = irq_alloc_domain_generic_chips(davinci_aintc_irq_domain, 32, 1,
 					     "AINTC", handle_edge_irq,
 					     IRQ_NOREQUEST | IRQ_NOPROBE, 0, 0);
-	if (WARN_ON(ret))
+	if (ret) {
+		pr_err("%s: unable to allocate generic irq chips for domain\n",
+		       __func__);
 		return;
+	}
 
 	for (irq_off = 0, reg_off = 0;
 	     irq_off < config->num_irqs;
