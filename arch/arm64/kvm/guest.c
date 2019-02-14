@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <kvm/arm_psci.h>
