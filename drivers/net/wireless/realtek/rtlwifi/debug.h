@@ -136,7 +136,7 @@ enum dbgp_flag_e {
 	FEEPROM = 11,
 	FPWR = 12,
 	FDM = 13,
-	FDBGCtrl = 14,
+	FDBGCTRL = 14,
 	FC2H = 15,
 	FBT = 16,
 	FINIT = 17,

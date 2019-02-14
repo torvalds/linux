@@ -4,7 +4,7 @@
 #include "wifi.h"
 #include "regd.h"
 
-static struct country_code_to_enum_rd allCountries[] = {
+static struct country_code_to_enum_rd all_countries[] = {
 	{COUNTRY_CODE_FCC, "US"},
 	{COUNTRY_CODE_IC, "US"},
 	{COUNTRY_CODE_ETSI, "EC"},
@@ -369,9 +369,9 @@ static struct country_code_to_enum_rd *_rtl_regd_find_country(u16 countrycode)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(allCountries); i++) {
-		if (allCountries[i].countrycode == countrycode)
-			return &allCountries[i];
+	for (i = 0; i < ARRAY_SIZE(all_countries); i++) {
+		if (all_countries[i].countrycode == countrycode)
+			return &all_countries[i];
 	}
 	return NULL;
 }

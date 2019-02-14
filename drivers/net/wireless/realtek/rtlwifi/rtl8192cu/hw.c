@@ -1331,7 +1331,7 @@ void rtl92cu_card_disable(struct ieee80211_hw *hw)
 	_rtl92cu_set_media_status(hw, opmode);
 	rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_OFF);
 	RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
-	if (rtlusb->disableHWSM)
+	if (rtlusb->disablehwsm)
 		_CardDisableHWSM(hw);
 	else
 		_CardDisableWithoutHWSM(hw);

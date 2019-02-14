@@ -194,7 +194,7 @@ static void _usb_write32_async(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 	_usb_write_async(to_usb_device(dev), addr, val, 4);
 }
 
-static void _usb_writeN_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
+static void _usb_writen_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
 			     u16 len)
 {
 	struct device *dev = rtlpriv->io.dev;
@@ -229,7 +229,7 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 	rtlpriv->io.read8_sync		= _usb_read8_sync;
 	rtlpriv->io.read16_sync		= _usb_read16_sync;
 	rtlpriv->io.read32_sync		= _usb_read32_sync;
-	rtlpriv->io.writeN_sync		= _usb_writeN_sync;
+	rtlpriv->io.writen_sync		= _usb_writen_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
@@ -393,7 +393,7 @@ static void rtl_usb_init_sw(struct ieee80211_hw *hw)
 	rtlusb->irq_mask[0] = 0xFFFFFFFF;
 	/* HIMR_EX - turn all on */
 	rtlusb->irq_mask[1] = 0xFFFFFFFF;
-	rtlusb->disableHWSM =  true;
+	rtlusb->disablehwsm =  true;
 }
 
 static void _rtl_rx_completed(struct urb *urb);

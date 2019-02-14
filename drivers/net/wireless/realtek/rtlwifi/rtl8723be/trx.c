@@ -316,7 +316,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	status->isampdu = (bool)(GET_RX_DESC_PAGGR(pdesc) == 1);
 	status->isfirst_ampdu = (bool)(GET_RX_DESC_PAGGR(pdesc) == 1);
 	status->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	status->rx_is40Mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
+	status->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	status->bandwidth = (u8)GET_RX_DESC_BW(pdesc);
 	status->macid = GET_RX_DESC_MACID(pdesc);
 	status->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
@@ -350,7 +350,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (status->rx_is40Mhzpacket)
+	if (status->rx_is40mhzpacket)
 		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)

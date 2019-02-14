@@ -332,7 +332,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	stats->isfirst_ampdu = (bool) ((GET_RX_DESC_PAGGR(pdesc) == 1)
 				   && (GET_RX_DESC_FAGGR(pdesc) == 1));
 	stats->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
+	stats->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	stats->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
 
 	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc->rxmcs);
@@ -346,7 +346,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	if (stats->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (stats->rx_is40Mhzpacket)
+	if (stats->rx_is40mhzpacket)
 		rx_status->bw = RATE_INFO_BW_40;
 
 	if (stats->is_ht)

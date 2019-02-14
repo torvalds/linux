@@ -84,7 +84,7 @@ struct rtl_usb {
 	/* Bcn control register setting */
 	u32 reg_bcn_ctrl_val;
 	/* for 88/92cu card disable */
-	u8	disableHWSM;
+	u8	disablehwsm;
 	/*QOS & EDCA */
 	enum acm_method acm_method;
 	/* irq  . HIMR,HIMR_EX */
