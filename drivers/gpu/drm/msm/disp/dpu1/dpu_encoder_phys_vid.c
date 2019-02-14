@@ -449,34 +449,10 @@ end:
 
 static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 {
-	struct msm_drm_private *priv;
-	struct dpu_rm_hw_iter iter;
 	struct dpu_hw_ctl *ctl;
 	u32 flush_mask = 0;
 
-	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev ||
-			!phys_enc->parent->dev->dev_private) {
-		DPU_ERROR("invalid encoder/device\n");
-		return;
-	}
-	priv = phys_enc->parent->dev->dev_private;
-
 	ctl = phys_enc->hw_ctl;
-
-	dpu_rm_init_hw_iter(&iter, phys_enc->parent->base.id, DPU_HW_BLK_INTF);
-	while (dpu_rm_get_hw(&phys_enc->dpu_kms->rm, &iter)) {
-		struct dpu_hw_intf *hw_intf = (struct dpu_hw_intf *)iter.hw;
-
-		if (hw_intf->idx == phys_enc->intf_idx) {
-			phys_enc->hw_intf = hw_intf;
-			break;
-		}
-	}
-
-	if (!phys_enc->hw_intf) {
-		DPU_ERROR("hw_intf not assigned\n");
-		return;
-	}
 
 	DPU_DEBUG_VIDENC(phys_enc, "\n");
 

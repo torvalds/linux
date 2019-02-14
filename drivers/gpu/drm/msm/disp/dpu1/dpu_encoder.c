@@ -969,7 +969,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct dpu_hw_ctl *hw_ctl[MAX_CHANNELS_PER_ENC] = { NULL };
 	struct dpu_hw_mixer *hw_lm[MAX_CHANNELS_PER_ENC] = { NULL };
 	int num_lm = 0, num_ctl = 0;
-	int i = 0, ret;
+	int i, j, ret;
 
 	if (!drm_enc) {
 		DPU_ERROR("invalid encoder\n");
@@ -1065,6 +1065,26 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 			phys->hw_pp = dpu_enc->hw_pp[i];
 			phys->hw_ctl = hw_ctl[i];
+
+			dpu_rm_init_hw_iter(&hw_iter, drm_enc->base.id,
+					    DPU_HW_BLK_INTF);
+			for (j = 0; j < MAX_CHANNELS_PER_ENC; j++) {
+				struct dpu_hw_intf *hw_intf;
+
+				if (!dpu_rm_get_hw(&dpu_kms->rm, &hw_iter))
+					break;
+
+				hw_intf = (struct dpu_hw_intf *)hw_iter.hw;
+				if (hw_intf->idx == phys->intf_idx)
+					phys->hw_intf = hw_intf;
+			}
+
+			if (!phys->hw_intf) {
+				DPU_ERROR_ENC(dpu_enc,
+					      "no intf block assigned at idx: %d\n",
+					      i);
+				goto error;
+			}
 
 			phys->connector = conn->state->connector;
 			if (phys->ops.mode_set)
