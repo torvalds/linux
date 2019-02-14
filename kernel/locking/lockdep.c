@@ -2266,7 +2266,7 @@ static inline int add_chain_cache(struct task_struct *curr,
 	 */
 
 	/*
-	 * We might need to take the graph lock, ensure we've got IRQs
+	 * The caller must hold the graph lock, ensure we've got IRQs
 	 * disabled to make this an IRQ-safe lock.. for recursion reasons
 	 * lockdep won't complain about its own locking errors.
 	 */
