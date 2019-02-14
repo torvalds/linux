@@ -282,7 +282,12 @@ static int cedrus_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 	struct cedrus_dev *dev = ctx->dev;
+	struct vb2_queue *vq;
 	int ret;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	if (vb2_is_busy(vq))
+		return -EBUSY;
 
 	ret = cedrus_try_fmt_vid_cap(file, priv, f);
 	if (ret)
@@ -299,7 +304,12 @@ static int cedrus_s_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
+	struct vb2_queue *vq;
 	int ret;
+
+	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+	if (vb2_is_busy(vq))
+		return -EBUSY;
 
 	ret = cedrus_try_fmt_vid_out(file, priv, f);
 	if (ret)
