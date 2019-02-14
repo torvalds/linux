@@ -876,7 +876,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  *
- * Pipelined gutting a BO of it's backing store.
+ * Pipelined gutting a BO of its backing store.
  */
 int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 

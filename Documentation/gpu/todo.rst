@@ -398,10 +398,6 @@ KMS cleanups
 
 Some of these date from the very introduction of KMS in 2008 ...
 
-- drm_display_mode doesn't need to be derived from drm_mode_object. That's
-  leftovers from older (never merged into upstream) KMS designs where modes
-  where set using their ID, including support to add/remove modes.
-
 - Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
   function tables in drivers, but before we can remove them we need to make sure
   that all the users in helpers and drivers do correctly check for a NULL

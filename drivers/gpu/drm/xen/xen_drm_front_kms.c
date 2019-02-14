@@ -54,7 +54,7 @@ fb_create(struct drm_device *dev, struct drm_file *filp,
 	  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xen_drm_front_drm_info *drm_info = dev->dev_private;
-	static struct drm_framebuffer *fb;
+	struct drm_framebuffer *fb;
 	struct drm_gem_object *gem_obj;
 	int ret;
 

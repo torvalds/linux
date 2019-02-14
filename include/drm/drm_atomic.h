@@ -192,7 +192,7 @@ struct drm_private_state;
  * private objects. The structure itself is used as a vtable to identify the
  * associated private object type. Each private object type that needs to be
  * added to the atomic states is expected to have an implementation of these
- * hooks and pass a pointer to it's drm_private_state_funcs struct to
+ * hooks and pass a pointer to its drm_private_state_funcs struct to
  * drm_atomic_get_private_obj_state().
  */
 struct drm_private_state_funcs {
@@ -329,6 +329,15 @@ struct drm_atomic_state {
 	bool allow_modeset : 1;
 	bool legacy_cursor_update : 1;
 	bool async_update : 1;
+	/**
+	 * @duplicated:
+	 *
+	 * Indicates whether or not this atomic state was duplicated using
+	 * drm_atomic_helper_duplicate_state(). Drivers and atomic helpers
+	 * should use this to fixup normal  inconsistencies in duplicated
+	 * states.
+	 */
+	bool duplicated : 1;
 	struct __drm_planes_state *planes;
 	struct __drm_crtcs_state *crtcs;
 	int num_connector;

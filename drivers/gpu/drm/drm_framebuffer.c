@@ -773,7 +773,7 @@ EXPORT_SYMBOL(drm_framebuffer_lookup);
  * @fb: fb to unregister
  *
  * Drivers need to call this when cleaning up driver-private framebuffers, e.g.
- * those used for fbdev. Note that the caller must hold a reference of it's own,
+ * those used for fbdev. Note that the caller must hold a reference of its own,
  * i.e. the object may not be destroyed through this call (since it'll lead to a
  * locking inversion).
  *

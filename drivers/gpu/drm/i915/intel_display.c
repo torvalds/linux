@@ -24,23 +24,32 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
-#include <linux/module.h>
-#include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
+#include <linux/intel-iommu.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/reservation.h>
 #include <linux/slab.h>
 #include <linux/vgaarb.h>
-#include <drm/drm_edid.h>
-#include <drm/i915_drm.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_atomic_uapi.h>
-#include <linux/intel-iommu.h>
-#include <linux/reservation.h>
+#include <drm/i915_drm.h>
+
+#include "i915_drv.h"
+#include "i915_gem_clflush.h"
+#include "i915_trace.h"
+#include "intel_drv.h"
+#include "intel_dsi.h"
+#include "intel_frontbuffer.h"
 
 #include "intel_drv.h"
 #include "intel_dsi.h"

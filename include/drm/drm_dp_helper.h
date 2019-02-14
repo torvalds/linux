@@ -1052,11 +1052,18 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw);
 #define DP_SDP_VSC_EXT_CEA		0x21 /* DP 1.4 */
 /* 0x80+ CEA-861 infoframe types */
 
+/**
+ * struct dp_sdp_header - DP secondary data packet header
+ * @HB0: Secondary Data Packet ID
+ * @HB1: Secondary Data Packet Type
+ * @HB2: Secondary Data Packet Specific header, Byte 0
+ * @HB3: Secondary Data packet Specific header, Byte 1
+ */
 struct dp_sdp_header {
-	u8 HB0; /* Secondary Data Packet ID */
-	u8 HB1; /* Secondary Data Packet Type */
-	u8 HB2; /* Secondary Data Packet Specific header, Byte 0 */
-	u8 HB3; /* Secondary Data packet Specific header, Byte 1 */
+	u8 HB0;
+	u8 HB1;
+	u8 HB2;
+	u8 HB3;
 } __packed;
 
 #define EDP_SDP_HEADER_REVISION_MASK		0x1F
