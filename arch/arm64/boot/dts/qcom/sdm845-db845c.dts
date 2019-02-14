@@ -72,6 +72,17 @@
 		};
 	};
 
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&lt9611_out>;
+			};
+		};
+	};
+
 	lt9611_1v8: lt9611-vdd18-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "LT9611_1V8";
@@ -346,6 +357,53 @@
 	firmware-name = "qcom/db845c/cdsp.mdt";
 };
 
+&dsi0 {
+	status = "okay";
+	vdda-supply = <&vreg_l26a_1p2>;
+
+#if 0
+	qcom,dual-dsi-mode;
+	qcom,master-dsi;
+#endif
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lt9611_a>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l1a_0p875>;
+};
+
+#if 0
+&dsi1 {
+	status = "okay";
+	vdda-supply = <&vreg_l26a_1p2>;
+
+	qcom,dual-dsi-mode;
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lt9611_b>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&dsi1_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l1a_0p875>;
+};
+#endif
+
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -383,6 +441,65 @@
 
 	vdda-phy-supply = <&vreg_l1a_0p875>;
 	vdda-pll-supply = <&vreg_l26a_1p2>;
+};
+
+&i2c10 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	hdmi-bridge@3b {
+		compatible = "lt,lt9611";
+		reg = <0x3b>;
+
+		interrupts-extended = <&tlmm 84 IRQ_TYPE_EDGE_FALLING>;
+
+		reset-gpios = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+
+		vdd-supply = <&lt9611_1v8>;
+		vcc-supply = <&lt9611_3v3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lt9611_irq_pin>, <&dsi_sw_sel>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lt9611_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lt9611_a: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+
+#if 0
+			port@2 {
+				reg = <2>;
+
+				lt9611_b: endpoint {
+					remote-endpoint = <&dsi1_out>;
+				};
+			};
+#endif
+		};
+	};
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
+	status = "okay";
 };
 
 &pm8998_gpio {
@@ -450,6 +567,12 @@
 			drive-strength = <2>;
 			bias-pull-up;
 		};
+	};
+
+	lt9611_irq_pin: lt9611-irq {
+		pins = "gpio84";
+		function = "gpio";
+		bias-disable;
 	};
 
 	pcie0_pwren_state: pcie0-pwren {
@@ -522,6 +645,15 @@
 		pins = "gpio126";
 		function = "gpio";
 		bias-pull-up;
+	};
+
+	dsi_sw_sel: dsi-sw-sel {
+		pins = "gpio120";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
 	};
 };
 
@@ -623,6 +755,14 @@
 };
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
+
+&qup_i2c10_default {
+	pinconf {
+		pins = "gpio55", "gpio56";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
 
 &qup_uart6_default {
 	pinmux {
