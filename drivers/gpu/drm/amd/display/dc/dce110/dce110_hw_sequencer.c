@@ -616,7 +616,7 @@ dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
-	bool is_hdmi;
+	bool is_hdmi_tmds;
 	bool is_dp;
 
 	ASSERT(pipe_ctx->stream);
@@ -624,13 +624,13 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.stream_enc == NULL)
 		return;  /* this is not root pipe */
 
-	is_hdmi = dc_is_hdmi_signal(pipe_ctx->stream->signal);
+	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi && !is_dp)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
-	if (is_hdmi)
+	if (is_hdmi_tmds)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
@@ -974,8 +974,9 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 			set_pme_wa_enable_by_version(core_dc);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
-		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, false);
+		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+			pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+				pipe_ctx->stream_res.stream_enc, false);
 	}
 }
 
@@ -1026,7 +1027,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 

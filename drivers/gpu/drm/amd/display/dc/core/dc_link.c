@@ -2579,7 +2579,7 @@ void core_link_enable_stream(
 			&stream->timing,
 			stream->output_color_space);
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
 			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
