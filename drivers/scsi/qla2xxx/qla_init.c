@@ -1831,6 +1831,12 @@ qla24xx_handle_prli_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 
 		ea->fcport->chip_reset = vha->hw->base_qpair->chip_reset;
 		ea->fcport->logout_on_delete = 1;
+		ea->fcport->nvme_prli_service_param = ea->iop[0];
+		if (ea->iop[0] & NVME_PRLI_SP_FIRST_BURST)
+			ea->fcport->nvme_first_burst_size =
+			    (ea->iop[1] & 0xffff) * 512;
+		else
+			ea->fcport->nvme_first_burst_size = 0;
 		qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		break;
 	default:

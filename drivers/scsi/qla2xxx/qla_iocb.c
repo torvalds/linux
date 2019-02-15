@@ -2419,8 +2419,11 @@ qla24xx_prli_iocb(srb_t *sp, struct logio_entry_24xx *logio)
 
 	logio->entry_type = LOGINOUT_PORT_IOCB_TYPE;
 	logio->control_flags = cpu_to_le16(LCF_COMMAND_PRLI);
-	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI)
+	if (lio->u.logio.flags & SRB_LOGIN_NVME_PRLI) {
 		logio->control_flags |= LCF_NVME_PRLI;
+		if (sp->vha->flags.nvme_first_burst)
+			logio->io_parameter[0] = NVME_PRLI_SP_FIRST_BURST;
+	}
 
 	logio->nport_handle = cpu_to_le16(sp->fcport->loop_id);
 	logio->port_id[0] = sp->fcport->d_id.b.al_pa;

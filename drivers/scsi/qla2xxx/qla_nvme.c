@@ -358,17 +358,24 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
-		cmd_pkt->control_flags =
-		    cpu_to_le16(CF_READ_DATA | CF_NVME_ENABLE);
+		cmd_pkt->control_flags = CF_READ_DATA;
 		vha->qla_stats.input_bytes += fd->payload_length;
 		vha->qla_stats.input_requests++;
 	} else if (fd->io_dir == NVMEFC_FCP_WRITE) {
-		cmd_pkt->control_flags =
-		    cpu_to_le16(CF_WRITE_DATA | CF_NVME_ENABLE);
+		cmd_pkt->control_flags = CF_WRITE_DATA;
+		if ((vha->flags.nvme_first_burst) &&
+		    (sp->fcport->nvme_prli_service_param &
+			NVME_PRLI_SP_FIRST_BURST)) {
+			if ((fd->payload_length <=
+			    sp->fcport->nvme_first_burst_size) ||
+				(sp->fcport->nvme_first_burst_size == 0))
+				cmd_pkt->control_flags |=
+				    CF_NVME_FIRST_BURST_ENABLE;
+		}
 		vha->qla_stats.output_bytes += fd->payload_length;
 		vha->qla_stats.output_requests++;
 	} else if (fd->io_dir == 0) {
-		cmd_pkt->control_flags = cpu_to_le16(CF_NVME_ENABLE);
+		cmd_pkt->control_flags = 0;
 	}
 
 	/* Set NPORT-ID */

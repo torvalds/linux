@@ -1112,6 +1112,9 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		if ((ha->fw_attributes_h &
 		    (FW_ATTR_H_NVME | FW_ATTR_H_NVME_UPDATED)) &&
 			ql2xnvmeenable) {
+			if (ha->fw_attributes_h & FW_ATTR_H_NVME_FBURST)
+				vha->flags.nvme_first_burst = 1;
+
 			vha->flags.nvme_enabled = 1;
 			ql_log(ql_log_info, vha, 0xd302,
 			    "%s: FC-NVMe is Enabled (0x%x)\n",
@@ -6267,8 +6270,6 @@ int __qla24xx_parse_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport,
 	fcport->d_id.b.rsvd_1 = 0;
 
 	if (fcport->fc4f_nvme) {
-		fcport->nvme_prli_service_param =
-		    pd->prli_nvme_svc_param_word_3;
 		fcport->port_type = FCT_NVME;
 	} else {
 		/* If not target must be initiator or unknown type. */

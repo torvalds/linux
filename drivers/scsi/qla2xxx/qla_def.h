@@ -2367,7 +2367,9 @@ typedef struct fc_port {
 #define NVME_PRLI_SP_INITIATOR  BIT_5
 #define NVME_PRLI_SP_TARGET     BIT_4
 #define NVME_PRLI_SP_DISCOVERY  BIT_3
+#define NVME_PRLI_SP_FIRST_BURST	BIT_0
 	uint8_t nvme_flag;
+	uint32_t nvme_first_burst_size;
 #define NVME_FLAG_REGISTERED 4
 #define NVME_FLAG_DELETING 2
 #define NVME_FLAG_RESETTING 1
@@ -3966,6 +3968,7 @@ struct qla_hw_data {
 	uint16_t	fw_subminor_version;
 	uint16_t	fw_attributes;
 	uint16_t	fw_attributes_h;
+#define FW_ATTR_H_NVME_FBURST 	BIT_1
 #define FW_ATTR_H_NVME		BIT_10
 #define FW_ATTR_H_NVME_UPDATED  BIT_14
 
@@ -4260,6 +4263,7 @@ typedef struct scsi_qla_host {
 		uint32_t	qpairs_req_created:1;
 		uint32_t	qpairs_rsp_created:1;
 		uint32_t	nvme_enabled:1;
+		uint32_t        nvme_first_burst:1;
 	} flags;
 
 	atomic_t	loop_state;
