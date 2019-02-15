@@ -94,6 +94,7 @@ EXPORT_SYMBOL(rtc_time64_to_tm);
 int rtc_valid_tm(struct rtc_time *tm)
 {
 	if (tm->tm_year < 70 ||
+	    tm->tm_year > (INT_MAX - 1900) ||
 	    ((unsigned int)tm->tm_mon) >= 12 ||
 	    tm->tm_mday < 1 ||
 	    tm->tm_mday > rtc_month_days(tm->tm_mon,
