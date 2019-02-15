@@ -188,7 +188,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->reset_on_lockup = reset_on_lockup;
 
 	/* Parameters for bring-up - set them to defaults */
-	hdev->mmu_enable = 0;
+	hdev->mmu_enable = 1;
 	hdev->cpu_enable = 1;
 	hdev->reset_pcilink = 0;
 	hdev->cpu_queues_enable = 1;

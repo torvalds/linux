@@ -19,6 +19,7 @@
 #include <linux/dma-fence.h>
 #include <linux/dma-direction.h>
 #include <linux/scatterlist.h>
+#include <linux/hashtable.h>
 
 #define HL_NAME				"habanalabs"
 
@@ -38,6 +39,31 @@
 
 /* MUST BE POWER OF 2 and larger than 1 */
 #define HL_MAX_PENDING_CS		64
+
+/* Memory */
+#define MEM_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
+
+/* MMU */
+#define MMU_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
+
+/**
+ * struct pgt_info - MMU hop page info.
+ * @node: hash linked-list node for the pgts hash of pgts.
+ * @addr: physical address of the pgt.
+ * @ctx: pointer to the owner ctx.
+ * @num_of_ptes: indicates how many ptes are used in the pgt.
+ *
+ * The MMU page tables hierarchy is placed on the DRAM. When a new level (hop)
+ * is needed during mapping, a new page is allocated and this structure holds
+ * its essential information. During unmapping, if no valid PTEs remained in the
+ * page, it is freed with its pgt_info structure.
+ */
+struct pgt_info {
+	struct hlist_node node;
+	u64 addr;
+	struct hl_ctx *ctx;
+	int num_of_ptes;
+};
 
 struct hl_device;
 struct hl_fpriv;
@@ -72,11 +98,11 @@ struct hw_queue_properties {
 /**
  * enum vm_type_t - virtual memory mapping request information.
  * @VM_TYPE_USERPTR: mapping of user memory to device virtual address.
- * @VM_TYPE_PHYS_LIST: mapping of DRAM memory to device virtual address.
+ * @VM_TYPE_PHYS_PACK: mapping of DRAM memory to device virtual address.
  */
 enum vm_type_t {
 	VM_TYPE_USERPTR,
-	VM_TYPE_PHYS_LIST
+	VM_TYPE_PHYS_PACK
 };
 
 /**
@@ -117,6 +143,12 @@ enum hl_device_hw_state {
  *                               mapping DRAM memory.
  * @va_space_dram_end_address: end address of virtual memory range for
  *                             mapping DRAM memory.
+ * @mmu_pgt_addr: base physical address in DRAM of MMU page tables.
+ * @mmu_pgt_size: MMU page tables total size.
+ * @mmu_pte_size: PTE size in MMU page tables.
+ * @mmu_hop_table_size: MMU hop table size.
+ * @mmu_hop0_tables_total_size: total size of MMU hop0 tables.
+ * @dram_page_size: page size for MMU DRAM allocation.
  * @cfg_size: configuration space size on SRAM.
  * @sram_size: total size of SRAM.
  * @max_asid: maximum number of open contexts (ASIDs).
@@ -150,6 +182,12 @@ struct asic_fixed_properties {
 	u64			va_space_host_end_address;
 	u64			va_space_dram_start_address;
 	u64			va_space_dram_end_address;
+	u64			mmu_pgt_addr;
+	u32			mmu_pgt_size;
+	u32			mmu_pte_size;
+	u32			mmu_hop_table_size;
+	u32			mmu_hop0_tables_total_size;
+	u32			dram_page_size;
 	u32			cfg_size;
 	u32			sram_size;
 	u32			max_asid;
@@ -419,6 +457,12 @@ enum hl_pll_frequency {
  * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
  * @set_pll_profile: change PLL profile (manual/automatic).
  * @get_events_stat: retrieve event queue entries histogram.
+ * @read_pte: read MMU page table entry from DRAM.
+ * @write_pte: write MMU page table entry to DRAM.
+ * @mmu_invalidate_cache: flush MMU STLB cache, either with soft (L1 only) or
+ *                        hard (L0 & L1) flush.
+ * @mmu_invalidate_cache_range: flush specific MMU STLB cache lines with
+ *                              ASID-VA-size mask.
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
  * @enable_clock_gating: enable clock gating for reducing power consumption.
  * @disable_clock_gating: disable clock for accessing registers on HBW.
@@ -483,6 +527,11 @@ struct hl_asic_funcs {
 	void (*set_pll_profile)(struct hl_device *hdev,
 			enum hl_pll_frequency freq);
 	void* (*get_events_stat)(struct hl_device *hdev, u32 *size);
+	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
+	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
+	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard);
+	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
+			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
@@ -505,16 +554,39 @@ struct hl_asic_funcs {
 #define HL_KERNEL_ASID_ID	0
 
 /**
+ * struct hl_va_range - virtual addresses range.
+ * @lock: protects the virtual addresses list.
+ * @list: list of virtual addresses blocks available for mappings.
+ * @start_addr: range start address.
+ * @end_addr: range end address.
+ */
+struct hl_va_range {
+	struct mutex		lock;
+	struct list_head	list;
+	u64			start_addr;
+	u64			end_addr;
+};
+
+/**
  * struct hl_ctx - user/kernel context.
+ * @mem_hash: holds mapping from virtual address to virtual memory area
+ *		descriptor (hl_vm_phys_pg_list or hl_userptr).
+ * @mmu_hash: holds a mapping from virtual address to pgt_info structure.
  * @hpriv: pointer to the private (KMD) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of DMA fence objects representing pending CS.
+ * @host_va_range: holds available virtual addresses for host mappings.
+ * @dram_va_range: holds available virtual addresses for DRAM mappings.
+ * @mem_hash_lock: protects the mem_hash.
+ * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
+ *            MMU hash or walking the PGT requires talking this lock
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
  * @cs_lock: spinlock to protect cs_sequence.
+ * @dram_phys_mem: amount of used physical DRAM memory by this context.
  * @thread_restore_token: token to prevent multiple threads of the same context
  *				from running the restore phase. Only one thread
  *				should run it.
@@ -524,12 +596,19 @@ struct hl_asic_funcs {
  * @asid: context's unique address space ID in the device's MMU.
  */
 struct hl_ctx {
+	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(mmu_hash, MMU_HASH_TABLE_BITS);
 	struct hl_fpriv		*hpriv;
 	struct hl_device	*hdev;
 	struct kref		refcount;
 	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
+	struct hl_va_range	host_va_range;
+	struct hl_va_range	dram_va_range;
+	struct mutex		mem_hash_lock;
+	struct mutex		mmu_lock;
 	u64			cs_sequence;
 	spinlock_t		cs_lock;
+	atomic64_t		dram_phys_mem;
 	atomic_t		thread_restore_token;
 	u32			thread_restore_wait_token;
 	u32			asid;
@@ -673,6 +752,85 @@ struct hl_cs_parser {
 
 
 /*
+ * MEMORY STRUCTURE
+ */
+
+/**
+ * struct hl_vm_hash_node - hash element from virtual address to virtual
+ *				memory area descriptor (hl_vm_phys_pg_list or
+ *				hl_userptr).
+ * @node: node to hang on the hash table in context object.
+ * @vaddr: key virtual address.
+ * @ptr: value pointer (hl_vm_phys_pg_list or hl_userptr).
+ */
+struct hl_vm_hash_node {
+	struct hlist_node	node;
+	u64			vaddr;
+	void			*ptr;
+};
+
+/**
+ * struct hl_vm_phys_pg_pack - physical page pack.
+ * @vm_type: describes the type of the virtual area descriptor.
+ * @pages: the physical page array.
+ * @mapping_cnt: number of shared mappings.
+ * @asid: the context related to this list.
+ * @npages: num physical pages in the pack.
+ * @page_size: size of each page in the pack.
+ * @total_size: total size of all the pages in this list.
+ * @flags: HL_MEM_* flags related to this list.
+ * @handle: the provided handle related to this list.
+ * @offset: offset from the first page.
+ * @contiguous: is contiguous physical memory.
+ * @created_from_userptr: is product of host virtual address.
+ */
+struct hl_vm_phys_pg_pack {
+	enum vm_type_t		vm_type; /* must be first */
+	u64			*pages;
+	atomic_t		mapping_cnt;
+	u32			asid;
+	u32			npages;
+	u32			page_size;
+	u32			total_size;
+	u32			flags;
+	u32			handle;
+	u32			offset;
+	u8			contiguous;
+	u8			created_from_userptr;
+};
+
+/**
+ * struct hl_vm_va_block - virtual range block information.
+ * @node: node to hang on the virtual range list in context object.
+ * @start: virtual range start address.
+ * @end: virtual range end address.
+ * @size: virtual range size.
+ */
+struct hl_vm_va_block {
+	struct list_head	node;
+	u64			start;
+	u64			end;
+	u64			size;
+};
+
+/**
+ * struct hl_vm - virtual memory manager for MMU.
+ * @dram_pg_pool: pool for DRAM physical pages of 2MB.
+ * @dram_pg_pool_refcount: reference counter for the pool usage.
+ * @idr_lock: protects the phys_pg_list_handles.
+ * @phys_pg_pack_handles: idr to hold all device allocations handles.
+ * @init_done: whether initialization was done. We need this because VM
+ *		initialization might be skipped during device initialization.
+ */
+struct hl_vm {
+	struct gen_pool		*dram_pg_pool;
+	struct kref		dram_pg_pool_refcount;
+	spinlock_t		idr_lock;
+	struct idr		phys_pg_pack_handles;
+	u8			init_done;
+};
+
+/*
  * FILE PRIVATE STRUCTURE
  */
 
@@ -787,12 +945,16 @@ struct hl_device_reset_work {
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
+ * @mmu_pgt_pool: pool of available MMU hops.
+ * @vm: virtual memory manager for MMU.
+ * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
+ * @dram_used_mem: current DRAM memory consumption.
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @fd_open_cnt: number of open user processes.
@@ -812,6 +974,7 @@ struct hl_device_reset_work {
  * @heartbeat: is heartbeat sanity check towards ArmCP enabled.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
+ * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  */
@@ -846,6 +1009,9 @@ struct hl_device {
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
+	struct gen_pool			*mmu_pgt_pool;
+	struct hl_vm			vm;
+	struct mutex			mmu_cache_lock;
 	struct device			*hwmon_dev;
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
@@ -856,6 +1022,7 @@ struct hl_device {
 	/* TODO: remove user_ctx for multiple process support */
 	struct hl_ctx			*user_ctx;
 
+	atomic64_t			dram_used_mem;
 	atomic_t			in_reset;
 	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
@@ -872,6 +1039,7 @@ struct hl_device {
 	u8				hard_reset_pending;
 	u8				heartbeat;
 	u8				reset_on_lockup;
+	u8				dram_supports_virtual_memory;
 	u8				init_done;
 
 	/* Parameters for bring-up */
@@ -1021,6 +1189,7 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 void hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
+
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
 		struct armcp_sensor *sensors_arr);
 
@@ -1048,6 +1217,12 @@ struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 
+int hl_vm_ctx_init(struct hl_ctx *ctx);
+void hl_vm_ctx_fini(struct hl_ctx *ctx);
+
+int hl_vm_init(struct hl_device *hdev);
+void hl_vm_fini(struct hl_device *hdev);
+
 int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
 			struct hl_userptr *userptr);
 int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);
@@ -1056,6 +1231,15 @@ void hl_userptr_delete_list(struct hl_device *hdev,
 bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr, u32 size,
 				struct list_head *userptr_list,
 				struct hl_userptr **userptr);
+
+int hl_mmu_init(struct hl_device *hdev);
+void hl_mmu_fini(struct hl_device *hdev);
+void hl_mmu_ctx_init(struct hl_ctx *ctx);
+void hl_mmu_ctx_fini(struct hl_ctx *ctx);
+int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
+int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
+void hl_mmu_swap_out(struct hl_ctx *ctx);
+void hl_mmu_swap_in(struct hl_ctx *ctx);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
@@ -1074,5 +1258,6 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data);
 int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data);
+int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data);
 
 #endif /* HABANALABSP_H_ */

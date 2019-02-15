@@ -6,6 +6,8 @@
  */
 
 #include "goyaP.h"
+#include "include/hw_ip/mmu/mmu_general.h"
+#include "include/hw_ip/mmu/mmu_v1_0.h"
 #include "include/goya/asic_reg/goya_masks.h"
 
 #include <linux/pci.h>
@@ -80,6 +82,7 @@
 #define GOYA_PLDM_RESET_WAIT_MSEC	1000		/* 1s */
 #define GOYA_CPU_TIMEOUT_USEC		10000000	/* 10s */
 #define GOYA_TEST_QUEUE_WAIT_USEC	100000		/* 100ms */
+#define GOYA_PLDM_MMU_TIMEOUT_USEC	(MMU_CONFIG_TIMEOUT_USEC * 100)
 
 #define GOYA_QMAN0_FENCE_VAL		0xD169B243
 
@@ -129,6 +132,70 @@ static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
 	"PSOC",
 	"CPU",
 	"MMU"
+};
+
+static u64 goya_mmu_regs[GOYA_MMU_REGS_NUM] = {
+	mmDMA_QM_0_GLBL_NON_SECURE_PROPS,
+	mmDMA_QM_1_GLBL_NON_SECURE_PROPS,
+	mmDMA_QM_2_GLBL_NON_SECURE_PROPS,
+	mmDMA_QM_3_GLBL_NON_SECURE_PROPS,
+	mmDMA_QM_4_GLBL_NON_SECURE_PROPS,
+	mmTPC0_QM_GLBL_SECURE_PROPS,
+	mmTPC0_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC0_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC0_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC0_CFG_ARUSER,
+	mmTPC0_CFG_AWUSER,
+	mmTPC1_QM_GLBL_SECURE_PROPS,
+	mmTPC1_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC1_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC1_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC1_CFG_ARUSER,
+	mmTPC1_CFG_AWUSER,
+	mmTPC2_QM_GLBL_SECURE_PROPS,
+	mmTPC2_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC2_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC2_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC2_CFG_ARUSER,
+	mmTPC2_CFG_AWUSER,
+	mmTPC3_QM_GLBL_SECURE_PROPS,
+	mmTPC3_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC3_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC3_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC3_CFG_ARUSER,
+	mmTPC3_CFG_AWUSER,
+	mmTPC4_QM_GLBL_SECURE_PROPS,
+	mmTPC4_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC4_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC4_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC4_CFG_ARUSER,
+	mmTPC4_CFG_AWUSER,
+	mmTPC5_QM_GLBL_SECURE_PROPS,
+	mmTPC5_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC5_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC5_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC5_CFG_ARUSER,
+	mmTPC5_CFG_AWUSER,
+	mmTPC6_QM_GLBL_SECURE_PROPS,
+	mmTPC6_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC6_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC6_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC6_CFG_ARUSER,
+	mmTPC6_CFG_AWUSER,
+	mmTPC7_QM_GLBL_SECURE_PROPS,
+	mmTPC7_QM_GLBL_NON_SECURE_PROPS,
+	mmTPC7_CMDQ_GLBL_SECURE_PROPS,
+	mmTPC7_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmTPC7_CFG_ARUSER,
+	mmTPC7_CFG_AWUSER,
+	mmMME_QM_GLBL_SECURE_PROPS,
+	mmMME_QM_GLBL_NON_SECURE_PROPS,
+	mmMME_CMDQ_GLBL_SECURE_PROPS,
+	mmMME_CMDQ_GLBL_NON_SECURE_PROPS,
+	mmMME_SBA_CONTROL_DATA,
+	mmMME_SBB_CONTROL_DATA,
+	mmMME_SBC_CONTROL_DATA,
+	mmMME_WBC_CONTROL_DATA
 };
 
 #define GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE 121
@@ -258,6 +325,10 @@ static u32 goya_non_fatal_events[GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE] = {
 };
 
 static int goya_armcp_info_get(struct hl_device *hdev);
+static void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
+static int goya_mmu_clear_pgt_range(struct hl_device *hdev);
+static int goya_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
+					u64 phys_addr);
 
 static void goya_get_fixed_properties(struct hl_device *hdev)
 {
@@ -295,6 +366,16 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->sram_end_address = prop->sram_base_address + prop->sram_size;
 	prop->sram_user_base_address = prop->sram_base_address +
 						SRAM_USER_BASE_OFFSET;
+
+	prop->mmu_pgt_addr = MMU_PAGE_TABLES_ADDR;
+	if (hdev->pldm)
+		prop->mmu_pgt_size = 0x800000; /* 8MB */
+	else
+		prop->mmu_pgt_size = MMU_PAGE_TABLES_SIZE;
+	prop->mmu_pte_size = HL_PTE_SIZE;
+	prop->mmu_hop_table_size = HOP_TABLE_SIZE;
+	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
+	prop->dram_page_size = PAGE_SIZE_2MB;
 
 	prop->host_phys_base_address = HOST_PHYS_BASE;
 	prop->va_space_host_start_address = VA_HOST_SPACE_START;
@@ -752,7 +833,18 @@ static int goya_late_init(struct hl_device *hdev)
 
 	goya_fetch_psoc_frequency(hdev);
 
+	rc = goya_mmu_clear_pgt_range(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to clear MMU page tables range\n");
+		goto disable_pci_access;
+	}
+
 	return 0;
+
+disable_pci_access:
+	goya_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
+
+	return rc;
 }
 
 /*
@@ -2565,6 +2657,54 @@ out:
 	return 0;
 }
 
+static int goya_mmu_init(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
+	u64 hop0_addr;
+	int rc, i;
+
+	if (!hdev->mmu_enable)
+		return 0;
+
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
+		return 0;
+
+	hdev->dram_supports_virtual_memory = true;
+
+	for (i = 0 ; i < prop->max_asid ; i++) {
+		hop0_addr = prop->mmu_pgt_addr +
+				(i * prop->mmu_hop_table_size);
+
+		rc = goya_mmu_update_asid_hop0_addr(hdev, i, hop0_addr);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed to set hop0 addr for asid %d\n", i);
+			goto err;
+		}
+	}
+
+	goya->hw_cap_initialized |= HW_CAP_MMU;
+
+	/* init MMU cache manage page */
+	WREG32(mmSTLB_CACHE_INV_BASE_39_8, MMU_CACHE_MNG_ADDR >> 8);
+	WREG32(mmSTLB_CACHE_INV_BASE_49_40, MMU_CACHE_MNG_ADDR << 40);
+
+	/* Remove follower feature due to performance bug */
+	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
+			(~STLB_STLB_FEATURE_EN_FOLLOWER_EN_MASK));
+
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
+
+	WREG32(mmMMU_MMU_ENABLE, 1);
+	WREG32(mmMMU_SPI_MASK, 0xF);
+
+	return 0;
+
+err:
+	return rc;
+}
+
 /*
  * goya_hw_init - Goya hardware initialization code
  *
@@ -2613,6 +2753,10 @@ static int goya_hw_init(struct hl_device *hdev)
 			"failed to map DDR bar to MMU page tables\n");
 		return rc;
 	}
+
+	rc = goya_mmu_init(hdev);
+	if (rc)
+		return rc;
 
 	goya_init_security(hdev);
 
@@ -4249,6 +4393,10 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 
 	rc = goya_send_job_on_qman0(hdev, job);
 
+	/* no point in setting the asid in case of failure */
+	if (!rc)
+		goya_mmu_prepare(hdev, asid);
+
 	job->patched_cb->cs_cnt--;
 	hl_cb_put(job->patched_cb);
 
@@ -4282,6 +4430,22 @@ void goya_restore_phase_topology(struct hl_device *hdev)
 
 	/* Flush all WREG to prevent race */
 	i = RREG32(mmSYNC_MNGR_SOB_OBJ_0);
+}
+
+static u64 goya_read_pte(struct hl_device *hdev, u64 addr)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	return readq(hdev->pcie_bar[DDR_BAR_ID] +
+			(addr - goya->ddr_bar_cur_addr));
+}
+
+static void goya_write_pte(struct hl_device *hdev, u64 addr, u64 val)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	writeq(val, hdev->pcie_bar[DDR_BAR_ID] +
+			(addr - goya->ddr_bar_cur_addr));
 }
 
 static void goya_get_axi_name(struct hl_device *hdev, u32 agent_id,
@@ -4567,6 +4731,233 @@ void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
 	return goya->events_stat;
 }
 
+static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
+	struct packet_lin_dma *clear_pgt_range_pkt;
+	struct hl_cs_parser parser;
+	struct hl_cs_job *job;
+	u32 cb_size;
+	struct hl_cb *cb;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return 0;
+
+	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	if (!cb)
+		return -EFAULT;
+
+	clear_pgt_range_pkt = (struct packet_lin_dma *)
+					(uintptr_t) cb->kernel_address;
+
+	memset(clear_pgt_range_pkt, 0, sizeof(*clear_pgt_range_pkt));
+	cb_size = sizeof(*clear_pgt_range_pkt);
+
+	clear_pgt_range_pkt->ctl =
+		((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
+		(DMA_HOST_TO_DRAM << GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT) |
+		(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
+		(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
+		(1 << GOYA_PKT_CTL_RB_SHIFT) |
+		(1 << GOYA_PKT_CTL_MB_SHIFT));
+
+	clear_pgt_range_pkt->src_addr = 0;
+	clear_pgt_range_pkt->dst_addr = prop->mmu_pgt_addr;
+	clear_pgt_range_pkt->tsize = prop->mmu_pgt_size + MMU_CACHE_MNG_SIZE;
+
+	job = hl_cs_allocate_job(hdev, true);
+	if (!job) {
+		dev_err(hdev->dev, "Failed to allocate a new job\n");
+		rc = -ENOMEM;
+		goto release_cb;
+	}
+
+	job->id = 0;
+	job->user_cb = cb;
+	job->user_cb->cs_cnt++;
+	job->user_cb_size = cb_size;
+	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
+
+	parser.ctx_id = HL_KERNEL_ASID_ID;
+	parser.cs_sequence = 0;
+	parser.job_id = job->id;
+	parser.hw_queue_id = job->hw_queue_id;
+	parser.job_userptr_list = &job->userptr_list;
+	parser.user_cb = job->user_cb;
+	parser.user_cb_size = job->user_cb_size;
+	parser.ext_queue = job->ext_queue;
+	parser.use_virt_addr = hdev->mmu_enable;
+
+	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to parse kernel CB when clearing pgt\n");
+		goto free_job;
+	}
+
+	job->patched_cb = parser.patched_cb;
+	job->job_cb_size = parser.patched_cb_size;
+	job->patched_cb->cs_cnt++;
+
+	rc = goya_send_job_on_qman0(hdev, job);
+
+	job->patched_cb->cs_cnt--;
+	hl_cb_put(job->patched_cb);
+
+free_job:
+	hl_userptr_delete_list(hdev, &job->userptr_list);
+	kfree(job);
+	cb->cs_cnt--;
+
+release_cb:
+	hl_cb_put(cb);
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+
+	return rc;
+}
+
+static void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	int i;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return;
+
+	if (asid & ~MME_QM_GLBL_SECURE_PROPS_ASID_MASK) {
+		WARN(1, "asid %u is too big\n", asid);
+		return;
+	}
+
+	/* zero the MMBP and ASID bits and then set the ASID */
+	for (i = 0 ; i < GOYA_MMU_REGS_NUM ; i++) {
+		WREG32_AND(goya_mmu_regs[i], ~0x7FF);
+		WREG32_OR(goya_mmu_regs[i], asid);
+	}
+}
+
+static void goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u32 status, timeout_usec;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return;
+
+	/* no need in L1 only invalidation in Goya */
+	if (!is_hard)
+		return;
+
+	if (hdev->pldm)
+		timeout_usec = GOYA_PLDM_MMU_TIMEOUT_USEC;
+	else
+		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
+
+	mutex_lock(&hdev->mmu_cache_lock);
+
+	/* L0 & L1 invalidation */
+	WREG32(mmSTLB_INV_ALL_START, 1);
+
+	rc = hl_poll_timeout(
+		hdev,
+		mmSTLB_INV_ALL_START,
+		status,
+		!status,
+		1000,
+		timeout_usec);
+
+	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc)
+		dev_notice_ratelimited(hdev->dev,
+			"Timeout when waiting for MMU cache invalidation\n");
+}
+
+static void goya_mmu_invalidate_cache_range(struct hl_device *hdev,
+		bool is_hard, u32 asid, u64 va, u64 size)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u32 status, timeout_usec, inv_data, pi;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return;
+
+	/* no need in L1 only invalidation in Goya */
+	if (!is_hard)
+		return;
+
+	if (hdev->pldm)
+		timeout_usec = GOYA_PLDM_MMU_TIMEOUT_USEC;
+	else
+		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
+
+	mutex_lock(&hdev->mmu_cache_lock);
+
+	/*
+	 * TODO: currently invalidate entire L0 & L1 as in regular hard
+	 * invalidation. Need to apply invalidation of specific cache lines with
+	 * mask of ASID & VA & size.
+	 * Note that L1 with be flushed entirely in any case.
+	 */
+
+	/* L0 & L1 invalidation */
+	inv_data = RREG32(mmSTLB_CACHE_INV);
+	/* PI is 8 bit */
+	pi = ((inv_data & STLB_CACHE_INV_PRODUCER_INDEX_MASK) + 1) & 0xFF;
+	WREG32(mmSTLB_CACHE_INV,
+			(inv_data & STLB_CACHE_INV_INDEX_MASK_MASK) | pi);
+
+	rc = hl_poll_timeout(
+		hdev,
+		mmSTLB_INV_CONSUMER_INDEX,
+		status,
+		status == pi,
+		1000,
+		timeout_usec);
+
+	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc)
+		dev_notice_ratelimited(hdev->dev,
+			"Timeout when waiting for MMU cache invalidation\n");
+}
+
+static int goya_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
+						u64 phys_addr)
+{
+	u32 status, timeout_usec;
+	int rc;
+
+	if (hdev->pldm)
+		timeout_usec = GOYA_PLDM_MMU_TIMEOUT_USEC;
+	else
+		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
+
+	WREG32(MMU_HOP0_PA43_12, phys_addr >> MMU_HOP0_PA43_12_SHIFT);
+	WREG32(MMU_HOP0_PA49_44, phys_addr >> MMU_HOP0_PA49_44_SHIFT);
+	WREG32(MMU_ASID_BUSY, 0x80000000 | asid);
+
+	rc = hl_poll_timeout(
+		hdev,
+		MMU_ASID_BUSY,
+		status,
+		!(status & 0x80000000),
+		1000,
+		timeout_usec);
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"Timeout during MMU hop0 config of asid %d\n", asid);
+		return rc;
+	}
+
+	return 0;
+}
+
 int goya_send_heartbeat(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
@@ -4830,6 +5221,10 @@ static const struct hl_asic_funcs goya_funcs = {
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,
 	.get_events_stat = goya_get_events_stat,
+	.read_pte = goya_read_pte,
+	.write_pte = goya_write_pte,
+	.mmu_invalidate_cache = goya_mmu_invalidate_cache,
+	.mmu_invalidate_cache_range = goya_mmu_invalidate_cache_range,
 	.send_heartbeat = goya_send_heartbeat,
 	.enable_clock_gating = goya_init_clock_gating,
 	.disable_clock_gating = goya_disable_clock_gating,

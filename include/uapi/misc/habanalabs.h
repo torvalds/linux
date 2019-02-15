@@ -162,6 +162,108 @@ union hl_wait_cs_args {
 	struct hl_wait_cs_out out;
 };
 
+/* Opcode to alloc device memory */
+#define HL_MEM_OP_ALLOC			0
+/* Opcode to free previously allocated device memory */
+#define HL_MEM_OP_FREE			1
+/* Opcode to map host memory */
+#define HL_MEM_OP_MAP			2
+/* Opcode to unmap previously mapped host memory */
+#define HL_MEM_OP_UNMAP			3
+
+/* Memory flags */
+#define HL_MEM_CONTIGUOUS	0x1
+#define HL_MEM_SHARED		0x2
+#define HL_MEM_USERPTR		0x4
+
+struct hl_mem_in {
+	union {
+		/* HL_MEM_OP_ALLOC- allocate device memory */
+		struct {
+			/* Size to alloc */
+			__u32 mem_size;
+			__u32 pad;
+		} alloc;
+
+		/* HL_MEM_OP_FREE - free device memory */
+		struct {
+			/* Handle returned from HL_MEM_OP_ALLOC */
+			__u64 handle;
+		} free;
+
+		/* HL_MEM_OP_MAP - map device memory */
+		struct {
+			/*
+			 * Requested virtual address of mapped memory.
+			 * KMD will try to map the requested region to this
+			 * hint address, as long as the address is valid and
+			 * not already mapped. The user should check the
+			 * returned address of the IOCTL to make sure he got
+			 * the hint address. Passing 0 here means that KMD
+			 * will choose the address itself.
+			 */
+			__u64 hint_addr;
+			/* Handle returned from HL_MEM_OP_ALLOC */
+			__u64 handle;
+		} map_device;
+
+		/* HL_MEM_OP_MAP - map host memory */
+		struct {
+			/* Address of allocated host memory */
+			__u64 host_virt_addr;
+			/*
+			 * Requested virtual address of mapped memory.
+			 * KMD will try to map the requested region to this
+			 * hint address, as long as the address is valid and
+			 * not already mapped. The user should check the
+			 * returned address of the IOCTL to make sure he got
+			 * the hint address. Passing 0 here means that KMD
+			 * will choose the address itself.
+			 */
+			__u64 hint_addr;
+			/* Size of allocated host memory */
+			__u32 mem_size;
+			__u32 pad;
+		} map_host;
+
+		/* HL_MEM_OP_UNMAP - unmap host memory */
+		struct {
+			/* Virtual address returned from HL_MEM_OP_MAP */
+			__u64 device_virt_addr;
+		} unmap;
+	};
+
+	/* HL_MEM_OP_* */
+	__u32 op;
+	/* HL_MEM_* flags */
+	__u32 flags;
+	/* Context ID - Currently not in use */
+	__u32 ctx_id;
+	__u32 pad;
+};
+
+struct hl_mem_out {
+	union {
+		/*
+		 * Used for HL_MEM_OP_MAP as the virtual address that was
+		 * assigned in the device VA space.
+		 * A value of 0 means the requested operation failed.
+		 */
+		__u64 device_virt_addr;
+
+		/*
+		 * Used for HL_MEM_OP_ALLOC. This is the assigned
+		 * handle for the allocated memory
+		 */
+		__u64 handle;
+	};
+};
+
+union hl_mem_args {
+	struct hl_mem_in in;
+	struct hl_mem_out out;
+};
+
 /*
  * Command Buffer
  * - Request a Command Buffer
@@ -245,7 +347,25 @@ union hl_wait_cs_args {
 #define HL_IOCTL_WAIT_CS			\
 		_IOWR('H', 0x04, union hl_wait_cs_args)
 
+/*
+ * Memory
+ * - Map host memory to device MMU
+ * - Unmap host memory from device MMU
+ *
+ * This IOCTL allows the user to map host memory to the device MMU
+ *
+ * For host memory, the IOCTL doesn't allocate memory. The user is supposed
+ * to allocate the memory in user-space (malloc/new). The driver pins the
+ * physical pages (up to the allowed limit by the OS), assigns a virtual
+ * address in the device VA space and initializes the device MMU.
+ *
+ * There is an option for the user to specify the requested virtual address.
+ *
+ */
+#define HL_IOCTL_MEMORY		\
+		_IOWR('H', 0x05, union hl_mem_args)
+
 #define HL_COMMAND_START	0x02
-#define HL_COMMAND_END		0x05
+#define HL_COMMAND_END		0x06
 
 #endif /* HABANALABS_H_ */

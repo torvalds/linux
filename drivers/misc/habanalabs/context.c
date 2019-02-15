@@ -25,8 +25,10 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	for (i = 0 ; i < HL_MAX_PENDING_CS ; i++)
 		dma_fence_put(ctx->cs_pending[i]);
 
-	if (ctx->asid != HL_KERNEL_ASID_ID)
+	if (ctx->asid != HL_KERNEL_ASID_ID) {
+		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+	}
 }
 
 void hl_ctx_do_release(struct kref *ref)
@@ -96,6 +98,8 @@ void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 {
+	int rc = 0;
+
 	ctx->hdev = hdev;
 
 	kref_init(&ctx->refcount);
@@ -113,9 +117,22 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			dev_err(hdev->dev, "No free ASID, failed to create context\n");
 			return -ENOMEM;
 		}
+
+		rc = hl_vm_ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to init mem ctx module\n");
+			rc = -ENOMEM;
+			goto mem_ctx_err;
+		}
 	}
 
 	return 0;
+
+mem_ctx_err:
+	if (ctx->asid != HL_KERNEL_ASID_ID)
+		hl_asid_free(hdev, ctx->asid);
+
+	return rc;
 }
 
 void hl_ctx_get(struct hl_device *hdev, struct hl_ctx *ctx)
