@@ -116,6 +116,27 @@ static struct device_attribute dev_attr_foo = {
 	.store = store_foo,
 };
 
+Note as stated in include/linux/kernel.h "OTHER_WRITABLE?  Generally
+considered a bad idea." so trying to set a sysfs file writable for
+everyone will fail reverting to RO mode for "Others".
+
+For the common cases sysfs.h provides convenience macros to make
+defining attributes easier as well as making code more concise and
+readable. The above case could be shortened to:
+
+static struct device_attribute dev_attr_foo = __ATTR_RW(foo);
+
+the list of helpers available to define your wrapper function is:
+__ATTR_RO(name): assumes default name_show and mode 0444
+__ATTR_WO(name): assumes a name_store only and is restricted to mode
+                 0200 that is root write access only.
+__ATTR_RO_MODE(name, mode): fore more restrictive RO access currently
+                 only use case is the EFI System Resource Table
+                 (see drivers/firmware/efi/esrt.c)
+__ATTR_RW(name): assumes default name_show, name_store and setting
+                 mode to 0644.
+__ATTR_NULL: which sets the name to NULL and is used as end of list
+                 indicator (see: kernel/workqueue.c)
 
 Subsystem-Specific Callbacks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
