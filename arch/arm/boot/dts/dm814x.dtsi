@@ -222,6 +222,30 @@
 				#interrupt-cells = <2>;
 			};
 
+			gpio3: gpio@1ac000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio3";
+				ti,gpio-always-on;
+				reg = <0x1ac000 0x2000>;
+				interrupts = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio4: gpio@1ae000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio4";
+				ti,gpio-always-on;
+				reg = <0x1ae000 0x2000>;
+				interrupts = <62>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
 			i2c2: i2c@2a000 {
 				compatible = "ti,omap4-i2c";
 				#address-cells = <1>;
@@ -240,8 +264,46 @@
 				ti,spi-num-cs = <4>;
 				ti,hwmods = "mcspi1";
 				dmas = <&edma 16 0 &edma 17 0
-					&edma 18 0 &edma 19 0>;
+					&edma 18 0 &edma 19 0
+					&edma 20 0 &edma 21 0
+					&edma 22 0 &edma 23 0>;
+
+				dma-names = "tx0", "rx0", "tx1", "rx1",
+					"tx2", "rx2", "tx3", "rx3";
+			};
+
+			mcspi2: spi@1a0000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a0000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <125>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi2";
+				dmas = <&edma 42 0 &edma 43 0
+					&edma 44 0 &edma 45 0>;
 				dma-names = "tx0", "rx0", "tx1", "rx1";
+			};
+
+			/* Board must configure dmas with edma_xbar for EDMA */
+			mcspi3: spi@1a2000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a2000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <126>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi3";
+			};
+
+			mcspi4: spi@1a4000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a4000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <127>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi4";
 			};
 
 			timer1: timer@2e000 {
