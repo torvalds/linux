@@ -334,7 +334,8 @@ xfs_imap_valid(
  * extent that maps offset_fsb in wpc->imap.
  *
  * The current page is held locked so nothing could have removed the block
- * backing offset_fsb.
+ * backing offset_fsb, although it could have moved from the COW to the data
+ * fork by another thread.
  */
 static int
 xfs_convert_blocks(
@@ -375,6 +376,7 @@ xfs_map_blocks(
 	xfs_fileoff_t		cow_fsb = NULLFILEOFF;
 	struct xfs_bmbt_irec	imap;
 	struct xfs_iext_cursor	icur;
+	int			retries = 0;
 	int			error = 0;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
@@ -404,6 +406,7 @@ xfs_map_blocks(
 	 * into real extents.  If we return without a valid map, it means we
 	 * landed in a hole and we skip the block.
 	 */
+retry:
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
@@ -471,8 +474,19 @@ xfs_map_blocks(
 	return 0;
 allocate_blocks:
 	error = xfs_convert_blocks(wpc, ip, offset_fsb);
-	if (error)
+	if (error) {
+		/*
+		 * If we failed to find the extent in the COW fork we might have
+		 * raced with a COW to data fork conversion or truncate.
+		 * Restart the lookup to catch the extent in the data fork for
+		 * the former case, but prevent additional retries to avoid
+		 * looping forever for the latter case.
+		 */
+		if (error == -EAGAIN && wpc->fork == XFS_COW_FORK && !retries++)
+			goto retry;
+		ASSERT(error != -EAGAIN);
 		return error;
+	}
 
 	/*
 	 * Due to merging the return real extent might be larger than the
