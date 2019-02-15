@@ -389,5 +389,5 @@ static struct i2c_driver ltc3676_driver = {
 module_i2c_driver(ltc3676_driver);
 
 MODULE_AUTHOR("Tim Harvey <tharvey@gateworks.com>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC1376");
+MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3676");
 MODULE_LICENSE("GPL v2");
