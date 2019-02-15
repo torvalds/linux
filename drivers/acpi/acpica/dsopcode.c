@@ -356,6 +356,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *operand_desc;
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *next_op;
+	acpi_adr_space_type space_id;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_region_operands, op);
 
@@ -368,6 +369,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	/* next_op points to the op that holds the space_ID */
 
 	next_op = op->common.value.arg;
+	space_id = (acpi_adr_space_type)next_op->common.value.integer;
 
 	/* next_op points to address op */
 
@@ -402,6 +404,15 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 
 	obj_desc->region.length = (u32) operand_desc->integer.value;
 	acpi_ut_remove_reference(operand_desc);
+
+	/* A zero-length operation region is unusable. Just warn */
+
+	if (!obj_desc->region.length
+	    && (space_id < ACPI_NUM_PREDEFINED_REGIONS)) {
+		ACPI_WARNING((AE_INFO,
+			      "Operation Region [%4.4s] has zero length (SpaceId %X)",
+			      node->name.ascii, space_id));
+	}
 
 	/*
 	 * Get the address and save it
