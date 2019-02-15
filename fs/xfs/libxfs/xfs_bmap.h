@@ -223,8 +223,9 @@ int	xfs_bmapi_reserve_delalloc(struct xfs_inode *ip, int whichfork,
 		xfs_fileoff_t off, xfs_filblks_t len, xfs_filblks_t prealloc,
 		struct xfs_bmbt_irec *got, struct xfs_iext_cursor *cur,
 		int eof);
-int	xfs_bmapi_convert_delalloc(struct xfs_trans *, struct xfs_inode *,
-		xfs_fileoff_t, int, struct xfs_bmbt_irec *);
+int	xfs_bmapi_convert_delalloc(struct xfs_inode *ip, int whichfork,
+		xfs_fileoff_t offset_fsb, struct xfs_bmbt_irec *imap,
+		unsigned int *seq);
 
 static inline void
 xfs_bmap_add_free(

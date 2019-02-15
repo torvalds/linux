@@ -684,11 +684,9 @@ xfs_iomap_write_allocate(
 	unsigned int		*seq)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_fileoff_t		offset_fsb;
 	xfs_fileoff_t		map_start_fsb;
 	xfs_extlen_t		map_count_fsb;
-	struct xfs_trans	*tp;
 	int			error = 0;
 
 	/*
@@ -716,17 +714,8 @@ xfs_iomap_write_allocate(
 		/*
 		 * Allocate in a loop because it may take several attempts to
 		 * allocate real blocks for a contiguous delalloc extent if free
-		 * space is sufficiently fragmented. Note that space for the
-		 * extent and indirect blocks was reserved when the delalloc
-		 * extent was created so there's no need to do so here.
+		 * space is sufficiently fragmented.
 		 */
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0,
-					XFS_TRANS_RESERVE, &tp);
-		if (error)
-			return error;
-
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, ip, 0);
 
 		/*
 		 * ilock was dropped since imap was populated which means it
@@ -737,17 +726,10 @@ xfs_iomap_write_allocate(
 		 * caller. We'll trim it down to the caller's most recently
 		 * validated range before we return.
 		 */
-		error = xfs_bmapi_convert_delalloc(tp, ip, offset_fsb,
-						   whichfork, imap);
+		error = xfs_bmapi_convert_delalloc(ip, whichfork, offset_fsb,
+				imap, seq);
 		if (error)
-			goto trans_cancel;
-
-		error = xfs_trans_commit(tp);
-		if (error)
-			goto error0;
-
-		*seq = READ_ONCE(ifp->if_seq);
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+			return error;
 
 		/*
 		 * See if we were able to allocate an extent that covers at
@@ -766,12 +748,6 @@ xfs_iomap_write_allocate(
 			return 0;
 		}
 	}
-
-trans_cancel:
-	xfs_trans_cancel(tp);
-error0:
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return error;
 }
 
 int

@@ -4446,15 +4446,29 @@ error0:
  */
 int
 xfs_bmapi_convert_delalloc(
-	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
-	xfs_fileoff_t		offset_fsb,
 	int			whichfork,
-	struct xfs_bmbt_irec	*imap)
+	xfs_fileoff_t		offset_fsb,
+	struct xfs_bmbt_irec	*imap,
+	unsigned int		*seq)
 {
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmalloca	bma = { NULL };
+	struct xfs_trans	*tp;
 	int			error;
+
+	/*
+	 * Space for the extent and indirect blocks was reserved when the
+	 * delalloc extent was created so there's no need to do so here.
+	 */
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, 0, 0,
+				XFS_TRANS_RESERVE, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &bma.icur, &bma.got) ||
 	    bma.got.br_startoff > offset_fsb) {
@@ -4464,7 +4478,8 @@ xfs_bmapi_convert_delalloc(
 		 * might have moved the extent to the data fork in the meantime.
 		 */
 		WARN_ON_ONCE(whichfork != XFS_COW_FORK);
-		return -EAGAIN;
+		error = -EAGAIN;
+		goto out_trans_cancel;
 	}
 
 	/*
@@ -4473,7 +4488,8 @@ xfs_bmapi_convert_delalloc(
 	 */
 	if (!isnullstartblock(bma.got.br_startblock)) {
 		*imap = bma.got;
-		return 0;
+		*seq = READ_ONCE(ifp->if_seq);
+		goto out_trans_cancel;
 	}
 
 	bma.tp = tp;
@@ -4502,6 +4518,7 @@ xfs_bmapi_convert_delalloc(
 
 	ASSERT(!isnullstartblock(bma.got.br_startblock));
 	*imap = bma.got;
+	*seq = READ_ONCE(ifp->if_seq);
 
 	if (whichfork == XFS_COW_FORK) {
 		error = xfs_refcount_alloc_cow_extent(tp, bma.blkno,
@@ -4512,8 +4529,19 @@ xfs_bmapi_convert_delalloc(
 
 	error = xfs_bmap_btree_to_extents(tp, ip, bma.cur, &bma.logflags,
 			whichfork);
+	if (error)
+		goto out_finish;
+
+	xfs_bmapi_finish(&bma, whichfork, 0);
+	error = xfs_trans_commit(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
+
 out_finish:
 	xfs_bmapi_finish(&bma, whichfork, error);
+out_trans_cancel:
+	xfs_trans_cancel(tp);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 
