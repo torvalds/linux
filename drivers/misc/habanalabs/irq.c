@@ -250,6 +250,23 @@ void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q)
 			(void *) (uintptr_t) q->kernel_address, q->bus_address);
 }
 
+void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
+{
+	q->ci = 0;
+	q->pi = 0;
+
+	atomic_set(&q->free_slots_cnt, HL_CQ_LENGTH);
+
+	/*
+	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * written valid completion entries before it was halted and therefore
+	 * we need to clean the actual queues so we won't process old entries
+	 * when the device is operational again
+	 */
+
+	memset((void *) (uintptr_t) q->kernel_address, 0, HL_CQ_SIZE_IN_BYTES);
+}
+
 /*
  * hl_eq_init - main initialization function for an event queue object
  *
@@ -291,4 +308,18 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 
 	hdev->asic_funcs->dma_free_coherent(hdev, HL_EQ_SIZE_IN_BYTES,
 			(void *) (uintptr_t) q->kernel_address, q->bus_address);
+}
+
+void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
+{
+	q->ci = 0;
+
+	/*
+	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * written valid completion entries before it was halted and therefore
+	 * we need to clean the actual queues so we won't process old entries
+	 * when the device is operational again
+	 */
+
+	memset((void *) (uintptr_t) q->kernel_address, 0, HL_EQ_SIZE_IN_BYTES);
 }

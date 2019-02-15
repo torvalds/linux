@@ -120,6 +120,130 @@ static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
 
 #define GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE 121
 
+static u32 goya_non_fatal_events[GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE] = {
+	GOYA_ASYNC_EVENT_ID_PCIE_IF,
+	GOYA_ASYNC_EVENT_ID_TPC0_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC1_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC2_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC3_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC4_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC5_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC6_ECC,
+	GOYA_ASYNC_EVENT_ID_TPC7_ECC,
+	GOYA_ASYNC_EVENT_ID_MME_ECC,
+	GOYA_ASYNC_EVENT_ID_MME_ECC_EXT,
+	GOYA_ASYNC_EVENT_ID_MMU_ECC,
+	GOYA_ASYNC_EVENT_ID_DMA_MACRO,
+	GOYA_ASYNC_EVENT_ID_DMA_ECC,
+	GOYA_ASYNC_EVENT_ID_CPU_IF_ECC,
+	GOYA_ASYNC_EVENT_ID_PSOC_MEM,
+	GOYA_ASYNC_EVENT_ID_PSOC_CORESIGHT,
+	GOYA_ASYNC_EVENT_ID_SRAM0,
+	GOYA_ASYNC_EVENT_ID_SRAM1,
+	GOYA_ASYNC_EVENT_ID_SRAM2,
+	GOYA_ASYNC_EVENT_ID_SRAM3,
+	GOYA_ASYNC_EVENT_ID_SRAM4,
+	GOYA_ASYNC_EVENT_ID_SRAM5,
+	GOYA_ASYNC_EVENT_ID_SRAM6,
+	GOYA_ASYNC_EVENT_ID_SRAM7,
+	GOYA_ASYNC_EVENT_ID_SRAM8,
+	GOYA_ASYNC_EVENT_ID_SRAM9,
+	GOYA_ASYNC_EVENT_ID_SRAM10,
+	GOYA_ASYNC_EVENT_ID_SRAM11,
+	GOYA_ASYNC_EVENT_ID_SRAM12,
+	GOYA_ASYNC_EVENT_ID_SRAM13,
+	GOYA_ASYNC_EVENT_ID_SRAM14,
+	GOYA_ASYNC_EVENT_ID_SRAM15,
+	GOYA_ASYNC_EVENT_ID_SRAM16,
+	GOYA_ASYNC_EVENT_ID_SRAM17,
+	GOYA_ASYNC_EVENT_ID_SRAM18,
+	GOYA_ASYNC_EVENT_ID_SRAM19,
+	GOYA_ASYNC_EVENT_ID_SRAM20,
+	GOYA_ASYNC_EVENT_ID_SRAM21,
+	GOYA_ASYNC_EVENT_ID_SRAM22,
+	GOYA_ASYNC_EVENT_ID_SRAM23,
+	GOYA_ASYNC_EVENT_ID_SRAM24,
+	GOYA_ASYNC_EVENT_ID_SRAM25,
+	GOYA_ASYNC_EVENT_ID_SRAM26,
+	GOYA_ASYNC_EVENT_ID_SRAM27,
+	GOYA_ASYNC_EVENT_ID_SRAM28,
+	GOYA_ASYNC_EVENT_ID_SRAM29,
+	GOYA_ASYNC_EVENT_ID_GIC500,
+	GOYA_ASYNC_EVENT_ID_PLL0,
+	GOYA_ASYNC_EVENT_ID_PLL1,
+	GOYA_ASYNC_EVENT_ID_PLL3,
+	GOYA_ASYNC_EVENT_ID_PLL4,
+	GOYA_ASYNC_EVENT_ID_PLL5,
+	GOYA_ASYNC_EVENT_ID_PLL6,
+	GOYA_ASYNC_EVENT_ID_AXI_ECC,
+	GOYA_ASYNC_EVENT_ID_L2_RAM_ECC,
+	GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET,
+	GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT,
+	GOYA_ASYNC_EVENT_ID_PCIE_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC0_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC1_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC2_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC3_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC4_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC5_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC6_DEC,
+	GOYA_ASYNC_EVENT_ID_TPC7_DEC,
+	GOYA_ASYNC_EVENT_ID_MME_WACS,
+	GOYA_ASYNC_EVENT_ID_MME_WACSD,
+	GOYA_ASYNC_EVENT_ID_CPU_AXI_SPLITTER,
+	GOYA_ASYNC_EVENT_ID_PSOC_AXI_DEC,
+	GOYA_ASYNC_EVENT_ID_PSOC,
+	GOYA_ASYNC_EVENT_ID_TPC0_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC1_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC2_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC3_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC4_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC5_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC6_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC7_KRN_ERR,
+	GOYA_ASYNC_EVENT_ID_TPC0_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC1_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC2_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC3_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC4_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC5_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC6_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC7_CMDQ,
+	GOYA_ASYNC_EVENT_ID_TPC0_QM,
+	GOYA_ASYNC_EVENT_ID_TPC1_QM,
+	GOYA_ASYNC_EVENT_ID_TPC2_QM,
+	GOYA_ASYNC_EVENT_ID_TPC3_QM,
+	GOYA_ASYNC_EVENT_ID_TPC4_QM,
+	GOYA_ASYNC_EVENT_ID_TPC5_QM,
+	GOYA_ASYNC_EVENT_ID_TPC6_QM,
+	GOYA_ASYNC_EVENT_ID_TPC7_QM,
+	GOYA_ASYNC_EVENT_ID_MME_QM,
+	GOYA_ASYNC_EVENT_ID_MME_CMDQ,
+	GOYA_ASYNC_EVENT_ID_DMA0_QM,
+	GOYA_ASYNC_EVENT_ID_DMA1_QM,
+	GOYA_ASYNC_EVENT_ID_DMA2_QM,
+	GOYA_ASYNC_EVENT_ID_DMA3_QM,
+	GOYA_ASYNC_EVENT_ID_DMA4_QM,
+	GOYA_ASYNC_EVENT_ID_DMA0_CH,
+	GOYA_ASYNC_EVENT_ID_DMA1_CH,
+	GOYA_ASYNC_EVENT_ID_DMA2_CH,
+	GOYA_ASYNC_EVENT_ID_DMA3_CH,
+	GOYA_ASYNC_EVENT_ID_DMA4_CH,
+	GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC1_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC2_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC3_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC4_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC5_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC6_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU,
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH0,
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH1,
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH2,
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH3,
+	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4
+};
+
 static int goya_armcp_info_get(struct hl_device *hdev);
 
 static void goya_get_fixed_properties(struct hl_device *hdev)
@@ -2447,6 +2571,14 @@ static int goya_hw_init(struct hl_device *hdev)
 	/* Perform read from the device to make sure device is up */
 	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
+	/*
+	 * Let's mark in the H/W that we have reached this point. We check
+	 * this value in the reset_before_init function to understand whether
+	 * we need to reset the chip before doing H/W init. This register is
+	 * cleared by the H/W upon H/W reset
+	 */
+	WREG32(mmPSOC_GLOBAL_CONF_APP_STATUS, HL_DEVICE_HW_STATE_DIRTY);
+
 	rc = goya_init_cpu(hdev, GOYA_CPU_TIMEOUT_USEC);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize CPU\n");
@@ -2574,6 +2706,14 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 		dev_err(hdev->dev,
 			"Timeout while waiting for device to reset 0x%x\n",
 			status);
+
+	if (!hard_reset) {
+		goya->hw_cap_initialized &= ~(HW_CAP_DMA | HW_CAP_MME |
+						HW_CAP_GOLDEN | HW_CAP_TPC);
+		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+				GOYA_ASYNC_EVENT_ID_SOFT_RESET);
+		return;
+	}
 
 	/* Chicken bit to re-initiate boot sequencer flow */
 	WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START,
@@ -3184,6 +3324,57 @@ static void goya_print_irq_info(struct hl_device *hdev, u16 event_type)
 	}
 }
 
+static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
+		size_t irq_arr_size)
+{
+	struct armcp_unmask_irq_arr_packet *pkt;
+	size_t total_pkt_size;
+	long result;
+	int rc;
+
+	total_pkt_size = sizeof(struct armcp_unmask_irq_arr_packet) +
+			irq_arr_size;
+
+	/* data should be aligned to 8 bytes in order to ArmCP to copy it */
+	total_pkt_size = (total_pkt_size + 0x7) & ~0x7;
+
+	/* total_pkt_size is casted to u16 later on */
+	if (total_pkt_size > USHRT_MAX) {
+		dev_err(hdev->dev, "too many elements in IRQ array\n");
+		return -EINVAL;
+	}
+
+	pkt = kzalloc(total_pkt_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	pkt->length = irq_arr_size / sizeof(irq_arr[0]);
+	memcpy(&pkt->irqs, irq_arr, irq_arr_size);
+
+	pkt->armcp_pkt.ctl = ARMCP_PACKET_UNMASK_RAZWI_IRQ_ARRAY <<
+						ARMCP_PKT_CTL_OPCODE_SHIFT;
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) pkt,
+			total_pkt_size, HL_DEVICE_TIMEOUT_USEC, &result);
+
+	if (rc)
+		dev_err(hdev->dev, "failed to unmask IRQ array\n");
+
+	kfree(pkt);
+
+	return rc;
+}
+
+static int goya_soft_reset_late_init(struct hl_device *hdev)
+{
+	/*
+	 * Unmask all IRQs since some could have been received
+	 * during the soft reset
+	 */
+	return goya_unmask_irq_arr(hdev, goya_non_fatal_events,
+			sizeof(goya_non_fatal_events));
+}
+
 static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
 {
 	struct armcp_packet pkt;
@@ -3245,6 +3436,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 		dev_err(hdev->dev,
 			"Received H/W interrupt %d, reset the chip\n",
 			event_type);
+		hl_device_reset(hdev, true, false);
 		break;
 
 	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
@@ -3308,6 +3500,30 @@ void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
 	*size = (u32) sizeof(goya->events_stat);
 
 	return goya->events_stat;
+}
+
+int goya_send_heartbeat(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	struct armcp_packet hb_pkt;
+	long result;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
+		return 0;
+
+	memset(&hb_pkt, 0, sizeof(hb_pkt));
+
+	hb_pkt.ctl = ARMCP_PACKET_TEST << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	hb_pkt.value = ARMCP_PACKET_FENCE_VAL;
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &hb_pkt,
+			sizeof(hb_pkt), HL_DEVICE_TIMEOUT_USEC, &result);
+
+	if ((rc) || (result != ARMCP_PACKET_FENCE_VAL))
+		rc = -EIO;
+
+	return rc;
 }
 
 static int goya_armcp_info_get(struct hl_device *hdev)
@@ -3455,6 +3671,11 @@ out:
 	return rc;
 }
 
+static enum hl_device_hw_state goya_get_hw_state(struct hl_device *hdev)
+{
+	return RREG32(mmPSOC_GLOBAL_CONF_APP_STATUS);
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -3484,12 +3705,15 @@ static const struct hl_asic_funcs goya_funcs = {
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,
 	.get_events_stat = goya_get_events_stat,
+	.send_heartbeat = goya_send_heartbeat,
 	.enable_clock_gating = goya_init_clock_gating,
 	.disable_clock_gating = goya_disable_clock_gating,
+	.soft_reset_late_init = goya_soft_reset_late_init,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,
 	.get_eeprom_data = goya_get_eeprom_data,
-	.send_cpu_message = goya_send_cpu_message
+	.send_cpu_message = goya_send_cpu_message,
+	.get_hw_state = goya_get_hw_state
 };
 
 /*

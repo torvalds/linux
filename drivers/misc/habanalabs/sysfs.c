@@ -104,7 +104,7 @@ static ssize_t pm_mng_profile_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	if (hdev->disabled)
+	if (hl_device_disabled_or_in_reset(hdev))
 		return -ENODEV;
 
 	return sprintf(buf, "%s\n",
@@ -118,7 +118,7 @@ static ssize_t pm_mng_profile_store(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	if (hdev->disabled) {
+	if (hl_device_disabled_or_in_reset(hdev)) {
 		count = -ENODEV;
 		goto out;
 	}
@@ -162,7 +162,7 @@ static ssize_t high_pll_show(struct device *dev, struct device_attribute *attr,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	if (hdev->disabled)
+	if (hl_device_disabled_or_in_reset(hdev))
 		return -ENODEV;
 
 	return sprintf(buf, "%u\n", hdev->high_pll);
@@ -175,7 +175,7 @@ static ssize_t high_pll_store(struct device *dev, struct device_attribute *attr,
 	long value;
 	int rc;
 
-	if (hdev->disabled) {
+	if (hl_device_disabled_or_in_reset(hdev)) {
 		count = -ENODEV;
 		goto out;
 	}
@@ -259,6 +259,48 @@ static ssize_t preboot_btl_ver_show(struct device *dev,
 	return sprintf(buf, "%s\n", hdev->asic_prop.preboot_ver);
 }
 
+static ssize_t soft_reset_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &value);
+
+	if (rc) {
+		count = -EINVAL;
+		goto out;
+	}
+
+	hl_device_reset(hdev, false, false);
+
+out:
+	return count;
+}
+
+static ssize_t hard_reset_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+	long value;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &value);
+
+	if (rc) {
+		count = -EINVAL;
+		goto out;
+	}
+
+	hl_device_reset(hdev, true, false);
+
+out:
+	return count;
+}
+
 static ssize_t device_type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -300,7 +342,9 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	char *str;
 
-	if (hdev->disabled)
+	if (atomic_read(&hdev->in_reset))
+		str = "In reset";
+	else if (hdev->disabled)
 		str = "Malfunction";
 	else
 		str = "Operational";
@@ -316,13 +360,29 @@ static ssize_t write_open_cnt_show(struct device *dev,
 	return sprintf(buf, "%d\n", hdev->user_ctx ? 1 : 0);
 }
 
+static ssize_t soft_reset_cnt_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", hdev->soft_reset_cnt);
+}
+
+static ssize_t hard_reset_cnt_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", hdev->hard_reset_cnt);
+}
+
 static ssize_t max_power_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	long val;
 
-	if (hdev->disabled)
+	if (hl_device_disabled_or_in_reset(hdev))
 		return -ENODEV;
 
 	val = hl_get_max_power(hdev);
@@ -337,7 +397,7 @@ static ssize_t max_power_store(struct device *dev,
 	unsigned long value;
 	int rc;
 
-	if (hdev->disabled) {
+	if (hl_device_disabled_or_in_reset(hdev)) {
 		count = -ENODEV;
 		goto out;
 	}
@@ -389,12 +449,16 @@ static DEVICE_ATTR_RO(armcp_ver);
 static DEVICE_ATTR_RO(cpld_ver);
 static DEVICE_ATTR_RO(device_type);
 static DEVICE_ATTR_RO(fuse_ver);
+static DEVICE_ATTR_WO(hard_reset);
+static DEVICE_ATTR_RO(hard_reset_cnt);
 static DEVICE_ATTR_RW(high_pll);
 static DEVICE_ATTR_RO(infineon_ver);
 static DEVICE_ATTR_RW(max_power);
 static DEVICE_ATTR_RO(pci_addr);
 static DEVICE_ATTR_RW(pm_mng_profile);
 static DEVICE_ATTR_RO(preboot_btl_ver);
+static DEVICE_ATTR_WO(soft_reset);
+static DEVICE_ATTR_RO(soft_reset_cnt);
 static DEVICE_ATTR_RO(status);
 static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
@@ -412,12 +476,16 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_cpld_ver.attr,
 	&dev_attr_device_type.attr,
 	&dev_attr_fuse_ver.attr,
+	&dev_attr_hard_reset.attr,
+	&dev_attr_hard_reset_cnt.attr,
 	&dev_attr_high_pll.attr,
 	&dev_attr_infineon_ver.attr,
 	&dev_attr_max_power.attr,
 	&dev_attr_pci_addr.attr,
 	&dev_attr_pm_mng_profile.attr,
 	&dev_attr_preboot_btl_ver.attr,
+	&dev_attr_soft_reset.attr,
+	&dev_attr_soft_reset_cnt.attr,
 	&dev_attr_status.attr,
 	&dev_attr_thermal_ver.attr,
 	&dev_attr_uboot_ver.attr,

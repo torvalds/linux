@@ -21,7 +21,11 @@
 
 #define HL_MMAP_CB_MASK			(0x8000000000000000ull >> PAGE_SHIFT)
 
+#define HL_PENDING_RESET_PER_SEC	5
+
 #define HL_DEVICE_TIMEOUT_USEC		1000000 /* 1 s */
+
+#define HL_HEARTBEAT_PER_USEC		5000000 /* 5 s */
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
@@ -55,6 +59,18 @@ enum hl_queue_type {
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	u8			kmd_only;
+};
+
+/**
+ * enum hl_device_hw_state - H/W device state. use this to understand whether
+ *                           to do reset before hw_init or not
+ * @HL_DEVICE_HW_STATE_CLEAN: H/W state is clean. i.e. after hard reset
+ * @HL_DEVICE_HW_STATE_DIRTY: H/W state is dirty. i.e. we started to execute
+ *                            hw_init
+ */
+enum hl_device_hw_state {
+	HL_DEVICE_HW_STATE_CLEAN = 0,
+	HL_DEVICE_HW_STATE_DIRTY
 };
 
 /**
@@ -361,12 +377,15 @@ enum hl_pll_frequency {
  * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
  * @set_pll_profile: change PLL profile (manual/automatic).
  * @get_events_stat: retrieve event queue entries histogram.
+ * @send_heartbeat: send is-alive packet to ArmCP and verify response.
  * @enable_clock_gating: enable clock gating for reducing power consumption.
  * @disable_clock_gating: disable clock for accessing registers on HBW.
+ * @soft_reset_late_init: perform certain actions needed after soft reset.
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
  * @get_eeprom_data: retrieve EEPROM data from F/W.
  * @send_cpu_message: send buffer to ArmCP.
+ * @get_hw_state: retrieve the H/W state
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -408,14 +427,17 @@ struct hl_asic_funcs {
 	void (*set_pll_profile)(struct hl_device *hdev,
 			enum hl_pll_frequency freq);
 	void* (*get_events_stat)(struct hl_device *hdev, u32 *size);
+	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
+	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
 	int (*get_eeprom_data)(struct hl_device *hdev, void *data,
 				size_t max_size);
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, long *result);
+	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
 };
 
 
@@ -530,6 +552,16 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 struct hwmon_chip_info;
 
 /**
+ * struct hl_device_reset_work - reset workqueue task wrapper.
+ * @reset_work: reset work to be done.
+ * @hdev: habanalabs device structure.
+ */
+struct hl_device_reset_work {
+	struct work_struct		reset_work;
+	struct hl_device		*hdev;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar: array of available PCIe bars.
@@ -537,6 +569,7 @@ struct hwmon_chip_info;
  * @cdev: related char device.
  * @dev: realted kernel basic device structure.
  * @work_freq: delayed work to lower device frequency if possible.
+ * @work_heartbeat: delayed work for ArmCP is-alive check.
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
@@ -568,6 +601,7 @@ struct hwmon_chip_info;
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
+ * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @fd_open_cnt: number of open user processes.
  * @max_power: the max power of the device, as configured by the sysadmin. This
@@ -575,10 +609,15 @@ struct hwmon_chip_info;
  *             value and update the F/W after the re-initialization
  * @major: habanalabs KMD major.
  * @high_pll: high PLL profile frequency.
+ * @soft_reset_cnt: number of soft reset since KMD loading.
+ * @hard_reset_cnt: number of hard reset since KMD loading.
  * @id: device minor.
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
+ * @hard_reset_pending: is there a hard reset work pending.
+ * @heartbeat: is heartbeat sanity check towards ArmCP enabled.
+ * @init_done: is the initialization of the device done.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -587,6 +626,7 @@ struct hl_device {
 	struct cdev			cdev;
 	struct device			*dev;
 	struct delayed_work		work_freq;
+	struct delayed_work		work_heartbeat;
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
@@ -618,15 +658,21 @@ struct hl_device {
 	/* TODO: remove user_ctx for multiple process support */
 	struct hl_ctx			*user_ctx;
 
+	atomic_t			in_reset;
 	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
 	u64				max_power;
 	u32				major;
 	u32				high_pll;
+	u32				soft_reset_cnt;
+	u32				hard_reset_cnt;
 	u16				id;
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;
+	u8				hard_reset_pending;
+	u8				heartbeat;
+	u8				init_done;
 
 	/* Parameters for bring-up */
 	u8				cpu_enable;
@@ -667,6 +713,7 @@ struct hl_ioctl_desc {
  */
 
 int hl_device_open(struct inode *inode, struct file *filp);
+bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		enum hl_asic_type asic_type, int minor);
 void destroy_hdev(struct hl_device *hdev);
@@ -680,6 +727,7 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 				u32 cb_size, u64 cb_ptr);
 u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);
 void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);
+void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset);
 
 #define hl_queue_inc_ptr(p)		hl_hw_queue_add_ptr(p, 1)
 #define hl_pi_2_offset(pi)		((pi) & (HL_QUEUE_LENGTH - 1))
@@ -688,6 +736,8 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id);
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q);
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q);
 void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q);
+void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q);
+void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q);
 irqreturn_t hl_irq_handler_cq(int irq, void *arg);
 irqreturn_t hl_irq_handler_eq(int irq, void *arg);
 int hl_asid_init(struct hl_device *hdev);
@@ -705,6 +755,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass);
 void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
+int hl_device_reset(struct hl_device *hdev, bool hard_reset,
+			bool from_hard_reset_thread);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 void hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);

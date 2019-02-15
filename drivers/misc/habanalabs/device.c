@@ -8,8 +8,16 @@
 #include "habanalabs.h"
 
 #include <linux/pci.h>
-#include <linux/delay.h>
+#include <linux/sched/signal.h>
 #include <linux/hwmon.h>
+
+bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
+{
+	if ((hdev->disabled) || (atomic_read(&hdev->in_reset)))
+		return true;
+	else
+		return false;
+}
 
 static void hpriv_release(struct kref *ref)
 {
@@ -200,6 +208,7 @@ static int device_early_init(struct hl_device *hdev)
 
 	mutex_init(&hdev->fd_open_cnt_lock);
 	mutex_init(&hdev->send_cpu_message_lock);
+	atomic_set(&hdev->in_reset, 0);
 	atomic_set(&hdev->fd_open_cnt, 0);
 
 	return 0;
@@ -254,6 +263,27 @@ static void set_freq_to_low_job(struct work_struct *work)
 			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
 }
 
+static void hl_device_heartbeat(struct work_struct *work)
+{
+	struct hl_device *hdev = container_of(work, struct hl_device,
+						work_heartbeat.work);
+
+	if (hl_device_disabled_or_in_reset(hdev))
+		goto reschedule;
+
+	if (!hdev->asic_funcs->send_heartbeat(hdev))
+		goto reschedule;
+
+	dev_err(hdev->dev, "Device heartbeat failed!\n");
+	hl_device_reset(hdev, true, false);
+
+	return;
+
+reschedule:
+	schedule_delayed_work(&hdev->work_heartbeat,
+			usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
+}
+
 /*
  * device_late_init - do late stuff initialization for the habanalabs device
  *
@@ -289,6 +319,12 @@ static int device_late_init(struct hl_device *hdev)
 	schedule_delayed_work(&hdev->work_freq,
 			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
 
+	if (hdev->heartbeat) {
+		INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
+		schedule_delayed_work(&hdev->work_heartbeat,
+				usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
+	}
+
 	hdev->late_init_done = true;
 
 	return 0;
@@ -306,6 +342,8 @@ static void device_late_fini(struct hl_device *hdev)
 		return;
 
 	cancel_delayed_work_sync(&hdev->work_freq);
+	if (hdev->heartbeat)
+		cancel_delayed_work_sync(&hdev->work_heartbeat);
 
 	if (hdev->asic_funcs->late_fini)
 		hdev->asic_funcs->late_fini(hdev);
@@ -411,6 +449,260 @@ int hl_device_resume(struct hl_device *hdev)
 	}
 
 	return 0;
+}
+
+static void hl_device_hard_reset_pending(struct work_struct *work)
+{
+	struct hl_device_reset_work *device_reset_work =
+		container_of(work, struct hl_device_reset_work, reset_work);
+	struct hl_device *hdev = device_reset_work->hdev;
+	u16 pending_cnt = HL_PENDING_RESET_PER_SEC;
+	struct task_struct *task = NULL;
+
+	/* Flush all processes that are inside hl_open */
+	mutex_lock(&hdev->fd_open_cnt_lock);
+
+	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
+
+		pending_cnt--;
+
+		dev_info(hdev->dev,
+			"Can't HARD reset, waiting for user to close FD\n");
+		ssleep(1);
+	}
+
+	if (atomic_read(&hdev->fd_open_cnt)) {
+		task = get_pid_task(hdev->user_ctx->hpriv->taskpid,
+					PIDTYPE_PID);
+		if (task) {
+			dev_info(hdev->dev, "Killing user processes\n");
+			send_sig(SIGKILL, task, 1);
+			msleep(100);
+
+			put_task_struct(task);
+		}
+	}
+
+	mutex_unlock(&hdev->fd_open_cnt_lock);
+
+	hl_device_reset(hdev, true, true);
+
+	kfree(device_reset_work);
+}
+
+/*
+ * hl_device_reset - reset the device
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @hard_reset: should we do hard reset to all engines or just reset the
+ *              compute/dma engines
+ *
+ * Block future CS and wait for pending CS to be enqueued
+ * Call ASIC H/W fini
+ * Flush all completions
+ * Re-initialize all internal data structures
+ * Call ASIC H/W init, late_init
+ * Test queues
+ * Enable device
+ *
+ * Returns 0 for success or an error on failure.
+ */
+int hl_device_reset(struct hl_device *hdev, bool hard_reset,
+			bool from_hard_reset_thread)
+{
+	int i, rc;
+
+	if (!hdev->init_done) {
+		dev_err(hdev->dev,
+			"Can't reset before initialization is done\n");
+		return 0;
+	}
+
+	/*
+	 * Prevent concurrency in this function - only one reset should be
+	 * done at any given time. Only need to perform this if we didn't
+	 * get from the dedicated hard reset thread
+	 */
+	if (!from_hard_reset_thread) {
+		/* Block future CS/VM/JOB completion operations */
+		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+		if (rc)
+			return 0;
+
+		/* This also blocks future CS/VM/JOB completion operations */
+		hdev->disabled = true;
+
+		/*
+		 * Flush anyone that is inside the critical section of enqueue
+		 * jobs to the H/W
+		 */
+		hdev->asic_funcs->hw_queues_lock(hdev);
+		hdev->asic_funcs->hw_queues_unlock(hdev);
+
+		dev_err(hdev->dev, "Going to RESET device!\n");
+	}
+
+again:
+	if ((hard_reset) && (!from_hard_reset_thread)) {
+		struct hl_device_reset_work *device_reset_work;
+
+		if (!hdev->pdev) {
+			dev_err(hdev->dev,
+				"Reset action is NOT supported in simulator\n");
+			rc = -EINVAL;
+			goto out_err;
+		}
+
+		hdev->hard_reset_pending = true;
+
+		device_reset_work = kzalloc(sizeof(*device_reset_work),
+						GFP_ATOMIC);
+		if (!device_reset_work) {
+			rc = -ENOMEM;
+			goto out_err;
+		}
+
+		/*
+		 * Because the reset function can't run from interrupt or
+		 * from heartbeat work, we need to call the reset function
+		 * from a dedicated work
+		 */
+		INIT_WORK(&device_reset_work->reset_work,
+				hl_device_hard_reset_pending);
+		device_reset_work->hdev = hdev;
+		schedule_work(&device_reset_work->reset_work);
+
+		return 0;
+	}
+
+	if (hard_reset) {
+		device_late_fini(hdev);
+
+		/*
+		 * Now that the heartbeat thread is closed, flush processes
+		 * which are sending messages to CPU
+		 */
+		mutex_lock(&hdev->send_cpu_message_lock);
+		mutex_unlock(&hdev->send_cpu_message_lock);
+	}
+
+	/*
+	 * Halt the engines and disable interrupts so we won't get any more
+	 * completions from H/W and we won't have any accesses from the
+	 * H/W to the host machine
+	 */
+	hdev->asic_funcs->halt_engines(hdev, hard_reset);
+
+	if (hard_reset) {
+		/* Release kernel context */
+		if (hl_ctx_put(hdev->kernel_ctx) != 1) {
+			dev_err(hdev->dev,
+				"kernel ctx is alive during hard reset\n");
+			rc = -EBUSY;
+			goto out_err;
+		}
+
+		hdev->kernel_ctx = NULL;
+	}
+
+	/* Reset the H/W. It will be in idle state after this returns */
+	hdev->asic_funcs->hw_fini(hdev, hard_reset);
+
+	if (hard_reset)
+		hl_eq_reset(hdev, &hdev->event_queue);
+
+	/* Re-initialize PI,CI to 0 in all queues (hw queue, cq) */
+	hl_hw_queue_reset(hdev, hard_reset);
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		hl_cq_reset(hdev, &hdev->completion_queue[i]);
+
+	/* Finished tear-down, starting to re-initialize */
+
+	if (hard_reset) {
+		/* Allocate the kernel context */
+		hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx),
+						GFP_KERNEL);
+		if (!hdev->kernel_ctx) {
+			rc = -ENOMEM;
+			goto out_err;
+		}
+
+		hdev->user_ctx = NULL;
+
+		rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed to init kernel ctx in hard reset\n");
+			kfree(hdev->kernel_ctx);
+			hdev->kernel_ctx = NULL;
+			goto out_err;
+		}
+	}
+
+	rc = hdev->asic_funcs->hw_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to initialize the H/W after reset\n");
+		goto out_err;
+	}
+
+	hdev->disabled = false;
+
+	/* Check that the communication with the device is working */
+	rc = hdev->asic_funcs->test_queues(hdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to detect if device is alive after reset\n");
+		goto out_err;
+	}
+
+	if (hard_reset) {
+		rc = device_late_init(hdev);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed late init after hard reset\n");
+			goto out_err;
+		}
+
+		hl_set_max_power(hdev, hdev->max_power);
+
+		hdev->hard_reset_pending = false;
+	} else {
+		rc = hdev->asic_funcs->soft_reset_late_init(hdev);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed late init after soft reset\n");
+			goto out_err;
+		}
+	}
+
+	atomic_set(&hdev->in_reset, 0);
+
+	if (hard_reset)
+		hdev->hard_reset_cnt++;
+	else
+		hdev->soft_reset_cnt++;
+
+	return 0;
+
+out_err:
+	hdev->disabled = true;
+
+	if (hard_reset) {
+		dev_err(hdev->dev,
+			"Failed to reset! Device is NOT usable\n");
+		hdev->hard_reset_cnt++;
+	} else {
+		dev_err(hdev->dev,
+			"Failed to do soft-reset, trying hard reset\n");
+		hdev->soft_reset_cnt++;
+		hard_reset = true;
+		goto again;
+	}
+
+	atomic_set(&hdev->in_reset, 0);
+
+	return rc;
 }
 
 /*
@@ -520,6 +812,12 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto free_cb_pool;
 	}
 
+	if (hdev->asic_funcs->get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
+	}
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W\n");
@@ -564,6 +862,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
+
+	hdev->init_done = true;
 
 	return 0;
 
@@ -612,8 +912,29 @@ out_disabled:
  */
 void hl_device_fini(struct hl_device *hdev)
 {
-	int i;
+	int i, rc;
+	ktime_t timeout;
+
 	dev_info(hdev->dev, "Removing device\n");
+
+	/*
+	 * This function is competing with the reset function, so try to
+	 * take the reset atomic and if we are already in middle of reset,
+	 * wait until reset function is finished. Reset function is designed
+	 * to always finish (could take up to a few seconds in worst case).
+	 */
+
+	timeout = ktime_add_us(ktime_get(),
+				HL_PENDING_RESET_PER_SEC * 1000 * 1000 * 4);
+	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+	while (rc) {
+		usleep_range(50, 200);
+		rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+		if (ktime_compare(ktime_get(), timeout) > 0) {
+			WARN(1, "Failed to remove device because reset function did not finish\n");
+			return;
+		}
+	};
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
