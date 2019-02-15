@@ -100,9 +100,15 @@ static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
 {
-	struct char_device_struct *cd, **cp;
-	int ret = 0;
+	struct char_device_struct *cd, *curr, *prev = NULL;
+	int ret = -EBUSY;
 	int i;
+
+	if (major >= CHRDEV_MAJOR_MAX) {
+		pr_err("CHRDEV \"%s\" major requested (%u) is greater than the maximum (%u)\n",
+		       name, major, CHRDEV_MAJOR_MAX-1);
+		return ERR_PTR(-EINVAL);
+	}
 
 	if (minorct > MINORMASK + 1 - baseminor) {
 		pr_err("CHRDEV \"%s\" minor range requested (%u-%u) is out of range of maximum range (%u-%u) for a single major\n",
@@ -126,10 +132,20 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		major = ret;
 	}
 
-	if (major >= CHRDEV_MAJOR_MAX) {
-		pr_err("CHRDEV \"%s\" major requested (%u) is greater than the maximum (%u)\n",
-		       name, major, CHRDEV_MAJOR_MAX-1);
-		ret = -EINVAL;
+	i = major_to_index(major);
+	for (curr = chrdevs[i]; curr; prev = curr, curr = curr->next) {
+		if (curr->major < major)
+			continue;
+
+		if (curr->major > major)
+			break;
+
+		if (curr->baseminor + curr->minorct <= baseminor)
+			continue;
+
+		if (curr->baseminor >= baseminor + minorct)
+			break;
+
 		goto out;
 	}
 
@@ -138,43 +154,14 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	cd->minorct = minorct;
 	strlcpy(cd->name, name, sizeof(cd->name));
 
-	i = major_to_index(major);
-
-	for (cp = &chrdevs[i]; *cp; cp = &(*cp)->next)
-		if ((*cp)->major > major ||
-		    ((*cp)->major == major &&
-		     (((*cp)->baseminor >= baseminor) ||
-		      ((*cp)->baseminor + (*cp)->minorct > baseminor))))
-			break;
-
-	/* Check for overlapping minor ranges.  */
-	if (*cp && (*cp)->major == major) {
-		int old_min = (*cp)->baseminor;
-		int old_max = (*cp)->baseminor + (*cp)->minorct - 1;
-		int new_min = baseminor;
-		int new_max = baseminor + minorct - 1;
-
-		/* New driver overlaps from the left.  */
-		if (new_max >= old_min && new_max <= old_max) {
-			ret = -EBUSY;
-			goto out;
-		}
-
-		/* New driver overlaps from the right.  */
-		if (new_min <= old_max && new_min >= old_min) {
-			ret = -EBUSY;
-			goto out;
-		}
-
-		if (new_min < old_min && new_max > old_max) {
-			ret = -EBUSY;
-			goto out;
-		}
-
+	if (!prev) {
+		cd->next = curr;
+		chrdevs[i] = cd;
+	} else {
+		cd->next = prev->next;
+		prev->next = cd;
 	}
 
-	cd->next = *cp;
-	*cp = cd;
 	mutex_unlock(&chrdevs_lock);
 	return cd;
 out:
