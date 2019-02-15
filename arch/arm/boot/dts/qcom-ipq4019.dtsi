@@ -20,6 +20,7 @@
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
+
 	model = "Qualcomm Technologies, Inc. IPQ4019";
 	compatible = "qcom,ipq4019";
 	interrupt-parent = <&intc>;
