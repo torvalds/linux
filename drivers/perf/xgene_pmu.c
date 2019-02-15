@@ -1057,7 +1057,6 @@ static void xgene_perf_start(struct perf_event *event, int flags)
 static void xgene_perf_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hw = &event->hw;
-	u64 config;
 
 	if (hw->state & PERF_HES_UPTODATE)
 		return;
@@ -1069,7 +1068,6 @@ static void xgene_perf_stop(struct perf_event *event, int flags)
 	if (hw->state & PERF_HES_UPTODATE)
 		return;
 
-	config = hw->config;
 	xgene_perf_read(event);
 	hw->state |= PERF_HES_UPTODATE;
 }
