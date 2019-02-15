@@ -316,7 +316,7 @@ static ssize_t qeth_dev_recover_store(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (card->state != CARD_STATE_UP)
+	if (!qeth_card_hw_is_reachable(card))
 		return -EPERM;
 
 	i = simple_strtoul(buf, &tmp, 16);
