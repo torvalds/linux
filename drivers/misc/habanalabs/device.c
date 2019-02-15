@@ -120,8 +120,11 @@ err_cdev_add:
  */
 static int device_early_init(struct hl_device *hdev)
 {
+	int rc;
+
 	switch (hdev->asic_type) {
 	case ASIC_GOYA:
+		goya_set_asic_funcs(hdev);
 		strlcpy(hdev->asic_name, "GOYA", sizeof(hdev->asic_name));
 		break;
 	default:
@@ -129,6 +132,10 @@ static int device_early_init(struct hl_device *hdev)
 			hdev->asic_type);
 		return -EINVAL;
 	}
+
+	rc = hdev->asic_funcs->early_init(hdev);
+	if (rc)
+		return rc;
 
 	return 0;
 }
@@ -141,6 +148,10 @@ static int device_early_init(struct hl_device *hdev)
  */
 static void device_early_fini(struct hl_device *hdev)
 {
+
+	if (hdev->asic_funcs->early_fini)
+		hdev->asic_funcs->early_fini(hdev);
+
 }
 
 /*
@@ -154,7 +165,14 @@ static void device_early_fini(struct hl_device *hdev)
  */
 int hl_device_suspend(struct hl_device *hdev)
 {
+	int rc;
+
 	pci_save_state(hdev->pdev);
+
+	rc = hdev->asic_funcs->suspend(hdev);
+	if (rc)
+		dev_err(hdev->dev,
+			"Failed to disable PCI access of device CPU\n");
 
 	/* Shut down the device */
 	pci_disable_device(hdev->pdev);
@@ -185,6 +203,13 @@ int hl_device_resume(struct hl_device *hdev)
 		return rc;
 	}
 
+	rc = hdev->asic_funcs->resume(hdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to enable PCI access from device CPU\n");
+		return rc;
+	}
+
 	return 0;
 }
 
@@ -212,11 +237,21 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto release_device;
 
+	/*
+	 * Start calling ASIC initialization. First S/W then H/W and finally
+	 * late init
+	 */
+	rc = hdev->asic_funcs->sw_init(hdev);
+	if (rc)
+		goto early_fini;
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
 	return 0;
 
+early_fini:
+	device_early_fini(hdev);
 release_device:
 	device_destroy(hclass, hdev->dev->devt);
 	cdev_del(&hdev->cdev);
@@ -246,6 +281,9 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
+
+	/* Call ASIC S/W finalize function */
+	hdev->asic_funcs->sw_fini(hdev);
 
 	device_early_fini(hdev);
 
@@ -337,4 +375,37 @@ int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
 	}
 
 	return *val ? 0 : -ETIMEDOUT;
+}
+
+/*
+ * MMIO register access helper functions.
+ */
+
+/*
+ * hl_rreg - Read an MMIO register
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @reg: MMIO register offset (in bytes)
+ *
+ * Returns the value of the MMIO register we are asked to read
+ *
+ */
+inline u32 hl_rreg(struct hl_device *hdev, u32 reg)
+{
+	return readl(hdev->rmmio + reg);
+}
+
+/*
+ * hl_wreg - Write to an MMIO register
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @reg: MMIO register offset (in bytes)
+ * @val: 32-bit value
+ *
+ * Writes the 32-bit value into the MMIO register
+ *
+ */
+inline void hl_wreg(struct hl_device *hdev, u32 reg, u32 val)
+{
+	writel(val, hdev->rmmio + reg);
 }

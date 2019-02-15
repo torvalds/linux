@@ -122,6 +122,9 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 
 	hdev->major = hl_major;
 
+	/* Parameters for bring-up - set them to defaults */
+	hdev->reset_pcilink = 0;
+
 	hdev->disabled = true;
 	hdev->pdev = pdev; /* can be NULL in case of simulator device */
 

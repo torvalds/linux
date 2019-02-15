@@ -1,0 +1,152 @@
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright 2016-2019 HabanaLabs, Ltd.
+ * All Rights Reserved.
+ *
+ */
+
+#ifndef GOYAP_H_
+#define GOYAP_H_
+
+#include <uapi/misc/habanalabs.h>
+#include "habanalabs.h"
+#include "include/goya/goya.h"
+
+#define NUMBER_OF_CMPLT_QUEUES		5
+#define NUMBER_OF_EXT_HW_QUEUES		5
+#define NUMBER_OF_CPU_HW_QUEUES		1
+#define NUMBER_OF_INT_HW_QUEUES		9
+#define NUMBER_OF_HW_QUEUES		(NUMBER_OF_EXT_HW_QUEUES + \
+					NUMBER_OF_CPU_HW_QUEUES + \
+					NUMBER_OF_INT_HW_QUEUES)
+
+/*
+ * Number of MSIX interrupts IDS:
+ * Each completion queue has 1 ID
+ * The event queue has 1 ID
+ */
+#define NUMBER_OF_INTERRUPTS		(NUMBER_OF_CMPLT_QUEUES + 1)
+
+#if (NUMBER_OF_HW_QUEUES >= HL_MAX_QUEUES)
+#error "Number of H/W queues must be smaller than HL_MAX_QUEUES"
+#endif
+
+#if (NUMBER_OF_INTERRUPTS > GOYA_MSIX_ENTRIES)
+#error "Number of MSIX interrupts must be smaller or equal to GOYA_MSIX_ENTRIES"
+#endif
+
+#define QMAN_FENCE_TIMEOUT_USEC		10000	/* 10 ms */
+
+#define QMAN_STOP_TIMEOUT_USEC		100000	/* 100 ms */
+
+#define TPC_ENABLED_MASK		0xFF
+
+#define PLL_HIGH_DEFAULT		1575000000	/* 1.575 GHz */
+
+#define GOYA_ARMCP_INFO_TIMEOUT		10000000	/* 10s */
+
+#define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
+
+/* DRAM Memory Map */
+
+#define CPU_FW_IMAGE_SIZE	0x10000000	/* 256MB */
+#define MMU_PAGE_TABLES_SIZE	0x0E000000	/* 224MB */
+#define MMU_CACHE_MNG_SIZE	0x00001000	/* 4KB */
+#define CPU_PQ_PKT_SIZE		0x00001000	/* 4KB */
+#define CPU_PQ_DATA_SIZE	0x01FFE000	/* 32MB - 8KB  */
+
+#define CPU_FW_IMAGE_ADDR	DRAM_PHYS_BASE
+#define MMU_PAGE_TABLES_ADDR	(CPU_FW_IMAGE_ADDR + CPU_FW_IMAGE_SIZE)
+#define MMU_CACHE_MNG_ADDR	(MMU_PAGE_TABLES_ADDR + MMU_PAGE_TABLES_SIZE)
+#define CPU_PQ_PKT_ADDR		(MMU_CACHE_MNG_ADDR + MMU_CACHE_MNG_SIZE)
+#define CPU_PQ_DATA_ADDR	(CPU_PQ_PKT_ADDR + CPU_PQ_PKT_SIZE)
+#define DRAM_BASE_ADDR_USER	(CPU_PQ_DATA_ADDR + CPU_PQ_DATA_SIZE)
+
+#if (DRAM_BASE_ADDR_USER != 0x20000000)
+#error "KMD must reserve 512MB"
+#endif
+
+/*
+ * SRAM Memory Map for KMD
+ *
+ * KMD occupies KMD_SRAM_SIZE bytes from the start of SRAM. It is used for
+ * MME/TPC QMANs
+ *
+ */
+
+#define MME_QMAN_BASE_OFFSET	0x000000	/* Must be 0 */
+#define MME_QMAN_LENGTH		64
+#define TPC_QMAN_LENGTH		64
+
+#define TPC0_QMAN_BASE_OFFSET	(MME_QMAN_BASE_OFFSET + \
+				(MME_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC1_QMAN_BASE_OFFSET	(TPC0_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC2_QMAN_BASE_OFFSET	(TPC1_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC3_QMAN_BASE_OFFSET	(TPC2_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC4_QMAN_BASE_OFFSET	(TPC3_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC5_QMAN_BASE_OFFSET	(TPC4_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC6_QMAN_BASE_OFFSET	(TPC5_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+#define TPC7_QMAN_BASE_OFFSET	(TPC6_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+
+#define SRAM_KMD_RES_OFFSET	(TPC7_QMAN_BASE_OFFSET + \
+				(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE))
+
+#if (SRAM_KMD_RES_OFFSET >= GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START)
+#error "MME/TPC QMANs SRAM space exceeds limit"
+#endif
+
+#define SRAM_USER_BASE_OFFSET	GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START
+
+/* Virtual address space */
+#define VA_HOST_SPACE_START	0x1000000000000ull	/* 256TB */
+#define VA_HOST_SPACE_END	0x3FF8000000000ull	/* 1PB - 1TB */
+#define VA_HOST_SPACE_SIZE	(VA_HOST_SPACE_END - \
+					VA_HOST_SPACE_START) /* 767TB */
+
+#define VA_DDR_SPACE_START	0x800000000ull		/* 32GB */
+#define VA_DDR_SPACE_END	0x2000000000ull		/* 128GB */
+#define VA_DDR_SPACE_SIZE	(VA_DDR_SPACE_END - \
+					VA_DDR_SPACE_START)	/* 128GB */
+
+#define DMA_MAX_TRANSFER_SIZE	0xFFFFFFFF
+
+#define HW_CAP_PLL		0x00000001
+#define HW_CAP_DDR_0		0x00000002
+#define HW_CAP_DDR_1		0x00000004
+#define HW_CAP_MME		0x00000008
+#define HW_CAP_CPU		0x00000010
+#define HW_CAP_DMA		0x00000020
+#define HW_CAP_MSIX		0x00000040
+#define HW_CAP_CPU_Q		0x00000080
+#define HW_CAP_MMU		0x00000100
+#define HW_CAP_TPC_MBIST	0x00000200
+#define HW_CAP_GOLDEN		0x00000400
+#define HW_CAP_TPC		0x00000800
+
+#define CPU_PKT_SHIFT		5
+#define CPU_PKT_SIZE		(1 << CPU_PKT_SHIFT)
+#define CPU_PKT_MASK		(~((1 << CPU_PKT_SHIFT) - 1))
+#define CPU_MAX_PKTS_IN_CB	32
+#define CPU_CB_SIZE		(CPU_PKT_SIZE * CPU_MAX_PKTS_IN_CB)
+#define CPU_ACCESSIBLE_MEM_SIZE	(HL_QUEUE_LENGTH * CPU_CB_SIZE)
+
+enum goya_fw_component {
+	FW_COMP_UBOOT,
+	FW_COMP_PREBOOT
+};
+
+struct goya_device {
+	/* TODO: remove hw_queues_lock after moving to scheduler code */
+	spinlock_t	hw_queues_lock;
+	u64		ddr_bar_cur_addr;
+	u32		hw_cap_initialized;
+};
+
+#endif /* GOYAP_H_ */
