@@ -247,9 +247,6 @@ config PPC_BARRIER_NOSPEC
     default y
     depends on PPC_BOOK3S_64 || PPC_FSL_BOOK3E
 
-config GENERIC_CSUM
-	def_bool n
-
 config EARLY_PRINTK
 	bool
 	default y
