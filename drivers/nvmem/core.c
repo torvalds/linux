@@ -686,9 +686,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (rval)
 		goto err_remove_cells;
 
-	rval = blocking_notifier_call_chain(&nvmem_notifier, NVMEM_ADD, nvmem);
-	if (rval)
-		goto err_remove_cells;
+	blocking_notifier_call_chain(&nvmem_notifier, NVMEM_ADD, nvmem);
 
 	return nvmem;
 
