@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __VEGA12_BACO_H__
-#define __VEGA12_BACO_H__
-#include "smu9_baco.h"
+#ifndef __SMU9_BACO_H__
+#define __SMU9_BACO_H__
+#include "hwmgr.h"
+#include "common_baco.h"
 
-extern int vega12_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
+extern int smu9_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
+extern int smu9_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
 
 #endif
