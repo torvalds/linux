@@ -1192,7 +1192,7 @@ xfs_reflink_remap_blocks(
 			break;
 		ASSERT(nimaps == 1);
 
-		trace_xfs_reflink_remap_imap(src, srcoff, len, XFS_IO_OVERWRITE,
+		trace_xfs_reflink_remap_imap(src, srcoff, len, XFS_DATA_FORK,
 				&imap);
 
 		/* Translate imap into the destination file. */
