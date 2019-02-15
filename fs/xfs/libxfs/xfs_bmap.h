@@ -95,9 +95,6 @@ struct xfs_extent_free_item
 /* Map something in the CoW fork. */
 #define XFS_BMAPI_COWFORK	0x200
 
-/* Only convert delalloc space, don't allocate entirely new extents */
-#define XFS_BMAPI_DELALLOC	0x400
-
 /* Only convert unwritten extents, don't allocate new blocks */
 #define XFS_BMAPI_CONVERT_ONLY	0x800
 
@@ -117,7 +114,6 @@ struct xfs_extent_free_item
 	{ XFS_BMAPI_ZERO,	"ZERO" }, \
 	{ XFS_BMAPI_REMAP,	"REMAP" }, \
 	{ XFS_BMAPI_COWFORK,	"COWFORK" }, \
-	{ XFS_BMAPI_DELALLOC,	"DELALLOC" }, \
 	{ XFS_BMAPI_CONVERT_ONLY, "CONVERT_ONLY" }, \
 	{ XFS_BMAPI_NODISCARD,	"NODISCARD" }, \
 	{ XFS_BMAPI_NORMAP,	"NORMAP" }

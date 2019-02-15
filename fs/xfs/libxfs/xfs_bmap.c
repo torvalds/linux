@@ -4327,22 +4327,6 @@ xfs_bmapi_write(
 	bma.datatype = 0;
 	bma.minleft = xfs_bmapi_minleft(tp, ip, whichfork);
 
-	/*
-	 * The delalloc flag means the caller wants to allocate the entire
-	 * delalloc extent backing bno where bno may not necessarily match the
-	 * startoff. Now that we've looked up the extent, reset the range to
-	 * map based on the extent in the file. If we're in a hole, this may be
-	 * an error so don't adjust anything.
-	 */
-	if ((flags & XFS_BMAPI_DELALLOC) &&
-	    !eof && bno >= bma.got.br_startoff) {
-		bno = bma.got.br_startoff;
-		len = bma.got.br_blockcount;
-#ifdef DEBUG
-		orig_bno = bno;
-		orig_len = len;
-#endif
-	}
 	n = 0;
 	end = bno + len;
 	obno = bno;
@@ -4359,26 +4343,7 @@ xfs_bmapi_write(
 			ASSERT(!((flags & XFS_BMAPI_CONVERT) &&
 			         (flags & XFS_BMAPI_COWFORK)));
 
-			if (flags & XFS_BMAPI_DELALLOC) {
-				/*
-				 * For the COW fork we can reasonably get a
-				 * request for converting an extent that races
-				 * with other threads already having converted
-				 * part of it, as there converting COW to
-				 * regular blocks is not protected using the
-				 * IOLOCK.
-				 */
-				ASSERT(flags & XFS_BMAPI_COWFORK);
-				if (!(flags & XFS_BMAPI_COWFORK)) {
-					error = -EIO;
-					goto error0;
-				}
-
-				if (eof || bno >= end)
-					break;
-			} else {
-				need_alloc = true;
-			}
+			need_alloc = true;
 		} else if (isnullstartblock(bma.got.br_startblock)) {
 			wasdelay = true;
 		}
@@ -4487,23 +4452,68 @@ xfs_bmapi_convert_delalloc(
 	int			whichfork,
 	struct xfs_bmbt_irec	*imap)
 {
-	int			flags = XFS_BMAPI_DELALLOC;
-	int			nimaps = 1;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_bmalloca	bma = { NULL };
 	int			error;
-	int			total = XFS_EXTENTADD_SPACE_RES(ip->i_mount,
-								XFS_DATA_FORK);
 
-	if (whichfork == XFS_COW_FORK)
-		flags |= XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
+	if (!xfs_iext_lookup_extent(ip, ifp, offset_fsb, &bma.icur, &bma.got) ||
+	    bma.got.br_startoff > offset_fsb) {
+		/*
+		 * No extent found in the range we are trying to convert.  This
+		 * should only happen for the COW fork, where another thread
+		 * might have moved the extent to the data fork in the meantime.
+		 */
+		WARN_ON_ONCE(whichfork != XFS_COW_FORK);
+		return -EAGAIN;
+	}
 
 	/*
-	 * The delalloc flag means to allocate the entire extent; pass a dummy
-	 * length of 1.
+	 * If we find a real extent here we raced with another thread converting
+	 * the extent.  Just return the real extent at this offset.
 	 */
-	error = xfs_bmapi_write(tp, ip, offset_fsb, 1, flags, total, imap,
-				&nimaps);
-	if (!error && !nimaps)
-		error = -EFSCORRUPTED;
+	if (!isnullstartblock(bma.got.br_startblock)) {
+		*imap = bma.got;
+		return 0;
+	}
+
+	bma.tp = tp;
+	bma.ip = ip;
+	bma.wasdel = true;
+	bma.offset = bma.got.br_startoff;
+	bma.length = max_t(xfs_filblks_t, bma.got.br_blockcount, MAXEXTLEN);
+	bma.total = XFS_EXTENTADD_SPACE_RES(ip->i_mount, XFS_DATA_FORK);
+	bma.minleft = xfs_bmapi_minleft(tp, ip, whichfork);
+	if (whichfork == XFS_COW_FORK)
+		bma.flags = XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC;
+
+	if (!xfs_iext_peek_prev_extent(ifp, &bma.icur, &bma.prev))
+		bma.prev.br_startoff = NULLFILEOFF;
+
+	error = xfs_bmapi_allocate(&bma);
+	if (error)
+		goto out_finish;
+
+	error = -ENOSPC;
+	if (WARN_ON_ONCE(bma.blkno == NULLFSBLOCK))
+		goto out_finish;
+	error = -EFSCORRUPTED;
+	if (WARN_ON_ONCE(!bma.got.br_startblock && !XFS_IS_REALTIME_INODE(ip)))
+		goto out_finish;
+
+	ASSERT(!isnullstartblock(bma.got.br_startblock));
+	*imap = bma.got;
+
+	if (whichfork == XFS_COW_FORK) {
+		error = xfs_refcount_alloc_cow_extent(tp, bma.blkno,
+				bma.length);
+		if (error)
+			goto out_finish;
+	}
+
+	error = xfs_bmap_btree_to_extents(tp, ip, bma.cur, &bma.logflags,
+			whichfork);
+out_finish:
+	xfs_bmapi_finish(&bma, whichfork, error);
 	return error;
 }
 
