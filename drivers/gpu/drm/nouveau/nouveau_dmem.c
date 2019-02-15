@@ -63,7 +63,6 @@ struct nouveau_dmem_chunk {
 	unsigned long pfn_first;
 	unsigned long callocated;
 	unsigned long bitmap[BITS_TO_LONGS(DMEM_CHUNK_NPAGES)];
-	struct nvif_vma vma;
 	spinlock_t lock;
 };
 
@@ -272,10 +271,10 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
 
 		chunk = (void *)hmm_devmem_page_get_drvdata(spage);
 		src_addr = page_to_pfn(spage) - chunk->pfn_first;
-		src_addr = (src_addr << PAGE_SHIFT) + chunk->vma.addr;
+		src_addr = (src_addr << PAGE_SHIFT) + chunk->bo->bo.offset;
 
 		ret = copy(drm, 1, NOUVEAU_APER_VIRT, dst_addr,
-				   NOUVEAU_APER_VIRT, src_addr);
+				   NOUVEAU_APER_VRAM, src_addr);
 		if (ret) {
 			dst_pfns[i] = MIGRATE_PFN_ERROR;
 			__free_page(dpage);
@@ -371,7 +370,6 @@ nouveau_dmem_devmem_ops = {
 static int
 nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
 {
-	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	struct nouveau_dmem_chunk *chunk;
 	int ret;
 
@@ -390,11 +388,6 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
 	list_del(&chunk->list);
 	mutex_unlock(&drm->dmem->mutex);
 
-	ret = nvif_vmm_get(vmm, LAZY, false, 12, 0,
-			   DMEM_CHUNK_SIZE, &chunk->vma);
-	if (ret)
-		goto out;
-
 	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
@@ -403,13 +396,6 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
 
 	ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
 	if (ret) {
-		nouveau_bo_ref(NULL, &chunk->bo);
-		goto out;
-	}
-
-	ret = nouveau_mem_map(nouveau_mem(&chunk->bo->bo.mem), vmm, &chunk->vma);
-	if (ret) {
-		nouveau_bo_unpin(chunk->bo);
 		nouveau_bo_ref(NULL, &chunk->bo);
 		goto out;
 	}
@@ -570,7 +556,6 @@ nouveau_dmem_suspend(struct nouveau_drm *drm)
 void
 nouveau_dmem_fini(struct nouveau_drm *drm)
 {
-	struct nvif_vmm *vmm = &drm->client.vmm.vmm;
 	struct nouveau_dmem_chunk *chunk, *tmp;
 
 	if (drm->dmem == NULL)
@@ -586,7 +571,6 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 			nouveau_bo_unpin(chunk->bo);
 			nouveau_bo_ref(NULL, &chunk->bo);
 		}
-		nvif_vmm_put(vmm, &chunk->vma);
 		list_del(&chunk->list);
 		kfree(chunk);
 	}
@@ -792,7 +776,7 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
 
 		chunk = (void *)hmm_devmem_page_get_drvdata(dpage);
 		dst_addr = page_to_pfn(dpage) - chunk->pfn_first;
-		dst_addr = (dst_addr << PAGE_SHIFT) + chunk->vma.addr;
+		dst_addr = (dst_addr << PAGE_SHIFT) + chunk->bo->bo.offset;
 
 		spage = migrate_pfn_to_page(src_pfns[i]);
 		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE)) {
@@ -804,7 +788,7 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
 		src_addr = migrate->hmem.vma.addr + (c << PAGE_SHIFT);
 		c++;
 
-		ret = copy(drm, 1, NOUVEAU_APER_VIRT, dst_addr,
+		ret = copy(drm, 1, NOUVEAU_APER_VRAM, dst_addr,
 				   NOUVEAU_APER_VIRT, src_addr);
 		if (ret) {
 			nouveau_dmem_page_free_locked(drm, dpage);
