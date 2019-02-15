@@ -2474,6 +2474,15 @@ static bool retrieve_link_cap(struct dc_link *link)
 		}
 	}
 
+	/* Error condition checking...
+	 * It is impossible for Sink to report Max Lane Count = 0.
+	 * It is possible for Sink to report Max Link Rate = 0, if it is
+	 * an eDP device that is reporting specialized link rates in the
+	 * SUPPORTED_LINK_RATE table.
+	 */
+	if (dpcd_data[DP_MAX_LANE_COUNT - DP_DPCD_REV] == 0)
+		return false;
+
 	link->dpcd_caps.dpcd_rev.raw =
 		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
 
