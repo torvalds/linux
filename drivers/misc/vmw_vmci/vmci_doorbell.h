@@ -45,7 +45,7 @@ struct dbell_cpt_state {
 int vmci_dbell_host_context_notify(u32 src_cid, struct vmci_handle handle);
 int vmci_dbell_get_priv_flags(struct vmci_handle handle, u32 *priv_flags);
 
-bool vmci_dbell_register_notification_bitmap(u32 bitmap_ppn);
+bool vmci_dbell_register_notification_bitmap(u64 bitmap_ppn);
 void vmci_dbell_scan_notification_entries(u8 *bitmap);
 
 #endif /* VMCI_DOORBELL_H */
