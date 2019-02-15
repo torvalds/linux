@@ -598,29 +598,27 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 {
 	bool overwrite = !(flags & RING_BUFFER_WRITABLE);
 	int node = (event->cpu == -1) ? -1 : cpu_to_node(event->cpu);
-	int ret = -ENOMEM, max_order = 0;
+	int ret = -ENOMEM, max_order;
 
 	if (!has_aux(event))
 		return -EOPNOTSUPP;
 
-	if (event->pmu->capabilities & PERF_PMU_CAP_AUX_NO_SG) {
-		/*
-		 * We need to start with the max_order that fits in nr_pages,
-		 * not the other way around, hence ilog2() and not get_order.
-		 */
-		max_order = ilog2(nr_pages);
+	/*
+	 * We need to start with the max_order that fits in nr_pages,
+	 * not the other way around, hence ilog2() and not get_order.
+	 */
+	max_order = ilog2(nr_pages);
 
-		/*
-		 * PMU requests more than one contiguous chunks of memory
-		 * for SW double buffering
-		 */
-		if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_SW_DOUBLEBUF) &&
-		    !overwrite) {
-			if (!max_order)
-				return -EINVAL;
+	/*
+	 * PMU requests more than one contiguous chunks of memory
+	 * for SW double buffering
+	 */
+	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_SW_DOUBLEBUF) &&
+	    !overwrite) {
+		if (!max_order)
+			return -EINVAL;
 
-			max_order--;
-		}
+		max_order--;
 	}
 
 	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
