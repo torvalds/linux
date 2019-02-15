@@ -508,13 +508,10 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 				&read);
 		transport->recv.offset += read;
 		transport->recv.copied += read;
-	} else
-		read = 0;
-
-	if (transport->recv.offset == transport->recv.len) {
-		xs_read_stream_check_eor(transport, msg);
-		return read;
 	}
+
+	if (transport->recv.offset == transport->recv.len)
+		xs_read_stream_check_eor(transport, msg);
 
 	if (want == 0)
 		return 0;
