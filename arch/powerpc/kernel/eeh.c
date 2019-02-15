@@ -1843,6 +1843,7 @@ static int __init eeh_init_proc(void)
 					   &eeh_enable_dbgfs_ops);
 		debugfs_create_u32("eeh_max_freezes", 0600,
 				powerpc_debugfs_root, &eeh_max_freezes);
+		eeh_cache_debugfs_init();
 #endif
 	}
 

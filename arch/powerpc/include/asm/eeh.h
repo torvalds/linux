@@ -460,6 +460,9 @@ static inline void eeh_readsl(const volatile void __iomem *addr, void * buf,
 		eeh_check_failure(addr);
 }
 
+
+void eeh_cache_debugfs_init(void);
+
 #endif /* CONFIG_PPC64 */
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_EEH_H */

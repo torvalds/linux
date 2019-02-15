@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <asm/pci-bridge.h>
+#include <asm/debugfs.h>
 #include <asm/ppc-pci.h>
 
 
@@ -298,9 +299,30 @@ void eeh_addr_cache_build(void)
 		eeh_addr_cache_insert_dev(dev);
 		eeh_sysfs_add_device(dev);
 	}
+}
 
-#ifdef DEBUG
-	/* Verify tree built up above, echo back the list of addrs. */
-	eeh_addr_cache_print(&pci_io_addr_cache_root);
-#endif
+static int eeh_addr_cache_show(struct seq_file *s, void *v)
+{
+	struct pci_io_addr_range *piar;
+	struct rb_node *n;
+
+	spin_lock(&pci_io_addr_cache_root.piar_lock);
+	for (n = rb_first(&pci_io_addr_cache_root.rb_root); n; n = rb_next(n)) {
+		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
+
+		seq_printf(s, "%s addr range [%pap-%pap]: %s\n",
+		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem",
+		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
+	}
+	spin_unlock(&pci_io_addr_cache_root.piar_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(eeh_addr_cache);
+
+void eeh_cache_debugfs_init(void)
+{
+	debugfs_create_file_unsafe("eeh_address_cache", 0400,
+			powerpc_debugfs_root, NULL,
+			&eeh_addr_cache_fops);
 }
