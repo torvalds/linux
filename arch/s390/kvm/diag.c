@@ -168,6 +168,10 @@ static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
 	if (!tcpu)
 		goto no_yield;
 
+	/* target already running */
+	if (READ_ONCE(tcpu->cpu) >= 0)
+		goto no_yield;
+
 	if (kvm_vcpu_yield_to(tcpu) <= 0)
 		goto no_yield;
 
