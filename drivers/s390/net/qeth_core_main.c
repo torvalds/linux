@@ -2433,12 +2433,6 @@ static int qeth_alloc_qdio_buffers(struct qeth_card *card)
 		goto out_freeinq;
 
 	/* outbound */
-	card->qdio.out_qs =
-		kcalloc(card->qdio.no_out_queues,
-			sizeof(struct qeth_qdio_out_q *),
-			GFP_KERNEL);
-	if (!card->qdio.out_qs)
-		goto out_freepool;
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
 		card->qdio.out_qs[i] = qeth_alloc_qdio_out_buf();
 		if (!card->qdio.out_qs[i])
@@ -2468,11 +2462,10 @@ out_freeoutqbufs:
 		card->qdio.out_qs[i]->bufs[j] = NULL;
 	}
 out_freeoutq:
-	while (i > 0)
+	while (i > 0) {
 		qeth_free_output_queue(card->qdio.out_qs[--i]);
-	kfree(card->qdio.out_qs);
-	card->qdio.out_qs = NULL;
-out_freepool:
+		card->qdio.out_qs[i] = NULL;
+	}
 	qeth_free_buffer_pool(card);
 out_freeinq:
 	qeth_free_qdio_queue(card->qdio.in_q);
@@ -2501,11 +2494,9 @@ static void qeth_free_qdio_buffers(struct qeth_card *card)
 	/* inbound buffer pool */
 	qeth_free_buffer_pool(card);
 	/* free outbound qdio_qs */
-	if (card->qdio.out_qs) {
-		for (i = 0; i < card->qdio.no_out_queues; i++)
-			qeth_free_output_queue(card->qdio.out_qs[i]);
-		kfree(card->qdio.out_qs);
-		card->qdio.out_qs = NULL;
+	for (i = 0; i < card->qdio.no_out_queues; i++) {
+		qeth_free_output_queue(card->qdio.out_qs[i]);
+		card->qdio.out_qs[i] = NULL;
 	}
 }
 
