@@ -622,15 +622,25 @@ static void b53_enable_mib(struct b53_device *dev)
 	b53_write8(dev, B53_MGMT_PAGE, B53_GLOBAL_CONFIG, gc);
 }
 
+static u16 b53_default_pvid(struct b53_device *dev)
+{
+	if (is5325(dev) || is5365(dev))
+		return 1;
+	else
+		return 0;
+}
+
 int b53_configure_vlan(struct dsa_switch *ds)
 {
 	struct b53_device *dev = ds->priv;
 	struct b53_vlan vl = { 0 };
-	int i;
+	int i, def_vid;
+
+	def_vid = b53_default_pvid(dev);
 
 	/* clear all vlan entries */
 	if (is5325(dev) || is5365(dev)) {
-		for (i = 1; i < dev->num_vlans; i++)
+		for (i = def_vid; i < dev->num_vlans; i++)
 			b53_set_vlan_entry(dev, i, &vl);
 	} else {
 		b53_do_vlan_op(dev, VTA_CMD_CLEAR);
@@ -640,7 +650,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 
 	b53_for_each_port(dev, i)
 		b53_write16(dev, B53_VLAN_PAGE,
-			    B53_VLAN_PORT_DEF_TAG(i), 1);
+			    B53_VLAN_PORT_DEF_TAG(i), def_vid);
 
 	if (!is5325(dev) && !is5365(dev))
 		b53_set_jumbo(dev, dev->enable_jumbo, false);
@@ -1142,12 +1152,8 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 
 		vl->members &= ~BIT(port);
 
-		if (pvid == vid) {
-			if (is5325(dev) || is5365(dev))
-				pvid = 1;
-			else
-				pvid = 0;
-		}
+		if (pvid == vid)
+			pvid = b53_default_pvid(dev);
 
 		if (untagged && !dsa_is_cpu_port(ds, port))
 			vl->untag &= ~(BIT(port));
@@ -1460,10 +1466,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *br)
 	b53_write16(dev, B53_PVLAN_PAGE, B53_PVLAN_PORT_MASK(port), pvlan);
 	dev->ports[port].vlan_ctl_mask = pvlan;
 
-	if (is5325(dev) || is5365(dev))
-		pvid = 1;
-	else
-		pvid = 0;
+	pvid = b53_default_pvid(dev);
 
 	/* Make this port join all VLANs without VLAN entries */
 	if (is58xx(dev)) {
