@@ -252,6 +252,9 @@ struct tb_regs_port_header {
 #define ADP_DP_CS_3_HDPC			BIT(9)
 #define DP_LOCAL_CAP				0x04
 #define DP_REMOTE_CAP				0x05
+#define DP_STATUS_CTRL				0x06
+#define DP_STATUS_CTRL_CMHS			BIT(25)
+#define DP_STATUS_CTRL_UF			BIT(26)
 
 /* PCIe adapter registers */
 #define ADP_PCIE_CS_0				0x00

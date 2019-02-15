@@ -6,6 +6,7 @@
  * Copyright (C) 2019, Intel Corporation
  */
 
+#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 
@@ -242,6 +243,42 @@ struct tb_tunnel *tb_tunnel_alloc_pci(struct tb *tb, struct tb_port *up,
 	return tunnel;
 }
 
+static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
+{
+	int timeout = 10;
+	u32 val;
+	int ret;
+
+	/* Both ends need to support this */
+	if (!tb_switch_is_titan_ridge(in->sw) ||
+	    !tb_switch_is_titan_ridge(out->sw))
+		return 0;
+
+	ret = tb_port_read(out, &val, TB_CFG_PORT,
+			   out->cap_adap + DP_STATUS_CTRL, 1);
+	if (ret)
+		return ret;
+
+	val |= DP_STATUS_CTRL_UF | DP_STATUS_CTRL_CMHS;
+
+	ret = tb_port_write(out, &val, TB_CFG_PORT,
+			    out->cap_adap + DP_STATUS_CTRL, 1);
+	if (ret)
+		return ret;
+
+	do {
+		ret = tb_port_read(out, &val, TB_CFG_PORT,
+				   out->cap_adap + DP_STATUS_CTRL, 1);
+		if (ret)
+			return ret;
+		if (!(val & DP_STATUS_CTRL_CMHS))
+			return 0;
+		usleep_range(10, 100);
+	} while (timeout--);
+
+	return -ETIMEDOUT;
+}
+
 static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 {
 	struct tb_port *out = tunnel->dst_port;
@@ -255,6 +292,14 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 	 */
 	if (in->sw->generation < 2 || out->sw->generation < 2)
 		return 0;
+
+	/*
+	 * Perform connection manager handshake between IN and OUT ports
+	 * before capabilities exchange can take place.
+	 */
+	ret = tb_dp_cm_handshake(in, out);
+	if (ret)
+		return ret;
 
 	/* Read both DP_LOCAL_CAP registers */
 	ret = tb_port_read(in, &in_dp_cap, TB_CFG_PORT,
