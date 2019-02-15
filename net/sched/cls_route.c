@@ -567,10 +567,7 @@ static void route4_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	struct route4_head *head = rtnl_dereference(tp->root);
 	unsigned int h, h1;
 
-	if (head == NULL)
-		arg->stop = 1;
-
-	if (arg->stop)
+	if (head == NULL || arg->stop)
 		return;
 
 	for (h = 0; h <= 256; h++) {
