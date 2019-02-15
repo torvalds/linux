@@ -92,6 +92,13 @@ properties:
           - const: firefly,roc-rk3399-pc
           - const: rockchip,rk3399
 
+      - description: FriendlyElec NanoPi4 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopc-t4
+              - friendlyarm,nanopi-m4
+          - const: rockchip,rk3399
+
       - description: GeekBuying GeekBox
         items:
           - const: geekbuying,geekbox
@@ -321,6 +328,11 @@ properties:
         items:
           - const: radxa,rock
           - const: rockchip,rk3188
+
+      - description: Radxa ROCK Pi 4
+        items:
+          - const: radxa,rockpi4
+          - const: rockchip,rk3399
 
       - description: Radxa Rock2 Square
         items:
