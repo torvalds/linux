@@ -372,9 +372,6 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 	const int *slew_rates;
 	int rate_count = 0;
 
-	if (!rdev)
-		return -EINVAL;
-
 	desc = rdev->desc;
 
 	switch (axp20x->variant) {
