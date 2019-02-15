@@ -1445,12 +1445,6 @@ static int knl_get_turbo_pstate(void)
 	return ret;
 }
 
-static int intel_pstate_get_base_pstate(struct cpudata *cpu)
-{
-	return global.no_turbo || global.turbo_disabled ?
-			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
-}
-
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
 	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
@@ -1973,7 +1967,8 @@ static void intel_pstate_update_perf_limits(struct cpufreq_policy *policy,
 	if (hwp_active) {
 		intel_pstate_get_hwp_max(cpu->cpu, &turbo_max, &max_state);
 	} else {
-		max_state = intel_pstate_get_base_pstate(cpu);
+		max_state = global.no_turbo || global.turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 		turbo_max = cpu->pstate.turbo_pstate;
 	}
 
