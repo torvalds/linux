@@ -734,8 +734,6 @@ static void perf_disable_service(struct perf_ctx *perf)
 {
 	int pidx;
 
-	ntb_link_disable(perf->ntb);
-
 	if (perf->cmd_send == perf_msg_cmd_send) {
 		u64 inbits;
 
@@ -752,6 +750,8 @@ static void perf_disable_service(struct perf_ctx *perf)
 
 	for (pidx = 0; pidx < perf->pcnt; pidx++)
 		flush_work(&perf->peers[pidx].service);
+
+	ntb_link_disable(perf->ntb);
 }
 
 /*==============================================================================
