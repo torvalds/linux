@@ -728,6 +728,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-cm-t335.dtb \
 	am335x-evm.dtb \
 	am335x-evmsk.dtb \
+	am335x-guardian.dtb \
 	am335x-icev2.dtb \
 	am335x-lxm.dtb \
 	am335x-moxa-uc-2101.dtb \
