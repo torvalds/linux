@@ -329,6 +329,38 @@ xfs_imap_valid(
 	return true;
 }
 
+/*
+ * Pass in a dellalloc extent and convert it to real extents, return the real
+ * extent that maps offset_fsb in wpc->imap.
+ *
+ * The current page is held locked so nothing could have removed the block
+ * backing offset_fsb.
+ */
+static int
+xfs_convert_blocks(
+	struct xfs_writepage_ctx *wpc,
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		offset_fsb)
+{
+	int			error;
+
+	/*
+	 * Attempt to allocate whatever delalloc extent currently backs
+	 * offset_fsb and put the result into wpc->imap.  Allocate in a loop
+	 * because it may take several attempts to allocate real blocks for a
+	 * contiguous delalloc extent if free space is sufficiently fragmented.
+	 */
+	do {
+		error = xfs_bmapi_convert_delalloc(ip, wpc->fork, offset_fsb,
+				&wpc->imap, wpc->fork == XFS_COW_FORK ?
+					&wpc->cow_seq : &wpc->data_seq);
+		if (error)
+			return error;
+	} while (wpc->imap.br_startoff + wpc->imap.br_blockcount <= offset_fsb);
+
+	return 0;
+}
+
 STATIC int
 xfs_map_blocks(
 	struct xfs_writepage_ctx *wpc,
@@ -458,14 +490,21 @@ xfs_map_blocks(
 	trace_xfs_map_blocks_found(ip, offset, count, wpc->fork, &imap);
 	return 0;
 allocate_blocks:
-	error = xfs_iomap_write_allocate(ip, wpc->fork, offset, &imap,
-			wpc->fork == XFS_COW_FORK ?
-					 &wpc->cow_seq : &wpc->data_seq);
+	error = xfs_convert_blocks(wpc, ip, offset_fsb);
 	if (error)
 		return error;
-	ASSERT(wpc->fork == XFS_COW_FORK || cow_fsb == NULLFILEOFF ||
-	       imap.br_startoff + imap.br_blockcount <= cow_fsb);
-	wpc->imap = imap;
+
+	/*
+	 * Due to merging the return real extent might be larger than the
+	 * original delalloc one.  Trim the return extent to the next COW
+	 * boundary again to force a re-lookup.
+	 */
+	if (wpc->fork != XFS_COW_FORK && cow_fsb != NULLFILEOFF &&
+	    cow_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount)
+		wpc->imap.br_blockcount = cow_fsb - wpc->imap.br_startoff;
+
+	ASSERT(wpc->imap.br_startoff <= offset_fsb);
+	ASSERT(wpc->imap.br_startoff + wpc->imap.br_blockcount > offset_fsb);
 	trace_xfs_map_blocks_alloc(ip, offset, count, wpc->fork, &imap);
 	return 0;
 }
