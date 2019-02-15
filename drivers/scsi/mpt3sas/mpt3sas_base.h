@@ -1028,6 +1028,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @msix_load_balance: Enables load balancing of interrupts across
  * the multiple MSIXs
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
+ * @thresh_hold: Max number of reply descriptors processed
+ *				before updating Host Index
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -1205,6 +1207,7 @@ struct MPT3SAS_ADAPTER {
 	u32             non_operational_loop;
 	atomic64_t      total_io_cnt;
 	bool            msix_load_balance;
+	u16		thresh_hold;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;

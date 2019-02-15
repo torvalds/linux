@@ -94,6 +94,11 @@ module_param(max_msix_vectors, int, 0);
 MODULE_PARM_DESC(max_msix_vectors,
 	" max msix vectors");
 
+static int irqpoll_weight = -1;
+module_param(irqpoll_weight, int, 0);
+MODULE_PARM_DESC(irqpoll_weight,
+	"irq poll weight (default= one fourth of HBA queue depth)");
+
 static int mpt3sas_fwfault_debug;
 MODULE_PARM_DESC(mpt3sas_fwfault_debug,
 	" enable detection of firmware fault and halt firmware - (default=0)");
@@ -1404,7 +1409,7 @@ static int
 _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 {
 	union reply_descriptor rd;
-	u32 completed_cmds;
+	u64 completed_cmds;
 	u8 request_descript_type;
 	u16 smid;
 	u8 cb_idx;
@@ -1502,7 +1507,7 @@ _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 		 * So that FW can find enough entries to post the Reply
 		 * Descriptors in the reply descriptor post queue.
 		 */
-		if (completed_cmds > ioc->hba_queue_depth/3) {
+		if (!base_mod64(completed_cmds, ioc->thresh_hold)) {
 			if (ioc->combined_reply_queue) {
 				writel(reply_q->reply_post_host_index |
 						((msix_index  & 7) <<
@@ -6611,6 +6616,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	r = _base_allocate_memory_pools(ioc);
 	if (r)
 		goto out_free_resources;
+
+	if (irqpoll_weight > 0)
+		ioc->thresh_hold = irqpoll_weight;
+	else
+		ioc->thresh_hold = ioc->hba_queue_depth/4;
 
 	_base_init_irqpolls(ioc);
 	init_waitqueue_head(&ioc->reset_wq);
