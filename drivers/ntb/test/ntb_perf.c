@@ -751,6 +751,14 @@ static void perf_disable_service(struct perf_ctx *perf)
 	for (pidx = 0; pidx < perf->pcnt; pidx++)
 		flush_work(&perf->peers[pidx].service);
 
+	for (pidx = 0; pidx < perf->pcnt; pidx++) {
+		struct perf_peer *peer = &perf->peers[pidx];
+
+		ntb_spad_write(perf->ntb, PERF_SPAD_CMD(peer->gidx), 0);
+	}
+
+	ntb_db_clear(perf->ntb, PERF_SPAD_NOTIFY(perf->gidx));
+
 	ntb_link_disable(perf->ntb);
 }
 
