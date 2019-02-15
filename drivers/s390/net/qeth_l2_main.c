@@ -174,9 +174,9 @@ static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	return RTN_UNICAST;
 }
 
-static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-				struct sk_buff *skb, int ipv, int cast_type,
-				unsigned int data_len)
+static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
+				struct qeth_hdr *hdr, struct sk_buff *skb,
+				int ipv, int cast_type, unsigned int data_len)
 {
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
 
@@ -188,8 +188,7 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
-			if (card->options.performance_stats)
-				card->perf_stats.tx_csum++;
+			QETH_TXQ_STAT_INC(queue, skbs_csum);
 		}
 	}
 
@@ -369,8 +368,8 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 		}
 		work_done++;
 		budget--;
-		card->stats.rx_packets++;
-		card->stats.rx_bytes += len;
+		QETH_CARD_STAT_INC(card, rx_packets);
+		QETH_CARD_STAT_ADD(card, rx_bytes, len);
 	}
 	return work_done;
 }
@@ -626,12 +625,13 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int tx_bytes = skb->len;
 	int rc;
 
+	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
+
 	if (card->state != CARD_STATE_UP) {
-		card->stats.tx_carrier_errors++;
+		QETH_TXQ_STAT_INC(queue, tx_carrier_errors);
 		goto tx_drop;
 	}
 
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
 	netif_stop_queue(dev);
 
 	if (IS_OSN(card))
@@ -641,8 +641,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			       qeth_l2_fill_header);
 
 	if (!rc) {
-		card->stats.tx_packets++;
-		card->stats.tx_bytes += tx_bytes;
+		QETH_TXQ_STAT_INC(queue, tx_packets);
+		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
 		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
 	} else if (rc == -EBUSY) {
@@ -650,8 +650,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	} /* else fall through */
 
 tx_drop:
-	card->stats.tx_dropped++;
-	card->stats.tx_errors++;
+	QETH_TXQ_STAT_INC(queue, tx_dropped);
+	QETH_TXQ_STAT_INC(queue, tx_errors);
 	dev_kfree_skb_any(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
@@ -699,7 +699,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
-	.ndo_get_stats		= qeth_get_stats,
+	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= qeth_l2_validate_addr,

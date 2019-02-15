@@ -34,6 +34,8 @@
 #include <asm/ccwgroup.h>
 #include <asm/sysinfo.h>
 
+#include <uapi/linux/if_link.h>
+
 #include "qeth_core_mpc.h"
 
 /**
@@ -111,35 +113,6 @@ static inline u32 qeth_get_device_id(struct ccw_device *cdev)
 #define CARD_DDEV_ID(card) dev_name(&card->data.ccwdev->dev)
 #define CCW_DEVID(cdev)		(qeth_get_device_id(cdev))
 #define CARD_DEVID(card)	(CCW_DEVID(CARD_RDEV(card)))
-
-/**
- * card stuff
- */
-struct qeth_perf_stats {
-	unsigned int bufs_rec;
-	unsigned int bufs_sent;
-	unsigned int buf_elements_sent;
-
-	unsigned int skbs_sent_pack;
-	unsigned int bufs_sent_pack;
-
-	unsigned int sc_dp_p;
-	unsigned int sc_p_dp;
-	unsigned int large_send_bytes;
-	unsigned int large_send_cnt;
-	unsigned int sg_skbs_sent;
-	/* initial values when measuring starts */
-	unsigned long initial_rx_packets;
-	unsigned long initial_tx_packets;
-	/* inbound scatter gather data */
-	unsigned int sg_skbs_rx;
-	unsigned int sg_frags_rx;
-	unsigned int sg_alloc_page_rx;
-	unsigned int tx_csum;
-	unsigned int tx_lin;
-	unsigned int tx_linfail;
-	unsigned int rx_csum;
-};
 
 /* Routing stuff */
 struct qeth_routing_info {
@@ -470,10 +443,54 @@ enum qeth_out_q_states {
        QETH_OUT_Q_LOCKED_FLUSH,
 };
 
+#define QETH_CARD_STAT_ADD(_c, _stat, _val)	((_c)->stats._stat += (_val))
+#define QETH_CARD_STAT_INC(_c, _stat)		QETH_CARD_STAT_ADD(_c, _stat, 1)
+
+#define QETH_TXQ_STAT_ADD(_q, _stat, _val)	((_q)->stats._stat += (_val))
+#define QETH_TXQ_STAT_INC(_q, _stat)		QETH_TXQ_STAT_ADD(_q, _stat, 1)
+
+struct qeth_card_stats {
+	u64 rx_bufs;
+	u64 rx_skb_csum;
+	u64 rx_sg_skbs;
+	u64 rx_sg_frags;
+	u64 rx_sg_alloc_page;
+
+	/* rtnl_link_stats64 */
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_errors;
+	u64 rx_dropped;
+	u64 rx_multicast;
+	u64 tx_errors;
+};
+
+struct qeth_out_q_stats {
+	u64 bufs;
+	u64 bufs_pack;
+	u64 buf_elements;
+	u64 skbs_pack;
+	u64 skbs_sg;
+	u64 skbs_csum;
+	u64 skbs_tso;
+	u64 skbs_linearized;
+	u64 skbs_linearized_fail;
+	u64 tso_bytes;
+	u64 packing_mode_switch;
+
+	/* rtnl_link_stats64 */
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_errors;
+	u64 tx_dropped;
+	u64 tx_carrier_errors;
+};
+
 struct qeth_qdio_out_q {
 	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
+	struct qeth_out_q_stats stats;
 	int queue_no;
 	struct qeth_card *card;
 	atomic_t state;
@@ -677,7 +694,6 @@ struct qeth_card_options {
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	int fake_broadcast;
 	enum qeth_discipline_id layer;
-	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
 	enum qeth_ipa_isolation_modes prev_isolation;
@@ -753,8 +769,7 @@ struct qeth_card {
 	struct qeth_channel data;
 
 	struct net_device *dev;
-	struct net_device_stats stats;
-
+	struct qeth_card_stats stats;
 	struct qeth_card_info info;
 	struct qeth_token token;
 	struct qeth_seqno seqno;
@@ -777,7 +792,6 @@ struct qeth_card {
 	struct list_head cmd_waiter_list;
 	/* QDIO buffer handling */
 	struct qeth_qdio_info qdio;
-	struct qeth_perf_stats perf_stats;
 	int read_or_write_problem;
 	struct qeth_osn_info osn_info;
 	struct qeth_discipline *discipline;
@@ -858,8 +872,7 @@ static inline void qeth_rx_csum(struct qeth_card *card, struct sk_buff *skb,
 	if ((card->dev->features & NETIF_F_RXCSUM) &&
 	    (flags & QETH_HDR_EXT_CSUM_TRANSP_REQ)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		if (card->options.performance_stats)
-			card->perf_stats.rx_csum++;
+		QETH_CARD_STAT_INC(card, rx_skb_csum);
 	} else {
 		skb->ip_summed = CHECKSUM_NONE;
 	}
@@ -966,7 +979,6 @@ void qeth_clear_working_pool_list(struct qeth_card *);
 void qeth_clear_cmd_buffers(struct qeth_channel *);
 void qeth_clear_qdio_buffers(struct qeth_card *);
 void qeth_setadp_promisc_mode(struct qeth_card *);
-struct net_device_stats *qeth_get_stats(struct net_device *);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
 void qeth_prepare_control_data(struct qeth_card *, int,
@@ -1002,14 +1014,16 @@ netdev_features_t qeth_fix_features(struct net_device *, netdev_features_t);
 netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
+void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
 int qeth_open(struct net_device *dev);
 int qeth_stop(struct net_device *dev);
 
 int qeth_vm_request_mac(struct qeth_card *card);
 int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 	      struct qeth_qdio_out_q *queue, int ipv, int cast_type,
-	      void (*fill_header)(struct qeth_card *card, struct qeth_hdr *hdr,
-				  struct sk_buff *skb, int ipv, int cast_type,
+	      void (*fill_header)(struct qeth_qdio_out_q *queue,
+				  struct qeth_hdr *hdr, struct sk_buff *skb,
+				  int ipv, int cast_type,
 				  unsigned int data_len));
 
 /* exports for OSN */
