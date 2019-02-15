@@ -464,7 +464,7 @@ static inline struct rxe_mem *to_rmw(struct ib_mw *mw)
 	return mw ? container_of(mw, struct rxe_mem, ibmw) : NULL;
 }
 
-int rxe_register_device(struct rxe_dev *rxe);
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
 
 void rxe_mc_cleanup(struct rxe_pool_entry *arg);
 

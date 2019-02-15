@@ -1182,7 +1182,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 };
 
-int rxe_register_device(struct rxe_dev *rxe)
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 {
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
@@ -1251,7 +1251,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	dev->driver_id = RDMA_DRIVER_RXE;
-	err = ib_register_device(dev, "rxe%d");
+	err = ib_register_device(dev, ibdev_name);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);
 

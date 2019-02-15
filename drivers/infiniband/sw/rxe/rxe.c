@@ -31,6 +31,7 @@
  * SOFTWARE.
  */
 
+#include <rdma/rdma_netlink.h>
 #include <net/addrconf.h>
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -301,7 +302,7 @@ void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
 /* called by ifc layer to create new rxe device.
  * The caller should allocate memory for rxe by calling ib_alloc_device.
  */
-int rxe_add(struct rxe_dev *rxe, unsigned int mtu)
+int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name)
 {
 	int err;
 
@@ -311,8 +312,35 @@ int rxe_add(struct rxe_dev *rxe, unsigned int mtu)
 
 	rxe_set_mtu(rxe, mtu);
 
-	return rxe_register_device(rxe);
+	return rxe_register_device(rxe, ibdev_name);
 }
+
+static int rxe_newlink(const char *ibdev_name, struct net_device *ndev)
+{
+	struct rxe_dev *exists;
+	int err = 0;
+
+	exists = rxe_get_dev_from_net(ndev);
+	if (exists) {
+		ib_device_put(&exists->ib_dev);
+		pr_err("already configured on %s\n", ndev->name);
+		err = -EEXIST;
+		goto err;
+	}
+
+	err = rxe_net_add(ibdev_name, ndev);
+	if (err) {
+		pr_err("failed to add %s\n", ndev->name);
+		goto err;
+	}
+err:
+	return err;
+}
+
+static struct rdma_link_ops rxe_link_ops = {
+	.type = "rxe",
+	.newlink = rxe_newlink,
+};
 
 static int __init rxe_module_init(void)
 {
@@ -329,12 +357,14 @@ static int __init rxe_module_init(void)
 	if (err)
 		return err;
 
+	rdma_link_register(&rxe_link_ops);
 	pr_info("loaded\n");
 	return 0;
 }
 
 static void __exit rxe_module_exit(void)
 {
+	rdma_link_unregister(&rxe_link_ops);
 	ib_unregister_driver(RDMA_DRIVER_RXE);
 	rxe_net_exit();
 	rxe_cache_exit();
@@ -344,3 +374,5 @@ static void __exit rxe_module_exit(void)
 
 late_initcall(rxe_module_init);
 module_exit(rxe_module_exit);
+
+MODULE_ALIAS_RDMA_LINK("rxe");
