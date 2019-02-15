@@ -208,7 +208,7 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 			    1);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err) {
-		dev_err(dev, "Failed to query module temprature sensor\n");
+		dev_err(dev, "Failed to query module temperature sensor\n");
 		return err;
 	}
 
@@ -251,7 +251,7 @@ static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,
 			    1);
 	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err) {
-		dev_err(dev, "Failed to query module temprature sensor\n");
+		dev_err(dev, "Failed to query module temperature sensor\n");
 		return err;
 	}
 
@@ -291,7 +291,7 @@ mlxsw_hwmon_module_temp_critical_show(struct device *dev,
 	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
 						   SFP_TEMP_HIGH_WARN, &temp);
 	if (err) {
-		dev_err(dev, "Failed to query module temprature thresholds\n");
+		dev_err(dev, "Failed to query module temperature thresholds\n");
 		return err;
 	}
 
@@ -314,7 +314,7 @@ mlxsw_hwmon_module_temp_emergency_show(struct device *dev,
 	err = mlxsw_env_module_temp_thresholds_get(mlxsw_hwmon->core, module,
 						   SFP_TEMP_HIGH_ALARM, &temp);
 	if (err) {
-		dev_err(dev, "Failed to query module temprature thresholds\n");
+		dev_err(dev, "Failed to query module temperature thresholds\n");
 		return err;
 	}
 
