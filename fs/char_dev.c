@@ -88,13 +88,10 @@ static int find_dynamic_major(void)
 /*
  * Register a single major with a specified minor range.
  *
- * If major == 0 this functions will dynamically allocate a major and return
- * its number.
+ * If major == 0 this function will dynamically allocate an unused major.
+ * If major > 0 this function will attempt to reserve the range of minors
+ * with given major.
  *
- * If major > 0 this function will attempt to reserve the passed range of
- * minors and will return zero on success.
- *
- * Returns a -ve errno on failure.
  */
 static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
