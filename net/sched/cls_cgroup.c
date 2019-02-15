@@ -158,6 +158,8 @@ static void cls_cgroup_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	if (arg->count < arg->skip)
 		goto skip;
 
+	if (!head)
+		return;
 	if (arg->fn(tp, head, arg) < 0) {
 		arg->stop = 1;
 		return;
