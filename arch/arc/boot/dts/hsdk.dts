@@ -200,6 +200,7 @@
 			compatible = "snps,hsdk-v1.0-ohci", "generic-ohci";
 			reg = <0x60000 0x100>;
 			interrupts = <15>;
+			resets = <&cgu_rst HSDK_USB_RESET>;
 			dma-coherent;
 		};
 
@@ -207,6 +208,7 @@
 			compatible = "snps,hsdk-v1.0-ehci", "generic-ehci";
 			reg = <0x40000 0x100>;
 			interrupts = <15>;
+			resets = <&cgu_rst HSDK_USB_RESET>;
 			dma-coherent;
 		};
 
