@@ -1001,6 +1001,11 @@ struct acpi_table_gtdt {
 #define ACPI_GTDT_INTERRUPT_POLARITY    (1<<1)
 #define ACPI_GTDT_ALWAYS_ON             (1<<2)
 
+struct acpi_gtdt_el2 {
+	u32 virtual_el2_timer_gsiv;
+	u32 virtual_el2_timer_flags;
+};
+
 /* Common GTDT subtable header */
 
 struct acpi_gtdt_header {
