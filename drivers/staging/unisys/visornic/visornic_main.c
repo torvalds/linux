@@ -896,9 +896,7 @@ static netdev_tx_t visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	    ((skb_end_pointer(skb) - skb->data) >= ETH_MIN_PACKET_SIZE)) {
 		/* pad the packet out to minimum size */
 		padlen = ETH_MIN_PACKET_SIZE - len;
-		memset(&skb->data[len], 0, padlen);
-		skb->tail += padlen;
-		skb->len += padlen;
+		skb_put_zero(skb, padlen);
 		len += padlen;
 		firstfraglen += padlen;
 	}
