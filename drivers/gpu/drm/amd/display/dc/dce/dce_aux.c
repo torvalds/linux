@@ -171,24 +171,24 @@ static void submit_channel_request(
 		 (request->action == I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT)));
 	if (REG(AUXN_IMPCAL)) {
 		/* clear_aux_error */
-		REG_UPDATE_SEQ(AUXN_IMPCAL, AUXN_CALOUT_ERROR_AK,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXN_IMPCAL,
+				AUXN_CALOUT_ERROR_AK, 1,
+				AUXN_CALOUT_ERROR_AK, 0);
 
-		REG_UPDATE_SEQ(AUXP_IMPCAL, AUXP_CALOUT_ERROR_AK,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXP_IMPCAL,
+				AUXP_CALOUT_ERROR_AK, 1,
+				AUXP_CALOUT_ERROR_AK, 0);
 
 		/* force_default_calibrate */
-		REG_UPDATE_1BY1_2(AUXN_IMPCAL,
+		REG_UPDATE_SEQ_2(AUXN_IMPCAL,
 				AUXN_IMPCAL_ENABLE, 1,
 				AUXN_IMPCAL_OVERRIDE_ENABLE, 0);
 
 		/* bug? why AUXN update EN and OVERRIDE_EN 1 by 1 while AUX P toggles OVERRIDE? */
 
-		REG_UPDATE_SEQ(AUXP_IMPCAL, AUXP_IMPCAL_OVERRIDE_ENABLE,
-				1,
-				0);
+		REG_UPDATE_SEQ_2(AUXP_IMPCAL,
+				AUXP_IMPCAL_OVERRIDE_ENABLE, 1,
+				AUXP_IMPCAL_OVERRIDE_ENABLE, 0);
 	}
 	/* set the delay and the number of bytes to write */
 
@@ -267,7 +267,7 @@ static int read_channel_reply(struct dce_aux *engine, uint32_t size,
 	if (!bytes_replied)
 		return -1;
 
-	REG_UPDATE_1BY1_3(AUX_SW_DATA,
+	REG_UPDATE_SEQ_3(AUX_SW_DATA,
 			  AUX_SW_INDEX, 0,
 			  AUX_SW_AUTOINCREMENT_DISABLE, 1,
 			  AUX_SW_DATA_RW, 1);
