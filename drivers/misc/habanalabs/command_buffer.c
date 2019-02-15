@@ -38,6 +38,8 @@ static void cb_release(struct kref *ref)
 	cb = container_of(ref, struct hl_cb, refcount);
 	hdev = cb->hdev;
 
+	hl_debugfs_remove_cb(cb);
+
 	cb_do_release(hdev, cb);
 }
 
@@ -162,6 +164,8 @@ int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	 */
 	*handle = cb->id | HL_MMAP_CB_MASK;
 	*handle <<= PAGE_SHIFT;
+
+	hl_debugfs_add_cb(cb);
 
 	return 0;
 

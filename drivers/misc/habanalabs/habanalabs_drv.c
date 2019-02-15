@@ -146,6 +146,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	 */
 	hl_device_set_frequency(hdev, PLL_HIGH);
 
+	hl_debugfs_add_file(hpriv);
+
 	return 0;
 
 out_err:
@@ -413,17 +415,20 @@ static int __init hl_init(void)
 		goto remove_major;
 	}
 
+	hl_debugfs_init();
+
 	rc = pci_register_driver(&hl_pci_driver);
 	if (rc) {
 		pr_err("failed to register pci device\n");
-		goto remove_class;
+		goto remove_debugfs;
 	}
 
 	pr_debug("driver loaded\n");
 
 	return 0;
 
-remove_class:
+remove_debugfs:
+	hl_debugfs_fini();
 	class_destroy(hl_class);
 remove_major:
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
@@ -436,6 +441,13 @@ remove_major:
 static void __exit hl_exit(void)
 {
 	pci_unregister_driver(&hl_pci_driver);
+
+	/*
+	 * Removing debugfs must be after all devices or simulator devices
+	 * have been removed because otherwise we get a bug in the
+	 * debugfs module for referencing NULL objects
+	 */
+	hl_debugfs_fini();
 
 	class_destroy(hl_class);
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);

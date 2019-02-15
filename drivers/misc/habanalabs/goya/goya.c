@@ -4370,6 +4370,8 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 
+	hl_debugfs_add_job(hdev, job);
+
 	parser.ctx_id = HL_KERNEL_ASID_ID;
 	parser.cs_sequence = 0;
 	parser.job_id = job->id;
@@ -4402,6 +4404,7 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 
 free_job:
 	hl_userptr_delete_list(hdev, &job->userptr_list);
+	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
 
@@ -4430,6 +4433,106 @@ void goya_restore_phase_topology(struct hl_device *hdev)
 
 	/* Flush all WREG to prevent race */
 	i = RREG32(mmSYNC_MNGR_SOB_OBJ_0);
+}
+
+/*
+ * goya_debugfs_read32 - read a 32bit value from a given device address
+ *
+ * @hdev:	pointer to hl_device structure
+ * @addr:	address in device
+ * @val:	returned value
+ *
+ * In case of DDR address that is not mapped into the default aperture that
+ * the DDR bar exposes, the function will configure the iATU so that the DDR
+ * bar will be positioned at a base address that allows reading from the
+ * required address. Configuring the iATU during normal operation can
+ * lead to undefined behavior and therefore, should be done with extreme care
+ *
+ */
+int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc = 0;
+
+	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
+		*val = RREG32(addr - CFG_BASE);
+
+	} else if ((addr >= SRAM_BASE_ADDR) &&
+			(addr < SRAM_BASE_ADDR + SRAM_SIZE)) {
+
+		*val = readl(hdev->pcie_bar[SRAM_CFG_BAR_ID] +
+				(addr - SRAM_BASE_ADDR));
+
+	} else if ((addr >= DRAM_PHYS_BASE) &&
+			(addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size)) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE +
+				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (!rc) {
+			*val = readl(hdev->pcie_bar[DDR_BAR_ID] +
+						(addr - bar_base_addr));
+
+			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
+				(MMU_PAGE_TABLES_ADDR &
+					~(prop->dram_pci_bar_size - 0x1ull)));
+		}
+	} else {
+		rc = -EFAULT;
+	}
+
+	return rc;
+}
+
+/*
+ * goya_debugfs_write32 - write a 32bit value to a given device address
+ *
+ * @hdev:	pointer to hl_device structure
+ * @addr:	address in device
+ * @val:	returned value
+ *
+ * In case of DDR address that is not mapped into the default aperture that
+ * the DDR bar exposes, the function will configure the iATU so that the DDR
+ * bar will be positioned at a base address that allows writing to the
+ * required address. Configuring the iATU during normal operation can
+ * lead to undefined behavior and therefore, should be done with extreme care
+ *
+ */
+int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc = 0;
+
+	if ((addr >= CFG_BASE) && (addr < CFG_BASE + CFG_SIZE)) {
+		WREG32(addr - CFG_BASE, val);
+
+	} else if ((addr >= SRAM_BASE_ADDR) &&
+			(addr < SRAM_BASE_ADDR + SRAM_SIZE)) {
+
+		writel(val, hdev->pcie_bar[SRAM_CFG_BAR_ID] +
+					(addr - SRAM_BASE_ADDR));
+
+	} else if ((addr >= DRAM_PHYS_BASE) &&
+			(addr < DRAM_PHYS_BASE + hdev->asic_prop.dram_size)) {
+
+		u64 bar_base_addr = DRAM_PHYS_BASE +
+				(addr & ~(prop->dram_pci_bar_size - 0x1ull));
+
+		rc = goya_set_ddr_bar_base(hdev, bar_base_addr);
+		if (!rc) {
+			writel(val, hdev->pcie_bar[DDR_BAR_ID] +
+						(addr - bar_base_addr));
+
+			rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
+				(MMU_PAGE_TABLES_ADDR &
+					~(prop->dram_pci_bar_size - 0x1ull)));
+		}
+	} else {
+		rc = -EFAULT;
+	}
+
+	return rc;
 }
 
 static u64 goya_read_pte(struct hl_device *hdev, u64 addr)
@@ -4780,6 +4883,8 @@ static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
 	job->user_cb_size = cb_size;
 	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
 
+	hl_debugfs_add_job(hdev, job);
+
 	parser.ctx_id = HL_KERNEL_ASID_ID;
 	parser.cs_sequence = 0;
 	parser.job_id = job->id;
@@ -4808,6 +4913,7 @@ static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
 
 free_job:
 	hl_userptr_delete_list(hdev, &job->userptr_list);
+	hl_debugfs_remove_job(hdev, job);
 	kfree(job);
 	cb->cs_cnt--;
 
@@ -5222,6 +5328,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.update_eq_ci = goya_update_eq_ci,
 	.context_switch = goya_context_switch,
 	.restore_phase_topology = goya_restore_phase_topology,
+	.debugfs_read32 = goya_debugfs_read32,
+	.debugfs_write32 = goya_debugfs_write32,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,

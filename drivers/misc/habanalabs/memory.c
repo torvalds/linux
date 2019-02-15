@@ -1290,6 +1290,8 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
 		goto free_sgt;
 	}
 
+	hl_debugfs_add_userptr(hdev, userptr);
+
 	return 0;
 
 free_sgt:
@@ -1314,6 +1316,8 @@ destroy_framevec:
 int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 {
 	struct page **pages;
+
+	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
 		hdev->asic_funcs->hl_dma_unmap_sg(hdev,
@@ -1476,6 +1480,8 @@ int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
 		goto dram_vm_err;
 	}
 
+	hl_debugfs_add_ctx_mem_hash(hdev, ctx);
+
 	return 0;
 
 dram_vm_err:
@@ -1597,6 +1603,8 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hl_vm_hash_node *hnode;
 	struct hlist_node *tmp_node;
 	int i;
+
+	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
 	if (!hash_empty(ctx->mem_hash))
 		dev_notice(hdev->dev, "ctx is freed while it has va in use\n");

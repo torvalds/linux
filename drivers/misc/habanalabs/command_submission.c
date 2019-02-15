@@ -149,6 +149,8 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	list_del(&job->cs_node);
 	spin_unlock(&cs->job_lock);
 
+	hl_debugfs_remove_job(hdev, job);
+
 	if (job->ext_queue)
 		cs_put(cs);
 
@@ -211,6 +213,12 @@ static void cs_do_release(struct kref *ref)
 			spin_unlock(&hdev->hw_queues_mirror_lock);
 		}
 	}
+
+	/*
+	 * Must be called before hl_ctx_put because inside we use ctx to get
+	 * the device
+	 */
+	hl_debugfs_remove_cs(cs);
 
 	hl_ctx_put(cs->ctx);
 
@@ -480,6 +488,8 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 
 	*cs_seq = cs->sequence;
 
+	hl_debugfs_add_cs(cs);
+
 	/* Validate ALL the CS chunks before submitting the CS */
 	for (i = 0, parse_cnt = 0 ; i < num_chunks ; i++, parse_cnt++) {
 		struct hl_cs_chunk *chunk = &cs_chunk_array[i];
@@ -527,6 +537,8 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 		 */
 		if (job->ext_queue)
 			cs_get(cs);
+
+		hl_debugfs_add_job(hdev, job);
 
 		rc = cs_parser(hpriv, job);
 		if (rc) {
