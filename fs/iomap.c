@@ -267,8 +267,9 @@ iomap_read_end_io(struct bio *bio)
 	int error = blk_status_to_errno(bio->bi_status);
 	struct bio_vec *bvec;
 	int i;
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i)
+	bio_for_each_segment_all(bvec, bio, i, iter_all)
 		iomap_read_page_end_io(bvec, error);
 	bio_put(bio);
 }
@@ -1559,8 +1560,9 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 	} else {
 		struct bio_vec *bvec;
 		int i;
+		struct bvec_iter_all iter_all;
 
-		bio_for_each_segment_all(bvec, bio, i)
+		bio_for_each_segment_all(bvec, bio, i, iter_all)
 			put_page(bvec->bv_page);
 		bio_put(bio);
 	}

@@ -830,8 +830,9 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct address_space *mc = NULL;
 #endif
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
 		struct page *page = bvec->bv_page;
 		bool cachemngd = false;
 
