@@ -899,5 +899,6 @@ void qlt_update_host_map(struct scsi_qla_host *, port_id_t);
 void qlt_remove_target_resources(struct qla_hw_data *);
 void qlt_clr_qp_table(struct scsi_qla_host *vha);
 void qlt_set_mode(struct scsi_qla_host *);
+int qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode);
 
 #endif /* _QLA_GBL_H */

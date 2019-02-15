@@ -3698,12 +3698,14 @@ struct qla_hw_data {
 #define PORT_SPEED_UNKNOWN 0xFFFF
 #define PORT_SPEED_1GB  0x00
 #define PORT_SPEED_2GB  0x01
+#define PORT_SPEED_AUTO 0x02
 #define PORT_SPEED_4GB  0x03
 #define PORT_SPEED_8GB  0x04
 #define PORT_SPEED_16GB 0x05
 #define PORT_SPEED_32GB 0x06
 #define PORT_SPEED_10GB	0x13
 	uint16_t	link_data_rate;         /* F/W operating speed */
+	uint16_t	set_data_rate;		/* Set by user */
 
 	uint8_t		current_topology;
 	uint8_t		prev_topology;
@@ -4231,6 +4233,10 @@ struct qla_hw_data {
 #define FW_ABILITY_MAX_SPEED_32G	0x1
 #define FW_ABILITY_MAX_SPEED(ha)	\
 	(ha->fw_ability_mask & FW_ABILITY_MAX_SPEED_MASK)
+
+#define QLA_GET_DATA_RATE	0
+#define QLA_SET_DATA_RATE_NOLR	1
+#define QLA_SET_DATA_RATE_LR	2 /* Set speed and initiate LR */
 
 /*
  * Qlogic scsi host structure

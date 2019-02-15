@@ -3882,7 +3882,16 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		WRT_REG_DWORD(&reg->isp24.rsp_q_in, 0);
 		WRT_REG_DWORD(&reg->isp24.rsp_q_out, 0);
 	}
+
 	qlt_24xx_config_rings(vha);
+
+	/* If the user has configured the speed, set it here */
+	if (ha->set_data_rate) {
+		ql_dbg(ql_dbg_init, vha, 0x00fd,
+		    "Speed set by user : %s Gbps \n",
+		    qla2x00_get_link_speed_str(ha, ha->set_data_rate));
+		icb->firmware_options_3 = (ha->set_data_rate << 13);
+	}
 
 	/* PCI posting */
 	RD_REG_DWORD(&ioreg->hccr);

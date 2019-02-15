@@ -5250,6 +5250,66 @@ qla81xx_write_mpi_register(scsi_qla_host_t *vha, uint16_t *mb)
 	return rval;
 }
 
+/* Set the specified data rate */
+int
+qla2x00_set_data_rate(scsi_qla_host_t *vha, uint16_t mode)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t val;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1106,
+	    "Entered %s speed:0x%x mode:0x%x.\n", __func__, ha->set_data_rate,
+	    mode);
+
+	if (!IS_FWI2_CAPABLE(ha))
+		return QLA_FUNCTION_FAILED;
+
+	memset(mcp, 0, sizeof(*mcp));
+	switch (ha->set_data_rate) {
+	case PORT_SPEED_AUTO:
+	case PORT_SPEED_4GB:
+	case PORT_SPEED_8GB:
+	case PORT_SPEED_16GB:
+	case PORT_SPEED_32GB:
+		val = ha->set_data_rate;
+		break;
+	default:
+		ql_log(ql_log_warn, vha, 0x1199,
+		    "Unrecognized speed setting:%d. Setting Autoneg\n",
+		    ha->set_data_rate);
+		val = ha->set_data_rate = PORT_SPEED_AUTO;
+		break;
+	}
+
+	mcp->mb[0] = MBC_DATA_RATE;
+	mcp->mb[1] = mode;
+	mcp->mb[2] = val;
+
+	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+		mcp->in_mb |= MBX_4|MBX_3;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1107,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		if (mcp->mb[1] != 0x7)
+			ql_dbg(ql_dbg_mbx, vha, 0x1179,
+				"Speed set:0x%x\n", mcp->mb[1]);
+
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1108,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
 int
 qla2x00_get_data_rate(scsi_qla_host_t *vha)
 {
@@ -5265,7 +5325,7 @@ qla2x00_get_data_rate(scsi_qla_host_t *vha)
 		return QLA_FUNCTION_FAILED;
 
 	mcp->mb[0] = MBC_DATA_RATE;
-	mcp->mb[1] = 0;
+	mcp->mb[1] = QLA_GET_DATA_RATE;
 	mcp->out_mb = MBX_1|MBX_0;
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
