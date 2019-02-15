@@ -56,6 +56,8 @@ int rockchip_ipa_power_model_init(struct device *dev,
 		ret = -EINVAL;
 		goto err;
 	}
+	of_property_read_u32(model_node, "ref-leakage",
+			     &model_data->ref_leakage);
 	*data = model_data;
 
 	return 0;
@@ -135,14 +137,15 @@ unsigned long
 rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 			      unsigned long voltage)
 {
-	u32 temp_scaling_factor, coeffp;
+	u32 temp_scaling_factor, coeffp, static_power;
 	u64 coeff_big;
 	int temp;
 	int ret;
 
 	ret = data->tz->ops->get_temp(data->tz, &temp);
 	if (ret) {
-		pr_err("%s:failed to read %s temp\n", __func__, data->tz->type);
+		pr_err("%s:failed to read %s temp\n",
+		       __func__, data->tz->type);
 		temp = FALLBACK_STATIC_TEMPERATURE;
 	}
 
@@ -156,6 +159,11 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 	coeff_big = (u64)data->static_coefficient * (u64)temp_scaling_factor;
 	coeffp = div_u64(coeff_big, 1000000);
 
-	return scale_static_power(coeffp, (u32)voltage);
+	static_power = scale_static_power(coeffp, (u32)voltage);
+	if (data->leakage && data->ref_leakage)
+		static_power = static_power * data->leakage /
+			data->ref_leakage;
+
+	return static_power;
 }
 EXPORT_SYMBOL(rockchip_ipa_get_static_power);
