@@ -532,7 +532,13 @@ static int smu_fini_fb_allocations(struct smu_context *smu)
 static int smu_smc_table_hw_init(struct smu_context *smu,
 				 bool initialize)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret;
+
+	if (smu_is_dpm_running(smu) && adev->in_suspend) {
+		pr_info("dpm has been enabled\n");
+		return 0;
+	}
 
 	ret = smu_init_display(smu);
 	if (ret)
@@ -606,7 +612,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	ret = smu_feature_enable_all(smu);
+	ret = smu_system_features_control(smu, true);
 	if (ret)
 		return ret;
 
@@ -849,7 +855,7 @@ static int smu_suspend(void *handle)
 	if (!is_support_sw_smu(adev))
 		return -EINVAL;
 
-	ret = smu_feature_disable_all(smu);
+	ret = smu_system_features_control(smu, false);
 	if (ret)
 		return ret;
 

@@ -771,34 +771,15 @@ static bool smu_v11_0_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int smu_v11_0_enable_all_mask(struct smu_context *smu)
+static int smu_v11_0_system_features_control(struct smu_context *smu,
+					     bool en)
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_EnableAllSmuFeatures);
-	if (ret)
-		return ret;
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
-	if (ret)
-		return ret;
-
-	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-
-	return ret;
-}
-
-static int smu_v11_0_disable_all_mask(struct smu_context *smu)
-{
-	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_mask[2];
-	int ret = 0;
-
-	ret = smu_send_smc_msg(smu, SMU_MSG_DisableAllSmuFeatures);
+	ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+				     SMU_MSG_DisableAllSmuFeatures));
 	if (ret)
 		return ret;
 	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
@@ -1987,8 +1968,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.is_dpm_running = smu_v11_0_is_dpm_running,
-	.enable_all_mask = smu_v11_0_enable_all_mask,
-	.disable_all_mask = smu_v11_0_disable_all_mask,
+	.system_features_control = smu_v11_0_system_features_control,
 	.update_feature_enable_state = smu_v11_0_update_feature_enable_state,
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.get_power_limit = smu_v11_0_get_power_limit,
