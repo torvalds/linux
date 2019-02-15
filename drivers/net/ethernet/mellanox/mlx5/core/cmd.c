@@ -1583,6 +1583,24 @@ no_trig:
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 }
 
+void mlx5_cmd_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	int i;
+
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		while (down_trylock(&cmd->sem))
+			mlx5_cmd_trigger_completions(dev);
+
+	while (down_trylock(&cmd->pages_sem))
+		mlx5_cmd_trigger_completions(dev);
+
+	/* Unlock cmdif */
+	up(&cmd->pages_sem);
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		up(&cmd->sem);
+}
+
 static int status_to_err(u8 status)
 {
 	return status ? -1 : 0; /* TBD more meaningful codes */
