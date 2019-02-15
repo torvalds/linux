@@ -1201,9 +1201,11 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 	} else {
 		if (handle == 0) {
 			handle = qdisc_alloc_handle(dev);
-			err = -ENOMEM;
-			if (handle == 0)
+			if (handle == 0) {
+				NL_SET_ERR_MSG(extack, "Maximum number of qdisc handles was exceeded");
+				err = -ENOSPC;
 				goto err_out3;
+			}
 		}
 		if (!netif_is_multiqueue(dev))
 			sch->flags |= TCQ_F_ONETXQUEUE;
