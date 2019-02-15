@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 
 /*
- * Device tree file for ZII's SSMB SPU3 board
+ * Device tree file for ZII's SSMB DTU board
  *
  * SSMB - SPU3 Switch Management Board
- * SPU - Seat Power Unit
+ * DTU - Digital Tapping Unit
  *
- * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2015-2019 Zodiac Inflight Innovations
  *
  * Based on an original 'vf610-twr.dts' which is Copyright 2015,
  * Freescale Semiconductor, Inc.
@@ -16,8 +16,8 @@
 #include "vf610.dtsi"
 
 / {
-	model = "ZII VF610 SSMB SPU3 Board";
-	compatible = "zii,vf610spu3", "zii,vf610dev", "fsl,vf610";
+	model = "ZII VF610 SSMB DTU Board";
+	compatible = "zii,vf610dtu", "zii,vf610dev", "fsl,vf610";
 
 	chosen {
 		stdout-path = &uart0;
@@ -59,31 +59,6 @@
 	status = "okay";
 };
 
-&dspi1 {
-	bus-num = <1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_dspi1>;
-	/*
-	 * Some SPU3s come with SPI-NOR chip DNPed, so we leave this
-	 * node disabled by default and rely on bootloader to enable
-	 * it when appropriate.
-	 */
-	status = "disabled";
-
-	m25p128@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "m25p128", "jedec,spi-nor";
-		reg = <0>;
-		spi-max-frequency = <50000000>;
-
-		partition@0 {
-			label = "m25p128-0";
-			reg = <0x0 0x01000000>;
-		};
-	};
-};
-
 &edma0 {
 	status = "okay";
 };
@@ -99,8 +74,6 @@
 	non-removable;
 	no-1-8-v;
 	keep-power-in-suspend;
-	no-sdio;
-	no-sd;
 	status = "okay";
 };
 
@@ -108,7 +81,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	no-sdio;
 	status = "okay";
 };
 
@@ -157,32 +129,45 @@
 
 				port@1 {
 					reg = <1>;
-					label = "eth_cu_1000_1";
-				};
-
-				port@2 {
-					reg = <2>;
-					label = "eth_cu_1000_2";
-				};
-
-				port@3 {
-					reg = <3>;
-					label = "eth_cu_1000_3";
-				};
-
-				port@4 {
-					reg = <4>;
-					label = "eth_cu_1000_4";
+					label = "eth_cu_100_3";
 				};
 
 				port@5 {
 					reg = <5>;
-					label = "eth_cu_1000_5";
+					label = "eth_cu_1000_4";
 				};
 
 				port@6 {
 					reg = <6>;
-					label = "eth_cu_1000_6";
+					label = "eth_cu_1000_5";
+				};
+
+				port@8 {
+					reg = <8>;
+					label = "eth_cu_1000_1";
+				};
+
+				port@9 {
+					reg = <9>;
+					label = "eth_cu_1000_2";
+					phy-handle = <&phy9>;
+					phy-mode = "sgmii";
+					managed = "in-band-status";
+				};
+			};
+
+			mdio1 {
+				compatible = "marvell,mv88e6xxx-mdio-external";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy9: phy9@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					pinctrl-0 = <&pinctrl_gpio_phy9>;
+					pinctrl-names = "default";
+					interrupt-parent = <&gpio2>;
+					interrupts = <30 IRQ_TYPE_LEVEL_LOW>;
+					reg = <0>;
 				};
 			};
 		};
@@ -195,25 +180,32 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio6: pca9505@22 {
+	gpio6: gpio-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
 
-	lm75@48 {
+	/* On SSMB */
+	temperature-sensor@48 {
 		compatible = "national,lm75";
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	/* On DSB */
+	temperature-sensor@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 		label = "nameplate";
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};
@@ -223,31 +215,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart0>;
 	status = "okay";
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1>;
-	status = "okay";
-
-	rave-sp {
-		compatible = "zii,rave-sp-rdu2";
-		current-speed = <1000000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		watchdog {
-			compatible = "zii,rave-sp-watchdog";
-		};
-
-		eeprom@a3 {
-			compatible = "zii,rave-sp-eeprom";
-			reg = <0xa3 0x4000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			zii,eeprom-name = "main-eeprom";
-		};
-	};
 };
 
 &iomuxc {
@@ -302,6 +269,12 @@
 		>;
 	};
 
+	pinctrl_gpio_phy9: pinctrl-gpio-phy9 {
+		fsl,pins = <
+			VF610_PAD_PTB24__GPIO_94		0x219d
+		>;
+	};
+
 	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
 		fsl,pins = <
 			VF610_PAD_PTE2__GPIO_107		0x31c2
@@ -333,13 +306,6 @@
 		fsl,pins = <
 			VF610_PAD_PTB10__UART0_TX		0x21a2
 			VF610_PAD_PTB11__UART0_RX		0x21a1
-		>;
-	};
-
-	pinctrl_uart1: uart1grp {
-		fsl,pins = <
-			VF610_PAD_PTB23__UART1_TX		0x21a2
-			VF610_PAD_PTB24__UART1_RX		0x21a1
 		>;
 	};
 };
