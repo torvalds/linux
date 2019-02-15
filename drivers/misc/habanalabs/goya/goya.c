@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/genalloc.h>
 #include <linux/firmware.h>
+#include <linux/hwmon.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
 
@@ -119,6 +120,8 @@ static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
 
 #define GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE 121
 
+static int goya_armcp_info_get(struct hl_device *hdev);
+
 static void goya_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -166,6 +169,7 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->num_of_events = GOYA_ASYNC_EVENT_ID_SIZE;
 	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
+	prop->max_power_default = MAX_POWER_DEFAULT;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
 	prop->high_pll = PLL_HIGH_DEFAULT;
@@ -560,6 +564,89 @@ int goya_early_fini(struct hl_device *hdev)
 }
 
 /*
+ * goya_fetch_psoc_frequency - Fetch PSOC frequency values
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ */
+static void goya_fetch_psoc_frequency(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	prop->psoc_pci_pll_nr = RREG32(mmPSOC_PCI_PLL_NR);
+	prop->psoc_pci_pll_nf = RREG32(mmPSOC_PCI_PLL_NF);
+	prop->psoc_pci_pll_od = RREG32(mmPSOC_PCI_PLL_OD);
+	prop->psoc_pci_pll_div_factor = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
+}
+
+/*
+ * goya_late_init - GOYA late initialization code
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ * Get ArmCP info and send message to CPU to enable PCI access
+ */
+static int goya_late_init(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
+	int rc;
+
+	rc = goya->armcp_info_get(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to get armcp info\n");
+		return rc;
+	}
+
+	/* Now that we have the DRAM size in ASIC prop, we need to check
+	 * its size and configure the DMA_IF DDR wrap protection (which is in
+	 * the MMU block) accordingly. The value is the log2 of the DRAM size
+	 */
+	WREG32(mmMMU_LOG2_DDR_SIZE, ilog2(prop->dram_size));
+
+	rc = goya_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
+		return rc;
+	}
+
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
+
+	goya_fetch_psoc_frequency(hdev);
+
+	return 0;
+}
+
+/*
+ * goya_late_fini - GOYA late tear-down code
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ * Free sensors allocated structures
+ */
+void goya_late_fini(struct hl_device *hdev)
+{
+	const struct hwmon_channel_info **channel_info_arr;
+	int i = 0;
+
+	if (!hdev->hl_chip_info->info)
+		return;
+
+	channel_info_arr = hdev->hl_chip_info->info;
+
+	while (channel_info_arr[i]) {
+		kfree(channel_info_arr[i]->config);
+		kfree(channel_info_arr[i]);
+		i++;
+	}
+
+	kfree(channel_info_arr);
+
+	hdev->hl_chip_info->info = NULL;
+}
+
+/*
  * goya_sw_init - Goya software initialization code
  *
  * @hdev: pointer to hl_device structure
@@ -576,9 +663,15 @@ static int goya_sw_init(struct hl_device *hdev)
 		return -ENOMEM;
 
 	goya->test_cpu_queue = goya_test_cpu_queue;
+	goya->armcp_info_get = goya_armcp_info_get;
 
 	/* according to goya_init_iatu */
 	goya->ddr_bar_cur_addr = DRAM_PHYS_BASE;
+
+	goya->mme_clk = GOYA_PLL_FREQ_LOW;
+	goya->tpc_clk = GOYA_PLL_FREQ_LOW;
+	goya->ic_clk = GOYA_PLL_FREQ_LOW;
+
 	hdev->asic_specific = goya;
 
 	/* Create DMA pool for small allocations */
@@ -3217,6 +3310,87 @@ void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
 	return goya->events_stat;
 }
 
+static int goya_armcp_info_get(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct armcp_packet pkt;
+	void *armcp_info_cpu_addr;
+	dma_addr_t armcp_info_dma_addr;
+	u64 dram_size;
+	long result;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
+		return 0;
+
+	armcp_info_cpu_addr =
+			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
+			sizeof(struct armcp_info), &armcp_info_dma_addr);
+	if (!armcp_info_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for ArmCP info packet\n");
+		return -ENOMEM;
+	}
+
+	memset(armcp_info_cpu_addr, 0, sizeof(struct armcp_info));
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = ARMCP_PACKET_INFO_GET << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	pkt.addr = armcp_info_dma_addr + prop->host_phys_base_address;
+	pkt.data_max_size = sizeof(struct armcp_info);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			GOYA_ARMCP_INFO_TIMEOUT, &result);
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to send armcp info pkt, error %d\n", rc);
+		goto out;
+	}
+
+	memcpy(&prop->armcp_info, armcp_info_cpu_addr,
+			sizeof(prop->armcp_info));
+
+	dram_size = prop->armcp_info.dram_size;
+	if (dram_size) {
+		if ((!is_power_of_2(dram_size)) ||
+				(dram_size < DRAM_PHYS_DEFAULT_SIZE)) {
+			dev_err(hdev->dev,
+				"F/W reported invalid DRAM size %llu. Trying to use default size\n",
+				dram_size);
+			dram_size = DRAM_PHYS_DEFAULT_SIZE;
+		}
+
+		prop->dram_size = dram_size;
+		prop->dram_end_address = prop->dram_base_address + dram_size;
+	}
+
+	rc = hl_build_hwmon_channel_info(hdev, prop->armcp_info.sensors);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to build hwmon channel info, error %d\n", rc);
+		rc = -EFAULT;
+		goto out;
+	}
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
+			sizeof(struct armcp_info), armcp_info_cpu_addr);
+
+	return rc;
+}
+
+static void goya_init_clock_gating(struct hl_device *hdev)
+{
+
+}
+
+static void goya_disable_clock_gating(struct hl_device *hdev)
+{
+
+}
 
 static void goya_hw_queues_lock(struct hl_device *hdev)
 {
@@ -3232,9 +3406,60 @@ static void goya_hw_queues_unlock(struct hl_device *hdev)
 	spin_unlock(&goya->hw_queues_lock);
 }
 
+int goya_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct armcp_packet pkt;
+	void *eeprom_info_cpu_addr;
+	dma_addr_t eeprom_info_dma_addr;
+	long result;
+	int rc;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
+		return 0;
+
+	eeprom_info_cpu_addr =
+			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
+					max_size, &eeprom_info_dma_addr);
+	if (!eeprom_info_cpu_addr) {
+		dev_err(hdev->dev,
+			"Failed to allocate DMA memory for EEPROM info packet\n");
+		return -ENOMEM;
+	}
+
+	memset(eeprom_info_cpu_addr, 0, max_size);
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = ARMCP_PACKET_EEPROM_DATA_GET << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	pkt.addr = eeprom_info_dma_addr + prop->host_phys_base_address;
+	pkt.data_max_size = max_size;
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			GOYA_ARMCP_EEPROM_TIMEOUT, &result);
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to send armcp EEPROM pkt, error %d\n", rc);
+		goto out;
+	}
+
+	/* result contains the actual size */
+	memcpy(data, eeprom_info_cpu_addr, min((size_t)result, max_size));
+
+out:
+	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, max_size,
+			eeprom_info_cpu_addr);
+
+	return rc;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
+	.late_init = goya_late_init,
+	.late_fini = goya_late_fini,
 	.sw_init = goya_sw_init,
 	.sw_fini = goya_sw_fini,
 	.hw_init = goya_hw_init,
@@ -3255,10 +3480,15 @@ static const struct hl_asic_funcs goya_funcs = {
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
 	.update_eq_ci = goya_update_eq_ci,
+	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
+	.set_pll_profile = goya_set_pll_profile,
 	.get_events_stat = goya_get_events_stat,
+	.enable_clock_gating = goya_init_clock_gating,
+	.disable_clock_gating = goya_disable_clock_gating,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,
+	.get_eeprom_data = goya_get_eeprom_data,
 	.send_cpu_message = goya_send_cpu_message
 };
 

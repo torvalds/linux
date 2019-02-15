@@ -9,6 +9,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/hwmon.h>
 
 static void hpriv_release(struct kref *ref)
 {
@@ -188,6 +189,13 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cq_wq;
 	}
 
+	hdev->hl_chip_info = kzalloc(sizeof(struct hwmon_chip_info),
+					GFP_KERNEL);
+	if (!hdev->hl_chip_info) {
+		rc = -ENOMEM;
+		goto free_eq_wq;
+	}
+
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
 	mutex_init(&hdev->fd_open_cnt_lock);
@@ -196,6 +204,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	return 0;
 
+free_eq_wq:
+	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
 	destroy_workqueue(hdev->cq_wq);
 asid_fini:
@@ -219,6 +229,8 @@ static void device_early_fini(struct hl_device *hdev)
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 
+	kfree(hdev->hl_chip_info);
+
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->cq_wq);
 
@@ -228,6 +240,118 @@ static void device_early_fini(struct hl_device *hdev)
 		hdev->asic_funcs->early_fini(hdev);
 
 	mutex_destroy(&hdev->fd_open_cnt_lock);
+}
+
+static void set_freq_to_low_job(struct work_struct *work)
+{
+	struct hl_device *hdev = container_of(work, struct hl_device,
+						work_freq.work);
+
+	if (atomic_read(&hdev->fd_open_cnt) == 0)
+		hl_device_set_frequency(hdev, PLL_LOW);
+
+	schedule_delayed_work(&hdev->work_freq,
+			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+}
+
+/*
+ * device_late_init - do late stuff initialization for the habanalabs device
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Do stuff that either needs the device H/W queues to be active or needs
+ * to happen after all the rest of the initialization is finished
+ */
+static int device_late_init(struct hl_device *hdev)
+{
+	int rc;
+
+	INIT_DELAYED_WORK(&hdev->work_freq, set_freq_to_low_job);
+	hdev->high_pll = hdev->asic_prop.high_pll;
+
+	/* force setting to low frequency */
+	atomic_set(&hdev->curr_pll_profile, PLL_LOW);
+
+	if (hdev->pm_mng_profile == PM_AUTO)
+		hdev->asic_funcs->set_pll_profile(hdev, PLL_LOW);
+	else
+		hdev->asic_funcs->set_pll_profile(hdev, PLL_LAST);
+
+	if (hdev->asic_funcs->late_init) {
+		rc = hdev->asic_funcs->late_init(hdev);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed late initialization for the H/W\n");
+			return rc;
+		}
+	}
+
+	schedule_delayed_work(&hdev->work_freq,
+			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+
+	hdev->late_init_done = true;
+
+	return 0;
+}
+
+/*
+ * device_late_fini - finalize all that was done in device_late_init
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ */
+static void device_late_fini(struct hl_device *hdev)
+{
+	if (!hdev->late_init_done)
+		return;
+
+	cancel_delayed_work_sync(&hdev->work_freq);
+
+	if (hdev->asic_funcs->late_fini)
+		hdev->asic_funcs->late_fini(hdev);
+
+	hdev->late_init_done = false;
+}
+
+/*
+ * hl_device_set_frequency - set the frequency of the device
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @freq: the new frequency value
+ *
+ * Change the frequency if needed.
+ * We allose to set PLL to low only if there is no user process
+ * Returns 0 if no change was done, otherwise returns 1;
+ */
+int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq)
+{
+	enum hl_pll_frequency old_freq =
+			(freq == PLL_HIGH) ? PLL_LOW : PLL_HIGH;
+	int ret;
+
+	if (hdev->pm_mng_profile == PM_MANUAL)
+		return 0;
+
+	ret = atomic_cmpxchg(&hdev->curr_pll_profile, old_freq, freq);
+	if (ret == freq)
+		return 0;
+
+	/*
+	 * in case we want to lower frequency, check if device is not
+	 * opened. We must have a check here to workaround race condition with
+	 * hl_device_open
+	 */
+	if ((freq == PLL_LOW) && (atomic_read(&hdev->fd_open_cnt) > 0)) {
+		atomic_set(&hdev->curr_pll_profile, PLL_HIGH);
+		return 0;
+	}
+
+	dev_dbg(hdev->dev, "Changing device frequency to %s\n",
+		freq == PLL_HIGH ? "high" : "low");
+
+	hdev->asic_funcs->set_pll_profile(hdev, freq);
+
+	return 1;
 }
 
 /*
@@ -390,6 +514,12 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto release_ctx;
 	}
 
+	rc = hl_sysfs_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize sysfs\n");
+		goto free_cb_pool;
+	}
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W\n");
@@ -407,11 +537,38 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto out_disabled;
 	}
 
+	/* After test_queues, KMD can start sending messages to device CPU */
+
+	rc = device_late_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed late initialization\n");
+		rc = 0;
+		goto out_disabled;
+	}
+
+	dev_info(hdev->dev, "Found %s device with %lluGB DRAM\n",
+		hdev->asic_name,
+		hdev->asic_prop.dram_size / 1024 / 1024 / 1024);
+
+	/*
+	 * hl_hwmon_init must be called after device_late_init, because only
+	 * there we get the information from the device about which
+	 * hwmon-related sensors the device supports
+	 */
+	rc = hl_hwmon_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to initialize hwmon\n");
+		rc = 0;
+		goto out_disabled;
+	}
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
 	return 0;
 
+free_cb_pool:
+	hl_cb_pool_fini(hdev);
 release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
@@ -460,6 +617,12 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
+
+	hl_hwmon_fini(hdev);
+
+	device_late_fini(hdev);
+
+	hl_sysfs_fini(hdev);
 
 	/*
 	 * Halt the engines and disable interrupts so we won't get any more

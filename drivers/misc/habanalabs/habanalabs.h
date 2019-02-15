@@ -23,6 +23,8 @@
 
 #define HL_DEVICE_TIMEOUT_USEC		1000000 /* 1 s */
 
+#define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
+
 #define HL_MAX_QUEUES			128
 
 struct hl_device;
@@ -58,6 +60,8 @@ struct hw_queue_properties {
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
+ * @armcp_info: received various information from ArmCP regarding the H/W. e.g.
+ *		available sensors.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
  * @sram_base_address: SRAM physical start address.
@@ -70,6 +74,7 @@ struct hw_queue_properties {
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
  * @host_phys_base_address: base physical address of host memory for
  *				transactions that the device generates.
+ * @max_power_default: max power of the device after reset
  * @va_space_host_start_address: base address of virtual memory range for
  *                               mapping host memory.
  * @va_space_host_end_address: end address of virtual memory range for
@@ -82,6 +87,10 @@ struct hw_queue_properties {
  * @sram_size: total size of SRAM.
  * @max_asid: maximum number of open contexts (ASIDs).
  * @num_of_events: number of possible internal H/W IRQs.
+ * @psoc_pci_pll_nr: PCI PLL NR value.
+ * @psoc_pci_pll_nf: PCI PLL NF value.
+ * @psoc_pci_pll_od: PCI PLL OD value.
+ * @psoc_pci_pll_div_factor: PCI PLL DIV FACTOR 1 value.
  * @completion_queues_count: number of completion queues.
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
@@ -90,6 +99,7 @@ struct hw_queue_properties {
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	hw_queues_props[HL_MAX_QUEUES];
+	struct armcp_info	armcp_info;
 	char			uboot_ver[VERSION_MAX_LEN];
 	char			preboot_ver[VERSION_MAX_LEN];
 	u64			sram_base_address;
@@ -101,6 +111,7 @@ struct asic_fixed_properties {
 	u64			dram_size;
 	u64			dram_pci_bar_size;
 	u64			host_phys_base_address;
+	u64			max_power_default;
 	u64			va_space_host_start_address;
 	u64			va_space_host_end_address;
 	u64			va_space_dram_start_address;
@@ -109,6 +120,10 @@ struct asic_fixed_properties {
 	u32			sram_size;
 	u32			max_asid;
 	u32			num_of_events;
+	u32			psoc_pci_pll_nr;
+	u32			psoc_pci_pll_nf;
+	u32			psoc_pci_pll_od;
+	u32			psoc_pci_pll_div_factor;
 	u32			high_pll;
 	u32			cb_pool_cb_cnt;
 	u32			cb_pool_cb_size;
@@ -283,10 +298,36 @@ enum hl_asic_type {
 };
 
 /**
+ * enum hl_pm_mng_profile - power management profile.
+ * @PM_AUTO: internal clock is set by KMD.
+ * @PM_MANUAL: internal clock is set by the user.
+ * @PM_LAST: last power management type.
+ */
+enum hl_pm_mng_profile {
+	PM_AUTO = 1,
+	PM_MANUAL,
+	PM_LAST
+};
+
+/**
+ * enum hl_pll_frequency - PLL frequency.
+ * @PLL_HIGH: high frequency.
+ * @PLL_LOW: low frequency.
+ * @PLL_LAST: last frequency values that were configured by the user.
+ */
+enum hl_pll_frequency {
+	PLL_HIGH = 1,
+	PLL_LOW,
+	PLL_LAST
+};
+
+/**
  * struct hl_asic_funcs - ASIC specific functions that are can be called from
  *                        common code.
  * @early_init: sets up early driver state (pre sw_init), doesn't configure H/W.
  * @early_fini: tears down what was done in early_init.
+ * @late_init: sets up late driver/hw state (post hw_init) - Optional.
+ * @late_fini: tears down what was done in late_init (pre hw_fini) - Optional.
  * @sw_init: sets up driver state, does not configure H/W.
  * @sw_fini: tears down driver state, does not configure H/W.
  * @hw_init: sets up the H/W state.
@@ -316,15 +357,22 @@ enum hl_asic_type {
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
  * @update_eq_ci: update event queue CI.
+ * @add_device_attr: add ASIC specific device attributes.
  * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
+ * @set_pll_profile: change PLL profile (manual/automatic).
  * @get_events_stat: retrieve event queue entries histogram.
+ * @enable_clock_gating: enable clock gating for reducing power consumption.
+ * @disable_clock_gating: disable clock for accessing registers on HBW.
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
+ * @get_eeprom_data: retrieve EEPROM data from F/W.
  * @send_cpu_message: send buffer to ArmCP.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
 	int (*early_fini)(struct hl_device *hdev);
+	int (*late_init)(struct hl_device *hdev);
+	void (*late_fini)(struct hl_device *hdev);
 	int (*sw_init)(struct hl_device *hdev);
 	int (*sw_fini)(struct hl_device *hdev);
 	int (*hw_init)(struct hl_device *hdev);
@@ -353,11 +401,19 @@ struct hl_asic_funcs {
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
+	void (*add_device_attr)(struct hl_device *hdev,
+				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
 				struct hl_eq_entry *eq_entry);
+	void (*set_pll_profile)(struct hl_device *hdev,
+			enum hl_pll_frequency freq);
 	void* (*get_events_stat)(struct hl_device *hdev, u32 *size);
+	void (*enable_clock_gating)(struct hl_device *hdev);
+	void (*disable_clock_gating)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
+	int (*get_eeprom_data)(struct hl_device *hdev, void *data,
+				size_t max_size);
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, long *result);
 };
@@ -404,6 +460,8 @@ struct hl_cs_job {
 	struct work_struct	finish_work;
 	u32			id;
 };
+
+
 /*
  * FILE PRIVATE STRUCTURE
  */
@@ -469,6 +527,8 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
 
+struct hwmon_chip_info;
+
 /**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
@@ -476,6 +536,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @rmmio: configuration area address on SRAM.
  * @cdev: related char device.
  * @dev: realted kernel basic device structure.
+ * @work_freq: delayed work to lower device frequency if possible.
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
@@ -501,13 +562,23 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
+ * @hwmon_dev: H/W monitor device.
+ * @pm_mng_profile: current power management profile.
+ * @hl_chip_info: ASIC's sensors information.
  * @cb_pool: list of preallocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
+ * @curr_pll_profile: current PLL profile.
  * @fd_open_cnt: number of open user processes.
+ * @max_power: the max power of the device, as configured by the sysadmin. This
+ *             value is saved so in case of hard-reset, KMD will restore this
+ *             value and update the F/W after the re-initialization
  * @major: habanalabs KMD major.
+ * @high_pll: high PLL profile frequency.
  * @id: device minor.
  * @disabled: is device disabled.
+ * @late_init_done: is late init stage was done during initialization.
+ * @hwmon_initialized: is H/W monitor sensors was initialized.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -515,6 +586,7 @@ struct hl_device {
 	void __iomem			*rmmio;
 	struct cdev			cdev;
 	struct device			*dev;
+	struct delayed_work		work_freq;
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
@@ -536,16 +608,25 @@ struct hl_device {
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
+	struct device			*hwmon_dev;
+	enum hl_pm_mng_profile		pm_mng_profile;
+	struct hwmon_chip_info		*hl_chip_info;
 
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
 
 	/* TODO: remove user_ctx for multiple process support */
 	struct hl_ctx			*user_ctx;
+
+	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
+	u64				max_power;
 	u32				major;
+	u32				high_pll;
 	u16				id;
 	u8				disabled;
+	u8				late_init_done;
+	u8				hwmon_initialized;
 
 	/* Parameters for bring-up */
 	u8				cpu_enable;
@@ -626,6 +707,15 @@ int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 void hl_hpriv_put(struct hl_fpriv *hpriv);
+int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
+int hl_build_hwmon_channel_info(struct hl_device *hdev,
+		struct armcp_sensor *sensors_arr);
+
+int hl_sysfs_init(struct hl_device *hdev);
+void hl_sysfs_fini(struct hl_device *hdev);
+
+int hl_hwmon_init(struct hl_device *hdev);
+void hl_hwmon_fini(struct hl_device *hdev);
 
 int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr, u32 cb_size,
 		u64 *handle, int ctx_id);
@@ -641,6 +731,18 @@ int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
+
+long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
+void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
+long hl_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
+long hl_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
+long hl_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
+long hl_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
+long hl_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
+void hl_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
+			long value);
+u64 hl_get_max_power(struct hl_device *hdev);
+void hl_set_max_power(struct hl_device *hdev, u64 value);
 
 /* IOCTLs */
 long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);

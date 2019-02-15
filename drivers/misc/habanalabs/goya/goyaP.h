@@ -47,7 +47,10 @@
 
 #define PLL_HIGH_DEFAULT		1575000000	/* 1.575 GHz */
 
+#define MAX_POWER_DEFAULT		200000		/* 200W */
+
 #define GOYA_ARMCP_INFO_TIMEOUT		10000000	/* 10s */
+#define GOYA_ARMCP_EEPROM_TIMEOUT	10000000	/* 10s */
 
 #define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
 
@@ -148,9 +151,15 @@ enum goya_fw_component {
 
 struct goya_device {
 	int (*test_cpu_queue)(struct hl_device *hdev);
+	int (*armcp_info_get)(struct hl_device *hdev);
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
+
+	u64		mme_clk;
+	u64		tpc_clk;
+	u64		ic_clk;
+
 	u64		ddr_bar_cur_addr;
 	u32		events_stat[GOYA_ASYNC_EVENT_ID_SIZE];
 	u32		hw_cap_initialized;
@@ -159,6 +168,18 @@ struct goya_device {
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 				u32 timeout, long *result);
+long goya_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
+long goya_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
+long goya_get_current(struct hl_device *hdev, int sensor_index, u32 attr);
+long goya_get_fan_speed(struct hl_device *hdev, int sensor_index, u32 attr);
+long goya_get_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr);
+void goya_set_pwm_info(struct hl_device *hdev, int sensor_index, u32 attr,
+			long value);
+void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
+void goya_add_device_attr(struct hl_device *hdev,
+			struct attribute_group *dev_attr_grp);
 void goya_init_security(struct hl_device *hdev);
+u64 goya_get_max_power(struct hl_device *hdev);
+void goya_set_max_power(struct hl_device *hdev, u64 value);
 
 #endif /* GOYAP_H_ */

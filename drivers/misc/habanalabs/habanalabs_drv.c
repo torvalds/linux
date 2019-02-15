@@ -127,6 +127,13 @@ int hl_device_open(struct inode *inode, struct file *filp)
 
 	hpriv->taskpid = find_get_pid(current->pid);
 
+	/*
+	 * Device is IDLE at this point so it is legal to change PLLs. There
+	 * is no need to check anything because if the PLL is already HIGH, the
+	 * set function will return without doing anything
+	 */
+	hl_device_set_frequency(hdev, PLL_HIGH);
+
 	return 0;
 
 out_err:
