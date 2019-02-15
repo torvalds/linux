@@ -351,6 +351,17 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 	return NULL;
 }
 
+struct pci_controller *pci_find_controller_for_domain(int domain_nr)
+{
+	struct pci_controller *hose;
+
+	list_for_each_entry(hose, &hose_list, list_node)
+		if (hose->global_number == domain_nr)
+			return hose;
+
+	return NULL;
+}
+
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
  * If the interrupt is used, then gets the interrupt line from the
