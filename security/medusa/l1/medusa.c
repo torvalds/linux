@@ -1625,7 +1625,7 @@ static int __init medusa_l1_init(void)
 			continue;
 		}
 
-		med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), GFP_KERNEL);
+		med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), GFP_KERNEL | GFP_NOWAIT);
 
 		if (med == NULL)
 			return -ENOMEM;
