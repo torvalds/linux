@@ -17,7 +17,7 @@ Required properties:
                 Documentation/devicetree/bindings/regulator/regulator.txt
 
 Optional properties:
- - reset-gpio:  the reset pin for the chip, for more details consult
+ - reset-gpios: the reset pin for the chip, for more details consult
                 Documentation/devicetree/bindings/gpio/gpio.txt
 
  - DVDD-supply: supply voltage for the digital core, please consult
@@ -40,7 +40,7 @@ Examples:
 		AVDD-supply = <&regulator>;
 		DVDD-supply = <&regulator_digital>;
 
-		reset_gpio = <&gpio 10 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
 	};
 
 	adau1977_i2c: adau1977@11 {
@@ -50,5 +50,5 @@ Examples:
 		AVDD-supply = <&regulator>;
 		DVDD-supply = <&regulator_digital>;
 
-		reset_gpio = <&gpio 10 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio 10 GPIO_ACTIVE_LOW>;
 	};
