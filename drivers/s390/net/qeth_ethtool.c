@@ -102,6 +102,22 @@ static void qeth_get_ethtool_stats(struct net_device *dev,
 				   txq_stats, TXQ_STATS_LEN);
 }
 
+static void qeth_get_ringparam(struct net_device *dev,
+			       struct ethtool_ringparam *param)
+{
+	struct qeth_card *card = dev->ml_priv;
+
+	param->rx_max_pending = QDIO_MAX_BUFFERS_PER_Q;
+	param->rx_mini_max_pending = 0;
+	param->rx_jumbo_max_pending = 0;
+	param->tx_max_pending = QDIO_MAX_BUFFERS_PER_Q;
+
+	param->rx_pending = card->qdio.in_buf_pool.buf_count;
+	param->rx_mini_pending = 0;
+	param->rx_jumbo_pending = 0;
+	param->tx_pending = QDIO_MAX_BUFFERS_PER_Q;
+}
+
 static void qeth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct qeth_card *card = dev->ml_priv;
@@ -338,6 +354,7 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 
 const struct ethtool_ops qeth_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
+	.get_ringparam = qeth_get_ringparam,
 	.get_strings = qeth_get_strings,
 	.get_ethtool_stats = qeth_get_ethtool_stats,
 	.get_sset_count = qeth_get_sset_count,
