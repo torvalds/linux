@@ -272,6 +272,7 @@ struct system_summary {
 
 struct cpu_topology {
 	int physical_package_id;
+	int die_id;
 	int logical_cpu_id;
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
@@ -282,6 +283,7 @@ struct cpu_topology {
 
 struct topo_params {
 	int num_packages;
+	int num_die;
 	int num_cpus;
 	int num_cores;
 	int max_cpu_num;
@@ -440,6 +442,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "CPU" },
 	{ 0x0, "APIC" },
 	{ 0x0, "X2APIC" },
+	{ 0x0, "Die" },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -493,6 +496,7 @@ struct msr_counter bic[] = {
 #define	BIC_CPU		(1ULL << 47)
 #define	BIC_APIC	(1ULL << 48)
 #define	BIC_X2APIC	(1ULL << 49)
+#define	BIC_Die		(1ULL << 50)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
@@ -619,6 +623,8 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sTime_Of_Day_Seconds", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Package))
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_Die))
+		outp += sprintf(outp, "%sDie", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Node))
 		outp += sprintf(outp, "%sNode", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
@@ -902,6 +908,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (t == &average.threads) {
 		if (DO_BIC(BIC_Package))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_Die))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Node))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Core))
@@ -916,6 +924,12 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		if (DO_BIC(BIC_Package)) {
 			if (p)
 				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->package_id);
+			else
+				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		}
+		if (DO_BIC(BIC_Die)) {
+			if (c)
+				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), cpus[t->cpu_id].die_id);
 			else
 				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		}
@@ -2454,6 +2468,8 @@ void free_all_buffers(void)
 
 /*
  * Parse a file containing a single int.
+ * Return 0 if file can not be opened
+ * Exit if file can be opened, but can not be parsed
  */
 int parse_int_file(const char *fmt, ...)
 {
@@ -2465,7 +2481,9 @@ int parse_int_file(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(path, sizeof(path), fmt, args);
 	va_end(args);
-	filep = fopen_or_die(path, "r");
+	filep = fopen(path, "r");
+	if (!filep)
+		return 0;
 	if (fscanf(filep, "%d", &value) != 1)
 		err(1, "%s: failed to parse number from file", path);
 	fclose(filep);
@@ -2484,6 +2502,11 @@ int cpu_is_first_core_in_package(int cpu)
 int get_physical_package_id(int cpu)
 {
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", cpu);
+}
+
+int get_die_id(int cpu)
+{
+	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/die_id", cpu);
 }
 
 int get_core_id(int cpu)
@@ -4772,6 +4795,7 @@ void topology_probe()
 	int i;
 	int max_core_id = 0;
 	int max_package_id = 0;
+	int max_die_id = 0;
 	int max_siblings = 0;
 
 	/* Initialize num_cpus, max_cpu_num */
@@ -4838,6 +4862,11 @@ void topology_probe()
 		if (cpus[i].physical_package_id > max_package_id)
 			max_package_id = cpus[i].physical_package_id;
 
+		/* get die information */
+		cpus[i].die_id = get_die_id(i);
+		if (cpus[i].die_id > max_die_id)
+			max_die_id = cpus[i].die_id;
+
 		/* get numa node information */
 		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
 		if (cpus[i].physical_node_id > topo.max_node_num)
@@ -4863,6 +4892,13 @@ void topology_probe()
 	if (!summary_only && topo.cores_per_node > 1)
 		BIC_PRESENT(BIC_Core);
 
+	topo.num_die = max_die_id + 1;
+	if (debug > 1)
+		fprintf(outf, "max_die_id %d, sizing for %d die\n",
+				max_die_id, topo.num_die);
+	if (!summary_only && topo.num_die > 1)
+		BIC_PRESENT(BIC_Die);
+
 	topo.num_packages = max_package_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_package_id %d, sizing for %d packages\n",
@@ -4887,8 +4923,8 @@ void topology_probe()
 		if (cpu_is_not_present(i))
 			continue;
 		fprintf(outf,
-			"cpu %d pkg %d node %d lnode %d core %d thread %d\n",
-			i, cpus[i].physical_package_id,
+			"cpu %d pkg %d die %d node %d lnode %d core %d thread %d\n",
+			i, cpus[i].physical_package_id, cpus[i].die_id,
 			cpus[i].physical_node_id,
 			cpus[i].logical_node_id,
 			cpus[i].physical_core_id,
