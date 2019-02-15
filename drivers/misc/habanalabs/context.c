@@ -12,6 +12,18 @@
 static void hl_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
+	int i;
+
+	/*
+	 * If we arrived here, there are no jobs waiting for this context
+	 * on its queues so we can safely remove it.
+	 * This is because for each CS, we increment the ref count and for
+	 * every CS that was finished we decrement it and we won't arrive
+	 * to this function unless the ref count is 0
+	 */
+
+	for (i = 0 ; i < HL_MAX_PENDING_CS ; i++)
+		dma_fence_put(ctx->cs_pending[i]);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID)
 		hl_asid_free(hdev, ctx->asid);
@@ -22,8 +34,6 @@ void hl_ctx_do_release(struct kref *ref)
 	struct hl_ctx *ctx;
 
 	ctx = container_of(ref, struct hl_ctx, refcount);
-
-	dev_dbg(ctx->hdev->dev, "Now really releasing context %d\n", ctx->asid);
 
 	hl_ctx_fini(ctx);
 
@@ -90,6 +100,11 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 	kref_init(&ctx->refcount);
 
+	ctx->cs_sequence = 1;
+	spin_lock_init(&ctx->cs_lock);
+	atomic_set(&ctx->thread_restore_token, 1);
+	ctx->thread_restore_wait_token = 0;
+
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* KMD gets ASID 0 */
 	} else {
@@ -99,8 +114,6 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 			return -ENOMEM;
 		}
 	}
-
-	dev_dbg(hdev->dev, "Created context with ASID %u\n", ctx->asid);
 
 	return 0;
 }
@@ -113,6 +126,37 @@ void hl_ctx_get(struct hl_device *hdev, struct hl_ctx *ctx)
 int hl_ctx_put(struct hl_ctx *ctx)
 {
 	return kref_put(&ctx->refcount, hl_ctx_do_release);
+}
+
+struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct dma_fence *fence;
+
+	spin_lock(&ctx->cs_lock);
+
+	if (seq >= ctx->cs_sequence) {
+		dev_notice(hdev->dev,
+			"Can't wait on seq %llu because current CS is at seq %llu\n",
+			seq, ctx->cs_sequence);
+		spin_unlock(&ctx->cs_lock);
+		return ERR_PTR(-EINVAL);
+	}
+
+
+	if (seq + HL_MAX_PENDING_CS < ctx->cs_sequence) {
+		dev_dbg(hdev->dev,
+			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
+			seq, ctx->cs_sequence);
+		spin_unlock(&ctx->cs_lock);
+		return NULL;
+	}
+
+	fence = dma_fence_get(
+			ctx->cs_pending[seq & (HL_MAX_PENDING_CS - 1)]);
+	spin_unlock(&ctx->cs_lock);
+
+	return fence;
 }
 
 /*

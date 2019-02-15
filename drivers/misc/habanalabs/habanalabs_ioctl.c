@@ -16,7 +16,9 @@
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func}
 
 static const struct hl_ioctl_desc hl_ioctls[] = {
-	HL_IOCTL_DEF(HL_IOCTL_CB, hl_cb_ioctl)
+	HL_IOCTL_DEF(HL_IOCTL_CB, hl_cb_ioctl),
+	HL_IOCTL_DEF(HL_IOCTL_CS, hl_cs_ioctl),
+	HL_IOCTL_DEF(HL_IOCTL_WAIT_CS, hl_cs_wait_ioctl)
 };
 
 #define HL_CORE_IOCTL_COUNT	ARRAY_SIZE(hl_ioctls)

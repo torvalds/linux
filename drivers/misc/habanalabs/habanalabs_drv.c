@@ -24,6 +24,17 @@ static struct class *hl_class;
 DEFINE_IDR(hl_devs_idr);
 DEFINE_MUTEX(hl_devs_idr_lock);
 
+static int timeout_locked = 5;
+static int reset_on_lockup = 1;
+
+module_param(timeout_locked, int, 0444);
+MODULE_PARM_DESC(timeout_locked,
+	"Device lockup timeout in seconds (0 = disabled, default 5s)");
+
+module_param(reset_on_lockup, int, 0444);
+MODULE_PARM_DESC(reset_on_lockup,
+	"Do device reset on lockup (0 = no, 1 = yes, default yes)");
+
 #define PCI_VENDOR_ID_HABANALABS	0x1da3
 
 #define PCI_IDS_GOYA			0x0001
@@ -113,6 +124,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
 	hpriv->filp = filp;
+	mutex_init(&hpriv->restore_phase_mutex);
 	kref_init(&hpriv->refcount);
 	nonseekable_open(inode, filp);
 
@@ -140,6 +152,7 @@ out_err:
 	filp->private_data = NULL;
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
+	mutex_destroy(&hpriv->restore_phase_mutex);
 	kfree(hpriv);
 
 close_device:
@@ -172,8 +185,10 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		return -ENOMEM;
 
 	hdev->major = hl_major;
+	hdev->reset_on_lockup = reset_on_lockup;
 
 	/* Parameters for bring-up - set them to defaults */
+	hdev->mmu_enable = 0;
 	hdev->cpu_enable = 1;
 	hdev->reset_pcilink = 0;
 	hdev->cpu_queues_enable = 1;
@@ -192,6 +207,11 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	/* If CPU queues not enabled, no way to do heartbeat */
 	if (!hdev->cpu_queues_enable)
 		hdev->heartbeat = 0;
+
+	if (timeout_locked)
+		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
 
 	hdev->disabled = true;
 	hdev->pdev = pdev; /* can be NULL in case of simulator device */

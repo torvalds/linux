@@ -95,6 +95,19 @@ static const char goya_irq_name[GOYA_MSIX_ENTRIES][GOYA_MAX_STRING_LEN] = {
 		"goya cq 4", "goya cpu eq"
 };
 
+static u16 goya_packet_sizes[MAX_PACKET_ID] = {
+	[PACKET_WREG_32]	= sizeof(struct packet_wreg32),
+	[PACKET_WREG_BULK]	= sizeof(struct packet_wreg_bulk),
+	[PACKET_MSG_LONG]	= sizeof(struct packet_msg_long),
+	[PACKET_MSG_SHORT]	= sizeof(struct packet_msg_short),
+	[PACKET_CP_DMA]		= sizeof(struct packet_cp_dma),
+	[PACKET_MSG_PROT]	= sizeof(struct packet_msg_prot),
+	[PACKET_FENCE]		= sizeof(struct packet_fence),
+	[PACKET_LIN_DMA]	= sizeof(struct packet_lin_dma),
+	[PACKET_NOP]		= sizeof(struct packet_nop),
+	[PACKET_STOP]		= sizeof(struct packet_stop)
+};
+
 static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
 	"MME0",
 	"MME1",
@@ -2978,6 +2991,84 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 	return base;
 }
 
+int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	struct packet_msg_prot *fence_pkt;
+	u32 *fence_ptr;
+	dma_addr_t fence_dma_addr;
+	struct hl_cb *cb;
+	u32 tmp;
+	int rc;
+
+	if (!hdev->asic_funcs->is_device_idle(hdev)) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't send KMD job on QMAN0 if device is not idle\n");
+		return -EFAULT;
+	}
+
+	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,
+							&fence_dma_addr);
+	if (!fence_ptr) {
+		dev_err(hdev->dev,
+			"Failed to allocate fence memory for QMAN0\n");
+		return -ENOMEM;
+	}
+
+	*fence_ptr = 0;
+
+	if (goya->hw_cap_initialized & HW_CAP_MMU) {
+		WREG32(mmDMA_QM_0_GLBL_PROT, QMAN_DMA_FULLY_TRUSTED);
+		RREG32(mmDMA_QM_0_GLBL_PROT);
+	}
+
+	/*
+	 * goya cs parser saves space for 2xpacket_msg_prot at end of CB. For
+	 * synchronized kernel jobs we only need space for 1 packet_msg_prot
+	 */
+	job->job_cb_size -= sizeof(struct packet_msg_prot);
+
+	cb = job->patched_cb;
+
+	fence_pkt = (struct packet_msg_prot *) (uintptr_t) (cb->kernel_address +
+			job->job_cb_size - sizeof(struct packet_msg_prot));
+
+	fence_pkt->ctl = (PACKET_MSG_PROT << GOYA_PKT_CTL_OPCODE_SHIFT) |
+			(1 << GOYA_PKT_CTL_EB_SHIFT) |
+			(1 << GOYA_PKT_CTL_MB_SHIFT);
+	fence_pkt->value = GOYA_QMAN0_FENCE_VAL;
+	fence_pkt->addr = fence_dma_addr +
+			hdev->asic_prop.host_phys_base_address;
+
+	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GOYA_QUEUE_ID_DMA_0,
+					job->job_cb_size, cb->bus_address);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to send CB on QMAN0, %d\n", rc);
+		goto free_fence_ptr;
+	}
+
+	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) fence_ptr,
+					HL_DEVICE_TIMEOUT_USEC, &tmp);
+
+	hl_hw_queue_inc_ci_kernel(hdev, GOYA_QUEUE_ID_DMA_0);
+
+	if ((rc) || (tmp != GOYA_QMAN0_FENCE_VAL)) {
+		dev_err(hdev->dev, "QMAN0 Job hasn't finished in time\n");
+		rc = -ETIMEDOUT;
+	}
+
+free_fence_ptr:
+	hdev->asic_funcs->dma_pool_free(hdev, (void *) fence_ptr,
+					fence_dma_addr);
+
+	if (goya->hw_cap_initialized & HW_CAP_MMU) {
+		WREG32(mmDMA_QM_0_GLBL_PROT, QMAN_DMA_PARTLY_TRUSTED);
+		RREG32(mmDMA_QM_0_GLBL_PROT);
+	}
+
+	return rc;
+}
+
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 				u32 timeout, long *result)
 {
@@ -3214,9 +3305,983 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
+int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg, int nents,
+			enum dma_data_direction dir)
+{
+	if (!dma_map_sg(&hdev->pdev->dev, sg, nents, dir))
+		return -ENOMEM;
+
+	return 0;
+}
+
+void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sg,
+			int nents, enum dma_data_direction dir)
+{
+	dma_unmap_sg(&hdev->pdev->dev, sg, nents, dir);
+}
+
+u32 goya_get_dma_desc_list_size(struct hl_device *hdev,
+					struct sg_table *sgt)
+{
+	struct scatterlist *sg, *sg_next_iter;
+	u32 count, len, dma_desc_cnt, len_next;
+	dma_addr_t addr, addr_next;
+
+	dma_desc_cnt = 0;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
+
+		len = sg_dma_len(sg);
+		addr = sg_dma_address(sg);
+
+		if (len == 0)
+			break;
+
+		while ((count + 1) < sgt->nents) {
+			sg_next_iter = sg_next(sg);
+			len_next = sg_dma_len(sg_next_iter);
+			addr_next = sg_dma_address(sg_next_iter);
+
+			if (len_next == 0)
+				break;
+
+			if ((addr + len == addr_next) &&
+				(len + len_next <= DMA_MAX_TRANSFER_SIZE)) {
+				len += len_next;
+				count++;
+				sg = sg_next_iter;
+			} else {
+				break;
+			}
+		}
+
+		dma_desc_cnt++;
+	}
+
+	return dma_desc_cnt * sizeof(struct packet_lin_dma);
+}
+
+static int goya_pin_memory_before_cs(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt,
+				u64 addr, enum dma_data_direction dir)
+{
+	struct hl_userptr *userptr;
+	int rc;
+
+	if (hl_userptr_is_pinned(hdev, addr, user_dma_pkt->tsize,
+			parser->job_userptr_list, &userptr))
+		goto already_pinned;
+
+	userptr = kzalloc(sizeof(*userptr), GFP_ATOMIC);
+	if (!userptr)
+		return -ENOMEM;
+
+	rc = hl_pin_host_memory(hdev, addr, user_dma_pkt->tsize, userptr);
+	if (rc)
+		goto free_userptr;
+
+	list_add_tail(&userptr->job_node, parser->job_userptr_list);
+
+	rc = hdev->asic_funcs->asic_dma_map_sg(hdev, userptr->sgt->sgl,
+					userptr->sgt->nents, dir);
+	if (rc) {
+		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
+		goto unpin_memory;
+	}
+
+	userptr->dma_mapped = true;
+	userptr->dir = dir;
+
+already_pinned:
+	parser->patched_cb_size +=
+			goya_get_dma_desc_list_size(hdev, userptr->sgt);
+
+	return 0;
+
+unpin_memory:
+	hl_unpin_host_memory(hdev, userptr);
+free_userptr:
+	kfree(userptr);
+	return rc;
+}
+
+static int goya_validate_dma_pkt_host(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt)
+{
+	u64 device_memory_addr, addr;
+	enum dma_data_direction dir;
+	enum goya_dma_direction user_dir;
+	bool sram_addr = true;
+	bool skip_host_mem_pin = false;
+	bool user_memset;
+	int rc = 0;
+
+	user_dir = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+
+	user_memset = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_MEMSET_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT;
+
+	switch (user_dir) {
+	case DMA_HOST_TO_DRAM:
+		dev_dbg(hdev->dev, "DMA direction is HOST --> DRAM\n");
+		dir = DMA_TO_DEVICE;
+		sram_addr = false;
+		addr = user_dma_pkt->src_addr;
+		device_memory_addr = user_dma_pkt->dst_addr;
+		if (user_memset)
+			skip_host_mem_pin = true;
+		break;
+
+	case DMA_DRAM_TO_HOST:
+		dev_dbg(hdev->dev, "DMA direction is DRAM --> HOST\n");
+		dir = DMA_FROM_DEVICE;
+		sram_addr = false;
+		addr = user_dma_pkt->dst_addr;
+		device_memory_addr = user_dma_pkt->src_addr;
+		break;
+
+	case DMA_HOST_TO_SRAM:
+		dev_dbg(hdev->dev, "DMA direction is HOST --> SRAM\n");
+		dir = DMA_TO_DEVICE;
+		addr = user_dma_pkt->src_addr;
+		device_memory_addr = user_dma_pkt->dst_addr;
+		if (user_memset)
+			skip_host_mem_pin = true;
+		break;
+
+	case DMA_SRAM_TO_HOST:
+		dev_dbg(hdev->dev, "DMA direction is SRAM --> HOST\n");
+		dir = DMA_FROM_DEVICE;
+		addr = user_dma_pkt->dst_addr;
+		device_memory_addr = user_dma_pkt->src_addr;
+		break;
+	default:
+		dev_err(hdev->dev, "DMA direction is undefined\n");
+		return -EFAULT;
+	}
+
+	if (parser->ctx_id != HL_KERNEL_ASID_ID) {
+		if (sram_addr) {
+			if (!hl_mem_area_inside_range(device_memory_addr,
+					user_dma_pkt->tsize,
+					hdev->asic_prop.sram_user_base_address,
+					hdev->asic_prop.sram_end_address)) {
+
+				dev_err(hdev->dev,
+					"SRAM address 0x%llx + 0x%x is invalid\n",
+					device_memory_addr,
+					user_dma_pkt->tsize);
+				return -EFAULT;
+			}
+		} else {
+			if (!hl_mem_area_inside_range(device_memory_addr,
+					user_dma_pkt->tsize,
+					hdev->asic_prop.dram_user_base_address,
+					hdev->asic_prop.dram_end_address)) {
+
+				dev_err(hdev->dev,
+					"DRAM address 0x%llx + 0x%x is invalid\n",
+					device_memory_addr,
+					user_dma_pkt->tsize);
+				return -EFAULT;
+			}
+		}
+	}
+
+	if (skip_host_mem_pin)
+		parser->patched_cb_size += sizeof(*user_dma_pkt);
+	else {
+		if ((dir == DMA_TO_DEVICE) &&
+				(parser->hw_queue_id > GOYA_QUEUE_ID_DMA_1)) {
+			dev_err(hdev->dev,
+				"Can't DMA from host on queue other then 1\n");
+			return -EFAULT;
+		}
+
+		rc = goya_pin_memory_before_cs(hdev, parser, user_dma_pkt,
+						addr, dir);
+	}
+
+	return rc;
+}
+
+static int goya_validate_dma_pkt_no_host(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt)
+{
+	u64 sram_memory_addr, dram_memory_addr;
+	enum goya_dma_direction user_dir;
+
+	user_dir = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+
+	if (user_dir == DMA_DRAM_TO_SRAM) {
+		dev_dbg(hdev->dev, "DMA direction is DRAM --> SRAM\n");
+		dram_memory_addr = user_dma_pkt->src_addr;
+		sram_memory_addr = user_dma_pkt->dst_addr;
+	} else {
+		dev_dbg(hdev->dev, "DMA direction is SRAM --> DRAM\n");
+		sram_memory_addr = user_dma_pkt->src_addr;
+		dram_memory_addr = user_dma_pkt->dst_addr;
+	}
+
+	if (!hl_mem_area_inside_range(sram_memory_addr, user_dma_pkt->tsize,
+				hdev->asic_prop.sram_user_base_address,
+				hdev->asic_prop.sram_end_address)) {
+		dev_err(hdev->dev, "SRAM address 0x%llx + 0x%x is invalid\n",
+			sram_memory_addr, user_dma_pkt->tsize);
+		return -EFAULT;
+	}
+
+	if (!hl_mem_area_inside_range(dram_memory_addr, user_dma_pkt->tsize,
+				hdev->asic_prop.dram_user_base_address,
+				hdev->asic_prop.dram_end_address)) {
+		dev_err(hdev->dev, "DRAM address 0x%llx + 0x%x is invalid\n",
+			dram_memory_addr, user_dma_pkt->tsize);
+		return -EFAULT;
+	}
+
+	parser->patched_cb_size += sizeof(*user_dma_pkt);
+
+	return 0;
+}
+
+static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt)
+{
+	enum goya_dma_direction user_dir;
+	int rc;
+
+	dev_dbg(hdev->dev, "DMA packet details:\n");
+	dev_dbg(hdev->dev, "source == 0x%llx\n", user_dma_pkt->src_addr);
+	dev_dbg(hdev->dev, "destination == 0x%llx\n", user_dma_pkt->dst_addr);
+	dev_dbg(hdev->dev, "size == %u\n", user_dma_pkt->tsize);
+
+	user_dir = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+
+	/*
+	 * Special handling for DMA with size 0. The H/W has a bug where
+	 * this can cause the QMAN DMA to get stuck, so block it here.
+	 */
+	if (user_dma_pkt->tsize == 0) {
+		dev_err(hdev->dev,
+			"Got DMA with size 0, might reset the device\n");
+		return -EINVAL;
+	}
+
+	if ((user_dir == DMA_DRAM_TO_SRAM) || (user_dir == DMA_SRAM_TO_DRAM))
+		rc = goya_validate_dma_pkt_no_host(hdev, parser, user_dma_pkt);
+	else
+		rc = goya_validate_dma_pkt_host(hdev, parser, user_dma_pkt);
+
+	return rc;
+}
+
+static int goya_validate_dma_pkt_mmu(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt)
+{
+	dev_dbg(hdev->dev, "DMA packet details:\n");
+	dev_dbg(hdev->dev, "source == 0x%llx\n", user_dma_pkt->src_addr);
+	dev_dbg(hdev->dev, "destination == 0x%llx\n", user_dma_pkt->dst_addr);
+	dev_dbg(hdev->dev, "size == %u\n", user_dma_pkt->tsize);
+
+	/*
+	 * WA for HW-23.
+	 * We can't allow user to read from Host using QMANs other than 1.
+	 */
+	if (parser->hw_queue_id > GOYA_QUEUE_ID_DMA_1 &&
+		hl_mem_area_inside_range(user_dma_pkt->src_addr,
+				user_dma_pkt->tsize,
+				hdev->asic_prop.va_space_host_start_address,
+				hdev->asic_prop.va_space_host_end_address)) {
+		dev_err(hdev->dev,
+			"Can't DMA from host on queue other then 1\n");
+		return -EFAULT;
+	}
+
+	if (user_dma_pkt->tsize == 0) {
+		dev_err(hdev->dev,
+			"Got DMA with size 0, might reset the device\n");
+		return -EINVAL;
+	}
+
+	parser->patched_cb_size += sizeof(*user_dma_pkt);
+
+	return 0;
+}
+
+static int goya_validate_wreg32(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_wreg32 *wreg_pkt)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u32 sob_start_addr, sob_end_addr;
+	u16 reg_offset;
+
+	reg_offset = wreg_pkt->ctl & GOYA_PKT_WREG32_CTL_REG_OFFSET_MASK;
+
+	dev_dbg(hdev->dev, "WREG32 packet details:\n");
+	dev_dbg(hdev->dev, "reg_offset == 0x%x\n", reg_offset);
+	dev_dbg(hdev->dev, "value      == 0x%x\n", wreg_pkt->value);
+
+	if (reg_offset != (mmDMA_CH_1_WR_COMP_ADDR_LO & 0xFFFF)) {
+		dev_err(hdev->dev, "WREG32 packet with illegal address 0x%x\n",
+			reg_offset);
+		return -EPERM;
+	}
+
+	/*
+	 * With MMU, DMA channels are not secured, so it doesn't matter where
+	 * the WR COMP will be written to because it will go out with
+	 * non-secured property
+	 */
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
+		return 0;
+
+	sob_start_addr = lower_32_bits(CFG_BASE + mmSYNC_MNGR_SOB_OBJ_0);
+	sob_end_addr = lower_32_bits(CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1023);
+
+	if ((wreg_pkt->value < sob_start_addr) ||
+			(wreg_pkt->value > sob_end_addr)) {
+
+		dev_err(hdev->dev, "WREG32 packet with illegal value 0x%x\n",
+			wreg_pkt->value);
+		return -EPERM;
+	}
+
+	return 0;
+}
+
+static int goya_validate_cb(struct hl_device *hdev,
+			struct hl_cs_parser *parser, bool is_mmu)
+{
+	u32 cb_parsed_length = 0;
+	int rc = 0;
+
+	parser->patched_cb_size = 0;
+
+	/* cb_user_size is more than 0 so loop will always be executed */
+	while (cb_parsed_length < parser->user_cb_size) {
+		enum packet_id pkt_id;
+		u16 pkt_size;
+		void *user_pkt;
+
+		user_pkt = (void *) (uintptr_t)
+			(parser->user_cb->kernel_address + cb_parsed_length);
+
+		pkt_id = (enum packet_id) (((*(u64 *) user_pkt) &
+				PACKET_HEADER_PACKET_ID_MASK) >>
+					PACKET_HEADER_PACKET_ID_SHIFT);
+
+		pkt_size = goya_packet_sizes[pkt_id];
+		cb_parsed_length += pkt_size;
+		if (cb_parsed_length > parser->user_cb_size) {
+			dev_err(hdev->dev,
+				"packet 0x%x is out of CB boundary\n", pkt_id);
+			rc = -EINVAL;
+			break;
+		}
+
+		switch (pkt_id) {
+		case PACKET_WREG_32:
+			/*
+			 * Although it is validated after copy in patch_cb(),
+			 * need to validate here as well because patch_cb() is
+			 * not called in MMU path while this function is called
+			 */
+			rc = goya_validate_wreg32(hdev, parser, user_pkt);
+			break;
+
+		case PACKET_WREG_BULK:
+			dev_err(hdev->dev,
+				"User not allowed to use WREG_BULK\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_MSG_PROT:
+			dev_err(hdev->dev,
+				"User not allowed to use MSG_PROT\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_CP_DMA:
+			dev_err(hdev->dev, "User not allowed to use CP_DMA\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_STOP:
+			dev_err(hdev->dev, "User not allowed to use STOP\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_LIN_DMA:
+			if (is_mmu)
+				rc = goya_validate_dma_pkt_mmu(hdev, parser,
+						user_pkt);
+			else
+				rc = goya_validate_dma_pkt_no_mmu(hdev, parser,
+						user_pkt);
+			break;
+
+		case PACKET_MSG_LONG:
+		case PACKET_MSG_SHORT:
+		case PACKET_FENCE:
+		case PACKET_NOP:
+			parser->patched_cb_size += pkt_size;
+			break;
+
+		default:
+			dev_err(hdev->dev, "Invalid packet header 0x%x\n",
+				pkt_id);
+			rc = -EINVAL;
+			break;
+		}
+
+		if (rc)
+			break;
+	}
+
+	/*
+	 * The new CB should have space at the end for two MSG_PROT packets:
+	 * 1. A packet that will act as a completion packet
+	 * 2. A packet that will generate MSI-X interrupt
+	 */
+	parser->patched_cb_size += sizeof(struct packet_msg_prot) * 2;
+
+	return rc;
+}
+
+static int goya_patch_dma_packet(struct hl_device *hdev,
+				struct hl_cs_parser *parser,
+				struct packet_lin_dma *user_dma_pkt,
+				struct packet_lin_dma *new_dma_pkt,
+				u32 *new_dma_pkt_size)
+{
+	struct hl_userptr *userptr;
+	struct scatterlist *sg, *sg_next_iter;
+	u32 count, len, dma_desc_cnt, len_next;
+	dma_addr_t dma_addr, dma_addr_next;
+	enum goya_dma_direction user_dir;
+	u64 device_memory_addr, addr;
+	enum dma_data_direction dir;
+	struct sg_table *sgt;
+	bool skip_host_mem_pin = false;
+	bool user_memset;
+	u32 user_rdcomp_mask, user_wrcomp_mask;
+
+	user_dir = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+
+	user_memset = (user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_MEMSET_MASK) >>
+			GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT;
+
+	if ((user_dir == DMA_DRAM_TO_SRAM) || (user_dir == DMA_SRAM_TO_DRAM) ||
+			(user_dma_pkt->tsize == 0)) {
+		memcpy(new_dma_pkt, user_dma_pkt, sizeof(*new_dma_pkt));
+		*new_dma_pkt_size = sizeof(*new_dma_pkt);
+		return 0;
+	}
+
+	if ((user_dir == DMA_HOST_TO_DRAM) || (user_dir == DMA_HOST_TO_SRAM)) {
+		addr = user_dma_pkt->src_addr;
+		device_memory_addr = user_dma_pkt->dst_addr;
+		dir = DMA_TO_DEVICE;
+		if (user_memset)
+			skip_host_mem_pin = true;
+	} else {
+		addr = user_dma_pkt->dst_addr;
+		device_memory_addr = user_dma_pkt->src_addr;
+		dir = DMA_FROM_DEVICE;
+	}
+
+	if ((!skip_host_mem_pin) &&
+		(hl_userptr_is_pinned(hdev, addr, user_dma_pkt->tsize,
+			parser->job_userptr_list, &userptr) == false)) {
+		dev_err(hdev->dev, "Userptr 0x%llx + 0x%x NOT mapped\n",
+				addr, user_dma_pkt->tsize);
+		return -EFAULT;
+	}
+
+	if ((user_memset) && (dir == DMA_TO_DEVICE)) {
+		memcpy(new_dma_pkt, user_dma_pkt, sizeof(*user_dma_pkt));
+		*new_dma_pkt_size = sizeof(*user_dma_pkt);
+		return 0;
+	}
+
+	user_rdcomp_mask =
+			(user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_RDCOMP_MASK);
+
+	user_wrcomp_mask =
+			(user_dma_pkt->ctl & GOYA_PKT_LIN_DMA_CTL_WRCOMP_MASK);
+
+	sgt = userptr->sgt;
+	dma_desc_cnt = 0;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
+		len = sg_dma_len(sg);
+		dma_addr = sg_dma_address(sg);
+
+		if (len == 0)
+			break;
+
+		while ((count + 1) < sgt->nents) {
+			sg_next_iter = sg_next(sg);
+			len_next = sg_dma_len(sg_next_iter);
+			dma_addr_next = sg_dma_address(sg_next_iter);
+
+			if (len_next == 0)
+				break;
+
+			if ((dma_addr + len == dma_addr_next) &&
+				(len + len_next <= DMA_MAX_TRANSFER_SIZE)) {
+				len += len_next;
+				count++;
+				sg = sg_next_iter;
+			} else {
+				break;
+			}
+		}
+
+		new_dma_pkt->ctl = user_dma_pkt->ctl;
+		if (likely(dma_desc_cnt))
+			new_dma_pkt->ctl &= ~GOYA_PKT_CTL_EB_MASK;
+		new_dma_pkt->ctl &= ~(GOYA_PKT_LIN_DMA_CTL_RDCOMP_MASK |
+					GOYA_PKT_LIN_DMA_CTL_WRCOMP_MASK);
+		new_dma_pkt->tsize = len;
+
+		dma_addr += hdev->asic_prop.host_phys_base_address;
+
+		if (dir == DMA_TO_DEVICE) {
+			new_dma_pkt->src_addr = dma_addr;
+			new_dma_pkt->dst_addr = device_memory_addr;
+		} else {
+			new_dma_pkt->src_addr = device_memory_addr;
+			new_dma_pkt->dst_addr = dma_addr;
+		}
+
+		if (!user_memset)
+			device_memory_addr += len;
+		dma_desc_cnt++;
+		new_dma_pkt++;
+	}
+
+	if (!dma_desc_cnt) {
+		dev_err(hdev->dev,
+			"Error of 0 SG entries when patching DMA packet\n");
+		return -EFAULT;
+	}
+
+	/* Fix the last dma packet - rdcomp/wrcomp must be as user set them */
+	new_dma_pkt--;
+	new_dma_pkt->ctl |= (user_rdcomp_mask | user_wrcomp_mask);
+
+	*new_dma_pkt_size = dma_desc_cnt * sizeof(struct packet_lin_dma);
+
+	return 0;
+}
+
+static int goya_patch_cb(struct hl_device *hdev,
+				struct hl_cs_parser *parser)
+{
+	u32 cb_parsed_length = 0;
+	u32 cb_patched_cur_length = 0;
+	int rc = 0;
+
+	/* cb_user_size is more than 0 so loop will always be executed */
+	while (cb_parsed_length < parser->user_cb_size) {
+		enum packet_id pkt_id;
+		u16 pkt_size;
+		u32 new_pkt_size = 0;
+		void *user_pkt, *kernel_pkt;
+
+		user_pkt = (void *) (uintptr_t)
+			(parser->user_cb->kernel_address + cb_parsed_length);
+		kernel_pkt = (void *) (uintptr_t)
+			(parser->patched_cb->kernel_address +
+					cb_patched_cur_length);
+
+		pkt_id = (enum packet_id) (((*(u64 *) user_pkt) &
+				PACKET_HEADER_PACKET_ID_MASK) >>
+					PACKET_HEADER_PACKET_ID_SHIFT);
+
+		pkt_size = goya_packet_sizes[pkt_id];
+		cb_parsed_length += pkt_size;
+		if (cb_parsed_length > parser->user_cb_size) {
+			dev_err(hdev->dev,
+				"packet 0x%x is out of CB boundary\n", pkt_id);
+			rc = -EINVAL;
+			break;
+		}
+
+		switch (pkt_id) {
+		case PACKET_LIN_DMA:
+			rc = goya_patch_dma_packet(hdev, parser, user_pkt,
+						kernel_pkt, &new_pkt_size);
+			cb_patched_cur_length += new_pkt_size;
+			break;
+
+		case PACKET_WREG_32:
+			memcpy(kernel_pkt, user_pkt, pkt_size);
+			cb_patched_cur_length += pkt_size;
+			rc = goya_validate_wreg32(hdev, parser, kernel_pkt);
+			break;
+
+		case PACKET_WREG_BULK:
+			dev_err(hdev->dev,
+				"User not allowed to use WREG_BULK\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_MSG_PROT:
+			dev_err(hdev->dev,
+				"User not allowed to use MSG_PROT\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_CP_DMA:
+			dev_err(hdev->dev, "User not allowed to use CP_DMA\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_STOP:
+			dev_err(hdev->dev, "User not allowed to use STOP\n");
+			rc = -EPERM;
+			break;
+
+		case PACKET_MSG_LONG:
+		case PACKET_MSG_SHORT:
+		case PACKET_FENCE:
+		case PACKET_NOP:
+			memcpy(kernel_pkt, user_pkt, pkt_size);
+			cb_patched_cur_length += pkt_size;
+			break;
+
+		default:
+			dev_err(hdev->dev, "Invalid packet header 0x%x\n",
+				pkt_id);
+			rc = -EINVAL;
+			break;
+		}
+
+		if (rc)
+			break;
+	}
+
+	return rc;
+}
+
+static int goya_parse_cb_mmu(struct hl_device *hdev,
+		struct hl_cs_parser *parser)
+{
+	u64 patched_cb_handle;
+	u32 patched_cb_size;
+	struct hl_cb *user_cb;
+	int rc;
+
+	/*
+	 * The new CB should have space at the end for two MSG_PROT pkt:
+	 * 1. A packet that will act as a completion packet
+	 * 2. A packet that will generate MSI-X interrupt
+	 */
+	parser->patched_cb_size = parser->user_cb_size +
+			sizeof(struct packet_msg_prot) * 2;
+
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
+				parser->patched_cb_size,
+				&patched_cb_handle, HL_KERNEL_ASID_ID);
+
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to allocate patched CB for DMA CS %d\n",
+			rc);
+		return rc;
+	}
+
+	patched_cb_handle >>= PAGE_SHIFT;
+	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
+				(u32) patched_cb_handle);
+	/* hl_cb_get should never fail here so use kernel WARN */
+	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
+			(u32) patched_cb_handle);
+	if (!parser->patched_cb) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	/*
+	 * The check that parser->user_cb_size <= parser->user_cb->size was done
+	 * in validate_queue_index().
+	 */
+	memcpy((void *) (uintptr_t) parser->patched_cb->kernel_address,
+		(void *) (uintptr_t) parser->user_cb->kernel_address,
+		parser->user_cb_size);
+
+	patched_cb_size = parser->patched_cb_size;
+
+	/* validate patched CB instead of user CB */
+	user_cb = parser->user_cb;
+	parser->user_cb = parser->patched_cb;
+	rc = goya_validate_cb(hdev, parser, true);
+	parser->user_cb = user_cb;
+
+	if (rc) {
+		hl_cb_put(parser->patched_cb);
+		goto out;
+	}
+
+	if (patched_cb_size != parser->patched_cb_size) {
+		dev_err(hdev->dev, "user CB size mismatch\n");
+		hl_cb_put(parser->patched_cb);
+		rc = -EINVAL;
+		goto out;
+	}
+
+out:
+	/*
+	 * Always call cb destroy here because we still have 1 reference
+	 * to it by calling cb_get earlier. After the job will be completed,
+	 * cb_put will release it, but here we want to remove it from the
+	 * idr
+	 */
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
+					patched_cb_handle << PAGE_SHIFT);
+
+	return rc;
+}
+
+int goya_parse_cb_no_mmu(struct hl_device *hdev, struct hl_cs_parser *parser)
+{
+	u64 patched_cb_handle;
+	int rc;
+
+	rc = goya_validate_cb(hdev, parser, false);
+
+	if (rc)
+		goto free_userptr;
+
+	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr,
+				parser->patched_cb_size,
+				&patched_cb_handle, HL_KERNEL_ASID_ID);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to allocate patched CB for DMA CS %d\n", rc);
+		goto free_userptr;
+	}
+
+	patched_cb_handle >>= PAGE_SHIFT;
+	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
+				(u32) patched_cb_handle);
+	/* hl_cb_get should never fail here so use kernel WARN */
+	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
+			(u32) patched_cb_handle);
+	if (!parser->patched_cb) {
+		rc = -EFAULT;
+		goto out;
+	}
+
+	rc = goya_patch_cb(hdev, parser);
+
+	if (rc)
+		hl_cb_put(parser->patched_cb);
+
+out:
+	/*
+	 * Always call cb destroy here because we still have 1 reference
+	 * to it by calling cb_get earlier. After the job will be completed,
+	 * cb_put will release it, but here we want to remove it from the
+	 * idr
+	 */
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr,
+				patched_cb_handle << PAGE_SHIFT);
+
+free_userptr:
+	if (rc)
+		hl_userptr_delete_list(hdev, parser->job_userptr_list);
+	return rc;
+}
+
+int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
+		struct hl_cs_parser *parser)
+{
+	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU)) {
+		/* For internal queue jobs, just check if cb address is valid */
+		if (hl_mem_area_inside_range(
+				(u64) (uintptr_t) parser->user_cb,
+				parser->user_cb_size,
+				asic_prop->sram_user_base_address,
+				asic_prop->sram_end_address))
+			return 0;
+
+		if (hl_mem_area_inside_range(
+				(u64) (uintptr_t) parser->user_cb,
+				parser->user_cb_size,
+				asic_prop->dram_user_base_address,
+				asic_prop->dram_end_address))
+			return 0;
+
+		dev_err(hdev->dev,
+			"Internal CB address 0x%llx + 0x%x is not in SRAM nor in DRAM\n",
+			(u64) (uintptr_t) parser->user_cb,
+			parser->user_cb_size);
+
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	if (!parser->ext_queue)
+		return goya_parse_cb_no_ext_quque(hdev, parser);
+
+	if ((goya->hw_cap_initialized & HW_CAP_MMU) && parser->use_virt_addr)
+		return goya_parse_cb_mmu(hdev, parser);
+	else
+		return goya_parse_cb_no_mmu(hdev, parser);
+}
+
+void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
+				u32 cq_val, u32 msix_vec)
+{
+	struct packet_msg_prot *cq_pkt;
+
+	cq_pkt = (struct packet_msg_prot *) (uintptr_t)
+		(kernel_address + len - (sizeof(struct packet_msg_prot) * 2));
+
+	cq_pkt->ctl = (PACKET_MSG_PROT << GOYA_PKT_CTL_OPCODE_SHIFT) |
+			(1 << GOYA_PKT_CTL_EB_SHIFT) |
+			(1 << GOYA_PKT_CTL_MB_SHIFT);
+	cq_pkt->value = cq_val;
+	cq_pkt->addr = cq_addr;
+
+	cq_pkt++;
+
+	cq_pkt->ctl = (PACKET_MSG_PROT << GOYA_PKT_CTL_OPCODE_SHIFT) |
+			(1 << GOYA_PKT_CTL_MB_SHIFT);
+	cq_pkt->value = msix_vec & 0x7FF;
+	cq_pkt->addr = CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF;
+}
+
 static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 {
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
+}
+
+int goya_context_switch(struct hl_device *hdev, u32 asid)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct packet_lin_dma *clear_sram_pkt;
+	struct hl_cs_parser parser;
+	struct hl_cs_job *job;
+	u32 cb_size;
+	struct hl_cb *cb;
+	int rc;
+
+	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
+	if (!cb)
+		return -EFAULT;
+
+	clear_sram_pkt = (struct packet_lin_dma *)
+					(uintptr_t) cb->kernel_address;
+
+	memset(clear_sram_pkt, 0, sizeof(*clear_sram_pkt));
+	cb_size = sizeof(*clear_sram_pkt);
+
+	clear_sram_pkt->ctl = ((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
+		(DMA_HOST_TO_SRAM << GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT) |
+		(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
+		(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
+		(1 << GOYA_PKT_CTL_RB_SHIFT) |
+		(1 << GOYA_PKT_CTL_MB_SHIFT));
+
+	clear_sram_pkt->src_addr = 0x7777777777777777ull;
+	clear_sram_pkt->dst_addr = prop->sram_base_address;
+	if (hdev->pldm)
+		clear_sram_pkt->tsize = 0x10000;
+	else
+		clear_sram_pkt->tsize = prop->sram_size;
+
+	job = hl_cs_allocate_job(hdev, true);
+	if (!job) {
+		dev_err(hdev->dev, "Failed to allocate a new job\n");
+		rc = -ENOMEM;
+		goto release_cb;
+	}
+
+	job->id = 0;
+	job->user_cb = cb;
+	job->user_cb->cs_cnt++;
+	job->user_cb_size = cb_size;
+	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
+
+	parser.ctx_id = HL_KERNEL_ASID_ID;
+	parser.cs_sequence = 0;
+	parser.job_id = job->id;
+	parser.hw_queue_id = job->hw_queue_id;
+	parser.job_userptr_list = &job->userptr_list;
+	parser.user_cb = job->user_cb;
+	parser.user_cb_size = job->user_cb_size;
+	parser.ext_queue = job->ext_queue;
+	parser.use_virt_addr = hdev->mmu_enable;
+
+	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to parse kernel CB during context switch\n");
+		goto free_job;
+	}
+
+	job->patched_cb = parser.patched_cb;
+	job->job_cb_size = parser.patched_cb_size;
+	job->patched_cb->cs_cnt++;
+
+	rc = goya_send_job_on_qman0(hdev, job);
+
+	job->patched_cb->cs_cnt--;
+	hl_cb_put(job->patched_cb);
+
+free_job:
+	hl_userptr_delete_list(hdev, &job->userptr_list);
+	kfree(job);
+	cb->cs_cnt--;
+
+release_cb:
+	hl_cb_put(cb);
+	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+
+	return rc;
+}
+
+void goya_restore_phase_topology(struct hl_device *hdev)
+{
+	int i, num_of_sob_in_longs, num_of_mon_in_longs;
+
+	num_of_sob_in_longs =
+		((mmSYNC_MNGR_SOB_OBJ_1023 - mmSYNC_MNGR_SOB_OBJ_0) + 4);
+
+	num_of_mon_in_longs =
+		((mmSYNC_MNGR_MON_STATUS_255 - mmSYNC_MNGR_MON_STATUS_0) + 4);
+
+	for (i = 0 ; i < num_of_sob_in_longs ; i += 4)
+		WREG32(mmSYNC_MNGR_SOB_OBJ_0 + i, 0);
+
+	for (i = 0 ; i < num_of_mon_in_longs ; i += 4)
+		WREG32(mmSYNC_MNGR_MON_STATUS_0 + i, 0);
+
+	/* Flush all WREG to prevent race */
+	i = RREG32(mmSYNC_MNGR_SOB_OBJ_0);
 }
 
 static void goya_get_axi_name(struct hl_device *hdev, u32 agent_id,
@@ -3608,6 +4673,59 @@ static void goya_disable_clock_gating(struct hl_device *hdev)
 
 }
 
+static bool goya_is_device_idle(struct hl_device *hdev)
+{
+	u64 offset, dma_qm_reg, tpc_qm_reg, tpc_cmdq_reg, tpc_cfg_reg;
+	int i;
+
+	offset = mmDMA_QM_1_GLBL_STS0 - mmDMA_QM_0_GLBL_STS0;
+
+	for (i = 0 ; i < DMA_MAX_NUM ; i++) {
+		dma_qm_reg = mmDMA_QM_0_GLBL_STS0 + i * offset;
+
+		if ((RREG32(dma_qm_reg) & DMA_QM_IDLE_MASK) !=
+				DMA_QM_IDLE_MASK)
+			return false;
+	}
+
+	offset = mmTPC1_QM_GLBL_STS0 - mmTPC0_QM_GLBL_STS0;
+
+	for (i = 0 ; i < TPC_MAX_NUM ; i++) {
+		tpc_qm_reg = mmTPC0_QM_GLBL_STS0 + i * offset;
+		tpc_cmdq_reg = mmTPC0_CMDQ_GLBL_STS0 + i * offset;
+		tpc_cfg_reg = mmTPC0_CFG_STATUS + i * offset;
+
+		if ((RREG32(tpc_qm_reg) & TPC_QM_IDLE_MASK) !=
+				TPC_QM_IDLE_MASK)
+			return false;
+
+		if ((RREG32(tpc_cmdq_reg) & TPC_CMDQ_IDLE_MASK) !=
+				TPC_CMDQ_IDLE_MASK)
+			return false;
+
+		if ((RREG32(tpc_cfg_reg) & TPC_CFG_IDLE_MASK) !=
+				TPC_CFG_IDLE_MASK)
+			return false;
+	}
+
+	if ((RREG32(mmMME_QM_GLBL_STS0) & MME_QM_IDLE_MASK) !=
+			MME_QM_IDLE_MASK)
+		return false;
+
+	if ((RREG32(mmMME_CMDQ_GLBL_STS0) & MME_CMDQ_IDLE_MASK) !=
+			MME_CMDQ_IDLE_MASK)
+		return false;
+
+	if ((RREG32(mmMME_ARCH_STATUS) & MME_ARCH_IDLE_MASK) !=
+			MME_ARCH_IDLE_MASK)
+		return false;
+
+	if (RREG32(mmMME_SHADOW_0_STATUS) & MME_SHADOW_IDLE_MASK)
+		return false;
+
+	return true;
+}
+
 static void goya_hw_queues_lock(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
@@ -3700,7 +4818,14 @@ static const struct hl_asic_funcs goya_funcs = {
 	.dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
+	.hl_dma_unmap_sg = goya_dma_unmap_sg,
+	.cs_parser = goya_cs_parser,
+	.asic_dma_map_sg = goya_dma_map_sg,
+	.get_dma_desc_list_size = goya_get_dma_desc_list_size,
+	.add_end_of_cb_packets = goya_add_end_of_cb_packets,
 	.update_eq_ci = goya_update_eq_ci,
+	.context_switch = goya_context_switch,
+	.restore_phase_topology = goya_restore_phase_topology,
 	.add_device_attr = goya_add_device_attr,
 	.handle_eqe = goya_handle_eqe,
 	.set_pll_profile = goya_set_pll_profile,
@@ -3708,6 +4833,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.send_heartbeat = goya_send_heartbeat,
 	.enable_clock_gating = goya_init_clock_gating,
 	.disable_clock_gating = goya_disable_clock_gating,
+	.is_device_idle = goya_is_device_idle,
 	.soft_reset_late_init = goya_soft_reset_late_init,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,

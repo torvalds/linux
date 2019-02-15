@@ -30,6 +30,8 @@ static void hpriv_release(struct kref *ref)
 
 	put_pid(hpriv->taskpid);
 
+	mutex_destroy(&hpriv->restore_phase_mutex);
+
 	kfree(hpriv);
 
 	/* Now the FD is really closed */
@@ -208,6 +210,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	mutex_init(&hdev->fd_open_cnt_lock);
 	mutex_init(&hdev->send_cpu_message_lock);
+	INIT_LIST_HEAD(&hdev->hw_queues_mirror_list);
+	spin_lock_init(&hdev->hw_queues_mirror_lock);
 	atomic_set(&hdev->in_reset, 0);
 	atomic_set(&hdev->fd_open_cnt, 0);
 
@@ -593,6 +597,9 @@ again:
 	 */
 	hdev->asic_funcs->halt_engines(hdev, hard_reset);
 
+	/* Go over all the queues, release all CS and their jobs */
+	hl_cs_rollback_all(hdev);
+
 	if (hard_reset) {
 		/* Release kernel context */
 		if (hl_ctx_put(hdev->kernel_ctx) != 1) {
@@ -615,6 +622,12 @@ again:
 	hl_hw_queue_reset(hdev, hard_reset);
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
+
+	/* Make sure the setup phase for the user context will run again */
+	if (hdev->user_ctx) {
+		atomic_set(&hdev->user_ctx->thread_restore_token, 1);
+		hdev->user_ctx->thread_restore_wait_token = 0;
+	}
 
 	/* Finished tear-down, starting to re-initialize */
 
@@ -951,6 +964,9 @@ void hl_device_fini(struct hl_device *hdev)
 	 * H/W to the host machine
 	 */
 	hdev->asic_funcs->halt_engines(hdev, true);
+
+	/* Go over all the queues, release all CS and their jobs */
+	hl_cs_rollback_all(hdev);
 
 	hl_cb_pool_fini(hdev);
 

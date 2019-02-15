@@ -16,6 +16,9 @@
 #include <linux/cdev.h>
 #include <linux/iopoll.h>
 #include <linux/irqreturn.h>
+#include <linux/dma-fence.h>
+#include <linux/dma-direction.h>
+#include <linux/scatterlist.h>
 
 #define HL_NAME				"habanalabs"
 
@@ -30,6 +33,11 @@
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
 #define HL_MAX_QUEUES			128
+
+#define HL_MAX_JOBS_PER_CS		64
+
+/* MUST BE POWER OF 2 and larger than 1 */
+#define HL_MAX_PENDING_CS		64
 
 struct hl_device;
 struct hl_fpriv;
@@ -59,6 +67,16 @@ enum hl_queue_type {
 struct hw_queue_properties {
 	enum hl_queue_type	type;
 	u8			kmd_only;
+};
+
+/**
+ * enum vm_type_t - virtual memory mapping request information.
+ * @VM_TYPE_USERPTR: mapping of user memory to device virtual address.
+ * @VM_TYPE_PHYS_LIST: mapping of DRAM memory to device virtual address.
+ */
+enum vm_type_t {
+	VM_TYPE_USERPTR,
+	VM_TYPE_PHYS_LIST
 };
 
 /**
@@ -147,6 +165,19 @@ struct asic_fixed_properties {
 	u8			tpc_enabled_mask;
 };
 
+/**
+ * struct hl_dma_fence - wrapper for fence object used by command submissions.
+ * @base_fence: kernel fence object.
+ * @lock: spinlock to protect fence.
+ * @hdev: habanalabs device structure.
+ * @cs_seq: command submission sequence number.
+ */
+struct hl_dma_fence {
+	struct dma_fence	base_fence;
+	spinlock_t		lock;
+	struct hl_device	*hdev;
+	u64			cs_seq;
+};
 
 /*
  * Command Buffers
@@ -175,6 +206,7 @@ struct hl_cb_mgr {
  * @mmap_size: Holds the CB's size that was mmaped.
  * @size: holds the CB's size.
  * @id: the CB's ID.
+ * @cs_cnt: holds number of CS that this CB participates in.
  * @ctx_id: holds the ID of the owner's context.
  * @mmap: true if the CB is currently mmaped to user.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
@@ -189,6 +221,7 @@ struct hl_cb {
 	u32			mmap_size;
 	u32			size;
 	u32			id;
+	u32			cs_cnt;
 	u32			ctx_id;
 	u8			mmap;
 	u8			is_pool;
@@ -313,6 +346,8 @@ enum hl_asic_type {
 	ASIC_INVALID
 };
 
+struct hl_cs_parser;
+
 /**
  * enum hl_pm_mng_profile - power management profile.
  * @PM_AUTO: internal clock is set by KMD.
@@ -372,7 +407,14 @@ enum hl_pll_frequency {
  * @dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
+ * @hl_dma_unmap_sg: DMA unmap scatter-gather list.
+ * @cs_parser: parse Command Submission.
+ * @asic_dma_map_sg: DMA map scatter-gather list.
+ * @get_dma_desc_list_size: get number of LIN_DMA packets required for CB.
+ * @add_end_of_cb_packets: Add packets to the end of CB, if device requires it.
  * @update_eq_ci: update event queue CI.
+ * @context_switch: called upon ASID context switch.
+ * @restore_phase_topology: clear all SOBs amd MONs.
  * @add_device_attr: add ASIC specific device attributes.
  * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
  * @set_pll_profile: change PLL profile (manual/automatic).
@@ -380,6 +422,7 @@ enum hl_pll_frequency {
  * @send_heartbeat: send is-alive packet to ArmCP and verify response.
  * @enable_clock_gating: enable clock gating for reducing power consumption.
  * @disable_clock_gating: disable clock for accessing registers on HBW.
+ * @is_device_idle: return true if device is idle, false otherwise.
  * @soft_reset_late_init: perform certain actions needed after soft reset.
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
@@ -419,7 +462,20 @@ struct hl_asic_funcs {
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
+	void (*hl_dma_unmap_sg)(struct hl_device *hdev,
+				struct scatterlist *sg, int nents,
+				enum dma_data_direction dir);
+	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
+	int (*asic_dma_map_sg)(struct hl_device *hdev,
+				struct scatterlist *sg, int nents,
+				enum dma_data_direction dir);
+	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
+					struct sg_table *sgt);
+	void (*add_end_of_cb_packets)(u64 kernel_address, u32 len, u64 cq_addr,
+					u32 cq_val, u32 msix_num);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
+	int (*context_switch)(struct hl_device *hdev, u32 asid);
+	void (*restore_phase_topology)(struct hl_device *hdev);
 	void (*add_device_attr)(struct hl_device *hdev,
 				struct attribute_group *dev_attr_grp);
 	void (*handle_eqe)(struct hl_device *hdev,
@@ -430,6 +486,7 @@ struct hl_asic_funcs {
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
+	bool (*is_device_idle)(struct hl_device *hdev);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -453,12 +510,28 @@ struct hl_asic_funcs {
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
+ * @cs_pending: array of DMA fence objects representing pending CS.
+ * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
+ *			to user so user could inquire about CS. It is used as
+ *			index to cs_pending array.
+ * @cs_lock: spinlock to protect cs_sequence.
+ * @thread_restore_token: token to prevent multiple threads of the same context
+ *				from running the restore phase. Only one thread
+ *				should run it.
+ * @thread_restore_wait_token: token to prevent the threads that didn't run
+ *				the restore phase from moving to their execution
+ *				phase before the restore phase has finished.
  * @asid: context's unique address space ID in the device's MMU.
  */
 struct hl_ctx {
 	struct hl_fpriv		*hpriv;
 	struct hl_device	*hdev;
 	struct kref		refcount;
+	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
+	u64			cs_sequence;
+	spinlock_t		cs_lock;
+	atomic_t		thread_restore_token;
+	u32			thread_restore_wait_token;
 	u32			asid;
 };
 
@@ -473,14 +546,129 @@ struct hl_ctx_mgr {
 };
 
 
+
+/*
+ * COMMAND SUBMISSIONS
+ */
+
+/**
+ * struct hl_userptr - memory mapping chunk information
+ * @vm_type: type of the VM.
+ * @job_node: linked-list node for hanging the object on the Job's list.
+ * @vec: pointer to the frame vector.
+ * @sgt: pointer to the scatter-gather table that holds the pages.
+ * @dir: for DMA unmapping, the direction must be supplied, so save it.
+ * @debugfs_list: node in debugfs list of command submissions.
+ * @addr: user-space virtual pointer to the start of the memory area.
+ * @size: size of the memory area to pin & map.
+ * @dma_mapped: true if the SG was mapped to DMA addresses, false otherwise.
+ */
+struct hl_userptr {
+	enum vm_type_t		vm_type; /* must be first */
+	struct list_head	job_node;
+	struct frame_vector	*vec;
+	struct sg_table		*sgt;
+	enum dma_data_direction dir;
+	struct list_head	debugfs_list;
+	u64			addr;
+	u32			size;
+	u8			dma_mapped;
+};
+
+/**
+ * struct hl_cs - command submission.
+ * @jobs_in_queue_cnt: per each queue, maintain counter of submitted jobs.
+ * @ctx: the context this CS belongs to.
+ * @job_list: list of the CS's jobs in the various queues.
+ * @job_lock: spinlock for the CS's jobs list. Needed for free_job.
+ * @refcount: reference counter for usage of the CS.
+ * @fence: pointer to the fence object of this CS.
+ * @work_tdr: delayed work node for TDR.
+ * @mirror_node : node in device mirror list of command submissions.
+ * @sequence: the sequence number of this CS.
+ * @submitted: true if CS was submitted to H/W.
+ * @completed: true if CS was completed by device.
+ * @timedout : true if CS was timedout.
+ * @tdr_active: true if TDR was activated for this CS (to prevent
+ *		double TDR activation).
+ * @aborted: true if CS was aborted due to some device error.
+ */
+struct hl_cs {
+	u8			jobs_in_queue_cnt[HL_MAX_QUEUES];
+	struct hl_ctx		*ctx;
+	struct list_head	job_list;
+	spinlock_t		job_lock;
+	struct kref		refcount;
+	struct dma_fence	*fence;
+	struct delayed_work	work_tdr;
+	struct list_head	mirror_node;
+	u64			sequence;
+	u8			submitted;
+	u8			completed;
+	u8			timedout;
+	u8			tdr_active;
+	u8			aborted;
+};
+
 /**
  * struct hl_cs_job - command submission job.
+ * @cs_node: the node to hang on the CS jobs list.
+ * @cs: the CS this job belongs to.
+ * @user_cb: the CB we got from the user.
+ * @patched_cb: in case of patching, this is internal CB which is submitted on
+ *		the queue instead of the CB we got from the IOCTL.
  * @finish_work: workqueue object to run when job is completed.
+ * @userptr_list: linked-list of userptr mappings that belong to this job and
+ *			wait for completion.
  * @id: the id of this job inside a CS.
+ * @hw_queue_id: the id of the H/W queue this job is submitted to.
+ * @user_cb_size: the actual size of the CB we got from the user.
+ * @job_cb_size: the actual size of the CB that we put on the queue.
+ * @ext_queue: whether the job is for external queue or internal queue.
  */
 struct hl_cs_job {
+	struct list_head	cs_node;
+	struct hl_cs		*cs;
+	struct hl_cb		*user_cb;
+	struct hl_cb		*patched_cb;
 	struct work_struct	finish_work;
+	struct list_head	userptr_list;
 	u32			id;
+	u32			hw_queue_id;
+	u32			user_cb_size;
+	u32			job_cb_size;
+	u8			ext_queue;
+};
+
+/**
+ * struct hl_cs_parser - command submission paerser properties.
+ * @user_cb: the CB we got from the user.
+ * @patched_cb: in case of patching, this is internal CB which is submitted on
+ *		the queue instead of the CB we got from the IOCTL.
+ * @job_userptr_list: linked-list of userptr mappings that belong to the related
+ *			job and wait for completion.
+ * @cs_sequence: the sequence number of the related CS.
+ * @ctx_id: the ID of the context the related CS belongs to.
+ * @hw_queue_id: the id of the H/W queue this job is submitted to.
+ * @user_cb_size: the actual size of the CB we got from the user.
+ * @patched_cb_size: the size of the CB after parsing.
+ * @ext_queue: whether the job is for external queue or internal queue.
+ * @job_id: the id of the related job inside the related CS.
+ * @use_virt_addr: whether to treat the addresses in the CB as virtual during
+ *			parsing.
+ */
+struct hl_cs_parser {
+	struct hl_cb		*user_cb;
+	struct hl_cb		*patched_cb;
+	struct list_head	*job_userptr_list;
+	u64			cs_sequence;
+	u32			ctx_id;
+	u32			hw_queue_id;
+	u32			user_cb_size;
+	u32			patched_cb_size;
+	u8			ext_queue;
+	u8			job_id;
+	u8			use_virt_addr;
 };
 
 
@@ -497,6 +685,7 @@ struct hl_cs_job {
  * @ctx_mgr: context manager to handle multiple context for this FD.
  * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
  * @refcount: number of related contexts.
+ * @restore_phase_mutex: lock for context switch and restore phase.
  */
 struct hl_fpriv {
 	struct hl_device	*hdev;
@@ -506,6 +695,7 @@ struct hl_fpriv {
 	struct hl_ctx_mgr	ctx_mgr;
 	struct hl_cb_mgr	cb_mgr;
 	struct kref		refcount;
+	struct mutex		restore_phase_mutex;
 };
 
 
@@ -577,6 +767,8 @@ struct hl_device_reset_work {
  * @eq_wq: work queue of event queue for executing work in process context.
  * @kernel_ctx: KMD context structure.
  * @kernel_queues: array of hl_hw_queue.
+ * @hw_queues_mirror_list: CS mirror list for TDR.
+ * @hw_queues_mirror_lock: protects hw_queues_mirror_list.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
  * @event_queue: event queue for IRQ from ArmCP.
  * @dma_pool: DMA pool for small allocations.
@@ -604,6 +796,7 @@ struct hl_device_reset_work {
  * @in_reset: is device in reset flow.
  * @curr_pll_profile: current PLL profile.
  * @fd_open_cnt: number of open user processes.
+ * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, KMD will restore this
  *             value and update the F/W after the re-initialization
@@ -617,7 +810,10 @@ struct hl_device_reset_work {
  * @hwmon_initialized: is H/W monitor sensors was initialized.
  * @hard_reset_pending: is there a hard reset work pending.
  * @heartbeat: is heartbeat sanity check towards ArmCP enabled.
+ * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
+ *                   otherwise.
  * @init_done: is the initialization of the device done.
+ * @mmu_enable: is MMU enabled.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -634,6 +830,8 @@ struct hl_device {
 	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
+	struct list_head		hw_queues_mirror_list;
+	spinlock_t			hw_queues_mirror_lock;
 	struct hl_cb_mgr		kernel_cb_mgr;
 	struct hl_eq			event_queue;
 	struct dma_pool			*dma_pool;
@@ -661,6 +859,7 @@ struct hl_device {
 	atomic_t			in_reset;
 	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
+	u64				timeout_jiffies;
 	u64				max_power;
 	u32				major;
 	u32				high_pll;
@@ -672,9 +871,11 @@ struct hl_device {
 	u8				hwmon_initialized;
 	u8				hard_reset_pending;
 	u8				heartbeat;
+	u8				reset_on_lockup;
 	u8				init_done;
 
 	/* Parameters for bring-up */
+	u8				mmu_enable;
 	u8				cpu_enable;
 	u8				reset_pcilink;
 	u8				cpu_queues_enable;
@@ -712,6 +913,58 @@ struct hl_ioctl_desc {
  * Kernel module functions that can be accessed by entire module
  */
 
+/**
+ * hl_mem_area_inside_range() - Checks whether address+size are inside a range.
+ * @address: The start address of the area we want to validate.
+ * @size: The size in bytes of the area we want to validate.
+ * @range_start_address: The start address of the valid range.
+ * @range_end_address: The end address of the valid range.
+ *
+ * Return: true if the area is inside the valid range, false otherwise.
+ */
+static inline bool hl_mem_area_inside_range(u64 address, u32 size,
+				u64 range_start_address, u64 range_end_address)
+{
+	u64 end_address = address + size;
+
+	if ((address >= range_start_address) &&
+			(end_address <= range_end_address) &&
+			(end_address > address))
+		return true;
+
+	return false;
+}
+
+/**
+ * hl_mem_area_crosses_range() - Checks whether address+size crossing a range.
+ * @address: The start address of the area we want to validate.
+ * @size: The size in bytes of the area we want to validate.
+ * @range_start_address: The start address of the valid range.
+ * @range_end_address: The end address of the valid range.
+ *
+ * Return: true if the area overlaps part or all of the valid range,
+ *		false otherwise.
+ */
+static inline bool hl_mem_area_crosses_range(u64 address, u32 size,
+				u64 range_start_address, u64 range_end_address)
+{
+	u64 end_address = address + size;
+
+	if ((address >= range_start_address) &&
+			(address < range_end_address))
+		return true;
+
+	if ((end_address >= range_start_address) &&
+			(end_address < range_end_address))
+		return true;
+
+	if ((address < range_start_address) &&
+			(end_address >= range_end_address))
+		return true;
+
+	return false;
+}
+
 int hl_device_open(struct inode *inode, struct file *filp);
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev);
 int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
@@ -725,8 +978,10 @@ int hl_hw_queues_create(struct hl_device *hdev);
 void hl_hw_queues_destroy(struct hl_device *hdev);
 int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 				u32 cb_size, u64 cb_ptr);
+int hl_hw_queue_schedule_cs(struct hl_cs *cs);
 u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);
 void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);
+void hl_int_hw_queue_update_ci(struct hl_cs *cs);
 void hl_hw_queue_reset(struct hl_device *hdev, bool hard_reset);
 
 #define hl_queue_inc_ptr(p)		hl_hw_queue_add_ptr(p, 1)
@@ -740,6 +995,8 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q);
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q);
 irqreturn_t hl_irq_handler_cq(int irq, void *arg);
 irqreturn_t hl_irq_handler_eq(int irq, void *arg);
+u32 hl_cq_inc_ptr(u32 ptr);
+
 int hl_asid_init(struct hl_device *hdev);
 void hl_asid_fini(struct hl_device *hdev);
 unsigned long hl_asid_alloc(struct hl_device *hdev);
@@ -748,9 +1005,13 @@ void hl_asid_free(struct hl_device *hdev, unsigned long asid);
 int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv);
 void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx);
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx);
+void hl_ctx_do_release(struct kref *ref);
+void hl_ctx_get(struct hl_device *hdev,	struct hl_ctx *ctx);
 int hl_ctx_put(struct hl_ctx *ctx);
+struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq);
 void hl_ctx_mgr_init(struct hl_ctx_mgr *mgr);
 void hl_ctx_mgr_fini(struct hl_device *hdev, struct hl_ctx_mgr *mgr);
+
 int hl_device_init(struct hl_device *hdev, struct class *hclass);
 void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
@@ -782,7 +1043,19 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size);
 int hl_cb_pool_init(struct hl_device *hdev);
 int hl_cb_pool_fini(struct hl_device *hdev);
 
+void hl_cs_rollback_all(struct hl_device *hdev);
+struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev, bool ext_queue);
+
 void goya_set_asic_funcs(struct hl_device *hdev);
+
+int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
+			struct hl_userptr *userptr);
+int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);
+void hl_userptr_delete_list(struct hl_device *hdev,
+				struct list_head *userptr_list);
+bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr, u32 size,
+				struct list_head *userptr_list,
+				struct hl_userptr **userptr);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
@@ -799,5 +1072,7 @@ void hl_set_max_power(struct hl_device *hdev, u64 value);
 /* IOCTLs */
 long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
+int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data);
+int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data);
 
 #endif /* HABANALABSP_H_ */

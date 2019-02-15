@@ -74,6 +74,95 @@ union hl_cb_args {
 };
 
 /*
+ * This structure size must always be fixed to 64-bytes for backward
+ * compatibility
+ */
+struct hl_cs_chunk {
+	/*
+	 * For external queue, this represents a Handle of CB on the Host
+	 * For internal queue, this represents an SRAM or DRAM address of the
+	 * internal CB
+	 */
+	__u64 cb_handle;
+	/* Index of queue to put the CB on */
+	__u32 queue_index;
+	/*
+	 * Size of command buffer with valid packets
+	 * Can be smaller then actual CB size
+	 */
+	__u32 cb_size;
+	/* HL_CS_CHUNK_FLAGS_* */
+	__u32 cs_chunk_flags;
+	/* Align structure to 64 bytes */
+	__u32 pad[11];
+};
+
+#define HL_CS_FLAGS_FORCE_RESTORE	0x1
+
+#define HL_CS_STATUS_SUCCESS		0
+
+struct hl_cs_in {
+	/* this holds address of array of hl_cs_chunk for restore phase */
+	__u64 chunks_restore;
+	/* this holds address of array of hl_cs_chunk for execution phase */
+	__u64 chunks_execute;
+	/* this holds address of array of hl_cs_chunk for store phase -
+	 * Currently not in use
+	 */
+	__u64 chunks_store;
+	/* Number of chunks in restore phase array */
+	__u32 num_chunks_restore;
+	/* Number of chunks in execution array */
+	__u32 num_chunks_execute;
+	/* Number of chunks in restore phase array - Currently not in use */
+	__u32 num_chunks_store;
+	/* HL_CS_FLAGS_* */
+	__u32 cs_flags;
+	/* Context ID - Currently not in use */
+	__u32 ctx_id;
+};
+
+struct hl_cs_out {
+	/* this holds the sequence number of the CS to pass to wait ioctl */
+	__u64 seq;
+	/* HL_CS_STATUS_* */
+	__u32 status;
+	__u32 pad;
+};
+
+union hl_cs_args {
+	struct hl_cs_in in;
+	struct hl_cs_out out;
+};
+
+struct hl_wait_cs_in {
+	/* Command submission sequence number */
+	__u64 seq;
+	/* Absolute timeout to wait in microseconds */
+	__u64 timeout_us;
+	/* Context ID - Currently not in use */
+	__u32 ctx_id;
+	__u32 pad;
+};
+
+#define HL_WAIT_CS_STATUS_COMPLETED	0
+#define HL_WAIT_CS_STATUS_BUSY		1
+#define HL_WAIT_CS_STATUS_TIMEDOUT	2
+#define HL_WAIT_CS_STATUS_ABORTED	3
+#define HL_WAIT_CS_STATUS_INTERRUPTED	4
+
+struct hl_wait_cs_out {
+	/* HL_WAIT_CS_STATUS_* */
+	__u32 status;
+	__u32 pad;
+};
+
+union hl_wait_cs_args {
+	struct hl_wait_cs_in in;
+	struct hl_wait_cs_out out;
+};
+
+/*
  * Command Buffer
  * - Request a Command Buffer
  * - Destroy a Command Buffer
@@ -89,7 +178,74 @@ union hl_cb_args {
 #define HL_IOCTL_CB		\
 		_IOWR('H', 0x02, union hl_cb_args)
 
+/*
+ * Command Submission
+ *
+ * To submit work to the device, the user need to call this IOCTL with a set
+ * of JOBS. That set of JOBS constitutes a CS object.
+ * Each JOB will be enqueued on a specific queue, according to the user's input.
+ * There can be more then one JOB per queue.
+ *
+ * There are two types of queues - external and internal. External queues
+ * are DMA queues which transfer data from/to the Host. All other queues are
+ * internal. The driver will get completion notifications from the device only
+ * on JOBS which are enqueued in the external queues.
+ *
+ * This IOCTL is asynchronous in regard to the actual execution of the CS. This
+ * means it returns immediately after ALL the JOBS were enqueued on their
+ * relevant queues. Therefore, the user mustn't assume the CS has been completed
+ * or has even started to execute.
+ *
+ * Upon successful enqueue, the IOCTL returns an opaque handle which the user
+ * can use with the "Wait for CS" IOCTL to check whether the handle's CS
+ * external JOBS have been completed. Note that if the CS has internal JOBS
+ * which can execute AFTER the external JOBS have finished, the driver might
+ * report that the CS has finished executing BEFORE the internal JOBS have
+ * actually finish executing.
+ *
+ * The CS IOCTL will receive three sets of JOBS. One set is for "restore" phase,
+ * a second set is for "execution" phase and a third set is for "store" phase.
+ * The JOBS on the "restore" phase are enqueued only after context-switch
+ * (or if its the first CS for this context). The user can also order the
+ * driver to run the "restore" phase explicitly
+ *
+ */
+#define HL_IOCTL_CS			\
+		_IOWR('H', 0x03, union hl_cs_args)
+
+/*
+ * Wait for Command Submission
+ *
+ * The user can call this IOCTL with a handle it received from the CS IOCTL
+ * to wait until the handle's CS has finished executing. The user will wait
+ * inside the kernel until the CS has finished or until the user-requeusted
+ * timeout has expired.
+ *
+ * The return value of the IOCTL is a standard Linux error code. The possible
+ * values are:
+ *
+ * EINTR     - Kernel waiting has been interrupted, e.g. due to OS signal
+ *             that the user process received
+ * ETIMEDOUT - The CS has caused a timeout on the device
+ * EIO       - The CS was aborted (usually because the device was reset)
+ * ENODEV    - The device wants to do hard-reset (so user need to close FD)
+ *
+ * The driver also returns a custom define inside the IOCTL which can be:
+ *
+ * HL_WAIT_CS_STATUS_COMPLETED   - The CS has been completed successfully (0)
+ * HL_WAIT_CS_STATUS_BUSY        - The CS is still executing (0)
+ * HL_WAIT_CS_STATUS_TIMEDOUT    - The CS has caused a timeout on the device
+ *                                 (ETIMEDOUT)
+ * HL_WAIT_CS_STATUS_ABORTED     - The CS was aborted, usually because the
+ *                                 device was reset (EIO)
+ * HL_WAIT_CS_STATUS_INTERRUPTED - Waiting for the CS was interrupted (EINTR)
+ *
+ */
+
+#define HL_IOCTL_WAIT_CS			\
+		_IOWR('H', 0x04, union hl_wait_cs_args)
+
 #define HL_COMMAND_START	0x02
-#define HL_COMMAND_END		0x03
+#define HL_COMMAND_END		0x05
 
 #endif /* HABANALABS_H_ */

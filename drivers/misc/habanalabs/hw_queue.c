@@ -34,6 +34,29 @@ static inline int queue_free_slots(struct hl_hw_queue *q, u32 queue_len)
 		return (abs(delta) - queue_len);
 }
 
+void hl_int_hw_queue_update_ci(struct hl_cs *cs)
+{
+	struct hl_device *hdev = cs->ctx->hdev;
+	struct hl_hw_queue *q;
+	int i;
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	if (hdev->disabled)
+		goto out;
+
+	q = &hdev->kernel_queues[0];
+	for (i = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
+		if (q->queue_type == QUEUE_TYPE_INT) {
+			q->ci += cs->jobs_in_queue_cnt[i];
+			q->ci &= ((q->int_queue_len << 1) - 1);
+		}
+	}
+
+out:
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+}
+
 /*
  * ext_queue_submit_bd - Submit a buffer descriptor to an external queue
  *
@@ -120,6 +143,37 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
 }
 
 /*
+ * int_queue_sanity_checks - perform some sanity checks on internal queue
+ *
+ * @hdev              : pointer to hl_device structure
+ * @q                 :	pointer to hl_hw_queue structure
+ * @num_of_entries    : how many entries to check for space
+ *
+ * H/W queues spinlock should be taken before calling this function
+ *
+ * Perform the following:
+ * - Make sure we have enough space in the h/w queue
+ *
+ */
+static int int_queue_sanity_checks(struct hl_device *hdev,
+					struct hl_hw_queue *q,
+					int num_of_entries)
+{
+	int free_slots_cnt;
+
+	/* Check we have enough space in the queue */
+	free_slots_cnt = queue_free_slots(q, q->int_queue_len);
+
+	if (free_slots_cnt < num_of_entries) {
+		dev_dbg(hdev->dev, "Queue %d doesn't have room for %d CBs\n",
+			q->hw_queue_id, num_of_entries);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+/*
  * hl_hw_queue_send_cb_no_cmpl - send a single CB (not a JOB) without completion
  *
  * @hdev: pointer to hl_device structure
@@ -161,6 +215,184 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 out:
 	if (q->queue_type != QUEUE_TYPE_CPU)
 		hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	return rc;
+}
+
+/*
+ * ext_hw_queue_schedule_job - submit an JOB to an external queue
+ *
+ * @job: pointer to the job that needs to be submitted to the queue
+ *
+ * This function must be called when the scheduler mutex is taken
+ *
+ */
+static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
+{
+	struct hl_device *hdev = job->cs->ctx->hdev;
+	struct hl_hw_queue *q = &hdev->kernel_queues[job->hw_queue_id];
+	struct hl_cq_entry cq_pkt;
+	struct hl_cq *cq;
+	u64 cq_addr;
+	struct hl_cb *cb;
+	u32 ctl;
+	u32 len;
+	u64 ptr;
+
+	/*
+	 * Update the JOB ID inside the BD CTL so the device would know what
+	 * to write in the completion queue
+	 */
+	ctl = ((q->pi << BD_CTL_SHADOW_INDEX_SHIFT) & BD_CTL_SHADOW_INDEX_MASK);
+
+	cb = job->patched_cb;
+	len = job->job_cb_size;
+	ptr = cb->bus_address;
+
+	cq_pkt.data = (q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
+					& CQ_ENTRY_SHADOW_INDEX_MASK;
+	cq_pkt.data |= 1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT;
+	cq_pkt.data |= 1 << CQ_ENTRY_READY_SHIFT;
+
+	/*
+	 * No need to protect pi_offset because scheduling to the
+	 * H/W queues is done under the scheduler mutex
+	 *
+	 * No need to check if CQ is full because it was already
+	 * checked in hl_queue_sanity_checks
+	 */
+	cq = &hdev->completion_queue[q->hw_queue_id];
+	cq_addr = cq->bus_address +
+			hdev->asic_prop.host_phys_base_address;
+	cq_addr += cq->pi * sizeof(struct hl_cq_entry);
+
+	hdev->asic_funcs->add_end_of_cb_packets(cb->kernel_address, len,
+				cq_addr, cq_pkt.data, q->hw_queue_id);
+
+	q->shadow_queue[hl_pi_2_offset(q->pi)] = job;
+
+	cq->pi = hl_cq_inc_ptr(cq->pi);
+
+	ext_queue_submit_bd(hdev, q, ctl, len, ptr);
+}
+
+/*
+ * int_hw_queue_schedule_job - submit an JOB to an internal queue
+ *
+ * @job: pointer to the job that needs to be submitted to the queue
+ *
+ * This function must be called when the scheduler mutex is taken
+ *
+ */
+static void int_hw_queue_schedule_job(struct hl_cs_job *job)
+{
+	struct hl_device *hdev = job->cs->ctx->hdev;
+	struct hl_hw_queue *q = &hdev->kernel_queues[job->hw_queue_id];
+	struct hl_bd bd;
+	u64 *pi, *pbd = (u64 *) &bd;
+
+	bd.ctl = 0;
+	bd.len = job->job_cb_size;
+	bd.ptr = (u64) (uintptr_t) job->user_cb;
+
+	pi = (u64 *) (uintptr_t) (q->kernel_address +
+		((q->pi & (q->int_queue_len - 1)) * sizeof(bd)));
+
+	pi[0] = pbd[0];
+	pi[1] = pbd[1];
+
+	q->pi++;
+	q->pi &= ((q->int_queue_len << 1) - 1);
+
+	/* Flush PQ entry write. Relevant only for specific ASICs */
+	hdev->asic_funcs->flush_pq_write(hdev, pi, pbd[0]);
+
+	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
+}
+
+/*
+ * hl_hw_queue_schedule_cs - schedule a command submission
+ *
+ * @job        : pointer to the CS
+ *
+ */
+int hl_hw_queue_schedule_cs(struct hl_cs *cs)
+{
+	struct hl_device *hdev = cs->ctx->hdev;
+	struct hl_cs_job *job, *tmp;
+	struct hl_hw_queue *q;
+	int rc = 0, i, cq_cnt;
+
+	hdev->asic_funcs->hw_queues_lock(hdev);
+
+	if (hl_device_disabled_or_in_reset(hdev)) {
+		dev_err(hdev->dev,
+			"device is disabled or in reset, CS rejected!\n");
+		rc = -EPERM;
+		goto out;
+	}
+
+	q = &hdev->kernel_queues[0];
+	/* This loop assumes all external queues are consecutive */
+	for (i = 0, cq_cnt = 0 ; i < HL_MAX_QUEUES ; i++, q++) {
+		if (q->queue_type == QUEUE_TYPE_EXT) {
+			if (cs->jobs_in_queue_cnt[i]) {
+				rc = ext_queue_sanity_checks(hdev, q,
+					cs->jobs_in_queue_cnt[i], true);
+				if (rc)
+					goto unroll_cq_resv;
+				cq_cnt++;
+			}
+		} else if (q->queue_type == QUEUE_TYPE_INT) {
+			if (cs->jobs_in_queue_cnt[i]) {
+				rc = int_queue_sanity_checks(hdev, q,
+					cs->jobs_in_queue_cnt[i]);
+				if (rc)
+					goto unroll_cq_resv;
+			}
+		}
+	}
+
+	spin_lock(&hdev->hw_queues_mirror_lock);
+	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
+
+	/* Queue TDR if the CS is the first entry and if timeout is wanted */
+	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
+			(list_first_entry(&hdev->hw_queues_mirror_list,
+					struct hl_cs, mirror_node) == cs)) {
+		cs->tdr_active = true;
+		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
+		spin_unlock(&hdev->hw_queues_mirror_lock);
+	} else {
+		spin_unlock(&hdev->hw_queues_mirror_lock);
+	}
+
+	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node) {
+		if (job->ext_queue)
+			ext_hw_queue_schedule_job(job);
+		else
+			int_hw_queue_schedule_job(job);
+	}
+
+	cs->submitted = true;
+
+	goto out;
+
+unroll_cq_resv:
+	/* This loop assumes all external queues are consecutive */
+	q = &hdev->kernel_queues[0];
+	for (i = 0 ; (i < HL_MAX_QUEUES) && (cq_cnt > 0) ; i++, q++) {
+		if ((q->queue_type == QUEUE_TYPE_EXT) &&
+				(cs->jobs_in_queue_cnt[i])) {
+			atomic_t *free_slots =
+				&hdev->completion_queue[i].free_slots_cnt;
+			atomic_add(cs->jobs_in_queue_cnt[i], free_slots);
+			cq_cnt--;
+		}
+	}
+
+out:
+	hdev->asic_funcs->hw_queues_unlock(hdev);
 
 	return rc;
 }
