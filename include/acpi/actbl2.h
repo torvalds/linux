@@ -1361,6 +1361,7 @@ struct acpi_pdtt_channel {
 
 #define ACPI_PDTT_RUNTIME_TRIGGER           (1)
 #define ACPI_PDTT_WAIT_COMPLETION           (1<<1)
+#define ACPI_PDTT_TRIGGER_ORDER             (1<<2)
 
 /*******************************************************************************
  *
