@@ -543,6 +543,9 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return 0;
 
+	if (qla2x00_chip_is_down(vha))
+		return 0;
+
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
 	    !ha->isp_ops->write_nvram)
 		return 0;
