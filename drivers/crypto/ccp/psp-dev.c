@@ -858,15 +858,15 @@ static int sev_misc_init(struct psp_device *psp)
 	return 0;
 }
 
-static int sev_init(struct psp_device *psp)
+static int psp_check_sev_support(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
 	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
-		dev_dbg(psp->dev, "device does not support SEV\n");
-		return 1;
+		dev_dbg(psp->dev, "psp does not support SEV\n");
+		return -ENODEV;
 	}
 
-	return sev_misc_init(psp);
+	return 0;
 }
 
 int psp_dev_init(struct sp_device *sp)
@@ -891,6 +891,10 @@ int psp_dev_init(struct sp_device *sp)
 
 	psp->io_regs = sp->io_map;
 
+	ret = psp_check_sev_support(psp);
+	if (ret)
+		goto e_disable;
+
 	/* Disable and clear interrupts until ready */
 	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
 	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
@@ -902,7 +906,7 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	ret = sev_init(psp);
+	ret = sev_misc_init(psp);
 	if (ret)
 		goto e_irq;
 
@@ -922,6 +926,11 @@ e_err:
 	sp->psp_data = NULL;
 
 	dev_notice(dev, "psp initialization failed\n");
+
+	return ret;
+
+e_disable:
+	sp->psp_data = NULL;
 
 	return ret;
 }
