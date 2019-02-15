@@ -255,7 +255,7 @@ int mlx5_modify_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 mtu)
 EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_mtu);
 
 int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
-				  u32 vport,
+				  u16 vport,
 				  enum mlx5_list_type list_type,
 				  u8 addr_list[][ETH_ALEN],
 				  int *list_size)
@@ -373,7 +373,7 @@ int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
 EXPORT_SYMBOL_GPL(mlx5_modify_nic_vport_mac_list);
 
 int mlx5_query_nic_vport_vlans(struct mlx5_core_dev *dev,
-			       u32 vport,
+			       u16 vport,
 			       u16 vlans[],
 			       int *size)
 {
@@ -526,7 +526,7 @@ int mlx5_query_nic_vport_node_guid(struct mlx5_core_dev *mdev, u64 *node_guid)
 EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_node_guid);
 
 int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
-				    u32 vport, u64 node_guid)
+				    u16 vport, u64 node_guid)
 {
 	int inlen = MLX5_ST_SZ_BYTES(modify_nic_vport_context_in);
 	void *nic_vport_context;
@@ -827,7 +827,7 @@ int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 EXPORT_SYMBOL_GPL(mlx5_query_hca_vport_node_guid);
 
 int mlx5_query_nic_vport_promisc(struct mlx5_core_dev *mdev,
-				 u32 vport,
+				 u16 vport,
 				 int *promisc_uc,
 				 int *promisc_mc,
 				 int *promisc_all)

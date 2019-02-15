@@ -49,8 +49,6 @@
 #define MLX5_MAX_MC_PER_VPORT(dev) \
 	(1 << MLX5_CAP_GEN(dev, log_max_current_mc_list))
 
-#define FDB_UPLINK_VPORT 0xffff
-
 #define MLX5_MIN_BW_SHARE 1
 
 #define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \

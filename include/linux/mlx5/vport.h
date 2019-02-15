@@ -36,10 +36,23 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
 
+#define MLX5_VPORT_PF_PLACEHOLDER (1u)
+#define MLX5_SPECIAL_VPORTS (MLX5_VPORT_PF_PLACEHOLDER)
+#define MLX5_TOTAL_VPORTS(mdev) (MLX5_SPECIAL_VPORTS +	mlx5_core_max_vfs(mdev))
+
+#define MLX5_VPORT_MANAGER(mdev)					\
+	(MLX5_CAP_GEN(mdev, vport_group_manager) &&			\
+	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&	\
+	 mlx5_core_is_pf(mdev))
+
 enum {
 	MLX5_CAP_INLINE_MODE_L2,
 	MLX5_CAP_INLINE_MODE_VPORT_CONTEXT,
 	MLX5_CAP_INLINE_MODE_NOT_REQUIRED,
+};
+
+enum {
+	MLX5_VPORT_UPLINK		= 0xffff
 };
 
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
@@ -60,7 +73,7 @@ int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 					   u64 *system_image_guid);
 int mlx5_query_nic_vport_node_guid(struct mlx5_core_dev *mdev, u64 *node_guid);
 int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
-				    u32 vport, u64 node_guid);
+				    u16 vport, u64 node_guid);
 int mlx5_query_nic_vport_qkey_viol_cntr(struct mlx5_core_dev *mdev,
 					u16 *qkey_viol_cntr);
 int mlx5_query_hca_vport_gid(struct mlx5_core_dev *dev, u8 other_vport,
@@ -78,7 +91,7 @@ int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
 int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 				   u64 *node_guid);
 int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
-				  u32 vport,
+				  u16 vport,
 				  enum mlx5_list_type list_type,
 				  u8 addr_list[][ETH_ALEN],
 				  int *list_size);
@@ -87,7 +100,7 @@ int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				   u8 addr_list[][ETH_ALEN],
 				   int list_size);
 int mlx5_query_nic_vport_promisc(struct mlx5_core_dev *mdev,
-				 u32 vport,
+				 u16 vport,
 				 int *promisc_uc,
 				 int *promisc_mc,
 				 int *promisc_all);
@@ -96,7 +109,7 @@ int mlx5_modify_nic_vport_promisc(struct mlx5_core_dev *mdev,
 				  int promisc_mc,
 				  int promisc_all);
 int mlx5_query_nic_vport_vlans(struct mlx5_core_dev *dev,
-			       u32 vport,
+			       u16 vport,
 			       u16 vlans[],
 			       int *size);
 int mlx5_modify_nic_vport_vlans(struct mlx5_core_dev *dev,
