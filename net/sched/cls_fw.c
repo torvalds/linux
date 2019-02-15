@@ -362,10 +362,7 @@ static void fw_walk(struct tcf_proto *tp, struct tcf_walker *arg,
 	struct fw_head *head = rtnl_dereference(tp->root);
 	int h;
 
-	if (head == NULL)
-		arg->stop = 1;
-
-	if (arg->stop)
+	if (head == NULL || arg->stop)
 		return;
 
 	for (h = 0; h < HTSIZE; h++) {
