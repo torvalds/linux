@@ -1383,16 +1383,16 @@ union reply_descriptor {
 };
 
 /**
- * _base_interrupt - MPT adapter (IOC) specific interrupt handler.
- * @irq: irq number (not used)
- * @bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
+ * _base_process_reply_queue - Process reply descriptors from reply
+ *		descriptor post queue.
+ * @reply_q: per IRQ's reply queue object.
  *
- * Return: IRQ_HANDLED if processed, else IRQ_NONE.
+ * Return: number of reply descriptors processed from reply
+ *		descriptor queue.
  */
-static irqreturn_t
-_base_interrupt(int irq, void *bus_id)
+static int
+_base_process_reply_queue(struct adapter_reply_queue *reply_q)
 {
-	struct adapter_reply_queue *reply_q = bus_id;
 	union reply_descriptor rd;
 	u32 completed_cmds;
 	u8 request_descript_type;
@@ -1404,21 +1404,18 @@ _base_interrupt(int irq, void *bus_id)
 	Mpi2ReplyDescriptorsUnion_t *rpf;
 	u8 rc;
 
-	if (ioc->mask_interrupts)
-		return IRQ_NONE;
-
+	completed_cmds = 0;
 	if (!atomic_add_unless(&reply_q->busy, 1, 1))
-		return IRQ_NONE;
+		return completed_cmds;
 
 	rpf = &reply_q->reply_post_free[reply_q->reply_post_host_index];
 	request_descript_type = rpf->Default.ReplyFlags
 	     & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 	if (request_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) {
 		atomic_dec(&reply_q->busy);
-		return IRQ_NONE;
+		return completed_cmds;
 	}
 
-	completed_cmds = 0;
 	cb_idx = 0xFF;
 	do {
 		rd.word = le64_to_cpu(rpf->Words);
@@ -1521,14 +1518,14 @@ _base_interrupt(int irq, void *bus_id)
 
 	if (!completed_cmds) {
 		atomic_dec(&reply_q->busy);
-		return IRQ_NONE;
+		return completed_cmds;
 	}
 
 	if (ioc->is_warpdrive) {
 		writel(reply_q->reply_post_host_index,
 		ioc->reply_post_host_index[msix_index]);
 		atomic_dec(&reply_q->busy);
-		return IRQ_HANDLED;
+		return completed_cmds;
 	}
 
 	/* Update Reply Post Host Index.
@@ -1555,7 +1552,27 @@ _base_interrupt(int irq, void *bus_id)
 			MPI2_RPHI_MSIX_INDEX_SHIFT),
 			&ioc->chip->ReplyPostHostIndex);
 	atomic_dec(&reply_q->busy);
-	return IRQ_HANDLED;
+	return completed_cmds;
+}
+
+/**
+ * _base_interrupt - MPT adapter (IOC) specific interrupt handler.
+ * @irq: irq number (not used)
+ * @bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
+ *
+ * Return: IRQ_HANDLED if processed, else IRQ_NONE.
+ */
+static irqreturn_t
+_base_interrupt(int irq, void *bus_id)
+{
+	struct adapter_reply_queue *reply_q = bus_id;
+	struct MPT3SAS_ADAPTER *ioc = reply_q->ioc;
+
+	if (ioc->mask_interrupts)
+		return IRQ_NONE;
+
+	return ((_base_process_reply_queue(reply_q) > 0) ?
+			IRQ_HANDLED : IRQ_NONE);
 }
 
 /**
