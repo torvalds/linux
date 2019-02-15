@@ -185,6 +185,14 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	struct qla_hw_data *ha = fcport->vha->hw;
 	int rval;
 
+	if (fcport)
+		ql_dbg(ql_dbg_io, fcport->vha, 0xffff,
+		    "%s called for sp=%p, hndl=%x on fcport=%p deleted=%d\n",
+		    __func__, sp, sp->handle, fcport, fcport->deleted);
+
+	if (!ha->flags.fw_started && (fcport && fcport->deleted))
+		return;
+
 	rval = ha->isp_ops->abort_command(sp);
 
 	ql_dbg(ql_dbg_io, fcport->vha, 0x212b,
