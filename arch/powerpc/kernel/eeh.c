@@ -111,6 +111,13 @@ EXPORT_SYMBOL(eeh_subsystem_flags);
  */
 u32 eeh_max_freezes = 5;
 
+/*
+ * Controls whether a recovery event should be scheduled when an
+ * isolated device is discovered. This is only really useful for
+ * debugging problems with the EEH core.
+ */
+bool eeh_debugfs_no_recover;
+
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
 
@@ -1843,6 +1850,9 @@ static int __init eeh_init_proc(void)
 					   &eeh_enable_dbgfs_ops);
 		debugfs_create_u32("eeh_max_freezes", 0600,
 				powerpc_debugfs_root, &eeh_max_freezes);
+		debugfs_create_bool("eeh_disable_recovery", 0600,
+				powerpc_debugfs_root,
+				&eeh_debugfs_no_recover);
 		eeh_cache_debugfs_init();
 #endif
 	}
