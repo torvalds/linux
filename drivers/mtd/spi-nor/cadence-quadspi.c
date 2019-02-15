@@ -1249,7 +1249,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 
 	ddata = of_device_get_match_data(dev);
 	if (!ddata) {
-		dev_err(dev, "Couldnt't find driver data\n");
+		dev_err(dev, "Couldn't find driver data\n");
 		return -EINVAL;
 	}
 	hwcaps.mask = ddata->hwcaps_mask;
