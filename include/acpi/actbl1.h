@@ -1406,17 +1406,17 @@ struct acpi_hmat_structure {
  * HMAT Structures, correspond to Type in struct acpi_hmat_structure
  */
 
-/* 0: Memory subystem address range */
+/* 0: Memory proximity domain attributes */
 
-struct acpi_hmat_address_range {
+struct acpi_hmat_proximity_domain {
 	struct acpi_hmat_structure header;
 	u16 flags;
 	u16 reserved1;
 	u32 processor_PD;	/* Processor proximity domain */
 	u32 memory_PD;		/* Memory proximity domain */
 	u32 reserved2;
-	u64 physical_address_base;	/* Physical address range base */
-	u64 physical_address_length;	/* Physical address range length */
+	u64 reserved3;
+	u64 reserved4;
 };
 
 /* Masks for Flags field above */
