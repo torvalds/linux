@@ -1016,10 +1016,19 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&fl->user);
 	fl->tgid = current->tgid;
 	fl->cctx = cctx;
+
+	fl->sctx = fastrpc_session_alloc(cctx);
+	if (!fl->sctx) {
+		dev_err(&cctx->rpdev->dev, "No session available\n");
+		mutex_destroy(&fl->mutex);
+		kfree(fl);
+
+		return -EBUSY;
+	}
+
 	spin_lock(&cctx->lock);
 	list_add_tail(&fl->user, &cctx->users);
 	spin_unlock(&cctx->lock);
-	fl->sctx = fastrpc_session_alloc(cctx);
 
 	return 0;
 }
