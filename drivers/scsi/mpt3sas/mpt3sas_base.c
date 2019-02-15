@@ -1382,6 +1382,16 @@ union reply_descriptor {
 	} u;
 };
 
+static u32 base_mod64(u64 dividend, u32 divisor)
+{
+	u32 remainder;
+
+	if (!divisor)
+		pr_err("mpt3sas: DIVISOR is zero, in div fn\n");
+	remainder = do_div(dividend, divisor);
+	return remainder;
+}
+
 /**
  * _base_process_reply_queue - Process reply descriptors from reply
  *		descriptor post queue.
@@ -2845,6 +2855,11 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 
 	if (!_base_is_controller_msix_enabled(ioc))
 		return;
+	ioc->msix_load_balance = false;
+	if (ioc->reply_queue_count < num_online_cpus()) {
+		ioc->msix_load_balance = true;
+		return;
+	}
 
 	memset(ioc->cpu_msix_table, 0, ioc->cpu_msix_table_sz);
 
@@ -3248,6 +3263,12 @@ mpt3sas_base_get_reply_virt_addr(struct MPT3SAS_ADAPTER *ioc, u32 phys_addr)
 static inline u8
 _base_get_msix_index(struct MPT3SAS_ADAPTER *ioc)
 {
+	/* Enables reply_queue load balancing */
+	if (ioc->msix_load_balance)
+		return ioc->reply_queue_count ?
+		    base_mod64(atomic64_add_return(1,
+		    &ioc->total_io_cnt), ioc->reply_queue_count) : 0;
+
 	return ioc->cpu_msix_table[raw_smp_processor_id()];
 }
 

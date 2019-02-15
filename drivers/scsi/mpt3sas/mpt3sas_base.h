@@ -1024,6 +1024,9 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @msix_vector_count: number msix vectors
  * @cpu_msix_table: table for mapping cpus to msix index
  * @cpu_msix_table_sz: table size
+ * @total_io_cnt: Gives total IO count, used to load balance the interrupts
+ * @msix_load_balance: Enables load balancing of interrupts across
+ * the multiple MSIXs
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
@@ -1200,6 +1203,8 @@ struct MPT3SAS_ADAPTER {
 	u32		ioc_reset_count;
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
+	atomic64_t      total_io_cnt;
+	bool            msix_load_balance;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
