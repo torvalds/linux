@@ -707,9 +707,6 @@ xfs_iomap_write_allocate(
 	map_start_fsb = imap->br_startoff;
 	map_count_fsb = imap->br_blockcount;
 
-	XFS_STATS_ADD(mp, xs_xstrat_bytes,
-		      XFS_FSB_TO_B(mp, imap->br_blockcount));
-
 	while (true) {
 		/*
 		 * Allocate in a loop because it may take several attempts to
@@ -741,7 +738,6 @@ xfs_iomap_write_allocate(
 		if ((offset_fsb >= imap->br_startoff) &&
 		    (offset_fsb < (imap->br_startoff +
 				   imap->br_blockcount))) {
-			XFS_STATS_INC(mp, xs_xstrat_quick);
 			xfs_trim_extent(imap, map_start_fsb, map_count_fsb);
 			ASSERT(offset_fsb >= imap->br_startoff &&
 			       offset_fsb < imap->br_startoff + imap->br_blockcount);

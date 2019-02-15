@@ -4516,6 +4516,9 @@ xfs_bmapi_convert_delalloc(
 	if (WARN_ON_ONCE(!bma.got.br_startblock && !XFS_IS_REALTIME_INODE(ip)))
 		goto out_finish;
 
+	XFS_STATS_ADD(mp, xs_xstrat_bytes, XFS_FSB_TO_B(mp, bma.length));
+	XFS_STATS_INC(mp, xs_xstrat_quick);
+
 	ASSERT(!isnullstartblock(bma.got.br_startblock));
 	*imap = bma.got;
 	*seq = READ_ONCE(ifp->if_seq);
