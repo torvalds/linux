@@ -5,24 +5,26 @@ The Definitive KVM (Kernel-based Virtual Machine) API Documentation
 ----------------------
 
 The kvm API is a set of ioctls that are issued to control various aspects
-of a virtual machine.  The ioctls belong to three classes
+of a virtual machine.  The ioctls belong to three classes:
 
  - System ioctls: These query and set global attributes which affect the
    whole kvm subsystem.  In addition a system ioctl is used to create
-   virtual machines
+   virtual machines.
 
  - VM ioctls: These query and set attributes that affect an entire virtual
    machine, for example memory layout.  In addition a VM ioctl is used to
    create virtual cpus (vcpus).
 
-   Only run VM ioctls from the same process (address space) that was used
-   to create the VM.
+   VM ioctls must be issued from the same process (address space) that was
+   used to create the VM.
 
  - vcpu ioctls: These query and set attributes that control the operation
    of a single virtual cpu.
 
-   Only run vcpu ioctls from the same thread that was used to create the
-   vcpu.
+   vcpu ioctls should be issued from the same thread that was used to create
+   the vcpu, except for asynchronous vcpu ioctl that are marked as such in
+   the documentation.  Otherwise, the first ioctl after switching threads
+   could see a performance impact.
 
 
 2. File descriptors
@@ -41,9 +43,8 @@ In general file descriptors can be migrated among processes by means
 of fork() and the SCM_RIGHTS facility of unix domain socket.  These
 kinds of tricks are explicitly not supported by kvm.  While they will
 not cause harm to the host, their actual behavior is not guaranteed by
-the API.  The only supported use is one virtual machine per process,
-and one vcpu per thread.
-
+the API.  See "General description" for details on the ioctl usage
+model that is supported by KVM.
 
 It is important to note that althought VM ioctls may only be issued from
 the process that created the VM, a VM's lifecycle is associated with its
@@ -515,10 +516,14 @@ c) KVM_INTERRUPT_SET_LEVEL
 Note that any value for 'irq' other than the ones stated above is invalid
 and incurs unexpected behavior.
 
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
+
 MIPS:
 
 Queues an external interrupt to be injected into the virtual CPU. A negative
 interrupt number dequeues the interrupt.
+
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 
 4.17 KVM_DEBUG_GUEST
@@ -2493,7 +2498,7 @@ KVM_S390_MCHK (vm, vcpu) - machine check interrupt; cr 14 bits in parm,
                            machine checks needing further payload are not
                            supported by this ioctl)
 
-Note that the vcpu ioctl is asynchronous to vcpu execution.
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 4.78 KVM_PPC_GET_HTAB_FD
 
@@ -3042,8 +3047,7 @@ KVM_S390_INT_EMERGENCY - sigp emergency; parameters in .emerg
 KVM_S390_INT_EXTERNAL_CALL - sigp external call; parameters in .extcall
 KVM_S390_MCHK - machine check interrupt; parameters in .mchk
 
-
-Note that the vcpu ioctl is asynchronous to vcpu execution.
+This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 4.94 KVM_S390_GET_IRQ_STATE
 
