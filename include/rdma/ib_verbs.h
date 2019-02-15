@@ -238,6 +238,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_RDMA_NETDEV_OPA_VNIC		= (1ULL << 35),
 	/* The device supports padding incoming writes to cacheline. */
 	IB_DEVICE_PCI_WRITE_END_PADDING		= (1ULL << 36),
+	IB_DEVICE_ALLOW_USER_UNREG		= (1ULL << 37),
 };
 
 enum ib_signature_prot_cap {
@@ -2622,6 +2623,8 @@ struct ib_device {
 	refcount_t refcount;
 	struct completion unreg_completion;
 	struct work_struct unregistration_work;
+
+	const struct rdma_link_ops *link_ops;
 };
 
 struct ib_client {
