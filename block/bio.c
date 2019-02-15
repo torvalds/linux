@@ -753,6 +753,8 @@ EXPORT_SYMBOL(bio_add_pc_page);
  * @page: page to add
  * @len: length of the data to add
  * @off: offset of the data in @page
+ * @same_page: if %true only merge if the new data is in the same physical
+ *		page as the last segment of the bio.
  *
  * Try to add the data at @page + @off to the last bvec of @bio.  This is a
  * a useful optimisation for file systems with a block size smaller than the
@@ -761,19 +763,25 @@ EXPORT_SYMBOL(bio_add_pc_page);
  * Return %true on success or %false on failure.
  */
 bool __bio_try_merge_page(struct bio *bio, struct page *page,
-		unsigned int len, unsigned int off)
+		unsigned int len, unsigned int off, bool same_page)
 {
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return false;
 
 	if (bio->bi_vcnt > 0) {
 		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+		phys_addr_t vec_end_addr = page_to_phys(bv->bv_page) +
+			bv->bv_offset + bv->bv_len - 1;
+		phys_addr_t page_addr = page_to_phys(page);
 
-		if (page == bv->bv_page && off == bv->bv_offset + bv->bv_len) {
-			bv->bv_len += len;
-			bio->bi_iter.bi_size += len;
-			return true;
-		}
+		if (vec_end_addr + 1 != page_addr + off)
+			return false;
+		if (same_page && (vec_end_addr & PAGE_MASK) != page_addr)
+			return false;
+
+		bv->bv_len += len;
+		bio->bi_iter.bi_size += len;
+		return true;
 	}
 	return false;
 }
@@ -819,7 +827,7 @@ EXPORT_SYMBOL_GPL(__bio_add_page);
 int bio_add_page(struct bio *bio, struct page *page,
 		 unsigned int len, unsigned int offset)
 {
-	if (!__bio_try_merge_page(bio, page, len, offset)) {
+	if (!__bio_try_merge_page(bio, page, len, offset, false)) {
 		if (bio_full(bio))
 			return 0;
 		__bio_add_page(bio, page, len, offset);
