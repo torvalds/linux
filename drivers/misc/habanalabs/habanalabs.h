@@ -9,6 +9,7 @@
 #define HABANALABSP_H_
 
 #include "include/armcp_if.h"
+#include "include/qman_if.h"
 
 #define pr_fmt(fmt)			"habanalabs: " fmt
 
@@ -26,9 +27,36 @@
 struct hl_device;
 struct hl_fpriv;
 
+/**
+ * enum hl_queue_type - Supported QUEUE types.
+ * @QUEUE_TYPE_NA: queue is not available.
+ * @QUEUE_TYPE_EXT: external queue which is a DMA channel that may access the
+ *                  host.
+ * @QUEUE_TYPE_INT: internal queue that performs DMA inside the device's
+ *			memories and/or operates the compute engines.
+ * @QUEUE_TYPE_CPU: S/W queue for communication with the device's CPU.
+ */
+enum hl_queue_type {
+	QUEUE_TYPE_NA,
+	QUEUE_TYPE_EXT,
+	QUEUE_TYPE_INT,
+	QUEUE_TYPE_CPU
+};
+
+/**
+ * struct hw_queue_properties - queue information.
+ * @type: queue type.
+ * @kmd_only: true if only KMD is allowed to send a job to this queue, false
+ *            otherwise.
+ */
+struct hw_queue_properties {
+	enum hl_queue_type	type;
+	u8			kmd_only;
+};
 
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
+ * @hw_queues_props: H/W queues properties.
  * @uboot_ver: F/W U-boot version.
  * @preboot_ver: F/W Preboot version.
  * @sram_base_address: SRAM physical start address.
@@ -59,6 +87,7 @@ struct hl_fpriv;
  * @tpc_enabled_mask: which TPCs are enabled.
  */
 struct asic_fixed_properties {
+	struct hw_queue_properties	hw_queues_props[HL_MAX_QUEUES];
 	char			uboot_ver[VERSION_MAX_LEN];
 	char			preboot_ver[VERSION_MAX_LEN];
 	u64			sram_base_address;
@@ -132,7 +161,89 @@ struct hl_cb {
 };
 
 
+/*
+ * QUEUES
+ */
+
+struct hl_cs_job;
+
+/*
+ * Currently, there are two limitations on the maximum length of a queue:
+ *
+ * 1. The memory footprint of the queue. The current allocated space for the
+ *    queue is PAGE_SIZE. Because each entry in the queue is HL_BD_SIZE,
+ *    the maximum length of the queue can be PAGE_SIZE / HL_BD_SIZE,
+ *    which currently is 4096/16 = 256 entries.
+ *
+ *    To increase that, we need either to decrease the size of the
+ *    BD (difficult), or allocate more than a single page (easier).
+ *
+ * 2. Because the size of the JOB handle field in the BD CTL / completion queue
+ *    is 10-bit, we can have up to 1024 open jobs per hardware queue.
+ *    Therefore, each queue can hold up to 1024 entries.
+ *
+ * HL_QUEUE_LENGTH is in units of struct hl_bd.
+ * HL_QUEUE_LENGTH * sizeof(struct hl_bd) should be <= HL_PAGE_SIZE
+ */
+
+#define HL_PAGE_SIZE			4096 /* minimum page size */
+/* Must be power of 2 (HL_PAGE_SIZE / HL_BD_SIZE) */
 #define HL_QUEUE_LENGTH			256
+#define HL_QUEUE_SIZE_IN_BYTES		(HL_QUEUE_LENGTH * HL_BD_SIZE)
+
+/*
+ * HL_CQ_LENGTH is in units of struct hl_cq_entry.
+ * HL_CQ_LENGTH should be <= HL_PAGE_SIZE
+ */
+#define HL_CQ_LENGTH			HL_QUEUE_LENGTH
+#define HL_CQ_SIZE_IN_BYTES		(HL_CQ_LENGTH * HL_CQ_ENTRY_SIZE)
+
+
+
+/**
+ * struct hl_hw_queue - describes a H/W transport queue.
+ * @shadow_queue: pointer to a shadow queue that holds pointers to jobs.
+ * @queue_type: type of queue.
+ * @kernel_address: holds the queue's kernel virtual address.
+ * @bus_address: holds the queue's DMA address.
+ * @pi: holds the queue's pi value.
+ * @ci: holds the queue's ci value, AS CALCULATED BY THE DRIVER (not real ci).
+ * @hw_queue_id: the id of the H/W queue.
+ * @int_queue_len: length of internal queue (number of entries).
+ * @valid: is the queue valid (we have array of 32 queues, not all of them
+ *		exists).
+ */
+struct hl_hw_queue {
+	struct hl_cs_job	**shadow_queue;
+	enum hl_queue_type	queue_type;
+	u64			kernel_address;
+	dma_addr_t		bus_address;
+	u32			pi;
+	u32			ci;
+	u32			hw_queue_id;
+	u16			int_queue_len;
+	u8			valid;
+};
+
+/**
+ * struct hl_cq - describes a completion queue
+ * @hdev: pointer to the device structure
+ * @kernel_address: holds the queue's kernel virtual address
+ * @bus_address: holds the queue's DMA address
+ * @hw_queue_id: the id of the matching H/W queue
+ * @ci: ci inside the queue
+ * @pi: pi inside the queue
+ * @free_slots_cnt: counter of free slots in queue
+ */
+struct hl_cq {
+	struct hl_device	*hdev;
+	u64			kernel_address;
+	dma_addr_t		bus_address;
+	u32			hw_queue_id;
+	u32			ci;
+	u32			pi;
+	atomic_t		free_slots_cnt;
+};
 
 
 /*
@@ -164,6 +275,8 @@ enum hl_asic_type {
  * @resume: handles IP specific H/W or SW changes for resume.
  * @mmap: mmap function, does nothing.
  * @cb_mmap: maps a CB.
+ * @ring_doorbell: increment PI on a given QMAN.
+ * @flush_pq_write: flush PQ entry write if necessary, WARN if flushing failed.
  * @dma_alloc_coherent: Allocate coherent DMA memory by calling
  *                      dma_alloc_coherent(). This is ASIC function because its
  *                      implementation is not trivial when the driver is loaded
@@ -172,6 +285,16 @@ enum hl_asic_type {
  *                     This is ASIC function because its implementation is not
  *                     trivial when the driver is loaded in simulation mode
  *                     (not upstreamed).
+ * @get_int_queue_base: get the internal queue base address.
+ * @test_queues: run simple test on all queues for sanity check.
+ * @dma_pool_zalloc: small DMA allocation of coherent memory from DMA pool.
+ *                   size of allocation is HL_DMA_POOL_BLK_SIZE.
+ * @dma_pool_free: free small DMA allocation from pool.
+ * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
+ * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
+ * @hw_queues_lock: acquire H/W queues lock.
+ * @hw_queues_unlock: release H/W queues lock.
+ * @send_cpu_message: send buffer to ArmCP.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -185,10 +308,27 @@ struct hl_asic_funcs {
 	int (*mmap)(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 	int (*cb_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u64 kaddress, phys_addr_t paddress, u32 size);
+	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
+	void (*flush_pq_write)(struct hl_device *hdev, u64 *pq, u64 exp_val);
 	void* (*dma_alloc_coherent)(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flag);
 	void (*dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
+	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
+				dma_addr_t *dma_handle, u16 *queue_len);
+	int (*test_queues)(struct hl_device *hdev);
+	void* (*dma_pool_zalloc)(struct hl_device *hdev, size_t size,
+				gfp_t mem_flags, dma_addr_t *dma_handle);
+	void (*dma_pool_free)(struct hl_device *hdev, void *vaddr,
+				dma_addr_t dma_addr);
+	void* (*cpu_accessible_dma_pool_alloc)(struct hl_device *hdev,
+				size_t size, dma_addr_t *dma_handle);
+	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
+				size_t size, void *vaddr);
+	void (*hw_queues_lock)(struct hl_device *hdev);
+	void (*hw_queues_unlock)(struct hl_device *hdev);
+	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
+				u16 len, u32 timeout, long *result);
 };
 
 
@@ -224,6 +364,17 @@ struct hl_ctx_mgr {
 };
 
 
+
+
+/**
+ * struct hl_cs_job - command submission job.
+ * @finish_work: workqueue object to run when job is completed.
+ * @id: the id of this job inside a CS.
+ */
+struct hl_cs_job {
+	struct work_struct	finish_work;
+	u32			id;
+};
 /*
  * FILE PRIVATE STRUCTURE
  */
@@ -298,7 +449,11 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @dev: realted kernel basic device structure.
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
+ * @completion_queue: array of hl_cq.
+ * @cq_wq: work queue of completion queues for executing work in process context
+ * @eq_wq: work queue of event queue for executing work in process context.
  * @kernel_ctx: KMD context structure.
+ * @kernel_queues: array of hl_hw_queue.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: KMD <-> ArmCP shared memory CPU address.
@@ -312,6 +467,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  *                    only a single process at a time. In addition, we need a
  *                    lock here so we can flush user processes which are opening
  *                    the device while we are trying to hard reset it
+ * @send_cpu_message_lock: enforces only one message in KMD <-> ArmCP queue.
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
@@ -331,7 +487,10 @@ struct hl_device {
 	struct device			*dev;
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
+	struct hl_cq			*completion_queue;
+	struct workqueue_struct		*cq_wq;
 	struct hl_ctx			*kernel_ctx;
+	struct hl_hw_queue		*kernel_queues;
 	struct hl_cb_mgr		kernel_cb_mgr;
 	struct dma_pool			*dma_pool;
 	void				*cpu_accessible_dma_mem;
@@ -341,6 +500,7 @@ struct hl_device {
 	struct mutex			asid_mutex;
 	/* TODO: remove fd_open_cnt_lock for multiple process support */
 	struct mutex			fd_open_cnt_lock;
+	struct mutex			send_cpu_message_lock;
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
@@ -358,6 +518,7 @@ struct hl_device {
 	/* Parameters for bring-up */
 	u8				cpu_enable;
 	u8				reset_pcilink;
+	u8				cpu_queues_enable;
 	u8				fw_loading;
 	u8				pldm;
 };
@@ -400,7 +561,18 @@ int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr, u32 timeout_us,
 				u32 *val);
 int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
 				u32 timeout_us, u32 *val);
+int hl_hw_queues_create(struct hl_device *hdev);
+void hl_hw_queues_destroy(struct hl_device *hdev);
+int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
+				u32 cb_size, u64 cb_ptr);
+u32 hl_hw_queue_add_ptr(u32 ptr, u16 val);
+void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);
 
+#define hl_queue_inc_ptr(p)		hl_hw_queue_add_ptr(p, 1)
+#define hl_pi_2_offset(pi)		((pi) & (HL_QUEUE_LENGTH - 1))
+
+int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id);
+void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q);
 int hl_asid_init(struct hl_device *hdev);
 void hl_asid_fini(struct hl_device *hdev);
 unsigned long hl_asid_alloc(struct hl_device *hdev);

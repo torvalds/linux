@@ -174,13 +174,23 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		goto early_fini;
 
+	hdev->cq_wq = alloc_workqueue("hl-free-jobs", WQ_UNBOUND, 0);
+	if (hdev->cq_wq == NULL) {
+		dev_err(hdev->dev, "Failed to allocate CQ workqueue\n");
+		rc = -ENOMEM;
+		goto asid_fini;
+	}
+
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
 	mutex_init(&hdev->fd_open_cnt_lock);
+	mutex_init(&hdev->send_cpu_message_lock);
 	atomic_set(&hdev->fd_open_cnt, 0);
 
 	return 0;
 
+asid_fini:
+	hl_asid_fini(hdev);
 early_fini:
 	if (hdev->asic_funcs->early_fini)
 		hdev->asic_funcs->early_fini(hdev);
@@ -196,8 +206,11 @@ early_fini:
  */
 static void device_early_fini(struct hl_device *hdev)
 {
+	mutex_destroy(&hdev->send_cpu_message_lock);
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
+
+	destroy_workqueue(hdev->cq_wq);
 
 	hl_asid_fini(hdev);
 
@@ -277,7 +290,7 @@ int hl_device_resume(struct hl_device *hdev)
  */
 int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
-	int rc;
+	int i, rc, cq_ready_cnt;
 
 	/* Create device */
 	rc = device_setup_cdev(hdev, hclass, hdev->id, &hl_ops);
@@ -298,11 +311,48 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto early_fini;
 
+	/*
+	 * Initialize the H/W queues. Must be done before hw_init, because
+	 * there the addresses of the kernel queue are being written to the
+	 * registers of the device
+	 */
+	rc = hl_hw_queues_create(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize kernel queues\n");
+		goto sw_fini;
+	}
+
+	/*
+	 * Initialize the completion queues. Must be done before hw_init,
+	 * because there the addresses of the completion queues are being
+	 * passed as arguments to request_irq
+	 */
+	hdev->completion_queue =
+			kcalloc(hdev->asic_prop.completion_queues_count,
+				sizeof(*hdev->completion_queue), GFP_KERNEL);
+
+	if (!hdev->completion_queue) {
+		dev_err(hdev->dev, "failed to allocate completion queues\n");
+		rc = -ENOMEM;
+		goto hw_queues_destroy;
+	}
+
+	for (i = 0, cq_ready_cnt = 0;
+			i < hdev->asic_prop.completion_queues_count;
+			i++, cq_ready_cnt++) {
+		rc = hl_cq_init(hdev, &hdev->completion_queue[i], i);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed to initialize completion queue\n");
+			goto cq_fini;
+		}
+	}
+
 	/* Allocate the kernel context */
 	hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx), GFP_KERNEL);
 	if (!hdev->kernel_ctx) {
 		rc = -ENOMEM;
-		goto sw_fini;
+		goto cq_fini;
 	}
 
 	hdev->user_ctx = NULL;
@@ -328,6 +378,14 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hdev->disabled = false;
 
+	/* Check that the communication with the device is working */
+	rc = hdev->asic_funcs->test_queues(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to detect if device is alive\n");
+		rc = 0;
+		goto out_disabled;
+	}
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
@@ -339,6 +397,12 @@ release_ctx:
 			"kernel ctx is still alive on initialization failure\n");
 free_ctx:
 	kfree(hdev->kernel_ctx);
+cq_fini:
+	for (i = 0 ; i < cq_ready_cnt ; i++)
+		hl_cq_fini(hdev, &hdev->completion_queue[i]);
+	kfree(hdev->completion_queue);
+hw_queues_destroy:
+	hl_hw_queues_destroy(hdev);
 sw_fini:
 	hdev->asic_funcs->sw_fini(hdev);
 early_fini:
@@ -368,6 +432,7 @@ out_disabled:
  */
 void hl_device_fini(struct hl_device *hdev)
 {
+	int i;
 	dev_info(hdev->dev, "Removing device\n");
 
 	/* Mark device as disabled */
@@ -381,6 +446,12 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, true);
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		hl_cq_fini(hdev, &hdev->completion_queue[i]);
+	kfree(hdev->completion_queue);
+
+	hl_hw_queues_destroy(hdev);
 
 	/* Call ASIC S/W finalize function */
 	hdev->asic_funcs->sw_fini(hdev);

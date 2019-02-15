@@ -17,6 +17,35 @@
  */
 #define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START	0x8000	/* 32KB */
 
+/*
+ * Queue Numbering
+ *
+ * The external queues (DMA channels + CPU) MUST be before the internal queues
+ * and each group (DMA channels + CPU and internal) must be contiguous inside
+ * itself but there can be a gap between the two groups (although not
+ * recommended)
+ */
+
+enum goya_queue_id {
+	GOYA_QUEUE_ID_DMA_0 = 0,
+	GOYA_QUEUE_ID_DMA_1,
+	GOYA_QUEUE_ID_DMA_2,
+	GOYA_QUEUE_ID_DMA_3,
+	GOYA_QUEUE_ID_DMA_4,
+	GOYA_QUEUE_ID_CPU_PQ,
+	GOYA_QUEUE_ID_MME,
+	GOYA_QUEUE_ID_TPC0,
+	GOYA_QUEUE_ID_TPC1,
+	GOYA_QUEUE_ID_TPC2,
+	GOYA_QUEUE_ID_TPC3,
+	GOYA_QUEUE_ID_TPC4,
+	GOYA_QUEUE_ID_TPC5,
+	GOYA_QUEUE_ID_TPC6,
+	GOYA_QUEUE_ID_TPC7,
+	GOYA_QUEUE_ID_SIZE
+};
+
+
 /* Opcode to create a new command buffer */
 #define HL_CB_OP_CREATE		0
 /* Opcode to destroy previously created command buffer */

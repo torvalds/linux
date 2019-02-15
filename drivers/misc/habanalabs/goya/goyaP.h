@@ -11,7 +11,9 @@
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 #include "include/hl_boot_if.h"
+#include "include/goya/goya_packets.h"
 #include "include/goya/goya.h"
+#include "include/goya/goya_async_events.h"
 #include "include/goya/goya_fw_if.h"
 
 #define NUMBER_OF_CMPLT_QUEUES		5
@@ -145,12 +147,17 @@ enum goya_fw_component {
 };
 
 struct goya_device {
+	int (*test_cpu_queue)(struct hl_device *hdev);
+
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 	u64		ddr_bar_cur_addr;
 	u32		hw_cap_initialized;
 };
 
+int goya_test_cpu_queue(struct hl_device *hdev);
+int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
+				u32 timeout, long *result);
 void goya_init_security(struct hl_device *hdev);
 
 #endif /* GOYAP_H_ */
