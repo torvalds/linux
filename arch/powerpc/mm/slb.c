@@ -69,6 +69,11 @@ static void assert_slb_presence(bool present, unsigned long ea)
 	if (!cpu_has_feature(CPU_FTR_ARCH_206))
 		return;
 
+	/*
+	 * slbfee. requires bit 24 (PPC bit 39) be clear in RB. Hardware
+	 * ignores all other bits from 0-27, so just clear them all.
+	 */
+	ea &= ~((1UL << 28) - 1);
 	asm volatile(__PPC_SLBFEE_DOT(%0, %1) : "=r"(tmp) : "r"(ea) : "cr0");
 
 	WARN_ON(present == (tmp == 0));
