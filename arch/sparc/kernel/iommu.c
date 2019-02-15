@@ -748,11 +748,9 @@ static int dma_4u_supported(struct device *dev, u64 device_mask)
 	if (ali_sound_dma_hack(dev, device_mask))
 		return 1;
 
-	if (device_mask > DMA_BIT_MASK(32))
+	if (device_mask < iommu->dma_addr_mask)
 		return 0;
-	if ((device_mask & iommu->dma_addr_mask) == iommu->dma_addr_mask)
-		return 1;
-	return 0;
+	return 1;
 }
 
 static const struct dma_map_ops sun4u_dma_ops = {
