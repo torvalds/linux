@@ -79,8 +79,6 @@ enum reg_val_type {
 	REG_64BIT_32BIT,
 	/* 32-bit compatible, need truncation for 64-bit ops. */
 	REG_32BIT,
-	/* 32-bit zero extended. */
-	REG_32BIT_ZERO_EX,
 	/* 32-bit no sign/zero extension needed. */
 	REG_32BIT_POS
 };
@@ -349,7 +347,7 @@ static int build_int_epilogue(struct jit_ctx *ctx, int dest_reg)
 	if (dest_reg == MIPS_R_RA) {
 		/* Don't let zero extended value escape. */
 		td = get_reg_val_type(ctx, prog->len, BPF_REG_0);
-		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX)
+		if (td == REG_64BIT)
 			emit_instr(ctx, sll, r0, r0, 0);
 	}
 
@@ -695,7 +693,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (dst < 0)
 			return dst;
 		td = get_reg_val_type(ctx, this_idx, insn->dst_reg);
-		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX) {
+		if (td == REG_64BIT) {
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		}
@@ -710,7 +708,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (dst < 0)
 			return dst;
 		td = get_reg_val_type(ctx, this_idx, insn->dst_reg);
-		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX) {
+		if (td == REG_64BIT) {
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		}
@@ -724,7 +722,7 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (dst < 0)
 			return dst;
 		td = get_reg_val_type(ctx, this_idx, insn->dst_reg);
-		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX)
+		if (td == REG_64BIT)
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		if (insn->imm == 1) {
@@ -863,13 +861,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (src < 0 || dst < 0)
 			return -EINVAL;
 		td = get_reg_val_type(ctx, this_idx, insn->dst_reg);
-		if (td == REG_64BIT || td == REG_32BIT_ZERO_EX) {
+		if (td == REG_64BIT) {
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		}
 		did_move = false;
 		ts = get_reg_val_type(ctx, this_idx, insn->src_reg);
-		if (ts == REG_64BIT || ts == REG_32BIT_ZERO_EX) {
+		if (ts == REG_64BIT) {
 			int tmp_reg = MIPS_R_AT;
 
 			if (bpf_op == BPF_MOV) {
@@ -1257,8 +1255,7 @@ jeq_common:
 		if (insn->imm == 64 && td == REG_32BIT)
 			emit_instr(ctx, dinsu, dst, MIPS_R_ZERO, 32, 32);
 
-		if (insn->imm != 64 &&
-		    (td == REG_64BIT || td == REG_32BIT_ZERO_EX)) {
+		if (insn->imm != 64 && td == REG_64BIT) {
 			/* sign extend */
 			emit_instr(ctx, sll, dst, dst, 0);
 		}
