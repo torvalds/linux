@@ -70,6 +70,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 {
 	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
+	int rc;
 
 	mutex_lock(&hl_devs_idr_lock);
 	hdev = idr_find(&hl_devs_idr, iminor(inode));
@@ -81,9 +82,33 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	}
 
+	mutex_lock(&hdev->fd_open_cnt_lock);
+
+	if (hdev->disabled) {
+		dev_err_ratelimited(hdev->dev,
+			"Can't open %s because it is disabled\n",
+			dev_name(hdev->dev));
+		mutex_unlock(&hdev->fd_open_cnt_lock);
+		return -EPERM;
+	}
+
+	if (atomic_read(&hdev->fd_open_cnt)) {
+		dev_info_ratelimited(hdev->dev,
+			"Device %s is already attached to application\n",
+			dev_name(hdev->dev));
+		mutex_unlock(&hdev->fd_open_cnt_lock);
+		return -EBUSY;
+	}
+
+	atomic_inc(&hdev->fd_open_cnt);
+
+	mutex_unlock(&hdev->fd_open_cnt_lock);
+
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
-	if (!hpriv)
-		return -ENOMEM;
+	if (!hpriv) {
+		rc = -ENOMEM;
+		goto close_device;
+	}
 
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
@@ -91,9 +116,26 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	kref_init(&hpriv->refcount);
 	nonseekable_open(inode, filp);
 
+	hl_ctx_mgr_init(&hpriv->ctx_mgr);
+
+	rc = hl_ctx_create(hdev, hpriv);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to open FD (CTX fail)\n");
+		goto out_err;
+	}
+
 	hpriv->taskpid = find_get_pid(current->pid);
 
 	return 0;
+
+out_err:
+	filp->private_data = NULL;
+	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
+	kfree(hpriv);
+
+close_device:
+	atomic_dec(&hdev->fd_open_cnt);
+	return rc;
 }
 
 /*

@@ -22,6 +22,12 @@ static void hpriv_release(struct kref *ref)
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
+
+	/* Now the FD is really closed */
+	atomic_dec(&hdev->fd_open_cnt);
+
+	/* This allows a new user context to open the device */
+	hdev->user_ctx = NULL;
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -45,6 +51,8 @@ void hl_hpriv_put(struct hl_fpriv *hpriv)
 static int hl_device_release(struct inode *inode, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
+
+	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 
 	filp->private_data = NULL;
 
@@ -137,7 +145,20 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		return rc;
 
+	rc = hl_asid_init(hdev);
+	if (rc)
+		goto early_fini;
+
+	mutex_init(&hdev->fd_open_cnt_lock);
+	atomic_set(&hdev->fd_open_cnt, 0);
+
 	return 0;
+
+early_fini:
+	if (hdev->asic_funcs->early_fini)
+		hdev->asic_funcs->early_fini(hdev);
+
+	return rc;
 }
 
 /*
@@ -149,9 +170,12 @@ static int device_early_init(struct hl_device *hdev)
 static void device_early_fini(struct hl_device *hdev)
 {
 
+	hl_asid_fini(hdev);
+
 	if (hdev->asic_funcs->early_fini)
 		hdev->asic_funcs->early_fini(hdev);
 
+	mutex_destroy(&hdev->fd_open_cnt_lock);
 }
 
 /*
@@ -245,11 +269,30 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto early_fini;
 
+	/* Allocate the kernel context */
+	hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx), GFP_KERNEL);
+	if (!hdev->kernel_ctx) {
+		rc = -ENOMEM;
+		goto sw_fini;
+	}
+
+	hdev->user_ctx = NULL;
+
+	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize kernel context\n");
+		goto free_ctx;
+	}
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
 	return 0;
 
+free_ctx:
+	kfree(hdev->kernel_ctx);
+sw_fini:
+	hdev->asic_funcs->sw_fini(hdev);
 early_fini:
 	device_early_fini(hdev);
 release_device:
@@ -281,6 +324,10 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
+
+	/* Release kernel context */
+	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
+		dev_err(hdev->dev, "kernel ctx is still alive\n");
 
 	/* Call ASIC S/W finalize function */
 	hdev->asic_funcs->sw_fini(hdev);

@@ -70,6 +70,8 @@ struct asic_fixed_properties {
 
 
 #define HL_QUEUE_LENGTH			256
+
+
 /*
  * ASICs
  */
@@ -117,6 +119,39 @@ struct hl_asic_funcs {
 					void *cpu_addr, dma_addr_t dma_handle);
 };
 
+
+/*
+ * CONTEXTS
+ */
+
+#define HL_KERNEL_ASID_ID	0
+
+/**
+ * struct hl_ctx - user/kernel context.
+ * @hpriv: pointer to the private (KMD) data of the process (fd).
+ * @hdev: pointer to the device structure.
+ * @refcount: reference counter for the context. Context is released only when
+ *		this hits 0l. It is incremented on CS and CS_WAIT.
+ * @asid: context's unique address space ID in the device's MMU.
+ */
+struct hl_ctx {
+	struct hl_fpriv		*hpriv;
+	struct hl_device	*hdev;
+	struct kref		refcount;
+	u32			asid;
+};
+
+/**
+ * struct hl_ctx_mgr - for handling multiple contexts.
+ * @ctx_lock: protects ctx_handles.
+ * @ctx_handles: idr to hold all ctx handles.
+ */
+struct hl_ctx_mgr {
+	struct mutex		ctx_lock;
+	struct idr		ctx_handles;
+};
+
+
 /*
  * FILE PRIVATE STRUCTURE
  */
@@ -126,12 +161,16 @@ struct hl_asic_funcs {
  * @hdev: habanalabs device structure.
  * @filp: pointer to the given file structure.
  * @taskpid: current process ID.
+ * @ctx: current executing context.
+ * @ctx_mgr: context manager to handle multiple context for this FD.
  * @refcount: number of related contexts.
  */
 struct hl_fpriv {
 	struct hl_device	*hdev;
 	struct file		*filp;
 	struct pid		*taskpid;
+	struct hl_ctx		*ctx; /* TODO: remove for multiple ctx */
+	struct hl_ctx_mgr	ctx_mgr;
 	struct kref		refcount;
 };
 
@@ -185,13 +224,24 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @dev: realted kernel basic device structure.
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
+ * @kernel_ctx: KMD context structure.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: KMD <-> ArmCP shared memory CPU address.
  * @cpu_accessible_dma_address: KMD <-> ArmCP shared memory DMA address.
  * @cpu_accessible_dma_pool: KMD <-> ArmCP shared memory pool.
+ * @asid_bitmap: holds used/available ASIDs.
+ * @asid_mutex: protects asid_bitmap.
+ * @fd_open_cnt_lock: lock for updating fd_open_cnt in hl_device_open. Although
+ *                    fd_open_cnt is atomic, we need this lock to serialize
+ *                    the open function because the driver currently supports
+ *                    only a single process at a time. In addition, we need a
+ *                    lock here so we can flush user processes which are opening
+ *                    the device while we are trying to hard reset it
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
+ * @user_ctx: current user context executing.
+ * @fd_open_cnt: number of open user processes.
  * @major: habanalabs KMD major.
  * @id: device minor.
  * @disabled: is device disabled.
@@ -204,13 +254,21 @@ struct hl_device {
 	struct device			*dev;
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
+	struct hl_ctx			*kernel_ctx;
 	struct dma_pool			*dma_pool;
 	void				*cpu_accessible_dma_mem;
 	dma_addr_t			cpu_accessible_dma_address;
 	struct gen_pool			*cpu_accessible_dma_pool;
+	unsigned long			*asid_bitmap;
+	struct mutex			asid_mutex;
+	/* TODO: remove fd_open_cnt_lock for multiple process support */
+	struct mutex			fd_open_cnt_lock;
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
+	/* TODO: remove user_ctx for multiple process support */
+	struct hl_ctx			*user_ctx;
+	atomic_t			fd_open_cnt;
 	u32				major;
 	u16				id;
 	u8				disabled;
@@ -258,10 +316,23 @@ int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr, u32 timeout_us,
 int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
 				u32 timeout_us, u32 *val);
 
+int hl_asid_init(struct hl_device *hdev);
+void hl_asid_fini(struct hl_device *hdev);
+unsigned long hl_asid_alloc(struct hl_device *hdev);
+void hl_asid_free(struct hl_device *hdev, unsigned long asid);
+
+int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv);
+void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx);
+int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx);
+int hl_ctx_put(struct hl_ctx *ctx);
+void hl_ctx_mgr_init(struct hl_ctx_mgr *mgr);
+void hl_ctx_mgr_fini(struct hl_device *hdev, struct hl_ctx_mgr *mgr);
 int hl_device_init(struct hl_device *hdev, struct class *hclass);
 void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
+void hl_hpriv_get(struct hl_fpriv *hpriv);
+void hl_hpriv_put(struct hl_fpriv *hpriv);
 
 void goya_set_asic_funcs(struct hl_device *hdev);
 
