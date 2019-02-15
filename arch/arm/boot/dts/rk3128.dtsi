@@ -101,6 +101,10 @@
 		 <&qos_vip0>;
 };
 
+&video_phy {
+	status = "okay";
+};
+
 &vop_mmu {
 	rockchip,skip-mmu-read;
 };
