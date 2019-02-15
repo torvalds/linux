@@ -535,7 +535,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 {
 	struct bch_sb_field_members *mi;
 	struct bch_fs *c;
-	unsigned i, iter_size, fs_usage_size;
+	unsigned i, iter_size;
 	const char *err;
 
 	pr_verbose_init(opts, "");
@@ -629,9 +629,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		(btree_blocks(c) + 1) * 2 *
 		sizeof(struct btree_node_iter_set);
 
-	fs_usage_size = sizeof(struct bch_fs_usage) +
-		sizeof(u64) * c->replicas.nr;
-
 	if (!(c->wq = alloc_workqueue("bcachefs",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcache_copygc",
@@ -648,8 +645,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			max(offsetof(struct btree_read_bio, bio),
 			    offsetof(struct btree_write_bio, wbio.bio)),
 			BIOSET_NEED_BVECS) ||
-	    !(c->usage[0] = __alloc_percpu(fs_usage_size, sizeof(u64))) ||
-	    !(c->usage_scratch = __alloc_percpu(fs_usage_size, sizeof(u64))) ||
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||

@@ -117,11 +117,11 @@ void bch2_bucket_seq_cleanup(struct bch_fs *c)
 void bch2_fs_usage_initialize(struct bch_fs *c)
 {
 	struct bch_fs_usage *usage;
-	unsigned i, nr;
+	unsigned i;
 
 	percpu_down_write(&c->mark_lock);
-	nr = sizeof(struct bch_fs_usage) / sizeof(u64) + c->replicas.nr;
-	usage = (void *) bch2_acc_percpu_u64s((void *) c->usage[0], nr);
+	usage = (void *) bch2_acc_percpu_u64s((void *) c->usage[0],
+					      fs_usage_u64s(c));
 
 	for (i = 0; i < BCH_REPLICAS_MAX; i++)
 		usage->reserved += usage->persistent_reserved[i];
@@ -159,24 +159,23 @@ struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *c, struct bch_dev *ca)
 struct bch_fs_usage *bch2_fs_usage_read(struct bch_fs *c)
 {
 	struct bch_fs_usage *ret;
-	unsigned nr = READ_ONCE(c->replicas.nr);
+	unsigned v, u64s = fs_usage_u64s(c);
 retry:
-	ret = kzalloc(sizeof(*ret) + nr * sizeof(u64), GFP_NOFS);
+	ret = kzalloc(u64s * sizeof(u64), GFP_NOFS);
 	if (unlikely(!ret))
 		return NULL;
 
 	percpu_down_read(&c->mark_lock);
 
-	if (unlikely(nr < c->replicas.nr)) {
-		nr = c->replicas.nr;
+	v = fs_usage_u64s(c);
+	if (unlikely(u64s != v)) {
+		u64s = v;
 		percpu_up_read(&c->mark_lock);
 		kfree(ret);
 		goto retry;
 	}
 
-	acc_u64s_percpu((u64 *) ret,
-			(u64 __percpu *) c->usage[0],
-			sizeof(*ret) / sizeof(u64) + nr);
+	acc_u64s_percpu((u64 *) ret, (u64 __percpu *) c->usage[0], u64s);
 
 	return ret;
 }
@@ -294,8 +293,7 @@ int bch2_fs_usage_apply(struct bch_fs *c,
 
 	preempt_disable();
 	acc_u64s((u64 *) this_cpu_ptr(c->usage[0]),
-		 (u64 *) fs_usage,
-		 sizeof(*fs_usage) / sizeof(u64) + c->replicas.nr);
+		 (u64 *) fs_usage, fs_usage_u64s(c));
 	preempt_enable();
 
 	return ret;

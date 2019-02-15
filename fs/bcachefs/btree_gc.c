@@ -605,8 +605,7 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	}
 
 	{
-		unsigned nr = sizeof(struct bch_fs_usage) / sizeof(u64) +
-			c->replicas.nr;
+		unsigned nr = fs_usage_u64s(c);
 		struct bch_fs_usage *dst = (void *)
 			bch2_acc_percpu_u64s((void *) c->usage[0], nr);
 		struct bch_fs_usage *src = (void *)
@@ -657,10 +656,8 @@ static int bch2_gc_start(struct bch_fs *c)
 
 	BUG_ON(c->usage[1]);
 
-	c->usage[1] = __alloc_percpu_gfp(sizeof(struct bch_fs_usage) +
-					 sizeof(u64) * c->replicas.nr,
-					 sizeof(u64),
-					 GFP_KERNEL);
+	c->usage[1] = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
+					 sizeof(u64), GFP_KERNEL);
 	percpu_up_write(&c->mark_lock);
 
 	if (!c->usage[1])

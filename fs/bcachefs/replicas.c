@@ -262,39 +262,37 @@ static void __replicas_table_update(struct bch_fs_usage __percpu *dst_p,
 static int replicas_table_update(struct bch_fs *c,
 				 struct bch_replicas_cpu *new_r)
 {
-	struct bch_fs_usage __percpu *new_usage[3] = { NULL, NULL, NULL };
+	struct bch_fs_usage __percpu *new_usage[2] = { NULL, NULL };
+	struct bch_fs_usage __percpu *new_scratch = NULL;
 	unsigned bytes = sizeof(struct bch_fs_usage) +
 		sizeof(u64) * new_r->nr;
-	unsigned i;
 	int ret = -ENOMEM;
 
-	for (i = 0; i < 3; i++) {
-		if (i < 2 && !c->usage[i])
-			continue;
+	if (!(new_usage[0] = __alloc_percpu_gfp(bytes, sizeof(u64),
+						GFP_NOIO)) ||
+	    (c->usage[1] &&
+	     !(new_usage[1] = __alloc_percpu_gfp(bytes, sizeof(u64),
+						 GFP_NOIO))) ||
+	    !(new_scratch  = __alloc_percpu_gfp(bytes, sizeof(u64),
+						GFP_NOIO)))
+		goto err;
 
-		new_usage[i] = __alloc_percpu_gfp(bytes, sizeof(u64),
-						  GFP_NOIO);
-		if (!new_usage[i])
-			goto err;
-	}
+	if (c->usage[0])
+		__replicas_table_update(new_usage[0],	new_r,
+					c->usage[0],	&c->replicas);
+	if (c->usage[1])
+		__replicas_table_update(new_usage[1],	new_r,
+					c->usage[1],	&c->replicas);
 
-	for (i = 0; i < 2; i++) {
-		if (!c->usage[i])
-			continue;
-
-		__replicas_table_update(new_usage[i],	new_r,
-					c->usage[i],	&c->replicas);
-
-		swap(c->usage[i], new_usage[i]);
-	}
-
-	swap(c->usage_scratch, new_usage[2]);
-
-	swap(c->replicas, *new_r);
+	swap(c->usage[0],	new_usage[0]);
+	swap(c->usage[1],	new_usage[1]);
+	swap(c->usage_scratch,	new_scratch);
+	swap(c->replicas,	*new_r);
 	ret = 0;
 err:
-	for (i = 0; i < 3; i++)
-		free_percpu(new_usage[i]);
+	free_percpu(new_scratch);
+	free_percpu(new_usage[1]);
+	free_percpu(new_usage[0]);
 	return ret;
 }
 
@@ -975,5 +973,6 @@ int bch2_fs_replicas_init(struct bch_fs *c)
 {
 	c->journal.entry_u64s_reserved +=
 		reserve_journal_replicas(c, &c->replicas);
-	return 0;
+
+	return replicas_table_update(c, &c->replicas);
 }

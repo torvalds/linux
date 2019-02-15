@@ -212,14 +212,18 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 /* Filesystem usage: */
 
+static inline unsigned fs_usage_u64s(struct bch_fs *c)
+{
+
+	return sizeof(struct bch_fs_usage) / sizeof(u64) +
+		READ_ONCE(c->replicas.nr);
+}
+
 static inline struct bch_fs_usage *bch2_fs_usage_get_scratch(struct bch_fs *c)
 {
-	struct bch_fs_usage *ret;
+	struct bch_fs_usage *ret = this_cpu_ptr(c->usage_scratch);
 
-	ret = this_cpu_ptr(c->usage_scratch);
-
-	memset(ret, 0, sizeof(*ret) + c->replicas.nr * sizeof(u64));
-
+	memset(ret, 0, fs_usage_u64s(c) * sizeof(u64));
 	return ret;
 }
 
