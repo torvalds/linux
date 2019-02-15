@@ -197,9 +197,9 @@ config VXLAN
 
 config GENEVE
        tristate "Generic Network Virtualization Encapsulation"
-       depends on INET && NET_UDP_TUNNEL
+       depends on INET
        depends on IPV6 || !IPV6
-       select NET_IP_TUNNEL
+       select NET_UDP_TUNNEL
        select GRO_CELLS
        ---help---
 	  This allows one to create geneve virtual interfaces that provide
