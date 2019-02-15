@@ -48,6 +48,7 @@
 #include "smu7_clockpowergating.h"
 #include "processpptables.h"
 #include "pp_thermal.h"
+#include "smu7_baco.h"
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
@@ -5143,6 +5144,9 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_power_profile_mode = smu7_get_power_profile_mode,
 	.set_power_profile_mode = smu7_set_power_profile_mode,
 	.get_performance_level = smu7_get_performance_level,
+	.get_asic_baco_capability = smu7_baco_get_capability,
+	.get_asic_baco_state = smu7_baco_get_state,
+	.set_asic_baco_state = smu7_baco_set_state,
 	.power_off_asic = smu7_power_off_asic,
 };
 
