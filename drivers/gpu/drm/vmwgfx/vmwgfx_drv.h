@@ -813,7 +813,6 @@ extern int vmw_fifo_init(struct vmw_private *dev_priv,
 			 struct vmw_fifo_state *fifo);
 extern void vmw_fifo_release(struct vmw_private *dev_priv,
 			     struct vmw_fifo_state *fifo);
-extern void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes);
 extern void *
 vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
 extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
@@ -828,6 +827,18 @@ extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
 				     uint32_t cid);
 extern int vmw_fifo_flush(struct vmw_private *dev_priv,
 			  bool interruptible);
+
+#define VMW_FIFO_RESERVE_DX(__priv, __bytes, __ctx_id)                        \
+({                                                                            \
+	vmw_fifo_reserve_dx(__priv, __bytes, __ctx_id) ? : ({                 \
+		DRM_ERROR("FIFO reserve failed at %s for %u bytes\n",         \
+			  __func__, (unsigned int) __bytes);                  \
+		NULL;                                                         \
+	});                                                                   \
+})
+
+#define VMW_FIFO_RESERVE(__priv, __bytes)                                     \
+	VMW_FIFO_RESERVE_DX(__priv, __bytes, SVGA3D_INVALID_ID)
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c

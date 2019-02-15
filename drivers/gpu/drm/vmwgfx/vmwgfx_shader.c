@@ -218,10 +218,8 @@ static int vmw_gb_shader_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -254,12 +252,9 @@ static int vmw_gb_shader_bind(struct vmw_resource *res,
 
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "binding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_SHADER;
 	cmd->header.size = sizeof(cmd->body);
@@ -285,12 +280,9 @@ static int vmw_gb_shader_unbind(struct vmw_resource *res,
 
 	BUG_ON(res->backup->base.mem.mem_type != VMW_PL_MOB);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "unbinding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_BIND_GB_SHADER;
 	cmd->header.size = sizeof(cmd->body);
@@ -328,10 +320,8 @@ static int vmw_gb_shader_destroy(struct vmw_resource *res)
 	mutex_lock(&dev_priv->binding_mutex);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "destruction.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
@@ -400,13 +390,9 @@ static int vmw_dx_shader_unscrub(struct vmw_resource *res)
 	if (!list_empty(&shader->cotable_head) || !shader->committed)
 		return 0;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd),
-				  shader->ctx->id);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "scrubbing.\n");
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), shader->ctx->id);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_SHADER;
 	cmd->header.size = sizeof(cmd->body);
@@ -491,12 +477,9 @@ static int vmw_dx_shader_scrub(struct vmw_resource *res)
 		return 0;
 
 	WARN_ON_ONCE(!shader->committed);
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for shader "
-			  "scrubbing.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id = SVGA_3D_CMD_DX_BIND_SHADER;
 	cmd->header.size = sizeof(cmd->body);

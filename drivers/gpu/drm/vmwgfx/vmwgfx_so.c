@@ -170,13 +170,12 @@ static int vmw_view_create(struct vmw_resource *res)
 		return 0;
 	}
 
-	cmd = vmw_fifo_reserve_dx(res->dev_priv, view->cmd_size,
-				  view->ctx->id);
+	cmd = VMW_FIFO_RESERVE_DX(res->dev_priv, view->cmd_size, view->ctx->id);
 	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view creation.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}
+
 	memcpy(cmd, &view->cmd, view->cmd_size);
 	WARN_ON(cmd->body.view_id != view->view_id);
 	/* Sid may have changed due to surface eviction. */
@@ -214,12 +213,9 @@ static int vmw_view_destroy(struct vmw_resource *res)
 	if (!view->committed || res->id == -1)
 		return 0;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), view->ctx->id);
-	if (!cmd) {
-		DRM_ERROR("Failed reserving FIFO space for view "
-			  "destruction.\n");
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), view->ctx->id);
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	cmd->header.id = vmw_view_destroy_cmds[view->view_type];
 	cmd->header.size = sizeof(cmd->body);

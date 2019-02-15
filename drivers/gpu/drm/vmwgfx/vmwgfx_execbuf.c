@@ -720,8 +720,7 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 	if (!dx_query_mob || dx_query_mob->dx_query_ctx)
 		return 0;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), ctx_res->id);
-
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), ctx_res->id);
 	if (cmd == NULL)
 		return -ENOMEM;
 
@@ -3468,14 +3467,13 @@ static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
 	void *cmd;
 
 	if (sw_context->dx_ctx_node)
-		cmd = vmw_fifo_reserve_dx(dev_priv, command_size,
+		cmd = VMW_FIFO_RESERVE_DX(dev_priv, command_size,
 					  sw_context->dx_ctx_node->ctx->id);
 	else
-		cmd = vmw_fifo_reserve(dev_priv, command_size);
-	if (!cmd) {
-		VMW_DEBUG_USER("Failed reserving fifo space for commands.\n");
+		cmd = VMW_FIFO_RESERVE(dev_priv, command_size);
+
+	if (!cmd)
 		return -ENOMEM;
-	}
 
 	vmw_apply_relocations(sw_context);
 	memcpy(cmd, kernel_commands, command_size);

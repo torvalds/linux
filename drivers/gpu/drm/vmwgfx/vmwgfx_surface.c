@@ -342,12 +342,9 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 
 	if (res->id != -1) {
 
-		cmd = vmw_fifo_reserve(dev_priv, vmw_surface_destroy_size());
-		if (unlikely(!cmd)) {
-			DRM_ERROR("Failed reserving FIFO space for surface "
-				  "destruction.\n");
+		cmd = VMW_FIFO_RESERVE(dev_priv, vmw_surface_destroy_size());
+		if (unlikely(!cmd))
 			return;
-		}
 
 		vmw_surface_destroy_encode(res->id, cmd);
 		vmw_fifo_commit(dev_priv, vmw_surface_destroy_size());
@@ -414,10 +411,8 @@ static int vmw_legacy_srf_create(struct vmw_resource *res)
 	 */
 
 	submit_size = vmw_surface_define_size(srf);
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -468,12 +463,10 @@ static int vmw_legacy_srf_dma(struct vmw_resource *res,
 
 	BUG_ON(!val_buf->bo);
 	submit_size = vmw_surface_dma_size(srf);
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "DMA.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
+
 	vmw_bo_get_guest_ptr(val_buf->bo, &ptr);
 	vmw_surface_dma_encode(srf, cmd, &ptr, bind);
 
@@ -556,12 +549,9 @@ static int vmw_legacy_srf_destroy(struct vmw_resource *res)
 	 */
 
 	submit_size = vmw_surface_destroy_size();
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "eviction.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
 
 	vmw_surface_destroy_encode(res->id, cmd);
 	vmw_fifo_commit(dev_priv, submit_size);
@@ -1086,12 +1076,10 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		submit_len = sizeof(*cmd);
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, submit_len);
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_len);
 	cmd2 = (typeof(cmd2))cmd;
 	cmd3 = (typeof(cmd3))cmd;
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
@@ -1169,12 +1157,9 @@ static int vmw_gb_surface_bind(struct vmw_resource *res,
 
 	submit_size = sizeof(*cmd1) + (res->backup_dirty ? sizeof(*cmd2) : 0);
 
-	cmd1 = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd1)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "binding.\n");
+	cmd1 = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd1))
 		return -ENOMEM;
-	}
 
 	cmd1->header.id = SVGA_3D_CMD_BIND_GB_SURFACE;
 	cmd1->header.size = sizeof(cmd1->body);
@@ -1219,12 +1204,9 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
 
 	submit_size = sizeof(*cmd3) + (readback ? sizeof(*cmd1) : sizeof(*cmd2));
-	cmd = vmw_fifo_reserve(dev_priv, submit_size);
-	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "unbinding.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
+	if (unlikely(!cmd))
 		return -ENOMEM;
-	}
 
 	if (readback) {
 		cmd1 = (void *) cmd;
@@ -1278,10 +1260,8 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	vmw_view_surface_list_destroy(dev_priv, &srf->view_list);
 	vmw_binding_res_list_scrub(&res->binding_head);
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(!cmd)) {
-		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "destruction.\n");
 		mutex_unlock(&dev_priv->binding_mutex);
 		return -ENOMEM;
 	}

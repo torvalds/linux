@@ -730,12 +730,9 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 	dx_query_ctx = dx_query_mob->dx_query_ctx;
 	dev_priv     = dx_query_ctx->dev_priv;
 
-	cmd = vmw_fifo_reserve_dx(dev_priv, sizeof(*cmd), dx_query_ctx->id);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Failed reserving FIFO space for "
-			  "query MOB read back.\n");
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), dx_query_ctx->id);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DX_READBACK_ALL_QUERY;
 	cmd->header.size = sizeof(cmd->body);

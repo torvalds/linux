@@ -167,12 +167,9 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
 		SVGA3dCmdDefineGBScreenTarget body;
 	} *cmd;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space defining Screen Target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DEFINE_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -229,12 +226,9 @@ static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 	memset(&image, 0, sizeof(image));
 	image.sid = res ? res->id : SVGA3D_INVALID_ID;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space binding a screen target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_BIND_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -296,12 +290,9 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space updating a Screen Target\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	vmw_stdu_populate_update(cmd, stdu->base.unit,
 				 0, stdu->display_width,
@@ -335,12 +326,9 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 	if (unlikely(!stdu->defined))
 		return 0;
 
-	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Out of FIFO space, screen target not destroyed\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	cmd->header.id   = SVGA_3D_CMD_DESTROY_GB_SCREENTARGET;
 	cmd->header.size = sizeof(cmd->body);
@@ -637,12 +625,9 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
 
 
 		dev_priv = vmw_priv(stdu->base.crtc.dev);
-		cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
-
-		if (!cmd) {
-			DRM_ERROR("Cannot reserve FIFO space to update STDU");
+		cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+		if (!cmd)
 			goto out_cleanup;
-		}
 
 		vmw_stdu_populate_update(cmd, stdu->base.unit,
 					 region.x1, region.x2,
