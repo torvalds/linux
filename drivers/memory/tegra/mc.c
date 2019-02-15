@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -626,6 +627,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct tegra_mc *mc;
 	void *isr;
+	u64 mask;
 	int err;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
@@ -636,6 +638,14 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	spin_lock_init(&mc->lock);
 	mc->soc = of_device_get_match_data(&pdev->dev);
 	mc->dev = &pdev->dev;
+
+	mask = DMA_BIT_MASK(mc->soc->num_address_bits);
+
+	err = dma_coerce_mask_and_coherent(&pdev->dev, mask);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
+		return err;
+	}
 
 	/* length of MC tick in nanoseconds */
 	mc->tick = 30;
