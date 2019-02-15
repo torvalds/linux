@@ -67,6 +67,7 @@
 #include <scsi/scsi_eh.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
+#include <linux/irq_poll.h>
 
 #include "mpt3sas_debug.h"
 #include "mpt3sas_trigger_diag.h"
@@ -882,6 +883,9 @@ struct _event_ack_list {
  * @reply_post_free: reply post base virt address
  * @name: the name registered to request_irq()
  * @busy: isr is actively processing replies on another cpu
+ * @os_irq: irq number
+ * @irqpoll: irq_poll object
+ * @irq_poll_scheduled: Tells whether irq poll is scheduled or not
  * @list: this list
 */
 struct adapter_reply_queue {
@@ -891,6 +895,10 @@ struct adapter_reply_queue {
 	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
 	char			name[MPT_NAME_LENGTH];
 	atomic_t		busy;
+	u32			os_irq;
+	struct irq_poll         irqpoll;
+	bool			irq_poll_scheduled;
+	bool			irq_line_enable;
 	struct list_head	list;
 };
 
