@@ -603,7 +603,6 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 				     unsigned int queue_num,
 				     struct ethtool_rx_flow_spec *fs)
 {
-	struct ethtool_tcpip6_spec *v6_spec, *v6_m_spec;
 	struct ethtool_rx_flow_spec_input input = {};
 	unsigned int slice_num, rule_index[2];
 	const struct cfp_udf_layout *layout;
@@ -618,13 +617,9 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	switch (fs->flow_type & ~FLOW_EXT) {
 	case TCP_V6_FLOW:
 		ip_proto = IPPROTO_TCP;
-		v6_spec = &fs->h_u.tcp_ip6_spec;
-		v6_m_spec = &fs->m_u.tcp_ip6_spec;
 		break;
 	case UDP_V6_FLOW:
 		ip_proto = IPPROTO_UDP;
-		v6_spec = &fs->h_u.udp_ip6_spec;
-		v6_m_spec = &fs->m_u.udp_ip6_spec;
 		break;
 	default:
 		return -EINVAL;
