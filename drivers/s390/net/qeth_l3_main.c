@@ -2117,15 +2117,6 @@ tx_drop:
 	return NETDEV_TX_OK;
 }
 
-static const struct ethtool_ops qeth_l3_ethtool_ops = {
-	.get_link = ethtool_op_get_link,
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-	.get_link_ksettings = qeth_core_ethtool_get_link_ksettings,
-};
-
 /*
  * we need NOARP for IPv4 but we want neighbor solicitation for IPv6. Setting
  * NOARP on the netdevice is no option because it also turns off neighbor
@@ -2247,7 +2238,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		return -ENODEV;
 
 	card->dev->needed_headroom = headroom;
-	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;

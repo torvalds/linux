@@ -696,22 +696,6 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 		unregister_netdev(card->dev);
 }
 
-static const struct ethtool_ops qeth_l2_ethtool_ops = {
-	.get_link = ethtool_op_get_link,
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-	.get_link_ksettings = qeth_core_ethtool_get_link_ksettings,
-};
-
-static const struct ethtool_ops qeth_l2_osn_ops = {
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-};
-
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
@@ -735,13 +719,10 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 
 	card->dev->priv_flags |= IFF_UNICAST_FLT;
 	card->dev->netdev_ops = &qeth_l2_netdev_ops;
-	if (card->info.type == QETH_CARD_TYPE_OSN) {
-		card->dev->ethtool_ops = &qeth_l2_osn_ops;
+	if (IS_OSN(card))
 		card->dev->flags |= IFF_NOARP;
-	} else {
-		card->dev->ethtool_ops = &qeth_l2_ethtool_ops;
+	else
 		card->dev->needed_headroom = sizeof(struct qeth_hdr);
-	}
 
 	if (IS_OSM(card)) {
 		card->dev->features |= NETIF_F_VLAN_CHALLENGED;

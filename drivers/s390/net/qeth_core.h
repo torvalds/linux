@@ -18,7 +18,6 @@
 #include <linux/in6.h>
 #include <linux/bitops.h>
 #include <linux/seq_file.h>
-#include <linux/ethtool.h>
 #include <linux/hashtable.h>
 #include <linux/ip.h>
 #include <linux/refcount.h>
@@ -922,6 +921,8 @@ static inline struct qeth_qdio_out_q *qeth_get_tx_queue(struct qeth_card *card,
 
 extern struct qeth_discipline qeth_l2_discipline;
 extern struct qeth_discipline qeth_l3_discipline;
+extern const struct ethtool_ops qeth_ethtool_ops;
+extern const struct ethtool_ops qeth_osn_ethtool_ops;
 extern const struct attribute_group *qeth_generic_attr_groups[];
 extern const struct attribute_group *qeth_osn_attr_groups[];
 extern const struct attribute_group qeth_device_attr_group;
@@ -976,20 +977,15 @@ void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
+int qeth_query_card_info(struct qeth_card *card,
+			 struct carrier_info *carrier_info);
 unsigned int qeth_count_elements(struct sk_buff *skb, unsigned int data_offset);
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			struct sk_buff *skb, struct qeth_hdr *hdr,
 			unsigned int offset, unsigned int hd_len,
 			int elements_needed);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-int qeth_core_get_sset_count(struct net_device *, int);
-void qeth_core_get_ethtool_stats(struct net_device *,
-				struct ethtool_stats *, u64 *);
-void qeth_core_get_strings(struct net_device *, u32, u8 *);
-void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
-int qeth_core_ethtool_get_link_ksettings(struct net_device *netdev,
-					 struct ethtool_link_ksettings *cmd);
 int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
