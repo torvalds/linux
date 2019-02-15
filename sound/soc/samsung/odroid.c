@@ -149,6 +149,12 @@ static const struct snd_soc_ops odroid_card_be_ops = {
 	.trigger = odroid_card_be_trigger,
 };
 
+/* DAPM routes for backward compatibility with old DTS */
+static const struct snd_soc_dapm_route odroid_dapm_routes[] = {
+	{ "I2S Playback", NULL, "Mixer DAI TX" },
+	{ "HiFi Playback", NULL, "Mixer DAI TX" },
+};
+
 static struct snd_soc_dai_link odroid_card_dais[] = {
 	{
 		/* Primary FE <-> BE link */
@@ -237,11 +243,15 @@ static int odroid_audio_probe(struct platform_device *pdev)
 	/*
 	 * For backwards compatibility create the secondary CPU DAI link only
 	 * if there are 2 CPU DAI entries in the cpu sound-dai property in DT.
+	 * Also add required DAPM routes not available in old DTS.
 	 */
 	num_pcms = of_count_phandle_with_args(cpu, "sound-dai",
 					      "#sound-dai-cells");
-	if (num_pcms == 1)
+	if (num_pcms == 1) {
+		card->dapm_routes = odroid_dapm_routes;
+		card->num_dapm_routes = ARRAY_SIZE(odroid_dapm_routes);
 		card->num_links--;
+	}
 
 	for (i = 0; i < num_pcms; i++, link += 2) {
 		ret = of_parse_phandle_with_args(cpu, "sound-dai",
