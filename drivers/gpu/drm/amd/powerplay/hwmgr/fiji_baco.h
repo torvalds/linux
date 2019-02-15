@@ -22,11 +22,8 @@
  */
 #ifndef __FIJI_BACO_H__
 #define __FIJI_BACO_H__
-#include "hwmgr.h"
-#include "common_baco.h"
+#include "smu7_baco.h"
 
-extern int fiji_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap);
-extern int fiji_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
 extern int fiji_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
 
 #endif

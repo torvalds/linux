@@ -37,7 +37,7 @@ HARDWARE_MGR = hwmgr.o processpptables.o \
 		vega20_processpptables.o vega20_hwmgr.o vega20_powertune.o \
 		vega20_thermal.o common_baco.o vega10_baco.o  vega20_baco.o \
 		vega12_baco.o smu9_baco.o tonga_baco.o polaris_baco.o fiji_baco.o \
-		ci_baco.o
+		ci_baco.o smu7_baco.o
 
 AMD_PP_HWMGR = $(addprefix $(AMD_PP_PATH)/hwmgr/,$(HARDWARE_MGR))
 

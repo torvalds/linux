@@ -158,43 +158,11 @@ static const struct baco_cmd_entry clean_baco_tbl[] =
 	{ CMD_WRITE, mmBIOS_SCRATCH_15, 0, 0, 0, 0 }
 };
 
-int fiji_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
-	uint32_t reg;
-
-	*cap = false;
-	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_BACO))
-		return 0;
-
-	reg = RREG32(mmCC_BIF_BX_FUSESTRAP0);
-
-	if (reg & CC_BIF_BX_FUSESTRAP0__STRAP_BIF_PX_CAPABLE_MASK)
-		*cap = true;
-
-	return 0;
-}
-
-int fiji_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
-	uint32_t reg;
-
-	reg = RREG32(mmBACO_CNTL);
-
-	if (reg & BACO_CNTL__BACO_MODE_MASK)
-		/* gfx has already entered BACO state */
-		*state = BACO_STATE_IN;
-	else
-		*state = BACO_STATE_OUT;
-	return 0;
-}
-
 int fiji_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 {
 	enum BACO_STATE cur_state;
 
-	fiji_baco_get_state(hwmgr, &cur_state);
+	smu7_baco_get_state(hwmgr, &cur_state);
 
 	if (cur_state == state)
 		/* aisc already in the target state */
