@@ -338,9 +338,13 @@ enum power_supply_property {
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
-	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 	POWER_SUPPLY_PROP_BATTERY_TYPE,
 	POWER_SUPPLY_PROP_CYCLE_COUNTS,
+	/*
+	 * Add local extensions for properties with string values between
+	 * MODEL_NAME and SERIAL_NUMBER. Don't add below SERIAL_NUMBER.
+	 */
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
 };
 
 enum power_supply_type {
