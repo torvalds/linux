@@ -89,14 +89,14 @@ int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 
 
 		if(smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_EnterBaco, 0))
-			return -1;
+			return -EINVAL;
 
 	} else if (state == BACO_STATE_OUT) {
 		if (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ExitBaco))
-			return -1;
+			return -EINVAL;
 		if (!soc15_baco_program_registers(hwmgr, clean_baco_tbl,
 						     ARRAY_SIZE(clean_baco_tbl)))
-			return -1;
+			return -EINVAL;
 	}
 
 	return 0;
