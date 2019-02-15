@@ -7,7 +7,20 @@
 
 #include "habanalabs.h"
 
-#include <linux/irqreturn.h>
+#include <linux/slab.h>
+
+/**
+ * This structure is used to schedule work of EQ entry and armcp_reset event
+ *
+ * @eq_work          - workqueue object to run when EQ entry is received
+ * @hdev             - pointer to device structure
+ * @eq_entry         - copy of the EQ entry
+ */
+struct hl_eqe_work {
+	struct work_struct	eq_work;
+	struct hl_device	*hdev;
+	struct hl_eq_entry	eq_entry;
+};
 
 /*
  * hl_cq_inc_ptr - increment ci or pi of cq
@@ -23,6 +36,33 @@ inline u32 hl_cq_inc_ptr(u32 ptr)
 	if (unlikely(ptr == HL_CQ_LENGTH))
 		ptr = 0;
 	return ptr;
+}
+
+/*
+ * hl_eq_inc_ptr - increment ci of eq
+ *
+ * @ptr: the current ci value of the event queue
+ *
+ * Increment ptr by 1. If it reaches the number of event queue
+ * entries, set it to 0
+ */
+inline u32 hl_eq_inc_ptr(u32 ptr)
+{
+	ptr++;
+	if (unlikely(ptr == HL_EQ_LENGTH))
+		ptr = 0;
+	return ptr;
+}
+
+static void irq_handle_eqe(struct work_struct *work)
+{
+	struct hl_eqe_work *eqe_work = container_of(work, struct hl_eqe_work,
+							eq_work);
+	struct hl_device *hdev = eqe_work->hdev;
+
+	hdev->asic_funcs->handle_eqe(hdev, &eqe_work->eq_entry);
+
+	kfree(eqe_work);
 }
 
 /*
@@ -103,6 +143,68 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 }
 
 /*
+ * hl_irq_handler_eq - irq handler for event queue
+ *
+ * @irq: irq number
+ * @arg: pointer to event queue structure
+ *
+ */
+irqreturn_t hl_irq_handler_eq(int irq, void *arg)
+{
+	struct hl_eq *eq = arg;
+	struct hl_device *hdev = eq->hdev;
+	struct hl_eq_entry *eq_entry;
+	struct hl_eq_entry *eq_base;
+	struct hl_eqe_work *handle_eqe_work;
+
+	eq_base = (struct hl_eq_entry *) (uintptr_t) eq->kernel_address;
+
+	while (1) {
+		bool entry_ready =
+				((eq_base[eq->ci].hdr.ctl & EQ_CTL_READY_MASK)
+						>> EQ_CTL_READY_SHIFT);
+
+		if (!entry_ready)
+			break;
+
+		eq_entry = &eq_base[eq->ci];
+
+		/*
+		 * Make sure we read EQ entry contents after we've
+		 * checked the ownership bit.
+		 */
+		dma_rmb();
+
+		if (hdev->disabled) {
+			dev_warn(hdev->dev,
+				"Device disabled but received IRQ %d for EQ\n",
+					irq);
+			goto skip_irq;
+		}
+
+		handle_eqe_work = kmalloc(sizeof(*handle_eqe_work), GFP_ATOMIC);
+		if (handle_eqe_work) {
+			INIT_WORK(&handle_eqe_work->eq_work, irq_handle_eqe);
+			handle_eqe_work->hdev = hdev;
+
+			memcpy(&handle_eqe_work->eq_entry, eq_entry,
+					sizeof(*eq_entry));
+
+			queue_work(hdev->eq_wq, &handle_eqe_work->eq_work);
+		}
+skip_irq:
+		/* Clear EQ entry ready bit */
+		eq_entry->hdr.ctl &= ~EQ_CTL_READY_MASK;
+
+		eq->ci = hl_eq_inc_ptr(eq->ci);
+
+		hdev->asic_funcs->update_eq_ci(hdev, eq->ci);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/*
  * hl_cq_init - main initialization function for an cq object
  *
  * @hdev: pointer to device structure
@@ -145,5 +247,48 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q)
 {
 	hdev->asic_funcs->dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
+			(void *) (uintptr_t) q->kernel_address, q->bus_address);
+}
+
+/*
+ * hl_eq_init - main initialization function for an event queue object
+ *
+ * @hdev: pointer to device structure
+ * @q: pointer to eq structure
+ *
+ * Allocate dma-able memory for the event queue and initialize fields
+ * Returns 0 on success
+ */
+int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
+{
+	void *p;
+
+	BUILD_BUG_ON(HL_EQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
+
+	p = hdev->asic_funcs->dma_alloc_coherent(hdev, HL_EQ_SIZE_IN_BYTES,
+				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
+	if (!p)
+		return -ENOMEM;
+
+	q->hdev = hdev;
+	q->kernel_address = (u64) (uintptr_t) p;
+	q->ci = 0;
+
+	return 0;
+}
+
+/*
+ * hl_eq_fini - destroy event queue
+ *
+ * @hdev: pointer to device structure
+ * @q: pointer to eq structure
+ *
+ * Free the event queue memory
+ */
+void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
+{
+	flush_workqueue(hdev->eq_wq);
+
+	hdev->asic_funcs->dma_free_coherent(hdev, HL_EQ_SIZE_IN_BYTES,
 			(void *) (uintptr_t) q->kernel_address, q->bus_address);
 }

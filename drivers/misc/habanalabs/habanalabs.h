@@ -15,6 +15,7 @@
 
 #include <linux/cdev.h>
 #include <linux/iopoll.h>
+#include <linux/irqreturn.h>
 
 #define HL_NAME				"habanalabs"
 
@@ -80,6 +81,7 @@ struct hw_queue_properties {
  * @cfg_size: configuration space size on SRAM.
  * @sram_size: total size of SRAM.
  * @max_asid: maximum number of open contexts (ASIDs).
+ * @num_of_events: number of possible internal H/W IRQs.
  * @completion_queues_count: number of completion queues.
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
@@ -106,6 +108,7 @@ struct asic_fixed_properties {
 	u32			cfg_size;
 	u32			sram_size;
 	u32			max_asid;
+	u32			num_of_events;
 	u32			high_pll;
 	u32			cb_pool_cb_cnt;
 	u32			cb_pool_cb_size;
@@ -198,6 +201,9 @@ struct hl_cs_job;
 #define HL_CQ_LENGTH			HL_QUEUE_LENGTH
 #define HL_CQ_SIZE_IN_BYTES		(HL_CQ_LENGTH * HL_CQ_ENTRY_SIZE)
 
+/* Must be power of 2 (HL_PAGE_SIZE / HL_EQ_ENTRY_SIZE) */
+#define HL_EQ_LENGTH			64
+#define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
 
 /**
@@ -245,6 +251,20 @@ struct hl_cq {
 	atomic_t		free_slots_cnt;
 };
 
+/**
+ * struct hl_eq - describes the event queue (single one per device)
+ * @hdev: pointer to the device structure
+ * @kernel_address: holds the queue's kernel virtual address
+ * @bus_address: holds the queue's DMA address
+ * @ci: ci inside the queue
+ */
+struct hl_eq {
+	struct hl_device	*hdev;
+	u64			kernel_address;
+	dma_addr_t		bus_address;
+	u32			ci;
+};
+
 
 /*
  * ASICs
@@ -271,6 +291,9 @@ enum hl_asic_type {
  * @sw_fini: tears down driver state, does not configure H/W.
  * @hw_init: sets up the H/W state.
  * @hw_fini: tears down the H/W state.
+ * @halt_engines: halt engines, needed for reset sequence. This also disables
+ *                interrupts from the device. Should be called before
+ *                hw_fini and before CS rollback.
  * @suspend: handles IP specific H/W or SW changes for suspend.
  * @resume: handles IP specific H/W or SW changes for resume.
  * @mmap: mmap function, does nothing.
@@ -292,6 +315,9 @@ enum hl_asic_type {
  * @dma_pool_free: free small DMA allocation from pool.
  * @cpu_accessible_dma_pool_alloc: allocate CPU PQ packet from DMA pool.
  * @cpu_accessible_dma_pool_free: free CPU PQ packet from DMA pool.
+ * @update_eq_ci: update event queue CI.
+ * @handle_eqe: handle event queue entry (IRQ) from ArmCP.
+ * @get_events_stat: retrieve event queue entries histogram.
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
  * @send_cpu_message: send buffer to ArmCP.
@@ -303,6 +329,7 @@ struct hl_asic_funcs {
 	int (*sw_fini)(struct hl_device *hdev);
 	int (*hw_init)(struct hl_device *hdev);
 	void (*hw_fini)(struct hl_device *hdev, bool hard_reset);
+	void (*halt_engines)(struct hl_device *hdev, bool hard_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
 	int (*mmap)(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
@@ -325,6 +352,10 @@ struct hl_asic_funcs {
 				size_t size, dma_addr_t *dma_handle);
 	void (*cpu_accessible_dma_pool_free)(struct hl_device *hdev,
 				size_t size, void *vaddr);
+	void (*update_eq_ci)(struct hl_device *hdev, u32 val);
+	void (*handle_eqe)(struct hl_device *hdev,
+				struct hl_eq_entry *eq_entry);
+	void* (*get_events_stat)(struct hl_device *hdev, u32 *size);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
@@ -362,8 +393,6 @@ struct hl_ctx_mgr {
 	struct mutex		ctx_lock;
 	struct idr		ctx_handles;
 };
-
-
 
 
 /**
@@ -455,6 +484,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @kernel_ctx: KMD context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
+ * @event_queue: event queue for IRQ from ArmCP.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: KMD <-> ArmCP shared memory CPU address.
  * @cpu_accessible_dma_address: KMD <-> ArmCP shared memory DMA address.
@@ -489,9 +519,11 @@ struct hl_device {
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
 	struct workqueue_struct		*cq_wq;
+	struct workqueue_struct		*eq_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct hl_cb_mgr		kernel_cb_mgr;
+	struct hl_eq			event_queue;
 	struct dma_pool			*dma_pool;
 	void				*cpu_accessible_dma_mem;
 	dma_addr_t			cpu_accessible_dma_address;
@@ -573,6 +605,10 @@ void hl_hw_queue_inc_ci_kernel(struct hl_device *hdev, u32 hw_queue_id);
 
 int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id);
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q);
+int hl_eq_init(struct hl_device *hdev, struct hl_eq *q);
+void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q);
+irqreturn_t hl_irq_handler_cq(int irq, void *arg);
+irqreturn_t hl_irq_handler_eq(int irq, void *arg);
 int hl_asid_init(struct hl_device *hdev);
 void hl_asid_fini(struct hl_device *hdev);
 unsigned long hl_asid_alloc(struct hl_device *hdev);

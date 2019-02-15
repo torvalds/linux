@@ -181,6 +181,13 @@ static int device_early_init(struct hl_device *hdev)
 		goto asid_fini;
 	}
 
+	hdev->eq_wq = alloc_workqueue("hl-events", WQ_UNBOUND, 0);
+	if (hdev->eq_wq == NULL) {
+		dev_err(hdev->dev, "Failed to allocate EQ workqueue\n");
+		rc = -ENOMEM;
+		goto free_cq_wq;
+	}
+
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
 	mutex_init(&hdev->fd_open_cnt_lock);
@@ -189,6 +196,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	return 0;
 
+free_cq_wq:
+	destroy_workqueue(hdev->cq_wq);
 asid_fini:
 	hl_asid_fini(hdev);
 early_fini:
@@ -210,6 +219,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 
+	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->cq_wq);
 
 	hl_asid_fini(hdev);
@@ -348,11 +358,22 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		}
 	}
 
+	/*
+	 * Initialize the event queue. Must be done before hw_init,
+	 * because there the address of the event queue is being
+	 * passed as argument to request_irq
+	 */
+	rc = hl_eq_init(hdev, &hdev->event_queue);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize event queue\n");
+		goto cq_fini;
+	}
+
 	/* Allocate the kernel context */
 	hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx), GFP_KERNEL);
 	if (!hdev->kernel_ctx) {
 		rc = -ENOMEM;
-		goto cq_fini;
+		goto eq_fini;
 	}
 
 	hdev->user_ctx = NULL;
@@ -397,6 +418,8 @@ release_ctx:
 			"kernel ctx is still alive on initialization failure\n");
 free_ctx:
 	kfree(hdev->kernel_ctx);
+eq_fini:
+	hl_eq_fini(hdev, &hdev->event_queue);
 cq_fini:
 	for (i = 0 ; i < cq_ready_cnt ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);
@@ -438,6 +461,13 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Mark device as disabled */
 	hdev->disabled = true;
 
+	/*
+	 * Halt the engines and disable interrupts so we won't get any more
+	 * completions from H/W and we won't have any accesses from the
+	 * H/W to the host machine
+	 */
+	hdev->asic_funcs->halt_engines(hdev, true);
+
 	hl_cb_pool_fini(hdev);
 
 	/* Release kernel context */
@@ -446,6 +476,8 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, true);
+
+	hl_eq_fini(hdev, &hdev->event_queue);
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);

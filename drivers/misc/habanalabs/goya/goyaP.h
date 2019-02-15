@@ -152,6 +152,7 @@ struct goya_device {
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 	u64		ddr_bar_cur_addr;
+	u32		events_stat[GOYA_ASYNC_EVENT_ID_SIZE];
 	u32		hw_cap_initialized;
 };
 

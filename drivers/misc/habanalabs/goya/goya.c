@@ -84,8 +84,40 @@
 
 #define GOYA_MAX_INITIATORS		20
 
+#define GOYA_MAX_STRING_LEN		20
+
 #define GOYA_CB_POOL_CB_CNT		512
 #define GOYA_CB_POOL_CB_SIZE		0x20000		/* 128KB */
+
+static const char goya_irq_name[GOYA_MSIX_ENTRIES][GOYA_MAX_STRING_LEN] = {
+		"goya cq 0", "goya cq 1", "goya cq 2", "goya cq 3",
+		"goya cq 4", "goya cpu eq"
+};
+
+static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
+	"MME0",
+	"MME1",
+	"MME2",
+	"MME3",
+	"MME4",
+	"MME5",
+	"TPC0",
+	"TPC1",
+	"TPC2",
+	"TPC3",
+	"TPC4",
+	"TPC5",
+	"TPC6",
+	"TPC7",
+	"PCI",
+	"DMA", /* HBW */
+	"DMA", /* LBW */
+	"PSOC",
+	"CPU",
+	"MMU"
+};
+
+#define GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE 121
 
 static void goya_get_fixed_properties(struct hl_device *hdev)
 {
@@ -131,6 +163,7 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->va_space_dram_end_address = VA_DDR_SPACE_END;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
+	prop->num_of_events = GOYA_ASYNC_EVENT_ID_SIZE;
 	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
@@ -669,15 +702,10 @@ static void goya_init_dma_qman(struct hl_device *hdev, int dma_id,
 	WREG32(mmDMA_QM_0_PQ_CFG1 + reg_off, 0x00020002);
 	WREG32(mmDMA_QM_0_CQ_CFG1 + reg_off, 0x00080008);
 
-	if (dma_id == 0)
-		WREG32(mmDMA_QM_0_GLBL_PROT + reg_off, QMAN_DMA_FULLY_TRUSTED);
+	if (goya->hw_cap_initialized & HW_CAP_MMU)
+		WREG32(mmDMA_QM_0_GLBL_PROT + reg_off, QMAN_DMA_PARTLY_TRUSTED);
 	else
-		if (goya->hw_cap_initialized & HW_CAP_MMU)
-			WREG32(mmDMA_QM_0_GLBL_PROT + reg_off,
-					QMAN_DMA_PARTLY_TRUSTED);
-		else
-			WREG32(mmDMA_QM_0_GLBL_PROT + reg_off,
-					QMAN_DMA_FULLY_TRUSTED);
+		WREG32(mmDMA_QM_0_GLBL_PROT + reg_off, QMAN_DMA_FULLY_TRUSTED);
 
 	WREG32(mmDMA_QM_0_GLBL_ERR_CFG + reg_off, QMAN_DMA_ERR_MSG_EN);
 	WREG32(mmDMA_QM_0_GLBL_CFG0 + reg_off, QMAN_DMA_ENABLE);
@@ -883,6 +911,7 @@ static void goya_resume_external_queues(struct hl_device *hdev)
 int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	struct hl_eq *eq;
 	dma_addr_t bus_address;
 	u32 status;
 	struct hl_hw_queue *cpu_pq = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
@@ -894,10 +923,16 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 	if (goya->hw_cap_initialized & HW_CAP_CPU_Q)
 		return 0;
 
+	eq = &hdev->event_queue;
+
 	bus_address = cpu_pq->bus_address +
 			hdev->asic_prop.host_phys_base_address;
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_0, lower_32_bits(bus_address));
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_1, upper_32_bits(bus_address));
+
+	bus_address = eq->bus_address + hdev->asic_prop.host_phys_base_address;
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_2, lower_32_bits(bus_address));
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(bus_address));
 
 	bus_address = hdev->cpu_accessible_dma_address +
 			hdev->asic_prop.host_phys_base_address;
@@ -905,6 +940,7 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9, upper_32_bits(bus_address));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_5, HL_QUEUE_SIZE_IN_BYTES);
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_4, HL_EQ_SIZE_IN_BYTES);
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_10, CPU_ACCESSIBLE_MEM_SIZE);
 
 	/* Used for EQ CI */
@@ -1862,6 +1898,165 @@ static void goya_resume_internal_queues(struct hl_device *hdev)
 	WREG32(mmTPC7_CMDQ_GLBL_CFG1, 0);
 }
 
+static void goya_dma_stall(struct hl_device *hdev)
+{
+	WREG32(mmDMA_QM_0_GLBL_CFG1, 1 << DMA_QM_0_GLBL_CFG1_DMA_STOP_SHIFT);
+	WREG32(mmDMA_QM_1_GLBL_CFG1, 1 << DMA_QM_1_GLBL_CFG1_DMA_STOP_SHIFT);
+	WREG32(mmDMA_QM_2_GLBL_CFG1, 1 << DMA_QM_2_GLBL_CFG1_DMA_STOP_SHIFT);
+	WREG32(mmDMA_QM_3_GLBL_CFG1, 1 << DMA_QM_3_GLBL_CFG1_DMA_STOP_SHIFT);
+	WREG32(mmDMA_QM_4_GLBL_CFG1, 1 << DMA_QM_4_GLBL_CFG1_DMA_STOP_SHIFT);
+}
+
+static void goya_tpc_stall(struct hl_device *hdev)
+{
+	WREG32(mmTPC0_CFG_TPC_STALL, 1 << TPC0_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC1_CFG_TPC_STALL, 1 << TPC1_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC2_CFG_TPC_STALL, 1 << TPC2_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC3_CFG_TPC_STALL, 1 << TPC3_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC4_CFG_TPC_STALL, 1 << TPC4_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC5_CFG_TPC_STALL, 1 << TPC5_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC6_CFG_TPC_STALL, 1 << TPC6_CFG_TPC_STALL_V_SHIFT);
+	WREG32(mmTPC7_CFG_TPC_STALL, 1 << TPC7_CFG_TPC_STALL_V_SHIFT);
+}
+
+static void goya_mme_stall(struct hl_device *hdev)
+{
+	WREG32(mmMME_STALL, 0xFFFFFFFF);
+}
+
+static int goya_enable_msix(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	int cq_cnt = hdev->asic_prop.completion_queues_count;
+	int rc, i, irq_cnt_init, irq;
+
+	if (goya->hw_cap_initialized & HW_CAP_MSIX)
+		return 0;
+
+	rc = pci_alloc_irq_vectors(hdev->pdev, GOYA_MSIX_ENTRIES,
+				GOYA_MSIX_ENTRIES, PCI_IRQ_MSIX);
+	if (rc < 0) {
+		dev_err(hdev->dev,
+			"MSI-X: Failed to enable support -- %d/%d\n",
+			GOYA_MSIX_ENTRIES, rc);
+		return rc;
+	}
+
+	for (i = 0, irq_cnt_init = 0 ; i < cq_cnt ; i++, irq_cnt_init++) {
+		irq = pci_irq_vector(hdev->pdev, i);
+		rc = request_irq(irq, hl_irq_handler_cq, 0, goya_irq_name[i],
+				&hdev->completion_queue[i]);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to request IRQ %d", irq);
+			goto free_irqs;
+		}
+	}
+
+	irq = pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX);
+
+	rc = request_irq(irq, hl_irq_handler_eq, 0,
+			goya_irq_name[EVENT_QUEUE_MSIX_IDX],
+			&hdev->event_queue);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
+		goto free_irqs;
+	}
+
+	goya->hw_cap_initialized |= HW_CAP_MSIX;
+	return 0;
+
+free_irqs:
+	for (i = 0 ; i < irq_cnt_init ; i++)
+		free_irq(pci_irq_vector(hdev->pdev, i),
+			&hdev->completion_queue[i]);
+
+	pci_free_irq_vectors(hdev->pdev);
+	return rc;
+}
+
+static void goya_sync_irqs(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	int i;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MSIX))
+		return;
+
+	/* Wait for all pending IRQs to be finished */
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+		synchronize_irq(pci_irq_vector(hdev->pdev, i));
+
+	synchronize_irq(pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX));
+}
+
+static void goya_disable_msix(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	int i, irq;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MSIX))
+		return;
+
+	goya_sync_irqs(hdev);
+
+	irq = pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX);
+	free_irq(irq, &hdev->event_queue);
+
+	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
+		irq = pci_irq_vector(hdev->pdev, i);
+		free_irq(irq, &hdev->completion_queue[i]);
+	}
+
+	pci_free_irq_vectors(hdev->pdev);
+
+	goya->hw_cap_initialized &= ~HW_CAP_MSIX;
+}
+
+static void goya_halt_engines(struct hl_device *hdev, bool hard_reset)
+{
+	u32 wait_timeout_ms, cpu_timeout_ms;
+
+	dev_info(hdev->dev,
+		"Halting compute engines and disabling interrupts\n");
+
+	if (hdev->pldm) {
+		wait_timeout_ms = GOYA_PLDM_RESET_WAIT_MSEC;
+		cpu_timeout_ms = GOYA_PLDM_RESET_WAIT_MSEC;
+	} else {
+		wait_timeout_ms = GOYA_RESET_WAIT_MSEC;
+		cpu_timeout_ms = GOYA_CPU_RESET_WAIT_MSEC;
+	}
+
+	if (hard_reset) {
+		/*
+		 * I don't know what is the state of the CPU so make sure it is
+		 * stopped in any means necessary
+		 */
+		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_GOTO_WFE);
+		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GOYA_ASYNC_EVENT_ID_HALT_MACHINE);
+		msleep(cpu_timeout_ms);
+	}
+
+	goya_stop_external_queues(hdev);
+	goya_stop_internal_queues(hdev);
+
+	msleep(wait_timeout_ms);
+
+	goya_dma_stall(hdev);
+	goya_tpc_stall(hdev);
+	goya_mme_stall(hdev);
+
+	msleep(wait_timeout_ms);
+
+	goya_disable_external_queues(hdev);
+	goya_disable_internal_queues(hdev);
+
+	if (hard_reset)
+		goya_disable_msix(hdev);
+	else
+		goya_sync_irqs(hdev);
+}
 
 /*
  * goya_push_fw_to_device - Push FW code to device
@@ -2189,11 +2384,16 @@ static int goya_hw_init(struct hl_device *hdev)
 
 	goya_init_tpc_qmans(hdev);
 
+	/* MSI-X must be enabled before CPU queues are initialized */
+	rc = goya_enable_msix(hdev);
+	if (rc)
+		goto disable_queues;
+
 	rc = goya_init_cpu_queues(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize CPU H/W queues %d\n",
 			rc);
-		goto disable_queues;
+		goto disable_msix;
 	}
 
 	/* CPU initialization is finished, we can now move to 48 bit DMA mask */
@@ -2227,6 +2427,8 @@ static int goya_hw_init(struct hl_device *hdev)
 
 disable_pci_access:
 	goya_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
+disable_msix:
+	goya_disable_msix(hdev);
 disable_queues:
 	goya_disable_internal_queues(hdev);
 	goya_disable_external_queues(hdev);
@@ -2292,6 +2494,7 @@ static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
 					HW_CAP_DMA | HW_CAP_MME |
 					HW_CAP_MMU | HW_CAP_TPC_MBIST |
 					HW_CAP_GOLDEN | HW_CAP_TPC);
+	memset(goya->events_stat, 0, sizeof(goya->events_stat));
 
 	if (!hdev->pldm) {
 		int rc;
@@ -2778,6 +2981,242 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
+static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
+{
+	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
+}
+
+static void goya_get_axi_name(struct hl_device *hdev, u32 agent_id,
+		u16 event_type, char *axi_name, int len)
+{
+	if (!strcmp(goya_axi_name[agent_id], "DMA"))
+		if (event_type >= GOYA_ASYNC_EVENT_ID_DMA0_CH)
+			snprintf(axi_name, len, "DMA %d",
+				event_type - GOYA_ASYNC_EVENT_ID_DMA0_CH);
+		else
+			snprintf(axi_name, len, "DMA %d",
+				event_type - GOYA_ASYNC_EVENT_ID_DMA0_QM);
+	else
+		snprintf(axi_name, len, "%s", goya_axi_name[agent_id]);
+}
+
+static void goya_print_razwi_info(struct hl_device *hdev, u64 reg,
+		bool is_hbw, bool is_read, u16 event_type)
+{
+	u32 val, agent_id;
+	char axi_name[10] = {0};
+
+	val = RREG32(reg);
+
+	if (is_hbw)
+		agent_id = (val & GOYA_IRQ_HBW_AGENT_ID_MASK) >>
+				GOYA_IRQ_HBW_AGENT_ID_SHIFT;
+	else
+		agent_id = (val & GOYA_IRQ_LBW_AGENT_ID_MASK) >>
+				GOYA_IRQ_LBW_AGENT_ID_SHIFT;
+
+	if (agent_id >= GOYA_MAX_INITIATORS) {
+		dev_err(hdev->dev,
+			"Illegal %s %s with wrong initiator id %d, H/W IRQ %d\n",
+				is_read ? "read from" : "write to",
+				is_hbw ? "HBW" : "LBW",
+				agent_id,
+				event_type);
+	} else {
+		goya_get_axi_name(hdev, agent_id, event_type, axi_name,
+				sizeof(axi_name));
+		dev_err(hdev->dev, "Illegal %s by %s %s %s, H/W IRQ %d\n",
+				is_read ? "read" : "write",
+				axi_name,
+				is_read ? "from" : "to",
+				is_hbw ? "HBW" : "LBW",
+				event_type);
+	}
+}
+
+static void goya_print_irq_info(struct hl_device *hdev, u16 event_type)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	bool is_hbw = false, is_read = false, is_info = false;
+
+	if (RREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD)) {
+		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_LBW_WT_ID, is_hbw,
+				is_read, event_type);
+		WREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD, 0);
+		is_info = true;
+	}
+	if (RREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD)) {
+		is_read = true;
+		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_LBW_RD_ID, is_hbw,
+				is_read, event_type);
+		WREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD, 0);
+		is_info = true;
+	}
+	if (RREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD)) {
+		is_hbw = true;
+		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_HBW_WT_ID, is_hbw,
+				is_read, event_type);
+		WREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD, 0);
+		is_info = true;
+	}
+	if (RREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD)) {
+		is_hbw = true;
+		is_read = true;
+		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_HBW_RD_ID, is_hbw,
+				is_read, event_type);
+		WREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD, 0);
+		is_info = true;
+	}
+	if (!is_info) {
+		dev_err(hdev->dev,
+			"Received H/W interrupt %d, no additional info\n",
+			event_type);
+		return;
+	}
+
+	if (goya->hw_cap_initialized & HW_CAP_MMU) {
+		u32 val = RREG32(mmMMU_PAGE_ERROR_CAPTURE);
+		u64 addr;
+
+		if (val & MMU_PAGE_ERROR_CAPTURE_ENTRY_VALID_MASK) {
+			addr = val & MMU_PAGE_ERROR_CAPTURE_VA_49_32_MASK;
+			addr <<= 32;
+			addr |= RREG32(mmMMU_PAGE_ERROR_CAPTURE_VA);
+
+			dev_err(hdev->dev, "MMU page fault on va 0x%llx\n",
+					addr);
+
+			WREG32(mmMMU_PAGE_ERROR_CAPTURE, 0);
+		}
+	}
+}
+
+static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
+{
+	struct armcp_packet pkt;
+	long result;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+
+	pkt.ctl = ARMCP_PACKET_UNMASK_RAZWI_IRQ << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	pkt.value = event_type;
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
+			HL_DEVICE_TIMEOUT_USEC, &result);
+
+	if (rc)
+		dev_err(hdev->dev, "failed to unmask RAZWI IRQ %d", event_type);
+
+	return rc;
+}
+
+void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
+{
+	u16 event_type = ((eq_entry->hdr.ctl & EQ_CTL_EVENT_TYPE_MASK)
+			>> EQ_CTL_EVENT_TYPE_SHIFT);
+	struct goya_device *goya = hdev->asic_specific;
+
+	goya->events_stat[event_type]++;
+
+	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_PCIE_IF:
+	case GOYA_ASYNC_EVENT_ID_TPC0_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_ECC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_ECC:
+	case GOYA_ASYNC_EVENT_ID_MME_ECC:
+	case GOYA_ASYNC_EVENT_ID_MME_ECC_EXT:
+	case GOYA_ASYNC_EVENT_ID_MMU_ECC:
+	case GOYA_ASYNC_EVENT_ID_DMA_MACRO:
+	case GOYA_ASYNC_EVENT_ID_DMA_ECC:
+	case GOYA_ASYNC_EVENT_ID_CPU_IF_ECC:
+	case GOYA_ASYNC_EVENT_ID_PSOC_MEM:
+	case GOYA_ASYNC_EVENT_ID_PSOC_CORESIGHT:
+	case GOYA_ASYNC_EVENT_ID_SRAM0 ... GOYA_ASYNC_EVENT_ID_SRAM29:
+	case GOYA_ASYNC_EVENT_ID_GIC500:
+	case GOYA_ASYNC_EVENT_ID_PLL0:
+	case GOYA_ASYNC_EVENT_ID_PLL1:
+	case GOYA_ASYNC_EVENT_ID_PLL3:
+	case GOYA_ASYNC_EVENT_ID_PLL4:
+	case GOYA_ASYNC_EVENT_ID_PLL5:
+	case GOYA_ASYNC_EVENT_ID_PLL6:
+	case GOYA_ASYNC_EVENT_ID_AXI_ECC:
+	case GOYA_ASYNC_EVENT_ID_L2_RAM_ECC:
+	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
+	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_10_VRHOT_ICRIT:
+		dev_err(hdev->dev,
+			"Received H/W interrupt %d, reset the chip\n",
+			event_type);
+		break;
+
+	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC0_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_DEC:
+	case GOYA_ASYNC_EVENT_ID_MME_WACS:
+	case GOYA_ASYNC_EVENT_ID_MME_WACSD:
+	case GOYA_ASYNC_EVENT_ID_CPU_AXI_SPLITTER:
+	case GOYA_ASYNC_EVENT_ID_PSOC_AXI_DEC:
+	case GOYA_ASYNC_EVENT_ID_PSOC:
+	case GOYA_ASYNC_EVENT_ID_TPC0_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC1_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC2_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC3_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC4_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC5_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC6_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC7_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC0_CMDQ ... GOYA_ASYNC_EVENT_ID_TPC7_QM:
+	case GOYA_ASYNC_EVENT_ID_MME_QM:
+	case GOYA_ASYNC_EVENT_ID_MME_CMDQ:
+	case GOYA_ASYNC_EVENT_ID_DMA0_QM ... GOYA_ASYNC_EVENT_ID_DMA4_QM:
+	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
+		goya_print_irq_info(hdev, event_type);
+		goya_unmask_irq(hdev, event_type);
+		break;
+
+	case GOYA_ASYNC_EVENT_ID_TPC0_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC1_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC2_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC3_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC4_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC5_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC6_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_TPC7_BMON_SPMU:
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH0:
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH1:
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH2:
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH3:
+	case GOYA_ASYNC_EVENT_ID_DMA_BM_CH4:
+		dev_info(hdev->dev, "Received H/W interrupt %d\n", event_type);
+		break;
+
+	default:
+		dev_err(hdev->dev, "Received invalid H/W interrupt %d\n",
+				event_type);
+		break;
+	}
+}
+
+void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
+{
+	struct goya_device *goya = hdev->asic_specific;
+
+	*size = (u32) sizeof(goya->events_stat);
+
+	return goya->events_stat;
+}
+
 
 static void goya_hw_queues_lock(struct hl_device *hdev)
 {
@@ -2800,6 +3239,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.sw_fini = goya_sw_fini,
 	.hw_init = goya_hw_init,
 	.hw_fini = goya_hw_fini,
+	.halt_engines = goya_halt_engines,
 	.suspend = goya_suspend,
 	.resume = goya_resume,
 	.mmap = goya_mmap,
@@ -2814,6 +3254,9 @@ static const struct hl_asic_funcs goya_funcs = {
 	.dma_pool_free = goya_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = goya_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = goya_cpu_accessible_dma_pool_free,
+	.update_eq_ci = goya_update_eq_ci,
+	.handle_eqe = goya_handle_eqe,
+	.get_events_stat = goya_get_events_stat,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,
 	.send_cpu_message = goya_send_cpu_message

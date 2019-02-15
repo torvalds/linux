@@ -10,6 +10,30 @@
 
 #include <linux/types.h>
 
+/*
+ * EVENT QUEUE
+ */
+
+struct hl_eq_header {
+	__le32 reserved;
+	__le32 ctl;
+};
+
+struct hl_eq_entry {
+	struct hl_eq_header hdr;
+	__le64 data[7];
+};
+
+#define HL_EQ_ENTRY_SIZE		sizeof(struct hl_eq_entry)
+
+#define EQ_CTL_READY_SHIFT		31
+#define EQ_CTL_READY_MASK		0x80000000
+
+#define EQ_CTL_EVENT_TYPE_SHIFT		16
+#define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
+
+#define EVENT_QUEUE_MSIX_IDX		5
+
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,
