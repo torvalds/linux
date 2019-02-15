@@ -399,10 +399,8 @@ static int igt_wedged_reset(void *arg)
 
 	i915_gem_set_wedged(i915);
 
-	mutex_lock(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
 	i915_reset(i915, ALL_ENGINES, NULL);
-	mutex_unlock(&i915->drm.struct_mutex);
 
 	intel_runtime_pm_put(i915, wakeref);
 	igt_global_reset_unlock(i915);
