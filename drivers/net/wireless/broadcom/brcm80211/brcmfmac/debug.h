@@ -62,12 +62,12 @@ void __brcmf_err(struct brcmf_bus *bus, const char *func, const char *fmt, ...);
 	} while (0)
 #endif
 
-#define bphy_err(wiphy, fmt, ...)					\
+#define bphy_err(drvr, fmt, ...)					\
 	do {								\
 		if (IS_ENABLED(CONFIG_BRCMDBG) ||			\
 		    IS_ENABLED(CONFIG_BRCM_TRACING) ||			\
 		    net_ratelimit())					\
-			wiphy_err(wiphy, "%s: " fmt, __func__,		\
+			wiphy_err((drvr)->wiphy, "%s: " fmt, __func__,	\
 				  ##__VA_ARGS__);			\
 	} while (0)
 
