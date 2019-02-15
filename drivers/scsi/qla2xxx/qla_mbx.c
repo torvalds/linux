@@ -1513,16 +1513,12 @@ qla2x00_abort_target(struct fc_port *fcport, uint64_t l, int tag)
 	mbx_cmd_t  mc;
 	mbx_cmd_t  *mcp = &mc;
 	scsi_qla_host_t *vha;
-	struct req_que *req;
-	struct rsp_que *rsp;
 
 	vha = fcport->vha;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x103e,
 	    "Entered %s.\n", __func__);
 
-	req = vha->hw->req_q_map[0];
-	rsp = req->rsp;
 	mcp->mb[0] = MBC_ABORT_TARGET;
 	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw)) {
@@ -1545,7 +1541,7 @@ qla2x00_abort_target(struct fc_port *fcport, uint64_t l, int tag)
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, 0,
+	rval2 = qla2x00_marker(vha, vha->hw->base_qpair, fcport->loop_id, 0,
 							MK_SYNC_ID);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1040,
@@ -1565,16 +1561,12 @@ qla2x00_lun_reset(struct fc_port *fcport, uint64_t l, int tag)
 	mbx_cmd_t  mc;
 	mbx_cmd_t  *mcp = &mc;
 	scsi_qla_host_t *vha;
-	struct req_que *req;
-	struct rsp_que *rsp;
 
 	vha = fcport->vha;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1042,
 	    "Entered %s.\n", __func__);
 
-	req = vha->hw->req_q_map[0];
-	rsp = req->rsp;
 	mcp->mb[0] = MBC_LUN_RESET;
 	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw))
@@ -1594,7 +1586,7 @@ qla2x00_lun_reset(struct fc_port *fcport, uint64_t l, int tag)
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, l,
+	rval2 = qla2x00_marker(vha, vha->hw->base_qpair, fcport->loop_id, l,
 								MK_SYNC_ID_LUN);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1044,
@@ -3186,7 +3178,6 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	scsi_qla_host_t *vha;
 	struct qla_hw_data *ha;
 	struct req_que *req;
-	struct rsp_que *rsp;
 	struct qla_qpair *qpair;
 
 	vha = fcport->vha;
@@ -3199,10 +3190,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	if (vha->vp_idx && vha->qpair) {
 		/* NPIV port */
 		qpair = vha->qpair;
-		rsp = qpair->rsp;
 		req = qpair->req;
-	} else {
-		rsp = req->rsp;
 	}
 
 	tsk = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &tsk_dma);
@@ -3259,7 +3247,7 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 	}
 
 	/* Issue marker IOCB. */
-	rval2 = qla2x00_marker(vha, req, rsp, fcport->loop_id, l,
+	rval2 = qla2x00_marker(vha, ha->base_qpair, fcport->loop_id, l,
 	    type == TCF_LUN_RESET ? MK_SYNC_ID_LUN: MK_SYNC_ID);
 	if (rval2 != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1099,

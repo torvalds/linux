@@ -336,7 +336,7 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			return (QLA_FUNCTION_FAILED);
 		}
@@ -490,8 +490,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 /**
  * qla2x00_marker() - Send a marker IOCB to the firmware.
  * @vha: HA context
- * @req: request queue
- * @rsp: response queue
+ * @qpair: queue pair pointer
  * @loop_id: loop ID
  * @lun: LUN
  * @type: marker modifier
@@ -501,18 +500,16 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
  * Returns non-zero if a failure occurred, else zero.
  */
 static int
-__qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
-			struct rsp_que *rsp, uint16_t loop_id,
-			uint64_t lun, uint8_t type)
+__qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
+    uint16_t loop_id, uint64_t lun, uint8_t type)
 {
 	mrk_entry_t *mrk;
 	struct mrk_entry_24xx *mrk24 = NULL;
-
+	struct req_que *req = qpair->req;
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	req = ha->req_q_map[0];
-	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, NULL);
+	mrk = (mrk_entry_t *)__qla2x00_alloc_iocbs(qpair, NULL);
 	if (mrk == NULL) {
 		ql_log(ql_log_warn, base_vha, 0x3026,
 		    "Failed to allocate Marker IOCB.\n");
@@ -543,16 +540,15 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 }
 
 int
-qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
-		struct rsp_que *rsp, uint16_t loop_id, uint64_t lun,
-		uint8_t type)
+qla2x00_marker(struct scsi_qla_host *vha, struct qla_qpair *qpair,
+    uint16_t loop_id, uint64_t lun, uint8_t type)
 {
 	int ret;
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-	ret = __qla2x00_marker(vha, req, rsp, loop_id, lun, type);
-	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+	ret = __qla2x00_marker(vha, qpair, loop_id, lun, type);
+	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
 	return (ret);
 }
@@ -567,11 +563,11 @@ qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 int qla2x00_issue_marker(scsi_qla_host_t *vha, int ha_locked)
 {
 	if (ha_locked) {
-		if (__qla2x00_marker(vha, vha->req, vha->req->rsp, 0, 0,
+		if (__qla2x00_marker(vha, vha->hw->base_qpair, 0, 0,
 					MK_SYNC_ALL) != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 	} else {
-		if (qla2x00_marker(vha, vha->req, vha->req->rsp, 0, 0,
+		if (qla2x00_marker(vha, vha->hw->base_qpair, 0, 0,
 					MK_SYNC_ALL) != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 	}
@@ -1627,21 +1623,19 @@ qla24xx_start_scsi(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct req_que *req = NULL;
-	struct rsp_que *rsp = NULL;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct scsi_qla_host *vha = sp->vha;
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Setup device pointers. */
 	req = vha->req;
-	rsp = req->rsp;
 
 	/* So we know we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
@@ -1794,7 +1788,7 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (qla2x00_marker(vha, ha->base_qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
 		vha->marker_needed = 0;
@@ -1965,7 +1959,6 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct req_que *req = NULL;
-	struct rsp_que *rsp = NULL;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
@@ -1975,7 +1968,6 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 
 	/* Setup qpair pointers */
-	rsp = qpair->rsp;
 	req = qpair->req;
 
 	/* So we know we haven't pci_map'ed anything yet */
@@ -1983,7 +1975,7 @@ qla2xxx_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (__qla2x00_marker(vha, qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
@@ -2151,7 +2143,7 @@ qla2xxx_dif_start_scsi_mq(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (__qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL) !=
+		if (__qla2x00_marker(vha, qpair, 0, 0, MK_SYNC_ALL) !=
 		    QLA_SUCCESS) {
 			spin_unlock_irqrestore(&qpair->qp_lock, flags);
 			return QLA_FUNCTION_FAILED;
@@ -3205,8 +3197,8 @@ qla82xx_start_scsi(srb_t *sp)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req,
-			rsp, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS) {
+		if (qla2x00_marker(vha, ha->base_qpair,
+			0, 0, MK_SYNC_ALL) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x300c,
 			    "qla2x00_marker failed for cmd=%p.\n", cmd);
 			return QLA_FUNCTION_FAILED;
@@ -3859,8 +3851,8 @@ qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
 
 	/* Send marker if required */
 	if (vha->marker_needed != 0) {
-		if (qla2x00_marker(vha, req,
-			rsp, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
+		if (qla2x00_marker(vha, ha->base_qpair,
+			0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
 			return EXT_STATUS_MAILBOX;
 		vha->marker_needed = 0;
 	}
