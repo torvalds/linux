@@ -126,30 +126,6 @@ struct qeth_perf_stats {
 
 	unsigned int sc_dp_p;
 	unsigned int sc_p_dp;
-	/* qdio_cq_handler: number of times called, time spent in */
-	__u64 cq_start_time;
-	unsigned int cq_cnt;
-	unsigned int cq_time;
-	/* qdio_input_handler: number of times called, time spent in */
-	__u64 inbound_start_time;
-	unsigned int inbound_cnt;
-	unsigned int inbound_time;
-	/* qeth_send_packet: number of times called, time spent in */
-	__u64 outbound_start_time;
-	unsigned int outbound_cnt;
-	unsigned int outbound_time;
-	/* qdio_output_handler: number of times called, time spent in */
-	__u64 outbound_handler_start_time;
-	unsigned int outbound_handler_cnt;
-	unsigned int outbound_handler_time;
-	/* number of calls to and time spent in do_QDIO for inbound queue */
-	__u64 inbound_do_qdio_start_time;
-	unsigned int inbound_do_qdio_cnt;
-	unsigned int inbound_do_qdio_time;
-	/* number of calls to and time spent in do_QDIO for outbound queues */
-	__u64 outbound_do_qdio_start_time;
-	unsigned int outbound_do_qdio_cnt;
-	unsigned int outbound_do_qdio_time;
 	unsigned int large_send_bytes;
 	unsigned int large_send_cnt;
 	unsigned int sg_skbs_sent;
@@ -857,11 +833,6 @@ static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
 static inline int qeth_get_elements_for_range(addr_t start, addr_t end)
 {
 	return PFN_UP(end) - PFN_DOWN(start);
-}
-
-static inline int qeth_get_micros(void)
-{
-	return (int) (get_tod_clock() >> 12);
 }
 
 static inline int qeth_get_ip_version(struct sk_buff *skb)

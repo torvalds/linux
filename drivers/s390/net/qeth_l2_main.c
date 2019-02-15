@@ -632,11 +632,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
-
-	if (card->options.performance_stats) {
-		card->perf_stats.outbound_cnt++;
-		card->perf_stats.outbound_start_time = qeth_get_micros();
-	}
 	netif_stop_queue(dev);
 
 	if (IS_OSN(card))
@@ -648,9 +643,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	if (!rc) {
 		card->stats.tx_packets++;
 		card->stats.tx_bytes += tx_bytes;
-		if (card->options.performance_stats)
-			card->perf_stats.outbound_time += qeth_get_micros() -
-				card->perf_stats.outbound_start_time;
 		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
 	} else if (rc == -EBUSY) {
