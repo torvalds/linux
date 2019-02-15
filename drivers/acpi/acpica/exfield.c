@@ -41,7 +41,7 @@ const u8 acpi_protocol_lengths[] = {
 	0xFF			/* F - ATTRIB_RAW_PROCESS_BYTES */
 };
 
-#define PCC_MASTER_SUBSPACE	3
+#define PCC_MASTER_SUBSPACE     3
 
 /*
  * The following macros determine a given offset is a COMD field.
@@ -49,8 +49,8 @@ const u8 acpi_protocol_lengths[] = {
  * 2-byte COMD field at offset 4 and master subspaces (type 3) contains a 4-byte
  * COMD field starting at offset 12.
  */
-#define GENERIC_SUBSPACE_COMMAND(a)	(4 == a || a == 5)
-#define MASTER_SUBSPACE_COMMAND(a)	(12 <= a && a <= 15)
+#define GENERIC_SUBSPACE_COMMAND(a)     (4 == a || a == 5)
+#define MASTER_SUBSPACE_COMMAND(a)      (12 <= a && a <= 15)
 
 /*******************************************************************************
  *
@@ -319,6 +319,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		memcpy(obj_desc->field.region_obj->field.internal_pcc_buffer +
 		       obj_desc->field.base_byte_offset,
 		       source_desc->buffer.pointer, data_length);
+
 		if ((obj_desc->field.region_obj->region.address ==
 		     PCC_MASTER_SUBSPACE
 		     && MASTER_SUBSPACE_COMMAND(obj_desc->field.

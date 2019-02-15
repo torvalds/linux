@@ -462,7 +462,7 @@
 #define ACPI_IS_OCTAL_DIGIT(d)              (((char)(d) >= '0') && ((char)(d) <= '7'))
 
 /*
- * Macors used for the ASL-/ASL+ converter utility
+ * Macros used for the ASL-/ASL+ converter utility
  */
 #ifdef ACPI_ASL_COMPILER
 

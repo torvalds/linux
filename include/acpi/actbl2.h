@@ -143,7 +143,7 @@ struct acpi_iort_memory_access {
  */
 struct acpi_iort_its_group {
 	u32 its_count;
-	u32 identifiers[1];	/* GIC ITS identifier arrary */
+	u32 identifiers[1];	/* GIC ITS identifier array */
 };
 
 struct acpi_iort_named_component {
