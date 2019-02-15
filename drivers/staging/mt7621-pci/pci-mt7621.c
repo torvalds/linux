@@ -506,7 +506,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 
 	list_for_each_entry(port, &pcie->ports, list) {
 		if (port->enabled) {
-			if (!mt7621_pcie_enable_port(port)) {
+			if (mt7621_pcie_enable_port(port)) {
 				dev_err(dev, "de-assert port %d PERST_N\n",
 					port->slot);
 				continue;
