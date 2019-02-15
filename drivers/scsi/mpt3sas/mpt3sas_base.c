@@ -1395,7 +1395,7 @@ _base_interrupt(int irq, void *bus_id)
 	struct adapter_reply_queue *reply_q = bus_id;
 	union reply_descriptor rd;
 	u32 completed_cmds;
-	u8 request_desript_type;
+	u8 request_descript_type;
 	u16 smid;
 	u8 cb_idx;
 	u32 reply;
@@ -1411,9 +1411,9 @@ _base_interrupt(int irq, void *bus_id)
 		return IRQ_NONE;
 
 	rpf = &reply_q->reply_post_free[reply_q->reply_post_host_index];
-	request_desript_type = rpf->Default.ReplyFlags
+	request_descript_type = rpf->Default.ReplyFlags
 	     & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
-	if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) {
+	if (request_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) {
 		atomic_dec(&reply_q->busy);
 		return IRQ_NONE;
 	}
@@ -1426,11 +1426,11 @@ _base_interrupt(int irq, void *bus_id)
 			goto out;
 		reply = 0;
 		smid = le16_to_cpu(rpf->Default.DescriptorTypeDependent1);
-		if (request_desript_type ==
+		if (request_descript_type ==
 		    MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS ||
-		    request_desript_type ==
+		    request_descript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS ||
-		    request_desript_type ==
+		    request_descript_type ==
 		    MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS) {
 			cb_idx = _base_get_cb_idx(ioc, smid);
 			if ((likely(cb_idx < MPT_MAX_CALLBACKS)) &&
@@ -1440,7 +1440,7 @@ _base_interrupt(int irq, void *bus_id)
 				if (rc)
 					mpt3sas_base_free_smid(ioc, smid);
 			}
-		} else if (request_desript_type ==
+		} else if (request_descript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
 			reply = le32_to_cpu(
 			    rpf->AddressReply.ReplyFrameAddress);
@@ -1486,7 +1486,7 @@ _base_interrupt(int irq, void *bus_id)
 		    (reply_q->reply_post_host_index ==
 		    (ioc->reply_post_queue_depth - 1)) ? 0 :
 		    reply_q->reply_post_host_index + 1;
-		request_desript_type =
+		request_descript_type =
 		    reply_q->reply_post_free[reply_q->reply_post_host_index].
 		    Default.ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		completed_cmds++;
@@ -1509,7 +1509,7 @@ _base_interrupt(int irq, void *bus_id)
 			}
 			completed_cmds = 1;
 		}
-		if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+		if (request_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			goto out;
 		if (!reply_q->reply_post_host_index)
 			rpf = reply_q->reply_post_free;
