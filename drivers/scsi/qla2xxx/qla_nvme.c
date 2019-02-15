@@ -607,12 +607,22 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 	struct fc_port *fcport = container_of(work, struct fc_port,
 	    nvme_del_work);
 	struct qla_nvme_rport *qla_rport, *trport;
+	scsi_qla_host_t *base_vha;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
 
 	ql_log(ql_log_warn, NULL, 0x2112,
 	    "%s: unregister remoteport on %p\n",__func__, fcport);
+
+	base_vha = pci_get_drvdata(fcport->vha->hw->pdev);
+	if (test_bit(PFLG_DRIVER_REMOVING, &base_vha->pci_flags)) {
+		ql_dbg(ql_dbg_disc, fcport->vha, 0x2114,
+		    "%s: Notify FC-NVMe transport, set devloss=0\n",
+		    __func__);
+
+		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
+	}
 
 	list_for_each_entry_safe(qla_rport, trport,
 	    &fcport->vha->nvme_rport_list, list) {
@@ -630,22 +640,10 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 
 void qla_nvme_delete(struct scsi_qla_host *vha)
 {
-	struct qla_nvme_rport *qla_rport, *trport;
-	fc_port_t *fcport;
 	int nv_ret;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
-
-	list_for_each_entry_safe(qla_rport, trport,
-	    &vha->nvme_rport_list, list) {
-		fcport = qla_rport->fcport;
-
-		ql_log(ql_log_info, fcport->vha, 0x2114, "%s: fcport=%p\n",
-		    __func__, fcport);
-
-		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
-	}
 
 	if (vha->nvme_local_port) {
 		init_completion(&vha->nvme_del_done);
