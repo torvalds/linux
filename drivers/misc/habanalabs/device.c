@@ -52,6 +52,7 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 {
 	struct hl_fpriv *hpriv = filp->private_data;
 
+	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 
 	filp->private_data = NULL;
@@ -61,10 +62,34 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+/*
+ * hl_mmap - mmap function for habanalabs device
+ *
+ * @*filp: pointer to file structure
+ * @*vma: pointer to vm_area_struct of the process
+ *
+ * Called when process does an mmap on habanalabs device. Call the device's mmap
+ * function at the end of the common code.
+ */
+static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct hl_fpriv *hpriv = filp->private_data;
+
+	if ((vma->vm_pgoff & HL_MMAP_CB_MASK) == HL_MMAP_CB_MASK) {
+		vma->vm_pgoff ^= HL_MMAP_CB_MASK;
+		return hl_cb_mmap(hpriv, vma);
+	}
+
+	return hpriv->hdev->asic_funcs->mmap(hpriv, vma);
+}
+
 static const struct file_operations hl_ops = {
 	.owner = THIS_MODULE,
 	.open = hl_device_open,
-	.release = hl_device_release
+	.release = hl_device_release,
+	.mmap = hl_mmap,
+	.unlocked_ioctl = hl_ioctl,
+	.compat_ioctl = hl_ioctl
 };
 
 /*
@@ -149,6 +174,8 @@ static int device_early_init(struct hl_device *hdev)
 	if (rc)
 		goto early_fini;
 
+	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
+
 	mutex_init(&hdev->fd_open_cnt_lock);
 	atomic_set(&hdev->fd_open_cnt, 0);
 
@@ -169,6 +196,8 @@ early_fini:
  */
 static void device_early_fini(struct hl_device *hdev)
 {
+
+	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 
 	hl_asid_fini(hdev);
 
@@ -284,11 +313,21 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto free_ctx;
 	}
 
+	rc = hl_cb_pool_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize CB pool\n");
+		goto release_ctx;
+	}
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
 	return 0;
 
+release_ctx:
+	if (hl_ctx_put(hdev->kernel_ctx) != 1)
+		dev_err(hdev->dev,
+			"kernel ctx is still alive on initialization failure\n");
 free_ctx:
 	kfree(hdev->kernel_ctx);
 sw_fini:
@@ -324,6 +363,8 @@ void hl_device_fini(struct hl_device *hdev)
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
+
+	hl_cb_pool_fini(hdev);
 
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))

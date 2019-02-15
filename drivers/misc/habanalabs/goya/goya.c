@@ -82,6 +82,9 @@
 
 #define GOYA_MAX_INITIATORS		20
 
+#define GOYA_CB_POOL_CB_CNT		512
+#define GOYA_CB_POOL_CB_SIZE		0x20000		/* 128KB */
+
 static void goya_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -109,6 +112,8 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
 	prop->high_pll = PLL_HIGH_DEFAULT;
+	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
+	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 }
 
 /*
@@ -597,6 +602,27 @@ int goya_resume(struct hl_device *hdev)
 	return 0;
 }
 
+int goya_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
+int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
+		u64 kaddress, phys_addr_t paddress, u32 size)
+{
+	int rc;
+
+	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+			VM_DONTCOPY | VM_NORESERVE;
+
+	rc = remap_pfn_range(vma, vma->vm_start, paddress >> PAGE_SHIFT,
+				size, vma->vm_page_prot);
+	if (rc)
+		dev_err(hdev->dev, "remap_pfn_range error %d", rc);
+
+	return rc;
+}
+
 void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags)
 {
@@ -616,6 +642,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.sw_fini = goya_sw_fini,
 	.suspend = goya_suspend,
 	.resume = goya_resume,
+	.mmap = goya_mmap,
+	.cb_mmap = goya_cb_mmap,
 	.dma_alloc_coherent = goya_dma_alloc_coherent,
 	.dma_free_coherent = goya_dma_free_coherent,
 };

@@ -14,9 +14,12 @@
 
 #define HL_NAME				"habanalabs"
 
+#define HL_MMAP_CB_MASK			(0x8000000000000000ull >> PAGE_SHIFT)
+
 #define HL_MAX_QUEUES			128
 
 struct hl_device;
+struct hl_fpriv;
 
 
 /**
@@ -44,6 +47,8 @@ struct hl_device;
  * @max_asid: maximum number of open contexts (ASIDs).
  * @completion_queues_count: number of completion queues.
  * @high_pll: high PLL frequency used by the device.
+ * @cb_pool_cb_cnt: number of CBs in the CB pool.
+ * @cb_pool_cb_size: size of each CB in the CB pool.
  * @tpc_enabled_mask: which TPCs are enabled.
  */
 struct asic_fixed_properties {
@@ -64,8 +69,57 @@ struct asic_fixed_properties {
 	u32			sram_size;
 	u32			max_asid;
 	u32			high_pll;
+	u32			cb_pool_cb_cnt;
+	u32			cb_pool_cb_size;
 	u8			completion_queues_count;
 	u8			tpc_enabled_mask;
+};
+
+
+/*
+ * Command Buffers
+ */
+
+#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
+
+/**
+ * struct hl_cb_mgr - describes a Command Buffer Manager.
+ * @cb_lock: protects cb_handles.
+ * @cb_handles: an idr to hold all command buffer handles.
+ */
+struct hl_cb_mgr {
+	spinlock_t		cb_lock;
+	struct idr		cb_handles; /* protected by cb_lock */
+};
+
+/**
+ * struct hl_cb - describes a Command Buffer.
+ * @refcount: reference counter for usage of the CB.
+ * @hdev: pointer to device this CB belongs to.
+ * @lock: spinlock to protect mmap/cs flows.
+ * @pool_list: node in pool list of command buffers.
+ * @kernel_address: Holds the CB's kernel virtual address.
+ * @bus_address: Holds the CB's DMA address.
+ * @mmap_size: Holds the CB's size that was mmaped.
+ * @size: holds the CB's size.
+ * @id: the CB's ID.
+ * @ctx_id: holds the ID of the owner's context.
+ * @mmap: true if the CB is currently mmaped to user.
+ * @is_pool: true if CB was acquired from the pool, false otherwise.
+ */
+struct hl_cb {
+	struct kref		refcount;
+	struct hl_device	*hdev;
+	spinlock_t		lock;
+	struct list_head	pool_list;
+	u64			kernel_address;
+	dma_addr_t		bus_address;
+	u32			mmap_size;
+	u32			size;
+	u32			id;
+	u32			ctx_id;
+	u8			mmap;
+	u8			is_pool;
 };
 
 
@@ -97,6 +151,8 @@ enum hl_asic_type {
  * @sw_fini: tears down driver state, does not configure H/W.
  * @suspend: handles IP specific H/W or SW changes for suspend.
  * @resume: handles IP specific H/W or SW changes for resume.
+ * @mmap: mmap function, does nothing.
+ * @cb_mmap: maps a CB.
  * @dma_alloc_coherent: Allocate coherent DMA memory by calling
  *                      dma_alloc_coherent(). This is ASIC function because its
  *                      implementation is not trivial when the driver is loaded
@@ -113,6 +169,9 @@ struct hl_asic_funcs {
 	int (*sw_fini)(struct hl_device *hdev);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
+	int (*mmap)(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
+	int (*cb_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
+			u64 kaddress, phys_addr_t paddress, u32 size);
 	void* (*dma_alloc_coherent)(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flag);
 	void (*dma_free_coherent)(struct hl_device *hdev, size_t size,
@@ -163,6 +222,7 @@ struct hl_ctx_mgr {
  * @taskpid: current process ID.
  * @ctx: current executing context.
  * @ctx_mgr: context manager to handle multiple context for this FD.
+ * @cb_mgr: command buffer manager to handle multiple buffers for this FD.
  * @refcount: number of related contexts.
  */
 struct hl_fpriv {
@@ -171,6 +231,7 @@ struct hl_fpriv {
 	struct pid		*taskpid;
 	struct hl_ctx		*ctx; /* TODO: remove for multiple ctx */
 	struct hl_ctx_mgr	ctx_mgr;
+	struct hl_cb_mgr	cb_mgr;
 	struct kref		refcount;
 };
 
@@ -225,6 +286,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @asic_name: ASIC specific nmae.
  * @asic_type: ASIC specific type.
  * @kernel_ctx: KMD context structure.
+ * @kernel_cb_mgr: command buffer manager for creating/destroying/handling CGs.
  * @dma_pool: DMA pool for small allocations.
  * @cpu_accessible_dma_mem: KMD <-> ArmCP shared memory CPU address.
  * @cpu_accessible_dma_address: KMD <-> ArmCP shared memory DMA address.
@@ -240,6 +302,8 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
+ * @cb_pool: list of preallocated CBs.
+ * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
  * @fd_open_cnt: number of open user processes.
  * @major: habanalabs KMD major.
@@ -255,6 +319,7 @@ struct hl_device {
 	char				asic_name[16];
 	enum hl_asic_type		asic_type;
 	struct hl_ctx			*kernel_ctx;
+	struct hl_cb_mgr		kernel_cb_mgr;
 	struct dma_pool			*dma_pool;
 	void				*cpu_accessible_dma_mem;
 	dma_addr_t			cpu_accessible_dma_address;
@@ -266,6 +331,10 @@ struct hl_device {
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
+
+	struct list_head		cb_pool;
+	spinlock_t			cb_pool_lock;
+
 	/* TODO: remove user_ctx for multiple process support */
 	struct hl_ctx			*user_ctx;
 	atomic_t			fd_open_cnt;
@@ -334,6 +403,23 @@ int hl_device_resume(struct hl_device *hdev);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 void hl_hpriv_put(struct hl_fpriv *hpriv);
 
+int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr, u32 cb_size,
+		u64 *handle, int ctx_id);
+int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle);
+int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
+struct hl_cb *hl_cb_get(struct hl_device *hdev,	struct hl_cb_mgr *mgr,
+			u32 handle);
+void hl_cb_put(struct hl_cb *cb);
+void hl_cb_mgr_init(struct hl_cb_mgr *mgr);
+void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr);
+struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size);
+int hl_cb_pool_init(struct hl_device *hdev);
+int hl_cb_pool_fini(struct hl_device *hdev);
+
 void goya_set_asic_funcs(struct hl_device *hdev);
+
+/* IOCTLs */
+long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data);
 
 #endif /* HABANALABSP_H_ */

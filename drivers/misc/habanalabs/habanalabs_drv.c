@@ -116,6 +116,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	kref_init(&hpriv->refcount);
 	nonseekable_open(inode, filp);
 
+	hl_cb_mgr_init(&hpriv->cb_mgr);
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
 
 	rc = hl_ctx_create(hdev, hpriv);
@@ -131,6 +132,7 @@ int hl_device_open(struct inode *inode, struct file *filp)
 out_err:
 	filp->private_data = NULL;
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
+	hl_cb_mgr_fini(hpriv->hdev, &hpriv->cb_mgr);
 	kfree(hpriv);
 
 close_device:
