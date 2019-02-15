@@ -152,6 +152,36 @@ static const struct baco_cmd_entry clean_baco_tbl[] =
 	{ CMD_WRITE, mmBIOS_SCRATCH_7, 0, 0, 0, 0 }
 };
 
+static const struct baco_cmd_entry gpio_tbl_iceland[] =
+{
+	{ CMD_WRITE, mmGPIOPAD_EN, 0, 0, 0, 0x0 },
+	{ CMD_WRITE, mmGPIOPAD_PD_EN, 0, 0, 0, 0x0 },
+	{ CMD_WRITE, mmGPIOPAD_PU_EN, 0, 0, 0, 0x0 },
+	{ CMD_WRITE, mmGPIOPAD_MASK, 0, 0, 0, 0xff77ffff }
+};
+
+static const struct baco_cmd_entry exit_baco_tbl_iceland[] =
+{
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_RESET_EN_MASK, BACO_CNTL__BACO_RESET_EN__SHIFT, 0, 0x01 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_BCLK_OFF_MASK, BACO_CNTL__BACO_BCLK_OFF__SHIFT, 0, 0x00 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_POWER_OFF_MASK, BACO_CNTL__BACO_POWER_OFF__SHIFT, 0, 0x00 },
+	{ CMD_DELAY_MS, 0, 0, 0, 20, 0 },
+	{ CMD_WAITFOR, mmBACO_CNTL, BACO_CNTL__PWRGOOD_BF_MASK, 0, 0xffffffff, 0x200 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_ISO_DIS_MASK, BACO_CNTL__BACO_ISO_DIS__SHIFT, 0, 0x01 },
+	{ CMD_WAITFOR, mmBACO_CNTL, BACO_CNTL__PWRGOOD_MASK, 0, 5, 0x1c00 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_ANA_ISO_DIS_MASK, BACO_CNTL__BACO_ANA_ISO_DIS__SHIFT, 0, 0x01 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_BIF_SCLK_SWITCH_MASK, BACO_CNTL__BACO_BIF_SCLK_SWITCH__SHIFT, 0, 0x00 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_RESET_EN_MASK, BACO_CNTL__BACO_RESET_EN__SHIFT, 0, 0x00 },
+	{ CMD_WAITFOR, mmBACO_CNTL, BACO_CNTL__RCU_BIF_CONFIG_DONE_MASK, 0, 5, 0x100 },
+	{ CMD_READMODIFYWRITE, mmBACO_CNTL, BACO_CNTL__BACO_EN_MASK, BACO_CNTL__BACO_EN__SHIFT, 0, 0x00 },
+	{ CMD_WAITFOR, mmBACO_CNTL, BACO_CNTL__BACO_MODE_MASK, 0, 0xffffffff, 0x00 }
+};
+
+static const struct baco_cmd_entry clean_baco_tbl_iceland[] =
+{
+	{ CMD_WRITE, mmBIOS_SCRATCH_7, 0, 0, 0, 0 }
+};
+
 int tonga_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
@@ -195,7 +225,10 @@ int tonga_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 		return 0;
 
 	if (state == BACO_STATE_IN) {
-		baco_program_registers(hwmgr, gpio_tbl, ARRAY_SIZE(gpio_tbl));
+		if (hwmgr->chip_id == CHIP_TOPAZ)
+			baco_program_registers(hwmgr, gpio_tbl_iceland, ARRAY_SIZE(gpio_tbl_iceland));
+		else
+			baco_program_registers(hwmgr, gpio_tbl, ARRAY_SIZE(gpio_tbl));
 		baco_program_registers(hwmgr, enable_fb_req_rej_tbl,
 				       ARRAY_SIZE(enable_fb_req_rej_tbl));
 		baco_program_registers(hwmgr, use_bclk_tbl, ARRAY_SIZE(use_bclk_tbl));
@@ -209,11 +242,20 @@ int tonga_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 		/* HW requires at least 20ms between regulator off and on */
 		msleep(20);
 		/* Execute Hardware BACO exit sequence */
-		if (baco_program_registers(hwmgr, exit_baco_tbl,
-					   ARRAY_SIZE(exit_baco_tbl))) {
-			if (baco_program_registers(hwmgr, clean_baco_tbl,
-						   ARRAY_SIZE(clean_baco_tbl)))
-				return 0;
+		if (hwmgr->chip_id == CHIP_TOPAZ) {
+			if (baco_program_registers(hwmgr, exit_baco_tbl_iceland,
+						   ARRAY_SIZE(exit_baco_tbl_iceland))) {
+				if (baco_program_registers(hwmgr, clean_baco_tbl_iceland,
+							   ARRAY_SIZE(clean_baco_tbl_iceland)))
+					return 0;
+			}
+		} else {
+			if (baco_program_registers(hwmgr, exit_baco_tbl,
+						   ARRAY_SIZE(exit_baco_tbl))) {
+				if (baco_program_registers(hwmgr, clean_baco_tbl,
+							   ARRAY_SIZE(clean_baco_tbl)))
+					return 0;
+			}
 		}
 	}
 
