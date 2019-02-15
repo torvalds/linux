@@ -339,7 +339,7 @@ info_from_header(const struct fwht_cframe_hdr *p_hdr)
 	unsigned int pixenc = 0;
 	unsigned int version = ntohl(p_hdr->version);
 
-	if (version == FWHT_VERSION) {
+	if (version >= 2) {
 		components_num = 1 + ((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
 				FWHT_FL_COMPONENTS_NUM_OFFSET);
 		pixenc = (flags & FWHT_FL_PIXENC_MSK);
@@ -362,7 +362,7 @@ static bool is_header_valid(const struct fwht_cframe_hdr *p_hdr)
 	if (w < MIN_WIDTH || w > MAX_WIDTH || h < MIN_HEIGHT || h > MAX_HEIGHT)
 		return false;
 
-	if (version == FWHT_VERSION) {
+	if (version >= 2) {
 		unsigned int components_num = 1 +
 			((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
 			FWHT_FL_COMPONENTS_NUM_OFFSET);

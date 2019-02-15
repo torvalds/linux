@@ -218,6 +218,8 @@ int v4l2_fwht_encode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 		flags |= FWHT_FL_CR_IS_UNCOMPRESSED;
 	if (encoding & FWHT_ALPHA_UNENCODED)
 		flags |= FWHT_FL_ALPHA_IS_UNCOMPRESSED;
+	if (!(encoding & FWHT_FRAME_PCODED))
+		flags |= FWHT_FL_I_FRAME;
 	if (rf.height_div == 1)
 		flags |= FWHT_FL_CHROMA_FULL_HEIGHT;
 	if (rf.width_div == 1)
@@ -265,7 +267,7 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 
 	flags = ntohl(state->header.flags);
 
-	if (version == FWHT_VERSION) {
+	if (version >= 2) {
 		if ((flags & FWHT_FL_PIXENC_MSK) != info->pixenc)
 			return -EINVAL;
 		components_num = 1 + ((flags & FWHT_FL_COMPONENTS_NUM_MSK) >>
