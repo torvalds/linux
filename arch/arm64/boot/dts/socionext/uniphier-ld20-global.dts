@@ -145,10 +145,10 @@
 	};
 };
 
-&nand {
+&usb {
 	status = "okay";
 };
 
-&usb {
+&nand {
 	status = "okay";
 };
