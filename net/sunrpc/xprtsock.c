@@ -405,8 +405,8 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 	size_t want, seek_init = seek, offset = 0;
 	ssize_t ret;
 
-	if (seek < buf->head[0].iov_len) {
-		want = min_t(size_t, count, buf->head[0].iov_len);
+	want = min_t(size_t, count, buf->head[0].iov_len);
+	if (seek < want) {
 		ret = xs_read_kvec(sock, msg, flags, &buf->head[0], want, seek);
 		if (ret <= 0)
 			goto sock_err;
@@ -417,8 +417,8 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 			goto out;
 		seek = 0;
 	} else {
-		seek -= buf->head[0].iov_len;
-		offset += buf->head[0].iov_len;
+		seek -= want;
+		offset += want;
 	}
 
 	want = xs_alloc_sparse_pages(buf,
@@ -443,8 +443,8 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		offset += want;
 	}
 
-	if (seek < buf->tail[0].iov_len) {
-		want = min_t(size_t, count - offset, buf->tail[0].iov_len);
+	want = min_t(size_t, count - offset, buf->tail[0].iov_len);
+	if (seek < want) {
 		ret = xs_read_kvec(sock, msg, flags, &buf->tail[0], want, seek);
 		if (ret <= 0)
 			goto sock_err;
@@ -454,7 +454,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (ret != want)
 			goto out;
 	} else
-		offset += buf->tail[0].iov_len;
+		offset = seek_init;
 	ret = -EMSGSIZE;
 out:
 	*read = offset - seek_init;
@@ -482,6 +482,14 @@ xs_read_stream_request_done(struct sock_xprt *transport)
 	return transport->recv.fraghdr & cpu_to_be32(RPC_LAST_STREAM_FRAGMENT);
 }
 
+static void
+xs_read_stream_check_eor(struct sock_xprt *transport,
+		struct msghdr *msg)
+{
+	if (xs_read_stream_request_done(transport))
+		msg->msg_flags |= MSG_EOR;
+}
+
 static ssize_t
 xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 		int flags, struct rpc_rqst *req)
@@ -493,16 +501,23 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 	xs_read_header(transport, buf);
 
 	want = transport->recv.len - transport->recv.offset;
-	ret = xs_read_xdr_buf(transport->sock, msg, flags, buf,
-			transport->recv.copied + want, transport->recv.copied,
-			&read);
-	transport->recv.offset += read;
-	transport->recv.copied += read;
+	if (want != 0) {
+		ret = xs_read_xdr_buf(transport->sock, msg, flags, buf,
+				transport->recv.copied + want,
+				transport->recv.copied,
+				&read);
+		transport->recv.offset += read;
+		transport->recv.copied += read;
+	} else
+		read = 0;
+
 	if (transport->recv.offset == transport->recv.len) {
-		if (xs_read_stream_request_done(transport))
-			msg->msg_flags |= MSG_EOR;
+		xs_read_stream_check_eor(transport, msg);
 		return read;
 	}
+
+	if (want == 0)
+		return 0;
 
 	switch (ret) {
 	default:
