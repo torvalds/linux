@@ -184,6 +184,12 @@ static const struct regulator_ops pv88060_ldo_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 };
 
+static const struct regulator_ops pv88060_sw_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+};
+
 #define PV88060_BUCK(chip, regl_name, min, step, max, limits_array) \
 {\
 	.desc	=	{\
@@ -237,9 +243,8 @@ static const struct regulator_ops pv88060_ldo_ops = {
 		.regulators_node = of_match_ptr("regulators"),\
 		.type = REGULATOR_VOLTAGE,\
 		.owner = THIS_MODULE,\
-		.ops = &pv88060_ldo_ops,\
-		.min_uV = max,\
-		.uV_step = 0,\
+		.ops = &pv88060_sw_ops,\
+		.fixed_uV = max,\
 		.n_voltages = 1,\
 		.enable_reg = PV88060_REG_##regl_name##_CONF,\
 		.enable_mask = PV88060_SW_EN,\
