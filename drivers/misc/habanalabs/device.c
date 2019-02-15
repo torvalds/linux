@@ -1,0 +1,340 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/*
+ * Copyright 2016-2019 HabanaLabs, Ltd.
+ * All Rights Reserved.
+ */
+
+#include "habanalabs.h"
+
+#include <linux/pci.h>
+#include <linux/delay.h>
+
+static void hpriv_release(struct kref *ref)
+{
+	struct hl_fpriv *hpriv;
+	struct hl_device *hdev;
+
+	hpriv = container_of(ref, struct hl_fpriv, refcount);
+
+	hdev = hpriv->hdev;
+
+	put_pid(hpriv->taskpid);
+
+	kfree(hpriv);
+}
+
+void hl_hpriv_get(struct hl_fpriv *hpriv)
+{
+	kref_get(&hpriv->refcount);
+}
+
+void hl_hpriv_put(struct hl_fpriv *hpriv)
+{
+	kref_put(&hpriv->refcount, hpriv_release);
+}
+
+/*
+ * hl_device_release - release function for habanalabs device
+ *
+ * @inode: pointer to inode structure
+ * @filp: pointer to file structure
+ *
+ * Called when process closes an habanalabs device
+ */
+static int hl_device_release(struct inode *inode, struct file *filp)
+{
+	struct hl_fpriv *hpriv = filp->private_data;
+
+	filp->private_data = NULL;
+
+	hl_hpriv_put(hpriv);
+
+	return 0;
+}
+
+static const struct file_operations hl_ops = {
+	.owner = THIS_MODULE,
+	.open = hl_device_open,
+	.release = hl_device_release
+};
+
+/*
+ * device_setup_cdev - setup cdev and device for habanalabs device
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @hclass: pointer to the class object of the device
+ * @minor: minor number of the specific device
+ * @fpos : file operations to install for this device
+ *
+ * Create a cdev and a Linux device for habanalabs's device. Need to be
+ * called at the end of the habanalabs device initialization process,
+ * because this function exposes the device to the user
+ */
+static int device_setup_cdev(struct hl_device *hdev, struct class *hclass,
+				int minor, const struct file_operations *fops)
+{
+	int err, devno = MKDEV(hdev->major, minor);
+	struct cdev *hdev_cdev = &hdev->cdev;
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "hl%d", hdev->id);
+	if (!name)
+		return -ENOMEM;
+
+	cdev_init(hdev_cdev, fops);
+	hdev_cdev->owner = THIS_MODULE;
+	err = cdev_add(hdev_cdev, devno, 1);
+	if (err) {
+		pr_err("Failed to add char device %s\n", name);
+		goto err_cdev_add;
+	}
+
+	hdev->dev = device_create(hclass, NULL, devno, NULL, "%s", name);
+	if (IS_ERR(hdev->dev)) {
+		pr_err("Failed to create device %s\n", name);
+		err = PTR_ERR(hdev->dev);
+		goto err_device_create;
+	}
+
+	dev_set_drvdata(hdev->dev, hdev);
+
+	kfree(name);
+
+	return 0;
+
+err_device_create:
+	cdev_del(hdev_cdev);
+err_cdev_add:
+	kfree(name);
+	return err;
+}
+
+/*
+ * device_early_init - do some early initialization for the habanalabs device
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Install the relevant function pointers and call the early_init function,
+ * if such a function exists
+ */
+static int device_early_init(struct hl_device *hdev)
+{
+	switch (hdev->asic_type) {
+	case ASIC_GOYA:
+		strlcpy(hdev->asic_name, "GOYA", sizeof(hdev->asic_name));
+		break;
+	default:
+		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
+			hdev->asic_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * device_early_fini - finalize all that was done in device_early_init
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ */
+static void device_early_fini(struct hl_device *hdev)
+{
+}
+
+/*
+ * hl_device_suspend - initiate device suspend
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Puts the hw in the suspend state (all asics).
+ * Returns 0 for success or an error on failure.
+ * Called at driver suspend.
+ */
+int hl_device_suspend(struct hl_device *hdev)
+{
+	pci_save_state(hdev->pdev);
+
+	/* Shut down the device */
+	pci_disable_device(hdev->pdev);
+	pci_set_power_state(hdev->pdev, PCI_D3hot);
+
+	return 0;
+}
+
+/*
+ * hl_device_resume - initiate device resume
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Bring the hw back to operating state (all asics).
+ * Returns 0 for success or an error on failure.
+ * Called at driver resume.
+ */
+int hl_device_resume(struct hl_device *hdev)
+{
+	int rc;
+
+	pci_set_power_state(hdev->pdev, PCI_D0);
+	pci_restore_state(hdev->pdev);
+	rc = pci_enable_device(hdev->pdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to enable PCI device in resume\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+/*
+ * hl_device_init - main initialization function for habanalabs device
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Allocate an id for the device, do early initialization and then call the
+ * ASIC specific initialization functions. Finally, create the cdev and the
+ * Linux device to expose it to the user
+ */
+int hl_device_init(struct hl_device *hdev, struct class *hclass)
+{
+	int rc;
+
+	/* Create device */
+	rc = device_setup_cdev(hdev, hclass, hdev->id, &hl_ops);
+
+	if (rc)
+		goto out_disabled;
+
+	/* Initialize ASIC function pointers and perform early init */
+	rc = device_early_init(hdev);
+	if (rc)
+		goto release_device;
+
+	dev_notice(hdev->dev,
+		"Successfully added device to habanalabs driver\n");
+
+	return 0;
+
+release_device:
+	device_destroy(hclass, hdev->dev->devt);
+	cdev_del(&hdev->cdev);
+out_disabled:
+	hdev->disabled = true;
+	if (hdev->pdev)
+		dev_err(&hdev->pdev->dev,
+			"Failed to initialize hl%d. Device is NOT usable !\n",
+			hdev->id);
+	else
+		pr_err("Failed to initialize hl%d. Device is NOT usable !\n",
+			hdev->id);
+
+	return rc;
+}
+
+/*
+ * hl_device_fini - main tear-down function for habanalabs device
+ *
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Destroy the device, call ASIC fini functions and release the id
+ */
+void hl_device_fini(struct hl_device *hdev)
+{
+	dev_info(hdev->dev, "Removing device\n");
+
+	/* Mark device as disabled */
+	hdev->disabled = true;
+
+	device_early_fini(hdev);
+
+	/* Hide device from user */
+	device_destroy(hdev->dev->class, hdev->dev->devt);
+	cdev_del(&hdev->cdev);
+
+	pr_info("removed device successfully\n");
+}
+
+/*
+ * hl_poll_timeout_memory - Periodically poll a host memory address
+ *                              until it is not zero or a timeout occurs
+ * @hdev: pointer to habanalabs device structure
+ * @addr: Address to poll
+ * @timeout_us: timeout in us
+ * @val: Variable to read the value into
+ *
+ * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
+ * case, the last read value at @addr is stored in @val. Must not
+ * be called from atomic context if sleep_us or timeout_us are used.
+ *
+ * The function sleeps for 100us with timeout value of
+ * timeout_us
+ */
+int hl_poll_timeout_memory(struct hl_device *hdev, u64 addr,
+				u32 timeout_us, u32 *val)
+{
+	/*
+	 * address in this function points always to a memory location in the
+	 * host's (server's) memory. That location is updated asynchronously
+	 * either by the direct access of the device or by another core
+	 */
+	u32 *paddr = (u32 *) (uintptr_t) addr;
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
+
+	might_sleep();
+
+	for (;;) {
+		/*
+		 * Flush CPU read/write buffers to make sure we read updates
+		 * done by other cores or by the device
+		 */
+		mb();
+		*val = *paddr;
+		if (*val)
+			break;
+		if (ktime_compare(ktime_get(), timeout) > 0) {
+			*val = *paddr;
+			break;
+		}
+		usleep_range((100 >> 2) + 1, 100);
+	}
+
+	return *val ? 0 : -ETIMEDOUT;
+}
+
+/*
+ * hl_poll_timeout_devicememory - Periodically poll a device memory address
+ *                                until it is not zero or a timeout occurs
+ * @hdev: pointer to habanalabs device structure
+ * @addr: Device address to poll
+ * @timeout_us: timeout in us
+ * @val: Variable to read the value into
+ *
+ * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
+ * case, the last read value at @addr is stored in @val. Must not
+ * be called from atomic context if sleep_us or timeout_us are used.
+ *
+ * The function sleeps for 100us with timeout value of
+ * timeout_us
+ */
+int hl_poll_timeout_device_memory(struct hl_device *hdev, void __iomem *addr,
+				u32 timeout_us, u32 *val)
+{
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us);
+
+	might_sleep();
+
+	for (;;) {
+		*val = readl(addr);
+		if (*val)
+			break;
+		if (ktime_compare(ktime_get(), timeout) > 0) {
+			*val = readl(addr);
+			break;
+		}
+		usleep_range((100 >> 2) + 1, 100);
+	}
+
+	return *val ? 0 : -ETIMEDOUT;
+}
