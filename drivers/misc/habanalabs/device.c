@@ -319,6 +319,15 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto release_ctx;
 	}
 
+	rc = hdev->asic_funcs->hw_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize the H/W\n");
+		rc = 0;
+		goto out_disabled;
+	}
+
+	hdev->disabled = false;
+
 	dev_notice(hdev->dev,
 		"Successfully added device to habanalabs driver\n");
 
@@ -369,6 +378,9 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
+
+	/* Reset the H/W. It will be in idle state after this returns */
+	hdev->asic_funcs->hw_fini(hdev, true);
 
 	/* Call ASIC S/W finalize function */
 	hdev->asic_funcs->sw_fini(hdev);

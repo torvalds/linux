@@ -167,7 +167,14 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->major = hl_major;
 
 	/* Parameters for bring-up - set them to defaults */
+	hdev->cpu_enable = 1;
 	hdev->reset_pcilink = 0;
+	hdev->fw_loading = 1;
+	hdev->pldm = 0;
+
+	/* If CPU is disabled, no point in loading FW */
+	if (!hdev->cpu_enable)
+		hdev->fw_loading = 0;
 
 	hdev->disabled = true;
 	hdev->pdev = pdev; /* can be NULL in case of simulator device */

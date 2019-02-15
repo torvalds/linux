@@ -8,13 +8,18 @@
 #ifndef HABANALABSP_H_
 #define HABANALABSP_H_
 
+#include "include/armcp_if.h"
+
 #define pr_fmt(fmt)			"habanalabs: " fmt
 
 #include <linux/cdev.h>
+#include <linux/iopoll.h>
 
 #define HL_NAME				"habanalabs"
 
 #define HL_MMAP_CB_MASK			(0x8000000000000000ull >> PAGE_SHIFT)
+
+#define HL_DEVICE_TIMEOUT_USEC		1000000 /* 1 s */
 
 #define HL_MAX_QUEUES			128
 
@@ -24,6 +29,8 @@ struct hl_fpriv;
 
 /**
  * struct asic_fixed_properties - ASIC specific immutable properties.
+ * @uboot_ver: F/W U-boot version.
+ * @preboot_ver: F/W Preboot version.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -52,6 +59,8 @@ struct hl_fpriv;
  * @tpc_enabled_mask: which TPCs are enabled.
  */
 struct asic_fixed_properties {
+	char			uboot_ver[VERSION_MAX_LEN];
+	char			preboot_ver[VERSION_MAX_LEN];
 	u64			sram_base_address;
 	u64			sram_end_address;
 	u64			sram_user_base_address;
@@ -149,6 +158,8 @@ enum hl_asic_type {
  * @early_fini: tears down what was done in early_init.
  * @sw_init: sets up driver state, does not configure H/W.
  * @sw_fini: tears down driver state, does not configure H/W.
+ * @hw_init: sets up the H/W state.
+ * @hw_fini: tears down the H/W state.
  * @suspend: handles IP specific H/W or SW changes for suspend.
  * @resume: handles IP specific H/W or SW changes for resume.
  * @mmap: mmap function, does nothing.
@@ -167,6 +178,8 @@ struct hl_asic_funcs {
 	int (*early_fini)(struct hl_device *hdev);
 	int (*sw_init)(struct hl_device *hdev);
 	int (*sw_fini)(struct hl_device *hdev);
+	int (*hw_init)(struct hl_device *hdev);
+	void (*hw_fini)(struct hl_device *hdev, bool hard_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
 	int (*mmap)(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
@@ -343,7 +356,10 @@ struct hl_device {
 	u8				disabled;
 
 	/* Parameters for bring-up */
+	u8				cpu_enable;
 	u8				reset_pcilink;
+	u8				fw_loading;
+	u8				pldm;
 };
 
 

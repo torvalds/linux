@@ -9,8 +9,10 @@
 #include "include/goya/asic_reg/goya_masks.h"
 
 #include <linux/pci.h>
-#include <linux/delay.h>
 #include <linux/genalloc.h>
+#include <linux/firmware.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 
 /*
  * GOYA security scheme:
@@ -109,11 +111,11 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->va_space_dram_end_address = VA_DDR_SPACE_END;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
+	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
+	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
 	prop->high_pll = PLL_HIGH_DEFAULT;
-	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
-	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 }
 
 /*
@@ -458,10 +460,12 @@ static int goya_early_init(struct hl_device *hdev)
 		goto disable_device;
 	}
 
-	val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
-	if (val & PSOC_GLOBAL_CONF_BOOT_STRAP_PINS_SRIOV_EN_MASK)
-		dev_warn(hdev->dev,
-			"PCI strap is not configured correctly, PCI bus errors may occur\n");
+	if (!hdev->pldm) {
+		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
+		if (val & PSOC_GLOBAL_CONF_BOOT_STRAP_PINS_SRIOV_EN_MASK)
+			dev_warn(hdev->dev,
+				"PCI strap is not configured correctly, PCI bus errors may occur\n");
+	}
 
 	return 0;
 
@@ -592,6 +596,868 @@ int goya_sw_fini(struct hl_device *hdev)
 	return 0;
 }
 
+static void goya_set_pll_refclk(struct hl_device *hdev)
+{
+	WREG32(mmCPU_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmCPU_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmCPU_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmCPU_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmIC_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmIC_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmIC_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmIC_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmMC_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmMC_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmMC_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmMC_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmPSOC_MME_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmPSOC_MME_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmPSOC_MME_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmPSOC_MME_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmPSOC_PCI_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmPSOC_PCI_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmPSOC_PCI_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmPSOC_PCI_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmPSOC_EMMC_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmPSOC_EMMC_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmPSOC_EMMC_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmPSOC_EMMC_PLL_DIV_SEL_3, 0x0);
+
+	WREG32(mmTPC_PLL_DIV_SEL_0, 0x0);
+	WREG32(mmTPC_PLL_DIV_SEL_1, 0x0);
+	WREG32(mmTPC_PLL_DIV_SEL_2, 0x0);
+	WREG32(mmTPC_PLL_DIV_SEL_3, 0x0);
+}
+
+static void goya_disable_clk_rlx(struct hl_device *hdev)
+{
+	WREG32(mmPSOC_MME_PLL_CLK_RLX_0, 0x100010);
+	WREG32(mmIC_PLL_CLK_RLX_0, 0x100010);
+}
+
+static void _goya_tpc_mbist_workaround(struct hl_device *hdev, u8 tpc_id)
+{
+	u64 tpc_eml_address;
+	u32 val, tpc_offset, tpc_eml_offset, tpc_slm_offset;
+	int err, slm_index;
+
+	tpc_offset = tpc_id * 0x40000;
+	tpc_eml_offset = tpc_id * 0x200000;
+	tpc_eml_address = (mmTPC0_EML_CFG_BASE + tpc_eml_offset - CFG_BASE);
+	tpc_slm_offset = tpc_eml_address + 0x100000;
+
+	/*
+	 * Workaround for Bug H2 #2443 :
+	 * "TPC SB is not initialized on chip reset"
+	 */
+
+	val = RREG32(mmTPC0_CFG_FUNC_MBIST_CNTRL + tpc_offset);
+	if (val & TPC0_CFG_FUNC_MBIST_CNTRL_MBIST_ACTIVE_MASK)
+		dev_warn(hdev->dev, "TPC%d MBIST ACTIVE is not cleared\n",
+			tpc_id);
+
+	WREG32(mmTPC0_CFG_FUNC_MBIST_PAT + tpc_offset, val & 0xFFFFF000);
+
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_0 + tpc_offset, 0x37FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_1 + tpc_offset, 0x303F);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_2 + tpc_offset, 0x71FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_3 + tpc_offset, 0x71FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_4 + tpc_offset, 0x70FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_5 + tpc_offset, 0x70FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_6 + tpc_offset, 0x70FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_7 + tpc_offset, 0x70FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_8 + tpc_offset, 0x70FF);
+	WREG32(mmTPC0_CFG_FUNC_MBIST_MEM_9 + tpc_offset, 0x70FF);
+
+	WREG32_OR(mmTPC0_CFG_FUNC_MBIST_CNTRL + tpc_offset,
+		1 << TPC0_CFG_FUNC_MBIST_CNTRL_MBIST_START_SHIFT);
+
+	err = hl_poll_timeout(
+		hdev,
+		mmTPC0_CFG_FUNC_MBIST_CNTRL + tpc_offset,
+		val,
+		(val & TPC0_CFG_FUNC_MBIST_CNTRL_MBIST_DONE_MASK),
+		1000,
+		HL_DEVICE_TIMEOUT_USEC);
+
+	if (err)
+		dev_err(hdev->dev,
+			"Timeout while waiting for TPC%d MBIST DONE\n", tpc_id);
+
+	WREG32_OR(mmTPC0_EML_CFG_DBG_CNT + tpc_eml_offset,
+		1 << TPC0_EML_CFG_DBG_CNT_CORE_RST_SHIFT);
+
+	msleep(GOYA_RESET_WAIT_MSEC);
+
+	WREG32_AND(mmTPC0_EML_CFG_DBG_CNT + tpc_eml_offset,
+		~(1 << TPC0_EML_CFG_DBG_CNT_CORE_RST_SHIFT));
+
+	msleep(GOYA_RESET_WAIT_MSEC);
+
+	for (slm_index = 0 ; slm_index < 256 ; slm_index++)
+		WREG32(tpc_slm_offset + (slm_index << 2), 0);
+
+	val = RREG32(tpc_slm_offset);
+}
+
+static void goya_tpc_mbist_workaround(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	int i;
+
+	if (hdev->pldm)
+		return;
+
+	if (goya->hw_cap_initialized & HW_CAP_TPC_MBIST)
+		return;
+
+	/* Workaround for H2 #2443 */
+
+	for (i = 0 ; i < TPC_MAX_NUM ; i++)
+		_goya_tpc_mbist_workaround(hdev, i);
+
+	goya->hw_cap_initialized |= HW_CAP_TPC_MBIST;
+}
+
+/*
+ * goya_init_golden_registers - Initialize golden registers
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ * Initialize the H/W registers of the device
+ *
+ */
+static void goya_init_golden_registers(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u32 polynom[10], tpc_intr_mask, offset;
+	int i;
+
+	if (goya->hw_cap_initialized & HW_CAP_GOLDEN)
+		return;
+
+	polynom[0] = 0x00020080;
+	polynom[1] = 0x00401000;
+	polynom[2] = 0x00200800;
+	polynom[3] = 0x00002000;
+	polynom[4] = 0x00080200;
+	polynom[5] = 0x00040100;
+	polynom[6] = 0x00100400;
+	polynom[7] = 0x00004000;
+	polynom[8] = 0x00010000;
+	polynom[9] = 0x00008000;
+
+	/* Mask all arithmetic interrupts from TPC */
+	tpc_intr_mask = 0x7FFF;
+
+	for (i = 0, offset = 0 ; i < 6 ; i++, offset += 0x20000) {
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_RD_RQ_L_ARB + offset, 0x302);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_RD_RQ_L_ARB + offset, 0x302);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_RD_RQ_L_ARB + offset, 0x302);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_RD_RQ_L_ARB + offset, 0x302);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_RD_RQ_L_ARB + offset, 0x302);
+
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_DATA_L_ARB + offset, 0x204);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_DATA_L_ARB + offset, 0x204);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_DATA_L_ARB + offset, 0x204);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_DATA_L_ARB + offset, 0x204);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_DATA_L_ARB + offset, 0x204);
+
+
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_DATA_E_ARB + offset, 0x206);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_DATA_E_ARB + offset, 0x206);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_DATA_E_ARB + offset, 0x206);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_DATA_E_ARB + offset, 0x207);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_DATA_E_ARB + offset, 0x207);
+
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_DATA_W_ARB + offset, 0x207);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_DATA_W_ARB + offset, 0x207);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_DATA_W_ARB + offset, 0x206);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_DATA_W_ARB + offset, 0x206);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_DATA_W_ARB + offset, 0x206);
+
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_WR_RS_E_ARB + offset, 0x101);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_WR_RS_E_ARB + offset, 0x102);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_WR_RS_E_ARB + offset, 0x103);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_WR_RS_E_ARB + offset, 0x104);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_WR_RS_E_ARB + offset, 0x105);
+
+		WREG32(mmSRAM_Y0_X0_RTR_HBW_WR_RS_W_ARB + offset, 0x105);
+		WREG32(mmSRAM_Y0_X1_RTR_HBW_WR_RS_W_ARB + offset, 0x104);
+		WREG32(mmSRAM_Y0_X2_RTR_HBW_WR_RS_W_ARB + offset, 0x103);
+		WREG32(mmSRAM_Y0_X3_RTR_HBW_WR_RS_W_ARB + offset, 0x102);
+		WREG32(mmSRAM_Y0_X4_RTR_HBW_WR_RS_W_ARB + offset, 0x101);
+	}
+
+	WREG32(mmMME_STORE_MAX_CREDIT, 0x21);
+	WREG32(mmMME_AGU, 0x0f0f0f10);
+	WREG32(mmMME_SEI_MASK, ~0x0);
+
+	WREG32(mmMME6_RTR_HBW_RD_RQ_N_ARB, 0x01010101);
+	WREG32(mmMME5_RTR_HBW_RD_RQ_N_ARB, 0x01040101);
+	WREG32(mmMME4_RTR_HBW_RD_RQ_N_ARB, 0x01030101);
+	WREG32(mmMME3_RTR_HBW_RD_RQ_N_ARB, 0x01020101);
+	WREG32(mmMME2_RTR_HBW_RD_RQ_N_ARB, 0x01010101);
+	WREG32(mmMME1_RTR_HBW_RD_RQ_N_ARB, 0x07010701);
+	WREG32(mmMME6_RTR_HBW_RD_RQ_S_ARB, 0x04010401);
+	WREG32(mmMME5_RTR_HBW_RD_RQ_S_ARB, 0x04050401);
+	WREG32(mmMME4_RTR_HBW_RD_RQ_S_ARB, 0x03070301);
+	WREG32(mmMME3_RTR_HBW_RD_RQ_S_ARB, 0x01030101);
+	WREG32(mmMME2_RTR_HBW_RD_RQ_S_ARB, 0x01040101);
+	WREG32(mmMME1_RTR_HBW_RD_RQ_S_ARB, 0x01050105);
+	WREG32(mmMME6_RTR_HBW_RD_RQ_W_ARB, 0x01010501);
+	WREG32(mmMME5_RTR_HBW_RD_RQ_W_ARB, 0x01010501);
+	WREG32(mmMME4_RTR_HBW_RD_RQ_W_ARB, 0x01040301);
+	WREG32(mmMME3_RTR_HBW_RD_RQ_W_ARB, 0x01030401);
+	WREG32(mmMME2_RTR_HBW_RD_RQ_W_ARB, 0x01040101);
+	WREG32(mmMME1_RTR_HBW_RD_RQ_W_ARB, 0x01050101);
+	WREG32(mmMME6_RTR_HBW_WR_RQ_N_ARB, 0x02020202);
+	WREG32(mmMME5_RTR_HBW_WR_RQ_N_ARB, 0x01070101);
+	WREG32(mmMME4_RTR_HBW_WR_RQ_N_ARB, 0x02020201);
+	WREG32(mmMME3_RTR_HBW_WR_RQ_N_ARB, 0x07020701);
+	WREG32(mmMME2_RTR_HBW_WR_RQ_N_ARB, 0x01020101);
+	WREG32(mmMME1_RTR_HBW_WR_RQ_S_ARB, 0x01010101);
+	WREG32(mmMME6_RTR_HBW_WR_RQ_S_ARB, 0x01070101);
+	WREG32(mmMME5_RTR_HBW_WR_RQ_S_ARB, 0x01070101);
+	WREG32(mmMME4_RTR_HBW_WR_RQ_S_ARB, 0x07020701);
+	WREG32(mmMME3_RTR_HBW_WR_RQ_S_ARB, 0x02020201);
+	WREG32(mmMME2_RTR_HBW_WR_RQ_S_ARB, 0x01070101);
+	WREG32(mmMME1_RTR_HBW_WR_RQ_S_ARB, 0x01020102);
+	WREG32(mmMME6_RTR_HBW_WR_RQ_W_ARB, 0x01020701);
+	WREG32(mmMME5_RTR_HBW_WR_RQ_W_ARB, 0x01020701);
+	WREG32(mmMME4_RTR_HBW_WR_RQ_W_ARB, 0x07020707);
+	WREG32(mmMME3_RTR_HBW_WR_RQ_W_ARB, 0x01020201);
+	WREG32(mmMME2_RTR_HBW_WR_RQ_W_ARB, 0x01070201);
+	WREG32(mmMME1_RTR_HBW_WR_RQ_W_ARB, 0x01070201);
+	WREG32(mmMME6_RTR_HBW_RD_RS_N_ARB, 0x01070102);
+	WREG32(mmMME5_RTR_HBW_RD_RS_N_ARB, 0x01070102);
+	WREG32(mmMME4_RTR_HBW_RD_RS_N_ARB, 0x01060102);
+	WREG32(mmMME3_RTR_HBW_RD_RS_N_ARB, 0x01040102);
+	WREG32(mmMME2_RTR_HBW_RD_RS_N_ARB, 0x01020102);
+	WREG32(mmMME1_RTR_HBW_RD_RS_N_ARB, 0x01020107);
+	WREG32(mmMME6_RTR_HBW_RD_RS_S_ARB, 0x01020106);
+	WREG32(mmMME5_RTR_HBW_RD_RS_S_ARB, 0x01020102);
+	WREG32(mmMME4_RTR_HBW_RD_RS_S_ARB, 0x01040102);
+	WREG32(mmMME3_RTR_HBW_RD_RS_S_ARB, 0x01060102);
+	WREG32(mmMME2_RTR_HBW_RD_RS_S_ARB, 0x01070102);
+	WREG32(mmMME1_RTR_HBW_RD_RS_S_ARB, 0x01070102);
+	WREG32(mmMME6_RTR_HBW_RD_RS_E_ARB, 0x01020702);
+	WREG32(mmMME5_RTR_HBW_RD_RS_E_ARB, 0x01020702);
+	WREG32(mmMME4_RTR_HBW_RD_RS_E_ARB, 0x01040602);
+	WREG32(mmMME3_RTR_HBW_RD_RS_E_ARB, 0x01060402);
+	WREG32(mmMME2_RTR_HBW_RD_RS_E_ARB, 0x01070202);
+	WREG32(mmMME1_RTR_HBW_RD_RS_E_ARB, 0x01070102);
+	WREG32(mmMME6_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME5_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME4_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME3_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME2_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME1_RTR_HBW_RD_RS_W_ARB, 0x01060401);
+	WREG32(mmMME6_RTR_HBW_WR_RS_N_ARB, 0x01050101);
+	WREG32(mmMME5_RTR_HBW_WR_RS_N_ARB, 0x01040101);
+	WREG32(mmMME4_RTR_HBW_WR_RS_N_ARB, 0x01030101);
+	WREG32(mmMME3_RTR_HBW_WR_RS_N_ARB, 0x01020101);
+	WREG32(mmMME2_RTR_HBW_WR_RS_N_ARB, 0x01010101);
+	WREG32(mmMME1_RTR_HBW_WR_RS_N_ARB, 0x01010107);
+	WREG32(mmMME6_RTR_HBW_WR_RS_S_ARB, 0x01010107);
+	WREG32(mmMME5_RTR_HBW_WR_RS_S_ARB, 0x01010101);
+	WREG32(mmMME4_RTR_HBW_WR_RS_S_ARB, 0x01020101);
+	WREG32(mmMME3_RTR_HBW_WR_RS_S_ARB, 0x01030101);
+	WREG32(mmMME2_RTR_HBW_WR_RS_S_ARB, 0x01040101);
+	WREG32(mmMME1_RTR_HBW_WR_RS_S_ARB, 0x01050101);
+	WREG32(mmMME6_RTR_HBW_WR_RS_E_ARB, 0x01010501);
+	WREG32(mmMME5_RTR_HBW_WR_RS_E_ARB, 0x01010501);
+	WREG32(mmMME4_RTR_HBW_WR_RS_E_ARB, 0x01040301);
+	WREG32(mmMME3_RTR_HBW_WR_RS_E_ARB, 0x01030401);
+	WREG32(mmMME2_RTR_HBW_WR_RS_E_ARB, 0x01040101);
+	WREG32(mmMME1_RTR_HBW_WR_RS_E_ARB, 0x01050101);
+	WREG32(mmMME6_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+	WREG32(mmMME5_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+	WREG32(mmMME4_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+	WREG32(mmMME3_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+	WREG32(mmMME2_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+	WREG32(mmMME1_RTR_HBW_WR_RS_W_ARB, 0x01010101);
+
+	WREG32(mmTPC1_RTR_HBW_RD_RQ_N_ARB, 0x01010101);
+	WREG32(mmTPC1_RTR_HBW_RD_RQ_S_ARB, 0x01010101);
+	WREG32(mmTPC1_RTR_HBW_RD_RQ_E_ARB, 0x01060101);
+	WREG32(mmTPC1_RTR_HBW_WR_RQ_N_ARB, 0x02020102);
+	WREG32(mmTPC1_RTR_HBW_WR_RQ_S_ARB, 0x01010101);
+	WREG32(mmTPC1_RTR_HBW_WR_RQ_E_ARB, 0x02070202);
+	WREG32(mmTPC1_RTR_HBW_RD_RS_N_ARB, 0x01020201);
+	WREG32(mmTPC1_RTR_HBW_RD_RS_S_ARB, 0x01070201);
+	WREG32(mmTPC1_RTR_HBW_RD_RS_W_ARB, 0x01070202);
+	WREG32(mmTPC1_RTR_HBW_WR_RS_N_ARB, 0x01010101);
+	WREG32(mmTPC1_RTR_HBW_WR_RS_S_ARB, 0x01050101);
+	WREG32(mmTPC1_RTR_HBW_WR_RS_W_ARB, 0x01050101);
+
+	WREG32(mmTPC2_RTR_HBW_RD_RQ_N_ARB, 0x01020101);
+	WREG32(mmTPC2_RTR_HBW_RD_RQ_S_ARB, 0x01050101);
+	WREG32(mmTPC2_RTR_HBW_RD_RQ_E_ARB, 0x01010201);
+	WREG32(mmTPC2_RTR_HBW_WR_RQ_N_ARB, 0x02040102);
+	WREG32(mmTPC2_RTR_HBW_WR_RQ_S_ARB, 0x01050101);
+	WREG32(mmTPC2_RTR_HBW_WR_RQ_E_ARB, 0x02060202);
+	WREG32(mmTPC2_RTR_HBW_RD_RS_N_ARB, 0x01020201);
+	WREG32(mmTPC2_RTR_HBW_RD_RS_S_ARB, 0x01070201);
+	WREG32(mmTPC2_RTR_HBW_RD_RS_W_ARB, 0x01070202);
+	WREG32(mmTPC2_RTR_HBW_WR_RS_N_ARB, 0x01010101);
+	WREG32(mmTPC2_RTR_HBW_WR_RS_S_ARB, 0x01040101);
+	WREG32(mmTPC2_RTR_HBW_WR_RS_W_ARB, 0x01040101);
+
+	WREG32(mmTPC3_RTR_HBW_RD_RQ_N_ARB, 0x01030101);
+	WREG32(mmTPC3_RTR_HBW_RD_RQ_S_ARB, 0x01040101);
+	WREG32(mmTPC3_RTR_HBW_RD_RQ_E_ARB, 0x01040301);
+	WREG32(mmTPC3_RTR_HBW_WR_RQ_N_ARB, 0x02060102);
+	WREG32(mmTPC3_RTR_HBW_WR_RQ_S_ARB, 0x01040101);
+	WREG32(mmTPC3_RTR_HBW_WR_RQ_E_ARB, 0x01040301);
+	WREG32(mmTPC3_RTR_HBW_RD_RS_N_ARB, 0x01040201);
+	WREG32(mmTPC3_RTR_HBW_RD_RS_S_ARB, 0x01060201);
+	WREG32(mmTPC3_RTR_HBW_RD_RS_W_ARB, 0x01060402);
+	WREG32(mmTPC3_RTR_HBW_WR_RS_N_ARB, 0x01020101);
+	WREG32(mmTPC3_RTR_HBW_WR_RS_S_ARB, 0x01030101);
+	WREG32(mmTPC3_RTR_HBW_WR_RS_W_ARB, 0x01030401);
+
+	WREG32(mmTPC4_RTR_HBW_RD_RQ_N_ARB, 0x01040101);
+	WREG32(mmTPC4_RTR_HBW_RD_RQ_S_ARB, 0x01030101);
+	WREG32(mmTPC4_RTR_HBW_RD_RQ_E_ARB, 0x01030401);
+	WREG32(mmTPC4_RTR_HBW_WR_RQ_N_ARB, 0x02070102);
+	WREG32(mmTPC4_RTR_HBW_WR_RQ_S_ARB, 0x01030101);
+	WREG32(mmTPC4_RTR_HBW_WR_RQ_E_ARB, 0x02060702);
+	WREG32(mmTPC4_RTR_HBW_RD_RS_N_ARB, 0x01060201);
+	WREG32(mmTPC4_RTR_HBW_RD_RS_S_ARB, 0x01040201);
+	WREG32(mmTPC4_RTR_HBW_RD_RS_W_ARB, 0x01040602);
+	WREG32(mmTPC4_RTR_HBW_WR_RS_N_ARB, 0x01030101);
+	WREG32(mmTPC4_RTR_HBW_WR_RS_S_ARB, 0x01020101);
+	WREG32(mmTPC4_RTR_HBW_WR_RS_W_ARB, 0x01040301);
+
+	WREG32(mmTPC5_RTR_HBW_RD_RQ_N_ARB, 0x01050101);
+	WREG32(mmTPC5_RTR_HBW_RD_RQ_S_ARB, 0x01020101);
+	WREG32(mmTPC5_RTR_HBW_RD_RQ_E_ARB, 0x01200501);
+	WREG32(mmTPC5_RTR_HBW_WR_RQ_N_ARB, 0x02070102);
+	WREG32(mmTPC5_RTR_HBW_WR_RQ_S_ARB, 0x01020101);
+	WREG32(mmTPC5_RTR_HBW_WR_RQ_E_ARB, 0x02020602);
+	WREG32(mmTPC5_RTR_HBW_RD_RS_N_ARB, 0x01070201);
+	WREG32(mmTPC5_RTR_HBW_RD_RS_S_ARB, 0x01020201);
+	WREG32(mmTPC5_RTR_HBW_RD_RS_W_ARB, 0x01020702);
+	WREG32(mmTPC5_RTR_HBW_WR_RS_N_ARB, 0x01040101);
+	WREG32(mmTPC5_RTR_HBW_WR_RS_S_ARB, 0x01010101);
+	WREG32(mmTPC5_RTR_HBW_WR_RS_W_ARB, 0x01010501);
+
+	WREG32(mmTPC6_RTR_HBW_RD_RQ_N_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_RD_RQ_S_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_RD_RQ_E_ARB, 0x01010601);
+	WREG32(mmTPC6_RTR_HBW_WR_RQ_N_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_WR_RQ_S_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_WR_RQ_E_ARB, 0x02020702);
+	WREG32(mmTPC6_RTR_HBW_RD_RS_N_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_RD_RS_S_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_RD_RS_W_ARB, 0x01020702);
+	WREG32(mmTPC6_RTR_HBW_WR_RS_N_ARB, 0x01050101);
+	WREG32(mmTPC6_RTR_HBW_WR_RS_S_ARB, 0x01010101);
+	WREG32(mmTPC6_RTR_HBW_WR_RS_W_ARB, 0x01010501);
+
+	for (i = 0, offset = 0 ; i < 10 ; i++, offset += 4) {
+		WREG32(mmMME1_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME2_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME3_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME4_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME5_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmMME6_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+
+		WREG32(mmTPC0_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC1_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC2_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC3_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC4_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC5_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC6_RTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmTPC7_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+
+		WREG32(mmPCI_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+		WREG32(mmDMA_NRTR_SPLIT_COEF_0 + offset, polynom[i] >> 7);
+	}
+
+	for (i = 0, offset = 0 ; i < 6 ; i++, offset += 0x40000) {
+		WREG32(mmMME1_RTR_SCRAMB_EN + offset,
+				1 << MME1_RTR_SCRAMB_EN_VAL_SHIFT);
+		WREG32(mmMME1_RTR_NON_LIN_SCRAMB + offset,
+				1 << MME1_RTR_NON_LIN_SCRAMB_EN_SHIFT);
+	}
+
+	for (i = 0, offset = 0 ; i < 8 ; i++, offset += 0x40000) {
+		/*
+		 * Workaround for Bug H2 #2441 :
+		 * "ST.NOP set trace event illegal opcode"
+		 */
+		WREG32(mmTPC0_CFG_TPC_INTR_MASK + offset, tpc_intr_mask);
+
+		WREG32(mmTPC0_NRTR_SCRAMB_EN + offset,
+				1 << TPC0_NRTR_SCRAMB_EN_VAL_SHIFT);
+		WREG32(mmTPC0_NRTR_NON_LIN_SCRAMB + offset,
+				1 << TPC0_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
+	}
+
+	WREG32(mmDMA_NRTR_SCRAMB_EN, 1 << DMA_NRTR_SCRAMB_EN_VAL_SHIFT);
+	WREG32(mmDMA_NRTR_NON_LIN_SCRAMB,
+			1 << DMA_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
+
+	WREG32(mmPCI_NRTR_SCRAMB_EN, 1 << PCI_NRTR_SCRAMB_EN_VAL_SHIFT);
+	WREG32(mmPCI_NRTR_NON_LIN_SCRAMB,
+			1 << PCI_NRTR_NON_LIN_SCRAMB_EN_SHIFT);
+
+	/*
+	 * Workaround for H2 #HW-23 bug
+	 * Set DMA max outstanding read requests to 240 on DMA CH 1. Set it
+	 * to 16 on KMD DMA
+	 * We need to limit only these DMAs because the user can only read
+	 * from Host using DMA CH 1
+	 */
+	WREG32(mmDMA_CH_0_CFG0, 0x0fff0010);
+	WREG32(mmDMA_CH_1_CFG0, 0x0fff00F0);
+
+	goya->hw_cap_initialized |= HW_CAP_GOLDEN;
+}
+
+
+/*
+ * goya_push_fw_to_device - Push FW code to device
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ * Copy fw code from firmware file to device memory.
+ * Returns 0 on success
+ *
+ */
+static int goya_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
+					void __iomem *dst)
+{
+	const struct firmware *fw;
+	const u64 *fw_data;
+	size_t fw_size, i;
+	int rc;
+
+	rc = request_firmware(&fw, fw_name, hdev->dev);
+
+	if (rc) {
+		dev_err(hdev->dev, "Failed to request %s\n", fw_name);
+		goto out;
+	}
+
+	fw_size = fw->size;
+	if ((fw_size % 4) != 0) {
+		dev_err(hdev->dev, "illegal %s firmware size %zu\n",
+			fw_name, fw_size);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	dev_dbg(hdev->dev, "%s firmware size == %zu\n", fw_name, fw_size);
+
+	fw_data = (const u64 *) fw->data;
+
+	if ((fw->size % 8) != 0)
+		fw_size -= 8;
+
+	for (i = 0 ; i < fw_size ; i += 8, fw_data++, dst += 8) {
+		if (!(i & (0x80000 - 1))) {
+			dev_dbg(hdev->dev,
+				"copied so far %zu out of %zu for %s firmware",
+				i, fw_size, fw_name);
+			usleep_range(20, 100);
+		}
+
+		writeq(*fw_data, dst);
+	}
+
+	if ((fw->size % 8) != 0)
+		writel(*(const u32 *) fw_data, dst);
+
+out:
+	release_firmware(fw);
+	return rc;
+}
+
+static int goya_pldm_init_cpu(struct hl_device *hdev)
+{
+	char fw_name[200];
+	void __iomem *dst;
+	u32 val, unit_rst_val;
+	int rc;
+
+	/* Must initialize SRAM scrambler before pushing u-boot to SRAM */
+	goya_init_golden_registers(hdev);
+
+	/* Put ARM cores into reset */
+	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL, CPU_RESET_ASSERT);
+	val = RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
+
+	/* Reset the CA53 MACRO */
+	unit_rst_val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
+	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, CA53_RESET);
+	val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
+	WREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N, unit_rst_val);
+	val = RREG32(mmPSOC_GLOBAL_CONF_UNIT_RST_N);
+
+	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-u-boot.bin");
+	dst = hdev->pcie_bar[SRAM_CFG_BAR_ID] + UBOOT_FW_OFFSET;
+	rc = goya_push_fw_to_device(hdev, fw_name, dst);
+	if (rc)
+		return rc;
+
+	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-fit.itb");
+	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
+	rc = goya_push_fw_to_device(hdev, fw_name, dst);
+	if (rc)
+		return rc;
+
+	WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_FIT_RDY);
+	WREG32(mmPSOC_GLOBAL_CONF_WARM_REBOOT, CPU_BOOT_STATUS_NA);
+
+	WREG32(mmCPU_CA53_CFG_RST_ADDR_LSB_0,
+		lower_32_bits(SRAM_BASE_ADDR + UBOOT_FW_OFFSET));
+	WREG32(mmCPU_CA53_CFG_RST_ADDR_MSB_0,
+		upper_32_bits(SRAM_BASE_ADDR + UBOOT_FW_OFFSET));
+
+	/* Release ARM core 0 from reset */
+	WREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL,
+					CPU_RESET_CORE0_DEASSERT);
+	val = RREG32(mmCPU_CA53_CFG_ARM_RST_CONTROL);
+
+	return 0;
+}
+
+/*
+ * FW component passes an offset from SRAM_BASE_ADDR in SCRATCHPAD_xx.
+ * The version string should be located by that offset.
+ */
+static void goya_read_device_fw_version(struct hl_device *hdev,
+					enum goya_fw_component fwc)
+{
+	const char *name;
+	u32 ver_off;
+	char *dest;
+
+	switch (fwc) {
+	case FW_COMP_UBOOT:
+		ver_off = RREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_29);
+		dest = hdev->asic_prop.uboot_ver;
+		name = "U-Boot";
+		break;
+	case FW_COMP_PREBOOT:
+		ver_off = RREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_28);
+		dest = hdev->asic_prop.preboot_ver;
+		name = "Preboot";
+		break;
+	default:
+		dev_warn(hdev->dev, "Undefined FW component: %d\n", fwc);
+		return;
+	}
+
+	ver_off &= ~((u32)SRAM_BASE_ADDR);
+
+	if (ver_off < SRAM_SIZE - VERSION_MAX_LEN) {
+		memcpy_fromio(dest, hdev->pcie_bar[SRAM_CFG_BAR_ID] + ver_off,
+							VERSION_MAX_LEN);
+	} else {
+		dev_err(hdev->dev, "%s version offset (0x%x) is above SRAM\n",
+								name, ver_off);
+		strcpy(dest, "unavailable");
+	}
+}
+
+static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	char fw_name[200];
+	void __iomem *dst;
+	u32 status;
+	int rc;
+
+	if (!hdev->cpu_enable)
+		return 0;
+
+	if (goya->hw_cap_initialized & HW_CAP_CPU)
+		return 0;
+
+	/*
+	 * Before pushing u-boot/linux to device, need to set the ddr bar to
+	 * base address of dram
+	 */
+	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to map DDR bar to DRAM base address\n");
+		return rc;
+	}
+
+	if (hdev->pldm) {
+		rc = goya_pldm_init_cpu(hdev);
+		if (rc)
+			return rc;
+
+		goto out;
+	}
+
+	/* Make sure CPU boot-loader is running */
+	rc = hl_poll_timeout(
+		hdev,
+		mmPSOC_GLOBAL_CONF_WARM_REBOOT,
+		status,
+		(status == CPU_BOOT_STATUS_DRAM_RDY) ||
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
+		10000,
+		cpu_timeout);
+
+	if (rc) {
+		dev_err(hdev->dev, "Error in ARM u-boot!");
+		switch (status) {
+		case CPU_BOOT_STATUS_NA:
+			dev_err(hdev->dev,
+				"ARM status %d - BTL did NOT run\n", status);
+			break;
+		case CPU_BOOT_STATUS_IN_WFE:
+			dev_err(hdev->dev,
+				"ARM status %d - Inside WFE loop\n", status);
+			break;
+		case CPU_BOOT_STATUS_IN_BTL:
+			dev_err(hdev->dev,
+				"ARM status %d - Stuck in BTL\n", status);
+			break;
+		case CPU_BOOT_STATUS_IN_PREBOOT:
+			dev_err(hdev->dev,
+				"ARM status %d - Stuck in Preboot\n", status);
+			break;
+		case CPU_BOOT_STATUS_IN_SPL:
+			dev_err(hdev->dev,
+				"ARM status %d - Stuck in SPL\n", status);
+			break;
+		case CPU_BOOT_STATUS_IN_UBOOT:
+			dev_err(hdev->dev,
+				"ARM status %d - Stuck in u-boot\n", status);
+			break;
+		case CPU_BOOT_STATUS_DRAM_INIT_FAIL:
+			dev_err(hdev->dev,
+				"ARM status %d - DDR initialization failed\n",
+				status);
+			break;
+		default:
+			dev_err(hdev->dev,
+				"ARM status %d - Invalid status code\n",
+				status);
+			break;
+		}
+		return -EIO;
+	}
+
+	/* Read U-Boot version now in case we will later fail */
+	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
+	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
+	if (status == CPU_BOOT_STATUS_SRAM_AVAIL)
+		goto out;
+
+	if (!hdev->fw_loading) {
+		dev_info(hdev->dev, "Skip loading FW\n");
+		goto out;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "habanalabs/goya/goya-fit.itb");
+	dst = hdev->pcie_bar[DDR_BAR_ID] + LINUX_FW_OFFSET;
+	rc = goya_push_fw_to_device(hdev, fw_name, dst);
+	if (rc)
+		return rc;
+
+	WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_FIT_RDY);
+
+	rc = hl_poll_timeout(
+		hdev,
+		mmPSOC_GLOBAL_CONF_WARM_REBOOT,
+		status,
+		(status == CPU_BOOT_STATUS_SRAM_AVAIL),
+		10000,
+		cpu_timeout);
+
+	if (rc) {
+		if (status == CPU_BOOT_STATUS_FIT_CORRUPTED)
+			dev_err(hdev->dev,
+				"ARM u-boot reports FIT image is corrupted\n");
+		else
+			dev_err(hdev->dev,
+				"ARM Linux failed to load, %d\n", status);
+		WREG32(mmPSOC_GLOBAL_CONF_UBOOT_MAGIC, KMD_MSG_NA);
+		return -EIO;
+	}
+
+	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
+
+out:
+	goya->hw_cap_initialized |= HW_CAP_CPU;
+
+	return 0;
+}
+
+/*
+ * goya_hw_init - Goya hardware initialization code
+ *
+ * @hdev: pointer to hl_device structure
+ *
+ * Returns 0 on success
+ *
+ */
+static int goya_hw_init(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 val;
+	int rc;
+
+	dev_info(hdev->dev, "Starting initialization of H/W\n");
+
+	/* Perform read from the device to make sure device is up */
+	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+
+	rc = goya_init_cpu(hdev, GOYA_CPU_TIMEOUT_USEC);
+	if (rc) {
+		dev_err(hdev->dev, "failed to initialize CPU\n");
+		return rc;
+	}
+
+	goya_tpc_mbist_workaround(hdev);
+
+	goya_init_golden_registers(hdev);
+
+	/*
+	 * After CPU initialization is finished, change DDR bar mapping inside
+	 * iATU to point to the start address of the MMU page tables
+	 */
+	rc = goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE +
+		(MMU_PAGE_TABLES_ADDR & ~(prop->dram_pci_bar_size - 0x1ull)));
+	if (rc) {
+		dev_err(hdev->dev,
+			"failed to map DDR bar to MMU page tables\n");
+		return rc;
+	}
+
+	goya_init_security(hdev);
+
+	/* CPU initialization is finished, we can now move to 48 bit DMA mask */
+	rc = pci_set_dma_mask(hdev->pdev, DMA_BIT_MASK(48));
+	if (rc) {
+		dev_warn(hdev->dev, "Unable to set pci dma mask to 48 bits\n");
+		rc = pci_set_dma_mask(hdev->pdev, DMA_BIT_MASK(32));
+		if (rc) {
+			dev_err(hdev->dev,
+				"Unable to set pci dma mask to 32 bits\n");
+			return rc;
+		}
+	}
+
+	rc = pci_set_consistent_dma_mask(hdev->pdev, DMA_BIT_MASK(48));
+	if (rc) {
+		dev_warn(hdev->dev,
+			"Unable to set pci consistent dma mask to 48 bits\n");
+		rc = pci_set_consistent_dma_mask(hdev->pdev, DMA_BIT_MASK(32));
+		if (rc) {
+			dev_err(hdev->dev,
+				"Unable to set pci consistent dma mask to 32 bits\n");
+			return rc;
+		}
+	}
+
+	/* Perform read from the device to flush all MSI-X configuration */
+	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
+
+	return 0;
+}
+
+/*
+ * goya_hw_fini - Goya hardware tear-down code
+ *
+ * @hdev: pointer to hl_device structure
+ * @hard_reset: should we do hard reset to all engines or just reset the
+ *              compute/dma engines
+ */
+static void goya_hw_fini(struct hl_device *hdev, bool hard_reset)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u32 reset_timeout_ms, status;
+
+	if (hdev->pldm)
+		reset_timeout_ms = GOYA_PLDM_RESET_TIMEOUT_MSEC;
+	else
+		reset_timeout_ms = GOYA_RESET_TIMEOUT_MSEC;
+
+	if (hard_reset) {
+		goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
+		goya_disable_clk_rlx(hdev);
+		goya_set_pll_refclk(hdev);
+
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG, RESET_ALL);
+		dev_info(hdev->dev,
+			"Issued HARD reset command, going to wait %dms\n",
+			reset_timeout_ms);
+	} else {
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG, DMA_MME_TPC_RESET);
+		dev_info(hdev->dev,
+			"Issued SOFT reset command, going to wait %dms\n",
+			reset_timeout_ms);
+	}
+
+	/*
+	 * After hard reset, we can't poll the BTM_FSM register because the PSOC
+	 * itself is in reset. In either reset we need to wait until the reset
+	 * is deasserted
+	 */
+	msleep(reset_timeout_ms);
+
+	status = RREG32(mmPSOC_GLOBAL_CONF_BTM_FSM);
+	if (status & PSOC_GLOBAL_CONF_BTM_FSM_STATE_MASK)
+		dev_err(hdev->dev,
+			"Timeout while waiting for device to reset 0x%x\n",
+			status);
+
+	/* Chicken bit to re-initiate boot sequencer flow */
+	WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START,
+		1 << PSOC_GLOBAL_CONF_BOOT_SEQ_RE_START_IND_SHIFT);
+	/* Move boot manager FSM to pre boot sequencer init state */
+	WREG32(mmPSOC_GLOBAL_CONF_SW_BTM_FSM,
+			0xA << PSOC_GLOBAL_CONF_SW_BTM_FSM_CTRL_SHIFT);
+
+	goya->hw_cap_initialized &= ~(HW_CAP_CPU | HW_CAP_CPU_Q |
+					HW_CAP_DDR_0 | HW_CAP_DDR_1 |
+					HW_CAP_DMA | HW_CAP_MME |
+					HW_CAP_MMU | HW_CAP_TPC_MBIST |
+					HW_CAP_GOLDEN | HW_CAP_TPC);
+
+	if (!hdev->pldm) {
+		int rc;
+		/* In case we are running inside VM and the VM is
+		 * shutting down, we need to make sure CPU boot-loader
+		 * is running before we can continue the VM shutdown.
+		 * That is because the VM will send an FLR signal that
+		 * we must answer
+		 */
+		dev_info(hdev->dev,
+			"Going to wait up to %ds for CPU boot loader\n",
+			GOYA_CPU_TIMEOUT_USEC / 1000 / 1000);
+
+		rc = hl_poll_timeout(
+			hdev,
+			mmPSOC_GLOBAL_CONF_WARM_REBOOT,
+			status,
+			(status == CPU_BOOT_STATUS_DRAM_RDY),
+			10000,
+			GOYA_CPU_TIMEOUT_USEC);
+		if (rc)
+			dev_err(hdev->dev,
+				"failed to wait for CPU boot loader\n");
+	}
+}
+
 int goya_suspend(struct hl_device *hdev)
 {
 	return 0;
@@ -640,6 +1506,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.early_fini = goya_early_fini,
 	.sw_init = goya_sw_init,
 	.sw_fini = goya_sw_fini,
+	.hw_init = goya_hw_init,
+	.hw_fini = goya_hw_fini,
 	.suspend = goya_suspend,
 	.resume = goya_resume,
 	.mmap = goya_mmap,
