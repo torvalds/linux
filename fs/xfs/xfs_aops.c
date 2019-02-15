@@ -420,26 +420,6 @@ xfs_map_blocks(
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 		wpc->fork = XFS_COW_FORK;
-
-		/*
-		 * Truncate can race with writeback since writeback doesn't
-		 * take the iolock and truncate decreases the file size before
-		 * it starts truncating the pages between new_size and old_size.
-		 * Therefore, we can end up in the situation where writeback
-		 * gets a CoW fork mapping but the truncate makes the mapping
-		 * invalid and we end up in here trying to get a new mapping.
-		 * bail out here so that we simply never get a valid mapping
-		 * and so we drop the write altogether.  The page truncation
-		 * will kill the contents anyway.
-		 */
-		if (offset > i_size_read(inode)) {
-			wpc->imap.br_blockcount = end_fsb - offset_fsb;
-			wpc->imap.br_startoff = offset_fsb;
-			wpc->imap.br_startblock = HOLESTARTBLOCK;
-			wpc->imap.br_state = XFS_EXT_NORM;
-			return 0;
-		}
-
 		goto allocate_blocks;
 	}
 
