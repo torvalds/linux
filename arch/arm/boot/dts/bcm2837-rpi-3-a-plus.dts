@@ -2,12 +2,11 @@
 /dts-v1/;
 #include "bcm2837.dtsi"
 #include "bcm2836-rpi.dtsi"
-#include "bcm283x-rpi-lan7515.dtsi"
 #include "bcm283x-rpi-usb-host.dtsi"
 
 / {
-	compatible = "raspberrypi,3-model-b-plus", "brcm,bcm2837";
-	model = "Raspberry Pi 3 Model B+";
+	compatible = "raspberrypi,3-model-a-plus", "brcm,bcm2837";
+	model = "Raspberry Pi 3 Model A+";
 
 	chosen {
 		/* 8250 auxiliary UART instead of pl011 */
@@ -15,7 +14,7 @@
 	};
 
 	memory@0 {
-		reg = <0 0x40000000>;
+		reg = <0 0x20000000>;
 	};
 
 	leds {
@@ -28,11 +27,6 @@
 			gpios = <&expgpio 2 GPIO_ACTIVE_LOW>;
 		};
 	};
-
-	wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-		reset-gpios = <&expgpio 1 GPIO_ACTIVE_LOW>;
-	};
 };
 
 &firmware {
@@ -40,10 +34,10 @@
 		compatible = "raspberrypi,firmware-gpio";
 		gpio-controller;
 		#gpio-cells = <2>;
-		gpio-line-names = "BT_ON",
-				  "WL_ON",
+		gpio-line-names = "",
+				  "BT_WL_ON",
 				  "STATUS_LED_R",
-				  "LAN_RUN",
+				  "",
 				  "",
 				  "CAM_GPIO0",
 				  "CAM_GPIO1",
@@ -54,8 +48,7 @@
 
 &gpio {
 	/*
-	 * Taken from rpi_SCH_3bplus_1p0_reduced.pdf and
-	 * the official GPU firmware DT blob.
+	 * This is mostly based on the official GPU firmware DT blob.
 	 *
 	 * Legend:
 	 * "NC" = not connected (no rail from the SoC)
@@ -107,7 +100,7 @@
 			  "SD1_DATA3",
 			  "PWM0_OUT",
 			  "PWM1_OUT",
-			  "ETHCLK",
+			  "", /* GPIO42 */
 			  "WIFI_CLK",
 			  "SDA0",
 			  "SCL0",
@@ -132,7 +125,13 @@
 	status = "okay";
 };
 
-/* SDHCI is used to control the SDIO for wireless */
+/*
+ * SDHCI is used to control the SDIO for wireless
+ *
+ * WL_REG_ON and BT_REG_ON of the CYW43455 Wifi/BT module are driven
+ * by a single GPIO. We can't give GPIO control to one of the drivers,
+ * otherwise the other part would get unexpectedly disturbed.
+ */
 &sdhci {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -141,7 +140,6 @@
 	status = "okay";
 	bus-width = <4>;
 	non-removable;
-	mmc-pwrseq = <&wifi_pwrseq>;
 
 	brcmf: wifi@1 {
 		reg = <1>;
@@ -166,7 +164,6 @@
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <2000000>;
-		shutdown-gpios = <&expgpio 0 GPIO_ACTIVE_HIGH>;
 	};
 };
 
