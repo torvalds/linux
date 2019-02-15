@@ -13,7 +13,6 @@
 #include <dt-bindings/clock/qcom,videocc-sdm845.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
-#include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
 #include <dt-bindings/reset/qcom,sdm845-pdc.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
@@ -2099,43 +2098,43 @@
 					compatible = "operating-points-v2";
 
 					rpmhpd_opp_ret: opp1 {
-						opp-level = <RPMH_REGULATOR_LEVEL_RETENTION>;
+						opp-level = <16>;
 					};
 
 					rpmhpd_opp_min_svs: opp2 {
-						opp-level = <RPMH_REGULATOR_LEVEL_MIN_SVS>;
+						opp-level = <48>;
 					};
 
 					rpmhpd_opp_low_svs: opp3 {
-						opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
+						opp-level = <64>;
 					};
 
 					rpmhpd_opp_svs: opp4 {
-						opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+						opp-level = <128>;
 					};
 
 					rpmhpd_opp_svs_l1: opp5 {
-						opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+						opp-level = <192>;
 					};
 
 					rpmhpd_opp_nom: opp6 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+						opp-level = <256>;
 					};
 
 					rpmhpd_opp_nom_l1: opp7 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+						opp-level = <320>;
 					};
 
 					rpmhpd_opp_nom_l2: opp8 {
-						opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+						opp-level = <336>;
 					};
 
 					rpmhpd_opp_turbo: opp9 {
-						opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
+						opp-level = <384>;
 					};
 
 					rpmhpd_opp_turbo_l1: opp10 {
-						opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
+						opp-level = <416>;
 					};
 				};
 			};
