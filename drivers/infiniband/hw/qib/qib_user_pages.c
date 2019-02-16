@@ -107,7 +107,7 @@ int qib_get_user_pages(unsigned long start_page, size_t num_pages,
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	locked = atomic64_add_return(num_pages, &current->mm->pinned_vm);
 
-	if (num_pages > lock_limit && !capable(CAP_IPC_LOCK)) {
+	if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
 		ret = -ENOMEM;
 		goto bail;
 	}
