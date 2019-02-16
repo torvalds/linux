@@ -1315,12 +1315,11 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 				ip_eth_mc_map(ip_hdr(skb)->daddr, tg_addr);
 			else
 				ipv6_eth_mc_map(&ipv6_hdr(skb)->daddr, tg_addr);
-
-			card->stats.multicast++;
+			QETH_CARD_STAT_INC(card, rx_multicast);
 			break;
 		case QETH_CAST_BROADCAST:
 			ether_addr_copy(tg_addr, card->dev->broadcast);
-			card->stats.multicast++;
+			QETH_CARD_STAT_INC(card, rx_multicast);
 			break;
 		default:
 			if (card->options.sniffer)
@@ -1401,8 +1400,8 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 		}
 		work_done++;
 		budget--;
-		card->stats.rx_packets++;
-		card->stats.rx_bytes += len;
+		QETH_CARD_STAT_INC(card, rx_packets);
+		QETH_CARD_STAT_ADD(card, rx_bytes, len);
 	}
 	return work_done;
 }
@@ -1945,12 +1944,13 @@ static u8 qeth_l3_cast_type_to_flag(int cast_type)
 	return QETH_CAST_UNICAST;
 }
 
-static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-				struct sk_buff *skb, int ipv, int cast_type,
-				unsigned int data_len)
+static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
+				struct qeth_hdr *hdr, struct sk_buff *skb,
+				int ipv, int cast_type, unsigned int data_len)
 {
 	struct qeth_hdr_layer3 *l3_hdr = &hdr->hdr.l3;
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
+	struct qeth_card *card = queue->card;
 
 	hdr->hdr.l3.length = data_len;
 
@@ -1972,8 +1972,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			/* some HW requires combined L3+L4 csum offload: */
 			if (ipv == 4)
 				hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
-			if (card->options.performance_stats)
-				card->perf_stats.tx_csum++;
+			QETH_TXQ_STAT_INC(queue, skbs_csum);
 		}
 	}
 
@@ -2074,6 +2073,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	int tx_bytes = skb->len;
 	int rc;
 
+	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
+
 	if (IS_IQD(card)) {
 		if (card->options.sniffer)
 			goto tx_drop;
@@ -2084,19 +2085,13 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	if (card->state != CARD_STATE_UP) {
-		card->stats.tx_carrier_errors++;
+		QETH_TXQ_STAT_INC(queue, tx_carrier_errors);
 		goto tx_drop;
 	}
 
 	if (cast_type == RTN_BROADCAST && !card->info.broadcast_capable)
 		goto tx_drop;
 
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
-
-	if (card->options.performance_stats) {
-		card->perf_stats.outbound_cnt++;
-		card->perf_stats.outbound_start_time = qeth_get_micros();
-	}
 	netif_stop_queue(dev);
 
 	if (ipv == 4 || IS_IQD(card))
@@ -2106,11 +2101,8 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 			       qeth_l3_fill_header);
 
 	if (!rc) {
-		card->stats.tx_packets++;
-		card->stats.tx_bytes += tx_bytes;
-		if (card->options.performance_stats)
-			card->perf_stats.outbound_time += qeth_get_micros() -
-				card->perf_stats.outbound_start_time;
+		QETH_TXQ_STAT_INC(queue, tx_packets);
+		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
 		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
 	} else if (rc == -EBUSY) {
@@ -2118,21 +2110,12 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	} /* else fall through */
 
 tx_drop:
-	card->stats.tx_dropped++;
-	card->stats.tx_errors++;
+	QETH_TXQ_STAT_INC(queue, tx_dropped);
+	QETH_TXQ_STAT_INC(queue, tx_errors);
 	dev_kfree_skb_any(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 }
-
-static const struct ethtool_ops qeth_l3_ethtool_ops = {
-	.get_link = ethtool_op_get_link,
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-	.get_link_ksettings = qeth_core_ethtool_get_link_ksettings,
-};
 
 /*
  * we need NOARP for IPv4 but we want neighbor solicitation for IPv6. Setting
@@ -2170,7 +2153,7 @@ static netdev_features_t qeth_l3_osa_features_check(struct sk_buff *skb,
 static const struct net_device_ops qeth_l3_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
-	.ndo_get_stats		= qeth_get_stats,
+	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= qeth_l3_set_rx_mode,
@@ -2185,7 +2168,7 @@ static const struct net_device_ops qeth_l3_netdev_ops = {
 static const struct net_device_ops qeth_l3_osa_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
-	.ndo_get_stats		= qeth_get_stats,
+	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l3_hard_start_xmit,
 	.ndo_features_check	= qeth_l3_osa_features_check,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2255,7 +2238,6 @@ static int qeth_l3_setup_netdev(struct qeth_card *card, bool carrier_ok)
 		return -ENODEV;
 
 	card->dev->needed_headroom = headroom;
-	card->dev->ethtool_ops = &qeth_l3_ethtool_ops;
 	card->dev->features |=	NETIF_F_HW_VLAN_CTAG_TX |
 				NETIF_F_HW_VLAN_CTAG_RX |
 				NETIF_F_HW_VLAN_CTAG_FILTER;

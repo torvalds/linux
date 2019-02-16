@@ -174,9 +174,9 @@ static int qeth_l2_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	return RTN_UNICAST;
 }
 
-static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
-				struct sk_buff *skb, int ipv, int cast_type,
-				unsigned int data_len)
+static void qeth_l2_fill_header(struct qeth_qdio_out_q *queue,
+				struct qeth_hdr *hdr, struct sk_buff *skb,
+				int ipv, int cast_type, unsigned int data_len)
 {
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
 
@@ -188,8 +188,7 @@ static void qeth_l2_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l2.id = QETH_HEADER_TYPE_LAYER2;
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			qeth_tx_csum(skb, &hdr->hdr.l2.flags[1], ipv);
-			if (card->options.performance_stats)
-				card->perf_stats.tx_csum++;
+			QETH_TXQ_STAT_INC(queue, skbs_csum);
 		}
 	}
 
@@ -369,8 +368,8 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 		}
 		work_done++;
 		budget--;
-		card->stats.rx_packets++;
-		card->stats.rx_bytes += len;
+		QETH_CARD_STAT_INC(card, rx_packets);
+		QETH_CARD_STAT_ADD(card, rx_bytes, len);
 	}
 	return work_done;
 }
@@ -426,7 +425,7 @@ static int qeth_l2_validate_addr(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 
-	if (IS_OSN(card) || (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
+	if (card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED)
 		return eth_validate_addr(dev);
 
 	QETH_CARD_TEXT(card, 4, "nomacadr");
@@ -442,9 +441,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 
 	QETH_CARD_TEXT(card, 3, "setmac");
 
-	if (card->info.type == QETH_CARD_TYPE_OSN ||
-	    card->info.type == QETH_CARD_TYPE_OSM ||
-	    card->info.type == QETH_CARD_TYPE_OSX) {
+	if (IS_OSM(card) || IS_OSX(card)) {
 		QETH_CARD_TEXT(card, 3, "setmcTYP");
 		return -EOPNOTSUPP;
 	}
@@ -538,9 +535,6 @@ static void qeth_l2_set_rx_mode(struct net_device *dev)
 	int i;
 	int rc;
 
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		return;
-
 	QETH_CARD_TEXT(card, 3, "setmulti");
 
 	spin_lock_bh(&card->mclock);
@@ -626,17 +620,13 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	int tx_bytes = skb->len;
 	int rc;
 
+	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
+
 	if (card->state != CARD_STATE_UP) {
-		card->stats.tx_carrier_errors++;
+		QETH_TXQ_STAT_INC(queue, tx_carrier_errors);
 		goto tx_drop;
 	}
 
-	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
-
-	if (card->options.performance_stats) {
-		card->perf_stats.outbound_cnt++;
-		card->perf_stats.outbound_start_time = qeth_get_micros();
-	}
 	netif_stop_queue(dev);
 
 	if (IS_OSN(card))
@@ -646,11 +636,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 			       qeth_l2_fill_header);
 
 	if (!rc) {
-		card->stats.tx_packets++;
-		card->stats.tx_bytes += tx_bytes;
-		if (card->options.performance_stats)
-			card->perf_stats.outbound_time += qeth_get_micros() -
-				card->perf_stats.outbound_start_time;
+		QETH_TXQ_STAT_INC(queue, tx_packets);
+		QETH_TXQ_STAT_ADD(queue, tx_bytes, tx_bytes);
 		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
 	} else if (rc == -EBUSY) {
@@ -658,8 +645,8 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	} /* else fall through */
 
 tx_drop:
-	card->stats.tx_dropped++;
-	card->stats.tx_errors++;
+	QETH_TXQ_STAT_INC(queue, tx_dropped);
+	QETH_TXQ_STAT_INC(queue, tx_errors);
 	dev_kfree_skb_any(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
@@ -704,26 +691,10 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 		unregister_netdev(card->dev);
 }
 
-static const struct ethtool_ops qeth_l2_ethtool_ops = {
-	.get_link = ethtool_op_get_link,
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-	.get_link_ksettings = qeth_core_ethtool_get_link_ksettings,
-};
-
-static const struct ethtool_ops qeth_l2_osn_ops = {
-	.get_strings = qeth_core_get_strings,
-	.get_ethtool_stats = qeth_core_get_ethtool_stats,
-	.get_sset_count = qeth_core_get_sset_count,
-	.get_drvinfo = qeth_core_get_drvinfo,
-};
-
 static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_open		= qeth_open,
 	.ndo_stop		= qeth_stop,
-	.ndo_get_stats		= qeth_get_stats,
+	.ndo_get_stats64	= qeth_get_stats64,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_features_check	= qeth_features_check,
 	.ndo_validate_addr	= qeth_l2_validate_addr,
@@ -737,19 +708,28 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_set_features	= qeth_set_features
 };
 
+static const struct net_device_ops qeth_osn_netdev_ops = {
+	.ndo_open		= qeth_open,
+	.ndo_stop		= qeth_stop,
+	.ndo_get_stats64	= qeth_get_stats64,
+	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_tx_timeout		= qeth_tx_timeout,
+};
+
 static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 {
 	int rc;
 
-	card->dev->priv_flags |= IFF_UNICAST_FLT;
-	card->dev->netdev_ops = &qeth_l2_netdev_ops;
-	if (card->info.type == QETH_CARD_TYPE_OSN) {
-		card->dev->ethtool_ops = &qeth_l2_osn_ops;
+	if (IS_OSN(card)) {
+		card->dev->netdev_ops = &qeth_osn_netdev_ops;
 		card->dev->flags |= IFF_NOARP;
-	} else {
-		card->dev->ethtool_ops = &qeth_l2_ethtool_ops;
-		card->dev->needed_headroom = sizeof(struct qeth_hdr);
+		goto add_napi;
 	}
+
+	card->dev->needed_headroom = sizeof(struct qeth_hdr);
+	card->dev->netdev_ops = &qeth_l2_netdev_ops;
+	card->dev->priv_flags |= IFF_UNICAST_FLT;
 
 	if (IS_OSM(card)) {
 		card->dev->features |= NETIF_F_VLAN_CHALLENGED;
@@ -791,6 +771,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card, bool carrier_ok)
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
+add_napi:
 	netif_napi_add(card->dev, &card->napi, qeth_poll, QETH_NAPI_WEIGHT);
 	rc = register_netdev(card->dev);
 	if (!rc && carrier_ok)
