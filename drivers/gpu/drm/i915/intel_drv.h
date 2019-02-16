@@ -474,6 +474,14 @@ struct intel_hdcp {
 	 * over re-Auth has to be triggered.
 	 */
 	u32 seq_num_m;
+
+	/*
+	 * Work queue to signal the CP_IRQ. Used for the waiters to read the
+	 * available information from HDCP DP sink.
+	 */
+	wait_queue_head_t cp_irq_queue;
+	atomic_t cp_irq_count;
+	int cp_irq_count_cached;
 };
 
 struct intel_connector {

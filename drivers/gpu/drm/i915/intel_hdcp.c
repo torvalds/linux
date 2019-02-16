@@ -1806,6 +1806,7 @@ int intel_hdcp_init(struct intel_connector *connector,
 
 	if (is_hdcp2_supported(dev_priv))
 		intel_hdcp2_init(connector);
+	init_waitqueue_head(&hdcp->cp_irq_queue);
 
 	return 0;
 }
@@ -1935,12 +1936,8 @@ void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
 	if (!hdcp->shim)
 		return;
 
-	/*
-	 * CP_IRQ could be triggered due to 1. HDCP2.2 auth msgs availability,
-	 * 2. link failure and 3. repeater reauth request. At present we dont
-	 * handle the CP_IRQ for the HDCP2.2 auth msg availability for read.
-	 * To handle other two causes for CP_IRQ we have the work_fn which is
-	 * scheduled here.
-	 */
+	atomic_inc(&connector->hdcp.cp_irq_count);
+	wake_up_all(&connector->hdcp.cp_irq_queue);
+
 	schedule_delayed_work(&hdcp->check_work, 0);
 }
