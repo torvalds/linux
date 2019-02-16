@@ -2213,7 +2213,7 @@ void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 bool
 xfs_verify_magic(
 	struct xfs_buf		*bp,
-	uint32_t		dmagic)
+	__be32			dmagic)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	int			idx;
@@ -2222,4 +2222,22 @@ xfs_verify_magic(
 	if (unlikely(WARN_ON(!bp->b_ops || !bp->b_ops->magic[idx])))
 		return false;
 	return dmagic == bp->b_ops->magic[idx];
+}
+/*
+ * Verify an on-disk magic value against the magic value specified in the
+ * verifier structure. The verifier magic is in disk byte order so the caller is
+ * expected to pass the value directly from disk.
+ */
+bool
+xfs_verify_magic16(
+	struct xfs_buf		*bp,
+	__be16			dmagic)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	int			idx;
+
+	idx = xfs_sb_version_hascrc(&mp->m_sb);
+	if (unlikely(WARN_ON(!bp->b_ops || !bp->b_ops->magic16[idx])))
+		return false;
+	return dmagic == bp->b_ops->magic16[idx];
 }

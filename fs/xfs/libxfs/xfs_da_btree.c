@@ -129,7 +129,7 @@ xfs_da3_blkinfo_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_da_blkinfo	*hdr = &hdr3->hdr;
 
-	if (!xfs_verify_magic(bp, hdr->magic))
+	if (!xfs_verify_magic16(bp, hdr->magic))
 		return __this_address;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
@@ -141,7 +141,7 @@ xfs_da3_blkinfo_verify(
 			return __this_address;
 	}
 
-	return 0;
+	return NULL;
 }
 
 static xfs_failaddr_t
@@ -274,8 +274,8 @@ xfs_da3_node_verify_struct(
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.name = "xfs_da3_node",
-	.magic = { cpu_to_be16(XFS_DA_NODE_MAGIC),
-		   cpu_to_be16(XFS_DA3_NODE_MAGIC) },
+	.magic16 = { cpu_to_be16(XFS_DA_NODE_MAGIC),
+		     cpu_to_be16(XFS_DA3_NODE_MAGIC) },
 	.verify_read = xfs_da3_node_read_verify,
 	.verify_write = xfs_da3_node_write_verify,
 	.verify_struct = xfs_da3_node_verify_struct,
