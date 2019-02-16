@@ -2907,7 +2907,7 @@ static int liquidio_set_vf_spoofchk(struct net_device *netdev, int vfidx,
 	nctrl.ncmd.s.param2 = enable;
 	nctrl.ncmd.s.more = 0;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.cb_fn = 0;
+	nctrl.cb_fn = NULL;
 
 	retval = octnet_send_nic_ctrl_pkt(oct, &nctrl);
 
