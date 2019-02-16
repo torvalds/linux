@@ -153,8 +153,8 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -180,7 +180,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -231,8 +231,8 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -261,7 +261,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
