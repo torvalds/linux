@@ -178,7 +178,7 @@ struct vsp1_dl_cmd_pool {
  * @post_cmd: post command to be issued through extended dl header
  * @has_chain: if true, indicates that there's a partition chain
  * @chain: entry in the display list partition chain
- * @internal: whether the display list is used for internal purpose
+ * @flags: display list flags, a combination of VSP1_DL_FRAME_END_*
  */
 struct vsp1_dl_list {
 	struct list_head list;
@@ -197,7 +197,7 @@ struct vsp1_dl_list {
 	bool has_chain;
 	struct list_head chain;
 
-	bool internal;
+	unsigned int flags;
 };
 
 /**
@@ -861,13 +861,15 @@ static void vsp1_dl_list_commit_continuous(struct vsp1_dl_list *dl)
 	 *
 	 * If a display list is already pending we simply drop it as the new
 	 * display list is assumed to contain a more recent configuration. It is
-	 * an error if the already pending list has the internal flag set, as
-	 * there is then a process waiting for that list to complete. This
-	 * shouldn't happen as the waiting process should perform proper
-	 * locking, but warn just in case.
+	 * an error if the already pending list has the
+	 * VSP1_DL_FRAME_END_INTERNAL flag set, as there is then a process
+	 * waiting for that list to complete. This shouldn't happen as the
+	 * waiting process should perform proper locking, but warn just in
+	 * case.
 	 */
 	if (vsp1_dl_list_hw_update_pending(dlm)) {
-		WARN_ON(dlm->pending && dlm->pending->internal);
+		WARN_ON(dlm->pending &&
+			(dlm->pending->flags & VSP1_DL_FRAME_END_INTERNAL));
 		__vsp1_dl_list_put(dlm->pending);
 		dlm->pending = dl;
 		return;
@@ -897,7 +899,7 @@ static void vsp1_dl_list_commit_singleshot(struct vsp1_dl_list *dl)
 	dlm->active = dl;
 }
 
-void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
+void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags)
 {
 	struct vsp1_dl_manager *dlm = dl->dlm;
 	struct vsp1_dl_list *dl_next;
@@ -912,7 +914,7 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
 		vsp1_dl_list_fill_header(dl_next, last);
 	}
 
-	dl->internal = internal;
+	dl->flags = dl_flags & ~VSP1_DL_FRAME_END_COMPLETED;
 
 	spin_lock_irqsave(&dlm->lock, flags);
 
@@ -941,9 +943,10 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, bool internal)
  * set in single-shot mode as display list processing is then not continuous and
  * races never occur.
  *
- * The VSP1_DL_FRAME_END_INTERNAL flag indicates that the previous display list
- * has completed and had been queued with the internal notification flag.
- * Internal notification is only supported for continuous mode.
+ * The following flags are only supported for continuous mode.
+ *
+ * The VSP1_DL_FRAME_END_INTERNAL flag indicates that the display list that just
+ * became active had been queued with the internal notification flag.
  */
 unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
@@ -986,9 +989,9 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 * frame end interrupt. The display list thus becomes active.
 	 */
 	if (dlm->queued) {
-		if (dlm->queued->internal)
+		if (dlm->queued->flags & VSP1_DL_FRAME_END_INTERNAL)
 			flags |= VSP1_DL_FRAME_END_INTERNAL;
-		dlm->queued->internal = false;
+		dlm->queued->flags &= ~VSP1_DL_FRAME_END_INTERNAL;
 
 		__vsp1_dl_list_put(dlm->active);
 		dlm->active = dlm->queued;

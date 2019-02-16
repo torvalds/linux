@@ -421,7 +421,7 @@ static void vsp1_video_pipeline_run(struct vsp1_pipeline *pipe)
 	}
 
 	/* Complete, and commit the head display list. */
-	vsp1_dl_list_commit(dl, false);
+	vsp1_dl_list_commit(dl, 0);
 	pipe->configured = true;
 
 	vsp1_pipeline_run(pipe);

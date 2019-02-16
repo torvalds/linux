@@ -34,7 +34,7 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 				       unsigned int completion)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
-	bool complete = completion == VSP1_DL_FRAME_END_COMPLETED;
+	bool complete = completion & VSP1_DL_FRAME_END_COMPLETED;
 
 	if (drm_pipe->du_complete) {
 		struct vsp1_entity *uif = drm_pipe->uif;
@@ -537,6 +537,10 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *next;
 	struct vsp1_dl_list *dl;
 	struct vsp1_dl_body *dlb;
+	unsigned int dl_flags = 0;
+
+	if (drm_pipe->force_brx_release)
+		dl_flags |= VSP1_DL_FRAME_END_INTERNAL;
 
 	dl = vsp1_dl_list_get(pipe->output->dlm);
 	dlb = vsp1_dl_list_get_body0(dl);
@@ -559,7 +563,7 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		vsp1_entity_configure_partition(entity, pipe, dl, dlb);
 	}
 
-	vsp1_dl_list_commit(dl, drm_pipe->force_brx_release);
+	vsp1_dl_list_commit(dl, dl_flags);
 }
 
 /* -----------------------------------------------------------------------------
