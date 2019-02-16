@@ -238,9 +238,10 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
  * Returns the irq_affinity_desc pointer or NULL if allocation failed.
  */
 struct irq_affinity_desc *
-irq_create_affinity_masks(unsigned int nvecs, const struct irq_affinity *affd)
+irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 {
 	unsigned int affvecs, curvec, usedvecs, nr_sets, i;
+	unsigned int set_size[IRQ_AFFINITY_MAX_SETS];
 	struct irq_affinity_desc *masks = NULL;
 
 	/*
@@ -248,6 +249,9 @@ irq_create_affinity_masks(unsigned int nvecs, const struct irq_affinity *affd)
 	 * vectors don't bother with assigning affinity.
 	 */
 	if (nvecs == affd->pre_vectors + affd->post_vectors)
+		return NULL;
+
+	if (WARN_ON_ONCE(affd->nr_sets > IRQ_AFFINITY_MAX_SETS))
 		return NULL;
 
 	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
@@ -263,11 +267,15 @@ irq_create_affinity_masks(unsigned int nvecs, const struct irq_affinity *affd)
 	 */
 	affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
 	nr_sets = affd->nr_sets;
-	if (!nr_sets)
+	if (!nr_sets) {
 		nr_sets = 1;
+		set_size[0] = affvecs;
+	} else {
+		memcpy(set_size, affd->set_size, nr_sets * sizeof(unsigned int));
+	}
 
 	for (i = 0, usedvecs = 0; i < nr_sets; i++) {
-		unsigned int this_vecs = affd->sets ? affd->sets[i] : affvecs;
+		unsigned int this_vecs = set_size[i];
 		int ret;
 
 		ret = irq_build_affinity_masks(affd, curvec, this_vecs,
@@ -314,7 +322,7 @@ unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 		unsigned int i;
 
 		for (i = 0, set_vecs = 0;  i < affd->nr_sets; i++)
-			set_vecs += affd->sets[i];
+			set_vecs += affd->set_size[i];
 	} else {
 		get_online_cpus();
 		set_vecs = cpumask_weight(cpu_possible_mask);

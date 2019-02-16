@@ -241,20 +241,23 @@ struct irq_affinity_notify {
 	void (*release)(struct kref *ref);
 };
 
+#define	IRQ_AFFINITY_MAX_SETS  4
+
 /**
  * struct irq_affinity - Description for automatic irq affinity assignements
  * @pre_vectors:	Don't apply affinity to @pre_vectors at beginning of
  *			the MSI(-X) vector space
  * @post_vectors:	Don't apply affinity to @post_vectors at end of
  *			the MSI(-X) vector space
- * @nr_sets:		Length of passed in *sets array
- * @sets:		Number of affinitized sets
+ * @nr_sets:		The number of interrupt sets for which affinity
+ *			spreading is required
+ * @set_size:		Array holding the size of each interrupt set
  */
 struct irq_affinity {
 	unsigned int	pre_vectors;
 	unsigned int	post_vectors;
 	unsigned int	nr_sets;
-	unsigned int	*sets;
+	unsigned int	set_size[IRQ_AFFINITY_MAX_SETS];
 };
 
 /**
