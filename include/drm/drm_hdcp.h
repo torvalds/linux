@@ -13,6 +13,7 @@
 
 /* Period of hdcp checks (to ensure we're still authenticated) */
 #define DRM_HDCP_CHECK_PERIOD_MS		(128 * 16)
+#define DRM_HDCP2_CHECK_PERIOD_MS		500
 
 /* Shared lengths/masks between HDMI/DVI/DisplayPort */
 #define DRM_HDCP_AN_LEN				8
