@@ -4780,7 +4780,7 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 		intel_dp_handle_test_request(intel_dp);
 
 	if (val & DP_CP_IRQ)
-		intel_hdcp_check_link(intel_dp->attached_connector);
+		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		DRM_DEBUG_DRIVER("Sink specific irq unhandled\n");

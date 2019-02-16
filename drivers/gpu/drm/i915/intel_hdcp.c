@@ -74,6 +74,16 @@ bool intel_hdcp_capable(struct intel_connector *connector)
 	return capable;
 }
 
+static inline bool intel_hdcp_in_use(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	enum port port = connector->encoder->port;
+	u32 reg;
+
+	reg = I915_READ(PORT_HDCP_STATUS(port));
+	return reg & HDCP_STATUS_ENC;
+}
+
 static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *intel_dig_port,
 				    const struct intel_hdcp_shim *shim)
 {
@@ -668,6 +678,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 	DRM_DEBUG_KMS("[%s:%d] HDCP is being disabled...\n",
 		      connector->base.name, connector->base.base.id);
 
+	hdcp->hdcp_encrypted = false;
 	I915_WRITE(PORT_HDCP_CONF(port), 0);
 	if (intel_wait_for_register(dev_priv, PORT_HDCP_STATUS(port), ~0, 0,
 				    ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
@@ -713,8 +724,10 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 	/* Incase of authentication failures, HDCP spec expects reauth. */
 	for (i = 0; i < tries; i++) {
 		ret = intel_hdcp_auth(conn_to_dig_port(connector), hdcp->shim);
-		if (!ret)
+		if (!ret) {
+			hdcp->hdcp_encrypted = true;
 			return 0;
+		}
 
 		DRM_DEBUG_KMS("HDCP Auth failure (%d)\n", ret);
 
@@ -741,16 +754,17 @@ int intel_hdcp_check_link(struct intel_connector *connector)
 	enum port port = intel_dig_port->base.port;
 	int ret = 0;
 
-	if (!hdcp->shim)
-		return -ENOENT;
-
 	mutex_lock(&hdcp->mutex);
 
-	if (hdcp->value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+	/* Check_link valid only when HDCP1.4 is enabled */
+	if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_ENABLED ||
+	    !hdcp->hdcp_encrypted) {
+		ret = -EINVAL;
 		goto out;
+	}
 
-	if (!(I915_READ(PORT_HDCP_STATUS(port)) & HDCP_STATUS_ENC)) {
-		DRM_ERROR("%s:%d HDCP check failed: link is not encrypted,%x\n",
+	if (WARN_ON(!intel_hdcp_in_use(connector))) {
+		DRM_ERROR("%s:%d HDCP link stopped encryption,%x\n",
 			  connector->base.name, connector->base.base.id,
 			  I915_READ(PORT_HDCP_STATUS(port)));
 		ret = -ENXIO;
@@ -789,18 +803,6 @@ int intel_hdcp_check_link(struct intel_connector *connector)
 out:
 	mutex_unlock(&hdcp->mutex);
 	return ret;
-}
-
-static void intel_hdcp_check_work(struct work_struct *work)
-{
-	struct intel_hdcp *hdcp = container_of(to_delayed_work(work),
-					       struct intel_hdcp,
-					       check_work);
-	struct intel_connector *connector = intel_hdcp_to_connector(hdcp);
-
-	if (!intel_hdcp_check_link(connector))
-		schedule_delayed_work(&hdcp->check_work,
-				      DRM_HDCP_CHECK_PERIOD_MS);
 }
 
 static void intel_hdcp_prop_work(struct work_struct *work)
@@ -1120,6 +1122,18 @@ int hdcp2_deauthenticate_port(struct intel_connector *connector)
 	return hdcp2_close_mei_session(connector);
 }
 
+static void intel_hdcp_check_work(struct work_struct *work)
+{
+	struct intel_hdcp *hdcp = container_of(to_delayed_work(work),
+					       struct intel_hdcp,
+					       check_work);
+	struct intel_connector *connector = intel_hdcp_to_connector(hdcp);
+
+	if (!intel_hdcp_check_link(connector))
+		schedule_delayed_work(&hdcp->check_work,
+				      DRM_HDCP_CHECK_PERIOD_MS);
+}
+
 static int i915_hdcp_component_bind(struct device *i915_kdev,
 				    struct device *mei_kdev, void *data)
 {
@@ -1281,7 +1295,8 @@ int intel_hdcp_disable(struct intel_connector *connector)
 
 	if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
 		hdcp->value = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-		ret = _intel_hdcp_disable(connector);
+		if (hdcp->hdcp_encrypted)
+			ret = _intel_hdcp_disable(connector);
 	}
 
 	mutex_unlock(&hdcp->mutex);
@@ -1344,4 +1359,22 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 	crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
 						   new_state->crtc);
 	crtc_state->mode_changed = true;
+}
+
+/* Handles the CP_IRQ raised from the DP HDCP sink */
+void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
+{
+	struct intel_hdcp *hdcp = &connector->hdcp;
+
+	if (!hdcp->shim)
+		return;
+
+	/*
+	 * CP_IRQ could be triggered due to 1. HDCP2.2 auth msgs availability,
+	 * 2. link failure and 3. repeater reauth request. At present we dont
+	 * handle the CP_IRQ for the HDCP2.2 auth msg availability for read.
+	 * To handle other two causes for CP_IRQ we have the work_fn which is
+	 * scheduled here.
+	 */
+	schedule_delayed_work(&hdcp->check_work, 0);
 }
