@@ -214,7 +214,7 @@ static int meth_init_tx_ring(struct meth_private *priv)
 {
 	/* Init TX ring */
 	priv->tx_ring = dma_alloc_coherent(&priv->pdev->dev,
-			TX_RING_BUFFER_SIZE, &priv->tx_ring_dma, GFP_KERNEL);
+			TX_RING_BUFFER_SIZE, &priv->tx_ring_dma, GFP_ATOMIC);
 	if (!priv->tx_ring)
 		return -ENOMEM;
 
