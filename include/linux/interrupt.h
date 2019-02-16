@@ -251,10 +251,10 @@ struct irq_affinity_notify {
  * @sets:		Number of affinitized sets
  */
 struct irq_affinity {
-	int	pre_vectors;
-	int	post_vectors;
-	int	nr_sets;
-	int	*sets;
+	unsigned int	pre_vectors;
+	unsigned int	post_vectors;
+	unsigned int	nr_sets;
+	unsigned int	*sets;
 };
 
 /**
@@ -314,9 +314,10 @@ extern int
 irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
 
 struct irq_affinity_desc *
-irq_create_affinity_masks(int nvec, const struct irq_affinity *affd);
+irq_create_affinity_masks(unsigned int nvec, const struct irq_affinity *affd);
 
-int irq_calc_affinity_vectors(int minvec, int maxvec, const struct irq_affinity *affd);
+unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
+				       const struct irq_affinity *affd);
 
 #else /* CONFIG_SMP */
 
@@ -350,13 +351,14 @@ irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
 }
 
 static inline struct irq_affinity_desc *
-irq_create_affinity_masks(int nvec, const struct irq_affinity *affd)
+irq_create_affinity_masks(unsigned int nvec, const struct irq_affinity *affd)
 {
 	return NULL;
 }
 
-static inline int
-irq_calc_affinity_vectors(int minvec, int maxvec, const struct irq_affinity *affd)
+static inline unsigned int
+irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
+			  const struct irq_affinity *affd)
 {
 	return maxvec;
 }
