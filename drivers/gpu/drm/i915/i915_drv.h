@@ -55,6 +55,7 @@
 #include <drm/drm_util.h>
 #include <drm/drm_dsc.h>
 #include <drm/drm_connector.h>
+#include <drm/i915_mei_hdcp_interface.h>
 
 #include "i915_fixed.h"
 #include "i915_params.h"
@@ -2051,6 +2052,12 @@ struct drm_i915_private {
 	} lpe_audio;
 
 	struct i915_pmu pmu;
+
+	struct i915_hdcp_comp_master *hdcp_master;
+	bool hdcp_comp_added;
+
+	/* Mutex to protect the above hdcp component related values. */
+	struct mutex hdcp_comp_mutex;
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch

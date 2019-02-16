@@ -88,6 +88,8 @@ void intel_connector_destroy(struct drm_connector *connector)
 
 	kfree(intel_connector->detect_edid);
 
+	intel_hdcp_cleanup(intel_connector);
+
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 

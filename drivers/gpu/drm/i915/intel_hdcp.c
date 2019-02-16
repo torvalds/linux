@@ -7,8 +7,10 @@
  */
 
 #include <drm/drm_hdcp.h>
+#include <drm/i915_component.h>
 #include <linux/i2c.h>
 #include <linux/random.h>
+#include <linux/component.h>
 
 #include "intel_drv.h"
 #include "i915_reg.h"
@@ -832,6 +834,347 @@ bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 	return INTEL_GEN(dev_priv) >= 9 && port < PORT_E;
 }
 
+static __attribute__((unused)) int
+hdcp2_prepare_ake_init(struct intel_connector *connector,
+		       struct hdcp2_ake_init *ake_data)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->initiate_hdcp2_session(comp->mei_dev, data, ake_data);
+	if (ret)
+		DRM_DEBUG_KMS("Prepare_ake_init failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_verify_rx_cert_prepare_km(struct intel_connector *connector,
+				struct hdcp2_ake_send_cert *rx_cert,
+				bool *paired,
+				struct hdcp2_ake_no_stored_km *ek_pub_km,
+				size_t *msg_sz)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->verify_receiver_cert_prepare_km(comp->mei_dev, data,
+							 rx_cert, paired,
+							 ek_pub_km, msg_sz);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Verify rx_cert failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_verify_hprime(struct intel_connector *connector,
+		    struct hdcp2_ake_send_hprime *rx_hprime)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->verify_hprime(comp->mei_dev, data, rx_hprime);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Verify hprime failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_store_pairing_info(struct intel_connector *connector,
+			 struct hdcp2_ake_send_pairing_info *pairing_info)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->store_pairing_info(comp->mei_dev, data, pairing_info);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Store pairing info failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_prepare_lc_init(struct intel_connector *connector,
+		      struct hdcp2_lc_init *lc_init)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->initiate_locality_check(comp->mei_dev, data, lc_init);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Prepare lc_init failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_verify_lprime(struct intel_connector *connector,
+		    struct hdcp2_lc_send_lprime *rx_lprime)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->verify_lprime(comp->mei_dev, data, rx_lprime);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Verify L_Prime failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused))
+int hdcp2_prepare_skey(struct intel_connector *connector,
+		       struct hdcp2_ske_send_eks *ske_data)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->get_session_key(comp->mei_dev, data, ske_data);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Get session key failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_verify_rep_topology_prepare_ack(struct intel_connector *connector,
+				      struct hdcp2_rep_send_receiverid_list
+								*rep_topology,
+				      struct hdcp2_rep_send_ack *rep_send_ack)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->repeater_check_flow_prepare_ack(comp->mei_dev, data,
+							 rep_topology,
+							 rep_send_ack);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Verify rep topology failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused)) int
+hdcp2_verify_mprime(struct intel_connector *connector,
+		    struct hdcp2_rep_stream_ready *stream_ready)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->verify_mprime(comp->mei_dev, data, stream_ready);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Verify mprime failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused))
+int hdcp2_authenticate_port(struct intel_connector *connector)
+{
+	struct hdcp_port_data *data = &connector->hdcp.port_data;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->enable_hdcp_authentication(comp->mei_dev, data);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Enable hdcp auth failed. %d\n", ret);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused))
+int hdcp2_close_mei_session(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct i915_hdcp_comp_master *comp;
+	int ret;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	comp = dev_priv->hdcp_master;
+
+	if (!comp || !comp->ops) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return -EINVAL;
+	}
+
+	ret = comp->ops->close_hdcp_session(comp->mei_dev,
+					     &connector->hdcp.port_data);
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return ret;
+}
+
+static __attribute__((unused))
+int hdcp2_deauthenticate_port(struct intel_connector *connector)
+{
+	return hdcp2_close_mei_session(connector);
+}
+
+static int i915_hdcp_component_bind(struct device *i915_kdev,
+				    struct device *mei_kdev, void *data)
+{
+	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
+
+	DRM_DEBUG("I915 HDCP comp bind\n");
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	dev_priv->hdcp_master = (struct i915_hdcp_comp_master *)data;
+	dev_priv->hdcp_master->mei_dev = mei_kdev;
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	return 0;
+}
+
+static void i915_hdcp_component_unbind(struct device *i915_kdev,
+				       struct device *mei_kdev, void *data)
+{
+	struct drm_i915_private *dev_priv = kdev_to_i915(i915_kdev);
+
+	DRM_DEBUG("I915 HDCP comp unbind\n");
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	dev_priv->hdcp_master = NULL;
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+}
+
+static const struct component_ops i915_hdcp_component_ops = {
+	.bind   = i915_hdcp_component_bind,
+	.unbind = i915_hdcp_component_unbind,
+};
+
+static inline int initialize_hdcp_port_data(struct intel_connector *connector)
+{
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct hdcp_port_data *data = &hdcp->port_data;
+
+	data->port = connector->encoder->port;
+	data->port_type = (u8)HDCP_PORT_TYPE_INTEGRATED;
+	data->protocol = (u8)hdcp->shim->protocol;
+
+	data->k = 1;
+	if (!data->streams)
+		data->streams = kcalloc(data->k,
+					sizeof(struct hdcp2_streamid_type),
+					GFP_KERNEL);
+	if (!data->streams) {
+		DRM_ERROR("Out of Memory\n");
+		return -ENOMEM;
+	}
+
+	data->streams[0].stream_id = 0;
+	data->streams[0].stream_type = hdcp->content_type;
+
+	return 0;
+}
+
 static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 {
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
@@ -841,11 +1184,40 @@ static bool is_hdcp2_supported(struct drm_i915_private *dev_priv)
 		IS_KABYLAKE(dev_priv));
 }
 
+void intel_hdcp_component_init(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	if (!is_hdcp2_supported(dev_priv))
+		return;
+
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	WARN_ON(dev_priv->hdcp_comp_added);
+
+	dev_priv->hdcp_comp_added = true;
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+	ret = component_add_typed(dev_priv->drm.dev, &i915_hdcp_component_ops,
+				  I915_COMPONENT_HDCP);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("Failed at component add(%d)\n", ret);
+		mutex_lock(&dev_priv->hdcp_comp_mutex);
+		dev_priv->hdcp_comp_added = false;
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return;
+	}
+}
+
 static void intel_hdcp2_init(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
+	int ret;
 
-	/* TODO: MEI interface needs to be initialized here */
+	ret = initialize_hdcp_port_data(connector);
+	if (ret) {
+		DRM_DEBUG_KMS("Mei hdcp data init failed\n");
+		return;
+	}
+
 	hdcp->hdcp2_supported = true;
 }
 
@@ -915,6 +1287,30 @@ int intel_hdcp_disable(struct intel_connector *connector)
 	mutex_unlock(&hdcp->mutex);
 	cancel_delayed_work_sync(&hdcp->check_work);
 	return ret;
+}
+
+void intel_hdcp_component_fini(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->hdcp_comp_mutex);
+	if (!dev_priv->hdcp_comp_added) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return;
+	}
+
+	dev_priv->hdcp_comp_added = false;
+	mutex_unlock(&dev_priv->hdcp_comp_mutex);
+
+	component_del(dev_priv->drm.dev, &i915_hdcp_component_ops);
+}
+
+void intel_hdcp_cleanup(struct intel_connector *connector)
+{
+	if (!connector->hdcp.shim)
+		return;
+
+	mutex_lock(&connector->hdcp.mutex);
+	kfree(connector->hdcp.port_data.streams);
+	mutex_unlock(&connector->hdcp.mutex);
 }
 
 void intel_hdcp_atomic_check(struct drm_connector *connector,
