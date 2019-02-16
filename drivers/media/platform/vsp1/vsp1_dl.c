@@ -699,8 +699,8 @@ struct vsp1_dl_body *vsp1_dl_list_get_body0(struct vsp1_dl_list *dl)
  * which bodies are added.
  *
  * Adding a body to a display list passes ownership of the body to the list. The
- * caller retains its reference to the fragment when adding it to the display
- * list, but is not allowed to add new entries to the body.
+ * caller retains its reference to the body when adding it to the display list,
+ * but is not allowed to add new entries to the body.
  *
  * The reference must be explicitly released by a call to vsp1_dl_body_put()
  * when the body isn't needed anymore.
