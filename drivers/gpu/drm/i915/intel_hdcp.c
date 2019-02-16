@@ -111,6 +111,16 @@ static inline bool intel_hdcp_in_use(struct intel_connector *connector)
 	return reg & HDCP_STATUS_ENC;
 }
 
+static inline bool intel_hdcp2_in_use(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	enum port port = connector->encoder->port;
+	u32 reg;
+
+	reg = I915_READ(HDCP2_STATUS_DDI(port));
+	return reg & LINK_ENCRYPTION_STATUS;
+}
+
 static int intel_hdcp_poll_ksv_fifo(struct intel_digital_port *intel_dig_port,
 				    const struct intel_hdcp_shim *shim)
 {
@@ -1580,6 +1590,69 @@ static int _intel_hdcp2_disable(struct intel_connector *connector)
 	return ret;
 }
 
+/* Implements the Link Integrity Check for HDCP2.2 */
+static int intel_hdcp2_check_link(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	enum port port = connector->encoder->port;
+	int ret = 0;
+
+	mutex_lock(&hdcp->mutex);
+
+	/* hdcp2_check_link is expected only when HDCP2.2 is Enabled */
+	if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_ENABLED ||
+	    !hdcp->hdcp2_encrypted) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (WARN_ON(!intel_hdcp2_in_use(connector))) {
+		DRM_ERROR("HDCP2.2 link stopped the encryption, %x\n",
+			  I915_READ(HDCP2_STATUS_DDI(port)));
+		ret = -ENXIO;
+		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&hdcp->prop_work);
+		goto out;
+	}
+
+	ret = hdcp->shim->check_2_2_link(intel_dig_port);
+	if (ret == HDCP_LINK_PROTECTED) {
+		if (hdcp->value != DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
+			hdcp->value = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+			schedule_work(&hdcp->prop_work);
+		}
+		goto out;
+	}
+
+	DRM_DEBUG_KMS("[%s:%d] HDCP2.2 link failed, retrying auth\n",
+		      connector->base.name, connector->base.base.id);
+
+	ret = _intel_hdcp2_disable(connector);
+	if (ret) {
+		DRM_ERROR("[%s:%d] Failed to disable hdcp2.2 (%d)\n",
+			  connector->base.name, connector->base.base.id, ret);
+		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&hdcp->prop_work);
+		goto out;
+	}
+
+	ret = _intel_hdcp2_enable(connector);
+	if (ret) {
+		DRM_DEBUG_KMS("[%s:%d] Failed to enable hdcp2.2 (%d)\n",
+			      connector->base.name, connector->base.base.id,
+			      ret);
+		hdcp->value = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		schedule_work(&hdcp->prop_work);
+		goto out;
+	}
+
+out:
+	mutex_unlock(&hdcp->mutex);
+	return ret;
+}
+
 static void intel_hdcp_check_work(struct work_struct *work)
 {
 	struct intel_hdcp *hdcp = container_of(to_delayed_work(work),
@@ -1587,7 +1660,10 @@ static void intel_hdcp_check_work(struct work_struct *work)
 					       check_work);
 	struct intel_connector *connector = intel_hdcp_to_connector(hdcp);
 
-	if (!intel_hdcp_check_link(connector))
+	if (!intel_hdcp2_check_link(connector))
+		schedule_delayed_work(&hdcp->check_work,
+				      DRM_HDCP2_CHECK_PERIOD_MS);
+	else if (!intel_hdcp_check_link(connector))
 		schedule_delayed_work(&hdcp->check_work,
 				      DRM_HDCP_CHECK_PERIOD_MS);
 }
@@ -1721,6 +1797,7 @@ int intel_hdcp_init(struct intel_connector *connector,
 int intel_hdcp_enable(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
+	unsigned long check_link_interval = DRM_HDCP_CHECK_PERIOD_MS;
 	int ret = -EINVAL;
 
 	if (!hdcp->shim)
@@ -1733,18 +1810,19 @@ int intel_hdcp_enable(struct intel_connector *connector)
 	 * Considering that HDCP2.2 is more secure than HDCP1.4, If the setup
 	 * is capable of HDCP2.2, it is preferred to use HDCP2.2.
 	 */
-	if (intel_hdcp2_capable(connector))
+	if (intel_hdcp2_capable(connector)) {
 		ret = _intel_hdcp2_enable(connector);
+		if (!ret)
+			check_link_interval = DRM_HDCP2_CHECK_PERIOD_MS;
+	}
 
 	/* When HDCP2.2 fails, HDCP1.4 will be attempted */
 	if (ret && intel_hdcp_capable(connector)) {
 		ret = _intel_hdcp_enable(connector);
-		if (!ret)
-			schedule_delayed_work(&hdcp->check_work,
-					      DRM_HDCP_CHECK_PERIOD_MS);
 	}
 
 	if (!ret) {
+		schedule_delayed_work(&hdcp->check_work, check_link_interval);
 		hdcp->value = DRM_MODE_CONTENT_PROTECTION_ENABLED;
 		schedule_work(&hdcp->prop_work);
 	}

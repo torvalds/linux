@@ -324,6 +324,13 @@ struct intel_panel {
 
 struct intel_digital_port;
 
+enum check_link_response {
+	HDCP_LINK_PROTECTED	= 0,
+	HDCP_TOPOLOGY_CHANGE,
+	HDCP_LINK_INTEGRITY_FAILURE,
+	HDCP_REAUTH_REQUEST
+};
+
 /*
  * This structure serves as a translation layer between the generic HDCP code
  * and the bus-specific code. What that means is that HDCP over HDMI differs
@@ -419,6 +426,9 @@ struct intel_hdcp_shim {
 	 */
 	int (*config_stream_type)(struct intel_digital_port *intel_dig_port,
 				  bool is_repeater, u8 type);
+
+	/* HDCP2.2 Link Integrity Check */
+	int (*check_2_2_link)(struct intel_digital_port *intel_dig_port);
 };
 
 struct intel_hdcp {
