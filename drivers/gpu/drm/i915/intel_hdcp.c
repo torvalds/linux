@@ -17,6 +17,7 @@
 
 #define KEY_LOAD_TRIES	5
 #define ENCRYPT_STATUS_CHANGE_TIMEOUT_MS	50
+#define HDCP2_LC_RETRY_CNT			3
 
 static
 bool intel_hdcp_is_ksv_valid(u8 *ksv)
@@ -862,7 +863,7 @@ bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port)
 	return INTEL_GEN(dev_priv) >= 9 && port < PORT_E;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_prepare_ake_init(struct intel_connector *connector,
 		       struct hdcp2_ake_init *ake_data)
 {
@@ -887,7 +888,7 @@ hdcp2_prepare_ake_init(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_verify_rx_cert_prepare_km(struct intel_connector *connector,
 				struct hdcp2_ake_send_cert *rx_cert,
 				bool *paired,
@@ -917,9 +918,8 @@ hdcp2_verify_rx_cert_prepare_km(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
-hdcp2_verify_hprime(struct intel_connector *connector,
-		    struct hdcp2_ake_send_hprime *rx_hprime)
+static int hdcp2_verify_hprime(struct intel_connector *connector,
+			       struct hdcp2_ake_send_hprime *rx_hprime)
 {
 	struct hdcp_port_data *data = &connector->hdcp.port_data;
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -942,7 +942,7 @@ hdcp2_verify_hprime(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_store_pairing_info(struct intel_connector *connector,
 			 struct hdcp2_ake_send_pairing_info *pairing_info)
 {
@@ -967,7 +967,7 @@ hdcp2_store_pairing_info(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_prepare_lc_init(struct intel_connector *connector,
 		      struct hdcp2_lc_init *lc_init)
 {
@@ -992,7 +992,7 @@ hdcp2_prepare_lc_init(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_verify_lprime(struct intel_connector *connector,
 		    struct hdcp2_lc_send_lprime *rx_lprime)
 {
@@ -1017,9 +1017,8 @@ hdcp2_verify_lprime(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused))
-int hdcp2_prepare_skey(struct intel_connector *connector,
-		       struct hdcp2_ske_send_eks *ske_data)
+static int hdcp2_prepare_skey(struct intel_connector *connector,
+			      struct hdcp2_ske_send_eks *ske_data)
 {
 	struct hdcp_port_data *data = &connector->hdcp.port_data;
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1096,8 +1095,7 @@ hdcp2_verify_mprime(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused))
-int hdcp2_authenticate_port(struct intel_connector *connector)
+static int hdcp2_authenticate_port(struct intel_connector *connector)
 {
 	struct hdcp_port_data *data = &connector->hdcp.port_data;
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1146,11 +1144,180 @@ static int hdcp2_deauthenticate_port(struct intel_connector *connector)
 	return hdcp2_close_mei_session(connector);
 }
 
+/* Authentication flow starts from here */
+static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	union {
+		struct hdcp2_ake_init ake_init;
+		struct hdcp2_ake_send_cert send_cert;
+		struct hdcp2_ake_no_stored_km no_stored_km;
+		struct hdcp2_ake_send_hprime send_hprime;
+		struct hdcp2_ake_send_pairing_info pairing_info;
+	} msgs;
+	const struct intel_hdcp_shim *shim = hdcp->shim;
+	size_t size;
+	int ret;
+
+	/* Init for seq_num */
+	hdcp->seq_num_v = 0;
+	hdcp->seq_num_m = 0;
+
+	ret = hdcp2_prepare_ake_init(connector, &msgs.ake_init);
+	if (ret < 0)
+		return ret;
+
+	ret = shim->write_2_2_msg(intel_dig_port, &msgs.ake_init,
+				  sizeof(msgs.ake_init));
+	if (ret < 0)
+		return ret;
+
+	ret = shim->read_2_2_msg(intel_dig_port, HDCP_2_2_AKE_SEND_CERT,
+				 &msgs.send_cert, sizeof(msgs.send_cert));
+	if (ret < 0)
+		return ret;
+
+	if (msgs.send_cert.rx_caps[0] != HDCP_2_2_RX_CAPS_VERSION_VAL)
+		return -EINVAL;
+
+	hdcp->is_repeater = HDCP_2_2_RX_REPEATER(msgs.send_cert.rx_caps[2]);
+
+	/*
+	 * Here msgs.no_stored_km will hold msgs corresponding to the km
+	 * stored also.
+	 */
+	ret = hdcp2_verify_rx_cert_prepare_km(connector, &msgs.send_cert,
+					      &hdcp->is_paired,
+					      &msgs.no_stored_km, &size);
+	if (ret < 0)
+		return ret;
+
+	ret = shim->write_2_2_msg(intel_dig_port, &msgs.no_stored_km, size);
+	if (ret < 0)
+		return ret;
+
+	ret = shim->read_2_2_msg(intel_dig_port, HDCP_2_2_AKE_SEND_HPRIME,
+				 &msgs.send_hprime, sizeof(msgs.send_hprime));
+	if (ret < 0)
+		return ret;
+
+	ret = hdcp2_verify_hprime(connector, &msgs.send_hprime);
+	if (ret < 0)
+		return ret;
+
+	if (!hdcp->is_paired) {
+		/* Pairing is required */
+		ret = shim->read_2_2_msg(intel_dig_port,
+					 HDCP_2_2_AKE_SEND_PAIRING_INFO,
+					 &msgs.pairing_info,
+					 sizeof(msgs.pairing_info));
+		if (ret < 0)
+			return ret;
+
+		ret = hdcp2_store_pairing_info(connector, &msgs.pairing_info);
+		if (ret < 0)
+			return ret;
+		hdcp->is_paired = true;
+	}
+
+	return 0;
+}
+
+static int hdcp2_locality_check(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	union {
+		struct hdcp2_lc_init lc_init;
+		struct hdcp2_lc_send_lprime send_lprime;
+	} msgs;
+	const struct intel_hdcp_shim *shim = hdcp->shim;
+	int tries = HDCP2_LC_RETRY_CNT, ret, i;
+
+	for (i = 0; i < tries; i++) {
+		ret = hdcp2_prepare_lc_init(connector, &msgs.lc_init);
+		if (ret < 0)
+			continue;
+
+		ret = shim->write_2_2_msg(intel_dig_port, &msgs.lc_init,
+				      sizeof(msgs.lc_init));
+		if (ret < 0)
+			continue;
+
+		ret = shim->read_2_2_msg(intel_dig_port,
+					 HDCP_2_2_LC_SEND_LPRIME,
+					 &msgs.send_lprime,
+					 sizeof(msgs.send_lprime));
+		if (ret < 0)
+			continue;
+
+		ret = hdcp2_verify_lprime(connector, &msgs.send_lprime);
+		if (!ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int hdcp2_session_key_exchange(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct hdcp2_ske_send_eks send_eks;
+	int ret;
+
+	ret = hdcp2_prepare_skey(connector, &send_eks);
+	if (ret < 0)
+		return ret;
+
+	ret = hdcp->shim->write_2_2_msg(intel_dig_port, &send_eks,
+					sizeof(send_eks));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int hdcp2_authenticate_sink(struct intel_connector *connector)
 {
-	DRM_ERROR("Sink authentication is done in subsequent patches\n");
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	const struct intel_hdcp_shim *shim = hdcp->shim;
+	int ret;
 
-	return -EINVAL;
+	ret = hdcp2_authentication_key_exchange(connector);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("AKE Failed. Err : %d\n", ret);
+		return ret;
+	}
+
+	ret = hdcp2_locality_check(connector);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("Locality Check failed. Err : %d\n", ret);
+		return ret;
+	}
+
+	ret = hdcp2_session_key_exchange(connector);
+	if (ret < 0) {
+		DRM_DEBUG_KMS("SKE Failed. Err : %d\n", ret);
+		return ret;
+	}
+
+	if (shim->config_stream_type) {
+		ret = shim->config_stream_type(intel_dig_port,
+					       hdcp->is_repeater,
+					       hdcp->content_type);
+		if (ret < 0)
+			return ret;
+	}
+
+	hdcp->port_data.streams[0].stream_type = hdcp->content_type;
+	ret = hdcp2_authenticate_port(connector);
+	if (ret < 0)
+		return ret;
+
+	return ret;
 }
 
 static int hdcp2_enable_encryption(struct intel_connector *connector)

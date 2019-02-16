@@ -403,6 +403,22 @@ struct intel_hdcp_shim {
 	/* Detects whether sink is HDCP2.2 capable */
 	int (*hdcp_2_2_capable)(struct intel_digital_port *intel_dig_port,
 				bool *capable);
+
+	/* Write HDCP2.2 messages */
+	int (*write_2_2_msg)(struct intel_digital_port *intel_dig_port,
+			     void *buf, size_t size);
+
+	/* Read HDCP2.2 messages */
+	int (*read_2_2_msg)(struct intel_digital_port *intel_dig_port,
+			    u8 msg_id, void *buf, size_t size);
+
+	/*
+	 * Implementation of DP HDCP2.2 Errata for the communication of stream
+	 * type to Receivers. In DP HDCP2.2 Stream type is one of the input to
+	 * the HDCP2.2 Cipher for En/De-Cryption. Not applicable for HDMI.
+	 */
+	int (*config_stream_type)(struct intel_digital_port *intel_dig_port,
+				  bool is_repeater, u8 type);
 };
 
 struct intel_hdcp {
@@ -430,6 +446,24 @@ struct intel_hdcp {
 	 */
 	u8 content_type;
 	struct hdcp_port_data port_data;
+
+	bool is_paired;
+	bool is_repeater;
+
+	/*
+	 * Count of ReceiverID_List received. Initialized to 0 at AKE_INIT.
+	 * Incremented after processing the RepeaterAuth_Send_ReceiverID_List.
+	 * When it rolls over re-auth has to be triggered.
+	 */
+	u32 seq_num_v;
+
+	/*
+	 * Count of RepeaterAuth_Stream_Manage msg propagated.
+	 * Initialized to 0 on AKE_INIT. Incremented after every successful
+	 * transmission of RepeaterAuth_Stream_Manage message. When it rolls
+	 * over re-Auth has to be triggered.
+	 */
+	u32 seq_num_m;
 };
 
 struct intel_connector {
