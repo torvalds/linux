@@ -11,6 +11,7 @@
 #define _LINUX_NETDEV_FEATURES_H
 
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <asm/byteorder.h>
 
 typedef u64 netdev_features_t;
