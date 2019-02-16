@@ -700,8 +700,8 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	drm_pipe->du_private = cfg->callback_data;
 
 	/* Disable the display interrupts. */
-	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
-	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
+	vsp1_write(vsp1, VI6_DISP_IRQ_STA(pipe_index), 0);
+	vsp1_write(vsp1, VI6_DISP_IRQ_ENB(pipe_index), 0);
 
 	/* Configure all entities in the pipeline. */
 	vsp1_du_pipeline_configure(pipe);
