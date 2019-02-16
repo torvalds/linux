@@ -496,8 +496,8 @@ static int fastrpc_map_create(struct fastrpc_user *fl, int fd,
 	map->fl = fl;
 	map->fd = fd;
 	map->buf = dma_buf_get(fd);
-	if (!map->buf) {
-		err = -EINVAL;
+	if (IS_ERR(map->buf)) {
+		err = PTR_ERR(map->buf);
 		goto get_err;
 	}
 
