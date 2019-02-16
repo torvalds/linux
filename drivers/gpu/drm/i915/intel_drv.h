@@ -404,6 +404,17 @@ struct intel_hdcp {
 	u64 value;
 	struct delayed_work check_work;
 	struct work_struct prop_work;
+
+	/* HDCP2.2 related definitions */
+	/* Flag indicates whether this connector supports HDCP2.2 or not. */
+	bool hdcp2_supported;
+
+	/*
+	 * Content Stream Type defined by content owner. TYPE0(0x0) content can
+	 * flow in the link protected by HDCP2.2 or HDCP1.4, where as TYPE1(0x1)
+	 * content can flow only through a link protected by HDCP2.2.
+	 */
+	u8 content_type;
 };
 
 struct intel_connector {
