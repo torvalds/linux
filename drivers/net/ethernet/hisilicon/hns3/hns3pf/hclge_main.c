@@ -2599,7 +2599,7 @@ static int hclge_set_vf_rst(struct hclge_dev *hdev, int func_id, bool reset)
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
+static int hclge_set_all_vf_rst(struct hclge_dev *hdev, bool reset)
 {
 	int i;
 
