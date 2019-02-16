@@ -1083,10 +1083,44 @@ int intel_hdmi_hdcp_read_v_prime_part(struct intel_digital_port *intel_dig_port,
 	return ret;
 }
 
+static int kbl_repositioning_enc_en_signal(struct intel_connector *connector)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct drm_crtc *crtc = connector->base.state->crtc;
+	struct intel_crtc *intel_crtc = container_of(crtc,
+						     struct intel_crtc, base);
+	u32 scanline;
+	int ret;
+
+	for (;;) {
+		scanline = I915_READ(PIPEDSL(intel_crtc->pipe));
+		if (scanline > 100 && scanline < 200)
+			break;
+		usleep_range(25, 50);
+	}
+
+	ret = intel_ddi_toggle_hdcp_signalling(&intel_dig_port->base, false);
+	if (ret) {
+		DRM_ERROR("Disable HDCP signalling failed (%d)\n", ret);
+		return ret;
+	}
+	ret = intel_ddi_toggle_hdcp_signalling(&intel_dig_port->base, true);
+	if (ret) {
+		DRM_ERROR("Enable HDCP signalling failed (%d)\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static
 int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *intel_dig_port,
 				      bool enable)
 {
+	struct intel_hdmi *hdmi = &intel_dig_port->hdmi;
+	struct intel_connector *connector = hdmi->attached_connector;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	int ret;
 
 	if (!enable)
@@ -1098,6 +1132,14 @@ int intel_hdmi_hdcp_toggle_signalling(struct intel_digital_port *intel_dig_port,
 			  enable ? "Enable" : "Disable", ret);
 		return ret;
 	}
+
+	/*
+	 * WA: To fix incorrect positioning of the window of
+	 * opportunity and enc_en signalling in KABYLAKE.
+	 */
+	if (IS_KABYLAKE(dev_priv) && enable)
+		return kbl_repositioning_enc_en_signal(connector);
+
 	return 0;
 }
 
