@@ -1626,8 +1626,24 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 		goto out;
 	}
 
-	DRM_DEBUG_KMS("[%s:%d] HDCP2.2 link failed, retrying auth\n",
-		      connector->base.name, connector->base.base.id);
+	if (ret == HDCP_TOPOLOGY_CHANGE) {
+		if (hdcp->value == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+			goto out;
+
+		DRM_DEBUG_KMS("HDCP2.2 Downstream topology change\n");
+		ret = hdcp2_authenticate_repeater_topology(connector);
+		if (!ret) {
+			hdcp->value = DRM_MODE_CONTENT_PROTECTION_ENABLED;
+			schedule_work(&hdcp->prop_work);
+			goto out;
+		}
+		DRM_DEBUG_KMS("[%s:%d] Repeater topology auth failed.(%d)\n",
+			      connector->base.name, connector->base.base.id,
+			      ret);
+	} else {
+		DRM_DEBUG_KMS("[%s:%d] HDCP2.2 link failed, retrying auth\n",
+			      connector->base.name, connector->base.base.id);
+	}
 
 	ret = _intel_hdcp2_disable(connector);
 	if (ret) {
