@@ -407,7 +407,7 @@
 		};
 
 		port@a {
-			reg = <0xa>;
+			reg = <10>;
 
 			adv7482_txa: endpoint {
 				clock-lanes = <0>;
