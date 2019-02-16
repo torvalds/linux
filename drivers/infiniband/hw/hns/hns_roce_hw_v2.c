@@ -2945,6 +2945,9 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
+	if (table->type == HEM_TYPE_SCCC)
+		obj = mhop.l0_idx;
+
 	if (check_whether_last_step(hop_num, step_idx)) {
 		hem = table->hem[hem_idx];
 		for (hns_roce_hem_first(hem, &iter);
