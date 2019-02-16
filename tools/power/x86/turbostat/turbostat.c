@@ -314,9 +314,8 @@ int for_all_cpus(int (func)(struct thread_data *, struct core_data *, struct pkg
 	int retval, pkg_no, core_no, thread_no, node_no;
 
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
-			for (node_no = 0; node_no < topo.nodes_per_pkg;
-			     node_no++) {
+		for (node_no = 0; node_no < topo.nodes_per_pkg; node_no++) {
+			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
 				for (thread_no = 0; thread_no <
 					topo.threads_per_core; ++thread_no) {
 					struct thread_data *t;
