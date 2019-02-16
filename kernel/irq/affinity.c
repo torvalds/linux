@@ -264,20 +264,13 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 
 	/*
 	 * Simple invocations do not provide a calc_sets() callback. Install
-	 * the generic one. The check for affd->nr_sets is a temporary
-	 * workaround and will be removed after the NVME driver is converted
-	 * over.
+	 * the generic one.
 	 */
-	if (!affd->nr_sets && !affd->calc_sets)
+	if (!affd->calc_sets)
 		affd->calc_sets = default_calc_sets;
 
-	/*
-	 * If the device driver provided a calc_sets() callback let it
-	 * recalculate the number of sets and their size. The check will go
-	 * away once the NVME driver is converted over.
-	 */
-	if (affd->calc_sets)
-		affd->calc_sets(affd, affvecs);
+	/* Recalculate the sets */
+	affd->calc_sets(affd, affvecs);
 
 	if (WARN_ON_ONCE(affd->nr_sets > IRQ_AFFINITY_MAX_SETS))
 		return NULL;
@@ -344,11 +337,6 @@ unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 
 	if (affd->calc_sets) {
 		set_vecs = maxvec - resv;
-	} else if (affd->nr_sets) {
-		unsigned int i;
-
-		for (i = 0, set_vecs = 0;  i < affd->nr_sets; i++)
-			set_vecs += affd->set_size[i];
 	} else {
 		get_online_cpus();
 		set_vecs = cpumask_weight(cpu_possible_mask);
