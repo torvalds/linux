@@ -238,13 +238,8 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(mapping->host->i_sb);
 	const unsigned int clusterpages = erofs_clusterpages(sbi);
-
-	struct z_erofs_vle_workgroup *grp;
+	struct z_erofs_vle_workgroup *const grp = (void *)page_private(page);
 	int ret = 0;	/* 0 - busy */
-
-	/* prevent the workgroup from being freed */
-	rcu_read_lock();
-	grp = (void *)page_private(page);
 
 	if (erofs_workgroup_try_to_freeze(&grp->obj, 1)) {
 		unsigned int i;
@@ -257,12 +252,11 @@ int erofs_try_to_free_cached_page(struct address_space *mapping,
 			}
 		}
 		erofs_workgroup_unfreeze(&grp->obj, 1);
-	}
-	rcu_read_unlock();
 
-	if (ret) {
-		ClearPagePrivate(page);
-		put_page(page);
+		if (ret) {
+			ClearPagePrivate(page);
+			put_page(page);
+		}
 	}
 	return ret;
 }
