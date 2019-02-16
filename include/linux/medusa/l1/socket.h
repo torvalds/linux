@@ -37,4 +37,5 @@ struct med_unix_addr_i {
 	char *addrdata;
 };
 
+extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
 #endif

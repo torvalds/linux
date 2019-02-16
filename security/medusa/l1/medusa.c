@@ -844,7 +844,12 @@ static int medusa_l1_unix_may_send(struct socket *sock, struct socket *other)
 
 static int medusa_l1_socket_create(int family, int type, int protocol, int kern)
 {
-	//printk("medusa: socket_create called\n"); 
+	if (kern)
+		return 0;
+
+	if (medusa_socket_create(family, type, protocol) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 
