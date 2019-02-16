@@ -248,15 +248,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	if (val & MDIO_AN_10GBT_STAT_LP2_5G)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-				 phydev->lp_advertising);
-	if (val & MDIO_AN_10GBT_STAT_LP5G)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-				 phydev->lp_advertising);
-	if (val & MDIO_AN_10GBT_STAT_LP10G)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-				 phydev->lp_advertising);
+	mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 
 	return 0;
 }
