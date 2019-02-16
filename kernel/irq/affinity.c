@@ -230,6 +230,12 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 	return ret;
 }
 
+static void default_calc_sets(struct irq_affinity *affd, unsigned int affvecs)
+{
+	affd->nr_sets = 1;
+	affd->set_size[0] = affvecs;
+}
+
 /**
  * irq_create_affinity_masks - Create affinity masks for multiqueue spreading
  * @nvecs:	The total number of vectors
@@ -240,18 +246,44 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 struct irq_affinity_desc *
 irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 {
-	unsigned int affvecs, curvec, usedvecs, nr_sets, i;
-	unsigned int set_size[IRQ_AFFINITY_MAX_SETS];
+	unsigned int affvecs, curvec, usedvecs, i;
 	struct irq_affinity_desc *masks = NULL;
 
 	/*
-	 * If there aren't any vectors left after applying the pre/post
-	 * vectors don't bother with assigning affinity.
+	 * Determine the number of vectors which need interrupt affinities
+	 * assigned. If the pre/post request exhausts the available vectors
+	 * then nothing to do here except for invoking the calc_sets()
+	 * callback so the device driver can adjust to the situation. If there
+	 * is only a single vector, then managing the queue is pointless as
+	 * well.
 	 */
-	if (nvecs == affd->pre_vectors + affd->post_vectors)
-		return NULL;
+	if (nvecs > 1 && nvecs > affd->pre_vectors + affd->post_vectors)
+		affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
+	else
+		affvecs = 0;
+
+	/*
+	 * Simple invocations do not provide a calc_sets() callback. Install
+	 * the generic one. The check for affd->nr_sets is a temporary
+	 * workaround and will be removed after the NVME driver is converted
+	 * over.
+	 */
+	if (!affd->nr_sets && !affd->calc_sets)
+		affd->calc_sets = default_calc_sets;
+
+	/*
+	 * If the device driver provided a calc_sets() callback let it
+	 * recalculate the number of sets and their size. The check will go
+	 * away once the NVME driver is converted over.
+	 */
+	if (affd->calc_sets)
+		affd->calc_sets(affd, affvecs);
 
 	if (WARN_ON_ONCE(affd->nr_sets > IRQ_AFFINITY_MAX_SETS))
+		return NULL;
+
+	/* Nothing to assign? */
+	if (!affvecs)
 		return NULL;
 
 	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
@@ -261,21 +293,13 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	/* Fill out vectors at the beginning that don't need affinity */
 	for (curvec = 0; curvec < affd->pre_vectors; curvec++)
 		cpumask_copy(&masks[curvec].mask, irq_default_affinity);
+
 	/*
 	 * Spread on present CPUs starting from affd->pre_vectors. If we
 	 * have multiple sets, build each sets affinity mask separately.
 	 */
-	affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
-	nr_sets = affd->nr_sets;
-	if (!nr_sets) {
-		nr_sets = 1;
-		set_size[0] = affvecs;
-	} else {
-		memcpy(set_size, affd->set_size, nr_sets * sizeof(unsigned int));
-	}
-
-	for (i = 0, usedvecs = 0; i < nr_sets; i++) {
-		unsigned int this_vecs = set_size[i];
+	for (i = 0, usedvecs = 0; i < affd->nr_sets; i++) {
+		unsigned int this_vecs = affd->set_size[i];
 		int ret;
 
 		ret = irq_build_affinity_masks(affd, curvec, this_vecs,
@@ -318,7 +342,9 @@ unsigned int irq_calc_affinity_vectors(unsigned int minvec, unsigned int maxvec,
 	if (resv > minvec)
 		return 0;
 
-	if (affd->nr_sets) {
+	if (affd->calc_sets) {
+		set_vecs = maxvec - resv;
+	} else if (affd->nr_sets) {
 		unsigned int i;
 
 		for (i = 0, set_vecs = 0;  i < affd->nr_sets; i++)
