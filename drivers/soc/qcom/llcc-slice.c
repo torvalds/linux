@@ -149,7 +149,7 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 	int ret;
 	u32 act_ctrl_val;
 
-	If (IS_ERR(drv_data))
+	if (IS_ERR(drv_data))
 		return PTR_ERR(drv_data);
 
 	if (IS_ERR_OR_NULL(desc))
@@ -189,7 +189,7 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 	u32 act_ctrl_val;
 	int ret;
 
-	If (IS_ERR(drv_data))
+	if (IS_ERR(drv_data))
 		return PTR_ERR(drv_data);
 
 	if (IS_ERR_OR_NULL(desc))
