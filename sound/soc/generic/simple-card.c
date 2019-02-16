@@ -445,7 +445,7 @@ static int simple_for_each_link(struct simple_priv *priv,
 	/* Check if it has dai-link */
 	node = of_get_child_by_name(top, PREFIX "dai-link");
 	if (!node) {
-		node = top;
+		node = of_node_get(top);
 		is_top = 1;
 	}
 
