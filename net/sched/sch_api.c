@@ -526,11 +526,6 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt,
 	return stab;
 }
 
-static void stab_kfree_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct qdisc_size_table, rcu));
-}
-
 void qdisc_put_stab(struct qdisc_size_table *tab)
 {
 	if (!tab)
@@ -538,7 +533,7 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
-		call_rcu(&tab->rcu, stab_kfree_rcu);
+		kfree_rcu(tab, rcu);
 	}
 }
 EXPORT_SYMBOL(qdisc_put_stab);
