@@ -16,7 +16,8 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
-#define BTF_MAX_NR_TYPES 65535
+#define BTF_MAX_NR_TYPES 0x7fffffff
+#define BTF_MAX_STR_OFFSET 0x7fffffff
 
 #define IS_MODIFIER(k) (((k) == BTF_KIND_TYPEDEF) || \
 		((k) == BTF_KIND_VOLATILE) || \
@@ -175,7 +176,7 @@ static int btf_parse_str_sec(struct btf *btf)
 	const char *start = btf->nohdr_data + hdr->str_off;
 	const char *end = start + btf->hdr->str_len;
 
-	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_NAME_OFFSET ||
+	if (!hdr->str_len || hdr->str_len - 1 > BTF_MAX_STR_OFFSET ||
 	    start[0] || end[-1]) {
 		pr_debug("Invalid BTF string section\n");
 		return -EINVAL;
@@ -1882,7 +1883,7 @@ static int btf_dedup_prim_types(struct btf_dedup *d)
  */
 static inline bool is_type_mapped(struct btf_dedup *d, uint32_t type_id)
 {
-	return d->map[type_id] <= BTF_MAX_TYPE;
+	return d->map[type_id] <= BTF_MAX_NR_TYPES;
 }
 
 /*
@@ -2033,7 +2034,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	canon_id = resolve_fwd_id(d, canon_id);
 
 	hypot_type_id = d->hypot_map[canon_id];
-	if (hypot_type_id <= BTF_MAX_TYPE)
+	if (hypot_type_id <= BTF_MAX_NR_TYPES)
 		return hypot_type_id == cand_id;
 
 	if (btf_dedup_hypot_map_add(d, canon_id, cand_id))
@@ -2252,7 +2253,7 @@ static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 	__u32 h;
 
 	/* already deduped or is in process of deduping (loop detected) */
-	if (d->map[type_id] <= BTF_MAX_TYPE)
+	if (d->map[type_id] <= BTF_MAX_NR_TYPES)
 		return 0;
 
 	t = d->btf->types[type_id];
@@ -2329,7 +2330,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 
 	if (d->map[type_id] == BTF_IN_PROGRESS_ID)
 		return -ELOOP;
-	if (d->map[type_id] <= BTF_MAX_TYPE)
+	if (d->map[type_id] <= BTF_MAX_NR_TYPES)
 		return resolve_type_id(d, type_id);
 
 	t = d->btf->types[type_id];
@@ -2509,7 +2510,7 @@ static int btf_dedup_remap_type_id(struct btf_dedup *d, __u32 type_id)
 
 	resolved_type_id = resolve_type_id(d, type_id);
 	new_type_id = d->hypot_map[resolved_type_id];
-	if (new_type_id > BTF_MAX_TYPE)
+	if (new_type_id > BTF_MAX_NR_TYPES)
 		return -EINVAL;
 	return new_type_id;
 }
