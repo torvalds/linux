@@ -1041,7 +1041,7 @@ static int hdcp2_prepare_skey(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_verify_rep_topology_prepare_ack(struct intel_connector *connector,
 				      struct hdcp2_rep_send_receiverid_list
 								*rep_topology,
@@ -1070,7 +1070,7 @@ hdcp2_verify_rep_topology_prepare_ack(struct intel_connector *connector,
 	return ret;
 }
 
-static __attribute__((unused)) int
+static int
 hdcp2_verify_mprime(struct intel_connector *connector,
 		    struct hdcp2_rep_stream_ready *stream_ready)
 {
@@ -1279,6 +1279,119 @@ static int hdcp2_session_key_exchange(struct intel_connector *connector)
 	return 0;
 }
 
+static
+int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	union {
+		struct hdcp2_rep_stream_manage stream_manage;
+		struct hdcp2_rep_stream_ready stream_ready;
+	} msgs;
+	const struct intel_hdcp_shim *shim = hdcp->shim;
+	int ret;
+
+	/* Prepare RepeaterAuth_Stream_Manage msg */
+	msgs.stream_manage.msg_id = HDCP_2_2_REP_STREAM_MANAGE;
+	drm_hdcp2_u32_to_seq_num(msgs.stream_manage.seq_num_m, hdcp->seq_num_m);
+
+	/* K no of streams is fixed as 1. Stored as big-endian. */
+	msgs.stream_manage.k = cpu_to_be16(1);
+
+	/* For HDMI this is forced to be 0x0. For DP SST also this is 0x0. */
+	msgs.stream_manage.streams[0].stream_id = 0;
+	msgs.stream_manage.streams[0].stream_type = hdcp->content_type;
+
+	/* Send it to Repeater */
+	ret = shim->write_2_2_msg(intel_dig_port, &msgs.stream_manage,
+				  sizeof(msgs.stream_manage));
+	if (ret < 0)
+		return ret;
+
+	ret = shim->read_2_2_msg(intel_dig_port, HDCP_2_2_REP_STREAM_READY,
+				 &msgs.stream_ready, sizeof(msgs.stream_ready));
+	if (ret < 0)
+		return ret;
+
+	hdcp->port_data.seq_num_m = hdcp->seq_num_m;
+	hdcp->port_data.streams[0].stream_type = hdcp->content_type;
+
+	ret = hdcp2_verify_mprime(connector, &msgs.stream_ready);
+	if (ret < 0)
+		return ret;
+
+	hdcp->seq_num_m++;
+
+	if (hdcp->seq_num_m > HDCP_2_2_SEQ_NUM_MAX) {
+		DRM_DEBUG_KMS("seq_num_m roll over.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static
+int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
+{
+	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	union {
+		struct hdcp2_rep_send_receiverid_list recvid_list;
+		struct hdcp2_rep_send_ack rep_ack;
+	} msgs;
+	const struct intel_hdcp_shim *shim = hdcp->shim;
+	u8 *rx_info;
+	u32 seq_num_v;
+	int ret;
+
+	ret = shim->read_2_2_msg(intel_dig_port, HDCP_2_2_REP_SEND_RECVID_LIST,
+				 &msgs.recvid_list, sizeof(msgs.recvid_list));
+	if (ret < 0)
+		return ret;
+
+	rx_info = msgs.recvid_list.rx_info;
+
+	if (HDCP_2_2_MAX_CASCADE_EXCEEDED(rx_info[1]) ||
+	    HDCP_2_2_MAX_DEVS_EXCEEDED(rx_info[1])) {
+		DRM_DEBUG_KMS("Topology Max Size Exceeded\n");
+		return -EINVAL;
+	}
+
+	/* Converting and Storing the seq_num_v to local variable as DWORD */
+	seq_num_v = drm_hdcp2_seq_num_to_u32(msgs.recvid_list.seq_num_v);
+
+	if (seq_num_v < hdcp->seq_num_v) {
+		/* Roll over of the seq_num_v from repeater. Reauthenticate. */
+		DRM_DEBUG_KMS("Seq_num_v roll over.\n");
+		return -EINVAL;
+	}
+
+	ret = hdcp2_verify_rep_topology_prepare_ack(connector,
+						    &msgs.recvid_list,
+						    &msgs.rep_ack);
+	if (ret < 0)
+		return ret;
+
+	hdcp->seq_num_v = seq_num_v;
+	ret = shim->write_2_2_msg(intel_dig_port, &msgs.rep_ack,
+				  sizeof(msgs.rep_ack));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int hdcp2_authenticate_repeater(struct intel_connector *connector)
+{
+	int ret;
+
+	ret = hdcp2_authenticate_repeater_topology(connector);
+	if (ret < 0)
+		return ret;
+
+	return hdcp2_propagate_stream_management_info(connector);
+}
+
 static int hdcp2_authenticate_sink(struct intel_connector *connector)
 {
 	struct intel_digital_port *intel_dig_port = conn_to_dig_port(connector);
@@ -1310,6 +1423,14 @@ static int hdcp2_authenticate_sink(struct intel_connector *connector)
 					       hdcp->content_type);
 		if (ret < 0)
 			return ret;
+	}
+
+	if (hdcp->is_repeater) {
+		ret = hdcp2_authenticate_repeater(connector);
+		if (ret < 0) {
+			DRM_DEBUG_KMS("Repeater Auth Failed. Err: %d\n", ret);
+			return ret;
+		}
 	}
 
 	hdcp->port_data.streams[0].stream_type = hdcp->content_type;
