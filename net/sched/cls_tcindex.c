@@ -221,14 +221,6 @@ found:
 	return 0;
 }
 
-static int tcindex_destroy_element(struct tcf_proto *tp,
-				   void *arg, struct tcf_walker *walker)
-{
-	bool last;
-
-	return tcindex_delete(tp, arg, &last, false, NULL);
-}
-
 static void tcindex_destroy_work(struct work_struct *work)
 {
 	struct tcindex_data *p = container_of(to_rcu_work(work),
@@ -568,13 +560,32 @@ static void tcindex_destroy(struct tcf_proto *tp, bool rtnl_held,
 			    struct netlink_ext_ack *extack)
 {
 	struct tcindex_data *p = rtnl_dereference(tp->root);
-	struct tcf_walker walker;
+	int i;
 
 	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
-	walker.count = 0;
-	walker.skip = 0;
-	walker.fn = tcindex_destroy_element;
-	tcindex_walk(tp, &walker, true);
+
+	if (p->perfect) {
+		for (i = 0; i < p->hash; i++) {
+			struct tcindex_filter_result *r = p->perfect + i;
+
+			tcf_unbind_filter(tp, &r->res);
+			if (tcf_exts_get_net(&r->exts))
+				tcf_queue_work(&r->rwork,
+					       tcindex_destroy_rexts_work);
+			else
+				__tcindex_destroy_rexts(r);
+		}
+	}
+
+	for (i = 0; p->h && i < p->hash; i++) {
+		struct tcindex_filter *f, *next;
+		bool last;
+
+		for (f = rtnl_dereference(p->h[i]); f; f = next) {
+			next = rtnl_dereference(f->next);
+			tcindex_delete(tp, &f->result, &last, rtnl_held, NULL);
+		}
+	}
 
 	tcf_queue_work(&p->rwork, tcindex_destroy_work);
 }
