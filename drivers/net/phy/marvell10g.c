@@ -268,13 +268,8 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	/* We don't support manual MDI control */
 	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 
-	if (phydev->autoneg == AUTONEG_DISABLE) {
-		ret = genphy_c45_pma_setup_forced(phydev);
-		if (ret < 0)
-			return ret;
-
-		return genphy_c45_an_disable_aneg(phydev);
-	}
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		return genphy_c45_pma_setup_forced(phydev);
 
 	ret = genphy_c45_an_config_aneg(phydev);
 	if (ret < 0)
