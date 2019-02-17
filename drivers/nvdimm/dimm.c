@@ -26,6 +26,12 @@ static int nvdimm_probe(struct device *dev)
 	struct nvdimm_drvdata *ndd;
 	int rc;
 
+	rc = nvdimm_security_setup_events(dev);
+	if (rc < 0) {
+		dev_err(dev, "security event setup failed: %d\n", rc);
+		return rc;
+	}
+
 	rc = nvdimm_check_config_data(dev);
 	if (rc) {
 		/* not required for non-aliased nvdimm, ex. NVDIMM-N */

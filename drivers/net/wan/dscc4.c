@@ -1575,7 +1575,7 @@ try:
 					dev->stats.tx_packets++;
 					dev->stats.tx_bytes += skb->len;
 				}
-				dev_kfree_skb_irq(skb);
+				dev_consume_skb_irq(skb);
 				dpriv->tx_skbuff[cur] = NULL;
 				++dpriv->tx_dirty;
 			} else {

@@ -332,6 +332,9 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 
 	i915_gem_object_unpin_map(wa_ctx->indirect_ctx.obj);
 	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
+
+	wa_ctx->indirect_ctx.obj = NULL;
+	wa_ctx->indirect_ctx.shadow_va = NULL;
 }
 
 static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
@@ -356,6 +359,33 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 	return 0;
 }
 
+static int
+intel_gvt_workload_req_alloc(struct intel_vgpu_workload *workload)
+{
+	struct intel_vgpu *vgpu = workload->vgpu;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine = dev_priv->engine[workload->ring_id];
+	struct i915_request *rq;
+	int ret = 0;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	if (workload->req)
+		goto out;
+
+	rq = i915_request_alloc(engine, shadow_ctx);
+	if (IS_ERR(rq)) {
+		gvt_vgpu_err("fail to allocate gem request\n");
+		ret = PTR_ERR(rq);
+		goto out;
+	}
+	workload->req = i915_request_get(rq);
+out:
+	return ret;
+}
+
 /**
  * intel_gvt_scan_and_shadow_workload - audit the workload by scanning and
  * shadow it as well, include ringbuffer,wa_ctx and ctx.
@@ -372,12 +402,11 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine = dev_priv->engine[workload->ring_id];
 	struct intel_context *ce;
-	struct i915_request *rq;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	if (workload->req)
+	if (workload->shadow)
 		return 0;
 
 	ret = set_context_ppgtt_from_shadow(workload, shadow_ctx);
@@ -417,22 +446,8 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 			goto err_shadow;
 	}
 
-	rq = i915_request_alloc(engine, shadow_ctx);
-	if (IS_ERR(rq)) {
-		gvt_vgpu_err("fail to allocate gem request\n");
-		ret = PTR_ERR(rq);
-		goto err_shadow;
-	}
-	workload->req = i915_request_get(rq);
-
-	ret = populate_shadow_context(workload);
-	if (ret)
-		goto err_req;
-
+	workload->shadow = true;
 	return 0;
-err_req:
-	rq = fetch_and_zero(&workload->req);
-	i915_request_put(rq);
 err_shadow:
 	release_shadow_wa_ctx(&workload->wa_ctx);
 err_unpin:
@@ -671,23 +686,31 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	mutex_lock(&vgpu->vgpu_lock);
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
+	ret = intel_gvt_workload_req_alloc(workload);
+	if (ret)
+		goto err_req;
+
 	ret = intel_gvt_scan_and_shadow_workload(workload);
 	if (ret)
 		goto out;
 
+	ret = populate_shadow_context(workload);
+	if (ret) {
+		release_shadow_wa_ctx(&workload->wa_ctx);
+		goto out;
+	}
+
 	ret = prepare_workload(workload);
-
 out:
-	if (ret)
-		workload->status = ret;
-
 	if (!IS_ERR_OR_NULL(workload->req)) {
 		gvt_dbg_sched("ring id %d submit workload to i915 %p\n",
 				ring_id, workload->req);
 		i915_request_add(workload->req);
 		workload->dispatched = true;
 	}
-
+err_req:
+	if (ret)
+		workload->status = ret;
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
@@ -890,11 +913,6 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	scheduler->current_workload[ring_id] = NULL;
 
 	list_del_init(&workload->list);
-
-	if (!workload->status) {
-		release_shadow_batch_buffer(workload);
-		release_shadow_wa_ctx(&workload->wa_ctx);
-	}
 
 	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
 		/* if workload->status is not successful means HW GPU
@@ -1262,6 +1280,9 @@ int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu_submission *s = &workload->vgpu->submission;
+
+	release_shadow_batch_buffer(workload);
+	release_shadow_wa_ctx(&workload->wa_ctx);
 
 	if (workload->shadow_mm)
 		intel_vgpu_mm_put(workload->shadow_mm);

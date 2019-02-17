@@ -88,6 +88,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9575", 16 | PCA957X_TYPE | PCA_INT, },
 	{ "pca9698", 40 | PCA953X_TYPE, },
 
+	{ "pcal6416", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
 	{ "pcal6524", 24 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
 	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
 
@@ -296,7 +297,7 @@ static bool pca953x_volatile_register(struct device *dev, unsigned int reg)
 	return pca953x_check_register(chip, reg, bank);
 }
 
-const struct regmap_config pca953x_i2c_regmap = {
+static const struct regmap_config pca953x_i2c_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

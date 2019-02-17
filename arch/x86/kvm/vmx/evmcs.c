@@ -332,15 +332,16 @@ int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 			uint16_t *vmcs_version)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	bool evmcs_already_enabled = vmx->nested.enlightened_vmcs_enabled;
+
+	vmx->nested.enlightened_vmcs_enabled = true;
 
 	if (vmcs_version)
 		*vmcs_version = nested_get_evmcs_version(vcpu);
 
 	/* We don't support disabling the feature for simplicity. */
-	if (vmx->nested.enlightened_vmcs_enabled)
+	if (evmcs_already_enabled)
 		return 0;
-
-	vmx->nested.enlightened_vmcs_enabled = true;
 
 	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
 	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;

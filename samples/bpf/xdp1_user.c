@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ifindex = if_nametoindex(argv[1]);
+	ifindex = if_nametoindex(argv[optind]);
 	if (!ifindex) {
 		perror("if_nametoindex");
 		return 1;
