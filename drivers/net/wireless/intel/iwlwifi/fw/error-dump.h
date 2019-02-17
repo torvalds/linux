@@ -278,6 +278,10 @@ struct iwl_fw_error_dump_mem {
 	u8 data[];
 };
 
+#define IWL_INI_DUMP_MEM_VER 1
+#define IWL_INI_DUMP_MONITOR_VER 1
+#define IWL_INI_DUMP_FIFO_VER 1
+
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @start_addr: the start address of this range
@@ -292,11 +296,13 @@ struct iwl_fw_ini_error_dump_range {
 
 /**
  * struct iwl_fw_ini_error_dump_header - ini region dump header
+ * @version: dump version
  * @num_of_ranges: number of ranges in this region
  * @name_len: number of bytes allocated to the name string of this region
  * @name: name of the region
  */
 struct iwl_fw_ini_error_dump_header {
+	__le32 version;
 	__le32 num_of_ranges;
 	__le32 name_len;
 	u8 name[IWL_FW_INI_MAX_NAME];

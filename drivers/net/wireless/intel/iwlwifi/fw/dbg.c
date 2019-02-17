@@ -1380,6 +1380,8 @@ static void *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_error_dump *dump = data;
 
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_MEM_VER);
+
 	return dump->ranges;
 }
 
@@ -1402,6 +1404,7 @@ static void
 					       MON_BUFF_CYCLE_CNT_VER2);
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
 
+	mon_dump->header.version = cpu_to_le32(IWL_INI_DUMP_MONITOR_VER);
 	mon_dump->write_ptr = cpu_to_le32(write_ptr);
 	mon_dump->cycle_cnt = cpu_to_le32(cycle_cnt);
 
@@ -1413,6 +1416,8 @@ static void *iwl_dump_ini_fifo_fill_header(struct iwl_fw_runtime *fwrt,
 					   void *data)
 {
 	struct iwl_fw_ini_fifo_error_dump *dump = data;
+
+	dump->header.version = cpu_to_le32(IWL_INI_DUMP_FIFO_VER);
 
 	return dump->ranges;
 }
