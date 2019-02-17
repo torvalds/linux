@@ -1090,10 +1090,10 @@ static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 				     void *range_ptr, int idx)
 {
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
-	u32 addr = le32_to_cpu(range->start_addr);
-	u32 offset = le32_to_cpu(reg->offset);
+	u32 addr, offset = le32_to_cpu(reg->offset);
 
 	range->start_addr = reg->start_addr[idx];
+	addr = le32_to_cpu(range->start_addr);
 	range->range_data_size = reg->internal.range_data_size;
 	iwl_trans_read_mem_bytes(fwrt->trans, addr + offset, range->data,
 				 le32_to_cpu(reg->internal.range_data_size));
