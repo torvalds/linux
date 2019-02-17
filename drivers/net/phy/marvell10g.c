@@ -296,6 +296,16 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
+	if (!changed) {
+		/* Configure and restart aneg if it wasn't set before */
+		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
+		if (ret < 0)
+			return ret;
+
+		if (!(ret & MDIO_AN_CTRL1_ENABLE))
+			changed = 1;
+	}
+
 	if (changed)
 		ret = genphy_c45_restart_aneg(phydev);
 
