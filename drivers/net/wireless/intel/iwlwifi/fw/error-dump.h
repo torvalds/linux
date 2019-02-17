@@ -297,12 +297,14 @@ struct iwl_fw_ini_error_dump_range {
 /**
  * struct iwl_fw_ini_error_dump_header - ini region dump header
  * @version: dump version
+ * @region_id: id of the region
  * @num_of_ranges: number of ranges in this region
  * @name_len: number of bytes allocated to the name string of this region
  * @name: name of the region
  */
 struct iwl_fw_ini_error_dump_header {
 	__le32 version;
+	__le32 region_id;
 	__le32 num_of_ranges;
 	__le32 name_len;
 	u8 name[IWL_FW_INI_MAX_NAME];

@@ -1606,6 +1606,7 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 	(*data)->type = cpu_to_le32(type | INI_DUMP_BIT);
 	(*data)->len = cpu_to_le32(ops->get_size(fwrt, reg));
 
+	header->region_id = reg->region_id;
 	header->num_of_ranges = cpu_to_le32(num_of_ranges);
 	header->name_len = cpu_to_le32(min_t(int, IWL_FW_INI_MAX_NAME,
 					     le32_to_cpu(reg->name_len)));
