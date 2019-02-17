@@ -57,6 +57,7 @@ struct btf_ext_header {
 
 LIBBPF_API void btf__free(struct btf *btf);
 LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
+LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
 LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
@@ -65,8 +66,7 @@ LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__fd(const struct btf *btf);
-LIBBPF_API void btf__get_strings(const struct btf *btf, const char **strings,
-				 __u32 *str_len);
+LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
@@ -76,6 +76,8 @@ LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
 LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
+LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext* btf_ext,
+					     __u32 *size);
 LIBBPF_API int btf_ext__reloc_func_info(const struct btf *btf,
 					const struct btf_ext *btf_ext,
 					const char *sec_name, __u32 insns_cnt,

@@ -5879,15 +5879,17 @@ static void dump_btf_strings(const char *strs, __u32 len)
 static int do_test_dedup(unsigned int test_num)
 {
 	const struct btf_dedup_test *test = &dedup_tests[test_num - 1];
-	int err = 0, i;
-	__u32 test_nr_types, expect_nr_types, test_str_len, expect_str_len;
-	void *raw_btf;
-	unsigned int raw_btf_size;
+	__u32 test_nr_types, expect_nr_types, test_btf_size, expect_btf_size;
+	const struct btf_header *test_hdr, *expect_hdr;
 	struct btf *test_btf = NULL, *expect_btf = NULL;
+	const void *test_btf_data, *expect_btf_data;
 	const char *ret_test_next_str, *ret_expect_next_str;
 	const char *test_strs, *expect_strs;
 	const char *test_str_cur, *test_str_end;
 	const char *expect_str_cur, *expect_str_end;
+	unsigned int raw_btf_size;
+	void *raw_btf;
+	int err = 0, i;
 
 	fprintf(stderr, "BTF dedup test[%u] (%s):", test_num, test->descr);
 
@@ -5924,23 +5926,34 @@ static int do_test_dedup(unsigned int test_num)
 		goto done;
 	}
 
-	btf__get_strings(test_btf, &test_strs, &test_str_len);
-	btf__get_strings(expect_btf, &expect_strs, &expect_str_len);
-	if (CHECK(test_str_len != expect_str_len,
-		  "test_str_len:%u != expect_str_len:%u",
-		  test_str_len, expect_str_len)) {
+	test_btf_data = btf__get_raw_data(test_btf, &test_btf_size);
+	expect_btf_data = btf__get_raw_data(expect_btf, &expect_btf_size);
+	if (CHECK(test_btf_size != expect_btf_size,
+		  "test_btf_size:%u != expect_btf_size:%u",
+		  test_btf_size, expect_btf_size)) {
+		err = -1;
+		goto done;
+	}
+
+	test_hdr = test_btf_data;
+	test_strs = test_btf_data + test_hdr->str_off;
+	expect_hdr = expect_btf_data;
+	expect_strs = expect_btf_data + expect_hdr->str_off;
+	if (CHECK(test_hdr->str_len != expect_hdr->str_len,
+		  "test_hdr->str_len:%u != expect_hdr->str_len:%u",
+		  test_hdr->str_len, expect_hdr->str_len)) {
 		fprintf(stderr, "\ntest strings:\n");
-		dump_btf_strings(test_strs, test_str_len);
+		dump_btf_strings(test_strs, test_hdr->str_len);
 		fprintf(stderr, "\nexpected strings:\n");
-		dump_btf_strings(expect_strs, expect_str_len);
+		dump_btf_strings(expect_strs, expect_hdr->str_len);
 		err = -1;
 		goto done;
 	}
 
 	test_str_cur = test_strs;
-	test_str_end = test_strs + test_str_len;
+	test_str_end = test_strs + test_hdr->str_len;
 	expect_str_cur = expect_strs;
-	expect_str_end = expect_strs + expect_str_len;
+	expect_str_end = expect_strs + expect_hdr->str_len;
 	while (test_str_cur < test_str_end && expect_str_cur < expect_str_end) {
 		size_t test_len, expect_len;
 
