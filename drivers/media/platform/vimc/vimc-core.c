@@ -220,6 +220,7 @@ static int vimc_comp_bind(struct device *master)
 
 err_mdev_unregister:
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 err_comp_unbind_all:
 	component_unbind_all(master, NULL);
 err_v4l2_unregister:
@@ -236,6 +237,7 @@ static void vimc_comp_unbind(struct device *master)
 	dev_dbg(master, "unbind");
 
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 	component_unbind_all(master, NULL);
 	v4l2_device_unregister(&vimc->v4l2_dev);
 }
