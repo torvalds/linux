@@ -395,7 +395,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element %d, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element %d, error %d not %d",
 			     i, err, -ENOENT))
 				continue;
 		}
@@ -440,7 +440,7 @@ static int __init test_rhltable(unsigned int entries)
 			if (WARN(err, "cannot remove element at slot %d", i))
 				continue;
 		} else {
-			if (WARN(err != -ENOENT, "removed non-existant element, error %d not %d",
+			if (WARN(err != -ENOENT, "removed non-existent element, error %d not %d",
 				 err, -ENOENT))
 			continue;
 		}
