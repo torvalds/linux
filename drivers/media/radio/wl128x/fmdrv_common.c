@@ -908,7 +908,7 @@ static void fm_irq_afjump_setfreq(struct fmdev *fmdev)
 	u16 frq_index;
 	u16 payload;
 
-	fmdbg("Swtich to %d KHz\n", fmdev->rx.stat_info.af_cache[fmdev->rx.afjump_idx]);
+	fmdbg("Switch to %d KHz\n", fmdev->rx.stat_info.af_cache[fmdev->rx.afjump_idx]);
 	frq_index = (fmdev->rx.stat_info.af_cache[fmdev->rx.afjump_idx] -
 	     fmdev->rx.region.bot_freq) / FM_FREQ_MUL;
 
