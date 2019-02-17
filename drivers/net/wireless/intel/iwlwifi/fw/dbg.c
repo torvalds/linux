@@ -1224,10 +1224,11 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_fifo_error_dump_range *range = range_ptr;
 	struct iwl_ini_txf_iter_data *iter;
+	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
 	u32 offs = le32_to_cpu(reg->offset), addr;
 	u32 registers_size =
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
-	__le32 *val = range->data;
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(*reg_dump);
+	__le32 *data;
 	unsigned long flags;
 	int i;
 
@@ -1245,11 +1246,18 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 
 	iwl_write_prph_no_grab(fwrt->trans, TXF_LARC_NUM + offs, iter->fifo);
 
-	/* read txf registers */
+	/*
+	 * read txf registers. for each register, write to the dump the
+	 * register address and its value
+	 */
 	for (i = 0; i < le32_to_cpu(reg->fifos.num_of_registers); i++) {
 		addr = le32_to_cpu(reg->start_addr[i]) + offs;
 
-		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+		reg_dump->addr = cpu_to_le32(addr);
+		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+								   addr));
+
+		reg_dump++;
 	}
 
 	if (reg->fifos.header_only) {
@@ -1266,8 +1274,9 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 
 	/* Read FIFO */
 	addr = TXF_READ_MODIFY_DATA + offs;
-	for (i = 0; i < iter->fifo_size; i += sizeof(__le32))
-		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+	data = (void *)reg_dump;
+	for (i = 0; i < iter->fifo_size; i += sizeof(*data))
+		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
 
 out:
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
@@ -1323,10 +1332,11 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_fifo_error_dump_range *range = range_ptr;
 	struct iwl_ini_rxf_data rxf_data;
+	struct iwl_fw_ini_error_dump_register *reg_dump = (void *)range->data;
 	u32 offs = le32_to_cpu(reg->offset), addr;
 	u32 registers_size =
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
-	__le32 *val = range->data;
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(*reg_dump);
+	__le32 *data;
 	unsigned long flags;
 	int i;
 
@@ -1343,11 +1353,18 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	range->num_of_registers = reg->fifos.num_of_registers;
 	range->range_data_size = cpu_to_le32(rxf_data.size + registers_size);
 
-	/* read rxf registers */
+	/*
+	 * read rxf registers. for each register, write to the dump the
+	 * register address and its value
+	 */
 	for (i = 0; i < le32_to_cpu(reg->fifos.num_of_registers); i++) {
 		addr = le32_to_cpu(reg->start_addr[i]) + offs;
 
-		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+		reg_dump->addr = cpu_to_le32(addr);
+		reg_dump->data = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans,
+								   addr));
+
+		reg_dump++;
 	}
 
 	if (reg->fifos.header_only) {
@@ -1365,8 +1382,9 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 
 	/* Read FIFO */
 	addr =  RXF_FIFO_RD_FENCE_INC + offs;
-	for (i = 0; i < rxf_data.size; i += sizeof(__le32))
-		*val++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
+	data = (void *)reg_dump;
+	for (i = 0; i < rxf_data.size; i += sizeof(*data))
+		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
 
 out:
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
@@ -1525,7 +1543,7 @@ static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
 	void *fifo_iter = fwrt->dump.fifo_iter;
 	u32 size = 0;
 	u32 fifo_hdr = sizeof(struct iwl_fw_ini_fifo_error_dump_range) +
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32) * 2;
 
 	fwrt->dump.fifo_iter = &iter;
 	while (iwl_ini_txf_iter(fwrt, reg)) {
@@ -1548,7 +1566,7 @@ static u32 iwl_dump_ini_rxf_get_size(struct iwl_fw_runtime *fwrt,
 	struct iwl_ini_rxf_data rx_data;
 	u32 size = sizeof(struct iwl_fw_ini_fifo_error_dump) +
 		sizeof(struct iwl_fw_ini_fifo_error_dump_range) +
-		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32);
+		le32_to_cpu(reg->fifos.num_of_registers) * sizeof(__le32) * 2;
 
 	if (reg->fifos.header_only)
 		return size;

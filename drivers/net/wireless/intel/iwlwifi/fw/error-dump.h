@@ -324,12 +324,23 @@ struct iwl_fw_ini_error_dump {
 #define IWL_RXF_UMAC_BIT BIT(31)
 
 /**
+ * struct iwl_fw_ini_error_dump_register - ini register dump
+ * @addr: address of the register
+ * @data: data of the register
+ */
+struct iwl_fw_ini_error_dump_register {
+	__le32 addr;
+	__le32 data;
+} __packed;
+
+/**
  * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
  * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
  *	distinguish between lmac and umac
  * @num_of_registers: num of registers to dump, dword size each
- * @range_data_size: the size of the registers and fifo data
- * @data: fifo data
+ * @range_data_size: the size of the data
+ * @data: consist of
+ *	num_of_registers * (register address + register value) + fifo data
  */
 struct iwl_fw_ini_fifo_error_dump_range {
 	__le32 fifo_num;
