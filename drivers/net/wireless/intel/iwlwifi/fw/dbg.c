@@ -1664,17 +1664,17 @@ struct iwl_dump_ini_mem_ops {
  * @fwrt: fw runtime struct.
  * @data: dump memory data.
  * @reg: region to copy to the dump.
+ * @ops: memory dump operations.
  */
 static void
 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
-		 enum iwl_fw_ini_region_type type,
 		 struct iwl_fw_error_dump_data **data,
 		 struct iwl_fw_ini_region_cfg *reg,
 		 struct iwl_dump_ini_mem_ops *ops)
 {
 	struct iwl_fw_ini_error_dump_header *header = (void *)(*data)->data;
+	u32 num_of_ranges, i, type = le32_to_cpu(reg->region_type);
 	void *range;
-	u32 num_of_ranges, i;
 
 	if (WARN_ON(!ops || !ops->get_num_of_ranges || !ops->get_size ||
 		    !ops->fill_mem_hdr || !ops->fill_range))
@@ -1722,7 +1722,6 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 	for (i = 0; i < le32_to_cpu(trigger->num_regions); i++) {
 		u32 reg_id = le32_to_cpu(trigger->data[i]);
 		struct iwl_fw_ini_region_cfg *reg;
-		enum iwl_fw_ini_region_type type;
 
 		if (WARN_ON(reg_id >= ARRAY_SIZE(fwrt->dump.active_regs)))
 			continue;
@@ -1731,8 +1730,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		if (WARN(!reg, "Unassigned region %d\n", reg_id))
 			continue;
 
-		type = le32_to_cpu(reg->region_type);
-		switch (type) {
+		switch (le32_to_cpu(reg->region_type)) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
@@ -1782,7 +1780,6 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 
 	for (i = 0; i < num; i++) {
 		u32 reg_id = le32_to_cpu(trigger->data[i]);
-		enum iwl_fw_ini_region_type type;
 		struct iwl_fw_ini_region_cfg *reg;
 		struct iwl_dump_ini_mem_ops ops;
 
@@ -1798,14 +1795,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		if (le32_to_cpu(reg->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
 			continue;
 
-		type = le32_to_cpu(reg->region_type);
-		switch (type) {
+		switch (le32_to_cpu(reg->region_type)) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
 			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
 			ops.fill_range = iwl_dump_ini_dev_mem_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
@@ -1814,21 +1810,21 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
 			ops.fill_range = iwl_dump_ini_prph_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
 			ops.get_num_of_ranges = iwl_dump_ini_mon_dram_ranges;
 			ops.get_size = iwl_dump_ini_mon_dram_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mon_dram_fill_header;
 			ops.fill_range = iwl_dump_ini_mon_dram_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mon_smem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mon_smem_fill_header;
 			ops.fill_range = iwl_dump_ini_dev_mem_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_PAGING:
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
@@ -1845,7 +1841,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 				ops.fill_range = iwl_dump_ini_paging_gen2_iter;
 			}
 
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_TXF: {
 			struct iwl_ini_txf_iter_data iter = { .init = true };
@@ -1856,7 +1852,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			ops.get_size = iwl_dump_ini_txf_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_fifo_fill_header;
 			ops.fill_range = iwl_dump_ini_txf_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			fwrt->dump.fifo_iter = fifo_iter;
 			break;
 		}
@@ -1865,14 +1861,14 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			ops.get_size = iwl_dump_ini_rxf_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_fifo_fill_header;
 			ops.fill_range = iwl_dump_ini_rxf_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_CSR:
 			ops.get_num_of_ranges =	iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
 			ops.fill_range = iwl_dump_ini_csr_iter;
-			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			iwl_dump_ini_mem(fwrt, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_DRAM_IMR:
 			/* This is undefined yet */
