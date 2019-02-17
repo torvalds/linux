@@ -2473,6 +2473,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 	    (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id))
 		return -EINVAL;
 
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
+		return -EINVAL;
+
 	if (nested_cpu_has_ept(vmcs12) &&
 	    !valid_ept_address(vcpu, vmcs12->ept_pointer))
 		return -EINVAL;
@@ -5557,9 +5561,11 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * secondary cpu-based controls.  Do not include those that
 	 * depend on CPUID bits, they are added later by vmx_cpuid_update.
 	 */
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
-		msrs->secondary_ctls_low,
-		msrs->secondary_ctls_high);
+	if (msrs->procbased_ctls_high & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
+		rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
+		      msrs->secondary_ctls_low,
+		      msrs->secondary_ctls_high);
+
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |

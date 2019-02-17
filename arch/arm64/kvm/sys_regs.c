@@ -314,12 +314,29 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
-static bool trap_undef(struct kvm_vcpu *vcpu,
-		       struct sys_reg_params *p,
-		       const struct sys_reg_desc *r)
+/*
+ * ARMv8.1 mandates at least a trivial LORegion implementation, where all the
+ * RW registers are RES0 (which we can implement as RAZ/WI). On an ARMv8.0
+ * system, these registers should UNDEF. LORID_EL1 being a RO register, we
+ * treat it separately.
+ */
+static bool trap_loregion(struct kvm_vcpu *vcpu,
+			  struct sys_reg_params *p,
+			  const struct sys_reg_desc *r)
 {
-	kvm_inject_undefined(vcpu);
-	return false;
+	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
+	u32 sr = sys_reg((u32)r->Op0, (u32)r->Op1,
+			 (u32)r->CRn, (u32)r->CRm, (u32)r->Op2);
+
+	if (!(val & (0xfUL << ID_AA64MMFR1_LOR_SHIFT))) {
+		kvm_inject_undefined(vcpu);
+		return false;
+	}
+
+	if (p->is_write && sr == SYS_LORID_EL1)
+		return write_to_read_only(vcpu, p, r);
+
+	return trap_raz_wi(vcpu, p, r);
 }
 
 static bool trap_oslsr_el1(struct kvm_vcpu *vcpu,
@@ -1048,11 +1065,6 @@ static u64 read_id_reg(struct sys_reg_desc const *r, bool raz)
 		if (val & ptrauth_mask)
 			kvm_debug("ptrauth unsupported for guests, suppressing\n");
 		val &= ~ptrauth_mask;
-	} else if (id == SYS_ID_AA64MMFR1_EL1) {
-		if (val & (0xfUL << ID_AA64MMFR1_LOR_SHIFT))
-			kvm_debug("LORegions unsupported for guests, suppressing\n");
-
-		val &= ~(0xfUL << ID_AA64MMFR1_LOR_SHIFT);
 	}
 
 	return val;
@@ -1338,11 +1350,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
 	{ SYS_DESC(SYS_AMAIR_EL1), access_vm_reg, reset_amair_el1, AMAIR_EL1 },
 
-	{ SYS_DESC(SYS_LORSA_EL1), trap_undef },
-	{ SYS_DESC(SYS_LOREA_EL1), trap_undef },
-	{ SYS_DESC(SYS_LORN_EL1), trap_undef },
-	{ SYS_DESC(SYS_LORC_EL1), trap_undef },
-	{ SYS_DESC(SYS_LORID_EL1), trap_undef },
+	{ SYS_DESC(SYS_LORSA_EL1), trap_loregion },
+	{ SYS_DESC(SYS_LOREA_EL1), trap_loregion },
+	{ SYS_DESC(SYS_LORN_EL1), trap_loregion },
+	{ SYS_DESC(SYS_LORC_EL1), trap_loregion },
+	{ SYS_DESC(SYS_LORID_EL1), trap_loregion },
 
 	{ SYS_DESC(SYS_VBAR_EL1), NULL, reset_val, VBAR_EL1, 0 },
 	{ SYS_DESC(SYS_DISR_EL1), NULL, reset_val, DISR_EL1, 0 },
@@ -2596,7 +2608,9 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 	table = get_target_table(vcpu->arch.target, true, &num);
 	reset_sys_reg_descs(vcpu, table, num);
 
-	for (num = 1; num < NR_SYS_REGS; num++)
-		if (__vcpu_sys_reg(vcpu, num) == 0x4242424242424242)
-			panic("Didn't reset __vcpu_sys_reg(%zi)", num);
+	for (num = 1; num < NR_SYS_REGS; num++) {
+		if (WARN(__vcpu_sys_reg(vcpu, num) == 0x4242424242424242,
+			 "Didn't reset __vcpu_sys_reg(%zi)\n", num))
+			break;
+	}
 }
