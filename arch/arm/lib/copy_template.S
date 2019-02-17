@@ -99,7 +99,7 @@
 
 	CALGN(	ands	ip, r0, #31		)
 	CALGN(	rsb	r3, ip, #32		)
-	CALGN(	sbcnes	r4, r3, r2		)  @ C is always set here
+	CALGN(	sbcsne	r4, r3, r2		)  @ C is always set here
 	CALGN(	bcs	2f			)
 	CALGN(	adr	r4, 6f			)
 	CALGN(	subs	r2, r2, r3		)  @ C gets set
@@ -204,7 +204,7 @@
 
 	CALGN(	ands	ip, r0, #31		)
 	CALGN(	rsb	ip, ip, #32		)
-	CALGN(	sbcnes	r4, ip, r2		)  @ C is always set here
+	CALGN(	sbcsne	r4, ip, r2		)  @ C is always set here
 	CALGN(	subcc	r2, r2, ip		)
 	CALGN(	bcc	15f			)
 
