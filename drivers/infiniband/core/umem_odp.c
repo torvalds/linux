@@ -618,7 +618,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 	 * mmget_not_zero will fail in this case.
 	 */
 	owning_process = get_pid_task(umem_odp->per_mm->tgid, PIDTYPE_PID);
-	if (WARN_ON(!mmget_not_zero(umem_odp->umem.owning_mm))) {
+	if (!owning_process || !mmget_not_zero(owning_mm)) {
 		ret = -EINVAL;
 		goto out_put_task;
 	}
