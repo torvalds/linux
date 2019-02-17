@@ -5829,8 +5829,6 @@ void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
 		srcu_barrier(&dev->mr_srcu);
 		cleanup_srcu_struct(&dev->mr_srcu);
-		drain_workqueue(dev->advise_mr_wq);
-		destroy_workqueue(dev->advise_mr_wq);
 	}
 	kfree(dev->port);
 }
@@ -5885,18 +5883,9 @@ int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	dev->memic.dev = mdev;
 
 	if (IS_ENABLED(CONFIG_INFINIBAND_ON_DEMAND_PAGING)) {
-		dev->advise_mr_wq =
-			alloc_ordered_workqueue("mlx5_ib_advise_mr_wq", 0);
-		if (!dev->advise_mr_wq) {
-			err = -ENOMEM;
-			goto err_mp;
-		}
-
 		err = init_srcu_struct(&dev->mr_srcu);
-		if (err) {
-			destroy_workqueue(dev->advise_mr_wq);
+		if (err)
 			goto err_mp;
-		}
 	}
 
 	return 0;

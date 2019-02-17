@@ -589,6 +589,7 @@ struct mlx5_ib_mr {
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
 	struct mlx5_async_work  cb_work;
+	atomic_t		num_pending_prefetch;
 };
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
@@ -929,7 +930,6 @@ struct mlx5_ib_dev {
 	 */
 	struct srcu_struct      mr_srcu;
 	u32			null_mkey;
-	struct workqueue_struct *advise_mr_wq;
 	struct mlx5_ib_flow_db	*flow_db;
 	/* protect resources needed as part of reset flow */
 	spinlock_t		reset_flow_resource_lock;

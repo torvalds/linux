@@ -535,6 +535,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	imr->umem = umem;
 	init_waitqueue_head(&imr->q_leaf_free);
 	atomic_set(&imr->num_leaf_free, 0);
+	atomic_set(&imr->num_pending_prefetch, 0);
 
 	return imr;
 }
@@ -1660,24 +1661,91 @@ struct prefetch_mr_work {
 	struct ib_sge sg_list[0];
 };
 
+static void num_pending_prefetch_dec(struct mlx5_ib_dev *dev,
+				     struct ib_sge *sg_list, u32 num_sge,
+				     u32 from)
+{
+	u32 i;
+	int srcu_key;
+
+	srcu_key = srcu_read_lock(&dev->mr_srcu);
+
+	for (i = from; i < num_sge; ++i) {
+		struct mlx5_core_mkey *mmkey;
+		struct mlx5_ib_mr *mr;
+
+		mmkey = __mlx5_mr_lookup(dev->mdev,
+					 mlx5_base_mkey(sg_list[i].lkey));
+		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+		atomic_dec(&mr->num_pending_prefetch);
+	}
+
+	srcu_read_unlock(&dev->mr_srcu, srcu_key);
+}
+
+static bool num_pending_prefetch_inc(struct ib_pd *pd,
+				     struct ib_sge *sg_list, u32 num_sge)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	bool ret = true;
+	u32 i;
+
+	for (i = 0; i < num_sge; ++i) {
+		struct mlx5_core_mkey *mmkey;
+		struct mlx5_ib_mr *mr;
+
+		mmkey = __mlx5_mr_lookup(dev->mdev,
+					 mlx5_base_mkey(sg_list[i].lkey));
+		if (!mmkey || mmkey->key != sg_list[i].lkey) {
+			ret = false;
+			break;
+		}
+
+		if (mmkey->type != MLX5_MKEY_MR) {
+			ret = false;
+			break;
+		}
+
+		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+
+		if (mr->ibmr.pd != pd) {
+			ret = false;
+			break;
+		}
+
+		if (!mr->live) {
+			ret = false;
+			break;
+		}
+
+		atomic_inc(&mr->num_pending_prefetch);
+	}
+
+	if (!ret)
+		num_pending_prefetch_dec(dev, sg_list, i, 0);
+
+	return ret;
+}
+
 static int mlx5_ib_prefetch_sg_list(struct mlx5_ib_dev *dev, u32 pf_flags,
 				    struct ib_sge *sg_list, u32 num_sge)
 {
-	int i;
+	u32 i;
+	int ret = 0;
 
 	for (i = 0; i < num_sge; ++i) {
 		struct ib_sge *sg = &sg_list[i];
 		int bytes_committed = 0;
-		int ret;
 
 		ret = pagefault_single_data_segment(dev, sg->lkey, sg->addr,
 						    sg->length,
 						    &bytes_committed, NULL,
 						    pf_flags);
 		if (ret < 0)
-			return ret;
+			break;
 	}
-	return 0;
+
+	return ret < 0 ? ret : 0;
 }
 
 static void mlx5_ib_prefetch_mr_work(struct work_struct *work)
@@ -1690,7 +1758,8 @@ static void mlx5_ib_prefetch_mr_work(struct work_struct *work)
 					 w->num_sge);
 		ib_device_put(&w->dev->ib_dev);
 	}
-	put_device(&w->dev->ib_dev.dev);
+
+	num_pending_prefetch_dec(w->dev, w->sg_list, w->num_sge, 0);
 	kfree(w);
 }
 
@@ -1701,6 +1770,8 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	u32 pf_flags = MLX5_PF_FLAGS_PREFETCH;
 	struct prefetch_mr_work *work;
+	bool valid_req;
+	int srcu_key;
 
 	if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH)
 		pf_flags |= MLX5_PF_FLAGS_DOWNGRADE;
@@ -1715,12 +1786,21 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 
 	memcpy(work->sg_list, sg_list, num_sge * sizeof(struct ib_sge));
 
-	get_device(&dev->ib_dev.dev);
 	work->dev = dev;
 	work->pf_flags = pf_flags;
 	work->num_sge = num_sge;
 
 	INIT_WORK(&work->work, mlx5_ib_prefetch_mr_work);
-	schedule_work(&work->work);
-	return 0;
+
+	srcu_key = srcu_read_lock(&dev->mr_srcu);
+
+	valid_req = num_pending_prefetch_inc(pd, sg_list, num_sge);
+	if (valid_req)
+		queue_work(system_unbound_wq, &work->work);
+	else
+		kfree(work);
+
+	srcu_read_unlock(&dev->mr_srcu, srcu_key);
+
+	return valid_req ? 0 : -EINVAL;
 }
