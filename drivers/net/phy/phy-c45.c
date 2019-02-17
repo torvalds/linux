@@ -75,6 +75,50 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
 
 /**
+ * genphy_c45_an_config_aneg - configure advertisement registers
+ * @phydev: target phy_device struct
+ *
+ * Configure advertisement registers based on modes set in phydev->advertising
+ *
+ * Returns negative errno code on failure, 0 if advertisement didn't change,
+ * or 1 if advertised modes changed.
+ */
+int genphy_c45_an_config_aneg(struct phy_device *phydev)
+{
+	int changed = 0, ret;
+	u32 adv;
+
+	linkmode_and(phydev->advertising, phydev->advertising,
+		     phydev->supported);
+
+	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE,
+			     ADVERTISE_ALL | ADVERTISE_100BASE4 |
+			     ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
+			     adv);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		changed = 1;
+
+	adv = linkmode_adv_to_mii_10gbt_adv_t(phydev->advertising);
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+			     MDIO_AN_10GBT_CTRL_ADV10G |
+			     MDIO_AN_10GBT_CTRL_ADV5G |
+			     MDIO_AN_10GBT_CTRL_ADV2_5G,
+			     adv);
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		changed = 1;
+
+	return changed;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_an_config_aneg);
+
+/**
  * genphy_c45_an_disable_aneg - disable auto-negotiation
  * @phydev: target phy_device struct
  *
