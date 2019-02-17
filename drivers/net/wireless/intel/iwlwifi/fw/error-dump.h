@@ -284,13 +284,13 @@ struct iwl_fw_error_dump_mem {
 
 /**
  * struct iwl_fw_ini_error_dump_range - range of memory
- * @start_addr: the start address of this range
  * @range_data_size: the size of this range, in bytes
+ * @start_addr: the start address of this range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {
-	__le32 start_addr;
 	__le32 range_data_size;
+	__le64 start_addr;
 	__le32 data[];
 } __packed;
 
