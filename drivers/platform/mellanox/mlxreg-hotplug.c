@@ -248,7 +248,8 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			   struct mlxreg_core_item *item)
 {
 	struct mlxreg_core_data *data;
-	u32 asserted, regval, bit;
+	unsigned long asserted;
+	u32 regval, bit;
 	int ret;
 
 	/*
@@ -281,7 +282,7 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 	asserted = item->cache ^ regval;
 	item->cache = regval;
 
-	for_each_set_bit(bit, (unsigned long *)&asserted, 8) {
+	for_each_set_bit(bit, &asserted, 8) {
 		data = item->data + bit;
 		if (regval & BIT(bit)) {
 			if (item->inversed)
