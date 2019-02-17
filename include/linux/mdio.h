@@ -261,6 +261,31 @@ static inline u16 ethtool_adv_to_mmd_eee_adv_t(u32 adv)
 	return reg;
 }
 
+/**
+ * linkmode_adv_to_mii_10gbt_adv_t
+ * @advertising: the linkmode advertisement settings
+ *
+ * A small helper function that translates linkmode advertisement
+ * settings to phy autonegotiation advertisements for the C45
+ * 10GBASE-T AN CONTROL (7.32) register.
+ */
+static inline u32 linkmode_adv_to_mii_10gbt_adv_t(unsigned long *advertising)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV2_5G;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV5G;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			      advertising))
+		result |= MDIO_AN_10GBT_CTRL_ADV10G;
+
+	return result;
+}
+
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
