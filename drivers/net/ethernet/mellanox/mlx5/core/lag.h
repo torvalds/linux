@@ -5,6 +5,7 @@
 #define __MLX5_LAG_H__
 
 #include "mlx5_core.h"
+#include "lag_mp.h"
 
 enum {
 	MLX5_LAG_FLAG_ROCE   = 1 << 0,
@@ -38,6 +39,7 @@ struct mlx5_lag {
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
+	struct lag_mp             lag_mp;
 };
 
 static inline struct mlx5_lag *

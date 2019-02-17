@@ -36,6 +36,7 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 #include "lag.h"
+#include "lag_mp.h"
 
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
@@ -559,6 +560,7 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 {
 	struct mlx5_lag *ldev = NULL;
 	struct mlx5_core_dev *tmp_dev;
+	int err;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(dev, lag_master) ||
@@ -586,6 +588,11 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 			mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
 		}
 	}
+
+	err = mlx5_lag_mp_init(ldev);
+	if (err)
+		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
+			      err);
 }
 
 int mlx5_lag_get_pf_num(struct mlx5_core_dev *dev, int *pf_num)
@@ -631,6 +638,7 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev)
 	if (i == MLX5_MAX_PORTS) {
 		if (ldev->nb.notifier_call)
 			unregister_netdevice_notifier(&ldev->nb);
+		mlx5_lag_mp_cleanup(ldev);
 		cancel_delayed_work_sync(&ldev->bond_work);
 		mlx5_lag_dev_free(ldev);
 	}

@@ -2476,3 +2476,10 @@ bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1)
 
 	return false;
 }
+
+bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
+			       struct mlx5_core_dev *dev1)
+{
+	return (dev0->priv.eswitch->mode == SRIOV_OFFLOADS &&
+		dev1->priv.eswitch->mode == SRIOV_OFFLOADS);
+}
