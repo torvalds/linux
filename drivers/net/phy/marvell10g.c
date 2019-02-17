@@ -279,18 +279,15 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 		return genphy_c45_an_disable_aneg(phydev);
 	}
 
-	linkmode_and(phydev->advertising, phydev->advertising,
-		     phydev->supported);
-
-	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE,
-			     ADVERTISE_ALL | ADVERTISE_100BASE4 |
-			     ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
-			     linkmode_adv_to_mii_adv_t(phydev->advertising));
+	ret = genphy_c45_an_config_aneg(phydev);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
 		changed = true;
 
+	/* Clause 45 has no standardized support for 1000BaseT, therefore
+	 * use vendor registers for this mode.
+	 */
 	reg = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MV_AN_CTRL1000,
 			     ADVERTISE_1000FULL | ADVERTISE_1000HALF, reg);
@@ -299,19 +296,15 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	/* 10G control register */
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-			      phydev->advertising))
-		reg = MDIO_AN_10GBT_CTRL_ADV10G;
-	else
-		reg = 0;
+	if (!changed) {
+		/* Configure and restart aneg if it wasn't set before */
+		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_CTRL1);
+		if (ret < 0)
+			return ret;
 
-	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
-				     MDIO_AN_10GBT_CTRL_ADV10G, reg);
-	if (ret < 0)
-		return ret;
-	if (ret > 0)
-		changed = true;
+		if (!(ret & MDIO_AN_CTRL1_ENABLE))
+			changed = 1;
+	}
 
 	if (changed)
 		ret = genphy_c45_restart_aneg(phydev);
