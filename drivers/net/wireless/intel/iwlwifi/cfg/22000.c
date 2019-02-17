@@ -180,7 +180,11 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.dbgc_supported = true,						\
 	.min_umac_error_event_table = 0x400000,				\
 	.d3_debug_data_base_addr = 0x401000,				\
-	.d3_debug_data_length = 60 * 1024
+	.d3_debug_data_length = 60 * 1024,				\
+	.fw_mon_smem_write_ptr_addr = 0xa0c16c,				\
+	.fw_mon_smem_write_ptr_msk = 0xfffff,				\
+	.fw_mon_smem_cycle_cnt_ptr_addr = 0xa0c174,			\
+	.fw_mon_smem_cycle_cnt_ptr_msk = 0xfffff
 
 #define IWL_DEVICE_AX200_COMMON						\
 	IWL_DEVICE_22000_COMMON,					\

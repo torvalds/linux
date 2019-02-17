@@ -1404,29 +1404,80 @@ static void *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 }
 
 static void
-*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
-				   struct iwl_fw_ini_region_cfg *reg,
-				   void *data)
+*iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
+			      struct iwl_fw_ini_region_cfg *reg,
+			      struct iwl_fw_ini_monitor_dump *data,
+			      u32 write_ptr_addr, u32 write_ptr_msk,
+			      u32 cycle_cnt_addr, u32 cycle_cnt_msk)
 {
-	struct iwl_fw_ini_monitor_dram_dump *mon_dump = (void *)data;
 	u32 write_ptr, cycle_cnt;
 	unsigned long flags;
 
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags)) {
-		IWL_ERR(fwrt, "Failed to get DRAM monitor header\n");
+		IWL_ERR(fwrt, "Failed to get monitor header\n");
 		return NULL;
 	}
-	write_ptr = iwl_read_umac_prph_no_grab(fwrt->trans,
-					       MON_BUFF_WRPTR_VER2);
-	cycle_cnt = iwl_read_umac_prph_no_grab(fwrt->trans,
-					       MON_BUFF_CYCLE_CNT_VER2);
+
+	write_ptr = iwl_read_prph_no_grab(fwrt->trans, write_ptr_addr);
+	cycle_cnt = iwl_read_prph_no_grab(fwrt->trans, cycle_cnt_addr);
+
 	iwl_trans_release_nic_access(fwrt->trans, &flags);
 
-	mon_dump->header.version = cpu_to_le32(IWL_INI_DUMP_MONITOR_VER);
-	mon_dump->write_ptr = cpu_to_le32(write_ptr);
-	mon_dump->cycle_cnt = cpu_to_le32(cycle_cnt);
+	data->header.version = cpu_to_le32(IWL_INI_DUMP_MONITOR_VER);
+	data->write_ptr = cpu_to_le32(write_ptr & write_ptr_msk);
+	data->cycle_cnt = cpu_to_le32(cycle_cnt & cycle_cnt_msk);
 
-	return mon_dump->ranges;
+	return data->ranges;
+}
+
+static void
+*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg,
+				   void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+	u32 write_ptr_addr, write_ptr_msk, cycle_cnt_addr, cycle_cnt_msk;
+
+	switch (fwrt->trans->cfg->device_family) {
+	case IWL_DEVICE_FAMILY_9000:
+	case IWL_DEVICE_FAMILY_22000:
+		write_ptr_addr = MON_BUFF_WRPTR_VER2;
+		write_ptr_msk = -1;
+		cycle_cnt_addr = MON_BUFF_CYCLE_CNT_VER2;
+		cycle_cnt_msk = -1;
+		break;
+	default:
+		IWL_ERR(fwrt, "Unsupported device family %d\n",
+			fwrt->trans->cfg->device_family);
+		return NULL;
+	}
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg, mon_dump, write_ptr_addr,
+					    write_ptr_msk, cycle_cnt_addr,
+					    cycle_cnt_msk);
+}
+
+static void
+*iwl_dump_ini_mon_smem_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg,
+				   void *data)
+{
+	struct iwl_fw_ini_monitor_dump *mon_dump = (void *)data;
+	const struct iwl_cfg *cfg = fwrt->trans->cfg;
+
+	if (fwrt->trans->cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
+	    fwrt->trans->cfg->device_family != IWL_DEVICE_FAMILY_22000) {
+		IWL_ERR(fwrt, "Unsupported device family %d\n",
+			fwrt->trans->cfg->device_family);
+		return NULL;
+	}
+
+	return iwl_dump_ini_mon_fill_header(fwrt, reg, mon_dump,
+					    cfg->fw_mon_smem_write_ptr_addr,
+					    cfg->fw_mon_smem_write_ptr_msk,
+					    cfg->fw_mon_smem_cycle_cnt_ptr_addr,
+					    cfg->fw_mon_smem_cycle_cnt_ptr_msk);
+
 }
 
 static void *iwl_dump_ini_fifo_fill_header(struct iwl_fw_runtime *fwrt,
@@ -1528,13 +1579,22 @@ static u32 iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
 					  struct iwl_fw_ini_region_cfg *reg)
 {
-	u32 size = sizeof(struct iwl_fw_ini_monitor_dram_dump) +
+	u32 size = sizeof(struct iwl_fw_ini_monitor_dump) +
 		sizeof(struct iwl_fw_ini_error_dump_range);
 
 	if (fwrt->trans->num_blocks)
 		size += fwrt->trans->fw_mon[0].size;
 
 	return size;
+}
+
+static u32 iwl_dump_ini_mon_smem_get_size(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg)
+{
+	return sizeof(struct iwl_fw_ini_monitor_dump) +
+		iwl_dump_ini_mem_ranges(fwrt, reg) *
+		(sizeof(struct iwl_fw_ini_error_dump_range) +
+		 le32_to_cpu(reg->internal.range_data_size));
 }
 
 static u32 iwl_dump_ini_txf_get_size(struct iwl_fw_runtime *fwrt,
@@ -1677,7 +1737,6 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 		case IWL_FW_INI_REGION_CSR:
 			size += hdr_len + iwl_dump_ini_mem_get_size(fwrt, reg);
 			break;
@@ -1702,6 +1761,10 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 				break;
 			size += hdr_len +
 				iwl_dump_ini_mon_dram_get_size(fwrt, reg);
+			break;
+		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
+			size += hdr_len +
+				iwl_dump_ini_mon_smem_get_size(fwrt, reg);
 			break;
 		case IWL_FW_INI_REGION_DRAM_IMR:
 			/* Undefined yet */
@@ -1739,7 +1802,6 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
@@ -1760,6 +1822,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			ops.get_size = iwl_dump_ini_mon_dram_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mon_dram_fill_header;
 			ops.fill_range = iwl_dump_ini_mon_dram_iter;
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
+			break;
+		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
+			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
+			ops.get_size = iwl_dump_ini_mon_smem_get_size;
+			ops.fill_mem_hdr = iwl_dump_ini_mon_smem_fill_header;
+			ops.fill_range = iwl_dump_ini_dev_mem_iter;
 			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_PAGING: {

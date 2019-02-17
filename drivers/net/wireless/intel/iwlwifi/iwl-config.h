@@ -452,6 +452,10 @@ struct iwl_cfg {
 	u32 d3_debug_data_length;
 	u32 min_txq_size;
 	u32 umac_prph_offset;
+	u32 fw_mon_smem_write_ptr_addr;
+	u32 fw_mon_smem_write_ptr_msk;
+	u32 fw_mon_smem_cycle_cnt_ptr_addr;
+	u32 fw_mon_smem_cycle_cnt_ptr_msk;
 };
 
 extern const struct iwl_csr_params iwl_csr_v1;
