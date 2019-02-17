@@ -354,7 +354,7 @@ void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns)
 		INIT_LIST_HEAD(&ns->group_list[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_POLICY; idx++)
 		INIT_LIST_HEAD(&ns->policy_list[idx]);
-	ns->profile_version = 20110903;
+	ns->profile_version = 20150505;
 	tomoyo_namespace_enabled = !list_empty(&tomoyo_namespace_list);
 	list_add_tail_rcu(&ns->namespace_list, &tomoyo_namespace_list);
 }
@@ -2300,7 +2300,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->r.eof) {
-		tomoyo_io_printf(head, "2.5.0");
+		tomoyo_io_printf(head, "2.6.0");
 		head->r.eof = true;
 	}
 }
@@ -2777,12 +2777,17 @@ void tomoyo_check_profile(void)
 	const int idx = tomoyo_read_lock();
 
 	tomoyo_policy_loaded = true;
-	pr_info("TOMOYO: 2.5.0\n");
+	pr_info("TOMOYO: 2.6.0\n");
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		const u8 profile = domain->profile;
-		const struct tomoyo_policy_namespace *ns = domain->ns;
+		struct tomoyo_policy_namespace *ns = domain->ns;
 
-		if (ns->profile_version != 20110903)
+		if (ns->profile_version == 20110903) {
+			pr_info_once("Converting profile version from %u to %u.\n",
+				     20110903, 20150505);
+			ns->profile_version = 20150505;
+		}
+		if (ns->profile_version != 20150505)
 			pr_err("Profile version %u is not supported.\n",
 			       ns->profile_version);
 		else if (!ns->profile_ptr[profile])
@@ -2790,8 +2795,8 @@ void tomoyo_check_profile(void)
 			       profile, domain->domainname->name);
 		else
 			continue;
-		pr_err("Userland tools for TOMOYO 2.5 must be installed and policy must be initialized.\n");
-		pr_err("Please see http://tomoyo.sourceforge.jp/2.5/ for more information.\n");
+		pr_err("Userland tools for TOMOYO 2.6 must be installed and policy must be initialized.\n");
+		pr_err("Please see https://tomoyo.osdn.jp/2.6/ for more information.\n");
 		panic("STOP!");
 	}
 	tomoyo_read_unlock(idx);
