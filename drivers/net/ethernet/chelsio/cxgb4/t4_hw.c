@@ -4962,7 +4962,13 @@ static void pl_intr_handler(struct adapter *adap)
  */
 int t4_slow_intr_handler(struct adapter *adapter)
 {
-	u32 cause = t4_read_reg(adapter, PL_INT_CAUSE_A);
+	/* There are rare cases where a PL_INT_CAUSE bit may end up getting
+	 * set when the corresponding PL_INT_ENABLE bit isn't set.  It's
+	 * easiest just to mask that case here.
+	 */
+	u32 raw_cause = t4_read_reg(adapter, PL_INT_CAUSE_A);
+	u32 enable = t4_read_reg(adapter, PL_INT_ENABLE_A);
+	u32 cause = raw_cause & enable;
 
 	if (!(cause & GLBL_INTR_MASK))
 		return 0;
@@ -5014,7 +5020,7 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		ulptx_intr_handler(adapter);
 
 	/* Clear the interrupts just processed for which we are the master. */
-	t4_write_reg(adapter, PL_INT_CAUSE_A, cause & GLBL_INTR_MASK);
+	t4_write_reg(adapter, PL_INT_CAUSE_A, raw_cause & GLBL_INTR_MASK);
 	(void)t4_read_reg(adapter, PL_INT_CAUSE_A); /* flush */
 	return 1;
 }
