@@ -1478,9 +1478,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	return 0;
 
 unreg_dev:
-#ifdef CONFIG_MEDIA_CONTROLLER
-	media_device_unregister(&dev->mdev);
-#endif
 	video_unregister_device(&dev->radio_tx_dev);
 	video_unregister_device(&dev->radio_rx_dev);
 	video_unregister_device(&dev->sdr_cap_dev);
@@ -1553,6 +1550,7 @@ static int vivid_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 		media_device_unregister(&dev->mdev);
+		media_device_cleanup(&dev->mdev);
 #endif
 
 		if (dev->has_vid_cap) {
