@@ -103,6 +103,8 @@ enum devlink_command {
 	DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET,
 	DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
 
+	DEVLINK_CMD_FLASH_UPDATE,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -326,6 +328,10 @@ enum devlink_attr {
 	DEVLINK_ATTR_HEALTH_REPORTER_DUMP_TS,		/* u64 */
 	DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD,	/* u64 */
 	DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER,	/* u8 */
+
+	DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME,	/* string */
+	DEVLINK_ATTR_FLASH_UPDATE_COMPONENT,	/* string */
+
 	/* add new attributes above here, update the policy in devlink.c */
 
 	__DEVLINK_ATTR_MAX,

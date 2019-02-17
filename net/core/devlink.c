@@ -2662,6 +2662,27 @@ static int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
 	return devlink->ops->reload(devlink, info->extack);
 }
 
+static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
+				       struct genl_info *info)
+{
+	struct devlink *devlink = info->user_ptr[0];
+	const char *file_name, *component;
+	struct nlattr *nla_component;
+
+	if (!devlink->ops->flash_update)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME])
+		return -EINVAL;
+	file_name = nla_data(info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME]);
+
+	nla_component = info->attrs[DEVLINK_ATTR_FLASH_UPDATE_COMPONENT];
+	component = nla_component ? nla_data(nla_component) : NULL;
+
+	return devlink->ops->flash_update(devlink, file_name, component,
+					  info->extack);
+}
+
 static const struct devlink_param devlink_param_generic[] = {
 	{
 		.id = DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
@@ -4883,6 +4904,8 @@ static const struct nla_policy devlink_nl_policy[DEVLINK_ATTR_MAX + 1] = {
 	[DEVLINK_ATTR_HEALTH_REPORTER_NAME] = { .type = NLA_NUL_STRING },
 	[DEVLINK_ATTR_HEALTH_REPORTER_GRACEFUL_PERIOD] = { .type = NLA_U64 },
 	[DEVLINK_ATTR_HEALTH_REPORTER_AUTO_RECOVER] = { .type = NLA_U8 },
+	[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME] = { .type = NLA_NUL_STRING },
+	[DEVLINK_ATTR_FLASH_UPDATE_COMPONENT] = { .type = NLA_NUL_STRING },
 };
 
 static const struct genl_ops devlink_nl_ops[] = {
@@ -5170,6 +5193,13 @@ static const struct genl_ops devlink_nl_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
 				  DEVLINK_NL_FLAG_NO_LOCK,
+	},
+	{
+		.cmd = DEVLINK_CMD_FLASH_UPDATE,
+		.doit = devlink_nl_cmd_flash_update,
+		.policy = devlink_nl_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK,
 	},
 };
 
@@ -6418,6 +6448,36 @@ void devlink_compat_running_version(struct net_device *dev,
 	}
 out:
 	mutex_unlock(&devlink_mutex);
+}
+
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	struct devlink_port *devlink_port;
+	struct devlink *devlink;
+
+	mutex_lock(&devlink_mutex);
+	list_for_each_entry(devlink, &devlink_list, list) {
+		mutex_lock(&devlink->lock);
+		list_for_each_entry(devlink_port, &devlink->port_list, list) {
+			int ret = -EOPNOTSUPP;
+
+			if (devlink_port->type != DEVLINK_PORT_TYPE_ETH ||
+			    devlink_port->type_dev != dev)
+				continue;
+
+			mutex_unlock(&devlink_mutex);
+			if (devlink->ops->flash_update)
+				ret = devlink->ops->flash_update(devlink,
+								 file_name,
+								 NULL, NULL);
+			mutex_unlock(&devlink->lock);
+			return ret;
+		}
+		mutex_unlock(&devlink->lock);
+	}
+	mutex_unlock(&devlink_mutex);
+
+	return -EOPNOTSUPP;
 }
 
 static int __init devlink_module_init(void)

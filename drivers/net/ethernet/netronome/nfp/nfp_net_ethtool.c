@@ -1237,11 +1237,8 @@ static int nfp_net_set_channels(struct net_device *netdev,
 static int
 nfp_net_flash_device(struct net_device *netdev, struct ethtool_flash *flash)
 {
-	const struct firmware *fw;
 	struct nfp_app *app;
-	struct nfp_nsp *nsp;
-	struct device *dev;
-	int err;
+	int ret;
 
 	if (flash->region != ETHTOOL_FLASH_ALL_REGIONS)
 		return -EOPNOTSUPP;
@@ -1250,39 +1247,13 @@ nfp_net_flash_device(struct net_device *netdev, struct ethtool_flash *flash)
 	if (!app)
 		return -EOPNOTSUPP;
 
-	dev = &app->pdev->dev;
-
-	nsp = nfp_nsp_open(app->cpp);
-	if (IS_ERR(nsp)) {
-		err = PTR_ERR(nsp);
-		dev_err(dev, "Failed to access the NSP: %d\n", err);
-		return err;
-	}
-
-	err = request_firmware_direct(&fw, flash->data, dev);
-	if (err)
-		goto exit_close_nsp;
-
-	dev_info(dev, "Please be patient while writing flash image: %s\n",
-		 flash->data);
 	dev_hold(netdev);
 	rtnl_unlock();
-
-	err = nfp_nsp_write_flash(nsp, fw);
-	if (err < 0) {
-		dev_err(dev, "Flash write failed: %d\n", err);
-		goto exit_rtnl_lock;
-	}
-	dev_info(dev, "Finished writing flash image\n");
-
-exit_rtnl_lock:
+	ret = nfp_flash_update_common(app->pf, flash->data, NULL);
 	rtnl_lock();
 	dev_put(netdev);
-	release_firmware(fw);
 
-exit_close_nsp:
-	nfp_nsp_close(nsp);
-	return err;
+	return ret;
 }
 
 static const struct ethtool_ops nfp_net_ethtool_ops = {
