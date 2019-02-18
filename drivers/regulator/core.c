@@ -1339,9 +1339,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		 * We'll only apply the initial system load if an
 		 * initial mode wasn't specified.
 		 */
-		regulator_lock(rdev);
 		drms_uA_update(rdev);
-		regulator_unlock(rdev);
 	}
 
 	if ((rdev->constraints->ramp_delay || rdev->constraints->ramp_disable)
