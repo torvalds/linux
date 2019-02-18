@@ -387,13 +387,12 @@ static void __init setup_lowcore_dat_off(void)
 
 static void __init setup_lowcore_dat_on(void)
 {
-	struct lowcore *lc;
-
-	lc = lowcore_ptr[0];
-	lc->external_new_psw.mask |= PSW_MASK_DAT;
-	lc->svc_new_psw.mask |= PSW_MASK_DAT;
-	lc->program_new_psw.mask |= PSW_MASK_DAT;
-	lc->io_new_psw.mask |= PSW_MASK_DAT;
+	__ctl_clear_bit(0, 28);
+	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
+	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
+	__ctl_set_bit(0, 28);
 }
 
 static struct resource code_resource = {
