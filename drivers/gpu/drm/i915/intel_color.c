@@ -255,36 +255,19 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
-	enum pipe pipe = crtc->pipe;
-	u16 coeffs[9] = {};
-
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
-	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
-		if (INTEL_GEN(dev_priv) >= 11)
-			icl_update_output_csc(crtc, ilk_csc_off_zero,
-					      ilk_csc_coeff_rgb_to_ycbcr,
-					      ilk_csc_postoff_rgb_to_ycbcr);
-		else
-			ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
-					    ilk_csc_coeff_rgb_to_ycbcr,
-					    ilk_csc_postoff_rgb_to_ycbcr);
-
-		I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
-		/*
-		 * On pre GEN11 output CSC is not there, so with 1 pipe CSC
-		 * RGB to YUV conversion can be done. No need to go further
-		 */
-		if (INTEL_GEN(dev_priv) < 11)
-			return;
-	}
 
 	if (crtc_state->base.ctm) {
-		ilk_csc_convert_ctm(crtc_state, coeffs);
+		u16 coeff[9];
 
-		ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeffs,
+		ilk_csc_convert_ctm(crtc_state, coeff);
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeff,
 				    limited_color_range ?
 				    ilk_csc_postoff_limited_range :
 				    ilk_csc_off_zero);
+	} else if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
+				    ilk_csc_coeff_rgb_to_ycbcr,
+				    ilk_csc_postoff_rgb_to_ycbcr);
 	} else if (limited_color_range) {
 		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
 				    ilk_csc_coeff_limited_range,
@@ -295,7 +278,33 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 				    ilk_csc_off_zero);
 	}
 
-	I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
+	I915_WRITE(PIPE_CSC_MODE(crtc->pipe), crtc_state->csc_mode);
+}
+
+static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	if (crtc_state->base.ctm) {
+		u16 coeff[9];
+
+		ilk_csc_convert_ctm(crtc_state, coeff);
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
+				    coeff, ilk_csc_off_zero);
+	}
+
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB) {
+		icl_update_output_csc(crtc, ilk_csc_off_zero,
+				      ilk_csc_coeff_rgb_to_ycbcr,
+				      ilk_csc_postoff_rgb_to_ycbcr);
+	} else if (crtc_state->limited_color_range) {
+		icl_update_output_csc(crtc, ilk_csc_off_zero,
+				      ilk_csc_coeff_limited_range,
+				      ilk_csc_postoff_limited_range);
+	}
+
+	I915_WRITE(PIPE_CSC_MODE(crtc->pipe), crtc_state->csc_mode);
 }
 
 /*
@@ -445,7 +454,10 @@ static void skl_color_commit(const struct intel_crtc_state *crtc_state)
 
 	I915_WRITE(GAMMA_MODE(crtc->pipe), crtc_state->gamma_mode);
 
-	ilk_load_csc_matrix(crtc_state);
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_load_csc_matrix(crtc_state);
+	else
+		ilk_load_csc_matrix(crtc_state);
 }
 
 static void bdw_load_degamma_lut(const struct intel_crtc_state *crtc_state)
@@ -843,11 +855,12 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 
 	if (INTEL_GEN(dev_priv) >= 11) {
-		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
-		    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
+		if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
+		    crtc_state->limited_color_range)
 			crtc_state->csc_mode |= ICL_OUTPUT_CSC_ENABLE;
 
-		crtc_state->csc_mode |= ICL_CSC_ENABLE;
+		if (crtc_state->base.ctm)
+			crtc_state->csc_mode |= ICL_CSC_ENABLE;
 	}
 
 	return 0;
