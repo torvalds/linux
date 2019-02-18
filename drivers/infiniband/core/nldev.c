@@ -1123,13 +1123,10 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	 * objects.
 	 */
 	xa_for_each(&rt->xa, id, res) {
-		if (idx < start)
-			goto next;
-
 		if (!is_visible_in_pid_ns(res))
-			goto next;
+			continue;
 
-		if (!rdma_restrack_get(res))
+		if (idx < start || !rdma_restrack_get(res))
 			goto next;
 
 		xa_unlock(&rt->xa);
