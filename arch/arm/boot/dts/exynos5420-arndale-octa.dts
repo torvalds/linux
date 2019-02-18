@@ -51,6 +51,10 @@
 	};
 };
 
+&cci {
+	status = "disabled";
+};
+
 &cpu0 {
 	cpu-supply = <&buck2_reg>;
 };
@@ -321,14 +325,6 @@
 					 <&cpu7 5 7>;
 		};
 	};
-};
-
-&usbdrd_dwc3_1 {
-	dr_mode = "host";
-};
-
-&cci {
-	status = "disabled";
 };
 
 &hdmi {
@@ -723,4 +719,8 @@
 	status = "okay";
 	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
 	clock-names = "rtc", "rtc_src";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
 };
