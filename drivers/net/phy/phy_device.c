@@ -1575,7 +1575,7 @@ static int genphy_config_advert(struct phy_device *phydev)
  *   efficent ethernet modes. Returns 0 if the PHY's advertisement hasn't
  *   changed, and 1 if it has changed.
  */
-static int genphy_config_eee_advert(struct phy_device *phydev)
+int genphy_config_eee_advert(struct phy_device *phydev)
 {
 	int err;
 
@@ -1588,6 +1588,7 @@ static int genphy_config_eee_advert(struct phy_device *phydev)
 	/* If the call failed, we assume that EEE is not supported */
 	return err < 0 ? 0 : err;
 }
+EXPORT_SYMBOL(genphy_config_eee_advert);
 
 /**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
