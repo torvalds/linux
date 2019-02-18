@@ -52,19 +52,29 @@
 #define ILK_CSC_COEFF_FP(coeff, fbits)	\
 	(clamp_val(((coeff) >> (32 - (fbits) - 3)) + 4, 0, 0xfff) & 0xff8)
 
-#define ILK_CSC_COEFF_LIMITED_RANGE	\
-	ILK_CSC_COEFF_FP(CTM_COEFF_LIMITED_RANGE, 9)
-#define ILK_CSC_COEFF_1_0		\
-	((7 << 12) | ILK_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
+#define ILK_CSC_COEFF_LIMITED_RANGE 0x0dc0
+#define ILK_CSC_COEFF_1_0 0x7800
 
 #define ILK_CSC_POSTOFF_LIMITED_RANGE (16 * (1 << 12) / 255)
 
 static const u16 ilk_csc_off_zero[3] = {};
 
+static const u16 ilk_csc_coeff_identity[9] = {
+	ILK_CSC_COEFF_1_0, 0, 0,
+	0, ILK_CSC_COEFF_1_0, 0,
+	0, 0, ILK_CSC_COEFF_1_0,
+};
+
 static const u16 ilk_csc_postoff_limited_range[3] = {
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
 	ILK_CSC_POSTOFF_LIMITED_RANGE,
+};
+
+static const u16 ilk_csc_coeff_limited_range[9] = {
+	ILK_CSC_COEFF_LIMITED_RANGE, 0, 0,
+	0, ILK_CSC_COEFF_LIMITED_RANGE, 0,
+	0, 0, ILK_CSC_COEFF_LIMITED_RANGE,
 };
 
 /*
@@ -247,7 +257,6 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 	enum pipe pipe = crtc->pipe;
 	u16 coeffs[9] = {};
-	int i;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
@@ -271,28 +280,20 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->base.ctm) {
 		ilk_csc_convert_ctm(crtc_state, coeffs);
-	} else {
-		/*
-		 * Load an identity matrix if no coefficients are provided.
-		 *
-		 * TODO: Check what kind of values actually come out of the
-		 * pipe with these coeff/postoff values and adjust to get the
-		 * best accuracy. Perhaps we even need to take the bpc value
-		 * into consideration.
-		 */
-		for (i = 0; i < 3; i++) {
-			if (limited_color_range)
-				coeffs[i * 3 + i] =
-					ILK_CSC_COEFF_LIMITED_RANGE;
-			else
-				coeffs[i * 3 + i] = ILK_CSC_COEFF_1_0;
-		}
-	}
 
-	ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeffs,
-			    limited_color_range ?
-			    ilk_csc_postoff_limited_range :
-			    ilk_csc_off_zero);
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeffs,
+				    limited_color_range ?
+				    ilk_csc_postoff_limited_range :
+				    ilk_csc_off_zero);
+	} else if (limited_color_range) {
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
+				    ilk_csc_coeff_limited_range,
+				    ilk_csc_postoff_limited_range);
+	} else if (crtc_state->csc_enable) {
+		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
+				    ilk_csc_coeff_identity,
+				    ilk_csc_off_zero);
+	}
 
 	I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
 }
