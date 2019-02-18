@@ -27,7 +27,6 @@ Example:
 		reg = <0x04300000 0x20000>;
 		reg-names = "kgsl_3d0_reg_memory";
 		interrupts = <GIC_SPI 80 0>;
-		interrupt-names = "kgsl_3d0_irq";
 		clock-names =
 		    "core",
 		    "iface",

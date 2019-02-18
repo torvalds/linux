@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/input-polldev.h>
 #include <linux/i2c.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
 
 #define APANEL_NAME	"Fujitsu Application Panel"
@@ -59,8 +58,6 @@ struct apanel {
 	struct i2c_client *client;
 	unsigned short keymap[MAX_PANEL_KEYS];
 	u16    nkeys;
-	u16    led_bits;
-	struct work_struct led_work;
 	struct led_classdev mail_led;
 };
 
@@ -109,25 +106,13 @@ static void apanel_poll(struct input_polled_dev *ipdev)
 			report_key(idev, ap->keymap[i]);
 }
 
-/* Track state changes of LED */
-static void led_update(struct work_struct *work)
-{
-	struct apanel *ap = container_of(work, struct apanel, led_work);
-
-	i2c_smbus_write_word_data(ap->client, 0x10, ap->led_bits);
-}
-
-static void mail_led_set(struct led_classdev *led,
+static int mail_led_set(struct led_classdev *led,
 			 enum led_brightness value)
 {
 	struct apanel *ap = container_of(led, struct apanel, mail_led);
+	u16 led_bits = value != LED_OFF ? 0x8000 : 0x0000;
 
-	if (value != LED_OFF)
-		ap->led_bits |= 0x8000;
-	else
-		ap->led_bits &= ~0x8000;
-
-	schedule_work(&ap->led_work);
+	return i2c_smbus_write_word_data(ap->client, 0x10, led_bits);
 }
 
 static int apanel_remove(struct i2c_client *client)
@@ -179,7 +164,7 @@ static struct apanel apanel = {
 	},
 	.mail_led = {
 		.name = "mail:blue",
-		.brightness_set = mail_led_set,
+		.brightness_set_blocking = mail_led_set,
 	},
 };
 
@@ -235,7 +220,6 @@ static int apanel_probe(struct i2c_client *client,
 	if (err)
 		goto out3;
 
-	INIT_WORK(&ap->led_work, led_update);
 	if (device_chip[APANEL_DEV_LED] != CHIP_NONE) {
 		err = led_classdev_register(&client->dev, &ap->mail_led);
 		if (err)

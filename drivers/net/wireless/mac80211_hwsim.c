@@ -2761,6 +2761,11 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 					BIT(NL80211_CHAN_WIDTH_160);
 	}
 
+	if (!n_limits) {
+		err = -EINVAL;
+		goto failed_hw;
+	}
+
 	data->if_combination.n_limits = n_limits;
 	data->if_combination.max_interfaces = 2048;
 	data->if_combination.limits = data->if_limits;

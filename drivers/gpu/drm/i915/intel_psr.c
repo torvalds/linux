@@ -274,10 +274,16 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("eDP panel supports PSR version %x\n",
 		      intel_dp->psr_dpcd[0]);
 
+	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
+		DRM_DEBUG_KMS("PSR support not currently available for this panel\n");
+		return;
+	}
+
 	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
 		DRM_DEBUG_KMS("Panel lacks power state control, PSR cannot be enabled\n");
 		return;
 	}
+
 	dev_priv->psr.sink_support = true;
 	dev_priv->psr.sink_sync_latency =
 		intel_dp_get_sink_sync_latency(intel_dp);

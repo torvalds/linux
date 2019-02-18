@@ -43,7 +43,8 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 	kuid_t uid;
 	kgid_t gid;
 
-	BUG_ON(!kobj);
+	if (WARN_ON(!kobj))
+		return -EINVAL;
 
 	if (kobj->parent)
 		parent = kobj->parent->sd;

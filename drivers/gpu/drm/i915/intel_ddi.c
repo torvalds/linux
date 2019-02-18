@@ -494,103 +494,58 @@ static const struct cnl_ddi_buf_trans cnl_ddi_translations_edp_1_05V[] = {
 	{ 0x2, 0x7F, 0x3F, 0x00, 0x00 },	/* 400   400      0.0   */
 };
 
-struct icl_combo_phy_ddi_buf_trans {
-	u32 dw2_swing_select;
-	u32 dw2_swing_scalar;
-	u32 dw4_scaling;
+/* icl_combo_phy_ddi_translations */
+static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hbr2[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x35, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x4F, 0x37, 0x00, 0x08 },	/* 350   500      3.1   */
+	{ 0xC, 0x71, 0x2F, 0x00, 0x10 },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2B, 0x00, 0x14 },	/* 350   900      8.2   */
+	{ 0xA, 0x4C, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x73, 0x34, 0x00, 0x0B },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x2F, 0x00, 0x10 },	/* 500   900      5.1   */
+	{ 0xC, 0x6C, 0x3C, 0x00, 0x03 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
 };
 
-/* Voltage Swing Programming for VccIO 0.85V for DP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_0_85V[] = {
-				/* Voltage mV  db    */
-	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
-	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
-	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
-	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
-	{ 0xB, 0x70, 0x0018 },	/* 600         0.0   */
-	{ 0xB, 0x70, 0x3015 },	/* 600         3.5   */
-	{ 0xB, 0x70, 0x6012 },	/* 600         6.0   */
-	{ 0x5, 0x00, 0x0018 },	/* 800         0.0   */
-	{ 0x5, 0x00, 0x3015 },	/* 800         3.5   */
-	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
+static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr2[] = {
+						/* NT mV Trans mV db    */
+	{ 0x0, 0x7F, 0x3F, 0x00, 0x00 },	/* 200   200      0.0   */
+	{ 0x8, 0x7F, 0x38, 0x00, 0x07 },	/* 200   250      1.9   */
+	{ 0x1, 0x7F, 0x33, 0x00, 0x0C },	/* 200   300      3.5   */
+	{ 0x9, 0x7F, 0x31, 0x00, 0x0E },	/* 200   350      4.9   */
+	{ 0x8, 0x7F, 0x3F, 0x00, 0x00 },	/* 250   250      0.0   */
+	{ 0x1, 0x7F, 0x38, 0x00, 0x07 },	/* 250   300      1.6   */
+	{ 0x9, 0x7F, 0x35, 0x00, 0x0A },	/* 250   350      2.9   */
+	{ 0x1, 0x7F, 0x3F, 0x00, 0x00 },	/* 300   300      0.0   */
+	{ 0x9, 0x7F, 0x38, 0x00, 0x07 },	/* 300   350      1.3   */
+	{ 0x9, 0x7F, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
 };
 
-/* FIXME - After table is updated in Bspec */
-/* Voltage Swing Programming for VccIO 0.85V for eDP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_0_85V[] = {
-				/* Voltage mV  db    */
-	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
+static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_edp_hbr3[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x35, 0x3F, 0x00, 0x00 },	/* 350   350      0.0   */
+	{ 0xA, 0x4F, 0x37, 0x00, 0x08 },	/* 350   500      3.1   */
+	{ 0xC, 0x71, 0x2F, 0x00, 0x10 },	/* 350   700      6.0   */
+	{ 0x6, 0x7F, 0x2B, 0x00, 0x14 },	/* 350   900      8.2   */
+	{ 0xA, 0x4C, 0x3F, 0x00, 0x00 },	/* 500   500      0.0   */
+	{ 0xC, 0x73, 0x34, 0x00, 0x0B },	/* 500   700      2.9   */
+	{ 0x6, 0x7F, 0x2F, 0x00, 0x10 },	/* 500   900      5.1   */
+	{ 0xC, 0x6C, 0x3C, 0x00, 0x03 },	/* 650   700      0.6   */
+	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   900      3.5   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 900   900      0.0   */
 };
 
-/* Voltage Swing Programming for VccIO 0.95V for DP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_0_95V[] = {
-				/* Voltage mV  db    */
-	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
-	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
-	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
-	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
-	{ 0x4, 0x98, 0x0018 },	/* 600         0.0   */
-	{ 0x4, 0x98, 0x3015 },	/* 600         3.5   */
-	{ 0x4, 0x98, 0x6012 },	/* 600         6.0   */
-	{ 0x5, 0x76, 0x0018 },	/* 800         0.0   */
-	{ 0x5, 0x76, 0x3015 },	/* 800         3.5   */
-	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
-};
-
-/* FIXME - After table is updated in Bspec */
-/* Voltage Swing Programming for VccIO 0.95V for eDP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_0_95V[] = {
-				/* Voltage mV  db    */
-	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
-};
-
-/* Voltage Swing Programming for VccIO 1.05V for DP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_1_05V[] = {
-				/* Voltage mV  db    */
-	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
-	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
-	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
-	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
-	{ 0x4, 0x98, 0x0018 },	/* 600         0.0   */
-	{ 0x4, 0x98, 0x3015 },	/* 600         3.5   */
-	{ 0x4, 0x98, 0x6012 },	/* 600         6.0   */
-	{ 0x5, 0x71, 0x0018 },	/* 800         0.0   */
-	{ 0x5, 0x71, 0x3015 },	/* 800         3.5   */
-	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
-};
-
-/* FIXME - After table is updated in Bspec */
-/* Voltage Swing Programming for VccIO 1.05V for eDP */
-static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_1_05V[] = {
-				/* Voltage mV  db    */
-	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
-	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
-	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
+static const struct cnl_ddi_buf_trans icl_combo_phy_ddi_translations_hdmi[] = {
+						/* NT mV Trans mV db    */
+	{ 0xA, 0x60, 0x3F, 0x00, 0x00 },	/* 450   450      0.0   */
+	{ 0xB, 0x73, 0x36, 0x00, 0x09 },	/* 450   650      3.2   */
+	{ 0x6, 0x7F, 0x31, 0x00, 0x0E },	/* 450   850      5.5   */
+	{ 0xB, 0x73, 0x3F, 0x00, 0x00 },	/* 650   650      0.0   ALS */
+	{ 0x6, 0x7F, 0x37, 0x00, 0x08 },	/* 650   850      2.3   */
+	{ 0x6, 0x7F, 0x3F, 0x00, 0x00 },	/* 850   850      0.0   */
+	{ 0x6, 0x7F, 0x35, 0x00, 0x0A },	/* 600   850      3.0   */
 };
 
 struct icl_mg_phy_ddi_buf_trans {
@@ -871,43 +826,23 @@ cnl_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 	}
 }
 
-static const struct icl_combo_phy_ddi_buf_trans *
+static const struct cnl_ddi_buf_trans *
 icl_get_combo_buf_trans(struct drm_i915_private *dev_priv, enum port port,
-			int type, int *n_entries)
+			int type, int rate, int *n_entries)
 {
-	u32 voltage = I915_READ(ICL_PORT_COMP_DW3(port)) & VOLTAGE_INFO_MASK;
-
-	if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
-		switch (voltage) {
-		case VOLTAGE_INFO_0_85V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_0_85V);
-			return icl_combo_phy_ddi_translations_edp_0_85V;
-		case VOLTAGE_INFO_0_95V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_0_95V);
-			return icl_combo_phy_ddi_translations_edp_0_95V;
-		case VOLTAGE_INFO_1_05V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_1_05V);
-			return icl_combo_phy_ddi_translations_edp_1_05V;
-		default:
-			MISSING_CASE(voltage);
-			return NULL;
-		}
-	} else {
-		switch (voltage) {
-		case VOLTAGE_INFO_0_85V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hdmi_0_85V);
-			return icl_combo_phy_ddi_translations_dp_hdmi_0_85V;
-		case VOLTAGE_INFO_0_95V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hdmi_0_95V);
-			return icl_combo_phy_ddi_translations_dp_hdmi_0_95V;
-		case VOLTAGE_INFO_1_05V:
-			*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hdmi_1_05V);
-			return icl_combo_phy_ddi_translations_dp_hdmi_1_05V;
-		default:
-			MISSING_CASE(voltage);
-			return NULL;
-		}
+	if (type == INTEL_OUTPUT_HDMI) {
+		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_hdmi);
+		return icl_combo_phy_ddi_translations_hdmi;
+	} else if (rate > 540000 && type == INTEL_OUTPUT_EDP) {
+		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr3);
+		return icl_combo_phy_ddi_translations_edp_hbr3;
+	} else if (type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.low_vswing) {
+		*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_edp_hbr2);
+		return icl_combo_phy_ddi_translations_edp_hbr2;
 	}
+
+	*n_entries = ARRAY_SIZE(icl_combo_phy_ddi_translations_dp_hbr2);
+	return icl_combo_phy_ddi_translations_dp_hbr2;
 }
 
 static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port port)
@@ -918,8 +853,8 @@ static int intel_ddi_hdmi_level(struct drm_i915_private *dev_priv, enum port por
 
 	if (IS_ICELAKE(dev_priv)) {
 		if (intel_port_is_combophy(dev_priv, port))
-			icl_get_combo_buf_trans(dev_priv, port,
-						INTEL_OUTPUT_HDMI, &n_entries);
+			icl_get_combo_buf_trans(dev_priv, port, INTEL_OUTPUT_HDMI,
+						0, &n_entries);
 		else
 			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
 		default_entry = n_entries - 1;
@@ -1086,7 +1021,7 @@ static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 			return DDI_CLK_SEL_TBT_810;
 		default:
 			MISSING_CASE(clock);
-			break;
+			return DDI_CLK_SEL_NONE;
 		}
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:
@@ -2275,13 +2210,14 @@ static void bxt_ddi_vswing_sequence(struct intel_encoder *encoder,
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	enum port port = encoder->port;
 	int n_entries;
 
 	if (IS_ICELAKE(dev_priv)) {
 		if (intel_port_is_combophy(dev_priv, port))
 			icl_get_combo_buf_trans(dev_priv, port, encoder->type,
-						&n_entries);
+						intel_dp->link_rate, &n_entries);
 		else
 			n_entries = ARRAY_SIZE(icl_mg_phy_ddi_translations);
 	} else if (IS_CANNONLAKE(dev_priv)) {
@@ -2462,14 +2398,15 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder,
 }
 
 static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
-					 u32 level, enum port port, int type)
+					u32 level, enum port port, int type,
+					int rate)
 {
-	const struct icl_combo_phy_ddi_buf_trans *ddi_translations = NULL;
+	const struct cnl_ddi_buf_trans *ddi_translations = NULL;
 	u32 n_entries, val;
 	int ln;
 
 	ddi_translations = icl_get_combo_buf_trans(dev_priv, port, type,
-						   &n_entries);
+						   rate, &n_entries);
 	if (!ddi_translations)
 		return;
 
@@ -2478,34 +2415,23 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 		level = n_entries - 1;
 	}
 
-	/* Set PORT_TX_DW5 Rterm Sel to 110b. */
+	/* Set PORT_TX_DW5 */
 	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
-	val &= ~RTERM_SELECT_MASK;
+	val &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK |
+		  TAP2_DISABLE | TAP3_DISABLE);
+	val |= SCALING_MODE_SEL(0x2);
 	val |= RTERM_SELECT(0x6);
-	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
-
-	/* Program PORT_TX_DW5 */
-	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
-	/* Set DisableTap2 and DisableTap3 if MIPI DSI
-	 * Clear DisableTap2 and DisableTap3 for all other Ports
-	 */
-	if (type == INTEL_OUTPUT_DSI) {
-		val |= TAP2_DISABLE;
-		val |= TAP3_DISABLE;
-	} else {
-		val &= ~TAP2_DISABLE;
-		val &= ~TAP3_DISABLE;
-	}
+	val |= TAP3_DISABLE;
 	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
 
 	/* Program PORT_TX_DW2 */
 	val = I915_READ(ICL_PORT_TX_DW2_LN0(port));
 	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
 		 RCOMP_SCALAR_MASK);
-	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_select);
-	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_select);
+	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_sel);
+	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_sel);
 	/* Program Rcomp scalar for every table entry */
-	val |= RCOMP_SCALAR(ddi_translations[level].dw2_swing_scalar);
+	val |= RCOMP_SCALAR(0x98);
 	I915_WRITE(ICL_PORT_TX_DW2_GRP(port), val);
 
 	/* Program PORT_TX_DW4 */
@@ -2514,9 +2440,17 @@ static void icl_ddi_combo_vswing_program(struct drm_i915_private *dev_priv,
 		val = I915_READ(ICL_PORT_TX_DW4_LN(port, ln));
 		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
 			 CURSOR_COEFF_MASK);
-		val |= ddi_translations[level].dw4_scaling;
+		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
+		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
+		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
 		I915_WRITE(ICL_PORT_TX_DW4_LN(port, ln), val);
 	}
+
+	/* Program PORT_TX_DW7 */
+	val = I915_READ(ICL_PORT_TX_DW7_LN0(port));
+	val &= ~N_SCALAR_MASK;
+	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
+	I915_WRITE(ICL_PORT_TX_DW7_GRP(port), val);
 }
 
 static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
@@ -2581,7 +2515,7 @@ static void icl_combo_phy_ddi_vswing_sequence(struct intel_encoder *encoder,
 	I915_WRITE(ICL_PORT_TX_DW5_GRP(port), val);
 
 	/* 5. Program swing and de-emphasis */
-	icl_ddi_combo_vswing_program(dev_priv, level, port, type);
+	icl_ddi_combo_vswing_program(dev_priv, level, port, type, rate);
 
 	/* 6. Set training enable to trigger update */
 	val = I915_READ(ICL_PORT_TX_DW5_LN0(port));
