@@ -188,6 +188,58 @@ static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
 		 IS_GEN_RANGE(dev_priv, 9, 10));
 }
 
+static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
+				u16 coeffs[9])
+{
+	const struct drm_color_ctm *ctm = crtc_state->base.ctm->data;
+	const u64 *input;
+	u64 temp[9];
+	int i;
+
+	if (ilk_csc_limited_range(crtc_state))
+		input = ctm_mult_by_limited(temp, ctm->matrix);
+	else
+		input = ctm->matrix;
+
+	/*
+	 * Convert fixed point S31.32 input to format supported by the
+	 * hardware.
+	 */
+	for (i = 0; i < 9; i++) {
+		u64 abs_coeff = ((1ULL << 63) - 1) & input[i];
+
+		/*
+		 * Clamp input value to min/max supported by
+		 * hardware.
+		 */
+		abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_4_0 - 1);
+
+		coeffs[i] = 0;
+
+		/* sign bit */
+		if (CTM_COEFF_NEGATIVE(input[i]))
+			coeffs[i] |= 1 << 15;
+
+		if (abs_coeff < CTM_COEFF_0_125)
+			coeffs[i] |= (3 << 12) |
+				ILK_CSC_COEFF_FP(abs_coeff, 12);
+		else if (abs_coeff < CTM_COEFF_0_25)
+			coeffs[i] |= (2 << 12) |
+				ILK_CSC_COEFF_FP(abs_coeff, 11);
+		else if (abs_coeff < CTM_COEFF_0_5)
+			coeffs[i] |= (1 << 12) |
+				ILK_CSC_COEFF_FP(abs_coeff, 10);
+		else if (abs_coeff < CTM_COEFF_1_0)
+			coeffs[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
+		else if (abs_coeff < CTM_COEFF_2_0)
+			coeffs[i] |= (7 << 12) |
+				ILK_CSC_COEFF_FP(abs_coeff, 8);
+		else
+			coeffs[i] |= (6 << 12) |
+				ILK_CSC_COEFF_FP(abs_coeff, 7);
+	}
+}
+
 static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
@@ -218,50 +270,7 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	}
 
 	if (crtc_state->base.ctm) {
-		struct drm_color_ctm *ctm = crtc_state->base.ctm->data;
-		const u64 *input;
-		u64 temp[9];
-
-		if (limited_color_range)
-			input = ctm_mult_by_limited(temp, ctm->matrix);
-		else
-			input = ctm->matrix;
-
-		/*
-		 * Convert fixed point S31.32 input to format supported by the
-		 * hardware.
-		 */
-		for (i = 0; i < ARRAY_SIZE(coeffs); i++) {
-			u64 abs_coeff = ((1ULL << 63) - 1) & input[i];
-
-			/*
-			 * Clamp input value to min/max supported by
-			 * hardware.
-			 */
-			abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_4_0 - 1);
-
-			/* sign bit */
-			if (CTM_COEFF_NEGATIVE(input[i]))
-				coeffs[i] |= 1 << 15;
-
-			if (abs_coeff < CTM_COEFF_0_125)
-				coeffs[i] |= (3 << 12) |
-					ILK_CSC_COEFF_FP(abs_coeff, 12);
-			else if (abs_coeff < CTM_COEFF_0_25)
-				coeffs[i] |= (2 << 12) |
-					ILK_CSC_COEFF_FP(abs_coeff, 11);
-			else if (abs_coeff < CTM_COEFF_0_5)
-				coeffs[i] |= (1 << 12) |
-					ILK_CSC_COEFF_FP(abs_coeff, 10);
-			else if (abs_coeff < CTM_COEFF_1_0)
-				coeffs[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
-			else if (abs_coeff < CTM_COEFF_2_0)
-				coeffs[i] |= (7 << 12) |
-					ILK_CSC_COEFF_FP(abs_coeff, 8);
-			else
-				coeffs[i] |= (6 << 12) |
-					ILK_CSC_COEFF_FP(abs_coeff, 7);
-		}
+		ilk_csc_convert_ctm(crtc_state, coeffs);
 	} else {
 		/*
 		 * Load an identity matrix if no coefficients are provided.
