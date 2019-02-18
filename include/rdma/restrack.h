@@ -58,7 +58,8 @@ struct rdma_restrack_entry;
  */
 struct rdma_restrack_root {
 	/*
-	 * @rwsem: Read/write lock to protect lists
+	 * @rwsem: Read/write lock to protect erase of entry.
+	 * Lists and insertions are protected by XArray internal lock.
 	 */
 	struct rw_semaphore	rwsem;
 	/**

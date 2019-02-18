@@ -210,13 +210,11 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 	kref_init(&res->kref);
 	init_completion(&res->comp);
 
-	down_write(&dev->res.rwsem);
 	ret = rt_xa_alloc_cyclic(&dev->res.xa[res->type], &res->id, res,
 				 &dev->res.next_id[res->type]);
 
 	if (!ret)
 		res->valid = true;
-	up_write(&dev->res.rwsem);
 }
 
 /**
