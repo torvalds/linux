@@ -59,6 +59,270 @@
 	cpu-supply = <&buck6_reg>;
 };
 
+&cpu0_thermal {
+	trips {
+		cpu0_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		/*
+		 * Reduce the CPU speed by 2 steps, down to: 1600 MHz
+		 * and 1100 MHz.
+		 */
+		map0 {
+			trip = <&cpu0_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		/*
+		 * Reduce the CPU speed down to 1200 MHz big (6 steps)
+		 * and 800 MHz LITTLE (5 steps).
+		 */
+		map1 {
+			trip = <&cpu0_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		/*
+		 * Reduce the CPU speed as much as possible, down to 700 MHz
+		 * big (11 steps) and 600 MHz LITTLE (7 steps).
+		 */
+		map2 {
+			trip = <&cpu0_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
+&cpu1_thermal {
+	trips {
+		cpu1_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu1_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu1_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu1_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
+&cpu2_thermal {
+	trips {
+		cpu2_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu2_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu2_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu2_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 6 7>,
+					 <&cpu5 6 7>,
+					 <&cpu6 6 7>,
+					 <&cpu7 6 7>;
+		};
+	};
+};
+
+&cpu3_thermal {
+	trips {
+		cpu3_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu3_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu3_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu3_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
 &usbdrd_dwc3_1 {
 	dr_mode = "host";
 };
