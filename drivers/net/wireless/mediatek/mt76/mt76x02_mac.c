@@ -608,7 +608,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	u16 rate = le16_to_cpu(rxwi->rate);
 	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
 	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
-	int i, pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
+	int pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
 	s8 signal;
 	u8 pn_len;
 	u8 wcid;
@@ -668,12 +668,13 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	status->chains = BIT(0);
 	signal = mt76x02_mac_get_rssi(dev, rxwi->rssi[0], 0);
-	for (i = 0; i < nstreams; i++) {
-		status->chains |= BIT(i);
-		status->chain_signal[i] = mt76x02_mac_get_rssi(dev,
-							       rxwi->rssi[i],
-							       i);
-		signal = max_t(s8, signal, status->chain_signal[i]);
+	status->chain_signal[0] = signal;
+	if (nstreams > 1) {
+		status->chains |= BIT(1);
+		status->chain_signal[1] = mt76x02_mac_get_rssi(dev,
+							       rxwi->rssi[1],
+							       1);
+		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
 	status->signal = signal;
 	status->freq = dev->mt76.chandef.chan->center_freq;
