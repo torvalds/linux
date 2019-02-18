@@ -552,7 +552,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 	unsigned char *buffer2;
 	int size2;
 	struct usb_descriptor_header *header;
-	int len, retval;
+	int retval;
 	u8 inums[USB_MAXINTERFACES], nalts[USB_MAXINTERFACES];
 	unsigned iad_num = 0;
 
@@ -707,8 +707,8 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 			nalts[i] = j = USB_MAXALTSETTING;
 		}
 
-		len = sizeof(*intfc) + sizeof(struct usb_host_interface) * j;
-		config->intf_cache[i] = intfc = kzalloc(len, GFP_KERNEL);
+		intfc = kzalloc(struct_size(intfc, altsetting, j), GFP_KERNEL);
+		config->intf_cache[i] = intfc;
 		if (!intfc)
 			return -ENOMEM;
 		kref_init(&intfc->ref);
