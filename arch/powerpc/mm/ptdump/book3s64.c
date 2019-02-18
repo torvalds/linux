@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <asm/pgtable.h>
 
-#include "dump_linuxpagetables.h"
+#include "ptdump.h"
 
 static const struct flag_info flag_array[] = {
 	{

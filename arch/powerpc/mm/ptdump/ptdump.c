@@ -28,7 +28,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
-#include "dump_linuxpagetables.h"
+#include "ptdump.h"
 
 #ifdef CONFIG_PPC32
 #define KERN_VIRT_START	0
