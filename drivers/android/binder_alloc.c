@@ -932,7 +932,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 		if (!mmget_not_zero(alloc->vma_vm_mm))
 			goto err_mmget;
 		mm = alloc->vma_vm_mm;
-		if (!down_write_trylock(&mm->mmap_sem))
+		if (!down_read_trylock(&mm->mmap_sem))
 			goto err_down_write_mmap_sem_failed;
 	}
 
@@ -946,7 +946,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 		trace_binder_unmap_user_end(alloc, index);
 
-		up_write(&mm->mmap_sem);
+		up_read(&mm->mmap_sem);
 		mmput(mm);
 	}
 
