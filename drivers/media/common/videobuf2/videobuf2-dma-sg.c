@@ -67,7 +67,7 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 		int i;
 
 		order = get_order(size);
-		/* Dont over allocate*/
+		/* Don't over allocate*/
 		if ((PAGE_SIZE << order) > size)
 			order--;
 
