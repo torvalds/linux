@@ -161,21 +161,27 @@ static void ilk_load_ycbcr_conversion_matrix(struct intel_crtc *crtc)
 	}
 }
 
-static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	bool limited_color_range = false;
-	enum pipe pipe = crtc->pipe;
-	u16 coeffs[9] = {};
-	int i;
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 
 	/*
 	 * FIXME if there's a gamma LUT after the CSC, we should
 	 * do the range compression using the gamma LUT instead.
 	 */
-	if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
-		limited_color_range = crtc_state->limited_color_range;
+	return crtc_state->limited_color_range &&
+		(IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv) ||
+		 IS_GEN_RANGE(dev_priv, 9, 10));
+}
+
+static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	bool limited_color_range = ilk_csc_limited_range(crtc_state);
+	enum pipe pipe = crtc->pipe;
+	u16 coeffs[9] = {};
+	int i;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
