@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/sched/task.h>
 #include <uapi/rdma/rdma_netlink.h>
+#include <linux/xarray.h>
 
 /**
  * enum rdma_restrack_type - HW objects to track
@@ -48,7 +49,6 @@ enum rdma_restrack_type {
 	RDMA_RESTRACK_MAX
 };
 
-#define RDMA_RESTRACK_HASH_BITS	8
 struct ib_device;
 struct rdma_restrack_entry;
 
@@ -62,9 +62,17 @@ struct rdma_restrack_root {
 	 */
 	struct rw_semaphore	rwsem;
 	/**
-	 * @hash: global database for all resources per-device
+	 * @xa: Array of XArray structures to hold restrack entries.
+	 * We want to use array of XArrays because insertion is type
+	 * dependent. For types with xisiting unique ID (like QPN),
+	 * we will insert to that unique index. For other types,
+	 * we insert based on pointers and auto-allocate unique index.
 	 */
-	DECLARE_HASHTABLE(hash, RDMA_RESTRACK_HASH_BITS);
+	struct xarray xa[RDMA_RESTRACK_MAX];
+	/**
+	 * @next_id: Next ID to support cyclic allocation
+	 */
+	u32 next_id[RDMA_RESTRACK_MAX];
 };
 
 /**
@@ -103,10 +111,6 @@ struct rdma_restrack_entry {
 	 */
 	const char		*kern_name;
 	/**
-	 * @node: hash table entry
-	 */
-	struct hlist_node	node;
-	/**
 	 * @type: various objects in restrack database
 	 */
 	enum rdma_restrack_type	type;
@@ -114,6 +118,10 @@ struct rdma_restrack_entry {
 	 * @user: user resource
 	 */
 	bool			user;
+	/**
+	 * @id: ID to expose to users
+	 */
+	u32 id;
 };
 
 void rdma_restrack_init(struct ib_device *dev);

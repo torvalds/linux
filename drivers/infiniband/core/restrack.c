@@ -12,6 +12,28 @@
 
 #include "cma_priv.h"
 
+static int rt_xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
+			      u32 *next)
+{
+	int err;
+
+	*id = *next;
+	if (*next == U32_MAX)
+		*id = 0;
+
+	xa_lock(xa);
+	err = __xa_alloc(xa, id, U32_MAX, entry, GFP_KERNEL);
+	if (err && *next != U32_MAX) {
+		*id = 0;
+		err = __xa_alloc(xa, id, *next, entry, GFP_KERNEL);
+	}
+
+	if (!err)
+		*next = *id + 1;
+	xa_unlock(xa);
+	return err;
+}
+
 /**
  * rdma_restrack_init() - initialize resource tracking
  * @dev:  IB device
@@ -19,6 +41,10 @@
 void rdma_restrack_init(struct ib_device *dev)
 {
 	struct rdma_restrack_root *res = &dev->res;
+	int i;
+
+	for (i = 0 ; i < RDMA_RESTRACK_MAX; i++)
+		xa_init_flags(&res->xa[i], XA_FLAGS_ALLOC);
 
 	init_rwsem(&res->rwsem);
 }
@@ -46,33 +72,42 @@ void rdma_restrack_clean(struct ib_device *dev)
 	struct rdma_restrack_root *res = &dev->res;
 	struct rdma_restrack_entry *e;
 	char buf[TASK_COMM_LEN];
+	bool found = false;
 	const char *owner;
-	int bkt;
+	int i;
 
-	if (hash_empty(res->hash))
-		return;
+	for (i = 0 ; i < RDMA_RESTRACK_MAX; i++) {
+		if (!xa_empty(&res->xa[i])) {
+			unsigned long index;
 
-	dev = container_of(res, struct ib_device, res);
-	pr_err("restrack: %s", CUT_HERE);
-	dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
-	hash_for_each(res->hash, bkt, e, node) {
-		if (rdma_is_kernel_res(e)) {
-			owner = e->kern_name;
-		} else {
-			/*
-			 * There is no need to call get_task_struct here,
-			 * because we can be here only if there are more
-			 * get_task_struct() call than put_task_struct().
-			 */
-			get_task_comm(buf, e->task);
-			owner = buf;
+			if (!found) {
+				pr_err("restrack: %s", CUT_HERE);
+				dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
+			}
+			xa_for_each(&res->xa[i], index, e) {
+				if (rdma_is_kernel_res(e)) {
+					owner = e->kern_name;
+				} else {
+					/*
+					 * There is no need to call get_task_struct here,
+					 * because we can be here only if there are more
+					 * get_task_struct() call than put_task_struct().
+					 */
+					get_task_comm(buf, e->task);
+					owner = buf;
+				}
+
+				pr_err("restrack: %s %s object allocated by %s is not freed\n",
+				       rdma_is_kernel_res(e) ? "Kernel" :
+							       "User",
+				       type2str(e->type), owner);
+			}
+			found = true;
 		}
-
-		pr_err("restrack: %s %s object allocated by %s is not freed\n",
-		       rdma_is_kernel_res(e) ? "Kernel" : "User",
-		       type2str(e->type), owner);
+		xa_destroy(&res->xa[i]);
 	}
-	pr_err("restrack: %s", CUT_HERE);
+	if (found)
+		pr_err("restrack: %s", CUT_HERE);
 }
 
 /**
@@ -86,10 +121,11 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
 {
 	struct rdma_restrack_root *res = &dev->res;
 	struct rdma_restrack_entry *e;
+	unsigned long index = 0;
 	u32 cnt = 0;
 
 	down_read(&res->rwsem);
-	hash_for_each_possible(res->hash, e, node, type) {
+	xa_for_each(&res->xa[type], index, e) {
 		if (ns == &init_pid_ns ||
 		    (!rdma_is_kernel_res(e) &&
 		     ns == task_active_pid_ns(e->task)))
@@ -166,16 +202,20 @@ EXPORT_SYMBOL(rdma_restrack_set_task);
 static void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
+	int ret;
 
 	if (!dev)
 		return;
 
 	kref_init(&res->kref);
 	init_completion(&res->comp);
-	res->valid = true;
 
 	down_write(&dev->res.rwsem);
-	hash_add(dev->res.hash, &res->node, res->type);
+	ret = rt_xa_alloc_cyclic(&dev->res.xa[res->type], &res->id, res,
+				 &dev->res.next_id[res->type]);
+
+	if (!ret)
+		res->valid = true;
 	up_write(&dev->res.rwsem);
 }
 
@@ -241,14 +281,13 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	if (!dev)
 		return;
 
-	rdma_restrack_put(res);
-
-	wait_for_completion(&res->comp);
-
 	down_write(&dev->res.rwsem);
-	hash_del(&res->node);
+	xa_erase(&dev->res.xa[res->type], res->id);
 	res->valid = false;
 	up_write(&dev->res.rwsem);
+
+	rdma_restrack_put(res);
+	wait_for_completion(&res->comp);
 
 out:
 	if (res->task) {
