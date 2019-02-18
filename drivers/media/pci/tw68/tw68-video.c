@@ -446,7 +446,7 @@ static void tw68_buf_queue(struct vb2_buffer *vb)
 /*
  * buffer_prepare
  *
- * Set the ancilliary information into the buffer structure.  This
+ * Set the ancillary information into the buffer structure.  This
  * includes generating the necessary risc program if it hasn't already
  * been done for the current buffer format.
  * The structure fh contains the details of the format requested by the

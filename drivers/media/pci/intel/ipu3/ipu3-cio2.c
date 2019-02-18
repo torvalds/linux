@@ -264,7 +264,7 @@ static void cio2_fbpt_exit(struct cio2_queue *q, struct device *dev)
  */
 
 /*
- * shift for keeping value range suitable for 32-bit integer arithmetics
+ * shift for keeping value range suitable for 32-bit integer arithmetic
  */
 #define LIMIT_SHIFT	8
 

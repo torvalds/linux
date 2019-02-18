@@ -6423,7 +6423,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x5168,
-		.subdevice    = 0x3502,  /* whats the difference to 0x3306 ?*/
+		.subdevice    = 0x3502,  /* what's the difference to 0x3306 ?*/
 		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

@@ -281,7 +281,7 @@ struct meye_grab_buffer {
 	unsigned long sequence;		/* sequence number */
 };
 
-/* size of kfifos containings buffer indices */
+/* size of kfifos containing buffer indices */
 #define MEYE_QUEUE_SIZE	MEYE_MAX_BUFNBRS
 
 /* Motion Eye device structure */
