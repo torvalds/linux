@@ -265,8 +265,6 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
-	writel_relaxed(0x0, pm_state.sysram_base + EXYNOS5420_CPU_STATE);
-
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
 		mcpm_cpu_suspend();
@@ -341,6 +339,7 @@ static void exynos5420_pm_prepare(void)
 	 */
 	pm_state.cpu_state = readl_relaxed(pm_state.sysram_base +
 					   EXYNOS5420_CPU_STATE);
+	writel_relaxed(0x0, pm_state.sysram_base + EXYNOS5420_CPU_STATE);
 
 	exynos_pm_enter_sleep_mode();
 
