@@ -1309,8 +1309,10 @@ static struct tcf_block *tcf_block_find(struct net *net, struct Qdisc **q,
 		goto errout_qdisc;
 
 	block = __tcf_block_find(net, *q, *cl, ifindex, block_index, extack);
-	if (IS_ERR(block))
+	if (IS_ERR(block)) {
+		err = PTR_ERR(block);
 		goto errout_qdisc;
+	}
 
 	return block;
 
