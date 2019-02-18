@@ -194,6 +194,7 @@ typedef struct xfs_mount {
 	 */
 	uint32_t		m_generation;
 
+	bool			m_always_cow;
 	bool			m_fail_unmount;
 #ifdef DEBUG
 	/*

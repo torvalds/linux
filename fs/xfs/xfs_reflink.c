@@ -192,7 +192,7 @@ xfs_reflink_trim_around_shared(
 	int			error = 0;
 
 	/* Holes, unwritten, and delalloc extents cannot be shared */
-	if (!xfs_is_reflink_inode(ip) || !xfs_bmap_is_real_extent(irec)) {
+	if (!xfs_is_cow_inode(ip) || !xfs_bmap_is_real_extent(irec)) {
 		*shared = false;
 		return 0;
 	}
@@ -232,6 +232,23 @@ xfs_reflink_trim_around_shared(
 		irec->br_blockcount = fbno - agbno;
 		return 0;
 	}
+}
+
+bool
+xfs_inode_need_cow(
+	struct xfs_inode	*ip,
+	struct xfs_bmbt_irec	*imap,
+	bool			*shared)
+{
+	/* We can't update any real extents in always COW mode. */
+	if (xfs_is_always_cow_inode(ip) &&
+	    !isnullstartblock(imap->br_startblock)) {
+		*shared = true;
+		return 0;
+	}
+
+	/* Trim the mapping to the nearest shared extent boundary. */
+	return xfs_reflink_trim_around_shared(ip, imap, shared);
 }
 
 static int
@@ -321,7 +338,7 @@ xfs_find_trim_cow_extent(
 	if (got.br_startoff > offset_fsb) {
 		xfs_trim_extent(imap, imap->br_startoff,
 				got.br_startoff - imap->br_startoff);
-		return xfs_reflink_trim_around_shared(ip, imap, shared);
+		return xfs_inode_need_cow(ip, imap, shared);
 	}
 
 	*shared = true;
@@ -356,7 +373,10 @@ xfs_reflink_allocate_cow(
 	xfs_extlen_t		resblks = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(xfs_is_reflink_inode(ip));
+	if (!ip->i_cowfp) {
+		ASSERT(!xfs_is_reflink_inode(ip));
+		xfs_ifork_init_cow(ip);
+	}
 
 	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
 	if (error || !*shared)
@@ -542,7 +562,7 @@ xfs_reflink_cancel_cow_range(
 	int			error;
 
 	trace_xfs_reflink_cancel_cow_range(ip, offset, count);
-	ASSERT(xfs_is_reflink_inode(ip));
+	ASSERT(ip->i_cowfp);
 
 	offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
 	if (count == NULLFILEOFF)

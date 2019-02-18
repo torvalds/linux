@@ -395,12 +395,13 @@ xfs_quota_calc_throttle(
 STATIC xfs_fsblock_t
 xfs_iomap_prealloc_size(
 	struct xfs_inode	*ip,
+	int			whichfork,
 	loff_t			offset,
 	loff_t			count,
 	struct xfs_iext_cursor	*icur)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	struct xfs_bmbt_irec	prev;
 	int			shift = 0;
@@ -593,7 +594,11 @@ xfs_file_iomap_begin_delay(
 	 * themselves.  Second the lookup in the extent list is generally faster
 	 * than going out to the shared extent tree.
 	 */
-	if (xfs_is_reflink_inode(ip)) {
+	if (xfs_is_cow_inode(ip)) {
+		if (!ip->i_cowfp) {
+			ASSERT(!xfs_is_reflink_inode(ip));
+			xfs_ifork_init_cow(ip);
+		}
 		cow_eof = !xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb,
 				&ccur, &cmap);
 		if (!cow_eof && cmap.br_startoff <= offset_fsb) {
@@ -609,7 +614,7 @@ xfs_file_iomap_begin_delay(
 		 * overwriting shared extents.   This includes zeroing of
 		 * existing extents that contain data.
 		 */
-		if (!xfs_is_reflink_inode(ip) ||
+		if (!xfs_is_cow_inode(ip) ||
 		    ((flags & IOMAP_ZERO) && imap.br_state != XFS_EXT_NORM)) {
 			trace_xfs_iomap_found(ip, offset, count, XFS_DATA_FORK,
 					&imap);
@@ -619,7 +624,7 @@ xfs_file_iomap_begin_delay(
 		xfs_trim_extent(&imap, offset_fsb, end_fsb - offset_fsb);
 
 		/* Trim the mapping to the nearest shared extent boundary. */
-		error = xfs_reflink_trim_around_shared(ip, &imap, &shared);
+		error = xfs_inode_need_cow(ip, &imap, &shared);
 		if (error)
 			goto out_unlock;
 
@@ -648,15 +653,18 @@ xfs_file_iomap_begin_delay(
 		 */
 		count = min_t(loff_t, count, 1024 * PAGE_SIZE);
 		end_fsb = min(XFS_B_TO_FSB(mp, offset + count), maxbytes_fsb);
+
+		if (xfs_is_always_cow_inode(ip))
+			whichfork = XFS_COW_FORK;
 	}
 
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error)
 		goto out_unlock;
 
-	if (eof && whichfork == XFS_DATA_FORK) {
-		prealloc_blocks = xfs_iomap_prealloc_size(ip, offset, count,
-				&icur);
+	if (eof) {
+		prealloc_blocks = xfs_iomap_prealloc_size(ip, whichfork, offset,
+				count, &icur);
 		if (prealloc_blocks) {
 			xfs_extlen_t	align;
 			xfs_off_t	end_offset;
@@ -867,7 +875,7 @@ xfs_ilock_for_iomap(
 	 * COW writes may allocate delalloc space or convert unwritten COW
 	 * extents, so we need to make sure to take the lock exclusively here.
 	 */
-	if (xfs_is_reflink_inode(ip) && is_write) {
+	if (xfs_is_cow_inode(ip) && is_write) {
 		/*
 		 * FIXME: It could still overwrite on unshared extents and not
 		 * need allocation.
@@ -901,7 +909,7 @@ relock:
 	 * check, so if we got ILOCK_SHARED for a write and but we're now a
 	 * reflink inode we have to switch to ILOCK_EXCL and relock.
 	 */
-	if (mode == XFS_ILOCK_SHARED && is_write && xfs_is_reflink_inode(ip)) {
+	if (mode == XFS_ILOCK_SHARED && is_write && xfs_is_cow_inode(ip)) {
 		xfs_iunlock(ip, mode);
 		mode = XFS_ILOCK_EXCL;
 		goto relock;
@@ -973,7 +981,7 @@ xfs_file_iomap_begin(
 	 * Break shared extents if necessary. Checks for non-blocking IO have
 	 * been done up front, so we don't need to do them here.
 	 */
-	if (xfs_is_reflink_inode(ip)) {
+	if (xfs_is_cow_inode(ip)) {
 		struct xfs_bmbt_irec	orig = imap;
 
 		/* if zeroing doesn't need COW allocation, then we are done. */
