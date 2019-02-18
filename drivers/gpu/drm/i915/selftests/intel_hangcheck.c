@@ -56,6 +56,8 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 	if (IS_ERR(h->ctx))
 		return PTR_ERR(h->ctx);
 
+	GEM_BUG_ON(i915_gem_context_is_bannable(h->ctx));
+
 	h->hws = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(h->hws)) {
 		err = PTR_ERR(h->hws);

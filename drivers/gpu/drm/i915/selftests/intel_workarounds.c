@@ -236,6 +236,8 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	GEM_BUG_ON(i915_gem_context_is_bannable(ctx));
+
 	rq = ERR_PTR(-ENODEV);
 	with_intel_runtime_pm(engine->i915, wakeref)
 		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);

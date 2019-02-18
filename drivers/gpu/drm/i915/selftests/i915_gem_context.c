@@ -967,6 +967,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		ret = PTR_ERR(ctx);
 		goto out_unlock;
 	}
+	i915_gem_context_clear_bannable(ctx); /* to reset and beyond! */
 
 	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
