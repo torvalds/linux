@@ -91,6 +91,44 @@ TRACE_EVENT(thermal_zone_trip,
 		show_tzt_type(__entry->trip_type))
 );
 
+#ifdef CONFIG_ROCKCHIP_IPA
+TRACE_EVENT(thermal_power_get_static_power,
+	TP_PROTO(u32 coefficient, s32 temp, u32 temp_scaling_factor, u32 volt,
+		 u32 volt_scaling_factor, u32 leakage, u32 ref_leakage,
+		 u32 static_power),
+
+	TP_ARGS(coefficient, temp, temp_scaling_factor, volt,
+		volt_scaling_factor, leakage, ref_leakage, static_power),
+
+	TP_STRUCT__entry(
+		__field(u32,	coefficient)
+		__field(s32,	temp)
+		__field(u32,	temp_scaling_factor)
+		__field(u32,	volt)
+		__field(u32,	volt_scaling_factor)
+		__field(u32,	leakage)
+		__field(u32,	ref_leakage)
+		__field(u32,	static_power)
+	),
+
+	TP_fast_assign(
+		__entry->coefficient = coefficient;
+		__entry->temp = temp;
+		__entry->temp_scaling_factor = temp_scaling_factor;
+		__entry->volt = volt;
+		__entry->volt_scaling_factor = volt_scaling_factor;
+		__entry->leakage = leakage;
+		__entry->ref_leakage = ref_leakage;
+		__entry->static_power = static_power;
+	),
+	TP_printk("c=%u t=%d ts=%u v=%u vs=%u lkg=%u ref_lkg=%u static_power=%u",
+		  __entry->coefficient, __entry->temp,
+		  __entry->temp_scaling_factor, __entry->volt,
+		  __entry->volt_scaling_factor, __entry->leakage,
+		  __entry->ref_leakage, __entry->static_power)
+);
+#endif /* CONFIG_ROCKCHIP_IPA */
+
 #ifdef CONFIG_CPU_THERMAL
 TRACE_EVENT(thermal_power_cpu_get_power,
 	TP_PROTO(const struct cpumask *cpus, unsigned long freq, u32 *load,

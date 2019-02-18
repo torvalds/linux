@@ -6,6 +6,7 @@
 #include <linux/of.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#include <trace/events/thermal.h>
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
@@ -71,33 +72,29 @@ EXPORT_SYMBOL(rockchip_ipa_power_model_init);
 /**
  * calculate_temp_scaling_factor() - Calculate temperature scaling coefficient
  * @ts:		Signed coefficients, in order t^0 to t^3, with units Deg^-N
- * @t:		Temperature, in mDeg C. Range: -2^17 < t < 2^17
+ * @t:		Temperature, in mDeg C. Range: -40000 < t < 125000
  *
  * Scale the temperature according to a cubic polynomial whose coefficients are
  * provided in the device tree. The result is used to scale the static power
  * coefficient, where 1000000 means no change.
  *
- * Return: Temperature scaling factor. Range 0 <= ret <= 10,000,000.
+ * Return: Temperature scaling factor.
  */
 static u32 calculate_temp_scaling_factor(s32 ts[4], s64 t)
 {
-	/* Range: -2^24 < t2 < 2^24 m(Deg^2) */
 	const s64 t2 = div_s64((t * t), 1000);
 
-	/* Range: -2^31 < t3 < 2^31 m(Deg^3) */
 	const s64 t3 = div_s64((t * t2), 1000);
 
 	/*
 	 * Sum the parts. t^[1-3] are in m(Deg^N), but the coefficients are in
 	 * Deg^-N, so we need to multiply the last coefficient by 1000.
-	 * Range: -2^63 < res_big < 2^63
 	 */
-	const s64 res_big = ts[3] * t3    /* +/- 2^62 */
-			  + ts[2] * t2    /* +/- 2^55 */
-			  + ts[1] * t     /* +/- 2^48 */
-			  + ts[0] * 1000; /* +/- 2^41 */
+	const s64 res_big = ts[3] * t3
+			  + ts[2] * t2
+			  + ts[1] * t
+			  + ts[0] * 1000;
 
-	/* Range: -2^60 < res_unclamped < 2^60 */
 	s64 res_unclamped = div_s64(res_big, 1000);
 
 	/* Clamp to range of 0x to 10x the static power */
@@ -105,39 +102,34 @@ static u32 calculate_temp_scaling_factor(s32 ts[4], s64 t)
 }
 
 /**
- * scale_static_power() - Scale a static power coefficient to an OPP
- * @c:		Static model coefficient, in uW/V^3. Should be in range
- *		0 < c < 2^32 to prevent overflow.
- * @voltage:	Voltage, in mV. Range: 2^9 < voltage < 2^13 (~0.5V to ~8V)
+ * calculate_volt_scaling_factor() - Calculate voltage scaling coefficient
+ * voltage_mv:	Voltage, in mV. Range: 750 < voltage < 1350
  *
- * Return: Power consumption, in mW. Range: 0 < p < 2^13 (0W to ~8W)
+ * Return: Voltage scaling factor.
  */
-static u32 scale_static_power(const u32 c, const u32 voltage)
+static u32 calculate_volt_scaling_factor(const u32 voltage_mv)
 {
-	/* Range: 2^8 < v2 < 2^16 m(V^2) */
-	const u32 v2 = (voltage * voltage) / 1000;
+	const u32 v2 = (voltage_mv * voltage_mv) / 1000;
 
-	/* Range: 2^17 < v3_big < 2^29 m(V^2) mV */
-	const u32 v3_big = v2 * voltage;
+	const u32 v3_big = v2 * voltage_mv;
 
-	/* Range: 2^7 < v3 < 2^19 m(V^3) */
 	const u32 v3 = v3_big / 1000;
 
-	/*
-	 * Range (working backwards from next line): 0 < v3c_big < 2^33 nW.
-	 * The result should be < 2^52 to avoid overflowing the return value.
-	 */
-	const u64 v3c_big = (u64)c * (u64)v3;
-
-	/* Range: 0 < v3c_big / 1000000 < 2^13 mW */
-	return div_u64(v3c_big, 1000000);
+	return v3;
 }
 
+/**
+ * rockchip_ipa_get_static_power() - Calculate static power
+ * @data:	Pointer to IPA model
+ * voltage_mv:	Voltage, in mV. Range: 750 < voltage < 1350
+ *
+ * Return: Static power.
+ */
 unsigned long
 rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
-			      unsigned long voltage)
+			      unsigned long voltage_mv)
 {
-	u32 temp_scaling_factor, coeffp, static_power;
+	u32 temp_scaling_factor, volt_scaling_factor, static_power;
 	u64 coeff_big;
 	int temp;
 	int ret;
@@ -149,20 +141,23 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 		temp = FALLBACK_STATIC_TEMPERATURE;
 	}
 
-	/* Range: 0 <= temp_scaling_factor < 2^24 */
 	temp_scaling_factor = calculate_temp_scaling_factor(data->ts, temp);
-	/*
-	 * Range: 0 <= coeff_big < 2^52 to avoid overflowing *coeffp. This
-	 * means static_coefficient must be in range
-	 * 0 <= static_coefficient < 2^28.
-	 */
 	coeff_big = (u64)data->static_coefficient * (u64)temp_scaling_factor;
-	coeffp = div_u64(coeff_big, 1000000);
+	static_power = div_u64(coeff_big, 1000000);
 
-	static_power = scale_static_power(coeffp, (u32)voltage);
+	volt_scaling_factor = calculate_volt_scaling_factor((u32)voltage_mv);
+	coeff_big = (u64)static_power * (u64)volt_scaling_factor;
+	static_power = div_u64(coeff_big, 1000000);
 	if (data->leakage && data->ref_leakage)
 		static_power = static_power * data->leakage /
 			data->ref_leakage;
+
+	trace_thermal_power_get_static_power(data->static_coefficient, temp,
+					     temp_scaling_factor,
+					     (u32)voltage_mv,
+					     volt_scaling_factor,
+					     data->leakage, data->ref_leakage,
+					     static_power);
 
 	return static_power;
 }
