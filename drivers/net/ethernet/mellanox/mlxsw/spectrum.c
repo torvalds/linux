@@ -3739,8 +3739,8 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 			burst_size = 7;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
-			rate = 4 * 1024;
-			burst_size = 4;
+			rate = 1024;
+			burst_size = 7;
 			break;
 		default:
 			continue;
