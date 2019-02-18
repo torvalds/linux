@@ -40,23 +40,6 @@
 #define CTM_COEFF_ABS(coeff)		((coeff) & (CTM_COEFF_SIGN - 1))
 
 #define LEGACY_LUT_LENGTH		256
-
-/* Post offset values for RGB->YCBCR conversion */
-#define POSTOFF_RGB_TO_YUV_HI 0x800
-#define POSTOFF_RGB_TO_YUV_ME 0x100
-#define POSTOFF_RGB_TO_YUV_LO 0x800
-
-/*
- * These values are direct register values specified in the Bspec,
- * for RGB->YUV conversion matrix (colorspace BT709)
- */
-#define CSC_RGB_TO_YUV_RU_GU 0x2ba809d8
-#define CSC_RGB_TO_YUV_BU 0x37e80000
-#define CSC_RGB_TO_YUV_RY_GY 0x1e089cc0
-#define CSC_RGB_TO_YUV_BY 0xb5280000
-#define CSC_RGB_TO_YUV_RV_GV 0xbce89ad8
-#define CSC_RGB_TO_YUV_BV 0x1e080000
-
 /*
  * Extract the CSC coefficient from a CTM coefficient (in U32.32 fixed point
  * format). This macro takes the coefficient we want transformed and the
@@ -73,6 +56,31 @@
 	ILK_CSC_COEFF_FP(CTM_COEFF_LIMITED_RANGE, 9)
 #define ILK_CSC_COEFF_1_0		\
 	((7 << 12) | ILK_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
+
+#define ILK_CSC_POSTOFF_LIMITED_RANGE (16 * (1 << 12) / 255)
+
+static const u16 ilk_csc_off_zero[3] = {};
+
+static const u16 ilk_csc_postoff_limited_range[3] = {
+	ILK_CSC_POSTOFF_LIMITED_RANGE,
+	ILK_CSC_POSTOFF_LIMITED_RANGE,
+	ILK_CSC_POSTOFF_LIMITED_RANGE,
+};
+
+/*
+ * These values are direct register values specified in the Bspec,
+ * for RGB->YUV conversion matrix (colorspace BT709)
+ */
+static const u16 ilk_csc_coeff_rgb_to_ycbcr[9] = {
+	0x1e08, 0x9cc0, 0xb528,
+	0x2ba8, 0x09d8, 0x37e8,
+	0xbce8, 0x9ad8, 0x1e08,
+};
+
+/* Post offset values for RGB->YCBCR conversion */
+static const u16 ilk_csc_postoff_rgb_to_ycbcr[3] = {
+	0x0800, 0x0100, 0x0800,
+};
 
 static bool lut_is_legacy(const struct drm_property_blob *lut)
 {
@@ -113,52 +121,58 @@ static u64 *ctm_mult_by_limited(u64 *result, const u64 *input)
 	return result;
 }
 
-static void ilk_load_ycbcr_conversion_matrix(struct intel_crtc *crtc)
+static void ilk_update_pipe_csc(struct intel_crtc *crtc,
+				const u16 preoff[3],
+				const u16 coeff[9],
+				const u16 postoff[3])
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (INTEL_GEN(dev_priv) < 11) {
-		I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
-		I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
-		I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
+	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), preoff[0]);
+	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), preoff[1]);
+	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), preoff[2]);
 
-		I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), CSC_RGB_TO_YUV_RU_GU);
-		I915_WRITE(PIPE_CSC_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
+	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeff[0] << 16 | coeff[1]);
+	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), coeff[2] << 16);
 
-		I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), CSC_RGB_TO_YUV_RY_GY);
-		I915_WRITE(PIPE_CSC_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
+	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeff[3] << 16 | coeff[4]);
+	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), coeff[5] << 16);
 
-		I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), CSC_RGB_TO_YUV_RV_GV);
-		I915_WRITE(PIPE_CSC_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
+	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), coeff[6] << 16 | coeff[7]);
+	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeff[8] << 16);
 
-		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), POSTOFF_RGB_TO_YUV_HI);
-		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), POSTOFF_RGB_TO_YUV_ME);
-		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), POSTOFF_RGB_TO_YUV_LO);
-	} else {
-		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_HI(pipe), 0);
-		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_ME(pipe), 0);
-		I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_LO(pipe), 0);
-
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe),
-			   CSC_RGB_TO_YUV_RU_GU);
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BU(pipe), CSC_RGB_TO_YUV_BU);
-
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe),
-			   CSC_RGB_TO_YUV_RY_GY);
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BY(pipe), CSC_RGB_TO_YUV_BY);
-
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe),
-			   CSC_RGB_TO_YUV_RV_GV);
-		I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BV(pipe), CSC_RGB_TO_YUV_BV);
-
-		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_HI(pipe),
-			   POSTOFF_RGB_TO_YUV_HI);
-		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_ME(pipe),
-			   POSTOFF_RGB_TO_YUV_ME);
-		I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_LO(pipe),
-			   POSTOFF_RGB_TO_YUV_LO);
+	if (INTEL_GEN(dev_priv) >= 7) {
+		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff[0]);
+		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff[1]);
+		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), postoff[2]);
 	}
+}
+
+static void icl_update_output_csc(struct intel_crtc *crtc,
+				  const u16 preoff[3],
+				  const u16 coeff[9],
+				  const u16 postoff[3])
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_HI(pipe), preoff[0]);
+	I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_ME(pipe), preoff[1]);
+	I915_WRITE(PIPE_CSC_OUTPUT_PREOFF_LO(pipe), preoff[2]);
+
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RY_GY(pipe), coeff[0] << 16 | coeff[1]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BY(pipe), coeff[2]);
+
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RU_GU(pipe), coeff[3] << 16 | coeff[4]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BU(pipe), coeff[5]);
+
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_RV_GV(pipe), coeff[6] << 16 | coeff[7]);
+	I915_WRITE(PIPE_CSC_OUTPUT_COEFF_BV(pipe), coeff[8]);
+
+	I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_HI(pipe), postoff[0]);
+	I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_ME(pipe), postoff[1]);
+	I915_WRITE(PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
 }
 
 static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
@@ -185,7 +199,15 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
-		ilk_load_ycbcr_conversion_matrix(crtc);
+		if (INTEL_GEN(dev_priv) >= 11)
+			icl_update_output_csc(crtc, ilk_csc_off_zero,
+					      ilk_csc_coeff_rgb_to_ycbcr,
+					      ilk_csc_postoff_rgb_to_ycbcr);
+		else
+			ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
+					    ilk_csc_coeff_rgb_to_ycbcr,
+					    ilk_csc_postoff_rgb_to_ycbcr);
+
 		I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
 		/*
 		 * On pre GEN11 output CSC is not there, so with 1 pipe CSC
@@ -258,38 +280,12 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeffs[0] << 16 | coeffs[1]);
-	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), coeffs[2] << 16);
+	ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeffs,
+			    limited_color_range ?
+			    ilk_csc_postoff_limited_range :
+			    ilk_csc_off_zero);
 
-	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeffs[3] << 16 | coeffs[4]);
-	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), coeffs[5] << 16);
-
-	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), coeffs[6] << 16 | coeffs[7]);
-	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeffs[8] << 16);
-
-	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
-
-	if (INTEL_GEN(dev_priv) > 6) {
-		u16 postoff = 0;
-
-		if (limited_color_range)
-			postoff = (16 * (1 << 12) / 255) & 0x1fff;
-
-		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
-		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
-		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), postoff);
-
-		I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
-	} else {
-		u32 mode = CSC_MODE_YUV_TO_RGB;
-
-		if (limited_color_range)
-			mode |= CSC_BLACK_SCREEN_OFFSET;
-
-		I915_WRITE(PIPE_CSC_MODE(pipe), mode);
-	}
+	I915_WRITE(PIPE_CSC_MODE(pipe), crtc_state->csc_mode);
 }
 
 /*
