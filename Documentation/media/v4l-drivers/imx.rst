@@ -29,7 +29,7 @@ de-interlacing by interweaving even and odd lines during transfer
 (without motion compensation which requires the VDIC).
 
 The CSI is the backend capture unit that interfaces directly with
-camera sensors over Parallel, BT.656/1120, and MIPI CSI-2 busses.
+camera sensors over Parallel, BT.656/1120, and MIPI CSI-2 buses.
 
 The IC handles color-space conversion, resizing (downscaling and
 upscaling), horizontal flip, and 90/270 degree rotation operations.
@@ -207,7 +207,7 @@ The CSI supports cropping the incoming raw sensor frames. This is
 implemented in the ipuX_csiY entities at the sink pad, using the
 crop selection subdev API.
 
-The CSI also supports fixed divide-by-two downscaling indepently in
+The CSI also supports fixed divide-by-two downscaling independently in
 width and height. This is implemented in the ipuX_csiY entities at
 the sink pad, using the compose selection subdev API.
 

@@ -1562,7 +1562,7 @@ MFC 5.1 Control IDs
     Display delay value for H264 decoder. The decoder is forced to
     return a decoded frame after the set 'display delay' number of
     frames. If this number is low it may result in frames returned out
-    of dispaly order, in addition the hardware may still be using the
+    of display order, in addition the hardware may still be using the
     returned buffer as a reference picture for subsequent frames.
 
 ``V4L2_CID_MPEG_MFC51_VIDEO_H264_NUM_REF_PIC_FOR_P (integer)``
