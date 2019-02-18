@@ -1129,7 +1129,7 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *fh,
 	}
 	timing = &dssdev->panel.timings;
 
-	/* We dont support RGB24-packed mode if vrfb rotation
+	/* We don't support RGB24-packed mode if vrfb rotation
 	 * is enabled*/
 	if ((is_rotation_enabled(vout)) &&
 			f->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB24) {
@@ -1147,7 +1147,7 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *fh,
 		vout->fbuf.fmt.width = timing->x_res;
 	}
 
-	/* change to samller size is OK */
+	/* change to smaller size is OK */
 
 	bpp = omap_vout_try_format(&f->fmt.pix);
 	f->fmt.pix.sizeimage = f->fmt.pix.width * f->fmt.pix.height * bpp;

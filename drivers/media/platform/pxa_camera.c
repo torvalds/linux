@@ -1631,7 +1631,7 @@ static int pxa_camera_set_bus_param(struct pxa_camera_dev *pcdev)
 
 	pcdev->channels = 1;
 
-	/* Make choises, based on platform preferences */
+	/* Make choices, based on platform preferences */
 	if ((common_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) &&
 	    (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)) {
 		if (pcdev->platform_flags & PXA_CAMERA_HSP)

@@ -65,7 +65,7 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi, u32 pixformat,
 int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable);
 
 /**
- * sun6i_csi_update_config() - update the csi register setttings
+ * sun6i_csi_update_config() - update the csi register settings
  * @csi:	pointer to the csi
  * @config:	see struct sun6i_csi_config
  */

@@ -1165,7 +1165,7 @@ static void vb2ops_vdec_buf_queue(struct vb2_buffer *vb)
 	ret = vdec_if_decode(ctx, &src_mem, NULL, &res_chg);
 	if (ret || !res_chg) {
 		/*
-		 * fb == NULL menas to parse SPS/PPS header or
+		 * fb == NULL means to parse SPS/PPS header or
 		 * resolution info in src_mem. Decode can fail
 		 * if there is no SPS header or picture info
 		 * in bs

@@ -668,7 +668,7 @@ menuconfig SDR_PLATFORM_DRIVERS
 if SDR_PLATFORM_DRIVERS
 
 config VIDEO_RCAR_DRIF
-	tristate "Renesas Digitial Radio Interface (DRIF)"
+	tristate "Renesas Digital Radio Interface (DRIF)"
 	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select VIDEOBUF2_VMALLOC

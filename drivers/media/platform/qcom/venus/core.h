@@ -219,7 +219,7 @@ struct venus_buffer {
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
 
 /**
- * struct venus_inst - holds per instance paramerters
+ * struct venus_inst - holds per instance parameters
  *
  * @list:	used for attach an instance to the core
  * @lock:	instance lock
