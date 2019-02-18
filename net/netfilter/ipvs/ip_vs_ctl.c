@@ -2744,8 +2744,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		int size;
 
 		get = (struct ip_vs_get_services *)arg;
-		size = sizeof(*get) +
-			sizeof(struct ip_vs_service_entry) * get->num_services;
+		size = struct_size(get, entrytable, get->num_services);
 		if (*len != size) {
 			pr_err("length: %u != %u\n", *len, size);
 			ret = -EINVAL;
@@ -2786,8 +2785,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		int size;
 
 		get = (struct ip_vs_get_dests *)arg;
-		size = sizeof(*get) +
-			sizeof(struct ip_vs_dest_entry) * get->num_dests;
+		size = struct_size(get, entrytable, get->num_dests);
 		if (*len != size) {
 			pr_err("length: %u != %u\n", *len, size);
 			ret = -EINVAL;
