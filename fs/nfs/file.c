@@ -89,8 +89,8 @@ EXPORT_SYMBOL_GPL(nfs_file_release);
 
 /**
  * nfs_revalidate_size - Revalidate the file size
- * @inode - pointer to inode struct
- * @file - pointer to struct file
+ * @inode: pointer to inode struct
+ * @filp: pointer to struct file
  *
  * Revalidates the file length. This is basically a wrapper around
  * nfs_revalidate_inode() that takes into account the fact that we may

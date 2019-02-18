@@ -681,7 +681,7 @@ void nfs_expire_all_delegations(struct nfs_client *clp)
 
 /**
  * nfs_super_return_all_delegations - return delegations for one superblock
- * @sb: sb to process
+ * @server: pointer to nfs_server to process
  *
  */
 void nfs_server_return_all_delegations(struct nfs_server *server)

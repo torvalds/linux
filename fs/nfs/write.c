@@ -870,7 +870,6 @@ EXPORT_SYMBOL_GPL(nfs_request_add_commit_list_locked);
 /**
  * nfs_request_add_commit_list - add request to a commit list
  * @req: pointer to a struct nfs_page
- * @dst: commit list head
  * @cinfo: holds list lock and accounting info
  *
  * This sets the PG_CLEAN bit, updates the cinfo count of

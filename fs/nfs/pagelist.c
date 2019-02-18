@@ -350,7 +350,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct page *page,
 
 /**
  * nfs_unlock_request - Unlock request and wake up sleepers.
- * @req:
+ * @req: pointer to request
  */
 void nfs_unlock_request(struct nfs_page *req)
 {
@@ -368,7 +368,7 @@ void nfs_unlock_request(struct nfs_page *req)
 
 /**
  * nfs_unlock_and_release_request - Unlock request and release the nfs_page
- * @req:
+ * @req: pointer to request
  */
 void nfs_unlock_and_release_request(struct nfs_page *req)
 {
@@ -531,7 +531,6 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
  * nfs_pgio_rpcsetup - Set up arguments for a pageio call
  * @hdr: The pageio hdr
  * @count: Number of bytes to read
- * @offset: Initial offset
  * @how: How to commit data (writes only)
  * @cinfo: Commit information for the call (writes only)
  */
@@ -634,7 +633,6 @@ EXPORT_SYMBOL_GPL(nfs_initiate_pgio);
 
 /**
  * nfs_pgio_error - Clean up from a pageio error
- * @desc: IO descriptor
  * @hdr: pageio header
  */
 static void nfs_pgio_error(struct nfs_pgio_header *hdr)
@@ -892,6 +890,7 @@ static bool nfs_match_lock_context(const struct nfs_lock_context *l1,
  * nfs_can_coalesce_requests - test two requests for compatibility
  * @prev: pointer to nfs_page
  * @req: pointer to nfs_page
+ * @pgio: pointer to nfs_pagio_descriptor
  *
  * The nfs_page structures 'prev' and 'req' are compared to ensure that the
  * page data area they describe is contiguous, and that their RPC

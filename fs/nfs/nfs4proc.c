@@ -5963,7 +5963,7 @@ out:
 /**
  * nfs4_proc_setclientid_confirm - Confirm client ID
  * @clp: state data structure
- * @res: result of a previous SETCLIENTID
+ * @arg: result of a previous SETCLIENTID
  * @cred: credential to use for this call
  *
  * Returns zero, a negative errno, or a negative NFS4ERR status code.
@@ -7527,7 +7527,7 @@ int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
 	return status;
 }
 
-/**
+/*
  * If 'use_integrity' is true and the state managment nfs_client
  * cl_rpcclient is using krb5i/p, use the integrity protected cl_rpcclient
  * and the machine credential as per RFC3530bis and RFC5661 Security
@@ -9219,7 +9219,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 	return status;
 }
 
-/**
+/*
  * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
@@ -9484,7 +9484,7 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
  * @server: server / transport on which to perform the operation
  * @stateid: state ID to release
  * @cred: credential
- * @is_recovery: set to true if this call needs to be privileged
+ * @privileged: set to true if this call needs to be privileged
  *
  * Note: this function is always asynchronous.
  */

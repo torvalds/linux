@@ -55,7 +55,7 @@ static void nfs4_shrink_slot_table(struct nfs4_slot_table  *tbl, u32 newsize)
 
 /**
  * nfs4_slot_tbl_drain_complete - wake waiters when drain is complete
- * @tbl - controlling slot table
+ * @tbl: controlling slot table
  *
  */
 void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)

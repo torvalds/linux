@@ -945,7 +945,7 @@ static int nfs_fsync_dir(struct file *filp, loff_t start, loff_t end,
 
 /**
  * nfs_force_lookup_revalidate - Mark the directory as having changed
- * @dir - pointer to directory inode
+ * @dir: pointer to directory inode
  *
  * This forces the revalidation code in nfs_lookup_revalidate() to do a
  * full lookup on all child dentries of 'dir' whenever a change occurs
