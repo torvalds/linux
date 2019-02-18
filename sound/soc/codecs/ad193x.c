@@ -37,6 +37,13 @@ static SOC_ENUM_SINGLE_DECL(ad193x_deemp_enum, AD193X_DAC_CTRL2, 1,
 
 static const DECLARE_TLV_DB_MINMAX(adau193x_tlv, -9563, 0);
 
+static const unsigned int ad193x_sb[] = {32};
+
+static struct snd_pcm_hw_constraint_list constr = {
+	.list = ad193x_sb,
+	.count = ARRAY_SIZE(ad193x_sb),
+};
+
 static const struct snd_kcontrol_new ad193x_snd_controls[] = {
 	/* DAC volume control */
 	SOC_DOUBLE_R_TLV("DAC1 Volume", AD193X_DAC_L1_VOL,
@@ -321,7 +328,16 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int ad193x_startup(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				   &constr);
+}
+
 static const struct snd_soc_dai_ops ad193x_dai_ops = {
+	.startup = ad193x_startup,
 	.hw_params = ad193x_hw_params,
 	.digital_mute = ad193x_mute,
 	.set_tdm_slot = ad193x_set_tdm_slot,
