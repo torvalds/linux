@@ -18,7 +18,8 @@ function out()
 trap out EXIT INT TERM HUP
 
 if [ -f debian/debian.env ]; then
-	source debian/debian.env
+	# shellcheck disable=SC1091
+	. debian/debian.env
 fi
 
 if [ ! -d "${DEBIAN}" ]; then
@@ -28,7 +29,8 @@ fi
 
 CONF="${DEBIAN}"/etc/update.conf
 if [ -f "${CONF}" ]; then
-	source "${CONF}"
+	# shellcheck disable=SC1090
+	. "${CONF}"
 fi
 
 usage="$0 [-r RELEASE_REPO] [ -b REMOTE_BRANCH ] [-l LOCAL_BRANCH] [-d]"$'\n\n'

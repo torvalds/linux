@@ -2,16 +2,20 @@
 #
 # This script is intended as a helper when closing a release.
 #
-source debian/debian.env
+
+# shellcheck disable=SC1091
+. debian/debian.env
 
 # Parse args
-usage="$0 [-c] [-d]"$'\n\n'
-usage+="-c 			include config changes in the closing commit."$'\n'
-usage+="-d 			Dry run (do not change files or commit)."
-while getopts "cd" opt; do
+usage="$0 [-c] [-d] [-s]"$'\n\n'
+usage+="-c 			Include config changes in the closing commit."$'\n'
+usage+="-d 			Dry run (do not change files or commit)."$'\n'
+usage+="-s 			Skip master kernel changelog entries (used when bootstraping new kernels)."
+while getopts "cds" opt; do
 	case $opt in
 	c) commit_configs=1 ;;
 	d) dry_run=1 ;;
+	s) skip_master_entries=1 ;;
 	*) echo usage: "${usage}"; exit ;;
 	esac
 done
@@ -58,8 +62,6 @@ fi
 
 # Derivatives have at least one base kernel.
 if [ "$branch" != 'master' ]; then
-	skip_master_entries=
-
 	# For backports, insert the changes from the base derivative.
 	# Straight derivatives and backports such as hwe and hwe-edge, should
 	# skip that step and fetch the entries directly from the master kernel.
