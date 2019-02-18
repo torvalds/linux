@@ -819,19 +819,18 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 		}
 	}
 
-	old_pd = mr->pd;
 	ret = mr->device->ops.rereg_user_mr(mr, cmd.flags, cmd.start,
 					    cmd.length, cmd.hca_va,
 					    cmd.access_flags, pd,
 					    &attrs->driver_udata);
-	if (!ret) {
-		if (cmd.flags & IB_MR_REREG_PD) {
-			atomic_inc(&pd->usecnt);
-			mr->pd = pd;
-			atomic_dec(&old_pd->usecnt);
-		}
-	} else {
+	if (ret)
 		goto put_uobj_pd;
+
+	if (cmd.flags & IB_MR_REREG_PD) {
+		old_pd = mr->pd;
+		atomic_inc(&pd->usecnt);
+		mr->pd = pd;
+		atomic_dec(&old_pd->usecnt);
 	}
 
 	memset(&resp, 0, sizeof(resp));
