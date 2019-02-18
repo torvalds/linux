@@ -1018,6 +1018,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	const struct nldev_fill_res_entry *fe = &fill_entries[res_type];
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
 	struct rdma_restrack_entry *res;
+	struct rdma_restrack_root *rt;
 	int err, ret = 0, idx = 0;
 	struct nlattr *table_attr;
 	struct nlattr *entry_attr;
@@ -1028,7 +1029,6 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	unsigned long id;
 	u32 index, port = 0;
 	bool filled = false;
-	struct xarray *xa;
 
 	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 			  nldev_policy, NULL);
@@ -1076,14 +1076,14 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 
 	has_cap_net_admin = netlink_capable(cb->skb, CAP_NET_ADMIN);
 
-	xa = &device->res->xa[res_type];
-	down_read(&device->res->rwsem);
+	rt = &device->res[res_type];
+	xa_lock(&rt->xa);
 	/*
 	 * FIXME: if the skip ahead is something common this loop should
 	 * use xas_for_each & xas_pause to optimize, we can have a lot of
 	 * objects.
 	 */
-	xa_for_each(xa, id, res) {
+	xa_for_each(&rt->xa, id, res) {
 		if (idx < start)
 			goto next;
 
@@ -1091,12 +1091,9 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 			goto next;
 
 		if (!rdma_restrack_get(res))
-			/*
-			 * Resource is under release now, but we are not
-			 * relesing lock now, so it will be released in
-			 * our next pass, once we will get ->next pointer.
-			 */
 			goto next;
+
+		xa_unlock(&rt->xa);
 
 		filled = true;
 
@@ -1104,32 +1101,27 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		if (!entry_attr) {
 			ret = -EMSGSIZE;
 			rdma_restrack_put(res);
-			up_read(&device->res->rwsem);
-			break;
+			goto msg_full;
 		}
 
-		up_read(&device->res->rwsem);
 		ret = fe->fill_res_func(skb, has_cap_net_admin, res, port);
-		down_read(&device->res->rwsem);
-		/*
-		 * Return resource back, but it won't be released till
-		 * the &device->res.rwsem will be released for write.
-		 */
 		rdma_restrack_put(res);
 
-		if (ret)
+		if (ret) {
 			nla_nest_cancel(skb, entry_attr);
-		if (ret == -EMSGSIZE)
-			break;
-		if (ret == -EAGAIN)
-			goto next;
-		if (ret)
+			if (ret == -EMSGSIZE)
+				goto msg_full;
+			if (ret == -EAGAIN)
+				goto again;
 			goto res_err;
+		}
 		nla_nest_end(skb, entry_attr);
+again:		xa_lock(&rt->xa);
 next:		idx++;
 	}
-	up_read(&device->res->rwsem);
+	xa_unlock(&rt->xa);
 
+msg_full:
 	nla_nest_end(skb, table_attr);
 	nlmsg_end(skb, nlh);
 	cb->args[0] = idx;
@@ -1146,7 +1138,6 @@ next:		idx++;
 
 res_err:
 	nla_nest_cancel(skb, table_attr);
-	up_read(&device->res->rwsem);
 
 err:
 	nlmsg_cancel(skb, nlh);
