@@ -109,7 +109,7 @@ config RESET_QCOM_PDC
 
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
-	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
+	default ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
 	help
 	  This enables a simple reset controller driver for reset lines that
 	  that can be asserted and deasserted by toggling bits in a contiguous,
@@ -127,6 +127,14 @@ config RESET_STM32MP157
 	default MACH_STM32MP157
 	help
 	  This enables the RCC reset controller driver for STM32 MPUs.
+
+config RESET_SOCFPGA
+	bool "SoCFPGA Reset Driver" if COMPILE_TEST && !ARCH_SOCFPGA
+	default ARCH_SOCFPGA
+	select RESET_SIMPLE
+	help
+	  This enables the reset driver for the SoCFPGA ARMv7 platforms. This
+	  driver gets initialized early during platform init calls.
 
 config RESET_SUNXI
 	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
@@ -163,15 +171,15 @@ config RESET_UNIPHIER
 	  Say Y if you want to control reset signals provided by System Control
 	  block, Media I/O block, Peripheral Block.
 
-config RESET_UNIPHIER_USB3
-	tristate "USB3 reset driver for UniPhier SoCs"
+config RESET_UNIPHIER_GLUE
+	tristate "Reset driver in glue layer for UniPhier SoCs"
 	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
 	default ARCH_UNIPHIER
 	select RESET_SIMPLE
 	help
-	  Support for the USB3 core reset on UniPhier SoCs.
-	  Say Y if you want to control reset signals provided by
-	  USB3 glue layer.
+	  Support for peripheral core reset included in its own glue layer
+	  on UniPhier SoCs. Say Y if you want to control reset signals
+	  provided by the glue layer.
 
 config RESET_ZYNQ
 	bool "ZYNQ Reset Driver" if COMPILE_TEST

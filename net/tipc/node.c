@@ -830,14 +830,15 @@ static void tipc_node_link_down(struct tipc_node *n, int bearer_id, bool delete)
 	tipc_node_write_lock(n);
 	if (!tipc_link_is_establishing(l)) {
 		__tipc_node_link_down(n, &bearer_id, &xmitq, &maddr);
-		if (delete) {
-			kfree(l);
-			le->link = NULL;
-			n->link_cnt--;
-		}
 	} else {
 		/* Defuse pending tipc_node_link_up() */
+		tipc_link_reset(l);
 		tipc_link_fsm_evt(l, LINK_RESET_EVT);
+	}
+	if (delete) {
+		kfree(l);
+		le->link = NULL;
+		n->link_cnt--;
 	}
 	trace_tipc_node_link_down(n, true, "node link down or deleted!");
 	tipc_node_write_unlock(n);

@@ -55,7 +55,7 @@ static u16 shadow_read_write_fields[] = {
 static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
 
-void init_vmcs_shadow_fields(void)
+static void init_vmcs_shadow_fields(void)
 {
 	int i, j;
 
@@ -211,6 +211,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
+	hrtimer_cancel(&vmx->nested.preemption_timer);
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
@@ -2472,6 +2473,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 	    (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id))
 		return -EINVAL;
 
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
+		return -EINVAL;
+
 	if (nested_cpu_has_ept(vmcs12) &&
 	    !valid_ept_address(vcpu, vmcs12->ept_pointer))
 		return -EINVAL;
@@ -4140,11 +4145,11 @@ static int enter_vmx_operation(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		goto out_vmcs02;
 
-	vmx->nested.cached_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
 	if (!vmx->nested.cached_vmcs12)
 		goto out_cached_vmcs12;
 
-	vmx->nested.cached_shadow_vmcs12 = kmalloc(VMCS12_SIZE, GFP_KERNEL);
+	vmx->nested.cached_shadow_vmcs12 = kzalloc(VMCS12_SIZE, GFP_KERNEL);
 	if (!vmx->nested.cached_shadow_vmcs12)
 		goto out_cached_shadow_vmcs12;
 
@@ -4540,9 +4545,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 			 * given physical address won't match the required
 			 * VMCS12_REVISION identifier.
 			 */
-			nested_vmx_failValid(vcpu,
+			return nested_vmx_failValid(vcpu,
 				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
-			return kvm_skip_emulated_instruction(vcpu);
 		}
 		new_vmcs12 = kmap(page);
 		if (new_vmcs12->hdr.revision_id != VMCS12_REVISION ||
@@ -5264,13 +5268,17 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 			copy_shadow_to_vmcs12(vmx);
 	}
 
-	if (copy_to_user(user_kvm_nested_state->data, vmcs12, sizeof(*vmcs12)))
+	/*
+	 * Copy over the full allocated size of vmcs12 rather than just the size
+	 * of the struct.
+	 */
+	if (copy_to_user(user_kvm_nested_state->data, vmcs12, VMCS12_SIZE))
 		return -EFAULT;
 
 	if (nested_cpu_has_shadow_vmcs(vmcs12) &&
 	    vmcs12->vmcs_link_pointer != -1ull) {
 		if (copy_to_user(user_kvm_nested_state->data + VMCS12_SIZE,
-				 get_shadow_vmcs12(vcpu), sizeof(*vmcs12)))
+				 get_shadow_vmcs12(vcpu), VMCS12_SIZE))
 			return -EFAULT;
 	}
 
@@ -5553,9 +5561,11 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * secondary cpu-based controls.  Do not include those that
 	 * depend on CPUID bits, they are added later by vmx_cpuid_update.
 	 */
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
-		msrs->secondary_ctls_low,
-		msrs->secondary_ctls_high);
+	if (msrs->procbased_ctls_high & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
+		rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
+		      msrs->secondary_ctls_low,
+		      msrs->secondary_ctls_high);
+
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |

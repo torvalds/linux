@@ -264,7 +264,9 @@ void __init pSeries_final_fixup(void)
 			if (!of_device_is_compatible(nvdn->parent,
 						"ibm,power9-npu"))
 				continue;
+#ifdef CONFIG_PPC_POWERNV
 			WARN_ON_ONCE(pnv_npu2_init(hose));
+#endif
 			break;
 		}
 	}

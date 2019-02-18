@@ -7,7 +7,6 @@
 
 #include <linux/delay.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -15,7 +14,6 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
-#include <linux/of_gpio.h>
 #include <linux/of_net.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>

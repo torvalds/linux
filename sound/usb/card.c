@@ -246,7 +246,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		h1 = snd_usb_find_csint_desc(host_iface->extra,
 							 host_iface->extralen,
 							 NULL, UAC_HEADER);
-		if (!h1) {
+		if (!h1 || h1->bLength < sizeof(*h1)) {
 			dev_err(&dev->dev, "cannot find UAC_HEADER\n");
 			return -EINVAL;
 		}

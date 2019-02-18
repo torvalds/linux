@@ -378,7 +378,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	vec.iov_len = sizeof(struct smc_clc_msg_decline);
 	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1,
 			     sizeof(struct smc_clc_msg_decline));
-	if (len < sizeof(struct smc_clc_msg_decline))
+	if (len < 0 || len < sizeof(struct smc_clc_msg_decline))
 		len = -EPROTO;
 	return len > 0 ? 0 : len;
 }

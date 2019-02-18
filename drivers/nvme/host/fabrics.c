@@ -874,6 +874,8 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	if (opts->discovery_nqn) {
 		opts->kato = 0;
 		opts->nr_io_queues = 0;
+		opts->nr_write_queues = 0;
+		opts->nr_poll_queues = 0;
 		opts->duplicate_connect = true;
 	}
 	if (ctrl_loss_tmo < 0)

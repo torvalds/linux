@@ -3763,8 +3763,9 @@ int sdhci_setup_host(struct sdhci_host *host)
 		 * Use zalloc to zero the reserved high 32-bits of 128-bit
 		 * descriptors so that they never need to be written.
 		 */
-		buf = dma_zalloc_coherent(mmc_dev(mmc), host->align_buffer_sz +
-					 host->adma_table_sz, &dma, GFP_KERNEL);
+		buf = dma_alloc_coherent(mmc_dev(mmc),
+					 host->align_buffer_sz + host->adma_table_sz,
+					 &dma, GFP_KERNEL);
 		if (!buf) {
 			pr_warn("%s: Unable to allocate ADMA buffers - falling back to standard DMA\n",
 				mmc_hostname(mmc));
