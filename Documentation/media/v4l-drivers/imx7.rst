@@ -15,9 +15,10 @@ For image capture the i.MX7 has three units:
 - Video Multiplexer
 - MIPI CSI-2 Receiver
 
-::
-                                           |\
-   MIPI Camera Input ---> MIPI CSI-2 --- > | \
+.. code-block:: none
+
+   MIPI Camera Input ---> MIPI CSI-2 --- > |\
+                                           | \
                                            |  \
                                            | M |
                                            | U | ------>  CSI ---> Capture
@@ -77,6 +78,7 @@ CSI-2 receiver. The following example configures a video capture pipeline with
 an output of 800x600, and BGGR 10 bit bayer format:
 
 .. code-block:: none
+
    # Setup links
    media-ctl -l "'ov2680 1-0036':0 -> 'imx7-mipi-csis.0':0[1]"
    media-ctl -l "'imx7-mipi-csis.0':1 -> 'csi_mux':1[1]"
@@ -94,6 +96,7 @@ After this streaming can start. The v4l2-ctl tool can be used to select any of
 the resolutions supported by the sensor.
 
 .. code-block:: none
+
     root@imx7s-warp:~# media-ctl -p
     Media controller API version 4.17.0
 
