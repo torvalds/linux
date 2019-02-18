@@ -460,7 +460,6 @@
 &mmc1 {
 	bus-width = <4>;
 	cap-sd-highspeed;
-	cap-mmc-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
