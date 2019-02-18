@@ -3020,6 +3020,8 @@ again:
 		 */
 		prev_cmp = -1;
 		ret = key_search(b, key, level, &prev_cmp, &slot);
+		if (ret < 0)
+			goto done;
 
 		if (level != 0) {
 			int dec = 0;
@@ -5171,6 +5173,10 @@ again:
 		nritems = btrfs_header_nritems(cur);
 		level = btrfs_header_level(cur);
 		sret = btrfs_bin_search(cur, min_key, level, &slot);
+		if (sret < 0) {
+			ret = sret;
+			goto out;
+		}
 
 		/* at the lowest level, we're done, setup the path and exit */
 		if (level == path->lowest_level) {
