@@ -163,20 +163,13 @@ static ssize_t zynqmp_pm_debugfs_api_write(struct file *file,
 
 	strcpy(debugfs_buf, "");
 
-	if (*off != 0 || len == 0)
+	if (*off != 0 || len <= 1 || len > PAGE_SIZE - 1)
 		return -EINVAL;
 
-	kern_buff = kzalloc(len, GFP_KERNEL);
-	if (!kern_buff)
-		return -ENOMEM;
-
+	kern_buff = memdup_user_nul(ptr, len);
+	if (IS_ERR(kern_buff))
+		return PTR_ERR(kern_buff);
 	tmp_buff = kern_buff;
-
-	ret = strncpy_from_user(kern_buff, ptr, len);
-	if (ret < 0) {
-		ret = -EFAULT;
-		goto err;
-	}
 
 	/* Read the API name from a user request */
 	pm_api_req = strsep(&kern_buff, " ");
