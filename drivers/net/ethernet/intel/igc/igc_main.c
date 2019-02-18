@@ -1787,8 +1787,173 @@ void igc_up(struct igc_adapter *adapter)
  * igc_update_stats - Update the board statistics counters
  * @adapter: board private structure
  */
-static void igc_update_stats(struct igc_adapter *adapter)
+void igc_update_stats(struct igc_adapter *adapter)
 {
+	struct rtnl_link_stats64 *net_stats = &adapter->stats64;
+	struct pci_dev *pdev = adapter->pdev;
+	struct igc_hw *hw = &adapter->hw;
+	u64 _bytes, _packets;
+	u64 bytes, packets;
+	unsigned int start;
+	u32 mpc;
+	int i;
+
+	/* Prevent stats update while adapter is being reset, or if the pci
+	 * connection is down.
+	 */
+	if (adapter->link_speed == 0)
+		return;
+	if (pci_channel_offline(pdev))
+		return;
+
+	packets = 0;
+	bytes = 0;
+
+	rcu_read_lock();
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct igc_ring *ring = adapter->rx_ring[i];
+		u32 rqdpc = rd32(IGC_RQDPC(i));
+
+		if (hw->mac.type >= igc_i225)
+			wr32(IGC_RQDPC(i), 0);
+
+		if (rqdpc) {
+			ring->rx_stats.drops += rqdpc;
+			net_stats->rx_fifo_errors += rqdpc;
+		}
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->rx_syncp);
+			_bytes = ring->rx_stats.bytes;
+			_packets = ring->rx_stats.packets;
+		} while (u64_stats_fetch_retry_irq(&ring->rx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
+	}
+
+	net_stats->rx_bytes = bytes;
+	net_stats->rx_packets = packets;
+
+	packets = 0;
+	bytes = 0;
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct igc_ring *ring = adapter->tx_ring[i];
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->tx_syncp);
+			_bytes = ring->tx_stats.bytes;
+			_packets = ring->tx_stats.packets;
+		} while (u64_stats_fetch_retry_irq(&ring->tx_syncp, start));
+		bytes += _bytes;
+		packets += _packets;
+	}
+	net_stats->tx_bytes = bytes;
+	net_stats->tx_packets = packets;
+	rcu_read_unlock();
+
+	/* read stats registers */
+	adapter->stats.crcerrs += rd32(IGC_CRCERRS);
+	adapter->stats.gprc += rd32(IGC_GPRC);
+	adapter->stats.gorc += rd32(IGC_GORCL);
+	rd32(IGC_GORCH); /* clear GORCL */
+	adapter->stats.bprc += rd32(IGC_BPRC);
+	adapter->stats.mprc += rd32(IGC_MPRC);
+	adapter->stats.roc += rd32(IGC_ROC);
+
+	adapter->stats.prc64 += rd32(IGC_PRC64);
+	adapter->stats.prc127 += rd32(IGC_PRC127);
+	adapter->stats.prc255 += rd32(IGC_PRC255);
+	adapter->stats.prc511 += rd32(IGC_PRC511);
+	adapter->stats.prc1023 += rd32(IGC_PRC1023);
+	adapter->stats.prc1522 += rd32(IGC_PRC1522);
+	adapter->stats.symerrs += rd32(IGC_SYMERRS);
+	adapter->stats.sec += rd32(IGC_SEC);
+
+	mpc = rd32(IGC_MPC);
+	adapter->stats.mpc += mpc;
+	net_stats->rx_fifo_errors += mpc;
+	adapter->stats.scc += rd32(IGC_SCC);
+	adapter->stats.ecol += rd32(IGC_ECOL);
+	adapter->stats.mcc += rd32(IGC_MCC);
+	adapter->stats.latecol += rd32(IGC_LATECOL);
+	adapter->stats.dc += rd32(IGC_DC);
+	adapter->stats.rlec += rd32(IGC_RLEC);
+	adapter->stats.xonrxc += rd32(IGC_XONRXC);
+	adapter->stats.xontxc += rd32(IGC_XONTXC);
+	adapter->stats.xoffrxc += rd32(IGC_XOFFRXC);
+	adapter->stats.xofftxc += rd32(IGC_XOFFTXC);
+	adapter->stats.fcruc += rd32(IGC_FCRUC);
+	adapter->stats.gptc += rd32(IGC_GPTC);
+	adapter->stats.gotc += rd32(IGC_GOTCL);
+	rd32(IGC_GOTCH); /* clear GOTCL */
+	adapter->stats.rnbc += rd32(IGC_RNBC);
+	adapter->stats.ruc += rd32(IGC_RUC);
+	adapter->stats.rfc += rd32(IGC_RFC);
+	adapter->stats.rjc += rd32(IGC_RJC);
+	adapter->stats.tor += rd32(IGC_TORH);
+	adapter->stats.tot += rd32(IGC_TOTH);
+	adapter->stats.tpr += rd32(IGC_TPR);
+
+	adapter->stats.ptc64 += rd32(IGC_PTC64);
+	adapter->stats.ptc127 += rd32(IGC_PTC127);
+	adapter->stats.ptc255 += rd32(IGC_PTC255);
+	adapter->stats.ptc511 += rd32(IGC_PTC511);
+	adapter->stats.ptc1023 += rd32(IGC_PTC1023);
+	adapter->stats.ptc1522 += rd32(IGC_PTC1522);
+
+	adapter->stats.mptc += rd32(IGC_MPTC);
+	adapter->stats.bptc += rd32(IGC_BPTC);
+
+	adapter->stats.tpt += rd32(IGC_TPT);
+	adapter->stats.colc += rd32(IGC_COLC);
+
+	adapter->stats.algnerrc += rd32(IGC_ALGNERRC);
+
+	adapter->stats.tsctc += rd32(IGC_TSCTC);
+	adapter->stats.tsctfc += rd32(IGC_TSCTFC);
+
+	adapter->stats.iac += rd32(IGC_IAC);
+	adapter->stats.icrxoc += rd32(IGC_ICRXOC);
+	adapter->stats.icrxptc += rd32(IGC_ICRXPTC);
+	adapter->stats.icrxatc += rd32(IGC_ICRXATC);
+	adapter->stats.ictxptc += rd32(IGC_ICTXPTC);
+	adapter->stats.ictxatc += rd32(IGC_ICTXATC);
+	adapter->stats.ictxqec += rd32(IGC_ICTXQEC);
+	adapter->stats.ictxqmtc += rd32(IGC_ICTXQMTC);
+	adapter->stats.icrxdmtc += rd32(IGC_ICRXDMTC);
+
+	/* Fill out the OS statistics structure */
+	net_stats->multicast = adapter->stats.mprc;
+	net_stats->collisions = adapter->stats.colc;
+
+	/* Rx Errors */
+
+	/* RLEC on some newer hardware can be incorrect so build
+	 * our own version based on RUC and ROC
+	 */
+	net_stats->rx_errors = adapter->stats.rxerrc +
+		adapter->stats.crcerrs + adapter->stats.algnerrc +
+		adapter->stats.ruc + adapter->stats.roc +
+		adapter->stats.cexterr;
+	net_stats->rx_length_errors = adapter->stats.ruc +
+				      adapter->stats.roc;
+	net_stats->rx_crc_errors = adapter->stats.crcerrs;
+	net_stats->rx_frame_errors = adapter->stats.algnerrc;
+	net_stats->rx_missed_errors = adapter->stats.mpc;
+
+	/* Tx Errors */
+	net_stats->tx_errors = adapter->stats.ecol +
+			       adapter->stats.latecol;
+	net_stats->tx_aborted_errors = adapter->stats.ecol;
+	net_stats->tx_window_errors = adapter->stats.latecol;
+	net_stats->tx_carrier_errors = adapter->stats.tncrs;
+
+	/* Tx Dropped needs to be maintained elsewhere */
+
+	/* Management Stats */
+	adapter->stats.mgptc += rd32(IGC_MGTPTC);
+	adapter->stats.mgprc += rd32(IGC_MGTPRC);
+	adapter->stats.mgpdc += rd32(IGC_MGTPDC);
 }
 
 static void igc_nfc_filter_exit(struct igc_adapter *adapter)

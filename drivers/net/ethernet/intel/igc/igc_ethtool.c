@@ -7,6 +7,115 @@
 
 #include "igc.h"
 
+/* forward declaration */
+struct igc_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int stat_offset;
+};
+
+#define IGC_STAT(_name, _stat) { \
+	.stat_string = _name, \
+	.sizeof_stat = FIELD_SIZEOF(struct igc_adapter, _stat), \
+	.stat_offset = offsetof(struct igc_adapter, _stat) \
+}
+
+static const struct igc_stats igc_gstrings_stats[] = {
+	IGC_STAT("rx_packets", stats.gprc),
+	IGC_STAT("tx_packets", stats.gptc),
+	IGC_STAT("rx_bytes", stats.gorc),
+	IGC_STAT("tx_bytes", stats.gotc),
+	IGC_STAT("rx_broadcast", stats.bprc),
+	IGC_STAT("tx_broadcast", stats.bptc),
+	IGC_STAT("rx_multicast", stats.mprc),
+	IGC_STAT("tx_multicast", stats.mptc),
+	IGC_STAT("multicast", stats.mprc),
+	IGC_STAT("collisions", stats.colc),
+	IGC_STAT("rx_crc_errors", stats.crcerrs),
+	IGC_STAT("rx_no_buffer_count", stats.rnbc),
+	IGC_STAT("rx_missed_errors", stats.mpc),
+	IGC_STAT("tx_aborted_errors", stats.ecol),
+	IGC_STAT("tx_carrier_errors", stats.tncrs),
+	IGC_STAT("tx_window_errors", stats.latecol),
+	IGC_STAT("tx_abort_late_coll", stats.latecol),
+	IGC_STAT("tx_deferred_ok", stats.dc),
+	IGC_STAT("tx_single_coll_ok", stats.scc),
+	IGC_STAT("tx_multi_coll_ok", stats.mcc),
+	IGC_STAT("tx_timeout_count", tx_timeout_count),
+	IGC_STAT("rx_long_length_errors", stats.roc),
+	IGC_STAT("rx_short_length_errors", stats.ruc),
+	IGC_STAT("rx_align_errors", stats.algnerrc),
+	IGC_STAT("tx_tcp_seg_good", stats.tsctc),
+	IGC_STAT("tx_tcp_seg_failed", stats.tsctfc),
+	IGC_STAT("rx_flow_control_xon", stats.xonrxc),
+	IGC_STAT("rx_flow_control_xoff", stats.xoffrxc),
+	IGC_STAT("tx_flow_control_xon", stats.xontxc),
+	IGC_STAT("tx_flow_control_xoff", stats.xofftxc),
+	IGC_STAT("rx_long_byte_count", stats.gorc),
+	IGC_STAT("tx_dma_out_of_sync", stats.doosync),
+	IGC_STAT("tx_smbus", stats.mgptc),
+	IGC_STAT("rx_smbus", stats.mgprc),
+	IGC_STAT("dropped_smbus", stats.mgpdc),
+	IGC_STAT("os2bmc_rx_by_bmc", stats.o2bgptc),
+	IGC_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
+	IGC_STAT("os2bmc_tx_by_host", stats.o2bspc),
+	IGC_STAT("os2bmc_rx_by_host", stats.b2ogprc),
+	IGC_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	IGC_STAT("tx_hwtstamp_skipped", tx_hwtstamp_skipped),
+	IGC_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
+};
+
+#define IGC_NETDEV_STAT(_net_stat) { \
+	.stat_string = __stringify(_net_stat), \
+	.sizeof_stat = FIELD_SIZEOF(struct rtnl_link_stats64, _net_stat), \
+	.stat_offset = offsetof(struct rtnl_link_stats64, _net_stat) \
+}
+
+static const struct igc_stats igc_gstrings_net_stats[] = {
+	IGC_NETDEV_STAT(rx_errors),
+	IGC_NETDEV_STAT(tx_errors),
+	IGC_NETDEV_STAT(tx_dropped),
+	IGC_NETDEV_STAT(rx_length_errors),
+	IGC_NETDEV_STAT(rx_over_errors),
+	IGC_NETDEV_STAT(rx_frame_errors),
+	IGC_NETDEV_STAT(rx_fifo_errors),
+	IGC_NETDEV_STAT(tx_fifo_errors),
+	IGC_NETDEV_STAT(tx_heartbeat_errors)
+};
+
+enum igc_diagnostics_results {
+	TEST_REG = 0,
+	TEST_EEP,
+	TEST_IRQ,
+	TEST_LOOP,
+	TEST_LINK
+};
+
+static const char igc_gstrings_test[][ETH_GSTRING_LEN] = {
+	[TEST_REG]  = "Register test  (offline)",
+	[TEST_EEP]  = "Eeprom test    (offline)",
+	[TEST_IRQ]  = "Interrupt test (offline)",
+	[TEST_LOOP] = "Loopback test  (offline)",
+	[TEST_LINK] = "Link test   (on/offline)"
+};
+
+#define IGC_TEST_LEN (sizeof(igc_gstrings_test) / ETH_GSTRING_LEN)
+
+#define IGC_GLOBAL_STATS_LEN	\
+	(sizeof(igc_gstrings_stats) / sizeof(struct igc_stats))
+#define IGC_NETDEV_STATS_LEN	\
+	(sizeof(igc_gstrings_net_stats) / sizeof(struct igc_stats))
+#define IGC_RX_QUEUE_STATS_LEN \
+	(sizeof(struct igc_rx_queue_stats) / sizeof(u64))
+#define IGC_TX_QUEUE_STATS_LEN 3 /* packets, bytes, restart_queue */
+#define IGC_QUEUE_STATS_LEN \
+	((((struct igc_adapter *)netdev_priv(netdev))->num_rx_queues * \
+	  IGC_RX_QUEUE_STATS_LEN) + \
+	 (((struct igc_adapter *)netdev_priv(netdev))->num_tx_queues * \
+	  IGC_TX_QUEUE_STATS_LEN))
+#define IGC_STATS_LEN \
+	(IGC_GLOBAL_STATS_LEN + IGC_NETDEV_STATS_LEN + IGC_QUEUE_STATS_LEN)
+
 static const char igc_priv_flags_strings[][ETH_GSTRING_LEN] = {
 #define IGC_PRIV_FLAGS_LEGACY_RX	BIT(0)
 	"legacy-rx",
@@ -544,6 +653,127 @@ static int igc_set_pauseparam(struct net_device *netdev,
 
 	clear_bit(__IGC_RESETTING, &adapter->state);
 	return retval;
+}
+
+static void igc_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	u8 *p = data;
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_TEST:
+		memcpy(data, *igc_gstrings_test,
+		       IGC_TEST_LEN * ETH_GSTRING_LEN);
+		break;
+	case ETH_SS_STATS:
+		for (i = 0; i < IGC_GLOBAL_STATS_LEN; i++) {
+			memcpy(p, igc_gstrings_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < IGC_NETDEV_STATS_LEN; i++) {
+			memcpy(p, igc_gstrings_net_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			sprintf(p, "tx_queue_%u_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "tx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "tx_queue_%u_restart", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			sprintf(p, "rx_queue_%u_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_drops", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_csum_err", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "rx_queue_%u_alloc_failed", i);
+			p += ETH_GSTRING_LEN;
+		}
+		/* BUG_ON(p - data != IGC_STATS_LEN * ETH_GSTRING_LEN); */
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, igc_priv_flags_strings,
+		       IGC_PRIV_FLAGS_STR_LEN * ETH_GSTRING_LEN);
+		break;
+	}
+}
+
+static int igc_get_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return IGC_STATS_LEN;
+	case ETH_SS_TEST:
+		return IGC_TEST_LEN;
+	case ETH_SS_PRIV_FLAGS:
+		return IGC_PRIV_FLAGS_STR_LEN;
+	default:
+		return -ENOTSUPP;
+	}
+}
+
+static void igc_get_ethtool_stats(struct net_device *netdev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct igc_adapter *adapter = netdev_priv(netdev);
+	struct rtnl_link_stats64 *net_stats = &adapter->stats64;
+	unsigned int start;
+	struct igc_ring *ring;
+	int i, j;
+	char *p;
+
+	spin_lock(&adapter->stats64_lock);
+	igc_update_stats(adapter);
+
+	for (i = 0; i < IGC_GLOBAL_STATS_LEN; i++) {
+		p = (char *)adapter + igc_gstrings_stats[i].stat_offset;
+		data[i] = (igc_gstrings_stats[i].sizeof_stat ==
+			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	for (j = 0; j < IGC_NETDEV_STATS_LEN; j++, i++) {
+		p = (char *)net_stats + igc_gstrings_net_stats[j].stat_offset;
+		data[i] = (igc_gstrings_net_stats[j].sizeof_stat ==
+			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	for (j = 0; j < adapter->num_tx_queues; j++) {
+		u64	restart2;
+
+		ring = adapter->tx_ring[j];
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->tx_syncp);
+			data[i]   = ring->tx_stats.packets;
+			data[i + 1] = ring->tx_stats.bytes;
+			data[i + 2] = ring->tx_stats.restart_queue;
+		} while (u64_stats_fetch_retry_irq(&ring->tx_syncp, start));
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->tx_syncp2);
+			restart2  = ring->tx_stats.restart_queue2;
+		} while (u64_stats_fetch_retry_irq(&ring->tx_syncp2, start));
+		data[i + 2] += restart2;
+
+		i += IGC_TX_QUEUE_STATS_LEN;
+	}
+	for (j = 0; j < adapter->num_rx_queues; j++) {
+		ring = adapter->rx_ring[j];
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->rx_syncp);
+			data[i]   = ring->rx_stats.packets;
+			data[i + 1] = ring->rx_stats.bytes;
+			data[i + 2] = ring->rx_stats.drops;
+			data[i + 3] = ring->rx_stats.csum_err;
+			data[i + 4] = ring->rx_stats.alloc_failed;
+		} while (u64_stats_fetch_retry_irq(&ring->rx_syncp, start));
+		i += IGC_RX_QUEUE_STATS_LEN;
+	}
+	spin_unlock(&adapter->stats64_lock);
 }
 
 static int igc_get_coalesce(struct net_device *netdev,
@@ -1611,6 +1841,9 @@ static const struct ethtool_ops igc_ethtool_ops = {
 	.set_ringparam		= igc_set_ringparam,
 	.get_pauseparam		= igc_get_pauseparam,
 	.set_pauseparam		= igc_set_pauseparam,
+	.get_strings		= igc_get_strings,
+	.get_sset_count		= igc_get_sset_count,
+	.get_ethtool_stats	= igc_get_ethtool_stats,
 	.get_coalesce		= igc_get_coalesce,
 	.set_coalesce		= igc_set_coalesce,
 	.get_rxnfc		= igc_get_rxnfc,

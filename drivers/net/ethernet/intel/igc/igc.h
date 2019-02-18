@@ -37,6 +37,7 @@ int igc_add_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags);
 int igc_del_mac_steering_filter(struct igc_adapter *adapter,
 				const u8 *addr, u8 queue, u8 flags);
+void igc_update_stats(struct igc_adapter *adapter);
 
 extern char igc_driver_name[];
 extern char igc_driver_version[];
@@ -403,6 +404,9 @@ struct igc_adapter {
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
+	u32 rx_hwtstamp_cleared;
 	u32 *shadow_vfta;
 
 	u32 rss_queues;
