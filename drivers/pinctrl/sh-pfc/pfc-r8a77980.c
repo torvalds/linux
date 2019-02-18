@@ -2828,17 +2828,17 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 };
 
 enum ioctrl_regs {
-	IOCTRL30,
-	IOCTRL31,
-	IOCTRL32,
-	IOCTRL33,
+	POCCTRL0,
+	POCCTRL1,
+	POCCTRL2,
+	POCCTRL3,
 };
 
 static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
-	[IOCTRL30] = { 0xe6060380, },
-	[IOCTRL31] = { 0xe6060384, },
-	[IOCTRL32] = { 0xe6060388, },
-	[IOCTRL33] = { 0xe606038c, },
+	[POCCTRL0] = { 0xe6060380, },
+	[POCCTRL1] = { 0xe6060384, },
+	[POCCTRL2] = { 0xe6060388, },
+	[POCCTRL3] = { 0xe606038c, },
 	{ /* sentinel */ },
 };
 
@@ -2847,20 +2847,20 @@ static int r8a77980_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin,
 {
 	int bit = pin & 0x1f;
 
-	*pocctrl = pinmux_ioctrl_regs[IOCTRL30].reg;
+	*pocctrl = pinmux_ioctrl_regs[POCCTRL0].reg;
 	if (pin >= RCAR_GP_PIN(0, 0) && pin <= RCAR_GP_PIN(0, 21))
 		return bit;
 	else if (pin >= RCAR_GP_PIN(2, 0) && pin <= RCAR_GP_PIN(2, 9))
 		return bit + 22;
 
-	*pocctrl = pinmux_ioctrl_regs[IOCTRL31].reg;
+	*pocctrl = pinmux_ioctrl_regs[POCCTRL1].reg;
 	if (pin >= RCAR_GP_PIN(2, 10) && pin <= RCAR_GP_PIN(2, 16))
 		return bit - 10;
 	if ((pin >= RCAR_GP_PIN(2, 17) && pin <= RCAR_GP_PIN(2, 24)) ||
 	    (pin >= RCAR_GP_PIN(3,  0) && pin <= RCAR_GP_PIN(3, 16)))
 		return bit + 7;
 
-	*pocctrl = pinmux_ioctrl_regs[IOCTRL32].reg;
+	*pocctrl = pinmux_ioctrl_regs[POCCTRL2].reg;
 	if (pin >= RCAR_GP_PIN(2, 25) && pin <= RCAR_GP_PIN(2, 29))
 		return pin - 25;
 
