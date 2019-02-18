@@ -97,3 +97,55 @@ According to current knowledge additional mitigations inside the kernel
 itself are not required because the necessary gadgets to expose the leaked
 data cannot be controlled in a way which allows exploitation from malicious
 user space or VM guests.
+
+Mitigation points
+-----------------
+
+1. Return to user space
+^^^^^^^^^^^^^^^^^^^^^^^
+
+   When transitioning from kernel to user space the CPU buffers are flushed
+   on affected CPUs when the mitigation is not disabled on the kernel
+   command line. The migitation is enabled through the static key
+   mds_user_clear.
+
+   The mitigation is invoked in prepare_exit_to_usermode() which covers
+   most of the kernel to user space transitions. There are a few exceptions
+   which are not invoking prepare_exit_to_usermode() on return to user
+   space. These exceptions use the paranoid exit code.
+
+   - Non Maskable Interrupt (NMI):
+
+     Access to sensible data like keys, credentials in the NMI context is
+     mostly theoretical: The CPU can do prefetching or execute a
+     misspeculated code path and thereby fetching data which might end up
+     leaking through a buffer.
+
+     But for mounting other attacks the kernel stack address of the task is
+     already valuable information. So in full mitigation mode, the NMI is
+     mitigated on the return from do_nmi() to provide almost complete
+     coverage.
+
+   - Double fault (#DF):
+
+     A double fault is usually fatal, but the ESPFIX workaround, which can
+     be triggered from user space through modify_ldt(2) is a recoverable
+     double fault. #DF uses the paranoid exit path, so explicit mitigation
+     in the double fault handler is required.
+
+   - Machine Check Exception (#MC):
+
+     Another corner case is a #MC which hits between the CPU buffer clear
+     invocation and the actual return to user. As this still is in kernel
+     space it takes the paranoid exit path which does not clear the CPU
+     buffers. So the #MC handler repopulates the buffers to some
+     extent. Machine checks are not reliably controllable and the window is
+     extremly small so mitigation would just tick a checkbox that this
+     theoretical corner case is covered. To keep the amount of special
+     cases small, ignore #MC.
+
+   - Debug Exception (#DB):
+
+     This takes the paranoid exit path only when the INT1 breakpoint is in
+     kernel space. #DB on a user space address takes the regular exit path,
+     so no extra mitigation required.
