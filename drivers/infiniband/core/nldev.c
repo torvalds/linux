@@ -112,6 +112,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_CQN]               = { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_MRN]               = { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_CM_IDN]            = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CTXN]              = { .type = NLA_U32 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -420,6 +421,10 @@ static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_STATE, qp_attr.qp_state))
 		goto err;
 
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, qp->pd->res.id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
@@ -503,6 +508,10 @@ static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQN, res->id))
 		goto err;
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CTXN,
+			cq->uobject->context->res.id))
+		goto err;
 
 	if (fill_res_name_pid(msg, res))
 		goto err;
@@ -533,6 +542,10 @@ static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 		goto err;
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_MRN, res->id))
+		goto err;
+
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, mr->pd->res.id))
 		goto err;
 
 	if (fill_res_name_pid(msg, res))
@@ -566,6 +579,11 @@ static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 		goto err;
 
 	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, res->id))
+		goto err;
+
+	if (!rdma_is_kernel_res(res) &&
+	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CTXN,
+			pd->uobject->context->res.id))
 		goto err;
 
 	if (fill_res_name_pid(msg, res))

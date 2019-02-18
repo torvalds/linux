@@ -464,6 +464,7 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_CQN,               /* u32 */
 	RDMA_NLDEV_ATTR_RES_MRN,               /* u32 */
 	RDMA_NLDEV_ATTR_RES_CM_IDN,            /* u32 */
+	RDMA_NLDEV_ATTR_RES_CTXN,	       /* u32 */
 
 	/*
 	 * Always the end
