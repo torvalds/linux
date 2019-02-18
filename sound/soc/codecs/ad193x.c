@@ -100,6 +100,15 @@ static const struct snd_soc_dapm_widget ad193x_adc_widgets[] = {
 	SND_SOC_DAPM_INPUT("ADC2IN"),
 };
 
+static int ad193x_check_pll(struct snd_soc_dapm_widget *source,
+			    struct snd_soc_dapm_widget *sink)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
+	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
+
+	return !!ad193x->sysclk;
+}
+
 static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "DAC", NULL, "SYSCLK" },
 	{ "DAC Output", NULL, "DAC" },
@@ -108,7 +117,7 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "DAC2OUT", NULL, "DAC Output" },
 	{ "DAC3OUT", NULL, "DAC Output" },
 	{ "DAC4OUT", NULL, "DAC Output" },
-	{ "SYSCLK", NULL, "PLL_PWR" },
+	{ "SYSCLK", NULL, "PLL_PWR", &ad193x_check_pll },
 };
 
 static const struct snd_soc_dapm_route ad193x_adc_audio_paths[] = {
@@ -276,7 +285,22 @@ static int ad193x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
+
+	if (clk_id == AD193X_SYSCLK_MCLK) {
+		/* MCLK must be 512 x fs */
+		if (dir == SND_SOC_CLOCK_OUT || freq != 24576000)
+			return -EINVAL;
+
+		regmap_update_bits(ad193x->regmap, AD193X_PLL_CLK_CTRL1,
+				   AD193X_PLL_SRC_MASK,
+				   AD193X_PLL_DAC_SRC_MCLK |
+				   AD193X_PLL_CLK_SRC_MCLK);
+
+		snd_soc_dapm_sync(dapm);
+		return 0;
+	}
 	switch (freq) {
 	case 12288000:
 	case 18432000:
