@@ -180,6 +180,13 @@
 				regulator-max-microvolt = <2800000>;
 			};
 
+			ldo14_reg: LDO14 {
+				/* Unused */
+				regulator-name = "PVDD_LDO14";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo15_reg: LDO15 {
 				regulator-name = "PVDD_PERI_2V8";
 				regulator-min-microvolt = <3300000>;
@@ -190,6 +197,13 @@
 				regulator-name = "PVDD_PERI_3V3";
 				regulator-min-microvolt = <2200000>;
 				regulator-max-microvolt = <2200000>;
+			};
+
+			ldo17_reg: LDO17 {
+				/* Unused */
+				regulator-name = "PVDD_LDO17";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo18_reg: LDO18 {
@@ -216,6 +230,13 @@
 				regulator-max-microvolt = <1800000>;
 			};
 
+			ldo22_reg: LDO22 {
+				/* Unused */
+				regulator-name = "PVDD_LDO22";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
 			ldo23_reg: LDO23 {
 				regulator-name = "PVDD_MIFS_1V1";
 				regulator-min-microvolt = <1200000>;
@@ -227,6 +248,13 @@
 				regulator-name = "PVDD_CAM1_AVDD_2V8";
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
+			};
+
+			ldo25_reg: LDO25 {
+				/* Unused */
+				regulator-name = "PVDD_LDO25";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo26_reg: LDO26 {
@@ -253,6 +281,13 @@
 				regulator-max-microvolt = <1800000>;
 			};
 
+			ldo30_reg: LDO30 {
+				/* Unused */
+				regulator-name = "PVDD_LDO30";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo31_reg: LDO31 {
 				regulator-name = "PVDD_PERI_1V8";
 				regulator-min-microvolt = <1800000>;
@@ -271,10 +306,31 @@
 				regulator-max-microvolt = <1800000>;
 			};
 
+			ldo34_reg: LDO34 {
+				/* Unused */
+				regulator-name = "PVDD_LDO34";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
 			ldo35_reg: LDO35 {
 				regulator-name = "PVDD_CAM0_DVDD_1V2";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
+			};
+
+			ldo36_reg: LDO36 {
+				/* Unused */
+				regulator-name = "PVDD_LDO36";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo37_reg: LDO37 {
+				/* Unused */
+				regulator-name = "PVDD_LDO37";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
 			};
 
 			ldo38_reg: LDO38 {
