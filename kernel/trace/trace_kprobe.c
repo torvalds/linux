@@ -861,21 +861,13 @@ static const struct file_operations kprobe_profile_ops = {
 static nokprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
-	mm_segment_t old_fs;
 	int ret, len = 0;
 	u8 c;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-
 	do {
-		ret = __copy_from_user_inatomic(&c, (u8 *)addr + len, 1);
+		ret = probe_mem_read(&c, (u8 *)addr + len, 1);
 		len++;
 	} while (c && ret == 0 && len < MAX_STRING_SIZE);
-
-	pagefault_enable();
-	set_fs(old_fs);
 
 	return (ret < 0) ? ret : len;
 }
