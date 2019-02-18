@@ -46,7 +46,8 @@ void gfs2_assert_i(struct gfs2_sbd *sdp)
  *
  * Returns: 0 if the journal is clean or locked, else an error
  */
-int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd)
+int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
+			bool verbose)
 {
 	int error;
 	struct gfs2_holder j_gh;
@@ -57,23 +58,31 @@ int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd)
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_NOEXP |
 				   GL_EXACT | GL_NOCACHE, &j_gh);
 	if (error) {
-		fs_err(sdp, "Error locking journal for spectator mount.\n");
+		if (verbose)
+			fs_err(sdp, "Error %d locking journal for spectator "
+			       "mount.\n", error);
 		return -EPERM;
 	}
 	error = gfs2_jdesc_check(jd);
 	if (error) {
-		fs_err(sdp, "Error checking journal for spectator mount.\n");
+		if (verbose)
+			fs_err(sdp, "Error checking journal for spectator "
+			       "mount.\n");
 		goto out_unlock;
 	}
 	error = gfs2_find_jhead(jd, &head, false);
 	if (error) {
-		fs_err(sdp, "Error parsing journal for spectator mount.\n");
+		if (verbose)
+			fs_err(sdp, "Error parsing journal for spectator "
+			       "mount.\n");
 		goto out_unlock;
 	}
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
 		error = -EPERM;
-		fs_err(sdp, "jid=%u: Journal is dirty, so the first mounter "
-		       "must not be a spectator.\n", jd->jd_jid);
+		if (verbose)
+			fs_err(sdp, "jid=%u: Journal is dirty, so the first "
+			       "mounter must not be a spectator.\n",
+			       jd->jd_jid);
 	}
 
 out_unlock:
@@ -223,7 +232,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * Now wait until recovery is complete.
 	 */
 	for (tries = 0; tries < 10; tries++) {
-		ret = check_journal_clean(sdp, sdp->sd_jdesc);
+		ret = check_journal_clean(sdp, sdp->sd_jdesc, false);
 		if (!ret)
 			break;
 		msleep(HZ);

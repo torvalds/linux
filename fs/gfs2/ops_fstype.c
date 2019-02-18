@@ -696,7 +696,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			struct gfs2_jdesc *jd = gfs2_jdesc_find(sdp, x);
 
 			if (sdp->sd_args.ar_spectator) {
-				error = check_journal_clean(sdp, jd);
+				error = check_journal_clean(sdp, jd, true);
 				if (error)
 					goto fail_jinode_gh;
 				continue;
