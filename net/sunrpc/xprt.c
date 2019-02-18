@@ -49,6 +49,7 @@
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/rcupdate.h>
+#include <linux/sched/mm.h>
 
 #include <trace/events/sunrpc.h>
 
@@ -643,11 +644,13 @@ static void xprt_autoclose(struct work_struct *work)
 {
 	struct rpc_xprt *xprt =
 		container_of(work, struct rpc_xprt, task_cleanup);
+	unsigned int pflags = memalloc_nofs_save();
 
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	xprt->ops->close(xprt);
 	xprt_release_write(xprt, NULL);
 	wake_up_bit(&xprt->state, XPRT_LOCKED);
+	memalloc_nofs_restore(pflags);
 }
 
 /**
