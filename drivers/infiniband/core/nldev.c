@@ -39,6 +39,7 @@
 
 #include "core_priv.h"
 #include "cma_priv.h"
+#include "restrack.h"
 
 static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DEV_INDEX]     = { .type = NLA_U32 },
@@ -1027,6 +1028,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	unsigned long id;
 	u32 index, port = 0;
 	bool filled = false;
+	struct xarray *xa;
 
 	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 			  nldev_policy, NULL);
@@ -1074,13 +1076,14 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 
 	has_cap_net_admin = netlink_capable(cb->skb, CAP_NET_ADMIN);
 
-	down_read(&device->res.rwsem);
+	xa = &device->res->xa[res_type];
+	down_read(&device->res->rwsem);
 	/*
 	 * FIXME: if the skip ahead is something common this loop should
 	 * use xas_for_each & xas_pause to optimize, we can have a lot of
 	 * objects.
 	 */
-	xa_for_each(&device->res.xa[res_type], id, res) {
+	xa_for_each(xa, id, res) {
 		if (idx < start)
 			goto next;
 
@@ -1101,13 +1104,13 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		if (!entry_attr) {
 			ret = -EMSGSIZE;
 			rdma_restrack_put(res);
-			up_read(&device->res.rwsem);
+			up_read(&device->res->rwsem);
 			break;
 		}
-		up_read(&device->res.rwsem);
 
+		up_read(&device->res->rwsem);
 		ret = fe->fill_res_func(skb, has_cap_net_admin, res, port);
-		down_read(&device->res.rwsem);
+		down_read(&device->res->rwsem);
 		/*
 		 * Return resource back, but it won't be released till
 		 * the &device->res.rwsem will be released for write.
@@ -1125,7 +1128,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		nla_nest_end(skb, entry_attr);
 next:		idx++;
 	}
-	up_read(&device->res.rwsem);
+	up_read(&device->res->rwsem);
 
 	nla_nest_end(skb, table_attr);
 	nlmsg_end(skb, nlh);
@@ -1143,7 +1146,7 @@ next:		idx++;
 
 res_err:
 	nla_nest_cancel(skb, table_attr);
-	up_read(&device->res.rwsem);
+	up_read(&device->res->rwsem);
 
 err:
 	nlmsg_cancel(skb, nlh);

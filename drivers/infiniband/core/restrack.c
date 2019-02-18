@@ -9,8 +9,10 @@
 #include <linux/mutex.h>
 #include <linux/sched/task.h>
 #include <linux/pid_namespace.h>
+#include <linux/rwsem.h>
 
 #include "cma_priv.h"
+#include "restrack.h"
 
 static int rt_xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
 			      u32 *next)
@@ -35,18 +37,27 @@ static int rt_xa_alloc_cyclic(struct xarray *xa, u32 *id, void *entry,
 }
 
 /**
- * rdma_restrack_init() - initialize resource tracking
+ * rdma_restrack_init() - initialize and allocate resource tracking
  * @dev:  IB device
+ *
+ * Return: 0 on success
  */
-void rdma_restrack_init(struct ib_device *dev)
+int rdma_restrack_init(struct ib_device *dev)
 {
-	struct rdma_restrack_root *res = &dev->res;
+	struct rdma_restrack_root *rt;
 	int i;
 
-	for (i = 0 ; i < RDMA_RESTRACK_MAX; i++)
-		xa_init_flags(&res->xa[i], XA_FLAGS_ALLOC);
+	dev->res = kzalloc(sizeof(*rt), GFP_KERNEL);
+	if (!dev->res)
+		return -ENOMEM;
 
-	init_rwsem(&res->rwsem);
+	rt = dev->res;
+
+	for (i = 0 ; i < RDMA_RESTRACK_MAX; i++)
+		xa_init_flags(&rt->xa[i], XA_FLAGS_ALLOC);
+	init_rwsem(&rt->rwsem);
+
+	return 0;
 }
 
 static const char *type2str(enum rdma_restrack_type type)
@@ -69,7 +80,7 @@ static const char *type2str(enum rdma_restrack_type type)
  */
 void rdma_restrack_clean(struct ib_device *dev)
 {
-	struct rdma_restrack_root *res = &dev->res;
+	struct rdma_restrack_root *rt = dev->res;
 	struct rdma_restrack_entry *e;
 	char buf[TASK_COMM_LEN];
 	bool found = false;
@@ -77,14 +88,16 @@ void rdma_restrack_clean(struct ib_device *dev)
 	int i;
 
 	for (i = 0 ; i < RDMA_RESTRACK_MAX; i++) {
-		if (!xa_empty(&res->xa[i])) {
+		struct xarray *xa = &dev->res->xa[i];
+
+		if (!xa_empty(xa)) {
 			unsigned long index;
 
 			if (!found) {
 				pr_err("restrack: %s", CUT_HERE);
 				dev_err(&dev->dev, "BUG: RESTRACK detected leak of resources\n");
 			}
-			xa_for_each(&res->xa[i], index, e) {
+			xa_for_each(xa, index, e) {
 				if (rdma_is_kernel_res(e)) {
 					owner = e->kern_name;
 				} else {
@@ -104,10 +117,12 @@ void rdma_restrack_clean(struct ib_device *dev)
 			}
 			found = true;
 		}
-		xa_destroy(&res->xa[i]);
+		xa_destroy(xa);
 	}
 	if (found)
 		pr_err("restrack: %s", CUT_HERE);
+
+	kfree(rt);
 }
 
 /**
@@ -119,19 +134,19 @@ void rdma_restrack_clean(struct ib_device *dev)
 int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
 			struct pid_namespace *ns)
 {
-	struct rdma_restrack_root *res = &dev->res;
+	struct xarray *xa = &dev->res->xa[type];
 	struct rdma_restrack_entry *e;
 	unsigned long index = 0;
 	u32 cnt = 0;
 
-	down_read(&res->rwsem);
-	xa_for_each(&res->xa[type], index, e) {
+	down_read(&dev->res->rwsem);
+	xa_for_each(xa, index, e) {
 		if (ns == &init_pid_ns ||
 		    (!rdma_is_kernel_res(e) &&
 		     ns == task_active_pid_ns(e->task)))
 			cnt++;
 	}
-	up_read(&res->rwsem);
+	up_read(&dev->res->rwsem);
 	return cnt;
 }
 EXPORT_SYMBOL(rdma_restrack_count);
@@ -202,17 +217,19 @@ EXPORT_SYMBOL(rdma_restrack_set_task);
 static void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
+	struct rdma_restrack_root *rt;
+	struct xarray *xa;
 	int ret;
 
 	if (!dev)
 		return;
 
+	rt = dev->res;
+	xa = &dev->res->xa[res->type];
+
 	kref_init(&res->kref);
 	init_completion(&res->comp);
-
-	ret = rt_xa_alloc_cyclic(&dev->res.xa[res->type], &res->id, res,
-				 &dev->res.next_id[res->type]);
-
+	ret = rt_xa_alloc_cyclic(xa, &res->id, res, &rt->next_id[res->type]);
 	if (!ret)
 		res->valid = true;
 }
@@ -266,14 +283,14 @@ struct rdma_restrack_entry *
 rdma_restrack_get_byid(struct ib_device *dev,
 		       enum rdma_restrack_type type, u32 id)
 {
-	struct rdma_restrack_root *rt = &dev->res;
+	struct xarray *xa = &dev->res->xa[type];
 	struct rdma_restrack_entry *res;
 
-	down_read(&dev->res.rwsem);
-	res = xa_load(&rt->xa[type], id);
+	down_read(&dev->res->rwsem);
+	res = xa_load(xa, id);
 	if (!res || !rdma_restrack_get(res))
 		res = ERR_PTR(-ENOENT);
-	up_read(&dev->res.rwsem);
+	up_read(&dev->res->rwsem);
 
 	return res;
 }
@@ -295,19 +312,33 @@ EXPORT_SYMBOL(rdma_restrack_put);
 
 void rdma_restrack_del(struct rdma_restrack_entry *res)
 {
-	struct ib_device *dev;
+	struct ib_device *dev = res_to_dev(res);
+	struct xarray *xa;
 
 	if (!res->valid)
 		goto out;
 
-	dev = res_to_dev(res);
+	/*
+	 * All objects except CM_ID set valid device immediately
+	 * after new object is created, it means that for not valid
+	 * objects will still have "dev".
+	 *
+	 * It is not the case for CM_ID, newly created object has
+	 * this field set to NULL and it is set in _cma_attach_to_dev()
+	 * only.
+	 *
+	 * Because we don't want to add any conditions on call
+	 * to rdma_restrack_del(), the check below protects from
+	 * NULL-dereference.
+	 */
 	if (!dev)
 		return;
 
-	down_write(&dev->res.rwsem);
-	xa_erase(&dev->res.xa[res->type], res->id);
+	xa = &dev->res->xa[res->type];
+	down_write(&dev->res->rwsem);
+	xa_erase(xa, res->id);
 	res->valid = false;
-	up_write(&dev->res.rwsem);
+	up_write(&dev->res->rwsem);
 
 	rdma_restrack_put(res);
 	wait_for_completion(&res->comp);

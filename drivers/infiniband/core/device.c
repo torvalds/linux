@@ -45,6 +45,7 @@
 #include <rdma/ib_cache.h>
 
 #include "core_priv.h"
+#include "restrack.h"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("core kernel InfiniBand API");
@@ -338,7 +339,10 @@ struct ib_device *_ib_alloc_device(size_t size)
 	if (!device)
 		return NULL;
 
-	rdma_restrack_init(device);
+	if (rdma_restrack_init(device)) {
+		kfree(device);
+		return NULL;
+	}
 
 	device->dev.class = &ib_class;
 	device->groups[0] = &ib_dev_attr_group;
