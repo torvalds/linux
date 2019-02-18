@@ -1069,6 +1069,92 @@ const struct iomap_ops xfs_iomap_ops = {
 };
 
 static int
+xfs_seek_iomap_begin(
+	struct inode		*inode,
+	loff_t			offset,
+	loff_t			length,
+	unsigned		flags,
+	struct iomap		*iomap)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + length);
+	xfs_fileoff_t		cow_fsb = NULLFILEOFF, data_fsb = NULLFILEOFF;
+	struct xfs_iext_cursor	icur;
+	struct xfs_bmbt_irec	imap, cmap;
+	int			error = 0;
+	unsigned		lockmode;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	lockmode = xfs_ilock_data_map_shared(ip);
+	if (!(ip->i_df.if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
+		if (error)
+			goto out_unlock;
+	}
+
+	if (xfs_iext_lookup_extent(ip, &ip->i_df, offset_fsb, &icur, &imap)) {
+		/*
+		 * If we found a data extent we are done.
+		 */
+		if (imap.br_startoff <= offset_fsb)
+			goto done;
+		data_fsb = imap.br_startoff;
+	} else {
+		/*
+		 * Fake a hole until the end of the file.
+		 */
+		data_fsb = min(XFS_B_TO_FSB(mp, offset + length),
+			       XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes));
+	}
+
+	/*
+	 * If a COW fork extent covers the hole, report it - capped to the next
+	 * data fork extent:
+	 */
+	if (xfs_inode_has_cow_data(ip) &&
+	    xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &cmap))
+		cow_fsb = cmap.br_startoff;
+	if (cow_fsb != NULLFILEOFF && cow_fsb <= offset_fsb) {
+		if (data_fsb < cow_fsb + cmap.br_blockcount)
+			end_fsb = min(end_fsb, data_fsb);
+		xfs_trim_extent(&cmap, offset_fsb, end_fsb);
+		error = xfs_bmbt_to_iomap(ip, iomap, &cmap, true);
+		/*
+		 * This is a COW extent, so we must probe the page cache
+		 * because there could be dirty page cache being backed
+		 * by this extent.
+		 */
+		iomap->type = IOMAP_UNWRITTEN;
+		goto out_unlock;
+	}
+
+	/*
+	 * Else report a hole, capped to the next found data or COW extent.
+	 */
+	if (cow_fsb != NULLFILEOFF && cow_fsb < data_fsb)
+		imap.br_blockcount = cow_fsb - offset_fsb;
+	else
+		imap.br_blockcount = data_fsb - offset_fsb;
+	imap.br_startoff = offset_fsb;
+	imap.br_startblock = HOLESTARTBLOCK;
+	imap.br_state = XFS_EXT_NORM;
+done:
+	xfs_trim_extent(&imap, offset_fsb, end_fsb);
+	error = xfs_bmbt_to_iomap(ip, iomap, &imap, false);
+out_unlock:
+	xfs_iunlock(ip, lockmode);
+	return error;
+}
+
+const struct iomap_ops xfs_seek_iomap_ops = {
+	.iomap_begin		= xfs_seek_iomap_begin,
+};
+
+static int
 xfs_xattr_iomap_begin(
 	struct inode		*inode,
 	loff_t			offset,

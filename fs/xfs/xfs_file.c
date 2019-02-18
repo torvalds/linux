@@ -1068,10 +1068,10 @@ xfs_file_llseek(
 	default:
 		return generic_file_llseek(file, offset, whence);
 	case SEEK_HOLE:
-		offset = iomap_seek_hole(inode, offset, &xfs_iomap_ops);
+		offset = iomap_seek_hole(inode, offset, &xfs_seek_iomap_ops);
 		break;
 	case SEEK_DATA:
-		offset = iomap_seek_data(inode, offset, &xfs_iomap_ops);
+		offset = iomap_seek_data(inode, offset, &xfs_seek_iomap_ops);
 		break;
 	}
 
