@@ -1785,8 +1785,8 @@ int genphy_read_status(struct phy_device *phydev)
 
 		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_HALF;
+		phydev->speed = SPEED_UNKNOWN;
+		phydev->duplex = DUPLEX_UNKNOWN;
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
 
