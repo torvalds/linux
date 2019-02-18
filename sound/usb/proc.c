@@ -109,6 +109,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		if (subs->speed != USB_SPEED_FULL)
 			snd_iprintf(buffer, "    Data packet interval: %d us\n",
 				    125 * (1 << fp->datainterval));
+		snd_iprintf(buffer, "    Bits: %d\n", fp->fmt_bits);
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
 		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
