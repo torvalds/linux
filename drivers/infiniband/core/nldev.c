@@ -921,6 +921,7 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_QP_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_QP,
 		.entry = RDMA_NLDEV_ATTR_RES_QP_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_LQPN,
 	},
 	[RDMA_RESTRACK_CM_ID] = {
 		.fill_res_func = fill_res_cm_id_entry,

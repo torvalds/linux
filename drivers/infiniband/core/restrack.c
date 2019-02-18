@@ -225,7 +225,16 @@ static void rdma_restrack_add(struct rdma_restrack_entry *res)
 
 	kref_init(&res->kref);
 	init_completion(&res->comp);
-	ret = rt_xa_alloc_cyclic(&rt->xa, &res->id, res, &rt->next_id);
+	if (res->type != RDMA_RESTRACK_QP)
+		ret = rt_xa_alloc_cyclic(&rt->xa, &res->id, res, &rt->next_id);
+	else {
+		/* Special case to ensure that LQPN points to right QP */
+		struct ib_qp *qp = container_of(res, struct ib_qp, res);
+
+		ret = xa_insert(&rt->xa, qp->qp_num, res, GFP_KERNEL);
+		res->id = ret ? 0 : qp->qp_num;
+	}
+
 	if (!ret)
 		res->valid = true;
 }
