@@ -149,3 +149,45 @@ Mitigation points
      This takes the paranoid exit path only when the INT1 breakpoint is in
      kernel space. #DB on a user space address takes the regular exit path,
      so no extra mitigation required.
+
+
+2. C-State transition
+^^^^^^^^^^^^^^^^^^^^^
+
+   When a CPU goes idle and enters a C-State the CPU buffers need to be
+   cleared on affected CPUs when SMT is active. This addresses the
+   repartitioning of the store buffer when one of the Hyper-Threads enters
+   a C-State.
+
+   When SMT is inactive, i.e. either the CPU does not support it or all
+   sibling threads are offline CPU buffer clearing is not required.
+
+   The idle clearing is enabled on CPUs which are only affected by MSBDS
+   and not by any other MDS variant. The other MDS variants cannot be
+   protected against cross Hyper-Thread attacks because the Fill Buffer and
+   the Load Ports are shared. So on CPUs affected by other variants, the
+   idle clearing would be a window dressing exercise and is therefore not
+   activated.
+
+   The invocation is controlled by the static key mds_idle_clear which is
+   switched depending on the chosen mitigation mode and the SMT state of
+   the system.
+
+   The buffer clear is only invoked before entering the C-State to prevent
+   that stale data from the idling CPU from spilling to the Hyper-Thread
+   sibling after the store buffer got repartitioned and all entries are
+   available to the non idle sibling.
+
+   When coming out of idle the store buffer is partitioned again so each
+   sibling has half of it available. The back from idle CPU could be then
+   speculatively exposed to contents of the sibling. The buffers are
+   flushed either on exit to user space or on VMENTER so malicious code
+   in user space or the guest cannot speculatively access them.
+
+   The mitigation is hooked into all variants of halt()/mwait(), but does
+   not cover the legacy ACPI IO-Port mechanism because the ACPI idle driver
+   has been superseded by the intel_idle driver around 2010 and is
+   preferred on all affected CPUs which are expected to gain the MD_CLEAR
+   functionality in microcode. Aside of that the IO-Port mechanism is a
+   legacy interface which is only used on older systems which are either
+   not affected or do not receive microcode updates anymore.
