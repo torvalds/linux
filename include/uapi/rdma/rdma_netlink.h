@@ -457,6 +457,15 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
 
 	/*
+	 * Indexes to get/set secific entry,
+	 * for QP use RDMA_NLDEV_ATTR_RES_LQPN
+	 */
+	RDMA_NLDEV_ATTR_RES_PDN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_CQN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_MRN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_CM_IDN,            /* u32 */
+
+	/*
 	 * Always the end
 	 */
 	RDMA_NLDEV_ATTR_MAX

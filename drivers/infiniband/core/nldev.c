@@ -108,6 +108,10 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DRIVER_U32]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DRIVER_S64]		= { .type = NLA_S64 },
 	[RDMA_NLDEV_ATTR_DRIVER_U64]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_RES_PDN]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CQN]               = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_MRN]               = { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_CM_IDN]            = { .type = NLA_U32 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -466,6 +470,9 @@ static int fill_res_cm_id_entry(struct sk_buff *msg, bool has_cap_net_admin,
 		    &cm_id->route.addr.dst_addr))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CM_IDN, res->id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
@@ -492,6 +499,9 @@ static int fill_res_cq_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	/* Poll context is only valid for kernel CQs */
 	if (rdma_is_kernel_res(res) &&
 	    nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_POLL_CTX, cq->poll_ctx))
+		goto err;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQN, res->id))
 		goto err;
 
 	if (fill_res_name_pid(msg, res))
@@ -522,6 +532,9 @@ static int fill_res_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			      RDMA_NLDEV_ATTR_PAD))
 		goto err;
 
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_MRN, res->id))
+		goto err;
+
 	if (fill_res_name_pid(msg, res))
 		goto err;
 
@@ -550,6 +563,9 @@ static int fill_res_pd_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	}
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_USECNT,
 			      atomic_read(&pd->usecnt), RDMA_NLDEV_ATTR_PAD))
+		goto err;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_PDN, res->id))
 		goto err;
 
 	if (fill_res_name_pid(msg, res))
@@ -893,6 +909,7 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_CM_ID_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_CM_ID,
 		.entry = RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_CM_IDN,
 	},
 	[RDMA_RESTRACK_CQ] = {
 		.fill_res_func = fill_res_cq_entry,
@@ -900,6 +917,7 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_CQ,
 		.flags = NLDEV_PER_DEV,
 		.entry = RDMA_NLDEV_ATTR_RES_CQ_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_CQN,
 	},
 	[RDMA_RESTRACK_MR] = {
 		.fill_res_func = fill_res_mr_entry,
@@ -907,6 +925,7 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_MR,
 		.flags = NLDEV_PER_DEV,
 		.entry = RDMA_NLDEV_ATTR_RES_MR_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_MRN,
 	},
 	[RDMA_RESTRACK_PD] = {
 		.fill_res_func = fill_res_pd_entry,
@@ -914,6 +933,7 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_PD,
 		.flags = NLDEV_PER_DEV,
 		.entry = RDMA_NLDEV_ATTR_RES_PD_ENTRY,
+		.id = RDMA_NLDEV_ATTR_RES_PDN,
 	},
 };
 
