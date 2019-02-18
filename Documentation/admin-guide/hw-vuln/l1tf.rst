@@ -445,6 +445,7 @@ The default is 'cond'. If 'l1tf=full,force' is given on the kernel command
 line, then 'always' is enforced and the kvm-intel.vmentry_l1d_flush
 module parameter is ignored and writes to the sysfs file are rejected.
 
+.. _mitigation_selection:
 
 Mitigation selection guide
 --------------------------

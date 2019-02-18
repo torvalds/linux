@@ -10,3 +10,4 @@ are configurable at compile, boot or run time.
    :maxdepth: 1
 
    l1tf
+   mds
