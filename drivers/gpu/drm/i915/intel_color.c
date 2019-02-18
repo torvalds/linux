@@ -788,6 +788,8 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
+	crtc_state->csc_mode = 0;
+
 	/* Always allow legacy gamma LUT with no further checking. */
 	if (!crtc_state->gamma_enable ||
 	    crtc_state_is_legacy_gamma(crtc_state)) {
@@ -813,8 +815,6 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
 	else
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
-
-	crtc_state->csc_mode = 0;
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
