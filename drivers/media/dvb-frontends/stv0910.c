@@ -1238,7 +1238,7 @@ static int gate_ctrl(struct dvb_frontend *fe, int enable)
 	 * mutex_lock note: Concurrent I2C gate bus accesses must be
 	 * prevented (STV0910 = dual demod on a single IC with a single I2C
 	 * gate/bus, and two tuners attached), similar to most (if not all)
-	 * other I2C host interfaces/busses.
+	 * other I2C host interfaces/buses.
 	 *
 	 * enable=1 (open I2C gate) will grab the lock
 	 * enable=0 (close I2C gate) releases the lock
@@ -1500,7 +1500,7 @@ static int read_status(struct dvb_frontend *fe, enum fe_status *status)
 				  RSTV0910_P2_FBERCPT4 + state->regoff, 0x00);
 			/*
 			 * Reset the packet Error counter2 (and Set it to
-			 * infinit error count mode)
+			 * infinite error count mode)
 			 */
 			write_reg(state,
 				  RSTV0910_P2_ERRCTRL2 + state->regoff, 0xc1);

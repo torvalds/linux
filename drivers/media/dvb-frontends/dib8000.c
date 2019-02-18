@@ -564,7 +564,7 @@ static int dib8000_set_adc_state(struct dib8000_state *state, enum dibx000_adc_s
 			dib8000_write_word(state, 1925, reg |
 					(1<<4) | (1<<2));
 
-			/* read acces to make it works... strange ... */
+			/* read access to make it works... strange ... */
 			reg = dib8000_read_word(state, 1925);
 			msleep(20);
 			/* en_slowAdc = 1 & reset_sladc = 0 */
@@ -1091,7 +1091,7 @@ static int dib8000_reset(struct dvb_frontend *fe)
 
 	if ((state->revision != 0x8090) &&
 			(dib8000_set_output_mode(fe, OUTMODE_HIGH_Z) != 0))
-		dprintk("OUTPUT_MODE could not be resetted.\n");
+		dprintk("OUTPUT_MODE could not be reset.\n");
 
 	state->current_agc = NULL;
 
@@ -1867,7 +1867,7 @@ static int dib8096p_tuner_xfer(struct i2c_adapter *i2c_adap,
 			}
 	}
 
-	if (apb_address != 0) /* R/W acces via APB */
+	if (apb_address != 0) /* R/W access via APB */
 		return dib8096p_rw_on_apb(i2c_adap, msg, num, apb_address);
 	else  /* R/W access via SERPAR  */
 		return dib8096p_tuner_rw_serpar(i2c_adap, msg, num);
@@ -3082,7 +3082,7 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			state->autosearch_state = AS_DONE;
 			*tune_state = CT_DEMOD_STOP; /* else we are done here */
 			break;
-		case 2: /* Succes */
+		case 2: /* Success */
 			state->status = FE_STATUS_FFT_SUCCESS; /* signal to the upper layer, that there was a channel found and the parameters can be read */
 			*tune_state = CT_DEMOD_STEP_3;
 			if (state->autosearch_state == AS_SEARCHING_GUARD)
@@ -3193,10 +3193,10 @@ static int dib8000_tune(struct dvb_frontend *fe)
 
 	case CT_DEMOD_STEP_6: /* (36)  if there is an input (diversity) */
 		if ((state->fe[1] != NULL) && (state->output_mode != OUTMODE_DIVERSITY)) {
-			/* if there is a diversity fe in input and this fe is has not already failled : wait here until this this fe has succedeed or failled */
+			/* if there is a diversity fe in input and this fe is has not already failed : wait here until this this fe has succedeed or failed */
 			if (dib8000_get_status(state->fe[1]) <= FE_STATUS_STD_SUCCESS) /* Something is locked on the input fe */
 				*tune_state = CT_DEMOD_STEP_8; /* go for mpeg */
-			else if (dib8000_get_status(state->fe[1]) >= FE_STATUS_TUNE_TIME_TOO_SHORT) { /* fe in input failled also, break the current one */
+			else if (dib8000_get_status(state->fe[1]) >= FE_STATUS_TUNE_TIME_TOO_SHORT) { /* fe in input failed also, break the current one */
 				*tune_state = CT_DEMOD_STOP; /* else we are done here ; step 8 will close the loops and exit */
 				dib8000_viterbi_state(state, 1); /* start viterbi chandec */
 				dib8000_set_isdbt_loop_params(state, LOOP_TUNE_2);
