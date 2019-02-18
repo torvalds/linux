@@ -294,7 +294,6 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-	u32 mode;
 
 	if (crtc_state->base.ctm) {
 		const struct drm_color_ctm *ctm = crtc_state->base.ctm->data;
@@ -328,12 +327,7 @@ static void cherryview_load_csc_matrix(const struct intel_crtc_state *crtc_state
 		I915_WRITE(CGM_PIPE_CSC_COEFF8(pipe), coeffs[8]);
 	}
 
-	mode = (crtc_state->base.ctm ? CGM_PIPE_MODE_CSC : 0);
-	if (!crtc_state_is_legacy_gamma(crtc_state)) {
-		mode |= (crtc_state->base.degamma_lut ? CGM_PIPE_MODE_DEGAMMA : 0) |
-			(crtc_state->base.gamma_lut ? CGM_PIPE_MODE_GAMMA : 0);
-	}
-	I915_WRITE(CGM_PIPE_MODE(pipe), mode);
+	I915_WRITE(CGM_PIPE_MODE(pipe), crtc_state->cgm_mode);
 }
 
 /* Loads the legacy palette/gamma unit for the CRTC. */
@@ -753,6 +747,23 @@ static int check_lut_size(const struct drm_property_blob *lut, int expected)
 	return 0;
 }
 
+static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
+{
+	u32 cgm_mode = 0;
+
+	if (crtc_state_is_legacy_gamma(crtc_state))
+		return 0;
+
+	if (crtc_state->base.degamma_lut)
+		cgm_mode |= CGM_PIPE_MODE_DEGAMMA;
+	if (crtc_state->base.ctm)
+		cgm_mode |= CGM_PIPE_MODE_CSC;
+	if (crtc_state->base.gamma_lut)
+		cgm_mode |= CGM_PIPE_MODE_GAMMA;
+
+	return cgm_mode;
+}
+
 int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
@@ -789,6 +800,9 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 		return ret;
 
 	crtc_state->csc_mode = 0;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		crtc_state->cgm_mode = chv_cgm_mode(crtc_state);
 
 	/* Always allow legacy gamma LUT with no further checking. */
 	if (!crtc_state->gamma_enable ||

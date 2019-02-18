@@ -8216,6 +8216,9 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->gamma_mode = (tmp & PIPECONF_GAMMA_MODE_MASK_I9XX) >>
 		PIPECONF_GAMMA_MODE_SHIFT;
 
+	if (IS_CHERRYVIEW(dev_priv))
+		pipe_config->cgm_mode = I915_READ(CGM_PIPE_MODE(crtc->pipe));
+
 	i9xx_get_pipe_color_config(pipe_config);
 
 	if (INTEL_GEN(dev_priv) < 4)
@@ -12238,7 +12241,10 @@ intel_pipe_config_compare(struct drm_i915_private *dev_priv,
 		PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
 
 		PIPE_CONF_CHECK_X(gamma_mode);
-		PIPE_CONF_CHECK_X(csc_mode);
+		if (IS_CHERRYVIEW(dev_priv))
+			PIPE_CONF_CHECK_X(cgm_mode);
+		else
+			PIPE_CONF_CHECK_X(csc_mode);
 		PIPE_CONF_CHECK_BOOL(gamma_enable);
 		PIPE_CONF_CHECK_BOOL(csc_enable);
 	}
