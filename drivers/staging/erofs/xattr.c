@@ -44,18 +44,25 @@ static inline void xattr_iter_end_final(struct xattr_iter *it)
 
 static int init_inode_xattrs(struct inode *inode)
 {
+	struct erofs_vnode *const vi = EROFS_V(inode);
 	struct xattr_iter it;
 	unsigned int i;
 	struct erofs_xattr_ibody_header *ih;
 	struct super_block *sb;
 	struct erofs_sb_info *sbi;
-	struct erofs_vnode *vi;
 	bool atomic_map;
+	int ret = 0;
 
-	if (likely(inode_has_inited_xattr(inode)))
+	/* the most case is that xattrs of this inode are initialized. */
+	if (test_bit(EROFS_V_EA_INITED_BIT, &vi->flags))
 		return 0;
 
-	vi = EROFS_V(inode);
+	if (wait_on_bit_lock(&vi->flags, EROFS_V_BL_XATTR_BIT, TASK_KILLABLE))
+		return -ERESTARTSYS;
+
+	/* someone has initialized xattrs for us? */
+	if (test_bit(EROFS_V_EA_INITED_BIT, &vi->flags))
+		goto out_unlock;
 
 	/*
 	 * bypass all xattr operations if ->xattr_isize is not greater than
@@ -68,13 +75,16 @@ static int init_inode_xattrs(struct inode *inode)
 	if (vi->xattr_isize == sizeof(struct erofs_xattr_ibody_header)) {
 		errln("xattr_isize %d of nid %llu is not supported yet",
 		      vi->xattr_isize, vi->nid);
-		return -ENOTSUPP;
+		ret = -ENOTSUPP;
+		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
 		if (unlikely(vi->xattr_isize)) {
 			DBG_BUGON(1);
-			return -EIO;	/* xattr ondisk layout error */
+			ret = -EIO;
+			goto out_unlock;	/* xattr ondisk layout error */
 		}
-		return -ENOATTR;
+		ret = -ENOATTR;
+		goto out_unlock;
 	}
 
 	sb = inode->i_sb;
@@ -83,8 +93,10 @@ static int init_inode_xattrs(struct inode *inode)
 	it.ofs = erofs_blkoff(iloc(sbi, vi->nid) + vi->inode_isize);
 
 	it.page = erofs_get_inline_page(inode, it.blkaddr);
-	if (IS_ERR(it.page))
-		return PTR_ERR(it.page);
+	if (IS_ERR(it.page)) {
+		ret = PTR_ERR(it.page);
+		goto out_unlock;
+	}
 
 	/* read in shared xattr array (non-atomic, see kmalloc below) */
 	it.kaddr = kmap(it.page);
@@ -97,7 +109,8 @@ static int init_inode_xattrs(struct inode *inode)
 						sizeof(uint), GFP_KERNEL);
 	if (vi->xattr_shared_xattrs == NULL) {
 		xattr_iter_end(&it, atomic_map);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_unlock;
 	}
 
 	/* let's skip ibody header */
@@ -114,7 +127,8 @@ static int init_inode_xattrs(struct inode *inode)
 			if (IS_ERR(it.page)) {
 				kfree(vi->xattr_shared_xattrs);
 				vi->xattr_shared_xattrs = NULL;
-				return PTR_ERR(it.page);
+				ret = PTR_ERR(it.page);
+				goto out_unlock;
 			}
 
 			it.kaddr = kmap_atomic(it.page);
@@ -127,8 +141,11 @@ static int init_inode_xattrs(struct inode *inode)
 	}
 	xattr_iter_end(&it, atomic_map);
 
-	inode_set_inited_xattr(inode);
-	return 0;
+	set_bit(EROFS_V_EA_INITED_BIT, &vi->flags);
+
+out_unlock:
+	clear_and_wake_up_bit(EROFS_V_BL_XATTR_BIT, &vi->flags);
+	return ret;
 }
 
 /*
