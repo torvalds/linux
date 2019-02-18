@@ -61,6 +61,9 @@ DEFINE_STATIC_KEY_FALSE(switch_mm_cond_ibpb);
 /* Control unconditional IBPB in switch_mm() */
 DEFINE_STATIC_KEY_FALSE(switch_mm_always_ibpb);
 
+/* Control MDS CPU buffer clear before returning to user space */
+DEFINE_STATIC_KEY_FALSE(mds_user_clear);
+
 void __init check_bugs(void)
 {
 	identify_boot_cpu();

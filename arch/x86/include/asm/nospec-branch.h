@@ -317,6 +317,8 @@ DECLARE_STATIC_KEY_FALSE(switch_to_cond_stibp);
 DECLARE_STATIC_KEY_FALSE(switch_mm_cond_ibpb);
 DECLARE_STATIC_KEY_FALSE(switch_mm_always_ibpb);
 
+DECLARE_STATIC_KEY_FALSE(mds_user_clear);
+
 #include <asm/segment.h>
 
 /**
@@ -340,6 +342,17 @@ static inline void mds_clear_cpu_buffers(void)
 	 * "cc" clobber is required because VERW modifies ZF.
 	 */
 	asm volatile("verw %[ds]" : : [ds] "m" (ds) : "cc");
+}
+
+/**
+ * mds_user_clear_cpu_buffers - Mitigation for MDS vulnerability
+ *
+ * Clear CPU buffers if the corresponding static key is enabled
+ */
+static inline void mds_user_clear_cpu_buffers(void)
+{
+	if (static_branch_likely(&mds_user_clear))
+		mds_clear_cpu_buffers();
 }
 
 #endif /* __ASSEMBLY__ */
