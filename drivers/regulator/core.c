@@ -143,14 +143,6 @@ static bool regulator_ops_is_valid(struct regulator_dev *rdev, int ops)
 	return false;
 }
 
-static inline struct regulator_dev *rdev_get_supply(struct regulator_dev *rdev)
-{
-	if (rdev && rdev->supply)
-		return rdev->supply->rdev;
-
-	return NULL;
-}
-
 /**
  * regulator_lock_nested - lock a single regulator
  * @rdev:		regulator source
