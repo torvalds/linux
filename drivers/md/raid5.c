@@ -6660,6 +6660,7 @@ static struct attribute *raid5_attrs[] =  {
 	&raid5_skip_copy.attr,
 	&raid5_rmw_level.attr,
 	&r5c_journal_mode.attr,
+	&ppl_write_hint.attr,
 	NULL,
 };
 static struct attribute_group raid5_attrs_group = {

@@ -756,3 +756,6 @@ These currently include:
       The cache mode for raid5. raid5 could include an extra disk for
       caching. The mode can be "write-throuth" and "write-back". The
       default is "write-through".
+
+  ppl_write_hint
+      NVMe stream ID to be set for each PPL write request.
