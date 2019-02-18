@@ -995,7 +995,11 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		if (cmd_queue)
+			slots_num = max_t(u32, TFD_CMD_SLOTS,
+					  trans->cfg->min_txq_size);
+		else
+			slots_num = TFD_TX_CMD_SLOTS;
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
 					 slots_num, cmd_queue);
@@ -1044,7 +1048,11 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		if (cmd_queue)
+			slots_num = max_t(u32, TFD_CMD_SLOTS,
+					  trans->cfg->min_txq_size);
+		else
+			slots_num = TFD_TX_CMD_SLOTS;
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
 					slots_num, cmd_queue);
 		if (ret) {
@@ -1174,6 +1182,15 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
 
 		/*
+		 * We are going to transmit from the overflow queue.
+		 * Remember this state so that wait_for_txq_empty will know we
+		 * are adding more packets to the TFD queue. It cannot rely on
+		 * the state of &txq->overflow_q, as we just emptied it, but
+		 * haven't TXed the content yet.
+		 */
+		txq->overflow_tx = true;
+
+		/*
 		 * This is tricky: we are in reclaim path which is non
 		 * re-entrant, so noone will try to take the access the
 		 * txq data from that path. We stopped tx, so we can't
@@ -1201,6 +1218,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			iwl_wake_queue(trans, txq);
 
 		spin_lock_bh(&txq->lock);
+		txq->overflow_tx = false;
 	}
 
 	if (txq->read_ptr == txq->write_ptr) {

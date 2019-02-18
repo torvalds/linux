@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -242,7 +242,8 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 				  cfg->lmac[0].rxfifo1_size, 0, 0);
 		/* Pull RXF2 */
 		iwl_fwrt_dump_rxf(fwrt, dump_data, cfg->rxfifo2_size,
-				  RXF_DIFF_FROM_PREV, 1);
+				  RXF_DIFF_FROM_PREV +
+				  fwrt->trans->cfg->umac_prph_offset, 1);
 		/* Pull LMAC2 RXF1 */
 		if (fwrt->smem_cfg.num_lmacs > 1)
 			iwl_fwrt_dump_rxf(fwrt, dump_data,
@@ -673,7 +674,9 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 {
 	u32 range_len;
 
-	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
+		/* TODO */
+	} else if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_22000);
 		handler(fwrt, iwl_prph_dump_addr_22000, range_len, ptr);
 	} else {
@@ -1132,12 +1135,56 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 	return le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
+			   struct iwl_fw_ini_error_dump_range *range,
+			   struct iwl_fw_ini_region_cfg *reg,
+			   int idx)
+{
+	u32 start_addr = iwl_read_umac_prph(fwrt->trans,
+					    MON_BUFF_BASE_ADDR_VER2);
+
+	if (start_addr == 0x5a5a5a5a)
+		return -1;
+
+	range->start_addr = cpu_to_le32(start_addr);
+	range->range_data_size = cpu_to_le32(fwrt->trans->fw_mon[idx].size);
+
+	memcpy(range->data, fwrt->trans->fw_mon[idx].block,
+	       fwrt->trans->fw_mon[idx].size);
+
+	return le32_to_cpu(range->range_data_size);
+}
+
 static struct iwl_fw_ini_error_dump_range
 *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt, void *data)
 {
 	struct iwl_fw_ini_error_dump *dump = data;
 
 	return dump->ranges;
+}
+
+static struct iwl_fw_ini_error_dump_range
+*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt, void *data)
+{
+	struct iwl_fw_ini_monitor_dram_dump *mon_dump = (void *)data;
+	u32 write_ptr, cycle_cnt;
+	unsigned long flags;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags)) {
+		IWL_ERR(fwrt, "Failed to get DRAM monitor header\n");
+		return NULL;
+	}
+	write_ptr = iwl_read_umac_prph_no_grab(fwrt->trans,
+					       MON_BUFF_WRPTR_VER2);
+	cycle_cnt = iwl_read_umac_prph_no_grab(fwrt->trans,
+					       MON_BUFF_CYCLE_CNT_VER2);
+	iwl_trans_release_nic_access(fwrt->trans, &flags);
+
+	mon_dump->write_ptr = cpu_to_le32(write_ptr);
+	mon_dump->cycle_cnt = cpu_to_le32(cycle_cnt);
+
+	return mon_dump->ranges;
 }
 
 static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
@@ -1169,6 +1216,12 @@ static u32 iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 	return size;
 }
 
+static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg)
+{
+	return fwrt->trans->num_blocks ? fwrt->trans->fw_mon[0].size : 0;
+}
+
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 				   struct iwl_fw_ini_region_cfg *reg)
 {
@@ -1185,6 +1238,12 @@ static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_fw_ini_region_cfg *reg)
 {
 	return fwrt->num_of_paging_blk;
+}
+
+static u32 iwl_dump_ini_mon_dram_ranges(struct iwl_fw_runtime *fwrt,
+					struct iwl_fw_ini_region_cfg *reg)
+{
+	return 1;
 }
 
 /**
@@ -1284,6 +1343,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
+		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 		case IWL_FW_INI_REGION_CSR:
 			size += hdr_len + dump_header_len + range_header_len *
 				iwl_dump_ini_mem_ranges(fwrt, reg) +
@@ -1311,8 +1371,13 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			break;
 		}
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			/* Transport takes care of DRAM dumping */
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
+			if (!fwrt->trans->num_blocks)
+				break;
+			size += hdr_len +
+				sizeof(struct iwl_fw_ini_monitor_dram_dump) *
+				iwl_dump_ini_mon_dram_ranges(fwrt, reg) +
+				iwl_dump_ini_mon_dram_get_size(fwrt, reg);
+			break;
 		case IWL_FW_INI_REGION_DRAM_IMR:
 			/* Undefined yet */
 		default:
@@ -1324,8 +1389,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 
 static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 				    struct iwl_fw_ini_trigger *trigger,
-				    struct iwl_fw_error_dump_data **data,
-				    u32 *dump_mask)
+				    struct iwl_fw_error_dump_data **data)
 {
 	int i, num = le32_to_cpu(trigger->num_regions);
 
@@ -1346,6 +1410,7 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
+		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
 			ops.get_size = iwl_dump_ini_mem_get_size;
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
@@ -1362,7 +1427,11 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			*dump_mask |= BIT(IWL_FW_ERROR_DUMP_FW_MONITOR);
+			ops.get_num_of_ranges = iwl_dump_ini_mon_dram_ranges;
+			ops.get_size = iwl_dump_ini_mon_dram_get_size;
+			ops.fill_mem_hdr = iwl_dump_ini_mon_dram_fill_header;
+			ops.fill_range = iwl_dump_ini_mon_dram_iter;
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_PAGING: {
 			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
@@ -1396,7 +1465,6 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_DRAM_IMR:
-		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
 			/* This is undefined yet */
 		default:
 			break;
@@ -1406,26 +1474,23 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 
 static struct iwl_fw_error_dump_file *
 _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
-		       struct iwl_fw_dump_ptrs *fw_error_dump,
-		       u32 *dump_mask)
+		       struct iwl_fw_dump_ptrs *fw_error_dump)
 {
 	int size, id = le32_to_cpu(fwrt->dump.desc->trig_desc.type);
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_file *dump_file;
-	struct iwl_fw_ini_trigger *trigger, *ext;
+	struct iwl_fw_ini_trigger *trigger;
 
 	if (id == FW_DBG_TRIGGER_FW_ASSERT)
 		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
 
-	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
+	if (!iwl_fw_ini_trigger_on(fwrt, id))
 		return NULL;
 
-	trigger = fwrt->dump.active_trigs[id].conf;
-	ext = fwrt->dump.active_trigs[id].conf_ext;
+	trigger = fwrt->dump.active_trigs[id].trig;
 
 	size = sizeof(*dump_file);
 	size += iwl_fw_ini_get_trigger_len(fwrt, trigger);
-	size += iwl_fw_ini_get_trigger_len(fwrt, ext);
 
 	if (!size)
 		return NULL;
@@ -1440,11 +1505,7 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 	dump_data = (void *)dump_file->data;
 	dump_file->file_len = cpu_to_le32(size);
 
-	*dump_mask = 0;
-	if (trigger)
-		iwl_fw_ini_dump_trigger(fwrt, trigger, &dump_data, dump_mask);
-	if (ext)
-		iwl_fw_ini_dump_trigger(fwrt, ext, &dump_data, dump_mask);
+	iwl_fw_ini_dump_trigger(fwrt, trigger, &dump_data);
 
 	return dump_file;
 }
@@ -1470,8 +1531,7 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 		goto out;
 
 	if (fwrt->trans->ini_valid)
-		dump_file = _iwl_fw_error_ini_dump(fwrt, fw_error_dump,
-						   &dump_mask);
+		dump_file = _iwl_fw_error_ini_dump(fwrt, fw_error_dump);
 	else
 		dump_file = _iwl_fw_error_dump(fwrt, fw_error_dump);
 
@@ -1483,7 +1543,10 @@ void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt)
 	if (!fwrt->trans->ini_valid && fwrt->dump.monitor_only)
 		dump_mask &= IWL_FW_ERROR_DUMP_FW_MONITOR;
 
-	fw_error_dump->trans_ptr = iwl_trans_dump_data(fwrt->trans, dump_mask);
+	if (!fwrt->trans->ini_valid)
+		fw_error_dump->trans_ptr =
+			iwl_trans_dump_data(fwrt->trans, dump_mask);
+
 	file_len = le32_to_cpu(dump_file->file_len);
 	fw_error_dump->fwrt_len = file_len;
 	if (fw_error_dump->trans_ptr) {
@@ -1557,7 +1620,7 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	fwrt->dump.desc = desc;
 	fwrt->dump.monitor_only = monitor_only;
 
-	schedule_delayed_work(&fwrt->dump.wk, delay);
+	schedule_delayed_work(&fwrt->dump.wk, usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -1613,8 +1676,10 @@ int _iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		}
 
 		trigger->occurrences = cpu_to_le16(occurrences);
-		delay = le16_to_cpu(trigger->trig_dis_ms);
 		monitor_only = trigger->mode & IWL_FW_DBG_TRIGGER_MONITOR_ONLY;
+
+		/* convert msec to usec */
+		delay = le32_to_cpu(trigger->stop_delay) * USEC_PER_MSEC;
 	}
 
 	desc = kzalloc(sizeof(*desc) + len, GFP_ATOMIC);
@@ -1634,6 +1699,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		       u32 id, const char *str, size_t len)
 {
 	struct iwl_fw_dump_desc *desc;
+	struct iwl_fw_ini_active_triggers *active;
 	u32 occur, delay;
 
 	if (!fwrt->trans->ini_valid)
@@ -1642,15 +1708,17 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (id == FW_DBG_TRIGGER_USER)
 		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
 
-	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
+	active = &fwrt->dump.active_trigs[id];
+
+	if (WARN_ON(!active->active))
 		return -EINVAL;
 
-	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->dump_delay);
-	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
+	delay = le32_to_cpu(active->trig->dump_delay);
+	occur = le32_to_cpu(active->trig->occurrences);
 	if (!occur)
 		return 0;
 
-	if (le32_to_cpu(fwrt->dump.active_trigs[id].conf->force_restart)) {
+	if (le32_to_cpu(active->trig->force_restart)) {
 		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
 		iwl_force_nmi(fwrt->trans);
 		return 0;
@@ -1660,8 +1728,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (!desc)
 		return -ENOMEM;
 
-	occur--;
-	fwrt->dump.active_trigs[id].conf->occurrences = cpu_to_le32(occur);
+	active->trig->occurrences = cpu_to_le32(--occur);
 
 	desc->len = len;
 	desc->trig_desc.type = cpu_to_le32(id);
@@ -1853,7 +1920,8 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 }
 
 static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
-				    struct iwl_fw_ini_allocation_data *alloc)
+				    struct iwl_fw_ini_allocation_data *alloc,
+				    enum iwl_fw_ini_apply_point pnt)
 {
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_ldbg_config_cmd ldbg_cmd = {
@@ -1867,9 +1935,19 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 		.len[0] = sizeof(ldbg_cmd),
 	};
 	int block_idx = trans->num_blocks;
+	u32 buf_location = le32_to_cpu(alloc->tlv.buffer_location);
 
-	if (le32_to_cpu(alloc->tlv.buffer_location) !=
-	    IWL_FW_INI_LOCATION_DRAM_PATH)
+	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH) {
+		if (!WARN(pnt != IWL_FW_INI_APPLY_EARLY,
+			  "Invalid apply point %d for SMEM buffer allocation",
+			  pnt))
+			/* set sram monitor by enabling bit 7 */
+			iwl_set_bit(fwrt->trans, CSR_HW_IF_CONFIG_REG,
+				    CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
+		return;
+	}
+
+	if (buf_location != IWL_FW_INI_LOCATION_DRAM_PATH)
 		return;
 
 	if (!alloc->is_alloc) {
@@ -1949,6 +2027,26 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 	}
 }
 
+static int iwl_fw_dbg_trig_realloc(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_active_triggers *active,
+				   u32 id, int size)
+{
+	void *ptr;
+
+	if (size <= active->size)
+		return 0;
+
+	ptr = krealloc(active->trig, size, GFP_KERNEL);
+	if (!ptr) {
+		IWL_ERR(fwrt, "Failed to allocate memory for trigger %d\n", id);
+		return -ENOMEM;
+	}
+	active->trig = ptr;
+	active->size = size;
+
+	return 0;
+}
+
 static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 				       struct iwl_fw_ini_trigger_tlv *tlv,
 				       bool ext,
@@ -1961,43 +2059,63 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_ini_trigger *trig = iter;
 		struct iwl_fw_ini_active_triggers *active;
 		int id = le32_to_cpu(trig->trigger_id);
-		u32 num;
+		u32 trig_regs_size = le32_to_cpu(trig->num_regions) *
+			sizeof(__le32);
 
 		if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
 			break;
 
 		active = &fwrt->dump.active_trigs[id];
 
-		if (active->apply_point != apply_point) {
-			active->conf = NULL;
-			active->conf_ext = NULL;
-		}
+		if (!active->active) {
+			size_t trig_size = sizeof(*trig) + trig_regs_size;
 
-		num = le32_to_cpu(trig->num_regions);
+			if (iwl_fw_dbg_trig_realloc(fwrt, active, id,
+						    trig_size))
+				goto next;
 
-		if (ext && active->apply_point == apply_point) {
-			num += le32_to_cpu(active->conf->num_regions);
-			if (trig->ignore_default) {
-				active->conf_ext = active->conf;
-				active->conf = trig;
-			} else {
-				active->conf_ext = trig;
-			}
+			memcpy(active->trig, trig, trig_size);
+
 		} else {
-			active->conf = trig;
+			u32 conf_override =
+				!(le32_to_cpu(trig->override_trig) & 0xff);
+			u32 region_override =
+				!(le32_to_cpu(trig->override_trig) & 0xff00);
+			u32 offset = 0;
+			u32 active_regs =
+				le32_to_cpu(active->trig->num_regions);
+			u32 new_regs = le32_to_cpu(trig->num_regions);
+			int mem_to_add = trig_regs_size;
+
+			if (region_override) {
+				mem_to_add -= active_regs * sizeof(__le32);
+			} else {
+				offset += active_regs;
+				new_regs += active_regs;
+			}
+
+			if (iwl_fw_dbg_trig_realloc(fwrt, active, id,
+						    active->size + mem_to_add))
+				goto next;
+
+			if (conf_override)
+				memcpy(active->trig, trig, sizeof(*trig));
+
+			memcpy(active->trig->data + offset, trig->data,
+			       trig_regs_size);
+			active->trig->num_regions = cpu_to_le32(new_regs);
 		}
 
 		/* Since zero means infinity - just set to -1 */
-		if (!le32_to_cpu(trig->occurrences))
-			trig->occurrences = cpu_to_le32(-1);
-		if (!le32_to_cpu(trig->ignore_consec))
-			trig->ignore_consec = cpu_to_le32(-1);
+		if (!le32_to_cpu(active->trig->occurrences))
+			active->trig->occurrences = cpu_to_le32(-1);
+		if (!le32_to_cpu(active->trig->ignore_consec))
+			active->trig->ignore_consec = cpu_to_le32(-1);
 
-		iter += sizeof(*trig) +
-			le32_to_cpu(trig->num_regions) * sizeof(__le32);
+		active->active = true;
+next:
+		iter += sizeof(*trig) + trig_regs_size;
 
-		active->active = num;
-		active->apply_point = apply_point;
 	}
 }
 
@@ -2017,7 +2135,7 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION: {
 			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
 
-			iwl_fw_dbg_buffer_apply(fwrt, ini_tlv);
+			iwl_fw_dbg_buffer_apply(fwrt, ini_tlv, pnt);
 			iter += sizeof(buf_alloc->is_alloc);
 			break;
 		}
@@ -2056,6 +2174,10 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 	if (apply_point == IWL_FW_INI_APPLY_EARLY) {
 		for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)
 			fwrt->dump.active_regs[i] = NULL;
+
+		/* disable the triggers, used in recovery flow */
+		for (i = 0; i < IWL_FW_TRIGGER_ID_NUM; i++)
+			fwrt->dump.active_trigs[i].active = false;
 	}
 
 	_iwl_fw_dbg_apply_point(fwrt, data, apply_point, false);

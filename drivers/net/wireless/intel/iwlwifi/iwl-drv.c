@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,6 +77,7 @@
 #include "iwl-dbg-tlv.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
+#include "fw/api/alive.h"
 
 /******************************************************************************
  *
@@ -588,6 +591,8 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	return 0;
 }
 
+#define FW_ADDR_CACHE_CONTROL 0xC0000000
+
 static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				const struct firmware *ucode_raw,
 				struct iwl_firmware_pieces *pieces,
@@ -1085,6 +1090,52 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_RECOVERY_INFO: {
+			struct {
+				__le32 buf_addr;
+				__le32 buf_size;
+			} *recov_info = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*recov_info))
+				goto invalid_tlv_len;
+			capa->error_log_addr =
+				le32_to_cpu(recov_info->buf_addr);
+			capa->error_log_size =
+				le32_to_cpu(recov_info->buf_size);
+			}
+			break;
+		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
+			struct iwl_umac_debug_addrs *dbg_ptrs =
+				(void *)tlv_data;
+
+			if (tlv_len != sizeof(*dbg_ptrs))
+				goto invalid_tlv_len;
+			if (drv->trans->cfg->device_family <
+			    IWL_DEVICE_FAMILY_22000)
+				break;
+			drv->trans->umac_error_event_table =
+				le32_to_cpu(dbg_ptrs->error_info_addr) &
+				~FW_ADDR_CACHE_CONTROL;
+			drv->trans->error_event_table_tlv_status |=
+				IWL_ERROR_EVENT_TABLE_UMAC;
+			break;
+			}
+		case IWL_UCODE_TLV_LMAC_DEBUG_ADDRS: {
+			struct iwl_lmac_debug_addrs *dbg_ptrs =
+				(void *)tlv_data;
+
+			if (tlv_len != sizeof(*dbg_ptrs))
+				goto invalid_tlv_len;
+			if (drv->trans->cfg->device_family <
+			    IWL_DEVICE_FAMILY_22000)
+				break;
+			drv->trans->lmac_error_event_table[0] =
+				le32_to_cpu(dbg_ptrs->error_event_table_ptr) &
+				~FW_ADDR_CACHE_CONTROL;
+			drv->trans->error_event_table_tlv_status |=
+				IWL_ERROR_EVENT_TABLE_LMAC1;
+			break;
+			}
 		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 		case IWL_UCODE_TLV_TYPE_HCMD:
 		case IWL_UCODE_TLV_TYPE_REGIONS:
@@ -1262,8 +1313,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
-	/* dump all fw memory areas by default except d3 debug data */
-	fw->dbg.dump_mask = 0xfffdffff;
+	/* dump all fw memory areas by default */
+	fw->dbg.dump_mask = 0xffffffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)

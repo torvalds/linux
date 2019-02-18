@@ -1188,6 +1188,108 @@ out:
 	return ret ?: count;
 }
 
+static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
+{
+	struct ieee80211_vif *vif;
+	struct iwl_mvm_vif *mvmvif;
+	struct sk_buff *beacon;
+	struct ieee80211_tx_info *info;
+	struct iwl_mac_beacon_cmd beacon_cmd = {};
+	u8 rate;
+	u16 flags;
+	int i;
+
+	len /= 2;
+
+	/* Element len should be represented by u8 */
+	if (len >= U8_MAX)
+		return -EINVAL;
+
+	if (!iwl_mvm_firmware_running(mvm))
+		return -EIO;
+
+	if (!iwl_mvm_has_new_tx_api(mvm) &&
+	    !fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE))
+		return -EINVAL;
+
+	rcu_read_lock();
+
+	for (i = 0; i < NUM_MAC_INDEX_DRIVER; i++) {
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, i, true);
+		if (!vif)
+			continue;
+
+		if (vif->type == NL80211_IFTYPE_AP)
+			break;
+	}
+
+	if (i == NUM_MAC_INDEX_DRIVER || !vif)
+		goto out_err;
+
+	mvm->hw->extra_beacon_tailroom = len;
+
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
+	if (!beacon)
+		goto out_err;
+
+	if (len && hex2bin(skb_put_zero(beacon, len), bin, len)) {
+		dev_kfree_skb(beacon);
+		goto out_err;
+	}
+
+	mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	info = IEEE80211_SKB_CB(beacon);
+	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
+	flags = iwl_mvm_mac80211_idx_to_hwrate(rate);
+
+	if (rate == IWL_FIRST_CCK_RATE)
+		flags |= IWL_MAC_BEACON_CCK;
+
+	beacon_cmd.flags = cpu_to_le16(flags);
+	beacon_cmd.byte_cnt = cpu_to_le16((u16)beacon->len);
+	beacon_cmd.template_id = cpu_to_le32((u32)mvmvif->id);
+
+	iwl_mvm_mac_ctxt_set_tim(mvm, &beacon_cmd.tim_idx,
+				 &beacon_cmd.tim_size,
+				 beacon->data, beacon->len);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
+					 sizeof(beacon_cmd));
+	mutex_unlock(&mvm->mutex);
+
+	dev_kfree_skb(beacon);
+
+	rcu_read_unlock();
+	return 0;
+
+out_err:
+	rcu_read_unlock();
+	return -EINVAL;
+}
+
+static ssize_t iwl_dbgfs_inject_beacon_ie_write(struct iwl_mvm *mvm,
+						char *buf, size_t count,
+						loff_t *ppos)
+{
+	int ret = _iwl_dbgfs_inject_beacon_ie(mvm, buf, count);
+
+	mvm->hw->extra_beacon_tailroom = 0;
+	return ret ?: count;
+}
+
+static ssize_t iwl_dbgfs_inject_beacon_ie_restore_write(struct iwl_mvm *mvm,
+							char *buf,
+							size_t count,
+							loff_t *ppos)
+{
+	int ret = _iwl_dbgfs_inject_beacon_ie(mvm, NULL, 0);
+
+	mvm->hw->extra_beacon_tailroom = 0;
+	return ret ?: count;
+}
+
 static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
@@ -1806,6 +1908,8 @@ MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
+MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie, 512);
+MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie_restore, 512);
 
 MVM_DEBUGFS_READ_FILE_OPS(uapsd_noagg_bssids);
 
@@ -2007,6 +2111,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie_restore, mvm->debugfs_dir, 0200);
 #ifdef CONFIG_ACPI
 	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif

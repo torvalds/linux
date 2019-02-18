@@ -301,7 +301,7 @@ struct iwl_fw_ini_error_dump_header {
 /**
  * struct iwl_fw_ini_error_dump - ini region dump
  * @header: the header of this region
- * @ranges: the memory ranges of this this region
+ * @ranges: the memory ranges of this region
  */
 struct iwl_fw_ini_error_dump {
 	struct iwl_fw_ini_error_dump_header header;
@@ -321,6 +321,20 @@ struct iwl_fw_error_dump_rb {
 	__le32 reserved;
 	u8 data[];
 };
+
+/**
+ * struct iwl_fw_ini_monitor_dram_dump - ini dram monitor dump
+ * @header - header of the region
+ * @write_ptr - write pointer position in the dram
+ * @cycle_cnt - cycles count
+ * @ranges - the memory ranges of this this region
+ */
+struct iwl_fw_ini_monitor_dram_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	__le32 write_ptr;
+	__le32 cycle_cnt;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_paging - content of the UMAC's image page
