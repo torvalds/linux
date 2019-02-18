@@ -241,7 +241,7 @@ static const unsigned long tegra210_cpu_max_freq_table[] = {
 		{          0UL,	{       0, 0, 0 } }, \
 	}
 
-struct cvb_table tegra210_cpu_cvb_tables[] = {
+static struct cvb_table tegra210_cpu_cvb_tables[] = {
 	{
 		.speedo_id = 10,
 		.process_id = 0,
