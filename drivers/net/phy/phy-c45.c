@@ -89,11 +89,13 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
  */
 int genphy_c45_an_config_aneg(struct phy_device *phydev)
 {
-	int changed = 0, ret;
+	int changed, ret;
 	u32 adv;
 
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
+
+	changed = genphy_config_eee_advert(phydev);
 
 	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
 
