@@ -23,6 +23,7 @@
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_VFORK
 #define __ARCH_WANT_SYS_FORK
+#define __ARCH_WANT_TIME32_SYSCALLS
 
 #define sys_mmap2 sys_mmap_pgoff
 

@@ -19,6 +19,9 @@
 #define __ARCH_WANT_NEW_STAT
 #endif /* __LP64__ */
 #define __ARCH_WANT_SET_GET_RLIMIT
+#ifndef __LP64__
+#define __ARCH_WANT_TIME32_SYSCALLS
+#endif
 
 #include <asm-generic/unistd.h>
 

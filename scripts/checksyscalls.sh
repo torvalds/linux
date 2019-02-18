@@ -143,6 +143,13 @@ cat << EOF
 #define __IGNORE_rt_sigtimedwait
 #define __IGNORE_futex
 #define __IGNORE_sched_rr_get_interval
+#define __IGNORE_gettimeofday
+#define __IGNORE_settimeofday
+#define __IGNORE_wait4
+#define __IGNORE_adjtimex
+#define __IGNORE_nanosleep
+#define __IGNORE_io_getevents
+#define __IGNORE_recvmmsg
 #endif
 
 /* i386-specific or historical system calls */
