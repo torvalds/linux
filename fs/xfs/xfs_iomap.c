@@ -918,22 +918,29 @@ xfs_file_iomap_begin(
 	 * been done up front, so we don't need to do them here.
 	 */
 	if (xfs_is_reflink_inode(ip)) {
+		struct xfs_bmbt_irec	orig = imap;
+
 		/* if zeroing doesn't need COW allocation, then we are done. */
 		if ((flags & IOMAP_ZERO) &&
 		    !needs_cow_for_zeroing(&imap, nimaps))
 			goto out_found;
 
-		if (flags & IOMAP_DIRECT) {
-			/* may drop and re-acquire the ilock */
-			error = xfs_reflink_allocate_cow(ip, &imap, &shared,
-					&lockmode);
-			if (error)
-				goto out_unlock;
-		} else {
-			error = xfs_reflink_reserve_cow(ip, &imap);
-			if (error)
-				goto out_unlock;
-		}
+		/* may drop and re-acquire the ilock */
+		error = xfs_reflink_allocate_cow(ip, &imap, &shared, &lockmode,
+						 flags);
+		if (error)
+			goto out_unlock;
+
+		/*
+		 * For buffered writes we need to report the address of the
+		 * previous block (if there was any) so that the higher level
+		 * write code can perform read-modify-write operations.  For
+		 * direct I/O code, which must be block aligned we need to
+		 * report the newly allocated address.
+		 */
+		if (!(flags & IOMAP_DIRECT) &&
+		    orig.br_startblock != HOLESTARTBLOCK)
+			imap = orig;
 
 		end_fsb = imap.br_startoff + imap.br_blockcount;
 		length = XFS_FSB_TO_B(mp, end_fsb) - offset;
