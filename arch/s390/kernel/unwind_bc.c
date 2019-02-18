@@ -84,7 +84,7 @@ bool unwind_next_frame(struct unwind_state *state)
 	/* Decode any ftrace redirection */
 	if (ip == (unsigned long) return_to_handler)
 		ip = ftrace_graph_ret_addr(state->task, &state->graph_idx,
-					   ip, NULL);
+					   ip, (void *) sp);
 #endif
 
 	/* Update unwind state */

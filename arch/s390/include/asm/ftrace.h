@@ -11,6 +11,8 @@
 #define MCOUNT_RETURN_FIXUP	18
 #endif
 
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
+
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_CC_IS_CLANG
