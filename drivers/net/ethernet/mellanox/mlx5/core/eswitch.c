@@ -87,7 +87,7 @@ static struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
 {
 	u16 idx = mlx5_eswitch_vport_num_to_index(esw, vport_num);
 
-	WARN_ON(vport_num > esw->total_vports - 1);
+	WARN_ON(idx > esw->total_vports - 1);
 	return &esw->vports[idx];
 }
 
