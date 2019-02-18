@@ -612,7 +612,7 @@ zr36057_set_memgrab (struct zoran *zr,
 		zr->v4l_memgrab_active = 0;
 		zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 
-		/* reenable grabbing to screen if it was running */
+		/* re-enable grabbing to screen if it was running */
 		if (zr->v4l_overlay_active) {
 			zr36057_overlay(zr, 1);
 		} else {
