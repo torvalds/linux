@@ -54,6 +54,7 @@ enum amanda_strings {
 	SEARCH_DATA,
 	SEARCH_MESG,
 	SEARCH_INDEX,
+	SEARCH_STATE,
 };
 
 static struct {
@@ -79,6 +80,10 @@ static struct {
 	},
 	[SEARCH_INDEX] = {
 		.string = "INDEX ",
+		.len	= 6,
+	},
+	[SEARCH_STATE] = {
+		.string = "STATE ",
 		.len	= 6,
 	},
 };
@@ -124,7 +129,7 @@ static int amanda_help(struct sk_buff *skb,
 		goto out;
 	stop += start;
 
-	for (i = SEARCH_DATA; i <= SEARCH_INDEX; i++) {
+	for (i = SEARCH_DATA; i <= SEARCH_STATE; i++) {
 		off = skb_find_text(skb, start, stop, search[i].ts);
 		if (off == UINT_MAX)
 			continue;
@@ -168,7 +173,7 @@ out:
 }
 
 static const struct nf_conntrack_expect_policy amanda_exp_policy = {
-	.max_expected		= 3,
+	.max_expected		= 4,
 	.timeout		= 180,
 };
 
