@@ -1491,6 +1491,26 @@ struct drm_i915_gem_context_param {
 	 * drm_i915_gem_context_param_sseu.
 	 */
 #define I915_CONTEXT_PARAM_SSEU		0x7
+
+/*
+ * Not all clients may want to attempt automatic recover of a context after
+ * a hang (for example, some clients may only submit very small incremental
+ * batches relying on known logical state of previous batches which will never
+ * recover correctly and each attempt will hang), and so would prefer that
+ * the context is forever banned instead.
+ *
+ * If set to false (0), after a reset, subsequent (and in flight) rendering
+ * from this context is discarded, and the client will need to create a new
+ * context to use instead.
+ *
+ * If set to true (1), the kernel will automatically attempt to recover the
+ * context by skipping the hanging batch and executing the next batch starting
+ * from the default context state (discarding the incomplete logical context
+ * state lost due to the reset).
+ *
+ * On creation, all new contexts are marked as recoverable.
+ */
+#define I915_CONTEXT_PARAM_RECOVERABLE	0x8
 	__u64 value;
 };
 

@@ -66,7 +66,8 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 
 	bannable = i915_gem_context_is_bannable(ctx);
 	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
-	banned = score >= CONTEXT_SCORE_BAN_THRESHOLD;
+	banned = (!i915_gem_context_is_recoverable(ctx) ||
+		  score >= CONTEXT_SCORE_BAN_THRESHOLD);
 
 	/* Cool contexts don't accumulate client ban score */
 	if (!bannable)

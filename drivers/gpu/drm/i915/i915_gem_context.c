@@ -401,6 +401,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->remap_slice = ALL_L3_SLICES(dev_priv);
 
 	i915_gem_context_set_bannable(ctx);
+	i915_gem_context_set_recoverable(ctx);
+
 	ctx->ring_size = 4 * PAGE_SIZE;
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
@@ -951,6 +953,10 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		args->size = 0;
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
+	case I915_CONTEXT_PARAM_RECOVERABLE:
+		args->size = 0;
+		args->value = i915_gem_context_is_recoverable(ctx);
+		break;
 	case I915_CONTEXT_PARAM_PRIORITY:
 		args->size = 0;
 		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
@@ -1283,6 +1289,15 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			i915_gem_context_set_bannable(ctx);
 		else
 			i915_gem_context_clear_bannable(ctx);
+		break;
+
+	case I915_CONTEXT_PARAM_RECOVERABLE:
+		if (args->size)
+			ret = -EINVAL;
+		else if (args->value)
+			i915_gem_context_set_recoverable(ctx);
+		else
+			i915_gem_context_clear_recoverable(ctx);
 		break;
 
 	case I915_CONTEXT_PARAM_PRIORITY:
