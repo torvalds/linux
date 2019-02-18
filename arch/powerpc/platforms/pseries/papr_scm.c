@@ -513,7 +513,6 @@ static struct platform_driver papr_scm_driver = {
 	.remove = papr_scm_remove,
 	.driver = {
 		.name = "papr_scm",
-		.owner = THIS_MODULE,
 		.of_match_table = papr_scm_match,
 	},
 };
