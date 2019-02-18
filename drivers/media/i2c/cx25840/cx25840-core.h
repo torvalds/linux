@@ -66,7 +66,7 @@ enum cx25840_media_pads {
  * @is_initialized:	whether we have already loaded firmware into the chip
  *			and initialized it
  * @vbi_regs_offset:	offset of vbi regs
- * @fw_wait:		wait queue to wake an initalization function up when
+ * @fw_wait:		wait queue to wake an initialization function up when
  *			firmware loading (on a separate workqueue) finishes
  * @fw_work:		a work that actually loads the firmware on a separate
  *			workqueue

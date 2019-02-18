@@ -20,7 +20,7 @@
 #define REG_BGAIN	0x01	/* blue gain */
 #define REG_RGAIN	0x02	/* red gain */
 #define REG_GGAIN	0x03	/* green gain */
-#define REG_REG04	0x04	/* analog setting, dont change*/
+#define REG_REG04	0x04	/* analog setting, don't change*/
 #define REG_BAVG	0x05	/* b channel average */
 #define REG_GAVG	0x06	/* g channel average */
 #define REG_RAVG	0x07	/* r channel average */

@@ -721,7 +721,7 @@ static int ov5640_mod_reg(struct ov5640_dev *sensor, u16 reg,
 
 /*
  * After trying the various combinations, reading various
- * documentations spreaded around the net, and from the various
+ * documentations spread around the net, and from the various
  * feedback, the clock tree is probably as follows:
  *
  *   +--------------+

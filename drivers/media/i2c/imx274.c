@@ -405,12 +405,12 @@ static const struct reg_8 imx274_start_2[] = {
  */
 static const struct reg_8 imx274_start_3[] = {
 	{0x30F4, 0x00},
-	{0x3018, 0xA2}, /* XHS VHS OUTUPT */
+	{0x3018, 0xA2}, /* XHS VHS OUTPUT */
 	{IMX274_TABLE_END, 0x00}
 };
 
 /*
- * imx274 register configuration for stoping stream
+ * imx274 register configuration for stopping stream
  */
 static const struct reg_8 imx274_stop[] = {
 	{IMX274_STANDBY_REG, 0x01},
