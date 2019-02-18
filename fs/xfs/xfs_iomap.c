@@ -35,18 +35,40 @@
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
 						<< mp->m_writeio_log)
 
-void
+static int
+xfs_alert_fsblock_zero(
+	xfs_inode_t	*ip,
+	xfs_bmbt_irec_t	*imap)
+{
+	xfs_alert_tag(ip->i_mount, XFS_PTAG_FSBLOCK_ZERO,
+			"Access to block zero in inode %llu "
+			"start_block: %llx start_off: %llx "
+			"blkcnt: %llx extent-state: %x",
+		(unsigned long long)ip->i_ino,
+		(unsigned long long)imap->br_startblock,
+		(unsigned long long)imap->br_startoff,
+		(unsigned long long)imap->br_blockcount,
+		imap->br_state);
+	return -EFSCORRUPTED;
+}
+
+int
 xfs_bmbt_to_iomap(
 	struct xfs_inode	*ip,
 	struct iomap		*iomap,
-	struct xfs_bmbt_irec	*imap)
+	struct xfs_bmbt_irec	*imap,
+	bool			shared)
 {
 	struct xfs_mount	*mp = ip->i_mount;
+
+	if (unlikely(!imap->br_startblock && !XFS_IS_REALTIME_INODE(ip)))
+		return xfs_alert_fsblock_zero(ip, imap);
 
 	if (imap->br_startblock == HOLESTARTBLOCK) {
 		iomap->addr = IOMAP_NULL_ADDR;
 		iomap->type = IOMAP_HOLE;
-	} else if (imap->br_startblock == DELAYSTARTBLOCK) {
+	} else if (imap->br_startblock == DELAYSTARTBLOCK ||
+		   isnullstartblock(imap->br_startblock)) {
 		iomap->addr = IOMAP_NULL_ADDR;
 		iomap->type = IOMAP_DELALLOC;
 	} else {
@@ -60,6 +82,13 @@ xfs_bmbt_to_iomap(
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);
 	iomap->bdev = xfs_find_bdev_for_inode(VFS_I(ip));
 	iomap->dax_dev = xfs_find_daxdev_for_inode(VFS_I(ip));
+
+	if (xfs_ipincount(ip) &&
+	    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
+		iomap->flags |= IOMAP_F_DIRTY;
+	if (shared)
+		iomap->flags |= IOMAP_F_SHARED;
+	return 0;
 }
 
 static void
@@ -136,23 +165,6 @@ xfs_iomap_eof_align_last_fsb(
 			*last_fsb = new_last_fsb;
 	}
 	return 0;
-}
-
-STATIC int
-xfs_alert_fsblock_zero(
-	xfs_inode_t	*ip,
-	xfs_bmbt_irec_t	*imap)
-{
-	xfs_alert_tag(ip->i_mount, XFS_PTAG_FSBLOCK_ZERO,
-			"Access to block zero in inode %llu "
-			"start_block: %llx start_off: %llx "
-			"blkcnt: %llx extent-state: %x",
-		(unsigned long long)ip->i_ino,
-		(unsigned long long)imap->br_startblock,
-		(unsigned long long)imap->br_startoff,
-		(unsigned long long)imap->br_blockcount,
-		imap->br_state);
-	return -EFSCORRUPTED;
 }
 
 int
@@ -649,17 +661,7 @@ retry:
 	iomap->flags |= IOMAP_F_NEW;
 	trace_xfs_iomap_alloc(ip, offset, count, XFS_DATA_FORK, &got);
 done:
-	if (isnullstartblock(got.br_startblock))
-		got.br_startblock = DELAYSTARTBLOCK;
-
-	if (!got.br_startblock) {
-		error = xfs_alert_fsblock_zero(ip, &got);
-		if (error)
-			goto out_unlock;
-	}
-
-	xfs_bmbt_to_iomap(ip, iomap, &got);
-
+	error = xfs_bmbt_to_iomap(ip, iomap, &got, false);
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
@@ -976,15 +978,7 @@ xfs_file_iomap_begin(
 	trace_xfs_iomap_alloc(ip, offset, length, XFS_DATA_FORK, &imap);
 
 out_finish:
-	if (xfs_ipincount(ip) && (ip->i_itemp->ili_fsync_fields
-				& ~XFS_ILOG_TIMESTAMP))
-		iomap->flags |= IOMAP_F_DIRTY;
-
-	xfs_bmbt_to_iomap(ip, iomap, &imap);
-
-	if (shared)
-		iomap->flags |= IOMAP_F_SHARED;
-	return 0;
+	return xfs_bmbt_to_iomap(ip, iomap, &imap, shared);
 
 out_found:
 	ASSERT(nimaps);
@@ -1107,12 +1101,10 @@ xfs_xattr_iomap_begin(
 out_unlock:
 	xfs_iunlock(ip, lockmode);
 
-	if (!error) {
-		ASSERT(nimaps);
-		xfs_bmbt_to_iomap(ip, iomap, &imap);
-	}
-
-	return error;
+	if (error)
+		return error;
+	ASSERT(nimaps);
+	return xfs_bmbt_to_iomap(ip, iomap, &imap, false);
 }
 
 const struct iomap_ops xfs_xattr_iomap_ops = {
