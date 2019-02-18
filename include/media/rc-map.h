@@ -144,14 +144,14 @@ struct rc_map_list {
 /* Routines from rc-map.c */
 
 /**
- * rc_map_register() - Registers a Remote Controler scancode map
+ * rc_map_register() - Registers a Remote Controller scancode map
  *
  * @map:	pointer to struct rc_map_list
  */
 int rc_map_register(struct rc_map_list *map);
 
 /**
- * rc_map_unregister() - Unregisters a Remote Controler scancode map
+ * rc_map_unregister() - Unregisters a Remote Controller scancode map
  *
  * @map:	pointer to struct rc_map_list
  */

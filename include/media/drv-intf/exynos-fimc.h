@@ -81,7 +81,7 @@ struct fimc_source_info {
  * v4l2_device notification id. This is only for internal use in the kernel.
  * Sensor subdevs should issue S5P_FIMC_TX_END_NOTIFY notification in single
  * frame capture mode when there is only one VSYNC pulse issued by the sensor
- * at begining of the frame transmission.
+ * at beginning of the frame transmission.
  */
 #define S5P_FIMC_TX_END_NOTIFY _IO('e', 0)
 
