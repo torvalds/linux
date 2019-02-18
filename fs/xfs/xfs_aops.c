@@ -447,27 +447,28 @@ retry:
 
 	wpc->fork = XFS_DATA_FORK;
 
+	/* landed in a hole or beyond EOF? */
 	if (imap.br_startoff > offset_fsb) {
-		/* landed in a hole or beyond EOF */
 		imap.br_blockcount = imap.br_startoff - offset_fsb;
 		imap.br_startoff = offset_fsb;
 		imap.br_startblock = HOLESTARTBLOCK;
 		imap.br_state = XFS_EXT_NORM;
-	} else {
-		/*
-		 * Truncate to the next COW extent if there is one.  This is the
-		 * only opportunity to do this because we can skip COW fork
-		 * lookups for the subsequent blocks in the mapping; however,
-		 * the requirement to treat the COW range separately remains.
-		 */
-		if (cow_fsb != NULLFILEOFF &&
-		    cow_fsb < imap.br_startoff + imap.br_blockcount)
-			imap.br_blockcount = cow_fsb - imap.br_startoff;
-
-		/* got a delalloc extent? */
-		if (isnullstartblock(imap.br_startblock))
-			goto allocate_blocks;
 	}
+
+	/*
+	 * Truncate to the next COW extent if there is one.  This is the only
+	 * opportunity to do this because we can skip COW fork lookups for the
+	 * subsequent blocks in the mapping; however, the requirement to treat
+	 * the COW range separately remains.
+	 */
+	if (cow_fsb != NULLFILEOFF &&
+	    cow_fsb < imap.br_startoff + imap.br_blockcount)
+		imap.br_blockcount = cow_fsb - imap.br_startoff;
+
+	/* got a delalloc extent? */
+	if (imap.br_startblock != HOLESTARTBLOCK &&
+	    isnullstartblock(imap.br_startblock))
+		goto allocate_blocks;
 
 	wpc->imap = imap;
 	trace_xfs_map_blocks_found(ip, offset, count, wpc->fork, &imap);
