@@ -46,7 +46,6 @@ enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 
 #define QED_IWARP_LL2_SYN_TX_SIZE       (128)
 #define QED_IWARP_LL2_SYN_RX_SIZE       (256)
-#define QED_IWARP_MAX_SYN_PKT_SIZE      (128)
 
 #define QED_IWARP_LL2_OOO_DEF_TX_SIZE   (256)
 #define QED_IWARP_MAX_OOO		(16)
