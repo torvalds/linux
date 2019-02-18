@@ -2328,6 +2328,9 @@ static struct attribute *nvme_subsys_attrs[] = {
 	&subsys_attr_serial.attr,
 	&subsys_attr_firmware_rev.attr,
 	&subsys_attr_subsysnqn.attr,
+#ifdef CONFIG_NVME_MULTIPATH
+	&subsys_attr_iopolicy.attr,
+#endif
 	NULL,
 };
 
@@ -2380,6 +2383,9 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	memcpy(subsys->firmware_rev, id->fr, sizeof(subsys->firmware_rev));
 	subsys->vendor_id = le16_to_cpu(id->vid);
 	subsys->cmic = id->cmic;
+#ifdef CONFIG_NVME_MULTIPATH
+	subsys->iopolicy = NVME_IOPOLICY_NUMA;
+#endif
 
 	subsys->dev.class = nvme_subsys_class;
 	subsys->dev.release = nvme_release_subsystem;
