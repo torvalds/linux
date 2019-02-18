@@ -256,6 +256,31 @@ int __must_check rdma_restrack_get(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_restrack_get);
 
+/**
+ * rdma_restrack_get_byid() - translate from ID to restrack object
+ * @dev: IB device
+ * @type: resource track type
+ * @id: ID to take a look
+ *
+ * Return: Pointer to restrack entry or -ENOENT in case of error.
+ */
+struct rdma_restrack_entry *
+rdma_restrack_get_byid(struct ib_device *dev,
+		       enum rdma_restrack_type type, u32 id)
+{
+	struct rdma_restrack_root *rt = &dev->res;
+	struct rdma_restrack_entry *res;
+
+	down_read(&dev->res.rwsem);
+	res = xa_load(&rt->xa[type], id);
+	if (!res || !rdma_restrack_get(res))
+		res = ERR_PTR(-ENOENT);
+	up_read(&dev->res.rwsem);
+
+	return res;
+}
+EXPORT_SYMBOL(rdma_restrack_get_byid);
+
 static void restrack_release(struct kref *kref)
 {
 	struct rdma_restrack_entry *res;
