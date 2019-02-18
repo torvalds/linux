@@ -95,9 +95,6 @@ struct xfs_extent_free_item
 /* Map something in the CoW fork. */
 #define XFS_BMAPI_COWFORK	0x200
 
-/* Only convert unwritten extents, don't allocate new blocks */
-#define XFS_BMAPI_CONVERT_ONLY	0x800
-
 /* Skip online discard of freed extents */
 #define XFS_BMAPI_NODISCARD	0x1000
 
@@ -114,7 +111,6 @@ struct xfs_extent_free_item
 	{ XFS_BMAPI_ZERO,	"ZERO" }, \
 	{ XFS_BMAPI_REMAP,	"REMAP" }, \
 	{ XFS_BMAPI_COWFORK,	"COWFORK" }, \
-	{ XFS_BMAPI_CONVERT_ONLY, "CONVERT_ONLY" }, \
 	{ XFS_BMAPI_NODISCARD,	"NODISCARD" }, \
 	{ XFS_BMAPI_NORMAP,	"NORMAP" }
 
@@ -226,6 +222,10 @@ int	xfs_bmapi_reserve_delalloc(struct xfs_inode *ip, int whichfork,
 int	xfs_bmapi_convert_delalloc(struct xfs_inode *ip, int whichfork,
 		xfs_fileoff_t offset_fsb, struct xfs_bmbt_irec *imap,
 		unsigned int *seq);
+int	xfs_bmap_add_extent_unwritten_real(struct xfs_trans *tp,
+		struct xfs_inode *ip, int whichfork,
+		struct xfs_iext_cursor *icur, struct xfs_btree_cur **curp,
+		struct xfs_bmbt_irec *new, int *logflagsp);
 
 static inline void
 xfs_bmap_add_free(
