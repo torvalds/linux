@@ -3922,9 +3922,6 @@ void intel_finish_reset(struct drm_i915_private *dev_priv)
 		 * The display has been reset as well,
 		 * so need a full re-initialization.
 		 */
-		intel_runtime_pm_disable_interrupts(dev_priv);
-		intel_runtime_pm_enable_interrupts(dev_priv);
-
 		intel_pps_unlock_regs_wa(dev_priv);
 		intel_modeset_init_hw(dev);
 		intel_init_clock_gating(dev_priv);

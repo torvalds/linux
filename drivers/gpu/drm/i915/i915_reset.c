@@ -995,10 +995,16 @@ void i915_reset(struct drm_i915_private *i915,
 		goto error;
 	}
 
+	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		intel_runtime_pm_disable_interrupts(i915);
+
 	if (do_reset(i915, stalled_mask)) {
 		dev_err(i915->drm.dev, "Failed to reset chip\n");
 		goto taint;
 	}
+
+	if (INTEL_INFO(i915)->gpu_reset_clobbers_display)
+		intel_runtime_pm_enable_interrupts(i915);
 
 	intel_overlay_reset(i915);
 
