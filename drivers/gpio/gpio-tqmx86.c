@@ -93,8 +93,9 @@ static int tqmx86_gpio_direction_output(struct gpio_chip *chip,
 	/* Direction cannot be changed, validate is an output */
 	if (BIT(offset) & TQMX86_DIR_INPUT_MASK)
 		return -EINVAL;
-	else
-		return 0;
+
+	tqmx86_gpio_set(chip, offset, value);
+	return 0;
 }
 
 static int tqmx86_gpio_get_direction(struct gpio_chip *chip,
