@@ -655,7 +655,7 @@ static int send_halfclose(struct c4iw_ep *ep)
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
-void read_tcb(struct c4iw_ep *ep)
+static void read_tcb(struct c4iw_ep *ep)
 {
 	struct sk_buff *skb;
 	struct cpl_get_tcb *req;
