@@ -528,13 +528,13 @@ static int pctv452e_power_ctrl(struct dvb_usb_device *d, int i)
 
 	rx = b0 + 5;
 
-	/* hmm where shoud this should go? */
+	/* hmm where should this should go? */
 	ret = usb_set_interface(d->udev, 0, ISOC_INTERFACE_ALTERNATIVE);
 	if (ret != 0)
 		info("%s: Warning set interface returned: %d\n",
 			__func__, ret);
 
-	/* this is a one-time initialization, dont know where to put */
+	/* this is a one-time initialization, don't know where to put */
 	b0[0] = 0xaa;
 	b0[1] = state->c++;
 	b0[2] = PCTV_CMD_RESET;

@@ -180,7 +180,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			field = (header >> 11) & 0x1;
 			line  = (header >> 12) & 0x1ff;
 			cmd   = (header >> 21) & 0x7;
-			/* Validates haeder fields */
+			/* Validates header fields */
 			if (size > TM6000_URB_MSG_LEN)
 				size = TM6000_URB_MSG_LEN;
 			pktsize = TM6000_URB_MSG_LEN;

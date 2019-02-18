@@ -155,7 +155,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			/*
 			 * The TM6000 only supports a read transaction
 			 * immediately after a 1 or 2 byte write to select
-			 * a register.  We cannot fulfil this request.
+			 * a register.  We cannot fulfill this request.
 			 */
 			i2c_dprintk(2, " read without preceding write not supported");
 			rc = -EOPNOTSUPP;
