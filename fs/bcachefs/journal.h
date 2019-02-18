@@ -179,6 +179,11 @@ static inline unsigned jset_u64s(unsigned u64s)
 	return u64s + sizeof(struct jset_entry) / sizeof(u64);
 }
 
+static inline int journal_entry_overhead(struct journal *j)
+{
+	return sizeof(struct jset) / sizeof(u64) + j->entry_u64s_reserved;
+}
+
 static inline struct jset_entry *
 bch2_journal_add_entry_noreservation(struct journal_buf *buf, size_t u64s)
 {
@@ -225,7 +230,7 @@ static inline void bch2_journal_add_keys(struct journal *j, struct journal_res *
 			       id, 0, k, k->k.u64s);
 }
 
-void bch2_journal_buf_put_slowpath(struct journal *, bool);
+void __bch2_journal_buf_put(struct journal *, bool);
 
 static inline void bch2_journal_buf_put(struct journal *j, unsigned idx,
 				       bool need_write_just_set)
@@ -236,17 +241,10 @@ static inline void bch2_journal_buf_put(struct journal *j, unsigned idx,
 				    .buf0_count = idx == 0,
 				    .buf1_count = idx == 1,
 				    }).v, &j->reservations.counter);
-
-	EBUG_ON(s.idx != idx && !s.prev_buf_unwritten);
-
-	/*
-	 * Do not initiate a journal write if the journal is in an error state
-	 * (previous journal entry write may have failed)
-	 */
-	if (s.idx != idx &&
-	    !journal_state_count(s, idx) &&
-	    s.cur_entry_offset != JOURNAL_ENTRY_ERROR_VAL)
-		bch2_journal_buf_put_slowpath(j, need_write_just_set);
+	if (!journal_state_count(s, idx)) {
+		EBUG_ON(s.idx == idx || !s.prev_buf_unwritten);
+		__bch2_journal_buf_put(j, need_write_just_set);
+	}
 }
 
 /*
@@ -332,6 +330,8 @@ out:
 	}
 	return 0;
 }
+
+/* journal_entry_res: */
 
 void bch2_journal_entry_res_resize(struct journal *,
 				   struct journal_entry_res *,

@@ -40,7 +40,7 @@ int bch2_journal_read(struct bch_fs *, struct list_head *);
 void bch2_journal_entries_free(struct list_head *);
 int bch2_journal_replay(struct bch_fs *, struct list_head *);
 
-int bch2_journal_entry_sectors(struct journal *);
+int bch2_journal_space_available(struct journal *);
 void bch2_journal_write(struct closure *);
 
 #endif /* _BCACHEFS_JOURNAL_IO_H */
