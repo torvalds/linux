@@ -5,11 +5,6 @@
 struct nf_nat_l3proto {
 	u8	l3proto;
 
-	void	(*csum_update)(struct sk_buff *skb, unsigned int iphdroff,
-			       __sum16 *check,
-			       const struct nf_conntrack_tuple *t,
-			       enum nf_nat_manip_type maniptype);
-
 	void	(*csum_recalc)(struct sk_buff *skb, u8 proto,
 			       void *data, __sum16 *check,
 			       int datalen, int oldlen);
