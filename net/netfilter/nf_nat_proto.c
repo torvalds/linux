@@ -22,7 +22,6 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_l3proto.h>
-#include <net/netfilter/nf_nat_l4proto.h>
 
 #include <linux/ipv6.h>
 #include <linux/netfilter_ipv6.h>
@@ -34,6 +33,7 @@
 
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -320,7 +320,7 @@ gre_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 
-bool nf_nat_l4proto_manip_pkt(struct sk_buff *skb,
+static bool l4proto_manip_pkt(struct sk_buff *skb,
 			      const struct nf_nat_l3proto *l3proto,
 			      unsigned int iphdroff, unsigned int hdroff,
 			      const struct nf_conntrack_tuple *tuple,
@@ -356,7 +356,6 @@ bool nf_nat_l4proto_manip_pkt(struct sk_buff *skb,
 	/* If we don't know protocol -- no error, pass it unmodified. */
 	return true;
 }
-EXPORT_SYMBOL_GPL(nf_nat_l4proto_manip_pkt);
 
 static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
@@ -372,8 +371,8 @@ static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 	iph = (void *)skb->data + iphdroff;
 	hdroff = iphdroff + iph->ihl * 4;
 
-	if (!nf_nat_l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv4, iphdroff,
-				      hdroff, target, maniptype))
+	if (!l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv4, iphdroff,
+			       hdroff, target, maniptype))
 		return false;
 	iph = (void *)skb->data + iphdroff;
 
@@ -409,8 +408,8 @@ static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 		goto manip_addr;
 
 	if ((frag_off & htons(~0x7)) == 0 &&
-	    !nf_nat_l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv6, iphdroff, hdroff,
-				      target, maniptype))
+	    !l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv6, iphdroff, hdroff,
+			       target, maniptype))
 		return false;
 
 	/* must reload, offset might have changed */
@@ -758,8 +757,6 @@ void nf_nat_l3proto_exit(void)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static const struct nf_nat_l3proto nf_nat_l3proto_ipv6;
-
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
 	.manip_pkt		= nf_nat_ipv6_manip_pkt,
