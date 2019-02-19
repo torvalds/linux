@@ -76,8 +76,11 @@ static size_t get_optee_rng_data(struct optee_rng_private *pvt_data,
 	u32 ret = 0;
 	u8 *rng_data = NULL;
 	size_t rng_size = 0;
-	struct tee_ioctl_invoke_arg inv_arg = {0};
-	struct tee_param param[4] = {0};
+	struct tee_ioctl_invoke_arg inv_arg;
+	struct tee_param param[4];
+
+	memset(&inv_arg, 0, sizeof(inv_arg));
+	memset(&param, 0, sizeof(param));
 
 	/* Invoke TA_CMD_GET_ENTROPY function of Trusted App */
 	inv_arg.func = TA_CMD_GET_ENTROPY;
@@ -173,8 +176,11 @@ static struct optee_rng_private pvt_data = {
 static int get_optee_rng_info(struct device *dev)
 {
 	u32 ret = 0;
-	struct tee_ioctl_invoke_arg inv_arg = {0};
-	struct tee_param param[4] = {0};
+	struct tee_ioctl_invoke_arg inv_arg;
+	struct tee_param param[4];
+
+	memset(&inv_arg, 0, sizeof(inv_arg));
+	memset(&param, 0, sizeof(param));
 
 	/* Invoke TA_CMD_GET_RNG_INFO function of Trusted App */
 	inv_arg.func = TA_CMD_GET_RNG_INFO;
@@ -209,7 +215,9 @@ static int optee_rng_probe(struct device *dev)
 {
 	struct tee_client_device *rng_device = to_tee_client_device(dev);
 	int ret = 0, err = -ENODEV;
-	struct tee_ioctl_open_session_arg sess_arg = {0};
+	struct tee_ioctl_open_session_arg sess_arg;
+
+	memset(&sess_arg, 0, sizeof(sess_arg));
 
 	/* Open context with TEE driver */
 	pvt_data.ctx = tee_client_open_context(NULL, optee_ctx_match, NULL,
