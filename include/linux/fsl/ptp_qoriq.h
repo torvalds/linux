@@ -183,7 +183,7 @@ static inline void qoriq_write_le(unsigned __iomem *addr, u32 val)
 
 irqreturn_t ptp_qoriq_isr(int irq, void *priv);
 int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
-		   const struct ptp_clock_info caps);
+		   const struct ptp_clock_info *caps);
 void ptp_qoriq_free(struct ptp_qoriq *ptp_qoriq);
 int ptp_qoriq_adjfine(struct ptp_clock_info *ptp, long scaled_ppm);
 int ptp_qoriq_adjtime(struct ptp_clock_info *ptp, s64 delta);

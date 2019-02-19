@@ -459,7 +459,7 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 }
 
 int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
-		   const struct ptp_clock_info caps)
+		   const struct ptp_clock_info *caps)
 {
 	struct device_node *node = ptp_qoriq->dev->of_node;
 	struct ptp_qoriq_registers *regs;
@@ -468,7 +468,7 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	u32 tmr_ctrl;
 
 	ptp_qoriq->base = base;
-	ptp_qoriq->caps = caps;
+	ptp_qoriq->caps = *caps;
 
 	if (of_property_read_u32(node, "fsl,cksel", &ptp_qoriq->cksel))
 		ptp_qoriq->cksel = DEFAULT_CKSEL;
@@ -605,7 +605,7 @@ static int ptp_qoriq_probe(struct platform_device *dev)
 		goto no_ioremap;
 	}
 
-	err = ptp_qoriq_init(ptp_qoriq, base, ptp_qoriq_caps);
+	err = ptp_qoriq_init(ptp_qoriq, base, &ptp_qoriq_caps);
 	if (err)
 		goto no_clock;
 

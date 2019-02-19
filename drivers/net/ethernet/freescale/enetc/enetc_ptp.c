@@ -92,7 +92,7 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 
 	ptp_qoriq->dev = &pdev->dev;
 
-	err = ptp_qoriq_init(ptp_qoriq, base, enetc_ptp_caps);
+	err = ptp_qoriq_init(ptp_qoriq, base, &enetc_ptp_caps);
 	if (err)
 		goto err_no_clock;
 
