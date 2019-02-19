@@ -2813,7 +2813,8 @@ out:
 }
 
 static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
-				      struct mlx5e_tc_flow *flow)
+				      struct mlx5e_tc_flow *flow,
+				      u16 flow_flags)
 {
 	struct mlx5e_priv *priv = flow->priv, *peer_priv;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch, *peer_esw;
@@ -2842,7 +2843,7 @@ static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
 		in_mdev = priv->mdev;
 
 	parse_attr = flow->esw_attr->parse_attr;
-	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow->flags,
+	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow_flags,
 					 parse_attr->filter_dev,
 					 flow->esw_attr->in_rep, in_mdev);
 	if (IS_ERR(peer_flow)) {
@@ -2880,7 +2881,7 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		return PTR_ERR(flow);
 
 	if (is_peer_flow_needed(flow)) {
-		err = mlx5e_tc_add_fdb_peer_flow(f, flow);
+		err = mlx5e_tc_add_fdb_peer_flow(f, flow, flow_flags);
 		if (err) {
 			mlx5e_tc_del_fdb_flow(priv, flow);
 			goto out;
