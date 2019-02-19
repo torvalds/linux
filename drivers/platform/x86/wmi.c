@@ -771,7 +771,7 @@ static int wmi_dev_match(struct device *dev, struct device_driver *driver)
 	if (id == NULL)
 		return 0;
 
-	while (id->guid_string) {
+	while (*id->guid_string) {
 		uuid_le driver_guid;
 
 		if (WARN_ON(uuid_le_to_bin(id->guid_string, &driver_guid)))
