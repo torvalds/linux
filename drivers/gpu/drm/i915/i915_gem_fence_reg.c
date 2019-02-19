@@ -270,24 +270,16 @@ static int fence_update(struct drm_i915_fence_reg *fence,
 		return 0;
 	}
 
-	ret = i915_reset_trylock(fence->i915);
-	if (ret < 0)
-		goto out_rpm;
-
+	WRITE_ONCE(fence->vma, vma);
 	fence_write(fence, vma);
-	fence->vma = vma;
 
 	if (vma) {
 		vma->fence = fence;
 		list_move_tail(&fence->link, &fence->i915->mm.fence_list);
 	}
 
-	i915_reset_unlock(fence->i915, ret);
-	ret = 0;
-
-out_rpm:
 	intel_runtime_pm_put(fence->i915, wakeref);
-	return ret;
+	return 0;
 }
 
 /**
