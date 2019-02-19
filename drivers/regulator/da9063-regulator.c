@@ -167,7 +167,7 @@ static int da9063_set_current_limit(struct regulator_dev *rdev,
 	const struct da9063_regulator_info *rinfo = regl->info;
 	int n, tval;
 
-	for (n = 0; n < rinfo->n_current_limits; n++) {
+	for (n = rinfo->n_current_limits - 1; n >= 0; n--) {
 		tval = rinfo->current_limits[n];
 		if (tval >= min_uA && tval <= max_uA)
 			return regmap_field_write(regl->ilimit, n);
