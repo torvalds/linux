@@ -1398,34 +1398,17 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	struct drm_dp_mst_branch *mstb =
 		container_of(kref, struct drm_dp_mst_branch, topology_kref);
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
-	struct drm_dp_mst_port *port, *tmp;
-	bool wake_tx = false;
 
-	mutex_lock(&mgr->lock);
-	list_for_each_entry_safe(port, tmp, &mstb->ports, next) {
-		list_del(&port->next);
-		drm_dp_mst_topology_put_port(port);
-	}
-	mutex_unlock(&mgr->lock);
+	INIT_LIST_HEAD(&mstb->destroy_next);
 
-	/* drop any tx slots msg */
-	mutex_lock(&mstb->mgr->qlock);
-	if (mstb->tx_slots[0]) {
-		mstb->tx_slots[0]->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
-		mstb->tx_slots[0] = NULL;
-		wake_tx = true;
-	}
-	if (mstb->tx_slots[1]) {
-		mstb->tx_slots[1]->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
-		mstb->tx_slots[1] = NULL;
-		wake_tx = true;
-	}
-	mutex_unlock(&mstb->mgr->qlock);
-
-	if (wake_tx)
-		wake_up_all(&mstb->mgr->tx_waitq);
-
-	drm_dp_mst_put_mstb_malloc(mstb);
+	/*
+	 * This can get called under mgr->mutex, so we need to perform the
+	 * actual destruction of the mstb in another worker
+	 */
+	mutex_lock(&mgr->delayed_destroy_lock);
+	list_add(&mstb->destroy_next, &mgr->destroy_branch_device_list);
+	mutex_unlock(&mgr->delayed_destroy_lock);
+	schedule_work(&mgr->delayed_destroy_work);
 }
 
 /**
@@ -1540,10 +1523,10 @@ static void drm_dp_destroy_port(struct kref *kref)
 			 * we might be holding the mode_config.mutex
 			 * from an EDID retrieval */
 
-			mutex_lock(&mgr->destroy_connector_lock);
-			list_add(&port->next, &mgr->destroy_connector_list);
-			mutex_unlock(&mgr->destroy_connector_lock);
-			schedule_work(&mgr->destroy_connector_work);
+			mutex_lock(&mgr->delayed_destroy_lock);
+			list_add(&port->next, &mgr->destroy_port_list);
+			mutex_unlock(&mgr->delayed_destroy_lock);
+			schedule_work(&mgr->delayed_destroy_work);
 			return;
 		}
 		/* no need to clean up vcpi
@@ -3085,7 +3068,7 @@ void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr)
 			   DP_MST_EN | DP_UPSTREAM_IS_SRC);
 	mutex_unlock(&mgr->lock);
 	flush_work(&mgr->work);
-	flush_work(&mgr->destroy_connector_work);
+	flush_work(&mgr->delayed_destroy_work);
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_suspend);
 
@@ -3995,34 +3978,104 @@ static void drm_dp_tx_work(struct work_struct *work)
 	mutex_unlock(&mgr->qlock);
 }
 
-static void drm_dp_destroy_connector_work(struct work_struct *work)
+static inline void
+drm_dp_delayed_destroy_port(struct drm_dp_mst_port *port)
 {
-	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, destroy_connector_work);
-	struct drm_dp_mst_port *port;
-	bool send_hotplug = false;
+	port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+
+	drm_dp_port_teardown_pdt(port, port->pdt);
+	port->pdt = DP_PEER_DEVICE_NONE;
+
+	drm_dp_mst_put_port_malloc(port);
+}
+
+static inline void
+drm_dp_delayed_destroy_mstb(struct drm_dp_mst_branch *mstb)
+{
+	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
+	struct drm_dp_mst_port *port, *tmp;
+	bool wake_tx = false;
+
+	mutex_lock(&mgr->lock);
+	list_for_each_entry_safe(port, tmp, &mstb->ports, next) {
+		list_del(&port->next);
+		drm_dp_mst_topology_put_port(port);
+	}
+	mutex_unlock(&mgr->lock);
+
+	/* drop any tx slots msg */
+	mutex_lock(&mstb->mgr->qlock);
+	if (mstb->tx_slots[0]) {
+		mstb->tx_slots[0]->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
+		mstb->tx_slots[0] = NULL;
+		wake_tx = true;
+	}
+	if (mstb->tx_slots[1]) {
+		mstb->tx_slots[1]->state = DRM_DP_SIDEBAND_TX_TIMEOUT;
+		mstb->tx_slots[1] = NULL;
+		wake_tx = true;
+	}
+	mutex_unlock(&mstb->mgr->qlock);
+
+	if (wake_tx)
+		wake_up_all(&mstb->mgr->tx_waitq);
+
+	drm_dp_mst_put_mstb_malloc(mstb);
+}
+
+static void drm_dp_delayed_destroy_work(struct work_struct *work)
+{
+	struct drm_dp_mst_topology_mgr *mgr =
+		container_of(work, struct drm_dp_mst_topology_mgr,
+			     delayed_destroy_work);
+	bool send_hotplug = false, go_again;
+
 	/*
 	 * Not a regular list traverse as we have to drop the destroy
-	 * connector lock before destroying the connector, to avoid AB->BA
+	 * connector lock before destroying the mstb/port, to avoid AB->BA
 	 * ordering between this lock and the config mutex.
 	 */
-	for (;;) {
-		mutex_lock(&mgr->destroy_connector_lock);
-		port = list_first_entry_or_null(&mgr->destroy_connector_list, struct drm_dp_mst_port, next);
-		if (!port) {
-			mutex_unlock(&mgr->destroy_connector_lock);
-			break;
+	do {
+		go_again = false;
+
+		for (;;) {
+			struct drm_dp_mst_branch *mstb;
+
+			mutex_lock(&mgr->delayed_destroy_lock);
+			mstb = list_first_entry_or_null(&mgr->destroy_branch_device_list,
+							struct drm_dp_mst_branch,
+							destroy_next);
+			if (mstb)
+				list_del(&mstb->destroy_next);
+			mutex_unlock(&mgr->delayed_destroy_lock);
+
+			if (!mstb)
+				break;
+
+			drm_dp_delayed_destroy_mstb(mstb);
+			go_again = true;
 		}
-		list_del(&port->next);
-		mutex_unlock(&mgr->destroy_connector_lock);
 
-		mgr->cbs->destroy_connector(mgr, port->connector);
+		for (;;) {
+			struct drm_dp_mst_port *port;
 
-		drm_dp_port_teardown_pdt(port, port->pdt);
-		port->pdt = DP_PEER_DEVICE_NONE;
+			mutex_lock(&mgr->delayed_destroy_lock);
+			port = list_first_entry_or_null(&mgr->destroy_port_list,
+							struct drm_dp_mst_port,
+							next);
+			if (port)
+				list_del(&port->next);
+			mutex_unlock(&mgr->delayed_destroy_lock);
 
-		drm_dp_mst_put_port_malloc(port);
-		send_hotplug = true;
-	}
+			if (!port)
+				break;
+
+			drm_dp_delayed_destroy_port(port);
+			send_hotplug = true;
+			go_again = true;
+		}
+	} while (go_again);
+
 	if (send_hotplug)
 		drm_kms_helper_hotplug_event(mgr->dev);
 }
@@ -4212,12 +4265,13 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
 	mutex_init(&mgr->payload_lock);
-	mutex_init(&mgr->destroy_connector_lock);
+	mutex_init(&mgr->delayed_destroy_lock);
 	INIT_LIST_HEAD(&mgr->tx_msg_downq);
-	INIT_LIST_HEAD(&mgr->destroy_connector_list);
+	INIT_LIST_HEAD(&mgr->destroy_port_list);
+	INIT_LIST_HEAD(&mgr->destroy_branch_device_list);
 	INIT_WORK(&mgr->work, drm_dp_mst_link_probe_work);
 	INIT_WORK(&mgr->tx_work, drm_dp_tx_work);
-	INIT_WORK(&mgr->destroy_connector_work, drm_dp_destroy_connector_work);
+	INIT_WORK(&mgr->delayed_destroy_work, drm_dp_delayed_destroy_work);
 	init_waitqueue_head(&mgr->tx_waitq);
 	mgr->dev = dev;
 	mgr->aux = aux;
@@ -4258,7 +4312,7 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 {
 	drm_dp_mst_topology_mgr_set_mst(mgr, false);
 	flush_work(&mgr->work);
-	flush_work(&mgr->destroy_connector_work);
+	cancel_work_sync(&mgr->delayed_destroy_work);
 	mutex_lock(&mgr->payload_lock);
 	kfree(mgr->payloads);
 	mgr->payloads = NULL;
@@ -4270,7 +4324,7 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	drm_atomic_private_obj_fini(&mgr->base);
 	mgr->funcs = NULL;
 
-	mutex_destroy(&mgr->destroy_connector_lock);
+	mutex_destroy(&mgr->delayed_destroy_lock);
 	mutex_destroy(&mgr->payload_lock);
 	mutex_destroy(&mgr->qlock);
 	mutex_destroy(&mgr->lock);

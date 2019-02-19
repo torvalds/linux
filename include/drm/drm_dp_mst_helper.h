@@ -143,6 +143,12 @@ struct drm_dp_mst_branch {
 	 */
 	struct kref malloc_kref;
 
+	/**
+	 * @destroy_next: linked-list entry used by
+	 * drm_dp_delayed_destroy_work()
+	 */
+	struct list_head destroy_next;
+
 	u8 rad[8];
 	u8 lct;
 	int num_ports;
@@ -571,18 +577,24 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct tx_work;
 
 	/**
-	 * @destroy_connector_list: List of to be destroyed connectors.
+	 * @destroy_port_list: List of to be destroyed connectors.
 	 */
-	struct list_head destroy_connector_list;
+	struct list_head destroy_port_list;
 	/**
-	 * @destroy_connector_lock: Protects @connector_list.
+	 * @destroy_branch_device_list: List of to be destroyed branch
+	 * devices.
 	 */
-	struct mutex destroy_connector_lock;
+	struct list_head destroy_branch_device_list;
 	/**
-	 * @destroy_connector_work: Work item to destroy connectors. Needed to
-	 * avoid locking inversion.
+	 * @delayed_destroy_lock: Protects @destroy_port_list and
+	 * @destroy_branch_device_list.
 	 */
-	struct work_struct destroy_connector_work;
+	struct mutex delayed_destroy_lock;
+	/**
+	 * @delayed_destroy_work: Work item to destroy MST port and branch
+	 * devices, needed to avoid locking inversion.
+	 */
+	struct work_struct delayed_destroy_work;
 };
 
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
