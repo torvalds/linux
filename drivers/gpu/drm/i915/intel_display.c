@@ -12218,12 +12218,15 @@ static void verify_wm_state(struct drm_crtc *crtc,
 			    struct drm_crtc_state *new_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct skl_ddb_allocation hw_ddb, *sw_ddb;
-	struct skl_pipe_wm hw_wm, *sw_wm;
-	struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
+	struct skl_hw_state {
+		struct skl_ddb_entry ddb_y[I915_MAX_PLANES];
+		struct skl_ddb_entry ddb_uv[I915_MAX_PLANES];
+		struct skl_ddb_allocation ddb;
+		struct skl_pipe_wm wm;
+	} *hw;
+	struct skl_ddb_allocation *sw_ddb;
+	struct skl_pipe_wm *sw_wm;
 	struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
-	struct skl_ddb_entry hw_ddb_y[I915_MAX_PLANES];
-	struct skl_ddb_entry hw_ddb_uv[I915_MAX_PLANES];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const enum pipe pipe = intel_crtc->pipe;
 	int plane, level, max_level = ilk_wm_max_level(dev_priv);
@@ -12231,22 +12234,29 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	if (INTEL_GEN(dev_priv) < 9 || !new_state->active)
 		return;
 
-	skl_pipe_wm_get_hw_state(intel_crtc, &hw_wm);
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	if (!hw)
+		return;
+
+	skl_pipe_wm_get_hw_state(intel_crtc, &hw->wm);
 	sw_wm = &to_intel_crtc_state(new_state)->wm.skl.optimal;
 
-	skl_pipe_ddb_get_hw_state(intel_crtc, hw_ddb_y, hw_ddb_uv);
+	skl_pipe_ddb_get_hw_state(intel_crtc, hw->ddb_y, hw->ddb_uv);
 
-	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
+	skl_ddb_get_hw_state(dev_priv, &hw->ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		if (hw_ddb.enabled_slices != sw_ddb->enabled_slices)
-			DRM_ERROR("mismatch in DBUF Slices (expected %u, got %u)\n",
-				  sw_ddb->enabled_slices,
-				  hw_ddb.enabled_slices);
+	if (INTEL_GEN(dev_priv) >= 11 &&
+	    hw->ddb.enabled_slices != sw_ddb->enabled_slices)
+		DRM_ERROR("mismatch in DBUF Slices (expected %u, got %u)\n",
+			  sw_ddb->enabled_slices,
+			  hw->ddb.enabled_slices);
+
 	/* planes */
 	for_each_universal_plane(dev_priv, pipe, plane) {
-		hw_plane_wm = &hw_wm.planes[plane];
+		struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
+
+		hw_plane_wm = &hw->wm.planes[plane];
 		sw_plane_wm = &sw_wm->planes[plane];
 
 		/* Watermarks */
@@ -12278,7 +12288,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw_ddb_y[plane];
+		hw_ddb_entry = &hw->ddb_y[plane];
 		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[plane];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
@@ -12296,7 +12306,9 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	 * once the plane becomes visible, we can skip this check
 	 */
 	if (1) {
-		hw_plane_wm = &hw_wm.planes[PLANE_CURSOR];
+		struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
+
+		hw_plane_wm = &hw->wm.planes[PLANE_CURSOR];
 		sw_plane_wm = &sw_wm->planes[PLANE_CURSOR];
 
 		/* Watermarks */
@@ -12328,7 +12340,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw_ddb_y[PLANE_CURSOR];
+		hw_ddb_entry = &hw->ddb_y[PLANE_CURSOR];
 		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[PLANE_CURSOR];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
@@ -12338,6 +12350,8 @@ static void verify_wm_state(struct drm_crtc *crtc,
 				  hw_ddb_entry->start, hw_ddb_entry->end);
 		}
 	}
+
+	kfree(hw);
 }
 
 static void
