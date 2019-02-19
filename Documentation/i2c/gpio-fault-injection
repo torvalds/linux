@@ -83,3 +83,28 @@ This is why bus recovery (up to 9 clock pulses) must either check SDA or send
 additional STOP conditions to ensure the bus has been released. Otherwise
 random data will be written to a device!
 
+Lost arbitration
+================
+
+Here, we want to simulate the condition where the master under test loses the
+bus arbitration against another master in a multi-master setup.
+
+"lose_arbitration"
+------------------
+
+This file is write only and you need to write the duration of the arbitration
+intereference (in µs, maximum is 100ms). The calling process will then sleep
+and wait for the next bus clock. The process is interruptible, though.
+
+Arbitration lost is achieved by waiting for SCL going down by the master under
+test and then pulling SDA low for some time. So, the I2C address sent out
+should be corrupted and that should be detected properly. That means that the
+address sent out should have a lot of '1' bits to be able to detect corruption.
+There doesn't need to be a device at this address because arbitration lost
+should be detected beforehand. Also note, that SCL going down is monitored
+using interrupts, so the interrupt latency might cause the first bits to be not
+corrupted. A good starting point for using this fault injector on an otherwise
+idle bus is:
+
+# echo 200 > lose_arbitration &
+# i2cget -y <bus_to_test> 0x3f
