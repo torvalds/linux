@@ -830,7 +830,7 @@ static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * either this call here to intel_engine_write_global_seqno, or the one
 	 * in nop_submit_request.
 	 */
-	synchronize_rcu();
+	synchronize_rcu_expedited();
 
 	/* Mark all executing requests as skipped */
 	for_each_engine(engine, i915, id)
