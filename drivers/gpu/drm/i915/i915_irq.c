@@ -1288,6 +1288,18 @@ static void gen6_pm_rps_work(struct work_struct *work)
 
 	rps->last_adj = adj;
 
+	/*
+	 * Limit deboosting and boosting to keep ourselves at the extremes
+	 * when in the respective power modes (i.e. slowly decrease frequencies
+	 * while in the HIGH_POWER zone and slowly increase frequencies while
+	 * in the LOW_POWER zone). On idle, we will hit the timeout and drop
+	 * to the next level quickly, and conversely if busy we expect to
+	 * hit a waitboost and rapidly switch into max power.
+	 */
+	if ((adj < 0 && rps->power.mode == HIGH_POWER) ||
+	    (adj > 0 && rps->power.mode == LOW_POWER))
+		rps->last_adj = 0;
+
 	/* sysfs frequency interfaces may have snuck in while servicing the
 	 * interrupt
 	 */
