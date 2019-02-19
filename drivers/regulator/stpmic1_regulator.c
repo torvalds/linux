@@ -56,8 +56,9 @@ enum {
 #define PMIC_ENABLE_TIME_US 2200
 
 static const struct regulator_linear_range buck1_ranges[] = {
-	REGULATOR_LINEAR_RANGE(600000, 0, 30, 25000),
-	REGULATOR_LINEAR_RANGE(1350000, 31, 63, 0),
+	REGULATOR_LINEAR_RANGE(725000, 0, 4, 0),
+	REGULATOR_LINEAR_RANGE(725000, 5, 36, 25000),
+	REGULATOR_LINEAR_RANGE(1500000, 37, 63, 0),
 };
 
 static const struct regulator_linear_range buck2_ranges[] = {
