@@ -604,6 +604,10 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
 		wr32(hw, GLINT_VECT2FUNC(v), reg);
 	}
 
+	/* Map mailbox interrupt. We put an explicit 0 here to remind us that
+	 * VF admin queue interrupts will go to VF MSI-X vector 0.
+	 */
+	wr32(hw, VPINT_MBX_CTL(abs_vf_id), VPINT_MBX_CTL_CAUSE_ENA_M | 0);
 	/* set regardless of mapping mode */
 	wr32(hw, VPLAN_TXQ_MAPENA(vf->vf_id), VPLAN_TXQ_MAPENA_TX_ENA_M);
 
