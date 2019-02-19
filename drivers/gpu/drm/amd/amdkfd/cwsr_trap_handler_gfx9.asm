@@ -150,10 +150,10 @@ var S_SAVE_SPI_INIT_MTYPE_SHIFT		=   28
 var S_SAVE_SPI_INIT_FIRST_WAVE_MASK	=   0x04000000		//bit[26]: FirstWaveInTG
 var S_SAVE_SPI_INIT_FIRST_WAVE_SHIFT	=   26
 
-var S_SAVE_PC_HI_RCNT_SHIFT		=   28			//FIXME	 check with Brian to ensure all fields other than PC[47:0] can be used
-var S_SAVE_PC_HI_RCNT_MASK		=   0xF0000000		//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_SHIFT	=   27			//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_MASK	=   0x08000000		//FIXME
+var S_SAVE_PC_HI_RCNT_SHIFT		=   27			//FIXME	 check with Brian to ensure all fields other than PC[47:0] can be used
+var S_SAVE_PC_HI_RCNT_MASK		=   0xF8000000		//FIXME
+var S_SAVE_PC_HI_FIRST_REPLAY_SHIFT	=   26			//FIXME
+var S_SAVE_PC_HI_FIRST_REPLAY_MASK	=   0x04000000		//FIXME
 
 var s_save_spi_init_lo		    =	exec_lo
 var s_save_spi_init_hi		    =	exec_hi
