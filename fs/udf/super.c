@@ -2330,13 +2330,10 @@ static int udf_sync_fs(struct super_block *sb, int wait)
 	mutex_lock(&sbi->s_alloc_mutex);
 	if (sbi->s_lvid_dirty) {
 		struct buffer_head *bh = sbi->s_lvid_bh;
+		struct logicalVolIntegrityDesc *lvid;
 
-		if (bh) {
-			struct logicalVolIntegrityDesc *lvid;
-
-			lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
-			udf_finalize_lvid(lvid);
-		}
+		lvid = (struct logicalVolIntegrityDesc *)bh->b_data;
+		udf_finalize_lvid(lvid);
 
 		/*
 		 * Blockdevice will be synced later so we don't have to submit
