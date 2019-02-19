@@ -34,7 +34,7 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 static int get_devices(struct tee_context *ctx, u32 session,
 		       struct tee_shm *device_shm, u32 *shm_size)
 {
-	u32 ret = 0;
+	int ret = 0;
 	struct tee_ioctl_invoke_arg inv_arg;
 	struct tee_param param[4];
 
