@@ -646,7 +646,7 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 * The following mb guarantees that previous clear of a PENDING bit
 	 * will not be reordered with any speculative LOADS or STORES from
 	 * work->current_func, which is executed afterwards.  This possible
-	 * reordering can lead to a missed execution on attempt to qeueue
+	 * reordering can lead to a missed execution on attempt to queue
 	 * the same @work.  E.g. consider this case:
 	 *
 	 *   CPU#0                         CPU#1
