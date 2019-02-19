@@ -1819,10 +1819,12 @@ static void s5p_set_aes(struct s5p_aes_dev *dev,
 	void __iomem *keystart;
 
 	if (iv)
-		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv,
+			    AES_BLOCK_SIZE);
 
 	if (ctr)
-		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_CNT_DATA(0), ctr, 0x10);
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_CNT_DATA(0), ctr,
+			    AES_BLOCK_SIZE);
 
 	if (keylen == AES_KEYSIZE_256)
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(0);
