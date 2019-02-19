@@ -535,9 +535,28 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 }
 #endif
 
+void nf_nat_csum_recalc(struct sk_buff *skb,
+			u8 nfproto, u8 proto, void *data, __sum16 *check,
+			int datalen, int oldlen)
+{
+	switch (nfproto) {
+	case NFPROTO_IPV4:
+		nf_nat_ipv4_csum_recalc(skb, proto, data, check,
+					datalen, oldlen);
+		return;
+#if IS_ENABLED(CONFIG_IPV6)
+	case NFPROTO_IPV6:
+		nf_nat_ipv6_csum_recalc(skb, proto, data, check,
+					datalen, oldlen);
+		return;
+#endif
+	}
+
+	WARN_ON_ONCE(1);
+}
+
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
-	.csum_recalc		= nf_nat_ipv4_csum_recalc,
 };
 
 int nf_nat_icmp_reply_translation(struct sk_buff *skb,
@@ -788,7 +807,6 @@ void nf_nat_l3proto_exit(void)
 #if IS_ENABLED(CONFIG_IPV6)
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
-	.csum_recalc		= nf_nat_ipv6_csum_recalc,
 };
 
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
