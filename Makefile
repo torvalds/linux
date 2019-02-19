@@ -1524,7 +1524,7 @@ $(DOC_TARGETS): scripts_basic FORCE
 
 PHONY += scripts_gdb
 scripts_gdb: prepare
-	$(Q)$(MAKE) $(build)=scripts/gdb/linux build_constants_py
+	$(Q)$(MAKE) $(build)=scripts/gdb
 
 ifdef CONFIG_GDB_SCRIPTS
 all: scripts_gdb
