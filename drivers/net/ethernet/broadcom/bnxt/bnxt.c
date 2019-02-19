@@ -6683,6 +6683,10 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 	    VER_GET_RESP_DEV_CAPS_CFG_FLOW_HANDLE_64BIT_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_OVS_64BIT_HANDLE;
 
+	if (dev_caps_cfg &
+	    VER_GET_RESP_DEV_CAPS_CFG_TRUSTED_VF_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_TRUSTED_VF;
+
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
