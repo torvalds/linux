@@ -2767,7 +2767,6 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 {
 	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
 	struct netlink_ext_ack *extack = f->common.extack;
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
 	int attr_size, err;
