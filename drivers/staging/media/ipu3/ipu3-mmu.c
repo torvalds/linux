@@ -238,7 +238,7 @@ static int __imgu_mmu_map(struct imgu_mmu *mmu, unsigned long iova,
 	return 0;
 }
 
-/**
+/*
  * The following four functions are implemented based on iommu.c
  * drivers/iommu/iommu.c/iommu_pgsize().
  */
@@ -444,6 +444,7 @@ size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 
 /**
  * imgu_mmu_init() - initialize IPU3 MMU block
+ * @parent:	struct device parent
  * @base:	IOMEM base of hardware registers.
  *
  * Return: Pointer to IPU3 MMU private data pointer or ERR_PTR() on error.
@@ -522,7 +523,7 @@ fail_group:
 
 /**
  * imgu_mmu_exit() - clean up IPU3 MMU block
- * @mmu: IPU3 MMU private data
+ * @info: IPU3 MMU private data
  */
 void imgu_mmu_exit(struct imgu_mmu_info *info)
 {
