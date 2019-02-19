@@ -395,13 +395,13 @@ static int acmac_set_sh_desc(struct crypto_ahash *ahash)
 }
 
 /* Digest hash size if it is too large */
-static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
-			   u32 *keylen, u8 *key_out, u32 digestsize)
+static int hash_digest_key(struct caam_hash_ctx *ctx, u32 *keylen, u8 *key,
+			   u32 digestsize)
 {
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
 	struct split_key_result result;
-	dma_addr_t src_dma, dst_dma;
+	dma_addr_t key_dma;
 	int ret;
 
 	desc = kmalloc(CAAM_CMD_SZ * 8 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
@@ -412,18 +412,9 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 
 	init_job_desc(desc, 0);
 
-	src_dma = dma_map_single(jrdev, (void *)key_in, *keylen,
-				 DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, src_dma)) {
-		dev_err(jrdev, "unable to map key input memory\n");
-		kfree(desc);
-		return -ENOMEM;
-	}
-	dst_dma = dma_map_single(jrdev, (void *)key_out, digestsize,
-				 DMA_FROM_DEVICE);
-	if (dma_mapping_error(jrdev, dst_dma)) {
-		dev_err(jrdev, "unable to map key output memory\n");
-		dma_unmap_single(jrdev, src_dma, *keylen, DMA_TO_DEVICE);
+	key_dma = dma_map_single(jrdev, key, *keylen, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(jrdev, key_dma)) {
+		dev_err(jrdev, "unable to map key memory\n");
 		kfree(desc);
 		return -ENOMEM;
 	}
@@ -431,16 +422,16 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 	/* Job descriptor to perform unkeyed hash on key_in */
 	append_operation(desc, ctx->adata.algtype | OP_ALG_ENCRYPT |
 			 OP_ALG_AS_INITFINAL);
-	append_seq_in_ptr(desc, src_dma, *keylen, 0);
+	append_seq_in_ptr(desc, key_dma, *keylen, 0);
 	append_seq_fifo_load(desc, *keylen, FIFOLD_CLASS_CLASS2 |
 			     FIFOLD_TYPE_LAST2 | FIFOLD_TYPE_MSG);
-	append_seq_out_ptr(desc, dst_dma, digestsize, 0);
+	append_seq_out_ptr(desc, key_dma, digestsize, 0);
 	append_seq_store(desc, digestsize, LDST_CLASS_2_CCB |
 			 LDST_SRCDST_BYTE_CONTEXT);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key_in@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, *keylen, 1);
+		       DUMP_PREFIX_ADDRESS, 16, 4, key, *keylen, 1);
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
@@ -456,12 +447,10 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR,
 			       "digested key@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, key_in,
-			       digestsize, 1);
+			       DUMP_PREFIX_ADDRESS, 16, 4, key, digestsize, 1);
 #endif
 	}
-	dma_unmap_single(jrdev, src_dma, *keylen, DMA_TO_DEVICE);
-	dma_unmap_single(jrdev, dst_dma, digestsize, DMA_FROM_DEVICE);
+	dma_unmap_single(jrdev, key_dma, *keylen, DMA_BIDIRECTIONAL);
 
 	*keylen = digestsize;
 
@@ -485,13 +474,10 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 #endif
 
 	if (keylen > blocksize) {
-		hashed_key = kmalloc_array(digestsize,
-					   sizeof(*hashed_key),
-					   GFP_KERNEL | GFP_DMA);
+		hashed_key = kmemdup(key, keylen, GFP_KERNEL | GFP_DMA);
 		if (!hashed_key)
 			return -ENOMEM;
-		ret = hash_digest_key(ctx, key, &keylen, hashed_key,
-				      digestsize);
+		ret = hash_digest_key(ctx, &keylen, hashed_key, digestsize);
 		if (ret)
 			goto bad_free_key;
 		key = hashed_key;
