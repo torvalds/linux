@@ -759,42 +759,18 @@ static int xs_send_kvec(struct socket *sock, struct msghdr *msg, struct kvec *ve
 	return xs_sendmsg(sock, msg, seek);
 }
 
-static int xs_send_pagedata(struct socket *sock, struct xdr_buf *xdr, unsigned int base, int more, bool zerocopy, int *sent_p)
+static int xs_send_pagedata(struct socket *sock, struct msghdr *msg, struct xdr_buf *xdr, size_t base)
 {
-	ssize_t (*do_sendpage)(struct socket *sock, struct page *page,
-			int offset, size_t size, int flags);
-	struct page **ppage;
-	unsigned int remainder;
 	int err;
 
-	remainder = xdr->page_len - base;
-	base += xdr->page_base;
-	ppage = xdr->pages + (base >> PAGE_SHIFT);
-	base &= ~PAGE_MASK;
-	do_sendpage = sock->ops->sendpage;
-	if (!zerocopy)
-		do_sendpage = sock_no_sendpage;
-	for(;;) {
-		unsigned int len = min_t(unsigned int, PAGE_SIZE - base, remainder);
-		int flags = XS_SENDMSG_FLAGS;
+	err = xdr_alloc_bvec(xdr, GFP_KERNEL);
+	if (err < 0)
+		return err;
 
-		remainder -= len;
-		if (more)
-			flags |= MSG_MORE;
-		if (remainder != 0)
-			flags |= MSG_SENDPAGE_NOTLAST | MSG_MORE;
-		err = do_sendpage(sock, *ppage, base, len, flags);
-		if (remainder == 0 || err != len)
-			break;
-		*sent_p += err;
-		ppage++;
-		base = 0;
-	}
-	if (err > 0) {
-		*sent_p += err;
-		err = 0;
-	}
-	return err;
+	iov_iter_bvec(&msg->msg_iter, WRITE, xdr->bvec,
+			xdr_buf_pagecount(xdr),
+			xdr->page_len + xdr->page_base);
+	return xs_sendmsg(sock, msg, base + xdr->page_base);
 }
 
 /**
@@ -817,7 +793,6 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	};
 	unsigned int remainder = xdr->len - base;
 	int err = 0;
-	int sent = 0;
 
 	if (unlikely(!sock))
 		return -ENOTSOCK;
@@ -843,10 +818,12 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	if (base < xdr->page_len) {
 		unsigned int len = xdr->page_len - base;
 		remainder -= len;
-		err = xs_send_pagedata(sock, xdr, base, remainder != 0, zerocopy, &sent);
-		*sent_p += sent;
-		if (remainder == 0 || sent != len)
+		if (remainder == 0)
+			msg.msg_flags &= ~MSG_MORE;
+		err = xs_send_pagedata(sock, &msg, xdr, base);
+		if (remainder == 0 || err != len)
 			goto out;
+		*sent_p += err;
 		base = 0;
 	} else
 		base -= xdr->page_len;

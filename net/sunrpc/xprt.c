@@ -1723,6 +1723,7 @@ void xprt_release(struct rpc_task *task)
 		xprt->ops->buf_free(task);
 	xprt_inject_disconnect(xprt);
 	xdr_free_bvec(&req->rq_rcv_buf);
+	xdr_free_bvec(&req->rq_snd_buf);
 	if (req->rq_cred != NULL)
 		put_rpccred(req->rq_cred);
 	task->tk_rqstp = NULL;
