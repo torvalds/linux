@@ -628,23 +628,17 @@ int etnaviv_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	lockdep_set_class(&to_etnaviv_bo(obj)->lock, &etnaviv_shm_lock_class);
 
 	ret = drm_gem_object_init(dev, obj, size);
-	if (ret == 0) {
-		struct address_space *mapping;
-
-		/*
-		 * Our buffers are kept pinned, so allocating them
-		 * from the MOVABLE zone is a really bad idea, and
-		 * conflicts with CMA. See comments above new_inode()
-		 * why this is required _and_ expected if you're
-		 * going to pin these pages.
-		 */
-		mapping = obj->filp->f_mapping;
-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER |
-				     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
-	}
-
 	if (ret)
 		goto fail;
+
+	/*
+	 * Our buffers are kept pinned, so allocating them from the MOVABLE
+	 * zone is a really bad idea, and conflicts with CMA. See comments
+	 * above new_inode() why this is required _and_ expected if you're
+	 * going to pin these pages.
+	 */
+	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
+			     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 
 	etnaviv_gem_obj_add(dev, obj);
 
