@@ -2477,7 +2477,7 @@ ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
  * @num_qgrps: number of groups in the list
  * @qg_list: the list of groups to disable
  * @buf_size: the total size of the qg_list buffer in bytes
- * @rst_src: if called due to reset, specifies the RST source
+ * @rst_src: if called due to reset, specifies the reset source
  * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
@@ -2874,7 +2874,7 @@ ena_txq_exit:
  * @num_queues: number of queues
  * @q_ids: pointer to the q_id array
  * @q_teids: pointer to queue node teids
- * @rst_src: if called due to reset, specifies the RST source
+ * @rst_src: if called due to reset, specifies the reset source
  * @vmvf_num: the relative VM or VF number that is undergoing the reset
  * @cd: pointer to command details structure or NULL
  *
@@ -2925,7 +2925,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 }
 
 /**
- * ice_cfg_vsi_qs - configure the new/exisiting VSI queues
+ * ice_cfg_vsi_qs - configure the new/existing VSI queues
  * @pi: port information structure
  * @vsi_handle: software VSI handle
  * @tc_bitmap: TC bitmap

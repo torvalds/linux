@@ -513,7 +513,7 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 
 	/* Clear this bit after VF initialization since we shouldn't reclaim
 	 * and reassign interrupts for synchronous or asynchronous VFR events.
-	 * We dont want to reconfigure interrupts since AVF driver doesn't
+	 * We don't want to reconfigure interrupts since AVF driver doesn't
 	 * expect vector assignment to be changed unless there is a request for
 	 * more vectors.
 	 */

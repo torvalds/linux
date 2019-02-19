@@ -162,7 +162,7 @@ struct ice_res_tracker {
 };
 
 struct ice_qs_cfg {
-	struct mutex *qs_mutex;  /* will be assgined to &pf->avail_q_mutex */
+	struct mutex *qs_mutex;  /* will be assigned to &pf->avail_q_mutex */
 	unsigned long *pf_map;
 	unsigned long pf_map_size;
 	unsigned int q_count;

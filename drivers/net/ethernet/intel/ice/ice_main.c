@@ -504,7 +504,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			pf->hw.reset_ongoing = false;
 			ice_rebuild(pf);
 			/* clear bit to resume normal operations, but
-			 * ICE_NEEDS_RESTART bit is set incase rebuild failed
+			 * ICE_NEEDS_RESTART bit is set in case rebuild failed
 			 */
 			clear_bit(__ICE_RESET_OICR_RECV, pf->state);
 			clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
