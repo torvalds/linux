@@ -5,6 +5,8 @@ Required properties:
  The SoC specific strings supported including:
 	"hisilicon,hi3516cv300-pwm"
 	"hisilicon,hi3519v100-pwm"
+	"hisilicon,hi3559v100-shub-pwm"
+	"hisilicon,hi3559v100-pwm
 - reg: physical base address and length of the controller's registers.
 - clocks: phandle and clock specifier of the PWM reference clock.
 - resets: phandle and reset specifier for the PWM controller reset.
