@@ -24,21 +24,10 @@
 #define MAX_PCI_BUSSES		40
 
 /*
- * Max #PCI devices (like scsi controllers) we handle on a bus.
- */
-#define MAX_DEVICES_PER_PCIBUS	8
-
-/*
  * XXX: No kmalloc available when we do our crosstalk scan,
  *	we should try to move it later in the boot process.
  */
 static struct bridge_controller bridges[MAX_PCI_BUSSES];
-
-/*
- * Translate from irq to software PCI bus number and PCI slot.
- */
-struct bridge_controller *irq_to_bridge[MAX_PCI_BUSSES * MAX_DEVICES_PER_PCIBUS];
-int irq_to_slot[MAX_PCI_BUSSES * MAX_DEVICES_PER_PCIBUS];
 
 extern struct pci_ops bridge_pci_ops;
 
@@ -77,7 +66,6 @@ int bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	bc->io.end		= ~0UL;
 	bc->io.flags		= IORESOURCE_IO;
 
-	bc->irq_cpu = smp_processor_id();
 	bc->widget_id = widget_id;
 	bc->nasid = nasid;
 
@@ -165,16 +153,12 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 
 	irq = bc->pci_int[slot];
 	if (irq == -1) {
-		irq = request_bridge_irq(bc);
+		irq = request_bridge_irq(bc, slot);
 		if (irq < 0)
 			return irq;
 
 		bc->pci_int[slot] = irq;
 	}
-
-	irq_to_bridge[irq] = bc;
-	irq_to_slot[irq] = slot;
-
 	dev->irq = irq;
 
 	return 0;

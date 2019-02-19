@@ -808,7 +808,6 @@ struct bridge_controller {
 	struct bridge_regs	*base;
 	nasid_t			nasid;
 	unsigned int		widget_id;
-	unsigned int		irq_cpu;
 	u64			baddr;
 	unsigned int		pci_int[8];
 };
@@ -823,8 +822,7 @@ struct bridge_controller {
 #define bridge_clr(bc, reg, val)	\
 	__raw_writel(__raw_readl(&bc->base->reg) & ~(val), &bc->base->reg)
 
-extern void register_bridge_irq(unsigned int irq);
-extern int request_bridge_irq(struct bridge_controller *bc);
+extern int request_bridge_irq(struct bridge_controller *bc, int pin);
 
 extern struct pci_ops bridge_pci_ops;
 
