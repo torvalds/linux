@@ -1905,7 +1905,7 @@ static void ath10k_htt_rx_h_enqueue(struct ath10k *ar,
 }
 
 static int ath10k_unchain_msdu(struct sk_buff_head *amsdu,
-			       unsigned long int *unchain_cnt)
+			       unsigned long *unchain_cnt)
 {
 	struct sk_buff *skb, *first;
 	int space;
@@ -1954,8 +1954,8 @@ static int ath10k_unchain_msdu(struct sk_buff_head *amsdu,
 
 static void ath10k_htt_rx_h_unchain(struct ath10k *ar,
 				    struct sk_buff_head *amsdu,
-				    unsigned long int *drop_cnt,
-				    unsigned long int *unchain_cnt)
+				    unsigned long *drop_cnt,
+				    unsigned long *unchain_cnt)
 {
 	struct sk_buff *first;
 	struct htt_rx_desc *rxd;
@@ -2005,7 +2005,7 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 static void ath10k_htt_rx_h_filter(struct ath10k *ar,
 				   struct sk_buff_head *amsdu,
 				   struct ieee80211_rx_status *rx_status,
-				   unsigned long int *drop_cnt)
+				   unsigned long *drop_cnt)
 {
 	if (skb_queue_empty(amsdu))
 		return;
@@ -2025,10 +2025,10 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct sk_buff_head amsdu;
 	int ret;
-	unsigned long int drop_cnt = 0;
-	unsigned long int unchain_cnt = 0;
-	unsigned long int drop_cnt_filter = 0;
-	unsigned long int msdus_to_queue, num_msdus;
+	unsigned long drop_cnt = 0;
+	unsigned long unchain_cnt = 0;
+	unsigned long drop_cnt_filter = 0;
+	unsigned long msdus_to_queue, num_msdus;
 	enum ath10k_pkt_rx_err err = ATH10K_PKT_RX_ERR_MAX;
 	u8 first_hdr[RX_HTT_HDR_STATUS_LEN];
 
