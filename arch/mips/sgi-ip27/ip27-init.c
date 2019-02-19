@@ -212,7 +212,6 @@ void __init plat_mem_setup(void)
 #endif
 
 	ioc3_eth_init();
-	per_cpu_init();
 
 	set_io_port_base(IO_BASE);
 }
