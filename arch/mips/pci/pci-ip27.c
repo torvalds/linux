@@ -47,7 +47,6 @@ int bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	unsigned long offset = NODE_OFFSET(nasid);
 	struct bridge_controller *bc;
 	static int num_bridges = 0;
-	bridge_t *bridge;
 	int slot;
 
 	pci_set_flags(PCI_PROBE_ONLY);
@@ -87,45 +86,43 @@ int bridge_probe(nasid_t nasid, int widget_id, int masterwid)
 	/*
 	 * point to this bridge
 	 */
-	bridge = (bridge_t *) RAW_NODE_SWIN_BASE(nasid, widget_id);
+	bc->base = (struct bridge_regs *)RAW_NODE_SWIN_BASE(nasid, widget_id);
 
 	/*
 	 * Clear all pending interrupts.
 	 */
-	bridge->b_int_rst_stat = BRIDGE_IRR_ALL_CLR;
+	bridge_write(bc, b_int_rst_stat, BRIDGE_IRR_ALL_CLR);
 
 	/*
 	 * Until otherwise set up, assume all interrupts are from slot 0
 	 */
-	bridge->b_int_device = 0x0;
+	bridge_write(bc, b_int_device, 0x0);
 
 	/*
 	 * swap pio's to pci mem and io space (big windows)
 	 */
-	bridge->b_wid_control |= BRIDGE_CTRL_IO_SWAP |
-				 BRIDGE_CTRL_MEM_SWAP;
+	bridge_set(bc, b_wid_control, BRIDGE_CTRL_IO_SWAP |
+				      BRIDGE_CTRL_MEM_SWAP);
 #ifdef CONFIG_PAGE_SIZE_4KB
-	bridge->b_wid_control &= ~BRIDGE_CTRL_PAGE_SIZE;
+	bridge_clr(bc, b_wid_control, BRIDGE_CTRL_PAGE_SIZE);
 #else /* 16kB or larger */
-	bridge->b_wid_control |= BRIDGE_CTRL_PAGE_SIZE;
+	bridge_set(bc, b_wid_control, BRIDGE_CTRL_PAGE_SIZE);
 #endif
 
 	/*
 	 * Hmm...  IRIX sets additional bits in the address which
 	 * are documented as reserved in the bridge docs.
 	 */
-	bridge->b_wid_int_upper = 0x8000 | (masterwid << 16);
-	bridge->b_wid_int_lower = 0x01800090;	/* PI_INT_PEND_MOD off*/
-	bridge->b_dir_map = (masterwid << 20);	/* DMA */
-	bridge->b_int_enable = 0;
+	bridge_write(bc, b_wid_int_upper, 0x8000 | (masterwid << 16));
+	bridge_write(bc, b_wid_int_lower, 0x01800090); /* PI_INT_PEND_MOD off*/
+	bridge_write(bc, b_dir_map, (masterwid << 20));	/* DMA */
+	bridge_write(bc, b_int_enable, 0);
 
 	for (slot = 0; slot < 8; slot ++) {
-		bridge->b_device[slot].reg |= BRIDGE_DEV_SWAP_DIR;
+		bridge_set(bc, b_device[slot].reg, BRIDGE_DEV_SWAP_DIR);
 		bc->pci_int[slot] = -1;
 	}
-	bridge->b_wid_tflush;	  /* wait until Bridge PIO complete */
-
-	bc->base = bridge;
+	bridge_read(bc, b_wid_tflush);	  /* wait until Bridge PIO complete */
 
 	register_pci_controller(&bc->pc);
 
@@ -206,7 +203,7 @@ phys_addr_t __dma_to_phys(struct device *dev, dma_addr_t dma_addr)
 static inline void pci_disable_swapping(struct pci_dev *dev)
 {
 	struct bridge_controller *bc = BRIDGE_CONTROLLER(dev->bus);
-	bridge_t *bridge = bc->base;
+	struct bridge_regs *bridge = bc->base;
 	int slot = PCI_SLOT(dev->devfn);
 
 	/* Turn off byte swapping */

@@ -136,14 +136,12 @@ static int intr_disconnect_level(int cpu, int bit)
 static unsigned int startup_bridge_irq(struct irq_data *d)
 {
 	struct bridge_controller *bc;
-	bridgereg_t device;
-	bridge_t *bridge;
 	int pin, swlevel;
 	cpuid_t cpu;
+	u64 device;
 
 	pin = SLOT_FROM_PCI_IRQ(d->irq);
 	bc = IRQ_TO_BRIDGE(d->irq);
-	bridge = bc->base;
 
 	pr_debug("bridge_startup(): irq= 0x%x  pin=%d\n", d->irq, pin);
 	/*
@@ -151,9 +149,10 @@ static unsigned int startup_bridge_irq(struct irq_data *d)
 	 * of INT_PEND0 are taken
 	 */
 	swlevel = find_level(&cpu, d->irq);
-	bridge->b_int_addr[pin].addr = (0x20000 | swlevel | (bc->nasid << 8));
-	bridge->b_int_enable |= (1 << pin);
-	bridge->b_int_enable |= 0x7ffffe00;	/* more stuff in int_enable */
+	bridge_write(bc, b_int_addr[pin].addr,
+		     (0x20000 | swlevel | (bc->nasid << 8)));
+	bridge_set(bc, b_int_enable, (1 << pin));
+	bridge_set(bc, b_int_enable, 0x7ffffe00); /* more stuff in int_enable */
 
 	/*
 	 * Enable sending of an interrupt clear packt to the hub on a high to
@@ -162,18 +161,18 @@ static unsigned int startup_bridge_irq(struct irq_data *d)
 	 * IRIX sets additional bits in the address which are documented as
 	 * reserved in the bridge docs.
 	 */
-	bridge->b_int_mode |= (1UL << pin);
+	bridge_set(bc, b_int_mode, (1UL << pin));
 
 	/*
 	 * We assume the bridge to have a 1:1 mapping between devices
 	 * (slots) and intr pins.
 	 */
-	device = bridge->b_int_device;
+	device = bridge_read(bc, b_int_device);
 	device &= ~(7 << (pin*3));
 	device |= (pin << (pin*3));
-	bridge->b_int_device = device;
+	bridge_write(bc, b_int_device, device);
 
-	bridge->b_wid_tflush;
+	bridge_read(bc, b_wid_tflush);
 
 	intr_connect_level(cpu, swlevel);
 
@@ -184,7 +183,6 @@ static unsigned int startup_bridge_irq(struct irq_data *d)
 static void shutdown_bridge_irq(struct irq_data *d)
 {
 	struct bridge_controller *bc = IRQ_TO_BRIDGE(d->irq);
-	bridge_t *bridge = bc->base;
 	int pin, swlevel;
 	cpuid_t cpu;
 
@@ -198,8 +196,8 @@ static void shutdown_bridge_irq(struct irq_data *d)
 	swlevel = find_level(&cpu, d->irq);
 	intr_disconnect_level(cpu, swlevel);
 
-	bridge->b_int_enable &= ~(1 << pin);
-	bridge->b_wid_tflush;
+	bridge_clr(bc, b_int_enable, (1 << pin));
+	bridge_read(bc, b_wid_tflush);
 }
 
 static inline void enable_bridge_irq(struct irq_data *d)
