@@ -396,7 +396,13 @@ config NETFILTER_NETLINK_GLUE_CT
 	  the enqueued via NFNETLINK.
 
 config NF_NAT
-	tristate
+	tristate "Network Address Translation support"
+	depends on NF_CONNTRACK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. This can be
+	  controlled by iptables, ip6tables or nft.
 
 config NF_NAT_NEEDED
 	bool

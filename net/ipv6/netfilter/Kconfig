@@ -31,7 +31,7 @@ config NFT_CHAIN_ROUTE_IPV6
 	  fields such as the source, destination, flowlabel, hop-limit and
 	  the packet mark.
 
-if NF_NAT_IPV6
+if NF_NAT
 
 config NFT_CHAIN_NAT_IPV6
 	tristate "IPv6 nf_tables nat chain support"
@@ -57,7 +57,7 @@ config NFT_REDIR_IPV6
 	  This is the expression that provides IPv4 redirect support for
 	  nf_tables.
 
-endif # NF_NAT_IPV6
+endif # NF_NAT
 
 config NFT_REJECT_IPV6
 	select NF_REJECT_IPV6
@@ -105,16 +105,6 @@ config NF_LOG_IPV6
 	tristate "IPv6 packet logging"
 	default m if NETFILTER_ADVANCED=n
 	select NF_LOG_COMMON
-
-config NF_NAT_IPV6
-	tristate "IPv6 NAT"
-	depends on NF_CONNTRACK
-	depends on NETFILTER_ADVANCED
-	select NF_NAT
-	help
-	  The IPv6 NAT option allows masquerading, port forwarding and other
-	  forms of full Network Address Port Translation. This can be
-	  controlled by iptables or nft.
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
@@ -304,7 +294,6 @@ config IP6_NF_NAT
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
-	select NF_NAT_IPV6
 	select NETFILTER_XT_NAT
 	help
 	  This enables the `nat' table in ip6tables. This allows masquerading,

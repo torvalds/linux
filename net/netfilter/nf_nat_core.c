@@ -1203,6 +1203,8 @@ static struct nf_nat_hook nat_hook = {
 	.manip_pkt		= nf_nat_manip_pkt,
 };
 
+int nf_nat_l3proto_init(void);
+void nf_nat_l3proto_exit(void);
 static int __init nf_nat_init(void)
 {
 	int ret, i;
@@ -1237,6 +1239,19 @@ static int __init nf_nat_init(void)
 	WARN_ON(nf_nat_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_hook, &nat_hook);
 
+	ret = nf_nat_l3proto_init();
+	if (ret) {
+		nf_ct_extend_unregister(&nat_extend);
+		nf_ct_helper_expectfn_unregister(&follow_master_nat);
+		RCU_INIT_POINTER(nf_nat_hook, NULL);
+
+		synchronize_net();
+		kvfree(nf_nat_bysource);
+		unregister_pernet_subsys(&nat_net_ops);
+
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -1245,6 +1260,8 @@ static void __exit nf_nat_cleanup(void)
 	struct nf_nat_proto_clean clean = {};
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
+
+	nf_nat_l3proto_exit();
 
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);

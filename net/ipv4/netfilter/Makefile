@@ -3,9 +3,6 @@
 # Makefile for the netfilter modules on top of IPv4.
 #
 
-nf_nat_ipv4-y		:= nf_nat_l3proto_ipv4.o
-obj-$(CONFIG_NF_NAT_IPV4) += nf_nat_ipv4.o
-
 # defrag
 obj-$(CONFIG_NF_DEFRAG_IPV4) += nf_defrag_ipv4.o
 
