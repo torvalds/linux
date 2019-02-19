@@ -12,6 +12,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 
+#include <dt-bindings/mfd/st,stpmic1.h>
+
 /**
  * stpmic1 regulator description
  * @desc: regulator framework description
@@ -67,9 +69,6 @@ enum {
 
 /* Enable time worst case is 5000mV/(2250uV/uS) */
 #define PMIC_ENABLE_TIME_US 2200
-
-#define STPMIC1_BUCK_MODE_NORMAL 0
-#define STPMIC1_BUCK_MODE_LP BUCK_HPLP_ENABLE_MASK
 
 static const struct regulator_linear_range buck1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 30, 25000),
