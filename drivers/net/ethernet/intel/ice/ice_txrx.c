@@ -1097,17 +1097,256 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	return failure ? budget : (int)total_rx_pkts;
 }
 
+static unsigned int ice_itr_divisor(struct ice_port_info *pi)
+{
+	switch (pi->phy.link_info.link_speed) {
+	case ICE_AQ_LINK_SPEED_40GB:
+		return ICE_ITR_ADAPTIVE_MIN_INC * 1024;
+	case ICE_AQ_LINK_SPEED_25GB:
+	case ICE_AQ_LINK_SPEED_20GB:
+		return ICE_ITR_ADAPTIVE_MIN_INC * 512;
+	case ICE_AQ_LINK_SPEED_100MB:
+		return ICE_ITR_ADAPTIVE_MIN_INC * 32;
+	default:
+		return ICE_ITR_ADAPTIVE_MIN_INC * 256;
+	}
+}
+
+/**
+ * ice_update_itr - update the adaptive ITR value based on statistics
+ * @q_vector: structure containing interrupt and ring information
+ * @rc: structure containing ring performance data
+ *
+ * Stores a new ITR value based on packets and byte
+ * counts during the last interrupt.  The advantage of per interrupt
+ * computation is faster updates and more accurate ITR for the current
+ * traffic pattern.  Constants in this function were computed
+ * based on theoretical maximum wire speed and thresholds were set based
+ * on testing data as well as attempting to minimize response time
+ * while increasing bulk throughput.
+ */
+static void
+ice_update_itr(struct ice_q_vector *q_vector, struct ice_ring_container *rc)
+{
+	unsigned int avg_wire_size, packets, bytes, itr;
+	unsigned long next_update = jiffies;
+	bool container_is_rx;
+
+	if (!rc->ring || !ITR_IS_DYNAMIC(rc->itr_setting))
+		return;
+
+	/* If itr_countdown is set it means we programmed an ITR within
+	 * the last 4 interrupt cycles. This has a side effect of us
+	 * potentially firing an early interrupt. In order to work around
+	 * this we need to throw out any data received for a few
+	 * interrupts following the update.
+	 */
+	if (q_vector->itr_countdown) {
+		itr = rc->target_itr;
+		goto clear_counts;
+	}
+
+	container_is_rx = (&q_vector->rx == rc);
+	/* For Rx we want to push the delay up and default to low latency.
+	 * for Tx we want to pull the delay down and default to high latency.
+	 */
+	itr = container_is_rx ?
+		ICE_ITR_ADAPTIVE_MIN_USECS | ICE_ITR_ADAPTIVE_LATENCY :
+		ICE_ITR_ADAPTIVE_MAX_USECS | ICE_ITR_ADAPTIVE_LATENCY;
+
+	/* If we didn't update within up to 1 - 2 jiffies we can assume
+	 * that either packets are coming in so slow there hasn't been
+	 * any work, or that there is so much work that NAPI is dealing
+	 * with interrupt moderation and we don't need to do anything.
+	 */
+	if (time_after(next_update, rc->next_update))
+		goto clear_counts;
+
+	packets = rc->total_pkts;
+	bytes = rc->total_bytes;
+
+	if (container_is_rx) {
+		/* If Rx there are 1 to 4 packets and bytes are less than
+		 * 9000 assume insufficient data to use bulk rate limiting
+		 * approach unless Tx is already in bulk rate limiting. We
+		 * are likely latency driven.
+		 */
+		if (packets && packets < 4 && bytes < 9000 &&
+		    (q_vector->tx.target_itr & ICE_ITR_ADAPTIVE_LATENCY)) {
+			itr = ICE_ITR_ADAPTIVE_LATENCY;
+			goto adjust_by_size;
+		}
+	} else if (packets < 4) {
+		/* If we have Tx and Rx ITR maxed and Tx ITR is running in
+		 * bulk mode and we are receiving 4 or fewer packets just
+		 * reset the ITR_ADAPTIVE_LATENCY bit for latency mode so
+		 * that the Rx can relax.
+		 */
+		if (rc->target_itr == ICE_ITR_ADAPTIVE_MAX_USECS &&
+		    (q_vector->rx.target_itr & ICE_ITR_MASK) ==
+		    ICE_ITR_ADAPTIVE_MAX_USECS)
+			goto clear_counts;
+	} else if (packets > 32) {
+		/* If we have processed over 32 packets in a single interrupt
+		 * for Tx assume we need to switch over to "bulk" mode.
+		 */
+		rc->target_itr &= ~ICE_ITR_ADAPTIVE_LATENCY;
+	}
+
+	/* We have no packets to actually measure against. This means
+	 * either one of the other queues on this vector is active or
+	 * we are a Tx queue doing TSO with too high of an interrupt rate.
+	 *
+	 * Between 4 and 56 we can assume that our current interrupt delay
+	 * is only slightly too low. As such we should increase it by a small
+	 * fixed amount.
+	 */
+	if (packets < 56) {
+		itr = rc->target_itr + ICE_ITR_ADAPTIVE_MIN_INC;
+		if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
+			itr &= ICE_ITR_ADAPTIVE_LATENCY;
+			itr += ICE_ITR_ADAPTIVE_MAX_USECS;
+		}
+		goto clear_counts;
+	}
+
+	if (packets <= 256) {
+		itr = min(q_vector->tx.current_itr, q_vector->rx.current_itr);
+		itr &= ICE_ITR_MASK;
+
+		/* Between 56 and 112 is our "goldilocks" zone where we are
+		 * working out "just right". Just report that our current
+		 * ITR is good for us.
+		 */
+		if (packets <= 112)
+			goto clear_counts;
+
+		/* If packet count is 128 or greater we are likely looking
+		 * at a slight overrun of the delay we want. Try halving
+		 * our delay to see if that will cut the number of packets
+		 * in half per interrupt.
+		 */
+		itr >>= 1;
+		itr &= ICE_ITR_MASK;
+		if (itr < ICE_ITR_ADAPTIVE_MIN_USECS)
+			itr = ICE_ITR_ADAPTIVE_MIN_USECS;
+
+		goto clear_counts;
+	}
+
+	/* The paths below assume we are dealing with a bulk ITR since
+	 * number of packets is greater than 256. We are just going to have
+	 * to compute a value and try to bring the count under control,
+	 * though for smaller packet sizes there isn't much we can do as
+	 * NAPI polling will likely be kicking in sooner rather than later.
+	 */
+	itr = ICE_ITR_ADAPTIVE_BULK;
+
+adjust_by_size:
+	/* If packet counts are 256 or greater we can assume we have a gross
+	 * overestimation of what the rate should be. Instead of trying to fine
+	 * tune it just use the formula below to try and dial in an exact value
+	 * gives the current packet size of the frame.
+	 */
+	avg_wire_size = bytes / packets;
+
+	/* The following is a crude approximation of:
+	 *  wmem_default / (size + overhead) = desired_pkts_per_int
+	 *  rate / bits_per_byte / (size + ethernet overhead) = pkt_rate
+	 *  (desired_pkt_rate / pkt_rate) * usecs_per_sec = ITR value
+	 *
+	 * Assuming wmem_default is 212992 and overhead is 640 bytes per
+	 * packet, (256 skb, 64 headroom, 320 shared info), we can reduce the
+	 * formula down to
+	 *
+	 *  (170 * (size + 24)) / (size + 640) = ITR
+	 *
+	 * We first do some math on the packet size and then finally bitshift
+	 * by 8 after rounding up. We also have to account for PCIe link speed
+	 * difference as ITR scales based on this.
+	 */
+	if (avg_wire_size <= 60) {
+		/* Start at 250k ints/sec */
+		avg_wire_size = 4096;
+	} else if (avg_wire_size <= 380) {
+		/* 250K ints/sec to 60K ints/sec */
+		avg_wire_size *= 40;
+		avg_wire_size += 1696;
+	} else if (avg_wire_size <= 1084) {
+		/* 60K ints/sec to 36K ints/sec */
+		avg_wire_size *= 15;
+		avg_wire_size += 11452;
+	} else if (avg_wire_size <= 1980) {
+		/* 36K ints/sec to 30K ints/sec */
+		avg_wire_size *= 5;
+		avg_wire_size += 22420;
+	} else {
+		/* plateau at a limit of 30K ints/sec */
+		avg_wire_size = 32256;
+	}
+
+	/* If we are in low latency mode halve our delay which doubles the
+	 * rate to somewhere between 100K to 16K ints/sec
+	 */
+	if (itr & ICE_ITR_ADAPTIVE_LATENCY)
+		avg_wire_size >>= 1;
+
+	/* Resultant value is 256 times larger than it needs to be. This
+	 * gives us room to adjust the value as needed to either increase
+	 * or decrease the value based on link speeds of 10G, 2.5G, 1G, etc.
+	 *
+	 * Use addition as we have already recorded the new latency flag
+	 * for the ITR value.
+	 */
+	itr += DIV_ROUND_UP(avg_wire_size,
+			    ice_itr_divisor(q_vector->vsi->port_info)) *
+	       ICE_ITR_ADAPTIVE_MIN_INC;
+
+	if ((itr & ICE_ITR_MASK) > ICE_ITR_ADAPTIVE_MAX_USECS) {
+		itr &= ICE_ITR_ADAPTIVE_LATENCY;
+		itr += ICE_ITR_ADAPTIVE_MAX_USECS;
+	}
+
+clear_counts:
+	/* write back value */
+	rc->target_itr = itr;
+
+	/* next update should occur within next jiffy */
+	rc->next_update = next_update + 1;
+
+	rc->total_bytes = 0;
+	rc->total_pkts = 0;
+}
+
 /**
  * ice_buildreg_itr - build value for writing to the GLINT_DYN_CTL register
  * @itr_idx: interrupt throttling index
- * @reg_itr: interrupt throttling value adjusted based on ITR granularity
+ * @itr: interrupt throttling value in usecs
  */
-static u32 ice_buildreg_itr(int itr_idx, u16 reg_itr)
+static u32 ice_buildreg_itr(int itr_idx, u16 itr)
 {
+	/* The itr value is reported in microseconds, and the register value is
+	 * recorded in 2 microsecond units. For this reason we only need to
+	 * shift by the GLINT_DYN_CTL_INTERVAL_S - ICE_ITR_GRAN_S to apply this
+	 * granularity as a shift instead of division. The mask makes sure the
+	 * ITR value is never odd so we don't accidentally write into the field
+	 * prior to the ITR field.
+	 */
+	itr &= ICE_ITR_MASK;
+
 	return GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
 		(itr_idx << GLINT_DYN_CTL_ITR_INDX_S) |
-		(reg_itr << GLINT_DYN_CTL_INTERVAL_S);
+		(itr << (GLINT_DYN_CTL_INTERVAL_S - ICE_ITR_GRAN_S));
 }
+
+/* The act of updating the ITR will cause it to immediately trigger. In order
+ * to prevent this from throwing off adaptive update statistics we defer the
+ * update so that it can only happen so often. So after either Tx or Rx are
+ * updated we make the adaptive scheme wait until either the ITR completely
+ * expires via the next_update expiration or we have been through at least
+ * 3 interrupts.
+ */
+#define ITR_COUNTDOWN_START 3
 
 /**
  * ice_update_ena_itr - Update ITR and re-enable MSIX interrupt
@@ -1117,9 +1356,13 @@ static u32 ice_buildreg_itr(int itr_idx, u16 reg_itr)
 static void
 ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
 {
-	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_ring_container *rc;
+	struct ice_ring_container *tx = &q_vector->tx;
+	struct ice_ring_container *rx = &q_vector->rx;
 	u32 itr_val;
+
+	/* This will do nothing if dynamic updates are not enabled */
+	ice_update_itr(q_vector, tx);
+	ice_update_itr(q_vector, rx);
 
 	/* This block of logic allows us to get away with only updating
 	 * one ITR value with each interrupt. The idea is to perform a
@@ -1129,35 +1372,36 @@ ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
 	 * 2. If we must reduce an ITR that is given highest priority.
 	 * 3. We then give priority to increasing ITR based on amount.
 	 */
-	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
-		rc = &q_vector->rx;
+	if (rx->target_itr < rx->current_itr) {
 		/* Rx ITR needs to be reduced, this is highest priority */
-		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
-		rc->current_itr = rc->target_itr;
-	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
-		   ((q_vector->rx.target_itr - q_vector->rx.current_itr) <
-		    (q_vector->tx.target_itr - q_vector->tx.current_itr))) {
-		rc = &q_vector->tx;
+		itr_val = ice_buildreg_itr(rx->itr_idx, rx->target_itr);
+		rx->current_itr = rx->target_itr;
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	} else if ((tx->target_itr < tx->current_itr) ||
+		   ((rx->target_itr - rx->current_itr) <
+		    (tx->target_itr - tx->current_itr))) {
 		/* Tx ITR needs to be reduced, this is second priority
 		 * Tx ITR needs to be increased more than Rx, fourth priority
 		 */
-		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
-		rc->current_itr = rc->target_itr;
-	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
-		rc = &q_vector->rx;
+		itr_val = ice_buildreg_itr(tx->itr_idx, tx->target_itr);
+		tx->current_itr = tx->target_itr;
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
+	} else if (rx->current_itr != rx->target_itr) {
 		/* Rx ITR needs to be increased, third priority */
-		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
-		rc->current_itr = rc->target_itr;
+		itr_val = ice_buildreg_itr(rx->itr_idx, rx->target_itr);
+		rx->current_itr = rx->target_itr;
+		q_vector->itr_countdown = ITR_COUNTDOWN_START;
 	} else {
 		/* Still have to re-enable the interrupts */
 		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+		if (q_vector->itr_countdown)
+			q_vector->itr_countdown--;
 	}
 
-	if (!test_bit(__ICE_DOWN, vsi->state)) {
-		int vector = vsi->hw_base_vector + q_vector->v_idx;
-
-		wr32(hw, GLINT_DYN_CTL(vector), itr_val);
-	}
+	if (!test_bit(__ICE_DOWN, vsi->state))
+		wr32(&vsi->back->hw,
+		     GLINT_DYN_CTL(vsi->hw_base_vector + q_vector->v_idx),
+		     itr_val);
 }
 
 /**

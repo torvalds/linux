@@ -133,6 +133,12 @@ enum ice_rx_dtype {
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
 #define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
 
+#define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
+#define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
+#define ICE_ITR_ADAPTIVE_MAX_USECS	0x00FA
+#define ICE_ITR_ADAPTIVE_LATENCY	0x8000
+#define ICE_ITR_ADAPTIVE_BULK		0x0000
+
 #define ICE_DFLT_INTRL	0
 
 /* Legacy or Advanced Mode Queue */

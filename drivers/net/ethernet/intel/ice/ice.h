@@ -307,6 +307,7 @@ struct ice_q_vector {
 	 * value to the device
 	 */
 	u8 intrl;
+	u8 itr_countdown;	/* when 0 should adjust adaptive ITR */
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {
