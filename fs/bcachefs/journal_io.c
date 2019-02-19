@@ -974,6 +974,12 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 					journal_space_discarded)) {
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 			ja->sectors_free = ca->mi.bucket_size;
+
+			/*
+			 * ja->bucket_seq[ja->cur_idx] must always have
+			 * something sensible:
+			 */
+			ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
 		}
 	}
 

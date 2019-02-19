@@ -343,6 +343,16 @@ retry:
 		return 0;
 	}
 
+	if (!(flags & JOURNAL_RES_GET_RESERVED) &&
+	    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
+		/*
+		 * Don't want to close current journal entry, just need to
+		 * invoke reclaim:
+		 */
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
 	/*
 	 * If we couldn't get a reservation because the current buf filled up,
 	 * and we had room for a bigger entry on disk, signal that we want to
@@ -366,7 +376,7 @@ retry:
 	} else {
 		ret = journal_entry_open(j);
 	}
-
+unlock:
 	if ((ret == -EAGAIN || ret == -ENOSPC) &&
 	    !j->res_get_blocked_start)
 		j->res_get_blocked_start = local_clock() ?: 1;
@@ -378,6 +388,8 @@ retry:
 		goto retry;
 
 	if (ret == -ENOSPC) {
+		BUG_ON(!can_discard && (flags & JOURNAL_RES_GET_RESERVED));
+
 		/*
 		 * Journal is full - can't rely on reclaim from work item due to
 		 * freezing:
@@ -420,6 +432,32 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -EAGAIN ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
+	return ret;
+}
+
+/* journal_preres: */
+
+static bool journal_preres_available(struct journal *j,
+				     struct journal_preres *res,
+				     unsigned new_u64s)
+{
+	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s);
+
+	if (!ret)
+		bch2_journal_reclaim_work(&j->reclaim_work.work);
+
+	return ret;
+}
+
+int __bch2_journal_preres_get(struct journal *j,
+			      struct journal_preres *res,
+			      unsigned new_u64s)
+{
+	int ret;
+
+	closure_wait_event(&j->preres_wait,
+		   (ret = bch2_journal_error(j)) ||
+		   journal_preres_available(j, res, new_u64s));
 	return ret;
 }
 
@@ -1110,11 +1148,16 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 	       "seq:\t\t\t%llu\n"
 	       "last_seq:\t\t%llu\n"
 	       "last_seq_ondisk:\t%llu\n"
+	       "prereserved:\t\t%u/%u\n"
+	       "current entry sectors:\t%u\n"
 	       "current entry:\t\t",
 	       fifo_used(&j->pin),
 	       journal_cur_seq(j),
 	       journal_last_seq(j),
-	       j->last_seq_ondisk);
+	       j->last_seq_ondisk,
+	       j->prereserved.reserved,
+	       j->prereserved.remaining,
+	       j->cur_entry_sectors);
 
 	switch (s.cur_entry_offset) {
 	case JOURNAL_ENTRY_ERROR_VAL:
@@ -1136,8 +1179,9 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 	       journal_state_count(s, s.idx));
 
 	if (s.prev_buf_unwritten)
-		pr_buf(&out, "yes, ref %u\n",
-		       journal_state_count(s, !s.idx));
+		pr_buf(&out, "yes, ref %u sectors %u\n",
+		       journal_state_count(s, !s.idx),
+		       journal_prev_buf(j)->sectors);
 	else
 		pr_buf(&out, "no\n");
 

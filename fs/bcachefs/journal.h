@@ -119,6 +119,7 @@ static inline void journal_wake(struct journal *j)
 {
 	wake_up(&j->wait);
 	closure_wake_up(&j->async_wait);
+	closure_wake_up(&j->preres_wait);
 }
 
 static inline struct journal_buf *journal_cur_buf(struct journal *j)
@@ -274,6 +275,7 @@ int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 
 #define JOURNAL_RES_GET_NONBLOCK	(1 << 0)
 #define JOURNAL_RES_GET_CHECK		(1 << 1)
+#define JOURNAL_RES_GET_RESERVED	(1 << 2)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
@@ -293,6 +295,10 @@ static inline int journal_res_get_fast(struct journal *j,
 			return 0;
 
 		EBUG_ON(!journal_state_count(new, new.idx));
+
+		if (!(flags & JOURNAL_RES_GET_RESERVED) &&
+		    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags))
+			return 0;
 
 		if (flags & JOURNAL_RES_GET_CHECK)
 			return 1;
@@ -331,6 +337,89 @@ out:
 		EBUG_ON(!res->ref);
 	}
 	return 0;
+}
+
+/* journal_preres: */
+
+static inline bool journal_check_may_get_unreserved(struct journal *j)
+{
+	union journal_preres_state s = READ_ONCE(j->prereserved);
+	bool ret = s.reserved <= s.remaining &&
+		fifo_free(&j->pin) > 8;
+
+	lockdep_assert_held(&j->lock);
+
+	if (ret != test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
+		if (ret) {
+			set_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags);
+			journal_wake(j);
+		} else {
+			clear_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags);
+		}
+	}
+	return ret;
+}
+
+static inline void bch2_journal_preres_put(struct journal *j,
+					   struct journal_preres *res)
+{
+	union journal_preres_state s = { .reserved = res->u64s };
+
+	if (!res->u64s)
+		return;
+
+	s.v = atomic64_sub_return(s.v, &j->prereserved.counter);
+	res->u64s = 0;
+	closure_wake_up(&j->preres_wait);
+
+	if (s.reserved <= s.remaining &&
+	    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags)) {
+		spin_lock(&j->lock);
+		journal_check_may_get_unreserved(j);
+		spin_unlock(&j->lock);
+	}
+}
+
+int __bch2_journal_preres_get(struct journal *,
+			struct journal_preres *, unsigned);
+
+static inline int bch2_journal_preres_get_fast(struct journal *j,
+					       struct journal_preres *res,
+					       unsigned new_u64s)
+{
+	int d = new_u64s - res->u64s;
+	union journal_preres_state old, new;
+	u64 v = atomic64_read(&j->prereserved.counter);
+
+	do {
+		old.v = new.v = v;
+
+		new.reserved += d;
+
+		if (new.reserved > new.remaining)
+			return 0;
+	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,
+				       old.v, new.v)) != old.v);
+
+	res->u64s += d;
+	return 1;
+}
+
+static inline int bch2_journal_preres_get(struct journal *j,
+					  struct journal_preres *res,
+					  unsigned new_u64s,
+					  unsigned flags)
+{
+	if (new_u64s <= res->u64s)
+		return 0;
+
+	if (bch2_journal_preres_get_fast(j, res, new_u64s))
+		return 0;
+
+	if (flags & JOURNAL_RES_GET_NONBLOCK)
+		return -EAGAIN;
+
+	return __bch2_journal_preres_get(j, res, new_u64s);
 }
 
 /* journal_entry_res: */

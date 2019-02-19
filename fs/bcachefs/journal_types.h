@@ -80,6 +80,14 @@ struct journal_res {
 	u64			seq;
 };
 
+/*
+ * For reserving space in the journal prior to getting a reservation on a
+ * particular journal entry:
+ */
+struct journal_preres {
+	unsigned		u64s;
+};
+
 union journal_res_state {
 	struct {
 		atomic64_t	counter;
@@ -95,6 +103,21 @@ union journal_res_state {
 				prev_buf_unwritten:1,
 				buf0_count:21,
 				buf1_count:21;
+	};
+};
+
+union journal_preres_state {
+	struct {
+		atomic64_t	counter;
+	};
+
+	struct {
+		u64		v;
+	};
+
+	struct {
+		u32		reserved;
+		u32		remaining;
 	};
 };
 
@@ -122,6 +145,7 @@ enum {
 	JOURNAL_STARTED,
 	JOURNAL_NEED_WRITE,
 	JOURNAL_NOT_EMPTY,
+	JOURNAL_MAY_GET_UNRESERVED,
 };
 
 /* Embedded in struct bch_fs */
@@ -142,6 +166,8 @@ struct journal {
 	 */
 	int			cur_entry_error;
 
+	union journal_preres_state prereserved;
+
 	/* Reserved space in journal entry to be used just prior to write */
 	unsigned		entry_u64s_reserved;
 
@@ -161,6 +187,7 @@ struct journal {
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
+	struct closure_waitlist	preres_wait;
 
 	struct closure		io;
 	struct delayed_work	write_work;

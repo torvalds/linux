@@ -49,6 +49,18 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 	return available;
 }
 
+static void journal_set_remaining(struct journal *j, unsigned u64s_remaining)
+{
+	union journal_preres_state old, new;
+	u64 v = atomic64_read(&j->prereserved.counter);
+
+	do {
+		old.v = new.v = v;
+		new.remaining = u64s_remaining;
+	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,
+				       old.v, new.v)) != old.v);
+}
+
 static struct journal_space {
 	unsigned	next_entry;
 	unsigned	remaining;
@@ -124,8 +136,9 @@ void bch2_journal_space_available(struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_space discarded, clean_ondisk, clean;
-	unsigned max_entry_size		= min(j->buf[0].buf_size >> 9,
-					      j->buf[1].buf_size >> 9);
+	unsigned overhead, u64s_remaining = 0;
+	unsigned max_entry_size	 = min(j->buf[0].buf_size >> 9,
+				       j->buf[1].buf_size >> 9);
 	unsigned i, nr_online = 0, nr_devs_want;
 	bool can_discard = false;
 	int ret = 0;
@@ -176,9 +189,17 @@ void bch2_journal_space_available(struct journal *j)
 
 	if (!discarded.next_entry)
 		ret = -ENOSPC;
+
+	overhead = DIV_ROUND_UP(clean.remaining, max_entry_size) *
+		journal_entry_overhead(j);
+	u64s_remaining = clean.remaining << 6;
+	u64s_remaining = max_t(int, 0, u64s_remaining - overhead);
+	u64s_remaining /= 4;
 out:
 	j->cur_entry_sectors	= !ret ? discarded.next_entry : 0;
 	j->cur_entry_error	= ret;
+	journal_set_remaining(j, u64s_remaining);
+	journal_check_may_get_unreserved(j);
 
 	if (!ret)
 		journal_wake(j);
@@ -454,7 +475,7 @@ void bch2_journal_reclaim(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	unsigned iter, bucket_to_flush, min_nr = 0;
+	unsigned iter, min_nr = 0;
 	u64 seq_to_flush = 0;
 
 	lockdep_assert_held(&j->reclaim_lock);
@@ -465,13 +486,22 @@ void bch2_journal_reclaim(struct journal *j)
 
 	for_each_rw_member(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
+		unsigned nr_buckets, bucket_to_flush;
 
 		if (!ja->nr)
 			continue;
 
-
 		/* Try to keep the journal at most half full: */
-		bucket_to_flush = (ja->cur_idx + (ja->nr >> 1)) % ja->nr;
+		nr_buckets = ja->nr / 2;
+
+		/* And include pre-reservations: */
+		nr_buckets += DIV_ROUND_UP(j->prereserved.reserved,
+					   (ca->mi.bucket_size << 6) -
+					   journal_entry_overhead(j));
+
+		nr_buckets = min(nr_buckets, ja->nr);
+
+		bucket_to_flush = (ja->cur_idx + nr_buckets) % ja->nr;
 		seq_to_flush = max_t(u64, seq_to_flush,
 				     ja->bucket_seq[bucket_to_flush]);
 	}
@@ -488,6 +518,9 @@ void bch2_journal_reclaim(struct journal *j)
 	 */
 	if (time_after(jiffies, j->last_flushed +
 		       msecs_to_jiffies(j->reclaim_delay_ms)))
+		min_nr = 1;
+
+	if (j->prereserved.reserved * 2 > j->prereserved.remaining)
 		min_nr = 1;
 
 	journal_flush_pins(j, seq_to_flush, min_nr);
