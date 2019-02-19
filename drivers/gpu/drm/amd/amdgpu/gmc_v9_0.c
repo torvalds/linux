@@ -1011,7 +1011,7 @@ static int gmc_v9_0_sw_init(void *handle)
 		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
 		printk(KERN_WARNING "amdgpu: No coherent DMA available.\n");
 	}
-	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+	adev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
 	if (adev->gmc.xgmi.supported) {
 		r = gfxhub_v1_1_get_xgmi_info(adev);
