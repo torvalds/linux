@@ -742,6 +742,19 @@ static struct wmi_cmd_map wmi_10_4_cmd_map = {
 	.radar_found_cmdid = WMI_10_4_RADAR_FOUND_CMDID,
 };
 
+static struct wmi_peer_param_map wmi_peer_param_map = {
+	.smps_state = WMI_PEER_SMPS_STATE,
+	.ampdu = WMI_PEER_AMPDU,
+	.authorize = WMI_PEER_AUTHORIZE,
+	.chan_width = WMI_PEER_CHAN_WIDTH,
+	.nss = WMI_PEER_NSS,
+	.use_4addr = WMI_PEER_USE_4ADDR,
+	.use_fixed_power = WMI_PEER_USE_FIXED_PWR,
+	.debug = WMI_PEER_DEBUG,
+	.phymode = WMI_PEER_PHYMODE,
+	.dummy_var = WMI_PEER_DUMMY_VAR,
+};
+
 /* MAIN WMI VDEV param map */
 static struct wmi_vdev_param_map wmi_vdev_param_map = {
 	.rts_threshold = WMI_VDEV_PARAM_RTS_THRESHOLD,
@@ -9332,6 +9345,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.cmd = &wmi_10_4_cmd_map;
 		ar->wmi.vdev_param = &wmi_10_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_4_pdev_param_map;
+		ar->wmi.peer_param = &wmi_peer_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
@@ -9340,6 +9354,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.ops = &wmi_10_2_4_ops;
 		ar->wmi.vdev_param = &wmi_10_2_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_2_4_pdev_param_map;
+		ar->wmi.peer_param = &wmi_peer_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
@@ -9348,6 +9363,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.ops = &wmi_10_2_ops;
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
+		ar->wmi.peer_param = &wmi_peer_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
 		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
@@ -9356,6 +9372,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.ops = &wmi_10_1_ops;
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
+		ar->wmi.peer_param = &wmi_peer_param_map;
 		ar->wmi.peer_flags = &wmi_10x_peer_flags_map;
 		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
@@ -9364,6 +9381,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.ops = &wmi_ops;
 		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_pdev_param_map;
+		ar->wmi.peer_param = &wmi_peer_param_map;
 		ar->wmi.peer_flags = &wmi_peer_flags_map;
 		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
