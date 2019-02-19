@@ -49,15 +49,19 @@ struct hibvt_pwm_chip {
 	struct clk *clk;
 	void __iomem *base;
 	struct reset_control *rstc;
+	const struct hibvt_pwm_soc *soc;
 };
 
 struct hibvt_pwm_soc {
 	u32 num_pwms;
 };
 
-static const struct hibvt_pwm_soc pwm_soc[2] = {
-	{ .num_pwms = 4 },
-	{ .num_pwms = 8 },
+static const struct hibvt_pwm_soc hi3516cv300_soc_info = {
+	.num_pwms = 4,
+};
+
+static const struct hibvt_pwm_soc hi3519v100_soc_info = {
+	.num_pwms = 8,
 };
 
 static inline struct hibvt_pwm_chip *to_hibvt_pwm_chip(struct pwm_chip *chip)
@@ -198,6 +202,7 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 	pwm_chip->chip.npwm = soc->num_pwms;
 	pwm_chip->chip.of_xlate = of_pwm_xlate_with_flags;
 	pwm_chip->chip.of_pwm_n_cells = 3;
+	pwm_chip->soc = soc;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pwm_chip->base = devm_ioremap_resource(&pdev->dev, res);
@@ -250,8 +255,10 @@ static int hibvt_pwm_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id hibvt_pwm_of_match[] = {
-	{ .compatible = "hisilicon,hi3516cv300-pwm", .data = &pwm_soc[0] },
-	{ .compatible = "hisilicon,hi3519v100-pwm", .data = &pwm_soc[1] },
+	{ .compatible = "hisilicon,hi3516cv300-pwm",
+	  .data = &hi3516cv300_soc_info },
+	{ .compatible = "hisilicon,hi3519v100-pwm",
+	  .data = &hi3519v100_soc_info },
 	{  }
 };
 MODULE_DEVICE_TABLE(of, hibvt_pwm_of_match);
