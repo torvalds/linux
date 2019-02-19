@@ -355,6 +355,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	struct i915_gem_context *ctx;
 	unsigned int n;
 	int ret;
+	int i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
@@ -406,6 +407,9 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->ring_size = 4 * PAGE_SIZE;
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
+
+	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
+		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
 
 	return ctx;
 

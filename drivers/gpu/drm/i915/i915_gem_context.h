@@ -209,10 +209,11 @@ struct i915_gem_context {
 	 */
 	atomic_t active_count;
 
-#define CONTEXT_SCORE_GUILTY		10
-#define CONTEXT_SCORE_BAN_THRESHOLD	40
-	/** ban_score: Accumulated score of all hangs caused by this context. */
-	atomic_t ban_score;
+	/**
+	 * @hang_timestamp: The last time(s) this context caused a GPU hang
+	 */
+	unsigned long hang_timestamp[2];
+#define CONTEXT_FAST_HANG_JIFFIES (120 * HZ) /* 3 hangs within 120s? Banned! */
 
 	/** remap_slice: Bitmask of cache lines that need remapping */
 	u8 remap_slice;

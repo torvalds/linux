@@ -290,8 +290,6 @@ static void i915_request_retire(struct i915_request *request)
 
 	i915_request_remove_from_client(request);
 
-	/* Retirement decays the ban score as it is a sign of ctx progress */
-	atomic_dec_if_positive(&request->gem_context->ban_score);
 	intel_context_unpin(request->hw_context);
 
 	__retire_engine_upto(request->engine, request);

@@ -122,10 +122,8 @@ struct i915_gpu_state {
 			pid_t pid;
 			u32 handle;
 			u32 hw_id;
-			int ban_score;
 			int active;
 			int guilty;
-			bool bannable;
 			struct i915_sched_attr sched_attr;
 		} context;
 
@@ -149,7 +147,6 @@ struct i915_gpu_state {
 			long jiffies;
 			pid_t pid;
 			u32 context;
-			int ban_score;
 			u32 seqno;
 			u32 start;
 			u32 head;

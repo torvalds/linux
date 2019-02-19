@@ -59,24 +59,29 @@ static void client_mark_guilty(struct drm_i915_file_private *file_priv,
 
 static bool context_mark_guilty(struct i915_gem_context *ctx)
 {
-	unsigned int score;
-	bool banned, bannable;
+	unsigned long prev_hang;
+	bool banned;
+	int i;
 
 	atomic_inc(&ctx->guilty_count);
 
-	bannable = i915_gem_context_is_bannable(ctx);
-	score = atomic_add_return(CONTEXT_SCORE_GUILTY, &ctx->ban_score);
-	banned = (!i915_gem_context_is_recoverable(ctx) ||
-		  score >= CONTEXT_SCORE_BAN_THRESHOLD);
-
-	/* Cool contexts don't accumulate client ban score */
-	if (!bannable)
+	/* Cool contexts are too cool to be banned! (Used for reset testing.) */
+	if (!i915_gem_context_is_bannable(ctx))
 		return false;
 
+	/* Record the timestamp for the last N hangs */
+	prev_hang = ctx->hang_timestamp[0];
+	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp) - 1; i++)
+		ctx->hang_timestamp[i] = ctx->hang_timestamp[i + 1];
+	ctx->hang_timestamp[i] = jiffies;
+
+	/* If we have hung N+1 times in rapid succession, we ban the context! */
+	banned = !i915_gem_context_is_recoverable(ctx);
+	if (time_before(jiffies, prev_hang + CONTEXT_FAST_HANG_JIFFIES))
+		banned = true;
 	if (banned) {
-		DRM_DEBUG_DRIVER("context %s: guilty %d, score %u, banned\n",
-				 ctx->name, atomic_read(&ctx->guilty_count),
-				 score);
+		DRM_DEBUG_DRIVER("context %s: guilty %d, banned\n",
+				 ctx->name, atomic_read(&ctx->guilty_count));
 		i915_gem_context_set_banned(ctx);
 	}
 
