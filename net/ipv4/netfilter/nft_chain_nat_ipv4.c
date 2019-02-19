@@ -20,10 +20,8 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_ipv4.h>
-#include <net/netfilter/nf_nat_l3proto.h>
 #include <net/ip.h>
 
 static unsigned int nft_nat_do_chain(void *priv,
@@ -40,12 +38,12 @@ static unsigned int nft_nat_do_chain(void *priv,
 
 static int nft_nat_ipv4_reg(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_l3proto_ipv4_register_fn(net, ops);
+	return nf_nat_ipv4_register_fn(net, ops);
 }
 
 static void nft_nat_ipv4_unreg(struct net *net, const struct nf_hook_ops *ops)
 {
-	nf_nat_l3proto_ipv4_unregister_fn(net, ops);
+	nf_nat_ipv4_unregister_fn(net, ops);
 }
 
 static const struct nft_chain_type nft_chain_nat_ipv4 = {

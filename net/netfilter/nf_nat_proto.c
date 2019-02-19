@@ -20,8 +20,6 @@
 
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l3proto.h>
 
 #include <linux/ipv6.h>
 #include <linux/netfilter_ipv6.h>
@@ -758,17 +756,17 @@ static const struct nf_hook_ops nf_nat_ipv4_ops[] = {
 	},
 };
 
-int nf_nat_l3proto_ipv4_register_fn(struct net *net, const struct nf_hook_ops *ops)
+int nf_nat_ipv4_register_fn(struct net *net, const struct nf_hook_ops *ops)
 {
 	return nf_nat_register_fn(net, ops, nf_nat_ipv4_ops, ARRAY_SIZE(nf_nat_ipv4_ops));
 }
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv4_register_fn);
+EXPORT_SYMBOL_GPL(nf_nat_ipv4_register_fn);
 
-void nf_nat_l3proto_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
+void nf_nat_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
 {
 	nf_nat_unregister_fn(net, ops, ARRAY_SIZE(nf_nat_ipv4_ops));
 }
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv4_unregister_fn);
+EXPORT_SYMBOL_GPL(nf_nat_ipv4_unregister_fn);
 
 #if IS_ENABLED(CONFIG_IPV6)
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
@@ -1010,16 +1008,16 @@ static const struct nf_hook_ops nf_nat_ipv6_ops[] = {
 	},
 };
 
-int nf_nat_l3proto_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops)
+int nf_nat_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops)
 {
 	return nf_nat_register_fn(net, ops, nf_nat_ipv6_ops,
 				  ARRAY_SIZE(nf_nat_ipv6_ops));
 }
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv6_register_fn);
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_register_fn);
 
-void nf_nat_l3proto_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
+void nf_nat_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops)
 {
 	nf_nat_unregister_fn(net, ops, ARRAY_SIZE(nf_nat_ipv6_ops));
 }
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv6_unregister_fn);
+EXPORT_SYMBOL_GPL(nf_nat_ipv6_unregister_fn);
 #endif /* CONFIG_IPV6 */

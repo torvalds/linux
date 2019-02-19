@@ -18,10 +18,8 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_ipv6.h>
-#include <net/netfilter/nf_nat_l3proto.h>
 #include <net/ipv6.h>
 
 static unsigned int nft_nat_do_chain(void *priv,
@@ -38,12 +36,12 @@ static unsigned int nft_nat_do_chain(void *priv,
 
 static int nft_nat_ipv6_reg(struct net *net, const struct nf_hook_ops *ops)
 {
-	return nf_nat_l3proto_ipv6_register_fn(net, ops);
+	return nf_nat_ipv6_register_fn(net, ops);
 }
 
 static void nft_nat_ipv6_unreg(struct net *net, const struct nf_hook_ops *ops)
 {
-	nf_nat_l3proto_ipv6_unregister_fn(net, ops);
+	nf_nat_ipv6_unregister_fn(net, ops);
 }
 
 static const struct nft_chain_type nft_chain_nat_ipv6 = {
