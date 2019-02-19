@@ -751,10 +751,6 @@ static int xs_sendmsg(struct socket *sock, struct msghdr *msg, size_t seek)
 
 static int xs_send_kvec(struct socket *sock, struct msghdr *msg, struct kvec *vec, size_t seek)
 {
-	if (!vec) {
-		iov_iter_kvec(&msg->msg_iter, WRITE, NULL, 0, 0);
-		return sock_sendmsg(sock, msg);
-	}
 	iov_iter_kvec(&msg->msg_iter, WRITE, vec, 1, vec->iov_len);
 	return xs_sendmsg(sock, msg, seek);
 }
@@ -797,12 +793,7 @@ static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen,
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	if (base != 0) {
-		addr = NULL;
-		addrlen = 0;
-	}
-
-	if (base < xdr->head[0].iov_len || addr != NULL) {
+	if (base < xdr->head[0].iov_len) {
 		unsigned int len = xdr->head[0].iov_len - base;
 		remainder -= len;
 		if (remainder == 0)
