@@ -1615,12 +1615,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 			if (ip_hdr(skb)->protocol == IPPROTO_PIM)
 				br_multicast_pim(br, port, skb);
 		} else if (ipv4_is_all_snoopers(ip_hdr(skb)->daddr)) {
-			err = br_ip4_multicast_mrd_rcv(br, port, skb);
-
-			if (err < 0 && err != -ENOMSG) {
-				br_multicast_err_count(br, port, skb->protocol);
-				return err;
-			}
+			br_ip4_multicast_mrd_rcv(br, port, skb);
 		}
 
 		return 0;
