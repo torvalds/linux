@@ -673,7 +673,6 @@ cdc_subset
 cdns-csi2rx
 cdns-csi2tx
 cdns-pltfrm
-cec-gpio
 ceph
 cfag12864b
 cfag12864bfb
@@ -4868,6 +4867,7 @@ tps65912-regulator
 tps6598x
 tps80031-regulator
 tqmx86_wdt
+trace-printk
 trancevibrator
 trf7970a
 tridentfb

@@ -4450,6 +4450,7 @@ tps65910-regulator
 tps65912-regulator
 tps6598x
 tps80031-regulator
+trace-printk
 trancevibrator
 trf7970a
 tridentfb

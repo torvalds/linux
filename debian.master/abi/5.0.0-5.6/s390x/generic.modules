@@ -804,6 +804,7 @@ tls
 torture
 tpm_key_parser
 tpm_vtpm_proxy
+trace-printk
 ts_bm
 ts_fsm
 ts_kmp
