@@ -311,8 +311,8 @@ _bpftool()
                             return 0
                             ;;
                         5)
-                            COMPREPLY=( $( compgen -W 'msg_verdict skb_verdict \
-                                skb_parse flow_dissector' -- "$cur" ) )
+                            COMPREPLY=( $( compgen -W 'msg_verdict stream_verdict \
+                                stream_parser flow_dissector' -- "$cur" ) )
                             return 0
                             ;;
                         6)

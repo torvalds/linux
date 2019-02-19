@@ -42,7 +42,7 @@ PROG COMMANDS
 |		**cgroup/connect4** | **cgroup/connect6** | **cgroup/sendmsg4** | **cgroup/sendmsg6**
 |	}
 |       *ATTACH_TYPE* := {
-|		**msg_verdict** | **skb_verdict** | **skb_parse** | **flow_dissector**
+|		**msg_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
 |	}
 
 
