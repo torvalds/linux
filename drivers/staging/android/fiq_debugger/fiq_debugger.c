@@ -668,9 +668,9 @@ static bool fiq_debugger_fiq_exec(struct fiq_debugger_state *state,
 	return signal_helper;
 }
 
-static void fiq_debugger_sleep_timer_expired(unsigned long data)
+static void fiq_debugger_sleep_timer_expired(struct timer_list *t)
 {
-	struct fiq_debugger_state *state = (struct fiq_debugger_state *)data;
+	struct fiq_debugger_state *state = from_timer(state, t, sleep_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&state->sleep_timer_lock, flags);
@@ -1384,8 +1384,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	state->output.printf = fiq_debugger_printf;
-	setup_timer(&state->sleep_timer, fiq_debugger_sleep_timer_expired,
-		    (unsigned long)state);
+	timer_setup(&state->sleep_timer, fiq_debugger_sleep_timer_expired, 0);
 	state->pdata = pdata;
 	state->pdev = pdev;
 	state->no_sleep = initial_no_sleep;
