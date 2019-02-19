@@ -945,6 +945,7 @@ struct bnxt_vf_info {
 					 * stored by PF.
 					 */
 	u16	vlan;
+	u16	func_qcfg_flags;
 	u32	flags;
 #define BNXT_VF_QOS		0x1
 #define BNXT_VF_SPOOFCHK	0x2
@@ -1478,6 +1479,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_IF_CHANGE			0x00000010
 	#define BNXT_FW_CAP_KONG_MB_CHNL		0x00000080
 	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		0x00000400
+	#define BNXT_FW_CAP_TRUSTED_VF			0x00000800
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 	u32			hwrm_spec_code;

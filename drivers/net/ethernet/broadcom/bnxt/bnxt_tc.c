@@ -1290,7 +1290,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 		bnxt_tc_set_flow_dir(bp, flow, src_fid);
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
-		rc = -ENOSPC;
+		rc = -EOPNOTSUPP;
 		goto free_node;
 	}
 
