@@ -35,8 +35,6 @@
 static spinlock_t nf_nat_locks[CONNTRACK_LOCKS];
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
-static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
-						__read_mostly;
 static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
@@ -57,12 +55,6 @@ struct nf_nat_hooks_net {
 struct nat_net {
 	struct nf_nat_hooks_net nat_proto_net[NFPROTO_NUMPROTO];
 };
-
-inline const struct nf_nat_l3proto *
-__nf_nat_l3proto_find(u8 family)
-{
-	return rcu_dereference(nf_nat_l3protos[family]);
-}
 
 #ifdef CONFIG_XFRM
 static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
@@ -849,33 +841,6 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	return 0;
 }
 
-static void nf_nat_l3proto_clean(u8 l3proto)
-{
-	struct nf_nat_proto_clean clean = {
-		.l3proto = l3proto,
-	};
-
-	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
-}
-
-int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
-{
-	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_register);
-
-void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *l3proto)
-{
-	mutex_lock(&nf_nat_proto_mutex);
-	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], NULL);
-	mutex_unlock(&nf_nat_proto_mutex);
-	synchronize_rcu();
-
-	nf_nat_l3proto_clean(l3proto->l3proto);
-}
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_unregister);
-
 /* No one using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
@@ -1122,7 +1087,6 @@ int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
 	mutex_unlock(&nf_nat_proto_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_nat_register_fn);
 
 void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
 		          unsigned int ops_count)
@@ -1171,7 +1135,6 @@ void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
 unlock:
 	mutex_unlock(&nf_nat_proto_mutex);
 }
-EXPORT_SYMBOL_GPL(nf_nat_unregister_fn);
 
 static struct pernet_operations nat_net_ops = {
 	.id = &nat_net_id,
@@ -1186,8 +1149,6 @@ static struct nf_nat_hook nat_hook = {
 	.manip_pkt		= nf_nat_manip_pkt,
 };
 
-int nf_nat_l3proto_init(void);
-void nf_nat_l3proto_exit(void);
 static int __init nf_nat_init(void)
 {
 	int ret, i;
@@ -1222,19 +1183,6 @@ static int __init nf_nat_init(void)
 	WARN_ON(nf_nat_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_hook, &nat_hook);
 
-	ret = nf_nat_l3proto_init();
-	if (ret) {
-		nf_ct_extend_unregister(&nat_extend);
-		nf_ct_helper_expectfn_unregister(&follow_master_nat);
-		RCU_INIT_POINTER(nf_nat_hook, NULL);
-
-		synchronize_net();
-		kvfree(nf_nat_bysource);
-		unregister_pernet_subsys(&nat_net_ops);
-
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -1243,8 +1191,6 @@ static void __exit nf_nat_cleanup(void)
 	struct nf_nat_proto_clean clean = {};
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
-
-	nf_nat_l3proto_exit();
 
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);

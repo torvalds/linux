@@ -35,11 +35,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
-static const struct nf_nat_l3proto nf_nat_l3proto_ipv4;
-#if IS_ENABLED(CONFIG_IPV6)
-static const struct nf_nat_l3proto nf_nat_l3proto_ipv6;
-#endif
-
 static void nf_csum_update(struct sk_buff *skb,
 			   unsigned int iphdroff, __sum16 *check,
 			   const struct nf_conntrack_tuple *t,
@@ -555,10 +550,6 @@ void nf_nat_csum_recalc(struct sk_buff *skb,
 	WARN_ON_ONCE(1);
 }
 
-static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
-	.l3proto		= NFPROTO_IPV4,
-};
-
 int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 				  struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
@@ -779,36 +770,7 @@ void nf_nat_l3proto_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops
 }
 EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv4_unregister_fn);
 
-int nf_nat_l3proto_init(void)
-{
-	int ret = nf_nat_l3proto_register(&nf_nat_l3proto_ipv4);
-
 #if IS_ENABLED(CONFIG_IPV6)
-	if (ret)
-		return ret;
-
-	ret = nf_nat_l3proto_register(&nf_nat_l3proto_ipv6);
-	if (ret == 0)
-		return ret;
-
-	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv4);
-#endif
-	return ret;
-}
-
-void nf_nat_l3proto_exit(void)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv6);
-#endif
-	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv4);
-}
-
-#if IS_ENABLED(CONFIG_IPV6)
-static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
-	.l3proto		= NFPROTO_IPV6,
-};
-
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 				    struct nf_conn *ct,
 				    enum ip_conntrack_info ctinfo,
