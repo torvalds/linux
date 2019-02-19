@@ -83,10 +83,10 @@ struct pm4_mes_set_resources {
 
 	union {
 		struct {
-		uint32_t gds_heap_base:6;
-		uint32_t reserved3:5;
-		uint32_t gds_heap_size:6;
-		uint32_t reserved4:15;
+		uint32_t gds_heap_base:10;
+		uint32_t reserved3:1;
+		uint32_t gds_heap_size:10;
+		uint32_t reserved4:11;
 		} bitfields8;
 		uint32_t ordinal8;
 	};
@@ -179,7 +179,7 @@ struct pm4_mes_map_process {
 			uint32_t num_gws:7;
 			uint32_t sdma_enable:1;
 			uint32_t num_oac:4;
-			uint32_t reserved8:4;
+			uint32_t gds_size_hi:4;
 			uint32_t gds_size:6;
 			uint32_t num_queues:10;
 		} bitfields14;
