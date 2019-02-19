@@ -699,23 +699,6 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
-static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
-				     enum nf_nat_manip_type mtype,
-				     enum ip_conntrack_dir dir)
-{
-	const struct nf_nat_l3proto *l3proto;
-	struct nf_conntrack_tuple target;
-
-	/* We are aiming to look like inverse of other direction. */
-	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
-
-	l3proto = __nf_nat_l3proto_find(target.src.l3num);
-	if (!l3proto->manip_pkt(skb, 0, &target, mtype))
-		return NF_DROP;
-
-	return NF_ACCEPT;
-}
-
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,

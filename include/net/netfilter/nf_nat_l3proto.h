@@ -5,11 +5,6 @@
 struct nf_nat_l3proto {
 	u8	l3proto;
 
-	bool	(*manip_pkt)(struct sk_buff *skb,
-			     unsigned int iphdroff,
-			     const struct nf_conntrack_tuple *target,
-			     enum nf_nat_manip_type maniptype);
-
 	void	(*csum_update)(struct sk_buff *skb, unsigned int iphdroff,
 			       __sum16 *check,
 			       const struct nf_conntrack_tuple *t,
@@ -19,6 +14,10 @@ struct nf_nat_l3proto {
 			       void *data, __sum16 *check,
 			       int datalen, int oldlen);
 };
+
+unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
+			      enum nf_nat_manip_type mtype,
+			      enum ip_conntrack_dir dir);
 
 int nf_nat_l3proto_register(const struct nf_nat_l3proto *);
 void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *);

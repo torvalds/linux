@@ -425,6 +425,32 @@ manip_addr:
 	return true;
 }
 
+unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
+			      enum nf_nat_manip_type mtype,
+			      enum ip_conntrack_dir dir)
+{
+	struct nf_conntrack_tuple target;
+
+	/* We are aiming to look like inverse of other direction. */
+	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
+
+	switch (target.src.l3num) {
+	case NFPROTO_IPV6:
+		if (nf_nat_ipv6_manip_pkt(skb, 0, &target, mtype))
+			return NF_ACCEPT;
+		break;
+	case NFPROTO_IPV4:
+		if (nf_nat_ipv4_manip_pkt(skb, 0, &target, mtype))
+			return NF_ACCEPT;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+	return NF_DROP;
+}
+
 static void nf_nat_ipv4_csum_update(struct sk_buff *skb,
 				    unsigned int iphdroff, __sum16 *check,
 				    const struct nf_conntrack_tuple *t,
@@ -506,7 +532,6 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
-	.manip_pkt		= nf_nat_ipv4_manip_pkt,
 	.csum_update		= nf_nat_ipv4_csum_update,
 	.csum_recalc		= nf_nat_ipv4_csum_recalc,
 };
@@ -759,7 +784,6 @@ void nf_nat_l3proto_exit(void)
 #if IS_ENABLED(CONFIG_IPV6)
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
-	.manip_pkt		= nf_nat_ipv6_manip_pkt,
 	.csum_update		= nf_nat_ipv6_csum_update,
 	.csum_recalc		= nf_nat_ipv6_csum_recalc,
 };
