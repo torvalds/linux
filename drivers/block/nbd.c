@@ -2118,8 +2118,7 @@ static int nbd_genl_status(struct sk_buff *skb, struct genl_info *info)
 	}
 	nla_nest_end(reply, dev_list);
 	genlmsg_end(reply, reply_head);
-	genlmsg_reply(reply, info);
-	ret = 0;
+	ret = genlmsg_reply(reply, info);
 out:
 	mutex_unlock(&nbd_index_mutex);
 	return ret;
