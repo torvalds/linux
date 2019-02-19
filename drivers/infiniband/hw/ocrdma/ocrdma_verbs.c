@@ -504,8 +504,8 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&ctx->mm_head);
 	mutex_init(&ctx->mm_list_lock);
 
-	ctx->ah_tbl.va = dma_zalloc_coherent(&pdev->dev, map_len,
-					     &ctx->ah_tbl.pa, GFP_KERNEL);
+	ctx->ah_tbl.va = dma_alloc_coherent(&pdev->dev, map_len,
+					    &ctx->ah_tbl.pa, GFP_KERNEL);
 	if (!ctx->ah_tbl.va) {
 		kfree(ctx);
 		return ERR_PTR(-ENOMEM);
@@ -838,7 +838,7 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
 		return -ENOMEM;
 
 	for (i = 0; i < mr->num_pbls; i++) {
-		va = dma_zalloc_coherent(&pdev->dev, dma_len, &pa, GFP_KERNEL);
+		va = dma_alloc_coherent(&pdev->dev, dma_len, &pa, GFP_KERNEL);
 		if (!va) {
 			ocrdma_free_mr_pbl_tbl(dev, mr);
 			status = -ENOMEM;

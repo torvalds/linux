@@ -149,7 +149,14 @@ asmlinkage void __init setup_vm(void)
 
 void __init parse_dtb(unsigned int hartid, void *dtb)
 {
-	early_init_dt_scan(__va(dtb));
+	if (!early_init_dt_scan(__va(dtb)))
+		return;
+
+	pr_err("No DTB passed to the kernel\n");
+#ifdef CONFIG_CMDLINE_FORCE
+	strlcpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+	pr_info("Forcing kernel command line to: %s\n", boot_command_line);
+#endif
 }
 
 static void __init setup_bootmem(void)
@@ -174,7 +181,7 @@ static void __init setup_bootmem(void)
 	BUG_ON(mem_size == 0);
 
 	set_max_mapnr(PFN_DOWN(mem_size));
-	max_low_pfn = memblock_end_of_DRAM();
+	max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	setup_initrd();

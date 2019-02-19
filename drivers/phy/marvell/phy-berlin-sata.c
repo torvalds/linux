@@ -32,7 +32,7 @@
 
 /* register 0x01 */
 #define REF_FREF_SEL_25		BIT(0)
-#define PHY_MODE_SATA		(0x0 << 5)
+#define PHY_BERLIN_MODE_SATA	(0x0 << 5)
 
 /* register 0x02 */
 #define USE_MAX_PLL_RATE	BIT(12)
@@ -102,7 +102,8 @@ static int phy_berlin_sata_power_on(struct phy *phy)
 
 	/* set PHY mode and ref freq to 25 MHz */
 	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x01,
-				    0x00ff, REF_FREF_SEL_25 | PHY_MODE_SATA);
+				    0x00ff,
+				    REF_FREF_SEL_25 | PHY_BERLIN_MODE_SATA);
 
 	/* set PHY up to 6 Gbps */
 	phy_berlin_sata_reg_setbits(ctrl_reg, priv->phy_base, 0x25,
