@@ -1339,20 +1339,35 @@ static int i2s_register_clock_provider(struct samsung_i2s_priv *priv)
 /* Create platform device for the secondary PCM */
 static int i2s_create_secondary_device(struct samsung_i2s_priv *priv)
 {
-	struct platform_device *pdev;
+	struct platform_device *pdev_sec;
+	const char *devname;
 	int ret;
 
-	pdev = platform_device_register_simple("samsung-i2s-sec", -1, NULL, 0);
-	if (!pdev)
+	devname = devm_kasprintf(&priv->pdev->dev, GFP_KERNEL, "%s-sec",
+				 dev_name(&priv->pdev->dev));
+	if (!devname)
 		return -ENOMEM;
 
-	ret = device_attach(&pdev->dev);
+	pdev_sec = platform_device_alloc(devname, -1);
+	if (!pdev_sec)
+		return -ENOMEM;
+
+	pdev_sec->driver_override = kstrdup("samsung-i2s", GFP_KERNEL);
+
+	ret = platform_device_add(pdev_sec);
 	if (ret < 0) {
-		dev_info(&pdev->dev, "device_attach() failed\n");
+		platform_device_put(pdev_sec);
 		return ret;
 	}
 
-	priv->pdev_sec = pdev;
+	ret = device_attach(&pdev_sec->dev);
+	if (ret <= 0) {
+		platform_device_unregister(priv->pdev_sec);
+		dev_info(&pdev_sec->dev, "device_attach() failed\n");
+		return ret;
+	}
+
+	priv->pdev_sec = pdev_sec;
 
 	return 0;
 }
@@ -1367,22 +1382,25 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 {
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
 	struct s3c_audio_pdata *i2s_pdata = pdev->dev.platform_data;
-	struct resource *res;
 	u32 regs_base, idma_addr = 0;
 	struct device_node *np = pdev->dev.of_node;
 	const struct samsung_i2s_dai_data *i2s_dai_data;
-	int num_dais, ret;
+	const struct platform_device_id *id;
 	struct samsung_i2s_priv *priv;
+	struct resource *res;
+	int num_dais, ret;
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
 		i2s_dai_data = of_device_get_match_data(&pdev->dev);
-	else
-		i2s_dai_data = (struct samsung_i2s_dai_data *)
-				platform_get_device_id(pdev)->driver_data;
+	} else {
+		id = platform_get_device_id(pdev);
 
-	/* Nothing to do if it is the secondary device probe */
-	if (!i2s_dai_data)
-		return 0;
+		/* Nothing to do if it is the secondary device probe */
+		if (!id)
+			return 0;
+
+		i2s_dai_data = (struct samsung_i2s_dai_data *)id->driver_data;
+	}
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1637,8 +1655,6 @@ static const struct platform_device_id samsung_i2s_driver_ids[] = {
 	{
 		.name           = "samsung-i2s",
 		.driver_data	= (kernel_ulong_t)&i2sv3_dai_type,
-	}, {
-		.name           = "samsung-i2s-sec",
 	},
 	{},
 };

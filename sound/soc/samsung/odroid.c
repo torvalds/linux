@@ -185,7 +185,7 @@ static struct snd_soc_dai_link odroid_card_dais[] = {
 		.ops = &odroid_card_fe_ops,
 		.name = "Secondary",
 		.stream_name = "Secondary",
-		.platform_name = "samsung-i2s-sec",
+		.platform_name = "3830000.i2s-sec",
 		.dynamic = 1,
 		.dpcm_playback = 1,
 	}
