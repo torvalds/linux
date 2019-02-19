@@ -108,3 +108,29 @@ idle bus is:
 
 # echo 200 > lose_arbitration &
 # i2cget -y <bus_to_test> 0x3f
+
+Panic during transfer
+=====================
+
+This fault injector will create a Kernel panic once the master under test
+started a transfer. This usually means that the state machine of the bus master
+driver will be ungracefully interrupted and the bus may end up in an unusual
+state. Use this to check if your shutdown/reboot/boot code can handle this
+scenario.
+
+"inject_panic"
+--------------
+
+This file is write only and you need to write the delay between the detected
+start of a transmission and the induced Kernel panic (in µs, maximum is 100ms).
+The calling process will then sleep and wait for the next bus clock. The
+process is interruptible, though.
+
+Start of a transfer is detected by waiting for SCL going down by the master
+under test.  A good starting point for using this fault injector is:
+
+# echo 0 > inject_panic &
+# i2cget -y <bus_to_test> <some_address>
+
+Note that there doesn't need to be a device listening to the address you are
+using. Results may vary depending on that, though.

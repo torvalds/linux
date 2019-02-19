@@ -231,6 +231,32 @@ static int fops_lose_arbitration_set(void *data, u64 duration)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(fops_lose_arbitration, NULL, fops_lose_arbitration_set, "%llu\n");
 
+static irqreturn_t inject_panic_irq(int irq, void *dev_id)
+{
+	struct i2c_gpio_private_data *priv = dev_id;
+
+	udelay(priv->scl_irq_data);
+	panic("I2C fault injector induced panic");
+
+	return IRQ_HANDLED;
+}
+
+static int fops_inject_panic_set(void *data, u64 duration)
+{
+	struct i2c_gpio_private_data *priv = data;
+
+	if (duration > 100 * 1000)
+		return -EINVAL;
+
+	priv->scl_irq_data = duration;
+	/*
+	 * Interrupt on falling SCL. This ensures that the master under test has
+	 * really started the transfer.
+	 */
+	return i2c_gpio_fi_act_on_scl_irq(priv, inject_panic_irq);
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_inject_panic, NULL, fops_inject_panic_set, "%llu\n");
+
 static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv = platform_get_drvdata(pdev);
@@ -256,9 +282,12 @@ static void i2c_gpio_fault_injector_init(struct platform_device *pdev)
 				   priv, &fops_incomplete_addr_phase);
 	debugfs_create_file_unsafe("incomplete_write_byte", 0200, priv->debug_dir,
 				   priv, &fops_incomplete_write_byte);
-	if (priv->bit_data.getscl)
+	if (priv->bit_data.getscl) {
+		debugfs_create_file_unsafe("inject_panic", 0200, priv->debug_dir,
+					   priv, &fops_inject_panic);
 		debugfs_create_file_unsafe("lose_arbitration", 0200, priv->debug_dir,
 					   priv, &fops_lose_arbitration);
+	}
 	debugfs_create_file_unsafe("scl", 0600, priv->debug_dir, priv, &fops_scl);
 	debugfs_create_file_unsafe("sda", 0600, priv->debug_dir, priv, &fops_sda);
 }
