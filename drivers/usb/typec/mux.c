@@ -184,7 +184,7 @@ find_mux:
 		if (dev_fwnode(mux->dev) == con->fwnode)
 			return mux;
 
-	return match ? ERR_PTR(-EPROBE_DEFER) : NULL;
+	return ERR_PTR(-EPROBE_DEFER);
 }
 
 /**
