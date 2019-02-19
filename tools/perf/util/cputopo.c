@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/param.h>
 #include <inttypes.h>
+#include <api/fs/fs.h>
 
 #include "cputopo.h"
 #include "cpumap.h"
@@ -9,9 +10,15 @@
 
 
 #define CORE_SIB_FMT \
-	"/sys/devices/system/cpu/cpu%d/topology/core_siblings_list"
+	"%s/devices/system/cpu/cpu%d/topology/core_siblings_list"
 #define THRD_SIB_FMT \
-	"/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list"
+	"%s/devices/system/cpu/cpu%d/topology/thread_siblings_list"
+#define NODE_ONLINE_FMT \
+	"%s/devices/system/node/online"
+#define NODE_MEMINFO_FMT \
+	"%s/devices/system/node/node%d/meminfo"
+#define NODE_CPULIST_FMT \
+	"%s/devices/system/node/node%d/cpulist"
 
 static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 {
@@ -23,7 +30,8 @@ static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 	u32 i = 0;
 	int ret = -1;
 
-	sprintf(filename, CORE_SIB_FMT, cpu);
+	scnprintf(filename, MAXPATHLEN, CORE_SIB_FMT,
+		  sysfs__mountpoint(), cpu);
 	fp = fopen(filename, "r");
 	if (!fp)
 		goto try_threads;
@@ -50,7 +58,8 @@ static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 	ret = 0;
 
 try_threads:
-	sprintf(filename, THRD_SIB_FMT, cpu);
+	scnprintf(filename, MAXPATHLEN, THRD_SIB_FMT,
+		  sysfs__mountpoint(), cpu);
 	fp = fopen(filename, "r");
 	if (!fp)
 		goto done;
@@ -157,7 +166,8 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 
 	node->node = (u32) nr;
 
-	sprintf(str, "/sys/devices/system/node/node%d/meminfo", nr);
+	scnprintf(str, MAXPATHLEN, NODE_MEMINFO_FMT,
+		  sysfs__mountpoint(), nr);
 	fp = fopen(str, "r");
 	if (!fp)
 		return -1;
@@ -179,7 +189,8 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 	fclose(fp);
 	fp = NULL;
 
-	sprintf(str, "/sys/devices/system/node/node%d/cpulist", nr);
+	scnprintf(str, MAXPATHLEN, NODE_CPULIST_FMT,
+		  sysfs__mountpoint(), nr);
 
 	fp = fopen(str, "r");
 	if (!fp)
@@ -207,13 +218,17 @@ struct numa_topology *numa_topology__new(void)
 {
 	struct cpu_map *node_map = NULL;
 	struct numa_topology *tp = NULL;
+	char path[MAXPATHLEN];
 	char *buf = NULL;
 	size_t len = 0;
 	u32 nr, i;
 	FILE *fp;
 	char *c;
 
-	fp = fopen("/sys/devices/system/node/online", "r");
+	scnprintf(path, MAXPATHLEN, NODE_ONLINE_FMT,
+		  sysfs__mountpoint());
+
+	fp = fopen(path, "r");
 	if (!fp)
 		return NULL;
 
