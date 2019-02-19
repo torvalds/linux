@@ -393,24 +393,17 @@ static int fiq_debugger_cpuidle_resume_fiq(struct notifier_block *nb,
  * resume all fiq configure at this sisutation. Here, we migrate fiq to any
  * online cpu.
  */
-static int fiq_debugger_cpu_offine_migrate_fiq(struct notifier_block *nb,
-					       unsigned long action, void *hcpu)
+static int fiq_debugger_cpu_offine_migrate_fiq(unsigned int cpu)
 {
-	int target_cpu, cpu = (long)hcpu;
+	unsigned int target_cpu;
 
-	switch (action) {
-	case CPU_DEAD:
-		if ((sip_fiq_debugger_is_enabled()) &&
-		    (sip_fiq_debugger_get_target_cpu() == cpu)) {
-			target_cpu = cpumask_first(cpu_online_mask);
-			sip_fiq_debugger_switch_cpu(target_cpu);
-		}
-		break;
-	default:
-		break;
+	if ((sip_fiq_debugger_is_enabled()) &&
+	    (sip_fiq_debugger_get_target_cpu() == cpu)) {
+		target_cpu = cpumask_first(cpu_online_mask);
+		sip_fiq_debugger_switch_cpu(target_cpu);
 	}
 
-	return NOTIFY_OK;
+	return 0;
 }
 
 static struct notifier_block fiq_debugger_pm_notifier = {
@@ -418,17 +411,15 @@ static struct notifier_block fiq_debugger_pm_notifier = {
 	.priority = 100,
 };
 
-static struct notifier_block fiq_debugger_cpu_notifier = {
-	.notifier_call = fiq_debugger_cpu_offine_migrate_fiq,
-	.priority = 100,
-};
-
 static int rk_fiq_debugger_register_cpu_pm_notify(void)
 {
 	int err;
 
-	err = register_cpu_notifier(&fiq_debugger_cpu_notifier);
-	if (err) {
+	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"soc/rk_fiq_debugger",
+					NULL,
+					fiq_debugger_cpu_offine_migrate_fiq);
+	if (err < 0) {
 		pr_err("fiq debugger register cpu notifier failed!\n");
 		return err;
 	}
@@ -711,7 +702,7 @@ static int __init rk_fiqdbg_init(void)
 	return platform_driver_probe(&rk_fiqdbg_driver,
 				     rk_fiqdbg_probe);
 }
-arch_initcall_sync(rk_fiqdbg_init);
+subsys_initcall(rk_fiqdbg_init); /* after of_platform_default_populate_init */
 
 MODULE_AUTHOR("Huibin Hong <huibin.hong@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip FIQ Debugger");
