@@ -491,7 +491,7 @@ Description:	Information about CPU vulnerabilities
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
 
 		Details about the l1tf file can be found in
-		Documentation/admin-guide/l1tf.rst
+		Documentation/admin-guide/hw-vuln/l1tf.rst
 
 What:		/sys/devices/system/cpu/smt
 		/sys/devices/system/cpu/smt/active
