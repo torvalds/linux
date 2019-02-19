@@ -99,6 +99,8 @@ struct kvm_nested_guest;
 
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
+	ulong num_2M_pages;
+	ulong num_1G_pages;
 };
 
 struct kvm_vcpu_stat {
