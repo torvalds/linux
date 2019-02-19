@@ -151,7 +151,7 @@ struct ice_tc_info {
 
 struct ice_tc_cfg {
 	u8 numtc; /* Total number of enabled TCs */
-	u8 ena_tc; /* TX map */
+	u8 ena_tc; /* Tx map */
 	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
 };
 
@@ -360,8 +360,8 @@ struct ice_pf {
 	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
 	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u16 num_lan_tx;		/* num lan Tx queues setup */
-	u16 num_lan_rx;		/* num lan Rx queues setup */
+	u16 num_lan_tx;		/* num LAN Tx queues setup */
+	u16 num_lan_rx;		/* num LAN Rx queues setup */
 	u16 q_left_tx;		/* remaining num Tx queues left unclaimed */
 	u16 q_left_rx;		/* remaining num Rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
@@ -387,8 +387,8 @@ struct ice_netdev_priv {
 
 /**
  * ice_irq_dynamic_ena - Enable default interrupt generation settings
- * @hw: pointer to hw struct
- * @vsi: pointer to vsi struct, can be NULL
+ * @hw: pointer to HW struct
+ * @vsi: pointer to VSI struct, can be NULL
  * @q_vector: pointer to q_vector, can be NULL
  */
 static inline void

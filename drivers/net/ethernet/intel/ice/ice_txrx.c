@@ -456,7 +456,7 @@ bool ice_alloc_rx_bufs(struct ice_ring *rx_ring, u16 cleaned_count)
 	if (!rx_ring->netdev || !cleaned_count)
 		return false;
 
-	/* get the RX descriptor and buffer based on next_to_use */
+	/* get the Rx descriptor and buffer based on next_to_use */
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
 	bi = &rx_ring->rx_buf[ntu];
 
@@ -959,10 +959,10 @@ ice_process_skb_fields(struct ice_ring *rx_ring,
  * ice_receive_skb - Send a completed packet up the stack
  * @rx_ring: Rx ring in play
  * @skb: packet to send up
- * @vlan_tag: vlan tag for packet
+ * @vlan_tag: VLAN tag for packet
  *
  * This function sends the completed packet (via. skb) up the stack using
- * gro receive functions (with/without vlan tag)
+ * gro receive functions (with/without VLAN tag)
  */
 static void
 ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
@@ -991,7 +991,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 	u16 cleaned_count = ICE_DESC_UNUSED(rx_ring);
 	bool failure = false;
 
-	/* start the loop to process RX packets bounded by 'budget' */
+	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
 		union ice_32b_rx_flex_desc *rx_desc;
 		struct ice_rx_buf *rx_buf;
@@ -1008,7 +1008,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 			cleaned_count = 0;
 		}
 
-		/* get the RX desc from RX ring based on 'next_to_clean' */
+		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
 		/* status_error_len will always be zero for unused descriptors
@@ -1772,7 +1772,7 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 }
 
 /**
- * ice_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
+ * ice_tx_prepare_vlan_flags - prepare generic Tx VLAN tagging flags for HW
  * @tx_ring: ring to send buffer on
  * @first: pointer to struct ice_tx_buf
  *

@@ -375,9 +375,9 @@ static void ice_trigger_vf_reset(struct ice_vf *vf, bool is_vflr)
 }
 
 /**
- * ice_vsi_set_pvid_fill_ctxt - Set VSI ctxt for add pvid
- * @ctxt: the vsi ctxt to fill
- * @vid: the VLAN id to set as a PVID
+ * ice_vsi_set_pvid_fill_ctxt - Set VSI ctxt for add PVID
+ * @ctxt: the VSI ctxt to fill
+ * @vid: the VLAN ID to set as a PVID
  */
 static void ice_vsi_set_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt, u16 vid)
 {
@@ -391,7 +391,7 @@ static void ice_vsi_set_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt, u16 vid)
 }
 
 /**
- * ice_vsi_kill_pvid_fill_ctxt - Set VSI ctx for remove pvid
+ * ice_vsi_kill_pvid_fill_ctxt - Set VSI ctx for remove PVID
  * @ctxt: the VSI ctxt to fill
  */
 static void ice_vsi_kill_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt)
@@ -406,8 +406,8 @@ static void ice_vsi_kill_pvid_fill_ctxt(struct ice_vsi_ctx *ctxt)
 /**
  * ice_vsi_manage_pvid - Enable or disable port VLAN for VSI
  * @vsi: the VSI to update
- * @vid: the VLAN id to set as a PVID
- * @enable: true for enable pvid false for disable
+ * @vid: the VLAN ID to set as a PVID
+ * @enable: true for enable PVID false for disable
  */
 static int ice_vsi_manage_pvid(struct ice_vsi *vsi, u16 vid, bool enable)
 {
@@ -445,7 +445,7 @@ out:
  * ice_vf_vsi_setup - Set up a VF VSI
  * @pf: board private structure
  * @pi: pointer to the port_info instance
- * @vf_id: defines VF id to which this VSI connects.
+ * @vf_id: defines VF ID to which this VSI connects.
  *
  * Returns pointer to the successfully allocated VSI struct on success,
  * otherwise returns NULL on failure.
@@ -1508,9 +1508,9 @@ static void ice_vc_reset_vf_msg(struct ice_vf *vf)
 /**
  * ice_find_vsi_from_id
  * @pf: the pf structure to search for the VSI
- * @id: id of the VSI it is searching for
+ * @id: ID of the VSI it is searching for
  *
- * searches for the VSI with the given id
+ * searches for the VSI with the given ID
  */
 static struct ice_vsi *ice_find_vsi_from_id(struct ice_pf *pf, u16 id)
 {
@@ -1526,9 +1526,9 @@ static struct ice_vsi *ice_find_vsi_from_id(struct ice_pf *pf, u16 id)
 /**
  * ice_vc_isvalid_vsi_id
  * @vf: pointer to the VF info
- * @vsi_id: VF relative VSI id
+ * @vsi_id: VF relative VSI ID
  *
- * check for the valid VSI id
+ * check for the valid VSI ID
  */
 static bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id)
 {
@@ -1543,10 +1543,10 @@ static bool ice_vc_isvalid_vsi_id(struct ice_vf *vf, u16 vsi_id)
 /**
  * ice_vc_isvalid_q_id
  * @vf: pointer to the VF info
- * @vsi_id: VSI id
- * @qid: VSI relative queue id
+ * @vsi_id: VSI ID
+ * @qid: VSI relative queue ID
  *
- * check for the valid queue id
+ * check for the valid queue ID
  */
 static bool ice_vc_isvalid_q_id(struct ice_vf *vf, u16 vsi_id, u8 qid)
 {
@@ -2005,7 +2005,7 @@ static bool ice_can_vf_change_mac(struct ice_vf *vf)
  * ice_vc_handle_mac_addr_msg
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
- * @set: true if mac filters are being set, false otherwise
+ * @set: true if MAC filters are being set, false otherwise
  *
  * add guest MAC address filter
  */
@@ -2065,7 +2065,7 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 					 maddr, vf->vf_id);
 				continue;
 			} else {
-				/* VF can't remove dflt_lan_addr/bcast mac */
+				/* VF can't remove dflt_lan_addr/bcast MAC */
 				dev_err(&pf->pdev->dev,
 					"VF can't remove default MAC address or MAC %pM programmed by PF for VF %d\n",
 					maddr, vf->vf_id);
@@ -2091,7 +2091,7 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 			goto handle_mac_exit;
 		}
 
-		/* get here if maddr is multicast or if VF can change mac */
+		/* get here if maddr is multicast or if VF can change MAC */
 		if (ice_add_mac_to_list(vsi, &mac_list, al->list[i].addr)) {
 			v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 			goto handle_mac_exit;
@@ -2154,7 +2154,7 @@ static int ice_vc_del_mac_addr_msg(struct ice_vf *vf, u8 *msg)
  * VFs get a default number of queues but can use this message to request a
  * different number. If the request is successful, PF will reset the VF and
  * return 0. If unsuccessful, PF will send message informing VF of number of
- * available queue pairs via virtchnl message response to vf.
+ * available queue pairs via virtchnl message response to VF.
  */
 static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 {
@@ -2210,11 +2210,11 @@ error_param:
  * ice_set_vf_port_vlan
  * @netdev: network interface device structure
  * @vf_id: VF identifier
- * @vlan_id: VLAN id being set
+ * @vlan_id: VLAN ID being set
  * @qos: priority setting
  * @vlan_proto: VLAN protocol
  *
- * program VF Port VLAN id and/or qos
+ * program VF Port VLAN ID and/or QoS
  */
 int
 ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
@@ -2257,7 +2257,7 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		return ret;
 	}
 
-	/* If pvid, then remove all filters on the old VLAN */
+	/* If PVID, then remove all filters on the old VLAN */
 	if (vsi->info.pvid)
 		ice_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
 				  VLAN_VID_MASK));
@@ -2296,7 +2296,7 @@ error_set_pvid:
  * @msg: pointer to the msg buffer
  * @add_v: Add VLAN if true, otherwise delete VLAN
  *
- * Process virtchnl op to add or remove programmed guest VLAN id
+ * Process virtchnl op to add or remove programmed guest VLAN ID
  */
 static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 {
@@ -2443,7 +2443,7 @@ error_param:
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
  *
- * Add and program guest VLAN id
+ * Add and program guest VLAN ID
  */
 static int ice_vc_add_vlan_msg(struct ice_vf *vf, u8 *msg)
 {
@@ -2455,7 +2455,7 @@ static int ice_vc_add_vlan_msg(struct ice_vf *vf, u8 *msg)
  * @vf: pointer to the VF info
  * @msg: pointer to the msg buffer
  *
- * remove programmed guest VLAN id
+ * remove programmed guest VLAN ID
  */
 static int ice_vc_remove_vlan_msg(struct ice_vf *vf, u8 *msg)
 {
@@ -2771,9 +2771,9 @@ out:
  * ice_set_vf_mac
  * @netdev: network interface device structure
  * @vf_id: VF identifier
- * @mac: mac address
+ * @mac: MAC address
  *
- * program VF mac address
+ * program VF MAC address
  */
 int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 {
@@ -2800,7 +2800,7 @@ int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 		return -EINVAL;
 	}
 
-	/* copy mac into dflt_lan_addr and trigger a VF reset. The reset
+	/* copy MAC into dflt_lan_addr and trigger a VF reset. The reset
 	 * flow will use the updated dflt_lan_addr and add a MAC filter
 	 * using ice_add_mac. Also set pf_set_mac to indicate that the PF has
 	 * set the MAC address for this VF.

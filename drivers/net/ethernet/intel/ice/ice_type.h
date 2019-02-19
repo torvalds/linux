@@ -107,7 +107,7 @@ struct ice_link_status {
 };
 
 /* Different reset sources for which a disable queue AQ call has to be made in
- * order to clean the TX scheduler as a part of the reset
+ * order to clean the Tx scheduler as a part of the reset
  */
 enum ice_disq_rst_src {
 	ICE_NO_RESET = 0,
@@ -129,11 +129,11 @@ struct ice_phy_info {
 struct ice_hw_common_caps {
 	u32 valid_functions;
 
-	/* TX/RX queues */
-	u16 num_rxq;		/* Number/Total RX queues */
-	u16 rxq_first_id;	/* First queue ID for RX queues */
-	u16 num_txq;		/* Number/Total TX queues */
-	u16 txq_first_id;	/* First queue ID for TX queues */
+	/* Tx/Rx queues */
+	u16 num_rxq;		/* Number/Total Rx queues */
+	u16 rxq_first_id;	/* First queue ID for Rx queues */
+	u16 num_txq;		/* Number/Total Tx queues */
+	u16 txq_first_id;	/* First queue ID for Tx queues */
 
 	/* MSI-X vectors */
 	u16 num_msix_vectors;
@@ -218,7 +218,7 @@ struct ice_sched_node {
 	struct ice_sched_node *sibling; /* next sibling in the same layer */
 	struct ice_sched_node **children;
 	struct ice_aqc_txsched_elem_data info;
-	u32 agg_id;			/* aggregator group id */
+	u32 agg_id;			/* aggregator group ID */
 	u16 vsi_handle;
 	u8 in_use;			/* suspended or in use */
 	u8 tx_sched_layer;		/* Logical Layer (1-9) */
@@ -245,7 +245,7 @@ enum ice_agg_type {
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
 #define ICE_SCHED_DFLT_BW_WT		1
 
-/* vsi type list entry to locate corresponding vsi/ag nodes */
+/* VSI type list entry to locate corresponding VSI/ag nodes */
 struct ice_sched_vsi_info {
 	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
@@ -262,7 +262,7 @@ struct ice_sched_tx_policy {
 
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
-	struct ice_hw *hw;		/* back pointer to hw instance */
+	struct ice_hw *hw;		/* back pointer to HW instance */
 	u32 last_node_teid;		/* scheduler last node info */
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
@@ -323,7 +323,7 @@ struct ice_hw {
 
 	u8 pf_id;		/* device profile info */
 
-	/* TX Scheduler values */
+	/* Tx Scheduler values */
 	u16 num_tx_sched_layers;
 	u16 num_tx_sched_phys_layers;
 	u8 flattened_layers;
@@ -334,7 +334,7 @@ struct ice_hw {
 
 	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
-	u8 reset_ongoing;	/* true if hw is in reset, false otherwise */
+	u8 reset_ongoing;	/* true if HW is in reset, false otherwise */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */

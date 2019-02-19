@@ -73,7 +73,7 @@ static int ice_setup_rx_ctx(struct ice_ring *ring)
 		regval |= (rxdid << QRXFLXP_CNTXT_RXDID_IDX_S) &
 			QRXFLXP_CNTXT_RXDID_IDX_M;
 
-		/* increasing context priority to pick up profile id;
+		/* increasing context priority to pick up profile ID;
 		 * default is 0x01; setting to 0x03 to ensure profile
 		 * is programming if prev context is of same priority
 		 */
@@ -138,7 +138,7 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
 	case ICE_VSI_VF:
-		/* Firmware expects vmvf_num to be absolute VF id */
+		/* Firmware expects vmvf_num to be absolute VF ID */
 		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf_id;
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
 		break;
@@ -297,7 +297,7 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 /**
  * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
- * @vf_id: Id of the VF being configured
+ * @vf_id: ID of the VF being configured
  *
  * Return 0 on success and a negative value on error
  */
@@ -479,7 +479,7 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
  * @type: type of VSI
- * @vf_id: Id of the VF being configured
+ * @vf_id: ID of the VF being configured
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
@@ -1445,12 +1445,12 @@ ice_vsi_cfg_rss_exit:
 }
 
 /**
- * ice_add_mac_to_list - Add a mac address filter entry to the list
+ * ice_add_mac_to_list - Add a MAC address filter entry to the list
  * @vsi: the VSI to be forwarded to
  * @add_list: pointer to the list which contains MAC filter entries
  * @macaddr: the MAC address to be added.
  *
- * Adds mac address filter entry to the temp list
+ * Adds MAC address filter entry to the temp list
  *
  * Returns 0 on success or ENOMEM on failure.
  */
@@ -1552,7 +1552,7 @@ void ice_free_fltr_list(struct device *dev, struct list_head *h)
 /**
  * ice_vsi_add_vlan - Add VSI membership for given VLAN
  * @vsi: the VSI being configured
- * @vid: VLAN id to be added
+ * @vid: VLAN ID to be added
  */
 int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 {
@@ -1590,7 +1590,7 @@ int ice_vsi_add_vlan(struct ice_vsi *vsi, u16 vid)
 /**
  * ice_vsi_kill_vlan - Remove VSI membership for a given VLAN
  * @vsi: the VSI being configured
- * @vid: VLAN id to be removed
+ * @vid: VLAN ID to be removed
  *
  * Returns 0 on success and negative on failure
  */
@@ -2016,7 +2016,7 @@ int ice_vsi_stop_rx_rings(struct ice_vsi *vsi)
  * ice_vsi_stop_tx_rings - Disable Tx rings
  * @vsi: the VSI being configured
  * @rst_src: reset source
- * @rel_vmvf_num: Relative id of VF/VM
+ * @rel_vmvf_num: Relative ID of VF/VM
  * @rings: Tx ring array to be stopped
  * @offset: offset within vsi->txq_map
  */
@@ -2102,7 +2102,7 @@ err_alloc_q_ids:
  * ice_vsi_stop_lan_tx_rings - Disable LAN Tx rings
  * @vsi: the VSI being configured
  * @rst_src: reset source
- * @rel_vmvf_num: Relative id of VF/VM
+ * @rel_vmvf_num: Relative ID of VF/VM
  */
 int
 ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
@@ -2177,7 +2177,7 @@ err_out:
  * @pf: board private structure
  * @pi: pointer to the port_info instance
  * @type: VSI type
- * @vf_id: defines VF id to which this VSI connects. This field is meant to be
+ * @vf_id: defines VF ID to which this VSI connects. This field is meant to be
  *         used only for ICE_VSI_VF VSI type. For other VSI types, should
  *         fill-in ICE_INVAL_VFID as input.
  *
@@ -2219,7 +2219,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	/* set RSS capabilities */
 	ice_vsi_set_rss_params(vsi);
 
-	/* set tc configuration */
+	/* set TC configuration */
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* create the VSI */

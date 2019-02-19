@@ -811,7 +811,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 
 	link_info = &vsi->port_info->phy.link_info;
 
-	/* Initialize supported and advertised settings based on phy settings */
+	/* Initialize supported and advertised settings based on PHY settings */
 	switch (link_info->phy_type_low) {
 	case ICE_PHY_TYPE_LOW_100BASE_TX:
 		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
@@ -1140,7 +1140,7 @@ ice_get_settings_link_down(struct ethtool_link_ksettings *ks,
 			   struct net_device __always_unused *netdev)
 {
 	/* link is down and the driver needs to fall back on
-	 * supported phy types to figure out what info to display
+	 * supported PHY types to figure out what info to display
 	 */
 	ice_phy_type_to_ethtool(netdev, ks);
 
@@ -1350,7 +1350,7 @@ ice_setup_autoneg(struct ice_port_info *p, struct ethtool_link_ksettings *ks,
 	} else {
 		/* If autoneg is currently enabled */
 		if (p->phy.link_info.an_info & ICE_AQ_AN_COMPLETED) {
-			/* If autoneg is supported 10GBASE_T is the only phy
+			/* If autoneg is supported 10GBASE_T is the only PHY
 			 * that can disable it, so otherwise return error
 			 */
 			if (ethtool_link_ksettings_test_link_mode(ks,
@@ -1400,7 +1400,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	if (!p)
 		return -EOPNOTSUPP;
 
-	/* Check if this is lan vsi */
+	/* Check if this is LAN VSI */
 	ice_for_each_vsi(pf, idx)
 		if (pf->vsi[idx]->type == ICE_VSI_PF) {
 			if (np->vsi != pf->vsi[idx])
@@ -1464,7 +1464,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	if (!abilities)
 		return -ENOMEM;
 
-	/* Get the current phy config */
+	/* Get the current PHY config */
 	status = ice_aq_get_phy_caps(p, false, ICE_AQC_REPORT_SW_CFG, abilities,
 				     NULL);
 	if (status) {
@@ -1559,7 +1559,7 @@ done:
 }
 
 /**
- * ice_get_rxnfc - command to get RX flow classification rules
+ * ice_get_rxnfc - command to get Rx flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
  * @rule_locs: buffer to rturn Rx flow classification rules
@@ -1833,7 +1833,7 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	if (!pcaps)
 		return;
 
-	/* Get current phy config */
+	/* Get current PHY config */
 	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
 				     NULL);
 	if (status)
@@ -2022,7 +2022,7 @@ out:
  * @key: hash key
  * @hfunc: hash function
  *
- * Returns -EINVAL if the table specifies an invalid queue id, otherwise
+ * Returns -EINVAL if the table specifies an invalid queue ID, otherwise
  * returns 0 after programming the table.
  */
 static int
@@ -2089,7 +2089,7 @@ enum ice_container_type {
 /**
  * ice_get_rc_coalesce - get ITR values for specific ring container
  * @ec: ethtool structure to fill with driver's coalesce settings
- * @c_type: container type, RX or TX
+ * @c_type: container type, Rx or Tx
  * @rc: ring container that the ITR values will come from
  *
  * Query the device for ice_ring_container specific ITR values. This is
@@ -2191,7 +2191,7 @@ ice_get_per_q_coalesce(struct net_device *netdev, u32 q_num,
 
 /**
  * ice_set_rc_coalesce - set ITR values for specific ring container
- * @c_type: container type, RX or TX
+ * @c_type: container type, Rx or Tx
  * @ec: ethtool structure from user to update ITR settings
  * @rc: ring container that the ITR values will come from
  * @vsi: VSI associated to the ring container
