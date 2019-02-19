@@ -1391,12 +1391,14 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 
 void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 {
-	struct pp_smu_funcs_rv *pp = &dc->res_pool->pp_smu->rv_funcs;
+	struct pp_smu_funcs_rv *pp = NULL;
 	struct pp_smu_wm_range_sets ranges = {0};
 	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
 
-	if (!pp->set_wm_ranges)
+	if (dc->res_pool->pp_smu)
+		pp = &dc->res_pool->pp_smu->rv_funcs;
+	if (!pp || !pp->set_wm_ranges)
 		return;
 
 	kernel_fpu_begin();
