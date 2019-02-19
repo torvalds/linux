@@ -91,7 +91,7 @@ do
 		shift
 		;;
 	--herdopts|--herdopt)
-		checkarg --destdir "(herd options)" "$#" "$2" '.*' '^--'
+		checkarg --destdir "(herd7 options)" "$#" "$2" '.*' '^--'
 		LKMM_HERD_OPTIONS="$2"
 		shift
 		;;
