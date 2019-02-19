@@ -260,7 +260,11 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 	/* Add mac addresses in the sync list */
 	status = ice_add_mac(hw, &vsi->tmp_sync_list);
 	ice_free_fltr_list(dev, &vsi->tmp_sync_list);
-	if (status) {
+	/* If filter is added successfully or already exists, do not go into
+	 * 'if' condition and report it as error. Instead continue processing
+	 * rest of the function.
+	 */
+	if (status && status != ICE_ERR_ALREADY_EXISTS) {
 		netdev_err(netdev, "Failed to add MAC filters\n");
 		/* If there is no more space for new umac filters, vsi
 		 * should go into promiscuous mode. There should be some
