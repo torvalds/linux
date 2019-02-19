@@ -28,40 +28,6 @@
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6;
 
-#ifdef CONFIG_XFRM
-static void nf_nat_ipv6_decode_session(struct sk_buff *skb,
-				       const struct nf_conn *ct,
-				       enum ip_conntrack_dir dir,
-				       unsigned long statusbit,
-				       struct flowi *fl)
-{
-	const struct nf_conntrack_tuple *t = &ct->tuplehash[dir].tuple;
-	struct flowi6 *fl6 = &fl->u.ip6;
-
-	if (ct->status & statusbit) {
-		fl6->daddr = t->dst.u3.in6;
-		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP ||
-		    t->dst.protonum == IPPROTO_UDPLITE ||
-		    t->dst.protonum == IPPROTO_DCCP ||
-		    t->dst.protonum == IPPROTO_SCTP)
-			fl6->fl6_dport = t->dst.u.all;
-	}
-
-	statusbit ^= IPS_NAT_MASK;
-
-	if (ct->status & statusbit) {
-		fl6->saddr = t->src.u3.in6;
-		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP ||
-		    t->dst.protonum == IPPROTO_UDPLITE ||
-		    t->dst.protonum == IPPROTO_DCCP ||
-		    t->dst.protonum == IPPROTO_SCTP)
-			fl6->fl6_sport = t->src.u.all;
-	}
-}
-#endif
-
 static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
 				  const struct nf_conntrack_tuple *target,
@@ -136,37 +102,11 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 					 htons(oldlen), htons(datalen), true);
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-static int nf_nat_ipv6_nlattr_to_range(struct nlattr *tb[],
-				       struct nf_nat_range2 *range)
-{
-	if (tb[CTA_NAT_V6_MINIP]) {
-		nla_memcpy(&range->min_addr.ip6, tb[CTA_NAT_V6_MINIP],
-			   sizeof(struct in6_addr));
-		range->flags |= NF_NAT_RANGE_MAP_IPS;
-	}
-
-	if (tb[CTA_NAT_V6_MAXIP])
-		nla_memcpy(&range->max_addr.ip6, tb[CTA_NAT_V6_MAXIP],
-			   sizeof(struct in6_addr));
-	else
-		range->max_addr = range->min_addr;
-
-	return 0;
-}
-#endif
-
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
 	.manip_pkt		= nf_nat_ipv6_manip_pkt,
 	.csum_update		= nf_nat_ipv6_csum_update,
 	.csum_recalc		= nf_nat_ipv6_csum_recalc,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_to_range	= nf_nat_ipv6_nlattr_to_range,
-#endif
-#ifdef CONFIG_XFRM
-	.decode_session	= nf_nat_ipv6_decode_session,
-#endif
 };
 
 int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,

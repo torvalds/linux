@@ -28,40 +28,6 @@
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4;
 
-#ifdef CONFIG_XFRM
-static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
-				       const struct nf_conn *ct,
-				       enum ip_conntrack_dir dir,
-				       unsigned long statusbit,
-				       struct flowi *fl)
-{
-	const struct nf_conntrack_tuple *t = &ct->tuplehash[dir].tuple;
-	struct flowi4 *fl4 = &fl->u.ip4;
-
-	if (ct->status & statusbit) {
-		fl4->daddr = t->dst.u3.ip;
-		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP ||
-		    t->dst.protonum == IPPROTO_UDPLITE ||
-		    t->dst.protonum == IPPROTO_DCCP ||
-		    t->dst.protonum == IPPROTO_SCTP)
-			fl4->fl4_dport = t->dst.u.all;
-	}
-
-	statusbit ^= IPS_NAT_MASK;
-
-	if (ct->status & statusbit) {
-		fl4->saddr = t->src.u3.ip;
-		if (t->dst.protonum == IPPROTO_TCP ||
-		    t->dst.protonum == IPPROTO_UDP ||
-		    t->dst.protonum == IPPROTO_UDPLITE ||
-		    t->dst.protonum == IPPROTO_DCCP ||
-		    t->dst.protonum == IPPROTO_SCTP)
-			fl4->fl4_sport = t->src.u.all;
-	}
-}
-#endif /* CONFIG_XFRM */
-
 static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
 				  const struct nf_conntrack_tuple *target,
@@ -127,35 +93,11 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 					 htons(oldlen), htons(datalen), true);
 }
 
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
-				       struct nf_nat_range2 *range)
-{
-	if (tb[CTA_NAT_V4_MINIP]) {
-		range->min_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MINIP]);
-		range->flags |= NF_NAT_RANGE_MAP_IPS;
-	}
-
-	if (tb[CTA_NAT_V4_MAXIP])
-		range->max_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MAXIP]);
-	else
-		range->max_addr.ip = range->min_addr.ip;
-
-	return 0;
-}
-#endif
-
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
 	.manip_pkt		= nf_nat_ipv4_manip_pkt,
 	.csum_update		= nf_nat_ipv4_csum_update,
 	.csum_recalc		= nf_nat_ipv4_csum_recalc,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_to_range	= nf_nat_ipv4_nlattr_to_range,
-#endif
-#ifdef CONFIG_XFRM
-	.decode_session		= nf_nat_ipv4_decode_session,
-#endif
 };
 
 int nf_nat_icmp_reply_translation(struct sk_buff *skb,

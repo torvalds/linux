@@ -18,15 +18,6 @@ struct nf_nat_l3proto {
 	void	(*csum_recalc)(struct sk_buff *skb, u8 proto,
 			       void *data, __sum16 *check,
 			       int datalen, int oldlen);
-
-	void	(*decode_session)(struct sk_buff *skb,
-				  const struct nf_conn *ct,
-				  enum ip_conntrack_dir dir,
-				  unsigned long statusbit,
-				  struct flowi *fl);
-
-	int	(*nlattr_to_range)(struct nlattr *tb[],
-				   struct nf_nat_range2 *range);
 };
 
 int nf_nat_l3proto_register(const struct nf_nat_l3proto *);
