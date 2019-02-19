@@ -85,7 +85,7 @@ static int ms1bit(unsigned long x)
 static void ip27_do_irq_mask0(void)
 {
 	int irq, swlevel;
-	hubreg_t pend0, mask0;
+	u64 pend0, mask0;
 	cpuid_t cpu = smp_processor_id();
 	int pi_int_mask0 =
 		(cputoslice(cpu) == 0) ?  PI_INT_MASK0_A : PI_INT_MASK0_B;
@@ -132,7 +132,7 @@ static void ip27_do_irq_mask0(void)
 static void ip27_do_irq_mask1(void)
 {
 	int irq, swlevel;
-	hubreg_t pend1, mask1;
+	u64 pend1, mask1;
 	cpuid_t cpu = smp_processor_id();
 	int pi_int_mask1 = (cputoslice(cpu) == 0) ?  PI_INT_MASK1_A : PI_INT_MASK1_B;
 	struct slice_data *si = cpu_data[cpu].data;

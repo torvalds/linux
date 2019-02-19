@@ -130,7 +130,7 @@ void nmi_cpu_eframe_save(nasid_t nasid, int slice)
 
 void nmi_dump_hub_irq(nasid_t nasid, int slice)
 {
-	hubreg_t mask0, mask1, pend0, pend1;
+	u64 mask0, mask1, pend0, pend1;
 
 	if (slice == 0) {				/* Slice A */
 		mask0 = REMOTE_HUB_L(nasid, PI_INT_MASK0_A);

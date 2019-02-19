@@ -177,7 +177,7 @@ extern void ip27_reboot_setup(void);
 
 void __init plat_mem_setup(void)
 {
-	hubreg_t p, e, n_mode;
+	u64 p, e, n_mode;
 	nasid_t nid;
 
 	ip27_reboot_setup();

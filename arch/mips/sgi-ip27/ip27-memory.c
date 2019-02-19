@@ -44,7 +44,7 @@ static int is_fine_dirmode(void)
 	return ((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK) >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE;
 }
 
-static hubreg_t get_region(cnodeid_t cnode)
+static u64 get_region(cnodeid_t cnode)
 {
 	if (fine_mode)
 		return COMPACT_TO_NASID_NODEID(cnode) >> NASID_TO_FINEREG_SHFT;
@@ -52,9 +52,9 @@ static hubreg_t get_region(cnodeid_t cnode)
 		return COMPACT_TO_NASID_NODEID(cnode) >> NASID_TO_COARSEREG_SHFT;
 }
 
-static hubreg_t region_mask;
+static u64 region_mask;
 
-static void gen_region_mask(hubreg_t *region_mask)
+static void gen_region_mask(u64 *region_mask)
 {
 	cnodeid_t cnode;
 
