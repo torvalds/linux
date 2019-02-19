@@ -639,112 +639,45 @@ static int write_total_mem(struct feat_fd *ff,
 	return ret;
 }
 
-static int write_topo_node(struct feat_fd *ff, int node)
-{
-	char str[MAXPATHLEN];
-	char field[32];
-	char *buf = NULL, *p;
-	size_t len = 0;
-	FILE *fp;
-	u64 mem_total, mem_free, mem;
-	int ret = -1;
-
-	sprintf(str, "/sys/devices/system/node/node%d/meminfo", node);
-	fp = fopen(str, "r");
-	if (!fp)
-		return -1;
-
-	while (getline(&buf, &len, fp) > 0) {
-		/* skip over invalid lines */
-		if (!strchr(buf, ':'))
-			continue;
-		if (sscanf(buf, "%*s %*d %31s %"PRIu64, field, &mem) != 2)
-			goto done;
-		if (!strcmp(field, "MemTotal:"))
-			mem_total = mem;
-		if (!strcmp(field, "MemFree:"))
-			mem_free = mem;
-	}
-
-	fclose(fp);
-	fp = NULL;
-
-	ret = do_write(ff, &mem_total, sizeof(u64));
-	if (ret)
-		goto done;
-
-	ret = do_write(ff, &mem_free, sizeof(u64));
-	if (ret)
-		goto done;
-
-	ret = -1;
-	sprintf(str, "/sys/devices/system/node/node%d/cpulist", node);
-
-	fp = fopen(str, "r");
-	if (!fp)
-		goto done;
-
-	if (getline(&buf, &len, fp) <= 0)
-		goto done;
-
-	p = strchr(buf, '\n');
-	if (p)
-		*p = '\0';
-
-	ret = do_write_string(ff, buf);
-done:
-	free(buf);
-	if (fp)
-		fclose(fp);
-	return ret;
-}
-
 static int write_numa_topology(struct feat_fd *ff,
 			       struct perf_evlist *evlist __maybe_unused)
 {
-	char *buf = NULL;
-	size_t len = 0;
-	FILE *fp;
-	struct cpu_map *node_map = NULL;
-	char *c;
-	u32 nr, i, j;
+	struct numa_topology *tp;
 	int ret = -1;
+	u32 i;
 
-	fp = fopen("/sys/devices/system/node/online", "r");
-	if (!fp)
-		return -1;
+	tp = numa_topology__new();
+	if (!tp)
+		return -ENOMEM;
 
-	if (getline(&buf, &len, fp) <= 0)
-		goto done;
-
-	c = strchr(buf, '\n');
-	if (c)
-		*c = '\0';
-
-	node_map = cpu_map__new(buf);
-	if (!node_map)
-		goto done;
-
-	nr = (u32)node_map->nr;
-
-	ret = do_write(ff, &nr, sizeof(nr));
+	ret = do_write(ff, &tp->nr, sizeof(u32));
 	if (ret < 0)
-		goto done;
+		goto err;
 
-	for (i = 0; i < nr; i++) {
-		j = (u32)node_map->map[i];
-		ret = do_write(ff, &j, sizeof(j));
-		if (ret < 0)
-			break;
+	for (i = 0; i < tp->nr; i++) {
+		struct numa_topology_node *n = &tp->nodes[i];
 
-		ret = write_topo_node(ff, j);
+		ret = do_write(ff, &n->node, sizeof(u32));
 		if (ret < 0)
-			break;
+			goto err;
+
+		ret = do_write(ff, &n->mem_total, sizeof(u64));
+		if (ret)
+			goto err;
+
+		ret = do_write(ff, &n->mem_free, sizeof(u64));
+		if (ret)
+			goto err;
+
+		ret = do_write_string(ff, n->cpus);
+		if (ret < 0)
+			goto err;
 	}
-done:
-	free(buf);
-	fclose(fp);
-	cpu_map__put(node_map);
+
+	ret = 0;
+
+err:
+	numa_topology__delete(tp);
 	return ret;
 }
 

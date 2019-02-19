@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <sys/param.h>
+#include <inttypes.h>
 
 #include "cputopo.h"
 #include "cpumap.h"
 #include "util.h"
+#include "env.h"
 
 
 #define CORE_SIB_FMT \
@@ -141,4 +143,120 @@ out_free:
 		tp = NULL;
 	}
 	return tp;
+}
+
+static int load_numa_node(struct numa_topology_node *node, int nr)
+{
+	char str[MAXPATHLEN];
+	char field[32];
+	char *buf = NULL, *p;
+	size_t len = 0;
+	int ret = -1;
+	FILE *fp;
+	u64 mem;
+
+	node->node = (u32) nr;
+
+	sprintf(str, "/sys/devices/system/node/node%d/meminfo", nr);
+	fp = fopen(str, "r");
+	if (!fp)
+		return -1;
+
+	while (getline(&buf, &len, fp) > 0) {
+		/* skip over invalid lines */
+		if (!strchr(buf, ':'))
+			continue;
+		if (sscanf(buf, "%*s %*d %31s %"PRIu64, field, &mem) != 2)
+			goto err;
+		if (!strcmp(field, "MemTotal:"))
+			node->mem_total = mem;
+		if (!strcmp(field, "MemFree:"))
+			node->mem_free = mem;
+		if (node->mem_total && node->mem_free)
+			break;
+	}
+
+	fclose(fp);
+	fp = NULL;
+
+	sprintf(str, "/sys/devices/system/node/node%d/cpulist", nr);
+
+	fp = fopen(str, "r");
+	if (!fp)
+		return -1;
+
+	if (getline(&buf, &len, fp) <= 0)
+		goto err;
+
+	p = strchr(buf, '\n');
+	if (p)
+		*p = '\0';
+
+	node->cpus = buf;
+	fclose(fp);
+	return 0;
+
+err:
+	free(buf);
+	if (fp)
+		fclose(fp);
+	return ret;
+}
+
+struct numa_topology *numa_topology__new(void)
+{
+	struct cpu_map *node_map = NULL;
+	struct numa_topology *tp = NULL;
+	char *buf = NULL;
+	size_t len = 0;
+	u32 nr, i;
+	FILE *fp;
+	char *c;
+
+	fp = fopen("/sys/devices/system/node/online", "r");
+	if (!fp)
+		return NULL;
+
+	if (getline(&buf, &len, fp) <= 0)
+		goto out;
+
+	c = strchr(buf, '\n');
+	if (c)
+		*c = '\0';
+
+	node_map = cpu_map__new(buf);
+	if (!node_map)
+		goto out;
+
+	nr = (u32) node_map->nr;
+
+	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0])*nr);
+	if (!tp)
+		goto out;
+
+	tp->nr = nr;
+
+	for (i = 0; i < nr; i++) {
+		if (load_numa_node(&tp->nodes[i], node_map->map[i])) {
+			numa_topology__delete(tp);
+			tp = NULL;
+			break;
+		}
+	}
+
+out:
+	free(buf);
+	fclose(fp);
+	cpu_map__put(node_map);
+	return tp;
+}
+
+void numa_topology__delete(struct numa_topology *tp)
+{
+	u32 i;
+
+	for (i = 0; i < tp->nr; i++)
+		free(tp->nodes[i].cpus);
+
+	free(tp);
 }
