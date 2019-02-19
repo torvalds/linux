@@ -852,8 +852,11 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 			break;
 		}
 		if (copy_from_user(msm_obj->name, u64_to_user_ptr(args->value),
-				   args->len))
+				   args->len)) {
+			msm_obj->name[0] = '\0';
 			ret = -EFAULT;
+			break;
+		}
 		msm_obj->name[args->len] = '\0';
 		for (i = 0; i < args->len; i++) {
 			if (!isprint(msm_obj->name[i])) {
