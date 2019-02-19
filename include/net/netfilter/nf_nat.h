@@ -31,8 +31,7 @@ struct nf_conn;
 /* The structure embedded in the conntrack structure. */
 struct nf_conn_nat {
 	union nf_conntrack_nat_help help;
-#if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV4) || \
-    IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV6)
+#if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE)
 	int masq_index;
 #endif
 };
@@ -61,8 +60,7 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 				      struct nf_conn_nat *nat,
 				      const struct net_device *out)
 {
-#if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV4) || \
-    IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV6)
+#if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE)
 	return nat && nat->masq_index && hooknum == NF_INET_POST_ROUTING &&
 	       CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL &&
 	       nat->masq_index != out->ifindex;

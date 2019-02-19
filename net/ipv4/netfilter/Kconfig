@@ -106,9 +106,6 @@ config NF_NAT_IPV4
 
 if NF_NAT_IPV4
 
-config NF_NAT_MASQUERADE_IPV4
-	bool
-
 if NF_TABLES
 config NFT_CHAIN_NAT_IPV4
 	depends on NF_TABLES_IPV4
@@ -123,7 +120,7 @@ config NFT_MASQ_IPV4
 	tristate "IPv4 masquerading support for nf_tables"
 	depends on NF_TABLES_IPV4
 	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV4
+	select NF_NAT_MASQUERADE
 	help
 	  This is the expression that provides IPv4 masquerading support for
 	  nf_tables.
@@ -276,7 +273,7 @@ if IP_NF_NAT
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	select NF_NAT_MASQUERADE_IPV4
+	select NF_NAT_MASQUERADE
 	default m if NETFILTER_ADVANCED=n
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are

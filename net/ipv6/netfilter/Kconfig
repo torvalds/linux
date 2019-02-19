@@ -44,7 +44,7 @@ config NFT_CHAIN_NAT_IPV6
 config NFT_MASQ_IPV6
 	tristate "IPv6 masquerade support for nf_tables"
 	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE_IPV6
+	select NF_NAT_MASQUERADE
 	help
 	  This is the expression that provides IPv4 masquerading support for
 	  nf_tables.
@@ -115,13 +115,6 @@ config NF_NAT_IPV6
 	  The IPv6 NAT option allows masquerading, port forwarding and other
 	  forms of full Network Address Port Translation. This can be
 	  controlled by iptables or nft.
-
-if NF_NAT_IPV6
-
-config NF_NAT_MASQUERADE_IPV6
-	bool
-
-endif # NF_NAT_IPV6
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
@@ -324,7 +317,7 @@ if IP6_NF_NAT
 
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
-	select NF_NAT_MASQUERADE_IPV6
+	select NF_NAT_MASQUERADE
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are
 	  changed to seem to come from a particular interface's address, and

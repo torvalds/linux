@@ -431,6 +431,9 @@ config NF_NAT_TFTP
 config NF_NAT_REDIRECT
 	bool
 
+config NF_NAT_MASQUERADE
+	bool
+
 config NETFILTER_SYNPROXY
 	tristate
 
