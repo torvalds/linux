@@ -27,6 +27,7 @@
 #include "mt76x02_dma.h"
 
 #define MT_CALIBRATE_INTERVAL	HZ
+#define MT_MAC_WORK_INTERVAL	(HZ / 10)
 
 #define MT_WATCHDOG_TIME	(HZ / 10)
 #define MT_TX_HANG_TH		10
@@ -73,6 +74,8 @@ struct mt76x02_dev {
 
 	struct mutex phy_mutex;
 
+	u16 vif_mask;
+
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);
 
@@ -114,6 +117,7 @@ struct mt76x02_dev {
 	bool ed_monitor;
 	u8 ed_trigger;
 	u8 ed_silent;
+	ktime_t ed_time;
 };
 
 extern struct ieee80211_rate mt76x02_rates[12];
@@ -128,8 +132,7 @@ void mt76x02_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 
 void mt76x02_config_mac_addr_list(struct mt76x02_dev *dev);
-void mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
-		      unsigned int idx);
+
 int mt76x02_add_interface(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif);
 void mt76x02_remove_interface(struct ieee80211_hw *hw,

@@ -18,6 +18,7 @@
 #include "eeprom.h"
 #include "mcu.h"
 #include "initvals.h"
+#include "../mt76x02_phy.h"
 
 static void mt76x0_vht_cap_mask(struct ieee80211_supported_band *sband)
 {
@@ -262,27 +263,24 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x0_init_hardware);
 
-struct mt76x02_dev *
-mt76x0_alloc_device(struct device *pdev,
-		    const struct mt76_driver_ops *drv_ops,
-		    const struct ieee80211_ops *ops)
+static void
+mt76x0_init_txpower(struct mt76x02_dev *dev,
+		    struct ieee80211_supported_band *sband)
 {
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
+	struct ieee80211_channel *chan;
+	struct mt76_rate_power t;
+	s8 tp;
+	int i;
 
-	mdev = mt76_alloc_device(sizeof(*dev), ops);
-	if (!mdev)
-		return NULL;
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
 
-	mdev->dev = pdev;
-	mdev->drv = drv_ops;
+		mt76x0_get_tx_power_per_rate(dev, chan, &t);
+		mt76x0_get_power_info(dev, chan, &tp);
 
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mutex_init(&dev->phy_mutex);
-
-	return dev;
+		chan->max_power = (mt76x02_get_max_rate_power(&t) + tp) / 2;
+	}
 }
-EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
 int mt76x0_register_device(struct mt76x02_dev *dev)
 {
@@ -296,9 +294,14 @@ int mt76x0_register_device(struct mt76x02_dev *dev)
 	if (ret)
 		return ret;
 
-	/* overwrite unsupported features */
-	if (dev->mt76.cap.has_5ghz)
+	if (dev->mt76.cap.has_5ghz) {
+		/* overwrite unsupported features */
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
+		mt76x0_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	}
+
+	if (dev->mt76.cap.has_2ghz)
+		mt76x0_init_txpower(dev, &dev->mt76.sband_2g.sband);
 
 	mt76x02_init_debugfs(dev);
 

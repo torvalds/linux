@@ -30,7 +30,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 	mt76x02_mac_start(dev);
 	mt76x0_phy_calibrate(dev, true);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
+				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
@@ -174,6 +174,7 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		.sta_remove = mt76x02_sta_remove,
 	};
 	struct mt76x02_dev *dev;
+	struct mt76_dev *mdev;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -190,16 +191,20 @@ mt76x0e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	dev = mt76x0_alloc_device(&pdev->dev, &drv_ops, &mt76x0e_ops);
-	if (!dev)
+	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt76x0e_ops,
+				 &drv_ops);
+	if (!mdev)
 		return -ENOMEM;
 
-	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
+	dev = container_of(mdev, struct mt76x02_dev, mt76);
+	mutex_init(&dev->phy_mutex);
 
-	dev->mt76.rev = mt76_rr(dev, MT_ASIC_VERSION);
-	dev_info(dev->mt76.dev, "ASIC revision: %08x\n", dev->mt76.rev);
+	mt76_mmio_init(mdev, pcim_iomap_table(pdev)[0]);
 
-	ret = devm_request_irq(dev->mt76.dev, pdev->irq, mt76x02_irq_handler,
+	mdev->rev = mt76_rr(dev, MT_ASIC_VERSION);
+	dev_info(mdev->dev, "ASIC revision: %08x\n", mdev->rev);
+
+	ret = devm_request_irq(mdev->dev, pdev->irq, mt76x02_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
 		goto error;

@@ -87,6 +87,7 @@ struct mt76u_buf {
 	struct mt76_dev *dev;
 	struct urb *urb;
 	size_t len;
+	void *buf;
 	bool done;
 };
 
@@ -156,6 +157,9 @@ struct mt76_queue_ops {
 	int (*tx_queue_skb)(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct sk_buff *skb, struct mt76_wcid *wcid,
 			    struct ieee80211_sta *sta);
+
+	int (*tx_queue_skb_raw)(struct mt76_dev *dev, enum mt76_txq_id qid,
+				struct sk_buff *skb, u32 tx_info);
 
 	void *(*dequeue)(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
 			 int *len, u32 *info, bool *more);
@@ -376,6 +380,7 @@ struct mt76_usb {
 	u16 out_max_packet;
 	u8 in_ep[__MT_EP_IN_MAX];
 	u16 in_max_packet;
+	bool sg_en;
 
 	struct mt76u_mcu {
 		struct mutex mutex;
@@ -562,7 +567,7 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 
 #define mt76_init_queues(dev)		(dev)->mt76.queue_ops->init(&((dev)->mt76))
 #define mt76_queue_alloc(dev, ...)	(dev)->mt76.queue_ops->alloc(&((dev)->mt76), __VA_ARGS__)
-#define mt76_queue_add_buf(dev, ...)	(dev)->mt76.queue_ops->add_buf(&((dev)->mt76), __VA_ARGS__)
+#define mt76_tx_queue_skb_raw(dev, ...)	(dev)->mt76.queue_ops->tx_queue_skb_raw(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_rx_reset(dev, ...)	(dev)->mt76.queue_ops->rx_reset(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_tx_cleanup(dev, ...)	(dev)->mt76.queue_ops->tx_cleanup(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_kick(dev, ...)	(dev)->mt76.queue_ops->kick(&((dev)->mt76), __VA_ARGS__)
@@ -582,8 +587,9 @@ mt76_channel_state(struct mt76_dev *dev, struct ieee80211_channel *c)
 	return &msband->chan[idx];
 }
 
-struct mt76_dev *mt76_alloc_device(unsigned int size,
-				   const struct ieee80211_ops *ops);
+struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
+				   const struct ieee80211_ops *ops,
+				   const struct mt76_driver_ops *drv_ops);
 int mt76_register_device(struct mt76_dev *dev, bool vht,
 			 struct ieee80211_rate *rates, int n_rates);
 void mt76_unregister_device(struct mt76_dev *dev);
@@ -722,14 +728,17 @@ static inline u8 q2ep(u8 qid)
 	return qid + 1;
 }
 
-static inline bool mt76u_check_sg(struct mt76_dev *dev)
+static inline int
+mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int timeout)
 {
 	struct usb_interface *intf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct mt76_usb *usb = &dev->usb;
+	unsigned int pipe;
+	int sent;
 
-	return (udev->bus->sg_tablesize > 0 &&
-		(udev->bus->no_sg_constraint ||
-		 udev->speed == USB_SPEED_WIRELESS));
+	pipe = usb_sndbulkpipe(udev, usb->out_ep[MT_EP_OUT_INBAND_CMD]);
+	return usb_bulk_msg(udev, pipe, data, len, &sent, timeout);
 }
 
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,
@@ -740,7 +749,7 @@ void mt76u_single_wr(struct mt76_dev *dev, const u8 req,
 int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf);
 void mt76u_deinit(struct mt76_dev *dev);
 int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
-		    int nsgs, int len, int sglen, gfp_t gfp);
+		    int len, int data_len, gfp_t gfp);
 void mt76u_buf_free(struct mt76u_buf *buf);
 int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
 		     struct mt76u_buf *buf, gfp_t gfp,
@@ -750,6 +759,13 @@ int mt76u_alloc_queues(struct mt76_dev *dev);
 void mt76u_stop_queues(struct mt76_dev *dev);
 void mt76u_stop_stat_wk(struct mt76_dev *dev);
 void mt76u_queues_deinit(struct mt76_dev *dev);
+
+struct sk_buff *
+mt76_mcu_msg_alloc(const void *data, int head_len,
+		   int data_len, int tail_len);
+void mt76_mcu_rx_event(struct mt76_dev *dev, struct sk_buff *skb);
+struct sk_buff *mt76_mcu_get_response(struct mt76_dev *dev,
+				      unsigned long expires);
 
 void mt76u_mcu_complete_urb(struct urb *urb);
 int mt76u_mcu_init_rx(struct mt76_dev *dev);

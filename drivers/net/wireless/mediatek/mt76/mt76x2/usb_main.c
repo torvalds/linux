@@ -28,7 +28,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 		goto out;
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
+				     MT_MAC_WORK_INTERVAL);
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 out:
@@ -44,19 +44,6 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt76x2u_stop_hw(dev);
 	mutex_unlock(&dev->mt76.mutex);
-}
-
-static int mt76x2u_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
-{
-	struct mt76x02_dev *dev = hw->priv;
-	unsigned int idx = 8;
-
-	if (!ether_addr_equal(dev->mt76.macaddr, vif->addr))
-		mt76x02_mac_setaddr(dev, vif->addr);
-
-	mt76x02_vif_init(dev, vif, idx);
-	return 0;
 }
 
 static int
@@ -125,7 +112,7 @@ const struct ieee80211_ops mt76x2u_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x2u_start,
 	.stop = mt76x2u_stop,
-	.add_interface = mt76x2u_add_interface,
+	.add_interface = mt76x02_add_interface,
 	.remove_interface = mt76x02_remove_interface,
 	.sta_state = mt76_sta_state,
 	.set_key = mt76x02_set_key,

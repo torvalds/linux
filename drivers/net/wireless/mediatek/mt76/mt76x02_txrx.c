@@ -22,7 +22,6 @@
 void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76x02_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
@@ -33,13 +32,7 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 		msta = (struct mt76x02_sta *)control->sta->drv_priv;
 		wcid = &msta->wcid;
-		/* sw encrypted frames */
-		if (!info->control.hw_key && wcid->hw_key_idx != 0xff &&
-		    ieee80211_has_protected(hdr->frame_control))
-			control->sta = NULL;
-	}
-
-	if (vif && !control->sta) {
+	} else if (vif) {
 		struct mt76x02_vif *mvif;
 
 		mvif = (struct mt76x02_vif *)vif->drv_priv;
@@ -58,8 +51,7 @@ void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 
 	if (q == MT_RXQ_MCU) {
 		/* this is used just by mmio code */
-		skb_queue_tail(&mdev->mmio.mcu.res_q, skb);
-		wake_up(&mdev->mmio.mcu.wait);
+		mt76_mcu_rx_event(&dev->mt76, skb);
 		return;
 	}
 

@@ -134,30 +134,6 @@ static int mt76x2u_init_eeprom(struct mt76x02_dev *dev)
 	return 0;
 }
 
-struct mt76x02_dev *mt76x2u_alloc_device(struct device *pdev)
-{
-	static const struct mt76_driver_ops drv_ops = {
-		.tx_prepare_skb = mt76x02u_tx_prepare_skb,
-		.tx_complete_skb = mt76x02u_tx_complete_skb,
-		.tx_status_data = mt76x02_tx_status_data,
-		.rx_skb = mt76x02_queue_rx_skb,
-		.sta_add = mt76x02_sta_add,
-		.sta_remove = mt76x02_sta_remove,
-	};
-	struct mt76x02_dev *dev;
-	struct mt76_dev *mdev;
-
-	mdev = mt76_alloc_device(sizeof(*dev), &mt76x2u_ops);
-	if (!mdev)
-		return NULL;
-
-	dev = container_of(mdev, struct mt76x02_dev, mt76);
-	mdev->dev = pdev;
-	mdev->drv = &drv_ops;
-
-	return dev;
-}
-
 int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 {
 	int i, k, err;
@@ -207,11 +183,7 @@ int mt76x2u_init_hardware(struct mt76x02_dev *dev)
 			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 	}
 
-	mt76_clear(dev, MT_BEACON_TIME_CFG,
-		   MT_BEACON_TIME_CFG_TIMER_EN |
-		   MT_BEACON_TIME_CFG_SYNC_MODE |
-		   MT_BEACON_TIME_CFG_TBTT_EN |
-		   MT_BEACON_TIME_CFG_BEACON_TX);
+	mt76x02_init_beacon_config(dev);
 
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
@@ -256,7 +228,7 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 		goto fail;
 
 	/* check hw sg support in order to enable AMSDU */
-	if (mt76u_check_sg(&dev->mt76))
+	if (dev->mt76.usb.sg_en)
 		hw->max_tx_fragments = MT_SG_MAX_SIZE;
 	else
 		hw->max_tx_fragments = 1;
