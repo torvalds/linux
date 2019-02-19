@@ -27,6 +27,7 @@ struct btree_insert {
 	struct bch_fs		*c;
 	struct disk_reservation *disk_res;
 	struct journal_res	journal_res;
+	struct journal_preres	journal_preres;
 	u64			*journal_seq;
 	unsigned		flags;
 	bool			did_work;
@@ -82,6 +83,7 @@ enum {
 	__BTREE_INSERT_USE_RESERVE,
 	__BTREE_INSERT_USE_ALLOC_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
+	__BTREE_INSERT_JOURNAL_RESERVED,
 	__BTREE_INSERT_NOMARK,
 	__BTREE_INSERT_NOWAIT,
 	__BTREE_INSERT_GC_LOCK_HELD,
@@ -111,6 +113,8 @@ enum {
 
 /* Insert is for journal replay - don't get journal reservations: */
 #define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)
+
+#define BTREE_INSERT_JOURNAL_RESERVED	(1 << __BTREE_INSERT_JOURNAL_RESERVED)
 
 /* Don't call bch2_mark_key: */
 #define BTREE_INSERT_NOMARK		(1 << __BTREE_INSERT_NOMARK)

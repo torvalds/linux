@@ -246,10 +246,11 @@ struct btree_iter {
 #define BTREE_ITER_MAX		8
 
 struct deferred_update {
+	struct journal_preres	res;
 	struct journal_entry_pin journal;
 
 	spinlock_t		lock;
-	unsigned		gen;
+	unsigned		dirty:1;
 
 	u8			allocated_u64s;
 	enum btree_id		btree_id;
