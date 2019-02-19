@@ -1869,6 +1869,7 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 		qp->rx_dma_chan = NULL;
 	}
 
+	qp->tx_mw_dma_addr = 0;
 	if (qp->tx_dma_chan) {
 		qp->tx_mw_dma_addr =
 			dma_map_resource(qp->tx_dma_chan->device->dev,
