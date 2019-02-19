@@ -608,11 +608,10 @@ err_scatter:
 
 /**
  * __ice_vsi_get_qs - helper function for assigning queues from PF to VSI
- * @qs_cfg: gathered variables needed for PF->VSI queues assignment
+ * @qs_cfg: gathered variables needed for pf->vsi queues assignment
  *
- * This is an internal function for assigning queues from the PF to VSI and
- * initially tries to find contiguous space.  If it is not successful to find
- * contiguous space, then it tries with the scatter approach.
+ * This function first tries to find contiguous space. If it is not successful,
+ * it tries with the scatter approach.
  *
  * Return 0 on success and -ENOMEM in case of no left space in PF queue bitmap
  */
