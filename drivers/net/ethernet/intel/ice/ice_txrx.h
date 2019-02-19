@@ -128,7 +128,7 @@ enum ice_rx_dtype {
 #define ICE_ITR_DYNAMIC	0x8000  /* used as flag for itr_setting */
 #define ITR_IS_DYNAMIC(setting) (!!((setting) & ICE_ITR_DYNAMIC))
 #define ITR_TO_REG(setting)	((setting) & ~ICE_ITR_DYNAMIC)
-#define ICE_ITR_GRAN_S		1	/* Assume ITR granularity is 2us */
+#define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
 #define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
 #define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
 #define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
