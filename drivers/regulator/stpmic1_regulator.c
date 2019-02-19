@@ -133,7 +133,6 @@ static const struct regulator_ops stpmic1_ldo_ops = {
 	.disable = regulator_disable_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.set_pull_down = regulator_set_pull_down_regmap,
 	.set_over_current_protection = stpmic1_set_icc,
 };
 
@@ -145,7 +144,6 @@ static const struct regulator_ops stpmic1_ldo3_ops = {
 	.disable = regulator_disable_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.set_pull_down = regulator_set_pull_down_regmap,
 	.get_bypass = regulator_get_bypass_regmap,
 	.set_bypass = regulator_set_bypass_regmap,
 	.set_over_current_protection = stpmic1_set_icc,
@@ -155,7 +153,6 @@ static const struct regulator_ops stpmic1_ldo4_fixed_regul_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.set_pull_down = regulator_set_pull_down_regmap,
 	.set_over_current_protection = stpmic1_set_icc,
 };
 
@@ -177,7 +174,6 @@ static const struct regulator_ops stpmic1_vref_ddr_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.set_pull_down = regulator_set_pull_down_regmap,
 };
 
 static const struct regulator_ops stpmic1_switch_regul_ops = {
@@ -203,8 +199,6 @@ static const struct regulator_ops stpmic1_switch_regul_ops = {
 	.enable_val = 1, \
 	.disable_val = 0, \
 	.enable_time = PMIC_ENABLE_TIME_US, \
-	.pull_down_reg = ids##_PULL_DOWN_REG, \
-	.pull_down_mask = ids##_PULL_DOWN_MASK, \
 	.supply_name = #base, \
 }
 
@@ -228,8 +222,6 @@ static const struct regulator_ops stpmic1_switch_regul_ops = {
 	.bypass_mask = LDO_BYPASS_MASK, \
 	.bypass_val_on = LDO_BYPASS_MASK, \
 	.bypass_val_off = 0, \
-	.pull_down_reg = ids##_PULL_DOWN_REG, \
-	.pull_down_mask = ids##_PULL_DOWN_MASK, \
 	.supply_name = #base, \
 }
 
@@ -247,8 +239,6 @@ static const struct regulator_ops stpmic1_switch_regul_ops = {
 	.enable_val = 1, \
 	.disable_val = 0, \
 	.enable_time = PMIC_ENABLE_TIME_US, \
-	.pull_down_reg = ids##_PULL_DOWN_REG, \
-	.pull_down_mask = ids##_PULL_DOWN_MASK, \
 	.supply_name = #base, \
 }
 
@@ -288,8 +278,6 @@ static const struct regulator_ops stpmic1_switch_regul_ops = {
 	.enable_val = 1, \
 	.disable_val = 0, \
 	.enable_time = PMIC_ENABLE_TIME_US, \
-	.pull_down_reg = ids##_PULL_DOWN_REG, \
-	.pull_down_mask = ids##_PULL_DOWN_MASK, \
 	.supply_name = #base, \
 }
 
