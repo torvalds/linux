@@ -421,6 +421,7 @@ static int simple_dai_link_of(struct simple_priv *priv,
 	asoc_simple_card_canonicalize_platform(dai_link);
 
 dai_link_of_err:
+	of_node_put(plat);
 	of_node_put(node);
 
 	return ret;
