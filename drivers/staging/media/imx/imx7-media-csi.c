@@ -923,15 +923,12 @@ static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	const struct imx_media_pixfmt *in_cc;
 	struct v4l2_mbus_framefmt *in_fmt;
 	int ret = 0;
 
 	mutex_lock(&csi->lock);
 
 	in_fmt = imx7_csi_get_format(csi, cfg, IMX7_CSI_PAD_SINK, code->which);
-
-	in_cc = imx_media_find_mbus_format(in_fmt->code, CS_SEL_ANY, true);
 
 	switch (code->pad) {
 	case IMX7_CSI_PAD_SINK:
