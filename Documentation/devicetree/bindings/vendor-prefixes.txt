@@ -442,6 +442,7 @@ vivante	Vivante Corporation
 vocore VoCore Studio
 voipac	Voipac Technologies s.r.o.
 vot	Vision Optical Technology Co., Ltd.
+vxt	VXT Ltd
 wd	Western Digital Corp.
 wetek	WeTek Electronics, limited.
 wexler	Wexler
