@@ -126,7 +126,7 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 {
 	const struct typec_altmode_desc *desc = data;
 	struct typec_mux *mux;
-	size_t nval;
+	int nval;
 	bool match;
 	u16 *val;
 	int i;
