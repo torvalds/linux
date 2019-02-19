@@ -35,8 +35,11 @@ static int get_devices(struct tee_context *ctx, u32 session,
 		       struct tee_shm *device_shm, u32 *shm_size)
 {
 	u32 ret = 0;
-	struct tee_ioctl_invoke_arg inv_arg = {0};
-	struct tee_param param[4] = {0};
+	struct tee_ioctl_invoke_arg inv_arg;
+	struct tee_param param[4];
+
+	memset(&inv_arg, 0, sizeof(inv_arg));
+	memset(&param, 0, sizeof(param));
 
 	/* Invoke PTA_CMD_GET_DEVICES function */
 	inv_arg.func = PTA_CMD_GET_DEVICES;
@@ -89,12 +92,14 @@ int optee_enumerate_devices(void)
 	const uuid_t pta_uuid =
 		UUID_INIT(0x7011a688, 0xddde, 0x4053,
 			  0xa5, 0xa9, 0x7b, 0x3c, 0x4d, 0xdf, 0x13, 0xb8);
-	struct tee_ioctl_open_session_arg sess_arg = {0};
+	struct tee_ioctl_open_session_arg sess_arg;
 	struct tee_shm *device_shm = NULL;
 	const uuid_t *device_uuid = NULL;
 	struct tee_context *ctx = NULL;
 	u32 shm_size = 0, idx, num_devices = 0;
 	int rc;
+
+	memset(&sess_arg, 0, sizeof(sess_arg));
 
 	/* Open context with OP-TEE driver */
 	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
