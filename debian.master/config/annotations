@@ -428,6 +428,8 @@ CONFIG_CRYPTO_DEV_BCM_SPU                       policy<{'arm64': 'm'}>
 CONFIG_CRYPTO_DEV_ARTPEC6                       policy<{'armhf': 'm'}>
 CONFIG_CRYPTO_DEV_CCREE                         policy<{'arm64': 'm', 'armhf': 'm', 'ppc64el': 'm'}>
 CONFIG_CRYPTO_DEV_HISI_SEC                      policy<{'arm64': 'm'}>
+#
+CONFIG_ZCRYPT_MULTIDEVNODES                     mark<ENFORCED> note<LP:1805429>
 
 # Menu: Cryptographic API >> Hardware crypto devices >> Freescale CAAM Job Ring driver backend
 CONFIG_CRYPTO_DEV_FSL_CAAM_JR                   policy<{'arm64': 'm', 'armhf-generic': 'm'}>
