@@ -4173,12 +4173,6 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	netdev_err(dev, "TX timeout detected\n");
-
-	if (IS_ERR_OR_NULL(priv->tx_reporter)) {
-		netdev_err_once(priv->netdev, "tx timeout will not be handled, no valid tx reporter\n");
-		return;
-	}
-
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
