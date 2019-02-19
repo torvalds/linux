@@ -23,8 +23,6 @@ Switches are fixed voltage regulators with only enable/disable capability.
 Optional properties:
 - st,mask-reset: mask reset for this regulator: the regulator configuration
   is maintained during pmic reset.
-- regulator-pull-down: enable high pull down
-  if not specified light pull down is used
 - regulator-over-current-protection:
     if set, all regulators are switched off in case of over-current detection
     on this regulator,
