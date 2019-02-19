@@ -31,6 +31,7 @@
 #include <asm/page.h>
 #include <linux/time.h>
 #include <linux/mii.h>
+#include <linux/mdio.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/if_bridge.h>
@@ -8621,24 +8622,88 @@ static int bnxt_close(struct net_device *dev)
 	return 0;
 }
 
+static int bnxt_hwrm_port_phy_read(struct bnxt *bp, u16 phy_addr, u16 reg,
+				   u16 *val)
+{
+	struct hwrm_port_phy_mdio_read_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_port_phy_mdio_read_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10a00)
+		return -EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_MDIO_READ, -1, -1);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	req.phy_addr = phy_addr;
+	req.reg_addr = cpu_to_le16(reg & 0x1f);
+	if (bp->link_info.support_speeds & BNXT_LINK_SPEED_MSK_10GB) {
+		req.cl45_mdio = 1;
+		req.phy_addr = mdio_phy_id_prtad(phy_addr);
+		req.dev_addr = mdio_phy_id_devad(phy_addr);
+		req.reg_addr = cpu_to_le16(reg);
+	}
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*val = le16_to_cpu(resp->reg_data);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_hwrm_port_phy_write(struct bnxt *bp, u16 phy_addr, u16 reg,
+				    u16 val)
+{
+	struct hwrm_port_phy_mdio_write_input req = {0};
+
+	if (bp->hwrm_spec_code < 0x10a00)
+		return -EOPNOTSUPP;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_PHY_MDIO_WRITE, -1, -1);
+	req.port_id = cpu_to_le16(bp->pf.port_id);
+	req.phy_addr = phy_addr;
+	req.reg_addr = cpu_to_le16(reg & 0x1f);
+	if (bp->link_info.support_speeds & BNXT_LINK_SPEED_MSK_10GB) {
+		req.cl45_mdio = 1;
+		req.phy_addr = mdio_phy_id_prtad(phy_addr);
+		req.dev_addr = mdio_phy_id_devad(phy_addr);
+		req.reg_addr = cpu_to_le16(reg);
+	}
+	req.reg_data = cpu_to_le16(val);
+
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 /* rtnl_lock held */
 static int bnxt_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
+	struct mii_ioctl_data *mdio = if_mii(ifr);
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+
 	switch (cmd) {
 	case SIOCGMIIPHY:
+		mdio->phy_id = bp->link_info.phy_addr;
+
 		/* fallthru */
 	case SIOCGMIIREG: {
+		u16 mii_regval = 0;
+
 		if (!netif_running(dev))
 			return -EAGAIN;
 
-		return 0;
+		rc = bnxt_hwrm_port_phy_read(bp, mdio->phy_id, mdio->reg_num,
+					     &mii_regval);
+		mdio->val_out = mii_regval;
+		return rc;
 	}
 
 	case SIOCSMIIREG:
 		if (!netif_running(dev))
 			return -EAGAIN;
 
-		return 0;
+		return bnxt_hwrm_port_phy_write(bp, mdio->phy_id, mdio->reg_num,
+						mdio->val_in);
 
 	default:
 		/* do nothing */
