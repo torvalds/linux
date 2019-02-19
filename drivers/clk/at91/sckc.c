@@ -321,7 +321,8 @@ at91_clk_register_sam9x5_slow(void __iomem *sckcr,
 	return hw;
 }
 
-static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
+static void __init at91sam9x5_sckc_register(struct device_node *np,
+					    unsigned int rc_osc_startup_us)
 {
 	const char *parent_names[2] = { "slow_rc_osc", "slow_osc" };
 	void __iomem *regbase = of_iomap(np, 0);
@@ -334,7 +335,7 @@ static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
 		return;
 
 	hw = at91_clk_register_slow_rc_osc(regbase, parent_names[0], 32768,
-					   50000000, 75);
+					   50000000, rc_osc_startup_us);
 	if (IS_ERR(hw))
 		return;
 
@@ -371,8 +372,20 @@ static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
 	if (child)
 		of_clk_add_hw_provider(child, of_clk_hw_simple_get, hw);
 }
+
+static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
+{
+	at91sam9x5_sckc_register(np, 75);
+}
 CLK_OF_DECLARE(at91sam9x5_clk_sckc, "atmel,at91sam9x5-sckc",
 	       of_at91sam9x5_sckc_setup);
+
+static void __init of_sama5d3_sckc_setup(struct device_node *np)
+{
+	at91sam9x5_sckc_register(np, 500);
+}
+CLK_OF_DECLARE(sama5d3_clk_sckc, "atmel,sama5d3-sckc",
+	       of_sama5d3_sckc_setup);
 
 static int clk_sama5d4_slow_osc_prepare(struct clk_hw *hw)
 {
