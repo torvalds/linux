@@ -363,7 +363,7 @@ enum {
 #define MSDC_CKGEN_MSDC_DLY_SEL   (0x1F << 10)
 #define MSDC_INT_DAT_LATCH_CK_SEL  (0x7 << 7)
 #define MSDC_CKGEN_MSDC_CK_SEL     (0x1 << 6)
-#define CARD_READY_FOR_DATA             (1 << 8)
+#define CARD_READY_FOR_DATA		BIT(8)
 #define CARD_CURRENT_STATE(x)           ((x & 0x00001E00) >> 9)
 
 /*--------------------------------------------------------------------------*/
