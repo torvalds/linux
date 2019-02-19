@@ -906,7 +906,9 @@ static ssize_t amdgpu_get_pp_dpm_socclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (is_support_sw_smu(adev))
+		return smu_print_clk_levels(&adev->smu, PP_SOCCLK, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_SOCCLK, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");
@@ -942,7 +944,9 @@ static ssize_t amdgpu_get_pp_dpm_fclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (is_support_sw_smu(adev))
+		return smu_print_clk_levels(&adev->smu, PP_FCLK, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_FCLK, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");
@@ -978,7 +982,9 @@ static ssize_t amdgpu_get_pp_dpm_dcefclk(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	if (adev->powerplay.pp_funcs->print_clock_levels)
+	if (is_support_sw_smu(adev))
+		return smu_print_clk_levels(&adev->smu, PP_DCEFCLK, buf);
+	else if (adev->powerplay.pp_funcs->print_clock_levels)
 		return amdgpu_dpm_print_clock_levels(adev, PP_DCEFCLK, buf);
 	else
 		return snprintf(buf, PAGE_SIZE, "\n");

@@ -773,6 +773,62 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 				? "*" : "");
 		break;
 
+	case PP_SOCCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_SOCCLK, &now);
+		if (ret) {
+			pr_err("Attempt to get current socclk Failed!");
+			return ret;
+		}
+
+		single_dpm_table = &(dpm_table->soc_table);
+		ret = vega20_get_clk_table(smu, &clocks, single_dpm_table);
+		if (ret) {
+			pr_err("Attempt to get socclk levels Failed!");
+			return ret;
+		}
+
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz == now * 10)
+				? "*" : "");
+		break;
+
+	case PP_FCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_FCLK, &now);
+		if (ret) {
+			pr_err("Attempt to get current fclk Failed!");
+			return ret;
+		}
+
+		single_dpm_table = &(dpm_table->fclk_table);
+		for (i = 0; i < single_dpm_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, single_dpm_table->dpm_levels[i].value,
+				(single_dpm_table->dpm_levels[i].value == now / 100)
+				? "*" : "");
+		break;
+
+	case PP_DCEFCLK:
+		ret = smu_get_current_clk_freq(smu, PPCLK_DCEFCLK, &now);
+		if (ret) {
+			pr_err("Attempt to get current dcefclk Failed!");
+			return ret;
+		}
+
+		single_dpm_table = &(dpm_table->dcef_table);
+		ret = vega20_get_clk_table(smu, &clocks, single_dpm_table);
+		if (ret) {
+			pr_err("Attempt to get dcefclk levels Failed!");
+			return ret;
+		}
+
+		for (i = 0; i < clocks.num_levels; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+				i, clocks.data[i].clocks_in_khz / 1000,
+				(clocks.data[i].clocks_in_khz == now * 10) ? "*" : "");
+		break;
+
 	case PP_PCIE:
 		break;
 
