@@ -29,16 +29,9 @@
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_CAP_SEL	BIT(0)
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
-#define PCF85063_REG_CTRL2		0x01
 
 #define PCF85063_REG_SC			0x04 /* datetime */
 #define PCF85063_REG_SC_OS		0x80
-#define PCF85063_REG_MN			0x05
-#define PCF85063_REG_HR			0x06
-#define PCF85063_REG_DM			0x07
-#define PCF85063_REG_DW			0x08
-#define PCF85063_REG_MO			0x09
-#define PCF85063_REG_YR			0x0A
 
 static struct i2c_driver pcf85063_driver;
 
