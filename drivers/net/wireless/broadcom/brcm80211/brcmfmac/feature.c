@@ -185,13 +185,14 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 #define MAX_CAPS_BUFFER_SIZE	768
 static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 {
+	struct brcmf_pub *drvr = ifp->drvr;
 	char caps[MAX_CAPS_BUFFER_SIZE];
 	enum brcmf_feat_id id;
 	int i, err;
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		brcmf_err("could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
 		return;
 	}
 
@@ -216,14 +217,15 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(seq->private);
-	struct brcmf_if *ifp = brcmf_get_ifp(bus_if->drvr, 0);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
 	char caps[MAX_CAPS_BUFFER_SIZE + 1] = { };
 	char *tmp;
 	int err;
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		brcmf_err("could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
 		return err;
 	}
 
