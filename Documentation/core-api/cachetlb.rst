@@ -101,16 +101,6 @@ changes occur:
 	translations for software managed TLB configurations.
 	The sparc64 port currently does this.
 
-6) ``void tlb_migrate_finish(struct mm_struct *mm)``
-
-	This interface is called at the end of an explicit
-	process migration. This interface provides a hook
-	to allow a platform to update TLB or context-specific
-	information for the address space.
-
-	The ia64 sn2 platform is one example of a platform
-	that uses this interface.
-
 Next, we have the cache flushing interfaces.  In general, when Linux
 is changing an existing virtual-->physical mapping to a new value,
 the sequence will be in one of the following forms::

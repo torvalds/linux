@@ -47,8 +47,6 @@
 #include <asm/tlbflush.h>
 #include <asm/machvec.h>
 
-#define tlb_migrate_finish(mm)	platform_tlb_migrate_finish(mm)
-
 #include <asm-generic/tlb.h>
 
 #endif /* _ASM_IA64_TLB_H */
