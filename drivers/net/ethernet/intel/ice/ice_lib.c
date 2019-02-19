@@ -1820,7 +1820,6 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		rc->latency_range = ICE_LOW_LATENCY;
 		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
@@ -1835,7 +1834,6 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		rc->latency_range = ICE_LOW_LATENCY;
 		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}

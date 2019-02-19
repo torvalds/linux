@@ -184,21 +184,13 @@ struct ice_ring {
 	u16 next_to_alloc;
 } ____cacheline_internodealigned_in_smp;
 
-enum ice_latency_range {
-	ICE_LOWEST_LATENCY = 0,
-	ICE_LOW_LATENCY = 1,
-	ICE_BULK_LATENCY = 2,
-	ICE_ULTRA_LATENCY = 3,
-};
-
 struct ice_ring_container {
 	/* head of linked-list of rings */
 	struct ice_ring *ring;
 	unsigned long next_update;	/* jiffies value of next queue update */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
-	enum ice_latency_range latency_range;
-	int itr_idx;		/* index in the interrupt vector */
+	u16 itr_idx;		/* index in the interrupt vector */
 	u16 target_itr;		/* value in usecs divided by the hw->itr_gran */
 	u16 current_itr;	/* value in usecs divided by the hw->itr_gran */
 	/* high bit set means dynamic ITR, rest is used to store user

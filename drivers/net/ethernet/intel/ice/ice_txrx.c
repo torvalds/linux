@@ -1323,7 +1323,7 @@ clear_counts:
  * @itr_idx: interrupt throttling index
  * @itr: interrupt throttling value in usecs
  */
-static u32 ice_buildreg_itr(int itr_idx, u16 itr)
+static u32 ice_buildreg_itr(u16 itr_idx, u16 itr)
 {
 	/* The itr value is reported in microseconds, and the register value is
 	 * recorded in 2 microsecond units. For this reason we only need to
