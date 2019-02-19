@@ -1612,6 +1612,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 			platform_info->enable_dma = false;
 		} else {
 			master->can_dma = pxa2xx_spi_can_dma;
+			master->max_dma_len = MAX_DMA_LEN;
 		}
 	}
 
