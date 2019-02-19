@@ -73,10 +73,9 @@ For $comm, the default type is "string"; any other type is invalid.
 
 Event Profiling
 ---------------
-You can check the total number of probe hits and probe miss-hits via
-/sys/kernel/debug/tracing/uprobe_profile.
-The first column is event name, the second is the number of probe hits,
-the third is the number of probe miss-hits.
+You can check the total number of probe hits per event via
+/sys/kernel/debug/tracing/uprobe_profile. The first column is the filename,
+the second is the event name, the third is the number of probe hits.
 
 Usage examples
 --------------
