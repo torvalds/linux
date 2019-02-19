@@ -980,10 +980,10 @@ out_unlock:
 	return ret;
 }
 
-static void imx7_csi_try_fmt(struct imx7_csi *csi,
-			     struct v4l2_subdev_pad_config *cfg,
-			     struct v4l2_subdev_format *sdformat,
-			     const struct imx_media_pixfmt **cc)
+static int imx7_csi_try_fmt(struct imx7_csi *csi,
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *sdformat,
+			    const struct imx_media_pixfmt **cc)
 {
 	const struct imx_media_pixfmt *in_cc;
 	struct v4l2_mbus_framefmt *in_fmt;
@@ -992,7 +992,7 @@ static void imx7_csi_try_fmt(struct imx7_csi *csi,
 	in_fmt = imx7_csi_get_format(csi, cfg, IMX7_CSI_PAD_SINK,
 				     sdformat->which);
 	if (!in_fmt)
-		return;
+		return -EINVAL;
 
 	switch (sdformat->pad) {
 	case IMX7_CSI_PAD_SRC:
@@ -1023,8 +1023,10 @@ static void imx7_csi_try_fmt(struct imx7_csi *csi,
 						   false);
 		break;
 	default:
+		return -EINVAL;
 		break;
 	}
+	return 0;
 }
 
 static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
@@ -1067,8 +1069,10 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 		format.pad = IMX7_CSI_PAD_SRC;
 		format.which = sdformat->which;
 		format.format = sdformat->format;
-		imx7_csi_try_fmt(csi, cfg, &format, &outcc);
-
+		if (imx7_csi_try_fmt(csi, cfg, &format, &outcc)) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
 		outfmt = imx7_csi_get_format(csi, cfg, IMX7_CSI_PAD_SRC,
 					     sdformat->which);
 		*outfmt = format.format;
