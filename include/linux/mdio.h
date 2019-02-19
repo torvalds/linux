@@ -286,6 +286,25 @@ static inline u32 linkmode_adv_to_mii_10gbt_adv_t(unsigned long *advertising)
 	return result;
 }
 
+/**
+ * mii_10gbt_stat_mod_linkmode_lpa_t
+ * @advertising: target the linkmode advertisement settings
+ * @adv: value of the C45 10GBASE-T AN STATUS register
+ *
+ * A small helper function that translates C45 10GBASE-T AN STATUS register bits
+ * to linkmode advertisement settings. Other bits in advertising aren't changed.
+ */
+static inline void mii_10gbt_stat_mod_linkmode_lpa_t(unsigned long *advertising,
+						     u32 lpa)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP2_5G);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP5G);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 advertising, lpa & MDIO_AN_10GBT_STAT_LP10G);
+}
+
 int __mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
 int __mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
