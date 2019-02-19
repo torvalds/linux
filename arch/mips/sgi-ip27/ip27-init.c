@@ -52,8 +52,6 @@ EXPORT_SYMBOL_GPL(sn_cpu_info);
 
 extern void pcibr_setup(cnodeid_t);
 
-extern void xtalk_probe_node(cnodeid_t nid);
-
 static void per_hub_init(cnodeid_t cnode)
 {
 	struct hub_data *hub = hub_data(cnode);
@@ -71,7 +69,6 @@ static void per_hub_init(cnodeid_t cnode)
 	REMOTE_HUB_S(nasid, IIO_ICTO, 0xff);
 
 	hub_rtc_init(cnode);
-	xtalk_probe_node(cnode);
 
 #ifdef CONFIG_REPLICATE_EXHANDLERS
 	/*
