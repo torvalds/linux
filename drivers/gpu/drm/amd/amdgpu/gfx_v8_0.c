@@ -4223,8 +4223,8 @@ static void gfx_v8_0_set_cpg_door_bell(struct amdgpu_device *adev, struct amdgpu
 					adev->doorbell_index.gfx_ring0);
 	WREG32(mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
 
-	/* There is only one GFX queue */
-	WREG32(mmCP_RB_DOORBELL_RANGE_UPPER, tmp);
+	WREG32(mmCP_RB_DOORBELL_RANGE_UPPER,
+		CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
 }
 
 static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
@@ -4646,19 +4646,8 @@ static int gfx_v8_0_kcq_init_queue(struct amdgpu_ring *ring)
 static void gfx_v8_0_set_mec_doorbell_range(struct amdgpu_device *adev)
 {
 	if (adev->asic_type > CHIP_TONGA) {
-		/* The first few doorbells in pci doorbell bar are for GFX RB
-		 * rings and all the leftover for MEC.
-		 * So CP_MEC_DOORBELL_RANGE_LOWER should be set one index after
-		 * CP_RB_DOORBELL_RANGE_UPPER, as we assume there is only one
-		 * GFX RB rings.
-		 */
-		u32 tmp = REG_SET_FIELD(0, CP_MEC_DOORBELL_RANGE_LOWER,
-				DOORBELL_RANGE_LOWER,
-				adev->gfx.gfx_ring[0].doorbell_index + 1);
-
-		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, tmp);
-		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
-				CP_MEC_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER, adev->doorbell_index.kiq << 2);
+		WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER, adev->doorbell_index.mec_ring7 << 2);
 	}
 	/* enable doorbells */
 	WREG32_FIELD(CP_PQ_STATUS, DOORBELL_ENABLE, 1);
