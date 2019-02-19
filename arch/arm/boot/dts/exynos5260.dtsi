@@ -288,6 +288,14 @@
 			#size-cells = <0>;
 			clocks = <&clock_fsys FSYS_CLK_MMC0>, <&clock_top TOP_SCLK_MMC0>;
 			clock-names = "biu", "ciu";
+			assigned-clocks =
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC0_SDCLKIN_A>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC0_SDCLKIN_B>,
+				<&clock_top TOP_SCLK_MMC0>;
+			assigned-clock-parents =
+				<&clock_top TOP_MOUT_BUSTOP_PLL_USER>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC0_SDCLKIN_A>;
+			assigned-clock-rates = <0>, <0>, <800000000>;
 			fifo-depth = <64>;
 			status = "disabled";
 		};
@@ -300,6 +308,14 @@
 			#size-cells = <0>;
 			clocks = <&clock_fsys FSYS_CLK_MMC1>, <&clock_top TOP_SCLK_MMC1>;
 			clock-names = "biu", "ciu";
+			assigned-clocks =
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC1_SDCLKIN_A>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC1_SDCLKIN_B>,
+				<&clock_top TOP_SCLK_MMC1>;
+			assigned-clock-parents =
+				<&clock_top TOP_MOUT_BUSTOP_PLL_USER>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC1_SDCLKIN_A>;
+			assigned-clock-rates = <0>, <0>, <800000000>;
 			fifo-depth = <64>;
 			status = "disabled";
 		};
@@ -312,6 +328,14 @@
 			#size-cells = <0>;
 			clocks = <&clock_fsys FSYS_CLK_MMC2>, <&clock_top TOP_SCLK_MMC2>;
 			clock-names = "biu", "ciu";
+			assigned-clocks =
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC2_SDCLKIN_A>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC2_SDCLKIN_B>,
+				<&clock_top TOP_SCLK_MMC2>;
+			assigned-clock-parents =
+				<&clock_top TOP_MOUT_BUSTOP_PLL_USER>,
+				<&clock_top TOP_MOUT_SCLK_FSYS_MMC2_SDCLKIN_A>;
+			assigned-clock-rates = <0>, <0>, <800000000>;
 			fifo-depth = <64>;
 			status = "disabled";
 		};
