@@ -30,6 +30,7 @@ Optional properties:
 - interrupts: index of current limit detection interrupt
 - <regulator>-supply: phandle to the parent supply/regulator node
 	each regulator supply can be described except vref_ddr.
+- regulator-active-discharge: can be used on pwr_sw1 and pwr_sw2.
 
 Example:
 regulators {
