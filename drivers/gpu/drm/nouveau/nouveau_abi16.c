@@ -339,7 +339,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->ntfy, &cli->vmm, &chan->ntfy_vma);
+		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
+				      &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
