@@ -1347,8 +1347,6 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
 		return -EBUSY;
 
-	offs += rxf_data.offset;
-
 	range->fifo_num = cpu_to_le32(rxf_data.fifo_num);
 	range->num_of_registers = reg->fifos.num_of_registers;
 	range->range_data_size = cpu_to_le32(rxf_data.size + registers_size);
@@ -1371,6 +1369,12 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 		range->range_data_size = cpu_to_le32(registers_size);
 		goto out;
 	}
+
+	/*
+	 * region register have absolute value so apply rxf offset after
+	 * reading the registers
+	 */
+	offs += rxf_data.offset;
 
 	/* Lock fence */
 	iwl_write_prph_no_grab(fwrt->trans, RXF_SET_FENCE_MODE + offs, 0x1);
