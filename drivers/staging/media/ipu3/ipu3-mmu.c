@@ -275,7 +275,17 @@ static size_t imgu_mmu_pgsize(unsigned long pgsize_bitmap,
 	return pgsize;
 }
 
-/* drivers/iommu/iommu.c/iommu_map() */
+/**
+ * imgu_mmu_map - map a buffer to a physical address
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @paddr: the physical address
+ * @size: length of the mappable area
+ *
+ * The function has been adapted from iommu_map() in
+ * drivers/iommu/iommu.c .
+ */
 int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 		 phys_addr_t paddr, size_t size)
 {
@@ -321,7 +331,17 @@ int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 	return ret;
 }
 
-/* drivers/iommu/iommu.c/default_iommu_map_sg() */
+/**
+ * imgu_mmu_map_sg - Map a scatterlist
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @sg: the scatterlist to map
+ * @nents: number of entries in the scatterlist
+ *
+ * The function has been adapted from default_iommu_map_sg() in
+ * drivers/iommu/iommu.c .
+ */
 size_t imgu_mmu_map_sg(struct imgu_mmu_info *info, unsigned long iova,
 		       struct scatterlist *sg, unsigned int nents)
 {
@@ -394,7 +414,16 @@ static size_t __imgu_mmu_unmap(struct imgu_mmu *mmu,
 	return unmap;
 }
 
-/* drivers/iommu/iommu.c/iommu_unmap() */
+/**
+ * imgu_mmu_unmap - Unmap a buffer
+ *
+ * @info: MMU mappable range
+ * @iova: the virtual address
+ * @size: the length of the buffer
+ *
+ * The function has been adapted from iommu_unmap() in
+ * drivers/iommu/iommu.c .
+ */
 size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 		      size_t size)
 {
@@ -444,6 +473,7 @@ size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 
 /**
  * imgu_mmu_init() - initialize IPU3 MMU block
+ *
  * @parent:	struct device parent
  * @base:	IOMEM base of hardware registers.
  *
@@ -523,7 +553,8 @@ fail_group:
 
 /**
  * imgu_mmu_exit() - clean up IPU3 MMU block
- * @info: IPU3 MMU private data
+ *
+ * @info: MMU mappable range
  */
 void imgu_mmu_exit(struct imgu_mmu_info *info)
 {
