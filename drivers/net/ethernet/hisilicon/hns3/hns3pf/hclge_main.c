@@ -839,27 +839,27 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 	unsigned long *supported = hdev->hw.mac.supported;
 
 	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
-		set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
-			supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+				 supported);
 
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
-		set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
-			supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+				 supported);
 
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
-		set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-			supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+				 supported);
 
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
-		set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
-			supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+				 supported);
 
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
-		set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
-			supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+				 supported);
 
-	set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, supported);
-	set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
 }
 
 static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
