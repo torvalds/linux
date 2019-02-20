@@ -361,6 +361,7 @@ static noinline void check_reserve(struct xarray *xa)
 {
 	void *entry;
 	unsigned long index;
+	int count;
 
 	/* An array with a reserved entry is not empty */
 	XA_BUG_ON(xa, !xa_empty(xa));
@@ -377,15 +378,15 @@ static noinline void check_reserve(struct xarray *xa)
 	xa_erase_index(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
-	/* cmpxchg sees a reserved entry as NULL */
+	/* cmpxchg sees a reserved entry as ZERO */
 	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
-	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, NULL, xa_mk_value(12345678),
-				GFP_NOWAIT) != NULL);
+	XA_BUG_ON(xa, xa_cmpxchg(xa, 12345678, XA_ZERO_ENTRY,
+				xa_mk_value(12345678), GFP_NOWAIT) != NULL);
 	xa_release(xa, 12345678);
 	xa_erase_index(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
-	/* But xa_insert does not */
+	/* xa_insert treats it as busy */
 	XA_BUG_ON(xa, xa_reserve(xa, 12345678, GFP_KERNEL) != 0);
 	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) !=
 			-EBUSY);
@@ -398,9 +399,27 @@ static noinline void check_reserve(struct xarray *xa)
 	XA_BUG_ON(xa, xa_reserve(xa, 6, GFP_KERNEL) != 0);
 	xa_store_index(xa, 7, GFP_KERNEL);
 
+	count = 0;
 	xa_for_each(xa, index, entry) {
 		XA_BUG_ON(xa, index != 5 && index != 7);
+		count++;
 	}
+	XA_BUG_ON(xa, count != 2);
+
+	/* If we free a reserved entry, we should be able to allocate it */
+	if (xa->xa_flags & XA_FLAGS_ALLOC) {
+		u32 id;
+
+		XA_BUG_ON(xa, xa_alloc(xa, &id, xa_mk_value(8),
+					XA_LIMIT(5, 10), GFP_KERNEL) != 0);
+		XA_BUG_ON(xa, id != 8);
+
+		xa_release(xa, 6);
+		XA_BUG_ON(xa, xa_alloc(xa, &id, xa_mk_value(6),
+					XA_LIMIT(5, 10), GFP_KERNEL) != 0);
+		XA_BUG_ON(xa, id != 6);
+	}
+
 	xa_destroy(xa);
 }
 
@@ -1486,6 +1505,7 @@ static int xarray_checks(void)
 	check_xas_erase(&array);
 	check_cmpxchg(&array);
 	check_reserve(&array);
+	check_reserve(&xa0);
 	check_multi_store(&array);
 	check_xa_alloc();
 	check_find(&array);

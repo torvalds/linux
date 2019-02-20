@@ -131,6 +131,12 @@ static inline unsigned int xa_pointer_tag(void *entry)
  * xa_mk_internal() - Create an internal entry.
  * @v: Value to turn into an internal entry.
  *
+ * Internal entries are used for a number of purposes.  Entries 0-255 are
+ * used for sibling entries (only 0-62 are used by the current code).  256
+ * is used for the retry entry.  257 is used for the reserved / zero entry.
+ * Negative internal entries are used to represent errnos.  Node pointers
+ * are also tagged as internal entries in some situations.
+ *
  * Context: Any context.
  * Return: An XArray internal entry corresponding to this value.
  */
@@ -161,6 +167,22 @@ static inline unsigned long xa_to_internal(const void *entry)
 static inline bool xa_is_internal(const void *entry)
 {
 	return ((unsigned long)entry & 3) == 2;
+}
+
+#define XA_ZERO_ENTRY		xa_mk_internal(257)
+
+/**
+ * xa_is_zero() - Is the entry a zero entry?
+ * @entry: Entry retrieved from the XArray
+ *
+ * The normal API will return NULL as the contents of a slot containing
+ * a zero entry.  You can only see zero entries by using the advanced API.
+ *
+ * Return: %true if the entry is a zero entry.
+ */
+static inline bool xa_is_zero(const void *entry)
+{
+	return unlikely(entry == XA_ZERO_ENTRY);
 }
 
 /**
@@ -1050,7 +1072,7 @@ int xa_reserve_irq(struct xarray *xa, unsigned long index, gfp_t gfp)
  */
 static inline void xa_release(struct xarray *xa, unsigned long index)
 {
-	xa_cmpxchg(xa, index, NULL, NULL, 0);
+	xa_cmpxchg(xa, index, XA_ZERO_ENTRY, NULL, 0);
 }
 
 /* Everything below here is the Advanced API.  Proceed with caution. */
@@ -1210,18 +1232,6 @@ static inline bool xa_is_sibling(const void *entry)
 }
 
 #define XA_RETRY_ENTRY		xa_mk_internal(256)
-#define XA_ZERO_ENTRY		xa_mk_internal(257)
-
-/**
- * xa_is_zero() - Is the entry a zero entry?
- * @entry: Entry retrieved from the XArray
- *
- * Return: %true if the entry is a zero entry.
- */
-static inline bool xa_is_zero(const void *entry)
-{
-	return unlikely(entry == XA_ZERO_ENTRY);
-}
 
 /**
  * xa_is_retry() - Is the entry a retry entry?
