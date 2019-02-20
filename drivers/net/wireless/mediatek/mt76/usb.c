@@ -468,7 +468,7 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct mt76u_buf *buf)
 	__skb_put(skb, data_len);
 	len -= data_len;
 
-	while (len > 0 && urb->num_sgs) {
+	while (len > 0 && nsgs < urb->num_sgs) {
 		data_len = min_t(int, len, urb->sg[nsgs].length);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				sg_page(&urb->sg[nsgs]),
