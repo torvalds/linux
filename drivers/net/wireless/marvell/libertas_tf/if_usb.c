@@ -131,6 +131,12 @@ static void if_usb_fw_timeo(struct timer_list *t)
 	lbtf_deb_leave(LBTF_DEB_USB);
 }
 
+static const struct lbtf_ops if_usb_ops = {
+	.hw_host_to_card = if_usb_host_to_card,
+	.hw_prog_firmware = if_usb_prog_firmware,
+	.hw_reset_device = if_usb_reset_device,
+};
+
 /**
  *  if_usb_probe - sets the configuration values
  *
@@ -216,15 +222,11 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto dealloc;
 	}
 
-	priv = lbtf_add_card(cardp, &udev->dev);
+	priv = lbtf_add_card(cardp, &udev->dev, &if_usb_ops);
 	if (!priv)
 		goto dealloc;
 
 	cardp->priv = priv;
-
-	priv->hw_host_to_card = if_usb_host_to_card;
-	priv->hw_prog_firmware = if_usb_prog_firmware;
-	priv->hw_reset_device = if_usb_reset_device;
 	cardp->boot2_version = udev->descriptor.bcdDevice;
 
 	usb_get_dev(udev);

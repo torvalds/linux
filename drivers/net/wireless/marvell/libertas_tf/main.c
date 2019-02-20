@@ -281,7 +281,7 @@ static void lbtf_tx_work(struct work_struct *work)
 	BUG_ON(priv->tx_skb);
 	spin_lock_irq(&priv->driver_lock);
 	priv->tx_skb = skb;
-	err = priv->hw_host_to_card(priv, MVMS_DAT, skb->data, skb->len);
+	err = priv->ops->hw_host_to_card(priv, MVMS_DAT, skb->data, skb->len);
 	spin_unlock_irq(&priv->driver_lock);
 	if (err) {
 		dev_kfree_skb_any(skb);
@@ -301,7 +301,7 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 
 	if (!priv->fw_ready)
 		/* Upload firmware */
-		if (priv->hw_prog_firmware(card))
+		if (priv->ops->hw_prog_firmware(card))
 			goto err_prog_firmware;
 
 	/* poke the firmware */
@@ -322,7 +322,7 @@ static int lbtf_op_start(struct ieee80211_hw *hw)
 	return 0;
 
 err_prog_firmware:
-	priv->hw_reset_device(card);
+	priv->ops->hw_reset_device(card);
 	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "error programming fw; ret=%d", ret);
 	return ret;
 }
@@ -603,7 +603,8 @@ EXPORT_SYMBOL_GPL(lbtf_rx);
  *
  *  Returns: pointer to struct lbtf_priv.
  */
-struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
+struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
+				   const struct lbtf_ops *ops)
 {
 	struct ieee80211_hw *hw;
 	struct lbtf_private *priv = NULL;
@@ -620,6 +621,7 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 
 	priv->hw = hw;
 	priv->card = card;
+	priv->ops = ops;
 	priv->tx_skb = NULL;
 
 	hw->queues = 1;
