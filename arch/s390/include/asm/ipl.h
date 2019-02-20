@@ -78,7 +78,7 @@ struct ipl_parameter_block {
 		struct ipl_block_fcp fcp;
 		struct ipl_block_ccw ccw;
 		char raw[PAGE_SIZE - sizeof(struct ipl_list_hdr)];
-	} ipl_info;
+	};
 } __packed __aligned(PAGE_SIZE);
 
 struct save_area;

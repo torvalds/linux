@@ -248,7 +248,7 @@ static __init enum ipl_type get_ipl_type(void)
 	case DIAG308_IPL_TYPE_CCW:
 		return IPL_TYPE_CCW;
 	case DIAG308_IPL_TYPE_FCP:
-		if (ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP)
+		if (ipl_block.fcp.opt == DIAG308_IPL_OPT_DUMP)
 			return IPL_TYPE_FCP_DUMP;
 		else
 			return IPL_TYPE_FCP;
@@ -285,12 +285,11 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 {
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		return sprintf(page, "0.%x.%04x\n", ipl_block.ipl_info.ccw.ssid,
-			       ipl_block.ipl_info.ccw.devno);
+		return sprintf(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
+			       ipl_block.ccw.devno);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		return sprintf(page, "0.0.%04x\n",
-			       ipl_block.ipl_info.fcp.devno);
+		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devno);
 	default:
 		return 0;
 	}
@@ -314,8 +313,8 @@ static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
 				 loff_t off, size_t count)
 {
-	unsigned int size = ipl_block.ipl_info.fcp.scp_data_len;
-	void *scp_data = &ipl_block.ipl_info.fcp.scp_data;
+	unsigned int size = ipl_block.fcp.scp_data_len;
+	void *scp_data = &ipl_block.fcp.scp_data;
 
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
@@ -331,13 +330,13 @@ static struct bin_attribute *ipl_fcp_bin_attrs[] = {
 /* FCP ipl device attributes */
 
 DEFINE_IPL_ATTR_RO(ipl_fcp, wwpn, "0x%016llx\n",
-		   (unsigned long long)ipl_block.ipl_info.fcp.wwpn);
+		   (unsigned long long)ipl_block.fcp.wwpn);
 DEFINE_IPL_ATTR_RO(ipl_fcp, lun, "0x%016llx\n",
-		   (unsigned long long)ipl_block.ipl_info.fcp.lun);
+		   (unsigned long long)ipl_block.fcp.lun);
 DEFINE_IPL_ATTR_RO(ipl_fcp, bootprog, "%lld\n",
-		   (unsigned long long)ipl_block.ipl_info.fcp.bootprog);
+		   (unsigned long long)ipl_block.fcp.bootprog);
 DEFINE_IPL_ATTR_RO(ipl_fcp, br_lba, "%lld\n",
-		   (unsigned long long)ipl_block.ipl_info.fcp.br_lba);
+		   (unsigned long long)ipl_block.fcp.br_lba);
 
 static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *page)
@@ -493,14 +492,14 @@ static ssize_t reipl_generic_vmparm_store(struct ipl_parameter_block *ipb,
 		if (!(isalnum(buf[i]) || isascii(buf[i]) || isprint(buf[i])))
 			return -EINVAL;
 
-	memset(ipb->ipl_info.ccw.vm_parm, 0, DIAG308_VMPARM_SIZE);
-	ipb->ipl_info.ccw.vm_parm_len = ip_len;
+	memset(ipb->ccw.vm_parm, 0, DIAG308_VMPARM_SIZE);
+	ipb->ccw.vm_parm_len = ip_len;
 	if (ip_len > 0) {
-		ipb->ipl_info.ccw.vm_flags |= DIAG308_VM_FLAGS_VP_VALID;
-		memcpy(ipb->ipl_info.ccw.vm_parm, buf, ip_len);
-		ASCEBC(ipb->ipl_info.ccw.vm_parm, ip_len);
+		ipb->ccw.vm_flags |= DIAG308_VM_FLAGS_VP_VALID;
+		memcpy(ipb->ccw.vm_parm, buf, ip_len);
+		ASCEBC(ipb->ccw.vm_parm, ip_len);
 	} else {
-		ipb->ipl_info.ccw.vm_flags &= ~DIAG308_VM_FLAGS_VP_VALID;
+		ipb->ccw.vm_flags &= ~DIAG308_VM_FLAGS_VP_VALID;
 	}
 
 	return len;
@@ -547,8 +546,8 @@ static ssize_t reipl_fcp_scpdata_read(struct file *filp, struct kobject *kobj,
 				      struct bin_attribute *attr,
 				      char *buf, loff_t off, size_t count)
 {
-	size_t size = reipl_block_fcp->ipl_info.fcp.scp_data_len;
-	void *scp_data = reipl_block_fcp->ipl_info.fcp.scp_data;
+	size_t size = reipl_block_fcp->fcp.scp_data_len;
+	void *scp_data = reipl_block_fcp->fcp.scp_data;
 
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
@@ -564,15 +563,15 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 	if (off)
 		return -EINVAL;
 
-	memcpy(reipl_block_fcp->ipl_info.fcp.scp_data, buf, count);
+	memcpy(reipl_block_fcp->fcp.scp_data, buf, count);
 	if (scpdata_len % 8) {
 		padding = 8 - (scpdata_len % 8);
-		memset(reipl_block_fcp->ipl_info.fcp.scp_data + scpdata_len,
+		memset(reipl_block_fcp->fcp.scp_data + scpdata_len,
 		       0, padding);
 		scpdata_len += padding;
 	}
 
-	reipl_block_fcp->ipl_info.fcp.scp_data_len = scpdata_len;
+	reipl_block_fcp->fcp.scp_data_len = scpdata_len;
 	reipl_block_fcp->hdr.len = IPL_PARM_BLK_FCP_LEN + scpdata_len;
 	reipl_block_fcp->hdr.blk0_len = IPL_PARM_BLK0_FCP_LEN + scpdata_len;
 
@@ -588,15 +587,15 @@ static struct bin_attribute *reipl_fcp_bin_attrs[] = {
 };
 
 DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%llx\n",
-		   reipl_block_fcp->ipl_info.fcp.wwpn);
+		   reipl_block_fcp->fcp.wwpn);
 DEFINE_IPL_ATTR_RW(reipl_fcp, lun, "0x%016llx\n", "%llx\n",
-		   reipl_block_fcp->ipl_info.fcp.lun);
+		   reipl_block_fcp->fcp.lun);
 DEFINE_IPL_ATTR_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
-		   reipl_block_fcp->ipl_info.fcp.bootprog);
+		   reipl_block_fcp->fcp.bootprog);
 DEFINE_IPL_ATTR_RW(reipl_fcp, br_lba, "%lld\n", "%lld\n",
-		   reipl_block_fcp->ipl_info.fcp.br_lba);
+		   reipl_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(reipl_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   reipl_block_fcp->ipl_info.fcp.devno);
+		   reipl_block_fcp->fcp.devno);
 
 static void reipl_get_ascii_loadparm(char *loadparm,
 				     struct ipl_parameter_block *ibp)
@@ -678,7 +677,7 @@ static struct attribute_group reipl_fcp_attr_group = {
 };
 
 /* CCW reipl device attributes */
-DEFINE_IPL_CCW_ATTR_RW(reipl_ccw, device, reipl_block_ccw->ipl_info.ccw);
+DEFINE_IPL_CCW_ATTR_RW(reipl_ccw, device, reipl_block_ccw->ccw);
 
 /* NSS wrapper */
 static ssize_t reipl_nss_loadparm_show(struct kobject *kobj,
@@ -740,7 +739,7 @@ static struct attribute_group reipl_ccw_attr_group_lpar = {
 static void reipl_get_ascii_nss_name(char *dst,
 				     struct ipl_parameter_block *ipb)
 {
-	memcpy(dst, ipb->ipl_info.ccw.nss_name, NSS_NAME_SIZE);
+	memcpy(dst, ipb->ccw.nss_name, NSS_NAME_SIZE);
 	EBCASC(dst, NSS_NAME_SIZE);
 	dst[NSS_NAME_SIZE] = 0;
 }
@@ -768,15 +767,15 @@ static ssize_t reipl_nss_name_store(struct kobject *kobj,
 	if (nss_len > NSS_NAME_SIZE)
 		return -EINVAL;
 
-	memset(reipl_block_nss->ipl_info.ccw.nss_name, 0x40, NSS_NAME_SIZE);
+	memset(reipl_block_nss->ccw.nss_name, 0x40, NSS_NAME_SIZE);
 	if (nss_len > 0) {
-		reipl_block_nss->ipl_info.ccw.vm_flags |=
+		reipl_block_nss->ccw.vm_flags |=
 			DIAG308_VM_FLAGS_NSS_VALID;
-		memcpy(reipl_block_nss->ipl_info.ccw.nss_name, buf, nss_len);
-		ASCEBC(reipl_block_nss->ipl_info.ccw.nss_name, nss_len);
-		EBC_TOUPPER(reipl_block_nss->ipl_info.ccw.nss_name, nss_len);
+		memcpy(reipl_block_nss->ccw.nss_name, buf, nss_len);
+		ASCEBC(reipl_block_nss->ccw.nss_name, nss_len);
+		EBC_TOUPPER(reipl_block_nss->ccw.nss_name, nss_len);
 	} else {
-		reipl_block_nss->ipl_info.ccw.vm_flags &=
+		reipl_block_nss->ccw.vm_flags &=
 			~DIAG308_VM_FLAGS_NSS_VALID;
 	}
 
@@ -916,13 +915,12 @@ static void reipl_block_ccw_fill_parms(struct ipl_parameter_block *ipb)
 
 	/* VM PARM */
 	if (MACHINE_IS_VM && ipl_block_valid &&
-	    (ipl_block.ipl_info.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID)) {
+	    (ipl_block.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID)) {
 
-		ipb->ipl_info.ccw.vm_flags |= DIAG308_VM_FLAGS_VP_VALID;
-		ipb->ipl_info.ccw.vm_parm_len =
-					ipl_block.ipl_info.ccw.vm_parm_len;
-		memcpy(ipb->ipl_info.ccw.vm_parm,
-		       ipl_block.ipl_info.ccw.vm_parm, DIAG308_VMPARM_SIZE);
+		ipb->ccw.vm_flags |= DIAG308_VM_FLAGS_VP_VALID;
+		ipb->ccw.vm_parm_len = ipl_block.ccw.vm_parm_len;
+		memcpy(ipb->ccw.vm_parm,
+		       ipl_block.ccw.vm_parm, DIAG308_VMPARM_SIZE);
 	}
 }
 
@@ -962,8 +960,8 @@ static int __init reipl_ccw_init(void)
 
 	reipl_block_ccw_init(reipl_block_ccw);
 	if (ipl_info.type == IPL_TYPE_CCW) {
-		reipl_block_ccw->ipl_info.ccw.ssid = ipl_block.ipl_info.ccw.ssid;
-		reipl_block_ccw->ipl_info.ccw.devno = ipl_block.ipl_info.ccw.devno;
+		reipl_block_ccw->ccw.ssid = ipl_block.ccw.ssid;
+		reipl_block_ccw->ccw.devno = ipl_block.ccw.devno;
 		reipl_block_ccw_fill_parms(reipl_block_ccw);
 	}
 
@@ -1008,7 +1006,7 @@ static int __init reipl_fcp_init(void)
 		reipl_block_fcp->hdr.version = IPL_PARM_BLOCK_VERSION;
 		reipl_block_fcp->hdr.blk0_len = IPL_PARM_BLK0_FCP_LEN;
 		reipl_block_fcp->hdr.pbt = DIAG308_IPL_TYPE_FCP;
-		reipl_block_fcp->ipl_info.fcp.opt = DIAG308_IPL_OPT_IPL;
+		reipl_block_fcp->fcp.opt = DIAG308_IPL_OPT_IPL;
 	}
 	reipl_capabilities |= IPL_TYPE_FCP;
 	return 0;
@@ -1074,15 +1072,15 @@ static struct shutdown_action __refdata reipl_action = {
 /* FCP dump device attributes */
 
 DEFINE_IPL_ATTR_RW(dump_fcp, wwpn, "0x%016llx\n", "%llx\n",
-		   dump_block_fcp->ipl_info.fcp.wwpn);
+		   dump_block_fcp->fcp.wwpn);
 DEFINE_IPL_ATTR_RW(dump_fcp, lun, "0x%016llx\n", "%llx\n",
-		   dump_block_fcp->ipl_info.fcp.lun);
+		   dump_block_fcp->fcp.lun);
 DEFINE_IPL_ATTR_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
-		   dump_block_fcp->ipl_info.fcp.bootprog);
+		   dump_block_fcp->fcp.bootprog);
 DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
-		   dump_block_fcp->ipl_info.fcp.br_lba);
+		   dump_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
-		   dump_block_fcp->ipl_info.fcp.devno);
+		   dump_block_fcp->fcp.devno);
 
 static struct attribute *dump_fcp_attrs[] = {
 	&sys_dump_fcp_device_attr.attr,
@@ -1099,7 +1097,7 @@ static struct attribute_group dump_fcp_attr_group = {
 };
 
 /* CCW dump device attributes */
-DEFINE_IPL_CCW_ATTR_RW(dump_ccw, device, dump_block_ccw->ipl_info.ccw);
+DEFINE_IPL_CCW_ATTR_RW(dump_ccw, device, dump_block_ccw->ccw);
 
 static struct attribute *dump_ccw_attrs[] = {
 	&sys_dump_ccw_device_attr.attr,
@@ -1219,7 +1217,7 @@ static int __init dump_fcp_init(void)
 	dump_block_fcp->hdr.version = IPL_PARM_BLOCK_VERSION;
 	dump_block_fcp->hdr.blk0_len = IPL_PARM_BLK0_FCP_LEN;
 	dump_block_fcp->hdr.pbt = DIAG308_IPL_TYPE_FCP;
-	dump_block_fcp->ipl_info.fcp.opt = DIAG308_IPL_OPT_DUMP;
+	dump_block_fcp->fcp.opt = DIAG308_IPL_OPT_DUMP;
 	dump_capabilities |= DUMP_TYPE_FCP;
 	return 0;
 }
@@ -1663,15 +1661,15 @@ void __init setup_ipl(void)
 	ipl_info.type = get_ipl_type();
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		ipl_info.data.ccw.dev_id.ssid = ipl_block.ipl_info.ccw.ssid;
-		ipl_info.data.ccw.dev_id.devno = ipl_block.ipl_info.ccw.devno;
+		ipl_info.data.ccw.dev_id.ssid = ipl_block.ccw.ssid;
+		ipl_info.data.ccw.dev_id.devno = ipl_block.ccw.devno;
 		break;
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
 		ipl_info.data.fcp.dev_id.ssid = 0;
-		ipl_info.data.fcp.dev_id.devno = ipl_block.ipl_info.fcp.devno;
-		ipl_info.data.fcp.wwpn = ipl_block.ipl_info.fcp.wwpn;
-		ipl_info.data.fcp.lun = ipl_block.ipl_info.fcp.lun;
+		ipl_info.data.fcp.dev_id.devno = ipl_block.fcp.devno;
+		ipl_info.data.fcp.wwpn = ipl_block.fcp.wwpn;
+		ipl_info.data.fcp.lun = ipl_block.fcp.lun;
 		break;
 	case IPL_TYPE_NSS:
 	case IPL_TYPE_UNKNOWN:

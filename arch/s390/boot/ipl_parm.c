@@ -71,26 +71,26 @@ static size_t ipl_block_get_ascii_scpdata(char *dest, size_t size,
 	size_t i;
 	int has_lowercase;
 
-	count = min(size - 1, scpdata_length(ipb->ipl_info.fcp.scp_data,
-					     ipb->ipl_info.fcp.scp_data_len));
+	count = min(size - 1, scpdata_length(ipb->fcp.scp_data,
+					     ipb->fcp.scp_data_len));
 	if (!count)
 		goto out;
 
 	has_lowercase = 0;
 	for (i = 0; i < count; i++) {
-		if (!isascii(ipb->ipl_info.fcp.scp_data[i])) {
+		if (!isascii(ipb->fcp.scp_data[i])) {
 			count = 0;
 			goto out;
 		}
-		if (!has_lowercase && islower(ipb->ipl_info.fcp.scp_data[i]))
+		if (!has_lowercase && islower(ipb->fcp.scp_data[i]))
 			has_lowercase = 1;
 	}
 
 	if (has_lowercase)
-		memcpy(dest, ipb->ipl_info.fcp.scp_data, count);
+		memcpy(dest, ipb->fcp.scp_data, count);
 	else
 		for (i = 0; i < count; i++)
-			dest[i] = tolower(ipb->ipl_info.fcp.scp_data[i]);
+			dest[i] = tolower(ipb->fcp.scp_data[i]);
 out:
 	dest[count] = '\0';
 	return count;
@@ -239,7 +239,7 @@ void setup_memory_end(void)
 #ifdef CONFIG_CRASH_DUMP
 	if (!OLDMEM_BASE && ipl_block_valid &&
 	    ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP &&
-	    ipl_block.ipl_info.fcp.opt == DIAG308_IPL_OPT_DUMP) {
+	    ipl_block.fcp.opt == DIAG308_IPL_OPT_DUMP) {
 		if (!sclp_early_get_hsa_size(&memory_end) && memory_end)
 			memory_end_set = 1;
 	}
