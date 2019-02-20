@@ -2339,16 +2339,18 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 
 		/* Set the PPE thresholds accordingly */
 		if (low_th >= 0 && high_th >= 0) {
-			u8 ***pkt_ext_qam =
-				(void *)sta_ctxt_cmd.pkt_ext.pkt_ext_qam_th;
+			struct iwl_he_pkt_ext *pkt_ext =
+				(struct iwl_he_pkt_ext *)&sta_ctxt_cmd.pkt_ext;
 
 			for (i = 0; i < MAX_HE_SUPP_NSS; i++) {
 				u8 bw;
 
 				for (bw = 0; bw < MAX_HE_CHANNEL_BW_INDX;
 				     bw++) {
-					pkt_ext_qam[i][bw][0] = low_th;
-					pkt_ext_qam[i][bw][1] = high_th;
+					pkt_ext->pkt_ext_qam_th[i][bw][0] =
+						low_th;
+					pkt_ext->pkt_ext_qam_th[i][bw][1] =
+						high_th;
 				}
 			}
 
