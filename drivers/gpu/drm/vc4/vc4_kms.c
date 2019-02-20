@@ -439,6 +439,10 @@ static int vc4_load_tracker_atomic_check(struct drm_atomic_state *state)
 		}
 	}
 
+	/* Don't check the load when the tracker is disabled. */
+	if (!vc4->load_tracker_enabled)
+		return 0;
+
 	/* The absolute limit is 2Gbyte/sec, but let's take a margin to let
 	 * the system work when other blocks are accessing the memory.
 	 */
@@ -510,6 +514,11 @@ int vc4_kms_load(struct drm_device *dev)
 	struct vc4_ctm_state *ctm_state;
 	struct vc4_load_tracker_state *load_state;
 	int ret;
+
+	/* Start with the load tracker enabled. Can be disabled through the
+	 * debugfs load_tracker file.
+	 */
+	vc4->load_tracker_enabled = true;
 
 	sema_init(&vc4->async_modeset, 1);
 
