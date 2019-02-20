@@ -258,6 +258,8 @@ alc255-dell-headset
     Dell Precision 3630 fixups
 alc295-hp-x360
     HP Spectre X360 fixups
+alc-sense-combo
+    Headset button support for Chrome platform
 
 ALC66x/67x/892
 ==============
