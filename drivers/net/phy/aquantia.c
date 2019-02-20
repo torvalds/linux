@@ -156,8 +156,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ1202),
 	.name		= "Aquantia AQ1202",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -166,8 +166,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ2104),
 	.name		= "Aquantia AQ2104",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -176,8 +176,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR105),
 	.name		= "Aquantia AQR105",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -186,8 +186,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR106),
 	.name		= "Aquantia AQR106",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -196,8 +196,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR107),
 	.name		= "Aquantia AQR107",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -206,8 +206,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
 	.name		= "Aquantia AQCS109",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -216,8 +216,8 @@ static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
 	.name		= "Aquantia AQR405",
-	.features	= PHY_10GBIT_FULL_FEATURES,
 	.aneg_done	= genphy_c45_aneg_done,
+	.get_features	= genphy_c45_pma_read_abilities,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
