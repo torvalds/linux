@@ -388,8 +388,12 @@ static int __compat_sys_setsockopt(int fd, int level, int optname,
 				   char __user *optval, unsigned int optlen)
 {
 	int err;
-	struct socket *sock = sockfd_lookup(fd, &err);
+	struct socket *sock;
 
+	if (optlen > INT_MAX)
+		return -EINVAL;
+
+	sock = sockfd_lookup(fd, &err);
 	if (sock) {
 		err = security_socket_setsockopt(sock, level, optname);
 		if (err) {
