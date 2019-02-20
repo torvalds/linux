@@ -586,10 +586,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	ret = smu_feature_set_allowed_mask(smu);
-	if (ret)
-		return ret;
-
 	if (initialize) {
 		ret = smu_read_pptable_from_vbios(smu);
 		if (ret)
@@ -651,6 +647,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 
 	/* issue RunAfllBtc msg */
 	ret = smu_run_afll_btc(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_feature_set_allowed_mask(smu);
 	if (ret)
 		return ret;
 
