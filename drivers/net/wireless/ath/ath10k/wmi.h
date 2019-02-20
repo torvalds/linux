@@ -1,26 +1,15 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _WMI_H_
 #define _WMI_H_
 
 #include <linux/types.h>
-#include <net/mac80211.h>
+#include <linux/ieee80211.h>
 
 /*
  * This file specifies the WMI interface for the Unified Software
@@ -208,6 +197,11 @@ enum wmi_service {
 	WMI_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT,
 	WMI_SERVICE_BB_TIMING_CONFIG_SUPPORT,
 	WMI_SERVICE_THERM_THROT,
+	WMI_SERVICE_RTT_RESPONDER_ROLE,
+	WMI_SERVICE_PER_PACKET_SW_ENCRYPT,
+	WMI_SERVICE_REPORT_AIRTIME,
+
+	/* Remember to add the new value to wmi_service_name()! */
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -368,9 +362,14 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_HTT_ASSERT_TRIGGER_SUPPORT,
 	WMI_10_4_SERVICE_VDEV_FILTER_NEIGHBOR_RX_PACKETS,
 	WMI_10_4_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT,
+	WMI_10_4_SERVICE_PEER_CHWIDTH_CHANGE,
+	WMI_10_4_SERVICE_RX_FILTER_OUT_COUNT,
+	WMI_10_4_SERVICE_RTT_RESPONDER_ROLE,
+	WMI_10_4_SERVICE_EXT_PEER_TID_CONFIGS_SUPPORT,
+	WMI_10_4_SERVICE_REPORT_AIRTIME,
 };
 
-static inline char *wmi_service_name(int service_id)
+static inline char *wmi_service_name(enum wmi_service service_id)
 {
 #define SVCSTR(x) case x: return #x
 
@@ -467,6 +466,7 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_TX_MODE_PUSH_PULL);
 	SVCSTR(WMI_SERVICE_TX_MODE_DYNAMIC);
 	SVCSTR(WMI_SERVICE_VDEV_RX_FILTER);
+	SVCSTR(WMI_SERVICE_BTCOEX);
 	SVCSTR(WMI_SERVICE_CHECK_CAL_VERSION);
 	SVCSTR(WMI_SERVICE_DBGLOG_WARN2);
 	SVCSTR(WMI_SERVICE_BTCOEX_DUTY_CYCLE);
@@ -476,18 +476,29 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_SMART_LOGGING_SUPPORT);
 	SVCSTR(WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE);
 	SVCSTR(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY);
+	SVCSTR(WMI_SERVICE_MGMT_TX_WMI);
 	SVCSTR(WMI_SERVICE_TDLS_WIDER_BANDWIDTH);
 	SVCSTR(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS);
 	SVCSTR(WMI_SERVICE_HOST_DFS_CHECK_SUPPORT);
 	SVCSTR(WMI_SERVICE_TPC_STATS_FINAL);
 	SVCSTR(WMI_SERVICE_RESET_CHIP);
+	SVCSTR(WMI_SERVICE_SPOOF_MAC_SUPPORT);
 	SVCSTR(WMI_SERVICE_TX_DATA_ACK_RSSI);
 	SVCSTR(WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT);
-	default:
+	SVCSTR(WMI_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT);
+	SVCSTR(WMI_SERVICE_BB_TIMING_CONFIG_SUPPORT);
+	SVCSTR(WMI_SERVICE_THERM_THROT);
+	SVCSTR(WMI_SERVICE_RTT_RESPONDER_ROLE);
+	SVCSTR(WMI_SERVICE_PER_PACKET_SW_ENCRYPT);
+	SVCSTR(WMI_SERVICE_REPORT_AIRTIME);
+
+	case WMI_SERVICE_MAX:
 		return NULL;
 	}
 
 #undef SVCSTR
+
+	return NULL;
 }
 
 #define WMI_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
@@ -579,6 +590,8 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, len);
 	SVCMAP(WMI_10X_SERVICE_BB_TIMING_CONFIG_SUPPORT,
 	       WMI_SERVICE_BB_TIMING_CONFIG_SUPPORT, len);
+	SVCMAP(WMI_10X_SERVICE_PER_PACKET_SW_ENCRYPT,
+	       WMI_SERVICE_PER_PACKET_SW_ENCRYPT, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -799,6 +812,12 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT, len);
 	SVCMAP(WMI_10_4_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT,
 	       WMI_SERVICE_VDEV_DISABLE_4_ADDR_SRC_LRN_SUPPORT, len);
+	SVCMAP(WMI_10_4_SERVICE_RTT_RESPONDER_ROLE,
+	       WMI_SERVICE_RTT_RESPONDER_ROLE, len);
+	SVCMAP(WMI_10_4_SERVICE_PER_PACKET_SW_ENCRYPT,
+	       WMI_SERVICE_PER_PACKET_SW_ENCRYPT, len);
+	SVCMAP(WMI_10_4_SERVICE_REPORT_AIRTIME,
+	       WMI_SERVICE_REPORT_AIRTIME, len);
 }
 
 #undef SVCMAP
@@ -2974,6 +2993,8 @@ enum wmi_10_4_feature_mask {
 	WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE = BIT(11),
 	WMI_10_4_TDLS_EXPLICIT_MODE_ONLY	= BIT(12),
 	WMI_10_4_TX_DATA_ACK_RSSI               = BIT(16),
+	WMI_10_4_EXT_PEER_TID_CONFIGS_SUPPORT	= BIT(17),
+	WMI_10_4_REPORT_AIRTIME			= BIT(18),
 
 };
 
@@ -4085,6 +4106,10 @@ struct wmi_pdev_set_param_cmd {
 	__le32 param_value;
 } __packed;
 
+struct wmi_pdev_set_base_macaddr_cmd {
+	struct wmi_mac_addr mac_addr;
+} __packed;
+
 /* valid period is 1 ~ 60000ms, unit in millisecond */
 #define WMI_PDEV_PARAM_CAL_PERIOD_MAX 60000
 
@@ -4931,15 +4956,30 @@ struct wmi_key_seq_counter {
 	__le32 key_seq_counter_h;
 } __packed;
 
-#define WMI_CIPHER_NONE     0x0 /* clear key */
-#define WMI_CIPHER_WEP      0x1
-#define WMI_CIPHER_TKIP     0x2
-#define WMI_CIPHER_AES_OCB  0x3
-#define WMI_CIPHER_AES_CCM  0x4
-#define WMI_CIPHER_WAPI     0x5
-#define WMI_CIPHER_CKIP     0x6
-#define WMI_CIPHER_AES_CMAC 0x7
-#define WMI_CIPHER_AES_GCM  0x8
+enum wmi_cipher_suites {
+	WMI_CIPHER_NONE,
+	WMI_CIPHER_WEP,
+	WMI_CIPHER_TKIP,
+	WMI_CIPHER_AES_OCB,
+	WMI_CIPHER_AES_CCM,
+	WMI_CIPHER_WAPI,
+	WMI_CIPHER_CKIP,
+	WMI_CIPHER_AES_CMAC,
+	WMI_CIPHER_AES_GCM,
+};
+
+enum wmi_tlv_cipher_suites {
+	WMI_TLV_CIPHER_NONE,
+	WMI_TLV_CIPHER_WEP,
+	WMI_TLV_CIPHER_TKIP,
+	WMI_TLV_CIPHER_AES_OCB,
+	WMI_TLV_CIPHER_AES_CCM,
+	WMI_TLV_CIPHER_WAPI,
+	WMI_TLV_CIPHER_CKIP,
+	WMI_TLV_CIPHER_AES_CMAC,
+	WMI_TLV_CIPHER_ANY,
+	WMI_TLV_CIPHER_AES_GCM,
+};
 
 struct wmi_vdev_install_key_cmd {
 	__le32 vdev_id;
@@ -5085,6 +5125,7 @@ struct wmi_vdev_param_map {
 	u32 inc_tsf;
 	u32 dec_tsf;
 	u32 disable_4addr_src_lrn;
+	u32 rtt_responder_role;
 };
 
 #define WMI_VDEV_PARAM_UNSUPPORTED 0

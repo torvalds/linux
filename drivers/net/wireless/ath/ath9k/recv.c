@@ -1054,14 +1054,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 						len, rxs->rate_idx, is_sp);
 	}
 
- 	if (!!(sc->airtime_flags & AIRTIME_USE_RX)) {
-		spin_lock_bh(&acq->lock);
-		an->airtime_deficit[acno] -= airtime;
-		if (an->airtime_deficit[acno] <= 0)
-			__ath_tx_queue_tid(sc, ATH_AN_2_TID(an, tidno));
-		spin_unlock_bh(&acq->lock);
-	}
-	ath_debug_airtime(sc, an, airtime, 0);
+	ieee80211_sta_register_airtime(sta, tidno, 0, airtime);
 exit:
 	rcu_read_unlock();
 }

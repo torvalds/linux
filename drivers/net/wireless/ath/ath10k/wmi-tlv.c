@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "core.h"
 #include "debug.h"
@@ -2060,9 +2049,11 @@ ath10k_wmi_tlv_op_gen_vdev_install_key(struct ath10k *ar,
 	size_t len;
 	void *ptr;
 
-	if (arg->key_cipher == WMI_CIPHER_NONE && arg->key_data != NULL)
+	if (arg->key_cipher == ar->wmi_key_cipher[WMI_CIPHER_NONE] &&
+	    arg->key_data)
 		return ERR_PTR(-EINVAL);
-	if (arg->key_cipher != WMI_CIPHER_NONE && arg->key_data == NULL)
+	if (arg->key_cipher != ar->wmi_key_cipher[WMI_CIPHER_NONE] &&
+	    !arg->key_data)
 		return ERR_PTR(-EINVAL);
 
 	len = sizeof(*tlv) + sizeof(*cmd) +
@@ -3321,6 +3312,8 @@ ath10k_wmi_tlv_op_gen_wow_enable(struct ath10k *ar)
 	cmd = (void *)tlv->value;
 
 	cmd->enable = __cpu_to_le32(1);
+	if (!ar->bus_param.link_can_suspend)
+		cmd->pause_iface_config = __cpu_to_le32(WOW_IFACE_PAUSE_DISABLED);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv wow enable\n");
 	return skb;

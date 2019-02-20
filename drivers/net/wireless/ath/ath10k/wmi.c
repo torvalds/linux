@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/skbuff.h>
@@ -827,6 +816,7 @@ static struct wmi_vdev_param_map wmi_vdev_param_map = {
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rtt_responder_role = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 /* 10.X WMI VDEV param map */
@@ -903,6 +893,7 @@ static struct wmi_vdev_param_map wmi_10x_vdev_param_map = {
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rtt_responder_role = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
@@ -978,6 +969,7 @@ static struct wmi_vdev_param_map wmi_10_2_4_vdev_param_map = {
 	.rx_decap_type = WMI_VDEV_PARAM_UNSUPPORTED,
 	.bw_nss_ratemask = WMI_VDEV_PARAM_UNSUPPORTED,
 	.disable_4addr_src_lrn = WMI_VDEV_PARAM_UNSUPPORTED,
+	.rtt_responder_role = WMI_VDEV_PARAM_UNSUPPORTED,
 };
 
 static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
@@ -1056,6 +1048,7 @@ static struct wmi_vdev_param_map wmi_10_4_vdev_param_map = {
 	.inc_tsf = WMI_10_4_VDEV_PARAM_TSF_INCREMENT,
 	.dec_tsf = WMI_10_4_VDEV_PARAM_TSF_DECREMENT,
 	.disable_4addr_src_lrn = WMI_10_4_VDEV_PARAM_DISABLE_4_ADDR_SRC_LRN,
+	.rtt_responder_role = WMI_10_4_VDEV_PARAM_ENABLE_DISABLE_RTT_RESPONDER_ROLE,
 };
 
 static struct wmi_pdev_param_map wmi_pdev_param_map = {
@@ -1604,6 +1597,30 @@ static struct wmi_pdev_param_map wmi_10_4_pdev_param_map = {
 	.arp_srcaddr = WMI_10_4_PDEV_PARAM_ARP_SRCADDR,
 	.arp_dstaddr = WMI_10_4_PDEV_PARAM_ARP_DSTADDR,
 	.enable_btcoex = WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
+};
+
+static const u8 wmi_key_cipher_suites[] = {
+	[WMI_CIPHER_NONE] = WMI_CIPHER_NONE,
+	[WMI_CIPHER_WEP] = WMI_CIPHER_WEP,
+	[WMI_CIPHER_TKIP] = WMI_CIPHER_TKIP,
+	[WMI_CIPHER_AES_OCB] = WMI_CIPHER_AES_OCB,
+	[WMI_CIPHER_AES_CCM] = WMI_CIPHER_AES_CCM,
+	[WMI_CIPHER_WAPI] = WMI_CIPHER_WAPI,
+	[WMI_CIPHER_CKIP] = WMI_CIPHER_CKIP,
+	[WMI_CIPHER_AES_CMAC] = WMI_CIPHER_AES_CMAC,
+	[WMI_CIPHER_AES_GCM] = WMI_CIPHER_AES_GCM,
+};
+
+static const u8 wmi_tlv_key_cipher_suites[] = {
+	[WMI_CIPHER_NONE] = WMI_TLV_CIPHER_NONE,
+	[WMI_CIPHER_WEP] = WMI_TLV_CIPHER_WEP,
+	[WMI_CIPHER_TKIP] = WMI_TLV_CIPHER_TKIP,
+	[WMI_CIPHER_AES_OCB] = WMI_TLV_CIPHER_AES_OCB,
+	[WMI_CIPHER_AES_CCM] = WMI_TLV_CIPHER_AES_CCM,
+	[WMI_CIPHER_WAPI] = WMI_TLV_CIPHER_WAPI,
+	[WMI_CIPHER_CKIP] = WMI_TLV_CIPHER_CKIP,
+	[WMI_CIPHER_AES_CMAC] = WMI_TLV_CIPHER_AES_CMAC,
+	[WMI_CIPHER_AES_GCM] = WMI_TLV_CIPHER_AES_GCM,
 };
 
 static const struct wmi_peer_flags_map wmi_peer_flags_map = {
@@ -6263,6 +6280,25 @@ int ath10k_wmi_connect(struct ath10k *ar)
 }
 
 static struct sk_buff *
+ath10k_wmi_op_gen_pdev_set_base_macaddr(struct ath10k *ar,
+					const u8 macaddr[ETH_ALEN])
+{
+	struct wmi_pdev_set_base_macaddr_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return ERR_PTR(-ENOMEM);
+
+	cmd = (struct wmi_pdev_set_base_macaddr_cmd *)skb->data;
+	ether_addr_copy(cmd->mac_addr.addr, macaddr);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi pdev basemac %pM\n", macaddr);
+	return skb;
+}
+
+static struct sk_buff *
 ath10k_wmi_op_gen_pdev_set_rd(struct ath10k *ar, u16 rd, u16 rd2g, u16 rd5g,
 			      u16 ctl2g, u16 ctl5g,
 			      enum wmi_dfs_region dfs_reg)
@@ -9071,6 +9107,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.gen_peer_create = ath10k_wmi_op_gen_peer_create,
 	.gen_peer_delete = ath10k_wmi_op_gen_peer_delete,
 	.gen_peer_flush = ath10k_wmi_op_gen_peer_flush,
+	.gen_pdev_set_base_macaddr = ath10k_wmi_op_gen_pdev_set_base_macaddr,
 	.gen_peer_set_param = ath10k_wmi_op_gen_peer_set_param,
 	.gen_set_psmode = ath10k_wmi_op_gen_set_psmode,
 	.gen_set_sta_ps = ath10k_wmi_op_gen_set_sta_ps,
@@ -9189,6 +9226,7 @@ static const struct wmi_ops wmi_10_4_ops = {
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
+	.gen_pdev_set_base_macaddr = ath10k_wmi_op_gen_pdev_set_base_macaddr,
 	.gen_pdev_set_rd = ath10k_wmi_10x_op_gen_pdev_set_rd,
 	.gen_pdev_set_param = ath10k_wmi_op_gen_pdev_set_param,
 	.gen_init = ath10k_wmi_10_4_op_gen_init,
@@ -9252,6 +9290,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.vdev_param = &wmi_10_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_4_pdev_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
+		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
 		ar->wmi.cmd = &wmi_10_2_4_cmd_map;
@@ -9259,6 +9298,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.vdev_param = &wmi_10_2_4_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10_2_4_pdev_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
+		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_2:
 		ar->wmi.cmd = &wmi_10_2_cmd_map;
@@ -9266,6 +9306,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
 		ar->wmi.peer_flags = &wmi_10_2_peer_flags_map;
+		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_10_1:
 		ar->wmi.cmd = &wmi_10x_cmd_map;
@@ -9273,6 +9314,7 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.vdev_param = &wmi_10x_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_10x_pdev_param_map;
 		ar->wmi.peer_flags = &wmi_10x_peer_flags_map;
+		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_MAIN:
 		ar->wmi.cmd = &wmi_cmd_map;
@@ -9280,9 +9322,11 @@ int ath10k_wmi_attach(struct ath10k *ar)
 		ar->wmi.vdev_param = &wmi_vdev_param_map;
 		ar->wmi.pdev_param = &wmi_pdev_param_map;
 		ar->wmi.peer_flags = &wmi_peer_flags_map;
+		ar->wmi_key_cipher = wmi_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_TLV:
 		ath10k_wmi_tlv_attach(ar);
+		ar->wmi_key_cipher = wmi_tlv_key_cipher_suites;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
