@@ -219,6 +219,12 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	{ .int_msk = BIT(5), .msg = "cge_igu_afifo_ecc_mbit_err" },
 	{ .int_msk = BIT(6), .msg = "lge_igu_afifo_ecc_1bit_err" },
 	{ .int_msk = BIT(7), .msg = "lge_igu_afifo_ecc_mbit_err" },
+	{ .int_msk = BIT(8), .msg = "cge_igu_afifo_overflow_err" },
+	{ .int_msk = BIT(9), .msg = "lge_igu_afifo_overflow_err" },
+	{ .int_msk = BIT(10), .msg = "egu_cge_afifo_underrun_err" },
+	{ .int_msk = BIT(11), .msg = "egu_lge_afifo_underrun_err" },
+	{ .int_msk = BIT(12), .msg = "egu_ge_afifo_underrun_err" },
+	{ .int_msk = BIT(13), .msg = "ge_igu_afifo_overflow_err" },
 	{ /* sentinel */ }
 };
 
