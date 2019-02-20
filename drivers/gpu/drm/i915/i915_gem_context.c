@@ -802,17 +802,21 @@ static bool client_is_banned(struct drm_i915_file_private *file_priv)
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_context_create *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct i915_gem_context *ctx;
 	int ret;
 
-	if (!DRIVER_CAPS(dev_priv)->has_logical_contexts)
+	if (!DRIVER_CAPS(i915)->has_logical_contexts)
 		return -ENODEV;
 
 	if (args->pad != 0)
 		return -EINVAL;
+
+	ret = i915_terminally_wedged(i915);
+	if (ret)
+		return ret;
 
 	if (client_is_banned(file_priv)) {
 		DRM_DEBUG("client %s[%d] banned from creating ctx\n",
@@ -826,7 +830,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ctx = i915_gem_create_context(dev_priv, file_priv);
+	ctx = i915_gem_create_context(i915, file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
