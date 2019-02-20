@@ -234,6 +234,15 @@ config CPUFREQ_DT_PLATDEV
 
 	  If in doubt, say N.
 
+config CPUFREQ_DUMMY
+	tristate "Dummy CPU frequency driver"
+	help
+	  This option adds a generic dummy CPUfreq driver, which sets a fake
+	  2-frequency table when initializing each policy and otherwise does
+	  nothing.
+
+	  If in doubt, say N
+
 if X86
 source "drivers/cpufreq/Kconfig.x86"
 endif
