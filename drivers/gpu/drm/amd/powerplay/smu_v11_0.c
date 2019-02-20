@@ -1618,6 +1618,13 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret;
 
+	/**
+	 * TODO: Enable overdrive for navi10, that replies on smc/pptable
+	 * support.
+	 */
+	if (smu->adev->asic_type == CHIP_NAVI10)
+		return 0;
+
 	if (initialize) {
 		if (table_context->overdrive_table)
 			return -EINVAL;
