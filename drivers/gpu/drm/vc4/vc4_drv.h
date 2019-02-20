@@ -207,6 +207,7 @@ struct vc4_dev {
 
 	struct drm_modeset_lock ctm_state_lock;
 	struct drm_private_obj ctm_manager;
+	struct drm_private_obj load_tracker;
 };
 
 static inline struct vc4_dev *
@@ -378,6 +379,16 @@ struct vc4_plane_state {
 	 * when async update is not possible.
 	 */
 	bool dlist_initialized;
+
+	/* Load of this plane on the HVS block. The load is expressed in HVS
+	 * cycles/sec.
+	 */
+	u64 hvs_load;
+
+	/* Memory bandwidth needed for this plane. This is expressed in
+	 * bytes/sec.
+	 */
+	u64 membus_load;
 };
 
 static inline struct vc4_plane_state *

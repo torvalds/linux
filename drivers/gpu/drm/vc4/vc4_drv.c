@@ -311,6 +311,7 @@ static void vc4_drm_unbind(struct device *dev)
 
 	drm_mode_config_cleanup(drm);
 
+	drm_atomic_private_obj_fini(&vc4->load_tracker);
 	drm_atomic_private_obj_fini(&vc4->ctm_manager);
 
 	drm_dev_put(drm);
