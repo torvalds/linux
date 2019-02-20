@@ -233,7 +233,7 @@ int perf_event__synthesize_bpf_events(struct perf_tool *tool,
 				err = 0;
 				break;
 			}
-			pr_debug("%s: can't get next program: %s%s",
+			pr_debug("%s: can't get next program: %s%s\n",
 				 __func__, strerror(errno),
 				 errno == EINVAL ? " -- kernel too old?" : "");
 			/* don't report error on old kernel or EPERM  */
