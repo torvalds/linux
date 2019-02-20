@@ -706,7 +706,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	fmt = mipi_csis_get_format(state, cfg, sdformat->which, sdformat->pad);
 
 	mutex_lock(&state->lock);
-	if (fmt && sdformat->pad == CSIS_PAD_SOURCE) {
+	if (sdformat->pad == CSIS_PAD_SOURCE) {
 		sdformat->format = *fmt;
 		goto unlock;
 	}
