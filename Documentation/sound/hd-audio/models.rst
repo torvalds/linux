@@ -254,7 +254,7 @@ alc274-dell-aio
     ALC274 fixups on Dell AIO machines
 alc255-dummy-lineout
     Dell Precision 3930 fixups
-alc255-dell-headset"},
+alc255-dell-headset
     Dell Precision 3630 fixups
 alc295-hp-x360
     HP Spectre X360 fixups
