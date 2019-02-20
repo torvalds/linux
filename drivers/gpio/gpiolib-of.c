@@ -87,7 +87,8 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	    (of_device_is_compatible(np, "regulator-fixed") ||
 	     of_device_is_compatible(np, "reg-fixed-voltage") ||
 	     (of_device_is_compatible(np, "regulator-gpio") &&
-	      strcmp(propname, "enable-gpio") == 0))) {
+	      !(strcmp(propname, "enable-gpio") &&
+	        strcmp(propname, "enable-gpios"))))) {
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
