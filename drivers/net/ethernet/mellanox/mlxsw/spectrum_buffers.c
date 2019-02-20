@@ -63,11 +63,11 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp_sb_pool_dess[] = {
 struct mlxsw_sp_sb_port {
 	struct mlxsw_sp_sb_cm ing_cms[MLXSW_SP_SB_ING_TC_COUNT];
 	struct mlxsw_sp_sb_cm eg_cms[MLXSW_SP_SB_EG_TC_COUNT];
-	struct mlxsw_sp_sb_pm pms[MLXSW_SP_SB_POOL_DESS_LEN];
+	struct mlxsw_sp_sb_pm *pms;
 };
 
 struct mlxsw_sp_sb {
-	struct mlxsw_sp_sb_pr prs[MLXSW_SP_SB_POOL_DESS_LEN];
+	struct mlxsw_sp_sb_pr *prs;
 	struct mlxsw_sp_sb_port *ports;
 	u32 cell_size;
 	u64 sb_size;
@@ -283,20 +283,68 @@ static int mlxsw_sp_port_headroom_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_sp_port_pb_prio_init(mlxsw_sp_port);
 }
 
+static int mlxsw_sp_sb_port_init(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_sb_port *sb_port)
+{
+	struct mlxsw_sp_sb_pm *pms;
+
+	pms = kcalloc(MLXSW_SP_SB_POOL_DESS_LEN, sizeof(*pms), GFP_KERNEL);
+	if (!pms)
+		return -ENOMEM;
+	sb_port->pms = pms;
+	return 0;
+}
+
+static void mlxsw_sp_sb_port_fini(struct mlxsw_sp_sb_port *sb_port)
+{
+	kfree(sb_port->pms);
+}
+
 static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+	struct mlxsw_sp_sb_pr *prs;
+	int i;
+	int err;
 
 	mlxsw_sp->sb->ports = kcalloc(max_ports,
 				      sizeof(struct mlxsw_sp_sb_port),
 				      GFP_KERNEL);
 	if (!mlxsw_sp->sb->ports)
 		return -ENOMEM;
+
+	prs = kcalloc(MLXSW_SP_SB_POOL_DESS_LEN, sizeof(*prs), GFP_KERNEL);
+	if (!prs) {
+		err = -ENOMEM;
+		goto err_alloc_prs;
+	}
+	mlxsw_sp->sb->prs = prs;
+
+	for (i = 0; i < max_ports; i++) {
+		err = mlxsw_sp_sb_port_init(mlxsw_sp, &mlxsw_sp->sb->ports[i]);
+		if (err)
+			goto err_sb_port_init;
+	}
+
 	return 0;
+
+err_sb_port_init:
+	for (i--; i >= 0; i--)
+		mlxsw_sp_sb_port_fini(&mlxsw_sp->sb->ports[i]);
+	kfree(mlxsw_sp->sb->prs);
+err_alloc_prs:
+	kfree(mlxsw_sp->sb->ports);
+	return err;
 }
 
 static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
+	int i;
+
+	for (i = max_ports - 1; i >= 0; i--)
+		mlxsw_sp_sb_port_fini(&mlxsw_sp->sb->ports[i]);
+	kfree(mlxsw_sp->sb->prs);
 	kfree(mlxsw_sp->sb->ports);
 }
 
