@@ -1038,6 +1038,13 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 		hclge_log_error(dev, "IGU_EGU_TNL_INT_STS",
 				&hclge_igu_egu_tnl_int[0], status);
 
+	/* log PPU(RCB) errors */
+	desc_data = (__le32 *)&desc[3];
+	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_RAS_MASK;
+	if (status)
+		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST0",
+				&hclge_ppu_pf_abnormal_int[0], status);
+
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
@@ -1373,14 +1380,13 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 	}
 
-	/* log PPU(RCB) errors */
+	/* log PPU(RCB) MPF errors */
 	desc_data = (__le32 *)&desc[5];
 	status = le32_to_cpu(*(desc_data + 2)) &
 			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
 	if (status) {
-		dev_warn(dev,
-			 "PPU_MPF_ABNORMAL_INT_ST2[28:29], err_status(0x%x)\n",
-			 status);
+		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
+				&hclge_ppu_mpf_abnormal_int_st2[0], status);
 		set_bit(HNAE3_CORE_RESET, reset_requests);
 	}
 
@@ -1427,7 +1433,7 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
 				&hclge_ppp_pf_abnormal_int[0], status);
 
-	/* PPU(RCB) PF errors */
+	/* log PPU(RCB) PF errors */
 	desc_data = (__le32 *)&desc[3];
 	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_MSIX_MASK;
 	if (status)
