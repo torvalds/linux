@@ -979,6 +979,8 @@ static int vega20_od8_set_feature_capabilities(
 	}
 
 	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
+		pptable_information->od_settings_min[OD8_SETTING_UCLK_FMAX] =
+			data->dpm_table.mem_table.dpm_levels[data->dpm_table.mem_table.count - 2].value;
 		if (pptable_information->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
 		    pptable_information->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
 		    pptable_information->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
@@ -2771,7 +2773,6 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 			data->od8_settings.od8_settings_array;
 	OverDriveTable_t *od_table =
 			&(data->smc_state_table.overdrive_table);
-	struct pp_clock_levels_with_latency clocks;
 	int32_t input_index, input_clk, input_vol, i;
 	int od8_id;
 	int ret;
@@ -2830,11 +2831,6 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 			return -EOPNOTSUPP;
 		}
 
-		ret = vega20_get_memclocks(hwmgr, &clocks);
-		PP_ASSERT_WITH_CODE(!ret,
-				"Attempt to get memory clk levels failed!",
-				return ret);
-
 		for (i = 0; i < size; i += 2) {
 			if (i + 2 > size) {
 				pr_info("invalid number of input parameters %d\n",
@@ -2851,11 +2847,11 @@ static int vega20_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL;
 			}
 
-			if (input_clk < clocks.data[0].clocks_in_khz / 1000 ||
+			if (input_clk < od8_settings[OD8_SETTING_UCLK_FMAX].min_value ||
 			    input_clk > od8_settings[OD8_SETTING_UCLK_FMAX].max_value) {
 				pr_info("clock freq %d is not within allowed range [%d - %d]\n",
 					input_clk,
-					clocks.data[0].clocks_in_khz / 1000,
+					od8_settings[OD8_SETTING_UCLK_FMAX].min_value,
 					od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
 				return -EINVAL;
 			}
@@ -3264,13 +3260,8 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		}
 
 		if (od8_settings[OD8_SETTING_UCLK_FMAX].feature_id) {
-			ret = vega20_get_memclocks(hwmgr, &clocks);
-			PP_ASSERT_WITH_CODE(!ret,
-					"Fail to get memory clk levels!",
-					return ret);
-
 			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
-				clocks.data[0].clocks_in_khz / 1000,
+				od8_settings[OD8_SETTING_UCLK_FMAX].min_value,
 				od8_settings[OD8_SETTING_UCLK_FMAX].max_value);
 		}
 
