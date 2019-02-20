@@ -93,10 +93,37 @@ The kernel provides a function to invoke the buffer clearing:
 The mitigation is invoked on kernel/userspace, hypervisor/guest and C-state
 (idle) transitions.
 
+As a special quirk to address virtualization scenarios where the host has
+the microcode updated, but the hypervisor does not (yet) expose the
+MD_CLEAR CPUID bit to guests, the kernel issues the VERW instruction in the
+hope that it might actually clear the buffers. The state is reflected
+accordingly.
+
 According to current knowledge additional mitigations inside the kernel
 itself are not required because the necessary gadgets to expose the leaked
 data cannot be controlled in a way which allows exploitation from malicious
 user space or VM guests.
+
+Kernel internal mitigation modes
+--------------------------------
+
+ ======= ============================================================
+ off      Mitigation is disabled. Either the CPU is not affected or
+          mds=off is supplied on the kernel command line
+
+ full     Mitigation is eanbled. CPU is affected and MD_CLEAR is
+          advertised in CPUID.
+
+ vmwerv	  Mitigation is enabled. CPU is affected and MD_CLEAR is not
+	  advertised in CPUID. That is mainly for virtualization
+	  scenarios where the host has the updated microcode but the
+	  hypervisor does not expose MD_CLEAR in CPUID. It's a best
+	  effort approach without guarantee.
+ ======= ============================================================
+
+If the CPU is affected and mds=off is not supplied on the kernel command
+line then the kernel selects the appropriate mitigation mode depending on
+the availability of the MD_CLEAR CPUID bit.
 
 Mitigation points
 -----------------
