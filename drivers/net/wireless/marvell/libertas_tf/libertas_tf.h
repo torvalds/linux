@@ -177,8 +177,8 @@ struct lbtf_ops {
 	/** Hardware access */
 	int (*hw_host_to_card)(struct lbtf_private *priv, u8 type,
 			       u8 *payload, u16 nb);
-	int (*hw_prog_firmware)(struct if_usb_card *cardp);
-	int (*hw_reset_device)(struct if_usb_card *cardp);
+	int (*hw_prog_firmware)(struct lbtf_private *priv);
+	int (*hw_reset_device)(struct lbtf_private *priv);
 };
 
 /** Private structure for the MV device */
@@ -254,7 +254,6 @@ struct lbtf_private {
 	struct ieee80211_supported_band band;
 	struct lbtf_offset_value offsetvalue;
 
-	u8 fw_ready;
 	u8 surpriseremoved;
 	struct sk_buff_head bc_ps_buf;
 
