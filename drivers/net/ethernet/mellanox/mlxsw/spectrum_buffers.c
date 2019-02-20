@@ -37,6 +37,12 @@ struct mlxsw_sp_sb_pm {
 	struct mlxsw_cp_sb_occ occ;
 };
 
+struct mlxsw_sp_sb_mm {
+	u32 min_buff;
+	u32 max_buff;
+	u16 pool_index;
+};
+
 struct mlxsw_sp_sb_pool_des {
 	enum mlxsw_reg_sbxx_dir dir;
 	u8 pool;
@@ -76,9 +82,11 @@ struct mlxsw_sp_sb_vals {
 	const struct mlxsw_sp_sb_pool_des *pool_dess;
 	const struct mlxsw_sp_sb_pm *pms;
 	const struct mlxsw_sp_sb_pr *prs;
+	const struct mlxsw_sp_sb_mm *mms;
 	const struct mlxsw_sp_sb_cm *cms_ingress;
 	const struct mlxsw_sp_sb_cm *cms_egress;
 	const struct mlxsw_sp_sb_cm *cms_cpu;
+	unsigned int mms_count;
 	unsigned int cms_ingress_count;
 	unsigned int cms_egress_count;
 	unsigned int cms_cpu_count;
@@ -604,12 +612,6 @@ static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	return 0;
 }
 
-struct mlxsw_sp_sb_mm {
-	u32 min_buff;
-	u32 max_buff;
-	u16 pool_index;
-};
-
 #define MLXSW_SP_SB_MM(_min_buff, _max_buff, _pool)	\
 	{						\
 		.min_buff = _min_buff,			\
@@ -635,20 +637,18 @@ static const struct mlxsw_sp_sb_mm mlxsw_sp_sb_mms[] = {
 	MLXSW_SP_SB_MM(0, 6, 4),
 };
 
-#define MLXSW_SP_SB_MMS_LEN ARRAY_SIZE(mlxsw_sp_sb_mms)
-
 static int mlxsw_sp_sb_mms_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char sbmm_pl[MLXSW_REG_SBMM_LEN];
 	int i;
 	int err;
 
-	for (i = 0; i < MLXSW_SP_SB_MMS_LEN; i++) {
+	for (i = 0; i < mlxsw_sp->sb_vals->mms_count; i++) {
 		const struct mlxsw_sp_sb_pool_des *des;
 		const struct mlxsw_sp_sb_mm *mc;
 		u32 min_buff;
 
-		mc = &mlxsw_sp_sb_mms[i];
+		mc = &mlxsw_sp->sb_vals->mms[i];
 		des = &mlxsw_sp->sb_vals->pool_dess[mc->pool_index];
 		/* All pools used by sb_mm's are initialized using dynamic
 		 * thresholds, therefore 'max_buff' isn't specified in cells.
@@ -684,9 +684,11 @@ const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
 	.pool_dess = mlxsw_sp_sb_pool_dess,
 	.pms = mlxsw_sp_sb_pms,
 	.prs = mlxsw_sp_sb_prs,
+	.mms = mlxsw_sp_sb_mms,
 	.cms_ingress = mlxsw_sp_sb_cms_ingress,
 	.cms_egress = mlxsw_sp_sb_cms_egress,
 	.cms_cpu = mlxsw_sp_cpu_port_sb_cms,
+	.mms_count = ARRAY_SIZE(mlxsw_sp_sb_mms),
 	.cms_ingress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_ingress),
 	.cms_egress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_egress),
 	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
@@ -697,9 +699,11 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.pool_dess = mlxsw_sp_sb_pool_dess,
 	.pms = mlxsw_sp_sb_pms,
 	.prs = mlxsw_sp_sb_prs,
+	.mms = mlxsw_sp_sb_mms,
 	.cms_ingress = mlxsw_sp_sb_cms_ingress,
 	.cms_egress = mlxsw_sp_sb_cms_egress,
 	.cms_cpu = mlxsw_sp_cpu_port_sb_cms,
+	.mms_count = ARRAY_SIZE(mlxsw_sp_sb_mms),
 	.cms_ingress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_ingress),
 	.cms_egress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_egress),
 	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
