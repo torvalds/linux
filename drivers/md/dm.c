@@ -158,9 +158,6 @@ struct table_device {
 	struct dm_dev dm_dev;
 };
 
-static struct kmem_cache *_rq_tio_cache;
-static struct kmem_cache *_rq_cache;
-
 /*
  * Bio-based DM's mempools' reserved IOs set by the user.
  */
@@ -222,20 +219,11 @@ static unsigned dm_get_numa_node(void)
 
 static int __init local_init(void)
 {
-	int r = -ENOMEM;
-
-	_rq_tio_cache = KMEM_CACHE(dm_rq_target_io, 0);
-	if (!_rq_tio_cache)
-		return r;
-
-	_rq_cache = kmem_cache_create("dm_old_clone_request", sizeof(struct request),
-				      __alignof__(struct request), 0, NULL);
-	if (!_rq_cache)
-		goto out_free_rq_tio_cache;
+	int r;
 
 	r = dm_uevent_init();
 	if (r)
-		goto out_free_rq_cache;
+		return r;
 
 	deferred_remove_workqueue = alloc_workqueue("kdmremove", WQ_UNBOUND, 1);
 	if (!deferred_remove_workqueue) {
@@ -257,10 +245,6 @@ out_free_workqueue:
 	destroy_workqueue(deferred_remove_workqueue);
 out_uevent_exit:
 	dm_uevent_exit();
-out_free_rq_cache:
-	kmem_cache_destroy(_rq_cache);
-out_free_rq_tio_cache:
-	kmem_cache_destroy(_rq_tio_cache);
 
 	return r;
 }
@@ -270,8 +254,6 @@ static void local_exit(void)
 	flush_scheduled_work();
 	destroy_workqueue(deferred_remove_workqueue);
 
-	kmem_cache_destroy(_rq_cache);
-	kmem_cache_destroy(_rq_tio_cache);
 	unregister_blkdev(_major, _name);
 	dm_uevent_exit();
 
