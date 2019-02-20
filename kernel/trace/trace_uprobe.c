@@ -141,7 +141,14 @@ static void FETCH_FUNC_NAME(memory, string)(struct pt_regs *regs,
 
 	ret = strncpy_from_user(dst, src, maxlen);
 	if (ret == maxlen)
-		dst[--ret] = '\0';
+		dst[ret - 1] = '\0';
+	else if (ret >= 0)
+		/*
+		 * Include the terminating null byte. In this case it
+		 * was copied by strncpy_from_user but not accounted
+		 * for in ret.
+		 */
+		ret++;
 
 	if (ret < 0) {	/* Failed to fetch string */
 		((u8 *)get_rloc_data(dest))[0] = '\0';

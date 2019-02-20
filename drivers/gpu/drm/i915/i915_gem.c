@@ -1821,6 +1821,16 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static inline bool
+__vma_matches(struct vm_area_struct *vma, struct file *filp,
+	      unsigned long addr, unsigned long size)
+{
+	if (vma->vm_file != filp)
+		return false;
+
+	return vma->vm_start == addr && (vma->vm_end - vma->vm_start) == size;
+}
+
 /**
  * i915_gem_mmap_ioctl - Maps the contents of an object, returning the address
  *			 it is mapped to.
@@ -1879,7 +1889,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			return -EINTR;
 		}
 		vma = find_vma(mm, addr);
-		if (vma)
+		if (vma && __vma_matches(vma, obj->base.filp, addr, args->size))
 			vma->vm_page_prot =
 				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		else
