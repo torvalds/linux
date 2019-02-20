@@ -479,6 +479,7 @@ struct mipidphy_priv {
 	bool is_streaming;
 	void __iomem *txrx_base_addr;
 	int (*stream_on)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
+	int (*stream_off)(struct mipidphy_priv *priv, struct v4l2_subdev *sd);
 };
 
 static inline struct mipidphy_priv *to_dphy_priv(struct v4l2_subdev *subdev)
@@ -671,6 +672,8 @@ static int mipidphy_s_stream_stop(struct v4l2_subdev *sd)
 	if (!priv->is_streaming)
 		return 0;
 
+	if (priv->stream_off)
+		priv->stream_off(priv, sd);
 	priv->is_streaming = false;
 
 	return 0;
@@ -1158,6 +1161,18 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	return 0;
 }
 
+static int csi_mipidphy_stream_off(struct mipidphy_priv *priv,
+				   struct v4l2_subdev *sd)
+{
+	/* disable all lanes */
+	write_csiphy_reg(priv, CSIPHY_CTRL_LANE_ENABLE, 0x01);
+	/* disable pll and ldo */
+	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe3);
+	usleep_range(500, 1000);
+
+	return 0;
+}
+
 static const struct dphy_drv_data rk1808_mipidphy_drv_data = {
 	.clks = rk1808_mipidphy_clks,
 	.num_clks = ARRAY_SIZE(rk1808_mipidphy_clks),
@@ -1433,6 +1448,7 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		priv->csihost_base_addr = devm_ioremap_resource(dev, res);
 		priv->stream_on = csi_mipidphy_stream_on;
+		priv->stream_off = csi_mipidphy_stream_off;
 	} else {
 		priv->stream_on = mipidphy_txrx_stream_on;
 		priv->txrx_base_addr = NULL;
@@ -1440,6 +1456,7 @@ static int rockchip_mipidphy_probe(struct platform_device *pdev)
 		priv->txrx_base_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(priv->txrx_base_addr))
 			priv->stream_on = mipidphy_rx_stream_on;
+		priv->stream_off = NULL;
 	}
 
 	sd = &priv->sd;
