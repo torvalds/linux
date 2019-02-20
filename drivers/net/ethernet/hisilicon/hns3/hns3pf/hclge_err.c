@@ -80,7 +80,7 @@ static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st1[] = {
 	{ .int_msk = BIT(3), .msg = "umv_key_mem1_ecc_mbit_err" },
 	{ .int_msk = BIT(4), .msg = "umv_key_mem2_ecc_mbit_err" },
 	{ .int_msk = BIT(5), .msg = "umv_key_mem3_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_mbit_erre" },
+	{ .int_msk = BIT(6), .msg = "umv_ad_mem_ecc_mbit_err" },
 	{ .int_msk = BIT(7), .msg = "rss_tc_mode_mem_ecc_mbit_err" },
 	{ .int_msk = BIT(8), .msg = "rss_idt_mem0_ecc_mbit_err" },
 	{ .int_msk = BIT(9), .msg = "rss_idt_mem1_ecc_mbit_err" },
