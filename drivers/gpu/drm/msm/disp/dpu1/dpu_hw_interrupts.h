@@ -20,13 +20,6 @@
 #include "dpu_hw_util.h"
 #include "dpu_hw_mdss.h"
 
-#define IRQ_SOURCE_MDP		BIT(0)
-#define IRQ_SOURCE_DSI0		BIT(4)
-#define IRQ_SOURCE_DSI1		BIT(5)
-#define IRQ_SOURCE_HDMI		BIT(8)
-#define IRQ_SOURCE_EDP		BIT(12)
-#define IRQ_SOURCE_MHL		BIT(16)
-
 /**
  * dpu_intr_type - HW Interrupt Type
  * @DPU_IRQ_TYPE_WB_ROT_COMP:		WB rotator done
@@ -95,18 +88,6 @@ struct dpu_hw_intr;
  * Interrupt operations.
  */
 struct dpu_hw_intr_ops {
-	/**
-	 * set_mask - Programs the given interrupt register with the
-	 *            given interrupt mask. Register value will get overwritten.
-	 * @intr:	HW interrupt handle
-	 * @reg_off:	MDSS HW register offset
-	 * @irqmask:	IRQ mask value
-	 */
-	void (*set_mask)(
-			struct dpu_hw_intr *intr,
-			uint32_t reg,
-			uint32_t irqmask);
-
 	/**
 	 * irq_idx_lookup - Lookup IRQ index on the HW interrupt type
 	 *                 Used for all irq related ops
@@ -177,16 +158,6 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr);
 
 	/**
-	 * clear_interrupt_status - Clears HW interrupt status based on given
-	 *                          lookup IRQ index.
-	 * @intr:	HW interrupt handle
-	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
-	 */
-	void (*clear_interrupt_status)(
-			struct dpu_hw_intr *intr,
-			int irq_idx);
-
-	/**
 	 * clear_intr_status_nolock() - clears the HW interrupts without lock
 	 * @intr:	HW interrupt handle
 	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
@@ -206,21 +177,6 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr,
 			int irq_idx,
 			bool clear);
-
-	/**
-	 * get_valid_interrupts - Gets a mask of all valid interrupt sources
-	 *                        within DPU. These are actually status bits
-	 *                        within interrupt registers that specify the
-	 *                        source of the interrupt in IRQs. For example,
-	 *                        valid interrupt sources can be MDP, DSI,
-	 *                        HDMI etc.
-	 * @intr:	HW interrupt handle
-	 * @mask:	Returning the interrupt source MASK
-	 * @return:	0 for success, otherwise failure
-	 */
-	int (*get_valid_interrupts)(
-			struct dpu_hw_intr *intr,
-			uint32_t *mask);
 };
 
 /**
