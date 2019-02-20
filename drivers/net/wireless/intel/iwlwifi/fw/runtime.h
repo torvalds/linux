@@ -144,6 +144,7 @@ struct iwl_fw_runtime {
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
+		void *fifo_iter;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

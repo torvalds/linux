@@ -646,10 +646,10 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 }
 
 #ifdef CONFIG_ACPI
-static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
-				   union acpi_object *table,
-				   struct iwl_mvm_sar_profile *profile,
-				   bool enabled)
+static inline int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
+					  union acpi_object *table,
+					  struct iwl_mvm_sar_profile *profile,
+					  bool enabled)
 {
 	int i;
 

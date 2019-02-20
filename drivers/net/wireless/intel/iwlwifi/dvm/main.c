@@ -1509,13 +1509,10 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	if (iwlagn_mac_setup_register(priv, &fw->ucode_capa))
 		goto out_destroy_workqueue;
 
-	if (iwl_dbgfs_register(priv, dbgfs_dir))
-		goto out_mac80211_unregister;
+	iwl_dbgfs_register(priv, dbgfs_dir);
 
 	return op_mode;
 
-out_mac80211_unregister:
-	iwlagn_mac_unregister(priv);
 out_destroy_workqueue:
 	iwl_tt_exit(priv);
 	iwl_cancel_deferred_work(priv);

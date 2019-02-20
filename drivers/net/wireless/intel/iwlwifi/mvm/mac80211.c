@@ -796,14 +796,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			hw->netdev_features |= IWL_TX_CSUM_NETIF_FLAGS;
 	}
 
-	ret = ieee80211_register_hw(mvm->hw);
-	if (ret)
-		iwl_mvm_leds_exit(mvm);
-	mvm->init_status |= IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE;
-
 	if (mvm->cfg->vht_mu_mimo_supported)
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_MU_MIMO_AIR_SNIFFER);
+
+	ret = ieee80211_register_hw(mvm->hw);
+	if (ret) {
+		iwl_mvm_leds_exit(mvm);
+	}
 
 	return ret;
 }
@@ -941,8 +941,14 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 			       IWL_PLAT_PM_MODE_DISABLED))) {
 			skb = ieee80211_tx_dequeue(hw, txq);
 
-			if (!skb)
+			if (!skb) {
+				if (txq->sta)
+					IWL_DEBUG_TX(mvm,
+						     "TXQ of sta %pM tid %d is now empty\n",
+						     txq->sta->addr,
+						     txq->tid);
 				break;
+			}
 
 			if (!txq->sta)
 				iwl_mvm_tx_skb_non_sta(mvm, skb);

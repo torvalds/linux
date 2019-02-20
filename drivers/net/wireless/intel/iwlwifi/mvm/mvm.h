@@ -978,6 +978,7 @@ struct iwl_mvm {
 	u32 dbgfs_prph_reg_addr;
 	bool disable_power_off;
 	bool disable_power_off_d3;
+	bool beacon_inject_active;
 
 	bool scan_iter_notif_enabled;
 
@@ -1175,6 +1176,7 @@ struct iwl_mvm {
 
 	/* sniffer data to include in radiotap */
 	__le16 cur_aid;
+	u8 cur_bssid[ETH_ALEN];
 
 #ifdef CONFIG_ACPI
 	struct iwl_mvm_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
@@ -1219,7 +1221,6 @@ enum iwl_mvm_status {
 enum iwl_mvm_init_status {
 	IWL_MVM_INIT_STATUS_THERMAL_INIT_COMPLETE = BIT(0),
 	IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE = BIT(1),
-	IWL_MVM_INIT_STATUS_REG_HW_INIT_COMPLETE = BIT(2),
 };
 
 static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)

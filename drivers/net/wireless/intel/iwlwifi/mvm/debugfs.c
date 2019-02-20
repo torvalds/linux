@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1238,6 +1238,8 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 		goto out_err;
 	}
 
+	mvm->beacon_inject_active = true;
+
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	info = IEEE80211_SKB_CB(beacon);
 	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
@@ -1287,6 +1289,7 @@ static ssize_t iwl_dbgfs_inject_beacon_ie_restore_write(struct iwl_mvm *mvm,
 	int ret = _iwl_dbgfs_inject_beacon_ie(mvm, NULL, 0);
 
 	mvm->hw->extra_beacon_tailroom = 0;
+	mvm->beacon_inject_active = false;
 	return ret ?: count;
 }
 
@@ -1786,6 +1789,7 @@ iwl_dbgfs_send_echo_cmd_write(struct iwl_mvm *mvm, char *buf,
 
 struct iwl_mvm_sniffer_apply {
 	struct iwl_mvm *mvm;
+	u8 *bssid;
 	u16 aid;
 };
 
@@ -1795,6 +1799,8 @@ static bool iwl_mvm_sniffer_apply(struct iwl_notif_wait_data *notif_data,
 	struct iwl_mvm_sniffer_apply *apply = data;
 
 	apply->mvm->cur_aid = cpu_to_le16(apply->aid);
+	memcpy(apply->mvm->cur_bssid, apply->bssid,
+	       sizeof(apply->mvm->cur_bssid));
 
 	return true;
 }
@@ -1827,6 +1833,7 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 	he_mon_cmd.aid = cpu_to_le16(aid);
 
 	apply.aid = aid;
+	apply.bssid = (void *)he_mon_cmd.bssid;
 
 	mutex_lock(&mvm->mutex);
 
@@ -1853,6 +1860,23 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
+}
+
+static ssize_t
+iwl_dbgfs_he_sniffer_params_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	u8 buf[32];
+	int len;
+
+	len = scnprintf(buf, sizeof(buf),
+			"%d %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+			le16_to_cpu(mvm->cur_aid), mvm->cur_bssid[0],
+			mvm->cur_bssid[1], mvm->cur_bssid[2], mvm->cur_bssid[3],
+			mvm->cur_bssid[4], mvm->cur_bssid[5]);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
 static ssize_t
@@ -1925,7 +1949,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram, 8);
 MVM_DEBUGFS_READ_FILE_OPS(sar_geo_profile);
 #endif
 
-MVM_DEBUGFS_WRITE_FILE_OPS(he_sniffer_params, 32);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
 
 static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
@@ -2116,7 +2140,7 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 #ifdef CONFIG_ACPI
 	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif
-	MVM_DEBUGFS_ADD_FILE(he_sniffer_params, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(he_sniffer_params, mvm->debugfs_dir, 0600);
 
 	if (!debugfs_create_bool("enable_scan_iteration_notif",
 				 0600,
