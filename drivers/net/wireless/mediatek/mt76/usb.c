@@ -364,16 +364,11 @@ int mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf,
 void mt76u_buf_free(struct mt76u_buf *buf)
 {
 	struct urb *urb = buf->urb;
-	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < urb->num_sgs; i++) {
-		sg = &urb->sg[i];
-		if (!sg)
-			continue;
+	for (i = 0; i < urb->num_sgs; i++)
+		skb_free_frag(sg_virt(&urb->sg[i]));
 
-		skb_free_frag(sg_virt(sg));
-	}
 	if (buf->buf)
 		skb_free_frag(buf->buf);
 
