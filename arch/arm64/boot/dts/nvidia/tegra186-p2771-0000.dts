@@ -52,6 +52,7 @@
 	};
 
 	hda@3510000 {
+		nvidia,model = "jetson-tx2-hda";
 		status = "okay";
 	};
 
