@@ -106,12 +106,12 @@ static void append_ipl_block_parm(void)
 	delim = early_command_line + len;    /* '\0' character position */
 	parm = early_command_line + len + 1; /* append right after '\0' */
 
-	switch (ipl_block.hdr.pbt) {
-	case DIAG308_IPL_TYPE_CCW:
+	switch (ipl_block.pb0_hdr.pbt) {
+	case IPL_PBT_CCW:
 		rc = ipl_block_get_ascii_vmparm(
 			parm, COMMAND_LINE_SIZE - len - 1, &ipl_block);
 		break;
-	case DIAG308_IPL_TYPE_FCP:
+	case IPL_PBT_FCP:
 		rc = ipl_block_get_ascii_scpdata(
 			parm, COMMAND_LINE_SIZE - len - 1, &ipl_block);
 		break;
@@ -238,8 +238,8 @@ void setup_memory_end(void)
 {
 #ifdef CONFIG_CRASH_DUMP
 	if (!OLDMEM_BASE && ipl_block_valid &&
-	    ipl_block.hdr.pbt == DIAG308_IPL_TYPE_FCP &&
-	    ipl_block.fcp.opt == DIAG308_IPL_OPT_DUMP) {
+	    ipl_block.pb0_hdr.pbt == IPL_PBT_FCP &&
+	    ipl_block.fcp.opt == IPL_PB0_FCP_OPT_DUMP) {
 		if (!sclp_early_get_hsa_size(&memory_end) && memory_end)
 			memory_end_set = 1;
 	}
