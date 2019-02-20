@@ -26,7 +26,7 @@ static struct imx_ic_ops *ic_ops[IC_NUM_OPS] = {
 
 static int imx_ic_probe(struct platform_device *pdev)
 {
-	struct imx_media_internal_sd_platformdata *pdata;
+	struct imx_media_ipu_internal_sd_pdata *pdata;
 	struct imx_ic_priv *priv;
 	int ret;
 

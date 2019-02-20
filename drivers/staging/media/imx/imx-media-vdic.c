@@ -940,7 +940,7 @@ static const struct v4l2_subdev_internal_ops vdic_internal_ops = {
 
 static int imx_vdic_probe(struct platform_device *pdev)
 {
-	struct imx_media_internal_sd_platformdata *pdata;
+	struct imx_media_ipu_internal_sd_pdata *pdata;
 	struct vdic_priv *priv;
 	int ret;
 
