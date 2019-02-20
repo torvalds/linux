@@ -73,6 +73,9 @@ struct mlxsw_sp_sb {
 	u64 sb_size;
 };
 
+struct mlxsw_sp_sb_vals {
+};
+
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
 {
 	return mlxsw_sp->sb->cell_size * cells;
@@ -624,6 +627,12 @@ out:
 	*p_ingress_len = i;
 	*p_egress_len = MLXSW_SP_SB_POOL_DESS_LEN - i;
 }
+
+const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
+};
+
+const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
+};
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
