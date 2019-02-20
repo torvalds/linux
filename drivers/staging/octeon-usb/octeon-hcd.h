@@ -1797,7 +1797,7 @@ union cvmx_usbnx_usbp_ctl_status {
 	 *	This is a test signal. When the USB Core is
 	 *	powered up (not in Susned Mode), an automatic
 	 *	tester can use this to disable phy_clock and
-	 *	free_clk, then re-eanable them with an aligned
+	 *	free_clk, then re-enable them with an aligned
 	 *	phase.
 	 *	'1': The phy_clk and free_clk outputs are
 	 *	disabled. "0": The phy_clock and free_clk outputs
