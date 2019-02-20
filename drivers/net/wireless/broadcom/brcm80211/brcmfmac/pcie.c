@@ -1560,6 +1560,12 @@ static int brcmf_pcie_download_fw_nvram(struct brcmf_pciedev_info *devinfo,
 		brcmf_err(bus, "FW failed to initialize\n");
 		return -ENODEV;
 	}
+	if (sharedram_addr < devinfo->ci->rambase ||
+	    sharedram_addr >= devinfo->ci->rambase + devinfo->ci->ramsize) {
+		brcmf_err(bus, "Invalid shared RAM address 0x%08x\n",
+			  sharedram_addr);
+		return -ENODEV;
+	}
 	brcmf_dbg(PCIE, "Shared RAM addr: 0x%08x\n", sharedram_addr);
 
 	return (brcmf_pcie_init_share_ram_info(devinfo, sharedram_addr));
