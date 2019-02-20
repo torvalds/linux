@@ -270,7 +270,7 @@ static int optee_rng_remove(struct device *dev)
 	return 0;
 }
 
-const struct tee_client_device_id optee_rng_id_table[] = {
+static const struct tee_client_device_id optee_rng_id_table[] = {
 	{UUID_INIT(0xab7a617c, 0xb8e7, 0x4d8f,
 		   0x83, 0x01, 0xd0, 0x9b, 0x61, 0x03, 0x6b, 0x64)},
 	{}
