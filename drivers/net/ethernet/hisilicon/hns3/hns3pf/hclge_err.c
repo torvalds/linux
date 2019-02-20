@@ -277,6 +277,45 @@ static const struct hclge_hw_error hclge_ssu_com_err_int[] = {
 	{ /* sentinel */ }
 };
 
+#define HCLGE_SSU_MEM_ECC_ERR(x) \
+	{ .int_msk = BIT(x), .msg = "ssu_mem" #x "_ecc_mbit_err" }
+
+static const struct hclge_hw_error hclge_ssu_mem_ecc_err_int[] = {
+	HCLGE_SSU_MEM_ECC_ERR(0),
+	HCLGE_SSU_MEM_ECC_ERR(1),
+	HCLGE_SSU_MEM_ECC_ERR(2),
+	HCLGE_SSU_MEM_ECC_ERR(3),
+	HCLGE_SSU_MEM_ECC_ERR(4),
+	HCLGE_SSU_MEM_ECC_ERR(5),
+	HCLGE_SSU_MEM_ECC_ERR(6),
+	HCLGE_SSU_MEM_ECC_ERR(7),
+	HCLGE_SSU_MEM_ECC_ERR(8),
+	HCLGE_SSU_MEM_ECC_ERR(9),
+	HCLGE_SSU_MEM_ECC_ERR(10),
+	HCLGE_SSU_MEM_ECC_ERR(11),
+	HCLGE_SSU_MEM_ECC_ERR(12),
+	HCLGE_SSU_MEM_ECC_ERR(13),
+	HCLGE_SSU_MEM_ECC_ERR(14),
+	HCLGE_SSU_MEM_ECC_ERR(15),
+	HCLGE_SSU_MEM_ECC_ERR(16),
+	HCLGE_SSU_MEM_ECC_ERR(17),
+	HCLGE_SSU_MEM_ECC_ERR(18),
+	HCLGE_SSU_MEM_ECC_ERR(19),
+	HCLGE_SSU_MEM_ECC_ERR(20),
+	HCLGE_SSU_MEM_ECC_ERR(21),
+	HCLGE_SSU_MEM_ECC_ERR(22),
+	HCLGE_SSU_MEM_ECC_ERR(23),
+	HCLGE_SSU_MEM_ECC_ERR(24),
+	HCLGE_SSU_MEM_ECC_ERR(25),
+	HCLGE_SSU_MEM_ECC_ERR(26),
+	HCLGE_SSU_MEM_ECC_ERR(27),
+	HCLGE_SSU_MEM_ECC_ERR(28),
+	HCLGE_SSU_MEM_ECC_ERR(29),
+	HCLGE_SSU_MEM_ECC_ERR(30),
+	HCLGE_SSU_MEM_ECC_ERR(31),
+	{ /* sentinel */ }
+};
+
 static const struct hclge_hw_error hclge_ssu_port_based_err_int[] = {
 	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port" },
 	{ .int_msk = BIT(1), .msg = "tpu_pkt_without_key_port" },
@@ -835,13 +874,15 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	desc_data = (__le32 *)&desc[2];
 	status = le32_to_cpu(*(desc_data + 2));
 	if (status) {
-		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_0 ssu_ecc_mbit_int[31:0]\n");
+		hclge_log_error(dev, "SSU_ECC_MULTI_BIT_INT_0",
+				&hclge_ssu_mem_ecc_err_int[0], status);
 		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
 	}
 
 	status = le32_to_cpu(*(desc_data + 3)) & BIT(0);
 	if (status) {
-		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_ecc_mbit_int[32]\n");
+		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_mem32_ecc_mbit_err found [error status=0x%x]\n",
+			 status);
 		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
 	}
 
