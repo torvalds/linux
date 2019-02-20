@@ -642,7 +642,8 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 	dma_addr_t dma;
 
 	while (budget-- > 0) {
-		if (unlikely(!ixgbe_desc_unused(xdp_ring))) {
+		if (unlikely(!ixgbe_desc_unused(xdp_ring)) ||
+		    !netif_carrier_ok(xdp_ring->netdev)) {
 			work_done = false;
 			break;
 		}
