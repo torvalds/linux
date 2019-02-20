@@ -177,7 +177,7 @@ class id_parser(object):
                     continue
                 expr = line.split(':')[1].strip()
                 # Remove trailing comment closure
-                if line.startswith('/*'):
+                if line.strip().endswith('*/'):
                     expr = expr.rstrip('*/').strip()
                 # Special case for SH magic boot code files
                 if line.startswith('LIST \"'):
