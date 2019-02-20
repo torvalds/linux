@@ -711,8 +711,10 @@ static int vega20_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE(!ret,
 				"[SetupDefaultDpmTable] failed to get fclk dpm levels!",
 				return ret);
-	} else
-		dpm_table->count = 0;
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = data->vbios_boot_state.fclock / 100;
+	}
 	vega20_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* save a copy of the default DPM table */
@@ -754,6 +756,7 @@ static int vega20_init_smc_table(struct pp_hwmgr *hwmgr)
 	data->vbios_boot_state.eclock = boot_up_values.ulEClk;
 	data->vbios_boot_state.vclock = boot_up_values.ulVClk;
 	data->vbios_boot_state.dclock = boot_up_values.ulDClk;
+	data->vbios_boot_state.fclock = boot_up_values.ulFClk;
 	data->vbios_boot_state.uc_cooling_id = boot_up_values.ucCoolingID;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
