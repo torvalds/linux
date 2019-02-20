@@ -643,6 +643,12 @@ enum HCLGE_MAC_ADDR_TYPE {
 	HCLGE_MAC_ADDR_MC
 };
 
+struct hclge_vport_vlan_cfg {
+	struct list_head node;
+	int hd_tbl_status;
+	u16 vlan_id;
+};
+
 /* For each bit of TCAM entry, it uses a pair of 'x' and
  * 'y' to indicate which value to match, like below:
  * ----------------------------------
@@ -854,6 +860,7 @@ struct hclge_vport {
 
 	struct list_head uc_mac_list;   /* Store VF unicast table */
 	struct list_head mc_mac_list;   /* Store VF multicast table */
+	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -916,5 +923,9 @@ void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
 void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 				  enum HCLGE_MAC_ADDR_TYPE mac_type);
 void hclge_uninit_vport_mac_table(struct hclge_dev *hdev);
-
+void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id);
+void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
+			       bool is_write_tbl);
+void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list);
+void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev);
 #endif
