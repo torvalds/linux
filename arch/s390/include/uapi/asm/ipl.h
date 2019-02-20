@@ -7,9 +7,14 @@
 /* IPL Parameter List header */
 struct ipl_pl_hdr {
 	__u32 len;
-	__u8  reserved1[3];
+	__u8  flags;
+	__u8  reserved1[2];
 	__u8  version;
 } __packed;
+
+#define IPL_PL_FLAG_IPLPS	0x80
+#define IPL_PL_FLAG_SIPL	0x40
+#define IPL_PL_FLAG_IPLSR	0x20
 
 /* IPL Parameter Block header */
 struct ipl_pb_hdr {
@@ -89,6 +94,61 @@ struct ipl_pb1_scp_data {
 	__u32 len;
 	__u8  pbt;
 	__u8  scp_data[];
+} __packed;
+
+/* IPL Report List header */
+struct ipl_rl_hdr {
+	__u32 len;
+	__u8  flags;
+	__u8  reserved1[2];
+	__u8  version;
+	__u8  reserved2[8];
+} __packed;
+
+/* IPL Report Block header */
+struct ipl_rb_hdr {
+	__u32 len;
+	__u8  rbt;
+	__u8  reserved1[11];
+} __packed;
+
+/* IPL Report Block types */
+enum ipl_rbt {
+	IPL_RBT_CERTIFICATES = 1,
+	IPL_RBT_COMPONENTS = 2,
+};
+
+/* IPL Report Block for the certificate list */
+struct ipl_rb_certificate_entry {
+	__u64 addr;
+	__u64 len;
+} __packed;
+
+struct ipl_rb_certificates {
+	__u32 len;
+	__u8  rbt;
+	__u8  reserved1[11];
+	struct ipl_rb_certificate_entry entries[];
+} __packed;
+
+/* IPL Report Block for the component list */
+struct ipl_rb_component_entry {
+	__u64 addr;
+	__u64 len;
+	__u8  flags;
+	__u8  reserved1[5];
+	__u16 certificate_index;
+	__u8  reserved2[8];
+};
+
+#define IPL_RB_COMPONENT_FLAG_SIGNED	0x80
+#define IPL_RB_COMPONENT_FLAG_VERIFIED	0x40
+
+struct ipl_rb_components {
+	__u32 len;
+	__u8  rbt;
+	__u8  reserved1[11];
+	struct ipl_rb_component_entry entries[];
 } __packed;
 
 #endif
