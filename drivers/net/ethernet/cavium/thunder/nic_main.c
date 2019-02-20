@@ -1094,7 +1094,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		bgx_set_dmac_cam_filter(nic->node, bgx, lmac,
-					mbx.xcast.data.mac,
+					mbx.xcast.mac,
 					vf < NIC_VF_PER_MBX_REG ? vf :
 					vf - NIC_VF_PER_MBX_REG);
 		break;
@@ -1106,7 +1106,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		}
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.data.mode);
+		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.mode);
 		break;
 	default:
 		dev_err(&nic->pdev->dev,

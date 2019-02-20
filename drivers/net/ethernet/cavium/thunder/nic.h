@@ -577,10 +577,8 @@ struct set_ptp {
 
 struct xcast {
 	u8    msg;
-	union {
-		u8    mode;
-		u64   mac;
-	} data;
+	u8    mode;
+	u64   mac:48;
 };
 
 /* 128 bit shared memory between PF and each VF */

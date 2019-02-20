@@ -1961,7 +1961,7 @@ static void __nicvf_set_rx_mode_task(u8 mode, struct xcast_addr_list *mc_addrs,
 		 * its' own LMAC to the filter to accept packets for it.
 		 */
 		mbx.xcast.msg = NIC_MBOX_MSG_ADD_MCAST;
-		mbx.xcast.data.mac = 0;
+		mbx.xcast.mac = 0;
 		if (nicvf_send_msg_to_pf(nic, &mbx) < 0)
 			goto free_mc;
 	}
@@ -1971,7 +1971,7 @@ static void __nicvf_set_rx_mode_task(u8 mode, struct xcast_addr_list *mc_addrs,
 		/* now go through kernel list of MACs and add them one by one */
 		for (idx = 0; idx < mc_addrs->count; idx++) {
 			mbx.xcast.msg = NIC_MBOX_MSG_ADD_MCAST;
-			mbx.xcast.data.mac = mc_addrs->mc[idx];
+			mbx.xcast.mac = mc_addrs->mc[idx];
 			if (nicvf_send_msg_to_pf(nic, &mbx) < 0)
 				goto free_mc;
 		}
@@ -1979,7 +1979,7 @@ static void __nicvf_set_rx_mode_task(u8 mode, struct xcast_addr_list *mc_addrs,
 
 	/* and finally set rx mode for PF accordingly */
 	mbx.xcast.msg = NIC_MBOX_MSG_SET_XCAST;
-	mbx.xcast.data.mode = mode;
+	mbx.xcast.mode = mode;
 
 	nicvf_send_msg_to_pf(nic, &mbx);
 free_mc:
