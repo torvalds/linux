@@ -16,8 +16,8 @@ Required properties:
 - #interrupt-cells: Specifies the number of cells needed to encode an
   interrupt source. The value must be 1.
 - fsl,channel: The output channel that all input IRQs should be steered into.
-- fsl,irq-groups: Number of IRQ groups managed by this controller instance.
-  Each group manages 64 input interrupts.
+- fsl,num-irqs: Number of input interrupts of this channel.
+  Should be multiple of 32 input interrupts and up to 512 interrupts.
 
 Example:
 
@@ -28,7 +28,7 @@ Example:
 		clocks = <&clk IMX8MQ_CLK_DISP_APB_ROOT>;
 		clock-names = "ipg";
 		fsl,channel = <0>;
-		fsl,irq-groups = <1>;
+		fsl,num-irqs = <64>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 	};
