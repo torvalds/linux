@@ -862,14 +862,44 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
 }
 
+static void hclge_parse_copper_link_mode(struct hclge_dev *hdev,
+					 u8 speed_ability)
+{
+	unsigned long *supported = hdev->hw.mac.supported;
+
+	/* default to support all speed for GE port */
+	if (!speed_ability)
+		speed_ability = HCLGE_SUPPORT_GE;
+
+	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 supported);
+
+	if (speed_ability & HCLGE_SUPPORT_100M_BIT) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+				 supported);
+	}
+
+	if (speed_ability & HCLGE_SUPPORT_10M_BIT) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, supported);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, supported);
+	}
+
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT, supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+}
+
 static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
 {
 	u8 media_type = hdev->hw.mac.media_type;
 
-	if (media_type != HNAE3_MEDIA_TYPE_FIBER)
-		return;
-
-	hclge_parse_fiber_link_mode(hdev, speed_ability);
+	if (media_type == HNAE3_MEDIA_TYPE_FIBER)
+		hclge_parse_fiber_link_mode(hdev, speed_ability);
+	else if (media_type == HNAE3_MEDIA_TYPE_COPPER)
+		hclge_parse_copper_link_mode(hdev, speed_ability);
 }
 
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)

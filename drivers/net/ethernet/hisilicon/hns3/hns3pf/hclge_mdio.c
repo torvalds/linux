@@ -8,12 +8,6 @@
 #include "hclge_main.h"
 #include "hclge_mdio.h"
 
-#define HCLGE_PHY_SUPPORTED_FEATURES	(SUPPORTED_Autoneg | \
-					 SUPPORTED_TP | \
-					 PHY_10BT_FEATURES | \
-					 PHY_100BT_FEATURES | \
-					 SUPPORTED_1000baseT_Full)
-
 enum hclge_mdio_c22_op_seq {
 	HCLGE_MDIO_C22_WRITE = 1,
 	HCLGE_MDIO_C22_READ = 2
@@ -217,16 +211,9 @@ int hclge_mac_connect_phy(struct hnae3_handle *handle)
 		return ret;
 	}
 
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_TP_BIT, mask);
-	linkmode_set_bit_array(phy_10_100_features_array,
-			       ARRAY_SIZE(phy_10_100_features_array),
-			       mask);
-	linkmode_set_bit_array(phy_gbit_features_array,
-			       ARRAY_SIZE(phy_gbit_features_array),
-			       mask);
+	linkmode_copy(mask, hdev->hw.mac.supported);
 	linkmode_and(phydev->supported, phydev->supported, mask);
-	phy_support_asym_pause(phydev);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	return 0;
 }
