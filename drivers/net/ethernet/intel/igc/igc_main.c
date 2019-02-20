@@ -2127,6 +2127,86 @@ static struct net_device_stats *igc_get_stats(struct net_device *netdev)
 	return &netdev->stats;
 }
 
+static netdev_features_t igc_fix_features(struct net_device *netdev,
+					  netdev_features_t features)
+{
+	/* Since there is no support for separate Rx/Tx vlan accel
+	 * enable/disable make sure Tx flag is always in same state as Rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
+
+	return features;
+}
+
+static int igc_set_features(struct net_device *netdev,
+			    netdev_features_t features)
+{
+	netdev_features_t changed = netdev->features ^ features;
+	struct igc_adapter *adapter = netdev_priv(netdev);
+
+	/* Add VLAN support */
+	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
+		return 0;
+
+	if (!(features & NETIF_F_NTUPLE)) {
+		struct hlist_node *node2;
+		struct igc_nfc_filter *rule;
+
+		spin_lock(&adapter->nfc_lock);
+		hlist_for_each_entry_safe(rule, node2,
+					  &adapter->nfc_filter_list, nfc_node) {
+			igc_erase_filter(adapter, rule);
+			hlist_del(&rule->nfc_node);
+			kfree(rule);
+		}
+		spin_unlock(&adapter->nfc_lock);
+		adapter->nfc_filter_count = 0;
+	}
+
+	netdev->features = features;
+
+	if (netif_running(netdev))
+		igc_reinit_locked(adapter);
+	else
+		igc_reset(adapter);
+
+	return 1;
+}
+
+static netdev_features_t
+igc_features_check(struct sk_buff *skb, struct net_device *dev,
+		   netdev_features_t features)
+{
+	unsigned int network_hdr_len, mac_hdr_len;
+
+	/* Make certain the headers can be described by a context descriptor */
+	mac_hdr_len = skb_network_header(skb) - skb->data;
+	if (unlikely(mac_hdr_len > IGC_MAX_MAC_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	network_hdr_len = skb_checksum_start(skb) - skb_network_header(skb);
+	if (unlikely(network_hdr_len >  IGC_MAX_NETWORK_HDR_LEN))
+		return features & ~(NETIF_F_HW_CSUM |
+				    NETIF_F_SCTP_CRC |
+				    NETIF_F_TSO |
+				    NETIF_F_TSO6);
+
+	/* We can only support IPv4 TSO in tunnels if we can mangle the
+	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 */
+	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
+		features &= ~NETIF_F_TSO;
+
+	return features;
+}
+
 /**
  * igc_configure - configure the hardware for RX and TX
  * @adapter: private board structure
@@ -3793,6 +3873,9 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_set_mac_address	= igc_set_mac,
 	.ndo_change_mtu		= igc_change_mtu,
 	.ndo_get_stats		= igc_get_stats,
+	.ndo_fix_features	= igc_fix_features,
+	.ndo_set_features	= igc_set_features,
+	.ndo_features_check	= igc_features_check,
 };
 
 /* PCIe configuration access */
@@ -4021,6 +4104,9 @@ static int igc_probe(struct pci_dev *pdev,
 	err = igc_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
+
+	/* copy netdev features into list of user selectable features */
+	netdev->hw_features |= NETIF_F_NTUPLE;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
