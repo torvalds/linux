@@ -126,37 +126,6 @@ static void lbtf_cmd_work(struct work_struct *work)
 }
 
 /**
- *  lbtf_setup_firmware: initialize firmware.
- *
- *  @priv    A pointer to struct lbtf_private structure
- *
- *  Returns: 0 on success.
- */
-static int lbtf_setup_firmware(struct lbtf_private *priv)
-{
-	int ret = -1;
-
-	lbtf_deb_enter(LBTF_DEB_FW);
-	/*
-	 * Read priv address from HW
-	 */
-	eth_broadcast_addr(priv->current_addr);
-	ret = lbtf_update_hw_spec(priv);
-	if (ret) {
-		ret = -1;
-		goto done;
-	}
-
-	lbtf_set_mac_control(priv);
-	lbtf_set_radio_control(priv);
-
-	ret = 0;
-done:
-	lbtf_deb_leave_args(LBTF_DEB_FW, "ret: %d", ret);
-	return ret;
-}
-
-/**
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
@@ -289,30 +258,17 @@ static void lbtf_tx_work(struct work_struct *work)
 static int lbtf_op_start(struct ieee80211_hw *hw)
 {
 	struct lbtf_private *priv = hw->priv;
-	int ret = -1;
 
 	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
-	/* poke the firmware */
 	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->radioon = RADIO_ON;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
-	ret = lbtf_setup_firmware(priv);
-	if (ret)
-		goto err_setup_firmware;
-
-	if ((priv->fwrelease < LBTF_FW_VER_MIN) ||
-	    (priv->fwrelease > LBTF_FW_VER_MAX)) {
-		ret = -1;
-		goto err_setup_firmware;
-	}
+	lbtf_set_mac_control(priv);
+	lbtf_set_radio_control(priv);
 
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
-
-err_setup_firmware:
-	lbtf_deb_leave_args(LBTF_DEB_MACOPS, "fw setup error; ret=%d", ret);
-	return ret;
 }
 
 static void lbtf_op_stop(struct ieee80211_hw *hw)
@@ -645,6 +601,15 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev,
 	if (priv->ops->hw_prog_firmware(priv)) {
 		lbtf_deb_usbd(dmdev, "Error programming the firmware\n");
 		priv->ops->hw_reset_device(priv);
+		goto err_init_adapter;
+	}
+
+	eth_broadcast_addr(priv->current_addr);
+	if (lbtf_update_hw_spec(priv))
+		goto err_init_adapter;
+
+	if (priv->fwrelease < LBTF_FW_VER_MIN ||
+	    priv->fwrelease > LBTF_FW_VER_MAX) {
 		goto err_init_adapter;
 	}
 
