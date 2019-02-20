@@ -74,28 +74,25 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->param) {
 	case DRM_VC4_PARAM_V3D_IDENT0:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT0);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT1:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT1);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT2:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT2);
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:

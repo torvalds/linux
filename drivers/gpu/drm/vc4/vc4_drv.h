@@ -815,6 +815,8 @@ extern struct platform_driver vc4_v3d_driver;
 int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
 int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4);
+int vc4_v3d_pm_get(struct vc4_dev *vc4);
+void vc4_v3d_pm_put(struct vc4_dev *vc4);
 
 /* vc4_validate.c */
 int
