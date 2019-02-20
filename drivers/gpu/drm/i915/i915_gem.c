@@ -1928,7 +1928,7 @@ err:
 		 * fail). But any other -EIO isn't ours (e.g. swap in failure)
 		 * and so needs to be reported.
 		 */
-		if (!i915_terminally_wedged(&dev_priv->gpu_error))
+		if (!i915_terminally_wedged(dev_priv))
 			return VM_FAULT_SIGBUS;
 		/* else: fall through */
 	case -EAGAIN:
@@ -2958,7 +2958,7 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_reset_failed(i915))
 		return;
 
 	GEM_BUG_ON(i915->gt.active_requests);
@@ -3806,8 +3806,9 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	long ret;
 
 	/* ABI: return -EIO if already wedged */
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
-		return -EIO;
+	ret = i915_terminally_wedged(dev_priv);
+	if (ret)
+		return ret;
 
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_link) {
@@ -4460,7 +4461,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 * back to defaults, recovering from whatever wedged state we left it
 	 * in and so worth trying to use the device once more.
 	 */
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_terminally_wedged(i915))
 		i915_gem_unset_wedged(i915);
 
 	/*
@@ -4504,7 +4505,7 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	if (!i915_terminally_wedged(&i915->gpu_error)) {
+	if (!i915_reset_failed(i915)) {
 		ret = i915_gem_switch_to_kernel_context(i915);
 		if (ret)
 			goto err_unlock;
@@ -4625,8 +4626,9 @@ out_unlock:
 	return;
 
 err_wedged:
-	if (!i915_terminally_wedged(&i915->gpu_error)) {
-		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
+	if (!i915_reset_failed(i915)) {
+		dev_err(i915->drm.dev,
+			"Failed to re-initialize GPU, declaring it wedged!\n");
 		i915_gem_set_wedged(i915);
 	}
 	goto out_unlock;
@@ -4731,10 +4733,9 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	init_unused_rings(dev_priv);
 
 	BUG_ON(!dev_priv->kernel_context);
-	if (i915_terminally_wedged(&dev_priv->gpu_error)) {
-		ret = -EIO;
+	ret = i915_terminally_wedged(dev_priv);
+	if (ret)
 		goto out;
-	}
 
 	ret = i915_ppgtt_init_hw(dev_priv);
 	if (ret) {
@@ -5107,7 +5108,7 @@ err_uc_misc:
 		 * wedged. But we only want to do this where the GPU is angry,
 		 * for all other failure, such as an allocation failure, bail.
 		 */
-		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
+		if (!i915_reset_failed(dev_priv)) {
 			i915_load_error(dev_priv,
 					"Failed to initialize GPU, declaring it wedged!\n");
 			i915_gem_set_wedged(dev_priv);

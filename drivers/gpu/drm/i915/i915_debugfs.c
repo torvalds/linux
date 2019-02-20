@@ -3833,11 +3833,18 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 static int
 i915_wedged_get(void *data, u64 *val)
 {
-	struct drm_i915_private *dev_priv = data;
+	int ret = i915_terminally_wedged(data);
 
-	*val = i915_terminally_wedged(&dev_priv->gpu_error);
-
-	return 0;
+	switch (ret) {
+	case -EIO:
+		*val = 1;
+		return 0;
+	case 0:
+		*val = 0;
+		return 0;
+	default:
+		return ret;
+	}
 }
 
 static int
@@ -3918,7 +3925,7 @@ i915_drop_caches_set(void *data, u64 val)
 		mutex_unlock(&i915->drm.struct_mutex);
 	}
 
-	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(&i915->gpu_error))
+	if (val & DROP_RESET_ACTIVE && i915_terminally_wedged(i915))
 		i915_handle_error(i915, ALL_ENGINES, 0, NULL);
 
 	fs_reclaim_acquire(GFP_KERNEL);

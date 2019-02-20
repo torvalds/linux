@@ -559,8 +559,9 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 * ABI: Before userspace accesses the GPU (e.g. execbuffer), report
 	 * EIO if the GPU is already wedged.
 	 */
-	if (i915_terminally_wedged(&i915->gpu_error))
-		return ERR_PTR(-EIO);
+	ret = i915_terminally_wedged(i915);
+	if (ret)
+		return ERR_PTR(ret);
 
 	/*
 	 * Pinning the contexts may generate requests in order to acquire

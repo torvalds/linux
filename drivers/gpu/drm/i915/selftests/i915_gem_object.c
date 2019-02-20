@@ -583,7 +583,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	for (loop = 0; loop < 3; loop++) {
 		intel_wakeref_t wakeref;
 
-		if (i915_terminally_wedged(&i915->gpu_error))
+		if (i915_terminally_wedged(i915))
 			break;
 
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);

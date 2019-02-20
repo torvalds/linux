@@ -263,7 +263,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (!READ_ONCE(dev_priv->gt.awake))
 		return;
 
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_terminally_wedged(dev_priv))
 		return;
 
 	/* As enabling the GPU requires fairly extensive mmio access,

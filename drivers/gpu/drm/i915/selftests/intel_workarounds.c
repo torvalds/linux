@@ -181,7 +181,7 @@ static int check_whitelist(struct i915_gem_context *ctx,
 	err = 0;
 	igt_wedge_on_timeout(&wedge, ctx->i915, HZ / 5) /* a safety net! */
 		err = i915_gem_object_set_to_cpu_domain(results, false);
-	if (i915_terminally_wedged(&ctx->i915->gpu_error))
+	if (i915_terminally_wedged(ctx->i915))
 		err = -EIO;
 	if (err)
 		goto out_put;
@@ -510,7 +510,7 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 	};
 	int err;
 
-	if (i915_terminally_wedged(&i915->gpu_error))
+	if (i915_terminally_wedged(i915))
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);

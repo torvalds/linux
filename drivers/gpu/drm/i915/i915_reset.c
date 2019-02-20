@@ -1032,7 +1032,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 finish:
 	reset_finish(i915);
-	if (!i915_terminally_wedged(error))
+	if (!__i915_wedged(error))
 		reset_restart(i915);
 	return;
 
@@ -1253,7 +1253,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 * Try engine reset when available. We fall back to full reset if
 	 * single reset fails.
 	 */
-	if (intel_has_reset_engine(i915) && !i915_terminally_wedged(error)) {
+	if (intel_has_reset_engine(i915) && !__i915_wedged(error)) {
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
@@ -1337,6 +1337,31 @@ __releases(&i915->gpu_error.reset_backoff_srcu)
 	struct i915_gpu_error *error = &i915->gpu_error;
 
 	srcu_read_unlock(&error->reset_backoff_srcu, tag);
+}
+
+int i915_terminally_wedged(struct drm_i915_private *i915)
+{
+	struct i915_gpu_error *error = &i915->gpu_error;
+
+	might_sleep();
+
+	if (!__i915_wedged(error))
+		return 0;
+
+	/* Reset still in progress? Maybe we will recover? */
+	if (!test_bit(I915_RESET_BACKOFF, &error->flags))
+		return -EIO;
+
+	/* XXX intel_reset_finish() still takes struct_mutex!!! */
+	if (mutex_is_locked(&i915->drm.struct_mutex))
+		return -EAGAIN;
+
+	if (wait_event_interruptible(error->reset_queue,
+				     !test_bit(I915_RESET_BACKOFF,
+					       &error->flags)))
+		return -EINTR;
+
+	return __i915_wedged(error) ? -EIO : 0;
 }
 
 bool i915_reset_flush(struct drm_i915_private *i915)

@@ -29,5 +29,5 @@ int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)
 		i915_gem_set_wedged(i915);
 	}
 
-	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
+	return i915_terminally_wedged(i915);
 }

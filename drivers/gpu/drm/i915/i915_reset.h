@@ -36,6 +36,8 @@ bool i915_reset_flush(struct drm_i915_private *i915);
 int __must_check i915_reset_trylock(struct drm_i915_private *i915);
 void i915_reset_unlock(struct drm_i915_private *i915, int tag);
 
+int i915_terminally_wedged(struct drm_i915_private *i915);
+
 bool intel_has_gpu_reset(struct drm_i915_private *i915);
 bool intel_has_reset_engine(struct drm_i915_private *i915);
 

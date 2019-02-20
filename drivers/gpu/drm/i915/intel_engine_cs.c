@@ -1007,10 +1007,8 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
  */
 bool intel_engine_is_idle(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-
 	/* More white lies, if wedged, hw state is inconsistent */
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_reset_failed(engine->i915))
 		return true;
 
 	/* Any inflight/incomplete requests? */
@@ -1054,7 +1052,7 @@ bool intel_engines_are_idle(struct drm_i915_private *dev_priv)
 	 * If the driver is wedged, HW state may be very inconsistent and
 	 * report that it is still busy, even though we have stopped using it.
 	 */
-	if (i915_terminally_wedged(&dev_priv->gpu_error))
+	if (i915_reset_failed(dev_priv))
 		return true;
 
 	for_each_engine(engine, dev_priv, id) {
@@ -1496,7 +1494,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		va_end(ap);
 	}
 
-	if (i915_terminally_wedged(&engine->i915->gpu_error))
+	if (i915_reset_failed(engine->i915))
 		drm_printf(m, "*** WEDGED ***\n");
 
 	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms]\n",
