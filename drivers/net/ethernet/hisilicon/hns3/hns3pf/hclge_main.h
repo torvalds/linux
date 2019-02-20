@@ -632,6 +632,17 @@ struct hclge_fd_ad_data {
 	u16 rule_id;
 };
 
+struct hclge_vport_mac_addr_cfg {
+	struct list_head node;
+	int hd_tbl_status;
+	u8 mac_addr[ETH_ALEN];
+};
+
+enum HCLGE_MAC_ADDR_TYPE {
+	HCLGE_MAC_ADDR_UC,
+	HCLGE_MAC_ADDR_MC
+};
+
 /* For each bit of TCAM entry, it uses a pair of 'x' and
  * 'y' to indicate which value to match, like below:
  * ----------------------------------
@@ -771,6 +782,8 @@ struct hclge_dev {
 	/* unicast mac vlan space shared by PF and its VFs */
 	u16 share_umv_size;
 	struct mutex umv_mutex; /* protect share_umv_size */
+
+	struct mutex vport_cfg_mutex;   /* Protect stored vf table */
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -838,6 +851,9 @@ struct hclge_vport {
 	unsigned long state;
 	unsigned long last_active_jiffies;
 	u32 mps; /* Max packet size */
+
+	struct list_head uc_mac_list;   /* Store VF unicast table */
+	struct list_head mc_mac_list;   /* Store VF multicast table */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -892,4 +908,13 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf);
 u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id);
 int hclge_notify_client(struct hclge_dev *hdev,
 			enum hnae3_reset_notify_type type);
+void hclge_add_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			       enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			      bool is_write_tbl,
+			      enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
+				  enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_uninit_vport_mac_table(struct hclge_dev *hdev);
+
 #endif

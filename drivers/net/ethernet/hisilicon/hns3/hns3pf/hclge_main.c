@@ -1329,6 +1329,8 @@ static int hclge_alloc_vport(struct hclge_dev *hdev)
 		vport->back = hdev;
 		vport->vport_id = i;
 		vport->mps = HCLGE_MAC_DEFAULT_FRAME;
+		INIT_LIST_HEAD(&vport->uc_mac_list);
+		INIT_LIST_HEAD(&vport->mc_mac_list);
 
 		if (i == 0)
 			ret = hclge_vport_setup(vport, tqp_main_vport);
@@ -6074,6 +6076,103 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	return status;
 }
 
+void hclge_add_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			       enum HCLGE_MAC_ADDR_TYPE mac_type)
+{
+	struct hclge_vport_mac_addr_cfg *mac_cfg;
+	struct list_head *list;
+
+	if (!vport->vport_id)
+		return;
+
+	mac_cfg = kzalloc(sizeof(*mac_cfg), GFP_KERNEL);
+	if (!mac_cfg)
+		return;
+
+	mac_cfg->hd_tbl_status = true;
+	memcpy(mac_cfg->mac_addr, mac_addr, ETH_ALEN);
+
+	list = (mac_type == HCLGE_MAC_ADDR_UC) ?
+	       &vport->uc_mac_list : &vport->mc_mac_list;
+
+	list_add_tail(&mac_cfg->node, list);
+}
+
+void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			      bool is_write_tbl,
+			      enum HCLGE_MAC_ADDR_TYPE mac_type)
+{
+	struct hclge_vport_mac_addr_cfg *mac_cfg, *tmp;
+	struct list_head *list;
+	bool uc_flag, mc_flag;
+
+	list = (mac_type == HCLGE_MAC_ADDR_UC) ?
+	       &vport->uc_mac_list : &vport->mc_mac_list;
+
+	uc_flag = is_write_tbl && mac_type == HCLGE_MAC_ADDR_UC;
+	mc_flag = is_write_tbl && mac_type == HCLGE_MAC_ADDR_MC;
+
+	list_for_each_entry_safe(mac_cfg, tmp, list, node) {
+		if (strncmp(mac_cfg->mac_addr, mac_addr, ETH_ALEN) == 0) {
+			if (uc_flag && mac_cfg->hd_tbl_status)
+				hclge_rm_uc_addr_common(vport, mac_addr);
+
+			if (mc_flag && mac_cfg->hd_tbl_status)
+				hclge_rm_mc_addr_common(vport, mac_addr);
+
+			list_del(&mac_cfg->node);
+			kfree(mac_cfg);
+			break;
+		}
+	}
+}
+
+void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
+				  enum HCLGE_MAC_ADDR_TYPE mac_type)
+{
+	struct hclge_vport_mac_addr_cfg *mac_cfg, *tmp;
+	struct list_head *list;
+
+	list = (mac_type == HCLGE_MAC_ADDR_UC) ?
+	       &vport->uc_mac_list : &vport->mc_mac_list;
+
+	list_for_each_entry_safe(mac_cfg, tmp, list, node) {
+		if (mac_type == HCLGE_MAC_ADDR_UC && mac_cfg->hd_tbl_status)
+			hclge_rm_uc_addr_common(vport, mac_cfg->mac_addr);
+
+		if (mac_type == HCLGE_MAC_ADDR_MC && mac_cfg->hd_tbl_status)
+			hclge_rm_mc_addr_common(vport, mac_cfg->mac_addr);
+
+		mac_cfg->hd_tbl_status = false;
+		if (is_del_list) {
+			list_del(&mac_cfg->node);
+			kfree(mac_cfg);
+		}
+	}
+}
+
+void hclge_uninit_vport_mac_table(struct hclge_dev *hdev)
+{
+	struct hclge_vport_mac_addr_cfg *mac, *tmp;
+	struct hclge_vport *vport;
+	int i;
+
+	mutex_lock(&hdev->vport_cfg_mutex);
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		vport = &hdev->vport[i];
+		list_for_each_entry_safe(mac, tmp, &vport->uc_mac_list, node) {
+			list_del(&mac->node);
+			kfree(mac);
+		}
+
+		list_for_each_entry_safe(mac, tmp, &vport->mc_mac_list, node) {
+			list_del(&mac->node);
+			kfree(mac);
+		}
+	}
+	mutex_unlock(&hdev->vport_cfg_mutex);
+}
+
 static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
 					      u16 cmdq_resp, u8 resp_code)
 {
@@ -7329,6 +7428,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hdev->mps = ETH_FRAME_LEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 
 	mutex_init(&hdev->vport_lock);
+	mutex_init(&hdev->vport_cfg_mutex);
 
 	ret = hclge_pci_init(hdev);
 	if (ret) {
@@ -7621,6 +7721,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
 	mutex_destroy(&hdev->vport_lock);
+	hclge_uninit_vport_mac_table(hdev);
+	mutex_destroy(&hdev->vport_cfg_mutex);
 	ae_dev->priv = NULL;
 }
 
