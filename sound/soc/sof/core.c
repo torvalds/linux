@@ -457,7 +457,7 @@ int snd_sof_device_remove(struct device *dev)
 	 * So it should be called after unregistering the comp driver
 	 * so that the card is valid while unregistering comp driver.
 	 */
-	if (pdata && !IS_ERR_OR_NULL(pdata->pdev_mach))
+	if (!IS_ERR_OR_NULL(pdata->pdev_mach))
 		platform_device_unregister(pdata->pdev_mach);
 
 	/* release firmware */
