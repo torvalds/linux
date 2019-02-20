@@ -7801,7 +7801,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	 * 1) We should set ->mode before checking ->requests.  Please see
 	 * the comment in kvm_vcpu_exiting_guest_mode().
 	 *
-	 * 2) For APICv, we should set ->mode before checking PIR.ON.  This
+	 * 2) For APICv, we should set ->mode before checking PID.ON. This
 	 * pairs with the memory barrier implicit in pi_test_and_set_on
 	 * (see vmx_deliver_posted_interrupt).
 	 *

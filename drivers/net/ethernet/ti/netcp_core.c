@@ -259,7 +259,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 		const char *name;
 		char node_name[32];
 
-		if (of_property_read_string(node, "label", &name) < 0) {
+		if (of_property_read_string(child, "label", &name) < 0) {
 			snprintf(node_name, sizeof(node_name), "%pOFn", child);
 			name = node_name;
 		}
