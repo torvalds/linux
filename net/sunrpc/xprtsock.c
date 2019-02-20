@@ -716,6 +716,11 @@ xs_stream_reset_connect(struct sock_xprt *transport)
 	transport->recv.len = 0;
 	transport->recv.copied = 0;
 	transport->xmit.offset = 0;
+}
+
+static void
+xs_stream_start_connect(struct sock_xprt *transport)
+{
 	transport->xprt.stat.connect_count++;
 	transport->xprt.stat.connect_start = jiffies;
 }
@@ -1255,6 +1260,8 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	xprt_clear_connected(xprt);
 	write_unlock_bh(&sk->sk_callback_lock);
 	xs_sock_reset_connection_flags(xprt);
+	/* Reset stream record info */
+	xs_stream_reset_connect(transport);
 	mutex_unlock(&transport->recv_mutex);
 
 	trace_rpc_socket_close(xprt, sock);
@@ -1906,7 +1913,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 		write_unlock_bh(&sk->sk_callback_lock);
 	}
 
-	xs_stream_reset_connect(transport);
+	xs_stream_start_connect(transport);
 
 	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, 0);
 }
@@ -2264,8 +2271,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 	xs_set_memalloc(xprt);
 
-	/* Reset TCP record info */
-	xs_stream_reset_connect(transport);
+	xs_stream_start_connect(transport);
 
 	/* Tell the socket layer to start connecting... */
 	set_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
