@@ -188,7 +188,8 @@ static struct regulator_ops tps65218_ldo1_dcdc34_ops = {
 	.set_suspend_disable	= tps65218_pmic_set_suspend_disable,
 };
 
-static const int ls3_currents[] = { 100, 200, 500, 1000 };
+static const int ls3_currents[] = { 100000, 200000, 500000, 1000000 };
+
 
 static int tps65218_pmic_set_input_current_lim(struct regulator_dev *dev,
 					       int lim_uA)
@@ -214,7 +215,7 @@ static int tps65218_pmic_set_current_limit(struct regulator_dev *dev,
 	unsigned int num_currents = ARRAY_SIZE(ls3_currents);
 	struct tps65218 *tps = rdev_get_drvdata(dev);
 
-	while (index < num_currents && ls3_currents[index] < max_uA)
+	while (index < num_currents && ls3_currents[index] <= max_uA)
 		index++;
 
 	index--;
