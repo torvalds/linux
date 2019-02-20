@@ -361,7 +361,7 @@ struct drm_mode_config {
 	 *
 	 * This is the big scary modeset BKL which protects everything that
 	 * isn't protect otherwise. Scope is unclear and fuzzy, try to remove
-	 * anything from under it's protection and move it into more well-scoped
+	 * anything from under its protection and move it into more well-scoped
 	 * locks.
 	 *
 	 * The one important thing this protects is the use of @acquire_ctx.

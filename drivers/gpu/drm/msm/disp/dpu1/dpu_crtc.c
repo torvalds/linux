@@ -20,10 +20,10 @@
 #include <linux/sort.h>
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
-#include <drm/drm_mode.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
+#include <drm/drm_mode.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 
 #include "dpu_kms.h"
@@ -465,8 +465,6 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 			return;
 		}
 
-		mixer->encoder = enc;
-
 		cstate->num_mixers++;
 		DPU_DEBUG("setup mixer %d: lm %d\n",
 				i, mixer->hw_lm->idx - LM_0);
@@ -718,11 +716,8 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 	 * may delay and flush at an irq event (e.g. ppdone)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
-				  crtc->state->encoder_mask) {
-		struct dpu_encoder_kickoff_params params = { 0 };
-		dpu_encoder_prepare_for_kickoff(encoder, &params, async);
-	}
-
+				  crtc->state->encoder_mask)
+		dpu_encoder_prepare_for_kickoff(encoder, async);
 
 	if (!async) {
 		/* wait for frame_event_done completion */

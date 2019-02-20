@@ -165,7 +165,7 @@ Do some work...
 The same can also be done from an application program.
 
 Disable specific CPU's specific idle state from cpuidle sysfs (see
-Documentation/cpuidle/sysfs.txt):
+Documentation/admin-guide/pm/cpuidle.rst):
 # echo 1 > /sys/devices/system/cpu/cpu$cpu/cpuidle/state$state/disable
 
 

@@ -202,12 +202,12 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_asic_flush_hdp(adev, ring);
 	}
 
+	if (need_ctx_switch)
+		status |= AMDGPU_HAVE_CTX_SWITCH;
+
 	skip_preamble = ring->current_ctx == fence_ctx;
 	if (job && ring->funcs->emit_cntxcntl) {
-		if (need_ctx_switch)
-			status |= AMDGPU_HAVE_CTX_SWITCH;
 		status |= job->preamble_status;
-
 		amdgpu_ring_emit_cntxcntl(ring, status);
 	}
 
@@ -221,8 +221,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			!amdgpu_sriov_vf(adev)) /* for SRIOV preemption, Preamble CE ib must be inserted anyway */
 			continue;
 
-		amdgpu_ring_emit_ib(ring, job, ib, need_ctx_switch);
-		need_ctx_switch = false;
+		amdgpu_ring_emit_ib(ring, job, ib, status);
+		status &= ~AMDGPU_HAVE_CTX_SWITCH;
 	}
 
 	if (ring->funcs->emit_tmz)

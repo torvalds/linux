@@ -40,7 +40,6 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
-#include "custom_float.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
@@ -92,10 +91,11 @@ static void log_mpc_crc(struct dc *dc,
 void dcn10_log_hubbub_state(struct dc *dc, struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
-	struct dcn_hubbub_wm wm = {0};
+	struct dcn_hubbub_wm wm;
 	int i;
 
-	hubbub1_wm_read_state(dc->res_pool->hubbub, &wm);
+	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
+	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
 	DTN_INFO("HUBBUB WM:      data_urgent  pte_meta_urgent"
 			"         sr_enter          sr_exit  dram_clk_change\n");
@@ -636,8 +636,6 @@ static enum dc_status dcn10_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	struct drr_params params = {0};
-	unsigned int event_triggers = 0;
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
@@ -704,19 +702,6 @@ static enum dc_status dcn10_enable_stream_timing(
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
 	}
-
-	params.vertical_total_min = stream->adjust.v_total_min;
-	params.vertical_total_max = stream->adjust.v_total_max;
-	if (pipe_ctx->stream_res.tg->funcs->set_drr)
-		pipe_ctx->stream_res.tg->funcs->set_drr(
-			pipe_ctx->stream_res.tg, &params);
-
-	// DRR should set trigger event to monitor surface update event
-	if (stream->adjust.v_total_min != 0 && stream->adjust.v_total_max != 0)
-		event_triggers = 0x80;
-	if (pipe_ctx->stream_res.tg->funcs->set_static_screen_control)
-		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
-				pipe_ctx->stream_res.tg, event_triggers);
 
 	/* TODO program crtc source select for non-virtual signal*/
 	/* TODO program FMT */
@@ -971,92 +956,34 @@ static void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
-static void dcn10_init_hw(struct dc *dc)
+static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
-	struct abm *abm = dc->res_pool->abm;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct dce_hwseq *hws = dc->hwseq;
-	struct dc_bios *dcb = dc->ctx->dc_bios;
-	struct dc_state  *context = dc->current_state;
-
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		REG_WRITE(REFCLK_CNTL, 0);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-		if (!dc->debug.disable_clock_gate) {
-			/* enable all DCN clock gating */
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-		}
-
-		enable_power_gating_plane(dc->hwseq, true);
-	} else {
-
-		if (!dcb->funcs->is_accelerated_mode(dcb)) {
-			bool allow_self_fresh_force_enable =
-					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub);
-
-			bios_golden_init(dc);
-
-			/* WA for making DF sleep when idle after resume from S0i3.
-			 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
-			 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
-			 * before calling command table and it changed to 1 after,
-			 * it should be set back to 0.
-			 */
-			if (allow_self_fresh_force_enable == false &&
-					hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-				hubbub1_disable_allow_self_refresh(dc->res_pool->hubbub);
-
-			disable_vga(dc->hwseq);
-		}
-
-		for (i = 0; i < dc->link_count; i++) {
-			/* Power up AND update implementation according to the
-			 * required signal (which may be different from the
-			 * default signal on connector).
-			 */
-			struct dc_link *link = dc->links[i];
-
-			if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-				dc->hwss.edp_power_control(link, true);
-
-			link->link_enc->funcs->hw_init(link->link_enc);
-		}
-	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->lock(tg);
-	}
 
-	/* Blank controller using driver code instead of
-	 * command table.
-	 */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
+		/* Blank controller using driver code instead of
+		 * command table.
+		 */
 		if (tg->funcs->is_tg_enabled(tg)) {
 			tg->funcs->set_blank(tg, true);
 			hwss_wait_for_blank_complete(tg);
 		}
 	}
 
-	/* Reset all MPCC muxes */
 	dc->res_pool->mpc->funcs->mpc_init(dc->res_pool->mpc);
 
-	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = dc->res_pool->hubps[i];
 		struct dpp *dpp = dc->res_pool->dpps[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		dpp->funcs->dpp_reset(dpp);
 
 		pipe_ctx->stream_res.tg = tg;
 		pipe_ctx->pipe_idx = i;
@@ -1074,18 +1001,9 @@ static void dcn10_init_hw(struct dc *dc)
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
 		hwss1_plane_atomic_disconnect(dc, pipe_ctx);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		dcn10_disable_plane(dc, pipe_ctx);
 
@@ -1094,10 +1012,73 @@ static void dcn10_init_hw(struct dc *dc)
 
 		tg->funcs->tg_init(tg);
 	}
+}
 
-	/* end of FPGA. Below if real ASIC */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
+static void dcn10_init_hw(struct dc *dc)
+{
+	int i;
+	struct abm *abm = dc->res_pool->abm;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct dce_hwseq *hws = dc->hwseq;
+	struct dc_bios *dcb = dc->ctx->dc_bios;
+
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		REG_WRITE(REFCLK_CNTL, 0);
+		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+		if (!dc->debug.disable_clock_gate) {
+			/* enable all DCN clock gating */
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+		}
+
+		enable_power_gating_plane(dc->hwseq, true);
+
+		/* end of FPGA. Below if real ASIC */
 		return;
+	}
+
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
+		bool allow_self_fresh_force_enable =
+			hububu1_is_allow_self_refresh_enabled(
+						dc->res_pool->hubbub);
+
+		bios_golden_init(dc);
+
+		/* WA for making DF sleep when idle after resume from S0i3.
+		 * DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE is set to 1 by
+		 * command table, if DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE = 0
+		 * before calling command table and it changed to 1 after,
+		 * it should be set back to 0.
+		 */
+		if (allow_self_fresh_force_enable == false &&
+				hububu1_is_allow_self_refresh_enabled(dc->res_pool->hubbub))
+			hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, true);
+
+		disable_vga(dc->hwseq);
+	}
+
+	for (i = 0; i < dc->link_count; i++) {
+		/* Power up AND update implementation according to the
+		 * required signal (which may be different from the
+		 * default signal on connector).
+		 */
+		struct dc_link *link = dc->links[i];
+
+		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
+			dc->hwss.edp_power_control(link, true);
+
+		link->link_enc->funcs->hw_init(link->link_enc);
+
+		/* Check for enabled DIG to identify enabled display */
+		if (link->link_enc->funcs->is_dig_enabled &&
+			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_status.link_active = true;
+	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
 		struct audio *audio = dc->res_pool->audios[i];
@@ -1128,6 +1109,9 @@ static void dcn10_init_hw(struct dc *dc)
 	enable_power_gating_plane(dc->hwseq, true);
 
 	memset(&dc->res_pool->clk_mgr->clks, 0, sizeof(dc->res_pool->clk_mgr->clks));
+
+	if (dc->hwss.init_pipes)
+		dc->hwss.init_pipes(dc, dc->current_state);
 }
 
 static void reset_hw_ctx_wrap(
@@ -1202,7 +1186,8 @@ static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_c
 	pipe_ctx->plane_res.hubp->funcs->hubp_program_surface_flip_and_addr(
 			pipe_ctx->plane_res.hubp,
 			&plane_state->address,
-			plane_state->flip_immediate);
+			plane_state->flip_immediate,
+			0);
 
 	plane_state->status.requested_address = plane_state->address;
 
@@ -2048,7 +2033,7 @@ void update_dchubp_dpp(
 			dc->res_pool->dccg->funcs->update_dpp_dto(
 					dc->res_pool->dccg,
 					dpp->inst,
-					pipe_ctx->plane_res.bw.calc.dppclk_khz);
+					pipe_ctx->plane_res.bw.dppclk_khz);
 		else
 			dc->res_pool->clk_mgr->clks.dppclk_khz = should_divided_by_2 ?
 						dc->res_pool->clk_mgr->clks.dispclk_khz / 2 :
@@ -2125,7 +2110,8 @@ void update_dchubp_dpp(
 		plane_state->update_flags.bits.swizzle_change ||
 		plane_state->update_flags.bits.dcc_change ||
 		plane_state->update_flags.bits.bpp_change ||
-		plane_state->update_flags.bits.scaling_change) {
+		plane_state->update_flags.bits.scaling_change ||
+		plane_state->update_flags.bits.plane_size_change) {
 		hubp->funcs->hubp_program_surface_config(
 			hubp,
 			plane_state->format,
@@ -2252,13 +2238,11 @@ static void program_all_pipe_in_tree(
 
 	}
 
-	if (pipe_ctx->plane_state != NULL) {
+	if (pipe_ctx->plane_state != NULL)
 		dcn10_program_pipe(dc, pipe_ctx, context);
-	}
 
-	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx) {
+	if (pipe_ctx->bottom_pipe != NULL && pipe_ctx->bottom_pipe != pipe_ctx)
 		program_all_pipe_in_tree(dc, pipe_ctx->bottom_pipe, context);
-	}
 }
 
 struct pipe_ctx *find_top_pipe_for_stream(
@@ -2334,9 +2318,10 @@ static void dcn10_apply_ctx_for_surface(
 			}
 		}
 
-		if (!pipe_ctx->plane_state &&
-			old_pipe_ctx->plane_state &&
-			old_pipe_ctx->stream_res.tg == tg) {
+		if ((!pipe_ctx->plane_state ||
+		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
+		    old_pipe_ctx->plane_state &&
+		    old_pipe_ctx->stream_res.tg == tg) {
 
 			dc->hwss.plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
@@ -2355,29 +2340,22 @@ static void dcn10_apply_ctx_for_surface(
 			top_pipe_to_program->plane_state->update_flags.bits.full_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
+			tg = pipe_ctx->stream_res.tg;
 			/* Skip inactive pipes and ones already updated */
 			if (!pipe_ctx->stream || pipe_ctx->stream == stream
-					|| !pipe_ctx->plane_state)
+					|| !pipe_ctx->plane_state
+					|| !tg->funcs->is_tg_enabled(tg))
 				continue;
 
-			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+			tg->funcs->lock(tg);
 
 			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
 				pipe_ctx->plane_res.hubp,
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
+
+			tg->funcs->unlock(tg);
 		}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->stream || pipe_ctx->stream == stream
-				|| !pipe_ctx->plane_state)
-			continue;
-
-		dcn10_pipe_control_lock(dc, pipe_ctx, false);
-	}
 
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
@@ -2388,6 +2366,22 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (dc->hwseq->wa.DEGVIDCN10_254)
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
+}
+
+static void dcn10_stereo_hw_frame_pack_wa(struct dc *dc, struct dc_state *context)
+{
+	uint8_t i;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->timing.timing_3d_format
+				== TIMING_3D_FORMAT_HW_FRAME_PACKING) {
+			/*
+			 * Disable stutter
+			 */
+			hubbub1_allow_self_refresh_control(dc->res_pool->hubbub, false);
+			break;
+		}
+	}
 }
 
 static void dcn10_prepare_bandwidth(
@@ -2411,6 +2405,7 @@ static void dcn10_prepare_bandwidth(
 			&context->bw.dcn.watermarks,
 			dc->res_pool->ref_clock_inKhz / 1000,
 			true);
+	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
@@ -2440,6 +2435,7 @@ static void dcn10_optimize_bandwidth(
 			&context->bw.dcn.watermarks,
 			dc->res_pool->ref_clock_inKhz / 1000,
 			true);
+	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
@@ -2525,7 +2521,7 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \
-					stream->sink->link->ddc->dongle_type;
+					stream->link->ddc->dongle_type;
 			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
@@ -2656,7 +2652,7 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_cursor_mi_param param = {
-		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
 		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
@@ -2716,6 +2712,7 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = dcn10_init_hw,
+	.init_pipes = dcn10_init_pipes,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.update_plane_addr = dcn10_update_plane_addr,

@@ -31,6 +31,8 @@
 #include <linux/sysrq.h>
 #include <linux/slab.h>
 #include <linux/circ_buf.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_drv.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"

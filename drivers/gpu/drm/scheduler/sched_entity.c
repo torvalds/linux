@@ -440,13 +440,10 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 
 	while ((entity->dependency =
 			sched->ops->dependency(sched_job, entity))) {
+		trace_drm_sched_job_wait_dep(sched_job, entity->dependency);
 
-		if (drm_sched_entity_add_dependency_cb(entity)) {
-
-			trace_drm_sched_job_wait_dep(sched_job,
-						     entity->dependency);
+		if (drm_sched_entity_add_dependency_cb(entity))
 			return NULL;
-		}
 	}
 
 	/* skip jobs from entity that marked guilty */

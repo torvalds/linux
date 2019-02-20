@@ -36,6 +36,7 @@ static void qxl_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	qdev = (struct qxl_device *)bo->gem_base.dev->dev_private;
 
 	qxl_surface_evict(qdev, bo, false);
+	WARN_ON_ONCE(bo->map_count > 0);
 	mutex_lock(&qdev->gem.mutex);
 	list_del_init(&bo->list);
 	mutex_unlock(&qdev->gem.mutex);
@@ -60,8 +61,10 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 	qbo->placement.busy_placement = qbo->placements;
 	if (domain == QXL_GEM_DOMAIN_VRAM)
 		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
-	if (domain == QXL_GEM_DOMAIN_SURFACE)
+	if (domain == QXL_GEM_DOMAIN_SURFACE) {
 		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV | pflag;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
+	}
 	if (domain == QXL_GEM_DOMAIN_CPU)
 		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
 	if (!c)
@@ -129,6 +132,7 @@ int qxl_bo_kmap(struct qxl_bo *bo, void **ptr)
 	if (bo->kptr) {
 		if (ptr)
 			*ptr = bo->kptr;
+		bo->map_count++;
 		return 0;
 	}
 	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
@@ -137,6 +141,7 @@ int qxl_bo_kmap(struct qxl_bo *bo, void **ptr)
 	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
 	if (ptr)
 		*ptr = bo->kptr;
+	bo->map_count = 1;
 	return 0;
 }
 
@@ -177,6 +182,9 @@ fallback:
 void qxl_bo_kunmap(struct qxl_bo *bo)
 {
 	if (bo->kptr == NULL)
+		return;
+	bo->map_count--;
+	if (bo->map_count > 0)
 		return;
 	bo->kptr = NULL;
 	ttm_bo_kunmap(&bo->kmap);
@@ -332,7 +340,7 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 		if (ret)
 			return ret;
 
-		ret = qxl_hw_surface_alloc(qdev, bo, NULL);
+		ret = qxl_hw_surface_alloc(qdev, bo);
 		if (ret)
 			return ret;
 	}

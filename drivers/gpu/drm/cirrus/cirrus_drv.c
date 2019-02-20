@@ -12,6 +12,7 @@
 #include <linux/console.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "cirrus_drv.h"
 

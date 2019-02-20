@@ -2098,6 +2098,7 @@ static int fec_enet_get_regs_len(struct net_device *ndev)
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
 	defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
 	defined(CONFIG_ARM64) || defined(CONFIG_COMPILE_TEST)
+static __u32 fec_enet_register_version = 2;
 static u32 fec_enet_register_offset[] = {
 	FEC_IEVENT, FEC_IMASK, FEC_R_DES_ACTIVE_0, FEC_X_DES_ACTIVE_0,
 	FEC_ECNTRL, FEC_MII_DATA, FEC_MII_SPEED, FEC_MIB_CTRLSTAT, FEC_R_CNTRL,
@@ -2128,6 +2129,7 @@ static u32 fec_enet_register_offset[] = {
 	IEEE_R_FDXFC, IEEE_R_OCTETS_OK
 };
 #else
+static __u32 fec_enet_register_version = 1;
 static u32 fec_enet_register_offset[] = {
 	FEC_ECNTRL, FEC_IEVENT, FEC_IMASK, FEC_IVEC, FEC_R_DES_ACTIVE_0,
 	FEC_R_DES_ACTIVE_1, FEC_R_DES_ACTIVE_2, FEC_X_DES_ACTIVE_0,
@@ -2148,6 +2150,8 @@ static void fec_enet_get_regs(struct net_device *ndev,
 	u32 __iomem *theregs = (u32 __iomem *)fep->hwp;
 	u32 *buf = (u32 *)regbuf;
 	u32 i, off;
+
+	regs->version = fec_enet_register_version;
 
 	memset(buf, 0, regs->len);
 
@@ -3467,7 +3471,7 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_clk_ipg;
 
-	fep->reg_phy = devm_regulator_get(&pdev->dev, "phy");
+	fep->reg_phy = devm_regulator_get_optional(&pdev->dev, "phy");
 	if (!IS_ERR(fep->reg_phy)) {
 		ret = regulator_enable(fep->reg_phy);
 		if (ret) {

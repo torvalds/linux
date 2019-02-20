@@ -490,9 +490,9 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 		list_add_tail(&desc->node, &chan->free_list);
 	}
 
-	chan->desc_pool_v = dma_zalloc_coherent(chan->dev,
-				(2 * chan->desc_size * ZYNQMP_DMA_NUM_DESCS),
-				&chan->desc_pool_p, GFP_KERNEL);
+	chan->desc_pool_v = dma_alloc_coherent(chan->dev,
+					       (2 * chan->desc_size * ZYNQMP_DMA_NUM_DESCS),
+					       &chan->desc_pool_p, GFP_KERNEL);
 	if (!chan->desc_pool_v)
 		return -ENOMEM;
 

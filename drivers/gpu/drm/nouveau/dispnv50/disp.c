@@ -32,10 +32,10 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_scdc_helper.h>
 #include <drm/drm_edid.h>
 
@@ -659,8 +659,6 @@ struct nv50_mstc {
 
 	struct drm_display_mode *native;
 	struct edid *edid;
-
-	int pbn;
 };
 
 struct nv50_msto {
@@ -765,18 +763,26 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	struct drm_connector *connector = conn_state->connector;
 	struct nv50_mstc *mstc = nv50_mstc(connector);
 	struct nv50_mstm *mstm = mstc->mstm;
-	int bpp = connector->display_info.bpc * 3;
+	struct nv50_head_atom *asyh = nv50_head_atom(crtc_state);
 	int slots;
 
-	mstc->pbn = drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.clock,
-					 bpp);
+	/* When restoring duplicated states, we need to make sure that the
+	 * bw remains the same and avoid recalculating it, as the connector's
+	 * bpc may have changed after the state was duplicated
+	 */
+	if (!state->duplicated)
+		asyh->dp.pbn =
+			drm_dp_calc_pbn_mode(crtc_state->adjusted_mode.clock,
+					     connector->display_info.bpc * 3);
 
-	if (drm_atomic_crtc_needs_modeset(crtc_state) &&
-	    !drm_connector_is_unregistered(connector)) {
+	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
 		slots = drm_dp_atomic_find_vcpi_slots(state, &mstm->mgr,
-						      mstc->port, mstc->pbn);
+						      mstc->port,
+						      asyh->dp.pbn);
 		if (slots < 0)
 			return slots;
+
+		asyh->dp.tu = slots;
 	}
 
 	return nv50_outp_atomic_check_view(encoder, crtc_state, conn_state,
@@ -787,13 +793,13 @@ static void
 nv50_msto_enable(struct drm_encoder *encoder)
 {
 	struct nv50_head *head = nv50_head(encoder->crtc);
+	struct nv50_head_atom *armh = nv50_head_atom(head->base.base.state);
 	struct nv50_msto *msto = nv50_msto(encoder);
 	struct nv50_mstc *mstc = NULL;
 	struct nv50_mstm *mstm = NULL;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	u8 proto, depth;
-	int slots;
 	bool r;
 
 	drm_connector_list_iter_begin(encoder->dev, &conn_iter);
@@ -809,9 +815,10 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	if (WARN_ON(!mstc))
 		return;
 
-	slots = drm_dp_find_vcpi_slots(&mstm->mgr, mstc->pbn);
-	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, mstc->pbn, slots);
-	WARN_ON(!r);
+	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, armh->dp.pbn,
+				     armh->dp.tu);
+	if (!r)
+		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
 		nv50_outp_acquire(mstm->outp);
@@ -828,8 +835,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 	default: depth = 0x6; break;
 	}
 
-	mstm->outp->update(mstm->outp, head->base.index,
-			   nv50_head_atom(head->base.base.state), proto, depth);
+	mstm->outp->update(mstm->outp, head->base.index, armh, proto, depth);
 
 	msto->head = head;
 	msto->mstc = mstc;
@@ -2215,8 +2221,8 @@ nv50_disp_func = {
  * Init
  *****************************************************************************/
 
-void
-nv50_display_fini(struct drm_device *dev)
+static void
+nv50_display_fini(struct drm_device *dev, bool suspend)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
@@ -2237,8 +2243,8 @@ nv50_display_fini(struct drm_device *dev)
 	}
 }
 
-int
-nv50_display_init(struct drm_device *dev)
+static int
+nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_encoder *encoder;
@@ -2264,7 +2270,7 @@ nv50_display_init(struct drm_device *dev)
 	return 0;
 }
 
-void
+static void
 nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);

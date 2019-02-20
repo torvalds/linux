@@ -720,6 +720,10 @@ const struct of_device_id sun4i_frontend_of_table[] = {
 		.data = &sun4i_a10_frontend
 	},
 	{
+		.compatible = "allwinner,sun8i-a23-display-frontend",
+		.data = &sun8i_a33_frontend
+	},
+	{
 		.compatible = "allwinner,sun8i-a33-display-frontend",
 		.data = &sun8i_a33_frontend
 	},

@@ -256,16 +256,14 @@ static void power_state_management(struct pp_hwmgr *hwmgr,
 	}
 }
 
-int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
+int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_settings,
 						struct pp_power_state *new_ps)
 {
 	uint32_t index;
 	long workload;
 
-	if (skip)
-		return 0;
-
-	phm_display_configuration_changed(hwmgr);
+	if (!skip_display_settings)
+		phm_display_configuration_changed(hwmgr);
 
 	if (hwmgr->ps)
 		power_state_management(hwmgr, new_ps);
@@ -276,9 +274,11 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 		 */
 		phm_apply_clock_adjust_rules(hwmgr);
 
-	phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+	if (!skip_display_settings)
+		phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
 
-	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
+	if ((hwmgr->request_dpm_level != hwmgr->dpm_level) &&
+	    !phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
 		hwmgr->dpm_level = hwmgr->request_dpm_level;
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {

@@ -63,6 +63,7 @@ static int run_lwt_bpf(struct sk_buff *skb, struct bpf_lwt_prog *lwt,
 				     lwt->name ? : "<unknown>");
 			ret = BPF_OK;
 		} else {
+			skb_reset_mac_header(skb);
 			ret = skb_do_redirect(skb);
 			if (ret == 0)
 				ret = BPF_REDIRECT;

@@ -50,7 +50,6 @@ struct of_irq_controller;
 
 struct device_node {
 	const char *name;
-	const char *type;
 	phandle phandle;
 	const char *full_name;
 	struct fwnode_handle fwnode;

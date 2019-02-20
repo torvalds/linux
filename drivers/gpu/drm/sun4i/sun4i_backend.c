@@ -14,10 +14,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include <linux/component.h>
 #include <linux/list.h>
@@ -141,7 +141,6 @@ static const uint32_t sun4i_backend_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_BGRX8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_RGBA4444,
@@ -765,17 +764,18 @@ static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote)
 			continue;
+		of_node_put(remote);
 
 		/* does this node match any registered engines? */
 		list_for_each_entry(frontend, &drv->frontend_list, list) {
 			if (remote == frontend->node) {
-				of_node_put(remote);
 				of_node_put(port);
+				of_node_put(ep);
 				return frontend;
 			}
 		}
 	}
-
+	of_node_put(port);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -1011,6 +1011,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun7i-a20-display-backend",
 		.data = &sun7i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a23-display-backend",
+		.data = &sun8i_a33_backend_quirks,
 	},
 	{
 		.compatible = "allwinner,sun8i-a33-display-backend",

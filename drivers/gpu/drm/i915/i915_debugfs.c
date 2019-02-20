@@ -26,9 +26,10 @@
  *
  */
 
-#include <linux/debugfs.h>
 #include <linux/sort.h>
 #include <linux/sched/mm.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_fourcc.h>
 #include "intel_drv.h"
 #include "intel_guc_submission.h"
 

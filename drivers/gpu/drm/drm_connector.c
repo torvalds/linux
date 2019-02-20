@@ -1066,7 +1066,7 @@ EXPORT_SYMBOL(drm_mode_create_dvi_i_properties);
  *
  * content type (HDMI specific):
  *	Indicates content type setting to be used in HDMI infoframes to indicate
- *	content type for the external device, so that it adjusts it's display
+ *	content type for the external device, so that it adjusts its display
  *	settings accordingly.
  *
  *	The value of this property can be one of the following:
@@ -1367,7 +1367,7 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  *
  *	Absence of the property should indicate absence of support.
  *
- * "vrr_enabled":
+ * "VRR_ENABLED":
  *	Default &drm_crtc boolean property that notifies the driver that the
  *	content on the CRTC is suitable for variable refresh rate presentation.
  *	The driver will take this property as a hint to enable variable

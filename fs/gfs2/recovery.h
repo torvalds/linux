@@ -27,6 +27,8 @@ extern int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 extern int gfs2_revoke_check(struct gfs2_jdesc *jd, u64 blkno, unsigned int where);
 extern void gfs2_revoke_clean(struct gfs2_jdesc *jd);
 
+extern int gfs2_find_jhead(struct gfs2_jdesc *jd,
+		    struct gfs2_log_header_host *head);
 extern int gfs2_recover_journal(struct gfs2_jdesc *gfs2_jd, bool wait);
 extern void gfs2_recover_func(struct work_struct *work);
 extern int __get_log_header(struct gfs2_sbd *sdp,

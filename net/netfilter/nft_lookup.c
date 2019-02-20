@@ -121,20 +121,17 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static void nft_lookup_activate(const struct nft_ctx *ctx,
-				const struct nft_expr *expr)
-{
-	struct nft_lookup *priv = nft_expr_priv(expr);
-
-	nf_tables_rebind_set(ctx, priv->set, &priv->binding);
-}
-
 static void nft_lookup_deactivate(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr)
+				  const struct nft_expr *expr,
+				  enum nft_trans_phase phase)
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	if (phase == NFT_TRANS_PREPARE)
+		return;
+
+	nf_tables_unbind_set(ctx, priv->set, &priv->binding,
+			     phase == NFT_TRANS_COMMIT);
 }
 
 static void nft_lookup_destroy(const struct nft_ctx *ctx,
@@ -225,7 +222,6 @@ static const struct nft_expr_ops nft_lookup_ops = {
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_lookup)),
 	.eval		= nft_lookup_eval,
 	.init		= nft_lookup_init,
-	.activate	= nft_lookup_activate,
 	.deactivate	= nft_lookup_deactivate,
 	.destroy	= nft_lookup_destroy,
 	.dump		= nft_lookup_dump,

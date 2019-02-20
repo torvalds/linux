@@ -10,7 +10,7 @@
 #include <linux/export.h>
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
 
 #include "rcar_du_drv.h"
@@ -30,8 +30,7 @@ static const struct drm_encoder_funcs encoder_funcs = {
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 			 enum rcar_du_output output,
-			 struct device_node *enc_node,
-			 struct device_node *con_node)
+			 struct device_node *enc_node)
 {
 	struct rcar_du_encoder *renc;
 	struct drm_encoder *encoder;
@@ -42,6 +41,7 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	if (renc == NULL)
 		return -ENOMEM;
 
+	rcdu->encoders[output] = renc;
 	renc->output = output;
 	encoder = rcar_encoder_to_drm_encoder(renc);
 

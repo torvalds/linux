@@ -9,15 +9,17 @@
 
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/sys_soc.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
@@ -26,6 +28,7 @@
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
 #include "rcar_du_vsp.h"
+#include "rcar_lvds.h"
 
 static u32 rcar_du_crtc_read(struct rcar_du_crtc *rcrtc, u32 reg)
 {
@@ -657,8 +660,27 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(crtc->state);
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
 
 	rcar_du_crtc_get(rcrtc);
+
+	/*
+	 * On D3/E3 the dot clock is provided by the LVDS encoder attached to
+	 * the DU channel. We need to enable its clock output explicitly if
+	 * the LVDS output is disabled.
+	 */
+	if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index) &&
+	    rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) {
+		struct rcar_du_encoder *encoder =
+			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
+		const struct drm_display_mode *mode =
+			&crtc->state->adjusted_mode;
+
+		rcar_lvds_clk_enable(encoder->base.bridge,
+				     mode->clock * 1000);
+	}
+
 	rcar_du_crtc_start(rcrtc);
 }
 
@@ -666,9 +688,23 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
+	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(old_state);
+	struct rcar_du_device *rcdu = rcrtc->group->dev;
 
 	rcar_du_crtc_stop(rcrtc);
 	rcar_du_crtc_put(rcrtc);
+
+	if (rcdu->info->lvds_clk_mask & BIT(rcrtc->index) &&
+	    rstate->outputs == BIT(RCAR_DU_OUTPUT_DPAD0)) {
+		struct rcar_du_encoder *encoder =
+			rcdu->encoders[RCAR_DU_OUTPUT_LVDS0 + rcrtc->index];
+
+		/*
+		 * Disable the LVDS clock output, see
+		 * rcar_du_crtc_atomic_enable().
+		 */
+		rcar_lvds_clk_disable(encoder->base.bridge);
+	}
 
 	spin_lock_irq(&crtc->dev->event_lock);
 	if (crtc->state->event) {

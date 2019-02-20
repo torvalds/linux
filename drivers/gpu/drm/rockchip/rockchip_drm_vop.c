@@ -17,10 +17,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
 #endif
@@ -1675,7 +1675,9 @@ static void vop_win_init(struct vop *vop)
 
 		vop_win->data = win_data;
 		vop_win->vop = vop;
-		vop_win->yuv2yuv_data = &vop_data->win_yuv2yuv[i];
+
+		if (vop_data->win_yuv2yuv)
+			vop_win->yuv2yuv_data = &vop_data->win_yuv2yuv[i];
 	}
 }
 
