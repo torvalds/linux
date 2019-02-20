@@ -1484,42 +1484,6 @@ int __xa_insert(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 }
 EXPORT_SYMBOL(__xa_insert);
 
-/**
- * __xa_reserve() - Reserve this index in the XArray.
- * @xa: XArray.
- * @index: Index into array.
- * @gfp: Memory allocation flags.
- *
- * Ensures there is somewhere to store an entry at @index in the array.
- * If there is already something stored at @index, this function does
- * nothing.  If there was nothing there, the entry is marked as reserved.
- * Loading from a reserved entry returns a %NULL pointer.
- *
- * If you do not use the entry that you have reserved, call xa_release()
- * or xa_erase() to free any unnecessary memory.
- *
- * Context: Any context.  Expects the xa_lock to be held on entry.  May
- * release the lock, sleep and reacquire the lock if the @gfp flags permit.
- * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
- */
-int __xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
-{
-	XA_STATE(xas, xa, index);
-	void *curr;
-
-	do {
-		curr = xas_load(&xas);
-		if (!curr) {
-			xas_store(&xas, XA_ZERO_ENTRY);
-			if (xa_track_free(xa))
-				xas_clear_mark(&xas, XA_FREE_MARK);
-		}
-	} while (__xas_nomem(&xas, gfp));
-
-	return xas_error(&xas);
-}
-EXPORT_SYMBOL(__xa_reserve);
-
 #ifdef CONFIG_XARRAY_MULTI
 static void xas_set_range(struct xa_state *xas, unsigned long first,
 		unsigned long last)

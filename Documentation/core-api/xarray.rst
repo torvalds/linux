@@ -215,7 +215,6 @@ Assumes xa_lock held on entry:
  * :c:func:`__xa_erase`
  * :c:func:`__xa_cmpxchg`
  * :c:func:`__xa_alloc`
- * :c:func:`__xa_reserve`
  * :c:func:`__xa_set_mark`
  * :c:func:`__xa_clear_mark`
 
