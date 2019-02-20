@@ -577,8 +577,13 @@ EXPORT_SYMBOL_GPL(mt76u_submit_rx_buffers);
 
 static int mt76u_alloc_rx(struct mt76_dev *dev)
 {
+	struct mt76_usb *usb = &dev->usb;
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	int i, err;
+
+	usb->mcu.data = devm_kmalloc(dev->dev, MCU_RESP_URB_SIZE, GFP_KERNEL);
+	if (!usb->mcu.data)
+		return -ENOMEM;
 
 	spin_lock_init(&q->rx_page_lock);
 	spin_lock_init(&q->lock);

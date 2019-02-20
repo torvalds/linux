@@ -79,7 +79,6 @@ static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
 }
 
 static void mt76x0u_mac_stop(struct mt76x02_dev *dev)
@@ -190,10 +189,6 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	int err;
 
 	err = mt76u_alloc_queues(&dev->mt76);
-	if (err < 0)
-		goto out_err;
-
-	err = mt76u_mcu_init_rx(&dev->mt76);
 	if (err < 0)
 		goto out_err;
 
