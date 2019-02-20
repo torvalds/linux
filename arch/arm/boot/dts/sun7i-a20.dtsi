@@ -751,6 +751,12 @@
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
+			/omit-if-no-ref/
+			can_pa_pins: can-pa-pins {
+				pins = "PA16", "PA17";
+				function = "can";
+			};
+
 			can_ph_pins: can-ph-pins {
 				pins = "PH20", "PH21";
 				function = "can";
