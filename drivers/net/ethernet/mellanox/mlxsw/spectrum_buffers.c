@@ -74,6 +74,7 @@ struct mlxsw_sp_sb {
 struct mlxsw_sp_sb_vals {
 	unsigned int pool_count;
 	const struct mlxsw_sp_sb_pool_des *pool_dess;
+	const struct mlxsw_sp_sb_pm *pms;
 };
 
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
@@ -581,16 +582,14 @@ static const struct mlxsw_sp_sb_pm mlxsw_sp_sb_pms[] = {
 	MLXSW_SP_SB_PM(10000, 90000),
 };
 
-#define MLXSW_SP_SB_PMS_LEN ARRAY_SIZE(mlxsw_sp_sb_pms)
-
 static int mlxsw_sp_port_sb_pms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int i;
 	int err;
 
-	for (i = 0; i < MLXSW_SP_SB_PMS_LEN; i++) {
-		const struct mlxsw_sp_sb_pm *pm = &mlxsw_sp_sb_pms[i];
+	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
+		const struct mlxsw_sp_sb_pm *pm = &mlxsw_sp->sb_vals->pms[i];
 		u32 max_buff;
 		u32 min_buff;
 
@@ -684,11 +683,13 @@ out:
 const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
 	.pool_count = ARRAY_SIZE(mlxsw_sp_sb_pool_dess),
 	.pool_dess = mlxsw_sp_sb_pool_dess,
+	.pms = mlxsw_sp_sb_pms,
 };
 
 const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.pool_count = ARRAY_SIZE(mlxsw_sp_sb_pool_dess),
 	.pool_dess = mlxsw_sp_sb_pool_dess,
+	.pms = mlxsw_sp_sb_pms,
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
