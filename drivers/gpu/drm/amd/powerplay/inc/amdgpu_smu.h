@@ -389,6 +389,11 @@ struct smu_context
 	uint32_t power_limit;
 	uint32_t default_power_limit;
 
+	/* soft pptable */
+	uint32_t ppt_offset_bytes;
+	uint32_t ppt_size_bytes;
+	uint8_t  *ppt_start_addr;
+
 	bool support_power_containment;
 	bool disable_watermark;
 
