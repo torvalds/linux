@@ -69,7 +69,6 @@ static void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
 
 int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 {
-	u8 stp_state = dp->bridge_dev ? BR_STATE_BLOCKING : BR_STATE_FORWARDING;
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
 	int err;
@@ -80,7 +79,8 @@ int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 			return err;
 	}
 
-	dsa_port_set_state_now(dp, stp_state);
+	if (!dp->bridge_dev)
+		dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 
 	return 0;
 }
@@ -90,7 +90,8 @@ void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
 
-	dsa_port_set_state_now(dp, BR_STATE_DISABLED);
+	if (!dp->bridge_dev)
+		dsa_port_set_state_now(dp, BR_STATE_DISABLED);
 
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, port, phy);
