@@ -55,8 +55,6 @@ static const struct mlxsw_sp_sb_pool_des mlxsw_sp_sb_pool_dess[] = {
 	{MLXSW_REG_SBXX_DIR_EGRESS, 15},
 };
 
-#define MLXSW_SP_SB_POOL_DESS_LEN ARRAY_SIZE(mlxsw_sp_sb_pool_dess)
-
 #define MLXSW_SP_SB_ING_TC_COUNT 8
 #define MLXSW_SP_SB_EG_TC_COUNT 16
 
@@ -74,6 +72,8 @@ struct mlxsw_sp_sb {
 };
 
 struct mlxsw_sp_sb_vals {
+	unsigned int pool_count;
+	const struct mlxsw_sp_sb_pool_des *pool_dess;
 };
 
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
@@ -124,7 +124,7 @@ static int mlxsw_sp_sb_pr_write(struct mlxsw_sp *mlxsw_sp, u16 pool_index,
 				u32 size, bool infi_size)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
-		&mlxsw_sp_sb_pool_dess[pool_index];
+		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpr_pl[MLXSW_REG_SBPR_LEN];
 	struct mlxsw_sp_sb_pr *pr;
 	int err;
@@ -148,7 +148,7 @@ static int mlxsw_sp_sb_cm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				bool infi_max, u16 pool_index)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
-		&mlxsw_sp_sb_pool_dess[pool_index];
+		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbcm_pl[MLXSW_REG_SBCM_LEN];
 	struct mlxsw_sp_sb_cm *cm;
 	int err;
@@ -177,7 +177,7 @@ static int mlxsw_sp_sb_pm_write(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u16 pool_index, u32 min_buff, u32 max_buff)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
-		&mlxsw_sp_sb_pool_dess[pool_index];
+		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 	struct mlxsw_sp_sb_pm *pm;
 	int err;
@@ -198,7 +198,7 @@ static int mlxsw_sp_sb_pm_occ_clear(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				    u16 pool_index, struct list_head *bulk_list)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
-		&mlxsw_sp_sb_pool_dess[pool_index];
+		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, des->pool, des->dir,
@@ -220,7 +220,7 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				    u16 pool_index, struct list_head *bulk_list)
 {
 	const struct mlxsw_sp_sb_pool_des *des =
-		&mlxsw_sp_sb_pool_dess[pool_index];
+		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 	struct mlxsw_sp_sb_pm *pm;
 
@@ -288,7 +288,8 @@ static int mlxsw_sp_sb_port_init(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_sb_pm *pms;
 
-	pms = kcalloc(MLXSW_SP_SB_POOL_DESS_LEN, sizeof(*pms), GFP_KERNEL);
+	pms = kcalloc(mlxsw_sp->sb_vals->pool_count, sizeof(*pms),
+		      GFP_KERNEL);
 	if (!pms)
 		return -ENOMEM;
 	sb_port->pms = pms;
@@ -313,7 +314,8 @@ static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->sb->ports)
 		return -ENOMEM;
 
-	prs = kcalloc(MLXSW_SP_SB_POOL_DESS_LEN, sizeof(*prs), GFP_KERNEL);
+	prs = kcalloc(mlxsw_sp->sb_vals->pool_count, sizeof(*prs),
+		      GFP_KERNEL);
 	if (!prs) {
 		err = -ENOMEM;
 		goto err_alloc_prs;
@@ -498,6 +500,7 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				  const struct mlxsw_sp_sb_cm *cms,
 				  size_t cms_len)
 {
+	const struct mlxsw_sp_sb_vals *sb_vals = mlxsw_sp->sb_vals;
 	int i;
 	int err;
 
@@ -509,7 +512,7 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		if (i == 8 && dir == MLXSW_REG_SBXX_DIR_INGRESS)
 			continue; /* PG number 8 does not exist, skip it */
 		cm = &cms[i];
-		if (WARN_ON(mlxsw_sp_sb_pool_dess[cm->pool_index].dir != dir))
+		if (WARN_ON(sb_vals->pool_dess[cm->pool_index].dir != dir))
 			continue;
 
 		min_buff = mlxsw_sp_bytes_cells(mlxsw_sp, cm->min_buff);
@@ -648,7 +651,7 @@ static int mlxsw_sp_sb_mms_init(struct mlxsw_sp *mlxsw_sp)
 		u32 min_buff;
 
 		mc = &mlxsw_sp_sb_mms[i];
-		des = &mlxsw_sp_sb_pool_dess[mc->pool_index];
+		des = &mlxsw_sp->sb_vals->pool_dess[mc->pool_index];
 		/* All pools used by sb_mm's are initialized using dynamic
 		 * thresholds, therefore 'max_buff' isn't specified in cells.
 		 */
@@ -662,24 +665,30 @@ static int mlxsw_sp_sb_mms_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
-static void mlxsw_sp_pool_count(u16 *p_ingress_len, u16 *p_egress_len)
+static void mlxsw_sp_pool_count(struct mlxsw_sp *mlxsw_sp,
+				u16 *p_ingress_len, u16 *p_egress_len)
 {
 	int i;
 
-	for (i = 0; i < MLXSW_SP_SB_POOL_DESS_LEN; ++i)
-		if (mlxsw_sp_sb_pool_dess[i].dir == MLXSW_REG_SBXX_DIR_EGRESS)
+	for (i = 0; i < mlxsw_sp->sb_vals->pool_count; ++i)
+		if (mlxsw_sp->sb_vals->pool_dess[i].dir ==
+		    MLXSW_REG_SBXX_DIR_EGRESS)
 			goto out;
 	WARN(1, "No egress pools\n");
 
 out:
 	*p_ingress_len = i;
-	*p_egress_len = MLXSW_SP_SB_POOL_DESS_LEN - i;
+	*p_egress_len = mlxsw_sp->sb_vals->pool_count - i;
 }
 
 const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
+	.pool_count = ARRAY_SIZE(mlxsw_sp_sb_pool_dess),
+	.pool_dess = mlxsw_sp_sb_pool_dess,
 };
 
 const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
+	.pool_count = ARRAY_SIZE(mlxsw_sp_sb_pool_dess),
+	.pool_dess = mlxsw_sp_sb_pool_dess,
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
@@ -714,7 +723,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	err = mlxsw_sp_sb_mms_init(mlxsw_sp);
 	if (err)
 		goto err_sb_mms_init;
-	mlxsw_sp_pool_count(&ing_pool_count, &eg_pool_count);
+	mlxsw_sp_pool_count(mlxsw_sp, &ing_pool_count, &eg_pool_count);
 	err = devlink_sb_register(priv_to_devlink(mlxsw_sp->core), 0,
 				  mlxsw_sp->sb->sb_size,
 				  ing_pool_count,
@@ -762,10 +771,11 @@ int mlxsw_sp_sb_pool_get(struct mlxsw_core *mlxsw_core,
 			 unsigned int sb_index, u16 pool_index,
 			 struct devlink_sb_pool_info *pool_info)
 {
-	enum mlxsw_reg_sbxx_dir dir = mlxsw_sp_sb_pool_dess[pool_index].dir;
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	enum mlxsw_reg_sbxx_dir dir;
 	struct mlxsw_sp_sb_pr *pr;
 
+	dir = mlxsw_sp->sb_vals->pool_dess[pool_index].dir;
 	pr = mlxsw_sp_sb_pr_get(mlxsw_sp, pool_index);
 	pool_info->pool_type = (enum devlink_sb_pool_type) dir;
 	pool_info->size = mlxsw_sp_cells_bytes(mlxsw_sp, pr->size);
@@ -891,7 +901,7 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	u32 max_buff;
 	int err;
 
-	if (dir != mlxsw_sp_sb_pool_dess[pool_index].dir)
+	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir)
 		return -EINVAL;
 
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool_index,
@@ -989,7 +999,7 @@ next_batch:
 			continue;
 		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
-		for (i = 0; i < MLXSW_SP_SB_POOL_DESS_LEN; i++) {
+		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_query(mlxsw_sp, local_port, i,
 						       &bulk_list);
 			if (err)
@@ -1048,7 +1058,7 @@ next_batch:
 			continue;
 		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
-		for (i = 0; i < MLXSW_SP_SB_POOL_DESS_LEN; i++) {
+		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_clear(mlxsw_sp, local_port, i,
 						       &bulk_list);
 			if (err)
