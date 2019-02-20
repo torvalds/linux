@@ -62,7 +62,7 @@ License identifier syntax
 
    The SPDX license identifier in kernel files shall be added at the first
    possible line in a file which can contain a comment.  For the majority
-   or files this is the first line, except for scripts which require the
+   of files this is the first line, except for scripts which require the
    '#!PATH_TO_INTERPRETER' in the first line.  For those scripts the SPDX
    identifier goes into the second line.
 
@@ -368,7 +368,7 @@ kernel, can be broken down into:
 
 
 All SPDX license identifiers and exceptions must have a corresponding file
-in the LICENSE subdirectories. This is required to allow tool
+in the LICENSES subdirectories. This is required to allow tool
 verification (e.g. checkpatch.pl) and to have the licenses ready to read
 and extract right from the source, which is recommended by various FOSS
 organizations, e.g. the `FSFE REUSE initiative <https://reuse.software/>`_.
