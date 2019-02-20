@@ -116,8 +116,9 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_sta *sta)
 	return supp;
 }
 
-static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
-				  struct ieee80211_sta *sta)
+static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
+				  struct ieee80211_sta *sta,
+				  struct ieee80211_supported_band *sband)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
@@ -146,6 +147,12 @@ static u16 rs_fw_set_config_flags(struct iwl_mvm *mvm,
 	    ((ht_cap && (ht_cap->cap & IEEE80211_HT_CAP_LDPC_CODING)) ||
 	     (vht_ena && (vht_cap->cap & IEEE80211_VHT_CAP_RXLDPC))))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
+
+	/* consider our LDPC support in case of HE */
+	if (sband->iftype_data && sband->iftype_data->he_cap.has_he &&
+	    !(sband->iftype_data->he_cap.he_cap_elem.phy_cap_info[1] &
+	     IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
+		flags &= ~IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
 
 	if (he_cap && he_cap->has_he &&
 	    (he_cap->he_cap_elem.phy_cap_info[3] &
@@ -383,13 +390,13 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_lq_sta_rs_fw *lq_sta = &mvmsta->lq_sta.rs_fw;
 	u32 cmd_id = iwl_cmd_id(TLC_MNG_CONFIG_CMD, DATA_PATH_GROUP, 0);
-	struct ieee80211_supported_band *sband;
+	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
 	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
 	struct iwl_tlc_config_cmd cfg_cmd = {
 		.sta_id = mvmsta->sta_id,
 		.max_ch_width = update ?
 			rs_fw_bw_from_sta_bw(sta) : RATE_MCS_CHAN_WIDTH_20,
-		.flags = cpu_to_le16(rs_fw_set_config_flags(mvm, sta)),
+		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, sta, sband)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(sta),
 		.max_mpdu_len = cpu_to_le16(max_amsdu_len),
@@ -402,7 +409,6 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	sband = hw->wiphy->bands[band];
 	rs_fw_set_supp_rates(sta, sband, &cfg_cmd);
 
 	/*
