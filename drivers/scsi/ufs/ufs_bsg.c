@@ -27,14 +27,10 @@ static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,
 
 static int ufs_bsg_verify_query_size(struct ufs_hba *hba,
 				     unsigned int request_len,
-				     unsigned int reply_len,
-				     int desc_len, enum query_opcode desc_op)
+				     unsigned int reply_len)
 {
 	int min_req_len = sizeof(struct ufs_bsg_request);
 	int min_rsp_len = sizeof(struct ufs_bsg_reply);
-
-	if (desc_op == UPIU_QUERY_OPCODE_WRITE_DESC)
-		min_req_len += desc_len;
 
 	if (min_req_len > request_len || min_rsp_len > reply_len) {
 		dev_err(hba->dev, "not enough space assigned\n");
@@ -44,14 +40,13 @@ static int ufs_bsg_verify_query_size(struct ufs_hba *hba,
 	return 0;
 }
 
-static int ufs_bsg_verify_query_params(struct ufs_hba *hba,
-				       struct ufs_bsg_request *bsg_request,
-				       unsigned int request_len,
-				       unsigned int reply_len,
-				       uint8_t *desc_buff, int *desc_len,
-				       enum query_opcode desc_op)
+static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
+				     uint8_t **desc_buff, int *desc_len,
+				     enum query_opcode desc_op)
 {
+	struct ufs_bsg_request *bsg_request = job->request;
 	struct utp_upiu_query *qr;
+	u8 *descp;
 
 	if (desc_op == UPIU_QUERY_OPCODE_READ_DESC) {
 		dev_err(hba->dev, "unsupported opcode %d\n", desc_op);
@@ -67,11 +62,19 @@ static int ufs_bsg_verify_query_params(struct ufs_hba *hba,
 		return -EINVAL;
 	}
 
-	if (ufs_bsg_verify_query_size(hba, request_len, reply_len, *desc_len,
-				      desc_op))
+	if (*desc_len > job->request_payload.payload_len) {
+		dev_err(hba->dev, "Illegal desc size\n");
 		return -EINVAL;
+	}
 
-	desc_buff = (uint8_t *)(bsg_request + 1);
+	descp = kzalloc(*desc_len, GFP_KERNEL);
+	if (!descp)
+		return -ENOMEM;
+
+	sg_copy_to_buffer(job->request_payload.sg_list,
+			  job->request_payload.sg_cnt, descp, *desc_len);
+
+	*desc_buff = descp;
 
 out:
 	return 0;
@@ -91,7 +94,7 @@ static int ufs_bsg_request(struct bsg_job *job)
 	enum query_opcode desc_op = UPIU_QUERY_OPCODE_NOP;
 	int ret;
 
-	ret = ufs_bsg_verify_query_size(hba, req_len, reply_len, 0, desc_op);
+	ret = ufs_bsg_verify_query_size(hba, req_len, reply_len);
 	if (ret)
 		goto out;
 
@@ -101,9 +104,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 	switch (msgcode) {
 	case UPIU_TRANSACTION_QUERY_REQ:
 		desc_op = bsg_request->upiu_req.qr.opcode;
-		ret = ufs_bsg_verify_query_params(hba, bsg_request, req_len,
-						  reply_len, desc_buff,
-						  &desc_len, desc_op);
+		ret = ufs_bsg_alloc_desc_buffer(hba, job, &desc_buff,
+						&desc_len, desc_op);
 		if (ret)
 			goto out;
 
@@ -135,11 +137,14 @@ static int ufs_bsg_request(struct bsg_job *job)
 		break;
 	}
 
+	if (!desc_buff)
+		goto out;
+
+	kfree(desc_buff);
+
 out:
 	bsg_reply->result = ret;
-	job->reply_len = sizeof(struct ufs_bsg_reply) +
-			 bsg_reply->reply_payload_rcv_len;
-
+	job->reply_len = sizeof(struct ufs_bsg_reply);
 	bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);
 
 	return ret;
