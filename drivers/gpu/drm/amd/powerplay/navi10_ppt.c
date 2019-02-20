@@ -101,10 +101,15 @@ static int navi10_message_map[SMU_MSG_MAX_COUNT] = {
 
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	if (index > SMU_MSG_MAX_COUNT || index > PPSMC_Message_Count)
+	int val;
+	if (index > SMU_MSG_MAX_COUNT)
 		return -EINVAL;
-	return navi10_message_map[index];
 
+	val = navi10_message_map[index];
+	if (val > PPSMC_Message_Count)
+		return -EINVAL;
+
+	return val;
 }
 
 static int
