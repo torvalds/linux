@@ -1856,6 +1856,8 @@ static int start_clock(struct usba_udc *udc)
 	if (udc->clocked)
 		return 0;
 
+	pm_stay_awake(&udc->pdev->dev);
+
 	ret = clk_prepare_enable(udc->pclk);
 	if (ret)
 		return ret;
@@ -1878,6 +1880,8 @@ static void stop_clock(struct usba_udc *udc)
 	clk_disable_unprepare(udc->pclk);
 
 	udc->clocked = false;
+
+	pm_relax(&udc->pdev->dev);
 }
 
 static int usba_start(struct usba_udc *udc)
