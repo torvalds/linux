@@ -1678,7 +1678,6 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned i;
-	bool wrote;
 	int ret;
 
 	down_read(&c->gc_lock);
@@ -1697,8 +1696,7 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 	}
 
 	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
-
-	return bch2_alloc_write(c, false, &wrote);
+	return 0;
 }
 
 void bch2_fs_allocator_background_init(struct bch_fs *c)
