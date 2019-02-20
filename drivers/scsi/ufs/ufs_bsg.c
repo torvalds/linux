@@ -48,12 +48,8 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 	struct utp_upiu_query *qr;
 	u8 *descp;
 
-	if (desc_op == UPIU_QUERY_OPCODE_READ_DESC) {
-		dev_err(hba->dev, "unsupported opcode %d\n", desc_op);
-		return -ENOTSUPP;
-	}
-
-	if (desc_op != UPIU_QUERY_OPCODE_WRITE_DESC)
+	if (desc_op != UPIU_QUERY_OPCODE_WRITE_DESC &&
+	    desc_op != UPIU_QUERY_OPCODE_READ_DESC)
 		goto out;
 
 	qr = &bsg_request->upiu_req.qr;
@@ -71,8 +67,10 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 	if (!descp)
 		return -ENOMEM;
 
-	sg_copy_to_buffer(job->request_payload.sg_list,
-			  job->request_payload.sg_cnt, descp, *desc_len);
+	if (desc_op == UPIU_QUERY_OPCODE_WRITE_DESC)
+		sg_copy_to_buffer(job->request_payload.sg_list,
+				  job->request_payload.sg_cnt, descp,
+				  *desc_len);
 
 	*desc_buff = descp;
 
@@ -139,6 +137,12 @@ static int ufs_bsg_request(struct bsg_job *job)
 
 	if (!desc_buff)
 		goto out;
+
+	if (desc_op == UPIU_QUERY_OPCODE_READ_DESC && desc_len)
+		bsg_reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(job->request_payload.sg_list,
+					    job->request_payload.sg_cnt,
+					    desc_buff, desc_len);
 
 	kfree(desc_buff);
 
