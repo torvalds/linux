@@ -85,6 +85,7 @@ struct mlxsw_sp_sb {
 	struct mlxsw_sp_sb_pr *prs;
 	struct mlxsw_sp_sb_port *ports;
 	u32 cell_size;
+	u32 max_headroom_cells;
 	u64 sb_size;
 };
 
@@ -111,6 +112,11 @@ u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes)
 {
 	return DIV_ROUND_UP(bytes, mlxsw_sp->sb->cell_size);
+}
+
+u32 mlxsw_sp_sb_max_headroom_cells(const struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_sp->sb->max_headroom_cells;
 }
 
 static struct mlxsw_sp_sb_pr *mlxsw_sp_sb_pr_get(struct mlxsw_sp *mlxsw_sp,
@@ -789,6 +795,7 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 {
+	u32 max_headroom_size;
 	u16 ing_pool_count;
 	u16 eg_pool_count;
 	int err;
@@ -799,12 +806,21 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
 		return -EIO;
 
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_HEADROOM_SIZE))
+		return -EIO;
+
 	mlxsw_sp->sb = kzalloc(sizeof(*mlxsw_sp->sb), GFP_KERNEL);
 	if (!mlxsw_sp->sb)
 		return -ENOMEM;
 	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
 	mlxsw_sp->sb->sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						   MAX_BUFFER_SIZE);
+	max_headroom_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+					       MAX_HEADROOM_SIZE);
+	/* Round down, because this limit must not be overstepped. */
+	mlxsw_sp->sb->max_headroom_cells = max_headroom_size /
+						mlxsw_sp->sb->cell_size;
+
 	err = mlxsw_sp_sb_ports_init(mlxsw_sp);
 	if (err)
 		goto err_sb_ports_init;
