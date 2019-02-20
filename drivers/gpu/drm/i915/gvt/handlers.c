@@ -3264,7 +3264,7 @@ void intel_gvt_clean_mmio_info(struct intel_gvt *gvt)
 /* Special MMIO blocks. */
 static struct gvt_mmio_block mmio_blocks[] = {
 	{D_SKL_PLUS, _MMIO(CSR_MMIO_START_RANGE), 0x3000, NULL, NULL},
-	{D_ALL, _MMIO(MCHBAR_MIRROR_BASE_SNB), 0x40000, NULL, NULL},
+	{D_ALL, MCHBAR_MIRROR_REG_BASE, 0x4000, NULL, NULL},
 	{D_ALL, _MMIO(VGT_PVINFO_PAGE), VGT_PVINFO_SIZE,
 		pvinfo_mmio_read, pvinfo_mmio_write},
 	{D_ALL, LGC_PALETTE(PIPE_A, 0), 1024, NULL, NULL},
