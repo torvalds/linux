@@ -876,7 +876,7 @@ void rtl92ce_enable_hw_security_config(struct ieee80211_hw *hw)
 	u8 sec_reg_value;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "PairwiseENcAlgorithm = %d GroupEncAlgorithm = %d\n",
+		 "PairwiseEncAlgorithm = %d GroupEncAlgorithm = %d\n",
 		 rtlpriv->sec.pairwise_enc_algorithm,
 		 rtlpriv->sec.group_enc_algorithm);
 
