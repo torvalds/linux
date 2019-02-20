@@ -1487,7 +1487,7 @@ CONFIG_DMA_CMA                                  policy<{'amd64': 'n', 'arm64': '
 CONFIG_CMA_SIZE_MBYTES                          policy<{'arm64': '16', 'armhf-generic': '16'}>
 CONFIG_CMA_ALIGNMENT                            policy<{'arm64': '8', 'armhf-generic': '8'}>
 #
-CONFIG_DMA_CMA                                  note<LP#1362261>
+CONFIG_DMA_CMA                                  note<ENFORCED> note<LP#1362261> note<LP:1803206>
 
 # Menu: Device Drivers >> Generic Driver Options >> DMA Contiguous Memory Allocator >> Selected region size
 CONFIG_CMA_SIZE_SEL_MBYTES                      policy<{'arm64': 'y', 'armhf-generic': 'y'}>
