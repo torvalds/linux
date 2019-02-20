@@ -19,22 +19,27 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "user.h"
 
-#include <nvif/class.h>
+static int
+tu102_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
+		    enum nvkm_object_map *type, u64 *addr, u64 *size)
+{
+	struct nvkm_device *device = object->engine->subdev.device;
+	*addr = 0xbb0000 + device->func->resource_addr(device, 0);
+	*size = 0x010000;
+	*type = NVKM_OBJECT_MAP_IO;
+	return 0;
+}
 
-static const struct nvkm_engine_func
-tu104_ce = {
-	.intr = gp100_ce_intr,
-	.sclass = {
-		{ -1, -1, TURING_DMA_COPY_A },
-		{}
-	}
+static const struct nvkm_object_func
+tu102_fifo_user = {
+	.map = tu102_fifo_user_map,
 };
 
 int
-tu104_ce_new(struct nvkm_device *device, int index,
-	     struct nvkm_engine **pengine)
+tu102_fifo_user_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nvkm_object **pobject)
 {
-	return nvkm_engine_new_(&tu104_ce, device, index, true, pengine);
+	return nvkm_object_new_(&tu102_fifo_user, oclass, argv, argc, pobject);
 }

@@ -19,34 +19,22 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "rootnv50.h"
-#include "channv50.h"
+#include "priv.h"
 
 #include <nvif/class.h>
 
-static const struct nv50_disp_root_func
-tu104_disp_root = {
-	.user = {
-		{{0,0,TU104_DISP_CURSOR                }, gv100_disp_curs_new },
-		{{0,0,TU104_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
-		{{0,0,TU104_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
-		{{0,0,TU104_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
+static const struct nvkm_engine_func
+tu102_ce = {
+	.intr = gp100_ce_intr,
+	.sclass = {
+		{ -1, -1, TURING_DMA_COPY_A },
 		{}
-	},
+	}
 };
 
-static int
-tu104_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
+int
+tu102_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
 {
-	return nv50_disp_root_new_(&tu104_disp_root, disp, oclass,
-				   data, size, pobject);
+	return nvkm_engine_new_(&tu102_ce, device, index, true, pengine);
 }
-
-const struct nvkm_disp_oclass
-tu104_disp_root_oclass = {
-	.base.oclass = TU104_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = tu104_disp_root_new,
-};

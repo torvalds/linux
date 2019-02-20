@@ -19,37 +19,25 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
+#include "mem.h"
+#include "vmm.h"
 
-static void
-tu104_mc_intr_hack(struct nvkm_mc *mc, bool *handled)
-{
-	struct nvkm_device *device = mc->subdev.device;
-	u32 stat = nvkm_rd32(device, 0xb81010);
-	if (stat & 0x00000050) {
-		struct nvkm_subdev *subdev =
-			nvkm_device_subdev(device, NVKM_SUBDEV_FAULT);
-		nvkm_wr32(device, 0xb81010, stat & 0x00000050);
-		if (subdev)
-			nvkm_subdev_intr(subdev);
-		*handled = true;
-	}
-}
+#include <core/option.h>
 
-static const struct nvkm_mc_func
-tu104_mc = {
-	.init = nv50_mc_init,
-	.intr = gp100_mc_intr,
-	.intr_unarm = gp100_mc_intr_unarm,
-	.intr_rearm = gp100_mc_intr_rearm,
-	.intr_mask = gp100_mc_intr_mask,
-	.intr_stat = gf100_mc_intr_stat,
-	.intr_hack = tu104_mc_intr_hack,
-	.reset = gk104_mc_reset,
+#include <nvif/class.h>
+
+static const struct nvkm_mmu_func
+tu102_mmu = {
+	.dma_bits = 47,
+	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
+	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
+	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GP100}, tu102_vmm_new },
+	.kind = gm200_mmu_kind,
+	.kind_sys = true,
 };
 
 int
-tu104_mc_new(struct nvkm_device *device, int index, struct nvkm_mc **pmc)
+tu102_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	return gp100_mc_new_(&tu104_mc, device, index, pmc);
+	return nvkm_mmu_new_(&tu102_mmu, device, index, pmmu);
 }

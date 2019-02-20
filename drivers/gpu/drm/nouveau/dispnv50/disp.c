@@ -817,7 +817,8 @@ nv50_msto_enable(struct drm_encoder *encoder)
 
 	r = drm_dp_mst_allocate_vcpi(&mstm->mgr, mstc->port, armh->dp.pbn,
 				     armh->dp.tu);
-	WARN_ON(!r);
+	if (!r)
+		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
 		nv50_outp_acquire(mstm->outp);
@@ -2220,8 +2221,8 @@ nv50_disp_func = {
  * Init
  *****************************************************************************/
 
-void
-nv50_display_fini(struct drm_device *dev)
+static void
+nv50_display_fini(struct drm_device *dev, bool suspend)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
@@ -2242,8 +2243,8 @@ nv50_display_fini(struct drm_device *dev)
 	}
 }
 
-int
-nv50_display_init(struct drm_device *dev)
+static int
+nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_encoder *encoder;
@@ -2269,7 +2270,7 @@ nv50_display_init(struct drm_device *dev)
 	return 0;
 }
 
-void
+static void
 nv50_display_destroy(struct drm_device *dev)
 {
 	struct nv50_disp *disp = nv50_disp(dev);
