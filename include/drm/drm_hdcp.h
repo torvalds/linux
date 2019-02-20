@@ -252,4 +252,22 @@ struct hdcp2_dp_errata_stream_type {
 #define HDCP_2_2_HDMI_RXSTATUS_READY(x)		((x) & BIT(2))
 #define HDCP_2_2_HDMI_RXSTATUS_REAUTH_REQ(x)	((x) & BIT(3))
 
+/*
+ * Helper functions to convert 24bit big endian hdcp sequence number to
+ * host format and back
+ */
+static inline
+u32 drm_hdcp2_seq_num_to_u32(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN])
+{
+	return (u32)(seq_num[2] | seq_num[1] << 8 | seq_num[0] << 16);
+}
+
+static inline
+void drm_hdcp2_u32_to_seq_num(u8 seq_num[HDCP_2_2_SEQ_NUM_LEN], u32 val)
+{
+	seq_num[0] = val >> 16;
+	seq_num[1] = val >> 8;
+	seq_num[2] = val;
+}
+
 #endif
