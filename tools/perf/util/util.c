@@ -120,16 +120,26 @@ int mkdir_p(char *path, mode_t mode)
 int rm_rf(const char *path)
 {
 	DIR *dir;
-	int ret = 0;
+	int ret;
 	struct dirent *d;
 	char namebuf[PATH_MAX];
+	struct stat statbuf;
 
-	dir = opendir(path);
-	if (dir == NULL)
+	/* Do not fail if there's no file. */
+	ret = lstat(path, &statbuf);
+	if (ret)
 		return 0;
 
+	/* Try to remove any file we get. */
+	if (!(statbuf.st_mode & S_IFDIR))
+		return unlink(path);
+
+	/* We have directory in path. */
+	dir = opendir(path);
+	if (dir == NULL)
+		return -1;
+
 	while ((d = readdir(dir)) != NULL && !ret) {
-		struct stat statbuf;
 
 		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
 			continue;
