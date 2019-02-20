@@ -21,12 +21,12 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 				struct btrfs_root_item *item)
 {
 	uuid_le uuid;
-	int len;
+	u32 len;
 	int need_reset = 0;
 
 	len = btrfs_item_size_nr(eb, slot);
 	read_extent_buffer(eb, item, btrfs_item_ptr_offset(eb, slot),
-			min_t(int, len, (int)sizeof(*item)));
+			   min_t(u32, len, sizeof(*item)));
 	if (len < sizeof(*item))
 		need_reset = 1;
 	if (!need_reset && btrfs_root_generation(item)
