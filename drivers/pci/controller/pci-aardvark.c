@@ -499,7 +499,7 @@ static void advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->data = pcie;
 	bridge->ops = &advk_pci_bridge_emul_ops;
 
-	pci_bridge_emul_init(bridge);
+	pci_bridge_emul_init(bridge, 0);
 
 }
 
