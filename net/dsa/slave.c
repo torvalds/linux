@@ -1408,16 +1408,49 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	return err;
 }
 
+static int dsa_slave_upper_vlan_check(struct net_device *dev,
+				      struct netdev_notifier_changeupper_info *
+				      info)
+{
+	struct netlink_ext_ack *ext_ack;
+	struct net_device *slave;
+	struct dsa_port *dp;
+
+	ext_ack = netdev_notifier_info_to_extack(&info->info);
+
+	if (!is_vlan_dev(dev))
+		return NOTIFY_DONE;
+
+	slave = vlan_dev_real_dev(dev);
+	if (!dsa_slave_dev_check(slave))
+		return NOTIFY_DONE;
+
+	dp = dsa_slave_to_port(slave);
+	if (!dp->bridge_dev)
+		return NOTIFY_DONE;
+
+	/* Deny enslaving a VLAN device into a VLAN-aware bridge */
+	if (br_vlan_enabled(dp->bridge_dev) &&
+	    netif_is_bridge_master(info->upper_dev) && info->linking) {
+		NL_SET_ERR_MSG_MOD(ext_ack,
+				   "Cannot enslave VLAN device into VLAN aware bridge");
+		return notifier_from_errno(-EINVAL);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (!dsa_slave_dev_check(dev))
-		return NOTIFY_DONE;
+	if (event == NETDEV_CHANGEUPPER) {
+		if (!dsa_slave_dev_check(dev))
+			return dsa_slave_upper_vlan_check(dev, ptr);
 
-	if (event == NETDEV_CHANGEUPPER)
 		return dsa_slave_changeupper(dev, ptr);
+	}
 
 	return NOTIFY_DONE;
 }
