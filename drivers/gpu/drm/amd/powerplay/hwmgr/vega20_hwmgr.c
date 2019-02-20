@@ -3332,6 +3332,31 @@ static int vega20_set_uclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
+static int vega20_set_fclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
+	struct vega20_single_dpm_table *dpm_table = &(data->dpm_table.fclk_table);
+	int ret = 0;
+
+	if (data->smu_features[GNLD_DPM_FCLK].enabled) {
+		PP_ASSERT_WITH_CODE(dpm_table->count > 0,
+				"[SetFclkToHightestDpmLevel] Dpm table has no entry!",
+				return -EINVAL);
+		PP_ASSERT_WITH_CODE(dpm_table->count <= NUM_FCLK_DPM_LEVELS,
+				"[SetFclkToHightestDpmLevel] Dpm table has too many entries!",
+				return -EINVAL);
+
+		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetSoftMinByFreq,
+				(PPCLK_FCLK << 16 ) | dpm_table->dpm_state.soft_min_level)),
+				"[SetFclkToHightestDpmLevel] Set soft min fclk failed!",
+				return ret);
+	}
+
+	return ret;
+}
+
 static int vega20_pre_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
 	struct vega20_hwmgr *data = (struct vega20_hwmgr *)(hwmgr->backend);
@@ -3342,8 +3367,10 @@ static int vega20_pre_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	ret = vega20_set_uclk_to_highest_dpm_level(hwmgr,
 			&data->dpm_table.mem_table);
+	if (ret)
+		return ret;
 
-	return ret;
+	return vega20_set_fclk_to_highest_dpm_level(hwmgr);
 }
 
 static int vega20_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
@@ -3501,6 +3528,15 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+
+	/* fclk */
+	dpm_table = &(data->dpm_table.fclk_table);
+	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
+	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	if (hwmgr->display_config->nb_pstate_switch_disable)
+		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
 	/* vclk */
 	dpm_table = &(data->dpm_table.vclk_table);
