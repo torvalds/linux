@@ -25,7 +25,10 @@
 #include <linux/types.h>
 #include <linux/rk-preisp.h>
 #include <linux/rkisp1-config.h>
+#include <linux/rk-camera-module.h>
 #include "rk1608_dphy.h"
+
+#define RK1608_DPHY_NAME	"RK1608-dphy"
 
 /**
  * Rk1608 is used as the Pre-ISP to link on Soc, which mainly has two
@@ -194,17 +197,21 @@ static int rk1608_g_frame_interval(struct v4l2_subdev *sd,
 static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
-	long ret;
+	long ret = 0;
 
 	switch (cmd) {
 	case PREISP_CMD_SAVE_HDRAE_PARAM:
 	case PREISP_CMD_SET_HDRAE_EXP:
+	case RKMODULE_GET_MODULE_INFO:
 		pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 		ret = v4l2_subdev_call(pdata->rk1608_sd, core, ioctl,
 				       cmd, arg);
 		return ret;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
 	}
-	return -ENOTTY;
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -213,6 +220,8 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 {
 	void __user *up = compat_ptr(arg);
 	struct preisp_hdrae_exp_s hdrae_exp;
+	struct rkmodule_inf *inf;
+	long ret;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -220,9 +229,24 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 
 		return rk1608_ioctl(sd, cmd, &hdrae_exp);
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = rk1608_ioctl(sd, cmd, inf);
+		if (!ret)
+			ret = copy_to_user(up, inf, sizeof(*inf));
+		kfree(inf);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
 	}
 
-	return -ENOTTY;
+	return ret;
 }
 #endif
 
@@ -461,11 +485,28 @@ static int rk1608_dphy_probe(struct platform_device *pdev)
 {
 	struct rk1608_dphy *dphy;
 	struct v4l2_subdev *sd;
+	struct device_node *node = pdev->dev.of_node;
+	char facing[2];
 	int ret = 0;
 
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
 		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &dphy->module_index);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &dphy->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &dphy->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &dphy->len_name);
+	if (ret) {
+		dev_err(dphy->dev,
+			"could not get module information!\n");
+		return -EINVAL;
+	}
+
 	dphy->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dphy);
 	sd = &dphy->sd;
@@ -473,7 +514,15 @@ static int rk1608_dphy_probe(struct platform_device *pdev)
 	v4l2_subdev_init(sd, &dphy_subdev_ops);
 	rk1608_dphy_dt_property(dphy);
 
-	snprintf(sd->name, sizeof(sd->name), "RK1608-dphy%d", sd->grp_id);
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(dphy->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s RK1608-dphy%d",
+		 dphy->module_index, facing,
+		 RK1608_DPHY_NAME, sd->grp_id);
 	rk1608_initialize_controls(dphy);
 	sd->internal_ops = &dphy_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -483,7 +532,7 @@ static int rk1608_dphy_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&sd->entity, 1, &dphy->pad);
 	if (ret < 0)
 		goto handler_err;
-	ret = v4l2_async_register_subdev(sd);
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret < 0)
 		goto register_err;
 
@@ -519,7 +568,7 @@ MODULE_DEVICE_TABLE(of, rk1608_of_match);
 static struct platform_driver rk1608_dphy_drv = {
 	.driver = {
 		.of_match_table = of_match_ptr(dphy_of_match),
-		.name	= "RK1608-dphy",
+		.name	= RK1608_DPHY_NAME,
 	},
 	.probe		= rk1608_dphy_probe,
 	.remove		= rk1608_dphy_remove,

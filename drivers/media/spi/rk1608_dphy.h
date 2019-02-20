@@ -22,4 +22,8 @@ struct rk1608_dphy {
 	u32 htotal;
 	u32 vtotal;
 	s64 link_freqs;
+	u32 module_index;
+	const char *module_facing;
+	const char *module_name;
+	const char *len_name;
 };

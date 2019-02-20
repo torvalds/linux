@@ -18,6 +18,7 @@
 #include <linux/of_platform.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rk-preisp.h>
+#include <linux/rk-camera-module.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
@@ -947,6 +948,10 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			gpiod_direction_output(pdata->aesync_gpio, 0);
 
 		rk1608_send_meta_hdrae(pdata, hdrae_exp);
+		break;
+	case RKMODULE_GET_MODULE_INFO:
+		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, ioctl,
+				 cmd, arg);
 		break;
 	default:
 		return -ENOTTY;
