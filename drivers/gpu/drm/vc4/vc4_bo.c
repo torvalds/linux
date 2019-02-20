@@ -40,7 +40,7 @@ static bool is_user_label(int label)
 	return label >= VC4_BO_TYPE_COUNT;
 }
 
-static void vc4_bo_stats_dump(struct vc4_dev *vc4)
+static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
 {
 	int i;
 
@@ -48,21 +48,21 @@ static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 		if (!vc4->bo_labels[i].num_allocated)
 			continue;
 
-		DRM_INFO("%30s: %6dkb BOs (%d)\n",
-			 vc4->bo_labels[i].name,
-			 vc4->bo_labels[i].size_allocated / 1024,
-			 vc4->bo_labels[i].num_allocated);
+		drm_printf(p, "%30s: %6dkb BOs (%d)\n",
+			   vc4->bo_labels[i].name,
+			   vc4->bo_labels[i].size_allocated / 1024,
+			   vc4->bo_labels[i].num_allocated);
 	}
 
 	mutex_lock(&vc4->purgeable.lock);
 	if (vc4->purgeable.num)
-		DRM_INFO("%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
-			 vc4->purgeable.size / 1024, vc4->purgeable.num);
+		drm_printf(p, "%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
+			   vc4->purgeable.size / 1024, vc4->purgeable.num);
 
 	if (vc4->purgeable.purged_num)
-		DRM_INFO("%30s: %6zdkb BOs (%d)\n", "total purged BO",
-			 vc4->purgeable.purged_size / 1024,
-			 vc4->purgeable.purged_num);
+		drm_printf(p, "%30s: %6zdkb BOs (%d)\n", "total purged BO",
+			   vc4->purgeable.purged_size / 1024,
+			   vc4->purgeable.purged_num);
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
@@ -72,30 +72,9 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	mutex_lock(&vc4->bo_lock);
-	for (i = 0; i < vc4->num_labels; i++) {
-		if (!vc4->bo_labels[i].num_allocated)
-			continue;
-
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n",
-			   vc4->bo_labels[i].name,
-			   vc4->bo_labels[i].size_allocated / 1024,
-			   vc4->bo_labels[i].num_allocated);
-	}
-	mutex_unlock(&vc4->bo_lock);
-
-	mutex_lock(&vc4->purgeable.lock);
-	if (vc4->purgeable.num)
-		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "userspace BO cache",
-			   vc4->purgeable.size / 1024, vc4->purgeable.num);
-
-	if (vc4->purgeable.purged_num)
-		seq_printf(m, "%30s: %6zdkb BOs (%d)\n", "total purged BO",
-			   vc4->purgeable.purged_size / 1024,
-			   vc4->purgeable.purged_num);
-	mutex_unlock(&vc4->purgeable.lock);
+	vc4_bo_stats_print(&p, vc4);
 
 	return 0;
 }
@@ -475,8 +454,9 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	}
 
 	if (IS_ERR(cma_obj)) {
+		struct drm_printer p = drm_info_printer(vc4->dev->dev);
 		DRM_ERROR("Failed to allocate from CMA:\n");
-		vc4_bo_stats_dump(vc4);
+		vc4_bo_stats_print(&p, vc4);
 		return ERR_PTR(-ENOMEM);
 	}
 	bo = to_vc4_bo(&cma_obj->base);
