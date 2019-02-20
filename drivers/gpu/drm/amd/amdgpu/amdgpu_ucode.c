@@ -77,6 +77,14 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr)
 			container_of(hdr, struct smc_firmware_header_v1_0, header);
 
 		DRM_DEBUG("ucode_start_addr: %u\n", le32_to_cpu(smc_hdr->ucode_start_addr));
+	} else if (version_major == 2) {
+		const struct smc_firmware_header_v1_0 *v1_hdr =
+			container_of(hdr, struct smc_firmware_header_v1_0, header);
+		const struct smc_firmware_header_v2_0 *v2_hdr =
+			container_of(v1_hdr, struct smc_firmware_header_v2_0, v1_0);
+
+		DRM_INFO("ppt_offset_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_offset_bytes));
+		DRM_INFO("ppt_size_bytes: %u\n", le32_to_cpu(v2_hdr->ppt_size_bytes));
 	} else {
 		DRM_ERROR("Unknown SMC ucode version: %u.%u\n", version_major, version_minor);
 	}
