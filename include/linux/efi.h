@@ -793,6 +793,7 @@ struct efi_fdt_params {
 	u32 mmap_size;
 	u32 desc_size;
 	u32 desc_ver;
+	u32 secure_boot;
 };
 
 typedef struct {

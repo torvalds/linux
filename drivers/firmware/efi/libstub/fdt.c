@@ -159,6 +159,12 @@ static efi_status_t update_fdt(efi_system_table_t *sys_table, void *orig_fdt,
 		}
 	}
 
+	fdt_val32 = cpu_to_fdt32(efi_get_secureboot(sys_table));
+	status = fdt_setprop(fdt, node, "linux,uefi-secure-boot",
+			     &fdt_val32, sizeof(fdt_val32));
+	if (status)
+		goto fdt_set_fail;
+
 	/* shrink the FDT back to its minimum size */
 	fdt_pack(fdt);
 

@@ -21,6 +21,7 @@
 #include <linux/of_fdt.h>
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
+#include <linux/security.h>
 
 #include <asm/efi.h>
 
@@ -256,6 +257,9 @@ void __init efi_init(void)
 		efi_memmap_unmap();
 		return;
 	}
+
+	efi_set_secure_boot(params.secure_boot);
+	init_lockdown();
 
 	reserve_regions();
 	efi_esrt_init();
