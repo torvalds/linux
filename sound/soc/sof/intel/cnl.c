@@ -155,7 +155,7 @@ static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 
 static int cnl_is_ipc_ready(struct snd_sof_dev *sdev)
 {
-	u64 busy, done;
+	u32 busy, done;
 
 	busy = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
 	done = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);

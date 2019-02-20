@@ -57,7 +57,7 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 
 int hda_dsp_is_ipc_ready(struct snd_sof_dev *sdev)
 {
-	u64 busy, done;
+	u32 busy, done;
 
 	/* is DSP ready for next IPC command */
 	busy = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI);
