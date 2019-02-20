@@ -184,6 +184,13 @@ struct vc4_dev {
 	/* Bitmask of the current bin_alloc used for overflow memory. */
 	uint32_t bin_alloc_overflow;
 
+	/* Incremented when an underrun error happened after an atomic commit.
+	 * This is particularly useful to detect when a specific modeset is too
+	 * demanding in term of memory or HVS bandwidth which is hard to guess
+	 * at atomic check time.
+	 */
+	atomic_t underrun;
+
 	struct work_struct overflow_mem_work;
 
 	int power_refcount;
@@ -767,6 +774,9 @@ void vc4_irq_reset(struct drm_device *dev);
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_dump_state(struct drm_device *dev);
 int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused);
+int vc4_hvs_debugfs_underrun(struct seq_file *m, void *unused);
+void vc4_hvs_unmask_underrun(struct drm_device *dev, int channel);
+void vc4_hvs_mask_underrun(struct drm_device *dev, int channel);
 
 /* vc4_kms.c */
 int vc4_kms_load(struct drm_device *dev);

@@ -138,6 +138,16 @@ vc4_atomic_complete_commit(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_crtc *vc4_crtc;
+	int i;
+
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		if (!state->crtcs[i].ptr || !state->crtcs[i].commit)
+			continue;
+
+		vc4_crtc = to_vc4_crtc(state->crtcs[i].ptr);
+		vc4_hvs_mask_underrun(dev, vc4_crtc->channel);
+	}
 
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 
