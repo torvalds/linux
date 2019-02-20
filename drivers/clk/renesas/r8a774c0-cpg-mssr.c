@@ -22,7 +22,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R8A774C0_CLK_CPEX,
+	LAST_DT_CORE_CLK = R8A774C0_CLK_CANFD,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
