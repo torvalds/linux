@@ -49,6 +49,10 @@
 					___PPC_RA(a) | ___PPC_RB(b))
 #define TEST_LXVD2X(s, a, b)	(PPC_INST_LXVD2X | VSX_XX1((s), R##a, R##b))
 #define TEST_STXVD2X(s, a, b)	(PPC_INST_STXVD2X | VSX_XX1((s), R##a, R##b))
+#define TEST_ADD(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b))
+#define TEST_ADD_DOT(t, a, b)	(PPC_INST_ADD | ___PPC_RT(t) |		\
+					___PPC_RA(a) | ___PPC_RB(b) | 0x1)
 
 #define MAX_SUBTESTS	16
 
@@ -470,6 +474,178 @@ static struct compute_test compute_tests[] = {
 				.instr = PPC_INST_NOP,
 				.regs = {
 					.gpr[0] = LONG_MAX,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "add",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADD(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "add.",
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MIN",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, RB = LONG_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MIN,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, RB = LONG_MAX",
+				.flags = IGNORE_CCR,
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = LONG_MAX,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = ULONG_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, RB = 0x1",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = ULONG_MAX,
+					.gpr[22] = 0x1,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MIN",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, RB = INT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MIN,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, RB = INT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = INT_MAX,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = UINT_MAX",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, RB = 0x1",
+				.instr = TEST_ADD_DOT(20, 21, 22),
+				.regs = {
+					.gpr[21] = UINT_MAX,
+					.gpr[22] = 0x1,
 				}
 			}
 		}
