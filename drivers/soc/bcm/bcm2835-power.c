@@ -150,7 +150,12 @@ struct bcm2835_power {
 
 static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
 {
-	u64 start = ktime_get_ns();
+	u64 start;
+
+	if (!reg)
+		return 0;
+
+	start = ktime_get_ns();
 
 	/* Enable the module's async AXI bridges. */
 	ASB_WRITE(reg, ASB_READ(reg) & ~ASB_REQ_STOP);
@@ -165,7 +170,12 @@ static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
 
 static int bcm2835_asb_disable(struct bcm2835_power *power, u32 reg)
 {
-	u64 start = ktime_get_ns();
+	u64 start;
+
+	if (!reg)
+		return 0;
+
+	start = ktime_get_ns();
 
 	/* Enable the module's async AXI bridges. */
 	ASB_WRITE(reg, ASB_READ(reg) | ASB_REQ_STOP);
