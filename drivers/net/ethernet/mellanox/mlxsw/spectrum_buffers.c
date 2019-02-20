@@ -76,6 +76,12 @@ struct mlxsw_sp_sb_vals {
 	const struct mlxsw_sp_sb_pool_des *pool_dess;
 	const struct mlxsw_sp_sb_pm *pms;
 	const struct mlxsw_sp_sb_pr *prs;
+	const struct mlxsw_sp_sb_cm *cms_ingress;
+	const struct mlxsw_sp_sb_cm *cms_egress;
+	const struct mlxsw_sp_sb_cm *cms_cpu;
+	unsigned int cms_ingress_count;
+	unsigned int cms_egress_count;
+	unsigned int cms_cpu_count;
 };
 
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells)
@@ -423,8 +429,6 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms_ingress[] = {
 	MLXSW_SP_SB_CM(20000, 1, 3),
 };
 
-#define MLXSW_SP_SB_CMS_INGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_cms_ingress)
-
 static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms_egress[] = {
 	MLXSW_SP_SB_CM(1500, 9, 4),
 	MLXSW_SP_SB_CM(1500, 9, 4),
@@ -444,8 +448,6 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_sb_cms_egress[] = {
 	MLXSW_SP_SB_CM(0, MLXSW_SP_SB_INFI, 8),
 	MLXSW_SP_SB_CM(1, 0xff, 4),
 };
-
-#define MLXSW_SP_SB_CMS_EGRESS_LEN ARRAY_SIZE(mlxsw_sp_sb_cms_egress)
 
 #define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, 4)
 
@@ -483,9 +485,6 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
 	MLXSW_SP_CPU_PORT_SB_CM,
 	MLXSW_SP_CPU_PORT_SB_CM,
 };
-
-#define MLXSW_SP_CPU_PORT_SB_MCS_LEN \
-	ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms)
 
 static bool
 mlxsw_sp_sb_pool_is_static(struct mlxsw_sp *mlxsw_sp, u16 pool_index)
@@ -538,27 +537,28 @@ static int __mlxsw_sp_sb_cms_init(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 
 static int mlxsw_sp_port_sb_cms_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int err;
 
-	err = __mlxsw_sp_sb_cms_init(mlxsw_sp_port->mlxsw_sp,
+	err = __mlxsw_sp_sb_cms_init(mlxsw_sp,
 				     mlxsw_sp_port->local_port,
 				     MLXSW_REG_SBXX_DIR_INGRESS,
-				     mlxsw_sp_sb_cms_ingress,
-				     MLXSW_SP_SB_CMS_INGRESS_LEN);
+				     mlxsw_sp->sb_vals->cms_ingress,
+				     mlxsw_sp->sb_vals->cms_ingress_count);
 	if (err)
 		return err;
 	return __mlxsw_sp_sb_cms_init(mlxsw_sp_port->mlxsw_sp,
 				      mlxsw_sp_port->local_port,
 				      MLXSW_REG_SBXX_DIR_EGRESS,
-				      mlxsw_sp_sb_cms_egress,
-				      MLXSW_SP_SB_CMS_EGRESS_LEN);
+				      mlxsw_sp->sb_vals->cms_egress,
+				      mlxsw_sp->sb_vals->cms_egress_count);
 }
 
 static int mlxsw_sp_cpu_port_sb_cms_init(struct mlxsw_sp *mlxsw_sp)
 {
 	return __mlxsw_sp_sb_cms_init(mlxsw_sp, 0, MLXSW_REG_SBXX_DIR_EGRESS,
-				      mlxsw_sp_cpu_port_sb_cms,
-				      MLXSW_SP_CPU_PORT_SB_MCS_LEN);
+				      mlxsw_sp->sb_vals->cms_cpu,
+				      mlxsw_sp->sb_vals->cms_cpu_count);
 }
 
 #define MLXSW_SP_SB_PM(_min_buff, _max_buff)	\
@@ -684,6 +684,12 @@ const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals = {
 	.pool_dess = mlxsw_sp_sb_pool_dess,
 	.pms = mlxsw_sp_sb_pms,
 	.prs = mlxsw_sp_sb_prs,
+	.cms_ingress = mlxsw_sp_sb_cms_ingress,
+	.cms_egress = mlxsw_sp_sb_cms_egress,
+	.cms_cpu = mlxsw_sp_cpu_port_sb_cms,
+	.cms_ingress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_ingress),
+	.cms_egress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_egress),
+	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
 };
 
 const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
@@ -691,6 +697,12 @@ const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals = {
 	.pool_dess = mlxsw_sp_sb_pool_dess,
 	.pms = mlxsw_sp_sb_pms,
 	.prs = mlxsw_sp_sb_prs,
+	.cms_ingress = mlxsw_sp_sb_cms_ingress,
+	.cms_egress = mlxsw_sp_sb_cms_egress,
+	.cms_cpu = mlxsw_sp_cpu_port_sb_cms,
+	.cms_ingress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_ingress),
+	.cms_egress_count = ARRAY_SIZE(mlxsw_sp_sb_cms_egress),
+	.cms_cpu_count = ARRAY_SIZE(mlxsw_sp_cpu_port_sb_cms),
 };
 
 int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
