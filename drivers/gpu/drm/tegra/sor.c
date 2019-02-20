@@ -2161,6 +2161,15 @@ static void tegra_sor_audio_prepare(struct tegra_sor *sor)
 {
 	u32 value;
 
+	/*
+	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
+	 * is used for interoperability between the HDA codec driver and the
+	 * HDMI/DP driver.
+	 */
+	value = SOR_INT_CODEC_SCRATCH1 | SOR_INT_CODEC_SCRATCH0;
+	tegra_sor_writel(sor, value, SOR_INT_ENABLE);
+	tegra_sor_writel(sor, value, SOR_INT_MASK);
+
 	tegra_sor_write_eld(sor);
 
 	value = SOR_AUDIO_HDA_PRESENSE_ELDV | SOR_AUDIO_HDA_PRESENSE_PD;
@@ -2170,6 +2179,8 @@ static void tegra_sor_audio_prepare(struct tegra_sor *sor)
 static void tegra_sor_audio_unprepare(struct tegra_sor *sor)
 {
 	tegra_sor_writel(sor, 0, SOR_AUDIO_HDA_PRESENSE);
+	tegra_sor_writel(sor, 0, SOR_INT_MASK);
+	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
 }
 
 static int tegra_sor_hdmi_enable_audio_infoframe(struct tegra_sor *sor)
@@ -2811,7 +2822,6 @@ static int tegra_sor_init(struct host1x_client *client)
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int connector = DRM_MODE_CONNECTOR_Unknown;
 	int encoder = DRM_MODE_ENCODER_NONE;
-	u32 value;
 	int err;
 
 	if (!sor->aux) {
@@ -2914,15 +2924,6 @@ static int tegra_sor_init(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
-	/*
-	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
-	 * is used for interoperability between the HDA codec driver and the
-	 * HDMI/DP driver.
-	 */
-	value = SOR_INT_CODEC_SCRATCH1 | SOR_INT_CODEC_SCRATCH0;
-	tegra_sor_writel(sor, value, SOR_INT_ENABLE);
-	tegra_sor_writel(sor, value, SOR_INT_MASK);
-
 	return 0;
 }
 
@@ -2930,9 +2931,6 @@ static int tegra_sor_exit(struct host1x_client *client)
 {
 	struct tegra_sor *sor = host1x_client_to_sor(client);
 	int err;
-
-	tegra_sor_writel(sor, 0, SOR_INT_MASK);
-	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
 
 	tegra_output_exit(&sor->output);
 
