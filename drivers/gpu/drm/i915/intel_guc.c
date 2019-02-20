@@ -203,11 +203,19 @@ int intel_guc_init(struct intel_guc *guc)
 		goto err_log;
 	GEM_BUG_ON(!guc->ads_vma);
 
+	if (HAS_GUC_CT(dev_priv)) {
+		ret = intel_guc_ct_init(&guc->ct);
+		if (ret)
+			goto err_ads;
+	}
+
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
 
 	return 0;
 
+err_ads:
+	intel_guc_ads_destroy(guc);
 err_log:
 	intel_guc_log_destroy(&guc->log);
 err_shared:
@@ -222,6 +230,10 @@ void intel_guc_fini(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
 	i915_ggtt_disable_guc(dev_priv);
+
+	if (HAS_GUC_CT(dev_priv))
+		intel_guc_ct_fini(&guc->ct);
+
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
