@@ -757,21 +757,25 @@
 				function = "can";
 			};
 
+			/omit-if-no-ref/
 			can_ph_pins: can-ph-pins {
 				pins = "PH20", "PH21";
 				function = "can";
 			};
 
+			/omit-if-no-ref/
 			clk_out_a_pin: clk-out-a-pin {
 				pins = "PI12";
 				function = "clk_out_a";
 			};
 
+			/omit-if-no-ref/
 			clk_out_b_pin: clk-out-b-pin {
 				pins = "PI13";
 				function = "clk_out_b";
 			};
 
+			/omit-if-no-ref/
 			emac_pa_pins: emac-pa-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
@@ -791,6 +795,7 @@
 				function = "emac";
 			};
 
+			/omit-if-no-ref/
 			gmac_mii_pins: gmac-mii-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
@@ -800,6 +805,7 @@
 				function = "gmac";
 			};
 
+			/omit-if-no-ref/
 			gmac_rgmii_pins: gmac-rgmii-pins {
 				pins = "PA0", "PA1", "PA2",
 				       "PA3", "PA4", "PA5", "PA6",
@@ -814,46 +820,55 @@
 				drive-strength = <40>;
 			};
 
+			/omit-if-no-ref/
 			i2c0_pins: i2c0-pins {
 				pins = "PB0", "PB1";
 				function = "i2c0";
 			};
 
+			/omit-if-no-ref/
 			i2c1_pins: i2c1-pins {
 				pins = "PB18", "PB19";
 				function = "i2c1";
 			};
 
+			/omit-if-no-ref/
 			i2c2_pins: i2c2-pins {
 				pins = "PB20", "PB21";
 				function = "i2c2";
 			};
 
+			/omit-if-no-ref/
 			i2c3_pins: i2c3-pins {
 				pins = "PI0", "PI1";
 				function = "i2c3";
 			};
 
+			/omit-if-no-ref/
 			ir0_rx_pin: ir0-rx-pin {
 				pins = "PB4";
 				function = "ir0";
 			};
 
+			/omit-if-no-ref/
 			ir0_tx_pin: ir0-tx-pin {
 				pins = "PB3";
 				function = "ir0";
 			};
 
+			/omit-if-no-ref/
 			ir1_rx_pin: ir1-rx-pin {
 				pins = "PB23";
 				function = "ir1";
 			};
 
+			/omit-if-no-ref/
 			ir1_tx_pin: ir1-tx-pin {
 				pins = "PB22";
 				function = "ir1";
 			};
 
+			/omit-if-no-ref/
 			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2",
 				       "PF3", "PF4", "PF5";
@@ -862,6 +877,7 @@
 				bias-pull-up;
 			};
 
+			/omit-if-no-ref/
 			mmc2_pins: mmc2-pins {
 				pins = "PC6", "PC7", "PC8",
 				       "PC9", "PC10", "PC11";
@@ -870,6 +886,7 @@
 				bias-pull-up;
 			};
 
+			/omit-if-no-ref/
 			mmc3_pins: mmc3-pins {
 				pins = "PI4", "PI5", "PI6",
 				       "PI7", "PI8", "PI9";
@@ -878,77 +895,92 @@
 				bias-pull-up;
 			};
 
+			/omit-if-no-ref/
 			ps2_0_pins: ps2-0-pins {
 				pins = "PI20", "PI21";
 				function = "ps2";
 			};
 
+			/omit-if-no-ref/
 			ps2_1_ph_pins: ps2-1-ph-pins {
 				pins = "PH12", "PH13";
 				function = "ps2";
 			};
 
+			/omit-if-no-ref/
 			pwm0_pin: pwm0-pin {
 				pins = "PB2";
 				function = "pwm";
 			};
 
+			/omit-if-no-ref/
 			pwm1_pin: pwm1-pin {
 				pins = "PI3";
 				function = "pwm";
 			};
 
+			/omit-if-no-ref/
 			spdif_tx_pin: spdif-tx-pin {
 				pins = "PB13";
 				function = "spdif";
 				bias-pull-up;
 			};
 
+			/omit-if-no-ref/
 			spi0_pi_pins: spi0-pi-pins {
 				pins = "PI11", "PI12", "PI13";
 				function = "spi0";
 			};
 
+			/omit-if-no-ref/
 			spi0_cs0_pi_pin: spi0-cs0-pi-pin {
 				pins = "PI10";
 				function = "spi0";
 			};
 
+			/omit-if-no-ref/
 			spi0_cs1_pi_pin: spi0-cs1-pi-pin {
 				pins = "PI14";
 				function = "spi0";
 			};
 
+			/omit-if-no-ref/
 			spi1_pi_pins: spi1-pi-pins {
 				pins = "PI17", "PI18", "PI19";
 				function = "spi1";
 			};
 
+			/omit-if-no-ref/
 			spi1_cs0_pi_pin: spi1-cs0-pi-pin {
 				pins = "PI16";
 				function = "spi1";
 			};
 
+			/omit-if-no-ref/
 			spi2_pb_pins: spi2-pb-pins {
 				pins = "PB15", "PB16", "PB17";
 				function = "spi2";
 			};
 
+			/omit-if-no-ref/
 			spi2_cs0_pb_pin: spi2-cs0-pb-pin {
 				pins = "PB14";
 				function = "spi2";
 			};
 
+			/omit-if-no-ref/
 			spi2_pc_pins: spi2-pc-pins {
 				pins = "PC20", "PC21", "PC22";
 				function = "spi2";
 			};
 
+			/omit-if-no-ref/
 			spi2_cs0_pc_pin: spi2-cs0-pc-pin {
 				pins = "PC19";
 				function = "spi2";
 			};
 
+			/omit-if-no-ref/
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB22", "PB23";
 				function = "uart0";
@@ -984,26 +1016,31 @@
 				function = "uart2";
 			};
 
+			/omit-if-no-ref/
 			uart2_pi_pins: uart2-pi-pins {
 				pins = "PI18", "PI19";
 				function = "uart2";
 			};
 
+			/omit-if-no-ref/
 			uart2_cts_rts_pi_pins: uart2-cts-rts-pi-pins {
 				pins = "PI16", "PI17";
 				function = "uart2";
 			};
 
+			/omit-if-no-ref/
 			uart3_pg_pins: uart3-pg-pins {
 				pins = "PG6", "PG7";
 				function = "uart3";
 			};
 
+			/omit-if-no-ref/
 			uart3_cts_rts_pg_pins: uart3-cts-rts-pg-pins {
 				pins = "PG8", "PG9";
 				function = "uart3";
 			};
 
+			/omit-if-no-ref/
 			uart3_ph_pins: uart3-ph-pins {
 				pins = "PH0", "PH1";
 				function = "uart3";
@@ -1015,11 +1052,13 @@
 				function = "uart3";
 			};
 
+			/omit-if-no-ref/
 			uart4_pg_pins: uart4-pg-pins {
 				pins = "PG10", "PG11";
 				function = "uart4";
 			};
 
+			/omit-if-no-ref/
 			uart4_ph_pins: uart4-ph-pins {
 				pins = "PH4", "PH5";
 				function = "uart4";
@@ -1031,6 +1070,7 @@
 				function = "uart5";
 			};
 
+			/omit-if-no-ref/
 			uart5_pi_pins: uart5-pi-pins {
 				pins = "PI10", "PI11";
 				function = "uart5";
@@ -1042,6 +1082,7 @@
 				function = "uart6";
 			};
 
+			/omit-if-no-ref/
 			uart6_pi_pins: uart6-pi-pins {
 				pins = "PI12", "PI13";
 				function = "uart6";
@@ -1053,6 +1094,7 @@
 				function = "uart7";
 			};
 
+			/omit-if-no-ref/
 			uart7_pi_pins: uart7-pi-pins {
 				pins = "PI20", "PI21";
 				function = "uart7";
