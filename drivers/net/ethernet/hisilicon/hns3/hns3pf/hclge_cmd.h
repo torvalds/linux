@@ -975,6 +975,6 @@ enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
 enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
 					  struct hclge_desc *desc);
 
-void hclge_destroy_cmd_queue(struct hclge_hw *hw);
+void hclge_cmd_uninit(struct hclge_dev *hdev);
 int hclge_cmd_queue_init(struct hclge_dev *hdev);
 #endif

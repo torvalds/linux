@@ -7669,7 +7669,7 @@ err_msi_irq_uninit:
 err_msi_uninit:
 	pci_free_irq_vectors(pdev);
 err_cmd_uninit:
-	hclge_destroy_cmd_queue(&hdev->hw);
+	hclge_cmd_uninit(hdev);
 err_pci_uninit:
 	pcim_iounmap(pdev, hdev->hw.io_base);
 	pci_clear_master(pdev);
@@ -7796,7 +7796,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	synchronize_irq(hdev->misc_vector.vector_irq);
 
 	hclge_hw_error_set_state(hdev, false);
-	hclge_destroy_cmd_queue(&hdev->hw);
+	hclge_cmd_uninit(hdev);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
 	mutex_destroy(&hdev->vport_lock);
