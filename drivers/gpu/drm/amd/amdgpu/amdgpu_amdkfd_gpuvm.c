@@ -719,13 +719,7 @@ static int update_gpuvm_pte(struct amdgpu_device *adev,
 		struct amdgpu_sync *sync)
 {
 	int ret;
-	struct amdgpu_vm *vm;
-	struct amdgpu_bo_va *bo_va;
-	struct amdgpu_bo *bo;
-
-	bo_va = entry->bo_va;
-	vm = bo_va->base.vm;
-	bo = bo_va->base.bo;
+	struct amdgpu_bo_va *bo_va = entry->bo_va;
 
 	/* Update the page tables  */
 	ret = amdgpu_vm_bo_update(adev, bo_va, false);
