@@ -1062,25 +1062,6 @@ static int smu_enable_umd_pstate(void *handle,
 	return 0;
 }
 
-int smu_unforce_dpm_levels(struct smu_context *smu)
-{
-	int ret = 0;
-
-	ret = smu_upload_dpm_level(smu, false);
-	if (ret) {
-		pr_err("Failed to upload DPM Bootup Levels!");
-		return ret;
-	}
-
-	ret = smu_upload_dpm_level(smu, true);
-	if (ret) {
-		pr_err("Failed to upload DPM Max Levels!");
-		return ret;
-	}
-
-	return ret;
-}
-
 int smu_adjust_power_state_dynamic(struct smu_context *smu,
 				   enum amd_dpm_forced_level level,
 				   bool skip_display_settings)

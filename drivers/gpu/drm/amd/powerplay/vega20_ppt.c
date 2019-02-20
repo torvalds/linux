@@ -931,7 +931,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	return size;
 }
 
-static int vega20_upload_dpm_level(struct smu_context *smu, bool max)
+static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
+				   uint32_t feature_mask)
 {
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
@@ -940,7 +941,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max)
 
 	dpm_table = smu->smu_dpm.dpm_context;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		single_dpm_table = &(dpm_table->gfx_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
 			single_dpm_table->dpm_state.soft_min_level;
@@ -954,7 +956,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
 		single_dpm_table = &(dpm_table->mem_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
 			single_dpm_table->dpm_state.soft_min_level;
@@ -968,6 +971,51 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max)
 		}
 	}
 
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
+		single_dpm_table = &(dpm_table->soc_table);
+		freq = max ? single_dpm_table->dpm_state.soft_max_level :
+			single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
+			(PPCLK_SOCCLK << 16) | (freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft %s socclk !\n",
+						max ? "max" : "min");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_FCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_FCLK_MASK)) {
+		single_dpm_table = &(dpm_table->fclk_table);
+		freq = max ? single_dpm_table->dpm_state.soft_max_level :
+			single_dpm_table->dpm_state.soft_min_level;
+		ret = smu_send_smc_msg_with_param(smu,
+			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
+			(PPCLK_FCLK << 16) | (freq & 0xffff));
+		if (ret) {
+			pr_err("Failed to set soft %s fclk !\n",
+						max ? "max" : "min");
+			return ret;
+		}
+	}
+
+	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT) &&
+	    (feature_mask & FEATURE_DPM_DCEFCLK_MASK)) {
+		single_dpm_table = &(dpm_table->dcef_table);
+		freq = single_dpm_table->dpm_state.hard_min_level;
+		if (!max) {
+			ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetHardMinByFreq,
+				(PPCLK_DCEFCLK << 16) | (freq & 0xffff));
+			if (ret) {
+				pr_err("Failed to set hard min dcefclk !\n");
+				return ret;
+			}
+		}
+	}
+
 	return ret;
 }
 
@@ -976,7 +1024,7 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 {
 	struct vega20_dpm_table *dpm_table;
 	struct vega20_single_dpm_table *single_dpm_table;
-	uint32_t soft_min_level, soft_max_level;
+	uint32_t soft_min_level, soft_max_level, hard_min_level;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	int ret = 0;
 
@@ -1008,13 +1056,13 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		single_dpm_table->dpm_state.soft_max_level =
 			single_dpm_table->dpm_levels[soft_max_level].value;
 
-		ret = vega20_upload_dpm_level(smu, false);
+		ret = vega20_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 		if (ret) {
 			pr_err("Failed to upload boot level to lowest!\n");
 			break;
 		}
 
-		ret = vega20_upload_dpm_level(smu, true);
+		ret = vega20_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 		if (ret)
 			pr_err("Failed to upload dpm max level to highest!\n");
 
@@ -1035,15 +1083,89 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		single_dpm_table->dpm_state.soft_max_level =
 			single_dpm_table->dpm_levels[soft_max_level].value;
 
-		ret = vega20_upload_dpm_level(smu, false);
+		ret = vega20_upload_dpm_level(smu, false, FEATURE_DPM_UCLK_MASK);
 		if (ret) {
 			pr_err("Failed to upload boot level to lowest!\n");
 			break;
 		}
 
-		ret = vega20_upload_dpm_level(smu, true);
+		ret = vega20_upload_dpm_level(smu, true, FEATURE_DPM_UCLK_MASK);
 		if (ret)
 			pr_err("Failed to upload dpm max level to highest!\n");
+
+		break;
+
+	case PP_SOCCLK:
+		single_dpm_table = &(dpm_table->soc_table);
+
+		if (soft_max_level >= single_dpm_table->count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level, single_dpm_table->count - 1);
+			ret = -EINVAL;
+			break;
+		}
+
+		single_dpm_table->dpm_state.soft_min_level =
+			single_dpm_table->dpm_levels[soft_min_level].value;
+		single_dpm_table->dpm_state.soft_max_level =
+			single_dpm_table->dpm_levels[soft_max_level].value;
+
+		ret = vega20_upload_dpm_level(smu, false, FEATURE_DPM_SOCCLK_MASK);
+		if (ret) {
+			pr_err("Failed to upload boot level to lowest!\n");
+			break;
+		}
+
+		ret = vega20_upload_dpm_level(smu, true, FEATURE_DPM_SOCCLK_MASK);
+		if (ret)
+			pr_err("Failed to upload dpm max level to highest!\n");
+
+		break;
+
+	case PP_FCLK:
+		single_dpm_table = &(dpm_table->fclk_table);
+
+		if (soft_max_level >= single_dpm_table->count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level, single_dpm_table->count - 1);
+			ret = -EINVAL;
+			break;
+		}
+
+		single_dpm_table->dpm_state.soft_min_level =
+			single_dpm_table->dpm_levels[soft_min_level].value;
+		single_dpm_table->dpm_state.soft_max_level =
+			single_dpm_table->dpm_levels[soft_max_level].value;
+
+		ret = vega20_upload_dpm_level(smu, false, FEATURE_DPM_FCLK_MASK);
+		if (ret) {
+			pr_err("Failed to upload boot level to lowest!\n");
+			break;
+		}
+
+		ret = vega20_upload_dpm_level(smu, true, FEATURE_DPM_FCLK_MASK);
+		if (ret)
+			pr_err("Failed to upload dpm max level to highest!\n");
+
+		break;
+
+	case PP_DCEFCLK:
+		hard_min_level = soft_min_level;
+		single_dpm_table = &(dpm_table->dcef_table);
+
+		if (hard_min_level >= single_dpm_table->count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					hard_min_level, single_dpm_table->count - 1);
+			ret = -EINVAL;
+			break;
+		}
+
+		single_dpm_table->dpm_state.hard_min_level =
+			single_dpm_table->dpm_levels[hard_min_level].value;
+
+		ret = vega20_upload_dpm_level(smu, false, FEATURE_DPM_DCEFCLK_MASK);
+		if (ret)
+			pr_err("Failed to upload boot level to lowest!\n");
 
 		break;
 
@@ -1722,17 +1844,69 @@ static int vega20_force_dpm_limit_value(struct smu_context *smu, bool highest)
 		dpm_table->mem_table.dpm_state.soft_max_level =
 		dpm_table->mem_table.dpm_levels[soft_level].value;
 
-	ret = vega20_upload_dpm_level(smu, false);
+	if (highest)
+		soft_level = vega20_find_highest_dpm_level(&(dpm_table->soc_table));
+	else
+		soft_level = vega20_find_lowest_dpm_level(&(dpm_table->soc_table));
+
+	dpm_table->soc_table.dpm_state.soft_min_level =
+		dpm_table->soc_table.dpm_state.soft_max_level =
+		dpm_table->soc_table.dpm_levels[soft_level].value;
+
+	ret = vega20_upload_dpm_level(smu, false, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload boot level to %s!\n",
 				highest ? "highest" : "lowest");
 		return ret;
 	}
 
-	ret = vega20_upload_dpm_level(smu, true);
+	ret = vega20_upload_dpm_level(smu, true, 0xFFFFFFFF);
 	if (ret) {
 		pr_err("Failed to upload dpm max level to %s!\n!",
 				highest ? "highest" : "lowest");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int vega20_unforce_dpm_levels(struct smu_context *smu)
+{
+	uint32_t soft_min_level, soft_max_level;
+	int ret = 0;
+	struct vega20_dpm_table *dpm_table =
+		(struct vega20_dpm_table *)smu->smu_dpm.dpm_context;
+
+	soft_min_level = vega20_find_lowest_dpm_level(&(dpm_table->gfx_table));
+	soft_max_level = vega20_find_highest_dpm_level(&(dpm_table->gfx_table));
+	dpm_table->gfx_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
+	dpm_table->gfx_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
+
+	soft_min_level = vega20_find_lowest_dpm_level(&(dpm_table->mem_table));
+	soft_max_level = vega20_find_highest_dpm_level(&(dpm_table->mem_table));
+	dpm_table->mem_table.dpm_state.soft_min_level =
+		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
+	dpm_table->mem_table.dpm_state.soft_max_level =
+		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
+
+	soft_min_level = vega20_find_lowest_dpm_level(&(dpm_table->soc_table));
+	soft_max_level = vega20_find_highest_dpm_level(&(dpm_table->soc_table));
+	dpm_table->soc_table.dpm_state.soft_min_level =
+		dpm_table->soc_table.dpm_levels[soft_min_level].value;
+	dpm_table->soc_table.dpm_state.soft_max_level =
+		dpm_table->soc_table.dpm_levels[soft_max_level].value;
+
+	ret = smu_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload DPM Bootup Levels!");
+		return ret;
+	}
+
+	ret = smu_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	if (ret) {
+		pr_err("Failed to upload DPM Max Levels!");
 		return ret;
 	}
 
@@ -2186,6 +2360,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
 	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
+	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.upload_dpm_level = vega20_upload_dpm_level,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
 };
