@@ -820,16 +820,12 @@ static int smu_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		ret = smu_load_microcode(smu);
-		if (ret)
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		ret = smu_check_fw_status(smu);
+		if (ret) {
+			pr_err("SMC firmware status is not correct\n");
 			return ret;
-	}
-
-	ret = smu_check_fw_status(smu);
-	if (ret) {
-		pr_err("SMC firmware status is not correct\n");
-		return ret;
+		}
 	}
 
 	mutex_lock(&smu->mutex);
