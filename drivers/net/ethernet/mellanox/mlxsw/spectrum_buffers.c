@@ -260,24 +260,24 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				     (unsigned long) pm);
 }
 
-static const u16 mlxsw_sp_pbs[] = {
-	[0] = 2 * ETH_FRAME_LEN,
-	[9] = 2 * MLXSW_PORT_MAX_MTU,
-};
-
-#define MLXSW_SP_PBS_LEN ARRAY_SIZE(mlxsw_sp_pbs)
+/* 1/4 of a headroom necessary for 100Gbps port and 100m cable. */
+#define MLXSW_SP_PB_HEADROOM 25632
 #define MLXSW_SP_PB_UNUSED 8
 
 static int mlxsw_sp_port_pb_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	const u32 pbs[] = {
+		[0] = MLXSW_SP_PB_HEADROOM * mlxsw_sp_port->mapping.width,
+		[9] = 2 * MLXSW_PORT_MAX_MTU,
+	};
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pbmc_pl[MLXSW_REG_PBMC_LEN];
 	int i;
 
 	mlxsw_reg_pbmc_pack(pbmc_pl, mlxsw_sp_port->local_port,
 			    0xffff, 0xffff / 2);
-	for (i = 0; i < MLXSW_SP_PBS_LEN; i++) {
-		u16 size = mlxsw_sp_bytes_cells(mlxsw_sp, mlxsw_sp_pbs[i]);
+	for (i = 0; i < ARRAY_SIZE(pbs); i++) {
+		u16 size = mlxsw_sp_bytes_cells(mlxsw_sp, pbs[i]);
 
 		if (i == MLXSW_SP_PB_UNUSED)
 			continue;
