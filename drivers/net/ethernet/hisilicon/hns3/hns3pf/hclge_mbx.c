@@ -305,6 +305,9 @@ static int hclge_set_vf_vlan_cfg(struct hclge_vport *vport,
 		memcpy(&proto, &mbx_req->msg[5], sizeof(proto));
 		status = hclge_set_vlan_filter(handle, cpu_to_be16(proto),
 					       vlan, is_kill);
+		if (!status)
+			is_kill ? hclge_rm_vport_vlan_table(vport, vlan, false)
+			: hclge_add_vport_vlan_table(vport, vlan);
 	} else if (mbx_req->msg[1] == HCLGE_MBX_VLAN_RX_OFF_CFG) {
 		struct hnae3_handle *handle = &vport->nic;
 		bool en = mbx_req->msg[2] ? true : false;
@@ -609,6 +612,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 						     HCLGE_MAC_ADDR_UC);
 			hclge_rm_vport_all_mac_table(vport, true,
 						     HCLGE_MAC_ADDR_MC);
+			hclge_rm_vport_all_vlan_table(vport, true);
 			mutex_unlock(&hdev->vport_cfg_mutex);
 			break;
 		default:
