@@ -106,10 +106,12 @@ static int sc27xx_efuse_poll_status(struct sc27xx_efuse *efuse, u32 bits)
 static int sc27xx_efuse_read(void *context, u32 offset, void *val, size_t bytes)
 {
 	struct sc27xx_efuse *efuse = context;
-	u32 buf;
+	u32 buf, blk_index = offset / SC27XX_EFUSE_BLOCK_WIDTH;
+	u32 blk_offset = (offset % SC27XX_EFUSE_BLOCK_WIDTH) * BITS_PER_BYTE;
 	int ret;
 
-	if (offset > SC27XX_EFUSE_BLOCK_MAX || bytes > SC27XX_EFUSE_BLOCK_WIDTH)
+	if (blk_index > SC27XX_EFUSE_BLOCK_MAX ||
+	    bytes > SC27XX_EFUSE_BLOCK_WIDTH)
 		return -EINVAL;
 
 	ret = sc27xx_efuse_lock(efuse);
@@ -133,7 +135,7 @@ static int sc27xx_efuse_read(void *context, u32 offset, void *val, size_t bytes)
 	/* Set the block address to be read. */
 	ret = regmap_write(efuse->regmap,
 			   efuse->base + SC27XX_EFUSE_BLOCK_INDEX,
-			   offset & SC27XX_EFUSE_BLOCK_MASK);
+			   blk_index & SC27XX_EFUSE_BLOCK_MASK);
 	if (ret)
 		goto disable_efuse;
 
@@ -171,8 +173,10 @@ disable_efuse:
 unlock_efuse:
 	sc27xx_efuse_unlock(efuse);
 
-	if (!ret)
+	if (!ret) {
+		buf >>= blk_offset;
 		memcpy(val, &buf, bytes);
+	}
 
 	return ret;
 }

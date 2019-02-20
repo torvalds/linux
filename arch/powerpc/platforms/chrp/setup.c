@@ -549,7 +549,7 @@ static void __init chrp_init_IRQ(void)
 static void __init
 chrp_init2(void)
 {
-#ifdef CONFIG_NVRAM
+#if IS_ENABLED(CONFIG_NVRAM)
 	chrp_nvram_init();
 #endif
 

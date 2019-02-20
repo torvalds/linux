@@ -33,6 +33,12 @@ extern int atari_dont_touch_floppy_select;
 
 extern int atari_SCC_reset_done;
 
+extern ssize_t atari_nvram_read(char *, size_t, loff_t *);
+extern ssize_t atari_nvram_write(char *, size_t, loff_t *);
+extern ssize_t atari_nvram_get_size(void);
+extern long atari_nvram_set_checksum(void);
+extern long atari_nvram_initialize(void);
+
 /* convenience macros for testing machine type */
 #define MACH_IS_ST	((atari_mch_cookie >> 16) == ATARI_MCH_ST)
 #define MACH_IS_STE	((atari_mch_cookie >> 16) == ATARI_MCH_STE && \

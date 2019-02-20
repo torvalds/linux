@@ -34,7 +34,6 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.5.0.0-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -73,14 +72,25 @@ enum vmwballoon_capabilities {
 	VMW_BALLOON_BATCHED_CMDS		= (1 << 2),
 	VMW_BALLOON_BATCHED_2M_CMDS		= (1 << 3),
 	VMW_BALLOON_SIGNALLED_WAKEUP_CMD	= (1 << 4),
+	VMW_BALLOON_64_BIT_TARGET		= (1 << 5)
 };
 
-#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_BASIC_CMDS \
+#define VMW_BALLOON_CAPABILITIES_COMMON	(VMW_BALLOON_BASIC_CMDS \
 					| VMW_BALLOON_BATCHED_CMDS \
 					| VMW_BALLOON_BATCHED_2M_CMDS \
 					| VMW_BALLOON_SIGNALLED_WAKEUP_CMD)
 
 #define VMW_BALLOON_2M_ORDER		(PMD_SHIFT - PAGE_SHIFT)
+
+/*
+ * 64-bit targets are only supported in 64-bit
+ */
+#ifdef CONFIG_64BIT
+#define VMW_BALLOON_CAPABILITIES	(VMW_BALLOON_CAPABILITIES_COMMON \
+					| VMW_BALLOON_64_BIT_TARGET)
+#else
+#define VMW_BALLOON_CAPABILITIES	VMW_BALLOON_CAPABILITIES_COMMON
+#endif
 
 enum vmballoon_page_size_type {
 	VMW_BALLOON_4K_PAGE,
@@ -572,8 +582,9 @@ static int vmballoon_send_get_target(struct vmballoon *b)
 
 	limit = totalram_pages();
 
-	/* Ensure limit fits in 32-bits */
-	if (limit != (u32)limit)
+	/* Ensure limit fits in 32-bits if 64-bit targets are not supported */
+	if (!(b->capabilities & VMW_BALLOON_64_BIT_TARGET) &&
+	    limit != (u32)limit)
 		return -EINVAL;
 
 	status = vmballoon_cmd(b, VMW_BALLOON_CMD_GET_TARGET, limit, 0);

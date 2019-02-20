@@ -17,6 +17,7 @@
 #include <linux/console.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
+#include <linux/nvram.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -146,41 +147,6 @@ static int __init ppc_setup_l3cr(char *str)
 	return 1;
 }
 __setup("l3cr=", ppc_setup_l3cr);
-
-#ifdef CONFIG_GENERIC_NVRAM
-
-/* Generic nvram hooks used by drivers/char/gen_nvram.c */
-unsigned char nvram_read_byte(int addr)
-{
-	if (ppc_md.nvram_read_val)
-		return ppc_md.nvram_read_val(addr);
-	return 0xff;
-}
-EXPORT_SYMBOL(nvram_read_byte);
-
-void nvram_write_byte(unsigned char val, int addr)
-{
-	if (ppc_md.nvram_write_val)
-		ppc_md.nvram_write_val(addr, val);
-}
-EXPORT_SYMBOL(nvram_write_byte);
-
-ssize_t nvram_get_size(void)
-{
-	if (ppc_md.nvram_size)
-		return ppc_md.nvram_size();
-	return -1;
-}
-EXPORT_SYMBOL(nvram_get_size);
-
-void nvram_sync(void)
-{
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
-}
-EXPORT_SYMBOL(nvram_sync);
-
-#endif /* CONFIG_NVRAM */
 
 static int __init ppc_init(void)
 {

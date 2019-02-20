@@ -68,7 +68,7 @@
 long __init pmac_time_init(void)
 {
 	s32 delta = 0;
-#ifdef CONFIG_NVRAM
+#if defined(CONFIG_NVRAM) && defined(CONFIG_PPC32)
 	int dst;
 	
 	delta = ((s32)pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0x9)) << 16;

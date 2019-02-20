@@ -24,7 +24,7 @@ static unsigned int nvram_size;
 static unsigned char nvram_buf[4];
 static DEFINE_SPINLOCK(nvram_lock);
 
-static unsigned char chrp_nvram_read(int addr)
+static unsigned char chrp_nvram_read_val(int addr)
 {
 	unsigned int done;
 	unsigned long flags;
@@ -46,7 +46,7 @@ static unsigned char chrp_nvram_read(int addr)
 	return ret;
 }
 
-static void chrp_nvram_write(int addr, unsigned char val)
+static void chrp_nvram_write_val(int addr, unsigned char val)
 {
 	unsigned int done;
 	unsigned long flags;
@@ -62,6 +62,11 @@ static void chrp_nvram_write(int addr, unsigned char val)
 		       __pa(nvram_buf), 1) != 0) || 1 != done)
 		printk(KERN_DEBUG "rtas IO error storing 0x%02x at %d", val, addr);
 	spin_unlock_irqrestore(&nvram_lock, flags);
+}
+
+static ssize_t chrp_nvram_size(void)
+{
+	return nvram_size;
 }
 
 void __init chrp_nvram_init(void)
@@ -85,8 +90,9 @@ void __init chrp_nvram_init(void)
 	printk(KERN_INFO "CHRP nvram contains %u bytes\n", nvram_size);
 	of_node_put(nvram);
 
-	ppc_md.nvram_read_val = chrp_nvram_read;
-	ppc_md.nvram_write_val = chrp_nvram_write;
+	ppc_md.nvram_read_val  = chrp_nvram_read_val;
+	ppc_md.nvram_write_val = chrp_nvram_write_val;
+	ppc_md.nvram_size      = chrp_nvram_size;
 
 	return;
 }
