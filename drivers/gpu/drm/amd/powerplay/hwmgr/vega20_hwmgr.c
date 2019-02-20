@@ -2314,31 +2314,7 @@ static int vega20_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 
 static int vega20_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega20_hwmgr *data =
-			(struct vega20_hwmgr *)(hwmgr->backend);
-	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
-
-	soft_min_level = vega20_find_lowest_dpm_level(&(data->dpm_table.gfx_table));
-	soft_max_level = vega20_find_highest_dpm_level(&(data->dpm_table.gfx_table));
-	data->dpm_table.gfx_table.dpm_state.soft_min_level =
-		data->dpm_table.gfx_table.dpm_levels[soft_min_level].value;
-	data->dpm_table.gfx_table.dpm_state.soft_max_level =
-		data->dpm_table.gfx_table.dpm_levels[soft_max_level].value;
-
-	soft_min_level = vega20_find_lowest_dpm_level(&(data->dpm_table.mem_table));
-	soft_max_level = vega20_find_highest_dpm_level(&(data->dpm_table.mem_table));
-	data->dpm_table.mem_table.dpm_state.soft_min_level =
-		data->dpm_table.mem_table.dpm_levels[soft_min_level].value;
-	data->dpm_table.mem_table.dpm_state.soft_max_level =
-		data->dpm_table.mem_table.dpm_levels[soft_max_level].value;
-
-	soft_min_level = vega20_find_lowest_dpm_level(&(data->dpm_table.soc_table));
-	soft_max_level = vega20_find_highest_dpm_level(&(data->dpm_table.soc_table));
-	data->dpm_table.soc_table.dpm_state.soft_min_level =
-		data->dpm_table.soc_table.dpm_levels[soft_min_level].value;
-	data->dpm_table.soc_table.dpm_state.soft_max_level =
-		data->dpm_table.soc_table.dpm_levels[soft_max_level].value;
 
 	ret = vega20_upload_dpm_min_level(hwmgr, 0xFFFFFFFF);
 	PP_ASSERT_WITH_CODE(!ret,
