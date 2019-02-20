@@ -463,9 +463,9 @@ static int vega20_setup_asic_task(struct pp_hwmgr *hwmgr)
 static void vega20_init_dpm_state(struct vega20_dpm_state *dpm_state)
 {
 	dpm_state->soft_min_level = 0x0;
-	dpm_state->soft_max_level = 0xffff;
+	dpm_state->soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_state->hard_min_level = 0x0;
-	dpm_state->hard_max_level = 0xffff;
+	dpm_state->hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 }
 
 static int vega20_get_number_of_dpm_level(struct pp_hwmgr *hwmgr,
@@ -3458,9 +3458,9 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* gfxclk */
 	dpm_table = &(data->dpm_table.gfx_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_GFXCLK_LEVEL < dpm_table->count) {
@@ -3482,9 +3482,9 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* memclk */
 	dpm_table = &(data->dpm_table.mem_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_MCLK_LEVEL < dpm_table->count) {
@@ -3526,18 +3526,18 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* fclk */
 	dpm_table = &(data->dpm_table.fclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 	if (hwmgr->display_config->nb_pstate_switch_disable)
 		dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 
 	/* vclk */
 	dpm_table = &(data->dpm_table.vclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
@@ -3554,9 +3554,9 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* dclk */
 	dpm_table = &(data->dpm_table.dclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_UVDCLK_LEVEL < dpm_table->count) {
@@ -3573,9 +3573,9 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* socclk */
 	dpm_table = &(data->dpm_table.soc_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_SOCCLK_LEVEL < dpm_table->count) {
@@ -3592,9 +3592,9 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	/* eclk */
 	dpm_table = &(data->dpm_table.eclk_table);
 	dpm_table->dpm_state.soft_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.soft_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.soft_max_level = VG20_CLOCK_MAX_DEFAULT;
 	dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[0].value;
-	dpm_table->dpm_state.hard_max_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
+	dpm_table->dpm_state.hard_max_level = VG20_CLOCK_MAX_DEFAULT;
 
 	if (PP_CAP(PHM_PlatformCaps_UMDPState)) {
 		if (VEGA20_UMD_PSTATE_VCEMCLK_LEVEL < dpm_table->count) {

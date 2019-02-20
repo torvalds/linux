@@ -42,6 +42,8 @@
 #define AVFS_CURVE 0
 #define OD8_HOTCURVE_TEMPERATURE 85
 
+#define VG20_CLOCK_MAX_DEFAULT 0xFFFF
+
 typedef uint32_t PP_Clock;
 
 enum {
