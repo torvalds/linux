@@ -101,6 +101,8 @@ struct vc4_dpi {
 
 	struct clk *pixel_clock;
 	struct clk *core_clock;
+
+	struct debugfs_regset32 regset;
 };
 
 #define DPI_READ(offset) readl(dpi->regs + (offset))
@@ -118,13 +120,9 @@ to_vc4_dpi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_dpi_encoder, base.base);
 }
 
-#define DPI_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} dpi_regs[] = {
-	DPI_REG(DPI_C),
-	DPI_REG(DPI_ID),
+static const struct debugfs_reg32 dpi_regs[] = {
+	VC4_REG32(DPI_C),
+	VC4_REG32(DPI_ID),
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -134,16 +132,12 @@ int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_dpi *dpi = vc4->dpi;
-	int i;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!dpi)
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(dpi_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   dpi_regs[i].name, dpi_regs[i].reg,
-			   DPI_READ(dpi_regs[i].reg));
-	}
+	drm_print_regset32(&p, &dpi->regset);
 
 	return 0;
 }
@@ -314,6 +308,9 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 	dpi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dpi->regs))
 		return PTR_ERR(dpi->regs);
+	dpi->regset.base = dpi->regs;
+	dpi->regset.regs = dpi_regs;
+	dpi->regset.nregs = ARRAY_SIZE(dpi_regs);
 
 	if (DPI_READ(DPI_ID) != DPI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",

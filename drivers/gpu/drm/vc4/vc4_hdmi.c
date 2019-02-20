@@ -97,6 +97,9 @@ struct vc4_hdmi {
 
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
+
+	struct debugfs_regset32 hdmi_regset;
+	struct debugfs_regset32 hd_regset;
 };
 
 #define HDMI_READ(offset) readl(vc4->hdmi->hdmicore_regs + offset)
@@ -134,61 +137,54 @@ to_vc4_hdmi_connector(struct drm_connector *connector)
 	return container_of(connector, struct vc4_hdmi_connector, base);
 }
 
-#define HDMI_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} hdmi_regs[] = {
-	HDMI_REG(VC4_HDMI_CORE_REV),
-	HDMI_REG(VC4_HDMI_SW_RESET_CONTROL),
-	HDMI_REG(VC4_HDMI_HOTPLUG_INT),
-	HDMI_REG(VC4_HDMI_HOTPLUG),
-	HDMI_REG(VC4_HDMI_MAI_CHANNEL_MAP),
-	HDMI_REG(VC4_HDMI_MAI_CONFIG),
-	HDMI_REG(VC4_HDMI_MAI_FORMAT),
-	HDMI_REG(VC4_HDMI_AUDIO_PACKET_CONFIG),
-	HDMI_REG(VC4_HDMI_RAM_PACKET_CONFIG),
-	HDMI_REG(VC4_HDMI_HORZA),
-	HDMI_REG(VC4_HDMI_HORZB),
-	HDMI_REG(VC4_HDMI_FIFO_CTL),
-	HDMI_REG(VC4_HDMI_SCHEDULER_CONTROL),
-	HDMI_REG(VC4_HDMI_VERTA0),
-	HDMI_REG(VC4_HDMI_VERTA1),
-	HDMI_REG(VC4_HDMI_VERTB0),
-	HDMI_REG(VC4_HDMI_VERTB1),
-	HDMI_REG(VC4_HDMI_TX_PHY_RESET_CTL),
-	HDMI_REG(VC4_HDMI_TX_PHY_CTL0),
+static const struct debugfs_reg32 hdmi_regs[] = {
+	VC4_REG32(VC4_HDMI_CORE_REV),
+	VC4_REG32(VC4_HDMI_SW_RESET_CONTROL),
+	VC4_REG32(VC4_HDMI_HOTPLUG_INT),
+	VC4_REG32(VC4_HDMI_HOTPLUG),
+	VC4_REG32(VC4_HDMI_MAI_CHANNEL_MAP),
+	VC4_REG32(VC4_HDMI_MAI_CONFIG),
+	VC4_REG32(VC4_HDMI_MAI_FORMAT),
+	VC4_REG32(VC4_HDMI_AUDIO_PACKET_CONFIG),
+	VC4_REG32(VC4_HDMI_RAM_PACKET_CONFIG),
+	VC4_REG32(VC4_HDMI_HORZA),
+	VC4_REG32(VC4_HDMI_HORZB),
+	VC4_REG32(VC4_HDMI_FIFO_CTL),
+	VC4_REG32(VC4_HDMI_SCHEDULER_CONTROL),
+	VC4_REG32(VC4_HDMI_VERTA0),
+	VC4_REG32(VC4_HDMI_VERTA1),
+	VC4_REG32(VC4_HDMI_VERTB0),
+	VC4_REG32(VC4_HDMI_VERTB1),
+	VC4_REG32(VC4_HDMI_TX_PHY_RESET_CTL),
+	VC4_REG32(VC4_HDMI_TX_PHY_CTL0),
 
-	HDMI_REG(VC4_HDMI_CEC_CNTRL_1),
-	HDMI_REG(VC4_HDMI_CEC_CNTRL_2),
-	HDMI_REG(VC4_HDMI_CEC_CNTRL_3),
-	HDMI_REG(VC4_HDMI_CEC_CNTRL_4),
-	HDMI_REG(VC4_HDMI_CEC_CNTRL_5),
-	HDMI_REG(VC4_HDMI_CPU_STATUS),
-	HDMI_REG(VC4_HDMI_CPU_MASK_STATUS),
+	VC4_REG32(VC4_HDMI_CEC_CNTRL_1),
+	VC4_REG32(VC4_HDMI_CEC_CNTRL_2),
+	VC4_REG32(VC4_HDMI_CEC_CNTRL_3),
+	VC4_REG32(VC4_HDMI_CEC_CNTRL_4),
+	VC4_REG32(VC4_HDMI_CEC_CNTRL_5),
+	VC4_REG32(VC4_HDMI_CPU_STATUS),
+	VC4_REG32(VC4_HDMI_CPU_MASK_STATUS),
 
-	HDMI_REG(VC4_HDMI_CEC_RX_DATA_1),
-	HDMI_REG(VC4_HDMI_CEC_RX_DATA_2),
-	HDMI_REG(VC4_HDMI_CEC_RX_DATA_3),
-	HDMI_REG(VC4_HDMI_CEC_RX_DATA_4),
-	HDMI_REG(VC4_HDMI_CEC_TX_DATA_1),
-	HDMI_REG(VC4_HDMI_CEC_TX_DATA_2),
-	HDMI_REG(VC4_HDMI_CEC_TX_DATA_3),
-	HDMI_REG(VC4_HDMI_CEC_TX_DATA_4),
+	VC4_REG32(VC4_HDMI_CEC_RX_DATA_1),
+	VC4_REG32(VC4_HDMI_CEC_RX_DATA_2),
+	VC4_REG32(VC4_HDMI_CEC_RX_DATA_3),
+	VC4_REG32(VC4_HDMI_CEC_RX_DATA_4),
+	VC4_REG32(VC4_HDMI_CEC_TX_DATA_1),
+	VC4_REG32(VC4_HDMI_CEC_TX_DATA_2),
+	VC4_REG32(VC4_HDMI_CEC_TX_DATA_3),
+	VC4_REG32(VC4_HDMI_CEC_TX_DATA_4),
 };
 
-static const struct {
-	u32 reg;
-	const char *name;
-} hd_regs[] = {
-	HDMI_REG(VC4_HD_M_CTL),
-	HDMI_REG(VC4_HD_MAI_CTL),
-	HDMI_REG(VC4_HD_MAI_THR),
-	HDMI_REG(VC4_HD_MAI_FMT),
-	HDMI_REG(VC4_HD_MAI_SMP),
-	HDMI_REG(VC4_HD_VID_CTL),
-	HDMI_REG(VC4_HD_CSC_CTL),
-	HDMI_REG(VC4_HD_FRAME_COUNT),
+static const struct debugfs_reg32 hd_regs[] = {
+	VC4_REG32(VC4_HD_M_CTL),
+	VC4_REG32(VC4_HD_MAI_CTL),
+	VC4_REG32(VC4_HD_MAI_THR),
+	VC4_REG32(VC4_HD_MAI_FMT),
+	VC4_REG32(VC4_HD_MAI_SMP),
+	VC4_REG32(VC4_HD_VID_CTL),
+	VC4_REG32(VC4_HD_CSC_CTL),
+	VC4_REG32(VC4_HD_FRAME_COUNT),
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -197,40 +193,15 @@ int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
+	struct vc4_hdmi *hdmi = vc4->hdmi;
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	for (i = 0; i < ARRAY_SIZE(hdmi_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   hdmi_regs[i].name, hdmi_regs[i].reg,
-			   HDMI_READ(hdmi_regs[i].reg));
-	}
-
-	for (i = 0; i < ARRAY_SIZE(hd_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   hd_regs[i].name, hd_regs[i].reg,
-			   HD_READ(hd_regs[i].reg));
-	}
+	drm_print_regset32(&p, &hdmi->hdmi_regset);
+	drm_print_regset32(&p, &hdmi->hd_regset);
 
 	return 0;
 }
 #endif /* CONFIG_DEBUG_FS */
-
-static void vc4_hdmi_dump_regs(struct drm_device *dev)
-{
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hdmi_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 hdmi_regs[i].reg, hdmi_regs[i].name,
-			 HDMI_READ(hdmi_regs[i].reg));
-	}
-	for (i = 0; i < ARRAY_SIZE(hd_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 hd_regs[i].reg, hd_regs[i].name,
-			 HD_READ(hd_regs[i].reg));
-	}
-}
 
 static enum drm_connector_status
 vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
@@ -561,8 +532,11 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	HDMI_WRITE(VC4_HDMI_TX_PHY_RESET_CTL, 0);
 
 	if (debug_dump_regs) {
-		DRM_INFO("HDMI regs before:\n");
-		vc4_hdmi_dump_regs(dev);
+		struct drm_printer p = drm_info_printer(&hdmi->pdev->dev);
+
+		dev_info(&hdmi->pdev->dev, "HDMI regs before:\n");
+		drm_print_regset32(&p, &hdmi->hdmi_regset);
+		drm_print_regset32(&p, &hdmi->hd_regset);
 	}
 
 	HD_WRITE(VC4_HD_VID_CTL, 0);
@@ -637,8 +611,11 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	HDMI_WRITE(VC4_HDMI_FIFO_CTL, VC4_HDMI_FIFO_CTL_MASTER_SLAVE_N);
 
 	if (debug_dump_regs) {
-		DRM_INFO("HDMI regs after:\n");
-		vc4_hdmi_dump_regs(dev);
+		struct drm_printer p = drm_info_printer(&hdmi->pdev->dev);
+
+		dev_info(&hdmi->pdev->dev, "HDMI regs after:\n");
+		drm_print_regset32(&p, &hdmi->hdmi_regset);
+		drm_print_regset32(&p, &hdmi->hd_regset);
 	}
 
 	HD_WRITE(VC4_HD_VID_CTL,
@@ -1332,6 +1309,13 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi->hd_regs = vc4_ioremap_regs(pdev, 1);
 	if (IS_ERR(hdmi->hd_regs))
 		return PTR_ERR(hdmi->hd_regs);
+
+	hdmi->hdmi_regset.base = hdmi->hdmicore_regs;
+	hdmi->hdmi_regset.regs = hdmi_regs;
+	hdmi->hdmi_regset.nregs = ARRAY_SIZE(hdmi_regs);
+	hdmi->hd_regset.base = hdmi->hd_regs;
+	hdmi->hd_regset.regs = hd_regs;
+	hdmi->hd_regset.nregs = ARRAY_SIZE(hd_regs);
 
 	hdmi->pixel_clock = devm_clk_get(dev, "pixel");
 	if (IS_ERR(hdmi->pixel_clock)) {

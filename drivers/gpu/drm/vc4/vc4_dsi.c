@@ -545,6 +545,8 @@ struct vc4_dsi {
 
 	struct completion xfer_completion;
 	int xfer_result;
+
+	struct debugfs_regset32 regset;
 };
 
 #define host_to_dsi(host) container_of(host, struct vc4_dsi, dsi_host)
@@ -605,81 +607,55 @@ to_vc4_dsi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_dsi_encoder, base.base);
 }
 
-#define DSI_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} dsi0_regs[] = {
-	DSI_REG(DSI0_CTRL),
-	DSI_REG(DSI0_STAT),
-	DSI_REG(DSI0_HSTX_TO_CNT),
-	DSI_REG(DSI0_LPRX_TO_CNT),
-	DSI_REG(DSI0_TA_TO_CNT),
-	DSI_REG(DSI0_PR_TO_CNT),
-	DSI_REG(DSI0_DISP0_CTRL),
-	DSI_REG(DSI0_DISP1_CTRL),
-	DSI_REG(DSI0_INT_STAT),
-	DSI_REG(DSI0_INT_EN),
-	DSI_REG(DSI0_PHYC),
-	DSI_REG(DSI0_HS_CLT0),
-	DSI_REG(DSI0_HS_CLT1),
-	DSI_REG(DSI0_HS_CLT2),
-	DSI_REG(DSI0_HS_DLT3),
-	DSI_REG(DSI0_HS_DLT4),
-	DSI_REG(DSI0_HS_DLT5),
-	DSI_REG(DSI0_HS_DLT6),
-	DSI_REG(DSI0_HS_DLT7),
-	DSI_REG(DSI0_PHY_AFEC0),
-	DSI_REG(DSI0_PHY_AFEC1),
-	DSI_REG(DSI0_ID),
+static const struct debugfs_reg32 dsi0_regs[] = {
+	VC4_REG32(DSI0_CTRL),
+	VC4_REG32(DSI0_STAT),
+	VC4_REG32(DSI0_HSTX_TO_CNT),
+	VC4_REG32(DSI0_LPRX_TO_CNT),
+	VC4_REG32(DSI0_TA_TO_CNT),
+	VC4_REG32(DSI0_PR_TO_CNT),
+	VC4_REG32(DSI0_DISP0_CTRL),
+	VC4_REG32(DSI0_DISP1_CTRL),
+	VC4_REG32(DSI0_INT_STAT),
+	VC4_REG32(DSI0_INT_EN),
+	VC4_REG32(DSI0_PHYC),
+	VC4_REG32(DSI0_HS_CLT0),
+	VC4_REG32(DSI0_HS_CLT1),
+	VC4_REG32(DSI0_HS_CLT2),
+	VC4_REG32(DSI0_HS_DLT3),
+	VC4_REG32(DSI0_HS_DLT4),
+	VC4_REG32(DSI0_HS_DLT5),
+	VC4_REG32(DSI0_HS_DLT6),
+	VC4_REG32(DSI0_HS_DLT7),
+	VC4_REG32(DSI0_PHY_AFEC0),
+	VC4_REG32(DSI0_PHY_AFEC1),
+	VC4_REG32(DSI0_ID),
 };
 
-static const struct {
-	u32 reg;
-	const char *name;
-} dsi1_regs[] = {
-	DSI_REG(DSI1_CTRL),
-	DSI_REG(DSI1_STAT),
-	DSI_REG(DSI1_HSTX_TO_CNT),
-	DSI_REG(DSI1_LPRX_TO_CNT),
-	DSI_REG(DSI1_TA_TO_CNT),
-	DSI_REG(DSI1_PR_TO_CNT),
-	DSI_REG(DSI1_DISP0_CTRL),
-	DSI_REG(DSI1_DISP1_CTRL),
-	DSI_REG(DSI1_INT_STAT),
-	DSI_REG(DSI1_INT_EN),
-	DSI_REG(DSI1_PHYC),
-	DSI_REG(DSI1_HS_CLT0),
-	DSI_REG(DSI1_HS_CLT1),
-	DSI_REG(DSI1_HS_CLT2),
-	DSI_REG(DSI1_HS_DLT3),
-	DSI_REG(DSI1_HS_DLT4),
-	DSI_REG(DSI1_HS_DLT5),
-	DSI_REG(DSI1_HS_DLT6),
-	DSI_REG(DSI1_HS_DLT7),
-	DSI_REG(DSI1_PHY_AFEC0),
-	DSI_REG(DSI1_PHY_AFEC1),
-	DSI_REG(DSI1_ID),
+static const struct debugfs_reg32 dsi1_regs[] = {
+	VC4_REG32(DSI1_CTRL),
+	VC4_REG32(DSI1_STAT),
+	VC4_REG32(DSI1_HSTX_TO_CNT),
+	VC4_REG32(DSI1_LPRX_TO_CNT),
+	VC4_REG32(DSI1_TA_TO_CNT),
+	VC4_REG32(DSI1_PR_TO_CNT),
+	VC4_REG32(DSI1_DISP0_CTRL),
+	VC4_REG32(DSI1_DISP1_CTRL),
+	VC4_REG32(DSI1_INT_STAT),
+	VC4_REG32(DSI1_INT_EN),
+	VC4_REG32(DSI1_PHYC),
+	VC4_REG32(DSI1_HS_CLT0),
+	VC4_REG32(DSI1_HS_CLT1),
+	VC4_REG32(DSI1_HS_CLT2),
+	VC4_REG32(DSI1_HS_DLT3),
+	VC4_REG32(DSI1_HS_DLT4),
+	VC4_REG32(DSI1_HS_DLT5),
+	VC4_REG32(DSI1_HS_DLT6),
+	VC4_REG32(DSI1_HS_DLT7),
+	VC4_REG32(DSI1_PHY_AFEC0),
+	VC4_REG32(DSI1_PHY_AFEC1),
+	VC4_REG32(DSI1_ID),
 };
-
-static void vc4_dsi_dump_regs(struct vc4_dsi *dsi)
-{
-	int i;
-
-	if (dsi->port == 0) {
-		for (i = 0; i < ARRAY_SIZE(dsi0_regs); i++) {
-			DRM_INFO("0x%04x (%s): 0x%08x\n",
-				 dsi0_regs[i].reg, dsi0_regs[i].name,
-				 DSI_READ(dsi0_regs[i].reg));
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(dsi1_regs); i++) {
-			DRM_INFO("0x%04x (%s): 0x%08x\n",
-				 dsi1_regs[i].reg, dsi1_regs[i].name,
-				 DSI_READ(dsi1_regs[i].reg));
-		}
-	}
-}
 
 #ifdef CONFIG_DEBUG_FS
 int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
@@ -689,24 +665,12 @@ int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	int dsi_index = (uintptr_t)node->info_ent->data;
 	struct vc4_dsi *dsi = (dsi_index == 1 ? vc4->dsi1 : NULL);
-	int i;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	if (!dsi)
 		return 0;
 
-	if (dsi->port == 0) {
-		for (i = 0; i < ARRAY_SIZE(dsi0_regs); i++) {
-			seq_printf(m, "0x%04x (%s): 0x%08x\n",
-				   dsi0_regs[i].reg, dsi0_regs[i].name,
-				   DSI_READ(dsi0_regs[i].reg));
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(dsi1_regs); i++) {
-			seq_printf(m, "0x%04x (%s): 0x%08x\n",
-				   dsi1_regs[i].reg, dsi1_regs[i].name,
-				   DSI_READ(dsi1_regs[i].reg));
-		}
-	}
+	drm_print_regset32(&p, &dsi->regset);
 
 	return 0;
 }
@@ -900,8 +864,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	if (debug_dump_regs) {
-		DRM_INFO("DSI regs before:\n");
-		vc4_dsi_dump_regs(dsi);
+		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
+		dev_info(&dsi->pdev->dev, "DSI regs before:\n");
+		drm_print_regset32(&p, &dsi->regset);
 	}
 
 	/* Round up the clk_set_rate() request slightly, since
@@ -1135,8 +1100,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	drm_bridge_enable(dsi->bridge);
 
 	if (debug_dump_regs) {
-		DRM_INFO("DSI regs after:\n");
-		vc4_dsi_dump_regs(dsi);
+		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
+		dev_info(&dsi->pdev->dev, "DSI regs after:\n");
+		drm_print_regset32(&p, &dsi->regset);
 	}
 }
 
@@ -1526,6 +1492,15 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
+
+	dsi->regset.base = dsi->regs;
+	if (dsi->port == 0) {
+		dsi->regset.regs = dsi0_regs;
+		dsi->regset.nregs = ARRAY_SIZE(dsi0_regs);
+	} else {
+		dsi->regset.regs = dsi1_regs;
+		dsi->regset.nregs = ARRAY_SIZE(dsi1_regs);
+	}
 
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
