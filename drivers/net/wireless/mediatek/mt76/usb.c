@@ -933,7 +933,6 @@ int mt76u_init(struct mt76_dev *dev,
 	INIT_DELAYED_WORK(&usb->stat_work, mt76u_tx_status_data);
 	skb_queue_head_init(&dev->rx_skb[MT_RXQ_MAIN]);
 
-	init_completion(&usb->mcu.cmpl);
 	mutex_init(&usb->mcu.mutex);
 
 	mutex_init(&usb->usb_ctrl_mtx);

@@ -16,42 +16,19 @@
 
 #include "mt76.h"
 
-void mt76u_mcu_complete_urb(struct urb *urb)
-{
-	struct completion *cmpl = urb->context;
-
-	complete(cmpl);
-}
-EXPORT_SYMBOL_GPL(mt76u_mcu_complete_urb);
-
 int mt76u_mcu_init_rx(struct mt76_dev *dev)
 {
 	struct mt76_usb *usb = &dev->usb;
-	int err;
 
-	err = mt76u_buf_alloc(dev, &usb->mcu.res, MCU_RESP_URB_SIZE,
-			      MCU_RESP_URB_SIZE, GFP_KERNEL);
-	if (err < 0)
-		return err;
-
-	err = mt76u_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
-			       &usb->mcu.res, GFP_KERNEL,
-			       mt76u_mcu_complete_urb,
-			       &usb->mcu.cmpl);
-	if (err < 0)
-		mt76u_buf_free(&usb->mcu.res);
-
-	return err;
+	usb->mcu.data = kmalloc(MCU_RESP_URB_SIZE, GFP_KERNEL);
+	return usb->mcu.data ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_init_rx);
 
 void mt76u_mcu_deinit(struct mt76_dev *dev)
 {
-	struct mt76u_buf *buf = &dev->usb.mcu.res;
+	struct mt76_usb *usb = &dev->usb;
 
-	if (buf->urb) {
-		usb_kill_urb(buf->urb);
-		mt76u_buf_free(buf);
-	}
+	kfree(usb->mcu.data);
 }
 EXPORT_SYMBOL_GPL(mt76u_mcu_deinit);

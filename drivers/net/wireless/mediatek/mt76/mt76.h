@@ -384,8 +384,7 @@ struct mt76_usb {
 
 	struct mt76u_mcu {
 		struct mutex mutex;
-		struct completion cmpl;
-		struct mt76u_buf res;
+		u8 *data;
 		u32 msg_seq;
 
 		/* multiple reads */
