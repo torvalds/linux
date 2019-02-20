@@ -262,9 +262,7 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		.preferred_tsf = NUM_TSF_IDS,
 		.found_vif = false,
 	};
-	u32 ac;
-	int ret, i, queue_limit;
-	unsigned long used_hw_queues;
+	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -341,37 +339,9 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	INIT_LIST_HEAD(&mvmvif->time_event_data.list);
 	mvmvif->time_event_data.id = TE_MAX;
 
-	/* No need to allocate data queues to P2P Device MAC.*/
-	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			vif->hw_queue[ac] = IEEE80211_INVAL_HW_QUEUE;
-
+	/* No need to allocate data queues to P2P Device MAC and NAN.*/
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return 0;
-	}
-
-	/*
-	 * queues in mac80211 almost entirely independent of
-	 * the ones here - no real limit
-	 */
-	queue_limit = IEEE80211_MAX_QUEUES;
-
-	/*
-	 * Find available queues, and allocate them to the ACs. When in
-	 * DQA-mode they aren't really used, and this is done only so the
-	 * mac80211 ieee80211_check_queues() function won't fail
-	 */
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(&used_hw_queues, queue_limit);
-
-		if (queue >= queue_limit) {
-			IWL_ERR(mvm, "Failed to allocate queue\n");
-			ret = -EIO;
-			goto exit_fail;
-		}
-
-		__set_bit(queue, &used_hw_queues);
-		vif->hw_queue[ac] = queue;
-	}
 
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP ||
