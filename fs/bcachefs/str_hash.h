@@ -125,7 +125,7 @@ struct bch_hash_desc {
 	bool		(*cmp_bkey)(struct bkey_s_c, struct bkey_s_c);
 };
 
-static inline struct btree_iter *
+static __always_inline struct btree_iter *
 bch2_hash_lookup(struct btree_trans *trans,
 		 const struct bch_hash_desc desc,
 		 const struct bch_hash_info *info,
@@ -159,7 +159,7 @@ bch2_hash_lookup(struct btree_trans *trans,
 	return IS_ERR(k.k) ? ERR_CAST(k.k) : ERR_PTR(-ENOENT);
 }
 
-static inline struct btree_iter *
+static __always_inline struct btree_iter *
 bch2_hash_hole(struct btree_trans *trans,
 	       const struct bch_hash_desc desc,
 	       const struct bch_hash_info *info,
@@ -185,10 +185,11 @@ bch2_hash_hole(struct btree_trans *trans,
 	return IS_ERR(k.k) ? ERR_CAST(k.k) : ERR_PTR(-ENOSPC);
 }
 
-static inline int bch2_hash_needs_whiteout(struct btree_trans *trans,
-					   const struct bch_hash_desc desc,
-					   const struct bch_hash_info *info,
-					   struct btree_iter *start)
+static __always_inline
+int bch2_hash_needs_whiteout(struct btree_trans *trans,
+			     const struct bch_hash_desc desc,
+			     const struct bch_hash_info *info,
+			     struct btree_iter *start)
 {
 	struct btree_iter *iter;
 	struct bkey_s_c k;
@@ -211,10 +212,11 @@ static inline int bch2_hash_needs_whiteout(struct btree_trans *trans,
 	return btree_iter_err(k);
 }
 
-static inline int __bch2_hash_set(struct btree_trans *trans,
-				  const struct bch_hash_desc desc,
-				  const struct bch_hash_info *info,
-				  u64 inode, struct bkey_i *insert, int flags)
+static __always_inline
+int __bch2_hash_set(struct btree_trans *trans,
+		    const struct bch_hash_desc desc,
+		    const struct bch_hash_info *info,
+		    u64 inode, struct bkey_i *insert, int flags)
 {
 	struct btree_iter *iter, *slot = NULL;
 	struct bkey_s_c k;
@@ -276,10 +278,11 @@ static inline int bch2_hash_set(const struct bch_hash_desc desc,
 					inode, insert, flags));
 }
 
-static inline int bch2_hash_delete_at(struct btree_trans *trans,
-				      const struct bch_hash_desc desc,
-				      const struct bch_hash_info *info,
-				      struct btree_iter *iter)
+static __always_inline
+int bch2_hash_delete_at(struct btree_trans *trans,
+			const struct bch_hash_desc desc,
+			const struct bch_hash_info *info,
+			struct btree_iter *iter)
 {
 	struct bkey_i *delete;
 	int ret;
@@ -300,10 +303,11 @@ static inline int bch2_hash_delete_at(struct btree_trans *trans,
 	return 0;
 }
 
-static inline int bch2_hash_delete(struct btree_trans *trans,
-				   const struct bch_hash_desc desc,
-				   const struct bch_hash_info *info,
-				   u64 inode, const void *key)
+static __always_inline
+int bch2_hash_delete(struct btree_trans *trans,
+		     const struct bch_hash_desc desc,
+		     const struct bch_hash_info *info,
+		     u64 inode, const void *key)
 {
 	struct btree_iter *iter;
 
