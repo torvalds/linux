@@ -279,13 +279,41 @@ static ssize_t size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(size);
 
+static int dev_dax_target_node(struct dev_dax *dev_dax)
+{
+	struct dax_region *dax_region = dev_dax->region;
+
+	return dax_region->target_node;
+}
+
+static ssize_t target_node_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct dev_dax *dev_dax = to_dev_dax(dev);
+
+	return sprintf(buf, "%d\n", dev_dax_target_node(dev_dax));
+}
+static DEVICE_ATTR_RO(target_node);
+
+static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct dev_dax *dev_dax = to_dev_dax(dev);
+
+	if (a == &dev_attr_target_node.attr && dev_dax_target_node(dev_dax) < 0)
+		return 0;
+	return a->mode;
+}
+
 static struct attribute *dev_dax_attributes[] = {
 	&dev_attr_size.attr,
+	&dev_attr_target_node.attr,
 	NULL,
 };
 
 static const struct attribute_group dev_dax_attribute_group = {
 	.attrs = dev_dax_attributes,
+	.is_visible = dev_dax_visible,
 };
 
 static const struct attribute_group *dax_attribute_groups[] = {
