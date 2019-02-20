@@ -142,22 +142,23 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		bkey_for_each_ptr(ptrs, ptr) {
 			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 			struct bucket *g = PTR_BUCKET(ca, ptr, true);
+			struct bucket *g2 = PTR_BUCKET(ca, ptr, false);
 
 			if (mustfix_fsck_err_on(!g->gen_valid, c,
 					"found ptr with missing gen in alloc btree,\n"
 					"type %u gen %u",
 					k.k->type, ptr->gen)) {
-				g->_mark.gen	= ptr->gen;
-				g->_mark.dirty	= true;
-				g->gen_valid	= 1;
+				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
+				g2->_mark.dirty	= g->_mark.dirty	= true;
+				g2->gen_valid	= g->gen_valid		= true;
 			}
 
 			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
 					"%u ptr gen in the future: %u > %u",
 					k.k->type, ptr->gen, g->mark.gen)) {
-				g->_mark.gen	= ptr->gen;
-				g->_mark.dirty	= true;
-				g->gen_valid	= 1;
+				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
+				g2->_mark.dirty	= g->_mark.dirty	= true;
+				g2->gen_valid	= g->gen_valid		= true;
 				set_bit(BCH_FS_FIXED_GENS, &c->flags);
 			}
 		}
@@ -692,10 +693,12 @@ static int bch2_gc_start(struct bch_fs *c)
 		dst->first_bucket	= src->first_bucket;
 		dst->nbuckets		= src->nbuckets;
 
-		for (b = 0; b < src->nbuckets; b++)
+		for (b = 0; b < src->nbuckets; b++) {
 			dst->b[b]._mark.gen =
 				dst->b[b].oldest_gen =
 				src->b[b].mark.gen;
+			dst->b[b].gen_valid = src->b[b].gen_valid;
+		}
 	};
 
 	percpu_up_write(&c->mark_lock);
@@ -754,6 +757,8 @@ out:
 		if (iter++ <= 2) {
 			bch_info(c, "Fixed gens, restarting mark and sweep:");
 			clear_bit(BCH_FS_FIXED_GENS, &c->flags);
+			__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
+			bch2_gc_free(c);
 			goto again;
 		}
 

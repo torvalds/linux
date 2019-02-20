@@ -91,7 +91,7 @@ static inline struct bucket *PTR_BUCKET(struct bch_dev *ca,
 					const struct bch_extent_ptr *ptr,
 					bool gc)
 {
-	return bucket(ca, PTR_BUCKET_NR(ca, ptr));
+	return __bucket(ca, PTR_BUCKET_NR(ca, ptr), gc);
 }
 
 static inline struct bucket_mark ptr_bucket_mark(struct bch_dev *ca,
