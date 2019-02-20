@@ -1269,6 +1269,32 @@ void vmw_binding_state_reset(struct vmw_ctx_binding_state *cbs)
 		vmw_binding_drop(entry);
 }
 
+/**
+ * vmw_binding_dirtying - Return whether a binding type is dirtying its resource
+ * @binding_type: The binding type
+ *
+ * Each time a resource is put on the validation list as the result of a
+ * context binding referencing it, we need to determine whether that resource
+ * will be dirtied (written to by the GPU) as a result of the corresponding
+ * GPU operation. Currently rendertarget-, depth-stencil-, and
+ * stream-output-target bindings are capable of dirtying its resource.
+ *
+ * Return: Whether the binding type dirties the resource its binding points to.
+ */
+u32 vmw_binding_dirtying(enum vmw_ctx_binding_type binding_type)
+{
+	static u32 is_binding_dirtying[vmw_ctx_binding_max] = {
+		[vmw_ctx_binding_rt] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_dx_rt] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_ds] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_so] = VMW_RES_DIRTY_SET,
+	};
+
+	/* Review this function as new bindings are added. */
+	BUILD_BUG_ON(vmw_ctx_binding_max != 11);
+	return is_binding_dirtying[binding_type];
+}
+
 /*
  * This function is unused at run-time, and only used to hold various build
  * asserts important for code optimization assumptions.

@@ -699,6 +699,8 @@ extern int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 				  uint32_t *inout_id,
 				  struct vmw_resource **out);
 extern void vmw_resource_unreserve(struct vmw_resource *res,
+				   bool dirty_set,
+				   bool dirty,
 				   bool switch_backup,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);

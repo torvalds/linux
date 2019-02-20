@@ -272,13 +272,15 @@ static void vmw_execbuf_rcache_update(struct vmw_res_cache_entry *rcache,
  * unreferenced rcu-protected pointer to the validation list.
  * @sw_context: Pointer to the software context.
  * @res: Unreferenced rcu-protected pointer to the resource.
+ * @dirty: Whether to change dirty status.
  *
  * Returns: 0 on success. Negative error code on failure. Typical error
  * codes are %-EINVAL on inconsistency and %-ESRCH if the resource was
  * doomed.
  */
 static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
-					 struct vmw_resource *res)
+					 struct vmw_resource *res,
+					 u32 dirty)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
@@ -290,13 +292,17 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
 
 	rcache = &sw_context->res_cache[res_type];
 	if (likely(rcache->valid && rcache->res == res)) {
+		if (dirty)
+			vmw_validation_res_set_dirty(sw_context->ctx,
+						     rcache->private, dirty);
 		vmw_user_resource_noref_release();
 		return 0;
 	}
 
 	priv_size = vmw_execbuf_res_size(dev_priv, res_type);
 	ret = vmw_validation_add_resource(sw_context->ctx, res, priv_size,
-					  (void **)&ctx_info, &first_usage);
+					  dirty, (void **)&ctx_info,
+					  &first_usage);
 	vmw_user_resource_noref_release();
 	if (ret)
 		return ret;
@@ -317,11 +323,13 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
  * validation list if it's not already on it
  * @sw_context: Pointer to the software context.
  * @res: Pointer to the resource.
+ * @dirty: Whether to change dirty status.
  *
  * Returns: Zero on success. Negative error code on failure.
  */
 static int vmw_execbuf_res_noctx_val_add(struct vmw_sw_context *sw_context,
-					 struct vmw_resource *res)
+					 struct vmw_resource *res,
+					 u32 dirty)
 {
 	struct vmw_res_cache_entry *rcache;
 	enum vmw_res_type res_type = vmw_res_type(res);
@@ -329,10 +337,15 @@ static int vmw_execbuf_res_noctx_val_add(struct vmw_sw_context *sw_context,
 	int ret;
 
 	rcache = &sw_context->res_cache[res_type];
-	if (likely(rcache->valid && rcache->res == res))
+	if (likely(rcache->valid && rcache->res == res)) {
+		if (dirty)
+			vmw_validation_res_set_dirty(sw_context->ctx,
+						     rcache->private, dirty);
 		return 0;
+	}
 
-	ret = vmw_validation_add_resource(sw_context->ctx, res, 0, &ptr, NULL);
+	ret = vmw_validation_add_resource(sw_context->ctx, res, 0, dirty,
+					  &ptr, NULL);
 	if (ret)
 		return ret;
 
@@ -359,11 +372,13 @@ static int vmw_view_res_val_add(struct vmw_sw_context *sw_context,
 	 * First add the resource the view is pointing to, otherwise
 	 * it may be swapped out when the view is validated.
 	 */
-	ret = vmw_execbuf_res_noctx_val_add(sw_context, vmw_view_srf(view));
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, vmw_view_srf(view),
+					    vmw_view_dirtying(view));
 	if (ret)
 		return ret;
 
-	return vmw_execbuf_res_noctx_val_add(sw_context, view);
+	return vmw_execbuf_res_noctx_val_add(sw_context, view,
+					     VMW_RES_DIRTY_NONE);
 }
 
 /**
@@ -433,7 +448,8 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 			if (IS_ERR(res))
 				continue;
 
-			ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
+			ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+							    VMW_RES_DIRTY_SET);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -448,8 +464,9 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 		if (vmw_res_type(entry->res) == vmw_res_view)
 			ret = vmw_view_res_val_add(sw_context, entry->res);
 		else
-			ret = vmw_execbuf_res_noctx_val_add(sw_context,
-							    entry->res);
+			ret = vmw_execbuf_res_noctx_val_add
+				(sw_context, entry->res,
+				 vmw_binding_dirtying(entry->bt));
 		if (unlikely(ret != 0))
 			break;
 	}
@@ -598,6 +615,7 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
  * @dev_priv: Pointer to a device private structure.
  * @sw_context: Pointer to the software context.
  * @res_type: Resource type.
+ * @dirty: Whether to change dirty status.
  * @converter: User-space visisble type specific information.
  * @id_loc: Pointer to the location in the command buffer currently being
  * parsed from where the user-space resource id handle is located.
@@ -608,6 +626,7 @@ static int
 vmw_cmd_res_check(struct vmw_private *dev_priv,
 		  struct vmw_sw_context *sw_context,
 		  enum vmw_res_type res_type,
+		  u32 dirty,
 		  const struct vmw_user_resource_conv *converter,
 		  uint32_t *id_loc,
 		  struct vmw_resource **p_res)
@@ -629,6 +648,9 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 
 	if (likely(rcache->valid_handle && *id_loc == rcache->handle)) {
 		res = rcache->res;
+		if (dirty)
+			vmw_validation_res_set_dirty(sw_context->ctx,
+						     rcache->private, dirty);
 	} else {
 		unsigned int size = vmw_execbuf_res_size(dev_priv, res_type);
 
@@ -644,7 +666,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 			return PTR_ERR(res);
 		}
 
-		ret = vmw_execbuf_res_noref_val_add(sw_context, res);
+		ret = vmw_execbuf_res_noref_val_add(sw_context, res, dirty);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -805,7 +827,8 @@ static int vmw_cmd_cid_check(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, struct vmw_cid_cmd, header);
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				 user_context_converter, &cmd->cid, NULL);
+				 VMW_RES_DIRTY_SET, user_context_converter,
+				 &cmd->cid, NULL);
 }
 
 /**
@@ -857,14 +880,14 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 	}
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->body.cid,
-				&ctx);
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->body.cid, &ctx);
 	if (unlikely(ret != 0))
 		return ret;
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter, &cmd->body.target.sid,
-				&res);
+				VMW_RES_DIRTY_SET, user_surface_converter,
+				&cmd->body.target.sid, &res);
 	if (unlikely(ret))
 		return ret;
 
@@ -899,13 +922,13 @@ static int vmw_cmd_surface_copy_check(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-					  user_surface_converter,
-					  &cmd->body.src.sid, NULL);
+				VMW_RES_DIRTY_NONE, user_surface_converter,
+				&cmd->body.src.sid, NULL);
 	if (ret)
 		return ret;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_SET, user_surface_converter,
 				 &cmd->body.dest.sid, NULL);
 }
 
@@ -921,13 +944,13 @@ static int vmw_cmd_buffer_copy_check(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.src, NULL);
 	if (ret != 0)
 		return ret;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_SET, user_surface_converter,
 				 &cmd->body.dest, NULL);
 }
 
@@ -943,13 +966,13 @@ static int vmw_cmd_pred_copy_check(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.srcSid, NULL);
 	if (ret != 0)
 		return ret;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_SET, user_surface_converter,
 				 &cmd->body.dstSid, NULL);
 }
 
@@ -965,12 +988,12 @@ static int vmw_cmd_stretch_blt_check(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.src.sid, NULL);
 	if (unlikely(ret != 0))
 		return ret;
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_SET, user_surface_converter,
 				 &cmd->body.dest.sid, NULL);
 }
 
@@ -986,7 +1009,7 @@ static int vmw_cmd_blt_surf_screen_check(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
 				 &cmd->body.srcImage.sid, NULL);
 }
 
@@ -1003,8 +1026,8 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter, &cmd->body.sid,
-				 NULL);
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
+				 &cmd->body.sid, NULL);
 }
 
 /**
@@ -1344,8 +1367,8 @@ static int vmw_cmd_begin_gb_query(struct vmw_private *dev_priv,
 			   header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				 user_context_converter, &cmd->q.cid,
-				 NULL);
+				 VMW_RES_DIRTY_SET, user_context_converter,
+				 &cmd->q.cid, NULL);
 }
 
 /**
@@ -1385,8 +1408,8 @@ static int vmw_cmd_begin_query(struct vmw_private *dev_priv,
 	}
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				 user_context_converter, &cmd->q.cid,
-				 NULL);
+				 VMW_RES_DIRTY_SET, user_context_converter,
+				 &cmd->q.cid, NULL);
 }
 
 /**
@@ -1572,6 +1595,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	int ret;
 	SVGA3dCmdSurfaceDMASuffix *suffix;
 	uint32_t bo_size;
+	bool dirty;
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 	suffix = (SVGA3dCmdSurfaceDMASuffix *)((unsigned long) &cmd->dma +
@@ -1600,9 +1624,11 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 	if (unlikely(suffix->maximumOffset > bo_size))
 		suffix->maximumOffset = bo_size;
 
+	dirty = (cmd->dma.transfer == SVGA3D_WRITE_HOST_VRAM) ?
+		VMW_RES_DIRTY_SET : 0;
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter, &cmd->dma.host.sid,
-				NULL);
+				dirty, user_surface_converter,
+				&cmd->dma.host.sid, NULL);
 	if (unlikely(ret != 0)) {
 		if (unlikely(ret != -ERESTARTSYS))
 			DRM_ERROR("could not find surface for DMA.\n");
@@ -1646,6 +1672,7 @@ static int vmw_cmd_draw(struct vmw_private *dev_priv,
 
 	for (i = 0; i < cmd->body.numVertexDecls; ++i, ++decl) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					VMW_RES_DIRTY_NONE,
 					user_surface_converter,
 					&decl->array.surfaceId, NULL);
 		if (unlikely(ret != 0))
@@ -1662,6 +1689,7 @@ static int vmw_cmd_draw(struct vmw_private *dev_priv,
 	range = (SVGA3dPrimitiveRange *) decl;
 	for (i = 0; i < cmd->body.numRanges; ++i, ++range) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					VMW_RES_DIRTY_NONE,
 					user_surface_converter,
 					&range->indexArray.surfaceId, NULL);
 		if (unlikely(ret != 0))
@@ -1692,7 +1720,8 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 			   header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->state.cid,
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->state.cid,
 				&ctx);
 	if (unlikely(ret != 0))
 		return ret;
@@ -1708,6 +1737,7 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 		}
 
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					VMW_RES_DIRTY_NONE,
 					user_surface_converter,
 					&cur_state->value, &res);
 		if (unlikely(ret != 0))
@@ -1818,7 +1848,7 @@ static int vmw_cmd_switch_backup(struct vmw_private *dev_priv,
 	int ret;
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, res_type,
-				converter, res_id, &res);
+				VMW_RES_DIRTY_NONE, converter, res_id, &res);
 	if (ret)
 		return ret;
 
@@ -1871,7 +1901,7 @@ static int vmw_cmd_update_gb_image(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
 				 &cmd->body.image.sid, NULL);
 }
 
@@ -1895,7 +1925,7 @@ static int vmw_cmd_update_gb_surface(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_CLEAR, user_surface_converter,
 				 &cmd->body.sid, NULL);
 }
 
@@ -1919,7 +1949,7 @@ static int vmw_cmd_readback_gb_image(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
 				 &cmd->body.image.sid, NULL);
 }
 
@@ -1943,7 +1973,7 @@ static int vmw_cmd_readback_gb_surface(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_CLEAR, user_surface_converter,
 				 &cmd->body.sid, NULL);
 }
 
@@ -1967,7 +1997,7 @@ static int vmw_cmd_invalidate_gb_image(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
 				 &cmd->body.image.sid, NULL);
 }
 
@@ -1991,7 +2021,7 @@ static int vmw_cmd_invalidate_gb_surface(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_CLEAR, user_surface_converter,
 				 &cmd->body.sid, NULL);
 }
 
@@ -2020,8 +2050,8 @@ static int vmw_cmd_shader_define(struct vmw_private *dev_priv,
 			   header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->body.cid,
-				&ctx);
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->body.cid, &ctx);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2067,8 +2097,8 @@ static int vmw_cmd_shader_destroy(struct vmw_private *dev_priv,
 			   header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->body.cid,
-				&ctx);
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->body.cid, &ctx);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2120,8 +2150,8 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 	}
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->body.cid,
-				&ctx);
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->body.cid, &ctx);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2134,7 +2164,8 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 					cmd->body.type);
 
 		if (!IS_ERR(res)) {
-			ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
+			ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+							    VMW_RES_DIRTY_NONE);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -2142,7 +2173,7 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 
 	if (IS_ERR_OR_NULL(res)) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context,
-					vmw_res_shader,
+					vmw_res_shader, VMW_RES_DIRTY_NONE,
 					user_shader_converter,
 					&cmd->body.shid, &res);
 		if (unlikely(ret != 0))
@@ -2184,8 +2215,8 @@ static int vmw_cmd_set_shader_const(struct vmw_private *dev_priv,
 			   header);
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-				user_context_converter, &cmd->body.cid,
-				NULL);
+				VMW_RES_DIRTY_SET, user_context_converter,
+				&cmd->body.cid, NULL);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -2250,7 +2281,7 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.sid, &res);
 	if (unlikely(ret != 0))
 		return ret;
@@ -2351,7 +2382,8 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 			return PTR_ERR(res);
 		}
 
-		ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
+		ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+						    VMW_RES_DIRTY_NONE);
 		if (ret)
 			return ret;
 	}
@@ -2405,6 +2437,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 
 	for (i = 0; i < num; i++) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					VMW_RES_DIRTY_NONE,
 					user_surface_converter,
 					&cmd->buf[i].sid, &res);
 		if (unlikely(ret != 0))
@@ -2452,7 +2485,7 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.sid, &res);
 	if (unlikely(ret != 0))
 		return ret;
@@ -2575,7 +2608,7 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 		return -EINVAL;
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->sid, &srf);
 	if (unlikely(ret != 0))
 		return ret;
@@ -2633,6 +2666,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 
 	for (i = 0; i < num; i++) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+					VMW_RES_DIRTY_SET,
 					user_surface_converter,
 					&cmd->targets[i].sid, &res);
 		if (unlikely(ret != 0))
@@ -2714,7 +2748,7 @@ static int vmw_cmd_dx_check_subresource(struct vmw_private *dev_priv,
 	cmd = container_of(header, typeof(*cmd), header);
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_NONE, user_surface_converter,
 				 &cmd->sid, NULL);
 }
 
@@ -2870,8 +2904,9 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 
 	if (cmd->body.cid != SVGA3D_INVALID_ID) {
 		ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
-					user_context_converter,
-					&cmd->body.cid, &ctx);
+					VMW_RES_DIRTY_SET,
+					user_context_converter, &cmd->body.cid,
+					&ctx);
 		if (ret)
 			return ret;
 	} else {
@@ -2889,7 +2924,8 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 		return PTR_ERR(res);
 	}
 
-	ret = vmw_execbuf_res_noctx_val_add(sw_context, res);
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+					    VMW_RES_DIRTY_NONE);
 	if (ret) {
 		DRM_ERROR("Error creating resource validation node.\n");
 		return ret;
@@ -2939,13 +2975,13 @@ static int vmw_cmd_dx_transfer_from_buffer(struct vmw_private *dev_priv,
 	int ret;
 
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
+				VMW_RES_DIRTY_NONE, user_surface_converter,
 				&cmd->body.srcSid, NULL);
 	if (ret != 0)
 		return ret;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				 user_surface_converter,
+				 VMW_RES_DIRTY_SET, user_surface_converter,
 				 &cmd->body.destSid, NULL);
 }
 
@@ -2970,8 +3006,8 @@ static int vmw_cmd_intra_surface_copy(struct vmw_private *dev_priv,
 		return -EINVAL;
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
-				user_surface_converter,
-				&cmd->body.surface.sid, NULL);
+				 VMW_RES_DIRTY_SET, user_surface_converter,
+				 &cmd->body.surface.sid, NULL);
 }
 
 
@@ -3805,7 +3841,7 @@ static int vmw_execbuf_tie_context(struct vmw_private *dev_priv,
 		return PTR_ERR(res);
 	}
 
-	ret = vmw_execbuf_res_noref_val_add(sw_context, res);
+	ret = vmw_execbuf_res_noref_val_add(sw_context, res, VMW_RES_DIRTY_SET);
 	if (unlikely(ret != 0))
 		return ret;
 

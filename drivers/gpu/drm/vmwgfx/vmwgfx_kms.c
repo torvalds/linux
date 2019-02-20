@@ -1202,7 +1202,7 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	vmw_bo_unreference(&res->backup);
 	res->backup = vmw_bo_reference(bo_mob);
 	res->backup_offset = 0;
-	vmw_resource_unreserve(res, false, NULL, 0);
+	vmw_resource_unreserve(res, false, false, false, NULL, 0);
 	mutex_unlock(&res->dev_priv->cmdbuf_mutex);
 
 	return 0;
@@ -2827,7 +2827,8 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 			container_of(update->vfb, typeof(*vfbs), base);
 
 		ret = vmw_validation_add_resource(&val_ctx, &vfbs->surface->res,
-						  0, NULL, NULL);
+						  0, VMW_RES_DIRTY_NONE, NULL,
+						  NULL);
 	}
 
 	if (ret)

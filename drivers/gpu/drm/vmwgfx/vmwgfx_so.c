@@ -497,6 +497,30 @@ struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 				     vmw_view_key(user_key, view_type));
 }
 
+/**
+ * vmw_view_dirtying - Return whether a view type is dirtying its resource
+ * @res: Pointer to the view
+ *
+ * Each time a resource is put on the validation list as the result of a
+ * view pointing to it, we need to determine whether that resource will
+ * be dirtied (written to by the GPU) as a result of the corresponding
+ * GPU operation. Currently only rendertarget- and depth-stencil views are
+ * capable of dirtying its resource.
+ *
+ * Return: Whether the view type of @res dirties the resource it points to.
+ */
+u32 vmw_view_dirtying(struct vmw_resource *res)
+{
+	static u32 view_is_dirtying[vmw_view_max] = {
+		[vmw_view_rt] = VMW_RES_DIRTY_SET,
+		[vmw_view_ds] = VMW_RES_DIRTY_SET,
+	};
+
+	/* Update this function as we add more view types */
+	BUILD_BUG_ON(vmw_view_max != 3);
+	return view_is_dirtying[vmw_view(res)->view_type];
+}
+
 const u32 vmw_view_destroy_cmds[] = {
 	[vmw_view_sr] = SVGA_3D_CMD_DX_DESTROY_SHADERRESOURCE_VIEW,
 	[vmw_view_rt] = SVGA_3D_CMD_DX_DESTROY_RENDERTARGET_VIEW,

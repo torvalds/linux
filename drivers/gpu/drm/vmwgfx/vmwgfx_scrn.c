@@ -1148,7 +1148,8 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 	if (!srf)
 		srf = &vfbs->surface->res;
 
-	ret = vmw_validation_add_resource(&val_ctx, srf, 0, NULL, NULL);
+	ret = vmw_validation_add_resource(&val_ctx, srf, 0, VMW_RES_DIRTY_NONE,
+					  NULL, NULL);
 	if (ret)
 		return ret;
 

@@ -33,6 +33,10 @@
 #include <linux/ww_mutex.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
+#define VMW_RES_DIRTY_NONE 0
+#define VMW_RES_DIRTY_SET BIT(0)
+#define VMW_RES_DIRTY_CLEAR BIT(1)
+
 /**
  * struct vmw_validation_mem - Custom interface to provide memory reservations
  * for the validation code.
@@ -237,6 +241,7 @@ void vmw_validation_unref_lists(struct vmw_validation_context *ctx);
 int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 				struct vmw_resource *res,
 				size_t priv_size,
+				u32 dirty,
 				void **p_node,
 				bool *first_usage);
 void vmw_validation_drop_ht(struct vmw_validation_context *ctx);
@@ -261,4 +266,6 @@ void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
 int vmw_validation_preload_bo(struct vmw_validation_context *ctx);
 int vmw_validation_preload_res(struct vmw_validation_context *ctx,
 			       unsigned int size);
+void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
+				  void *val_private, u32 dirty);
 #endif
