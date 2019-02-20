@@ -380,8 +380,8 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	int err;
 	unsigned short gcap;
 	int irq_id = platform_get_irq(pdev, 0);
-	const char *sname;
-	struct device_node *root;
+	const char *sname, *drv_name = "tegra-hda";
+	struct device_node *np = pdev->dev.of_node;
 
 	err = hda_tegra_init_chip(chip, pdev);
 	if (err)
@@ -440,17 +440,11 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	}
 
 	/* driver name */
-	strcpy(card->driver, "tegra-hda");
-
-	root = of_find_node_by_path("/");
-	sname = of_get_property(root, "compatible", NULL);
-	of_node_put(root);
-	if (!sname) {
-		dev_err(card->dev,
-			"failed to get compatible property from root node\n");
-		return -ENODEV;
-	}
+	strncpy(card->driver, drv_name, sizeof(card->driver));
 	/* shortname for card */
+	sname = of_get_property(np, "nvidia,model", NULL);
+	if (!sname)
+		sname = drv_name;
 	if (strlen(sname) > sizeof(card->shortname))
 		dev_info(card->dev, "truncating shortname for card\n");
 	strncpy(card->shortname, sname, sizeof(card->shortname));
