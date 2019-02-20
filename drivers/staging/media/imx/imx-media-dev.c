@@ -477,13 +477,6 @@ static int imx_media_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	ret = imx_media_add_ipu_internal_subdevs(imxmd);
-	if (ret) {
-		v4l2_err(&imxmd->v4l2_dev,
-			 "add_ipu_internal_subdevs failed with %d\n", ret);
-		goto cleanup;
-	}
-
 	ret = imx_media_dev_notifier_register(imxmd);
 	if (ret)
 		goto del_int;

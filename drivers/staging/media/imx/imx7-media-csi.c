@@ -1271,7 +1271,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &csi->sd);
 
 	ret = imx_media_of_add_csi(imxmd, node);
-	if (ret < 0)
+	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
 		goto cleanup;
 
 	ret = imx_media_dev_notifier_register(imxmd);
