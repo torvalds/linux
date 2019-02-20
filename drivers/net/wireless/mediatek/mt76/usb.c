@@ -714,23 +714,12 @@ static int
 mt76u_tx_build_sg(struct mt76_dev *dev, struct sk_buff *skb,
 		  struct urb *urb)
 {
-	struct sk_buff *iter;
-	int nsgs;
-
 	if (!dev->usb.sg_en)
 		return 0;
 
-	nsgs = 1 + skb_shinfo(skb)->nr_frags;
-	skb_walk_frags(skb, iter)
-		nsgs += 1 + skb_shinfo(iter)->nr_frags;
-
-	memset(urb->sg, 0, sizeof(*urb->sg) * MT_SG_MAX_SIZE);
-
-	nsgs = min_t(int, MT_SG_MAX_SIZE, nsgs);
-	sg_init_marker(urb->sg, nsgs);
-	urb->num_sgs = nsgs;
-
-	return skb_to_sgvec_nomark(skb, urb->sg, 0, skb->len);
+	sg_init_table(urb->sg, MT_SG_MAX_SIZE);
+	urb->num_sgs = skb_to_sgvec(skb, urb->sg, 0, skb->len);
+	return urb->num_sgs;
 }
 
 static int
