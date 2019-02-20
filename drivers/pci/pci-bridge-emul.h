@@ -119,7 +119,12 @@ struct pci_bridge_emul {
 	bool has_pcie;
 };
 
-int pci_bridge_emul_init(struct pci_bridge_emul *bridge);
+enum {
+	PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR = BIT(0),
+};
+
+int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
+			 unsigned int flags);
 void pci_bridge_emul_cleanup(struct pci_bridge_emul *bridge);
 
 int pci_bridge_emul_conf_read(struct pci_bridge_emul *bridge, int where,

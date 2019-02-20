@@ -267,7 +267,8 @@ const static struct pci_bridge_reg_behavior pcie_cap_regs_behavior[] = {
  * (typically at least vendor, device, revision), the ->ops pointer,
  * and optionally ->data and ->has_pcie.
  */
-int pci_bridge_emul_init(struct pci_bridge_emul *bridge)
+int pci_bridge_emul_init(struct pci_bridge_emul *bridge,
+			 unsigned int flags)
 {
 	bridge->conf.class_revision |= PCI_CLASS_BRIDGE_PCI << 16;
 	bridge->conf.header_type = PCI_HEADER_TYPE_BRIDGE;
@@ -293,6 +294,11 @@ int pci_bridge_emul_init(struct pci_bridge_emul *bridge)
 			kfree(bridge->pci_regs_behavior);
 			return -ENOMEM;
 		}
+	}
+
+	if (flags & PCI_BRIDGE_EMUL_NO_PREFETCHABLE_BAR) {
+		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].ro = ~0;
+		bridge->pci_regs_behavior[PCI_PREF_MEMORY_BASE / 4].rw = 0;
 	}
 
 	return 0;
