@@ -729,16 +729,20 @@ static inline u8 q2ep(u8 qid)
 }
 
 static inline int
-mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int timeout)
+mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
+	       int timeout)
 {
 	struct usb_interface *intf = to_usb_interface(dev->dev);
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct mt76_usb *usb = &dev->usb;
 	unsigned int pipe;
-	int sent;
 
-	pipe = usb_sndbulkpipe(udev, usb->out_ep[MT_EP_OUT_INBAND_CMD]);
-	return usb_bulk_msg(udev, pipe, data, len, &sent, timeout);
+	if (actual_len)
+		pipe = usb_rcvbulkpipe(udev, usb->in_ep[MT_EP_IN_CMD_RESP]);
+	else
+		pipe = usb_sndbulkpipe(udev, usb->out_ep[MT_EP_OUT_INBAND_CMD]);
+
+	return usb_bulk_msg(udev, pipe, data, len, actual_len, timeout);
 }
 
 int mt76u_vendor_request(struct mt76_dev *dev, u8 req,

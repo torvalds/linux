@@ -126,7 +126,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	ret = mt76u_bulk_msg(dev, skb->data, skb->len, 500);
+	ret = mt76u_bulk_msg(dev, skb->data, skb->len, NULL, 500);
 	if (ret)
 		return ret;
 
@@ -271,7 +271,7 @@ __mt76x02u_mcu_fw_send_data(struct mt76x02_dev *dev, u8 *data,
 
 	data_len = MT_CMD_HDR_LEN + len + sizeof(info);
 
-	err = mt76u_bulk_msg(&dev->mt76, data, data_len, 1000);
+	err = mt76u_bulk_msg(&dev->mt76, data, data_len, NULL, 1000);
 	if (err) {
 		dev_err(dev->mt76.dev, "firmware upload failed: %d\n", err);
 		return err;
