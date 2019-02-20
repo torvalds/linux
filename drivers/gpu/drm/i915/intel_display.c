@@ -9897,8 +9897,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	intel_get_pipe_src_size(crtc, pipe_config);
 	intel_get_crtc_ycbcr_config(crtc, pipe_config);
 
-	pipe_config->gamma_mode =
-		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
+	pipe_config->gamma_mode = I915_READ(GAMMA_MODE(crtc->pipe));
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		u32 tmp = I915_READ(SKL_BOTTOM_COLOR(crtc->pipe));
