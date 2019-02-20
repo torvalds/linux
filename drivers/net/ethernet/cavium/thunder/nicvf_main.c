@@ -242,21 +242,24 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		break;
 	case NIC_MBOX_MSG_BGX_LINK_CHANGE:
 		nic->pf_acked = true;
-		nic->link_up = mbx.link_status.link_up;
-		nic->duplex = mbx.link_status.duplex;
-		nic->speed = mbx.link_status.speed;
-		nic->mac_type = mbx.link_status.mac_type;
-		if (nic->link_up) {
-			netdev_info(nic->netdev, "Link is Up %d Mbps %s duplex\n",
-				    nic->speed,
-				    nic->duplex == DUPLEX_FULL ?
-				    "Full" : "Half");
-			netif_carrier_on(nic->netdev);
-			netif_tx_start_all_queues(nic->netdev);
-		} else {
-			netdev_info(nic->netdev, "Link is Down\n");
-			netif_carrier_off(nic->netdev);
-			netif_tx_stop_all_queues(nic->netdev);
+		if (nic->link_up != mbx.link_status.link_up) {
+			nic->link_up = mbx.link_status.link_up;
+			nic->duplex = mbx.link_status.duplex;
+			nic->speed = mbx.link_status.speed;
+			nic->mac_type = mbx.link_status.mac_type;
+			if (nic->link_up) {
+				netdev_info(nic->netdev,
+					    "Link is Up %d Mbps %s duplex\n",
+					    nic->speed,
+					    nic->duplex == DUPLEX_FULL ?
+					    "Full" : "Half");
+				netif_carrier_on(nic->netdev);
+				netif_tx_start_all_queues(nic->netdev);
+			} else {
+				netdev_info(nic->netdev, "Link is Down\n");
+				netif_carrier_off(nic->netdev);
+				netif_tx_stop_all_queues(nic->netdev);
+			}
 		}
 		break;
 	case NIC_MBOX_MSG_ALLOC_SQS:
@@ -1325,6 +1328,8 @@ int nicvf_stop(struct net_device *netdev)
 	struct nicvf_cq_poll *cq_poll = NULL;
 	union nic_mbx mbx = {};
 
+	cancel_delayed_work_sync(&nic->link_change_work);
+
 	/* wait till all queued set_rx_mode tasks completes */
 	drain_workqueue(nic->nicvf_rx_mode_wq);
 
@@ -1425,6 +1430,18 @@ static int nicvf_update_hw_max_frs(struct nicvf *nic, int mtu)
 	mbx.frs.vf_id = nic->vf_id;
 
 	return nicvf_send_msg_to_pf(nic, &mbx);
+}
+
+static void nicvf_link_status_check_task(struct work_struct *work_arg)
+{
+	struct nicvf *nic = container_of(work_arg,
+					 struct nicvf,
+					 link_change_work.work);
+	union nic_mbx mbx = {};
+	mbx.msg.msg = NIC_MBOX_MSG_BGX_LINK_CHANGE;
+	nicvf_send_msg_to_pf(nic, &mbx);
+	queue_delayed_work(nic->nicvf_rx_mode_wq,
+			   &nic->link_change_work, 2 * HZ);
 }
 
 int nicvf_open(struct net_device *netdev)
@@ -1532,6 +1549,11 @@ int nicvf_open(struct net_device *netdev)
 
 	/* Send VF config done msg to PF */
 	nicvf_send_cfg_done(nic);
+
+	INIT_DELAYED_WORK(&nic->link_change_work,
+			  nicvf_link_status_check_task);
+	queue_delayed_work(nic->nicvf_rx_mode_wq,
+			   &nic->link_change_work, 0);
 
 	return 0;
 cleanup:

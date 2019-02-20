@@ -331,7 +331,7 @@ struct nicvf {
 	struct workqueue_struct *nicvf_rx_mode_wq;
 	/* mutex to protect VF's mailbox contents from concurrent access */
 	struct mutex            rx_mode_mtx;
-
+	struct delayed_work	link_change_work;
 	/* PTP timestamp */
 	struct cavium_ptp	*ptp_clock;
 	/* Inbound timestamping is on */
