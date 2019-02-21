@@ -102,11 +102,92 @@ mei_hdcp_initiate_session(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
+/**
+ * mei_hdcp_verify_receiver_cert_prepare_km() - Verify the Receiver Certificate
+ * AKE_Send_Cert and prepare AKE_Stored_Km/AKE_No_Stored_Km
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @rx_cert: AKE_Send_Cert for verification
+ * @km_stored: Pairing status flag output
+ * @ek_pub_km: AKE_Stored_Km/AKE_No_Stored_Km output msg
+ * @msg_sz : size of AKE_XXXXX_Km output msg
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int
+mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
+					 struct hdcp_port_data *data,
+					 struct hdcp2_ake_send_cert *rx_cert,
+					 bool *km_stored,
+					 struct hdcp2_ake_no_stored_km
+								*ek_pub_km,
+					 size_t *msg_sz)
+{
+	struct wired_cmd_verify_receiver_cert_in verify_rxcert_in = { { 0 } };
+	struct wired_cmd_verify_receiver_cert_out verify_rxcert_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data || !rx_cert || !km_stored || !ek_pub_km || !msg_sz)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	verify_rxcert_in.header.api_version = HDCP_API_VERSION;
+	verify_rxcert_in.header.command_id = WIRED_VERIFY_RECEIVER_CERT;
+	verify_rxcert_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	verify_rxcert_in.header.buffer_len =
+				WIRED_CMD_BUF_LEN_VERIFY_RECEIVER_CERT_IN;
+
+	verify_rxcert_in.port.integrated_port_type = data->port_type;
+	verify_rxcert_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	verify_rxcert_in.cert_rx = rx_cert->cert_rx;
+	memcpy(verify_rxcert_in.r_rx, &rx_cert->r_rx, HDCP_2_2_RRX_LEN);
+	memcpy(verify_rxcert_in.rx_caps, rx_cert->rx_caps, HDCP_2_2_RXCAPS_LEN);
+
+	byte = mei_cldev_send(cldev, (u8 *)&verify_rxcert_in,
+			      sizeof(verify_rxcert_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed: %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&verify_rxcert_out,
+			      sizeof(verify_rxcert_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed: %zd\n", byte);
+		return byte;
+	}
+
+	if (verify_rxcert_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X Failed. Status: 0x%X\n",
+			WIRED_VERIFY_RECEIVER_CERT,
+			verify_rxcert_out.header.status);
+		return -EIO;
+	}
+
+	*km_stored = !!verify_rxcert_out.km_stored;
+	if (verify_rxcert_out.km_stored) {
+		ek_pub_km->msg_id = HDCP_2_2_AKE_STORED_KM;
+		*msg_sz = sizeof(struct hdcp2_ake_stored_km);
+	} else {
+		ek_pub_km->msg_id = HDCP_2_2_AKE_NO_STORED_KM;
+		*msg_sz = sizeof(struct hdcp2_ake_no_stored_km);
+	}
+
+	memcpy(ek_pub_km->e_kpub_km, &verify_rxcert_out.ekm_buff,
+	       sizeof(verify_rxcert_out.ekm_buff));
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
 	.initiate_hdcp2_session = mei_hdcp_initiate_session,
-	.verify_receiver_cert_prepare_km = NULL,
+	.verify_receiver_cert_prepare_km =
+				mei_hdcp_verify_receiver_cert_prepare_km,
 	.verify_hprime = NULL,
 	.store_pairing_info = NULL,
 	.initiate_locality_check = NULL,
