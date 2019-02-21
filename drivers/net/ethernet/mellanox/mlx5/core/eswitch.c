@@ -87,7 +87,7 @@ static struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
 {
 	u16 idx = mlx5_eswitch_vport_num_to_index(esw, vport_num);
 
-	WARN_ON(vport_num > esw->total_vports - 1);
+	WARN_ON(idx > esw->total_vports - 1);
 	return &esw->vports[idx];
 }
 
@@ -1606,7 +1606,8 @@ static void esw_disable_vport(struct mlx5_eswitch *esw,
 	esw_vport_change_handle_locked(vport);
 	vport->enabled_events = 0;
 	esw_vport_disable_qos(esw, vport_num);
-	if (esw->mode == SRIOV_LEGACY) {
+	if (esw->manager_vport != vport_num &&
+	    esw->mode == SRIOV_LEGACY) {
 		mlx5_modify_vport_admin_state(esw->dev,
 					      MLX5_VPORT_STATE_OP_MOD_ESW_VPORT,
 					      vport_num, 1,
