@@ -723,11 +723,13 @@ config THREAD_SHIFT
 
 config ETEXT_SHIFT
 	int
+	default 17 if STRICT_KERNEL_RWX && PPC_BOOK3S_32
 	default PPC_PAGE_SHIFT
 
 config DATA_SHIFT
 	int
 	default 24 if STRICT_KERNEL_RWX && PPC64
+	default 22 if STRICT_KERNEL_RWX && PPC_BOOK3S_32
 	default PPC_PAGE_SHIFT
 
 config FORCE_MAX_ZONEORDER

@@ -174,7 +174,18 @@ static inline bool pte_user(pte_t pte)
  * of RAM.  -- Cort
  */
 #define VMALLOC_OFFSET (0x1000000) /* 16M */
+
+/*
+ * With CONFIG_STRICT_KERNEL_RWX, kernel segments are set NX. But when modules
+ * are used, NX cannot be set on VMALLOC space. So vmalloc VM space and linear
+ * memory shall not share segments.
+ */
+#if defined(CONFIG_STRICT_KERNEL_RWX) && defined(CONFIG_MODULES)
+#define VMALLOC_START ((_ALIGN((long)high_memory, 256L << 20) + VMALLOC_OFFSET) & \
+		       ~(VMALLOC_OFFSET - 1))
+#else
 #define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#endif
 #define VMALLOC_END	ioremap_bot
 
 #ifndef __ASSEMBLY__

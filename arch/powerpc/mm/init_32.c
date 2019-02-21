@@ -108,10 +108,8 @@ static void __init MMU_setup(void)
 		__map_without_bats = 1;
 		__map_without_ltlbs = 1;
 	}
-	if (strict_kernel_rwx_enabled()) {
-		__map_without_bats = 1;
+	if (strict_kernel_rwx_enabled())
 		__map_without_ltlbs = 1;
-	}
 }
 
 /*

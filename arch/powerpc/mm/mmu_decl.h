@@ -165,3 +165,11 @@ unsigned long p_block_mapped(phys_addr_t pa);
 static inline phys_addr_t v_block_mapped(unsigned long va) { return 0; }
 static inline unsigned long p_block_mapped(phys_addr_t pa) { return 0; }
 #endif
+
+#if defined(CONFIG_PPC_BOOK3S_32)
+void mmu_mark_initmem_nx(void);
+void mmu_mark_rodata_ro(void);
+#else
+static inline void mmu_mark_initmem_nx(void) { }
+static inline void mmu_mark_rodata_ro(void) { }
+#endif

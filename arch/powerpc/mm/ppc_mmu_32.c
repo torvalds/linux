@@ -32,6 +32,7 @@
 #include <asm/mmu.h>
 #include <asm/machdep.h>
 #include <asm/code-patching.h>
+#include <asm/sections.h>
 
 #include "mmu_decl.h"
 
@@ -138,14 +139,9 @@ static void clearibat(int index)
 	bat[0].batl = 0;
 }
 
-unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
+static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	int idx;
-
-	if (__map_without_bats) {
-		printk(KERN_DEBUG "RAM mapped without BATs\n");
-		return base;
-	}
 
 	while ((idx = find_free_bat()) != -1 && base != top) {
 		unsigned int size = block_size(base, top);
@@ -157,6 +153,85 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	}
 
 	return base;
+}
+
+unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
+{
+	int done;
+	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
+
+	if (__map_without_bats) {
+		pr_debug("RAM mapped without BATs\n");
+		return base;
+	}
+
+	if (!strict_kernel_rwx_enabled() || base >= border || top <= border)
+		return __mmu_mapin_ram(base, top);
+
+	done = __mmu_mapin_ram(base, border);
+	if (done != border - base)
+		return done;
+
+	return done + __mmu_mapin_ram(border, top);
+}
+
+void mmu_mark_initmem_nx(void)
+{
+	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
+	int i;
+	unsigned long base = (unsigned long)_stext - PAGE_OFFSET;
+	unsigned long top = (unsigned long)_etext - PAGE_OFFSET;
+	unsigned long size;
+
+	if (cpu_has_feature(CPU_FTR_601))
+		return;
+
+	for (i = 0; i < nb - 1 && base < top && top - base > (128 << 10);) {
+		size = block_size(base, top);
+		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
+		base += size;
+	}
+	if (base < top) {
+		size = block_size(base, top);
+		size = max(size, 128UL << 10);
+		if ((top - base) > size) {
+			if (strict_kernel_rwx_enabled())
+				pr_warn("Kernel _etext not properly aligned\n");
+			size <<= 1;
+		}
+		setibat(i++, PAGE_OFFSET + base, base, size, PAGE_KERNEL_TEXT);
+		base += size;
+	}
+	for (; i < nb; i++)
+		clearibat(i);
+
+	update_bats();
+
+	for (i = TASK_SIZE >> 28; i < 16; i++) {
+		/* Do not set NX on VM space for modules */
+		if (IS_ENABLED(CONFIG_MODULES) &&
+		    (VMALLOC_START & 0xf0000000) == i << 28)
+			break;
+		mtsrin(mfsrin(i << 28) | 0x10000000, i << 28);
+	}
+}
+
+void mmu_mark_rodata_ro(void)
+{
+	int nb = mmu_has_feature(MMU_FTR_USE_HIGH_BATS) ? 8 : 4;
+	int i;
+
+	if (cpu_has_feature(CPU_FTR_601))
+		return;
+
+	for (i = 0; i < nb; i++) {
+		struct ppc_bat *bat = BATS[i];
+
+		if (bat_addrs[i].start < (unsigned long)__init_begin)
+			bat[1].batl = (bat[1].batl & ~BPP_RW) | BPP_RX;
+	}
+
+	update_bats();
 }
 
 /*
