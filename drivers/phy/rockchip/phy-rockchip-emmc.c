@@ -176,7 +176,7 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	ret = regmap_read_poll_timeout(rk_phy->reg_base,
 				       rk_phy->reg_offset + GRF_EMMCPHY_STATUS,
 				       caldone, PHYCTRL_IS_CALDONE(caldone),
-				       0, 50);
+				       0, 500);
 	if (ret) {
 		pr_err("%s: caldone failed, ret=%d\n", __func__, ret);
 		return ret;
