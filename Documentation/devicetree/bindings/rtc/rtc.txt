@@ -48,6 +48,7 @@ dallas,ds1374		I2C, 32-Bit Binary Counter Watchdog RTC with Trickle Charger and 
 dallas,ds1672		Dallas DS1672 Real-time Clock
 dallas,ds3232		Extremely Accurate I²C RTC with Integrated Crystal and SRAM
 epson,rx8010		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
+epson,rx8571		I2C-BUS INTERFACE REAL TIME CLOCK MODULE with Battery Backed RAM
 epson,rx8581		I2C-BUS INTERFACE REAL TIME CLOCK MODULE
 emmicro,em3027		EM Microelectronic EM3027 Real-time Clock
 isil,isl1208		Intersil ISL1208 Low Power RTC with Battery Backed SRAM
