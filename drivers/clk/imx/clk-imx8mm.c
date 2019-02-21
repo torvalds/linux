@@ -379,7 +379,7 @@ static struct clk ** const uart_clks[] __initconst = {
 	NULL
 };
 
-static int imx8mm_clocks_init(struct device_node *ccm_node)
+static int __init imx8mm_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
 	void __iomem *base;
