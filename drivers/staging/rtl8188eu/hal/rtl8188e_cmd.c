@@ -475,7 +475,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	PageNum += PageNeed;
 	adapt->HalData->FwRsvdPageStartOffset = PageNum;
 
-	BufIndex += PageNeed*128;
+	BufIndex += PageNeed * 128;
 
 	/* 3 (2) ps-poll *1 page */
 	RsvdPageLoc.LocPsPoll = PageNum;
@@ -485,7 +485,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	PageNeed = (u8)PageNum_128(TxDescLen + PSPollLength);
 	PageNum += PageNeed;
 
-	BufIndex += PageNeed*128;
+	BufIndex += PageNeed * 128;
 
 	/* 3 (3) null data * 1 page */
 	RsvdPageLoc.LocNullData = PageNum;
@@ -495,7 +495,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	PageNeed = (u8)PageNum_128(TxDescLen + NullDataLength);
 	PageNum += PageNeed;
 
-	BufIndex += PageNeed*128;
+	BufIndex += PageNeed * 128;
 
 	/* 3 (4) probe response * 1page */
 	RsvdPageLoc.LocProbeRsp = PageNum;
@@ -505,7 +505,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	PageNeed = (u8)PageNum_128(TxDescLen + ProbeRspLength);
 	PageNum += PageNeed;
 
-	BufIndex += PageNeed*128;
+	BufIndex += PageNeed * 128;
 
 	/* 3 (5) Qos null data */
 	RsvdPageLoc.LocQosNull = PageNum;
