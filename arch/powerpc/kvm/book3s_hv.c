@@ -1215,6 +1215,22 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
+		/* Print the MCE event to host console. */
+		machine_check_print_event_info(&vcpu->arch.mce_evt, false);
+
+		/*
+		 * If the guest can do FWNMI, exit to userspace so it can
+		 * deliver a FWNMI to the guest.
+		 * Otherwise we synthesize a machine check for the guest
+		 * so that it knows that the machine check occurred.
+		 */
+		if (!vcpu->kvm->arch.fwnmi_enabled) {
+			ulong flags = vcpu->arch.shregs.msr & 0x083c0000;
+			kvmppc_core_queue_machine_check(vcpu, flags);
+			r = RESUME_GUEST;
+			break;
+		}
+
 		/* Exit to guest with KVM_EXIT_NMI as exit reason */
 		run->exit_reason = KVM_EXIT_NMI;
 		run->hw.hardware_exit_reason = vcpu->arch.trap;
@@ -1227,8 +1243,6 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			run->flags |= KVM_RUN_PPC_NMI_DISP_NOT_RECOV;
 
 		r = RESUME_HOST;
-		/* Print the MCE event to host console. */
-		machine_check_print_event_info(&vcpu->arch.mce_evt, false);
 		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
