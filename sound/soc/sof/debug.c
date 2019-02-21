@@ -22,7 +22,6 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 {
 	struct snd_sof_dfsentry *dfse = file->private_data;
 	struct snd_sof_dev *sdev = dfse->sdev;
-	struct dentry *dfsentry = dfse->dfsentry;
 	int size;
 	u32 *buf;
 	loff_t pos = *ppos;
@@ -67,7 +66,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		    dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
 			dev_err(sdev->dev,
 				"error: debugfs entry %s cannot be read in DSP D3\n",
-				dfsentry->d_name.name);
+				dfse->dfsentry->d_name.name);
 			return -EINVAL;
 		}
 
