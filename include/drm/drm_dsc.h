@@ -604,5 +604,6 @@ struct drm_dsc_pps_infoframe {
 void drm_dsc_dp_pps_header_init(struct drm_dsc_pps_infoframe *pps_sdp);
 void drm_dsc_pps_infoframe_pack(struct drm_dsc_pps_infoframe *pps_sdp,
 				const struct drm_dsc_config *dsc_cfg);
+int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg);
 
 #endif /* _DRM_DSC_H_ */
