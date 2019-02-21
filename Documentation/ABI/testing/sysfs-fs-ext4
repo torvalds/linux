@@ -109,3 +109,10 @@ Description:
 		write operation (since a 4k random write might turn
 		into a much larger write due to the zeroout
 		operation).
+
+What:		/sys/fs/ext4/<disk>/journal_task
+Date:		February 2019
+Contact:	"Theodore Ts'o" <tytso@mit.edu>
+Description:
+		This file is read-only and shows the pid of journal thread in
+		current pid-namespace or 0 if task is unreachable.
