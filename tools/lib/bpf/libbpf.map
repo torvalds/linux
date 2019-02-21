@@ -147,4 +147,10 @@ LIBBPF_0.0.2 {
 		btf_ext__new;
 		btf_ext__reloc_func_info;
 		btf_ext__reloc_line_info;
+		xsk_umem__create;
+		xsk_socket__create;
+		xsk_umem__delete;
+		xsk_socket__delete;
+		xsk_umem__fd;
+		xsk_socket__fd;
 } LIBBPF_0.0.1;
