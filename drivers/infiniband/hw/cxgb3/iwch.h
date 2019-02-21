@@ -107,7 +107,7 @@ struct iwch_dev {
 	u32 device_cap_flags;
 	struct iwch_rnic_attributes attr;
 	struct xarray cqs;
-	struct idr qpidr;
+	struct xarray qps;
 	struct idr mmidr;
 	spinlock_t lock;
 	struct list_head entry;
@@ -141,7 +141,7 @@ static inline struct iwch_cq *get_chp(struct iwch_dev *rhp, u32 cqid)
 
 static inline struct iwch_qp *get_qhp(struct iwch_dev *rhp, u32 qpid)
 {
-	return idr_find(&rhp->qpidr, qpid);
+	return xa_load(&rhp->qps, qpid);
 }
 
 static inline struct iwch_mr *get_mhp(struct iwch_dev *rhp, u32 mmid)

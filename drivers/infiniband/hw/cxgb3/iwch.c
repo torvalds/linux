@@ -62,37 +62,30 @@ struct cxgb3_client t3c_client = {
 static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(dev_mutex);
 
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct iwch_qp *qhp = p;
-
-	cxio_disable_wq_db(&qhp->wq);
-	return 0;
-}
-
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct iwch_qp *qhp = p;
-
-	if (data)
-		ring_doorbell(qhp->rhp->rdev.ctrl_qp.doorbell, qhp->wq.qpid);
-	cxio_enable_wq_db(&qhp->wq);
-	return 0;
-}
-
 static void disable_dbs(struct iwch_dev *rnicp)
 {
-	spin_lock_irq(&rnicp->lock);
-	idr_for_each(&rnicp->qpidr, disable_qp_db, NULL);
-	spin_unlock_irq(&rnicp->lock);
+	unsigned long index;
+	struct iwch_qp *qhp;
+
+	xa_lock_irq(&rnicp->qps);
+	xa_for_each(&rnicp->qps, index, qhp)
+		cxio_disable_wq_db(&qhp->wq);
+	xa_unlock_irq(&rnicp->qps);
 }
 
 static void enable_dbs(struct iwch_dev *rnicp, int ring_db)
 {
-	spin_lock_irq(&rnicp->lock);
-	idr_for_each(&rnicp->qpidr, enable_qp_db,
-		     (void *)(unsigned long)ring_db);
-	spin_unlock_irq(&rnicp->lock);
+	unsigned long index;
+	struct iwch_qp *qhp;
+
+	xa_lock_irq(&rnicp->qps);
+	xa_for_each(&rnicp->qps, index, qhp) {
+		if (ring_db)
+			ring_doorbell(qhp->rhp->rdev.ctrl_qp.doorbell,
+					qhp->wq.qpid);
+		cxio_enable_wq_db(&qhp->wq);
+	}
+	xa_unlock_irq(&rnicp->qps);
 }
 
 static void iwch_db_drop_task(struct work_struct *work)
@@ -106,7 +99,7 @@ static void rnic_init(struct iwch_dev *rnicp)
 {
 	pr_debug("%s iwch_dev %p\n", __func__,  rnicp);
 	xa_init_flags(&rnicp->cqs, XA_FLAGS_LOCK_IRQ);
-	idr_init(&rnicp->qpidr);
+	xa_init_flags(&rnicp->qps, XA_FLAGS_LOCK_IRQ);
 	idr_init(&rnicp->mmidr);
 	spin_lock_init(&rnicp->lock);
 	INIT_DELAYED_WORK(&rnicp->db_drop_task, iwch_db_drop_task);
@@ -191,7 +184,7 @@ static void close_rnic_dev(struct t3cdev *tdev)
 			iwch_unregister_device(dev);
 			cxio_rdev_close(&dev->rdev);
 			WARN_ON(!xa_empty(&dev->cqs));
-			idr_destroy(&dev->qpidr);
+			WARN_ON(!xa_empty(&dev->qps));
 			idr_destroy(&dev->mmidr);
 			ib_dealloc_device(&dev->ibdev);
 			break;
