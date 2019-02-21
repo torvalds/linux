@@ -546,6 +546,21 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
 	       bitmap_weight(chunk->populated, page_start);
 }
 
+/*
+ * pcpu_region_overlap - determines if two regions overlap
+ * @a: start of first region, inclusive
+ * @b: end of first region, exclusive
+ * @x: start of second region, inclusive
+ * @y: end of second region, exclusive
+ *
+ * This is used to determine if the hint region [a, b) overlaps with the
+ * allocated region [x, y).
+ */
+static inline bool pcpu_region_overlap(int a, int b, int x, int y)
+{
+	return (a < y) && (x < b);
+}
+
 /**
  * pcpu_chunk_update - updates the chunk metadata given a free area
  * @chunk: chunk of interest
@@ -710,8 +725,11 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 					PCPU_BITMAP_BLOCK_BITS,
 					s_off + bits);
 
-	if (s_off >= s_block->contig_hint_start &&
-	    s_off < s_block->contig_hint_start + s_block->contig_hint) {
+	if (pcpu_region_overlap(s_block->contig_hint_start,
+				s_block->contig_hint_start +
+				s_block->contig_hint,
+				s_off,
+				s_off + bits)) {
 		/* block contig hint is broken - scan to fix it */
 		pcpu_block_refresh_hint(chunk, s_index);
 	} else {
@@ -764,8 +782,10 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 	 * contig hint is broken.  Otherwise, it means a smaller space
 	 * was used and therefore the chunk contig hint is still correct.
 	 */
-	if (bit_off >= chunk->contig_bits_start  &&
-	    bit_off < chunk->contig_bits_start + chunk->contig_bits)
+	if (pcpu_region_overlap(chunk->contig_bits_start,
+				chunk->contig_bits_start + chunk->contig_bits,
+				bit_off,
+				bit_off + bits))
 		pcpu_chunk_refresh_hint(chunk);
 }
 
