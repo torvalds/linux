@@ -9,9 +9,6 @@
 #include <linux/interrupt.h>
 #include "ipmi_si_sm.h"
 
-#define IPMI_IO_ADDR_SPACE  0
-#define IPMI_MEM_ADDR_SPACE 1
-
 #define DEFAULT_REGSPACING	1
 #define DEFAULT_REGSIZE		1
 
@@ -27,7 +24,7 @@ void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 			    unsigned long addr);
 void ipmi_hardcode_init(void);
 void ipmi_si_hardcode_exit(void);
-int ipmi_si_hardcode_match(int addr_type, unsigned long addr);
+int ipmi_si_hardcode_match(int addr_space, unsigned long addr);
 void ipmi_si_platform_init(void);
 void ipmi_si_platform_shutdown(void);
 

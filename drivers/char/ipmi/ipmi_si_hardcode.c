@@ -240,11 +240,11 @@ void ipmi_si_hardcode_exit(void)
  * Returns true of the given address exists as a hardcoded address,
  * false if not.
  */
-int ipmi_si_hardcode_match(int addr_type, unsigned long addr)
+int ipmi_si_hardcode_match(int addr_space, unsigned long addr)
 {
 	unsigned int i;
 
-	if (addr_type == IPMI_IO_ADDR_SPACE) {
+	if (addr_space == IPMI_IO_ADDR_SPACE) {
 		for (i = 0; i < num_ports; i++) {
 			if (ports[i] == addr)
 				return 1;

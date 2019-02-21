@@ -106,7 +106,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 	char *next, *curr, *s, *n, *o;
 	enum hotmod_op op;
 	enum si_type si_type;
-	int  addr_space;
+	enum ipmi_addr_space addr_space;
 	unsigned long addr;
 	int regspacing;
 	int regsize;
@@ -150,9 +150,10 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 			break;
 		si_type = ival;
 
-		rv = parse_str(hotmod_as, &addr_space, "address space", &curr);
+		rv = parse_str(hotmod_as, &ival, "address space", &curr);
 		if (rv)
 			break;
+		addr_space = ival;
 
 		s = strchr(curr, ',');
 		if (s) {
@@ -215,7 +216,7 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 			io.addr_source = SI_HOTMOD;
 			io.si_type = si_type;
 			io.addr_data = addr;
-			io.addr_type = addr_space;
+			io.addr_space = addr_space;
 
 			io.addr = NULL;
 			io.regspacing = regspacing;

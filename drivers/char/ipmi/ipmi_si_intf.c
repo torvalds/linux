@@ -1645,7 +1645,7 @@ static ssize_t ipmi_params_show(struct device *dev,
 	return snprintf(buf, 200,
 			"%s,%s,0x%lx,rsp=%d,rsi=%d,rsh=%d,irq=%d,ipmb=%d\n",
 			si_to_str[smi_info->io.si_type],
-			addr_space_to_str[smi_info->io.addr_type],
+			addr_space_to_str[smi_info->io.addr_space],
 			smi_info->io.addr_data,
 			smi_info->io.regspacing,
 			smi_info->io.regsize,
@@ -1843,7 +1843,7 @@ static struct smi_info *find_dup_si(struct smi_info *info)
 	struct smi_info *e;
 
 	list_for_each_entry(e, &smi_infos, link) {
-		if (e->io.addr_type != info->io.addr_type)
+		if (e->io.addr_space != info->io.addr_space)
 			continue;
 		if (e->io.addr_data == info->io.addr_data) {
 			/*
@@ -1871,16 +1871,16 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 	 * in the firmware.
 	 */
 	if (io->addr_source != SI_HARDCODED &&
-	    ipmi_si_hardcode_match(io->addr_type, io->addr_data)) {
+	    ipmi_si_hardcode_match(io->addr_space, io->addr_data)) {
 		dev_info(io->dev,
 			 "Hard-coded device at this address already exists");
 		return -ENODEV;
 	}
 
 	if (!io->io_setup) {
-		if (io->addr_type == IPMI_IO_ADDR_SPACE) {
+		if (io->addr_space == IPMI_IO_ADDR_SPACE) {
 			io->io_setup = ipmi_si_port_setup;
-		} else if (io->addr_type == IPMI_MEM_ADDR_SPACE) {
+		} else if (io->addr_space == IPMI_MEM_ADDR_SPACE) {
 			io->io_setup = ipmi_si_mem_setup;
 		} else {
 			return -EINVAL;
@@ -1942,7 +1942,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	pr_info("Trying %s-specified %s state machine at %s address 0x%lx, slave address 0x%x, irq %d\n",
 		ipmi_addr_src_to_str(new_smi->io.addr_source),
 		si_to_str[new_smi->io.si_type],
-		addr_space_to_str[new_smi->io.addr_type],
+		addr_space_to_str[new_smi->io.addr_space],
 		new_smi->io.addr_data,
 		new_smi->io.slave_addr, new_smi->io.irq);
 
@@ -2289,7 +2289,7 @@ void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link) {
-		if (e->io.addr_type != addr_space)
+		if (e->io.addr_space != addr_space)
 			continue;
 		if (e->io.si_type != si_type)
 			continue;
