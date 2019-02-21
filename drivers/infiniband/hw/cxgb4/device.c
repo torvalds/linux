@@ -250,15 +250,10 @@ static void set_ep_sin6_addrs(struct c4iw_ep *ep,
 	}
 }
 
-static int dump_qp(int id, void *p, void *data)
+static int dump_qp(struct c4iw_qp *qp, struct c4iw_debugfs_data *qpd)
 {
-	struct c4iw_qp *qp = p;
-	struct c4iw_debugfs_data *qpd = data;
 	int space;
 	int cc;
-
-	if (id != qp->wq.sq.qid)
-		return 0;
 
 	space = qpd->bufsize - qpd->pos - 1;
 	if (space == 0)
@@ -335,7 +330,9 @@ static int qp_release(struct inode *inode, struct file *file)
 
 static int qp_open(struct inode *inode, struct file *file)
 {
+	struct c4iw_qp *qp;
 	struct c4iw_debugfs_data *qpd;
+	unsigned long index;
 	int count = 1;
 
 	qpd = kmalloc(sizeof *qpd, GFP_KERNEL);
@@ -345,9 +342,12 @@ static int qp_open(struct inode *inode, struct file *file)
 	qpd->devp = inode->i_private;
 	qpd->pos = 0;
 
-	spin_lock_irq(&qpd->devp->lock);
-	idr_for_each(&qpd->devp->qpidr, count_idrs, &count);
-	spin_unlock_irq(&qpd->devp->lock);
+	/*
+	 * No need to lock; we drop the lock to call vmalloc so it's racy
+	 * anyway.  Someone who cares should switch this over to seq_file
+	 */
+	xa_for_each(&qpd->devp->qps, index, qp)
+		count++;
 
 	qpd->bufsize = count * 180;
 	qpd->buf = vmalloc(qpd->bufsize);
@@ -356,9 +356,10 @@ static int qp_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	spin_lock_irq(&qpd->devp->lock);
-	idr_for_each(&qpd->devp->qpidr, dump_qp, qpd);
-	spin_unlock_irq(&qpd->devp->lock);
+	xa_lock_irq(&qpd->devp->qps);
+	xa_for_each(&qpd->devp->qps, index, qp)
+		dump_qp(qp, qpd);
+	xa_unlock_irq(&qpd->devp->qps);
 
 	qpd->buf[qpd->pos++] = 0;
 	file->private_data = qpd;
@@ -932,8 +933,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
 	WARN_ON(!xa_empty(&ctx->dev->cqs));
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->qpidr));
-	idr_destroy(&ctx->dev->qpidr);
+	WARN_ON(!xa_empty(&ctx->dev->qps));
 	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->mmidr));
 	idr_destroy(&ctx->dev->mmidr);
 	wait_event(ctx->dev->wait, idr_is_empty(&ctx->dev->hwtid_idr));
@@ -1044,7 +1044,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	}
 
 	xa_init_flags(&devp->cqs, XA_FLAGS_LOCK_IRQ);
-	idr_init(&devp->qpidr);
+	xa_init_flags(&devp->qps, XA_FLAGS_LOCK_IRQ);
 	idr_init(&devp->mmidr);
 	idr_init(&devp->hwtid_idr);
 	idr_init(&devp->stid_idr);
@@ -1264,34 +1264,21 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	return 0;
 }
 
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_disable_wq_db(&qp->wq);
-	return 0;
-}
-
 static void stop_queues(struct uld_ctx *ctx)
 {
-	unsigned long flags;
+	struct c4iw_qp *qp;
+	unsigned long index, flags;
 
-	spin_lock_irqsave(&ctx->dev->lock, flags);
+	xa_lock_irqsave(&ctx->dev->qps, flags);
 	ctx->dev->rdev.stats.db_state_transitions++;
 	ctx->dev->db_state = STOPPED;
-	if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED)
-		idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
-	else
+	if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED) {
+		xa_for_each(&ctx->dev->qps, index, qp)
+			t4_disable_wq_db(&qp->wq);
+	} else {
 		ctx->dev->rdev.status_page->db_off = 1;
-	spin_unlock_irqrestore(&ctx->dev->lock, flags);
-}
-
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_enable_wq_db(&qp->wq);
-	return 0;
+	}
+	xa_unlock_irqrestore(&ctx->dev->qps, flags);
 }
 
 static void resume_rc_qp(struct c4iw_qp *qp)
@@ -1321,18 +1308,21 @@ static void resume_a_chunk(struct uld_ctx *ctx)
 
 static void resume_queues(struct uld_ctx *ctx)
 {
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	if (ctx->dev->db_state != STOPPED)
 		goto out;
 	ctx->dev->db_state = FLOW_CONTROL;
 	while (1) {
 		if (list_empty(&ctx->dev->db_fc_list)) {
+			struct c4iw_qp *qp;
+			unsigned long index;
+
 			WARN_ON(ctx->dev->db_state != FLOW_CONTROL);
 			ctx->dev->db_state = NORMAL;
 			ctx->dev->rdev.stats.db_state_transitions++;
 			if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED) {
-				idr_for_each(&ctx->dev->qpidr, enable_qp_db,
-					     NULL);
+				xa_for_each(&ctx->dev->qps, index, qp)
+					t4_enable_wq_db(&qp->wq);
 			} else {
 				ctx->dev->rdev.status_page->db_off = 0;
 			}
@@ -1344,12 +1334,12 @@ static void resume_queues(struct uld_ctx *ctx)
 				resume_a_chunk(ctx);
 			}
 			if (!list_empty(&ctx->dev->db_fc_list)) {
-				spin_unlock_irq(&ctx->dev->lock);
+				xa_unlock_irq(&ctx->dev->qps);
 				if (DB_FC_RESUME_DELAY) {
 					set_current_state(TASK_UNINTERRUPTIBLE);
 					schedule_timeout(DB_FC_RESUME_DELAY);
 				}
-				spin_lock_irq(&ctx->dev->lock);
+				xa_lock_irq(&ctx->dev->qps);
 				if (ctx->dev->db_state != FLOW_CONTROL)
 					break;
 			}
@@ -1358,30 +1348,13 @@ static void resume_queues(struct uld_ctx *ctx)
 out:
 	if (ctx->dev->db_state != NORMAL)
 		ctx->dev->rdev.stats.db_fc_interruptions++;
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 }
 
 struct qp_list {
 	unsigned idx;
 	struct c4iw_qp **qps;
 };
-
-static int add_and_ref_qp(int id, void *p, void *data)
-{
-	struct qp_list *qp_listp = data;
-	struct c4iw_qp *qp = p;
-
-	c4iw_qp_add_ref(&qp->ibqp);
-	qp_listp->qps[qp_listp->idx++] = qp;
-	return 0;
-}
-
-static int count_qps(int id, void *p, void *data)
-{
-	unsigned *countp = data;
-	(*countp)++;
-	return 0;
-}
 
 static void deref_qps(struct qp_list *qp_list)
 {
@@ -1399,7 +1372,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 	for (idx = 0; idx < qp_list->idx; idx++) {
 		struct c4iw_qp *qp = qp_list->qps[idx];
 
-		spin_lock_irq(&qp->rhp->lock);
+		xa_lock_irq(&qp->rhp->qps);
 		spin_lock(&qp->lock);
 		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
 					  qp->wq.sq.qid,
@@ -1409,7 +1382,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing SQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
 			spin_unlock(&qp->lock);
-			spin_unlock_irq(&qp->rhp->lock);
+			xa_unlock_irq(&qp->rhp->qps);
 			return;
 		}
 		qp->wq.sq.wq_pidx_inc = 0;
@@ -1423,12 +1396,12 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing RQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);
 			spin_unlock(&qp->lock);
-			spin_unlock_irq(&qp->rhp->lock);
+			xa_unlock_irq(&qp->rhp->qps);
 			return;
 		}
 		qp->wq.rq.wq_pidx_inc = 0;
 		spin_unlock(&qp->lock);
-		spin_unlock_irq(&qp->rhp->lock);
+		xa_unlock_irq(&qp->rhp->qps);
 
 		/* Wait for the dbfifo to drain */
 		while (cxgb4_dbfifo_count(qp->rhp->rdev.lldi.ports[0], 1) > 0) {
@@ -1440,6 +1413,8 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 
 static void recover_queues(struct uld_ctx *ctx)
 {
+	struct c4iw_qp *qp;
+	unsigned long index;
 	int count = 0;
 	struct qp_list qp_list;
 	int ret;
@@ -1457,22 +1432,26 @@ static void recover_queues(struct uld_ctx *ctx)
 	}
 
 	/* Count active queues so we can build a list of queues to recover */
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	WARN_ON(ctx->dev->db_state != STOPPED);
 	ctx->dev->db_state = RECOVERY;
-	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
+	xa_for_each(&ctx->dev->qps, index, qp)
+		count++;
 
 	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
 	if (!qp_list.qps) {
-		spin_unlock_irq(&ctx->dev->lock);
+		xa_unlock_irq(&ctx->dev->qps);
 		return;
 	}
 	qp_list.idx = 0;
 
 	/* add and ref each qp so it doesn't get freed */
-	idr_for_each(&ctx->dev->qpidr, add_and_ref_qp, &qp_list);
+	xa_for_each(&ctx->dev->qps, index, qp) {
+		c4iw_qp_add_ref(&qp->ibqp);
+		qp_list.qps[qp_list.idx++] = qp;
+	}
 
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 
 	/* now traverse the list in a safe context to recover the db state*/
 	recover_lost_dbs(ctx, &qp_list);
@@ -1481,10 +1460,10 @@ static void recover_queues(struct uld_ctx *ctx)
 	deref_qps(&qp_list);
 	kfree(qp_list.qps);
 
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	WARN_ON(ctx->dev->db_state != RECOVERY);
 	ctx->dev->db_state = STOPPED;
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 }
 
 static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
