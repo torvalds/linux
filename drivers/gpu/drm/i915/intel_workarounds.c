@@ -564,26 +564,26 @@ void intel_engine_init_ctx_wa(struct intel_engine_cs *engine)
 
 	wa_init_start(wal, "context");
 
-	if (INTEL_GEN(i915) < 8)
-		return;
-	else if (IS_BROADWELL(i915))
-		bdw_ctx_workarounds_init(engine);
-	else if (IS_CHERRYVIEW(i915))
-		chv_ctx_workarounds_init(engine);
-	else if (IS_SKYLAKE(i915))
-		skl_ctx_workarounds_init(engine);
-	else if (IS_BROXTON(i915))
-		bxt_ctx_workarounds_init(engine);
-	else if (IS_KABYLAKE(i915))
-		kbl_ctx_workarounds_init(engine);
-	else if (IS_GEMINILAKE(i915))
-		glk_ctx_workarounds_init(engine);
-	else if (IS_COFFEELAKE(i915))
-		cfl_ctx_workarounds_init(engine);
+	if (IS_ICELAKE(i915))
+		icl_ctx_workarounds_init(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_ctx_workarounds_init(engine);
-	else if (IS_ICELAKE(i915))
-		icl_ctx_workarounds_init(engine);
+	else if (IS_COFFEELAKE(i915))
+		cfl_ctx_workarounds_init(engine);
+	else if (IS_GEMINILAKE(i915))
+		glk_ctx_workarounds_init(engine);
+	else if (IS_KABYLAKE(i915))
+		kbl_ctx_workarounds_init(engine);
+	else if (IS_BROXTON(i915))
+		bxt_ctx_workarounds_init(engine);
+	else if (IS_SKYLAKE(i915))
+		skl_ctx_workarounds_init(engine);
+	else if (IS_CHERRYVIEW(i915))
+		chv_ctx_workarounds_init(engine);
+	else if (IS_BROADWELL(i915))
+		bdw_ctx_workarounds_init(engine);
+	else if (INTEL_GEN(i915) < 8)
+		return;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
