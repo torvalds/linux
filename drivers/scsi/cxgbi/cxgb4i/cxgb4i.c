@@ -1210,7 +1210,8 @@ static void do_rx_iscsi_hdr(struct cxgbi_device *cdev, struct sk_buff *skb)
 		csk->skb_ulp_lhdr = skb;
 		cxgbi_skcb_set_flag(skb, SKCBF_RX_HDR);
 
-		if (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt) {
+		if ((CHELSIO_CHIP_VERSION(lldi->adapter_type) <= CHELSIO_T5) &&
+		    (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt)) {
 			pr_info("tid %u, CPL_ISCSI_HDR, bad seq, 0x%x/0x%x.\n",
 				csk->tid, cxgbi_skcb_tcp_seq(skb),
 				csk->rcv_nxt);
