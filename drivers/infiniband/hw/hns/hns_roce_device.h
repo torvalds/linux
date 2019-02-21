@@ -515,8 +515,7 @@ struct hns_roce_qp_table {
 
 struct hns_roce_cq_table {
 	struct hns_roce_bitmap		bitmap;
-	spinlock_t			lock;
-	struct radix_tree_root		tree;
+	struct xarray			array;
 	struct hns_roce_hem_table	table;
 };
 

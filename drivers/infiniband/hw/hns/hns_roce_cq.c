@@ -127,13 +127,9 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 		goto err_out;
 	}
 
-	/* The cq insert radix tree */
-	spin_lock_irq(&cq_table->lock);
-	/* Radix_tree: The associated pointer and long integer key value like */
-	ret = radix_tree_insert(&cq_table->tree, hr_cq->cqn, hr_cq);
-	spin_unlock_irq(&cq_table->lock);
+	ret = xa_err(xa_store(&cq_table->array, hr_cq->cqn, hr_cq, GFP_KERNEL));
 	if (ret) {
-		dev_err(dev, "CQ alloc.Failed to radix_tree_insert.\n");
+		dev_err(dev, "CQ alloc failed xa_store.\n");
 		goto err_put;
 	}
 
@@ -141,7 +137,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR(mailbox)) {
 		ret = PTR_ERR(mailbox);
-		goto err_radix;
+		goto err_xa;
 	}
 
 	hr_dev->hw->write_cqc(hr_dev, hr_cq, mailbox->buf, mtts, dma_handle,
@@ -152,7 +148,7 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret) {
 		dev_err(dev, "CQ alloc.Failed to cmd mailbox.\n");
-		goto err_radix;
+		goto err_xa;
 	}
 
 	hr_cq->cons_index = 0;
@@ -164,10 +160,8 @@ static int hns_roce_cq_alloc(struct hns_roce_dev *hr_dev, int nent,
 
 	return 0;
 
-err_radix:
-	spin_lock_irq(&cq_table->lock);
-	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
-	spin_unlock_irq(&cq_table->lock);
+err_xa:
+	xa_erase(&cq_table->array, hr_cq->cqn);
 
 err_put:
 	hns_roce_table_put(hr_dev, &cq_table->table, hr_cq->cqn);
@@ -197,6 +191,8 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 		dev_err(dev, "HW2SW_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
 
+	xa_erase(&cq_table->array, hr_cq->cqn);
+
 	/* Waiting interrupt process procedure carried out */
 	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
@@ -204,10 +200,6 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	if (atomic_dec_and_test(&hr_cq->refcount))
 		complete(&hr_cq->free);
 	wait_for_completion(&hr_cq->free);
-
-	spin_lock_irq(&cq_table->lock);
-	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
-	spin_unlock_irq(&cq_table->lock);
 
 	hns_roce_table_put(hr_dev, &cq_table->table, hr_cq->cqn);
 	hns_roce_bitmap_free(&cq_table->bitmap, hr_cq->cqn, BITMAP_NO_RR);
@@ -491,8 +483,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_cq *cq;
 
-	cq = radix_tree_lookup(&hr_dev->cq_table.tree,
-			       cqn & (hr_dev->caps.num_cqs - 1));
+	cq = xa_load(&hr_dev->cq_table.array, cqn & (hr_dev->caps.num_cqs - 1));
 	if (!cq) {
 		dev_warn(dev, "Completion event for bogus CQ 0x%08x\n", cqn);
 		return;
@@ -509,8 +500,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_cq *cq;
 
-	cq = radix_tree_lookup(&cq_table->tree,
-			       cqn & (hr_dev->caps.num_cqs - 1));
+	cq = xa_load(&cq_table->array, cqn & (hr_dev->caps.num_cqs - 1));
 	if (cq)
 		atomic_inc(&cq->refcount);
 
@@ -530,8 +520,7 @@ int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 
-	spin_lock_init(&cq_table->lock);
-	INIT_RADIX_TREE(&cq_table->tree, GFP_ATOMIC);
+	xa_init(&cq_table->array);
 
 	return hns_roce_bitmap_init(&cq_table->bitmap, hr_dev->caps.num_cqs,
 				    hr_dev->caps.num_cqs - 1,
