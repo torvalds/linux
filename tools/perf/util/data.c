@@ -19,11 +19,11 @@ static bool check_pipe(struct perf_data *data)
 	int fd = perf_data__is_read(data) ?
 		 STDIN_FILENO : STDOUT_FILENO;
 
-	if (!data->file.path) {
+	if (!data->path) {
 		if (!fstat(fd, &st) && S_ISFIFO(st.st_mode))
 			is_pipe = true;
 	} else {
-		if (!strcmp(data->file.path, "-"))
+		if (!strcmp(data->path, "-"))
 			is_pipe = true;
 	}
 
@@ -37,13 +37,13 @@ static int check_backup(struct perf_data *data)
 {
 	struct stat st;
 
-	if (!stat(data->file.path, &st) && st.st_size) {
+	if (!stat(data->path, &st) && st.st_size) {
 		/* TODO check errors properly */
 		char oldname[PATH_MAX];
 		snprintf(oldname, sizeof(oldname), "%s.old",
-			 data->file.path);
+			 data->path);
 		unlink(oldname);
-		rename(data->file.path, oldname);
+		rename(data->path, oldname);
 	}
 
 	return 0;
@@ -115,8 +115,22 @@ static int open_file(struct perf_data *data)
 	fd = perf_data__is_read(data) ?
 	     open_file_read(data) : open_file_write(data);
 
+	if (fd < 0) {
+		free(data->file.path);
+		return -1;
+	}
+
 	data->file.fd = fd;
-	return fd < 0 ? -1 : 0;
+	return 0;
+}
+
+static int open_file_dup(struct perf_data *data)
+{
+	data->file.path = strdup(data->path);
+	if (!data->file.path)
+		return -ENOMEM;
+
+	return open_file(data);
 }
 
 int perf_data__open(struct perf_data *data)
@@ -124,14 +138,15 @@ int perf_data__open(struct perf_data *data)
 	if (check_pipe(data))
 		return 0;
 
-	if (!data->file.path)
-		data->file.path = "perf.data";
+	if (!data->path)
+		data->path = "perf.data";
 
-	return open_file(data);
+	return open_file_dup(data);
 }
 
 void perf_data__close(struct perf_data *data)
 {
+	free(data->file.path);
 	close(data->file.fd);
 }
 
@@ -159,15 +174,15 @@ int perf_data__switch(struct perf_data *data,
 	if (perf_data__is_read(data))
 		return -EINVAL;
 
-	if (asprintf(&new_filepath, "%s.%s", data->file.path, postfix) < 0)
+	if (asprintf(&new_filepath, "%s.%s", data->path, postfix) < 0)
 		return -ENOMEM;
 
 	/*
 	 * Only fire a warning, don't return error, continue fill
 	 * original file.
 	 */
-	if (rename(data->file.path, new_filepath))
-		pr_warning("Failed to rename %s to %s\n", data->file.path, new_filepath);
+	if (rename(data->path, new_filepath))
+		pr_warning("Failed to rename %s to %s\n", data->path, new_filepath);
 
 	if (!at_exit) {
 		close(data->file.fd);

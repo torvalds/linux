@@ -441,7 +441,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->data->file.path);
+		ui__error("The %s data has no samples!\n", session->data->path);
 		goto out;
 	}
 
@@ -578,7 +578,7 @@ int cmd_annotate(int argc, const char **argv)
 	if (quiet)
 		perf_quiet_option();
 
-	data.file.path = input_name;
+	data.path = input_name;
 
 	annotate.session = perf_session__new(&data, false, &annotate.tool);
 	if (annotate.session == NULL)

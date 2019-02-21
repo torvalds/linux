@@ -10,12 +10,13 @@ enum perf_data_mode {
 };
 
 struct perf_data_file {
-	const char	*path;
+	char		*path;
 	int		 fd;
 	unsigned long	 size;
 };
 
 struct perf_data {
+	const char		*path;
 	struct perf_data_file	 file;
 	bool			 is_pipe;
 	bool			 force;

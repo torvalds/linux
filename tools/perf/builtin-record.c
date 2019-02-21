@@ -918,7 +918,7 @@ record__switch_output(struct record *rec, bool at_exit)
 
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Dump %s.%s ]\n",
-			data->file.path, timestamp);
+			data->path, timestamp);
 
 	/* Output tracking events */
 	if (!at_exit) {
@@ -1461,7 +1461,7 @@ out_child:
 
 		fprintf(stderr,	"[ perf record: Captured and wrote %.3f MB %s%s%s ]\n",
 			perf_data__size(data) / 1024.0 / 1024.0,
-			data->file.path, postfix, samples);
+			data->path, postfix, samples);
 	}
 
 out_delete_session:
@@ -1862,7 +1862,7 @@ static struct option __record_options[] = {
 	OPT_STRING('C', "cpu", &record.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
 	OPT_U64('c', "count", &record.opts.user_interval, "event period to sample"),
-	OPT_STRING('o', "output", &record.data.file.path, "file",
+	OPT_STRING('o', "output", &record.data.path, "file",
 		    "output file name"),
 	OPT_BOOLEAN_SET('i', "no-inherit", &record.opts.no_inherit,
 			&record.opts.no_inherit_set,
