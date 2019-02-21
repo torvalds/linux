@@ -131,6 +131,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
  * Set up one of the I/D BAT (block address translation) register pairs.
  * The parameters are not checked; in particular size must be a power
  * of 2 between 128k and 256M.
+ * On 603+, only set IBAT when _PAGE_EXEC is set
  */
 void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, pgprot_t prot)
@@ -157,11 +158,12 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 			bat[1].batu |= 1; 	/* Vp = 1 */
 		if (flags & _PAGE_GUARDED) {
 			/* G bit must be zero in IBATs */
-			bat[0].batu = bat[0].batl = 0;
-		} else {
-			/* make IBAT same as DBAT */
-			bat[0] = bat[1];
+			flags &= ~_PAGE_EXEC;
 		}
+		if (flags & _PAGE_EXEC)
+			bat[0] = bat[1];
+		else
+			bat[0].batu = bat[0].batl = 0;
 	} else {
 		/* 601 cpu */
 		if (bl > BL_8M)
