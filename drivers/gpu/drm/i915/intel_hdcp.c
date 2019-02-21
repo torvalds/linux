@@ -89,10 +89,10 @@ static bool intel_hdcp2_capable(struct intel_connector *connector)
 
 	/* MEI interface is solid */
 	mutex_lock(&dev_priv->hdcp_comp_mutex);
-		if (!dev_priv->hdcp_comp_added ||  !dev_priv->hdcp_master) {
-			mutex_unlock(&dev_priv->hdcp_comp_mutex);
-			return false;
-		}
+	if (!dev_priv->hdcp_comp_added ||  !dev_priv->hdcp_master) {
+		mutex_unlock(&dev_priv->hdcp_comp_mutex);
+		return false;
+	}
 	mutex_unlock(&dev_priv->hdcp_comp_mutex);
 
 	/* Sink's capability for HDCP2.2 */
@@ -783,7 +783,7 @@ struct intel_connector *intel_hdcp_to_connector(struct intel_hdcp *hdcp)
 }
 
 /* Implements Part 3 of the HDCP authorization procedure */
-int intel_hdcp_check_link(struct intel_connector *connector)
+static int intel_hdcp_check_link(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	struct drm_i915_private *dev_priv = connector->base.dev->dev_private;
