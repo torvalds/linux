@@ -22,11 +22,11 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include "../core/block.h"
 #include "../core/card.h"
 #include "../core/core.h"
 #include "../core/mmc_ops.h"
+#include "rk_sdmmc_ops.h"
 
 #define BLKSZ		512
 
