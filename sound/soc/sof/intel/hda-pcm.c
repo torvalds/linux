@@ -139,12 +139,19 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
 {
-	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct sof_intel_hda_dev *hda =
 		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
-	struct snd_sof_pcm *spcm = rtd->private;
+	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t pos = 0;
+
+	spcm = snd_sof_find_spcm_dai(sdev, rtd);
+	if (!spcm) {
+		dev_warn_ratelimited(sdev->dev, "warn: can't find PCM with DAI ID %d\n",
+				     rtd->dai_link->id);
+		return 0;
+	}
 
 	if (hda && !hda->no_ipc_position) {
 		/* read position from IPC position */
