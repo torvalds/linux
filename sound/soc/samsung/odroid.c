@@ -194,7 +194,8 @@ static struct snd_soc_dai_link odroid_card_dais[] = {
 static int odroid_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *cpu, *cpu_dai, *codec;
+	struct device_node *cpu_dai = NULL;
+	struct device_node *cpu, *codec;
 	struct odroid_priv *priv;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *link, *codec_link;
@@ -271,8 +272,11 @@ static int odroid_audio_probe(struct platform_device *pdev)
 		if (ret < 0)
 			break;
 	}
-	if (ret == 0)
+	if (ret == 0) {
 		cpu_dai = of_parse_phandle(cpu, "sound-dai", 0);
+		if (!cpu_dai)
+			ret = -EINVAL;
+	}
 
 	of_node_put(cpu);
 	of_node_put(codec);
