@@ -10,6 +10,7 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/dm-ioctl.h>
 #include <linux/math64.h>
 #include <linux/ratelimit.h>
 
@@ -424,6 +425,14 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
 void dm_remap_zone_report(struct dm_target *ti, sector_t start,
 			  struct blk_zone *zones, unsigned int *nr_zones);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
+
+/*
+ * Device mapper functions to parse and create devices specified by the
+ * parameter "dm-mod.create="
+ */
+int __init dm_early_create(struct dm_ioctl *dmi,
+			   struct dm_target_spec **spec_array,
+			   char **target_params_array);
 
 struct queue_limits *dm_get_queue_limits(struct mapped_device *md);
 
