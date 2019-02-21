@@ -56,10 +56,21 @@ struct tegra_xusb_lane {
 int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
 			     struct device_node *np);
 
+struct tegra_xusb_usb3_lane {
+	struct tegra_xusb_lane base;
+};
+
+static inline struct tegra_xusb_usb3_lane *
+to_usb3_lane(struct tegra_xusb_lane *lane)
+{
+	return container_of(lane, struct tegra_xusb_usb3_lane, base);
+}
+
 struct tegra_xusb_usb2_lane {
 	struct tegra_xusb_lane base;
 
 	u32 hs_curr_level_offset;
+	bool powered_on;
 };
 
 static inline struct tegra_xusb_usb2_lane *
@@ -169,6 +180,19 @@ int tegra_xusb_pad_init(struct tegra_xusb_pad *pad,
 int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 			    const struct phy_ops *ops);
 void tegra_xusb_pad_unregister(struct tegra_xusb_pad *pad);
+
+struct tegra_xusb_usb3_pad {
+	struct tegra_xusb_pad base;
+
+	unsigned int enable;
+	struct mutex lock;
+};
+
+static inline struct tegra_xusb_usb3_pad *
+to_usb3_pad(struct tegra_xusb_pad *pad)
+{
+	return container_of(pad, struct tegra_xusb_usb3_pad, base);
+}
 
 struct tegra_xusb_usb2_pad {
 	struct tegra_xusb_pad base;
@@ -424,6 +448,9 @@ extern const struct tegra_xusb_padctl_soc tegra124_xusb_padctl_soc;
 #endif
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
 extern const struct tegra_xusb_padctl_soc tegra210_xusb_padctl_soc;
+#endif
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
+extern const struct tegra_xusb_padctl_soc tegra186_xusb_padctl_soc;
 #endif
 
 #endif /* __PHY_TEGRA_XUSB_H */
