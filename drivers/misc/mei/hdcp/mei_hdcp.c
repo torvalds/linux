@@ -296,6 +296,61 @@ mei_hdcp_store_pairing_info(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
+/**
+ * mei_hdcp_initiate_locality_check() - Prepare LC_Init
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @lc_init_data: LC_Init msg output
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int
+mei_hdcp_initiate_locality_check(struct device *dev,
+				 struct hdcp_port_data *data,
+				 struct hdcp2_lc_init *lc_init_data)
+{
+	struct wired_cmd_init_locality_check_in lc_init_in = { { 0 } };
+	struct wired_cmd_init_locality_check_out lc_init_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data || !lc_init_data)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	lc_init_in.header.api_version = HDCP_API_VERSION;
+	lc_init_in.header.command_id = WIRED_INIT_LOCALITY_CHECK;
+	lc_init_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	lc_init_in.header.buffer_len = WIRED_CMD_BUF_LEN_INIT_LOCALITY_CHECK_IN;
+
+	lc_init_in.port.integrated_port_type = data->port_type;
+	lc_init_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	byte = mei_cldev_send(cldev, (u8 *)&lc_init_in, sizeof(lc_init_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&lc_init_out, sizeof(lc_init_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (lc_init_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X Failed. status: 0x%X\n",
+			WIRED_INIT_LOCALITY_CHECK, lc_init_out.header.status);
+		return -EIO;
+	}
+
+	lc_init_data->msg_id = HDCP_2_2_LC_INIT;
+	memcpy(lc_init_data->r_n, lc_init_out.r_n, HDCP_2_2_RN_LEN);
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
@@ -304,7 +359,7 @@ struct i915_hdcp_component_ops mei_hdcp_ops = {
 				mei_hdcp_verify_receiver_cert_prepare_km,
 	.verify_hprime = mei_hdcp_verify_hprime,
 	.store_pairing_info = mei_hdcp_store_pairing_info,
-	.initiate_locality_check = NULL,
+	.initiate_locality_check = mei_hdcp_initiate_locality_check,
 	.verify_lprime = NULL,
 	.get_session_key = NULL,
 	.repeater_check_flow_prepare_ack = NULL,
