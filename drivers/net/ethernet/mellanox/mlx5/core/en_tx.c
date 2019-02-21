@@ -172,15 +172,8 @@ static inline u16 mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
 			hlen += VLAN_HLEN;
 		break;
 	case MLX5_INLINE_MODE_IP:
-		/* When transport header is set to zero, it means no transport
-		 * header. When transport header is set to 0xff's, it means
-		 * transport header wasn't set.
-		 */
-		if (skb_transport_offset(skb)) {
-			hlen = mlx5e_skb_l3_header_offset(skb);
-			break;
-		}
-		/* fall through */
+		hlen = mlx5e_skb_l3_header_offset(skb);
+		break;
 	case MLX5_INLINE_MODE_L2:
 	default:
 		hlen = mlx5e_skb_l2_header_offset(skb);
