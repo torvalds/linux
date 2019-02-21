@@ -293,7 +293,9 @@ static struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
 	spin_lock(&smc_ib_devices.lock);
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
 		if (!strncmp(ibdev->ibdev->name, ib_name,
-			     sizeof(ibdev->ibdev->name))) {
+			     sizeof(ibdev->ibdev->name)) ||
+		    !strncmp(dev_name(ibdev->ibdev->dev.parent), ib_name,
+			     IB_DEVICE_NAME_MAX - 1)) {
 			goto out;
 		}
 	}
@@ -394,7 +396,7 @@ static int smc_pnet_set_nla(struct sk_buff *msg,
 	}
 	if (pnetelem->smcibdev) {
 		if (nla_put_string(msg, SMC_PNETID_IBNAME,
-				   pnetelem->smcibdev->ibdev->name) ||
+			dev_name(pnetelem->smcibdev->ibdev->dev.parent)) ||
 		    nla_put_u8(msg, SMC_PNETID_IBPORT, pnetelem->ib_port))
 			return -1;
 	} else if (pnetelem->smcd_dev) {
