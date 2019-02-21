@@ -7,6 +7,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include "ipmi_si_sm.h"
 
 #define DEFAULT_REGSPACING	1

@@ -307,15 +307,10 @@ static int of_ipmi_probe(struct platform_device *dev)
 static int find_slave_address(struct si_sm_io *io, int slave_addr)
 {
 #ifdef CONFIG_IPMI_DMI_DECODE
-	if (!slave_addr) {
-		u32 flags = IORESOURCE_IO;
-
-		if (io->addr_space == IPMI_MEM_ADDR_SPACE)
-			flags = IORESOURCE_MEM;
-
-		slave_addr = ipmi_dmi_get_slave_addr(io->si_type, flags,
+	if (!slave_addr)
+		slave_addr = ipmi_dmi_get_slave_addr(io->si_type,
+						     io->addr_space,
 						     io->addr_data);
-	}
 #endif
 
 	return slave_addr;
