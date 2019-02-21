@@ -3658,7 +3658,7 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	resp.chip_id0 = chip_met_rev_num;
 	/* Future extension of chip info */
 	resp.chip_id1 = 0;
-	/*Temp, Use idr_alloc instead */
+	/*Temp, Use xa_alloc instead */
 	resp.dev_id = rdev->en_dev->pdev->devfn;
 	resp.max_qp = rdev->qplib_ctx.qpc_count;
 	resp.pg_size = PAGE_SIZE;
