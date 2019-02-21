@@ -115,7 +115,7 @@ static const struct fsl_soc_die_attr *fsl_soc_die_match(
 	return NULL;
 }
 
-u32 fsl_guts_get_svr(void)
+static u32 fsl_guts_get_svr(void)
 {
 	u32 svr = 0;
 
@@ -129,7 +129,6 @@ u32 fsl_guts_get_svr(void)
 
 	return svr;
 }
-EXPORT_SYMBOL(fsl_guts_get_svr);
 
 static int fsl_guts_probe(struct platform_device *pdev)
 {
