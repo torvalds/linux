@@ -566,6 +566,36 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	vsp1_dl_list_commit(dl, dl_flags);
 }
 
+static int vsp1_du_pipeline_set_rwpf_format(struct vsp1_device *vsp1,
+					    struct vsp1_rwpf *rwpf,
+					    u32 pixelformat, unsigned int pitch)
+{
+	const struct vsp1_format_info *fmtinfo;
+	unsigned int chroma_hsub;
+
+	fmtinfo = vsp1_get_format_info(vsp1, pixelformat);
+	if (!fmtinfo) {
+		dev_dbg(vsp1->dev, "Unsupported pixel format %08x\n",
+			pixelformat);
+		return -EINVAL;
+	}
+
+	/*
+	 * Only formats with three planes can affect the chroma planes pitch.
+	 * All formats with two planes have a horizontal subsampling value of 2,
+	 * but combine U and V in a single chroma plane, which thus results in
+	 * the luma plane and chroma plane having the same pitch.
+	 */
+	chroma_hsub = (fmtinfo->planes == 3) ? fmtinfo->hsub : 1;
+
+	rwpf->fmtinfo = fmtinfo;
+	rwpf->format.num_planes = fmtinfo->planes;
+	rwpf->format.plane_fmt[0].bytesperline = pitch;
+	rwpf->format.plane_fmt[1].bytesperline = pitch / chroma_hsub;
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * DU Driver API
  */
@@ -773,9 +803,8 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
-	const struct vsp1_format_info *fmtinfo;
-	unsigned int chroma_hsub;
 	struct vsp1_rwpf *rpf;
+	int ret;
 
 	if (rpf_index >= vsp1->info->rpf_count)
 		return -EINVAL;
@@ -808,25 +837,11 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 	 * Store the format, stride, memory buffer address, crop and compose
 	 * rectangles and Z-order position and for the input.
 	 */
-	fmtinfo = vsp1_get_format_info(vsp1, cfg->pixelformat);
-	if (!fmtinfo) {
-		dev_dbg(vsp1->dev, "Unsupported pixel format %08x for RPF\n",
-			cfg->pixelformat);
-		return -EINVAL;
-	}
+	ret = vsp1_du_pipeline_set_rwpf_format(vsp1, rpf, cfg->pixelformat,
+					       cfg->pitch);
+	if (ret < 0)
+		return ret;
 
-	/*
-	 * Only formats with three planes can affect the chroma planes pitch.
-	 * All formats with two planes have a horizontal subsampling value of 2,
-	 * but combine U and V in a single chroma plane, which thus results in
-	 * the luma plane and chroma plane having the same pitch.
-	 */
-	chroma_hsub = (fmtinfo->planes == 3) ? fmtinfo->hsub : 1;
-
-	rpf->fmtinfo = fmtinfo;
-	rpf->format.num_planes = fmtinfo->planes;
-	rpf->format.plane_fmt[0].bytesperline = cfg->pitch;
-	rpf->format.plane_fmt[1].bytesperline = cfg->pitch / chroma_hsub;
 	rpf->alpha = cfg->alpha;
 
 	rpf->mem.addr[0] = cfg->mem[0];
