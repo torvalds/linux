@@ -747,6 +747,7 @@ static void _rtl92c_phy_sw_rf_seting(struct ieee80211_hw *hw, u8 channel)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
 	if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version)) {
 		if (channel == 6 &&
 		    rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20) {
