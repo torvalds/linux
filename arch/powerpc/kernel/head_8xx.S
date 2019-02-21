@@ -416,7 +416,7 @@ InstructionTLBMiss:
 #ifndef CONFIG_PIN_TLB_TEXT
 ITLBMissLinear:
 	mtcr	r11
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#if defined(CONFIG_STRICT_KERNEL_RWX) && CONFIG_ETEXT_SHIFT < 23
 	patch_site	0f, patch__itlbmiss_linmem_top8
 
 	mfspr	r10, SPRN_SRR0
@@ -537,7 +537,7 @@ DTLBMissIMMR:
 DTLBMissLinear:
 	mtcr	r11
 	rlwinm	r10, r10, 20, 0x0f800000	/* 8xx supports max 256Mb RAM */
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#if defined(CONFIG_STRICT_KERNEL_RWX) && CONFIG_DATA_SHIFT < 23
 	patch_site	0f, patch__dtlbmiss_romem_top8
 
 0:	subis	r11, r10, (PAGE_OFFSET - 0x80000000)@ha
