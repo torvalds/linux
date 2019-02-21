@@ -1355,6 +1355,10 @@ static void check_align_1(struct xarray *xa, char *name)
 	xa_destroy(xa);
 }
 
+/*
+ * We should always be able to store without allocating memory after
+ * reserving a slot.
+ */
 static void check_align_2(struct xarray *xa, char *name)
 {
 	int i;
@@ -1363,6 +1367,12 @@ static void check_align_2(struct xarray *xa, char *name)
 
 	for (i = 0; i < 8; i++) {
 		XA_BUG_ON(xa, xa_store(xa, 0, name + i, GFP_KERNEL) != NULL);
+		xa_erase(xa, 0);
+	}
+
+	for (i = 0; i < 8; i++) {
+		XA_BUG_ON(xa, xa_reserve(xa, 0, GFP_KERNEL) != 0);
+		XA_BUG_ON(xa, xa_store(xa, 0, name + i, 0) != NULL);
 		xa_erase(xa, 0);
 	}
 

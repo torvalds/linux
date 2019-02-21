@@ -767,10 +767,12 @@ void *xas_store(struct xa_state *xas, void *entry)
 	void *first, *next;
 	bool value = xa_is_value(entry);
 
-	if (entry)
-		first = xas_create(xas, !xa_is_node(entry));
-	else
+	if (entry) {
+		bool allow_root = !xa_is_node(entry) && !xa_is_zero(entry);
+		first = xas_create(xas, allow_root);
+	} else {
 		first = xas_load(xas);
+	}
 
 	if (xas_invalid(xas))
 		return first;
