@@ -367,11 +367,11 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	*addr = seg->start_addr;
 	*end  = seg->end;
 	if (do_nonshared)
-		pr_info("DCSS %s of range %p to %p and type %s loaded as "
+		pr_info("DCSS %s of range %px to %px and type %s loaded as "
 			"exclusive-writable\n", name, (void*) seg->start_addr,
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	else {
-		pr_info("DCSS %s of range %p to %p and type %s loaded in "
+		pr_info("DCSS %s of range %px to %px and type %s loaded in "
 			"shared access mode\n", name, (void*) seg->start_addr,
 			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	}
