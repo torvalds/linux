@@ -87,8 +87,6 @@
 #define THERMCTL_LVL0_DN_STATS			0x14
 
 #define THERMCTL_INTR_STATUS			0x84
-#define THERMCTL_INTR_ENABLE			0x88
-#define THERMCTL_INTR_DISABLE			0x8c
 
 #define TH_INTR_MD0_MASK			BIT(25)
 #define TH_INTR_MU0_MASK			BIT(24)
@@ -265,6 +263,8 @@ struct tegra_soctherm {
 	struct soctherm_throt_cfg throt_cfgs[THROTTLE_SIZE];
 
 	struct dentry *debugfs_dir;
+
+	struct mutex thermctl_lock;
 };
 
 /**
@@ -573,10 +573,60 @@ static int tegra_thermctl_get_trend(void *data, int trip,
 	return 0;
 }
 
+static void thermal_irq_enable(struct tegra_thermctl_zone *zn)
+{
+	u32 r;
+
+	/* multiple zones could be handling and setting trips at once */
+	mutex_lock(&zn->ts->thermctl_lock);
+	r = readl(zn->ts->regs + THERMCTL_INTR_ENABLE);
+	r = REG_SET_MASK(r, zn->sg->thermctl_isr_mask, TH_INTR_UP_DN_EN);
+	writel(r, zn->ts->regs + THERMCTL_INTR_ENABLE);
+	mutex_unlock(&zn->ts->thermctl_lock);
+}
+
+static void thermal_irq_disable(struct tegra_thermctl_zone *zn)
+{
+	u32 r;
+
+	/* multiple zones could be handling and setting trips at once */
+	mutex_lock(&zn->ts->thermctl_lock);
+	r = readl(zn->ts->regs + THERMCTL_INTR_DISABLE);
+	r = REG_SET_MASK(r, zn->sg->thermctl_isr_mask, 0);
+	writel(r, zn->ts->regs + THERMCTL_INTR_DISABLE);
+	mutex_unlock(&zn->ts->thermctl_lock);
+}
+
+static int tegra_thermctl_set_trips(void *data, int lo, int hi)
+{
+	struct tegra_thermctl_zone *zone = data;
+	u32 r;
+
+	thermal_irq_disable(zone);
+
+	r = readl(zone->ts->regs + zone->sg->thermctl_lvl0_offset);
+	r = REG_SET_MASK(r, THERMCTL_LVL0_CPU0_EN_MASK, 0);
+	writel(r, zone->ts->regs + zone->sg->thermctl_lvl0_offset);
+
+	lo = enforce_temp_range(zone->dev, lo) / zone->ts->soc->thresh_grain;
+	hi = enforce_temp_range(zone->dev, hi) / zone->ts->soc->thresh_grain;
+	dev_dbg(zone->dev, "%s hi:%d, lo:%d\n", __func__, hi, lo);
+
+	r = REG_SET_MASK(r, zone->sg->thermctl_lvl0_up_thresh_mask, hi);
+	r = REG_SET_MASK(r, zone->sg->thermctl_lvl0_dn_thresh_mask, lo);
+	r = REG_SET_MASK(r, THERMCTL_LVL0_CPU0_EN_MASK, 1);
+	writel(r, zone->ts->regs + zone->sg->thermctl_lvl0_offset);
+
+	thermal_irq_enable(zone);
+
+	return 0;
+}
+
 static const struct thermal_zone_of_device_ops tegra_of_thermal_ops = {
 	.get_temp = tegra_thermctl_get_temp,
 	.set_trip_temp = tegra_thermctl_set_trip_temp,
 	.get_trend = tegra_thermctl_get_trend,
+	.set_trips = tegra_thermctl_set_trips,
 };
 
 static int get_hot_temp(struct thermal_zone_device *tz, int *trip, int *temp)
@@ -693,6 +743,15 @@ static irqreturn_t soctherm_thermal_isr(int irq, void *dev_id)
 	struct tegra_soctherm *ts = dev_id;
 	u32 r;
 
+	/* Case for no lock:
+	 * Although interrupts are enabled in set_trips, there is still no need
+	 * to lock here because the interrupts are disabled before programming
+	 * new trip points. Hence there cant be a interrupt on the same sensor.
+	 * An interrupt can however occur on a sensor while trips are being
+	 * programmed on a different one. This beign a LEVEL interrupt won't
+	 * cause a new interrupt but this is taken care of by the re-reading of
+	 * the STATUS register in the thread function.
+	 */
 	r = readl(ts->regs + THERMCTL_INTR_STATUS);
 	writel(r, ts->regs + THERMCTL_INTR_DISABLE);
 
@@ -1545,6 +1604,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	if (!tegra)
 		return -ENOMEM;
 
+	mutex_init(&tegra->thermctl_lock);
 	dev_set_drvdata(&pdev->dev, tegra);
 
 	tegra->soc = soc;
