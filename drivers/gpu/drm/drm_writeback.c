@@ -268,6 +268,15 @@ void drm_writeback_queue_job(struct drm_writeback_connector *wb_connector,
 }
 EXPORT_SYMBOL(drm_writeback_queue_job);
 
+void drm_writeback_cleanup_job(struct drm_writeback_job *job)
+{
+	if (job->fb)
+		drm_framebuffer_put(job->fb);
+
+	kfree(job);
+}
+EXPORT_SYMBOL(drm_writeback_cleanup_job);
+
 /*
  * @cleanup_work: deferred cleanup of a writeback job
  *
@@ -280,10 +289,9 @@ static void cleanup_work(struct work_struct *work)
 	struct drm_writeback_job *job = container_of(work,
 						     struct drm_writeback_job,
 						     cleanup_work);
-	drm_framebuffer_put(job->fb);
-	kfree(job);
-}
 
+	drm_writeback_cleanup_job(job);
+}
 
 /**
  * drm_writeback_signal_completion - Signal the completion of a writeback job
