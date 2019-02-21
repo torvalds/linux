@@ -297,25 +297,13 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 
 static int idr_add_uobj(struct ib_uobject *uobj)
 {
-	int ret;
-
-	idr_preload(GFP_KERNEL);
-	spin_lock(&uobj->ufile->idr_lock);
-
-	/*
-	 * We start with allocating an idr pointing to NULL. This represents an
-	 * object which isn't initialized yet. We'll replace it later on with
-	 * the real object once we commit.
-	 */
-	ret = idr_alloc(&uobj->ufile->idr, NULL, 0,
-			min_t(unsigned long, U32_MAX - 1, INT_MAX), GFP_NOWAIT);
-	if (ret >= 0)
-		uobj->id = ret;
-
-	spin_unlock(&uobj->ufile->idr_lock);
-	idr_preload_end();
-
-	return ret < 0 ? ret : 0;
+       /*
+        * We start with allocating an idr pointing to NULL. This represents an
+        * object which isn't initialized yet. We'll replace it later on with
+        * the real object once we commit.
+        */
+	return xa_alloc(&uobj->ufile->idr, &uobj->id, NULL, xa_limit_32b,
+			GFP_KERNEL);
 }
 
 /* Returns the ib_uobject or an error. The caller should check for IS_ERR. */
@@ -325,29 +313,20 @@ lookup_get_idr_uobject(const struct uverbs_api_object *obj,
 		       enum rdma_lookup_mode mode)
 {
 	struct ib_uobject *uobj;
-	unsigned long idrno = id;
 
 	if (id < 0 || id > ULONG_MAX)
 		return ERR_PTR(-EINVAL);
 
 	rcu_read_lock();
-	/* object won't be released as we're protected in rcu */
-	uobj = idr_find(&ufile->idr, idrno);
-	if (!uobj) {
-		uobj = ERR_PTR(-ENOENT);
-		goto free;
-	}
-
 	/*
 	 * The idr_find is guaranteed to return a pointer to something that
 	 * isn't freed yet, or NULL, as the free after idr_remove goes through
 	 * kfree_rcu(). However the object may still have been released and
 	 * kfree() could be called at any time.
 	 */
-	if (!kref_get_unless_zero(&uobj->ref))
+	uobj = xa_load(&ufile->idr, id);
+	if (!uobj || !kref_get_unless_zero(&uobj->ref))
 		uobj = ERR_PTR(-ENOENT);
-
-free:
 	rcu_read_unlock();
 	return uobj;
 }
@@ -400,7 +379,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 	struct ib_uobject *uobj;
 	int ret;
 
-	if (IS_ERR(obj) && PTR_ERR(obj) == -ENOMSG) {
+	if (obj == ERR_PTR(-ENOMSG)) {
 		/* must be UVERBS_IDR_ANY_OBJECT, see uapi_get_object() */
 		uobj = lookup_get_idr_uobject(NULL, ufile, id, mode);
 		if (IS_ERR(uobj))
@@ -461,14 +440,12 @@ alloc_begin_idr_uobject(const struct uverbs_api_object *obj,
 	ret = ib_rdmacg_try_charge(&uobj->cg_obj, uobj->context->device,
 				   RDMACG_RESOURCE_HCA_OBJECT);
 	if (ret)
-		goto idr_remove;
+		goto remove;
 
 	return uobj;
 
-idr_remove:
-	spin_lock(&ufile->idr_lock);
-	idr_remove(&ufile->idr, uobj->id);
-	spin_unlock(&ufile->idr_lock);
+remove:
+	xa_erase(&ufile->idr, uobj->id);
 uobj_put:
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
@@ -529,9 +506,7 @@ static void alloc_abort_idr_uobject(struct ib_uobject *uobj)
 	ib_rdmacg_uncharge(&uobj->cg_obj, uobj->context->device,
 			   RDMACG_RESOURCE_HCA_OBJECT);
 
-	spin_lock(&uobj->ufile->idr_lock);
-	idr_remove(&uobj->ufile->idr, uobj->id);
-	spin_unlock(&uobj->ufile->idr_lock);
+	xa_erase(&uobj->ufile->idr, uobj->id);
 }
 
 static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
@@ -562,9 +537,7 @@ static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
 
 static void remove_handle_idr_uobject(struct ib_uobject *uobj)
 {
-	spin_lock(&uobj->ufile->idr_lock);
-	idr_remove(&uobj->ufile->idr, uobj->id);
-	spin_unlock(&uobj->ufile->idr_lock);
+	xa_erase(&uobj->ufile->idr, uobj->id);
 	/* Matches the kref in alloc_commit_idr_uobject */
 	uverbs_uobject_put(uobj);
 }
@@ -595,17 +568,17 @@ static void remove_handle_fd_uobject(struct ib_uobject *uobj)
 static int alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
+	void *old;
 
-	spin_lock(&ufile->idr_lock);
 	/*
 	 * We already allocated this IDR with a NULL object, so
 	 * this shouldn't fail.
 	 *
-	 * NOTE: Once we set the IDR we loose ownership of our kref on uobj.
+	 * NOTE: Storing the uobj transfers our kref on uobj to the XArray.
 	 * It will be put by remove_commit_idr_uobject()
 	 */
-	WARN_ON(idr_replace(&ufile->idr, uobj, uobj->id));
-	spin_unlock(&ufile->idr_lock);
+	old = xa_store(&ufile->idr, uobj->id, uobj, GFP_KERNEL);
+	WARN_ON(old != NULL);
 
 	return 0;
 }
@@ -739,29 +712,28 @@ void rdma_lookup_put_uobject(struct ib_uobject *uobj,
 
 void setup_ufile_idr_uobject(struct ib_uverbs_file *ufile)
 {
-	spin_lock_init(&ufile->idr_lock);
-	idr_init(&ufile->idr);
+	xa_init_flags(&ufile->idr, XA_FLAGS_ALLOC);
 }
 
 void release_ufile_idr_uobject(struct ib_uverbs_file *ufile)
 {
 	struct ib_uobject *entry;
-	int id;
+	unsigned long id;
 
 	/*
 	 * At this point uverbs_cleanup_ufile() is guaranteed to have run, and
-	 * there are no HW objects left, however the IDR is still populated
+	 * there are no HW objects left, however the xarray is still populated
 	 * with anything that has not been cleaned up by userspace. Since the
 	 * kref on ufile is 0, nothing is allowed to call lookup_get.
 	 *
 	 * This is an optimized equivalent to remove_handle_idr_uobject
 	 */
-	idr_for_each_entry(&ufile->idr, entry, id) {
+	xa_for_each(&ufile->idr, id, entry) {
 		WARN_ON(entry->object);
 		uverbs_uobject_put(entry);
 	}
 
-	idr_destroy(&ufile->idr);
+	xa_destroy(&ufile->idr);
 }
 
 const struct uverbs_obj_type_class uverbs_idr_class = {
