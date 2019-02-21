@@ -331,20 +331,23 @@ static void remove_ep_tid(struct c4iw_ep *ep)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ep->com.dev->lock, flags);
-	_remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid, 0);
-	if (idr_is_empty(&ep->com.dev->hwtid_idr))
+	xa_lock_irqsave(&ep->com.dev->hwtids, flags);
+	__xa_erase(&ep->com.dev->hwtids, ep->hwtid);
+	if (xa_empty(&ep->com.dev->hwtids))
 		wake_up(&ep->com.dev->wait);
-	spin_unlock_irqrestore(&ep->com.dev->lock, flags);
+	xa_unlock_irqrestore(&ep->com.dev->hwtids, flags);
 }
 
-static void insert_ep_tid(struct c4iw_ep *ep)
+static int insert_ep_tid(struct c4iw_ep *ep)
 {
 	unsigned long flags;
+	int err;
 
-	spin_lock_irqsave(&ep->com.dev->lock, flags);
-	_insert_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep, ep->hwtid, 0);
-	spin_unlock_irqrestore(&ep->com.dev->lock, flags);
+	xa_lock_irqsave(&ep->com.dev->hwtids, flags);
+	err = __xa_insert(&ep->com.dev->hwtids, ep->hwtid, ep, GFP_KERNEL);
+	xa_unlock_irqrestore(&ep->com.dev->hwtids, flags);
+
+	return err;
 }
 
 /*
@@ -355,11 +358,11 @@ static struct c4iw_ep *get_ep_from_tid(struct c4iw_dev *dev, unsigned int tid)
 	struct c4iw_ep *ep;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	ep = idr_find(&dev->hwtid_idr, tid);
+	xa_lock_irqsave(&dev->hwtids, flags);
+	ep = xa_load(&dev->hwtids, tid);
 	if (ep)
 		c4iw_get_ep(&ep->com);
-	spin_unlock_irqrestore(&dev->lock, flags);
+	xa_unlock_irqrestore(&dev->hwtids, flags);
 	return ep;
 }
 
@@ -2947,7 +2950,7 @@ out:
 					(const u32 *)&sin6->sin6_addr.s6_addr,
 					1);
 		}
-		remove_handle(ep->com.dev, &ep->com.dev->hwtid_idr, ep->hwtid);
+		xa_erase_irq(&ep->com.dev->hwtids, ep->hwtid);
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, ep->hwtid,
 				 ep->com.local_addr.ss_family);
 		dst_release(ep->dst);

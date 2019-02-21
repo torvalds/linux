@@ -560,10 +560,8 @@ static const struct file_operations stats_debugfs_fops = {
 	.write   = stats_clear,
 };
 
-static int dump_ep(int id, void *p, void *data)
+static int dump_ep(struct c4iw_ep *ep, struct c4iw_debugfs_data *epd)
 {
-	struct c4iw_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
 	int space;
 	int cc;
 
@@ -617,6 +615,11 @@ static int dump_ep(int id, void *p, void *data)
 	if (cc < space)
 		epd->pos += cc;
 	return 0;
+}
+
+static int _dump_ep(int id, void *p, void *data)
+{
+	return dump_ep(p, data);
 }
 
 static int dump_listen_ep(int id, void *p, void *data)
@@ -676,6 +679,8 @@ static int ep_release(struct inode *inode, struct file *file)
 
 static int ep_open(struct inode *inode, struct file *file)
 {
+	struct c4iw_ep *ep;
+	unsigned long index;
 	struct c4iw_debugfs_data *epd;
 	int ret = 0;
 	int count = 1;
@@ -688,8 +693,9 @@ static int ep_open(struct inode *inode, struct file *file)
 	epd->devp = inode->i_private;
 	epd->pos = 0;
 
+	xa_for_each(&epd->devp->hwtids, index, ep)
+		count++;
 	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->hwtid_idr, count_idrs, &count);
 	idr_for_each(&epd->devp->atid_idr, count_idrs, &count);
 	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
 	spin_unlock_irq(&epd->devp->lock);
@@ -701,9 +707,12 @@ static int ep_open(struct inode *inode, struct file *file)
 		goto err1;
 	}
 
+	xa_lock_irq(&epd->devp->hwtids);
+	xa_for_each(&epd->devp->hwtids, index, ep)
+		dump_ep(ep, epd);
+	xa_unlock_irq(&epd->devp->hwtids);
 	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->hwtid_idr, dump_ep, epd);
-	idr_for_each(&epd->devp->atid_idr, dump_ep, epd);
+	idr_for_each(&epd->devp->atid_idr, _dump_ep, epd);
 	idr_for_each(&epd->devp->stid_idr, dump_listen_ep, epd);
 	spin_unlock_irq(&epd->devp->lock);
 
@@ -936,8 +945,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 	WARN_ON(!xa_empty(&ctx->dev->cqs));
 	WARN_ON(!xa_empty(&ctx->dev->qps));
 	WARN_ON(!xa_empty(&ctx->dev->mrs));
-	wait_event(ctx->dev->wait, idr_is_empty(&ctx->dev->hwtid_idr));
-	idr_destroy(&ctx->dev->hwtid_idr);
+	wait_event(ctx->dev->wait, xa_empty(&ctx->dev->hwtids));
 	idr_destroy(&ctx->dev->stid_idr);
 	idr_destroy(&ctx->dev->atid_idr);
 	if (ctx->dev->rdev.bar2_kva)
@@ -1046,7 +1054,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	xa_init_flags(&devp->cqs, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->qps, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->mrs, XA_FLAGS_LOCK_IRQ);
-	idr_init(&devp->hwtid_idr);
+	xa_init_flags(&devp->hwtids, XA_FLAGS_LOCK_IRQ);
 	idr_init(&devp->stid_idr);
 	idr_init(&devp->atid_idr);
 	spin_lock_init(&devp->lock);
