@@ -245,6 +245,34 @@ err:
 	return ret;
 }
 
+static int reset_control_array_acquire(struct reset_control_array *resets)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < resets->num_rstcs; i++) {
+		err = reset_control_acquire(resets->rstc[i]);
+		if (err < 0)
+			goto release;
+	}
+
+	return 0;
+
+release:
+	while (i--)
+		reset_control_release(resets->rstc[i]);
+
+	return err;
+}
+
+static void reset_control_array_release(struct reset_control_array *resets)
+{
+	unsigned int i;
+
+	for (i = 0; i < resets->num_rstcs; i++)
+		reset_control_release(resets->rstc[i]);
+}
+
 static inline bool reset_control_is_array(struct reset_control *rstc)
 {
 	return rstc->array;
@@ -464,6 +492,9 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (WARN_ON(IS_ERR(rstc)))
 		return -EINVAL;
 
+	if (reset_control_is_array(rstc))
+		return reset_control_array_acquire(rstc_to_array(rstc));
+
 	mutex_lock(&reset_list_mutex);
 
 	if (rstc->acquired) {
@@ -502,7 +533,10 @@ void reset_control_release(struct reset_control *rstc)
 	if (!rstc || WARN_ON(IS_ERR(rstc)))
 		return;
 
-	rstc->acquired = false;
+	if (reset_control_is_array(rstc))
+		reset_control_array_release(rstc_to_array(rstc));
+	else
+		rstc->acquired = false;
 }
 EXPORT_SYMBOL_GPL(reset_control_release);
 

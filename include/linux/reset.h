@@ -471,6 +471,12 @@ of_reset_control_array_get_exclusive(struct device_node *node)
 }
 
 static inline struct reset_control *
+of_reset_control_array_get_exclusive_released(struct device_node *node)
+{
+	return of_reset_control_array_get(node, false, false, false);
+}
+
+static inline struct reset_control *
 of_reset_control_array_get_shared(struct device_node *node)
 {
 	return of_reset_control_array_get(node, true, false, true);
