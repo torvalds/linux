@@ -35,6 +35,10 @@
 #include "vega20_ppt.h"
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
+#include "nbio/nbio_7_4_sh_mask.h"
+
+#define smnPCIE_LC_SPEED_CNTL			0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
 
 #define MSG_MAP(msg, index) \
 	[SMU_MSG_##msg] = index
@@ -718,6 +722,8 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 {
 	int i, now, size = 0;
 	int ret = 0;
+	uint32_t gen_speed, lane_width;
+	struct amdgpu_device *adev = smu->adev;
 	struct pp_clock_levels_with_latency clocks;
 	struct vega20_single_dpm_table *single_dpm_table;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -727,6 +733,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		(struct vega20_od8_settings *)table_context->od8_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)(table_context->overdrive_table);
+	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
 
 	dpm_table = smu_dpm->dpm_context;
 
@@ -830,6 +837,28 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case PP_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			>> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			>> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(pptable->PcieGenSpeed[i] == 0) ? "2.5GT/s," :
+					(pptable->PcieGenSpeed[i] == 1) ? "5.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 2) ? "8.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 3) ? "16.0GT/s," : "",
+					(pptable->PcieLaneCount[i] == 1) ? "x1" :
+					(pptable->PcieLaneCount[i] == 2) ? "x2" :
+					(pptable->PcieLaneCount[i] == 3) ? "x4" :
+					(pptable->PcieLaneCount[i] == 4) ? "x8" :
+					(pptable->PcieLaneCount[i] == 5) ? "x12" :
+					(pptable->PcieLaneCount[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == pptable->PcieGenSpeed[i]) &&
+					(lane_width == pptable->PcieLaneCount[i]) ?
+					"*" : "");
 		break;
 
 	case OD_SCLK:
@@ -1170,6 +1199,15 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		break;
 
 	case PP_PCIE:
+		if (soft_min_level >= NUM_LINK_LEVELS ||
+		    soft_max_level >= NUM_LINK_LEVELS)
+			return -EINVAL;
+
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetMinLinkDpmByIndex, soft_min_level);
+		if (ret)
+			pr_err("Failed to set min link dpm level!\n");
+
 		break;
 
 	default:
