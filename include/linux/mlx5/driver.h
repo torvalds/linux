@@ -523,6 +523,7 @@ struct mlx5_priv {
 	atomic_t		reg_pages;
 	struct list_head	free_list;
 	int			vfs_pages;
+	int			peer_pf_pages;
 
 	struct mlx5_core_health health;
 
@@ -653,6 +654,7 @@ struct mlx5_core_dev {
 		u32 mcam[MLX5_ST_SZ_DW(mcam_reg)];
 		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
+		u8  embedded_cpu;
 	} caps;
 	u64			sys_image_guid;
 	phys_addr_t		iseg_base;
@@ -923,7 +925,7 @@ void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
-				 s32 npages);
+				 s32 npages, bool ec_function);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
 int mlx5_reclaim_startup_pages(struct mlx5_core_dev *dev);
 void mlx5_register_debugfs(void);
@@ -1073,11 +1075,24 @@ static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
 }
 
-#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs((mdev)->pdev))
-#define MLX5_VPORT_MANAGER(mdev) \
-	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
-	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
-	 mlx5_core_is_pf(mdev))
+static inline bool mlx5_core_is_ecpf(struct mlx5_core_dev *dev)
+{
+	return dev->caps.embedded_cpu;
+}
+
+static inline bool mlx5_core_is_ecpf_esw_manager(struct mlx5_core_dev *dev)
+{
+	return dev->caps.embedded_cpu && MLX5_CAP_GEN(dev, eswitch_manager);
+}
+
+#define MLX5_HOST_PF_MAX_VFS	(127u)
+static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
+{
+	if (mlx5_core_is_ecpf_esw_manager(dev))
+		return MLX5_HOST_PF_MAX_VFS;
+	else
+		return pci_sriov_get_totalvfs(dev->pdev);
+}
 
 static inline int mlx5_get_gid_table_len(u16 param)
 {
