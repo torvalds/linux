@@ -246,10 +246,12 @@ static const struct nla_policy tcindex_policy[TCA_TCINDEX_MAX + 1] = {
 	[TCA_TCINDEX_CLASSID]		= { .type = NLA_U32 },
 };
 
-static int tcindex_filter_result_init(struct tcindex_filter_result *r)
+static int tcindex_filter_result_init(struct tcindex_filter_result *r,
+				      struct net *net)
 {
 	memset(r, 0, sizeof(*r));
-	return tcf_exts_init(&r->exts, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
+	return tcf_exts_init(&r->exts, net, TCA_TCINDEX_ACT,
+			     TCA_TCINDEX_POLICE);
 }
 
 static void tcindex_partial_destroy_work(struct work_struct *work)
@@ -281,13 +283,10 @@ static int tcindex_alloc_perfect_hash(struct net *net, struct tcindex_data *cp)
 		return -ENOMEM;
 
 	for (i = 0; i < cp->hash; i++) {
-		err = tcf_exts_init(&cp->perfect[i].exts,
+		err = tcf_exts_init(&cp->perfect[i].exts, net,
 				    TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 		if (err < 0)
 			goto errout;
-#ifdef CONFIG_NET_CLS_ACT
-		cp->perfect[i].exts.net = net;
-#endif
 	}
 
 	return 0;
@@ -310,7 +309,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	int err, balloc = 0;
 	struct tcf_exts e;
 
-	err = tcf_exts_init(&e, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
+	err = tcf_exts_init(&e, net, TCA_TCINDEX_ACT, TCA_TCINDEX_POLICE);
 	if (err < 0)
 		return err;
 	err = tcf_exts_validate(net, tp, tb, est, &e, ovr, true, extack);
@@ -344,7 +343,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	}
 	cp->h = p->h;
 
-	err = tcindex_filter_result_init(&new_filter_result);
+	err = tcindex_filter_result_init(&new_filter_result, net);
 	if (err < 0)
 		goto errout1;
 	if (old_r)
@@ -431,7 +430,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 			goto errout_alloc;
 		f->key = handle;
 		f->next = NULL;
-		err = tcindex_filter_result_init(&f->result);
+		err = tcindex_filter_result_init(&f->result, net);
 		if (err < 0) {
 			kfree(f);
 			goto errout_alloc;
@@ -444,7 +443,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	}
 
 	if (old_r && old_r != r) {
-		err = tcindex_filter_result_init(old_r);
+		err = tcindex_filter_result_init(old_r, net);
 		if (err < 0) {
 			kfree(f);
 			goto errout_alloc;

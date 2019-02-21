@@ -501,7 +501,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	err = tcf_exts_init(&e, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+	err = tcf_exts_init(&e, net, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		return err;
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr, true,
@@ -523,7 +523,8 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 			goto errout2;
 		}
 
-		err = tcf_exts_init(&n->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+		err = tcf_exts_init(&n->exts, net, TCA_RSVP_ACT,
+				    TCA_RSVP_POLICE);
 		if (err < 0) {
 			kfree(n);
 			goto errout2;
@@ -551,7 +552,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 	if (f == NULL)
 		goto errout2;
 
-	err = tcf_exts_init(&f->exts, TCA_RSVP_ACT, TCA_RSVP_POLICE);
+	err = tcf_exts_init(&f->exts, net, TCA_RSVP_ACT, TCA_RSVP_POLICE);
 	if (err < 0)
 		goto errout;
 	h2 = 16;

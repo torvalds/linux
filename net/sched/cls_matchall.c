@@ -191,7 +191,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (!new)
 		return -ENOBUFS;
 
-	err = tcf_exts_init(&new->exts, TCA_MATCHALL_ACT, 0);
+	err = tcf_exts_init(&new->exts, net, TCA_MATCHALL_ACT, 0);
 	if (err)
 		goto err_exts_init;
 
