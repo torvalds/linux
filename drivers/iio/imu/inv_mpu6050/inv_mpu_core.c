@@ -796,12 +796,14 @@ static const struct iio_mount_matrix *
 inv_get_mount_matrix(const struct iio_dev *indio_dev,
 		     const struct iio_chan_spec *chan)
 {
-	return &((struct inv_mpu6050_state *)iio_priv(indio_dev))->orientation;
+	struct inv_mpu6050_state *data = iio_priv(indio_dev);
+
+	return &data->orientation;
 }
 
 static const struct iio_chan_spec_ext_info inv_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, inv_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define INV_MPU6050_CHAN(_type, _channel2, _index)                    \
