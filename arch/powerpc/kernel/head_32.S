@@ -1027,9 +1027,8 @@ _ENTRY(switch_mmu_context)
 	 * The PGDIR is passed as second argument.
 	 */
 	lwz	r4,MM_PGD(r4)
-	lis	r5, KERNELBASE@h
-	lwz	r5, 0xf0(r5)
-	stw	r4, 0x4(r5)
+	lis	r5, abatron_pteptrs@ha
+	stw	r4, abatron_pteptrs@l + 0x4(r5)
 #endif
 	li	r4,0
 	isync
