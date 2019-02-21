@@ -118,7 +118,6 @@ exit:
 void rtw_hal_add_ra_tid(struct adapter *pAdapter, u32 bitmap, u8 arg, u8 rssi_level)
 {
 	struct odm_dm_struct *odmpriv = &pAdapter->HalData->odmpriv;
-
 	u8 macid, init_rate, raid, shortGIrate = false;
 
 	macid = arg&0x1f;
