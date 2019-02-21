@@ -10,6 +10,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -174,26 +175,16 @@ static void rcar_du_vsp_plane_setup(struct rcar_du_vsp_plane *plane)
 			      plane->index, &cfg);
 }
 
-static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
-					struct drm_plane_state *state)
+int rcar_du_vsp_map_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+		       struct sg_table sg_tables[3])
 {
-	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
-	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
 	struct rcar_du_device *rcdu = vsp->dev;
 	unsigned int i;
 	int ret;
 
-	/*
-	 * There's no need to prepare (and unprepare) the framebuffer when the
-	 * plane is not visible, as it will not be displayed.
-	 */
-	if (!state->visible)
-		return 0;
-
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct drm_gem_cma_object *gem =
-			drm_fb_cma_get_gem_obj(state->fb, i);
-		struct sg_table *sgt = &rstate->sg_tables[i];
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, i);
+		struct sg_table *sgt = &sg_tables[i];
 
 		ret = dma_get_sgtable(rcdu->dev, sgt, gem->vaddr, gem->paddr,
 				      gem->base.size);
@@ -208,15 +199,11 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 		}
 	}
 
-	ret = drm_gem_fb_prepare_fb(plane, state);
-	if (ret)
-		goto fail;
-
 	return 0;
 
 fail:
 	while (i--) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
+		struct sg_table *sgt = &sg_tables[i];
 
 		vsp1_du_unmap_sg(vsp->vsp, sgt);
 		sg_free_table(sgt);
@@ -225,22 +212,50 @@ fail:
 	return ret;
 }
 
+static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
+					struct drm_plane_state *state)
+{
+	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
+	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
+	int ret;
+
+	/*
+	 * There's no need to prepare (and unprepare) the framebuffer when the
+	 * plane is not visible, as it will not be displayed.
+	 */
+	if (!state->visible)
+		return 0;
+
+	ret = rcar_du_vsp_map_fb(vsp, state->fb, rstate->sg_tables);
+	if (ret < 0)
+		return ret;
+
+	return drm_gem_fb_prepare_fb(plane, state);
+}
+
+void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,
+			  struct sg_table sg_tables[3])
+{
+	unsigned int i;
+
+	for (i = 0; i < fb->format->num_planes; ++i) {
+		struct sg_table *sgt = &sg_tables[i];
+
+		vsp1_du_unmap_sg(vsp->vsp, sgt);
+		sg_free_table(sgt);
+	}
+}
+
 static void rcar_du_vsp_plane_cleanup_fb(struct drm_plane *plane,
 					 struct drm_plane_state *state)
 {
 	struct rcar_du_vsp_plane_state *rstate = to_rcar_vsp_plane_state(state);
 	struct rcar_du_vsp *vsp = to_rcar_vsp_plane(plane)->vsp;
-	unsigned int i;
 
 	if (!state->visible)
 		return;
 
-	for (i = 0; i < rstate->format->planes; ++i) {
-		struct sg_table *sgt = &rstate->sg_tables[i];
-
-		vsp1_du_unmap_sg(vsp->vsp, sgt);
-		sg_free_table(sgt);
-	}
+	rcar_du_vsp_unmap_fb(vsp, state->fb, rstate->sg_tables);
 }
 
 static int rcar_du_vsp_plane_atomic_check(struct drm_plane *plane,
