@@ -61,7 +61,7 @@ static const struct regulator_linear_range ldo0_ldo1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x0, 0x19, 100000),
 };
 
-static unsigned int lp873x_buck_ramp_delay[] = {
+static const unsigned int lp873x_buck_ramp_delay[] = {
 	30000, 15000, 10000, 7500, 3800, 1900, 940, 470
 };
 
