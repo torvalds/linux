@@ -540,6 +540,71 @@ mei_hdcp_repeater_check_flow_prepare_ack(struct device *dev,
 	return 0;
 }
 
+/**
+ * mei_hdcp_verify_mprime() - Verify mprime.
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @stream_ready: RepeaterAuth_Stream_Ready msg for ME FW verification.
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int mei_hdcp_verify_mprime(struct device *dev,
+				  struct hdcp_port_data *data,
+				  struct hdcp2_rep_stream_ready *stream_ready)
+{
+	struct wired_cmd_repeater_auth_stream_req_in
+					verify_mprime_in = { { 0 } };
+	struct wired_cmd_repeater_auth_stream_req_out
+					verify_mprime_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !stream_ready || !data)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	verify_mprime_in.header.api_version = HDCP_API_VERSION;
+	verify_mprime_in.header.command_id = WIRED_REPEATER_AUTH_STREAM_REQ;
+	verify_mprime_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	verify_mprime_in.header.buffer_len =
+			WIRED_CMD_BUF_LEN_REPEATER_AUTH_STREAM_REQ_MIN_IN;
+
+	verify_mprime_in.port.integrated_port_type = data->port_type;
+	verify_mprime_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	memcpy(verify_mprime_in.m_prime, stream_ready->m_prime,
+	       HDCP_2_2_MPRIME_LEN);
+	drm_hdcp2_u32_to_seq_num(verify_mprime_in.seq_num_m, data->seq_num_m);
+	memcpy(verify_mprime_in.streams, data->streams,
+	       (data->k * sizeof(struct hdcp2_streamid_type)));
+
+	verify_mprime_in.k = cpu_to_be16(data->k);
+
+	byte = mei_cldev_send(cldev, (u8 *)&verify_mprime_in,
+			      sizeof(verify_mprime_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&verify_mprime_out,
+			      sizeof(verify_mprime_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (verify_mprime_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
+			WIRED_REPEATER_AUTH_STREAM_REQ,
+			verify_mprime_out.header.status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
@@ -553,7 +618,7 @@ struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.get_session_key = mei_hdcp_get_session_key,
 	.repeater_check_flow_prepare_ack =
 				mei_hdcp_repeater_check_flow_prepare_ack,
-	.verify_mprime = NULL,
+	.verify_mprime = mei_hdcp_verify_mprime,
 	.enable_hdcp_authentication = NULL,
 	.close_hdcp_session = NULL,
 };
