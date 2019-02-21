@@ -850,12 +850,11 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow, int out_index);
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
-			      struct ip_tunnel_info *tun_info,
-			      struct net_device *mirred_dev,
-			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
+			      struct net_device *mirred_dev,
+			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      int out_index);
+			      struct net_device **encap_dev);
 
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
@@ -970,10 +969,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
 					     mirred_ifindex);
-		err = mlx5e_attach_encap(priv,
-					 &parse_attr->tun_info[out_index],
-					 out_dev, &encap_dev, flow,
-					 extack, out_index);
+		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
+					 extack, &encap_dev);
 		if (err && err != -EAGAIN)
 			goto err_attach_encap;
 		if (err == -EAGAIN)
@@ -2342,21 +2339,27 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
-			      struct ip_tunnel_info *tun_info,
-			      struct net_device *mirred_dev,
-			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
+			      struct net_device *mirred_dev,
+			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      int out_index)
+			      struct net_device **encap_dev)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-	struct ip_tunnel_key *key = &tun_info->key;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct ip_tunnel_info *tun_info;
+	struct ip_tunnel_key *key;
 	struct mlx5e_encap_entry *e;
+	unsigned short family;
 	uintptr_t hash_key;
 	bool found = false;
 	int err = 0;
+
+	parse_attr = attr->parse_attr;
+	tun_info = &parse_attr->tun_info[out_index];
+	family = ip_tunnel_info_af(tun_info);
+	key = &tun_info->key;
 
 	hash_key = hash_encap_info(key);
 
