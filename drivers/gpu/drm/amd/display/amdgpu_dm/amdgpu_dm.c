@@ -2546,6 +2546,42 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 }
 
+static void
+fill_blending_from_plane_state(struct drm_plane_state *plane_state,
+			       const struct dc_plane_state *dc_plane_state,
+			       bool *per_pixel_alpha, bool *global_alpha,
+			       int *global_alpha_value)
+{
+	*per_pixel_alpha = false;
+	*global_alpha = false;
+	*global_alpha_value = 0xff;
+
+	if (plane_state->plane->type != DRM_PLANE_TYPE_OVERLAY)
+		return;
+
+	if (plane_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI) {
+		static const uint32_t alpha_formats[] = {
+			DRM_FORMAT_ARGB8888,
+			DRM_FORMAT_RGBA8888,
+			DRM_FORMAT_ABGR8888,
+		};
+		uint32_t format = plane_state->fb->format->format;
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(alpha_formats); ++i) {
+			if (format == alpha_formats[i]) {
+				*per_pixel_alpha = true;
+				break;
+			}
+		}
+	}
+
+	if (plane_state->alpha < 0xffff) {
+		*global_alpha = true;
+		*global_alpha_value = plane_state->alpha >> 8;
+	}
+}
+
 static int fill_plane_attributes(struct amdgpu_device *adev,
 				 struct dc_plane_state *dc_plane_state,
 				 struct drm_plane_state *plane_state,
@@ -2576,6 +2612,11 @@ static int fill_plane_attributes(struct amdgpu_device *adev,
 		dc_transfer_func_release(dc_plane_state->in_transfer_func);
 		dc_plane_state->in_transfer_func = NULL;
 	}
+
+	fill_blending_from_plane_state(plane_state, dc_plane_state,
+				       &dc_plane_state->per_pixel_alpha,
+				       &dc_plane_state->global_alpha,
+				       &dc_plane_state->global_alpha_value);
 
 	return ret;
 }
@@ -3893,6 +3934,15 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		break;
 	}
 
+	/* TODO: Check DC plane caps explicitly here for adding propertes */
+	if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					  BIT(DRM_MODE_BLEND_PREMULTI);
+
+		drm_plane_create_alpha_property(plane);
+		drm_plane_create_blend_mode_property(plane, blend_caps);
+	}
+
 	drm_plane_helper_add(plane, &dm_plane_helper_funcs);
 
 	/* Create (reset) the plane state */
@@ -4753,6 +4803,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		bundle->plane_infos[planes_count].stereo_format = dc_plane->stereo_format;
 		bundle->plane_infos[planes_count].tiling_info = dc_plane->tiling_info;
 		bundle->plane_infos[planes_count].visible = dc_plane->visible;
+		bundle->plane_infos[planes_count].global_alpha = dc_plane->global_alpha;
+		bundle->plane_infos[planes_count].global_alpha_value = dc_plane->global_alpha_value;
 		bundle->plane_infos[planes_count].per_pixel_alpha = dc_plane->per_pixel_alpha;
 		bundle->plane_infos[planes_count].dcc = dc_plane->dcc;
 		bundle->surface_updates[planes_count].plane_info = &bundle->plane_infos[planes_count];
