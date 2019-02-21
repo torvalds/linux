@@ -106,6 +106,38 @@ static unsigned int block_size(unsigned long base, unsigned long top)
 	return min3(max_size, 1U << base_shift, 1U << block_shift);
 }
 
+/*
+ * Set up one of the IBAT (block address translation) register pairs.
+ * The parameters are not checked; in particular size must be a power
+ * of 2 between 128k and 256M.
+ * Only for 603+ ...
+ */
+static void setibat(int index, unsigned long virt, phys_addr_t phys,
+		    unsigned int size, pgprot_t prot)
+{
+	unsigned int bl = (size >> 17) - 1;
+	int wimgxpp;
+	struct ppc_bat *bat = BATS[index];
+	unsigned long flags = pgprot_val(prot);
+
+	if (!cpu_has_feature(CPU_FTR_NEED_COHERENT))
+		flags &= ~_PAGE_COHERENT;
+
+	wimgxpp = (flags & _PAGE_COHERENT) | (_PAGE_EXEC ? BPP_RX : BPP_XX);
+	bat[0].batu = virt | (bl << 2) | 2; /* Vs=1, Vp=0 */
+	bat[0].batl = BAT_PHYS_ADDR(phys) | wimgxpp;
+	if (flags & _PAGE_USER)
+		bat[0].batu |= 1;	/* Vp = 1 */
+}
+
+static void clearibat(int index)
+{
+	struct ppc_bat *bat = BATS[index];
+
+	bat[0].batu = 0;
+	bat[0].batl = 0;
+}
+
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	int idx;
