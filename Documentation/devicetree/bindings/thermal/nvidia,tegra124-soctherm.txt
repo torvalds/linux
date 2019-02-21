@@ -64,6 +64,20 @@ Required properties :
       - #cooling-cells: Should be 1. This cooling device only support on/off state.
         See ./thermal.txt for a description of this property.
 
+      Optional properties: The following properties are T210 specific and
+      valid only for OCx throttle events.
+      - nvidia,count-threshold: Specifies the number of OC events that are
+        required for triggering an interrupt. Interrupts are not triggered if
+        the property is missing. A value of 0 will interrupt on every OC alarm.
+      - nvidia,polarity-active-low: Configures the polarity of the OC alaram
+        signal. If present, this means assert low, otherwise assert high.
+      - nvidia,alarm-filter: Number of clocks to filter event. When the filter
+        expires (which means the OC event has not occurred for a long time),
+        the counter is cleared and filter is rearmed. Default value is 0.
+      - nvidia,throttle-period-us: Specifies the number of uSec for which
+        throttling is engaged after the OC event is deasserted. Default value
+        is 0.
+
 Optional properties:
 - nvidia,thermtrips : When present, this property specifies the temperature at
   which the soctherm hardware will assert the thermal trigger signal to the
@@ -134,6 +148,17 @@ Example :
 			 * arbiter will select the highest priority as the final throttle
 			 * settings to skip cpu pulse.
 			 */
+
+			throttle_oc1: oc1 {
+				nvidia,priority = <50>;
+				nvidia,polarity-active-low;
+				nvidia,count-threshold = <100>;
+				nvidia,alarm-filter = <5100000>;
+				nvidia,throttle-period-us = <0>;
+				nvidia,cpu-throt-percent = <75>;
+				nvidia,gpu-throt-level =
+						<TEGRA_SOCTHERM_THROT_LEVEL_MED>;
+                        };
 		};
 	};
 
