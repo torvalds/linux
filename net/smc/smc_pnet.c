@@ -66,6 +66,7 @@ static struct smc_pnettable {
  * @ndev: pointer to network device.
  * @smcibdev: Pointer to IB device.
  * @ib_port: Port of IB device.
+ * @smcd_dev: Pointer to smcd device.
  */
 struct smc_user_pnetentry {
 	struct list_head list;
@@ -73,6 +74,7 @@ struct smc_user_pnetentry {
 	struct net_device *ndev;
 	struct smc_ib_device *smcibdev;
 	u8 ib_port;
+	struct smcd_dev *smcd_dev;
 };
 
 /* pnet entry stored in pnet table */
@@ -103,6 +105,7 @@ static int smc_pnet_remove_by_pnetid(char *pnet_name)
 {
 	struct smc_pnetentry *pnetelem, *tmp_pe;
 	struct smc_ib_device *ibdev;
+	struct smcd_dev *smcd_dev;
 	int rc = -ENOENT;
 	int ibport;
 
@@ -135,6 +138,18 @@ static int smc_pnet_remove_by_pnetid(char *pnet_name)
 		}
 	}
 	spin_unlock(&smc_ib_devices.lock);
+	/* remove smcd devices */
+	spin_lock(&smcd_dev_list.lock);
+	list_for_each_entry(smcd_dev, &smcd_dev_list.list, list) {
+		if (smcd_dev->pnetid_by_user &&
+		    (!pnet_name ||
+		     smc_pnet_match(pnet_name, smcd_dev->pnetid))) {
+			memset(smcd_dev->pnetid, 0, SMC_MAX_PNETID_LEN);
+			smcd_dev->pnetid_by_user = false;
+			rc = 0;
+		}
+	}
+	spin_unlock(&smcd_dev_list.lock);
 	return rc;
 }
 
@@ -168,6 +183,7 @@ static int smc_pnet_enter(struct smc_user_pnetentry *new_pnetelem)
 	u8 ndev_pnetid[SMC_MAX_PNETID_LEN];
 	struct smc_pnetentry *tmp_pnetelem;
 	struct smc_pnetentry *pnetelem;
+	bool new_smcddev = false;
 	struct net_device *ndev;
 	bool new_netdev = true;
 	bool new_ibdev = false;
@@ -185,9 +201,21 @@ static int smc_pnet_enter(struct smc_user_pnetentry *new_pnetelem)
 		}
 		spin_unlock(&smc_ib_devices.lock);
 	}
+	if (new_pnetelem->smcd_dev) {
+		struct smcd_dev *smcd_dev = new_pnetelem->smcd_dev;
+
+		spin_lock(&smcd_dev_list.lock);
+		if (smc_pnet_match(smcd_dev->pnetid, pnet_null)) {
+			memcpy(smcd_dev->pnetid, new_pnetelem->pnet_name,
+			       SMC_MAX_PNETID_LEN);
+			smcd_dev->pnetid_by_user = true;
+			new_smcddev = true;
+		}
+		spin_unlock(&smcd_dev_list.lock);
+	}
 
 	if (!new_pnetelem->ndev)
-		return new_ibdev ? 0 : -EEXIST;
+		return (new_ibdev || new_smcddev) ? 0 : -EEXIST;
 
 	/* check if (base) netdev already has a pnetid. If there is one, we do
 	 * not want to add a pnet table entry
@@ -195,7 +223,7 @@ static int smc_pnet_enter(struct smc_user_pnetentry *new_pnetelem)
 	ndev = pnet_find_base_ndev(new_pnetelem->ndev);
 	if (!smc_pnetid_by_dev_port(ndev->dev.parent, ndev->dev_port,
 				    ndev_pnetid))
-		return new_ibdev ? 0 : -EEXIST;
+		return (new_ibdev || new_smcddev) ? 0 : -EEXIST;
 
 	/* add a new netdev entry to the pnet table if there isn't one */
 	tmp_pnetelem = kzalloc(sizeof(*pnetelem), GFP_KERNEL);
@@ -219,7 +247,7 @@ static int smc_pnet_enter(struct smc_user_pnetentry *new_pnetelem)
 		kfree(tmp_pnetelem);
 	}
 
-	return (new_netdev || new_ibdev) ? 0 : -EEXIST;
+	return (new_netdev || new_ibdev || new_smcddev) ? 0 : -EEXIST;
 }
 
 /* The limit for pnetid is 16 characters.
@@ -267,6 +295,23 @@ out:
 	return ibdev;
 }
 
+/* Find an smcd device by a given name. The device might not exist. */
+static struct smcd_dev *smc_pnet_find_smcd(char *smcd_name)
+{
+	struct smcd_dev *smcd_dev;
+
+	spin_lock(&smcd_dev_list.lock);
+	list_for_each_entry(smcd_dev, &smcd_dev_list.list, list) {
+		if (!strncmp(dev_name(&smcd_dev->dev), smcd_name,
+			     IB_DEVICE_NAME_MAX - 1))
+			goto out;
+	}
+	smcd_dev = NULL;
+out:
+	spin_unlock(&smcd_dev_list.lock);
+	return smcd_dev;
+}
+
 /* Parse the supplied netlink attributes and fill a pnetentry structure.
  * For ethernet and infiniband device names verify that the devices exist.
  */
@@ -300,7 +345,8 @@ static int smc_pnet_fill_entry(struct net *net,
 		ibname = (char *)nla_data(tb[SMC_PNETID_IBNAME]);
 		ibname = strim(ibname);
 		pnetelem->smcibdev = smc_pnet_find_ib(ibname);
-		if (!pnetelem->smcibdev)
+		pnetelem->smcd_dev = smc_pnet_find_smcd(ibname);
+		if (!pnetelem->smcibdev && !pnetelem->smcd_dev)
 			goto error;
 		if (pnetelem->smcibdev) {
 			if (!tb[SMC_PNETID_IBPORT])
@@ -338,6 +384,11 @@ static int smc_pnet_set_nla(struct sk_buff *msg,
 		if (nla_put_string(msg, SMC_PNETID_IBNAME,
 				   pnetelem->smcibdev->ibdev->name) ||
 		    nla_put_u8(msg, SMC_PNETID_IBPORT, pnetelem->ib_port))
+			return -1;
+	} else if (pnetelem->smcd_dev) {
+		if (nla_put_string(msg, SMC_PNETID_IBNAME,
+				   dev_name(&pnetelem->smcd_dev->dev)) ||
+		    nla_put_u8(msg, SMC_PNETID_IBPORT, 1))
 			return -1;
 	} else {
 		if (nla_put_string(msg, SMC_PNETID_IBNAME, "n/a") ||
@@ -400,6 +451,7 @@ static int _smc_pnet_dump(struct sk_buff *skb, u32 portid, u32 seq, u8 *pnetid,
 	struct smc_user_pnetentry tmp_entry;
 	struct smc_pnetentry *pnetelem;
 	struct smc_ib_device *ibdev;
+	struct smcd_dev *smcd_dev;
 	int idx = 0;
 	int ibport;
 
@@ -449,6 +501,27 @@ static int _smc_pnet_dump(struct sk_buff *skb, u32 portid, u32 seq, u8 *pnetid,
 		}
 	}
 	spin_unlock(&smc_ib_devices.lock);
+
+	/* dump smcd devices */
+	spin_lock(&smcd_dev_list.lock);
+	list_for_each_entry(smcd_dev, &smcd_dev_list.list, list) {
+		if (smcd_dev->pnetid_by_user) {
+			if (pnetid && !smc_pnet_match(smcd_dev->pnetid, pnetid))
+				continue;
+			if (idx++ < start_idx)
+				continue;
+			memset(&tmp_entry, 0, sizeof(tmp_entry));
+			memcpy(&tmp_entry.pnet_name, smcd_dev->pnetid,
+			       SMC_MAX_PNETID_LEN);
+			tmp_entry.smcd_dev = smcd_dev;
+			if (smc_pnet_dumpinfo(skb, portid, seq, NLM_F_MULTI,
+					      &tmp_entry)) {
+				--idx;
+				break;
+			}
+		}
+	}
+	spin_unlock(&smcd_dev_list.lock);
 
 	return idx;
 }
@@ -666,12 +739,13 @@ static void smc_pnet_find_ism_by_pnetid(struct net_device *ndev,
 
 	ndev = pnet_find_base_ndev(ndev);
 	if (smc_pnetid_by_dev_port(ndev->dev.parent, ndev->dev_port,
-				   ndev_pnetid))
+				   ndev_pnetid) &&
+	    smc_pnet_find_ndev_pnetid_by_table(ndev, ndev_pnetid))
 		return; /* pnetid could not be determined */
 
 	spin_lock(&smcd_dev_list.lock);
 	list_for_each_entry(ismdev, &smcd_dev_list.list, list) {
-		if (!memcmp(ismdev->pnetid, ndev_pnetid, SMC_MAX_PNETID_LEN)) {
+		if (smc_pnet_match(ismdev->pnetid, ndev_pnetid)) {
 			*smcismdev = ismdev;
 			break;
 		}
@@ -715,7 +789,6 @@ void smc_pnet_find_ism_resource(struct sock *sk, struct smcd_dev **smcismdev)
 	if (!dst->dev)
 		goto out_rel;
 
-	/* if possible, lookup via hardware-defined pnetid */
 	smc_pnet_find_ism_by_pnetid(dst->dev, smcismdev);
 
 out_rel:
