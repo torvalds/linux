@@ -848,6 +848,7 @@ enum device_link_state {
  * @rpm_active: Whether or not the consumer device is runtime-PM-active.
  * @kref: Count repeated addition of the same link.
  * @rcu_head: An RCU head to use for deferred execution of SRCU callbacks.
+ * @supplier_preactivated: Supplier has been made active before consumer probe.
  */
 struct device_link {
 	struct device *supplier;
