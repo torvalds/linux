@@ -211,9 +211,9 @@ static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	struct ieee80211_hdr *pwlanhdr;
 	__le16 *fctrl;
 	u32 rate_len, pktlen;
-	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex		*cur_network = &(pmlmeinfo->network);
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex		*cur_network = &pmlmeinfo->network;
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
@@ -222,7 +222,7 @@ static void ConstructBeacon(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	*(fctrl) = 0;
 
 	ether_addr_copy(pwlanhdr->addr1, bc_addr);
-	ether_addr_copy(pwlanhdr->addr2, myid(&(adapt->eeprompriv)));
+	ether_addr_copy(pwlanhdr->addr2, myid(&adapt->eeprompriv));
 	ether_addr_copy(pwlanhdr->addr3, cur_network->MacAddress);
 
 	SetSeqNum(pwlanhdr, 0/*pmlmeext->mgnt_seq*/);
@@ -294,10 +294,10 @@ _ConstructBeacon:
 static void ConstructPSPoll(struct adapter *adapt, u8 *pframe, u32 *pLength)
 {
 	struct ieee80211_hdr *pwlanhdr;
-	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	__le16 *fctrl;
-	struct wlan_bssid_ex *pnetwork = &(pmlmeinfo->network);
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -314,7 +314,7 @@ static void ConstructPSPoll(struct adapter *adapt, u8 *pframe, u32 *pLength)
 	ether_addr_copy(pwlanhdr->addr1, pnetwork->MacAddress);
 
 	/*  TA. */
-	ether_addr_copy(pwlanhdr->addr2, myid(&(adapt->eeprompriv)));
+	ether_addr_copy(pwlanhdr->addr2, myid(&adapt->eeprompriv));
 
 	*pLength = 16;
 }
@@ -332,9 +332,9 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	u32 pktlen;
 	struct mlme_priv *pmlmepriv = &adapt->mlmepriv;
 	struct wlan_network		*cur_network = &pmlmepriv->cur_network;
-	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex *pnetwork = &(pmlmeinfo->network);
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
@@ -347,19 +347,19 @@ static void ConstructNullFunctionData(struct adapter *adapt, u8 *pframe,
 	case Ndis802_11Infrastructure:
 		SetToDs(fctrl);
 		ether_addr_copy(pwlanhdr->addr1, pnetwork->MacAddress);
-		ether_addr_copy(pwlanhdr->addr2, myid(&(adapt->eeprompriv)));
+		ether_addr_copy(pwlanhdr->addr2, myid(&adapt->eeprompriv));
 		ether_addr_copy(pwlanhdr->addr3, StaAddr);
 		break;
 	case Ndis802_11APMode:
 		SetFrDs(fctrl);
 		ether_addr_copy(pwlanhdr->addr1, StaAddr);
 		ether_addr_copy(pwlanhdr->addr2, pnetwork->MacAddress);
-		ether_addr_copy(pwlanhdr->addr3, myid(&(adapt->eeprompriv)));
+		ether_addr_copy(pwlanhdr->addr3, myid(&adapt->eeprompriv));
 		break;
 	case Ndis802_11IBSS:
 	default:
 		ether_addr_copy(pwlanhdr->addr1, StaAddr);
-		ether_addr_copy(pwlanhdr->addr2, myid(&(adapt->eeprompriv)));
+		ether_addr_copy(pwlanhdr->addr2, myid(&adapt->eeprompriv));
 		ether_addr_copy(pwlanhdr->addr3, pnetwork->MacAddress);
 		break;
 	}
@@ -391,13 +391,13 @@ static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u
 	__le16 *fctrl;
 	u8 *mac, *bssid;
 	u32 pktlen;
-	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	struct wlan_bssid_ex	*cur_network = &(pmlmeinfo->network);
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex	*cur_network = &pmlmeinfo->network;
 
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
-	mac = myid(&(adapt->eeprompriv));
+	mac = myid(&adapt->eeprompriv);
 	bssid = cur_network->MacAddress;
 
 	fctrl = &pwlanhdr->frame_control;
@@ -458,7 +458,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	pxmitpriv = &adapt->xmitpriv;
 	pmlmeext = &adapt->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
-	pnetwork = &(pmlmeinfo->network);
+	pnetwork = &pmlmeinfo->network;
 
 	TxDescLen = TXDESC_SIZE;
 	PageNum = 0;
@@ -542,8 +542,8 @@ exit:
 void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 {
 	struct hal_data_8188e *haldata = adapt->HalData;
-	struct mlme_ext_priv *pmlmeext = &(adapt->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	bool	bSendBeacon = false;
 	bool	bcn_valid = false;
 	u8 DLBcnCount = 0;
