@@ -231,7 +231,8 @@ void __init MMU_init_hw(void)
 	if (lg_n_hpteg > 16)
 		mb2 = 16 - LG_HPTEG_SIZE;
 
-	modify_instruction_site(&patch__hash_page_A0, 0xffff, (unsigned int)Hash >> 16);
+	modify_instruction_site(&patch__hash_page_A0, 0xffff,
+				((unsigned int)Hash - PAGE_OFFSET) >> 16);
 	modify_instruction_site(&patch__hash_page_A1, 0x7c0, mb << 6);
 	modify_instruction_site(&patch__hash_page_A2, 0x7c0, mb2 << 6);
 	modify_instruction_site(&patch__hash_page_B, 0xffff, hmask);
@@ -240,7 +241,8 @@ void __init MMU_init_hw(void)
 	/*
 	 * Patch up the instructions in hashtable.S:flush_hash_page
 	 */
-	modify_instruction_site(&patch__flush_hash_A0, 0xffff, (unsigned int)Hash >> 16);
+	modify_instruction_site(&patch__flush_hash_A0, 0xffff,
+				((unsigned int)Hash - PAGE_OFFSET) >> 16);
 	modify_instruction_site(&patch__flush_hash_A1, 0x7c0, mb << 6);
 	modify_instruction_site(&patch__flush_hash_A2, 0x7c0, mb2 << 6);
 	modify_instruction_site(&patch__flush_hash_B, 0xffff, hmask);
