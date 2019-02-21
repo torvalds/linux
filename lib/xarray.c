@@ -800,7 +800,7 @@ void *xas_store(struct xa_state *xas, void *entry)
 		 * entry is set to NULL.
 		 */
 		rcu_assign_pointer(*slot, entry);
-		if (xa_is_node(next))
+		if (xa_is_node(next) && (!node || node->shift))
 			xas_free_nodes(xas, xa_to_node(next));
 		if (!node)
 			break;

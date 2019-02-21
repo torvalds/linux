@@ -1355,6 +1355,20 @@ static void check_align_1(struct xarray *xa, char *name)
 	xa_destroy(xa);
 }
 
+static void check_align_2(struct xarray *xa, char *name)
+{
+	int i;
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	for (i = 0; i < 8; i++) {
+		XA_BUG_ON(xa, xa_store(xa, 0, name + i, GFP_KERNEL) != NULL);
+		xa_erase(xa, 0);
+	}
+
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+
 static noinline void check_align(struct xarray *xa)
 {
 	char name[] = "Motorola 68000";
@@ -1363,7 +1377,7 @@ static noinline void check_align(struct xarray *xa)
 	check_align_1(xa, name + 1);
 	check_align_1(xa, name + 2);
 	check_align_1(xa, name + 3);
-//	check_align_2(xa, name);
+	check_align_2(xa, name);
 }
 
 static LIST_HEAD(shadow_nodes);
