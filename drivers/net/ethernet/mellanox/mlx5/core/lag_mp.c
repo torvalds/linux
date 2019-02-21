@@ -6,6 +6,7 @@
 #include "lag_mp.h"
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "lib/mlx5.h"
 
 static bool mlx5_lag_multipath_check_prereq(struct mlx5_lag *ldev)
 {
@@ -72,6 +73,16 @@ static void mlx5_lag_set_port_affinity(struct mlx5_lag *ldev, int port)
 			       port);
 		return;
 	}
+
+	if (tracker.netdev_state[0].tx_enabled)
+		mlx5_notifier_call_chain(ldev->pf[0].dev->priv.events,
+					 MLX5_DEV_EVENT_PORT_AFFINITY,
+					 (void *)0);
+
+	if (tracker.netdev_state[1].tx_enabled)
+		mlx5_notifier_call_chain(ldev->pf[1].dev->priv.events,
+					 MLX5_DEV_EVENT_PORT_AFFINITY,
+					 (void *)0);
 
 	mlx5_modify_lag(ldev, &tracker);
 }

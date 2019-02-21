@@ -195,6 +195,7 @@ struct mlx5_rsc_debug {
 
 enum mlx5_dev_event {
 	MLX5_DEV_EVENT_SYS_ERROR = 128, /* 0 - 127 are FW events */
+	MLX5_DEV_EVENT_PORT_AFFINITY = 129,
 };
 
 enum mlx5_port_status {
