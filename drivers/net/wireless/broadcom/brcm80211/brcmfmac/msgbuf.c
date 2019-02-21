@@ -139,7 +139,7 @@ struct msgbuf_ring_status {
 	struct msgbuf_common_hdr	msg;
 	struct msgbuf_completion_hdr	compl_hdr;
 	__le16				write_idx;
-	__le32				rsvd0[5];
+	__le16				rsvd0[5];
 };
 
 struct msgbuf_rx_event {
