@@ -598,7 +598,8 @@ enum ht_channel_width {
 };
 
 /* Ref: 802.11i sepc D10.0 7.3.2.25.1
-Cipher Suites Encryption Algorithms */
+ * Cipher Suites Encryption Algorithms
+ */
 enum rt_enc_alg {
 	NO_ENCRYPTION = 0,
 	WEP40_ENCRYPTION = 1,
@@ -748,7 +749,8 @@ enum rtl_var_map {
 	RTL_IMR_ROK,		/*Receive DMA OK Interrupt */
 	RTL_IMR_HSISR_IND,	/*HSISR Interrupt*/
 	RTL_IBSS_INT_MASKS,	/*(RTL_IMR_BCNINT | RTL_IMR_TBDOK |
-				 * RTL_IMR_TBDER) */
+				 * RTL_IMR_TBDER)
+				 */
 	RTL_IMR_C2HCMD,		/*fw interrupt*/
 
 	/*CCK Rates, TxHT = 0 */
@@ -845,8 +847,9 @@ enum band_type {
 	BANDMAX
 };
 
-/*aci/aifsn Field.
-Ref: WMM spec 2.2.2: WME Parameter Element, p.12.*/
+/* aci/aifsn Field.
+ * Ref: WMM spec 2.2.2: WME Parameter Element, p.12.
+ */
 union aci_aifsn {
 	u8 char_data;
 
@@ -1062,7 +1065,8 @@ struct rtl_probe_rsp {
 	__le16 beacon_interval;
 	__le16 capability;
 	/*SSID, supported rates, FH params, DS params,
-	   CF params, IBSS params, TIM (if beacon), RSN */
+	 * CF params, IBSS params, TIM (if beacon), RSN
+	 */
 	struct rtl_info_element info_element[0];
 } __packed;
 
@@ -1136,7 +1140,8 @@ struct wireless_stats {
 
 	long rx_snr_db[4];
 	/*Correct smoothed ss in Dbm, only used
-	   in driver to report real power now. */
+	 * in driver to report real power now.
+	 */
 	long recv_signal_power;
 	long signal_quality;
 	long last_sigstrength_inpercent;
@@ -1144,8 +1149,9 @@ struct wireless_stats {
 	u32 rssi_calculate_cnt;
 	u32 pwdb_all_cnt;
 
-	/*Transformed, in dbm. Beautified signal
-	   strength for UI, not correct. */
+	/* Transformed, in dbm. Beautified signal
+	 * strength for UI, not correct.
+	 */
 	long signal_strength;
 
 	u8 rx_rssi_percentage[4];
@@ -1689,7 +1695,8 @@ struct rtl_hal {
 	bool during_mac1init_radioa;
 	bool reloadtxpowerindex;
 	/* True if IMR or IQK  have done
-	for 2.4G in scan progress */
+	 * for 2.4G in scan progress
+	 */
 	bool load_imrandiqk_setting_for2g;
 
 	bool disable_amsdu_8k;
@@ -1728,12 +1735,14 @@ struct rtl_security {
 	u32 hwsec_cam_bitmap;
 	u8 hwsec_cam_sta_addr[TOTAL_CAM_ENTRY][ETH_ALEN];
 	/*local Key buffer, indx 0 is for
-	   pairwise key 1-4 is for agoup key. */
+	 * pairwise key 1-4 is for agoup key.
+	 */
 	u8 key_buf[KEY_BUF_SIZE][MAX_KEY_LEN];
 	u8 key_len[KEY_BUF_SIZE];
 
 	/*The pointer of Pairwise Key,
-	   it always points to KeyBuf[4] */
+	 * it always points to KeyBuf[4]
+	 */
 	u8 *pairwise_key;
 };
 
@@ -1997,11 +2006,10 @@ struct rtl_ps_ctl {
 	bool rfchange_inprogress;
 	bool swrf_processing;
 	bool hwradiooff;
-	/*
-	 * just for PCIE ASPM
+	/* just for PCIE ASPM
 	 * If it supports ASPM, Offset[560h] = 0x40,
 	 * otherwise Offset[560h] = 0x00.
-	 * */
+	 */
 	bool support_aspm;
 	bool support_backdoor;
 
@@ -2081,10 +2089,9 @@ struct rtl_stats {
 	u8 nic_type;
 	u16 length;
 	u8 signalquality;	/*in 0-100 index. */
-	/*
-	 * Real power in dBm for this packet,
+	/* Real power in dBm for this packet,
 	 * no beautification and aggregation.
-	 * */
+	 */
 	s32 recvsignalpower;
 	s8 rxpower;		/*in dBm Translate from PWdB */
 	u8 signalstrength;	/*in 0-100 index. */
@@ -2425,7 +2432,8 @@ struct rtl_hal_cfg {
 	enum rtl_spec_ver spec_ver;
 
 	/*this map used for some registers or vars
-	   defined int HAL but used in MAIN */
+	 * defined int HAL but used in MAIN
+	 */
 	u32 maps[RTL_VAR_MAP_MAX];
 
 };
@@ -2587,7 +2595,8 @@ struct dig_t {
 
 struct rtl_global_var {
 	/* from this list we can get
-	 * other adapter's rtl_priv */
+	 * other adapter's rtl_priv
+	 */
 	struct list_head glb_priv_list;
 	spinlock_t glb_list_lock;
 };
@@ -2775,16 +2784,16 @@ struct rtl_priv {
 	struct rtl_debug dbg;
 	int max_fw_size;
 
-	/*
-	 *hal_cfg : for diff cards
-	 *intf_ops : for diff interrface usb/pcie
+	/* hal_cfg : for diff cards
+	 * intf_ops : for diff interrface usb/pcie
 	 */
 	struct rtl_hal_cfg *cfg;
 	const struct rtl_intf_ops *intf_ops;
 
-	/*this var will be set by set_bit,
-	   and was used to indicate status of
-	   interface or hardware */
+	/* this var will be set by set_bit,
+	 * and was used to indicate status of
+	 * interface or hardware
+	 */
 	unsigned long status;
 
 	/* tables for dm */
@@ -2820,10 +2829,11 @@ struct rtl_priv {
 #ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;
 #endif
-	/*This must be the last item so
-	   that it points to the data allocated
-	   beyond  this structure like:
-	   rtl_pci_priv or rtl_usb_priv */
+	/* This must be the last item so
+	 * that it points to the data allocated
+	 * beyond  this structure like:
+	 * rtl_pci_priv or rtl_usb_priv
+	 */
 	u8 priv[0] __aligned(sizeof(void *));
 };
 
@@ -2834,9 +2844,7 @@ struct rtl_priv {
 #define rtl_psc(rtlpriv)	(&((rtlpriv)->psc))
 
 
-/***************************************
-    Bluetooth Co-existence Related
-****************************************/
+/* Bluetooth Co-existence Related */
 
 enum bt_ant_num {
 	ANT_X2 = 0,
@@ -2887,12 +2895,12 @@ enum bt_radio_shared {
 
 
 /****************************************
-	mem access macro define start
-	Call endian free function when
-	1. Read/write packet content.
-	2. Before write integer to IO.
-	3. After read integer from IO.
-****************************************/
+ *	mem access macro define start
+ *	Call endian free function when
+ *	1. Read/write packet content.
+ *	2. Before write integer to IO.
+ *	3. After read integer from IO.
+ ****************************************/
 /* Convert little data endian to host ordering */
 #define EF1BYTE(_val)		\
 	((u8)(_val))
@@ -2948,8 +2956,9 @@ enum bt_radio_shared {
 	(EF1BYTE(*((u8 *)(__pstart))))
 
 /*Description:
-Translate subfield (continuous bits in little-endian) of 4-byte
-value to host byte ordering.*/
+ * Translate subfield (continuous bits in little-endian) of 4-byte
+ * value to host byte ordering.
+ */
 #define LE_BITS_TO_4BYTE(__pstart, __bitoffset, __bitlen) \
 	( \
 		(LE_P4BYTE_TO_HOST_4BYTE(__pstart) >> (__bitoffset))  & \
@@ -3011,9 +3020,7 @@ value to host byte ordering.*/
 #define	N_BYTE_ALIGMENT(__value, __aligment) ((__aligment == 1) ? \
 	(__value) : (((__value + __aligment - 1) / __aligment) * __aligment))
 
-/****************************************
-	mem access macro define end
-****************************************/
+/* mem access macro define end */
 
 #define byte(x, n) ((x >> (8 * n)) & 0xff)
 
