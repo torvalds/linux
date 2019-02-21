@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2016, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -312,6 +312,10 @@ static void tegra_xusb_lane_program(struct tegra_xusb_lane *lane)
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 	const struct tegra_xusb_lane_soc *soc = lane->soc;
 	u32 value;
+
+	/* skip single function lanes */
+	if (soc->num_funcs < 2)
+		return;
 
 	/* choose function */
 	value = padctl_readl(padctl, soc->offset);
