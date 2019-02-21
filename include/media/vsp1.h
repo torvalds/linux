@@ -17,6 +17,8 @@ struct device;
 
 int vsp1_du_init(struct device *dev);
 
+#define VSP1_DU_STATUS_COMPLETE		BIT(0)
+
 /**
  * struct vsp1_du_lif_config - VSP LIF configuration
  * @width: output frame width
@@ -32,7 +34,7 @@ struct vsp1_du_lif_config {
 	unsigned int height;
 	bool interlaced;
 
-	void (*callback)(void *data, bool completed, u32 crc);
+	void (*callback)(void *data, unsigned int status, u32 crc);
 	void *callback_data;
 };
 

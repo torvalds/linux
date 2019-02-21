@@ -17,6 +17,7 @@ struct vsp1_dl_body_pool;
 struct vsp1_dl_list;
 struct vsp1_dl_manager;
 
+/* Keep these flags in sync with VSP1_DU_STATUS_* in include/media/vsp1.h. */
 #define VSP1_DL_FRAME_END_COMPLETED		BIT(0)
 #define VSP1_DL_FRAME_END_INTERNAL		BIT(1)
 
