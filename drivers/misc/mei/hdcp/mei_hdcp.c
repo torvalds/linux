@@ -658,6 +658,59 @@ static int mei_hdcp_enable_authentication(struct device *dev,
 	return 0;
 }
 
+/**
+ * mei_hdcp_close_session() - Close the Wired HDCP Tx session of ME FW per port.
+ * This also disables the authenticated state of the port.
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int
+mei_hdcp_close_session(struct device *dev, struct hdcp_port_data *data)
+{
+	struct wired_cmd_close_session_in session_close_in = { { 0 } };
+	struct wired_cmd_close_session_out session_close_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	session_close_in.header.api_version = HDCP_API_VERSION;
+	session_close_in.header.command_id = WIRED_CLOSE_SESSION;
+	session_close_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	session_close_in.header.buffer_len =
+				WIRED_CMD_BUF_LEN_CLOSE_SESSION_IN;
+
+	session_close_in.port.integrated_port_type = data->port_type;
+	session_close_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	byte = mei_cldev_send(cldev, (u8 *)&session_close_in,
+			      sizeof(session_close_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&session_close_out,
+			      sizeof(session_close_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (session_close_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "Session Close Failed. status: 0x%X\n",
+			session_close_out.header.status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
@@ -673,7 +726,7 @@ struct i915_hdcp_component_ops mei_hdcp_ops = {
 				mei_hdcp_repeater_check_flow_prepare_ack,
 	.verify_mprime = mei_hdcp_verify_mprime,
 	.enable_hdcp_authentication = mei_hdcp_enable_authentication,
-	.close_hdcp_session = NULL,
+	.close_hdcp_session = mei_hdcp_close_session,
 };
 
 static int mei_hdcp_probe(struct mei_cl_device *cldev,
