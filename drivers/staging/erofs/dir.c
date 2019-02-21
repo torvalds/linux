@@ -98,7 +98,6 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		if (IS_ERR(dentry_page))
 			continue;
 
-		lock_page(dentry_page);
 		de = (struct erofs_dirent *)kmap(dentry_page);
 
 		nameoff = le16_to_cpu(de->nameoff);
@@ -128,7 +127,6 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 skip_this:
 		kunmap(dentry_page);
 
-		unlock_page(dentry_page);
 		put_page(dentry_page);
 
 		ctx->pos = blknr_to_addr(i) + ofs;
