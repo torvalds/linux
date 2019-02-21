@@ -193,9 +193,10 @@
 #define XGMAC_AIE			BIT(14)
 #define XGMAC_RBUE			BIT(7)
 #define XGMAC_RIE			BIT(6)
+#define XGMAC_TBUE			BIT(2)
 #define XGMAC_TIE			BIT(0)
 #define XGMAC_DMA_INT_DEFAULT_EN	(XGMAC_NIE | XGMAC_AIE | XGMAC_RBUE | \
-					XGMAC_RIE | XGMAC_TIE)
+					XGMAC_RIE | XGMAC_TBUE | XGMAC_TIE)
 #define XGMAC_DMA_CH_Rx_WATCHDOG(x)	(0x0000313c + (0x80 * (x)))
 #define XGMAC_RWT			GENMASK(7, 0)
 #define XGMAC_DMA_CH_STATUS(x)		(0x00003160 + (0x80 * (x)))
@@ -204,6 +205,7 @@
 #define XGMAC_FBE			BIT(12)
 #define XGMAC_RBU			BIT(7)
 #define XGMAC_RI			BIT(6)
+#define XGMAC_TBU			BIT(2)
 #define XGMAC_TPS			BIT(1)
 #define XGMAC_TI			BIT(0)
 
