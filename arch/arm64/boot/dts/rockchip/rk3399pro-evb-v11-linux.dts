@@ -716,6 +716,14 @@
 		layout = <3>;
 	};
 
+	vm149c: vm149c@0c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
 		status = "okay";
@@ -728,6 +736,8 @@
 		pwdn-gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "rockchip,camera_default";
 		pinctrl-0 = <&cif_clkout>;
+
+		lens-focus = <&vm149c>;
 
 		port {
 			ucam_out0: endpoint {
