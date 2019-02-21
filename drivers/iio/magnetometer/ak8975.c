@@ -746,12 +746,14 @@ static const struct iio_mount_matrix *
 ak8975_get_mount_matrix(const struct iio_dev *indio_dev,
 			const struct iio_chan_spec *chan)
 {
-	return &((struct ak8975_data *)iio_priv(indio_dev))->orientation;
+	struct ak8975_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
 }
 
 static const struct iio_chan_spec_ext_info ak8975_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, ak8975_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define AK8975_CHANNEL(axis, index)					\
@@ -792,7 +794,7 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK09911", AK09911},
 	{"AKM9911", AK09911},
 	{"AK09912", AK09912},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ak_acpi_match);
 #endif
