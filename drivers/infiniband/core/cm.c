@@ -124,7 +124,8 @@ static struct ib_cm {
 	struct rb_root remote_qp_table;
 	struct rb_root remote_id_table;
 	struct rb_root remote_sidr_table;
-	struct idr local_id_table;
+	struct xarray local_id_table;
+	u32 local_id_next;
 	__be32 random_id_operand;
 	struct list_head timewait_list;
 	struct workqueue_struct *wq;
@@ -598,35 +599,31 @@ static int cm_init_av_by_path(struct sa_path_rec *path,
 
 static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 {
-	unsigned long flags;
-	int id;
+	int err;
+	u32 id;
 
-	idr_preload(GFP_KERNEL);
-	spin_lock_irqsave(&cm.lock, flags);
-
-	id = idr_alloc_cyclic(&cm.local_id_table, cm_id_priv, 0, 0, GFP_NOWAIT);
-
-	spin_unlock_irqrestore(&cm.lock, flags);
-	idr_preload_end();
+	err = xa_alloc_cyclic_irq(&cm.local_id_table, &id, cm_id_priv,
+			xa_limit_32b, &cm.local_id_next, GFP_KERNEL);
 
 	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
-	return id < 0 ? id : 0;
+	return err;
+}
+
+static u32 cm_local_id(__be32 local_id)
+{
+	return (__force u32) (local_id ^ cm.random_id_operand);
 }
 
 static void cm_free_id(__be32 local_id)
 {
-	spin_lock_irq(&cm.lock);
-	idr_remove(&cm.local_id_table,
-		   (__force int) (local_id ^ cm.random_id_operand));
-	spin_unlock_irq(&cm.lock);
+	xa_erase_irq(&cm.local_id_table, cm_local_id(local_id));
 }
 
 static struct cm_id_private * cm_get_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 
-	cm_id_priv = idr_find(&cm.local_id_table,
-			      (__force int) (local_id ^ cm.random_id_operand));
+	cm_id_priv = xa_load(&cm.local_id_table, cm_local_id(local_id));
 	if (cm_id_priv) {
 		if (cm_id_priv->id.remote_id == remote_id)
 			atomic_inc(&cm_id_priv->refcount);
@@ -2824,9 +2821,8 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 			spin_unlock_irq(&cm.lock);
 			return NULL;
 		}
-		cm_id_priv = idr_find(&cm.local_id_table, (__force int)
-				      (timewait_info->work.local_id ^
-				       cm.random_id_operand));
+		cm_id_priv = xa_load(&cm.local_id_table,
+				cm_local_id(timewait_info->work.local_id));
 		if (cm_id_priv) {
 			if (cm_id_priv->id.remote_id == remote_id)
 				atomic_inc(&cm_id_priv->refcount);
@@ -4512,7 +4508,7 @@ static int __init ib_cm_init(void)
 	cm.remote_id_table = RB_ROOT;
 	cm.remote_qp_table = RB_ROOT;
 	cm.remote_sidr_table = RB_ROOT;
-	idr_init(&cm.local_id_table);
+	xa_init_flags(&cm.local_id_table, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	INIT_LIST_HEAD(&cm.timewait_list);
 
@@ -4538,7 +4534,6 @@ error3:
 error2:
 	class_unregister(&cm_class);
 error1:
-	idr_destroy(&cm.local_id_table);
 	return ret;
 }
 
@@ -4560,9 +4555,8 @@ static void __exit ib_cm_cleanup(void)
 	}
 
 	class_unregister(&cm_class);
-	idr_destroy(&cm.local_id_table);
+	WARN_ON(!xa_empty(&cm.local_id_table));
 }
 
 module_init(ib_cm_init);
 module_exit(ib_cm_cleanup);
-
