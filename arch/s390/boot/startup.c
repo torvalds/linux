@@ -25,19 +25,16 @@ unsigned long mem_safe_offset(void)
 }
 #endif
 
-static void rescue_initrd(void)
+static void rescue_initrd(unsigned long addr)
 {
-	unsigned long min_initrd_addr;
-
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD))
 		return;
 	if (!INITRD_START || !INITRD_SIZE)
 		return;
-	min_initrd_addr = mem_safe_offset();
-	if (min_initrd_addr <= INITRD_START)
+	if (addr <= INITRD_START)
 		return;
-	memmove((void *)min_initrd_addr, (void *)INITRD_START, INITRD_SIZE);
-	INITRD_START = min_initrd_addr;
+	memmove((void *)addr, (void *)INITRD_START, INITRD_SIZE);
+	INITRD_START = addr;
 }
 
 static void copy_bootdata(void)
@@ -52,12 +49,15 @@ static void copy_bootdata(void)
 
 void startup_kernel(void)
 {
+	unsigned long safe_addr;
 	void *img;
 
-	uv_query_info();
-	rescue_initrd();
-	sclp_early_read_info();
 	store_ipl_parmblock();
+	safe_addr = mem_safe_offset();
+	safe_addr = read_ipl_report(safe_addr);
+	uv_query_info();
+	rescue_initrd(safe_addr);
+	sclp_early_read_info();
 	setup_boot_command_line();
 	parse_boot_command_line();
 	setup_memory_end();

@@ -122,6 +122,13 @@ static char *dump_type_str(enum dump_type type)
 
 int __bootdata_preserved(ipl_block_valid);
 struct ipl_parameter_block __bootdata_preserved(ipl_block);
+int __bootdata_preserved(ipl_secure_flag);
+
+unsigned long __bootdata_preserved(ipl_cert_list_addr);
+unsigned long __bootdata_preserved(ipl_cert_list_size);
+
+unsigned long __bootdata(early_ipl_comp_list_addr);
+unsigned long __bootdata(early_ipl_comp_list_size);
 
 static int reipl_capabilities = IPL_TYPE_UNKNOWN;
 
@@ -267,6 +274,15 @@ static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
+static ssize_t ipl_secure_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *page)
+{
+	return sprintf(page, "%i\n", !!ipl_secure_flag);
+}
+
+static struct kobj_attribute sys_ipl_secure_attr =
+	__ATTR(secure, 0444, ipl_secure_show, NULL);
+
 static ssize_t ipl_vm_parm_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *page)
 {
@@ -362,6 +378,7 @@ static struct attribute *ipl_fcp_attrs[] = {
 	&sys_ipl_fcp_bootprog_attr.attr,
 	&sys_ipl_fcp_br_lba_attr.attr,
 	&sys_ipl_ccw_loadparm_attr.attr,
+	&sys_ipl_secure_attr.attr,
 	NULL,
 };
 
@@ -377,6 +394,7 @@ static struct attribute *ipl_ccw_attrs_vm[] = {
 	&sys_ipl_device_attr.attr,
 	&sys_ipl_ccw_loadparm_attr.attr,
 	&sys_ipl_vm_parm_attr.attr,
+	&sys_ipl_secure_attr.attr,
 	NULL,
 };
 
@@ -384,6 +402,7 @@ static struct attribute *ipl_ccw_attrs_lpar[] = {
 	&sys_ipl_type_attr.attr,
 	&sys_ipl_device_attr.attr,
 	&sys_ipl_ccw_loadparm_attr.attr,
+	&sys_ipl_secure_attr.attr,
 	NULL,
 };
 
