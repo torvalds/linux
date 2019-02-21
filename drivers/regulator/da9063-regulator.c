@@ -739,7 +739,6 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config;
 	bool bcores_merged, bmem_bio_merged;
 	int id, irq, n, n_regulators, ret, val;
-	size_t size;
 
 	regl_pdata = da9063_pdata ? da9063_pdata->regulators_pdata : NULL;
 
@@ -784,9 +783,8 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 		n_regulators--;    /* remove BMEM_BIO_MERGED */
 
 	/* Allocate memory required by usable regulators */
-	size = sizeof(struct da9063_regulators) +
-		n_regulators * sizeof(struct da9063_regulator);
-	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators,
+				  regulator, n_regulators), GFP_KERNEL);
 	if (!regulators)
 		return -ENOMEM;
 
