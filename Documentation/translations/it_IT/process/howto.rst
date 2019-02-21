@@ -244,7 +244,6 @@ e di molti altri rami per specifici sottosistemi. Questi rami sono:
 
   - I sorgenti kernel 4.x
   - I sorgenti stabili del kernel 4.x.y -stable
-  - Le modifiche in 4.x -git
   - Sorgenti dei sottosistemi del kernel e le loro modifiche
   - Il kernel 4.x -next per test d'integrazione
 

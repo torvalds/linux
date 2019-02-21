@@ -237,7 +237,6 @@ branches.  These different branches are:
 
   - main 4.x kernel tree
   - 4.x.y -stable kernel tree
-  - 4.x -git kernel patches
   - subsystem specific kernel trees and patches
   - the 4.x -next kernel tree for integration tests
 
