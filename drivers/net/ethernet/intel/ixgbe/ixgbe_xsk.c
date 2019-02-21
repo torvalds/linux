@@ -144,11 +144,19 @@ static int ixgbe_xsk_umem_enable(struct ixgbe_adapter *adapter,
 		ixgbe_txrx_ring_disable(adapter, qid);
 
 	err = ixgbe_add_xsk_umem(adapter, umem, qid);
+	if (err)
+		return err;
 
-	if (if_running)
+	if (if_running) {
 		ixgbe_txrx_ring_enable(adapter, qid);
 
-	return err;
+		/* Kick start the NAPI context so that receiving will start */
+		err = ixgbe_xsk_async_xmit(adapter->netdev, qid);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int ixgbe_xsk_umem_disable(struct ixgbe_adapter *adapter, u16 qid)
@@ -634,7 +642,8 @@ static bool ixgbe_xmit_zc(struct ixgbe_ring *xdp_ring, unsigned int budget)
 	dma_addr_t dma;
 
 	while (budget-- > 0) {
-		if (unlikely(!ixgbe_desc_unused(xdp_ring))) {
+		if (unlikely(!ixgbe_desc_unused(xdp_ring)) ||
+		    !netif_carrier_ok(xdp_ring->netdev)) {
 			work_done = false;
 			break;
 		}
