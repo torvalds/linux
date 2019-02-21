@@ -31,7 +31,7 @@ DMA clients connected to the Spreadtrum DMA controller must use the format
 described in the dma.txt file, using a two-cell specifier for each channel.
 The two cells in order are:
 1. A phandle pointing to the DMA controller.
-2. The channel id.
+2. The slave id.
 
 spi0: spi@70a00000{
 	...
