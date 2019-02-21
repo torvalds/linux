@@ -635,8 +635,7 @@ void af_alg_pull_tsgl(struct sock *sk, size_t used, struct scatterlist *dst,
 		}
 
 		list_del(&sgl->list);
-		sock_kfree_s(sk, sgl, sizeof(*sgl) + sizeof(sgl->sg[0]) *
-						     (MAX_SGL_ENTS + 1));
+		sock_kfree_s(sk, sgl, struct_size(sgl, sg, MAX_SGL_ENTS + 1));
 	}
 
 	if (!ctx->used)
