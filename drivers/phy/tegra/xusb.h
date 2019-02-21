@@ -370,6 +370,9 @@ struct tegra_xusb_padctl_soc {
 	} ports;
 
 	const struct tegra_xusb_padctl_ops *ops;
+
+	const char * const *supply_names;
+	unsigned int num_supplies;
 };
 
 struct tegra_xusb_padctl {
@@ -393,6 +396,8 @@ struct tegra_xusb_padctl {
 	unsigned int enable;
 
 	struct clk *clk;
+
+	struct regulator_bulk_data *supplies;
 };
 
 static inline void padctl_writel(struct tegra_xusb_padctl *padctl, u32 value,
