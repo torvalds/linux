@@ -390,7 +390,7 @@ config MACH_INGENIC
 	select GPIOLIB
 	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
-	select BUILTIN_DTB
+	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
 	select USE_OF
 	select LIBFDT
 
