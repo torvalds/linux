@@ -182,13 +182,69 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 	return 0;
 }
 
+/**
+ * mei_hdcp_verify_hprime() - Verify AKE_Send_H_prime at ME FW.
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @rx_hprime: AKE_Send_H_prime msg for ME FW verification
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int
+mei_hdcp_verify_hprime(struct device *dev, struct hdcp_port_data *data,
+		       struct hdcp2_ake_send_hprime *rx_hprime)
+{
+	struct wired_cmd_ake_send_hprime_in send_hprime_in = { { 0 } };
+	struct wired_cmd_ake_send_hprime_out send_hprime_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data || !rx_hprime)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	send_hprime_in.header.api_version = HDCP_API_VERSION;
+	send_hprime_in.header.command_id = WIRED_AKE_SEND_HPRIME;
+	send_hprime_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	send_hprime_in.header.buffer_len = WIRED_CMD_BUF_LEN_AKE_SEND_HPRIME_IN;
+
+	send_hprime_in.port.integrated_port_type = data->port_type;
+	send_hprime_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	memcpy(send_hprime_in.h_prime, rx_hprime->h_prime,
+	       HDCP_2_2_H_PRIME_LEN);
+
+	byte = mei_cldev_send(cldev, (u8 *)&send_hprime_in,
+			      sizeof(send_hprime_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&send_hprime_out,
+			      sizeof(send_hprime_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (send_hprime_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X Failed. Status: 0x%X\n",
+			WIRED_AKE_SEND_HPRIME, send_hprime_out.header.status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
 	.initiate_hdcp2_session = mei_hdcp_initiate_session,
 	.verify_receiver_cert_prepare_km =
 				mei_hdcp_verify_receiver_cert_prepare_km,
-	.verify_hprime = NULL,
+	.verify_hprime = mei_hdcp_verify_hprime,
 	.store_pairing_info = NULL,
 	.initiate_locality_check = NULL,
 	.verify_lprime = NULL,
