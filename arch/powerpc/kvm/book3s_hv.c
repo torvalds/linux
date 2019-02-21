@@ -937,6 +937,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		ret = kvmppc_h_set_xdabr(vcpu, kvmppc_get_gpr(vcpu, 4),
 						kvmppc_get_gpr(vcpu, 5));
 		break;
+#ifdef CONFIG_SPAPR_TCE_IOMMU
 	case H_GET_TCE:
 		ret = kvmppc_h_get_tce(vcpu, kvmppc_get_gpr(vcpu, 4),
 						kvmppc_get_gpr(vcpu, 5));
@@ -966,6 +967,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		if (ret == H_TOO_HARD)
 			return RESUME_HOST;
 		break;
+#endif
 	case H_RANDOM:
 		if (!powernv_get_random_long(&vcpu->arch.regs.gpr[4]))
 			ret = H_HARDWARE;
