@@ -368,7 +368,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
 
 	/* Gen 11 does not support YCbCr */
-	vdsc_cfg->enable422 = false;
+	vdsc_cfg->simple_422 = false;
 	/* Gen 11 does not support VBR */
 	vdsc_cfg->vbr_enable = false;
 	vdsc_cfg->block_pred_enable =
@@ -495,7 +495,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 		pps_val |= DSC_BLOCK_PREDICTION;
 	if (vdsc_cfg->convert_rgb)
 		pps_val |= DSC_COLOR_SPACE_CONVERSION;
-	if (vdsc_cfg->enable422)
+	if (vdsc_cfg->simple_422)
 		pps_val |= DSC_422_ENABLE;
 	if (vdsc_cfg->vbr_enable)
 		pps_val |= DSC_VBR_ENABLE;

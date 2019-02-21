@@ -101,9 +101,9 @@ struct drm_dsc_config {
 	 */
 	u16 slice_height;
 	/**
-	 * @enable422: True for 4_2_2 sampling, false for 4_4_4 sampling
+	 * @simple_422: True if simple 4_2_2 mode is enabled else False
 	 */
-	bool enable422;
+	bool simple_422;
 	/**
 	 * @pic_width: Width of the input display frame in pixels
 	 */
