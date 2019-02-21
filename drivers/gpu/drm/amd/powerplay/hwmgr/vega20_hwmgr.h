@@ -526,6 +526,10 @@ struct vega20_hwmgr {
 
 	unsigned long                  metrics_time;
 	SmuMetrics_t                   metrics_table;
+
+	bool                           pcie_parameters_override;
+	uint32_t                       pcie_gen_level1;
+	uint32_t                       pcie_width_level1;
 };
 
 #define VEGA20_DPM2_NEAR_TDP_DEC                      10

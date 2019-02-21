@@ -783,6 +783,8 @@ static int vega20_init_smc_table(struct pp_hwmgr *hwmgr)
 static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
+	struct vega20_hwmgr *data =
+			(struct vega20_hwmgr *)(hwmgr->backend);
 	uint32_t pcie_gen = 0, pcie_width = 0, smu_pcie_arg;
 	int ret;
 
@@ -818,6 +820,10 @@ static int vega20_override_pcie_parameters(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!ret,
 		"[OverridePcieParameters] Attempt to override pcie params failed!",
 		return ret);
+
+	data->pcie_parameters_override = 1;
+	data->pcie_gen_level1 = pcie_gen;
+	data->pcie_width_level1 = pcie_width;
 
 	return 0;
 }
@@ -3099,7 +3105,7 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 			&(data->dpm_table.fclk_table);
 	int i, now, size = 0;
 	int ret = 0;
-	uint32_t gen_speed, lane_width;
+	uint32_t gen_speed, lane_width, current_gen_speed, current_lane_width;
 
 	switch (type) {
 	case PP_SCLK:
@@ -3187,28 +3193,36 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_PCIE:
-		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+		current_gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
 			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
 			    >> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
-		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+		current_lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
 			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
 			    >> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
-		for (i = 0; i < NUM_LINK_LEVELS; i++)
+		for (i = 0; i < NUM_LINK_LEVELS; i++) {
+			if (i == 1 && data->pcie_parameters_override) {
+				gen_speed = data->pcie_gen_level1;
+				lane_width = data->pcie_width_level1;
+			} else {
+				gen_speed = pptable->PcieGenSpeed[i];
+				lane_width = pptable->PcieLaneCount[i];
+			}
 			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
-					(pptable->PcieGenSpeed[i] == 0) ? "2.5GT/s," :
-					(pptable->PcieGenSpeed[i] == 1) ? "5.0GT/s," :
-					(pptable->PcieGenSpeed[i] == 2) ? "8.0GT/s," :
-					(pptable->PcieGenSpeed[i] == 3) ? "16.0GT/s," : "",
-					(pptable->PcieLaneCount[i] == 1) ? "x1" :
-					(pptable->PcieLaneCount[i] == 2) ? "x2" :
-					(pptable->PcieLaneCount[i] == 3) ? "x4" :
-					(pptable->PcieLaneCount[i] == 4) ? "x8" :
-					(pptable->PcieLaneCount[i] == 5) ? "x12" :
-					(pptable->PcieLaneCount[i] == 6) ? "x16" : "",
+					(gen_speed == 0) ? "2.5GT/s," :
+					(gen_speed == 1) ? "5.0GT/s," :
+					(gen_speed == 2) ? "8.0GT/s," :
+					(gen_speed == 3) ? "16.0GT/s," : "",
+					(lane_width == 1) ? "x1" :
+					(lane_width == 2) ? "x2" :
+					(lane_width == 3) ? "x4" :
+					(lane_width == 4) ? "x8" :
+					(lane_width == 5) ? "x12" :
+					(lane_width == 6) ? "x16" : "",
 					pptable->LclkFreq[i],
-					(gen_speed == pptable->PcieGenSpeed[i]) &&
-					(lane_width == pptable->PcieLaneCount[i]) ?
+					(current_gen_speed == gen_speed) &&
+					(current_lane_width == lane_width) ?
 					"*" : "");
+		}
 		break;
 
 	case OD_SCLK:
