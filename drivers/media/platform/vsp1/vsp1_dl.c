@@ -958,6 +958,9 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl, unsigned int dl_flags)
  *
  * The VSP1_DL_FRAME_END_INTERNAL flag indicates that the display list that just
  * became active had been queued with the internal notification flag.
+ *
+ * The VSP1_DL_FRAME_END_WRITEBACK flag indicates that the previously active
+ * display list had been queued with the writeback flag.
  */
 unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 {
@@ -994,6 +997,17 @@ unsigned int vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 	 */
 	if (status & VI6_STATUS_FLD_STD(dlm->index))
 		goto done;
+
+	/*
+	 * If the active display list has the writeback flag set, the frame
+	 * completion marks the end of the writeback capture. Return the
+	 * VSP1_DL_FRAME_END_WRITEBACK flag and reset the display list's
+	 * writeback flag.
+	 */
+	if (dlm->active && (dlm->active->flags & VSP1_DL_FRAME_END_WRITEBACK)) {
+		flags |= VSP1_DL_FRAME_END_WRITEBACK;
+		dlm->active->flags &= ~VSP1_DL_FRAME_END_WRITEBACK;
+	}
 
 	/*
 	 * The device starts processing the queued display list right after the

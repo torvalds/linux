@@ -19,7 +19,8 @@ struct vsp1_dl_manager;
 
 /* Keep these flags in sync with VSP1_DU_STATUS_* in include/media/vsp1.h. */
 #define VSP1_DL_FRAME_END_COMPLETED		BIT(0)
-#define VSP1_DL_FRAME_END_INTERNAL		BIT(1)
+#define VSP1_DL_FRAME_END_WRITEBACK		BIT(1)
+#define VSP1_DL_FRAME_END_INTERNAL		BIT(2)
 
 /**
  * struct vsp1_dl_ext_cmd - Extended Display command

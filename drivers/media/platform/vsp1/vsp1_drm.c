@@ -37,7 +37,9 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 
 	if (drm_pipe->du_complete) {
 		struct vsp1_entity *uif = drm_pipe->uif;
-		unsigned int status = completion & VSP1_DU_STATUS_COMPLETE;
+		unsigned int status = completion
+				    & (VSP1_DU_STATUS_COMPLETE |
+				       VSP1_DU_STATUS_WRITEBACK);
 		u32 crc;
 
 		crc = uif ? vsp1_uif_get_crc(to_uif(&uif->subdev)) : 0;
@@ -541,6 +543,8 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 
 	if (drm_pipe->force_brx_release)
 		dl_flags |= VSP1_DL_FRAME_END_INTERNAL;
+	if (pipe->output->writeback)
+		dl_flags |= VSP1_DL_FRAME_END_WRITEBACK;
 
 	dl = vsp1_dl_list_get(pipe->output->dlm);
 	dlb = vsp1_dl_list_get_body0(dl);
@@ -870,12 +874,31 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
 	struct vsp1_pipeline *pipe = &drm_pipe->pipe;
+	int ret;
 
 	drm_pipe->crc = cfg->crc;
 
 	mutex_lock(&vsp1->drm->lock);
+
+	if (cfg->writeback.pixelformat) {
+		const struct vsp1_du_writeback_config *wb_cfg = &cfg->writeback;
+
+		ret = vsp1_du_pipeline_set_rwpf_format(vsp1, pipe->output,
+						       wb_cfg->pixelformat,
+						       wb_cfg->pitch);
+		if (WARN_ON(ret < 0))
+			goto done;
+
+		pipe->output->mem.addr[0] = wb_cfg->mem[0];
+		pipe->output->mem.addr[1] = wb_cfg->mem[1];
+		pipe->output->mem.addr[2] = wb_cfg->mem[2];
+		pipe->output->writeback = true;
+	}
+
 	vsp1_du_pipeline_setup_inputs(vsp1, pipe);
 	vsp1_du_pipeline_configure(pipe);
+
+done:
 	mutex_unlock(&vsp1->drm->lock);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
