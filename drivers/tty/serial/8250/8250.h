@@ -46,6 +46,9 @@ struct uart_8250_dma {
 	unsigned char		tx_running;
 	unsigned char		tx_err;
 	unsigned char		rx_running;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	size_t			rx_index;
+#endif
 };
 
 struct old_serial_port {
