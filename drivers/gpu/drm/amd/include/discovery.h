@@ -33,7 +33,7 @@ typedef enum
 {
 	IP_DISCOVERY = 0,
 	GC,
-	TABLE_3,
+	HARVEST_INFO,
 	TABLE_4,
 	RESERVED_1,
 	RESERVED_2,
@@ -143,6 +143,22 @@ struct gc_info_v1_0 {
 	uint32_t gc_num_packer_per_sc;
 	uint32_t gc_num_gl2a;
 };
+
+typedef struct harvest_info_header {
+	uint32_t signature; /* Table Signature */
+	uint32_t version;   /* Table Version */
+} harvest_info_header;
+
+typedef struct harvest_info {
+	uint16_t hw_id;          /* Hardware ID */
+	uint8_t number_instance; /* Instance of the IP */
+	uint8_t reserved;        /* Reserved for alignment */
+} harvest_info;
+
+typedef struct harvest_table {
+	harvest_info_header header;
+	harvest_info list[32];
+} harvest_table;
 
 #pragma pack()
 
