@@ -288,8 +288,8 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int peeked, peeking, off;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+	struct udp_mib __percpu *mib;
 	bool checksum_valid = false;
-	struct udp_mib *mib;
 	int is_udp4;
 
 	if (flags & MSG_ERRQUEUE)
