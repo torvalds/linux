@@ -1988,7 +1988,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	qp->ibqp.qp_num = qp->qp_id;
 
 	if (rdma_protocol_iwarp(&dev->ibdev, 1)) {
-		rc = qedr_idr_add(dev, &dev->qpidr, qp, qp->qp_id);
+		rc = xa_insert_irq(&dev->qps, qp->qp_id, qp, GFP_KERNEL);
 		if (rc)
 			goto err;
 	}
@@ -2564,7 +2564,7 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 
 	if (atomic_dec_and_test(&qp->refcnt) &&
 	    rdma_protocol_iwarp(&dev->ibdev, 1)) {
-		qedr_idr_remove(dev, &dev->qpidr, qp->qp_id);
+		xa_erase_irq(&dev->qps, qp->qp_id);
 		kfree(qp);
 	}
 	return rc;

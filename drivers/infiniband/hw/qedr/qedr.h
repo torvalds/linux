@@ -171,7 +171,7 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
 	enum qed_rdma_type	rdma_type;
-	struct qedr_idr		qpidr;
+	struct xarray		qps;
 	struct qedr_idr		srqidr;
 	struct workqueue_struct *iwarp_wq;
 	u16			iwarp_max_mtu;
