@@ -352,9 +352,8 @@ i##n:								\
  * registers that might have bad values includes all the GPRs
  * and all the BATs.  We indicate that we are in RTAS by putting
  * a non-zero value, the address of the exception frame to use,
- * in SPRG2.  The machine check handler checks SPRG2 and uses its
- * value if it is non-zero.  If we ever needed to free up SPRG2,
- * we could use a field in the thread_info or thread_struct instead.
+ * in thread.rtas_sp.  The machine check handler checks thread.rtas_sp
+ * and uses its value if it is non-zero.
  * (Other exception handlers assume that r1 is a valid kernel stack
  * pointer when we take an exception from supervisor mode.)
  *	-- paulus.
@@ -365,16 +364,15 @@ i##n:								\
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfcr	r10
 #ifdef CONFIG_PPC_CHRP
-	mfspr	r11,SPRN_SPRG_RTAS
-	cmpwi	0,r11,0
-	bne	7f
+	mfspr	r11, SPRN_SPRG_THREAD
+	lwz	r11, RTAS_SP(r11)
+	cmpwi	cr1, r11, 0
+	bne	cr1, 7f
 #endif /* CONFIG_PPC_CHRP */
 	EXCEPTION_PROLOG_1
 7:	EXCEPTION_PROLOG_2
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_CHRP
-	mfspr	r4,SPRN_SPRG_RTAS
-	cmpwi	cr1,r4,0
 	bne	cr1,1f
 #endif
 	EXC_XFER_STD(0x200, machine_check_exception)
@@ -865,8 +863,10 @@ __secondary_start:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* phys address of our thread_struct */
 	mtspr	SPRN_SPRG_THREAD,r4
+#ifdef CONFIG_PPC_RTAS
 	li	r3,0
-	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */
+	stw	r3, RTAS_SP(r4)		/* 0 => not in RTAS */
+#endif
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
@@ -950,8 +950,10 @@ start_here:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* init task's THREAD */
 	mtspr	SPRN_SPRG_THREAD,r4
+#ifdef CONFIG_PPC_RTAS
 	li	r3,0
-	mtspr	SPRN_SPRG_RTAS,r3	/* 0 => not in RTAS */
+	stw	r3, RTAS_SP(r4)		/* 0 => not in RTAS */
+#endif
 
 	/* stack */
 	lis	r1,init_thread_union@ha

@@ -93,6 +93,9 @@ int main(void)
 	OFFSET(THREAD_INFO, task_struct, stack);
 	DEFINE(THREAD_INFO_GAP, _ALIGN_UP(sizeof(struct thread_info), 16));
 	OFFSET(KSP_LIMIT, thread_struct, ksp_limit);
+#ifdef CONFIG_PPC_RTAS
+	OFFSET(RTAS_SP, thread_struct, rtas_sp);
+#endif
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_LIVEPATCH
