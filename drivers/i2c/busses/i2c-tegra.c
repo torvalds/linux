@@ -414,10 +414,12 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 	dma_addr_t dma_phys;
 	int err;
 
-	if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA) ||
-	    !i2c_dev->hw->has_apb_dma) {
-		err = -ENODEV;
-		goto err_out;
+	if (!i2c_dev->hw->has_apb_dma)
+		return 0;
+
+	if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA)) {
+		dev_dbg(i2c_dev->dev, "Support for APB DMA not enabled!\n");
+		return 0;
 	}
 
 	chan = dma_request_slave_channel_reason(i2c_dev->dev, "rx");
