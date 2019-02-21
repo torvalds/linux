@@ -34,7 +34,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/completion.h>
 #include <linux/netdevice.h>
 #include <linux/sched/mm.h>
@@ -318,13 +318,12 @@ struct c4iw_dev {
 	struct xarray cqs;
 	struct xarray qps;
 	struct xarray mrs;
-	spinlock_t lock;
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
 	enum db_state db_state;
 	struct xarray hwtids;
 	struct xarray atids;
-	struct idr stid_idr;
+	struct xarray stids;
 	struct list_head db_fc_list;
 	u32 avail_ird;
 	wait_queue_head_t wait;
@@ -355,60 +354,6 @@ static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
 static inline struct c4iw_qp *get_qhp(struct c4iw_dev *rhp, u32 qpid)
 {
 	return xa_load(&rhp->qps, qpid);
-}
-
-
-static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				 void *handle, u32 id, int lock)
-{
-	int ret;
-
-	if (lock) {
-		idr_preload(GFP_KERNEL);
-		spin_lock_irq(&rhp->lock);
-	}
-
-	ret = idr_alloc(idr, handle, id, id + 1, GFP_ATOMIC);
-
-	if (lock) {
-		spin_unlock_irq(&rhp->lock);
-		idr_preload_end();
-	}
-
-	return ret < 0 ? ret : 0;
-}
-
-static inline int insert_handle(struct c4iw_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 1);
-}
-
-static inline int insert_handle_nolock(struct c4iw_dev *rhp, struct idr *idr,
-				       void *handle, u32 id)
-{
-	return _insert_handle(rhp, idr, handle, id, 0);
-}
-
-static inline void _remove_handle(struct c4iw_dev *rhp, struct idr *idr,
-				   u32 id, int lock)
-{
-	if (lock)
-		spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	if (lock)
-		spin_unlock_irq(&rhp->lock);
-}
-
-static inline void remove_handle(struct c4iw_dev *rhp, struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 1);
-}
-
-static inline void remove_handle_nolock(struct c4iw_dev *rhp,
-					 struct idr *idr, u32 id)
-{
-	_remove_handle(rhp, idr, id, 0);
 }
 
 extern uint c4iw_max_read_depth;

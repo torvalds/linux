@@ -81,14 +81,6 @@ struct c4iw_debugfs_data {
 	int pos;
 };
 
-static int count_idrs(int id, void *p, void *data)
-{
-	int *countp = data;
-
-	*countp = *countp + 1;
-	return 0;
-}
-
 static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count,
 			    loff_t *ppos)
 {
@@ -617,10 +609,9 @@ static int dump_ep(struct c4iw_ep *ep, struct c4iw_debugfs_data *epd)
 	return 0;
 }
 
-static int dump_listen_ep(int id, void *p, void *data)
+static
+int dump_listen_ep(struct c4iw_listen_ep *ep, struct c4iw_debugfs_data *epd)
 {
-	struct c4iw_listen_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
 	int space;
 	int cc;
 
@@ -675,6 +666,7 @@ static int ep_release(struct inode *inode, struct file *file)
 static int ep_open(struct inode *inode, struct file *file)
 {
 	struct c4iw_ep *ep;
+	struct c4iw_listen_ep *lep;
 	unsigned long index;
 	struct c4iw_debugfs_data *epd;
 	int ret = 0;
@@ -692,9 +684,8 @@ static int ep_open(struct inode *inode, struct file *file)
 		count++;
 	xa_for_each(&epd->devp->atids, index, ep)
 		count++;
-	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
-	spin_unlock_irq(&epd->devp->lock);
+	xa_for_each(&epd->devp->stids, index, lep)
+		count++;
 
 	epd->bufsize = count * 240;
 	epd->buf = vmalloc(epd->bufsize);
@@ -711,9 +702,10 @@ static int ep_open(struct inode *inode, struct file *file)
 	xa_for_each(&epd->devp->atids, index, ep)
 		dump_ep(ep, epd);
 	xa_unlock_irq(&epd->devp->atids);
-	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->stid_idr, dump_listen_ep, epd);
-	spin_unlock_irq(&epd->devp->lock);
+	xa_lock_irq(&epd->devp->stids);
+	xa_for_each(&epd->devp->stids, index, lep)
+		dump_listen_ep(lep, epd);
+	xa_unlock_irq(&epd->devp->stids);
 
 	file->private_data = epd;
 	goto out;
@@ -945,7 +937,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 	WARN_ON(!xa_empty(&ctx->dev->qps));
 	WARN_ON(!xa_empty(&ctx->dev->mrs));
 	wait_event(ctx->dev->wait, xa_empty(&ctx->dev->hwtids));
-	idr_destroy(&ctx->dev->stid_idr);
+	WARN_ON(!xa_empty(&ctx->dev->stids));
 	WARN_ON(!xa_empty(&ctx->dev->atids));
 	if (ctx->dev->rdev.bar2_kva)
 		iounmap(ctx->dev->rdev.bar2_kva);
@@ -1055,8 +1047,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	xa_init_flags(&devp->mrs, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->hwtids, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->atids, XA_FLAGS_LOCK_IRQ);
-	idr_init(&devp->stid_idr);
-	spin_lock_init(&devp->lock);
+	xa_init_flags(&devp->stids, XA_FLAGS_LOCK_IRQ);
 	mutex_init(&devp->rdev.stats.lock);
 	mutex_init(&devp->db_mutex);
 	INIT_LIST_HEAD(&devp->db_fc_list);

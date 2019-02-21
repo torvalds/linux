@@ -375,11 +375,11 @@ static struct c4iw_listen_ep *get_ep_from_stid(struct c4iw_dev *dev,
 	struct c4iw_listen_ep *ep;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	ep = idr_find(&dev->stid_idr, stid);
+	xa_lock_irqsave(&dev->stids, flags);
+	ep = xa_load(&dev->stids, stid);
 	if (ep)
 		c4iw_get_ep(&ep->com);
-	spin_unlock_irqrestore(&dev->lock, flags);
+	xa_unlock_irqrestore(&dev->stids, flags);
 	return ep;
 }
 
@@ -3561,7 +3561,9 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(dev, &dev->stid_idr, ep, ep->stid);
+	err = xa_insert_irq(&dev->stids, ep->stid, ep, GFP_KERNEL);
+	if (err)
+		goto fail3;
 
 	state_set(&ep->com, LISTEN);
 	if (ep->com.local_addr.ss_family == AF_INET)
@@ -3572,7 +3574,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_id->provider_data = ep;
 		goto out;
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->stid_idr, ep->stid);
+	xa_erase_irq(&ep->com.dev->stids, ep->stid);
+fail3:
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 fail2:
@@ -3611,7 +3614,7 @@ int c4iw_destroy_listen(struct iw_cm_id *cm_id)
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->stid_idr, ep->stid);
+	xa_erase_irq(&ep->com.dev->stids, ep->stid);
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 done:
