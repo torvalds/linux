@@ -144,6 +144,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_BASIC_RATE:{
 			u16 rate_cfg = ((u16 *) val)[0];
 			u8 rate_index = 0;
+
 			rate_cfg &= 0x15f;
 			rate_cfg |= 0x01;
 			rtl_write_byte(rtlpriv, REG_RRSR, rate_cfg & 0xff);
@@ -197,6 +198,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_ACK_PREAMBLE:{
 			u8 reg_tmp;
 			u8 short_preamble = (bool)*val;
+
 			reg_tmp = (mac->cur_40_prime_sc) << 5;
 			if (short_preamble)
 				reg_tmp |= 0x80;
@@ -293,6 +295,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_AC_PARAM:{
 			u8 e_aci = *(val);
+
 			rtl92c_dm_init_edca_turbo(hw);
 
 			if (rtlpci->acm_method != EACMWAY2_SW)
@@ -456,6 +459,7 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	case HW_VAR_AID:{
 			u16 u2btmp;
+
 			u2btmp = rtl_read_word(rtlpriv, REG_BCN_PSR_RPT);
 			u2btmp &= 0xC000;
 			rtl_write_word(rtlpriv, REG_BCN_PSR_RPT, (u2btmp |
@@ -661,6 +665,7 @@ static bool _rtl92ce_init_mac(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_RSV_CTRL, 0x00);
 	if (rtlpriv->btcoexist.bt_coexistence) {
 		u32 value32;
+
 		value32 = rtl_read_dword(rtlpriv, REG_APS_FSMCO);
 		value32 |= (SOP_ABG | SOP_AMB | XOP_BTCK);
 		rtl_write_dword(rtlpriv, REG_APS_FSMCO, value32);
@@ -1245,6 +1250,7 @@ int rtl92ce_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 void rtl92ce_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtl92c_dm_init_edca_turbo(hw);
 	switch (aci) {
 	case AC1_BK:
@@ -2278,7 +2284,6 @@ void rtl8192ce_bt_reg_init(struct ieee80211_hw *hw)
 	/* 0:Disable BT control A-MPDU, 1:Enable BT control A-MPDU. */
 	rtlpriv->btcoexist.reg_bt_sco = 0;
 }
-
 
 void rtl8192ce_bt_hw_init(struct ieee80211_hw *hw)
 {

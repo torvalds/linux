@@ -443,6 +443,7 @@ static bool _rtl92ce_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			    RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC)) {
 				bool rtstatus;
 				u32 initializecount = 0;
+
 				do {
 					initializecount++;
 					RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
