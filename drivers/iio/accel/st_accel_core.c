@@ -992,7 +992,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 			goto out;
 
 		val = elements[i].integer.value;
-		if (val < 0 || val > 2)
+		if (val > 2)
 			goto out;
 
 		/* Avoiding full matrix multiplication, we simply reorder the
