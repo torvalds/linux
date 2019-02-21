@@ -86,6 +86,7 @@ static struct file_system_type dma_buf_fs_type = {
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
+	int dtor_ret = 0;
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -104,11 +105,18 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	 */
 	BUG_ON(dmabuf->cb_shared.active || dmabuf->cb_excl.active);
 
-	dmabuf->ops->release(dmabuf);
-
 	mutex_lock(&db_list.lock);
 	list_del(&dmabuf->list_node);
 	mutex_unlock(&db_list.lock);
+
+	if (dmabuf->dtor)
+		dtor_ret = dmabuf->dtor(dmabuf, dmabuf->dtor_data);
+
+	if (!dtor_ret)
+		dmabuf->ops->release(dmabuf);
+	else
+		pr_warn_ratelimited("Leaking dmabuf %s because destructor failed error:%d\n",
+				    dmabuf->name, dtor_ret);
 
 	if (dmabuf->resv == (struct reservation_object *)&dmabuf[1])
 		reservation_object_fini(dmabuf->resv);
