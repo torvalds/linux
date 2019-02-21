@@ -18,7 +18,6 @@ void rtl92c_enable_interrupt(struct ieee80211_hw *hw);
 void rtl92c_disable_interrupt(struct ieee80211_hw *hw);
 void rtl92c_set_qos(struct ieee80211_hw *hw, int aci);
 
-
 /*---------------------------------------------------------------
  *	Hardware init functions
  *---------------------------------------------------------------*/
@@ -129,7 +128,5 @@ void rtl92c_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 /*---------------------------------------------------------------
  *	Card disable functions
  *---------------------------------------------------------------*/
-
-
 
 #endif

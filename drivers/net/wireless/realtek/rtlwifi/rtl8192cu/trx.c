@@ -108,6 +108,7 @@ static void threeoutepmapping(struct ieee80211_hw *hw, bool  bwificfg,
 			       struct rtl_ep_map *ep_map)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	if (bwificfg) { /* for WMM */
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 			 "USB 3EP Setting for WMM.....\n");
@@ -141,6 +142,7 @@ static void oneoutepmapping(struct ieee80211_hw *hw, struct rtl_ep_map *ep_map)
 	ep_map->ep_mapping[RTL_TXQ_BCN] = 2;
 	ep_map->ep_mapping[RTL_TXQ_HI]	= 2;
 }
+
 static int _out_ep_mapping(struct ieee80211_hw *hw)
 {
 	int err = 0;
@@ -174,11 +176,13 @@ err_out:
 	return err;
 
 }
+
 /* endpoint mapping */
 int  rtl8192cu_endpoint_mapping(struct ieee80211_hw *hw)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	int error = 0;
+
 	if (likely(IS_NORMAL_CHIP(rtlhal->version)))
 		error = configvernoutep(hw);
 	else
@@ -442,6 +446,7 @@ static void _rtl_fill_usb_tx_desc(u8 *txdesc)
 	SET_TX_DESC_LAST_SEG(txdesc, 1);
 	SET_TX_DESC_FIRST_SEG(txdesc, 1);
 }
+
 /**
  *	For HW recovery information
  */
@@ -531,11 +536,13 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	sta = ieee80211_find_sta(mac->vif, mac->bssid);
 	if (sta) {
 		u8 ampdu_density = sta->ht_cap.ampdu_density;
+
 		SET_TX_DESC_AMPDU_DENSITY(txdesc, ampdu_density);
 	}
 	rcu_read_unlock();
 	if (info->control.hw_key) {
 		struct ieee80211_key_conf *keyconf = info->control.hw_key;
+
 		switch (keyconf->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
