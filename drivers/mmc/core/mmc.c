@@ -2083,14 +2083,29 @@ static int mmc_suspend(struct mmc_host *host)
 static int _mmc_resume(struct mmc_host *host)
 {
 	int err = 0;
+	int i;
 
 	mmc_claim_host(host);
 
 	if (!mmc_card_suspended(host->card))
 		goto out;
 
-	mmc_power_up(host, host->card->ocr);
-	err = mmc_init_card(host, host->card->ocr, host->card);
+	/*
+	 * Let's try to fallback the host->f_init
+	 * if failing to init mmc card after resume.
+	 */
+	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
+		if (host->f_init < max(freqs[i], host->f_min))
+			continue;
+		else
+			host->f_init = max(freqs[i], host->f_min);
+
+		mmc_power_up(host, host->card->ocr);
+		err = mmc_init_card(host, host->card->ocr, host->card);
+		if (!err)
+			break;
+	}
+
 	mmc_card_clr_suspended(host->card);
 
 out:

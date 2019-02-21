@@ -51,8 +51,6 @@
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
 #define SD_DISCARD_TIMEOUT_MS	(250)
 
-static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
-
 /*
  * Enabling software CRCs on the data blocks can be a significant (30%)
  * performance cost, and for other reasons may not always be desired.
