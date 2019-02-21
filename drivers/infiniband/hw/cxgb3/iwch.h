@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/workqueue.h>
 
 #include <rdma/ib_verbs.h>
@@ -108,8 +108,7 @@ struct iwch_dev {
 	struct iwch_rnic_attributes attr;
 	struct xarray cqs;
 	struct xarray qps;
-	struct idr mmidr;
-	spinlock_t lock;
+	struct xarray mrs;
 	struct list_head entry;
 	struct delayed_work db_drop_task;
 };
@@ -146,30 +145,7 @@ static inline struct iwch_qp *get_qhp(struct iwch_dev *rhp, u32 qpid)
 
 static inline struct iwch_mr *get_mhp(struct iwch_dev *rhp, u32 mmid)
 {
-	return idr_find(&rhp->mmidr, mmid);
-}
-
-static inline int insert_handle(struct iwch_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
-{
-	int ret;
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&rhp->lock);
-
-	ret = idr_alloc(idr, handle, id, id + 1, GFP_NOWAIT);
-
-	spin_unlock_irq(&rhp->lock);
-	idr_preload_end();
-
-	return ret < 0 ? ret : 0;
-}
-
-static inline void remove_handle(struct iwch_dev *rhp, struct idr *idr, u32 id)
-{
-	spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	spin_unlock_irq(&rhp->lock);
+	return xa_load(&rhp->mrs, mmid);
 }
 
 extern struct cxgb3_client t3c_client;

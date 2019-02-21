@@ -100,8 +100,7 @@ static void rnic_init(struct iwch_dev *rnicp)
 	pr_debug("%s iwch_dev %p\n", __func__,  rnicp);
 	xa_init_flags(&rnicp->cqs, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&rnicp->qps, XA_FLAGS_LOCK_IRQ);
-	idr_init(&rnicp->mmidr);
-	spin_lock_init(&rnicp->lock);
+	xa_init_flags(&rnicp->mrs, XA_FLAGS_LOCK_IRQ);
 	INIT_DELAYED_WORK(&rnicp->db_drop_task, iwch_db_drop_task);
 
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
@@ -185,7 +184,7 @@ static void close_rnic_dev(struct t3cdev *tdev)
 			cxio_rdev_close(&dev->rdev);
 			WARN_ON(!xa_empty(&dev->cqs));
 			WARN_ON(!xa_empty(&dev->qps));
-			idr_destroy(&dev->mmidr);
+			WARN_ON(!xa_empty(&dev->mrs));
 			ib_dealloc_device(&dev->ibdev);
 			break;
 		}
