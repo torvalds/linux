@@ -54,6 +54,7 @@ struct amdgpu_bo_va_mapping {
 	uint64_t			__subtree_last;
 	uint64_t			offset;
 	uint64_t			flags;
+	bool				is_xgmi;
 };
 
 /* User space allocated BO in a VM */

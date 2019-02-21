@@ -925,6 +925,10 @@ struct amdgpu_device {
 
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
+
+	/* counter of mapped memory through xgmi */
+	atomic_t			xgmi_map_counter;
+
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)
