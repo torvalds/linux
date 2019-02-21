@@ -3390,9 +3390,8 @@ F:	Documentation/media/v4l-drivers/cafe_ccic*
 F:	drivers/media/platform/marvell-ccic/
 
 CAIF NETWORK LAYER
-M:	Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/networking/caif/
 F:	drivers/net/caif/
 F:	include/uapi/linux/caif/
