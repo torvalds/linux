@@ -143,7 +143,7 @@ static const int sizes_trk0[] = { 28, 148, 84 };
 #define LABEL_SIZE 140
 
 /* head and record addresses of count_area read in analysis ccw */
-static const int count_area_head[] = { 0, 0, 0, 0, 2 };
+static const int count_area_head[] = { 0, 0, 0, 0, 1 };
 static const int count_area_rec[] = { 1, 2, 3, 4, 1 };
 
 static inline unsigned int
@@ -1802,8 +1802,8 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
 	if (IS_ERR(cqr))
 		return cqr;
 	ccw = cqr->cpaddr;
-	/* Define extent for the first 3 tracks. */
-	define_extent(ccw++, cqr->data, 0, 2,
+	/* Define extent for the first 2 tracks. */
+	define_extent(ccw++, cqr->data, 0, 1,
 		      DASD_ECKD_CCW_READ_COUNT, device, 0);
 	LO_data = cqr->data + sizeof(struct DE_eckd_data);
 	/* Locate record for the first 4 records on track 0. */
@@ -1822,9 +1822,9 @@ dasd_eckd_analysis_ccw(struct dasd_device *device)
 		count_data++;
 	}
 
-	/* Locate record for the first record on track 2. */
+	/* Locate record for the first record on track 1. */
 	ccw[-1].flags |= CCW_FLAG_CC;
-	locate_record(ccw++, LO_data++, 2, 0, 1,
+	locate_record(ccw++, LO_data++, 1, 0, 1,
 		      DASD_ECKD_CCW_READ_COUNT, device, 0);
 	/* Read count ccw. */
 	ccw[-1].flags |= CCW_FLAG_CC;
@@ -1946,7 +1946,7 @@ static int dasd_eckd_end_analysis(struct dasd_block *block)
 		}
 	}
 	if (i == 3)
-		count_area = &private->count_area[4];
+		count_area = &private->count_area[3];
 
 	if (private->uses_cdl == 0) {
 		for (i = 0; i < 5; i++) {
