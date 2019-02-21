@@ -381,8 +381,9 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 			le16_to_cpu(bhdr->table_list[GC].offset));
 
 	adev->gfx.config.max_shader_engines = le32_to_cpu(gc_info->gc_num_se);
-	adev->gfx.config.max_cu_per_sh = le32_to_cpu(gc_info->gc_num_wgp0_per_sa);
-	adev->gfx.config.max_sh_per_se = le32_to_cpu(gc_info->gc_num_wgp1_per_sa);
+	adev->gfx.config.max_cu_per_sh = 2 * (le32_to_cpu(gc_info->gc_num_wgp0_per_sa) +
+					      le32_to_cpu(gc_info->gc_num_wgp1_per_sa));
+	adev->gfx.config.max_sh_per_se = le32_to_cpu(gc_info->gc_num_sa_per_se);
 	adev->gfx.config.max_backends_per_se = le32_to_cpu(gc_info->gc_num_rb_per_se);
 	adev->gfx.config.max_texture_channel_caches = le32_to_cpu(gc_info->gc_num_gl2c);
 	adev->gfx.config.max_gprs = le32_to_cpu(gc_info->gc_num_gprs);
@@ -394,8 +395,9 @@ int amdgpu_discovery_get_gfx_info(struct amdgpu_device *adev)
 	adev->gfx.cu_info.max_waves_per_simd = le32_to_cpu(gc_info->gc_max_waves_per_simd);
 	adev->gfx.cu_info.max_scratch_slots_per_cu = le32_to_cpu(gc_info->gc_max_scratch_slots_per_cu);
 	adev->gfx.cu_info.lds_size = le32_to_cpu(gc_info->gc_lds_size);
-	adev->gfx.config.num_sc_per_sh = le32_to_cpu(gc_info->gc_num_sc_per_se);
-	adev->gfx.config.num_packer_per_sc = le32_to_cpu(gc_info->gc_num_sa_per_se);
+	adev->gfx.config.num_sc_per_sh = le32_to_cpu(gc_info->gc_num_sc_per_se) /
+					 le32_to_cpu(gc_info->gc_num_sa_per_se);
+	adev->gfx.config.num_packer_per_sc = le32_to_cpu(gc_info->gc_num_packer_per_sc);
 
 	return 0;
 }
