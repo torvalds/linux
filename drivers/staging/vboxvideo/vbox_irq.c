@@ -123,6 +123,11 @@ static void vbox_update_mode_hints(struct vbox_private *vbox)
 
 	validate_or_set_position_hints(vbox);
 	drm_modeset_lock_all(dev);
+	/*
+	 * FIXME: this needs to use drm_connector_list_iter and some real
+	 * locking for the actual data it changes, not the deprecated
+	 * drm_modeset_lock_all() shotgun approach.
+	 */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		vbox_conn = to_vbox_connector(connector);
 
