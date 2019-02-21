@@ -246,12 +246,23 @@ static const struct shdwc_config sama5d2_shdwc_config = {
 	.sr_rtcwk_shift = 5,
 	.sr_rttwk_shift = SHDW_CFG_NOT_USED,
 };
+
+static const struct shdwc_config sam9x60_shdwc_config = {
+	.wkup_pin_input = 0,
+	.mr_rtcwk_shift = 17,
+	.mr_rttwk_shift = 16,
+	.sr_rtcwk_shift = 5,
+	.sr_rttwk_shift = 4,
 };
 
 static const struct of_device_id at91_shdwc_of_match[] = {
 	{
 		.compatible = "atmel,sama5d2-shdwc",
 		.data = &sama5d2_shdwc_config,
+	},
+	{
+		.compatible = "microchip,sam9x60-shdwc",
+		.data = &sam9x60_shdwc_config,
 	}, {
 		/*sentinel*/
 	}
