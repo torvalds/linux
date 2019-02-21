@@ -191,11 +191,13 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
 /**
  * gfs2_ail1_empty_one - Check whether or not a trans in the AIL has been synced
  * @sdp: the filesystem
- * @ai: the AIL entry
+ * @tr: the transaction
+ * @max_revokes: If nonzero, issue revokes for the bd items for written buffers
  *
  */
 
-static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+				int *max_revokes)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
@@ -220,6 +222,17 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 			gfs2_io_error_bh(sdp, bh);
 			gfs2_withdraw_delayed(sdp);
 		}
+		/*
+		 * If we have space for revokes and the bd is no longer on any
+		 * buf list, we can just add a revoke for it immediately and
+		 * avoid having to put it on the ail2 list, where it would need
+		 * to be revoked later.
+		 */
+		if (*max_revokes && list_empty(&bd->bd_list)) {
+			gfs2_add_revoke(sdp, bd);
+			(*max_revokes)--;
+			continue;
+		}
 		list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 	}
 }
@@ -227,11 +240,12 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 /**
  * gfs2_ail1_empty - Try to empty the ail1 lists
  * @sdp: The superblock
+ * @max_revokes: If non-zero, add revokes where appropriate
  *
  * Tries to empty the ail1 lists, starting with the oldest first
  */
 
-static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
+static int gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
 {
 	struct gfs2_trans *tr, *s;
 	int oldest_tr = 1;
@@ -239,7 +253,7 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
-		gfs2_ail1_empty_one(sdp, tr);
+		gfs2_ail1_empty_one(sdp, tr, &max_revokes);
 		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
 			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
@@ -627,27 +641,24 @@ void gfs2_glock_remove_revoke(struct gfs2_glock *gl)
 	}
 }
 
+/**
+ * gfs2_write_revokes - Add as many revokes to the system transaction as we can
+ * @sdp: The GFS2 superblock
+ *
+ * Our usual strategy is to defer writing revokes as much as we can in the hope
+ * that we'll eventually overwrite the journal, which will make those revokes
+ * go away.  This changes when we flush the log: at that point, there will
+ * likely be some left-over space in the last revoke block of that transaction.
+ * We can fill that space with additional revokes for blocks that have already
+ * been written back.  This will basically come at no cost now, and will save
+ * us from having to keep track of those blocks on the AIL2 list later.
+ */
 void gfs2_write_revokes(struct gfs2_sbd *sdp)
 {
-	struct gfs2_trans *tr;
-	struct gfs2_bufdata *bd, *tmp;
-	int have_revokes = 0;
+	/* number of revokes we still have room for */
 	int max_revokes = (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_log_descriptor)) / sizeof(u64);
 
-	gfs2_ail1_empty(sdp);
-	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
-		list_for_each_entry(bd, &tr->tr_ail2_list, bd_ail_st_list) {
-			if (list_empty(&bd->bd_list)) {
-				have_revokes = 1;
-				goto done;
-			}
-		}
-	}
-done:
-	spin_unlock(&sdp->sd_ail_lock);
-	if (have_revokes == 0)
-		return;
+	gfs2_log_lock(sdp);
 	while (sdp->sd_log_num_revoke > max_revokes)
 		max_revokes += (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header)) / sizeof(u64);
 	max_revokes -= sdp->sd_log_num_revoke;
@@ -658,20 +669,7 @@ done:
 		if (!sdp->sd_log_blks_reserved)
 			atomic_dec(&sdp->sd_log_blks_free);
 	}
-	gfs2_log_lock(sdp);
-	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
-		list_for_each_entry_safe(bd, tmp, &tr->tr_ail2_list, bd_ail_st_list) {
-			if (max_revokes == 0)
-				goto out_of_blocks;
-			if (!list_empty(&bd->bd_list))
-				continue;
-			gfs2_add_revoke(sdp, bd);
-			max_revokes--;
-		}
-	}
-out_of_blocks:
-	spin_unlock(&sdp->sd_ail_lock);
+	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
 
 	if (!sdp->sd_log_num_revoke) {
@@ -870,7 +868,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 			for (;;) {
 				gfs2_ail1_start(sdp);
 				gfs2_ail1_wait(sdp);
-				if (gfs2_ail1_empty(sdp))
+				if (gfs2_ail1_empty(sdp, 0))
 					break;
 			}
 			if (gfs2_withdrawn(sdp))
@@ -1040,7 +1038,7 @@ int gfs2_logd(void *data)
 
 		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
-			gfs2_ail1_empty(sdp);
+			gfs2_ail1_empty(sdp, 0);
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 				       GFS2_LFC_LOGD_JFLUSH_REQD);
 			did_flush = true;
@@ -1049,7 +1047,7 @@ int gfs2_logd(void *data)
 		if (gfs2_ail_flush_reqd(sdp)) {
 			gfs2_ail1_start(sdp);
 			gfs2_ail1_wait(sdp);
-			gfs2_ail1_empty(sdp);
+			gfs2_ail1_empty(sdp, 0);
 			gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 				       GFS2_LFC_LOGD_AIL_FLUSH_REQD);
 			did_flush = true;
