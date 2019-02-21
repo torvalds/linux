@@ -161,7 +161,7 @@ xchk_iallocbt_check_cluster_ifree(
 	bool				irec_free;
 	bool				ino_inuse;
 	bool				freemask_ok;
-	int				error;
+	int				error = 0;
 
 	if (xchk_should_terminate(bs->sc, &error))
 		return error;
