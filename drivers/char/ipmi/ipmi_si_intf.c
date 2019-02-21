@@ -229,14 +229,8 @@ struct smi_info {
 	/* From the get device id response... */
 	struct ipmi_device_id device_id;
 
-	/* Default driver model device. */
-	struct platform_device *pdev;
-
 	/* Have we added the device group to the device? */
 	bool dev_group_added;
-
-	/* Have we added the platform device? */
-	bool pdev_registered;
 
 	/* Counters and things for the proc filesystem. */
 	atomic_t stats[SI_NUM_STATS];
@@ -1969,24 +1963,9 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	/* Do this early so it's available for logs. */
 	if (!new_smi->io.dev) {
-		init_name = kasprintf(GFP_KERNEL, "ipmi_si.%d",
-				      new_smi->si_num);
-
-		/*
-		 * If we don't already have a device from something
-		 * else (like PCI), then register a new one.
-		 */
-		new_smi->pdev = platform_device_alloc("ipmi_si",
-						      new_smi->si_num);
-		if (!new_smi->pdev) {
-			pr_err("Unable to allocate platform device\n");
-			rv = -ENOMEM;
-			goto out_err;
-		}
-		new_smi->io.dev = &new_smi->pdev->dev;
-		new_smi->io.dev->driver = &ipmi_platform_driver.driver;
-		/* Nulled by device_add() */
-		new_smi->io.dev->init_name = init_name;
+		pr_err("IPMI interface added with no device\n");
+		rv = EIO;
+		goto out_err;
 	}
 
 	/* Allocate the state machine's data and initialize it. */
@@ -2057,17 +2036,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (new_smi->io.irq) {
 		new_smi->interrupt_disabled = false;
 		atomic_set(&new_smi->req_events, 1);
-	}
-
-	if (new_smi->pdev && !new_smi->pdev_registered) {
-		rv = platform_device_add(new_smi->pdev);
-		if (rv) {
-			dev_err(new_smi->io.dev,
-				"Unable to register system interface device: %d\n",
-				rv);
-			goto out_err;
-		}
-		new_smi->pdev_registered = true;
 	}
 
 	dev_set_drvdata(new_smi->io.dev, new_smi);
@@ -2252,13 +2220,6 @@ static void cleanup_one_si(struct smi_info *smi_info)
 
 	if (smi_info->intf)
 		ipmi_unregister_smi(smi_info->intf);
-
-	if (smi_info->pdev) {
-		if (smi_info->pdev_registered)
-			platform_device_unregister(smi_info->pdev);
-		else
-			platform_device_put(smi_info->pdev);
-	}
 
 	kfree(smi_info);
 }
