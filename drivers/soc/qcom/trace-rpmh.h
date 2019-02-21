@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  */
 
 #if !defined(_TRACE_RPMH_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -69,6 +69,26 @@ TRACE_EVENT(rpmh_send_msg,
 	TP_printk("%s: send-msg: tcs(m): %d cmd(n): %d msgid: %#x addr: %#x data: %#x complete: %d",
 		  __get_str(name), __entry->m, __entry->n, __entry->hdr,
 		  __entry->addr, __entry->data, __entry->wait)
+);
+
+TRACE_EVENT(rpmh_solver_set,
+
+	TP_PROTO(struct rsc_drv *d, bool set),
+
+	TP_ARGS(d, set),
+
+	TP_STRUCT__entry(
+			 __string(name, d->name)
+			 __field(bool, set)
+	),
+
+	TP_fast_assign(
+		       __assign_str(name, d->name);
+		       __entry->set = set;
+	),
+
+	TP_printk("%s: solver mode set: %d",
+		  __get_str(name), __entry->set)
 );
 
 #endif /* _TRACE_RPMH_H */
