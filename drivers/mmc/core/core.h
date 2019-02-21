@@ -20,6 +20,8 @@ struct mmc_request;
 
 #define MMC_CMD_RETRIES        3
 
+static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
+
 struct mmc_bus_ops {
 	void (*remove)(struct mmc_host *);
 	void (*detect)(struct mmc_host *);
