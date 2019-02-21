@@ -1380,11 +1380,6 @@ err0:
 	return rc;
 }
 
-static int qedr_idr_add(struct qedr_dev *dev, struct qedr_idr *qidr,
-			void *ptr, u32 id);
-static void qedr_idr_remove(struct qedr_dev *dev,
-			    struct qedr_idr *qidr, u32 id);
-
 struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 			       struct ib_srq_init_attr *init_attr,
 			       struct ib_udata *udata)
@@ -1467,7 +1462,7 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 			goto err2;
 	}
 
-	rc = qedr_idr_add(dev, &dev->srqidr, srq, srq->srq_id);
+	rc = xa_insert_irq(&dev->srqs, srq->srq_id, srq, GFP_KERNEL);
 	if (rc)
 		goto err2;
 
@@ -1496,7 +1491,7 @@ int qedr_destroy_srq(struct ib_srq *ibsrq)
 	struct qedr_dev *dev = get_qedr_dev(ibsrq->device);
 	struct qedr_srq *srq = get_qedr_srq(ibsrq);
 
-	qedr_idr_remove(dev, &dev->srqidr, srq->srq_id);
+	xa_erase_irq(&dev->srqs, srq->srq_id);
 	in_params.srq_id = srq->srq_id;
 	dev->ops->rdma_destroy_srq(dev->rdma_ctx, &in_params);
 
@@ -1594,29 +1589,6 @@ static inline void qedr_qp_user_print(struct qedr_dev *dev, struct qedr_qp *qp)
 		 qp,
 		 qp->usq.buf_addr,
 		 qp->usq.buf_len, qp->urq.buf_addr, qp->urq.buf_len);
-}
-
-static int qedr_idr_add(struct qedr_dev *dev, struct qedr_idr *qidr,
-			void *ptr, u32 id)
-{
-	int rc;
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&qidr->idr_lock);
-
-	rc = idr_alloc(&qidr->idr, ptr, id, id + 1, GFP_ATOMIC);
-
-	spin_unlock_irq(&qidr->idr_lock);
-	idr_preload_end();
-
-	return rc < 0 ? rc : 0;
-}
-
-static void qedr_idr_remove(struct qedr_dev *dev, struct qedr_idr *qidr, u32 id)
-{
-	spin_lock_irq(&qidr->idr_lock);
-	idr_remove(&qidr->idr, id);
-	spin_unlock_irq(&qidr->idr_lock);
 }
 
 static inline void

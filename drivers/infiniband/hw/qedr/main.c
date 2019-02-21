@@ -39,7 +39,6 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
-#include <linux/idr.h>
 
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
@@ -759,8 +758,8 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		break;
 	case EVENT_TYPE_SRQ:
 		srq_id = (u16)roce_handle64;
-		spin_lock_irqsave(&dev->srqidr.idr_lock, flags);
-		srq = idr_find(&dev->srqidr.idr, srq_id);
+		xa_lock_irqsave(&dev->srqs, flags);
+		srq = xa_load(&dev->srqs, srq_id);
 		if (srq) {
 			ibsrq = &srq->ibsrq;
 			if (ibsrq->event_handler) {
@@ -774,7 +773,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 				  "SRQ event with NULL pointer ibsrq. Handle=%llx\n",
 				  roce_handle64);
 		}
-		spin_unlock_irqrestore(&dev->srqidr.idr_lock, flags);
+		xa_unlock_irqrestore(&dev->srqs, flags);
 		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
 	default:
 		break;
