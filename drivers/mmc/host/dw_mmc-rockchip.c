@@ -297,6 +297,9 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 				    "rockchip,rk3288-dw-mshc"))
 		host->bus_hz /= RK3288_CLKGEN_DIV;
 
+
+	host->need_xfer_timer = true;
+
 	return 0;
 }
 
