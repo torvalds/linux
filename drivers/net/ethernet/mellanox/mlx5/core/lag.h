@@ -9,9 +9,11 @@
 enum {
 	MLX5_LAG_FLAG_ROCE   = 1 << 0,
 	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
+	MLX5_LAG_FLAG_MULTIPATH = 1 << 2,
 };
 
-#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV)
+#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV |\
+			     MLX5_LAG_FLAG_MULTIPATH)
 
 struct lag_func {
 	struct mlx5_core_dev *dev;
