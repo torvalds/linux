@@ -92,6 +92,11 @@ struct tegra_tsensor {
 	const struct tegra_tsensor_group *group;
 };
 
+struct tsensor_group_thermtrips {
+	u8 id;
+	u32 temp;
+};
+
 struct tegra_soctherm_fuse {
 	u32 fuse_base_cp_mask, fuse_base_cp_shift;
 	u32 fuse_base_ft_mask, fuse_base_ft_shift;
@@ -113,6 +118,7 @@ struct tegra_soctherm_soc {
 	const int thresh_grain;
 	const unsigned int bptt;
 	const bool use_ccroc;
+	struct tsensor_group_thermtrips *thermtrips;
 };
 
 int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,

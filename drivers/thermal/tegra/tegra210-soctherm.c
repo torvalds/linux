@@ -203,6 +203,13 @@ static const struct tegra_soctherm_fuse tegra210_soctherm_fuse = {
 	.fuse_spare_realignment = 0,
 };
 
+struct tsensor_group_thermtrips tegra210_tsensor_thermtrips[] = {
+	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
+	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
+	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
+	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
+};
+
 const struct tegra_soctherm_soc tegra210_soctherm = {
 	.tsensors = tegra210_tsensors,
 	.num_tsensors = ARRAY_SIZE(tegra210_tsensors),
@@ -212,4 +219,5 @@ const struct tegra_soctherm_soc tegra210_soctherm = {
 	.thresh_grain = TEGRA210_THRESH_GRAIN,
 	.bptt = TEGRA210_BPTT,
 	.use_ccroc = false,
+	.thermtrips = tegra210_tsensor_thermtrips,
 };

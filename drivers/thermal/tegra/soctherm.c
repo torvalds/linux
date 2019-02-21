@@ -446,6 +446,24 @@ find_throttle_cfg_by_name(struct tegra_soctherm *ts, const char *name)
 	return NULL;
 }
 
+static int tsensor_group_thermtrip_get(struct tegra_soctherm *ts, int id)
+{
+	int i, temp = min_low_temp;
+	struct tsensor_group_thermtrips *tt = ts->soc->thermtrips;
+
+	if (id >= TEGRA124_SOCTHERM_SENSOR_NUM)
+		return temp;
+
+	if (tt) {
+		for (i = 0; i < ts->soc->num_ttgs; i++) {
+			if (tt[i].id == id)
+				return tt[i].temp;
+		}
+	}
+
+	return temp;
+}
+
 static int tegra_thermctl_set_trip_temp(void *data, int trip, int temp)
 {
 	struct tegra_thermctl_zone *zone = data;
@@ -464,7 +482,16 @@ static int tegra_thermctl_set_trip_temp(void *data, int trip, int temp)
 		return ret;
 
 	if (type == THERMAL_TRIP_CRITICAL) {
-		return thermtrip_program(dev, sg, temp);
+		/*
+		 * If thermtrips property is set in DT,
+		 * doesn't need to program critical type trip to HW,
+		 * if not, program critical trip to HW.
+		 */
+		if (min_low_temp == tsensor_group_thermtrip_get(ts, sg->id))
+			return thermtrip_program(dev, sg, temp);
+		else
+			return 0;
+
 	} else if (type == THERMAL_TRIP_HOT) {
 		int i;
 
@@ -555,7 +582,8 @@ static int get_hot_temp(struct thermal_zone_device *tz, int *trip, int *temp)
  * @dev: struct device * of the SOC_THERM instance
  *
  * Configure the SOC_THERM HW trip points, setting "THERMTRIP"
- * "THROTTLE" trip points , using "critical" or "hot" type trip_temp
+ * "THROTTLE" trip points , using "thermtrips", "critical" or "hot"
+ * type trip_temp
  * from thermal zone.
  * After they have been configured, THERMTRIP or THROTTLE will take
  * action when the configured SoC thermal sensor group reaches a
@@ -577,28 +605,23 @@ static int tegra_soctherm_set_hwtrips(struct device *dev,
 {
 	struct tegra_soctherm *ts = dev_get_drvdata(dev);
 	struct soctherm_throt_cfg *stc;
-	int i, trip, temperature;
-	int ret;
+	int i, trip, temperature, ret;
 
-	ret = tz->ops->get_crit_temp(tz, &temperature);
-	if (ret) {
-		dev_warn(dev, "thermtrip: %s: missing critical temperature\n",
-			 sg->name);
-		goto set_throttle;
-	}
+	/* Get thermtrips. If missing, try to get critical trips. */
+	temperature = tsensor_group_thermtrip_get(ts, sg->id);
+	if (min_low_temp == temperature)
+		if (tz->ops->get_crit_temp(tz, &temperature))
+			temperature = max_high_temp;
 
 	ret = thermtrip_program(dev, sg, temperature);
 	if (ret) {
-		dev_err(dev, "thermtrip: %s: error during enable\n",
-			sg->name);
+		dev_err(dev, "thermtrip: %s: error during enable\n", sg->name);
 		return ret;
 	}
 
-	dev_info(dev,
-		 "thermtrip: will shut down when %s reaches %d mC\n",
+	dev_info(dev, "thermtrip: will shut down when %s reaches %d mC\n",
 		 sg->name, temperature);
 
-set_throttle:
 	ret = get_hot_temp(tz, &trip, &temperature);
 	if (ret) {
 		dev_info(dev, "throttrip: %s: missing hot temperature\n",
@@ -928,6 +951,50 @@ static const struct thermal_cooling_device_ops throt_cooling_ops = {
 	.get_cur_state = throt_get_cdev_cur_state,
 	.set_cur_state = throt_set_cdev_state,
 };
+
+static int soctherm_thermtrips_parse(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct tegra_soctherm *ts = dev_get_drvdata(dev);
+	struct tsensor_group_thermtrips *tt = ts->soc->thermtrips;
+	const int max_num_prop = ts->soc->num_ttgs * 2;
+	u32 *tlb;
+	int i, j, n, ret;
+
+	if (!tt)
+		return -ENOMEM;
+
+	n = of_property_count_u32_elems(dev->of_node, "nvidia,thermtrips");
+	if (n <= 0) {
+		dev_info(dev,
+			 "missing thermtrips, will use critical trips as shut down temp\n");
+		return n;
+	}
+
+	n = min(max_num_prop, n);
+
+	tlb = devm_kcalloc(&pdev->dev, max_num_prop, sizeof(u32), GFP_KERNEL);
+	if (!tlb)
+		return -ENOMEM;
+	ret = of_property_read_u32_array(dev->of_node, "nvidia,thermtrips",
+					 tlb, n);
+	if (ret) {
+		dev_err(dev, "invalid num ele: thermtrips:%d\n", ret);
+		return ret;
+	}
+
+	i = 0;
+	for (j = 0; j < n; j = j + 2) {
+		if (tlb[j] >= TEGRA124_SOCTHERM_SENSOR_NUM)
+			continue;
+
+		tt[i].id = tlb[j];
+		tt[i].temp = tlb[j + 1];
+		i++;
+	}
+
+	return 0;
+}
 
 /**
  * soctherm_init_hw_throt_cdev() - Parse the HW throttle configurations
@@ -1369,6 +1436,8 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	err = soctherm_clk_enable(pdev, true);
 	if (err)
 		return err;
+
+	soctherm_thermtrips_parse(pdev);
 
 	soctherm_init_hw_throt_cdev(pdev);
 
