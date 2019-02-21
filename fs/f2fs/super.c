@@ -215,7 +215,8 @@ static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
 {
 	block_t limit = (sbi->user_block_count << 1) / 1000;
 
-	/* limit is 0.2% */
+	/* limit is 0.2%, and cannot be too small */
+	limit = max(limit, MIN_ROOT_RESERVED_BLOCKS);
 	if (test_opt(sbi, RESERVE_ROOT) &&
 			F2FS_OPTION(sbi).root_reserved_blocks > limit) {
 		F2FS_OPTION(sbi).root_reserved_blocks = limit;
