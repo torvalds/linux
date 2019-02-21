@@ -830,12 +830,15 @@ static int of_reset_control_get_count(struct device_node *node)
  * @np: device node for the device that requests the reset controls array
  * @shared: whether reset controls are shared or not
  * @optional: whether it is optional to get the reset controls
+ * @acquired: only one reset control may be acquired for a given controller
+ *            and ID
  *
  * Returns pointer to allocated reset_control_array on success or
  * error on failure
  */
 struct reset_control *
-of_reset_control_array_get(struct device_node *np, bool shared, bool optional)
+of_reset_control_array_get(struct device_node *np, bool shared, bool optional,
+			   bool acquired)
 {
 	struct reset_control_array *resets;
 	struct reset_control *rstc;
@@ -851,7 +854,7 @@ of_reset_control_array_get(struct device_node *np, bool shared, bool optional)
 
 	for (i = 0; i < num; i++) {
 		rstc = __of_reset_control_get(np, NULL, i, shared, optional,
-					      true);
+					      acquired);
 		if (IS_ERR(rstc))
 			goto err_rst;
 		resets->rstc[i] = rstc;
@@ -898,7 +901,7 @@ devm_reset_control_array_get(struct device *dev, bool shared, bool optional)
 	if (!devres)
 		return ERR_PTR(-ENOMEM);
 
-	rstc = of_reset_control_array_get(dev->of_node, shared, optional);
+	rstc = of_reset_control_array_get(dev->of_node, shared, optional, true);
 	if (IS_ERR(rstc)) {
 		devres_free(devres);
 		return rstc;
