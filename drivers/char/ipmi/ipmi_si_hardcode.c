@@ -74,8 +74,6 @@ MODULE_PARM_DESC(slave_addrs, "Set the default IPMB slave address for"
 		 " overridden by this parm.  This is an array indexed"
 		 " by interface number.");
 
-static struct platform_device *ipmi_hc_pdevs[SI_MAX_PARMS];
-
 static void __init ipmi_hardcode_init_one(const char *si_type_str,
 					  unsigned int i,
 					  unsigned long addr,
@@ -111,7 +109,7 @@ static void __init ipmi_hardcode_init_one(const char *si_type_str,
 	p.addr = addr;
 	p.space = addr_space;
 
-	ipmi_hc_pdevs[i] = ipmi_platform_add("hardcode-ipmi-si", i, &p);
+	ipmi_platform_add("hardcode-ipmi-si", i, &p);
 }
 
 void __init ipmi_hardcode_init(void)
@@ -145,13 +143,23 @@ void __init ipmi_hardcode_init(void)
 	}
 }
 
+
+static int pdev_match_name(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	return strcmp(pdev->name, "hardcode-ipmi-si") == 0;
+}
+
 void ipmi_si_hardcode_exit(void)
 {
-	unsigned int i;
+	struct device *dev;
 
-	for (i = 0; i < SI_MAX_PARMS; i++) {
-		if (ipmi_hc_pdevs[i])
-			platform_device_unregister(ipmi_hc_pdevs[i]);
+	while ((dev = bus_find_device(&platform_bus_type, NULL, NULL,
+				      pdev_match_name))) {
+		struct platform_device *pdev = to_platform_device(dev);
+
+		platform_device_unregister(pdev);
 	}
 }
 
