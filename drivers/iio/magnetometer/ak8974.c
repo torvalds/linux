@@ -733,9 +733,8 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ak8974->i2c = i2c;
 	mutex_init(&ak8974->lock);
 
-	ret = of_iio_read_mount_matrix(&i2c->dev,
-				       "mount-matrix",
-				       &ak8974->orientation);
+	ret = iio_read_mount_matrix(&i2c->dev, "mount-matrix",
+				    &ak8974->orientation);
 	if (ret)
 		return ret;
 
