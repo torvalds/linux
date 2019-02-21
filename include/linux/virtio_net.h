@@ -62,7 +62,7 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 		 * probe and drop if does not match one of the above types.
 		 */
 		if (gso_type) {
-			skb_probe_transport_header(skb, -1);
+			skb_probe_transport_header(skb);
 			if (!skb_transport_header_was_set(skb))
 				return -EINVAL;
 		}
