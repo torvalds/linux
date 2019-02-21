@@ -409,6 +409,63 @@ mei_hdcp_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
+/**
+ * mei_hdcp_get_session_key() - Prepare SKE_Send_Eks.
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @ske_data: SKE_Send_Eks msg output from ME FW.
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int mei_hdcp_get_session_key(struct device *dev,
+				    struct hdcp_port_data *data,
+				    struct hdcp2_ske_send_eks *ske_data)
+{
+	struct wired_cmd_get_session_key_in get_skey_in = { { 0 } };
+	struct wired_cmd_get_session_key_out get_skey_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data || !ske_data)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	get_skey_in.header.api_version = HDCP_API_VERSION;
+	get_skey_in.header.command_id = WIRED_GET_SESSION_KEY;
+	get_skey_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	get_skey_in.header.buffer_len = WIRED_CMD_BUF_LEN_GET_SESSION_KEY_IN;
+
+	get_skey_in.port.integrated_port_type = data->port_type;
+	get_skey_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	byte = mei_cldev_send(cldev, (u8 *)&get_skey_in, sizeof(get_skey_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&get_skey_out, sizeof(get_skey_out));
+
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (get_skey_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X failed. status: 0x%X\n",
+			WIRED_GET_SESSION_KEY, get_skey_out.header.status);
+		return -EIO;
+	}
+
+	ske_data->msg_id = HDCP_2_2_SKE_SEND_EKS;
+	memcpy(ske_data->e_dkey_ks, get_skey_out.e_dkey_ks,
+	       HDCP_2_2_E_DKEY_KS_LEN);
+	memcpy(ske_data->riv, get_skey_out.r_iv, HDCP_2_2_RIV_LEN);
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
@@ -419,7 +476,7 @@ struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.store_pairing_info = mei_hdcp_store_pairing_info,
 	.initiate_locality_check = mei_hdcp_initiate_locality_check,
 	.verify_lprime = mei_hdcp_verify_lprime,
-	.get_session_key = NULL,
+	.get_session_key = mei_hdcp_get_session_key,
 	.repeater_check_flow_prepare_ack = NULL,
 	.verify_mprime = NULL,
 	.enable_hdcp_authentication = NULL,
