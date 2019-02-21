@@ -12,6 +12,7 @@
 #include <asm/ccwgroup.h>
 #include <asm/ccwdev.h>
 #include <asm/pnet.h>
+#include <asm/ebcdic.h>
 
 #define PNETIDS_LEN		64	/* Total utility string length in bytes
 					 * to cover up to 4 PNETIDs of 16 bytes
@@ -48,6 +49,7 @@ static int pnet_ids_by_device(struct device *dev, u8 *pnetids)
 		if (!util_str)
 			return -ENOMEM;
 		memcpy(pnetids, util_str, PNETIDS_LEN);
+		EBCASC(pnetids, PNETIDS_LEN);
 		kfree(util_str);
 		return 0;
 	}
@@ -55,6 +57,7 @@ static int pnet_ids_by_device(struct device *dev, u8 *pnetids)
 		struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 
 		memcpy(pnetids, zdev->util_str, sizeof(zdev->util_str));
+		EBCASC(pnetids, sizeof(zdev->util_str));
 		return 0;
 	}
 	return -EOPNOTSUPP;

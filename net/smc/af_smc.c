@@ -30,6 +30,10 @@
 #include <net/smc.h>
 #include <asm/ioctls.h>
 
+#include <net/net_namespace.h>
+#include <net/netns/generic.h>
+#include "smc_netns.h"
+
 #include "smc.h"
 #include "smc_clc.h"
 #include "smc_llc.h"
@@ -1966,9 +1970,32 @@ static const struct net_proto_family smc_sock_family_ops = {
 	.create	= smc_create,
 };
 
+unsigned int smc_net_id;
+
+static __net_init int smc_net_init(struct net *net)
+{
+	return smc_pnet_net_init(net);
+}
+
+static void __net_exit smc_net_exit(struct net *net)
+{
+	smc_pnet_net_exit(net);
+}
+
+static struct pernet_operations smc_net_ops = {
+	.init = smc_net_init,
+	.exit = smc_net_exit,
+	.id   = &smc_net_id,
+	.size = sizeof(struct smc_net),
+};
+
 static int __init smc_init(void)
 {
 	int rc;
+
+	rc = register_pernet_subsys(&smc_net_ops);
+	if (rc)
+		return rc;
 
 	rc = smc_pnet_init();
 	if (rc)
@@ -2035,6 +2062,7 @@ static void __exit smc_exit(void)
 	proto_unregister(&smc_proto6);
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
+	unregister_pernet_subsys(&smc_net_ops);
 }
 
 module_init(smc_init);

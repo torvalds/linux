@@ -483,7 +483,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn,
  */
 static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
-	struct smc_cdc_producer_flags *pflags;
+	struct smc_cdc_producer_flags *pflags = &conn->local_tx_ctrl.prod_flags;
 	struct smc_rdma_wr *wr_rdma_buf;
 	struct smc_cdc_tx_pend *pend;
 	struct smc_wr_buf *wr_buf;
@@ -506,7 +506,7 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 	spin_lock_bh(&conn->send_lock);
-	if (!conn->local_tx_ctrl.prod_flags.urg_data_present) {
+	if (!pflags->urg_data_present) {
 		rc = smc_tx_rdma_writes(conn, wr_rdma_buf);
 		if (rc) {
 			smc_wr_tx_put_slot(&conn->lgr->lnk[SMC_SINGLE_LINK],
@@ -516,7 +516,6 @@ static int smcr_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 	rc = smc_cdc_msg_send(conn, wr_buf, pend);
-	pflags = &conn->local_tx_ctrl.prod_flags;
 	if (!rc && pflags->urg_data_present) {
 		pflags->urg_data_pending = 0;
 		pflags->urg_data_present = 0;
