@@ -63,6 +63,7 @@ extern int platform_add_devices(struct platform_device **, int);
 struct platform_device_info {
 		struct device *parent;
 		struct fwnode_handle *fwnode;
+		bool of_node_reused;
 
 		const char *name;
 		int id;
