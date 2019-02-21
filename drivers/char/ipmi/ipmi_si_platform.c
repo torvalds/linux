@@ -431,6 +431,7 @@ static int ipmi_remove(struct platform_device *pdev)
 static const struct platform_device_id si_plat_ids[] = {
 	{ "dmi-ipmi-si", 0 },
 	{ "hardcode-ipmi-si", 0 },
+	{ "hotmod-ipmi-si", 0 },
 	{ }
 };
 

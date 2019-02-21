@@ -1870,7 +1870,7 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 	 * address, they presumably want us to use it and not what is
 	 * in the firmware.
 	 */
-	if (io->addr_source != SI_HARDCODED &&
+	if (io->addr_source != SI_HARDCODED && io->addr_source != SI_HOTMOD &&
 	    ipmi_si_hardcode_match(io->addr_space, io->addr_data)) {
 		dev_info(io->dev,
 			 "Hard-coded device at this address already exists");
