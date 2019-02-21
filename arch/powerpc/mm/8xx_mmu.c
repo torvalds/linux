@@ -94,9 +94,18 @@ static void __init mmu_mapin_immr(void)
 		map_kernel_page(v + offset, p + offset, PAGE_KERNEL_NCG);
 }
 
-static void __init mmu_patch_cmp_limit(s32 *site, unsigned long mapped)
+static void mmu_patch_cmp_limit(s32 *site, unsigned long mapped)
 {
 	modify_instruction_site(site, 0xffff, (unsigned long)__va(mapped) >> 16);
+}
+
+static void mmu_patch_addis(s32 *site, long simm)
+{
+	unsigned int instr = *(unsigned int *)patch_site_addr(site);
+
+	instr &= 0xffff0000;
+	instr |= ((unsigned long)simm) >> 16;
+	patch_instruction_site(site, instr);
 }
 
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
@@ -134,6 +143,26 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 
 	return mapped;
 }
+
+void mmu_mark_initmem_nx(void)
+{
+	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) && CONFIG_ETEXT_SHIFT < 23)
+		mmu_patch_addis(&patch__itlbmiss_linmem_top8,
+				-((long)_etext & ~(LARGE_PAGE_SIZE_8M - 1)));
+	if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
+		mmu_patch_cmp_limit(&patch__itlbmiss_linmem_top, __pa(_etext));
+}
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mmu_mark_rodata_ro(void)
+{
+	if (CONFIG_DATA_SHIFT < 23)
+		mmu_patch_addis(&patch__dtlbmiss_romem_top8,
+				-__pa(((unsigned long)_sinittext) &
+				      ~(LARGE_PAGE_SIZE_8M - 1)));
+	mmu_patch_addis(&patch__dtlbmiss_romem_top, -__pa(_sinittext));
+}
+#endif
 
 void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				       phys_addr_t first_memblock_size)
