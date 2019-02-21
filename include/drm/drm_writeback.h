@@ -123,7 +123,7 @@ int drm_writeback_connector_init(struct drm_device *dev,
 				 const u32 *formats, int n_formats);
 
 void drm_writeback_queue_job(struct drm_writeback_connector *wb_connector,
-			     struct drm_writeback_job *job);
+			     struct drm_connector_state *conn_state);
 
 void drm_writeback_cleanup_job(struct drm_writeback_job *job);
 

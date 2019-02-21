@@ -327,7 +327,7 @@ static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
 
 	TXP_WRITE(TXP_DST_CTRL, ctrl);
 
-	drm_writeback_queue_job(&txp->connector, conn_state->writeback_job);
+	drm_writeback_queue_job(&txp->connector, conn_state);
 }
 
 static const struct drm_connector_helper_funcs vc4_txp_connector_helper_funcs = {
