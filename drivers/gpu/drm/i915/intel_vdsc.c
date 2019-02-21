@@ -881,10 +881,10 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
 
 	/* Prepare DP SDP PPS header as per DP 1.4 spec, Table 2-123 */
-	drm_dsc_dp_pps_header_init(&dp_dsc_pps_sdp);
+	drm_dsc_dp_pps_header_init(&dp_dsc_pps_sdp.pps_header);
 
 	/* Fill the PPS payload bytes as per DSC spec 1.2 Table 4-1 */
-	drm_dsc_pps_infoframe_pack(&dp_dsc_pps_sdp, vdsc_cfg);
+	drm_dsc_pps_payload_pack(&dp_dsc_pps_sdp.pps_payload, vdsc_cfg);
 
 	intel_dig_port->write_infoframe(encoder, crtc_state,
 					DP_SDP_PPS, &dp_dsc_pps_sdp,
