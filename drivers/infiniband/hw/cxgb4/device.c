@@ -617,11 +617,6 @@ static int dump_ep(struct c4iw_ep *ep, struct c4iw_debugfs_data *epd)
 	return 0;
 }
 
-static int _dump_ep(int id, void *p, void *data)
-{
-	return dump_ep(p, data);
-}
-
 static int dump_listen_ep(int id, void *p, void *data)
 {
 	struct c4iw_listen_ep *ep = p;
@@ -695,8 +690,9 @@ static int ep_open(struct inode *inode, struct file *file)
 
 	xa_for_each(&epd->devp->hwtids, index, ep)
 		count++;
+	xa_for_each(&epd->devp->atids, index, ep)
+		count++;
 	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->atid_idr, count_idrs, &count);
 	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
 	spin_unlock_irq(&epd->devp->lock);
 
@@ -711,8 +707,11 @@ static int ep_open(struct inode *inode, struct file *file)
 	xa_for_each(&epd->devp->hwtids, index, ep)
 		dump_ep(ep, epd);
 	xa_unlock_irq(&epd->devp->hwtids);
+	xa_lock_irq(&epd->devp->atids);
+	xa_for_each(&epd->devp->atids, index, ep)
+		dump_ep(ep, epd);
+	xa_unlock_irq(&epd->devp->atids);
 	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->atid_idr, _dump_ep, epd);
 	idr_for_each(&epd->devp->stid_idr, dump_listen_ep, epd);
 	spin_unlock_irq(&epd->devp->lock);
 
@@ -947,7 +946,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 	WARN_ON(!xa_empty(&ctx->dev->mrs));
 	wait_event(ctx->dev->wait, xa_empty(&ctx->dev->hwtids));
 	idr_destroy(&ctx->dev->stid_idr);
-	idr_destroy(&ctx->dev->atid_idr);
+	WARN_ON(!xa_empty(&ctx->dev->atids));
 	if (ctx->dev->rdev.bar2_kva)
 		iounmap(ctx->dev->rdev.bar2_kva);
 	if (ctx->dev->rdev.oc_mw_kva)
@@ -1055,8 +1054,8 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	xa_init_flags(&devp->qps, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->mrs, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->hwtids, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->atids, XA_FLAGS_LOCK_IRQ);
 	idr_init(&devp->stid_idr);
-	idr_init(&devp->atid_idr);
 	spin_lock_init(&devp->lock);
 	mutex_init(&devp->rdev.stats.lock);
 	mutex_init(&devp->db_mutex);

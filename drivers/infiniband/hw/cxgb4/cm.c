@@ -558,7 +558,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 	queue_arp_failure_cpl(ep, skb, FAKE_CPL_PUT_EP_SAFE);
 }
@@ -1238,7 +1238,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	set_emss(ep, tcp_opt);
 
 	/* dealloc the atid */
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
+	xa_erase_irq(&ep->com.dev->atids, atid);
 	cxgb4_free_atid(t, atid);
 	set_bit(ACT_ESTAB, &ep->com.history);
 
@@ -2187,7 +2187,9 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(ep->com.dev, &ep->com.dev->atid_idr, ep, ep->atid);
+	err = xa_insert_irq(&ep->com.dev->atids, ep->atid, ep, GFP_KERNEL);
+	if (err)
+		goto fail2a;
 
 	/* find a route */
 	if (ep->com.cm_id->m_local_addr.ss_family == AF_INET) {
@@ -2239,7 +2241,8 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 fail4:
 	dst_release(ep->dst);
 fail3:
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
+fail2a:
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 fail2:
 	/*
@@ -2322,8 +2325,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 						(const u32 *)
 						&sin6->sin6_addr.s6_addr, 1);
 			}
-			remove_handle(ep->com.dev, &ep->com.dev->atid_idr,
-					atid);
+			xa_erase_irq(&ep->com.dev->atids, atid);
 			cxgb4_free_atid(t, atid);
 			dst_release(ep->dst);
 			cxgb4_l2t_release(ep->l2t);
@@ -2360,7 +2362,7 @@ fail:
 		cxgb4_remove_tid(ep->com.dev->rdev.lldi.tids, 0, GET_TID(rpl),
 				 ep->com.local_addr.ss_family);
 
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, atid);
+	xa_erase_irq(&ep->com.dev->atids, atid);
 	cxgb4_free_atid(t, atid);
 	dst_release(ep->dst);
 	cxgb4_l2t_release(ep->l2t);
@@ -3345,7 +3347,9 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -ENOMEM;
 		goto fail2;
 	}
-	insert_handle(dev, &dev->atid_idr, ep, ep->atid);
+	err = xa_insert_irq(&dev->atids, ep->atid, ep, GFP_KERNEL);
+	if (err)
+		goto fail5;
 
 	memcpy(&ep->com.local_addr, &cm_id->m_local_addr,
 	       sizeof(ep->com.local_addr));
@@ -3433,7 +3437,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 fail4:
 	dst_release(ep->dst);
 fail3:
-	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	xa_erase_irq(&ep->com.dev->atids, ep->atid);
+fail5:
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 fail2:
 	skb_queue_purge(&ep->com.ep_skb_list);
@@ -3766,7 +3771,7 @@ static void active_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 	}
-	remove_handle(dev, &dev->atid_idr, atid);
+	xa_erase_irq(&dev->atids, atid);
 	cxgb4_free_atid(dev->rdev.lldi.tids, atid);
 	dst_release(ep->dst);
 	cxgb4_l2t_release(ep->l2t);

@@ -323,7 +323,7 @@ struct c4iw_dev {
 	struct dentry *debugfs_root;
 	enum db_state db_state;
 	struct xarray hwtids;
-	struct idr atid_idr;
+	struct xarray atids;
 	struct idr stid_idr;
 	struct list_head db_fc_list;
 	u32 avail_ird;
