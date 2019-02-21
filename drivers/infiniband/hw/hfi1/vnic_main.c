@@ -162,12 +162,12 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 
 void hfi1_vnic_setup(struct hfi1_devdata *dd)
 {
-	idr_init(&dd->vnic.vesw_idr);
+	xa_init(&dd->vnic.vesws);
 }
 
 void hfi1_vnic_cleanup(struct hfi1_devdata *dd)
 {
-	idr_destroy(&dd->vnic.vesw_idr);
+	WARN_ON(!xa_empty(&dd->vnic.vesws));
 }
 
 #define SUM_GRP_COUNTERS(stats, qstats, x_grp) do {            \
@@ -534,7 +534,7 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 	l4_type = hfi1_16B_get_l4(packet->ebuf);
 	if (likely(l4_type == OPA_16B_L4_ETHR)) {
 		vesw_id = HFI1_VNIC_GET_VESWID(packet->ebuf);
-		vinfo = idr_find(&dd->vnic.vesw_idr, vesw_id);
+		vinfo = xa_load(&dd->vnic.vesws, vesw_id);
 
 		/*
 		 * In case of invalid vesw id, count the error on
@@ -542,9 +542,10 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 		 */
 		if (unlikely(!vinfo)) {
 			struct hfi1_vnic_vport_info *vinfo_tmp;
-			int id_tmp = 0;
+			unsigned long index = 0;
 
-			vinfo_tmp =  idr_get_next(&dd->vnic.vesw_idr, &id_tmp);
+			vinfo_tmp = xa_find(&dd->vnic.vesws, &index, ULONG_MAX,
+					XA_PRESENT);
 			if (vinfo_tmp) {
 				spin_lock(&vport_cntr_lock);
 				vinfo_tmp->stats[0].netstats.rx_nohandler++;
@@ -598,8 +599,7 @@ static int hfi1_vnic_up(struct hfi1_vnic_vport_info *vinfo)
 	if (!vinfo->vesw_id)
 		return -EINVAL;
 
-	rc = idr_alloc(&dd->vnic.vesw_idr, vinfo, vinfo->vesw_id,
-		       vinfo->vesw_id + 1, GFP_NOWAIT);
+	rc = xa_insert(&dd->vnic.vesws, vinfo->vesw_id, vinfo, GFP_KERNEL);
 	if (rc < 0)
 		return rc;
 
@@ -625,7 +625,7 @@ static void hfi1_vnic_down(struct hfi1_vnic_vport_info *vinfo)
 	clear_bit(HFI1_VNIC_UP, &vinfo->flags);
 	netif_carrier_off(vinfo->netdev);
 	netif_tx_disable(vinfo->netdev);
-	idr_remove(&dd->vnic.vesw_idr, vinfo->vesw_id);
+	xa_erase(&dd->vnic.vesws, vinfo->vesw_id);
 
 	/* ensure irqs see the change */
 	msix_vnic_synchronize_irq(dd);

@@ -54,7 +54,6 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -1021,8 +1020,8 @@ struct hfi1_asic_data {
 struct hfi1_vnic_data {
 	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
+	struct xarray vesws;
 	u8 num_vports;
-	struct idr vesw_idr;
 	u8 rmt_start;
 	u8 num_ctxt;
 };
