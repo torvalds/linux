@@ -25,6 +25,21 @@ struct rockchip_grf_info {
 	int num_values;
 };
 
+#define PX30_GRF_SOC_CON5		0x414
+
+static const struct rockchip_grf_value px30_defaults[] __initconst = {
+	/*
+	 * Postponing auto jtag/sdmmc switching by 5 seconds.
+	 * The counter value is calculated based on 24MHz clock.
+	 */
+	{ "jtag switching delay", PX30_GRF_SOC_CON5, 0x7270E00},
+};
+
+static const struct rockchip_grf_info px30_grf __initconst = {
+	.values = px30_defaults,
+	.num_values = ARRAY_SIZE(px30_defaults),
+};
+
 #define RK3036_GRF_SOC_CON0		0x140
 
 static const struct rockchip_grf_value rk3036_defaults[] __initconst = {
@@ -121,6 +136,9 @@ static const struct rockchip_grf_info rk3399_grf __initconst = {
 
 static const struct of_device_id rockchip_grf_dt_match[] __initconst = {
 	{
+		.compatible = "rockchip,px30-grf",
+		.data = (void *)&px30_grf,
+	}, {
 		.compatible = "rockchip,rk3036-grf",
 		.data = (void *)&rk3036_grf,
 	}, {
