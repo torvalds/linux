@@ -313,16 +313,6 @@ Il file Documentation/process/stable-kernel-rules.rst (nei sorgenti) documenta
 quali tipologie di modifiche sono accettate per i sorgenti -stable, e come
 avviene il processo di rilascio.
 
-Le modifiche in 4.x -git
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Queste sono istantanee quotidiane del kernel di Linus e sono gestite in
-una repositorio git (da qui il nome). Queste modifiche sono solitamente
-rilasciate giornalmente e rappresentano l'attuale stato dei sorgenti di
-Linus. Queste sono da considerarsi più sperimentali di un -rc in quanto
-generate automaticamente senza nemmeno aver dato una rapida occhiata
-per verificarne lo stato.
-
 
 Sorgenti dei sottosistemi del kernel e le loro patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
