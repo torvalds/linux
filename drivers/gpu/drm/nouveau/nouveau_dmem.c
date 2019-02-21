@@ -100,12 +100,10 @@ static void
 nouveau_dmem_free(struct hmm_devmem *devmem, struct page *page)
 {
 	struct nouveau_dmem_chunk *chunk;
-	struct nouveau_drm *drm;
 	unsigned long idx;
 
 	chunk = (void *)hmm_devmem_page_get_drvdata(page);
 	idx = page_to_pfn(page) - chunk->pfn_first;
-	drm = chunk->drm;
 
 	/*
 	 * FIXME:
