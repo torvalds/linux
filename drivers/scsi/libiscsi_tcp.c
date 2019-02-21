@@ -129,12 +129,17 @@ static void iscsi_tcp_segment_map(struct iscsi_segment *segment, int recv)
 	BUG_ON(sg->length == 0);
 
 	/*
+	 * We always map for the recv path.
+	 *
 	 * If the page count is greater than one it is ok to send
 	 * to the network layer's zero copy send path. If not we
-	 * have to go the slow sendmsg path. We always map for the
-	 * recv path.
+	 * have to go the slow sendmsg path.
+	 *
+	 * Same goes for slab pages: skb_can_coalesce() allows
+	 * coalescing neighboring slab objects into a single frag which
+	 * triggers one of hardened usercopy checks.
 	 */
-	if (page_count(sg_page(sg)) >= 1 && !recv)
+	if (!recv && page_count(sg_page(sg)) >= 1 && !PageSlab(sg_page(sg)))
 		return;
 
 	if (recv) {
