@@ -219,11 +219,41 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 					  atomic_inc_return(&hotmod_nr),
 					  &h);
 		} else {
-			ipmi_si_remove_by_data(h.space, h.type, h.addr);
+			struct device *dev;
+
+			dev = ipmi_si_remove_by_data(h.space, h.type, h.addr);
+			if (dev && dev_is_platform(dev)) {
+				struct platform_device *pdev;
+
+				pdev = to_platform_device(dev);
+				if (strcmp(pdev->name, "hotmod-ipmi-si") == 0)
+					platform_device_unregister(pdev);
+			}
+			if (dev)
+				put_device(dev);
 		}
 	}
 	rv = len;
 out:
 	kfree(str);
 	return rv;
+}
+
+static int pdev_match_name(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	return strcmp(pdev->name, "hotmod-ipmi-si") == 0;
+}
+
+void ipmi_si_hotmod_exit(void)
+{
+	struct device *dev;
+
+	while ((dev = bus_find_device(&platform_bus_type, NULL, NULL,
+				      pdev_match_name))) {
+		struct platform_device *pdev = to_platform_device(dev);
+
+		platform_device_unregister(pdev);
+	}
 }

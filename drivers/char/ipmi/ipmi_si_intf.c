@@ -2281,11 +2281,12 @@ int ipmi_si_remove_by_dev(struct device *dev)
 	return rv;
 }
 
-void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
-			    unsigned long addr)
+struct device *ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
+				      unsigned long addr)
 {
 	/* remove */
 	struct smi_info *e, *tmp_e;
+	struct device *dev = NULL;
 
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link) {
@@ -2293,10 +2294,14 @@ void ipmi_si_remove_by_data(int addr_space, enum si_type si_type,
 			continue;
 		if (e->io.si_type != si_type)
 			continue;
-		if (e->io.addr_data == addr)
+		if (e->io.addr_data == addr) {
+			dev = get_device(e->io.dev);
 			cleanup_one_si(e);
+		}
 	}
 	mutex_unlock(&smi_infos_lock);
+
+	return dev;
 }
 
 static void cleanup_ipmi_si(void)
@@ -2318,6 +2323,7 @@ static void cleanup_ipmi_si(void)
 	mutex_unlock(&smi_infos_lock);
 
 	ipmi_si_hardcode_exit();
+	ipmi_si_hotmod_exit();
 }
 module_exit(cleanup_ipmi_si);
 
