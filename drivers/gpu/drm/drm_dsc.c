@@ -95,7 +95,7 @@ void drm_dsc_pps_infoframe_pack(struct drm_dsc_pps_infoframe *pps_sdp,
 		((dsc_cfg->bits_per_pixel & DSC_PPS_BPP_HIGH_MASK) >>
 		 DSC_PPS_MSB_SHIFT) |
 		dsc_cfg->vbr_enable << DSC_PPS_VBR_EN_SHIFT |
-		dsc_cfg->enable422 << DSC_PPS_SIMPLE422_SHIFT |
+		dsc_cfg->simple_422 << DSC_PPS_SIMPLE422_SHIFT |
 		dsc_cfg->convert_rgb << DSC_PPS_CONVERT_RGB_SHIFT |
 		dsc_cfg->block_pred_enable << DSC_PPS_BLOCK_PRED_EN_SHIFT;
 
@@ -249,7 +249,7 @@ EXPORT_SYMBOL(drm_dsc_pps_infoframe_pack);
 /**
  * drm_dsc_compute_rc_parameters() - Write rate control
  * parameters to the dsc configuration defined in
- * &struct drm_dsc_config in accordance with the DSC 1.1
+ * &struct drm_dsc_config in accordance with the DSC 1.2
  * specification. Some configuration fields must be present
  * beforehand.
  *
@@ -266,19 +266,34 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	unsigned long final_scale = 0;
 	unsigned long rbs_min = 0;
 
-	/* Number of groups used to code each line of a slice */
-	groups_per_line = DIV_ROUND_UP(vdsc_cfg->slice_width,
-				       DSC_RC_PIXELS_PER_GROUP);
+	if (vdsc_cfg->native_420 || vdsc_cfg->native_422) {
+		/* Number of groups used to code each line of a slice */
+		groups_per_line = DIV_ROUND_UP(vdsc_cfg->slice_width / 2,
+					       DSC_RC_PIXELS_PER_GROUP);
 
-	/* chunksize in Bytes */
-	vdsc_cfg->slice_chunk_size = DIV_ROUND_UP(vdsc_cfg->slice_width *
-						  vdsc_cfg->bits_per_pixel,
-						  (8 * 16));
+		/* chunksize in Bytes */
+		vdsc_cfg->slice_chunk_size = DIV_ROUND_UP(vdsc_cfg->slice_width / 2 *
+							  vdsc_cfg->bits_per_pixel,
+							  (8 * 16));
+	} else {
+		/* Number of groups used to code each line of a slice */
+		groups_per_line = DIV_ROUND_UP(vdsc_cfg->slice_width,
+					       DSC_RC_PIXELS_PER_GROUP);
+
+		/* chunksize in Bytes */
+		vdsc_cfg->slice_chunk_size = DIV_ROUND_UP(vdsc_cfg->slice_width *
+							  vdsc_cfg->bits_per_pixel,
+							  (8 * 16));
+	}
 
 	if (vdsc_cfg->convert_rgb)
 		num_extra_mux_bits = 3 * (vdsc_cfg->mux_word_size +
 					  (4 * vdsc_cfg->bits_per_component + 4)
 					  - 2);
+	else if (vdsc_cfg->native_422)
+		num_extra_mux_bits = 4 * vdsc_cfg->mux_word_size +
+			(4 * vdsc_cfg->bits_per_component + 4) +
+			3 * (4 * vdsc_cfg->bits_per_component) - 2;
 	else
 		num_extra_mux_bits = 3 * vdsc_cfg->mux_word_size +
 			(4 * vdsc_cfg->bits_per_component + 4) +
