@@ -84,17 +84,12 @@ void bch2_journal_halt(struct journal *j)
 
 	journal_wake(j);
 	closure_wake_up(&journal_cur_buf(j)->wait);
-	closure_wake_up(&journal_prev_buf(j)->wait);
 }
 
 /* journal entry close/open: */
 
 void __bch2_journal_buf_put(struct journal *j, bool need_write_just_set)
 {
-	struct journal_buf *w = journal_prev_buf(j);
-
-	atomic_dec_bug(&journal_seq_pin(j, le64_to_cpu(w->data->seq))->count);
-
 	if (!need_write_just_set &&
 	    test_bit(JOURNAL_NEED_WRITE, &j->flags))
 		bch2_time_stats_update(j->delay_time,
@@ -175,7 +170,6 @@ static bool __journal_entry_close(struct journal *j)
 	 * Hence, we want update/set last_seq on the current journal entry right
 	 * before we open a new one:
 	 */
-	bch2_journal_reclaim_fast(j);
 	buf->data->last_seq	= cpu_to_le64(journal_last_seq(j));
 
 	if (journal_entry_empty(buf->data))
@@ -189,8 +183,8 @@ static bool __journal_entry_close(struct journal *j)
 
 	cancel_delayed_work(&j->write_work);
 
-	/* ugh - might be called from __journal_res_get() under wait_event() */
-	__set_current_state(TASK_RUNNING);
+	bch2_journal_space_available(j);
+
 	bch2_journal_buf_put(j, old.idx, set_need_write);
 	return true;
 }
@@ -220,7 +214,7 @@ static int journal_entry_open(struct journal *j)
 {
 	struct journal_buf *buf = journal_cur_buf(j);
 	union journal_res_state old, new;
-	int u64s, ret;
+	int u64s;
 	u64 v;
 
 	lockdep_assert_held(&j->lock);
@@ -229,12 +223,10 @@ static int journal_entry_open(struct journal *j)
 	if (j->blocked)
 		return -EAGAIN;
 
-	if (!fifo_free(&j->pin))
-		return -ENOSPC;
+	if (j->cur_entry_error)
+		return j->cur_entry_error;
 
-	ret = bch2_journal_space_available(j);
-	if (ret)
-		return ret;
+	BUG_ON(!j->cur_entry_sectors);
 
 	buf->u64s_reserved	= j->entry_u64s_reserved;
 	buf->disk_sectors	= j->cur_entry_sectors;
@@ -411,7 +403,7 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 {
 	int ret;
 
-	wait_event(j->wait,
+	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -EAGAIN ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
 	return ret;
@@ -969,6 +961,7 @@ void bch2_fs_journal_start(struct journal *j)
 
 	c->last_bucket_seq_cleanup = journal_cur_seq(j);
 
+	bch2_journal_space_available(j);
 	spin_unlock(&j->lock);
 
 	/*
@@ -1144,9 +1137,12 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 		pr_buf(&out,
 		       "dev %u:\n"
 		       "\tnr\t\t%u\n"
+		       "\tavailable\t%u:%u\n"
 		       "\tcur_idx\t\t%u (seq %llu)\n"
 		       "\tlast_idx\t%u (seq %llu)\n",
 		       iter, ja->nr,
+		       bch2_journal_dev_buckets_available(j, ja),
+		       ja->sectors_free,
 		       ja->cur_idx,	ja->bucket_seq[ja->cur_idx],
 		       ja->last_idx,	ja->bucket_seq[ja->last_idx]);
 	}

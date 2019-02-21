@@ -825,7 +825,6 @@ fsck_err:
 int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 {
 	struct journal *j = &c->journal;
-	struct journal_entry_pin_list *pin_list;
 	struct bkey_i *k, *_n;
 	struct jset_entry *entry;
 	struct journal_replay *i, *n;
@@ -867,10 +866,7 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 			cond_resched();
 		}
 
-		pin_list = journal_seq_pin(j, j->replay_journal_seq);
-
-		if (atomic_dec_and_test(&pin_list->count))
-			journal_wake(j);
+		bch2_journal_pin_put(j, j->replay_journal_seq);
 	}
 
 	j->replay_journal_seq = 0;
@@ -884,101 +880,6 @@ err:
 }
 
 /* journal write: */
-
-static unsigned journal_dev_buckets_available(struct journal *j,
-					      struct journal_device *ja)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	unsigned next = (ja->cur_idx + 1) % ja->nr;
-	unsigned available = (ja->last_idx + ja->nr - next) % ja->nr;
-
-	/*
-	 * Allocator startup needs some journal space before we can do journal
-	 * replay:
-	 */
-	if (available &&
-	    test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags))
-		available--;
-
-	/*
-	 * Don't use the last bucket unless writing the new last_seq
-	 * will make another bucket available:
-	 */
-	if (available &&
-	    journal_last_seq(j) <= ja->bucket_seq[ja->last_idx])
-		--available;
-
-	return available;
-}
-
-int bch2_journal_space_available(struct journal *j)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
-	unsigned sectors_next_entry	= UINT_MAX;
-	unsigned i, nr_online = 0, nr_devs = 0;
-	unsigned unwritten_sectors = j->reservations.prev_buf_unwritten
-		? journal_prev_buf(j)->sectors
-		: 0;
-	int ret = 0;
-
-	lockdep_assert_held(&j->lock);
-
-	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_JOURNAL]) {
-		struct journal_device *ja = &ca->journal;
-		unsigned buckets_this_device, sectors_this_device;
-
-		if (!ja->nr)
-			continue;
-
-		nr_online++;
-
-		buckets_this_device = journal_dev_buckets_available(j, ja);
-		sectors_this_device = ja->sectors_free;
-
-		/*
-		 * We that we don't allocate the space for a journal entry
-		 * until we write it out - thus, account for it here:
-		 */
-		if (unwritten_sectors >= sectors_this_device) {
-			if (!buckets_this_device)
-				continue;
-
-			buckets_this_device--;
-			sectors_this_device = ca->mi.bucket_size;
-		}
-
-		sectors_this_device -= unwritten_sectors;
-
-		if (buckets_this_device)
-			sectors_this_device = ca->mi.bucket_size;
-
-		if (!sectors_this_device)
-			continue;
-
-		sectors_next_entry = min(sectors_next_entry,
-					 sectors_this_device);
-
-		nr_devs++;
-	}
-	rcu_read_unlock();
-
-	if (nr_online < c->opts.metadata_replicas_required) {
-		ret = -EROFS;
-		sectors_next_entry = 0;
-	} else if (!sectors_next_entry ||
-		   nr_devs < min_t(unsigned, nr_online,
-				   c->opts.metadata_replicas)) {
-		ret = -ENOSPC;
-		sectors_next_entry = 0;
-	}
-
-	WRITE_ONCE(j->cur_entry_sectors, sectors_next_entry);
-
-	return ret;
-}
 
 static void __journal_write_alloc(struct journal *j,
 				  struct journal_buf *w,
@@ -1053,7 +954,6 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe,
 					  &c->rw_devs[BCH_DATA_JOURNAL]);
 
-	spin_lock(&j->lock);
 	__journal_write_alloc(j, w, &devs_sorted,
 			      sectors, &replicas, replicas_want);
 
@@ -1069,7 +969,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 
 		if (sectors > ja->sectors_free &&
 		    sectors <= ca->mi.bucket_size &&
-		    journal_dev_buckets_available(j, ja)) {
+		    bch2_journal_dev_buckets_available(j, ja)) {
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 			ja->sectors_free = ca->mi.bucket_size;
 		}
@@ -1078,7 +978,6 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 	__journal_write_alloc(j, w, &devs_sorted,
 			      sectors, &replicas, replicas_want);
 done:
-	spin_unlock(&j->lock);
 	rcu_read_unlock();
 
 	return replicas >= c->opts.metadata_replicas_required ? 0 : -EROFS;
@@ -1237,6 +1136,9 @@ void bch2_journal_write(struct closure *cl)
 	struct bch_extent_ptr *ptr;
 	bool validate_before_checksum = false;
 	unsigned i, sectors, bytes, u64s;
+	int ret;
+
+	bch2_journal_pin_put(j, le64_to_cpu(w->data->seq));
 
 	journal_buf_realloc(j, w);
 	jset = w->data;
@@ -1293,19 +1195,29 @@ void bch2_journal_write(struct closure *cl)
 	bytes = vstruct_bytes(jset);
 	memset((void *) jset + bytes, 0, (sectors << 9) - bytes);
 
-	if (journal_write_alloc(j, w, sectors)) {
+	spin_lock(&j->lock);
+	ret = journal_write_alloc(j, w, sectors);
+
+	/*
+	 * write is allocated, no longer need to account for it in
+	 * bch2_journal_space_available():
+	 */
+	w->sectors = 0;
+
+	/*
+	 * journal entry has been compacted and allocated, recalculate space
+	 * available:
+	 */
+	bch2_journal_space_available(j);
+	spin_unlock(&j->lock);
+
+	if (ret) {
 		bch2_journal_halt(j);
 		bch_err(c, "Unable to allocate journal write");
 		bch2_fatal_error(c);
 		continue_at(cl, journal_write_done, system_highpri_wq);
 		return;
 	}
-
-	/*
-	 * write is allocated, no longer need to account for it in
-	 * bch2_journal_entry_sectors:
-	 */
-	w->sectors = 0;
 
 	/*
 	 * XXX: we really should just disable the entire journal in nochanges

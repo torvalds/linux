@@ -136,6 +136,12 @@ struct journal {
 	unsigned		cur_entry_u64s;
 	unsigned		cur_entry_sectors;
 
+	/*
+	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
+	 * insufficient devices:
+	 */
+	int			cur_entry_error;
+
 	/* Reserved space in journal entry to be used just prior to write */
 	unsigned		entry_u64s_reserved;
 
