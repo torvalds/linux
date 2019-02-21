@@ -52,6 +52,15 @@ Required properties :
         Must set as following values:
         TEGRA_SOCTHERM_THROT_LEVEL_LOW, TEGRA_SOCTHERM_THROT_LEVEL_MED
         TEGRA_SOCTHERM_THROT_LEVEL_HIGH, TEGRA_SOCTHERM_THROT_LEVEL_NONE
+      - nvidia,gpu-throt-level: This property is for Tegra124 and Tegra210.
+        It is the level of pulse skippers, which used to throttle clock
+        frequencies. It indicates gpu clock throttling depth and can be
+        programmed to any of the following values which represent a throttling
+        percentage:
+        TEGRA_SOCTHERM_THROT_LEVEL_NONE (0%)
+        TEGRA_SOCTHERM_THROT_LEVEL_LOW (50%),
+        TEGRA_SOCTHERM_THROT_LEVEL_MED (75%),
+        TEGRA_SOCTHERM_THROT_LEVEL_HIGH (85%).
       - #cooling-cells: Should be 1. This cooling device only support on/off state.
         See ./thermal.txt for a description of this property.
 
@@ -96,22 +105,26 @@ Example :
 		throttle-cfgs {
 			/*
 			 * When the "heavy" cooling device triggered,
-			 * the HW will skip cpu clock's pulse in 85% depth
+			 * the HW will skip cpu clock's pulse in 85% depth,
+			 * skip gpu clock's pulse in 85% level
 			 */
 			throttle_heavy: heavy {
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
 
 				#cooling-cells = <1>;
 			};
 
 			/*
 			 * When the "light" cooling device triggered,
-			 * the HW will skip cpu clock's pulse in 50% depth
+			 * the HW will skip cpu clock's pulse in 50% depth,
+			 * skip gpu clock's pulse in 50% level
 			 */
 			throttle_light: light {
 				nvidia,priority = <80>;
 				nvidia,cpu-throt-percent = <50>;
+				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_LOW>;
 
 				#cooling-cells = <1>;
 			};
