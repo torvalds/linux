@@ -27,6 +27,7 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_vsp.h"
+#include "rcar_du_writeback.h"
 
 static void rcar_du_vsp_complete(void *private, unsigned int status, u32 crc)
 {
@@ -37,6 +38,8 @@ static void rcar_du_vsp_complete(void *private, unsigned int status, u32 crc)
 
 	if (status & VSP1_DU_STATUS_COMPLETE)
 		rcar_du_crtc_finish_page_flip(crtc);
+	if (status & VSP1_DU_STATUS_WRITEBACK)
+		rcar_du_writeback_complete(crtc);
 
 	drm_crtc_add_crc_entry(&crtc->crtc, false, 0, &crc);
 }
@@ -107,6 +110,8 @@ void rcar_du_vsp_atomic_flush(struct rcar_du_crtc *crtc)
 
 	state = to_rcar_crtc_state(crtc->crtc.state);
 	cfg.crc = state->crc;
+
+	rcar_du_writeback_setup(crtc, &cfg.writeback);
 
 	vsp1_du_atomic_flush(crtc->vsp->vsp, crtc->vsp_pipe, &cfg);
 }

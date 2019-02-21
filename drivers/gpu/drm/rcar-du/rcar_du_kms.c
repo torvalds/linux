@@ -26,6 +26,7 @@
 #include "rcar_du_kms.h"
 #include "rcar_du_regs.h"
 #include "rcar_du_vsp.h"
+#include "rcar_du_writeback.h"
 
 /* -----------------------------------------------------------------------------
  * Format helpers
@@ -662,6 +663,17 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 
 		encoder->possible_crtcs = route->possible_crtcs;
 		encoder->possible_clones = (1 << num_encoders) - 1;
+	}
+
+	/* Create the writeback connectors. */
+	if (rcdu->info->gen >= 3) {
+		for (i = 0; i < rcdu->num_crtcs; ++i) {
+			struct rcar_du_crtc *rcrtc = &rcdu->crtcs[i];
+
+			ret = rcar_du_writeback_init(rcdu, rcrtc);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/*

@@ -648,8 +648,13 @@ static int rcar_du_crtc_atomic_check(struct drm_crtc *crtc,
 	rstate->outputs = 0;
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, state->encoder_mask) {
-		struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+		struct rcar_du_encoder *renc;
 
+		/* Skip the writeback encoder. */
+		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
+			continue;
+
+		renc = to_rcar_encoder(encoder);
 		rstate->outputs |= BIT(renc->output);
 	}
 
