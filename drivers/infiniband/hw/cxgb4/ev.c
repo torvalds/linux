@@ -225,11 +225,11 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 	struct c4iw_cq *chp;
 	unsigned long flag;
 
-	spin_lock_irqsave(&dev->lock, flag);
-	chp = get_chp(dev, qid);
+	xa_lock_irqsave(&dev->cqs, flag);
+	chp = xa_load(&dev->cqs, qid);
 	if (chp) {
 		atomic_inc(&chp->refcnt);
-		spin_unlock_irqrestore(&dev->lock, flag);
+		xa_unlock_irqrestore(&dev->cqs, flag);
 		t4_clear_cq_armed(&chp->cq);
 		spin_lock_irqsave(&chp->comp_handler_lock, flag);
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
@@ -238,7 +238,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 			wake_up(&chp->wait);
 	} else {
 		pr_debug("unknown cqid 0x%x\n", qid);
-		spin_unlock_irqrestore(&dev->lock, flag);
+		xa_unlock_irqrestore(&dev->cqs, flag);
 	}
 	return 0;
 }

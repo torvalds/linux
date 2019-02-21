@@ -931,8 +931,7 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->cqidr));
-	idr_destroy(&ctx->dev->cqidr);
+	WARN_ON(!xa_empty(&ctx->dev->cqs));
 	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->qpidr));
 	idr_destroy(&ctx->dev->qpidr);
 	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->mmidr));
@@ -1044,7 +1043,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		return ERR_PTR(ret);
 	}
 
-	idr_init(&devp->cqidr);
+	xa_init_flags(&devp->cqs, XA_FLAGS_LOCK_IRQ);
 	idr_init(&devp->qpidr);
 	idr_init(&devp->mmidr);
 	idr_init(&devp->hwtid_idr);

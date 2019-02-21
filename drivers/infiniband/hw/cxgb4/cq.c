@@ -976,7 +976,7 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	pr_debug("ib_cq %p\n", ib_cq);
 	chp = to_c4iw_cq(ib_cq);
 
-	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&chp->rhp->cqs, chp->cq.cqid);
 	atomic_dec(&chp->refcnt);
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
@@ -1088,7 +1088,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&chp->comp_handler_lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	ret = insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	ret = xa_insert_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL);
 	if (ret)
 		goto err_destroy_cq;
 
@@ -1143,7 +1143,7 @@ err_free_mm2:
 err_free_mm:
 	kfree(mm);
 err_remove_handle:
-	remove_handle(rhp, &rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&rhp->cqs, chp->cq.cqid);
 err_destroy_cq:
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx,

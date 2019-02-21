@@ -315,7 +315,7 @@ struct c4iw_dev {
 	struct ib_device ibdev;
 	struct c4iw_rdev rdev;
 	u32 device_cap_flags;
-	struct idr cqidr;
+	struct xarray cqs;
 	struct idr qpidr;
 	struct idr mmidr;
 	spinlock_t lock;
@@ -349,7 +349,7 @@ static inline struct c4iw_dev *rdev_to_c4iw_dev(struct c4iw_rdev *rdev)
 
 static inline struct c4iw_cq *get_chp(struct c4iw_dev *rhp, u32 cqid)
 {
-	return idr_find(&rhp->cqidr, cqid);
+	return xa_load(&rhp->cqs, cqid);
 }
 
 static inline struct c4iw_qp *get_qhp(struct c4iw_dev *rhp, u32 qpid)
