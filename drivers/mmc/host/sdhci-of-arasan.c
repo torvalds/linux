@@ -1641,6 +1641,8 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add_host;
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
 err_add_host:
