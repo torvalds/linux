@@ -41,7 +41,6 @@ static struct country_code_to_enum_rd all_countries[] = {
 	NL80211_RRF_PASSIVE_SCAN | \
 	NL80211_RRF_NO_OFDM)
 
-
 /* 5G chan 36 - chan 64*/
 #define RTL819x_5GHZ_5150_5350	\
 	REG_RULE(5150-10, 5350+10, 80, 0, 30, 0)

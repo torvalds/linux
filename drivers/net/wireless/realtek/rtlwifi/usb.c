@@ -267,6 +267,7 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 
 	for (i = 0; i < __RTL_TXQ_NUM; i++) {
 		u32 ep_num = rtlusb->ep_map.ep_mapping[i];
+
 		if (!ep_num) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 				 "Invalid endpoint map setting!\n");
@@ -331,6 +332,7 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 	rtlusb->out_ep_nums = rtlusb->in_ep_nums = 0;
 	for (epidx = 0; epidx < epnums; epidx++) {
 		struct usb_endpoint_descriptor *pep_desc;
+
 		pep_desc = &usb_intf->cur_altsetting->endpoint[epidx].desc;
 
 		if (usb_endpoint_dir_in(pep_desc))
@@ -753,6 +755,7 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 
 	return err;
 }
+
 /**
  *
  *
