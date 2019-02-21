@@ -204,6 +204,7 @@ struct bmc150_accel_data {
 	int ev_enable_state;
 	int64_t timestamp, old_timestamp; /* Only used in hw fifo mode. */
 	const struct bmc150_accel_chip_info *chip_info;
+	struct iio_mount_matrix orientation;
 };
 
 static const struct {
@@ -796,6 +797,20 @@ static ssize_t bmc150_accel_get_fifo_state(struct device *dev,
 	return sprintf(buf, "%d\n", state);
 }
 
+static const struct iio_mount_matrix *
+bmc150_accel_get_mount_matrix(const struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan)
+{
+	struct bmc150_accel_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info bmc150_accel_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, bmc150_accel_get_mount_matrix),
+	{ }
+};
+
 static IIO_CONST_ATTR(hwfifo_watermark_min, "1");
 static IIO_CONST_ATTR(hwfifo_watermark_max,
 		      __stringify(BMC150_ACCEL_FIFO_LENGTH));
@@ -978,6 +993,7 @@ static const struct iio_event_spec bmc150_accel_event = {
 		.shift = 16 - (bits),					\
 		.endianness = IIO_LE,					\
 	},								\
+	.ext_info = bmc150_accel_ext_info,				\
 	.event_spec = &bmc150_accel_event,				\
 	.num_event_specs = 1						\
 }
@@ -1554,6 +1570,11 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	data->irq = irq;
 
 	data->regmap = regmap;
+
+	ret = iio_read_mount_matrix(dev, "mount-matrix",
+				     &data->orientation);
+	if (ret)
+		return ret;
 
 	ret = bmc150_accel_chip_init(data);
 	if (ret < 0)
