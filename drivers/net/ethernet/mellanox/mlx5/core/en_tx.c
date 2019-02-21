@@ -148,12 +148,8 @@ static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
 
 static inline int mlx5e_skb_l3_header_offset(struct sk_buff *skb)
 {
-	struct flow_keys keys;
-
 	if (skb_transport_header_was_set(skb))
 		return skb_transport_offset(skb);
-	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
-		return keys.control.thoff;
 	else
 		return mlx5e_skb_l2_header_offset(skb);
 }
