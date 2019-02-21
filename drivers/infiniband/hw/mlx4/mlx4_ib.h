@@ -492,10 +492,11 @@ struct mlx4_ib_sriov {
 	struct mlx4_sriov_alias_guid alias_guid;
 
 	/* CM paravirtualization fields */
-	struct list_head cm_list;
+	struct xarray pv_id_table;
+	u32 pv_id_next;
 	spinlock_t id_map_lock;
 	struct rb_root sl_id_map;
-	struct idr pv_id_table;
+	struct list_head cm_list;
 };
 
 struct gid_cache_context {
