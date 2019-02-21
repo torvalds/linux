@@ -666,6 +666,16 @@ static int port_attr_stp_state_set(struct net_device *netdev,
 	return ethsw_port_set_stp_state(port_priv, state);
 }
 
+static int port_attr_br_flags_pre_set(struct net_device *netdev,
+				      struct switchdev_trans *trans,
+				      unsigned long flags)
+{
+	if (flags & ~(BR_LEARNING | BR_FLOOD))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int port_attr_br_flags_set(struct net_device *netdev,
 				  struct switchdev_trans *trans,
 				  unsigned long flags)
@@ -697,6 +707,10 @@ static int swdev_port_attr_set(struct net_device *netdev,
 	case SWITCHDEV_ATTR_ID_PORT_STP_STATE:
 		err = port_attr_stp_state_set(netdev, trans,
 					      attr->u.stp_state);
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS:
+		err = port_attr_br_flags_pre_set(netdev, trans,
+						 attr->u.brport_flags);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		err = port_attr_br_flags_set(netdev, trans,
