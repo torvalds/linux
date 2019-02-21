@@ -103,13 +103,13 @@ static int at803x_debug_reg_mask(struct phy_device *phydev, u16 reg,
 	return phy_write(phydev, AT803X_DEBUG_DATA, val);
 }
 
-static inline int at803x_disable_rx_delay(struct phy_device *phydev)
+static int at803x_disable_rx_delay(struct phy_device *phydev)
 {
 	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_0,
 				     AT803X_DEBUG_RX_CLK_DLY_EN, 0);
 }
 
-static inline int at803x_disable_tx_delay(struct phy_device *phydev)
+static int at803x_disable_tx_delay(struct phy_device *phydev)
 {
 	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_5,
 				     AT803X_DEBUG_TX_CLK_DLY_EN, 0);
