@@ -871,7 +871,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
 		pcpu_chunk_refresh_hint(chunk);
 	else
 		pcpu_chunk_update(chunk, pcpu_block_off_to_off(s_index, start),
-				  s_block->contig_hint);
+				  end - start);
 }
 
 /**
