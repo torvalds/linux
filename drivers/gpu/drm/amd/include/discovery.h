@@ -46,12 +46,16 @@ typedef struct table_info
 {
 	uint16_t offset;   /* Byte offset */
 	uint16_t checksum; /* Byte sum of the table */
+	uint16_t size;     /* Table size */
+	uint16_t padding;
 } table_info;
 
 typedef struct binary_header
 {
 	/* psp structure should go at the top of this structure */
 	uint32_t binary_signature; /* 0x7, 0x14, 0x21, 0x28 */
+	uint16_t version_major;
+	uint16_t version_minor;
 	uint16_t binary_checksum;  /* Byte sum of the binary after this field */
 	uint16_t binary_size;      /* Binary Size*/
 	table_info table_list[TOTAL_TABLES];
