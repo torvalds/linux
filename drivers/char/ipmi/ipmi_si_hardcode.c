@@ -144,23 +144,9 @@ void __init ipmi_hardcode_init(void)
 }
 
 
-static int pdev_match_name(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	return strcmp(pdev->name, "hardcode-ipmi-si") == 0;
-}
-
 void ipmi_si_hardcode_exit(void)
 {
-	struct device *dev;
-
-	while ((dev = bus_find_device(&platform_bus_type, NULL, NULL,
-				      pdev_match_name))) {
-		struct platform_device *pdev = to_platform_device(dev);
-
-		platform_device_unregister(pdev);
-	}
+	ipmi_remove_platform_device_by_name("hardcode-ipmi-si");
 }
 
 /*

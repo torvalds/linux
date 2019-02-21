@@ -428,6 +428,26 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
+static int pdev_match_name(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const char *name = data;
+
+	return strcmp(pdev->name, name) == 0;
+}
+
+void ipmi_remove_platform_device_by_name(char *name)
+{
+	struct device *dev;
+
+	while ((dev = bus_find_device(&platform_bus_type, NULL, name,
+				      pdev_match_name))) {
+		struct platform_device *pdev = to_platform_device(dev);
+
+		platform_device_unregister(pdev);
+	}
+}
+
 static const struct platform_device_id si_plat_ids[] = {
 	{ "dmi-ipmi-si", 0 },
 	{ "hardcode-ipmi-si", 0 },

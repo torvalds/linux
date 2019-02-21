@@ -29,6 +29,7 @@ void ipmi_si_hotmod_exit(void);
 int ipmi_si_hardcode_match(int addr_space, unsigned long addr);
 void ipmi_si_platform_init(void);
 void ipmi_si_platform_shutdown(void);
+void ipmi_remove_platform_device_by_name(char *name);
 
 extern struct platform_driver ipmi_platform_driver;
 
