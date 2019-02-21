@@ -849,7 +849,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		}
 
 		vma = i915_vma_instance(obj, eb->vm, NULL);
-		if (unlikely(IS_ERR(vma))) {
+		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_obj;
 		}

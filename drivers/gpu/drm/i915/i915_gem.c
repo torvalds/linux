@@ -2409,7 +2409,7 @@ rebuild_st:
 		do {
 			cond_resched();
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-			if (likely(!IS_ERR(page)))
+			if (!IS_ERR(page))
 				break;
 
 			if (!*s) {
@@ -3884,7 +3884,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 	}
 
 	vma = i915_vma_instance(obj, vm, view);
-	if (unlikely(IS_ERR(vma)))
+	if (IS_ERR(vma))
 		return vma;
 
 	if (i915_vma_misplaced(vma, size, alignment, flags)) {

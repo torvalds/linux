@@ -3701,7 +3701,7 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	}
 
 	ret = 0;
-	if (unlikely(IS_ERR(vma->pages))) {
+	if (IS_ERR(vma->pages)) {
 		ret = PTR_ERR(vma->pages);
 		vma->pages = NULL;
 		DRM_ERROR("Failed to get pages for VMA view type %u (%d)!\n",
