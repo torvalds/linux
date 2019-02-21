@@ -337,14 +337,15 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		}
 	}
 
+	kvm_get_kvm(kvm);
 	if (!ret)
 		ret = anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
 				       stt, O_RDWR | O_CLOEXEC);
 
-	if (ret >= 0) {
+	if (ret >= 0)
 		list_add_rcu(&stt->list, &kvm->arch.spapr_tce_tables);
-		kvm_get_kvm(kvm);
-	}
+	else
+		kvm_put_kvm(kvm);
 
 	mutex_unlock(&kvm->lock);
 
