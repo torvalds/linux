@@ -95,7 +95,7 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq)
 	pr_debug("%s ib_cq %p\n", __func__, ib_cq);
 	chp = to_iwch_cq(ib_cq);
 
-	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&chp->rhp->cqs, chp->cq.cqid);
 	atomic_dec(&chp->refcnt);
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
@@ -164,7 +164,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&chp->comp_handler_lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	if (insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid)) {
+	if (xa_store_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL)) {
 		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
 		kfree(chp);
 		return ERR_PTR(-ENOMEM);

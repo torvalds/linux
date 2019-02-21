@@ -106,7 +106,7 @@ struct iwch_dev {
 	struct cxio_rdev rdev;
 	u32 device_cap_flags;
 	struct iwch_rnic_attributes attr;
-	struct idr cqidr;
+	struct xarray cqs;
 	struct idr qpidr;
 	struct idr mmidr;
 	spinlock_t lock;
@@ -136,7 +136,7 @@ static inline int t3a_device(const struct iwch_dev *rhp)
 
 static inline struct iwch_cq *get_chp(struct iwch_dev *rhp, u32 cqid)
 {
-	return idr_find(&rhp->cqidr, cqid);
+	return xa_load(&rhp->cqs, cqid);
 }
 
 static inline struct iwch_qp *get_qhp(struct iwch_dev *rhp, u32 qpid)

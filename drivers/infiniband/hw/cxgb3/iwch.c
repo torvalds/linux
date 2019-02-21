@@ -105,7 +105,7 @@ static void iwch_db_drop_task(struct work_struct *work)
 static void rnic_init(struct iwch_dev *rnicp)
 {
 	pr_debug("%s iwch_dev %p\n", __func__,  rnicp);
-	idr_init(&rnicp->cqidr);
+	xa_init_flags(&rnicp->cqs, XA_FLAGS_LOCK_IRQ);
 	idr_init(&rnicp->qpidr);
 	idr_init(&rnicp->mmidr);
 	spin_lock_init(&rnicp->lock);
@@ -190,7 +190,7 @@ static void close_rnic_dev(struct t3cdev *tdev)
 			list_del(&dev->entry);
 			iwch_unregister_device(dev);
 			cxio_rdev_close(&dev->rdev);
-			idr_destroy(&dev->cqidr);
+			WARN_ON(!xa_empty(&dev->cqs));
 			idr_destroy(&dev->qpidr);
 			idr_destroy(&dev->mmidr);
 			ib_dealloc_device(&dev->ibdev);
