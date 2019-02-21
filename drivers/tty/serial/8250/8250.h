@@ -48,6 +48,9 @@ struct uart_8250_dma {
 	unsigned char		tx_running;
 	unsigned char		tx_err;
 	unsigned char		rx_running;
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	size_t			rx_index;
+#endif
 };
 
 struct old_serial_port {
@@ -305,6 +308,9 @@ static inline int is_omap1510_8250(struct uart_8250_port *pt)
 #ifdef CONFIG_SERIAL_8250_DMA
 extern int serial8250_tx_dma(struct uart_8250_port *);
 extern int serial8250_rx_dma(struct uart_8250_port *);
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+extern int serial8250_start_rx_dma(struct uart_8250_port *);
+#endif
 extern void serial8250_rx_dma_flush(struct uart_8250_port *);
 extern int serial8250_request_dma(struct uart_8250_port *);
 extern void serial8250_release_dma(struct uart_8250_port *);
@@ -317,6 +323,12 @@ static inline int serial8250_rx_dma(struct uart_8250_port *p)
 {
 	return -1;
 }
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+static inline int serial8250_start_rx_dma(struct uart_8250_port *p)
+{
+	return -1;
+}
+#endif
 static inline void serial8250_rx_dma_flush(struct uart_8250_port *p) { }
 static inline int serial8250_request_dma(struct uart_8250_port *p)
 {
