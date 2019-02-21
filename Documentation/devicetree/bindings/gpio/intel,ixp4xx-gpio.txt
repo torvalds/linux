@@ -1,0 +1,38 @@
+Intel IXP4xx XScale Networking Processors GPIO
+
+This GPIO controller is found in the Intel IXP4xx processors.
+It supports 16 GPIO lines.
+
+The interrupt portions of the GPIO controller is hierarchical:
+the synchronous edge detector is part of the GPIO block, but the
+actual enabling/disabling of the interrupt line is done in the
+main IXP4xx interrupt controller which has a 1:1 mapping for
+the first 12 GPIO lines to 12 system interrupts.
+
+The remaining 4 GPIO lines can not be used for receiving
+interrupts.
+
+The interrupt parent of this GPIO controller must be the
+IXP4xx interrupt controller.
+
+Required properties:
+
+- compatible : Should be
+  "intel,ixp4xx-gpio"
+- reg : Should contain registers location and length
+- gpio-controller : marks this as a GPIO controller
+- #gpio-cells : Should be 2, see gpio/gpio.txt
+- interrupt-controller : marks this as an interrupt controller
+- #interrupt-cells : a standard two-cell interrupt, see
+  interrupt-controller/interrupts.txt
+
+Example:
+
+gpio0: gpio@c8004000 {
+	compatible = "intel,ixp4xx-gpio";
+	reg = <0xc8004000 0x1000>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+};
