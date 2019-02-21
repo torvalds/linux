@@ -38,10 +38,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/dma-mapping.h>
-#include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/security.h>
+#include <linux/xarray.h>
 #include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
@@ -59,12 +59,9 @@ MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests
 module_param_named(recv_queue_size, mad_recvq_size, int, 0444);
 MODULE_PARM_DESC(recv_queue_size, "Size of receive queue in number of work requests");
 
-/*
- * The mlx4 driver uses the top byte to distinguish which virtual function
- * generated the MAD, so we must avoid using it.
- */
-#define AGENT_ID_LIMIT		(1 << 24)
-static DEFINE_IDR(ib_mad_clients);
+/* Client ID 0 is used for snoop-only clients */
+static DEFINE_XARRAY_ALLOC1(ib_mad_clients);
+static u32 ib_mad_client_next;
 static struct list_head ib_mad_port_list;
 
 /* Port list lock */
@@ -389,18 +386,17 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 		goto error4;
 	}
 
-	idr_preload(GFP_KERNEL);
-	idr_lock(&ib_mad_clients);
-	ret2 = idr_alloc_cyclic(&ib_mad_clients, mad_agent_priv, 0,
-			AGENT_ID_LIMIT, GFP_ATOMIC);
-	idr_unlock(&ib_mad_clients);
-	idr_preload_end();
-
+	/*
+	 * The mlx4 driver uses the top byte to distinguish which virtual
+	 * function generated the MAD, so we must avoid using it.
+	 */
+	ret2 = xa_alloc_cyclic(&ib_mad_clients, &mad_agent_priv->agent.hi_tid,
+			mad_agent_priv, XA_LIMIT(0, (1 << 24) - 1),
+			&ib_mad_client_next, GFP_KERNEL);
 	if (ret2 < 0) {
 		ret = ERR_PTR(ret2);
 		goto error5;
 	}
-	mad_agent_priv->agent.hi_tid = ret2;
 
 	/*
 	 * Make sure MAD registration (if supplied)
@@ -448,9 +444,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	return &mad_agent_priv->agent;
 error6:
 	spin_unlock_irq(&port_priv->reg_lock);
-	idr_lock(&ib_mad_clients);
-	idr_remove(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
-	idr_unlock(&ib_mad_clients);
+	xa_erase(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
 error5:
 	ib_mad_agent_security_cleanup(&mad_agent_priv->agent);
 error4:
@@ -614,9 +608,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	spin_lock_irq(&port_priv->reg_lock);
 	remove_mad_reg_req(mad_agent_priv);
 	spin_unlock_irq(&port_priv->reg_lock);
-	idr_lock(&ib_mad_clients);
-	idr_remove(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
-	idr_unlock(&ib_mad_clients);
+	xa_erase(&ib_mad_clients, mad_agent_priv->agent.hi_tid);
 
 	flush_workqueue(port_priv->wq);
 	ib_cancel_rmpp_recvs(mad_agent_priv);
@@ -1756,7 +1748,7 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 		 */
 		hi_tid = be64_to_cpu(mad_hdr->tid) >> 32;
 		rcu_read_lock();
-		mad_agent = idr_find(&ib_mad_clients, hi_tid);
+		mad_agent = xa_load(&ib_mad_clients, hi_tid);
 		if (mad_agent && !atomic_inc_not_zero(&mad_agent->refcount))
 			mad_agent = NULL;
 		rcu_read_unlock();
@@ -3355,9 +3347,6 @@ int ib_mad_init(void)
 	mad_sendq_size = max(mad_sendq_size, IB_MAD_QP_MIN_SIZE);
 
 	INIT_LIST_HEAD(&ib_mad_port_list);
-
-	/* Client ID 0 is used for snoop-only clients */
-	idr_alloc(&ib_mad_clients, NULL, 0, 0, GFP_KERNEL);
 
 	if (ib_register_client(&mad_client)) {
 		pr_err("Couldn't register ib_mad client\n");
