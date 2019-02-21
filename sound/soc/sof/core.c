@@ -23,19 +23,6 @@
  * Generic object lookup APIs.
  */
 
-struct snd_sof_pcm *snd_sof_find_spcm_dai(struct snd_sof_dev *sdev,
-					  struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_sof_pcm *spcm = NULL;
-
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (le32_to_cpu(spcm->pcm.dai_id) == rtd->dai_link->id)
-			return spcm;
-	}
-
-	return NULL;
-}
-
 struct snd_sof_pcm *snd_sof_find_spcm_name(struct snd_sof_dev *sdev,
 					   char *name)
 {
