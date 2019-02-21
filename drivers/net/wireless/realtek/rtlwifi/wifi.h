@@ -2143,7 +2143,6 @@ struct rtl_stats {
 	u32 macid_valid_entry[2];
 };
 
-
 struct rt_link_detect {
 	/* count for roaming */
 	u32 bcn_rx_inperiod;
@@ -2843,7 +2842,6 @@ struct rtl_priv {
 #define rtl_efuse(rtlpriv)	(&((rtlpriv)->efuse))
 #define rtl_psc(rtlpriv)	(&((rtlpriv)->psc))
 
-
 /* Bluetooth Co-existence Related */
 
 enum bt_ant_num {
@@ -2892,7 +2890,6 @@ enum bt_radio_shared {
 	BT_RADIO_SHARED = 0,
 	BT_RADIO_INDIVIDUAL = 1,
 };
-
 
 /****************************************
  *	mem access macro define start
@@ -3229,6 +3226,7 @@ static inline struct ieee80211_sta *rtl_find_sta(struct ieee80211_hw *hw,
 						 u8 *mac_addr)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+
 	return ieee80211_find_sta(mac->vif, mac_addr);
 }
 
