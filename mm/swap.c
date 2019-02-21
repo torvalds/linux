@@ -320,11 +320,6 @@ static inline void activate_page_drain(int cpu)
 {
 }
 
-static bool need_activate_page_drain(int cpu)
-{
-	return false;
-}
-
 void activate_page(struct page *page)
 {
 	struct zone *zone = page_zone(page);
@@ -653,12 +648,14 @@ void lru_add_drain(void)
 	put_cpu();
 }
 
+#ifdef CONFIG_SMP
+
+static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+
 static void lru_add_drain_per_cpu(struct work_struct *dummy)
 {
 	lru_add_drain();
 }
-
-static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
 
 /*
  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
@@ -702,6 +699,12 @@ void lru_add_drain_all(void)
 
 	mutex_unlock(&lock);
 }
+#else
+void lru_add_drain_all(void)
+{
+	lru_add_drain();
+}
+#endif
 
 /**
  * release_pages - batched put_page()
