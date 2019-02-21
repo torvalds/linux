@@ -317,7 +317,7 @@ struct c4iw_dev {
 	u32 device_cap_flags;
 	struct xarray cqs;
 	struct xarray qps;
-	struct idr mmidr;
+	struct xarray mrs;
 	spinlock_t lock;
 	struct mutex db_mutex;
 	struct dentry *debugfs_root;
@@ -357,10 +357,6 @@ static inline struct c4iw_qp *get_qhp(struct c4iw_dev *rhp, u32 qpid)
 	return xa_load(&rhp->qps, qpid);
 }
 
-static inline struct c4iw_mr *get_mhp(struct c4iw_dev *rhp, u32 mmid)
-{
-	return idr_find(&rhp->mmidr, mmid);
-}
 
 static inline int _insert_handle(struct c4iw_dev *rhp, struct idr *idr,
 				 void *handle, u32 id, int lock)

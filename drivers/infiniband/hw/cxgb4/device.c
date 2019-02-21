@@ -374,9 +374,8 @@ static const struct file_operations qp_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
-static int dump_stag(int id, void *p, void *data)
+static int dump_stag(unsigned long id, struct c4iw_debugfs_data *stagd)
 {
-	struct c4iw_debugfs_data *stagd = data;
 	int space;
 	int cc;
 	struct fw_ri_tpte tpte;
@@ -425,6 +424,8 @@ static int stag_release(struct inode *inode, struct file *file)
 static int stag_open(struct inode *inode, struct file *file)
 {
 	struct c4iw_debugfs_data *stagd;
+	void *p;
+	unsigned long index;
 	int ret = 0;
 	int count = 1;
 
@@ -436,9 +437,8 @@ static int stag_open(struct inode *inode, struct file *file)
 	stagd->devp = inode->i_private;
 	stagd->pos = 0;
 
-	spin_lock_irq(&stagd->devp->lock);
-	idr_for_each(&stagd->devp->mmidr, count_idrs, &count);
-	spin_unlock_irq(&stagd->devp->lock);
+	xa_for_each(&stagd->devp->mrs, index, p)
+		count++;
 
 	stagd->bufsize = count * 256;
 	stagd->buf = vmalloc(stagd->bufsize);
@@ -447,9 +447,10 @@ static int stag_open(struct inode *inode, struct file *file)
 		goto err1;
 	}
 
-	spin_lock_irq(&stagd->devp->lock);
-	idr_for_each(&stagd->devp->mmidr, dump_stag, stagd);
-	spin_unlock_irq(&stagd->devp->lock);
+	xa_lock_irq(&stagd->devp->mrs);
+	xa_for_each(&stagd->devp->mrs, index, p)
+		dump_stag(index, stagd);
+	xa_unlock_irq(&stagd->devp->mrs);
 
 	stagd->buf[stagd->pos++] = 0;
 	file->private_data = stagd;
@@ -934,8 +935,7 @@ void c4iw_dealloc(struct uld_ctx *ctx)
 	c4iw_rdev_close(&ctx->dev->rdev);
 	WARN_ON(!xa_empty(&ctx->dev->cqs));
 	WARN_ON(!xa_empty(&ctx->dev->qps));
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->mmidr));
-	idr_destroy(&ctx->dev->mmidr);
+	WARN_ON(!xa_empty(&ctx->dev->mrs));
 	wait_event(ctx->dev->wait, idr_is_empty(&ctx->dev->hwtid_idr));
 	idr_destroy(&ctx->dev->hwtid_idr);
 	idr_destroy(&ctx->dev->stid_idr);
@@ -1045,7 +1045,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 
 	xa_init_flags(&devp->cqs, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&devp->qps, XA_FLAGS_LOCK_IRQ);
-	idr_init(&devp->mmidr);
+	xa_init_flags(&devp->mrs, XA_FLAGS_LOCK_IRQ);
 	idr_init(&devp->hwtid_idr);
 	idr_init(&devp->stid_idr);
 	idr_init(&devp->atid_idr);
