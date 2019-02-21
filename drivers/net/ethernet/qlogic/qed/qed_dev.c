@@ -3269,55 +3269,43 @@ static void qed_get_num_funcs(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   p_hwfn->enabled_func_idx, p_hwfn->num_funcs_on_engine);
 }
 
-static void qed_hw_info_port_num_bb(struct qed_hwfn *p_hwfn,
-				    struct qed_ptt *p_ptt)
-{
-	u32 port_mode;
-
-	port_mode = qed_rd(p_hwfn, p_ptt, CNIG_REG_NW_PORT_MODE_BB);
-
-	if (port_mode < 3) {
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	} else if (port_mode <= 5) {
-		p_hwfn->cdev->num_ports_in_engine = 2;
-	} else {
-		DP_NOTICE(p_hwfn, "PORT MODE: %d not supported\n",
-			  p_hwfn->cdev->num_ports_in_engine);
-
-		/* Default num_ports_in_engine to something */
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	}
-}
-
-static void qed_hw_info_port_num_ah(struct qed_hwfn *p_hwfn,
-				    struct qed_ptt *p_ptt)
-{
-	u32 port;
-	int i;
-
-	p_hwfn->cdev->num_ports_in_engine = 0;
-
-	for (i = 0; i < MAX_NUM_PORTS_K2; i++) {
-		port = qed_rd(p_hwfn, p_ptt,
-			      CNIG_REG_NIG_PORT0_CONF_K2 + (i * 4));
-		if (port & 1)
-			p_hwfn->cdev->num_ports_in_engine++;
-	}
-
-	if (!p_hwfn->cdev->num_ports_in_engine) {
-		DP_NOTICE(p_hwfn, "All NIG ports are inactive\n");
-
-		/* Default num_ports_in_engine to something */
-		p_hwfn->cdev->num_ports_in_engine = 1;
-	}
-}
-
 static void qed_hw_info_port_num(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	if (QED_IS_BB(p_hwfn->cdev))
-		qed_hw_info_port_num_bb(p_hwfn, p_ptt);
-	else
-		qed_hw_info_port_num_ah(p_hwfn, p_ptt);
+	u32 addr, global_offsize, global_addr, port_mode;
+	struct qed_dev *cdev = p_hwfn->cdev;
+
+	/* In CMT there is always only one port */
+	if (cdev->num_hwfns > 1) {
+		cdev->num_ports_in_engine = 1;
+		cdev->num_ports = 1;
+		return;
+	}
+
+	/* Determine the number of ports per engine */
+	port_mode = qed_rd(p_hwfn, p_ptt, MISC_REG_PORT_MODE);
+	switch (port_mode) {
+	case 0x0:
+		cdev->num_ports_in_engine = 1;
+		break;
+	case 0x1:
+		cdev->num_ports_in_engine = 2;
+		break;
+	case 0x2:
+		cdev->num_ports_in_engine = 4;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unknown port mode 0x%08x\n", port_mode);
+		cdev->num_ports_in_engine = 1;	/* Default to something */
+		break;
+	}
+
+	/* Get the total number of ports of the device */
+	addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
+				    PUBLIC_GLOBAL);
+	global_offsize = qed_rd(p_hwfn, p_ptt, addr);
+	global_addr = SECTION_ADDR(global_offsize, 0);
+	addr = global_addr + offsetof(struct public_global, max_ports);
+	cdev->num_ports = (u8)qed_rd(p_hwfn, p_ptt, addr);
 }
 
 static void qed_get_eee_caps(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -3355,7 +3343,8 @@ qed_get_hw_info(struct qed_hwfn *p_hwfn,
 			return rc;
 	}
 
-	qed_hw_info_port_num(p_hwfn, p_ptt);
+	if (IS_LEAD_HWFN(p_hwfn))
+		qed_hw_info_port_num(p_hwfn, p_ptt);
 
 	qed_mcp_get_capabilities(p_hwfn, p_ptt);
 
@@ -4760,23 +4749,9 @@ void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	       sizeof(*p_hwfn->qm_info.wfq_data) * p_hwfn->qm_info.num_vports);
 }
 
-int qed_device_num_engines(struct qed_dev *cdev)
+int qed_device_num_ports(struct qed_dev *cdev)
 {
-	return QED_IS_BB(cdev) ? 2 : 1;
-}
-
-static int qed_device_num_ports(struct qed_dev *cdev)
-{
-	/* in CMT always only one port */
-	if (cdev->num_hwfns > 1)
-		return 1;
-
-	return cdev->num_ports_in_engine * qed_device_num_engines(cdev);
-}
-
-int qed_device_get_port_id(struct qed_dev *cdev)
-{
-	return (QED_LEADING_HWFN(cdev)->abs_pf_id) % qed_device_num_ports(cdev);
+	return cdev->num_ports;
 }
 
 void qed_set_fw_mac_addr(__le16 *fw_msb,
