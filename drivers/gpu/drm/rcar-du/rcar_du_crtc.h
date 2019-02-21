@@ -27,7 +27,7 @@ struct rcar_du_vsp;
  * @clock: the CRTC functional clock
  * @extclock: external pixel dot clock (optional)
  * @mmio_offset: offset of the CRTC registers in the DU MMIO block
- * @index: CRTC software and hardware index
+ * @index: CRTC hardware index
  * @initialized: whether the CRTC has been initialized and clocks enabled
  * @dsysr: cached value of the DSYSR register
  * @vblank_enable: whether vblank events are enabled on this CRTC
