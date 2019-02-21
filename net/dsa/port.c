@@ -187,6 +187,18 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 }
 
+int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			      struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_egress_floods ||
+	    (flags & ~(BR_FLOOD | BR_MCAST_FLOOD)))
+		return -EINVAL;
+
+	return 0;
+}
+
 int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
 			  struct switchdev_trans *trans)
 {
