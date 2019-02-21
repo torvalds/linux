@@ -1751,11 +1751,9 @@ EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
 void __nf_ct_refresh_acct(struct nf_conn *ct,
 			  enum ip_conntrack_info ctinfo,
 			  const struct sk_buff *skb,
-			  unsigned long extra_jiffies,
-			  int do_acct)
+			  u32 extra_jiffies,
+			  bool do_acct)
 {
-	WARN_ON(!skb);
-
 	/* Only update if this is not a fixed timeout */
 	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
 		goto acct;
@@ -1764,7 +1762,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	if (nf_ct_is_confirmed(ct))
 		extra_jiffies += nfct_time_stamp;
 
-	ct->timeout = extra_jiffies;
+	if (ct->timeout != extra_jiffies)
+		ct->timeout = extra_jiffies;
 acct:
 	if (do_acct)
 		nf_ct_acct_update(ct, ctinfo, skb->len);
