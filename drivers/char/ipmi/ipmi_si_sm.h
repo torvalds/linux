@@ -42,11 +42,11 @@ struct si_sm_io {
 	 * state machine shouldn't touch these.
 	 */
 	void __iomem *addr;
-	int  regspacing;
-	int  regsize;
-	int  regshift;
+	unsigned int regspacing;
+	unsigned int regsize;
+	unsigned int regshift;
 	int addr_type;
-	long addr_data;
+	unsigned long addr_data;
 	enum ipmi_addr_src addr_source; /* ACPI, PCI, SMBIOS, hardcode, etc. */
 	void (*addr_source_cleanup)(struct si_sm_io *io);
 	void *addr_source_data;
