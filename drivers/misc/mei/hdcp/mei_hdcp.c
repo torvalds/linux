@@ -238,6 +238,64 @@ mei_hdcp_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 	return 0;
 }
 
+/**
+ * mei_hdcp_store_pairing_info() - Store pairing info received at ME FW
+ * @dev: device corresponding to the mei_cl_device
+ * @data: Intel HW specific hdcp data
+ * @pairing_info: AKE_Send_Pairing_Info msg input to ME FW
+ *
+ * Return: 0 on Success, <0 on Failure
+ */
+static int
+mei_hdcp_store_pairing_info(struct device *dev, struct hdcp_port_data *data,
+			    struct hdcp2_ake_send_pairing_info *pairing_info)
+{
+	struct wired_cmd_ake_send_pairing_info_in pairing_info_in = { { 0 } };
+	struct wired_cmd_ake_send_pairing_info_out pairing_info_out = { { 0 } };
+	struct mei_cl_device *cldev;
+	ssize_t byte;
+
+	if (!dev || !data || !pairing_info)
+		return -EINVAL;
+
+	cldev = to_mei_cl_device(dev);
+
+	pairing_info_in.header.api_version = HDCP_API_VERSION;
+	pairing_info_in.header.command_id = WIRED_AKE_SEND_PAIRING_INFO;
+	pairing_info_in.header.status = ME_HDCP_STATUS_SUCCESS;
+	pairing_info_in.header.buffer_len =
+					WIRED_CMD_BUF_LEN_SEND_PAIRING_INFO_IN;
+
+	pairing_info_in.port.integrated_port_type = data->port_type;
+	pairing_info_in.port.physical_port = mei_get_ddi_index(data->port);
+
+	memcpy(pairing_info_in.e_kh_km, pairing_info->e_kh_km,
+	       HDCP_2_2_E_KH_KM_LEN);
+
+	byte = mei_cldev_send(cldev, (u8 *)&pairing_info_in,
+			      sizeof(pairing_info_in));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		return byte;
+	}
+
+	byte = mei_cldev_recv(cldev, (u8 *)&pairing_info_out,
+			      sizeof(pairing_info_out));
+	if (byte < 0) {
+		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
+		return byte;
+	}
+
+	if (pairing_info_out.header.status != ME_HDCP_STATUS_SUCCESS) {
+		dev_dbg(dev, "ME cmd 0x%08X failed. Status: 0x%X\n",
+			WIRED_AKE_SEND_PAIRING_INFO,
+			pairing_info_out.header.status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const __attribute__((unused))
 struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.owner = THIS_MODULE,
@@ -245,7 +303,7 @@ struct i915_hdcp_component_ops mei_hdcp_ops = {
 	.verify_receiver_cert_prepare_km =
 				mei_hdcp_verify_receiver_cert_prepare_km,
 	.verify_hprime = mei_hdcp_verify_hprime,
-	.store_pairing_info = NULL,
+	.store_pairing_info = mei_hdcp_store_pairing_info,
 	.initiate_locality_check = NULL,
 	.verify_lprime = NULL,
 	.get_session_key = NULL,
