@@ -31,7 +31,6 @@ static inline int smc_pnetid_by_dev_port(struct device *dev,
 
 int smc_pnet_init(void) __init;
 void smc_pnet_exit(void);
-int smc_pnet_remove_by_ibdev(struct smc_ib_device *ibdev);
 void smc_pnet_find_roce_resource(struct sock *sk,
 				 struct smc_ib_device **smcibdev, u8 *ibport,
 				 unsigned short vlan_id, u8 gid[]);
