@@ -1935,6 +1935,20 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				op->xerval &= ~XER_CA;
 			set_ca32(op, op->xerval & XER_CA);
 			goto logical_done;
+
+		case 890:	/* extswsli with sh_5 = 0 */
+		case 891:	/* extswsli with sh_5 = 1 */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			op->type = COMPUTE + SETREG;
+			sh = rb | ((instr & 2) << 4);
+			val = (signed int) regs->gpr[rd];
+			if (sh)
+				op->val = ROTATE(val, sh) & MASK64(0, 63 - sh);
+			else
+				op->val = val;
+			goto logical_done;
+
 #endif /* __powerpc64__ */
 
 /*
