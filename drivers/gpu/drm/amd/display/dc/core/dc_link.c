@@ -1207,7 +1207,7 @@ static bool construct(
 	link->link_enc = link->dc->res_pool->funcs->link_enc_create(
 								&enc_init_data);
 
-	if( link->link_enc == NULL) {
+	if (link->link_enc == NULL) {
 		DC_ERROR("Failed to create link encoder!\n");
 		goto link_enc_create_fail;
 	}
@@ -1982,7 +1982,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream->signal,
 			stream->phy_pix_clk);
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_read_scdc_data(link->ddc);
 }
 

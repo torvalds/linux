@@ -95,7 +95,6 @@ struct resource_funcs {
 	void (*link_init)(struct dc_link *link);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
-
 	bool (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context);
