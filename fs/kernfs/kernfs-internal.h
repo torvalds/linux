@@ -25,8 +25,6 @@ struct kernfs_iattrs {
 	struct timespec64	ia_atime;
 	struct timespec64	ia_mtime;
 	struct timespec64	ia_ctime;
-	void			*ia_secdata;
-	u32			ia_secdata_len;
 
 	struct simple_xattrs	xattrs;
 };
