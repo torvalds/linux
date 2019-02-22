@@ -1728,6 +1728,28 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				(int) regs->gpr[rb];
 			goto arith_done;
 
+		case 755:	/* darn */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			switch (ra & 0x3) {
+			case 0:
+				/* 32-bit conditioned */
+				asm volatile(PPC_DARN(%0, 0) : "=r" (op->val));
+				goto compute_done;
+
+			case 1:
+				/* 64-bit conditioned */
+				asm volatile(PPC_DARN(%0, 1) : "=r" (op->val));
+				goto compute_done;
+
+			case 2:
+				/* 64-bit raw */
+				asm volatile(PPC_DARN(%0, 2) : "=r" (op->val));
+				goto compute_done;
+			}
+
+			return -1;
+
 
 /*
  * Logical instructions
