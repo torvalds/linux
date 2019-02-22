@@ -1786,6 +1786,16 @@ def GetEventList(db):
 		events.append(query.value(0))
 	return events
 
+# Is a table selectable
+
+def IsSelectable(db, table):
+	query = QSqlQuery(db)
+	try:
+		QueryExec(query, "SELECT * FROM " + table + " LIMIT 1")
+	except:
+		return False
+	return True
+
 # SQL data preparation
 
 def SQLTableDataPrep(query, count):
@@ -2298,7 +2308,8 @@ class MainWindow(QMainWindow):
 		edit_menu.addAction(CreateAction("&Enlarge Font", "Make text bigger", self.EnlargeFont, self, [QKeySequence("Ctrl++")]))
 
 		reports_menu = menu.addMenu("&Reports")
-		reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
+		if IsSelectable(glb.db, "calls"):
+			reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
 
 		self.EventMenu(GetEventList(glb.db), reports_menu)
 
