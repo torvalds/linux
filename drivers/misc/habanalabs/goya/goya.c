@@ -3380,10 +3380,16 @@ int goya_test_cpu_queue(struct hl_device *hdev)
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &test_pkt,
 			sizeof(test_pkt), HL_DEVICE_TIMEOUT_USEC, &result);
 
-	if (!rc)
-		dev_info(hdev->dev, "queue test on CPU queue succeeded\n");
-	else
-		dev_err(hdev->dev, "CPU queue test failed (0x%08lX)\n", result);
+	if (!rc) {
+		if (result == ARMCP_PACKET_FENCE_VAL)
+			dev_info(hdev->dev,
+				"queue test on CPU queue succeeded\n");
+		else
+			dev_err(hdev->dev,
+				"CPU queue test failed (0x%08lX)\n", result);
+	} else {
+		dev_err(hdev->dev, "CPU queue test failed, error %d\n", rc);
+	}
 
 	return rc;
 }
