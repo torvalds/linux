@@ -56,8 +56,10 @@ void at91_init_twi_bus(struct at91_twi_dev *dev)
 {
 	at91_disable_twi_interrupts(dev);
 	at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_SWRST);
-
-	at91_init_twi_bus_master(dev);
+	if (dev->slave_detected)
+		at91_init_twi_bus_slave(dev);
+	else
+		at91_init_twi_bus_master(dev);
 }
 
 static struct at91_twi_pdata at91rm9200_config = {
@@ -239,7 +241,12 @@ static int at91_twi_probe(struct platform_device *pdev)
 	dev->adapter.timeout = AT91_I2C_TIMEOUT;
 	dev->adapter.dev.of_node = pdev->dev.of_node;
 
-	rc = at91_twi_probe_master(pdev, phy_addr, dev);
+	dev->slave_detected = i2c_detect_slave_mode(&pdev->dev);
+
+	if (dev->slave_detected)
+		rc = at91_twi_probe_slave(pdev, phy_addr, dev);
+	else
+		rc = at91_twi_probe_master(pdev, phy_addr, dev);
 	if (rc)
 		return rc;
 

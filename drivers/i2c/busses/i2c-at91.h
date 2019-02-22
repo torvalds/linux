@@ -49,6 +49,10 @@
 #define	AT91_TWI_IADRSZ_1	0x0100	/* Internal Device Address Size */
 #define	AT91_TWI_MREAD		BIT(12)	/* Master Read Direction */
 
+#define	AT91_TWI_SMR		0x0008	/* Slave Mode Register */
+#define	AT91_TWI_SMR_SADR_MAX	0x007f
+#define	AT91_TWI_SMR_SADR(x)	(((x) & AT91_TWI_SMR_SADR_MAX) << 16)
+
 #define	AT91_TWI_IADR		0x000c	/* Internal Address Register */
 
 #define	AT91_TWI_CWGR		0x0010	/* Clock Waveform Generator Reg */
@@ -59,13 +63,17 @@
 #define	AT91_TWI_TXCOMP		BIT(0)	/* Transmission Complete */
 #define	AT91_TWI_RXRDY		BIT(1)	/* Receive Holding Register Ready */
 #define	AT91_TWI_TXRDY		BIT(2)	/* Transmit Holding Register Ready */
+#define	AT91_TWI_SVREAD		BIT(3)	/* Slave Read */
+#define	AT91_TWI_SVACC		BIT(4)	/* Slave Access */
 #define	AT91_TWI_OVRE		BIT(6)	/* Overrun Error */
 #define	AT91_TWI_UNRE		BIT(7)	/* Underrun Error */
 #define	AT91_TWI_NACK		BIT(8)	/* Not Acknowledged */
+#define	AT91_TWI_EOSACC		BIT(11)	/* End Of Slave Access */
 #define	AT91_TWI_LOCK		BIT(23) /* TWI Lock due to Frame Errors */
 
 #define	AT91_TWI_INT_MASK \
-	(AT91_TWI_TXCOMP | AT91_TWI_RXRDY | AT91_TWI_TXRDY | AT91_TWI_NACK)
+	(AT91_TWI_TXCOMP | AT91_TWI_RXRDY | AT91_TWI_TXRDY | AT91_TWI_NACK \
+	| AT91_TWI_SVACC | AT91_TWI_EOSACC)
 
 #define	AT91_TWI_IER		0x0024	/* Interrupt Enable Register */
 #define	AT91_TWI_IDR		0x0028	/* Interrupt Disable Register */
@@ -133,6 +141,11 @@ struct at91_twi_dev {
 	bool recv_len_abort;
 	u32 fifo_size;
 	struct at91_twi_dma dma;
+	bool slave_detected;
+#ifdef CONFIG_I2C_AT91_SLAVE_EXPERIMENTAL
+	unsigned smr;
+	struct i2c_client *slave;
+#endif
 };
 
 unsigned at91_twi_read(struct at91_twi_dev *dev, unsigned reg);
@@ -145,3 +158,18 @@ void at91_init_twi_bus(struct at91_twi_dev *dev);
 void at91_init_twi_bus_master(struct at91_twi_dev *dev);
 int at91_twi_probe_master(struct platform_device *pdev, u32 phy_addr,
 			  struct at91_twi_dev *dev);
+
+#ifdef CONFIG_I2C_AT91_SLAVE_EXPERIMENTAL
+void at91_init_twi_bus_slave(struct at91_twi_dev *dev);
+int at91_twi_probe_slave(struct platform_device *pdev, u32 phy_addr,
+			 struct at91_twi_dev *dev);
+
+#else
+static inline void at91_init_twi_bus_slave(struct at91_twi_dev *dev) {}
+static inline int at91_twi_probe_slave(struct platform_device *pdev,
+				       u32 phy_addr, struct at91_twi_dev *dev)
+{
+	return -EINVAL;
+}
+
+#endif

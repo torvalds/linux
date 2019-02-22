@@ -387,6 +387,19 @@ config I2C_AT91
 	  the latency to fill the transmission register is too long. If you
 	  are facing this situation, use the i2c-gpio driver.
 
+config I2C_AT91_SLAVE_EXPERIMENTAL
+	tristate "Microchip AT91 I2C experimental slave mode"
+	depends on I2C_AT91
+	select I2C_SLAVE
+	help
+	  If you say yes to this option, support for the slave mode will be
+	  added. Caution: do not use it for production. This feature has not
+	  been tested in a heavy way, help wanted.
+	  There are known bugs:
+	    - It can hang, on a SAMA5D4, after several transfers.
+	    - There are some mismtaches with a SAMA5D4 as slave and a SAMA5D2 as
+	    master.
+
 config I2C_AU1550
 	tristate "Au1550/Au1200/Au1300 SMBus interface"
 	depends on MIPS_ALCHEMY
