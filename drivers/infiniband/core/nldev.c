@@ -1222,10 +1222,8 @@ out:
 void rdma_link_register(struct rdma_link_ops *ops)
 {
 	down_write(&link_ops_rwsem);
-	if (link_ops_get(ops->type)) {
-		WARN_ONCE("Duplicate rdma_link_ops! %s\n", ops->type);
+	if (WARN_ON_ONCE(link_ops_get(ops->type)))
 		goto out;
-	}
 	list_add(&ops->list, &link_ops);
 out:
 	up_write(&link_ops_rwsem);
