@@ -22,10 +22,6 @@
 #include <asm/mmiowb.h>
 #include <asm-generic/pci_iomap.h>
 
-#ifndef mmiowb
-#define mmiowb() do {} while (0)
-#endif
-
 #ifndef __io_br
 #define __io_br()      barrier()
 #endif

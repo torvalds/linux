@@ -11,8 +11,6 @@
 #define arch_mmiowb_state()	(&local_paca->mmiowb_state)
 #define mmiowb()		mb()
 
-#else
-#define mmiowb()		do { } while (0)
 #endif /* CONFIG_MMIOWB */
 
 #include <asm-generic/mmiowb.h>
