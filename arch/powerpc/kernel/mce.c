@@ -301,13 +301,13 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	while (__this_cpu_read(mce_queue_count) > 0) {
 		index = __this_cpu_read(mce_queue_count) - 1;
 		evt = this_cpu_ptr(&mce_event_queue[index]);
-		machine_check_print_event_info(evt, false);
+		machine_check_print_event_info(evt, false, false);
 		__this_cpu_dec(mce_queue_count);
 	}
 }
 
 void machine_check_print_event_info(struct machine_check_event *evt,
-				    bool user_mode)
+				    bool user_mode, bool in_guest)
 {
 	const char *level, *sevstr, *subtype;
 	static const char *mc_ue_types[] = {
@@ -387,7 +387,9 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	       evt->disposition == MCE_DISPOSITION_RECOVERED ?
 	       "Recovered" : "Not recovered");
 
-	if (user_mode) {
+	if (in_guest) {
+		printk("%s  Guest NIP: %016llx\n", level, evt->srr0);
+	} else if (user_mode) {
 		printk("%s  NIP: [%016llx] PID: %d Comm: %s\n", level,
 			evt->srr0, current->pid, current->comm);
 	} else {

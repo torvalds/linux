@@ -748,7 +748,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 		kvmppc_mpic_disconnect_vcpu(vcpu->arch.mpic, vcpu);
 		break;
 	case KVMPPC_IRQ_XICS:
-		if (xive_enabled())
+		if (xics_on_xive())
 			kvmppc_xive_cleanup_vcpu(vcpu);
 		else
 			kvmppc_xics_free_icp(vcpu);
@@ -1931,7 +1931,7 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = -EPERM;
 		dev = kvm_device_from_filp(f.file);
 		if (dev) {
-			if (xive_enabled())
+			if (xics_on_xive())
 				r = kvmppc_xive_connect_vcpu(dev, vcpu, cap->args[1]);
 			else
 				r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
