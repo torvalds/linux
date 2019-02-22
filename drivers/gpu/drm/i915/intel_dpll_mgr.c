@@ -2966,6 +2966,68 @@ static i915_reg_t icl_pll_id_to_enable_reg(enum intel_dpll_id id)
 	return MG_PLL_ENABLE(icl_pll_id_to_tc_port(id));
 }
 
+static bool mg_pll_get_hw_state(struct drm_i915_private *dev_priv,
+				struct intel_shared_dpll *pll,
+				struct intel_dpll_hw_state *hw_state)
+{
+	const enum intel_dpll_id id = pll->info->id;
+	enum tc_port tc_port = icl_pll_id_to_tc_port(id);
+	intel_wakeref_t wakeref;
+	bool ret = false;
+	u32 val;
+
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     POWER_DOMAIN_PLLS);
+	if (!wakeref)
+		return false;
+
+	val = I915_READ(MG_PLL_ENABLE(tc_port));
+	if (!(val & PLL_ENABLE))
+		goto out;
+
+	hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(tc_port));
+	hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
+
+	hw_state->mg_clktop2_coreclkctl1 =
+		I915_READ(MG_CLKTOP2_CORECLKCTL1(tc_port));
+	hw_state->mg_clktop2_coreclkctl1 &=
+		MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
+
+	hw_state->mg_clktop2_hsclkctl =
+		I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
+	hw_state->mg_clktop2_hsclkctl &=
+		MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
+		MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
+		MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
+
+	hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(tc_port));
+	hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(tc_port));
+	hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(tc_port));
+	hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(tc_port));
+	hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(tc_port));
+
+	hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(tc_port));
+	hw_state->mg_pll_tdc_coldst_bias =
+		I915_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
+
+	if (dev_priv->cdclk.hw.ref == 38400) {
+		hw_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
+		hw_state->mg_pll_bias_mask = 0;
+	} else {
+		hw_state->mg_pll_tdc_coldst_bias_mask = -1U;
+		hw_state->mg_pll_bias_mask = -1U;
+	}
+
+	hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
+	hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
+
+	ret = true;
+out:
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS, wakeref);
+	return ret;
+}
+
 static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll,
 				 struct intel_dpll_hw_state *hw_state)
@@ -2984,50 +3046,8 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	if (intel_dpll_is_combophy(id) ||
-	    id == DPLL_ID_ICL_TBTPLL) {
-		hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
-		hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
-	} else {
-		enum tc_port tc_port = icl_pll_id_to_tc_port(id);
-
-		hw_state->mg_refclkin_ctl = I915_READ(MG_REFCLKIN_CTL(tc_port));
-		hw_state->mg_refclkin_ctl &= MG_REFCLKIN_CTL_OD_2_MUX_MASK;
-
-		hw_state->mg_clktop2_coreclkctl1 =
-			I915_READ(MG_CLKTOP2_CORECLKCTL1(tc_port));
-		hw_state->mg_clktop2_coreclkctl1 &=
-			MG_CLKTOP2_CORECLKCTL1_A_DIVRATIO_MASK;
-
-		hw_state->mg_clktop2_hsclkctl =
-			I915_READ(MG_CLKTOP2_HSCLKCTL(tc_port));
-		hw_state->mg_clktop2_hsclkctl &=
-			MG_CLKTOP2_HSCLKCTL_TLINEDRV_CLKSEL_MASK |
-			MG_CLKTOP2_HSCLKCTL_CORE_INPUTSEL_MASK |
-			MG_CLKTOP2_HSCLKCTL_HSDIV_RATIO_MASK |
-			MG_CLKTOP2_HSCLKCTL_DSDIV_RATIO_MASK;
-
-		hw_state->mg_pll_div0 = I915_READ(MG_PLL_DIV0(tc_port));
-		hw_state->mg_pll_div1 = I915_READ(MG_PLL_DIV1(tc_port));
-		hw_state->mg_pll_lf = I915_READ(MG_PLL_LF(tc_port));
-		hw_state->mg_pll_frac_lock = I915_READ(MG_PLL_FRAC_LOCK(tc_port));
-		hw_state->mg_pll_ssc = I915_READ(MG_PLL_SSC(tc_port));
-
-		hw_state->mg_pll_bias = I915_READ(MG_PLL_BIAS(tc_port));
-		hw_state->mg_pll_tdc_coldst_bias =
-			I915_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
-
-		if (dev_priv->cdclk.hw.ref == 38400) {
-			hw_state->mg_pll_tdc_coldst_bias_mask = MG_PLL_TDC_COLDST_COLDSTART;
-			hw_state->mg_pll_bias_mask = 0;
-		} else {
-			hw_state->mg_pll_tdc_coldst_bias_mask = -1U;
-			hw_state->mg_pll_bias_mask = -1U;
-		}
-
-		hw_state->mg_pll_tdc_coldst_bias &= hw_state->mg_pll_tdc_coldst_bias_mask;
-		hw_state->mg_pll_bias &= hw_state->mg_pll_bias_mask;
-	}
+	hw_state->cfgcr0 = I915_READ(ICL_DPLL_CFGCR0(id));
+	hw_state->cfgcr1 = I915_READ(ICL_DPLL_CFGCR1(id));
 
 	ret = true;
 out:
@@ -3203,14 +3223,20 @@ static const struct intel_shared_dpll_funcs icl_pll_funcs = {
 	.get_hw_state = icl_pll_get_hw_state,
 };
 
+static const struct intel_shared_dpll_funcs mg_pll_funcs = {
+	.enable = icl_pll_enable,
+	.disable = icl_pll_disable,
+	.get_hw_state = mg_pll_get_hw_state,
+};
+
 static const struct dpll_info icl_plls[] = {
 	{ "DPLL 0",   &icl_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
 	{ "DPLL 1",   &icl_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
 	{ "TBT PLL",  &icl_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	{ "MG PLL 1", &icl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
-	{ "MG PLL 2", &icl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
-	{ "MG PLL 3", &icl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
-	{ "MG PLL 4", &icl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
+	{ "MG PLL 1", &mg_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
+	{ "MG PLL 2", &mg_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
+	{ "MG PLL 3", &mg_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
+	{ "MG PLL 4", &mg_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
 	{ },
 };
 
