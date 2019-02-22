@@ -21,6 +21,11 @@ parser.add_argument(
     "operation",
     choices=['add', 'del', 'replace'],
     help="operation to perform on filters")
+parser.add_argument(
+    "-d",
+    "--duplicate_handles",
+    action="store_true",
+    help="duplicate filter handle range in all files")
 args = parser.parse_args()
 
 device = args.device
@@ -29,10 +34,12 @@ file_prefix = args.operation + "_"
 num_filters = args.num_filters
 num_files = args.num_files
 operation = args.operation
+duplicate_handles = args.duplicate_handles
 handle = 1
 
 for i in range(num_files):
     file = dir + '/' + file_prefix + str(i)
     os.system("./tdc_batch.py -n {} -a {} -e {} -m {} {} {}".format(
         num_filters, handle, operation, i, device, file))
-    handle += num_filters
+    if not duplicate_handles:
+        handle += num_filters
