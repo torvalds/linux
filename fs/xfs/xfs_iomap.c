@@ -982,7 +982,7 @@ xfs_file_iomap_begin(
 	 * been done up front, so we don't need to do them here.
 	 */
 	if (xfs_is_cow_inode(ip)) {
-		struct xfs_bmbt_irec	orig = imap;
+		struct xfs_bmbt_irec	cmap;
 		bool			directio = (flags & IOMAP_DIRECT);
 
 		/* if zeroing doesn't need COW allocation, then we are done. */
@@ -991,7 +991,8 @@ xfs_file_iomap_begin(
 			goto out_found;
 
 		/* may drop and re-acquire the ilock */
-		error = xfs_reflink_allocate_cow(ip, &imap, &shared, &lockmode,
+		cmap = imap;
+		error = xfs_reflink_allocate_cow(ip, &cmap, &shared, &lockmode,
 				directio);
 		if (error)
 			goto out_unlock;
@@ -1002,10 +1003,11 @@ xfs_file_iomap_begin(
 		 * write code can perform read-modify-write operations; we
 		 * won't need the CoW fork mapping until writeback.  For direct
 		 * I/O, which must be block aligned, we need to report the
-		 * newly allocated address.
+		 * newly allocated address.  If the data fork has a hole, copy
+		 * the COW fork mapping to avoid allocating to the data fork.
 		 */
-		if (!directio && orig.br_startblock != HOLESTARTBLOCK)
-			imap = orig;
+		if (directio || imap.br_startblock == HOLESTARTBLOCK)
+			imap = cmap;
 
 		end_fsb = imap.br_startoff + imap.br_blockcount;
 		length = XFS_FSB_TO_B(mp, end_fsb) - offset;
