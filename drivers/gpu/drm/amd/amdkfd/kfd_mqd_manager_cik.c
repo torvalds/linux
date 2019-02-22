@@ -323,57 +323,7 @@ static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
 {
-	uint64_t addr;
-	struct cik_mqd *m;
-	int retval;
-
-	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
-					mqd_mem_obj);
-
-	if (retval != 0)
-		return -ENOMEM;
-
-	m = (struct cik_mqd *) (*mqd_mem_obj)->cpu_ptr;
-	addr = (*mqd_mem_obj)->gpu_addr;
-
-	memset(m, 0, ALIGN(sizeof(struct cik_mqd), 256));
-
-	m->header = 0xC0310800;
-	m->compute_pipelinestat_enable = 1;
-	m->compute_static_thread_mgmt_se0 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
-
-	m->cp_hqd_persistent_state = DEFAULT_CP_HQD_PERSISTENT_STATE |
-					PRELOAD_REQ;
-	m->cp_hqd_quantum = QUANTUM_EN | QUANTUM_SCALE_1MS |
-				QUANTUM_DURATION(10);
-
-	m->cp_mqd_control             = MQD_CONTROL_PRIV_STATE_EN;
-	m->cp_mqd_base_addr_lo        = lower_32_bits(addr);
-	m->cp_mqd_base_addr_hi        = upper_32_bits(addr);
-
-	m->cp_hqd_ib_control = DEFAULT_MIN_IB_AVAIL_SIZE;
-
-	/*
-	 * Pipe Priority
-	 * Identifies the pipe relative priority when this queue is connected
-	 * to the pipeline. The pipe priority is against the GFX pipe and HP3D.
-	 * In KFD we are using a fixed pipe priority set to CS_MEDIUM.
-	 * 0 = CS_LOW (typically below GFX)
-	 * 1 = CS_MEDIUM (typically between HP3D and GFX
-	 * 2 = CS_HIGH (typically above HP3D)
-	 */
-	m->cp_hqd_pipe_priority = 1;
-	m->cp_hqd_queue_priority = 15;
-
-	*mqd = m;
-	if (gart_addr)
-		*gart_addr = addr;
-	retval = mm->update_mqd(mm, m, q);
-
-	return retval;
+	return init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 }
 
 static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
