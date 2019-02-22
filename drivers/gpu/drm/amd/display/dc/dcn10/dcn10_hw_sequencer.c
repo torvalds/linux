@@ -65,7 +65,7 @@ void print_microsec(struct dc_context *dc_ctx,
 	struct dc_log_buffer_ctx *log_ctx,
 	uint32_t ref_cycle)
 {
-	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clock_inKhz / 1000;
+	const uint32_t ref_clk_mhz = dc_ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
 	static const unsigned int frac = 1000;
 	uint32_t us_x10 = (ref_cycle * frac) / ref_clk_mhz;
 
@@ -2453,7 +2453,7 @@ static void dcn10_prepare_bandwidth(
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
 			&context->bw.dcn.watermarks,
-			dc->res_pool->ref_clock_inKhz / 1000,
+			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
@@ -2483,7 +2483,7 @@ static void dcn10_optimize_bandwidth(
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
 			&context->bw.dcn.watermarks,
-			dc->res_pool->ref_clock_inKhz / 1000,
+			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
@@ -2703,7 +2703,7 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_cursor_mi_param param = {
 		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
-		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
+		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
 		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,

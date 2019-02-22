@@ -466,7 +466,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	input.clks_cfg.dcfclk_mhz = v->dcfclk;
 	input.clks_cfg.dispclk_mhz = v->dispclk;
 	input.clks_cfg.dppclk_mhz = v->dppclk;
-	input.clks_cfg.refclk_mhz = dc->res_pool->ref_clock_inKhz / 1000.0;
+	input.clks_cfg.refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
 	input.clks_cfg.socclk_mhz = v->socclk;
 	input.clks_cfg.voltage = v->voltage_level;
 //	dc->dml.logger = pool->base.logger;

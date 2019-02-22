@@ -31,6 +31,8 @@
 #include "opp.h"
 #include "timing_generator.h"
 #include "transform.h"
+#include "dccg.h"
+#include "dchubbub.h"
 #include "dpp.h"
 #include "core_types.h"
 #include "set_mode_types.h"
@@ -163,7 +165,28 @@ struct resource_pool *dc_create_resource_pool(
 
 		if (dc->ctx->dc_bios->funcs->get_firmware_info(
 				dc->ctx->dc_bios, &fw_info) == BP_RESULT_OK) {
-				res_pool->ref_clock_inKhz = fw_info.pll_info.crystal_frequency;
+				res_pool->ref_clocks.xtalin_clock_inKhz = fw_info.pll_info.crystal_frequency;
+
+				if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+					// On FPGA these dividers are currently not configured by GDB
+					res_pool->ref_clocks.dccg_ref_clock_inKhz = res_pool->ref_clocks.xtalin_clock_inKhz;
+					res_pool->ref_clocks.dchub_ref_clock_inKhz = res_pool->ref_clocks.xtalin_clock_inKhz;
+				} else if (res_pool->dccg && res_pool->hubbub) {
+					// If DCCG reference frequency cannot be determined (usually means not set to xtalin) then this is a critical error
+					// as this value must be known for DCHUB programming
+					(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+							fw_info.pll_info.crystal_frequency,
+							&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+
+					// Similarly, if DCHUB reference frequency cannot be determined, then it is also a critical error
+					(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+							res_pool->ref_clocks.dccg_ref_clock_inKhz,
+							&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+				} else {
+					// Not all ASICs have DCCG sw component
+					res_pool->ref_clocks.dccg_ref_clock_inKhz = res_pool->ref_clocks.xtalin_clock_inKhz;
+					res_pool->ref_clocks.dchub_ref_clock_inKhz = res_pool->ref_clocks.xtalin_clock_inKhz;
+				}
 			} else
 				ASSERT_CRITICAL(false);
 	}
