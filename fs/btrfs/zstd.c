@@ -195,8 +195,7 @@ static void zstd_cleanup_workspace_manager(void)
 	struct workspace *workspace;
 	int i;
 
-	del_timer(&wsm.timer);
-
+	spin_lock(&wsm.lock);
 	for (i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++) {
 		while (!list_empty(&wsm.idle_ws[i])) {
 			workspace = container_of(wsm.idle_ws[i].next,
@@ -206,6 +205,9 @@ static void zstd_cleanup_workspace_manager(void)
 			wsm.ops->free_workspace(&workspace->list);
 		}
 	}
+	spin_unlock(&wsm.lock);
+
+	del_timer_sync(&wsm.timer);
 }
 
 /*
