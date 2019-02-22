@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -528,11 +528,6 @@ static inline int wil_rxdesc_mcs(struct vring_rx_desc *d)
 static inline int wil_rxdesc_mcast(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d1, 13, 14);
-}
-
-static inline int wil_rxdesc_phy_length(struct vring_rx_desc *d)
-{
-	return WIL_GET_BITS(d->dma.d0, 16, 29);
 }
 
 static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)

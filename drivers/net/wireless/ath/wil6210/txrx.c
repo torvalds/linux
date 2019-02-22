@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,11 +29,6 @@
 #include "txrx.h"
 #include "trace.h"
 #include "txrx_edma.h"
-
-static bool rtap_include_phy_info;
-module_param(rtap_include_phy_info, bool, 0444);
-MODULE_PARM_DESC(rtap_include_phy_info,
-		 " Include PHY info in the radiotap header, default - no");
 
 bool rx_align_2;
 module_param(rx_align_2, bool, 0444);
@@ -332,46 +327,10 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		u8 mcs_flags;
 		u8 mcs_index;
 	} __packed;
-	struct wil6210_rtap_vendor {
-		struct wil6210_rtap rtap;
-		/* vendor */
-		u8 vendor_oui[3] __aligned(2);
-		u8 vendor_ns;
-		__le16 vendor_skip;
-		u8 vendor_data[0];
-	} __packed;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
-	struct wil6210_rtap_vendor *rtap_vendor;
+	struct wil6210_rtap *rtap;
 	int rtap_len = sizeof(struct wil6210_rtap);
-	int phy_length = 0; /* phy info header size, bytes */
-	static char phy_data[128];
 	struct ieee80211_channel *ch = wil->monitor_chandef.chan;
-
-	if (rtap_include_phy_info) {
-		rtap_len = sizeof(*rtap_vendor) + sizeof(*d);
-		/* calculate additional length */
-		if (d->dma.status & RX_DMA_STATUS_PHY_INFO) {
-			/**
-			 * PHY info starts from 8-byte boundary
-			 * there are 8-byte lines, last line may be partially
-			 * written (HW bug), thus FW configures for last line
-			 * to be excessive. Driver skips this last line.
-			 */
-			int len = min_t(int, 8 + sizeof(phy_data),
-					wil_rxdesc_phy_length(d));
-
-			if (len > 8) {
-				void *p = skb_tail_pointer(skb);
-				void *pa = PTR_ALIGN(p, 8);
-
-				if (skb_tailroom(skb) >= len + (pa - p)) {
-					phy_length = len - 8;
-					memcpy(phy_data, pa, phy_length);
-				}
-			}
-		}
-		rtap_len += phy_length;
-	}
 
 	if (skb_headroom(skb) < rtap_len &&
 	    pskb_expand_head(skb, rtap_len, 0, GFP_ATOMIC)) {
@@ -379,40 +338,23 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		return;
 	}
 
-	rtap_vendor = skb_push(skb, rtap_len);
-	memset(rtap_vendor, 0, rtap_len);
+	rtap = skb_push(skb, rtap_len);
+	memset(rtap, 0, rtap_len);
 
-	rtap_vendor->rtap.rthdr.it_version = PKTHDR_RADIOTAP_VERSION;
-	rtap_vendor->rtap.rthdr.it_len = cpu_to_le16(rtap_len);
-	rtap_vendor->rtap.rthdr.it_present = cpu_to_le32(
-			(1 << IEEE80211_RADIOTAP_FLAGS) |
+	rtap->rthdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	rtap->rthdr.it_len = cpu_to_le16(rtap_len);
+	rtap->rthdr.it_present = cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
 			(1 << IEEE80211_RADIOTAP_CHANNEL) |
 			(1 << IEEE80211_RADIOTAP_MCS));
 	if (d->dma.status & RX_DMA_STATUS_ERROR)
-		rtap_vendor->rtap.flags |= IEEE80211_RADIOTAP_F_BADFCS;
+		rtap->flags |= IEEE80211_RADIOTAP_F_BADFCS;
 
-	rtap_vendor->rtap.chnl_freq = cpu_to_le16(ch ? ch->center_freq : 58320);
-	rtap_vendor->rtap.chnl_flags = cpu_to_le16(0);
+	rtap->chnl_freq = cpu_to_le16(ch ? ch->center_freq : 58320);
+	rtap->chnl_flags = cpu_to_le16(0);
 
-	rtap_vendor->rtap.mcs_present = IEEE80211_RADIOTAP_MCS_HAVE_MCS;
-	rtap_vendor->rtap.mcs_flags = 0;
-	rtap_vendor->rtap.mcs_index = wil_rxdesc_mcs(d);
-
-	if (rtap_include_phy_info) {
-		rtap_vendor->rtap.rthdr.it_present |= cpu_to_le32(1 <<
-				IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
-		/* OUI for Wilocity 04:ce:14 */
-		rtap_vendor->vendor_oui[0] = 0x04;
-		rtap_vendor->vendor_oui[1] = 0xce;
-		rtap_vendor->vendor_oui[2] = 0x14;
-		rtap_vendor->vendor_ns = 1;
-		/* Rx descriptor + PHY data  */
-		rtap_vendor->vendor_skip = cpu_to_le16(sizeof(*d) +
-						       phy_length);
-		memcpy(rtap_vendor->vendor_data, (void *)d, sizeof(*d));
-		memcpy(rtap_vendor->vendor_data + sizeof(*d), phy_data,
-		       phy_length);
-	}
+	rtap->mcs_present = IEEE80211_RADIOTAP_MCS_HAVE_MCS;
+	rtap->mcs_flags = 0;
+	rtap->mcs_index = wil_rxdesc_mcs(d);
 }
 
 static bool wil_is_rx_idle(struct wil6210_priv *wil)
