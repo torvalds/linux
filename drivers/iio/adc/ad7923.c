@@ -24,9 +24,9 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define AD7923_WRITE_CR		(1 << 11)	/* write control register */
-#define AD7923_RANGE		(1 << 1)	/* range to REFin */
-#define AD7923_CODING		(1 << 0)	/* coding is straight binary */
+#define AD7923_WRITE_CR		BIT(11)		/* write control register */
+#define AD7923_RANGE		BIT(1)		/* range to REFin */
+#define AD7923_CODING		BIT(0)		/* coding is straight binary */
 #define AD7923_PM_MODE_AS	(1)		/* auto shutdown */
 #define AD7923_PM_MODE_FS	(2)		/* full shutdown */
 #define AD7923_PM_MODE_OPS	(3)		/* normal operation */
