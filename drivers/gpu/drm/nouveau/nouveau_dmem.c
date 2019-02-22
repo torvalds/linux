@@ -621,7 +621,7 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	 */
 	drm->dmem->devmem = hmm_devmem_add(&nouveau_dmem_devmem_ops,
 					   device, size);
-	if (drm->dmem->devmem == NULL) {
+	if (IS_ERR(drm->dmem->devmem)) {
 		kfree(drm->dmem);
 		drm->dmem = NULL;
 		return;
