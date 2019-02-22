@@ -187,7 +187,8 @@ static int hotmod_handler(const char *val, const struct kernel_param *kp)
 	char *str = kstrdup(val, GFP_KERNEL), *curr, *next;
 	int  rv;
 	struct ipmi_plat_data h;
-	unsigned int len, ival;
+	unsigned int len;
+	int ival;
 
 	if (!str)
 		return -ENOMEM;
