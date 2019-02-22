@@ -67,6 +67,8 @@ struct amdgpu_bo_list_entry;
 /* PDE is handled as PTE for VEGA10 */
 #define AMDGPU_PDE_PTE		(1ULL << 54)
 
+#define AMDGPU_PTE_LOG          (1ULL << 55)
+
 /* PTE is handled as PDE for VEGA10 (Translate Further) */
 #define AMDGPU_PTE_TF		(1ULL << 56)
 
