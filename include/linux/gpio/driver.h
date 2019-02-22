@@ -227,9 +227,13 @@ struct gpio_irq_chip {
  * @reg_dat: data (in) register for generic GPIO
  * @reg_set: output set register (out=high) for generic GPIO
  * @reg_clr: output clear register (out=low) for generic GPIO
- * @reg_dir: direction setting register for generic GPIO
+ * @reg_dir_out: direction out setting register for generic GPIO
+ * @reg_dir_in: direction in setting register for generic GPIO
  * @bgpio_dir_inverted: indicates that the direction register is inverted
- *	(gpiolib private state variable)
+ *	(gpiolib private state variable) this means @reg_dir_in is
+ *	available but not @reg_dir_out.
+ * @bgpio_dir_unreadable: indicates that the direction register(s) cannot
+ *	be read and we need to rely on out internal state tracking.
  * @bgpio_bits: number of register bits used for a generic GPIO i.e.
  *	<register width> * 8
  * @bgpio_lock: used to lock chip->bgpio_data. Also, this is needed to keep
@@ -237,7 +241,8 @@ struct gpio_irq_chip {
  * @bgpio_data:	shadowed data register for generic GPIO to clear/set bits
  *	safely.
  * @bgpio_dir: shadowed direction register for generic GPIO to clear/set
- *	direction safely.
+ *	direction safely. A "1" in this word means the line is set as
+ *	output.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -298,8 +303,10 @@ struct gpio_chip {
 	void __iomem *reg_dat;
 	void __iomem *reg_set;
 	void __iomem *reg_clr;
-	void __iomem *reg_dir;
+	void __iomem *reg_dir_out;
+	void __iomem *reg_dir_in;
 	bool bgpio_dir_inverted;
+	bool bgpio_dir_unreadable;
 	int bgpio_bits;
 	spinlock_t bgpio_lock;
 	unsigned long bgpio_data;
