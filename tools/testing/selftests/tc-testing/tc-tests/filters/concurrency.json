@@ -46,5 +46,30 @@
             "$TC qdisc del dev $DEV2 ingress",
             "/bin/rm -rf $BATCH_DIR"
         ]
+    },
+    {
+        "id": "c9da",
+        "name": "Replace 1M flower filters with 10 parallel tc instances",
+        "category": [
+            "filter",
+            "flower",
+            "concurrency"
+        ],
+        "setup": [
+            "/bin/mkdir $BATCH_DIR",
+            "$TC qdisc add dev $DEV2 ingress",
+            "./tdc_multibatch.py $DEV2 $BATCH_DIR 1000000 1 add",
+            "$TC -b $BATCH_DIR/add_0",
+            "./tdc_multibatch.py $DEV2 $BATCH_DIR 100000 10 replace"
+        ],
+        "cmdUnderTest": "find $BATCH_DIR/replace* -print | xargs -n 1 -P 10 $TC -b",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
+        "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
+        "matchCount": "1000000",
+        "teardown": [
+            "$TC qdisc del dev $DEV2 ingress",
+            "/bin/rm -rf $BATCH_DIR"
+        ]
     }
 ]
