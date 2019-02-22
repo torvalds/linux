@@ -221,7 +221,6 @@ next_rule:
 		chain = regs.verdict.chain;
 		goto do_chain;
 	case NFT_CONTINUE:
-		/* fall through */
 	case NFT_RETURN:
 		nft_trace_packet(&info, chain, rule,
 				 NFT_TRACETYPE_RETURN);

@@ -240,7 +240,7 @@ static bool l4proto_in_range(const struct nf_conntrack_tuple *tuple,
 	__be16 port;
 
 	switch (tuple->dst.protonum) {
-	case IPPROTO_ICMP: /* fallthrough */
+	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		return ntohs(tuple->src.u.icmp.id) >= ntohs(min->icmp.id) &&
 		       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
