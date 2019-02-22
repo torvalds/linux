@@ -1151,7 +1151,7 @@ headerdep:
 # Kernel headers
 
 #Default location for installed headers
-export INSTALL_HDR_PATH = $(objtree)/usr
+export INSTALL_HDR_PATH ?= $(objtree)/usr
 
 # If we do an all arch process set dst to include/arch-$(SRCARCH)
 hdr-dst = $(if $(KBUILD_HEADERS), dst=include/arch-$(SRCARCH), dst=include)
