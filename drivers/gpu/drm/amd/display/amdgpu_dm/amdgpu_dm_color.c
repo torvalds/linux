@@ -166,7 +166,7 @@ int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc)
 	 */
 	stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
 	ret = mod_color_calculate_regamma_params(stream->out_transfer_func,
-			gamma, true, adev->asic_type <= CHIP_RAVEN, NULL);
+			gamma, true, adev->asic_type <= CHIP_NAVI10, NULL);
 
 	if (gamma)
 		dc_gamma_release(&gamma);
