@@ -1808,9 +1808,6 @@ class ReportDialogBase(QDialog):
 				vars.where_clause = " AND ( " + vars.where_clause + " ) "
 			else:
 				vars.where_clause = " WHERE " + vars.where_clause + " "
-		else:
-			self.ShowMessage("No selection")
-			return
 		self.accept()
 
 	def ShowMessage(self, msg):
