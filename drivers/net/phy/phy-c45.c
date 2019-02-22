@@ -215,16 +215,9 @@ EXPORT_SYMBOL_GPL(genphy_c45_aneg_done);
  */
 int genphy_c45_read_link(struct phy_device *phydev)
 {
-	u32 mmd_mask = phydev->c45_ids.devices_in_package;
+	u32 mmd_mask = MDIO_DEVS_PMAPMD;
 	int val, devad;
 	bool link = true;
-
-	/* The vendor devads and C22EXT do not report link status. Avoid the
-	 * PHYXS instance as its status may depend on the MAC being
-	 * appropriately configured for the negotiated speed.
-	 */
-	mmd_mask &= ~(MDIO_DEVS_VEND1 | MDIO_DEVS_VEND2 | MDIO_DEVS_C22EXT |
-		      MDIO_DEVS_PHYXS);
 
 	while (mmd_mask && link) {
 		devad = __ffs(mmd_mask);
