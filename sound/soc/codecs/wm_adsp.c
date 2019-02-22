@@ -3253,6 +3253,11 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 	u32 offset = 0;
 	int i, ret;
 
+	buf->regions = kcalloc(caps->num_regions, sizeof(*buf->regions),
+			       GFP_KERNEL);
+	if (!buf->regions)
+		return -ENOMEM;
+
 	for (i = 0; i < caps->num_regions; ++i) {
 		region = &buf->regions[i];
 
@@ -3287,12 +3292,33 @@ static void wm_adsp_buffer_clear(struct wm_adsp_compr_buf *buf)
 	buf->avail = 0;
 }
 
-static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
+static struct wm_adsp_compr_buf *wm_adsp_buffer_alloc(struct wm_adsp *dsp)
+{
+	struct wm_adsp_compr_buf *buf;
+
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->dsp = dsp;
+
+	wm_adsp_buffer_clear(buf);
+
+	dsp->buffer = buf;
+
+	return buf;
+}
+
+static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 {
 	struct wm_adsp_alg_region *alg_region;
-	struct wm_adsp *dsp = buf->dsp;
+	struct wm_adsp_compr_buf *buf;
 	u32 xmalg, addr, magic;
 	int i, ret;
+
+	buf = wm_adsp_buffer_alloc(dsp);
+	if (!buf)
+		return -ENOMEM;
 
 	alg_region = wm_adsp_find_alg_region(dsp, WMFW_ADSP2_XM, dsp->fw_id);
 	xmalg = sizeof(struct wm_adsp_system_config_xm_hdr) / sizeof(__be32);
@@ -3303,7 +3329,7 @@ static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
 		return ret;
 
 	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
-		return -EINVAL;
+		return -ENODEV;
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
 	for (i = 0; i < 5; ++i) {
@@ -3323,49 +3349,27 @@ static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
 
 	buf->host_buf_mem_type = WMFW_ADSP2_XM;
 
-	adsp_dbg(dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
+	ret = wm_adsp_buffer_populate(buf);
+	if (ret < 0)
+		return ret;
+
+	adsp_dbg(dsp, "legacy host_buf_ptr=%x\n", buf->host_buf_ptr);
 
 	return 0;
 }
 
-static struct wm_coeff_ctl *
-wm_adsp_find_host_buffer_ctrl(struct wm_adsp_compr_buf *buf)
+static int wm_adsp_buffer_parse_coeff(struct wm_coeff_ctl *ctl)
 {
-	struct wm_adsp *dsp = buf->dsp;
-	struct wm_coeff_ctl *ctl;
-
-	list_for_each_entry(ctl, &dsp->ctl_list, list) {
-		if (ctl->type != WMFW_CTL_TYPE_HOST_BUFFER)
-			continue;
-
-		if (!ctl->enabled)
-			continue;
-
-		buf->host_buf_mem_type = ctl->alg_region.type;
-		return ctl;
-	}
-
-	return NULL;
-}
-
-static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
-{
-	struct wm_adsp *dsp = buf->dsp;
-	struct wm_coeff_ctl *ctl;
-	unsigned int reg;
-	u32 val;
-	int i, ret;
-
-	ctl = wm_adsp_find_host_buffer_ctrl(buf);
-	if (!ctl)
-		return wm_adsp_legacy_host_buf_addr(buf);
+	struct wm_adsp_compr_buf *buf;
+	unsigned int val, reg;
+	int ret, i;
 
 	ret = wm_coeff_base_reg(ctl, &reg);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < 5; ++i) {
-		ret = regmap_raw_read(dsp->regmap, reg, &val, sizeof(val));
+		ret = regmap_raw_read(ctl->dsp->regmap, reg, &val, sizeof(val));
 		if (ret < 0)
 			return ret;
 
@@ -3375,56 +3379,61 @@ static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
 		usleep_range(1000, 2000);
 	}
 
-	if (!val)
+	if (!val) {
+		adsp_err(ctl->dsp, "Failed to acquire host buffer\n");
 		return -EIO;
+	}
 
+	buf = wm_adsp_buffer_alloc(ctl->dsp);
+	if (!buf)
+		return -ENOMEM;
+
+	buf->host_buf_mem_type = ctl->alg_region.type;
 	buf->host_buf_ptr = be32_to_cpu(val);
-	adsp_dbg(dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
+
+	ret = wm_adsp_buffer_populate(buf);
+	if (ret < 0)
+		return ret;
+
+	adsp_dbg(ctl->dsp, "host_buf_ptr=%x\n", buf->host_buf_ptr);
 
 	return 0;
 }
 
-
 static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 {
-	struct wm_adsp_compr_buf *buf;
+	struct wm_coeff_ctl *ctl;
 	int ret;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	list_for_each_entry(ctl, &dsp->ctl_list, list) {
+		if (ctl->type != WMFW_CTL_TYPE_HOST_BUFFER)
+			continue;
 
-	buf->dsp = dsp;
+		if (!ctl->enabled)
+			continue;
 
-	wm_adsp_buffer_clear(buf);
+		ret = wm_adsp_buffer_parse_coeff(ctl);
+		if (ret < 0) {
+			adsp_err(dsp, "Failed to parse coeff: %d\n", ret);
+			goto error;
+		}
 
-	ret = wm_adsp_buffer_locate(buf);
-	if (ret < 0) {
-		adsp_err(dsp, "Failed to acquire host buffer: %d\n", ret);
-		goto err_buffer;
+		return 0;
 	}
 
-	buf->regions = kcalloc(wm_adsp_fw[dsp->fw].caps->num_regions,
-			       sizeof(*buf->regions), GFP_KERNEL);
-	if (!buf->regions) {
-		ret = -ENOMEM;
-		goto err_buffer;
+	if (!dsp->buffer) {
+		/* Fall back to legacy support */
+		ret = wm_adsp_buffer_parse_legacy(dsp);
+		if (ret) {
+			adsp_err(dsp, "Failed to parse legacy: %d\n", ret);
+			goto error;
+		}
 	}
-
-	ret = wm_adsp_buffer_populate(buf);
-	if (ret < 0) {
-		adsp_err(dsp, "Failed to populate host buffer: %d\n", ret);
-		goto err_regions;
-	}
-
-	dsp->buffer = buf;
 
 	return 0;
 
-err_regions:
-	kfree(buf->regions);
-err_buffer:
-	kfree(buf);
+error:
+	wm_adsp_buffer_free(dsp);
 	return ret;
 }
 
