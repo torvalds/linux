@@ -361,7 +361,7 @@ xfs_reflink_allocate_cow(
 	struct xfs_bmbt_irec	*imap,
 	bool			*shared,
 	uint			*lockmode,
-	unsigned		iomap_flags)
+	bool			convert_now)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = imap->br_startoff;
@@ -444,7 +444,7 @@ convert:
 	 * to initiate a disk write.  For direct I/O we are going to write the
 	 * data and need the conversion, but for buffered writes we're done.
 	 */
-	if (!(iomap_flags & IOMAP_DIRECT) || imap->br_state == XFS_EXT_NORM)
+	if (!convert_now || imap->br_state == XFS_EXT_NORM)
 		return 0;
 	trace_xfs_reflink_convert_cow(ip, imap);
 	return xfs_reflink_convert_cow_locked(ip, offset_fsb, count_fsb);

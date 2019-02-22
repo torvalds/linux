@@ -27,7 +27,7 @@ bool xfs_inode_need_cow(struct xfs_inode *ip, struct xfs_bmbt_irec *imap,
 
 extern int xfs_reflink_allocate_cow(struct xfs_inode *ip,
 		struct xfs_bmbt_irec *imap, bool *shared, uint *lockmode,
-		unsigned iomap_flags);
+		bool convert_now);
 extern int xfs_reflink_convert_cow(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t count);
 
