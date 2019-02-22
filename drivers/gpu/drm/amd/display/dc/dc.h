@@ -109,8 +109,18 @@ struct dc_caps {
 	bool force_dp_tps4_for_cp2520;
 	bool disable_dp_clk_share;
 	bool psp_setup_panel_mode;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	bool hw_3d_lut;
+#endif
 	struct dc_plane_cap planes[MAX_PLANES];
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dc_bug_wa {
+	bool no_connect_phy_config;
+	bool dedcn20_305_wa;
+};
+#endif
 
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
@@ -361,6 +371,41 @@ struct dc_debug_data {
 	uint32_t auxErrorCount;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+struct dc_phy_addr_space_config {
+	struct {
+		uint64_t start_addr;
+		uint64_t end_addr;
+		uint64_t fb_top;
+		uint64_t fb_offset;
+		uint64_t fb_base;
+		uint64_t agp_top;
+		uint64_t agp_bot;
+		uint64_t agp_base;
+	} system_aperture;
+
+	struct {
+		uint64_t page_table_start_addr;
+		uint64_t page_table_end_addr;
+		uint64_t page_table_base_addr;
+	} gart_config;
+};
+
+struct dc_virtual_addr_space_config {
+	uint64_t	page_table_start_addr;
+	uint64_t	page_table_end_addr;
+	uint32_t	page_table_block_size_in_bytes;
+	uint8_t		page_table_depth; // 1 = 1 level, 2 = 2 level, etc.  0 = invalid
+};
+
+struct dc_addr_space_config {
+	struct dc_phy_addr_space_config		pa_config;
+	struct dc_virtual_addr_space_config	va_config;
+	uint32_t	valid:1;
+};
+
+#endif
+
 struct dc_bounding_box_overrides {
 	int sr_exit_time_ns;
 	int sr_enter_plus_exit_time_ns;
@@ -381,7 +426,13 @@ struct dc {
 	struct dc_config config;
 	struct dc_debug_options debug;
 	struct dc_bounding_box_overrides bb_overrides;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct dc_bug_wa work_arounds;
+#endif
 	struct dc_context *ctx;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	struct dc_addr_space_config vm_config;
+#endif
 
 	uint8_t link_count;
 	struct dc_link *links[MAX_PIPES * 2];
@@ -419,6 +470,10 @@ struct dc {
 	struct dc_debug_data debug_data;
 
 	const char *build_id;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	struct vm_helper *vm_helper;
+	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+#endif
 };
 
 enum frame_buffer_mode {
@@ -452,7 +507,6 @@ struct dc_init_data {
 
 	struct dc_config flags;
 	uint32_t log_mask;
-
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	/**
 	 * gpu_info FW provided soc bounding box struct or 0 if not
@@ -467,6 +521,9 @@ struct dc_callback_init {
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+bool dc_init_memory_hub(struct dc *dc, struct dc_addr_space_config *config);
+#endif
 void dc_init_callbacks(struct dc *dc,
 		const struct dc_callback_init *init_params);
 void dc_destroy(struct dc **dc);
@@ -538,6 +595,17 @@ struct dc_transfer_func {
 	};
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
+
+struct dc_3dlut {
+	struct kref refcount;
+	struct tetrahedral_params lut_3d;
+	uint32_t hdr_multiplier;
+	bool initialized;
+	struct dc_context *ctx;
+};
+#endif
 /*
  * This structure is filled in by dc_surface_get_status and contains
  * the last requested address and the currently active address so the called
@@ -588,6 +656,9 @@ union surface_update_flags {
 struct dc_plane_state {
 	struct dc_plane_address address;
 	struct dc_plane_flip_time time;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	bool triplebuffer_flips;
+#endif
 	struct scaling_taps scaling_quality;
 	struct rect src_rect;
 	struct rect dst_rect;
@@ -609,6 +680,12 @@ struct dc_plane_state {
 	struct dc_hdr_static_metadata hdr_static_ctx;
 
 	enum dc_color_space color_space;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct dc_3dlut *lut3d_func;
+	struct dc_transfer_func *in_shaper_func;
+	struct dc_transfer_func *blend_tf;
+#endif
 
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
@@ -675,6 +752,10 @@ struct dc_surface_update {
 
 	const struct dc_csc_transform *input_csc_color_matrix;
 	const struct fixed31_32 *coeff_reduction_factor;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	const struct dc_transfer_func *func_shaper;
+	const struct dc_3dlut *lut3d_func;
+#endif
 };
 
 /*
@@ -695,6 +776,11 @@ void dc_transfer_func_retain(struct dc_transfer_func *dc_tf);
 void dc_transfer_func_release(struct dc_transfer_func *dc_tf);
 struct dc_transfer_func *dc_create_transfer_func(void);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dc_3dlut *dc_create_3dlut_func(void);
+void dc_3dlut_func_release(struct dc_3dlut *lut);
+void dc_3dlut_func_retain(struct dc_3dlut *lut);
+#endif
 /*
  * This structure holds a surface address.  There could be multiple addresses
  * in cases such as Stereo 3D, Planar YUV, etc.  Other per-flip attributes such
@@ -841,6 +927,7 @@ struct dc_sink {
 	void *priv;
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
+
 
 	/* private to DC core */
 	struct dc_link *link;

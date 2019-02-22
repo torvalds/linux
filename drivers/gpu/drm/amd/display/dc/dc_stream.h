@@ -51,6 +51,52 @@ struct freesync_context {
 	bool dummy;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+enum hubp_dmdata_mode {
+	DMDATA_SW_MODE,
+	DMDATA_HW_MODE
+};
+
+struct dc_dmdata_attributes {
+	/* Specifies whether dynamic meta data will be updated by software
+	 * or has to be fetched by hardware (DMA mode)
+	 */
+	enum hubp_dmdata_mode dmdata_mode;
+	/* Specifies if current dynamic meta data is to be used only for the current frame */
+	bool dmdata_repeat;
+	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means no Dynamic metadata is fetched */
+	uint32_t dmdata_size;
+	/* Specifies if a new dynamic meta data should be fetched for an upcoming frame */
+	bool dmdata_updated;
+	/* If hardware mode is used, the base address where DMDATA surface is located */
+	PHYSICAL_ADDRESS_LOC address;
+	/* Specifies whether QOS level will be provided by TTU or it will come from DMDATA_QOS_LEVEL */
+	bool dmdata_qos_mode;
+	/* If qos_mode = 1, this is the QOS value to be used: */
+	uint32_t dmdata_qos_level;
+	/* Specifies the value in unit of REFCLK cycles to be added to the
+	 * current time to produce the Amortized deadline for Dynamic Metadata chunk request
+	 */
+	uint32_t dmdata_dl_delta;
+	/* An unbounded array of uint32s, represents software dmdata to be loaded */
+	uint32_t *dmdata_sw_data;
+};
+#endif
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dc_writeback_info {
+	bool wb_enabled;
+	int dwb_pipe_inst;
+	struct dc_dwb_params dwb_params;
+	struct mcif_buf_params mcif_buf_params;
+};
+
+struct dc_writeback_update {
+	unsigned int num_wb_info;
+	struct dc_writeback_info writeback_info[MAX_DWB_PIPES];
+};
+#endif
+
 enum vertical_interrupt_ref_point {
 	START_V_UPDATE = 0,
 	START_V_SYNC,
@@ -142,6 +188,11 @@ struct dc_stream_state {
 
 	struct crtc_trigger_info triggered_crtc_reset;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* writeback */
+	unsigned int num_wb_info;
+	struct dc_writeback_info writeback_info[MAX_DWB_PIPES];
+#endif
 	/* Computed state bits */
 	bool mode_changed : 1;
 
@@ -184,6 +235,9 @@ struct dc_stream_update {
 
 	struct dc_csc_transform *output_csc_transform;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct dc_writeback_update *wb_update;
+#endif
 };
 
 bool dc_is_stream_unchanged(
@@ -272,6 +326,19 @@ bool dc_add_all_planes_for_stream(
 		struct dc_plane_state * const *plane_states,
 		int plane_count,
 		struct dc_state *context);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+bool dc_stream_add_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_writeback_info *wb_info);
+bool dc_stream_remove_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t dwb_pipe_inst);
+bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream);
+bool dc_stream_set_dynamic_metadata(struct dc *dc,
+		struct dc_stream_state *stream,
+		struct dc_dmdata_attributes *dmdata_attr);
+#endif
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 

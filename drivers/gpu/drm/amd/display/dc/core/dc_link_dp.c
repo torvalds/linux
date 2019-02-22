@@ -4,6 +4,9 @@
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
 #include "opp.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "resource.h"
+#endif
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
@@ -2547,6 +2550,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		dp_hw_fw_revision.ieee_fw_rev,
 		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
+
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
 
@@ -2674,6 +2678,14 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		stream->timing.display_color_depth;
 	struct bit_depth_reduction_params params;
 	struct output_pixel_processor *opp = pipe_ctx->stream_res.opp;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	int width = pipe_ctx->stream->timing.h_addressable +
+		pipe_ctx->stream->timing.h_border_left +
+		pipe_ctx->stream->timing.h_border_right;
+	int height = pipe_ctx->stream->timing.v_addressable +
+		pipe_ctx->stream->timing.v_border_bottom +
+		pipe_ctx->stream->timing.v_border_top;
+#endif
 
 	memset(&params, 0, sizeof(params));
 
@@ -2717,6 +2729,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		else if (opp->funcs->opp_set_disp_pattern_generator) {
+			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+			if (bot_odm_pipe) {
+				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+
+				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
+				width /= 2;
+				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+					controller_test_pattern,
+					color_depth,
+					NULL,
+					width,
+					height);
+			}
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				controller_test_pattern,
+				color_depth,
+				NULL,
+				width,
+				height);
+		}
+#endif
 	}
 	break;
 	case DP_TEST_PATTERN_VIDEO_MODE:
@@ -2729,6 +2765,30 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		else if (opp->funcs->opp_set_disp_pattern_generator) {
+			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+			if (bot_odm_pipe) {
+				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+
+				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
+				width /= 2;
+				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+					color_depth,
+					NULL,
+					width,
+					height);
+			}
+			opp->funcs->opp_set_disp_pattern_generator(opp,
+				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+				color_depth,
+				NULL,
+				width,
+				height);
+		}
+#endif
 	}
 	break;
 
@@ -2903,3 +2963,5 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable)
 
 	core_link_write_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
 }
+
+
