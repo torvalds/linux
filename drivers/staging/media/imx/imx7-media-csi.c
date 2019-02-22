@@ -1051,7 +1051,9 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 		goto out_unlock;
 	}
 
-	imx7_csi_try_fmt(csi, cfg, sdformat, &cc);
+	ret = imx7_csi_try_fmt(csi, cfg, sdformat, &cc);
+	if (ret < 0)
+		goto out_unlock;
 
 	fmt = imx7_csi_get_format(csi, cfg, sdformat->pad, sdformat->which);
 	if (!fmt) {
