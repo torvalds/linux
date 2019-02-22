@@ -454,6 +454,39 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(genphy_c45_pma_read_abilities);
 
+/**
+ * genphy_c45_read_status - read PHY status
+ * @phydev: target phy_device struct
+ *
+ * Reads status from PHY and sets phy_device members accordingly.
+ */
+int genphy_c45_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = genphy_c45_read_link(phydev);
+	if (ret)
+		return ret;
+
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		ret = genphy_c45_read_lpa(phydev);
+		if (ret)
+			return ret;
+
+		phy_resolve_aneg_linkmode(phydev);
+	} else {
+		ret = genphy_c45_read_pma(phydev);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_read_status);
+
 /* The gen10g_* functions are the old Clause 45 stub */
 
 int gen10g_config_aneg(struct phy_device *phydev)
