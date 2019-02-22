@@ -205,4 +205,15 @@ config MTK_CMDQ_MBOX
 	  mailbox driver. The CMDQ is used to help read/write registers with
 	  critical time limitation, such as updating display configuration
 	  during the vblank.
+
+config ZYNQMP_IPI_MBOX
+	bool "Xilinx ZynqMP IPI Mailbox"
+	depends on ARCH_ZYNQMP && OF
+	help
+	  Say yes here to add support for Xilinx IPI mailbox driver.
+	  This mailbox driver is used to send notification or short message
+	  between processors with Xilinx ZynqMP IPI. It will place the
+	  message to the IPI buffer and will access the IPI control
+	  registers to kick the other processor or enquire status.
+
 endif
