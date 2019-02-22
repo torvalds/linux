@@ -4061,6 +4061,24 @@ MLXSW_ITEM32(reg, ptys, ib_link_width_oper, 0x28, 16, 16);
  */
 MLXSW_ITEM32(reg, ptys, ib_proto_oper, 0x28, 0, 16);
 
+enum mlxsw_reg_ptys_connector_type {
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKNOWN_OR_NO_CONNECTOR,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_NONE,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_TP,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_AUI,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_BNC,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_MII,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_FIBRE,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_DA,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_OTHER,
+};
+
+/* reg_ptys_connector_type
+ * Connector type indication.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptys, connector_type, 0x2C, 0, 4);
+
 static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
 					   u32 proto_admin, bool autoneg)
 {

@@ -2525,28 +2525,6 @@ out:
 	cmd->base.duplex = duplex;
 }
 
-static u8 mlxsw_sp_port_connector_port(u32 ptys_eth_proto)
-{
-	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_SR |
-			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_SR4 |
-			      MLXSW_REG_PTYS_ETH_SPEED_100GBASE_SR4 |
-			      MLXSW_REG_PTYS_ETH_SPEED_SGMII))
-		return PORT_FIBRE;
-
-	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CR |
-			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_CR4 |
-			      MLXSW_REG_PTYS_ETH_SPEED_100GBASE_CR4))
-		return PORT_DA;
-
-	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KR |
-			      MLXSW_REG_PTYS_ETH_SPEED_10GBASE_KX4 |
-			      MLXSW_REG_PTYS_ETH_SPEED_40GBASE_KR4 |
-			      MLXSW_REG_PTYS_ETH_SPEED_100GBASE_KR4))
-		return PORT_NONE;
-
-	return PORT_OTHER;
-}
-
 static u32
 mlxsw_sp_to_ptys_advert_link(const struct ethtool_link_ksettings *cmd)
 {
@@ -2606,6 +2584,34 @@ static void mlxsw_sp_port_get_link_advertise(u32 eth_proto_admin, bool autoneg,
 	mlxsw_sp_from_ptys_link(eth_proto_admin, cmd->link_modes.advertising);
 }
 
+static u8
+mlxsw_sp_port_connector_port(enum mlxsw_reg_ptys_connector_type connector_type)
+{
+	switch (connector_type) {
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKNOWN_OR_NO_CONNECTOR:
+		return PORT_OTHER;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_NONE:
+		return PORT_NONE;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_TP:
+		return PORT_TP;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_AUI:
+		return PORT_AUI;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_BNC:
+		return PORT_BNC;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_MII:
+		return PORT_MII;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_FIBRE:
+		return PORT_FIBRE;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_DA:
+		return PORT_DA;
+	case MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_OTHER:
+		return PORT_OTHER;
+	default:
+		WARN_ON_ONCE(1);
+		return PORT_OTHER;
+	}
+}
+
 static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					    struct ethtool_link_ksettings *cmd)
 {
@@ -2613,6 +2619,7 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
+	u8 connector_type;
 	u8 autoneg_status;
 	bool autoneg;
 	int err;
@@ -2632,7 +2639,8 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	autoneg_status = mlxsw_reg_ptys_an_status_get(ptys_pl);
 
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
-	cmd->base.port = mlxsw_sp_port_connector_port(eth_proto_oper);
+	connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
+	cmd->base.port = mlxsw_sp_port_connector_port(connector_type);
 	mlxsw_sp_from_ptys_speed_duplex(netif_carrier_ok(dev), eth_proto_oper,
 					cmd);
 
