@@ -31,6 +31,7 @@ generic-y += limits.h
 generic-y += local.h
 generic-y += local64.h
 generic-y += mm-arch-hooks.h
+generic-y += mmiowb.h
 generic-y += parport.h
 generic-y += pci.h
 generic-y += percpu.h
