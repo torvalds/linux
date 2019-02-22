@@ -2658,8 +2658,8 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
-	pos_cpy.x -= pipe_ctx->plane_state->dst_rect.x;
-	pos_cpy.y -= pipe_ctx->plane_state->dst_rect.y;
+	pos_cpy.x_hotspot += pipe_ctx->plane_state->dst_rect.x;
+	pos_cpy.y_hotspot += pipe_ctx->plane_state->dst_rect.y;
 
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
