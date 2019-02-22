@@ -3456,7 +3456,7 @@ static int vega20_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 	disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
                            !hwmgr->display_config->multi_monitor_in_sync) ||
                             vblank_too_short;
-    latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
+	latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
 
 	/* gfxclk */
 	dpm_table = &(data->dpm_table.gfx_table);

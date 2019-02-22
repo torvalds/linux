@@ -3790,7 +3790,6 @@ static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
  * check will succeed, and let DC implement proper check
  */
 static const uint32_t rgb_formats[] = {
-	DRM_FORMAT_RGB888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGBA8888,
@@ -4678,10 +4677,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
-		if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-			handle_cursor_update(plane, old_plane_state);
+		/* Cursor plane is handled after stream updates */
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
 			continue;
-		}
 
 		if (!fb || !crtc || pcrtc != crtc)
 			continue;
@@ -4712,14 +4710,21 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 */
 			abo = gem_to_amdgpu_bo(fb->obj[0]);
 			r = amdgpu_bo_reserve(abo, true);
-			if (unlikely(r != 0)) {
+			if (unlikely(r != 0))
 				DRM_ERROR("failed to reserve buffer before flip\n");
-				WARN_ON(1);
-			}
 
-			/* Wait for all fences on this FB */
-			WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
-										    MAX_SCHEDULE_TIMEOUT) < 0);
+			/*
+			 * Wait for all fences on this FB. Do limited wait to avoid
+			 * deadlock during GPU reset when this fence will not signal
+			 * but we hold reservation lock for the BO.
+			 */
+			r = reservation_object_wait_timeout_rcu(abo->tbo.resv,
+								true, false,
+								msecs_to_jiffies(5000));
+			if (unlikely(r == 0))
+				DRM_ERROR("Waiting for fences timed out.");
+
+
 
 			amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
@@ -4873,6 +4878,10 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
+
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			handle_cursor_update(plane, old_plane_state);
 
 cleanup:
 	kfree(flip);
@@ -5799,14 +5808,13 @@ dm_determine_update_type_for_commit(struct dc *dc,
 		old_dm_crtc_state = to_dm_crtc_state(old_crtc_state);
 		num_plane = 0;
 
-		if (!new_dm_crtc_state->stream) {
-			if (!new_dm_crtc_state->stream && old_dm_crtc_state->stream) {
-				update_type = UPDATE_TYPE_FULL;
-				goto cleanup;
-			}
-
-			continue;
+		if (new_dm_crtc_state->stream != old_dm_crtc_state->stream) {
+			update_type = UPDATE_TYPE_FULL;
+			goto cleanup;
 		}
+
+		if (!new_dm_crtc_state->stream)
+			continue;
 
 		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, j) {
 			new_plane_crtc = new_plane_state->crtc;
@@ -5816,6 +5824,11 @@ dm_determine_update_type_for_commit(struct dc *dc,
 
 			if (plane->type == DRM_PLANE_TYPE_CURSOR)
 				continue;
+
+			if (new_dm_plane_state->dc_state != old_dm_plane_state->dc_state) {
+				update_type = UPDATE_TYPE_FULL;
+				goto cleanup;
+			}
 
 			if (!state->allow_modeset)
 				continue;
@@ -5953,6 +5966,42 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			goto fail;
+	}
+
+	/*
+	 * Add all primary and overlay planes on the CRTC to the state
+	 * whenever a plane is enabled to maintain correct z-ordering
+	 * and to enable fast surface updates.
+	 */
+	drm_for_each_crtc(crtc, dev) {
+		bool modified = false;
+
+		for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
+
+			if (new_plane_state->crtc == crtc ||
+			    old_plane_state->crtc == crtc) {
+				modified = true;
+				break;
+			}
+		}
+
+		if (!modified)
+			continue;
+
+		drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+			if (plane->type == DRM_PLANE_TYPE_CURSOR)
+				continue;
+
+			new_plane_state =
+				drm_atomic_get_plane_state(state, plane);
+
+			if (IS_ERR(new_plane_state)) {
+				ret = PTR_ERR(new_plane_state);
+				goto fail;
+			}
+		}
 	}
 
 	/* Remove exiting planes if they are modified */

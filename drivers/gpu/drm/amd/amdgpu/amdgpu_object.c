@@ -1285,6 +1285,30 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 }
 
 /**
+ * amdgpu_sync_wait_resv - Wait for BO reservation fences
+ *
+ * @bo: buffer object
+ * @owner: fence owner
+ * @intr: Whether the wait is interruptible
+ *
+ * Returns:
+ * 0 on success, errno otherwise.
+ */
+int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr)
+{
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	struct amdgpu_sync sync;
+	int r;
+
+	amdgpu_sync_create(&sync);
+	amdgpu_sync_resv(adev, &sync, bo->tbo.resv, owner, false);
+	r = amdgpu_sync_wait(&sync, intr);
+	amdgpu_sync_free(&sync);
+
+	return r;
+}
+
+/**
  * amdgpu_bo_gpu_offset - return GPU offset of bo
  * @bo:	amdgpu object for which we query the offset
  *

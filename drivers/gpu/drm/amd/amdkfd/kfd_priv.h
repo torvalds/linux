@@ -97,17 +97,29 @@
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
 
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
+
+#define KFD_KERNEL_QUEUE_SIZE 2048
+
+/*
+ * 512 = 0x200
+ * The doorbell index distance between SDMA RLC (2*i) and (2*i+1) in the
+ * same SDMA engine on SOC15, which has 8-byte doorbells for SDMA.
+ * 512 8-byte doorbell distance (i.e. one page away) ensures that SDMA RLC
+ * (2*i+1) doorbells (in terms of the lower 12 bit address) lie exactly in
+ * the OFFSET and SIZE set in registers like BIF_SDMA0_DOORBELL_RANGE.
+ */
+#define KFD_QUEUE_DOORBELL_MIRROR_OFFSET 512
+
+
 /*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
  */
 extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
-	(KFD_MAX_NUM_OF_PROCESSES *			\
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
-
-#define KFD_KERNEL_QUEUE_SIZE 2048
 
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;

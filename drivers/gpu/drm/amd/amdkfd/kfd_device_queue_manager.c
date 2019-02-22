@@ -134,12 +134,18 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 		 */
 		q->doorbell_id = q->properties.queue_id;
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		/* For SDMA queues on SOC15, use static doorbell
-		 * assignments based on the engine and queue.
+		/* For SDMA queues on SOC15 with 8-byte doorbell, use static
+		 * doorbell assignments based on the engine and queue id.
+		 * The doobell index distance between RLC (2*i) and (2*i+1)
+		 * for a SDMA engine is 512.
 		 */
-		q->doorbell_id = dev->shared_resources.sdma_doorbell
-			[q->properties.sdma_engine_id]
-			[q->properties.sdma_queue_id];
+		uint32_t *idx_offset =
+				dev->shared_resources.sdma_doorbell_idx;
+
+		q->doorbell_id = idx_offset[q->properties.sdma_engine_id]
+			+ (q->properties.sdma_queue_id & 1)
+			* KFD_QUEUE_DOORBELL_MIRROR_OFFSET
+			+ (q->properties.sdma_queue_id >> 1);
 	} else {
 		/* For CP queues on SOC15 reserve a free doorbell ID */
 		unsigned int found;
