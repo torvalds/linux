@@ -295,6 +295,17 @@ static ssize_t target_node_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(target_node);
 
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	/*
+	 * We only ever expect to handle device-dax instances, i.e. the
+	 * @type argument to MODULE_ALIAS_DAX_DEVICE() is always zero
+	 */
+	return sprintf(buf, DAX_DEVICE_MODALIAS_FMT "\n", 0);
+}
+static DEVICE_ATTR_RO(modalias);
+
 static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -306,6 +317,7 @@ static umode_t dev_dax_visible(struct kobject *kobj, struct attribute *a, int n)
 }
 
 static struct attribute *dev_dax_attributes[] = {
+	&dev_attr_modalias.attr,
 	&dev_attr_size.attr,
 	&dev_attr_target_node.attr,
 	NULL,
