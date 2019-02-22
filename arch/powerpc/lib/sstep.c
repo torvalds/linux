@@ -1704,7 +1704,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 				(int) regs->gpr[rb];
 
 			goto arith_done;
-
+#ifdef __powerpc64__
+		case 265:	/* modud */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			op->val = regs->gpr[ra] % regs->gpr[rb];
+			goto compute_done;
+#endif
 		case 266:	/* add */
 			op->val = regs->gpr[ra] + regs->gpr[rb];
 			goto arith_done;
@@ -1756,7 +1762,14 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			}
 
 			return -1;
-
+#ifdef __powerpc64__
+		case 777:	/* modsd */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			op->val = (long int) regs->gpr[ra] %
+				(long int) regs->gpr[rb];
+			goto compute_done;
+#endif
 		case 779:	/* modsw */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300))
 				return -1;
