@@ -1898,7 +1898,7 @@ static inline void cas_tx_ringN(struct cas *cp, int ring, int limit)
 		cp->net_stats[ring].tx_packets++;
 		cp->net_stats[ring].tx_bytes += skb->len;
 		spin_unlock(&cp->stat_lock[ring]);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 	cp->tx_old[ring] = entry;
 

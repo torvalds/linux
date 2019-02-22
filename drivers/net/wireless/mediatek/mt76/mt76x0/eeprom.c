@@ -212,24 +212,24 @@ void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev)
 	mt76x02_add_rate_power_offset(t, delta);
 }
 
-void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
+void mt76x0_get_power_info(struct mt76x02_dev *dev, s8 *tp)
 {
 	struct mt76x0_chan_map {
 		u8 chan;
 		u8 offset;
 	} chan_map[] = {
-		{   2,  0 }, {   4,  1 }, {   6,  2 }, {   8,  3 },
-		{  10,  4 }, {  12,  5 }, {  14,  6 }, {  38,  0 },
-		{  44,  1 }, {  48,  2 }, {  54,  3 }, {  60,  4 },
-		{  64,  5 }, { 102,  6 }, { 108,  7 }, { 112,  8 },
-		{ 118,  9 }, { 124, 10 }, { 128, 11 }, { 134, 12 },
-		{ 140, 13 }, { 151, 14 }, { 157, 15 }, { 161, 16 },
-		{ 167, 17 }, { 171, 18 }, { 173, 19 },
+		{   2,  0 }, {   4,  2 }, {   6,  4 }, {   8,  6 },
+		{  10,  8 }, {  12, 10 }, {  14, 12 }, {  38,  0 },
+		{  44,  2 }, {  48,  4 }, {  54,  6 }, {  60,  8 },
+		{  64, 10 }, { 102, 12 }, { 108, 14 }, { 112, 16 },
+		{ 118, 18 }, { 124, 20 }, { 128, 22 }, { 134, 24 },
+		{ 140, 26 }, { 151, 28 }, { 157, 30 }, { 161, 32 },
+		{ 167, 34 }, { 171, 36 }, { 175, 38 },
 	};
 	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 	u8 offset, addr;
+	int i, idx = 0;
 	u16 data;
-	int i;
 
 	if (mt76x0_tssi_enabled(dev)) {
 		s8 target_power;
@@ -239,14 +239,14 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
 		else
 			data = mt76x02_eeprom_get(dev, MT_EE_2G_TARGET_POWER);
 		target_power = (data & 0xff) - dev->mt76.rate_power.ofdm[7];
-		info[0] = target_power + mt76x0_get_delta(dev);
-		info[1] = 0;
+		*tp = target_power + mt76x0_get_delta(dev);
 
 		return;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(chan_map); i++) {
-		if (chan_map[i].chan <= chan->hw_value) {
+		if (chan->hw_value <= chan_map[i].chan) {
+			idx = (chan->hw_value == chan_map[i].chan);
 			offset = chan_map[i].offset;
 			break;
 		}
@@ -258,13 +258,16 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
 		addr = MT_EE_TX_POWER_DELTA_BW80 + offset;
 	} else {
 		switch (chan->hw_value) {
+		case 42:
+			offset = 2;
+			break;
 		case 58:
 			offset = 8;
 			break;
 		case 106:
 			offset = 14;
 			break;
-		case 112:
+		case 122:
 			offset = 20;
 			break;
 		case 155:
@@ -277,14 +280,9 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info)
 	}
 
 	data = mt76x02_eeprom_get(dev, addr);
-
-	info[0] = data;
-	if (!info[0] || info[0] > 0x3f)
-		info[0] = 5;
-
-	info[1] = data >> 8;
-	if (!info[1] || info[1] > 0x3f)
-		info[1] = 5;
+	*tp = data >> (8 * idx);
+	if (*tp < 0 || *tp > 0x3f)
+		*tp = 5;
 }
 
 static int mt76x0_check_eeprom(struct mt76x02_dev *dev)

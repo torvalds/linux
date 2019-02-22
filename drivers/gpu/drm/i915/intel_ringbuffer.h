@@ -415,16 +415,17 @@ struct intel_engine_cs {
 		/**
 		 * @enable_count: Reference count for the enabled samplers.
 		 *
-		 * Index number corresponds to the bit number from @enable.
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-		unsigned int enable_count[I915_PMU_SAMPLE_BITS];
+		unsigned int enable_count[I915_ENGINE_SAMPLE_COUNT];
 		/**
 		 * @sample: Counter values for sampling events.
 		 *
 		 * Our internal timer stores the current counters in this field.
+		 *
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-#define I915_ENGINE_SAMPLE_MAX (I915_SAMPLE_SEMA + 1)
-		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_MAX];
+		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_COUNT];
 	} pmu;
 
 	/*

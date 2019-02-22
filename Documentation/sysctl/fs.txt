@@ -80,7 +80,9 @@ nonzero when shrink_dcache_pages() has been called and the
 dcache isn't pruned yet.
 
 nr_negative shows the number of unused dentries that are also
-negative dentries which do not mapped to actual files.
+negative dentries which do not map to any files. Instead,
+they help speeding up rejection of non-existing files provided
+by the users.
 
 ==============================================================
 

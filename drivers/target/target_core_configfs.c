@@ -852,6 +852,12 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 	return count;
 }
 
+/* always zero, but attr needs to remain RW to avoid userspace breakage */
+static ssize_t pi_prot_format_show(struct config_item *item, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "0\n");
+}
+
 static ssize_t pi_prot_format_store(struct config_item *item,
 		const char *page, size_t count)
 {
@@ -1132,7 +1138,7 @@ CONFIGFS_ATTR(, emulate_3pc);
 CONFIGFS_ATTR(, emulate_pr);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
-CONFIGFS_ATTR_WO(, pi_prot_format);
+CONFIGFS_ATTR(, pi_prot_format);
 CONFIGFS_ATTR(, pi_prot_verify);
 CONFIGFS_ATTR(, enforce_pr_isids);
 CONFIGFS_ATTR(, is_nonrot);
