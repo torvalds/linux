@@ -3,7 +3,6 @@
 
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
-#include <net/switchdev.h>
 
 #include "nfpcore/nfp_cpp.h"
 #include "nfpcore/nfp_nsp.h"
