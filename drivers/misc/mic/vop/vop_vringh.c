@@ -80,7 +80,7 @@ static void vop_virtio_init_post(struct vop_vdev *vdev)
 			continue;
 		}
 		vdev->vvr[i].vrh.vring.used =
-			(void __force *)vpdev->hw_ops->ioremap(
+			(void __force *)vpdev->hw_ops->remap(
 			vpdev,
 			le64_to_cpu(vqconfig[i].used_address),
 			used_size);
@@ -528,7 +528,7 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 				   int vr_idx)
 {
 	struct vop_device *vpdev = vdev->vpdev;
-	void __iomem *dbuf = vpdev->hw_ops->ioremap(vpdev, daddr, len);
+	void __iomem *dbuf = vpdev->hw_ops->remap(vpdev, daddr, len);
 	struct vop_vringh *vvr = &vdev->vvr[vr_idx];
 	struct vop_info *vi = dev_get_drvdata(&vpdev->dev);
 	size_t dma_alignment;
@@ -588,7 +588,7 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 	}
 	err = 0;
 err:
-	vpdev->hw_ops->iounmap(vpdev, dbuf);
+	vpdev->hw_ops->unmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
 		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);
@@ -606,7 +606,7 @@ static int vop_virtio_copy_from_user(struct vop_vdev *vdev, void __user *ubuf,
 				     int vr_idx)
 {
 	struct vop_device *vpdev = vdev->vpdev;
-	void __iomem *dbuf = vpdev->hw_ops->ioremap(vpdev, daddr, len);
+	void __iomem *dbuf = vpdev->hw_ops->remap(vpdev, daddr, len);
 	struct vop_vringh *vvr = &vdev->vvr[vr_idx];
 	struct vop_info *vi = dev_get_drvdata(&vdev->vpdev->dev);
 	size_t dma_alignment;
@@ -676,7 +676,7 @@ memcpy:
 	vdev->out_bytes += len;
 	err = 0;
 err:
-	vpdev->hw_ops->iounmap(vpdev, dbuf);
+	vpdev->hw_ops->unmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
 		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);

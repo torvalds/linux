@@ -270,7 +270,7 @@ static void vop_del_vq(struct virtqueue *vq, int n)
 	free_pages((unsigned long)vdev->used_virt[n],
 		   get_order(vdev->used_size[n]));
 	vring_del_virtqueue(vq);
-	vpdev->hw_ops->iounmap(vpdev, vdev->vr[n]);
+	vpdev->hw_ops->unmap(vpdev, vdev->vr[n]);
 	vdev->vr[n] = NULL;
 }
 
@@ -338,8 +338,7 @@ static struct virtqueue *vop_find_vq(struct virtio_device *dev,
 	memcpy_fromio(&config, vqconfig, sizeof(config));
 	_vr_size = vring_size(le16_to_cpu(config.num), MIC_VIRTIO_RING_ALIGN);
 	vr_size = PAGE_ALIGN(_vr_size + sizeof(struct _mic_vring_info));
-	va = vpdev->hw_ops->ioremap(vpdev, le64_to_cpu(config.address),
-			vr_size);
+	va = vpdev->hw_ops->remap(vpdev, le64_to_cpu(config.address), vr_size);
 	if (!va)
 		return ERR_PTR(-ENOMEM);
 	vdev->vr[index] = va;
@@ -393,7 +392,7 @@ free_used:
 	free_pages((unsigned long)used,
 		   get_order(vdev->used_size[index]));
 unmap:
-	vpdev->hw_ops->iounmap(vpdev, vdev->vr[index]);
+	vpdev->hw_ops->unmap(vpdev, vdev->vr[index]);
 	return ERR_PTR(err);
 }
 
