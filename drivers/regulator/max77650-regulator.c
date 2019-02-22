@@ -243,7 +243,7 @@ static int max77650_regulator_set_current_limit(struct regulator_dev *rdev,
 {
 	struct max77650_regulator_desc *rdesc;
 	struct regmap *map;
-	int rv, i, limit;
+	int i, limit;
 
 	rdesc = rdev_get_drvdata(rdev);
 	map = rdev_get_regmap(rdev);
@@ -252,11 +252,9 @@ static int max77650_regulator_set_current_limit(struct regulator_dev *rdev,
 		limit = max77650_current_limit_table[i];
 
 		if (limit >= min_uA && limit <= max_uA) {
-			rv = regmap_update_bits(map, rdesc->regA,
+			return regmap_update_bits(map, rdesc->regA,
 					MAX77650_REGULATOR_CURR_LIM_MASK,
 					MAX77650_REGULATOR_CURR_LIM_SHIFT(i));
-			if (rv)
-				return rv;
 		}
 	}
 
