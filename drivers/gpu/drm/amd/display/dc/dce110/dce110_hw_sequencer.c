@@ -666,7 +666,26 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 	/* update AVI info frame (HDMI, DP)*/
 	/* TODO: FPGA may change to hwss.update_info_frame */
-	dce110_update_info_frame(pipe_ctx);
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL &&
+			pipe_ctx->plane_res.hubp != NULL) {
+		if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
+			/* if using dynamic meta, don't set up generic infopackets */
+			pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
+			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
+					pipe_ctx->stream_res.stream_enc,
+					true, pipe_ctx->plane_res.hubp->inst,
+					dc_is_dp_signal(pipe_ctx->stream->signal) ?
+							dmdata_dp : dmdata_hdmi);
+		} else
+			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata(
+					pipe_ctx->stream_res.stream_enc,
+					false, pipe_ctx->plane_res.hubp->inst,
+					dc_is_dp_signal(pipe_ctx->stream->signal) ?
+							dmdata_dp : dmdata_hdmi);
+	}
+#endif
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
@@ -951,6 +970,10 @@ static void set_pme_wa_enable_by_version(struct dc *dc)
 	if (pp_smu) {
 		if (pp_smu->ctx.ver == PP_SMU_VER_RV && pp_smu->rv_funcs.set_pme_wa_enable)
 			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+		else if (pp_smu->ctx.ver == PP_SMU_VER_NV && pp_smu->nv_funcs.set_pme_wa_enable)
+			pp_smu->nv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+#endif
 	}
 }
 
@@ -1337,6 +1360,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+#endif
 
 	if (dc->hwss.disable_stream_gating) {
 		dc->hwss.disable_stream_gating(dc, pipe_ctx);
@@ -1402,6 +1428,20 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.opp,
 		&stream->bit_depth_params,
 		&stream->clamping);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	if (odm_pipe) {
+		odm_pipe->stream_res.opp->funcs->opp_set_dyn_expansion(
+				odm_pipe->stream_res.opp,
+				COLOR_SPACE_YCBCR601,
+				stream->timing.display_color_depth,
+				stream->signal);
+
+		odm_pipe->stream_res.opp->funcs->opp_program_fmt(
+				odm_pipe->stream_res.opp,
+				&stream->bit_depth_params,
+				&stream->clamping);
+	}
+#endif
 
 	if (!stream->dpms_off)
 		core_link_enable_stream(context, pipe_ctx);

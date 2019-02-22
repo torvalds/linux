@@ -49,6 +49,7 @@
 #include "clk_mgr.h"
 
 
+
 #define DC_LOGGER_INIT(logger)
 
 #define CTX \
@@ -345,6 +346,7 @@ void dcn10_log_hw_state(struct dc *dc,
 		tg->funcs->clear_optc_underflow(tg);
 	}
 	DTN_INFO("\n");
+
 
 	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
 		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
@@ -1952,7 +1954,12 @@ static void update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state)
 			plane_state->format,
 			EXPANSION_MODE_ZERO,
 			plane_state->input_csc_color_matrix,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+			plane_state->color_space,
+			NULL);
+#else
 			plane_state->color_space);
+#endif
 
 	//set scale and bias registers
 	dcn10_build_prescale_params(&bns_params, plane_state);
@@ -2405,6 +2412,12 @@ static void dcn10_apply_ctx_for_surface(
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
 		}
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* Program secondary blending tree and writeback pipes */
+	if ((stream->num_wb_info > 0) && (dc->hwss.program_all_writeback_pipes_in_tree))
+		dc->hwss.program_all_writeback_pipes_in_tree(dc, stream, context);
+#endif
 
 	if (interdependent_update)
 		lock_all_pipes(dc, context, false);
