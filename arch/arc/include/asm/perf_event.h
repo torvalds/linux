@@ -105,10 +105,10 @@ static const char * const arc_pmu_ev_hw_map[] = {
 	[PERF_COUNT_HW_INSTRUCTIONS] = "iall",
 	/* All jump instructions that are taken */
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS] = "ijmptak",
-	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
 #ifdef CONFIG_ISA_ARCV2
 	[PERF_COUNT_HW_BRANCH_MISSES] = "bpmp",
 #else
+	[PERF_COUNT_ARC_BPOK]         = "bpok",	  /* NP-NT, PT-T, PNT-NT */
 	[PERF_COUNT_HW_BRANCH_MISSES] = "bpfail", /* NP-T, PT-NT, PNT-T */
 #endif
 	[PERF_COUNT_ARC_LDC] = "imemrdc",	/* Instr: mem read cached */
