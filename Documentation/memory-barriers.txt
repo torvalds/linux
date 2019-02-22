@@ -1937,21 +1937,6 @@ There are some more advanced barrier functions:
      information on consistent memory.
 
 
-MMIO WRITE BARRIER
-------------------
-
-The Linux kernel also has a special barrier for use with memory-mapped I/O
-writes:
-
-	mmiowb();
-
-This is a variation on the mandatory write barrier that causes writes to weakly
-ordered I/O regions to be partially ordered.  Its effects may go beyond the
-CPU->Hardware interface and actually affect the hardware at some level.
-
-See the subsection "Acquires vs I/O accesses" for more information.
-
-
 ===============================
 IMPLICIT KERNEL MEMORY BARRIERS
 ===============================
@@ -2317,75 +2302,6 @@ But it won't see any of:
 	*E, *F or *G following RELEASE Q
 
 
-
-ACQUIRES VS I/O ACCESSES
-------------------------
-
-Under certain circumstances (especially involving NUMA), I/O accesses within
-two spinlocked sections on two different CPUs may be seen as interleaved by the
-PCI bridge, because the PCI bridge does not necessarily participate in the
-cache-coherence protocol, and is therefore incapable of issuing the required
-read memory barriers.
-
-For example:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	writel(1, DATA);
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					writel(5, DATA);
-					spin_unlock(Q);
-
-may be seen by the PCI bridge as follows:
-
-	STORE *ADDR = 0, STORE *ADDR = 4, STORE *DATA = 1, STORE *DATA = 5
-
-which would probably cause the hardware to malfunction.
-
-
-What is necessary here is to intervene with an mmiowb() before dropping the
-spinlock, for example:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	writel(1, DATA);
-	mmiowb();
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					writel(5, DATA);
-					mmiowb();
-					spin_unlock(Q);
-
-this will ensure that the two stores issued on CPU 1 appear at the PCI bridge
-before either of the stores issued on CPU 2.
-
-
-Furthermore, following a store by a load from the same device obviates the need
-for the mmiowb(), because the load forces the store to complete before the load
-is performed:
-
-	CPU 1				CPU 2
-	===============================	===============================
-	spin_lock(Q)
-	writel(0, ADDR)
-	a = readl(DATA);
-	spin_unlock(Q);
-					spin_lock(Q);
-					writel(4, ADDR);
-					b = readl(DATA);
-					spin_unlock(Q);
-
-
-See Documentation/driver-api/device-io.rst for more information.
-
-
 =================================
 WHERE ARE MEMORY BARRIERS NEEDED?
 =================================
@@ -2532,16 +2448,9 @@ the device to malfunction.
 Inside of the Linux kernel, I/O should be done through the appropriate accessor
 routines - such as inb() or writel() - which know how to make such accesses
 appropriately sequential.  While this, for the most part, renders the explicit
-use of memory barriers unnecessary, there are a couple of situations where they
-might be needed:
-
- (1) On some systems, I/O stores are not strongly ordered across all CPUs, and
-     so for _all_ general drivers locks should be used and mmiowb() must be
-     issued prior to unlocking the critical section.
-
- (2) If the accessor functions are used to refer to an I/O memory window with
-     relaxed memory access properties, then _mandatory_ memory barriers are
-     required to enforce ordering.
+use of memory barriers unnecessary, if the accessor functions are used to refer
+to an I/O memory window with relaxed memory access properties, then _mandatory_
+memory barriers are required to enforce ordering.
 
 See Documentation/driver-api/device-io.rst for more information.
 
@@ -2586,8 +2495,7 @@ explicit barriers are used.
 
 Normally this won't be a problem because the I/O accesses done inside such
 sections will include synchronous load operations on strictly ordered I/O
-registers that form implicit I/O barriers.  If this isn't sufficient then an
-mmiowb() may need to be used explicitly.
+registers that form implicit I/O barriers.
 
 
 A similar situation may occur between an interrupt routine and two routines
@@ -2687,9 +2595,6 @@ guarantees:
 All of these accessors assume that the underlying peripheral is little-endian,
 and will therefore perform byte-swapping operations on big-endian architectures.
 
-Composing I/O ordering barriers with SMP ordering barriers and LOCK/UNLOCK
-operations is a dangerous sport which may require the use of mmiowb(). See the
-subsection "Acquires vs I/O accesses" for more information.
 
 ========================================
 ASSUMED MINIMUM EXECUTION ORDERING MODEL
