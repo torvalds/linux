@@ -2966,6 +2966,7 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 					 struct channel_info *info)
 {
 	u8 rfcsr;
+	int idx = rf->channel-1;
 
 	rt2800_rfcsr_write(rt2x00dev, 8, rf->rf1);
 	rt2800_rfcsr_write(rt2x00dev, 9, rf->rf3);
@@ -3003,60 +3004,56 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_freq_cal_mode1(rt2x00dev);
 
-	if (rf->channel <= 14) {
-		int idx = rf->channel-1;
+	if (rt2x00_has_cap_bt_coexist(rt2x00dev)) {
+		if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
+			/* r55/r59 value array of channel 1~14 */
+			static const char r55_bt_rev[] = {0x83, 0x83,
+				0x83, 0x73, 0x73, 0x63, 0x53, 0x53,
+				0x53, 0x43, 0x43, 0x43, 0x43, 0x43};
+			static const char r59_bt_rev[] = {0x0e, 0x0e,
+				0x0e, 0x0e, 0x0e, 0x0b, 0x0a, 0x09,
+				0x07, 0x07, 0x07, 0x07, 0x07, 0x07};
 
-		if (rt2x00_has_cap_bt_coexist(rt2x00dev)) {
-			if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
-				/* r55/r59 value array of channel 1~14 */
-				static const char r55_bt_rev[] = {0x83, 0x83,
-					0x83, 0x73, 0x73, 0x63, 0x53, 0x53,
-					0x53, 0x43, 0x43, 0x43, 0x43, 0x43};
-				static const char r59_bt_rev[] = {0x0e, 0x0e,
-					0x0e, 0x0e, 0x0e, 0x0b, 0x0a, 0x09,
-					0x07, 0x07, 0x07, 0x07, 0x07, 0x07};
-
-				rt2800_rfcsr_write(rt2x00dev, 55,
-						   r55_bt_rev[idx]);
-				rt2800_rfcsr_write(rt2x00dev, 59,
-						   r59_bt_rev[idx]);
-			} else {
-				static const char r59_bt[] = {0x8b, 0x8b, 0x8b,
-					0x8b, 0x8b, 0x8b, 0x8b, 0x8a, 0x89,
-					0x88, 0x88, 0x86, 0x85, 0x84};
-
-				rt2800_rfcsr_write(rt2x00dev, 59, r59_bt[idx]);
-			}
+			rt2800_rfcsr_write(rt2x00dev, 55,
+					   r55_bt_rev[idx]);
+			rt2800_rfcsr_write(rt2x00dev, 59,
+					   r59_bt_rev[idx]);
 		} else {
-			if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
-				static const char r55_nonbt_rev[] = {0x23, 0x23,
-					0x23, 0x23, 0x13, 0x13, 0x03, 0x03,
-					0x03, 0x03, 0x03, 0x03, 0x03, 0x03};
-				static const char r59_nonbt_rev[] = {0x07, 0x07,
-					0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
-					0x07, 0x07, 0x06, 0x05, 0x04, 0x04};
+			static const char r59_bt[] = {0x8b, 0x8b, 0x8b,
+				0x8b, 0x8b, 0x8b, 0x8b, 0x8a, 0x89,
+				0x88, 0x88, 0x86, 0x85, 0x84};
 
-				rt2800_rfcsr_write(rt2x00dev, 55,
-						   r55_nonbt_rev[idx]);
-				rt2800_rfcsr_write(rt2x00dev, 59,
-						   r59_nonbt_rev[idx]);
-			} else if (rt2x00_rt(rt2x00dev, RT5390) ||
-				   rt2x00_rt(rt2x00dev, RT5392) ||
-				   rt2x00_rt(rt2x00dev, RT6352)) {
-				static const char r59_non_bt[] = {0x8f, 0x8f,
-					0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8d,
-					0x8a, 0x88, 0x88, 0x87, 0x87, 0x86};
+			rt2800_rfcsr_write(rt2x00dev, 59, r59_bt[idx]);
+		}
+	} else {
+		if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390F)) {
+			static const char r55_nonbt_rev[] = {0x23, 0x23,
+				0x23, 0x23, 0x13, 0x13, 0x03, 0x03,
+				0x03, 0x03, 0x03, 0x03, 0x03, 0x03};
+			static const char r59_nonbt_rev[] = {0x07, 0x07,
+				0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
+				0x07, 0x07, 0x06, 0x05, 0x04, 0x04};
 
-				rt2800_rfcsr_write(rt2x00dev, 59,
-						   r59_non_bt[idx]);
-			} else if (rt2x00_rt(rt2x00dev, RT5350)) {
-				static const char r59_non_bt[] = {0x0b, 0x0b,
-					0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a,
-					0x0a, 0x09, 0x08, 0x07, 0x07, 0x06};
+			rt2800_rfcsr_write(rt2x00dev, 55,
+					   r55_nonbt_rev[idx]);
+			rt2800_rfcsr_write(rt2x00dev, 59,
+					   r59_nonbt_rev[idx]);
+		} else if (rt2x00_rt(rt2x00dev, RT5390) ||
+			   rt2x00_rt(rt2x00dev, RT5392) ||
+			   rt2x00_rt(rt2x00dev, RT6352)) {
+			static const char r59_non_bt[] = {0x8f, 0x8f,
+				0x8f, 0x8f, 0x8f, 0x8f, 0x8f, 0x8d,
+				0x8a, 0x88, 0x88, 0x87, 0x87, 0x86};
 
-				rt2800_rfcsr_write(rt2x00dev, 59,
-						   r59_non_bt[idx]);
-			}
+			rt2800_rfcsr_write(rt2x00dev, 59,
+					   r59_non_bt[idx]);
+		} else if (rt2x00_rt(rt2x00dev, RT5350)) {
+			static const char r59_non_bt[] = {0x0b, 0x0b,
+				0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a,
+				0x0a, 0x09, 0x08, 0x07, 0x07, 0x06};
+
+			rt2800_rfcsr_write(rt2x00dev, 59,
+					   r59_non_bt[idx]);
 		}
 	}
 }
@@ -3861,10 +3858,12 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	if (rt2x00_rt(rt2x00dev, RT3572))
 		rt2800_rfcsr_write(rt2x00dev, 8, 0);
 
-	if (rt2x00_rt(rt2x00dev, RT6352))
+	if (rt2x00_rt(rt2x00dev, RT6352)) {
 		tx_pin = rt2800_register_read(rt2x00dev, TX_PIN_CFG);
-	else
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_RFRX_EN, 1);
+	} else {
 		tx_pin = 0;
+	}
 
 	switch (rt2x00dev->default_ant.tx_chain_num) {
 	case 3:
@@ -3896,24 +3895,29 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	switch (rt2x00dev->default_ant.rx_chain_num) {
 	case 3:
 		/* Turn on tertiary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN, 1);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A2_EN,
+				   rf->channel > 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G2_EN,
+				   rf->channel <= 14);
 		/* fall-through */
 	case 2:
 		/* Turn on secondary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN, 1);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A1_EN,
+				   rf->channel > 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G1_EN,
+				   rf->channel <= 14);
 		/* fall-through */
 	case 1:
 		/* Turn on primary LNAs */
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN, 1);
-		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN, 1);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_A0_EN,
+				   rf->channel > 14);
+		rt2x00_set_field32(&tx_pin, TX_PIN_CFG_LNA_PE_G0_EN,
+				   rf->channel <= 14);
 		break;
 	}
 
 	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_RFTR_EN, 1);
 	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_TRSW_EN, 1);
-	rt2x00_set_field32(&tx_pin, TX_PIN_CFG_RFRX_EN, 1); /* mt7620 */
 
 	rt2800_register_write(rt2x00dev, TX_PIN_CFG, tx_pin);
 
@@ -3985,13 +3989,12 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_bbp_write(rt2x00dev, 195, 141);
 		rt2800_bbp_write(rt2x00dev, 196, reg);
 
-		/* AGC init */
-		if (rt2x00_rt(rt2x00dev, RT6352))
-			reg = 0x04;
-		else
-			reg = rf->channel <= 14 ? 0x1c : 0x24;
-
-		reg += 2 * rt2x00dev->lna_gain;
+		/* AGC init.
+		 * Despite the vendor driver using different values here for
+		 * RT6352 chip, we use 0x1c for now. This may have to be changed
+		 * once TSSI got implemented.
+		 */
+		reg = (rf->channel <= 14 ? 0x1c : 0x24) + 2*rt2x00dev->lna_gain;
 		rt2800_bbp_write_with_rx_chain(rt2x00dev, 66, reg);
 
 		rt2800_iq_calibrate(rt2x00dev, rf->channel);

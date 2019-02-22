@@ -85,7 +85,7 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 {
 	lockdep_assert_held(&mvm->time_event_lock);
 
-	if (!te_data->vif)
+	if (!te_data || !te_data->vif)
 		return;
 
 	list_del(&te_data->list);

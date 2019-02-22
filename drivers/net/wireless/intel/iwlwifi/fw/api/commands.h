@@ -643,6 +643,11 @@ enum iwl_system_subcmd_ids {
 	 * @INIT_EXTENDED_CFG_CMD: &struct iwl_init_extended_cfg_cmd
 	 */
 	INIT_EXTENDED_CFG_CMD = 0x03,
+
+	/**
+	 * @FW_ERROR_RECOVERY_CMD: &struct iwl_fw_error_recovery_cmd
+	 */
+	FW_ERROR_RECOVERY_CMD = 0x7,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

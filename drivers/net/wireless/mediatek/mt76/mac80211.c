@@ -124,7 +124,7 @@ static void mt76_init_stream_cap(struct mt76_dev *dev,
 				 bool vht)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
-	int i, nstream = __sw_hweight8(dev->antenna_mask);
+	int i, nstream = hweight8(dev->antenna_mask);
 	struct ieee80211_sta_vht_cap *vht_cap;
 	u16 mcs_map = 0;
 
@@ -269,7 +269,9 @@ mt76_check_sband(struct mt76_dev *dev, int band)
 }
 
 struct mt76_dev *
-mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
+mt76_alloc_device(struct device *pdev, unsigned int size,
+		  const struct ieee80211_ops *ops,
+		  const struct mt76_driver_ops *drv_ops)
 {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
@@ -280,6 +282,9 @@ mt76_alloc_device(unsigned int size, const struct ieee80211_ops *ops)
 
 	dev = hw->priv;
 	dev->hw = hw;
+	dev->dev = pdev;
+	dev->drv = drv_ops;
+
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->cc_lock);
@@ -721,7 +726,7 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     int *dbm)
 {
 	struct mt76_dev *dev = hw->priv;
-	int n_chains = __sw_hweight8(dev->antenna_mask);
+	int n_chains = hweight8(dev->antenna_mask);
 
 	*dbm = dev->txpower_cur / 2;
 

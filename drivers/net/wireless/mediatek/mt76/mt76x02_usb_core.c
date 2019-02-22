@@ -49,7 +49,12 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 	       FIELD_PREP(MT_TXD_INFO_DPORT, port) | flags;
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 
+	/* Add zero pad of 4 - 7 bytes */
 	pad = round_up(skb->len, 4) + 4 - skb->len;
+
+	/* First packet of a A-MSDU burst keeps track of the whole burst
+	 * length, need to update lenght of it and the last packet.
+	 */
 	skb_walk_frags(skb, iter) {
 		last = iter;
 		if (!iter->next) {
@@ -59,11 +64,10 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags)
 		}
 	}
 
-	if (unlikely(pad)) {
-		if (skb_pad(last, pad))
-			return -ENOMEM;
-		__skb_put(last, pad);
-	}
+	if (skb_pad(last, pad))
+		return -ENOMEM;
+	__skb_put(last, pad);
+
 	return 0;
 }
 

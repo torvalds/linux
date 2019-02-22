@@ -3,7 +3,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1643,8 +1643,26 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 
 static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 {
+	struct ieee80211_sta_vht_cap *sta_vht_cap = &sta->vht_cap;
+	struct ieee80211_vht_cap vht_cap = {
+		.vht_cap_info = cpu_to_le32(sta_vht_cap->cap),
+		.supp_mcs = sta_vht_cap->vht_mcs,
+	};
+
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
+		/*
+		 * Don't use 160 MHz if VHT extended NSS support
+		 * says we cannot use 2 streams, we don't want to
+		 * deal with this.
+		 * We only check MCS 0 - they will support that if
+		 * we got here at all and we don't care which MCS,
+		 * we want to determine a more global state.
+		 */
+		if (ieee80211_get_vht_max_nss(&vht_cap,
+					      IEEE80211_VHT_CHANWIDTH_160MHZ,
+					      0, true) < sta->rx_nss)
+			return RATE_MCS_CHAN_WIDTH_80;
 		return RATE_MCS_CHAN_WIDTH_160;
 	case IEEE80211_STA_RX_BW_80:
 		return RATE_MCS_CHAN_WIDTH_80;
@@ -1757,7 +1775,12 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	else
 		mvmsta->amsdu_enabled = 0xFFFF;
 
-	mvmsta->max_amsdu_len = sta->max_amsdu_len;
+	if (mvmsta->vif->bss_conf.he_support &&
+	    !iwlwifi_mod_params.disable_11ax)
+		mvmsta->max_amsdu_len = sta->max_amsdu_len;
+	else
+		mvmsta->max_amsdu_len = min_t(int, sta->max_amsdu_len, 8500);
+
 	sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
 
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
@@ -1791,7 +1814,7 @@ static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
 			      struct iwl_scale_tbl_info *tbl,
 			      enum rs_action scale_action)
 {
-	if (sta->bandwidth != IEEE80211_STA_RX_BW_80)
+	if (rs_bw_from_sta_bw(sta) != RATE_MCS_CHAN_WIDTH_80)
 		return false;
 
 	if (!is_vht_siso(&tbl->rate))
@@ -4122,6 +4145,7 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 	.add_sta_debugfs = rs_drv_add_sta_debugfs,
 	.remove_sta_debugfs = rs_remove_sta_debugfs,
 #endif
+	.capa = RATE_CTRL_CAPA_VHT_EXT_NSS_BW,
 };
 
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,

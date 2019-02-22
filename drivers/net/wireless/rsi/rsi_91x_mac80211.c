@@ -239,6 +239,7 @@ static int rsi_mac80211_hw_scan_start(struct ieee80211_hw *hw,
 	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 
 	rsi_dbg(INFO_ZONE, "***** Hardware scan start *****\n");
+	common->mac_ops_resumed = false;
 
 	if (common->fsm_state != FSM_MAC_INIT_DONE)
 		return -ENODEV;
@@ -285,7 +286,7 @@ static void rsi_mac80211_cancel_hw_scan(struct ieee80211_hw *hw,
 			common->bgscan_en = false;
 		info.aborted = false;
 		ieee80211_scan_completed(adapter->hw, &info);
-		rsi_dbg(INFO_ZONE, "Back ground scan cancelled\b\n");
+		rsi_dbg(INFO_ZONE, "Back ground scan cancelled\n");
 	}
 	common->hwscan = NULL;
 	mutex_unlock(&common->mutex);
@@ -370,6 +371,10 @@ static void rsi_mac80211_tx(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	struct ieee80211_hdr *wlh = (struct ieee80211_hdr *)skb->data;
+
+	if (ieee80211_is_auth(wlh->frame_control))
+		common->mac_ops_resumed = false;
 
 	rsi_core_xmit(common, skb);
 }
@@ -677,7 +682,8 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 	}
 
 	/* Power save parameters */
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
+	if ((changed & IEEE80211_CONF_CHANGE_PS) &&
+	    !common->mac_ops_resumed) {
 		struct ieee80211_vif *vif, *sta_vif = NULL;
 		unsigned long flags;
 		int i, set_ps = 1;
@@ -810,15 +816,15 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
 		adapter->ps_info.listen_interval = conf->listen_interval;
 
-	/* If U-APSD is updated, send ps parameters to firmware */
-	if (bss->assoc) {
-		if (common->uapsd_bitmap) {
-			rsi_dbg(INFO_ZONE, "Configuring UAPSD\n");
-			rsi_conf_uapsd(adapter, vif);
+		/* If U-APSD is updated, send ps parameters to firmware */
+		if (bss->assoc) {
+			if (common->uapsd_bitmap) {
+				rsi_dbg(INFO_ZONE, "Configuring UAPSD\n");
+				rsi_conf_uapsd(adapter, vif);
+			}
+		} else {
+			common->uapsd_bitmap = 0;
 		}
-	} else {
-		common->uapsd_bitmap = 0;
-	}
 	}
 
 	if (changed & BSS_CHANGED_CQM) {
@@ -1332,7 +1338,7 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 }
 
 /**
- * rsi_indicate_pkt_to_os() - This function sends recieved packet to mac80211.
+ * rsi_indicate_pkt_to_os() - This function sends received packet to mac80211.
  * @common: Pointer to the driver private structure.
  * @skb: Pointer to the socket buffer structure.
  *
@@ -1895,6 +1901,10 @@ int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan)
 		return 0;
 	}
 	rsi_dbg(INFO_ZONE, "TRIGGERS %x\n", triggers);
+
+	if (common->coex_mode > 1)
+		rsi_disable_ps(adapter, adapter->vifs[0]);
+
 	rsi_send_wowlan_request(common, triggers, 1);
 
 	/**
@@ -1938,8 +1948,13 @@ static int rsi_mac80211_resume(struct ieee80211_hw *hw)
 
 	rsi_dbg(INFO_ZONE, "%s: mac80211 resume\n", __func__);
 
-	if (common->hibernate_resume)
-		return 0;
+	if (common->hibernate_resume) {
+		common->mac_ops_resumed = true;
+		/* Device need a complete restart of all MAC operations.
+		 * returning 1 will serve this purpose.
+		 */
+		return 1;
+	}
 
 	mutex_lock(&common->mutex);
 	rsi_send_wowlan_request(common, 0, 0);

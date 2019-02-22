@@ -5,6 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
+ * Copyright (C) 2018 - 2019 Intel Corporation
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -23,6 +25,7 @@
  *
  * BSD LICENSE
  *
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,7 +99,48 @@ void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 ofs,
 void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask);
 void iwl_force_nmi(struct iwl_trans *trans);
 
+int iwl_finish_nic_init(struct iwl_trans *trans);
+
 /* Error handling */
 int iwl_dump_fh(struct iwl_trans *trans, char **buf);
+
+/*
+ * UMAC periphery address space changed from 0xA00000 to 0xD00000 starting from
+ * device family AX200. So peripheries used in families above and below AX200
+ * should go through iwl_..._umac_..._prph.
+ */
+static inline u32 iwl_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return ofs + trans->cfg->umac_prph_offset;
+}
+
+static inline u32 iwl_read_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_read_prph_no_grab(trans, ofs + trans->cfg->umac_prph_offset);
+}
+
+static inline u32 iwl_read_umac_prph(struct iwl_trans *trans, u32 ofs)
+{
+	return iwl_read_prph(trans, ofs + trans->cfg->umac_prph_offset);
+}
+
+static inline void iwl_write_umac_prph_no_grab(struct iwl_trans *trans, u32 ofs,
+					       u32 val)
+{
+	iwl_write_prph_no_grab(trans,  ofs + trans->cfg->umac_prph_offset, val);
+}
+
+static inline void iwl_write_umac_prph(struct iwl_trans *trans, u32 ofs,
+				       u32 val)
+{
+	iwl_write_prph(trans,  ofs + trans->cfg->umac_prph_offset, val);
+}
+
+static inline int iwl_poll_umac_prph_bit(struct iwl_trans *trans, u32 addr,
+					 u32 bits, u32 mask, int timeout)
+{
+	return iwl_poll_prph_bit(trans, addr + trans->cfg->umac_prph_offset,
+				 bits, mask, timeout);
+}
 
 #endif

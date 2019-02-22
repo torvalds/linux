@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +69,36 @@
 #include "iwl-debug.h"
 #include "iwl-prph.h"
 #include "iwl-fh.h"
+
+const struct iwl_csr_params iwl_csr_v1 = {
+	.flag_mac_clock_ready = 0,
+	.flag_val_mac_access_en = 0,
+	.flag_init_done = 2,
+	.flag_mac_access_req = 3,
+	.flag_sw_reset = 7,
+	.flag_master_dis = 8,
+	.flag_stop_master = 9,
+	.addr_sw_reset = CSR_BASE + 0x020,
+	.mac_addr0_otp = 0x380,
+	.mac_addr1_otp = 0x384,
+	.mac_addr0_strap = 0x388,
+	.mac_addr1_strap = 0x38C
+};
+
+const struct iwl_csr_params iwl_csr_v2 = {
+	.flag_init_done = 6,
+	.flag_mac_clock_ready = 20,
+	.flag_val_mac_access_en = 20,
+	.flag_mac_access_req = 21,
+	.flag_master_dis = 28,
+	.flag_stop_master = 29,
+	.flag_sw_reset = 31,
+	.addr_sw_reset = CSR_BASE + 0x024,
+	.mac_addr0_otp = 0x30,
+	.mac_addr1_otp = 0x34,
+	.mac_addr0_strap = 0x38,
+	.mac_addr1_strap = 0x3C
+};
 
 void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
@@ -275,9 +307,12 @@ void iwl_force_nmi(struct iwl_trans *trans)
 	if (trans->cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
 			       DEVICE_SET_NMI_VAL_DRV);
+	else if (trans->cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		iwl_write_umac_prph(trans, UREG_NIC_SET_NMI_DRIVER,
+				UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK);
 	else
-		iwl_write_prph(trans, UREG_NIC_SET_NMI_DRIVER,
-			       UREG_NIC_SET_NMI_DRIVER_NMI_FROM_DRIVER_MSK);
+		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				    UREG_DOORBELL_TO_ISR6_NMI_BIT);
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
 
@@ -456,3 +491,43 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 
 	return 0;
 }
+
+int iwl_finish_nic_init(struct iwl_trans *trans)
+{
+	int err;
+
+	if (trans->cfg->bisr_workaround) {
+		/* ensure the TOP FSM isn't still in previous reset */
+		mdelay(2);
+	}
+
+	/*
+	 * Set "initialization complete" bit to move adapter from
+	 * D0U* --> D0A* (powered-up active) state.
+	 */
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		udelay(2);
+
+	/*
+	 * Wait for clock stabilization; once stabilized, access to
+	 * device-internal resources is supported, e.g. iwl_write_prph()
+	 * and accesses to uCode SRAM.
+	 */
+	err = iwl_poll_bit(trans, CSR_GP_CNTRL,
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   25000);
+	if (err < 0)
+		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
+
+	if (trans->cfg->bisr_workaround) {
+		/* ensure BISR shift has finished */
+		udelay(200);
+	}
+
+	return err < 0 ? err : 0;
+}
+IWL_EXPORT_SYMBOL(iwl_finish_nic_init);

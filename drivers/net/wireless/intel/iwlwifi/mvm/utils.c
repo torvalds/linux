@@ -294,6 +294,7 @@ static const struct {
 	{ "SYSASSERT", 0x35 },
 	{ "UCODE_VERSION_MISMATCH", 0x37 },
 	{ "BAD_COMMAND", 0x38 },
+	{ "BAD_COMMAND", 0x39 },
 	{ "NMI_INTERRUPT_DATA_ACTION_PT", 0x3C },
 	{ "FATAL_ERROR", 0x3D },
 	{ "NMI_TRM_HW_ERR", 0x46 },
@@ -456,12 +457,14 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_umac_error_event_table table;
+	u32 base = mvm->trans->umac_error_event_table;
 
-	if (!mvm->support_umac_log)
+	if (!mvm->support_umac_log &&
+	    !(mvm->trans->error_event_table_tlv_status &
+	      IWL_ERROR_EVENT_TABLE_UMAC))
 		return;
 
-	iwl_trans_read_mem_bytes(trans, mvm->umac_error_event_table, &table,
-				 sizeof(table));
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
 
 	if (table.valid)
 		mvm->fwrt.dump.umac_err_id = table.error_id;
@@ -493,7 +496,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
-	u32 val, base = mvm->error_event_table[lmac_num];
+	u32 val, base = mvm->trans->lmac_error_event_table[lmac_num];
 
 	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
 		if (!base)
@@ -522,23 +525,9 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 		/* reset the device */
 		iwl_trans_sw_reset(trans);
 
-		/* set INIT_DONE flag */
-		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    BIT(trans->cfg->csr->flag_init_done));
-
-		/* and wait for clock stabilization */
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-			udelay(2);
-
-		err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   BIT(trans->cfg->csr->flag_mac_clock_ready),
-				   BIT(trans->cfg->csr->flag_mac_clock_ready),
-				   25000);
-		if (err < 0) {
-			IWL_DEBUG_INFO(trans,
-				       "Failed to reset the card for the dump\n");
+		err = iwl_finish_nic_init(trans);
+		if (err)
 			return;
-		}
 	}
 
 	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
@@ -603,7 +592,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 
 	iwl_mvm_dump_lmac_error_log(mvm, 0);
 
-	if (mvm->error_event_table[1])
+	if (mvm->trans->lmac_error_event_table[1])
 		iwl_mvm_dump_lmac_error_log(mvm, 1);
 
 	iwl_mvm_dump_umac_error_log(mvm);

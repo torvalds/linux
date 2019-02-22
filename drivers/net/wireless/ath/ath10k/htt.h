@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _HTT_H_
@@ -357,6 +346,13 @@ struct htt_aggr_conf {
 	u8 max_num_amsdu_subframes;
 } __packed;
 
+struct htt_aggr_conf_v2 {
+	u8 max_num_ampdu_subframes;
+	/* amsdu_subframes is limited by 0x1F mask */
+	u8 max_num_amsdu_subframes;
+	u8 reserved;
+} __packed;
+
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
 struct htt_mgmt_tx_desc_qca99x0 {
 	__le32 rate;
@@ -564,6 +560,7 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO0_EXT_TID_LSB   (0)
 #define HTT_RX_INDICATION_INFO0_FLUSH_VALID   (1 << 5)
 #define HTT_RX_INDICATION_INFO0_RELEASE_VALID (1 << 6)
+#define HTT_RX_INDICATION_INFO0_PPDU_DURATION BIT(7)
 
 #define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQNO_MASK   0x0000003F
 #define HTT_RX_INDICATION_INFO1_FLUSH_START_SEQNO_LSB    0
@@ -576,7 +573,10 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_MASK     0xFF000000
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_LSB      24
 
-#define HTT_TX_CMPL_FLAG_DATA_RSSI BIT(0)
+#define HTT_TX_CMPL_FLAG_DATA_RSSI		BIT(0)
+#define HTT_TX_CMPL_FLAG_PPID_PRESENT		BIT(1)
+#define HTT_TX_CMPL_FLAG_PA_PRESENT		BIT(2)
+#define HTT_TX_CMPL_FLAG_PPDU_DURATION_PRESENT	BIT(3)
 
 struct htt_rx_indication_hdr {
 	u8 info0; /* %HTT_RX_INDICATION_INFO0_ */
@@ -864,6 +864,21 @@ struct htt_data_tx_completion {
 	u8 num_msdus;
 	u8 flags2; /* HTT_TX_CMPL_FLAG_DATA_RSSI */
 	__le16 msdus[0]; /* variable length based on %num_msdus */
+} __packed;
+
+#define HTT_TX_PPDU_DUR_INFO0_PEER_ID_MASK	GENMASK(15, 0)
+#define HTT_TX_PPDU_DUR_INFO0_TID_MASK		GENMASK(20, 16)
+
+struct htt_data_tx_ppdu_dur {
+	__le32 info0; /* HTT_TX_PPDU_DUR_INFO0_ */
+	__le32 tx_duration; /* in usecs */
+} __packed;
+
+#define HTT_TX_COMPL_PPDU_DUR_INFO0_NUM_ENTRIES_MASK	GENMASK(7, 0)
+
+struct htt_data_tx_compl_ppdu_dur {
+	__le32 info0; /* HTT_TX_COMPL_PPDU_DUR_INFO0_ */
+	struct htt_data_tx_ppdu_dur ppdu_dur[0];
 } __packed;
 
 struct htt_tx_compl_ind_base {
@@ -1650,6 +1665,7 @@ struct htt_cmd {
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
+		struct htt_aggr_conf_v2 aggr_conf_v2;
 		struct htt_frag_desc_bank_cfg32 frag_desc_bank_cfg32;
 		struct htt_frag_desc_bank_cfg64 frag_desc_bank_cfg64;
 		struct htt_tx_fetch_resp tx_fetch_resp;
@@ -1716,14 +1732,14 @@ struct ath10k_htt_txbuf_32 {
 	struct ath10k_htc_hdr htc_hdr;
 	struct htt_cmd_hdr cmd_hdr;
 	struct htt_data_tx_desc cmd_tx;
-} __packed;
+} __packed __aligned(4);
 
 struct ath10k_htt_txbuf_64 {
 	struct htt_data_tx_desc_frag frags[2];
 	struct ath10k_htc_hdr htc_hdr;
 	struct htt_cmd_hdr cmd_hdr;
 	struct htt_data_tx_desc_64 cmd_tx;
-} __packed;
+} __packed __aligned(4);
 
 struct ath10k_htt {
 	struct ath10k *ar;
@@ -1890,6 +1906,9 @@ struct ath10k_htt_tx_ops {
 		      struct sk_buff *msdu);
 	int (*htt_alloc_txbuff)(struct ath10k_htt *htt);
 	void (*htt_free_txbuff)(struct ath10k_htt *htt);
+	int (*htt_h2t_aggr_cfg_msg)(struct ath10k_htt *htt,
+				    u8 max_subfrms_ampdu,
+				    u8 max_subfrms_amsdu);
 };
 
 static inline int ath10k_htt_send_rx_ring_cfg(struct ath10k_htt *htt)

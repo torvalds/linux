@@ -847,14 +847,15 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	s8 info;
 
-	mt76x0_get_tx_power_per_rate(dev);
-	mt76x0_get_power_info(dev, &info);
+	mt76x0_get_tx_power_per_rate(dev, dev->mt76.chandef.chan, t);
+	mt76x0_get_power_info(dev, dev->mt76.chandef.chan, &info);
 
 	mt76x02_add_rate_power_offset(t, info);
 	mt76x02_limit_rate_power(t, dev->mt76.txpower_conf);
 	dev->mt76.txpower_cur = mt76x02_get_max_rate_power(t);
 	mt76x02_add_rate_power_offset(t, -info);
 
+	dev->target_power = info;
 	mt76x02_phy_set_txpower(dev, info, info);
 }
 
@@ -1006,14 +1007,16 @@ int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 
 	/* enable vco */
 	mt76x0_rf_set(dev, MT_RF(0, 4), BIT(7));
-	if (scan)
+	if (scan) {
+		mt76x02_edcca_init(dev, false);
 		return 0;
+	}
 
 	mt76x02_init_agc_gain(dev);
 	mt76x0_phy_calibrate(dev, false);
 	mt76x0_phy_set_txpower(dev);
 
-	mt76x02_edcca_init(dev);
+	mt76x02_edcca_init(dev, true);
 
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -318,9 +307,11 @@ static struct ath10k_hw_ce_ctrl1_upd wcn3990_ctrl1_upd = {
 };
 
 const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
+	.sr_base_addr_hi	= 0x00000004,
 	.sr_size_addr		= 0x00000008,
-	.dr_base_addr		= 0x0000000c,
+	.dr_base_addr_lo	= 0x0000000c,
+	.dr_base_addr_hi	= 0x00000010,
 	.dr_size_addr		= 0x00000014,
 	.misc_ie_addr		= 0x00000034,
 	.sr_wr_index_addr	= 0x0000003c,
@@ -464,9 +455,9 @@ static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
 };
 
 const struct ath10k_hw_ce_regs qcax_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
 	.sr_size_addr		= 0x00000004,
-	.dr_base_addr		= 0x00000008,
+	.dr_base_addr_lo	= 0x00000008,
 	.dr_size_addr		= 0x0000000c,
 	.ce_cmd_addr		= 0x00000018,
 	.misc_ie_addr		= 0x00000034,

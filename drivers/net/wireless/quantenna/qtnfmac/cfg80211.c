@@ -53,9 +53,11 @@ static const u32 qtnf_cipher_suites[] = {
 static const struct ieee80211_txrx_stypes
 qtnf_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
-		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4),
+		      BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+		      BIT(IEEE80211_STYPE_AUTH >> 4),
 	},
 	[NL80211_IFTYPE_AP] = {
 		.tx = BIT(IEEE80211_STYPE_ACTION >> 4),
@@ -636,6 +638,12 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
+	if (sme->auth_type == NL80211_AUTHTYPE_SAE &&
+	    !(sme->flags & CONNECT_REQ_EXTERNAL_AUTH_SUPPORT)) {
+		pr_err("can not offload authentication to userspace\n");
+		return -EOPNOTSUPP;
+	}
+
 	if (sme->bssid)
 		ether_addr_copy(vif->bssid, sme->bssid);
 	else
@@ -644,6 +652,30 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	ret = qtnf_cmd_send_connect(vif, sme);
 	if (ret) {
 		pr_err("VIF%u.%u: failed to connect\n",
+		       vif->mac->macid, vif->vifid);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static int
+qtnf_external_auth(struct wiphy *wiphy, struct net_device *dev,
+		   struct cfg80211_external_auth_params *auth)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	if (vif->wdev.iftype != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	if (!ether_addr_equal(vif->bssid, auth->bssid))
+		pr_warn("unexpected bssid: %pM", auth->bssid);
+
+	ret = qtnf_cmd_send_external_auth(vif, auth);
+	if (ret) {
+		pr_err("VIF%u.%u: failed to report external auth\n",
 		       vif->mac->macid, vif->vifid);
 		goto out;
 	}
@@ -946,6 +978,7 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_default_mgmt_key	= qtnf_set_default_mgmt_key,
 	.scan			= qtnf_scan,
 	.connect		= qtnf_connect,
+	.external_auth		= qtnf_external_auth,
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
 	.get_channel		= qtnf_get_channel,
@@ -1124,6 +1157,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	if (!(hw_info->hw_capab & QLINK_HW_CAPAB_OBSS_SCAN))
 		wiphy->features |= NL80211_FEATURE_NEED_OBSS_SCAN;
+
+	if (hw_info->hw_capab & QLINK_HW_CAPAB_SAE)
+		wiphy->features |= NL80211_FEATURE_SAE;
 
 #ifdef CONFIG_PM
 	if (macinfo->wowlan)

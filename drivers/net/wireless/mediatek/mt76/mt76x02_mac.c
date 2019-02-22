@@ -291,6 +291,13 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 
 	memset(txwi, 0, sizeof(*txwi));
 
+	if (!info->control.hw_key && wcid && wcid->hw_key_idx != 0xff &&
+	    ieee80211_has_protected(hdr->frame_control)) {
+		wcid = NULL;
+		ieee80211_get_tx_rates(info->control.vif, sta, skb,
+		                       info->control.rates, 1);
+	}
+
 	if (wcid)
 		txwi->wcid = wcid->idx;
 	else
@@ -307,7 +314,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		ccmp_pn[6] = pn >> 32;
 		ccmp_pn[7] = pn >> 40;
 		txwi->iv = *((__le32 *)&ccmp_pn[0]);
-		txwi->eiv = *((__le32 *)&ccmp_pn[1]);
+		txwi->eiv = *((__le32 *)&ccmp_pn[4]);
 	}
 
 	spin_lock_bh(&dev->mt76.lock);
@@ -548,8 +555,11 @@ mt76x02_mac_process_rate(struct mt76x02_dev *dev,
 	return 0;
 }
 
-void mt76x02_mac_setaddr(struct mt76x02_dev *dev, u8 *addr)
+void mt76x02_mac_setaddr(struct mt76x02_dev *dev, const u8 *addr)
 {
+	static const u8 null_addr[ETH_ALEN] = {};
+	int i;
+
 	ether_addr_copy(dev->mt76.macaddr, addr);
 
 	if (!is_valid_ether_addr(dev->mt76.macaddr)) {
@@ -563,6 +573,16 @@ void mt76x02_mac_setaddr(struct mt76x02_dev *dev, u8 *addr)
 	mt76_wr(dev, MT_MAC_ADDR_DW1,
 		get_unaligned_le16(dev->mt76.macaddr + 4) |
 		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+
+	mt76_wr(dev, MT_MAC_BSSID_DW0,
+		get_unaligned_le32(dev->mt76.macaddr));
+	mt76_wr(dev, MT_MAC_BSSID_DW1,
+		get_unaligned_le16(dev->mt76.macaddr + 4) |
+		FIELD_PREP(MT_MAC_BSSID_DW1_MBSS_MODE, 3) | /* 8 APs + 8 STAs */
+		MT_MAC_BSSID_DW1_MBSS_LOCAL_BIT);
+
+	for (i = 0; i < 16; i++)
+		mt76x02_mac_set_bssid(dev, i, null_addr);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_setaddr);
 
@@ -588,7 +608,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	u16 rate = le16_to_cpu(rxwi->rate);
 	u16 tid_sn = le16_to_cpu(rxwi->tid_sn);
 	bool unicast = rxwi->rxinfo & cpu_to_le32(MT_RXINFO_UNICAST);
-	int i, pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
+	int pad_len = 0, nstreams = dev->mt76.chainmask & 0xf;
 	s8 signal;
 	u8 pn_len;
 	u8 wcid;
@@ -648,12 +668,13 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 
 	status->chains = BIT(0);
 	signal = mt76x02_mac_get_rssi(dev, rxwi->rssi[0], 0);
-	for (i = 0; i < nstreams; i++) {
-		status->chains |= BIT(i);
-		status->chain_signal[i] = mt76x02_mac_get_rssi(dev,
-							       rxwi->rssi[i],
-							       i);
-		signal = max_t(s8, signal, status->chain_signal[i]);
+	status->chain_signal[0] = signal;
+	if (nstreams > 1) {
+		status->chains |= BIT(1);
+		status->chain_signal[1] = mt76x02_mac_get_rssi(dev,
+							       rxwi->rssi[1],
+							       1);
+		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
 	status->signal = signal;
 	status->freq = dev->mt76.chandef.chan->center_freq;
@@ -871,12 +892,12 @@ mt76x02_edcca_tx_enable(struct mt76x02_dev *dev, bool enable)
 	dev->ed_tx_blocked = !enable;
 }
 
-void mt76x02_edcca_init(struct mt76x02_dev *dev)
+void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 {
 	dev->ed_trigger = 0;
 	dev->ed_silent = 0;
 
-	if (dev->ed_monitor) {
+	if (dev->ed_monitor && enable) {
 		struct ieee80211_channel *chan = dev->mt76.chandef.chan;
 		u8 ed_th = chan->band == NL80211_BAND_5GHZ ? 0x0e : 0x20;
 
@@ -899,17 +920,27 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev)
 		}
 	}
 	mt76x02_edcca_tx_enable(dev, true);
+
+	/* clear previous CCA timer value */
+	mt76_rr(dev, MT_ED_CCA_TIMER);
+	dev->ed_time = ktime_get_boottime();
 }
 EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 
-#define MT_EDCCA_TH		90
+#define MT_EDCCA_TH		92
 #define MT_EDCCA_BLOCK_TH	2
 static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 {
-	u32 val, busy;
+	ktime_t cur_time;
+	u32 active, val, busy;
 
+	cur_time = ktime_get_boottime();
 	val = mt76_rr(dev, MT_ED_CCA_TIMER);
-	busy = (val * 100) / jiffies_to_usecs(MT_CALIBRATE_INTERVAL);
+
+	active = ktime_to_us(ktime_sub(cur_time, dev->ed_time));
+	dev->ed_time = cur_time;
+
+	busy = (val * 100) / active;
 	busy = min_t(u32, busy, 100);
 
 	if (busy > MT_EDCCA_TH) {
@@ -955,7 +986,7 @@ void mt76x02_mac_work(struct work_struct *work)
 	mt76_tx_status_check(&dev->mt76, NULL, false);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mac_work,
-				     MT_CALIBRATE_INTERVAL);
+				     MT_MAC_WORK_INTERVAL);
 }
 
 void mt76x02_mac_set_bssid(struct mt76x02_dev *dev, u8 idx, const u8 *addr)
@@ -1047,8 +1078,9 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 	return 0;
 }
 
-void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
-				   u8 vif_idx, bool val)
+static void
+__mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
+				bool val, struct sk_buff *skb)
 {
 	u8 old_mask = dev->beacon_mask;
 	bool en;
@@ -1056,6 +1088,8 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 
 	if (val) {
 		dev->beacon_mask |= BIT(vif_idx);
+		if (skb)
+			mt76x02_mac_set_beacon(dev, vif_idx, skb);
 	} else {
 		dev->beacon_mask &= ~BIT(vif_idx);
 		mt76x02_mac_set_beacon(dev, vif_idx, NULL);
@@ -1066,14 +1100,34 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 
 	en = dev->beacon_mask;
 
-	mt76_rmw_field(dev, MT_INT_TIMER_EN, MT_INT_TIMER_EN_PRE_TBTT_EN, en);
 	reg = MT_BEACON_TIME_CFG_BEACON_TX |
 	      MT_BEACON_TIME_CFG_TBTT_EN |
 	      MT_BEACON_TIME_CFG_TIMER_EN;
 	mt76_rmw(dev, MT_BEACON_TIME_CFG, reg, reg * en);
 
+	if (mt76_is_usb(dev))
+		return;
+
+	mt76_rmw_field(dev, MT_INT_TIMER_EN, MT_INT_TIMER_EN_PRE_TBTT_EN, en);
 	if (en)
 		mt76x02_irq_enable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
 	else
 		mt76x02_irq_disable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
+}
+
+void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
+				   struct ieee80211_vif *vif, bool val)
+{
+	u8 vif_idx = ((struct mt76x02_vif *)vif->drv_priv)->idx;
+	struct sk_buff *skb = NULL;
+
+	if (mt76_is_mmio(dev))
+		tasklet_disable(&dev->pre_tbtt_tasklet);
+	else if (val)
+		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+
+	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
+
+	if (mt76_is_mmio(dev))
+		tasklet_enable(&dev->pre_tbtt_tasklet);
 }

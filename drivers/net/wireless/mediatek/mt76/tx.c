@@ -205,9 +205,6 @@ mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid,
 {
 	struct sk_buff *skb, *tmp;
 
-	if (pktid == MT_PACKET_ID_NO_ACK)
-		return NULL;
-
 	skb_queue_walk_safe(&dev->status_list, skb, tmp) {
 		struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
 
@@ -217,7 +214,7 @@ mt76_tx_status_skb_get(struct mt76_dev *dev, struct mt76_wcid *wcid, int pktid,
 		if (cb->pktid == pktid)
 			return skb;
 
-		if (!pktid &&
+		if (pktid >= 0 &&
 		    !time_after(jiffies, cb->jiffies + MT_TX_STATUS_SKB_TIMEOUT))
 			continue;
 

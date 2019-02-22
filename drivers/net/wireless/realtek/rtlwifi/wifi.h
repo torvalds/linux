@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL_WIFI_H__
 #define __RTL_WIFI_H__
@@ -263,7 +241,7 @@ struct rtlwifi_firmware_header {
 	u8 date;
 	u8 hour;
 	u8 minute;
-	__le16 ramcodeSize;
+	__le16 ramcodesize;
 	__le16 rsvd2;
 	__le32 svnindex;
 	__le32 rsvd3;
@@ -465,11 +443,11 @@ enum hw_variables {
 	HW_VAR_MCS_RATE_AVAILABLE = 0x1f,
 	HW_VAR_AC_PARAM = 0x20,
 	HW_VAR_ACM_CTRL = 0x21,
-	HW_VAR_DIS_Req_Qsize = 0x22,
+	HW_VAR_DIS_REQ_QSIZE = 0x22,
 	HW_VAR_CCX_CHNL_LOAD = 0x23,
 	HW_VAR_CCX_NOISE_HISTOGRAM = 0x24,
 	HW_VAR_CCX_CLM_NHM = 0x25,
-	HW_VAR_TxOPLimit = 0x26,
+	HW_VAR_TXOPLIMIT = 0x26,
 	HW_VAR_TURBO_MODE = 0x27,
 	HW_VAR_RF_STATE = 0x28,
 	HW_VAR_RF_OFF_BY_HW = 0x29,
@@ -522,7 +500,7 @@ enum hw_variables {
 	HW_VAR_BCN_VALID = 0x55,
 	HW_VAR_FWLPS_RF_ON = 0x56,
 	HW_VAR_DUAL_TSF_RST = 0x57,
-	HW_VAR_SWITCH_EPHY_WoWLAN = 0x58,
+	HW_VAR_SWITCH_EPHY_WOWLAN = 0x58,
 	HW_VAR_INT_MIGRATION = 0x59,
 	HW_VAR_INT_AC = 0x5a,
 	HW_VAR_RF_TIMING = 0x5b,
@@ -814,8 +792,8 @@ enum _fw_ps_mode {
 	FW_PS_UAPSD_MODE = 6,
 	FW_PS_IBSS_MODE = 7,
 	FW_PS_WWLAN_MODE = 8,
-	FW_PS_PM_Radio_Off = 9,
-	FW_PS_PM_Card_Disable = 10,
+	FW_PS_PM_RADIO_OFF = 9,
+	FW_PS_PM_CARD_DISABLE = 10,
 };
 
 enum rt_psmode {
@@ -849,8 +827,8 @@ enum rtl_led_pin {
 /*QoS related.*/
 /*acm implementation method.*/
 enum acm_method {
-	eAcmWay0_SwAndHw = 0,
-	eAcmWay1_HW = 1,
+	EACMWAY0_SWANDHW = 0,
+	EACMWAY1_HW = 1,
 	EACMWAY2_SW = 2,
 };
 
@@ -1481,7 +1459,7 @@ struct rtl_io {
 	void (*write8_async) (struct rtl_priv *rtlpriv, u32 addr, u8 val);
 	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, u16 val);
 	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, u32 val);
-	void (*writeN_sync) (struct rtl_priv *rtlpriv, u32 addr, void *buf,
+	void (*writen_sync)(struct rtl_priv *rtlpriv, u32 addr, void *buf,
 			     u16 len);
 
 	u8(*read8_sync) (struct rtl_priv *rtlpriv, u32 addr);
@@ -1898,7 +1876,7 @@ struct rtl_dm {
 
 struct rtl_efuse {
 	const struct rtl_efuse_ops *efuse_ops;
-	bool autoLoad_ok;
+	bool autoload_ok;
 	bool bootfromefuse;
 	u16 max_physical_size;
 
@@ -2125,7 +2103,7 @@ struct rtl_stats {
 	u8 rx_bufshift;
 	bool isampdu;
 	bool isfirst_ampdu;
-	bool rx_is40Mhzpacket;
+	bool rx_is40mhzpacket;
 	u8 rx_packet_bw;
 	u32 rx_pwdb_all;
 	u8 rx_mimo_signalstrength[4];	/*in 0~100 index */
@@ -2276,8 +2254,8 @@ struct rtl_hal_ops {
 			      struct ieee80211_sta *sta,
 			      struct sk_buff *skb, u8 hw_queue,
 			      struct rtl_tcb_desc *ptcb_desc);
-	void (*fill_fake_txdesc) (struct ieee80211_hw *hw, u8 *pDesc,
-				  u32 buffer_len, bool bIsPsPoll);
+	void (*fill_fake_txdesc)(struct ieee80211_hw *hw, u8 *pdesc,
+				 u32 buffer_len, bool bsspspoll);
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
 				 bool firstseg, bool lastseg,
 				 struct sk_buff *skb);

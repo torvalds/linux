@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../usb.h"
@@ -36,7 +14,7 @@
 #include "trx.h"
 #include "../rtl8192c/fw_common.h"
 
-static int _ConfigVerTOutEP(struct ieee80211_hw *hw)
+static int configvertoutep(struct ieee80211_hw *hw)
 {
 	u8 ep_cfg, txqsele;
 	u8 ep_nums = 0;
@@ -69,7 +47,7 @@ static int _ConfigVerTOutEP(struct ieee80211_hw *hw)
 	return (rtlusb->out_ep_nums == ep_nums) ? 0 : -EINVAL;
 }
 
-static int _ConfigVerNOutEP(struct ieee80211_hw *hw)
+static int configvernoutep(struct ieee80211_hw *hw)
 {
 	u8 ep_cfg;
 	u8 ep_nums = 0;
@@ -98,7 +76,7 @@ static int _ConfigVerNOutEP(struct ieee80211_hw *hw)
 	return (rtlusb->out_ep_nums == ep_nums) ? 0 : -EINVAL;
 }
 
-static void _TwoOutEpMapping(struct ieee80211_hw *hw, bool bIsChipB,
+static void twooutepmapping(struct ieee80211_hw *hw, bool is_chip8,
 			     bool  bwificfg, struct rtl_ep_map *ep_map)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -126,7 +104,7 @@ static void _TwoOutEpMapping(struct ieee80211_hw *hw, bool bIsChipB,
 	}
 }
 
-static void _ThreeOutEpMapping(struct ieee80211_hw *hw, bool  bwificfg,
+static void threeoutepmapping(struct ieee80211_hw *hw, bool  bwificfg,
 			       struct rtl_ep_map *ep_map)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -153,7 +131,7 @@ static void _ThreeOutEpMapping(struct ieee80211_hw *hw, bool  bwificfg,
 	}
 }
 
-static void _OneOutEpMapping(struct ieee80211_hw *hw, struct rtl_ep_map *ep_map)
+static void oneoutepmapping(struct ieee80211_hw *hw, struct rtl_ep_map *ep_map)
 {
 	ep_map->ep_mapping[RTL_TXQ_BE]	= 2;
 	ep_map->ep_mapping[RTL_TXQ_BK]	= 2;
@@ -166,27 +144,27 @@ static void _OneOutEpMapping(struct ieee80211_hw *hw, struct rtl_ep_map *ep_map)
 static int _out_ep_mapping(struct ieee80211_hw *hw)
 {
 	int err = 0;
-	bool bIsChipN, bwificfg = false;
+	bool ischipn, bwificfg = false;
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_usb_priv *usb_priv = rtl_usbpriv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
 	struct rtl_ep_map *ep_map = &(rtlusb->ep_map);
 
-	bIsChipN = IS_NORMAL_CHIP(rtlhal->version);
+	ischipn = IS_NORMAL_CHIP(rtlhal->version);
 	switch (rtlusb->out_ep_nums) {
 	case 2:
-		_TwoOutEpMapping(hw, bIsChipN, bwificfg, ep_map);
+		twooutepmapping(hw, ischipn, bwificfg, ep_map);
 		break;
 	case 3:
 		/* Test chip doesn't support three out EPs. */
-		if (!bIsChipN) {
+		if (!ischipn) {
 			err  =  -EINVAL;
 			goto err_out;
 		}
-		_ThreeOutEpMapping(hw, bIsChipN, ep_map);
+		threeoutepmapping(hw, ischipn, ep_map);
 		break;
 	case 1:
-		_OneOutEpMapping(hw, ep_map);
+		oneoutepmapping(hw, ep_map);
 		break;
 	default:
 		err  =  -EINVAL;
@@ -202,9 +180,9 @@ int  rtl8192cu_endpoint_mapping(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	int error = 0;
 	if (likely(IS_NORMAL_CHIP(rtlhal->version)))
-		error = _ConfigVerNOutEP(hw);
+		error = configvernoutep(hw);
 	else
-		error = _ConfigVerTOutEP(hw);
+		error = configvertoutep(hw);
 	if (error)
 		goto err_out;
 	error = _out_ep_mapping(hw);
@@ -320,7 +298,7 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 	stats->isfirst_ampdu = (bool)((GET_RX_DESC_PAGGR(pdesc) == 1)
 				   && (GET_RX_DESC_FAGGR(pdesc) == 1));
 	stats->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	stats->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
+	stats->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	stats->is_ht = (bool)GET_RX_DESC_RX_HT(pdesc);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
@@ -387,7 +365,7 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	stats.isampdu = (bool) ((GET_RX_DESC_PAGGR(rxdesc) == 1)
 				   && (GET_RX_DESC_FAGGR(rxdesc) == 1));
 	stats.timestamp_low = GET_RX_DESC_TSFL(rxdesc);
-	stats.rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(rxdesc);
+	stats.rx_is40mhzpacket = (bool)GET_RX_DESC_BW(rxdesc);
 	stats.is_ht = (bool)GET_RX_DESC_RX_HT(rxdesc);
 	/* TODO: is center_freq changed when doing scan? */
 	/* TODO: Shall we add protection or just skip those two step? */
@@ -610,28 +588,28 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "==>\n");
 }
 
-void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
-			      u32 buffer_len, bool bIsPsPoll)
+void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
+			      u32 buffer_len, bool is_pspoll)
 {
 	/* Clear all status */
-	memset(pDesc, 0, RTL_TX_HEADER_SIZE);
-	SET_TX_DESC_FIRST_SEG(pDesc, 1); /* bFirstSeg; */
-	SET_TX_DESC_LAST_SEG(pDesc, 1); /* bLastSeg; */
-	SET_TX_DESC_OFFSET(pDesc, RTL_TX_HEADER_SIZE); /* Offset = 32 */
-	SET_TX_DESC_PKT_SIZE(pDesc, buffer_len); /* Buffer size + command hdr */
-	SET_TX_DESC_QUEUE_SEL(pDesc, QSLT_MGNT); /* Fixed queue of Mgnt queue */
+	memset(pdesc, 0, RTL_TX_HEADER_SIZE);
+	SET_TX_DESC_FIRST_SEG(pdesc, 1); /* bFirstSeg; */
+	SET_TX_DESC_LAST_SEG(pdesc, 1); /* bLastSeg; */
+	SET_TX_DESC_OFFSET(pdesc, RTL_TX_HEADER_SIZE); /* Offset = 32 */
+	SET_TX_DESC_PKT_SIZE(pdesc, buffer_len); /* Buffer size + command hdr */
+	SET_TX_DESC_QUEUE_SEL(pdesc, QSLT_MGNT); /* Fixed queue of Mgnt queue */
 	/* Set NAVUSEHDR to prevent Ps-poll AId filed to be changed to error
 	 * vlaue by Hw. */
-	if (bIsPsPoll) {
-		SET_TX_DESC_NAV_USE_HDR(pDesc, 1);
+	if (is_pspoll) {
+		SET_TX_DESC_NAV_USE_HDR(pdesc, 1);
 	} else {
-		SET_TX_DESC_HWSEQ_EN(pDesc, 1); /* Hw set sequence number */
-		SET_TX_DESC_PKT_ID(pDesc, 0x100); /* set bit3 to 1. */
+		SET_TX_DESC_HWSEQ_EN(pdesc, 1); /* Hw set sequence number */
+		SET_TX_DESC_PKT_ID(pdesc, 0x100); /* set bit3 to 1. */
 	}
-	SET_TX_DESC_USE_RATE(pDesc, 1); /* use data rate which is set by Sw */
-	SET_TX_DESC_OWN(pDesc, 1);
-	SET_TX_DESC_TX_RATE(pDesc, DESC_RATE1M);
-	_rtl_tx_desc_checksum(pDesc);
+	SET_TX_DESC_USE_RATE(pdesc, 1); /* use data rate which is set by Sw */
+	SET_TX_DESC_OWN(pdesc, 1);
+	SET_TX_DESC_TX_RATE(pdesc, DESC_RATE1M);
+	_rtl_tx_desc_checksum(pdesc);
 }
 
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,

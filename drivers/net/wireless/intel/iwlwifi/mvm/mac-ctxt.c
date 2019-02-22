@@ -706,8 +706,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->probe_req_reg && vif->bss_conf.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
-	if (vif->bss_conf.assoc && vif->bss_conf.he_support &&
-	    !iwlwifi_mod_params.disable_11ax) {
+	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_11AX);
 		if (vif->bss_conf.twt_requester)
 			ctxt_sta->data_policy |= cpu_to_le32(TWT_SUPPORTED);
@@ -812,9 +811,9 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
 
-static void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
-				     __le32 *tim_index, __le32 *tim_size,
-				     u8 *beacon, u32 frame_size)
+void iwl_mvm_mac_ctxt_set_tim(struct iwl_mvm *mvm,
+			      __le32 *tim_index, __le32 *tim_size,
+			      u8 *beacon, u32 frame_size)
 {
 	u32 tim_idx;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)beacon;
@@ -854,8 +853,8 @@ static u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
 	return ie - beacon;
 }
 
-static u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
-					   struct ieee80211_vif *vif)
+u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
+				    struct ieee80211_vif *vif)
 {
 	u8 rate;
 
@@ -905,9 +904,9 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 
 }
 
-static int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,
-					    struct sk_buff *beacon,
-					    void *data, int len)
+int iwl_mvm_mac_ctxt_send_beacon_cmd(struct iwl_mvm *mvm,
+				     struct sk_buff *beacon,
+				     void *data, int len)
 {
 	struct iwl_host_cmd cmd = {
 		.id = BEACON_TEMPLATE_CMD,
@@ -1010,12 +1009,15 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 						sizeof(beacon_cmd));
 }
 
-static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif,
-					struct sk_buff *beacon)
+int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 struct sk_buff *beacon)
 {
 	if (WARN_ON(!beacon))
 		return -EINVAL;
+
+	if (IWL_MVM_NON_TRANSMITTING_AP)
+		return 0;
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD))
@@ -1041,6 +1043,11 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
 	if (!beacon)
 		return -ENOMEM;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->beacon_inject_active)
+		return -EBUSY;
+#endif
 
 	ret = iwl_mvm_mac_ctxt_send_beacon(mvm, vif, beacon);
 	dev_kfree_skb(beacon);
@@ -1330,7 +1337,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
-	struct iwl_mvm_tx_resp *beacon_notify_hdr;
+	struct iwl_extended_beacon_notif_v5 *beacon_v5 = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
 	struct agg_tx_status *agg_status;
@@ -1338,18 +1345,29 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
-	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
-	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
-	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
-	IWL_DEBUG_RX(mvm,
-		     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
-		     status, beacon_notify_hdr->failure_frame,
-		     le64_to_cpu(beacon->tsf),
-		     mvm->ap_last_beacon_gp2,
-		     le32_to_cpu(beacon_notify_hdr->initial_rate));
+	if (!iwl_mvm_is_short_beacon_notif_supported(mvm)) {
+		struct iwl_mvm_tx_resp *beacon_notify_hdr =
+			&beacon_v5->beacon_notify_hdr;
+
+		mvm->ibss_manager = beacon_v5->ibss_mgr_status != 0;
+		agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
+		status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
+		IWL_DEBUG_RX(mvm,
+			     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
+			     status, beacon_notify_hdr->failure_frame,
+			     le64_to_cpu(beacon->tsf),
+			     mvm->ap_last_beacon_gp2,
+			     le32_to_cpu(beacon_notify_hdr->initial_rate));
+	} else {
+		mvm->ibss_manager = beacon->ibss_mgr_status != 0;
+		status = le32_to_cpu(beacon->status) & TX_STATUS_MSK;
+		IWL_DEBUG_RX(mvm,
+			     "beacon status %#x tsf:0x%016llX gp2:0x%X\n",
+			     status, le64_to_cpu(beacon->tsf),
+			     mvm->ap_last_beacon_gp2);
+	}
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
@@ -1539,42 +1557,58 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_channel_switch_noa_notif *notif = (void *)pkt->data;
-	struct ieee80211_vif *csa_vif;
+	struct ieee80211_vif *csa_vif, *vif;
 	struct iwl_mvm_vif *mvmvif;
 	int len = iwl_rx_packet_payload_len(pkt);
-	u32 id_n_color;
+	u32 id_n_color, csa_id, mac_id;
 
 	if (WARN_ON_ONCE(len < sizeof(*notif)))
 		return;
 
-	rcu_read_lock();
-
-	csa_vif = rcu_dereference(mvm->csa_vif);
-	if (WARN_ON(!csa_vif || !csa_vif->csa_active))
-		goto out_unlock;
-
 	id_n_color = le32_to_cpu(notif->id_and_color);
+	mac_id = id_n_color & FW_CTXT_ID_MSK;
 
-	mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
-	if (WARN(FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color) != id_n_color,
-		 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
-		 FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color), id_n_color))
-		goto out_unlock;
+	if (WARN_ON_ONCE(mac_id >= NUM_MAC_INDEX_DRIVER))
+		return;
 
-	IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
+	rcu_read_lock();
+	vif = rcu_dereference(mvm->vif_id_to_mac[mac_id]);
 
-	schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
-			      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
-					       csa_vif->bss_conf.beacon_int));
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+		csa_vif = rcu_dereference(mvm->csa_vif);
+		if (WARN_ON(!csa_vif || !csa_vif->csa_active ||
+			    csa_vif != vif))
+			goto out_unlock;
 
-	ieee80211_csa_finish(csa_vif);
+		mvmvif = iwl_mvm_vif_from_mac80211(csa_vif);
+		csa_id = FW_CMD_ID_AND_COLOR(mvmvif->id, mvmvif->color);
+		if (WARN(csa_id != id_n_color,
+			 "channel switch noa notification on unexpected vif (csa_vif=%d, notif=%d)",
+			 csa_id, id_n_color))
+			goto out_unlock;
 
-	rcu_read_unlock();
+		IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
 
-	RCU_INIT_POINTER(mvm->csa_vif, NULL);
+		schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
+				      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
+						       csa_vif->bss_conf.beacon_int));
 
-	return;
+		ieee80211_csa_finish(csa_vif);
 
+		rcu_read_unlock();
+
+		RCU_INIT_POINTER(mvm->csa_vif, NULL);
+		return;
+	case NL80211_IFTYPE_STATION:
+		iwl_mvm_csa_client_absent(mvm, vif);
+		ieee80211_chswitch_done(vif, true);
+		break;
+	default:
+		/* should never happen */
+		WARN_ON_ONCE(1);
+		break;
+	}
 out_unlock:
 	rcu_read_unlock();
 }

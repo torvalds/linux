@@ -57,7 +57,7 @@
 #include "fw/file.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	43
+#define IWL9000_UCODE_API_MAX	46
 
 /* Lowest firmware API version supported */
 #define IWL9000_UCODE_API_MIN	30

@@ -409,8 +409,8 @@ static int rsi_load_radio_caps(struct rsi_common *common)
  * rsi_mgmt_pkt_to_core() - This function is the entry point for Mgmt module.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
- * @msg_len: Length of the recieved packet.
- * @type: Type of recieved packet.
+ * @msg_len: Length of the received packet.
+ * @type: Type of received packet.
  *
  * Return: 0 on success, -1 on failure.
  */
@@ -1547,7 +1547,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 }
 
 /**
- * rsi_set_antenna() - This fuction send antenna configuration request
+ * rsi_set_antenna() - This function send antenna configuration request
  *		       to device
  *
  * @common: Pointer to the driver private structure.
@@ -1955,7 +1955,7 @@ int rsi_handle_card_ready(struct rsi_common *common, u8 *msg)
 
 /**
  * rsi_mgmt_pkt_recv() - This function processes the management packets
- *			 recieved from the hardware.
+ *			 received from the hardware.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to the received packet.
  *
@@ -2003,6 +2003,35 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			return -1;
 		rsi_send_beacon(common);
 		break;
+	case WOWLAN_WAKEUP_REASON:
+		rsi_dbg(ERR_ZONE, "\n\nWakeup Type: %x\n", msg[15]);
+		switch (msg[15]) {
+		case RSI_UNICAST_MAGIC_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Unicast magic packet ***\n");
+			break;
+		case RSI_BROADCAST_MAGICPKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Broadcast magic packet ***\n");
+			break;
+		case RSI_EAPOL_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for GTK renewal ***\n");
+			break;
+		case RSI_DISCONNECT_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for Disconnect ***\n");
+			break;
+		case RSI_HW_BMISS_PKT:
+			rsi_dbg(ERR_ZONE,
+				"*** Wakeup for HW Beacon miss ***\n");
+			break;
+		default:
+			rsi_dbg(ERR_ZONE,
+				"##### Un-intentional Wakeup #####\n");
+			break;
+	}
+	break;
 	case RX_DOT11_MGMT:
 		return rsi_mgmt_pkt_to_core(common, msg, msg_len);
 	default:

@@ -2322,6 +2322,35 @@ out:
 	return ret;
 }
 
+int qtnf_cmd_send_external_auth(struct qtnf_vif *vif,
+				struct cfg80211_external_auth_params *auth)
+{
+	struct sk_buff *cmd_skb;
+	struct qlink_cmd_external_auth *cmd;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(vif->mac->macid, vif->vifid,
+					    QLINK_CMD_EXTERNAL_AUTH,
+					    sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_external_auth *)cmd_skb->data;
+
+	ether_addr_copy(cmd->bssid, auth->bssid);
+	cmd->status = cpu_to_le16(auth->status);
+
+	qtnf_bus_lock(vif->mac->bus);
+	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb);
+	if (ret)
+		goto out;
+
+out:
+	qtnf_bus_unlock(vif->mac->bus);
+
+	return ret;
+}
+
 int qtnf_cmd_send_disconnect(struct qtnf_vif *vif, u16 reason_code)
 {
 	struct sk_buff *cmd_skb;

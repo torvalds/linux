@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../efuse.h"
@@ -698,7 +676,7 @@ static bool _rtl8712e_init_mac(struct ieee80211_hw *hw)
 
 	/* HW Power on sequence */
 	if (!rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-		PWR_INTF_PCI_MSK, Rtl8723_NIC_ENABLE_FLOW))
+		PWR_INTF_PCI_MSK, RTL8723_NIC_ENABLE_FLOW))
 		return false;
 
 	bytetmp = rtl_read_byte(rtlpriv, REG_PCIE_CTRL_REG+2);
@@ -988,7 +966,7 @@ int rtl8723e_hw_init(struct ieee80211_hw *hw)
 	if (IS_VENDOR_UMC_A_CUT(rtlhal->version)) {
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G1, MASKDWORD, 0x30255);
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_RX_G2, MASKDWORD, 0x50a00);
-	} else if (IS_81xxC_VENDOR_UMC_B_CUT(rtlhal->version)) {
+	} else if (IS_81XXC_VENDOR_UMC_B_CUT(rtlhal->version)) {
 		rtl_set_rfreg(hw, RF90_PATH_A, 0x0C, MASKDWORD, 0x894AE);
 		rtl_set_rfreg(hw, RF90_PATH_A, 0x0A, MASKDWORD, 0x1AF31);
 		rtl_set_rfreg(hw, RF90_PATH_A, RF_IPA, MASKDWORD, 0x8F425);
@@ -1284,7 +1262,7 @@ static void _rtl8723e_poweroff_adapter(struct ieee80211_hw *hw)
 	/* Combo (PCIe + USB) Card and PCIe-MF Card */
 	/* 1. Run LPS WL RFOFF flow */
 	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-				 PWR_INTF_PCI_MSK, Rtl8723_NIC_LPS_ENTER_FLOW);
+				 PWR_INTF_PCI_MSK, RTL8723_NIC_LPS_ENTER_FLOW);
 
 	/* 2. 0x1F[7:0] = 0 */
 	/* turn off RF */
@@ -1304,7 +1282,7 @@ static void _rtl8723e_poweroff_adapter(struct ieee80211_hw *hw)
 
 	/* HW card disable configuration. */
 	rtl_hal_pwrseqcmdparsing(rtlpriv, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK,
-		PWR_INTF_PCI_MSK, Rtl8723_NIC_DISABLE_FLOW);
+		PWR_INTF_PCI_MSK, RTL8723_NIC_DISABLE_FLOW);
 
 	/* Reset MCU IO Wrapper */
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_RSV_CTRL + 1);

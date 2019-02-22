@@ -394,6 +394,7 @@ struct iwl_mvm_rxq_dup_data {
  *	the BA window. To be used for UAPSD only.
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
+ * @wep_key: used in AP mode. Is a duplicate of the WEP key.
  * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
  * @tx_ant: the index of the antenna to use for data tx to this station. Only
  *	used during connection establishment (e.g. for the 4 way handshake
@@ -424,6 +425,8 @@ struct iwl_mvm_sta {
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
+
+	struct ieee80211_key_conf *wep_key;
 
 	u8 reserved_queue;
 

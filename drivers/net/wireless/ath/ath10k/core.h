@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _CORE_H_
@@ -90,6 +79,9 @@
 /* The magic used by QCA spec */
 #define ATH10K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
+/* Default Airtime weight multipler (Tuned for multiclient performance) */
+#define ATH10K_AIRTIME_WEIGHT_MULTIPLIER  4
+
 struct ath10k;
 
 static inline const char *ath10k_bus_str(enum ath10k_bus bus)
@@ -116,6 +108,7 @@ enum ath10k_skb_flags {
 	ATH10K_SKB_F_DELIVER_CAB = BIT(2),
 	ATH10K_SKB_F_MGMT = BIT(3),
 	ATH10K_SKB_F_QOS = BIT(4),
+	ATH10K_SKB_F_RAW_TX = BIT(5),
 };
 
 struct ath10k_skb_cb {
@@ -123,6 +116,7 @@ struct ath10k_skb_cb {
 	u8 flags;
 	u8 eid;
 	u16 msdu_id;
+	u16 airtime_est;
 	struct ieee80211_vif *vif;
 	struct ieee80211_txq *txq;
 } __packed;
@@ -443,14 +437,14 @@ enum ath10k_amsdu_subfrm_num {
 };
 
 struct ath10k_sta_tid_stats {
-	unsigned long int rx_pkt_from_fw;
-	unsigned long int rx_pkt_unchained;
-	unsigned long int rx_pkt_drop_chained;
-	unsigned long int rx_pkt_drop_filter;
-	unsigned long int rx_pkt_err[ATH10K_PKT_RX_ERR_MAX];
-	unsigned long int rx_pkt_queued_for_mac;
-	unsigned long int rx_pkt_ampdu[ATH10K_AMPDU_SUBFRM_NUM_MAX];
-	unsigned long int rx_pkt_amsdu[ATH10K_AMSDU_SUBFRM_NUM_MAX];
+	unsigned long rx_pkt_from_fw;
+	unsigned long rx_pkt_unchained;
+	unsigned long rx_pkt_drop_chained;
+	unsigned long rx_pkt_drop_filter;
+	unsigned long rx_pkt_err[ATH10K_PKT_RX_ERR_MAX];
+	unsigned long rx_pkt_queued_for_mac;
+	unsigned long rx_pkt_ampdu[ATH10K_AMPDU_SUBFRM_NUM_MAX];
+	unsigned long rx_pkt_amsdu[ATH10K_AMSDU_SUBFRM_NUM_MAX];
 };
 
 enum ath10k_counter_type {
@@ -495,6 +489,7 @@ struct ath10k_sta {
 	u16 peer_id;
 	struct rate_info txrate;
 	struct ieee80211_tx_info tx_info;
+	u32 last_tx_bitrate;
 
 	struct work_struct update_wk;
 	u64 rx_duration;
@@ -571,6 +566,7 @@ struct ath10k_vif {
 	bool nohwcrypt;
 	int num_legacy_stations;
 	int txpower;
+	bool ftm_responder;
 	struct wmi_wmm_params_all_arg wmm_params;
 	struct work_struct ap_csa_work;
 	struct delayed_work connection_loss_work;
@@ -922,6 +918,7 @@ enum ath10k_dev_type {
 struct ath10k_bus_params {
 	u32 chip_id;
 	enum ath10k_dev_type dev_type;
+	bool link_can_suspend;
 };
 
 struct ath10k {
@@ -1068,10 +1065,7 @@ struct ath10k {
 
 	/* protects shared structure data */
 	spinlock_t data_lock;
-	/* protects: ar->txqs, artxq->list */
-	spinlock_t txqs_lock;
 
-	struct list_head txqs;
 	struct list_head arvifs;
 	struct list_head peers;
 	struct ath10k_peer *peer_map[ATH10K_MAX_NUM_PEER_IDS];
@@ -1182,6 +1176,7 @@ struct ath10k {
 
 	u32 ampdu_reference;
 
+	const u8 *wmi_key_cipher;
 	void *ce_priv;
 
 	u32 sta_tid_stats_mask;
@@ -1190,6 +1185,7 @@ struct ath10k {
 	enum ath10k_radar_confirmation_state radar_conf_state;
 	struct ath10k_radar_found_info last_radar_info;
 	struct work_struct radar_confirmation_work;
+	struct ath10k_bus_params bus_param;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

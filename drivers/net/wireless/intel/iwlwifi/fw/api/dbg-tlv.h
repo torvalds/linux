@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -25,7 +25,7 @@
  *
  * BSD LICENSE
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,7 +70,7 @@ struct iwl_fw_ini_header {
 	__le32 tlv_version;
 	__le32 apply_point;
 	u8 data[];
-} __packed; /* FW_INI_HEADER_TLV_S */
+} __packed; /* FW_DEBUG_TLV_HEADER_S */
 
 /**
  * struct iwl_fw_ini_allocation_tlv - (IWL_FW_INI_TLV_TYPE_BUFFER_ALLOCATION)
@@ -92,7 +92,7 @@ struct iwl_fw_ini_allocation_tlv {
 	__le32 size;
 	__le32 max_fragments;
 	__le32 min_frag_size;
-} __packed; /* FW_INI_BUFFER_ALLOCATION_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_BUFFER_ALLOCATION_TLV_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_hcmd (IWL_FW_INI_TLV_TYPE_HCMD)
@@ -108,7 +108,7 @@ struct iwl_fw_ini_hcmd {
 	u8 group;
 	__le16 padding;
 	u8 data[0];
-} __packed; /* FW_INI_HCMD_S */
+} __packed; /* FW_DEBUG_TLV_HCMD_DATA_S */
 
 /**
  * struct iwl_fw_ini_hcmd_tlv
@@ -118,7 +118,7 @@ struct iwl_fw_ini_hcmd {
 struct iwl_fw_ini_hcmd_tlv {
 	struct iwl_fw_ini_header header;
 	struct iwl_fw_ini_hcmd hcmd;
-} __packed; /* FW_INI_HCMD_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_HCMD_S_VER_1 */
 
 /*
  * struct iwl_fw_ini_debug_flow_tlv (IWL_FW_INI_TLV_TYPE_DEBUG_FLOW)
@@ -129,20 +129,50 @@ struct iwl_fw_ini_hcmd_tlv {
 struct iwl_fw_ini_debug_flow_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 debug_flow_cfg;
-} __packed; /* FW_INI_DEBUG_FLOW_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_FLOW_TLV_S_VER_1 */
 
-#define IWL_FW_INI_MAX_REGION_ID	20
+#define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
+
+/**
+ * struct iwl_fw_ini_region_cfg_internal - meta data of internal memory region
+ * @num_of_range: the amount of ranges in the region
+ * @range_data_size: size of the data to read per range, in bytes.
+ */
+struct iwl_fw_ini_region_cfg_internal {
+	__le32 num_of_ranges;
+	__le32 range_data_size;
+} __packed; /* FW_DEBUG_TLV_REGION_NIC_INTERNAL_RANGES_S */
+
+/**
+ * struct iwl_fw_ini_region_cfg_fifos - meta data of fifos region
+ * @fid1: fifo id 1 - bitmap of lmac tx/rx fifos to include in the region
+ * @fid2: fifo id 2 - bitmap of umac rx fifos to include in the region.
+ *	It is unused for tx.
+ * @num_of_registers: number of prph registers in the region, each register is
+ *	4 bytes size.
+ * @header_only: none zero value indicates that this region does not include
+ *	fifo data and includes only the given registers.
+ */
+struct iwl_fw_ini_region_cfg_fifos {
+	__le32 fid1;
+	__le32 fid2;
+	__le32 num_of_registers;
+	__le32 header_only;
+} __packed; /* FW_DEBUG_TLV_REGION_FIFOS_S */
+
 /**
  * struct iwl_fw_ini_region_cfg
  * @region_id: ID of this dump configuration
  * @region_type: &enum iwl_fw_ini_region_type
  * @num_regions: amount of regions in the address array.
- * @allocation_id: For DRAM type field substitutes for allocation_id.
  * @name_len: name length
  * @name: file name to use for this region
- * @size: size of the data, in bytes.(unused for IWL_FW_INI_REGION_DRAM_BUFFER)
- * @start_addr: array of addresses. (unused for IWL_FW_INI_REGION_DRAM_BUFFER)
+ * @internal: used in case the region uses internal memory.
+ * @allocation_id: For DRAM type field substitutes for allocation_id
+ * @fifos: used in case of fifos region.
+ * @offset: offset to use for each memory base address
+ * @start_addr: array of addresses.
  */
 struct iwl_fw_ini_region_cfg {
 	__le32 region_id;
@@ -150,32 +180,38 @@ struct iwl_fw_ini_region_cfg {
 	__le32 name_len;
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
-		__le32 num_regions;
+		struct iwl_fw_ini_region_cfg_internal internal;
 		__le32 allocation_id;
+		struct iwl_fw_ini_region_cfg_fifos fifos;
 	};
-	__le32 size;
+	__le32 offset;
 	__le32 start_addr[];
-} __packed; /* FW_INI_REGION_CONFIG_S */
+} __packed; /* FW_DEBUG_TLV_REGION_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_region_tlv - (IWL_FW_INI_TLV_TYPE_REGION_CFG)
  * DUMP sections define IDs and triggers that use those IDs TLV
  * @header: header
  * @num_regions: how many different region section and IDs are coming next
- * @iwl_fw_ini_dump dump_config: list of dump configurations
+ * @region_config: list of dump configurations
  */
 struct iwl_fw_ini_region_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_regions;
 	struct iwl_fw_ini_region_cfg region_config[];
-} __packed; /* FW_INI_REGION_CFG_S */
+} __packed; /* FW_DEBUG_TLV_REGIONS_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_trigger - (IWL_FW_INI_TLV_TYPE_DUMP_CFG)
  * Region sections define IDs and triggers that use those IDs TLV
  *
  * @trigger_id: enum &iwl_fw_ini_tigger_id
- * @ignore_default: override FW TLV with binary TLV
+ * @override_trig: determines how apply trigger in case a trigger with the
+ *	same id is already in use. Using the first 2 bytes:
+ *	Byte 0: if 0, override trigger configuration, otherwise use the
+ *	existing configuration.
+ *	Byte 1: if 0, override trigger regions, otherwise append regions to
+ *	existing trigger.
  * @dump_delay: delay from trigger fire to dump, in usec
  * @occurrences: max amount of times to be fired
  * @ignore_consec: ignore consecutive triggers, in usec
@@ -187,7 +223,7 @@ struct iwl_fw_ini_region_tlv {
  */
 struct iwl_fw_ini_trigger {
 	__le32 trigger_id;
-	__le32 ignore_default;
+	__le32 override_trig;
 	__le32 dump_delay;
 	__le32 occurrences;
 	__le32 ignore_consec;
@@ -196,7 +232,7 @@ struct iwl_fw_ini_trigger {
 	__le32 trigger_data;
 	__le32 num_regions;
 	__le32 data[];
-} __packed; /* FW_INI_TRIGGER_CONFIG_S */
+} __packed; /* FW_TLV_DEBUG_TRIGGER_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_trigger_tlv - (IWL_FW_INI_TLV_TYPE_TRIGGERS_CFG)
@@ -210,20 +246,17 @@ struct iwl_fw_ini_trigger_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_triggers;
 	struct iwl_fw_ini_trigger trigger_config[];
-} __packed; /* FW_INI_TRIGGER_CFG_S */
+} __packed; /* FW_TLV_DEBUG_TRIGGERS_S_VER_1 */
 
 /**
  * enum iwl_fw_ini_trigger_id
  * @IWL_FW_TRIGGER_ID_FW_ASSERT: FW assert
- * @IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG: TFD queue hang
  * @IWL_FW_TRIGGER_ID_FW_HW_ERROR: HW assert
- * @IWL_FW_TRIGGER_ID_FW_TRIGGER_ERROR: FW error notification
- * @IWL_FW_TRIGGER_ID_FW_TRIGGER_WARNING: FW warning notification
- * @IWL_FW_TRIGGER_ID_FW_TRIGGER_INFO: FW info notification
- * @IWL_FW_TRIGGER_ID_FW_TRIGGER_DEBUG: FW debug notification
+ * @IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG: TFD queue hang
+ * @IWL_FW_TRIGGER_ID_FW_DEBUG_HOST_TRIGGER: FW debug notification
+ * @IWL_FW_TRIGGER_ID_FW_GENERIC_NOTIFOCATION: FW generic notification
  * @IWL_FW_TRIGGER_ID_USER_TRIGGER: User trigger
  * @IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_INACTIVITY: peer inactivity
- * @FW_DEBUG_TLV_TRIGGER_ID_HOST_DID_INITIATED_EVENT: undefined
  * @IWL_FW_TRIGGER_ID_HOST_TX_LATENCY_THRESHOLD_CROSSED: TX latency
  *	threshold was crossed
  * @IWL_FW_TRIGGER_ID_HOST_TX_RESPONSE_STATUS_FAILED: TX failed
@@ -257,50 +290,53 @@ struct iwl_fw_ini_trigger_tlv {
  * @IWL_FW_TRIGGER_ID_NUM: number of trigger IDs
  */
 enum iwl_fw_ini_trigger_id {
+	IWL_FW_TRIGGER_ID_INVALID				= 0,
+
 	/* Errors triggers */
 	IWL_FW_TRIGGER_ID_FW_ASSERT				= 1,
-	IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG				= 2,
-	IWL_FW_TRIGGER_ID_FW_HW_ERROR				= 3,
-	/* Generic triggers */
-	IWL_FW_TRIGGER_ID_FW_TRIGGER_ERROR			= 4,
-	IWL_FW_TRIGGER_ID_FW_TRIGGER_WARNING			= 5,
-	IWL_FW_TRIGGER_ID_FW_TRIGGER_INFO			= 6,
-	IWL_FW_TRIGGER_ID_FW_TRIGGER_DEBUG			= 7,
-	/* User Trigger */
-	IWL_FW_TRIGGER_ID_USER_TRIGGER				= 8,
+	IWL_FW_TRIGGER_ID_FW_HW_ERROR				= 2,
+	IWL_FW_TRIGGER_ID_FW_TFD_Q_HANG				= 3,
+
+	/* FW triggers */
+	IWL_FW_TRIGGER_ID_FW_DEBUG_HOST_TRIGGER			= 4,
+	IWL_FW_TRIGGER_ID_FW_GENERIC_NOTIFOCATION		= 5,
+
+	/* User trigger */
+	IWL_FW_TRIGGER_ID_USER_TRIGGER				= 6,
+
 	/* Host triggers */
-	IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_INACTIVITY		= 9,
-	IWL_FW_TRIGGER_ID_HOST_DID_INITIATED_EVENT		= 10,
-	IWL_FW_TRIGGER_ID_HOST_TX_LATENCY_THRESHOLD_CROSSED	= 11,
-	IWL_FW_TRIGGER_ID_HOST_TX_RESPONSE_STATUS_FAILED	= 12,
-	IWL_FW_TRIGGER_ID_HOST_OS_REQ_DEAUTH_PEER		= 13,
-	IWL_FW_TRIGGER_ID_HOST_STOP_GO_REQUEST			= 14,
-	IWL_FW_TRIGGER_ID_HOST_START_GO_REQUEST			= 15,
-	IWL_FW_TRIGGER_ID_HOST_JOIN_GROUP_REQUEST		= 16,
-	IWL_FW_TRIGGER_ID_HOST_SCAN_START			= 17,
-	IWL_FW_TRIGGER_ID_HOST_SCAN_SUBITTED			= 18,
-	IWL_FW_TRIGGER_ID_HOST_SCAN_PARAMS			= 19,
-	IWL_FW_TRIGGER_ID_HOST_CHECK_FOR_HANG			= 20,
-	IWL_FW_TRIGGER_ID_HOST_BAR_RECEIVED			= 21,
-	IWL_FW_TRIGGER_ID_HOST_AGG_TX_RESPONSE_STATUS_FAILED	= 22,
-	IWL_FW_TRIGGER_ID_HOST_EAPOL_TX_RESPONSE_FAILED		= 23,
-	IWL_FW_TRIGGER_ID_HOST_FAKE_TX_RESPONSE_SUSPECTED	= 24,
-	IWL_FW_TRIGGER_ID_HOST_AUTH_REQ_FROM_ASSOC_CLIENT	= 25,
-	IWL_FW_TRIGGER_ID_HOST_ROAM_COMPLETE			= 26,
-	IWL_FW_TRIGGER_ID_HOST_AUTH_ASSOC_FAST_FAILED		= 27,
-	IWL_FW_TRIGGER_ID_HOST_D3_START				= 28,
-	IWL_FW_TRIGGER_ID_HOST_D3_END				= 29,
-	IWL_FW_TRIGGER_ID_HOST_BSS_MISSED_BEACONS		= 30,
-	IWL_FW_TRIGGER_ID_HOST_P2P_CLIENT_MISSED_BEACONS	= 31,
-	IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_TX_FAILURES		= 32,
-	IWL_FW_TRIGGER_ID_HOST_TX_WFD_ACTION_FRAME_FAILED	= 33,
-	IWL_FW_TRIGGER_ID_HOST_AUTH_ASSOC_FAILED		= 34,
-	IWL_FW_TRIGGER_ID_HOST_SCAN_COMPLETE			= 35,
-	IWL_FW_TRIGGER_ID_HOST_SCAN_ABORT			= 36,
-	IWL_FW_TRIGGER_ID_HOST_NIC_ALIVE			= 37,
-	IWL_FW_TRIGGER_ID_HOST_CHANNEL_SWITCH_COMPLETE          = 38,
+	IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_INACTIVITY		= 7,
+	IWL_FW_TRIGGER_ID_HOST_TX_LATENCY_THRESHOLD_CROSSED	= 8,
+	IWL_FW_TRIGGER_ID_HOST_TX_RESPONSE_STATUS_FAILED	= 9,
+	IWL_FW_TRIGGER_ID_HOST_OS_REQ_DEAUTH_PEER		= 10,
+	IWL_FW_TRIGGER_ID_HOST_STOP_GO_REQUEST			= 11,
+	IWL_FW_TRIGGER_ID_HOST_START_GO_REQUEST			= 12,
+	IWL_FW_TRIGGER_ID_HOST_JOIN_GROUP_REQUEST		= 13,
+	IWL_FW_TRIGGER_ID_HOST_SCAN_START			= 14,
+	IWL_FW_TRIGGER_ID_HOST_SCAN_SUBMITTED			= 15,
+	IWL_FW_TRIGGER_ID_HOST_SCAN_PARAMS			= 16,
+	IWL_FW_TRIGGER_ID_HOST_CHECK_FOR_HANG			= 17,
+	IWL_FW_TRIGGER_ID_HOST_BAR_RECEIVED			= 18,
+	IWL_FW_TRIGGER_ID_HOST_AGG_TX_RESPONSE_STATUS_FAILED	= 19,
+	IWL_FW_TRIGGER_ID_HOST_EAPOL_TX_RESPONSE_FAILED		= 20,
+	IWL_FW_TRIGGER_ID_HOST_FAKE_TX_RESPONSE_SUSPECTED	= 21,
+	IWL_FW_TRIGGER_ID_HOST_AUTH_REQ_FROM_ASSOC_CLIENT	= 22,
+	IWL_FW_TRIGGER_ID_HOST_ROAM_COMPLETE			= 23,
+	IWL_FW_TRIGGER_ID_HOST_AUTH_ASSOC_FAST_FAILED		= 24,
+	IWL_FW_TRIGGER_ID_HOST_D3_START				= 25,
+	IWL_FW_TRIGGER_ID_HOST_D3_END				= 26,
+	IWL_FW_TRIGGER_ID_HOST_BSS_MISSED_BEACONS		= 27,
+	IWL_FW_TRIGGER_ID_HOST_P2P_CLIENT_MISSED_BEACONS	= 28,
+	IWL_FW_TRIGGER_ID_HOST_PEER_CLIENT_TX_FAILURES		= 29,
+	IWL_FW_TRIGGER_ID_HOST_TX_WFD_ACTION_FRAME_FAILED	= 30,
+	IWL_FW_TRIGGER_ID_HOST_AUTH_ASSOC_FAILED		= 31,
+	IWL_FW_TRIGGER_ID_HOST_SCAN_COMPLETE			= 32,
+	IWL_FW_TRIGGER_ID_HOST_SCAN_ABORT			= 33,
+	IWL_FW_TRIGGER_ID_HOST_NIC_ALIVE			= 34,
+	IWL_FW_TRIGGER_ID_HOST_CHANNEL_SWITCH_COMPLETE		= 35,
+
 	IWL_FW_TRIGGER_ID_NUM,
-}; /* FW_INI_TRIGGER_ID_E_VER_1 */
+}; /* FW_DEBUG_TLV_TRIGGER_ID_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_apply_point
@@ -320,7 +356,7 @@ enum iwl_fw_ini_apply_point {
 	IWL_FW_INI_APPLY_MISSED_BEACONS,
 	IWL_FW_INI_APPLY_SCAN_COMPLETE,
 	IWL_FW_INI_APPLY_NUM,
-}; /* FW_INI_APPLY_POINT_E_VER_1 */
+}; /* FW_DEBUG_TLV_APPLY_POINT_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_allocation_id
@@ -340,7 +376,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_SDFX,
 	IWL_FW_INI_ALLOCATION_ID_FW_DUMP,
 	IWL_FW_INI_ALLOCATION_ID_USER_DEFINED,
-}; /* FW_INI_ALLOCATION_ID_E_VER_1 */
+}; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_buffer_location
@@ -349,10 +385,10 @@ enum iwl_fw_ini_allocation_id {
  * @IWL_FW_INI_LOCATION_DRAM_PATH: DRAM location
  */
 enum iwl_fw_ini_buffer_location {
-	IWL_FW_INI_LOCATION_SRAM_INVALID,
+	IWL_FW_INI_LOCATION_INVALID,
 	IWL_FW_INI_LOCATION_SRAM_PATH,
 	IWL_FW_INI_LOCATION_DRAM_PATH,
-}; /* FW_INI_BUFFER_LOCATION_E_VER_1 */
+}; /* FW_DEBUG_TLV_BUFFER_LOCATION_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_debug_flow
@@ -364,7 +400,7 @@ enum iwl_fw_ini_debug_flow {
 	IWL_FW_INI_DEBUG_INVALID,
 	IWL_FW_INI_DEBUG_DBTR_FLOW,
 	IWL_FW_INI_DEBUG_TB2DTF_FLOW,
-}; /* FW_INI_DEBUG_FLOW_E_VER_1 */
+}; /* FW_DEBUG_TLV_FLOW_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_region_type
@@ -396,6 +432,6 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_PAGING,
 	IWL_FW_INI_REGION_CSR,
 	IWL_FW_INI_REGION_NUM
-}; /* FW_INI_REGION_TYPE_E_VER_1*/
+}; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
 
 #endif

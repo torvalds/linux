@@ -8,7 +8,7 @@
  * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2003 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -400,6 +400,8 @@ struct iwl_txq {
 	u32 id;
 	int low_mark;
 	int high_mark;
+
+	bool overflow_tx;
 };
 
 static inline dma_addr_t
@@ -451,20 +453,6 @@ enum iwl_image_response_code {
 	IWL_IMAGE_RESP_DEF		= 0,
 	IWL_IMAGE_RESP_SUCCESS		= 1,
 	IWL_IMAGE_RESP_FAIL		= 2,
-};
-
-/**
- * struct iwl_self_init_dram - dram data used by self init process
- * @fw: lmac and umac dram data
- * @fw_cnt: total number of items in array
- * @paging: paging dram data
- * @paging_cnt: total number of items in array
- */
-struct iwl_self_init_dram {
-	struct iwl_dram_data *fw;
-	int fw_cnt;
-	struct iwl_dram_data *paging;
-	int paging_cnt;
 };
 
 /**
@@ -538,6 +526,8 @@ struct cont_rec {
  * @fh_mask: current unmasked fh causes
  * @hw_mask: current unmasked hw causes
  * @in_rescan: true if we have triggered a device rescan
+ * @base_rb_stts: base virtual address of receive buffer status for all queues
+ * @base_rb_stts_dma: base physical address of receive buffer status
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
@@ -554,7 +544,6 @@ struct iwl_trans_pcie {
 	dma_addr_t prph_info_dma_addr;
 	dma_addr_t prph_scratch_dma_addr;
 	dma_addr_t iml_dma_addr;
-	struct iwl_self_init_dram init_dram;
 	struct iwl_trans *trans;
 
 	struct net_device napi_dev;
@@ -630,6 +619,9 @@ struct iwl_trans_pcie {
 	cpumask_t affinity_mask[IWL_MAX_RX_HW_QUEUES];
 	u16 tx_cmd_queue_size;
 	bool in_rescan;
+
+	void *base_rb_stts;
+	dma_addr_t base_rb_stts_dma;
 };
 
 static inline struct iwl_trans_pcie *
@@ -813,8 +805,7 @@ static inline int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
 
 static inline void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
+	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i;
 
 	if (!dram->fw) {
@@ -1052,6 +1043,7 @@ static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state);
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
+void iwl_trans_sync_nmi(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);

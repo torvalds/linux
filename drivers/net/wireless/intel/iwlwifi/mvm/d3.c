@@ -1899,7 +1899,7 @@ static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 static int iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
-	u32 base = mvm->error_event_table[0];
+	u32 base = mvm->trans->lmac_error_event_table[0];
 	struct error_table_start {
 		/* cf. struct iwl_error_event_table */
 		u32 valid;

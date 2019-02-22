@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL92CU_TRX_H__
 #define __RTL92CU_TRX_H__
@@ -397,8 +375,8 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct sk_buff *skb,
 			  u8 queue_index,
 			  struct rtl_tcb_desc *tcb_desc);
-void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
-			      u32 buffer_len, bool bIsPsPoll);
+void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 *pdesc,
+			       u32 buffer_len, bool ispspoll);
 void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 			     u8 *pdesc, bool b_firstseg,
 			     bool b_lastseg, struct sk_buff *skb);

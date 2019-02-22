@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../efuse.h"
@@ -258,7 +236,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)(&(
 							mac->ac[0].aifs));
 			u8 acm = p_aci_aifsn->f.acm;
-			u8 acm_ctrl = rtl_read_byte(rtlpriv, AcmHwCtrl);
+			u8 acm_ctrl = rtl_read_byte(rtlpriv, ACMHWCTRL);
 
 			acm_ctrl = acm_ctrl | ((rtlpci->acm_method == 2) ?
 				   0x0 : 0x1);
@@ -266,13 +244,13 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			if (acm) {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl |= AcmHw_BeqEn;
+					acm_ctrl |= ACMHW_BEQEN;
 					break;
 				case AC2_VI:
-					acm_ctrl |= AcmHw_ViqEn;
+					acm_ctrl |= ACMHW_VIQEN;
 					break;
 				case AC3_VO:
-					acm_ctrl |= AcmHw_VoqEn;
+					acm_ctrl |= ACMHW_VOQEN;
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -283,13 +261,13 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			} else {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl &= (~AcmHw_BeqEn);
+					acm_ctrl &= (~ACMHW_BEQEN);
 					break;
 				case AC2_VI:
-					acm_ctrl &= (~AcmHw_ViqEn);
+					acm_ctrl &= (~ACMHW_VIQEN);
 					break;
 				case AC3_VO:
-					acm_ctrl &= (~AcmHw_VoqEn);
+					acm_ctrl &= (~ACMHW_VOQEN);
 					break;
 				default:
 					pr_err("switch case %#x not processed\n",
@@ -300,7 +278,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 
 			RT_TRACE(rtlpriv, COMP_QOS, DBG_TRACE,
 				 "HW_VAR_ACM_CTRL Write 0x%X\n", acm_ctrl);
-			rtl_write_byte(rtlpriv, AcmHwCtrl, acm_ctrl);
+			rtl_write_byte(rtlpriv, ACMHWCTRL, acm_ctrl);
 			break;
 		}
 	case HW_VAR_RCR:{
@@ -869,7 +847,7 @@ static void _rtl92se_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	/* 10. Power Save Control Register (Offset: 0x0260 - 0x02DF) */
 	/* 11. General Purpose Register (Offset: 0x02E0 - 0x02FF) */
 	/* 12. Host Interrupt Status Register (Offset: 0x0300 - 0x030F) */
-	/* 13. Test Mode and Debug Control Register (Offset: 0x0310 - 0x034F) */
+	/* 13. Test mode and Debug Control Register (Offset: 0x0310 - 0x034F) */
 
 	/* 14. Set driver info, we only accept PHY status now. */
 	rtl_write_byte(rtlpriv, RXDRVINFO_SZ, 4);
@@ -1641,7 +1619,7 @@ void rtl92se_update_interrupt_mask(struct ieee80211_hw *hw,
 	rtl92se_enable_interrupt(hw);
 }
 
-static void _rtl8192se_get_IC_Inferiority(struct ieee80211_hw *hw)
+static void _rtl8192se_get_ic_inferiority(struct ieee80211_hw *hw)
 {
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -1704,7 +1682,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 	if (rtlefuse->autoload_failflag)
 		return;
 
-	_rtl8192se_get_IC_Inferiority(hw);
+	_rtl8192se_get_ic_inferiority(hw);
 
 	/* Read IC Version && Channel Plan */
 	/* VID, DID	 SE	0xA-D */

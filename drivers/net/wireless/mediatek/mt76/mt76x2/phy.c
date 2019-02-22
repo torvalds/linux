@@ -241,7 +241,7 @@ void mt76x2_phy_tssi_compensate(struct mt76x02_dev *dev)
 		t.offset1 = txp.chain[1].tssi_offset;
 		mt76x2_mcu_tssi_comp(dev, &t);
 
-		if (t.pa_mode || dev->cal.dpd_cal_done)
+		if (t.pa_mode || dev->cal.dpd_cal_done || dev->ed_tx_blocked)
 			return;
 
 		usleep_range(10000, 20000);

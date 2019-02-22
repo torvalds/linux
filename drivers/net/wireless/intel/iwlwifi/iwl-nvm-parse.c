@@ -8,7 +8,7 @@
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -463,6 +463,9 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 	}
 
 	vht_cap->vht_mcs.tx_mcs_map = vht_cap->vht_mcs.rx_mcs_map;
+
+	vht_cap->vht_mcs.tx_highest |=
+		cpu_to_le16(IEEE80211_VHT_EXT_NSS_BW_CAPABLE);
 }
 
 static struct ieee80211_sband_iftype_data iwl_he_capa[] = {
@@ -930,15 +933,13 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	const __le16 *ch_section;
 
 	if (cfg->nvm_type != IWL_NVM_EXT)
-		data = kzalloc(sizeof(*data) +
-			       sizeof(struct ieee80211_channel) *
-			       IWL_NVM_NUM_CHANNELS,
-			       GFP_KERNEL);
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS),
+					   GFP_KERNEL);
 	else
-		data = kzalloc(sizeof(*data) +
-			       sizeof(struct ieee80211_channel) *
-			       IWL_NVM_NUM_CHANNELS_EXT,
-			       GFP_KERNEL);
+		data = kzalloc(struct_size(data, channels,
+					   IWL_NVM_NUM_CHANNELS_EXT),
+					   GFP_KERNEL);
 	if (!data)
 		return NULL;
 
@@ -1086,11 +1087,11 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	int max_num_ch = cfg->nvm_type == IWL_NVM_EXT ?
 			 IWL_NVM_NUM_CHANNELS_EXT : IWL_NVM_NUM_CHANNELS;
 
-	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
-		return ERR_PTR(-EINVAL);
-
 	if (WARN_ON(num_of_ch > max_num_ch))
 		num_of_ch = max_num_ch;
+
+	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
+		return ERR_PTR(-EINVAL);
 
 	IWL_DEBUG_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
 		      num_of_ch);
@@ -1425,9 +1426,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
-	nvm = kzalloc(sizeof(*nvm) +
-		      sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
-		      GFP_KERNEL);
+	nvm = kzalloc(struct_size(nvm, channels, IWL_NUM_CHANNELS), GFP_KERNEL);
 	if (!nvm) {
 		ret = -ENOMEM;
 		goto out;

@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -844,9 +822,9 @@ static u8 reserved_page_packet_8821[TOTAL_RESERVED_PKT_LEN_8821] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 3: qos null data */
-	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -877,9 +855,9 @@ static u8 reserved_page_packet_8821[TOTAL_RESERVED_PKT_LEN_8821] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 4: BT qos null data */
-	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -911,9 +889,9 @@ static u8 reserved_page_packet_8821[TOTAL_RESERVED_PKT_LEN_8821] = {
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 5~7 is for wowlan */
 	/* page 5: ARP resp */
-	0x08, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0x08, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0xAA, 0xAA, 0x03, 0x00,  0x00, 0x00, 0x08, 0x06,
 	0x00, 0x01, 0x08, 0x00,  0x06, 0x04, 0x00, 0x02,
 	0x00, 0xE0, 0x4C, 0x02,  0x51, 0x02, 0x00, 0x00,
@@ -1015,7 +993,7 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	/* page 0: beacon */
 	0x80, 0x00, 0x00, 0x00,  0xFF, 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x60, 0x00,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x60, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x64, 0x00, 0x20, 0x04,  0x00, 0x03, 0x32, 0x31,
 	0x35, 0x01, 0x08, 0x82,  0x84, 0x8B, 0x96, 0x0C,
@@ -1078,8 +1056,8 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 1: ps-poll */
-	0xA4, 0x10, 0x09, 0xC0,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0xA4, 0x10, 0x09, 0xC0,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -1143,9 +1121,9 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 2: null data */
-	0x48, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0x48, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -1208,9 +1186,9 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 3: Qos null data */
-	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -1273,9 +1251,9 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 4: BT Qos null data */
-	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0xC8, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -1339,9 +1317,9 @@ static u8 reserved_page_packet_8812[TOTAL_RESERVED_PKT_LEN_8812] = {
 	0x00, 0x80, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
 	/* page 5~7 is for wowlan */
 	/* page 5: ARP resp */
-	0x08, 0x01, 0x00, 0x00,  0x84, 0xC9, 0xB2, 0xA7,
-	0xB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
-	0x84, 0xC9, 0xB2, 0xA7,  0xB3, 0x6E, 0x00, 0x00,
+	0x08, 0x01, 0x00, 0x00,  0x84, 0xC9, 0XB2, 0xA7,
+	0XB3, 0x6E, 0x00, 0xE0,  0x4C, 0x02, 0x51, 0x02,
+	0x84, 0xC9, 0XB2, 0xA7,  0XB3, 0x6E, 0x00, 0x00,
 	0xAA, 0xAA, 0x03, 0x00,  0x00, 0x00, 0x08, 0x06,
 	0x00, 0x01, 0x08, 0x00,  0x06, 0x04, 0x00, 0x02,
 	0x00, 0xE0, 0x4C, 0x02,  0x51, 0x02, 0x00, 0x00,
@@ -1543,8 +1521,8 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	u32 totalpacketlen;
 	bool rtstatus;
-	u8 u1RsvdPageLoc[5] = { 0 };
-	u8 u1RsvdPageLoc2[7] = { 0 };
+	u8 u1rsvdpageloc[5] = { 0 };
+	u8 u1rsvdpageloc2[7] = { 0 };
 	bool b_dlok = false;
 	u8 *beacon;
 	u8 *p_pspoll;
@@ -1574,7 +1552,7 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_PS_POLL_BSSID(p_pspoll, mac->bssid);
 	SET_80211_PS_POLL_TA(p_pspoll, mac->mac_addr);
 
-	SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(u1RsvdPageLoc, PSPOLL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(u1rsvdpageloc, PSPOLL_PG);
 
 	/*--------------------------------------------------------
 	 *			(3) null data
@@ -1585,7 +1563,7 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(nullfunc, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(nullfunc, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(u1RsvdPageLoc, NULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(u1rsvdpageloc, NULL_PG);
 
 	/*---------------------------------------------------------
 	 *			(4) Qos null data
@@ -1596,7 +1574,7 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(qosnull, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(qosnull, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(u1RsvdPageLoc, QOSNULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(u1rsvdpageloc, QOSNULL_PG);
 
 	/*---------------------------------------------------------
 	 *			(5) BT Qos null data
@@ -1607,7 +1585,7 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(btqosnull, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(btqosnull, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(u1RsvdPageLoc, BT_QOSNULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(u1rsvdpageloc, BT_QOSNULL_PG);
 
 	if (!dl_whole_packets) {
 		totalpacketlen = 512 * (BT_QOSNULL_PG + 1) - 40;
@@ -1622,20 +1600,20 @@ void rtl8812ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(arpresp, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(arpresp, mac->bssid);
 
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(u1RsvdPageLoc2, ARPRESP_PG);
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(u1rsvdpageloc2, ARPRESP_PG);
 
 	/*---------------------------------------------------------
 	 *			(7) Remote Wake Ctrl
 	 *----------------------------------------------------------
 	 */
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(u1RsvdPageLoc2,
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(u1rsvdpageloc2,
 								REMOTE_PG);
 
 	/*---------------------------------------------------------
 	 *			(8) GTK Ext Memory
 	 *----------------------------------------------------------
 	 */
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_EXT_MEM(u1RsvdPageLoc2, GTKEXT_PG);
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_EXT_MEM(u1rsvdpageloc2, GTKEXT_PG);
 
 	totalpacketlen = TOTAL_RESERVED_PKT_LEN_8812 - 40;
 
@@ -1654,14 +1632,14 @@ out:
 
 	if (!b_dl_finished && b_dlok) {
 		RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,
-			      "H2C_RSVDPAGE:\n", u1RsvdPageLoc, 5);
+			      "H2C_RSVDPAGE:\n", u1rsvdpageloc, 5);
 		rtl8821ae_fill_h2c_cmd(hw, H2C_8821AE_RSVDPAGE,
-				       sizeof(u1RsvdPageLoc), u1RsvdPageLoc);
+				       sizeof(u1rsvdpageloc), u1rsvdpageloc);
 		if (dl_whole_packets) {
 			RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,
-				      "wowlan H2C_RSVDPAGE:\n", u1RsvdPageLoc2, 7);
+				      "wowlan H2C_RSVDPAGE:\n", u1rsvdpageloc2, 7);
 			rtl8821ae_fill_h2c_cmd(hw, H2C_8821AE_AOAC_RSVDPAGE,
-					       sizeof(u1RsvdPageLoc2), u1RsvdPageLoc2);
+					       sizeof(u1rsvdpageloc2), u1rsvdpageloc2);
 		}
 	}
 
@@ -1678,8 +1656,8 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	struct sk_buff *skb = NULL;
 	u32 totalpacketlen;
 	bool rtstatus;
-	u8 u1RsvdPageLoc[5] = { 0 };
-	u8 u1RsvdPageLoc2[7] = { 0 };
+	u8 u1rsvdpageloc[5] = { 0 };
+	u8 u1rsvdpageloc2[7] = { 0 };
 	bool b_dlok = false;
 	u8 *beacon;
 	u8 *p_pspoll;
@@ -1709,7 +1687,7 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_PS_POLL_BSSID(p_pspoll, mac->bssid);
 	SET_80211_PS_POLL_TA(p_pspoll, mac->mac_addr);
 
-	SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(u1RsvdPageLoc, PSPOLL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(u1rsvdpageloc, PSPOLL_PG);
 
 	/*--------------------------------------------------------
 	 *			(3) null data
@@ -1720,7 +1698,7 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(nullfunc, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(nullfunc, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(u1RsvdPageLoc, NULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_NULL_DATA(u1rsvdpageloc, NULL_PG);
 
 	/*---------------------------------------------------------
 	 *			(4) Qos null data
@@ -1731,7 +1709,7 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(qosnull, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(qosnull, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(u1RsvdPageLoc, QOSNULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(u1rsvdpageloc, QOSNULL_PG);
 
 	/*---------------------------------------------------------
 	 *			(5) Qos null data
@@ -1742,7 +1720,7 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(btqosnull, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(btqosnull, mac->bssid);
 
-	SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(u1RsvdPageLoc, BT_QOSNULL_PG);
+	SET_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(u1rsvdpageloc, BT_QOSNULL_PG);
 
 	if (!dl_whole_packets) {
 		totalpacketlen = 256 * (BT_QOSNULL_PG + 1) - 40;
@@ -1757,20 +1735,20 @@ void rtl8821ae_set_fw_rsvdpagepkt(struct ieee80211_hw *hw,
 	SET_80211_HDR_ADDRESS2(arpresp, mac->mac_addr);
 	SET_80211_HDR_ADDRESS3(arpresp, mac->bssid);
 
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(u1RsvdPageLoc2, ARPRESP_PG);
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_ARP_RSP(u1rsvdpageloc2, ARPRESP_PG);
 
 	/*---------------------------------------------------------
 	 *			(7) Remote Wake Ctrl
 	 *----------------------------------------------------------
 	 */
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(u1RsvdPageLoc2,
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_REMOTE_WAKE_CTRL_INFO(u1rsvdpageloc2,
 									REMOTE_PG);
 
 	/*---------------------------------------------------------
 	 *			(8) GTK Ext Memory
 	 *----------------------------------------------------------
 	 */
-	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_EXT_MEM(u1RsvdPageLoc2, GTKEXT_PG);
+	SET_8821AE_H2CCMD_AOAC_RSVDPAGE_LOC_GTK_EXT_MEM(u1rsvdpageloc2, GTKEXT_PG);
 
 	totalpacketlen = TOTAL_RESERVED_PKT_LEN_8821 - 40;
 
@@ -1792,16 +1770,16 @@ out:
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 			 "Set RSVD page location to Fw.\n");
 		RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,
-				"H2C_RSVDPAGE:\n", u1RsvdPageLoc, 5);
+				"H2C_RSVDPAGE:\n", u1rsvdpageloc, 5);
 		rtl8821ae_fill_h2c_cmd(hw, H2C_8821AE_RSVDPAGE,
-				       sizeof(u1RsvdPageLoc), u1RsvdPageLoc);
+				       sizeof(u1rsvdpageloc), u1rsvdpageloc);
 		if (dl_whole_packets) {
 			RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,
 				      "wowlan H2C_RSVDPAGE:\n",
-				      u1RsvdPageLoc2, 7);
+				      u1rsvdpageloc2, 7);
 			rtl8821ae_fill_h2c_cmd(hw, H2C_8821AE_AOAC_RSVDPAGE,
-					       sizeof(u1RsvdPageLoc2),
-					       u1RsvdPageLoc2);
+					       sizeof(u1rsvdpageloc2),
+					       u1rsvdpageloc2);
 		}
 	}
 

@@ -150,6 +150,13 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_bss *bss = NULL;
 	u8 *ie = NULL;
+	size_t payload_len;
+	u16 tlv_type;
+	u16 tlv_value_len;
+	size_t tlv_full_len;
+	const struct qlink_tlv_hdr *tlv;
+	const u8 *rsp_ies = NULL;
+	size_t rsp_ies_len = 0;
 
 	if (unlikely(len < sizeof(*join_info))) {
 		pr_err("VIF%u.%u: payload is too short (%u < %zu)\n",
@@ -167,67 +174,118 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 	pr_debug("VIF%u.%u: BSSID:%pM status:%u\n",
 		 vif->mac->macid, vif->vifid, join_info->bssid, status);
 
-	if (status == WLAN_STATUS_SUCCESS) {
-		qlink_chandef_q2cfg(wiphy, &join_info->chan, &chandef);
-		if (!cfg80211_chandef_valid(&chandef)) {
-			pr_warn("MAC%u.%u: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+	if (status != WLAN_STATUS_SUCCESS)
+		goto done;
+
+	qlink_chandef_q2cfg(wiphy, &join_info->chan, &chandef);
+	if (!cfg80211_chandef_valid(&chandef)) {
+		pr_warn("MAC%u.%u: bad channel freq=%u cf1=%u cf2=%u bw=%u\n",
+			vif->mac->macid, vif->vifid,
+			chandef.chan->center_freq,
+			chandef.center_freq1,
+			chandef.center_freq2,
+			chandef.width);
+		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto done;
+	}
+
+	bss = cfg80211_get_bss(wiphy, chandef.chan, join_info->bssid,
+			       NULL, 0, IEEE80211_BSS_TYPE_ESS,
+			       IEEE80211_PRIVACY_ANY);
+	if (!bss) {
+		pr_warn("VIF%u.%u: add missing BSS:%pM chan:%u\n",
+			vif->mac->macid, vif->vifid,
+			join_info->bssid, chandef.chan->hw_value);
+
+		if (!vif->wdev.ssid_len) {
+			pr_warn("VIF%u.%u: SSID unknown for BSS:%pM\n",
 				vif->mac->macid, vif->vifid,
-				chandef.chan->center_freq,
-				chandef.center_freq1,
-				chandef.center_freq2,
-				chandef.width);
+				join_info->bssid);
 			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			goto done;
 		}
 
-		bss = cfg80211_get_bss(wiphy, chandef.chan, join_info->bssid,
-				       NULL, 0, IEEE80211_BSS_TYPE_ESS,
-				       IEEE80211_PRIVACY_ANY);
-		if (!bss) {
-			pr_warn("VIF%u.%u: add missing BSS:%pM chan:%u\n",
+		ie = kzalloc(2 + vif->wdev.ssid_len, GFP_KERNEL);
+		if (!ie) {
+			pr_warn("VIF%u.%u: IE alloc failed for BSS:%pM\n",
 				vif->mac->macid, vif->vifid,
-				join_info->bssid, chandef.chan->hw_value);
+				join_info->bssid);
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto done;
+		}
 
-			if (!vif->wdev.ssid_len) {
-				pr_warn("VIF%u.%u: SSID unknown for BSS:%pM\n",
-					vif->mac->macid, vif->vifid,
-					join_info->bssid);
-				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-				goto done;
-			}
+		ie[0] = WLAN_EID_SSID;
+		ie[1] = vif->wdev.ssid_len;
+		memcpy(ie + 2, vif->wdev.ssid, vif->wdev.ssid_len);
 
-			ie = kzalloc(2 + vif->wdev.ssid_len, GFP_KERNEL);
-			if (!ie) {
-				pr_warn("VIF%u.%u: IE alloc failed for BSS:%pM\n",
-					vif->mac->macid, vif->vifid,
-					join_info->bssid);
-				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-				goto done;
-			}
-
-			ie[0] = WLAN_EID_SSID;
-			ie[1] = vif->wdev.ssid_len;
-			memcpy(ie + 2, vif->wdev.ssid, vif->wdev.ssid_len);
-
-			bss = cfg80211_inform_bss(wiphy, chandef.chan,
-						  CFG80211_BSS_FTYPE_UNKNOWN,
-						  join_info->bssid, 0,
-						  WLAN_CAPABILITY_ESS, 100,
-						  ie, 2 + vif->wdev.ssid_len,
-						  0, GFP_KERNEL);
-			if (!bss) {
-				pr_warn("VIF%u.%u: can't connect to unknown BSS: %pM\n",
-					vif->mac->macid, vif->vifid,
-					join_info->bssid);
-				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
-				goto done;
-			}
+		bss = cfg80211_inform_bss(wiphy, chandef.chan,
+					  CFG80211_BSS_FTYPE_UNKNOWN,
+					  join_info->bssid, 0,
+					  WLAN_CAPABILITY_ESS, 100,
+					  ie, 2 + vif->wdev.ssid_len,
+					  0, GFP_KERNEL);
+		if (!bss) {
+			pr_warn("VIF%u.%u: can't connect to unknown BSS: %pM\n",
+				vif->mac->macid, vif->vifid,
+				join_info->bssid);
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto done;
 		}
 	}
 
+	payload_len = len - sizeof(*join_info);
+	tlv = (struct qlink_tlv_hdr *)join_info->ies;
+
+	while (payload_len >= sizeof(struct qlink_tlv_hdr)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_value_len = le16_to_cpu(tlv->len);
+		tlv_full_len = tlv_value_len + sizeof(struct qlink_tlv_hdr);
+
+		if (payload_len < tlv_full_len) {
+			pr_warn("invalid %u TLV\n", tlv_type);
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto done;
+		}
+
+		if (tlv_type == QTN_TLV_ID_IE_SET) {
+			const struct qlink_tlv_ie_set *ie_set;
+			unsigned int ie_len;
+
+			if (payload_len < sizeof(*ie_set)) {
+				pr_warn("invalid IE_SET TLV\n");
+				status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+				goto done;
+			}
+
+			ie_set = (const struct qlink_tlv_ie_set *)tlv;
+			ie_len = tlv_value_len -
+				(sizeof(*ie_set) - sizeof(ie_set->hdr));
+
+			switch (ie_set->type) {
+			case QLINK_IE_SET_ASSOC_RESP:
+				if (ie_len) {
+					rsp_ies = ie_set->ie_data;
+					rsp_ies_len = ie_len;
+				}
+				break;
+			default:
+				pr_warn("unexpected IE type: %u\n",
+					ie_set->type);
+				break;
+			}
+		}
+
+		payload_len -= tlv_full_len;
+		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+	}
+
+	if (payload_len)
+		pr_warn("VIF%u.%u: unexpected remaining payload: %zu\n",
+			vif->mac->macid, vif->vifid, payload_len);
+
 done:
-	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, NULL,
-				0, status, GFP_KERNEL);
+	cfg80211_connect_result(vif->netdev, join_info->bssid, NULL, 0, rsp_ies,
+				rsp_ies_len, status, GFP_KERNEL);
 	if (bss) {
 		if (!ether_addr_equal(vif->bssid, join_info->bssid))
 			ether_addr_copy(vif->bssid, join_info->bssid);
@@ -516,6 +574,43 @@ static int qtnf_event_handle_radar(struct qtnf_vif *vif,
 	return 0;
 }
 
+static int
+qtnf_event_handle_external_auth(struct qtnf_vif *vif,
+				const struct qlink_event_external_auth *ev,
+				u16 len)
+{
+	struct cfg80211_external_auth_params auth = {0};
+	struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+	int ret;
+
+	if (len < sizeof(*ev)) {
+		pr_err("MAC%u: payload is too short\n", vif->mac->macid);
+		return -EINVAL;
+	}
+
+	if (!wiphy->registered || !vif->netdev)
+		return 0;
+
+	if (ev->ssid_len) {
+		memcpy(auth.ssid.ssid, ev->ssid, ev->ssid_len);
+		auth.ssid.ssid_len = ev->ssid_len;
+	}
+
+	auth.key_mgmt_suite = le32_to_cpu(ev->akm_suite);
+	ether_addr_copy(auth.bssid, ev->bssid);
+	auth.action = ev->action;
+
+	pr_info("%s: external auth bss=%pM action=%u akm=%u\n",
+		vif->netdev->name, auth.bssid, auth.action,
+		auth.key_mgmt_suite);
+
+	ret = cfg80211_external_auth_request(vif->netdev, &auth, GFP_KERNEL);
+	if (ret)
+		pr_warn("failed to offload external auth request\n");
+
+	return ret;
+}
+
 static int qtnf_event_parse(struct qtnf_wmac *mac,
 			    const struct sk_buff *event_skb)
 {
@@ -573,6 +668,10 @@ static int qtnf_event_parse(struct qtnf_wmac *mac,
 	case QLINK_EVENT_RADAR:
 		ret = qtnf_event_handle_radar(vif, (const void *)event,
 					      event_len);
+		break;
+	case QLINK_EVENT_EXTERNAL_AUTH:
+		ret = qtnf_event_handle_external_auth(vif, (const void *)event,
+						      event_len);
 		break;
 	default:
 		pr_warn("unknown event type: %x\n", event_id);

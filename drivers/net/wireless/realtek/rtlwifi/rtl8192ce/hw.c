@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../efuse.h"
@@ -104,13 +82,13 @@ void rtl92ce_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		*((enum rf_pwrstate *)(val)) = ppsc->rfpwr_state;
 		break;
 	case HW_VAR_FWLPS_RF_ON:{
-			enum rf_pwrstate rfState;
+			enum rf_pwrstate rfstate;
 			u32 val_rcr;
 
 			rtlpriv->cfg->ops->get_hw_reg(hw,
 						      HW_VAR_RF_STATE,
-						      (u8 *) (&rfState));
-			if (rfState == ERFOFF) {
+						      (u8 *)(&rfstate));
+			if (rfstate == ERFOFF) {
 				*((bool *) (val)) = true;
 			} else {
 				val_rcr = rtl_read_dword(rtlpriv, REG_RCR);
@@ -336,13 +314,13 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			if (acm) {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl |= AcmHw_BeqEn;
+					acm_ctrl |= ACMHW_BEQEN;
 					break;
 				case AC2_VI:
-					acm_ctrl |= AcmHw_ViqEn;
+					acm_ctrl |= ACMHW_VIQEN;
 					break;
 				case AC3_VO:
-					acm_ctrl |= AcmHw_VoqEn;
+					acm_ctrl |= ACMHW_VOQEN;
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -353,13 +331,13 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			} else {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl &= (~AcmHw_BeqEn);
+					acm_ctrl &= (~ACMHW_BEQEN);
 					break;
 				case AC2_VI:
-					acm_ctrl &= (~AcmHw_ViqEn);
+					acm_ctrl &= (~ACMHW_VIQEN);
 					break;
 				case AC3_VO:
-					acm_ctrl &= (~AcmHw_VoqEn);
+					acm_ctrl &= (~ACMHW_VOQEN);
 					break;
 				default:
 					pr_err("switch case %#x not processed\n",
@@ -584,23 +562,23 @@ static bool _rtl92ce_llt_table_init(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	unsigned short i;
 	u8 txpktbuf_bndy;
-	u8 maxPage;
+	u8 maxpage;
 	bool status;
 
 #if LLT_CONFIG == 1
-	maxPage = 255;
+	maxpage = 255;
 	txpktbuf_bndy = 252;
 #elif LLT_CONFIG == 2
-	maxPage = 127;
+	maxpage = 127;
 	txpktbuf_bndy = 124;
 #elif LLT_CONFIG == 3
-	maxPage = 255;
+	maxpage = 255;
 	txpktbuf_bndy = 174;
 #elif LLT_CONFIG == 4
-	maxPage = 255;
+	maxpage = 255;
 	txpktbuf_bndy = 246;
 #elif LLT_CONFIG == 5
-	maxPage = 255;
+	maxpage = 255;
 	txpktbuf_bndy = 246;
 #endif
 
@@ -639,13 +617,13 @@ static bool _rtl92ce_llt_table_init(struct ieee80211_hw *hw)
 	if (true != status)
 		return status;
 
-	for (i = txpktbuf_bndy; i < maxPage; i++) {
+	for (i = txpktbuf_bndy; i < maxpage; i++) {
 		status = _rtl92ce_llt_write(hw, i, (i + 1));
 		if (true != status)
 			return status;
 	}
 
-	status = _rtl92ce_llt_write(hw, maxPage, txpktbuf_bndy);
+	status = _rtl92ce_llt_write(hw, maxpage, txpktbuf_bndy);
 	if (true != status)
 		return status;
 
@@ -908,11 +886,11 @@ void rtl92ce_enable_hw_security_config(struct ieee80211_hw *hw)
 		return;
 	}
 
-	sec_reg_value = SCR_TxEncEnable | SCR_RxDecEnable;
+	sec_reg_value = SCR_TXENCENABLE | SCR_RXDECENABLE;
 
 	if (rtlpriv->sec.use_defaultkey) {
-		sec_reg_value |= SCR_TxUseDK;
-		sec_reg_value |= SCR_RxUseDK;
+		sec_reg_value |= SCR_TXUSEDK;
+		sec_reg_value |= SCR_RXUSEDK;
 	}
 
 	sec_reg_value |= (SCR_RXBCUSEDK | SCR_TXBCUSEDK);

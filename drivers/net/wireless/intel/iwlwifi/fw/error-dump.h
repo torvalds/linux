@@ -8,7 +8,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2014 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -275,20 +275,66 @@ struct iwl_fw_error_dump_mem {
 };
 
 /**
- * struct iwl_fw_error_dump_named_mem - chunk of memory
- * @type: &enum iwl_fw_error_dump_mem_type
- * @offset: the offset from which the memory was read
- * @name_len: name length
- * @name: file name
- * @data: the content of the memory
+ * struct iwl_fw_ini_error_dump_range - range of memory
+ * @start_addr: the start address of this range
+ * @range_data_size: the size of this range, in bytes
+ * @data: the actual memory
  */
-struct iwl_fw_error_dump_named_mem {
-	__le32 type;
-	__le32 offset;
-	u8 name_len;
-	u8 name[32];
-	u8 data[];
+struct iwl_fw_ini_error_dump_range {
+	__le32 start_addr;
+	__le32 range_data_size;
+	__le32 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_error_dump_header - ini region dump header
+ * @num_of_ranges: number of ranges in this region
+ * @name_len: number of bytes allocated to the name string of this region
+ * @name: name of the region
+ */
+struct iwl_fw_ini_error_dump_header {
+	__le32 num_of_ranges;
+	__le32 name_len;
+	u8 name[IWL_FW_INI_MAX_NAME];
 };
+
+/**
+ * struct iwl_fw_ini_error_dump - ini region dump
+ * @header: the header of this region
+ * @ranges: the memory ranges of this region
+ */
+struct iwl_fw_ini_error_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
+
+/* This bit is used to differentiate between lmac and umac rxf */
+#define IWL_RXF_UMAC_BIT BIT(31)
+
+/**
+ * struct iwl_fw_ini_fifo_error_dump_range - ini fifo range dump
+ * @fifo_num: the fifo num. In case of rxf and umac rxf, set BIT(31) to
+ *	distinguish between lmac and umac
+ * @num_of_registers: num of registers to dump, dword size each
+ * @range_data_size: the size of the registers and fifo data
+ * @data: fifo data
+ */
+struct iwl_fw_ini_fifo_error_dump_range {
+	__le32 fifo_num;
+	__le32 num_of_registers;
+	__le32 range_data_size;
+	__le32 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_fifo_error_dump - ini fifo region dump
+ * @header: the header of this region
+ * @ranges: the memory ranges of this region
+ */
+struct iwl_fw_ini_fifo_error_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	struct iwl_fw_ini_fifo_error_dump_range ranges[];
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_rb - content of an Receive Buffer
@@ -303,6 +349,20 @@ struct iwl_fw_error_dump_rb {
 	__le32 reserved;
 	u8 data[];
 };
+
+/**
+ * struct iwl_fw_ini_monitor_dram_dump - ini dram monitor dump
+ * @header - header of the region
+ * @write_ptr - write pointer position in the dram
+ * @cycle_cnt - cycles count
+ * @ranges - the memory ranges of this this region
+ */
+struct iwl_fw_ini_monitor_dram_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	__le32 write_ptr;
+	__le32 cycle_cnt;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_paging - content of the UMAC's image page
@@ -355,7 +415,9 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  * @FW_DBG_TDLS: trigger log collection upon TDLS related events.
  * @FW_DBG_TRIGGER_TX_STATUS: trigger log collection upon tx status when
  *  the firmware sends a tx reply.
- * @FW_DBG_TRIGGER_NO_ALIVE: trigger log collection if alive flow fails
+ * @FW_DBG_TRIGGER_ALIVE_TIMEOUT: trigger log collection if alive flow timeouts
+ * @FW_DBG_TRIGGER_DRIVER: trigger log collection upon a flow failure
+ *	in the driver.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -373,7 +435,8 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_TX_LATENCY,
 	FW_DBG_TRIGGER_TDLS,
 	FW_DBG_TRIGGER_TX_STATUS,
-	FW_DBG_TRIGGER_NO_ALIVE,
+	FW_DBG_TRIGGER_ALIVE_TIMEOUT,
+	FW_DBG_TRIGGER_DRIVER,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

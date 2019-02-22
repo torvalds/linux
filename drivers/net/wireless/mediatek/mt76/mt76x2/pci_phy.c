@@ -240,8 +240,10 @@ int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 	mt76_wr(dev, MT_BBP(AGC, 2), 0x00007070);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG, 0x04101B3F);
 
-	if (scan)
+	if (scan) {
+		mt76x02_edcca_init(dev, false);
 		return 0;
+	}
 
 	mt76x2_phy_channel_calibrate(dev, true);
 	mt76x02_init_agc_gain(dev);
@@ -254,7 +256,7 @@ int mt76x2_phy_set_channel(struct mt76x02_dev *dev,
 			       0x38);
 	}
 
-	mt76x02_edcca_init(dev);
+	mt76x02_edcca_init(dev, true);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);

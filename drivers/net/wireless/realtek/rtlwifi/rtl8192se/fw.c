@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -569,14 +547,14 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 	return true;
 }
 
-void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 Mode)
+void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct h2c_set_pwrmode_parm	pwrmode;
 	u16 max_wakeup_period = 0;
 
-	pwrmode.mode = Mode;
+	pwrmode.mode = mode;
 	pwrmode.flag_low_traffic_en = 0;
 	pwrmode.flag_lpnav_en = 0;
 	pwrmode.flag_rf_low_snr_en = 0;

@@ -508,7 +508,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	skb = req->skb;
 	req->skb = NULL;
 
-	/* zero lenght packets indicate usb "failure". Do not refill */
+	/* zero length packets indicate usb "failure". Do not refill */
 	if (urb->status != 0 || !urb->actual_length) {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
@@ -575,7 +575,6 @@ static void
 brcmf_usb_state_change(struct brcmf_usbdev_info *devinfo, int state)
 {
 	struct brcmf_bus *bcmf_bus = devinfo->bus_pub.bus;
-	int old_state;
 
 	brcmf_dbg(USB, "Enter, current state=%d, new state=%d\n",
 		  devinfo->bus_pub.state, state);
@@ -583,7 +582,6 @@ brcmf_usb_state_change(struct brcmf_usbdev_info *devinfo, int state)
 	if (devinfo->bus_pub.state == state)
 		return;
 
-	old_state = devinfo->bus_pub.state;
 	devinfo->bus_pub.state = state;
 
 	/* update state of upper layer */

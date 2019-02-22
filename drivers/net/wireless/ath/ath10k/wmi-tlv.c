@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "core.h"
 #include "debug.h"
@@ -620,6 +609,9 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 	case WMI_TLV_MGMT_TX_COMPLETION_EVENTID:
 		ath10k_wmi_event_mgmt_tx_compl(ar, skb);
 		break;
+	case WMI_TLV_MGMT_TX_BUNDLE_COMPLETION_EVENTID:
+		ath10k_wmi_event_mgmt_tx_bundle_compl(ar, skb);
+		break;
 	default:
 		ath10k_dbg(ar, ATH10K_DBG_WMI, "Unknown eventid: %d\n", id);
 		break;
@@ -683,6 +675,65 @@ ath10k_wmi_tlv_op_pull_mgmt_tx_compl_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->pdev_id = ev->pdev_id;
 
 	kfree(tb);
+	return 0;
+}
+
+struct wmi_tlv_tx_bundle_compl_parse {
+	const __le32 *num_reports;
+	const __le32 *desc_ids;
+	const __le32 *status;
+	bool desc_ids_done;
+	bool status_done;
+};
+
+static int
+ath10k_wmi_tlv_mgmt_tx_bundle_compl_parse(struct ath10k *ar, u16 tag, u16 len,
+					  const void *ptr, void *data)
+{
+	struct wmi_tlv_tx_bundle_compl_parse *bundle_tx_compl = data;
+
+	switch (tag) {
+	case WMI_TLV_TAG_STRUCT_MGMT_TX_COMPL_BUNDLE_EVENT:
+		bundle_tx_compl->num_reports = ptr;
+		break;
+	case WMI_TLV_TAG_ARRAY_UINT32:
+		if (!bundle_tx_compl->desc_ids_done) {
+			bundle_tx_compl->desc_ids_done = true;
+			bundle_tx_compl->desc_ids = ptr;
+		} else if (!bundle_tx_compl->status_done) {
+			bundle_tx_compl->status_done = true;
+			bundle_tx_compl->status = ptr;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int ath10k_wmi_tlv_op_pull_mgmt_tx_bundle_compl_ev(
+				struct ath10k *ar, struct sk_buff *skb,
+				struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg)
+{
+	struct wmi_tlv_tx_bundle_compl_parse bundle_tx_compl = { };
+	int ret;
+
+	ret = ath10k_wmi_tlv_iter(ar, skb->data, skb->len,
+				  ath10k_wmi_tlv_mgmt_tx_bundle_compl_parse,
+				  &bundle_tx_compl);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	if (!bundle_tx_compl.num_reports || !bundle_tx_compl.desc_ids ||
+	    !bundle_tx_compl.status)
+		return -EPROTO;
+
+	arg->num_reports = *bundle_tx_compl.num_reports;
+	arg->desc_ids = bundle_tx_compl.desc_ids;
+	arg->status = bundle_tx_compl.status;
+
 	return 0;
 }
 
@@ -1611,7 +1662,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->rx_skip_defrag_timeout_dup_detection_check = __cpu_to_le32(0);
 	cfg->vow_config = __cpu_to_le32(0);
 	cfg->gtk_offload_max_vdev = __cpu_to_le32(2);
-	cfg->num_msdu_desc = __cpu_to_le32(TARGET_TLV_NUM_MSDU_DESC);
+	cfg->num_msdu_desc = __cpu_to_le32(ar->htt.max_num_pending_tx);
 	cfg->max_frag_entries = __cpu_to_le32(2);
 	cfg->num_tdls_vdevs = __cpu_to_le32(TARGET_TLV_NUM_TDLS_VDEVS);
 	cfg->num_tdls_conn_table_entries = __cpu_to_le32(0x20);
@@ -1626,7 +1677,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->num_ocb_vdevs = __cpu_to_le32(0);
 	cfg->num_ocb_channels = __cpu_to_le32(0);
 	cfg->num_ocb_schedules = __cpu_to_le32(0);
-	cfg->host_capab = __cpu_to_le32(0);
+	cfg->host_capab = __cpu_to_le32(WMI_TLV_FLAG_MGMT_BUNDLE_TX_COMPL);
 
 	ath10k_wmi_put_host_mem_chunks(ar, chunks);
 
@@ -1998,9 +2049,11 @@ ath10k_wmi_tlv_op_gen_vdev_install_key(struct ath10k *ar,
 	size_t len;
 	void *ptr;
 
-	if (arg->key_cipher == WMI_CIPHER_NONE && arg->key_data != NULL)
+	if (arg->key_cipher == ar->wmi_key_cipher[WMI_CIPHER_NONE] &&
+	    arg->key_data)
 		return ERR_PTR(-EINVAL);
-	if (arg->key_cipher != WMI_CIPHER_NONE && arg->key_data == NULL)
+	if (arg->key_cipher != ar->wmi_key_cipher[WMI_CIPHER_NONE] &&
+	    !arg->key_data)
 		return ERR_PTR(-EINVAL);
 
 	len = sizeof(*tlv) + sizeof(*cmd) +
@@ -3259,6 +3312,8 @@ ath10k_wmi_tlv_op_gen_wow_enable(struct ath10k *ar)
 	cmd = (void *)tlv->value;
 
 	cmd->enable = __cpu_to_le32(1);
+	if (!ar->bus_param.link_can_suspend)
+		cmd->pause_iface_config = __cpu_to_le32(WOW_IFACE_PAUSE_DISABLED);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv wow enable\n");
 	return skb;
@@ -4093,6 +4148,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_scan = ath10k_wmi_tlv_op_pull_scan_ev,
 	.pull_mgmt_rx = ath10k_wmi_tlv_op_pull_mgmt_rx_ev,
 	.pull_mgmt_tx_compl = ath10k_wmi_tlv_op_pull_mgmt_tx_compl_ev,
+	.pull_mgmt_tx_bundle_compl = ath10k_wmi_tlv_op_pull_mgmt_tx_bundle_compl_ev,
 	.pull_ch_info = ath10k_wmi_tlv_op_pull_ch_info_ev,
 	.pull_vdev_start = ath10k_wmi_tlv_op_pull_vdev_start_ev,
 	.pull_peer_kick = ath10k_wmi_tlv_op_pull_peer_kick_ev,
