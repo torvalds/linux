@@ -2939,7 +2939,6 @@ static void set_multichannel_mask(struct fw_ohci *ohci, u64 channels)
 	reg_write(ohci, OHCI1394_IRMultiChanMaskLoClear, ~lo);
 	reg_write(ohci, OHCI1394_IRMultiChanMaskHiSet, hi);
 	reg_write(ohci, OHCI1394_IRMultiChanMaskLoSet, lo);
-	mmiowb();
 	ohci->mc_channels = channels;
 }
 

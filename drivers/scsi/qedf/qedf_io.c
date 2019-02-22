@@ -807,7 +807,6 @@ void qedf_ring_doorbell(struct qedf_rport *fcport)
 	writel(*(u32 *)&dbell, fcport->p_doorbell);
 	/* Make sure SQ index is updated so f/w prcesses requests in order */
 	wmb();
-	mmiowb();
 }
 
 static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,

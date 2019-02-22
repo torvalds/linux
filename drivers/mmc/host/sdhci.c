@@ -1807,7 +1807,6 @@ void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			sdhci_send_command(host, mrq->cmd);
 	}
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sdhci_request);
@@ -2010,8 +2009,6 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	 */
 	if (host->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
 		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
-
-	mmiowb();
 }
 EXPORT_SYMBOL_GPL(sdhci_set_ios);
 
@@ -2105,7 +2102,6 @@ static void sdhci_enable_sdio_irq_nolock(struct sdhci_host *host, int enable)
 
 		sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 		sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
-		mmiowb();
 	}
 }
 
@@ -2353,7 +2349,6 @@ void sdhci_send_tuning(struct sdhci_host *host, u32 opcode)
 
 	host->tuning_done = 0;
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	/* Wait for Buffer Read Ready interrupt */
@@ -2705,7 +2700,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 
 	host->mrqs_done[i] = NULL;
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
@@ -2739,7 +2733,6 @@ static void sdhci_timeout_timer(struct timer_list *t)
 		sdhci_finish_mrq(host, host->cmd->mrq);
 	}
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -2770,7 +2763,6 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
 		}
 	}
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -3251,7 +3243,6 @@ int sdhci_resume_host(struct sdhci_host *host)
 		mmc->ops->set_ios(mmc, &mmc->ios);
 	} else {
 		sdhci_init(host, (host->mmc->pm_flags & MMC_PM_KEEP_POWER));
-		mmiowb();
 	}
 
 	if (host->irq_wake_enabled) {
@@ -3391,7 +3382,6 @@ void sdhci_cqe_enable(struct mmc_host *mmc)
 		 mmc_hostname(mmc), host->ier,
 		 sdhci_readl(host, SDHCI_INT_STATUS));
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sdhci_cqe_enable);
@@ -3416,7 +3406,6 @@ void sdhci_cqe_disable(struct mmc_host *mmc, bool recovery)
 		 mmc_hostname(mmc), host->ier,
 		 sdhci_readl(host, SDHCI_INT_STATUS));
 
-	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sdhci_cqe_disable);
@@ -4254,8 +4243,6 @@ int __sdhci_add_host(struct sdhci_host *host)
 		       mmc_hostname(mmc), ret);
 		goto unirq;
 	}
-
-	mmiowb();
 
 	ret = mmc_add_host(mmc);
 	if (ret)

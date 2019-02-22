@@ -917,7 +917,6 @@ static void cmd_work_handler(struct work_struct *work)
 	mlx5_core_dbg(dev, "writing 0x%x to command doorbell\n", 1 << ent->idx);
 	wmb();
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
-	mmiowb();
 	/* if not in polling don't use ent after this point */
 	if (cmd_mode == CMD_MODE_POLLING || poll_cmd) {
 		poll_timeout(ent);

@@ -345,8 +345,6 @@ static void slic_set_rx_mode(struct net_device *dev)
 	if (sdev->promisc != set_promisc) {
 		sdev->promisc = set_promisc;
 		slic_configure_rcv(sdev);
-		/* make sure writes to receiver cant leak out of the lock */
-		mmiowb();
 	}
 	spin_unlock_bh(&sdev->link_lock);
 }
@@ -1461,8 +1459,6 @@ static netdev_tx_t slic_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (slic_get_free_tx_descs(txq) < SLIC_MAX_REQ_TX_DESCS)
 		netif_stop_queue(dev);
-	/* make sure writes to io-memory cant leak out of tx queue lock */
-	mmiowb();
 
 	return NETDEV_TX_OK;
 drop_skb:

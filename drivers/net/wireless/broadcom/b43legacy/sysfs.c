@@ -143,7 +143,6 @@ static ssize_t b43legacy_attr_interfmode_store(struct device *dev,
 	if (err)
 		b43legacyerr(wldev->wl, "Interference Mitigation not "
 		       "supported by device\n");
-	mmiowb();
 	spin_unlock_irqrestore(&wldev->wl->irq_lock, flags);
 	mutex_unlock(&wldev->wl->mutex);
 

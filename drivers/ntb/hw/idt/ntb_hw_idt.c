@@ -358,8 +358,6 @@ static void idt_sw_write(struct idt_ntb_dev *ndev,
 	iowrite32((u32)reg, ndev->cfgspc + (ptrdiff_t)IDT_NT_GASAADDR);
 	/* Put the new value of the register */
 	iowrite32(data, ndev->cfgspc + (ptrdiff_t)IDT_NT_GASADATA);
-	/* Make sure the PCIe transactions are executed */
-	mmiowb();
 	/* Unlock GASA registers operations */
 	spin_unlock_irqrestore(&ndev->gasa_lock, irqflags);
 }
@@ -750,7 +748,6 @@ static void idt_ntb_local_link_enable(struct idt_ntb_dev *ndev)
 	spin_lock_irqsave(&ndev->mtbl_lock, irqflags);
 	idt_nt_write(ndev, IDT_NT_NTMTBLADDR, ndev->part);
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, mtbldata);
-	mmiowb();
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
 	/* Notify the peers by setting and clearing the global signal bit */
@@ -778,7 +775,6 @@ static void idt_ntb_local_link_disable(struct idt_ntb_dev *ndev)
 	spin_lock_irqsave(&ndev->mtbl_lock, irqflags);
 	idt_nt_write(ndev, IDT_NT_NTMTBLADDR, ndev->part);
 	idt_nt_write(ndev, IDT_NT_NTMTBLDATA, 0);
-	mmiowb();
 	spin_unlock_irqrestore(&ndev->mtbl_lock, irqflags);
 
 	/* Notify the peers by setting and clearing the global signal bit */
@@ -1339,7 +1335,6 @@ static int idt_ntb_peer_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 		idt_nt_write(ndev, IDT_NT_LUTLDATA, (u32)addr);
 		idt_nt_write(ndev, IDT_NT_LUTMDATA, (u32)(addr >> 32));
 		idt_nt_write(ndev, IDT_NT_LUTUDATA, data);
-		mmiowb();
 		spin_unlock_irqrestore(&ndev->lut_lock, irqflags);
 		/* Limit address isn't specified since size is fixed for LUT */
 	}
@@ -1393,7 +1388,6 @@ static int idt_ntb_peer_mw_clear_trans(struct ntb_dev *ntb, int pidx,
 		idt_nt_write(ndev, IDT_NT_LUTLDATA, 0);
 		idt_nt_write(ndev, IDT_NT_LUTMDATA, 0);
 		idt_nt_write(ndev, IDT_NT_LUTUDATA, 0);
-		mmiowb();
 		spin_unlock_irqrestore(&ndev->lut_lock, irqflags);
 	}
 
@@ -1812,7 +1806,6 @@ static int idt_ntb_peer_msg_write(struct ntb_dev *ntb, int pidx, int midx,
 	/* Set the route and send the data */
 	idt_sw_write(ndev, partdata_tbl[ndev->part].msgctl[midx], swpmsgctl);
 	idt_nt_write(ndev, ntdata_tbl.msgs[midx].out, msg);
-	mmiowb();
 	/* Unlock the messages routing table */
 	spin_unlock_irqrestore(&ndev->msg_locks[midx], irqflags);
 

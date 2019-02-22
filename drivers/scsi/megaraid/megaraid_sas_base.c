@@ -815,7 +815,6 @@ megasas_fire_cmd_skinny(struct megasas_instance *instance,
 	       &(regs)->inbound_high_queue_port);
 	writel((lower_32_bits(frame_phys_addr) | (frame_count<<1))|1,
 	       &(regs)->inbound_low_queue_port);
-	mmiowb();
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 }
 

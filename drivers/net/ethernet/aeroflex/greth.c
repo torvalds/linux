@@ -613,7 +613,6 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 		napi_schedule(&greth->napi);
 	}
 
-	mmiowb();
 	spin_unlock(&greth->devlock);
 
 	return retval;

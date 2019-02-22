@@ -3004,8 +3004,6 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	sp->flags |= SRB_SENT;
 	ha->actthreads++;
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	/* Enforce mmio write ordering; see comment in qla1280_isp_cmd(). */
-	mmiowb();
 
  out:
 	if (status)
@@ -3254,8 +3252,6 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	sp->flags |= SRB_SENT;
 	ha->actthreads++;
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	/* Enforce mmio write ordering; see comment in qla1280_isp_cmd(). */
-	mmiowb();
 
 out:
 	if (status)
@@ -3379,7 +3375,6 @@ qla1280_isp_cmd(struct scsi_qla_host *ha)
 	 * See Documentation/driver-api/device-io.rst for more information.
 	 */
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
-	mmiowb();
 
 	LEAVE("qla1280_isp_cmd");
 }

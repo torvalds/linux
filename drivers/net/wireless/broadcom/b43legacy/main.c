@@ -264,7 +264,6 @@ static void b43legacy_ram_write(struct b43legacy_wldev *dev, u16 offset,
 		val = swab32(val);
 
 	b43legacy_write32(dev, B43legacy_MMIO_RAM_CONTROL, offset);
-	mmiowb();
 	b43legacy_write32(dev, B43legacy_MMIO_RAM_DATA, val);
 }
 
@@ -341,14 +340,11 @@ void b43legacy_shm_write32(struct b43legacy_wldev *dev,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43legacy_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43legacy_write16(dev,
 					  B43legacy_MMIO_SHM_DATA_UNALIGNED,
 					  (value >> 16) & 0xffff);
-			mmiowb();
 			b43legacy_shm_control_word(dev, routing,
 						   (offset >> 2) + 1);
-			mmiowb();
 			b43legacy_write16(dev, B43legacy_MMIO_SHM_DATA,
 					  value & 0xffff);
 			return;
@@ -356,7 +352,6 @@ void b43legacy_shm_write32(struct b43legacy_wldev *dev,
 		offset >>= 2;
 	}
 	b43legacy_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43legacy_write32(dev, B43legacy_MMIO_SHM_DATA, value);
 }
 
@@ -368,7 +363,6 @@ void b43legacy_shm_write16(struct b43legacy_wldev *dev, u16 routing, u16 offset,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43legacy_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43legacy_write16(dev,
 					  B43legacy_MMIO_SHM_DATA_UNALIGNED,
 					  value);
@@ -377,7 +371,6 @@ void b43legacy_shm_write16(struct b43legacy_wldev *dev, u16 routing, u16 offset,
 		offset >>= 2;
 	}
 	b43legacy_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43legacy_write16(dev, B43legacy_MMIO_SHM_DATA, value);
 }
 
@@ -471,7 +464,6 @@ static void b43legacy_time_lock(struct b43legacy_wldev *dev)
 	status = b43legacy_read32(dev, B43legacy_MMIO_MACCTL);
 	status |= B43legacy_MACCTL_TBTTHOLD;
 	b43legacy_write32(dev, B43legacy_MMIO_MACCTL, status);
-	mmiowb();
 }
 
 static void b43legacy_time_unlock(struct b43legacy_wldev *dev)
@@ -494,10 +486,8 @@ static void b43legacy_tsf_write_locked(struct b43legacy_wldev *dev, u64 tsf)
 		u32 hi = (tsf & 0xFFFFFFFF00000000ULL) >> 32;
 
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_LOW, 0);
-		mmiowb();
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_HIGH,
 				    hi);
-		mmiowb();
 		b43legacy_write32(dev, B43legacy_MMIO_REV3PLUS_TSF_LOW,
 				    lo);
 	} else {
@@ -507,13 +497,9 @@ static void b43legacy_tsf_write_locked(struct b43legacy_wldev *dev, u64 tsf)
 		u16 v3 = (tsf & 0xFFFF000000000000ULL) >> 48;
 
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_0, 0);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_3, v3);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_2, v2);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_1, v1);
-		mmiowb();
 		b43legacy_write16(dev, B43legacy_MMIO_TSF_0, v0);
 	}
 }
@@ -1250,7 +1236,6 @@ static void b43legacy_beacon_update_trigger_work(struct work_struct *work)
 		/* The handler might have updated the IRQ mask. */
 		b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK,
 				  dev->irq_mask);
-		mmiowb();
 		spin_unlock_irq(&wl->irq_lock);
 	}
 	mutex_unlock(&wl->mutex);
@@ -1346,7 +1331,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
 			b43legacy_controller_restart(dev, "DMA error");
-			mmiowb();
 			spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 			return;
 		}
@@ -1396,7 +1380,6 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 		handle_irq_transmit_status(dev);
 
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
-	mmiowb();
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 }
 
@@ -1488,7 +1471,6 @@ static irqreturn_t b43legacy_interrupt_handler(int irq, void *dev_id)
 	dev->irq_reason = reason;
 	tasklet_schedule(&dev->isr_tasklet);
 out:
-	mmiowb();
 	spin_unlock(&dev->wl->irq_lock);
 
 	return ret;
@@ -2781,7 +2763,6 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
-	mmiowb();
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
@@ -2900,7 +2881,6 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, dev->irq_mask);
 	/* XXX: why? */
-	mmiowb();
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
  out_unlock_mutex:
 	mutex_unlock(&wl->mutex);

@@ -4166,8 +4166,6 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DOORBELL_RELAXED(bp, txdata->cid, txdata->tx_db.raw);
 
-	mmiowb();
-
 	txdata->tx_bd_prod += nbd;
 
 	if (unlikely(bnx2x_tx_avail(bp, txdata) < MAX_DESC_PER_TX_PKT)) {

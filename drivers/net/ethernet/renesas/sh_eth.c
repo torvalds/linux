@@ -2010,7 +2010,6 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 	if ((mdp->cd->no_psr || mdp->no_ether_link) && phydev->link)
 		sh_eth_rcv_snd_enable(ndev);
 
-	mmiowb();
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
 	if (new_state && netif_msg_link(mdp))

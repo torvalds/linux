@@ -3333,7 +3333,6 @@ _base_mpi_ep_writeq(__u64 b, volatile void __iomem *addr,
 	spin_lock_irqsave(writeq_lock, flags);
 	__raw_writel((u32)(b), addr);
 	__raw_writel((u32)(b >> 32), (addr + 4));
-	mmiowb();
 	spin_unlock_irqrestore(writeq_lock, flags);
 }
 

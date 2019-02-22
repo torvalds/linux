@@ -219,7 +219,6 @@ static inline int __w5100_write_direct(struct net_device *ndev, u32 addr,
 static inline int w5100_write_direct(struct net_device *ndev, u32 addr, u8 data)
 {
 	__w5100_write_direct(ndev, addr, data);
-	mmiowb();
 
 	return 0;
 }
@@ -236,7 +235,6 @@ static int w5100_write16_direct(struct net_device *ndev, u32 addr, u16 data)
 {
 	__w5100_write_direct(ndev, addr, data >> 8);
 	__w5100_write_direct(ndev, addr + 1, data);
-	mmiowb();
 
 	return 0;
 }
@@ -259,8 +257,6 @@ static int w5100_writebulk_direct(struct net_device *ndev, u32 addr,
 
 	for (i = 0; i < len; i++, addr++)
 		__w5100_write_direct(ndev, addr, *buf++);
-
-	mmiowb();
 
 	return 0;
 }
@@ -375,7 +371,6 @@ static int w5100_readbulk_indirect(struct net_device *ndev, u32 addr, u8 *buf,
 	for (i = 0; i < len; i++)
 		*buf++ = w5100_read_direct(ndev, W5100_IDM_DR);
 
-	mmiowb();
 	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
 
 	return 0;
@@ -394,7 +389,6 @@ static int w5100_writebulk_indirect(struct net_device *ndev, u32 addr,
 	for (i = 0; i < len; i++)
 		__w5100_write_direct(ndev, W5100_IDM_DR, *buf++);
 
-	mmiowb();
 	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
 
 	return 0;

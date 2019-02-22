@@ -242,7 +242,6 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 		&instance->reg_set->inbound_low_queue_port);
 	writel(le32_to_cpu(req_desc->u.high),
 		&instance->reg_set->inbound_high_queue_port);
-	mmiowb();
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 #endif
 }

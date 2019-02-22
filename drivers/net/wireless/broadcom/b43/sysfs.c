@@ -129,7 +129,6 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 	} else
 		err = -ENOSYS;
 
-	mmiowb();
 	mutex_unlock(&wldev->wl->mutex);
 
 	return err ? err : count;

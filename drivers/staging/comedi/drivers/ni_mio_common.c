@@ -547,7 +547,6 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 			reg);
 		break;
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
 

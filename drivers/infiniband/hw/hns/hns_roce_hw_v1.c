@@ -1750,8 +1750,6 @@ static int hns_roce_v1_post_mbox(struct hns_roce_dev *hr_dev, u64 in_param,
 
 	writel(val, hcr + 5);
 
-	mmiowb();
-
 	return 0;
 }
 

@@ -2360,11 +2360,6 @@ static inline void iavf_tx_map(struct iavf_ring *tx_ring, struct sk_buff *skb,
 	/* notify HW of packet */
 	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
 		writel(i, tx_ring->tail);
-
-		/* we need this if more than one processor can write to our tail
-		 * at a time, it synchronizes IO on IA64/Altix systems
-		 */
-		mmiowb();
 	}
 
 	return;

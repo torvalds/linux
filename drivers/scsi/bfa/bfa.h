@@ -62,8 +62,7 @@ void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1); \
 		writel((__bfa)->iocfc.req_cq_pi[__reqq],		\
 			(__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq]);	\
-		mmiowb();      \
-	} while (0)
+		} while (0)
 
 #define bfa_rspq_pi(__bfa, __rspq)					\
 	(*(u32 *)((__bfa)->iocfc.rsp_cq_shadow_pi[__rspq].kva))
