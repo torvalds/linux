@@ -275,7 +275,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	if (val < 0)
 		return val;
 
-	mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, val);
+	mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
 	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
 
