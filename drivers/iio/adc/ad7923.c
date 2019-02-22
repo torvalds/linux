@@ -130,7 +130,7 @@ static const struct ad7923_chip_info ad7923_chip_info[] = {
  * ad7923_update_scan_mode() setup the spi transfer buffer for the new scan mask
  **/
 static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *active_scan_mask)
+				   const unsigned long *active_scan_mask)
 {
 	struct ad7923_state *st = iio_priv(indio_dev);
 	int i, cmd, len;
@@ -181,7 +181,7 @@ static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, st->rx_buf,
-		iio_get_time_ns(indio_dev));
+					   iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -314,7 +314,7 @@ static int ad7923_probe(struct spi_device *spi)
 		return ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-			&ad7923_trigger_handler, NULL);
+					 &ad7923_trigger_handler, NULL);
 	if (ret)
 		goto error_disable_reg;
 
