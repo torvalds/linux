@@ -235,6 +235,7 @@ static int mv3310_config_init(struct phy_device *phydev)
 {
 	/* Check that the PHY interface type is compatible */
 	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    phydev->interface != PHY_INTERFACE_MODE_XAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_RXAUI &&
 	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
@@ -313,18 +314,29 @@ static int mv3310_aneg_done(struct phy_device *phydev)
 static void mv3310_update_interface(struct phy_device *phydev)
 {
 	if ((phydev->interface == PHY_INTERFACE_MODE_SGMII ||
+	     phydev->interface == PHY_INTERFACE_MODE_2500BASEX ||
 	     phydev->interface == PHY_INTERFACE_MODE_10GKR) && phydev->link) {
 		/* The PHY automatically switches its serdes interface (and
-		 * active PHYXS instance) between Cisco SGMII and 10GBase-KR
-		 * modes according to the speed.  Florian suggests setting
-		 * phydev->interface to communicate this to the MAC. Only do
-		 * this if we are already in either SGMII or 10GBase-KR mode.
+		 * active PHYXS instance) between Cisco SGMII, 10GBase-KR and
+		 * 2500BaseX modes according to the speed.  Florian suggests
+		 * setting phydev->interface to communicate this to the MAC.
+		 * Only do this if we are already in one of the above modes.
 		 */
-		if (phydev->speed == SPEED_10000)
+		switch (phydev->speed) {
+		case SPEED_10000:
 			phydev->interface = PHY_INTERFACE_MODE_10GKR;
-		else if (phydev->speed >= SPEED_10 &&
-			 phydev->speed < SPEED_10000)
+			break;
+		case SPEED_2500:
+			phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+			break;
+		case SPEED_1000:
+		case SPEED_100:
+		case SPEED_10:
 			phydev->interface = PHY_INTERFACE_MODE_SGMII;
+			break;
+		default:
+			break;
+		}
 	}
 }
 
