@@ -2429,7 +2429,10 @@ static void dump_one_paca(int cpu)
 	DUMP(p, trap_save, "%#-*x");
 	DUMP(p, irq_soft_mask, "%#-*x");
 	DUMP(p, irq_happened, "%#-*x");
-	DUMP(p, io_sync, "%#-*x");
+#ifdef CONFIG_MMIOWB
+	DUMP(p, mmiowb_state.nesting_count, "%#-*x");
+	DUMP(p, mmiowb_state.mmiowb_pending, "%#-*x");
+#endif
 	DUMP(p, irq_work_pending, "%#-*x");
 	DUMP(p, nap_state_lost, "%#-*x");
 	DUMP(p, sprg_vdso, "%#-*llx");

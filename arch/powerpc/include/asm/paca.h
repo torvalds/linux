@@ -34,6 +34,8 @@
 #include <asm/cpuidle.h>
 #include <asm/atomic.h>
 
+#include <asm-generic/mmiowb_types.h>
+
 register struct paca_struct *local_paca asm("r13");
 
 #if defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_SMP)
@@ -171,7 +173,6 @@ struct paca_struct {
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 irq_soft_mask;		/* mask for irq soft masking */
 	u8 irq_happened;		/* irq happened while soft-disabled */
-	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -263,6 +264,9 @@ struct paca_struct {
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #ifdef CONFIG_STACKPROTECTOR
 	unsigned long canary;
+#endif
+#ifdef CONFIG_MMIOWB
+	struct mmiowb_state mmiowb_state;
 #endif
 } ____cacheline_aligned;
 
