@@ -567,11 +567,25 @@ static inline int wil_ring_is_full(struct wil_ring *ring)
 	return wil_ring_next_tail(ring) == ring->swhead;
 }
 
-static inline bool wil_need_txstat(struct sk_buff *skb)
+static inline u8 *wil_skb_get_da(struct sk_buff *skb)
 {
 	struct ethhdr *eth = (void *)skb->data;
 
-	return is_unicast_ether_addr(eth->h_dest) && skb->sk &&
+	return eth->h_dest;
+}
+
+static inline u8 *wil_skb_get_sa(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return eth->h_source;
+}
+
+static inline bool wil_need_txstat(struct sk_buff *skb)
+{
+	const u8 *da = wil_skb_get_da(skb);
+
+	return is_unicast_ether_addr(da) && skb->sk &&
 	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
 }
 
