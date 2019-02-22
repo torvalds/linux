@@ -443,13 +443,11 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 static int tic_target_chain_exists(struct ccw1 *tic, struct channel_program *cp)
 {
 	struct ccwchain *chain;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		ccw_head = chain->ch_iova;
-		ccw_tail = ccw_head + (chain->ch_len - 1) * sizeof(struct ccw1);
-
-		if ((ccw_head <= tic->cda) && (tic->cda <= ccw_tail))
+		if (is_cpa_within_range(tic->cda, ccw_head, chain->ch_len))
 			return 1;
 	}
 
@@ -516,13 +514,11 @@ static int ccwchain_fetch_tic(struct ccwchain *chain,
 {
 	struct ccw1 *ccw = chain->ch_ccw + idx;
 	struct ccwchain *iter;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	list_for_each_entry(iter, &cp->ccwchain_list, next) {
 		ccw_head = iter->ch_iova;
-		ccw_tail = ccw_head + (iter->ch_len - 1) * sizeof(struct ccw1);
-
-		if ((ccw_head <= ccw->cda) && (ccw->cda <= ccw_tail)) {
+		if (is_cpa_within_range(ccw->cda, ccw_head, iter->ch_len)) {
 			ccw->cda = (__u32) (addr_t) (((char *)iter->ch_ccw) +
 						     (ccw->cda - ccw_head));
 			return 0;
@@ -864,7 +860,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 {
 	struct ccwchain *chain;
 	u32 cpa = scsw->cmd.cpa;
-	u32 ccw_head, ccw_tail;
+	u32 ccw_head;
 
 	/*
 	 * LATER:
@@ -874,9 +870,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 	 */
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		ccw_head = (u32)(u64)chain->ch_ccw;
-		ccw_tail = (u32)(u64)(chain->ch_ccw + chain->ch_len - 1);
-
-		if ((ccw_head <= cpa) && (cpa <= ccw_tail)) {
+		if (is_cpa_within_range(cpa, ccw_head, chain->ch_len)) {
 			/*
 			 * (cpa - ccw_head) is the offset value of the host
 			 * physical ccw to its chain head.
