@@ -983,6 +983,72 @@ static int dsa_slave_get_ts_info(struct net_device *dev,
 	return ds->ops->get_ts_info(ds, p->dp->index, ts);
 }
 
+static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
+				     u16 vid)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_vlan vlan = {
+		.vid_begin = vid,
+		.vid_end = vid,
+		/* This API only allows programming tagged, non-PVID VIDs */
+		.flags = 0,
+	};
+	struct bridge_vlan_info info;
+	int ret;
+
+	/* Check for a possible bridge VLAN entry now since there is no
+	 * need to emulate the switchdev prepare + commit phase.
+	 */
+	if (dp->bridge_dev) {
+		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
+		 * device, respectively the VID is not found, returning
+		 * 0 means success, which is a failure for us here.
+		 */
+		ret = br_vlan_get_info(dp->bridge_dev, vid, &info);
+		if (ret == 0)
+			return -EBUSY;
+	}
+
+	ret = dsa_port_vlan_add(dp, &vlan, NULL);
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
+
+	return ret;
+}
+
+static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
+				      u16 vid)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct switchdev_obj_port_vlan vlan = {
+		.vid_begin = vid,
+		.vid_end = vid,
+		/* This API only allows programming tagged, non-PVID VIDs */
+		.flags = 0,
+	};
+	struct bridge_vlan_info info;
+	int ret;
+
+	/* Check for a possible bridge VLAN entry now since there is no
+	 * need to emulate the switchdev prepare + commit phase.
+	 */
+	if (dp->bridge_dev) {
+		/* br_vlan_get_info() returns -EINVAL or -ENOENT if the
+		 * device, respectively the VID is not found, returning
+		 * 0 means success, which is a failure for us here.
+		 */
+		ret = br_vlan_get_info(dp->bridge_dev, vid, &info);
+		if (ret == 0)
+			return -EBUSY;
+	}
+
+	ret = dsa_port_vlan_del(dp, &vlan);
+	if (ret == -EOPNOTSUPP)
+		ret = 0;
+
+	return ret;
+}
+
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_drvinfo		= dsa_slave_get_drvinfo,
 	.get_regs_len		= dsa_slave_get_regs_len,
@@ -1048,6 +1114,8 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_setup_tc		= dsa_slave_setup_tc,
 	.ndo_get_stats64	= dsa_slave_get_stats64,
 	.ndo_get_port_parent_id	= dsa_slave_get_port_parent_id,
+	.ndo_vlan_rx_add_vid	= dsa_slave_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= dsa_slave_vlan_rx_kill_vid,
 };
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
@@ -1307,7 +1375,8 @@ int dsa_slave_create(struct dsa_port *port)
 	if (slave_dev == NULL)
 		return -ENOMEM;
 
-	slave_dev->features = master->vlan_features | NETIF_F_HW_TC;
+	slave_dev->features = master->vlan_features | NETIF_F_HW_TC |
+				NETIF_F_HW_VLAN_CTAG_FILTER;
 	slave_dev->hw_features |= NETIF_F_HW_TC;
 	slave_dev->ethtool_ops = &dsa_slave_ethtool_ops;
 	eth_hw_addr_inherit(slave_dev, master);
@@ -1408,16 +1477,49 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	return err;
 }
 
+static int dsa_slave_upper_vlan_check(struct net_device *dev,
+				      struct netdev_notifier_changeupper_info *
+				      info)
+{
+	struct netlink_ext_ack *ext_ack;
+	struct net_device *slave;
+	struct dsa_port *dp;
+
+	ext_ack = netdev_notifier_info_to_extack(&info->info);
+
+	if (!is_vlan_dev(dev))
+		return NOTIFY_DONE;
+
+	slave = vlan_dev_real_dev(dev);
+	if (!dsa_slave_dev_check(slave))
+		return NOTIFY_DONE;
+
+	dp = dsa_slave_to_port(slave);
+	if (!dp->bridge_dev)
+		return NOTIFY_DONE;
+
+	/* Deny enslaving a VLAN device into a VLAN-aware bridge */
+	if (br_vlan_enabled(dp->bridge_dev) &&
+	    netif_is_bridge_master(info->upper_dev) && info->linking) {
+		NL_SET_ERR_MSG_MOD(ext_ack,
+				   "Cannot enslave VLAN device into VLAN aware bridge");
+		return notifier_from_errno(-EINVAL);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (!dsa_slave_dev_check(dev))
-		return NOTIFY_DONE;
+	if (event == NETDEV_CHANGEUPPER) {
+		if (!dsa_slave_dev_check(dev))
+			return dsa_slave_upper_vlan_check(dev, ptr);
 
-	if (event == NETDEV_CHANGEUPPER)
 		return dsa_slave_changeupper(dev, ptr);
+	}
 
 	return NOTIFY_DONE;
 }
