@@ -194,6 +194,12 @@ enum surface_pixel_format {
 	/*swaped & float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F,
 	/*grow graphics here if necessary */
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX,
+	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX,
+	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT,
+	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT,
+#endif
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
@@ -201,6 +207,10 @@ enum surface_pixel_format {
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb,
 		SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010,
+	SURFACE_PIXEL_FORMAT_VIDEO_CrYCbA1010102,
+#endif
 	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_INVALID
 
@@ -238,6 +248,13 @@ enum tile_split_values {
 	DC_DEPTH_MICRO_TILING = 0x2,
 	DC_ROTATED_MICRO_TILING = 0x3,
 };
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum tripleBuffer_enable {
+	DC_TRIPLEBUFFER_DISABLE = 0x0,
+	DC_TRIPLEBUFFER_ENABLE = 0x1,
+};
+#endif
 
 /* TODO: These values come from hardware spec. We need to readdress this
  * if they ever change.
@@ -437,6 +454,14 @@ struct dc_csc_transform {
 	bool enable_adjustment;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+struct dc_rgb_fixed {
+	struct fixed31_32 red;
+	struct fixed31_32 green;
+	struct fixed31_32 blue;
+};
+#endif
+
 struct dc_gamma {
 	struct kref refcount;
 	enum dc_gamma_type type;
@@ -470,7 +495,11 @@ enum dc_cursor_color_format {
 	CURSOR_MODE_MONO,
 	CURSOR_MODE_COLOR_1BIT_AND,
 	CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA,
-	CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA
+	CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED,
+	CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED
+#endif
 };
 
 /*
@@ -616,6 +645,10 @@ enum dc_color_depth {
 	COLOR_DEPTH_121212,
 	COLOR_DEPTH_141414,
 	COLOR_DEPTH_161616,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	COLOR_DEPTH_999,
+	COLOR_DEPTH_111111,
+#endif
 	COLOR_DEPTH_COUNT
 };
 
@@ -749,6 +782,58 @@ struct dc_crtc_timing {
 
 	struct dc_crtc_timing_flags flags;
 };
+
+/* Passed on init */
+enum vram_type {
+	VIDEO_MEMORY_TYPE_GDDR5  = 2,
+	VIDEO_MEMORY_TYPE_DDR3   = 3,
+	VIDEO_MEMORY_TYPE_DDR4   = 4,
+	VIDEO_MEMORY_TYPE_HBM    = 5,
+	VIDEO_MEMORY_TYPE_GDDR6  = 6,
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum dwb_cnv_out_bpc {
+	DWB_CNV_OUT_BPC_8BPC  = 0,
+	DWB_CNV_OUT_BPC_10BPC = 1,
+};
+
+enum dwb_output_depth {
+	DWB_OUTPUT_PIXEL_DEPTH_8BPC = 0,
+	DWB_OUTPUT_PIXEL_DEPTH_10BPC = 1,
+};
+
+enum dwb_capture_rate {
+	dwb_capture_rate_0 = 0,	/* Every frame is captured. */
+	dwb_capture_rate_1 = 1,	/* Every other frame is captured. */
+	dwb_capture_rate_2 = 2,	/* Every 3rd frame is captured. */
+	dwb_capture_rate_3 = 3,	/* Every 4th frame is captured. */
+};
+
+enum dwb_scaler_mode {
+	dwb_scaler_mode_bypass444 = 0,
+	dwb_scaler_mode_rgb444 = 1,
+	dwb_scaler_mode_yuv444 = 2,
+	dwb_scaler_mode_yuv420 = 3
+};
+
+enum dwb_subsample_position {
+	DWB_INTERSTITIAL_SUBSAMPLING = 0,
+	DWB_COSITED_SUBSAMPLING      = 1
+};
+
+#define MCIF_BUF_COUNT	4
+
+struct mcif_buf_params {
+	unsigned long long	luma_address[MCIF_BUF_COUNT];
+	unsigned long long	chroma_address[MCIF_BUF_COUNT];
+	unsigned int		luma_pitch;
+	unsigned int		chroma_pitch;
+	unsigned int		warmup_pitch;
+	unsigned int		swlock;
+};
+
+#endif
 
 #define MAX_TG_COLOR_VALUE 0x3FF
 struct tg_color {
