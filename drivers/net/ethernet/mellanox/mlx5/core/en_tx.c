@@ -148,12 +148,8 @@ static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
 
 static inline int mlx5e_skb_l3_header_offset(struct sk_buff *skb)
 {
-	struct flow_keys keys;
-
 	if (skb_transport_header_was_set(skb))
 		return skb_transport_offset(skb);
-	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
-		return keys.control.thoff;
 	else
 		return mlx5e_skb_l2_header_offset(skb);
 }
@@ -172,15 +168,8 @@ static inline u16 mlx5e_calc_min_inline(enum mlx5_inline_modes mode,
 			hlen += VLAN_HLEN;
 		break;
 	case MLX5_INLINE_MODE_IP:
-		/* When transport header is set to zero, it means no transport
-		 * header. When transport header is set to 0xff's, it means
-		 * transport header wasn't set.
-		 */
-		if (skb_transport_offset(skb)) {
-			hlen = mlx5e_skb_l3_header_offset(skb);
-			break;
-		}
-		/* fall through */
+		hlen = mlx5e_skb_l3_header_offset(skb);
+		break;
 	case MLX5_INLINE_MODE_L2:
 	default:
 		hlen = mlx5e_skb_l2_header_offset(skb);
