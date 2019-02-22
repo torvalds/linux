@@ -1137,7 +1137,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 	/* Total number of completed descriptors in all descriptor rings */
 	int desc_cnt = 0;
 	int cid;
-	struct wil_net_stats *stats = NULL;
+	struct wil_net_stats *stats;
 	struct wil_tx_enhanced_desc *_d;
 	unsigned int ring_id;
 	unsigned int num_descs;
@@ -1187,8 +1187,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		ndev = vif_to_ndev(vif);
 
 		cid = wil->ring2cid_tid[ring_id][0];
-		if (cid < max_assoc_sta)
-			stats = &wil->sta[cid].stats;
+		stats = (cid < max_assoc_sta ? &wil->sta[cid].stats : NULL);
 
 		wil_dbg_txrx(wil,
 			     "tx_status: completed desc_ring (%d), num_descs (%d)\n",
