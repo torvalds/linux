@@ -40,16 +40,16 @@
 
 #define AD7923_MAX_CHAN		4
 
-#define AD7923_PM_MODE_WRITE(mode)	(mode << 4)	/* write mode */
-#define AD7923_CHANNEL_WRITE(channel)	(channel << 6)	/* write channel */
-#define AD7923_SEQUENCE_WRITE(sequence)	(((sequence & 1) << 3) \
-					+ ((sequence & 2) << 9))
+#define AD7923_PM_MODE_WRITE(mode)	((mode) << 4)	 /* write mode */
+#define AD7923_CHANNEL_WRITE(channel)	((channel) << 6) /* write channel */
+#define AD7923_SEQUENCE_WRITE(sequence)	((((sequence) & 1) << 3) \
+					+ (((sequence) & 2) << 9))
 						/* write sequence fonction */
 /* left shift for CR : bit 11 transmit in first */
 #define AD7923_SHIFT_REGISTER	4
 
 /* val = value, dec = left shift, bits = number of bits of the mask */
-#define EXTRACT(val, dec, bits)		((val >> dec) & ((1 << bits) - 1))
+#define EXTRACT(val, dec, bits)		(((val) >> (dec)) & ((1 << (bits)) - 1))
 
 struct ad7923_state {
 	struct spi_device		*spi;
