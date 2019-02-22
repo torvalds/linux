@@ -2606,21 +2606,10 @@ static void mlxsw_sp_port_get_link_advertise(u32 eth_proto_admin, bool autoneg,
 	mlxsw_sp_from_ptys_link(eth_proto_admin, cmd->link_modes.advertising);
 }
 
-static void
-mlxsw_sp_port_get_link_lp_advertise(u32 eth_proto_lp, u8 autoneg_status,
-				    struct ethtool_link_ksettings *cmd)
-{
-	if (autoneg_status != MLXSW_REG_PTYS_AN_STATUS_OK || !eth_proto_lp)
-		return;
-
-	ethtool_link_ksettings_add_link_mode(cmd, lp_advertising, Autoneg);
-	mlxsw_sp_from_ptys_link(eth_proto_lp, cmd->link_modes.lp_advertising);
-}
-
 static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 					    struct ethtool_link_ksettings *cmd)
 {
-	u32 eth_proto_cap, eth_proto_admin, eth_proto_oper, eth_proto_lp;
+	u32 eth_proto_cap, eth_proto_admin, eth_proto_oper;
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
@@ -2640,9 +2629,7 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 
 	mlxsw_sp_port_get_link_advertise(eth_proto_admin, autoneg, cmd);
 
-	eth_proto_lp = mlxsw_reg_ptys_eth_proto_lp_advertise_get(ptys_pl);
 	autoneg_status = mlxsw_reg_ptys_an_status_get(ptys_pl);
-	mlxsw_sp_port_get_link_lp_advertise(eth_proto_lp, autoneg_status, cmd);
 
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	cmd->base.port = mlxsw_sp_port_connector_port(eth_proto_oper);

@@ -4061,13 +4061,6 @@ MLXSW_ITEM32(reg, ptys, ib_link_width_oper, 0x28, 16, 16);
  */
 MLXSW_ITEM32(reg, ptys, ib_proto_oper, 0x28, 0, 16);
 
-/* reg_ptys_eth_proto_lp_advertise
- * The protocols that were advertised by the link partner during
- * autonegotiation.
- * Access: RO
- */
-MLXSW_ITEM32(reg, ptys, eth_proto_lp_advertise, 0x30, 0, 32);
-
 static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
 					   u32 proto_admin, bool autoneg)
 {
