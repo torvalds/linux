@@ -1398,18 +1398,26 @@ class BranchModel(TreeModel):
 	def HasMoreRecords(self):
 		return self.more
 
+# Report Variables
+
+class ReportVars():
+
+	def __init__(self, where_clause = ""):
+		self.where_clause = where_clause
+
+	def UniqueId(self):
+		return str(self.where_clause)
+
 # Branch window
 
 class BranchWindow(QMdiSubWindow):
 
-	def __init__(self, glb, event_id, name, where_clause, parent=None):
+	def __init__(self, glb, event_id, name, report_vars, parent=None):
 		super(BranchWindow, self).__init__(parent)
 
-		model_name = "Branch Events " + str(event_id)
-		if len(where_clause):
-			model_name = where_clause + " " + model_name
+		model_name = "Branch Events " + str(event_id) +  " " + report_vars.UniqueId()
 
-		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, where_clause))
+		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, report_vars.where_clause))
 
 		self.view = QTreeView()
 		self.view.setUniformRowHeights(True)
@@ -1703,7 +1711,7 @@ class ReportDialogBase(QDialog):
 		self.glb = glb
 
 		self.name = ""
-		self.where_clause = ""
+		self.report_vars = ReportVars()
 
 		self.setWindowTitle(title)
 		self.setMinimumWidth(600)
@@ -1742,6 +1750,7 @@ class ReportDialogBase(QDialog):
 		self.setLayout(self.vbox);
 
 	def Ok(self):
+		vars = self.report_vars
 		self.name = self.data_items[0].value
 		if not self.name:
 			self.ShowMessage("Report name is required")
@@ -1751,14 +1760,14 @@ class ReportDialogBase(QDialog):
 				return
 		for d in self.data_items[1:]:
 			if len(d.value):
-				if len(self.where_clause):
-					self.where_clause += " AND "
-				self.where_clause += d.value
-		if len(self.where_clause):
+				if len(vars.where_clause):
+					vars.where_clause += " AND "
+				vars.where_clause += d.value
+		if len(vars.where_clause):
 			if self.partial:
-				self.where_clause = " AND ( " + self.where_clause + " ) "
+				vars.where_clause = " AND ( " + vars.where_clause + " ) "
 			else:
-				self.where_clause = " WHERE " + self.where_clause + " "
+				vars.where_clause = " WHERE " + vars.where_clause + " "
 		else:
 			self.ShowMessage("No selection")
 			return
@@ -2383,13 +2392,13 @@ class MainWindow(QMainWindow):
 		CallGraphWindow(self.glb, self)
 
 	def NewBranchView(self, event_id):
-		BranchWindow(self.glb, event_id, "", "", self)
+		BranchWindow(self.glb, event_id, "", ReportVars(), self)
 
 	def NewSelectedBranchView(self, event_id):
 		dialog = SelectedBranchDialog(self.glb, self)
 		ret = dialog.exec_()
 		if ret:
-			BranchWindow(self.glb, event_id, dialog.name, dialog.where_clause, self)
+			BranchWindow(self.glb, event_id, dialog.name, dialog.report_vars, self)
 
 	def NewTableView(self, table_name):
 		TableWindow(self.glb, table_name, self)
