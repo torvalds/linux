@@ -66,6 +66,8 @@
 
 #define PCI_DEVICE_ID_INTEL_IOAT_SKX	0x2021
 
+#define PCI_DEVICE_ID_INTEL_IOAT_ICX	0x0b00
+
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */
