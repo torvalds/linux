@@ -43,6 +43,7 @@ struct tda998x_audio_port {
 struct tda998x_audio_settings {
 	struct tda998x_audio_params params;
 	u8 i2s_format;
+	u8 cts_n;
 };
 
 struct tda998x_priv {
@@ -891,6 +892,58 @@ static u8 tda998x_get_adiv(struct tda998x_priv *priv, unsigned int fs)
 	return adiv;
 }
 
+/*
+ * In auto-CTS mode, the TDA998x uses a "measured time stamp" counter to
+ * generate the CTS value.  It appears that the "measured time stamp" is
+ * the number of TDMS clock cycles within a number of audio input clock
+ * cycles defined by the k and N parameters defined below, in a similar
+ * way to that which is set out in the CTS generation in the HDMI spec.
+ *
+ *  tmdsclk ----> mts -> /m ---> CTS
+ *                 ^
+ *  sclk -> /k -> /N
+ *
+ * CTS = mts / m, where m is 2^M.
+ * /k is a divider based on the K value below, K+1 for K < 4, or 8 for K >= 4
+ * /N is a divider based on the HDMI specified N value.
+ *
+ * This produces the following equation:
+ *  CTS = tmds_clock * k * N / (sclk * m)
+ *
+ * When combined with the sink-side equation, and realising that sclk is
+ * bclk_ratio * fs, we end up with:
+ *  k = m * bclk_ratio / 128.
+ *
+ * Note: S/PDIF always uses a bclk_ratio of 64.
+ */
+static int tda998x_derive_cts_n(struct tda998x_priv *priv,
+				struct tda998x_audio_settings *settings,
+				unsigned int ratio)
+{
+	switch (ratio) {
+	case 16:
+		settings->cts_n = CTS_N_M(3) | CTS_N_K(0);
+		break;
+	case 32:
+		settings->cts_n = CTS_N_M(3) | CTS_N_K(1);
+		break;
+	case 48:
+		settings->cts_n = CTS_N_M(3) | CTS_N_K(2);
+		break;
+	case 64:
+		settings->cts_n = CTS_N_M(3) | CTS_N_K(3);
+		break;
+	case 128:
+		settings->cts_n = CTS_N_M(0) | CTS_N_K(0);
+		break;
+	default:
+		dev_err(&priv->hdmi->dev, "unsupported bclk ratio %ufs\n",
+			ratio);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 {
 	if (on) {
@@ -905,7 +958,7 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 static int tda998x_configure_audio(struct tda998x_priv *priv,
 				 const struct tda998x_audio_settings *settings)
 {
-	u8 buf[6], clksel_aip, clksel_fs, cts_n, adiv;
+	u8 buf[6], clksel_aip, clksel_fs, adiv;
 	u32 n;
 
 	adiv = tda998x_get_adiv(priv, settings->params.sample_rate);
@@ -920,7 +973,6 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_SPDIF);
 		clksel_aip = AIP_CLKSEL_AIP_SPDIF;
 		clksel_fs = AIP_CLKSEL_FS_FS64SPDIF;
-		cts_n = CTS_N_M(3) | CTS_N_K(3);
 		break;
 
 	case AFMT_I2S:
@@ -928,20 +980,6 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_I2S);
 		clksel_aip = AIP_CLKSEL_AIP_I2S;
 		clksel_fs = AIP_CLKSEL_FS_ACLK;
-		switch (settings->params.sample_width) {
-		case 16:
-			cts_n = CTS_N_M(3) | CTS_N_K(1);
-			break;
-		case 18:
-		case 20:
-		case 24:
-			cts_n = CTS_N_M(3) | CTS_N_K(2);
-			break;
-		default:
-		case 32:
-			cts_n = CTS_N_M(3) | CTS_N_K(3);
-			break;
-		}
 		break;
 
 	default:
@@ -953,7 +991,7 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	reg_write(priv, REG_AIP_CLKSEL, clksel_aip);
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_LAYOUT |
 					AIP_CNTRL_0_ACR_MAN);	/* auto CTS */
-	reg_write(priv, REG_CTS_N, cts_n);
+	reg_write(priv, REG_CTS_N, settings->cts_n);
 	reg_write(priv, REG_AUDIO_DIV, adiv);
 
 	/*
@@ -1000,6 +1038,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 				   struct hdmi_codec_params *params)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
+	unsigned int bclk_ratio;
 	bool spdif = daifmt->fmt == HDMI_SPDIF;
 	int i, ret;
 	struct tda998x_audio_settings audio = {
@@ -1051,6 +1090,11 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 			daifmt->frame_clk_master);
 		return -EINVAL;
 	}
+
+	bclk_ratio = spdif ? 64 : params->sample_width * 2;
+	ret = tda998x_derive_cts_n(priv, &audio, bclk_ratio);
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&priv->audio_mutex);
 	if (priv->supports_infoframes && priv->sink_has_audio)
@@ -1640,8 +1684,8 @@ static int tda998x_get_audio_ports(struct tda998x_priv *priv,
 	return 0;
 }
 
-static void tda998x_set_config(struct tda998x_priv *priv,
-			       const struct tda998x_encoder_params *p)
+static int tda998x_set_config(struct tda998x_priv *priv,
+			      const struct tda998x_encoder_params *p)
 {
 	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(p->swap_a) |
 			    (p->mirr_a ? VIP_CNTRL_0_MIRR_A : 0) |
@@ -1657,9 +1701,17 @@ static void tda998x_set_config(struct tda998x_priv *priv,
 			    (p->mirr_f ? VIP_CNTRL_2_MIRR_F : 0);
 
 	if (p->audio_params.format != AFMT_UNUSED) {
+		unsigned int ratio;
+		bool spdif = p->audio_params.format == AFMT_SPDIF;
+
 		priv->audio.params = p->audio_params;
 		priv->audio.i2s_format = I2S_FORMAT_PHILIPS;
+
+		ratio = spdif ? 64 : p->audio_params.sample_width * 2;
+		return tda998x_derive_cts_n(priv, &priv->audio, ratio);
 	}
+
+	return 0;
 }
 
 static void tda998x_destroy(struct device *dev)
@@ -1861,7 +1913,9 @@ static int tda998x_create(struct device *dev)
 		if (priv->audio_port[0].format != AFMT_UNUSED)
 			tda998x_audio_codec_init(priv, &client->dev);
 	} else if (dev->platform_data) {
-		tda998x_set_config(priv, dev->platform_data);
+		ret = tda998x_set_config(priv, dev->platform_data);
+		if (ret)
+			goto fail;
 	}
 
 	priv->bridge.funcs = &tda998x_bridge_funcs;
