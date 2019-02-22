@@ -1402,7 +1402,8 @@ class BranchModel(TreeModel):
 
 class ReportVars():
 
-	def __init__(self, where_clause = ""):
+	def __init__(self, name = "", where_clause = ""):
+		self.name = name
 		self.where_clause = where_clause
 
 	def UniqueId(self):
@@ -1412,7 +1413,7 @@ class ReportVars():
 
 class BranchWindow(QMdiSubWindow):
 
-	def __init__(self, glb, event_id, name, report_vars, parent=None):
+	def __init__(self, glb, event_id, report_vars, parent=None):
 		super(BranchWindow, self).__init__(parent)
 
 		model_name = "Branch Events " + str(event_id) +  " " + report_vars.UniqueId()
@@ -1435,7 +1436,7 @@ class BranchWindow(QMdiSubWindow):
 
 		self.setWidget(self.vbox.Widget())
 
-		AddSubWindow(glb.mainwindow.mdi_area, self, name + " Branch Events")
+		AddSubWindow(glb.mainwindow.mdi_area, self, report_vars.name + " Branch Events")
 
 	def ResizeColumnToContents(self, column, n):
 		# Using the view's resizeColumnToContents() here is extrememly slow
@@ -1710,7 +1711,6 @@ class ReportDialogBase(QDialog):
 
 		self.glb = glb
 
-		self.name = ""
 		self.report_vars = ReportVars()
 
 		self.setWindowTitle(title)
@@ -1751,8 +1751,8 @@ class ReportDialogBase(QDialog):
 
 	def Ok(self):
 		vars = self.report_vars
-		self.name = self.data_items[0].value
-		if not self.name:
+		vars.name = self.data_items[0].value
+		if not vars.name:
 			self.ShowMessage("Report name is required")
 			return
 		for d in self.data_items:
@@ -2392,13 +2392,13 @@ class MainWindow(QMainWindow):
 		CallGraphWindow(self.glb, self)
 
 	def NewBranchView(self, event_id):
-		BranchWindow(self.glb, event_id, "", ReportVars(), self)
+		BranchWindow(self.glb, event_id, ReportVars(), self)
 
 	def NewSelectedBranchView(self, event_id):
 		dialog = SelectedBranchDialog(self.glb, self)
 		ret = dialog.exec_()
 		if ret:
-			BranchWindow(self.glb, event_id, dialog.name, dialog.report_vars, self)
+			BranchWindow(self.glb, event_id, dialog.report_vars, self)
 
 	def NewTableView(self, table_name):
 		TableWindow(self.glb, table_name, self)
