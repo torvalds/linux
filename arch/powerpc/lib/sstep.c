@@ -1169,7 +1169,7 @@ static nokprobe_inline int trap_compare(long v1, long v2)
 int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		  unsigned int instr)
 {
-	unsigned int opcode, ra, rb, rd, spr, u;
+	unsigned int opcode, ra, rb, rc, rd, spr, u;
 	unsigned long int imm;
 	unsigned long int val, val2;
 	unsigned int mb, me, sh;
@@ -1292,6 +1292,7 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	rd = (instr >> 21) & 0x1f;
 	ra = (instr >> 16) & 0x1f;
 	rb = (instr >> 11) & 0x1f;
+	rc = (instr >> 6) & 0x1f;
 
 	switch (opcode) {
 #ifdef __powerpc64__
@@ -1304,6 +1305,38 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		if (rd & trap_compare((int)regs->gpr[ra], (short) instr))
 			goto trap;
 		return 1;
+
+#ifdef __powerpc64__
+	case 4:
+		if (!cpu_has_feature(CPU_FTR_ARCH_300))
+			return -1;
+
+		switch (instr & 0x3f) {
+		case 48:	/* maddhd */
+			asm volatile(PPC_MADDHD(%0, %1, %2, %3) :
+				     "=r" (op->val) : "r" (regs->gpr[ra]),
+				     "r" (regs->gpr[rb]), "r" (regs->gpr[rc]));
+			goto compute_done;
+
+		case 49:	/* maddhdu */
+			asm volatile(PPC_MADDHDU(%0, %1, %2, %3) :
+				     "=r" (op->val) : "r" (regs->gpr[ra]),
+				     "r" (regs->gpr[rb]), "r" (regs->gpr[rc]));
+			goto compute_done;
+
+		case 51:	/* maddld */
+			asm volatile(PPC_MADDLD(%0, %1, %2, %3) :
+				     "=r" (op->val) : "r" (regs->gpr[ra]),
+				     "r" (regs->gpr[rb]), "r" (regs->gpr[rc]));
+			goto compute_done;
+		}
+
+		/*
+		 * There are other instructions from ISA 3.0 with the same
+		 * primary opcode which do not have emulation support yet.
+		 */
+		return -1;
+#endif
 
 	case 7:		/* mulli */
 		op->val = regs->gpr[ra] * (short) instr;
