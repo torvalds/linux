@@ -218,6 +218,14 @@ static void dpp1_dscl_set_lb(
 			INTERLEAVE_EN, lb_params->interleave_en, /* Interleave source enable */
 			LB_DATA_FORMAT__ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
 	}
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	else {
+		/* DSCL caps: pixel data processed in float format */
+		REG_SET_2(LB_DATA_FORMAT, 0,
+			INTERLEAVE_EN, lb_params->interleave_en, /* Interleave source enable */
+			LB_DATA_FORMAT__ALPHA_EN, lb_params->alpha_en); /* Alpha enable */
+	}
+#endif
 
 	REG_SET_2(LB_MEMORY_CTRL, 0,
 		MEMORY_CONFIG, mem_size_config,
