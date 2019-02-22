@@ -138,10 +138,10 @@ static int ioat3_dma_self_test(struct ioatdma_device *ioat_dma);
 static int ioat_dca_enabled = 1;
 module_param(ioat_dca_enabled, int, 0644);
 MODULE_PARM_DESC(ioat_dca_enabled, "control support of dca service (default: 1)");
-int ioat_pending_level = 4;
+int ioat_pending_level = 7;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
-		 "high-water mark for pushing ioat descriptors (default: 4)");
+		 "high-water mark for pushing ioat descriptors (default: 7)");
 static char ioat_interrupt_style[32] = "msix";
 module_param_string(ioat_interrupt_style, ioat_interrupt_style,
 		    sizeof(ioat_interrupt_style), 0644);
@@ -1187,6 +1187,10 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	err = pcie_capability_write_word(pdev, IOAT_DEVCTRL_OFFSET, val16);
 	if (err)
 		return err;
+
+	if (ioat_dma->cap & IOAT_CAP_DPS)
+		writeb(ioat_pending_level + 1,
+		       ioat_dma->reg_base + IOAT_PREFETCH_LIMIT_OFFSET);
 
 	return 0;
 }

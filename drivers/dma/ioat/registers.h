@@ -84,6 +84,9 @@
 #define IOAT_CAP_PQ				0x00000200
 #define IOAT_CAP_DWBES				0x00002000
 #define IOAT_CAP_RAID16SS			0x00020000
+#define IOAT_CAP_DPS				0x00800000
+
+#define IOAT_PREFETCH_LIMIT_OFFSET		0x4C	/* CHWPREFLMT */
 
 #define IOAT_CHANNEL_MMIO_SIZE			0x80	/* Each Channel MMIO space is this size */
 
@@ -242,5 +245,12 @@
 				   IOAT_CHANERR_WRITE_DATA_ERR)
 
 #define IOAT_CHANERR_MASK_OFFSET		0x2C	/* 32-bit Channel Error Register */
+
+#define IOAT_CHAN_DRSCTL_OFFSET			0xB6
+#define IOAT_CHAN_DRSZ_4KB			0x0000
+#define IOAT_CHAN_DRSZ_8KB			0x0001
+#define IOAT_CHAN_DRSZ_2MB			0x0009
+#define IOAT_CHAN_DRS_EN			0x0100
+#define IOAT_CHAN_DRS_AUTOWRAP			0x0200
 
 #endif /* _IOAT_REGISTERS_H_ */
