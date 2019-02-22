@@ -46,8 +46,12 @@ static const uint8_t zigzag[64] = {
 	63,
 };
 
-
-static int rlc(const s16 *in, __be16 *output, int blocktype)
+/*
+ * noinline_for_stack to work around
+ * https://bugs.llvm.org/show_bug.cgi?id=38809
+ */
+static int noinline_for_stack
+rlc(const s16 *in, __be16 *output, int blocktype)
 {
 	s16 block[8 * 8];
 	s16 *wp = block;
@@ -106,8 +110,8 @@ static int rlc(const s16 *in, __be16 *output, int blocktype)
  * This function will worst-case increase rlc_in by 65*2 bytes:
  * one s16 value for the header and 8 * 8 coefficients of type s16.
  */
-static u16 derlc(const __be16 **rlc_in, s16 *dwht_out,
-		 const __be16 *end_of_input)
+static noinline_for_stack u16
+derlc(const __be16 **rlc_in, s16 *dwht_out, const __be16 *end_of_input)
 {
 	/* header */
 	const __be16 *input = *rlc_in;
@@ -240,8 +244,9 @@ static void dequantize_inter(s16 *coeff)
 			*coeff <<= *quant;
 }
 
-static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
-		 unsigned int input_step, bool intra)
+static void noinline_for_stack fwht(const u8 *block, s16 *output_block,
+				    unsigned int stride,
+				    unsigned int input_step, bool intra)
 {
 	/* we'll need more than 8 bits for the transformed coefficients */
 	s32 workspace1[8], workspace2[8];
@@ -373,7 +378,8 @@ static void fwht(const u8 *block, s16 *output_block, unsigned int stride,
  * Furthermore values can be negative... This is just a version that
  * works with 16 signed data
  */
-static void fwht16(const s16 *block, s16 *output_block, int stride, int intra)
+static void noinline_for_stack
+fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 {
 	/* we'll need more than 8 bits for the transformed coefficients */
 	s32 workspace1[8], workspace2[8];
@@ -456,7 +462,8 @@ static void fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 	}
 }
 
-static void ifwht(const s16 *block, s16 *output_block, int intra)
+static noinline_for_stack void
+ifwht(const s16 *block, s16 *output_block, int intra)
 {
 	/*
 	 * we'll need more than 8 bits for the transformed coefficients
@@ -604,9 +611,9 @@ static int var_inter(const s16 *old, const s16 *new)
 	return ret;
 }
 
-static int decide_blocktype(const u8 *cur, const u8 *reference,
-			    s16 *deltablock, unsigned int stride,
-			    unsigned int input_step)
+static noinline_for_stack int
+decide_blocktype(const u8 *cur, const u8 *reference, s16 *deltablock,
+		 unsigned int stride, unsigned int input_step)
 {
 	s16 tmp[64];
 	s16 old[64];
