@@ -491,7 +491,7 @@ static int mipi_csis_clk_get(struct csi_state *state)
 
 	state->wrap_clk = devm_clk_get(dev, "wrap");
 	if (IS_ERR(state->wrap_clk))
-		return IS_ERR(state->wrap_clk);
+		return PTR_ERR(state->wrap_clk);
 
 	/* Set clock rate */
 	ret = clk_set_rate(state->wrap_clk, state->clk_frequency);
