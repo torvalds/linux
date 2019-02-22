@@ -40,6 +40,17 @@ static int syscon_reboot_mode_write(struct reboot_mode_driver *reboot,
 	return ret;
 }
 
+static int syscon_reboot_mode_read(struct reboot_mode_driver *reboot)
+{
+	struct syscon_reboot_mode *syscon_rbm;
+	u32 val = 0;
+
+	syscon_rbm = container_of(reboot, struct syscon_reboot_mode, reboot);
+	regmap_read(syscon_rbm->map, syscon_rbm->offset, &val);
+
+	return val;
+}
+
 static int syscon_reboot_mode_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -51,6 +62,7 @@ static int syscon_reboot_mode_probe(struct platform_device *pdev)
 
 	syscon_rbm->reboot.dev = &pdev->dev;
 	syscon_rbm->reboot.write = syscon_reboot_mode_write;
+	syscon_rbm->reboot.read = syscon_reboot_mode_read;
 	syscon_rbm->mask = 0xffffffff;
 
 	syscon_rbm->map = syscon_node_to_regmap(pdev->dev.parent->of_node);
