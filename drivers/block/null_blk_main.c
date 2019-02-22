@@ -1104,7 +1104,7 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 		len = bvec.bv_len;
 		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
 				     op_is_write(bio_op(bio)), sector,
-				     bio_op(bio) & REQ_FUA);
+				     bio->bi_opf & REQ_FUA);
 		if (err) {
 			spin_unlock_irq(&nullb->lock);
 			return err;
