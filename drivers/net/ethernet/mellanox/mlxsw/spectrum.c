@@ -2336,13 +2336,13 @@ static int mlxsw_sp_port_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
-struct mlxsw_sp_port_link_mode {
+struct mlxsw_sp1_port_link_mode {
 	enum ethtool_link_mode_bit_indices mask_ethtool;
 	u32 mask;
 	u32 speed;
 };
 
-static const struct mlxsw_sp_port_link_mode mlxsw_sp_port_link_mode[] = {
+static const struct mlxsw_sp1_port_link_mode mlxsw_sp1_port_link_mode[] = {
 	{
 		.mask		= MLXSW_REG_PTYS_ETH_SPEED_100BASE_T,
 		.mask_ethtool	= ETHTOOL_LINK_MODE_100baseT_Full_BIT,
@@ -2470,11 +2470,11 @@ static const struct mlxsw_sp_port_link_mode mlxsw_sp_port_link_mode[] = {
 	},
 };
 
-#define MLXSW_SP_PORT_LINK_MODE_LEN ARRAY_SIZE(mlxsw_sp_port_link_mode)
+#define MLXSW_SP1_PORT_LINK_MODE_LEN ARRAY_SIZE(mlxsw_sp1_port_link_mode)
 
 static void
-mlxsw_sp_from_ptys_supported_port(u32 ptys_eth_proto,
-				  struct ethtool_link_ksettings *cmd)
+mlxsw_sp1_from_ptys_supported_port(u32 ptys_eth_proto,
+				   struct ethtool_link_ksettings *cmd)
 {
 	if (ptys_eth_proto & (MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CR |
 			      MLXSW_REG_PTYS_ETH_SPEED_10GBASE_SR |
@@ -2492,19 +2492,20 @@ mlxsw_sp_from_ptys_supported_port(u32 ptys_eth_proto,
 		ethtool_link_ksettings_add_link_mode(cmd, supported, Backplane);
 }
 
-static void mlxsw_sp_from_ptys_link(u32 ptys_eth_proto, unsigned long *mode)
+static void mlxsw_sp1_from_ptys_link(u32 ptys_eth_proto, unsigned long *mode)
 {
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_LINK_MODE_LEN; i++) {
-		if (ptys_eth_proto & mlxsw_sp_port_link_mode[i].mask)
-			__set_bit(mlxsw_sp_port_link_mode[i].mask_ethtool,
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask)
+			__set_bit(mlxsw_sp1_port_link_mode[i].mask_ethtool,
 				  mode);
 	}
 }
 
-static void mlxsw_sp_from_ptys_speed_duplex(bool carrier_ok, u32 ptys_eth_proto,
-					    struct ethtool_link_ksettings *cmd)
+static void
+mlxsw_sp1_from_ptys_speed_duplex(bool carrier_ok, u32 ptys_eth_proto,
+				 struct ethtool_link_ksettings *cmd)
 {
 	u32 speed = SPEED_UNKNOWN;
 	u8 duplex = DUPLEX_UNKNOWN;
@@ -2513,9 +2514,9 @@ static void mlxsw_sp_from_ptys_speed_duplex(bool carrier_ok, u32 ptys_eth_proto,
 	if (!carrier_ok)
 		goto out;
 
-	for (i = 0; i < MLXSW_SP_PORT_LINK_MODE_LEN; i++) {
-		if (ptys_eth_proto & mlxsw_sp_port_link_mode[i].mask) {
-			speed = mlxsw_sp_port_link_mode[i].speed;
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (ptys_eth_proto & mlxsw_sp1_port_link_mode[i].mask) {
+			speed = mlxsw_sp1_port_link_mode[i].speed;
 			duplex = DUPLEX_FULL;
 			break;
 		}
@@ -2526,39 +2527,39 @@ out:
 }
 
 static u32
-mlxsw_sp_to_ptys_advert_link(const struct ethtool_link_ksettings *cmd)
+mlxsw_sp1_to_ptys_advert_link(const struct ethtool_link_ksettings *cmd)
 {
 	u32 ptys_proto = 0;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_LINK_MODE_LEN; i++) {
-		if (test_bit(mlxsw_sp_port_link_mode[i].mask_ethtool,
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (test_bit(mlxsw_sp1_port_link_mode[i].mask_ethtool,
 			     cmd->link_modes.advertising))
-			ptys_proto |= mlxsw_sp_port_link_mode[i].mask;
+			ptys_proto |= mlxsw_sp1_port_link_mode[i].mask;
 	}
 	return ptys_proto;
 }
 
-static u32 mlxsw_sp_to_ptys_speed(u32 speed)
+static u32 mlxsw_sp1_to_ptys_speed(u32 speed)
 {
 	u32 ptys_proto = 0;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_LINK_MODE_LEN; i++) {
-		if (speed == mlxsw_sp_port_link_mode[i].speed)
-			ptys_proto |= mlxsw_sp_port_link_mode[i].mask;
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (speed == mlxsw_sp1_port_link_mode[i].speed)
+			ptys_proto |= mlxsw_sp1_port_link_mode[i].mask;
 	}
 	return ptys_proto;
 }
 
-static u32 mlxsw_sp_to_ptys_upper_speed(u32 upper_speed)
+static u32 mlxsw_sp1_to_ptys_upper_speed(u32 upper_speed)
 {
 	u32 ptys_proto = 0;
 	int i;
 
-	for (i = 0; i < MLXSW_SP_PORT_LINK_MODE_LEN; i++) {
-		if (mlxsw_sp_port_link_mode[i].speed <= upper_speed)
-			ptys_proto |= mlxsw_sp_port_link_mode[i].mask;
+	for (i = 0; i < MLXSW_SP1_PORT_LINK_MODE_LEN; i++) {
+		if (mlxsw_sp1_port_link_mode[i].speed <= upper_speed)
+			ptys_proto |= mlxsw_sp1_port_link_mode[i].mask;
 	}
 	return ptys_proto;
 }
@@ -2570,8 +2571,8 @@ static void mlxsw_sp_port_get_link_supported(u32 eth_proto_cap,
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
 
-	mlxsw_sp_from_ptys_supported_port(eth_proto_cap, cmd);
-	mlxsw_sp_from_ptys_link(eth_proto_cap, cmd->link_modes.supported);
+	mlxsw_sp1_from_ptys_supported_port(eth_proto_cap, cmd);
+	mlxsw_sp1_from_ptys_link(eth_proto_cap, cmd->link_modes.supported);
 }
 
 static void mlxsw_sp_port_get_link_advertise(u32 eth_proto_admin, bool autoneg,
@@ -2581,7 +2582,7 @@ static void mlxsw_sp_port_get_link_advertise(u32 eth_proto_admin, bool autoneg,
 		return;
 
 	ethtool_link_ksettings_add_link_mode(cmd, advertising, Autoneg);
-	mlxsw_sp_from_ptys_link(eth_proto_admin, cmd->link_modes.advertising);
+	mlxsw_sp1_from_ptys_link(eth_proto_admin, cmd->link_modes.advertising);
 }
 
 static u8
@@ -2641,8 +2642,8 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
 	cmd->base.port = mlxsw_sp_port_connector_port(connector_type);
-	mlxsw_sp_from_ptys_speed_duplex(netif_carrier_ok(dev), eth_proto_oper,
-					cmd);
+	mlxsw_sp1_from_ptys_speed_duplex(netif_carrier_ok(dev), eth_proto_oper,
+					 cmd);
 
 	return 0;
 }
@@ -2666,8 +2667,8 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 
 	autoneg = cmd->base.autoneg == AUTONEG_ENABLE;
 	eth_proto_new = autoneg ?
-		mlxsw_sp_to_ptys_advert_link(cmd) :
-		mlxsw_sp_to_ptys_speed(cmd->base.speed);
+		mlxsw_sp1_to_ptys_advert_link(cmd) :
+		mlxsw_sp1_to_ptys_speed(cmd->base.speed);
 
 	eth_proto_new = eth_proto_new & eth_proto_cap;
 	if (!eth_proto_new) {
@@ -2867,7 +2868,7 @@ mlxsw_sp_port_speed_by_width_set(struct mlxsw_sp_port *mlxsw_sp_port, u8 width)
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
 	u32 eth_proto_admin;
 
-	eth_proto_admin = mlxsw_sp_to_ptys_upper_speed(upper_speed);
+	eth_proto_admin = mlxsw_sp1_to_ptys_upper_speed(upper_speed);
 	mlxsw_reg_ptys_eth_pack(ptys_pl, mlxsw_sp_port->local_port,
 				eth_proto_admin, mlxsw_sp_port->link.autoneg);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptys), ptys_pl);
