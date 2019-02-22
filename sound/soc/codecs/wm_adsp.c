@@ -3246,6 +3246,47 @@ static void wm_adsp_remove_padding(u32 *buf, int nwords, int data_word_size)
 	}
 }
 
+static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
+{
+	const struct wm_adsp_fw_caps *caps = wm_adsp_fw[buf->dsp->fw].caps;
+	struct wm_adsp_buffer_region *region;
+	u32 offset = 0;
+	int i, ret;
+
+	for (i = 0; i < caps->num_regions; ++i) {
+		region = &buf->regions[i];
+
+		region->offset = offset;
+		region->mem_type = caps->region_defs[i].mem_type;
+
+		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].base_offset,
+					  &region->base_addr);
+		if (ret < 0)
+			return ret;
+
+		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].size_offset,
+					  &offset);
+		if (ret < 0)
+			return ret;
+
+		region->cumulative_size = offset;
+
+		adsp_dbg(buf->dsp,
+			 "region=%d type=%d base=%08x off=%08x size=%08x\n",
+			 i, region->mem_type, region->base_addr,
+			 region->offset, region->cumulative_size);
+	}
+
+	return 0;
+}
+
+static void wm_adsp_buffer_clear(struct wm_adsp_compr_buf *buf)
+{
+	buf->irq_count = 0xFFFFFFFF;
+	buf->read_index = -1;
+	buf->avail = 0;
+}
+
 static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
 {
 	struct wm_adsp_alg_region *alg_region;
@@ -3343,46 +3384,6 @@ static int wm_adsp_buffer_locate(struct wm_adsp_compr_buf *buf)
 	return 0;
 }
 
-static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
-{
-	const struct wm_adsp_fw_caps *caps = wm_adsp_fw[buf->dsp->fw].caps;
-	struct wm_adsp_buffer_region *region;
-	u32 offset = 0;
-	int i, ret;
-
-	for (i = 0; i < caps->num_regions; ++i) {
-		region = &buf->regions[i];
-
-		region->offset = offset;
-		region->mem_type = caps->region_defs[i].mem_type;
-
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].base_offset,
-					  &region->base_addr);
-		if (ret < 0)
-			return ret;
-
-		ret = wm_adsp_buffer_read(buf, caps->region_defs[i].size_offset,
-					  &offset);
-		if (ret < 0)
-			return ret;
-
-		region->cumulative_size = offset;
-
-		adsp_dbg(buf->dsp,
-			 "region=%d type=%d base=%08x off=%08x size=%08x\n",
-			 i, region->mem_type, region->base_addr,
-			 region->offset, region->cumulative_size);
-	}
-
-	return 0;
-}
-
-static void wm_adsp_buffer_clear(struct wm_adsp_compr_buf *buf)
-{
-	buf->irq_count = 0xFFFFFFFF;
-	buf->read_index = -1;
-	buf->avail = 0;
-}
 
 static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 {
