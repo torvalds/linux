@@ -1432,6 +1432,13 @@ enum ethtool_link_mode_bit_indices {
 	ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT	= 29,
 	ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT	= 30,
 	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT	= 31,
+
+	/* Last allowed bit for __ETHTOOL_LINK_MODE_LEGACY_MASK is bit
+	 * 31. Please do NOT define any SUPPORTED_* or ADVERTISED_*
+	 * macro for bits > 31. The only way to use indices > 31 is to
+	 * use the new ETHTOOL_GLINKSETTINGS/ETHTOOL_SLINKSETTINGS API.
+	 */
+
 	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT	= 32,
 	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT	= 33,
 	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT	= 34,
@@ -1469,14 +1476,8 @@ enum ethtool_link_mode_bit_indices {
 	ETHTOOL_LINK_MODE_200000baseDR4_Full_BIT	 = 65,
 	ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT	 = 66,
 
-	/* Last allowed bit for __ETHTOOL_LINK_MODE_LEGACY_MASK is bit
-	 * 31. Please do NOT define any SUPPORTED_* or ADVERTISED_*
-	 * macro for bits > 31. The only way to use indices > 31 is to
-	 * use the new ETHTOOL_GLINKSETTINGS/ETHTOOL_SLINKSETTINGS API.
-	 */
-
-	__ETHTOOL_LINK_MODE_LAST
-	  = ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
+	/* must be last entry */
+	__ETHTOOL_LINK_MODE_MASK_NBITS
 };
 
 #define __ETHTOOL_LINK_MODE_LEGACY_MASK(base_name)	\

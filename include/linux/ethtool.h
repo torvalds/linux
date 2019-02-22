@@ -98,10 +98,6 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 	return index % n_rx_rings;
 }
 
-/* number of link mode bits/ulongs handled internally by kernel */
-#define __ETHTOOL_LINK_MODE_MASK_NBITS			\
-	(__ETHTOOL_LINK_MODE_LAST + 1)
-
 /* declare a link mode bitmap */
 #define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
 	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
