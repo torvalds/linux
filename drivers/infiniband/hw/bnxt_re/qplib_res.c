@@ -119,11 +119,8 @@ static int __alloc_pbl(struct pci_dev *pdev, struct bnxt_qplib_pbl *pbl,
 		for_each_sg_dma_page (sghead, &sg_iter, pages, 0) {
 			pbl->pg_map_arr[i] = sg_page_iter_dma_address(&sg_iter);
 			pbl->pg_arr[i] = NULL;
-			if (!pbl->pg_arr[i])
-				goto fail;
-
-			i++;
 			pbl->pg_count++;
+			i++;
 		}
 	}
 

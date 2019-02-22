@@ -862,18 +862,18 @@ exit:
 int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
-	struct sq_send *hw_sq_send_hdr, **hw_sq_send_ptr;
-	struct cmdq_create_qp req;
-	struct creq_create_qp_resp resp;
-	struct bnxt_qplib_pbl *pbl;
-	struct sq_psn_search **psn_search_ptr;
 	unsigned long int psn_search, poff = 0;
+	struct sq_psn_search **psn_search_ptr;
 	struct bnxt_qplib_q *sq = &qp->sq;
 	struct bnxt_qplib_q *rq = &qp->rq;
 	int i, rc, req_size, psn_sz = 0;
+	struct sq_send **hw_sq_send_ptr;
+	struct creq_create_qp_resp resp;
 	struct bnxt_qplib_hwq *xrrq;
 	u16 cmd_flags = 0, max_ssge;
-	u32 sw_prod, qp_flags = 0;
+	struct cmdq_create_qp req;
+	struct bnxt_qplib_pbl *pbl;
+	u32 qp_flags = 0;
 	u16 max_rsge;
 
 	RCFW_CMD_PREP(req, CREATE_QP, cmd_flags);
@@ -947,14 +947,6 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		 pbl->pg_size == ROCE_PG_SIZE_1G ?
 				CMDQ_CREATE_QP_SQ_PG_SIZE_PG_1G :
 		 CMDQ_CREATE_QP_SQ_PG_SIZE_PG_4K);
-
-	/* initialize all SQ WQEs to LOCAL_INVALID (sq prep for hw fetch) */
-	hw_sq_send_ptr = (struct sq_send **)sq->hwq.pbl_ptr;
-	for (sw_prod = 0; sw_prod < sq->hwq.max_elements; sw_prod++) {
-		hw_sq_send_hdr = &hw_sq_send_ptr[get_sqe_pg(sw_prod)]
-						[get_sqe_idx(sw_prod)];
-		hw_sq_send_hdr->wqe_type = SQ_BASE_WQE_TYPE_LOCAL_INVALID;
-	}
 
 	if (qp->scq)
 		req.scq_cid = cpu_to_le32(qp->scq->id);

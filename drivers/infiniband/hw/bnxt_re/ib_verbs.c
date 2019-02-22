@@ -793,8 +793,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_re_dev *rdev = qp->rdev;
-	int rc;
 	unsigned int flags;
+	int rc;
 
 	bnxt_qplib_flush_cqn_wq(&qp->qplib_qp);
 	rc = bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
@@ -803,9 +803,12 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 		return rc;
 	}
 
-	flags = bnxt_re_lock_cqs(qp);
-	bnxt_qplib_clean_qp(&qp->qplib_qp);
-	bnxt_re_unlock_cqs(qp, flags);
+	if (!rdma_is_kernel_res(&qp->ib_qp.res)) {
+		flags = bnxt_re_lock_cqs(qp);
+		bnxt_qplib_clean_qp(&qp->qplib_qp);
+		bnxt_re_unlock_cqs(qp, flags);
+	}
+
 	bnxt_qplib_free_qp_res(&rdev->qplib_res, &qp->qplib_qp);
 
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->qp1_sqp) {
