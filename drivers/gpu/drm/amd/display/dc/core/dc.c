@@ -681,13 +681,6 @@ static bool construct(struct dc *dc,
 	dc_ctx->dc_stream_id_count = 0;
 	dc->ctx = dc_ctx;
 
-	dc->current_state = dc_create_state();
-
-	if (!dc->current_state) {
-		dm_error("%s: failed to create validate ctx\n", __func__);
-		goto fail;
-	}
-
 	/* Create logger */
 
 	dc_ctx->dce_environment = init_params->dce_environment;
@@ -739,6 +732,18 @@ static bool construct(struct dc *dc,
 	if (!dc->res_pool)
 		goto fail;
 
+	/* Creation of current_state must occur after dc->dml
+	 * is initialized in dc_create_resource_pool because
+	 * on creation it copies the contents of dc->dml
+	 */
+
+	dc->current_state = dc_create_state(dc);
+
+	if (!dc->current_state) {
+		dm_error("%s: failed to create validate ctx\n", __func__);
+		goto fail;
+	}
+
 	dc_resource_state_construct(dc, dc->current_state);
 
 	if (!create_links(dc, init_params->num_virtual_links))
@@ -755,7 +760,7 @@ fail:
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
-	struct dc_state *dangling_context = dc_create_state();
+	struct dc_state *dangling_context = dc_create_state(dc);
 	struct dc_state *current_ctx;
 
 	if (dangling_context == NULL)
@@ -1213,16 +1218,56 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	return true;
 }
 
-struct dc_state *dc_create_state(void)
+struct dc_state *dc_create_state(struct dc *dc)
 {
 	struct dc_state *context = kzalloc(sizeof(struct dc_state),
 					   GFP_KERNEL);
 
 	if (!context)
 		return NULL;
+	/* Each context must have their own instance of VBA and in order to
+	 * initialize and obtain IP and SOC the base DML instance from DC is
+	 * initially copied into every context
+	 */
+	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
 
 	kref_init(&context->refcount);
+
 	return context;
+}
+
+struct dc_state *dc_copy_state(struct dc_state *src_ctx)
+{
+	int i, j;
+	struct dc_state *new_ctx = kzalloc(sizeof(struct dc_state),
+					   GFP_KERNEL);
+
+	if (!new_ctx)
+		return NULL;
+
+	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
+
+	for (i = 0; i < MAX_PIPES; i++) {
+			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
+
+			if (cur_pipe->top_pipe)
+				cur_pipe->top_pipe =  &new_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
+
+			if (cur_pipe->bottom_pipe)
+				cur_pipe->bottom_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
+
+	}
+
+	for (i = 0; i < new_ctx->stream_count; i++) {
+			dc_stream_retain(new_ctx->streams[i]);
+			for (j = 0; j < new_ctx->stream_status[i].plane_count; j++)
+				dc_plane_state_retain(
+					new_ctx->stream_status[i].plane_states[j]);
+	}
+
+	kref_init(&new_ctx->refcount);
+
+	return new_ctx;
 }
 
 void dc_retain_state(struct dc_state *context)
@@ -1824,7 +1869,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (update_type >= UPDATE_TYPE_FULL) {
 
 		/* initialize scratch memory for building context */
-		context = dc_create_state();
+		context = dc_create_state(dc);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return;
@@ -2109,13 +2154,13 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
 {
-	info->displayClock				= (unsigned int)state->bw.dcn.clk.dispclk_khz;
-	info->engineClock				= (unsigned int)state->bw.dcn.clk.dcfclk_khz;
-	info->memoryClock				= (unsigned int)state->bw.dcn.clk.dramclk_khz;
-	info->maxSupportedDppClock		= (unsigned int)state->bw.dcn.clk.max_supported_dppclk_khz;
-	info->dppClock					= (unsigned int)state->bw.dcn.clk.dppclk_khz;
-	info->socClock					= (unsigned int)state->bw.dcn.clk.socclk_khz;
-	info->dcfClockDeepSleep			= (unsigned int)state->bw.dcn.clk.dcfclk_deep_sleep_khz;
-	info->fClock					= (unsigned int)state->bw.dcn.clk.fclk_khz;
-	info->phyClock					= (unsigned int)state->bw.dcn.clk.phyclk_khz;
+	info->displayClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dispclk_khz;
+	info->engineClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_khz;
+	info->memoryClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dramclk_khz;
+	info->maxSupportedDppClock		= (unsigned int)state->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
+	info->dppClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.dppclk_khz;
+	info->socClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.socclk_khz;
+	info->dcfClockDeepSleep			= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz;
+	info->fClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.fclk_khz;
+	info->phyClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.phyclk_khz;
 }

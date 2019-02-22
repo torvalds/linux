@@ -669,7 +669,8 @@ void dc_resource_state_destruct(struct dc_state *context);
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
 
-struct dc_state *dc_create_state(void);
+struct dc_state *dc_create_state(struct dc *dc);
+struct dc_state *dc_copy_state(struct dc_state *src_ctx);
 void dc_retain_state(struct dc_state *context);
 void dc_release_state(struct dc_state *context);
 

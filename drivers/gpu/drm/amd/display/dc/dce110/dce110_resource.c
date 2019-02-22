@@ -883,7 +883,7 @@ static bool dce110_validate_bandwidth(
 			dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			dc->res_pool->pipe_count,
-			&context->bw.dce))
+			&context->bw_ctx.bw.dce))
 		result =  true;
 
 	if (!result)
@@ -893,8 +893,8 @@ static bool dce110_validate_bandwidth(
 			context->streams[0]->timing.v_addressable,
 			context->streams[0]->timing.pix_clk_100hz / 10);
 
-	if (memcmp(&dc->current_state->bw.dce,
-			&context->bw.dce, sizeof(context->bw.dce))) {
+	if (memcmp(&dc->current_state->bw_ctx.bw.dce,
+			&context->bw_ctx.bw.dce, sizeof(context->bw_ctx.bw.dce))) {
 
 		DC_LOG_BANDWIDTH_CALCS(
 			"%s: finish,\n"
@@ -908,34 +908,34 @@ static bool dce110_validate_bandwidth(
 			"sclk: %d sclk_sleep: %d yclk: %d blackout_recovery_time_us: %d\n"
 			,
 			__func__,
-			context->bw.dce.nbp_state_change_wm_ns[0].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[0].a_mark,
-			context->bw.dce.urgent_wm_ns[0].b_mark,
-			context->bw.dce.urgent_wm_ns[0].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[0].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[1].a_mark,
-			context->bw.dce.urgent_wm_ns[1].b_mark,
-			context->bw.dce.urgent_wm_ns[1].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[1].a_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].b_mark,
-			context->bw.dce.nbp_state_change_wm_ns[2].a_mark,
-			context->bw.dce.urgent_wm_ns[2].b_mark,
-			context->bw.dce.urgent_wm_ns[2].a_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].b_mark,
-			context->bw.dce.stutter_exit_wm_ns[2].a_mark,
-			context->bw.dce.stutter_mode_enable,
-			context->bw.dce.cpuc_state_change_enable,
-			context->bw.dce.cpup_state_change_enable,
-			context->bw.dce.nbp_state_change_enable,
-			context->bw.dce.all_displays_in_sync,
-			context->bw.dce.dispclk_khz,
-			context->bw.dce.sclk_khz,
-			context->bw.dce.sclk_deep_sleep_khz,
-			context->bw.dce.yclk_khz,
-			context->bw.dce.blackout_recovery_time_us);
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[0].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[1].a_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.urgent_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].b_mark,
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[2].a_mark,
+			context->bw_ctx.bw.dce.stutter_mode_enable,
+			context->bw_ctx.bw.dce.cpuc_state_change_enable,
+			context->bw_ctx.bw.dce.cpup_state_change_enable,
+			context->bw_ctx.bw.dce.nbp_state_change_enable,
+			context->bw_ctx.bw.dce.all_displays_in_sync,
+			context->bw_ctx.bw.dce.dispclk_khz,
+			context->bw_ctx.bw.dce.sclk_khz,
+			context->bw_ctx.bw.dce.sclk_deep_sleep_khz,
+			context->bw_ctx.bw.dce.yclk_khz,
+			context->bw_ctx.bw.dce.blackout_recovery_time_us);
 	}
 	return result;
 }

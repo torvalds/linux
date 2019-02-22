@@ -150,7 +150,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dc *dc = clk_mgr->ctx->dc;
 	struct dc_debug_options *debug = &dc->debug;
-	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
+	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
 	struct pp_smu_display_requirement_rv smu_req = *smu_req_cur;

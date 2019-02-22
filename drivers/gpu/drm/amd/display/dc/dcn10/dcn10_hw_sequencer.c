@@ -345,13 +345,13 @@ void dcn10_log_hw_state(struct dc *dc,
 
 	DTN_INFO("\nCALCULATED Clocks: dcfclk_khz:%d  dcfclk_deep_sleep_khz:%d  dispclk_khz:%d\n"
 		"dppclk_khz:%d  max_supported_dppclk_khz:%d  fclk_khz:%d  socclk_khz:%d\n\n",
-			dc->current_state->bw.dcn.clk.dcfclk_khz,
-			dc->current_state->bw.dcn.clk.dcfclk_deep_sleep_khz,
-			dc->current_state->bw.dcn.clk.dispclk_khz,
-			dc->current_state->bw.dcn.clk.dppclk_khz,
-			dc->current_state->bw.dcn.clk.max_supported_dppclk_khz,
-			dc->current_state->bw.dcn.clk.fclk_khz,
-			dc->current_state->bw.dcn.clk.socclk_khz);
+			dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.dispclk_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.fclk_khz,
+			dc->current_state->bw_ctx.bw.dcn.clk.socclk_khz);
 
 	log_mpc_crc(dc, log_ctx);
 
@@ -2069,7 +2069,7 @@ void update_dchubp_dpp(
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
-		bool should_divided_by_2 = context->bw.dcn.clk.dppclk_khz <=
+		bool should_divided_by_2 = context->bw_ctx.bw.dcn.clk.dppclk_khz <=
 				dc->res_pool->clk_mgr->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
@@ -2443,7 +2443,7 @@ static void dcn10_prepare_bandwidth(
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		if (context->stream_count == 0)
-			context->bw.dcn.clk.phyclk_khz = 0;
+			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
 		dc->res_pool->clk_mgr->funcs->update_clocks(
 				dc->res_pool->clk_mgr,
@@ -2452,7 +2452,7 @@ static void dcn10_prepare_bandwidth(
 	}
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
-			&context->bw.dcn.watermarks,
+			&context->bw_ctx.bw.dcn.watermarks,
 			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
@@ -2473,7 +2473,7 @@ static void dcn10_optimize_bandwidth(
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		if (context->stream_count == 0)
-			context->bw.dcn.clk.phyclk_khz = 0;
+			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
 		dc->res_pool->clk_mgr->funcs->update_clocks(
 				dc->res_pool->clk_mgr,
@@ -2482,7 +2482,7 @@ static void dcn10_optimize_bandwidth(
 	}
 
 	hubbub1_program_watermarks(dc->res_pool->hubbub,
-			&context->bw.dcn.watermarks,
+			&context->bw_ctx.bw.dcn.watermarks,
 			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);
 	dcn10_stereo_hw_frame_pack_wa(dc, context);

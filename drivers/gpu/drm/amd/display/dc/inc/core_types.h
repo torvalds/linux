@@ -266,18 +266,22 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 };
 
-union bw_context {
+union bw_output {
 	struct dcn_bw_output dcn;
 	struct dce_bw_output dce;
 };
 
+struct bw_context {
+	union bw_output bw;
+	struct display_mode_lib dml;
+};
 /**
  * struct dc_state - The full description of a state requested by a user
  *
  * @streams: Stream properties
  * @stream_status: The planes on a given stream
  * @res_ctx: Persistent state of resources
- * @bw: The output from bandwidth and watermark calculations
+ * @bw_ctx: The output from bandwidth and watermark calculations and the DML
  * @pp_display_cfg: PowerPlay clocks and settings
  * @dcn_bw_vars: non-stack memory to support bandwidth calculations
  *
@@ -289,7 +293,7 @@ struct dc_state {
 
 	struct resource_context res_ctx;
 
-	union bw_context bw;
+	struct bw_context bw_ctx;
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;

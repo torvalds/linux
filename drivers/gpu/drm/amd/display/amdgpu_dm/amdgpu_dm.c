@@ -1773,16 +1773,15 @@ dm_atomic_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &new_state->base);
 
-	new_state->context = dc_create_state();
+	old_state = to_dm_atomic_state(obj->state);
+
+	if (old_state && old_state->context)
+		new_state->context = dc_copy_state(old_state->context);
+
 	if (!new_state->context) {
 		kfree(new_state);
 		return NULL;
 	}
-
-	old_state = to_dm_atomic_state(obj->state);
-	if (old_state && old_state->context)
-		dc_resource_state_copy_construct(old_state->context,
-						 new_state->context);
 
 	return &new_state->base;
 }
@@ -1827,7 +1826,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	if (!state)
 		return -ENOMEM;
 
-	state->context = dc_create_state();
+	state->context = dc_create_state(adev->dm.dc);
 	if (!state->context) {
 		kfree(state);
 		return -ENOMEM;
@@ -5287,7 +5286,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		dc_state = dm_state->context;
 	} else {
 		/* No state changes, retain current state. */
-		dc_state_temp = dc_create_state();
+		dc_state_temp = dc_create_state(dm->dc);
 		ASSERT(dc_state_temp);
 		dc_state = dc_state_temp;
 		dc_resource_state_copy_construct_current(dm->dc, dc_state);
