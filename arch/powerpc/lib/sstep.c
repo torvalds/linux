@@ -1820,6 +1820,20 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			do_popcnt(regs, op, regs->gpr[rd], 64);
 			goto logical_done_nocc;
 #endif
+		case 538:	/* cnttzw */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			val = (unsigned int) regs->gpr[rd];
+			op->val = (val ? __builtin_ctz(val) : 32);
+			goto logical_done;
+#ifdef __powerpc64__
+		case 570:	/* cnttzd */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			val = regs->gpr[rd];
+			op->val = (val ? __builtin_ctzl(val) : 64);
+			goto logical_done;
+#endif
 		case 922:	/* extsh */
 			op->val = (signed short) regs->gpr[rd];
 			goto logical_done;
