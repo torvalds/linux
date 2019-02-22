@@ -2083,6 +2083,7 @@ static int rocker_port_attr_set(struct net_device *dev,
 		err = rocker_world_port_attr_pre_bridge_flags_set(rocker_port,
 							      attr->u.brport_flags,
 							      trans);
+		break;
 	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS:
 		err = rocker_world_port_attr_bridge_flags_set(rocker_port,
 							      attr->u.brport_flags,
