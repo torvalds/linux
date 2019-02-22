@@ -346,6 +346,16 @@ static void release_engine(
 
 }
 
+static bool is_engine_available(struct dce_i2c_hw *dce_i2c_hw)
+{
+	unsigned int arbitrate;
+
+	REG_GET(DC_I2C_ARBITRATION, DC_I2C_REG_RW_CNTL_STATUS, &arbitrate);
+	if (arbitrate == DC_I2C_REG_RW_CNTL_STATUS_DMCU_ONLY)
+		return false;
+	return true;
+}
+
 struct dce_i2c_hw *acquire_i2c_hw_engine(
 	struct resource_pool *pool,
 	struct ddc *ddc)
@@ -368,7 +378,7 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	if (!dce_i2c_hw)
 		return NULL;
 
-	if (pool->i2c_hw_buffer_in_use)
+	if (pool->i2c_hw_buffer_in_use || !is_engine_available(dce_i2c_hw))
 		return NULL;
 
 	do {
