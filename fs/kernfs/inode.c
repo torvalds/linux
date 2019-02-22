@@ -288,12 +288,11 @@ int kernfs_iop_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask);
 }
 
-static int kernfs_xattr_get(const struct xattr_handler *handler,
-			    struct dentry *unused, struct inode *inode,
-			    const char *suffix, void *value, size_t size)
+static int kernfs_node_xattr_get(const struct xattr_handler *handler,
+				 struct kernfs_node *kn, const char *suffix,
+				 void *value, size_t size)
 {
 	const char *name = xattr_full_name(handler, suffix);
-	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs_noalloc(kn);
@@ -303,13 +302,11 @@ static int kernfs_xattr_get(const struct xattr_handler *handler,
 	return simple_xattr_get(&attrs->xattrs, name, value, size);
 }
 
-static int kernfs_xattr_set(const struct xattr_handler *handler,
-			    struct dentry *unused, struct inode *inode,
-			    const char *suffix, const void *value,
-			    size_t size, int flags)
+static int kernfs_node_xattr_set(const struct xattr_handler *handler,
+				 struct kernfs_node *kn, const char *suffix,
+				 const void *value, size_t size, int flags)
 {
 	const char *name = xattr_full_name(handler, suffix);
-	struct kernfs_node *kn = inode->i_private;
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs(kn);
@@ -317,6 +314,25 @@ static int kernfs_xattr_set(const struct xattr_handler *handler,
 		return -ENOMEM;
 
 	return simple_xattr_set(&attrs->xattrs, name, value, size, flags);
+}
+
+static int kernfs_xattr_get(const struct xattr_handler *handler,
+			    struct dentry *unused, struct inode *inode,
+			    const char *suffix, void *value, size_t size)
+{
+	struct kernfs_node *kn = inode->i_private;
+
+	return kernfs_node_xattr_get(handler, kn, suffix, value, size);
+}
+
+static int kernfs_xattr_set(const struct xattr_handler *handler,
+			    struct dentry *unused, struct inode *inode,
+			    const char *suffix, const void *value,
+			    size_t size, int flags)
+{
+	struct kernfs_node *kn = inode->i_private;
+
+	return kernfs_node_xattr_set(handler, kn, suffix, value, size, flags);
 }
 
 static const struct xattr_handler kernfs_trusted_xattr_handler = {
@@ -336,3 +352,17 @@ const struct xattr_handler *kernfs_xattr_handlers[] = {
 	&kernfs_security_xattr_handler,
 	NULL
 };
+
+int kernfs_security_xattr_get(struct kernfs_node *kn, const char *suffix,
+			      void *value, size_t size)
+{
+	return kernfs_node_xattr_get(&kernfs_security_xattr_handler,
+				     kn, suffix, value, size);
+}
+
+int kernfs_security_xattr_set(struct kernfs_node *kn, const char *suffix,
+			      void *value, size_t size, int flags)
+{
+	return kernfs_node_xattr_set(&kernfs_security_xattr_handler,
+				     kn, suffix, value, size, flags);
+}
