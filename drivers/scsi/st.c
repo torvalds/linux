@@ -169,7 +169,7 @@ static int debugging = DEBUG;
 
 /* Remove mode bits and auto-rewind bit (7) */
 #define TAPE_NR(x) ( ((iminor(x) & ~255) >> (ST_NBR_MODE_BITS + 1)) | \
-    (iminor(x) & ~(-1 << ST_MODE_SHIFT)) )
+	(iminor(x) & ((1 << ST_MODE_SHIFT)-1)))
 #define TAPE_MODE(x) ((iminor(x) & ST_MODE_MASK) >> ST_MODE_SHIFT)
 
 /* Construct the minor number from the device (d), mode (m), and non-rewind (n) data */
