@@ -236,14 +236,12 @@ static enum hrtimer_restart kvm_hrtimer_expire(struct hrtimer *hrt)
 
 static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
-	struct arch_timer_cpu *timer;
 	enum kvm_arch_timers index;
 	u64 cval, now;
 
 	if (!timer_ctx)
 		return false;
 
-	timer = vcpu_timer(timer_ctx->vcpu);
 	index = arch_timer_ctx_index(timer_ctx);
 
 	if (timer_ctx->loaded) {
