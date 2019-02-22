@@ -1911,7 +1911,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 		goto out;
 	}
 
-	if (port == PORT_A)
+	if (HAS_TRANSCODER_EDP(dev_priv) && port == PORT_A)
 		cpu_transcoder = TRANSCODER_EDP;
 	else
 		cpu_transcoder = (enum transcoder) pipe;
@@ -1973,7 +1973,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	if (!(tmp & DDI_BUF_CTL_ENABLE))
 		goto out;
 
-	if (port == PORT_A) {
+	if (HAS_TRANSCODER_EDP(dev_priv) && port == PORT_A) {
 		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
 
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
@@ -3871,7 +3871,7 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	int ret;
 
-	if (port == PORT_A)
+	if (HAS_TRANSCODER_EDP(dev_priv) && port == PORT_A)
 		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
 	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))

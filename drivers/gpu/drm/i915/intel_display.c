@@ -9688,7 +9688,7 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum intel_display_power_domain power_domain;
-	unsigned long panel_transcoder_mask = BIT(TRANSCODER_EDP);
+	unsigned long panel_transcoder_mask = 0;
 	unsigned long enabled_panel_transcoders = 0;
 	enum transcoder panel_transcoder;
 	u32 tmp;
@@ -9696,6 +9696,9 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	if (IS_ICELAKE(dev_priv))
 		panel_transcoder_mask |=
 			BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
+
+	if (HAS_TRANSCODER_EDP(dev_priv))
+		panel_transcoder_mask |= BIT(TRANSCODER_EDP);
 
 	/*
 	 * The pipe->transcoder mapping is fixed with the exception of the eDP
