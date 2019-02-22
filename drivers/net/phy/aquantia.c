@@ -152,6 +152,15 @@ static int aqr_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int aqcs109_config_init(struct phy_device *phydev)
+{
+	/* AQCS109 belongs to a chip family partially supporting 10G and 5G.
+	 * PMA speed ability bits are the same for all members of the family,
+	 * AQCS109 however supports speeds up to 2.5G only.
+	 */
+	return phy_set_max_speed(phydev, SPEED_2500);
+}
+
 static struct phy_driver aqr_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQ1202),
@@ -208,6 +217,7 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQCS109",
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
+	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
