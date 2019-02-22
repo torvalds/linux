@@ -2928,7 +2928,7 @@ static void icl_enable_phy_clock_gating(struct intel_digital_port *dig_port)
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
-	i915_reg_t mg_regs[2] = { MG_DP_MODE(port, 0), MG_DP_MODE(port, 1) };
+	i915_reg_t mg_regs[2] = { MG_DP_MODE(0, port), MG_DP_MODE(1, port) };
 	u32 val;
 	int i;
 
@@ -2999,8 +2999,8 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 	if (tc_port == PORT_TC_NONE || intel_dig_port->tc_type == TC_PORT_TBT)
 		return;
 
-	ln0 = I915_READ(MG_DP_MODE(port, 0));
-	ln1 = I915_READ(MG_DP_MODE(port, 1));
+	ln0 = I915_READ(MG_DP_MODE(0, port));
+	ln1 = I915_READ(MG_DP_MODE(1, port));
 
 	switch (intel_dig_port->tc_type) {
 	case TC_PORT_TYPEC:
@@ -3050,8 +3050,8 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 		return;
 	}
 
-	I915_WRITE(MG_DP_MODE(port, 0), ln0);
-	I915_WRITE(MG_DP_MODE(port, 1), ln1);
+	I915_WRITE(MG_DP_MODE(0, port), ln0);
+	I915_WRITE(MG_DP_MODE(1, port), ln1);
 }
 
 static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
