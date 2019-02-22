@@ -308,6 +308,11 @@ properties:
           - const: netxeon,r89
           - const: rockchip,rk3288
 
+      - description: Orange Pi RK3399 board
+        items:
+          - const: rockchip,rk3399-orangepi
+          - const: rockchip,rk3399
+
       - description: Phytec phyCORE-RK3288 Rapid Development Kit
         items:
           - const: phytec,rk3288-pcm-947
