@@ -1821,12 +1821,13 @@ class SQLTableModel(TableModel):
 
 	progress = Signal(object)
 
-	def __init__(self, glb, sql, column_count, parent=None):
+	def __init__(self, glb, sql, column_headers, parent=None):
 		super(SQLTableModel, self).__init__(parent)
 		self.glb = glb
 		self.more = True
 		self.populated = 0
-		self.fetcher = SQLFetcher(glb, sql, lambda x, y=column_count: SQLTableDataPrep(x, y), self.AddSample)
+		self.column_headers = column_headers
+		self.fetcher = SQLFetcher(glb, sql, lambda x, y=len(column_headers): SQLTableDataPrep(x, y), self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
@@ -1864,6 +1865,12 @@ class SQLTableModel(TableModel):
 	def HasMoreRecords(self):
 		return self.more
 
+	def columnCount(self, parent=None):
+		return len(self.column_headers)
+
+	def columnHeader(self, column):
+		return self.column_headers[column]
+
 # SQL automatic table data model
 
 class SQLAutoTableModel(SQLTableModel):
@@ -1873,12 +1880,12 @@ class SQLAutoTableModel(SQLTableModel):
 		if table_name == "comm_threads_view":
 			# For now, comm_threads_view has no id column
 			sql = "SELECT * FROM " + table_name + " WHERE comm_id > $$last_id$$ ORDER BY comm_id LIMIT " + str(glb_chunk_sz)
-		self.column_headers = []
+		column_headers = []
 		query = QSqlQuery(glb.db)
 		if glb.dbref.is_sqlite3:
 			QueryExec(query, "PRAGMA table_info(" + table_name + ")")
 			while query.next():
-				self.column_headers.append(query.value(1))
+				column_headers.append(query.value(1))
 			if table_name == "sqlite_master":
 				sql = "SELECT * FROM " + table_name
 		else:
@@ -1891,14 +1898,8 @@ class SQLAutoTableModel(SQLTableModel):
 				schema = "public"
 			QueryExec(query, "SELECT column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' and table_name = '" + select_table_name + "'")
 			while query.next():
-				self.column_headers.append(query.value(0))
-		super(SQLAutoTableModel, self).__init__(glb, sql, len(self.column_headers), parent)
-
-	def columnCount(self, parent=None):
-		return len(self.column_headers)
-
-	def columnHeader(self, column):
-		return self.column_headers[column]
+				column_headers.append(query.value(0))
+		super(SQLAutoTableModel, self).__init__(glb, sql, column_headers, parent)
 
 # Base class for custom ResizeColumnsToContents
 
