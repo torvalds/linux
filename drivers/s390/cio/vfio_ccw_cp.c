@@ -283,6 +283,33 @@ static long copy_ccw_from_iova(struct channel_program *cp,
 
 #define ccw_is_chain(_ccw) ((_ccw)->flags & (CCW_FLAG_CC | CCW_FLAG_DC))
 
+/*
+ * is_cpa_within_range()
+ *
+ * @cpa: channel program address being questioned
+ * @head: address of the beginning of a CCW chain
+ * @len: number of CCWs within the chain
+ *
+ * Determine whether the address of a CCW (whether a new chain,
+ * or the target of a TIC) falls within a range (including the end points).
+ *
+ * Returns 1 if yes, 0 if no.
+ */
+static inline int is_cpa_within_range(u32 cpa, u32 head, int len)
+{
+	u32 tail = head + (len - 1) * sizeof(struct ccw1);
+
+	return (head <= cpa && cpa <= tail);
+}
+
+static inline int is_tic_within_range(struct ccw1 *ccw, u32 head, int len)
+{
+	if (!ccw_is_tic(ccw))
+		return 0;
+
+	return is_cpa_within_range(ccw->cda, head, len);
+}
+
 static struct ccwchain *ccwchain_alloc(struct channel_program *cp, int len)
 {
 	struct ccwchain *chain;
@@ -392,7 +419,15 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 			return -EOPNOTSUPP;
 		}
 
-		if (!ccw_is_chain(ccw))
+		/*
+		 * We want to keep counting if the current CCW has the
+		 * command-chaining flag enabled, or if it is a TIC CCW
+		 * that loops back into the current chain.  The latter
+		 * is used for device orientation, where the CCW PRIOR to
+		 * the TIC can either jump to the TIC or a CCW immediately
+		 * after the TIC, depending on the results of its operation.
+		 */
+		if (!ccw_is_chain(ccw) && !is_tic_within_range(ccw, iova, cnt))
 			break;
 
 		ccw++;
