@@ -1693,33 +1693,24 @@ class SQLTableDialogDataItem():
 			return False
 		return True
 
-# Selected branch report creation dialog
+# Report Dialog Base
 
-class SelectedBranchDialog(QDialog):
+class ReportDialogBase(QDialog):
 
-	def __init__(self, glb, parent=None):
-		super(SelectedBranchDialog, self).__init__(parent)
+	def __init__(self, glb, title, items, partial, parent=None):
+		super(ReportDialogBase, self).__init__(parent)
 
 		self.glb = glb
 
 		self.name = ""
 		self.where_clause = ""
 
-		self.setWindowTitle("Selected Branches")
+		self.setWindowTitle(title)
 		self.setMinimumWidth(600)
 
-		items = (
-			("Report name:", "Enter a name to appear in the window title bar", "", "", "", ""),
-			("Time ranges:", "Enter time ranges", "<timeranges>", "", "samples.id", ""),
-			("CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "<ranges>", "", "cpu", ""),
-			("Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", ""),
-			("PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", ""),
-			("TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", ""),
-			("DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id"),
-			("Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id"),
-			("Raw SQL clause: ", "Enter a raw SQL WHERE clause", "", "", "", ""),
-			)
 		self.data_items = [SQLTableDialogDataItem(glb, *x, parent=self) for x in items]
+
+		self.partial = partial
 
 		self.grid = QGridLayout()
 
@@ -1764,7 +1755,10 @@ class SelectedBranchDialog(QDialog):
 					self.where_clause += " AND "
 				self.where_clause += d.value
 		if len(self.where_clause):
-			self.where_clause = " AND ( " + self.where_clause + " ) "
+			if self.partial:
+				self.where_clause = " AND ( " + self.where_clause + " ) "
+			else:
+				self.where_clause = " WHERE " + self.where_clause + " "
 		else:
 			self.ShowMessage("No selection")
 			return
@@ -1775,6 +1769,25 @@ class SelectedBranchDialog(QDialog):
 
 	def ClearMessage(self):
 		self.status.setText("")
+
+# Selected branch report creation dialog
+
+class SelectedBranchDialog(ReportDialogBase):
+
+	def __init__(self, glb, parent=None):
+		title = "Selected Branches"
+		items = (
+			("Report name:", "Enter a name to appear in the window title bar", "", "", "", ""),
+			("Time ranges:", "Enter time ranges", "<timeranges>", "", "samples.id", ""),
+			("CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "<ranges>", "", "cpu", ""),
+			("Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", ""),
+			("PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", ""),
+			("TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", ""),
+			("DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id"),
+			("Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id"),
+			("Raw SQL clause: ", "Enter a raw SQL WHERE clause", "", "", "", ""),
+			)
+		super(SelectedBranchDialog, self).__init__(glb, title, items, True, parent)
 
 # Event list
 
