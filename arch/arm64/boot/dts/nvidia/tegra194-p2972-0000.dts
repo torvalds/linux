@@ -25,6 +25,7 @@
 		};
 
 		hda@3510000 {
+			nvidia,model = "jetson-xavier-hda";
 			status = "okay";
 		};
 
