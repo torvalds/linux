@@ -188,6 +188,10 @@ struct timing_generator_funcs {
 	void (*unlock)(struct timing_generator *tg);
 	void (*lock)(struct timing_generator *tg);
 	void (*lock_global)(struct timing_generator *tg);
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void(*triplebuffer_unlock)(struct timing_generator *tg);
+	void(*triplebuffer_lock)(struct timing_generator *tg);
+#endif
 	void (*enable_reset_trigger)(struct timing_generator *tg,
 				     int source_tg_inst);
 	void (*enable_crtc_reset)(struct timing_generator *tg,
@@ -224,6 +228,16 @@ struct timing_generator_funcs {
 	bool (*is_optc_underflow_occurred)(struct timing_generator *tg);
 	void (*clear_optc_underflow)(struct timing_generator *tg);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	void (*set_dwb_source)(struct timing_generator *optc,
+		uint32_t dwb_pipe_inst);
+
+	void (*get_optc_source)(struct timing_generator *optc,
+			uint32_t *num_of_input_segments,
+			uint32_t *seg0_src_sel,
+			uint32_t *seg1_src_sel);
+#endif
+
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
 	 * not on.
@@ -243,6 +257,14 @@ struct timing_generator_funcs {
 
 	void (*set_vtg_params)(struct timing_generator *optc,
 			const struct dc_crtc_timing *dc_crtc_timing);
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	void (*set_odm_bypass)(struct timing_generator *tg, const struct dc_crtc_timing *dc_crtc_timing);
+	void (*set_odm_combine)(struct timing_generator *tg, int combine_opp_id, int mpcc_hactive);
+	void (*set_gsl)(struct timing_generator *optc, const struct gsl_params *params);
+	void (*set_gsl_source_select)(struct timing_generator *optc,
+			int group_idx,
+			uint32_t gsl_ready_signal);
+#endif
 };
 
 #endif

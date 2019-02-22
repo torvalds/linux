@@ -35,6 +35,9 @@
  ******************************************************************************/
 
 #define MAX_PIPES 6
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#define MAX_DWB_PIPES	1
+#endif
 
 struct gamma_curve {
 	uint32_t offset;
@@ -76,6 +79,37 @@ struct pwl_result_data {
 	uint32_t delta_green_reg;
 	uint32_t delta_blue_reg;
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+struct dc_rgb {
+	uint32_t red;
+	uint32_t green;
+	uint32_t blue;
+};
+
+struct tetrahedral_17x17x17 {
+	struct dc_rgb lut0[1229];
+	struct dc_rgb lut1[1228];
+	struct dc_rgb lut2[1228];
+	struct dc_rgb lut3[1228];
+};
+struct tetrahedral_9x9x9 {
+	struct dc_rgb lut0[183];
+	struct dc_rgb lut1[182];
+	struct dc_rgb lut2[182];
+	struct dc_rgb lut3[182];
+};
+
+struct tetrahedral_params {
+	union {
+		struct tetrahedral_17x17x17 tetrahedral_17;
+		struct tetrahedral_9x9x9 tetrahedral_9;
+	};
+	bool use_tetrahedral_9;
+	bool use_12bits;
+
+};
+#endif
 
 /* arr_curve_points - regamma regions/segments specification
  * arr_points - beginning and end point specified separately (only one on DCE)
@@ -160,6 +194,7 @@ enum opp_regamma {
 	OPP_REGAMMA_USER
 };
 
+
 struct dc_bias_and_scale {
 	uint16_t scale_red;
 	uint16_t bias_red;
@@ -181,7 +216,12 @@ enum test_pattern_mode {
 	TEST_PATTERN_MODE_VERTICALBARS,
 	TEST_PATTERN_MODE_HORIZONTALBARS,
 	TEST_PATTERN_MODE_SINGLERAMP_RGB,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	TEST_PATTERN_MODE_DUALRAMP_RGB,
+	TEST_PATTERN_MODE_XR_BIAS_RGB
+#else
 	TEST_PATTERN_MODE_DUALRAMP_RGB
+#endif
 };
 
 enum test_pattern_color_format {
@@ -203,7 +243,8 @@ enum controller_dp_test_pattern {
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_8,
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_9,
 	CONTROLLER_DP_TEST_PATTERN_RESERVED_A,
-	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
+	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA,
+	CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR
 };
 
 enum dc_lut_mode {
