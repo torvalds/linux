@@ -421,6 +421,32 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+/* writeback */
+struct dc_dwb_cnv_params {
+	unsigned int		src_width;	/* input active width */
+	unsigned int		src_height;	/* input active height (half-active height in interlaced mode) */
+	unsigned int		crop_width;	/* cropped window width at cnv output */
+	bool			crop_en;	/* window cropping enable in cnv */
+	unsigned int		crop_height;	/* cropped window height at cnv output */
+	unsigned int		crop_x;		/* cropped window start x value at cnv output */
+	unsigned int		crop_y;		/* cropped window start y value at cnv output */
+	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
+};
+
+struct dc_dwb_params {
+	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
+	unsigned int			dest_width;	/* Destination width */
+	unsigned int			dest_height;	/* Destination height */
+	enum dwb_scaler_mode		out_format;	/* default = YUV420 - TODO: limit this to 0 and 1 on dcn3 */
+	enum dwb_output_depth		output_depth;	/* output pixel depth - 8bpc or 10bpc */
+	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
+	struct scaling_taps 		scaler_taps;	/* Scaling taps */
+	enum dwb_subsample_position	subsample_position;
+	struct dc_transfer_func *out_transfer_func;
+};
+#endif
+
 /* audio*/
 
 union audio_sample_rates {
