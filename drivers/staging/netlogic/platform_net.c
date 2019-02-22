@@ -107,8 +107,9 @@ static struct platform_device *gmac_controller2_init(void *gmac0_addr)
 		.dev.platform_data = &ndata1,
 	};
 
-	gmac4_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GMAC_4_OFFSET)), 0xfff);
+	gmac4_addr =
+		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GMAC_4_OFFSET)),
+			0xfff);
 	ndata1.serdes_addr = gmac4_addr;
 	ndata1.pcs_addr	= gmac4_addr;
 	ndata1.mii_addr	= gmac0_addr;
@@ -134,8 +135,9 @@ static void xls_gmac_init(void)
 {
 	int mac;
 	struct platform_device *xlr_net_dev1;
-	void __iomem *gmac0_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)), 0xfff);
+	void __iomem *gmac0_addr =
+		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)),
+			0xfff);
 
 	static struct xlr_net_data ndata0 = {
 		.rfr_station	= FMN_STNID_GMACRFR_0,
@@ -153,8 +155,9 @@ static void xls_gmac_init(void)
 	ndata0.mii_addr	= gmac0_addr;
 
 	/* Passing GPIO base for serdes init. Only needed on sgmii ports */
-	gpio_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET)), 0xfff);
+	gpio_addr =
+		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET)),
+			0xfff);
 	ndata0.gpio_addr = gpio_addr;
 	ndata0.cpu_mask = nlm_current_node()->coremask;
 
@@ -214,8 +217,9 @@ static void xlr_gmac_init(void)
 		.id		= 0,
 		.dev.platform_data = &ndata0,
 	};
-	ndata0.mii_addr = ioremap(CPHYSADDR(
-		nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)), 0xfff);
+	ndata0.mii_addr =
+		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)),
+			0xfff);
 
 	ndata0.cpu_mask = nlm_current_node()->coremask;
 
