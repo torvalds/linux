@@ -1708,6 +1708,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 		case 266:	/* add */
 			op->val = regs->gpr[ra] + regs->gpr[rb];
 			goto arith_done;
+
+		case 267:	/* moduw */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			op->val = (unsigned int) regs->gpr[ra] %
+				(unsigned int) regs->gpr[rb];
+			goto compute_done;
 #ifdef __powerpc64__
 		case 457:	/* divdu */
 			op->val = regs->gpr[ra] / regs->gpr[rb];
@@ -1749,6 +1756,13 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 			}
 
 			return -1;
+
+		case 779:	/* modsw */
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				return -1;
+			op->val = (int) regs->gpr[ra] %
+				(int) regs->gpr[rb];
+			goto compute_done;
 
 
 /*
