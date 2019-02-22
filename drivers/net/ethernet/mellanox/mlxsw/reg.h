@@ -4095,11 +4095,14 @@ static inline void mlxsw_reg_ptys_eth_unpack(char *payload,
 					     u32 *p_eth_proto_oper)
 {
 	if (p_eth_proto_cap)
-		*p_eth_proto_cap = mlxsw_reg_ptys_eth_proto_cap_get(payload);
+		*p_eth_proto_cap =
+			mlxsw_reg_ptys_eth_proto_cap_get(payload);
 	if (p_eth_proto_admin)
-		*p_eth_proto_admin = mlxsw_reg_ptys_eth_proto_admin_get(payload);
+		*p_eth_proto_admin =
+			mlxsw_reg_ptys_eth_proto_admin_get(payload);
 	if (p_eth_proto_oper)
-		*p_eth_proto_oper = mlxsw_reg_ptys_eth_proto_oper_get(payload);
+		*p_eth_proto_oper =
+			mlxsw_reg_ptys_eth_proto_oper_get(payload);
 }
 
 static inline void mlxsw_reg_ptys_ib_pack(char *payload, u8 local_port,
