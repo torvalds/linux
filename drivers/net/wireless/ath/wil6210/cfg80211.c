@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -395,7 +395,7 @@ static int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
+	for (i = 0; i < max_assoc_sta; i++) {
 		if (wil->sta[i].status == wil_sta_unused)
 			continue;
 		if (wil->sta[i].mid != mid)
@@ -3007,7 +3007,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 			wil, vif->mid, WMI_INVALID_RF_SECTOR_INDEX,
 			sector_type, WIL_CID_ALL);
 		if (rc == -EINVAL) {
-			for (i = 0; i < WIL6210_MAX_CID; i++) {
+			for (i = 0; i < max_assoc_sta; i++) {
 				if (wil->sta[i].mid != vif->mid)
 					continue;
 				rc = wil_rf_sector_wmi_set_selected(
