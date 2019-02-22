@@ -280,7 +280,7 @@ static void bnx2i_ring_sq_dbell(struct bnx2i_conn *bnx2i_conn, int count)
 	} else
 		writew(count, ep->qp.ctx_base + CNIC_SEND_DOORBELL);
 
-	mmiowb(); /* flush posted PCI writes */
+	mmiowb();
 }
 
 
