@@ -21,7 +21,6 @@ generic-y += kvm_para.h
 generic-y += local.h
 generic-y += local64.h
 generic-y += mm-arch-hooks.h
-generic-y += mmiowb.h
 generic-y += mutex.h
 generic-y += percpu.h
 generic-y += preempt.h
