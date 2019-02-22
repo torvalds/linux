@@ -15,8 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __MT76X02_UTIL_H
-#define __MT76X02_UTIL_H
+#ifndef __MT76x02_H
+#define __MT76x02_H
 
 #include <linux/kfifo.h>
 
@@ -27,6 +27,9 @@
 #include "mt76x02_dma.h"
 
 #define MT_CALIBRATE_INTERVAL	HZ
+
+#define MT_WATCHDOG_TIME	(HZ / 10)
+#define MT_TX_HANG_TH		10
 
 #define MT_MAX_CHAINS		2
 struct mt76x02_rx_freq_cal {
@@ -79,6 +82,7 @@ struct mt76x02_dev {
 	struct tasklet_struct pre_tbtt_tasklet;
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
+	struct delayed_work wdt_work;
 
 	u32 aggr_stats[32];
 
@@ -88,6 +92,9 @@ struct mt76x02_dev {
 
 	u8 tbtt_count;
 	u16 beacon_int;
+
+	u32 tx_hang_reset;
+	u8 tx_hang_check;
 
 	struct mt76x02_calibration cal;
 
@@ -101,6 +108,12 @@ struct mt76x02_dev {
 	u8 slottime;
 
 	struct mt76x02_dfs_pattern_detector dfs_pd;
+
+	/* edcca monitor */
+	bool ed_tx_blocked;
+	bool ed_monitor;
+	u8 ed_trigger;
+	u8 ed_silent;
 };
 
 extern struct ieee80211_rate mt76x02_rates[12];
@@ -136,6 +149,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 				const struct ieee80211_tx_rate *rate);
 s8 mt76x02_tx_get_txpwr_adj(struct mt76x02_dev *dev, s8 txpwr,
 			    s8 max_txpwr_adj);
+void mt76x02_wdt_work(struct work_struct *work);
 void mt76x02_tx_set_txpwr_auto(struct mt76x02_dev *dev, s8 txpwr);
 void mt76x02_set_tx_ackto(struct mt76x02_dev *dev);
 void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
@@ -158,8 +172,6 @@ void mt76x02_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     const u8 *mac);
 void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
-int mt76x02_get_txpower(struct ieee80211_hw *hw,
-			struct ieee80211_vif *vif, int *dbm);
 void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
@@ -224,4 +236,4 @@ mt76x02_rx_get_sta_wcid(struct mt76x02_sta *sta, bool unicast)
 		return &sta->vif->group_wcid;
 }
 
-#endif
+#endif /* __MT76x02_H */

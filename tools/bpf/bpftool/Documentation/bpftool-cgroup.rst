@@ -17,8 +17,8 @@ SYNOPSIS
 	*COMMANDS* :=
 	{ **show** | **list** | **tree** | **attach** | **detach** | **help** }
 
-MAP COMMANDS
-=============
+CGROUP COMMANDS
+===============
 
 |	**bpftool** **cgroup { show | list }** *CGROUP*
 |	**bpftool** **cgroup tree** [*CGROUP_ROOT*]

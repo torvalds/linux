@@ -15,6 +15,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "mt76x0.h"
 #include "mcu.h"

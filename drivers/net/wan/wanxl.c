@@ -565,7 +565,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	u32 plx_phy;		/* PLX PCI base address */
 	u32 mem_phy;		/* memory PCI base addr */
 	u8 __iomem *mem;	/* memory virtual base addr */
-	int i, ports, alloc_size;
+	int i, ports;
 
 #ifndef MODULE
 	pr_info_once("%s\n", version);
@@ -601,8 +601,7 @@ static int wanxl_pci_init_one(struct pci_dev *pdev,
 	default: ports = 4;
 	}
 
-	alloc_size = sizeof(struct card) + ports * sizeof(struct port);
-	card = kzalloc(alloc_size, GFP_KERNEL);
+	card = kzalloc(struct_size(card, ports, ports), GFP_KERNEL);
 	if (card == NULL) {
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);

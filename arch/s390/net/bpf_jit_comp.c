@@ -1154,7 +1154,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		mask = 0x7000; /* jnz */
 		if (BPF_CLASS(insn->code) == BPF_JMP32) {
 			/* llilf %w1,imm (load zero extend imm) */
-			EMIT6_IMM(0xc0010000, REG_W1, imm);
+			EMIT6_IMM(0xc00f0000, REG_W1, imm);
 			/* nr %w1,%dst */
 			EMIT2(0x1400, REG_W1, dst_reg);
 		} else {
@@ -1216,6 +1216,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 			  REG_W1, dst_reg, src_reg);
 		goto branch_oc;
 branch_ks:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* lgfi %w1,imm (load sign extend imm) */
 		EMIT6_IMM(0xc0010000, REG_W1, imm);
 		/* crj or cgrj %dst,%w1,mask,off */
@@ -1223,6 +1224,7 @@ branch_ks:
 			    dst_reg, REG_W1, i, off, mask);
 		break;
 branch_ku:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* lgfi %w1,imm (load sign extend imm) */
 		EMIT6_IMM(0xc0010000, REG_W1, imm);
 		/* clrj or clgrj %dst,%w1,mask,off */
@@ -1230,11 +1232,13 @@ branch_ku:
 			    dst_reg, REG_W1, i, off, mask);
 		break;
 branch_xs:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* crj or cgrj %dst,%src,mask,off */
 		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0076 : 0x0064),
 			    dst_reg, src_reg, i, off, mask);
 		break;
 branch_xu:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* clrj or clgrj %dst,%src,mask,off */
 		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0077 : 0x0065),
 			    dst_reg, src_reg, i, off, mask);

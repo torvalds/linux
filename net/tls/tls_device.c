@@ -247,6 +247,7 @@ static int tls_push_record(struct sock *sk,
 			   int flags,
 			   unsigned char record_type)
 {
+	struct tls_prot_info *prot = &ctx->prot_info;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct page_frag dummy_tag_frag;
 	skb_frag_t *frag;
@@ -256,7 +257,7 @@ static int tls_push_record(struct sock *sk,
 	frag = &record->frags[0];
 	tls_fill_prepend(ctx,
 			 skb_frag_address(frag),
-			 record->len - ctx->tx.prepend_size,
+			 record->len - prot->prepend_size,
 			 record_type,
 			 ctx->crypto_send.info.version);
 
@@ -264,7 +265,7 @@ static int tls_push_record(struct sock *sk,
 	dummy_tag_frag.page = skb_frag_page(frag);
 	dummy_tag_frag.offset = 0;
 
-	tls_append_frag(record, &dummy_tag_frag, ctx->tx.tag_size);
+	tls_append_frag(record, &dummy_tag_frag, prot->tag_size);
 	record->end_seq = tp->write_seq + record->len;
 	spin_lock_irq(&offload_ctx->lock);
 	list_add_tail(&record->list, &offload_ctx->records_list);
@@ -347,6 +348,7 @@ static int tls_push_data(struct sock *sk,
 			 unsigned char record_type)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int tls_push_record_flags = flags | MSG_SENDPAGE_NOTLAST;
 	int more = flags & (MSG_SENDPAGE_NOTLAST | MSG_MORE);
@@ -376,10 +378,10 @@ static int tls_push_data(struct sock *sk,
 	 * we need to leave room for an authentication tag.
 	 */
 	max_open_record_len = TLS_MAX_PAYLOAD_SIZE +
-			      tls_ctx->tx.prepend_size;
+			      prot->prepend_size;
 	do {
 		rc = tls_do_allocation(sk, ctx, pfrag,
-				       tls_ctx->tx.prepend_size);
+				       prot->prepend_size);
 		if (rc) {
 			rc = sk_stream_wait_memory(sk, &timeo);
 			if (!rc)
@@ -397,7 +399,7 @@ handle_error:
 				size = orig_size;
 				destroy_record(record);
 				ctx->open_record = NULL;
-			} else if (record->len > tls_ctx->tx.prepend_size) {
+			} else if (record->len > prot->prepend_size) {
 				goto last_record;
 			}
 
@@ -658,6 +660,8 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
 	u16 nonce_size, tag_size, iv_size, rec_seq_size;
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_record_info *start_marker_record;
 	struct tls_offload_context_tx *offload_ctx;
 	struct tls_crypto_info *crypto_info;
@@ -703,10 +707,10 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		goto free_offload_ctx;
 	}
 
-	ctx->tx.prepend_size = TLS_HEADER_SIZE + nonce_size;
-	ctx->tx.tag_size = tag_size;
-	ctx->tx.overhead_size = ctx->tx.prepend_size + ctx->tx.tag_size;
-	ctx->tx.iv_size = iv_size;
+	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
+	prot->tag_size = tag_size;
+	prot->overhead_size = prot->prepend_size + prot->tag_size;
+	prot->iv_size = iv_size;
 	ctx->tx.iv = kmalloc(iv_size + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 			     GFP_KERNEL);
 	if (!ctx->tx.iv) {
@@ -716,7 +720,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	memcpy(ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv, iv_size);
 
-	ctx->tx.rec_seq_size = rec_seq_size;
+	prot->rec_seq_size = rec_seq_size;
 	ctx->tx.rec_seq = kmemdup(rec_seq, rec_seq_size, GFP_KERNEL);
 	if (!ctx->tx.rec_seq) {
 		rc = -ENOMEM;

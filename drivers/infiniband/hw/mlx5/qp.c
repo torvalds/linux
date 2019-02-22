@@ -1912,14 +1912,16 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		}
 
 		if (!check_flags_mask(ucmd.flags,
+				      MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
+				      MLX5_QP_FLAG_BFREG_INDEX |
+				      MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE |
+				      MLX5_QP_FLAG_SCATTER_CQE |
 				      MLX5_QP_FLAG_SIGNATURE |
-					      MLX5_QP_FLAG_SCATTER_CQE |
-					      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
-					      MLX5_QP_FLAG_BFREG_INDEX |
-					      MLX5_QP_FLAG_TYPE_DCT |
-					      MLX5_QP_FLAG_TYPE_DCI |
-					      MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
-					      MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE))
+				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC |
+				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
+				      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+				      MLX5_QP_FLAG_TYPE_DCI |
+				      MLX5_QP_FLAG_TYPE_DCT))
 			return -EINVAL;
 
 		err = get_qp_user_index(to_mucontext(pd->uobject->context),

@@ -13,19 +13,43 @@
 
 #include "igc_hw.h"
 
-/* main */
+/* forward declaration */
+void igc_set_ethtool_ops(struct net_device *);
+
+struct igc_adapter;
+struct igc_ring;
+
+void igc_up(struct igc_adapter *adapter);
+void igc_down(struct igc_adapter *adapter);
+int igc_setup_tx_resources(struct igc_ring *ring);
+int igc_setup_rx_resources(struct igc_ring *ring);
+void igc_free_tx_resources(struct igc_ring *ring);
+void igc_free_rx_resources(struct igc_ring *ring);
+unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter);
+void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
+			      const u32 max_rss_queues);
+int igc_reinit_queues(struct igc_adapter *adapter);
+bool igc_has_link(struct igc_adapter *adapter);
+void igc_reset(struct igc_adapter *adapter);
+int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx);
+
 extern char igc_driver_name[];
 extern char igc_driver_version[];
+
+#define IGC_REGS_LEN			740
+#define IGC_RETA_SIZE			128
 
 /* Interrupt defines */
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_FLAG_HAS_MSI		BIT(0)
-#define IGC_FLAG_QUEUE_PAIRS		BIT(4)
+#define IGC_FLAG_QUEUE_PAIRS		BIT(3)
+#define IGC_FLAG_DMAC			BIT(4)
 #define IGC_FLAG_NEED_LINK_UPDATE	BIT(9)
 #define IGC_FLAG_MEDIA_RESET		BIT(10)
 #define IGC_FLAG_MAS_ENABLE		BIT(12)
 #define IGC_FLAG_HAS_MSIX		BIT(13)
 #define IGC_FLAG_VLAN_PROMISC		BIT(15)
+#define IGC_FLAG_RX_LEGACY		BIT(16)
 
 #define IGC_START_ITR			648 /* ~6000 ints/sec */
 #define IGC_4K_ITR			980
@@ -60,6 +84,7 @@ extern char igc_driver_version[];
 #define IGC_RXBUFFER_2048		2048
 #define IGC_RXBUFFER_3072		3072
 
+#define AUTO_ALL_MODES		0
 #define IGC_RX_HDR_LEN			IGC_RXBUFFER_256
 
 /* RX and TX descriptor control thresholds.
@@ -340,6 +365,8 @@ struct igc_adapter {
 
 	struct igc_mac_addr *mac_table;
 
+	u8 rss_indir_tbl[IGC_RETA_SIZE];
+
 	unsigned long link_check_timeout;
 	struct igc_info ei;
 };
@@ -417,6 +444,9 @@ static inline s32 igc_read_phy_reg(struct igc_hw *hw, u32 offset, u16 *data)
 
 	return 0;
 }
+
+/* forward declaration */
+void igc_reinit_locked(struct igc_adapter *);
 
 #define igc_rx_pg_size(_ring) (PAGE_SIZE << igc_rx_pg_order(_ring))
 

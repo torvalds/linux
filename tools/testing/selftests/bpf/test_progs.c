@@ -10,6 +10,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <time.h>
 
 #include <linux/types.h>
@@ -1783,6 +1784,15 @@ static void test_task_fd_query_tp(void)
 				   "sys_enter_read");
 }
 
+static int libbpf_debug_print(enum libbpf_print_level level,
+			      const char *format, va_list args)
+{
+	if (level == LIBBPF_DEBUG)
+		return 0;
+
+	return vfprintf(stderr, format, args);
+}
+
 static void test_reference_tracking()
 {
 	const char *file = "./test_sk_lookup_kern.o";
@@ -1809,9 +1819,9 @@ static void test_reference_tracking()
 
 		/* Expect verifier failure if test name has 'fail' */
 		if (strstr(title, "fail") != NULL) {
-			libbpf_set_print(NULL, NULL, NULL);
+			libbpf_set_print(NULL);
 			err = !bpf_program__load(prog, "GPL", 0);
-			libbpf_set_print(printf, printf, NULL);
+			libbpf_set_print(libbpf_debug_print);
 		} else {
 			err = bpf_program__load(prog, "GPL", 0);
 		}

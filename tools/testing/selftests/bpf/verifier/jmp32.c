@@ -27,6 +27,7 @@
 		  .data64 = { 1ULL << 63 | 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jset32: BPF_X",
@@ -58,6 +59,7 @@
 		  .data64 = { 1ULL << 63 | 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jset32: min/max deduction",
@@ -93,6 +95,7 @@
 		  .data64 = { -1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jeq32: BPF_X",
@@ -119,6 +122,7 @@
 		  .data64 = { 1ULL << 63 | 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jeq32: min/max deduction",
@@ -154,6 +158,7 @@
 		  .data64 = { -1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jne32: BPF_X",
@@ -180,6 +185,7 @@
 		  .data64 = { 1ULL << 63 | 2, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jne32: min/max deduction",
@@ -218,6 +224,7 @@
 		  .data64 = { 0, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jge32: BPF_X",
@@ -244,6 +251,7 @@
 		  .data64 = { (UINT_MAX - 1) | 2ULL << 32, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jge32: min/max deduction",
@@ -284,6 +292,7 @@
 		  .data64 = { 0, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jgt32: BPF_X",
@@ -310,6 +319,7 @@
 		  .data64 = { (UINT_MAX - 1) | 2ULL << 32, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jgt32: min/max deduction",
@@ -350,6 +360,7 @@
 		  .data64 = { INT_MAX, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jle32: BPF_X",
@@ -376,6 +387,7 @@
 		  .data64 = { UINT_MAX, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jle32: min/max deduction",
@@ -416,6 +428,7 @@
 		  .data64 = { INT_MAX - 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jlt32: BPF_X",
@@ -442,6 +455,7 @@
 		  .data64 = { (INT_MAX - 1) | 3ULL << 32, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jlt32: min/max deduction",
@@ -482,6 +496,7 @@
 		  .data64 = { -2, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsge32: BPF_X",
@@ -508,6 +523,7 @@
 		  .data64 = { -2, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsge32: min/max deduction",
@@ -548,6 +564,7 @@
 		  .data64 = { 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsgt32: BPF_X",
@@ -574,6 +591,7 @@
 		  .data64 = { 0x7fffffff, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsgt32: min/max deduction",
@@ -614,6 +632,7 @@
 		  .data64 = { 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsle32: BPF_X",
@@ -640,6 +659,7 @@
 		  .data64 = { 0x7fffffff | 2ULL << 32, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsle32: min/max deduction",
@@ -680,6 +700,7 @@
 		  .data64 = { 1, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jslt32: BPF_X",
@@ -706,6 +727,7 @@
 		  .data64 = { 0x7fffffff | 2ULL << 32, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jslt32: min/max deduction",

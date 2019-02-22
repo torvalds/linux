@@ -660,7 +660,7 @@ static size_t tcf_csum_get_fill_size(const struct tc_action *act)
 
 static struct tc_action_ops act_csum_ops = {
 	.kind		= "csum",
-	.type		= TCA_ACT_CSUM,
+	.id		= TCA_ID_CSUM,
 	.owner		= THIS_MODULE,
 	.act		= tcf_csum_act,
 	.dump		= tcf_csum_dump,

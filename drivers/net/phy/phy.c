@@ -543,7 +543,7 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (__phy_is_started(phydev)) {
+	if (phy_is_started(phydev)) {
 		if (phydev->autoneg == AUTONEG_ENABLE) {
 			err = phy_check_link_status(phydev);
 		} else {
@@ -699,7 +699,7 @@ void phy_stop_machine(struct phy_device *phydev)
 	cancel_delayed_work_sync(&phydev->state_queue);
 
 	mutex_lock(&phydev->lock);
-	if (__phy_is_started(phydev))
+	if (phy_is_started(phydev))
 		phydev->state = PHY_UP;
 	mutex_unlock(&phydev->lock);
 }
@@ -751,9 +751,6 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
-
-	if (!phy_is_started(phydev))
-		return IRQ_NONE;		/* It can't be ours.  */
 
 	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
 		return IRQ_NONE;
@@ -813,14 +810,13 @@ EXPORT_SYMBOL(phy_request_interrupt);
  */
 void phy_stop(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
-
-	if (!__phy_is_started(phydev)) {
+	if (!phy_is_started(phydev)) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
-		mutex_unlock(&phydev->lock);
 		return;
 	}
+
+	mutex_lock(&phydev->lock);
 
 	if (phy_interrupt_is_valid(phydev))
 		phy_disable_interrupts(phydev);
@@ -961,8 +957,10 @@ void phy_state_machine(struct work_struct *work)
 	 * state machine would be pointless and possibly error prone when
 	 * called from phy_disconnect() synchronously.
 	 */
+	mutex_lock(&phydev->lock);
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1060,17 +1058,12 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		if (!phy_check_valid(phydev->speed, phydev->duplex, common))
 			goto eee_exit_err;
 
-		if (clk_stop_enable) {
+		if (clk_stop_enable)
 			/* Configure the PHY to stop receiving xMII
 			 * clock while it is signaling LPI.
 			 */
-			int val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1);
-			if (val < 0)
-				return val;
-
-			val |= MDIO_PCS_CTRL1_CLKSTOP_EN;
-			phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1, val);
-		}
+			phy_set_bits_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
+					 MDIO_PCS_CTRL1_CLKSTOP_EN);
 
 		return 0; /* EEE supported */
 	}

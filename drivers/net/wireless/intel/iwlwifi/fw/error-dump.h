@@ -180,6 +180,8 @@ enum iwl_fw_error_dump_family {
 	IWL_FW_ERROR_DUMP_FAMILY_8 = 8,
 };
 
+#define MAX_NUM_LMAC 2
+
 /**
  * struct iwl_fw_error_dump_info - info on the device / firmware
  * @device_family: the family of the device (7 / 8)
@@ -187,7 +189,10 @@ enum iwl_fw_error_dump_family {
  * @fw_human_readable: human readable FW version
  * @dev_human_readable: name of the device
  * @bus_human_readable: name of the bus used
- * @rt_status: the error_id/rt_status that that triggered the latest dump
+ * @num_of_lmacs: the number of lmacs
+ * @lmac_err_id: the lmac 0/1 error_id/rt_status that triggered the latest dump
+ *	if the dump collection was not initiated by an assert, the value is 0
+ * @umac_err_id: the umac error_id/rt_status that triggered the latest dump
  *	if the dump collection was not initiated by an assert, the value is 0
  */
 struct iwl_fw_error_dump_info {
@@ -196,7 +201,9 @@ struct iwl_fw_error_dump_info {
 	u8 fw_human_readable[FW_VER_HUMAN_READABLE_SZ];
 	u8 dev_human_readable[64];
 	u8 bus_human_readable[8];
-	__le32 rt_status;
+	u8 num_of_lmacs;
+	__le32 umac_err_id;
+	__le32 lmac_err_id[MAX_NUM_LMAC];
 } __packed;
 
 /**

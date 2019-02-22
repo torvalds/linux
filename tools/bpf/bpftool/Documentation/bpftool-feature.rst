@@ -16,8 +16,8 @@ SYNOPSIS
 
 	*COMMANDS* := { **probe** | **help** }
 
-MAP COMMANDS
-=============
+FEATURE COMMANDS
+================
 
 |	**bpftool** **feature probe** [*COMPONENT*] [**macros** [**prefix** *PREFIX*]]
 |	**bpftool** **feature help**

@@ -397,6 +397,7 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	struct ksz_port *p = &dev->ports[port];
 	u8 data;
 	int member = -1;
+	int forward = dev->member;
 
 	ksz_pread8(dev, port, P_STP_CTRL, &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
@@ -464,10 +465,10 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	}
 
 	/* When topology has changed the function ksz_update_port_member
-	 * should be called to modify port forwarding behavior.  However
-	 * as the offload_fwd_mark indication cannot be reported here
-	 * the switch forwarding function is not enabled.
+	 * should be called to modify port forwarding behavior.
 	 */
+	if (forward != dev->member)
+		ksz_update_port_member(dev, port);
 }
 
 static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)

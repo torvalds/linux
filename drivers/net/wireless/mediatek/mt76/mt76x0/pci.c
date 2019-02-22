@@ -99,7 +99,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.sta_rate_tbl_update = mt76x02_sta_rate_tbl_update,
 	.wake_tx_queue = mt76_wake_tx_queue,
 	.get_survey = mt76_get_survey,
-	.get_txpower = mt76x02_get_txpower,
+	.get_txpower = mt76_get_txpower,
 	.flush = mt76x0e_flush,
 	.set_tim = mt76x0e_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
@@ -140,6 +140,15 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 
 	mt76_clear(dev, 0x110, BIT(9));
 	mt76_set(dev, MT_MAX_LEN_CFG, BIT(13));
+
+	mt76_wr(dev, MT_CH_TIME_CFG,
+		MT_CH_TIME_CFG_TIMER_EN |
+		MT_CH_TIME_CFG_TX_AS_BUSY |
+		MT_CH_TIME_CFG_RX_AS_BUSY |
+		MT_CH_TIME_CFG_NAV_AS_BUSY |
+		MT_CH_TIME_CFG_EIFS_AS_BUSY |
+		MT_CH_CCA_RC_EN |
+		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
 	err = mt76x0_register_device(dev);
 	if (err < 0)

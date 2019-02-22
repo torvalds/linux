@@ -47,17 +47,16 @@ enum libbpf_errno {
 
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
-/*
- * __printf is defined in include/linux/compiler-gcc.h. However,
- * it would be better if libbpf.h didn't depend on Linux header files.
- * So instead of __printf, here we use gcc attribute directly.
- */
-typedef int (*libbpf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
+enum libbpf_print_level {
+        LIBBPF_WARN,
+        LIBBPF_INFO,
+        LIBBPF_DEBUG,
+};
 
-LIBBPF_API void libbpf_set_print(libbpf_print_fn_t warn,
-				 libbpf_print_fn_t info,
-				 libbpf_print_fn_t debug);
+typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
+				 const char *, va_list ap);
+
+LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
 
 /* Hide internal to user */
 struct bpf_object;
@@ -90,6 +89,9 @@ LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
 LIBBPF_API const char *bpf_object__name(struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(struct bpf_object *obj);
+
+struct btf;
+LIBBPF_API struct btf *bpf_object__btf(struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
 
 LIBBPF_API struct bpf_program *
@@ -295,6 +297,7 @@ LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
 LIBBPF_API void *bpf_map__priv(struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
+LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 LIBBPF_API bool bpf_map__is_offload_neutral(struct bpf_map *map);
 LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);

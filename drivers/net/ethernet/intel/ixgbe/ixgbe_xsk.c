@@ -174,23 +174,6 @@ static int ixgbe_xsk_umem_disable(struct ixgbe_adapter *adapter, u16 qid)
 	return 0;
 }
 
-int ixgbe_xsk_umem_query(struct ixgbe_adapter *adapter, struct xdp_umem **umem,
-			 u16 qid)
-{
-	if (qid >= adapter->num_rx_queues)
-		return -EINVAL;
-
-	if (adapter->xsk_umems) {
-		if (qid >= adapter->num_xsk_umems)
-			return -EINVAL;
-		*umem = adapter->xsk_umems[qid];
-		return 0;
-	}
-
-	*umem = NULL;
-	return 0;
-}
-
 int ixgbe_xsk_umem_setup(struct ixgbe_adapter *adapter, struct xdp_umem *umem,
 			 u16 qid)
 {

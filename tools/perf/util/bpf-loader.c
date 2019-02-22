@@ -24,21 +24,11 @@
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
 
-#define DEFINE_PRINT_FN(name, level) \
-static int libbpf_##name(const char *fmt, ...)	\
-{						\
-	va_list args;				\
-	int ret;				\
-						\
-	va_start(args, fmt);			\
-	ret = veprintf(level, verbose, pr_fmt(fmt), args);\
-	va_end(args);				\
-	return ret;				\
+static int libbpf_perf_print(enum libbpf_print_level level __attribute__((unused)),
+			      const char *fmt, va_list args)
+{
+	return veprintf(1, verbose, pr_fmt(fmt), args);
 }
-
-DEFINE_PRINT_FN(warning, 1)
-DEFINE_PRINT_FN(info, 1)
-DEFINE_PRINT_FN(debug, 1)
 
 struct bpf_prog_priv {
 	bool is_tp;
@@ -59,9 +49,7 @@ bpf__prepare_load_buffer(void *obj_buf, size_t obj_buf_sz, const char *name)
 	struct bpf_object *obj;
 
 	if (!libbpf_initialized) {
-		libbpf_set_print(libbpf_warning,
-				 libbpf_info,
-				 libbpf_debug);
+		libbpf_set_print(libbpf_perf_print);
 		libbpf_initialized = true;
 	}
 
@@ -79,9 +67,7 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 	struct bpf_object *obj;
 
 	if (!libbpf_initialized) {
-		libbpf_set_print(libbpf_warning,
-				 libbpf_info,
-				 libbpf_debug);
+		libbpf_set_print(libbpf_perf_print);
 		libbpf_initialized = true;
 	}
 

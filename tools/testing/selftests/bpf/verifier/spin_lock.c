@@ -83,6 +83,7 @@
 	.result_unpriv = REJECT,
 	.errstr_unpriv = "",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"spin_lock: test4 direct ld/st",
@@ -112,6 +113,7 @@
 	.result_unpriv = REJECT,
 	.errstr_unpriv = "",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"spin_lock: test5 call within a locked region",

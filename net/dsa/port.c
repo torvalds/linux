@@ -105,16 +105,23 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 	};
 	int err;
 
-	/* Here the port is already bridged. Reflect the current configuration
-	 * so that drivers can program their chips accordingly.
+	/* Set the flooding mode before joining the port in the switch */
+	err = dsa_port_bridge_flags(dp, BR_FLOOD | BR_MCAST_FLOOD, NULL);
+	if (err)
+		return err;
+
+	/* Here the interface is already bridged. Reflect the current
+	 * configuration so that drivers can program their chips accordingly.
 	 */
 	dp->bridge_dev = br;
 
 	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
-	if (err)
+	if (err) {
+		dsa_port_bridge_flags(dp, 0, NULL);
 		dp->bridge_dev = NULL;
+	}
 
 	return err;
 }
@@ -136,6 +143,9 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
 		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
+
+	/* Port is leaving the bridge, disable flooding */
+	dsa_port_bridge_flags(dp, 0, NULL);
 
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
@@ -175,6 +185,35 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 	dp->ageing_time = ageing_time;
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+}
+
+int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			      struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+
+	if (!ds->ops->port_egress_floods ||
+	    (flags & ~(BR_FLOOD | BR_MCAST_FLOOD)))
+		return -EINVAL;
+
+	return 0;
+}
+
+int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			  struct switchdev_trans *trans)
+{
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+	int err = 0;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (ds->ops->port_egress_floods)
+		err = ds->ops->port_egress_floods(ds, port, flags & BR_FLOOD,
+						  flags & BR_MCAST_FLOOD);
+
+	return err;
 }
 
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,

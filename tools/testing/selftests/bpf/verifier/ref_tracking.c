@@ -547,7 +547,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "cannot write into socket",
+	.errstr = "cannot write into sock",
 	.result = REJECT,
 },
 {
@@ -562,7 +562,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
-	.errstr = "invalid bpf_sock access off=0 size=8",
+	.errstr = "invalid sock access off=0 size=8",
 	.result = REJECT,
 },
 {

@@ -14,6 +14,11 @@ board.rev
 
 Board design revision.
 
+board.manufacture
+=================
+
+An identifier of the company or the facility which produced the part.
+
 fw.mgmt
 =======
 

@@ -588,7 +588,7 @@ int mlxsw_sp_acl_rulei_act_vlan(struct mlxsw_sp *mlxsw_sp,
 {
 	u8 ethertype;
 
-	if (action == TCA_VLAN_ACT_MODIFY) {
+	if (action == FLOW_ACTION_VLAN_MANGLE) {
 		switch (proto) {
 		case ETH_P_8021Q:
 			ethertype = 0;
@@ -640,7 +640,7 @@ mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_sp_acl_ruleset_ref_inc(ruleset);
-	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size(mlxsw_sp),
+	rule = kzalloc(sizeof(*rule) + ops->rule_priv_size,
 		       GFP_KERNEL);
 	if (!rule) {
 		err = -ENOMEM;
@@ -911,4 +911,20 @@ void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&acl->ruleset_ht);
 	mlxsw_afk_destroy(acl->afk);
 	kfree(acl);
+}
+
+u32 mlxsw_sp_acl_region_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
+
+	return mlxsw_sp_acl_tcam_vregion_rehash_intrvl_get(mlxsw_sp,
+							   &acl->tcam);
+}
+
+int mlxsw_sp_acl_region_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp, u32 val)
+{
+	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
+
+	return mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(mlxsw_sp,
+							   &acl->tcam, val);
 }

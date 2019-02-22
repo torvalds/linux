@@ -563,7 +563,7 @@ static int tunnel_key_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_tunnel_key_ops = {
 	.kind		=	"tunnel_key",
-	.type		=	TCA_ACT_TUNNEL_KEY,
+	.id		=	TCA_ID_TUNNEL_KEY,
 	.owner		=	THIS_MODULE,
 	.act		=	tunnel_key_act,
 	.dump		=	tunnel_key_dump,

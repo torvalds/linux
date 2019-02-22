@@ -7,6 +7,8 @@
 struct sfp;
 
 struct sfp_socket_ops {
+	void (*attach)(struct sfp *sfp);
+	void (*detach)(struct sfp *sfp);
 	void (*start)(struct sfp *sfp);
 	void (*stop)(struct sfp *sfp);
 	int (*module_info)(struct sfp *sfp, struct ethtool_modinfo *modinfo);

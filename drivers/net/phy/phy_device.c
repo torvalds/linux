@@ -30,7 +30,6 @@
 #include <linux/mdio.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/of.h>
 
 MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
@@ -676,13 +675,16 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
 	phy_reg = mdiobus_read(bus, addr, reg_addr);
 	if (phy_reg < 0)
 		return -EIO;
-	*devices_in_package = (phy_reg & 0xffff) << 16;
+	*devices_in_package = phy_reg << 16;
 
 	reg_addr = MII_ADDR_C45 | dev_addr << 16 | MDIO_DEVS1;
 	phy_reg = mdiobus_read(bus, addr, reg_addr);
 	if (phy_reg < 0)
 		return -EIO;
-	*devices_in_package |= (phy_reg & 0xffff);
+	*devices_in_package |= phy_reg;
+
+	/* Bit 0 doesn't represent a device, it indicates c22 regs presence */
+	*devices_in_package &= ~BIT(0);
 
 	return 0;
 }
@@ -743,13 +745,13 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
-		c45_ids->device_ids[i] = (phy_reg & 0xffff) << 16;
+		c45_ids->device_ids[i] = phy_reg << 16;
 
 		reg_addr = MII_ADDR_C45 | i << 16 | MII_PHYSID2;
 		phy_reg = mdiobus_read(bus, addr, reg_addr);
 		if (phy_reg < 0)
 			return -EIO;
-		c45_ids->device_ids[i] |= (phy_reg & 0xffff);
+		c45_ids->device_ids[i] |= phy_reg;
 	}
 	*phy_id = 0;
 	return 0;
@@ -786,14 +788,14 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 		return (phy_reg == -EIO || phy_reg == -ENODEV) ? -ENODEV : -EIO;
 	}
 
-	*phy_id = (phy_reg & 0xffff) << 16;
+	*phy_id = phy_reg << 16;
 
 	/* Grab the bits from PHYIR2, and put them in the lower half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID2);
 	if (phy_reg < 0)
 		return -EIO;
 
-	*phy_id |= (phy_reg & 0xffff);
+	*phy_id |= phy_reg;
 
 	return 0;
 }
@@ -1513,7 +1515,7 @@ EXPORT_SYMBOL(phy_reset_after_clk_enable);
 static int genphy_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
-	int oldadv, adv, bmsr;
+	int bmsr, adv;
 	int err, changed = 0;
 
 	/* Only allow advertising what this PHY supports */
@@ -1526,22 +1528,14 @@ static int genphy_config_advert(struct phy_device *phydev)
 			    phydev->advertising);
 
 	/* Setup standard advertisement */
-	adv = phy_read(phydev, MII_ADVERTISE);
-	if (adv < 0)
-		return adv;
-
-	oldadv = adv;
-	adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP |
-		 ADVERTISE_PAUSE_ASYM);
-	adv |= ethtool_adv_to_mii_adv_t(advertise);
-
-	if (adv != oldadv) {
-		err = phy_write(phydev, MII_ADVERTISE, adv);
-
-		if (err < 0)
-			return err;
+	err = phy_modify_changed(phydev, MII_ADVERTISE,
+				 ADVERTISE_ALL | ADVERTISE_100BASE4 |
+				 ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
+				 ethtool_adv_to_mii_adv_t(advertise));
+	if (err < 0)
+		return err;
+	if (err > 0)
 		changed = 1;
-	}
 
 	bmsr = phy_read(phydev, MII_BMSR);
 	if (bmsr < 0)
@@ -1555,25 +1549,20 @@ static int genphy_config_advert(struct phy_device *phydev)
 		return changed;
 
 	/* Configure gigabit if it's supported */
-	adv = phy_read(phydev, MII_CTRL1000);
-	if (adv < 0)
-		return adv;
-
-	oldadv = adv;
-	adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
-
+	adv = 0;
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 			      phydev->supported) ||
 	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 			      phydev->supported))
-		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
+		adv = ethtool_adv_to_mii_ctrl1000_t(advertise);
 
-	if (adv != oldadv)
-		changed = 1;
-
-	err = phy_write(phydev, MII_CTRL1000, adv);
+	err = phy_modify_changed(phydev, MII_CTRL1000,
+				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
+				 adv);
 	if (err < 0)
 		return err;
+	if (err > 0)
+		changed = 1;
 
 	return changed;
 }
@@ -1586,34 +1575,20 @@ static int genphy_config_advert(struct phy_device *phydev)
  *   efficent ethernet modes. Returns 0 if the PHY's advertisement hasn't
  *   changed, and 1 if it has changed.
  */
-static int genphy_config_eee_advert(struct phy_device *phydev)
+int genphy_config_eee_advert(struct phy_device *phydev)
 {
-	int broken = phydev->eee_broken_modes;
-	int old_adv, adv;
+	int err;
 
 	/* Nothing to disable */
-	if (!broken)
+	if (!phydev->eee_broken_modes)
 		return 0;
 
-	/* If the following call fails, we assume that EEE is not
-	 * supported by the phy. If we read 0, EEE is not advertised
-	 * In both case, we don't need to continue
-	 */
-	adv = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
-	if (adv <= 0)
-		return 0;
-
-	old_adv = adv;
-	adv &= ~broken;
-
-	/* Advertising remains unchanged with the broken mask */
-	if (old_adv == adv)
-		return 0;
-
-	phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
-
-	return 1;
+	err = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV,
+				     phydev->eee_broken_modes, 0);
+	/* If the call failed, we assume that EEE is not supported */
+	return err < 0 ? 0 : err;
 }
+EXPORT_SYMBOL(genphy_config_eee_advert);
 
 /**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
@@ -1729,10 +1704,19 @@ int genphy_update_link(struct phy_device *phydev)
 {
 	int status;
 
-	/* Do a fake read */
-	status = phy_read(phydev, MII_BMSR);
-	if (status < 0)
-		return status;
+	/* The link state is latched low so that momentary link
+	 * drops can be detected. Do not double-read the status
+	 * in polling mode to detect such short link drops.
+	 */
+	if (!phy_polling_mode(phydev)) {
+		status = phy_read(phydev, MII_BMSR);
+		if (status < 0) {
+			return status;
+		} else if (status & BMSR_LSTATUS) {
+			phydev->link = 1;
+			return 0;
+		}
+	}
 
 	/* Read link and autonegotiation status */
 	status = phy_read(phydev, MII_BMSR);
@@ -1763,8 +1747,6 @@ int genphy_read_status(struct phy_device *phydev)
 	int err;
 	int lpa;
 	int lpagb = 0;
-	int common_adv;
-	int common_adv_gb = 0;
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
@@ -1796,7 +1778,6 @@ int genphy_read_status(struct phy_device *phydev)
 
 			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
 							lpagb);
-			common_adv_gb = lpagb & adv << 2;
 		}
 
 		lpa = phy_read(phydev, MII_LPA);
@@ -1805,35 +1786,12 @@ int genphy_read_status(struct phy_device *phydev)
 
 		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
 
-		adv = phy_read(phydev, MII_ADVERTISE);
-		if (adv < 0)
-			return adv;
-
-		common_adv = lpa & adv;
-
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_HALF;
+		phydev->speed = SPEED_UNKNOWN;
+		phydev->duplex = DUPLEX_UNKNOWN;
 		phydev->pause = 0;
 		phydev->asym_pause = 0;
 
-		if (common_adv_gb & (LPA_1000FULL | LPA_1000HALF)) {
-			phydev->speed = SPEED_1000;
-
-			if (common_adv_gb & LPA_1000FULL)
-				phydev->duplex = DUPLEX_FULL;
-		} else if (common_adv & (LPA_100FULL | LPA_100HALF)) {
-			phydev->speed = SPEED_100;
-
-			if (common_adv & LPA_100FULL)
-				phydev->duplex = DUPLEX_FULL;
-		} else
-			if (common_adv & LPA_10FULL)
-				phydev->duplex = DUPLEX_FULL;
-
-		if (phydev->duplex == DUPLEX_FULL) {
-			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
-			phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
-		}
+		phy_resolve_aneg_linkmode(phydev);
 	} else {
 		int bmcr = phy_read(phydev, MII_BMCR);
 
@@ -1965,44 +1923,6 @@ int genphy_loopback(struct phy_device *phydev, bool enable)
 }
 EXPORT_SYMBOL(genphy_loopback);
 
-static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
-{
-	switch (max_speed) {
-	case SPEED_10:
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				   phydev->supported);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				   phydev->supported);
-		/* fall through */
-	case SPEED_100:
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				   phydev->supported);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				   phydev->supported);
-		break;
-	case SPEED_1000:
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	return 0;
-}
-
-int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
-{
-	int err;
-
-	err = __set_phy_supported(phydev, max_speed);
-	if (err)
-		return err;
-
-	linkmode_copy(phydev->advertising, phydev->supported);
-
-	return 0;
-}
-EXPORT_SYMBOL(phy_set_max_speed);
-
 /**
  * phy_remove_link_mode - Remove a supported link mode
  * @phydev: phy_device structure to remove link mode from
@@ -2133,48 +2053,6 @@ bool phy_validate_pause(struct phy_device *phydev,
 }
 EXPORT_SYMBOL(phy_validate_pause);
 
-static void of_set_phy_supported(struct phy_device *phydev)
-{
-	struct device_node *node = phydev->mdio.dev.of_node;
-	u32 max_speed;
-
-	if (!IS_ENABLED(CONFIG_OF_MDIO))
-		return;
-
-	if (!node)
-		return;
-
-	if (!of_property_read_u32(node, "max-speed", &max_speed))
-		__set_phy_supported(phydev, max_speed);
-}
-
-static void of_set_phy_eee_broken(struct phy_device *phydev)
-{
-	struct device_node *node = phydev->mdio.dev.of_node;
-	u32 broken = 0;
-
-	if (!IS_ENABLED(CONFIG_OF_MDIO))
-		return;
-
-	if (!node)
-		return;
-
-	if (of_property_read_bool(node, "eee-broken-100tx"))
-		broken |= MDIO_EEE_100TX;
-	if (of_property_read_bool(node, "eee-broken-1000t"))
-		broken |= MDIO_EEE_1000T;
-	if (of_property_read_bool(node, "eee-broken-10gt"))
-		broken |= MDIO_EEE_10GT;
-	if (of_property_read_bool(node, "eee-broken-1000kx"))
-		broken |= MDIO_EEE_1000KX;
-	if (of_property_read_bool(node, "eee-broken-10gkx4"))
-		broken |= MDIO_EEE_10GKX4;
-	if (of_property_read_bool(node, "eee-broken-10gkr"))
-		broken |= MDIO_EEE_10GKR;
-
-	phydev->eee_broken_modes = broken;
-}
-
 static bool phy_drv_supports_irq(struct phy_driver *phydrv)
 {
 	return phydrv->config_intr && phydrv->ack_interrupt;
@@ -2208,11 +2086,30 @@ static int phy_probe(struct device *dev)
 
 	mutex_lock(&phydev->lock);
 
+	if (phydev->drv->probe) {
+		/* Deassert the reset signal */
+		phy_device_reset(phydev, 0);
+
+		err = phydev->drv->probe(phydev);
+		if (err) {
+			/* Assert the reset signal */
+			phy_device_reset(phydev, 1);
+			goto out;
+		}
+	}
+
 	/* Start out supporting everything. Eventually,
 	 * a controller will attach, and may modify one
 	 * or both of these values
 	 */
-	linkmode_copy(phydev->supported, phydrv->features);
+	if (phydrv->features) {
+		linkmode_copy(phydev->supported, phydrv->features);
+	} else {
+		err = phydrv->get_features(phydev);
+		if (err)
+			goto out;
+	}
+
 	of_set_phy_supported(phydev);
 	linkmode_copy(phydev->advertising, phydev->supported);
 
@@ -2232,20 +2129,8 @@ static int phy_probe(struct device *dev)
 	 * (e.g. hardware erratum) where the driver wants to set only one
 	 * of these bits.
 	 */
-	if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features) ||
-	    test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydrv->features)) {
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-				   phydev->supported);
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-				   phydev->supported);
-		if (test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydrv->features))
-			linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-					 phydev->supported);
-		if (test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-			     phydrv->features))
-			linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-					 phydev->supported);
-	} else {
+	if (!test_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported) &&
+	    !test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported)) {
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 				 phydev->supported);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
@@ -2255,17 +2140,7 @@ static int phy_probe(struct device *dev)
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
 
-	if (phydev->drv->probe) {
-		/* Deassert the reset signal */
-		phy_device_reset(phydev, 0);
-
-		err = phydev->drv->probe(phydev);
-		if (err) {
-			/* Assert the reset signal */
-			phy_device_reset(phydev, 1);
-		}
-	}
-
+out:
 	mutex_unlock(&phydev->lock);
 
 	return err;
@@ -2301,7 +2176,11 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 {
 	int retval;
 
-	if (WARN_ON(!new_driver->features)) {
+	/* Either the features are hard coded, or dynamically
+	 * determine. It cannot be both or neither
+	 */
+	if (WARN_ON((!new_driver->features && !new_driver->get_features) ||
+		    (new_driver->features && new_driver->get_features))) {
 		pr_err("%s: Driver features are missing\n", new_driver->name);
 		return -EINVAL;
 	}

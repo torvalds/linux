@@ -365,7 +365,7 @@
 	},
 	.result = REJECT,
 	//.errstr = "same insn cannot be used with different pointers",
-	.errstr = "cannot write into socket",
+	.errstr = "cannot write into sock",
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {

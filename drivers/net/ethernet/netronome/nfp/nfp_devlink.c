@@ -178,7 +178,7 @@ static const struct nfp_devlink_versions_simple {
 } nfp_devlink_versions_hwinfo[] = {
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,	"assembly.partno", },
 	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_REV,	"assembly.revision", },
-	{ "board.vendor", /* fab */			"assembly.vendor", },
+	{ DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE, "assembly.vendor", },
 	{ "board.model", /* code name */		"assembly.model", },
 };
 
@@ -258,18 +258,33 @@ nfp_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		     struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
+	const char *sn, *vendor, *part;
 	struct nfp_nsp *nsp;
 	char *buf = NULL;
-	const char *sn;
 	int err;
 
 	err = devlink_info_driver_name_put(req, "nfp");
 	if (err)
 		return err;
 
+	vendor = nfp_hwinfo_lookup(pf->hwinfo, "assembly.vendor");
+	part = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
 	sn = nfp_hwinfo_lookup(pf->hwinfo, "assembly.serial");
-	if (sn) {
-		err = devlink_info_serial_number_put(req, sn);
+	if (vendor && part && sn) {
+		char *buf;
+
+		buf = kmalloc(strlen(vendor) + strlen(part) + strlen(sn) + 1,
+			      GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		buf[0] = '\0';
+		strcat(buf, vendor);
+		strcat(buf, part);
+		strcat(buf, sn);
+
+		err = devlink_info_serial_number_put(req, buf);
+		kfree(buf);
 		if (err)
 			return err;
 	}
@@ -315,6 +330,15 @@ err_close_nsp:
 	return err;
 }
 
+static int
+nfp_devlink_flash_update(struct devlink *devlink, const char *path,
+			 const char *component, struct netlink_ext_ack *extack)
+{
+	if (component)
+		return -EOPNOTSUPP;
+	return nfp_flash_update_common(devlink_priv(devlink), path, extack);
+}
+
 const struct devlink_ops nfp_devlink_ops = {
 	.port_split		= nfp_devlink_port_split,
 	.port_unsplit		= nfp_devlink_port_unsplit,
@@ -323,6 +347,7 @@ const struct devlink_ops nfp_devlink_ops = {
 	.eswitch_mode_get	= nfp_devlink_eswitch_mode_get,
 	.eswitch_mode_set	= nfp_devlink_eswitch_mode_set,
 	.info_get		= nfp_devlink_info_get,
+	.flash_update		= nfp_devlink_flash_update,
 };
 
 int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)

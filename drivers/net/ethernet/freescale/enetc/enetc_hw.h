@@ -4,8 +4,9 @@
 #include <linux/bitops.h>
 
 /* ENETC device IDs */
-#define ENETC_DEV_ID_PF	0xe100
-#define ENETC_DEV_ID_VF	0xef00
+#define ENETC_DEV_ID_PF		0xe100
+#define ENETC_DEV_ID_VF		0xef00
+#define ENETC_DEV_ID_PTP	0xee02
 
 /* ENETC register block BAR */
 #define ENETC_BAR_REGS	0

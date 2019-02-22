@@ -1530,8 +1530,6 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
 		      BIT(trans->cfg->csr->flag_init_done));
 
-	iwl_pcie_enable_rx_wake(trans, false);
-
 	if (reset) {
 		/*
 		 * reset TX queues -- some of their registers reset during S3
@@ -1557,8 +1555,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		*status = IWL_D3_STATUS_ALIVE;
 		return 0;
 	}
-
-	iwl_pcie_enable_rx_wake(trans, true);
 
 	iwl_set_bit(trans, CSR_GP_CNTRL,
 		    BIT(trans->cfg->csr->flag_mac_access_req));
@@ -1968,7 +1964,7 @@ static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
 	struct iwl_trans_pcie_removal *removal =
 		container_of(wk, struct iwl_trans_pcie_removal, work);
 	struct pci_dev *pdev = removal->pdev;
-	char *prop[] = {"EVENT=INACCESSIBLE", NULL};
+	static char *prop[] = {"EVENT=INACCESSIBLE", NULL};
 
 	dev_err(&pdev->dev, "Device gone - attempting removal\n");
 	kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, prop);
@@ -3118,7 +3114,7 @@ iwl_trans_pcie_dump_monitor(struct iwl_trans *trans,
 	return len;
 }
 
-static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, int *len)
+static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 {
 	if (trans->num_blocks) {
 		*len += sizeof(struct iwl_fw_error_dump_data) +
@@ -3173,8 +3169,7 @@ static struct iwl_trans_dump_data
 	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
-	u32 len, num_rbs = 0;
-	u32 monitor_len;
+	u32 len, num_rbs = 0, monitor_len = 0;
 	int i, ptr;
 	bool dump_rbs = test_bit(STATUS_FW_ERROR, &trans->status) &&
 			!trans->cfg->mq_rx_supported &&
@@ -3191,19 +3186,8 @@ static struct iwl_trans_dump_data
 		cmdq->n_window * (sizeof(*txcmd) + TFD_MAX_PAYLOAD_SIZE);
 
 	/* FW monitor */
-	monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
-
-	if (dump_mask == BIT(IWL_FW_ERROR_DUMP_FW_MONITOR)) {
-		dump_data = vzalloc(len);
-		if (!dump_data)
-			return NULL;
-
-		data = (void *)dump_data->data;
-		len = iwl_trans_pcie_dump_monitor(trans, &data, monitor_len);
-		dump_data->len = len;
-
-		return dump_data;
-	}
+	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_FW_MONITOR))
+		monitor_len = iwl_trans_get_fw_monitor_len(trans, &len);
 
 	/* CSR registers */
 	if (dump_mask & BIT(IWL_FW_ERROR_DUMP_CSR))
@@ -3569,24 +3553,15 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	}
 
-	/*
-	 * 9000-series integrated A-step has a problem with suspend/resume
-	 * and sometimes even causes the whole platform to get stuck. This
-	 * workaround makes the hardware not go into the problematic state.
-	 */
-	if (trans->cfg->integrated &&
-	    trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    CSR_HW_REV_STEP(trans->hw_rev) == SILICON_A_STEP)
-		iwl_set_bit(trans, CSR_HOST_CHICKEN,
-			    CSR_HOST_CHICKEN_PM_IDLE_SRC_DIS_SB_PME);
+	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", trans->hw_rev);
 
 #if IS_ENABLED(CONFIG_IWLMVM)
 	trans->hw_rf_id = iwl_read32(trans, CSR_HW_RF_ID);
 
-	if (cfg == &iwl22000_2ax_cfg_hr) {
+	if (cfg == &iwl22560_2ax_cfg_hr) {
 		if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 		    CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
-			trans->cfg = &iwl22000_2ax_cfg_hr;
+			trans->cfg = &iwl22560_2ax_cfg_hr;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_JF)) {
 			trans->cfg = &iwl22000_2ax_cfg_jf;
@@ -3602,7 +3577,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			goto out_no_pci;
 		}
 	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(trans->hw_rf_id) ==
-		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR)) {
+		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
+		   (trans->cfg != &iwl22260_2ax_cfg ||
+		    trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0)) {
 		u32 hw_status;
 
 		hw_status = iwl_read_prph(trans, UMAG_GEN_HW_STATUS);

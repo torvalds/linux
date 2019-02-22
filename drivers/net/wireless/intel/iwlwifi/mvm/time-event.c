@@ -334,6 +334,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		switch (te_data->vif->type) {
 		case NL80211_IFTYPE_P2P_DEVICE:
 			ieee80211_remain_on_channel_expired(mvm->hw);
+			set_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status);
 			iwl_mvm_roc_finished(mvm);
 			break;
 		case NL80211_IFTYPE_STATION:
@@ -686,6 +687,8 @@ static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
 				      struct iwl_mvm_time_event_data *te_data)
 {
 	struct iwl_hs20_roc_req aux_cmd = {};
+	u16 len = sizeof(aux_cmd) - iwl_mvm_chan_info_padding(mvm);
+
 	u32 uid;
 	int ret;
 
@@ -699,7 +702,7 @@ static void iwl_mvm_remove_aux_roc_te(struct iwl_mvm *mvm,
 	IWL_DEBUG_TE(mvm, "Removing BSS AUX ROC TE 0x%x\n",
 		     le32_to_cpu(aux_cmd.event_unique_id));
 	ret = iwl_mvm_send_cmd_pdu(mvm, HOT_SPOT_CMD, 0,
-				   sizeof(aux_cmd), &aux_cmd);
+				   len, &aux_cmd);
 
 	if (WARN_ON(ret))
 		return;

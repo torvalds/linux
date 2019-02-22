@@ -55,33 +55,46 @@ struct btf_ext_header {
 	__u32	line_info_len;
 };
 
-typedef int (*btf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
-
 LIBBPF_API void btf__free(struct btf *btf);
-LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
+LIBBPF_API struct btf *btf__new(__u8 *data, __u32 size);
+LIBBPF_API int btf__load(struct btf *btf);
 LIBBPF_API __s32 btf__find_by_name(const struct btf *btf,
 				   const char *type_name);
+LIBBPF_API __u32 btf__get_nr_types(const struct btf *btf);
 LIBBPF_API const struct btf_type *btf__type_by_id(const struct btf *btf,
 						  __u32 id);
 LIBBPF_API __s64 btf__resolve_size(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__resolve_type(const struct btf *btf, __u32 type_id);
 LIBBPF_API int btf__fd(const struct btf *btf);
+LIBBPF_API const void *btf__get_raw_data(const struct btf *btf, __u32 *size);
 LIBBPF_API const char *btf__name_by_offset(const struct btf *btf, __u32 offset);
 LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
+LIBBPF_API int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
+				    __u32 expected_key_size,
+				    __u32 expected_value_size,
+				    __u32 *key_type_id, __u32 *value_type_id);
 
-struct btf_ext *btf_ext__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
-void btf_ext__free(struct btf_ext *btf_ext);
-int btf_ext__reloc_func_info(const struct btf *btf,
-			     const struct btf_ext *btf_ext,
-			     const char *sec_name, __u32 insns_cnt,
-			     void **func_info, __u32 *func_info_len);
-int btf_ext__reloc_line_info(const struct btf *btf,
-			     const struct btf_ext *btf_ext,
-			     const char *sec_name, __u32 insns_cnt,
-			     void **line_info, __u32 *cnt);
-__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
-__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API struct btf_ext *btf_ext__new(__u8 *data, __u32 size);
+LIBBPF_API void btf_ext__free(struct btf_ext *btf_ext);
+LIBBPF_API const void *btf_ext__get_raw_data(const struct btf_ext* btf_ext,
+					     __u32 *size);
+LIBBPF_API int btf_ext__reloc_func_info(const struct btf *btf,
+					const struct btf_ext *btf_ext,
+					const char *sec_name, __u32 insns_cnt,
+					void **func_info, __u32 *cnt);
+LIBBPF_API int btf_ext__reloc_line_info(const struct btf *btf,
+					const struct btf_ext *btf_ext,
+					const char *sec_name, __u32 insns_cnt,
+					void **line_info, __u32 *cnt);
+LIBBPF_API __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
+LIBBPF_API __u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
+
+struct btf_dedup_opts {
+	bool dont_resolve_fwds;
+};
+
+LIBBPF_API int btf__dedup(struct btf *btf, struct btf_ext *btf_ext,
+			  const struct btf_dedup_opts *opts);
 
 #ifdef __cplusplus
 } /* extern "C" */

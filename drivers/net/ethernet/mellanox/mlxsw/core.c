@@ -1062,6 +1062,9 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 			goto err_driver_init;
 	}
 
+	if (mlxsw_driver->params_register && !reload)
+		devlink_params_publish(devlink);
+
 	return 0;
 
 err_driver_init:
@@ -1131,6 +1134,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 			return;
 	}
 
+	if (mlxsw_core->driver->params_unregister && !reload)
+		devlink_params_unpublish(devlink);
 	if (mlxsw_core->driver->fini)
 		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
@@ -1460,13 +1465,17 @@ static int mlxsw_reg_trans_wait(struct mlxsw_reg_trans *trans)
 	if (trans->retries)
 		dev_warn(mlxsw_core->bus_info->dev, "EMAD retries (%d/%d) (tid=%llx)\n",
 			 trans->retries, MLXSW_EMAD_MAX_RETRY, trans->tid);
-	if (err)
+	if (err) {
 		dev_err(mlxsw_core->bus_info->dev, "EMAD reg access failed (tid=%llx,reg_id=%x(%s),type=%s,status=%x(%s))\n",
 			trans->tid, trans->reg->id,
 			mlxsw_reg_id_str(trans->reg->id),
 			mlxsw_core_reg_access_type_str(trans->type),
 			trans->emad_status,
 			mlxsw_emad_op_tlv_status_str(trans->emad_status));
+		trace_devlink_hwerr(priv_to_devlink(mlxsw_core),
+				    trans->emad_status,
+				    mlxsw_emad_op_tlv_status_str(trans->emad_status));
+	}
 
 	list_del(&trans->bulk_list);
 	kfree_rcu(trans, rcu);

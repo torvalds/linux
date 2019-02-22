@@ -78,7 +78,7 @@ static void cls_cgroup_destroy_work(struct work_struct *work)
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     void **arg, bool ovr,
+			     void **arg, bool ovr, bool rtnl_held,
 			     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
@@ -110,7 +110,7 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 
 	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &new->exts, ovr,
-				extack);
+				true, extack);
 	if (err < 0)
 		goto errout;
 
@@ -130,7 +130,7 @@ errout:
 	return err;
 }
 
-static void cls_cgroup_destroy(struct tcf_proto *tp,
+static void cls_cgroup_destroy(struct tcf_proto *tp, bool rtnl_held,
 			       struct netlink_ext_ack *extack)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
@@ -145,18 +145,21 @@ static void cls_cgroup_destroy(struct tcf_proto *tp,
 }
 
 static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last,
-			     struct netlink_ext_ack *extack)
+			     bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
 
-static void cls_cgroup_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void cls_cgroup_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+			    bool rtnl_held)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
 	if (arg->count < arg->skip)
 		goto skip;
 
+	if (!head)
+		return;
 	if (arg->fn(tp, head, arg) < 0) {
 		arg->stop = 1;
 		return;
@@ -166,7 +169,7 @@ skip:
 }
 
 static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, void *fh,
-			   struct sk_buff *skb, struct tcmsg *t)
+			   struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 	struct nlattr *nest;

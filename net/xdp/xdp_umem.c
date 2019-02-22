@@ -129,9 +129,10 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	return 0;
 
 err_unreg_umem:
-	xdp_clear_umem_at_qid(dev, queue_id);
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
+	if (err)
+		xdp_clear_umem_at_qid(dev, queue_id);
 out_rtnl_unlock:
 	rtnl_unlock();
 	return err;
@@ -265,10 +266,10 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 	if (!umem->pgs)
 		return -ENOMEM;
 
-	down_write(&current->mm->mmap_sem);
-	npgs = get_user_pages(umem->address, umem->npgs,
-			      gup_flags, &umem->pgs[0], NULL);
-	up_write(&current->mm->mmap_sem);
+	down_read(&current->mm->mmap_sem);
+	npgs = get_user_pages_longterm(umem->address, umem->npgs,
+				       gup_flags, &umem->pgs[0], NULL);
+	up_read(&current->mm->mmap_sem);
 
 	if (npgs != umem->npgs) {
 		if (npgs >= 0) {

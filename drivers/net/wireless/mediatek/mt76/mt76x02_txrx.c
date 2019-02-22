@@ -177,7 +177,7 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (ret < 0)
 		return ret;
 
-	if (pid && pid != MT_PACKET_ID_NO_ACK)
+	if (pid >= MT_PACKET_ID_FIRST)
 		qsel = MT_QSEL_MGMT;
 
 	*tx_info = FIELD_PREP(MT_TXD_INFO_QSEL, qsel) |

@@ -403,7 +403,7 @@ config LWTUNNEL
 
 config LWTUNNEL_BPF
 	bool "Execute BPF program as route nexthop action"
-	depends on LWTUNNEL
+	depends on LWTUNNEL && INET
 	default y if LWTUNNEL=y
 	---help---
 	  Allows to run BPF programs as a nexthop action following a route

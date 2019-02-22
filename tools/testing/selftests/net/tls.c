@@ -753,6 +753,20 @@ TEST_F(tls, control_msg)
 	EXPECT_EQ(recv(self->cfd, buf, send_len, 0), -1);
 
 	vec.iov_base = buf;
+	EXPECT_EQ(recvmsg(self->cfd, &msg, MSG_WAITALL | MSG_PEEK), send_len);
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	EXPECT_NE(cmsg, NULL);
+	EXPECT_EQ(cmsg->cmsg_level, SOL_TLS);
+	EXPECT_EQ(cmsg->cmsg_type, TLS_GET_RECORD_TYPE);
+	record_type = *((unsigned char *)CMSG_DATA(cmsg));
+	EXPECT_EQ(record_type, 100);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+
+	/* Recv the message again without MSG_PEEK */
+	record_type = 0;
+	memset(buf, 0, sizeof(buf));
+
 	EXPECT_EQ(recvmsg(self->cfd, &msg, MSG_WAITALL), send_len);
 	cmsg = CMSG_FIRSTHDR(&msg);
 	EXPECT_NE(cmsg, NULL);

@@ -17,3 +17,15 @@ config FSL_ENETC_VF
 	  virtual function (VF) devices enabled by the ENETC PF driver.
 
 	  If compiled as module (M), the module name is fsl-enetc-vf.
+
+config FSL_ENETC_PTP_CLOCK
+	tristate "ENETC PTP clock driver"
+	depends on PTP_1588_CLOCK_QORIQ && (FSL_ENETC || FSL_ENETC_VF)
+	default y
+	help
+	  This driver adds support for using the ENETC 1588 timer
+	  as a PTP clock. This clock is only useful if your PTP
+	  programs are getting hardware time stamps on the PTP Ethernet
+	  packets using the SO_TIMESTAMPING API.
+
+	  If compiled as module (M), the module name is fsl-enetc-ptp.

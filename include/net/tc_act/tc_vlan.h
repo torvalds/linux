@@ -30,7 +30,7 @@ struct tcf_vlan {
 static inline bool is_tcf_vlan(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->type == TCA_ACT_VLAN)
+	if (a->ops && a->ops->id == TCA_ID_VLAN)
 		return true;
 #endif
 	return false;

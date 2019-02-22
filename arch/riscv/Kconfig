@@ -49,6 +49,7 @@ config RISCV
 	select RISCV_TIMER
 	select GENERIC_IRQ_MULTI_HANDLER
 	select ARCH_HAS_PTE_SPECIAL
+	select HAVE_EBPF_JIT if 64BIT
 
 config MMU
 	def_bool y
@@ -103,7 +104,7 @@ choice
 	prompt "Base ISA"
 	default ARCH_RV64I
 	help
-	  This selects the base ISA that this kernel will traget and must match
+	  This selects the base ISA that this kernel will target and must match
 	  the target platform.
 
 config ARCH_RV32I

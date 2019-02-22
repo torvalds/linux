@@ -686,7 +686,7 @@ static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
 	}
 
 	if (htab_is_prealloc(htab)) {
-		pcpu_freelist_push(&htab->freelist, &l->fnode);
+		__pcpu_freelist_push(&htab->freelist, &l->fnode);
 	} else {
 		atomic_dec(&htab->count);
 		l->htab = htab;
@@ -739,7 +739,7 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 		} else {
 			struct pcpu_freelist_node *l;
 
-			l = pcpu_freelist_pop(&htab->freelist);
+			l = __pcpu_freelist_pop(&htab->freelist);
 			if (!l)
 				return ERR_PTR(-E2BIG);
 			l_new = container_of(l, struct htab_elem, fnode);

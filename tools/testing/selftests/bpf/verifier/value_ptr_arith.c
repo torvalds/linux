@@ -512,6 +512,7 @@
 	.fixup_map_array_48b = { 3 },
 	.result = ACCEPT,
 	.retval = 0xabcdef12,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map access: unknown scalar += value_ptr, 3",
@@ -537,6 +538,7 @@
 	.result_unpriv = REJECT,
 	.errstr_unpriv = "R0 pointer arithmetic of map value goes out of range",
 	.retval = 0xabcdef12,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map access: unknown scalar += value_ptr, 4",
@@ -559,6 +561,7 @@
 	.result = REJECT,
 	.errstr = "R1 max value is outside of the array range",
 	.errstr_unpriv = "R1 pointer arithmetic of map value goes out of range",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map access: value_ptr += unknown scalar, 1",
@@ -598,6 +601,7 @@
 	.fixup_map_array_48b = { 3 },
 	.result = ACCEPT,
 	.retval = 0xabcdef12,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map access: value_ptr += unknown scalar, 3",

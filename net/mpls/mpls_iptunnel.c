@@ -183,8 +183,8 @@ static int mpls_build_state(struct nlattr *nla,
 			   &n_labels, NULL, extack))
 		return -EINVAL;
 
-	newts = lwtunnel_state_alloc(sizeof(*tun_encap_info) +
-				     n_labels * sizeof(u32));
+	newts = lwtunnel_state_alloc(struct_size(tun_encap_info, label,
+						 n_labels));
 	if (!newts)
 		return -ENOMEM;
 

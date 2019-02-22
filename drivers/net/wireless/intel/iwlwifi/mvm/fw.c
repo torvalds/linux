@@ -293,9 +293,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					 enum iwl_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
-	struct iwl_mvm_alive_data alive_data;
+	struct iwl_mvm_alive_data alive_data = {};
 	const struct fw_img *fw;
-	int ret, i;
+	int ret;
 	enum iwl_ucode_type old_type = mvm->fwrt.cur_fw_img;
 	static const u16 alive_cmd[] = { MVM_ALIVE };
 
@@ -372,9 +372,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 	mvm->queue_info[IWL_MVM_DQA_CMD_QUEUE].tid_bitmap =
 		BIT(IWL_MAX_TID_COUNT + 2);
-
-	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
-		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
 
 	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 #ifdef CONFIG_IWLWIFI_DEBUGFS

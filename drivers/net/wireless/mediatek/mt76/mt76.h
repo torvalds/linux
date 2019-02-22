@@ -23,6 +23,7 @@
 #include <linux/skbuff.h>
 #include <linux/leds.h>
 #include <linux/usb.h>
+#include <linux/average.h>
 #include <net/mac80211.h>
 #include "util.h"
 
@@ -174,12 +175,17 @@ enum mt76_wcid_flags {
 
 #define MT76_N_WCIDS 128
 
+DECLARE_EWMA(signal, 10, 8);
+
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
 	struct work_struct aggr_work;
 
 	unsigned long flags;
+
+	struct ewma_signal rssi;
+	int inactive_count;
 
 	u8 idx;
 	u8 hw_key_idx;
@@ -239,7 +245,9 @@ struct mt76_rx_tid {
 #define MT_TX_CB_TXS_FAILED		BIT(2)
 
 #define MT_PACKET_ID_MASK		GENMASK(7, 0)
-#define MT_PACKET_ID_NO_ACK		MT_PACKET_ID_MASK
+#define MT_PACKET_ID_NO_ACK		0
+#define MT_PACKET_ID_NO_SKB		1
+#define MT_PACKET_ID_FIRST		2
 
 #define MT_TX_STATUS_SKB_TIMEOUT	HZ
 
@@ -421,6 +429,7 @@ struct mt76_dev {
 	struct mt76_queue q_tx[__MT_TXQ_MAX];
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
+	int tx_dma_idx[4];
 
 	wait_queue_head_t tx_wait;
 	struct sk_buff_head status_list;
@@ -453,6 +462,8 @@ struct mt76_dev {
 	char led_name[32];
 	bool led_al;
 	u8 led_pin;
+
+	u8 csa_complete;
 
 	u32 rxfilter;
 
@@ -488,7 +499,7 @@ struct mt76_rx_status {
 	u8 rate_idx;
 	u8 nss;
 	u8 band;
-	u8 signal;
+	s8 signal;
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
@@ -676,6 +687,14 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum ieee80211_sta_state new_state);
 
 struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
+
+int mt76_get_min_avg_rssi(struct mt76_dev *dev);
+
+int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     int *dbm);
+
+void mt76_csa_check(struct mt76_dev *dev);
+void mt76_csa_finish(struct mt76_dev *dev);
 
 /* internal */
 void mt76_tx_free(struct mt76_dev *dev);

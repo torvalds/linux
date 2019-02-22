@@ -230,16 +230,19 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 		rsi_dbg(ERR_ZONE, "%s: CMD0 failed : %d\n", __func__, err);
 
 	/* Issue CMD5, arg = 0 */
-	err = rsi_issue_sdiocommand(pfunction,	SD_IO_SEND_OP_COND, 0,
-				    (MMC_RSP_R4 | MMC_CMD_BCR), &resp);
-	if (err)
-		rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n", __func__, err);
-	card->ocr = resp;
+	if (!host->ocr_avail) {
+		err = rsi_issue_sdiocommand(pfunction,	SD_IO_SEND_OP_COND, 0,
+					    (MMC_RSP_R4 | MMC_CMD_BCR), &resp);
+		if (err)
+			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n",
+				__func__, err);
 
+		host->ocr_avail = resp;
+	}
 	/* Issue CMD5, arg = ocr. Wait till card is ready  */
 	for (i = 0; i < 100; i++) {
 		err = rsi_issue_sdiocommand(pfunction, SD_IO_SEND_OP_COND,
-					    card->ocr,
+					    host->ocr_avail,
 					    (MMC_RSP_R4 | MMC_CMD_BCR), &resp);
 		if (err) {
 			rsi_dbg(ERR_ZONE, "%s: CMD5 failed : %d\n",

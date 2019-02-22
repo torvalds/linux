@@ -435,6 +435,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 				  unsigned int optlen, int tx)
 {
 	struct tls_crypto_info *crypto_info;
+	struct tls_crypto_info *alt_crypto_info;
 	struct tls_context *ctx = tls_get_ctx(sk);
 	size_t optsize;
 	int rc = 0;
@@ -445,10 +446,13 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 		goto out;
 	}
 
-	if (tx)
+	if (tx) {
 		crypto_info = &ctx->crypto_send.info;
-	else
+		alt_crypto_info = &ctx->crypto_recv.info;
+	} else {
 		crypto_info = &ctx->crypto_recv.info;
+		alt_crypto_info = &ctx->crypto_send.info;
+	}
 
 	/* Currently we don't support set crypto info more than one time */
 	if (TLS_CRYPTO_INFO_READY(crypto_info)) {
@@ -467,6 +471,15 @@ static int do_tls_setsockopt_conf(struct sock *sk, char __user *optval,
 	    crypto_info->version != TLS_1_3_VERSION) {
 		rc = -ENOTSUPP;
 		goto err_crypto_info;
+	}
+
+	/* Ensure that TLS version and ciphers are same in both directions */
+	if (TLS_CRYPTO_INFO_READY(alt_crypto_info)) {
+		if (alt_crypto_info->version != crypto_info->version ||
+		    alt_crypto_info->cipher_type != crypto_info->cipher_type) {
+			rc = -EINVAL;
+			goto err_crypto_info;
+		}
 	}
 
 	switch (crypto_info->cipher_type) {

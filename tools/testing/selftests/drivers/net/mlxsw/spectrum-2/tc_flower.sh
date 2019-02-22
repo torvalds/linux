@@ -9,11 +9,11 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
-	delta_two_masks_one_key_test bloom_simple_test \
-	bloom_complex_test bloom_delta_test"
+	delta_two_masks_one_key_test delta_simple_rehash_test \
+	bloom_simple_test bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
 source $lib_dir/tc_common.sh
-source $lib_dir/lib.sh
+source $lib_dir/devlink_lib.sh
 
 tcflags="skip_hw"
 
@@ -492,6 +492,77 @@ delta_two_masks_one_key_test()
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
 	log_test "delta two masks one key test ($tcflags)"
+}
+
+delta_simple_rehash_test()
+{
+	RET=0
+
+	if [[ "$tcflags" != "skip_sw" ]]; then
+		return 0;
+	fi
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 0
+	check_err $? "Failed to set ACL region rehash interval"
+
+	tp_record_all mlxsw:mlxsw_sp_acl_tcam_vregion_rehash 7
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_fail $? "Rehash trace was hit even when rehash should be disabled"
+
+	devlink dev param set $DEVLINK_DEV \
+		name acl_region_rehash_interval cmode runtime value 3000
+	check_err $? "Failed to set ACL region rehash interval"
+
+	sleep 1
+
+	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
+		$tcflags dst_ip 192.0.1.0/25 action drop
+	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
+		$tcflags dst_ip 192.0.2.2 action drop
+	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
+		$tcflags dst_ip 192.0.3.0/24 action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter"
+
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_err $? "Migrate trace was not hit"
+	tp_record_all mlxsw:* 3
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
+	check_err $? "Rehash trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
+	check_fail $? "Migrate trace was hit when no migration should happen"
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_fail $? "Matched a wrong filter after rehash"
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_err $? "Did not match on correct filter after rehash"
+
+	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
+
+	log_test "delta simple rehash test ($tcflags)"
 }
 
 bloom_simple_test()

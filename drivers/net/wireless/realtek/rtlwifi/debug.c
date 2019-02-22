@@ -463,12 +463,9 @@ static const struct file_operations file_ops_common_write = {
 #define RTL_DEBUGFS_ADD_CORE(name, mode, fopname)			   \
 	do {								   \
 		rtl_debug_priv_ ##name.rtlpriv = rtlpriv;		   \
-		if (!debugfs_create_file(#name, mode,			   \
-					 parent, &rtl_debug_priv_ ##name,  \
-					 &file_ops_ ##fopname))		   \
-			pr_err("Unable to initialize debugfs:%s/%s\n",	   \
-			       rtlpriv->dbg.debugfs_name,		   \
-			       #name);					   \
+		debugfs_create_file(#name, mode, parent,		   \
+				    &rtl_debug_priv_ ##name,		   \
+				    &file_ops_ ##fopname);		   \
 	} while (0)
 
 #define RTL_DEBUGFS_ADD(name)						   \
@@ -486,11 +483,6 @@ void rtl_debug_add_one(struct ieee80211_hw *hw)
 
 	rtlpriv->dbg.debugfs_dir =
 		debugfs_create_dir(rtlpriv->dbg.debugfs_name, debugfs_topdir);
-	if (!rtlpriv->dbg.debugfs_dir) {
-		pr_err("Unable to init debugfs:/%s/%s\n", rtlpriv->cfg->name,
-		       rtlpriv->dbg.debugfs_name);
-		return;
-	}
 
 	parent = rtlpriv->dbg.debugfs_dir;
 

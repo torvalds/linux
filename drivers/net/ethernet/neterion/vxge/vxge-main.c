@@ -114,7 +114,7 @@ static inline void VXGE_COMPLETE_VPATH_TX(struct vxge_fifo *fifo)
 
 		/* free SKBs */
 		for (temp = completed; temp != skb_ptr; temp++)
-			dev_kfree_skb_irq(*temp);
+			dev_consume_skb_irq(*temp);
 	} while (more);
 }
 

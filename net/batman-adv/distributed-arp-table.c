@@ -1711,6 +1711,8 @@ static void batadv_dat_put_dhcp(struct batadv_priv *bat_priv, u8 *chaddr,
 	batadv_dat_send_data(bat_priv, skb, yiaddr, vid, BATADV_P_DAT_DHT_PUT);
 	batadv_dat_send_data(bat_priv, skb, ip_dst, vid, BATADV_P_DAT_DHT_PUT);
 
+	consume_skb(skb);
+
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
 		   "Snooped from outgoing DHCPACK (server address): %pI4, %pM (vid: %i)\n",
 		   &ip_dst, hw_dst, batadv_print_vid(vid));

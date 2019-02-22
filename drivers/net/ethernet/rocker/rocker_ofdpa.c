@@ -2512,16 +2512,6 @@ static int ofdpa_port_attr_bridge_flags_set(struct rocker_port *rocker_port,
 }
 
 static int
-ofdpa_port_attr_bridge_flags_get(const struct rocker_port *rocker_port,
-				 unsigned long *p_brport_flags)
-{
-	const struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-
-	*p_brport_flags = ofdpa_port->brport_flags;
-	return 0;
-}
-
-static int
 ofdpa_port_attr_bridge_flags_support_get(const struct rocker_port *
 					 rocker_port,
 					 unsigned long *
@@ -2823,7 +2813,6 @@ struct rocker_world_ops rocker_ofdpa_ops = {
 	.port_stop = ofdpa_port_stop,
 	.port_attr_stp_state_set = ofdpa_port_attr_stp_state_set,
 	.port_attr_bridge_flags_set = ofdpa_port_attr_bridge_flags_set,
-	.port_attr_bridge_flags_get = ofdpa_port_attr_bridge_flags_get,
 	.port_attr_bridge_flags_support_get = ofdpa_port_attr_bridge_flags_support_get,
 	.port_attr_bridge_ageing_time_set = ofdpa_port_attr_bridge_ageing_time_set,
 	.port_obj_vlan_add = ofdpa_port_obj_vlan_add,

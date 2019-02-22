@@ -67,7 +67,9 @@ struct rds_ib_conn_priv_cmn {
 	u8			ricpc_protocol_major;
 	u8			ricpc_protocol_minor;
 	__be16			ricpc_protocol_minor_mask;	/* bitmask */
-	__be32			ricpc_reserved1;
+	u8			ricpc_dp_toss;
+	u8			ripc_reserved1;
+	__be16			ripc_reserved2;
 	__be64			ricpc_ack_seq;
 	__be32			ricpc_credit;	/* non-zero enables flow ctl */
 };

@@ -18,7 +18,7 @@ SYNOPSIS
 	{ **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load**
 	| **loadall** | **help** }
 
-MAP COMMANDS
+PROG COMMANDS
 =============
 
 |	**bpftool** **prog { show | list }** [*PROG*]

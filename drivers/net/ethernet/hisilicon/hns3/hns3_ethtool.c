@@ -621,12 +621,11 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		hns3_get_ksettings(h, cmd);
 		break;
 	case HNAE3_MEDIA_TYPE_COPPER:
-		if (!netdev->phydev)
-			return -EOPNOTSUPP;
-
 		cmd->base.port = PORT_TP;
-		phy_ethtool_ksettings_get(netdev->phydev, cmd);
-
+		if (!netdev->phydev)
+			hns3_get_ksettings(h, cmd);
+		else
+			phy_ethtool_ksettings_get(netdev->phydev, cmd);
 		break;
 	default:
 

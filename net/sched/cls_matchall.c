@@ -109,7 +109,8 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	return 0;
 }
 
-static void mall_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void mall_destroy(struct tcf_proto *tp, bool rtnl_held,
+			 struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 
@@ -145,7 +146,8 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &head->exts, ovr, true,
+				extack);
 	if (err < 0)
 		return err;
 
@@ -159,7 +161,8 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 static int mall_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       void **arg, bool ovr, struct netlink_ext_ack *extack)
+		       void **arg, bool ovr, bool rtnl_held,
+		       struct netlink_ext_ack *extack)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct nlattr *tb[TCA_MATCHALL_MAX + 1];
@@ -232,17 +235,21 @@ err_exts_init:
 }
 
 static int mall_delete(struct tcf_proto *tp, void *arg, bool *last,
-		       struct netlink_ext_ack *extack)
+		       bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
 
-static void mall_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void mall_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		      bool rtnl_held)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 
 	if (arg->count < arg->skip)
 		goto skip;
+
+	if (!head)
+		return;
 	if (arg->fn(tp, head, arg) < 0)
 		arg->stop = 1;
 skip:
@@ -279,7 +286,7 @@ static int mall_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 }
 
 static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		     struct sk_buff *skb, struct tcmsg *t)
+		     struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct tc_matchall_pcnt gpf = {};
 	struct cls_mall_head *head = fh;

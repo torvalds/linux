@@ -30,6 +30,7 @@ struct devlink {
 	struct list_head param_list;
 	struct list_head region_list;
 	u32 snapshot_id;
+	struct list_head reporter_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
@@ -357,6 +358,7 @@ struct devlink_param_item {
 	const struct devlink_param *param;
 	union devlink_param_value driverinit_value;
 	bool driverinit_value_valid;
+	bool published;
 };
 
 enum devlink_param_generic_id {
@@ -368,15 +370,10 @@ enum devlink_param_generic_id {
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
-	DEVLINK_PARAM_GENERIC_ID_WOL,
 
 	/* add new param generic ids above here*/
 	__DEVLINK_PARAM_GENERIC_ID_MAX,
 	DEVLINK_PARAM_GENERIC_ID_MAX = __DEVLINK_PARAM_GENERIC_ID_MAX - 1,
-};
-
-enum devlink_param_wol_types {
-	DEVLINK_PARAM_WAKE_MAGIC = (1 << 0),
 };
 
 #define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_NAME "internal_error_reset"
@@ -402,9 +399,6 @@ enum devlink_param_wol_types {
 
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME "fw_load_policy"
 #define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE DEVLINK_PARAM_TYPE_U8
-
-#define DEVLINK_PARAM_GENERIC_WOL_NAME "wake_on_lan"
-#define DEVLINK_PARAM_GENERIC_WOL_TYPE DEVLINK_PARAM_TYPE_U8
 
 #define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
 {									\
@@ -433,6 +427,8 @@ enum devlink_param_wol_types {
 #define DEVLINK_INFO_VERSION_GENERIC_BOARD_ID	"board.id"
 /* Revision of board design */
 #define DEVLINK_INFO_VERSION_GENERIC_BOARD_REV	"board.rev"
+/* Maker of the board */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE	"board.manufacture"
 
 /* Control processor FW version */
 #define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
@@ -447,6 +443,29 @@ struct devlink_region;
 struct devlink_info_req;
 
 typedef void devlink_snapshot_data_dest_t(const void *data);
+
+struct devlink_fmsg;
+struct devlink_health_reporter;
+
+/**
+ * struct devlink_health_reporter_ops - Reporter operations
+ * @name: reporter name
+ * @recover: callback to recover from reported error
+ *           if priv_ctx is NULL, run a full recover
+ * @dump: callback to dump an object
+ *        if priv_ctx is NULL, run a full dump
+ * @diagnose: callback to diagnose the current status
+ */
+
+struct devlink_health_reporter_ops {
+	char *name;
+	int (*recover)(struct devlink_health_reporter *reporter,
+		       void *priv_ctx);
+	int (*dump)(struct devlink_health_reporter *reporter,
+		    struct devlink_fmsg *fmsg, void *priv_ctx);
+	int (*diagnose)(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg);
+};
 
 struct devlink_ops {
 	int (*reload)(struct devlink *devlink, struct netlink_ext_ack *extack);
@@ -502,6 +521,9 @@ struct devlink_ops {
 				      struct netlink_ext_ack *extack);
 	int (*info_get)(struct devlink *devlink, struct devlink_info_req *req,
 			struct netlink_ext_ack *extack);
+	int (*flash_update)(struct devlink *devlink, const char *file_name,
+			    const char *component,
+			    struct netlink_ext_ack *extack);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -594,6 +616,8 @@ int devlink_params_register(struct devlink *devlink,
 void devlink_params_unregister(struct devlink *devlink,
 			       const struct devlink_param *params,
 			       size_t params_count);
+void devlink_params_publish(struct devlink *devlink);
+void devlink_params_unpublish(struct devlink *devlink);
 int devlink_port_params_register(struct devlink_port *devlink_port,
 				 const struct devlink_param *params,
 				 size_t params_count);
@@ -639,6 +663,50 @@ int devlink_info_version_running_put(struct devlink_info_req *req,
 				     const char *version_name,
 				     const char *version_value);
 
+int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
+int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
+int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				     const char *name);
+int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value);
+int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
+int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
+int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
+int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
+int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			    u16 value_len);
+
+int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       bool value);
+int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     u8 value);
+int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u32 value);
+int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u64 value);
+int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const char *value);
+int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const void *value, u16 value_len);
+
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv);
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx);
+
 #else
 
 static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
@@ -653,6 +721,14 @@ static inline int devlink_register(struct devlink *devlink, struct device *dev)
 }
 
 static inline void devlink_unregister(struct devlink *devlink)
+{
+}
+
+static inline void devlink_params_publish(struct devlink *devlink)
+{
+}
+
+static inline void devlink_params_unpublish(struct devlink *devlink)
 {
 }
 
@@ -971,15 +1047,165 @@ devlink_info_version_running_put(struct devlink_info_req *req,
 {
 	return 0;
 }
+
+static inline int
+devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				 const char *name)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			u16 value_len)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			   bool value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			 u8 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u32 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			  u64 value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const char *value)
+{
+	return 0;
+}
+
+static inline int
+devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     const void *value, u16 value_len)
+{
+	return 0;
+}
+
+static inline struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv)
+{
+	return NULL;
+}
+
+static inline void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
+{
+}
+
+static inline void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
+{
+	return NULL;
+}
+
+static inline int
+devlink_health_report(struct devlink_health_reporter *reporter,
+		      const char *msg, void *priv_ctx)
+{
+	return 0;
+}
 #endif
 
 #if IS_REACHABLE(CONFIG_NET_DEVLINK)
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
 #else
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 {
+}
+
+static inline int
+devlink_compat_flash_update(struct net_device *dev, const char *file_name)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

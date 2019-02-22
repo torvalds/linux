@@ -53,6 +53,7 @@
 		  .data64 = { ~0ULL, }
 		},
 	},
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jset: sign-extend",
@@ -70,6 +71,7 @@
 	.result = ACCEPT,
 	.retval = 2,
 	.data = { 1, 0, 0, 0, 0, 0, 0, 1, },
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jset: known const compare",

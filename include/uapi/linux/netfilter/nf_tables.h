@@ -1727,10 +1727,19 @@ enum nft_tunnel_keys {
 };
 #define NFT_TUNNEL_MAX	(__NFT_TUNNEL_MAX - 1)
 
+enum nft_tunnel_mode {
+	NFT_TUNNEL_MODE_NONE,
+	NFT_TUNNEL_MODE_RX,
+	NFT_TUNNEL_MODE_TX,
+	__NFT_TUNNEL_MODE_MAX
+};
+#define NFT_TUNNEL_MODE_MAX	(__NFT_TUNNEL_MODE_MAX - 1)
+
 enum nft_tunnel_attributes {
 	NFTA_TUNNEL_UNSPEC,
 	NFTA_TUNNEL_KEY,
 	NFTA_TUNNEL_DREG,
+	NFTA_TUNNEL_MODE,
 	__NFTA_TUNNEL_MAX
 };
 #define NFTA_TUNNEL_MAX	(__NFTA_TUNNEL_MAX - 1)

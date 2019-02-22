@@ -28,6 +28,7 @@ generic-y += preempt.h
 generic-y += sections.h
 generic-y += segment.h
 generic-y += serial.h
+generic-y += shmparam.h
 generic-y += sizes.h
 generic-y += syscalls.h
 generic-y += topology.h

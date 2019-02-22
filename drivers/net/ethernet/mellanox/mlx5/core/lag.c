@@ -343,6 +343,11 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 		roce_lag = !mlx5_sriov_is_enabled(dev0) &&
 			   !mlx5_sriov_is_enabled(dev1);
 
+#ifdef CONFIG_MLX5_ESWITCH
+		roce_lag &= dev0->priv.eswitch->mode == SRIOV_NONE &&
+			    dev1->priv.eswitch->mode == SRIOV_NONE;
+#endif
+
 		if (roce_lag)
 			mlx5_lag_remove_ib_devices(ldev);
 

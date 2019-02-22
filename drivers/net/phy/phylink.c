@@ -302,6 +302,13 @@ static void phylink_mac_config(struct phylink *pl,
 	pl->ops->mac_config(pl->netdev, pl->link_an_mode, state);
 }
 
+static void phylink_mac_config_up(struct phylink *pl,
+				  const struct phylink_link_state *state)
+{
+	if (state->link)
+		phylink_mac_config(pl, state);
+}
+
 static void phylink_mac_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
@@ -401,12 +408,12 @@ static void phylink_resolve(struct work_struct *w)
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
 			phylink_resolve_flow(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_FIXED:
 			phylink_get_fixed_state(pl, &link_state);
-			phylink_mac_config(pl, &link_state);
+			phylink_mac_config_up(pl, &link_state);
 			break;
 
 		case MLO_AN_INBAND:
@@ -469,6 +476,17 @@ static void phylink_run_resolve(struct phylink *pl)
 {
 	if (!pl->phylink_disable_state)
 		queue_work(system_power_efficient_wq, &pl->resolve);
+}
+
+static void phylink_run_resolve_and_disable(struct phylink *pl, int bit)
+{
+	unsigned long state = pl->phylink_disable_state;
+
+	set_bit(bit, &pl->phylink_disable_state);
+	if (state == 0) {
+		queue_work(system_power_efficient_wq, &pl->resolve);
+		flush_work(&pl->resolve);
+	}
 }
 
 static void phylink_fixed_poll(struct timer_list *t)
@@ -920,9 +938,7 @@ void phylink_stop(struct phylink *pl)
 	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
 		del_timer_sync(&pl->link_poll);
 
-	set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
-	queue_work(system_power_efficient_wq, &pl->resolve);
-	flush_work(&pl->resolve);
+	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_STOPPED);
 }
 EXPORT_SYMBOL_GPL(phylink_stop);
 
@@ -1263,6 +1279,24 @@ int phylink_get_eee_err(struct phylink *pl)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phylink_get_eee_err);
+
+/**
+ * phylink_init_eee() - init and check the EEE features
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @clk_stop_enable: allow PHY to stop receive clock
+ *
+ * Must be called either with RTNL held or within mac_link_up()
+ */
+int phylink_init_eee(struct phylink *pl, bool clk_stop_enable)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (pl->phydev)
+		ret = phy_init_eee(pl->phydev, clk_stop_enable);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phylink_init_eee);
 
 /**
  * phylink_ethtool_get_eee() - read the energy efficient ethernet parameters
@@ -1628,9 +1662,7 @@ static void phylink_sfp_link_down(void *upstream)
 
 	ASSERT_RTNL();
 
-	set_bit(PHYLINK_DISABLE_LINK, &pl->phylink_disable_state);
-	queue_work(system_power_efficient_wq, &pl->resolve);
-	flush_work(&pl->resolve);
+	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_LINK);
 }
 
 static void phylink_sfp_link_up(void *upstream)

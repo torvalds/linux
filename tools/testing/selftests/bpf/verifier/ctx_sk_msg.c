@@ -100,6 +100,7 @@
 	.errstr = "invalid bpf_context access",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_SK_MSG,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"invalid read past end of SK_MSG",

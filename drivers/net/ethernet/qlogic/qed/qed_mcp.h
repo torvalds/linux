@@ -691,10 +691,6 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 					    rel_pfid)
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
-#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
-				 ((_p_hwfn)->cdev->num_ports_in_engine * \
-				  qed_device_num_engines((_p_hwfn)->cdev)))
-
 struct qed_mcp_info {
 	/* List for mailbox commands which were sent and wait for a response */
 	struct list_head			cmd_list;
@@ -1148,6 +1144,16 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 				    struct qed_resc_unlock_params *p_unlock,
 				    enum qed_resc_lock
 				    resource, bool b_is_permanent);
+
+/**
+ * @brief - Return whether management firmware support smart AN
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool qed_mcp_is_smart_an_supported(struct qed_hwfn *p_hwfn);
+
 /**
  * @brief Learn of supported MFW features; To be done during early init
  *

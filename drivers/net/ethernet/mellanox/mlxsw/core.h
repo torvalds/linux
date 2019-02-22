@@ -344,6 +344,7 @@ struct mlxsw_bus_info {
 	struct mlxsw_fw_rev fw_rev;
 	u8 vsd[MLXSW_CMD_BOARDINFO_VSD_LEN];
 	u8 psid[MLXSW_CMD_BOARDINFO_PSID_LEN];
+	u8 low_frequency;
 };
 
 struct mlxsw_hwmon;
@@ -393,5 +394,10 @@ static inline void mlxsw_thermal_fini(struct mlxsw_thermal *thermal)
 }
 
 #endif
+
+enum mlxsw_devlink_param_id {
+	MLXSW_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
+};
 
 #endif

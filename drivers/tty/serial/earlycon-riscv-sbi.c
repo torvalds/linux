@@ -10,13 +10,16 @@
 #include <linux/serial_core.h>
 #include <asm/sbi.h>
 
-static void sbi_console_write(struct console *con,
-			      const char *s, unsigned int n)
+static void sbi_putc(struct uart_port *port, int c)
 {
-	int i;
+	sbi_console_putchar(c);
+}
 
-	for (i = 0; i < n; ++i)
-		sbi_console_putchar(s[i]);
+static void sbi_console_write(struct console *con,
+			      const char *s, unsigned n)
+{
+	struct earlycon_device *dev = con->data;
+	uart_console_write(&dev->port, s, n, sbi_putc);
 }
 
 static int __init early_sbi_setup(struct earlycon_device *device,

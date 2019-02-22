@@ -199,15 +199,8 @@ enum {
 };
 
 struct cipher_context {
-	u16 prepend_size;
-	u16 tag_size;
-	u16 overhead_size;
-	u16 iv_size;
 	char *iv;
-	u16 rec_seq_size;
 	char *rec_seq;
-	u16 aad_size;
-	u16 tail_size;
 };
 
 union tls_crypto_context {
@@ -218,7 +211,21 @@ union tls_crypto_context {
 	};
 };
 
+struct tls_prot_info {
+	u16 version;
+	u16 cipher_type;
+	u16 prepend_size;
+	u16 tag_size;
+	u16 overhead_size;
+	u16 iv_size;
+	u16 rec_seq_size;
+	u16 aad_size;
+	u16 tail_size;
+};
+
 struct tls_context {
+	struct tls_prot_info prot_info;
+
 	union tls_crypto_context crypto_send;
 	union tls_crypto_context crypto_recv;
 
@@ -401,16 +408,26 @@ static inline bool tls_bigint_increment(unsigned char *seq, int len)
 	return (i == -1);
 }
 
+static inline struct tls_context *tls_get_ctx(const struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	return icsk->icsk_ulp_data;
+}
+
 static inline void tls_advance_record_sn(struct sock *sk,
 					 struct cipher_context *ctx,
 					 int version)
 {
-	if (tls_bigint_increment(ctx->rec_seq, ctx->rec_seq_size))
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct tls_prot_info *prot = &tls_ctx->prot_info;
+
+	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
 		tls_err_abort(sk, EBADMSG);
 
 	if (version != TLS_1_3_VERSION) {
 		tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-				     ctx->iv_size);
+				     prot->iv_size);
 	}
 }
 
@@ -420,9 +437,10 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 			     unsigned char record_type,
 			     int version)
 {
-	size_t pkt_len, iv_size = ctx->tx.iv_size;
+	struct tls_prot_info *prot = &ctx->prot_info;
+	size_t pkt_len, iv_size = prot->iv_size;
 
-	pkt_len = plaintext_len + ctx->tx.tag_size;
+	pkt_len = plaintext_len + prot->tag_size;
 	if (version != TLS_1_3_VERSION) {
 		pkt_len += iv_size;
 
@@ -475,12 +493,6 @@ static inline void xor_iv_with_seq(int version, char *iv, char *seq)
 	}
 }
 
-static inline struct tls_context *tls_get_ctx(const struct sock *sk)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-
-	return icsk->icsk_ulp_data;
-}
 
 static inline struct tls_sw_context_rx *tls_sw_ctx_rx(
 		const struct tls_context *tls_ctx)

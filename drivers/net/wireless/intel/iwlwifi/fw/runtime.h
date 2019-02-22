@@ -142,7 +142,8 @@ struct iwl_fw_runtime {
 		u32 *d3_debug_data;
 		struct iwl_fw_ini_active_regs active_regs[IWL_FW_INI_MAX_REGION_ID];
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
-		u32 rt_status;
+		u32 lmac_err_id[MAX_NUM_LMAC];
+		u32 umac_err_id;
 	} dump;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {

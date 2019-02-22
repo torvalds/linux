@@ -192,27 +192,48 @@ static void iwl_mvm_create_skb(struct sk_buff *skb, struct ieee80211_hdr *hdr,
 	}
 }
 
+static void iwl_mvm_add_rtap_sniffer_config(struct iwl_mvm *mvm,
+					    struct sk_buff *skb)
+{
+	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_vendor_radiotap *radiotap;
+	int size = sizeof(*radiotap) + sizeof(__le16);
+
+	if (!mvm->cur_aid)
+		return;
+
+	radiotap = skb_put(skb, size);
+	radiotap->align = 1;
+	/* Intel OUI */
+	radiotap->oui[0] = 0xf6;
+	radiotap->oui[1] = 0x54;
+	radiotap->oui[2] = 0x25;
+	/* radiotap sniffer config sub-namespace */
+	radiotap->subns = 1;
+	radiotap->present = 0x1;
+	radiotap->len = size - sizeof(*radiotap);
+	radiotap->pad = 0;
+
+	/* fill the data now */
+	memcpy(radiotap->data, &mvm->cur_aid, sizeof(mvm->cur_aid));
+
+	rx_status->flag |= RX_FLAG_RADIOTAP_VENDOR_DATA;
+}
+
 /* iwl_mvm_pass_packet_to_mac80211 - passes the packet for mac80211 */
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb, int queue,
-					    struct ieee80211_sta *sta)
+					    struct ieee80211_sta *sta,
+					    bool csi)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 
 	if (!(rx_status->flag & RX_FLAG_NO_PSDU) &&
-	    iwl_mvm_check_pn(mvm, skb, queue, sta)) {
+	    iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
-	} else {
-		unsigned int radiotap_len = 0;
-
-		if (rx_status->flag & RX_FLAG_RADIOTAP_HE)
-			radiotap_len += sizeof(struct ieee80211_radiotap_he);
-		if (rx_status->flag & RX_FLAG_RADIOTAP_HE_MU)
-			radiotap_len += sizeof(struct ieee80211_radiotap_he_mu);
-		__skb_push(skb, radiotap_len);
+	else
 		ieee80211_rx_napi(mvm->hw, sta, skb, napi);
-	}
 }
 
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
@@ -473,7 +494,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		while ((skb = __skb_dequeue(skb_list))) {
 			iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb,
 							reorder_buf->queue,
-							sta);
+							sta, false);
 			reorder_buf->num_stored--;
 		}
 	}
@@ -666,6 +687,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * This also covers the case of receiving a Block Ack Request
 	 * outside a BA session; we'll pass it to mac80211 and that
 	 * then sends a delBA action frame.
+	 * This also covers pure monitor mode, in which case we won't
+	 * have any BA sessions.
 	 */
 	if (baid == IWL_RX_REORDER_DATA_INVALID_BAID)
 		return false;
@@ -1158,14 +1181,12 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 	/* temporarily hide the radiotap data */
 	__skb_pull(skb, radiotap_len);
 
-	if (phy_data->info_type == IWL_RX_PHY_INFO_TYPE_HE_SU) {
-		/* report the AMPDU-EOF bit on single frames */
-		if (!queue && !(phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
-			rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
-			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
-			if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_HE_DELIM_EOF))
-				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
-		}
+	/* report the AMPDU-EOF bit on single frames */
+	if (!queue && !(phy_info & IWL_RX_MPDU_PHY_AMPDU)) {
+		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
+		if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_HE_DELIM_EOF))
+			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
 	}
 
 	if (phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
@@ -1178,9 +1199,7 @@ static void iwl_mvm_rx_he(struct iwl_mvm *mvm, struct sk_buff *skb,
 		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
 
 		/* toggle is switched whenever new aggregation starts */
-		if (toggle_bit != mvm->ampdu_toggle &&
-		    (he_type == RATE_MCS_HE_TYPE_MU ||
-		     he_type == RATE_MCS_HE_TYPE_SU)) {
+		if (toggle_bit != mvm->ampdu_toggle) {
 			rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT_KNOWN;
 			if (phy_data->d0 & cpu_to_le32(IWL_RX_PHY_DATA0_HE_DELIM_EOF))
 				rx_status->flag |= RX_FLAG_AMPDU_EOF_BIT;
@@ -1314,6 +1333,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		.d4 = desc->phy_data4,
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
+	bool csi = false;
 
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
@@ -1412,7 +1432,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 	}
 	/* set the preamble flag if appropriate */
-	if (phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
+	if (rate_n_flags & RATE_MCS_CCK_MSK &&
+	    phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	if (likely(!(phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
@@ -1441,13 +1462,22 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		bool toggle_bit = phy_info & IWL_RX_MPDU_PHY_AMPDU_TOGGLE;
 
 		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
-		rx_status->ampdu_reference = mvm->ampdu_ref;
-		/* toggle is switched whenever new aggregation starts */
+		/*
+		 * Toggle is switched whenever new aggregation starts. Make
+		 * sure ampdu_reference is never 0 so we can later use it to
+		 * see if the frame was really part of an A-MPDU or not.
+		 */
 		if (toggle_bit != mvm->ampdu_toggle) {
 			mvm->ampdu_ref++;
+			if (mvm->ampdu_ref == 0)
+				mvm->ampdu_ref++;
 			mvm->ampdu_toggle = toggle_bit;
 		}
+		rx_status->ampdu_reference = mvm->ampdu_ref;
 	}
+
+	if (unlikely(mvm->monitor_on))
+		iwl_mvm_add_rtap_sniffer_config(mvm, skb);
 
 	rcu_read_lock();
 
@@ -1602,7 +1632,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	iwl_mvm_create_skb(skb, hdr, len, crypt_len, rxb);
 	if (!iwl_mvm_reorder(mvm, napi, queue, sta, skb, desc))
-		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+		iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue,
+						sta, csi);
 out:
 	rcu_read_unlock();
 }
@@ -1705,15 +1736,24 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 	} else if (rate_n_flags & RATE_MCS_VHT_MSK) {
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
-		rx_status->nss =
-			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-						RATE_VHT_MCS_NSS_POS) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		if (rate_n_flags & RATE_MCS_BF_MSK)
 			rx_status->enc_flags |= RX_ENC_FLAG_BF;
-	} else if (!(rate_n_flags & RATE_MCS_HE_MSK)) {
+		/*
+		 * take the nss from the rx_vec since the rate_n_flags has
+		 * only 2 bits for the nss which gives a max of 4 ss but
+		 * there may be up to 8 spatial streams
+		 */
+		rx_status->nss =
+			le32_get_bits(desc->rx_vec[0],
+				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
+	} else if (rate_n_flags & RATE_MCS_HE_MSK) {
+		rx_status->nss =
+			le32_get_bits(desc->rx_vec[0],
+				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
+	} else {
 		int rate = iwl_mvm_legacy_rate_to_mac80211_idx(rate_n_flags,
 							       rx_status->band);
 
@@ -1726,7 +1766,7 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->rate_idx = rate;
 	}
 
-	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta);
+	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta, false);
 out:
 	rcu_read_unlock();
 }

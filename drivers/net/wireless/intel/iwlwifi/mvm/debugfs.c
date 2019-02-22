@@ -69,6 +69,7 @@
 #include "sta.h"
 #include "iwl-io.h"
 #include "debugfs.h"
+#include "iwl-modparams.h"
 #include "fw/error-dump.h"
 
 static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
@@ -1206,47 +1207,6 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-/*
- * Enable / Disable continuous recording.
- * Cause the FW to start continuous recording, by sending the relevant hcmd.
- * Enable: input of every integer larger than 0, ENABLE_CONT_RECORDING.
- * Disable: for 0 as input, DISABLE_CONT_RECORDING.
- */
-static ssize_t iwl_dbgfs_cont_recording_write(struct iwl_mvm *mvm,
-					      char *buf, size_t count,
-					      loff_t *ppos)
-{
-	struct iwl_trans *trans = mvm->trans;
-	const struct iwl_fw_dbg_dest_tlv_v1 *dest = trans->dbg_dest_tlv;
-	struct iwl_continuous_record_cmd cont_rec = {};
-	int ret, rec_mode;
-
-	if (!iwl_mvm_firmware_running(mvm))
-		return -EIO;
-
-	if (!dest)
-		return -EOPNOTSUPP;
-
-	if (dest->monitor_mode != SMEM_MODE ||
-	    trans->cfg->device_family < IWL_DEVICE_FAMILY_8000)
-		return -EOPNOTSUPP;
-
-	ret = kstrtoint(buf, 0, &rec_mode);
-	if (ret)
-		return ret;
-
-	cont_rec.record_mode.enable_recording = rec_mode ?
-		cpu_to_le16(ENABLE_CONT_RECORDING) :
-		cpu_to_le16(DISABLE_CONT_RECORDING);
-
-	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_send_cmd_pdu(mvm, LDBG_CONFIG_CMD, 0,
-				   sizeof(cont_rec), &cont_rec);
-	mutex_unlock(&mvm->mutex);
-
-	return ret ?: count;
-}
-
 static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 					   char *buf, size_t count,
 					   loff_t *ppos)
@@ -1722,11 +1682,33 @@ iwl_dbgfs_send_echo_cmd_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
+struct iwl_mvm_sniffer_apply {
+	struct iwl_mvm *mvm;
+	u16 aid;
+};
+
+static bool iwl_mvm_sniffer_apply(struct iwl_notif_wait_data *notif_data,
+				  struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm_sniffer_apply *apply = data;
+
+	apply->mvm->cur_aid = cpu_to_le16(apply->aid);
+
+	return true;
+}
+
 static ssize_t
 iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
-			size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
+	struct iwl_notification_wait wait;
 	struct iwl_he_monitor_cmd he_mon_cmd = {};
+	struct iwl_mvm_sniffer_apply apply = {
+		.mvm = mvm,
+	};
+	u16 wait_cmds[] = {
+		iwl_cmd_id(HE_AIR_SNIFFER_CONFIG_CMD, DATA_PATH_GROUP, 0),
+	};
 	u32 aid;
 	int ret;
 
@@ -1742,10 +1724,30 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 
 	he_mon_cmd.aid = cpu_to_le16(aid);
 
+	apply.aid = aid;
+
 	mutex_lock(&mvm->mutex);
+
+	/*
+	 * Use the notification waiter to get our function triggered
+	 * in sequence with other RX. This ensures that frames we get
+	 * on the RX queue _before_ the new configuration is applied
+	 * still have mvm->cur_aid pointing to the old AID, and that
+	 * frames on the RX queue _after_ the firmware processed the
+	 * new configuration (and sent the response, synchronously)
+	 * get mvm->cur_aid correctly set to the new AID.
+	 */
+	iwl_init_notification_wait(&mvm->notif_wait, &wait,
+				   wait_cmds, ARRAY_SIZE(wait_cmds),
+				   iwl_mvm_sniffer_apply, &apply);
+
 	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(HE_AIR_SNIFFER_CONFIG_CMD,
 						   DATA_PATH_GROUP, 0), 0,
 				   sizeof(he_mon_cmd), &he_mon_cmd);
+
+	/* no need to really wait, we already did anyway */
+	iwl_remove_notification(&mvm->notif_wait, &wait);
+
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -1800,7 +1802,6 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
-MVM_DEBUGFS_WRITE_FILE_OPS(cont_recording, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(max_amsdu_len, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
@@ -2004,7 +2005,6 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(max_amsdu_len, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(cont_recording, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(indirection_tbl, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 #ifdef CONFIG_ACPI
@@ -2070,6 +2070,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 		goto err;
 	if (!debugfs_create_blob("nvm_phy_sku", 0400,
 				 mvm->debugfs_dir, &mvm->nvm_phy_sku_blob))
+		goto err;
+	if (!debugfs_create_blob("nvm_reg", S_IRUSR,
+				 mvm->debugfs_dir, &mvm->nvm_reg_blob))
 		goto err;
 
 	debugfs_create_file("mem", 0600, dbgfs_dir, mvm, &iwl_dbgfs_mem_ops);

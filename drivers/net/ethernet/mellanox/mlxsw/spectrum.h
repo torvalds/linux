@@ -133,6 +133,7 @@ struct mlxsw_sp_kvdl_ops;
 struct mlxsw_sp_mr_tcam_ops;
 struct mlxsw_sp_acl_tcam_ops;
 struct mlxsw_sp_nve_ops;
+struct mlxsw_sp_sb_vals;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -167,6 +168,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_acl_tcam_ops *acl_tcam_ops;
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
+	const struct mlxsw_sp_sb_vals *sb_vals;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -371,6 +373,10 @@ int mlxsw_sp_sb_occ_tc_port_bind_get(struct mlxsw_core_port *mlxsw_core_port,
 				     u32 *p_cur, u32 *p_max);
 u32 mlxsw_sp_cells_bytes(const struct mlxsw_sp *mlxsw_sp, u32 cells);
 u32 mlxsw_sp_bytes_cells(const struct mlxsw_sp *mlxsw_sp, u32 bytes);
+u32 mlxsw_sp_sb_max_headroom_cells(const struct mlxsw_sp *mlxsw_sp);
+
+extern const struct mlxsw_sp_sb_vals mlxsw_sp1_sb_vals;
+extern const struct mlxsw_sp_sb_vals mlxsw_sp2_sb_vals;
 
 /* spectrum_switchdev.c */
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp);
@@ -690,6 +696,8 @@ struct mlxsw_sp_fid *mlxsw_sp_acl_dummy_fid(struct mlxsw_sp *mlxsw_sp);
 
 int mlxsw_sp_acl_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_acl_fini(struct mlxsw_sp *mlxsw_sp);
+u32 mlxsw_sp_acl_region_rehash_intrvl_get(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_acl_region_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp, u32 val);
 
 /* spectrum_acl_tcam.c */
 struct mlxsw_sp_acl_tcam;
@@ -704,10 +712,13 @@ struct mlxsw_sp_acl_tcam_ops {
 	size_t region_priv_size;
 	int (*region_init)(struct mlxsw_sp *mlxsw_sp, void *region_priv,
 			   void *tcam_priv,
-			   struct mlxsw_sp_acl_tcam_region *region);
+			   struct mlxsw_sp_acl_tcam_region *region,
+			   void *hints_priv);
 	void (*region_fini)(struct mlxsw_sp *mlxsw_sp, void *region_priv);
 	int (*region_associate)(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_tcam_region *region);
+	void * (*region_rehash_hints_get)(void *region_priv);
+	void (*region_rehash_hints_put)(void *hints_priv);
 	size_t chunk_priv_size;
 	void (*chunk_init)(void *region_priv, void *chunk_priv,
 			   unsigned int priority);

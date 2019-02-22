@@ -128,7 +128,6 @@ static int ipv6_mc_check_mld_msg(struct sk_buff *skb)
 	switch (mld->mld_type) {
 	case ICMPV6_MGM_REDUCTION:
 	case ICMPV6_MGM_REPORT:
-		/* fall through */
 		return 0;
 	case ICMPV6_MLD2_REPORT:
 		return ipv6_mc_check_mld_reportv2(skb);

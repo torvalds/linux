@@ -687,6 +687,7 @@
 	},
 	.errstr = "invalid bpf_context access",
 	.result = REJECT,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"check skb->hash half load not permitted, unaligned 3",
