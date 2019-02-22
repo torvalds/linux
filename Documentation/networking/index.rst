@@ -31,6 +31,7 @@ Contents:
    failover
    net_failover
    phy
+   sfp-phylink
    alias
    bridge
    snmp_counter
