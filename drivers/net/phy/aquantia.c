@@ -39,6 +39,10 @@
 #define MDIO_AN_TX_VEND_INT_MASK2		0xd401
 #define MDIO_AN_TX_VEND_INT_MASK2_LINK		BIT(0)
 
+#define MDIO_AN_RX_LP_STAT1			0xe820
+#define MDIO_AN_RX_LP_STAT1_1000BASET_FULL	BIT(15)
+#define MDIO_AN_RX_LP_STAT1_1000BASET_HALF	BIT(14)
+
 /* Vendor specific 1, MDIO_MMD_VEND1 */
 #define VEND1_GLOBAL_INT_STD_STATUS		0xfc00
 #define VEND1_GLOBAL_INT_VEND_STATUS		0xfc01
@@ -154,36 +158,22 @@ static int aqr_ack_interrupt(struct phy_device *phydev)
 
 static int aqr_read_status(struct phy_device *phydev)
 {
-	int reg;
+	int val;
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
-	if (reg & MDIO_STAT1_LSTATUS)
-		phydev->link = 1;
-	else
-		phydev->link = 0;
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_RX_LP_STAT1);
+		if (val < 0)
+			return val;
 
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
-	mdelay(10);
-	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_STATUS1);
-
-	switch (reg & MDIO_AN_TX_VEND_STATUS1_RATE_MASK) {
-	case MDIO_AN_TX_VEND_STATUS1_2500BASET:
-		phydev->speed = SPEED_2500;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_1000BASET:
-		phydev->speed = SPEED_1000;
-		break;
-	case MDIO_AN_TX_VEND_STATUS1_100BASETX:
-		phydev->speed = SPEED_100;
-		break;
-	default:
-		phydev->speed = SPEED_10000;
-		break;
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 phydev->lp_advertising,
+				 val & MDIO_AN_RX_LP_STAT1_1000BASET_FULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 phydev->lp_advertising,
+				 val & MDIO_AN_RX_LP_STAT1_1000BASET_HALF);
 	}
-	phydev->duplex = DUPLEX_FULL;
 
-	return 0;
+	return genphy_c45_read_status(phydev);
 }
 
 static int aqcs109_config_init(struct phy_device *phydev)
