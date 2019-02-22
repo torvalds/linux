@@ -96,5 +96,30 @@
             "$TC qdisc del dev $DEV2 ingress",
             "/bin/rm -rf $BATCH_DIR"
         ]
+    },
+    {
+        "id": "0c44",
+        "name": "Concurrently delete same range of 100k flower filters from 10 tc instances",
+        "category": [
+            "filter",
+            "flower",
+            "concurrency"
+        ],
+        "setup": [
+            "/bin/mkdir $BATCH_DIR",
+            "$TC qdisc add dev $DEV2 ingress",
+            "./tdc_multibatch.py $DEV2 $BATCH_DIR 100000 1 add",
+            "$TC -b $BATCH_DIR/add_0",
+            "./tdc_multibatch.py -d $DEV2 $BATCH_DIR 100000 10 del"
+        ],
+        "cmdUnderTest": "find $BATCH_DIR/del* -print | xargs -n 1 -P 10 $TC -f -b",
+        "expExitCode": "123",
+        "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
+        "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DEV2 ingress",
+	    "/bin/rm -rf $BATCH_DIR"
+        ]
     }
 ]
