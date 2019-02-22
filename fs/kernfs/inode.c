@@ -35,7 +35,6 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
 	static DEFINE_MUTEX(iattr_mutex);
 	struct kernfs_iattrs *ret;
-	struct iattr *iattrs;
 
 	mutex_lock(&iattr_mutex);
 
@@ -45,16 +44,14 @@ static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 	kn->iattr = kmem_cache_zalloc(kernfs_iattrs_cache, GFP_KERNEL);
 	if (!kn->iattr)
 		goto out_unlock;
-	iattrs = &kn->iattr->ia_iattr;
 
 	/* assign default attributes */
-	iattrs->ia_mode = kn->mode;
-	iattrs->ia_uid = GLOBAL_ROOT_UID;
-	iattrs->ia_gid = GLOBAL_ROOT_GID;
+	kn->iattr->ia_uid = GLOBAL_ROOT_UID;
+	kn->iattr->ia_gid = GLOBAL_ROOT_GID;
 
-	ktime_get_real_ts64(&iattrs->ia_atime);
-	iattrs->ia_mtime = iattrs->ia_atime;
-	iattrs->ia_ctime = iattrs->ia_atime;
+	ktime_get_real_ts64(&kn->iattr->ia_atime);
+	kn->iattr->ia_mtime = kn->iattr->ia_atime;
+	kn->iattr->ia_ctime = kn->iattr->ia_atime;
 
 	simple_xattrs_init(&kn->iattr->xattrs);
 out_unlock:
@@ -66,29 +63,24 @@ out_unlock:
 int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 {
 	struct kernfs_iattrs *attrs;
-	struct iattr *iattrs;
 	unsigned int ia_valid = iattr->ia_valid;
 
 	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
-	iattrs = &attrs->ia_iattr;
-
 	if (ia_valid & ATTR_UID)
-		iattrs->ia_uid = iattr->ia_uid;
+		attrs->ia_uid = iattr->ia_uid;
 	if (ia_valid & ATTR_GID)
-		iattrs->ia_gid = iattr->ia_gid;
+		attrs->ia_gid = iattr->ia_gid;
 	if (ia_valid & ATTR_ATIME)
-		iattrs->ia_atime = iattr->ia_atime;
+		attrs->ia_atime = iattr->ia_atime;
 	if (ia_valid & ATTR_MTIME)
-		iattrs->ia_mtime = iattr->ia_mtime;
+		attrs->ia_mtime = iattr->ia_mtime;
 	if (ia_valid & ATTR_CTIME)
-		iattrs->ia_ctime = iattr->ia_ctime;
-	if (ia_valid & ATTR_MODE) {
-		umode_t mode = iattr->ia_mode;
-		iattrs->ia_mode = kn->mode = mode;
-	}
+		attrs->ia_ctime = iattr->ia_ctime;
+	if (ia_valid & ATTR_MODE)
+		kn->mode = iattr->ia_mode;
 	return 0;
 }
 
@@ -171,14 +163,15 @@ static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 		inode->i_ctime = current_time(inode);
 }
 
-static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
+static inline void set_inode_attr(struct inode *inode,
+				  struct kernfs_iattrs *attrs)
 {
 	struct super_block *sb = inode->i_sb;
-	inode->i_uid = iattr->ia_uid;
-	inode->i_gid = iattr->ia_gid;
-	inode->i_atime = timespec64_trunc(iattr->ia_atime, sb->s_time_gran);
-	inode->i_mtime = timespec64_trunc(iattr->ia_mtime, sb->s_time_gran);
-	inode->i_ctime = timespec64_trunc(iattr->ia_ctime, sb->s_time_gran);
+	inode->i_uid = attrs->ia_uid;
+	inode->i_gid = attrs->ia_gid;
+	inode->i_atime = timespec64_trunc(attrs->ia_atime, sb->s_time_gran);
+	inode->i_mtime = timespec64_trunc(attrs->ia_mtime, sb->s_time_gran);
+	inode->i_ctime = timespec64_trunc(attrs->ia_ctime, sb->s_time_gran);
 }
 
 static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
@@ -191,7 +184,7 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		 * kernfs_node has non-default attributes get them from
 		 * persistent copy in kernfs_node.
 		 */
-		set_inode_attr(inode, &attrs->ia_iattr);
+		set_inode_attr(inode, attrs);
 		security_inode_notifysecctx(inode, attrs->ia_secdata,
 					    attrs->ia_secdata_len);
 	}
