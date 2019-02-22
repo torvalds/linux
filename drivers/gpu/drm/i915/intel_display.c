@@ -16448,8 +16448,6 @@ struct intel_display_error_state {
 
 	u32 power_well_driver;
 
-	int num_transcoders;
-
 	struct intel_cursor_error_state {
 		u32 control;
 		u32 position;
@@ -16474,6 +16472,7 @@ struct intel_display_error_state {
 	} plane[I915_MAX_PIPES];
 
 	struct intel_transcoder_error_state {
+		bool available;
 		bool power_domain_on;
 		enum transcoder cpu_transcoder;
 
@@ -16499,6 +16498,8 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 		TRANSCODER_EDP,
 	};
 	int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(transcoders) != ARRAY_SIZE(error->transcoder));
 
 	if (!HAS_DISPLAY(dev_priv))
 		return NULL;
@@ -16540,14 +16541,13 @@ intel_display_capture_error_state(struct drm_i915_private *dev_priv)
 			error->pipe[i].stat = I915_READ(PIPESTAT(i));
 	}
 
-	/* Note: this does not include DSI transcoders. */
-	error->num_transcoders = INTEL_INFO(dev_priv)->num_pipes;
-	if (HAS_DDI(dev_priv))
-		error->num_transcoders++; /* Account for eDP. */
-
-	for (i = 0; i < error->num_transcoders; i++) {
+	for (i = 0; i < ARRAY_SIZE(error->transcoder); i++) {
 		enum transcoder cpu_transcoder = transcoders[i];
 
+		if (!INTEL_INFO(dev_priv)->trans_offsets[cpu_transcoder])
+			continue;
+
+		error->transcoder[i].available = true;
 		error->transcoder[i].power_domain_on =
 			__intel_display_power_is_enabled(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
@@ -16611,7 +16611,10 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  BASE: %08x\n", error->cursor[i].base);
 	}
 
-	for (i = 0; i < error->num_transcoders; i++) {
+	for (i = 0; i < ARRAY_SIZE(error->transcoder); i++) {
+		if (!error->transcoder[i].available)
+			continue;
+
 		err_printf(m, "CPU transcoder: %s\n",
 			   transcoder_name(error->transcoder[i].cpu_transcoder));
 		err_printf(m, "  Power: %s\n",
