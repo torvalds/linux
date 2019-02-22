@@ -279,7 +279,7 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	mipi->enabled = false;
 }
 
-static int ili9225_dbi_command(struct mipi_dbi *mipi, u8 cmd, u8 *par,
+static int ili9225_dbi_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 			       size_t num)
 {
 	struct spi_device *spi = mipi->spi;
@@ -289,11 +289,11 @@ static int ili9225_dbi_command(struct mipi_dbi *mipi, u8 cmd, u8 *par,
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
-	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, &cmd, 1);
+	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
-	if (cmd == ILI9225_WRITE_DATA_TO_GRAM && !mipi->swap_bytes)
+	if (*cmd == ILI9225_WRITE_DATA_TO_GRAM && !mipi->swap_bytes)
 		bpw = 16;
 
 	gpiod_set_value_cansleep(mipi->dc, 1);
