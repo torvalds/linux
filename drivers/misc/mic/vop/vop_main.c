@@ -514,7 +514,7 @@ static int _vop_add_device(struct mic_device_desc __iomem *d,
 	vdev->desc = d;
 	vdev->dc = (void __iomem *)d + _vop_aligned_desc_size(d);
 	vdev->dnode = dnode;
-	vdev->vdev.priv = (void *)(u64)dnode;
+	vdev->vdev.priv = (void *)(unsigned long)dnode;
 	init_completion(&vdev->reset_done);
 
 	vdev->h2c_vdev_db = vpdev->hw_ops->next_db(vpdev);
@@ -536,7 +536,7 @@ static int _vop_add_device(struct mic_device_desc __iomem *d,
 			offset, type);
 		goto free_irq;
 	}
-	writeq((u64)vdev, &vdev->dc->vdev);
+	writeq((unsigned long)vdev, &vdev->dc->vdev);
 	dev_dbg(_vop_dev(vdev), "%s: registered vop device %u type %u vdev %p\n",
 		__func__, offset, type, vdev);
 
@@ -563,13 +563,18 @@ static int vop_match_desc(struct device *dev, void *data)
 	return vdev->desc == (void __iomem *)data;
 }
 
+static struct _vop_vdev *vop_dc_to_vdev(struct mic_device_ctrl *dc)
+{
+	return (struct _vop_vdev *)(unsigned long)readq(&dc->vdev);
+}
+
 static void _vop_handle_config_change(struct mic_device_desc __iomem *d,
 				      unsigned int offset,
 				      struct vop_device *vpdev)
 {
 	struct mic_device_ctrl __iomem *dc
 		= (void __iomem *)d + _vop_aligned_desc_size(d);
-	struct _vop_vdev *vdev = (struct _vop_vdev *)readq(&dc->vdev);
+	struct _vop_vdev *vdev = vop_dc_to_vdev(dc);
 
 	if (ioread8(&dc->config_change) != MIC_VIRTIO_PARAM_CONFIG_CHANGED)
 		return;
@@ -588,7 +593,7 @@ static int _vop_remove_device(struct mic_device_desc __iomem *d,
 {
 	struct mic_device_ctrl __iomem *dc
 		= (void __iomem *)d + _vop_aligned_desc_size(d);
-	struct _vop_vdev *vdev = (struct _vop_vdev *)readq(&dc->vdev);
+	struct _vop_vdev *vdev = vop_dc_to_vdev(dc);
 	u8 status;
 	int ret = -1;
 

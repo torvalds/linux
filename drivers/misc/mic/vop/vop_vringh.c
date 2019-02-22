@@ -712,16 +712,17 @@ static int vop_vringh_copy(struct vop_vdev *vdev, struct vringh_kiov *iov,
 
 	while (len && iov->i < iov->used) {
 		struct kvec *kiov = &iov->iov[iov->i];
+		unsigned long daddr = (unsigned long)kiov->iov_base;
 
 		partlen = min(kiov->iov_len, len);
 		if (read)
 			ret = vop_virtio_copy_to_user(vdev, ubuf, partlen,
-						      (u64)kiov->iov_base,
+						      daddr,
 						      kiov->iov_len,
 						      vr_idx);
 		else
 			ret = vop_virtio_copy_from_user(vdev, ubuf, partlen,
-							(u64)kiov->iov_base,
+							daddr,
 							kiov->iov_len,
 							vr_idx);
 		if (ret) {
