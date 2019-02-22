@@ -638,6 +638,11 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 	ioat_stop(ioat_chan);
 	ioat_reset_hw(ioat_chan);
 
+	/* Put LTR to idle */
+	if (ioat_dma->version >= IOAT_VER_3_4)
+		writeb(IOAT_CHAN_LTR_SWSEL_IDLE,
+			ioat_chan->reg_base + IOAT_CHAN_LTR_SWSEL_OFFSET);
+
 	spin_lock_bh(&ioat_chan->cleanup_lock);
 	spin_lock_bh(&ioat_chan->prep_lock);
 	descs = ioat_ring_space(ioat_chan);
@@ -726,6 +731,28 @@ static int ioat_alloc_chan_resources(struct dma_chan *c)
 	set_bit(IOAT_RUN, &ioat_chan->state);
 	spin_unlock_bh(&ioat_chan->prep_lock);
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
+
+	/* Setting up LTR values for 3.4 or later */
+	if (ioat_chan->ioat_dma->version >= IOAT_VER_3_4) {
+		u32 lat_val;
+
+		lat_val = IOAT_CHAN_LTR_ACTIVE_SNVAL |
+			IOAT_CHAN_LTR_ACTIVE_SNLATSCALE |
+			IOAT_CHAN_LTR_ACTIVE_SNREQMNT;
+		writel(lat_val, ioat_chan->reg_base +
+				IOAT_CHAN_LTR_ACTIVE_OFFSET);
+
+		lat_val = IOAT_CHAN_LTR_IDLE_SNVAL |
+			  IOAT_CHAN_LTR_IDLE_SNLATSCALE |
+			  IOAT_CHAN_LTR_IDLE_SNREQMNT;
+		writel(lat_val, ioat_chan->reg_base +
+				IOAT_CHAN_LTR_IDLE_OFFSET);
+
+		/* Select to active */
+		writeb(IOAT_CHAN_LTR_SWSEL_ACTIVE,
+		       ioat_chan->reg_base +
+		       IOAT_CHAN_LTR_SWSEL_OFFSET);
+	}
 
 	ioat_start_null_desc(ioat_chan);
 
