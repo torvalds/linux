@@ -345,7 +345,6 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
 
 enum log_flags {
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
-	LOG_PREFIX	= 4,	/* text started with a prefix */
 	LOG_CONT	= 8,	/* text is a fragment of a continuation line */
 };
 
@@ -1922,9 +1921,6 @@ int vprintk_store(int facility, int level,
 			case '0' ... '7':
 				if (level == LOGLEVEL_DEFAULT)
 					level = kern_level - '0';
-				/* fallthrough */
-			case 'd':	/* KERN_DEFAULT */
-				lflags |= LOG_PREFIX;
 				break;
 			case 'c':	/* KERN_CONT */
 				lflags |= LOG_CONT;
@@ -1939,7 +1935,7 @@ int vprintk_store(int facility, int level,
 		level = default_message_loglevel;
 
 	if (dict)
-		lflags |= LOG_PREFIX|LOG_NEWLINE;
+		lflags |= LOG_NEWLINE;
 
 	return log_output(facility, level, lflags,
 			  dict, dictlen, text, text_len);
