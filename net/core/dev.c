@@ -7954,6 +7954,25 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 }
 EXPORT_SYMBOL(dev_change_proto_down);
 
+/**
+ *	dev_change_proto_down_generic - generic implementation for
+ * 	ndo_change_proto_down that sets carrier according to
+ * 	proto_down.
+ *
+ *	@dev: device
+ *	@proto_down: new value
+ */
+int dev_change_proto_down_generic(struct net_device *dev, bool proto_down)
+{
+	if (proto_down)
+		netif_carrier_off(dev);
+	else
+		netif_carrier_on(dev);
+	dev->proto_down = proto_down;
+	return 0;
+}
+EXPORT_SYMBOL(dev_change_proto_down_generic);
+
 u32 __dev_xdp_query(struct net_device *dev, bpf_op_t bpf_op,
 		    enum bpf_netdev_command cmd)
 {
