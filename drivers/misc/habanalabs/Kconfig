@@ -6,6 +6,7 @@ config HABANA_AI
 	tristate "HabanaAI accelerators (habanalabs)"
 	depends on PCI
 	select FRAME_VECTOR
+	select DMA_SHARED_BUFFER
 	help
 	  Enables PCIe card driver for Habana's AI Processors (AIP) that are
 	  designed to accelerate Deep Learning inference and training workloads.
