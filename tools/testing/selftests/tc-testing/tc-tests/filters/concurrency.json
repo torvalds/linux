@@ -147,5 +147,31 @@
             "$TC qdisc del dev $DEV2 ingress",
             "/bin/rm -rf $BATCH_DIR"
         ]
+    },
+    {
+        "id": "6e8f",
+        "name": "Replace and delete from same tp with 10 tc instances",
+        "category": [
+            "filter",
+            "flower",
+            "concurrency"
+        ],
+        "setup": [
+            "/bin/mkdir $BATCH_DIR",
+            "$TC qdisc add dev $DEV2 ingress",
+            "./tdc_multibatch.py -x init_ $DEV2 $BATCH_DIR 100000 10 add",
+            "find $BATCH_DIR/init_* -print | xargs -n 1 -P 5 $TC -b",
+            "./tdc_multibatch.py -x par_ -a 500001 -m 5 $DEV2 $BATCH_DIR 100000 5 replace",
+            "./tdc_multibatch.py -x par_ $DEV2 $BATCH_DIR 100000 5 del"
+        ],
+        "cmdUnderTest": "find $BATCH_DIR/par_* -print | xargs -n 1 -P 10 $TC -b",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s filter show dev $DEV2 ingress",
+        "matchPattern": "filter protocol ip pref 1 flower chain 0 handle",
+        "matchCount": "500000",
+        "teardown": [
+            "$TC qdisc del dev $DEV2 ingress",
+            "/bin/rm -rf $BATCH_DIR"
+        ]
     }
 ]
