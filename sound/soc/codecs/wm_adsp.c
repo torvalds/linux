@@ -3231,6 +3231,21 @@ static inline int wm_adsp_buffer_write(struct wm_adsp_compr_buf *buf,
 				       buf->host_buf_ptr + field_offset, data);
 }
 
+static void wm_adsp_remove_padding(u32 *buf, int nwords, int data_word_size)
+{
+	u8 *pack_in = (u8 *)buf;
+	u8 *pack_out = (u8 *)buf;
+	int i, j;
+
+	/* Remove the padding bytes from the data read from the DSP */
+	for (i = 0; i < nwords; i++) {
+		for (j = 0; j < data_word_size; j++)
+			*pack_out++ = *pack_in++;
+
+		pack_in += sizeof(*buf) - data_word_size;
+	}
+}
+
 static int wm_adsp_legacy_host_buf_addr(struct wm_adsp_compr_buf *buf)
 {
 	struct wm_adsp_alg_region *alg_region;
@@ -3666,11 +3681,9 @@ EXPORT_SYMBOL_GPL(wm_adsp_compr_pointer);
 static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 {
 	struct wm_adsp_compr_buf *buf = compr->buf;
-	u8 *pack_in = (u8 *)compr->raw_buf;
-	u8 *pack_out = (u8 *)compr->raw_buf;
 	unsigned int adsp_addr;
 	int mem_type, nwords, max_read;
-	int i, j, ret;
+	int i, ret;
 
 	/* Calculate read parameters */
 	for (i = 0; i < wm_adsp_fw[buf->dsp->fw].caps->num_regions; ++i)
@@ -3702,13 +3715,7 @@ static int wm_adsp_buffer_capture_block(struct wm_adsp_compr *compr, int target)
 	if (ret < 0)
 		return ret;
 
-	/* Remove the padding bytes from the data read from the DSP */
-	for (i = 0; i < nwords; i++) {
-		for (j = 0; j < WM_ADSP_DATA_WORD_SIZE; j++)
-			*pack_out++ = *pack_in++;
-
-		pack_in += sizeof(*(compr->raw_buf)) - WM_ADSP_DATA_WORD_SIZE;
-	}
+	wm_adsp_remove_padding(compr->raw_buf, nwords, WM_ADSP_DATA_WORD_SIZE);
 
 	/* update read index to account for words read */
 	buf->read_index += nwords;
