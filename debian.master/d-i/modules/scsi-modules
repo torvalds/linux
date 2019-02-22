@@ -126,6 +126,7 @@ zfcp ?
 sd_mod ?
 hisi_sas_v2_hw ?
 hisi_sas_v3_hw ?
+iscsi_ibft ?
 
 # device handlers
 scsi_dh_alua ?
