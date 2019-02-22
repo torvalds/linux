@@ -42,6 +42,7 @@ struct tda998x_audio_port {
 
 struct tda998x_audio_settings {
 	struct tda998x_audio_params params;
+	u8 i2s_format;
 };
 
 struct tda998x_priv {
@@ -246,7 +247,9 @@ struct tda998x_priv {
 # define HVF_CNTRL_1_SEMI_PLANAR  (1 << 6)
 #define REG_RPT_CNTRL             REG(0x00, 0xf0)     /* write */
 #define REG_I2S_FORMAT            REG(0x00, 0xfc)     /* read/write */
-# define I2S_FORMAT(x)            (((x) & 3) << 0)
+# define I2S_FORMAT_PHILIPS       (0 << 0)
+# define I2S_FORMAT_LEFT_J        (2 << 0)
+# define I2S_FORMAT_RIGHT_J       (3 << 0)
 #define REG_AIP_CLKSEL            REG(0x00, 0xfd)     /* write */
 # define AIP_CLKSEL_AIP_SPDIF	  (0 << 3)
 # define AIP_CLKSEL_AIP_I2S	  (1 << 3)
@@ -918,6 +921,7 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 		return -EINVAL;
 	}
 
+	reg_write(priv, REG_I2S_FORMAT, settings->i2s_format);
 	reg_write(priv, REG_AIP_CLKSEL, clksel_aip);
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_LAYOUT |
 					AIP_CNTRL_0_ACR_MAN);	/* auto CTS */
@@ -984,6 +988,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 				   struct hdmi_codec_params *params)
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
+	bool spdif = daifmt->fmt == HDMI_SPDIF;
 	int i, ret;
 	struct tda998x_audio_settings audio = {
 		.params = {
@@ -998,32 +1003,40 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 
 	switch (daifmt->fmt) {
 	case HDMI_I2S:
-		if (daifmt->bit_clk_inv || daifmt->frame_clk_inv ||
-		    daifmt->bit_clk_master || daifmt->frame_clk_master) {
-			dev_err(dev, "%s: Bad flags %d %d %d %d\n", __func__,
-				daifmt->bit_clk_inv, daifmt->frame_clk_inv,
-				daifmt->bit_clk_master,
-				daifmt->frame_clk_master);
-			return -EINVAL;
-		}
-		for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
-			if (priv->audio_port[i].format == AFMT_I2S)
-				audio.params.config = priv->audio_port[i].config;
-		audio.params.format = AFMT_I2S;
+		audio.i2s_format = I2S_FORMAT_PHILIPS;
+		break;
+	case HDMI_LEFT_J:
+		audio.i2s_format = I2S_FORMAT_LEFT_J;
+		break;
+	case HDMI_RIGHT_J:
+		audio.i2s_format = I2S_FORMAT_RIGHT_J;
 		break;
 	case HDMI_SPDIF:
-		for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
-			if (priv->audio_port[i].format == AFMT_SPDIF)
-				audio.params.config = priv->audio_port[i].config;
-		audio.params.format = AFMT_SPDIF;
+		audio.i2s_format = 0;
 		break;
 	default:
 		dev_err(dev, "%s: Invalid format %d\n", __func__, daifmt->fmt);
 		return -EINVAL;
 	}
 
+	audio.params.format = spdif ? AFMT_SPDIF : AFMT_I2S;
+
+	for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
+		if (priv->audio_port[i].format == audio.params.format)
+			audio.params.config = priv->audio_port[i].config;
+
 	if (audio.params.config == 0) {
 		dev_err(dev, "%s: No audio configuration found\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!spdif &&
+	    (daifmt->bit_clk_inv || daifmt->frame_clk_inv ||
+	     daifmt->bit_clk_master || daifmt->frame_clk_master)) {
+		dev_err(dev, "%s: Bad flags %d %d %d %d\n", __func__,
+			daifmt->bit_clk_inv, daifmt->frame_clk_inv,
+			daifmt->bit_clk_master,
+			daifmt->frame_clk_master);
 		return -EINVAL;
 	}
 
@@ -1631,8 +1644,10 @@ static void tda998x_set_config(struct tda998x_priv *priv,
 			    VIP_CNTRL_2_SWAP_F(p->swap_f) |
 			    (p->mirr_f ? VIP_CNTRL_2_MIRR_F : 0);
 
-	if (p->audio_params.format != AFMT_UNUSED)
+	if (p->audio_params.format != AFMT_UNUSED) {
 		priv->audio.params = p->audio_params;
+		priv->audio.i2s_format = I2S_FORMAT_PHILIPS;
+	}
 }
 
 static void tda998x_destroy(struct device *dev)
