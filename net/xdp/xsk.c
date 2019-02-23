@@ -366,7 +366,6 @@ static int xsk_release(struct socket *sock)
 
 	xskq_destroy(xs->rx);
 	xskq_destroy(xs->tx);
-	xdp_put_umem(xs->umem);
 
 	sock_orphan(sk);
 	sock->sk = NULL;
@@ -718,6 +717,18 @@ static const struct proto_ops xsk_proto_ops = {
 	.sendpage	= sock_no_sendpage,
 };
 
+static void xsk_destruct(struct sock *sk)
+{
+	struct xdp_sock *xs = xdp_sk(sk);
+
+	if (!sock_flag(sk, SOCK_DEAD))
+		return;
+
+	xdp_put_umem(xs->umem);
+
+	sk_refcnt_debug_dec(sk);
+}
+
 static int xsk_create(struct net *net, struct socket *sock, int protocol,
 		      int kern)
 {
@@ -743,6 +754,9 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	sock_init_data(sock, sk);
 
 	sk->sk_family = PF_XDP;
+
+	sk->sk_destruct = xsk_destruct;
+	sk_refcnt_debug_inc(sk);
 
 	sock_set_flag(sk, SOCK_RCU_FREE);
 
