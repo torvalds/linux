@@ -7,6 +7,7 @@
 #ifndef __KSZ_COMMON_H
 #define __KSZ_COMMON_H
 
+void ksz_port_cleanup(struct ksz_device *dev, int port);
 void ksz_update_port_member(struct ksz_device *dev, int port);
 void ksz_init_mib_timer(struct ksz_device *dev);
 

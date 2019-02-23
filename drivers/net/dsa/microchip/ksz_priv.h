@@ -48,6 +48,7 @@ struct ksz_device {
 	struct ksz_platform_data *pdata;
 	const char *name;
 
+	struct mutex dev_mutex;		/* device access */
 	struct mutex reg_mutex;		/* register access */
 	struct mutex stats_mutex;	/* status access */
 	struct mutex alu_mutex;		/* ALU access */
@@ -137,6 +138,7 @@ struct ksz_dev_ops {
 	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
 	void (*phy_setup)(struct ksz_device *dev, int port,
 			  struct phy_device *phy);
+	void (*port_cleanup)(struct ksz_device *dev, int port);
 	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
 	void (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
 	void (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);

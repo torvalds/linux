@@ -450,12 +450,14 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 			break;
 
 		member = dev->host_mask | p->vid_member;
+		mutex_lock(&dev->dev_mutex);
 
 		/* Port is a member of a bridge. */
 		if (dev->br_member & (1 << port)) {
 			dev->member |= (1 << port);
 			member = dev->member;
 		}
+		mutex_unlock(&dev->dev_mutex);
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
@@ -470,6 +472,7 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
 	p->stp_state = state;
+	mutex_lock(&dev->dev_mutex);
 	if (data & PORT_RX_ENABLE)
 		dev->rx_ports |= (1 << port);
 	else
@@ -494,6 +497,7 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	 */
 	if (forward != dev->member)
 		ksz_update_port_member(dev, port);
+	mutex_unlock(&dev->dev_mutex);
 }
 
 static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -1080,6 +1084,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
 		p->phydev.duplex = 1;
 	}
+	mutex_lock(&dev->dev_mutex);
 	if (cpu_port) {
 		member = dev->port_mask;
 		dev->on_ports = dev->host_mask;
@@ -1092,6 +1097,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		if (p->phydev.link)
 			dev->live_ports |= (1 << port);
 	}
+	mutex_unlock(&dev->dev_mutex);
 	ksz9477_cfg_port_member(dev, port, member);
 
 	/* clear pending interrupts */

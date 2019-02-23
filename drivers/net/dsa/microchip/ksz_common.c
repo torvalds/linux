@@ -20,6 +20,16 @@
 
 #include "ksz_priv.h"
 
+void ksz_port_cleanup(struct ksz_device *dev, int port)
+{
+	/* Common code for port cleanup. */
+	mutex_lock(&dev->dev_mutex);
+	dev->on_ports &= ~(1 << port);
+	dev->live_ports &= ~(1 << port);
+	mutex_unlock(&dev->dev_mutex);
+}
+EXPORT_SYMBOL_GPL(ksz_port_cleanup);
+
 void ksz_update_port_member(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p;
@@ -151,6 +161,13 @@ void ksz_adjust_link(struct dsa_switch *ds, int port,
 		p->read = true;
 		schedule_work(&dev->mib_read);
 	}
+	mutex_lock(&dev->dev_mutex);
+	if (!phydev->link)
+		dev->live_ports &= ~(1 << port);
+	else
+		/* Remember which port is connected and active. */
+		dev->live_ports |= (1 << port) & dev->on_ports;
+	mutex_unlock(&dev->dev_mutex);
 }
 EXPORT_SYMBOL_GPL(ksz_adjust_link);
 
@@ -188,7 +205,9 @@ int ksz_port_bridge_join(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
+	mutex_lock(&dev->dev_mutex);
 	dev->br_member |= (1 << port);
+	mutex_unlock(&dev->dev_mutex);
 
 	/* port_stp_state_set() will be called after to put the port in
 	 * appropriate state so there is no need to do anything.
@@ -203,8 +222,10 @@ void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
+	mutex_lock(&dev->dev_mutex);
 	dev->br_member &= ~(1 << port);
 	dev->member &= ~(1 << port);
+	mutex_unlock(&dev->dev_mutex);
 
 	/* port_stp_state_set() will be called after to put the port in
 	 * forwarding state so there is no need to do anything.
@@ -417,6 +438,7 @@ int ksz_switch_register(struct ksz_device *dev,
 		gpiod_set_value(dev->reset_gpio, 0);
 	}
 
+	mutex_init(&dev->dev_mutex);
 	mutex_init(&dev->reg_mutex);
 	mutex_init(&dev->stats_mutex);
 	mutex_init(&dev->alu_mutex);
