@@ -1279,8 +1279,8 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	next_to_use_head = ring->next_to_use;
 
-	ret = priv->ops.fill_desc(ring, skb, size, seg_num == 1 ? 1 : 0,
-				  DESC_TYPE_SKB);
+	ret = hns3_fill_desc(ring, skb, size, seg_num == 1 ? 1 : 0,
+			     DESC_TYPE_SKB);
 	if (ret)
 		goto head_fill_err;
 
@@ -1290,9 +1290,9 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		frag = &skb_shinfo(skb)->frags[i - 1];
 		size = skb_frag_size(frag);
 
-		ret = priv->ops.fill_desc(ring, frag, size,
-					  seg_num - 1 == i ? 1 : 0,
-					  DESC_TYPE_PAGE);
+		ret = hns3_fill_desc(ring, frag, size,
+				     seg_num - 1 == i ? 1 : 0,
+				     DESC_TYPE_PAGE);
 
 		if (ret)
 			goto frag_fill_err;
@@ -3579,7 +3579,6 @@ static void hns3_nic_set_priv_ops(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 
-	priv->ops.fill_desc = hns3_fill_desc;
 	if ((netdev->features & NETIF_F_TSO) ||
 	    (netdev->features & NETIF_F_TSO6))
 		priv->ops.maybe_stop_tx = hns3_nic_maybe_stop_tso;
