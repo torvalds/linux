@@ -3675,13 +3675,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_M,
 		       V2_QPC_BYTE_104_RQ_NXT_BLK_ADDR_S, 0);
 
-	roce_set_field(context->byte_108_rx_reqepsn,
-		       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
-		       V2_QPC_BYTE_108_RX_REQ_EPSN_S, attr->rq_psn);
-	roce_set_field(qpc_mask->byte_108_rx_reqepsn,
-		       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
-		       V2_QPC_BYTE_108_RX_REQ_EPSN_S, 0);
-
 	roce_set_field(context->byte_132_trrl, V2_QPC_BYTE_132_TRRL_BA_M,
 		       V2_QPC_BYTE_132_TRRL_BA_S, dma_handle_3 >> 4);
 	roce_set_field(qpc_mask->byte_132_trrl, V2_QPC_BYTE_132_TRRL_BA_M,
@@ -3788,11 +3781,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 
 	context->rq_rnr_timer = 0;
 	qpc_mask->rq_rnr_timer = 0;
-
-	roce_set_field(context->byte_152_raq, V2_QPC_BYTE_152_RAQ_PSN_M,
-		       V2_QPC_BYTE_152_RAQ_PSN_S, attr->rq_psn - 1);
-	roce_set_field(qpc_mask->byte_152_raq, V2_QPC_BYTE_152_RAQ_PSN_M,
-		       V2_QPC_BYTE_152_RAQ_PSN_S, 0);
 
 	roce_set_field(qpc_mask->byte_132_trrl, V2_QPC_BYTE_132_TRRL_HEAD_MAX_M,
 		       V2_QPC_BYTE_132_TRRL_HEAD_MAX_S, 0);
@@ -4206,6 +4194,22 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 
 	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC))
 		set_access_flags(hr_qp, context, qpc_mask, attr, attr_mask);
+
+	/* RC&UC required attr */
+	if (attr_mask & IB_QP_RQ_PSN) {
+		roce_set_field(context->byte_108_rx_reqepsn,
+			       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
+			       V2_QPC_BYTE_108_RX_REQ_EPSN_S, attr->rq_psn);
+		roce_set_field(qpc_mask->byte_108_rx_reqepsn,
+			       V2_QPC_BYTE_108_RX_REQ_EPSN_M,
+			       V2_QPC_BYTE_108_RX_REQ_EPSN_S, 0);
+
+		roce_set_field(context->byte_152_raq, V2_QPC_BYTE_152_RAQ_PSN_M,
+			       V2_QPC_BYTE_152_RAQ_PSN_S, attr->rq_psn - 1);
+		roce_set_field(qpc_mask->byte_152_raq,
+			       V2_QPC_BYTE_152_RAQ_PSN_M,
+			       V2_QPC_BYTE_152_RAQ_PSN_S, 0);
+	}
 
 	roce_set_bit(context->byte_108_rx_reqepsn, V2_QPC_BYTE_108_INV_CREDIT_S,
 		     ibqp->srq ? 1 : 0);
