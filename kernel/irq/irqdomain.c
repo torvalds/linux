@@ -458,6 +458,20 @@ void irq_set_default_host(struct irq_domain *domain)
 }
 EXPORT_SYMBOL_GPL(irq_set_default_host);
 
+/**
+ * irq_get_default_host() - Retrieve the "default" irq domain
+ *
+ * Returns: the default domain, if any.
+ *
+ * Modern code should never use this. This should only be used on
+ * systems that cannot implement a firmware->fwnode mapping (which
+ * both DT and ACPI provide).
+ */
+struct irq_domain *irq_get_default_host(void)
+{
+	return irq_default_domain;
+}
+
 static void irq_domain_clear_mapping(struct irq_domain *domain,
 				     irq_hw_number_t hwirq)
 {
