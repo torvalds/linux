@@ -383,7 +383,7 @@ int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
 	struct rhashtable_iter iter;
 	struct ila_map *ila;
 	spinlock_t *lock;
-	int ret;
+	int ret = 0;
 
 	rhashtable_walk_enter(&ilan->xlat.rhash_table, &iter);
 	rhashtable_walk_start(&iter);
