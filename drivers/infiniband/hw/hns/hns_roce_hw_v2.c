@@ -3975,7 +3975,6 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		const struct ib_global_route *grh =
 					    rdma_ah_read_grh(&attr->ah_attr);
 		const struct ib_gid_attr *gid_attr = NULL;
-		u8 src_mac[ETH_ALEN];
 		int is_roce_protocol;
 		u16 vlan = 0xffff;
 		u8 ib_port;
@@ -3990,7 +3989,6 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		if (is_roce_protocol) {
 			gid_attr = attr->ah_attr.grh.sgid_attr;
 			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
-			memcpy(src_mac, gid_attr->ndev->dev_addr, ETH_ALEN);
 		}
 
 		if (is_vlan_dev(gid_attr->ndev)) {
