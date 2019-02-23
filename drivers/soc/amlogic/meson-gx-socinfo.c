@@ -132,8 +132,10 @@ static int __init meson_gx_socinfo_init(void)
 		return -ENODEV;
 
 	/* check if interface is enabled */
-	if (!of_device_is_available(np))
+	if (!of_device_is_available(np)) {
+		of_node_put(np);
 		return -ENODEV;
+	}
 
 	/* check if chip-id is available */
 	if (!of_property_read_bool(np, "amlogic,has-chip-id"))
