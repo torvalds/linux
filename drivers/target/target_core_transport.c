@@ -266,7 +266,7 @@ struct se_session *transport_alloc_session(enum target_prot_op sup_prot_ops)
 	}
 	ret = transport_init_session(se_sess);
 	if (ret < 0) {
-		kfree(se_sess);
+		kmem_cache_free(se_sess_cache, se_sess);
 		return ERR_PTR(ret);
 	}
 	se_sess->sup_prot_ops = sup_prot_ops;

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 4
 PATCHLEVEL = 19
-SUBLEVEL = 24
+SUBLEVEL = 25
 EXTRAVERSION =
 NAME = "People's Front"
 
