@@ -438,8 +438,11 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 
 	/* the controller clock is optional */
 	port->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(port->clk))
+	if (IS_ERR(port->clk)) {
+		if (PTR_ERR(port->clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		port->clk = NULL;
+	}
 
 	err = clk_prepare_enable(port->clk);
 	if (err) {
