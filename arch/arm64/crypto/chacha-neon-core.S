@@ -158,8 +158,8 @@ ENTRY(hchacha_block_neon)
 	mov		w3, w2
 	bl		chacha_permute
 
-	st1		{v0.16b}, [x1], #16
-	st1		{v3.16b}, [x1]
+	st1		{v0.4s}, [x1], #16
+	st1		{v3.4s}, [x1]
 
 	ldp		x29, x30, [sp], #16
 	ret
