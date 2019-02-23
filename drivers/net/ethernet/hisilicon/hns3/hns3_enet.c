@@ -619,7 +619,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 		return 0;
 
 	ret = skb_cow_head(skb, 0);
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	l3.hdr = skb_network_header(skb);
@@ -1012,7 +1012,7 @@ static int hns3_fill_desc_vtags(struct sk_buff *skb,
 		int rc;
 
 		rc = skb_cow_head(skb, 0);
-		if (rc < 0)
+		if (unlikely(rc < 0))
 			return rc;
 		vhdr = (struct vlan_ethhdr *)skb->data;
 		vhdr->h_vlan_TCI |= cpu_to_be16((skb->priority & 0x7)
@@ -1057,7 +1057,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			skb_reset_mac_len(skb);
 
 			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
-			if (ret)
+			if (unlikely(ret))
 				return ret;
 			hns3_set_l2l3l4_len(skb, ol4_proto, il4_proto,
 					    &type_cs_vlan_tso,
@@ -1065,12 +1065,12 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			ret = hns3_set_l3l4_type_csum(skb, ol4_proto, il4_proto,
 						      &type_cs_vlan_tso,
 						      &ol_type_vlan_len_msec);
-			if (ret)
+			if (unlikely(ret))
 				return ret;
 
 			ret = hns3_set_tso(skb, &paylen, &mss,
 					   &type_cs_vlan_tso);
-			if (ret)
+			if (unlikely(ret))
 				return ret;
 		}
 
@@ -1090,7 +1090,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
 	}
 
-	if (dma_mapping_error(ring->dev, dma)) {
+	if (unlikely(dma_mapping_error(ring->dev, dma))) {
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
@@ -1150,7 +1150,7 @@ static int hns3_nic_maybe_stop_tso(struct sk_buff **out_skb, int *bnum,
 		size = skb_frag_size(frag);
 		bdnum_for_frag = (size + HNS3_MAX_BD_SIZE - 1) >>
 				 HNS3_MAX_BD_SIZE_OFFSET;
-		if (bdnum_for_frag > HNS3_MAX_BD_PER_FRAG)
+		if (unlikely(bdnum_for_frag > HNS3_MAX_BD_PER_FRAG))
 			return -ENOMEM;
 
 		buf_num += bdnum_for_frag;
@@ -1281,7 +1281,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ret = hns3_fill_desc(ring, skb, size, seg_num == 1 ? 1 : 0,
 			     DESC_TYPE_SKB);
-	if (ret)
+	if (unlikely(ret))
 		goto head_fill_err;
 
 	next_to_use_frag = ring->next_to_use;
@@ -1294,7 +1294,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 				     seg_num - 1 == i ? 1 : 0,
 				     DESC_TYPE_PAGE);
 
-		if (ret)
+		if (unlikely(ret))
 			goto frag_fill_err;
 	}
 
