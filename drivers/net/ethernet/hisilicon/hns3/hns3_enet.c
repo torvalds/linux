@@ -3656,7 +3656,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	ret = hns3_client_start(handle);
 	if (ret) {
 		dev_err(priv->dev, "hns3_client_start fail! ret=%d\n", ret);
-			goto out_reg_netdev_fail;
+			goto out_client_start;
 	}
 
 	hns3_dcbnl_setup(handle);
@@ -3670,6 +3670,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	return ret;
 
+out_client_start:
+	unregister_netdev(netdev);
 out_reg_netdev_fail:
 	hns3_uninit_phy(netdev);
 out_init_phy:
