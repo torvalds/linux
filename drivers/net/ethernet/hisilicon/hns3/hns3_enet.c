@@ -21,6 +21,8 @@
 #include "hnae3.h"
 #include "hns3_enet.h"
 
+#define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
+
 static void hns3_clear_all_ring(struct hnae3_handle *h);
 static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
 static void hns3_remove_hw_addr(struct net_device *netdev);
@@ -667,8 +669,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 
 	/* find the txbd field values */
 	*paylen = skb->len - hdr_len;
-	hnae3_set_bit(*type_cs_vlan_tso,
-		      HNS3_TXD_TSO_B, 1);
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_TSO_B, 1);
 
 	/* get MSS for TSO */
 	*mss = skb_shinfo(skb)->gso_size;
@@ -747,21 +748,19 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 
 	/* compute L2 header size for normal packet, defined in 2 Bytes */
 	l2_len = l3.hdr - skb->data;
-	hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_M,
-			HNS3_TXD_L2LEN_S, l2_len >> 1);
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
 
 	/* tunnel packet*/
 	if (skb->encapsulation) {
 		/* compute OL2 header size, defined in 2 Bytes */
 		ol2_len = l2_len;
-		hnae3_set_field(*ol_type_vlan_len_msec,
-				HNS3_TXD_L2LEN_M,
-				HNS3_TXD_L2LEN_S, ol2_len >> 1);
+		hns3_set_field(*ol_type_vlan_len_msec,
+			       HNS3_TXD_L2LEN_S, ol2_len >> 1);
 
 		/* compute OL3 header size, defined in 4 Bytes */
 		ol3_len = l4.hdr - l3.hdr;
-		hnae3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L3LEN_M,
-				HNS3_TXD_L3LEN_S, ol3_len >> 2);
+		hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L3LEN_S,
+			       ol3_len >> 2);
 
 		/* MAC in UDP, MAC in GRE (0x6558)*/
 		if ((ol4_proto == IPPROTO_UDP) || (ol4_proto == IPPROTO_GRE)) {
@@ -770,17 +769,16 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 
 			/* compute OL4 header size, defined in 4 Bytes. */
 			ol4_len = l2_hdr - l4.hdr;
-			hnae3_set_field(*ol_type_vlan_len_msec,
-					HNS3_TXD_L4LEN_M, HNS3_TXD_L4LEN_S,
-					ol4_len >> 2);
+			hns3_set_field(*ol_type_vlan_len_msec,
+				       HNS3_TXD_L4LEN_S, ol4_len >> 2);
 
 			/* switch IP header ptr from outer to inner header */
 			l3.hdr = skb_inner_network_header(skb);
 
 			/* compute inner l2 header size, defined in 2 Bytes. */
 			l2_len = l3.hdr - l2_hdr;
-			hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_M,
-					HNS3_TXD_L2LEN_S, l2_len >> 1);
+			hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S,
+				       l2_len >> 1);
 		} else {
 			/* skb packet types not supported by hardware,
 			 * txbd len fild doesn't be filled.
@@ -796,24 +794,21 @@ static void hns3_set_l2l3l4_len(struct sk_buff *skb, u8 ol4_proto,
 
 	/* compute inner(/normal) L3 header size, defined in 4 Bytes */
 	l3_len = l4.hdr - l3.hdr;
-	hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3LEN_M,
-			HNS3_TXD_L3LEN_S, l3_len >> 2);
+	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3LEN_S, l3_len >> 2);
 
 	/* compute inner(/normal) L4 header size, defined in 4 Bytes */
 	switch (l4_proto) {
 	case IPPROTO_TCP:
-		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_M,
-				HNS3_TXD_L4LEN_S, l4.tcp->doff);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_S,
+			       l4.tcp->doff);
 		break;
 	case IPPROTO_SCTP:
-		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_M,
-				HNS3_TXD_L4LEN_S,
-				(sizeof(struct sctphdr) >> 2));
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_S,
+			       (sizeof(struct sctphdr) >> 2));
 		break;
 	case IPPROTO_UDP:
-		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_M,
-				HNS3_TXD_L4LEN_S,
-				(sizeof(struct udphdr) >> 2));
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4LEN_S,
+			       (sizeof(struct udphdr) >> 2));
 		break;
 	default:
 		/* skb packet types not supported by hardware,
@@ -858,34 +853,30 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 		/* define outer network header type.*/
 		if (skb->protocol == htons(ETH_P_IP)) {
 			if (skb_is_gso(skb))
-				hnae3_set_field(*ol_type_vlan_len_msec,
-						HNS3_TXD_OL3T_M,
-						HNS3_TXD_OL3T_S,
-						HNS3_OL3T_IPV4_CSUM);
+				hns3_set_field(*ol_type_vlan_len_msec,
+					       HNS3_TXD_OL3T_S,
+					       HNS3_OL3T_IPV4_CSUM);
 			else
-				hnae3_set_field(*ol_type_vlan_len_msec,
-						HNS3_TXD_OL3T_M,
-						HNS3_TXD_OL3T_S,
-						HNS3_OL3T_IPV4_NO_CSUM);
+				hns3_set_field(*ol_type_vlan_len_msec,
+					       HNS3_TXD_OL3T_S,
+					       HNS3_OL3T_IPV4_NO_CSUM);
 
 		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-			hnae3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_OL3T_M,
-					HNS3_TXD_OL3T_S, HNS3_OL3T_IPV6);
+			hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_OL3T_S,
+				       HNS3_OL3T_IPV6);
 		}
 
 		/* define tunnel type(OL4).*/
 		switch (l4_proto) {
 		case IPPROTO_UDP:
-			hnae3_set_field(*ol_type_vlan_len_msec,
-					HNS3_TXD_TUNTYPE_M,
-					HNS3_TXD_TUNTYPE_S,
-					HNS3_TUN_MAC_IN_UDP);
+			hns3_set_field(*ol_type_vlan_len_msec,
+				       HNS3_TXD_TUNTYPE_S,
+				       HNS3_TUN_MAC_IN_UDP);
 			break;
 		case IPPROTO_GRE:
-			hnae3_set_field(*ol_type_vlan_len_msec,
-					HNS3_TXD_TUNTYPE_M,
-					HNS3_TXD_TUNTYPE_S,
-					HNS3_TUN_NVGRE);
+			hns3_set_field(*ol_type_vlan_len_msec,
+				       HNS3_TXD_TUNTYPE_S,
+				       HNS3_TUN_NVGRE);
 			break;
 		default:
 			/* drop the skb tunnel packet if hardware don't support,
@@ -906,43 +897,37 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 	}
 
 	if (l3.v4->version == 4) {
-		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_M,
-				HNS3_TXD_L3T_S, HNS3_L3T_IPV4);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_S,
+			       HNS3_L3T_IPV4);
 
 		/* the stack computes the IP header already, the only time we
 		 * need the hardware to recompute it is in the case of TSO.
 		 */
 		if (skb_is_gso(skb))
-			hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L3CS_B, 1);
+			hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3CS_B, 1);
 	} else if (l3.v6->version == 6) {
-		hnae3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_M,
-				HNS3_TXD_L3T_S, HNS3_L3T_IPV6);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3T_S,
+			       HNS3_L3T_IPV6);
 	}
 
 	switch (l4_proto) {
 	case IPPROTO_TCP:
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
-		hnae3_set_field(*type_cs_vlan_tso,
-				HNS3_TXD_L4T_M,
-				HNS3_TXD_L4T_S,
-				HNS3_L4T_TCP);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4T_S,
+			       HNS3_L4T_TCP);
 		break;
 	case IPPROTO_UDP:
 		if (hns3_tunnel_csum_bug(skb))
 			break;
 
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
-		hnae3_set_field(*type_cs_vlan_tso,
-				HNS3_TXD_L4T_M,
-				HNS3_TXD_L4T_S,
-				HNS3_L4T_UDP);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4T_S,
+			       HNS3_L4T_UDP);
 		break;
 	case IPPROTO_SCTP:
-		hnae3_set_bit(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
-		hnae3_set_field(*type_cs_vlan_tso,
-				HNS3_TXD_L4T_M,
-				HNS3_TXD_L4T_S,
-				HNS3_L4T_SCTP);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
+		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4T_S,
+			       HNS3_L4T_SCTP);
 		break;
 	default:
 		/* drop the skb tunnel packet if hardware don't support,
@@ -964,11 +949,8 @@ static int hns3_set_l3l4_type_csum(struct sk_buff *skb, u8 ol4_proto,
 static void hns3_set_txbd_baseinfo(u16 *bdtp_fe_sc_vld_ra_ri, int frag_end)
 {
 	/* Config bd buffer end */
-	hnae3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_BDTYPE_M,
-			HNS3_TXD_BDTYPE_S, 0);
-	hnae3_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, !!frag_end);
-	hnae3_set_bit(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1);
-	hnae3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_SC_M, HNS3_TXD_SC_S, 0);
+	hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_FE_B, !!frag_end);
+	hns3_set_field(*bdtp_fe_sc_vld_ra_ri, HNS3_TXD_VLD_B, 1);
 }
 
 static int hns3_fill_desc_vtags(struct sk_buff *skb,
@@ -1001,10 +983,10 @@ static int hns3_fill_desc_vtags(struct sk_buff *skb,
 		 * and use inner_vtag in one tag case.
 		 */
 		if (skb->protocol == htons(ETH_P_8021Q)) {
-			hnae3_set_bit(*out_vlan_flag, HNS3_TXD_OVLAN_B, 1);
+			hns3_set_field(*out_vlan_flag, HNS3_TXD_OVLAN_B, 1);
 			*out_vtag = vlan_tag;
 		} else {
-			hnae3_set_bit(*inner_vlan_flag, HNS3_TXD_VLAN_B, 1);
+			hns3_set_field(*inner_vlan_flag, HNS3_TXD_VLAN_B, 1);
 			*inner_vtag = vlan_tag;
 		}
 	} else if (skb->protocol == htons(ETH_P_8021Q)) {
