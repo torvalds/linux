@@ -14,8 +14,6 @@
 #include <linux/etherdevice.h>
 #include <net/dsa.h>
 
-#include "ksz9477_reg.h"
-
 struct ksz_io_ops;
 
 struct vlan_table {
@@ -23,6 +21,7 @@ struct vlan_table {
 };
 
 struct ksz_port_mib {
+	struct mutex cnt_mutex;		/* structure access */
 	u8 cnt_ptr;
 	u64 *counters;
 };
@@ -38,7 +37,8 @@ struct ksz_port {
 	u32 fiber:1;			/* port is fiber */
 	u32 sgmii:1;			/* port is SGMII */
 	u32 force:1;
-	u32 link_just_down:1;		/* link just goes down */
+	u32 read:1;			/* read MIB counters in background */
+	u32 freeze:1;			/* MIB counter freeze is enabled */
 
 	struct ksz_port_mib mib;
 };
@@ -78,8 +78,6 @@ struct ksz_device {
 	u32 regs_size;
 
 	struct vlan_table *vlan_cache;
-
-	u64 mib_value[TOTAL_SWITCH_COUNTER_NUM];
 
 	u8 *txbuf;
 
@@ -153,6 +151,7 @@ struct ksz_dev_ops {
 			  u64 *cnt);
 	void (*r_mib_pkt)(struct ksz_device *dev, int port, u16 addr,
 			  u64 *dropped, u64 *cnt);
+	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	int (*shutdown)(struct ksz_device *dev);
 	int (*detect)(struct ksz_device *dev);
