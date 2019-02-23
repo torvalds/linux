@@ -620,12 +620,50 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	return status;
 }
 
+/* for revision 0x20, vf shared the same rss config with pf */
+static int hclgevf_get_rss_hash_key(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_RSS_MBX_RESP_LEN	8
+
+	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	u8 resp_msg[HCLGEVF_RSS_MBX_RESP_LEN];
+	u16 msg_num, hash_key_index;
+	u8 index;
+	int ret;
+
+	msg_num = (HCLGEVF_RSS_KEY_SIZE + HCLGEVF_RSS_MBX_RESP_LEN - 1) /
+			HCLGEVF_RSS_MBX_RESP_LEN;
+	for (index = 0; index < msg_num; index++) {
+		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_RSS_KEY, 0,
+					   &index, sizeof(index),
+					   true, resp_msg,
+					   HCLGEVF_RSS_MBX_RESP_LEN);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"VF get rss hash key from PF failed, ret=%d",
+				ret);
+			return ret;
+		}
+
+		hash_key_index = HCLGEVF_RSS_MBX_RESP_LEN * index;
+		if (index == msg_num - 1)
+			memcpy(&rss_cfg->rss_hash_key[hash_key_index],
+			       &resp_msg[0],
+			       HCLGEVF_RSS_KEY_SIZE - hash_key_index);
+		else
+			memcpy(&rss_cfg->rss_hash_key[hash_key_index],
+			       &resp_msg[0], HCLGEVF_RSS_MBX_RESP_LEN);
+	}
+
+	return 0;
+}
+
 static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
-	int i;
+	int i, ret;
 
 	if (handle->pdev->revision >= 0x21) {
 		/* Get hash algorithm */
@@ -647,6 +685,16 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 		if (key)
 			memcpy(key, rss_cfg->rss_hash_key,
 			       HCLGEVF_RSS_KEY_SIZE);
+	} else {
+		if (hfunc)
+			*hfunc = ETH_RSS_HASH_TOP;
+		if (key) {
+			ret = hclgevf_get_rss_hash_key(hdev);
+			if (ret)
+				return ret;
+			memcpy(key, rss_cfg->rss_hash_key,
+			       HCLGEVF_RSS_KEY_SIZE);
+		}
 	}
 
 	if (indir)
