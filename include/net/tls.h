@@ -129,6 +129,11 @@ struct tls_rec {
 	u8 aead_req_ctx[];
 };
 
+struct tls_msg {
+	struct strp_msg rxm;
+	u8 control;
+};
+
 struct tx_work {
 	struct delayed_work work;
 	struct sock *sk;
@@ -332,6 +337,11 @@ int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 
 int tls_push_pending_closed_record(struct sock *sk, struct tls_context *ctx,
 				   int flags, long *timeo);
+
+static inline struct tls_msg *tls_msg(struct sk_buff *skb)
+{
+	return (struct tls_msg *)strp_msg(skb);
+}
 
 static inline bool tls_is_pending_closed_record(struct tls_context *ctx)
 {
