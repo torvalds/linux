@@ -1029,26 +1029,21 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
 	struct device *dev = ring_to_dev(ring);
-	u32 ol_type_vlan_len_msec = 0;
 	u16 bdtp_fe_sc_vld_ra_ri = 0;
 	struct skb_frag_struct *frag;
 	unsigned int frag_buf_num;
-	u32 type_cs_vlan_tso = 0;
-	struct sk_buff *skb;
-	u16 inner_vtag = 0;
-	u16 out_vtag = 0;
-	unsigned int k;
-	int sizeoflast;
-	u32 paylen = 0;
+	int k, sizeoflast;
 	dma_addr_t dma;
-	u16 mss = 0;
-	u8 ol4_proto;
-	u8 il4_proto;
-	int ret;
 
 	if (type == DESC_TYPE_SKB) {
-		skb = (struct sk_buff *)priv;
-		paylen = skb->len;
+		struct sk_buff *skb = (struct sk_buff *)priv;
+		u32 ol_type_vlan_len_msec = 0;
+		u32 type_cs_vlan_tso = 0;
+		u32 paylen = skb->len;
+		u16 inner_vtag = 0;
+		u16 out_vtag = 0;
+		u16 mss = 0;
+		int ret;
 
 		ret = hns3_fill_desc_vtags(skb, ring, &type_cs_vlan_tso,
 					   &ol_type_vlan_len_msec,
@@ -1057,6 +1052,8 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			return ret;
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			u8 ol4_proto, il4_proto;
+
 			skb_reset_mac_len(skb);
 
 			ret = hns3_get_l4_protocol(skb, &ol4_proto, &il4_proto);
@@ -2353,11 +2350,6 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		return;
 	}
 
-	l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
-				  HNS3_RXD_L3ID_S);
-	l4_type = hnae3_get_field(l234info, HNS3_RXD_L4ID_M,
-				  HNS3_RXD_L4ID_S);
-
 	ol4_type = hnae3_get_field(l234info, HNS3_RXD_OL4ID_M,
 				   HNS3_RXD_OL4ID_S);
 	switch (ol4_type) {
@@ -2366,6 +2358,11 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 		skb->csum_level = 1;
 		/* fall through */
 	case HNS3_OL4_TYPE_NO_TUN:
+		l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
+					  HNS3_RXD_L3ID_S);
+		l4_type = hnae3_get_field(l234info, HNS3_RXD_L4ID_M,
+					  HNS3_RXD_L4ID_S);
+
 		/* Can checksum ipv4 or ipv6 + UDP/TCP/SCTP packets */
 		if ((l3_type == HNS3_L3_TYPE_IPV4 ||
 		     l3_type == HNS3_L3_TYPE_IPV6) &&
