@@ -2318,13 +2318,12 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 	}
 
 	/* check if hardware has done checksum */
-	if (!hnae3_get_bit(bd_base_info, HNS3_RXD_L3L4P_B))
+	if (!(bd_base_info & BIT(HNS3_RXD_L3L4P_B)))
 		return;
 
-	if (unlikely(hnae3_get_bit(l234info, HNS3_RXD_L3E_B) ||
-		     hnae3_get_bit(l234info, HNS3_RXD_L4E_B) ||
-		     hnae3_get_bit(l234info, HNS3_RXD_OL3E_B) ||
-		     hnae3_get_bit(l234info, HNS3_RXD_OL4E_B))) {
+	if (unlikely(l234info & (BIT(HNS3_RXD_L3E_B) | BIT(HNS3_RXD_L4E_B) ||
+				 BIT(HNS3_RXD_OL3E_B) ||
+				 BIT(HNS3_RXD_OL4E_B)))) {
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.l3l4_csum_err++;
 		u64_stats_update_end(&ring->syncp);
@@ -2469,11 +2468,11 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
 	}
 
-	while (!hnae3_get_bit(bd_base_info, HNS3_RXD_FE_B)) {
+	while (!(bd_base_info & BIT(HNS3_RXD_FE_B))) {
 		desc = &ring->desc[ring->next_to_clean];
 		desc_cb = &ring->desc_cb[ring->next_to_clean];
 		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
-		if (!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B))
+		if (!(bd_base_info & BIT(HNS3_RXD_VLD_B)))
 			return -ENXIO;
 
 		if (unlikely(ring->frag_num >= MAX_SKB_FRAGS)) {
@@ -2587,7 +2586,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
 
 	/* Check valid BD */
-	if (unlikely(!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B)))
+	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B))))
 		return -ENXIO;
 
 	if (!skb)
@@ -2650,7 +2649,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 					       vlan_tag);
 	}
 
-	if (unlikely(!hnae3_get_bit(bd_base_info, HNS3_RXD_VLD_B))) {
+	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B)))) {
 		u64_stats_update_begin(&ring->syncp);
 		ring->stats.non_vld_descs++;
 		u64_stats_update_end(&ring->syncp);
@@ -2660,23 +2659,19 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	if (unlikely((!desc->rx.pkt_len) ||
-		     hnae3_get_bit(l234info, HNS3_RXD_TRUNCAT_B))) {
+		     (l234info & (BIT(HNS3_RXD_TRUNCAT_B) |
+				  BIT(HNS3_RXD_L2E_B))))) {
 		u64_stats_update_begin(&ring->syncp);
-		ring->stats.err_pkt_len++;
+		if (l234info & BIT(HNS3_RXD_L2E_B))
+			ring->stats.l2_err++;
+		else
+			ring->stats.err_pkt_len++;
 		u64_stats_update_end(&ring->syncp);
 
 		dev_kfree_skb_any(skb);
 		return -EFAULT;
 	}
 
-	if (unlikely(hnae3_get_bit(l234info, HNS3_RXD_L2E_B))) {
-		u64_stats_update_begin(&ring->syncp);
-		ring->stats.l2_err++;
-		u64_stats_update_end(&ring->syncp);
-
-		dev_kfree_skb_any(skb);
-		return -EFAULT;
-	}
 
 	l2_frame_type = hnae3_get_field(l234info, HNS3_RXD_DMAC_M,
 					HNS3_RXD_DMAC_S);
