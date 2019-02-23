@@ -992,7 +992,6 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	const struct da9062_regulator_info *rinfo;
 	int irq, n, ret;
-	size_t size;
 	int max_regulators;
 
 	switch (chip->chip_type) {
@@ -1010,9 +1009,8 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 	}
 
 	/* Allocate memory required by usable regulators */
-	size = sizeof(struct da9062_regulators) +
-		max_regulators * sizeof(struct da9062_regulator);
-	regulators = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	regulators = devm_kzalloc(&pdev->dev, struct_size(regulators, regulator,
+				  max_regulators), GFP_KERNEL);
 	if (!regulators)
 		return -ENOMEM;
 
