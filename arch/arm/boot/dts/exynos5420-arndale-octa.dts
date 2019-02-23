@@ -51,6 +51,11 @@
 	};
 };
 
+&adc {
+	vdd-supply = <&ldo4_reg>;
+	status = "okay";
+};
+
 &cci {
 	status = "disabled";
 };
