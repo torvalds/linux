@@ -6141,14 +6141,7 @@ static int hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 				  struct hnae3_handle *handle)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	const struct pci_device_id *id;
 	int i;
-
-	id = pci_match_id(hns_roce_hw_v2_pci_tbl, hr_dev->pci_dev);
-	if (!id) {
-		dev_err(hr_dev->dev, "device is not compatible!\n");
-		return -ENXIO;
-	}
 
 	hr_dev->hw = &hns_roce_hw_v2;
 	hr_dev->sdb_offset = ROCEE_DB_SQ_L_0_REG;
@@ -6237,6 +6230,7 @@ static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 {
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	const struct pci_device_id *id;
 	struct device *dev = &handle->pdev->dev;
 	int ret;
 
@@ -6246,6 +6240,10 @@ static int hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 		handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
 		goto reset_chk_err;
 	}
+
+	id = pci_match_id(hns_roce_hw_v2_pci_tbl, handle->pdev);
+	if (!id)
+		return 0;
 
 	ret = __hns_roce_hw_v2_init_instance(handle);
 	if (ret) {
