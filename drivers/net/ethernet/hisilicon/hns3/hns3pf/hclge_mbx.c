@@ -490,6 +490,24 @@ static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data, 2);
 }
 
+static int hclge_get_rss_key(struct hclge_vport *vport,
+			     struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+#define HCLGE_RSS_MBX_RESP_LEN	8
+	u8 resp_data[HCLGE_RSS_MBX_RESP_LEN];
+	struct hclge_dev *hdev = vport->back;
+	u8 index;
+
+	index = mbx_req->msg[2];
+
+	memcpy(&resp_data[0],
+	       &hdev->vport[0].rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],
+	       HCLGE_RSS_MBX_RESP_LEN);
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
+				    HCLGE_RSS_MBX_RESP_LEN);
+}
+
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
 	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
@@ -623,6 +641,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"PF failed(%d) to get qid for VF\n",
+					ret);
+			break;
+		case HCLGE_MBX_GET_RSS_KEY:
+			ret = hclge_get_rss_key(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF fail(%d) to get rss key for VF\n",
 					ret);
 			break;
 		case HCLGE_MBX_GET_LINK_MODE:
