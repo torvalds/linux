@@ -745,6 +745,9 @@ extern void spi_res_release(struct spi_controller *ctlr,
  *	(set by bits_per_word) transmission.
  * @word_delay: clock cycles to inter word delay after each word size
  *	(set by bits_per_word) transmission.
+ * @effective_speed_hz: the effective SCK-speed that was used to
+ *      transfer this transfer. Set to 0 if the spi bus driver does
+ *      not support it.
  * @transfer_list: transfers are sequenced through @spi_message.transfers
  * @tx_sg: Scatterlist for transmit, currently not for client use
  * @rx_sg: Scatterlist for receive, currently not for client use
@@ -834,6 +837,8 @@ struct spi_transfer {
 #define SPI_DELAY_UNIT_SCK	2
 	u32		speed_hz;
 	u16		word_delay;
+
+	u32		effective_speed_hz;
 
 	struct list_head transfer_list;
 };
