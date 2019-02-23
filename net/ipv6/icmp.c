@@ -81,7 +81,7 @@
  */
 static inline struct sock *icmpv6_sk(struct net *net)
 {
-	return net->ipv6.icmp_sk[smp_processor_id()];
+	return *this_cpu_ptr(net->ipv6.icmp_sk);
 }
 
 static int icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
@@ -958,8 +958,8 @@ static void __net_exit icmpv6_sk_exit(struct net *net)
 	int i;
 
 	for_each_possible_cpu(i)
-		inet_ctl_sock_destroy(net->ipv6.icmp_sk[i]);
-	kfree(net->ipv6.icmp_sk);
+		inet_ctl_sock_destroy(*per_cpu_ptr(net->ipv6.icmp_sk, i));
+	free_percpu(net->ipv6.icmp_sk);
 }
 
 static int __net_init icmpv6_sk_init(struct net *net)
@@ -967,8 +967,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 	struct sock *sk;
 	int err, i;
 
-	net->ipv6.icmp_sk =
-		kcalloc(nr_cpu_ids, sizeof(struct sock *), GFP_KERNEL);
+	net->ipv6.icmp_sk = alloc_percpu(struct sock *);
 	if (!net->ipv6.icmp_sk)
 		return -ENOMEM;
 
@@ -981,7 +980,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 			goto fail;
 		}
 
-		net->ipv6.icmp_sk[i] = sk;
+		*per_cpu_ptr(net->ipv6.icmp_sk, i) = sk;
 
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.
