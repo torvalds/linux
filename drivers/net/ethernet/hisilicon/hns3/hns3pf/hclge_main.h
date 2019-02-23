@@ -706,7 +706,8 @@ struct hclge_dev {
 	u16 num_alloc_vport;		/* Num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;		/* desc num of per tx queue */
+	u16 num_rx_desc;		/* desc num of per rx queue */
 	u8 hw_tc_map;
 	u8 tc_num_last_time;
 	enum hclge_fc_mode fc_mode_last_time;

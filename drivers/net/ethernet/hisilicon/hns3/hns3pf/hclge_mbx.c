@@ -357,18 +357,32 @@ static int hclge_get_vf_queue_info(struct hclge_vport *vport,
 				   struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				   bool gen_resp)
 {
-#define HCLGE_TQPS_RSS_INFO_LEN		8
+#define HCLGE_TQPS_RSS_INFO_LEN		6
 	u8 resp_data[HCLGE_TQPS_RSS_INFO_LEN];
 	struct hclge_dev *hdev = vport->back;
 
 	/* get the queue related info */
 	memcpy(&resp_data[0], &vport->alloc_tqps, sizeof(u16));
 	memcpy(&resp_data[2], &vport->nic.kinfo.rss_size, sizeof(u16));
-	memcpy(&resp_data[4], &hdev->num_desc, sizeof(u16));
-	memcpy(&resp_data[6], &hdev->rx_buf_len, sizeof(u16));
+	memcpy(&resp_data[4], &hdev->rx_buf_len, sizeof(u16));
 
 	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
 				    HCLGE_TQPS_RSS_INFO_LEN);
+}
+
+static int hclge_get_vf_queue_depth(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+				    bool gen_resp)
+{
+#define HCLGE_TQPS_DEPTH_INFO_LEN	4
+	u8 resp_data[HCLGE_TQPS_DEPTH_INFO_LEN];
+	struct hclge_dev *hdev = vport->back;
+
+	/* get the queue depth info */
+	memcpy(&resp_data[0], &hdev->num_tx_desc, sizeof(u16));
+	memcpy(&resp_data[2], &hdev->num_rx_desc, sizeof(u16));
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
+				    HCLGE_TQPS_DEPTH_INFO_LEN);
 }
 
 static int hclge_get_link_info(struct hclge_vport *vport,
@@ -567,6 +581,14 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					"PF failed(%d) to get Q info for VF\n",
 					ret);
 			break;
+		case HCLGE_MBX_GET_QDEPTH:
+			ret = hclge_get_vf_queue_depth(vport, req, true);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to get Q depth for VF\n",
+					ret);
+			break;
+
 		case HCLGE_MBX_GET_TCINFO:
 			ret = hclge_get_vf_tcinfo(vport, req, true);
 			if (ret)

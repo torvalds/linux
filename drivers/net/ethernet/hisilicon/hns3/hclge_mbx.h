@@ -21,6 +21,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_SET_MACVLAN,		/* (VF -> PF) set unicast filter */
 	HCLGE_MBX_API_NEGOTIATE,	/* (VF -> PF) negotiate API version */
 	HCLGE_MBX_GET_QINFO,		/* (VF -> PF) get queue config */
+	HCLGE_MBX_GET_QDEPTH,		/* (VF -> PF) get queue depth */
 	HCLGE_MBX_GET_TCINFO,		/* (VF -> PF) get TC config */
 	HCLGE_MBX_GET_RETA,		/* (VF -> PF) get RETA */
 	HCLGE_MBX_GET_RSS_KEY,		/* (VF -> PF) get RSS key */

@@ -748,15 +748,19 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 }
 
 static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
-				       u32 new_desc_num)
+				       u32 tx_desc_num, u32 rx_desc_num)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
 
-	h->kinfo.num_desc = new_desc_num;
+	h->kinfo.num_tx_desc = tx_desc_num;
+	h->kinfo.num_rx_desc = rx_desc_num;
 
-	for (i = 0; i < h->kinfo.num_tqps * 2; i++)
-		priv->ring_data[i].ring->desc_num = new_desc_num;
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		priv->ring_data[i].ring->desc_num = tx_desc_num;
+		priv->ring_data[i + h->kinfo.num_tqps].ring->desc_num =
+			rx_desc_num;
+	}
 
 	return hns3_init_all_ring(priv);
 }
@@ -767,7 +771,9 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
 	bool if_running = netif_running(ndev);
-	u32 old_desc_num, new_desc_num;
+	u32 old_tx_desc_num, new_tx_desc_num;
+	u32 old_rx_desc_num, new_rx_desc_num;
+	int queue_num = h->kinfo.num_tqps;
 	int ret;
 
 	if (hns3_nic_resetting(ndev))
@@ -776,32 +782,28 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (param->rx_mini_pending || param->rx_jumbo_pending)
 		return -EINVAL;
 
-	if (param->tx_pending != param->rx_pending) {
-		netdev_err(ndev,
-			   "Descriptors of tx and rx must be equal");
-		return -EINVAL;
-	}
-
 	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
-	    param->tx_pending < HNS3_RING_MIN_PENDING) {
-		netdev_err(ndev,
-			   "Descriptors requested (Tx/Rx: %d) out of range [%d-%d]\n",
-			   param->tx_pending, HNS3_RING_MIN_PENDING,
-			   HNS3_RING_MAX_PENDING);
+	    param->tx_pending < HNS3_RING_MIN_PENDING ||
+	    param->rx_pending > HNS3_RING_MAX_PENDING ||
+	    param->rx_pending < HNS3_RING_MIN_PENDING) {
+		netdev_err(ndev, "Queue depth out of range [%d-%d]\n",
+			   HNS3_RING_MIN_PENDING, HNS3_RING_MAX_PENDING);
 		return -EINVAL;
 	}
-
-	new_desc_num = param->tx_pending;
 
 	/* Hardware requires that its descriptors must be multiple of eight */
-	new_desc_num = ALIGN(new_desc_num, HNS3_RING_BD_MULTIPLE);
-	old_desc_num = h->kinfo.num_desc;
-	if (old_desc_num == new_desc_num)
+	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
+	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
+	old_tx_desc_num = priv->ring_data[0].ring->desc_num;
+	old_rx_desc_num = priv->ring_data[queue_num].ring->desc_num;
+	if (old_tx_desc_num == new_tx_desc_num &&
+	    old_rx_desc_num == new_rx_desc_num)
 		return 0;
 
 	netdev_info(ndev,
-		    "Changing descriptor count from %d to %d.\n",
-		    old_desc_num, new_desc_num);
+		    "Changing Tx/Rx ring depth from %d/%d to %d/%d\n",
+		    old_tx_desc_num, old_rx_desc_num,
+		    new_tx_desc_num, new_rx_desc_num);
 
 	if (if_running)
 		ndev->netdev_ops->ndo_stop(ndev);
@@ -810,9 +812,11 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	ret = hns3_change_all_ring_bd_num(priv, new_desc_num);
+	ret = hns3_change_all_ring_bd_num(priv, new_tx_desc_num,
+					  new_rx_desc_num);
 	if (ret) {
-		ret = hns3_change_all_ring_bd_num(priv, old_desc_num);
+		ret = hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
+						  old_rx_desc_num);
 		if (ret) {
 			netdev_err(ndev,
 				   "Revert to old bd num fail, ret=%d.\n", ret);
