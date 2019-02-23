@@ -140,6 +140,20 @@ int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 }
 EXPORT_SYMBOL_GPL(ksz_phy_write16);
 
+void ksz_adjust_link(struct dsa_switch *ds, int port,
+		     struct phy_device *phydev)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
+
+	/* Read all MIB counters when the link is going down. */
+	if (!phydev->link) {
+		p->read = true;
+		schedule_work(&dev->mib_read);
+	}
+}
+EXPORT_SYMBOL_GPL(ksz_adjust_link);
+
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
 	struct ksz_device *dev = ds->priv;
