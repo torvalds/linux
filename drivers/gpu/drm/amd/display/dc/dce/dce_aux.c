@@ -528,6 +528,8 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 			break;
 
 			case AUX_TRANSACTION_REPLY_AUX_DEFER:
+			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_NACK:
+			case AUX_TRANSACTION_REPLY_I2C_OVER_AUX_DEFER:
 				if (++aux_defer_retries >= AUX_MAX_DEFER_RETRIES)
 					goto fail;
 				break;
