@@ -409,8 +409,7 @@ F:	drivers/platform/x86/wmi.c
 F:	include/uapi/linux/wmi.h
 
 AD1889 ALSA SOUND DRIVER
-M:	Thibaut Varene <T-Bone@parisc-linux.org>
-W:	http://wiki.parisc-linux.org/AD1889
+W:	https://parisc.wiki.kernel.org/index.php/AD1889
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/pci/ad1889.*
@@ -11488,7 +11487,7 @@ F:	Documentation/blockdev/paride.txt
 F:	drivers/block/paride/
 
 PARISC ARCHITECTURE
-M:	"James E.J. Bottomley" <jejb@parisc-linux.org>
+M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 M:	Helge Deller <deller@gmx.de>
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
