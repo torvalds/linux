@@ -33,7 +33,8 @@
 
 #define MLXSW_SP_PORTS_PER_CLUSTER_MAX 4
 
-#define MLXSW_SP_PORT_BASE_SPEED 25000	/* Mb/s */
+#define MLXSW_SP_PORT_BASE_SPEED_25G 25000 /* Mb/s */
+#define MLXSW_SP_PORT_BASE_SPEED_50G 50000 /* Mb/s */
 
 #define MLXSW_SP_KVD_LINEAR_SIZE 98304 /* entries */
 #define MLXSW_SP_KVD_GRANULARITY 128
@@ -134,6 +135,7 @@ struct mlxsw_sp_mr_tcam_ops;
 struct mlxsw_sp_acl_tcam_ops;
 struct mlxsw_sp_nve_ops;
 struct mlxsw_sp_sb_vals;
+struct mlxsw_sp_port_type_speed_ops;
 
 struct mlxsw_sp {
 	struct mlxsw_sp_port **ports;
@@ -169,6 +171,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_nve_ops **nve_ops_arr;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_sb_vals *sb_vals;
+	const struct mlxsw_sp_port_type_speed_ops *port_type_speed_ops;
 };
 
 static inline struct mlxsw_sp_upper *
@@ -256,6 +259,29 @@ struct mlxsw_sp_port {
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
+};
+
+struct mlxsw_sp_port_type_speed_ops {
+	void (*from_ptys_supported_port)(struct mlxsw_sp *mlxsw_sp,
+					 u32 ptys_eth_proto,
+					 struct ethtool_link_ksettings *cmd);
+	void (*from_ptys_link)(struct mlxsw_sp *mlxsw_sp, u32 ptys_eth_proto,
+			       unsigned long *mode);
+	void (*from_ptys_speed_duplex)(struct mlxsw_sp *mlxsw_sp,
+				       bool carrier_ok, u32 ptys_eth_proto,
+				       struct ethtool_link_ksettings *cmd);
+	u32 (*to_ptys_advert_link)(struct mlxsw_sp *mlxsw_sp,
+				   const struct ethtool_link_ksettings *cmd);
+	u32 (*to_ptys_speed)(struct mlxsw_sp *mlxsw_sp, u32 speed);
+	u32 (*to_ptys_upper_speed)(struct mlxsw_sp *mlxsw_sp, u32 upper_speed);
+	int (*port_speed_base)(struct mlxsw_sp *mlxsw_sp, u8 local_port,
+			       u32 *base_speed);
+	void (*reg_ptys_eth_pack)(struct mlxsw_sp *mlxsw_sp, char *payload,
+				  u8 local_port, u32 proto_admin, bool autoneg);
+	void (*reg_ptys_eth_unpack)(struct mlxsw_sp *mlxsw_sp, char *payload,
+				    u32 *p_eth_proto_cap,
+				    u32 *p_eth_proto_admin,
+				    u32 *p_eth_proto_oper);
 };
 
 static inline struct net_device *

@@ -3971,6 +3971,25 @@ enum {
  */
 MLXSW_ITEM32(reg, ptys, an_status, 0x04, 28, 4);
 
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_SGMII_100M				BIT(0)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_1000BASE_X_SGMII			BIT(1)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_2_5GBASE_X_2_5GMII			BIT(2)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_5GBASE_R				BIT(3)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_XFI_XAUI_1_10G			BIT(4)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_XLAUI_4_XLPPI_4_40G		BIT(5)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_25GAUI_1_25GBASE_CR_KR		BIT(6)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_50GAUI_2_LAUI_2_50GBASE_CR2_KR2	BIT(7)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_50GAUI_1_LAUI_1_50GBASE_CR_KR	BIT(8)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_CAUI_4_100GBASE_CR4_KR4		BIT(9)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_100GAUI_2_100GBASE_CR2_KR2		BIT(10)
+#define MLXSW_REG_PTYS_EXT_ETH_SPEED_200GAUI_4_200GBASE_CR4_KR4		BIT(12)
+
+/* reg_ptys_ext_eth_proto_cap
+ * Extended Ethernet port supported speeds and protocols.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptys, ext_eth_proto_cap, 0x08, 0, 32);
+
 #define MLXSW_REG_PTYS_ETH_SPEED_SGMII			BIT(0)
 #define MLXSW_REG_PTYS_ETH_SPEED_1000BASE_KX		BIT(1)
 #define MLXSW_REG_PTYS_ETH_SPEED_10GBASE_CX4		BIT(2)
@@ -4025,6 +4044,12 @@ MLXSW_ITEM32(reg, ptys, ib_link_width_cap, 0x10, 16, 16);
  */
 MLXSW_ITEM32(reg, ptys, ib_proto_cap, 0x10, 0, 16);
 
+/* reg_ptys_ext_eth_proto_admin
+ * Extended speed and protocol to set port to.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptys, ext_eth_proto_admin, 0x14, 0, 32);
+
 /* reg_ptys_eth_proto_admin
  * Speed and protocol to set port to.
  * Access: RW
@@ -4042,6 +4067,12 @@ MLXSW_ITEM32(reg, ptys, ib_link_width_admin, 0x1C, 16, 16);
  * Access: RW
  */
 MLXSW_ITEM32(reg, ptys, ib_proto_admin, 0x1C, 0, 16);
+
+/* reg_ptys_ext_eth_proto_oper
+ * The extended current speed and protocol configured for the port.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, ptys, ext_eth_proto_oper, 0x20, 0, 32);
 
 /* reg_ptys_eth_proto_oper
  * The current speed and protocol configured for the port.
@@ -4061,12 +4092,23 @@ MLXSW_ITEM32(reg, ptys, ib_link_width_oper, 0x28, 16, 16);
  */
 MLXSW_ITEM32(reg, ptys, ib_proto_oper, 0x28, 0, 16);
 
-/* reg_ptys_eth_proto_lp_advertise
- * The protocols that were advertised by the link partner during
- * autonegotiation.
+enum mlxsw_reg_ptys_connector_type {
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_UNKNOWN_OR_NO_CONNECTOR,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_NONE,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_TP,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_AUI,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_BNC,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_MII,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_FIBRE,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_DA,
+	MLXSW_REG_PTYS_CONNECTOR_TYPE_PORT_OTHER,
+};
+
+/* reg_ptys_connector_type
+ * Connector type indication.
  * Access: RO
  */
-MLXSW_ITEM32(reg, ptys, eth_proto_lp_advertise, 0x30, 0, 32);
+MLXSW_ITEM32(reg, ptys, connector_type, 0x2C, 0, 4);
 
 static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
 					   u32 proto_admin, bool autoneg)
@@ -4078,17 +4120,46 @@ static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
 	mlxsw_reg_ptys_an_disable_admin_set(payload, !autoneg);
 }
 
+static inline void mlxsw_reg_ptys_ext_eth_pack(char *payload, u8 local_port,
+					       u32 proto_admin, bool autoneg)
+{
+	MLXSW_REG_ZERO(ptys, payload);
+	mlxsw_reg_ptys_local_port_set(payload, local_port);
+	mlxsw_reg_ptys_proto_mask_set(payload, MLXSW_REG_PTYS_PROTO_MASK_ETH);
+	mlxsw_reg_ptys_ext_eth_proto_admin_set(payload, proto_admin);
+	mlxsw_reg_ptys_an_disable_admin_set(payload, !autoneg);
+}
+
 static inline void mlxsw_reg_ptys_eth_unpack(char *payload,
 					     u32 *p_eth_proto_cap,
-					     u32 *p_eth_proto_adm,
+					     u32 *p_eth_proto_admin,
 					     u32 *p_eth_proto_oper)
 {
 	if (p_eth_proto_cap)
-		*p_eth_proto_cap = mlxsw_reg_ptys_eth_proto_cap_get(payload);
-	if (p_eth_proto_adm)
-		*p_eth_proto_adm = mlxsw_reg_ptys_eth_proto_admin_get(payload);
+		*p_eth_proto_cap =
+			mlxsw_reg_ptys_eth_proto_cap_get(payload);
+	if (p_eth_proto_admin)
+		*p_eth_proto_admin =
+			mlxsw_reg_ptys_eth_proto_admin_get(payload);
 	if (p_eth_proto_oper)
-		*p_eth_proto_oper = mlxsw_reg_ptys_eth_proto_oper_get(payload);
+		*p_eth_proto_oper =
+			mlxsw_reg_ptys_eth_proto_oper_get(payload);
+}
+
+static inline void mlxsw_reg_ptys_ext_eth_unpack(char *payload,
+						 u32 *p_eth_proto_cap,
+						 u32 *p_eth_proto_admin,
+						 u32 *p_eth_proto_oper)
+{
+	if (p_eth_proto_cap)
+		*p_eth_proto_cap =
+			mlxsw_reg_ptys_ext_eth_proto_cap_get(payload);
+	if (p_eth_proto_admin)
+		*p_eth_proto_admin =
+			mlxsw_reg_ptys_ext_eth_proto_admin_get(payload);
+	if (p_eth_proto_oper)
+		*p_eth_proto_oper =
+			mlxsw_reg_ptys_ext_eth_proto_oper_get(payload);
 }
 
 static inline void mlxsw_reg_ptys_ib_pack(char *payload, u8 local_port,
