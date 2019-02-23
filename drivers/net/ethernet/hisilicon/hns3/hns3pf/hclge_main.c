@@ -6337,7 +6337,7 @@ static int hclge_do_ioctl(struct hnae3_handle *handle, struct ifreq *ifr,
 }
 
 static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
-				      u8 fe_type, bool filter_en)
+				      u8 fe_type, bool filter_en, u8 vf_id)
 {
 	struct hclge_vlan_filter_ctrl_cmd *req;
 	struct hclge_desc desc;
@@ -6348,6 +6348,7 @@ static int hclge_set_vlan_filter_ctrl(struct hclge_dev *hdev, u8 vlan_type,
 	req = (struct hclge_vlan_filter_ctrl_cmd *)desc.data;
 	req->vlan_type = vlan_type;
 	req->vlan_fe = filter_en ? fe_type : 0;
+	req->vf_id = vf_id;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -6376,12 +6377,13 @@ static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 
 	if (hdev->pdev->revision >= 0x21) {
 		hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
-					   HCLGE_FILTER_FE_EGRESS, enable);
+					   HCLGE_FILTER_FE_EGRESS, enable, 0);
 		hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_PORT,
-					   HCLGE_FILTER_FE_INGRESS, enable);
+					   HCLGE_FILTER_FE_INGRESS, enable, 0);
 	} else {
 		hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
-					   HCLGE_FILTER_FE_EGRESS_V1_B, enable);
+					   HCLGE_FILTER_FE_EGRESS_V1_B, enable,
+					   0);
 	}
 	if (enable)
 		handle->netdev_flags |= HNAE3_VLAN_FLTR;
@@ -6689,19 +6691,27 @@ static int hclge_init_vlan_config(struct hclge_dev *hdev)
 	int i;
 
 	if (hdev->pdev->revision >= 0x21) {
-		ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
-						 HCLGE_FILTER_FE_EGRESS, true);
-		if (ret)
-			return ret;
+		/* for revision 0x21, vf vlan filter is per function */
+		for (i = 0; i < hdev->num_alloc_vport; i++) {
+			vport = &hdev->vport[i];
+			ret = hclge_set_vlan_filter_ctrl(hdev,
+							 HCLGE_FILTER_TYPE_VF,
+							 HCLGE_FILTER_FE_EGRESS,
+							 true,
+							 vport->vport_id);
+			if (ret)
+				return ret;
+		}
 
 		ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_PORT,
-						 HCLGE_FILTER_FE_INGRESS, true);
+						 HCLGE_FILTER_FE_INGRESS, true,
+						 0);
 		if (ret)
 			return ret;
 	} else {
 		ret = hclge_set_vlan_filter_ctrl(hdev, HCLGE_FILTER_TYPE_VF,
 						 HCLGE_FILTER_FE_EGRESS_V1_B,
-						 true);
+						 true, 0);
 		if (ret)
 			return ret;
 	}
