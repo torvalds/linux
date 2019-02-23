@@ -435,7 +435,10 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 
 		entity->stream_count++;
 
-		if (WARN_ON(entity->pipe && entity->pipe != pipe)) {
+		if (entity->pipe && entity->pipe != pipe) {
+			pr_err("Pipe active for %s. Can't start for %s\n",
+				entity->name,
+				entity_err->name);
 			ret = -EBUSY;
 			goto error;
 		}
