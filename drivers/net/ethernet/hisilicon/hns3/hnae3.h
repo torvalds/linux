@@ -87,7 +87,8 @@ struct hnae3_queue {
 	struct hnae3_handle *handle;
 	int tqp_index;	/* index in a handle */
 	u32 buf_size;	/* size for hnae_desc->addr, preset by AE */
-	u16 desc_num;	/* total number of desc */
+	u16 tx_desc_num;/* total number of tx desc */
+	u16 rx_desc_num;/* total number of rx desc */
 };
 
 /*hnae3 loop mode*/
@@ -505,7 +506,8 @@ struct hnae3_knic_private_info {
 	u16 rss_size;		   /* Allocated RSS queues */
 	u16 req_rss_size;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;
+	u16 num_rx_desc;
 
 	u8 num_tc;		   /* Total number of enabled TCs */
 	u8 prio_tc[HNAE3_MAX_USER_PRIO];  /* TC indexed by prio */
@@ -537,7 +539,9 @@ struct hnae3_roce_private_info {
 struct hnae3_unic_private_info {
 	struct net_device *netdev;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;
+	u16 num_rx_desc;
+
 	u16 num_tqps;	/* total number of tqps in this handle */
 	struct hnae3_queue **tqp;  /* array base of all TQPs of this instance */
 };

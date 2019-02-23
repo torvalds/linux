@@ -3231,19 +3231,21 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 {
 	struct hns3_nic_ring_data *ring_data = priv->ring_data;
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
-	int desc_num = priv->ae_handle->kinfo.num_desc;
 	struct pci_dev *pdev = priv->ae_handle->pdev;
 	struct hns3_enet_ring *ring;
+	int desc_num;
 
 	ring = devm_kzalloc(&pdev->dev, sizeof(*ring), GFP_KERNEL);
 	if (!ring)
 		return -ENOMEM;
 
 	if (ring_type == HNAE3_RING_TYPE_TX) {
+		desc_num = priv->ae_handle->kinfo.num_tx_desc;
 		ring_data[q->tqp_index].ring = ring;
 		ring_data[q->tqp_index].queue_index = q->tqp_index;
 		ring->io_base = (u8 __iomem *)q->io_base + HNS3_TX_REG_OFFSET;
 	} else {
+		desc_num = priv->ae_handle->kinfo.num_rx_desc;
 		ring_data[q->tqp_index + queue_num].ring = ring;
 		ring_data[q->tqp_index + queue_num].queue_index = q->tqp_index;
 		ring->io_base = q->io_base;
