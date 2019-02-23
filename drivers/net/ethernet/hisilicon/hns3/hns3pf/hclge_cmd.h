@@ -693,7 +693,9 @@ struct hclge_mac_vlan_remove_cmd {
 struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
-	u8 rsv[22];
+	u8 rsv1[2];
+	u8 vf_id;
+	u8 rsv2[19];
 };
 
 struct hclge_vlan_filter_pf_cfg_cmd {
