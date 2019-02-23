@@ -392,7 +392,7 @@ struct intel_engine_cs {
 		bool irq_armed;
 	} breadcrumbs;
 
-	struct {
+	struct intel_engine_pmu {
 		/**
 		 * @enable: Bitmask of enable sample events on this engine.
 		 *
