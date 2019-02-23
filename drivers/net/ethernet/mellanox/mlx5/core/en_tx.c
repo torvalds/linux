@@ -508,9 +508,8 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq, int napi_budget)
 					      &sq->state)) {
 				mlx5e_dump_error_cqe(sq,
 						     (struct mlx5_err_cqe *)cqe);
-				if (!IS_ERR_OR_NULL(cq->channel->priv->tx_reporter))
-					queue_work(cq->channel->priv->wq,
-						   &sq->recover_work);
+				queue_work(cq->channel->priv->wq,
+					   &sq->recover_work);
 			}
 			stats->cqe_err++;
 		}

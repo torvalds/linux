@@ -64,6 +64,9 @@ enum {
 	PROMISC_CHANGE = BIT(3),
 };
 
+static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw);
+static void esw_cleanup_vepa_rules(struct mlx5_eswitch *esw);
+
 /* Vport context events */
 #define SRIOV_VPORT_EVENTS (UC_ADDR_CHANGE | \
 			    MC_ADDR_CHANGE | \
@@ -268,6 +271,37 @@ esw_fdb_set_vport_promisc_rule(struct mlx5_eswitch *esw, u16 vport)
 	return __esw_fdb_set_vport_rule(esw, vport, true, mac_c, mac_v);
 }
 
+enum {
+	LEGACY_VEPA_PRIO = 0,
+	LEGACY_FDB_PRIO,
+};
+
+static int esw_create_legacy_vepa_table(struct mlx5_eswitch *esw)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_namespace *root_ns;
+	struct mlx5_flow_table *fdb;
+	int err;
+
+	root_ns = mlx5_get_fdb_sub_ns(dev, 0);
+	if (!root_ns) {
+		esw_warn(dev, "Failed to get FDB flow namespace\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* num FTE 2, num FG 2 */
+	fdb = mlx5_create_auto_grouped_flow_table(root_ns, LEGACY_VEPA_PRIO,
+						  2, 2, 0, 0);
+	if (IS_ERR(fdb)) {
+		err = PTR_ERR(fdb);
+		esw_warn(dev, "Failed to create VEPA FDB err %d\n", err);
+		return err;
+	}
+	esw->fdb_table.legacy.vepa_fdb = fdb;
+
+	return 0;
+}
+
 static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
@@ -296,8 +330,8 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)
 		return -ENOMEM;
 
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size));
-
 	ft_attr.max_fte = table_size;
+	ft_attr.prio = LEGACY_FDB_PRIO;
 	fdb = mlx5_create_flow_table(root_ns, &ft_attr);
 	if (IS_ERR(fdb)) {
 		err = PTR_ERR(fdb);
@@ -356,39 +390,63 @@ static int esw_create_legacy_fdb_table(struct mlx5_eswitch *esw)
 	esw->fdb_table.legacy.promisc_grp = g;
 
 out:
-	if (err) {
-		if (!IS_ERR_OR_NULL(esw->fdb_table.legacy.allmulti_grp)) {
-			mlx5_destroy_flow_group(esw->fdb_table.legacy.allmulti_grp);
-			esw->fdb_table.legacy.allmulti_grp = NULL;
-		}
-		if (!IS_ERR_OR_NULL(esw->fdb_table.legacy.addr_grp)) {
-			mlx5_destroy_flow_group(esw->fdb_table.legacy.addr_grp);
-			esw->fdb_table.legacy.addr_grp = NULL;
-		}
-		if (!IS_ERR_OR_NULL(esw->fdb_table.legacy.fdb)) {
-			mlx5_destroy_flow_table(esw->fdb_table.legacy.fdb);
-			esw->fdb_table.legacy.fdb = NULL;
-		}
-	}
+	if (err)
+		esw_destroy_legacy_fdb_table(esw);
 
 	kvfree(flow_group_in);
 	return err;
 }
 
+static void esw_destroy_legacy_vepa_table(struct mlx5_eswitch *esw)
+{
+	esw_debug(esw->dev, "Destroy VEPA Table\n");
+	if (!esw->fdb_table.legacy.vepa_fdb)
+		return;
+
+	mlx5_destroy_flow_table(esw->fdb_table.legacy.vepa_fdb);
+	esw->fdb_table.legacy.vepa_fdb = NULL;
+}
+
 static void esw_destroy_legacy_fdb_table(struct mlx5_eswitch *esw)
 {
+	esw_debug(esw->dev, "Destroy FDB Table\n");
 	if (!esw->fdb_table.legacy.fdb)
 		return;
 
-	esw_debug(esw->dev, "Destroy FDB Table\n");
-	mlx5_destroy_flow_group(esw->fdb_table.legacy.promisc_grp);
-	mlx5_destroy_flow_group(esw->fdb_table.legacy.allmulti_grp);
-	mlx5_destroy_flow_group(esw->fdb_table.legacy.addr_grp);
+	if (esw->fdb_table.legacy.promisc_grp)
+		mlx5_destroy_flow_group(esw->fdb_table.legacy.promisc_grp);
+	if (esw->fdb_table.legacy.allmulti_grp)
+		mlx5_destroy_flow_group(esw->fdb_table.legacy.allmulti_grp);
+	if (esw->fdb_table.legacy.addr_grp)
+		mlx5_destroy_flow_group(esw->fdb_table.legacy.addr_grp);
 	mlx5_destroy_flow_table(esw->fdb_table.legacy.fdb);
+
 	esw->fdb_table.legacy.fdb = NULL;
 	esw->fdb_table.legacy.addr_grp = NULL;
 	esw->fdb_table.legacy.allmulti_grp = NULL;
 	esw->fdb_table.legacy.promisc_grp = NULL;
+}
+
+static int esw_create_legacy_table(struct mlx5_eswitch *esw)
+{
+	int err;
+
+	err = esw_create_legacy_vepa_table(esw);
+	if (err)
+		return err;
+
+	err = esw_create_legacy_fdb_table(esw);
+	if (err)
+		esw_destroy_legacy_vepa_table(esw);
+
+	return err;
+}
+
+static void esw_destroy_legacy_table(struct mlx5_eswitch *esw)
+{
+	esw_cleanup_vepa_rules(esw);
+	esw_destroy_legacy_fdb_table(esw);
+	esw_destroy_legacy_vepa_table(esw);
 }
 
 /* E-Switch vport UC/MC lists management */
@@ -1677,7 +1735,9 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	mlx5_lag_update(esw->dev);
 
 	if (mode == SRIOV_LEGACY) {
-		err = esw_create_legacy_fdb_table(esw);
+		err = esw_create_legacy_table(esw);
+		if (err)
+			goto abort;
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
@@ -1758,7 +1818,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw)
 	esw_destroy_tsar(esw);
 
 	if (esw->mode == SRIOV_LEGACY)
-		esw_destroy_legacy_fdb_table(esw);
+		esw_destroy_legacy_table(esw);
 	else if (esw->mode == SRIOV_OFFLOADS)
 		esw_offloads_cleanup(esw);
 
@@ -2038,6 +2098,127 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 		evport->info.spoofchk = pschk;
 	mutex_unlock(&esw->state_lock);
 
+	return err;
+}
+
+static void esw_cleanup_vepa_rules(struct mlx5_eswitch *esw)
+{
+	if (esw->fdb_table.legacy.vepa_uplink_rule)
+		mlx5_del_flow_rules(esw->fdb_table.legacy.vepa_uplink_rule);
+
+	if (esw->fdb_table.legacy.vepa_star_rule)
+		mlx5_del_flow_rules(esw->fdb_table.legacy.vepa_star_rule);
+
+	esw->fdb_table.legacy.vepa_uplink_rule = NULL;
+	esw->fdb_table.legacy.vepa_star_rule = NULL;
+}
+
+static int _mlx5_eswitch_set_vepa_locked(struct mlx5_eswitch *esw,
+					 u8 setting)
+{
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+	void *misc;
+
+	if (!setting) {
+		esw_cleanup_vepa_rules(esw);
+		return 0;
+	}
+
+	if (esw->fdb_table.legacy.vepa_uplink_rule)
+		return 0;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	/* Uplink rule forward uplink traffic to FDB */
+	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters);
+	MLX5_SET(fte_match_set_misc, misc, source_port, MLX5_VPORT_UPLINK);
+
+	misc = MLX5_ADDR_OF(fte_match_param, spec->match_criteria, misc_parameters);
+	MLX5_SET_TO_ONES(fte_match_set_misc, misc, source_port);
+
+	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = esw->fdb_table.legacy.fdb;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.legacy.vepa_fdb, spec,
+					&flow_act, &dest, 1);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		goto out;
+	} else {
+		esw->fdb_table.legacy.vepa_uplink_rule = flow_rule;
+	}
+
+	/* Star rule to forward all traffic to uplink vport */
+	memset(spec, 0, sizeof(*spec));
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
+	dest.vport.num = MLX5_VPORT_UPLINK;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	flow_rule = mlx5_add_flow_rules(esw->fdb_table.legacy.vepa_fdb, spec,
+					&flow_act, &dest, 1);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		goto out;
+	} else {
+		esw->fdb_table.legacy.vepa_star_rule = flow_rule;
+	}
+
+out:
+	kvfree(spec);
+	if (err)
+		esw_cleanup_vepa_rules(esw);
+	return err;
+}
+
+int mlx5_eswitch_set_vepa(struct mlx5_eswitch *esw, u8 setting)
+{
+	int err = 0;
+
+	if (!esw)
+		return -EOPNOTSUPP;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+
+	mutex_lock(&esw->state_lock);
+	if (esw->mode != SRIOV_LEGACY) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	err = _mlx5_eswitch_set_vepa_locked(esw, setting);
+
+out:
+	mutex_unlock(&esw->state_lock);
+	return err;
+}
+
+int mlx5_eswitch_get_vepa(struct mlx5_eswitch *esw, u8 *setting)
+{
+	int err = 0;
+
+	if (!esw)
+		return -EOPNOTSUPP;
+
+	if (!ESW_ALLOWED(esw))
+		return -EPERM;
+
+	mutex_lock(&esw->state_lock);
+	if (esw->mode != SRIOV_LEGACY) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	*setting = esw->fdb_table.legacy.vepa_uplink_rule ? 1 : 0;
+
+out:
+	mutex_unlock(&esw->state_lock);
 	return err;
 }
 

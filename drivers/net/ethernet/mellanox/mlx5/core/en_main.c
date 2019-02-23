@@ -35,6 +35,7 @@
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
 #include <linux/bpf.h>
+#include <linux/if_bridge.h>
 #include <net/page_pool.h>
 #include "eswitch.h"
 #include "en.h"
@@ -4173,12 +4174,6 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	netdev_err(dev, "TX timeout detected\n");
-
-	if (IS_ERR_OR_NULL(priv->tx_reporter)) {
-		netdev_err_once(priv->netdev, "tx timeout will not be handled, no valid tx reporter\n");
-		return;
-	}
-
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
@@ -4311,6 +4306,61 @@ static int mlx5e_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+#ifdef CONFIG_MLX5_ESWITCH
+static int mlx5e_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				struct net_device *dev, u32 filter_mask,
+				int nlflags)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 mode, setting;
+	int err;
+
+	err = mlx5_eswitch_get_vepa(mdev->priv.eswitch, &setting);
+	if (err)
+		return err;
+	mode = setting ? BRIDGE_MODE_VEPA : BRIDGE_MODE_VEB;
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
+				       mode,
+				       0, 0, nlflags, filter_mask, NULL);
+}
+
+static int mlx5e_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
+				u16 flags, struct netlink_ext_ack *extack)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct nlattr *attr, *br_spec;
+	u16 mode = BRIDGE_MODE_UNDEF;
+	u8 setting;
+	int rem;
+
+	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+	if (!br_spec)
+		return -EINVAL;
+
+	nla_for_each_nested(attr, br_spec, rem) {
+		if (nla_type(attr) != IFLA_BRIDGE_MODE)
+			continue;
+
+		if (nla_len(attr) < sizeof(mode))
+			return -EINVAL;
+
+		mode = nla_get_u16(attr);
+		if (mode > BRIDGE_MODE_VEPA)
+			return -EINVAL;
+
+		break;
+	}
+
+	if (mode == BRIDGE_MODE_UNDEF)
+		return -EINVAL;
+
+	setting = (mode == BRIDGE_MODE_VEPA) ?  1 : 0;
+	return mlx5_eswitch_set_vepa(mdev->priv.eswitch, setting);
+}
+#endif
+
 const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_open                = mlx5e_open,
 	.ndo_stop                = mlx5e_close,
@@ -4337,6 +4387,9 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
 #ifdef CONFIG_MLX5_ESWITCH
+	.ndo_bridge_setlink      = mlx5e_bridge_setlink,
+	.ndo_bridge_getlink      = mlx5e_bridge_getlink,
+
 	/* SRIOV E-Switch NDOs */
 	.ndo_set_vf_mac          = mlx5e_set_vf_mac,
 	.ndo_set_vf_vlan         = mlx5e_set_vf_vlan,

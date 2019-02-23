@@ -113,6 +113,18 @@ static int mlx5e_tx_reporter_err_cqe_recover(struct mlx5e_txqsq *sq)
 	return 0;
 }
 
+static int mlx5_tx_health_report(struct devlink_health_reporter *tx_reporter,
+				 char *err_str,
+				 struct mlx5e_tx_err_ctx *err_ctx)
+{
+	if (IS_ERR_OR_NULL(tx_reporter)) {
+		netdev_err(err_ctx->sq->channel->netdev, err_str);
+		return err_ctx->recover(err_ctx->sq);
+	}
+
+	return devlink_health_report(tx_reporter, err_str, err_ctx);
+}
+
 void mlx5e_tx_reporter_err_cqe(struct mlx5e_txqsq *sq)
 {
 	char err_str[MLX5E_TX_REPORTER_PER_SQ_MAX_LEN];
@@ -122,7 +134,7 @@ void mlx5e_tx_reporter_err_cqe(struct mlx5e_txqsq *sq)
 	err_ctx.recover  = mlx5e_tx_reporter_err_cqe_recover;
 	sprintf(err_str, "ERR CQE on SQ: 0x%x", sq->sqn);
 
-	devlink_health_report(sq->channel->priv->tx_reporter, err_str,
+	mlx5_tx_health_report(sq->channel->priv->tx_reporter, err_str,
 			      &err_ctx);
 }
 
@@ -136,7 +148,7 @@ static int mlx5e_tx_reporter_timeout_recover(struct mlx5e_txqsq *sq)
 		   eq->core.eqn, eq->core.cons_index, eq->core.irqn);
 
 	eqe_count = mlx5_eq_poll_irq_disabled(eq);
-	ret = eqe_count ? true : false;
+	ret = eqe_count ? false : true;
 	if (!eqe_count) {
 		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 		return ret;
@@ -160,7 +172,7 @@ int mlx5e_tx_reporter_timeout(struct mlx5e_txqsq *sq)
 		sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 		jiffies_to_usecs(jiffies - sq->txq->trans_start));
 
-	return devlink_health_report(sq->channel->priv->tx_reporter, err_str,
+	return mlx5_tx_health_report(sq->channel->priv->tx_reporter, err_str,
 				     &err_ctx);
 }
 
@@ -281,11 +293,11 @@ int mlx5e_tx_reporter_create(struct mlx5e_priv *priv)
 		devlink_health_reporter_create(devlink, &mlx5_tx_reporter_ops,
 					       MLX5_REPORTER_TX_GRACEFUL_PERIOD,
 					       true, priv);
-	if (IS_ERR_OR_NULL(priv->tx_reporter))
+	if (IS_ERR(priv->tx_reporter))
 		netdev_warn(priv->netdev,
 			    "Failed to create tx reporter, err = %ld\n",
 			    PTR_ERR(priv->tx_reporter));
-	return PTR_ERR_OR_ZERO(priv->tx_reporter);
+	return IS_ERR_OR_NULL(priv->tx_reporter);
 }
 
 void mlx5e_tx_reporter_destroy(struct mlx5e_priv *priv)

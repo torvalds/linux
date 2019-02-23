@@ -8473,9 +8473,17 @@ struct mlx5_ifc_pamp_reg_bits {
 struct mlx5_ifc_pcmr_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         local_port[0x8];
-	u8         reserved_at_10[0x2e];
+	u8         reserved_at_10[0x10];
+	u8         entropy_force_cap[0x1];
+	u8         entropy_calc_cap[0x1];
+	u8         entropy_gre_calc_cap[0x1];
+	u8         reserved_at_23[0x1b];
 	u8         fcs_cap[0x1];
-	u8         reserved_at_3f[0x1f];
+	u8         reserved_at_3f[0x1];
+	u8         entropy_force[0x1];
+	u8         entropy_calc[0x1];
+	u8         entropy_gre_calc[0x1];
+	u8         reserved_at_43[0x1b];
 	u8         fcs_chk[0x1];
 	u8         reserved_at_5f[0x1];
 };
