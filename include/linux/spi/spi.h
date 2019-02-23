@@ -831,6 +831,7 @@ struct spi_transfer {
 	u8		cs_change_delay_unit;
 #define SPI_DELAY_UNIT_USECS	0
 #define SPI_DELAY_UNIT_NSECS	1
+#define SPI_DELAY_UNIT_SCK	2
 	u32		speed_hz;
 	u16		word_delay;
 

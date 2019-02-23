@@ -1111,6 +1111,7 @@ static void _spi_transfer_cs_change_delay(struct spi_message *msg,
 {
 	u32 delay = xfer->cs_change_delay;
 	u32 unit = xfer->cs_change_delay_unit;
+	u32 hz;
 
 	/* return early on "fast" mode - for everything but USECS */
 	if (!delay && unit != SPI_DELAY_UNIT_USECS)
@@ -1125,6 +1126,13 @@ static void _spi_transfer_cs_change_delay(struct spi_message *msg,
 			delay *= 1000;
 		break;
 	case SPI_DELAY_UNIT_NSECS: /* nothing to do here */
+		break;
+	case SPI_DELAY_UNIT_SCK:
+		/* if there is no effective speed know, then approximate
+		 * by underestimating with half the requested hz
+		 */
+		hz = xfer->effective_speed_hz ?: xfer->speed_hz / 2;
+		delay *= DIV_ROUND_UP(1000000000, hz);
 		break;
 	default:
 		dev_err_once(&msg->spi->dev,
