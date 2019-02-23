@@ -5,15 +5,11 @@
  * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
 
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/iopoll.h>
 #include <linux/platform_data/microchip-ksz.h>
 #include <linux/phy.h>
-#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
