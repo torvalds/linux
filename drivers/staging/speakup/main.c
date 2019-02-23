@@ -1979,6 +1979,7 @@ oops:
 		return 1;
 	}
 
+	/* Do not replace with kstrtoul: here we need cp to be updated */
 	goto_pos = simple_strtoul(goto_buf, &cp, 10);
 
 	if (*cp == 'x') {
