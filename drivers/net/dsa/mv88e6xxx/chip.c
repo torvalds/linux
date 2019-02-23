@@ -442,11 +442,19 @@ out_mapping:
 
 static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 {
+	static struct lock_class_key lock_key;
+	static struct lock_class_key request_key;
 	int err;
 
 	err = mv88e6xxx_g1_irq_setup_common(chip);
 	if (err)
 		return err;
+
+	/* These lock classes tells lockdep that global 1 irqs are in
+	 * a different category than their parent GPIO, so it won't
+	 * report false recursion.
+	 */
+	irq_set_lockdep_class(chip->irq, &lock_key, &request_key);
 
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
