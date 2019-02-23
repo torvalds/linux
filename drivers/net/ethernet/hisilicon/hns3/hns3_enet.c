@@ -378,6 +378,29 @@ out_start_err:
 	return ret;
 }
 
+static void hns3_config_xps(struct hns3_nic_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->vector_num; i++) {
+		struct hns3_enet_tqp_vector *tqp_vector = &priv->tqp_vector[i];
+		struct hns3_enet_ring *ring = tqp_vector->tx_group.ring;
+
+		while (ring) {
+			int ret;
+
+			ret = netif_set_xps_queue(priv->netdev,
+						  &tqp_vector->affinity_mask,
+						  ring->tqp->tqp_index);
+			if (ret)
+				netdev_warn(priv->netdev,
+					    "set xps queue failed: %d", ret);
+
+			ring = ring->next;
+		}
+	}
+}
+
 static int hns3_nic_net_open(struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -410,6 +433,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
 
+	hns3_config_xps(priv);
 	return 0;
 }
 
