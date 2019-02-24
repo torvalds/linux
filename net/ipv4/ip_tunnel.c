@@ -654,14 +654,17 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, u8 protocol)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
+	struct ip_tunnel_info *tun_info = NULL;
 	const struct iphdr *inner_iph;
-	struct flowi4 fl4;
-	u8     tos, ttl;
-	__be16 df;
-	struct rtable *rt;		/* Route to the other host */
 	unsigned int max_headroom;	/* The extra header space needed */
-	__be32 dst;
+	struct rtable *rt = NULL;		/* Route to the other host */
+	bool use_cache = false;
+	struct flowi4 fl4;
+	bool md = false;
 	bool connected;
+	u8 tos, ttl;
+	__be32 dst;
+	__be16 df;
 
 	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
@@ -671,7 +674,6 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	dst = tnl_params->daddr;
 	if (dst == 0) {
 		/* NBMA tunnel */
-		struct ip_tunnel_info *tun_info;
 
 		if (!skb_dst(skb)) {
 			dev->stats.tx_fifo_errors++;
@@ -681,8 +683,11 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		tun_info = skb_tunnel_info(skb);
 		if (tun_info && (tun_info->mode & IP_TUNNEL_INFO_TX) &&
 		    ip_tunnel_info_af(tun_info) == AF_INET &&
-		    tun_info->key.u.ipv4.dst)
+		    tun_info->key.u.ipv4.dst) {
 			dst = tun_info->key.u.ipv4.dst;
+			md = true;
+			connected = true;
+		}
 		else if (skb->protocol == htons(ETH_P_IP)) {
 			rt = skb_rtable(skb);
 			dst = rt_nexthop(rt, inner_iph->daddr);
@@ -721,7 +726,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		else
 			goto tx_error;
 
-		connected = false;
+		if (!md)
+			connected = false;
 	}
 
 	tos = tnl_params->tos;
@@ -743,8 +749,15 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
 		goto tx_error;
 
-	rt = connected ? dst_cache_get_ip4(&tunnel->dst_cache, &fl4.saddr) :
-			 NULL;
+	if (connected && md) {
+		use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
+		if (use_cache)
+			rt = dst_cache_get_ip4(&tun_info->dst_cache,
+					       &fl4.saddr);
+	} else {
+		rt = connected ? dst_cache_get_ip4(&tunnel->dst_cache,
+						&fl4.saddr) : NULL;
+	}
 
 	if (!rt) {
 		rt = ip_route_output_key(tunnel->net, &fl4);
@@ -753,7 +766,10 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 			dev->stats.tx_carrier_errors++;
 			goto tx_error;
 		}
-		if (connected)
+		if (use_cache)
+			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
+					  fl4.saddr);
+		else if (!md && connected)
 			dst_cache_set_ip4(&tunnel->dst_cache, &rt->dst,
 					  fl4.saddr);
 	}
