@@ -16,7 +16,9 @@
 		{ NUD_STALE, "stale" },			\
 		{ NUD_DELAY, "delay" },			\
 		{ NUD_PROBE, "probe" },			\
-		{ NUD_FAILED, "failed" })
+		{ NUD_FAILED, "failed" },		\
+		{ NUD_NOARP, "noarp" },			\
+		{ NUD_PERMANENT, "permanent"})
 
 TRACE_EVENT(neigh_update,
 
@@ -90,7 +92,7 @@ TRACE_EVENT(neigh_update,
 	TP_printk("family %d dev %s lladdr %s flags %02x nud_state %s type %02x "
 		  "dead %d refcnt %d primary_key4 %pI4 primary_key6 %pI6c "
 		  "confirmed %lu updated %lu used %lu new_lladdr %s "
-		  "new_state %02x update_flags %02x pid %d",
+		  "new_state %s update_flags %02x pid %d",
 		  __entry->family, __get_str(dev),
 		  __print_hex_str(__entry->lladdr, __entry->lladdr_len),
 		  __entry->flags, neigh_state_str(__entry->nud_state),
@@ -98,7 +100,7 @@ TRACE_EVENT(neigh_update,
 		  __entry->primary_key4, __entry->primary_key6,
 		  __entry->confirmed, __entry->updated, __entry->used,
 		  __print_hex_str(__entry->new_lladdr, __entry->lladdr_len),
-		  __entry->new_state,
+		  neigh_state_str(__entry->new_state),
 		  __entry->update_flags, __entry->pid)
 );
 
