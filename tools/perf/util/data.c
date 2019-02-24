@@ -41,12 +41,27 @@ static int check_backup(struct perf_data *data)
 		return 0;
 
 	if (!stat(data->path, &st) && st.st_size) {
-		/* TODO check errors properly */
 		char oldname[PATH_MAX];
+		int ret;
+
 		snprintf(oldname, sizeof(oldname), "%s.old",
 			 data->path);
-		rm_rf_perf_data(oldname);
-		rename(data->path, oldname);
+
+		ret = rm_rf_perf_data(oldname);
+		if (ret) {
+			pr_err("Can't remove old data: %s (%s)\n",
+			       ret == -2 ?
+			       "Unknown file found" : strerror(errno),
+			       oldname);
+			return -1;
+		}
+
+		if (rename(data->path, oldname)) {
+			pr_err("Can't move data: %s (%s to %s)\n",
+			       strerror(errno),
+			       data->path, oldname);
+			return -1;
+		}
 	}
 
 	return 0;
