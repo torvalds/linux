@@ -176,9 +176,7 @@ static u64 goya_mmu_regs[GOYA_MMU_REGS_NUM] = {
 	mmMME_WBC_CONTROL_DATA
 };
 
-#define GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE 121
-
-static u32 goya_non_fatal_events[GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE] = {
+static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_PCIE_IF,
 	GOYA_ASYNC_EVENT_ID_TPC0_ECC,
 	GOYA_ASYNC_EVENT_ID_TPC1_ECC,
@@ -4627,8 +4625,8 @@ static int goya_soft_reset_late_init(struct hl_device *hdev)
 	 * Unmask all IRQs since some could have been received
 	 * during the soft reset
 	 */
-	return goya_unmask_irq_arr(hdev, goya_non_fatal_events,
-			sizeof(goya_non_fatal_events));
+	return goya_unmask_irq_arr(hdev, goya_all_events,
+					sizeof(goya_all_events));
 }
 
 static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
