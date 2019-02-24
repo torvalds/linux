@@ -42,7 +42,7 @@ enum _msm8996_version {
 	NUM_OF_MSM8996_VERSIONS,
 };
 
-struct platform_device *cpufreq_dt_pdev, *kryo_cpufreq_pdev;
+static struct platform_device *cpufreq_dt_pdev, *kryo_cpufreq_pdev;
 
 static enum _msm8996_version qcom_cpufreq_kryo_get_msm_id(void)
 {
