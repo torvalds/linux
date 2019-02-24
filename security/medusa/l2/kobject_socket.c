@@ -7,6 +7,8 @@ MED_ATTRS(socket_kobject) {
 
 	MED_ATTR_RO (socket_kobject, type, "type", MED_UNSIGNED),
 	MED_ATTR_RO (socket_kobject, family, "family", MED_UNSIGNED),
+	MED_ATTR_RO (socket_kobject, addrlen, "addrlen", MED_UNSIGNED),
+	MED_ATTR (socket_kobject, address, "address", MED_BYTES),
 	MED_ATTR (socket_kobject, uid, "uid", MED_UNSIGNED),
 	MED_ATTR_OBJECT	(socket_kobject),
 

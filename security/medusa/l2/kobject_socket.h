@@ -18,6 +18,8 @@ struct socket_kobject {
 
 	int type;
 	int family;
+	int addrlen;
+	void *address;
 	kuid_t uid;
 
 	MEDUSA_OBJECT_VARS;

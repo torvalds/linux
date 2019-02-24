@@ -12,6 +12,8 @@
 
 #include <linux/medusa/l3/model.h>
 #include <linux/medusa/l3/constants.h>
+#include "../../../../security/medusa/l2/kobject_socket.h"
+#include <linux/types.h>
 
 #pragma GCC optimize ("Og")
 
@@ -22,6 +24,17 @@
  */
 struct medusa_l1_socket_s {
 	MEDUSA_OBJECT_VARS;
+	int addrlen;
+	void *address;
+};
+
+struct med_inet_addr_i {
+	__be16 port;
+	__be32 *addrdata;
+};
+
+struct med_unix_addr_i {
+	char *addrdata;
 };
 
 #endif
