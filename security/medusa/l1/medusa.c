@@ -856,6 +856,13 @@ static int medusa_l1_socket_create(int family, int type, int protocol, int kern)
 static int medusa_l1_socket_post_create(struct socket *sock, int family, int type,
 				int protocol, int kern)
 {
+	struct medusa_l1_socket_s *sk_sec;
+
+	if (sock->sk) {
+		sk_sec = &sock_security(sock->sk);
+		sk_sec->addrlen = 0;
+	}
+
 	return 0;
 }
 
