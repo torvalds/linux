@@ -21,6 +21,7 @@
 #include <linux/time64.h>
 #include <unistd.h>
 #include "strlist.h"
+#include "string2.h"
 
 /*
  * XXX We need to find a better place for these things...
@@ -117,12 +118,38 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
+static bool match_pat(char *file, const char **pat)
+{
+	int i = 0;
+
+	if (!pat)
+		return true;
+
+	while (pat[i]) {
+		if (strglobmatch(file, pat[i]))
+			return true;
+
+		i++;
+	}
+
+	return false;
+}
+
 /*
  * The depth specify how deep the removal will go.
  * 0       - will remove only files under the 'path' directory
  * 1 .. x  - will dive in x-level deep under the 'path' directory
+ *
+ * If specified the pat is array of string patterns ended with NULL,
+ * which are checked upon every file/directory found. Only matching
+ * ones are removed.
+ *
+ * The function returns:
+ *    0 on success
+ *   -1 on removal failure with errno set
+ *   -2 on pattern failure
  */
-static int rm_rf_depth(const char *path, int depth)
+static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 {
 	DIR *dir;
 	int ret;
@@ -149,6 +176,9 @@ static int rm_rf_depth(const char *path, int depth)
 		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
 			continue;
 
+		if (!match_pat(d->d_name, pat))
+			return -2;
+
 		scnprintf(namebuf, sizeof(namebuf), "%s/%s",
 			  path, d->d_name);
 
@@ -160,7 +190,7 @@ static int rm_rf_depth(const char *path, int depth)
 		}
 
 		if (S_ISDIR(statbuf.st_mode))
-			ret = depth ? rm_rf_depth(namebuf, depth - 1) : 0;
+			ret = depth ? rm_rf_depth_pat(namebuf, depth - 1, pat) : 0;
 		else
 			ret = unlink(namebuf);
 	}
@@ -174,7 +204,7 @@ static int rm_rf_depth(const char *path, int depth)
 
 int rm_rf(const char *path)
 {
-	return rm_rf_depth(path, INT_MAX);
+	return rm_rf_depth_pat(path, INT_MAX, NULL);
 }
 
 /* A filter which removes dot files */
