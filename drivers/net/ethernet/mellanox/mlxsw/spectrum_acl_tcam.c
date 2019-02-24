@@ -175,6 +175,7 @@ struct mlxsw_sp_acl_tcam_vgroup {
 	unsigned int patterns_count;
 	bool tmplt_elusage_set;
 	struct mlxsw_afk_element_usage tmplt_elusage;
+	bool vregion_rehash_enabled;
 };
 
 struct mlxsw_sp_acl_tcam_vregion {
@@ -188,6 +189,7 @@ struct mlxsw_sp_acl_tcam_vregion {
 	struct list_head vchunk_list; /* List of vchunks under this vregion */
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp_acl_tcam *tcam;
+	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
 	struct delayed_work rehash_dw;
 	struct mlxsw_sp *mlxsw_sp;
 	bool failed_rollback; /* Indicates failed rollback during migration */
@@ -290,12 +292,15 @@ mlxsw_sp_acl_tcam_vgroup_add(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 			     const struct mlxsw_sp_acl_tcam_pattern *patterns,
 			     unsigned int patterns_count,
-			     struct mlxsw_afk_element_usage *tmplt_elusage)
+			     struct mlxsw_afk_element_usage *tmplt_elusage,
+			     bool vregion_rehash_enabled)
 {
 	int err;
 
 	vgroup->patterns = patterns;
 	vgroup->patterns_count = patterns_count;
+	vgroup->vregion_rehash_enabled = vregion_rehash_enabled;
+
 	if (tmplt_elusage) {
 		vgroup->tmplt_elusage_set = true;
 		memcpy(&vgroup->tmplt_elusage, tmplt_elusage,
@@ -753,6 +758,7 @@ mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 	mutex_init(&vregion->lock);
 	vregion->tcam = tcam;
 	vregion->mlxsw_sp = mlxsw_sp;
+	vregion->vgroup = vgroup;
 	vregion->ref_count = 1;
 
 	vregion->key_info = mlxsw_afk_key_info_get(afk, elusage);
@@ -773,13 +779,12 @@ mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_vgroup_vregion_attach;
 
-	list_add_tail(&vregion->tlist, &tcam->vregion_list);
-
-	if (ops->region_rehash_hints_get) {
+	if (vgroup->vregion_rehash_enabled && ops->region_rehash_hints_get) {
 		/* Create the delayed work for vregion periodic rehash */
 		INIT_DELAYED_WORK(&vregion->rehash_dw,
 				  mlxsw_sp_acl_tcam_vregion_rehash_work);
 		mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
+		list_add_tail(&vregion->tlist, &tcam->vregion_list);
 	}
 
 	return vregion;
@@ -798,10 +803,12 @@ mlxsw_sp_acl_tcam_vregion_destroy(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	struct mlxsw_sp_acl_tcam_vgroup *vgroup = vregion->vgroup;
 
-	if (ops->region_rehash_hints_get)
+	if (vgroup->vregion_rehash_enabled && ops->region_rehash_hints_get) {
+		list_del(&vregion->tlist);
 		cancel_delayed_work_sync(&vregion->rehash_dw);
-	list_del(&vregion->tlist);
+	}
 	mlxsw_sp_acl_tcam_vgroup_vregion_detach(mlxsw_sp, vregion);
 	if (vregion->region2)
 		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, vregion->region2);
@@ -1410,7 +1417,7 @@ mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
 					    mlxsw_sp_acl_tcam_patterns,
 					    MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					    tmplt_elusage);
+					    tmplt_elusage, true);
 }
 
 static void
@@ -1527,7 +1534,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
 					   mlxsw_sp_acl_tcam_patterns,
 					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					   tmplt_elusage);
+					   tmplt_elusage, false);
 	if (err)
 		return err;
 
