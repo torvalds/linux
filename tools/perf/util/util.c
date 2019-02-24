@@ -202,6 +202,17 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 	return rmdir(path);
 }
 
+int rm_rf_perf_data(const char *path)
+{
+	const char *pat[] = {
+		"header",
+		"data.*",
+		NULL,
+	};
+
+	return rm_rf_depth_pat(path, 0, pat);
+}
+
 int rm_rf(const char *path)
 {
 	return rm_rf_depth_pat(path, INT_MAX, NULL);
