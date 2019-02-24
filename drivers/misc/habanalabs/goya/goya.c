@@ -3474,7 +3474,8 @@ u32 goya_get_dma_desc_list_size(struct hl_device *hdev,
 					struct sg_table *sgt)
 {
 	struct scatterlist *sg, *sg_next_iter;
-	u32 count, len, dma_desc_cnt, len_next;
+	u32 count, dma_desc_cnt;
+	u64 len, len_next;
 	dma_addr_t addr, addr_next;
 
 	dma_desc_cnt = 0;
@@ -3915,7 +3916,8 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 {
 	struct hl_userptr *userptr;
 	struct scatterlist *sg, *sg_next_iter;
-	u32 count, len, dma_desc_cnt, len_next;
+	u32 count, dma_desc_cnt;
+	u64 len, len_next;
 	dma_addr_t dma_addr, dma_addr_next;
 	enum goya_dma_direction user_dir;
 	u64 device_memory_addr, addr;
