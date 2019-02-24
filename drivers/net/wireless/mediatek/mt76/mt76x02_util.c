@@ -704,9 +704,6 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID)
 		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED)
-		mt76x02_mac_set_beacon_enable(dev, vif, info->enable_beacon);
-
 	if (changed & BSS_CHANGED_HT || changed & BSS_CHANGED_ERP_CTS_PROT)
 		mt76x02_mac_set_tx_protection(dev, info->use_cts_prot,
 					      info->ht_operation_mode);
@@ -718,6 +715,9 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 		dev->beacon_int = info->beacon_int;
 		dev->tbtt_count = 0;
 	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		mt76x02_mac_set_beacon_enable(dev, vif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE)
 		mt76x02_mac_set_short_preamble(dev, info->use_short_preamble);
