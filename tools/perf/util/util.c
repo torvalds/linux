@@ -117,7 +117,12 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
-int rm_rf(const char *path)
+/*
+ * The depth specify how deep the removal will go.
+ * 0       - will remove only files under the 'path' directory
+ * 1 .. x  - will dive in x-level deep under the 'path' directory
+ */
+static int rm_rf_depth(const char *path, int depth)
 {
 	DIR *dir;
 	int ret;
@@ -155,7 +160,7 @@ int rm_rf(const char *path)
 		}
 
 		if (S_ISDIR(statbuf.st_mode))
-			ret = rm_rf(namebuf);
+			ret = depth ? rm_rf_depth(namebuf, depth - 1) : 0;
 		else
 			ret = unlink(namebuf);
 	}
@@ -165,6 +170,11 @@ int rm_rf(const char *path)
 		return ret;
 
 	return rmdir(path);
+}
+
+int rm_rf(const char *path)
+{
+	return rm_rf_depth(path, INT_MAX);
 }
 
 /* A filter which removes dot files */
