@@ -562,10 +562,12 @@ static int __udp4_lib_err_encap_no_sk(struct sk_buff *skb, u32 info)
 
 	for (i = 0; i < MAX_IPTUN_ENCAP_OPS; i++) {
 		int (*handler)(struct sk_buff *skb, u32 info);
+		const struct ip_tunnel_encap_ops *encap;
 
-		if (!iptun_encaps[i])
+		encap = rcu_dereference(iptun_encaps[i]);
+		if (!encap)
 			continue;
-		handler = rcu_dereference(iptun_encaps[i]->err_handler);
+		handler = encap->err_handler;
 		if (handler && !handler(skb, info))
 			return 0;
 	}
