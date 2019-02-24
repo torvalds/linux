@@ -490,11 +490,13 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 	} else {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
-			int slew_idx = (pdata->slew_rate & 0x7)
-						? pdata->slew_rate : 0;
+			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates)) {
+				dev_err(&client->dev, "Invalid slew_rate\n");
+				return -EINVAL;
+			}
 
 			di->regulator->constraints.ramp_delay
-						= slew_rates[slew_idx];
+					= slew_rates[pdata->slew_rate];
 		}
 
 		di->vendor = id->driver_data;
