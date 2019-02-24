@@ -51,8 +51,9 @@
 
 /**
  * struct pgt_info - MMU hop page info.
- * @node: hash linked-list node for the pgts hash of pgts.
- * @addr: physical address of the pgt.
+ * @node: hash linked-list node for the pgts shadow hash of pgts.
+ * @phys_addr: physical address of the pgt.
+ * @shadow_addr: shadow hop in the host.
  * @ctx: pointer to the owner ctx.
  * @num_of_ptes: indicates how many ptes are used in the pgt.
  *
@@ -62,10 +63,11 @@
  * page, it is freed with its pgt_info structure.
  */
 struct pgt_info {
-	struct hlist_node node;
-	u64 addr;
-	struct hl_ctx *ctx;
-	int num_of_ptes;
+	struct hlist_node	node;
+	u64			phys_addr;
+	u64			shadow_addr;
+	struct hl_ctx		*ctx;
+	int			num_of_ptes;
 };
 
 struct hl_device;
@@ -595,7 +597,8 @@ struct hl_va_range {
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
- * @mmu_hash: holds a mapping from virtual address to pgt_info structure.
+ * @mmu_phys_hash: holds a mapping from physical address to pgt_info structure.
+ * @mmu_shadow_hash: holds a mapping from shadow address to pgt_info structure.
  * @hpriv: pointer to the private (KMD) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
@@ -624,7 +627,8 @@ struct hl_va_range {
  */
 struct hl_ctx {
 	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
-	DECLARE_HASHTABLE(mmu_hash, MMU_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(mmu_phys_hash, MMU_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(mmu_shadow_hash, MMU_HASH_TABLE_BITS);
 	struct hl_fpriv		*hpriv;
 	struct hl_device	*hdev;
 	struct kref		refcount;
@@ -1066,7 +1070,8 @@ struct hl_device_reset_work {
  * @asic_specific: ASIC specific information to use only from ASIC files.
  * @mmu_pgt_pool: pool of available MMU hops.
  * @vm: virtual memory manager for MMU.
- * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context
+ * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context.
+ * @mmu_shadow_hop0: shadow mapping of the MMU hop 0 zone.
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
@@ -1136,6 +1141,7 @@ struct hl_device {
 	struct gen_pool			*mmu_pgt_pool;
 	struct hl_vm			vm;
 	struct mutex			mmu_cache_lock;
+	void				*mmu_shadow_hop0;
 	struct device			*hwmon_dev;
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;
