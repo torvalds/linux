@@ -161,8 +161,13 @@ struct mlxsw_sp_acl_tcam_pattern {
 struct mlxsw_sp_acl_tcam_group {
 	struct mlxsw_sp_acl_tcam *tcam;
 	u16 id;
-	struct list_head vregion_list;
+	struct list_head region_list;
 	unsigned int region_count;
+};
+
+struct mlxsw_sp_acl_tcam_vgroup {
+	struct mlxsw_sp_acl_tcam_group group;
+	struct list_head vregion_list;
 	struct rhashtable vchunk_ht;
 	const struct mlxsw_sp_acl_tcam_pattern *patterns;
 	unsigned int patterns_count;
@@ -176,7 +181,6 @@ struct mlxsw_sp_acl_tcam_vregion {
 	struct list_head list; /* Member of a TCAM group */
 	struct list_head tlist; /* Member of a TCAM */
 	struct list_head vchunk_list; /* List of vchunks under this vregion */
-	struct mlxsw_sp_acl_tcam_group *group;
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp_acl_tcam *tcam;
 	struct delayed_work rehash_dw;
@@ -200,7 +204,7 @@ struct mlxsw_sp_acl_tcam_vchunk {
 	struct rhash_head ht_node; /* Member of a chunk HT */
 	struct list_head ventry_list;
 	unsigned int priority; /* Priority within the vregion and group */
-	struct mlxsw_sp_acl_tcam_group *group;
+	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
 	struct mlxsw_sp_acl_tcam_vregion *vregion;
 	unsigned int ref_count;
 };
@@ -229,46 +233,73 @@ static const struct rhashtable_params mlxsw_sp_acl_tcam_vchunk_ht_params = {
 static int mlxsw_sp_acl_tcam_group_update(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_acl_tcam_group *group)
 {
-	struct mlxsw_sp_acl_tcam_vregion *vregion;
+	struct mlxsw_sp_acl_tcam_region *region;
 	char pagt_pl[MLXSW_REG_PAGT_LEN];
 	int acl_index = 0;
 
 	mlxsw_reg_pagt_pack(pagt_pl, group->id);
-	list_for_each_entry(vregion, &group->vregion_list, list) {
-		if (vregion->region2)
-			mlxsw_reg_pagt_acl_id_pack(pagt_pl, acl_index++,
-						   vregion->region2->id, true);
+	list_for_each_entry(region, &group->region_list, list) {
+		bool multi = false;
+
+		/* Check if the next entry in the list has the same vregion. */
+		if (region->list.next != &group->region_list &&
+		    list_next_entry(region, list)->vregion == region->vregion)
+			multi = true;
 		mlxsw_reg_pagt_acl_id_pack(pagt_pl, acl_index++,
-					   vregion->region->id, false);
+					   region->id, multi);
 	}
 	mlxsw_reg_pagt_size_set(pagt_pl, acl_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pagt), pagt_pl);
 }
 
 static int
-mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_tcam *tcam,
-			    struct mlxsw_sp_acl_tcam_group *group,
-			    const struct mlxsw_sp_acl_tcam_pattern *patterns,
-			    unsigned int patterns_count,
-			    struct mlxsw_afk_element_usage *tmplt_elusage)
+mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp_acl_tcam *tcam,
+			    struct mlxsw_sp_acl_tcam_group *group)
 {
 	int err;
 
 	group->tcam = tcam;
-	group->patterns = patterns;
-	group->patterns_count = patterns_count;
-	if (tmplt_elusage) {
-		group->tmplt_elusage_set = true;
-		memcpy(&group->tmplt_elusage, tmplt_elusage,
-		       sizeof(group->tmplt_elusage));
-	}
-	INIT_LIST_HEAD(&group->vregion_list);
+	INIT_LIST_HEAD(&group->region_list);
+
 	err = mlxsw_sp_acl_tcam_group_id_get(tcam, &group->id);
 	if (err)
 		return err;
 
-	err = rhashtable_init(&group->vchunk_ht,
+	return 0;
+}
+
+static void mlxsw_sp_acl_tcam_group_del(struct mlxsw_sp_acl_tcam_group *group)
+{
+	struct mlxsw_sp_acl_tcam *tcam = group->tcam;
+
+	mlxsw_sp_acl_tcam_group_id_put(tcam, group->id);
+	WARN_ON(!list_empty(&group->region_list));
+}
+
+static int
+mlxsw_sp_acl_tcam_vgroup_add(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_acl_tcam *tcam,
+			     struct mlxsw_sp_acl_tcam_vgroup *vgroup,
+			     const struct mlxsw_sp_acl_tcam_pattern *patterns,
+			     unsigned int patterns_count,
+			     struct mlxsw_afk_element_usage *tmplt_elusage)
+{
+	int err;
+
+	vgroup->patterns = patterns;
+	vgroup->patterns_count = patterns_count;
+	if (tmplt_elusage) {
+		vgroup->tmplt_elusage_set = true;
+		memcpy(&vgroup->tmplt_elusage, tmplt_elusage,
+		       sizeof(vgroup->tmplt_elusage));
+	}
+	INIT_LIST_HEAD(&vgroup->vregion_list);
+
+	err = mlxsw_sp_acl_tcam_group_add(tcam, &vgroup->group);
+	if (err)
+		return err;
+
+	err = rhashtable_init(&vgroup->vchunk_ht,
 			      &mlxsw_sp_acl_tcam_vchunk_ht_params);
 	if (err)
 		goto err_rhashtable_init;
@@ -276,18 +307,16 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_rhashtable_init:
-	mlxsw_sp_acl_tcam_group_id_put(tcam, group->id);
+	mlxsw_sp_acl_tcam_group_del(&vgroup->group);
 	return err;
 }
 
-static void mlxsw_sp_acl_tcam_group_del(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_acl_tcam_group *group)
+static void
+mlxsw_sp_acl_tcam_vgroup_del(struct mlxsw_sp_acl_tcam_vgroup *vgroup)
 {
-	struct mlxsw_sp_acl_tcam *tcam = group->tcam;
-
-	rhashtable_destroy(&group->vchunk_ht);
-	mlxsw_sp_acl_tcam_group_id_put(tcam, group->id);
-	WARN_ON(!list_empty(&group->vregion_list));
+	rhashtable_destroy(&vgroup->vchunk_ht);
+	mlxsw_sp_acl_tcam_group_del(&vgroup->group);
+	WARN_ON(!list_empty(&vgroup->vregion_list));
 }
 
 static int
@@ -353,52 +382,78 @@ mlxsw_sp_acl_tcam_vregion_max_prio(struct mlxsw_sp_acl_tcam_vregion *vregion)
 
 static int
 mlxsw_sp_acl_tcam_group_region_attach(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_acl_tcam_region *region)
+				      struct mlxsw_sp_acl_tcam_group *group,
+				      struct mlxsw_sp_acl_tcam_region *region,
+				      struct mlxsw_sp_acl_tcam_region *next_region)
 {
-	struct mlxsw_sp_acl_tcam_group *group = region->vregion->group;
+	struct mlxsw_sp_acl_tcam_region *region2;
+	struct list_head *pos;
 	int err;
 
 	if (group->region_count == group->tcam->max_group_size)
 		return -ENOBUFS;
 
+	if (next_region) {
+		/* If the next region is defined, place the new one
+		 * before it. The next one is a sibling.
+		 */
+		pos = &next_region->list;
+	} else {
+		/* Position the region inside the list according to priority */
+		list_for_each(pos, &group->region_list) {
+			region2 = list_entry(pos, typeof(*region2), list);
+			if (mlxsw_sp_acl_tcam_vregion_prio(region2->vregion) >
+			    mlxsw_sp_acl_tcam_vregion_prio(region->vregion))
+				break;
+		}
+	}
+	list_add_tail(&region->list, pos);
+	region->group = group;
+
 	err = mlxsw_sp_acl_tcam_group_update(mlxsw_sp, group);
 	if (err)
-		return err;
+		goto err_group_update;
 
 	group->region_count++;
 	return 0;
+
+err_group_update:
+	list_del(&region->list);
+	return err;
 }
 
 static void
 mlxsw_sp_acl_tcam_group_region_detach(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_acl_tcam_region *region)
 {
-	struct mlxsw_sp_acl_tcam_group *group = region->vregion->group;
+	struct mlxsw_sp_acl_tcam_group *group = region->group;
 
+	list_del(&region->list);
 	group->region_count--;
 	mlxsw_sp_acl_tcam_group_update(mlxsw_sp, group);
 }
 
 static int
-mlxsw_sp_acl_tcam_group_vregion_attach(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_group *group,
-				       struct mlxsw_sp_acl_tcam_vregion *vregion)
+mlxsw_sp_acl_tcam_vgroup_vregion_attach(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_acl_tcam_vgroup *vgroup,
+					struct mlxsw_sp_acl_tcam_vregion *vregion)
 {
 	struct mlxsw_sp_acl_tcam_vregion *vregion2;
 	struct list_head *pos;
 	int err;
 
 	/* Position the vregion inside the list according to priority */
-	list_for_each(pos, &group->vregion_list) {
+	list_for_each(pos, &vgroup->vregion_list) {
 		vregion2 = list_entry(pos, typeof(*vregion2), list);
 		if (mlxsw_sp_acl_tcam_vregion_prio(vregion2) >
-		    mlxsw_sp_acl_tcam_vregion_prio(vregion))
+		    mlxsw_sp_acl_tcam_vregion_prio(vregion)) {
 			break;
+		}
 	}
 	list_add_tail(&vregion->list, pos);
-	vregion->group = group;
 
-	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp, vregion->region);
+	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp, &vgroup->group,
+						    vregion->region, NULL);
 	if (err)
 		goto err_region_attach;
 
@@ -410,8 +465,8 @@ err_region_attach:
 }
 
 static void
-mlxsw_sp_acl_tcam_group_vregion_detach(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_vregion *vregion)
+mlxsw_sp_acl_tcam_vgroup_vregion_detach(struct mlxsw_sp *mlxsw_sp,
+					struct mlxsw_sp_acl_tcam_vregion *vregion)
 {
 	list_del(&vregion->list);
 	if (vregion->region2)
@@ -421,22 +476,22 @@ mlxsw_sp_acl_tcam_group_vregion_detach(struct mlxsw_sp *mlxsw_sp,
 }
 
 static struct mlxsw_sp_acl_tcam_vregion *
-mlxsw_sp_acl_tcam_group_vregion_find(struct mlxsw_sp_acl_tcam_group *group,
-				     unsigned int priority,
-				     struct mlxsw_afk_element_usage *elusage,
-				     bool *p_need_split)
+mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
+				      unsigned int priority,
+				      struct mlxsw_afk_element_usage *elusage,
+				      bool *p_need_split)
 {
 	struct mlxsw_sp_acl_tcam_vregion *vregion, *vregion2;
 	struct list_head *pos;
 	bool issubset;
 
-	list_for_each(pos, &group->vregion_list) {
+	list_for_each(pos, &vgroup->vregion_list) {
 		vregion = list_entry(pos, typeof(*vregion), list);
 
 		/* First, check if the requested priority does not rather belong
 		 * under some of the next vregions.
 		 */
-		if (pos->next != &group->vregion_list) { /* not last */
+		if (pos->next != &vgroup->vregion_list) { /* not last */
 			vregion2 = list_entry(pos->next, typeof(*vregion2),
 					      list);
 			if (priority >=
@@ -477,9 +532,9 @@ mlxsw_sp_acl_tcam_group_vregion_find(struct mlxsw_sp_acl_tcam_group *group,
 }
 
 static void
-mlxsw_sp_acl_tcam_group_use_patterns(struct mlxsw_sp_acl_tcam_group *group,
-				     struct mlxsw_afk_element_usage *elusage,
-				     struct mlxsw_afk_element_usage *out)
+mlxsw_sp_acl_tcam_vgroup_use_patterns(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
+				      struct mlxsw_afk_element_usage *elusage,
+				      struct mlxsw_afk_element_usage *out)
 {
 	const struct mlxsw_sp_acl_tcam_pattern *pattern;
 	int i;
@@ -487,14 +542,14 @@ mlxsw_sp_acl_tcam_group_use_patterns(struct mlxsw_sp_acl_tcam_group *group,
 	/* In case the template is set, we don't have to look up the pattern
 	 * and just use the template.
 	 */
-	if (group->tmplt_elusage_set) {
-		memcpy(out, &group->tmplt_elusage, sizeof(*out));
+	if (vgroup->tmplt_elusage_set) {
+		memcpy(out, &vgroup->tmplt_elusage, sizeof(*out));
 		WARN_ON(!mlxsw_afk_element_usage_subset(elusage, out));
 		return;
 	}
 
-	for (i = 0; i < group->patterns_count; i++) {
-		pattern = &group->patterns[i];
+	for (i = 0; i < vgroup->patterns_count; i++) {
+		pattern = &vgroup->patterns[i];
 		mlxsw_afk_element_usage_fill(out, pattern->elements,
 					     pattern->elements_count);
 		if (mlxsw_afk_element_usage_subset(elusage, out))
@@ -627,7 +682,7 @@ mlxsw_sp_acl_tcam_region_destroy(struct mlxsw_sp *mlxsw_sp,
 	ops->region_fini(mlxsw_sp, region->priv);
 	mlxsw_sp_acl_tcam_region_disable(mlxsw_sp, region);
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
-	mlxsw_sp_acl_tcam_region_id_put(region->vregion->group->tcam,
+	mlxsw_sp_acl_tcam_region_id_put(region->group->tcam,
 					region->id);
 	kfree(region);
 }
@@ -763,7 +818,7 @@ int mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_acl_tcam_vchunk_assoc(struct mlxsw_sp *mlxsw_sp,
-			       struct mlxsw_sp_acl_tcam_group *group,
+			       struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 			       unsigned int priority,
 			       struct mlxsw_afk_element_usage *elusage,
 			       struct mlxsw_sp_acl_tcam_vchunk *vchunk)
@@ -773,8 +828,8 @@ mlxsw_sp_acl_tcam_vchunk_assoc(struct mlxsw_sp *mlxsw_sp,
 	bool need_split;
 	int err;
 
-	vregion = mlxsw_sp_acl_tcam_group_vregion_find(group, priority, elusage,
-						       &need_split);
+	vregion = mlxsw_sp_acl_tcam_vgroup_vregion_find(vgroup, priority,
+							elusage, &need_split);
 	if (vregion && need_split) {
 		/* According to priority, the vchunk should belong to an
 		 * existing vregion. However, this vchunk needs elements
@@ -787,10 +842,10 @@ mlxsw_sp_acl_tcam_vchunk_assoc(struct mlxsw_sp *mlxsw_sp,
 	if (!vregion) {
 		struct mlxsw_afk_element_usage vregion_elusage;
 
-		mlxsw_sp_acl_tcam_group_use_patterns(group, elusage,
-						     &vregion_elusage);
+		mlxsw_sp_acl_tcam_vgroup_use_patterns(vgroup, elusage,
+						      &vregion_elusage);
 		vregion = mlxsw_sp_acl_tcam_vregion_create(mlxsw_sp,
-							   group->tcam,
+							   vgroup->group.tcam,
 							   &vregion_elusage);
 		if (IS_ERR(vregion))
 			return PTR_ERR(vregion);
@@ -803,13 +858,14 @@ mlxsw_sp_acl_tcam_vchunk_assoc(struct mlxsw_sp *mlxsw_sp,
 	if (!vregion_created)
 		return 0;
 
-	err = mlxsw_sp_acl_tcam_group_vregion_attach(mlxsw_sp, group, vregion);
+	err = mlxsw_sp_acl_tcam_vgroup_vregion_attach(mlxsw_sp, vgroup,
+						      vregion);
 	if (err)
-		goto err_group_vregion_attach;
+		goto err_vgroup_vregion_attach;
 
 	return 0;
 
-err_group_vregion_attach:
+err_vgroup_vregion_attach:
 	mlxsw_sp_acl_tcam_vregion_destroy(mlxsw_sp, vregion);
 	return err;
 }
@@ -822,7 +878,7 @@ mlxsw_sp_acl_tcam_vchunk_deassoc(struct mlxsw_sp *mlxsw_sp,
 
 	list_del(&vchunk->list);
 	if (list_empty(&vregion->vchunk_list)) {
-		mlxsw_sp_acl_tcam_group_vregion_detach(mlxsw_sp, vregion);
+		mlxsw_sp_acl_tcam_vgroup_vregion_detach(mlxsw_sp, vregion);
 		mlxsw_sp_acl_tcam_vregion_destroy(mlxsw_sp, vregion);
 	}
 }
@@ -857,7 +913,7 @@ mlxsw_sp_acl_tcam_chunk_destroy(struct mlxsw_sp *mlxsw_sp,
 
 static struct mlxsw_sp_acl_tcam_vchunk *
 mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
-				struct mlxsw_sp_acl_tcam_group *group,
+				struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 				unsigned int priority,
 				struct mlxsw_afk_element_usage *elusage)
 {
@@ -872,15 +928,15 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&vchunk->ventry_list);
 	vchunk->priority = priority;
-	vchunk->group = group;
+	vchunk->vgroup = vgroup;
 	vchunk->ref_count = 1;
 
-	err = mlxsw_sp_acl_tcam_vchunk_assoc(mlxsw_sp, group, priority,
+	err = mlxsw_sp_acl_tcam_vchunk_assoc(mlxsw_sp, vgroup, priority,
 					     elusage, vchunk);
 	if (err)
 		goto err_vchunk_assoc;
 
-	err = rhashtable_insert_fast(&group->vchunk_ht, &vchunk->ht_node,
+	err = rhashtable_insert_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
 				     mlxsw_sp_acl_tcam_vchunk_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -895,7 +951,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 	return vchunk;
 
 err_chunk_create:
-	rhashtable_remove_fast(&group->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 err_rhashtable_insert:
 	mlxsw_sp_acl_tcam_vchunk_deassoc(mlxsw_sp, vchunk);
@@ -908,12 +964,12 @@ static void
 mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_vchunk *vchunk)
 {
-	struct mlxsw_sp_acl_tcam_group *group = vchunk->group;
+	struct mlxsw_sp_acl_tcam_vgroup *vgroup = vchunk->vgroup;
 
 	if (vchunk->chunk2)
 		mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
 	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk);
-	rhashtable_remove_fast(&group->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 	mlxsw_sp_acl_tcam_vchunk_deassoc(mlxsw_sp, vchunk);
 	kfree(vchunk);
@@ -921,13 +977,13 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 
 static struct mlxsw_sp_acl_tcam_vchunk *
 mlxsw_sp_acl_tcam_vchunk_get(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_acl_tcam_group *group,
+			     struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 			     unsigned int priority,
 			     struct mlxsw_afk_element_usage *elusage)
 {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 
-	vchunk = rhashtable_lookup_fast(&group->vchunk_ht, &priority,
+	vchunk = rhashtable_lookup_fast(&vgroup->vchunk_ht, &priority,
 					mlxsw_sp_acl_tcam_vchunk_ht_params);
 	if (vchunk) {
 		if (WARN_ON(!mlxsw_afk_key_info_subset(vchunk->vregion->key_info,
@@ -936,7 +992,7 @@ mlxsw_sp_acl_tcam_vchunk_get(struct mlxsw_sp *mlxsw_sp,
 		vchunk->ref_count++;
 		return vchunk;
 	}
-	return mlxsw_sp_acl_tcam_vchunk_create(mlxsw_sp, group,
+	return mlxsw_sp_acl_tcam_vchunk_create(mlxsw_sp, vgroup,
 					       priority, elusage);
 }
 
@@ -1010,14 +1066,14 @@ mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_acl_tcam_ventry_add(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_acl_tcam_group *group,
+					struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 					struct mlxsw_sp_acl_tcam_ventry *ventry,
 					struct mlxsw_sp_acl_rule_info *rulei)
 {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	int err;
 
-	vchunk = mlxsw_sp_acl_tcam_vchunk_get(mlxsw_sp, group, rulei->priority,
+	vchunk = mlxsw_sp_acl_tcam_vchunk_get(mlxsw_sp, vgroup, rulei->priority,
 					      &rulei->values.elusage);
 	if (IS_ERR(vchunk))
 		return PTR_ERR(vchunk);
@@ -1183,7 +1239,9 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(region2);
 
 	vregion->region2 = region2;
-	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp, region2);
+	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp,
+						    vregion->region->group,
+						    region2, vregion->region);
 	if (err)
 		goto err_group_region_attach;
 
@@ -1297,7 +1355,7 @@ static const struct mlxsw_sp_acl_tcam_pattern mlxsw_sp_acl_tcam_patterns[] = {
 	ARRAY_SIZE(mlxsw_sp_acl_tcam_patterns)
 
 struct mlxsw_sp_acl_tcam_flower_ruleset {
-	struct mlxsw_sp_acl_tcam_group group;
+	struct mlxsw_sp_acl_tcam_vgroup vgroup;
 };
 
 struct mlxsw_sp_acl_tcam_flower_rule {
@@ -1312,10 +1370,10 @@ mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	return mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
-					   mlxsw_sp_acl_tcam_patterns,
-					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					   tmplt_elusage);
+	return mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
+					    mlxsw_sp_acl_tcam_patterns,
+					    MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
+					    tmplt_elusage);
 }
 
 static void
@@ -1324,7 +1382,7 @@ mlxsw_sp_acl_tcam_flower_ruleset_del(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	mlxsw_sp_acl_tcam_group_del(mlxsw_sp, &ruleset->group);
+	mlxsw_sp_acl_tcam_vgroup_del(&ruleset->vgroup);
 }
 
 static int
@@ -1335,7 +1393,7 @@ mlxsw_sp_acl_tcam_flower_ruleset_bind(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	return mlxsw_sp_acl_tcam_group_bind(mlxsw_sp, &ruleset->group,
+	return mlxsw_sp_acl_tcam_group_bind(mlxsw_sp, &ruleset->vgroup.group,
 					    mlxsw_sp_port, ingress);
 }
 
@@ -1347,7 +1405,7 @@ mlxsw_sp_acl_tcam_flower_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->group,
+	mlxsw_sp_acl_tcam_group_unbind(mlxsw_sp, &ruleset->vgroup.group,
 				       mlxsw_sp_port, ingress);
 }
 
@@ -1356,7 +1414,7 @@ mlxsw_sp_acl_tcam_flower_ruleset_group_id(void *ruleset_priv)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 
-	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
+	return mlxsw_sp_acl_tcam_group_id(&ruleset->vgroup.group);
 }
 
 static int
@@ -1367,7 +1425,7 @@ mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
 	struct mlxsw_sp_acl_tcam_flower_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->group,
+	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->vgroup,
 					    &rule->ventry, rulei);
 }
 
@@ -1413,7 +1471,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 
 struct mlxsw_sp_acl_tcam_mr_ruleset {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
-	struct mlxsw_sp_acl_tcam_group group;
+	struct mlxsw_sp_acl_tcam_vgroup vgroup;
 };
 
 struct mlxsw_sp_acl_tcam_mr_rule {
@@ -1429,10 +1487,10 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 	int err;
 
-	err = mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
-					  mlxsw_sp_acl_tcam_patterns,
-					  MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
-					  tmplt_elusage);
+	err = mlxsw_sp_acl_tcam_vgroup_add(mlxsw_sp, tcam, &ruleset->vgroup,
+					   mlxsw_sp_acl_tcam_patterns,
+					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
+					   tmplt_elusage);
 	if (err)
 		return err;
 
@@ -1443,7 +1501,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	 * is initialized.
 	 */
 	ruleset->vchunk = mlxsw_sp_acl_tcam_vchunk_get(mlxsw_sp,
-						       &ruleset->group, 1,
+						       &ruleset->vgroup, 1,
 						       tmplt_elusage);
 	if (IS_ERR(ruleset->vchunk)) {
 		err = PTR_ERR(ruleset->vchunk);
@@ -1453,7 +1511,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_chunk_get:
-	mlxsw_sp_acl_tcam_group_del(mlxsw_sp, &ruleset->group);
+	mlxsw_sp_acl_tcam_vgroup_del(&ruleset->vgroup);
 	return err;
 }
 
@@ -1463,7 +1521,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_del(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv)
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 
 	mlxsw_sp_acl_tcam_vchunk_put(mlxsw_sp, ruleset->vchunk);
-	mlxsw_sp_acl_tcam_group_del(mlxsw_sp, &ruleset->group);
+	mlxsw_sp_acl_tcam_vgroup_del(&ruleset->vgroup);
 }
 
 static int
@@ -1488,7 +1546,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_group_id(void *ruleset_priv)
 {
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 
-	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
+	return mlxsw_sp_acl_tcam_group_id(&ruleset->vgroup.group);
 }
 
 static int
@@ -1499,7 +1557,7 @@ mlxsw_sp_acl_tcam_mr_rule_add(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
 	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
 
-	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->group,
+	return mlxsw_sp_acl_tcam_ventry_add(mlxsw_sp, &ruleset->vgroup,
 					   &rule->ventry, rulei);
 }
 

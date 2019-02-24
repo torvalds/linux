@@ -78,6 +78,8 @@ struct mlxsw_sp_acl_tcam_vregion;
 
 struct mlxsw_sp_acl_tcam_region {
 	struct mlxsw_sp_acl_tcam_vregion *vregion;
+	struct mlxsw_sp_acl_tcam_group *group;
+	struct list_head list; /* Member of a TCAM group */
 	enum mlxsw_reg_ptar_key_type key_type;
 	u16 id; /* ACL ID and region ID - they are same */
 	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
