@@ -1126,6 +1126,9 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	else if (val)
 		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
 
+	if (!dev->beacon_mask)
+		dev->tbtt_count = 0;
+
 	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
 
 	if (mt76_is_mmio(dev))
