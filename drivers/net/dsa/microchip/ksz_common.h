@@ -35,7 +35,7 @@ void ksz_port_mdb_add(struct dsa_switch *ds, int port,
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		     const struct switchdev_obj_port_mdb *mdb);
 int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
-void ksz_disable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
+void ksz_disable_port(struct dsa_switch *ds, int port);
 
 /* Common register access functions */
 

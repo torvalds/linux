@@ -480,8 +480,7 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void gswip_port_disable(struct dsa_switch *ds, int port,
-			       struct phy_device *phy)
+static void gswip_port_disable(struct dsa_switch *ds, int port)
 {
 	struct gswip_priv *priv = ds->priv;
 
@@ -549,7 +548,7 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	/* disable port fetch/store dma on all ports */
 	for (i = 0; i < priv->hw_info->max_ports; i++)
-		gswip_port_disable(ds, i, NULL);
+		gswip_port_disable(ds, i);
 
 	/* enable Switch */
 	gswip_mdio_mask(priv, 0, GSWIP_MDIO_GLOB_ENABLE, GSWIP_MDIO_GLOB);

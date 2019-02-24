@@ -364,8 +364,7 @@ struct dsa_switch_ops {
 	 */
 	int	(*port_enable)(struct dsa_switch *ds, int port,
 			       struct phy_device *phy);
-	void	(*port_disable)(struct dsa_switch *ds, int port,
-				struct phy_device *phy);
+	void	(*port_disable)(struct dsa_switch *ds, int port);
 
 	/*
 	 * Port's MAC EEE settings

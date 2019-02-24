@@ -2388,8 +2388,7 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port,
-				   struct phy_device *phydev)
+static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 

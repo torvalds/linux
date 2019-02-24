@@ -801,8 +801,7 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_port_disable(struct dsa_switch *ds, int port,
-		   struct phy_device *phy)
+qca8k_port_disable(struct dsa_switch *ds, int port)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 

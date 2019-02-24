@@ -85,7 +85,7 @@ int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 	return 0;
 }
 
-void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
+void dsa_port_disable(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
@@ -94,7 +94,7 @@ void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy)
 		dsa_port_set_state_now(dp, BR_STATE_DISABLED);
 
 	if (ds->ops->port_disable)
-		ds->ops->port_disable(ds, port, phy);
+		ds->ops->port_disable(ds, port);
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)

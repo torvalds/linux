@@ -122,7 +122,7 @@ static int dsa_slave_close(struct net_device *dev)
 
 	phylink_stop(dp->pl);
 
-	dsa_port_disable(dp, dev->phydev);
+	dsa_port_disable(dp);
 
 	dev_mc_unsync(master, dev);
 	dev_uc_unsync(master, dev);
