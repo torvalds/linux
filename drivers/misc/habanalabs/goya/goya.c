@@ -2550,6 +2550,11 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 				"ARM status %d - DDR initialization failed\n",
 				status);
 			break;
+		case CPU_BOOT_STATUS_UBOOT_NOT_READY:
+			dev_err(hdev->dev,
+				"ARM status %d - u-boot stopped by user\n",
+				status);
+			break;
 		default:
 			dev_err(hdev->dev,
 				"ARM status %d - Invalid status code\n",
