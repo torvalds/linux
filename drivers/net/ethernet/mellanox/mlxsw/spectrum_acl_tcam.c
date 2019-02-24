@@ -732,12 +732,7 @@ static void mlxsw_sp_acl_tcam_vregion_rehash_work(struct work_struct *work)
 		container_of(work, struct mlxsw_sp_acl_tcam_vregion,
 			     rehash_dw.work);
 
-	/* TODO: Take rtnl lock here as the rest of the code counts on it
-	 * now. Later, this should be replaced by per-vregion lock.
-	 */
-	rtnl_lock();
 	mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp, vregion);
-	rtnl_unlock();
 	mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
 }
 
