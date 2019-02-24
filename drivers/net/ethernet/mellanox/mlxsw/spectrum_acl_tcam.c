@@ -164,7 +164,6 @@ struct mlxsw_sp_acl_tcam_group {
 	struct list_head vregion_list;
 	unsigned int region_count;
 	struct rhashtable vchunk_ht;
-	struct mlxsw_sp_acl_tcam_group_ops *ops;
 	const struct mlxsw_sp_acl_tcam_pattern *patterns;
 	unsigned int patterns_count;
 	bool tmplt_elusage_set;
