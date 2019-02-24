@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <linux/mutex.h>
 #include <trace/events/mlxsw.h>
 
 #include "reg.h"
@@ -161,6 +162,7 @@ struct mlxsw_sp_acl_tcam_pattern {
 struct mlxsw_sp_acl_tcam_group {
 	struct mlxsw_sp_acl_tcam *tcam;
 	u16 id;
+	struct mutex lock; /* guards region list updates */
 	struct list_head region_list;
 	unsigned int region_count;
 };
@@ -259,6 +261,7 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp_acl_tcam *tcam,
 	int err;
 
 	group->tcam = tcam;
+	mutex_init(&group->lock);
 	INIT_LIST_HEAD(&group->region_list);
 
 	err = mlxsw_sp_acl_tcam_group_id_get(tcam, &group->id);
@@ -272,6 +275,7 @@ static void mlxsw_sp_acl_tcam_group_del(struct mlxsw_sp_acl_tcam_group *group)
 {
 	struct mlxsw_sp_acl_tcam *tcam = group->tcam;
 
+	mutex_destroy(&group->lock);
 	mlxsw_sp_acl_tcam_group_id_put(tcam, group->id);
 	WARN_ON(!list_empty(&group->region_list));
 }
@@ -390,8 +394,11 @@ mlxsw_sp_acl_tcam_group_region_attach(struct mlxsw_sp *mlxsw_sp,
 	struct list_head *pos;
 	int err;
 
-	if (group->region_count == group->tcam->max_group_size)
-		return -ENOBUFS;
+	mutex_lock(&group->lock);
+	if (group->region_count == group->tcam->max_group_size) {
+		err = -ENOBUFS;
+		goto err_region_count_check;
+	}
 
 	if (next_region) {
 		/* If the next region is defined, place the new one
@@ -415,10 +422,13 @@ mlxsw_sp_acl_tcam_group_region_attach(struct mlxsw_sp *mlxsw_sp,
 		goto err_group_update;
 
 	group->region_count++;
+	mutex_unlock(&group->lock);
 	return 0;
 
 err_group_update:
 	list_del(&region->list);
+err_region_count_check:
+	mutex_unlock(&group->lock);
 	return err;
 }
 
@@ -428,9 +438,11 @@ mlxsw_sp_acl_tcam_group_region_detach(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_group *group = region->group;
 
+	mutex_lock(&group->lock);
 	list_del(&region->list);
 	group->region_count--;
 	mlxsw_sp_acl_tcam_group_update(mlxsw_sp, group);
+	mutex_unlock(&group->lock);
 }
 
 static int
