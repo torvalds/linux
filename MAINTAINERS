@@ -409,8 +409,7 @@ F:	drivers/platform/x86/wmi.c
 F:	include/uapi/linux/wmi.h
 
 AD1889 ALSA SOUND DRIVER
-M:	Thibaut Varene <T-Bone@parisc-linux.org>
-W:	http://wiki.parisc-linux.org/AD1889
+W:	https://parisc.wiki.kernel.org/index.php/AD1889
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/pci/ad1889.*
@@ -2852,7 +2851,7 @@ R:	Martin KaFai Lau <kafai@fb.com>
 R:	Song Liu <songliubraving@fb.com>
 R:	Yonghong Song <yhs@fb.com>
 L:	netdev@vger.kernel.org
-L:	linux-kernel@vger.kernel.org
+L:	bpf@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git
 Q:	https://patchwork.ozlabs.org/project/netdev/list/?delegate=77147
@@ -2882,6 +2881,7 @@ N:	bpf
 BPF JIT for ARM
 M:	Shubham Bansal <illusionist.neo@gmail.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/arm/net/
 
@@ -2890,18 +2890,21 @@ M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Zi Shen Lim <zlim.lnx@gmail.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
 
 BPF JIT for MIPS (32-BIT AND 64-BIT)
 M:	Paul Burton <paul.burton@mips.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/mips/net/
 
 BPF JIT for NFP NICs
 M:	Jakub Kicinski <jakub.kicinski@netronome.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/netronome/nfp/bpf/
 
@@ -2909,6 +2912,7 @@ BPF JIT for POWERPC (32-BIT AND 64-BIT)
 M:	Naveen N. Rao <naveen.n.rao@linux.ibm.com>
 M:	Sandipan Das <sandipan@linux.ibm.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/powerpc/net/
 
@@ -2922,6 +2926,7 @@ BPF JIT for S390
 M:	Martin Schwidefsky <schwidefsky@de.ibm.com>
 M:	Heiko Carstens <heiko.carstens@de.ibm.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/s390/net/
 X:	arch/s390/net/pnet.c
@@ -2929,12 +2934,14 @@ X:	arch/s390/net/pnet.c
 BPF JIT for SPARC (32-BIT AND 64-BIT)
 M:	David S. Miller <davem@davemloft.net>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/sparc/net/
 
 BPF JIT for X86 32-BIT
 M:	Wang YanQing <udknight@gmail.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/x86/net/bpf_jit_comp32.c
 
@@ -2942,6 +2949,7 @@ BPF JIT for X86 64-BIT
 M:	Alexei Starovoitov <ast@kernel.org>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/x86/net/
 X:	arch/x86/net/bpf_jit_comp32.c
@@ -3396,9 +3404,8 @@ F:	Documentation/media/v4l-drivers/cafe_ccic*
 F:	drivers/media/platform/marvell-ccic/
 
 CAIF NETWORK LAYER
-M:	Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Orphan
 F:	Documentation/networking/caif/
 F:	drivers/net/caif/
 F:	include/uapi/linux/caif/
@@ -8501,6 +8508,7 @@ L7 BPF FRAMEWORK
 M:	John Fastabend <john.fastabend@gmail.com>
 M:	Daniel Borkmann <daniel@iogearbox.net>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	include/linux/skmsg.h
 F:	net/core/skmsg.c
@@ -11503,7 +11511,7 @@ F:	Documentation/blockdev/paride.txt
 F:	drivers/block/paride/
 
 PARISC ARCHITECTURE
-M:	"James E.J. Bottomley" <jejb@parisc-linux.org>
+M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 M:	Helge Deller <deller@gmx.de>
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
@@ -16738,6 +16746,7 @@ M:	Jesper Dangaard Brouer <hawk@kernel.org>
 M:	John Fastabend <john.fastabend@gmail.com>
 L:	netdev@vger.kernel.org
 L:	xdp-newbies@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Supported
 F:	net/core/xdp.c
 F:	include/net/xdp.h
@@ -16751,6 +16760,7 @@ XDP SOCKETS (AF_XDP)
 M:	Björn Töpel <bjorn.topel@intel.com>
 M:	Magnus Karlsson <magnus.karlsson@intel.com>
 L:	netdev@vger.kernel.org
+L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/xskmap.c
 F:	net/xdp/

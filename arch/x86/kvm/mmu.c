@@ -3555,6 +3555,7 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 							   &invalid_list);
 			mmu->root_hpa = INVALID_PAGE;
 		}
+		mmu->root_cr3 = 0;
 	}
 
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
@@ -3610,6 +3611,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->pae_root);
 	} else
 		BUG();
+	vcpu->arch.mmu->root_cr3 = vcpu->arch.mmu->get_cr3(vcpu);
 
 	return 0;
 }
@@ -3618,10 +3620,11 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
 	u64 pdptr, pm_mask;
-	gfn_t root_gfn;
+	gfn_t root_gfn, root_cr3;
 	int i;
 
-	root_gfn = vcpu->arch.mmu->get_cr3(vcpu) >> PAGE_SHIFT;
+	root_cr3 = vcpu->arch.mmu->get_cr3(vcpu);
+	root_gfn = root_cr3 >> PAGE_SHIFT;
 
 	if (mmu_check_root(vcpu, root_gfn))
 		return 1;
@@ -3646,7 +3649,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		++sp->root_count;
 		spin_unlock(&vcpu->kvm->mmu_lock);
 		vcpu->arch.mmu->root_hpa = root;
-		return 0;
+		goto set_root_cr3;
 	}
 
 	/*
@@ -3711,6 +3714,9 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 
 		vcpu->arch.mmu->root_hpa = __pa(vcpu->arch.mmu->lm_root);
 	}
+
+set_root_cr3:
+	vcpu->arch.mmu->root_cr3 = root_cr3;
 
 	return 0;
 }
@@ -4163,7 +4169,7 @@ static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	struct kvm_mmu_root_info root;
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 
-	root.cr3 = mmu->get_cr3(vcpu);
+	root.cr3 = mmu->root_cr3;
 	root.hpa = mmu->root_hpa;
 
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++) {
@@ -4176,6 +4182,7 @@ static bool cached_root_available(struct kvm_vcpu *vcpu, gpa_t new_cr3,
 	}
 
 	mmu->root_hpa = root.hpa;
+	mmu->root_cr3 = root.cr3;
 
 	return i < KVM_MMU_NUM_PREV_ROOTS;
 }
@@ -4770,6 +4777,7 @@ static union kvm_mmu_extended_role kvm_calc_mmu_role_ext(struct kvm_vcpu *vcpu)
 	ext.cr4_pse = !!is_pse(vcpu);
 	ext.cr4_pke = !!kvm_read_cr4_bits(vcpu, X86_CR4_PKE);
 	ext.cr4_la57 = !!kvm_read_cr4_bits(vcpu, X86_CR4_LA57);
+	ext.maxphyaddr = cpuid_maxphyaddr(vcpu);
 
 	ext.valid = 1;
 
@@ -5516,11 +5524,13 @@ int kvm_mmu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.walk_mmu = &vcpu->arch.root_mmu;
 
 	vcpu->arch.root_mmu.root_hpa = INVALID_PAGE;
+	vcpu->arch.root_mmu.root_cr3 = 0;
 	vcpu->arch.root_mmu.translate_gpa = translate_gpa;
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		vcpu->arch.root_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
 
 	vcpu->arch.guest_mmu.root_hpa = INVALID_PAGE;
+	vcpu->arch.guest_mmu.root_cr3 = 0;
 	vcpu->arch.guest_mmu.translate_gpa = translate_gpa;
 	for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
 		vcpu->arch.guest_mmu.prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;

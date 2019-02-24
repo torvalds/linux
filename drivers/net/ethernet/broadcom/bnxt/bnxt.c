@@ -3907,7 +3907,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			if (len)
 				break;
 			/* on first few passes, just barely sleep */
-			if (i < DFLT_HWRM_CMD_TIMEOUT)
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
 			else
@@ -3930,7 +3930,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			dma_rmb();
 			if (*valid)
 				break;
-			udelay(1);
+			usleep_range(1, 5);
 		}
 
 		if (j >= HWRM_VALID_BIT_DELAY_USEC) {

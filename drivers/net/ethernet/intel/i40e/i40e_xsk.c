@@ -112,6 +112,11 @@ static int i40e_xsk_umem_enable(struct i40e_vsi *vsi, struct xdp_umem *umem,
 		err = i40e_queue_pair_enable(vsi, qid);
 		if (err)
 			return err;
+
+		/* Kick start the NAPI context so that receiving will start */
+		err = i40e_xsk_async_xmit(vsi->netdev, qid);
+		if (err)
+			return err;
 	}
 
 	return 0;

@@ -1274,18 +1274,29 @@ static DEFINE_SPINLOCK(rt6_exception_lock);
 static void rt6_remove_exception(struct rt6_exception_bucket *bucket,
 				 struct rt6_exception *rt6_ex)
 {
+	struct fib6_info *from;
 	struct net *net;
 
 	if (!bucket || !rt6_ex)
 		return;
 
 	net = dev_net(rt6_ex->rt6i->dst.dev);
+	net->ipv6.rt6_stats->fib_rt_cache--;
+
+	/* purge completely the exception to allow releasing the held resources:
+	 * some [sk] cache may keep the dst around for unlimited time
+	 */
+	from = rcu_dereference_protected(rt6_ex->rt6i->from,
+					 lockdep_is_held(&rt6_exception_lock));
+	rcu_assign_pointer(rt6_ex->rt6i->from, NULL);
+	fib6_info_release(from);
+	dst_dev_put(&rt6_ex->rt6i->dst);
+
 	hlist_del_rcu(&rt6_ex->hlist);
 	dst_release(&rt6_ex->rt6i->dst);
 	kfree_rcu(rt6_ex, rcu);
 	WARN_ON_ONCE(!bucket->depth);
 	bucket->depth--;
-	net->ipv6.rt6_stats->fib_rt_cache--;
 }
 
 /* Remove oldest rt6_ex in bucket and free the memory
@@ -1599,15 +1610,15 @@ static int rt6_remove_exception_rt(struct rt6_info *rt)
 static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 {
 	struct rt6_exception_bucket *bucket;
-	struct fib6_info *from = rt->from;
 	struct in6_addr *src_key = NULL;
 	struct rt6_exception *rt6_ex;
-
-	if (!from ||
-	    !(rt->rt6i_flags & RTF_CACHE))
-		return;
+	struct fib6_info *from;
 
 	rcu_read_lock();
+	from = rcu_dereference(rt->from);
+	if (!from || !(rt->rt6i_flags & RTF_CACHE))
+		goto unlock;
+
 	bucket = rcu_dereference(from->rt6i_exception_bucket);
 
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1626,6 +1637,7 @@ static void rt6_update_exception_stamp_rt(struct rt6_info *rt)
 	if (rt6_ex)
 		rt6_ex->stamp = jiffies;
 
+unlock:
 	rcu_read_unlock();
 }
 
@@ -2736,20 +2748,24 @@ static int ip6_route_check_nh_onlink(struct net *net,
 	u32 tbid = l3mdev_fib_table(dev) ? : RT_TABLE_MAIN;
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
 	u32 flags = RTF_LOCAL | RTF_ANYCAST | RTF_REJECT;
+	struct fib6_info *from;
 	struct rt6_info *grt;
 	int err;
 
 	err = 0;
 	grt = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0);
 	if (grt) {
+		rcu_read_lock();
+		from = rcu_dereference(grt->from);
 		if (!grt->dst.error &&
 		    /* ignore match if it is the default route */
-		    grt->from && !ipv6_addr_any(&grt->from->fib6_dst.addr) &&
+		    from && !ipv6_addr_any(&from->fib6_dst.addr) &&
 		    (grt->rt6i_flags & flags || dev != grt->dst.dev)) {
 			NL_SET_ERR_MSG(extack,
 				       "Nexthop has invalid gateway or device mismatch");
 			err = -EINVAL;
 		}
+		rcu_read_unlock();
 
 		ip6_rt_put(grt);
 	}
@@ -4643,7 +4659,7 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 		table = rt->fib6_table->tb6_id;
 	else
 		table = RT6_TABLE_UNSPEC;
-	rtm->rtm_table = table;
+	rtm->rtm_table = table < 256 ? table : RT_TABLE_COMPAT;
 	if (nla_put_u32(skb, RTA_TABLE, table))
 		goto nla_put_failure;
 
