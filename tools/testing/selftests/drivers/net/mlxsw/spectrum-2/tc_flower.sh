@@ -540,11 +540,15 @@ delta_simple_rehash_test()
 	check_err $? "Rehash trace was not hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
 	check_err $? "Migrate trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_err $? "Migrate end trace was not hit"
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
 	check_err $? "Rehash trace was not hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
 	check_fail $? "Migrate trace was hit when no migration should happen"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_fail $? "Migrate end trace was hit when no migration should happen"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
@@ -611,11 +615,15 @@ delta_simple_ipv6_rehash_test()
 	check_err $? "Rehash trace was not hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
 	check_err $? "Migrate trace was not hit"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_err $? "Migrate end trace was not hit"
 	tp_record_all mlxsw:* 3
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_rehash
 	check_err $? "Rehash trace was not hit"
 	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate
 	check_fail $? "Migrate trace was hit when no migration should happen"
+	tp_check_hits_any mlxsw:mlxsw_sp_acl_tcam_vregion_migrate_end
+	check_fail $? "Migrate end trace was hit when no migration should happen"
 
 	$MZ $h1 -6 -c 1 -p 64 -a $h1mac -b $h2mac \
 		-A 2001:db8:2::1 -B 2001:db8:2::2 -t udp -q
