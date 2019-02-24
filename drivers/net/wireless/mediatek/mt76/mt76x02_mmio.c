@@ -79,24 +79,24 @@ mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 	 * Beacon timer drifts by 1us every tick, the timer is configured
 	 * in 1/16 TU (64us) units.
 	 */
-	if (dev->tbtt_count < 62)
+	if (dev->tbtt_count < 63)
 		return;
-
-	if (dev->tbtt_count >= 64) {
-		dev->tbtt_count = 0;
-		return;
-	}
 
 	/*
 	 * The updated beacon interval takes effect after two TBTT, because
 	 * at this point the original interval has already been loaded into
 	 * the next TBTT_TIMER value
 	 */
-	if (dev->tbtt_count == 62)
+	if (dev->tbtt_count == 63)
 		timer_val -= 1;
 
 	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
 		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
+
+	if (dev->tbtt_count >= 64) {
+		dev->tbtt_count = 0;
+		return;
+	}
 }
 
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
