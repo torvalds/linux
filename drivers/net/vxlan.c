@@ -2923,6 +2923,7 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_fdb_dump		= vxlan_fdb_dump,
 	.ndo_fdb_get		= vxlan_fdb_get,
 	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
+	.ndo_change_proto_down  = dev_change_proto_down_generic,
 };
 
 static const struct net_device_ops vxlan_netdev_raw_ops = {
