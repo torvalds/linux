@@ -5,11 +5,13 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/refcount.h>
+#include <linux/mutex.h>
 
 #include "spectrum.h"
 #include "spectrum_acl_tcam.h"
 
 struct mlxsw_sp_acl_bf {
+	struct mutex lock; /* Protects Bloom Filter updates. */
 	unsigned int bank_size;
 	refcount_t refcnt[0];
 };
@@ -172,26 +174,36 @@ mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
 	u16 bf_index;
 	int err;
 
+	mutex_lock(&bf->lock);
+
 	bf_index = mlxsw_sp_acl_bf_index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
 
-	if (refcount_inc_not_zero(&bf->refcnt[rule_index]))
-		return 0;
+	if (refcount_inc_not_zero(&bf->refcnt[rule_index])) {
+		err = 0;
+		goto unlock;
+	}
 
 	peabfe_pl = kmalloc(MLXSW_REG_PEABFE_LEN, GFP_KERNEL);
-	if (!peabfe_pl)
-		return -ENOMEM;
+	if (!peabfe_pl) {
+		err = -ENOMEM;
+		goto unlock;
+	}
 
 	mlxsw_reg_peabfe_pack(peabfe_pl);
 	mlxsw_reg_peabfe_rec_pack(peabfe_pl, 0, 1, erp_bank, bf_index);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(peabfe), peabfe_pl);
 	kfree(peabfe_pl);
 	if (err)
-		return err;
+		goto unlock;
 
 	refcount_set(&bf->refcnt[rule_index], 1);
-	return 0;
+	err = 0;
+
+unlock:
+	mutex_unlock(&bf->lock);
+	return err;
 }
 
 void
@@ -205,6 +217,8 @@ mlxsw_sp_acl_bf_entry_del(struct mlxsw_sp *mlxsw_sp,
 	char *peabfe_pl;
 	u16 bf_index;
 
+	mutex_lock(&bf->lock);
+
 	bf_index = mlxsw_sp_acl_bf_index_get(bf, aregion, aentry);
 	rule_index = mlxsw_sp_acl_bf_rule_count_index_get(bf, erp_bank,
 							  bf_index);
@@ -212,13 +226,16 @@ mlxsw_sp_acl_bf_entry_del(struct mlxsw_sp *mlxsw_sp,
 	if (refcount_dec_and_test(&bf->refcnt[rule_index])) {
 		peabfe_pl = kmalloc(MLXSW_REG_PEABFE_LEN, GFP_KERNEL);
 		if (!peabfe_pl)
-			return;
+			goto unlock;
 
 		mlxsw_reg_peabfe_pack(peabfe_pl);
 		mlxsw_reg_peabfe_rec_pack(peabfe_pl, 0, 0, erp_bank, bf_index);
 		mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(peabfe), peabfe_pl);
 		kfree(peabfe_pl);
 	}
+
+unlock:
+	mutex_unlock(&bf->lock);
 }
 
 struct mlxsw_sp_acl_bf *
@@ -240,10 +257,13 @@ mlxsw_sp_acl_bf_init(struct mlxsw_sp *mlxsw_sp, unsigned int num_erp_banks)
 		return ERR_PTR(-ENOMEM);
 
 	bf->bank_size = bf_bank_size;
+	mutex_init(&bf->lock);
+
 	return bf;
 }
 
 void mlxsw_sp_acl_bf_fini(struct mlxsw_sp_acl_bf *bf)
 {
+	mutex_destroy(&bf->lock);
 	kfree(bf);
 }
