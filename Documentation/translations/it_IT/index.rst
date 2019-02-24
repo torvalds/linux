@@ -70,9 +70,7 @@ I seguenti documenti descrivono la licenza usata nei sorgenti del kernel Linux
 (GPLv2), come licenziare i singoli file; inoltre troverete i riferimenti al
 testo integrale della licenza.
 
-.. warning::
-
-    TODO ancora da tradurre
+* :ref:`it_kernel_licensing`
 
 Documentazione per gli utenti
 -----------------------------
@@ -112,10 +110,6 @@ vostre modifiche molto più semplice
    process/index
    doc-guide/index
    kernel-hacking/index
-
-.. warning::
-
-    TODO ancora da tradurre
 
 Documentazione della API del kernel
 -----------------------------------
