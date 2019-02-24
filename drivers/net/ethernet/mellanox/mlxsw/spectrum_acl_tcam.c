@@ -1274,8 +1274,10 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 
 	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
 						  vregion, hints_priv);
-	if (IS_ERR(region2))
-		return PTR_ERR(region2);
+	if (IS_ERR(region2)) {
+		err = PTR_ERR(region2);
+		goto out;
+	}
 
 	vregion->region2 = region2;
 	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp,
@@ -1309,11 +1311,14 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		mutex_unlock(&vregion->lock);
 	}
 
-	return err;
+	goto out;
 
 err_group_region_attach:
 	vregion->region2 = NULL;
 	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, region2);
+out:
+	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
+
 	return err;
 }
 
