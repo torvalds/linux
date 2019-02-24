@@ -494,18 +494,28 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 static void mt76x02_check_tx_hang(struct mt76x02_dev *dev)
 {
 	if (mt76x02_tx_hang(dev)) {
-		if (++dev->tx_hang_check < MT_TX_HANG_TH)
-			return;
-
-		mt76x02_watchdog_reset(dev);
-
-		dev->tx_hang_reset++;
-		dev->tx_hang_check = 0;
-		memset(dev->mt76.tx_dma_idx, 0xff,
-		       sizeof(dev->mt76.tx_dma_idx));
+		if (++dev->tx_hang_check >= MT_TX_HANG_TH)
+			goto restart;
 	} else {
 		dev->tx_hang_check = 0;
 	}
+
+	if (dev->mcu_timeout)
+		goto restart;
+
+	return;
+
+restart:
+	mt76x02_watchdog_reset(dev);
+
+	mutex_lock(&dev->mt76.mmio.mcu.mutex);
+	dev->mcu_timeout = 0;
+	mutex_unlock(&dev->mt76.mmio.mcu.mutex);
+
+	dev->tx_hang_reset++;
+	dev->tx_hang_check = 0;
+	memset(dev->mt76.tx_dma_idx, 0xff,
+	       sizeof(dev->mt76.tx_dma_idx));
 }
 
 void mt76x02_wdt_work(struct work_struct *work)
