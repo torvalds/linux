@@ -179,7 +179,7 @@ int mlx5e_tx_reporter_timeout(struct mlx5e_txqsq *sq)
 /* state lock cannot be grabbed within this function.
  * It can cause a dead lock or a read-after-free.
  */
-int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_tx_err_ctx *err_ctx)
+static int mlx5e_tx_reporter_recover_from_ctx(struct mlx5e_tx_err_ctx *err_ctx)
 {
 	return err_ctx->recover(err_ctx->sq);
 }
