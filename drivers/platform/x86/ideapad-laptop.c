@@ -1259,6 +1259,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo YOGA C930-13IKB",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA C930-13IKB"),
+		},
+	},
+	{
 		.ident = "Lenovo Zhaoyang E42-80",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
