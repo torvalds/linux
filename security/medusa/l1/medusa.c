@@ -869,6 +869,13 @@ static int medusa_l1_socket_post_create(struct socket *sock, int family, int typ
 static int medusa_l1_socket_bind(struct socket *sock, struct sockaddr *address,
 				int addrlen)
 {
+	if (!sock->sk) {
+		return 0;
+	}
+
+	if (medusa_socket_bind(sock, address, addrlen) == MED_ERR)
+		return -EACCES;
+
 	return 0;
 }
 

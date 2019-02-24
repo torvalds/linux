@@ -38,7 +38,7 @@ struct med_unix_addr_i {
 };
 
 extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
-
+extern medusa_answer_t medusa_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen);
 /*
  * The following routine makes a support for many of access types,
  * and it is used both in L1 and L2 code. It is defined in

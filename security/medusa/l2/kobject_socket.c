@@ -27,6 +27,7 @@ int socket_kobj2kern(struct socket_kobject * sock_kobj, struct socket * sock)
 int socket_kern2kobj(struct socket_kobject * sock_kobj, struct socket * sock)
 {
 	struct inode *inode = SOCK_INODE(sock);
+	struct medusa_l1_socket_s *sk_sec = &sock_security(sock->sk);
 
 	sock_kobj->dev = inode->i_sb->s_dev;
 	sock_kobj->ino = inode->i_ino;
@@ -34,6 +35,22 @@ int socket_kern2kobj(struct socket_kobject * sock_kobj, struct socket * sock)
 	sock_kobj->type = sock->type;
 	sock_kobj->family = sock->ops->family;
 	sock_kobj->uid = sock->sk->sk_uid;
+	sock_kobj->addrlen = sk_sec->addrlen;
+	if (sk_sec->addrlen > 0) {
+		switch(sock->ops->family) {
+			case AF_INET:
+			case AF_INET6:
+				sock_kobj->address = (__be32 *)kmalloc(sk_sec->addrlen, GFP_KERNEL);
+				memcpy(sock_kobj->address, ((struct med_inet_addr_i*)sk_sec->address)->addrdata, sk_sec->addrlen);
+				break;
+			case AF_UNIX:
+				sock_kobj->address = (char*)kmalloc(sk_sec->addrlen, GFP_KERNEL);
+				memcpy(sock_kobj->address, ((struct med_unix_addr_i*)sk_sec->address)->addrdata, sk_sec->addrlen);
+				break;
+			default:
+				break;
+		}
+	}
 	COPY_MEDUSA_OBJECT_VARS(sock_kobj, sk_sec);
 
 	return MED_YES;
