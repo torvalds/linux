@@ -2,24 +2,21 @@
 /*
  * Microchip KSZ9477 switch driver main logic
  *
- * Copyright (C) 2017-2018 Microchip Technology Inc.
+ * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
 
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/iopoll.h>
 #include <linux/platform_data/microchip-ksz.h>
 #include <linux/phy.h>
-#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
 #include "ksz_priv.h"
-#include "ksz_common.h"
 #include "ksz9477_reg.h"
+#include "ksz_common.h"
 
 static const struct {
 	int index;
@@ -259,6 +256,75 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	return 0;
 }
 
+static void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
+			      u64 *cnt)
+{
+	struct ksz_poll_ctx ctx = {
+		.dev = dev,
+		.port = port,
+		.offset = REG_PORT_MIB_CTRL_STAT__4,
+	};
+	struct ksz_port *p = &dev->ports[port];
+	u32 data;
+	int ret;
+
+	/* retain the flush/freeze bit */
+	data = p->freeze ? MIB_COUNTER_FLUSH_FREEZE : 0;
+	data |= MIB_COUNTER_READ;
+	data |= (addr << MIB_COUNTER_INDEX_S);
+	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, data);
+
+	ret = readx_poll_timeout(ksz_pread32_poll, &ctx, data,
+				 !(data & MIB_COUNTER_READ), 10, 1000);
+
+	/* failed to read MIB. get out of loop */
+	if (ret < 0) {
+		dev_dbg(dev->dev, "Failed to get MIB\n");
+		return;
+	}
+
+	/* count resets upon read */
+	ksz_pread32(dev, port, REG_PORT_MIB_DATA, &data);
+	*cnt += data;
+}
+
+static void ksz9477_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
+			      u64 *dropped, u64 *cnt)
+{
+	addr = ksz9477_mib_names[addr].index;
+	ksz9477_r_mib_cnt(dev, port, addr, cnt);
+}
+
+static void ksz9477_freeze_mib(struct ksz_device *dev, int port, bool freeze)
+{
+	u32 val = freeze ? MIB_COUNTER_FLUSH_FREEZE : 0;
+	struct ksz_port *p = &dev->ports[port];
+
+	/* enable/disable the port for flush/freeze function */
+	mutex_lock(&p->mib.cnt_mutex);
+	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, val);
+
+	/* used by MIB counter reading code to know freeze is enabled */
+	p->freeze = freeze;
+	mutex_unlock(&p->mib.cnt_mutex);
+}
+
+static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
+{
+	struct ksz_port_mib *mib = &dev->ports[port].mib;
+
+	/* flush all enabled port MIB counters */
+	mutex_lock(&mib->cnt_mutex);
+	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4,
+		     MIB_COUNTER_FLUSH_FREEZE);
+	ksz_write8(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FLUSH);
+	ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, 0);
+	mutex_unlock(&mib->cnt_mutex);
+
+	mib->cnt_ptr = 0;
+	memset(mib->counters, 0, dev->mib_cnt * sizeof(u64));
+}
+
 static enum dsa_tag_protocol ksz9477_get_tag_protocol(struct dsa_switch *ds,
 						      int port)
 {
@@ -342,47 +408,6 @@ static void ksz9477_get_strings(struct dsa_switch *ds, int port,
 	}
 }
 
-static void ksz_get_ethtool_stats(struct dsa_switch *ds, int port,
-				  uint64_t *buf)
-{
-	struct ksz_device *dev = ds->priv;
-	int i;
-	u32 data;
-	int timeout;
-
-	mutex_lock(&dev->stats_mutex);
-
-	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
-		data = MIB_COUNTER_READ;
-		data |= ((ksz9477_mib_names[i].index & 0xFF) <<
-			MIB_COUNTER_INDEX_S);
-		ksz_pwrite32(dev, port, REG_PORT_MIB_CTRL_STAT__4, data);
-
-		timeout = 1000;
-		do {
-			ksz_pread32(dev, port, REG_PORT_MIB_CTRL_STAT__4,
-				    &data);
-			usleep_range(1, 10);
-			if (!(data & MIB_COUNTER_READ))
-				break;
-		} while (timeout-- > 0);
-
-		/* failed to read MIB. get out of loop */
-		if (!timeout) {
-			dev_dbg(dev->dev, "Failed to get MIB\n");
-			break;
-		}
-
-		/* count resets upon read */
-		ksz_pread32(dev, port, REG_PORT_MIB_DATA, &data);
-
-		dev->mib_value[i] += (uint64_t)data;
-		buf[i] = dev->mib_value[i];
-	}
-
-	mutex_unlock(&dev->stats_mutex);
-}
-
 static void ksz9477_cfg_port_member(struct ksz_device *dev, int port,
 				    u8 member)
 {
@@ -425,12 +450,14 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 			break;
 
 		member = dev->host_mask | p->vid_member;
+		mutex_lock(&dev->dev_mutex);
 
 		/* Port is a member of a bridge. */
 		if (dev->br_member & (1 << port)) {
 			dev->member |= (1 << port);
 			member = dev->member;
 		}
+		mutex_unlock(&dev->dev_mutex);
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
@@ -445,6 +472,7 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
 	p->stp_state = state;
+	mutex_lock(&dev->dev_mutex);
 	if (data & PORT_RX_ENABLE)
 		dev->rx_ports |= (1 << port);
 	else
@@ -469,6 +497,7 @@ static void ksz9477_port_stp_state_set(struct dsa_switch *ds, int port,
 	 */
 	if (forward != dev->member)
 		ksz_update_port_member(dev, port);
+	mutex_unlock(&dev->dev_mutex);
 }
 
 static void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -966,6 +995,16 @@ static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
+static void ksz9477_phy_setup(struct ksz_device *dev, int port,
+			      struct phy_device *phy)
+{
+	if (port < dev->phy_port_cnt) {
+		/* The MAC actually cannot run in 1000 half-duplex mode. */
+		phy_remove_link_mode(phy,
+				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+	}
+}
+
 static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	u8 data8;
@@ -1045,6 +1084,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
 		p->phydev.duplex = 1;
 	}
+	mutex_lock(&dev->dev_mutex);
 	if (cpu_port) {
 		member = dev->port_mask;
 		dev->on_ports = dev->host_mask;
@@ -1057,6 +1097,7 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		if (p->phydev.link)
 			dev->live_ports |= (1 << port);
 	}
+	mutex_unlock(&dev->dev_mutex);
 	ksz9477_cfg_port_member(dev, port, member);
 
 	/* clear pending interrupts */
@@ -1141,8 +1182,13 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	/* queue based egress rate limit */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_5, SW_OUT_RATE_LIMIT_QUEUE_BASED, true);
 
+	/* enable global MIB counter freeze function */
+	ksz_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
+
 	/* start switch */
 	ksz_cfg(dev, REG_SW_OPERATION, SW_START, true);
+
+	ksz_init_mib_timer(dev);
 
 	return 0;
 }
@@ -1152,6 +1198,7 @@ static const struct dsa_switch_ops ksz9477_switch_ops = {
 	.setup			= ksz9477_setup,
 	.phy_read		= ksz9477_phy_read16,
 	.phy_write		= ksz9477_phy_write16,
+	.adjust_link		= ksz_adjust_link,
 	.port_enable		= ksz_enable_port,
 	.port_disable		= ksz_disable_port,
 	.get_strings		= ksz9477_get_strings,
@@ -1277,6 +1324,7 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 	if (!dev->ports)
 		return -ENOMEM;
 	for (i = 0; i < dev->mib_port_cnt; i++) {
+		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,
 				     sizeof(u64) *
@@ -1299,7 +1347,12 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.get_port_addr = ksz9477_get_port_addr,
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
+	.phy_setup = ksz9477_phy_setup,
 	.port_setup = ksz9477_port_setup,
+	.r_mib_cnt = ksz9477_r_mib_cnt,
+	.r_mib_pkt = ksz9477_r_mib_pkt,
+	.freeze_mib = ksz9477_freeze_mib,
+	.port_init_cnt = ksz9477_port_init_cnt,
 	.shutdown = ksz9477_reset_switch,
 	.detect = ksz9477_switch_detect,
 	.init = ksz9477_switch_init,
