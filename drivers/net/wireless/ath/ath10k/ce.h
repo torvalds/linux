@@ -329,6 +329,8 @@ struct ath10k_ce_ops {
 	void (*ce_set_dest_ring_base_addr_hi)(struct ath10k *ar,
 					      u32 ce_ctrl_addr,
 					      u64 addr);
+	int (*ce_completed_send_next_nolock)(struct ath10k_ce_pipe *ce_state,
+					     void **per_transfer_contextp);
 };
 
 static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
