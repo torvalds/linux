@@ -399,7 +399,7 @@ xchk_agf_xref_cntbt(
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.cnt_cur))
 		return;
 	if (!have) {
-		if (agf->agf_freeblks != be32_to_cpu(0))
+		if (agf->agf_freeblks != cpu_to_be32(0))
 			xchk_block_xref_set_corrupt(sc, sc->sa.agf_bp);
 		return;
 	}
