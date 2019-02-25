@@ -31,7 +31,7 @@
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 
-#define QUEUE_THRESHOLD 10000
+#define QUEUE_THRESHOLD 16384
 #define DQCOUNT_INVALID -1
 #define MAX_PROB  0xffffffff
 #define PIE_SCALE 8
