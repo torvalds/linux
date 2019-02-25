@@ -185,7 +185,7 @@ static inline void wanxl_tx_intr(struct port *port)
                 desc->stat = PACKET_EMPTY; /* Free descriptor */
 		pci_unmap_single(port->card->pdev, desc->address, skb->len,
 				 PCI_DMA_TODEVICE);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
                 port->tx_in = (port->tx_in + 1) % TX_BUFFERS;
         }
 }
