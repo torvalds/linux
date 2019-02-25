@@ -3059,7 +3059,6 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 	const struct mlxsw_sp_port_type_speed_ops *ops;
 	char ptys_pl[MLXSW_REG_PTYS_LEN];
 	u8 connector_type;
-	u8 autoneg_status;
 	bool autoneg;
 	int err;
 
@@ -3078,8 +3077,6 @@ static int mlxsw_sp_port_get_link_ksettings(struct net_device *dev,
 
 	mlxsw_sp_port_get_link_advertise(mlxsw_sp, eth_proto_admin, autoneg,
 					 cmd);
-
-	autoneg_status = mlxsw_reg_ptys_an_status_get(ptys_pl);
 
 	cmd->base.autoneg = autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	connector_type = mlxsw_reg_ptys_connector_type_get(ptys_pl);
