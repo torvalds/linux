@@ -80,6 +80,33 @@ uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 }
 
 /**
+ * amdgpu_gmc_set_pte_pde - update the page tables using CPU
+ *
+ * @adev: amdgpu_device pointer
+ * @cpu_pt_addr: cpu address of the page table
+ * @gpu_page_idx: entry in the page table to update
+ * @addr: dst addr to write into pte/pde
+ * @flags: access flags
+ *
+ * Update the page tables using CPU.
+ */
+int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
+				uint32_t gpu_page_idx, uint64_t addr,
+				uint64_t flags)
+{
+	void __iomem *ptr = (void *)cpu_pt_addr;
+	uint64_t value;
+
+	/*
+	 * The following is for PTE only. GART does not have PDEs.
+	*/
+	value = addr & 0x0000FFFFFFFFF000ULL;
+	value |= flags;
+	writeq(value, ptr + (gpu_page_idx * 8));
+	return 0;
+}
+
+/**
  * amdgpu_gmc_agp_addr - return the address in the AGP address space
  *
  * @tbo: TTM BO which needs the address, must be in GTT domain
