@@ -82,7 +82,7 @@ getall_set()
 					rc="$?"
 					# If this was not successful or a valid error
 					# return from the server all bets are off, bail.
-					[ "$rc" != 0 -a "$rc" != 8 ] && return 1
+					[ "$rc" != 0 -a "$rc" != 8 ] && return 2
 				fi
 				if [ -f $filename ]; then
 					echo -n "y"
@@ -155,6 +155,12 @@ getall_set()
 		rm -rf tmp $filenames
 		echo "  done"
 	)
+	rc="$?"
+	if [ "$rc" = 2 ]; then
+		echo "ERROR: downloads are reporting network failures" 1>&2
+		exit 1
+	fi
+	return "$rc"
 }
 
 # MAIN
