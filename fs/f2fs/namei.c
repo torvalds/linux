@@ -10,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/ctype.h>
+#include <linux/random.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
 #include <linux/quotaops.h>
@@ -50,7 +51,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	F2FS_I(inode)->i_crtime = inode->i_mtime;
-	inode->i_generation = sbi->s_next_generation++;
+	inode->i_generation = prandom_u32();
 
 	if (S_ISDIR(inode->i_mode))
 		F2FS_I(inode)->i_current_depth = 1;
