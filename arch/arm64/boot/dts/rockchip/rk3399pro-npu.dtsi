@@ -579,6 +579,24 @@
 	npu_opp_table: npu-opp-table {
 		compatible = "operating-points-v2";
 
+		rockchip,max-volt = <950000>;
+		rockchip,evb-irdrop = <37500>;
+
+		rockchip,pvtm-voltage-sel = <
+			0        69000   0
+			69001    74000   1
+			74001    99999   2
+		>;
+		rockchip,pvtm-freq = <200000>;
+		rockchip,pvtm-volt = <800000>;
+		rockchip,pvtm-ch = <0 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <25>;
+		rockchip,pvtm-temp-prop = <(-20) (-26)>;
+		rockchip,thermal-zone = "soc-thermal";
+
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <750000 750000 950000>;
@@ -597,7 +615,10 @@
 		};
 		opp-792000000 {
 			opp-hz = /bits/ 64 <792000000>;
-			opp-microvolt = <750000 750000 950000>;
+			opp-microvolt = <825000 825000 950000>;
+			opp-microvolt-L0 = <825000 825000 950000>;
+			opp-microvolt-L1 = <800000 800000 950000>;
+			opp-microvolt-L2 = <775000 775000 950000>;
 		};
 	};
 
