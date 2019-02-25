@@ -346,7 +346,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 
 static void mlx5_queue_bond_work(struct mlx5_lag *ldev, unsigned long delay)
 {
-	schedule_delayed_work(&ldev->bond_work, delay);
+	queue_delayed_work(ldev->wq, &ldev->bond_work, delay);
 }
 
 static void mlx5_do_bond_work(struct work_struct *work)
@@ -498,6 +498,12 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 	if (!ldev)
 		return NULL;
 
+	ldev->wq = create_singlethread_workqueue("mlx5_lag");
+	if (!ldev->wq) {
+		kfree(ldev);
+		return NULL;
+	}
+
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
 
 	return ldev;
@@ -505,6 +511,7 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 
 static void mlx5_lag_dev_free(struct mlx5_lag *ldev)
 {
+	destroy_workqueue(ldev->wq);
 	kfree(ldev);
 }
 

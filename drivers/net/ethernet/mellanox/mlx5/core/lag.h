@@ -33,6 +33,7 @@ struct mlx5_lag {
 	u8                        v2p_map[MLX5_MAX_PORTS];
 	struct lag_func           pf[MLX5_MAX_PORTS];
 	struct lag_tracker        tracker;
+	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
 	struct notifier_block     nb;
 };
