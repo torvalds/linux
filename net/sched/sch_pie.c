@@ -92,8 +92,8 @@ static void pie_vars_init(struct pie_vars *vars)
 {
 	vars->dq_count = DQCOUNT_INVALID;
 	vars->avg_dq_rate = 0;
-	/* default of 100 ms in pschedtime */
-	vars->burst_time = PSCHED_NS2TICKS(100 * NSEC_PER_MSEC);
+	/* default of 150 ms in pschedtime */
+	vars->burst_time = PSCHED_NS2TICKS(150 * NSEC_PER_MSEC);
 }
 
 static bool drop_early(struct Qdisc *sch, u32 packet_size)
