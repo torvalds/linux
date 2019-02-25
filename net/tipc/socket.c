@@ -379,11 +379,13 @@ static int tipc_sk_sock_err(struct socket *sock, long *timeout)
 
 #define tipc_wait_for_cond(sock_, timeo_, condition_)			       \
 ({                                                                             \
+	DEFINE_WAIT_FUNC(wait_, woken_wake_function);                          \
 	struct sock *sk_;						       \
 	int rc_;							       \
 									       \
 	while ((rc_ = !(condition_))) {					       \
-		DEFINE_WAIT_FUNC(wait_, woken_wake_function);	               \
+		/* coupled with smp_wmb() in tipc_sk_proto_rcv() */            \
+		smp_rmb();                                                     \
 		sk_ = (sock_)->sk;					       \
 		rc_ = tipc_sk_sock_err((sock_), timeo_);		       \
 		if (rc_)						       \
@@ -1983,6 +1985,8 @@ static void tipc_sk_proto_rcv(struct sock *sk,
 		return;
 	case SOCK_WAKEUP:
 		tipc_dest_del(&tsk->cong_links, msg_orignode(hdr), 0);
+		/* coupled with smp_rmb() in tipc_wait_for_cond() */
+		smp_wmb();
 		tsk->cong_link_cnt--;
 		wakeup = true;
 		break;
