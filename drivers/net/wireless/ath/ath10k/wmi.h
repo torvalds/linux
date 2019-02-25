@@ -202,6 +202,7 @@ enum wmi_service {
 	WMI_SERVICE_REPORT_AIRTIME,
 	WMI_SERVICE_SYNC_DELETE_CMDS,
 	WMI_SERVICE_TX_PWR_PER_PEER,
+	WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
 
 	/* Remember to add the new value to wmi_service_name()! */
 
@@ -496,6 +497,7 @@ static inline char *wmi_service_name(enum wmi_service service_id)
 	SVCSTR(WMI_SERVICE_REPORT_AIRTIME);
 	SVCSTR(WMI_SERVICE_SYNC_DELETE_CMDS);
 	SVCSTR(WMI_SERVICE_TX_PWR_PER_PEER);
+	SVCSTR(WMI_SERVICE_SUPPORT_EXTEND_ADDRESS);
 
 	case WMI_SERVICE_MAX:
 		return NULL;
