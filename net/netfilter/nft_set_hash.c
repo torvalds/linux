@@ -442,15 +442,6 @@ static void *nft_hash_get(const struct net *net, const struct nft_set *set,
 	return ERR_PTR(-ENOENT);
 }
 
-/* nft_hash_select_ops() makes sure key size can be either 2 or 4 bytes . */
-static inline u32 nft_hash_key(const u32 *key, u32 klen)
-{
-	if (klen == 4)
-		return *key;
-
-	return *(u16 *)key;
-}
-
 static bool nft_hash_lookup_fast(const struct net *net,
 				 const struct nft_set *set,
 				 const u32 *key, const struct nft_set_ext **ext)
@@ -460,11 +451,11 @@ static bool nft_hash_lookup_fast(const struct net *net,
 	const struct nft_hash_elem *he;
 	u32 hash, k1, k2;
 
-	k1 = nft_hash_key(key, set->klen);
+	k1 = *key;
 	hash = jhash_1word(k1, priv->seed);
 	hash = reciprocal_scale(hash, priv->buckets);
 	hlist_for_each_entry_rcu(he, &priv->table[hash], node) {
-		k2 = nft_hash_key(nft_set_ext_key(&he->ext)->data, set->klen);
+		k2 = *(u32 *)nft_set_ext_key(&he->ext)->data;
 		if (k1 == k2 &&
 		    nft_set_elem_active(&he->ext, genmask)) {
 			*ext = &he->ext;
