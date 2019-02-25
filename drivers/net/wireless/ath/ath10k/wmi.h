@@ -6725,16 +6725,27 @@ struct wmi_scan_ev_arg {
 	__le32 vdev_id;
 };
 
+struct mgmt_tx_compl_params {
+	u32 desc_id;
+	u32 status;
+	u32 ppdu_id;
+	int ack_rssi;
+};
+
 struct wmi_tlv_mgmt_tx_compl_ev_arg {
 	__le32 desc_id;
 	__le32 status;
 	__le32 pdev_id;
+	__le32 ppdu_id;
+	__le32 ack_rssi;
 };
 
 struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg {
 	__le32 num_reports;
 	const __le32 *desc_ids;
 	const __le32 *status;
+	const __le32 *ppdu_ids;
+	const __le32 *ack_rssi;
 };
 
 struct wmi_mgmt_rx_ev_arg {

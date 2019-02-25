@@ -673,6 +673,10 @@ ath10k_wmi_tlv_op_pull_mgmt_tx_compl_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->desc_id = ev->desc_id;
 	arg->status = ev->status;
 	arg->pdev_id = ev->pdev_id;
+	arg->ppdu_id = ev->ppdu_id;
+
+	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map))
+		arg->ack_rssi = ev->ack_rssi;
 
 	kfree(tb);
 	return 0;
@@ -682,8 +686,12 @@ struct wmi_tlv_tx_bundle_compl_parse {
 	const __le32 *num_reports;
 	const __le32 *desc_ids;
 	const __le32 *status;
+	const __le32 *ppdu_ids;
+	const __le32 *ack_rssi;
 	bool desc_ids_done;
 	bool status_done;
+	bool ppdu_ids_done;
+	bool ack_rssi_done;
 };
 
 static int
@@ -703,6 +711,12 @@ ath10k_wmi_tlv_mgmt_tx_bundle_compl_parse(struct ath10k *ar, u16 tag, u16 len,
 		} else if (!bundle_tx_compl->status_done) {
 			bundle_tx_compl->status_done = true;
 			bundle_tx_compl->status = ptr;
+		} else if (!bundle_tx_compl->ppdu_ids_done) {
+			bundle_tx_compl->ppdu_ids_done = true;
+			bundle_tx_compl->ppdu_ids = ptr;
+		} else if (!bundle_tx_compl->ack_rssi_done) {
+			bundle_tx_compl->ack_rssi_done = true;
+			bundle_tx_compl->ack_rssi = ptr;
 		}
 		break;
 	default:
@@ -733,6 +747,10 @@ static int ath10k_wmi_tlv_op_pull_mgmt_tx_bundle_compl_ev(
 	arg->num_reports = *bundle_tx_compl.num_reports;
 	arg->desc_ids = bundle_tx_compl.desc_ids;
 	arg->status = bundle_tx_compl.status;
+	arg->ppdu_ids = bundle_tx_compl.ppdu_ids;
+
+	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map))
+		arg->ack_rssi = bundle_tx_compl.ack_rssi;
 
 	return 0;
 }
@@ -1678,6 +1696,9 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->num_ocb_channels = __cpu_to_le32(0);
 	cfg->num_ocb_schedules = __cpu_to_le32(0);
 	cfg->host_capab = __cpu_to_le32(WMI_TLV_FLAG_MGMT_BUNDLE_TX_COMPL);
+
+	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map))
+		cfg->host_capab |= __cpu_to_le32(WMI_RSRC_CFG_FLAG_TX_ACK_RSSI);
 
 	ath10k_wmi_put_host_mem_chunks(ar, chunks);
 
@@ -2745,7 +2766,9 @@ ath10k_wmi_tlv_op_gen_mgmt_tx_send(struct ath10k *ar, struct sk_buff *msdu,
 	arvif = (void *)cb->vif->drv_priv;
 	vdev_id = arvif->vdev_id;
 
-	if (WARN_ON_ONCE(!ieee80211_is_mgmt(hdr->frame_control)))
+	if (WARN_ON_ONCE(!ieee80211_is_mgmt(hdr->frame_control) &&
+			 (!(ieee80211_is_nullfunc(hdr->frame_control) ||
+			 ieee80211_is_qos_nullfunc(hdr->frame_control)))))
 		return ERR_PTR(-EINVAL);
 
 	len = sizeof(*cmd) + 2 * sizeof(*tlv);
