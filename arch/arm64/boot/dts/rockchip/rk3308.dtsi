@@ -327,6 +327,8 @@
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-fastboot = <BOOT_FASTBOOT>;
+			mode-panic = <BOOT_PANIC>;
+			mode-watchdog = <BOOT_WATCHDOG>;
 		};
 	};
 
