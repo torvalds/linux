@@ -658,6 +658,20 @@ static void mv88e6185_phylink_validate(struct mv88e6xxx_chip *chip, int port,
 	mv88e6065_phylink_validate(chip, port, mask, state);
 }
 
+static void mv88e6341_phylink_validate(struct mv88e6xxx_chip *chip, int port,
+				       unsigned long *mask,
+				       struct phylink_link_state *state)
+{
+	if (port >= 5)
+		phylink_set(mask, 2500baseX_Full);
+
+	/* No ethtool bits for 200Mbps */
+	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
+
+	mv88e6065_phylink_validate(chip, port, mask, state);
+}
+
 static void mv88e6352_phylink_validate(struct mv88e6xxx_chip *chip, int port,
 				       unsigned long *mask,
 				       struct phylink_link_state *state)
@@ -3079,7 +3093,7 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.serdes_power = mv88e6341_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
-	.phylink_validate = mv88e6390_phylink_validate,
+	.phylink_validate = mv88e6341_phylink_validate,
 };
 
 static const struct mv88e6xxx_ops mv88e6161_ops = {
@@ -3711,7 +3725,7 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6390_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
-	.phylink_validate = mv88e6390_phylink_validate,
+	.phylink_validate = mv88e6341_phylink_validate,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
