@@ -2226,11 +2226,7 @@ bool is_mst_supported(struct dc_link *link)
 
 bool is_dp_active_dongle(const struct dc_link *link)
 {
-	enum display_dongle_type dongle_type = link->dpcd_caps.dongle_type;
-
-	return (dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER) ||
-			(dongle_type == DISPLAY_DONGLE_DP_DVI_CONVERTER) ||
-			(dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER);
+	return link->dpcd_caps.is_branch_dev;
 }
 
 static int translate_dpcd_max_bpc(enum dpcd_downstream_port_max_bpc bpc)
@@ -2263,6 +2259,9 @@ static void get_active_converter_info(
 				link->dpcd_caps.dongle_type);
 		return;
 	}
+
+	/* DPCD 0x5 bit 0 = 1, it indicate it's branch device */
+	link->dpcd_caps.is_branch_dev = ds_port.fields.PORT_PRESENT;
 
 	switch (ds_port.fields.PORT_TYPE) {
 	case DOWNSTREAM_VGA:

@@ -720,9 +720,8 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 					same_dpcd = false;
 			}
 			/* Active dongle plug in without display or downstream unplug*/
-			if (link->type == dc_connection_active_dongle
-					&& link->dpcd_caps.sink_count.
-					bits.SINK_COUNT == 0) {
+			if (link->type == dc_connection_active_dongle &&
+				link->dpcd_caps.sink_count.bits.SINK_COUNT == 0) {
 				if (prev_sink != NULL) {
 					/* Downstream unplug */
 					dc_sink_release(prev_sink);

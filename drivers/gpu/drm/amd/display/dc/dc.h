@@ -689,6 +689,8 @@ struct dpcd_caps {
 
 	/* dongle type (DP converter, CV smart dongle) */
 	enum display_dongle_type dongle_type;
+	/* branch device or sink device */
+	bool is_branch_dev;
 	/* Dongle's downstream count. */
 	union sink_count sink_count;
 	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
