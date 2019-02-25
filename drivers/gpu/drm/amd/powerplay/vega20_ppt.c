@@ -131,10 +131,15 @@ static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 
 static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
-	if (index > SMU_MSG_MAX_COUNT || index > PPSMC_Message_Count)
+	int val;
+	if (index > SMU_MSG_MAX_COUNT)
 		return -EINVAL;
-	return vega20_message_map[index];
 
+	val = vega20_message_map[index];
+	if (val > PPSMC_Message_Count)
+		return -EINVAL;
+
+	return val;
 }
 
 static int vega20_allocate_dpm_context(struct smu_context *smu)
