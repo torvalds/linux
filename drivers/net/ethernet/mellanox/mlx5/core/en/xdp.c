@@ -105,6 +105,7 @@ xdp_abort:
 static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 {
 	struct mlx5e_xdp_mpwqe *session = &sq->mpwqe;
+	struct mlx5e_xdpsq_stats *stats = sq->stats;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	u8  wqebbs;
 	u16 pi;
@@ -131,6 +132,7 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 		       MLX5E_XDP_MPW_MAX_WQEBBS);
 
 	session->max_ds_count = MLX5_SEND_WQEBB_NUM_DS * wqebbs;
+	stats->mpwqe++;
 }
 
 static void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq)
