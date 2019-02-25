@@ -77,8 +77,10 @@ static void	call_timeout(struct rpc_task *task);
 static void	call_connect(struct rpc_task *task);
 static void	call_connect_status(struct rpc_task *task);
 
-static __be32	*rpc_encode_header(struct rpc_task *task);
-static __be32	*rpc_verify_header(struct rpc_task *task);
+static int	rpc_encode_header(struct rpc_task *task,
+				  struct xdr_stream *xdr);
+static int	rpc_decode_header(struct rpc_task *task,
+				  struct xdr_stream *xdr);
 static int	rpc_ping(struct rpc_clnt *clnt);
 
 static void rpc_register_client(struct rpc_clnt *clnt)
@@ -1162,6 +1164,29 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req)
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
+/**
+ * rpc_prepare_reply_pages - Prepare to receive a reply data payload into pages
+ * @req: RPC request to prepare
+ * @pages: vector of struct page pointers
+ * @base: offset in first page where receive should start, in bytes
+ * @len: expected size of the upper layer data payload, in bytes
+ * @hdrsize: expected size of upper layer reply header, in XDR words
+ *
+ */
+void rpc_prepare_reply_pages(struct rpc_rqst *req, struct page **pages,
+			     unsigned int base, unsigned int len,
+			     unsigned int hdrsize)
+{
+	/* Subtract one to force an extra word of buffer space for the
+	 * payload's XDR pad to fall into the rcv_buf's tail iovec.
+	 */
+	hdrsize += RPC_REPHDRSIZE + req->rq_cred->cr_auth->au_ralign - 1;
+
+	xdr_inline_pages(&req->rq_rcv_buf, hdrsize << 2, pages, base, len);
+	trace_rpc_reply_pages(req);
+}
+EXPORT_SYMBOL_GPL(rpc_prepare_reply_pages);
+
 void
 rpc_call_start(struct rpc_task *task)
 {
@@ -1665,7 +1690,7 @@ call_refreshresult(struct rpc_task *task)
 static void
 call_allocate(struct rpc_task *task)
 {
-	unsigned int slack = task->tk_rqstp->rq_cred->cr_auth->au_cslack;
+	const struct rpc_auth *auth = task->tk_rqstp->rq_cred->cr_auth;
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	const struct rpc_procinfo *proc = task->tk_msg.rpc_proc;
@@ -1690,9 +1715,10 @@ call_allocate(struct rpc_task *task)
 	 * and reply headers, and convert both values
 	 * to byte sizes.
 	 */
-	req->rq_callsize = RPC_CALLHDRSIZE + (slack << 1) + proc->p_arglen;
+	req->rq_callsize = RPC_CALLHDRSIZE + (auth->au_cslack << 1) +
+			   proc->p_arglen;
 	req->rq_callsize <<= 2;
-	req->rq_rcvsize = RPC_REPHDRSIZE + slack + proc->p_replen;
+	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + proc->p_replen;
 	req->rq_rcvsize <<= 2;
 
 	status = xprt->ops->buf_alloc(task);
@@ -1728,10 +1754,7 @@ static void
 rpc_xdr_encode(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
-	kxdreproc_t	encode;
-	__be32		*p;
-
-	dprint_status(task);
+	struct xdr_stream xdr;
 
 	xdr_buf_init(&req->rq_snd_buf,
 		     req->rq_buffer,
@@ -1740,18 +1763,13 @@ rpc_xdr_encode(struct rpc_task *task)
 		     req->rq_rbuffer,
 		     req->rq_rcvsize);
 
-	p = rpc_encode_header(task);
-	if (p == NULL)
+	req->rq_snd_buf.head[0].iov_len = 0;
+	xdr_init_encode(&xdr, &req->rq_snd_buf,
+			req->rq_snd_buf.head[0].iov_base, req);
+	if (rpc_encode_header(task, &xdr))
 		return;
 
-	encode = task->tk_msg.rpc_proc->p_encode;
-	if (encode == NULL)
-		return;
-
-	task->tk_status = rpcauth_wrap_req(task, encode, req, p,
-			task->tk_msg.rpc_argp);
-	if (task->tk_status == 0)
-		xprt_request_prepare(req);
+	task->tk_status = rpcauth_wrap_req(task, &xdr);
 }
 
 /*
@@ -1762,6 +1780,7 @@ call_encode(struct rpc_task *task)
 {
 	if (!rpc_task_need_encode(task))
 		goto out;
+	dprint_status(task);
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
 	rpc_xdr_encode(task);
 	/* Did the encode result in an error condition? */
@@ -1779,6 +1798,8 @@ call_encode(struct rpc_task *task)
 			rpc_exit(task, task->tk_status);
 		}
 		return;
+	} else {
+		xprt_request_prepare(task->tk_rqstp);
 	}
 
 	/* Add task to reply queue before transmission to avoid races */
@@ -2255,12 +2276,11 @@ call_decode(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
-	kxdrdproc_t	decode = task->tk_msg.rpc_proc->p_decode;
-	__be32		*p;
+	struct xdr_stream xdr;
 
 	dprint_status(task);
 
-	if (!decode) {
+	if (!task->tk_msg.rpc_proc->p_decode) {
 		task->tk_action = rpc_exit_task;
 		return;
 	}
@@ -2296,212 +2316,190 @@ call_decode(struct rpc_task *task)
 		goto out_retry;
 	}
 
-	p = rpc_verify_header(task);
-	if (IS_ERR(p)) {
-		if (p == ERR_PTR(-EAGAIN))
-			goto out_retry;
+	xdr_init_decode(&xdr, &req->rq_rcv_buf,
+			req->rq_rcv_buf.head[0].iov_base, req);
+	switch (rpc_decode_header(task, &xdr)) {
+	case 0:
+		task->tk_action = rpc_exit_task;
+		task->tk_status = rpcauth_unwrap_resp(task, &xdr);
+		dprintk("RPC: %5u %s result %d\n",
+			task->tk_pid, __func__, task->tk_status);
 		return;
-	}
-	task->tk_action = rpc_exit_task;
-
-	task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
-					      task->tk_msg.rpc_resp);
-
-	dprintk("RPC: %5u call_decode result %d\n", task->tk_pid,
-			task->tk_status);
-	return;
+	case -EAGAIN:
 out_retry:
-	task->tk_status = 0;
-	/* Note: rpc_verify_header() may have freed the RPC slot */
-	if (task->tk_rqstp == req) {
-		xdr_free_bvec(&req->rq_rcv_buf);
-		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
-		if (task->tk_client->cl_discrtry)
-			xprt_conditional_disconnect(req->rq_xprt,
-					req->rq_connect_cookie);
+		task->tk_status = 0;
+		/* Note: rpc_decode_header() may have freed the RPC slot */
+		if (task->tk_rqstp == req) {
+			xdr_free_bvec(&req->rq_rcv_buf);
+			req->rq_reply_bytes_recvd = 0;
+			req->rq_rcv_buf.len = 0;
+			if (task->tk_client->cl_discrtry)
+				xprt_conditional_disconnect(req->rq_xprt,
+							    req->rq_connect_cookie);
+		}
 	}
 }
 
-static __be32 *
-rpc_encode_header(struct rpc_task *task)
+static int
+rpc_encode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
-	__be32		*p = req->rq_svec[0].iov_base;
+	__be32 *p;
+	int error;
 
-	/* FIXME: check buffer size? */
+	error = -EMSGSIZE;
+	p = xdr_reserve_space(xdr, RPC_CALLHDRSIZE << 2);
+	if (!p)
+		goto out_fail;
+	*p++ = req->rq_xid;
+	*p++ = rpc_call;
+	*p++ = cpu_to_be32(RPC_VERSION);
+	*p++ = cpu_to_be32(clnt->cl_prog);
+	*p++ = cpu_to_be32(clnt->cl_vers);
+	*p   = cpu_to_be32(task->tk_msg.rpc_proc->p_proc);
 
-	p = xprt_skip_transport_header(req->rq_xprt, p);
-	*p++ = req->rq_xid;		/* XID */
-	*p++ = htonl(RPC_CALL);		/* CALL */
-	*p++ = htonl(RPC_VERSION);	/* RPC version */
-	*p++ = htonl(clnt->cl_prog);	/* program number */
-	*p++ = htonl(clnt->cl_vers);	/* program version */
-	*p++ = htonl(task->tk_msg.rpc_proc->p_proc);	/* procedure */
-	p = rpcauth_marshcred(task, p);
-	if (p)
-		req->rq_slen = xdr_adjust_iovec(&req->rq_svec[0], p);
-	return p;
+	error = rpcauth_marshcred(task, xdr);
+	if (error < 0)
+		goto out_fail;
+	return 0;
+out_fail:
+	trace_rpc_bad_callhdr(task);
+	rpc_exit(task, error);
+	return error;
 }
 
-static __be32 *
-rpc_verify_header(struct rpc_task *task)
+static noinline int
+rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
-	struct kvec *iov = &task->tk_rqstp->rq_rcv_buf.head[0];
-	int len = task->tk_rqstp->rq_rcv_buf.len >> 2;
-	__be32	*p = iov->iov_base;
-	u32 n;
 	int error = -EACCES;
+	__be32 *p;
 
-	if ((task->tk_rqstp->rq_rcv_buf.len & 3) != 0) {
-		/* RFC-1014 says that the representation of XDR data must be a
-		 * multiple of four bytes
-		 * - if it isn't pointer subtraction in the NFS client may give
-		 *   undefined results
-		 */
-		dprintk("RPC: %5u %s: XDR representation not a multiple of"
-		       " 4 bytes: 0x%x\n", task->tk_pid, __func__,
-		       task->tk_rqstp->rq_rcv_buf.len);
-		error = -EIO;
-		goto out_err;
-	}
-	if ((len -= 3) < 0)
-		goto out_overflow;
+	/* RFC-1014 says that the representation of XDR data must be a
+	 * multiple of four bytes
+	 * - if it isn't pointer subtraction in the NFS client may give
+	 *   undefined results
+	 */
+	if (task->tk_rqstp->rq_rcv_buf.len & 3)
+		goto out_badlen;
 
-	p += 1; /* skip XID */
-	if ((n = ntohl(*p++)) != RPC_REPLY) {
-		dprintk("RPC: %5u %s: not an RPC reply: %x\n",
-			task->tk_pid, __func__, n);
-		error = -EIO;
-		goto out_garbage;
-	}
+	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
+	if (!p)
+		goto out_unparsable;
+	p++;	/* skip XID */
+	if (*p++ != rpc_reply)
+		goto out_unparsable;
+	if (*p++ != rpc_msg_accepted)
+		goto out_msg_denied;
 
-	if ((n = ntohl(*p++)) != RPC_MSG_ACCEPTED) {
-		if (--len < 0)
-			goto out_overflow;
-		switch ((n = ntohl(*p++))) {
-		case RPC_AUTH_ERROR:
-			break;
-		case RPC_MISMATCH:
-			dprintk("RPC: %5u %s: RPC call version mismatch!\n",
-				task->tk_pid, __func__);
-			error = -EPROTONOSUPPORT;
-			goto out_err;
-		default:
-			dprintk("RPC: %5u %s: RPC call rejected, "
-				"unknown error: %x\n",
-				task->tk_pid, __func__, n);
-			error = -EIO;
-			goto out_err;
-		}
-		if (--len < 0)
-			goto out_overflow;
-		switch ((n = ntohl(*p++))) {
-		case RPC_AUTH_REJECTEDCRED:
-		case RPC_AUTH_REJECTEDVERF:
-		case RPCSEC_GSS_CREDPROBLEM:
-		case RPCSEC_GSS_CTXPROBLEM:
-			if (!task->tk_cred_retry)
-				break;
-			task->tk_cred_retry--;
-			dprintk("RPC: %5u %s: retry stale creds\n",
-					task->tk_pid, __func__);
-			rpcauth_invalcred(task);
-			/* Ensure we obtain a new XID! */
-			xprt_release(task);
-			task->tk_action = call_reserve;
-			goto out_retry;
-		case RPC_AUTH_BADCRED:
-		case RPC_AUTH_BADVERF:
-			/* possibly garbled cred/verf? */
-			if (!task->tk_garb_retry)
-				break;
-			task->tk_garb_retry--;
-			dprintk("RPC: %5u %s: retry garbled creds\n",
-					task->tk_pid, __func__);
-			task->tk_action = call_encode;
-			goto out_retry;
-		case RPC_AUTH_TOOWEAK:
-			printk(KERN_NOTICE "RPC: server %s requires stronger "
-			       "authentication.\n",
-			       task->tk_xprt->servername);
-			break;
-		default:
-			dprintk("RPC: %5u %s: unknown auth error: %x\n",
-					task->tk_pid, __func__, n);
-			error = -EIO;
-		}
-		dprintk("RPC: %5u %s: call rejected %d\n",
-				task->tk_pid, __func__, n);
-		goto out_err;
-	}
-	p = rpcauth_checkverf(task, p);
-	if (IS_ERR(p)) {
-		error = PTR_ERR(p);
-		dprintk("RPC: %5u %s: auth check failed with %d\n",
-				task->tk_pid, __func__, error);
-		goto out_garbage;		/* bad verifier, retry */
-	}
-	len = p - (__be32 *)iov->iov_base - 1;
-	if (len < 0)
-		goto out_overflow;
-	switch ((n = ntohl(*p++))) {
-	case RPC_SUCCESS:
-		return p;
-	case RPC_PROG_UNAVAIL:
-		dprintk("RPC: %5u %s: program %u is unsupported "
-				"by server %s\n", task->tk_pid, __func__,
-				(unsigned int)clnt->cl_prog,
-				task->tk_xprt->servername);
+	error = rpcauth_checkverf(task, xdr);
+	if (error)
+		goto out_verifier;
+
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
+		goto out_unparsable;
+	switch (*p) {
+	case rpc_success:
+		return 0;
+	case rpc_prog_unavail:
+		trace_rpc__prog_unavail(task);
 		error = -EPFNOSUPPORT;
 		goto out_err;
-	case RPC_PROG_MISMATCH:
-		dprintk("RPC: %5u %s: program %u, version %u unsupported "
-				"by server %s\n", task->tk_pid, __func__,
-				(unsigned int)clnt->cl_prog,
-				(unsigned int)clnt->cl_vers,
-				task->tk_xprt->servername);
+	case rpc_prog_mismatch:
+		trace_rpc__prog_mismatch(task);
 		error = -EPROTONOSUPPORT;
 		goto out_err;
-	case RPC_PROC_UNAVAIL:
-		dprintk("RPC: %5u %s: proc %s unsupported by program %u, "
-				"version %u on server %s\n",
-				task->tk_pid, __func__,
-				rpc_proc_name(task),
-				clnt->cl_prog, clnt->cl_vers,
-				task->tk_xprt->servername);
+	case rpc_proc_unavail:
+		trace_rpc__proc_unavail(task);
 		error = -EOPNOTSUPP;
 		goto out_err;
-	case RPC_GARBAGE_ARGS:
-		dprintk("RPC: %5u %s: server saw garbage\n",
-				task->tk_pid, __func__);
-		break;			/* retry */
+	case rpc_garbage_args:
+		trace_rpc__garbage_args(task);
+		break;
 	default:
-		dprintk("RPC: %5u %s: server accept status: %x\n",
-				task->tk_pid, __func__, n);
-		/* Also retry */
+		trace_rpc__unparsable(task);
 	}
 
 out_garbage:
 	clnt->cl_stats->rpcgarbage++;
 	if (task->tk_garb_retry) {
 		task->tk_garb_retry--;
-		dprintk("RPC: %5u %s: retrying\n",
-				task->tk_pid, __func__);
 		task->tk_action = call_encode;
-out_retry:
-		return ERR_PTR(-EAGAIN);
+		return -EAGAIN;
 	}
 out_err:
 	rpc_exit(task, error);
-	dprintk("RPC: %5u %s: call failed with error %d\n", task->tk_pid,
-			__func__, error);
-	return ERR_PTR(error);
-out_overflow:
-	dprintk("RPC: %5u %s: server reply was truncated.\n", task->tk_pid,
-			__func__);
+	return error;
+
+out_badlen:
+	trace_rpc__unparsable(task);
+	error = -EIO;
+	goto out_err;
+
+out_unparsable:
+	trace_rpc__unparsable(task);
+	error = -EIO;
 	goto out_garbage;
+
+out_verifier:
+	trace_rpc_bad_verifier(task);
+	goto out_garbage;
+
+out_msg_denied:
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
+		goto out_unparsable;
+	switch (*p++) {
+	case rpc_auth_error:
+		break;
+	case rpc_mismatch:
+		trace_rpc__mismatch(task);
+		error = -EPROTONOSUPPORT;
+		goto out_err;
+	default:
+		trace_rpc__unparsable(task);
+		error = -EIO;
+		goto out_err;
+	}
+
+	p = xdr_inline_decode(xdr, sizeof(*p));
+	if (!p)
+		goto out_unparsable;
+	switch (*p++) {
+	case rpc_autherr_rejectedcred:
+	case rpc_autherr_rejectedverf:
+	case rpcsec_gsserr_credproblem:
+	case rpcsec_gsserr_ctxproblem:
+		if (!task->tk_cred_retry)
+			break;
+		task->tk_cred_retry--;
+		trace_rpc__stale_creds(task);
+		rpcauth_invalcred(task);
+		/* Ensure we obtain a new XID! */
+		xprt_release(task);
+		task->tk_action = call_reserve;
+		return -EAGAIN;
+	case rpc_autherr_badcred:
+	case rpc_autherr_badverf:
+		/* possibly garbled cred/verf? */
+		if (!task->tk_garb_retry)
+			break;
+		task->tk_garb_retry--;
+		trace_rpc__bad_creds(task);
+		task->tk_action = call_encode;
+		return -EAGAIN;
+	case rpc_autherr_tooweak:
+		trace_rpc__auth_tooweak(task);
+		pr_warn("RPC: server %s requires stronger authentication.\n",
+			task->tk_xprt->servername);
+		break;
+	default:
+		trace_rpc__unparsable(task);
+		error = -EIO;
+	}
+	goto out_err;
 }
 
 static void rpcproc_encode_null(struct rpc_rqst *rqstp, struct xdr_stream *xdr,

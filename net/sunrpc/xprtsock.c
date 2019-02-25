@@ -769,6 +769,29 @@ static int xs_send_pagedata(struct socket *sock, struct msghdr *msg, struct xdr_
 	return xs_sendmsg(sock, msg, base + xdr->page_base);
 }
 
+#define xs_record_marker_len() sizeof(rpc_fraghdr)
+
+/* Common case:
+ *  - stream transport
+ *  - sending from byte 0 of the message
+ *  - the message is wholly contained in @xdr's head iovec
+ */
+static int xs_send_rm_and_kvec(struct socket *sock, struct msghdr *msg,
+		rpc_fraghdr marker, struct kvec *vec, size_t base)
+{
+	struct kvec iov[2] = {
+		[0] = {
+			.iov_base	= &marker,
+			.iov_len	= sizeof(marker)
+		},
+		[1] = *vec,
+	};
+	size_t len = iov[0].iov_len + iov[1].iov_len;
+
+	iov_iter_kvec(&msg->msg_iter, WRITE, iov, 2, len);
+	return xs_sendmsg(sock, msg, base);
+}
+
 /**
  * xs_sendpages - write pages directly to a socket
  * @sock: socket to send on
@@ -776,34 +799,42 @@ static int xs_send_pagedata(struct socket *sock, struct msghdr *msg, struct xdr_
  * @addrlen: UDP only -- length of destination address
  * @xdr: buffer containing this request
  * @base: starting position in the buffer
+ * @rm: stream record marker field
  * @sent_p: return the total number of bytes successfully queued for sending
  *
  */
-static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, int *sent_p)
+static int xs_sendpages(struct socket *sock, struct sockaddr *addr, int addrlen, struct xdr_buf *xdr, unsigned int base, rpc_fraghdr rm, int *sent_p)
 {
 	struct msghdr msg = {
 		.msg_name = addr,
 		.msg_namelen = addrlen,
 		.msg_flags = XS_SENDMSG_FLAGS | MSG_MORE,
 	};
-	unsigned int remainder = xdr->len - base;
+	unsigned int rmsize = rm ? sizeof(rm) : 0;
+	unsigned int remainder = rmsize + xdr->len - base;
+	unsigned int want;
 	int err = 0;
 
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	if (base < xdr->head[0].iov_len) {
-		unsigned int len = xdr->head[0].iov_len - base;
+	want = xdr->head[0].iov_len + rmsize;
+	if (base < want) {
+		unsigned int len = want - base;
 		remainder -= len;
 		if (remainder == 0)
 			msg.msg_flags &= ~MSG_MORE;
-		err = xs_send_kvec(sock, &msg, &xdr->head[0], base);
+		if (rmsize)
+			err = xs_send_rm_and_kvec(sock, &msg, rm,
+					&xdr->head[0], base);
+		else
+			err = xs_send_kvec(sock, &msg, &xdr->head[0], base);
 		if (remainder == 0 || err != len)
 			goto out;
 		*sent_p += err;
 		base = 0;
 	} else
-		base -= xdr->head[0].iov_len;
+		base -= want;
 
 	if (base < xdr->page_len) {
 		unsigned int len = xdr->page_len - base;
@@ -891,13 +922,14 @@ xs_send_request_was_aborted(struct sock_xprt *transport, struct rpc_rqst *req)
 }
 
 /*
- * Construct a stream transport record marker in @buf.
+ * Return the stream record marker field for a record of length < 2^31-1
  */
-static inline void xs_encode_stream_record_marker(struct xdr_buf *buf)
+static rpc_fraghdr
+xs_stream_record_marker(struct xdr_buf *xdr)
 {
-	u32 reclen = buf->len - sizeof(rpc_fraghdr);
-	rpc_fraghdr *base = buf->head[0].iov_base;
-	*base = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT | reclen);
+	if (!xdr->len)
+		return 0;
+	return cpu_to_be32(RPC_LAST_STREAM_FRAGMENT | (u32)xdr->len);
 }
 
 /**
@@ -926,14 +958,13 @@ static int xs_local_send_request(struct rpc_rqst *req)
 		return -ENOTCONN;
 	}
 
-	xs_encode_stream_record_marker(&req->rq_snd_buf);
-
 	xs_pktdump("packet data:",
 			req->rq_svec->iov_base, req->rq_svec->iov_len);
 
 	req->rq_xtime = ktime_get();
 	status = xs_sendpages(transport->sock, NULL, 0, xdr,
 			      transport->xmit.offset,
+			      xs_stream_record_marker(xdr),
 			      &sent);
 	dprintk("RPC:       %s(%u) = %d\n",
 			__func__, xdr->len - transport->xmit.offset, status);
@@ -1001,7 +1032,7 @@ static int xs_udp_send_request(struct rpc_rqst *req)
 
 	req->rq_xtime = ktime_get();
 	status = xs_sendpages(transport->sock, xs_addr(xprt), xprt->addrlen,
-			      xdr, 0, &sent);
+			      xdr, 0, 0, &sent);
 
 	dprintk("RPC:       xs_udp_send_request(%u) = %d\n",
 			xdr->len, status);
@@ -1076,8 +1107,6 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 		return -ENOTCONN;
 	}
 
-	xs_encode_stream_record_marker(&req->rq_snd_buf);
-
 	xs_pktdump("packet data:",
 				req->rq_svec->iov_base,
 				req->rq_svec->iov_len);
@@ -1093,6 +1122,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 		sent = 0;
 		status = xs_sendpages(transport->sock, NULL, 0, xdr,
 				      transport->xmit.offset,
+				      xs_stream_record_marker(xdr),
 				      &sent);
 
 		dprintk("RPC:       xs_tcp_send_request(%u) = %d\n",
@@ -2547,26 +2577,35 @@ static int bc_sendto(struct rpc_rqst *req)
 {
 	int len;
 	struct xdr_buf *xbufp = &req->rq_snd_buf;
-	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport =
-				container_of(xprt, struct sock_xprt, xprt);
-	struct socket *sock = transport->sock;
+			container_of(req->rq_xprt, struct sock_xprt, xprt);
 	unsigned long headoff;
 	unsigned long tailoff;
+	struct page *tailpage;
+	struct msghdr msg = {
+		.msg_flags	= MSG_MORE
+	};
+	rpc_fraghdr marker = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT |
+					 (u32)xbufp->len);
+	struct kvec iov = {
+		.iov_base	= &marker,
+		.iov_len	= sizeof(marker),
+	};
 
-	xs_encode_stream_record_marker(xbufp);
+	len = kernel_sendmsg(transport->sock, &msg, &iov, 1, iov.iov_len);
+	if (len != iov.iov_len)
+		return -EAGAIN;
 
+	tailpage = NULL;
+	if (xbufp->tail[0].iov_len)
+		tailpage = virt_to_page(xbufp->tail[0].iov_base);
 	tailoff = (unsigned long)xbufp->tail[0].iov_base & ~PAGE_MASK;
 	headoff = (unsigned long)xbufp->head[0].iov_base & ~PAGE_MASK;
-	len = svc_send_common(sock, xbufp,
+	len = svc_send_common(transport->sock, xbufp,
 			      virt_to_page(xbufp->head[0].iov_base), headoff,
-			      xbufp->tail[0].iov_base, tailoff);
-
-	if (len != xbufp->len) {
-		printk(KERN_NOTICE "Error sending entire callback!\n");
-		len = -EAGAIN;
-	}
-
+			      tailpage, tailoff);
+	if (len != xbufp->len)
+		return -EAGAIN;
 	return len;
 }
 
@@ -2806,7 +2845,6 @@ static struct rpc_xprt *xs_setup_local(struct xprt_create *args)
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	xprt->prot = 0;
-	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
 	xprt->bind_timeout = XS_BIND_TO;
@@ -2875,7 +2913,6 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	xprt->prot = IPPROTO_UDP;
-	xprt->tsh_size = 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
 	xprt->max_payload = (1U << 16) - (MAX_HEADER << 3);
 
@@ -2955,7 +2992,6 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	xprt->prot = IPPROTO_TCP;
-	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 
 	xprt->bind_timeout = XS_BIND_TO;
@@ -3028,7 +3064,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	transport = container_of(xprt, struct sock_xprt, xprt);
 
 	xprt->prot = IPPROTO_TCP;
-	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;
 	xprt->timeout = &xs_tcp_default_timeout;
 

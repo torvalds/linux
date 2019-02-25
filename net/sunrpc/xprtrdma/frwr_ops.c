@@ -391,7 +391,7 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
  */
 struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 				struct rpcrdma_mr_seg *seg,
-				int nsegs, bool writing, u32 xid,
+				int nsegs, bool writing, __be32 xid,
 				struct rpcrdma_mr **out)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
@@ -446,7 +446,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 		goto out_mapmr_err;
 
 	ibmr->iova &= 0x00000000ffffffff;
-	ibmr->iova |= ((u64)cpu_to_be32(xid)) << 32;
+	ibmr->iova |= ((u64)be32_to_cpu(xid)) << 32;
 	key = (u8)(ibmr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(ibmr, ++key);
 

@@ -2036,7 +2036,7 @@ ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 
 	dprintk("%s: Begin\n", __func__);
 
-	xdr_init_encode(&tmp_xdr, &tmp_buf, NULL);
+	xdr_init_encode(&tmp_xdr, &tmp_buf, NULL, NULL);
 
 	ff_layout_encode_ioerr(&tmp_xdr, args, ff_args);
 	ff_layout_encode_iostats_array(&tmp_xdr, args, ff_args);

@@ -1481,6 +1481,8 @@ rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 	if (ep->rep_receive_count > needed)
 		goto out;
 	needed -= ep->rep_receive_count;
+	if (!temp)
+		needed += RPCRDMA_MAX_RECV_BATCH;
 
 	count = 0;
 	wr = NULL;
