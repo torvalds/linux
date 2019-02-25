@@ -3831,6 +3831,18 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
 
 	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+
+	intel_hdmi_read_gcp_infoframe(encoder, pipe_config);
+
+	intel_read_infoframe(encoder, pipe_config,
+			     HDMI_INFOFRAME_TYPE_AVI,
+			     &pipe_config->infoframes.avi);
+	intel_read_infoframe(encoder, pipe_config,
+			     HDMI_INFOFRAME_TYPE_SPD,
+			     &pipe_config->infoframes.spd);
+	intel_read_infoframe(encoder, pipe_config,
+			     HDMI_INFOFRAME_TYPE_VENDOR,
+			     &pipe_config->infoframes.hdmi);
 }
 
 static enum intel_output_type

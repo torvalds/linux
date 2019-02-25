@@ -452,6 +452,14 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 	DRM_DEBUG_DRIVER("AVI infoframes updated successfully\n");
 }
 
+void lspcon_read_infoframe(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   unsigned int type,
+			   void *frame, ssize_t len)
+{
+	/* FIXME implement this */
+}
+
 void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   bool enable,
 			   const struct intel_crtc_state *crtc_state,

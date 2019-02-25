@@ -1353,6 +1353,10 @@ struct intel_digital_port {
 				const struct intel_crtc_state *crtc_state,
 				unsigned int type,
 				const void *frame, ssize_t len);
+	void (*read_infoframe)(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *crtc_state,
+			       unsigned int type,
+			       void *frame, ssize_t len);
 	void (*set_infoframes)(struct intel_encoder *encoder,
 			       bool enable,
 			       const struct intel_crtc_state *crtc_state,
@@ -2095,6 +2099,12 @@ void intel_infoframe_init(struct intel_digital_port *intel_dig_port);
 u32 intel_hdmi_infoframes_enabled(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state);
 u32 intel_hdmi_infoframe_enable(unsigned int type);
+void intel_hdmi_read_gcp_infoframe(struct intel_encoder *encoder,
+				   struct intel_crtc_state *crtc_state);
+void intel_read_infoframe(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state,
+			  enum hdmi_infoframe_type type,
+			  union hdmi_infoframe *frame);
 
 /* intel_lvds.c */
 bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
@@ -2508,6 +2518,10 @@ void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    unsigned int type,
 			    const void *buf, ssize_t len);
+void lspcon_read_infoframe(struct intel_encoder *encoder,
+			   const struct intel_crtc_state *crtc_state,
+			   unsigned int type,
+			   void *frame, ssize_t len);
 void lspcon_set_infoframes(struct intel_encoder *encoder,
 			   bool enable,
 			   const struct intel_crtc_state *crtc_state,
