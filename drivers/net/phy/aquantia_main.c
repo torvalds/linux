@@ -12,6 +12,8 @@
 #include <linux/delay.h>
 #include <linux/phy.h>
 
+#include "aquantia.h"
+
 #define PHY_ID_AQ1202	0x03a1b445
 #define PHY_ID_AQ2104	0x03a1b460
 #define PHY_ID_AQR105	0x03a1b4a2
@@ -231,6 +233,7 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQR107",
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
+	.probe		= aqr_hwmon_probe,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
@@ -241,6 +244,7 @@ static struct phy_driver aqr_driver[] = {
 	.name		= "Aquantia AQCS109",
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
+	.probe		= aqr_hwmon_probe,
 	.config_init	= aqcs109_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
