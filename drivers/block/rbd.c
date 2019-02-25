@@ -1486,18 +1486,16 @@ static void rbd_osd_req_format_write(struct rbd_obj_request *obj_request)
 }
 
 static struct ceph_osd_request *
-rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
+__rbd_osd_req_create(struct rbd_obj_request *obj_req,
+		     struct ceph_snap_context *snapc, unsigned int num_ops)
 {
-	struct rbd_img_request *img_req = obj_req->img_request;
-	struct rbd_device *rbd_dev = img_req->rbd_dev;
+	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct ceph_osd_request *req;
 	const char *name_format = rbd_dev->image_format == 1 ?
 				      RBD_V1_DATA_FORMAT : RBD_V2_DATA_FORMAT;
 
-	req = ceph_osdc_alloc_request(osdc,
-			(rbd_img_is_write(img_req) ? img_req->snapc : NULL),
-			num_ops, false, GFP_NOIO);
+	req = ceph_osdc_alloc_request(osdc, snapc, num_ops, false, GFP_NOIO);
 	if (!req)
 		return NULL;
 
@@ -1520,6 +1518,13 @@ rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
 err_req:
 	ceph_osdc_put_request(req);
 	return NULL;
+}
+
+static struct ceph_osd_request *
+rbd_osd_req_create(struct rbd_obj_request *obj_req, unsigned int num_ops)
+{
+	return __rbd_osd_req_create(obj_req, obj_req->img_request->snapc,
+				    num_ops);
 }
 
 static void rbd_osd_req_destroy(struct ceph_osd_request *osd_req)
@@ -1769,7 +1774,7 @@ static void rbd_osd_req_setup_data(struct rbd_obj_request *obj_req, u32 which)
 
 static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
 {
-	obj_req->osd_req = rbd_osd_req_create(obj_req, 1);
+	obj_req->osd_req = __rbd_osd_req_create(obj_req, NULL, 1);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
