@@ -264,11 +264,6 @@ static int single_step_handler(unsigned long unused, unsigned int esr,
 }
 NOKPROBE_SYMBOL(single_step_handler);
 
-/*
- * Breakpoint handler is re-entrant as another breakpoint can
- * hit within breakpoint handler, especically in kprobes.
- * Use reader/writer locks instead of plain spinlock.
- */
 static LIST_HEAD(break_hook);
 static DEFINE_SPINLOCK(break_hook_lock);
 
