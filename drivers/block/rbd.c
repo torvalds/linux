@@ -1424,6 +1424,18 @@ static bool rbd_obj_is_tail(struct rbd_obj_request *obj_req)
 					rbd_dev->layout.object_size;
 }
 
+/*
+ * Must be called after rbd_obj_calc_img_extents().
+ */
+static bool rbd_obj_copyup_enabled(struct rbd_obj_request *obj_req)
+{
+	if (!obj_req->num_img_extents ||
+	    rbd_obj_is_entire(obj_req))
+		return false;
+
+	return true;
+}
+
 static u64 rbd_obj_img_extents_bytes(struct rbd_obj_request *obj_req)
 {
 	return ceph_file_extents_bytes(obj_req->img_extents,
@@ -1810,6 +1822,11 @@ static int __rbd_obj_setup_stat(struct rbd_obj_request *obj_req,
 	return 0;
 }
 
+static int count_write_ops(struct rbd_obj_request *obj_req)
+{
+	return 2; /* setallochint + write/writefull */
+}
+
 static void __rbd_obj_setup_write(struct rbd_obj_request *obj_req,
 				  unsigned int which)
 {
@@ -1836,6 +1853,7 @@ static void __rbd_obj_setup_write(struct rbd_obj_request *obj_req,
 static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 {
 	unsigned int num_osd_ops, which = 0;
+	bool need_guard;
 	int ret;
 
 	/* reverse map the entire object onto the parent */
@@ -1843,22 +1861,21 @@ static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
 	if (ret)
 		return ret;
 
-	if (obj_req->num_img_extents) {
-		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
-		num_osd_ops = 3; /* stat + setallochint + write/writefull */
-	} else {
-		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
-		num_osd_ops = 2; /* setallochint + write/writefull */
-	}
+	need_guard = rbd_obj_copyup_enabled(obj_req);
+	num_osd_ops = need_guard + count_write_ops(obj_req);
 
 	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	if (obj_req->num_img_extents) {
+	if (need_guard) {
 		ret = __rbd_obj_setup_stat(obj_req, which++);
 		if (ret)
 			return ret;
+
+		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
+	} else {
+		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
 	}
 
 	__rbd_obj_setup_write(obj_req, which);
@@ -1919,6 +1936,18 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	return 0;
 }
 
+static int count_zeroout_ops(struct rbd_obj_request *obj_req)
+{
+	int num_osd_ops;
+
+	if (rbd_obj_is_entire(obj_req) && obj_req->num_img_extents)
+		num_osd_ops = 2; /* create + truncate */
+	else
+		num_osd_ops = 1; /* delete/truncate/zero */
+
+	return num_osd_ops;
+}
+
 static void __rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req,
 				    unsigned int which)
 {
@@ -1950,6 +1979,7 @@ static void __rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req,
 static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
 {
 	unsigned int num_osd_ops, which = 0;
+	bool need_guard;
 	int ret;
 
 	/* reverse map the entire object onto the parent */
@@ -1957,30 +1987,21 @@ static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
 	if (ret)
 		return ret;
 
-	if (rbd_obj_is_entire(obj_req)) {
-		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
-		if (obj_req->num_img_extents)
-			num_osd_ops = 2; /* create + truncate */
-		else
-			num_osd_ops = 1; /* delete */
-	} else {
-		if (obj_req->num_img_extents) {
-			obj_req->write_state = RBD_OBJ_WRITE_GUARD;
-			num_osd_ops = 2; /* stat + truncate/zero */
-		} else {
-			obj_req->write_state = RBD_OBJ_WRITE_FLAT;
-			num_osd_ops = 1; /* truncate/zero */
-		}
-	}
+	need_guard = rbd_obj_copyup_enabled(obj_req);
+	num_osd_ops = need_guard + count_zeroout_ops(obj_req);
 
 	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	if (!rbd_obj_is_entire(obj_req) && obj_req->num_img_extents) {
+	if (need_guard) {
 		ret = __rbd_obj_setup_stat(obj_req, which++);
 		if (ret)
 			return ret;
+
+		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
+	} else {
+		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
 	}
 
 	__rbd_obj_setup_zeroout(obj_req, which);
@@ -2439,18 +2460,25 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 
 static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 {
-	unsigned int num_osd_ops = obj_req->osd_req->r_num_ops;
+	struct rbd_img_request *img_req = obj_req->img_request;
+	unsigned int num_osd_ops = 1;
 	int ret;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
 	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT);
 	rbd_osd_req_destroy(obj_req->osd_req);
 
-	/*
-	 * Create a copyup request with the same number of OSD ops as
-	 * the original request.  The original request was stat + op(s),
-	 * the new copyup request will be copyup + the same op(s).
-	 */
+	switch (img_req->op_type) {
+	case OBJ_OP_WRITE:
+		num_osd_ops += count_write_ops(obj_req);
+		break;
+	case OBJ_OP_ZEROOUT:
+		num_osd_ops += count_zeroout_ops(obj_req);
+		break;
+	default:
+		rbd_assert(0);
+	}
+
 	obj_req->osd_req = rbd_osd_req_create(obj_req, num_osd_ops);
 	if (!obj_req->osd_req)
 		return -ENOMEM;
@@ -2473,7 +2501,7 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 					  obj_req->copyup_bvec_count,
 					  bytes);
 
-	switch (obj_req->img_request->op_type) {
+	switch (img_req->op_type) {
 	case OBJ_OP_WRITE:
 		__rbd_obj_setup_write(obj_req, 1);
 		break;
