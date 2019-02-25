@@ -761,14 +761,23 @@ static void pcpu_block_refresh_hint(struct pcpu_chunk *chunk, int index)
 {
 	struct pcpu_block_md *block = chunk->md_blocks + index;
 	unsigned long *alloc_map = pcpu_index_alloc_map(chunk, index);
-	int rs, re;	/* region start, region end */
+	int rs, re, start;	/* region start, region end */
 
-	/* clear hints */
-	block->contig_hint = block->scan_hint = 0;
-	block->left_free = block->right_free = 0;
+	/* promote scan_hint to contig_hint */
+	if (block->scan_hint) {
+		start = block->scan_hint_start + block->scan_hint;
+		block->contig_hint_start = block->scan_hint_start;
+		block->contig_hint = block->scan_hint;
+		block->scan_hint = 0;
+	} else {
+		start = block->first_free;
+		block->contig_hint = 0;
+	}
+
+	block->right_free = 0;
 
 	/* iterate over free areas and update the contig hints */
-	pcpu_for_each_unpop_region(alloc_map, rs, re, block->first_free,
+	pcpu_for_each_unpop_region(alloc_map, rs, re, start,
 				   PCPU_BITMAP_BLOCK_BITS) {
 		pcpu_block_update(block, rs, re);
 	}
@@ -833,6 +842,8 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 				s_off,
 				s_off + bits)) {
 		/* block contig hint is broken - scan to fix it */
+		if (!s_off)
+			s_block->left_free = 0;
 		pcpu_block_refresh_hint(chunk, s_index);
 	} else {
 		/* update left and right contig manually */
@@ -866,11 +877,11 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 			if (e_off > e_block->scan_hint_start)
 				e_block->scan_hint = 0;
 
+			e_block->left_free = 0;
 			if (e_off > e_block->contig_hint_start) {
 				/* contig hint is broken - scan to fix it */
 				pcpu_block_refresh_hint(chunk, e_index);
 			} else {
-				e_block->left_free = 0;
 				e_block->right_free =
 					min_t(int, e_block->right_free,
 					      PCPU_BITMAP_BLOCK_BITS - e_off);
