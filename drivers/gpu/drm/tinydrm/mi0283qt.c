@@ -19,6 +19,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -154,6 +155,7 @@ static struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
@@ -178,14 +180,24 @@ MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 static int mi0283qt_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &mi0283qt_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	mipi->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
@@ -213,14 +225,31 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &mi0283qt_pipe_funcs,
-			    &mi0283qt_driver, &mi0283qt_mode, rotation);
+	ret = mipi_dbi_init(mipi, &mi0283qt_pipe_funcs, &mi0283qt_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi->tinydrm.drm);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 32);
+
+	return 0;
+}
+
+static int mi0283qt_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void mi0283qt_shutdown(struct spi_device *spi)
@@ -253,6 +282,7 @@ static struct spi_driver mi0283qt_spi_driver = {
 	},
 	.id_table = mi0283qt_id,
 	.probe = mi0283qt_probe,
+	.remove = mi0283qt_remove,
 	.shutdown = mi0283qt_shutdown,
 };
 module_spi_driver(mi0283qt_spi_driver);

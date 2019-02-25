@@ -316,7 +316,7 @@ EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
 static void mipi_dbi_blank(struct mipi_dbi *mipi)
 {
-	struct drm_device *drm = mipi->tinydrm.drm;
+	struct drm_device *drm = &mipi->drm;
 	u16 height = drm->mode_config.min_height;
 	u16 width = drm->mode_config.min_width;
 	size_t len = width * height * 2;
@@ -357,6 +357,12 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 }
 EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 
+static const struct drm_mode_config_funcs mipi_dbi_mode_config_funcs = {
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
 static const uint32_t mipi_dbi_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -364,31 +370,27 @@ static const uint32_t mipi_dbi_formats[] = {
 
 /**
  * mipi_dbi_init - MIPI DBI initialization
- * @dev: Parent device
  * @mipi: &mipi_dbi structure to initialize
- * @pipe_funcs: Display pipe functions
- * @driver: DRM driver
+ * @funcs: Display pipe functions
  * @mode: Display mode
  * @rotation: Initial rotation in degrees Counter Clock Wise
  *
- * This function initializes a &mipi_dbi structure and it's underlying
- * @tinydrm_device. It also sets up the display pipeline.
+ * This function sets up a &drm_simple_display_pipe with a &drm_connector that
+ * has one fixed &drm_display_mode which is rotated according to @rotation.
+ * This mode is used to set the mode config min/max width/height properties.
+ * Additionally &mipi_dbi.tx_buf is allocated.
  *
  * Supported formats: Native RGB565 and emulated XRGB8888.
- *
- * Objects created by this function will be automatically freed on driver
- * detach (devres).
  *
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
-		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
-		  struct drm_driver *driver,
+int mipi_dbi_init(struct mipi_dbi *mipi,
+		  const struct drm_simple_display_pipe_funcs *funcs,
 		  const struct drm_display_mode *mode, unsigned int rotation)
 {
 	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
-	struct tinydrm_device *tdev = &mipi->tinydrm;
+	struct drm_device *drm = &mipi->drm;
 	int ret;
 
 	if (!mipi->command)
@@ -396,16 +398,12 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 
 	mutex_init(&mipi->cmdlock);
 
-	mipi->tx_buf = devm_kmalloc(dev, bufsize, GFP_KERNEL);
+	mipi->tx_buf = devm_kmalloc(drm->dev, bufsize, GFP_KERNEL);
 	if (!mipi->tx_buf)
 		return -ENOMEM;
 
-	ret = devm_tinydrm_init(dev, tdev, driver);
-	if (ret)
-		return ret;
-
 	/* TODO: Maybe add DRM_MODE_CONNECTOR_SPI */
-	ret = tinydrm_display_pipe_init(tdev->drm, &tdev->pipe, pipe_funcs,
+	ret = tinydrm_display_pipe_init(drm, &mipi->pipe, funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
 					mipi_dbi_formats,
 					ARRAY_SIZE(mipi_dbi_formats), mode,
@@ -413,19 +411,38 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
-	drm_plane_enable_fb_damage_clips(&tdev->pipe.plane);
+	drm_plane_enable_fb_damage_clips(&mipi->pipe.plane);
 
-	tdev->drm->mode_config.preferred_depth = 16;
+	drm->mode_config.funcs = &mipi_dbi_mode_config_funcs;
+	drm->mode_config.preferred_depth = 16;
 	mipi->rotation = rotation;
 
-	drm_mode_config_reset(tdev->drm);
-
 	DRM_DEBUG_KMS("preferred_depth=%u, rotation = %u\n",
-		      tdev->drm->mode_config.preferred_depth, rotation);
+		      drm->mode_config.preferred_depth, rotation);
 
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dbi_init);
+
+/**
+ * mipi_dbi_release - DRM driver release helper
+ * @drm: DRM device
+ *
+ * This function finalizes and frees &mipi_dbi.
+ *
+ * Drivers can use this as their &drm_driver->release callback.
+ */
+void mipi_dbi_release(struct drm_device *drm)
+{
+	struct mipi_dbi *dbi = drm_to_mipi_dbi(drm);
+
+	DRM_DEBUG_DRIVER("\n");
+
+	drm_mode_config_cleanup(drm);
+	drm_dev_fini(drm);
+	kfree(dbi);
+}
+EXPORT_SYMBOL(mipi_dbi_release);
 
 /**
  * mipi_dbi_hw_reset - Hardware reset of controller
@@ -479,7 +496,7 @@ EXPORT_SYMBOL(mipi_dbi_display_is_on);
 
 static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi *mipi, bool cond)
 {
-	struct device *dev = mipi->tinydrm.drm->dev;
+	struct device *dev = mipi->drm.dev;
 	int ret;
 
 	if (mipi->regulator) {

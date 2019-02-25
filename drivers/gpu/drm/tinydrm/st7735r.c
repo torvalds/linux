@@ -16,6 +16,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
@@ -120,6 +121,7 @@ static struct drm_driver st7735r_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &st7735r_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
@@ -144,14 +146,24 @@ MODULE_DEVICE_TABLE(spi, st7735r_id);
 static int st7735r_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &st7735r_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	mipi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(mipi->reset)) {
@@ -178,14 +190,31 @@ static int st7735r_probe(struct spi_device *spi)
 	/* Cannot read from Adafruit 1.8" display via SPI */
 	mipi->read_commands = NULL;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &jd_t18003_t01_pipe_funcs,
-			    &st7735r_driver, &jd_t18003_t01_mode, rotation);
+	ret = mipi_dbi_init(mipi, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi->tinydrm.drm);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 32);
+
+	return 0;
+}
+
+static int st7735r_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void st7735r_shutdown(struct spi_device *spi)
@@ -201,6 +230,7 @@ static struct spi_driver st7735r_spi_driver = {
 	},
 	.id_table = st7735r_id,
 	.probe = st7735r_probe,
+	.remove = st7735r_remove,
 	.shutdown = st7735r_shutdown,
 };
 module_spi_driver(st7735r_spi_driver);

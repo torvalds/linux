@@ -18,6 +18,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
@@ -189,6 +190,7 @@ DEFINE_DRM_GEM_CMA_FOPS(hx8357d_fops);
 static struct drm_driver hx8357d_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 	.fops			= &hx8357d_fops,
+	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "hx8357d",
@@ -213,14 +215,24 @@ MODULE_DEVICE_TABLE(spi, hx8357d_id);
 static int hx8357d_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct drm_device *drm;
 	struct mipi_dbi *mipi;
 	struct gpio_desc *dc;
 	u32 rotation = 0;
 	int ret;
 
-	mipi = devm_kzalloc(dev, sizeof(*mipi), GFP_KERNEL);
+	mipi = kzalloc(sizeof(*mipi), GFP_KERNEL);
 	if (!mipi)
 		return -ENOMEM;
+
+	drm = &mipi->drm;
+	ret = devm_drm_dev_init(dev, drm, &hx8357d_driver);
+	if (ret) {
+		kfree(mipi);
+		return ret;
+	}
+
+	drm_mode_config_init(drm);
 
 	dc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
 	if (IS_ERR(dc)) {
@@ -238,14 +250,31 @@ static int hx8357d_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = mipi_dbi_init(&spi->dev, mipi, &hx8357d_pipe_funcs,
-			    &hx8357d_driver, &yx350hv15_mode, rotation);
+	ret = mipi_dbi_init(mipi, &hx8357d_pipe_funcs, &yx350hv15_mode, rotation);
 	if (ret)
 		return ret;
 
-	spi_set_drvdata(spi, mipi->tinydrm.drm);
+	drm_mode_config_reset(drm);
 
-	return devm_tinydrm_register(&mipi->tinydrm);
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		return ret;
+
+	spi_set_drvdata(spi, drm);
+
+	drm_fbdev_generic_setup(drm, 32);
+
+	return 0;
+}
+
+static int hx8357d_remove(struct spi_device *spi)
+{
+	struct drm_device *drm = spi_get_drvdata(spi);
+
+	drm_dev_unplug(drm);
+	drm_atomic_helper_shutdown(drm);
+
+	return 0;
 }
 
 static void hx8357d_shutdown(struct spi_device *spi)
@@ -260,6 +289,7 @@ static struct spi_driver hx8357d_spi_driver = {
 	},
 	.id_table = hx8357d_id,
 	.probe = hx8357d_probe,
+	.remove = hx8357d_remove,
 	.shutdown = hx8357d_shutdown,
 };
 module_spi_driver(hx8357d_spi_driver);
