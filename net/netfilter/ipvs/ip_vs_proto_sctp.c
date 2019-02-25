@@ -186,7 +186,7 @@ static int
 sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
 	unsigned int sctphoff;
-	struct sctphdr *sh, _sctph;
+	struct sctphdr *sh;
 	__le32 cmp, val;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -196,10 +196,7 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 #endif
 		sctphoff = ip_hdrlen(skb);
 
-	sh = skb_header_pointer(skb, sctphoff, sizeof(_sctph), &_sctph);
-	if (sh == NULL)
-		return 0;
-
+	sh = (struct sctphdr *)(skb->data + sctphoff);
 	cmp = sh->checksum;
 	val = sctp_compute_cksum(skb, sctphoff);
 
