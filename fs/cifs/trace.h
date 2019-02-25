@@ -101,6 +101,9 @@ DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
 		__u32	len),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len))
 
+DEFINE_SMB3_RW_DONE_EVENT(write_enter);
+DEFINE_SMB3_RW_DONE_EVENT(read_enter);
+DEFINE_SMB3_RW_DONE_EVENT(query_dir_enter);
 DEFINE_SMB3_RW_DONE_EVENT(write_done);
 DEFINE_SMB3_RW_DONE_EVENT(read_done);
 DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);

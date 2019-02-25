@@ -3142,6 +3142,11 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	req->MinimumCount = 0;
 	req->Length = cpu_to_le32(io_parms->length);
 	req->Offset = cpu_to_le64(io_parms->offset);
+
+	trace_smb3_read_enter(0 /* xid */,
+			io_parms->persistent_fid,
+			io_parms->tcon->tid, io_parms->tcon->ses->Suid,
+			io_parms->offset, io_parms->length);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	/*
 	 * If we want to do a RDMA write, fill in and append
@@ -3541,6 +3546,9 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	req->DataOffset = cpu_to_le16(
 				offsetof(struct smb2_write_req, Buffer));
 	req->RemainingBytes = 0;
+
+	trace_smb3_write_enter(0 /* xid */, wdata->cfile->fid.persistent_fid,
+		tcon->tid, tcon->ses->Suid, wdata->offset, wdata->bytes);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	/*
 	 * If we want to do a server RDMA read, fill in and append
@@ -3687,6 +3695,10 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 	req->DataOffset = cpu_to_le16(
 				offsetof(struct smb2_write_req, Buffer));
 	req->RemainingBytes = 0;
+
+	trace_smb3_write_enter(xid, io_parms->persistent_fid,
+		io_parms->tcon->tid, io_parms->tcon->ses->Suid,
+		io_parms->offset, io_parms->length);
 
 	iov[0].iov_base = (char *)req;
 	/* 1 for Buffer */
@@ -3849,6 +3861,9 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	memset(&rqst, 0, sizeof(struct smb_rqst));
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 2;
+
+	trace_smb3_query_dir_enter(xid, persistent_fid, tcon->tid,
+			tcon->ses->Suid, index, output_size);
 
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
 	cifs_small_buf_release(req);
