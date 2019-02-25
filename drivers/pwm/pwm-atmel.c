@@ -52,6 +52,8 @@
 
 /* Only the LSB 16 bits are significant. */
 #define PWM_MAXV1_PRD		0xFFFF
+/* All 32 bits are significant. */
+#define PWM_MAXV2_PRD		0xFFFFFFFF
 #define PRD_MAXV1_PRES		10
 
 struct atmel_pwm_registers {
@@ -311,6 +313,20 @@ static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	},
 };
 
+static const struct atmel_pwm_data mchp_sam9x60_pwm_data = {
+	.regs = {
+		.period		= PWMV1_CPRD,
+		.period_upd	= PWMV1_CUPD,
+		.duty		= PWMV1_CDTY,
+		.duty_upd	= PWMV1_CUPD,
+	},
+	.cfg = {
+		/* 32 bits to keep period and duty. */
+		.max_period	= PWM_MAXV2_PRD,
+		.max_pres	= PRD_MAXV1_PRES,
+	},
+};
+
 static const struct platform_device_id atmel_pwm_devtypes[] = {
 	{
 		.name = "at91sam9rl-pwm",
@@ -334,6 +350,9 @@ static const struct of_device_id atmel_pwm_dt_ids[] = {
 	}, {
 		.compatible = "atmel,sama5d2-pwm",
 		.data = &atmel_sama5_pwm_data,
+	}, {
+		.compatible = "microchip,sam9x60-pwm",
+		.data = &mchp_sam9x60_pwm_data,
 	}, {
 		/* sentinel */
 	},
