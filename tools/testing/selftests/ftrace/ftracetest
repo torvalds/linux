@@ -154,13 +154,13 @@ fi
 
 # Define text colors
 # Check available colors on the terminal, if any
-ncolors=`tput colors 2>/dev/null`
+ncolors=`tput colors 2>/dev/null || echo 0`
 color_reset=
 color_red=
 color_green=
 color_blue=
 # If stdout exists and number of colors is eight or more, use them
-if [ -t 1 -a "$ncolors" -a "$ncolors" -ge 8 ]; then
+if [ -t 1 -a "$ncolors" -ge 8 ]; then
   color_reset="\033[0m"
   color_red="\033[31m"
   color_green="\033[32m"
