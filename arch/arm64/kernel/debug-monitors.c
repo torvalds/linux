@@ -222,7 +222,7 @@ static void send_user_sigtrap(int si_code)
 			     "User debug trap");
 }
 
-static int single_step_handler(unsigned long addr, unsigned int esr,
+static int single_step_handler(unsigned long unused, unsigned int esr,
 			       struct pt_regs *regs)
 {
 	bool handler_found = false;
@@ -302,7 +302,7 @@ static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 }
 NOKPROBE_SYMBOL(call_break_hook);
 
-static int brk_handler(unsigned long addr, unsigned int esr,
+static int brk_handler(unsigned long unused, unsigned int esr,
 		       struct pt_regs *regs)
 {
 	bool handler_found = false;
