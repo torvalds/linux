@@ -7,6 +7,7 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/objagg.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
@@ -63,6 +64,7 @@ struct mlxsw_sp_acl_erp_table {
 	unsigned int num_ctcam_erps;
 	unsigned int num_deltas;
 	struct objagg *objagg;
+	struct mutex objagg_lock; /* guards objagg manipulation */
 };
 
 struct mlxsw_sp_acl_erp_table_ops {
@@ -1001,17 +1003,15 @@ struct mlxsw_sp_acl_erp_mask *
 mlxsw_sp_acl_erp_mask_get(struct mlxsw_sp_acl_atcam_region *aregion,
 			  const char *mask, bool ctcam)
 {
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
 	struct mlxsw_sp_acl_erp_key key;
 	struct objagg_obj *objagg_obj;
 
-	/* eRPs are allocated from a shared resource, but currently all
-	 * allocations are done under RTNL.
-	 */
-	ASSERT_RTNL();
-
 	memcpy(key.mask, mask, MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN);
 	key.ctcam = ctcam;
-	objagg_obj = objagg_obj_get(aregion->erp_table->objagg, &key);
+	mutex_lock(&erp_table->objagg_lock);
+	objagg_obj = objagg_obj_get(erp_table->objagg, &key);
+	mutex_unlock(&erp_table->objagg_lock);
 	if (IS_ERR(objagg_obj))
 		return ERR_CAST(objagg_obj);
 	return (struct mlxsw_sp_acl_erp_mask *) objagg_obj;
@@ -1021,8 +1021,11 @@ void mlxsw_sp_acl_erp_mask_put(struct mlxsw_sp_acl_atcam_region *aregion,
 			       struct mlxsw_sp_acl_erp_mask *erp_mask)
 {
 	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
 
-	objagg_obj_put(aregion->erp_table->objagg, objagg_obj);
+	mutex_lock(&erp_table->objagg_lock);
+	objagg_obj_put(erp_table->objagg, objagg_obj);
+	mutex_unlock(&erp_table->objagg_lock);
 }
 
 int mlxsw_sp_acl_erp_bf_insert(struct mlxsw_sp *mlxsw_sp,
@@ -1034,7 +1037,6 @@ int mlxsw_sp_acl_erp_bf_insert(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
 	unsigned int erp_bank;
 
-	ASSERT_RTNL();
 	if (!mlxsw_sp_acl_erp_table_is_used(erp->erp_table))
 		return 0;
 
@@ -1334,6 +1336,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion,
 	erp_table->ops = &erp_no_mask_ops;
 	INIT_LIST_HEAD(&erp_table->atcam_erps_list);
 	erp_table->aregion = aregion;
+	mutex_init(&erp_table->objagg_lock);
 
 	return erp_table;
 
@@ -1346,6 +1349,7 @@ static void
 mlxsw_sp_acl_erp_table_destroy(struct mlxsw_sp_acl_erp_table *erp_table)
 {
 	WARN_ON(!list_empty(&erp_table->atcam_erps_list));
+	mutex_destroy(&erp_table->objagg_lock);
 	objagg_destroy(erp_table->objagg);
 	kfree(erp_table);
 }
@@ -1376,14 +1380,16 @@ mlxsw_sp_acl_erp_hints_check(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_atcam_region *aregion,
 			     struct objagg_hints *hints, bool *p_rehash_needed)
 {
-	struct objagg *objagg = aregion->erp_table->objagg;
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
 	const struct objagg_stats *ostats;
 	const struct objagg_stats *hstats;
 	int err;
 
 	*p_rehash_needed = false;
 
-	ostats = objagg_stats_get(objagg);
+	mutex_lock(&erp_table->objagg_lock);
+	ostats = objagg_stats_get(erp_table->objagg);
+	mutex_unlock(&erp_table->objagg_lock);
 	if (IS_ERR(ostats)) {
 		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to get ERP stats\n");
 		return PTR_ERR(ostats);
@@ -1411,13 +1417,16 @@ err_hints_stats_get:
 void *
 mlxsw_sp_acl_erp_rehash_hints_get(struct mlxsw_sp_acl_atcam_region *aregion)
 {
+	struct mlxsw_sp_acl_erp_table *erp_table = aregion->erp_table;
 	struct mlxsw_sp *mlxsw_sp = aregion->region->mlxsw_sp;
 	struct objagg_hints *hints;
 	bool rehash_needed;
 	int err;
 
-	hints = objagg_hints_get(aregion->erp_table->objagg,
+	mutex_lock(&erp_table->objagg_lock);
+	hints = objagg_hints_get(erp_table->objagg,
 				 OBJAGG_OPT_ALGO_SIMPLE_GREEDY);
+	mutex_unlock(&erp_table->objagg_lock);
 	if (IS_ERR(hints)) {
 		dev_err_ratelimited(mlxsw_sp->bus_info->dev, "Failed to create ERP hints\n");
 		return ERR_CAST(hints);
