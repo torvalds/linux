@@ -331,6 +331,7 @@ struct mod_kallsyms {
 	Elf_Sym *symtab;
 	unsigned int num_symtab;
 	char *strtab;
+	char *typetab;
 };
 
 #ifdef CONFIG_LIVEPATCH

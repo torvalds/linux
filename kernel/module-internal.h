@@ -20,7 +20,7 @@ struct load_info {
 	unsigned long len;
 	Elf_Shdr *sechdrs;
 	char *secstrings, *strtab;
-	unsigned long symoffs, stroffs;
+	unsigned long symoffs, stroffs, init_typeoffs, core_typeoffs;
 	struct _ddebug *debug;
 	unsigned int num_debug;
 	bool sig_ok;
