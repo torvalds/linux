@@ -261,7 +261,7 @@ xfs_reflink_convert_cow_locked(
 	struct xfs_bmbt_irec	got;
 	struct xfs_btree_cur	*dummy_cur = NULL;
 	int			dummy_logflags;
-	int			error;
+	int			error = 0;
 
 	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got))
 		return 0;

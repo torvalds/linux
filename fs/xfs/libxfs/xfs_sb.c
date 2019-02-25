@@ -877,7 +877,7 @@ xfs_initialize_perag_data(
 	uint64_t	bfreelst = 0;
 	uint64_t	btree = 0;
 	uint64_t	fdblocks;
-	int		error;
+	int		error = 0;
 
 	for (index = 0; index < agcount; index++) {
 		/*
