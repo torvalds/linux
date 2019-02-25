@@ -508,6 +508,10 @@
 	};
 };
 
+&rga {
+	status = "okay";
+};
+
 &rkvdec {
 	vcodec-supply = <&vdd_logic>;
 	status = "okay";
