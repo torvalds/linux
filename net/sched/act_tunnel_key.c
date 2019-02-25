@@ -201,8 +201,14 @@ static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
 {
 	if (!p)
 		return;
-	if (p->tcft_action == TCA_TUNNEL_KEY_ACT_SET)
+	if (p->tcft_action == TCA_TUNNEL_KEY_ACT_SET) {
+#ifdef CONFIG_DST_CACHE
+		struct ip_tunnel_info *info = &p->tcft_enc_metadata->u.tun_info;
+
+		dst_cache_destroy(&info->dst_cache);
+#endif
 		dst_release(&p->tcft_enc_metadata->dst);
+	}
 	kfree_rcu(p, rcu);
 }
 
@@ -384,7 +390,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 release_dst_cache:
 #ifdef CONFIG_DST_CACHE
-	dst_cache_destroy(&metadata->u.tun_info.dst_cache);
+	if (metadata)
+		dst_cache_destroy(&metadata->u.tun_info.dst_cache);
 #endif
 release_tun_meta:
 	dst_release(&metadata->dst);
@@ -401,15 +408,8 @@ static void tunnel_key_release(struct tc_action *a)
 {
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;
-#ifdef CONFIG_DST_CACHE
-	struct ip_tunnel_info *info;
-#endif
 
 	params = rcu_dereference_protected(t->params, 1);
-#ifdef CONFIG_DST_CACHE
-	info = &params->tcft_enc_metadata->u.tun_info;
-	dst_cache_destroy(&info->dst_cache);
-#endif
 	tunnel_key_release_params(params);
 }
 
