@@ -601,6 +601,45 @@ err_free:
 }
 EXPORT_SYMBOL(drm_dev_init);
 
+static void devm_drm_dev_init_release(void *data)
+{
+	drm_dev_put(data);
+}
+
+/**
+ * devm_drm_dev_init - Resource managed drm_dev_init()
+ * @parent: Parent device object
+ * @dev: DRM device
+ * @driver: DRM driver
+ *
+ * Managed drm_dev_init(). The DRM device initialized with this function is
+ * automatically put on driver detach using drm_dev_put(). You must supply a
+ * &drm_driver.release callback to control the finalization explicitly.
+ *
+ * RETURNS:
+ * 0 on success, or error code on failure.
+ */
+int devm_drm_dev_init(struct device *parent,
+		      struct drm_device *dev,
+		      struct drm_driver *driver)
+{
+	int ret;
+
+	if (WARN_ON(!parent || !driver->release))
+		return -EINVAL;
+
+	ret = drm_dev_init(dev, driver, parent);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action(parent, devm_drm_dev_init_release, dev);
+	if (ret)
+		devm_drm_dev_init_release(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(devm_drm_dev_init);
+
 /**
  * drm_dev_fini - Finalize a dead DRM device
  * @dev: DRM device
