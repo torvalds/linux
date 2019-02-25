@@ -283,7 +283,7 @@ static const struct pwm_ops atmel_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static const struct atmel_pwm_data atmel_pwm_data_v1 = {
+static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
 	.regs = {
 		.period		= PWMV1_CPRD,
 		.period_upd	= PWMV1_CUPD,
@@ -297,7 +297,7 @@ static const struct atmel_pwm_data atmel_pwm_data_v1 = {
 	},
 };
 
-static const struct atmel_pwm_data atmel_pwm_data_v2 = {
+static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	.regs = {
 		.period		= PWMV2_CPRD,
 		.period_upd	= PWMV2_CPRDUPD,
@@ -314,10 +314,10 @@ static const struct atmel_pwm_data atmel_pwm_data_v2 = {
 static const struct platform_device_id atmel_pwm_devtypes[] = {
 	{
 		.name = "at91sam9rl-pwm",
-		.driver_data = (kernel_ulong_t)&atmel_pwm_data_v1,
+		.driver_data = (kernel_ulong_t)&atmel_sam9rl_pwm_data,
 	}, {
 		.name = "sama5d3-pwm",
-		.driver_data = (kernel_ulong_t)&atmel_pwm_data_v2,
+		.driver_data = (kernel_ulong_t)&atmel_sama5_pwm_data,
 	}, {
 		/* sentinel */
 	},
@@ -327,13 +327,13 @@ MODULE_DEVICE_TABLE(platform, atmel_pwm_devtypes);
 static const struct of_device_id atmel_pwm_dt_ids[] = {
 	{
 		.compatible = "atmel,at91sam9rl-pwm",
-		.data = &atmel_pwm_data_v1,
+		.data = &atmel_sam9rl_pwm_data,
 	}, {
 		.compatible = "atmel,sama5d3-pwm",
-		.data = &atmel_pwm_data_v2,
+		.data = &atmel_sama5_pwm_data,
 	}, {
 		.compatible = "atmel,sama5d2-pwm",
-		.data = &atmel_pwm_data_v2,
+		.data = &atmel_sama5_pwm_data,
 	}, {
 		/* sentinel */
 	},
