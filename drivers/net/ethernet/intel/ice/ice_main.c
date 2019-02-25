@@ -609,7 +609,8 @@ ice_link_event(struct ice_pf *pf, struct ice_port_info *pi)
 		}
 	}
 
-	ice_vc_notify_link_state(pf);
+	if (!new_link_same_as_old && pf->num_alloc_vfs)
+		ice_vc_notify_link_state(pf);
 
 	return 0;
 }
@@ -1356,14 +1357,39 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
 }
 
 /**
+ * ice_dis_ctrlq_interrupts - disable control queue interrupts
+ * @hw: pointer to HW structure
+ */
+static void ice_dis_ctrlq_interrupts(struct ice_hw *hw)
+{
+	/* disable Admin queue Interrupt causes */
+	wr32(hw, PFINT_FW_CTL,
+	     rd32(hw, PFINT_FW_CTL) & ~PFINT_FW_CTL_CAUSE_ENA_M);
+
+	/* disable Mailbox queue Interrupt causes */
+	wr32(hw, PFINT_MBX_CTL,
+	     rd32(hw, PFINT_MBX_CTL) & ~PFINT_MBX_CTL_CAUSE_ENA_M);
+
+	/* disable Control queue Interrupt causes */
+	wr32(hw, PFINT_OICR_CTL,
+	     rd32(hw, PFINT_OICR_CTL) & ~PFINT_OICR_CTL_CAUSE_ENA_M);
+
+	ice_flush(hw);
+}
+
+/**
  * ice_free_irq_msix_misc - Unroll misc vector setup
  * @pf: board private structure
  */
 static void ice_free_irq_msix_misc(struct ice_pf *pf)
 {
+	struct ice_hw *hw = &pf->hw;
+
+	ice_dis_ctrlq_interrupts(hw);
+
 	/* disable OICR interrupt */
-	wr32(&pf->hw, PFINT_OICR_ENA, 0);
-	ice_flush(&pf->hw);
+	wr32(hw, PFINT_OICR_ENA, 0);
+	ice_flush(hw);
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags) && pf->msix_entries) {
 		synchronize_irq(pf->msix_entries[pf->sw_oicr_idx].vector);
@@ -1378,6 +1404,32 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
 }
 
 /**
+ * ice_ena_ctrlq_interrupts - enable control queue interrupts
+ * @hw: pointer to HW structure
+ * @v_idx: HW vector index to associate the control queue interrupts with
+ */
+static void ice_ena_ctrlq_interrupts(struct ice_hw *hw, u16 v_idx)
+{
+	u32 val;
+
+	val = ((v_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
+	       PFINT_OICR_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_OICR_CTL, val);
+
+	/* enable Admin queue Interrupt causes */
+	val = ((v_idx & PFINT_FW_CTL_MSIX_INDX_M) |
+	       PFINT_FW_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_FW_CTL, val);
+
+	/* enable Mailbox queue Interrupt causes */
+	val = ((v_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
+	       PFINT_MBX_CTL_CAUSE_ENA_M);
+	wr32(hw, PFINT_MBX_CTL, val);
+
+	ice_flush(hw);
+}
+
+/**
  * ice_req_irq_msix_misc - Setup the misc vector to handle non queue events
  * @pf: board private structure
  *
@@ -1389,7 +1441,6 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
 	int oicr_idx, err = 0;
-	u32 val;
 
 	if (!pf->int_name[0])
 		snprintf(pf->int_name, sizeof(pf->int_name) - 1, "%s-%s:misc",
@@ -1438,20 +1489,7 @@ static int ice_req_irq_msix_misc(struct ice_pf *pf)
 skip_req_irq:
 	ice_ena_misc_vector(pf);
 
-	val = ((pf->hw_oicr_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
-	       PFINT_OICR_CTL_CAUSE_ENA_M);
-	wr32(hw, PFINT_OICR_CTL, val);
-
-	/* This enables Admin queue Interrupt causes */
-	val = ((pf->hw_oicr_idx & PFINT_FW_CTL_MSIX_INDX_M) |
-	       PFINT_FW_CTL_CAUSE_ENA_M);
-	wr32(hw, PFINT_FW_CTL, val);
-
-	/* This enables Mailbox queue Interrupt causes */
-	val = ((pf->hw_oicr_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
-	       PFINT_MBX_CTL_CAUSE_ENA_M);
-	wr32(hw, PFINT_MBX_CTL, val);
-
+	ice_ena_ctrlq_interrupts(hw, pf->hw_oicr_idx);
 	wr32(hw, GLINT_ITR(ICE_RX_ITR, pf->hw_oicr_idx),
 	     ITR_REG_ALIGN(ICE_ITR_8K) >> ICE_ITR_GRAN_S);
 
@@ -1513,8 +1551,8 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 	u8 mac_addr[ETH_ALEN];
 	int err;
 
-	netdev = alloc_etherdev_mqs(sizeof(struct ice_netdev_priv),
-				    vsi->alloc_txq, vsi->alloc_rxq);
+	netdev = alloc_etherdev_mqs(sizeof(*np), vsi->alloc_txq,
+				    vsi->alloc_rxq);
 	if (!netdev)
 		return -ENOMEM;
 
@@ -1867,7 +1905,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 	v_left -= pf->num_lan_msix;
 
 	pf->msix_entries = devm_kcalloc(&pf->pdev->dev, v_budget,
-					sizeof(struct msix_entry), GFP_KERNEL);
+					sizeof(*pf->msix_entries), GFP_KERNEL);
 
 	if (!pf->msix_entries) {
 		err = -ENOMEM;
@@ -1955,7 +1993,6 @@ static void ice_clear_interrupt_scheme(struct ice_pf *pf)
 static int ice_init_interrupt_scheme(struct ice_pf *pf)
 {
 	int vectors = 0, hw_vectors = 0;
-	ssize_t size;
 
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 		vectors = ice_ena_msix_range(pf);
@@ -1966,9 +2003,9 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 		return vectors;
 
 	/* set up vector assignment tracking */
-	size = sizeof(struct ice_res_tracker) + (sizeof(u16) * vectors);
-
-	pf->sw_irq_tracker = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
+	pf->sw_irq_tracker =
+		devm_kzalloc(&pf->pdev->dev, sizeof(*pf->sw_irq_tracker) +
+			     (sizeof(u16) * vectors), GFP_KERNEL);
 	if (!pf->sw_irq_tracker) {
 		ice_dis_msix(pf);
 		return -ENOMEM;
@@ -1980,9 +2017,9 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 
 	/* set up HW vector assignment tracking */
 	hw_vectors = pf->hw.func_caps.common_cap.num_msix_vectors;
-	size = sizeof(struct ice_res_tracker) + (sizeof(u16) * hw_vectors);
-
-	pf->hw_irq_tracker = devm_kzalloc(&pf->pdev->dev, size, GFP_KERNEL);
+	pf->hw_irq_tracker =
+		devm_kzalloc(&pf->pdev->dev, sizeof(*pf->hw_irq_tracker) +
+			     (sizeof(u16) * hw_vectors), GFP_KERNEL);
 	if (!pf->hw_irq_tracker) {
 		ice_clear_interrupt_scheme(pf);
 		return -ENOMEM;
@@ -2116,7 +2153,7 @@ static int ice_probe(struct pci_dev *pdev,
 	}
 
 	pf->vsi = devm_kcalloc(&pdev->dev, pf->num_alloc_vsi,
-			       sizeof(struct ice_vsi *), GFP_KERNEL);
+			       sizeof(*pf->vsi), GFP_KERNEL);
 	if (!pf->vsi) {
 		err = -ENOMEM;
 		goto err_init_pf_unroll;
@@ -2148,7 +2185,7 @@ static int ice_probe(struct pci_dev *pdev,
 	}
 
 	/* create switch struct for the switch element created by FW on boot */
-	pf->first_sw = devm_kzalloc(&pdev->dev, sizeof(struct ice_sw),
+	pf->first_sw = devm_kzalloc(&pdev->dev, sizeof(*pf->first_sw),
 				    GFP_KERNEL);
 	if (!pf->first_sw) {
 		err = -ENOMEM;
@@ -2435,11 +2472,12 @@ static void ice_set_rx_mode(struct net_device *netdev)
  * @addr: the MAC address entry being added
  * @vid: VLAN id
  * @flags: instructions from stack about fdb operation
+ * @extack: netlink extended ack
  */
-static int ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
-		       struct net_device *dev, const unsigned char *addr,
-		       u16 vid, u16 flags,
-		       struct netlink_ext_ack *extack)
+static int
+ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
+	    struct net_device *dev, const unsigned char *addr, u16 vid,
+	    u16 flags, struct netlink_ext_ack __always_unused *extack)
 {
 	int err;
 
@@ -3707,30 +3745,39 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 	struct device *dev = &vsi->back->pdev->dev;
 	struct ice_aqc_vsi_props *vsi_props;
 	struct ice_hw *hw = &vsi->back->hw;
-	struct ice_vsi_ctx ctxt = { 0 };
+	struct ice_vsi_ctx *ctxt;
 	enum ice_status status;
+	int ret = 0;
 
 	vsi_props = &vsi->info;
-	ctxt.info = vsi->info;
+
+	ctxt = devm_kzalloc(dev, sizeof(*ctxt), GFP_KERNEL);
+	if (!ctxt)
+		return -ENOMEM;
+
+	ctxt->info = vsi->info;
 
 	if (bmode == BRIDGE_MODE_VEB)
 		/* change from VEPA to VEB mode */
-		ctxt.info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+		ctxt->info.sw_flags |= ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
 	else
 		/* change from VEB to VEPA mode */
-		ctxt.info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
-	ctxt.info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
+		ctxt->info.sw_flags &= ~ICE_AQ_VSI_SW_FLAG_ALLOW_LB;
+	ctxt->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_SW_VALID);
 
-	status = ice_update_vsi(hw, vsi->idx, &ctxt, NULL);
+	status = ice_update_vsi(hw, vsi->idx, ctxt, NULL);
 	if (status) {
 		dev_err(dev, "update VSI for bridge mode failed, bmode = %d err %d aq_err %d\n",
 			bmode, status, hw->adminq.sq_last_status);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 	/* Update sw flags for book keeping */
-	vsi_props->sw_flags = ctxt.info.sw_flags;
+	vsi_props->sw_flags = ctxt->info.sw_flags;
 
-	return 0;
+out:
+	devm_kfree(dev, ctxt);
+	return ret;
 }
 
 /**

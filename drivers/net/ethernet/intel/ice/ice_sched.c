@@ -1066,11 +1066,10 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 		hw->max_children[i] = le16_to_cpu(max_sibl);
 	}
 
-	hw->layer_info = (struct ice_aqc_layer_props *)
-			  devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
-				       (hw->num_tx_sched_layers *
-					sizeof(*hw->layer_info)),
-				       GFP_KERNEL);
+	hw->layer_info = devm_kmemdup(ice_hw_to_dev(hw), buf->layer_props,
+				      (hw->num_tx_sched_layers *
+				       sizeof(*hw->layer_info)),
+				      GFP_KERNEL);
 	if (!hw->layer_info) {
 		status = ICE_ERR_NO_MEMORY;
 		goto sched_query_out;
@@ -1344,9 +1343,14 @@ ice_sched_calc_vsi_support_nodes(struct ice_hw *hw,
 				node = node->sibling;
 			}
 
+			/* tree has one intermediate node to add this new VSI.
+			 * So no need to calculate supported nodes for below
+			 * layers.
+			 */
+			if (node)
+				break;
 			/* all the nodes are full, allocate a new one */
-			if (!node)
-				num_nodes[i]++;
+			num_nodes[i]++;
 		}
 }
 
@@ -1612,6 +1616,23 @@ ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
 }
 
 /**
+ * ice_sched_is_leaf_node_present - check for a leaf node in the sub-tree
+ * @node: pointer to the sub-tree node
+ *
+ * This function checks for a leaf node presence in a given sub-tree node.
+ */
+static bool ice_sched_is_leaf_node_present(struct ice_sched_node *node)
+{
+	u8 i;
+
+	for (i = 0; i < node->num_children; i++)
+		if (ice_sched_is_leaf_node_present(node->children[i]))
+			return true;
+	/* check for a leaf node */
+	return (node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF);
+}
+
+/**
  * ice_sched_rm_vsi_cfg - remove the VSI and its children nodes
  * @pi: port information structure
  * @vsi_handle: software VSI handle
@@ -1645,6 +1666,12 @@ ice_sched_rm_vsi_cfg(struct ice_port_info *pi, u16 vsi_handle, u8 owner)
 		if (!vsi_node)
 			continue;
 
+		if (ice_sched_is_leaf_node_present(vsi_node)) {
+			ice_debug(pi->hw, ICE_DBG_SCHED,
+				  "VSI has leaf nodes in TC %d\n", i);
+			status = ICE_ERR_IN_USE;
+			goto exit_sched_rm_vsi_cfg;
+		}
 		while (j < vsi_node->num_children) {
 			if (vsi_node->children[j]->owner == owner) {
 				ice_free_sched_node(pi, vsi_node->children[j]);

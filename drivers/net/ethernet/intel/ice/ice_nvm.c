@@ -152,9 +152,10 @@ ice_read_sr_buf_aq(struct ice_hw *hw, u16 offset, u16 *words, u16 *data)
 		 */
 		off_w = offset % ICE_SR_SECTOR_SIZE_IN_WORDS;
 		read_size = off_w ?
-			min(*words,
-			    (u16)(ICE_SR_SECTOR_SIZE_IN_WORDS - off_w)) :
-			min((*words - words_read), ICE_SR_SECTOR_SIZE_IN_WORDS);
+			min_t(u16, *words,
+			      (ICE_SR_SECTOR_SIZE_IN_WORDS - off_w)) :
+			min_t(u16, (*words - words_read),
+			      ICE_SR_SECTOR_SIZE_IN_WORDS);
 
 		/* Check if this is last command, if so set proper flag */
 		if ((words_read + read_size) >= *words)

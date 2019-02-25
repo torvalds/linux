@@ -48,7 +48,6 @@ static struct netdev_queue *txring_txq(const struct ice_ring *ring)
  */
 void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -59,8 +58,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
-	size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	memset(tx_ring->tx_buf, 0, size);
+	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(tx_ring->desc, 0, tx_ring->size);
@@ -226,21 +224,21 @@ static bool ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring,
 int ice_setup_tx_ring(struct ice_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
-	bi_size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	tx_ring->tx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	tx_ring->tx_buf =
+		devm_kzalloc(dev, sizeof(*tx_ring->tx_buf) * tx_ring->count,
+			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 
 	/* round up to nearest 4K */
-	tx_ring->size = tx_ring->count * sizeof(struct ice_tx_desc);
-	tx_ring->size = ALIGN(tx_ring->size, 4096);
+	tx_ring->size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+			      4096);
 	tx_ring->desc = dmam_alloc_coherent(dev, tx_ring->size, &tx_ring->dma,
 					    GFP_KERNEL);
 	if (!tx_ring->desc) {
@@ -267,7 +265,6 @@ err:
 void ice_clean_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -292,8 +289,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		rx_buf->page_offset = 0;
 	}
 
-	size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	memset(rx_ring->rx_buf, 0, size);
+	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
@@ -331,15 +327,15 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
 int ice_setup_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
-	bi_size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	rx_ring->rx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	rx_ring->rx_buf =
+		devm_kzalloc(dev, sizeof(*rx_ring->rx_buf) * rx_ring->count,
+			     GFP_KERNEL);
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
 
@@ -1173,7 +1169,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 			ice_update_ena_itr(vsi, q_vector);
 
-	return min(work_done, budget - 1);
+	return min_t(int, work_done, budget - 1);
 }
 
 /* helper function for building cmd/type/offset */
