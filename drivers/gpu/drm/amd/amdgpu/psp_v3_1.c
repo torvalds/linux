@@ -500,9 +500,7 @@ static bool psp_v3_1_smu_reload_quirk(struct psp_context *psp)
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t reg;
 
-	reg = smnMP1_FIRMWARE_FLAGS | 0x03b00000;
-	WREG32_SOC15(NBIO, 0, mmPCIE_INDEX2, reg);
-	reg = RREG32_SOC15(NBIO, 0, mmPCIE_DATA2);
+	reg = RREG32_PCIE(smnMP1_FIRMWARE_FLAGS | 0x03b00000);
 	return (reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) ? true : false;
 }
 
