@@ -512,4 +512,18 @@ union test_misc {
 	unsigned char raw;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* FEC capability DPCD register field bits-*/
+union fec_capability {
+	struct {
+		uint8_t FEC_CAPABLE:1;
+		uint8_t UNCORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t CORRECTED_BLOCK_ERROR_COUNT_CAPABLE:1;
+		uint8_t BIT_ERROR_COUNT_CAPABLE:1;
+		uint8_t RESERVED:4;
+	} bits;
+	uint8_t raw;
+};
+#endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
+
 #endif /* DC_DP_TYPES_H */

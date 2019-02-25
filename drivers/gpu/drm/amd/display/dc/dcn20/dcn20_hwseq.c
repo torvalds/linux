@@ -32,6 +32,9 @@
 #include "dcn10/dcn10_hw_sequencer.h"
 #include "dcn20_hwseq.h"
 #include "dce/dce_hwseq.h"
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dcn20/dcn20_dsc.h"
+#endif
 #include "abm.h"
 #include "clk_mgr.h"
 #include "dmcu.h"
@@ -211,6 +214,76 @@ static void dcn20_init_blank(
 	dcn20_hwss_wait_for_blank_complete(opp);
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+static void dcn20_dsc_pg_control(
+		struct dce_hwseq *hws,
+		unsigned int dsc_inst,
+		bool power_on)
+{
+	uint32_t power_gate = power_on ? 0 : 1;
+	uint32_t pwr_status = power_on ? 0 : 2;
+
+	if (hws->ctx->dc->debug.disable_dsc_power_gate)
+		return;
+
+	if (REG(DOMAIN16_PG_CONFIG) == 0)
+		return;
+
+	switch (dsc_inst) {
+	case 0: /* DSC0 */
+		REG_UPDATE(DOMAIN16_PG_CONFIG,
+				DOMAIN16_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN16_PG_STATUS,
+				DOMAIN16_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	case 1: /* DSC1 */
+		REG_UPDATE(DOMAIN17_PG_CONFIG,
+				DOMAIN17_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN17_PG_STATUS,
+				DOMAIN17_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	case 2: /* DSC2 */
+		REG_UPDATE(DOMAIN18_PG_CONFIG,
+				DOMAIN18_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN18_PG_STATUS,
+				DOMAIN18_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	case 3: /* DSC3 */
+		REG_UPDATE(DOMAIN19_PG_CONFIG,
+				DOMAIN19_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN19_PG_STATUS,
+				DOMAIN19_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	case 4: /* DSC4 */
+		REG_UPDATE(DOMAIN20_PG_CONFIG,
+				DOMAIN20_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN20_PG_STATUS,
+				DOMAIN20_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	case 5: /* DSC5 */
+		REG_UPDATE(DOMAIN21_PG_CONFIG,
+				DOMAIN21_POWER_GATE, power_gate);
+
+		REG_WAIT(DOMAIN21_PG_STATUS,
+				DOMAIN21_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		break;
+	}
+}
+#endif
 
 static void dcn20_dpp_pg_control(
 		struct dce_hwseq *hws,
@@ -1457,10 +1530,30 @@ bool dcn20_dmdata_status_done(struct pipe_ctx *pipe_ctx)
 
 static void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dce_hwseq *hws = dc->hwseq;
+	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+	if (pipe_ctx->stream_res.dsc) {
+		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, true);
+		if (bot_odm_pipe)
+			dcn20_dsc_pg_control(hws, bot_odm_pipe->stream_res.dsc->inst, true);
+	}
+#endif
 }
 
 static void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dce_hwseq *hws = dc->hwseq;
+	struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+	if (pipe_ctx->stream_res.dsc) {
+		dcn20_dsc_pg_control(hws, pipe_ctx->stream_res.dsc->inst, false);
+		if (bot_odm_pipe)
+			dcn20_dsc_pg_control(hws, bot_odm_pipe->stream_res.dsc->inst, false);
+	}
+#endif
 }
 
 void dcn20_set_dmdata_attributes(struct pipe_ctx *pipe_ctx)

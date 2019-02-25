@@ -709,6 +709,9 @@ struct dc_crtc_timing_flags {
 	 * rates less than or equal to 340Mcsc */
 	uint32_t LTE_340MCSC_SCRAMBLE:1;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	uint32_t DSC : 1; /* Use DSC with this timing */
+#endif
 };
 
 enum dc_timing_3d_format {
@@ -755,6 +758,18 @@ struct dc_crtc_timing_adjust {
 	uint32_t v_total_max;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct dc_dsc_config {
+	uint32_t num_slices_h; /* Number of DSC slices - horizontal */
+	uint32_t num_slices_v; /* Number of DSC slices - vertical */
+	uint32_t bits_per_pixel; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
+	bool block_pred_enable; /* DSC block prediction enable */
+	uint32_t linebuf_depth; /* DSC line buffer depth */
+	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
+	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+};
+#endif
 struct dc_crtc_timing {
 	uint32_t h_total;
 	uint32_t h_border_left;
@@ -781,6 +796,9 @@ struct dc_crtc_timing {
 	enum scanning_type scan_type;
 
 	struct dc_crtc_timing_flags flags;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dc_dsc_config dsc_cfg;
+#endif
 };
 
 /* Passed on init */

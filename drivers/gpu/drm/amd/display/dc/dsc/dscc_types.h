@@ -1,5 +1,7 @@
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,34 +24,31 @@
  * Authors: AMD
  *
  */
+#ifndef __DSCC_TYPES_H__
+#define __DSCC_TYPES_H__
 
-#ifndef _CORE_STATUS_H_
-#define _CORE_STATUS_H_
+#include <drm/drm_dsc.h>
 
-enum dc_status {
-	DC_OK = 1,
-
-	DC_NO_CONTROLLER_RESOURCE = 2,
-	DC_NO_STREAM_ENC_RESOURCE = 3,
-	DC_NO_CLOCK_SOURCE_RESOURCE = 4,
-	DC_FAIL_CONTROLLER_VALIDATE = 5,
-	DC_FAIL_ENC_VALIDATE = 6,
-	DC_FAIL_ATTACH_SURFACES = 7,
-	DC_FAIL_DETACH_SURFACES = 8,
-	DC_FAIL_SURFACE_VALIDATE = 9,
-	DC_NO_DP_LINK_BANDWIDTH = 10,
-	DC_EXCEED_DONGLE_CAP = 11,
-	DC_SURFACE_PIXEL_FORMAT_UNSUPPORTED = 12,
-	DC_FAIL_BANDWIDTH_VALIDATE = 13, /* BW and Watermark validation */
-	DC_FAIL_SCALING = 14,
-	DC_FAIL_DP_LINK_TRAINING = 15,
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
-	DC_FAIL_DSC_VALIDATE = 16,
-	DC_NO_DSC_RESOURCE = 17,
+#ifndef NUM_BUF_RANGES
+#define NUM_BUF_RANGES 15
 #endif
-	DC_FAIL_UNSUPPORTED_1 = 18,
 
-	DC_ERROR_UNEXPECTED = -1
+struct dsc_pps_rc_range {
+	int range_min_qp;
+	int range_max_qp;
+	int range_bpg_offset;
 };
 
-#endif /* _CORE_STATUS_H_ */
+struct dsc_parameters {
+	struct drm_dsc_config pps;
+
+	/* Additional parameters for register programming */
+	uint32_t bytes_per_pixel; /* In u3.28 format */
+	uint32_t rc_buffer_model_size;
+};
+
+int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps, struct dsc_parameters *dsc_params);
+
+#endif
+
+#endif

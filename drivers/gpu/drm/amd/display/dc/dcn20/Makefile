@@ -6,6 +6,10 @@ DCN20 = dcn20_resource.o dcn20_hwseq.o dcn20_dpp.o dcn20_dpp_cm.o dcn20_hubp.o \
 		dcn20_stream_encoder.o dcn20_link_encoder.o dcn20_dccg.o \
 		dcn20_vmid.o dcn20_dwb.o dcn20_dwb_scl.o
 
+ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+DCN20 += dcn20_dsc.o
+endif
+
 
 CFLAGS_dcn20_resource.o := -mhard-float -msse -mpreferred-stack-boundary=4
 

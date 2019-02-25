@@ -109,8 +109,22 @@ struct stream_encoder {
 	enum engine_id id;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct enc_state {
+	uint32_t dsc_mode;  // DISABLED  0; 1 or 2 indicate enabled state.
+	uint32_t dsc_slice_width;
+	uint32_t sec_gsp7_line_num;
+	uint32_t vbid6_line_reference;
+	uint32_t vbid6_line_num;
+	uint32_t sec_gsp7_enable;
+	uint32_t sec_stream_enable;
+};
+#endif
 
 struct stream_encoder_funcs {
+	#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		void (*enc_read_state)(struct stream_encoder *enc, struct enc_state *s);
+	#endif
 	void (*dp_set_stream_attribute)(
 		struct stream_encoder *enc,
 		struct dc_crtc_timing *crtc_timing,
@@ -198,6 +212,14 @@ struct stream_encoder_funcs {
 		int tg_inst);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	void (*dp_set_dsc_config)(
+			struct stream_encoder *enc,
+			enum optc_dsc_mode dsc_mode,
+			uint32_t dsc_bytes_per_pixel,
+			uint32_t dsc_slice_width,
+			uint8_t *dsc_packed_pps);
+#endif
 
 	void (*set_dynamic_metadata)(struct stream_encoder *enc,
 			bool enable,

@@ -151,6 +151,9 @@ void enc2_fec_set_ready(struct link_encoder *enc, bool ready);
 bool enc2_fec_is_active(struct link_encoder *enc);
 void enc2_hw_init(struct link_encoder *enc);
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+void link_enc2_read_state(struct link_encoder *enc, struct link_enc_state *s);
+#endif
 
 void dcn20_link_encoder_construct(
 	struct dcn20_link_encoder *enc20,

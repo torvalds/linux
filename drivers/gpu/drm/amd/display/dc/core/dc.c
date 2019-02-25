@@ -56,6 +56,10 @@
 
 #include "dc_link_dp.h"
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dsc.h"
+#endif
+
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 #include "vm_helper.h"
 #endif
@@ -1730,6 +1734,23 @@ static void commit_planes_do_stream_update(struct dc *dc,
 #endif
 			}
 
+#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
+			if (stream_update->dsc_config && dc->hwss.pipe_control_lock_global) {
+				if (stream_update->dsc_config->num_slices_h &&
+						stream_update->dsc_config->num_slices_v) {
+					/* dsc enable */
+					dc->hwss.pipe_control_lock_global(dc, pipe_ctx, true);
+					dp_set_dsc_enable(pipe_ctx, true);
+					dc->hwss.pipe_control_lock_global(dc, pipe_ctx, false);
+				} else {
+					/* dsc disable */
+					dc->hwss.pipe_control_lock_global(dc, pipe_ctx, true);
+					dp_set_dsc_enable(pipe_ctx, false);
+					dc->hwss.pipe_control_lock_global(dc, pipe_ctx, false);
+				}
+
+			}
+#endif
 			/* Full fe update*/
 			if (update_type == UPDATE_TYPE_FAST)
 				continue;

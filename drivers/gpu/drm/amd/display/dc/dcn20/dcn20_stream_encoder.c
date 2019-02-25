@@ -203,7 +203,165 @@ static void enc2_stream_encoder_stop_hdmi_info_packets(
 		HDMI_GENERIC7_LINE, 0);
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct dc_info_packet_128 {
+	bool valid;
+	uint8_t hb0;
+	uint8_t hb1;
+	uint8_t hb2;
+	uint8_t hb3;
+	uint8_t sb[128];
+};
 
+/* Update GSP7 SDP 128 byte long */
+static void enc2_send_gsp7_128_info_packet(
+	struct dcn10_stream_encoder *enc1,
+	const struct dc_info_packet_128 *info_packet)
+{
+	uint32_t i;
+
+	/* TODOFPGA Figure out a proper number for max_retries polling for lock
+	 * use 50 for now.
+	 */
+	uint32_t max_retries = 50;
+	const uint32_t *content = (const uint32_t *) &info_packet->sb[0];
+
+	ASSERT(info_packet->hb1  == DC_DP_INFOFRAME_TYPE_PPS);
+
+	/* Configure for PPS packet size (128 bytes) */
+	REG_UPDATE(DP_SEC_CNTL2, DP_SEC_GSP7_PPS, 1);
+
+	/* We need turn on clock before programming AFMT block*/
+	REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
+
+	/* Poll dig_update_lock is not locked -> asic internal signal
+	 * assumes otg master lock will unlock it
+	 */
+	/*REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_LOCK_STATUS, 0, 10, max_retries);*/
+
+	/* Wait for HW/SW GSP memory access conflict to go away */
+	REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT,
+			0, 10, max_retries);
+
+	/* Clear HW/SW memory access conflict flag */
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT_CLR, 1);
+
+	/* write generic packet header */
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_INDEX, 7);
+	REG_SET_4(AFMT_GENERIC_HDR, 0,
+			AFMT_GENERIC_HB0, info_packet->hb0,
+			AFMT_GENERIC_HB1, info_packet->hb1,
+			AFMT_GENERIC_HB2, info_packet->hb2,
+			AFMT_GENERIC_HB3, info_packet->hb3);
+
+	/* Write generic packet content 128 bytes long. Four sets are used (indexes 7
+	 * through 10) to fit 128 bytes.
+	 */
+	for (i = 0; i < 4; i++) {
+		uint32_t packet_index = 7 + i;
+		REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_INDEX, packet_index);
+
+		REG_WRITE(AFMT_GENERIC_0, *content++);
+		REG_WRITE(AFMT_GENERIC_1, *content++);
+		REG_WRITE(AFMT_GENERIC_2, *content++);
+		REG_WRITE(AFMT_GENERIC_3, *content++);
+		REG_WRITE(AFMT_GENERIC_4, *content++);
+		REG_WRITE(AFMT_GENERIC_5, *content++);
+		REG_WRITE(AFMT_GENERIC_6, *content++);
+		REG_WRITE(AFMT_GENERIC_7, *content++);
+	}
+
+	REG_UPDATE(AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC7_FRAME_UPDATE, 1);
+}
+
+/* Set DSC-related configuration.
+ *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
+ *   sc_bytes_per_pixel: Bytes per pixel in u3.28 format
+ *   dsc_slice_width: Slice width in pixels
+ */
+static void enc2_dp_set_dsc_config(struct stream_encoder *enc,
+					enum optc_dsc_mode dsc_mode,
+					uint32_t dsc_bytes_per_pixel,
+					uint32_t dsc_slice_width,
+					uint8_t *dsc_packed_pps)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE_2(DP_DSC_CNTL,
+			DP_DSC_MODE, dsc_mode,
+			DP_DSC_SLICE_WIDTH, dsc_slice_width);
+
+	REG_SET(DP_DSC_BYTES_PER_PIXEL, 0,
+		DP_DSC_BYTES_PER_PIXEL, dsc_bytes_per_pixel);
+
+	if (dsc_mode != OPTC_DSC_DISABLED) {
+		struct dc_info_packet_128 pps_sdp;
+
+		ASSERT(dsc_packed_pps);
+
+		/* Load PPS into infoframe (SDP) registers */
+		pps_sdp.valid = true;
+		pps_sdp.hb0 = 0;
+		pps_sdp.hb1 = DC_DP_INFOFRAME_TYPE_PPS;
+		pps_sdp.hb2 = 127;
+		pps_sdp.hb3 = 0;
+		memcpy(&pps_sdp.sb[0], dsc_packed_pps, sizeof(pps_sdp.sb));
+		enc2_send_gsp7_128_info_packet(enc1, &pps_sdp);
+
+		/* Enable Generic Stream Packet 7 (GSP) transmission */
+		//REG_UPDATE(DP_SEC_CNTL,
+		//	DP_SEC_GSP7_ENABLE, 1);
+
+		/* SW should make sure VBID[6] update line number is bigger
+		 * than PPS transmit line number
+		 */
+		REG_UPDATE(DP_SEC_CNTL6,
+				DP_SEC_GSP7_LINE_NUM, 2);
+		REG_UPDATE_2(DP_MSA_VBID_MISC,
+				DP_VBID6_LINE_REFERENCE, 0,
+				DP_VBID6_LINE_NUM, 3);
+
+		/* Send PPS data at the line number specified above.
+		 * DP spec requires PPS to be sent only when it changes, however since
+		 * decoder has to be able to handle its change on every frame, we're
+		 * sending it always (i.e. on every frame) to reduce the chance it'd be
+		 * missed by decoder. If it turns out required to send PPS only when it
+		 * changes, we can use DP_SEC_GSP7_SEND register.
+		 */
+		REG_UPDATE_2(DP_SEC_CNTL,
+			DP_SEC_GSP7_ENABLE, 1,
+			DP_SEC_STREAM_ENABLE, 1);
+	} else {
+		/* Disable Generic Stream Packet 7 (GSP) transmission */
+		REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, 0);
+		REG_UPDATE(DP_SEC_CNTL2, DP_SEC_GSP7_PPS, 0);
+	}
+}
+#endif
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* this function read dsc related register fields to be logged later in dcn10_log_hw_state
+ * into a dcn_dsc_state struct.
+ */
+static void enc2_read_state(struct stream_encoder *enc, struct enc_state *s)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	//if dsc is enabled, continue to read
+	REG_GET(DP_DSC_CNTL, DP_DSC_MODE, &s->dsc_mode);
+	if (s->dsc_mode) {
+		REG_GET(DP_DSC_CNTL, DP_DSC_SLICE_WIDTH, &s->dsc_slice_width);
+		REG_GET(DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, &s->sec_gsp7_line_num);
+
+		REG_GET(DP_SEC_CNTL6, DP_SEC_GSP7_LINE_NUM, &s->sec_gsp7_line_num);
+		REG_GET(DP_MSA_VBID_MISC, DP_VBID6_LINE_REFERENCE, &s->vbid6_line_reference);
+		REG_GET(DP_MSA_VBID_MISC, DP_VBID6_LINE_NUM, &s->vbid6_line_num);
+
+		REG_GET(DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, &s->sec_gsp7_enable);
+		REG_GET(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, &s->sec_stream_enable);
+	}
+}
+#endif
 
 /* Set Dynamic Metadata-configuration.
  *   enable_dme:         TRUE: enables Dynamic Metadata Enfine, FALSE: disables DME
@@ -283,6 +441,10 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
 	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
+			&& !timing->dsc_cfg.ycbcr422_simple);
+#endif
 	return two_pix;
 }
 
@@ -416,7 +578,13 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 	.setup_stereo_sync  = enc1_setup_stereo_sync,
 	.set_avmute = enc1_stream_encoder_set_avmute,
 	.dig_connect_to_otg  = enc1_dig_connect_to_otg,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.enc_read_state = enc2_read_state,
+#endif
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.dp_set_dsc_config = enc2_dp_set_dsc_config,
+#endif
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 };
 

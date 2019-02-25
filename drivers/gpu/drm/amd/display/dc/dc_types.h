@@ -553,6 +553,9 @@ enum dc_infoframe_type {
 	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
 	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
 	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
+#endif
 };
 
 struct dc_info_packet {
@@ -706,4 +709,70 @@ struct AsicStateEx {
 	unsigned int phyClock;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* DSC DPCD capabilities */
+union dsc_slice_caps1 {
+	struct {
+		uint8_t NUM_SLICES_1 : 1;
+		uint8_t NUM_SLICES_2 : 1;
+		uint8_t RESERVED : 1;
+		uint8_t NUM_SLICES_4 : 1;
+		uint8_t NUM_SLICES_6 : 1;
+		uint8_t NUM_SLICES_8 : 1;
+		uint8_t NUM_SLICES_10 : 1;
+		uint8_t NUM_SLICES_12 : 1;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_slice_caps2 {
+	struct {
+		uint8_t NUM_SLICES_16 : 1;
+		uint8_t NUM_SLICES_20 : 1;
+		uint8_t NUM_SLICES_24 : 1;
+		uint8_t RESERVED : 5;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_formats {
+	struct {
+		uint8_t RGB : 1;
+		uint8_t YCBCR_444 : 1;
+		uint8_t YCBCR_SIMPLE_422 : 1;
+		uint8_t YCBCR_NATIVE_422 : 1;
+		uint8_t YCBCR_NATIVE_420 : 1;
+		uint8_t RESERVED : 3;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_depth {
+	struct {
+		uint8_t RESERVED1 : 1;
+		uint8_t COLOR_DEPTH_8_BPC : 1;
+		uint8_t COLOR_DEPTH_10_BPC : 1;
+		uint8_t COLOR_DEPTH_12_BPC : 1;
+		uint8_t RESERVED2 : 3;
+	} bits;
+	uint8_t raw;
+};
+
+struct dsc_dec_dpcd_caps {
+	bool is_dsc_supported;
+	uint8_t dsc_version;
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+	union dsc_slice_caps1 slice_caps1;
+	union dsc_slice_caps2 slice_caps2;
+	int32_t lb_bit_depth;
+	bool is_block_pred_supported;
+	int32_t edp_max_bits_per_pixel; /* Valid only in eDP */
+	union dsc_color_formats color_formats;
+	union dsc_color_depth color_depth;
+	int32_t throughput_mode_0_mps; /* In MPs */
+	int32_t throughput_mode_1_mps; /* In MPs */
+	int32_t max_slice_width;
+	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+};
+#endif
 #endif /* DC_TYPES_H_ */

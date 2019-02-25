@@ -4,6 +4,9 @@
 #include "dc_link_dp.h"
 #include "dm_helpers.h"
 #include "opp.h"
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dsc.h"
+#endif
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 #include "resource.h"
 #endif
@@ -2379,6 +2382,10 @@ static bool retrieve_link_cap(struct dc_link *link)
 	uint32_t read_dpcd_retry_cnt = 3;
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	uint8_t dsc_data[16];
+	struct dsc_dec_dpcd_caps *dsc_caps;
+#endif
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2550,6 +2557,90 @@ static bool retrieve_link_cap(struct dc_link *link)
 		dp_hw_fw_revision.ieee_fw_rev,
 		sizeof(dp_hw_fw_revision.ieee_fw_rev));
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	dsc_caps = &link->dpcd_caps.dsc_sink_caps;
+	memset(dsc_caps, '\0', sizeof(*dsc_caps));
+	memset(&link->dpcd_caps.dsc_sink_caps, '\0',
+			sizeof(link->dpcd_caps.dsc_sink_caps));
+	memset(&link->dpcd_caps.fec_cap, '\0', sizeof(link->dpcd_caps.fec_cap));
+	/* Read DSC and FEC sink capabilities if DP revision is 1.4 and up */
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14) {
+		status = core_link_read_dpcd(
+				link,
+				DP_DSC_SUPPORT,
+				dsc_data,
+				sizeof(dsc_data));
+		if (status == DC_OK) {
+			DC_LOG_DSC("DSC capability read at link %d:",
+					link->link_index);
+			DC_LOG_DSC("\t%02x %02x %02x %02x",
+					dsc_data[0], dsc_data[1],
+					dsc_data[2], dsc_data[3]);
+			DC_LOG_DSC("\t%02x %02x %02x %02x",
+					dsc_data[4], dsc_data[5],
+					dsc_data[6], dsc_data[7]);
+			DC_LOG_DSC("\t%02x %02x %02x %02x",
+					dsc_data[8], dsc_data[9],
+					dsc_data[10], dsc_data[11]);
+			DC_LOG_DSC("\t%02x %02x %02x %02x",
+					dsc_data[12], dsc_data[13],
+					dsc_data[14], dsc_data[15]);
+		} else {
+			dm_error("%s: Read DSC dpcd data failed.\n", __func__);
+			return false;
+		}
+
+		if (dc_dsc_parse_dsc_dpcd(dsc_data,
+				dsc_caps)) {
+			DC_LOG_DSC("DSC capability parsed at link %d:",
+					link->link_index);
+			DC_LOG_DSC("\tis_dsc_supported:\t%d",
+					dsc_caps->is_dsc_supported);
+			DC_LOG_DSC("\tdsc_version:\t%d", dsc_caps->dsc_version);
+			DC_LOG_DSC("\trc_buffer_size:\t%d",
+					dsc_caps->rc_buffer_size);
+			DC_LOG_DSC("\tslice_caps1:\t0x%x20",
+					dsc_caps->slice_caps1.raw);
+			DC_LOG_DSC("\tslice_caps2:\t0x%x20",
+					dsc_caps->slice_caps2.raw);
+			DC_LOG_DSC("\tlb_bit_depth:\t%d",
+					dsc_caps->lb_bit_depth);
+			DC_LOG_DSC("\tis_block_pred_supported:\t%d",
+					dsc_caps->is_block_pred_supported);
+			DC_LOG_DSC("\tedp_max_bits_per_pixel:\t%d",
+					dsc_caps->edp_max_bits_per_pixel);
+			DC_LOG_DSC("\tcolor_formats:\t%d",
+					dsc_caps->color_formats.raw);
+			DC_LOG_DSC("\tcolor_depth:\t%d",
+					dsc_caps->color_depth.raw);
+			DC_LOG_DSC("\tthroughput_mode_0_mps:\t%d",
+					dsc_caps->throughput_mode_0_mps);
+			DC_LOG_DSC("\tthroughput_mode_1_mps:\t%d",
+					dsc_caps->throughput_mode_1_mps);
+			DC_LOG_DSC("\tmax_slice_width:\t%d",
+					dsc_caps->max_slice_width);
+			DC_LOG_DSC("\tbpp_increment_div:\t%d",
+					dsc_caps->bpp_increment_div);
+		} else {
+			/* Some sinks return bogus DSC DPCD data
+			 * when they don't support DSC.
+			 */
+			dm_error("%s: DSC DPCD data doesn't make sense. "
+					"DSC will be disabled.\n", __func__);
+			memset(&link->dpcd_caps.dsc_sink_caps, '\0',
+					sizeof(link->dpcd_caps.dsc_sink_caps));
+		}
+
+		status = core_link_read_dpcd(
+				link,
+				DP_FEC_CAPABILITY,
+				&link->dpcd_caps.fec_cap.raw,
+				sizeof(link->dpcd_caps.fec_cap.raw));
+		if (status != DC_OK)
+			dm_error("%s: Read FEC dpcd register failed.\n",
+					__func__);
+	}
+#endif
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
@@ -2964,4 +3055,66 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable)
 	core_link_write_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+void dp_set_fec_ready(struct dc_link *link, bool ready)
+{
+	/* FEC has to be "set ready" before the link training.
+	 * The policy is to always train with FEC
+	 * if the sink supports it and leave it enabled on link.
+	 * If FEC is not supported, disable it.
+	 */
+	struct link_encoder *link_enc = link->link_enc;
+	uint8_t fec_config = 0;
+
+	if (link->dc->debug.disable_fec ||
+			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+		return;
+
+	if (link_enc->funcs->fec_set_ready &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (link->fec_state == dc_link_fec_not_ready && ready) {
+			fec_config = 1;
+			if (core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config)) == DC_OK) {
+				link_enc->funcs->fec_set_ready(link_enc, true);
+				link->fec_state = dc_link_fec_ready;
+			} else {
+				dm_error("dpcd write failed to set fec_ready");
+			}
+		} else if (link->fec_state == dc_link_fec_ready && !ready) {
+			fec_config = 0;
+			core_link_write_dpcd(link,
+					DP_FEC_CONFIGURATION,
+					&fec_config,
+					sizeof(fec_config));
+			link->link_enc->funcs->fec_set_ready(
+					link->link_enc, false);
+			link->fec_state = dc_link_fec_not_ready;
+		}
+	}
+}
+
+void dp_set_fec_enable(struct dc_link *link, bool enable)
+{
+	struct link_encoder *link_enc = link->link_enc;
+
+	if (link->dc->debug.disable_fec ||
+			IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment))
+		return;
+
+	if (link_enc->funcs->fec_set_enable &&
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE) {
+		if (link->fec_state == dc_link_fec_ready && enable) {
+			msleep(1);
+			link_enc->funcs->fec_set_enable(link_enc, true);
+			link->fec_state = dc_link_fec_enabled;
+		} else if (link->fec_state == dc_link_fec_enabled && !enable) {
+			link_enc->funcs->fec_set_enable(link_enc, false);
+			link->fec_state = dc_link_fec_ready;
+		}
+	}
+}
+#endif
 

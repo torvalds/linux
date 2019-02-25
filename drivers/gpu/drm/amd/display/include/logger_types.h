@@ -63,6 +63,9 @@
 #define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
 #define DC_LOG_PERF_TRACE(...) DRM_DEBUG_KMS(__VA_ARGS__)
 #define DC_LOG_RETIMER_REDRIVER(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#define DC_LOG_DSC(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#endif
 
 struct dal_logger;
 
@@ -107,6 +110,9 @@ enum dc_log_type {
 	LOG_PERF_TRACE,
 	LOG_DISPLAYSTATS,
 	LOG_HDMI_RETIMER_REDRIVER,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	LOG_DSC,
+#endif
 	LOG_SECTION_TOTAL_COUNT
 };
 

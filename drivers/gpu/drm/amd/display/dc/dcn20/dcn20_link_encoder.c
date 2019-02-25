@@ -168,6 +168,10 @@ static struct mpll_cfg dcn2_mpll_cfg[] = {
 void enc2_fec_set_enable(struct link_encoder *enc, bool enable)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DC_LOG_DSC("%s FEC at link encoder inst %d",
+			enable ? "Enabling" : "Disabling", enc->id.enum_id);
+#endif
 	REG_UPDATE(DP_DPHY_CNTL, DPHY_FEC_EN, enable);
 }
 
@@ -188,6 +192,19 @@ bool enc2_fec_is_active(struct link_encoder *enc)
 	return (active != 0);
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* this function reads dsc related register fields to be logged later in dcn10_log_hw_state
+ * into a dcn_dsc_state struct.
+ */
+void link_enc2_read_state(struct link_encoder *enc, struct link_enc_state *s)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	REG_GET(DP_DPHY_CNTL, DPHY_FEC_EN, &s->dphy_fec_en);
+	REG_GET(DP_DPHY_CNTL, DPHY_FEC_READY_SHADOW, &s->dphy_fec_ready_shadow);
+	REG_GET(DP_DPHY_CNTL, DPHY_FEC_ACTIVE_STATUS, &s->dphy_fec_active_status);
+}
+#endif
 
 static bool update_cfg_data(
 		struct dcn10_link_encoder *enc10,
@@ -298,6 +315,9 @@ void enc2_hw_init(struct link_encoder *enc)
 }
 
 static const struct link_encoder_funcs dcn20_link_enc_funcs = {
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.read_state = link_enc2_read_state,
+#endif
 	.validate_output_with_stream =
 		dcn10_link_encoder_validate_output_with_stream,
 	.hw_init = enc2_hw_init,

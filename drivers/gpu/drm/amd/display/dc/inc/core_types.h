@@ -179,6 +179,9 @@ struct resource_pool {
 	} gsl_groups;
 #endif
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct display_stream_compressor *dscs[MAX_PIPES];
+#endif
 
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
@@ -219,10 +222,16 @@ struct resource_pool {
 
 struct dcn_fe_bandwidth {
 	int dppclk_khz;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	int dscclk_khz;
+#endif
 };
 
 struct stream_resource {
 	struct output_pixel_processor *opp;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct display_stream_compressor *dsc;
+#endif
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
 	struct audio *audio;

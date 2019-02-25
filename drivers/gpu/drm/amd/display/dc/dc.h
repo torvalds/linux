@@ -331,6 +331,9 @@ struct dc_debug_options {
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
 	bool disable_hubp_power_gate;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool disable_dsc_power_gate;
+#endif
 	bool disable_pplib_wm_range;
 	enum wm_report_mode pplib_wm_report_mode;
 	unsigned int min_disp_clk_khz;
@@ -363,6 +366,9 @@ struct dc_debug_options {
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
 	struct dc_bw_validation_profile bw_val_profile;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool disable_fec;
+#endif
 };
 
 struct dc_debug_data {
@@ -894,6 +900,10 @@ struct dpcd_caps {
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
 	bool ext_receiver_cap_field_present;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	union fec_capability fec_cap;
+	struct dsc_dec_dpcd_caps dsc_sink_caps;
+#endif
 };
 
 #include "dc_link.h"
@@ -928,6 +938,14 @@ struct dc_sink {
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dc_sink_dsc_caps {
+		// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
+		// 'false' if they are sink's DSC caps
+		bool is_virtual_dpcd_dsc;
+		struct dsc_dec_dpcd_caps dsc_dec_caps;
+	} sink_dsc_caps;
+#endif
 
 	/* private to DC core */
 	struct dc_link *link;
@@ -986,4 +1004,10 @@ unsigned int dc_get_target_backlight_pwm(struct dc *dc);
 
 bool dc_is_dmcu_initialized(struct dc *dc);
 
+#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
+/*******************************************************************************
+ * DSC Interfaces
+ ******************************************************************************/
+#include "dc_dsc.h"
+#endif
 #endif /* DC_INTERFACE_H_ */

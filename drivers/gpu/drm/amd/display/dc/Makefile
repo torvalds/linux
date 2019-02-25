@@ -30,6 +30,9 @@ DC_LIBS += dcn20
 endif
 
 
+ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+DC_LIBS += dsc
+endif
 
 ifdef CONFIG_DRM_AMD_DC_DCN1_0
 DC_LIBS += dcn10 dml

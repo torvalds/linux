@@ -211,6 +211,9 @@ struct dc_stream_state {
 	bool apply_seamless_boot_optimization;
 
 	uint32_t stream_id;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool is_dsc_enabled;
+#endif
 };
 
 struct dc_stream_update {
@@ -237,6 +240,9 @@ struct dc_stream_update {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct dc_writeback_update *wb_update;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DSC_SUPPORT)
+	struct dc_dsc_config *dsc_config;
 #endif
 };
 

@@ -1507,10 +1507,28 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->comb_opp_id = 0xf;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* "Containter" vs. "pixel" is a concept within HW blocks, mostly those closer to the back-end. It works like this:
+ *
+ * - In most of the formats (RGB or YCbCr 4:4:4, 4:2:2 uncompressed and DSC 4:2:2 Simple) pixel rate is the same as
+ *   containter rate.
+ *
+ * - In 4:2:0 (DSC or uncompressed) there are two pixels per container, hence the target container rate has to be
+ *   halved to maintain the correct pixel rate.
+ *
+ * - Unlike 4:2:2 uncompressed, DSC 4:2:2 Native also has two pixels per container (this happens when DSC is applied
+ *   to it) and has to be treated the same as 4:2:0, i.e. target containter rate has to be halved in this case as well.
+ *
+ */
+#endif
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
 	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	two_pix = two_pix || (timing->flags.DSC && timing->pixel_encoding == PIXEL_ENCODING_YCBCR422
+			&& !timing->dsc_cfg.ycbcr422_simple);
+#endif
 	return two_pix;
 }
 

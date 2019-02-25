@@ -167,6 +167,41 @@ void optc2_set_gsl_source_select(
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* DSC encoder frame start controls: x = h position, line_num = # of lines from vstartup */
+void optc2_set_dsc_encoder_frame_start(struct timing_generator *optc,
+					int x_position,
+					int line_num)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET_2(OTG_DSC_START_POSITION, 0,
+			OTG_DSC_START_POSITION_X, x_position,
+			OTG_DSC_START_POSITION_LINE_NUM, line_num);
+}
+
+/* Set DSC-related configuration.
+ *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
+ *   sc_bytes_per_pixel: Bytes per pixel in u3.28 format
+ *   dsc_slice_width: Slice width in pixels
+ */
+void optc2_set_dsc_config(struct timing_generator *optc,
+					enum optc_dsc_mode dsc_mode,
+					uint32_t dsc_bytes_per_pixel,
+					uint32_t dsc_slice_width)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL,
+		OPTC_DSC_MODE, dsc_mode);
+
+	REG_SET(OPTC_BYTES_PER_PIXEL, 0,
+		OPTC_DSC_BYTES_PER_PIXEL, dsc_bytes_per_pixel);
+
+	REG_UPDATE(OPTC_WIDTH_CONTROL,
+		OPTC_DSC_SLICE_WIDTH, dsc_slice_width);
+}
+#endif
 
 /**
  * PTI i think is already done somewhere else for 2ka
@@ -390,6 +425,9 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.setup_global_swap_lock = NULL,
 		.get_crc = optc1_get_crc,
 		.configure_crc = optc1_configure_crc,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		.set_dsc_config = optc2_set_dsc_config,
+#endif
 		.set_dwb_source = optc2_set_dwb_source,
 		.set_odm_bypass = optc2_set_odm_bypass,
 		.set_odm_combine = optc2_set_odm_combine,

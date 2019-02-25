@@ -194,6 +194,13 @@ enum opp_regamma {
 	OPP_REGAMMA_USER
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+enum optc_dsc_mode {
+	OPTC_DSC_DISABLED = 0,
+	OPTC_DSC_ENABLED_444 = 1, /* 'RGB 444' or 'Simple YCbCr 4:2:2' (4:2:2 upsampled to 4:4:4) */
+	OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED = 2 /* Native 4:2:2 or 4:2:0 */
+};
+#endif
 
 struct dc_bias_and_scale {
 	uint16_t scale_red;

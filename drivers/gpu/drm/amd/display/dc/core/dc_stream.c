@@ -105,6 +105,16 @@ static void construct(struct dc_stream_state *stream,
 	/* EDID CAP translation for HDMI 2.0 */
 	stream->timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	memset(&stream->timing.dsc_cfg, 0, sizeof(stream->timing.dsc_cfg));
+	stream->timing.dsc_cfg.num_slices_h = 0;
+	stream->timing.dsc_cfg.num_slices_v = 0;
+	stream->timing.dsc_cfg.bits_per_pixel = 128;
+	stream->timing.dsc_cfg.block_pred_enable = 1;
+	stream->timing.dsc_cfg.linebuf_depth = 9;
+	stream->timing.dsc_cfg.version_minor = 2;
+	stream->timing.dsc_cfg.ycbcr422_simple = 0;
+#endif
 
 	update_stream_signal(stream, dc_sink_data);
 

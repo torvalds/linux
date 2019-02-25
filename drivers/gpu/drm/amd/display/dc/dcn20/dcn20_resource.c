@@ -42,6 +42,10 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn20_opp.h"
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#include "dcn20_dsc.h"
+#endif
+
 #include "dcn20_link_encoder.h"
 #include "dcn20_stream_encoder.h"
 #include "dce/dce_clock_source.h"
@@ -83,7 +87,11 @@ struct _vcs_dpi_ip_params_st dcn2_0_ip = {
 	.hostvm_max_page_table_levels = 4,
 	.hostvm_cached_page_table_levels = 0,
 	.pte_group_size_bytes = 2048,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	.num_dsc = 6,
+#else
 	.num_dsc = 0,
+#endif
 	.rob_buffer_size_kbytes = 168,
 	.det_buffer_size_kbytes = 164,
 	.dpte_buffer_size_in_pte_reqs_luma = 84,
@@ -572,6 +580,29 @@ static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#define dsc_regsDCN20(id)\
+[id] = {\
+	DSC_REG_LIST_DCN20(id)\
+}
+
+static const struct dcn20_dsc_registers dsc_regs[] = {
+	dsc_regsDCN20(0),
+	dsc_regsDCN20(1),
+	dsc_regsDCN20(2),
+	dsc_regsDCN20(3),
+	dsc_regsDCN20(4),
+	dsc_regsDCN20(5)
+};
+
+static const struct dcn20_dsc_shift dsc_shift = {
+	DSC_REG_LIST_SH_MASK_DCN20(__SHIFT)
+};
+
+static const struct dcn20_dsc_mask dsc_mask = {
+	DSC_REG_LIST_SH_MASK_DCN20(_MASK)
+};
+#endif
 
 static const struct dccg_registers dccg_regs = {
 		DCCG_REG_LIST_DCN2()
@@ -595,6 +626,9 @@ static const struct resource_caps res_cap_nv10 = {
 		.num_dwb = 1,
 		.num_ddc = 6,
 		.num_vmid = 16,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		.num_dsc = 6,
+#endif
 };
 
 static const struct dc_plane_cap plane_cap = {
@@ -961,6 +995,30 @@ void dcn20_clock_source_destroy(struct clock_source **clk_src)
 	*clk_src = NULL;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+
+struct display_stream_compressor *dcn20_dsc_create(
+	struct dc_context *ctx, uint32_t inst)
+{
+	struct dcn20_dsc *dsc =
+		kzalloc(sizeof(struct dcn20_dsc), GFP_KERNEL);
+
+	if (!dsc) {
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+
+	dsc2_construct(dsc, ctx, inst, &dsc_regs[inst], &dsc_shift, &dsc_mask);
+	return &dsc->base;
+}
+
+void dcn20_dsc_destroy(struct display_stream_compressor **dsc)
+{
+	kfree(container_of(*dsc, struct dcn20_dsc, base));
+	*dsc = NULL;
+}
+
+#endif
 
 static void destruct(struct dcn20_resource_pool *pool)
 {
@@ -973,6 +1031,12 @@ static void destruct(struct dcn20_resource_pool *pool)
 		}
 	}
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	for (i = 0; i < pool->base.res_cap->num_dsc; i++) {
+		if (pool->base.dscs[i] != NULL)
+			dcn20_dsc_destroy(&pool->base.dscs[i]);
+	}
+#endif
 
 	if (pool->base.mpc != NULL) {
 		kfree(TO_DCN20_MPC(pool->base.mpc));
@@ -1164,6 +1228,39 @@ enum dc_status dcn20_build_mapped_resource(const struct dc *dc, struct dc_state 
 	return status;
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+
+static struct display_stream_compressor *acquire_dsc(struct resource_context *res_ctx,
+						const struct resource_pool *pool)
+{
+	int i;
+	struct display_stream_compressor *dsc = NULL;
+
+	/* Find first free DSC */
+	for (i = 0; i < pool->res_cap->num_dsc; i++)
+		if (!res_ctx->is_dsc_acquired[i]) {
+			dsc = pool->dscs[i];
+			res_ctx->is_dsc_acquired[i] = true;
+			break;
+		}
+
+	return dsc;
+}
+
+static void release_dsc(struct resource_context *res_ctx,
+			const struct resource_pool *pool,
+			const struct display_stream_compressor *dsc)
+{
+	int i;
+
+	for (i = 0; i < pool->res_cap->num_dsc; i++)
+		if (pool->dscs[i] == dsc) {
+			res_ctx->is_dsc_acquired[i] = false;
+			break;
+		}
+}
+
+#endif
 
 enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, struct dc_stream_state *dc_stream)
 {
@@ -1174,6 +1271,33 @@ enum dc_status dcn20_add_stream_to_ctx(struct dc *dc, struct dc_state *new_ctx, 
 	if (result == DC_OK)
 		result = resource_map_phy_clock_resources(dc, new_ctx, dc_stream);
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	/* Get a DSC if required and available */
+	if (result == DC_OK) {
+		int i;
+		const struct resource_pool *pool = dc->res_pool;
+		bool is_add_dsc = true;
+
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream != dc_stream)
+				continue;
+
+			if (is_add_dsc) {
+				pipe_ctx->stream_res.dsc = acquire_dsc(&new_ctx->res_ctx, pool);
+
+				/* The number of DSCs can be less than the number of pipes */
+				if (!pipe_ctx->stream_res.dsc) {
+					dm_output_to_console("No DSCs available\n");
+					result = DC_NO_DSC_RESOURCE;
+				}
+			}
+
+			break;
+		}
+	}
+#endif
 
 	if (result == DC_OK)
 		result = dcn20_build_mapped_resource(dc, new_ctx, dc_stream);
@@ -1198,6 +1322,18 @@ enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	if (pipe_ctx->stream_res.dsc) {
+		struct pipe_ctx *odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+
+		release_dsc(&new_ctx->res_ctx, dc->res_pool, pipe_ctx->stream_res.dsc);
+		pipe_ctx->stream_res.dsc = NULL;
+		if (odm_pipe) {
+			release_dsc(&new_ctx->res_ctx, dc->res_pool, odm_pipe->stream_res.dsc);
+			odm_pipe->stream_res.dsc = NULL;
+		}
+	}
+#endif
 
 	return DC_OK;
 }
@@ -1331,6 +1467,14 @@ static bool dcn20_split_stream_for_combine(
 			sd->recout.x = 0;
 		}
 		secondary_pipe->stream_res.opp = pool->opps[secondary_pipe->pipe_idx];
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		if (is_add_dsc) {
+			secondary_pipe->stream_res.dsc = acquire_dsc(res_ctx, pool);
+			ASSERT(secondary_pipe->stream_res.dsc);
+			if (secondary_pipe->stream_res.dsc == NULL)
+				return false;
+		}
+#endif
 	} else {
 		ASSERT(primary_pipe->plane_state);
 		resource_build_scaling_params(primary_pipe);
@@ -1410,6 +1554,11 @@ int dcn20_populate_dml_pipes_from_context(
 		pipes[pipe_cnt].pipe.src.dcc = 0;
 		pipes[pipe_cnt].pipe.src.vm = 0;*/
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		pipes[pipe_cnt].dout.dsc_enable = res_ctx->pipe_ctx[i].stream->timing.flags.DSC;
+		/* todo: rotation?*/
+		pipes[pipe_cnt].dout.dsc_slices = res_ctx->pipe_ctx[i].stream->timing.dsc_cfg.num_slices_h;
+#endif
 		if (res_ctx->pipe_ctx[i].stream->use_dynamic_meta) {
 			pipes[pipe_cnt].pipe.src.dynamic_metadata_enable = true;
 			/* 1/2 vblank */
@@ -1751,6 +1900,10 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 		hsplit_pipe->stream = NULL;
 		hsplit_pipe->top_pipe = NULL;
 		hsplit_pipe->bottom_pipe = NULL;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		if (hsplit_pipe->stream_res.dsc && hsplit_pipe->stream_res.dsc != pipe->stream_res.dsc)
+			release_dsc(&context->res_ctx, dc->res_pool, hsplit_pipe->stream_res.dsc);
+#endif
 		/* Clear plane_res and stream_res */
 		memset(&hsplit_pipe->plane_res, 0, sizeof(hsplit_pipe->plane_res));
 		memset(&hsplit_pipe->stream_res, 0, sizeof(hsplit_pipe->stream_res));
@@ -1997,6 +2150,10 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 			context->bw_ctx.bw.dcn.clk.dppclk_khz = pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
 		context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz =
 						pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		context->res_ctx.pipe_ctx[i].plane_res.bw.dscclk_khz =
+				context->bw_ctx.dml.vba.DSCCLK_calculated[pipe_idx] * 1000;
+#endif
 		context->res_ctx.pipe_ctx[i].pipe_dlg_param = pipes[pipe_idx].pipe.dest;
 		pipe_idx++;
 	}
@@ -2045,6 +2202,23 @@ enum dc_status dcn20_validate_global(struct dc *dc,	struct dc_state *new_ctx)
 			if (pipe_ctx->stream != stream)
 				continue;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+			if (stream->timing.flags.DSC) {
+				if (pipe_ctx->stream_res.dsc != NULL) {
+					struct dsc_config dsc_cfg;
+
+					dsc_cfg.pic_width = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+					dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
+					dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
+					dsc_cfg.color_depth = stream->timing.display_color_depth;
+					dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
+
+					if (!pipe_ctx->stream_res.dsc->funcs->dsc_validate_stream(pipe_ctx->stream_res.dsc, &dsc_cfg))
+						result = DC_FAIL_DSC_VALIDATE;
+				} else
+					result = DC_FAIL_DSC_VALIDATE; // DSC enabled for this stream, but no free DSCs available
+			}
+#endif
 		}
 	}
 
@@ -2715,6 +2889,16 @@ static bool construct(
 		goto create_fail;
 	}
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	for (i = 0; i < pool->base.res_cap->num_dsc; i++) {
+		pool->base.dscs[i] = dcn20_dsc_create(ctx, i);
+		if (pool->base.dscs[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create display stream compressor %d!\n", i);
+			goto create_fail;
+		}
+	}
+#endif
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
