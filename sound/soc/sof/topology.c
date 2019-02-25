@@ -1068,6 +1068,25 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 	return ret;
 }
 
+/* bind PCM ID to host component ID */
+static int spcm_bind(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+		     int dir)
+{
+	struct snd_sof_widget *host_widget;
+
+	host_widget = snd_sof_find_swidget_sname(sdev,
+						 spcm->pcm.caps[dir].name,
+						 dir);
+	if (!host_widget) {
+		dev_err(sdev->dev, "can't find host comp to bind pcm\n");
+		return -EINVAL;
+	}
+
+	spcm->stream[dir].comp_id = host_widget->comp_id;
+
+	return 0;
+}
+
 /*
  * PCM Topology
  */
@@ -1989,6 +2008,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	spcm->sdev = sdev;
 	spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id = COMP_ID_UNASSIGNED;
 	spcm->stream[SNDRV_PCM_STREAM_CAPTURE].comp_id = COMP_ID_UNASSIGNED;
+
 	if (pcm) {
 		spcm->pcm = *pcm;
 		dev_dbg(sdev->dev, "tplg: load pcm %s\n", pcm->dai_name);
@@ -2013,6 +2033,14 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
+	/* bind pcm to host comp */
+	ret = spcm_bind(sdev, spcm, stream);
+	if (ret) {
+		dev_err(sdev->dev,
+			"error: can't bind pcm to host\n");
+		goto free_playback_tables;
+	}
+
 capture:
 	stream = SNDRV_PCM_STREAM_CAPTURE;
 
@@ -2028,6 +2056,15 @@ capture:
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
 			caps->name, ret);
+		goto free_playback_tables;
+	}
+
+	/* bind pcm to host comp */
+	ret = spcm_bind(sdev, spcm, stream);
+	if (ret) {
+		dev_err(sdev->dev,
+			"error: can't bind pcm to host\n");
+		snd_dma_free_pages(&spcm->stream[stream].page_table);
 		goto free_playback_tables;
 	}
 
@@ -2610,38 +2647,6 @@ found:
 	return ret;
 }
 
-/* bind PCM ID to host component ID */
-static int spcm_bind(struct snd_soc_component *scomp, struct snd_sof_pcm *spcm,
-		     const char *host)
-{
-	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct snd_sof_widget *host_widget;
-
-	host_widget = snd_sof_find_swidget(sdev, (char *)host);
-	if (!host_widget) {
-		dev_err(sdev->dev, "error: can't find host component %s\n",
-			host);
-		return -ENODEV;
-	}
-
-	switch (host_widget->id) {
-	case snd_soc_dapm_aif_in:
-		spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id =
-			host_widget->comp_id;
-		break;
-	case snd_soc_dapm_aif_out:
-		spcm->stream[SNDRV_PCM_STREAM_CAPTURE].comp_id =
-			host_widget->comp_id;
-		break;
-	default:
-		dev_err(sdev->dev, "error: host is wrong type %d\n",
-			host_widget->id);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* DAI link - used for any driver specific init */
 static int sof_route_load(struct snd_soc_component *scomp, int index,
 			  struct snd_soc_dapm_route *route)
@@ -2650,7 +2655,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	struct sof_ipc_pipe_comp_connect *connect;
 	struct snd_sof_widget *source_swidget, *sink_swidget;
 	struct snd_soc_dobj *dobj = &route->dobj;
-	struct snd_sof_pcm *spcm;
 	struct snd_sof_route *sroute;
 	struct sof_ipc_reply reply;
 	int ret = 0;
@@ -2678,13 +2682,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* source component */
 	source_swidget = snd_sof_find_swidget(sdev, (char *)route->source);
 	if (!source_swidget) {
-		/* don't send any routes to DSP that include a driver PCM */
-		spcm = snd_sof_find_spcm_name(sdev, (char *)route->source);
-		if (spcm) {
-			ret = spcm_bind(scomp, spcm, route->sink);
-			goto err;
-		}
-
 		dev_err(sdev->dev, "error: source %s not found\n",
 			route->source);
 		ret = -EINVAL;
@@ -2696,13 +2693,6 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* sink component */
 	sink_swidget = snd_sof_find_swidget(sdev, (char *)route->sink);
 	if (!sink_swidget) {
-		/* don't send any routes to DSP that include a driver PCM */
-		spcm = snd_sof_find_spcm_name(sdev, (char *)route->sink);
-		if (spcm) {
-			ret = spcm_bind(scomp, spcm, route->source);
-			goto err;
-		}
-
 		dev_err(sdev->dev, "error: sink %s not found\n",
 			route->sink);
 		ret = -EINVAL;

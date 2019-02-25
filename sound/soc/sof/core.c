@@ -89,6 +89,27 @@ struct snd_sof_widget *snd_sof_find_swidget(struct snd_sof_dev *sdev,
 	return NULL;
 }
 
+/* find widget by stream name and direction */
+struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
+						  char *pcm_name, int dir)
+{
+	struct snd_sof_widget *swidget = NULL;
+	enum snd_soc_dapm_type type;
+
+	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
+		type = snd_soc_dapm_aif_in;
+	else
+		type = snd_soc_dapm_aif_out;
+
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (!strcmp(pcm_name, swidget->widget->sname) &&
+		    swidget->id == type)
+			return swidget;
+	}
+
+	return NULL;
+}
+
 struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
 				     char *name)
 {
