@@ -17,9 +17,7 @@
  * University of Oslo, Norway.
  *
  * References:
- * IETF draft submission: http://tools.ietf.org/html/draft-pan-aqm-pie-00
- * IEEE  Conference on High Performance Switching and Routing 2013 :
- * "PIE: A * Lightweight Control Scheme to Address the Bufferbloat Problem"
+ * RFC 8033: https://tools.ietf.org/html/rfc8034
  */
 
 #include <linux/module.h>
