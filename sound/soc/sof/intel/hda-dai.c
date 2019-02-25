@@ -92,9 +92,10 @@ static int hda_link_dma_params(struct hdac_ext_stream *stream,
 			       struct hda_pipe_params *params)
 {
 	struct hdac_stream *hstream = &stream->hstream;
+	unsigned char stream_tag = hstream->stream_tag;
 	struct hdac_bus *bus = hstream->bus;
-	unsigned int format_val;
 	struct hdac_ext_link *link;
+	unsigned int format_val;
 
 	snd_hdac_ext_stream_decouple(bus, stream, true);
 	snd_hdac_ext_link_stream_reset(stream);
@@ -108,10 +109,12 @@ static int hda_link_dma_params(struct hdac_ext_stream *stream,
 
 	snd_hdac_ext_link_stream_setup(stream, format_val);
 
-	list_for_each_entry(link, &bus->hlink_list, list) {
-		if (link->index == params->link_index)
-			snd_hdac_ext_link_set_stream_id(link,
-							hstream->stream_tag);
+	if (stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		list_for_each_entry(link, &bus->hlink_list, list) {
+			if (link->index == params->link_index)
+				snd_hdac_ext_link_set_stream_id(link,
+								stream_tag);
+		}
 	}
 
 	stream->link_prepared = 1;
@@ -220,8 +223,10 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 		if (!link)
 			return -EINVAL;
 
-		stream_tag = hdac_stream(link_dev)->stream_tag;
-		snd_hdac_ext_link_clear_stream_id(link, stream_tag);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			stream_tag = hdac_stream(link_dev)->stream_tag;
+			snd_hdac_ext_link_clear_stream_id(link, stream_tag);
+		}
 
 		link_dev->link_prepared = 0;
 	} else {
