@@ -188,16 +188,6 @@ static void read_arc_build_cfg_regs(void)
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
-	cpu->extn.norm = read_aux_reg(ARC_REG_NORM_BCR) > 1 ? 1 : 0; /* 2,3 */
-	cpu->extn.barrel = read_aux_reg(ARC_REG_BARREL_BCR) > 1 ? 1 : 0; /* 2,3 */
-	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR) ? 1 : 0;        /* 1,3 */
-	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR) ? 1 : 0;
-	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR) > 1 ? 1 : 0; /* 2 */
-	cpu->extn.swape = (cpu->core.family >= 0x34) ? 1 :
-				IS_ENABLED(CONFIG_ARC_HAS_SWAPE);
-
-	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
-
 	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
 	read_decode_ccm_bcr(cpu);
 
@@ -282,6 +272,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
 	struct bcr_identity *core = &cpu->core;
+	char mpy_opt[16];
 	int n = 0;
 
 	FIX_PTR(cpu);
@@ -302,10 +293,27 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       IS_AVAIL2(cpu->extn.rtc, "RTC [UP 64-bit] ", CONFIG_ARC_TIMERS_64BIT),
 		       IS_AVAIL2(cpu->extn.gfrc, "GFRC [SMP 64-bit] ", CONFIG_ARC_TIMERS_64BIT));
 
-	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s",
+	if (cpu->extn_mpy.ver) {
+		if (is_isa_arcompact()) {
+			scnprintf(mpy_opt, 16, "mpy");
+		} else {
+
+			int opt = 2;	/* stock MPY/MPYH */
+
+			if (cpu->extn_mpy.dsp)	/* OPT 7-9 */
+				opt = cpu->extn_mpy.dsp + 6;
+
+			scnprintf(mpy_opt, 16, "mpy[opt %d] ", opt);
+		}
+	}
+
+	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
 		       IS_AVAIL2(cpu->isa.atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
 		       IS_AVAIL2(cpu->isa.ldd, "ll64 ", CONFIG_ARC_HAS_LL64),
-		       IS_AVAIL2(cpu->isa.unalign, "unalign ", CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS));
+		       IS_AVAIL2(cpu->isa.unalign, "unalign ", CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS),
+		       IS_AVAIL1(cpu->extn_mpy.ver, mpy_opt),
+		       IS_AVAIL1(cpu->isa.div_rem, "div_rem "));
+
 
 #if defined(__ARC_UNALIGNED__) && !defined(CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS)
 	/*
@@ -318,52 +326,29 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 	BUILD_BUG_ON_MSG(1, "gcc doesn't support -mno-unaligned-access");
 #endif
 
-	n += scnprintf(buf + n, len - n, "\n\t\t: ");
-
-	if (cpu->extn_mpy.ver) {
-		if (cpu->extn_mpy.ver <= 0x2) {	/* ARCompact */
-			n += scnprintf(buf + n, len - n, "mpy ");
-		} else {
-			int opt = 2;	/* stock MPY/MPYH */
-
-			if (cpu->extn_mpy.dsp)	/* OPT 7-9 */
-				opt = cpu->extn_mpy.dsp + 6;
-
-			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
-		}
-	}
-
-	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
-		       IS_AVAIL1(cpu->isa.div_rem, "div_rem "),
-		       IS_AVAIL1(cpu->extn.norm, "norm "),
-		       IS_AVAIL1(cpu->extn.barrel, "barrel-shift "),
-		       IS_AVAIL1(cpu->extn.swap, "swap "),
-		       IS_AVAIL1(cpu->extn.minmax, "minmax "),
-		       IS_AVAIL1(cpu->extn.crc, "crc "),
-		       IS_AVAIL2(cpu->extn.swape, "swape", CONFIG_ARC_HAS_SWAPE));
-
-	if (cpu->bpu.ver)
+	if (cpu->bpu.ver) {
 		n += scnprintf(buf + n, len - n,
 			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d Return stk: %d",
 			      IS_AVAIL1(cpu->bpu.full, "full"),
 			      IS_AVAIL1(!cpu->bpu.full, "partial"),
 			      cpu->bpu.num_cache, cpu->bpu.num_pred, cpu->bpu.ret_stk);
 
-	if (is_isa_arcv2()) {
-		struct bcr_lpb lpb;
+		if (is_isa_arcv2()) {
+			struct bcr_lpb lpb;
 
-		READ_BCR(ARC_REG_LPB_BUILD, lpb);
-		if (lpb.ver) {
-			unsigned int ctl;
-			ctl = read_aux_reg(ARC_REG_LPB_CTRL);
+			READ_BCR(ARC_REG_LPB_BUILD, lpb);
+			if (lpb.ver) {
+				unsigned int ctl;
+				ctl = read_aux_reg(ARC_REG_LPB_CTRL);
 
-			n += scnprintf(buf + n, len - n, " Loop Buffer:%d %s",
-				lpb.entries,
-				IS_DISABLED_RUN(!ctl));
+				n += scnprintf(buf + n, len - n, " Loop Buffer:%d %s",
+					       lpb.entries,
+					       IS_DISABLED_RUN(!ctl));
+			}
 		}
+		n += scnprintf(buf + n, len - n, "\n");
 	}
 
-	n += scnprintf(buf + n, len - n, "\n");
 	return buf;
 }
 
@@ -415,11 +400,6 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 				IS_AVAIL3(erp.mmu, !ctl.mpd, "MMU "));
 		}
 	}
-
-	n += scnprintf(buf + n, len - n, "OS ABI [v%d]\t: %s\n",
-			EF_ARC_OSABI_CURRENT >> 8,
-			EF_ARC_OSABI_CURRENT == EF_ARC_OSABI_V3 ?
-			"no-legacy-syscalls" : "64-bit data any register aligned");
 
 	return buf;
 }
