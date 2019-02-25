@@ -103,6 +103,15 @@
 #	and check that configured MTU is used on link creation and changes, and
 #	that MTU is properly calculated instead when MTU is not configured from
 #	userspace
+#
+# - cleanup_ipv4_exception
+#	Similar to pmtu_ipv4_vxlan4_exception, but explicitly generate PMTU
+#	exceptions on multiple CPUs and check that the veth device tear-down
+# 	happens in a timely manner
+#
+# - cleanup_ipv6_exception
+#	Same as above, but use IPv6 transport from A to B
+
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
@@ -135,7 +144,9 @@ tests="
 	pmtu_vti6_default_mtu		vti6: default MTU assignment
 	pmtu_vti4_link_add_mtu		vti4: MTU setting on link creation
 	pmtu_vti6_link_add_mtu		vti6: MTU setting on link creation
-	pmtu_vti6_link_change_mtu	vti6: MTU changes on link changes"
+	pmtu_vti6_link_change_mtu	vti6: MTU changes on link changes
+	cleanup_ipv4_exception		ipv4: cleanup of cached exceptions
+	cleanup_ipv6_exception		ipv6: cleanup of cached exceptions"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -1004,6 +1015,61 @@ test_pmtu_vti6_link_change_mtu() {
 	fi
 
 	return ${fail}
+}
+
+check_command() {
+	cmd=${1}
+
+	if ! which ${cmd} > /dev/null 2>&1; then
+		err "  missing required command: '${cmd}'"
+		return 1
+	fi
+	return 0
+}
+
+test_cleanup_vxlanX_exception() {
+	outer="${1}"
+	encap="vxlan"
+	ll_mtu=4000
+
+	check_command taskset || return 2
+	cpu_list=$(grep -m 2 processor /proc/cpuinfo | cut -d ' ' -f 2)
+
+	setup namespaces routing ${encap}${outer} || return 2
+	trace "${ns_a}" ${encap}_a   "${ns_b}"  ${encap}_b \
+	      "${ns_a}" veth_A-R1    "${ns_r1}" veth_R1-A \
+	      "${ns_b}" veth_B-R1    "${ns_r1}" veth_R1-B
+
+	# Create route exception by exceeding link layer MTU
+	mtu "${ns_a}"  veth_A-R1 $((${ll_mtu} + 1000))
+	mtu "${ns_r1}" veth_R1-A $((${ll_mtu} + 1000))
+	mtu "${ns_b}"  veth_B-R1 ${ll_mtu}
+	mtu "${ns_r1}" veth_R1-B ${ll_mtu}
+
+	mtu "${ns_a}" ${encap}_a $((${ll_mtu} + 1000))
+	mtu "${ns_b}" ${encap}_b $((${ll_mtu} + 1000))
+
+	# Fill exception cache for multiple CPUs (2)
+	# we can always use inner IPv4 for that
+	for cpu in ${cpu_list}; do
+		taskset --cpu-list ${cpu} ${ns_a} ping -q -M want -i 0.1 -w 1 -s $((${ll_mtu} + 500)) ${tunnel4_b_addr} > /dev/null
+	done
+
+	${ns_a} ip link del dev veth_A-R1 &
+	iplink_pid=$!
+	sleep 1
+	if [ "$(cat /proc/${iplink_pid}/cmdline 2>/dev/null | tr -d '\0')" = "iplinkdeldevveth_A-R1" ]; then
+		err "  can't delete veth device in a timely manner, PMTU dst likely leaked"
+		return 1
+	fi
+}
+
+test_cleanup_ipv6_exception() {
+	test_cleanup_vxlanX_exception 6
+}
+
+test_cleanup_ipv4_exception() {
+	test_cleanup_vxlanX_exception 4
 }
 
 usage() {
