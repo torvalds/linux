@@ -33,7 +33,7 @@
 
 #define QUEUE_THRESHOLD 16384
 #define DQCOUNT_INVALID -1
-#define MAX_PROB  0xffffffff
+#define MAX_PROB 0xffffffffffffffff
 #define PIE_SCALE 8
 
 /* parameters used */
@@ -49,7 +49,7 @@ struct pie_params {
 
 /* variables used */
 struct pie_vars {
-	u32 prob;		/* probability but scaled by u32 limit. */
+	u64 prob;		/* probability but scaled by u64 limit. */
 	psched_time_t burst_time;
 	psched_time_t qdelay;
 	psched_time_t qdelay_old;
@@ -99,8 +99,8 @@ static void pie_vars_init(struct pie_vars *vars)
 static bool drop_early(struct Qdisc *sch, u32 packet_size)
 {
 	struct pie_sched_data *q = qdisc_priv(sch);
-	u32 rnd;
-	u32 local_prob = q->vars.prob;
+	u64 rnd;
+	u64 local_prob = q->vars.prob;
 	u32 mtu = psched_mtu(qdisc_dev(sch));
 
 	/* If there is still burst allowance left skip random early drop */
@@ -124,11 +124,11 @@ static bool drop_early(struct Qdisc *sch, u32 packet_size)
 	 * probablity. Smaller packets will have lower drop prob in this case
 	 */
 	if (q->params.bytemode && packet_size <= mtu)
-		local_prob = (local_prob / mtu) * packet_size;
+		local_prob = (u64)packet_size * div_u64(local_prob, mtu);
 	else
 		local_prob = q->vars.prob;
 
-	rnd = prandom_u32();
+	prandom_bytes(&rnd, 8);
 	if (rnd < local_prob)
 		return true;
 
@@ -317,9 +317,10 @@ static void calculate_probability(struct Qdisc *sch)
 	u32 qlen = sch->qstats.backlog;	/* queue size in bytes */
 	psched_time_t qdelay = 0;	/* in pschedtime */
 	psched_time_t qdelay_old = q->vars.qdelay;	/* in pschedtime */
-	s32 delta = 0;		/* determines the change in probability */
-	u32 oldprob;
-	u32 alpha, beta;
+	s64 delta = 0;		/* determines the change in probability */
+	u64 oldprob;
+	u64 alpha, beta;
+	u32 power;
 	bool update_prob = true;
 
 	q->vars.qdelay_old = q->vars.qdelay;
@@ -339,38 +340,36 @@ static void calculate_probability(struct Qdisc *sch)
 	 * value for alpha as 0.125. In this implementation, we use values 0-32
 	 * passed from user space to represent this. Also, alpha and beta have
 	 * unit of HZ and need to be scaled before they can used to update
-	 * probability. alpha/beta are updated locally below by 1) scaling them
-	 * appropriately 2) scaling down by 16 to come to 0-2 range.
-	 * Please see paper for details.
-	 *
-	 * We scale alpha and beta differently depending on whether we are in
-	 * light, medium or high dropping mode.
+	 * probability. alpha/beta are updated locally below by scaling down
+	 * by 16 to come to 0-2 range.
 	 */
-	if (q->vars.prob < MAX_PROB / 100) {
-		alpha =
-		    (q->params.alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 7;
-		beta =
-		    (q->params.beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 7;
-	} else if (q->vars.prob < MAX_PROB / 10) {
-		alpha =
-		    (q->params.alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 5;
-		beta =
-		    (q->params.beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 5;
-	} else {
-		alpha =
-		    (q->params.alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
-		beta =
-		    (q->params.beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
+	alpha = ((u64)q->params.alpha * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
+	beta = ((u64)q->params.beta * (MAX_PROB / PSCHED_TICKS_PER_SEC)) >> 4;
+
+	/* We scale alpha and beta differently depending on how heavy the
+	 * congestion is. Please see RFC 8033 for details.
+	 */
+	if (q->vars.prob < MAX_PROB / 10) {
+		alpha >>= 1;
+		beta >>= 1;
+
+		power = 100;
+		while (q->vars.prob < div_u64(MAX_PROB, power) &&
+		       power <= 1000000) {
+			alpha >>= 2;
+			beta >>= 2;
+			power *= 10;
+		}
 	}
 
 	/* alpha and beta should be between 0 and 32, in multiples of 1/16 */
-	delta += alpha * ((qdelay - q->params.target));
-	delta += beta * ((qdelay - qdelay_old));
+	delta += alpha * (u64)(qdelay - q->params.target);
+	delta += beta * (u64)(qdelay - qdelay_old);
 
 	oldprob = q->vars.prob;
 
 	/* to ensure we increase probability in steps of no more than 2% */
-	if (delta > (s32)(MAX_PROB / (100 / 2)) &&
+	if (delta > (s64)(MAX_PROB / (100 / 2)) &&
 	    q->vars.prob >= MAX_PROB / 10)
 		delta = (MAX_PROB / 100) * 2;
 
