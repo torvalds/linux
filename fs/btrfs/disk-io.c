@@ -285,7 +285,7 @@ static int csum_tree_block(struct extent_buffer *buf, u8 *result)
 		 */
 		err = map_private_extent_buffer(buf, offset, 32,
 					&kaddr, &map_start, &map_len);
-		if (err)
+		if (WARN_ON(err))
 			return err;
 		cur_len = min(len, map_len - (offset - map_start));
 		crc = btrfs_csum_data(kaddr + offset - map_start,
