@@ -35,7 +35,9 @@
 #define INSN_NOP		10
 #define INSN_STAC		11
 #define INSN_CLAC		12
-#define INSN_OTHER		13
+#define INSN_STD		13
+#define INSN_CLD		14
+#define INSN_OTHER		15
 #define INSN_LAST		INSN_OTHER
 
 enum op_dest_type {
