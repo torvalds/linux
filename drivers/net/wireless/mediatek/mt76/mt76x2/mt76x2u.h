@@ -35,7 +35,6 @@ void mt76x2u_cleanup(struct mt76x02_dev *dev);
 void mt76x2u_stop_hw(struct mt76x02_dev *dev);
 
 int mt76x2u_mac_reset(struct mt76x02_dev *dev);
-void mt76x2u_mac_resume(struct mt76x02_dev *dev);
 int mt76x2u_mac_start(struct mt76x02_dev *dev);
 int mt76x2u_mac_stop(struct mt76x02_dev *dev);
 

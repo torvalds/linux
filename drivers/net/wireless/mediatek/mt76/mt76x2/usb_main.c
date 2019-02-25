@@ -61,7 +61,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
-	mt76x2u_mac_resume(dev);
+	mt76x2_mac_resume(dev);
 	mt76x02_edcca_init(dev, true);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);

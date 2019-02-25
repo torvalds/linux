@@ -211,10 +211,3 @@ int mt76x2u_mac_stop(struct mt76x02_dev *dev)
 
 	return 0;
 }
-
-void mt76x2u_mac_resume(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-}
