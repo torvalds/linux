@@ -247,7 +247,7 @@ static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
 
 static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 {
-#define HCLGEVF_TQPS_RSS_INFO_LEN	8
+#define HCLGEVF_TQPS_RSS_INFO_LEN	6
 	u8 resp_msg[HCLGEVF_TQPS_RSS_INFO_LEN];
 	int status;
 
@@ -263,8 +263,29 @@ static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 
 	memcpy(&hdev->num_tqps, &resp_msg[0], sizeof(u16));
 	memcpy(&hdev->rss_size_max, &resp_msg[2], sizeof(u16));
-	memcpy(&hdev->num_desc, &resp_msg[4], sizeof(u16));
-	memcpy(&hdev->rx_buf_len, &resp_msg[6], sizeof(u16));
+	memcpy(&hdev->rx_buf_len, &resp_msg[4], sizeof(u16));
+
+	return 0;
+}
+
+static int hclgevf_get_queue_depth(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_TQPS_DEPTH_INFO_LEN	4
+	u8 resp_msg[HCLGEVF_TQPS_DEPTH_INFO_LEN];
+	int ret;
+
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_QDEPTH, 0, NULL, 0,
+				   true, resp_msg,
+				   HCLGEVF_TQPS_DEPTH_INFO_LEN);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"VF request to get tqp depth info from PF failed %d",
+			ret);
+		return ret;
+	}
+
+	memcpy(&hdev->num_tx_desc, &resp_msg[0], sizeof(u16));
+	memcpy(&hdev->num_rx_desc, &resp_msg[2], sizeof(u16));
 
 	return 0;
 }
@@ -304,7 +325,8 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 
 		tqp->q.ae_algo = &ae_algovf;
 		tqp->q.buf_size = hdev->rx_buf_len;
-		tqp->q.desc_num = hdev->num_desc;
+		tqp->q.tx_desc_num = hdev->num_tx_desc;
+		tqp->q.rx_desc_num = hdev->num_rx_desc;
 		tqp->q.io_base = hdev->hw.io_base + HCLGEVF_TQP_REG_OFFSET +
 			i * HCLGEVF_TQP_REG_SIZE;
 
@@ -323,7 +345,8 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 
 	kinfo = &nic->kinfo;
 	kinfo->num_tc = 0;
-	kinfo->num_desc = hdev->num_desc;
+	kinfo->num_tx_desc = hdev->num_tx_desc;
+	kinfo->num_rx_desc = hdev->num_rx_desc;
 	kinfo->rx_buf_len = hdev->rx_buf_len;
 	for (i = 0; i < HCLGEVF_MAX_TC_NUM; i++)
 		if (hdev->hw_tc_map & BIT(i))
@@ -597,12 +620,50 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	return status;
 }
 
+/* for revision 0x20, vf shared the same rss config with pf */
+static int hclgevf_get_rss_hash_key(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_RSS_MBX_RESP_LEN	8
+
+	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
+	u8 resp_msg[HCLGEVF_RSS_MBX_RESP_LEN];
+	u16 msg_num, hash_key_index;
+	u8 index;
+	int ret;
+
+	msg_num = (HCLGEVF_RSS_KEY_SIZE + HCLGEVF_RSS_MBX_RESP_LEN - 1) /
+			HCLGEVF_RSS_MBX_RESP_LEN;
+	for (index = 0; index < msg_num; index++) {
+		ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_RSS_KEY, 0,
+					   &index, sizeof(index),
+					   true, resp_msg,
+					   HCLGEVF_RSS_MBX_RESP_LEN);
+		if (ret) {
+			dev_err(&hdev->pdev->dev,
+				"VF get rss hash key from PF failed, ret=%d",
+				ret);
+			return ret;
+		}
+
+		hash_key_index = HCLGEVF_RSS_MBX_RESP_LEN * index;
+		if (index == msg_num - 1)
+			memcpy(&rss_cfg->rss_hash_key[hash_key_index],
+			       &resp_msg[0],
+			       HCLGEVF_RSS_KEY_SIZE - hash_key_index);
+		else
+			memcpy(&rss_cfg->rss_hash_key[hash_key_index],
+			       &resp_msg[0], HCLGEVF_RSS_MBX_RESP_LEN);
+	}
+
+	return 0;
+}
+
 static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
-	int i;
+	int i, ret;
 
 	if (handle->pdev->revision >= 0x21) {
 		/* Get hash algorithm */
@@ -624,6 +685,16 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 		if (key)
 			memcpy(key, rss_cfg->rss_hash_key,
 			       HCLGEVF_RSS_KEY_SIZE);
+	} else {
+		if (hfunc)
+			*hfunc = ETH_RSS_HASH_TOP;
+		if (key) {
+			ret = hclgevf_get_rss_hash_key(hdev);
+			if (ret)
+				return ret;
+			memcpy(key, rss_cfg->rss_hash_key,
+			       HCLGEVF_RSS_KEY_SIZE);
+		}
 	}
 
 	if (indir)
@@ -1747,6 +1818,12 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 	ret = hclgevf_get_queue_info(hdev);
 	if (ret)
 		return ret;
+
+	/* get queue depth info from PF */
+	ret = hclgevf_get_queue_depth(hdev);
+	if (ret)
+		return ret;
+
 	/* get tc configuration from PF */
 	return hclgevf_get_tc_info(hdev);
 }

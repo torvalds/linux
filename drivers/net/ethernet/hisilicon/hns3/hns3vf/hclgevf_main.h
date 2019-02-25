@@ -239,7 +239,8 @@ struct hclgevf_dev {
 	u16 num_alloc_vport;	/* num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;	/* desc num of per tx queue */
+	u16 num_rx_desc;	/* desc num of per rx queue */
 	u8 hw_tc_map;
 
 	u16 num_msi;

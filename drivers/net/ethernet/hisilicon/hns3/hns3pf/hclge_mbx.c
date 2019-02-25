@@ -357,18 +357,32 @@ static int hclge_get_vf_queue_info(struct hclge_vport *vport,
 				   struct hclge_mbx_vf_to_pf_cmd *mbx_req,
 				   bool gen_resp)
 {
-#define HCLGE_TQPS_RSS_INFO_LEN		8
+#define HCLGE_TQPS_RSS_INFO_LEN		6
 	u8 resp_data[HCLGE_TQPS_RSS_INFO_LEN];
 	struct hclge_dev *hdev = vport->back;
 
 	/* get the queue related info */
 	memcpy(&resp_data[0], &vport->alloc_tqps, sizeof(u16));
 	memcpy(&resp_data[2], &vport->nic.kinfo.rss_size, sizeof(u16));
-	memcpy(&resp_data[4], &hdev->num_desc, sizeof(u16));
-	memcpy(&resp_data[6], &hdev->rx_buf_len, sizeof(u16));
+	memcpy(&resp_data[4], &hdev->rx_buf_len, sizeof(u16));
 
 	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
 				    HCLGE_TQPS_RSS_INFO_LEN);
+}
+
+static int hclge_get_vf_queue_depth(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req,
+				    bool gen_resp)
+{
+#define HCLGE_TQPS_DEPTH_INFO_LEN	4
+	u8 resp_data[HCLGE_TQPS_DEPTH_INFO_LEN];
+	struct hclge_dev *hdev = vport->back;
+
+	/* get the queue depth info */
+	memcpy(&resp_data[0], &hdev->num_tx_desc, sizeof(u16));
+	memcpy(&resp_data[2], &hdev->num_rx_desc, sizeof(u16));
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
+				    HCLGE_TQPS_DEPTH_INFO_LEN);
 }
 
 static int hclge_get_link_info(struct hclge_vport *vport,
@@ -476,6 +490,24 @@ static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
 	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data, 2);
 }
 
+static int hclge_get_rss_key(struct hclge_vport *vport,
+			     struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+#define HCLGE_RSS_MBX_RESP_LEN	8
+	u8 resp_data[HCLGE_RSS_MBX_RESP_LEN];
+	struct hclge_dev *hdev = vport->back;
+	u8 index;
+
+	index = mbx_req->msg[2];
+
+	memcpy(&resp_data[0],
+	       &hdev->vport[0].rss_hash_key[index * HCLGE_RSS_MBX_RESP_LEN],
+	       HCLGE_RSS_MBX_RESP_LEN);
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data,
+				    HCLGE_RSS_MBX_RESP_LEN);
+}
+
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
 	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
@@ -567,6 +599,14 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					"PF failed(%d) to get Q info for VF\n",
 					ret);
 			break;
+		case HCLGE_MBX_GET_QDEPTH:
+			ret = hclge_get_vf_queue_depth(vport, req, true);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to get Q depth for VF\n",
+					ret);
+			break;
+
 		case HCLGE_MBX_GET_TCINFO:
 			ret = hclge_get_vf_tcinfo(vport, req, true);
 			if (ret)
@@ -601,6 +641,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"PF failed(%d) to get qid for VF\n",
+					ret);
+			break;
+		case HCLGE_MBX_GET_RSS_KEY:
+			ret = hclge_get_rss_key(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF fail(%d) to get rss key for VF\n",
 					ret);
 			break;
 		case HCLGE_MBX_GET_LINK_MODE:

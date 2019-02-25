@@ -74,7 +74,7 @@ enum hns3_nic_state {
 #define HNS3_RING_NAME_LEN			16
 #define HNS3_BUFFER_SIZE_2048			2048
 #define HNS3_RING_MAX_PENDING			32768
-#define HNS3_RING_MIN_PENDING			8
+#define HNS3_RING_MIN_PENDING			24
 #define HNS3_RING_BD_MULTIPLE			8
 /* max frame size of mac */
 #define HNS3_MAC_MAX_FRAME			9728
@@ -184,6 +184,8 @@ enum hns3_nic_state {
 #define HNS3_TXD_MSS_S				0
 #define HNS3_TXD_MSS_M				(0x3fff << HNS3_TXD_MSS_S)
 
+#define HNS3_TX_LAST_SIZE_M                    0xffff
+
 #define HNS3_VECTOR_TX_IRQ			BIT_ULL(0)
 #define HNS3_VECTOR_RX_IRQ			BIT_ULL(1)
 
@@ -191,6 +193,7 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_INITED			1
 
 #define HNS3_MAX_BD_SIZE			65535
+#define HNS3_MAX_BD_SIZE_OFFSET		16
 #define HNS3_MAX_BD_PER_FRAG			8
 #define HNS3_MAX_BD_PER_PKT			MAX_SKB_FRAGS
 
@@ -441,11 +444,8 @@ struct hns3_nic_ring_data {
 };
 
 struct hns3_nic_ops {
-	int (*fill_desc)(struct hns3_enet_ring *ring, void *priv,
-			 int size, int frag_end, enum hns_desc_type type);
 	int (*maybe_stop_tx)(struct sk_buff **out_skb,
 			     int *bnum, struct hns3_enet_ring *ring);
-	void (*get_rxd_bnum)(u32 bnum_flag, int *out_bnum);
 };
 
 enum hns3_flow_level_range {
