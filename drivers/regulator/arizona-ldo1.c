@@ -43,8 +43,7 @@ struct arizona_ldo1 {
 static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 					   unsigned sel)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -61,16 +60,12 @@ static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 	if (val)
 		return 0;
 
-	val = sel << ARIZONA_LDO1_VSEL_SHIFT;
-
-	return regmap_update_bits(regmap, ARIZONA_LDO1_CONTROL_1,
-				  ARIZONA_LDO1_VSEL_MASK, val);
+	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -81,11 +76,7 @@ static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 	if (val & ARIZONA_LDO1_HI_PWR)
 		return rdev->desc->n_voltages - 1;
 
-	ret = regmap_read(regmap, ARIZONA_LDO1_CONTROL_1, &val);
-	if (ret != 0)
-		return ret;
-
-	return (val & ARIZONA_LDO1_VSEL_MASK) >> ARIZONA_LDO1_VSEL_SHIFT;
+	return regulator_get_voltage_sel_regmap(rdev);
 }
 
 static const struct regulator_ops arizona_ldo1_hc_ops = {
@@ -108,6 +99,8 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.type = REGULATOR_VOLTAGE,
 	.ops = &arizona_ldo1_hc_ops,
 
+	.vsel_reg = ARIZONA_LDO1_CONTROL_1,
+	.vsel_mask = ARIZONA_LDO1_VSEL_MASK,
 	.bypass_reg = ARIZONA_LDO1_CONTROL_1,
 	.bypass_mask = ARIZONA_LDO1_BYPASS,
 	.linear_ranges = arizona_ldo1_hc_ranges,
