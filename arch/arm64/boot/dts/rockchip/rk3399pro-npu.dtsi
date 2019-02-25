@@ -158,6 +158,13 @@
 		reg = <0x0 0xfe000000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		npu_pvtm: npu-pvtm {
+			compatible = "rockchip,rk1808-npu-pvtm";
+			clocks = <&cru SCLK_PVTM_NPU>;
+			clock-names = "npu";
+			status = "okay";
+		};
 	};
 
 	usb2phy_grf: syscon@fe010000 {
@@ -207,11 +214,32 @@
 		reg = <0x0 0xfe020000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk1808-pmu-pvtm";
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+			status = "okay";
+		};
 	};
 
 	usb_pcie_grf: syscon@fe040000 {
 		compatible = "rockchip,usb-pcie-grf", "syscon";
 		reg = <0x0 0xfe040000 0x0 0x1000>;
+	};
+
+	coregrf: syscon@fe050000 {
+		compatible = "rockchip,rk1808-coregrf", "syscon", "simple-mfd";
+		reg = <0x0 0xfe050000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk1808-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE>;
+			clock-names = "core";
+			status = "okay";
+		};
 	};
 
 	qos_npu: qos@fe850000 {
