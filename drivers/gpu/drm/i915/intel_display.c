@@ -11406,6 +11406,16 @@ intel_dump_m_n_config(struct intel_crtc_state *pipe_config, char *id,
 		      m_n->link_m, m_n->link_n, m_n->tu);
 }
 
+static void
+intel_dump_infoframe(struct drm_i915_private *dev_priv,
+		     const union hdmi_infoframe *frame)
+{
+	if ((drm_debug & DRM_UT_KMS) == 0)
+		return;
+
+	hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, frame);
+}
+
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
 
 static const char * const output_type_str[] = {
@@ -11508,6 +11518,22 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 
 	DRM_DEBUG_KMS("audio: %i, infoframes: %i\n",
 		      pipe_config->has_audio, pipe_config->has_infoframe);
+
+	DRM_DEBUG_KMS("infoframes enabled: 0x%x\n",
+		      pipe_config->infoframes.enable);
+
+	if (pipe_config->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GENERAL_CONTROL))
+		DRM_DEBUG_KMS("GCP: 0x%x\n", pipe_config->infoframes.gcp);
+	if (pipe_config->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI))
+		intel_dump_infoframe(dev_priv, &pipe_config->infoframes.avi);
+	if (pipe_config->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_SPD))
+		intel_dump_infoframe(dev_priv, &pipe_config->infoframes.spd);
+	if (pipe_config->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_VENDOR))
+		intel_dump_infoframe(dev_priv, &pipe_config->infoframes.hdmi);
 
 	DRM_DEBUG_KMS("requested mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->base.mode);
