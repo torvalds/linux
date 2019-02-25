@@ -320,6 +320,34 @@ static unsigned long pcpu_block_off_to_off(int index, int off)
 	return index * PCPU_BITMAP_BLOCK_BITS + off;
 }
 
+/*
+ * pcpu_next_hint - determine which hint to use
+ * @block: block of interest
+ * @alloc_bits: size of allocation
+ *
+ * This determines if we should scan based on the scan_hint or first_free.
+ * In general, we want to scan from first_free to fulfill allocations by
+ * first fit.  However, if we know a scan_hint at position scan_hint_start
+ * cannot fulfill an allocation, we can begin scanning from there knowing
+ * the contig_hint will be our fallback.
+ */
+static int pcpu_next_hint(struct pcpu_block_md *block, int alloc_bits)
+{
+	/*
+	 * The three conditions below determine if we can skip past the
+	 * scan_hint.  First, does the scan hint exist.  Second, is the
+	 * contig_hint after the scan_hint (possibly not true iff
+	 * contig_hint == scan_hint).  Third, is the allocation request
+	 * larger than the scan_hint.
+	 */
+	if (block->scan_hint &&
+	    block->contig_hint_start > block->scan_hint_start &&
+	    alloc_bits > block->scan_hint)
+		return block->scan_hint_start + block->scan_hint;
+
+	return block->first_free;
+}
+
 /**
  * pcpu_next_md_free_region - finds the next hint free area
  * @chunk: chunk of interest
@@ -415,9 +443,11 @@ static void pcpu_next_fit_region(struct pcpu_chunk *chunk, int alloc_bits,
 		if (block->contig_hint &&
 		    block->contig_hint_start >= block_off &&
 		    block->contig_hint >= *bits + alloc_bits) {
+			int start = pcpu_next_hint(block, alloc_bits);
+
 			*bits += alloc_bits + block->contig_hint_start -
-				 block->first_free;
-			*bit_off = pcpu_block_off_to_off(i, block->first_free);
+				 start;
+			*bit_off = pcpu_block_off_to_off(i, start);
 			return;
 		}
 		/* reset to satisfy the second predicate above */
@@ -628,12 +658,57 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
 		block->right_free = contig;
 
 	if (contig > block->contig_hint) {
+		/* promote the old contig_hint to be the new scan_hint */
+		if (start > block->contig_hint_start) {
+			if (block->contig_hint > block->scan_hint) {
+				block->scan_hint_start =
+					block->contig_hint_start;
+				block->scan_hint = block->contig_hint;
+			} else if (start < block->scan_hint_start) {
+				/*
+				 * The old contig_hint == scan_hint.  But, the
+				 * new contig is larger so hold the invariant
+				 * scan_hint_start < contig_hint_start.
+				 */
+				block->scan_hint = 0;
+			}
+		} else {
+			block->scan_hint = 0;
+		}
 		block->contig_hint_start = start;
 		block->contig_hint = contig;
-	} else if (block->contig_hint_start && contig == block->contig_hint &&
-		   (!start || __ffs(start) > __ffs(block->contig_hint_start))) {
-		/* use the start with the best alignment */
-		block->contig_hint_start = start;
+	} else if (contig == block->contig_hint) {
+		if (block->contig_hint_start &&
+		    (!start ||
+		     __ffs(start) > __ffs(block->contig_hint_start))) {
+			/* start has a better alignment so use it */
+			block->contig_hint_start = start;
+			if (start < block->scan_hint_start &&
+			    block->contig_hint > block->scan_hint)
+				block->scan_hint = 0;
+		} else if (start > block->scan_hint_start ||
+			   block->contig_hint > block->scan_hint) {
+			/*
+			 * Knowing contig == contig_hint, update the scan_hint
+			 * if it is farther than or larger than the current
+			 * scan_hint.
+			 */
+			block->scan_hint_start = start;
+			block->scan_hint = contig;
+		}
+	} else {
+		/*
+		 * The region is smaller than the contig_hint.  So only update
+		 * the scan_hint if it is larger than or equal and farther than
+		 * the current scan_hint.
+		 */
+		if ((start < block->contig_hint_start &&
+		     (contig > block->scan_hint ||
+		      (contig == block->scan_hint &&
+		       start > block->scan_hint_start)))) {
+			block->scan_hint_start = start;
+			block->scan_hint = contig;
+		}
 	}
 }
 
@@ -652,7 +727,7 @@ static void pcpu_block_refresh_hint(struct pcpu_chunk *chunk, int index)
 	int rs, re;	/* region start, region end */
 
 	/* clear hints */
-	block->contig_hint = 0;
+	block->contig_hint = block->scan_hint = 0;
 	block->left_free = block->right_free = 0;
 
 	/* iterate over free areas and update the contig hints */
@@ -709,6 +784,12 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 					PCPU_BITMAP_BLOCK_BITS,
 					s_off + bits);
 
+	if (pcpu_region_overlap(s_block->scan_hint_start,
+				s_block->scan_hint_start + s_block->scan_hint,
+				s_off,
+				s_off + bits))
+		s_block->scan_hint = 0;
+
 	if (pcpu_region_overlap(s_block->contig_hint_start,
 				s_block->contig_hint_start +
 				s_block->contig_hint,
@@ -745,6 +826,9 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 			/* reset the block */
 			e_block++;
 		} else {
+			if (e_off > e_block->scan_hint_start)
+				e_block->scan_hint = 0;
+
 			if (e_off > e_block->contig_hint_start) {
 				/* contig hint is broken - scan to fix it */
 				pcpu_block_refresh_hint(chunk, e_index);
@@ -759,6 +843,7 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 		/* update in-between md_blocks */
 		nr_empty_pages += (e_index - s_index - 1);
 		for (block = s_block + 1; block < e_block; block++) {
+			block->scan_hint = 0;
 			block->contig_hint = 0;
 			block->left_free = 0;
 			block->right_free = 0;
@@ -869,6 +954,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
 		nr_empty_pages += (e_index - s_index - 1);
 		for (block = s_block + 1; block < e_block; block++) {
 			block->first_free = 0;
+			block->scan_hint = 0;
 			block->contig_hint_start = 0;
 			block->contig_hint = PCPU_BITMAP_BLOCK_BITS;
 			block->left_free = PCPU_BITMAP_BLOCK_BITS;
@@ -1080,6 +1166,7 @@ static void pcpu_init_md_blocks(struct pcpu_chunk *chunk)
 	for (md_block = chunk->md_blocks;
 	     md_block != chunk->md_blocks + pcpu_chunk_nr_blocks(chunk);
 	     md_block++) {
+		md_block->scan_hint = 0;
 		md_block->contig_hint = PCPU_BITMAP_BLOCK_BITS;
 		md_block->left_free = PCPU_BITMAP_BLOCK_BITS;
 		md_block->right_free = PCPU_BITMAP_BLOCK_BITS;
