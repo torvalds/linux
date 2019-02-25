@@ -163,7 +163,6 @@ always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 always += cpustat_kern.o
 always += xdp_adjust_tail_kern.o
-always += xdpsock_kern.o
 always += xdp_fwd_kern.o
 always += task_fd_query_kern.o
 always += xdp_sample_pkts_kern.o
