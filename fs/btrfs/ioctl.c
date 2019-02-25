@@ -3950,16 +3950,10 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 			return -EXDEV;
 	}
 
-	if (same_inode)
-		inode_lock(inode_in);
-	else
-		lock_two_nondirectories(inode_in, inode_out);
-
 	/* don't make the dst file partly checksummed */
 	if ((BTRFS_I(inode_in)->flags & BTRFS_INODE_NODATASUM) !=
 	    (BTRFS_I(inode_out)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	/*
@@ -3993,26 +3987,14 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	ret = btrfs_wait_ordered_range(inode_in, ALIGN_DOWN(pos_in, bs),
 				       wb_len);
 	if (ret < 0)
-		goto out_unlock;
+		return ret;
 	ret = btrfs_wait_ordered_range(inode_out, ALIGN_DOWN(pos_out, bs),
 				       wb_len);
 	if (ret < 0)
-		goto out_unlock;
+		return ret;
 
-	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
+	return generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
 					    len, remap_flags);
-	if (ret < 0 || *len == 0)
-		goto out_unlock;
-
-	return 0;
-
- out_unlock:
-	if (same_inode)
-		inode_unlock(inode_in);
-	else
-		unlock_two_nondirectories(inode_in, inode_out);
-
-	return ret;
 }
 
 loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
@@ -4027,16 +4009,22 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
+	if (same_inode)
+		inode_lock(src_inode);
+	else
+		lock_two_nondirectories(src_inode, dst_inode);
+
 	ret = btrfs_remap_file_range_prep(src_file, off, dst_file, destoff,
 					  &len, remap_flags);
 	if (ret < 0 || len == 0)
-		return ret;
+		goto out_unlock;
 
 	if (remap_flags & REMAP_FILE_DEDUP)
 		ret = btrfs_extent_same(src_inode, off, len, dst_inode, destoff);
 	else
 		ret = btrfs_clone_files(dst_file, src_file, off, len, destoff);
 
+out_unlock:
 	if (same_inode)
 		inode_unlock(src_inode);
 	else
