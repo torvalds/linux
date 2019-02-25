@@ -504,9 +504,10 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 				  buf, ret);
 }
 
-bool lspcon_infoframe_enabled(struct intel_encoder *encoder,
+u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config)
 {
+	/* FIXME actually read this from the hw */
 	return enc_to_intel_lspcon(&encoder->base)->active;
 }
 

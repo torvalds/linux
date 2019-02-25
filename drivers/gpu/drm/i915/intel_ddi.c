@@ -3764,7 +3764,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->has_hdmi_sink = true;
 		intel_dig_port = enc_to_dig_port(&encoder->base);
 
-		if (intel_dig_port->infoframe_enabled(encoder, pipe_config))
+		if (intel_hdmi_infoframes_enabled(encoder, pipe_config))
 			pipe_config->has_infoframe = true;
 
 		if (temp & TRANS_DDI_HDMI_SCRAMBLING)
