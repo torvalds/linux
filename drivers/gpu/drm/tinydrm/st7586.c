@@ -119,10 +119,12 @@ static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
 static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(fb->dev);
-	int start, end;
-	int ret = 0;
+	int start, end, idx, ret = 0;
 
 	if (!mipi->enabled)
+		return;
+
+	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
 	/* 3 pixels per byte, so grow clip to nearest multiple of 3 */
@@ -152,6 +154,8 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+
+	drm_dev_exit(idx);
 }
 
 static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -184,14 +188,17 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	int ret;
+	int idx, ret;
 	u8 addr_mode;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_reset(mipi);
 	if (ret)
-		return;
+		goto out_exit;
 
 	mipi_dbi_command(mipi, ST7586_AUTO_READ_CTRL, 0x9f);
 	mipi_dbi_command(mipi, ST7586_OTP_RW_CTRL, 0x00);
@@ -244,11 +251,20 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 	st7586_fb_dirty(fb, &rect);
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+
+	/*
+	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * turn off the display on regular driver unload. It's highly unlikely
+	 * that the underlying SPI controller is gone should this be called after
+	 * unplug.
+	 */
 
 	DRM_DEBUG_KMS("\n");
 

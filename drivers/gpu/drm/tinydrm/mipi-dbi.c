@@ -220,11 +220,14 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	unsigned int height = rect->y2 - rect->y1;
 	unsigned int width = rect->x2 - rect->x1;
 	bool swap = mipi->swap_bytes;
-	int ret = 0;
+	int idx, ret = 0;
 	bool full;
 	void *tr;
 
 	if (!mipi->enabled)
+		return;
+
+	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
 	full = width == fb->width && height == fb->height;
@@ -253,6 +256,8 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+
+	drm_dev_exit(idx);
 }
 
 /**
@@ -307,10 +312,16 @@ void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
+	int idx;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return;
 
 	mipi->enabled = true;
 	mipi_dbi_fb_dirty(fb, &rect);
 	backlight_enable(mipi->backlight);
+
+	drm_dev_exit(idx);
 }
 EXPORT_SYMBOL(mipi_dbi_enable_flush);
 
@@ -320,6 +331,10 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
 	u16 height = drm->mode_config.min_height;
 	u16 width = drm->mode_config.min_width;
 	size_t len = width * height * 2;
+	int idx;
+
+	if (!drm_dev_enter(drm, &idx))
+		return;
 
 	memset(mipi->tx_buf, 0, len);
 
@@ -329,6 +344,8 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
 			 (height >> 8) & 0xFF, (height - 1) & 0xFF);
 	mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START,
 			     (u8 *)mipi->tx_buf, len);
+
+	drm_dev_exit(idx);
 }
 
 /**
@@ -342,6 +359,9 @@ static void mipi_dbi_blank(struct mipi_dbi *mipi)
 void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
+
+	if (!mipi->enabled)
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -991,11 +1011,16 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 	u8 val, cmd = 0, parameters[64];
 	char *buf, *pos, *token;
 	unsigned int i;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return -ENODEV;
 
 	buf = memdup_user_nul(ubuf, count);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
+	if (IS_ERR(buf)) {
+		ret = PTR_ERR(buf);
+		goto err_exit;
+	}
 
 	/* strip trailing whitespace */
 	for (i = count - 1; i > 0; i--)
@@ -1031,6 +1056,8 @@ static ssize_t mipi_dbi_debugfs_command_write(struct file *file,
 
 err_free:
 	kfree(buf);
+err_exit:
+	drm_dev_exit(idx);
 
 	return ret < 0 ? ret : count;
 }
@@ -1039,8 +1066,11 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 {
 	struct mipi_dbi *mipi = m->private;
 	u8 cmd, val[4];
+	int ret, idx;
 	size_t len;
-	int ret;
+
+	if (!drm_dev_enter(&mipi->drm, &idx))
+		return -ENODEV;
 
 	for (cmd = 0; cmd < 255; cmd++) {
 		if (!mipi_dbi_command_is_read(mipi, cmd))
@@ -1070,6 +1100,8 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 		}
 		seq_printf(m, "%*phN\n", (int)len, val);
 	}
+
+	drm_dev_exit(idx);
 
 	return 0;
 }

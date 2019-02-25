@@ -533,8 +533,14 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
 	struct repaper_epd *epd = drm_to_epd(fb->dev);
 	struct drm_rect clip;
+	int idx, ret = 0;
 	u8 *buf = NULL;
-	int ret = 0;
+
+	if (!epd->enabled)
+		return 0;
+
+	if (!drm_dev_enter(fb->dev, &idx))
+		return -ENODEV;
 
 	/* repaper can't do partial updates */
 	clip.x1 = 0;
@@ -542,17 +548,16 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	clip.y1 = 0;
 	clip.y2 = fb->height;
 
-	if (!epd->enabled)
-		return 0;
-
 	repaper_get_temperature(epd);
 
 	DRM_DEBUG("Flushing [FB:%d] st=%ums\n", fb->base.id,
 		  epd->factored_stage_time);
 
 	buf = kmalloc_array(fb->width, fb->height, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (!buf) {
+		ret = -ENOMEM;
+		goto out_exit;
+	}
 
 	if (import_attach) {
 		ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
@@ -621,6 +626,8 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 
 out_free:
 	kfree(buf);
+out_exit:
+	drm_dev_exit(idx);
 
 	return ret;
 }
@@ -650,7 +657,10 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct spi_device *spi = epd->spi;
 	struct device *dev = &spi->dev;
 	bool dc_ok = false;
-	int i, ret;
+	int i, ret, idx;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -689,7 +699,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (!i) {
 		DRM_DEV_ERROR(dev, "timeout waiting for panel to become ready.\n");
 		power_off(epd);
-		return;
+		goto out_exit;
 	}
 
 	repaper_read_id(spi);
@@ -700,7 +710,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 		else
 			dev_err(dev, "wrong COG ID 0x%02x\n", ret);
 		power_off(epd);
-		return;
+		goto out_exit;
 	}
 
 	/* Disable OE */
@@ -713,7 +723,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 		else
 			DRM_DEV_ERROR(dev, "panel is reported broken\n");
 		power_off(epd);
-		return;
+		goto out_exit;
 	}
 
 	/* Power saving mode */
@@ -753,7 +763,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 		if (ret < 0) {
 			DRM_DEV_ERROR(dev, "failed to read chip (%d)\n", ret);
 			power_off(epd);
-			return;
+			goto out_exit;
 		}
 
 		if (ret & 0x40) {
@@ -765,7 +775,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	if (!dc_ok) {
 		DRM_DEV_ERROR(dev, "dc/dc failed\n");
 		power_off(epd);
-		return;
+		goto out_exit;
 	}
 
 	/*
@@ -776,6 +786,8 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	epd->enabled = true;
 	epd->partial = false;
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -783,6 +795,16 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct repaper_epd *epd = drm_to_epd(pipe->crtc.dev);
 	struct spi_device *spi = epd->spi;
 	unsigned int line;
+
+	/*
+	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * turn off the display on regular driver unload. It's highly unlikely
+	 * that the underlying SPI controller is gone should this be called after
+	 * unplug.
+	 */
+
+	if (!epd->enabled)
+		return;
 
 	DRM_DEBUG_DRIVER("\n");
 

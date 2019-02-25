@@ -58,13 +58,16 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
 	u8 addr_mode;
-	int ret;
+	int ret, idx;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_conditional_reset(mipi);
 	if (ret < 0)
-		return;
+		goto out_exit;
 	if (ret == 1)
 		goto out_enable;
 
@@ -136,6 +139,8 @@ out_enable:
 	addr_mode |= ILI9341_MADCTL_BGR;
 	mipi_dbi_command(mipi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {

@@ -44,14 +44,17 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 				      struct drm_plane_state *plane_state)
 {
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
-	int ret;
+	int ret, idx;
 	u8 addr_mode;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
 	ret = mipi_dbi_poweron_reset(mipi);
 	if (ret)
-		return;
+		goto out_exit;
 
 	msleep(150);
 
@@ -102,6 +105,8 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 	msleep(20);
 
 	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {

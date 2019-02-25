@@ -89,11 +89,14 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool swap = mipi->swap_bytes;
 	u16 x_start, y_start;
 	u16 x1, x2, y1, y2;
-	int ret = 0;
+	int idx, ret = 0;
 	bool full;
 	void *tr;
 
 	if (!mipi->enabled)
+		return;
+
+	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
 	full = width == fb->width && height == fb->height;
@@ -158,6 +161,8 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 err_msg:
 	if (ret)
 		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+
+	drm_dev_exit(idx);
 }
 
 static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -191,8 +196,11 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y1 = 0,
 		.y2 = fb->height,
 	};
-	int ret;
+	int ret, idx;
 	u8 am_id;
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -207,7 +215,7 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 	ret = ili9225_command(mipi, ILI9225_POWER_CONTROL_1, 0x0000);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Error sending command %d\n", ret);
-		return;
+		goto out_exit;
 	}
 	ili9225_command(mipi, ILI9225_POWER_CONTROL_2, 0x0000);
 	ili9225_command(mipi, ILI9225_POWER_CONTROL_3, 0x0000);
@@ -280,6 +288,8 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	mipi->enabled = true;
 	ili9225_fb_dirty(fb, &rect);
+out_exit:
+	drm_dev_exit(idx);
 }
 
 static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -287,6 +297,13 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct mipi_dbi *mipi = drm_to_mipi_dbi(pipe->crtc.dev);
 
 	DRM_DEBUG_KMS("\n");
+
+	/*
+	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * turn off the display on regular driver unload. It's highly unlikely
+	 * that the underlying SPI controller is gone should this be called after
+	 * unplug.
+	 */
 
 	if (!mipi->enabled)
 		return;
