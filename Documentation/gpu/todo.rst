@@ -469,10 +469,6 @@ those drivers as simple as possible, so lots of room for refactoring:
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
 
-- Quick aside: The unregister devm stuff is kinda getting the lifetimes of
-  a drm_device wrong. Doesn't matter, since everyone else gets it wrong
-  too :-)
-
 Contact: Noralf Trønnes, Daniel Vetter
 
 AMD DC Display Driver

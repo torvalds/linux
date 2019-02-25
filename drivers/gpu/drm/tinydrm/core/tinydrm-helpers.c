@@ -365,3 +365,5 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 EXPORT_SYMBOL(tinydrm_spi_transfer);
 
 #endif /* CONFIG_SPI */
+
+MODULE_LICENSE("GPL");
