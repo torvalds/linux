@@ -55,8 +55,10 @@ struct pie_vars {
 	psched_time_t qdelay_old;
 	u64 dq_count;		/* measured in bytes */
 	psched_time_t dq_tstamp;	/* drain rate */
+	u64 accu_prob;		/* accumulated drop probability */
 	u32 avg_dq_rate;	/* bytes per pschedtime tick,scaled */
 	u32 qlen_old;		/* in bytes */
+	u8 accu_prob_overflows;	/* overflows of accu_prob */
 };
 
 /* statistics gathering */
@@ -91,9 +93,11 @@ static void pie_params_init(struct pie_params *params)
 static void pie_vars_init(struct pie_vars *vars)
 {
 	vars->dq_count = DQCOUNT_INVALID;
+	vars->accu_prob = 0;
 	vars->avg_dq_rate = 0;
 	/* default of 150 ms in pschedtime */
 	vars->burst_time = PSCHED_NS2TICKS(150 * NSEC_PER_MSEC);
+	vars->accu_prob_overflows = 0;
 }
 
 static bool drop_early(struct Qdisc *sch, u32 packet_size)
@@ -128,9 +132,29 @@ static bool drop_early(struct Qdisc *sch, u32 packet_size)
 	else
 		local_prob = q->vars.prob;
 
-	prandom_bytes(&rnd, 8);
-	if (rnd < local_prob)
+	if (local_prob == 0) {
+		q->vars.accu_prob = 0;
+		q->vars.accu_prob_overflows = 0;
+	}
+
+	if (local_prob > MAX_PROB - q->vars.accu_prob)
+		q->vars.accu_prob_overflows++;
+
+	q->vars.accu_prob += local_prob;
+
+	if (q->vars.accu_prob_overflows == 0 &&
+	    q->vars.accu_prob < (MAX_PROB / 100) * 85)
+		return false;
+	if (q->vars.accu_prob_overflows == 8 &&
+	    q->vars.accu_prob >= MAX_PROB / 2)
 		return true;
+
+	prandom_bytes(&rnd, 8);
+	if (rnd < local_prob) {
+		q->vars.accu_prob = 0;
+		q->vars.accu_prob_overflows = 0;
+		return true;
+	}
 
 	return false;
 }
@@ -168,6 +192,8 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 
 out:
 	q->stats.dropped++;
+	q->vars.accu_prob = 0;
+	q->vars.accu_prob_overflows = 0;
 	return qdisc_drop(skb, sch, to_free);
 }
 
