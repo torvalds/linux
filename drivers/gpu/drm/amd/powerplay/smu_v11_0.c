@@ -211,14 +211,13 @@ static int smu_v11_0_check_fw_status(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t mp1_fw_flags;
 
-	WREG32_SOC15(NBIF, 0, mmPCIE_INDEX2,
-		     (MP1_Public | (smnMP1_FIRMWARE_FLAGS & 0xffffffff)));
-
-	mp1_fw_flags = RREG32_SOC15(NBIF, 0, mmPCIE_DATA2);
+	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+				   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
 
 	if ((mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
 	    MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
 		return 0;
+
 	return -EIO;
 }
 
