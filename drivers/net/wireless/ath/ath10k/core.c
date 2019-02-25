@@ -648,6 +648,13 @@ static void ath10k_init_sdio(struct ath10k *ar)
 	param &= ~HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE;
 	param |= HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET;
 	ath10k_bmi_write32(ar, hi_acs_flags, param);
+
+	/* Explicitly set fwlog prints to zero as target may turn it on
+	 * based on scratch registers.
+	 */
+	ath10k_bmi_read32(ar, hi_option_flag, &param);
+	param |= HI_OPTION_DISABLE_DBGLOG;
+	ath10k_bmi_write32(ar, hi_option_flag, param);
 }
 
 static int ath10k_init_configure_target(struct ath10k *ar)
