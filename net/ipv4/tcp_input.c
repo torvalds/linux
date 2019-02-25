@@ -1574,9 +1574,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 	return skb;
 }
 
-static struct sk_buff *tcp_sacktag_bsearch(struct sock *sk,
-					   struct tcp_sacktag_state *state,
-					   u32 seq)
+static struct sk_buff *tcp_sacktag_bsearch(struct sock *sk, u32 seq)
 {
 	struct rb_node *parent, **p = &sk->tcp_rtx_queue.rb_node;
 	struct sk_buff *skb;
@@ -1598,13 +1596,12 @@ static struct sk_buff *tcp_sacktag_bsearch(struct sock *sk,
 }
 
 static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
-					struct tcp_sacktag_state *state,
 					u32 skip_to_seq)
 {
 	if (skb && after(TCP_SKB_CB(skb)->seq, skip_to_seq))
 		return skb;
 
-	return tcp_sacktag_bsearch(sk, state, skip_to_seq);
+	return tcp_sacktag_bsearch(sk, skip_to_seq);
 }
 
 static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
@@ -1617,7 +1614,7 @@ static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
 		return skb;
 
 	if (before(next_dup->start_seq, skip_to_seq)) {
-		skb = tcp_sacktag_skip(skb, sk, state, next_dup->start_seq);
+		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq);
 		skb = tcp_sacktag_walk(skb, sk, NULL, state,
 				       next_dup->start_seq, next_dup->end_seq,
 				       1);
@@ -1758,8 +1755,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 
 			/* Head todo? */
 			if (before(start_seq, cache->start_seq)) {
-				skb = tcp_sacktag_skip(skb, sk, state,
-						       start_seq);
+				skb = tcp_sacktag_skip(skb, sk, start_seq);
 				skb = tcp_sacktag_walk(skb, sk, next_dup,
 						       state,
 						       start_seq,
@@ -1785,7 +1781,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 				goto walk;
 			}
 
-			skb = tcp_sacktag_skip(skb, sk, state, cache->end_seq);
+			skb = tcp_sacktag_skip(skb, sk, cache->end_seq);
 			/* Check overlap against next cached too (past this one already) */
 			cache++;
 			continue;
@@ -1796,7 +1792,7 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 			if (!skb)
 				break;
 		}
-		skb = tcp_sacktag_skip(skb, sk, state, start_seq);
+		skb = tcp_sacktag_skip(skb, sk, start_seq);
 
 walk:
 		skb = tcp_sacktag_walk(skb, sk, next_dup, state,
