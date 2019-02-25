@@ -268,16 +268,6 @@ static int mv3310_get_features(struct phy_device *phydev)
 {
 	int ret, val;
 
-	if (phydev->c45_ids.devices_in_package & MDIO_DEVS_AN) {
-		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_STAT1);
-		if (val < 0)
-			return val;
-
-		if (val & MDIO_AN_STAT1_ABLE)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-					 phydev->supported);
-	}
-
 	ret = genphy_c45_pma_read_abilities(phydev);
 	if (ret)
 		return ret;
