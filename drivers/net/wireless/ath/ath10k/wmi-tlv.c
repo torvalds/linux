@@ -1588,17 +1588,50 @@ ath10k_wmi_tlv_op_gen_pdev_set_param(struct ath10k *ar, u32 param_id,
 	return skb;
 }
 
+static void
+ath10k_wmi_tlv_put_host_mem_chunks(struct ath10k *ar, void *host_mem_chunks)
+{
+	struct host_memory_chunk *chunk;
+	struct wmi_tlv *tlv;
+	int i;
+	__le16 tlv_len, tlv_tag;
+
+	tlv_tag = __cpu_to_le16(WMI_TLV_TAG_STRUCT_WLAN_HOST_MEMORY_CHUNK);
+	tlv_len = __cpu_to_le16(sizeof(*chunk));
+	for (i = 0; i < ar->wmi.num_mem_chunks; i++) {
+		tlv = host_mem_chunks;
+		tlv->tag = tlv_tag;
+		tlv->len = tlv_len;
+		chunk = (void *)tlv->value;
+
+		chunk->ptr = __cpu_to_le32(ar->wmi.mem_chunks[i].paddr);
+		chunk->size = __cpu_to_le32(ar->wmi.mem_chunks[i].len);
+		chunk->req_id = __cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
+
+		ath10k_dbg(ar, ATH10K_DBG_WMI,
+			   "wmi-tlv chunk %d len %d, addr 0x%llx, id 0x%x\n",
+			   i,
+			   ar->wmi.mem_chunks[i].len,
+			   (unsigned long long)ar->wmi.mem_chunks[i].paddr,
+			   ar->wmi.mem_chunks[i].req_id);
+
+		host_mem_chunks += sizeof(*tlv);
+		host_mem_chunks += sizeof(*chunk);
+	}
+}
+
 static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 {
 	struct sk_buff *skb;
 	struct wmi_tlv *tlv;
 	struct wmi_tlv_init_cmd *cmd;
 	struct wmi_tlv_resource_config *cfg;
-	struct wmi_host_mem_chunks *chunks;
+	void *chunks;
 	size_t len, chunks_len;
 	void *ptr;
 
-	chunks_len = ar->wmi.num_mem_chunks * sizeof(struct host_memory_chunk);
+	chunks_len = ar->wmi.num_mem_chunks *
+		     (sizeof(struct host_memory_chunk) + sizeof(*tlv));
 	len = (sizeof(*tlv) + sizeof(*cmd)) +
 	      (sizeof(*tlv) + sizeof(*cfg)) +
 	      (sizeof(*tlv) + chunks_len);
@@ -1701,7 +1734,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI, ar->wmi.svc_map))
 		cfg->host_capab |= __cpu_to_le32(WMI_RSRC_CFG_FLAG_TX_ACK_RSSI);
 
-	ath10k_wmi_put_host_mem_chunks(ar, chunks);
+	ath10k_wmi_tlv_put_host_mem_chunks(ar, chunks);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv init\n");
 	return skb;
