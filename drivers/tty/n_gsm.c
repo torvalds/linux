@@ -1565,14 +1565,11 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, const u8 *data, int clen)
 		pr_debug("%d bytes for tty\n", len);
 	switch (dlci->adaption)  {
 	/* Unsupported types */
-	/* Packetised interruptible data */
-	case 4:
+	case 4:		/* Packetised interruptible data */
 		break;
-	/* Packetised uininterruptible voice/data */
-	case 3:
+	case 3:		/* Packetised uininterruptible voice/data */
 		break;
-	/* Asynchronous serial with line state in each frame */
-	case 2:
+	case 2:		/* Asynchronous serial with line state in each frame */
 		while (gsm_read_ea(&modem, *data++) == 0) {
 			len--;
 			if (len == 0)
@@ -1583,8 +1580,8 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, const u8 *data, int clen)
 			gsm_process_modem(tty, dlci, modem, clen);
 			tty_kref_put(tty);
 		}
-	/* Line state will go via DLCI 0 controls only */
-	case 1:
+		/* Fall through */
+	case 1:		/* Line state will go via DLCI 0 controls only */
 	default:
 		tty_insert_flip_string(port, data, len);
 		tty_flip_buffer_push(port);
@@ -1979,7 +1976,7 @@ static void gsm1_receive(struct gsm_mux *gsm, unsigned char c)
 		gsm->address = 0;
 		gsm->state = GSM_ADDRESS;
 		gsm->fcs = INIT_FCS;
-		/* Drop through */
+		/* Fall through */
 	case GSM_ADDRESS:	/* Address continuation */
 		gsm->fcs = gsm_fcs_add(gsm->fcs, c);
 		if (gsm_read_ea(&gsm->address, c))
