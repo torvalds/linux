@@ -1382,6 +1382,12 @@ static int ath10k_sdio_hif_power_up(struct ath10k *ar,
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "sdio power on\n");
 
+	ret = ath10k_sdio_config(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to config sdio: %d\n", ret);
+		return ret;
+	}
+
 	sdio_claim_host(func);
 
 	ret = sdio_enable_func(func);
@@ -1419,11 +1425,19 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 
 	/* Disable the card */
 	sdio_claim_host(ar_sdio->func);
-	ret = sdio_disable_func(ar_sdio->func);
-	sdio_release_host(ar_sdio->func);
 
-	if (ret)
+	ret = sdio_disable_func(ar_sdio->func);
+	if (ret) {
 		ath10k_warn(ar, "unable to disable sdio function: %d\n", ret);
+		sdio_release_host(ar_sdio->func);
+		return;
+	}
+
+	ret = mmc_hw_reset(ar_sdio->func->card->host);
+	if (ret)
+		ath10k_warn(ar, "unable to reset sdio: %d\n", ret);
+
+	sdio_release_host(ar_sdio->func);
 
 	ar_sdio->is_disabled = true;
 }
@@ -2027,12 +2041,6 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ar->id.device = id->device;
 
 	ath10k_sdio_set_mbox_info(ar);
-
-	ret = ath10k_sdio_config(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to config sdio: %d\n", ret);
-		goto err_free_wq;
-	}
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
 	/* TODO: don't know yet how to get chip_id with SDIO */
