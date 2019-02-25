@@ -1022,7 +1022,7 @@ Extra Exercises
 1. KDB
 ------
 
-Go to the **9-kdb** directory. Activate KDB the over serial port and enter KDB
+Go to the **8-kdb** directory. Activate KDB the over serial port and enter KDB
 mode using :command:`SysRq`. Connect to the pseudo-terminal linked to virtiocon0
 using :command:`minicom`, configure KDB to use the hvc0 serial port:
 
@@ -1100,7 +1100,7 @@ address.
 4. Dynamic Debugging
 --------------------
 
-Go to the **10-dyndbg** directory and compile the :code:`dyndbg.ko` module.
+Go to the **9-dyndbg** directory and compile the :code:`dyndbg.ko` module.
 
 Familiarize yourself with the :code:`debugfs` file system mounted in
 :file:`/debug` and analyze the contents of the file
