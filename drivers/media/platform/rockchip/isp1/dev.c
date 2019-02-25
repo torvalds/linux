@@ -388,6 +388,7 @@ static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 	struct v4l2_subdev_selection sel;
 	struct v4l2_subdev_pad_config cfg;
 	u32 width, height;
+	u32 ori_width, ori_height, ori_code;
 
 	if (dev->num_sensors) {
 		sensor = dev->sensors[0].sd;
@@ -403,6 +404,10 @@ static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 
 			return -ENXIO;
 		}
+
+		ori_width = fmt.format.width;
+		ori_height = fmt.format.height;
+		ori_code = fmt.format.code;
 
 		if (dev->isp_ver == ISP_V12) {
 			fmt.format.width  = clamp_t(u32, fmt.format.width,
@@ -460,6 +465,11 @@ static int _set_pipeline_default_fmt(struct rkisp1_device *dev)
 		if (dev->isp_ver != ISP_V10_1)
 			rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_SP,
 						  width, height, V4L2_PIX_FMT_YUYV);
+		if (dev->isp_ver == ISP_V12 ||
+			dev->isp_ver == ISP_V13)
+			rkisp1_set_stream_def_fmt(dev, RKISP1_STREAM_RAW,
+						  ori_width, ori_height,
+						  rkisp1_mbus_pixelcode_to_v4l2(ori_code));
 	}
 
 	return 0;

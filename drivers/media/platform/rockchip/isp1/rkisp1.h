@@ -140,6 +140,8 @@ irqreturn_t rkisp1_vs_isr_handler(int irq, void *ctx);
 
 int rkisp1_update_sensor_info(struct rkisp1_device *dev);
 
+u32 rkisp1_mbus_pixelcode_to_v4l2(u32 pixelcode);
+
 static inline
 struct ispsd_out_fmt *rkisp1_get_ispsd_out_fmt(struct rkisp1_isp_subdev *isp_sdev)
 {

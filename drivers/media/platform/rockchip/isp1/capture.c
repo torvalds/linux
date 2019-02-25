@@ -916,6 +916,7 @@ static int raw_config_mi(struct rkisp1_stream *stream)
 	struct rkisp1_device *dev = stream->ispdev;
 	struct v4l2_mbus_framefmt *in_frm =
 		&dev->active_sensor->fmt.format;
+	u32 in_size;
 
 	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
 		"stream:%d input %dx%d\n",
@@ -932,13 +933,20 @@ static int raw_config_mi(struct rkisp1_stream *stream)
 		return 0;
 
 	/* raw output size equal to sensor input size */
+	if (stream->id == RKISP1_STREAM_RAW) {
+		in_size = stream->out_fmt.plane_fmt[0].sizeimage;
+	} else {
+		struct rkisp1_stream *raw = &dev->stream[RKISP1_STREAM_RAW];
+
+		in_size = raw->out_fmt.plane_fmt[0].sizeimage;
+	}
 	dmatx0_set_pic_size(base, in_frm->width, in_frm->height);
 	dmatx0_set_pic_off(base, 0);
 	dmatx0_ctrl(base,
 		CIF_ISP_CSI0_DMATX0_VC(1) |
 		CIF_ISP_CSI0_DMATX0_SIMG_SWP |
 		CIF_ISP_CSI0_DMATX0_SIMG_MODE);
-	mi_raw0_set_size(base, in_frm->height * in_frm->width * 2);
+	mi_raw0_set_size(base, in_size);
 	mi_raw0_set_offs(base, 0);
 	mi_raw0_set_length(base, 0);
 	mi_raw0_set_irq_offs(base, 0);
@@ -1358,8 +1366,6 @@ static int rkisp1_create_dummy_buf(struct rkisp1_stream *stream)
 {
 	struct rkisp1_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkisp1_device *dev = stream->ispdev;
-	struct v4l2_mbus_framefmt *in_frm = NULL;
-	u32 in_size;
 
 	/* get a maximum size */
 	dummy_buf->size = max3(stream->out_fmt.plane_fmt[0].bytesperline *
@@ -1369,8 +1375,10 @@ static int rkisp1_create_dummy_buf(struct rkisp1_stream *stream)
 	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 &&
 		(dev->isp_ver == ISP_V12 ||
 		dev->isp_ver == ISP_V13)) {
-		in_frm = &dev->active_sensor->fmt.format;
-		in_size = in_frm->height * in_frm->width * 2;
+		u32 in_size;
+		struct rkisp1_stream *raw = &dev->stream[RKISP1_STREAM_RAW];
+
+		in_size = raw->out_fmt.plane_fmt[0].sizeimage;
 		dummy_buf->size = max(dummy_buf->size, in_size);
 	}
 
@@ -1757,10 +1765,6 @@ void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 
 	stream->streaming = false;
 	stream->interlaced = false;
-	rkisp1_set_stream_def_fmt(dev, id,
-				  RKISP1_DEFAULT_WIDTH,
-				  RKISP1_DEFAULT_HEIGHT,
-				  V4L2_PIX_FMT_YUYV);
 
 	stream->burst =
 		CIF_MI_CTRL_BURST_LEN_LUM_16 |
