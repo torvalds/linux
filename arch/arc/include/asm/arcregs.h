@@ -313,7 +313,7 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa_arcv2 isa;
-	const char *details, *name;
+	const char *release, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {

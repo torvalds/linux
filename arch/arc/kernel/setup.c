@@ -45,29 +45,24 @@ struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
-static const struct id_to_str arc_cpu_rel[] = {
+static const struct id_to_str arc_legacy_rel[] = {
+	/* ID.ARCVER,	Release */
 #ifdef CONFIG_ISA_ARCOMPACT
-	{ 0x34, "R4.10"},
-	{ 0x35, "R4.11"},
+	{ 0x34, 	"R4.10"},
+	{ 0x35, 	"R4.11"},
 #else
-	{ 0x51, "R2.0" },
-	{ 0x52, "R2.1" },
-	{ 0x53, "R3.0" },
-	{ 0x54, "R3.10a" },
+	{ 0x51, 	"R2.0" },
+	{ 0x52, 	"R2.1" },
+	{ 0x53,		"R3.0" },
 #endif
-	{ 0x00, NULL   }
+	{ 0x00,		NULL   }
 };
 
-static const struct id_to_str arc_cpu_nm[] = {
-#ifdef CONFIG_ISA_ARCOMPACT
-	{ 0x20, "ARC 600"   },
-	{ 0x30, "ARC 770"   },  /* 750 identified seperately */
-#else
-	{ 0x40, "ARC EM"  },
-	{ 0x50, "ARC HS38"  },
-	{ 0x54, "ARC HS48"  },
-#endif
-	{ 0x00, "Unknown"   }
+static const struct id_to_str arc_cpu_rel[] = {
+	/* UARCH.MAJOR,	Release */
+	{  0,		"R3.10a"},
+	{  1,		"R3.50a"},
+	{  0xFF,	NULL   }
 };
 
 static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
@@ -117,31 +112,72 @@ static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
 	}
 }
 
+static void decode_arc_core(struct cpuinfo_arc *cpu)
+{
+	struct bcr_uarch_build_arcv2 uarch;
+	const struct id_to_str *tbl;
+
+	/*
+	 * Up until (including) the first core4 release (0x54) things were
+	 * simple: AUX IDENTITY.ARCVER was sufficient to identify arc family
+	 * and release: 0x50 to 0x53 was HS38, 0x54 was HS48 (dual issue)
+	 */
+
+	if (cpu->core.family < 0x54) { /* includes arc700 */
+
+		for (tbl = &arc_legacy_rel[0]; tbl->id != 0; tbl++) {
+			if (cpu->core.family == tbl->id) {
+				cpu->release = tbl->str;
+				break;
+			}
+		}
+
+		if (is_isa_arcompact())
+			cpu->name = "ARC700";
+		else if (tbl->str)
+			cpu->name = "HS38";
+		else
+			cpu->name = cpu->release = "Unknown";
+
+		return;
+	}
+
+	/*
+	 * However the subsequent HS release (same 0x54) allow HS38 or HS48
+	 * configurations and encode this info in a different BCR.
+	 * The BCR was introduced in 0x54 so can't be read unconditionally.
+	 */
+
+	READ_BCR(ARC_REG_MICRO_ARCH_BCR, uarch);
+
+	if (uarch.prod == 4) {
+		cpu->name = "HS48";
+		cpu->extn.dual = 1;
+
+	} else {
+		cpu->name = "HS38";
+	}
+
+	for (tbl = &arc_cpu_rel[0]; tbl->id != 0xFF; tbl++) {
+		if (uarch.maj == tbl->id) {
+			cpu->release = tbl->str;
+			break;
+		}
+	}
+}
+
 static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
-	const struct id_to_str *tbl;
 	struct bcr_isa_arcv2 isa;
 	struct bcr_actionpoint ap;
 
 	FIX_PTR(cpu);
 
 	READ_BCR(AUX_IDENTITY, cpu->core);
-
-	for (tbl = &arc_cpu_rel[0]; tbl->id != 0; tbl++) {
-		if (cpu->core.family == tbl->id) {
-			cpu->details = tbl->str;
-			break;
-		}
-	}
-
-	for (tbl = &arc_cpu_nm[0]; tbl->id != 0; tbl++) {
-		if ((cpu->core.family & 0xF4) == tbl->id)
-			break;
-	}
-	cpu->name = tbl->str;
+	decode_arc_core(cpu);
 
 	READ_BCR(ARC_REG_TIMERS_BCR, timer);
 	cpu->extn.timer0 = timer.t0;
@@ -199,30 +235,12 @@ static void read_arc_build_cfg_regs(void)
 		cpu->bpu.num_pred = 2048 << bpu.pte;
 		cpu->bpu.ret_stk = 4 << bpu.rse;
 
-		if (cpu->core.family >= 0x54) {
+		/* if dual issue hardware, is it enabled ? */
+		if (cpu->extn.dual) {
+			unsigned int exec_ctrl;
 
-			struct bcr_uarch_build_arcv2 uarch;
-
-			/*
-			 * The first 0x54 core (uarch maj:min 0:1 or 0:2) was
-			 * dual issue only (HS4x). But next uarch rev (1:0)
-			 * allows it be configured for single issue (HS3x)
-			 * Ensure we fiddle with dual issue only on HS4x
-			 */
-			READ_BCR(ARC_REG_MICRO_ARCH_BCR, uarch);
-
-			if (uarch.prod == 4) {
-				unsigned int exec_ctrl;
-
-				/* dual issue hardware always present */
-				cpu->extn.dual = 1;
-
-				READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
-
-				/* dual issue hardware enabled ? */
-				cpu->extn.dual_enb = !(exec_ctrl & 1);
-
-			}
+			READ_BCR(AUX_EXEC_CTRL, exec_ctrl);
+			cpu->extn.dual_enb = !(exec_ctrl & 1);
 		}
 	}
 
@@ -273,7 +291,7 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       core->family, core->cpu_id, core->chip_id);
 
 	n += scnprintf(buf + n, len - n, "processor [%d]\t: %s %s (%s ISA) %s%s%s\n",
-		       cpu_id, cpu->name, cpu->details,
+		       cpu_id, cpu->name, cpu->release,
 		       is_isa_arcompact() ? "ARCompact" : "ARCv2",
 		       IS_AVAIL1(cpu->isa.be, "[Big-Endian]"),
 		       IS_AVAIL3(cpu->extn.dual, cpu->extn.dual_enb, " Dual-Issue "));
