@@ -81,6 +81,33 @@ extern struct ipl_info ipl_info;
 extern void setup_ipl(void);
 extern void set_os_info_reipl_block(void);
 
+struct ipl_report {
+	struct ipl_parameter_block *ipib;
+	struct list_head components;
+	struct list_head certificates;
+	size_t size;
+};
+
+struct ipl_report_component {
+	struct list_head list;
+	struct ipl_rb_component_entry entry;
+};
+
+struct ipl_report_certificate {
+	struct list_head list;
+	struct ipl_rb_certificate_entry entry;
+	void *key;
+};
+
+struct kexec_buf;
+struct ipl_report *ipl_report_init(struct ipl_parameter_block *ipib);
+void *ipl_report_finish(struct ipl_report *report);
+int ipl_report_free(struct ipl_report *report);
+int ipl_report_add_component(struct ipl_report *report, struct kexec_buf *kbuf,
+			     unsigned char flags, unsigned short cert);
+int ipl_report_add_certificate(struct ipl_report *report, void *key,
+			       unsigned long addr, unsigned long len);
+
 /*
  * DIAG 308 support
  */

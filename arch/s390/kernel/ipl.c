@@ -1705,3 +1705,137 @@ void s390_reset_system(void)
 	__ctl_clear_bit(0, 28);
 	diag308_reset();
 }
+
+#ifdef CONFIG_KEXEC_FILE
+
+int ipl_report_add_component(struct ipl_report *report, struct kexec_buf *kbuf,
+			     unsigned char flags, unsigned short cert)
+{
+	struct ipl_report_component *comp;
+
+	comp = vzalloc(sizeof(*comp));
+	if (!comp)
+		return -ENOMEM;
+	list_add_tail(&comp->list, &report->components);
+
+	comp->entry.addr = kbuf->mem;
+	comp->entry.len = kbuf->memsz;
+	comp->entry.flags = flags;
+	comp->entry.certificate_index = cert;
+
+	report->size += sizeof(comp->entry);
+
+	return 0;
+}
+
+int ipl_report_add_certificate(struct ipl_report *report, void *key,
+			       unsigned long addr, unsigned long len)
+{
+	struct ipl_report_certificate *cert;
+
+	cert = vzalloc(sizeof(*cert));
+	if (!cert)
+		return -ENOMEM;
+	list_add_tail(&cert->list, &report->certificates);
+
+	cert->entry.addr = addr;
+	cert->entry.len = len;
+	cert->key = key;
+
+	report->size += sizeof(cert->entry);
+	report->size += cert->entry.len;
+
+	return 0;
+}
+
+struct ipl_report *ipl_report_init(struct ipl_parameter_block *ipib)
+{
+	struct ipl_report *report;
+
+	report = vzalloc(sizeof(*report));
+	if (!report)
+		return ERR_PTR(-ENOMEM);
+
+	report->ipib = ipib;
+	INIT_LIST_HEAD(&report->components);
+	INIT_LIST_HEAD(&report->certificates);
+
+	report->size = ALIGN(ipib->hdr.len, 8);
+	report->size += sizeof(struct ipl_rl_hdr);
+	report->size += sizeof(struct ipl_rb_components);
+	report->size += sizeof(struct ipl_rb_certificates);
+
+	return report;
+}
+
+void *ipl_report_finish(struct ipl_report *report)
+{
+	struct ipl_report_certificate *cert;
+	struct ipl_report_component *comp;
+	struct ipl_rb_certificates *certs;
+	struct ipl_parameter_block *ipib;
+	struct ipl_rb_components *comps;
+	struct ipl_rl_hdr *rl_hdr;
+	void *buf, *ptr;
+
+	buf = vzalloc(report->size);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+	ptr = buf;
+
+	memcpy(ptr, report->ipib, report->ipib->hdr.len);
+	ipib = ptr;
+	if (ipl_secure_flag)
+		ipib->hdr.flags |= IPL_PL_FLAG_SIPL;
+	ipib->hdr.flags |= IPL_PL_FLAG_IPLSR;
+	ptr += report->ipib->hdr.len;
+	ptr = PTR_ALIGN(ptr, 8);
+
+	rl_hdr = ptr;
+	ptr += sizeof(*rl_hdr);
+
+	comps = ptr;
+	comps->rbt = IPL_RBT_COMPONENTS;
+	ptr += sizeof(*comps);
+	list_for_each_entry(comp, &report->components, list) {
+		memcpy(ptr, &comp->entry, sizeof(comp->entry));
+		ptr += sizeof(comp->entry);
+	}
+	comps->len = ptr - (void *)comps;
+
+	certs = ptr;
+	certs->rbt = IPL_RBT_CERTIFICATES;
+	ptr += sizeof(*certs);
+	list_for_each_entry(cert, &report->certificates, list) {
+		memcpy(ptr, &cert->entry, sizeof(cert->entry));
+		ptr += sizeof(cert->entry);
+	}
+	certs->len = ptr - (void *)certs;
+	rl_hdr->len = ptr - (void *)rl_hdr;
+
+	list_for_each_entry(cert, &report->certificates, list) {
+		memcpy(ptr, cert->key, cert->entry.len);
+		ptr += cert->entry.len;
+	}
+
+	BUG_ON(ptr > buf + report->size);
+	return buf;
+}
+
+int ipl_report_free(struct ipl_report *report)
+{
+	struct ipl_report_component *comp, *ncomp;
+	struct ipl_report_certificate *cert, *ncert;
+
+	list_for_each_entry_safe(comp, ncomp, &report->components, list)
+		vfree(comp);
+
+	list_for_each_entry_safe(cert, ncert, &report->certificates, list)
+		vfree(cert);
+
+	vfree(report);
+
+	return 0;
+}
+
+#endif
