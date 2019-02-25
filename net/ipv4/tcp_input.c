@@ -3591,7 +3591,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	 * this segment (RFC793 Section 3.9).
 	 */
 	if (after(ack, tp->snd_nxt))
-		goto invalid_ack;
+		return -1;
 
 	if (after(ack, prior_snd_una)) {
 		flag |= FLAG_SND_UNA_ADVANCED;
@@ -3710,10 +3710,6 @@ no_queue:
 		tcp_process_tlp_ack(sk, ack, flag);
 	return 1;
 
-invalid_ack:
-	SOCK_DEBUG(sk, "Ack %u after %u:%u\n", ack, tp->snd_una, tp->snd_nxt);
-	return -1;
-
 old_ack:
 	/* If data was SACKed, tag it and see if we should send more data.
 	 * If data was DSACKed, see if we can undo a cwnd reduction.
@@ -3727,7 +3723,6 @@ old_ack:
 		tcp_xmit_recovery(sk, rexmit);
 	}
 
-	SOCK_DEBUG(sk, "Ack %u before %u:%u\n", ack, tp->snd_una, tp->snd_nxt);
 	return 0;
 }
 
@@ -4428,13 +4423,9 @@ static void tcp_ofo_queue(struct sock *sk)
 		rb_erase(&skb->rbnode, &tp->out_of_order_queue);
 
 		if (unlikely(!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt))) {
-			SOCK_DEBUG(sk, "ofo packet was already received\n");
 			tcp_drop(sk, skb);
 			continue;
 		}
-		SOCK_DEBUG(sk, "ofo requeuing : rcv_next %X seq %X - %X\n",
-			   tp->rcv_nxt, TCP_SKB_CB(skb)->seq,
-			   TCP_SKB_CB(skb)->end_seq);
 
 		tail = skb_peek_tail(&sk->sk_receive_queue);
 		eaten = tail && tcp_try_coalesce(sk, tail, skb, &fragstolen);
@@ -4498,8 +4489,6 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPOFOQUEUE);
 	seq = TCP_SKB_CB(skb)->seq;
 	end_seq = TCP_SKB_CB(skb)->end_seq;
-	SOCK_DEBUG(sk, "out of order segment: rcv_next %X seq %X - %X\n",
-		   tp->rcv_nxt, seq, end_seq);
 
 	p = &tp->out_of_order_queue.rb_node;
 	if (RB_EMPTY_ROOT(&tp->out_of_order_queue)) {
@@ -4775,10 +4764,6 @@ drop:
 
 	if (before(TCP_SKB_CB(skb)->seq, tp->rcv_nxt)) {
 		/* Partial packet, seq < rcv_next < end_seq */
-		SOCK_DEBUG(sk, "partial packet: rcv_next %X seq %X - %X\n",
-			   tp->rcv_nxt, TCP_SKB_CB(skb)->seq,
-			   TCP_SKB_CB(skb)->end_seq);
-
 		tcp_dsack_set(sk, TCP_SKB_CB(skb)->seq, tp->rcv_nxt);
 
 		/* If window is closed, drop tail of packet. But after
@@ -5056,8 +5041,6 @@ static bool tcp_prune_ofo_queue(struct sock *sk)
 static int tcp_prune_queue(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-
-	SOCK_DEBUG(sk, "prune_queue: c=%x\n", tp->copied_seq);
 
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_PRUNECALLED);
 
