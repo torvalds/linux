@@ -1583,7 +1583,8 @@ ath10k_wmi_tlv_op_gen_pdev_set_param(struct ath10k *ar, u32 param_id,
 	cmd->param_id = __cpu_to_le32(param_id);
 	cmd->param_value = __cpu_to_le32(param_value);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv pdev set param\n");
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv pdev set param %d value 0x%x\n",
+		   param_id, param_value);
 	return skb;
 }
 
@@ -2056,7 +2057,8 @@ ath10k_wmi_tlv_op_gen_vdev_set_param(struct ath10k *ar, u32 vdev_id,
 	cmd->param_id = __cpu_to_le32(param_id);
 	cmd->param_value = __cpu_to_le32(param_value);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv vdev set param\n");
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv vdev %d set param %d value 0x%x\n",
+		   vdev_id, param_id, param_value);
 	return skb;
 }
 
@@ -2372,7 +2374,9 @@ ath10k_wmi_tlv_op_gen_peer_set_param(struct ath10k *ar, u32 vdev_id,
 	cmd->param_value = __cpu_to_le32(param_value);
 	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
 
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv peer set param\n");
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi tlv vdev %d peer %pM set param %d value 0x%x\n",
+		   vdev_id, peer_addr, param_id, param_value);
 	return skb;
 }
 
