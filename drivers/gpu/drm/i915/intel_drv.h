@@ -1031,6 +1031,10 @@ struct intel_crtc_state {
 	/* bitmask of planes that will be updated during the commit */
 	u8 update_planes;
 
+	struct {
+		u32 enable;
+	} infoframes;
+
 	/* HDMI scrambling status */
 	bool hdmi_scrambling;
 

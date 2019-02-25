@@ -1507,7 +1507,10 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	if (tmp & HDMI_MODE_SELECT_HDMI)
 		pipe_config->has_hdmi_sink = true;
 
-	if (intel_hdmi_infoframes_enabled(encoder, pipe_config))
+	pipe_config->infoframes.enable |=
+		intel_hdmi_infoframes_enabled(encoder, pipe_config);
+
+	if (pipe_config->infoframes.enable)
 		pipe_config->has_infoframe = true;
 
 	if (tmp & SDVO_AUDIO_ENABLE)
