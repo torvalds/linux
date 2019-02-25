@@ -58,6 +58,7 @@ DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
 
 DEFINE_SMB3_RW_ERR_EVENT(write_err);
 DEFINE_SMB3_RW_ERR_EVENT(read_err);
+DEFINE_SMB3_RW_ERR_EVENT(query_dir_err);
 
 
 /* For logging successful read or write */
@@ -102,6 +103,7 @@ DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
 
 DEFINE_SMB3_RW_DONE_EVENT(write_done);
 DEFINE_SMB3_RW_DONE_EVENT(read_done);
+DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);
 
 /*
  * For handle based calls other than read and write, and get/set info

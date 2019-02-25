@@ -3857,18 +3857,26 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc) {
 		if (rc == -ENODATA &&
 		    rsp->sync_hdr.Status == STATUS_NO_MORE_FILES) {
+			trace_smb3_query_dir_done(xid, persistent_fid,
+				tcon->tid, tcon->ses->Suid, index, 0);
 			srch_inf->endOfSearch = true;
 			rc = 0;
-		} else
+		} else {
+			trace_smb3_query_dir_err(xid, persistent_fid, tcon->tid,
+				tcon->ses->Suid, index, 0, rc);
 			cifs_stats_fail_inc(tcon, SMB2_QUERY_DIRECTORY_HE);
+		}
 		goto qdir_exit;
 	}
 
 	rc = smb2_validate_iov(le16_to_cpu(rsp->OutputBufferOffset),
 			       le32_to_cpu(rsp->OutputBufferLength), &rsp_iov,
 			       info_buf_size);
-	if (rc)
+	if (rc) {
+		trace_smb3_query_dir_err(xid, persistent_fid, tcon->tid,
+			tcon->ses->Suid, index, 0, rc);
 		goto qdir_exit;
+	}
 
 	srch_inf->unicode = true;
 
@@ -3896,6 +3904,8 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 	else
 		cifs_dbg(VFS, "illegal search buffer type\n");
 
+	trace_smb3_query_dir_done(xid, persistent_fid, tcon->tid,
+			tcon->ses->Suid, index, srch_inf->entries_in_buffer);
 	return rc;
 
 qdir_exit:
