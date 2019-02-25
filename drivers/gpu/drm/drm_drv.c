@@ -286,6 +286,138 @@ void drm_minor_release(struct drm_minor *minor)
  * Note that the lifetime rules for &drm_device instance has still a lot of
  * historical baggage. Hence use the reference counting provided by
  * drm_dev_get() and drm_dev_put() only carefully.
+ *
+ * Display driver example
+ * ~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * The following example shows a typical structure of a DRM display driver.
+ * The example focus on the probe() function and the other functions that is
+ * almost always present and serves as a demonstration of devm_drm_dev_init()
+ * usage with its accompanying drm_driver->release callback.
+ *
+ * .. code-block:: c
+ *
+ *	struct driver_device {
+ *		struct drm_device drm;
+ *		void *userspace_facing;
+ *		struct clk *pclk;
+ *	};
+ *
+ *	static void driver_drm_release(struct drm_device *drm)
+ *	{
+ *		struct driver_device *priv = container_of(...);
+ *
+ *		drm_mode_config_cleanup(drm);
+ *		drm_dev_fini(drm);
+ *		kfree(priv->userspace_facing);
+ *		kfree(priv);
+ *	}
+ *
+ *	static struct drm_driver driver_drm_driver = {
+ *		[...]
+ *		.release = driver_drm_release,
+ *	};
+ *
+ *	static int driver_probe(struct platform_device *pdev)
+ *	{
+ *		struct driver_device *priv;
+ *		struct drm_device *drm;
+ *		int ret;
+ *
+ *		[
+ *		  devm_kzalloc() can't be used here because the drm_device
+ *		  lifetime can exceed the device lifetime if driver unbind
+ *		  happens when userspace still has open file descriptors.
+ *		]
+ *		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+ *		if (!priv)
+ *			return -ENOMEM;
+ *
+ *		drm = &priv->drm;
+ *
+ *		ret = devm_drm_dev_init(&pdev->dev, drm, &driver_drm_driver);
+ *		if (ret) {
+ *			kfree(drm);
+ *			return ret;
+ *		}
+ *
+ *		drm_mode_config_init(drm);
+ *
+ *		priv->userspace_facing = kzalloc(..., GFP_KERNEL);
+ *		if (!priv->userspace_facing)
+ *			return -ENOMEM;
+ *
+ *		priv->pclk = devm_clk_get(dev, "PCLK");
+ *		if (IS_ERR(priv->pclk))
+ *			return PTR_ERR(priv->pclk);
+ *
+ *		[ Further setup, display pipeline etc ]
+ *
+ *		platform_set_drvdata(pdev, drm);
+ *
+ *		drm_mode_config_reset(drm);
+ *
+ *		ret = drm_dev_register(drm);
+ *		if (ret)
+ *			return ret;
+ *
+ *		drm_fbdev_generic_setup(drm, 32);
+ *
+ *		return 0;
+ *	}
+ *
+ *	[ This function is called before the devm_ resources are released ]
+ *	static int driver_remove(struct platform_device *pdev)
+ *	{
+ *		struct drm_device *drm = platform_get_drvdata(pdev);
+ *
+ *		drm_dev_unregister(drm);
+ *		drm_atomic_helper_shutdown(drm)
+ *
+ *		return 0;
+ *	}
+ *
+ *	[ This function is called on kernel restart and shutdown ]
+ *	static void driver_shutdown(struct platform_device *pdev)
+ *	{
+ *		drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
+ *	}
+ *
+ *	static int __maybe_unused driver_pm_suspend(struct device *dev)
+ *	{
+ *		return drm_mode_config_helper_suspend(dev_get_drvdata(dev));
+ *	}
+ *
+ *	static int __maybe_unused driver_pm_resume(struct device *dev)
+ *	{
+ *		drm_mode_config_helper_resume(dev_get_drvdata(dev));
+ *
+ *		return 0;
+ *	}
+ *
+ *	static const struct dev_pm_ops driver_pm_ops = {
+ *		SET_SYSTEM_SLEEP_PM_OPS(driver_pm_suspend, driver_pm_resume)
+ *	};
+ *
+ *	static struct platform_driver driver_driver = {
+ *		.driver = {
+ *			[...]
+ *			.pm = &driver_pm_ops,
+ *		},
+ *		.probe = driver_probe,
+ *		.remove = driver_remove,
+ *		.shutdown = driver_shutdown,
+ *	};
+ *	module_platform_driver(driver_driver);
+ *
+ * Drivers that want to support device unplugging (USB, DT overlay unload) should
+ * use drm_dev_unplug() instead of drm_dev_unregister(). The driver must protect
+ * regions that is accessing device resources to prevent use after they're
+ * released. This is done using drm_dev_enter() and drm_dev_exit(). There is one
+ * shortcoming however, drm_dev_unplug() marks the drm_device as unplugged before
+ * drm_atomic_helper_shutdown() is called. This means that if the disable code
+ * paths are protected, they will not run on regular driver module unload,
+ * possibily leaving the hardware enabled.
  */
 
 /**
