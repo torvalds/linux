@@ -48,15 +48,11 @@
 #define PWMV2_CPRD		0x0C
 #define PWMV2_CPRDUPD		0x10
 
-/*
- * Max value for duty and period
- *
- * Although the duty and period register is 32 bit,
- * however only the LSB 16 bits are significant.
- */
-#define PWM_MAX_DTY		0xFFFF
-#define PWM_MAX_PRD		0xFFFF
-#define PRD_MAX_PRES		10
+/* Max values for period and prescaler */
+
+/* Only the LSB 16 bits are significant. */
+#define PWM_MAXV1_PRD		0xFFFF
+#define PRD_MAXV1_PRES		10
 
 struct atmel_pwm_registers {
 	u8 period;
@@ -65,8 +61,14 @@ struct atmel_pwm_registers {
 	u8 duty_upd;
 };
 
+struct atmel_pwm_config {
+	u32 max_period;
+	u32 max_pres;
+};
+
 struct atmel_pwm_data {
 	struct atmel_pwm_registers regs;
+	struct atmel_pwm_config cfg;
 };
 
 struct atmel_pwm_chip {
@@ -125,10 +127,10 @@ static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
 	cycles *= clk_get_rate(atmel_pwm->clk);
 	do_div(cycles, NSEC_PER_SEC);
 
-	for (*pres = 0; cycles > PWM_MAX_PRD; cycles >>= 1)
+	for (*pres = 0; cycles > atmel_pwm->data->cfg.max_period; cycles >>= 1)
 		(*pres)++;
 
-	if (*pres > PRD_MAX_PRES) {
+	if (*pres > atmel_pwm->data->cfg.max_pres) {
 		dev_err(chip->dev, "pres exceeds the maximum value\n");
 		return -EINVAL;
 	}
@@ -288,6 +290,11 @@ static const struct atmel_pwm_data atmel_pwm_data_v1 = {
 		.duty		= PWMV1_CDTY,
 		.duty_upd	= PWMV1_CUPD,
 	},
+	.cfg = {
+		/* 16 bits to keep period and duty. */
+		.max_period	= PWM_MAXV1_PRD,
+		.max_pres	= PRD_MAXV1_PRES,
+	},
 };
 
 static const struct atmel_pwm_data atmel_pwm_data_v2 = {
@@ -296,6 +303,11 @@ static const struct atmel_pwm_data atmel_pwm_data_v2 = {
 		.period_upd	= PWMV2_CPRDUPD,
 		.duty		= PWMV2_CDTY,
 		.duty_upd	= PWMV2_CDTYUPD,
+	},
+	.cfg = {
+		/* 16 bits to keep period and duty. */
+		.max_period	= PWM_MAXV1_PRD,
+		.max_pres	= PRD_MAXV1_PRES,
 	},
 };
 
