@@ -443,6 +443,82 @@ static void add_ignores(struct objtool_file *file)
 }
 
 /*
+ * This is a whitelist of functions that is allowed to be called with AC set.
+ * The list is meant to be minimal and only contains compiler instrumentation
+ * ABI and a few functions used to implement *_{to,from}_user() functions.
+ *
+ * These functions must not directly change AC, but may PUSHF/POPF.
+ */
+static const char *uaccess_safe_builtin[] = {
+	/* KASAN */
+	"kasan_report",
+	"check_memory_region",
+	/* KASAN out-of-line */
+	"__asan_loadN_noabort",
+	"__asan_load1_noabort",
+	"__asan_load2_noabort",
+	"__asan_load4_noabort",
+	"__asan_load8_noabort",
+	"__asan_load16_noabort",
+	"__asan_storeN_noabort",
+	"__asan_store1_noabort",
+	"__asan_store2_noabort",
+	"__asan_store4_noabort",
+	"__asan_store8_noabort",
+	"__asan_store16_noabort",
+	/* KASAN in-line */
+	"__asan_report_load_n_noabort",
+	"__asan_report_load1_noabort",
+	"__asan_report_load2_noabort",
+	"__asan_report_load4_noabort",
+	"__asan_report_load8_noabort",
+	"__asan_report_load16_noabort",
+	"__asan_report_store_n_noabort",
+	"__asan_report_store1_noabort",
+	"__asan_report_store2_noabort",
+	"__asan_report_store4_noabort",
+	"__asan_report_store8_noabort",
+	"__asan_report_store16_noabort",
+	/* KCOV */
+	"write_comp_data",
+	"__sanitizer_cov_trace_pc",
+	"__sanitizer_cov_trace_const_cmp1",
+	"__sanitizer_cov_trace_const_cmp2",
+	"__sanitizer_cov_trace_const_cmp4",
+	"__sanitizer_cov_trace_const_cmp8",
+	"__sanitizer_cov_trace_cmp1",
+	"__sanitizer_cov_trace_cmp2",
+	"__sanitizer_cov_trace_cmp4",
+	"__sanitizer_cov_trace_cmp8",
+	/* UBSAN */
+	"ubsan_type_mismatch_common",
+	"__ubsan_handle_type_mismatch",
+	"__ubsan_handle_type_mismatch_v1",
+	/* misc */
+	"csum_partial_copy_generic",
+	"__memcpy_mcsafe",
+	"ftrace_likely_update", /* CONFIG_TRACE_BRANCH_PROFILING */
+	NULL
+};
+
+static void add_uaccess_safe(struct objtool_file *file)
+{
+	struct symbol *func;
+	const char **name;
+
+	if (!uaccess)
+		return;
+
+	for (name = uaccess_safe_builtin; *name; name++) {
+		func = find_symbol_by_name(file->elf, *name);
+		if (!func)
+			continue;
+
+		func->alias->uaccess_safe = true;
+	}
+}
+
+/*
  * FIXME: For now, just ignore any alternatives which add retpolines.  This is
  * a temporary hack, as it doesn't allow ORC to unwind from inside a retpoline.
  * But it at least allows objtool to understand the control flow *around* the
@@ -818,6 +894,7 @@ static int add_special_section_alts(struct objtool_file *file)
 
 		alt->insn = new_insn;
 		alt->skip_orig = special_alt->skip_orig;
+		orig_insn->ignore_alts |= special_alt->skip_alt;
 		list_add_tail(&alt->list, &orig_insn->alts);
 
 		list_del(&special_alt->list);
@@ -1239,6 +1316,7 @@ static int decode_sections(struct objtool_file *file)
 		return ret;
 
 	add_ignores(file);
+	add_uaccess_safe(file);
 
 	ret = add_ignore_alternatives(file);
 	if (ret)
@@ -1320,11 +1398,11 @@ static int update_insn_state_regs(struct instruction *insn, struct insn_state *s
 		return 0;
 
 	/* push */
-	if (op->dest.type == OP_DEST_PUSH)
+	if (op->dest.type == OP_DEST_PUSH || op->dest.type == OP_DEST_PUSHF)
 		cfa->offset += 8;
 
 	/* pop */
-	if (op->src.type == OP_SRC_POP)
+	if (op->src.type == OP_SRC_POP || op->src.type == OP_SRC_POPF)
 		cfa->offset -= 8;
 
 	/* add immediate to sp */
@@ -1581,6 +1659,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 			break;
 
 		case OP_SRC_POP:
+		case OP_SRC_POPF:
 			if (!state->drap && op->dest.type == OP_DEST_REG &&
 			    op->dest.reg == cfa->base) {
 
@@ -1645,6 +1724,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		break;
 
 	case OP_DEST_PUSH:
+	case OP_DEST_PUSHF:
 		state->stack_size += 8;
 		if (cfa->base == CFI_SP)
 			cfa->offset += 8;
@@ -1735,7 +1815,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		break;
 
 	case OP_DEST_MEM:
-		if (op->src.type != OP_SRC_POP) {
+		if (op->src.type != OP_SRC_POP && op->src.type != OP_SRC_POPF) {
 			WARN_FUNC("unknown stack-related memory operation",
 				  insn->sec, insn->offset);
 			return -1;
@@ -1799,6 +1879,33 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 	return false;
 }
 
+static inline bool func_uaccess_safe(struct symbol *func)
+{
+	if (func)
+		return func->alias->uaccess_safe;
+
+	return false;
+}
+
+static inline const char *insn_dest_name(struct instruction *insn)
+{
+	if (insn->call_dest)
+		return insn->call_dest->name;
+
+	return "{dynamic}";
+}
+
+static int validate_call(struct instruction *insn, struct insn_state *state)
+{
+	if (state->uaccess && !func_uaccess_safe(insn->call_dest)) {
+		WARN_FUNC("call to %s() with UACCESS enabled",
+				insn->sec, insn->offset, insn_dest_name(insn));
+		return 1;
+	}
+
+	return 0;
+}
+
 static int validate_sibling_call(struct instruction *insn, struct insn_state *state)
 {
 	if (has_modified_stack_frame(state)) {
@@ -1807,7 +1914,7 @@ static int validate_sibling_call(struct instruction *insn, struct insn_state *st
 		return 1;
 	}
 
-	return 0;
+	return validate_call(insn, state);
 }
 
 /*
@@ -1855,7 +1962,9 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			if (!insn->hint && !insn_state_match(insn, &state))
 				return 1;
 
-			return 0;
+			/* If we were here with AC=0, but now have AC=1, go again */
+			if (insn->state.uaccess || !state.uaccess)
+				return 0;
 		}
 
 		if (insn->hint) {
@@ -1925,6 +2034,16 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		switch (insn->type) {
 
 		case INSN_RETURN:
+			if (state.uaccess && !func_uaccess_safe(func)) {
+				WARN_FUNC("return with UACCESS enabled", sec, insn->offset);
+				return 1;
+			}
+
+			if (!state.uaccess && func_uaccess_safe(func)) {
+				WARN_FUNC("return with UACCESS disabled from a UACCESS-safe function", sec, insn->offset);
+				return 1;
+			}
+
 			if (func && has_modified_stack_frame(&state)) {
 				WARN_FUNC("return with modified stack frame",
 					  sec, insn->offset);
@@ -1940,17 +2059,22 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			return 0;
 
 		case INSN_CALL:
-			if (is_fentry_call(insn))
-				break;
-
-			ret = dead_end_function(file, insn->call_dest);
-			if (ret == 1)
-				return 0;
-			if (ret == -1)
-				return 1;
-
-			/* fallthrough */
 		case INSN_CALL_DYNAMIC:
+			ret = validate_call(insn, &state);
+			if (ret)
+				return ret;
+
+			if (insn->type == INSN_CALL) {
+				if (is_fentry_call(insn))
+					break;
+
+				ret = dead_end_function(file, insn->call_dest);
+				if (ret == 1)
+					return 0;
+				if (ret == -1)
+					return 1;
+			}
+
 			if (!no_fp && func && !has_valid_stack_frame(&state)) {
 				WARN_FUNC("call without frame pointer save/setup",
 					  sec, insn->offset);
@@ -2003,6 +2127,49 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			if (update_insn_state(insn, &state))
 				return 1;
 
+			if (insn->stack_op.dest.type == OP_DEST_PUSHF) {
+				if (!state.uaccess_stack) {
+					state.uaccess_stack = 1;
+				} else if (state.uaccess_stack >> 31) {
+					WARN_FUNC("PUSHF stack exhausted", sec, insn->offset);
+					return 1;
+				}
+				state.uaccess_stack <<= 1;
+				state.uaccess_stack  |= state.uaccess;
+			}
+
+			if (insn->stack_op.src.type == OP_SRC_POPF) {
+				if (state.uaccess_stack) {
+					state.uaccess = state.uaccess_stack & 1;
+					state.uaccess_stack >>= 1;
+					if (state.uaccess_stack == 1)
+						state.uaccess_stack = 0;
+				}
+			}
+
+			break;
+
+		case INSN_STAC:
+			if (state.uaccess) {
+				WARN_FUNC("recursive UACCESS enable", sec, insn->offset);
+				return 1;
+			}
+
+			state.uaccess = true;
+			break;
+
+		case INSN_CLAC:
+			if (!state.uaccess && insn->func) {
+				WARN_FUNC("redundant UACCESS disable", sec, insn->offset);
+				return 1;
+			}
+
+			if (func_uaccess_safe(func) && !state.uaccess_stack) {
+				WARN_FUNC("UACCESS-safe disables UACCESS", sec, insn->offset);
+				return 1;
+			}
+
+			state.uaccess = false;
 			break;
 
 		default:
@@ -2167,6 +2334,8 @@ static int validate_functions(struct objtool_file *file)
 			insn = find_insn(file, sec, func->offset);
 			if (!insn || insn->ignore)
 				continue;
+
+			state.uaccess = func->alias->uaccess_safe;
 
 			ret = validate_branch(file, insn, state);
 			if (ret && backtrace)

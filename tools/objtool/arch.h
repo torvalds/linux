@@ -33,7 +33,9 @@
 #define INSN_STACK		8
 #define INSN_BUG		9
 #define INSN_NOP		10
-#define INSN_OTHER		11
+#define INSN_STAC		11
+#define INSN_CLAC		12
+#define INSN_OTHER		13
 #define INSN_LAST		INSN_OTHER
 
 enum op_dest_type {
@@ -41,6 +43,7 @@ enum op_dest_type {
 	OP_DEST_REG_INDIRECT,
 	OP_DEST_MEM,
 	OP_DEST_PUSH,
+	OP_DEST_PUSHF,
 	OP_DEST_LEAVE,
 };
 
@@ -55,6 +58,7 @@ enum op_src_type {
 	OP_SRC_REG_INDIRECT,
 	OP_SRC_CONST,
 	OP_SRC_POP,
+	OP_SRC_POPF,
 	OP_SRC_ADD,
 	OP_SRC_AND,
 };

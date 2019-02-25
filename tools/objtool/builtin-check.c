@@ -29,7 +29,7 @@
 #include "builtin.h"
 #include "check.h"
 
-bool no_fp, no_unreachable, retpoline, module, backtrace;
+bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess;
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
@@ -42,6 +42,7 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('r', "retpoline", &retpoline, "Validate retpoline assumptions"),
 	OPT_BOOLEAN('m', "module", &module, "Indicates the object will be part of a kernel module"),
 	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
+	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
 	OPT_END(),
 };
 
