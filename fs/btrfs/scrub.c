@@ -3791,7 +3791,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	struct btrfs_workqueue *scrub_parity = NULL;
 
 	if (btrfs_fs_closing(fs_info))
-		return -EINVAL;
+		return -EAGAIN;
 
 	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
 		/*
