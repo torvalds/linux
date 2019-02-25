@@ -3404,7 +3404,10 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 					    io_parms->tcon->tid, ses->Suid,
 					    io_parms->offset, io_parms->length,
 					    rc);
-		}
+		} else
+			trace_smb3_read_done(xid, req->PersistentFileId,
+				    io_parms->tcon->tid, ses->Suid,
+				    io_parms->offset, 0);
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 		return rc == -ENODATA ? 0 : rc;
 	} else
