@@ -4271,27 +4271,36 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		mutex_lock(&fs_info->cleaner_mutex);
 		ret = relocate_block_group(rc);
 		mutex_unlock(&fs_info->cleaner_mutex);
-		if (ret < 0) {
+		if (ret < 0)
 			err = ret;
-			goto out;
+
+		/*
+		 * We may have gotten ENOSPC after we already dirtied some
+		 * extents.  If writeout happens while we're relocating a
+		 * different block group we could end up hitting the
+		 * BUG_ON(rc->stage == UPDATE_DATA_PTRS) in
+		 * btrfs_reloc_cow_block.  Make sure we write everything out
+		 * properly so we don't trip over this problem, and then break
+		 * out of the loop if we hit an error.
+		 */
+		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
+			ret = btrfs_wait_ordered_range(rc->data_inode, 0,
+						       (u64)-1);
+			if (ret)
+				err = ret;
+			invalidate_mapping_pages(rc->data_inode->i_mapping,
+						 0, -1);
+			rc->stage = UPDATE_DATA_PTRS;
 		}
+
+		if (err < 0)
+			goto out;
 
 		if (rc->extents_found == 0)
 			break;
 
 		btrfs_info(fs_info, "found %llu extents", rc->extents_found);
 
-		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
-			ret = btrfs_wait_ordered_range(rc->data_inode, 0,
-						       (u64)-1);
-			if (ret) {
-				err = ret;
-				goto out;
-			}
-			invalidate_mapping_pages(rc->data_inode->i_mapping,
-						 0, -1);
-			rc->stage = UPDATE_DATA_PTRS;
-		}
 	}
 
 	WARN_ON(rc->block_group->pinned > 0);
