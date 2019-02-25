@@ -238,18 +238,23 @@ static void tcf_proto_put(struct tcf_proto *tp, bool rtnl_held,
 		tcf_proto_destroy(tp, rtnl_held, extack);
 }
 
-static int walker_noop(struct tcf_proto *tp, void *d, struct tcf_walker *arg)
+static int walker_check_empty(struct tcf_proto *tp, void *d,
+			      struct tcf_walker *arg)
 {
-	return -1;
+	if (tp) {
+		arg->nonempty = true;
+		return -1;
+	}
+	return 0;
 }
 
 static bool tcf_proto_is_empty(struct tcf_proto *tp, bool rtnl_held)
 {
-	struct tcf_walker walker = { .fn = walker_noop, };
+	struct tcf_walker walker = { .fn = walker_check_empty, };
 
 	if (tp->ops->walk) {
 		tp->ops->walk(tp, &walker, rtnl_held);
-		return !walker.stop;
+		return !walker.nonempty;
 	}
 	return true;
 }
