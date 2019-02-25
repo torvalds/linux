@@ -87,6 +87,18 @@ config MDIO_BUS_MUX_MMIOREG
 
 	  Currently, only 8/16/32 bits registers are supported.
 
+config MDIO_BUS_MUX_MULTIPLEXER
+	tristate "MDIO bus multiplexer using kernel multiplexer subsystem"
+	depends on OF
+	select MULTIPLEXER
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexer
+	  that is controlled via the kernel multiplexer subsystem. The
+	  bus multiplexer connects one of several child MDIO busses to
+	  a parent bus.  Child bus selection is under the control of
+	  the kernel multiplexer subsystem.
+
 config MDIO_CAVIUM
 	tristate
 
