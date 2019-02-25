@@ -190,10 +190,9 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 	/* copy subelement as we need to change its content to
 	 * mark an ie after it is processed.
 	 */
-	sub_copy = kmalloc(subie_len, gfp);
+	sub_copy = kmemdup(subelement, subie_len, gfp);
 	if (!sub_copy)
 		return 0;
-	memcpy(sub_copy, subelement, subie_len);
 
 	pos = &new_ie[0];
 
