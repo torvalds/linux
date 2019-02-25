@@ -263,8 +263,6 @@ setup_fou_or_gue() {
 
 	${ns_a} ip link set ${encap}_a up
 	${ns_b} ip link set ${encap}_b up
-
-	sleep 1
 }
 
 setup_fou44() {
@@ -302,6 +300,10 @@ setup_gue66() {
 setup_namespaces() {
 	for n in ${NS_A} ${NS_B} ${NS_R1} ${NS_R2}; do
 		ip netns add ${n} || return 1
+
+		# Disable DAD, so that we don't have to wait to use the
+		# configured IPv6 addresses
+		ip netns exec ${n} sysctl -q net/ipv6/conf/default/accept_dad=0
 	done
 }
 
@@ -337,8 +339,6 @@ setup_vti() {
 
 	${ns_a} ip link set vti${proto}_a up
 	${ns_b} ip link set vti${proto}_b up
-
-	sleep 1
 }
 
 setup_vti4() {
@@ -375,8 +375,6 @@ setup_vxlan_or_geneve() {
 
 	${ns_a} ip link set ${type}_a up
 	${ns_b} ip link set ${type}_b up
-
-	sleep 1
 }
 
 setup_geneve4() {
@@ -588,8 +586,8 @@ test_pmtu_ipvX() {
 	mtu "${ns_b}"  veth_B-R2 1500
 
 	# Create route exceptions
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s 1800 ${dst1} > /dev/null
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s 1800 ${dst2} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s 1800 ${dst1} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s 1800 ${dst2} > /dev/null
 
 	# Check that exceptions have been created with the correct PMTU
 	pmtu_1="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst1})"
@@ -621,7 +619,7 @@ test_pmtu_ipvX() {
 	# Decrease remote MTU on path via R2, get new exception
 	mtu "${ns_r2}" veth_R2-B 400
 	mtu "${ns_b}"  veth_B-R2 400
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s 1400 ${dst2} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s 1400 ${dst2} > /dev/null
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
 	check_pmtu_value "lock 552" "${pmtu_2}" "exceeding MTU, with MTU < min_pmtu" || return 1
 
@@ -638,7 +636,7 @@ test_pmtu_ipvX() {
 	check_pmtu_value "1500" "${pmtu_2}" "increasing local MTU" || return 1
 
 	# Get new exception
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s 1400 ${dst2} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s 1400 ${dst2} > /dev/null
 	pmtu_2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
 	check_pmtu_value "lock 552" "${pmtu_2}" "exceeding MTU, with MTU < min_pmtu" || return 1
 }
@@ -687,7 +685,7 @@ test_pmtu_ipvX_over_vxlanY_or_geneveY_exception() {
 
 	mtu "${ns_a}" ${type}_a $((${ll_mtu} + 1000))
 	mtu "${ns_b}" ${type}_b $((${ll_mtu} + 1000))
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
 
 	# Check that exception was created
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
@@ -767,7 +765,7 @@ test_pmtu_ipvX_over_fouY_or_gueY() {
 
 	mtu "${ns_a}" ${encap}_a $((${ll_mtu} + 1000))
 	mtu "${ns_b}" ${encap}_b $((${ll_mtu} + 1000))
-	${ns_a} ${ping} -q -M want -i 0.1 -w 2 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
+	${ns_a} ${ping} -q -M want -i 0.1 -w 1 -s $((${ll_mtu} + 500)) ${dst} > /dev/null
 
 	# Check that exception was created
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
@@ -825,13 +823,13 @@ test_pmtu_vti4_exception() {
 
 	# Send DF packet without exceeding link layer MTU, check that no
 	# exception is created
-	${ns_a} ping -q -M want -i 0.1 -w 2 -s ${ping_payload} ${tunnel4_b_addr} > /dev/null
+	${ns_a} ping -q -M want -i 0.1 -w 1 -s ${ping_payload} ${tunnel4_b_addr} > /dev/null
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
 	check_pmtu_value "" "${pmtu}" "sending packet smaller than PMTU (IP payload length ${esp_payload_rfc4106})" || return 1
 
 	# Now exceed link layer MTU by one byte, check that exception is created
 	# with the right PMTU value
-	${ns_a} ping -q -M want -i 0.1 -w 2 -s $((ping_payload + 1)) ${tunnel4_b_addr} > /dev/null
+	${ns_a} ping -q -M want -i 0.1 -w 1 -s $((ping_payload + 1)) ${tunnel4_b_addr} > /dev/null
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel4_b_addr})"
 	check_pmtu_value "${esp_payload_rfc4106}" "${pmtu}" "exceeding PMTU (IP payload length $((esp_payload_rfc4106 + 1)))"
 }
@@ -847,7 +845,7 @@ test_pmtu_vti6_exception() {
 	mtu "${ns_b}" veth_b 4000
 	mtu "${ns_a}" vti6_a 5000
 	mtu "${ns_b}" vti6_b 5000
-	${ns_a} ${ping6} -q -i 0.1 -w 2 -s 60000 ${tunnel6_b_addr} > /dev/null
+	${ns_a} ${ping6} -q -i 0.1 -w 1 -s 60000 ${tunnel6_b_addr} > /dev/null
 
 	# Check that exception was created
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${tunnel6_b_addr})"
