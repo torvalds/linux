@@ -234,7 +234,7 @@ static int pcpu_chunk_slot(const struct pcpu_chunk *chunk)
 	if (chunk->free_bytes < PCPU_MIN_ALLOC_SIZE || chunk->contig_bits == 0)
 		return 0;
 
-	return pcpu_size_to_slot(chunk->free_bytes);
+	return pcpu_size_to_slot(chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
 }
 
 /* set the pointer to a chunk in a page struct */
