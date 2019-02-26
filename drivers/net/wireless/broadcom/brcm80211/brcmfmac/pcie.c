@@ -730,7 +730,7 @@ static void brcmf_pcie_handle_mb_data(struct brcmf_pciedev_info *devinfo)
 	}
 	if (dtoh_mb_data & BRCMF_D2H_DEV_FWHALT) {
 		brcmf_dbg(PCIE, "D2H_MB_DATA: FW HALT\n");
-		brcmf_dev_coredump(&devinfo->pdev->dev);
+		brcmf_fw_crashed(&devinfo->pdev->dev);
 	}
 }
 
