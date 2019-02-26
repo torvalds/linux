@@ -2977,7 +2977,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 		}
 		STATS_OP_FMT(AMPDU).bw[0][bw] +=
 			pstats->succ_bytes + pstats->retry_bytes;
-		STATS_OP_FMT(AMPDU).nss[0][nss] +=
+		STATS_OP_FMT(AMPDU).nss[0][nss - 1] +=
 			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).gi[0][gi] +=
 			pstats->succ_bytes + pstats->retry_bytes;
@@ -2985,7 +2985,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).bw[1][bw] +=
 			pstats->succ_pkts + pstats->retry_pkts;
-		STATS_OP_FMT(AMPDU).nss[1][nss] +=
+		STATS_OP_FMT(AMPDU).nss[1][nss - 1] +=
 			pstats->succ_pkts + pstats->retry_pkts;
 		STATS_OP_FMT(AMPDU).gi[1][gi] +=
 			pstats->succ_pkts + pstats->retry_pkts;
@@ -2997,27 +2997,27 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	}
 
 	STATS_OP_FMT(SUCC).bw[0][bw] += pstats->succ_bytes;
-	STATS_OP_FMT(SUCC).nss[0][nss] += pstats->succ_bytes;
+	STATS_OP_FMT(SUCC).nss[0][nss - 1] += pstats->succ_bytes;
 	STATS_OP_FMT(SUCC).gi[0][gi] += pstats->succ_bytes;
 
 	STATS_OP_FMT(SUCC).bw[1][bw] += pstats->succ_pkts;
-	STATS_OP_FMT(SUCC).nss[1][nss] += pstats->succ_pkts;
+	STATS_OP_FMT(SUCC).nss[1][nss - 1] += pstats->succ_pkts;
 	STATS_OP_FMT(SUCC).gi[1][gi] += pstats->succ_pkts;
 
 	STATS_OP_FMT(FAIL).bw[0][bw] += pstats->failed_bytes;
-	STATS_OP_FMT(FAIL).nss[0][nss] += pstats->failed_bytes;
+	STATS_OP_FMT(FAIL).nss[0][nss - 1] += pstats->failed_bytes;
 	STATS_OP_FMT(FAIL).gi[0][gi] += pstats->failed_bytes;
 
 	STATS_OP_FMT(FAIL).bw[1][bw] += pstats->failed_pkts;
-	STATS_OP_FMT(FAIL).nss[1][nss] += pstats->failed_pkts;
+	STATS_OP_FMT(FAIL).nss[1][nss - 1] += pstats->failed_pkts;
 	STATS_OP_FMT(FAIL).gi[1][gi] += pstats->failed_pkts;
 
 	STATS_OP_FMT(RETRY).bw[0][bw] += pstats->retry_bytes;
-	STATS_OP_FMT(RETRY).nss[0][nss] += pstats->retry_bytes;
+	STATS_OP_FMT(RETRY).nss[0][nss - 1] += pstats->retry_bytes;
 	STATS_OP_FMT(RETRY).gi[0][gi] += pstats->retry_bytes;
 
 	STATS_OP_FMT(RETRY).bw[1][bw] += pstats->retry_pkts;
-	STATS_OP_FMT(RETRY).nss[1][nss] += pstats->retry_pkts;
+	STATS_OP_FMT(RETRY).nss[1][nss - 1] += pstats->retry_pkts;
 	STATS_OP_FMT(RETRY).gi[1][gi] += pstats->retry_pkts;
 
 	if (txrate->flags >= RATE_INFO_FLAGS_MCS) {
