@@ -6430,6 +6430,9 @@ void devlink_compat_running_version(struct net_device *dev,
 {
 	struct devlink *devlink;
 
+	dev_hold(dev);
+	rtnl_unlock();
+
 	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
 	if (!devlink || !devlink->ops || !devlink->ops->info_get)
@@ -6440,12 +6443,18 @@ void devlink_compat_running_version(struct net_device *dev,
 	mutex_unlock(&devlink->lock);
 unlock_list:
 	mutex_unlock(&devlink_mutex);
+
+	rtnl_lock();
+	dev_put(dev);
 }
 
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 {
 	struct devlink *devlink;
 	int ret = -EOPNOTSUPP;
+
+	dev_hold(dev);
+	rtnl_unlock();
 
 	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
@@ -6457,6 +6466,10 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 	mutex_unlock(&devlink->lock);
 unlock_list:
 	mutex_unlock(&devlink_mutex);
+
+	rtnl_lock();
+	dev_put(dev);
+
 	return ret;
 }
 
