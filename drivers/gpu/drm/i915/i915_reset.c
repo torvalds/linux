@@ -788,7 +788,6 @@ static void nop_submit_request(struct i915_request *request)
 	spin_lock_irqsave(&engine->timeline.lock, flags);
 	__i915_request_submit(request);
 	i915_request_mark_complete(request);
-	intel_engine_write_global_seqno(engine, request->global_seqno);
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
 	intel_engine_queue_breadcrumbs(engine);

@@ -528,13 +528,12 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
 
-			GEM_TRACE("%s in[%d]:  ctx=%d.%d, global=%d (fence %llx:%lld) (current %d:%d), prio=%d\n",
+			GEM_TRACE("%s in[%d]:  ctx=%d.%d, global=%d (fence %llx:%lld) (current %d), prio=%d\n",
 				  engine->name, n,
 				  port[n].context_id, count,
 				  rq->global_seqno,
 				  rq->fence.context, rq->fence.seqno,
 				  hwsp_seqno(rq),
-				  intel_engine_get_seqno(engine),
 				  rq_prio(rq));
 		} else {
 			GEM_BUG_ON(!n);
@@ -840,13 +839,12 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 	while (num_ports-- && port_isset(port)) {
 		struct i915_request *rq = port_request(port);
 
-		GEM_TRACE("%s:port%u global=%d (fence %llx:%lld), (current %d:%d)\n",
+		GEM_TRACE("%s:port%u global=%d (fence %llx:%lld), (current %d)\n",
 			  rq->engine->name,
 			  (unsigned int)(port - execlists->port),
 			  rq->global_seqno,
 			  rq->fence.context, rq->fence.seqno,
-			  hwsp_seqno(rq),
-			  intel_engine_get_seqno(rq->engine));
+			  hwsp_seqno(rq));
 
 		GEM_BUG_ON(!execlists->active);
 		execlists_context_schedule_out(rq,
@@ -902,8 +900,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	struct rb_node *rb;
 	unsigned long flags;
 
-	GEM_TRACE("%s current %d\n",
-		  engine->name, intel_engine_get_seqno(engine));
+	GEM_TRACE("%s\n", engine->name);
 
 	/*
 	 * Before we call engine->cancel_requests(), we should have exclusive
@@ -951,10 +948,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
 	}
-
-	intel_write_status_page(engine,
-				I915_GEM_HWS_INDEX,
-				intel_engine_last_submit(engine));
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
@@ -1071,14 +1064,13 @@ static void process_csb(struct intel_engine_cs *engine)
 						EXECLISTS_ACTIVE_USER));
 
 		rq = port_unpack(port, &count);
-		GEM_TRACE("%s out[0]: ctx=%d.%d, global=%d (fence %llx:%lld) (current %d:%d), prio=%d\n",
+		GEM_TRACE("%s out[0]: ctx=%d.%d, global=%d (fence %llx:%lld) (current %d), prio=%d\n",
 			  engine->name,
 			  port->context_id, count,
 			  rq ? rq->global_seqno : 0,
 			  rq ? rq->fence.context : 0,
 			  rq ? rq->fence.seqno : 0,
 			  rq ? hwsp_seqno(rq) : 0,
-			  intel_engine_get_seqno(engine),
 			  rq ? rq_prio(rq) : 0);
 
 		/* Check the context/desc id for this event matches */
@@ -1946,10 +1938,9 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	/* Following the reset, we need to reload the CSB read/write pointers */
 	reset_csb_pointers(&engine->execlists);
 
-	GEM_TRACE("%s seqno=%d, current=%d, stalled? %s\n",
+	GEM_TRACE("%s seqno=%d, stalled? %s\n",
 		  engine->name,
 		  rq ? rq->global_seqno : 0,
-		  intel_engine_get_seqno(engine),
 		  yesno(stalled));
 	if (!rq)
 		goto out_unlock;

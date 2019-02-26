@@ -226,8 +226,7 @@ static int igt_request_rewind(void *arg)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (i915_request_wait(vip, 0, HZ) == -ETIME) {
-		pr_err("timed out waiting for high priority request, vip.seqno=%d, current seqno=%d\n",
-		       vip->global_seqno, intel_engine_get_seqno(i915->engine[RCS]));
+		pr_err("timed out waiting for high priority request\n");
 		goto err;
 	}
 

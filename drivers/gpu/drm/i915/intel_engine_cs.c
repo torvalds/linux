@@ -455,12 +455,6 @@ cleanup:
 	return err;
 }
 
-void intel_engine_write_global_seqno(struct intel_engine_cs *engine, u32 seqno)
-{
-	intel_write_status_page(engine, I915_GEM_HWS_INDEX, seqno);
-	GEM_BUG_ON(intel_engine_get_seqno(engine) != seqno);
-}
-
 static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
 {
 	i915_gem_batch_pool_init(&engine->batch_pool, engine);
@@ -1011,10 +1005,6 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (i915_reset_failed(engine->i915))
 		return true;
 
-	/* Any inflight/incomplete requests? */
-	if (!intel_engine_signaled(engine, intel_engine_last_submit(engine)))
-		return false;
-
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
@@ -1497,9 +1487,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (i915_reset_failed(engine->i915))
 		drm_printf(m, "*** WEDGED ***\n");
 
-	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x/%x [%d ms]\n",
-		   intel_engine_get_seqno(engine),
-		   intel_engine_last_submit(engine),
+	drm_printf(m, "\tHangcheck %x:%x [%d ms]\n",
 		   engine->hangcheck.last_seqno,
 		   engine->hangcheck.next_seqno,
 		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp));

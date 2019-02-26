@@ -94,8 +94,6 @@ struct i915_gpu_state {
 		u32 cpu_ring_head;
 		u32 cpu_ring_tail;
 
-		u32 last_seqno;
-
 		/* Register state */
 		u32 start;
 		u32 tail;
@@ -108,7 +106,6 @@ struct i915_gpu_state {
 		u32 bbstate;
 		u32 instpm;
 		u32 instps;
-		u32 seqno;
 		u64 bbaddr;
 		u64 acthd;
 		u32 fault_reg;

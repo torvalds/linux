@@ -782,10 +782,9 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 		}
 	}
 
-	GEM_TRACE("%s seqno=%d, current=%d, stalled? %s\n",
+	GEM_TRACE("%s seqno=%d, stalled? %s\n",
 		  engine->name,
 		  rq ? rq->global_seqno : 0,
-		  intel_engine_get_seqno(engine),
 		  yesno(stalled));
 	/*
 	 * The guilty request will get skipped on a hung engine.
@@ -923,10 +922,6 @@ static void cancel_requests(struct intel_engine_cs *engine)
 
 		i915_request_mark_complete(request);
 	}
-
-	intel_write_status_page(engine,
-				I915_GEM_HWS_INDEX,
-				intel_engine_last_submit(engine));
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 

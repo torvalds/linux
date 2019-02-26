@@ -526,8 +526,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 				   ee->vm_info.pp_dir_base);
 		}
 	}
-	err_printf(m, "  seqno: 0x%08x\n", ee->seqno);
-	err_printf(m, "  last_seqno: 0x%08x\n", ee->last_seqno);
 	err_printf(m, "  ring->head: 0x%08x\n", ee->cpu_ring_head);
 	err_printf(m, "  ring->tail: 0x%08x\n", ee->cpu_ring_tail);
 	err_printf(m, "  hangcheck timestamp: %dms (%lu%s)\n",
@@ -1216,8 +1214,6 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	ee->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
 	ee->acthd = intel_engine_get_active_head(engine);
-	ee->seqno = intel_engine_get_seqno(engine);
-	ee->last_seqno = intel_engine_last_submit(engine);
 	ee->start = I915_READ_START(engine);
 	ee->head = I915_READ_HEAD(engine);
 	ee->tail = I915_READ_TAIL(engine);

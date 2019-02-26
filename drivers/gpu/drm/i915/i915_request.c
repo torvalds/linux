@@ -179,12 +179,11 @@ static void free_capture_list(struct i915_request *request)
 static void __retire_engine_request(struct intel_engine_cs *engine,
 				    struct i915_request *rq)
 {
-	GEM_TRACE("%s(%s) fence %llx:%lld, global=%d, current %d:%d\n",
+	GEM_TRACE("%s(%s) fence %llx:%lld, global=%d, current %d\n",
 		  __func__, engine->name,
 		  rq->fence.context, rq->fence.seqno,
 		  rq->global_seqno,
-		  hwsp_seqno(rq),
-		  intel_engine_get_seqno(engine));
+		  hwsp_seqno(rq));
 
 	GEM_BUG_ON(!i915_request_completed(rq));
 
@@ -243,12 +242,11 @@ static void i915_request_retire(struct i915_request *request)
 {
 	struct i915_active_request *active, *next;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d:%d\n",
+	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
 		  request->engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
-		  hwsp_seqno(request),
-		  intel_engine_get_seqno(request->engine));
+		  hwsp_seqno(request));
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
@@ -305,12 +303,11 @@ void i915_request_retire_upto(struct i915_request *rq)
 	struct intel_ring *ring = rq->ring;
 	struct i915_request *tmp;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d:%d\n",
+	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
 		  rq->engine->name,
 		  rq->fence.context, rq->fence.seqno,
 		  rq->global_seqno,
-		  hwsp_seqno(rq),
-		  intel_engine_get_seqno(rq->engine));
+		  hwsp_seqno(rq));
 
 	lockdep_assert_held(&rq->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_request_completed(rq));
@@ -354,12 +351,11 @@ void __i915_request_submit(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	u32 seqno;
 
-	GEM_TRACE("%s fence %llx:%lld -> global=%d, current %d:%d\n",
+	GEM_TRACE("%s fence %llx:%lld -> global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  engine->timeline.seqno + 1,
-		  hwsp_seqno(request),
-		  intel_engine_get_seqno(engine));
+		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline.lock);
@@ -371,7 +367,6 @@ void __i915_request_submit(struct i915_request *request)
 
 	seqno = next_global_seqno(&engine->timeline);
 	GEM_BUG_ON(!seqno);
-	GEM_BUG_ON(intel_engine_signaled(engine, seqno));
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -409,12 +404,11 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%lld <- global=%d, current %d:%d\n",
+	GEM_TRACE("%s fence %llx:%lld <- global=%d, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  request->global_seqno,
-		  hwsp_seqno(request),
-		  intel_engine_get_seqno(engine));
+		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline.lock);
@@ -425,7 +419,6 @@ void __i915_request_unsubmit(struct i915_request *request)
 	 */
 	GEM_BUG_ON(!request->global_seqno);
 	GEM_BUG_ON(request->global_seqno != engine->timeline.seqno);
-	GEM_BUG_ON(intel_engine_has_completed(engine, request->global_seqno));
 	engine->timeline.seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
