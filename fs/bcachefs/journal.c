@@ -1084,35 +1084,54 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 {
 	struct printbuf out = _PBUF(buf, PAGE_SIZE);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	union journal_res_state *s = &j->reservations;
+	union journal_res_state s;
 	struct bch_dev *ca;
 	unsigned iter;
 
 	rcu_read_lock();
 	spin_lock(&j->lock);
+	s = READ_ONCE(j->reservations);
 
 	pr_buf(&out,
 	       "active journal entries:\t%llu\n"
 	       "seq:\t\t\t%llu\n"
 	       "last_seq:\t\t%llu\n"
 	       "last_seq_ondisk:\t%llu\n"
-	       "reservation count:\t%u\n"
-	       "reservation offset:\t%u\n"
-	       "current entry u64s:\t%u\n"
-	       "io in flight:\t\t%i\n"
-	       "need write:\t\t%i\n"
-	       "dirty:\t\t\t%i\n"
-	       "replay done:\t\t%i\n",
+	       "current entry:\t\t",
 	       fifo_used(&j->pin),
 	       journal_cur_seq(j),
 	       journal_last_seq(j),
-	       j->last_seq_ondisk,
-	       journal_state_count(*s, s->idx),
-	       s->cur_entry_offset,
-	       j->cur_entry_u64s,
-	       s->prev_buf_unwritten,
+	       j->last_seq_ondisk);
+
+	switch (s.cur_entry_offset) {
+	case JOURNAL_ENTRY_ERROR_VAL:
+		pr_buf(&out, "error\n");
+		break;
+	case JOURNAL_ENTRY_CLOSED_VAL:
+		pr_buf(&out, "closed\n");
+		break;
+	default:
+		pr_buf(&out, "%u/%u\n",
+		       s.cur_entry_offset,
+		       j->cur_entry_u64s);
+		break;
+	}
+
+	pr_buf(&out,
+	       "current entry refs:\t%u\n"
+	       "prev entry unwritten:\t",
+	       journal_state_count(s, s.idx));
+
+	if (s.prev_buf_unwritten)
+		pr_buf(&out, "yes, ref %u\n",
+		       journal_state_count(s, !s.idx));
+	else
+		pr_buf(&out, "no\n");
+
+	pr_buf(&out,
+	       "need write:\t\t%i\n"
+	       "replay done:\t\t%i\n",
 	       test_bit(JOURNAL_NEED_WRITE,	&j->flags),
-	       journal_entry_is_open(j),
 	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
 	for_each_member_device_rcu(ca, c, iter,
