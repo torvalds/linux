@@ -56,7 +56,6 @@ struct frag_v6_compare_key {
  * @timer: queue expiration timer
  * @lock: spinlock protecting this frag
  * @refcnt: reference count of the queue
- * @fragments: received fragments head
  * @rb_fragments: received fragments rb-tree root
  * @fragments_tail: received fragments tail
  * @last_run_head: the head of the last "run". see ip_fragment.c
@@ -77,8 +76,7 @@ struct inet_frag_queue {
 	struct timer_list	timer;
 	spinlock_t		lock;
 	refcount_t		refcnt;
-	struct sk_buff		*fragments;  /* used in 6lopwpan IPv6. */
-	struct rb_root		rb_fragments; /* Used in IPv4/IPv6. */
+	struct rb_root		rb_fragments;
 	struct sk_buff		*fragments_tail;
 	struct sk_buff		*last_run_head;
 	ktime_t			stamp;

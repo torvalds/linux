@@ -304,7 +304,6 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 	rcu_read_lock();
 	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMOKS);
 	rcu_read_unlock();
-	fq->q.fragments = NULL;
 	fq->q.rb_fragments = RB_ROOT;
 	fq->q.fragments_tail = NULL;
 	fq->q.last_run_head = NULL;

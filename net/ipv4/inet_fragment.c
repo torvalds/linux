@@ -203,7 +203,6 @@ EXPORT_SYMBOL(inet_frag_rbtree_purge);
 
 void inet_frag_destroy(struct inet_frag_queue *q)
 {
-	struct sk_buff *fp;
 	struct netns_frags *nf;
 	unsigned int sum, sum_truesize = 0;
 	struct inet_frags *f;
@@ -212,20 +211,9 @@ void inet_frag_destroy(struct inet_frag_queue *q)
 	WARN_ON(del_timer(&q->timer) != 0);
 
 	/* Release all fragment data. */
-	fp = q->fragments;
 	nf = q->net;
 	f = nf->f;
-	if (fp) {
-		do {
-			struct sk_buff *xp = fp->next;
-
-			sum_truesize += fp->truesize;
-			kfree_skb(fp);
-			fp = xp;
-		} while (fp);
-	} else {
-		sum_truesize = inet_frag_rbtree_purge(&q->rb_fragments);
-	}
+	sum_truesize = inet_frag_rbtree_purge(&q->rb_fragments);
 	sum = sum_truesize + f->qsize;
 
 	call_rcu(&q->rcu, inet_frag_destroy_rcu);
@@ -489,26 +477,20 @@ EXPORT_SYMBOL(inet_frag_reasm_finish);
 
 struct sk_buff *inet_frag_pull_head(struct inet_frag_queue *q)
 {
-	struct sk_buff *head;
+	struct sk_buff *head, *skb;
 
-	if (q->fragments) {
-		head = q->fragments;
-		q->fragments = head->next;
-	} else {
-		struct sk_buff *skb;
+	head = skb_rb_first(&q->rb_fragments);
+	if (!head)
+		return NULL;
+	skb = FRAG_CB(head)->next_frag;
+	if (skb)
+		rb_replace_node(&head->rbnode, &skb->rbnode,
+				&q->rb_fragments);
+	else
+		rb_erase(&head->rbnode, &q->rb_fragments);
+	memset(&head->rbnode, 0, sizeof(head->rbnode));
+	barrier();
 
-		head = skb_rb_first(&q->rb_fragments);
-		if (!head)
-			return NULL;
-		skb = FRAG_CB(head)->next_frag;
-		if (skb)
-			rb_replace_node(&head->rbnode, &skb->rbnode,
-					&q->rb_fragments);
-		else
-			rb_erase(&head->rbnode, &q->rb_fragments);
-		memset(&head->rbnode, 0, sizeof(head->rbnode));
-		barrier();
-	}
 	if (head == q->fragments_tail)
 		q->fragments_tail = NULL;
 

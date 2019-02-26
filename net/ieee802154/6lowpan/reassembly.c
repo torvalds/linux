@@ -179,7 +179,6 @@ static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
 
 	skb->dev = ldev;
 	skb->tstamp = fq->q.stamp;
-	fq->q.fragments = NULL;
 	fq->q.rb_fragments = RB_ROOT;
 	fq->q.fragments_tail = NULL;
 	fq->q.last_run_head = NULL;

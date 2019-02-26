@@ -261,7 +261,6 @@ static int ip_frag_reinit(struct ipq *qp)
 	qp->q.flags = 0;
 	qp->q.len = 0;
 	qp->q.meat = 0;
-	qp->q.fragments = NULL;
 	qp->q.rb_fragments = RB_ROOT;
 	qp->q.fragments_tail = NULL;
 	qp->q.last_run_head = NULL;
@@ -451,7 +450,6 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	ip_send_check(iph);
 
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMOKS);
-	qp->q.fragments = NULL;
 	qp->q.rb_fragments = RB_ROOT;
 	qp->q.fragments_tail = NULL;
 	qp->q.last_run_head = NULL;
