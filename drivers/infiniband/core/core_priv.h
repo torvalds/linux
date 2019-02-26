@@ -336,4 +336,8 @@ int roce_resolve_route_from_path(struct sa_path_rec *rec,
 				 const struct ib_gid_attr *attr);
 
 struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
+
+void ib_free_port_attrs(struct ib_core_device *coredev);
+int ib_setup_port_attrs(struct ib_core_device *coredev,
+			bool alloc_hw_stats);
 #endif /* _CORE_PRIV_H */

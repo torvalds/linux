@@ -1015,7 +1015,8 @@ err_free_stats:
 	return;
 }
 
-static int add_port(struct ib_core_device *coredev, int port_num)
+static int add_port(struct ib_core_device *coredev,
+		    int port_num, bool alloc_stats)
 {
 	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
 	struct ib_port *p;
@@ -1056,7 +1057,7 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 		goto err_put;
 	}
 
-	if (device->ops.process_mad) {
+	if (device->ops.process_mad && alloc_stats) {
 		p->pma_table = get_counter_table(device, port_num);
 		ret = sysfs_create_group(&p->kobj, p->pma_table);
 		if (ret)
@@ -1123,7 +1124,7 @@ static int add_port(struct ib_core_device *coredev, int port_num)
 	 * port, so holder should be device. Therefore skip per port conunter
 	 * initialization.
 	 */
-	if (device->ops.alloc_hw_stats && port_num)
+	if (device->ops.alloc_hw_stats && port_num && alloc_stats)
 		setup_hw_stats(device, p, port_num);
 
 	list_add_tail(&p->kobj.entry, &coredev->port_list);
@@ -1280,7 +1281,7 @@ const struct attribute_group ib_dev_attr_group = {
 	.attrs = ib_dev_attrs,
 };
 
-static void ib_free_port_attrs(struct ib_core_device *coredev)
+void ib_free_port_attrs(struct ib_core_device *coredev)
 {
 	struct kobject *p, *t;
 
@@ -1307,7 +1308,7 @@ static void ib_free_port_attrs(struct ib_core_device *coredev)
 	kobject_put(coredev->ports_kobj);
 }
 
-static int ib_setup_port_attrs(struct ib_core_device *coredev)
+int ib_setup_port_attrs(struct ib_core_device *coredev, bool alloc_stats)
 {
 	struct ib_device *device = rdma_device_to_ibdev(&coredev->dev);
 	unsigned int port;
@@ -1319,7 +1320,7 @@ static int ib_setup_port_attrs(struct ib_core_device *coredev)
 		return -ENOMEM;
 
 	rdma_for_each_port (device, port) {
-		ret = add_port(coredev, port);
+		ret = add_port(coredev, port, alloc_stats);
 		if (ret)
 			goto err_put;
 	}
@@ -1335,7 +1336,7 @@ int ib_device_register_sysfs(struct ib_device *device)
 {
 	int ret;
 
-	ret = ib_setup_port_attrs(&device->coredev);
+	ret = ib_setup_port_attrs(&device->coredev, true);
 	if (ret)
 		return ret;
 

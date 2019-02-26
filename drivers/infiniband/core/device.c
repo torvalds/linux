@@ -773,6 +773,9 @@ static int add_one_compat_dev(struct ib_device *device,
 	ret = device_add(&cdev->dev);
 	if (ret)
 		goto add_err;
+	ret = ib_setup_port_attrs(cdev, false);
+	if (ret)
+		goto port_err;
 
 	ret = xa_err(xa_store(&device->compat_devs, rnet->id,
 			      cdev, GFP_KERNEL));
@@ -783,6 +786,8 @@ static int add_one_compat_dev(struct ib_device *device,
 	return 0;
 
 insert_err:
+	ib_free_port_attrs(cdev);
+port_err:
 	device_del(&cdev->dev);
 add_err:
 	put_device(&cdev->dev);
@@ -801,6 +806,7 @@ static void remove_one_compat_dev(struct ib_device *device, u32 id)
 	cdev = xa_erase(&device->compat_devs, id);
 	mutex_unlock(&device->compat_devs_mutex);
 	if (cdev) {
+		ib_free_port_attrs(cdev);
 		device_del(&cdev->dev);
 		put_device(&cdev->dev);
 	}
