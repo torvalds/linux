@@ -127,6 +127,10 @@ static DEFINE_XARRAY_FLAGS(rdma_nets, XA_FLAGS_ALLOC);
  */
 static DECLARE_RWSEM(rdma_nets_rwsem);
 
+static bool ib_devices_shared_netns = true;
+module_param_named(netns_mode, ib_devices_shared_netns, bool, 0444);
+MODULE_PARM_DESC(netns_mode,
+		 "Share device among net namespaces; default=1 (shared)");
 /*
  * xarray has this behavior where it won't iterate over NULL values stored in
  * allocated arrays.  So we need our own iterator to see all values stored in
@@ -735,6 +739,9 @@ static int add_one_compat_dev(struct ib_device *device,
 {
 	struct ib_core_device *cdev;
 	int ret;
+
+	if (!ib_devices_shared_netns)
+		return 0;
 
 	/*
 	 * Create and add compat device in all namespaces other than where it
