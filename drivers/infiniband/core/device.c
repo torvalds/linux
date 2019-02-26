@@ -357,10 +357,17 @@ static int ib_device_uevent(struct device *device,
 	return 0;
 }
 
+static const void *net_namespace(struct device *d)
+{
+	return &init_net;
+}
+
 static struct class ib_class = {
 	.name    = "infiniband",
 	.dev_release = ib_device_release,
 	.dev_uevent = ib_device_uevent,
+	.ns_type = &net_ns_type_operations,
+	.namespace = net_namespace,
 };
 
 static void rdma_init_coredev(struct ib_core_device *coredev,
@@ -1966,5 +1973,8 @@ static void __exit ib_core_cleanup(void)
 
 MODULE_ALIAS_RDMA_NETLINK(RDMA_NL_LS, 4);
 
-subsys_initcall(ib_core_init);
+/* ib core relies on netdev stack to first register net_ns_type_operations
+ * ns kobject type before ib_core initialization.
+ */
+fs_initcall(ib_core_init);
 module_exit(ib_core_cleanup);
