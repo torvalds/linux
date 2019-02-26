@@ -60,8 +60,8 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	struct sun4i_tcon *tcon = rgb->tcon;
 	u32 hsync = mode->hsync_end - mode->hsync_start;
 	u32 vsync = mode->vsync_end - mode->vsync_start;
-	unsigned long rate = mode->clock * 1000;
-	long rounded_rate;
+	unsigned long long rate = mode->clock * 1000;
+	unsigned long long rounded_rate;
 
 	DRM_DEBUG_DRIVER("Validating modes...\n");
 
