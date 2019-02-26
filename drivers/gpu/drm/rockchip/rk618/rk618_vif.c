@@ -117,8 +117,6 @@ static void rk618_vif_init(struct rk618_vif *vif,
 		     VIF_VS_END(vif_vs_end) | VIF_VTOTAL(vif_vtotal));
 	regmap_write(vif->regmap, RK618_VIF0_REG5,
 		     VIF_VACT_END(vif_vact_end) | VIF_VACT_ST(vif_vact_st));
-	regmap_write(vif->regmap, RK618_IO_CON0,
-		     VIF0_SYNC_MODE_ENABLE);
 }
 
 static void rk618_vif_bridge_enable(struct drm_bridge *bridge)
@@ -133,6 +131,7 @@ static void rk618_vif_bridge_enable(struct drm_bridge *bridge)
 	clk_set_rate(vif->vif_clk, rate);
 	clk_prepare_enable(vif->vif_clk);
 
+	rk618_vif_disable(vif);
 	rk618_vif_init(vif, mode);
 	rk618_vif_enable(vif);
 }
