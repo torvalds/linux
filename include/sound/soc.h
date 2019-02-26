@@ -802,6 +802,9 @@ struct snd_soc_component_driver {
 	int probe_order;
 	int remove_order;
 
+	/* signal if the module handling the component cannot be removed */
+	unsigned int ignore_module_refcount:1;
+
 	/* bits */
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
@@ -891,6 +894,18 @@ struct snd_soc_dai_link {
 	/* config - must be set by machine driver */
 	const char *name;			/* Codec name */
 	const char *stream_name;		/* Stream name */
+
+	/*
+	 *	cpu_name
+	 *	cpu_of_node
+	 *	cpu_dai_name
+	 *
+	 * These are legacy style, and will be replaced to
+	 * modern style (= snd_soc_dai_link_component) in the future,
+	 * but, not yet supported so far.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
 	/*
 	 * You MAY specify the link's CPU-side device, either by device name,
 	 * or by DT/OF node, but not both. If this information is omitted,
@@ -906,6 +921,19 @@ struct snd_soc_dai_link {
 	 * only, which only works well when that device exposes a single DAI.
 	 */
 	const char *cpu_dai_name;
+
+	/*
+	 *	codec_name
+	 *	codec_of_node
+	 *	codec_dai_name
+	 *
+	 * These are legacy style, it will be converted to modern style
+	 * (= snd_soc_dai_link_component) automatically in soc-core
+	 * if driver is using legacy style.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
 	/*
 	 * You MUST specify the link's codec, either by device name, or by
 	 * DT/OF node, but not both.
@@ -919,13 +947,25 @@ struct snd_soc_dai_link {
 	unsigned int num_codecs;
 
 	/*
+	 *	platform_name
+	 *	platform_of_node
+	 *
+	 * These are legacy style, it will be converted to modern style
+	 * (= snd_soc_dai_link_component) automatically in soc-core
+	 * if driver is using legacy style.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * If modern style was supported for CPU, all driver will switch
+	 * to use it, and, legacy style code will be removed from ALSA SoC.
+	 */
+	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
 	 * device name, or by DT/OF node, but not both. Some forms of link
 	 * do not need a platform.
 	 */
 	const char *platform_name;
 	struct device_node *platform_of_node;
-	struct snd_soc_dai_link_component *platform;
+	struct snd_soc_dai_link_component *platforms;
+	unsigned int num_platforms;
 
 	int id;	/* optional ID for machine driver link identification */
 
@@ -1541,6 +1581,37 @@ struct snd_soc_dai *snd_soc_card_get_codec_dai(struct snd_soc_card *card,
 	}
 
 	return NULL;
+}
+
+static inline
+int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
+					  const char *platform_name)
+{
+	struct snd_soc_dai_link *dai_link;
+	const char *name;
+	int i;
+
+	if (!platform_name) /* nothing to do */
+		return 0;
+
+	/* set platform name for each dailink */
+	for_each_card_prelinks(card, i, dai_link) {
+		name = devm_kstrdup(card->dev, platform_name, GFP_KERNEL);
+		if (!name)
+			return -ENOMEM;
+
+		if (dai_link->platforms)
+			/* only single platform is supported for now */
+			dai_link->platforms->name = name;
+		else
+			/*
+			 * legacy mode, this case will be removed when all
+			 * derivers are switched to modern style dai_link.
+			 */
+			dai_link->platform_name = name;
+	}
+
+	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS

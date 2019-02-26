@@ -416,7 +416,7 @@ int skl_resume_dsp(struct skl *skl)
 	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
 
 	/* check if DSP 1st boot is done */
-	if (skl->skl_sst->is_first_boot == true)
+	if (skl->skl_sst->is_first_boot)
 		return 0;
 
 	/*

@@ -1,0 +1,6 @@
+config SND_SOC_SPRD
+	tristate "SoC Audio for the Spreadtrum SoC chips"
+	depends on ARCH_SPRD || COMPILE_TEST
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Spreadtrum SoCs' Audio interfaces.
