@@ -376,3 +376,14 @@ void nfp_devlink_port_unregister(struct nfp_port *port)
 {
 	devlink_port_unregister(&port->dl_port);
 }
+
+struct devlink *nfp_devlink_get_devlink(struct net_device *netdev)
+{
+	struct nfp_app *app;
+
+	app = nfp_app_from_netdev(netdev);
+	if (!app)
+		return NULL;
+
+	return priv_to_devlink(app->pf);
+}

@@ -538,6 +538,15 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
+static inline struct devlink *netdev_to_devlink(struct net_device *dev)
+{
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+	if (dev->netdev_ops->ndo_get_devlink)
+		return dev->netdev_ops->ndo_get_devlink(dev);
+#endif
+	return NULL;
+}
+
 struct ib_device;
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
@@ -706,6 +715,10 @@ void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
 int devlink_health_report(struct devlink_health_reporter *reporter,
 			  const char *msg, void *priv_ctx);
+
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len);
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
 
 #else
 
@@ -1190,13 +1203,7 @@ devlink_health_report(struct devlink_health_reporter *reporter,
 {
 	return 0;
 }
-#endif
 
-#if IS_REACHABLE(CONFIG_NET_DEVLINK)
-void devlink_compat_running_version(struct net_device *dev,
-				    char *buf, size_t len);
-int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
-#else
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 {
