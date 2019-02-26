@@ -873,13 +873,13 @@
  * @socket_getpeersec_dgram:
  *	This hook allows the security module to provide peer socket security
  *	state for udp sockets on a per-packet basis to userspace via
- *	getsockopt SO_GETPEERSEC.  The application must first have indicated
- *	the IP_PASSSEC option via getsockopt.  It can then retrieve the
+ *	getsockopt SO_GETPEERSEC. The application must first have indicated
+ *	the IP_PASSSEC option via getsockopt. It can then retrieve the
  *	security state returned by this hook for a packet via the SCM_SECURITY
  *	ancillary message type.
- *	@skb is the skbuff for the packet being queried
- *	@secdata is a pointer to a buffer in which to copy the security data
- *	@seclen is the maximum length for @secdata
+ *	@sock contains the peer socket. May be NULL.
+ *	@skb is the sk_buff for the packet being queried. May be NULL.
+ *	@secid pointer to store the secid of the packet.
  *	Return 0 on success, error on failure.
  * @sk_alloc_security:
  *	Allocate and attach a security structure to the sk->sk_security field,
