@@ -4534,6 +4534,13 @@ enum wmi_10_4_stats_id {
 	WMI_10_4_STAT_VDEV_EXTD		= BIT(4),
 };
 
+enum wmi_tlv_stats_id {
+	WMI_TLV_STAT_PDEV	= BIT(0),
+	WMI_TLV_STAT_VDEV	= BIT(1),
+	WMI_TLV_STAT_PEER	= BIT(2),
+	WMI_TLV_STAT_PEER_EXTD  = BIT(10),
+};
+
 struct wlan_inst_rssi_args {
 	__le16 cfg_retry_count;
 	__le16 retry_count;
