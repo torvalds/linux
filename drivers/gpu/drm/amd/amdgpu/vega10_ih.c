@@ -219,7 +219,7 @@ static uint32_t vega10_ih_doorbell_rptr(struct amdgpu_ih_ring *ih)
 static int vega10_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih;
-	u32 ih_rb_cntl;
+	u32 ih_rb_cntl, ih_chicken;
 	int ret = 0;
 	u32 tmp;
 
@@ -245,6 +245,15 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		}
 	} else {
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
+	}
+
+	if (adev->asic_type == CHIP_ARCTURUS &&
+		adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+		if (adev->irq.ih.use_bus_addr) {
+			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+			ih_chicken |= 0x00000010;
+			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
+		}
 	}
 
 	/* set the writeback address whether it's enabled or not */
