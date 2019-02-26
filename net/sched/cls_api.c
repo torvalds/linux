@@ -238,10 +238,10 @@ static void tcf_proto_put(struct tcf_proto *tp, bool rtnl_held,
 		tcf_proto_destroy(tp, rtnl_held, extack);
 }
 
-static int walker_check_empty(struct tcf_proto *tp, void *d,
+static int walker_check_empty(struct tcf_proto *tp, void *fh,
 			      struct tcf_walker *arg)
 {
-	if (tp) {
+	if (fh) {
 		arg->nonempty = true;
 		return -1;
 	}
