@@ -171,7 +171,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 static int uprobe_breakpoint_handler(struct pt_regs *regs,
 		unsigned int esr)
 {
-	if (user_mode(regs) && uprobe_pre_sstep_notifier(regs))
+	if (uprobe_pre_sstep_notifier(regs))
 		return DBG_HOOK_HANDLED;
 
 	return DBG_HOOK_ERROR;
@@ -182,13 +182,9 @@ static int uprobe_single_step_handler(struct pt_regs *regs,
 {
 	struct uprobe_task *utask = current->utask;
 
-	if (user_mode(regs)) {
-		WARN_ON(utask &&
-			(instruction_pointer(regs) != utask->xol_vaddr + 4));
-
-		if (uprobe_post_sstep_notifier(regs))
-			return DBG_HOOK_HANDLED;
-	}
+	WARN_ON(utask && (instruction_pointer(regs) != utask->xol_vaddr + 4));
+	if (uprobe_post_sstep_notifier(regs))
+		return DBG_HOOK_HANDLED;
 
 	return DBG_HOOK_ERROR;
 }

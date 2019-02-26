@@ -947,9 +947,6 @@ int is_valid_bugaddr(unsigned long addr)
 
 static int bug_handler(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
-
 	switch (report_bug(regs->pc, regs)) {
 	case BUG_TRAP_TYPE_BUG:
 		die("Oops - BUG", regs, 0);
@@ -987,9 +984,6 @@ static int kasan_handler(struct pt_regs *regs, unsigned int esr)
 	size_t size = KASAN_ESR_SIZE(esr);
 	u64 addr = regs->regs[0];
 	u64 pc = regs->pc;
-
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
 
 	kasan_report(addr, size, write, pc);
 
