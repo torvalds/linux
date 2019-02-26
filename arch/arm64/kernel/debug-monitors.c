@@ -258,10 +258,6 @@ static int single_step_handler(unsigned long unused, unsigned int esr,
 	if (!reinstall_suspended_bps(regs))
 		return 0;
 
-#ifdef	CONFIG_KPROBES
-	if (kprobe_single_step_handler(regs, esr) == DBG_HOOK_HANDLED)
-		handler_found = true;
-#endif
 	if (!handler_found && call_step_hook(regs, esr) == DBG_HOOK_HANDLED)
 		handler_found = true;
 
@@ -337,12 +333,6 @@ static int brk_handler(unsigned long unused, unsigned int esr,
 {
 	bool handler_found = false;
 
-#ifdef	CONFIG_KPROBES
-	if ((esr & BRK64_ESR_MASK) == BRK64_ESR_KPROBES) {
-		if (kprobe_breakpoint_handler(regs, esr) == DBG_HOOK_HANDLED)
-			handler_found = true;
-	}
-#endif
 	if (!handler_found && call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
 		handler_found = true;
 

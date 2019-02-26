@@ -439,7 +439,7 @@ kprobe_ss_hit(struct kprobe_ctlblk *kcb, unsigned long addr)
 	return DBG_HOOK_ERROR;
 }
 
-int __kprobes
+static int __kprobes
 kprobe_single_step_handler(struct pt_regs *regs, unsigned int esr)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -461,7 +461,11 @@ kprobe_single_step_handler(struct pt_regs *regs, unsigned int esr)
 	return retval;
 }
 
-int __kprobes
+static struct step_hook kprobes_step_hook = {
+	.fn = kprobe_single_step_handler,
+};
+
+static int __kprobes
 kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 {
 	if (user_mode(regs))
@@ -470,6 +474,11 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 	kprobe_handler(regs);
 	return DBG_HOOK_HANDLED;
 }
+
+static struct break_hook kprobes_break_hook = {
+	.imm = BRK64_ESR_KPROBES,
+	.fn = kprobe_breakpoint_handler,
+};
 
 /*
  * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
@@ -599,5 +608,8 @@ int __kprobes arch_trampoline_kprobe(struct kprobe *p)
 
 int __init arch_init_kprobes(void)
 {
+	register_kernel_break_hook(&kprobes_break_hook);
+	register_kernel_step_hook(&kprobes_step_hook);
+
 	return 0;
 }
