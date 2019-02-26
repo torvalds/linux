@@ -75,16 +75,6 @@ struct scsi_cmnd {
 	int eh_eflags;		/* Used by error handlr */
 
 	/*
-	 * A SCSI Command is assigned a nonzero serial_number before passed
-	 * to the driver's queue command function.  The serial_number is
-	 * cleared when scsi_done is entered indicating that the command
-	 * has been completed.  It is a bug for LLDDs to use this number
-	 * for purposes other than printk (and even that is only useful
-	 * for debugging).
-	 */
-	unsigned long serial_number;
-
-	/*
 	 * This is set to jiffies as it was when the command was first
 	 * allocated.  It is used to time how long the command has
 	 * been outstanding

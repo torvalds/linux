@@ -316,7 +316,6 @@ EXPORT_SYMBOL(__scsi_execute);
  */
 static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
-	cmd->serial_number = 0;
 	scsi_set_resid(cmd, 0);
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	if (cmd->cmd_len == 0)
