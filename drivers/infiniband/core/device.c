@@ -363,6 +363,25 @@ static struct class ib_class = {
 	.dev_uevent = ib_device_uevent,
 };
 
+static void rdma_init_coredev(struct ib_core_device *coredev,
+			      struct ib_device *dev)
+{
+	/* This BUILD_BUG_ON is intended to catch layout change
+	 * of union of ib_core_device and device.
+	 * dev must be the first element as ib_core and providers
+	 * driver uses it. Adding anything in ib_core_device before
+	 * device will break this assumption.
+	 */
+	BUILD_BUG_ON(offsetof(struct ib_device, coredev.dev) !=
+		     offsetof(struct ib_device, dev));
+
+	coredev->dev.class = &ib_class;
+	coredev->dev.groups = dev->groups;
+	device_initialize(&coredev->dev);
+	coredev->owner = dev;
+	INIT_LIST_HEAD(&coredev->port_list);
+}
+
 /**
  * _ib_alloc_device - allocate an IB device struct
  * @size:size of structure to allocate
@@ -389,10 +408,8 @@ struct ib_device *_ib_alloc_device(size_t size)
 		return NULL;
 	}
 
-	device->dev.class = &ib_class;
 	device->groups[0] = &ib_dev_attr_group;
-	device->dev.groups = device->groups;
-	device_initialize(&device->dev);
+	rdma_init_coredev(&device->coredev, device);
 
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->event_handler_lock);
@@ -403,7 +420,6 @@ struct ib_device *_ib_alloc_device(size_t size)
 	 */
 	xa_init_flags(&device->client_data, XA_FLAGS_ALLOC);
 	init_rwsem(&device->client_data_rwsem);
-	INIT_LIST_HEAD(&device->port_list);
 	init_completion(&device->unreg_completion);
 	INIT_WORK(&device->unregistration_work, ib_unregister_work);
 

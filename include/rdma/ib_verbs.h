@@ -2554,8 +2554,17 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };
 
-struct rdma_restrack_root;
+struct ib_core_device {
+	/* device must be the first element in structure until,
+	 * union of ib_core_device and device exists in ib_device.
+	 */
+	struct device dev;
+	struct kobject *ports_kobj;
+	struct list_head port_list;
+	struct ib_device *owner; /* reach back to owner ib_device */
+};
 
+struct rdma_restrack_root;
 struct ib_device {
 	/* Do not access @dma_device directly from ULP nor from HW drivers. */
 	struct device                *dma_device;
@@ -2581,15 +2590,16 @@ struct ib_device {
 	struct iw_cm_verbs	     *iwcm;
 
 	struct module               *owner;
-	struct device                dev;
+	union {
+		struct device		dev;
+		struct ib_core_device	coredev;
+	};
+
 	/* First group for device attributes,
 	 * Second group for driver provided attributes (optional).
 	 * It is NULL terminated array.
 	 */
 	const struct attribute_group	*groups[3];
-
-	struct kobject			*ports_kobj;
-	struct list_head             port_list;
 
 	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
@@ -4349,7 +4359,10 @@ rdma_set_device_sysfs_group(struct ib_device *dev,
  */
 static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
 {
-	return container_of(device, struct ib_device, dev);
+	struct ib_core_device *coredev =
+		container_of(device, struct ib_core_device, dev);
+
+	return coredev->owner;
 }
 
 /**
