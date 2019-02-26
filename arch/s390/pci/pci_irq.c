@@ -433,6 +433,9 @@ int __init zpci_irq_init(void)
 	int rc;
 
 	irq_delivery = sclp.has_dirq ? DIRECTED : FLOATING;
+	if (s390_pci_force_floating)
+		irq_delivery = FLOATING;
+
 	if (irq_delivery == DIRECTED)
 		zpci_airq.handler = zpci_directed_irq_handler;
 

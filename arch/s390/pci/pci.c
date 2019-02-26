@@ -741,12 +741,17 @@ static void zpci_mem_exit(void)
 }
 
 static unsigned int s390_pci_probe __initdata = 1;
+unsigned int s390_pci_force_floating __initdata;
 static unsigned int s390_pci_initialized;
 
 char * __init pcibios_setup(char *str)
 {
 	if (!strcmp(str, "off")) {
 		s390_pci_probe = 0;
+		return NULL;
+	}
+	if (!strcmp(str, "force_floating")) {
+		s390_pci_force_floating = 1;
 		return NULL;
 	}
 	return str;
