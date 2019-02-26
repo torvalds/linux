@@ -2423,6 +2423,9 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case CHIP_RAVEN:
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	case CHIP_NAVI10:
+#endif
 		return amdgpu_dc != 0;
 #endif
 	default:
