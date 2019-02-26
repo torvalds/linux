@@ -1727,6 +1727,9 @@ mt7603_false_cca_check(struct mt7603_dev *dev)
 	int min_signal;
 	u32 val;
 
+	if (!dev->dynamic_sensitivity)
+		return;
+
 	val = mt76_rr(dev, MT_PHYCTRL_STAT_PD);
 	pd_cck = FIELD_GET(MT_PHYCTRL_STAT_PD_CCK, val);
 	pd_ofdm = FIELD_GET(MT_PHYCTRL_STAT_PD_OFDM, val);
