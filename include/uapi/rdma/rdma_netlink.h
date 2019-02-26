@@ -262,7 +262,9 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_CMD_PORT_GET, /* can dump */
 
 	RDMA_NLDEV_CMD_SYS_GET, /* can dump */
-	/* 7 - 8 are free to use */
+	RDMA_NLDEV_CMD_SYS_SET,
+
+	/* 8 is free to use */
 
 	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
 

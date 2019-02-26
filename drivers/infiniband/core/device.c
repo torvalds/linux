@@ -766,6 +766,7 @@ static int add_one_compat_dev(struct ib_device *device,
 	struct ib_core_device *cdev;
 	int ret;
 
+	lockdep_assert_held(&rdma_nets_rwsem);
 	if (!ib_devices_shared_netns)
 		return 0;
 
@@ -870,6 +871,87 @@ static int add_compat_devs(struct ib_device *device)
 	return ret;
 }
 
+static void remove_all_compat_devs(void)
+{
+	struct ib_compat_device *cdev;
+	struct ib_device *dev;
+	unsigned long index;
+
+	down_read(&devices_rwsem);
+	xa_for_each (&devices, index, dev) {
+		unsigned long c_index = 0;
+
+		/* Hold nets_rwsem so that any other thread modifying this
+		 * system param can sync with this thread.
+		 */
+		down_read(&rdma_nets_rwsem);
+		xa_for_each (&dev->compat_devs, c_index, cdev)
+			remove_one_compat_dev(dev, c_index);
+		up_read(&rdma_nets_rwsem);
+	}
+	up_read(&devices_rwsem);
+}
+
+static int add_all_compat_devs(void)
+{
+	struct rdma_dev_net *rnet;
+	struct ib_device *dev;
+	unsigned long index;
+	int ret = 0;
+
+	down_read(&devices_rwsem);
+	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
+		unsigned long net_index = 0;
+
+		/* Hold nets_rwsem so that any other thread modifying this
+		 * system param can sync with this thread.
+		 */
+		down_read(&rdma_nets_rwsem);
+		xa_for_each (&rdma_nets, net_index, rnet) {
+			ret = add_one_compat_dev(dev, rnet);
+			if (ret)
+				break;
+		}
+		up_read(&rdma_nets_rwsem);
+	}
+	up_read(&devices_rwsem);
+	if (ret)
+		remove_all_compat_devs();
+	return ret;
+}
+
+int rdma_compatdev_set(u8 enable)
+{
+	struct rdma_dev_net *rnet;
+	unsigned long index;
+	int ret = 0;
+
+	down_write(&rdma_nets_rwsem);
+	if (ib_devices_shared_netns == enable) {
+		up_write(&rdma_nets_rwsem);
+		return 0;
+	}
+
+	/* enable/disable of compat devices is not supported
+	 * when more than default init_net exists.
+	 */
+	xa_for_each (&rdma_nets, index, rnet) {
+		ret++;
+		break;
+	}
+	if (!ret)
+		ib_devices_shared_netns = enable;
+	up_write(&rdma_nets_rwsem);
+	if (ret)
+		return -EBUSY;
+
+	if (enable)
+		ret = add_all_compat_devs();
+	else
+		remove_all_compat_devs();
+	return ret;
+}
+
 static void rdma_dev_exit_net(struct net *net)
 {
 	struct rdma_dev_net *rnet = net_generic(net, rdma_dev_net_id);
@@ -923,7 +1005,12 @@ static __net_init int rdma_dev_init_net(struct net *net)
 
 	down_read(&devices_rwsem);
 	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
+		/* Hold nets_rwsem so that netlink command cannot change
+		 * system configuration for device sharing mode.
+		 */
+		down_read(&rdma_nets_rwsem);
 		ret = add_one_compat_dev(dev, rnet);
+		up_read(&rdma_nets_rwsem);
 		if (ret)
 			break;
 	}
