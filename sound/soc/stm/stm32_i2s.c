@@ -623,8 +623,8 @@ static int stm32_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		} else {
 			ier = I2S_IER_OVRIE;
 
-			if (i2s->refcount == 1)
-				/* dummy write to trigger capture */
+			if (STM32_I2S_IS_MASTER(i2s) && i2s->refcount == 1)
+				/* dummy write to gate bus clocks */
 				regmap_write(i2s->regmap,
 					     STM32_I2S_TXDR_REG, 0);
 		}
