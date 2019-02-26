@@ -615,9 +615,12 @@ static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 		if (regl->info->oc_event.reg != DA9063_REG_STATUS_D)
 			continue;
 
-		if (BIT(regl->info->oc_event.lsb) & bits)
+		if (BIT(regl->info->oc_event.lsb) & bits) {
+		        regulator_lock(regl->rdev);
 			regulator_notifier_call_chain(regl->rdev,
 					REGULATOR_EVENT_OVER_CURRENT, NULL);
+		        regulator_unlock(regl->rdev);
+		}
 	}
 
 	return IRQ_HANDLED;
