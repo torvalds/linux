@@ -21,6 +21,7 @@
 #include <asm/smp_plat.h>
 #include <uapi/linux/psci.h>
 #include <linux/ptrace.h>
+#include <linux/sched/clock.h>
 
 #ifdef CONFIG_64BIT
 #define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
