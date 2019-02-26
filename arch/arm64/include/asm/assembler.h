@@ -27,6 +27,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
+#include <asm/cputype.h>
 #include <asm/debug-monitors.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
@@ -594,6 +595,25 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 #else
 	and	\phys, \pte, #PTE_ADDR_MASK
 #endif
+	.endm
+
+/*
+ * tcr_clear_errata_bits - Clear TCR bits that trigger an errata on this CPU.
+ */
+	.macro	tcr_clear_errata_bits, tcr, tmp1, tmp2
+#ifdef CONFIG_FUJITSU_ERRATUM_010001
+	mrs	\tmp1, midr_el1
+
+	mov_q	\tmp2, MIDR_FUJITSU_ERRATUM_010001_MASK
+	and	\tmp1, \tmp1, \tmp2
+	mov_q	\tmp2, MIDR_FUJITSU_ERRATUM_010001
+	cmp	\tmp1, \tmp2
+	b.ne	10f
+
+	mov_q	\tmp2, TCR_CLEAR_FUJITSU_ERRATUM_010001
+	bic	\tcr, \tcr, \tmp2
+10:
+#endif /* CONFIG_FUJITSU_ERRATUM_010001 */
 	.endm
 
 /**
