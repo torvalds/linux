@@ -447,8 +447,8 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 	if (!param)
 		return NULL;
 
-	param->beacon_period = bss->beacon_interval;
-	param->cap_info = bss->capability;
+	param->beacon_period = cpu_to_le16(bss->beacon_interval);
+	param->cap_info = cpu_to_le16(bss->capability);
 	param->bss_type = WILC_FW_BSS_TYPE_INFRA;
 	param->ch = ieee80211_frequency_to_channel(bss->channel->center_freq);
 	ether_addr_copy(param->bssid, bss->bssid);
