@@ -2921,12 +2921,14 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	struct rate_info *txrate = &arsta->txrate;
 	struct ath10k_htt_tx_stats *tx_stats;
 	int idx, ht_idx, gi, mcs, bw, nss;
+	unsigned long flags;
 
 	if (!arsta->tx_stats)
 		return;
 
 	tx_stats = arsta->tx_stats;
-	gi = (arsta->txrate.flags & RATE_INFO_FLAGS_SHORT_GI);
+	flags = txrate->flags;
+	gi = test_bit(ATH10K_RATE_INFO_FLAGS_SGI_BIT, &flags);
 	ht_idx = txrate->mcs + txrate->nss * 8;
 	mcs = txrate->mcs;
 	bw = txrate->bw;
