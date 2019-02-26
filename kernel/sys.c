@@ -2639,3 +2639,25 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 	return 0;
 }
 #endif /* CONFIG_COMPAT */
+
+/* Add dynamical system call */
+struct dynfunc1_st {
+    long (*fn)(unsigned long p);
+} dynfunc1 = {
+    NULL
+};
+
+EXPORT_SYMBOL(dynfunc1);
+
+SYSCALL_DEFINE1(dynfunc1, unsigned long, p)
+{
+    struct dynfunc1_st *s = (struct dynfunc1_st *)&dynfunc1;
+
+    pr_info("Entering dynfunc with p = %ld at jiffies=%ld\n",
+            p, jiffies);
+
+    if (!s || !s->fn)
+        return -ENOSYS;
+
+    return s->fn(p);
+}
