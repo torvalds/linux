@@ -419,16 +419,22 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 
 	if (irqstat & LTC3589_IRQSTAT_THERMAL_WARN) {
 		event = REGULATOR_EVENT_OVER_TEMP;
-		for (i = 0; i < LTC3589_NUM_REGULATORS; i++)
+		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
+		        regulator_lock(ltc3589->regulators[i]);
 			regulator_notifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
+		        regulator_unlock(ltc3589->regulators[i]);
+		}
 	}
 
 	if (irqstat & LTC3589_IRQSTAT_UNDERVOLT_WARN) {
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
-		for (i = 0; i < LTC3589_NUM_REGULATORS; i++)
+		for (i = 0; i < LTC3589_NUM_REGULATORS; i++) {
+		        regulator_lock(ltc3589->regulators[i]);
 			regulator_notifier_call_chain(ltc3589->regulators[i],
 						      event, NULL);
+		        regulator_unlock(ltc3589->regulators[i]);
+		}
 	}
 
 	/* Clear warning condition */
