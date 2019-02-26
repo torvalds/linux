@@ -361,7 +361,7 @@ mt76u_buf_alloc(struct mt76_dev *dev, struct mt76u_buf *buf)
 	return mt76u_refill_rx(dev, q, buf, MT_SG_MAX_SIZE, GFP_KERNEL);
 }
 
-void mt76u_buf_free(struct mt76u_buf *buf)
+static void mt76u_buf_free(struct mt76u_buf *buf)
 {
 	struct urb *urb = buf->urb;
 	int i;
@@ -374,7 +374,6 @@ void mt76u_buf_free(struct mt76u_buf *buf)
 
 	usb_free_urb(buf->urb);
 }
-EXPORT_SYMBOL_GPL(mt76u_buf_free);
 
 static void
 mt76u_fill_bulk_urb(struct mt76_dev *dev, int dir, int index,
@@ -395,9 +394,10 @@ mt76u_fill_bulk_urb(struct mt76_dev *dev, int dir, int index,
 			  complete_fn, context);
 }
 
-int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
-		     struct mt76u_buf *buf, gfp_t gfp,
-		     usb_complete_t complete_fn, void *context)
+static int
+mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
+		 struct mt76u_buf *buf, gfp_t gfp,
+		 usb_complete_t complete_fn, void *context)
 {
 	mt76u_fill_bulk_urb(dev, dir, index, buf, complete_fn,
 			    context);
@@ -405,7 +405,6 @@ int mt76u_submit_buf(struct mt76_dev *dev, int dir, int index,
 
 	return usb_submit_urb(buf->urb, gfp);
 }
-EXPORT_SYMBOL_GPL(mt76u_submit_buf);
 
 static inline struct mt76u_buf
 *mt76u_get_next_rx_entry(struct mt76_queue *q)
