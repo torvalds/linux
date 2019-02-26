@@ -1210,7 +1210,7 @@ out:
  * - Pins the physical pages
  * - Create a SG list from those pages
  */
-int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
+int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 			struct hl_userptr *userptr)
 {
 	u64 start, end;
@@ -1218,14 +1218,12 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
 	int rc;
 
 	if (!size) {
-		dev_err(hdev->dev, "size to pin is invalid - %d\n",
-			size);
+		dev_err(hdev->dev, "size to pin is invalid - %llu\n", size);
 		return -EINVAL;
 	}
 
 	if (!access_ok((void __user *) (uintptr_t) addr, size)) {
-		dev_err(hdev->dev, "user pointer is invalid - 0x%llx\n",
-			addr);
+		dev_err(hdev->dev, "user pointer is invalid - 0x%llx\n", addr);
 		return -EFAULT;
 	}
 
@@ -1236,7 +1234,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
 	if (((addr + size) < addr) ||
 			PAGE_ALIGN(addr + size) < (addr + size)) {
 		dev_err(hdev->dev,
-			"user pointer 0x%llx + %u causes integer overflow\n",
+			"user pointer 0x%llx + %llu causes integer overflow\n",
 			addr, size);
 		return -EINVAL;
 	}

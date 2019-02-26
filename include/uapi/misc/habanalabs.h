@@ -237,8 +237,7 @@ struct hl_mem_in {
 		/* HL_MEM_OP_ALLOC- allocate device memory */
 		struct {
 			/* Size to alloc */
-			__u32 mem_size;
-			__u32 pad;
+			__u64 mem_size;
 		} alloc;
 
 		/* HL_MEM_OP_FREE - free device memory */
@@ -278,8 +277,7 @@ struct hl_mem_in {
 			 */
 			__u64 hint_addr;
 			/* Size of allocated host memory */
-			__u32 mem_size;
-			__u32 pad;
+			__u64 mem_size;
 		} map_host;
 
 		/* HL_MEM_OP_UNMAP - unmap host memory */

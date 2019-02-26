@@ -1320,7 +1320,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx);
 int hl_vm_init(struct hl_device *hdev);
 void hl_vm_fini(struct hl_device *hdev);
 
-int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u32 size,
+int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 			struct hl_userptr *userptr);
 int hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr);
 void hl_userptr_delete_list(struct hl_device *hdev,
