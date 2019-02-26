@@ -95,5 +95,6 @@
  * Erase/discard
  */
 #define SD_ERASE_ARG			0x00000000
+#define SD_DISCARD_ARG			0x00000001
 
 #endif /* LINUX_MMC_SD_H */
