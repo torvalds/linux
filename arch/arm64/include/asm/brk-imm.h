@@ -23,5 +23,6 @@
 #define KGDB_COMPILED_DBG_BRK_IMM	0x401
 #define BUG_BRK_IMM			0x800
 #define KASAN_BRK_IMM			0x900
+#define KASAN_BRK_MASK			0x0ff
 
 #endif

@@ -163,23 +163,44 @@ static void clear_regs_spsr_ss(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(clear_regs_spsr_ss);
 
-/* EL1 Single Step Handler hooks */
-static LIST_HEAD(step_hook);
-static DEFINE_SPINLOCK(step_hook_lock);
+static DEFINE_SPINLOCK(debug_hook_lock);
+static LIST_HEAD(user_step_hook);
+static LIST_HEAD(kernel_step_hook);
 
-void register_step_hook(struct step_hook *hook)
+static void register_debug_hook(struct list_head *node, struct list_head *list)
 {
-	spin_lock(&step_hook_lock);
-	list_add_rcu(&hook->node, &step_hook);
-	spin_unlock(&step_hook_lock);
+	spin_lock(&debug_hook_lock);
+	list_add_rcu(node, list);
+	spin_unlock(&debug_hook_lock);
+
 }
 
-void unregister_step_hook(struct step_hook *hook)
+static void unregister_debug_hook(struct list_head *node)
 {
-	spin_lock(&step_hook_lock);
-	list_del_rcu(&hook->node);
-	spin_unlock(&step_hook_lock);
+	spin_lock(&debug_hook_lock);
+	list_del_rcu(node);
+	spin_unlock(&debug_hook_lock);
 	synchronize_rcu();
+}
+
+void register_user_step_hook(struct step_hook *hook)
+{
+	register_debug_hook(&hook->node, &user_step_hook);
+}
+
+void unregister_user_step_hook(struct step_hook *hook)
+{
+	unregister_debug_hook(&hook->node);
+}
+
+void register_kernel_step_hook(struct step_hook *hook)
+{
+	register_debug_hook(&hook->node, &kernel_step_hook);
+}
+
+void unregister_kernel_step_hook(struct step_hook *hook)
+{
+	unregister_debug_hook(&hook->node);
 }
 
 /*
@@ -191,11 +212,14 @@ void unregister_step_hook(struct step_hook *hook)
 static int call_step_hook(struct pt_regs *regs, unsigned int esr)
 {
 	struct step_hook *hook;
+	struct list_head *list;
 	int retval = DBG_HOOK_ERROR;
+
+	list = user_mode(regs) ? &user_step_hook : &kernel_step_hook;
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(hook, &step_hook, node)	{
+	list_for_each_entry_rcu(hook, list, node)	{
 		retval = hook->fn(regs, esr);
 		if (retval == DBG_HOOK_HANDLED)
 			break;
@@ -264,33 +288,44 @@ static int single_step_handler(unsigned long unused, unsigned int esr,
 }
 NOKPROBE_SYMBOL(single_step_handler);
 
-static LIST_HEAD(break_hook);
-static DEFINE_SPINLOCK(break_hook_lock);
+static LIST_HEAD(user_break_hook);
+static LIST_HEAD(kernel_break_hook);
 
-void register_break_hook(struct break_hook *hook)
+void register_user_break_hook(struct break_hook *hook)
 {
-	spin_lock(&break_hook_lock);
-	list_add_rcu(&hook->node, &break_hook);
-	spin_unlock(&break_hook_lock);
+	register_debug_hook(&hook->node, &user_break_hook);
 }
 
-void unregister_break_hook(struct break_hook *hook)
+void unregister_user_break_hook(struct break_hook *hook)
 {
-	spin_lock(&break_hook_lock);
-	list_del_rcu(&hook->node);
-	spin_unlock(&break_hook_lock);
-	synchronize_rcu();
+	unregister_debug_hook(&hook->node);
+}
+
+void register_kernel_break_hook(struct break_hook *hook)
+{
+	register_debug_hook(&hook->node, &kernel_break_hook);
+}
+
+void unregister_kernel_break_hook(struct break_hook *hook)
+{
+	unregister_debug_hook(&hook->node);
 }
 
 static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 {
 	struct break_hook *hook;
+	struct list_head *list;
 	int (*fn)(struct pt_regs *regs, unsigned int esr) = NULL;
 
+	list = user_mode(regs) ? &user_break_hook : &kernel_break_hook;
+
 	rcu_read_lock();
-	list_for_each_entry_rcu(hook, &break_hook, node)
-		if ((esr & hook->esr_mask) == hook->esr_val)
+	list_for_each_entry_rcu(hook, list, node) {
+		unsigned int comment = esr & BRK64_ESR_MASK;
+
+		if ((comment & ~hook->mask) == hook->imm)
 			fn = hook->fn;
+	}
 	rcu_read_unlock();
 
 	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
