@@ -235,22 +235,21 @@ Linux kernel development process currently consists of a few different
 main kernel "branches" and lots of different subsystem-specific kernel
 branches.  These different branches are:
 
-  - main 4.x kernel tree
-  - 4.x.y -stable kernel tree
-  - subsystem specific kernel trees and patches
-  - the 4.x -next kernel tree for integration tests
+  - Linus's mainline tree
+  - Various stable trees with multiple major numbers
+  - Subsystem-specific trees
+  - linux-next integration testing tree
 
-4.x kernel tree
-~~~~~~~~~~~~~~~
+Mainline tree
+~~~~~~~~~~~~~
 
-4.x kernels are maintained by Linus Torvalds, and can be found on
-https://kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
-process is as follows:
+Mainline tree are maintained by Linus Torvalds, and can be found at
+https://kernel.org or in the repo.  Its development process is as follows:
 
   - As soon as a new kernel is released a two weeks window is open,
     during this period of time maintainers can submit big diffs to
     Linus, usually the patches that have already been included in the
-    -next kernel for a few weeks.  The preferred way to submit big changes
+    linux-next for a few weeks.  The preferred way to submit big changes
     is using git (the kernel's source management tool, more information
     can be found at https://git-scm.com/) but plain patches are also just
     fine.
@@ -277,21 +276,19 @@ mailing list about kernel releases:
 	released according to perceived bug status, not according to a
 	preconceived timeline."*
 
-4.x.y -stable kernel tree
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Various stable trees with multiple major numbers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Kernels with 3-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
-regressions discovered in a given 4.x kernel.
+regressions discovered in a given major mainline release, with the first
+2-part of version number are the same correspondingly.
 
 This is the recommended branch for users who want the most recent stable
 kernel and are not interested in helping test development/experimental
 versions.
 
-If no 4.x.y kernel is available, then the highest numbered 4.x
-kernel is the current stable kernel.
-
-4.x.y are maintained by the "stable" team <stable@vger.kernel.org>, and
+Stable trees are maintained by the "stable" team <stable@vger.kernel.org>, and
 are released as needs dictate.  The normal release period is approximately
 two weeks, but it can be longer if there are no pressing problems.  A
 security-related problem, instead, can cause a release to happen almost
@@ -301,8 +298,8 @@ The file :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rule
 in the kernel tree documents what kinds of changes are acceptable for
 the -stable tree, and how the release process works.
 
-Subsystem Specific kernel trees and patches
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Subsystem-specific trees
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The maintainers of the various kernel subsystems --- and also many
 kernel subsystem developers --- expose their current state of
@@ -326,19 +323,19 @@ revisions to it, and maintainers can mark patches as under review,
 accepted, or rejected.  Most of these patchwork sites are listed at
 https://patchwork.kernel.org/.
 
-4.x -next kernel tree for integration tests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+linux-next integration testing tree
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Before updates from subsystem trees are merged into the mainline 4.x
-tree, they need to be integration-tested.  For this purpose, a special
+Before updates from subsystem trees are merged into the mainline tree,
+they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
 pulled on an almost daily basis:
 
 	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
-This way, the -next kernel gives a summary outlook onto what will be
+This way, the linux-next gives a summary outlook onto what will be
 expected to go into the mainline kernel at the next merge period.
-Adventurous testers are very welcome to runtime-test the -next kernel.
+Adventurous testers are very welcome to runtime-test the linux-next.
 
 
 Bug Reporting
