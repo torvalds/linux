@@ -1155,34 +1155,34 @@
  * Security hooks for System V Shared Memory Segments
  *
  * @shm_alloc_security:
- *	Allocate and attach a security structure to the shp->shm_perm.security
- *	field.  The security field is initialized to NULL when the structure is
+ *	Allocate and attach a security structure to the @perm->security
+ *	field. The security field is initialized to NULL when the structure is
  *	first created.
- *	@shp contains the shared memory structure to be modified.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	Return 0 if operation was successful and permission is granted.
  * @shm_free_security:
- *	Deallocate the security struct for this memory segment.
- *	@shp contains the shared memory structure to be modified.
+ *	Deallocate the security structure @perm->security for the memory segment.
+ *	@perm contains the IPC permissions of the shared memory structure.
  * @shm_associate:
  *	Check permission when a shared memory region is requested through the
- *	shmget system call.  This hook is only called when returning the shared
+ *	shmget system call. This hook is only called when returning the shared
  *	memory region identifier for an existing region, not when a new shared
  *	memory region is created.
- *	@shp contains the shared memory structure to be modified.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@shmflg contains the operation control flags.
  *	Return 0 if permission is granted.
  * @shm_shmctl:
  *	Check permission when a shared memory control operation specified by
- *	@cmd is to be performed on the shared memory region @shp.
- *	The @shp may be NULL, e.g. for IPC_INFO or SHM_INFO.
- *	@shp contains shared memory structure to be modified.
+ *	@cmd is to be performed on the shared memory region with permissions @perm.
+ *	The @perm may be NULL, e.g. for IPC_INFO or SHM_INFO.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
  * @shm_shmat:
  *	Check permissions prior to allowing the shmat system call to attach the
- *	shared memory segment @shp to the data segment of the calling process.
- *	The attaching address is specified by @shmaddr.
- *	@shp contains the shared memory structure to be modified.
+ *	shared memory segment with permissions @perm to the data segment of the
+ *	calling process. The attaching address is specified by @shmaddr.
+ *	@perm contains the IPC permissions of the shared memory structure.
  *	@shmaddr contains the address to attach memory region to.
  *	@shmflg contains the operational flags.
  *	Return 0 if permission is granted.
@@ -1647,11 +1647,11 @@ union security_list_options {
 				struct task_struct *target, long type,
 				int mode);
 
-	int (*shm_alloc_security)(struct kern_ipc_perm *shp);
-	void (*shm_free_security)(struct kern_ipc_perm *shp);
-	int (*shm_associate)(struct kern_ipc_perm *shp, int shmflg);
-	int (*shm_shmctl)(struct kern_ipc_perm *shp, int cmd);
-	int (*shm_shmat)(struct kern_ipc_perm *shp, char __user *shmaddr,
+	int (*shm_alloc_security)(struct kern_ipc_perm *perm);
+	void (*shm_free_security)(struct kern_ipc_perm *perm);
+	int (*shm_associate)(struct kern_ipc_perm *perm, int shmflg);
+	int (*shm_shmctl)(struct kern_ipc_perm *perm, int cmd);
+	int (*shm_shmat)(struct kern_ipc_perm *perm, char __user *shmaddr,
 				int shmflg);
 
 	int (*sem_alloc_security)(struct kern_ipc_perm *perm);
