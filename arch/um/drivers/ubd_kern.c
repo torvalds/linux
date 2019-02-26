@@ -938,7 +938,7 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->queue = blk_mq_init_queue(&ubd_dev->tag_set);
 	if (IS_ERR(ubd_dev->queue)) {
 		err = PTR_ERR(ubd_dev->queue);
-		goto out_cleanup;
+		goto out_cleanup_tags;
 	}
 
 	ubd_dev->queue->queuedata = ubd_dev;
@@ -968,8 +968,8 @@ out:
 
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
-out_cleanup:
-	blk_cleanup_queue(ubd_dev->queue);
+	if (!(IS_ERR(ubd_dev->queue)))
+		blk_cleanup_queue(ubd_dev->queue);
 	goto out;
 }
 
