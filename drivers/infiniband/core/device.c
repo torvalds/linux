@@ -250,16 +250,22 @@ static int ib_device_check_mandatory(struct ib_device *device)
  * Caller must perform ib_device_put() to return the device reference count
  * when ib_device_get_by_index() returns valid device pointer.
  */
-struct ib_device *ib_device_get_by_index(u32 index)
+struct ib_device *ib_device_get_by_index(const struct net *net, u32 index)
 {
 	struct ib_device *device;
 
 	down_read(&devices_rwsem);
 	device = xa_load(&devices, index);
 	if (device) {
+		if (!rdma_dev_access_netns(device, net)) {
+			device = NULL;
+			goto out;
+		}
+
 		if (!ib_device_try_get(device))
 			device = NULL;
 	}
+out:
 	up_read(&devices_rwsem);
 	return device;
 }
@@ -1815,6 +1821,9 @@ int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
 
 	down_read(&devices_rwsem);
 	xa_for_each_marked (&devices, index, dev, DEVICE_REGISTERED) {
+		if (!rdma_dev_access_netns(dev, sock_net(skb->sk)))
+			continue;
+
 		ret = nldev_cb(dev, skb, cb, idx);
 		if (ret)
 			break;

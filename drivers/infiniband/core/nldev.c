@@ -614,7 +614,7 @@ static int nldev_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
 
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -658,7 +658,7 @@ static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -706,7 +706,7 @@ static int nldev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	/*
 	 * There is no need to take lock, because
-	 * we are relying on ib_core's lists_rwsem
+	 * we are relying on ib_core's locking.
 	 */
 	return ib_enum_all_devs(_nldev_get_dumpit, skb, cb);
 }
@@ -729,7 +729,7 @@ static int nldev_port_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -783,7 +783,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 		return -EINVAL;
 
 	ifindex = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(ifindex);
+	device = ib_device_get_by_index(sock_net(skb->sk), ifindex);
 	if (!device)
 		return -EINVAL;
 
@@ -838,7 +838,7 @@ static int nldev_res_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -987,7 +987,7 @@ static int res_get_common_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -1084,7 +1084,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 
@@ -1299,7 +1299,7 @@ static int nldev_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 
 	index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
-	device = ib_device_get_by_index(index);
+	device = ib_device_get_by_index(sock_net(skb->sk), index);
 	if (!device)
 		return -EINVAL;
 

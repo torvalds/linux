@@ -279,7 +279,8 @@ static inline void ib_mad_agent_security_change(void)
 }
 #endif
 
-struct ib_device *ib_device_get_by_index(u32 ifindex);
+struct ib_device *ib_device_get_by_index(const struct net *net, u32 index);
+
 /* RDMA device netlink */
 void nldev_init(void);
 void nldev_exit(void);
