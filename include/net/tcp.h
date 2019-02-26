@@ -1558,7 +1558,7 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 
 #ifdef CONFIG_TCP_MD5SIG
 #include <linux/jump_label.h>
-extern struct static_key tcp_md5_needed;
+extern struct static_key_false tcp_md5_needed;
 struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk,
 					   const union tcp_md5_addr *addr,
 					   int family);
@@ -1567,7 +1567,7 @@ tcp_md5_do_lookup(const struct sock *sk,
 		  const union tcp_md5_addr *addr,
 		  int family)
 {
-	if (!static_key_false(&tcp_md5_needed))
+	if (!static_branch_unlikely(&tcp_md5_needed))
 		return NULL;
 	return __tcp_md5_do_lookup(sk, addr, family);
 }
@@ -1716,20 +1716,9 @@ static inline bool tcp_rtx_and_write_queues_empty(const struct sock *sk)
 	return tcp_rtx_queue_empty(sk) && tcp_write_queue_empty(sk);
 }
 
-static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)
-{
-	if (tcp_write_queue_empty(sk))
-		tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
-}
-
-static inline void __tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
-{
-	__skb_queue_tail(&sk->sk_write_queue, skb);
-}
-
 static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
 {
-	__tcp_add_write_queue_tail(sk, skb);
+	__skb_queue_tail(&sk->sk_write_queue, skb);
 
 	/* Queue it, remembering where we must start sending. */
 	if (sk->sk_write_queue.next == skb)

@@ -1412,7 +1412,8 @@ do_fault:
 		/* It is the one place in all of TCP, except connection
 		 * reset, where we can be unlinking the send_head.
 		 */
-		tcp_check_send_head(sk, skb);
+		if (tcp_write_queue_empty(sk))
+			tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
 		sk_wmem_free_skb(sk, skb);
 	}
 
@@ -3698,7 +3699,7 @@ bool tcp_alloc_md5sig_pool(void)
 		if (!tcp_md5sig_pool_populated) {
 			__tcp_alloc_md5sig_pool();
 			if (tcp_md5sig_pool_populated)
-				static_key_slow_inc(&tcp_md5_needed);
+				static_branch_inc(&tcp_md5_needed);
 		}
 
 		mutex_unlock(&tcp_md5sig_mutex);
