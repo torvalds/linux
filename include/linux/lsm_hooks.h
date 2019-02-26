@@ -671,10 +671,8 @@
  *	Return 0 if permission is granted.
  * @task_setscheduler:
  *	Check permission before setting scheduling policy and/or parameters of
- *	process @p based on @policy and @lp.
+ *	process @p.
  *	@p contains the task_struct for process.
- *	@policy contains the scheduling policy.
- *	@lp contains the scheduling parameters.
  *	Return 0 if permission is granted.
  * @task_getscheduler:
  *	Check permission before obtaining scheduling information for process
