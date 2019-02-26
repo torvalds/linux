@@ -545,6 +545,9 @@ TRACE_EVENT(f2fs_map_blocks,
 		__field(block_t,	m_lblk)
 		__field(block_t,	m_pblk)
 		__field(unsigned int,	m_len)
+		__field(unsigned int,	m_flags)
+		__field(int,	m_seg_type)
+		__field(bool,	m_may_create)
 		__field(int,	ret)
 	),
 
@@ -554,15 +557,22 @@ TRACE_EVENT(f2fs_map_blocks,
 		__entry->m_lblk		= map->m_lblk;
 		__entry->m_pblk		= map->m_pblk;
 		__entry->m_len		= map->m_len;
+		__entry->m_flags	= map->m_flags;
+		__entry->m_seg_type	= map->m_seg_type;
+		__entry->m_may_create	= map->m_may_create;
 		__entry->ret		= ret;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, file offset = %llu, "
-		"start blkaddr = 0x%llx, len = 0x%llx, err = %d",
+		"start blkaddr = 0x%llx, len = 0x%llx, flags = %u,"
+		"seg_type = %d, may_create = %d, err = %d",
 		show_dev_ino(__entry),
 		(unsigned long long)__entry->m_lblk,
 		(unsigned long long)__entry->m_pblk,
 		(unsigned long long)__entry->m_len,
+		__entry->m_flags,
+		__entry->m_seg_type,
+		__entry->m_may_create,
 		__entry->ret)
 );
 
