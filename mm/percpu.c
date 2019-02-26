@@ -654,7 +654,7 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
 	if (start == 0)
 		block->left_free = contig;
 
-	if (end == PCPU_BITMAP_BLOCK_BITS)
+	if (end == block->nr_bits)
 		block->right_free = contig;
 
 	if (contig > block->contig_hint) {
@@ -1267,18 +1267,24 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
 	pcpu_chunk_relocate(chunk, oslot);
 }
 
+static void pcpu_init_md_block(struct pcpu_block_md *block, int nr_bits)
+{
+	block->scan_hint = 0;
+	block->contig_hint = nr_bits;
+	block->left_free = nr_bits;
+	block->right_free = nr_bits;
+	block->first_free = 0;
+	block->nr_bits = nr_bits;
+}
+
 static void pcpu_init_md_blocks(struct pcpu_chunk *chunk)
 {
 	struct pcpu_block_md *md_block;
 
 	for (md_block = chunk->md_blocks;
 	     md_block != chunk->md_blocks + pcpu_chunk_nr_blocks(chunk);
-	     md_block++) {
-		md_block->scan_hint = 0;
-		md_block->contig_hint = PCPU_BITMAP_BLOCK_BITS;
-		md_block->left_free = PCPU_BITMAP_BLOCK_BITS;
-		md_block->right_free = PCPU_BITMAP_BLOCK_BITS;
-	}
+	     md_block++)
+		pcpu_init_md_block(md_block, PCPU_BITMAP_BLOCK_BITS);
 }
 
 /**

@@ -28,6 +28,7 @@ struct pcpu_block_md {
 	int                     right_free;     /* size of free space along
 						   the right side of the block */
 	int                     first_free;     /* block position of first free */
+	int			nr_bits;	/* total bits responsible for */
 };
 
 struct pcpu_chunk {
