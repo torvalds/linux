@@ -65,6 +65,7 @@ struct s390_load_data {
 	size_t memsz;
 };
 
+int s390_verify_sig(const char *kernel, unsigned long kernel_len);
 void *kexec_file_add_components(struct kimage *image,
 				int (*add_kernel)(struct kimage *image,
 						  struct s390_load_data *data));

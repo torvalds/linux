@@ -54,4 +54,7 @@ static int s390_image_probe(const char *buf, unsigned long len)
 const struct kexec_file_ops s390_kexec_image_ops = {
 	.probe = s390_image_probe,
 	.load = s390_image_load,
+#ifdef CONFIG_KEXEC_VERIFY_SIG
+	.verify_sig = s390_verify_sig,
+#endif /* CONFIG_KEXEC_VERIFY_SIG */
 };

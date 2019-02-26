@@ -8,7 +8,11 @@
  */
 
 #include <linux/elf.h>
+#include <linux/errno.h>
 #include <linux/kexec.h>
+#include <linux/module.h>
+#include <linux/verification.h>
+#include <asm/ipl.h>
 #include <asm/setup.h>
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
@@ -16,6 +20,76 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
 	&s390_kexec_image_ops,
 	NULL,
 };
+
+#ifdef CONFIG_KEXEC_VERIFY_SIG
+/*
+ * Module signature information block.
+ *
+ * The constituents of the signature section are, in order:
+ *
+ *	- Signer's name
+ *	- Key identifier
+ *	- Signature data
+ *	- Information block
+ */
+struct module_signature {
+	u8	algo;		/* Public-key crypto algorithm [0] */
+	u8	hash;		/* Digest algorithm [0] */
+	u8	id_type;	/* Key identifier type [PKEY_ID_PKCS7] */
+	u8	signer_len;	/* Length of signer's name [0] */
+	u8	key_id_len;	/* Length of key identifier [0] */
+	u8	__pad[3];
+	__be32	sig_len;	/* Length of signature data */
+};
+
+#define PKEY_ID_PKCS7 2
+
+int s390_verify_sig(const char *kernel, unsigned long kernel_len)
+{
+	const unsigned long marker_len = sizeof(MODULE_SIG_STRING) - 1;
+	struct module_signature *ms;
+	unsigned long sig_len;
+
+	/* Skip signature verification when not secure IPLed. */
+	if (!ipl_secure_flag)
+		return 0;
+
+	if (marker_len > kernel_len)
+		return -EKEYREJECTED;
+
+	if (memcmp(kernel + kernel_len - marker_len, MODULE_SIG_STRING,
+		   marker_len))
+		return -EKEYREJECTED;
+	kernel_len -= marker_len;
+
+	ms = (void *)kernel + kernel_len - sizeof(*ms);
+	kernel_len -= sizeof(*ms);
+
+	sig_len = be32_to_cpu(ms->sig_len);
+	if (sig_len >= kernel_len)
+		return -EKEYREJECTED;
+	kernel_len -= sig_len;
+
+	if (ms->id_type != PKEY_ID_PKCS7)
+		return -EKEYREJECTED;
+
+	if (ms->algo != 0 ||
+	    ms->hash != 0 ||
+	    ms->signer_len != 0 ||
+	    ms->key_id_len != 0 ||
+	    ms->__pad[0] != 0 ||
+	    ms->__pad[1] != 0 ||
+	    ms->__pad[2] != 0) {
+		return -EBADMSG;
+	}
+
+	return verify_pkcs7_signature(kernel, kernel_len,
+				      kernel + kernel_len, sig_len,
+				      VERIFY_USE_PLATFORM_KEYRING,
+				      VERIFYING_MODULE_SIGNATURE,
+				      NULL, NULL);
+}
+#endif /* CONFIG_KEXEC_VERIFY_SIG */
 
 static int kexec_file_update_purgatory(struct kimage *image,
 				       struct s390_load_data *data)
