@@ -2559,6 +2559,7 @@ struct ib_core_device {
 	 * union of ib_core_device and device exists in ib_device.
 	 */
 	struct device dev;
+	possible_net_t rdma_net;
 	struct kobject *ports_kobj;
 	struct list_head port_list;
 	struct ib_device *owner; /* reach back to owner ib_device */
@@ -2636,6 +2637,11 @@ struct ib_device {
 	struct work_struct unregistration_work;
 
 	const struct rdma_link_ops *link_ops;
+
+	/* Protects compat_devs xarray modifications */
+	struct mutex compat_devs_mutex;
+	/* Maintains compat devices for each net namespace */
+	struct xarray compat_devs;
 };
 
 struct ib_client {
