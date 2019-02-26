@@ -28,6 +28,7 @@ struct sun4i_rgb {
 
 	struct sun4i_tcon	*tcon;
 	struct drm_panel	*panel;
+	struct drm_bridge	*bridge;
 };
 
 static inline struct sun4i_rgb *
@@ -169,7 +170,6 @@ static struct drm_encoder_funcs sun4i_rgb_enc_funcs = {
 int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 {
 	struct drm_encoder *encoder;
-	struct drm_bridge *bridge;
 	struct sun4i_rgb *rgb;
 	int ret;
 
@@ -180,7 +180,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	encoder = &rgb->encoder;
 
 	ret = drm_of_find_panel_or_bridge(tcon->dev->of_node, 1, 0,
-					  &rgb->panel, &bridge);
+					  &rgb->panel, &rgb->bridge);
 	if (ret) {
 		dev_info(drm->dev, "No panel or bridge found... RGB output disabled\n");
 		return 0;
@@ -222,8 +222,8 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 		}
 	}
 
-	if (bridge) {
-		ret = drm_bridge_attach(encoder, bridge, NULL);
+	if (rgb->bridge) {
+		ret = drm_bridge_attach(encoder, rgb->bridge, NULL);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");
 			goto err_cleanup_connector;
