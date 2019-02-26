@@ -2701,7 +2701,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 
 	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
 	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
-		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_KERNEL,
+		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_FDB,
 					    parse_attr, hdrs, extack);
 		if (err)
 			return err;
