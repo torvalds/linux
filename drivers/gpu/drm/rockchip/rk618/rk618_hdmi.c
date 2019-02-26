@@ -948,11 +948,9 @@ rk618_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	else
 		switch_set_state(&hdmi->switchdev, 0);
 #endif
-	if (hdmi->bridge)
-		return connector_status_connected;
 
-	return (hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG) ?
-		connector_status_connected : connector_status_disconnected;
+	return status ? connector_status_connected :
+			connector_status_disconnected;
 }
 
 static int rk618_hdmi_connector_get_modes(struct drm_connector *connector)
