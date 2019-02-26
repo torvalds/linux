@@ -27,7 +27,6 @@ struct pm8607_regulator_info {
 	struct i2c_client	*i2c;
 	struct i2c_client	*i2c_8606;
 
-	unsigned int	*vol_table;
 	unsigned int	*vol_suspend;
 
 	int	slope_double;
@@ -210,13 +209,15 @@ static const unsigned int LDO14_suspend_table[] = {
 static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret = -EINVAL;
+	int ret;
 
-	if (info->vol_table && (index < rdev->desc->n_voltages)) {
-		ret = info->vol_table[index];
-		if (info->slope_double)
-			ret <<= 1;
-	}
+	ret = regulator_list_voltage_table(rdev, index);
+	if (ret < 0)
+		return ret;
+
+	if (info->slope_double)
+		ret <<= 1;
+
 	return ret;
 }
 
@@ -257,6 +258,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_##vreg,				\
 		.owner	= THIS_MODULE,					\
+		.volt_table = vreg##_table,				\
 		.n_voltages = ARRAY_SIZE(vreg##_table),			\
 		.vsel_reg = PM8607_##vreg,				\
 		.vsel_mask = ARRAY_SIZE(vreg##_table) - 1,		\
@@ -266,7 +268,6 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.enable_mask = 1 << (ebit),				\
 	},								\
 	.slope_double	= (0),						\
-	.vol_table	= (unsigned int *)&vreg##_table,		\
 	.vol_suspend	= (unsigned int *)&vreg##_suspend_table,	\
 }
 
@@ -278,6 +279,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_LDO##_id,				\
 		.owner	= THIS_MODULE,					\
+		.volt_table = LDO##_id##_table,				\
 		.n_voltages = ARRAY_SIZE(LDO##_id##_table),		\
 		.vsel_reg = PM8607_##vreg,				\
 		.vsel_mask = (ARRAY_SIZE(LDO##_id##_table) - 1) << (shift), \
@@ -285,7 +287,6 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.enable_mask = 1 << (ebit),				\
 	},								\
 	.slope_double	= (0),						\
-	.vol_table	= (unsigned int *)&LDO##_id##_table,		\
 	.vol_suspend	= (unsigned int *)&LDO##_id##_suspend_table,	\
 }
 
