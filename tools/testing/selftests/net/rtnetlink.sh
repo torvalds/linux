@@ -408,6 +408,58 @@ kci_test_encap_vxlan()
 	ip netns exec "$testns" ip link add link "$vxlan" name "$vlan" type vlan id 1
 	check_err $?
 
+	# changelink testcases
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan vni 43 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan group ffe5::5 dev "$devdummy" 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan ttl inherit 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan ttl 64
+	check_err $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan nolearning
+	check_err $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan proxy 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan norsc 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan l2miss 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan l3miss 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan external 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan udpcsum 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan udp6zerocsumtx 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan udp6zerocsumrx 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan remcsumtx 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan remcsumrx 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan gbp 2>/dev/null
+	check_fail $?
+
+	ip netns exec "$testns" ip link set dev "$vxlan" type vxlan gpe 2>/dev/null
+	check_fail $?
+
 	ip netns exec "$testns" ip link del "$vxlan"
 	check_err $?
 
