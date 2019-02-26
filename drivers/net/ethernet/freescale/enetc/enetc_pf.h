@@ -42,8 +42,14 @@ struct enetc_pf {
 	char vlan_promisc_simap; /* bitmap of SIs in VLAN promisc mode */
 	DECLARE_BITMAP(vlan_ht_filter, ENETC_VLAN_HT_SIZE);
 	DECLARE_BITMAP(active_vlans, VLAN_N_VID);
+
+	struct mii_bus *mdio; /* saved for cleanup */
 };
 
 int enetc_msg_psi_init(struct enetc_pf *pf);
 void enetc_msg_psi_free(struct enetc_pf *pf);
 void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int mbox_id, u16 *status);
+
+/* MDIO */
+int enetc_mdio_probe(struct enetc_pf *pf);
+void enetc_mdio_remove(struct enetc_pf *pf);
