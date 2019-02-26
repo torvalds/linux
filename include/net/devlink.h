@@ -707,6 +707,10 @@ devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
 int devlink_health_report(struct devlink_health_reporter *reporter,
 			  const char *msg, void *priv_ctx);
 
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len);
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
+
 #else
 
 static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
@@ -1190,13 +1194,7 @@ devlink_health_report(struct devlink_health_reporter *reporter,
 {
 	return 0;
 }
-#endif
 
-#if IS_REACHABLE(CONFIG_NET_DEVLINK)
-void devlink_compat_running_version(struct net_device *dev,
-				    char *buf, size_t len);
-int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
-#else
 static inline void
 devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 {

@@ -6482,20 +6482,9 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 	return -EOPNOTSUPP;
 }
 
-static int __init devlink_module_init(void)
+static int __init devlink_init(void)
 {
 	return genl_register_family(&devlink_nl_family);
 }
 
-static void __exit devlink_module_exit(void)
-{
-	genl_unregister_family(&devlink_nl_family);
-}
-
-module_init(devlink_module_init);
-module_exit(devlink_module_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
-MODULE_DESCRIPTION("Network physical device Netlink interface");
-MODULE_ALIAS_GENL_FAMILY(DEVLINK_GENL_NAME);
+subsys_initcall(devlink_init);
