@@ -25,7 +25,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
-		return 0;
+		return -EBUSY;
 
 	memset(&pkt, 0, sizeof(pkt));
 
@@ -50,7 +50,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
-		return 0;
+		return -EBUSY;
 
 	memset(&pkt, 0, sizeof(pkt));
 
