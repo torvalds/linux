@@ -180,24 +180,6 @@ ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
 	return FF_LAYOUT_LSEG(lseg)->flags & FF_FLAGS_NO_READ_IO;
 }
 
-static inline bool
-ff_layout_test_devid_unavailable(struct nfs4_deviceid_node *node)
-{
-	/*
-	 * Flexfiles should never mark a DS unavailable, but if it does
-	 * print a (ratelimited) warning as this can affect performance.
-	 */
-	if (nfs4_test_deviceid_unavailable(node)) {
-		u32 *p = (u32 *)node->deviceid.data;
-
-		pr_warn_ratelimited("NFS: flexfiles layout referencing an "
-				"unavailable device [%x%x%x%x]\n",
-				p[0], p[1], p[2], p[3]);
-		return true;
-	}
-	return false;
-}
-
 static inline int
 nfs4_ff_layout_ds_version(struct pnfs_layout_segment *lseg, u32 ds_idx)
 {

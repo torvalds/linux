@@ -186,7 +186,7 @@ out_err:
 static void ff_layout_mark_devid_invalid(struct pnfs_layout_segment *lseg,
 		struct nfs4_deviceid_node *devid)
 {
-	nfs4_delete_deviceid(devid->ld, devid->nfs_client, &devid->deviceid);
+	nfs4_mark_deviceid_unavailable(devid);
 	if (!ff_layout_has_available_ds(lseg))
 		pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode,
 				lseg);
@@ -605,7 +605,7 @@ static bool ff_read_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 			if (IS_ERR(mirror->mirror_ds))
 				continue;
 			devid = &mirror->mirror_ds->id_node;
-			if (!ff_layout_test_devid_unavailable(devid))
+			if (!nfs4_test_deviceid_unavailable(devid))
 				return true;
 		}
 	}
@@ -626,7 +626,7 @@ static bool ff_rw_layout_has_available_ds(struct pnfs_layout_segment *lseg)
 		if (!mirror->mirror_ds)
 			continue;
 		devid = &mirror->mirror_ds->id_node;
-		if (ff_layout_test_devid_unavailable(devid))
+		if (nfs4_test_deviceid_unavailable(devid))
 			return false;
 	}
 
