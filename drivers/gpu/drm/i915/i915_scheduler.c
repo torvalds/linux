@@ -18,6 +18,11 @@ node_to_request(const struct i915_sched_node *node)
 	return container_of(node, const struct i915_request, sched);
 }
 
+static inline bool node_started(const struct i915_sched_node *node)
+{
+	return i915_request_started(node_to_request(node));
+}
+
 static inline bool node_signaled(const struct i915_sched_node *node)
 {
 	return i915_request_completed(node_to_request(node));
@@ -300,6 +305,10 @@ static void __i915_schedule(struct i915_request *rq,
 	 */
 	list_for_each_entry(dep, &dfs, dfs_link) {
 		struct i915_sched_node *node = dep->signaler;
+
+		/* If we are already flying, we know we have no signalers */
+		if (node_started(node))
+			continue;
 
 		/*
 		 * Within an engine, there can be no cycle, but we may
