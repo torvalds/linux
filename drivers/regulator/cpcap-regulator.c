@@ -334,7 +334,7 @@ static const unsigned int vaudio_val_tbl[] = { 0, 2775000, };
  * SW1 to SW4 and SW6 seems to be unused for mapphone. Note that VSIM and
  * VSIMCARD have a shared resource assignment bit.
  */
-static struct cpcap_regulator omap4_regulators[] = {
+static const struct cpcap_regulator omap4_regulators[] = {
 	CPCAP_REG(SW1, CPCAP_REG_S1C1, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_SW1_SEL, unknown_val_tbl,
 		  0, 0, 0, 0, 0),
@@ -410,7 +410,7 @@ static struct cpcap_regulator omap4_regulators[] = {
 	{ /* sentinel */ },
 };
 
-static struct cpcap_regulator xoom_regulators[] = {
+static const struct cpcap_regulator xoom_regulators[] = {
 	CPCAP_REG(SW1, CPCAP_REG_S1C1, CPCAP_REG_ASSIGN2,
 		  CPCAP_BIT_SW1_SEL, unknown_val_tbl,
 		  0, 0, 0, 0, 0),
