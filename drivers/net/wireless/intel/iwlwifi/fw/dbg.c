@@ -967,9 +967,10 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	if (fifo_len) {
 		iwl_fw_dump_rxf(fwrt, &dump_data);
 		iwl_fw_dump_txf(fwrt, &dump_data);
-		if (radio_len)
-			iwl_read_radio_regs(fwrt, &dump_data);
 	}
+
+	if (radio_len)
+		iwl_read_radio_regs(fwrt, &dump_data);
 
 	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_ERROR_INFO) &&
 	    fwrt->dump.desc) {
