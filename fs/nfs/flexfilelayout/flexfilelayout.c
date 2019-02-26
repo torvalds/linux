@@ -932,8 +932,6 @@ retry:
 
 	for (i = 0; i < pgio->pg_mirror_count; i++) {
 		mirror = FF_LAYOUT_COMP(pgio->pg_lseg, i);
-		if (ff_layout_test_devid_unavailable(&mirror->mirror_ds->id_node))
-			continue;
 		ds = nfs4_ff_layout_prepare_ds(pgio->pg_lseg, mirror, true);
 		if (!ds) {
 			if (!ff_layout_no_fallback_to_mds(pgio->pg_lseg))
@@ -1306,15 +1304,6 @@ ff_layout_set_layoutcommit(struct inode *inode,
 		(unsigned long long) NFS_I(inode)->layout->plh_lwb);
 }
 
-static bool
-ff_layout_device_unavailable(struct pnfs_layout_segment *lseg, int idx)
-{
-	/* No mirroring for now */
-	struct nfs4_deviceid_node *node = FF_LAYOUT_DEVID_NODE(lseg, idx);
-
-	return ff_layout_test_devid_unavailable(node);
-}
-
 static void ff_layout_read_record_layoutstats_start(struct rpc_task *task,
 		struct nfs_pgio_header *hdr)
 {
@@ -1344,10 +1333,6 @@ static int ff_layout_read_prepare_common(struct rpc_task *task,
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &hdr->args.context->flags))) {
 		rpc_exit(task, -EIO);
 		return -EIO;
-	}
-	if (ff_layout_device_unavailable(hdr->lseg, hdr->pgio_mirror_idx)) {
-		rpc_exit(task, -EHOSTDOWN);
-		return -EAGAIN;
 	}
 
 	ff_layout_read_record_layoutstats_start(task, hdr);
@@ -1535,11 +1520,6 @@ static int ff_layout_write_prepare_common(struct rpc_task *task,
 	if (unlikely(test_bit(NFS_CONTEXT_BAD, &hdr->args.context->flags))) {
 		rpc_exit(task, -EIO);
 		return -EIO;
-	}
-
-	if (ff_layout_device_unavailable(hdr->lseg, hdr->pgio_mirror_idx)) {
-		rpc_exit(task, -EHOSTDOWN);
-		return -EAGAIN;
 	}
 
 	ff_layout_write_record_layoutstats_start(task, hdr);
