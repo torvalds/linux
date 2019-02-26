@@ -39,9 +39,7 @@ struct pcpu_chunk {
 
 	struct list_head	list;		/* linked to pcpu_slot lists */
 	int			free_bytes;	/* free bytes in the chunk */
-	int			contig_bits;	/* max contiguous size hint */
-	int			contig_bits_start; /* contig_bits starting
-						      offset */
+	struct pcpu_block_md	chunk_md;
 	void			*base_addr;	/* base address of this chunk */
 
 	unsigned long		*alloc_map;	/* allocation map */
@@ -49,7 +47,6 @@ struct pcpu_chunk {
 	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
-	int			first_bit;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
