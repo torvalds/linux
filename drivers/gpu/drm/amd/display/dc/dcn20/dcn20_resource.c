@@ -695,6 +695,16 @@ static const struct dc_plane_cap plane_cap = {
 			.fp16 = 1
 	}
 };
+static const struct resource_caps res_cap_nv14 = {
+		.num_timing_generator = 5,
+		.num_opp = 5,
+		.num_video_plane = 5,
+		.num_audio = 6,
+		.num_stream_encoder = 5,
+		.num_pll = 5,
+		.num_dwb = 1,
+		.num_ddc = 5,
+};
 
 static const struct dc_debug_options debug_defaults_drv = {
 		.disable_dmcu = true,
@@ -2878,17 +2888,22 @@ static bool construct(
 	struct irq_service_init_data init_data;
 
 	ctx->dc_bios->regs = &bios_regs;
-
-	pool->base.res_cap = &res_cap_nv10;
 	pool->base.funcs = &dcn20_res_pool_funcs;
 
+	if (ASICREV_IS_NAVI14_M(ctx->asic_id.hw_internal_rev)) {
+		pool->base.res_cap = &res_cap_nv14;
+		pool->base.pipe_count = 5;
+		pool->base.mpcc_count = 5;
+	} else {
+		pool->base.res_cap = &res_cap_nv10;
+		pool->base.pipe_count = 6;
+		pool->base.mpcc_count = 6;
+	}
 	/*************************************************
 	 *  Resource + asic cap harcoding                *
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
-	pool->base.pipe_count = 6;
-	pool->base.mpcc_count = 6;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 256;
