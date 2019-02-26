@@ -571,11 +571,10 @@ static int active_request_put(struct i915_request *rq)
 		return 0;
 
 	if (i915_request_wait(rq, 0, 5 * HZ) < 0) {
-		GEM_TRACE("%s timed out waiting for completion of fence %llx:%lld, seqno %d.\n",
+		GEM_TRACE("%s timed out waiting for completion of fence %llx:%lld\n",
 			  rq->engine->name,
 			  rq->fence.context,
-			  rq->fence.seqno,
-			  i915_request_global_seqno(rq));
+			  rq->fence.seqno);
 		GEM_TRACE_DUMP();
 
 		i915_gem_set_wedged(rq->i915);

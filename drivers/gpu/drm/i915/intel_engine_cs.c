@@ -1271,15 +1271,14 @@ static void print_request(struct drm_printer *m,
 
 	x = print_sched_attr(rq->i915, &rq->sched.attr, buf, x, sizeof(buf));
 
-	drm_printf(m, "%s%x%s%s [%llx:%llx]%s @ %dms: %s\n",
+	drm_printf(m, "%s %llx:%llx%s%s %s @ %dms: %s\n",
 		   prefix,
-		   rq->global_seqno,
+		   rq->fence.context, rq->fence.seqno,
 		   i915_request_completed(rq) ? "!" :
 		   i915_request_started(rq) ? "*" :
 		   "",
 		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 			    &rq->fence.flags) ?  "+" : "",
-		   rq->fence.context, rq->fence.seqno,
 		   buf,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   name);

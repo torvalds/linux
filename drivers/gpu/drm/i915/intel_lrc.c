@@ -172,12 +172,6 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
-static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
-{
-	return (i915_ggtt_offset(engine->status_page.vma) +
-		I915_GEM_HWS_INDEX_ADDR);
-}
-
 static inline u32 intel_hws_hangcheck_address(struct intel_engine_cs *engine)
 {
 	return (i915_ggtt_offset(engine->status_page.vma) +
@@ -528,10 +522,9 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
 
-			GEM_TRACE("%s in[%d]:  ctx=%d.%d, global=%d (fence %llx:%lld) (current %d), prio=%d\n",
+			GEM_TRACE("%s in[%d]:  ctx=%d.%d, fence %llx:%lld (current %d), prio=%d\n",
 				  engine->name, n,
 				  port[n].context_id, count,
-				  rq->global_seqno,
 				  rq->fence.context, rq->fence.seqno,
 				  hwsp_seqno(rq),
 				  rq_prio(rq));
@@ -839,10 +832,9 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 	while (num_ports-- && port_isset(port)) {
 		struct i915_request *rq = port_request(port);
 
-		GEM_TRACE("%s:port%u global=%d (fence %llx:%lld), (current %d)\n",
+		GEM_TRACE("%s:port%u fence %llx:%lld, (current %d)\n",
 			  rq->engine->name,
 			  (unsigned int)(port - execlists->port),
-			  rq->global_seqno,
 			  rq->fence.context, rq->fence.seqno,
 			  hwsp_seqno(rq));
 
@@ -924,8 +916,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline.requests, link) {
-		GEM_BUG_ON(!rq->global_seqno);
-
 		if (!i915_request_signaled(rq))
 			dma_fence_set_error(&rq->fence, -EIO);
 
@@ -1064,10 +1054,9 @@ static void process_csb(struct intel_engine_cs *engine)
 						EXECLISTS_ACTIVE_USER));
 
 		rq = port_unpack(port, &count);
-		GEM_TRACE("%s out[0]: ctx=%d.%d, global=%d (fence %llx:%lld) (current %d), prio=%d\n",
+		GEM_TRACE("%s out[0]: ctx=%d.%d, fence %llx:%lld (current %d), prio=%d\n",
 			  engine->name,
 			  port->context_id, count,
-			  rq ? rq->global_seqno : 0,
 			  rq ? rq->fence.context : 0,
 			  rq ? rq->fence.seqno : 0,
 			  rq ? hwsp_seqno(rq) : 0,
@@ -1938,10 +1927,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	/* Following the reset, we need to reload the CSB read/write pointers */
 	reset_csb_pointers(&engine->execlists);
 
-	GEM_TRACE("%s seqno=%d, stalled? %s\n",
-		  engine->name,
-		  rq ? rq->global_seqno : 0,
-		  yesno(stalled));
+	GEM_TRACE("%s stalled? %s\n", engine->name, yesno(stalled));
 	if (!rq)
 		goto out_unlock;
 
@@ -2196,9 +2182,6 @@ static u32 *gen8_emit_wa_tail(struct i915_request *request, u32 *cs)
 
 static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 {
-	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
-
 	cs = gen8_emit_ggtt_write(cs,
 				  request->fence.seqno,
 				  request->timeline->hwsp_offset);
@@ -2206,10 +2189,6 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 	cs = gen8_emit_ggtt_write(cs,
 				  intel_engine_next_hangcheck_seqno(request->engine),
 				  intel_hws_hangcheck_address(request->engine));
-
-	cs = gen8_emit_ggtt_write(cs,
-				  request->global_seqno,
-				  intel_hws_seqno_address(request->engine));
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -2235,11 +2214,6 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 				      intel_engine_next_hangcheck_seqno(request->engine),
 				      intel_hws_hangcheck_address(request->engine),
 				      0);
-
-	cs = gen8_emit_ggtt_write_rcs(cs,
-				      request->global_seqno,
-				      intel_hws_seqno_address(request->engine),
-				      PIPE_CONTROL_CS_STALL);
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;

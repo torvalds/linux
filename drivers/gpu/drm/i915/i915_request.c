@@ -179,10 +179,9 @@ static void free_capture_list(struct i915_request *request)
 static void __retire_engine_request(struct intel_engine_cs *engine,
 				    struct i915_request *rq)
 {
-	GEM_TRACE("%s(%s) fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s(%s) fence %llx:%lld, current %d\n",
 		  __func__, engine->name,
 		  rq->fence.context, rq->fence.seqno,
-		  rq->global_seqno,
 		  hwsp_seqno(rq));
 
 	GEM_BUG_ON(!i915_request_completed(rq));
@@ -242,10 +241,9 @@ static void i915_request_retire(struct i915_request *request)
 {
 	struct i915_active_request *active, *next;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, current %d\n",
 		  request->engine->name,
 		  request->fence.context, request->fence.seqno,
-		  request->global_seqno,
 		  hwsp_seqno(request));
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
@@ -303,10 +301,9 @@ void i915_request_retire_upto(struct i915_request *rq)
 	struct intel_ring *ring = rq->ring;
 	struct i915_request *tmp;
 
-	GEM_TRACE("%s fence %llx:%lld, global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, current %d\n",
 		  rq->engine->name,
 		  rq->fence.context, rq->fence.seqno,
-		  rq->global_seqno,
 		  hwsp_seqno(rq));
 
 	lockdep_assert_held(&rq->i915->drm.struct_mutex);
@@ -339,22 +336,13 @@ static void move_to_timeline(struct i915_request *request,
 	spin_unlock(&request->timeline->lock);
 }
 
-static u32 next_global_seqno(struct i915_timeline *tl)
-{
-	if (!++tl->seqno)
-		++tl->seqno;
-	return tl->seqno;
-}
-
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	u32 seqno;
 
-	GEM_TRACE("%s fence %llx:%lld -> global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld -> current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  engine->timeline.seqno + 1,
 		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
@@ -363,16 +351,10 @@ void __i915_request_submit(struct i915_request *request)
 	if (i915_gem_context_is_banned(request->gem_context))
 		i915_request_skip(request, -EIO);
 
-	GEM_BUG_ON(request->global_seqno);
-
-	seqno = next_global_seqno(&engine->timeline);
-	GEM_BUG_ON(!seqno);
-
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
 	set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
-	request->global_seqno = seqno;
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags) &&
 	    !i915_request_enable_breadcrumb(request))
 		intel_engine_queue_breadcrumbs(engine);
@@ -404,10 +386,9 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%lld <- global=%d, current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  request->global_seqno,
 		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
@@ -417,13 +398,9 @@ void __i915_request_unsubmit(struct i915_request *request)
 	 * Only unwind in reverse order, required so that the per-context list
 	 * is kept in seqno/ring order.
 	 */
-	GEM_BUG_ON(!request->global_seqno);
-	GEM_BUG_ON(request->global_seqno != engine->timeline.seqno);
-	engine->timeline.seqno--;
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
-	request->global_seqno = 0;
 	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &request->fence.flags))
 		i915_request_cancel_breadcrumb(request);
 	GEM_BUG_ON(!test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
@@ -637,7 +614,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	i915_sched_node_init(&rq->sched);
 
 	/* No zalloc, must clear what we need by hand */
-	rq->global_seqno = 0;
 	rq->file_priv = NULL;
 	rq->batch = NULL;
 	rq->capture_list = NULL;

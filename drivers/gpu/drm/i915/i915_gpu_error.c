@@ -380,19 +380,16 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 	err_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x_%08x %8u %02x %02x %02x",
+		err_printf(m, "    %08x_%08x %8u %02x %02x",
 			   upper_32_bits(err->gtt_offset),
 			   lower_32_bits(err->gtt_offset),
 			   err->size,
 			   err->read_domains,
-			   err->write_domain,
-			   err->wseqno);
+			   err->write_domain);
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
 		err_puts(m, err->userptr ? " userptr" : "");
-		err_puts(m, err->engine != -1 ? " " : "");
-		err_puts(m, engine_name(m->i915, err->engine));
 		err_puts(m, i915_cache_level_str(m->i915, err->cache_level));
 
 		if (err->name)
@@ -1048,27 +1045,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	return dst;
 }
 
-/* The error capture is special as tries to run underneath the normal
- * locking rules - so we use the raw version of the i915_active_request lookup.
- */
-static inline u32
-__active_get_seqno(struct i915_active_request *active)
-{
-	struct i915_request *request;
-
-	request = __i915_active_request_peek(active);
-	return request ? request->global_seqno : 0;
-}
-
-static inline int
-__active_get_engine_id(struct i915_active_request *active)
-{
-	struct i915_request *request;
-
-	request = __i915_active_request_peek(active);
-	return request ? request->engine->id : -1;
-}
-
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
@@ -1076,9 +1052,6 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-
-	err->wseqno = __active_get_seqno(&obj->frontbuffer_write);
-	err->engine = __active_get_engine_id(&obj->frontbuffer_write);
 
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->read_domains;
@@ -1284,7 +1257,8 @@ static void record_request(struct i915_request *request,
 	struct i915_gem_context *ctx = request->gem_context;
 
 	erq->flags = request->fence.flags;
-	erq->context = ctx->hw_id;
+	erq->context = request->fence.context;
+	erq->seqno = request->fence.seqno;
 	erq->sched_attr = request->sched.attr;
 	erq->jiffies = request->emitted_jiffies;
 	erq->start = i915_ggtt_offset(request->ring->vma);

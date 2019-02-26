@@ -535,7 +535,7 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	spin_lock(&client->wq_lock);
 
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
-			   ring_tail, rq->global_seqno);
+			   ring_tail, rq->fence.seqno);
 	guc_ring_doorbell(client);
 
 	client->submissions[engine->id] += 1;

@@ -724,8 +724,6 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
  *
  * The area from dword 0x30 to 0x3ff is available for driver usage.
  */
-#define I915_GEM_HWS_INDEX		0x30
-#define I915_GEM_HWS_INDEX_ADDR		(I915_GEM_HWS_INDEX * sizeof(u32))
 #define I915_GEM_HWS_PREEMPT		0x32
 #define I915_GEM_HWS_PREEMPT_ADDR	(I915_GEM_HWS_PREEMPT * sizeof(u32))
 #define I915_GEM_HWS_HANGCHECK		0x34

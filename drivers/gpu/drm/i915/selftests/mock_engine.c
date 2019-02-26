@@ -196,7 +196,6 @@ static void mock_submit_request(struct i915_request *request)
 	unsigned long flags;
 
 	i915_request_submit(request);
-	GEM_BUG_ON(!request->global_seqno);
 
 	spin_lock_irqsave(&engine->hw_lock, flags);
 	list_add_tail(&mock->link, &engine->hw_queue);
