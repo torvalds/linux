@@ -4,11 +4,16 @@
  *   Dong Aisheng <aisheng.dong@nxp.com>
  */
 
+#include <dt-bindings/firmware/imx/rsrc.h>
+#include <linux/arm-smccc.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
 #include "clk-scu.h"
+
+#define IMX_SIP_CPUFREQ			0xC2000001
+#define IMX_SIP_SET_CPUFREQ		0x00
 
 static struct imx_sc_ipc *ccm_ipc_handle;
 
@@ -180,6 +185,25 @@ static long clk_scu_round_rate(struct clk_hw *hw, unsigned long rate,
 	return rate;
 }
 
+static int clk_scu_atf_set_cpu_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct clk_scu *clk = to_clk_scu(hw);
+	struct arm_smccc_res res;
+	unsigned long cluster_id;
+
+	if (clk->rsrc_id == IMX_SC_R_A35)
+		cluster_id = 0;
+	else
+		return -EINVAL;
+
+	/* CPU frequency scaling can ONLY be done by ARM-Trusted-Firmware */
+	arm_smccc_smc(IMX_SIP_CPUFREQ, IMX_SIP_SET_CPUFREQ,
+		      cluster_id, rate, 0, 0, 0, 0, &res);
+
+	return 0;
+}
+
 /*
  * clk_scu_set_rate - Set rate for a SCU clock
  * @hw: clock to change rate for
@@ -312,6 +336,14 @@ static const struct clk_ops clk_scu_ops = {
 	.unprepare = clk_scu_unprepare,
 };
 
+static const struct clk_ops clk_scu_cpu_ops = {
+	.recalc_rate = clk_scu_recalc_rate,
+	.round_rate = clk_scu_round_rate,
+	.set_rate = clk_scu_atf_set_cpu_rate,
+	.prepare = clk_scu_prepare,
+	.unprepare = clk_scu_unprepare,
+};
+
 struct clk_hw *__imx_clk_scu(const char *name, const char * const *parents,
 			     int num_parents, u32 rsrc_id, u8 clk_type)
 {
@@ -329,6 +361,10 @@ struct clk_hw *__imx_clk_scu(const char *name, const char * const *parents,
 
 	init.name = name;
 	init.ops = &clk_scu_ops;
+	if (rsrc_id == IMX_SC_R_A35)
+		init.ops = &clk_scu_cpu_ops;
+	else
+		init.ops = &clk_scu_ops;
 	init.parent_names = parents;
 	init.num_parents = num_parents;
 
