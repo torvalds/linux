@@ -410,7 +410,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 	for (i = 0; i < fls->mirror_array_cnt; i++) {
 		struct nfs4_ff_layout_mirror *mirror;
 		struct cred *kcred;
-		const struct cred *cred;
+		const struct cred __rcu *cred;
 		kuid_t uid;
 		kgid_t gid;
 		u32 ds_count, fh_count, id;
@@ -501,7 +501,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 			goto out_err_free;
 		kcred->fsuid = uid;
 		kcred->fsgid = gid;
-		cred = kcred;
+		cred = RCU_INITIALIZER(kcred);
 
 		if (lgr->range.iomode == IOMODE_READ)
 			rcu_assign_pointer(fls->mirror_array[i]->ro_cred, cred);
