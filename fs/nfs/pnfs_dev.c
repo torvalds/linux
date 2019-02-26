@@ -287,7 +287,9 @@ void
 nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node)
 {
 	node->timestamp_unavailable = jiffies;
+	smp_mb__before_atomic();
 	set_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+	smp_mb__after_atomic();
 }
 EXPORT_SYMBOL_GPL(nfs4_mark_deviceid_unavailable);
 
@@ -302,6 +304,7 @@ nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node)
 		if (time_in_range(node->timestamp_unavailable, start, end))
 			return true;
 		clear_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+		smp_mb__after_atomic();
 	}
 	return false;
 }
