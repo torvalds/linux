@@ -2893,18 +2893,8 @@ again:
 		goto send_comp;
 
 	case IB_WR_SEND_WITH_INV:
-		if (!rvt_invalidate_rkey(qp, wqe->wr.ex.invalidate_rkey)) {
-			wc.wc_flags = IB_WC_WITH_INVALIDATE;
-			wc.ex.invalidate_rkey = wqe->wr.ex.invalidate_rkey;
-		}
-		goto send;
-
 	case IB_WR_SEND_WITH_IMM:
-		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.ex.imm_data = wqe->wr.ex.imm_data;
-		/* FALLTHROUGH */
 	case IB_WR_SEND:
-send:
 		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0)
 			goto op_err;
@@ -2912,6 +2902,22 @@ send:
 			goto rnr_nak;
 		if (wqe->length > qp->r_len)
 			goto inv_err;
+		switch (wqe->wr.opcode) {
+		case IB_WR_SEND_WITH_INV:
+			if (!rvt_invalidate_rkey(qp,
+						 wqe->wr.ex.invalidate_rkey)) {
+				wc.wc_flags = IB_WC_WITH_INVALIDATE;
+				wc.ex.invalidate_rkey =
+					wqe->wr.ex.invalidate_rkey;
+			}
+			break;
+		case IB_WR_SEND_WITH_IMM:
+			wc.wc_flags = IB_WC_WITH_IMM;
+			wc.ex.imm_data = wqe->wr.ex.imm_data;
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
