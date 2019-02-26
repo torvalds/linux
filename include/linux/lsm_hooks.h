@@ -319,10 +319,11 @@
  *	@new_dentry contains the dentry structure of the new link.
  *	Return 0 if permission is granted.
  * @path_chmod:
- *	Check for permission to change DAC's permission of a file or directory.
- *	@dentry contains the dentry structure.
- *	@mnt contains the vfsmnt structure.
- *	@mode contains DAC's mode.
+ *	Check for permission to change a mode of the file @path. The new
+ *	mode is specified in @mode.
+ *	@path contains the path structure of the file to change the mode.
+ *	@mode contains the new DAC's permission, which is a bitmask of
+ *	constants from <include/uapi/linux/stat.h>
  *	Return 0 if permission is granted.
  * @path_chown:
  *	Check for permission to change owner/group of a file or directory.
