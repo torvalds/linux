@@ -6397,9 +6397,6 @@ static void __devlink_compat_running_version(struct devlink *devlink,
 	struct sk_buff *msg;
 	int rem, err;
 
-	if (!devlink->ops->info_get)
-		return;
-
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
 		return;
@@ -6431,55 +6428,36 @@ free_msg:
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len)
 {
-	struct devlink_port *devlink_port;
 	struct devlink *devlink;
 
 	mutex_lock(&devlink_mutex);
-	list_for_each_entry(devlink, &devlink_list, list) {
-		mutex_lock(&devlink->lock);
-		list_for_each_entry(devlink_port, &devlink->port_list, list) {
-			if (devlink_port->type == DEVLINK_PORT_TYPE_ETH &&
-			    devlink_port->type_dev == dev) {
-				__devlink_compat_running_version(devlink,
-								 buf, len);
-				mutex_unlock(&devlink->lock);
-				goto out;
-			}
-		}
-		mutex_unlock(&devlink->lock);
-	}
-out:
+	devlink = netdev_to_devlink(dev);
+	if (!devlink || !devlink->ops || !devlink->ops->info_get)
+		goto unlock_list;
+
+	mutex_lock(&devlink->lock);
+	__devlink_compat_running_version(devlink, buf, len);
+	mutex_unlock(&devlink->lock);
+unlock_list:
 	mutex_unlock(&devlink_mutex);
 }
 
 int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 {
-	struct devlink_port *devlink_port;
 	struct devlink *devlink;
+	int ret = -EOPNOTSUPP;
 
 	mutex_lock(&devlink_mutex);
-	list_for_each_entry(devlink, &devlink_list, list) {
-		mutex_lock(&devlink->lock);
-		list_for_each_entry(devlink_port, &devlink->port_list, list) {
-			int ret = -EOPNOTSUPP;
+	devlink = netdev_to_devlink(dev);
+	if (!devlink || !devlink->ops || !devlink->ops->flash_update)
+		goto unlock_list;
 
-			if (devlink_port->type != DEVLINK_PORT_TYPE_ETH ||
-			    devlink_port->type_dev != dev)
-				continue;
-
-			mutex_unlock(&devlink_mutex);
-			if (devlink->ops->flash_update)
-				ret = devlink->ops->flash_update(devlink,
-								 file_name,
-								 NULL, NULL);
-			mutex_unlock(&devlink->lock);
-			return ret;
-		}
-		mutex_unlock(&devlink->lock);
-	}
+	mutex_lock(&devlink->lock);
+	ret = devlink->ops->flash_update(devlink, file_name, NULL, NULL);
+	mutex_unlock(&devlink->lock);
+unlock_list:
 	mutex_unlock(&devlink_mutex);
-
-	return -EOPNOTSUPP;
+	return ret;
 }
 
 static int __init devlink_init(void)

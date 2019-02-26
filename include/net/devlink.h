@@ -538,6 +538,15 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
+static inline struct devlink *netdev_to_devlink(struct net_device *dev)
+{
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+	if (dev->netdev_ops->ndo_get_devlink)
+		return dev->netdev_ops->ndo_get_devlink(dev);
+#endif
+	return NULL;
+}
+
 struct ib_device;
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)

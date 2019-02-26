@@ -941,6 +941,8 @@ struct dev_ifalias {
 	char ifalias[];
 };
 
+struct devlink;
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -1249,6 +1251,10 @@ struct dev_ifalias {
  *	that got dropped are freed/returned via xdp_return_frame().
  *	Returns negative number, means general error invoking ndo, meaning
  *	no frames were xmit'ed and core-caller will free all frames.
+ * struct devlink *(*ndo_get_devlink)(struct net_device *dev);
+ *	Get devlink instance associated with a given netdev.
+ *	Called with a reference on the netdevice and devlink locks only,
+ *	rtnl_lock is not held.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1447,6 +1453,7 @@ struct net_device_ops {
 						u32 flags);
 	int			(*ndo_xsk_async_xmit)(struct net_device *dev,
 						      u32 queue_id);
+	struct devlink *	(*ndo_get_devlink)(struct net_device *dev);
 };
 
 /**
