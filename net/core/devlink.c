@@ -723,7 +723,7 @@ static int devlink_port_type_set(struct devlink *devlink,
 {
 	int err;
 
-	if (devlink->ops && devlink->ops->port_type_set) {
+	if (devlink->ops->port_type_set) {
 		if (port_type == DEVLINK_PORT_TYPE_NOTSET)
 			return -EINVAL;
 		if (port_type == devlink_port->type)
@@ -760,7 +760,7 @@ static int devlink_port_split(struct devlink *devlink, u32 port_index,
 			      u32 count, struct netlink_ext_ack *extack)
 
 {
-	if (devlink->ops && devlink->ops->port_split)
+	if (devlink->ops->port_split)
 		return devlink->ops->port_split(devlink, port_index, count,
 						extack);
 	return -EOPNOTSUPP;
@@ -786,7 +786,7 @@ static int devlink_port_unsplit(struct devlink *devlink, u32 port_index,
 				struct netlink_ext_ack *extack)
 
 {
-	if (devlink->ops && devlink->ops->port_unsplit)
+	if (devlink->ops->port_unsplit)
 		return devlink->ops->port_unsplit(devlink, port_index, extack);
 	return -EOPNOTSUPP;
 }
@@ -961,7 +961,7 @@ static int devlink_nl_cmd_sb_pool_get_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!devlink->ops || !devlink->ops->sb_pool_get)
+	if (!devlink->ops->sb_pool_get)
 		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1017,7 +1017,7 @@ static int devlink_nl_cmd_sb_pool_get_dumpit(struct sk_buff *msg,
 	mutex_lock(&devlink_mutex);
 	list_for_each_entry(devlink, &devlink_list, list) {
 		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)) ||
-		    !devlink->ops || !devlink->ops->sb_pool_get)
+		    !devlink->ops->sb_pool_get)
 			continue;
 		mutex_lock(&devlink->lock);
 		list_for_each_entry(devlink_sb, &devlink->sb_list, list) {
@@ -1046,7 +1046,7 @@ static int devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
 {
 	const struct devlink_ops *ops = devlink->ops;
 
-	if (ops && ops->sb_pool_set)
+	if (ops->sb_pool_set)
 		return ops->sb_pool_set(devlink, sb_index, pool_index,
 					size, threshold_type);
 	return -EOPNOTSUPP;
@@ -1151,7 +1151,7 @@ static int devlink_nl_cmd_sb_port_pool_get_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!devlink->ops || !devlink->ops->sb_port_pool_get)
+	if (!devlink->ops->sb_port_pool_get)
 		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1213,7 +1213,7 @@ static int devlink_nl_cmd_sb_port_pool_get_dumpit(struct sk_buff *msg,
 	mutex_lock(&devlink_mutex);
 	list_for_each_entry(devlink, &devlink_list, list) {
 		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)) ||
-		    !devlink->ops || !devlink->ops->sb_port_pool_get)
+		    !devlink->ops->sb_port_pool_get)
 			continue;
 		mutex_lock(&devlink->lock);
 		list_for_each_entry(devlink_sb, &devlink->sb_list, list) {
@@ -1242,7 +1242,7 @@ static int devlink_sb_port_pool_set(struct devlink_port *devlink_port,
 {
 	const struct devlink_ops *ops = devlink_port->devlink->ops;
 
-	if (ops && ops->sb_port_pool_set)
+	if (ops->sb_port_pool_set)
 		return ops->sb_port_pool_set(devlink_port, sb_index,
 					     pool_index, threshold);
 	return -EOPNOTSUPP;
@@ -1355,7 +1355,7 @@ static int devlink_nl_cmd_sb_tc_pool_bind_get_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!devlink->ops || !devlink->ops->sb_tc_pool_bind_get)
+	if (!devlink->ops->sb_tc_pool_bind_get)
 		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -1439,7 +1439,7 @@ devlink_nl_cmd_sb_tc_pool_bind_get_dumpit(struct sk_buff *msg,
 	mutex_lock(&devlink_mutex);
 	list_for_each_entry(devlink, &devlink_list, list) {
 		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)) ||
-		    !devlink->ops || !devlink->ops->sb_tc_pool_bind_get)
+		    !devlink->ops->sb_tc_pool_bind_get)
 			continue;
 
 		mutex_lock(&devlink->lock);
@@ -1471,7 +1471,7 @@ static int devlink_sb_tc_pool_bind_set(struct devlink_port *devlink_port,
 {
 	const struct devlink_ops *ops = devlink_port->devlink->ops;
 
-	if (ops && ops->sb_tc_pool_bind_set)
+	if (ops->sb_tc_pool_bind_set)
 		return ops->sb_tc_pool_bind_set(devlink_port, sb_index,
 						tc_index, pool_type,
 						pool_index, threshold);
@@ -1519,7 +1519,7 @@ static int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
 	struct devlink_sb *devlink_sb = info->user_ptr[1];
 	const struct devlink_ops *ops = devlink->ops;
 
-	if (ops && ops->sb_occ_snapshot)
+	if (ops->sb_occ_snapshot)
 		return ops->sb_occ_snapshot(devlink, devlink_sb->index);
 	return -EOPNOTSUPP;
 }
@@ -1531,7 +1531,7 @@ static int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
 	struct devlink_sb *devlink_sb = info->user_ptr[1];
 	const struct devlink_ops *ops = devlink->ops;
 
-	if (ops && ops->sb_occ_max_clear)
+	if (ops->sb_occ_max_clear)
 		return ops->sb_occ_max_clear(devlink, devlink_sb->index);
 	return -EOPNOTSUPP;
 }
@@ -1594,12 +1594,8 @@ static int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb,
 					   struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
-	const struct devlink_ops *ops = devlink->ops;
 	struct sk_buff *msg;
 	int err;
-
-	if (!ops)
-		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -1624,9 +1620,6 @@ static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
 	u8 inline_mode, encap_mode;
 	int err = 0;
 	u16 mode;
-
-	if (!ops)
-		return -EOPNOTSUPP;
 
 	if (info->attrs[DEVLINK_ATTR_ESWITCH_MODE]) {
 		if (!ops->eswitch_mode_set)
@@ -3869,7 +3862,7 @@ static int devlink_nl_cmd_info_get_doit(struct sk_buff *skb,
 	struct sk_buff *msg;
 	int err;
 
-	if (!devlink->ops || !devlink->ops->info_get)
+	if (!devlink->ops->info_get)
 		return -EOPNOTSUPP;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -5232,6 +5225,9 @@ struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size)
 {
 	struct devlink *devlink;
 
+	if (WARN_ON(!ops))
+		return NULL;
+
 	devlink = kzalloc(sizeof(*devlink) + priv_size, GFP_KERNEL);
 	if (!devlink)
 		return NULL;
@@ -6091,7 +6087,7 @@ __devlink_param_driverinit_value_set(struct devlink *devlink,
 int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
 				       union devlink_param_value *init_val)
 {
-	if (!devlink->ops || !devlink->ops->reload)
+	if (!devlink->ops->reload)
 		return -EOPNOTSUPP;
 
 	return __devlink_param_driverinit_value_get(&devlink->param_list,
@@ -6138,7 +6134,7 @@ int devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
 {
 	struct devlink *devlink = devlink_port->devlink;
 
-	if (!devlink->ops || !devlink->ops->reload)
+	if (!devlink->ops->reload)
 		return -EOPNOTSUPP;
 
 	return __devlink_param_driverinit_value_get(&devlink_port->param_list,
@@ -6435,7 +6431,7 @@ void devlink_compat_running_version(struct net_device *dev,
 
 	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops || !devlink->ops->info_get)
+	if (!devlink || !devlink->ops->info_get)
 		goto unlock_list;
 
 	mutex_lock(&devlink->lock);
@@ -6458,7 +6454,7 @@ int devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 
 	mutex_lock(&devlink_mutex);
 	devlink = netdev_to_devlink(dev);
-	if (!devlink || !devlink->ops || !devlink->ops->flash_update)
+	if (!devlink || !devlink->ops->flash_update)
 		goto unlock_list;
 
 	mutex_lock(&devlink->lock);
