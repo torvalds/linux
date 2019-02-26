@@ -803,7 +803,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 		return rc;
 	}
 
-	if (!rdma_is_kernel_res(&qp->ib_qp.res)) {
+	if (rdma_is_kernel_res(&qp->ib_qp.res)) {
 		flags = bnxt_re_lock_cqs(qp);
 		bnxt_qplib_clean_qp(&qp->qplib_qp);
 		bnxt_re_unlock_cqs(qp, flags);
