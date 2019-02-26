@@ -2929,11 +2929,11 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	tx_stats = arsta->tx_stats;
 	flags = txrate->flags;
 	gi = test_bit(ATH10K_RATE_INFO_FLAGS_SGI_BIT, &flags);
-	ht_idx = txrate->mcs + txrate->nss * 8;
-	mcs = txrate->mcs;
+	mcs = ATH10K_HW_MCS_RATE(pstats->ratecode);
 	bw = txrate->bw;
 	nss = txrate->nss;
-	idx = mcs * 8 + 8 * 10 * nss;
+	ht_idx = mcs + (nss - 1) * 8;
+	idx = mcs * 8 + 8 * 10 * (nss - 1);
 	idx += bw * 2 + gi;
 
 #define STATS_OP_FMT(name) tx_stats->stats[ATH10K_STATS_TYPE_##name]
