@@ -707,20 +707,31 @@ static void pcpu_block_update_scan(struct pcpu_chunk *chunk, int bit_off,
 /**
  * pcpu_chunk_refresh_hint - updates metadata about a chunk
  * @chunk: chunk of interest
+ * @full_scan: if we should scan from the beginning
  *
  * Iterates over the metadata blocks to find the largest contig area.
- * It also counts the populated pages and uses the delta to update the
- * global count.
+ * A full scan can be avoided on the allocation path as this is triggered
+ * if we broke the contig_hint.  In doing so, the scan_hint will be before
+ * the contig_hint or after if the scan_hint == contig_hint.  This cannot
+ * be prevented on freeing as we want to find the largest area possibly
+ * spanning blocks.
  */
-static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
+static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk, bool full_scan)
 {
 	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
 	int bit_off, bits;
 
-	/* clear metadata */
-	chunk_md->contig_hint = 0;
+	/* promote scan_hint to contig_hint */
+	if (!full_scan && chunk_md->scan_hint) {
+		bit_off = chunk_md->scan_hint_start + chunk_md->scan_hint;
+		chunk_md->contig_hint_start = chunk_md->scan_hint_start;
+		chunk_md->contig_hint = chunk_md->scan_hint;
+		chunk_md->scan_hint = 0;
+	} else {
+		bit_off = chunk_md->first_free;
+		chunk_md->contig_hint = 0;
+	}
 
-	bit_off = chunk_md->first_free;
 	bits = 0;
 	pcpu_for_each_md_free_region(chunk, bit_off, bits) {
 		pcpu_block_update(chunk_md, bit_off, bit_off + bits);
@@ -880,6 +891,13 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 	if (nr_empty_pages)
 		pcpu_update_empty_pages(chunk, -nr_empty_pages);
 
+	if (pcpu_region_overlap(chunk_md->scan_hint_start,
+				chunk_md->scan_hint_start +
+				chunk_md->scan_hint,
+				bit_off,
+				bit_off + bits))
+		chunk_md->scan_hint = 0;
+
 	/*
 	 * The only time a full chunk scan is required is if the chunk
 	 * contig hint is broken.  Otherwise, it means a smaller space
@@ -890,7 +908,7 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 				chunk_md->contig_hint,
 				bit_off,
 				bit_off + bits))
-		pcpu_chunk_refresh_hint(chunk);
+		pcpu_chunk_refresh_hint(chunk, false);
 }
 
 /**
@@ -1001,7 +1019,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
 	 * the else condition below.
 	 */
 	if (((end - start) >= PCPU_BITMAP_BLOCK_BITS) || s_index != e_index)
-		pcpu_chunk_refresh_hint(chunk);
+		pcpu_chunk_refresh_hint(chunk, true);
 	else
 		pcpu_block_update(&chunk->chunk_md,
 				  pcpu_block_off_to_off(s_index, start),
@@ -1074,7 +1092,7 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 	if (bit_off + alloc_bits > chunk_md->contig_hint)
 		return -1;
 
-	bit_off = chunk_md->first_free;
+	bit_off = pcpu_next_hint(chunk_md, alloc_bits);
 	bits = 0;
 	pcpu_for_each_fit_region(chunk, alloc_bits, align, bit_off, bits) {
 		if (!pop_only || pcpu_is_populated(chunk, bit_off, bits,
