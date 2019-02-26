@@ -582,12 +582,25 @@ EXC_REAL_END(data_access, 0x300, 0x80)
 
 TRAMP_REAL_BEGIN(tramp_real_data_access)
 EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x300)
+	/*
+	 * DAR/DSISR must be read before setting MSR[RI], because
+	 * a d-side MCE will clobber those registers so is not
+	 * recoverable if they are live.
+	 */
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
 EXCEPTION_PROLOG_2(data_access_common, EXC_STD)
 
 EXC_VIRT_BEGIN(data_access, 0x4300, 0x80)
 SET_SCRATCH0(r13)		/* save r13 */
 EXCEPTION_PROLOG_0(PACA_EXGEN)
 EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x300)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
 EXCEPTION_PROLOG_2_RELON(data_access_common, EXC_STD)
 EXC_VIRT_END(data_access, 0x4300, 0x80)
 
@@ -598,11 +611,8 @@ EXC_COMMON_BEGIN(data_access_common)
 	 * Here r13 points to the paca, r9 contains the saved CR,
 	 * SRR0 and SRR1 are saved in r11 and r12,
 	 * r9 - r13 are saved in paca->exgen.
+	 * EX_DAR and EX_DSISR have saved DAR/DSISR
 	 */
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,SPRN_DSISR
-	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r12,_MSR(r1)
@@ -626,20 +636,22 @@ EXC_REAL_END(data_access_slb, 0x380, 0x80)
 
 TRAMP_REAL_BEGIN(tramp_real_data_access_slb)
 EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXSLB+EX_DAR(r13)
 EXCEPTION_PROLOG_2(data_access_slb_common, EXC_STD)
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 SET_SCRATCH0(r13)		/* save r13 */
 EXCEPTION_PROLOG_0(PACA_EXSLB)
 EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
+	mfspr	r10,SPRN_DAR
+	std	r10,PACA_EXSLB+EX_DAR(r13)
 EXCEPTION_PROLOG_2_RELON(data_access_slb_common, EXC_STD)
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
 
 EXC_COMMON_BEGIN(data_access_slb_common)
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXSLB+EX_DAR(r13)
 	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
 	ld	r4,PACA_EXSLB+EX_DAR(r13)
 	std	r4,_DAR(r1)
@@ -739,6 +751,10 @@ EXC_REAL_BEGIN(alignment, 0x600, 0x100)
 SET_SCRATCH0(r13)		/* save r13 */
 EXCEPTION_PROLOG_0(PACA_EXGEN)
 EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x600)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
 EXCEPTION_PROLOG_2(alignment_common, EXC_STD)
 EXC_REAL_END(alignment, 0x600, 0x100)
 
@@ -746,15 +762,15 @@ EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
 SET_SCRATCH0(r13)		/* save r13 */
 EXCEPTION_PROLOG_0(PACA_EXGEN)
 EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x600)
+	mfspr	r10,SPRN_DAR
+	mfspr	r11,SPRN_DSISR
+	std	r10,PACA_EXGEN+EX_DAR(r13)
+	stw	r11,PACA_EXGEN+EX_DSISR(r13)
 EXCEPTION_PROLOG_2_RELON(alignment_common, EXC_STD)
 EXC_VIRT_END(alignment, 0x4600, 0x100)
 
 TRAMP_KVM(PACA_EXGEN, 0x600)
 EXC_COMMON_BEGIN(alignment_common)
-	mfspr	r10,SPRN_DAR
-	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,SPRN_DSISR
-	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x600, PACA_EXGEN)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
