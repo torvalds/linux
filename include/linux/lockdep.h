@@ -58,8 +58,10 @@ struct lockdep_subclass_key {
 
 /* hash_entry is used to keep track of dynamically allocated keys. */
 struct lock_class_key {
-	struct hlist_node		hash_entry;
-	struct lockdep_subclass_key	subkeys[MAX_LOCKDEP_SUBCLASSES];
+	union {
+		struct hlist_node		hash_entry;
+		struct lockdep_subclass_key	subkeys[MAX_LOCKDEP_SUBCLASSES];
+	};
 };
 
 extern struct lock_class_key __lockdep_no_validate__;
