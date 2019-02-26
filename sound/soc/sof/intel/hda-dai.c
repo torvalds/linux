@@ -13,9 +13,6 @@
 #include "../sof-priv.h"
 #include "hda.h"
 
-#define SKL_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-	SNDRV_PCM_FMTBIT_S32_LE)
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
 struct hda_pipe_params {
@@ -265,98 +262,52 @@ static const struct snd_soc_dai_ops hda_link_dai_ops = {
 struct snd_soc_dai_driver skl_dai[] = {
 {
 	.name = "SSP0 Pin",
-	.playback = SOF_DAI_STREAM("ssp0 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp0 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "SSP1 Pin",
-	.playback = SOF_DAI_STREAM("ssp1 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp1 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "SSP2 Pin",
-	.playback = SOF_DAI_STREAM("ssp2 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp2 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "SSP3 Pin",
-	.playback = SOF_DAI_STREAM("ssp3 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp3 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "SSP4 Pin",
-	.playback = SOF_DAI_STREAM("ssp4 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp4 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "SSP5 Pin",
-	.playback = SOF_DAI_STREAM("ssp5 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp5 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "DMIC01 Pin",
-	.capture = SOF_DAI_STREAM("DMIC01 Rx", 1, 4,
-				  SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "DMIC16k Pin",
-	.capture = SOF_DAI_STREAM("DMIC16k Rx", 1, 4,
-				  SNDRV_PCM_RATE_16000, SKL_FORMATS),
 },
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 {
 	.name = "iDisp1 Pin",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("iDisp1 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "iDisp2 Pin",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("iDisp2 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "iDisp3 Pin",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("iDisp3 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "Analog CPU DAI",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("Analog CPU Playback", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("Analog CPU Capture", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "Digital CPU DAI",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("Digital CPU Playback", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("Digital CPU Capture", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 {
 	.name = "Alt Analog CPU DAI",
 	.ops = &hda_link_dai_ops,
-	.playback = SOF_DAI_STREAM("Alt Analog CPU Playback", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
-	.capture = SOF_DAI_STREAM("Alt Analog CPU Capture", 1, 16,
-				   SNDRV_PCM_RATE_8000_192000, SKL_FORMATS),
 },
 #endif
 };

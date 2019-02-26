@@ -640,24 +640,13 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-#define BDW_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-	SNDRV_PCM_FMTBIT_S32_LE)
-
 /* Broadwell DAIs */
 static struct snd_soc_dai_driver bdw_dai[] = {
 {
 	.name = "ssp0-port",
-	.playback = SOF_DAI_STREAM("ssp0 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BDW_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp0 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BDW_FORMATS),
 },
 {
 	.name = "ssp1-port",
-	.playback = SOF_DAI_STREAM("ssp1 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BDW_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp1 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BDW_FORMATS),
 },
 };
 
