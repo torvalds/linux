@@ -159,7 +159,7 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
  * return number of poll before condition is met
  * return 0 if condition is not meet after specified time out tries
  */
-unsigned int generic_reg_wait(const struct dc_context *ctx,
+void generic_reg_wait(const struct dc_context *ctx,
 	uint32_t addr, uint32_t mask, uint32_t shift, uint32_t condition_value,
 	unsigned int delay_between_poll_us, unsigned int time_out_num_tries,
 	const char *func_name, int line);

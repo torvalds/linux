@@ -317,9 +317,10 @@ static enum aux_channel_operation_result get_channel_status(
 	*returned_bytes = 0;
 
 	/* poll to make sure that SW_DONE is asserted */
-	value = REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 1,
+	REG_WAIT(AUX_SW_STATUS, AUX_SW_DONE, 1,
 				10, aux110->timeout_period/10);
 
+	value = REG_READ(AUX_SW_STATUS);
 	/* in case HPD is LOW, exit AUX transaction */
 	if ((value & AUX_SW_STATUS__AUX_SW_HPD_DISCON_MASK))
 		return AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON;
