@@ -294,12 +294,15 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * so the timewait ack generating code has the key.
 		 */
 		do {
-			struct tcp_md5sig_key *key;
 			tcptw->tw_md5_key = NULL;
-			key = tp->af_specific->md5_lookup(sk, sk);
-			if (key) {
-				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-				BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+			if (static_branch_unlikely(&tcp_md5_needed)) {
+				struct tcp_md5sig_key *key;
+
+				key = tp->af_specific->md5_lookup(sk, sk);
+				if (key) {
+					tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
+					BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+				}
 			}
 		} while (0);
 #endif
@@ -338,10 +341,12 @@ EXPORT_SYMBOL(tcp_time_wait);
 void tcp_twsk_destructor(struct sock *sk)
 {
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
+	if (static_branch_unlikely(&tcp_md5_needed)) {
+		struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 
-	if (twsk->tw_md5_key)
-		kfree_rcu(twsk->tw_md5_key, rcu);
+		if (twsk->tw_md5_key)
+			kfree_rcu(twsk->tw_md5_key, rcu);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
