@@ -267,46 +267,66 @@ static const char *type_name(enum v4l2_buf_type type)
 #define CLIP(__color) \
 	(u8)(((__color) > 0xff) ? 0xff : (((__color) < 0) ? 0 : (__color)))
 
-static void copy_two_pixels(struct vim2m_fmt *in, struct vim2m_fmt *out,
+static int fast_copy_two_pixels(struct vim2m_q_data *q_data_in,
+				struct vim2m_q_data *q_data_out,
+				u8 **src, u8 **dst, int ypos, bool reverse)
+{
+	int depth = q_data_out->fmt->depth >> 3;
+
+	/* Only do fast copy when format and resolution are identical */
+	if (q_data_in->fmt->fourcc != q_data_out->fmt->fourcc ||
+	    q_data_in->width != q_data_out->width ||
+	    q_data_in->height != q_data_out->height)
+		return 0;
+
+	if (!reverse) {
+		memcpy(*dst, *src, depth << 1);
+		*src += depth << 1;
+		*dst += depth << 1;
+		return 1;
+	}
+
+	/* Copy line at reverse order - YUYV format */
+	if (q_data_in->fmt->fourcc == V4L2_PIX_FMT_YUYV) {
+		int u, v, y, y1;
+
+		*src -= 2;
+
+		y1 = (*src)[0]; /* copy as second point */
+		u  = (*src)[1];
+		y  = (*src)[2]; /* copy as first point */
+		v  = (*src)[3];
+
+		*src -= 2;
+
+		*(*dst)++ = y;
+		*(*dst)++ = u;
+		*(*dst)++ = y1;
+		*(*dst)++ = v;
+		return 1;
+	}
+
+	/* copy RGB formats in reverse order */
+	memcpy(*dst, *src, depth);
+	memcpy(*dst + depth, *src - depth, depth);
+	*src -= depth << 1;
+	*dst += depth << 1;
+	return 1;
+}
+
+static void copy_two_pixels(struct vim2m_q_data *q_data_in,
+			    struct vim2m_q_data *q_data_out,
 			    u8 **src, u8 **dst, int ypos, bool reverse)
 {
+	struct vim2m_fmt *out = q_data_out->fmt;
+	struct vim2m_fmt *in = q_data_in->fmt;
 	u8 _r[2], _g[2], _b[2], *r, *g, *b;
 	int i, step;
 
 	// If format is the same just copy the data, respecting the width
-	if (in->fourcc == out->fourcc) {
-		int depth = out->depth >> 3;
-
-		if (reverse) {
-			if (in->fourcc == V4L2_PIX_FMT_YUYV) {
-				int u, v, y, y1;
-
-				*src -= 2;
-
-				y1 = (*src)[0]; /* copy as second point */
-				u  = (*src)[1];
-				y  = (*src)[2]; /* copy as first point */
-				v  = (*src)[3];
-
-				*src -= 2;
-
-				*(*dst)++ = y;
-				*(*dst)++ = u;
-				*(*dst)++ = y1;
-				*(*dst)++ = v;
-				return;
-			}
-
-			memcpy(*dst, *src, depth);
-			memcpy(*dst + depth, *src - depth, depth);
-			*src -= depth << 1;
-		} else {
-			memcpy(*dst, *src, depth << 1);
-			*src += depth << 1;
-		}
-		*dst += depth << 1;
+	if (fast_copy_two_pixels(q_data_in, q_data_out,
+				 src, dst, ypos, reverse))
 		return;
-	}
 
 	/* Step 1: read two consecutive pixels from src pointer */
 
@@ -506,17 +526,22 @@ static int device_process(struct vim2m_ctx *ctx,
 	struct vim2m_dev *dev = ctx->dev;
 	struct vim2m_q_data *q_data_in, *q_data_out;
 	u8 *p_in, *p, *p_out;
-	int width, height, bytesperline, x, y, y_out, start, end, step;
-	struct vim2m_fmt *in, *out;
+	unsigned int width, height, bytesperline;
+	unsigned int x, y, y_out;
+	int start, end, step;
 
 	q_data_in = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
-	in = q_data_in->fmt;
 	width = q_data_in->width;
 	height = q_data_in->height;
 	bytesperline = (q_data_in->width * q_data_in->fmt->depth) >> 3;
 
 	q_data_out = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	out = q_data_out->fmt;
+
+	/* Crop to the limits of the destination image */
+	if (width > q_data_out->width)
+		width = q_data_out->width;
+	if (height > q_data_out->height)
+		height = q_data_out->height;
 
 	p_in = vb2_plane_vaddr(&in_vb->vb2_buf, 0);
 	p_out = vb2_plane_vaddr(&out_vb->vb2_buf, 0);
@@ -526,6 +551,17 @@ static int device_process(struct vim2m_ctx *ctx,
 		return -EFAULT;
 	}
 
+	/*
+	 * FIXME: instead of cropping the image and zeroing any
+	 * extra data, the proper behavior is to either scale the
+	 * data or report that scale is not supported (with depends
+	 * on some API for such purpose).
+	 */
+
+	/* Image size is different. Zero buffer first */
+	if (q_data_in->width  != q_data_out->width ||
+	    q_data_in->height != q_data_out->height)
+		memset(p_out, 0, q_data_out->sizeimage);
 	out_vb->sequence = get_q_data(ctx,
 				      V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
 	in_vb->sequence = q_data_in->sequence++;
@@ -547,8 +583,14 @@ static int device_process(struct vim2m_ctx *ctx,
 			p += bytesperline - (q_data_in->fmt->depth >> 3);
 
 		for (x = 0; x < width >> 1; x++)
-			copy_two_pixels(in, out, &p, &p_out, y_out,
+			copy_two_pixels(q_data_in, q_data_out, &p,
+					&p_out, y_out,
 					ctx->mode & MEM2MEM_HFLIP);
+
+		/* Go to the next line at the out buffer */
+		if (width < q_data_out->width)
+			p_out += ((q_data_out->width - width)
+				  * q_data_out->fmt->depth) >> 3;
 	}
 
 	return 0;
