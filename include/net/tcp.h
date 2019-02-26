@@ -1716,12 +1716,6 @@ static inline bool tcp_rtx_and_write_queues_empty(const struct sock *sk)
 	return tcp_rtx_queue_empty(sk) && tcp_write_queue_empty(sk);
 }
 
-static inline void tcp_check_send_head(struct sock *sk, struct sk_buff *skb_unlinked)
-{
-	if (tcp_write_queue_empty(sk))
-		tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
-}
-
 static inline void __tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_queue_tail(&sk->sk_write_queue, skb);
