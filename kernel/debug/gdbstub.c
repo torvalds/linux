@@ -1033,13 +1033,14 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				return DBG_PASS_EVENT;
 			}
 #endif
+			/* Fall through */
 		case 'C': /* Exception passing */
 			tmp = gdb_cmd_exception_pass(ks);
 			if (tmp > 0)
 				goto default_handle;
 			if (tmp == 0)
 				break;
-			/* Fall through on tmp < 0 */
+			/* Fall through - on tmp < 0 */
 		case 'c': /* Continue packet */
 		case 's': /* Single step packet */
 			if (kgdb_contthread && kgdb_contthread != current) {
@@ -1048,7 +1049,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				break;
 			}
 			dbg_activate_sw_breakpoints();
-			/* Fall through to default processing */
+			/* Fall through - to default processing */
 		default:
 default_handle:
 			error = kgdb_arch_handle_exception(ks->ex_vector,
