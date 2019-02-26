@@ -435,13 +435,31 @@ nonrecoverable:
 
 void system_reset_exception(struct pt_regs *regs)
 {
+	unsigned long hsrr0, hsrr1;
+	bool nested = in_nmi();
+	bool saved_hsrrs = false;
+
 	/*
 	 * Avoid crashes in case of nested NMI exceptions. Recoverability
 	 * is determined by RI and in_nmi
 	 */
-	bool nested = in_nmi();
 	if (!nested)
 		nmi_enter();
+
+	/*
+	 * System reset can interrupt code where HSRRs are live and MSR[RI]=1.
+	 * The system reset interrupt itself may clobber HSRRs (e.g., to call
+	 * OPAL), so save them here and restore them before returning.
+	 *
+	 * Machine checks don't need to save HSRRs, as the real mode handler
+	 * is careful to avoid them, and the regular handler is not delivered
+	 * as an NMI.
+	 */
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		hsrr0 = mfspr(SPRN_HSRR0);
+		hsrr1 = mfspr(SPRN_HSRR1);
+		saved_hsrrs = true;
+	}
 
 	hv_nmi_check_nonrecoverable(regs);
 
@@ -491,6 +509,11 @@ out:
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		nmi_panic(regs, "Unrecoverable System Reset");
+
+	if (saved_hsrrs) {
+		mtspr(SPRN_HSRR0, hsrr0);
+		mtspr(SPRN_HSRR1, hsrr1);
+	}
 
 	if (!nested)
 		nmi_exit();
