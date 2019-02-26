@@ -51,6 +51,7 @@
 
 /* The max erase timeout, used when host->max_busy_timeout isn't specified */
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
+#define SD_DISCARD_TIMEOUT_MS	(250)
 
 static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
@@ -1618,6 +1619,12 @@ static unsigned int mmc_sd_erase_timeout(struct mmc_card *card,
 					 unsigned int qty)
 {
 	unsigned int erase_timeout;
+
+	/* for DISCARD none of the below calculation applies.
+	 * the busy timeout is 250msec per discard command.
+	 */
+	if (arg == SD_DISCARD_ARG)
+		return SD_DISCARD_TIMEOUT_MS;
 
 	if (card->ssr.erase_timeout) {
 		/* Erase timeout specified in SD Status Register (SSR) */
