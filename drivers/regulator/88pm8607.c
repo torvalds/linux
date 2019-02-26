@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/i2c.h>
 #include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
@@ -22,10 +21,6 @@
 
 struct pm8607_regulator_info {
 	struct regulator_desc	desc;
-	struct pm860x_chip	*chip;
-	struct regulator_dev	*regulator;
-	struct i2c_client	*i2c;
-	struct i2c_client	*i2c_8606;
 
 	unsigned int	*vol_suspend;
 
@@ -350,6 +345,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	struct pm8607_regulator_info *info = NULL;
 	struct regulator_init_data *pdata = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	struct resource *res;
 	int i;
 
@@ -372,13 +368,9 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 		/* i is used to check regulator ID */
 		i = -1;
 	}
-	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
-	info->i2c_8606 = (chip->id == CHIP_PM8607) ? chip->companion :
-			chip->client;
-	info->chip = chip;
 
 	/* check DVC ramp slope double */
-	if ((i == PM8607_ID_BUCK3) && info->chip->buck3_double)
+	if ((i == PM8607_ID_BUCK3) && chip->buck3_double)
 		info->slope_double = 1;
 
 	config.dev = &pdev->dev;
@@ -393,12 +385,11 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	else
 		config.regmap = chip->regmap_companion;
 
-	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
-						  &config);
-	if (IS_ERR(info->regulator)) {
+	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
+	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		return PTR_ERR(info->regulator);
+		return PTR_ERR(rdev);
 	}
 
 	platform_set_drvdata(pdev, info);
