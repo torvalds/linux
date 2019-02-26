@@ -1291,8 +1291,7 @@
  *	Check permission before accessing the kernel message ring or changing
  *	logging to the console.
  *	See the syslog(2) manual page for an explanation of the @type values.
- *	@type contains the type of action.
- *	@from_file indicates the context of action (if it came from /proc).
+ *	@type contains the SYSLOG_ACTION_* constant from <include/linux/syslog.h>
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
