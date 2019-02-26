@@ -95,9 +95,11 @@ struct i915_priolist {
 		list_for_each_entry(it, &(plist)->requests[idx], sched.link)
 
 #define priolist_for_each_request_consume(it, n, plist, idx) \
-	for (; (idx = ffs((plist)->used)); (plist)->used &= ~BIT(idx - 1)) \
+	for (; \
+	     (plist)->used ? (idx = __ffs((plist)->used)), 1 : 0; \
+	     (plist)->used &= ~BIT(idx)) \
 		list_for_each_entry_safe(it, n, \
-					 &(plist)->requests[idx - 1], \
+					 &(plist)->requests[idx], \
 					 sched.link)
 
 void i915_sched_node_init(struct i915_sched_node *node);
