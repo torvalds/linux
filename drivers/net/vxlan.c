@@ -3583,11 +3583,40 @@ errout:
 	return err;
 }
 
+/* Set/clear flags based on attribute */
+static int vxlan_nl2flag(struct vxlan_config *conf, struct nlattr *tb[],
+			  int attrtype, unsigned long mask, bool changelink,
+			  bool changelink_supported,
+			  struct netlink_ext_ack *extack)
+{
+	unsigned long flags;
+
+	if (!tb[attrtype])
+		return 0;
+
+	if (changelink && !changelink_supported) {
+		vxlan_flag_attr_error(attrtype, extack);
+		return -EOPNOTSUPP;
+	}
+
+	if (vxlan_policy[attrtype].type == NLA_FLAG)
+		flags = conf->flags | mask;
+	else if (nla_get_u8(tb[attrtype]))
+		flags = conf->flags | mask;
+	else
+		flags = conf->flags & ~mask;
+
+	conf->flags = flags;
+
+	return 0;
+}
+
 static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			 struct net_device *dev, struct vxlan_config *conf,
-			 bool changelink)
+			 bool changelink, struct netlink_ext_ack *extack)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
+	int err = 0;
 
 	memset(conf, 0, sizeof(*conf));
 
@@ -3598,40 +3627,54 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_VXLAN_ID]) {
 		__be32 vni = cpu_to_be32(nla_get_u32(data[IFLA_VXLAN_ID]));
 
-		if (changelink && (vni != conf->vni))
+		if (changelink && (vni != conf->vni)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_ID], "Cannot change VNI");
 			return -EOPNOTSUPP;
+		}
 		conf->vni = cpu_to_be32(nla_get_u32(data[IFLA_VXLAN_ID]));
 	}
 
 	if (data[IFLA_VXLAN_GROUP]) {
-		if (changelink && (conf->remote_ip.sa.sa_family != AF_INET))
+		if (changelink && (conf->remote_ip.sa.sa_family != AF_INET)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_GROUP], "New group address family does not match old group");
 			return -EOPNOTSUPP;
+		}
 
 		conf->remote_ip.sin.sin_addr.s_addr = nla_get_in_addr(data[IFLA_VXLAN_GROUP]);
 		conf->remote_ip.sa.sa_family = AF_INET;
 	} else if (data[IFLA_VXLAN_GROUP6]) {
-		if (!IS_ENABLED(CONFIG_IPV6))
+		if (!IS_ENABLED(CONFIG_IPV6)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_GROUP6], "IPv6 support not enabled in the kernel");
 			return -EPFNOSUPPORT;
+		}
 
-		if (changelink && (conf->remote_ip.sa.sa_family != AF_INET6))
+		if (changelink && (conf->remote_ip.sa.sa_family != AF_INET6)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_GROUP6], "New group address family does not match old group");
 			return -EOPNOTSUPP;
+		}
 
 		conf->remote_ip.sin6.sin6_addr = nla_get_in6_addr(data[IFLA_VXLAN_GROUP6]);
 		conf->remote_ip.sa.sa_family = AF_INET6;
 	}
 
 	if (data[IFLA_VXLAN_LOCAL]) {
-		if (changelink && (conf->saddr.sa.sa_family != AF_INET))
+		if (changelink && (conf->saddr.sa.sa_family != AF_INET)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_LOCAL], "New local address family does not match old");
 			return -EOPNOTSUPP;
+		}
 
 		conf->saddr.sin.sin_addr.s_addr = nla_get_in_addr(data[IFLA_VXLAN_LOCAL]);
 		conf->saddr.sa.sa_family = AF_INET;
 	} else if (data[IFLA_VXLAN_LOCAL6]) {
-		if (!IS_ENABLED(CONFIG_IPV6))
+		if (!IS_ENABLED(CONFIG_IPV6)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_LOCAL6], "IPv6 support not enabled in the kernel");
 			return -EPFNOSUPPORT;
+		}
 
-		if (changelink && (conf->saddr.sa.sa_family != AF_INET6))
+		if (changelink && (conf->saddr.sa.sa_family != AF_INET6)) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_LOCAL6], "New local address family does not match old");
 			return -EOPNOTSUPP;
+		}
 
 		/* TODO: respect scope id */
 		conf->saddr.sin6.sin6_addr = nla_get_in6_addr(data[IFLA_VXLAN_LOCAL6]);
@@ -3648,9 +3691,12 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		conf->ttl = nla_get_u8(data[IFLA_VXLAN_TTL]);
 
 	if (data[IFLA_VXLAN_TTL_INHERIT]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		conf->flags |= VXLAN_F_TTL_INHERIT;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_TTL_INHERIT,
+				    VXLAN_F_TTL_INHERIT, changelink, false,
+				    extack);
+		if (err)
+			return err;
+
 	}
 
 	if (data[IFLA_VXLAN_LABEL])
@@ -3658,10 +3704,11 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			     IPV6_FLOWLABEL_MASK;
 
 	if (data[IFLA_VXLAN_LEARNING]) {
-		if (nla_get_u8(data[IFLA_VXLAN_LEARNING]))
-			conf->flags |= VXLAN_F_LEARN;
-		else
-			conf->flags &= ~VXLAN_F_LEARN;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_LEARNING,
+				    VXLAN_F_LEARN, changelink, true,
+				    extack);
+		if (err)
+			return err;
 	} else if (!changelink) {
 		/* default to learn on a new device */
 		conf->flags |= VXLAN_F_LEARN;
@@ -3671,44 +3718,52 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		conf->age_interval = nla_get_u32(data[IFLA_VXLAN_AGEING]);
 
 	if (data[IFLA_VXLAN_PROXY]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_PROXY]))
-			conf->flags |= VXLAN_F_PROXY;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_PROXY,
+				    VXLAN_F_PROXY, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_RSC]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_RSC]))
-			conf->flags |= VXLAN_F_RSC;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_RSC,
+				    VXLAN_F_RSC, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_L2MISS]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_L2MISS]))
-			conf->flags |= VXLAN_F_L2MISS;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_L2MISS,
+				    VXLAN_F_L2MISS, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_L3MISS]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_L3MISS]))
-			conf->flags |= VXLAN_F_L3MISS;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_L3MISS,
+				    VXLAN_F_L3MISS, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_LIMIT]) {
-		if (changelink)
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_LIMIT],
+					    "Cannot change limit");
 			return -EOPNOTSUPP;
+		}
 		conf->addrmax = nla_get_u32(data[IFLA_VXLAN_LIMIT]);
 	}
 
 	if (data[IFLA_VXLAN_COLLECT_METADATA]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_COLLECT_METADATA]))
-			conf->flags |= VXLAN_F_COLLECT_METADATA;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_COLLECT_METADATA,
+				    VXLAN_F_COLLECT_METADATA, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_PORT_RANGE]) {
@@ -3718,72 +3773,92 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			conf->port_min = ntohs(p->low);
 			conf->port_max = ntohs(p->high);
 		} else {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_PORT_RANGE],
+					    "Cannot change port range");
 			return -EOPNOTSUPP;
 		}
 	}
 
 	if (data[IFLA_VXLAN_PORT]) {
-		if (changelink)
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_PORT],
+					    "Cannot change port");
 			return -EOPNOTSUPP;
+		}
 		conf->dst_port = nla_get_be16(data[IFLA_VXLAN_PORT]);
 	}
 
 	if (data[IFLA_VXLAN_UDP_CSUM]) {
-		if (changelink)
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_VXLAN_UDP_CSUM],
+					    "Cannot change UDP_CSUM flag");
 			return -EOPNOTSUPP;
+		}
 		if (!nla_get_u8(data[IFLA_VXLAN_UDP_CSUM]))
 			conf->flags |= VXLAN_F_UDP_ZERO_CSUM_TX;
 	}
 
 	if (data[IFLA_VXLAN_UDP_ZERO_CSUM6_TX]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_UDP_ZERO_CSUM6_TX]))
-			conf->flags |= VXLAN_F_UDP_ZERO_CSUM6_TX;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_UDP_ZERO_CSUM6_TX,
+				    VXLAN_F_UDP_ZERO_CSUM6_TX, changelink,
+				    false, extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_UDP_ZERO_CSUM6_RX]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_UDP_ZERO_CSUM6_RX]))
-			conf->flags |= VXLAN_F_UDP_ZERO_CSUM6_RX;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_UDP_ZERO_CSUM6_RX,
+				    VXLAN_F_UDP_ZERO_CSUM6_RX, changelink,
+				    false, extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_REMCSUM_TX]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_REMCSUM_TX]))
-			conf->flags |= VXLAN_F_REMCSUM_TX;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_TX,
+				    VXLAN_F_REMCSUM_TX, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_REMCSUM_RX]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		if (nla_get_u8(data[IFLA_VXLAN_REMCSUM_RX]))
-			conf->flags |= VXLAN_F_REMCSUM_RX;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_RX,
+				    VXLAN_F_REMCSUM_RX, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_GBP]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		conf->flags |= VXLAN_F_GBP;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_GBP,
+				    VXLAN_F_GBP, changelink, false, extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_GPE]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		conf->flags |= VXLAN_F_GPE;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_GPE,
+				    VXLAN_F_GPE, changelink, false,
+				    extack);
+		if (err)
+			return err;
 	}
 
 	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL]) {
-		if (changelink)
-			return -EOPNOTSUPP;
-		conf->flags |= VXLAN_F_REMCSUM_NOPARTIAL;
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_NOPARTIAL,
+				    VXLAN_F_REMCSUM_NOPARTIAL, changelink,
+				    false, extack);
+		if (err)
+			return err;
 	}
 
 	if (tb[IFLA_MTU]) {
-		if (changelink)
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_MTU],
+					    "Cannot change mtu");
 			return -EOPNOTSUPP;
+		}
 		conf->mtu = nla_get_u32(tb[IFLA_MTU]);
 	}
 
@@ -3800,7 +3875,7 @@ static int vxlan_newlink(struct net *src_net, struct net_device *dev,
 	struct vxlan_config conf;
 	int err;
 
-	err = vxlan_nl2conf(tb, data, dev, &conf, false);
+	err = vxlan_nl2conf(tb, data, dev, &conf, false, extack);
 	if (err)
 		return err;
 
@@ -3817,8 +3892,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct vxlan_config conf;
 	int err;
 
-	err = vxlan_nl2conf(tb, data,
-			    dev, &conf, true);
+	err = vxlan_nl2conf(tb, data, dev, &conf, true, extack);
 	if (err)
 		return err;
 
