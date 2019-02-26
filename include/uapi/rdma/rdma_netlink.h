@@ -261,7 +261,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_PORT_GET, /* can dump */
 
-	/* 6 - 8 are free to use */
+	RDMA_NLDEV_CMD_SYS_GET, /* can dump */
+	/* 7 - 8 are free to use */
 
 	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
 
@@ -471,6 +472,12 @@ enum rdma_nldev_attr {
 	 * Identifies the rdma driver. eg: "rxe" or "siw"
 	 */
 	RDMA_NLDEV_ATTR_LINK_TYPE,		/* string */
+
+	/*
+	 * net namespace mode for rdma subsystem:
+	 * either shared or exclusive among multiple net namespaces.
+	 */
+	RDMA_NLDEV_SYS_ATTR_NETNS_MODE,		/* u8 */
 
 	/*
 	 * Always the end

@@ -127,7 +127,7 @@ static DEFINE_XARRAY_FLAGS(rdma_nets, XA_FLAGS_ALLOC);
  */
 static DECLARE_RWSEM(rdma_nets_rwsem);
 
-static bool ib_devices_shared_netns = true;
+bool ib_devices_shared_netns = true;
 module_param_named(netns_mode, ib_devices_shared_netns, bool, 0444);
 MODULE_PARM_DESC(netns_mode,
 		 "Share device among net namespaces; default=1 (shared)");

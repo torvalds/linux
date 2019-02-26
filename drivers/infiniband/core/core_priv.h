@@ -55,6 +55,7 @@ struct pkey_index_qp_list {
 };
 
 extern const struct attribute_group ib_dev_attr_group;
+extern bool ib_devices_shared_netns;
 
 int ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);
