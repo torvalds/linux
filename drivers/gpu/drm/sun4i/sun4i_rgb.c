@@ -53,6 +53,14 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 	return drm_panel_get_modes(rgb->panel);
 }
 
+/*
+ * VESA DMT defines a tolerance of 0.5% on the pixel clock, while the
+ * CVT spec reuses that tolerance in its examples, so it looks to be a
+ * good default tolerance for the EDID-based modes. Define it to 5 per
+ * mille to avoid floating point operations.
+ */
+#define SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE	5
+
 static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 						 const struct drm_display_mode *mode)
 {
@@ -61,6 +69,7 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 	u32 hsync = mode->hsync_end - mode->hsync_start;
 	u32 vsync = mode->vsync_end - mode->vsync_start;
 	unsigned long long rate = mode->clock * 1000;
+	unsigned long long lowest, highest;
 	unsigned long long rounded_rate;
 
 	DRM_DEBUG_DRIVER("Validating modes...\n");
@@ -93,15 +102,39 @@ static enum drm_mode_status sun4i_rgb_mode_valid(struct drm_encoder *crtc,
 
 	DRM_DEBUG_DRIVER("Vertical parameters OK\n");
 
+	/*
+	 * TODO: We should use the struct display_timing if available
+	 * and / or trying to stretch the timings within that
+	 * tolerancy to take care of panels that we wouldn't be able
+	 * to have a exact match for.
+	 */
+	if (rgb->panel) {
+		DRM_DEBUG_DRIVER("RGB panel used, skipping clock rate checks");
+		goto out;
+	}
+
+	/*
+	 * That shouldn't ever happen unless something is really wrong, but it
+	 * doesn't harm to check.
+	 */
+	if (!rgb->bridge)
+		goto out;
+
 	tcon->dclk_min_div = 6;
 	tcon->dclk_max_div = 127;
 	rounded_rate = clk_round_rate(tcon->dclk, rate);
-	if (rounded_rate < rate)
+
+	lowest = rate * (1000 - SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE);
+	do_div(lowest, 1000);
+	if (rounded_rate < lowest)
 		return MODE_CLOCK_LOW;
 
-	if (rounded_rate > rate)
+	highest = rate * (1000 + SUN4I_RGB_DOTCLOCK_TOLERANCE_PER_MILLE);
+	do_div(highest, 1000);
+	if (rounded_rate > highest)
 		return MODE_CLOCK_HIGH;
 
+out:
 	DRM_DEBUG_DRIVER("Clock rate OK\n");
 
 	return MODE_OK;
