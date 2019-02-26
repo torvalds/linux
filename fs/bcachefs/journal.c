@@ -388,7 +388,8 @@ retry:
 		 * freezing:
 		 */
 		trace_journal_full(c);
-		bch2_journal_reclaim_work(&j->reclaim_work.work);
+		if (!(flags & JOURNAL_RES_GET_NONBLOCK))
+			bch2_journal_reclaim_work(&j->reclaim_work.work);
 		ret = -EAGAIN;
 	}
 

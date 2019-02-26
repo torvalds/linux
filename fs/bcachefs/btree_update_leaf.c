@@ -416,6 +416,25 @@ static inline int btree_trans_cmp(struct btree_insert_entry l,
 		btree_iter_cmp(l.iter, r.iter);
 }
 
+static bool btree_trans_relock(struct btree_insert *trans)
+{
+	struct btree_insert_entry *i;
+
+	trans_for_each_iter(trans, i)
+		return bch2_btree_iter_relock(i->iter);
+	return true;
+}
+
+static void btree_trans_unlock(struct btree_insert *trans)
+{
+	struct btree_insert_entry *i;
+
+	trans_for_each_iter(trans, i) {
+		bch2_btree_iter_unlock(i->iter);
+		break;
+	}
+}
+
 /* Normal update interface: */
 
 static enum btree_insert_ret
@@ -467,48 +486,11 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 	struct btree_iter *linked;
 	unsigned u64s;
 	int ret;
-
+retry:
 	trans_for_each_iter(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
-	/* reserve space for deferred updates */
-	__trans_for_each_entry(trans, i, i->deferred) {
-
-	}
-
 	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
-
-	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
-		u64s = 0;
-		trans_for_each_entry(trans, i)
-			u64s += jset_u64s(i->k->k.u64s);
-
-		while ((ret = bch2_journal_res_get(&c->journal,
-					&trans->journal_res, u64s,
-					JOURNAL_RES_GET_NONBLOCK)) == -EAGAIN) {
-			struct btree_iter *iter = NULL;
-
-			trans_for_each_iter(trans, i)
-				iter = i->iter;
-
-			if (iter)
-				bch2_btree_iter_unlock(iter);
-
-			ret = bch2_journal_res_get(&c->journal,
-					&trans->journal_res, u64s,
-					JOURNAL_RES_GET_CHECK);
-			if (ret)
-				return ret;
-
-			if (iter && !bch2_btree_iter_relock(iter)) {
-				trans_restart(" (iter relock after journal res get blocked)");
-				return -EINTR;
-			}
-		}
-
-		if (ret)
-			return ret;
-	}
 
 	multi_lock_write(c, trans);
 
@@ -537,6 +519,36 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 		}
 	}
 
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+		u64s = 0;
+		trans_for_each_entry(trans, i)
+			u64s += jset_u64s(i->k->k.u64s);
+
+		ret = bch2_journal_res_get(&c->journal,
+				&trans->journal_res, u64s,
+				JOURNAL_RES_GET_NONBLOCK);
+		if (likely(!ret))
+			goto got_journal_res;
+		if (ret != -EAGAIN)
+			goto out;
+
+		multi_unlock_write(trans);
+		btree_trans_unlock(trans);
+
+		ret = bch2_journal_res_get(&c->journal,
+				&trans->journal_res, u64s,
+				JOURNAL_RES_GET_CHECK);
+		if (ret)
+			return ret;
+
+		if (!btree_trans_relock(trans)) {
+			trans_restart(" (iter relock after journal res get blocked)");
+			return -EINTR;
+		}
+
+		goto retry;
+	}
+got_journal_res:
 	if (!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) {
 		if (journal_seq_verify(c))
 			trans_for_each_entry(trans, i)
