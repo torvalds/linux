@@ -7,6 +7,7 @@ config HABANA_AI
 	depends on PCI
 	select FRAME_VECTOR
 	select DMA_SHARED_BUFFER
+	select GENERIC_ALLOCATOR
 	help
 	  Enables PCIe card driver for Habana's AI Processors (AIP) that are
 	  designed to accelerate Deep Learning inference and training workloads.
