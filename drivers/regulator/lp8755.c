@@ -372,10 +372,13 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		if ((flag0 & (0x4 << icnt))
 		    && (pchip->irqmask & (0x04 << icnt))
-		    && (pchip->rdev[icnt] != NULL))
+		    && (pchip->rdev[icnt] != NULL)) {
+			regulator_lock(pchip->rdev[icnt]);
 			regulator_notifier_call_chain(pchip->rdev[icnt],
 						      LP8755_EVENT_PWR_FAULT,
 						      NULL);
+			regulator_unlock(pchip->rdev[icnt]);
+		}
 
 	/* read flag1 register */
 	ret = lp8755_read(pchip, 0x0E, &flag1);
@@ -389,18 +392,24 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	/* send OCP event to all regulator devices */
 	if ((flag1 & 0x01) && (pchip->irqmask & 0x01))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-			if (pchip->rdev[icnt] != NULL)
+			if (pchip->rdev[icnt] != NULL) {
+				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OCP,
 							      NULL);
+				regulator_unlock(pchip->rdev[icnt]);
+			}
 
 	/* send OVP event to all regulator devices */
 	if ((flag1 & 0x02) && (pchip->irqmask & 0x02))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-			if (pchip->rdev[icnt] != NULL)
+			if (pchip->rdev[icnt] != NULL) {
+				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OVP,
 							      NULL);
+				regulator_unlock(pchip->rdev[icnt]);
+			}
 	return IRQ_HANDLED;
 
 err_i2c:
