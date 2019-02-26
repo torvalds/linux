@@ -3529,6 +3529,23 @@ static int wm_adsp_buffer_free(struct wm_adsp *dsp)
 	return 0;
 }
 
+static int wm_adsp_buffer_get_error(struct wm_adsp_compr_buf *buf)
+{
+	int ret;
+
+	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(error), &buf->error);
+	if (ret < 0) {
+		adsp_err(buf->dsp, "Failed to check buffer error: %d\n", ret);
+		return ret;
+	}
+	if (buf->error != 0) {
+		adsp_err(buf->dsp, "Buffer error occurred: %d\n", buf->error);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 {
 	struct wm_adsp_compr *compr = stream->runtime->private_data;
@@ -3549,6 +3566,10 @@ int wm_adsp_compr_trigger(struct snd_compr_stream *stream, int cmd)
 				break;
 			}
 		}
+
+		ret = wm_adsp_buffer_get_error(compr->buf);
+		if (ret < 0)
+			break;
 
 		wm_adsp_buffer_clear(compr->buf);
 
@@ -3621,23 +3642,6 @@ static int wm_adsp_buffer_update_avail(struct wm_adsp_compr_buf *buf)
 		  buf->read_index, write_index, avail * WM_ADSP_DATA_WORD_SIZE);
 
 	buf->avail = avail;
-
-	return 0;
-}
-
-static int wm_adsp_buffer_get_error(struct wm_adsp_compr_buf *buf)
-{
-	int ret;
-
-	ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(error), &buf->error);
-	if (ret < 0) {
-		compr_err(buf, "Failed to check buffer error: %d\n", ret);
-		return ret;
-	}
-	if (buf->error != 0) {
-		compr_err(buf, "Buffer error occurred: %d\n", buf->error);
-		return -EIO;
-	}
 
 	return 0;
 }
