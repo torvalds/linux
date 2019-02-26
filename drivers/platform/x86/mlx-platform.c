@@ -1240,7 +1240,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 		.label = "fan_dir",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_DIRECTION,
 		.bit = GENMASK(7, 0),
-		.mode = 0200,
+		.mode = 0444,
 	},
 };
 
