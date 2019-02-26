@@ -1190,34 +1190,34 @@
  * Security hooks for System V Semaphores
  *
  * @sem_alloc_security:
- *	Allocate and attach a security structure to the sma->sem_perm.security
- *	field.  The security field is initialized to NULL when the structure is
+ *	Allocate and attach a security structure to the @perm->security
+ *	field. The security field is initialized to NULL when the structure is
  *	first created.
- *	@sma contains the semaphore structure
+ *	@perm contains the IPC permissions of the semaphore.
  *	Return 0 if operation was successful and permission is granted.
  * @sem_free_security:
- *	deallocate security struct for this semaphore
- *	@sma contains the semaphore structure.
+ *	Deallocate security structure @perm->security for the semaphore.
+ *	@perm contains the IPC permissions of the semaphore.
  * @sem_associate:
  *	Check permission when a semaphore is requested through the semget
- *	system call.  This hook is only called when returning the semaphore
+ *	system call. This hook is only called when returning the semaphore
  *	identifier for an existing semaphore, not when a new one must be
  *	created.
- *	@sma contains the semaphore structure.
+ *	@perm contains the IPC permissions of the semaphore.
  *	@semflg contains the operation control flags.
  *	Return 0 if permission is granted.
  * @sem_semctl:
  *	Check permission when a semaphore operation specified by @cmd is to be
- *	performed on the semaphore @sma.  The @sma may be NULL, e.g. for
+ *	performed on the semaphore. The @perm may be NULL, e.g. for
  *	IPC_INFO or SEM_INFO.
- *	@sma contains the semaphore structure.  May be NULL.
+ *	@perm contains the IPC permissions of the semaphore. May be NULL.
  *	@cmd contains the operation to be performed.
  *	Return 0 if permission is granted.
  * @sem_semop:
  *	Check permissions before performing operations on members of the
- *	semaphore set @sma.  If the @alter flag is nonzero, the semaphore set
+ *	semaphore set. If the @alter flag is nonzero, the semaphore set
  *	may be modified.
- *	@sma contains the semaphore structure.
+ *	@perm contains the IPC permissions of the semaphore.
  *	@sops contains the operations to perform.
  *	@nsops contains the number of operations to perform.
  *	@alter contains the flag indicating whether changes are to be made.
@@ -1654,11 +1654,11 @@ union security_list_options {
 	int (*shm_shmat)(struct kern_ipc_perm *shp, char __user *shmaddr,
 				int shmflg);
 
-	int (*sem_alloc_security)(struct kern_ipc_perm *sma);
-	void (*sem_free_security)(struct kern_ipc_perm *sma);
-	int (*sem_associate)(struct kern_ipc_perm *sma, int semflg);
-	int (*sem_semctl)(struct kern_ipc_perm *sma, int cmd);
-	int (*sem_semop)(struct kern_ipc_perm *sma, struct sembuf *sops,
+	int (*sem_alloc_security)(struct kern_ipc_perm *perm);
+	void (*sem_free_security)(struct kern_ipc_perm *perm);
+	int (*sem_associate)(struct kern_ipc_perm *perm, int semflg);
+	int (*sem_semctl)(struct kern_ipc_perm *perm, int cmd);
+	int (*sem_semop)(struct kern_ipc_perm *perm, struct sembuf *sops,
 				unsigned nsops, int alter);
 
 	int (*netlink_send)(struct sock *sk, struct sk_buff *skb);
