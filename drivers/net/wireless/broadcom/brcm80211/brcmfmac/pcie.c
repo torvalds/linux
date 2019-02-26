@@ -345,6 +345,10 @@ static const u32 brcmf_ring_itemsize[BRCMF_NROF_COMMON_MSGRINGS] = {
 	BRCMF_D2H_MSGRING_RX_COMPLETE_ITEMSIZE
 };
 
+static void brcmf_pcie_setup(struct device *dev, int ret,
+			     struct brcmf_fw_request *fwreq);
+static struct brcmf_fw_request *
+brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo);
 
 static u32
 brcmf_pcie_read_reg32(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
@@ -1409,6 +1413,36 @@ int brcmf_pcie_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 	return 0;
 }
 
+static int brcmf_pcie_reset(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pciedev *buspub = bus_if->bus_priv.pcie;
+	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
+	struct brcmf_fw_request *fwreq;
+	int err;
+
+	brcmf_detach(dev);
+
+	brcmf_pcie_release_irq(devinfo);
+	brcmf_pcie_release_scratchbuffers(devinfo);
+	brcmf_pcie_release_ringbuffers(devinfo);
+	brcmf_pcie_reset_device(devinfo);
+
+	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
+	if (!fwreq) {
+		dev_err(dev, "Failed to prepare FW request\n");
+		return -ENOMEM;
+	}
+
+	err = brcmf_fw_get_firmwares(dev, fwreq, brcmf_pcie_setup);
+	if (err) {
+		dev_err(dev, "Failed to prepare FW request\n");
+		kfree(fwreq);
+	}
+
+	return err;
+}
+
 static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 	.txdata = brcmf_pcie_tx,
 	.stop = brcmf_pcie_down,
@@ -1418,6 +1452,7 @@ static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 	.get_ramsize = brcmf_pcie_get_ramsize,
 	.get_memdump = brcmf_pcie_get_memdump,
 	.get_fwname = brcmf_pcie_get_fwname,
+	.reset = brcmf_pcie_reset,
 };
 
 

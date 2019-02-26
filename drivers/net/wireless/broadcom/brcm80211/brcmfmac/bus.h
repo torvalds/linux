@@ -91,6 +91,7 @@ struct brcmf_bus_ops {
 	int (*get_fwname)(struct device *dev, const char *ext,
 			  unsigned char *fw_name);
 	void (*debugfs_create)(struct device *dev);
+	int (*reset)(struct device *dev);
 };
 
 
@@ -243,6 +244,15 @@ void brcmf_bus_debugfs_create(struct brcmf_bus *bus)
 		return;
 
 	return bus->ops->debugfs_create(bus->dev);
+}
+
+static inline
+int brcmf_bus_reset(struct brcmf_bus *bus)
+{
+	if (!bus->ops->reset)
+		return -EOPNOTSUPP;
+
+	return bus->ops->reset(bus->dev);
 }
 
 /*
