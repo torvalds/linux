@@ -131,6 +131,26 @@ static bool ib_devices_shared_netns = true;
 module_param_named(netns_mode, ib_devices_shared_netns, bool, 0444);
 MODULE_PARM_DESC(netns_mode,
 		 "Share device among net namespaces; default=1 (shared)");
+/**
+ * rdma_dev_access_netns() - Return whether a rdma device can be accessed
+ *			     from a specified net namespace or not.
+ * @device:	Pointer to rdma device which needs to be checked
+ * @net:	Pointer to net namesapce for which access to be checked
+ *
+ * rdma_dev_access_netns() - Return whether a rdma device can be accessed
+ *			     from a specified net namespace or not. When
+ *			     rdma device is in shared mode, it ignores the
+ *			     net namespace. When rdma device is exclusive
+ *			     to a net namespace, rdma device net namespace is
+ *			     checked against the specified one.
+ */
+bool rdma_dev_access_netns(const struct ib_device *dev, const struct net *net)
+{
+	return (ib_devices_shared_netns ||
+		net_eq(read_pnet(&dev->coredev.rdma_net), net));
+}
+EXPORT_SYMBOL(rdma_dev_access_netns);
+
 /*
  * xarray has this behavior where it won't iterate over NULL values stored in
  * allocated arrays.  So we need our own iterator to see all values stored in

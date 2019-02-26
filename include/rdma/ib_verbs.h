@@ -4381,4 +4381,7 @@ static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
  */
 #define rdma_device_to_drv_device(dev, drv_dev_struct, ibdev_member)           \
 	container_of(rdma_device_to_ibdev(dev), drv_dev_struct, ibdev_member)
+
+bool rdma_dev_access_netns(const struct ib_device *device,
+			   const struct net *net);
 #endif /* IB_VERBS_H */

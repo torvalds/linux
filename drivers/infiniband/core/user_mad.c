@@ -980,6 +980,11 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
+	if (!rdma_dev_access_netns(port->ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	file = kzalloc(sizeof(*file), GFP_KERNEL);
 	if (!file) {
 		ret = -ENOMEM;
@@ -1071,6 +1076,11 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 			ret = -ERESTARTSYS;
 			goto fail;
 		}
+	}
+
+	if (!rdma_dev_access_netns(port->ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
+		goto err_up_sem;
 	}
 
 	ret = ib_modify_port(port->ib_dev, port->port_num, 0, &props);

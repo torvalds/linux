@@ -616,6 +616,9 @@ cma_validate_port(struct ib_device *device, u8 port,
 	int dev_type = dev_addr->dev_type;
 	struct net_device *ndev = NULL;
 
+	if (!rdma_dev_access_netns(device, id_priv->id.route.addr.dev_addr.net))
+		return ERR_PTR(-ENODEV);
+
 	if ((dev_type == ARPHRD_INFINIBAND) && !rdma_protocol_ib(device, port))
 		return ERR_PTR(-ENODEV);
 

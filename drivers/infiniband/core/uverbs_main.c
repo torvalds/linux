@@ -1045,6 +1045,11 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
+	if (!rdma_dev_access_netns(ib_dev, current->nsproxy->net_ns)) {
+		ret = -EPERM;
+		goto err;
+	}
+
 	/* In case IB device supports disassociate ucontext, there is no hard
 	 * dependency between uverbs device and its low level device.
 	 */
