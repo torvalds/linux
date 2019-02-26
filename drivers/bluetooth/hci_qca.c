@@ -1036,6 +1036,9 @@ static int qca_send_power_pulse(struct hci_uart *hu, bool on)
 	usleep_range(100, 200);
 	hci_uart_set_flow_control(hu, false);
 
+	if (on)
+		msleep(100);
+
 	return 0;
 }
 
@@ -1147,9 +1150,6 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	ret = qca_send_power_pulse(hu, true);
 	if (ret)
 		return ret;
-
-	/* Wait for 100 ms for SoC to boot */
-	msleep(100);
 
 	/* Now the device is in ready state to communicate with host.
 	 * To sync host with device we need to reopen port.
