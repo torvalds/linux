@@ -3699,7 +3699,7 @@ bool tcp_alloc_md5sig_pool(void)
 		if (!tcp_md5sig_pool_populated) {
 			__tcp_alloc_md5sig_pool();
 			if (tcp_md5sig_pool_populated)
-				static_key_slow_inc(&tcp_md5_needed);
+				static_branch_inc(&tcp_md5_needed);
 		}
 
 		mutex_unlock(&tcp_md5sig_mutex);

@@ -1558,7 +1558,7 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 
 #ifdef CONFIG_TCP_MD5SIG
 #include <linux/jump_label.h>
-extern struct static_key tcp_md5_needed;
+extern struct static_key_false tcp_md5_needed;
 struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk,
 					   const union tcp_md5_addr *addr,
 					   int family);
@@ -1567,7 +1567,7 @@ tcp_md5_do_lookup(const struct sock *sk,
 		  const union tcp_md5_addr *addr,
 		  int family)
 {
-	if (!static_key_false(&tcp_md5_needed))
+	if (!static_branch_unlikely(&tcp_md5_needed))
 		return NULL;
 	return __tcp_md5_do_lookup(sk, addr, family);
 }
