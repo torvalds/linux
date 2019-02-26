@@ -502,7 +502,7 @@
  *	Return 0 if permission is granted.
  * @file_lock:
  *	Check permission before performing file locking operations.
- *	Note: this hook mediates both flock and fcntl style locks.
+ *	Note the hook mediates both flock and fcntl style locks.
  *	@file contains the file structure.
  *	@cmd contains the posix-translated lock operation to perform
  *	(e.g. F_RDLCK, F_WRLCK).
@@ -645,12 +645,12 @@
  *	@p contains the task_struct of process.
  *	@nice contains the new nice value.
  *	Return 0 if permission is granted.
- * @task_setioprio
+ * @task_setioprio:
  *	Check permission before setting the ioprio value of @p to @ioprio.
  *	@p contains the task_struct of process.
  *	@ioprio contains the new ioprio value
  *	Return 0 if permission is granted.
- * @task_getioprio
+ * @task_getioprio:
  *	Check permission before getting the ioprio value of @p.
  *	@p contains the task_struct of process.
  *	Return 0 if permission is granted.
@@ -680,7 +680,7 @@
  *	@p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
- * @task_movememory
+ * @task_movememory:
  *	Check permission before moving memory owned by process @p.
  *	@p contains the task_struct for process.
  *	Return 0 if permission is granted.
@@ -904,9 +904,9 @@
  * @secmark_relabel_packet:
  *	check if the process should be allowed to relabel packets to
  *	the given secid
- * @security_secmark_refcount_inc
+ * @secmark_refcount_inc:
  *	tells the LSM to increment the number of secmark labeling rules loaded
- * @security_secmark_refcount_dec
+ * @secmark_refcount_dec:
  *	tells the LSM to decrement the number of secmark labeling rules loaded
  * @req_classify_flow:
  *	Sets the flow's sid to the openreq sid.
@@ -1294,8 +1294,8 @@
  *	Return 0 if permission is granted.
  * @settime:
  *	Check permission to change the system time.
- *	struct timespec64 is defined in include/linux/time64.h and timezone
- *	is defined in include/linux/time.h
+ *	struct timespec64 is defined in <include/linux/time64.h> and timezone
+ *	is defined in <include/linux/time.h>
  *	@ts contains new time
  *	@tz contains new timezone
  *	Return 0 if permission is granted.
@@ -1337,7 +1337,7 @@
  * @audit_rule_init:
  *	Allocate and initialize an LSM audit rule structure.
  *	@field contains the required Audit action.
- *	Fields flags are defined in include/linux/audit.h
+ *	Fields flags are defined in <include/linux/audit.h>
  *	@op contains the operator the rule uses.
  *	@rulestr contains the context where the rule will be applied to.
  *	@lsmrule contains a pointer to receive the result.
@@ -1375,9 +1375,7 @@
  *	this hook to initialize the security context in its incore inode to the
  *	value provided by the server for the file when the server returned the
  *	file's attributes to the client.
- *
  *	Must be called with inode->i_mutex locked.
- *
  *	@inode we wish to set the security context of.
  *	@ctx contains the string which we wish to set in the inode.
  *	@ctxlen contains the length of @ctx.
@@ -1390,9 +1388,7 @@
  *	this hook to change the security context in its incore inode and on the
  *	backing filesystem to a value provided by the client on a SETATTR
  *	operation.
- *
  *	Must be called with inode->i_mutex locked.
- *
  *	@dentry contains the inode we wish to set the security context of.
  *	@ctx contains the string which we wish to set in the inode.
  *	@ctxlen contains the length of @ctx.
@@ -1400,7 +1396,6 @@
  * @inode_getsecctx:
  *	On success, returns 0 and fills out @ctx and @ctxlen with the security
  *	context for the given @inode.
- *
  *	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
