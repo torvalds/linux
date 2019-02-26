@@ -1024,7 +1024,7 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 		struct pt_regs *regs)
 {
 #ifdef CONFIG_KASAN_SW_TAGS
-	unsigned int comment = esr & BRK64_ESR_MASK;
+	unsigned int comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
 
 	if ((comment & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;

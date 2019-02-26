@@ -470,7 +470,7 @@ kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
 }
 
 static struct break_hook kprobes_break_hook = {
-	.imm = BRK64_ESR_KPROBES,
+	.imm = KPROBES_BRK_IMM,
 	.fn = kprobe_breakpoint_handler,
 };
 

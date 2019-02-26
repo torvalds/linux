@@ -191,7 +191,7 @@ static int uprobe_single_step_handler(struct pt_regs *regs,
 
 /* uprobe breakpoint handler hook */
 static struct break_hook uprobes_break_hook = {
-	.imm = BRK64_ESR_UPROBES,
+	.imm = UPROBES_BRK_IMM,
 	.fn = uprobe_breakpoint_handler,
 };
 

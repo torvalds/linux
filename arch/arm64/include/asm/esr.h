@@ -156,9 +156,7 @@
 				 ESR_ELx_WFx_ISS_WFI)
 
 /* BRK instruction trap from AArch64 state */
-#define ESR_ELx_VAL_BRK64(imm)					\
-	((ESR_ELx_EC_BRK64 << ESR_ELx_EC_SHIFT) | ESR_ELx_IL |	\
-	 ((imm) & 0xffff))
+#define ESR_ELx_BRK64_ISS_COMMENT_MASK	0xffff
 
 /* ISS field definitions for System instruction traps */
 #define ESR_ELx_SYS64_ISS_RES0_SHIFT	22

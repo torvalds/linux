@@ -317,7 +317,7 @@ static int call_break_hook(struct pt_regs *regs, unsigned int esr)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hook, list, node) {
-		unsigned int comment = esr & BRK64_ESR_MASK;
+		unsigned int comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
 
 		if ((comment & ~hook->mask) == hook->imm)
 			fn = hook->fn;
