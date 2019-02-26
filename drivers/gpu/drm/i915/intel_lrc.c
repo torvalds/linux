@@ -178,6 +178,12 @@ static inline u32 intel_hws_seqno_address(struct intel_engine_cs *engine)
 		I915_GEM_HWS_INDEX_ADDR);
 }
 
+static inline u32 intel_hws_hangcheck_address(struct intel_engine_cs *engine)
+{
+	return (i915_ggtt_offset(engine->status_page.vma) +
+		I915_GEM_HWS_HANGCHECK_ADDR);
+}
+
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -2207,6 +2213,10 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 				  request->timeline->hwsp_offset);
 
 	cs = gen8_emit_ggtt_write(cs,
+				  intel_engine_next_hangcheck_seqno(request->engine),
+				  intel_hws_hangcheck_address(request->engine));
+
+	cs = gen8_emit_ggtt_write(cs,
 				  request->global_seqno,
 				  intel_hws_seqno_address(request->engine));
 
@@ -2229,6 +2239,11 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 				      PIPE_CONTROL_DC_FLUSH_ENABLE |
 				      PIPE_CONTROL_FLUSH_ENABLE |
 				      PIPE_CONTROL_CS_STALL);
+
+	cs = gen8_emit_ggtt_write_rcs(cs,
+				      intel_engine_next_hangcheck_seqno(request->engine),
+				      intel_hws_hangcheck_address(request->engine),
+				      0);
 
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      request->global_seqno,
