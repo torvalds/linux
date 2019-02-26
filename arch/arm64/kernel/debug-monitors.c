@@ -331,14 +331,12 @@ NOKPROBE_SYMBOL(call_break_hook);
 static int brk_handler(unsigned long unused, unsigned int esr,
 		       struct pt_regs *regs)
 {
-	bool handler_found = false;
+	if (call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
+		return 0;
 
-	if (!handler_found && call_break_hook(regs, esr) == DBG_HOOK_HANDLED)
-		handler_found = true;
-
-	if (!handler_found && user_mode(regs)) {
+	if (user_mode(regs)) {
 		send_user_sigtrap(TRAP_BRKPT);
-	} else if (!handler_found) {
+	} else {
 		pr_warn("Unexpected kernel BRK exception at EL1\n");
 		return -EFAULT;
 	}
