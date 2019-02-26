@@ -17,7 +17,7 @@
  * University of Oslo, Norway.
  *
  * References:
- * RFC 8033: https://tools.ietf.org/html/rfc8034
+ * RFC 8033: https://tools.ietf.org/html/rfc8033
  */
 
 #include <linux/module.h>
