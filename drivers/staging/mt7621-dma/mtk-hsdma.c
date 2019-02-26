@@ -242,7 +242,7 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	dev_dbg(hsdma->ddev.dev, "tx idx: %d, rx idx: %d\n",
-			chan->tx_idx, chan->rx_idx);
+		chan->tx_idx, chan->rx_idx);
 
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		tx_desc = &chan->tx_ring[i];
