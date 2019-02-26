@@ -670,7 +670,8 @@ out_err:
 
 static __poll_t xs_poll_socket(struct sock_xprt *transport)
 {
-	return transport->sock->ops->poll(NULL, transport->sock, NULL);
+	return transport->sock->ops->poll(transport->file, transport->sock,
+			NULL);
 }
 
 static bool xs_poll_socket_readable(struct sock_xprt *transport)
@@ -1253,6 +1254,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	struct socket *sock = transport->sock;
 	struct sock *sk = transport->inet;
 	struct rpc_xprt *xprt = &transport->xprt;
+	struct file *filp = transport->file;
 
 	if (sk == NULL)
 		return;
@@ -1266,6 +1268,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	write_lock_bh(&sk->sk_callback_lock);
 	transport->inet = NULL;
 	transport->sock = NULL;
+	transport->file = NULL;
 
 	sk->sk_user_data = NULL;
 
@@ -1278,7 +1281,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
 	mutex_unlock(&transport->recv_mutex);
 
 	trace_rpc_socket_close(xprt, sock);
-	sock_release(sock);
+	fput(filp);
 
 	xprt_disconnect_done(xprt);
 }
@@ -1873,6 +1876,7 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 		struct sock_xprt *transport, int family, int type,
 		int protocol, bool reuseport)
 {
+	struct file *filp;
 	struct socket *sock;
 	int err;
 
@@ -1892,6 +1896,11 @@ static struct socket *xs_create_sock(struct rpc_xprt *xprt,
 		sock_release(sock);
 		goto out;
 	}
+
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	if (IS_ERR(filp))
+		return ERR_CAST(filp);
+	transport->file = filp;
 
 	return sock;
 out:
@@ -1938,6 +1947,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 static int xs_local_setup_socket(struct sock_xprt *transport)
 {
 	struct rpc_xprt *xprt = &transport->xprt;
+	struct file *filp;
 	struct socket *sock;
 	int status = -EIO;
 
@@ -1949,6 +1959,13 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 		goto out;
 	}
 	xs_reclassify_socket(AF_LOCAL, sock);
+
+	filp = sock_alloc_file(sock, O_NONBLOCK, NULL);
+	if (IS_ERR(filp)) {
+		status = PTR_ERR(filp);
+		goto out;
+	}
+	transport->file = filp;
 
 	dprintk("RPC:       worker connecting xprt %p via AF_LOCAL to %s\n",
 			xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
