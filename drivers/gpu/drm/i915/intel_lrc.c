@@ -2292,12 +2292,6 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
 	if (engine->i915->preempt_context)
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
-
-	engine->i915->caps.scheduler =
-		I915_SCHEDULER_CAP_ENABLED |
-		I915_SCHEDULER_CAP_PRIORITY;
-	if (intel_engine_has_preemption(engine))
-		engine->i915->caps.scheduler |= I915_SCHEDULER_CAP_PREEMPTION;
 }
 
 static void

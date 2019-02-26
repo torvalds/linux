@@ -4698,6 +4698,8 @@ static int __i915_gem_restart_engines(void *data)
 		}
 	}
 
+	intel_engines_set_scheduler_caps(i915);
+
 	return 0;
 }
 

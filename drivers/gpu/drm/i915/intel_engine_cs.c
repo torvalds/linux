@@ -608,6 +608,45 @@ err_hwsp:
 	return err;
 }
 
+void intel_engines_set_scheduler_caps(struct drm_i915_private *i915)
+{
+	static const struct {
+		u8 engine;
+		u8 sched;
+	} map[] = {
+#define MAP(x, y) { ilog2(I915_ENGINE_HAS_##x), ilog2(I915_SCHEDULER_CAP_##y) }
+		MAP(PREEMPTION, PREEMPTION),
+#undef MAP
+	};
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	u32 enabled, disabled;
+
+	enabled = 0;
+	disabled = 0;
+	for_each_engine(engine, i915, id) { /* all engines must agree! */
+		int i;
+
+		if (engine->schedule)
+			enabled |= (I915_SCHEDULER_CAP_ENABLED |
+				    I915_SCHEDULER_CAP_PRIORITY);
+		else
+			disabled |= (I915_SCHEDULER_CAP_ENABLED |
+				     I915_SCHEDULER_CAP_PRIORITY);
+
+		for (i = 0; i < ARRAY_SIZE(map); i++) {
+			if (engine->flags & BIT(map[i].engine))
+				enabled |= BIT(map[i].sched);
+			else
+				disabled |= BIT(map[i].sched);
+		}
+	}
+
+	i915->caps.scheduler = enabled & ~disabled;
+	if (!(i915->caps.scheduler & I915_SCHEDULER_CAP_ENABLED))
+		i915->caps.scheduler = 0;
+}
+
 static void __intel_context_unpin(struct i915_gem_context *ctx,
 				  struct intel_engine_cs *engine)
 {

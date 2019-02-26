@@ -593,6 +593,8 @@ intel_engine_has_preemption(const struct intel_engine_cs *engine)
 	return engine->flags & I915_ENGINE_HAS_PREEMPTION;
 }
 
+void intel_engines_set_scheduler_caps(struct drm_i915_private *i915);
+
 static inline bool __execlists_need_preempt(int prio, int last)
 {
 	/*
