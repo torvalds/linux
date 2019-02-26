@@ -1031,13 +1031,13 @@ static int qca_send_power_pulse(struct hci_uart *hu, bool on)
 	}
 
 	serdev_device_wait_until_sent(hu->serdev, timeout);
-
-	/* Wait for 100 uS for SoC to settle down */
-	usleep_range(100, 200);
 	hci_uart_set_flow_control(hu, false);
 
+	/* Give to controller time to boot/shutdown */
 	if (on)
 		msleep(100);
+	else
+		msleep(10);
 
 	return 0;
 }
