@@ -96,7 +96,7 @@ static const char *mlx5e_netdev_kind(struct net_device *dev)
 	if (dev->rtnl_link_ops)
 		return dev->rtnl_link_ops->kind;
 	else
-		return "";
+		return "unknown";
 }
 
 static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
@@ -636,8 +636,10 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 						headers_c, headers_v);
 	} else {
 		netdev_warn(priv->netdev,
-			    "decapsulation offload is not supported for %s net device (%d)\n",
-			    mlx5e_netdev_kind(filter_dev), tunnel_type);
+			    "decapsulation offload is not supported for %s (kind: \"%s\")\n",
+			    netdev_name(filter_dev),
+			    mlx5e_netdev_kind(filter_dev));
+
 		return -EOPNOTSUPP;
 	}
 	return err;
