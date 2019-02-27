@@ -77,6 +77,11 @@
 /* Bit-0 - 0 : Disable Timestamp mode */
 #define COMPRESSED_TIMESTAMP_FLAG 0x0001
 
+/* Perf mode flag */
+/* Bit-1 - 1 : Enable perf mode */
+/* Bit-1 - 0 : Disable perf mode */
+#define COMPRESSED_PERF_MODE_FLAG 0x0002
+
 /* Codecs are listed linearly to allow for extensibility */
 #define SND_AUDIOCODEC_PCM                   ((__u32) 0x00000001)
 #define SND_AUDIOCODEC_MP3                   ((__u32) 0x00000002)
