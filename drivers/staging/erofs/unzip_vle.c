@@ -925,11 +925,10 @@ repeat:
 	if (llen > grp->llen)
 		llen = grp->llen;
 
-	err = z_erofs_vle_unzip_fast_percpu(compressed_pages,
-		clusterpages, pages, llen, work->pageofs,
-		z_erofs_onlinepage_endio);
+	err = z_erofs_vle_unzip_fast_percpu(compressed_pages, clusterpages,
+					    pages, llen, work->pageofs);
 	if (err != -ENOTSUPP)
-		goto out_percpu;
+		goto out;
 
 	if (sparsemem_pages >= nr_pages)
 		goto skip_allocpage;
@@ -950,21 +949,7 @@ skip_allocpage:
 	erofs_vunmap(vout, nr_pages);
 
 out:
-	for (i = 0; i < nr_pages; ++i) {
-		page = pages[i];
-		DBG_BUGON(page->mapping == NULL);
-
-		/* recycle all individual staging pages */
-		if (z_erofs_gather_if_stagingpage(page_pool, page))
-			continue;
-
-		if (unlikely(err < 0))
-			SetPageError(page);
-
-		z_erofs_onlinepage_endio(page);
-	}
-
-out_percpu:
+	/* must handle all compressed pages before endding pages */
 	for (i = 0; i < clusterpages; ++i) {
 		page = compressed_pages[i];
 
@@ -976,6 +961,23 @@ out_percpu:
 		(void)z_erofs_gather_if_stagingpage(page_pool, page);
 
 		WRITE_ONCE(compressed_pages[i], NULL);
+	}
+
+	for (i = 0; i < nr_pages; ++i) {
+		page = pages[i];
+		if (!page)
+			continue;
+
+		DBG_BUGON(page->mapping == NULL);
+
+		/* recycle all individual staging pages */
+		if (z_erofs_gather_if_stagingpage(page_pool, page))
+			continue;
+
+		if (unlikely(err < 0))
+			SetPageError(page);
+
+		z_erofs_onlinepage_endio(page);
 	}
 
 	if (pages == z_pagemap_global)
