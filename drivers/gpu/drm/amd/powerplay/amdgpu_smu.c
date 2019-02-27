@@ -138,7 +138,7 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	if (amdgpu_dpm != 1)
 		return false;
 
-	if (adev->asic_type >= CHIP_VEGA20)
+	if (adev->asic_type >= CHIP_VEGA20 && adev->asic_type != CHIP_RAVEN)
 		return true;
 
 	return false;
