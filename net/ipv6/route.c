@@ -4907,7 +4907,8 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	if (tb[RTA_IP_PROTO]) {
 		err = rtm_getroute_parse_ip_proto(tb[RTA_IP_PROTO],
-						  &fl6.flowi6_proto, extack);
+						  &fl6.flowi6_proto, AF_INET6,
+						  extack);
 		if (err)
 			goto errout;
 	}
