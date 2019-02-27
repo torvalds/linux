@@ -621,6 +621,16 @@
 		#cooling-cells = <2>; /* min followed by max */
 		operating-points-v2 = <&gpu_opp_table>;
 		resets = <&cru SRST_GPU_A>;
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <900>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
 	};
 
 	gpu_opp_table: gpu-opp-table {
