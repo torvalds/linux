@@ -125,6 +125,8 @@ struct adis16480_chip_info {
 	unsigned int accel_max_val;
 	unsigned int accel_max_scale;
 	unsigned int temp_scale;
+	unsigned int int_clk;
+	unsigned int max_dec_rate;
 };
 
 enum adis16480_int_pin {
@@ -299,9 +301,9 @@ static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 	if (t <= 0)
 		return -EINVAL;
 
-	t = 2460000 / t;
-	if (t > 2048)
-		t = 2048;
+	t = st->chip_info->int_clk / t;
+	if (t > st->chip_info->max_dec_rate)
+		t = st->chip_info->max_dec_rate;
 
 	if (t != 0)
 		t--;
@@ -320,7 +322,7 @@ static int adis16480_get_freq(struct iio_dev *indio_dev, int *val, int *val2)
 	if (ret < 0)
 		return ret;
 
-	freq = 2460000 / (t + 1);
+	freq = st->chip_info->int_clk / (t + 1);
 	*val = freq / 1000;
 	*val2 = (freq % 1000) * 1000;
 
@@ -726,6 +728,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.accel_max_val = IIO_M_S_2_TO_G(21973),
 		.accel_max_scale = 18,
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
 	},
 	[ADIS16480] = {
 		.channels = adis16480_channels,
@@ -735,6 +739,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.accel_max_val = IIO_M_S_2_TO_G(12500),
 		.accel_max_scale = 10,
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
 	},
 	[ADIS16485] = {
 		.channels = adis16485_channels,
@@ -744,6 +750,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.accel_max_val = IIO_M_S_2_TO_G(20000),
 		.accel_max_scale = 5,
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
 	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
@@ -753,6 +761,8 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.accel_max_val = IIO_M_S_2_TO_G(22500),
 		.accel_max_scale = 18,
 		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
 	},
 };
 
