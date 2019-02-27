@@ -495,12 +495,23 @@ ice_alloc_vsi_res_exit:
  */
 static int ice_alloc_vf_res(struct ice_vf *vf)
 {
+	struct ice_pf *pf = vf->pf;
+	int tx_rx_queue_left;
 	int status;
 
 	/* setup VF VSI and necessary resources */
 	status = ice_alloc_vsi_res(vf);
 	if (status)
 		goto ice_alloc_vf_res_exit;
+
+	/* Update number of VF queues, in case VF had requested for queue
+	 * changes
+	 */
+	tx_rx_queue_left = min_t(int, pf->q_left_tx, pf->q_left_rx);
+	tx_rx_queue_left += ICE_DFLT_QS_PER_VF;
+	if (vf->num_req_qs && vf->num_req_qs <= tx_rx_queue_left &&
+	    vf->num_req_qs != vf->num_vf_qs)
+		vf->num_vf_qs = vf->num_req_qs;
 
 	if (vf->trusted)
 		set_bit(ICE_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps);
@@ -835,8 +846,18 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	usleep_range(10000, 20000);
 
 	/* free VF resources to begin resetting the VSI state */
-	for (v = 0; v < pf->num_alloc_vfs; v++)
-		ice_free_vf_res(&pf->vf[v]);
+	for (v = 0; v < pf->num_alloc_vfs; v++) {
+		vf = &pf->vf[v];
+
+		ice_free_vf_res(vf);
+
+		/* Free VF queues as well, and reallocate later.
+		 * If a given VF has different number of queues
+		 * configured, the request for update will come
+		 * via mailbox communication.
+		 */
+		vf->num_vf_qs = 0;
+	}
 
 	if (ice_check_avail_res(pf)) {
 		dev_err(&pf->pdev->dev,
@@ -845,8 +866,15 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr)
 	}
 
 	/* Finish the reset on each VF */
-	for (v = 0; v < pf->num_alloc_vfs; v++)
-		ice_cleanup_and_realloc_vf(&pf->vf[v]);
+	for (v = 0; v < pf->num_alloc_vfs; v++) {
+		vf = &pf->vf[v];
+
+		vf->num_vf_qs = pf->num_vf_qps;
+		dev_dbg(&pf->pdev->dev,
+			"VF-id %d has %d queues configured\n",
+			vf->vf_id, vf->num_vf_qs);
+		ice_cleanup_and_realloc_vf(vf);
+	}
 
 	ice_flush(hw);
 	clear_bit(__ICE_VF_DIS, pf->state);
@@ -1766,6 +1794,7 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 	struct virtchnl_vsi_queue_config_info *qci =
 	    (struct virtchnl_vsi_queue_config_info *)msg;
 	struct virtchnl_queue_pair_info *qpi;
+	struct ice_pf *pf = vf->pf;
 	enum ice_status aq_ret = 0;
 	struct ice_vsi *vsi;
 	int i;
@@ -1782,6 +1811,14 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 
 	vsi = ice_find_vsi_from_id(vf->pf, qci->vsi_id);
 	if (!vsi) {
+		aq_ret = ICE_ERR_PARAM;
+		goto error_param;
+	}
+
+	if (qci->num_queue_pairs > ICE_MAX_BASE_QS_PER_VF) {
+		dev_err(&pf->pdev->dev,
+			"VF-%d requesting more than supported number of queues: %d\n",
+			vf->vf_id, qci->num_queue_pairs);
 		aq_ret = ICE_ERR_PARAM;
 		goto error_param;
 	}
@@ -2013,6 +2050,7 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 	int req_queues = vfres->num_queue_pairs;
 	enum ice_status aq_ret = 0;
 	struct ice_pf *pf = vf->pf;
+	int max_allowed_vf_queues;
 	int tx_rx_queue_left;
 	int cur_queues;
 
@@ -2021,22 +2059,24 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	cur_queues = pf->num_vf_qps;
+	cur_queues = vf->num_vf_qs;
 	tx_rx_queue_left = min_t(int, pf->q_left_tx, pf->q_left_rx);
+	max_allowed_vf_queues = tx_rx_queue_left + cur_queues;
 	if (req_queues <= 0) {
 		dev_err(&pf->pdev->dev,
 			"VF %d tried to request %d queues. Ignoring.\n",
 			vf->vf_id, req_queues);
-	} else if (req_queues > ICE_MAX_QS_PER_VF) {
+	} else if (req_queues > ICE_MAX_BASE_QS_PER_VF) {
 		dev_err(&pf->pdev->dev,
 			"VF %d tried to request more than %d queues.\n",
-			vf->vf_id, ICE_MAX_QS_PER_VF);
-		vfres->num_queue_pairs = ICE_MAX_QS_PER_VF;
+			vf->vf_id, ICE_MAX_BASE_QS_PER_VF);
+		vfres->num_queue_pairs = ICE_MAX_BASE_QS_PER_VF;
 	} else if (req_queues - cur_queues > tx_rx_queue_left) {
 		dev_warn(&pf->pdev->dev,
 			 "VF %d requested %d more queues, but only %d left.\n",
 			 vf->vf_id, req_queues - cur_queues, tx_rx_queue_left);
-		vfres->num_queue_pairs = tx_rx_queue_left + cur_queues;
+		vfres->num_queue_pairs = min_t(int, max_allowed_vf_queues,
+					       ICE_MAX_BASE_QS_PER_VF);
 	} else {
 		/* request is successful, then reset VF */
 		vf->num_req_qs = req_queues;

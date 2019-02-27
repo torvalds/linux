@@ -297,12 +297,18 @@ static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
 /**
  * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
+ * @vf_id: Id of the VF being configured
  *
  * Return 0 on success and a negative value on error
  */
-static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
+static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 {
 	struct ice_pf *pf = vsi->back;
+
+	struct ice_vf *vf = NULL;
+
+	if (vsi->type == ICE_VSI_VF)
+		vsi->vf_id = vf_id;
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
@@ -311,8 +317,9 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 		vsi->num_q_vectors = max_t(int, pf->num_lan_rx, pf->num_lan_tx);
 		break;
 	case ICE_VSI_VF:
-		vsi->alloc_txq = pf->num_vf_qps;
-		vsi->alloc_rxq = pf->num_vf_qps;
+		vf = &pf->vf[vsi->vf_id];
+		vsi->alloc_txq = vf->num_vf_qs;
+		vsi->alloc_rxq = vf->num_vf_qs;
 		/* pf->num_vf_msix includes (VF miscellaneous vector +
 		 * data queue interrupts). Since vsi->num_q_vectors is number
 		 * of queues vectors, subtract 1 from the original vector
@@ -472,10 +479,12 @@ static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
  * ice_vsi_alloc - Allocates the next available struct VSI in the PF
  * @pf: board private structure
  * @type: type of VSI
+ * @vf_id: Id of the VF being configured
  *
  * returns a pointer to a VSI on success, NULL on failure.
  */
-static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
+static struct ice_vsi *
+ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type, u16 vf_id)
 {
 	struct ice_vsi *vsi = NULL;
 
@@ -501,7 +510,10 @@ static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
 	vsi->idx = pf->next_vsi;
 	vsi->work_lmt = ICE_DFLT_IRQ_WORK;
 
-	ice_vsi_set_num_qs(vsi);
+	if (type == ICE_VSI_VF)
+		ice_vsi_set_num_qs(vsi, vf_id);
+	else
+		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
 
 	switch (vsi->type) {
 	case ICE_VSI_PF:
@@ -2171,7 +2183,11 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	struct ice_vsi *vsi;
 	int ret, i;
 
-	vsi = ice_vsi_alloc(pf, type);
+	if (type == ICE_VSI_VF)
+		vsi = ice_vsi_alloc(pf, type, vf_id);
+	else
+		vsi = ice_vsi_alloc(pf, type, ICE_INVAL_VFID);
+
 	if (!vsi) {
 		dev_err(dev, "could not allocate VSI\n");
 		return NULL;
@@ -2691,7 +2707,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	ice_vsi_clear_rings(vsi);
 	ice_vsi_free_arrays(vsi, false);
 	ice_dev_onetime_setup(&vsi->back->hw);
-	ice_vsi_set_num_qs(vsi);
+	if (vsi->type == ICE_VSI_VF)
+		ice_vsi_set_num_qs(vsi, vf->vf_id);
+	else
+		ice_vsi_set_num_qs(vsi, ICE_INVAL_VFID);
 	ice_vsi_set_tc_cfg(vsi);
 
 	/* Initialize VSI struct elements and create VSI in FW */

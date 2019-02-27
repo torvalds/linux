@@ -70,6 +70,7 @@ struct ice_vf {
 	u8 spoofchk;
 	u16 num_mac;
 	u16 num_vlan;
+	u16 num_vf_qs;			/* num of queue configured per VF */
 	u8 num_req_qs;			/* num of queue pairs requested by VF */
 };
 
