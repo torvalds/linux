@@ -1954,7 +1954,7 @@ static struct bpf_flow_keys pkt_v4_flow_keys = {
 	.thoff = sizeof(struct iphdr),
 	.addr_proto = ETH_P_IP,
 	.ip_proto = IPPROTO_TCP,
-	.n_proto = bpf_htons(ETH_P_IP),
+	.n_proto = __bpf_constant_htons(ETH_P_IP),
 };
 
 static struct bpf_flow_keys pkt_v6_flow_keys = {
@@ -1962,7 +1962,7 @@ static struct bpf_flow_keys pkt_v6_flow_keys = {
 	.thoff = sizeof(struct ipv6hdr),
 	.addr_proto = ETH_P_IPV6,
 	.ip_proto = IPPROTO_TCP,
-	.n_proto = bpf_htons(ETH_P_IPV6),
+	.n_proto = __bpf_constant_htons(ETH_P_IPV6),
 };
 
 static void test_flow_dissector(void)
