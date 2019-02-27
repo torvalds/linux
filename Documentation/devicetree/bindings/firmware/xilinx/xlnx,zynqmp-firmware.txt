@@ -62,7 +62,7 @@ order to provide an optional (E)MIO clock source:
 
 Output clocks are registered based on clock information received
 from firmware. Output clocks indexes are mentioned in
-include/dt-bindings/clock/xlnx,zynqmp-clk.h.
+include/dt-bindings/clock/xlnx-zynqmp-clk.h.
 
 -------
 Example
