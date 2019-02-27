@@ -122,16 +122,14 @@ struct nfp_nsp {
  * @code:	NFP SP Command Code
  * @timeout_sec:Timeout value to wait for completion in seconds
  * @option:	NFP SP Command Argument
- * @buff_cpp:	NFP SP Buffer CPP Address info
- * @buff_addr:	NFP SP Buffer Host address
+ * @buf:	NFP SP Buffer Address
  * @error_cb:	Callback for interpreting option if error occurred
  */
 struct nfp_nsp_command_arg {
 	u16 code;
 	unsigned int timeout_sec;
 	u32 option;
-	u32 buff_cpp;
-	u64 buff_addr;
+	u64 buf;
 	void (*error_cb)(struct nfp_nsp *state, u32 ret_val);
 };
 
@@ -345,16 +343,7 @@ __nfp_nsp_command(struct nfp_nsp *state, const struct nfp_nsp_command_arg *arg)
 	if (err)
 		return err;
 
-	if (!FIELD_FIT(NSP_BUFFER_CPP, arg->buff_cpp >> 8) ||
-	    !FIELD_FIT(NSP_BUFFER_ADDRESS, arg->buff_addr)) {
-		nfp_err(cpp, "Host buffer out of reach %08x %016llx\n",
-			arg->buff_cpp, arg->buff_addr);
-		return -EINVAL;
-	}
-
-	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_buffer,
-			     FIELD_PREP(NSP_BUFFER_CPP, arg->buff_cpp >> 8) |
-			     FIELD_PREP(NSP_BUFFER_ADDRESS, arg->buff_addr));
+	err = nfp_cpp_writeq(cpp, nsp_cpp, nsp_buffer, arg->buf);
 	if (err < 0)
 		return err;
 
@@ -412,35 +401,13 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code)
 }
 
 static int
-nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
+nfp_nsp_command_buf_def(struct nfp_nsp *nsp,
+			struct nfp_nsp_command_buf_arg *arg)
 {
-	unsigned int def_size, max_size;
 	struct nfp_cpp *cpp = nsp->cpp;
 	u64 reg, cpp_buf;
-	int ret, err;
+	int err, ret;
 	u32 cpp_id;
-
-	if (nsp->ver.minor < 13) {
-		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
-			arg->arg.code, nsp->ver.major, nsp->ver.minor);
-		return -EOPNOTSUPP;
-	}
-
-	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
-			    nfp_resource_address(nsp->res) +
-			    NSP_DFLT_BUFFER_CONFIG,
-			    &reg);
-	if (err < 0)
-		return err;
-
-	max_size = max(arg->in_size, arg->out_size);
-	def_size = FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M +
-		   FIELD_GET(NSP_DFLT_BUFFER_SIZE_4KB, reg) * SZ_4K;
-	if (def_size < max_size) {
-		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%u < %u)\n",
-			arg->arg.code, def_size, max_size);
-		return -EINVAL;
-	}
 
 	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
 			    nfp_resource_address(nsp->res) +
@@ -460,15 +427,21 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 	}
 	/* Zero out remaining part of the buffer */
 	if (arg->out_buf && arg->out_size && arg->out_size > arg->in_size) {
-		memset(arg->out_buf, 0, arg->out_size - arg->in_size);
 		err = nfp_cpp_write(cpp, cpp_id, cpp_buf + arg->in_size,
 				    arg->out_buf, arg->out_size - arg->in_size);
 		if (err < 0)
 			return err;
 	}
 
-	arg->arg.buff_cpp = cpp_id;
-	arg->arg.buff_addr = cpp_buf;
+	if (!FIELD_FIT(NSP_BUFFER_CPP, cpp_id >> 8) ||
+	    !FIELD_FIT(NSP_BUFFER_ADDRESS, cpp_buf)) {
+		nfp_err(cpp, "Buffer out of reach %08x %016llx\n",
+			cpp_id, cpp_buf);
+		return -EINVAL;
+	}
+
+	arg->arg.buf = FIELD_PREP(NSP_BUFFER_CPP, cpp_id >> 8) |
+		       FIELD_PREP(NSP_BUFFER_ADDRESS, cpp_buf);
 	ret = __nfp_nsp_command(nsp, &arg->arg);
 	if (ret < 0)
 		return ret;
@@ -481,6 +454,42 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 	}
 
 	return ret;
+}
+
+static int
+nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
+{
+	unsigned int def_size, max_size;
+	struct nfp_cpp *cpp = nsp->cpp;
+	u64 reg;
+	int err;
+
+	if (nsp->ver.minor < 13) {
+		nfp_err(cpp, "NSP: Code 0x%04x with buffer not supported (ABI %hu.%hu)\n",
+			arg->arg.code, nsp->ver.major, nsp->ver.minor);
+		return -EOPNOTSUPP;
+	}
+
+	err = nfp_cpp_readq(cpp, nfp_resource_cpp_id(nsp->res),
+			    nfp_resource_address(nsp->res) +
+			    NSP_DFLT_BUFFER_CONFIG,
+			    &reg);
+	if (err < 0)
+		return err;
+
+	/* Zero out undefined part of the out buffer */
+	if (arg->out_buf && arg->out_size && arg->out_size > arg->in_size)
+		memset(arg->out_buf, 0, arg->out_size - arg->in_size);
+
+	max_size = max(arg->in_size, arg->out_size);
+	def_size = FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M +
+		   FIELD_GET(NSP_DFLT_BUFFER_SIZE_4KB, reg) * SZ_4K;
+	if (def_size >= max_size)
+		return nfp_nsp_command_buf_def(nsp, arg);
+
+	nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%u < %u)\n",
+		arg->arg.code, def_size, max_size);
+	return -EINVAL;
 }
 
 int nfp_nsp_wait(struct nfp_nsp *state)
