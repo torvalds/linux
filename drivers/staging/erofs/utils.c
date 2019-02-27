@@ -23,9 +23,6 @@ struct page *erofs_allocpage(struct list_head *pool, gfp_t gfp)
 		list_del(&page->lru);
 	} else {
 		page = alloc_pages(gfp | __GFP_NOFAIL, 0);
-
-		BUG_ON(page == NULL);
-		BUG_ON(page->mapping != NULL);
 	}
 	return page;
 }
@@ -60,7 +57,7 @@ repeat:
 		/* decrease refcount added by erofs_workgroup_put */
 		if (unlikely(oldcount == 1))
 			atomic_long_dec(&erofs_global_shrink_cnt);
-		BUG_ON(index != grp->index);
+		DBG_BUGON(index != grp->index);
 	}
 	rcu_read_unlock();
 	return grp;
@@ -73,8 +70,11 @@ int erofs_register_workgroup(struct super_block *sb,
 	struct erofs_sb_info *sbi;
 	int err;
 
-	/* grp->refcount should not < 1 */
-	BUG_ON(!atomic_read(&grp->refcount));
+	/* grp shouldn't be broken or used before */
+	if (unlikely(atomic_read(&grp->refcount) != 1)) {
+		DBG_BUGON(1);
+		return -EINVAL;
+	}
 
 	err = radix_tree_preload(GFP_NOFS);
 	if (err)

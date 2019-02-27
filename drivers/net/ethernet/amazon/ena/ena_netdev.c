@@ -2595,11 +2595,6 @@ static int ena_restore_device(struct ena_adapter *adapter)
 		goto err_device_destroy;
 	}
 
-	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
-	/* Make sure we don't have a race with AENQ Links state handler */
-	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
-		netif_carrier_on(adapter->netdev);
-
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
 						      adapter->num_queues);
 	if (rc) {
@@ -2616,6 +2611,11 @@ static int ena_restore_device(struct ena_adapter *adapter)
 	}
 
 	set_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
+
+	clear_bit(ENA_FLAG_ONGOING_RESET, &adapter->flags);
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
+		netif_carrier_on(adapter->netdev);
+
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 	dev_err(&pdev->dev, "Device reset completed successfully\n");
 

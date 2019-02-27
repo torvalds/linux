@@ -49,6 +49,23 @@ bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		   u32 flags);
 
+static inline void mlx5e_xdp_tx_enable(struct mlx5e_priv *priv)
+{
+	set_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+}
+
+static inline void mlx5e_xdp_tx_disable(struct mlx5e_priv *priv)
+{
+	clear_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+	/* let other device's napi(s) see our new state */
+	synchronize_rcu();
+}
+
+static inline bool mlx5e_xdp_tx_is_enabled(struct mlx5e_priv *priv)
+{
+	return test_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+}
+
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;

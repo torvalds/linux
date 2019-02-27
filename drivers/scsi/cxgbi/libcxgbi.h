@@ -146,6 +146,7 @@ struct cxgbi_sock {
 	struct sk_buff_head receive_queue;
 	struct sk_buff_head write_queue;
 	struct timer_list retry_timer;
+	struct completion cmpl;
 	int err;
 	rwlock_t callback_lock;
 	void *user_data;
@@ -487,9 +488,9 @@ struct cxgbi_device {
 				  struct cxgbi_ppm *,
 				  struct cxgbi_task_tag_info *);
 	int (*csk_ddp_setup_digest)(struct cxgbi_sock *,
-				unsigned int, int, int, int);
+				    unsigned int, int, int);
 	int (*csk_ddp_setup_pgidx)(struct cxgbi_sock *,
-				unsigned int, int, bool);
+				   unsigned int, int);
 
 	void (*csk_release_offload_resources)(struct cxgbi_sock *);
 	int (*csk_rx_pdu_ready)(struct cxgbi_sock *, struct sk_buff *);
