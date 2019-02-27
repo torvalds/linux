@@ -125,6 +125,23 @@ extern const char ice_drv_ver[];
 #define ice_for_each_q_vector(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
 
+#define ICE_UCAST_PROMISC_BITS (ICE_PROMISC_UCAST_TX | ICE_PROMISC_MCAST_TX | \
+				ICE_PROMISC_UCAST_RX | ICE_PROMISC_MCAST_RX)
+
+#define ICE_UCAST_VLAN_PROMISC_BITS (ICE_PROMISC_UCAST_TX | \
+				     ICE_PROMISC_MCAST_TX | \
+				     ICE_PROMISC_UCAST_RX | \
+				     ICE_PROMISC_MCAST_RX | \
+				     ICE_PROMISC_VLAN_TX  | \
+				     ICE_PROMISC_VLAN_RX)
+
+#define ICE_MCAST_PROMISC_BITS (ICE_PROMISC_MCAST_TX | ICE_PROMISC_MCAST_RX)
+
+#define ICE_MCAST_VLAN_PROMISC_BITS (ICE_PROMISC_MCAST_TX | \
+				     ICE_PROMISC_MCAST_RX | \
+				     ICE_PROMISC_VLAN_TX  | \
+				     ICE_PROMISC_VLAN_RX)
+
 struct ice_tc_info {
 	u16 qoffset;
 	u16 qcount_tx;
@@ -258,6 +275,7 @@ struct ice_vsi {
 	u8 irqs_ready;
 	u8 current_isup;		 /* Sync 'link up' logging */
 	u8 stat_offsets_loaded;
+	u8 vlan_ena;
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */

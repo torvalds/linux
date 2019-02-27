@@ -35,7 +35,7 @@ int
 ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			  u16 rel_vmvf_num);
 
-int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena);
+int ice_cfg_vlan_pruning(struct ice_vsi *vsi, bool ena, bool vlan_promisc);
 
 void ice_vsi_delete(struct ice_vsi *vsi);
 
