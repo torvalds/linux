@@ -506,10 +506,7 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 	return bResult;
 }
 
-void
-CARDvSafeResetTx(
-	struct vnt_private *priv
-)
+void CARDvSafeResetTx(struct vnt_private *priv)
 {
 	unsigned int uu;
 	struct vnt_tx_desc *pCurrTD;
