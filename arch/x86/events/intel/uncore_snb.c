@@ -448,8 +448,10 @@ static int snb_uncore_imc_event_init(struct perf_event *event)
 
 	/* must be done before validate_group */
 	event->hw.event_base = base;
-	event->hw.config = cfg;
 	event->hw.idx = idx;
+
+	/* Convert to standard encoding format for freerunning counters */
+	event->hw.config = ((cfg - 1) << 8) | 0x10ff;
 
 	/* no group validation needed, we have free running counters */
 
