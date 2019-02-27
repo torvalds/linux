@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include <dt-bindings/clock/rk618-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
+#include "px30-evb-ddr3-v10.dtsi"
+
+&dmc {
+	auto-freq-en = <0>;
+};
+
+&vcc3v0_pmu {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+
+	regulator-state-mem {
+		regulator-suspend-microvolt = <3300000>;
+	};
+};
+
+&i2c1 {
+
+	rk618@50 {
+		compatible = "rockchip,rk618";
+		reg = <0x50>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1_2ch_mclk>;
+		clocks = <&cru SCLK_I2S1_OUT>;
+		clock-names = "clkin";
+		assigned-clocks = <&cru SCLK_I2S1_OUT>;
+		assigned-clock-rates = <12000000>;
+		reset-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		clock: cru {
+			compatible = "rockchip,rk618-cru";
+			clocks = <&cru SCLK_I2S1_OUT>, <&cru DCLK_VOPL>;
+			clock-names = "clkin", "lcdc0_dclkp";
+			assigned-clocks = <&clock SCALER_PLLIN_CLK>,
+					  <&clock VIF_PLLIN_CLK>,
+					  <&clock SCALER_CLK>,
+					  <&clock VIF0_PRE_CLK>,
+					  <&clock CODEC_CLK>,
+					  <&clock DITHER_CLK>;
+			assigned-clock-parents = <&cru SCLK_I2S1_OUT>,
+						 <&clock LCDC0_CLK>,
+						 <&clock SCALER_PLL_CLK>,
+						 <&clock VIF_PLL_CLK>,
+						 <&cru SCLK_I2S1_OUT>,
+						 <&clock VIF0_CLK>;
+			#clock-cells = <1>;
+			status = "okay";
+		};
+
+		hdmi {
+			compatible = "rockchip,rk618-hdmi";
+			clocks = <&clock HDMI_CLK>;
+			clock-names = "hdmi";
+			assigned-clocks = <&clock HDMI_CLK>;
+			assigned-clock-parents = <&clock VIF0_CLK>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					hdmi_in_rgb: endpoint {
+						remote-endpoint = <&rgb_out_hdmi>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vopb {
+	status = "disabled";
+};
+
+&rgb_in_vopl {
+	status = "okay";
+};
+
+&route_rgb {
+	connect = <&vopl_out_rgb>;
+	status = "disabled";
+};
