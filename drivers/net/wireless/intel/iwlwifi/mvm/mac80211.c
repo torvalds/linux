@@ -3730,7 +3730,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    int duration)
 {
-	int res, time_reg = DEVICE_SYSTEM_TIME_REG;
+	int res;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->hs_time_event_data;
 	static const u16 time_event_response[] = { HOT_SPOT_CMD };
@@ -3756,7 +3756,7 @@ static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 			      0);
 
 	/* Set the time and duration */
-	tail->apply_time = cpu_to_le32(iwl_read_prph(mvm->trans, time_reg));
+	tail->apply_time = cpu_to_le32(iwl_mvm_get_systime(mvm));
 
 	delay = AUX_ROC_MIN_DELAY;
 	req_dur = MSEC_TO_TU(duration);

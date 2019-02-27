@@ -1113,9 +1113,7 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 				ieee80211_tu_to_usec(data.beacon_int * rand /
 						     100);
 		} else {
-			mvmvif->ap_beacon_time =
-				iwl_read_prph(mvm->trans,
-					      DEVICE_SYSTEM_TIME_REG);
+			mvmvif->ap_beacon_time = iwl_mvm_get_systime(mvm);
 		}
 	}
 

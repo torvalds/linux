@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 Intel Corporation
+ * Copyright(C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -29,7 +29,7 @@
  *
  * Copyright(c) 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(C) 2018 Intel Corporation
+ * Copyright(C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -252,8 +252,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 
 	/* we only send requests to our switching peer - update sent time */
 	if (state == IWL_MVM_TDLS_SW_REQ_SENT)
-		mvm->tdls_cs.peer.sent_timestamp =
-			iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
+		mvm->tdls_cs.peer.sent_timestamp = iwl_mvm_get_systime(mvm);
 
 	if (state == IWL_MVM_TDLS_SW_IDLE)
 		mvm->tdls_cs.cur_sta_id = IWL_MVM_INVALID_STA;

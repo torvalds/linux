@@ -456,6 +456,7 @@ struct iwl_cfg {
 	u32 fw_mon_smem_write_ptr_msk;
 	u32 fw_mon_smem_cycle_cnt_ptr_addr;
 	u32 fw_mon_smem_cycle_cnt_ptr_msk;
+	u32 gp2_reg_addr;
 };
 
 extern const struct iwl_csr_params iwl_csr_v1;
