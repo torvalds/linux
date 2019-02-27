@@ -457,8 +457,10 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 	vsi->hw_base_vector += 1;
 
 	/* Check if port VLAN exist before, and restore it accordingly */
-	if (vf->port_vlan_id)
+	if (vf->port_vlan_id) {
 		ice_vsi_manage_pvid(vsi, vf->port_vlan_id, true);
+		ice_vsi_add_vlan(vsi, vf->port_vlan_id & ICE_VLAN_M);
+	}
 
 	eth_broadcast_addr(broadcast);
 
