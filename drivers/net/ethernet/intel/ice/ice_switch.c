@@ -398,7 +398,7 @@ ice_add_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 			tmp_vsi_ctx->vsi_num = vsi_ctx->vsi_num;
 	}
 
-	return status;
+	return 0;
 }
 
 /**

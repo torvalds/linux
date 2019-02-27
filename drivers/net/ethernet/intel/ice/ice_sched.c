@@ -1502,7 +1502,7 @@ ice_sched_update_vsi_child_nodes(struct ice_port_info *pi, u16 vsi_handle,
 
 	vsi_ctx->sched.max_lanq[tc] = new_numqs;
 
-	return status;
+	return 0;
 }
 
 /**
