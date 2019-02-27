@@ -237,6 +237,8 @@ int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	int idx = 0;
 
+	memset(msta, 0, sizeof(*msta));
+
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
 	if (idx < 0)
 		return -ENOSPC;
@@ -273,6 +275,8 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76_txq *mtxq;
+
+	memset(mvif, 0, sizeof(*mvif));
 
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);

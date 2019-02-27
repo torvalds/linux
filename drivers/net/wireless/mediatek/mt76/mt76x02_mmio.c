@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 
 #include "mt76x02.h"
+#include "mt76x02_mcu.h"
 #include "mt76x02_trace.h"
 
 struct beacon_bc_data {
@@ -418,9 +419,65 @@ static bool mt76x02_tx_hang(struct mt76x02_dev *dev)
 	return i < 4;
 }
 
+static void mt76x02_key_sync(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct ieee80211_key_conf *key, void *data)
+{
+	struct mt76x02_dev *dev = hw->priv;
+	struct mt76_wcid *wcid;
+
+	if (!sta)
+	    return;
+
+	wcid = (struct mt76_wcid *) sta->drv_priv;
+
+	if (wcid->hw_key_idx != key->keyidx || wcid->sw_iv)
+	    return;
+
+	mt76x02_mac_wcid_sync_pn(dev, wcid->idx, key);
+}
+
+static void mt76x02_reset_state(struct mt76x02_dev *dev)
+{
+	int i;
+
+	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+
+	rcu_read_lock();
+
+	ieee80211_iter_keys_rcu(dev->mt76.hw, NULL, mt76x02_key_sync, NULL);
+
+	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
+		struct mt76_wcid *wcid = rcu_dereference(dev->mt76.wcid[i]);
+		struct mt76x02_sta *msta;
+		struct ieee80211_sta *sta;
+		struct ieee80211_vif *vif;
+		void *priv;
+
+		if (!wcid)
+			continue;
+
+		priv = msta = container_of(wcid, struct mt76x02_sta, wcid);
+		sta = container_of(priv, struct ieee80211_sta, drv_priv);
+
+		priv = msta->vif;
+		vif = container_of(priv, struct ieee80211_vif, drv_priv);
+
+		mt76_sta_state(dev->mt76.hw, vif, sta,
+			       IEEE80211_STA_NONE, IEEE80211_STA_NOTEXIST);
+		memset(msta, 0, sizeof(*msta));
+	}
+
+	rcu_read_unlock();
+
+	dev->vif_mask = 0;
+	dev->beacon_mask = 0;
+}
+
 static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 {
 	u32 mask = dev->mt76.mmio.irqmask;
+	bool restart = dev->mt76.mcu_ops->mcu_restart;
 	int i;
 
 	ieee80211_stop_queues(dev->mt76.hw);
@@ -431,6 +488,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
+
+	if (restart)
+		mt76x02_reset_state(dev);
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -452,20 +512,21 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	/* let fw reset DMA */
 	mt76_set(dev, 0x734, 0x3);
 
+	if (restart)
+		dev->mt76.mcu_ops->mcu_restart(&dev->mt76);
+
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_tx); i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
 		mt76_queue_rx_reset(dev, i);
 
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
-	mt76_set(dev, MT_WPDMA_GLO_CFG,
-		 MT_WPDMA_GLO_CFG_TX_DMA_EN | MT_WPDMA_GLO_CFG_RX_DMA_EN);
+	mt76x02_mac_start(dev);
+
 	if (dev->ed_monitor)
 		mt76_set(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
 
-	if (dev->beacon_mask)
+	if (dev->beacon_mask && !restart)
 		mt76_set(dev, MT_BEACON_TIME_CFG,
 			 MT_BEACON_TIME_CFG_BEACON_TX |
 			 MT_BEACON_TIME_CFG_TBTT_EN);
@@ -486,9 +547,13 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 		napi_schedule(&dev->mt76.napi[i]);
 	}
 
-	ieee80211_wake_queues(dev->mt76.hw);
-
-	mt76_txq_schedule_all(&dev->mt76);
+	if (restart) {
+		mt76x02_mcu_function_select(dev, Q_SELECT, 1);
+		ieee80211_restart_hw(dev->mt76.hw);
+	} else {
+		ieee80211_wake_queues(dev->mt76.hw);
+		mt76_txq_schedule_all(&dev->mt76);
+	}
 }
 
 static void mt76x02_check_tx_hang(struct mt76x02_dev *dev)

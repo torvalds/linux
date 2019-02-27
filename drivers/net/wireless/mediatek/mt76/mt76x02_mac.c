@@ -67,6 +67,32 @@ int mt76x02_mac_shared_key_setup(struct mt76x02_dev *dev, u8 vif_idx,
 }
 EXPORT_SYMBOL_GPL(mt76x02_mac_shared_key_setup);
 
+void mt76x02_mac_wcid_sync_pn(struct mt76x02_dev *dev, u8 idx,
+			      struct ieee80211_key_conf *key)
+{
+	enum mt76x02_cipher_type cipher;
+	u8 key_data[32];
+	u32 iv, eiv;
+	u64 pn;
+
+	cipher = mt76x02_mac_get_key_info(key, key_data);
+	iv = mt76_rr(dev, MT_WCID_IV(idx));
+	eiv = mt76_rr(dev, MT_WCID_IV(idx) + 4);
+
+	pn = (u64)eiv << 16;
+	if (cipher == MT_CIPHER_TKIP) {
+		pn |= (iv >> 16) & 0xff;
+		pn |= (iv & 0xff) << 8;
+	} else if (cipher >= MT_CIPHER_AES_CCMP) {
+		pn |= iv & 0xffff;
+	} else {
+		return;
+	}
+
+	atomic64_set(&key->tx_pn, pn);
+}
+
+
 int mt76x02_mac_wcid_set_key(struct mt76x02_dev *dev, u8 idx,
 			     struct ieee80211_key_conf *key)
 {

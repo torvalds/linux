@@ -580,6 +580,9 @@ void mt76_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	struct mt76_txq *mtxq = (struct mt76_txq *) txq->drv_priv;
 	struct mt76_queue *hwq = mtxq->hwq;
 
+	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
+		return;
+
 	spin_lock_bh(&hwq->lock);
 	if (list_empty(&mtxq->list))
 		list_add_tail(&mtxq->list, &hwq->swq);
