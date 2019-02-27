@@ -759,9 +759,27 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 
 		if (gfs2_meta_check(sdp, bh_ip))
 			error = -EIO;
-		else
-			mark_buffer_dirty(bh_ip);
+		else {
+			struct gfs2_meta_header *mh =
+				(struct gfs2_meta_header *)bh_ip->b_data;
 
+			if (mh->mh_type == cpu_to_be32(GFS2_METATYPE_RG)) {
+				struct gfs2_rgrpd *rgd;
+
+				rgd = gfs2_blk2rgrpd(sdp, blkno, false);
+				if (rgd && rgd->rd_addr == blkno &&
+				    rgd->rd_bits && rgd->rd_bits->bi_bh) {
+					fs_info(sdp, "Replaying 0x%llx but we "
+						"already have a bh!\n",
+						(unsigned long long)blkno);
+					fs_info(sdp, "busy:%d, pinned:%d\n",
+						buffer_busy(rgd->rd_bits->bi_bh) ? 1 : 0,
+						buffer_pinned(rgd->rd_bits->bi_bh));
+					gfs2_dump_glock(NULL, rgd->rd_gl);
+				}
+			}
+			mark_buffer_dirty(bh_ip);
+		}
 		brelse(bh_log);
 		brelse(bh_ip);
 
