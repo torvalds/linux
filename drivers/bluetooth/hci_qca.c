@@ -59,8 +59,7 @@
 
 #define IBS_WAKE_RETRANS_TIMEOUT_MS	100
 #define IBS_TX_IDLE_TIMEOUT_MS		2000
-#define BAUDRATE_SETTLE_TIMEOUT_MS	300
-#define POWER_PULSE_TRANS_TIMEOUT_MS	100
+#define CMD_TRANS_TIMEOUT_MS		100
 
 /* susclk rate */
 #define SUSCLK_RATE_32KHZ	32768
@@ -964,6 +963,7 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct qca_data *qca = hu->priv;
+	struct qca_serdev *qcadev;
 	struct sk_buff *skb;
 	u8 cmd[] = { 0x01, 0x48, 0xFC, 0x01, 0x00 };
 
@@ -985,11 +985,21 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	skb_queue_tail(&qca->txq, skb);
 	hci_uart_tx_wakeup(hu);
 
-	/* wait 300ms to change new baudrate on controller side
-	 * controller will come back after they receive this HCI command
-	 * then host can communicate with new baudrate to controller
-	 */
-	msleep(BAUDRATE_SETTLE_TIMEOUT_MS);
+	qcadev = serdev_device_get_drvdata(hu->serdev);
+
+	/* Wait for the baudrate change request to be sent */
+
+	while (!skb_queue_empty(&qca->txq))
+		usleep_range(100, 200);
+
+	serdev_device_wait_until_sent(hu->serdev,
+		      msecs_to_jiffies(CMD_TRANS_TIMEOUT_MS));
+
+	/* Give the controller time to process the request */
+	if (qcadev->btsoc_type == QCA_WCN3990)
+		msleep(10);
+	else
+		msleep(300);
 
 	return 0;
 }
@@ -1005,7 +1015,7 @@ static inline void host_set_baudrate(struct hci_uart *hu, unsigned int speed)
 static int qca_send_power_pulse(struct hci_uart *hu, bool on)
 {
 	int ret;
-	int timeout = msecs_to_jiffies(POWER_PULSE_TRANS_TIMEOUT_MS);
+	int timeout = msecs_to_jiffies(CMD_TRANS_TIMEOUT_MS);
 	u8 cmd = on ? QCA_WCN3990_POWERON_PULSE : QCA_WCN3990_POWEROFF_PULSE;
 
 	/* These power pulses are single byte command which are sent
