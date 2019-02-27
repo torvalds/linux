@@ -19222,6 +19222,7 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_client_peek_data
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_client_txdone
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_controller_register
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_controller_unregister
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_flush
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_free_channel
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_request_channel
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	mbox_request_channel_byname
