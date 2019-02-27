@@ -2206,6 +2206,19 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 		config->ssp.tdm_slot_width, config->ssp.tdm_slots,
 		config->ssp.mclk_id);
 
+	/* validate SSP fsync rate and channel count */
+	if (config->ssp.fsync_rate < 8000 || config->ssp.fsync_rate > 192000) {
+		dev_err(sdev->dev, "error: invalid fsync rate for SSP%d\n",
+			config->dai_index);
+		return -EINVAL;
+	}
+
+	if (config->ssp.tdm_slots < 1 || config->ssp.tdm_slots > 8) {
+		dev_err(sdev->dev, "error: invalid channel count for SSP%d\n",
+			config->dai_index);
+		return -EINVAL;
+	}
+
 	/* send message to DSP */
 	ret = sof_ipc_tx_message(sdev->ipc,
 				 config->hdr.cmd, config, size, &reply,
