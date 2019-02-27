@@ -643,7 +643,12 @@ static void ice_fill_sw_info(struct ice_hw *hw, struct ice_fltr_info *fi)
 	     fi->fltr_act == ICE_FWD_TO_VSI_LIST ||
 	     fi->fltr_act == ICE_FWD_TO_Q ||
 	     fi->fltr_act == ICE_FWD_TO_QGRP)) {
-		fi->lb_en = true;
+		/* Setting LB for prune actions will result in replicated
+		 * packets to the internal switch that will be dropped.
+		 */
+		if (fi->lkup_type != ICE_SW_LKUP_VLAN)
+			fi->lb_en = true;
+
 		/* Set lan_en to TRUE if
 		 * 1. The switch is a VEB AND
 		 * 2
