@@ -414,7 +414,7 @@ int goya_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
  * Returns 0 on success
  *
  */
-int goya_pci_bars_map(struct hl_device *hdev)
+static int goya_pci_bars_map(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
@@ -554,7 +554,7 @@ static int goya_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 	return 0;
 }
 
-void goya_reset_link_through_bridge(struct hl_device *hdev)
+static void goya_reset_link_through_bridge(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	struct pci_dev *parent_port;
@@ -771,7 +771,7 @@ disable_device:
  * Unmap PCI bars
  *
  */
-int goya_early_fini(struct hl_device *hdev)
+static int goya_early_fini(struct hl_device *hdev)
 {
 	goya_pci_bars_unmap(hdev);
 
@@ -968,7 +968,7 @@ free_goya_device:
  * @hdev: pointer to hl_device structure
  *
  */
-int goya_sw_fini(struct hl_device *hdev)
+static int goya_sw_fini(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
@@ -1230,7 +1230,7 @@ static void goya_resume_external_queues(struct hl_device *hdev)
  * Returns 0 on success
  *
  */
-int goya_init_cpu_queues(struct hl_device *hdev)
+static int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct hl_eq *eq;
@@ -2949,12 +2949,7 @@ int goya_resume(struct hl_device *hdev)
 	return rc;
 }
 
-int goya_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
-{
-	return -EINVAL;
-}
-
-int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
+static int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 		u64 kaddress, phys_addr_t paddress, u32 size)
 {
 	int rc;
@@ -2970,7 +2965,7 @@ int goya_cb_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 	return rc;
 }
 
-void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
+static void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 {
 	u32 db_reg_offset, db_value;
 	bool invalid_queue = false;
@@ -3065,14 +3060,14 @@ void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val)
 	/* Not needed in Goya */
 }
 
-void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
+static void *goya_dma_alloc_coherent(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags)
 {
 	return dma_alloc_coherent(&hdev->pdev->dev, size, dma_handle, flags);
 }
 
-void goya_dma_free_coherent(struct hl_device *hdev, size_t size, void *cpu_addr,
-				dma_addr_t dma_handle)
+static void goya_dma_free_coherent(struct hl_device *hdev, size_t size,
+					void *cpu_addr, dma_addr_t dma_handle)
 {
 	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, dma_handle);
 }
@@ -3135,7 +3130,7 @@ void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 	return base;
 }
 
-int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
+static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct packet_msg_prot *fence_pkt;
@@ -3414,8 +3409,8 @@ static int goya_test_queues(struct hl_device *hdev)
 	return ret_val;
 }
 
-void *goya_dma_pool_zalloc(struct hl_device *hdev, size_t size, gfp_t mem_flags,
-				dma_addr_t *dma_handle)
+static void *goya_dma_pool_zalloc(struct hl_device *hdev, size_t size,
+					gfp_t mem_flags, dma_addr_t *dma_handle)
 {
 	if (size > GOYA_DMA_POOL_BLK_SIZE)
 		return NULL;
@@ -3423,14 +3418,14 @@ void *goya_dma_pool_zalloc(struct hl_device *hdev, size_t size, gfp_t mem_flags,
 	return dma_pool_zalloc(hdev->dma_pool, mem_flags, dma_handle);
 }
 
-void goya_dma_pool_free(struct hl_device *hdev, void *vaddr,
-			dma_addr_t dma_addr)
+static void goya_dma_pool_free(struct hl_device *hdev, void *vaddr,
+				dma_addr_t dma_addr)
 {
 	dma_pool_free(hdev->dma_pool, vaddr, dma_addr);
 }
 
-void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
-			dma_addr_t *dma_handle)
+static void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev,
+					size_t size, dma_addr_t *dma_handle)
 {
 	u64 kernel_addr;
 
@@ -3445,8 +3440,8 @@ void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 	return (void *) (uintptr_t) kernel_addr;
 }
 
-void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
-			void *vaddr)
+static void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev,
+						size_t size, void *vaddr)
 {
 	/* roundup to CPU_PKT_SIZE */
 	size = (size + (CPU_PKT_SIZE - 1)) & CPU_PKT_MASK;
@@ -3455,8 +3450,8 @@ void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
-int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg, int nents,
-			enum dma_data_direction dir)
+static int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg,
+				int nents, enum dma_data_direction dir)
 {
 	if (!dma_map_sg(&hdev->pdev->dev, sg, nents, dir))
 		return -ENOMEM;
@@ -3464,14 +3459,13 @@ int goya_dma_map_sg(struct hl_device *hdev, struct scatterlist *sg, int nents,
 	return 0;
 }
 
-void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sg,
-			int nents, enum dma_data_direction dir)
+static void goya_dma_unmap_sg(struct hl_device *hdev, struct scatterlist *sg,
+				int nents, enum dma_data_direction dir)
 {
 	dma_unmap_sg(&hdev->pdev->dev, sg, nents, dir);
 }
 
-u32 goya_get_dma_desc_list_size(struct hl_device *hdev,
-					struct sg_table *sgt)
+u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt)
 {
 	struct scatterlist *sg, *sg_next_iter;
 	u32 count, dma_desc_cnt;
@@ -4207,7 +4201,8 @@ out:
 	return rc;
 }
 
-int goya_parse_cb_no_mmu(struct hl_device *hdev, struct hl_cs_parser *parser)
+static int goya_parse_cb_no_mmu(struct hl_device *hdev,
+				struct hl_cs_parser *parser)
 {
 	u64 patched_cb_handle;
 	int rc;
@@ -4258,8 +4253,8 @@ free_userptr:
 	return rc;
 }
 
-int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
-		struct hl_cs_parser *parser)
+static int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
+					struct hl_cs_parser *parser)
 {
 	struct asic_fixed_properties *asic_prop = &hdev->asic_prop;
 	struct goya_device *goya = hdev->asic_specific;
@@ -4331,7 +4326,7 @@ static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
 }
 
-int goya_context_switch(struct hl_device *hdev, u32 asid)
+static int goya_context_switch(struct hl_device *hdev, u32 asid)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct packet_lin_dma *clear_sram_pkt;
@@ -4423,7 +4418,7 @@ release_cb:
 	return rc;
 }
 
-void goya_restore_phase_topology(struct hl_device *hdev)
+static void goya_restore_phase_topology(struct hl_device *hdev)
 {
 	int i, num_of_sob_in_longs, num_of_mon_in_longs;
 
@@ -4457,7 +4452,7 @@ void goya_restore_phase_topology(struct hl_device *hdev)
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
-int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
+static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc = 0;
@@ -4507,7 +4502,7 @@ int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
  * lead to undefined behavior and therefore, should be done with extreme care
  *
  */
-int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
+static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc = 0;
@@ -5250,7 +5245,8 @@ static u32 goya_get_pci_id(struct hl_device *hdev)
 	return hdev->pdev->device;
 }
 
-int goya_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
+static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
+				size_t max_size)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -5316,7 +5312,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.halt_engines = goya_halt_engines,
 	.suspend = goya_suspend,
 	.resume = goya_resume,
-	.mmap = goya_mmap,
 	.cb_mmap = goya_cb_mmap,
 	.ring_doorbell = goya_ring_doorbell,
 	.flush_pq_write = goya_flush_pq_write,

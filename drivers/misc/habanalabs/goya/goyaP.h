@@ -187,4 +187,20 @@ void goya_init_security(struct hl_device *hdev);
 u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
 
+int goya_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
+void goya_late_fini(struct hl_device *hdev);
+int goya_suspend(struct hl_device *hdev);
+int goya_resume(struct hl_device *hdev);
+void goya_flush_pq_write(struct hl_device *hdev, u64 *pq, u64 exp_val);
+void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
+void *goya_get_events_stat(struct hl_device *hdev, u32 *size);
+void goya_add_end_of_cb_packets(u64 kernel_address, u32 len, u64 cq_addr,
+				u32 cq_val, u32 msix_vec);
+int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
+void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
+		dma_addr_t *dma_handle,	u16 *queue_len);
+u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt);
+int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
+int goya_send_heartbeat(struct hl_device *hdev);
+
 #endif /* GOYAP_H_ */

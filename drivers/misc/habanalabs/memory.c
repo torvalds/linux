@@ -1448,7 +1448,7 @@ static int hl_va_range_init(struct hl_device *hdev,
  * - Virtual address to area descriptor hashtable
  * - Virtual block list of available virtual memory
  */
-int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
+static int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
 				u64 host_range_end, u64 dram_range_start,
 				u64 dram_range_end)
 {

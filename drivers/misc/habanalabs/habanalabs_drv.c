@@ -21,8 +21,8 @@ MODULE_LICENSE("GPL v2");
 
 static int hl_major;
 static struct class *hl_class;
-DEFINE_IDR(hl_devs_idr);
-DEFINE_MUTEX(hl_devs_idr_lock);
+static DEFINE_IDR(hl_devs_idr);
+static DEFINE_MUTEX(hl_devs_idr_lock);
 
 static int timeout_locked = 5;
 static int reset_on_lockup = 1;

@@ -93,7 +93,7 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 		return hl_cb_mmap(hpriv, vma);
 	}
 
-	return hpriv->hdev->asic_funcs->mmap(hpriv, vma);
+	return -EINVAL;
 }
 
 static const struct file_operations hl_ops = {

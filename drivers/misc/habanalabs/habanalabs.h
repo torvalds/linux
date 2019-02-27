@@ -428,7 +428,6 @@ enum hl_pll_frequency {
  *                hw_fini and before CS rollback.
  * @suspend: handles IP specific H/W or SW changes for suspend.
  * @resume: handles IP specific H/W or SW changes for resume.
- * @mmap: mmap function, does nothing.
  * @cb_mmap: maps a CB.
  * @ring_doorbell: increment PI on a given QMAN.
  * @flush_pq_write: flush PQ entry write if necessary, WARN if flushing failed.
@@ -491,7 +490,6 @@ struct hl_asic_funcs {
 	void (*halt_engines)(struct hl_device *hdev, bool hard_reset);
 	int (*suspend)(struct hl_device *hdev);
 	int (*resume)(struct hl_device *hdev);
-	int (*mmap)(struct hl_fpriv *hpriv, struct vm_area_struct *vma);
 	int (*cb_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u64 kaddress, phys_addr_t paddress, u32 size);
 	void (*ring_doorbell)(struct hl_device *hdev, u32 hw_queue_id, u32 pi);
