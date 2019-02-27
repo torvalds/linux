@@ -298,7 +298,7 @@ int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 		bool is_locked;
 
 		hw_atl_reg_glb_cpu_sem_set(self, 1U, HW_ATL_FW_SM_RAM);
-		is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+		is_locked = hw_atl_sem_ram_get(self);
 		if (!is_locked) {
 			err = -ETIME;
 			goto err_exit;
@@ -337,7 +337,7 @@ static int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p,
 	int err = 0;
 	bool is_locked;
 
-	is_locked = hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+	is_locked = hw_atl_sem_ram_get(self);
 	if (!is_locked) {
 		err = -ETIME;
 		goto err_exit;
@@ -602,7 +602,7 @@ err_exit:
 
 int hw_atl_utils_mpi_get_link_status(struct aq_hw_s *self)
 {
-	u32 cp0x036C = aq_hw_read_reg(self, HW_ATL_MPI_STATE_ADR);
+	u32 cp0x036C = hw_atl_utils_mpi_get_state(self);
 	u32 link_speed_mask = cp0x036C >> HW_ATL_MPI_SPEED_SHIFT;
 	struct aq_hw_link_status_s *link_status = &self->aq_link_status;
 

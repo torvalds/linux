@@ -438,7 +438,7 @@ static int aq_fw2x_get_eee_rate(struct aq_hw_s *self, u32 *rate,
 
 	*supported_rates = fw2x_to_eee_mask(caps_hi);
 
-	mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
+	mpi_state = aq_fw2x_state2_get(self);
 	*rate = fw2x_to_eee_mask(mpi_state);
 
 	return err;
@@ -468,7 +468,7 @@ static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 
 static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 {
-	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
+	u32 mpi_state = aq_fw2x_state2_get(self);
 
 	if (mpi_state & HW_ATL_FW2X_CAP_PAUSE)
 		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
