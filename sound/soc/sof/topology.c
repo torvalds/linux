@@ -454,8 +454,6 @@ static const struct sof_topology_token buffer_tokens[] = {
 
 /* DAI */
 static const struct sof_topology_token dai_tokens[] = {
-	{SOF_TKN_DAI_DMAC_CONFIG, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_dai, dmac_config), 0},
 	{SOF_TKN_DAI_TYPE, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_dai_type,
 		offsetof(struct sof_ipc_comp_dai, type), 0},
 	{SOF_TKN_DAI_INDEX, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -533,9 +531,6 @@ static const struct sof_topology_token comp_tokens[] = {
 	{SOF_TKN_COMP_FORMAT,
 		SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_format,
 		offsetof(struct sof_ipc_comp_config, frame_fmt), 0},
-	{SOF_TKN_COMP_PRELOAD_COUNT,
-		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct sof_ipc_comp_config, preload_count), 0},
 };
 
 /* SSP */
@@ -2221,12 +2216,12 @@ static int sof_link_ssp_load(struct snd_soc_component *scomp, int index,
 	config->ssp.rx_slots = le32_to_cpu(hw_config->rx_slots);
 	config->ssp.tx_slots = le32_to_cpu(hw_config->tx_slots);
 
-	dev_dbg(sdev->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d\n",
+	dev_dbg(sdev->dev, "tplg: config SSP%d fmt 0x%x mclk %d bclk %d fclk %d width (%d)%d slots %d mclk id %d quirks %d\n",
 		config->dai_index, config->format,
 		config->ssp.mclk_rate, config->ssp.bclk_rate,
 		config->ssp.fsync_rate, config->ssp.sample_valid_bits,
 		config->ssp.tdm_slot_width, config->ssp.tdm_slots,
-		config->ssp.mclk_id);
+		config->ssp.mclk_id, config->ssp.quirks);
 
 	/* validate SSP fsync rate and channel count */
 	if (config->ssp.fsync_rate < 8000 || config->ssp.fsync_rate > 192000) {
