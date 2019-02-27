@@ -3034,7 +3034,7 @@
 		cif-m0 {
 			cif_clkout_m0: cif-clkout-m0 {
 				rockchip,pins =
-					<2 RK_PB3 1 &pcfg_pull_none>;
+					<2 RK_PB3 1 &pcfg_pull_none_12ma>;/* cif_clkout */
 			};
 
 			dvp_d2d9_m0: dvp-d2d9-m0 {
