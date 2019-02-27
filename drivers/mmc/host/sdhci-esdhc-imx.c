@@ -1229,6 +1229,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 static void esdhc_cqe_enable(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
+	struct cqhci_host *cq_host = mmc->cqe_private;
 	u32 reg;
 	u16 mode;
 	int count = 10;
@@ -1260,6 +1261,18 @@ static void esdhc_cqe_enable(struct mmc_host *mmc)
 	if (!(host->quirks2 & SDHCI_QUIRK2_SUPPORT_SINGLE))
 		mode |= SDHCI_TRNS_BLK_CNT_EN;
 	sdhci_writew(host, mode, SDHCI_TRANSFER_MODE);
+
+	/*
+	 * Though Runtime resume reset the entire host controller,
+	 * but do not impact the CQHCI side, need to clear the
+	 * HALT bit, avoid CQHCI stuck in the first request when
+	 * system resume back.
+	 */
+	cqhci_writel(cq_host, 0, CQHCI_CTL);
+	if (cqhci_readl(cq_host, CQHCI_CTL) && CQHCI_HALT)
+		dev_err(mmc_dev(host->mmc),
+			"failed to exit halt state when enable CQE\n");
+
 
 	sdhci_cqe_enable(mmc);
 }
