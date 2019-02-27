@@ -1467,23 +1467,26 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct strp_msg *rxm = strp_msg(skb);
 	int err = 0;
 
-#ifdef CONFIG_TLS_DEVICE
-	err = tls_device_decrypted(sk, skb);
-	if (err < 0)
-		return err;
-#endif
 	if (!ctx->decrypted) {
-		err = decrypt_internal(sk, skb, dest, NULL, chunk, zc, async);
-		if (err < 0) {
-			if (err == -EINPROGRESS)
-				tls_advance_record_sn(sk, &tls_ctx->rx,
-						      version);
-
+#ifdef CONFIG_TLS_DEVICE
+		err = tls_device_decrypted(sk, skb);
+		if (err < 0)
 			return err;
+#endif
+		/* Still not decrypted after tls_device */
+		if (!ctx->decrypted) {
+			err = decrypt_internal(sk, skb, dest, NULL, chunk, zc,
+					       async);
+			if (err < 0) {
+				if (err == -EINPROGRESS)
+					tls_advance_record_sn(sk, &tls_ctx->rx,
+							      version);
+
+				return err;
+			}
 		}
 
 		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
-
 		rxm->offset += prot->prepend_size;
 		rxm->full_len -= prot->overhead_size;
 		tls_advance_record_sn(sk, &tls_ctx->rx, version);
