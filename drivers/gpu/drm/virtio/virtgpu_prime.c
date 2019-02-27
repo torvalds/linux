@@ -30,8 +30,14 @@
 
 struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
-	WARN_ONCE(1, "not implemented");
-	return ERR_PTR(-ENODEV);
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
+
+	if (!bo->tbo.ttm->pages || !bo->tbo.ttm->num_pages)
+		/* should not happen */
+		return ERR_PTR(-EINVAL);
+
+	return drm_prime_pages_to_sg(bo->tbo.ttm->pages,
+				     bo->tbo.ttm->num_pages);
 }
 
 struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
