@@ -203,6 +203,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 
 		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
 		ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
+		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
+					   WPTR_OVERFLOW_ENABLE, 0);
+		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL,
+					   RB_FULL_DRAIN_ENABLE, 1);
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
 
 		/* set rptr, wptr to 0 */
