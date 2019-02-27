@@ -153,6 +153,48 @@ DEFINE_SMB3_FD_ERR_EVENT(close_err);
 /*
  * For handle based query/set info calls
  */
+DECLARE_EVENT_CLASS(smb3_inf_enter_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u8	infclass,
+		__u32	type),
+	TP_ARGS(xid, fid, tid, sesid, infclass, type),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u8, infclass)
+		__field(__u32, type)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->infclass = infclass;
+		__entry->type = type;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx class=%u type=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->infclass, __entry->type)
+)
+
+#define DEFINE_SMB3_INF_ENTER_EVENT(name)          \
+DEFINE_EVENT(smb3_inf_enter_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u8	infclass,		\
+		__u32	type),			\
+	TP_ARGS(xid, fid, tid, sesid, infclass, type))
+
+DEFINE_SMB3_INF_ENTER_EVENT(query_info_enter);
+DEFINE_SMB3_INF_ENTER_EVENT(query_info_done);
+
 DECLARE_EVENT_CLASS(smb3_inf_err_class,
 	TP_PROTO(unsigned int xid,
 		__u64	fid,

@@ -2868,6 +2868,9 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto qinf_exit;
 
+	trace_smb3_query_info_enter(xid, persistent_fid, tcon->tid,
+				    ses->Suid, info_class, (__u32)info_type);
+
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
 	rsp = (struct smb2_query_info_rsp *)rsp_iov.iov_base;
 
@@ -2877,6 +2880,9 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 				ses->Suid, info_class, (__u32)info_type, rc);
 		goto qinf_exit;
 	}
+
+	trace_smb3_query_info_done(xid, persistent_fid, tcon->tid,
+				ses->Suid, info_class, (__u32)info_type);
 
 	if (dlen) {
 		*dlen = le32_to_cpu(rsp->OutputBufferLength);
