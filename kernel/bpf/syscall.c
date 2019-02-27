@@ -1283,24 +1283,54 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static void bpf_prog_get_stats(const struct bpf_prog *prog,
+			       struct bpf_prog_stats *stats)
+{
+	u64 nsecs = 0, cnt = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		const struct bpf_prog_stats *st;
+		unsigned int start;
+		u64 tnsecs, tcnt;
+
+		st = per_cpu_ptr(prog->aux->stats, cpu);
+		do {
+			start = u64_stats_fetch_begin_irq(&st->syncp);
+			tnsecs = st->nsecs;
+			tcnt = st->cnt;
+		} while (u64_stats_fetch_retry_irq(&st->syncp, start));
+		nsecs += tnsecs;
+		cnt += tcnt;
+	}
+	stats->nsecs = nsecs;
+	stats->cnt = cnt;
+}
+
 #ifdef CONFIG_PROC_FS
 static void bpf_prog_show_fdinfo(struct seq_file *m, struct file *filp)
 {
 	const struct bpf_prog *prog = filp->private_data;
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
+	struct bpf_prog_stats stats;
 
+	bpf_prog_get_stats(prog, &stats);
 	bin2hex(prog_tag, prog->tag, sizeof(prog->tag));
 	seq_printf(m,
 		   "prog_type:\t%u\n"
 		   "prog_jited:\t%u\n"
 		   "prog_tag:\t%s\n"
 		   "memlock:\t%llu\n"
-		   "prog_id:\t%u\n",
+		   "prog_id:\t%u\n"
+		   "run_time_ns:\t%llu\n"
+		   "run_cnt:\t%llu\n",
 		   prog->type,
 		   prog->jited,
 		   prog_tag,
 		   prog->pages * 1ULL << PAGE_SHIFT,
-		   prog->aux->id);
+		   prog->aux->id,
+		   stats.nsecs,
+		   stats.cnt);
 }
 #endif
 
@@ -2122,6 +2152,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	struct bpf_prog_info __user *uinfo = u64_to_user_ptr(attr->info.info);
 	struct bpf_prog_info info = {};
 	u32 info_len = attr->info.info_len;
+	struct bpf_prog_stats stats;
 	char __user *uinsns;
 	u32 ulen;
 	int err;
@@ -2160,6 +2191,10 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	err = set_info_rec_size(&info);
 	if (err)
 		return err;
+
+	bpf_prog_get_stats(prog, &stats);
+	info.run_time_ns = stats.nsecs;
+	info.run_cnt = stats.cnt;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		info.jited_prog_len = 0;

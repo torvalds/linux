@@ -2813,6 +2813,8 @@ struct bpf_prog_info {
 	__u32 jited_line_info_rec_size;
 	__u32 nr_prog_tags;
 	__aligned_u64 prog_tags;
+	__u64 run_time_ns;
+	__u64 run_cnt;
 } __attribute__((aligned(8)));
 
 struct bpf_map_info {
