@@ -209,7 +209,8 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 	.base_params = &iwl_22000_base_params,				\
 	.csr = &iwl_csr_v1,						\
 	.min_txq_size = 128,						\
-	.gp2_reg_addr = 0xd02c68
+	.gp2_reg_addr = 0xd02c68,					\
+	.min_256_ba_txq_size = 512
 
 const struct iwl_cfg iwl22000_2ac_cfg_hr = {
 	.name = "Intel(R) Dual Band Wireless AC 22000",
