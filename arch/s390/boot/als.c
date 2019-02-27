@@ -105,20 +105,7 @@ void verify_facilities(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(S390_lowcore.stfle_fac_list); i++)
-		S390_lowcore.stfle_fac_list[i] = 0;
-	asm volatile(
-		"	stfl	0(0)\n"
-		: "=m" (S390_lowcore.stfl_fac_list));
-	S390_lowcore.stfle_fac_list[0] = (u64)S390_lowcore.stfl_fac_list << 32;
-	if (S390_lowcore.stfl_fac_list & 0x01000000) {
-		register unsigned long reg0 asm("0") = ARRAY_SIZE(als) - 1;
-
-		asm volatile(".insn s,0xb2b00000,0(%1)" /* stfle */
-			     : "+d" (reg0)
-			     : "a" (&S390_lowcore.stfle_fac_list)
-			     : "memory", "cc");
-	}
+	__stfle(S390_lowcore.stfle_fac_list, ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
 		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i])
 			facility_mismatch();
