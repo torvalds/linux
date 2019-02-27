@@ -443,6 +443,34 @@ int rga2_scale_check(struct rga2_req *req)
 	return 0;
 }
 
+static void rga2_printf_cmd_buf(u32 *cmd_buf)
+{
+	u32 reg_p[32];
+	u32 i = 0;
+	u32 src_stride, dst_stride, src_format, dst_format;
+	u32 src_aw, src_ah, dst_aw, dst_ah;
+
+	for (i = 0; i < 32; i++)
+		reg_p[i] = *(cmd_buf + i);
+
+	src_stride = reg_p[6];
+	dst_stride = reg_p[18];
+
+	src_format = reg_p[1] & (~0xfffffff0);
+	dst_format = reg_p[14] & (~0xfffffff0);
+
+	src_aw = (reg_p[7] & (~0xffff0000)) + 1;
+	src_ah = ((reg_p[7] & (~0x0000ffff)) >> 16) + 1;
+
+	dst_aw = (reg_p[19] & (~0xffff0000)) + 1;
+	dst_ah = ((reg_p[19] & (~0x0000ffff)) >> 16) + 1;
+
+	DBG("src : aw = %d ah = %d stride = %d format is %x\n",
+	     src_aw, src_ah, src_stride, src_format);
+	DBG("dst : aw = %d ah = %d stride = %d format is %x\n",
+	     dst_aw, dst_ah, dst_stride, dst_format);
+}
+
 #endif
 
 static inline void rga2_write(u32 b, u32 r)
@@ -624,39 +652,64 @@ static void rga2_power_off_work(struct work_struct *work)
 
 static int rga2_flush(rga2_session *session, unsigned long arg)
 {
-    int ret = 0;
-    int ret_timeout;
+	int ret = 0;
+	int ret_timeout;
+	ktime_t start = 0;
+	ktime_t end = 0;
 
-    #if RGA2_TEST_FLUSH_TIME
-    ktime_t start;
-    ktime_t end;
-    start = ktime_get();
-    #endif
-
-    ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA2_TIMEOUT_DELAY);
+#if RGA2_DEBUGFS
+	if (RGA2_TEST_TIME)
+		start = ktime_get();
+#endif
+	ret_timeout = wait_event_timeout(session->wait, atomic_read(&session->done), RGA2_TIMEOUT_DELAY);
 
 	if (unlikely(ret_timeout < 0)) {
-		//pr_err("flush pid %d wait task ret %d\n", session->pid, ret);
-        mutex_lock(&rga2_service.lock);
-        rga2_del_running_list();
-        mutex_unlock(&rga2_service.lock);
-        ret = ret_timeout;
+		u32 i;
+		u32 *p;
+
+		p = rga2_service.cmd_buff;
+		pr_err("flush pid %d wait task ret %d\n", session->pid, ret);
+		pr_err("interrupt = %x status = %x\n", rga2_read(RGA2_INT),
+		       rga2_read(RGA2_STATUS));
+		rga2_printf_cmd_buf(p);
+		DBG("rga2 CMD\n");
+		for (i = 0; i < 7; i++)
+			DBG("%.8x %.8x %.8x %.8x\n",
+			     p[0 + i * 4], p[1 + i * 4],
+			     p[2 + i * 4], p[3 + i * 4]);
+		mutex_lock(&rga2_service.lock);
+		rga2_del_running_list();
+		mutex_unlock(&rga2_service.lock);
+		ret = ret_timeout;
 	} else if (0 == ret_timeout) {
-		//pr_err("flush pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
-        //printk("bus  = %.8x\n", rga_read(RGA_INT));
-        mutex_lock(&rga2_service.lock);
-        rga2_del_running_list_timeout();
-        rga2_try_set_reg();
-        mutex_unlock(&rga2_service.lock);
+		u32 i;
+		u32 *p;
+
+		p = rga2_service.cmd_buff;
+		pr_err("flush pid %d wait %d task done timeout\n",
+		       session->pid, atomic_read(&session->task_running));
+		pr_err("interrupt = %x status = %x\n",
+		       rga2_read(RGA2_INT), rga2_read(RGA2_STATUS));
+		rga2_printf_cmd_buf(p);
+		DBG("rga2 CMD\n");
+		for (i = 0; i < 7; i++)
+			DBG("%.8x %.8x %.8x %.8x\n",
+			     p[0 + i * 4], p[1 + i * 4],
+			     p[2 + i * 4], p[3 + i * 4]);
+		mutex_lock(&rga2_service.lock);
+		rga2_del_running_list_timeout();
+		rga2_try_set_reg();
+		mutex_unlock(&rga2_service.lock);
 		ret = -ETIMEDOUT;
 	}
 
-    #if RGA2_TEST_FLUSH_TIME
-    end = ktime_get();
-    end = ktime_sub(end, start);
-    printk("one flush wait time %d\n", (int)ktime_to_us(end));
-    #endif
-
+#if RGA2_DEBUGFS
+	if (RGA2_TEST_TIME) {
+		end = ktime_get();
+		end = ktime_sub(end, start);
+		DBG("one flush wait time %d\n", (int)ktime_to_us(end));
+	}
+#endif
 	return ret;
 }
 
@@ -1448,19 +1501,40 @@ retry:
 						 atomic_read(&session->done),
 						 RGA2_TIMEOUT_DELAY);
 
-	if (unlikely(ret_timeout< 0))
-	{
+	if (unlikely(ret_timeout < 0)) {
+		u32 i;
+		u32 *p;
+
+		p = rga2_service.cmd_buff;
 		pr_err("Rga sync pid %d wait task ret %d\n", session->pid,
 			ret_timeout);
+		pr_err("interrupt = %x status = %x\n",
+		       rga2_read(RGA2_INT), rga2_read(RGA2_STATUS));
+		rga2_printf_cmd_buf(p);
+		DBG("rga2 CMD\n");
+		for (i = 0; i < 7; i++)
+			DBG("%.8x %.8x %.8x %.8x\n",
+			     p[0 + i * 4], p[1 + i * 4],
+			     p[2 + i * 4], p[3 + i * 4]);
 		mutex_lock(&rga2_service.lock);
 		rga2_del_running_list();
 		mutex_unlock(&rga2_service.lock);
 		ret = ret_timeout;
-	}
-	else if (0 == ret_timeout)
-	{
+	} else if (ret_timeout == 0) {
+		u32 i;
+		u32 *p;
+
+		p = rga2_service.cmd_buff;
 		pr_err("Rga sync pid %d wait %d task done timeout\n",
 			session->pid, atomic_read(&session->task_running));
+		pr_err("interrupt = %x status = %x\n",
+		       rga2_read(RGA2_INT), rga2_read(RGA2_STATUS));
+		rga2_printf_cmd_buf(p);
+		DBG("rga2 CMD\n");
+		for (i = 0; i < 7; i++)
+			DBG("%.8x %.8x %.8x %.8x\n",
+			     p[0 + i * 4], p[1 + i * 4],
+			     p[2 + i * 4], p[3 + i * 4]);
 		mutex_lock(&rga2_service.lock);
 		rga2_del_running_list_timeout();
 		rga2_try_set_reg();
@@ -1571,7 +1645,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			}
 
 			RGA_MSG_2_RGA2_MSG(&req_rga, &req);
-
 			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
