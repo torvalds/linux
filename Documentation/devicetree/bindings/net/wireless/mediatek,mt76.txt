@@ -4,6 +4,13 @@ This node provides properties for configuring the MediaTek mt76xx wireless
 device. The node is expected to be specified as a child node of the PCI
 controller to which the wireless chip is connected.
 
+Alternatively, it can specify the wireless part of the MT7628/MT7688 SoC.
+For SoC, use the compatible string "mediatek,mt7628-wmac" and the following
+properties:
+
+- reg: Address and length of the register set for the device.
+- interrupts: Main device interrupt
+
 Optional properties:
 
 - mac-address: See ethernet.txt in the parent directory
@@ -29,4 +36,16 @@ Optional nodes:
 			};
 		};
 	};
+};
+
+MT7628 example:
+
+wmac: wmac@10300000 {
+	compatible = "mediatek,mt7628-wmac";
+	reg = <0x10300000 0x100000>;
+
+	interrupt-parent = <&cpuintc>;
+	interrupts = <6>;
+
+	mediatek,mtd-eeprom = <&factory 0x0000>;
 };

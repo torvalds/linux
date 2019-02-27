@@ -679,9 +679,9 @@ void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 	}
 
 	mt76_clear(dev, MT_BEACON_TIME_CFG, (MT_BEACON_TIME_CFG_TIMER_EN |
-					     MT_BEACON_TIME_CFG_SYNC_MODE |
 					     MT_BEACON_TIME_CFG_TBTT_EN |
 					     MT_BEACON_TIME_CFG_BEACON_TX));
+	mt76_set(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_SYNC_MODE);
 	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
 
 	for (i = 0; i < 8; i++)
@@ -704,9 +704,6 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID)
 		mt76x02_mac_set_bssid(dev, mvif->idx, info->bssid);
 
-	if (changed & BSS_CHANGED_BEACON_ENABLED)
-		mt76x02_mac_set_beacon_enable(dev, vif, info->enable_beacon);
-
 	if (changed & BSS_CHANGED_HT || changed & BSS_CHANGED_ERP_CTS_PROT)
 		mt76x02_mac_set_tx_protection(dev, info->use_cts_prot,
 					      info->ht_operation_mode);
@@ -716,8 +713,10 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			       MT_BEACON_TIME_CFG_INTVAL,
 			       info->beacon_int << 4);
 		dev->beacon_int = info->beacon_int;
-		dev->tbtt_count = 0;
 	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		mt76x02_mac_set_beacon_enable(dev, vif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE)
 		mt76x02_mac_set_short_preamble(dev, info->use_short_preamble);

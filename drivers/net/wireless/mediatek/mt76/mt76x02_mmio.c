@@ -79,24 +79,24 @@ mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 	 * Beacon timer drifts by 1us every tick, the timer is configured
 	 * in 1/16 TU (64us) units.
 	 */
-	if (dev->tbtt_count < 62)
+	if (dev->tbtt_count < 63)
 		return;
-
-	if (dev->tbtt_count >= 64) {
-		dev->tbtt_count = 0;
-		return;
-	}
 
 	/*
 	 * The updated beacon interval takes effect after two TBTT, because
 	 * at this point the original interval has already been loaded into
 	 * the next TBTT_TIMER value
 	 */
-	if (dev->tbtt_count == 62)
+	if (dev->tbtt_count == 63)
 		timer_val -= 1;
 
 	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
 		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
+
+	if (dev->tbtt_count >= 64) {
+		dev->tbtt_count = 0;
+		return;
+	}
 }
 
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
@@ -494,18 +494,28 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 static void mt76x02_check_tx_hang(struct mt76x02_dev *dev)
 {
 	if (mt76x02_tx_hang(dev)) {
-		if (++dev->tx_hang_check < MT_TX_HANG_TH)
-			return;
-
-		mt76x02_watchdog_reset(dev);
-
-		dev->tx_hang_reset++;
-		dev->tx_hang_check = 0;
-		memset(dev->mt76.tx_dma_idx, 0xff,
-		       sizeof(dev->mt76.tx_dma_idx));
+		if (++dev->tx_hang_check >= MT_TX_HANG_TH)
+			goto restart;
 	} else {
 		dev->tx_hang_check = 0;
 	}
+
+	if (dev->mcu_timeout)
+		goto restart;
+
+	return;
+
+restart:
+	mt76x02_watchdog_reset(dev);
+
+	mutex_lock(&dev->mt76.mmio.mcu.mutex);
+	dev->mcu_timeout = 0;
+	mutex_unlock(&dev->mt76.mmio.mcu.mutex);
+
+	dev->tx_hang_reset++;
+	dev->tx_hang_check = 0;
+	memset(dev->mt76.tx_dma_idx, 0xff,
+	       sizeof(dev->mt76.tx_dma_idx));
 }
 
 void mt76x02_wdt_work(struct work_struct *work)

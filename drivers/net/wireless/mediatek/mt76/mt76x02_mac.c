@@ -905,14 +905,14 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 		mt76_set(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
 		mt76_rmw(dev, MT_BBP(AGC, 2), GENMASK(15, 0),
 			 ed_th << 8 | ed_th);
-		if (!is_mt76x2(dev))
-			mt76_set(dev, MT_TXOP_HLDR_ET,
-				 MT_TXOP_HLDR_TX40M_BLK_EN);
+		mt76_set(dev, MT_TXOP_HLDR_ET, MT_TXOP_HLDR_TX40M_BLK_EN);
 	} else {
 		mt76_set(dev, MT_TX_LINK_CFG, MT_TX_CFACK_EN);
 		mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
 		if (is_mt76x2(dev)) {
 			mt76_wr(dev, MT_BBP(AGC, 2), 0x00007070);
+			mt76_set(dev, MT_TXOP_HLDR_ET,
+				 MT_TXOP_HLDR_TX40M_BLK_EN);
 		} else {
 			mt76_wr(dev, MT_BBP(AGC, 2), 0x003a6464);
 			mt76_clear(dev, MT_TXOP_HLDR_ET,
@@ -1125,6 +1125,9 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 		tasklet_disable(&dev->pre_tbtt_tasklet);
 	else if (val)
 		skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+
+	if (!dev->beacon_mask)
+		dev->tbtt_count = 0;
 
 	__mt76x02_mac_set_beacon_enable(dev, vif_idx, val, skb);
 

@@ -61,6 +61,7 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 				"MCU message %d (seq %d) timed out\n", cmd,
 				seq);
 			ret = -ETIMEDOUT;
+			dev->mcu_timeout = 1;
 			break;
 		}
 

@@ -187,6 +187,8 @@ void mt76x0_mac_stop(struct mt76x02_dev *dev)
 {
 	int i = 200, ok = 0;
 
+	mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+
 	/* Page count on TxQ */
 	while (i-- && ((mt76_rr(dev, 0x0438) & 0xffffffff) ||
 		       (mt76_rr(dev, 0x0a30) & 0x000000ff) ||

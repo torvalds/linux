@@ -79,7 +79,6 @@ static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
 }
 
 static void mt76x0u_mac_stop(struct mt76x02_dev *dev)
@@ -190,10 +189,6 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	int err;
 
 	err = mt76u_alloc_queues(&dev->mt76);
-	if (err < 0)
-		goto out_err;
-
-	err = mt76u_mcu_init_rx(&dev->mt76);
 	if (err < 0)
 		goto out_err;
 
@@ -311,13 +306,11 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 					 pm_message_t state)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 
 	mt76u_stop_queues(&dev->mt76);
 	mt76x0u_mac_stop(dev);
 	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
 	mt76x0_chip_onoff(dev, false, false);
-	usb_kill_urb(usb->mcu.res.urb);
 
 	return 0;
 }
@@ -327,15 +320,6 @@ static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
 	struct mt76_usb *usb = &dev->mt76.usb;
 	int ret;
-
-	reinit_completion(&usb->mcu.cmpl);
-	ret = mt76u_submit_buf(&dev->mt76, USB_DIR_IN,
-			       MT_EP_IN_CMD_RESP,
-			       &usb->mcu.res, GFP_KERNEL,
-			       mt76u_mcu_complete_urb,
-			       &usb->mcu.cmpl);
-	if (ret < 0)
-		goto err;
 
 	ret = mt76u_submit_rx_buffers(&dev->mt76);
 	if (ret < 0)

@@ -214,10 +214,6 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		goto fail;
 
-	err = mt76u_mcu_init_rx(&dev->mt76);
-	if (err < 0)
-		goto fail;
-
 	err = mt76x2u_init_hardware(dev);
 	if (err < 0)
 		goto fail;
@@ -259,5 +255,4 @@ void mt76x2u_cleanup(struct mt76x02_dev *dev)
 	mt76x02_mcu_set_radio_state(dev, false);
 	mt76x2u_stop_hw(dev);
 	mt76u_queues_deinit(&dev->mt76);
-	mt76u_mcu_deinit(&dev->mt76);
 }

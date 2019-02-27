@@ -100,11 +100,9 @@ static int __maybe_unused mt76x2u_suspend(struct usb_interface *intf,
 					  pm_message_t state)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
-	struct mt76_usb *usb = &dev->mt76.usb;
 
 	mt76u_stop_queues(&dev->mt76);
 	mt76x2u_stop_hw(dev);
-	usb_kill_urb(usb->mcu.res.urb);
 
 	return 0;
 }
@@ -114,15 +112,6 @@ static int __maybe_unused mt76x2u_resume(struct usb_interface *intf)
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 	struct mt76_usb *usb = &dev->mt76.usb;
 	int err;
-
-	reinit_completion(&usb->mcu.cmpl);
-	err = mt76u_submit_buf(&dev->mt76, USB_DIR_IN,
-			       MT_EP_IN_CMD_RESP,
-			       &usb->mcu.res, GFP_KERNEL,
-			       mt76u_mcu_complete_urb,
-			       &usb->mcu.cmpl);
-	if (err < 0)
-		goto err;
 
 	err = mt76u_submit_rx_buffers(&dev->mt76);
 	if (err < 0)
