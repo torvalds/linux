@@ -1,0 +1,34 @@
+Rockchip NAND Flash Controller DT binding
+
+Required properties:
+
+- compatible : "rockchip,rk-nand-v9".
+- reg : shall contain registers location and length for data and reg.
+- interrupts : shall define the nand controller interrupt.
+- clocks : shall reference nand controller clocks.
+- clock-names : nand controller internal clock names. Shall contain :
+    * "hclk_nandc" : AHB gating clock
+    * "clk_nandc" : nand controller clock
+
+Example for rk3326 / rkpx30:
+	nandc0: nandc@ff3b0000 {
+		compatible = "rockchip,rk-nandc-v9";
+		reg = <0x0 0xff3b0000 0x0 0x4000>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		nandc_id = <0>;
+		clocks = <&cru SCLK_NANDC>, <&cru HCLK_NANDC>;
+		clock-names = "clk_nandc", "hclk_nandc";
+		assigned-clocks = <&cru SCLK_NANDC>;
+		assigned-clock-parents = <&cru SCLK_NANDC_DIV50>;
+		clock-frequency = <150000000>;
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand@0 {
+			reg = <0>;
+			nand-ecc-mode = "hw";
+			nand-ecc-strength = <16>;
+			nand-ecc-step-size = <1024>;
+		};
+	};
