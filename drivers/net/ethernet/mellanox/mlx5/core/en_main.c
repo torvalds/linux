@@ -903,10 +903,14 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 
 	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 		struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
+		u16 head = wq->head;
+		int i;
 
-		/* UMR WQE (if in progress) is always at wq->head */
-		if (rq->mpwqe.umr_in_progress)
-			rq->dealloc_wqe(rq, wq->head);
+		/* Outstanding UMR WQEs (in progress) start at wq->head */
+		for (i = 0; i < rq->mpwqe.umr_in_progress; i++) {
+			rq->dealloc_wqe(rq, head);
+			head = mlx5_wq_ll_get_wqe_next_ix(wq, head);
+		}
 
 		while (!mlx5_wq_ll_is_empty(wq)) {
 			struct mlx5e_rx_wqe_ll *wqe;
@@ -1092,7 +1096,7 @@ static void mlx5e_free_icosq_db(struct mlx5e_icosq *sq)
 
 static int mlx5e_alloc_icosq_db(struct mlx5e_icosq *sq, int numa)
 {
-	u8 wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
+	int wq_sz = mlx5_wq_cyc_get_size(&sq->wq);
 
 	sq->db.ico_wqe = kvzalloc_node(array_size(wq_sz,
 						  sizeof(*sq->db.ico_wqe)),
@@ -2108,6 +2112,13 @@ static inline u8 mlx5e_get_rqwq_log_stride(u8 wq_type, int ndsegs)
 	return order_base_2(sz);
 }
 
+static u8 mlx5e_get_rq_log_wq_sz(void *rqc)
+{
+	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
+
+	return MLX5_GET(wq, wq, log_wq_sz);
+}
+
 static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 				 struct mlx5e_params *params,
 				 struct mlx5e_rq_param *param)
@@ -2274,13 +2285,28 @@ static void mlx5e_build_xdpsq_param(struct mlx5e_priv *priv,
 	param->is_mpw = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE);
 }
 
+static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5e_params *params,
+				      struct mlx5e_rq_param *rqp)
+{
+	switch (params->rq_wq_type) {
+	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		return order_base_2(MLX5E_UMR_WQEBBS) +
+			mlx5e_get_rq_log_wq_sz(rqp->rqc);
+	default: /* MLX5_WQ_TYPE_CYCLIC */
+		return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+	}
+}
+
 static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
 				      struct mlx5e_params *params,
 				      struct mlx5e_channel_param *cparam)
 {
-	u8 icosq_log_wq_sz = MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+	u8 icosq_log_wq_sz;
 
 	mlx5e_build_rq_param(priv, params, &cparam->rq);
+
+	icosq_log_wq_sz = mlx5e_build_icosq_log_wq_sz(params, &cparam->rq);
+
 	mlx5e_build_sq_param(priv, params, &cparam->sq);
 	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
 	mlx5e_build_icosq_param(priv, icosq_log_wq_sz, &cparam->icosq);

@@ -461,10 +461,10 @@ struct mlx5e_xdpsq {
 
 struct mlx5e_icosq {
 	/* data path */
+	u16                        cc;
+	u16                        pc;
 
-	/* dirtied @xmit */
-	u16                        pc ____cacheline_aligned_in_smp;
-
+	struct mlx5_wqe_ctrl_seg  *doorbell_cseg;
 	struct mlx5e_cq            cq;
 
 	/* write@xmit, read@completion */
@@ -562,8 +562,10 @@ struct mlx5e_rq {
 			struct mlx5e_mpw_info *info;
 			mlx5e_fp_skb_from_cqe_mpwrq skb_from_cqe_mpwrq;
 			u16                    num_strides;
+			u16                    actual_wq_head;
 			u8                     log_stride_sz;
-			bool                   umr_in_progress;
+			u8                     umr_in_progress;
+			u8                     umr_last_bulk;
 		} mpwqe;
 	};
 	struct {
