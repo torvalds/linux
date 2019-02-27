@@ -483,7 +483,7 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 
 		offset = (total + bvec->bv_offset) % PAGE_SIZE;
 		idx = (total + bvec->bv_offset) / PAGE_SIZE;
-		pg = nth_page(bvec->bv_page, idx);
+		pg = bvec_nth_page(bvec->bv_page, idx);
 
 		sg_set_page(*sg, pg, seg_size, offset);
 
