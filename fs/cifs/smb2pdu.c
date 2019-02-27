@@ -2196,6 +2196,8 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = n_iov;
 
+	trace_smb3_posix_mkdir_enter(xid, tcon->tid, ses->Suid, CREATE_NOT_FILE,
+				    FILE_WRITE_ATTRIBUTES);
 	/* resource #4: response buffer */
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags, &rsp_iov);
 	if (rc) {
@@ -2413,6 +2415,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	rc = SMB2_open_init(tcon, &rqst, oplock, oparms, path);
 	if (rc)
 		goto creat_exit;
+
+	trace_smb3_open_enter(xid, tcon->tid, tcon->ses->Suid,
+		oparms->create_options, oparms->desired_access);
 
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags,
 			    &rsp_iov);

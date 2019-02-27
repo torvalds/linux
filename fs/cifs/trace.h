@@ -411,8 +411,47 @@ DEFINE_SMB3_TCON_EVENT(tcon);
 
 
 /*
- * For smb2/smb3 open call
+ * For smb2/smb3 open (including create and mkdir) calls
  */
+
+DECLARE_EVENT_CLASS(smb3_open_enter_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		int	create_options,
+		int	desired_access),
+	TP_ARGS(xid, tid, sesid, create_options, desired_access),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(int, create_options)
+		__field(int, desired_access)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->create_options = create_options;
+		__entry->desired_access = desired_access;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x cr_opts=0x%x des_access=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->create_options, __entry->desired_access)
+)
+
+#define DEFINE_SMB3_OPEN_ENTER_EVENT(name)        \
+DEFINE_EVENT(smb3_open_enter_class, smb3_##name,  \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		int	create_options,		\
+		int	desired_access),	\
+	TP_ARGS(xid, tid, sesid, create_options, desired_access))
+
+DEFINE_SMB3_OPEN_ENTER_EVENT(open_enter);
+DEFINE_SMB3_OPEN_ENTER_EVENT(posix_mkdir_enter);
+
 DECLARE_EVENT_CLASS(smb3_open_err_class,
 	TP_PROTO(unsigned int xid,
 		__u32	tid,
