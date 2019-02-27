@@ -435,4 +435,13 @@ config QCOM_IOMMU
 	help
 	  Support for IOMMU on certain Qualcomm SoCs.
 
+config HYPERV_IOMMU
+	bool "Hyper-V x2APIC IRQ Handling"
+	depends on HYPERV
+	select IOMMU_API
+	default HYPERV
+	help
+	  Stub IOMMU driver to handle IRQs as to allow Hyper-V Linux
+	  guests to run with x2APIC mode enabled.
+
 endif # IOMMU_SUPPORT
