@@ -429,7 +429,7 @@ static void calculate_probability(struct Qdisc *sch)
 	 */
 
 	if (qdelay == 0 && qdelay_old == 0 && update_prob)
-		q->vars.prob = (q->vars.prob * 98) / 100;
+		q->vars.prob = 98 * div_u64(q->vars.prob, 100);
 
 	q->vars.qdelay = qdelay;
 	q->vars.qlen_old = qlen;
