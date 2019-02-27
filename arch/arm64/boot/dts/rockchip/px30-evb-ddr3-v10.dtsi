@@ -632,7 +632,7 @@
 		irq-gpio = <&gpio0 RK_PB7 IRQ_TYPE_LEVEL_LOW>;
 		irq_enable = <0>;
 		poll_delay_ms = <30>;
-		layout = <2>;
+		layout = <8>;
 		reprobe_en = <1>;
 	};
 };
