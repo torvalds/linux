@@ -90,6 +90,9 @@ static inline struct workspace *list_to_workspace(struct list_head *list)
 	return container_of(list, struct workspace, list);
 }
 
+static void zstd_free_workspace(struct list_head *ws);
+static struct list_head *zstd_alloc_workspace(unsigned int level);
+
 /*
  * zstd_reclaim_timer_fn - reclaim timer
  * @t: timer
@@ -124,7 +127,7 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 		level = victim->level;
 		list_del(&victim->lru_list);
 		list_del(&victim->list);
-		wsm.ops->free_workspace(&victim->list);
+		zstd_free_workspace(&victim->list);
 
 		if (list_empty(&wsm.idle_ws[level - 1]))
 			clear_bit(level - 1, &wsm.active_map);
@@ -180,7 +183,7 @@ static void zstd_init_workspace_manager(void)
 	for (i = 0; i < ZSTD_BTRFS_MAX_LEVEL; i++)
 		INIT_LIST_HEAD(&wsm.idle_ws[i]);
 
-	ws = wsm.ops->alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
+	ws = zstd_alloc_workspace(ZSTD_BTRFS_MAX_LEVEL);
 	if (IS_ERR(ws)) {
 		pr_warn(
 		"BTRFS: cannot preallocate zstd compression workspace\n");
@@ -202,7 +205,7 @@ static void zstd_cleanup_workspace_manager(void)
 						 struct workspace, list);
 			list_del(&workspace->list);
 			list_del(&workspace->lru_list);
-			wsm.ops->free_workspace(&workspace->list);
+			zstd_free_workspace(&workspace->list);
 		}
 	}
 	spin_unlock(&wsm.lock);
@@ -272,7 +275,7 @@ again:
 		return ws;
 
 	nofs_flag = memalloc_nofs_save();
-	ws = wsm.ops->alloc_workspace(level);
+	ws = zstd_alloc_workspace(level);
 	memalloc_nofs_restore(nofs_flag);
 
 	if (IS_ERR(ws)) {
