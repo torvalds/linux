@@ -995,11 +995,8 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u32 edca_be = 0x5ea42b;
 	u32 iot_peer = 0;
 	bool b_is_cur_rdlstate;
-	bool b_last_is_cur_rdlstate = false;
 	bool b_bias_on_rx = false;
 	bool b_edca_turbo_on = false;
-
-	b_last_is_cur_rdlstate = rtlpriv->dm.is_cur_rdlstate;
 
 	cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 	cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;
