@@ -923,12 +923,4 @@ struct wm8400 {
 #define WM8400_LINE_CMP_VTHD_SHIFT                   0  /* LINE_CMP_VTHD - [3:0] */
 #define WM8400_LINE_CMP_VTHD_WIDTH                   4  /* LINE_CMP_VTHD - [3:0] */
 
-int wm8400_block_read(struct wm8400 *wm8400, u8 reg, int count, u16 *data);
-
-static inline int wm8400_set_bits(struct wm8400 *wm8400, u8 reg,
-				  u16 mask, u16 val)
-{
-	return regmap_update_bits(wm8400->regmap, reg, mask, val);
-}
-
 #endif
