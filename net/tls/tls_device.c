@@ -271,7 +271,6 @@ static int tls_push_record(struct sock *sk,
 	list_add_tail(&record->list, &offload_ctx->records_list);
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
-	set_bit(TLS_PENDING_CLOSED_RECORD, &ctx->flags);
 	tls_advance_record_sn(sk, &ctx->tx, ctx->crypto_send.info.version);
 
 	for (i = 0; i < record->num_frags; i++) {
@@ -368,9 +367,11 @@ static int tls_push_data(struct sock *sk,
 		return -sk->sk_err;
 
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
-	rc = tls_complete_pending_work(sk, tls_ctx, flags, &timeo);
-	if (rc < 0)
-		return rc;
+	if (tls_is_partially_sent_record(tls_ctx)) {
+		rc = tls_push_partial_record(sk, tls_ctx, flags);
+		if (rc < 0)
+			return rc;
+	}
 
 	pfrag = sk_page_frag(sk);
 

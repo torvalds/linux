@@ -209,19 +209,6 @@ int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 	return tls_push_sg(sk, ctx, sg, offset, flags);
 }
 
-int tls_push_pending_closed_record(struct sock *sk,
-				   struct tls_context *tls_ctx,
-				   int flags, long *timeo)
-{
-	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
-
-	if (tls_is_partially_sent_record(tls_ctx) ||
-	    !list_empty(&ctx->tx_list))
-		return tls_tx_records(sk, flags);
-	else
-		return tls_ctx->push_pending_record(sk, flags);
-}
-
 static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
