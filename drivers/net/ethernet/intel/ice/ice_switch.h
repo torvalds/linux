@@ -199,7 +199,8 @@ enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle);
-enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
+enum ice_status
+ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
 enum ice_status
 ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_handle, bool set, u8 direction);

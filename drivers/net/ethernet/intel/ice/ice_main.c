@@ -1113,8 +1113,9 @@ static void ice_set_ctrlq_len(struct ice_hw *hw)
  * This is a callback function used by the irq_set_affinity_notifier function
  * so that we may register to receive changes to the irq affinity masks.
  */
-static void ice_irq_affinity_notify(struct irq_affinity_notify *notify,
-				    const cpumask_t *mask)
+static void
+ice_irq_affinity_notify(struct irq_affinity_notify *notify,
+			const cpumask_t *mask)
 {
 	struct ice_q_vector *q_vector =
 		container_of(notify, struct ice_q_vector, affinity_notify);
@@ -1658,8 +1659,9 @@ ice_pf_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi)
  *
  * net_device_ops implementation for adding vlan ids
  */
-static int ice_vlan_rx_add_vid(struct net_device *netdev,
-			       __always_unused __be16 proto, u16 vid)
+static int
+ice_vlan_rx_add_vid(struct net_device *netdev, __always_unused __be16 proto,
+		    u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -1696,8 +1698,9 @@ static int ice_vlan_rx_add_vid(struct net_device *netdev,
  *
  * net_device_ops implementation for removing vlan ids
  */
-static int ice_vlan_rx_kill_vid(struct net_device *netdev,
-				__always_unused __be16 proto, u16 vid)
+static int
+ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
+		     u16 vid)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -2057,8 +2060,8 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
  *
  * Returns 0 on success, negative on failure
  */
-static int ice_probe(struct pci_dev *pdev,
-		     const struct pci_device_id __always_unused *ent)
+static int
+ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 {
 	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
@@ -2493,9 +2496,10 @@ ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
  * @addr: the MAC address entry being added
  * @vid: VLAN id
  */
-static int ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
-		       struct net_device *dev, const unsigned char *addr,
-		       __always_unused u16 vid)
+static int
+ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
+	    struct net_device *dev, const unsigned char *addr,
+	    __always_unused u16 vid)
 {
 	int err;
 
@@ -2519,8 +2523,8 @@ static int ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
  * @netdev: ptr to the netdev being adjusted
  * @features: the feature set that the stack is suggesting
  */
-static int ice_set_features(struct net_device *netdev,
-			    netdev_features_t features)
+static int
+ice_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
@@ -2674,8 +2678,8 @@ int ice_up(struct ice_vsi *vsi)
  * This function fetches stats from the ring considering the atomic operations
  * that needs to be performed to read u64 values in 32 bit machine.
  */
-static void ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts,
-					 u64 *bytes)
+static void
+ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts, u64 *bytes)
 {
 	unsigned int start;
 	*pkts = 0;

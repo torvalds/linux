@@ -1227,8 +1227,9 @@ static void ice_vc_dis_vf(struct ice_vf *vf)
  *
  * send msg to VF
  */
-static int ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode,
-				 enum ice_status v_retval, u8 *msg, u16 msglen)
+static int
+ice_vc_send_msg_to_vf(struct ice_vf *vf, u32 v_opcode, enum ice_status v_retval,
+		      u8 *msg, u16 msglen)
 {
 	enum ice_status aq_ret;
 	struct ice_pf *pf;
@@ -2498,8 +2499,8 @@ error_handler:
  *
  * return VF configuration
  */
-int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
-		   struct ifla_vf_info *ivi)
+int
+ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;

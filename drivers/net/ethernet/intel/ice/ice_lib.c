@@ -2107,8 +2107,9 @@ err_alloc_q_ids:
  * @rst_src: reset source
  * @rel_vmvf_num: Relative id of VF/VM
  */
-int ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi,
-			      enum ice_disq_rst_src rst_src, u16 rel_vmvf_num)
+int
+ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
+			  u16 rel_vmvf_num)
 {
 	return ice_vsi_stop_tx_rings(vsi, rst_src, rel_vmvf_num, vsi->tx_rings,
 				     0);

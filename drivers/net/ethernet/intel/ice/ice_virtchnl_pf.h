@@ -78,8 +78,8 @@ struct ice_vf {
 void ice_process_vflr_event(struct ice_pf *pf);
 int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
 int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
-int ice_get_vf_cfg(struct net_device *netdev, int vf_id,
-		   struct ifla_vf_info *ivi);
+int
+ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
 void ice_free_vfs(struct ice_pf *pf);
 void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
@@ -87,8 +87,9 @@ void ice_vc_notify_link_state(struct ice_pf *pf);
 void ice_vc_notify_reset(struct ice_pf *pf);
 bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 
-int ice_set_vf_port_vlan(struct net_device *netdev, int vf_id,
-			 u16 vlan_id, u8 qos, __be16 vlan_proto);
+int
+ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
+		     __be16 vlan_proto);
 
 int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
 

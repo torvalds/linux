@@ -100,8 +100,8 @@ void ice_free_tx_ring(struct ice_ring *tx_ring)
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  */
-static bool ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring,
-			     int napi_budget)
+static bool
+ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring, int napi_budget)
 {
 	unsigned int total_bytes = 0, total_pkts = 0;
 	unsigned int budget = vsi->work_lmt;
@@ -389,8 +389,8 @@ static void ice_release_rx_desc(struct ice_ring *rx_ring, u32 val)
  * Returns true if the page was successfully allocated or
  * reused.
  */
-static bool ice_alloc_mapped_page(struct ice_ring *rx_ring,
-				  struct ice_rx_buf *bi)
+static bool
+ice_alloc_mapped_page(struct ice_ring *rx_ring, struct ice_rx_buf *bi)
 {
 	struct page *page = bi->page;
 	dma_addr_t dma;
@@ -510,9 +510,9 @@ static bool ice_page_is_reserved(struct page *page)
  * The function will then update the page offset if necessary and return
  * true if the buffer can be reused by the adapter.
  */
-static bool ice_add_rx_frag(struct ice_rx_buf *rx_buf,
-			    union ice_32b_rx_flex_desc *rx_desc,
-			    struct sk_buff *skb)
+static bool
+ice_add_rx_frag(struct ice_rx_buf *rx_buf, union ice_32b_rx_flex_desc *rx_desc,
+		struct sk_buff *skb)
 {
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ICE_RXBUF_2048;
@@ -587,8 +587,8 @@ static bool ice_add_rx_frag(struct ice_rx_buf *rx_buf,
  *
  * Synchronizes page for reuse by the adapter
  */
-static void ice_reuse_rx_page(struct ice_ring *rx_ring,
-			      struct ice_rx_buf *old_buf)
+static void
+ice_reuse_rx_page(struct ice_ring *rx_ring, struct ice_rx_buf *old_buf)
 {
 	u16 nta = rx_ring->next_to_alloc;
 	struct ice_rx_buf *new_buf;
@@ -613,8 +613,8 @@ static void ice_reuse_rx_page(struct ice_ring *rx_ring,
  * correctly, as well as handling calling the page recycle function if
  * necessary.
  */
-static struct sk_buff *ice_fetch_rx_buf(struct ice_ring *rx_ring,
-					union ice_32b_rx_flex_desc *rx_desc)
+static struct sk_buff *
+ice_fetch_rx_buf(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc)
 {
 	struct ice_rx_buf *rx_buf;
 	struct sk_buff *skb;
@@ -751,8 +751,8 @@ static bool ice_cleanup_headers(struct sk_buff *skb)
  * The status_error_len doesn't need to be shifted because it begins
  * at offset zero.
  */
-static bool ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc,
-			     const u16 stat_err_bits)
+static bool
+ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc, const u16 stat_err_bits)
 {
 	return !!(rx_desc->wb.status_error0 &
 		  cpu_to_le16(stat_err_bits));
@@ -769,9 +769,9 @@ static bool ice_test_staterr(union ice_32b_rx_flex_desc *rx_desc,
  * sk_buff in the next buffer to be chained and return true indicating
  * that this is in fact a non-EOP buffer.
  */
-static bool ice_is_non_eop(struct ice_ring *rx_ring,
-			   union ice_32b_rx_flex_desc *rx_desc,
-			   struct sk_buff *skb)
+static bool
+ice_is_non_eop(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
+	       struct sk_buff *skb)
 {
 	u32 ntc = rx_ring->next_to_clean + 1;
 
@@ -838,8 +838,9 @@ ice_rx_hash(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
  *
  * skb->protocol must be set before this function is called
  */
-static void ice_rx_csum(struct ice_vsi *vsi, struct sk_buff *skb,
-			union ice_32b_rx_flex_desc *rx_desc, u8 ptype)
+static void
+ice_rx_csum(struct ice_vsi *vsi, struct sk_buff *skb,
+	    union ice_32b_rx_flex_desc *rx_desc, u8 ptype)
 {
 	struct ice_rx_ptype_decoded decoded;
 	u32 rx_error, rx_status;
@@ -909,9 +910,10 @@ checksum_fail:
  * order to populate the hash, checksum, VLAN, protocol, and
  * other fields within the skb.
  */
-static void ice_process_skb_fields(struct ice_ring *rx_ring,
-				   union ice_32b_rx_flex_desc *rx_desc,
-				   struct sk_buff *skb, u8 ptype)
+static void
+ice_process_skb_fields(struct ice_ring *rx_ring,
+		       union ice_32b_rx_flex_desc *rx_desc,
+		       struct sk_buff *skb, u8 ptype)
 {
 	ice_rx_hash(rx_ring, rx_desc, skb, ptype);
 
@@ -930,8 +932,8 @@ static void ice_process_skb_fields(struct ice_ring *rx_ring,
  * This function sends the completed packet (via. skb) up the stack using
  * gro receive functions (with/without vlan tag)
  */
-static void ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb,
-			    u16 vlan_tag)
+static void
+ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag)
 {
 	if ((rx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    (vlan_tag & VLAN_VID_MASK)) {

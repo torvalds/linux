@@ -367,8 +367,9 @@ struct ice_netdev_priv {
  * @vsi: pointer to vsi struct, can be NULL
  * @q_vector: pointer to q_vector, can be NULL
  */
-static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
-				       struct ice_q_vector *q_vector)
+static inline void
+ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
+		    struct ice_q_vector *q_vector)
 {
 	u32 vector = (vsi && q_vector) ? vsi->hw_base_vector + q_vector->v_idx :
 				((struct ice_pf *)hw->back)->hw_oicr_idx;

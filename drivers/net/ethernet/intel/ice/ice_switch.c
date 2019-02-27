@@ -322,8 +322,8 @@ struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
  *
  * save the VSI context entry for a given VSI handle
  */
-static void ice_save_vsi_ctx(struct ice_hw *hw, u16 vsi_handle,
-			     struct ice_vsi_ctx *vsi)
+static void
+ice_save_vsi_ctx(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi)
 {
 	hw->vsi_ctx[vsi_handle] = vsi;
 }
