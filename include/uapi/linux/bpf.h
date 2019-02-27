@@ -2506,6 +2506,22 @@ union bpf_attr {
  * 	Return
  * 		0 if iph and th are a valid SYN cookie ACK, or a negative error
  * 		otherwise.
+ *
+ * int bpf_sysctl_get_name(struct bpf_sysctl *ctx, char *buf, size_t buf_len, u64 flags)
+ *	Description
+ *		Get name of sysctl in /proc/sys/ and copy it into provided by
+ *		program buffer *buf* of size *buf_len*.
+ *
+ *		The buffer is always NUL terminated, unless it's zero-sized.
+ *
+ *		If *flags* is zero, full name (e.g. "net/ipv4/tcp_mem") is
+ *		copied. Use **BPF_F_SYSCTL_BASE_NAME** flag to copy base name
+ *		only (e.g. "tcp_mem").
+ *	Return
+ *		Number of character copied (not including the trailing NUL).
+ *
+ *		**-E2BIG** if the buffer wasn't big enough (*buf* will contain
+ *		truncated name in this case).
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2608,7 +2624,8 @@ union bpf_attr {
 	FN(skb_ecn_set_ce),		\
 	FN(get_listener_sock),		\
 	FN(skc_lookup_tcp),		\
-	FN(tcp_check_syncookie),
+	FN(tcp_check_syncookie),	\
+	FN(sysctl_get_name),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -2680,6 +2697,9 @@ enum bpf_func_id {
 #define	BPF_F_ADJ_ROOM_ENCAP_L2(len)	(((__u64)len & \
 					  BPF_ADJ_ROOM_ENCAP_L2_MASK) \
 					 << BPF_ADJ_ROOM_ENCAP_L2_SHIFT)
+
+/* BPF_FUNC_sysctl_get_name flags. */
+#define BPF_F_SYSCTL_BASE_NAME		(1ULL << 0)
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {

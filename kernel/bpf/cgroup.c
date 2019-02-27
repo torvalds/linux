@@ -14,6 +14,7 @@
 #include <linux/filter.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/string.h>
 #include <linux/bpf.h>
 #include <linux/bpf-cgroup.h>
 #include <net/sock.h>
@@ -806,10 +807,77 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sysctl);
 
+static ssize_t sysctl_cpy_dir(const struct ctl_dir *dir, char **bufp,
+			      size_t *lenp)
+{
+	ssize_t tmp_ret = 0, ret;
+
+	if (dir->header.parent) {
+		tmp_ret = sysctl_cpy_dir(dir->header.parent, bufp, lenp);
+		if (tmp_ret < 0)
+			return tmp_ret;
+	}
+
+	ret = strscpy(*bufp, dir->header.ctl_table[0].procname, *lenp);
+	if (ret < 0)
+		return ret;
+	*bufp += ret;
+	*lenp -= ret;
+	ret += tmp_ret;
+
+	/* Avoid leading slash. */
+	if (!ret)
+		return ret;
+
+	tmp_ret = strscpy(*bufp, "/", *lenp);
+	if (tmp_ret < 0)
+		return tmp_ret;
+	*bufp += tmp_ret;
+	*lenp -= tmp_ret;
+
+	return ret + tmp_ret;
+}
+
+BPF_CALL_4(bpf_sysctl_get_name, struct bpf_sysctl_kern *, ctx, char *, buf,
+	   size_t, buf_len, u64, flags)
+{
+	ssize_t tmp_ret = 0, ret;
+
+	if (!buf)
+		return -EINVAL;
+
+	if (!(flags & BPF_F_SYSCTL_BASE_NAME)) {
+		if (!ctx->head)
+			return -EINVAL;
+		tmp_ret = sysctl_cpy_dir(ctx->head->parent, &buf, &buf_len);
+		if (tmp_ret < 0)
+			return tmp_ret;
+	}
+
+	ret = strscpy(buf, ctx->table->procname, buf_len);
+
+	return ret < 0 ? ret : tmp_ret + ret;
+}
+
+static const struct bpf_func_proto bpf_sysctl_get_name_proto = {
+	.func		= bpf_sysctl_get_name,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *
 sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
-	return cgroup_base_func_proto(func_id, prog);
+	switch (func_id) {
+	case BPF_FUNC_sysctl_get_name:
+		return &bpf_sysctl_get_name_proto;
+	default:
+		return cgroup_base_func_proto(func_id, prog);
+	}
 }
 
 static bool sysctl_is_valid_access(int off, int size, enum bpf_access_type type,
