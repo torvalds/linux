@@ -2519,4 +2519,6 @@
 /* Default value of bitfield l3_da0[1F:0] */
 #define HW_ATL_RPF_L3_DSTA_DEFAULT 0x0
 
+#define HW_ATL_FW_SM_RAM        0x2U
+
 #endif /* HW_ATL_LLH_INTERNAL_H */
