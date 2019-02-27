@@ -799,10 +799,7 @@ int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw)
 		{
 			.code		= SPCODE_NSP_WRITE_FLASH,
 			.option		= fw->size,
-			/* The flash time is specified to take a maximum of 70s
-			 * so we add an additional factor to this spec time.
-			 */
-			.timeout_sec	= 2.5 * 70,
+			.timeout_sec	= 900,
 		},
 		.in_buf		= fw->data,
 		.in_size	= fw->size,
