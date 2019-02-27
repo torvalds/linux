@@ -622,9 +622,9 @@ static void build_vrr_vtem_infopacket_data(const struct dc_stream_state *stream,
 
 	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
 				vrr->state == VRR_STATE_ACTIVE_FIXED){
-		infopacket->sb[6] |= 0x80; //VRR_EN Bit = 1
+		infopacket->sb[6] |= 0x01; //VRR_EN Bit = 1
 	} else {
-		infopacket->sb[6] &= 0x7F; //VRR_EN Bit = 0
+		infopacket->sb[6] &= 0xFE; //VRR_EN Bit = 0
 	}
 
 	if (!stream->timing.vic) {
