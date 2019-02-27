@@ -67,7 +67,7 @@ static inline int pci_max_pasids(struct pci_dev *pdev)
 	return -EINVAL;
 }
 
-static int pci_prg_resp_pasid_required(struct pci_dev *pdev)
+static inline int pci_prg_resp_pasid_required(struct pci_dev *pdev)
 {
 	return 0;
 }
