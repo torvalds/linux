@@ -130,6 +130,8 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 static void
 mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 {
+	iowrite32(q->desc_dma, &q->regs->desc_base);
+	iowrite32(q->ndesc, &q->regs->ring_size);
 	q->head = ioread32(&q->regs->dma_idx);
 	q->tail = q->head;
 	iowrite32(q->head, &q->regs->cpu_idx);
