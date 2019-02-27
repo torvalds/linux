@@ -385,7 +385,7 @@ module_param(authorized_default, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(authorized_default,
 		"Default USB device authorization: 0 is not authorized, 1 is "
 		"authorized, 2 is authorized for internal devices, -1 is "
-		"authorized except for wireless USB (default, old behaviour");
+		"authorized except for wireless USB (default, old behaviour)");
 /*-------------------------------------------------------------------------*/
 
 /**
