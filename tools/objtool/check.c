@@ -105,29 +105,6 @@ static struct instruction *next_insn_same_func(struct objtool_file *file,
 	     insn = next_insn_same_sec(file, insn))
 
 /*
- * Check if the function has been manually whitelisted with the
- * STACK_FRAME_NON_STANDARD macro, or if it should be automatically whitelisted
- * due to its use of a context switching instruction.
- */
-static bool ignore_func(struct objtool_file *file, struct symbol *func)
-{
-	struct rela *rela;
-
-	/* check for STACK_FRAME_NON_STANDARD */
-	if (file->whitelist && file->whitelist->rela)
-		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list) {
-			if (rela->sym->type == STT_SECTION &&
-			    rela->sym->sec == func->sec &&
-			    rela->addend == func->offset)
-				return true;
-			if (rela->sym->type == STT_FUNC && rela->sym == func)
-				return true;
-		}
-
-	return false;
-}
-
-/*
  * This checks to see if the given function is a "noreturn" function.
  *
  * For global functions which are outside the scope of this object file, we
@@ -436,18 +413,31 @@ static void add_ignores(struct objtool_file *file)
 	struct instruction *insn;
 	struct section *sec;
 	struct symbol *func;
+	struct rela *rela;
 
-	for_each_sec(file, sec) {
-		list_for_each_entry(func, &sec->symbol_list, list) {
-			if (func->type != STT_FUNC)
+	sec = find_section_by_name(file->elf, ".rela.discard.func_stack_frame_non_standard");
+	if (!sec)
+		return;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		switch (rela->sym->type) {
+		case STT_FUNC:
+			func = rela->sym;
+			break;
+
+		case STT_SECTION:
+			func = find_symbol_by_offset(rela->sym->sec, rela->addend);
+			if (!func || func->type != STT_FUNC)
 				continue;
+			break;
 
-			if (!ignore_func(file, func))
-				continue;
-
-			func_for_each_insn_all(file, func, insn)
-				insn->ignore = true;
+		default:
+			WARN("unexpected relocation symbol type in %s: %d", sec->name, rela->sym->type);
+			continue;
 		}
+
+		func_for_each_insn_all(file, func, insn)
+			insn->ignore = true;
 	}
 }
 
@@ -2199,7 +2189,6 @@ int check(const char *_objname, bool orc)
 
 	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
-	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.c_file = find_section_by_name(file.elf, ".comment");
 	file.ignore_unreachables = no_unreachable;
 	file.hints = false;
