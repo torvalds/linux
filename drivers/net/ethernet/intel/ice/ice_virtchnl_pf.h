@@ -89,9 +89,6 @@ bool ice_reset_all_vfs(struct ice_pf *pf, bool is_vflr);
 int ice_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 			 u16 vlan_id, u8 qos, __be16 vlan_proto);
 
-int ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
-		  int max_tx_rate);
-
 int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
 
 int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
@@ -162,12 +159,5 @@ ice_set_vf_link_state(struct net_device __always_unused *netdev,
 	return -EOPNOTSUPP;
 }
 
-static inline int
-ice_set_vf_bw(struct net_device __always_unused *netdev,
-	      int __always_unused vf_id, int __always_unused min_tx_rate,
-	      int __always_unused max_tx_rate)
-{
-	return -EOPNOTSUPP;
-}
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_VIRTCHNL_PF_H_ */
