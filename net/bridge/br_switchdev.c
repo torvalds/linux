@@ -67,12 +67,18 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 		.id = SWITCHDEV_ATTR_ID_PORT_PRE_BRIDGE_FLAGS,
 		.u.brport_flags = mask,
 	};
+	struct switchdev_notifier_port_attr_info info = {
+		.attr = &attr,
+	};
 	int err;
 
 	if (mask & ~BR_PORT_FLAGS_HW_OFFLOAD)
 		return 0;
 
-	err = switchdev_port_attr_set(p->dev, &attr);
+	/* We run from atomic context here */
+	err = call_switchdev_notifiers(SWITCHDEV_PORT_ATTR_SET, p->dev,
+				       &info.info, NULL);
+	err = notifier_to_errno(err);
 	if (err == -EOPNOTSUPP)
 		return 0;
 
