@@ -28,17 +28,6 @@
  * device that might share buffers with virtgpu
  */
 
-int virtgpu_gem_prime_pin(struct drm_gem_object *obj)
-{
-	WARN_ONCE(1, "not implemented");
-	return -ENODEV;
-}
-
-void virtgpu_gem_prime_unpin(struct drm_gem_object *obj)
-{
-	WARN_ONCE(1, "not implemented");
-}
-
 void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj)
 {
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
