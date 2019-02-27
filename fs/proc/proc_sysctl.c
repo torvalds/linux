@@ -13,6 +13,7 @@
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/bpf-cgroup.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -586,6 +587,10 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
 	error = -EINVAL;
 	if (!table->proc_handler)
+		goto out;
+
+	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write);
+	if (error)
 		goto out;
 
 	/* careful: calling conventions are nasty here */

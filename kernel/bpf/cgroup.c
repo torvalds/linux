@@ -11,7 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/cgroup.h>
+#include <linux/filter.h>
 #include <linux/slab.h>
+#include <linux/sysctl.h>
 #include <linux/bpf.h>
 #include <linux/bpf-cgroup.h>
 #include <net/sock.h>
@@ -767,4 +769,94 @@ const struct bpf_prog_ops cg_dev_prog_ops = {
 const struct bpf_verifier_ops cg_dev_verifier_ops = {
 	.get_func_proto		= cgroup_dev_func_proto,
 	.is_valid_access	= cgroup_dev_is_valid_access,
+};
+
+/**
+ * __cgroup_bpf_run_filter_sysctl - Run a program on sysctl
+ *
+ * @head: sysctl table header
+ * @table: sysctl table
+ * @write: sysctl is being read (= 0) or written (= 1)
+ * @type: type of program to be executed
+ *
+ * Program is run when sysctl is being accessed, either read or written, and
+ * can allow or deny such access.
+ *
+ * This function will return %-EPERM if an attached program is found and
+ * returned value != 1 during execution. In all other cases 0 is returned.
+ */
+int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
+				   struct ctl_table *table, int write,
+				   enum bpf_attach_type type)
+{
+	struct bpf_sysctl_kern ctx = {
+		.head = head,
+		.table = table,
+		.write = write,
+	};
+	struct cgroup *cgrp;
+	int ret;
+
+	rcu_read_lock();
+	cgrp = task_dfl_cgroup(current);
+	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], &ctx, BPF_PROG_RUN);
+	rcu_read_unlock();
+
+	return ret == 1 ? 0 : -EPERM;
+}
+EXPORT_SYMBOL(__cgroup_bpf_run_filter_sysctl);
+
+static const struct bpf_func_proto *
+sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+{
+	return cgroup_base_func_proto(func_id, prog);
+}
+
+static bool sysctl_is_valid_access(int off, int size, enum bpf_access_type type,
+				   const struct bpf_prog *prog,
+				   struct bpf_insn_access_aux *info)
+{
+	const int size_default = sizeof(__u32);
+
+	if (off < 0 || off + size > sizeof(struct bpf_sysctl) ||
+	    off % size || type != BPF_READ)
+		return false;
+
+	switch (off) {
+	case offsetof(struct bpf_sysctl, write):
+		bpf_ctx_record_field_size(info, size_default);
+		return bpf_ctx_narrow_access_ok(off, size, size_default);
+	default:
+		return false;
+	}
+}
+
+static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
+				     const struct bpf_insn *si,
+				     struct bpf_insn *insn_buf,
+				     struct bpf_prog *prog, u32 *target_size)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (si->off) {
+	case offsetof(struct bpf_sysctl, write):
+		*insn++ = BPF_LDX_MEM(
+			BPF_SIZE(si->code), si->dst_reg, si->src_reg,
+			bpf_target_off(struct bpf_sysctl_kern, write,
+				       FIELD_SIZEOF(struct bpf_sysctl_kern,
+						    write),
+				       target_size));
+		break;
+	}
+
+	return insn - insn_buf;
+}
+
+const struct bpf_verifier_ops cg_sysctl_verifier_ops = {
+	.get_func_proto		= sysctl_func_proto,
+	.is_valid_access	= sysctl_is_valid_access,
+	.convert_ctx_access	= sysctl_convert_ctx_access,
+};
+
+const struct bpf_prog_ops cg_sysctl_prog_ops = {
 };
