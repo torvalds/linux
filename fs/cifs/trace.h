@@ -275,6 +275,7 @@ DEFINE_EVENT(smb3_cmd_done_class, smb3_##name,    \
 		__u64	mid),			\
 	TP_ARGS(tid, sesid, cmd, mid))
 
+DEFINE_SMB3_CMD_DONE_EVENT(cmd_enter);
 DEFINE_SMB3_CMD_DONE_EVENT(cmd_done);
 DEFINE_SMB3_CMD_DONE_EVENT(ses_expired);
 
