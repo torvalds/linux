@@ -1717,7 +1717,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 
 static int ethtool_get_pauseparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_pauseparam pauseparam = { ETHTOOL_GPAUSEPARAM };
+	struct ethtool_pauseparam pauseparam = { .cmd = ETHTOOL_GPAUSEPARAM };
 
 	if (!dev->ethtool_ops->get_pauseparam)
 		return -EOPNOTSUPP;
@@ -2503,7 +2503,7 @@ static int set_phy_tunable(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_get_fecparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_fecparam fecparam = { ETHTOOL_GFECPARAM };
+	struct ethtool_fecparam fecparam = { .cmd = ETHTOOL_GFECPARAM };
 	int rc;
 
 	if (!dev->ethtool_ops->get_fecparam)
