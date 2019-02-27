@@ -49,6 +49,7 @@
 #define   NSP_DFLT_BUFFER_ADDRESS	GENMASK_ULL(39, 0)
 
 #define NSP_DFLT_BUFFER_CONFIG	0x20
+#define   NSP_DFLT_BUFFER_SIZE_4KB	GENMASK_ULL(15, 8)
 #define   NSP_DFLT_BUFFER_SIZE_MB	GENMASK_ULL(7, 0)
 
 #define NSP_MAGIC		0xab10
@@ -413,8 +414,8 @@ static int nfp_nsp_command(struct nfp_nsp *state, u16 code)
 static int
 nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 {
+	unsigned int def_size, max_size;
 	struct nfp_cpp *cpp = nsp->cpp;
-	unsigned int max_size;
 	u64 reg, cpp_buf;
 	int ret, err;
 	u32 cpp_id;
@@ -433,11 +434,11 @@ nfp_nsp_command_buf(struct nfp_nsp *nsp, struct nfp_nsp_command_buf_arg *arg)
 		return err;
 
 	max_size = max(arg->in_size, arg->out_size);
-	if (FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M < max_size) {
-		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%llu < %u)\n",
-			arg->arg.code,
-			FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M,
-			max_size);
+	def_size = FIELD_GET(NSP_DFLT_BUFFER_SIZE_MB, reg) * SZ_1M +
+		   FIELD_GET(NSP_DFLT_BUFFER_SIZE_4KB, reg) * SZ_4K;
+	if (def_size < max_size) {
+		nfp_err(cpp, "NSP: default buffer too small for command 0x%04x (%u < %u)\n",
+			arg->arg.code, def_size, max_size);
 		return -EINVAL;
 	}
 
