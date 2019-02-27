@@ -5249,6 +5249,7 @@ EXPORT_SYMBOL_GPL(devlink_alloc);
  *	devlink_register - Register devlink instance
  *
  *	@devlink: devlink
+ *	@dev: parent device
  */
 int devlink_register(struct devlink *devlink, struct device *dev)
 {
@@ -5299,7 +5300,7 @@ EXPORT_SYMBOL_GPL(devlink_free);
  *
  *	@devlink: devlink
  *	@devlink_port: devlink port
- *	@port_index
+ *	@port_index: driver-specific numerical identifier of the port
  *
  *	Register devlink port with provided port index. User can use
  *	any indexing, even hw-related one. devlink_port structure
@@ -5629,13 +5630,10 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
  *
  *	@devlink: devlink
  *	@resource_name: resource's name
- *	@top_hierarchy: top hierarchy
- *	@reload_required: reload is required for new configuration to
- *			  apply
  *	@resource_size: resource's size
  *	@resource_id: resource's id
- *	@parent_reosurce_id: resource's parent id
- *	@size params: size parameters
+ *	@parent_resource_id: resource's parent id
+ *	@size_params: size parameters
  */
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
@@ -6332,7 +6330,7 @@ EXPORT_SYMBOL_GPL(devlink_region_shapshot_id_get);
  *	Multiple snapshots can be created on a region.
  *	The @snapshot_id should be obtained using the getter function.
  *
- *	@devlink_region: devlink region of the snapshot
+ *	@region: devlink region of the snapshot
  *	@data_len: size of snapshot data
  *	@data: snapshot data
  *	@snapshot_id: snapshot id to be created
