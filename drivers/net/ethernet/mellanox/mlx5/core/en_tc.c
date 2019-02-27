@@ -2632,7 +2632,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					out_dev->ifindex;
 				parse_attr->tun_info[attr->out_count] = *info;
 				encap = false;
-				attr->parse_attr = parse_attr;
 				attr->dests[attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;
 				attr->out_count++;
