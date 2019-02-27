@@ -1693,7 +1693,8 @@ int tls_sw_recvmsg(struct sock *sk,
 		bool zc = false;
 		int to_decrypt;
 		int chunk = 0;
-		bool async;
+		bool async_capable;
+		bool async = false;
 
 		skb = tls_wait_data(sk, psock, flags, timeo, &err);
 		if (!skb) {
@@ -1727,21 +1728,23 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		/* Do not use async mode if record is non-data */
 		if (ctx->control == TLS_RECORD_TYPE_DATA)
-			async = ctx->async_capable;
+			async_capable = ctx->async_capable;
 		else
-			async = false;
+			async_capable = false;
 
 		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
-					 &chunk, &zc, async);
+					 &chunk, &zc, async_capable);
 		if (err < 0 && err != -EINPROGRESS) {
 			tls_err_abort(sk, EBADMSG);
 			goto recv_end;
 		}
 
-		if (err == -EINPROGRESS)
+		if (err == -EINPROGRESS) {
+			async = true;
 			num_async++;
-		else if (prot->version == TLS_1_3_VERSION)
+		} else if (prot->version == TLS_1_3_VERSION) {
 			tlm->control = ctx->control;
+		}
 
 		/* If the type of records being processed is not known yet,
 		 * set it to record type just dequeued. If it is already known,
