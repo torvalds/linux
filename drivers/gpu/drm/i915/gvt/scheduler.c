@@ -738,7 +738,8 @@ static struct intel_vgpu_workload *pick_next_workload(
 		goto out;
 	}
 
-	if (list_empty(workload_q_head(scheduler->current_vgpu, ring_id)))
+	if (!scheduler->current_vgpu->active ||
+	    list_empty(workload_q_head(scheduler->current_vgpu, ring_id)))
 		goto out;
 
 	/*
