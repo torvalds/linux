@@ -881,7 +881,18 @@ static void ice_vsi_setup_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctxt)
 		tx_count += tx_numq_tc;
 		ctxt->info.tc_mapping[i] = cpu_to_le16(qmap);
 	}
-	vsi->num_rxq = offset;
+
+	/* if offset is non-zero, means it is calculated correctly based on
+	 * enabled TCs for a given VSI otherwise qcount_rx will always
+	 * be correct and non-zero because it is based off - VSI's
+	 * allocated Rx queues which is at least 1 (hence qcount_tx will be
+	 * at least 1)
+	 */
+	if (offset)
+		vsi->num_rxq = offset;
+	else
+		vsi->num_rxq = qcount_rx;
+
 	vsi->num_txq = tx_count;
 
 	if (vsi->type == ICE_VSI_VF && vsi->num_txq != vsi->num_rxq) {
