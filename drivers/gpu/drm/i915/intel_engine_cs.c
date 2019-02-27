@@ -1007,7 +1007,6 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	intel_wakeref_t wakeref;
-	unsigned long flags;
 	bool idle = true;
 
 	if (I915_SELFTEST_ONLY(!engine->mmio_base))
@@ -1018,19 +1017,15 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	if (!wakeref)
 		return true;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-
-	/*
-	 * Check that no commands are left in the ring.
-	 *
-	 * If the engine is not awake, both reads return 0 as we do so without
-	 * forcewake.
-	 */
-	if ((I915_READ_FW(RING_HEAD(engine->mmio_base)) & HEAD_ADDR) !=
-	    (I915_READ_FW(RING_TAIL(engine->mmio_base)) & TAIL_ADDR))
+	/* First check that no commands are left in the ring */
+	if ((I915_READ_HEAD(engine) & HEAD_ADDR) !=
+	    (I915_READ_TAIL(engine) & TAIL_ADDR))
 		idle = false;
 
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
+	/* No bit for gen2, so assume the CS parser is idle */
+	if (INTEL_GEN(dev_priv) > 2 && !(I915_READ_MODE(engine) & MODE_IDLE))
+		idle = false;
+
 	intel_runtime_pm_put(dev_priv, wakeref);
 
 	return idle;
