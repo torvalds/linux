@@ -1969,7 +1969,7 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 	    (struct virtchnl_ether_addr_list *)msg;
 	struct ice_pf *pf = vf->pf;
 	enum virtchnl_ops vc_op;
-	enum ice_status ret;
+	enum ice_status ret = 0;
 	LIST_HEAD(mac_list);
 	struct ice_vsi *vsi;
 	int mac_count = 0;
@@ -1989,8 +1989,11 @@ ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
 	if (set && !ice_is_vf_trusted(vf) &&
 	    (vf->num_mac + al->num_elements) > ICE_MAX_MACADDR_PER_VF) {
 		dev_err(&pf->pdev->dev,
-			"Can't add more MAC addresses, because VF is not trusted, switch the VF to trusted mode in order to add more functionalities\n");
-		ret = ICE_ERR_PARAM;
+			"Can't add more MAC addresses, because VF-%d is not trusted, switch the VF to trusted mode in order to add more functionalities\n",
+			vf->vf_id);
+		/* There is no need to let VF know about not being trusted
+		 * to add more MAC addr, so we can just return success message.
+		 */
 		goto handle_mac_exit;
 	}
 
@@ -2270,7 +2273,8 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	if (add_v && !ice_is_vf_trusted(vf) &&
 	    vf->num_vlan >= ICE_MAX_VLAN_PER_VF) {
 		dev_info(&pf->pdev->dev,
-			 "VF is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n");
+			 "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
+			 vf->vf_id);
 		/* There is no need to let VF know about being not trusted,
 		 * so we can just return success message here
 		 */
