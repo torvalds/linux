@@ -865,6 +865,32 @@ tda998x_write_avi(struct tda998x_priv *priv, const struct drm_display_mode *mode
 
 /* Audio support */
 
+/*
+ * The audio clock divisor register controls a divider producing Audio_Clk_Out
+ * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't know what
+ * Audio_Clk_Out or SERclk are. We guess SERclk is the same as TMDS clock.
+ *
+ * It seems that Audio_Clk_Out must be the smallest value that is greater
+ * than 128*fs, otherwise audio does not function. There is some suggestion
+ * that 126*fs is a better value.
+ */
+static u8 tda998x_get_adiv(struct tda998x_priv *priv, unsigned int fs)
+{
+	unsigned long min_audio_clk = fs * 128;
+	unsigned long ser_clk = priv->tmds_clock * 1000;
+	u8 adiv;
+
+	for (adiv = AUDIO_DIV_SERCLK_32; adiv != AUDIO_DIV_SERCLK_1; adiv--)
+		if (ser_clk > min_audio_clk << adiv)
+			break;
+
+	dev_dbg(&priv->hdmi->dev,
+		"ser_clk=%luHz fs=%uHz min_aclk=%luHz adiv=%d\n",
+		ser_clk, fs, min_audio_clk, adiv);
+
+	return adiv;
+}
+
 static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 {
 	if (on) {
@@ -881,6 +907,8 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 {
 	u8 buf[6], clksel_aip, clksel_fs, cts_n, adiv;
 	u32 n;
+
+	adiv = tda998x_get_adiv(priv, settings->params.sample_rate);
 
 	/* Enable audio ports */
 	reg_write(priv, REG_ENA_AP, settings->params.config);
@@ -926,22 +954,6 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_LAYOUT |
 					AIP_CNTRL_0_ACR_MAN);	/* auto CTS */
 	reg_write(priv, REG_CTS_N, cts_n);
-
-	/*
-	 * Audio input somehow depends on HDMI line rate which is
-	 * related to pixclk. Testing showed that modes with pixclk
-	 * >100MHz need a larger divider while <40MHz need the default.
-	 * There is no detailed info in the datasheet, so we just
-	 * assume 100MHz requires larger divider.
-	 */
-	adiv = AUDIO_DIV_SERCLK_8;
-	if (priv->tmds_clock > 100000)
-		adiv++;			/* AUDIO_DIV_SERCLK_16 */
-
-	/* S/PDIF asks for a larger divider */
-	if (settings->params.format == AFMT_SPDIF)
-		adiv++;			/* AUDIO_DIV_SERCLK_16 or _32 */
-
 	reg_write(priv, REG_AUDIO_DIV, adiv);
 
 	/*
