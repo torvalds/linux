@@ -407,9 +407,21 @@ do {									\
 #define raw_cpu_or_1(pcp, val)		percpu_to_op(, "or", (pcp), val)
 #define raw_cpu_or_2(pcp, val)		percpu_to_op(, "or", (pcp), val)
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(, "or", (pcp), val)
-#define raw_cpu_xchg_1(pcp, val)	percpu_xchg_op(, pcp, val)
-#define raw_cpu_xchg_2(pcp, val)	percpu_xchg_op(, pcp, val)
-#define raw_cpu_xchg_4(pcp, val)	percpu_xchg_op(, pcp, val)
+
+/*
+ * raw_cpu_xchg() can use a load-store since it is not required to be
+ * IRQ-safe.
+ */
+#define raw_percpu_xchg_op(var, nval)					\
+({									\
+	typeof(var) pxo_ret__ = raw_cpu_read(var);			\
+	raw_cpu_write(var, (nval));					\
+	pxo_ret__;							\
+})
+
+#define raw_cpu_xchg_1(pcp, val)	raw_percpu_xchg_op(pcp, val)
+#define raw_cpu_xchg_2(pcp, val)	raw_percpu_xchg_op(pcp, val)
+#define raw_cpu_xchg_4(pcp, val)	raw_percpu_xchg_op(pcp, val)
 
 #define this_cpu_read_1(pcp)		percpu_from_op(volatile, "mov", pcp)
 #define this_cpu_read_2(pcp)		percpu_from_op(volatile, "mov", pcp)
@@ -472,7 +484,7 @@ do {									\
 #define raw_cpu_and_8(pcp, val)			percpu_to_op(, "and", (pcp), val)
 #define raw_cpu_or_8(pcp, val)			percpu_to_op(, "or", (pcp), val)
 #define raw_cpu_add_return_8(pcp, val)		percpu_add_return_op(, pcp, val)
-#define raw_cpu_xchg_8(pcp, nval)		percpu_xchg_op(, pcp, nval)
+#define raw_cpu_xchg_8(pcp, nval)		raw_percpu_xchg_op(pcp, nval)
 #define raw_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(, pcp, oval, nval)
 
 #define this_cpu_read_8(pcp)			percpu_from_op(volatile, "mov", pcp)
