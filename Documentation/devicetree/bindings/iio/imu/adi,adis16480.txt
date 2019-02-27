@@ -1,0 +1,49 @@
+
+Analog Devices ADIS16480 and similar IMUs
+
+Required properties for the ADIS16480:
+
+- compatible: Must be one of
+	* "adi,adis16375"
+	* "adi,adis16480"
+	* "adi,adis16485"
+	* "adi,adis16488"
+	* "adi,adis16495-1"
+	* "adi,adis16495-2"
+	* "adi,adis16495-3"
+	* "adi,adis16497-1"
+	* "adi,adis16497-2"
+	* "adi,adis16497-3"
+- reg: SPI chip select number for the device
+- spi-max-frequency: Max SPI frequency to use
+	see: Documentation/devicetree/bindings/spi/spi-bus.txt
+- spi-cpha: See Documentation/devicetree/bindings/spi/spi-bus.txt
+- spi-cpol: See Documentation/devicetree/bindings/spi/spi-bus.txt
+- interrupts: interrupt mapping for IRQ, accepted values are:
+	* IRQF_TRIGGER_RISING
+	* IRQF_TRIGGER_FALLING
+
+Optional properties:
+
+- interrupt-names: Data ready line selection. Valid values are:
+	* DIO1
+	* DIO2
+	* DIO3
+	* DIO4
+	If this field is left empty, DIO1 is assigned as default data ready
+	signal.
+- reset-gpios: must be the device tree identifier of the RESET pin. As the line
+	is active low, it should be marked GPIO_ACTIVE_LOW.
+
+Example:
+
+	imu@0 {
+		compatible = "adi,adis16495-1";
+		reg = <0>;
+		spi-max-frequency = <3200000>;
+		spi-cpol;
+		spi-cpha;
+		interrupts = <25 IRQF_TRIGGER_FALLING>;
+		interrupt-parent = <&gpio>;
+		interrupt-names = "DIO2";
+	};
