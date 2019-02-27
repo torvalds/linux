@@ -791,8 +791,6 @@ enum ht_cap_ampdu_factor {
 #define	WPS_CM_SW_DISPLAY_P		0x2008
 #define	WPS_CM_LCD_DISPLAY_P		0x4008
 
-#define	P2P_PRIVATE_IOCTL_SET_LEN		64
-
 /*	=====================WFD Section===================== */
 /*	For Wi-Fi Display */
 #define	WFD_ATTR_DEVICE_INFO		0x00
