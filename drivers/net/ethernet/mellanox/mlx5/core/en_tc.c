@@ -2029,6 +2029,15 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 	return 0;
 }
 
+static int mlx5e_flow_namespace_max_modify_action(struct mlx5_core_dev *mdev,
+						  int namespace)
+{
+	if (namespace == MLX5_FLOW_NAMESPACE_FDB) /* FDB offloading */
+		return MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, max_modify_header_actions);
+	else /* namespace is MLX5_FLOW_NAMESPACE_KERNEL - NIC offloading */
+		return MLX5_CAP_FLOWTABLE_NIC_RX(mdev, max_modify_header_actions);
+}
+
 static int alloc_mod_hdr_actions(struct mlx5e_priv *priv,
 				 struct pedit_headers_action *hdrs,
 				 int namespace,
@@ -2040,11 +2049,7 @@ static int alloc_mod_hdr_actions(struct mlx5e_priv *priv,
 		hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits;
 	action_size = MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto);
 
-	if (namespace == MLX5_FLOW_NAMESPACE_FDB) /* FDB offloading */
-		max_actions = MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev, max_modify_header_actions);
-	else /* namespace is MLX5_FLOW_NAMESPACE_KERNEL - NIC offloading */
-		max_actions = MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, max_modify_header_actions);
-
+	max_actions = mlx5e_flow_namespace_max_modify_action(priv->mdev, namespace);
 	/* can get up to crazingly 16 HW actions in 32 bits pedit SW key */
 	max_actions = min(max_actions, nkeys * 16);
 
@@ -2074,6 +2079,12 @@ static int parse_tc_pedit_action(struct mlx5e_priv *priv,
 
 	if (htype == FLOW_ACT_MANGLE_UNSPEC) {
 		NL_SET_ERR_MSG_MOD(extack, "legacy pedit isn't offloaded");
+		goto out_err;
+	}
+
+	if (!mlx5e_flow_namespace_max_modify_action(priv->mdev, namespace)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "The pedit offload action is not supported");
 		goto out_err;
 	}
 
@@ -2362,7 +2373,8 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 			}
 			break;
 		default:
-			return -EINVAL;
+			NL_SET_ERR_MSG_MOD(extack, "The offload action is not supported");
+			return -EOPNOTSUPP;
 		}
 	}
 
@@ -2710,7 +2722,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			break;
 			}
 		default:
-			return -EINVAL;
+			NL_SET_ERR_MSG_MOD(extack, "The offload action is not supported");
+			return -EOPNOTSUPP;
 		}
 	}
 
