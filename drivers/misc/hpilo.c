@@ -32,6 +32,8 @@ static char ilo_hwdev[MAX_ILO_DEV];
 static const struct pci_device_id ilo_blacklist[] = {
 	/* auxiliary iLO */
 	{PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3307, PCI_VENDOR_ID_HP, 0x1979)},
+	/* CL */
+	{PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3307, PCI_VENDOR_ID_HP_3PAR, 0x0289)},
 	{}
 };
 
