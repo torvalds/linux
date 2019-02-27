@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <asm/ebcdic.h>
@@ -152,6 +153,20 @@ static void modify_facility(unsigned long nr, bool clear)
 		__set_facility(nr, S390_lowcore.stfle_fac_list);
 }
 
+static void check_cleared_facilities(void)
+{
+	unsigned long als[] = { FACILITIES_ALS };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(als); i++) {
+		if ((S390_lowcore.stfle_fac_list[i] & als[i]) != als[i]) {
+			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
+			print_missing_facilities();
+			break;
+		}
+	}
+}
+
 static void modify_fac_list(char *str)
 {
 	unsigned long val, endval;
@@ -185,6 +200,7 @@ static void modify_fac_list(char *str)
 			break;
 		str++;
 	}
+	check_cleared_facilities();
 }
 
 static char command_line_buf[COMMAND_LINE_SIZE] __section(.data);

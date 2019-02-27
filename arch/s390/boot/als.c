@@ -7,6 +7,7 @@
 #include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
+#include "boot.h"
 
 /*
  * The code within this file will be called very early. It may _not_
@@ -58,7 +59,7 @@ static void u16_to_decimal(char *str, u16 val)
 	*str = '\0';
 }
 
-static void print_missing_facilities(void)
+void print_missing_facilities(void)
 {
 	static char als_str[80] = "Missing facilities: ";
 	unsigned long val;
@@ -90,7 +91,6 @@ static void print_missing_facilities(void)
 	}
 	strcat(als_str, "\n");
 	sclp_early_printk(als_str);
-	sclp_early_printk("See Principles of Operations for facility bits\n");
 }
 
 static void facility_mismatch(void)
@@ -98,6 +98,7 @@ static void facility_mismatch(void)
 	sclp_early_printk("The Linux kernel requires more recent processor hardware\n");
 	print_machine_type();
 	print_missing_facilities();
+	sclp_early_printk("See Principles of Operations for facility bits\n");
 	disabled_wait(0x8badcccc);
 }
 
