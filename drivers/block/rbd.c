@@ -236,7 +236,8 @@ enum obj_operation_type {
 enum rbd_obj_write_state {
 	RBD_OBJ_WRITE_FLAT = 1,
 	RBD_OBJ_WRITE_GUARD,
-	RBD_OBJ_WRITE_COPYUP,
+	RBD_OBJ_WRITE_READ_FROM_PARENT,
+	RBD_OBJ_WRITE_COPYUP_OPS,
 };
 
 struct rbd_obj_request {
@@ -2458,10 +2459,13 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 	return true;
 }
 
-static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
+#define MODS_ONLY	U32_MAX
+
+static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 {
 	struct rbd_img_request *img_req = obj_req->img_request;
-	unsigned int num_osd_ops = 1;
+	unsigned int num_osd_ops = (bytes != MODS_ONLY);
+	unsigned int which = 0;
 	int ret;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
@@ -2483,31 +2487,25 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (!obj_req->osd_req)
 		return -ENOMEM;
 
-	ret = osd_req_op_cls_init(obj_req->osd_req, 0, "rbd", "copyup");
-	if (ret)
-		return ret;
+	if (bytes != MODS_ONLY) {
+		ret = osd_req_op_cls_init(obj_req->osd_req, which, "rbd",
+					  "copyup");
+		if (ret)
+			return ret;
 
-	/*
-	 * Only send non-zero copyup data to save some I/O and network
-	 * bandwidth -- zero copyup data is equivalent to the object not
-	 * existing.
-	 */
-	if (is_zero_bvecs(obj_req->copyup_bvecs, bytes)) {
-		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
-		bytes = 0;
+		osd_req_op_cls_request_data_bvecs(obj_req->osd_req, which++,
+						  obj_req->copyup_bvecs,
+						  obj_req->copyup_bvec_count,
+						  bytes);
 	}
-	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
-					  obj_req->copyup_bvecs,
-					  obj_req->copyup_bvec_count,
-					  bytes);
 
 	switch (img_req->op_type) {
 	case OBJ_OP_WRITE:
-		__rbd_obj_setup_write(obj_req, 1);
+		__rbd_obj_setup_write(obj_req, which);
 		break;
 	case OBJ_OP_ZEROOUT:
 		rbd_assert(!rbd_obj_is_entire(obj_req));
-		__rbd_obj_setup_zeroout(obj_req, 1);
+		__rbd_obj_setup_zeroout(obj_req, which);
 		break;
 	default:
 		rbd_assert(0);
@@ -2519,6 +2517,22 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 
 	rbd_obj_request_submit(obj_req);
 	return 0;
+}
+
+static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
+{
+	/*
+	 * Only send non-zero copyup data to save some I/O and network
+	 * bandwidth -- zero copyup data is equivalent to the object not
+	 * existing.
+	 */
+	if (is_zero_bvecs(obj_req->copyup_bvecs, bytes)) {
+		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
+		bytes = 0;
+	}
+
+	obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
+	return rbd_obj_issue_copyup_ops(obj_req, bytes);
 }
 
 static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
@@ -2560,22 +2574,19 @@ static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 	if (!obj_req->num_img_extents) {
 		/*
 		 * The overlap has become 0 (most likely because the
-		 * image has been flattened).  Use rbd_obj_issue_copyup()
-		 * to re-submit the original write request -- the copyup
-		 * operation itself will be a no-op, since someone must
-		 * have populated the child object while we weren't
-		 * looking.  Move to WRITE_FLAT state as we'll be done
-		 * with the operation once the null copyup completes.
+		 * image has been flattened).  Re-submit the original write
+		 * request -- pass MODS_ONLY since the copyup isn't needed
+		 * anymore.
 		 */
-		obj_req->write_state = RBD_OBJ_WRITE_FLAT;
-		return rbd_obj_issue_copyup(obj_req, 0);
+		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
+		return rbd_obj_issue_copyup_ops(obj_req, MODS_ONLY);
 	}
 
 	ret = setup_copyup_bvecs(obj_req, rbd_obj_img_extents_bytes(obj_req));
 	if (ret)
 		return ret;
 
-	obj_req->write_state = RBD_OBJ_WRITE_COPYUP;
+	obj_req->write_state = RBD_OBJ_WRITE_READ_FROM_PARENT;
 	return rbd_obj_read_from_parent(obj_req);
 }
 
@@ -2583,7 +2594,6 @@ static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req)
 {
 	int ret;
 
-again:
 	switch (obj_req->write_state) {
 	case RBD_OBJ_WRITE_GUARD:
 		rbd_assert(!obj_req->xferred);
@@ -2602,6 +2612,7 @@ again:
 		}
 		/* fall through */
 	case RBD_OBJ_WRITE_FLAT:
+	case RBD_OBJ_WRITE_COPYUP_OPS:
 		if (!obj_req->result)
 			/*
 			 * There is no such thing as a successful short
@@ -2609,10 +2620,9 @@ again:
 			 */
 			obj_req->xferred = obj_req->ex.oe_len;
 		return true;
-	case RBD_OBJ_WRITE_COPYUP:
-		obj_req->write_state = RBD_OBJ_WRITE_GUARD;
+	case RBD_OBJ_WRITE_READ_FROM_PARENT:
 		if (obj_req->result)
-			goto again;
+			return true;
 
 		rbd_assert(obj_req->xferred);
 		ret = rbd_obj_issue_copyup(obj_req, obj_req->xferred);
