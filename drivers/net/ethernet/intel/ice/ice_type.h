@@ -477,6 +477,11 @@ struct ice_hw_port_stats {
 	u64 link_xoff_rx;		/* lxoffrxc */
 	u64 link_xon_tx;		/* lxontxc */
 	u64 link_xoff_tx;		/* lxofftxc */
+	u64 priority_xon_rx[8];		/* pxonrxc[8] */
+	u64 priority_xoff_rx[8];	/* pxoffrxc[8] */
+	u64 priority_xon_tx[8];		/* pxontxc[8] */
+	u64 priority_xoff_tx[8];	/* pxofftxc[8] */
+	u64 priority_xon_2_xoff[8];	/* pxon2offc[8] */
 	u64 rx_size_64;			/* prc64 */
 	u64 rx_size_127;		/* prc127 */
 	u64 rx_size_255;		/* prc255 */

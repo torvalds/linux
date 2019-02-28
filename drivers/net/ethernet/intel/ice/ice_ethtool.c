@@ -33,8 +33,14 @@ static int ice_q_stats_len(struct net_device *netdev)
 #define ICE_PF_STATS_LEN	ARRAY_SIZE(ice_gstrings_pf_stats)
 #define ICE_VSI_STATS_LEN	ARRAY_SIZE(ice_gstrings_vsi_stats)
 
-#define ICE_ALL_STATS_LEN(n)	(ICE_PF_STATS_LEN + ICE_VSI_STATS_LEN + \
-				 ice_q_stats_len(n))
+#define ICE_PFC_STATS_LEN ( \
+		(FIELD_SIZEOF(struct ice_pf, stats.priority_xoff_rx) + \
+		 FIELD_SIZEOF(struct ice_pf, stats.priority_xon_rx) + \
+		 FIELD_SIZEOF(struct ice_pf, stats.priority_xoff_tx) + \
+		 FIELD_SIZEOF(struct ice_pf, stats.priority_xon_tx)) \
+		 / sizeof(u64))
+#define ICE_ALL_STATS_LEN(n)	(ICE_PF_STATS_LEN + ICE_PFC_STATS_LEN + \
+				 ICE_VSI_STATS_LEN + ice_q_stats_len(n))
 
 static const struct ice_stats ice_gstrings_vsi_stats[] = {
 	ICE_VSI_STAT("tx_unicast", eth_stats.tx_unicast),
@@ -309,6 +315,22 @@ static void ice_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 			p += ETH_GSTRING_LEN;
 		}
 
+		for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx-priority-%u-xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx-priority-%u-xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx-priority-%u-xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx-priority-%u-xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		for (i = 0; i < ICE_PRIV_FLAG_ARRAY_SIZE; i++) {
@@ -485,6 +507,16 @@ ice_get_ethtool_stats(struct net_device *netdev,
 		p = (char *)pf + ice_gstrings_pf_stats[j].stat_offset;
 		data[i++] = (ice_gstrings_pf_stats[j].sizeof_stat ==
 			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+
+	for (j = 0; j < ICE_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_tx[j];
+		data[i++] = pf->stats.priority_xoff_tx[j];
+	}
+
+	for (j = 0; j < ICE_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_rx[j];
+		data[i++] = pf->stats.priority_xoff_rx[j];
 	}
 }
 
