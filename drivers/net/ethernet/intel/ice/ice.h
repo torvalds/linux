@@ -420,6 +420,26 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
 
+/**
+ * ice_find_vsi_by_type - Find and return VSI of a given type
+ * @pf: PF to search for VSI
+ * @type: Value indicating type of VSI we are looking for
+ */
+static inline struct ice_vsi *
+ice_find_vsi_by_type(struct ice_pf *pf, enum ice_vsi_type type)
+{
+	int i;
+
+	for (i = 0; i < pf->num_alloc_vsi; i++) {
+		struct ice_vsi *vsi = pf->vsi[i];
+
+		if (vsi && vsi->type == type)
+			return vsi;
+	}
+
+	return NULL;
+}
+
 void ice_set_ethtool_ops(struct net_device *netdev);
 int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
