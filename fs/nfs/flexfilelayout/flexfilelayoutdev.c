@@ -183,40 +183,6 @@ out_err:
 	return NULL;
 }
 
-static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
-				   struct nfs4_ff_layout_mirror *mirror,
-				   bool create)
-{
-	if (mirror == NULL)
-		goto outerr;
-	if (mirror->mirror_ds == NULL) {
-		if (create) {
-			struct nfs4_deviceid_node *node;
-			struct pnfs_layout_hdr *lh = lseg->pls_layout;
-			struct nfs4_ff_layout_ds *mirror_ds = ERR_PTR(-ENODEV);
-
-			node = nfs4_find_get_deviceid(NFS_SERVER(lh->plh_inode),
-					&mirror->devid, lh->plh_lc_cred,
-					GFP_KERNEL);
-			if (node)
-				mirror_ds = FF_LAYOUT_MIRROR_DS(node);
-
-			/* check for race with another call to this function */
-			if (cmpxchg(&mirror->mirror_ds, NULL, mirror_ds) &&
-			    mirror_ds != ERR_PTR(-ENODEV))
-				nfs4_put_deviceid_node(node);
-		} else
-			goto outerr;
-	}
-
-	if (IS_ERR(mirror->mirror_ds))
-		goto outerr;
-
-	return true;
-outerr:
-	return false;
-}
-
 static void extend_ds_error(struct nfs4_ff_layout_ds_err *err,
 			    u64 offset, u64 length)
 {
@@ -350,6 +316,36 @@ nfs4_ff_layout_select_ds_stateid(const struct nfs4_ff_layout_mirror *mirror,
 		nfs4_stateid_copy(stateid, &mirror->stateid);
 }
 
+static bool
+ff_layout_init_mirror_ds(struct pnfs_layout_hdr *lo,
+			 struct nfs4_ff_layout_mirror *mirror)
+{
+	if (mirror == NULL)
+		goto outerr;
+	if (mirror->mirror_ds == NULL) {
+		struct nfs4_deviceid_node *node;
+		struct nfs4_ff_layout_ds *mirror_ds = ERR_PTR(-ENODEV);
+
+		node = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode),
+				&mirror->devid, lo->plh_lc_cred,
+				GFP_KERNEL);
+		if (node)
+			mirror_ds = FF_LAYOUT_MIRROR_DS(node);
+
+		/* check for race with another call to this function */
+		if (cmpxchg(&mirror->mirror_ds, NULL, mirror_ds) &&
+		    mirror_ds != ERR_PTR(-ENODEV))
+			nfs4_put_deviceid_node(node);
+	}
+
+	if (IS_ERR(mirror->mirror_ds))
+		goto outerr;
+
+	return true;
+outerr:
+	return false;
+}
+
 /**
  * nfs4_ff_layout_prepare_ds - prepare a DS connection for an RPC call
  * @lseg: the layout segment we're operating on
@@ -378,7 +374,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 	unsigned int max_payload;
 	int status;
 
-	if (!ff_layout_mirror_valid(lseg, mirror, true))
+	if (!ff_layout_init_mirror_ds(lseg->pls_layout, mirror))
 		goto noconnect;
 
 	ds = mirror->mirror_ds->ds;
