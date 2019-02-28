@@ -429,7 +429,8 @@ static void calculate_probability(struct Qdisc *sch)
 	 */
 
 	if (qdelay == 0 && qdelay_old == 0 && update_prob)
-		q->vars.prob = 98 * div_u64(q->vars.prob, 100);
+		/* Reduce drop probability to 98.4% */
+		q->vars.prob -= q->vars.prob / 64u;
 
 	q->vars.qdelay = qdelay;
 	q->vars.qlen_old = qlen;
