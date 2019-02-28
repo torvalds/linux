@@ -26,7 +26,7 @@ static void wil_pm_wake_connected_net_queues(struct wil6210_priv *wil)
 	int i;
 
 	mutex_lock(&wil->vif_mutex);
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		struct wil6210_vif *vif = wil->vifs[i];
 
 		if (vif && test_bit(wil_vif_fwconnected, vif->status))
@@ -40,7 +40,7 @@ static void wil_pm_stop_all_net_queues(struct wil6210_priv *wil)
 	int i;
 
 	mutex_lock(&wil->vif_mutex);
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		struct wil6210_vif *vif = wil->vifs[i];
 
 		if (vif)
@@ -123,7 +123,7 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 
 	/* interface is running */
 	mutex_lock(&wil->vif_mutex);
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		struct wil6210_vif *vif = wil->vifs[i];
 
 		if (!vif)

@@ -1381,7 +1381,7 @@ static int link_show(struct seq_file *s, void *data)
 		if (p->status != wil_sta_connected)
 			continue;
 
-		vif = (mid < wil->max_vifs) ? wil->vifs[mid] : NULL;
+		vif = (mid < GET_MAX_VIFS(wil)) ? wil->vifs[mid] : NULL;
 		if (vif) {
 			rc = wil_cid_fill_sinfo(vif, i, sinfo);
 			if (rc)
@@ -1579,7 +1579,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			break;
 		}
 		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
-		if (mid < wil->max_vifs) {
+		if (mid < GET_MAX_VIFS(wil)) {
 			struct wil6210_vif *vif = wil->vifs[mid];
 
 			if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
@@ -1645,7 +1645,7 @@ static int mids_show(struct seq_file *s, void *data)
 	int i;
 
 	mutex_lock(&wil->vif_mutex);
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		vif = wil->vifs[i];
 
 		if (vif) {
@@ -1866,7 +1866,7 @@ static int wil_link_stats_debugfs_show(struct seq_file *s, void *data)
 	/* iterate over all MIDs and show per-cid statistics. Then show the
 	 * global statistics
 	 */
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		vif = wil->vifs[i];
 
 		seq_printf(s, "MID %d ", i);
@@ -1922,7 +1922,7 @@ static ssize_t wil_link_stats_write(struct file *file, const char __user *buf,
 	if (rc)
 		return rc;
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		vif = wil->vifs[i];
 		if (!vif)
 			continue;
