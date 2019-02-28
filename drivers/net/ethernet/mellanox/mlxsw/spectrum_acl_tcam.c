@@ -184,6 +184,19 @@ struct mlxsw_sp_acl_tcam_vgroup {
 struct mlxsw_sp_acl_tcam_rehash_ctx {
 	void *hints_priv;
 	bool this_is_rollback;
+	struct mlxsw_sp_acl_tcam_vchunk *current_vchunk; /* vchunk being
+							  * currently migrated.
+							  */
+	struct mlxsw_sp_acl_tcam_ventry *start_ventry; /* ventry to start
+							* migration from in
+							* a vchunk being
+							* currently migrated.
+							*/
+	struct mlxsw_sp_acl_tcam_ventry *stop_ventry; /* ventry to stop
+						       * migration at
+						       * a vchunk being
+						       * currently migrated.
+						       */
 };
 
 struct mlxsw_sp_acl_tcam_vregion {
@@ -755,6 +768,31 @@ static void mlxsw_sp_acl_tcam_vregion_rehash_work(struct work_struct *work)
 		mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
 }
 
+static void
+mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(struct mlxsw_sp_acl_tcam_vchunk *vchunk)
+{
+	struct mlxsw_sp_acl_tcam_vregion *vregion = vchunk->vregion;
+
+	/* If a rule was added or deleted from vchunk which is currently
+	 * under rehash migration, we have to reset the ventry pointers
+	 * to make sure all rules are properly migrated.
+	 */
+	if (vregion->rehash.ctx.current_vchunk == vchunk) {
+		vregion->rehash.ctx.start_ventry = NULL;
+		vregion->rehash.ctx.stop_ventry = NULL;
+	}
+}
+
+static void
+mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(struct mlxsw_sp_acl_tcam_vregion *vregion)
+{
+	/* If a chunk was added or deleted from vregion we have to reset
+	 * the current chunk pointer to make sure all chunks
+	 * are properly migrated.
+	 */
+	vregion->rehash.ctx.current_vchunk = NULL;
+}
+
 static struct mlxsw_sp_acl_tcam_vregion *
 mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_vgroup *vgroup,
@@ -989,6 +1027,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_chunk_create;
 	}
 
+	mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(vregion);
 	list_add_tail(&vchunk->list, &vregion->vchunk_list);
 	mutex_unlock(&vregion->lock);
 
@@ -1012,6 +1051,7 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup = vchunk->vgroup;
 
 	mutex_lock(&vregion->lock);
+	mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(vregion);
 	list_del(&vchunk->list);
 	if (vchunk->chunk2)
 		mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
@@ -1141,6 +1181,7 @@ static int mlxsw_sp_acl_tcam_ventry_add(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	list_add_tail(&ventry->list, &vchunk->ventry_list);
+	mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(vchunk);
 	mutex_unlock(&vregion->lock);
 
 	return 0;
@@ -1157,6 +1198,7 @@ static void mlxsw_sp_acl_tcam_ventry_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_vregion *vregion = vchunk->vregion;
 
 	mutex_lock(&vregion->lock);
+	mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(vchunk);
 	list_del(&ventry->list);
 	mlxsw_sp_acl_tcam_entry_destroy(mlxsw_sp, ventry->entry);
 	mutex_unlock(&vregion->lock);
@@ -1223,15 +1265,20 @@ mlxsw_sp_acl_tcam_vchunk_migrate_start(struct mlxsw_sp *mlxsw_sp,
 	}
 	vchunk->chunk2 = vchunk->chunk;
 	vchunk->chunk = new_chunk;
+	ctx->current_vchunk = vchunk;
+	ctx->start_ventry = NULL;
+	ctx->stop_ventry = NULL;
 	return 0;
 }
 
 static void
 mlxsw_sp_acl_tcam_vchunk_migrate_end(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_acl_tcam_vchunk *vchunk)
+				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
 	vchunk->chunk2 = NULL;
+	ctx->current_vchunk = NULL;
 }
 
 static int
@@ -1254,7 +1301,22 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	}
 
-	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
+	/* If the migration got interrupted, we have the ventry to start from
+	 * stored in context.
+	 */
+	if (ctx->start_ventry)
+		ventry = ctx->start_ventry;
+	else
+		ventry = list_first_entry(&vchunk->ventry_list,
+					  typeof(*ventry), list);
+
+	list_for_each_entry_from(ventry, &vchunk->ventry_list, list) {
+		/* During rollback, once we reach the ventry that failed
+		 * to migrate, we are done.
+		 */
+		if (ventry == ctx->stop_ventry)
+			break;
+
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
 						       vchunk->chunk, credits);
 		if (err) {
@@ -1265,16 +1327,25 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			 * in vchunk->chunk.
 			 */
 			swap(vchunk->chunk, vchunk->chunk2);
+			/* The rollback has to be done from beginning of the
+			 * chunk, that is why we have to null the start_ventry.
+			 * However, we know where to stop the rollback,
+			 * at the current ventry.
+			 */
+			ctx->start_ventry = NULL;
+			ctx->stop_ventry = ventry;
 			return err;
 		} else if (*credits < 0) {
 			/* We are out of credits, the rest of the ventries
-			 * will be migrated later.
+			 * will be migrated later. Save the ventry
+			 * which we ended with.
 			 */
+			ctx->start_ventry = ventry;
 			return 0;
 		}
 	}
 
-	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk);
+	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk, ctx);
 	return 0;
 }
 
@@ -1287,7 +1358,16 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	int err;
 
-	list_for_each_entry(vchunk, &vregion->vchunk_list, list) {
+	/* If the migration got interrupted, we have the vchunk
+	 * we are working on stored in context.
+	 */
+	if (ctx->current_vchunk)
+		vchunk = ctx->current_vchunk;
+	else
+		vchunk = list_first_entry(&vregion->vchunk_list,
+					  typeof(*vchunk), list);
+
+	list_for_each_entry_from(vchunk, &vregion->vchunk_list, list) {
 		err = mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
 							   vregion->region,
 							   ctx, credits);
@@ -1315,6 +1395,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		 * to vregion->region.
 		 */
 		swap(vregion->region, vregion->region2);
+		ctx->current_vchunk = NULL;
 		ctx->this_is_rollback = true;
 		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
 							    ctx, credits);
