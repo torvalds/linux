@@ -1197,21 +1197,23 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_region *region,
 				     bool this_is_rollback)
 {
+	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
-	struct mlxsw_sp_acl_tcam_chunk *chunk2;
 	int err;
 	int err2;
 
-	chunk2 = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
-	if (IS_ERR(chunk2)) {
+	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
+	if (IS_ERR(new_chunk)) {
 		if (this_is_rollback)
 			vchunk->vregion->failed_rollback = true;
-		return PTR_ERR(chunk2);
+		return PTR_ERR(new_chunk);
 	}
-	vchunk->chunk2 = chunk2;
+	vchunk->chunk2 = vchunk->chunk;
+	vchunk->chunk = new_chunk;
+
 	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
-						       vchunk->chunk2);
+						       vchunk->chunk);
 		if (err) {
 			if (this_is_rollback) {
 				vchunk->vregion->failed_rollback = true;
@@ -1220,8 +1222,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			goto rollback;
 		}
 	}
-	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk);
-	vchunk->chunk = chunk2;
+	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
 	vchunk->chunk2 = NULL;
 	return 0;
 
@@ -1230,6 +1231,7 @@ rollback:
 	 * migration fails, there's no good way how to proceed. Set the
 	 * vregion with "failed_rollback" flag.
 	 */
+	swap(vchunk->chunk, vchunk->chunk2);
 	list_for_each_entry_continue_reverse(ventry, &vchunk->ventry_list,
 					     list) {
 		err2 = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
