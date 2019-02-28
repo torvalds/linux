@@ -21,13 +21,20 @@
 #define DMA_DUMMY_TXWI	((void *) ~0)
 
 static int
-mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q)
+mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
+		     int idx, int n_desc, int bufsize,
+		     u32 ring_base)
 {
 	int size;
 	int i;
 
 	spin_lock_init(&q->lock);
 	INIT_LIST_HEAD(&q->swq);
+
+	q->regs = dev->mmio.regs + ring_base + idx * MT_RING_SIZE;
+	q->ndesc = n_desc;
+	q->buf_size = bufsize;
+	q->hw_idx = idx;
 
 	size = q->ndesc * sizeof(struct mt76_desc);
 	q->desc = dmam_alloc_coherent(dev->dev, size, &q->desc_dma, GFP_KERNEL);
