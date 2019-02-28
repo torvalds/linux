@@ -274,8 +274,6 @@
 
 #define UMC_SDP_INIT			BIT(31)
 
-#define NUM_UMCS			2
-
 enum amd_families {
 	K8_CPUS = 0,
 	F10_CPUS,
@@ -399,8 +397,8 @@ struct err_info {
 
 static inline u32 get_umc_base(u8 channel)
 {
-	/* ch0: 0x50000, ch1: 0x150000 */
-	return 0x50000 + (!!channel << 20);
+	/* chY: 0xY50000 */
+	return 0x50000 + (channel << 20);
 }
 
 static inline u64 get_dram_base(struct amd64_pvt *pvt, u8 i)
