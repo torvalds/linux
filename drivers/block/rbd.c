@@ -221,22 +221,32 @@ enum obj_operation_type {
  * Writes go through the following state machine to deal with
  * layering:
  *
- *                       need copyup
- * RBD_OBJ_WRITE_GUARD ---------------> RBD_OBJ_WRITE_COPYUP
- *        |     ^                              |
- *        v     \------------------------------/
- *      done
- *        ^
- *        |
- * RBD_OBJ_WRITE_FLAT
+ *            . . . . . RBD_OBJ_WRITE_GUARD. . . . . . . . . . . . . .
+ *            .                 |                                    .
+ *            .                 v                                    .
+ *            .    RBD_OBJ_WRITE_READ_FROM_PARENT. . .               .
+ *            .                 |                    .               .
+ *            .                 v                    v (deep-copyup  .
+ *    (image  .   RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC   .  not needed)  .
+ * flattened) v                 |                    .               .
+ *            .                 v                    .               .
+ *            . . . .RBD_OBJ_WRITE_COPYUP_OPS. . . . .      (copyup  .
+ *                              |                        not needed) v
+ *                              v                                    .
+ *                            done . . . . . . . . . . . . . . . . . .
+ *                              ^
+ *                              |
+ *                     RBD_OBJ_WRITE_FLAT
  *
  * Writes start in RBD_OBJ_WRITE_GUARD or _FLAT, depending on whether
- * there is a parent or not.
+ * assert_exists guard is needed or not (in some cases it's not needed
+ * even if there is a parent).
  */
 enum rbd_obj_write_state {
 	RBD_OBJ_WRITE_FLAT = 1,
 	RBD_OBJ_WRITE_GUARD,
 	RBD_OBJ_WRITE_READ_FROM_PARENT,
+	RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC,
 	RBD_OBJ_WRITE_COPYUP_OPS,
 };
 
@@ -421,6 +431,10 @@ static int rbd_major;
 static DEFINE_IDA(rbd_dev_id_ida);
 
 static struct workqueue_struct *rbd_wq;
+
+static struct ceph_snap_context rbd_empty_snapc = {
+	.nref = REFCOUNT_INIT(1),
+};
 
 /*
  * single-major requires >= 0.75 version of userspace rbd utility.
@@ -2461,6 +2475,38 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 
 #define MODS_ONLY	U32_MAX
 
+static int rbd_obj_issue_copyup_empty_snapc(struct rbd_obj_request *obj_req,
+					    u32 bytes)
+{
+	int ret;
+
+	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
+	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT);
+	rbd_assert(bytes > 0 && bytes != MODS_ONLY);
+	rbd_osd_req_destroy(obj_req->osd_req);
+
+	obj_req->osd_req = __rbd_osd_req_create(obj_req, &rbd_empty_snapc, 1);
+	if (!obj_req->osd_req)
+		return -ENOMEM;
+
+	ret = osd_req_op_cls_init(obj_req->osd_req, 0, "rbd", "copyup");
+	if (ret)
+		return ret;
+
+	osd_req_op_cls_request_data_bvecs(obj_req->osd_req, 0,
+					  obj_req->copyup_bvecs,
+					  obj_req->copyup_bvec_count,
+					  bytes);
+	rbd_osd_req_format_write(obj_req);
+
+	ret = ceph_osdc_alloc_messages(obj_req->osd_req, GFP_NOIO);
+	if (ret)
+		return ret;
+
+	rbd_obj_request_submit(obj_req);
+	return 0;
+}
+
 static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 {
 	struct rbd_img_request *img_req = obj_req->img_request;
@@ -2469,7 +2515,8 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 	int ret;
 
 	dout("%s obj_req %p bytes %u\n", __func__, obj_req, bytes);
-	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT);
+	rbd_assert(obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_STAT ||
+		   obj_req->osd_req->r_ops[0].op == CEPH_OSD_OP_CALL);
 	rbd_osd_req_destroy(obj_req->osd_req);
 
 	switch (img_req->op_type) {
@@ -2529,6 +2576,17 @@ static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
 	if (is_zero_bvecs(obj_req->copyup_bvecs, bytes)) {
 		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
 		bytes = 0;
+	}
+
+	if (obj_req->img_request->snapc->num_snaps && bytes > 0) {
+		/*
+		 * Send a copyup request with an empty snapshot context to
+		 * deep-copyup the object through all existing snapshots.
+		 * A second request with the current snapshot context will be
+		 * sent for the actual modification.
+		 */
+		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC;
+		return rbd_obj_issue_copyup_empty_snapc(obj_req, bytes);
 	}
 
 	obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
@@ -2629,6 +2687,17 @@ static bool rbd_obj_handle_write(struct rbd_obj_request *obj_req)
 		if (ret) {
 			obj_req->result = ret;
 			obj_req->xferred = 0;
+			return true;
+		}
+		return false;
+	case RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC:
+		if (obj_req->result)
+			return true;
+
+		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
+		ret = rbd_obj_issue_copyup_ops(obj_req, MODS_ONLY);
+		if (ret) {
+			obj_req->result = ret;
 			return true;
 		}
 		return false;
