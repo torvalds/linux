@@ -278,10 +278,11 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 LIBBPF_API struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
-#define bpf_map__for_each(pos, obj)		\
+#define bpf_object__for_each_map(pos, obj)		\
 	for ((pos) = bpf_map__next(NULL, (obj));	\
 	     (pos) != NULL;				\
 	     (pos) = bpf_map__next((pos), (obj)))
+#define bpf_map__for_each bpf_object__for_each_map
 
 LIBBPF_API struct bpf_map *
 bpf_map__prev(struct bpf_map *map, struct bpf_object *obj);
