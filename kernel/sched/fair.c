@@ -6925,11 +6925,18 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 	return energy;
 }
 
-static void select_max_spare_cap_cpus(struct sched_domain *sd, cpumask_t *cpus,
-		struct perf_domain *pd, struct task_struct *p)
+static void select_cpu_candidates(struct sched_domain *sd, cpumask_t *cpus,
+		struct perf_domain *pd, struct task_struct *p, int prev_cpu)
 {
+	int highest_spare_cap_cpu = prev_cpu, best_idle_cpu = -1;
 	unsigned long spare_cap, max_spare_cap, util, cpu_cap;
+	bool prefer_idle = schedtune_prefer_idle(p);
+	bool boosted = schedtune_task_boost(p) > 0;
+	unsigned long target_cap = boosted ? 0 : ULONG_MAX;
+	unsigned long highest_spare_cap = 0;
+	unsigned int min_exit_lat = UINT_MAX;
 	int cpu, max_spare_cap_cpu;
+	struct cpuidle_state *idle;
 
 	for (; pd; pd = pd->next) {
 		max_spare_cap_cpu = -1;
@@ -6954,11 +6961,42 @@ static void select_max_spare_cap_cpus(struct sched_domain *sd, cpumask_t *cpus,
 				max_spare_cap = spare_cap;
 				max_spare_cap_cpu = cpu;
 			}
+
+			if (!prefer_idle)
+				continue;
+
+			if (idle_cpu(cpu)) {
+				cpu_cap = capacity_orig_of(cpu);
+				if (boosted && cpu_cap < target_cap)
+					continue;
+				if (!boosted && cpu_cap > target_cap)
+					continue;
+				idle = idle_get_state(cpu_rq(cpu));
+				if (idle && idle->exit_latency > min_exit_lat &&
+						cpu_cap == target_cap)
+					continue;
+
+				if (idle)
+					min_exit_lat = idle->exit_latency;
+				target_cap = cpu_cap;
+				best_idle_cpu = cpu;
+			} else if (spare_cap > highest_spare_cap) {
+				highest_spare_cap = spare_cap;
+				highest_spare_cap_cpu = cpu;
+			}
 		}
 
-		if (max_spare_cap_cpu >= 0)
+		if (!prefer_idle && max_spare_cap_cpu >= 0)
 			cpumask_set_cpu(max_spare_cap_cpu, cpus);
 	}
+
+	if (!prefer_idle)
+		return;
+
+	if (best_idle_cpu >= 0)
+		cpumask_set_cpu(best_idle_cpu, cpus);
+	else
+		cpumask_set_cpu(highest_spare_cap_cpu, cpus);
 }
 
 static DEFINE_PER_CPU(cpumask_t, energy_cpus);
@@ -7045,7 +7083,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 	if (sched_feat(FIND_BEST_TARGET))
 		find_best_target(sd, candidates, p);
 	else
-		select_max_spare_cap_cpus(sd, candidates, pd, p);
+		select_cpu_candidates(sd, candidates, pd, p, prev_cpu);
 
 	/* Bail out if no candidate was found. */
 	weight = cpumask_weight(candidates);
