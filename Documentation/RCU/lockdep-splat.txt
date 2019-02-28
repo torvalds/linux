@@ -14,9 +14,9 @@ being the real world and all that.
 So let's look at an example RCU lockdep splat from 3.0-rc5, one that
 has long since been fixed:
 
-===============================
-[ INFO: suspicious RCU usage. ]
--------------------------------
+=============================
+WARNING: suspicious RCU usage
+-----------------------------
 block/cfq-iosched.c:2776 suspicious rcu_dereference_protected() usage!
 
 other info that might help us debug this:
