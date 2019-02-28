@@ -265,8 +265,7 @@ int qeth_realloc_buffer_pool(struct qeth_card *card, int bufcnt)
 {
 	QETH_CARD_TEXT(card, 2, "realcbp");
 
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER))
+	if (card->state != CARD_STATE_DOWN)
 		return -EPERM;
 
 	/* TODO: steel/add buffers from/to a running card's buffer pool (?) */
@@ -3479,8 +3478,7 @@ int qeth_configure_cq(struct qeth_card *card, enum qeth_cq cq)
 			goto out;
 		}
 
-		if (card->state != CARD_STATE_DOWN &&
-		    card->state != CARD_STATE_RECOVER) {
+		if (card->state != CARD_STATE_DOWN) {
 			rc = -1;
 			goto out;
 		}
