@@ -710,7 +710,7 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 			dev_err(hdev->dev,
 				"DRAM: mapping already exists for virt_addr 0x%llx\n",
 					virt_addr);
-			rc = EINVAL;
+			rc = -EINVAL;
 			goto err;
 		}
 
@@ -744,7 +744,7 @@ static int _hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 							hop4_pte_addr),
 							hop4_pte_addr);
 
-		rc = EINVAL;
+		rc = -EINVAL;
 		goto err;
 	}
 
