@@ -6,6 +6,7 @@
 
 #include "ice_type.h"
 
+#define ICE_DCBX_STATUS_NOT_STARTED	0
 #define ICE_DCBX_STATUS_IN_PROGRESS	1
 #define ICE_DCBX_STATUS_DONE		2
 #define ICE_DCBX_STATUS_DIS		7

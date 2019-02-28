@@ -187,6 +187,50 @@ static int ice_dcb_init_cfg(struct ice_pf *pf)
 }
 
 /**
+ * ice_dcb_sw_default_config - Apply a default DCB config
+ * @pf: pf to apply config to
+ */
+static int ice_dcb_sw_dflt_cfg(struct ice_pf *pf)
+{
+	struct ice_aqc_port_ets_elem buf = { 0 };
+	struct ice_dcbx_cfg *dcbcfg;
+	struct ice_port_info *pi;
+	struct ice_hw *hw;
+	int ret;
+
+	hw = &pf->hw;
+	pi = hw->port_info;
+	dcbcfg = devm_kzalloc(&pf->pdev->dev, sizeof(*dcbcfg), GFP_KERNEL);
+
+	memset(dcbcfg, 0, sizeof(*dcbcfg));
+	memset(&pi->local_dcbx_cfg, 0, sizeof(*dcbcfg));
+
+	dcbcfg->etscfg.willing = 1;
+	dcbcfg->etscfg.maxtcs = 8;
+	dcbcfg->etscfg.tcbwtable[0] = 100;
+	dcbcfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
+
+	memcpy(&dcbcfg->etsrec, &dcbcfg->etscfg,
+	       sizeof(dcbcfg->etsrec));
+	dcbcfg->etsrec.willing = 0;
+
+	dcbcfg->pfc.willing = 1;
+	dcbcfg->pfc.pfccap = IEEE_8021QAZ_MAX_TCS;
+
+	dcbcfg->numapps = 1;
+	dcbcfg->app[0].selector = ICE_APP_SEL_ETHTYPE;
+	dcbcfg->app[0].priority = 3;
+	dcbcfg->app[0].prot_id = ICE_APP_PROT_ID_FCOE;
+
+	ret = ice_pf_dcb_cfg(pf, dcbcfg);
+	devm_kfree(&pf->pdev->dev, dcbcfg);
+	if (ret)
+		return ret;
+
+	return ice_query_port_ets(pi, &buf, sizeof(buf), NULL);
+}
+
+/**
  * ice_init_pf_dcb - initialize DCB for a PF
  * @pf: pf to initiialize DCB for
  */
@@ -195,6 +239,7 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
 	struct ice_hw *hw = &pf->hw;
+	int sw_default = 0;
 	int err;
 
 	port_info = hw->port_info;
@@ -223,8 +268,41 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	}
 
 	err = ice_init_dcb(hw);
-	if (err)
-		goto dcb_init_err;
+	if (err) {
+		/* FW LLDP not in usable state, default to SW DCBx/LLDP */
+		dev_info(&pf->pdev->dev, "FW LLDP not in usable state\n");
+		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
+		hw->port_info->is_sw_lldp = true;
+	}
+
+	if (port_info->dcbx_status == ICE_DCBX_STATUS_DIS)
+		dev_info(&pf->pdev->dev, "DCBX disabled\n");
+
+	/* LLDP disabled in FW */
+	if (port_info->is_sw_lldp) {
+		sw_default = 1;
+		dev_info(&pf->pdev->dev, "DCBx/LLDP in SW mode.\n");
+	}
+
+	if (port_info->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
+		sw_default = 1;
+		dev_info(&pf->pdev->dev, "DCBX not started\n");
+	}
+
+	if (sw_default) {
+		err = ice_dcb_sw_dflt_cfg(pf);
+		if (err) {
+			dev_err(&pf->pdev->dev,
+				"Failed to set local DCB config %d\n", err);
+			err = -EIO;
+			goto dcb_init_err;
+		}
+
+		pf->dcbx_cap = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
+		set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
+		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
+		return 0;
+	}
 
 	/* DCBX in FW and LLDP enabled in FW */
 	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
