@@ -161,6 +161,7 @@ struct hisi_sas_phy {
 	u8		in_reset;
 	u8		reserved[2];
 	u32		phy_type;
+	u32		code_violation_err_count;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 };
