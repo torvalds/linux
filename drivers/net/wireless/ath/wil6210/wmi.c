@@ -41,6 +41,7 @@ MODULE_PARM_DESC(led_id,
 
 #define WIL_WAIT_FOR_SUSPEND_RESUME_COMP 200
 #define WIL_WMI_CALL_GENERAL_TO_MS 100
+#define WIL_WMI_PCP_STOP_TO_MS 5000
 
 /**
  * WMI event receiving - theory of operations
@@ -2195,7 +2196,8 @@ int wmi_pcp_stop(struct wil6210_vif *vif)
 		return rc;
 
 	return wmi_call(wil, WMI_PCP_STOP_CMDID, vif->mid, NULL, 0,
-			WMI_PCP_STOPPED_EVENTID, NULL, 0, 20);
+			WMI_PCP_STOPPED_EVENTID, NULL, 0,
+			WIL_WMI_PCP_STOP_TO_MS);
 }
 
 int wmi_set_ssid(struct wil6210_vif *vif, u8 ssid_len, const void *ssid)
