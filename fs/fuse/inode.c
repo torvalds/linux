@@ -628,6 +628,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns)
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 	fc->pid_ns = get_pid_ns(task_active_pid_ns(current));
 	fc->user_ns = get_user_ns(user_ns);
+	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -1162,7 +1163,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fc->user_id = d.user_id;
 	fc->group_id = d.group_id;
 	fc->max_read = max_t(unsigned, 4096, d.max_read);
-	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
 
 	/* Used by get_root_inode() */
 	sb->s_fs_info = fc;

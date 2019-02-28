@@ -26,7 +26,7 @@ struct mt76x02_dev;
 int mt76x0_eeprom_init(struct mt76x02_dev *dev);
 void mt76x0_read_rx_gain(struct mt76x02_dev *dev);
 void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev);
-void mt76x0_get_power_info(struct mt76x02_dev *dev, u8 *info);
+void mt76x0_get_power_info(struct mt76x02_dev *dev, s8 *tp);
 
 static inline s8 s6_to_s8(u32 val)
 {

@@ -657,6 +657,7 @@ struct mlx5e_channel_stats {
 enum {
 	MLX5E_STATE_OPENED,
 	MLX5E_STATE_DESTROYING,
+	MLX5E_STATE_XDP_TX_ENABLED,
 };
 
 struct mlx5e_rqt {

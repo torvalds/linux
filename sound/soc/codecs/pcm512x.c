@@ -1540,8 +1540,9 @@ int pcm512x_probe(struct device *dev, struct regmap *regmap)
 	pcm512x->supply_nb[2].notifier_call = pcm512x_regulator_event_2;
 
 	for (i = 0; i < ARRAY_SIZE(pcm512x->supplies); i++) {
-		ret = regulator_register_notifier(pcm512x->supplies[i].consumer,
-						  &pcm512x->supply_nb[i]);
+		ret = devm_regulator_register_notifier(
+						pcm512x->supplies[i].consumer,
+						&pcm512x->supply_nb[i]);
 		if (ret != 0) {
 			dev_err(dev,
 				"Failed to register regulator notifier: %d\n",

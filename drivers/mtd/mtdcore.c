@@ -507,6 +507,7 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
 {
 	struct nvmem_config config = {};
 
+	config.id = -1;
 	config.dev = &mtd->dev;
 	config.name = mtd->name;
 	config.owner = THIS_MODULE;

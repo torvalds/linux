@@ -144,8 +144,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 		return;
 
 	at91sam9x5_pmc = pmc_data_allocate(PMC_MAIN + 1,
-					   nck(at91sam9x5_systemck),
-					   nck(at91sam9x35_periphck), 0);
+					   nck(at91sam9x5_systemck), 31, 0);
 	if (!at91sam9x5_pmc)
 		return;
 
@@ -210,7 +209,7 @@ static void __init at91sam9x5_pmc_setup(struct device_node *np,
 	parent_names[1] = "mainck";
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
-	parent_names[4] = "mck";
+	parent_names[4] = "masterck";
 	for (i = 0; i < 2; i++) {
 		char name[6];
 

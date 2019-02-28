@@ -28,7 +28,6 @@
 #include "util.h"
 #include "trans.h"
 #include "dir.h"
-#include "lops.h"
 
 struct workqueue_struct *gfs2_freeze_wq;
 

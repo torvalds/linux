@@ -310,6 +310,9 @@ static int imx6_pcie_attach_pd(struct device *dev)
 	imx6_pcie->pd_pcie = dev_pm_domain_attach_by_name(dev, "pcie");
 	if (IS_ERR(imx6_pcie->pd_pcie))
 		return PTR_ERR(imx6_pcie->pd_pcie);
+	/* Do nothing when power domain missing */
+	if (!imx6_pcie->pd_pcie)
+		return 0;
 	link = device_link_add(dev, imx6_pcie->pd_pcie,
 			DL_FLAG_STATELESS |
 			DL_FLAG_PM_RUNTIME |
@@ -323,13 +326,13 @@ static int imx6_pcie_attach_pd(struct device *dev)
 	if (IS_ERR(imx6_pcie->pd_pcie_phy))
 		return PTR_ERR(imx6_pcie->pd_pcie_phy);
 
-	device_link_add(dev, imx6_pcie->pd_pcie_phy,
+	link = device_link_add(dev, imx6_pcie->pd_pcie_phy,
 			DL_FLAG_STATELESS |
 			DL_FLAG_PM_RUNTIME |
 			DL_FLAG_RPM_ACTIVE);
-	if (IS_ERR(link)) {
-		dev_err(dev, "Failed to add device_link to pcie_phy pd: %ld\n", PTR_ERR(link));
-		return PTR_ERR(link);
+	if (!link) {
+		dev_err(dev, "Failed to add device_link to pcie_phy pd.\n");
+		return -EINVAL;
 	}
 
 	return 0;

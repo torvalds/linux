@@ -196,7 +196,7 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8741_priv *wm8741 = snd_soc_component_get_drvdata(component);
-	unsigned int iface;
+	unsigned int iface, mode;
 	int i;
 
 	/* The set of sample rates that can be supported depends on the
@@ -240,11 +240,21 @@ static int wm8741_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	/* oversampling rate */
+	if (params_rate(params) > 96000)
+		mode = 0x40;
+	else if (params_rate(params) > 48000)
+		mode = 0x20;
+	else
+		mode = 0x00;
+
 	dev_dbg(component->dev, "wm8741_hw_params:    bit size param = %d, rate param = %d",
 		params_width(params), params_rate(params));
 
 	snd_soc_component_update_bits(component, WM8741_FORMAT_CONTROL, WM8741_IWL_MASK,
 			    iface);
+	snd_soc_component_update_bits(component, WM8741_MODE_CONTROL_1, WM8741_OSR_MASK,
+			    mode);
 
 	return 0;
 }
@@ -358,6 +368,15 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static int wm8741_mute(struct snd_soc_dai *codec_dai, int mute)
+{
+	struct snd_soc_component *component = codec_dai->component;
+
+	snd_soc_component_update_bits(component, WM8741_VOLUME_CONTROL,
+			WM8741_SOFT_MASK, !!mute << WM8741_SOFT_SHIFT);
+	return 0;
+}
+
 #define WM8741_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | \
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 | \
@@ -371,6 +390,7 @@ static const struct snd_soc_dai_ops wm8741_dai_ops = {
 	.hw_params	= wm8741_hw_params,
 	.set_sysclk	= wm8741_set_dai_sysclk,
 	.set_fmt	= wm8741_set_dai_fmt,
+	.digital_mute   = wm8741_mute,
 };
 
 static struct snd_soc_dai_driver wm8741_dai = {
