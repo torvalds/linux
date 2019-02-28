@@ -2675,8 +2675,9 @@ static int goya_mmu_init(struct hl_device *hdev)
 	goya->hw_cap_initialized |= HW_CAP_MMU;
 
 	/* init MMU cache manage page */
-	WREG32(mmSTLB_CACHE_INV_BASE_39_8, MMU_CACHE_MNG_ADDR >> 8);
-	WREG32(mmSTLB_CACHE_INV_BASE_49_40, MMU_CACHE_MNG_ADDR << 40);
+	WREG32(mmSTLB_CACHE_INV_BASE_39_8,
+				lower_32_bits(MMU_CACHE_MNG_ADDR >> 8));
+	WREG32(mmSTLB_CACHE_INV_BASE_49_40, MMU_CACHE_MNG_ADDR >> 40);
 
 	/* Remove follower feature due to performance bug */
 	WREG32_AND(mmSTLB_STLB_FEATURE_EN,
