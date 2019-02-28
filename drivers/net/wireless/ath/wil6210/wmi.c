@@ -2957,6 +2957,10 @@ static const char *suspend_status2name(u8 status)
 	switch (status) {
 	case WMI_TRAFFIC_SUSPEND_REJECTED_LINK_NOT_IDLE:
 		return "LINK_NOT_IDLE";
+	case WMI_TRAFFIC_SUSPEND_REJECTED_DISCONNECT:
+		return "DISCONNECT";
+	case WMI_TRAFFIC_SUSPEND_REJECTED_OTHER:
+		return "OTHER";
 	default:
 		return "Untracked status";
 	}
@@ -3046,6 +3050,9 @@ static void resume_triggers2string(u32 triggers, char *string, int str_size)
 
 	if (triggers & WMI_RESUME_TRIGGER_WMI_EVT)
 		strlcat(string, " WMI_EVT", str_size);
+
+	if (triggers & WMI_RESUME_TRIGGER_DISCONNECT)
+		strlcat(string, " DISCONNECT", str_size);
 }
 
 int wmi_resume(struct wil6210_priv *wil)
