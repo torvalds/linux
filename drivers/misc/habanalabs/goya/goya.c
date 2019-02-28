@@ -4276,9 +4276,8 @@ static int goya_parse_cb_no_ext_quque(struct hl_device *hdev,
 			return 0;
 
 		dev_err(hdev->dev,
-			"Internal CB address 0x%llx + 0x%x is not in SRAM nor in DRAM\n",
-			(u64) (uintptr_t) parser->user_cb,
-			parser->user_cb_size);
+			"Internal CB address %p + 0x%x is not in SRAM nor in DRAM\n",
+			parser->user_cb, parser->user_cb_size);
 
 		return -EFAULT;
 	}
