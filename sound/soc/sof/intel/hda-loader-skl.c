@@ -106,30 +106,25 @@
 			(((x) << HDA_CL_SPBFIFO_SPBFCCTL_SPIBE_SHIFT) & \
 			 HDA_CL_SPBFIFO_SPBFCCTL_SPIBE_MASK)
 
-static int cl_skl_cldma_setup_bdle(struct snd_sof_dev *sdev,
-				   struct snd_dma_buffer *dmab_data,
-				   __le32 **bdlp, int size, int with_ioc)
+static void cl_skl_cldma_setup_bdle(struct snd_sof_dev *sdev,
+				    struct snd_dma_buffer *dmab_data,
+				    __le32 **bdlp)
 {
+	const unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
+	phys_addr_t addr = virt_to_phys(dmab_data->area);
 	__le32 *bdl = *bdlp;
-	int frags = 0;
 
-	while (size > 0) {
-		phys_addr_t addr = virt_to_phys(dmab_data->area +
-						(frags * size));
+	/*
+	 * The CLDMA using a single physically-contiguous memory
+	 * to transfer the data to DSP, so need an interrupt at the
+	 * end of every transfer.
+	 */
+	bdl[0] = cpu_to_le32(lower_32_bits(addr));
+	bdl[1] = cpu_to_le32(upper_32_bits(addr));
 
-		bdl[0] = cpu_to_le32(lower_32_bits(addr));
-		bdl[1] = cpu_to_le32(upper_32_bits(addr));
+	bdl[2] = cpu_to_le32(bufsize);
 
-		bdl[2] = cpu_to_le32(size);
-
-		size -= size;
-		bdl[3] = (size || !with_ioc) ? 0 : cpu_to_le32(0x01);
-
-		bdl += 4;
-		frags++;
-	}
-
-	return frags;
+	bdl[3] = cpu_to_le32(0x01);
 }
 
 static void cl_skl_cldma_stream_run(struct snd_sof_dev *sdev, bool enable)
@@ -233,10 +228,11 @@ static void cl_skl_cldma_cleanup_spb(struct snd_sof_dev *sdev)
 }
 
 static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
-					  struct snd_dma_buffer *dmab_bdl,
-					  unsigned int max_size, u32 count)
+					  struct snd_dma_buffer *dmab_bdl)
 {
+	const unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 	int sd_offset = SOF_HDA_ADSP_LOADER_BASE;
+
 	/* Clear the stream first and then set it. */
 	cl_skl_cldma_stream_clear(sdev);
 
@@ -250,10 +246,10 @@ static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
 
 	/* Set the Cyclic Buffer Length. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL, max_size);
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL, bufsize);
 	/* Set the Last Valid Index. */
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI, count - 1);
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI, 0);
 
 	/*
 	 * Set the Interrupt On Completion, FIFO Error Interrupt,
@@ -271,10 +267,9 @@ static void cl_skl_cldma_setup_controller(struct snd_sof_dev *sdev,
 static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
-	int frags = 0;
-	int ret = 0;
+	int ret;
 	__le32 *bdl;
-	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
+	const unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, bufsize,
 				  &sdev->dmab);
@@ -293,8 +288,8 @@ static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 	}
 
 	bdl = (__le32 *)sdev->dmab_bdl.area;
-	frags = cl_skl_cldma_setup_bdle(sdev, &sdev->dmab, &bdl, bufsize, 1);
-	cl_skl_cldma_setup_controller(sdev, &sdev->dmab_bdl, bufsize, frags);
+	cl_skl_cldma_setup_bdle(sdev, &sdev->dmab, &bdl);
+	cl_skl_cldma_setup_controller(sdev, &sdev->dmab_bdl);
 
 	return ret;
 }
