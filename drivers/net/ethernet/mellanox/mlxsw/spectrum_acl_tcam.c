@@ -27,6 +27,7 @@ size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp)
 
 #define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_DFLT 5000 /* ms */
 #define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_MIN 3000 /* ms */
+#define MLXSW_SP_ACL_TCAM_VREGION_REHASH_CREDITS 100 /* number of entries */
 
 int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam)
@@ -732,16 +733,26 @@ mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(struct mlxsw_sp_acl_tcam_vregion 
 
 static int
 mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_tcam_vregion *vregion);
+				 struct mlxsw_sp_acl_tcam_vregion *vregion,
+				 int *credits);
 
 static void mlxsw_sp_acl_tcam_vregion_rehash_work(struct work_struct *work)
 {
 	struct mlxsw_sp_acl_tcam_vregion *vregion =
 		container_of(work, struct mlxsw_sp_acl_tcam_vregion,
 			     rehash.dw.work);
+	int credits = MLXSW_SP_ACL_TCAM_VREGION_REHASH_CREDITS;
+	int err;
 
-	mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp, vregion);
-	mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
+	err = mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp,
+					       vregion, &credits);
+	if (credits < 0)
+		/* Rehash gone out of credits so it was interrupted.
+		 * Schedule the work as soon as possible to continue.
+		 */
+		mlxsw_core_schedule_dw(&vregion->rehash.dw, 0);
+	else
+		mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
 }
 
 static struct mlxsw_sp_acl_tcam_vregion *
@@ -1176,12 +1187,16 @@ mlxsw_sp_acl_tcam_ventry_activity_get(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_ventry *ventry,
-				 struct mlxsw_sp_acl_tcam_chunk *chunk)
+				 struct mlxsw_sp_acl_tcam_chunk *chunk,
+				 int *credits)
 {
 	struct mlxsw_sp_acl_tcam_entry *new_entry;
 
 	/* First check if the entry is not already where we want it to be. */
 	if (ventry->entry->chunk == chunk)
+		return 0;
+
+	if (--(*credits) < 0)
 		return 0;
 
 	new_entry = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk);
@@ -1223,7 +1238,8 @@ static int
 mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
 				     struct mlxsw_sp_acl_tcam_region *region,
-				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				     int *credits)
 {
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
 	int err;
@@ -1240,7 +1256,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 
 	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
-						       vchunk->chunk);
+						       vchunk->chunk, credits);
 		if (err) {
 			if (ctx->this_is_rollback)
 				return err;
@@ -1250,6 +1266,11 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			 */
 			swap(vchunk->chunk, vchunk->chunk2);
 			return err;
+		} else if (*credits < 0) {
+			/* We are out of credits, the rest of the ventries
+			 * will be migrated later.
+			 */
+			return 0;
 		}
 	}
 
@@ -1260,7 +1281,8 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_vregion *vregion,
-				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				     int *credits)
 {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	int err;
@@ -1268,8 +1290,8 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 	list_for_each_entry(vchunk, &vregion->vchunk_list, list) {
 		err = mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
 							   vregion->region,
-							   ctx);
-		if (err)
+							   ctx, credits);
+		if (err || *credits < 0)
 			return err;
 	}
 	return 0;
@@ -1278,13 +1300,15 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion,
-				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				  int *credits)
 {
 	int err, err2;
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
 	mutex_lock(&vregion->lock);
-	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion, ctx);
+	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
+						   ctx, credits);
 	if (err) {
 		/* In case migration was not successful, we need to swap
 		 * so the original region pointer is assigned again
@@ -1292,13 +1316,20 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		 */
 		swap(vregion->region, vregion->region2);
 		ctx->this_is_rollback = true;
-		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion, ctx);
+		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
+							    ctx, credits);
 		if (err2)
 			vregion->failed_rollback = true;
 	}
 	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
 	return err;
+}
+
+static bool
+mlxsw_sp_acl_tcam_vregion_rehash_in_progress(const struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	return ctx->hints_priv;
 }
 
 static int
@@ -1372,19 +1403,28 @@ mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_tcam_vregion *vregion)
+				 struct mlxsw_sp_acl_tcam_vregion *vregion,
+				 int *credits)
 {
 	struct mlxsw_sp_acl_tcam_rehash_ctx *ctx = &vregion->rehash.ctx;
 	int err;
 
-	err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp, vregion, ctx);
-	if (err) {
-		if (err != -EAGAIN)
-			dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
-		return err;
+	/* Check if the previous rehash work was interrupted
+	 * which means we have to continue it now.
+	 * If not, start a new rehash.
+	 */
+	if (!mlxsw_sp_acl_tcam_vregion_rehash_in_progress(ctx)) {
+		err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp,
+							     vregion, ctx);
+		if (err) {
+			if (err != -EAGAIN)
+				dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
+			return err;
+		}
 	}
 
-	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, ctx);
+	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion,
+						ctx, credits);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to migrate vregion\n");
 		if (vregion->failed_rollback) {
@@ -1394,7 +1434,9 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		}
 	}
 
-	mlxsw_sp_acl_tcam_vregion_rehash_end(mlxsw_sp, vregion, ctx);
+	if (*credits >= 0)
+		mlxsw_sp_acl_tcam_vregion_rehash_end(mlxsw_sp, vregion, ctx);
+
 	return err;
 }
 
