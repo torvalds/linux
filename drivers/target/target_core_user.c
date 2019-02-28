@@ -1764,11 +1764,12 @@ static int tcmu_netlink_event_send(struct tcmu_dev *udev,
 
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
 				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
-	/* We don't care if no one is listening */
-	if (ret == -ESRCH)
-		ret = 0;
-	if (!ret)
-		ret = tcmu_wait_genl_cmd_reply(udev);
+
+	/* Wait during an add as the listener may not be up yet */
+	if (ret == 0 ||
+	   (ret == -ESRCH && cmd == TCMU_CMD_ADDED_DEVICE))
+		return tcmu_wait_genl_cmd_reply(udev);
+
 	return ret;
 }
 
