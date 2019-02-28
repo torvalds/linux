@@ -32,6 +32,7 @@
 #include "i915_gem.h"
 #include "i915_scheduler.h"
 #include "intel_device_info.h"
+#include "intel_ringbuffer.h"
 
 struct pid;
 
@@ -406,5 +407,12 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 void intel_context_init(struct intel_context *ce,
 			struct i915_gem_context *ctx,
 			struct intel_engine_cs *engine);
+
+struct i915_lut_handle *i915_lut_handle_alloc(void);
+void i915_lut_handle_free(struct i915_lut_handle *lut);
+
+int i915_global_context_init(void);
+void i915_global_context_shrink(void);
+void i915_global_context_exit(void);
 
 #endif /* !__I915_GEM_CONTEXT_H__ */

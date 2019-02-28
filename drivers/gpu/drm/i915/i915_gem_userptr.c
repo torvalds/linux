@@ -795,7 +795,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			return -ENODEV;
 	}
 
-	obj = i915_gem_object_alloc(dev_priv);
+	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return -ENOMEM;
 

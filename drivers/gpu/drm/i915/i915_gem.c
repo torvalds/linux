@@ -624,17 +624,6 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
-void *i915_gem_object_alloc(struct drm_i915_private *dev_priv)
-{
-	return kmem_cache_zalloc(dev_priv->objects, GFP_KERNEL);
-}
-
-void i915_gem_object_free(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	kmem_cache_free(dev_priv->objects, obj);
-}
-
 static int
 i915_gem_create(struct drm_file *file,
 		struct drm_i915_private *dev_priv,
@@ -2895,10 +2884,6 @@ static void shrink_caches(struct drm_i915_private *i915)
 	 * filled slabs to prioritise allocating from the mostly full slabs,
 	 * with the aim of reducing fragmentation.
 	 */
-	kmem_cache_shrink(i915->luts);
-	kmem_cache_shrink(i915->vmas);
-	kmem_cache_shrink(i915->objects);
-
 	i915_globals_park();
 }
 
@@ -3094,7 +3079,7 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		list_del(&lut->obj_link);
 		list_del(&lut->ctx_link);
 
-		kmem_cache_free(i915->luts, lut);
+		i915_lut_handle_free(lut);
 		__i915_gem_object_release_unless_active(obj);
 	}
 
@@ -4199,7 +4184,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = i915_gem_object_alloc(dev_priv);
+	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -5225,19 +5210,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 
 int i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
-	int err = -ENOMEM;
-
-	dev_priv->objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
-	if (!dev_priv->objects)
-		goto err_out;
-
-	dev_priv->vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
-	if (!dev_priv->vmas)
-		goto err_objects;
-
-	dev_priv->luts = KMEM_CACHE(i915_lut_handle, 0);
-	if (!dev_priv->luts)
-		goto err_vmas;
+	int err;
 
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
 	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);
@@ -5262,13 +5235,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 		DRM_NOTE("Unable to create a private tmpfs mount, hugepage support will be disabled(%d).\n", err);
 
 	return 0;
-
-err_vmas:
-	kmem_cache_destroy(dev_priv->vmas);
-err_objects:
-	kmem_cache_destroy(dev_priv->objects);
-err_out:
-	return err;
 }
 
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
@@ -5279,13 +5245,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	WARN_ON(dev_priv->mm.object_count);
 
 	cleanup_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
-
-	kmem_cache_destroy(dev_priv->luts);
-	kmem_cache_destroy(dev_priv->vmas);
-	kmem_cache_destroy(dev_priv->objects);
-
-	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
-	rcu_barrier();
 
 	i915_gemfs_fini(dev_priv);
 }

@@ -153,7 +153,7 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(dev_priv);
+	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return NULL;
 

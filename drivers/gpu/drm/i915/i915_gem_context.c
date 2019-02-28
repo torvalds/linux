@@ -94,6 +94,20 @@
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
+static struct i915_global_context {
+	struct kmem_cache *slab_luts;
+} global;
+
+struct i915_lut_handle *i915_lut_handle_alloc(void)
+{
+	return kmem_cache_alloc(global.slab_luts, GFP_KERNEL);
+}
+
+void i915_lut_handle_free(struct i915_lut_handle *lut)
+{
+	return kmem_cache_free(global.slab_luts, lut);
+}
+
 static void lut_close(struct i915_gem_context *ctx)
 {
 	struct i915_lut_handle *lut, *ln;
@@ -102,7 +116,7 @@ static void lut_close(struct i915_gem_context *ctx)
 
 	list_for_each_entry_safe(lut, ln, &ctx->handles_list, ctx_link) {
 		list_del(&lut->obj_link);
-		kmem_cache_free(ctx->i915->luts, lut);
+		i915_lut_handle_free(lut);
 	}
 
 	rcu_read_lock();
@@ -1408,3 +1422,22 @@ out_unlock:
 #include "selftests/mock_context.c"
 #include "selftests/i915_gem_context.c"
 #endif
+
+int __init i915_global_context_init(void)
+{
+	global.slab_luts = KMEM_CACHE(i915_lut_handle, 0);
+	if (!global.slab_luts)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void i915_global_context_shrink(void)
+{
+	kmem_cache_shrink(global.slab_luts);
+}
+
+void i915_global_context_exit(void)
+{
+	kmem_cache_destroy(global.slab_luts);
+}

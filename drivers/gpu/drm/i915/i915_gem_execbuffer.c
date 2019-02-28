@@ -854,7 +854,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
-		lut = kmem_cache_alloc(eb->i915->luts, GFP_KERNEL);
+		lut = i915_lut_handle_alloc();
 		if (unlikely(!lut)) {
 			err = -ENOMEM;
 			goto err_obj;
@@ -862,7 +862,7 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		err = radix_tree_insert(handles_vma, handle, vma);
 		if (unlikely(err)) {
-			kmem_cache_free(eb->i915->luts, lut);
+			i915_lut_handle_free(lut);
 			goto err_obj;
 		}
 

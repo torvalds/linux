@@ -8,9 +8,12 @@
 #include <linux/workqueue.h>
 
 #include "i915_active.h"
+#include "i915_gem_context.h"
+#include "i915_gem_object.h"
 #include "i915_globals.h"
 #include "i915_request.h"
 #include "i915_scheduler.h"
+#include "i915_vma.h"
 
 int __init i915_globals_init(void)
 {
@@ -20,18 +23,36 @@ int __init i915_globals_init(void)
 	if (err)
 		return err;
 
-	err = i915_global_request_init();
+	err = i915_global_context_init();
 	if (err)
 		goto err_active;
+
+	err = i915_global_objects_init();
+	if (err)
+		goto err_context;
+
+	err = i915_global_request_init();
+	if (err)
+		goto err_objects;
 
 	err = i915_global_scheduler_init();
 	if (err)
 		goto err_request;
 
+	err = i915_global_vma_init();
+	if (err)
+		goto err_scheduler;
+
 	return 0;
 
+err_scheduler:
+	i915_global_scheduler_exit();
 err_request:
 	i915_global_request_exit();
+err_objects:
+	i915_global_objects_exit();
+err_context:
+	i915_global_context_exit();
 err_active:
 	i915_global_active_exit();
 	return err;
@@ -45,8 +66,11 @@ static void i915_globals_shrink(void)
 	 * with the aim of reducing fragmentation.
 	 */
 	i915_global_active_shrink();
+	i915_global_context_shrink();
+	i915_global_objects_shrink();
 	i915_global_request_shrink();
 	i915_global_scheduler_shrink();
+	i915_global_vma_shrink();
 }
 
 static atomic_t active;
@@ -104,8 +128,11 @@ void __exit i915_globals_exit(void)
 	rcu_barrier();
 	flush_scheduled_work();
 
+	i915_global_vma_exit();
 	i915_global_scheduler_exit();
 	i915_global_request_exit();
+	i915_global_objects_exit();
+	i915_global_context_exit();
 	i915_global_active_exit();
 
 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */

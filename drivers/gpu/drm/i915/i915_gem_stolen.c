@@ -565,7 +565,7 @@ _i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
 	struct drm_i915_gem_object *obj;
 	unsigned int cache_level;
 
-	obj = i915_gem_object_alloc(dev_priv);
+	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return NULL;
 

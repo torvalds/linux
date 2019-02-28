@@ -1913,7 +1913,7 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
 	GEM_BUG_ON(size > ggtt->vm.total);
 
-	vma = kmem_cache_zalloc(i915->vmas, GFP_KERNEL);
+	vma = i915_vma_alloc();
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
 
