@@ -130,11 +130,25 @@ ice_query_port_ets(struct ice_port_info *pi,
 		   struct ice_aqc_port_ets_elem *buf, u16 buf_size,
 		   struct ice_sq_cd *cmd_details);
 #ifdef CONFIG_DCB
+enum ice_status
+ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
+		 struct ice_sq_cd *cd);
 enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd);
+enum ice_status
+ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
+			   struct ice_sq_cd *cd);
 #else /* CONFIG_DCB */
+static inline enum ice_status
+ice_aq_stop_lldp(struct ice_hw __always_unused *hw,
+		 bool __always_unused shutdown_lldp_agent,
+		 struct ice_sq_cd __always_unused *cd)
+{
+	return 0;
+}
+
 static inline enum ice_status
 ice_aq_start_lldp(struct ice_hw __always_unused *hw,
 		  struct ice_sq_cd __always_unused *cd)
@@ -152,5 +166,14 @@ ice_aq_start_stop_dcbx(struct ice_hw __always_unused *hw,
 
 	return 0;
 }
+
+static inline enum ice_status
+ice_aq_cfg_lldp_mib_change(struct ice_hw __always_unused *hw,
+			   bool __always_unused ena_update,
+			   struct ice_sq_cd __always_unused *cd)
+{
+	return 0;
+}
+
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_H_ */

@@ -1200,6 +1200,16 @@ struct ice_aqc_lldp_set_mib_change {
 	u8 reserved[15];
 };
 
+/* Stop LLDP (direct 0x0A05) */
+struct ice_aqc_lldp_stop {
+	u8 command;
+#define ICE_AQ_LLDP_AGENT_STATE_MASK	BIT(0)
+#define ICE_AQ_LLDP_AGENT_STOP		0x0
+#define ICE_AQ_LLDP_AGENT_SHUTDOWN	ICE_AQ_LLDP_AGENT_STATE_MASK
+#define ICE_AQ_LLDP_AGENT_PERSIST_DIS	BIT(1)
+	u8 reserved[15];
+};
+
 /* Start LLDP (direct 0x0A06) */
 struct ice_aqc_lldp_start {
 	u8 command;
@@ -1529,6 +1539,7 @@ struct ice_aq_desc {
 		struct ice_aqc_pf_vf_msg virt;
 		struct ice_aqc_lldp_get_mib lldp_get_mib;
 		struct ice_aqc_lldp_set_mib_change lldp_set_event;
+		struct ice_aqc_lldp_stop lldp_stop;
 		struct ice_aqc_lldp_start lldp_start;
 		struct ice_aqc_lldp_set_local_mib lldp_set_mib;
 		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
@@ -1639,6 +1650,7 @@ enum ice_adminq_opc {
 	/* LLDP commands */
 	ice_aqc_opc_lldp_get_mib			= 0x0A00,
 	ice_aqc_opc_lldp_set_mib_change			= 0x0A01,
+	ice_aqc_opc_lldp_stop				= 0x0A05,
 	ice_aqc_opc_lldp_start				= 0x0A06,
 	ice_aqc_opc_get_cee_dcb_cfg			= 0x0A07,
 	ice_aqc_opc_lldp_set_local_mib			= 0x0A08,

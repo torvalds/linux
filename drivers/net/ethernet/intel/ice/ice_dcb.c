@@ -60,7 +60,7 @@ ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
  * Enable or Disable posting of an event on ARQ when LLDP MIB
  * associated with the interface changes (0x0A01)
  */
-static enum ice_status
+enum ice_status
 ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 			   struct ice_sq_cd *cd)
 {
@@ -73,6 +73,32 @@ ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 
 	if (!ena_update)
 		cmd->command |= ICE_AQ_LLDP_MIB_UPDATE_DIS;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
+ * ice_aq_stop_lldp
+ * @hw: pointer to the HW struct
+ * @shutdown_lldp_agent: True if LLDP Agent needs to be Shutdown
+ *			 False if LLDP Agent needs to be Stopped
+ * @cd: pointer to command details structure or NULL
+ *
+ * Stop or Shutdown the embedded LLDP Agent (0x0A05)
+ */
+enum ice_status
+ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent,
+		 struct ice_sq_cd *cd)
+{
+	struct ice_aqc_lldp_stop *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.lldp_stop;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_stop);
+
+	if (shutdown_lldp_agent)
+		cmd->command |= ICE_AQ_LLDP_AGENT_SHUTDOWN;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }

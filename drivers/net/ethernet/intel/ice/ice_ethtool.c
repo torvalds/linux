@@ -4,6 +4,8 @@
 /* ethtool support for ice */
 
 #include "ice.h"
+#include "ice_lib.h"
+#include "ice_dcb_lib.h"
 
 struct ice_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -132,6 +134,7 @@ struct ice_priv_flag {
 
 static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
 	ICE_PRIV_FLAG("link-down-on-close", ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA),
+	ICE_PRIV_FLAG("disable-fw-lldp", ICE_FLAG_DISABLE_FW_LLDP),
 };
 
 #define ICE_PRIV_FLAG_ARRAY_SIZE	ARRAY_SIZE(ice_gstrings_priv_flags)
@@ -404,13 +407,19 @@ static u32 ice_get_priv_flags(struct net_device *netdev)
 static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	DECLARE_BITMAP(change_flags, ICE_PF_FLAGS_NBITS);
+	DECLARE_BITMAP(orig_flags, ICE_PF_FLAGS_NBITS);
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
+	int ret = 0;
 	u32 i;
 
 	if (flags > BIT(ICE_PRIV_FLAG_ARRAY_SIZE))
 		return -EINVAL;
 
+	set_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
+
+	bitmap_copy(orig_flags, pf->flags, ICE_PF_FLAGS_NBITS);
 	for (i = 0; i < ICE_PRIV_FLAG_ARRAY_SIZE; i++) {
 		const struct ice_priv_flag *priv_flag;
 
@@ -422,7 +431,79 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			clear_bit(priv_flag->bitno, pf->flags);
 	}
 
-	return 0;
+	bitmap_xor(change_flags, pf->flags, orig_flags, ICE_PF_FLAGS_NBITS);
+
+	if (test_bit(ICE_FLAG_DISABLE_FW_LLDP, change_flags)) {
+		if (test_bit(ICE_FLAG_DISABLE_FW_LLDP, pf->flags)) {
+			enum ice_status status;
+
+			status = ice_aq_cfg_lldp_mib_change(&pf->hw, false,
+							    NULL);
+			/* If unregistering for LLDP events fails, this is
+			 * not an error state, as there shouldn't be any
+			 * events to respond to.
+			 */
+			if (status)
+				dev_info(&pf->pdev->dev,
+					 "Failed to unreg for LLDP events\n");
+
+			/* The AQ call to stop the FW LLDP agent will generate
+			 * an error if the agent is already stopped.
+			 */
+			status = ice_aq_stop_lldp(&pf->hw, true, NULL);
+			if (status)
+				dev_warn(&pf->pdev->dev,
+					 "Fail to stop LLDP agent\n");
+			/* Use case for having the FW LLDP agent stopped
+			 * will likely not need DCB, so failure to init is
+			 * not a concern of ethtool
+			 */
+			status = ice_init_pf_dcb(pf);
+			if (status)
+				dev_warn(&pf->pdev->dev, "Fail to init DCB\n");
+		} else {
+			enum ice_status status;
+			bool dcbx_agent_status;
+
+			/* AQ command to start FW LLDP agent will return an
+			 * error if the agent is already started
+			 */
+			status = ice_aq_start_lldp(&pf->hw, NULL);
+			if (status)
+				dev_warn(&pf->pdev->dev,
+					 "Fail to start LLDP Agent\n");
+
+			/* AQ command to start FW DCBx agent will fail if
+			 * the agent is already started
+			 */
+			status = ice_aq_start_stop_dcbx(&pf->hw, true,
+							&dcbx_agent_status,
+							NULL);
+			if (status)
+				dev_dbg(&pf->pdev->dev,
+					"Failed to start FW DCBX\n");
+
+			dev_info(&pf->pdev->dev, "FW DCBX agent is %s\n",
+				 dcbx_agent_status ? "ACTIVE" : "DISABLED");
+
+			/* Failure to configure MIB change or init DCB is not
+			 * relevant to ethtool.  Print notification that
+			 * registration/init failed but do not return error
+			 * state to ethtool
+			 */
+			status = ice_aq_cfg_lldp_mib_change(&pf->hw, false,
+							    NULL);
+			if (status)
+				dev_dbg(&pf->pdev->dev,
+					"Fail to reg for MIB change\n");
+
+			status = ice_init_pf_dcb(pf);
+			if (status)
+				dev_dbg(&pf->pdev->dev, "Fail to init DCB\n");
+		}
+	}
+	clear_bit(ICE_FLAG_ETHTOOL_CTXT, pf->flags);
+	return ret;
 }
 
 static int ice_get_sset_count(struct net_device *netdev, int sset)
@@ -1854,11 +1935,14 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	struct ice_port_info *pi = np->vsi->port_info;
 	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_vsi *vsi = np->vsi;
+	struct ice_dcbx_cfg *dcbx_cfg;
 	enum ice_status status;
 
 	/* Initialize pause params */
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
+
+	dcbx_cfg = &pi->local_dcbx_cfg;
 
 	pcaps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*pcaps),
 			     GFP_KERNEL);
@@ -1873,6 +1957,10 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 	pause->autoneg = ((pcaps->caps & ICE_AQC_PHY_AN_MODE) ?
 			AUTONEG_ENABLE : AUTONEG_DISABLE);
+
+	if (dcbx_cfg->pfc.pfcena)
+		/* PFC enabled so report LFC as off */
+		goto out;
 
 	if (pcaps->caps & ICE_AQC_PHY_EN_TX_LINK_PAUSE)
 		pause->tx_pause = 1;
@@ -1894,6 +1982,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_link_status *hw_link_info;
 	struct ice_pf *pf = np->vsi->back;
+	struct ice_dcbx_cfg *dcbx_cfg;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_hw *hw = &pf->hw;
 	struct ice_port_info *pi;
@@ -1904,6 +1993,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 	pi = vsi->port_info;
 	hw_link_info = &pi->phy.link_info;
+	dcbx_cfg = &pi->local_dcbx_cfg;
 	link_up = hw_link_info->link_info & ICE_AQ_LINK_UP;
 
 	/* Changing the port's flow control is not supported if this isn't the
@@ -1926,6 +2016,10 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 		netdev_info(netdev, "Autoneg did not complete so changing settings may not result in an actual change.\n");
 	}
 
+	if (dcbx_cfg->pfc.pfcena) {
+		netdev_info(netdev, "Priority flow control enabled. Cannot set link flow control.\n");
+		return -EOPNOTSUPP;
+	}
 	if (pause->rx_pause && pause->tx_pause)
 		pi->fc.req_mode = ICE_FC_FULL;
 	else if (pause->rx_pause && !pause->tx_pause)
