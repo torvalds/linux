@@ -1592,23 +1592,23 @@ static void ice_free_irq_msix_misc(struct ice_pf *pf)
 /**
  * ice_ena_ctrlq_interrupts - enable control queue interrupts
  * @hw: pointer to HW structure
- * @v_idx: HW vector index to associate the control queue interrupts with
+ * @reg_idx: HW vector index to associate the control queue interrupts with
  */
-static void ice_ena_ctrlq_interrupts(struct ice_hw *hw, u16 v_idx)
+static void ice_ena_ctrlq_interrupts(struct ice_hw *hw, u16 reg_idx)
 {
 	u32 val;
 
-	val = ((v_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
+	val = ((reg_idx & PFINT_OICR_CTL_MSIX_INDX_M) |
 	       PFINT_OICR_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_OICR_CTL, val);
 
 	/* enable Admin queue Interrupt causes */
-	val = ((v_idx & PFINT_FW_CTL_MSIX_INDX_M) |
+	val = ((reg_idx & PFINT_FW_CTL_MSIX_INDX_M) |
 	       PFINT_FW_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_FW_CTL, val);
 
 	/* enable Mailbox queue Interrupt causes */
-	val = ((v_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
+	val = ((reg_idx & PFINT_MBX_CTL_MSIX_INDX_M) |
 	       PFINT_MBX_CTL_CAUSE_ENA_M);
 	wr32(hw, PFINT_MBX_CTL, val);
 
@@ -4214,8 +4214,7 @@ static void ice_tx_timeout(struct net_device *netdev)
 		/* Read interrupt register */
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
 			val = rd32(hw,
-				   GLINT_DYN_CTL(tx_ring->q_vector->v_idx +
-						 tx_ring->vsi->hw_base_vector));
+				   GLINT_DYN_CTL(tx_ring->q_vector->reg_idx));
 
 		netdev_info(netdev, "tx_timeout: VSI_num: %d, Q %d, NTC: 0x%x, HW_HEAD: 0x%x, NTU: 0x%x, INT: 0x%x\n",
 			    vsi->vsi_num, hung_queue, tx_ring->next_to_clean,

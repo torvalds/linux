@@ -1805,13 +1805,12 @@ static void ice_cfg_itr_gran(struct ice_hw *hw)
  * ice_cfg_itr - configure the initial interrupt throttle values
  * @hw: pointer to the HW structure
  * @q_vector: interrupt vector that's being configured
- * @vector: HW vector index to apply the interrupt throttling to
  *
  * Configure interrupt throttling values for the ring containers that are
  * associated with the interrupt vector passed in.
  */
 static void
-ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
+ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector)
 {
 	ice_cfg_itr_gran(hw);
 
@@ -1825,7 +1824,7 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 
@@ -1839,7 +1838,7 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 		rc->target_itr = ITR_TO_REG(rc->itr_setting);
 		rc->next_update = jiffies + 1;
 		rc->current_itr = rc->target_itr;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		wr32(hw, GLINT_ITR(rc->itr_idx, q_vector->reg_idx),
 		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 }
@@ -1851,17 +1850,17 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 {
 	struct ice_pf *pf = vsi->back;
-	u16 vector = vsi->hw_base_vector;
 	struct ice_hw *hw = &pf->hw;
 	u32 txq = 0, rxq = 0;
 	int i, q;
 
-	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
+	for (i = 0; i < vsi->num_q_vectors; i++) {
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+		u16 reg_idx = q_vector->reg_idx;
 
-		ice_cfg_itr(hw, q_vector, vector);
+		ice_cfg_itr(hw, q_vector);
 
-		wr32(hw, GLINT_RATE(vector),
+		wr32(hw, GLINT_RATE(reg_idx),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
 
 		/* Both Transmit Queue Interrupt Cause Control register
@@ -1886,7 +1885,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 			else
 				val = QINT_TQCTL_CAUSE_ENA_M |
 				      (itr_idx << QINT_TQCTL_ITR_INDX_S)  |
-				      (vector << QINT_TQCTL_MSIX_INDX_S);
+				      (reg_idx << QINT_TQCTL_MSIX_INDX_S);
 			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
 			txq++;
 		}
@@ -1902,7 +1901,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 			else
 				val = QINT_RQCTL_CAUSE_ENA_M |
 				      (itr_idx << QINT_RQCTL_ITR_INDX_S)  |
-				      (vector << QINT_RQCTL_MSIX_INDX_S);
+				      (reg_idx << QINT_RQCTL_MSIX_INDX_S);
 			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
 			rxq++;
 		}
@@ -2065,8 +2064,6 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			break;
 
 		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
-			u16 v_idx;
-
 			if (!rings || !rings[q_idx] ||
 			    !rings[q_idx]->q_vector) {
 				err = -EINVAL;
@@ -2088,8 +2085,7 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 			/* trigger a software interrupt for the vector
 			 * associated to the queue to schedule NAPI handler
 			 */
-			v_idx = rings[i]->q_vector->v_idx;
-			wr32(hw, GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
+			wr32(hw, GLINT_DYN_CTL(rings[i]->q_vector->reg_idx),
 			     GLINT_DYN_CTL_SWINT_TRIG_M |
 			     GLINT_DYN_CTL_INTENA_MSK_M);
 			q_idx++;
@@ -2209,6 +2205,44 @@ static void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_vsi_set_q_vectors_reg_idx - set the HW register index for all q_vectors
+ * @vsi: VSI to set the q_vectors register index on
+ */
+static int
+ice_vsi_set_q_vectors_reg_idx(struct ice_vsi *vsi)
+{
+	u16 i;
+
+	if (!vsi || !vsi->q_vectors)
+		return -EINVAL;
+
+	ice_for_each_q_vector(vsi, i) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+		if (!q_vector) {
+			dev_err(&vsi->back->pdev->dev,
+				"Failed to set reg_idx on q_vector %d VSI %d\n",
+				i, vsi->vsi_num);
+			goto clear_reg_idx;
+		}
+
+		q_vector->reg_idx = q_vector->v_idx + vsi->hw_base_vector;
+	}
+
+	return 0;
+
+clear_reg_idx:
+	ice_for_each_q_vector(vsi, i) {
+		struct ice_q_vector *q_vector = vsi->q_vectors[i];
+
+		if (q_vector)
+			q_vector->reg_idx = 0;
+	}
+
+	return -EINVAL;
+}
+
+/**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
  * @pi: pointer to the port_info instance
@@ -2273,6 +2307,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		if (ret)
 			goto unroll_alloc_q_vector;
 
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto unroll_vector_base;
+
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
 			goto unroll_vector_base;
@@ -2311,6 +2349,10 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 		} else {
 			vsi->hw_base_vector = pf->vf[vf_id].first_vector_idx;
 		}
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto unroll_vector_base;
+
 		pf->q_left_tx -= vsi->alloc_txq;
 		pf->q_left_rx -= vsi->alloc_rxq;
 		break;
@@ -2623,11 +2665,11 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 
 	/* disable each interrupt */
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
-		for (i = vsi->hw_base_vector;
-		     i < (vsi->num_q_vectors + vsi->hw_base_vector); i++)
-			wr32(hw, GLINT_DYN_CTL(i), 0);
+		ice_for_each_q_vector(vsi, i)
+			wr32(hw, GLINT_DYN_CTL(vsi->q_vectors[i]->reg_idx), 0);
 
 		ice_flush(hw);
+
 		ice_for_each_q_vector(vsi, i)
 			synchronize_irq(pf->msix_entries[i + base].vector);
 	}
@@ -2780,6 +2822,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 		if (ret)
 			goto err_vectors;
 
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
+		if (ret)
+			goto err_vectors;
+
 		ret = ice_vsi_alloc_rings(vsi);
 		if (ret)
 			goto err_vectors;
@@ -2798,6 +2844,10 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 			goto err_rings;
 
 		ret = ice_vsi_setup_vector_base(vsi);
+		if (ret)
+			goto err_vectors;
+
+		ret = ice_vsi_set_q_vectors_reg_idx(vsi);
 		if (ret)
 			goto err_vectors;
 

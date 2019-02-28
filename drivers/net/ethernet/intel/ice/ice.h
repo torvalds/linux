@@ -297,6 +297,7 @@ struct ice_q_vector {
 	struct ice_vsi *vsi;
 
 	u16 v_idx;			/* index in the vsi->q_vector array. */
+	u16 reg_idx;
 	u8 num_ring_rx;			/* total number of Rx rings in vector */
 	u8 num_ring_tx;			/* total number of Tx rings in vector */
 	u8 itr_countdown;		/* when 0 should adjust adaptive ITR */
@@ -403,7 +404,7 @@ static inline void
 ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 		    struct ice_q_vector *q_vector)
 {
-	u32 vector = (vsi && q_vector) ? vsi->hw_base_vector + q_vector->v_idx :
+	u32 vector = (vsi && q_vector) ? q_vector->reg_idx :
 				((struct ice_pf *)hw->back)->hw_oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;

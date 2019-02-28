@@ -1391,7 +1391,7 @@ ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
 
 	if (!test_bit(__ICE_DOWN, vsi->state))
 		wr32(&vsi->back->hw,
-		     GLINT_DYN_CTL(vsi->hw_base_vector + q_vector->v_idx),
+		     GLINT_DYN_CTL(q_vector->reg_idx),
 		     itr_val);
 }
 
