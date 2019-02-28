@@ -1334,26 +1334,50 @@ out:
 }
 
 static int
-mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_tcam_vregion *vregion)
+mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_vregion *vregion,
+				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	struct mlxsw_sp_acl_tcam_rehash_ctx *ctx = &vregion->rehash.ctx;
 	void *hints_priv;
-	int err;
 
 	trace_mlxsw_sp_acl_tcam_vregion_rehash(mlxsw_sp, vregion);
 	if (vregion->failed_rollback)
 		return -EBUSY;
 
 	hints_priv = ops->region_rehash_hints_get(vregion->region->priv);
-	if (IS_ERR(hints_priv)) {
-		err = PTR_ERR(hints_priv);
+	if (IS_ERR(hints_priv))
+		return PTR_ERR(hints_priv);
+
+	ctx->hints_priv = hints_priv;
+
+	return 0;
+}
+
+static void
+mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_vregion *vregion,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	ops->region_rehash_hints_put(ctx->hints_priv);
+	ctx->hints_priv = NULL;
+}
+
+static int
+mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_tcam_vregion *vregion)
+{
+	struct mlxsw_sp_acl_tcam_rehash_ctx *ctx = &vregion->rehash.ctx;
+	int err;
+
+	err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp, vregion, ctx);
+	if (err) {
 		if (err != -EAGAIN)
 			dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
 		return err;
 	}
-	ctx->hints_priv = hints_priv;
 
 	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, ctx);
 	if (err) {
@@ -1365,8 +1389,7 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		}
 	}
 
-	ops->region_rehash_hints_put(ctx->hints_priv);
-	ctx->hints_priv = NULL;
+	mlxsw_sp_acl_tcam_vregion_rehash_end(mlxsw_sp, vregion, ctx);
 	return err;
 }
 
