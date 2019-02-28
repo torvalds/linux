@@ -106,15 +106,6 @@ config NFT_CHAIN_NAT_IPV4
 	  packet transformations such as the source, destination address and
 	  source and destination ports.
 
-config NFT_MASQ_IPV4
-	tristate "IPv4 masquerading support for nf_tables"
-	depends on NF_TABLES_IPV4
-	depends on NFT_MASQ
-	select NF_NAT_MASQUERADE
-	help
-	  This is the expression that provides IPv4 masquerading support for
-	  nf_tables.
-
 endif # NF_TABLES
 
 config NF_NAT_SNMP_BASIC
