@@ -1112,15 +1112,6 @@ static i40e_status i40e_config_vf_promiscuous_mode(struct i40e_vf *vf,
 	if (!i40e_vc_isvalid_vsi_id(vf, vsi_id) || !vsi)
 		return I40E_ERR_PARAM;
 
-	if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps) &&
-	    (allmulti || alluni)) {
-		dev_err(&pf->pdev->dev,
-			"Unprivileged VF %d is attempting to configure promiscuous mode\n",
-			vf->vf_id);
-		/* Lie to the VF on purpose. */
-		return 0;
-	}
-
 	if (vf->port_vlan_id) {
 		aq_ret = i40e_aq_set_vsi_mc_promisc_on_vlan(hw, vsi->seid,
 							    allmulti,
@@ -1997,8 +1988,21 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf, u8 *msg)
 	bool allmulti = false;
 	bool alluni = false;
 
-	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
-		return I40E_ERR_PARAM;
+	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
+		aq_ret = I40E_ERR_PARAM;
+		goto err_out;
+	}
+	if (!test_bit(I40E_VIRTCHNL_VF_CAP_PRIVILEGE, &vf->vf_caps)) {
+		dev_err(&pf->pdev->dev,
+			"Unprivileged VF %d is attempting to configure promiscuous mode\n",
+			vf->vf_id);
+
+		/* Lie to the VF on purpose, because this is an error we can
+		 * ignore. Unprivileged VF is not a virtual channel error.
+		 */
+		aq_ret = 0;
+		goto err_out;
+	}
 
 	/* Multicast promiscuous handling*/
 	if (info->flags & FLAG_VF_MULTICAST_PROMISC)
@@ -2032,7 +2036,7 @@ static int i40e_vc_config_promiscuous_mode_msg(struct i40e_vf *vf, u8 *msg)
 			clear_bit(I40E_VF_STATE_UC_PROMISC, &vf->vf_states);
 		}
 	}
-
+err_out:
 	/* send the response to the VF */
 	return i40e_vc_send_resp_to_vf(vf,
 				       VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE,
