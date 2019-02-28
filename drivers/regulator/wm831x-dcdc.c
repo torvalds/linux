@@ -308,48 +308,14 @@ static const unsigned int wm831x_dcdc_ilim[] = {
 	125000, 250000, 375000, 500000, 625000, 750000, 875000, 1000000
 };
 
-static int wm831x_buckv_set_current_limit(struct regulator_dev *rdev,
-					   int min_uA, int max_uA)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = dcdc->wm831x;
-	u16 reg = dcdc->base + WM831X_DCDC_CONTROL_2;
-	int i;
-
-	for (i = ARRAY_SIZE(wm831x_dcdc_ilim) - 1; i >= 0; i--) {
-		if ((min_uA <= wm831x_dcdc_ilim[i]) &&
-		    (wm831x_dcdc_ilim[i] <= max_uA))
-			return wm831x_set_bits(wm831x, reg,
-					       WM831X_DC1_HC_THR_MASK,
-						i << WM831X_DC1_HC_THR_SHIFT);
-	}
-
-	return -EINVAL;
-}
-
-static int wm831x_buckv_get_current_limit(struct regulator_dev *rdev)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = dcdc->wm831x;
-	u16 reg = dcdc->base + WM831X_DCDC_CONTROL_2;
-	int val;
-
-	val = wm831x_reg_read(wm831x, reg);
-	if (val < 0)
-		return val;
-
-	val = (val & WM831X_DC1_HC_THR_MASK) >> WM831X_DC1_HC_THR_SHIFT;
-	return wm831x_dcdc_ilim[val];
-}
-
 static const struct regulator_ops wm831x_buckv_ops = {
 	.set_voltage_sel = wm831x_buckv_set_voltage_sel,
 	.get_voltage_sel = wm831x_buckv_get_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear_range,
 	.map_voltage = regulator_map_voltage_linear_range,
 	.set_suspend_voltage = wm831x_buckv_set_suspend_voltage,
-	.set_current_limit = wm831x_buckv_set_current_limit,
-	.get_current_limit = wm831x_buckv_get_current_limit,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
@@ -475,6 +441,10 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	dcdc->desc.owner = THIS_MODULE;
 	dcdc->desc.enable_reg = WM831X_DCDC_ENABLE;
 	dcdc->desc.enable_mask = 1 << id;
+	dcdc->desc.csel_reg = dcdc->base + WM831X_DCDC_CONTROL_2;
+	dcdc->desc.csel_mask = WM831X_DC1_HC_THR_MASK;
+	dcdc->desc.n_current_limits = ARRAY_SIZE(wm831x_dcdc_ilim);
+	dcdc->desc.curr_table = wm831x_dcdc_ilim;
 
 	ret = wm831x_reg_read(wm831x, dcdc->base + WM831X_DCDC_ON_CONFIG);
 	if (ret < 0) {
