@@ -1598,7 +1598,8 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	struct ice_fltr_list_entry *list;
 	struct ice_pf *pf = vsi->back;
 	LIST_HEAD(tmp_add_list);
-	int status = 0;
+	enum ice_status status;
+	int err = 0;
 
 	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
 	if (!list)
@@ -1614,14 +1615,16 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
 	INIT_LIST_HEAD(&list->list_entry);
 	list_add(&list->list_entry, &tmp_add_list);
 
-	if (ice_remove_vlan(&pf->hw, &tmp_add_list)) {
-		dev_err(&pf->pdev->dev, "Error removing VLAN %d on vsi %i\n",
-			vid, vsi->vsi_num);
-		status = -EIO;
+	status = ice_remove_vlan(&pf->hw, &tmp_add_list);
+	if (status) {
+		dev_err(&pf->pdev->dev,
+			"Error removing VLAN %d on vsi %i error: %d\n",
+			vid, vsi->vsi_num, status);
+		err = -EIO;
 	}
 
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
-	return status;
+	return err;
 }
 
 /**

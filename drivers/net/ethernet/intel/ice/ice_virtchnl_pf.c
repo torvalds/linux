@@ -2329,7 +2329,6 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 		/* There is no need to let VF know about being not trusted,
 		 * so we can just return success message here
 		 */
-		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 		goto error_param;
 	}
 
@@ -2369,6 +2368,18 @@ static int ice_vc_process_vlan_msg(struct ice_vf *vf, u8 *msg, bool add_v)
 	if (add_v) {
 		for (i = 0; i < vfl->num_elements; i++) {
 			u16 vid = vfl->vlan_id[i];
+
+			if (!ice_is_vf_trusted(vf) &&
+			    vf->num_vlan >= ICE_MAX_VLAN_PER_VF) {
+				dev_info(&pf->pdev->dev,
+					 "VF-%d is not trusted, switch the VF to trusted mode, in order to add more VLAN addresses\n",
+					 vf->vf_id);
+				/* There is no need to let VF know about being
+				 * not trusted, so we can just return success
+				 * message here as well.
+				 */
+				goto error_param;
+			}
 
 			if (ice_vsi_add_vlan(vsi, vid)) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
