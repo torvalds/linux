@@ -220,8 +220,6 @@ static struct drm_master *drm_lease_create(struct drm_master *lessor, struct idr
 		error = 0;
 		if (!idr_find(&dev->mode_config.object_idr, object))
 			error = -ENOENT;
-		else if (!_drm_lease_held_master(lessor, object))
-			error = -EACCES;
 		else if (_drm_has_leased(lessor, object))
 			error = -EBUSY;
 
