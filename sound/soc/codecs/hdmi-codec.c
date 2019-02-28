@@ -484,9 +484,6 @@ static int hdmi_codec_hw_params(struct snd_pcm_substream *substream,
 		params_width(params), params_rate(params),
 		params_channels(params));
 
-	if (params_width(params) > 24)
-		params->msbits = 24;
-
 	ret = snd_pcm_create_iec958_consumer_hw_params(params, hp.iec.status,
 						       sizeof(hp.iec.status));
 	if (ret < 0) {
