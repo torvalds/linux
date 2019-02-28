@@ -1338,7 +1338,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	       host->regs + SD_EMMC_IRQ_EN);
 
 	ret = request_threaded_irq(host->irq, meson_mmc_irq,
-			meson_mmc_irq_thread, IRQF_SHARED, NULL, host);
+				   meson_mmc_irq_thread, IRQF_SHARED,
+				   dev_name(&pdev->dev), host);
 	if (ret)
 		goto err_init_clk;
 

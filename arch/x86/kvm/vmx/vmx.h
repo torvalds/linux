@@ -337,16 +337,16 @@ static inline int pi_test_and_set_pir(int vector, struct pi_desc *pi_desc)
 	return test_and_set_bit(vector, (unsigned long *)pi_desc->pir);
 }
 
-static inline void pi_clear_sn(struct pi_desc *pi_desc)
-{
-	return clear_bit(POSTED_INTR_SN,
-			(unsigned long *)&pi_desc->control);
-}
-
 static inline void pi_set_sn(struct pi_desc *pi_desc)
 {
 	return set_bit(POSTED_INTR_SN,
 			(unsigned long *)&pi_desc->control);
+}
+
+static inline void pi_set_on(struct pi_desc *pi_desc)
+{
+	set_bit(POSTED_INTR_ON,
+		(unsigned long *)&pi_desc->control);
 }
 
 static inline void pi_clear_on(struct pi_desc *pi_desc)

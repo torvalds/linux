@@ -3594,7 +3594,8 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 			fan5pin |= cr1b & BIT(5);
 			fan5pin |= creb & BIT(5);
 
-			fan6pin = creb & BIT(3);
+			fan6pin = !dsw_en && (cr2d & BIT(1));
+			fan6pin |= creb & BIT(3);
 
 			pwm5pin |= cr2d & BIT(7);
 			pwm5pin |= (creb & BIT(4)) && !(cr2a & BIT(0));

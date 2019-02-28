@@ -313,7 +313,6 @@ void __init setup_arch(char **cmdline_p)
 	arm64_memblock_init();
 
 	paging_init();
-	efi_apply_persistent_mem_reservations();
 
 	acpi_table_upgrade();
 
@@ -339,6 +338,9 @@ void __init setup_arch(char **cmdline_p)
 	cpu_read_bootcpu_ops();
 	smp_init_cpus();
 	smp_build_mpidr_hash();
+
+	/* Init percpu seeds for random tags after cpus are set up. */
+	kasan_init_tags();
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*

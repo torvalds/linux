@@ -211,6 +211,7 @@ static void free_nested(struct kvm_vcpu *vcpu)
 	if (!vmx->nested.vmxon && !vmx->nested.smm.vmxon)
 		return;
 
+	hrtimer_cancel(&vmx->nested.preemption_timer);
 	vmx->nested.vmxon = false;
 	vmx->nested.smm.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
@@ -2470,6 +2471,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 	    nested_vmx_check_mode_based_ept_exec_controls(vcpu, vmcs12) ||
 	    nested_vmx_check_shadow_vmcs_controls(vcpu, vmcs12) ||
 	    (nested_cpu_has_vpid(vmcs12) && !vmcs12->virtual_processor_id))
+		return -EINVAL;
+
+	if (!nested_cpu_has_preemption_timer(vmcs12) &&
+	    nested_cpu_has_save_preemption_timer(vmcs12))
 		return -EINVAL;
 
 	if (nested_cpu_has_ept(vmcs12) &&
@@ -5556,9 +5561,11 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * secondary cpu-based controls.  Do not include those that
 	 * depend on CPUID bits, they are added later by vmx_cpuid_update.
 	 */
-	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
-		msrs->secondary_ctls_low,
-		msrs->secondary_ctls_high);
+	if (msrs->procbased_ctls_high & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
+		rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
+		      msrs->secondary_ctls_low,
+		      msrs->secondary_ctls_high);
+
 	msrs->secondary_ctls_low = 0;
 	msrs->secondary_ctls_high &=
 		SECONDARY_EXEC_DESC |

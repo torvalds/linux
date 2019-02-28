@@ -2112,7 +2112,7 @@ static void mmc_blk_mq_req_done(struct mmc_request *mrq)
 		if (waiting)
 			wake_up(&mq->wait);
 		else
-			kblockd_schedule_work(&mq->complete_work);
+			queue_work(mq->card->complete_wq, &mq->complete_work);
 
 		return;
 	}
@@ -2924,6 +2924,13 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	mmc_fixup_device(card, mmc_blk_fixups);
 
+	card->complete_wq = alloc_workqueue("mmc_complete",
+					WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	if (unlikely(!card->complete_wq)) {
+		pr_err("Failed to create mmc completion workqueue");
+		return -ENOMEM;
+	}
+
 	md = mmc_blk_alloc(card);
 	if (IS_ERR(md))
 		return PTR_ERR(md);
@@ -2987,6 +2994,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);
 	dev_set_drvdata(&card->dev, NULL);
+	destroy_workqueue(card->complete_wq);
 }
 
 static int _mmc_blk_suspend(struct mmc_card *card)
