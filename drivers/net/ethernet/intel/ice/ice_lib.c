@@ -1764,7 +1764,7 @@ int ice_vsi_cfg_lan_txqs(struct ice_vsi *vsi)
  * This function converts a decimal interrupt rate limit in usecs to the format
  * expected by firmware.
  */
-static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
+u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 {
 	u32 val = intrl / gran;
 

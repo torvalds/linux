@@ -2228,12 +2228,18 @@ static int
 ice_get_rc_coalesce(struct ethtool_coalesce *ec, enum ice_container_type c_type,
 		    struct ice_ring_container *rc)
 {
-	struct ice_pf *pf = rc->ring->vsi->back;
+	struct ice_pf *pf;
+
+	if (!rc->ring)
+		return -EINVAL;
+
+	pf = rc->ring->vsi->back;
 
 	switch (c_type) {
 	case ICE_RX_CONTAINER:
 		ec->use_adaptive_rx_coalesce = ITR_IS_DYNAMIC(rc->itr_setting);
 		ec->rx_coalesce_usecs = rc->itr_setting & ~ICE_ITR_DYNAMIC;
+		ec->rx_coalesce_usecs_high = rc->ring->q_vector->intrl;
 		break;
 	case ICE_TX_CONTAINER:
 		ec->use_adaptive_tx_coalesce = ITR_IS_DYNAMIC(rc->itr_setting);
@@ -2342,6 +2348,23 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 
 	switch (c_type) {
 	case ICE_RX_CONTAINER:
+		if (ec->rx_coalesce_usecs_high > ICE_MAX_INTRL ||
+		    (ec->rx_coalesce_usecs_high &&
+		     ec->rx_coalesce_usecs_high < pf->hw.intrl_gran)) {
+			netdev_info(vsi->netdev,
+				    "Invalid value, rx-usecs-high valid values are 0 (disabled), %d-%d\n",
+				    pf->hw.intrl_gran, ICE_MAX_INTRL);
+			return -EINVAL;
+		}
+
+		if (ec->rx_coalesce_usecs_high != rc->ring->q_vector->intrl) {
+			rc->ring->q_vector->intrl = ec->rx_coalesce_usecs_high;
+			wr32(&pf->hw, GLINT_RATE(vsi->hw_base_vector +
+						 rc->ring->q_vector->v_idx),
+			     ice_intrl_usec_to_reg(ec->rx_coalesce_usecs_high,
+						   pf->hw.intrl_gran));
+		}
+
 		if (ec->rx_coalesce_usecs != itr_setting &&
 		    ec->use_adaptive_rx_coalesce) {
 			netdev_info(vsi->netdev,
@@ -2364,6 +2387,12 @@ ice_set_rc_coalesce(enum ice_container_type c_type, struct ethtool_coalesce *ec,
 		}
 		break;
 	case ICE_TX_CONTAINER:
+		if (ec->tx_coalesce_usecs_high) {
+			netdev_info(vsi->netdev,
+				    "setting tx-usecs-high is not supported\n");
+			return -EINVAL;
+		}
+
 		if (ec->tx_coalesce_usecs != itr_setting &&
 		    ec->use_adaptive_tx_coalesce) {
 			netdev_info(vsi->netdev,

@@ -142,6 +142,7 @@ enum ice_rx_dtype {
 #define ICE_ITR_ADAPTIVE_BULK		0x0000
 
 #define ICE_DFLT_INTRL	0
+#define ICE_MAX_INTRL	236
 
 /* Legacy or Advanced Mode Queue */
 #define ICE_TX_ADVANCED	0
