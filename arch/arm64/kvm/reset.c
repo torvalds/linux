@@ -23,11 +23,14 @@
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
 #include <kvm/arm_arch_timer.h>
 
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
+#include <asm/fpsimd.h>
 #include <asm/ptrace.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
@@ -97,6 +100,92 @@ int kvm_arch_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	}
 
 	return r;
+}
+
+unsigned int kvm_sve_max_vl;
+
+int kvm_arm_init_arch_resources(void)
+{
+	if (system_supports_sve()) {
+		kvm_sve_max_vl = sve_max_virtualisable_vl;
+
+		/*
+		 * The get_sve_reg()/set_sve_reg() ioctl interface will need
+		 * to be extended with multiple register slice support in
+		 * order to support vector lengths greater than
+		 * SVE_VL_ARCH_MAX:
+		 */
+		if (WARN_ON(kvm_sve_max_vl > SVE_VL_ARCH_MAX))
+			kvm_sve_max_vl = SVE_VL_ARCH_MAX;
+
+		/*
+		 * Don't even try to make use of vector lengths that
+		 * aren't available on all CPUs, for now:
+		 */
+		if (kvm_sve_max_vl < sve_max_vl)
+			pr_warn("KVM: SVE vector length for guests limited to %u bytes\n",
+				kvm_sve_max_vl);
+	}
+
+	return 0;
+}
+
+/*
+ * Finalize vcpu's maximum SVE vector length, allocating
+ * vcpu->arch.sve_state as necessary.
+ */
+static int kvm_vcpu_finalize_sve(struct kvm_vcpu *vcpu)
+{
+	void *buf;
+	unsigned int vl;
+
+	vl = vcpu->arch.sve_max_vl;
+
+	/*
+	 * Resposibility for these properties is shared between
+	 * kvm_arm_init_arch_resources(), kvm_vcpu_enable_sve() and
+	 * set_sve_vls().  Double-check here just to be sure:
+	 */
+	if (WARN_ON(!sve_vl_valid(vl) || vl > sve_max_virtualisable_vl ||
+		    vl > SVE_VL_ARCH_MAX))
+		return -EIO;
+
+	buf = kzalloc(SVE_SIG_REGS_SIZE(sve_vq_from_vl(vl)), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	vcpu->arch.sve_state = buf;
+	vcpu->arch.flags |= KVM_ARM64_VCPU_SVE_FINALIZED;
+	return 0;
+}
+
+int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int what)
+{
+	switch (what) {
+	case KVM_ARM_VCPU_SVE:
+		if (!vcpu_has_sve(vcpu))
+			return -EINVAL;
+
+		if (kvm_arm_vcpu_sve_finalized(vcpu))
+			return -EPERM;
+
+		return kvm_vcpu_finalize_sve(vcpu);
+	}
+
+	return -EINVAL;
+}
+
+bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu)
+{
+	if (vcpu_has_sve(vcpu) && !kvm_arm_vcpu_sve_finalized(vcpu))
+		return false;
+
+	return true;
+}
+
+void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	kfree(vcpu->arch.sve_state);
 }
 
 /**

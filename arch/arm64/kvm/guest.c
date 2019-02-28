@@ -206,6 +206,73 @@ out:
 	return err;
 }
 
+#define vq_word(vq) (((vq) - SVE_VQ_MIN) / 64)
+#define vq_mask(vq) ((u64)1 << ((vq) - SVE_VQ_MIN) % 64)
+
+static bool vq_present(
+	const u64 (*const vqs)[DIV_ROUND_UP(SVE_VQ_MAX - SVE_VQ_MIN + 1, 64)],
+	unsigned int vq)
+{
+	return (*vqs)[vq_word(vq)] & vq_mask(vq);
+}
+
+static int get_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	unsigned int max_vq, vq;
+	u64 vqs[DIV_ROUND_UP(SVE_VQ_MAX - SVE_VQ_MIN + 1, 64)];
+
+	if (WARN_ON(!sve_vl_valid(vcpu->arch.sve_max_vl)))
+		return -EINVAL;
+
+	memset(vqs, 0, sizeof(vqs));
+
+	max_vq = sve_vq_from_vl(vcpu->arch.sve_max_vl);
+	for (vq = SVE_VQ_MIN; vq <= max_vq; ++vq)
+		if (sve_vq_available(vq))
+			vqs[vq_word(vq)] |= vq_mask(vq);
+
+	if (copy_to_user((void __user *)reg->addr, vqs, sizeof(vqs)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
+{
+	unsigned int max_vq, vq;
+	u64 vqs[DIV_ROUND_UP(SVE_VQ_MAX - SVE_VQ_MIN + 1, 64)];
+
+	if (kvm_arm_vcpu_sve_finalized(vcpu))
+		return -EPERM; /* too late! */
+
+	if (WARN_ON(vcpu->arch.sve_state))
+		return -EINVAL;
+
+	if (copy_from_user(vqs, (const void __user *)reg->addr, sizeof(vqs)))
+		return -EFAULT;
+
+	max_vq = 0;
+	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; ++vq)
+		if (vq_present(&vqs, vq))
+			max_vq = vq;
+
+	if (max_vq > sve_vq_from_vl(kvm_sve_max_vl))
+		return -EINVAL;
+
+	for (vq = SVE_VQ_MIN; vq <= max_vq; ++vq)
+		if (vq_present(&vqs, vq) != sve_vq_available(vq))
+			return -EINVAL;
+
+	/* Can't run with no vector lengths at all: */
+	if (max_vq < SVE_VQ_MIN)
+		return -EINVAL;
+
+	/* vcpu->arch.sve_state will be alloc'd by kvm_vcpu_finalize_sve() */
+	vcpu->arch.sve_max_vl = sve_vl_from_vq(max_vq);
+
+	return 0;
+}
+
 #define SVE_REG_SLICE_SHIFT	0
 #define SVE_REG_SLICE_BITS	5
 #define SVE_REG_ID_SHIFT	(SVE_REG_SLICE_SHIFT + SVE_REG_SLICE_BITS)
@@ -296,7 +363,19 @@ static int get_sve_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	struct sve_state_reg_region region;
 	char __user *uptr = (char __user *)reg->addr;
 
-	if (!vcpu_has_sve(vcpu) || sve_reg_to_region(&region, vcpu, reg))
+	if (!vcpu_has_sve(vcpu))
+		return -ENOENT;
+
+	/* Handle the KVM_REG_ARM64_SVE_VLS pseudo-reg as a special case: */
+	if (reg->id == KVM_REG_ARM64_SVE_VLS)
+		return get_sve_vls(vcpu, reg);
+
+	/* Otherwise, reg is an architectural SVE register... */
+
+	if (!kvm_arm_vcpu_sve_finalized(vcpu))
+		return -EPERM;
+
+	if (sve_reg_to_region(&region, vcpu, reg))
 		return -ENOENT;
 
 	if (copy_to_user(uptr, vcpu->arch.sve_state + region.koffset,
@@ -312,7 +391,19 @@ static int set_sve_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	struct sve_state_reg_region region;
 	const char __user *uptr = (const char __user *)reg->addr;
 
-	if (!vcpu_has_sve(vcpu) || sve_reg_to_region(&region, vcpu, reg))
+	if (!vcpu_has_sve(vcpu))
+		return -ENOENT;
+
+	/* Handle the KVM_REG_ARM64_SVE_VLS pseudo-reg as a special case: */
+	if (reg->id == KVM_REG_ARM64_SVE_VLS)
+		return set_sve_vls(vcpu, reg);
+
+	/* Otherwise, reg is an architectural SVE register... */
+
+	if (!kvm_arm_vcpu_sve_finalized(vcpu))
+		return -EPERM;
+
+	if (sve_reg_to_region(&region, vcpu, reg))
 		return -ENOENT;
 
 	if (copy_from_user(vcpu->arch.sve_state + region.koffset, uptr,
@@ -426,7 +517,11 @@ static unsigned long num_sve_regs(const struct kvm_vcpu *vcpu)
 	if (!vcpu_has_sve(vcpu))
 		return 0;
 
-	return slices * (SVE_NUM_PREGS + SVE_NUM_ZREGS + 1 /* FFR */);
+	/* Policed by KVM_GET_REG_LIST: */
+	WARN_ON(!kvm_arm_vcpu_sve_finalized(vcpu));
+
+	return slices * (SVE_NUM_PREGS + SVE_NUM_ZREGS + 1 /* FFR */)
+		+ 1; /* KVM_REG_ARM64_SVE_VLS */
 }
 
 static int copy_sve_reg_indices(const struct kvm_vcpu *vcpu,
@@ -440,6 +535,19 @@ static int copy_sve_reg_indices(const struct kvm_vcpu *vcpu,
 
 	if (!vcpu_has_sve(vcpu))
 		return 0;
+
+	/* Policed by KVM_GET_REG_LIST: */
+	WARN_ON(!kvm_arm_vcpu_sve_finalized(vcpu));
+
+	/*
+	 * Enumerate this first, so that userspace can save/restore in
+	 * the order reported by KVM_GET_REG_LIST:
+	 */
+	reg = KVM_REG_ARM64_SVE_VLS;
+	if (put_user(reg, uindices++))
+		return -EFAULT;
+
+	++num_regs;
 
 	for (i = 0; i < slices; i++) {
 		for (n = 0; n < SVE_NUM_ZREGS; n++) {
