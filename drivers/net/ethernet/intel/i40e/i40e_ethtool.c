@@ -4958,7 +4958,7 @@ flags_complete:
 		if (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) {
 			struct i40e_dcbx_config *dcbcfg;
 
-			i40e_aq_stop_lldp(&pf->hw, true, NULL);
+			i40e_aq_stop_lldp(&pf->hw, true, false, NULL);
 			i40e_aq_set_dcb_parameters(&pf->hw, true, NULL);
 			/* reset local_dcbx_config to default */
 			dcbcfg = &pf->hw.local_dcbx_config;
@@ -4973,7 +4973,7 @@ flags_complete:
 			dcbcfg->pfc.willing = 1;
 			dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
 		} else {
-			i40e_aq_start_lldp(&pf->hw, NULL);
+			i40e_aq_start_lldp(&pf->hw, false, NULL);
 		}
 	}
 
