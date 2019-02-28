@@ -416,7 +416,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	}
 
-	card->info.mac_bits = 0;
 	if (card->discipline) {
 		/* start with a new, pristine netdevice: */
 		ndev = qeth_clone_netdev(card->dev);
