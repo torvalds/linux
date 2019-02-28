@@ -182,6 +182,7 @@ struct mlxsw_sp_acl_tcam_vgroup {
 
 struct mlxsw_sp_acl_tcam_rehash_ctx {
 	void *hints_priv;
+	bool this_is_rollback;
 };
 
 struct mlxsw_sp_acl_tcam_vregion {
@@ -1195,7 +1196,7 @@ static int
 mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
 				     struct mlxsw_sp_acl_tcam_region *region,
-				     bool this_is_rollback)
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
@@ -1204,7 +1205,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 
 	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
 	if (IS_ERR(new_chunk)) {
-		if (this_is_rollback)
+		if (ctx->this_is_rollback)
 			vchunk->vregion->failed_rollback = true;
 		return PTR_ERR(new_chunk);
 	}
@@ -1215,7 +1216,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
 						       vchunk->chunk);
 		if (err) {
-			if (this_is_rollback) {
+			if (ctx->this_is_rollback) {
 				vchunk->vregion->failed_rollback = true;
 				return err;
 			}
@@ -1251,7 +1252,8 @@ err_rollback:
 
 static int
 mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_acl_tcam_vregion *vregion)
+				     struct mlxsw_sp_acl_tcam_vregion *vregion,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	int err;
@@ -1259,7 +1261,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 	list_for_each_entry(vchunk, &vregion->vchunk_list, list) {
 		err = mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
 							   vregion->region,
-							   false);
+							   ctx);
 		if (err)
 			goto rollback;
 	}
@@ -1270,10 +1272,12 @@ rollback:
 	 * so the original region pointer is assigned again to vregion->region.
 	 */
 	swap(vregion->region, vregion->region2);
+	ctx->this_is_rollback = true;
 	list_for_each_entry_continue_reverse(vchunk, &vregion->vchunk_list,
 					     list) {
 		mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
-						     vregion->region, true);
+						     vregion->region,
+						     ctx);
 	}
 	return err;
 }
@@ -1287,7 +1291,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
 	mutex_lock(&vregion->lock);
-	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion);
+	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion, ctx);
 	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
 	return err;
@@ -1332,6 +1336,7 @@ mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
 		goto err_group_region_attach;
 
 	ctx->hints_priv = hints_priv;
+	ctx->this_is_rollback = false;
 
 	return 0;
 
