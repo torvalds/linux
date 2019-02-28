@@ -1193,15 +1193,12 @@ mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
-				     struct mlxsw_sp_acl_tcam_region *region,
-				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+mlxsw_sp_acl_tcam_vchunk_migrate_start(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_vchunk *vchunk,
+				       struct mlxsw_sp_acl_tcam_region *region,
+				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
-	struct mlxsw_sp_acl_tcam_ventry *ventry;
-	int err;
-	int err2;
 
 	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
 	if (IS_ERR(new_chunk)) {
@@ -1211,6 +1208,31 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 	}
 	vchunk->chunk2 = vchunk->chunk;
 	vchunk->chunk = new_chunk;
+	return 0;
+}
+
+static void
+mlxsw_sp_acl_tcam_vchunk_migrate_end(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_vchunk *vchunk)
+{
+	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
+	vchunk->chunk2 = NULL;
+}
+
+static int
+mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
+				     struct mlxsw_sp_acl_tcam_region *region,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	struct mlxsw_sp_acl_tcam_ventry *ventry;
+	int err;
+	int err2;
+
+	err = mlxsw_sp_acl_tcam_vchunk_migrate_start(mlxsw_sp, vchunk,
+						     region, ctx);
+	if (err)
+		return err;
 
 	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
@@ -1223,8 +1245,8 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			goto rollback;
 		}
 	}
-	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
-	vchunk->chunk2 = NULL;
+
+	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk);
 	return 0;
 
 rollback:
@@ -1243,8 +1265,7 @@ rollback:
 		}
 	}
 
-	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
-	vchunk->chunk2 = NULL;
+	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk);
 
 err_rollback:
 	return err;
