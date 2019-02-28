@@ -32,6 +32,7 @@
 #include <asm/unaligned.h>
 
 struct sh_msiof_chipdata {
+	u32 bits_per_word_mask;
 	u16 tx_fifo_size;
 	u16 rx_fifo_size;
 	u16 ctlr_flags;
@@ -1048,6 +1049,7 @@ static int sh_msiof_transfer_one(struct spi_controller *ctlr,
 }
 
 static const struct sh_msiof_chipdata sh_data = {
+	.bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32),
 	.tx_fifo_size = 64,
 	.rx_fifo_size = 64,
 	.ctlr_flags = 0,
@@ -1055,6 +1057,8 @@ static const struct sh_msiof_chipdata sh_data = {
 };
 
 static const struct sh_msiof_chipdata rcar_gen2_data = {
+	.bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
+			      SPI_BPW_MASK(24) | SPI_BPW_MASK(32),
 	.tx_fifo_size = 64,
 	.rx_fifo_size = 64,
 	.ctlr_flags = SPI_CONTROLLER_MUST_TX,
@@ -1062,6 +1066,8 @@ static const struct sh_msiof_chipdata rcar_gen2_data = {
 };
 
 static const struct sh_msiof_chipdata rcar_gen3_data = {
+	.bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
+			      SPI_BPW_MASK(24) | SPI_BPW_MASK(32),
 	.tx_fifo_size = 64,
 	.rx_fifo_size = 64,
 	.ctlr_flags = SPI_CONTROLLER_MUST_TX,
@@ -1386,7 +1392,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	ctlr->setup = sh_msiof_spi_setup;
 	ctlr->prepare_message = sh_msiof_prepare_message;
 	ctlr->slave_abort = sh_msiof_slave_abort;
-	ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
+	ctlr->bits_per_word_mask = chipdata->bits_per_word_mask;
 	ctlr->auto_runtime_pm = true;
 	ctlr->transfer_one = sh_msiof_transfer_one;
 
