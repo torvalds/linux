@@ -125,6 +125,8 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	/* Transmit Queue Length */
 	tlan_ctx->qlen = ring->count;
 
+	ice_set_cgd_num(tlan_ctx, ring);
+
 	/* PF number */
 	tlan_ctx->pf_num = hw->pf_id;
 

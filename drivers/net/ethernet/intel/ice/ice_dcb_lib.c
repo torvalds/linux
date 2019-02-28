@@ -58,6 +58,44 @@ u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg)
 }
 
 /**
+ * ice_vsi_cfg_dcb_rings - Update rings to reflect DCB TC
+ * @vsi: VSI owner of rings being updated
+ */
+void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi)
+{
+	struct ice_ring *tx_ring, *rx_ring;
+	u16 qoffset, qcount;
+	int i, n;
+
+	if (!test_bit(ICE_FLAG_DCB_ENA, vsi->back->flags)) {
+		/* Reset the TC information */
+		for (i = 0; i < vsi->num_txq; i++) {
+			tx_ring = vsi->tx_rings[i];
+			tx_ring->dcb_tc = 0;
+		}
+		for (i = 0; i < vsi->num_rxq; i++) {
+			rx_ring = vsi->rx_rings[i];
+			rx_ring->dcb_tc = 0;
+		}
+		return;
+	}
+
+	ice_for_each_traffic_class(n) {
+		if (!(vsi->tc_cfg.ena_tc & BIT(n)))
+			break;
+
+		qoffset = vsi->tc_cfg.tc_info[n].qoffset;
+		qcount = vsi->tc_cfg.tc_info[n].qcount_tx;
+		for (i = qoffset; i < (qoffset + qcount); i++) {
+			tx_ring = vsi->tx_rings[i];
+			rx_ring = vsi->rx_rings[i];
+			tx_ring->dcb_tc = n;
+			rx_ring->dcb_tc = n;
+		}
+	}
+}
+
+/**
  * ice_pf_dcb_recfg - Reconfigure all VEBs and VSIs
  * @pf: pointer to the PF struct
  *

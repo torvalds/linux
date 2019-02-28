@@ -160,6 +160,9 @@ struct ice_ring {
 	};
 	u16 q_index;			/* Queue number of ring */
 	u32 txq_teid;			/* Added Tx queue TEID */
+#ifdef CONFIG_DCB
+	u8 dcb_tc;		/* Traffic class of ring */
+#endif /* CONFIG_DCB */
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
