@@ -1174,6 +1174,10 @@ mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_entry *entry2;
 
+	/* First check if the entry is not already where we want it to be. */
+	if (ventry->entry->chunk == chunk2)
+		return 0;
+
 	entry2 = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk2);
 	if (IS_ERR(entry2))
 		return PTR_ERR(entry2);
