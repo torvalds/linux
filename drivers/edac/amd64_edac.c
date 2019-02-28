@@ -787,6 +787,22 @@ static void debug_dump_dramcfg_low(struct amd64_pvt *pvt, u32 dclr, int chan)
 		 (dclr & BIT(15)) ?  "yes" : "no");
 }
 
+/*
+ * The Address Mask should be a contiguous set of bits in the non-interleaved
+ * case. So to check for CS interleaving, find the most- and least-significant
+ * bits of the mask, generate a contiguous bitmask, and compare the two.
+ */
+static bool f17_cs_interleaved(struct amd64_pvt *pvt, u8 ctrl, int cs)
+{
+	u32 mask = pvt->csels[ctrl].csmasks[cs >> 1];
+	u32 msb = fls(mask) - 1, lsb = ffs(mask) - 1;
+	u32 test_mask = GENMASK(msb, lsb);
+
+	edac_dbg(1, "mask=0x%08x test_mask=0x%08x\n", mask, test_mask);
+
+	return mask ^ test_mask;
+}
+
 static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 {
 	int dimm, size0, size1, cs0, cs1;
@@ -803,8 +819,19 @@ static void debug_display_dimm_sizes_df(struct amd64_pvt *pvt, u8 ctrl)
 		size1 = 0;
 		cs1 = dimm * 2 + 1;
 
-		if (csrow_enabled(cs1, ctrl, pvt))
-			size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs1);
+		if (csrow_enabled(cs1, ctrl, pvt)) {
+			/*
+			 * CS interleaving is only supported if both CSes have
+			 * the same amount of memory. Because they are
+			 * interleaved, it will look like both CSes have the
+			 * full amount of memory. Save the size for both as
+			 * half the amount we found on CS0, if interleaved.
+			 */
+			if (f17_cs_interleaved(pvt, ctrl, cs1))
+				size1 = size0 = (size0 >> 1);
+			else
+				size1 = pvt->ops->dbam_to_cs(pvt, ctrl, 0, cs1);
+		}
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
 				cs0,	size0,
