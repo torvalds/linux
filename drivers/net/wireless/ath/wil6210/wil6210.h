@@ -367,6 +367,7 @@ struct RGF_ICR {
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
 #define RGF_OTP_MAC_TALYN_MB		(0x8a0304)
+#define RGF_OTP_OEM_MAC			(0x8a0334)
 #define RGF_OTP_MAC			(0x8a0620)
 
 /* Talyn-MB */
