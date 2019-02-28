@@ -3793,6 +3793,8 @@ static void ice_rebuild(struct ice_pf *pf)
 	if (err)
 		goto err_sched_init_port;
 
+	ice_dcb_rebuild(pf);
+
 	/* reset search_hint of irq_trackers to 0 since interrupts are
 	 * reclaimed and could be allocated from beginning during VSI rebuild
 	 */

@@ -8,6 +8,9 @@
 #include "ice_lib.h"
 
 #ifdef CONFIG_DCB
+#define ICE_TC_MAX_BW 100 /* Default Max BW percentage */
+
+void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
@@ -25,6 +28,8 @@ ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring)
 	tlan_ctx->cgd_num = ring->dcb_tc;
 }
 #else
+#define ice_dcb_rebuild(pf) do {} while (0)
+
 static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
 {
 	return ICE_DFLT_TRAFFIC_CLASS;

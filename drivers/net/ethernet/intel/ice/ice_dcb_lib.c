@@ -198,6 +198,84 @@ out:
 }
 
 /**
+ * ice_dcb_rebuild - rebuild DCB post reset
+ * @pf: physical function instance
+ */
+void ice_dcb_rebuild(struct ice_pf *pf)
+{
+	struct ice_aqc_port_ets_elem buf = { 0 };
+	struct ice_dcbx_cfg *prev_cfg;
+	enum ice_status ret;
+	u8 willing;
+
+	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Query Port ETS failed\n");
+		goto dcb_error;
+	}
+
+	/* If DCB was not enabled previously, we are done */
+	if (!test_bit(ICE_FLAG_DCB_ENA, pf->flags))
+		return;
+
+	/* Save current willing state and force FW to unwilling */
+	willing = pf->hw.port_info->local_dcbx_cfg.etscfg.willing;
+	pf->hw.port_info->local_dcbx_cfg.etscfg.willing = 0x0;
+	ret = ice_set_dcb_cfg(pf->hw.port_info);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Failed to set DCB to unwilling\n");
+		goto dcb_error;
+	}
+
+	/* Retrieve DCB config and ensure same as current in SW */
+	prev_cfg = devm_kmemdup(&pf->pdev->dev,
+				&pf->hw.port_info->local_dcbx_cfg,
+				sizeof(*prev_cfg), GFP_KERNEL);
+	if (!prev_cfg) {
+		dev_err(&pf->pdev->dev, "Failed to alloc space for DCB cfg\n");
+		goto dcb_error;
+	}
+
+	ice_init_dcb(&pf->hw);
+	if (memcmp(prev_cfg, &pf->hw.port_info->local_dcbx_cfg,
+		   sizeof(*prev_cfg))) {
+		/* difference in cfg detected - disable DCB till next MIB */
+		dev_err(&pf->pdev->dev, "Set local MIB not accurate\n");
+		devm_kfree(&pf->pdev->dev, prev_cfg);
+		goto dcb_error;
+	}
+
+	/* fetched config congruent to previous configuration */
+	devm_kfree(&pf->pdev->dev, prev_cfg);
+
+	/* Configuration replayed - reset willing state to previous */
+	pf->hw.port_info->local_dcbx_cfg.etscfg.willing = willing;
+	ret = ice_set_dcb_cfg(pf->hw.port_info);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Fail restoring prev willing state\n");
+		goto dcb_error;
+	}
+	dev_info(&pf->pdev->dev, "DCB restored after reset\n");
+	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Query Port ETS failed\n");
+		goto dcb_error;
+	}
+
+	return;
+
+dcb_error:
+	dev_err(&pf->pdev->dev, "Disabling DCB until new settings occur\n");
+	prev_cfg = devm_kzalloc(&pf->pdev->dev, sizeof(*prev_cfg), GFP_KERNEL);
+	prev_cfg->etscfg.willing = true;
+	prev_cfg->etscfg.tcbwtable[0] = ICE_TC_MAX_BW;
+	prev_cfg->etscfg.tsatable[0] = ICE_IEEE_TSA_ETS;
+	memcpy(&prev_cfg->etsrec, &prev_cfg->etscfg, sizeof(prev_cfg->etsrec));
+	ice_pf_dcb_cfg(pf, prev_cfg);
+	devm_kfree(&pf->pdev->dev, prev_cfg);
+}
+
+/**
  * ice_dcb_init_cfg - set the initial DCB config in SW
  * @pf: pf to apply config to
  */
