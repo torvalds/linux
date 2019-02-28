@@ -38,5 +38,5 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 		ice_aq_start_stop_dcbx(hw, true, &dcbx_status, NULL);
 	}
 
-	return 0;
+	return ice_init_dcb(hw);
 }

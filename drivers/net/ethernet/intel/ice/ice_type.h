@@ -262,6 +262,59 @@ struct ice_sched_tx_policy {
 	u8 rdma_ena;
 };
 
+/* CEE or IEEE 802.1Qaz ETS Configuration data */
+struct ice_dcb_ets_cfg {
+	u8 willing;
+	u8 cbs;
+	u8 maxtcs;
+	u8 prio_table[ICE_MAX_TRAFFIC_CLASS];
+	u8 tcbwtable[ICE_MAX_TRAFFIC_CLASS];
+	u8 tsatable[ICE_MAX_TRAFFIC_CLASS];
+};
+
+/* CEE or IEEE 802.1Qaz PFC Configuration data */
+struct ice_dcb_pfc_cfg {
+	u8 willing;
+	u8 mbc;
+	u8 pfccap;
+	u8 pfcena;
+};
+
+/* CEE or IEEE 802.1Qaz Application Priority data */
+struct ice_dcb_app_priority_table {
+	u16 prot_id;
+	u8 priority;
+	u8 selector;
+};
+
+#define ICE_MAX_USER_PRIORITY	8
+#define ICE_DCBX_MAX_APPS	32
+#define ICE_LLDPDU_SIZE		1500
+#define ICE_TLV_STATUS_OPER	0x1
+#define ICE_TLV_STATUS_SYNC	0x2
+#define ICE_TLV_STATUS_ERR	0x4
+#define ICE_APP_PROT_ID_FCOE	0x8906
+#define ICE_APP_PROT_ID_ISCSI	0x0cbc
+#define ICE_APP_PROT_ID_FIP	0x8914
+#define ICE_APP_SEL_ETHTYPE	0x1
+#define ICE_APP_SEL_TCPIP	0x2
+#define ICE_CEE_APP_SEL_ETHTYPE	0x0
+#define ICE_CEE_APP_SEL_TCPIP	0x1
+
+struct ice_dcbx_cfg {
+	u32 numapps;
+	u32 tlv_status; /* CEE mode TLV status */
+	struct ice_dcb_ets_cfg etscfg;
+	struct ice_dcb_ets_cfg etsrec;
+	struct ice_dcb_pfc_cfg pfc;
+	struct ice_dcb_app_priority_table app[ICE_DCBX_MAX_APPS];
+	u8 dcbx_mode;
+#define ICE_DCBX_MODE_CEE	0x1
+#define ICE_DCBX_MODE_IEEE	0x2
+	u8 app_mode;
+#define ICE_DCBX_APPS_NON_WILLING	0x1
+};
+
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
 	struct ice_hw *hw;		/* back pointer to HW instance */
@@ -279,8 +332,13 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
+	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
+	/* DCBX info */
+	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
+	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
 	/* LLDP/DCBX Status */
 	u8 dcbx_status;
+	u8 is_sw_lldp;
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
 	u8 is_vf;

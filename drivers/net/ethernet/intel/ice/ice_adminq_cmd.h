@@ -1132,12 +1132,84 @@ struct ice_aqc_pf_vf_msg {
 	__le32 addr_low;
 };
 
+/* Get LLDP MIB (indirect 0x0A00)
+ * Note: This is also used by the LLDP MIB Change Event (0x0A01)
+ * as the format is the same.
+ */
+struct ice_aqc_lldp_get_mib {
+	u8 type;
+#define ICE_AQ_LLDP_MIB_TYPE_S			0
+#define ICE_AQ_LLDP_MIB_TYPE_M			(0x3 << ICE_AQ_LLDP_MIB_TYPE_S)
+#define ICE_AQ_LLDP_MIB_LOCAL			0
+#define ICE_AQ_LLDP_MIB_REMOTE			1
+#define ICE_AQ_LLDP_MIB_LOCAL_AND_REMOTE	2
+#define ICE_AQ_LLDP_BRID_TYPE_S			2
+#define ICE_AQ_LLDP_BRID_TYPE_M			(0x3 << ICE_AQ_LLDP_BRID_TYPE_S)
+#define ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID	0
+#define ICE_AQ_LLDP_BRID_TYPE_NON_TPMR		1
+/* Tx pause flags in the 0xA01 event use ICE_AQ_LLDP_TX_* */
+#define ICE_AQ_LLDP_TX_S			0x4
+#define ICE_AQ_LLDP_TX_M			(0x03 << ICE_AQ_LLDP_TX_S)
+#define ICE_AQ_LLDP_TX_ACTIVE			0
+#define ICE_AQ_LLDP_TX_SUSPENDED		1
+#define ICE_AQ_LLDP_TX_FLUSHED			3
+/* The following bytes are reserved for the Get LLDP MIB command (0x0A00)
+ * and in the LLDP MIB Change Event (0x0A01). They are valid for the
+ * Get LLDP MIB (0x0A00) response only.
+ */
+	u8 reserved1;
+	__le16 local_len;
+	__le16 remote_len;
+	u8 reserved2[2];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Configure LLDP MIB Change Event (direct 0x0A01) */
+/* For MIB Change Event use ice_aqc_lldp_get_mib structure above */
+struct ice_aqc_lldp_set_mib_change {
+	u8 command;
+#define ICE_AQ_LLDP_MIB_UPDATE_ENABLE		0x0
+#define ICE_AQ_LLDP_MIB_UPDATE_DIS		0x1
+	u8 reserved[15];
+};
+
 /* Start LLDP (direct 0x0A06) */
 struct ice_aqc_lldp_start {
 	u8 command;
 #define ICE_AQ_LLDP_AGENT_START		BIT(0)
 #define ICE_AQ_LLDP_AGENT_PERSIST_ENA	BIT(1)
 	u8 reserved[15];
+};
+
+/* Get CEE DCBX Oper Config (0x0A07)
+ * The command uses the generic descriptor struct and
+ * returns the struct below as an indirect response.
+ */
+struct ice_aqc_get_cee_dcb_cfg_resp {
+	u8 oper_num_tc;
+	u8 oper_prio_tc[4];
+	u8 oper_tc_bw[8];
+	u8 oper_pfc_en;
+	__le16 oper_app_prio;
+#define ICE_AQC_CEE_APP_FCOE_S		0
+#define ICE_AQC_CEE_APP_FCOE_M		(0x7 << ICE_AQC_CEE_APP_FCOE_S)
+#define ICE_AQC_CEE_APP_ISCSI_S		3
+#define ICE_AQC_CEE_APP_ISCSI_M		(0x7 << ICE_AQC_CEE_APP_ISCSI_S)
+#define ICE_AQC_CEE_APP_FIP_S		8
+#define ICE_AQC_CEE_APP_FIP_M		(0x7 << ICE_AQC_CEE_APP_FIP_S)
+	__le32 tlv_status;
+#define ICE_AQC_CEE_PG_STATUS_S		0
+#define ICE_AQC_CEE_PG_STATUS_M		(0x7 << ICE_AQC_CEE_PG_STATUS_S)
+#define ICE_AQC_CEE_PFC_STATUS_S	3
+#define ICE_AQC_CEE_PFC_STATUS_M	(0x7 << ICE_AQC_CEE_PFC_STATUS_S)
+#define ICE_AQC_CEE_FCOE_STATUS_S	8
+#define ICE_AQC_CEE_FCOE_STATUS_M	(0x7 << ICE_AQC_CEE_FCOE_STATUS_S)
+#define ICE_AQC_CEE_ISCSI_STATUS_S	11
+#define ICE_AQC_CEE_ISCSI_STATUS_M	(0x7 << ICE_AQC_CEE_ISCSI_STATUS_S)
+#define ICE_AQC_CEE_FIP_STATUS_S	16
+#define ICE_AQC_CEE_FIP_STATUS_M	(0x7 << ICE_AQC_CEE_FIP_STATUS_S)
+	u8 reserved[12];
 };
 
 /* Stop/Start LLDP Agent (direct 0x0A09)
@@ -1411,6 +1483,8 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_pf_vf_msg virt;
+		struct ice_aqc_lldp_get_mib lldp_get_mib;
+		struct ice_aqc_lldp_set_mib_change lldp_set_event;
 		struct ice_aqc_lldp_start lldp_start;
 		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
@@ -1445,6 +1519,8 @@ struct ice_aq_desc {
 /* error codes */
 enum ice_aq_err {
 	ICE_AQ_RC_OK		= 0,  /* Success */
+	ICE_AQ_RC_EPERM		= 1,  /* Operation not permitted */
+	ICE_AQ_RC_ENOENT	= 2,  /* No such element */
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
 	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
@@ -1515,7 +1591,10 @@ enum ice_adminq_opc {
 	ice_mbx_opc_send_msg_to_pf			= 0x0801,
 	ice_mbx_opc_send_msg_to_vf			= 0x0802,
 	/* LLDP commands */
+	ice_aqc_opc_lldp_get_mib			= 0x0A00,
+	ice_aqc_opc_lldp_set_mib_change			= 0x0A01,
 	ice_aqc_opc_lldp_start				= 0x0A06,
+	ice_aqc_opc_get_cee_dcb_cfg			= 0x0A07,
 	ice_aqc_opc_lldp_stop_start_specific_agent	= 0x0A09,
 
 	/* RSS commands */
