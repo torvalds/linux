@@ -1252,6 +1252,9 @@ static int ath10k_debug_cal_data_fetch(struct ath10k *ar)
 	if (WARN_ON(ar->hw_params.cal_data_len > ATH10K_DEBUG_CAL_DATA_LEN))
 		return -EINVAL;
 
+	if (ar->hw_params.cal_data_len == 0)
+		return -EOPNOTSUPP;
+
 	hi_addr = host_interest_item_address(HI_ITEM(hi_board_data));
 
 	ret = ath10k_hif_diag_read(ar, hi_addr, &addr, sizeof(addr));

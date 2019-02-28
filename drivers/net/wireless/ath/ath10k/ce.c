@@ -1066,8 +1066,8 @@ EXPORT_SYMBOL(ath10k_ce_revoke_recv_next);
  * Guts of ath10k_ce_completed_send_next.
  * The caller takes responsibility for any necessary locking.
  */
-int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
-					 void **per_transfer_contextp)
+static int _ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+						 void **per_transfer_contextp)
 {
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;
@@ -1117,6 +1117,66 @@ int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 	src_ring->sw_index = sw_index;
 
 	return 0;
+}
+
+static int _ath10k_ce_completed_send_next_nolock_64(struct ath10k_ce_pipe *ce_state,
+						    void **per_transfer_contextp)
+{
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
+	u32 ctrl_addr = ce_state->ctrl_addr;
+	struct ath10k *ar = ce_state->ar;
+	unsigned int nentries_mask = src_ring->nentries_mask;
+	unsigned int sw_index = src_ring->sw_index;
+	unsigned int read_index;
+	struct ce_desc_64 *desc;
+
+	if (src_ring->hw_index == sw_index) {
+		/*
+		 * The SW completion index has caught up with the cached
+		 * version of the HW completion index.
+		 * Update the cached HW completion index to see whether
+		 * the SW has really caught up to the HW, or if the cached
+		 * value of the HW index has become stale.
+		 */
+
+		read_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+		if (read_index == 0xffffffff)
+			return -ENODEV;
+
+		read_index &= nentries_mask;
+		src_ring->hw_index = read_index;
+	}
+
+	if (ar->hw_params.rri_on_ddr)
+		read_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
+	else
+		read_index = src_ring->hw_index;
+
+	if (read_index == sw_index)
+		return -EIO;
+
+	if (per_transfer_contextp)
+		*per_transfer_contextp =
+			src_ring->per_transfer_context[sw_index];
+
+	/* sanity */
+	src_ring->per_transfer_context[sw_index] = NULL;
+	desc = CE_SRC_RING_TO_DESC_64(src_ring->base_addr_owner_space,
+				      sw_index);
+	desc->nbytes = 0;
+
+	/* Update sw_index */
+	sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
+	src_ring->sw_index = sw_index;
+
+	return 0;
+}
+
+int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
+					 void **per_transfer_contextp)
+{
+	return ce_state->ops->ce_completed_send_next_nolock(ce_state,
+							    per_transfer_contextp);
 }
 EXPORT_SYMBOL(ath10k_ce_completed_send_next_nolock);
 
@@ -1839,6 +1899,7 @@ static const struct ath10k_ce_ops ce_ops = {
 	.ce_send_nolock = _ath10k_ce_send_nolock,
 	.ce_set_src_ring_base_addr_hi = NULL,
 	.ce_set_dest_ring_base_addr_hi = NULL,
+	.ce_completed_send_next_nolock = _ath10k_ce_completed_send_next_nolock,
 };
 
 static const struct ath10k_ce_ops ce_64_ops = {
@@ -1853,6 +1914,7 @@ static const struct ath10k_ce_ops ce_64_ops = {
 	.ce_send_nolock = _ath10k_ce_send_nolock_64,
 	.ce_set_src_ring_base_addr_hi = ath10k_ce_set_src_ring_base_addr_hi,
 	.ce_set_dest_ring_base_addr_hi = ath10k_ce_set_dest_ring_base_addr_hi,
+	.ce_completed_send_next_nolock = _ath10k_ce_completed_send_next_nolock_64,
 };
 
 static void ath10k_ce_set_ops(struct ath10k *ar,

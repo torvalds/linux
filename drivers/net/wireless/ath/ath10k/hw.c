@@ -1100,6 +1100,32 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 	return ret;
 }
 
+static int ath10k_htt_tx_rssi_enable(struct htt_resp *resp)
+{
+	return (resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_DATA_RSSI);
+}
+
+static int ath10k_htt_tx_rssi_enable_wcn3990(struct htt_resp *resp)
+{
+	return (resp->data_tx_completion.flags2 &
+		HTT_TX_DATA_RSSI_ENABLE_WCN3990);
+}
+
+static int ath10k_get_htt_tx_data_rssi_pad(struct htt_resp *resp)
+{
+	struct htt_data_tx_completion_ext extd;
+	int pad_bytes = 0;
+
+	if (resp->data_tx_completion.flags2 & HTT_TX_DATA_APPEND_RETRIES)
+		pad_bytes += sizeof(extd.a_retries) /
+			     sizeof(extd.msdus_rssi[0]);
+
+	if (resp->data_tx_completion.flags2 & HTT_TX_DATA_APPEND_TIMESTAMP)
+		pad_bytes += sizeof(extd.t_stamp) / sizeof(extd.msdus_rssi[0]);
+
+	return pad_bytes;
+}
+
 const struct ath10k_hw_ops qca988x_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 };
@@ -1124,6 +1150,10 @@ const struct ath10k_hw_ops qca99x0_ops = {
 const struct ath10k_hw_ops qca6174_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
+	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 
-const struct ath10k_hw_ops wcn3990_ops = {};
+const struct ath10k_hw_ops wcn3990_ops = {
+	.tx_data_rssi_pad_bytes = ath10k_get_htt_tx_data_rssi_pad,
+	.is_rssi_enable = ath10k_htt_tx_rssi_enable_wcn3990,
+};
