@@ -3138,7 +3138,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	if (!hdev->asic_funcs->is_device_idle(hdev)) {
 		dev_err_ratelimited(hdev->dev,
 			"Can't send KMD job on QMAN0 if device is not idle\n");
-		return -EFAULT;
+		return -EBUSY;
 	}
 
 	fence_ptr = hdev->asic_funcs->dma_pool_zalloc(hdev, 4, GFP_KERNEL,

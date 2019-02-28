@@ -622,13 +622,15 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 					"Failed to switch to context %d, rejecting CS! %d\n",
 					ctx->asid, rc);
 				/*
-				 * If we timedout, we need to soft-reset because
-				 * QMAN is probably stuck. However, we can't
-				 * call to reset here directly because of
-				 * deadlock, so need to do it at the very end
-				 * of this function
+				 * If we timedout, or if the device is not IDLE
+				 * while we want to do context-switch (-EBUSY),
+				 * we need to soft-reset because QMAN is
+				 * probably stuck. However, we can't call to
+				 * reset here directly because of deadlock, so
+				 * need to do it at the very end of this
+				 * function
 				 */
-				if (rc == -ETIMEDOUT)
+				if ((rc == -ETIMEDOUT) || (rc == -EBUSY))
 					need_soft_reset = true;
 				mutex_unlock(&hpriv->restore_phase_mutex);
 				goto out;
@@ -706,7 +708,7 @@ out:
 		args->out.seq = cs_seq;
 	}
 
-	if ((rc == -ETIMEDOUT) && (need_soft_reset))
+	if (((rc == -ETIMEDOUT) || (rc == -EBUSY)) && (need_soft_reset))
 		hl_device_reset(hdev, false, false);
 
 	return rc;
