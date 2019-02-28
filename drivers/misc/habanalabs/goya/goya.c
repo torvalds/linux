@@ -111,29 +111,6 @@ static u16 goya_packet_sizes[MAX_PACKET_ID] = {
 	[PACKET_STOP]		= sizeof(struct packet_stop)
 };
 
-static const char *goya_axi_name[GOYA_MAX_INITIATORS] = {
-	"MME0",
-	"MME1",
-	"MME2",
-	"MME3",
-	"MME4",
-	"MME5",
-	"TPC0",
-	"TPC1",
-	"TPC2",
-	"TPC3",
-	"TPC4",
-	"TPC5",
-	"TPC6",
-	"TPC7",
-	"PCI",
-	"DMA", /* HBW */
-	"DMA", /* LBW */
-	"PSOC",
-	"CPU",
-	"MMU"
-};
-
 static u64 goya_mmu_regs[GOYA_MMU_REGS_NUM] = {
 	mmDMA_QM_0_GLBL_NON_SECURE_PROPS,
 	mmDMA_QM_1_GLBL_NON_SECURE_PROPS,
@@ -4554,109 +4531,159 @@ static void goya_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 			(addr - goya->ddr_bar_cur_addr));
 }
 
-static void goya_get_axi_name(struct hl_device *hdev, u32 agent_id,
-		u16 event_type, char *axi_name, int len)
+static const char *_goya_get_event_desc(u16 event_type)
 {
-	if (!strcmp(goya_axi_name[agent_id], "DMA"))
-		if (event_type >= GOYA_ASYNC_EVENT_ID_DMA0_CH)
-			snprintf(axi_name, len, "DMA %d",
-				event_type - GOYA_ASYNC_EVENT_ID_DMA0_CH);
-		else
-			snprintf(axi_name, len, "DMA %d",
-				event_type - GOYA_ASYNC_EVENT_ID_DMA0_QM);
-	else
-		snprintf(axi_name, len, "%s", goya_axi_name[agent_id]);
+	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
+		return "PCIe_dec";
+	case GOYA_ASYNC_EVENT_ID_TPC0_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_DEC:
+		return "TPC%d_dec";
+	case GOYA_ASYNC_EVENT_ID_MME_WACS:
+		return "MME_wacs";
+	case GOYA_ASYNC_EVENT_ID_MME_WACSD:
+		return "MME_wacsd";
+	case GOYA_ASYNC_EVENT_ID_CPU_AXI_SPLITTER:
+		return "CPU_axi_splitter";
+	case GOYA_ASYNC_EVENT_ID_PSOC_AXI_DEC:
+		return "PSOC_axi_dec";
+	case GOYA_ASYNC_EVENT_ID_PSOC:
+		return "PSOC";
+	case GOYA_ASYNC_EVENT_ID_TPC0_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC1_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC2_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC3_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC4_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC5_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC6_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC7_KRN_ERR:
+		return "TPC%d_krn_err";
+	case GOYA_ASYNC_EVENT_ID_TPC0_CMDQ ... GOYA_ASYNC_EVENT_ID_TPC7_CMDQ:
+		return "TPC%d_cq";
+	case GOYA_ASYNC_EVENT_ID_TPC0_QM ... GOYA_ASYNC_EVENT_ID_TPC7_QM:
+		return "TPC%d_qm";
+	case GOYA_ASYNC_EVENT_ID_MME_QM:
+		return "MME_qm";
+	case GOYA_ASYNC_EVENT_ID_MME_CMDQ:
+		return "MME_cq";
+	case GOYA_ASYNC_EVENT_ID_DMA0_QM ... GOYA_ASYNC_EVENT_ID_DMA4_QM:
+		return "DMA%d_qm";
+	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
+		return "DMA%d_ch";
+	default:
+		return "N/A";
+	}
 }
 
-static void goya_print_razwi_info(struct hl_device *hdev, u64 reg,
-		bool is_hbw, bool is_read, u16 event_type)
+static void goya_get_event_desc(u16 event_type, char *desc, size_t size)
 {
-	u32 val, agent_id;
-	char axi_name[10] = {0};
+	u8 index;
 
-	val = RREG32(reg);
+	switch (event_type) {
+	case GOYA_ASYNC_EVENT_ID_TPC0_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC1_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC2_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC3_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC4_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC5_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC6_DEC:
+	case GOYA_ASYNC_EVENT_ID_TPC7_DEC:
+		index = (event_type - GOYA_ASYNC_EVENT_ID_TPC0_DEC) / 3;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_TPC0_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC1_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC2_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC3_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC4_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC5_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC6_KRN_ERR:
+	case GOYA_ASYNC_EVENT_ID_TPC7_KRN_ERR:
+		index = (event_type - GOYA_ASYNC_EVENT_ID_TPC0_KRN_ERR) / 10;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_TPC0_CMDQ ... GOYA_ASYNC_EVENT_ID_TPC7_CMDQ:
+		index = event_type - GOYA_ASYNC_EVENT_ID_TPC0_CMDQ;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_TPC0_QM ... GOYA_ASYNC_EVENT_ID_TPC7_QM:
+		index = event_type - GOYA_ASYNC_EVENT_ID_TPC0_QM;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_DMA0_QM ... GOYA_ASYNC_EVENT_ID_DMA4_QM:
+		index = event_type - GOYA_ASYNC_EVENT_ID_DMA0_QM;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	case GOYA_ASYNC_EVENT_ID_DMA0_CH ... GOYA_ASYNC_EVENT_ID_DMA4_CH:
+		index = event_type - GOYA_ASYNC_EVENT_ID_DMA0_CH;
+		snprintf(desc, size, _goya_get_event_desc(event_type), index);
+		break;
+	default:
+		snprintf(desc, size, _goya_get_event_desc(event_type));
+		break;
+	}
+}
 
-	if (is_hbw)
-		agent_id = (val & GOYA_IRQ_HBW_AGENT_ID_MASK) >>
-				GOYA_IRQ_HBW_AGENT_ID_SHIFT;
-	else
-		agent_id = (val & GOYA_IRQ_LBW_AGENT_ID_MASK) >>
-				GOYA_IRQ_LBW_AGENT_ID_SHIFT;
+static void goya_print_razwi_info(struct hl_device *hdev)
+{
+	if (RREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD)) {
+		dev_err(hdev->dev, "Illegal write to LBW\n");
+		WREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD, 0);
+	}
 
-	if (agent_id >= GOYA_MAX_INITIATORS) {
-		dev_err(hdev->dev,
-			"Illegal %s %s with wrong initiator id %d, H/W IRQ %d\n",
-				is_read ? "read from" : "write to",
-				is_hbw ? "HBW" : "LBW",
-				agent_id,
-				event_type);
-	} else {
-		goya_get_axi_name(hdev, agent_id, event_type, axi_name,
-				sizeof(axi_name));
-		dev_err(hdev->dev, "Illegal %s by %s %s %s, H/W IRQ %d\n",
-				is_read ? "read" : "write",
-				axi_name,
-				is_read ? "from" : "to",
-				is_hbw ? "HBW" : "LBW",
-				event_type);
+	if (RREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD)) {
+		dev_err(hdev->dev, "Illegal read from LBW\n");
+		WREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD, 0);
+	}
+
+	if (RREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD)) {
+		dev_err(hdev->dev, "Illegal write to HBW\n");
+		WREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD, 0);
+	}
+
+	if (RREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD)) {
+		dev_err(hdev->dev, "Illegal read from HBW\n");
+		WREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD, 0);
+	}
+}
+
+static void goya_print_mmu_error_info(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u64 addr;
+	u32 val;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return;
+
+	val = RREG32(mmMMU_PAGE_ERROR_CAPTURE);
+	if (val & MMU_PAGE_ERROR_CAPTURE_ENTRY_VALID_MASK) {
+		addr = val & MMU_PAGE_ERROR_CAPTURE_VA_49_32_MASK;
+		addr <<= 32;
+		addr |= RREG32(mmMMU_PAGE_ERROR_CAPTURE_VA);
+
+		dev_err(hdev->dev, "MMU page fault on va 0x%llx\n", addr);
+
+		WREG32(mmMMU_PAGE_ERROR_CAPTURE, 0);
 	}
 }
 
 static void goya_print_irq_info(struct hl_device *hdev, u16 event_type)
 {
-	struct goya_device *goya = hdev->asic_specific;
-	bool is_hbw = false, is_read = false, is_info = false;
+	char desc[20] = "";
 
-	if (RREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD)) {
-		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_LBW_WT_ID, is_hbw,
-				is_read, event_type);
-		WREG32(mmDMA_MACRO_RAZWI_LBW_WT_VLD, 0);
-		is_info = true;
-	}
-	if (RREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD)) {
-		is_read = true;
-		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_LBW_RD_ID, is_hbw,
-				is_read, event_type);
-		WREG32(mmDMA_MACRO_RAZWI_LBW_RD_VLD, 0);
-		is_info = true;
-	}
-	if (RREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD)) {
-		is_hbw = true;
-		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_HBW_WT_ID, is_hbw,
-				is_read, event_type);
-		WREG32(mmDMA_MACRO_RAZWI_HBW_WT_VLD, 0);
-		is_info = true;
-	}
-	if (RREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD)) {
-		is_hbw = true;
-		is_read = true;
-		goya_print_razwi_info(hdev, mmDMA_MACRO_RAZWI_HBW_RD_ID, is_hbw,
-				is_read, event_type);
-		WREG32(mmDMA_MACRO_RAZWI_HBW_RD_VLD, 0);
-		is_info = true;
-	}
-	if (!is_info) {
-		dev_err(hdev->dev,
-			"Received H/W interrupt %d, no additional info\n",
-			event_type);
-		return;
-	}
+	goya_get_event_desc(event_type, desc, sizeof(desc));
+	dev_err(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
+		event_type, desc);
 
-	if (goya->hw_cap_initialized & HW_CAP_MMU) {
-		u32 val = RREG32(mmMMU_PAGE_ERROR_CAPTURE);
-		u64 addr;
-
-		if (val & MMU_PAGE_ERROR_CAPTURE_ENTRY_VALID_MASK) {
-			addr = val & MMU_PAGE_ERROR_CAPTURE_VA_49_32_MASK;
-			addr <<= 32;
-			addr |= RREG32(mmMMU_PAGE_ERROR_CAPTURE_VA);
-
-			dev_err(hdev->dev, "MMU page fault on va 0x%llx\n",
-					addr);
-
-			WREG32(mmMMU_PAGE_ERROR_CAPTURE, 0);
-		}
-	}
+	goya_print_razwi_info(hdev);
+	goya_print_mmu_error_info(hdev);
 }
 
 static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
