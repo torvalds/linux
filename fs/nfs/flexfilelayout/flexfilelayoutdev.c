@@ -196,7 +196,7 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 				   struct nfs4_ff_layout_mirror *mirror,
 				   bool create)
 {
-	if (mirror == NULL || IS_ERR(mirror->mirror_ds))
+	if (mirror == NULL)
 		goto outerr;
 	if (mirror->mirror_ds == NULL) {
 		if (create) {
@@ -229,7 +229,6 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 	}
 	return true;
 outerr:
-	pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode, lseg);
 	return false;
 }
 
@@ -417,7 +416,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 	int status;
 
 	if (!ff_layout_mirror_valid(lseg, mirror, true))
-		goto out;
+		goto noconnect;
 
 	ds = mirror->mirror_ds->ds;
 	/* matching smp_wmb() in _nfs4_pnfs_v3/4_ds_connect */
@@ -444,6 +443,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 			mirror->mirror_ds->ds_versions[0].wsize = max_payload;
 		goto out;
 	}
+noconnect:
 	ff_layout_track_ds_error(FF_LAYOUT_FROM_HDR(lseg->pls_layout),
 				 mirror, lseg->pls_range.offset,
 				 lseg->pls_range.length, NFS4ERR_NXIO,
