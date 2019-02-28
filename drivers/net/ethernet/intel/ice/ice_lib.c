@@ -197,19 +197,13 @@ static int ice_vsi_ctrl_rx_rings(struct ice_vsi *vsi, bool ena)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int i, j, ret = 0;
+	int i, ret = 0;
 
 	for (i = 0; i < vsi->num_rxq; i++) {
 		int pf_q = vsi->rxq_map[i];
 		u32 rx_reg;
 
-		for (j = 0; j < ICE_Q_WAIT_MAX_RETRY; j++) {
-			rx_reg = rd32(hw, QRX_CTRL(pf_q));
-			if (((rx_reg >> QRX_CTRL_QENA_REQ_S) & 1) ==
-			    ((rx_reg >> QRX_CTRL_QENA_STAT_S) & 1))
-				break;
-			usleep_range(1000, 2000);
-		}
+		rx_reg = rd32(hw, QRX_CTRL(pf_q));
 
 		/* Skip if the queue is already in the requested state */
 		if (ena == !!(rx_reg & QRX_CTRL_QENA_STAT_M))
