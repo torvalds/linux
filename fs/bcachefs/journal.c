@@ -256,6 +256,8 @@ static int journal_entry_open(struct journal *j)
 	do {
 		old.v = new.v = v;
 
+		EBUG_ON(journal_state_count(new, new.idx));
+
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
 			return -EROFS;
 
@@ -429,7 +431,7 @@ void bch2_journal_entry_res_resize(struct journal *j,
 	if (d <= 0)
 		goto out;
 
-	j->cur_entry_u64s -= d;
+	j->cur_entry_u64s = max_t(int, 0, j->cur_entry_u64s - d);
 	smp_mb();
 	state = READ_ONCE(j->reservations);
 
