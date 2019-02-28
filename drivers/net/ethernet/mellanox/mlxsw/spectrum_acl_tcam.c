@@ -1227,48 +1227,34 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
 	int err;
-	int err2;
 
-	err = mlxsw_sp_acl_tcam_vchunk_migrate_start(mlxsw_sp, vchunk,
-						     region, ctx);
-	if (err)
-		return err;
+	if (vchunk->chunk->region != region) {
+		err = mlxsw_sp_acl_tcam_vchunk_migrate_start(mlxsw_sp, vchunk,
+							     region, ctx);
+		if (err)
+			return err;
+	} else if (!vchunk->chunk2) {
+		/* The chunk is already as it should be, nothing to do. */
+		return 0;
+	}
 
 	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
 						       vchunk->chunk);
 		if (err) {
-			if (ctx->this_is_rollback) {
-				vchunk->vregion->failed_rollback = true;
+			if (ctx->this_is_rollback)
 				return err;
-			}
-			goto rollback;
+			/* Swap the chunk and chunk2 pointers so the follow-up
+			 * rollback call will see the original chunk pointer
+			 * in vchunk->chunk.
+			 */
+			swap(vchunk->chunk, vchunk->chunk2);
+			return err;
 		}
 	}
 
 	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk);
 	return 0;
-
-rollback:
-	/* Migrate the entries back to the original chunk. If some entry
-	 * migration fails, there's no good way how to proceed. Set the
-	 * vregion with "failed_rollback" flag.
-	 */
-	swap(vchunk->chunk, vchunk->chunk2);
-	list_for_each_entry_continue_reverse(ventry, &vchunk->ventry_list,
-					     list) {
-		err2 = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
-							vchunk->chunk);
-		if (err2) {
-			vchunk->vregion->failed_rollback = true;
-			goto err_rollback;
-		}
-	}
-
-	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk);
-
-err_rollback:
-	return err;
 }
 
 static int
@@ -1284,23 +1270,9 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 							   vregion->region,
 							   ctx);
 		if (err)
-			goto rollback;
+			return err;
 	}
 	return 0;
-
-rollback:
-	/* In case migration was not successful, we need to swap
-	 * so the original region pointer is assigned again to vregion->region.
-	 */
-	swap(vregion->region, vregion->region2);
-	ctx->this_is_rollback = true;
-	list_for_each_entry_continue_reverse(vchunk, &vregion->vchunk_list,
-					     list) {
-		mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
-						     vregion->region,
-						     ctx);
-	}
-	return err;
 }
 
 static int
@@ -1308,11 +1280,22 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion,
 				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
-	int err;
+	int err, err2;
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
 	mutex_lock(&vregion->lock);
 	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion, ctx);
+	if (err) {
+		/* In case migration was not successful, we need to swap
+		 * so the original region pointer is assigned again
+		 * to vregion->region.
+		 */
+		swap(vregion->region, vregion->region2);
+		ctx->this_is_rollback = true;
+		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion, ctx);
+		if (err2)
+			vregion->failed_rollback = true;
+	}
 	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
 	return err;
