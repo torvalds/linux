@@ -1277,17 +1277,51 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion,
 				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
-	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
-	struct mlxsw_sp_acl_tcam_region *region2, *unused_region;
 	int err;
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
+	mutex_lock(&vregion->lock);
+
+	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion);
+	if (!vregion->failed_rollback) {
+		if (!err) {
+			/* In case of successful migration, region2 is used and
+			 * the original is unused. So swap them.
+			 */
+			swap(vregion->region, vregion->region2);
+		}
+		/* vregion->region2 contains pointer to unused region now. */
+	}
+
+	mutex_unlock(&vregion->lock);
+	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
+	return err;
+}
+
+static int
+mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_vregion *vregion,
+				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
+	struct mlxsw_sp_acl_tcam_region *region2;
+	void *hints_priv;
+	int err;
+
+	trace_mlxsw_sp_acl_tcam_vregion_rehash(mlxsw_sp, vregion);
+	if (vregion->failed_rollback)
+		return -EBUSY;
+
+	hints_priv = ops->region_rehash_hints_get(vregion->region->priv);
+	if (IS_ERR(hints_priv))
+		return PTR_ERR(hints_priv);
 
 	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
-						  vregion, ctx->hints_priv);
+						  vregion, hints_priv);
 	if (IS_ERR(region2)) {
 		err = PTR_ERR(region2);
-		goto out;
+		goto err_region_create;
 	}
 
 	vregion->region2 = region2;
@@ -1298,60 +1332,16 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_group_region_attach;
 
-	mutex_lock(&vregion->lock);
+	ctx->hints_priv = hints_priv;
 
-	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion);
-	if (!vregion->failed_rollback) {
-		if (!err) {
-			/* In case of successful migration, region2 is used and
-			 * the original is unused.
-			 */
-			unused_region = vregion->region;
-			vregion->region = vregion->region2;
-		} else {
-			/* In case of failure during migration, the original
-			 * region is still used.
-			 */
-			unused_region = vregion->region2;
-		}
-		mutex_unlock(&vregion->lock);
-		vregion->region2 = NULL;
-		mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
-		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
-	} else {
-		mutex_unlock(&vregion->lock);
-	}
-
-	goto out;
+	return 0;
 
 err_group_region_attach:
 	vregion->region2 = NULL;
 	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, region2);
-out:
-	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
-
+err_region_create:
+	ops->region_rehash_hints_put(hints_priv);
 	return err;
-}
-
-static int
-mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_acl_tcam_vregion *vregion,
-				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
-{
-	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
-	void *hints_priv;
-
-	trace_mlxsw_sp_acl_tcam_vregion_rehash(mlxsw_sp, vregion);
-	if (vregion->failed_rollback)
-		return -EBUSY;
-
-	hints_priv = ops->region_rehash_hints_get(vregion->region->priv);
-	if (IS_ERR(hints_priv))
-		return PTR_ERR(hints_priv);
-
-	ctx->hints_priv = hints_priv;
-
-	return 0;
 }
 
 static void
@@ -1359,8 +1349,14 @@ mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_vregion *vregion,
 				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
+	struct mlxsw_sp_acl_tcam_region *unused_region = vregion->region2;
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 
+	if (!vregion->failed_rollback) {
+		vregion->region2 = NULL;
+		mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
+		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
+	}
 	ops->region_rehash_hints_put(ctx->hints_priv);
 	ctx->hints_priv = NULL;
 }
