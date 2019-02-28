@@ -183,15 +183,6 @@ out_err:
 	return NULL;
 }
 
-static void ff_layout_mark_devid_invalid(struct pnfs_layout_segment *lseg,
-		struct nfs4_deviceid_node *devid)
-{
-	nfs4_mark_deviceid_unavailable(devid);
-	if (!ff_layout_has_available_ds(lseg))
-		pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode,
-				lseg);
-}
-
 static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 				   struct nfs4_ff_layout_mirror *mirror,
 				   bool create)
@@ -221,12 +212,6 @@ static bool ff_layout_mirror_valid(struct pnfs_layout_segment *lseg,
 	if (IS_ERR(mirror->mirror_ds))
 		goto outerr;
 
-	if (mirror->mirror_ds->ds == NULL) {
-		struct nfs4_deviceid_node *devid;
-		devid = &mirror->mirror_ds->id_node;
-		ff_layout_mark_devid_invalid(lseg, devid);
-		return false;
-	}
 	return true;
 outerr:
 	return false;
