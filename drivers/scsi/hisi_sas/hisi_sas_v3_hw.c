@@ -1344,7 +1344,8 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 
 static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
-	int i, res;
+	int i;
+	irqreturn_t res;
 	u32 context, port_id, link_rate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
