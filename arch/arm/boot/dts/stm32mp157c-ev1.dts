@@ -22,6 +22,14 @@
 		ethernet0 = &ethernet0;
 	};
 
+	clocks {
+		clk_ext_camera: clk-ext-camera {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+	};
+
 	joystick {
 		compatible = "gpio-keys";
 		#size-cells = <0>;
@@ -71,6 +79,23 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&cec_pins_a>;
 	status = "okay";
+};
+
+&dcmi {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcmi_pins_a>;
+	pinctrl-1 = <&dcmi_sleep_pins_a>;
+
+	port {
+		dcmi_0: endpoint {
+			remote-endpoint = <&ov5640_0>;
+			bus-width = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pclk-sample = <1>;
+		};
+	};
 };
 
 &dsi {
@@ -138,6 +163,31 @@
 	i2c-scl-falling-time-ns = <20>;
 	status = "okay";
 
+	ov5640: camera@3c {
+		compatible = "ovti,ov5640";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ov5640_pins>;
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		DOVDD-supply = <&v2v8>;
+		powerdown-gpios = <&stmfx_pinctrl 18 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&stmfx_pinctrl 19 GPIO_ACTIVE_LOW>;
+		rotation = <180>;
+		status = "okay";
+
+		port {
+			ov5640_0: endpoint {
+				remote-endpoint = <&dcmi_0>;
+				bus-width = <8>;
+				data-shift = <2>; /* lines 9:2 are used */
+				hsync-active = <0>;
+				vsync-active = <0>;
+				pclk-sample = <1>;
+			};
+		};
+	};
+
 	stmfx: stmfx@42 {
 		compatible = "st,stmfx-0300";
 		reg = <0x42>;
@@ -157,6 +207,12 @@
 				pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4";
 				drive-push-pull;
 				bias-pull-down;
+			};
+
+			ov5640_pins: camera {
+				pins = "agpio2", "agpio3"; /* stmfx pins 18 & 19 */
+				drive-push-pull;
+				output-low;
 			};
 		};
 	};
