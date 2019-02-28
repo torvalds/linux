@@ -181,6 +181,8 @@
 #define CHL_INT1_DMAC_RX_AXI_RD_ERR_OFF	22
 #define CHL_INT2			(PORT_BASE + 0x1bc)
 #define CHL_INT2_SL_IDAF_TOUT_CONF_OFF	0
+#define CHL_INT2_RX_DISP_ERR_OFF	28
+#define CHL_INT2_RX_CODE_ERR_OFF	29
 #define CHL_INT2_RX_INVLD_DW_OFF	30
 #define CHL_INT2_STP_LINK_TIMEOUT_OFF	31
 #define CHL_INT0_MSK			(PORT_BASE + 0x1c0)
@@ -544,6 +546,8 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER, 0x7f7a120);
 		hisi_sas_phy_write32(hisi_hba, i, CON_CFG_DRIVER, 0x2a0a01);
 		hisi_sas_phy_write32(hisi_hba, i, SAS_SSP_CON_TIMER_CFG, 0x32);
+		hisi_sas_phy_write32(hisi_hba, i, SAS_EC_INT_COAL_TIME,
+				     0x30f4240);
 		/* used for 12G negotiate */
 		hisi_sas_phy_write32(hisi_hba, i, COARSETUNE_TIME, 0x1e);
 		hisi_sas_phy_write32(hisi_hba, i, AIP_LIMIT, 0x2ffff);
@@ -1576,6 +1580,39 @@ static void handle_chl_int1_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT1, irq_value);
 }
 
+static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_phy *sphy = sas_phy->phy;
+	unsigned long flags;
+	u32 reg_value;
+
+	spin_lock_irqsave(&phy->lock, flags);
+
+	/* loss dword sync */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DWS_LOST);
+	sphy->loss_of_dword_sync_count += reg_value;
+
+	/* phy reset problem */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_RESET_PROB);
+	sphy->phy_reset_problem_count += reg_value;
+
+	/* invalid dword */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
+	sphy->invalid_dword_count += reg_value;
+
+	/* disparity err */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
+	sphy->running_disparity_error_count += reg_value;
+
+	/* code violation error */
+	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_CODE_ERR);
+	phy->code_violation_err_count += reg_value;
+
+	spin_unlock_irqrestore(&phy->lock, flags);
+}
+
 static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 irq_msk = hisi_sas_phy_read32(hisi_hba, phy_no, CHL_INT2_MSK);
@@ -1583,6 +1620,9 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct pci_dev *pci_dev = hisi_hba->pci_dev;
 	struct device *dev = hisi_hba->dev;
+	static const u32 msk = BIT(CHL_INT2_RX_DISP_ERR_OFF) |
+			BIT(CHL_INT2_RX_CODE_ERR_OFF) |
+			BIT(CHL_INT2_RX_INVLD_DW_OFF);
 
 	irq_value &= ~irq_msk;
 	if (!irq_value)
@@ -1601,6 +1641,25 @@ static void handle_chl_int2_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 			 phy_no, reg_value);
 		if (reg_value & BIT(4))
 			hisi_sas_notify_phy_event(phy, HISI_PHYE_LINK_RESET);
+	}
+
+	if (pci_dev->revision > 0x20 && (irq_value & msk)) {
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+		struct sas_phy *sphy = sas_phy->phy;
+
+		phy_get_events_v3_hw(hisi_hba, phy_no);
+
+		if (irq_value & BIT(CHL_INT2_RX_INVLD_DW_OFF))
+			dev_info(dev, "phy%d invalid dword cnt:   %u\n", phy_no,
+				 sphy->invalid_dword_count);
+
+		if (irq_value & BIT(CHL_INT2_RX_CODE_ERR_OFF))
+			dev_info(dev, "phy%d code violation cnt:  %u\n", phy_no,
+				 phy->code_violation_err_count);
+
+		if (irq_value & BIT(CHL_INT2_RX_DISP_ERR_OFF))
+			dev_info(dev, "phy%d disparity error cnt: %u\n", phy_no,
+				 sphy->running_disparity_error_count);
 	}
 
 	if ((irq_value & BIT(CHL_INT2_RX_INVLD_DW_OFF)) &&
@@ -2229,31 +2288,6 @@ static void interrupt_disable_v3_hw(struct hisi_hba *hisi_hba)
 static u32 get_phys_state_v3_hw(struct hisi_hba *hisi_hba)
 {
 	return hisi_sas_read32(hisi_hba, PHY_STATE);
-}
-
-static void phy_get_events_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	struct sas_phy *sphy = sas_phy->phy;
-	u32 reg_value;
-
-	/* loss dword sync */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DWS_LOST);
-	sphy->loss_of_dword_sync_count += reg_value;
-
-	/* phy reset problem */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_RESET_PROB);
-	sphy->phy_reset_problem_count += reg_value;
-
-	/* invalid dword */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_INVLD_DW);
-	sphy->invalid_dword_count += reg_value;
-
-	/* disparity err */
-	reg_value = hisi_sas_phy_read32(hisi_hba, phy_no, ERR_CNT_DISP_ERR);
-	sphy->running_disparity_error_count += reg_value;
-
 }
 
 static int disable_host_v3_hw(struct hisi_hba *hisi_hba)
