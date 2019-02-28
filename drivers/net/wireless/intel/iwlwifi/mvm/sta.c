@@ -746,7 +746,8 @@ static int iwl_mvm_find_free_queue(struct iwl_mvm *mvm, u8 sta_id,
 static int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm,
 				   u8 sta_id, u8 tid, unsigned int timeout)
 {
-	int queue, size = IWL_DEFAULT_QUEUE_SIZE;
+	int queue, size = max_t(u32, IWL_DEFAULT_QUEUE_SIZE,
+				mvm->trans->cfg->min_256_ba_txq_size);
 
 	if (tid == IWL_MAX_TID_COUNT) {
 		tid = IWL_MGMT_TID;
