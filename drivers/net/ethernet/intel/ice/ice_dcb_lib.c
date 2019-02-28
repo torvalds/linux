@@ -320,3 +320,39 @@ dcb_init_err:
 	dev_err(dev, "DCB init failed\n");
 	return err;
 }
+
+/**
+ * ice_dcb_process_lldp_set_mib_change - Process MIB change
+ * @pf: ptr to ice_pf
+ * @event: pointer to the admin queue receive event
+ */
+void
+ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
+				    struct ice_rq_event_info *event)
+{
+	if (pf->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED) {
+		struct ice_dcbx_cfg *dcbcfg, *prev_cfg;
+		int err;
+
+		prev_cfg = &pf->hw.port_info->local_dcbx_cfg;
+		dcbcfg = devm_kmemdup(&pf->pdev->dev, prev_cfg,
+				      sizeof(*dcbcfg), GFP_KERNEL);
+		if (!dcbcfg)
+			return;
+
+		err = ice_lldp_to_dcb_cfg(event->msg_buf, dcbcfg);
+		if (!err)
+			ice_pf_dcb_cfg(pf, dcbcfg);
+
+		devm_kfree(&pf->pdev->dev, dcbcfg);
+
+		/* Get updated DCBx data from firmware */
+		err = ice_get_dcb_cfg(pf->hw.port_info);
+		if (err)
+			dev_err(&pf->pdev->dev,
+				"Failed to get DCB config\n");
+	} else {
+		dev_dbg(&pf->pdev->dev,
+			"MIB Change Event in HOST mode\n");
+	}
+}

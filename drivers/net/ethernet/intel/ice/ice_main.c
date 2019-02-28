@@ -936,6 +936,9 @@ static int __ice_clean_ctrlq(struct ice_pf *pf, enum ice_ctl_q q_type)
 		case ice_aqc_opc_fw_logging:
 			ice_output_fw_log(hw, &event.desc, event.msg_buf);
 			break;
+		case ice_aqc_opc_lldp_set_mib_change:
+			ice_dcb_process_lldp_set_mib_change(pf, &event);
+			break;
 		default:
 			dev_dbg(&pf->pdev->dev,
 				"%s Receive Queue unknown event 0x%04x ignored\n",

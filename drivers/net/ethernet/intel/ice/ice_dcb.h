@@ -121,6 +121,8 @@ struct ice_cee_app_prio {
 } __packed;
 
 u8 ice_get_dcbx_status(struct ice_hw *hw);
+enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg);
+enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_init_dcb(struct ice_hw *hw);
 enum ice_status
