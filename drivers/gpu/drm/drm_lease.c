@@ -403,11 +403,6 @@ static int fill_object_idr(struct drm_device *dev,
 	/* step one - get references to all the mode objects
 	   and check for validity. */
 	for (o = 0; o < object_count; o++) {
-		if ((int) object_ids[o] < 0) {
-			ret = -EINVAL;
-			goto out_free_objects;
-		}
-
 		objects[o] = drm_mode_object_find(dev, lessor_priv,
 						  object_ids[o],
 						  DRM_MODE_OBJECT_ANY);
