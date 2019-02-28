@@ -4467,11 +4467,15 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 			wm = &cstate->wm.skl.optimal.planes[plane_id];
 			memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
 
-			/* W/A for underruns with WM1+ disabled */
+			/*
+			 * Wa_1408961008:icl
+			 * Underruns with WM1+ disabled
+			 */
 			if (IS_ICELAKE(dev_priv) &&
 			    level == 1 && wm->wm[0].plane_en) {
 				wm->wm[level].plane_res_b = wm->wm[0].plane_res_b;
-				wm->wm[level].ignore_lines = true;
+				wm->wm[level].plane_res_l = wm->wm[0].plane_res_l;
+				wm->wm[level].ignore_lines = wm->wm[0].ignore_lines;
 			}
 		}
 	}
