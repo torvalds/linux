@@ -1881,13 +1881,12 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "func proto (CONST=>TYPEDEF=>FUNC_PROTO)",
+	.descr = "func proto (TYPEDEF=>FUNC_PROTO)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),		/* [2] */
-		BTF_CONST_ENC(4),				/* [3] */
-		BTF_TYPEDEF_ENC(NAME_TBD, 5),			/* [4] */
-		BTF_FUNC_PROTO_ENC(0, 2),			/* [5] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),			/* [3] */
+		BTF_FUNC_PROTO_ENC(0, 2),			/* [4] */
 			BTF_FUNC_PROTO_ARG_ENC(0, 1),
 			BTF_FUNC_PROTO_ARG_ENC(0, 2),
 		BTF_END_RAW,
@@ -1901,8 +1900,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 4,
-	.btf_load_err = true,
-	.err_str = "Invalid type_id",
 },
 
 {

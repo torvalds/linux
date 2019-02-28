@@ -596,6 +596,10 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
 		ether_addr_copy(e->h_dest, ha);
 		ether_addr_copy(eth->h_dest, ha);
+		/* Update the encap source mac, in case that we delete
+		 * the flows when encap source mac changed.
+		 */
+		ether_addr_copy(eth->h_source, e->route_dev->dev_addr);
 
 		mlx5e_tc_encap_flows_add(priv, e);
 	}

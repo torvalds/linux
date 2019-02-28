@@ -46,7 +46,7 @@ void kasan_init_tags(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		per_cpu(prng_state, cpu) = get_random_u32();
+		per_cpu(prng_state, cpu) = (u32)get_cycles();
 }
 
 /*

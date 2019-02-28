@@ -462,7 +462,7 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	conf_idx	= 0;
 	node = of_get_child_by_name(top, PREFIX "dai-link");
 	if (!node) {
-		node = dev->of_node;
+		node = of_node_get(top);
 		loop = 0;
 	}
 

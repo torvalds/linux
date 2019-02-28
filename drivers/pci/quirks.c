@@ -639,8 +639,9 @@ static void quirk_synopsys_haps(struct pci_dev *pdev)
 		break;
 	}
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SYNOPSYS, PCI_ANY_ID,
-			 quirk_synopsys_haps);
+DECLARE_PCI_FIXUP_CLASS_HEADER(PCI_VENDOR_ID_SYNOPSYS, PCI_ANY_ID,
+			       PCI_CLASS_SERIAL_USB_XHCI, 0,
+			       quirk_synopsys_haps);
 
 /*
  * Let's make the southbridge information explicit instead of having to

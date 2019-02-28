@@ -615,13 +615,13 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	 * We need a bit of data queued to build aggregates properly, so
 	 * instruct the TCP stack to allow more than a single ms of data
 	 * to be queued in the stack. The value is a bit-shift of 1
-	 * second, so 8 is ~4ms of queued data. Only affects local TCP
+	 * second, so 7 is ~8ms of queued data. Only affects local TCP
 	 * sockets.
 	 * This is the default, anyhow - drivers may need to override it
 	 * for local reasons (longer buffers, longer completion time, or
 	 * similar).
 	 */
-	local->hw.tx_sk_pacing_shift = 8;
+	local->hw.tx_sk_pacing_shift = 7;
 
 	/* set up some defaults */
 	local->hw.queues = 1;

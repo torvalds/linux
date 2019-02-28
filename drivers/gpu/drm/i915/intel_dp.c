@@ -304,9 +304,11 @@ static int cnl_max_source_rate(struct intel_dp *intel_dp)
 static int icl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum port port = dig_port->base.port;
 
-	if (port == PORT_B)
+	if (intel_port_is_combophy(dev_priv, port) &&
+	    !intel_dp_is_edp(intel_dp))
 		return 540000;
 
 	return 810000;

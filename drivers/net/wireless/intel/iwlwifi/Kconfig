@@ -1,6 +1,6 @@
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
-	depends on PCI && HAS_IOMEM
+	depends on PCI && HAS_IOMEM && CFG80211
 	select FW_LOADER
 	---help---
 	  Select to build the driver supporting the:
@@ -47,6 +47,7 @@ if IWLWIFI
 config IWLWIFI_LEDS
 	bool
 	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	depends on IWLMVM || IWLDVM
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
 	default y

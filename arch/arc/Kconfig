@@ -191,7 +191,6 @@ config NR_CPUS
 
 config ARC_SMP_HALT_ON_RESET
 	bool "Enable Halt-on-reset boot mode"
-	default y if ARC_UBOOT_SUPPORT
 	help
 	  In SMP configuration cores can be configured as Halt-on-reset
 	  or they could all start at same time. For Halt-on-reset, non
@@ -407,6 +406,14 @@ config ARC_HAS_ACCL_REGS
 	  (also referred to as r58:r59). These can also be used by gcc as GPR so
 	  kernel needs to save/restore per process
 
+config ARC_IRQ_NO_AUTOSAVE
+	bool "Disable hardware autosave regfile on interrupts"
+	default n
+	help
+	  On HS cores, taken interrupt auto saves the regfile on stack.
+	  This is programmable and can be optionally disabled in which case
+	  software INTERRUPT_PROLOGUE/EPILGUE do the needed work
+
 endif	# ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"
@@ -514,17 +521,6 @@ config ARC_DBG_TLB_PARANOIA
 	bool "Paranoia Checks in Low Level TLB Handlers"
 
 endif
-
-config ARC_UBOOT_SUPPORT
-	bool "Support uboot arg Handling"
-	help
-	  ARC Linux by default checks for uboot provided args as pointers to
-	  external cmdline or DTB. This however breaks in absence of uboot,
-	  when booting from Metaware debugger directly, as the registers are
-	  not zeroed out on reset by mdb and/or ARCv2 based cores. The bogus
-	  registers look like uboot args to kernel which then chokes.
-	  So only enable the uboot arg checking/processing if users are sure
-	  of uboot being in play.
 
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
