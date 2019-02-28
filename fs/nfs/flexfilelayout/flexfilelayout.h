@@ -204,10 +204,9 @@ unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
 		unsigned int maxnum);
 struct nfs_fh *
 nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror);
-int
-nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
-				u32 mirror_idx,
-				nfs4_stateid *stateid);
+void
+nfs4_ff_layout_select_ds_stateid(const struct nfs4_ff_layout_mirror *mirror,
+		nfs4_stateid *stateid);
 
 struct nfs4_pnfs_ds *
 nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,

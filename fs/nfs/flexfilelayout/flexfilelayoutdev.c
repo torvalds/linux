@@ -357,23 +357,12 @@ nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror)
 	return &mirror->fh_versions[0];
 }
 
-int
-nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
-				u32 mirror_idx,
-				nfs4_stateid *stateid)
+void
+nfs4_ff_layout_select_ds_stateid(const struct nfs4_ff_layout_mirror *mirror,
+		nfs4_stateid *stateid)
 {
-	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, mirror_idx);
-
-	if (!ff_layout_mirror_valid(lseg, mirror, false)) {
-		pr_err_ratelimited("NFS: %s: No data server for mirror offset index %d\n",
-			__func__, mirror_idx);
-		goto out;
-	}
-
-	nfs4_stateid_copy(stateid, &mirror->stateid);
-	return 1;
-out:
-	return 0;
+	if (nfs4_ff_layout_ds_version(mirror) == 4)
+		nfs4_stateid_copy(stateid, &mirror->stateid);
 }
 
 /**
