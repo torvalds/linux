@@ -596,7 +596,9 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 		writel(0, base + CIF_ISP_CSI0_CTRL0);
 	} else {
 		val = readl(base + CIF_MIPI_CTRL);
+		val = val & (~CIF_MIPI_CTRL_SHUTDOWNLANES(0xf));
 		writel(val & (~CIF_MIPI_CTRL_OUTPUT_ENA), base + CIF_MIPI_CTRL);
+		udelay(20);
 	}
 	/* stop ISP */
 	val = readl(base + CIF_ISP_CTRL);
