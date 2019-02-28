@@ -304,6 +304,7 @@ static u32 goya_non_fatal_events[GOYA_ASYC_EVENT_GROUP_NON_FATAL_SIZE] = {
 static int goya_armcp_info_get(struct hl_device *hdev);
 static void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 static int goya_mmu_clear_pgt_range(struct hl_device *hdev);
+static int goya_mmu_set_dram_default_page(struct hl_device *hdev);
 static int goya_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
 					u64 phys_addr);
 
@@ -345,6 +346,7 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 						SRAM_USER_BASE_OFFSET;
 
 	prop->mmu_pgt_addr = MMU_PAGE_TABLES_ADDR;
+	prop->mmu_dram_default_page_addr = MMU_DRAM_DEFAULT_PAGE_ADDR;
 	if (hdev->pldm)
 		prop->mmu_pgt_size = 0x800000; /* 8MB */
 	else
@@ -359,6 +361,8 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->va_space_host_end_address = VA_HOST_SPACE_END;
 	prop->va_space_dram_start_address = VA_DDR_SPACE_START;
 	prop->va_space_dram_end_address = VA_DDR_SPACE_END;
+	prop->dram_size_for_default_page_mapping =
+			prop->va_space_dram_end_address;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GOYA_ASYNC_EVENT_ID_SIZE;
@@ -813,6 +817,12 @@ static int goya_late_init(struct hl_device *hdev)
 	rc = goya_mmu_clear_pgt_range(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to clear MMU page tables range\n");
+		goto disable_pci_access;
+	}
+
+	rc = goya_mmu_set_dram_default_page(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to set DRAM default page\n");
 		goto disable_pci_access;
 	}
 
@@ -2648,6 +2658,7 @@ static int goya_mmu_init(struct hl_device *hdev)
 		return 0;
 
 	hdev->dram_supports_virtual_memory = true;
+	hdev->dram_default_page_mapping = true;
 
 	for (i = 0 ; i < prop->max_asid ; i++) {
 		hop0_addr = prop->mmu_pgt_addr +
@@ -4303,98 +4314,6 @@ static void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_6, val);
 }
 
-static int goya_context_switch(struct hl_device *hdev, u32 asid)
-{
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct packet_lin_dma *clear_sram_pkt;
-	struct hl_cs_parser parser;
-	struct hl_cs_job *job;
-	u32 cb_size;
-	struct hl_cb *cb;
-	int rc;
-
-	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
-	if (!cb)
-		return -EFAULT;
-
-	clear_sram_pkt = (struct packet_lin_dma *)
-					(uintptr_t) cb->kernel_address;
-
-	memset(clear_sram_pkt, 0, sizeof(*clear_sram_pkt));
-	cb_size = sizeof(*clear_sram_pkt);
-
-	clear_sram_pkt->ctl = ((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
-		(DMA_HOST_TO_SRAM << GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT) |
-		(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
-		(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
-		(1 << GOYA_PKT_CTL_RB_SHIFT) |
-		(1 << GOYA_PKT_CTL_MB_SHIFT));
-
-	clear_sram_pkt->src_addr = 0x7777777777777777ull;
-	clear_sram_pkt->dst_addr = prop->sram_base_address;
-	if (hdev->pldm)
-		clear_sram_pkt->tsize = 0x10000;
-	else
-		clear_sram_pkt->tsize = prop->sram_size;
-
-	job = hl_cs_allocate_job(hdev, true);
-	if (!job) {
-		dev_err(hdev->dev, "Failed to allocate a new job\n");
-		rc = -ENOMEM;
-		goto release_cb;
-	}
-
-	job->id = 0;
-	job->user_cb = cb;
-	job->user_cb->cs_cnt++;
-	job->user_cb_size = cb_size;
-	job->hw_queue_id = GOYA_QUEUE_ID_DMA_0;
-
-	hl_debugfs_add_job(hdev, job);
-
-	parser.ctx_id = HL_KERNEL_ASID_ID;
-	parser.cs_sequence = 0;
-	parser.job_id = job->id;
-	parser.hw_queue_id = job->hw_queue_id;
-	parser.job_userptr_list = &job->userptr_list;
-	parser.user_cb = job->user_cb;
-	parser.user_cb_size = job->user_cb_size;
-	parser.ext_queue = job->ext_queue;
-	parser.use_virt_addr = hdev->mmu_enable;
-
-	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
-	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to parse kernel CB during context switch\n");
-		goto free_job;
-	}
-
-	job->patched_cb = parser.patched_cb;
-	job->job_cb_size = parser.patched_cb_size;
-	job->patched_cb->cs_cnt++;
-
-	rc = goya_send_job_on_qman0(hdev, job);
-
-	/* no point in setting the asid in case of failure */
-	if (!rc)
-		goya_mmu_prepare(hdev, asid);
-
-	job->patched_cb->cs_cnt--;
-	hl_cb_put(job->patched_cb);
-
-free_job:
-	hl_userptr_delete_list(hdev, &job->userptr_list);
-	hl_debugfs_remove_job(hdev, job);
-	kfree(job);
-	cb->cs_cnt--;
-
-release_cb:
-	hl_cb_put(cb);
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
-
-	return rc;
-}
-
 static void goya_restore_phase_topology(struct hl_device *hdev)
 {
 	int i, num_of_sob_in_longs, num_of_mon_in_longs;
@@ -4864,41 +4783,37 @@ void *goya_get_events_stat(struct hl_device *hdev, u32 *size)
 	return goya->events_stat;
 }
 
-static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
+static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u32 size,
+				u64 val, bool is_dram)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct goya_device *goya = hdev->asic_specific;
-	struct packet_lin_dma *clear_pgt_range_pkt;
+	struct packet_lin_dma *lin_dma_pkt;
 	struct hl_cs_parser parser;
 	struct hl_cs_job *job;
 	u32 cb_size;
 	struct hl_cb *cb;
 	int rc;
 
-	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
-		return 0;
-
 	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
 	if (!cb)
 		return -EFAULT;
 
-	clear_pgt_range_pkt = (struct packet_lin_dma *)
-					(uintptr_t) cb->kernel_address;
+	lin_dma_pkt = (struct packet_lin_dma *) (uintptr_t) cb->kernel_address;
 
-	memset(clear_pgt_range_pkt, 0, sizeof(*clear_pgt_range_pkt));
-	cb_size = sizeof(*clear_pgt_range_pkt);
+	memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));
+	cb_size = sizeof(*lin_dma_pkt);
 
-	clear_pgt_range_pkt->ctl =
-		((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
-		(DMA_HOST_TO_DRAM << GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT) |
-		(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
-		(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
-		(1 << GOYA_PKT_CTL_RB_SHIFT) |
-		(1 << GOYA_PKT_CTL_MB_SHIFT));
+	lin_dma_pkt->ctl = ((PACKET_LIN_DMA << GOYA_PKT_CTL_OPCODE_SHIFT) |
+				(1 << GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT) |
+				(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
+				(1 << GOYA_PKT_CTL_RB_SHIFT) |
+				(1 << GOYA_PKT_CTL_MB_SHIFT));
 
-	clear_pgt_range_pkt->src_addr = 0;
-	clear_pgt_range_pkt->dst_addr = prop->mmu_pgt_addr;
-	clear_pgt_range_pkt->tsize = prop->mmu_pgt_size + MMU_CACHE_MNG_SIZE;
+	lin_dma_pkt->ctl |= (is_dram ? DMA_HOST_TO_DRAM : DMA_HOST_TO_SRAM) <<
+				GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
+
+	lin_dma_pkt->src_addr = val;
+	lin_dma_pkt->dst_addr = addr;
+	lin_dma_pkt->tsize = size;
 
 	job = hl_cs_allocate_job(hdev, true);
 	if (!job) {
@@ -4927,8 +4842,7 @@ static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
 
 	rc = hdev->asic_funcs->cs_parser(hdev, &parser);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to parse kernel CB when clearing pgt\n");
+		dev_err(hdev->dev, "Failed to parse kernel CB\n");
 		goto free_job;
 	}
 
@@ -4952,6 +4866,52 @@ release_cb:
 	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
 
 	return rc;
+}
+
+static int goya_context_switch(struct hl_device *hdev, u32 asid)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 addr = prop->sram_base_address;
+	u32 size = hdev->pldm ? 0x10000 : prop->sram_size;
+	u64 val = 0x7777777777777777ull;
+	int rc;
+
+	rc = goya_memset_device_memory(hdev, addr, size, val, false);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to clear SRAM in context switch\n");
+		return rc;
+	}
+
+	goya_mmu_prepare(hdev, asid);
+
+	return 0;
+}
+
+static int goya_mmu_clear_pgt_range(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct goya_device *goya = hdev->asic_specific;
+	u64 addr = prop->mmu_pgt_addr;
+	u32 size = prop->mmu_pgt_size + MMU_DRAM_DEFAULT_PAGE_SIZE +
+			MMU_CACHE_MNG_SIZE;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return 0;
+
+	return goya_memset_device_memory(hdev, addr, size, 0, true);
+}
+
+static int goya_mmu_set_dram_default_page(struct hl_device *hdev)
+{
+	struct goya_device *goya = hdev->asic_specific;
+	u64 addr = hdev->asic_prop.mmu_dram_default_page_addr;
+	u32 size = MMU_DRAM_DEFAULT_PAGE_SIZE;
+	u64 val = 0x9999999999999999ull;
+
+	if (!(goya->hw_cap_initialized & HW_CAP_MMU))
+		return 0;
+
+	return goya_memset_device_memory(hdev, addr, size, val, true);
 }
 
 static void goya_mmu_prepare(struct hl_device *hdev, u32 asid)

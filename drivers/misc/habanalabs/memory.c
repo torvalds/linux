@@ -925,8 +925,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto map_err;
 	}
 
-	hdev->asic_funcs->mmu_invalidate_cache_range(hdev, false, ctx->asid,
-			ret_vaddr, phys_pg_pack->total_size);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, false);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1050,8 +1049,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr)
 			dev_warn_ratelimited(hdev->dev,
 				"unmap failed for vaddr: 0x%llx\n", next_vaddr);
 
-	hdev->asic_funcs->mmu_invalidate_cache_range(hdev, true, ctx->asid,
-			vaddr, phys_pg_pack->total_size);
+	hdev->asic_funcs->mmu_invalidate_cache(hdev, true);
 
 	mutex_unlock(&ctx->mmu_lock);
 
@@ -1455,7 +1453,11 @@ static int hl_vm_ctx_init_with_ranges(struct hl_ctx *ctx, u64 host_range_start,
 	struct hl_device *hdev = ctx->hdev;
 	int rc;
 
-	hl_mmu_ctx_init(ctx);
+	rc = hl_mmu_ctx_init(ctx);
+	if (rc) {
+		dev_err(hdev->dev, "failed to init context %d\n", ctx->asid);
+		return rc;
+	}
 
 	mutex_init(&ctx->mem_hash_lock);
 	hash_init(ctx->mem_hash);

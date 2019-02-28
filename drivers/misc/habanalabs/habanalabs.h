@@ -143,7 +143,10 @@ enum hl_device_hw_state {
  *                               mapping DRAM memory.
  * @va_space_dram_end_address: end address of virtual memory range for
  *                             mapping DRAM memory.
+ * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
+ *                                      fault.
  * @mmu_pgt_addr: base physical address in DRAM of MMU page tables.
+ * @mmu_dram_default_page_addr: DRAM default page physical address.
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -182,7 +185,9 @@ struct asic_fixed_properties {
 	u64			va_space_host_end_address;
 	u64			va_space_dram_start_address;
 	u64			va_space_dram_end_address;
+	u64			dram_size_for_default_page_mapping;
 	u64			mmu_pgt_addr;
+	u64			mmu_dram_default_page_addr;
 	u32			mmu_pgt_size;
 	u32			mmu_pte_size;
 	u32			mmu_hop_table_size;
@@ -592,6 +597,8 @@ struct hl_va_range {
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
  *			index to cs_pending array.
+ * @dram_default_hops: array that holds all hops addresses needed for default
+ *                     DRAM mapping.
  * @cs_lock: spinlock to protect cs_sequence.
  * @dram_phys_mem: amount of used physical DRAM memory by this context.
  * @thread_restore_token: token to prevent multiple threads of the same context
@@ -615,6 +622,7 @@ struct hl_ctx {
 	struct mutex		mmu_lock;
 	struct list_head	debugfs_list;
 	u64			cs_sequence;
+	u64			*dram_default_hops;
 	spinlock_t		cs_lock;
 	atomic64_t		dram_phys_mem;
 	atomic_t		thread_restore_token;
@@ -1068,6 +1076,7 @@ struct hl_device_reset_work {
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
  * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
+ * @dram_default_page_mapping: is DRAM default page mapping enabled.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  */
@@ -1135,6 +1144,7 @@ struct hl_device {
 	u8				heartbeat;
 	u8				reset_on_lockup;
 	u8				dram_supports_virtual_memory;
+	u8				dram_default_page_mapping;
 	u8				init_done;
 
 	/* Parameters for bring-up */
@@ -1329,7 +1339,7 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr, u32 size,
 
 int hl_mmu_init(struct hl_device *hdev);
 void hl_mmu_fini(struct hl_device *hdev);
-void hl_mmu_ctx_init(struct hl_ctx *ctx);
+int hl_mmu_ctx_init(struct hl_ctx *ctx);
 void hl_mmu_ctx_fini(struct hl_ctx *ctx);
 int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
 int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
