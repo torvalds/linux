@@ -374,6 +374,10 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
+	/* cmode doesn't change, nothing to do for us */
+	if (cmode == chip->ports[port].cmode)
+		return 0;
+
 	lane = mv88e6390x_serdes_get_lane(chip, port);
 	if (lane < 0)
 		return lane;
