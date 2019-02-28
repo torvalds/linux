@@ -1175,19 +1175,19 @@ mlxsw_sp_acl_tcam_ventry_activity_get(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_ventry *ventry,
-				 struct mlxsw_sp_acl_tcam_chunk *chunk2)
+				 struct mlxsw_sp_acl_tcam_chunk *chunk)
 {
-	struct mlxsw_sp_acl_tcam_entry *entry2;
+	struct mlxsw_sp_acl_tcam_entry *new_entry;
 
 	/* First check if the entry is not already where we want it to be. */
-	if (ventry->entry->chunk == chunk2)
+	if (ventry->entry->chunk == chunk)
 		return 0;
 
-	entry2 = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk2);
-	if (IS_ERR(entry2))
-		return PTR_ERR(entry2);
+	new_entry = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk);
+	if (IS_ERR(new_entry))
+		return PTR_ERR(new_entry);
 	mlxsw_sp_acl_tcam_entry_destroy(mlxsw_sp, ventry->entry);
-	ventry->entry = entry2;
+	ventry->entry = new_entry;
 	return 0;
 }
 
