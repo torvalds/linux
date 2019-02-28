@@ -83,6 +83,7 @@
 #define GOYA_CPU_TIMEOUT_USEC		10000000	/* 10s */
 #define GOYA_TEST_QUEUE_WAIT_USEC	100000		/* 100ms */
 #define GOYA_PLDM_MMU_TIMEOUT_USEC	(MMU_CONFIG_TIMEOUT_USEC * 100)
+#define GOYA_PLDM_QMAN0_TIMEOUT_USEC	(HL_DEVICE_TIMEOUT_USEC * 30)
 
 #define GOYA_QMAN0_FENCE_VAL		0xD169B243
 
@@ -3126,8 +3127,13 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	u32 *fence_ptr;
 	dma_addr_t fence_dma_addr;
 	struct hl_cb *cb;
-	u32 tmp;
+	u32 tmp, timeout;
 	int rc;
+
+	if (hdev->pldm)
+		timeout = GOYA_PLDM_QMAN0_TIMEOUT_USEC;
+	else
+		timeout = HL_DEVICE_TIMEOUT_USEC;
 
 	if (!hdev->asic_funcs->is_device_idle(hdev)) {
 		dev_err_ratelimited(hdev->dev,
@@ -3175,8 +3181,8 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 		goto free_fence_ptr;
 	}
 
-	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) fence_ptr,
-					HL_DEVICE_TIMEOUT_USEC, &tmp);
+	rc = hl_poll_timeout_memory(hdev, (u64) (uintptr_t) fence_ptr, timeout,
+					&tmp);
 
 	hl_hw_queue_inc_ci_kernel(hdev, GOYA_QUEUE_ID_DMA_0);
 
