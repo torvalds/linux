@@ -1291,6 +1291,9 @@ struct ice_aqc_get_set_rss_key {
 
 #define ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE	0x28
 #define ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE	0xC
+#define ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE \
+				(ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE + \
+				 ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE)
 
 struct ice_aqc_get_set_rss_keys {
 	u8 standard_rss_key[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];

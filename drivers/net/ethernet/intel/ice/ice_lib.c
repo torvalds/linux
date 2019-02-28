@@ -1394,7 +1394,6 @@ int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena)
  */
 static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 {
-	u8 seed[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];
 	struct ice_aqc_get_set_rss_keys *key;
 	struct ice_pf *pf = vsi->back;
 	enum ice_status status;
@@ -1429,13 +1428,12 @@ static int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi)
 	}
 
 	if (vsi->rss_hkey_user)
-		memcpy(seed, vsi->rss_hkey_user,
-		       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+		memcpy(key,
+		       (struct ice_aqc_get_set_rss_keys *)vsi->rss_hkey_user,
+		       ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE);
 	else
-		netdev_rss_key_fill((void *)seed,
-				    ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
-	memcpy(&key->standard_rss_key, seed,
-	       ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE);
+		netdev_rss_key_fill((void *)key,
+				    ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE);
 
 	status = ice_aq_set_rss_key(&pf->hw, vsi->idx, key);
 
