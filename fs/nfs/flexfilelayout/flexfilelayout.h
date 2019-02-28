@@ -181,9 +181,9 @@ ff_layout_no_read_on_rw(struct pnfs_layout_segment *lseg)
 }
 
 static inline int
-nfs4_ff_layout_ds_version(struct pnfs_layout_segment *lseg, u32 ds_idx)
+nfs4_ff_layout_ds_version(const struct nfs4_ff_layout_mirror *mirror)
 {
-	return FF_LAYOUT_COMP(lseg, ds_idx)->mirror_ds->ds_versions[0].version;
+	return mirror->mirror_ds->ds_versions[0].version;
 }
 
 struct nfs4_ff_layout_ds *
