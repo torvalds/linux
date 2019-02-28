@@ -99,6 +99,39 @@ enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd)
 }
 
 /**
+ * ice_aq_set_lldp_mib - Set the LLDP MIB
+ * @hw: pointer to the HW struct
+ * @mib_type: Local, Remote or both Local and Remote MIBs
+ * @buf: pointer to the caller-supplied buffer to store the MIB block
+ * @buf_size: size of the buffer (in bytes)
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set the LLDP MIB. (0x0A08)
+ */
+static enum ice_status
+ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
+		    struct ice_sq_cd *cd)
+{
+	struct ice_aqc_lldp_set_local_mib *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.lldp_set_mib;
+
+	if (buf_size == 0 || !buf)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_set_local_mib);
+
+	desc.flags |= cpu_to_le16((u16)ICE_AQ_FLAG_RD);
+	desc.datalen = cpu_to_le16(buf_size);
+
+	cmd->type = mib_type;
+	cmd->length = cpu_to_le16(buf_size);
+
+	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+}
+
+/**
  * ice_get_dcbx_status
  * @hw: pointer to the HW struct
  *
@@ -901,4 +934,434 @@ enum ice_status ice_init_dcb(struct ice_hw *hw)
 		pi->is_sw_lldp = false;
 
 	return ret;
+}
+
+/**
+ * ice_add_ieee_ets_common_tlv
+ * @buf: Data buffer to be populated with ice_dcb_ets_cfg data
+ * @ets_cfg: Container for ice_dcb_ets_cfg data
+ *
+ * Populate the TLV buffer with ice_dcb_ets_cfg data
+ */
+static void
+ice_add_ieee_ets_common_tlv(u8 *buf, struct ice_dcb_ets_cfg *ets_cfg)
+{
+	u8 priority0, priority1;
+	u8 offset = 0;
+	int i;
+
+	/* Priority Assignment Table (4 octets)
+	 * Octets:|    1    |    2    |    3    |    4    |
+	 *        -----------------------------------------
+	 *        |pri0|pri1|pri2|pri3|pri4|pri5|pri6|pri7|
+	 *        -----------------------------------------
+	 *   Bits:|7  4|3  0|7  4|3  0|7  4|3  0|7  4|3  0|
+	 *        -----------------------------------------
+	 */
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS / 2; i++) {
+		priority0 = ets_cfg->prio_table[i * 2] & 0xF;
+		priority1 = ets_cfg->prio_table[i * 2 + 1] & 0xF;
+		buf[offset] = (priority0 << ICE_IEEE_ETS_PRIO_1_S) | priority1;
+		offset++;
+	}
+
+	/* TC Bandwidth Table (8 octets)
+	 * Octets:| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+	 *        ---------------------------------
+	 *        |tc0|tc1|tc2|tc3|tc4|tc5|tc6|tc7|
+	 *        ---------------------------------
+	 *
+	 * TSA Assignment Table (8 octets)
+	 * Octets:| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+	 *        ---------------------------------
+	 *        |tc0|tc1|tc2|tc3|tc4|tc5|tc6|tc7|
+	 *        ---------------------------------
+	 */
+	ice_for_each_traffic_class(i) {
+		buf[offset] = ets_cfg->tcbwtable[i];
+		buf[ICE_MAX_TRAFFIC_CLASS + offset] = ets_cfg->tsatable[i];
+		offset++;
+	}
+}
+
+/**
+ * ice_add_ieee_ets_tlv - Prepare ETS TLV in IEEE format
+ * @tlv: Fill the ETS config data in IEEE format
+ * @dcbcfg: Local store which holds the DCB Config
+ *
+ * Prepare IEEE 802.1Qaz ETS CFG TLV
+ */
+static void
+ice_add_ieee_ets_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
+{
+	struct ice_dcb_ets_cfg *etscfg;
+	u8 *buf = tlv->tlvinfo;
+	u8 maxtcwilling = 0;
+	u32 ouisubtype;
+	u16 typelen;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_ETS_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* First Octet post subtype
+	 * --------------------------
+	 * |will-|CBS  | Re-  | Max |
+	 * |ing  |     |served| TCs |
+	 * --------------------------
+	 * |1bit | 1bit|3 bits|3bits|
+	 */
+	etscfg = &dcbcfg->etscfg;
+	if (etscfg->willing)
+		maxtcwilling = BIT(ICE_IEEE_ETS_WILLING_S);
+	maxtcwilling |= etscfg->maxtcs & ICE_IEEE_ETS_MAXTC_M;
+	buf[0] = maxtcwilling;
+
+	/* Begin adding at Priority Assignment Table (offset 1 in buf) */
+	ice_add_ieee_ets_common_tlv(&buf[1], etscfg);
+}
+
+/**
+ * ice_add_ieee_etsrec_tlv - Prepare ETS Recommended TLV in IEEE format
+ * @tlv: Fill ETS Recommended TLV in IEEE format
+ * @dcbcfg: Local store which holds the DCB Config
+ *
+ * Prepare IEEE 802.1Qaz ETS REC TLV
+ */
+static void
+ice_add_ieee_etsrec_tlv(struct ice_lldp_org_tlv *tlv,
+			struct ice_dcbx_cfg *dcbcfg)
+{
+	struct ice_dcb_ets_cfg *etsrec;
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u16 typelen;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_ETS_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_ETS_REC);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	etsrec = &dcbcfg->etsrec;
+
+	/* First Octet is reserved */
+	/* Begin adding at Priority Assignment Table (offset 1 in buf) */
+	ice_add_ieee_ets_common_tlv(&buf[1], etsrec);
+}
+
+/**
+ * ice_add_ieee_pfc_tlv - Prepare PFC TLV in IEEE format
+ * @tlv: Fill PFC TLV in IEEE format
+ * @dcbcfg: Local store which holds the PFC CFG data
+ *
+ * Prepare IEEE 802.1Qaz PFC CFG TLV
+ */
+static void
+ice_add_ieee_pfc_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
+{
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+	u16 typelen;
+
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) |
+		   ICE_IEEE_PFC_TLV_LEN);
+	tlv->typelen = htons(typelen);
+
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_PFC_CFG);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* ----------------------------------------
+	 * |will-|MBC  | Re-  | PFC |  PFC Enable  |
+	 * |ing  |     |served| cap |              |
+	 * -----------------------------------------
+	 * |1bit | 1bit|2 bits|4bits| 1 octet      |
+	 */
+	if (dcbcfg->pfc.willing)
+		buf[0] = BIT(ICE_IEEE_PFC_WILLING_S);
+
+	if (dcbcfg->pfc.mbc)
+		buf[0] |= BIT(ICE_IEEE_PFC_MBC_S);
+
+	buf[0] |= dcbcfg->pfc.pfccap & 0xF;
+	buf[1] = dcbcfg->pfc.pfcena;
+}
+
+/**
+ * ice_add_ieee_app_pri_tlv -  Prepare APP TLV in IEEE format
+ * @tlv: Fill APP TLV in IEEE format
+ * @dcbcfg: Local store which holds the APP CFG data
+ *
+ * Prepare IEEE 802.1Qaz APP CFG TLV
+ */
+static void
+ice_add_ieee_app_pri_tlv(struct ice_lldp_org_tlv *tlv,
+			 struct ice_dcbx_cfg *dcbcfg)
+{
+	u16 typelen, len, offset = 0;
+	u8 priority, selector, i = 0;
+	u8 *buf = tlv->tlvinfo;
+	u32 ouisubtype;
+
+	/* No APP TLVs then just return */
+	if (dcbcfg->numapps == 0)
+		return;
+	ouisubtype = ((ICE_IEEE_8021QAZ_OUI << ICE_LLDP_TLV_OUI_S) |
+		      ICE_IEEE_SUBTYPE_APP_PRI);
+	tlv->ouisubtype = htonl(ouisubtype);
+
+	/* Move offset to App Priority Table */
+	offset++;
+	/* Application Priority Table (3 octets)
+	 * Octets:|         1          |    2    |    3    |
+	 *        -----------------------------------------
+	 *        |Priority|Rsrvd| Sel |    Protocol ID    |
+	 *        -----------------------------------------
+	 *   Bits:|23    21|20 19|18 16|15                0|
+	 *        -----------------------------------------
+	 */
+	while (i < dcbcfg->numapps) {
+		priority = dcbcfg->app[i].priority & 0x7;
+		selector = dcbcfg->app[i].selector & 0x7;
+		buf[offset] = (priority << ICE_IEEE_APP_PRIO_S) | selector;
+		buf[offset + 1] = (dcbcfg->app[i].prot_id >> 0x8) & 0xFF;
+		buf[offset + 2] = dcbcfg->app[i].prot_id & 0xFF;
+		/* Move to next app */
+		offset += 3;
+		i++;
+		if (i >= ICE_DCBX_MAX_APPS)
+			break;
+	}
+	/* len includes size of ouisubtype + 1 reserved + 3*numapps */
+	len = sizeof(tlv->ouisubtype) + 1 + (i * 3);
+	typelen = ((ICE_TLV_TYPE_ORG << ICE_LLDP_TLV_TYPE_S) | (len & 0x1FF));
+	tlv->typelen = htons(typelen);
+}
+
+/**
+ * ice_add_dcb_tlv - Add all IEEE TLVs
+ * @tlv: Fill TLV data in IEEE format
+ * @dcbcfg: Local store which holds the DCB Config
+ * @tlvid: Type of IEEE TLV
+ *
+ * Add tlv information
+ */
+static void
+ice_add_dcb_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg,
+		u16 tlvid)
+{
+	switch (tlvid) {
+	case ICE_IEEE_TLV_ID_ETS_CFG:
+		ice_add_ieee_ets_tlv(tlv, dcbcfg);
+		break;
+	case ICE_IEEE_TLV_ID_ETS_REC:
+		ice_add_ieee_etsrec_tlv(tlv, dcbcfg);
+		break;
+	case ICE_IEEE_TLV_ID_PFC_CFG:
+		ice_add_ieee_pfc_tlv(tlv, dcbcfg);
+		break;
+	case ICE_IEEE_TLV_ID_APP_PRI:
+		ice_add_ieee_app_pri_tlv(tlv, dcbcfg);
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * ice_dcb_cfg_to_lldp - Convert DCB configuration to MIB format
+ * @lldpmib: pointer to the HW struct
+ * @miblen: length of LLDP MIB
+ * @dcbcfg: Local store which holds the DCB Config
+ *
+ * Convert the DCB configuration to MIB format
+ */
+static void
+ice_dcb_cfg_to_lldp(u8 *lldpmib, u16 *miblen, struct ice_dcbx_cfg *dcbcfg)
+{
+	u16 len, offset = 0, tlvid = ICE_TLV_ID_START;
+	struct ice_lldp_org_tlv *tlv;
+	u16 typelen;
+
+	tlv = (struct ice_lldp_org_tlv *)lldpmib;
+	while (1) {
+		ice_add_dcb_tlv(tlv, dcbcfg, tlvid++);
+		typelen = ntohs(tlv->typelen);
+		len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+		if (len)
+			offset += len + 2;
+		/* END TLV or beyond LLDPDU size */
+		if (tlvid >= ICE_TLV_ID_END_OF_LLDPPDU ||
+		    offset > ICE_LLDPDU_SIZE)
+			break;
+		/* Move to next TLV */
+		if (len)
+			tlv = (struct ice_lldp_org_tlv *)
+				((char *)tlv + sizeof(tlv->typelen) + len);
+	}
+	*miblen = offset;
+}
+
+/**
+ * ice_set_dcb_cfg - Set the local LLDP MIB to FW
+ * @pi: port information structure
+ *
+ * Set DCB configuration to the Firmware
+ */
+enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi)
+{
+	u8 mib_type, *lldpmib = NULL;
+	struct ice_dcbx_cfg *dcbcfg;
+	enum ice_status ret;
+	struct ice_hw *hw;
+	u16 miblen;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+
+	hw = pi->hw;
+
+	/* update the HW local config */
+	dcbcfg = &pi->local_dcbx_cfg;
+	/* Allocate the LLDPDU */
+	lldpmib = devm_kzalloc(ice_hw_to_dev(hw), ICE_LLDPDU_SIZE, GFP_KERNEL);
+	if (!lldpmib)
+		return ICE_ERR_NO_MEMORY;
+
+	mib_type = SET_LOCAL_MIB_TYPE_LOCAL_MIB;
+	if (dcbcfg->app_mode == ICE_DCBX_APPS_NON_WILLING)
+		mib_type |= SET_LOCAL_MIB_TYPE_CEE_NON_WILLING;
+
+	ice_dcb_cfg_to_lldp(lldpmib, &miblen, dcbcfg);
+	ret = ice_aq_set_lldp_mib(hw, mib_type, (void *)lldpmib, miblen,
+				  NULL);
+
+	devm_kfree(ice_hw_to_dev(hw), lldpmib);
+
+	return ret;
+}
+
+/**
+ * ice_aq_query_port_ets - query port ets configuration
+ * @pi: port information structure
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @cd: pointer to command details structure or NULL
+ *
+ * query current port ets configuration
+ */
+static enum ice_status
+ice_aq_query_port_ets(struct ice_port_info *pi,
+		      struct ice_aqc_port_ets_elem *buf, u16 buf_size,
+		      struct ice_sq_cd *cd)
+{
+	struct ice_aqc_query_port_ets *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+	cmd = &desc.params.port_ets;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_query_port_ets);
+	cmd->port_teid = pi->root->info.node_teid;
+
+	status = ice_aq_send_cmd(pi->hw, &desc, buf, buf_size, cd);
+	return status;
+}
+
+/**
+ * ice_update_port_tc_tree_cfg - update TC tree configuration
+ * @pi: port information structure
+ * @buf: pointer to buffer
+ *
+ * update the SW DB with the new TC changes
+ */
+static enum ice_status
+ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
+			    struct ice_aqc_port_ets_elem *buf)
+{
+	struct ice_sched_node *node, *tc_node;
+	struct ice_aqc_get_elem elem;
+	enum ice_status status = 0;
+	u32 teid1, teid2;
+	u8 i, j;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+	/* suspend the missing TC nodes */
+	for (i = 0; i < pi->root->num_children; i++) {
+		teid1 = le32_to_cpu(pi->root->children[i]->info.node_teid);
+		ice_for_each_traffic_class(j) {
+			teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+			if (teid1 == teid2)
+				break;
+		}
+		if (j < ICE_MAX_TRAFFIC_CLASS)
+			continue;
+		/* TC is missing */
+		pi->root->children[i]->in_use = false;
+	}
+	/* add the new TC nodes */
+	ice_for_each_traffic_class(j) {
+		teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+		if (teid2 == ICE_INVAL_TEID)
+			continue;
+		/* Is it already present in the tree ? */
+		for (i = 0; i < pi->root->num_children; i++) {
+			tc_node = pi->root->children[i];
+			if (!tc_node)
+				continue;
+			teid1 = le32_to_cpu(tc_node->info.node_teid);
+			if (teid1 == teid2) {
+				tc_node->tc_num = j;
+				tc_node->in_use = true;
+				break;
+			}
+		}
+		if (i < pi->root->num_children)
+			continue;
+		/* new TC */
+		status = ice_sched_query_elem(pi->hw, teid2, &elem);
+		if (!status)
+			status = ice_sched_add_node(pi, 1, &elem.generic[0]);
+		if (status)
+			break;
+		/* update the TC number */
+		node = ice_sched_find_node_by_teid(pi->root, teid2);
+		if (node)
+			node->tc_num = j;
+	}
+	return status;
+}
+
+/**
+ * ice_query_port_ets - query port ets configuration
+ * @pi: port information structure
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @cd: pointer to command details structure or NULL
+ *
+ * query current port ets configuration and update the
+ * SW DB with the TC changes
+ */
+enum ice_status
+ice_query_port_ets(struct ice_port_info *pi,
+		   struct ice_aqc_port_ets_elem *buf, u16 buf_size,
+		   struct ice_sq_cd *cd)
+{
+	enum ice_status status;
+
+	mutex_lock(&pi->sched_lock);
+	status = ice_aq_query_port_ets(pi, buf, buf_size, cd);
+	if (!status)
+		status = ice_update_port_tc_tree_cfg(pi, buf);
+	mutex_unlock(&pi->sched_lock);
+	return status;
 }

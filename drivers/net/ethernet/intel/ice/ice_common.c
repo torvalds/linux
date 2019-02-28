@@ -3106,3 +3106,28 @@ ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 		/* to manage the potential roll-over */
 		*cur_stat = (new_data + BIT_ULL(32)) - *prev_stat;
 }
+
+/**
+ * ice_sched_query_elem - query element information from HW
+ * @hw: pointer to the HW struct
+ * @node_teid: node TEID to be queried
+ * @buf: buffer to element information
+ *
+ * This function queries HW element information
+ */
+enum ice_status
+ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
+		     struct ice_aqc_get_elem *buf)
+{
+	u16 buf_size, num_elem_ret = 0;
+	enum ice_status status;
+
+	buf_size = sizeof(*buf);
+	memset(buf, 0, buf_size);
+	buf->generic[0].node_teid = cpu_to_le32(node_teid);
+	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
+					  NULL);
+	if (status || num_elem_ret != 1)
+		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
+	return status;
+}

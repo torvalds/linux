@@ -747,6 +747,32 @@ struct ice_aqc_delete_elem {
 	__le32 teid[1];
 };
 
+/* Query Port ETS (indirect 0x040E)
+ *
+ * This indirect command is used to query port TC node configuration.
+ */
+struct ice_aqc_query_port_ets {
+	__le32 port_teid;
+	__le32 reserved;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_port_ets_elem {
+	u8 tc_valid_bits;
+	u8 reserved[3];
+	/* 3 bits for UP per TC 0-7, 4th byte reserved */
+	__le32 up2tc;
+	u8 tc_bw_share[8];
+	__le32 port_eir_prof_id;
+	__le32 port_cir_prof_id;
+	/* 3 bits per Node priority to TC 0-7, 4th byte reserved */
+	__le32 tc_node_prio;
+#define ICE_TC_NODE_PRIO_S	0x4
+	u8 reserved1[4];
+	__le32 tc_node_teid[8]; /* Used for response, reserved in command */
+};
+
 /* Query Scheduler Resource Allocation (indirect 0x0412)
  * This indirect command retrieves the scheduler resources allocated by
  * EMP Firmware to the given PF.
@@ -1212,6 +1238,23 @@ struct ice_aqc_get_cee_dcb_cfg_resp {
 	u8 reserved[12];
 };
 
+/* Set Local LLDP MIB (indirect 0x0A08)
+ * Used to replace the local MIB of a given LLDP agent. e.g. DCBx
+ */
+struct ice_aqc_lldp_set_local_mib {
+	u8 type;
+#define SET_LOCAL_MIB_TYPE_DCBX_M		BIT(0)
+#define SET_LOCAL_MIB_TYPE_LOCAL_MIB		0
+#define SET_LOCAL_MIB_TYPE_CEE_M		BIT(1)
+#define SET_LOCAL_MIB_TYPE_CEE_WILLING		0
+#define SET_LOCAL_MIB_TYPE_CEE_NON_WILLING	SET_LOCAL_MIB_TYPE_CEE_M
+	u8 reserved0;
+	__le16 length;
+	u8 reserved1[4];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Stop/Start LLDP Agent (direct 0x0A09)
  * Used for stopping/starting specific LLDP agent. e.g. DCBx.
  * The same structure is used for the response, with the command field
@@ -1481,11 +1524,13 @@ struct ice_aq_desc {
 		struct ice_aqc_get_topo get_topo;
 		struct ice_aqc_sched_elem_cmd sched_elem_cmd;
 		struct ice_aqc_query_txsched_res query_sched_res;
+		struct ice_aqc_query_port_ets port_ets;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_pf_vf_msg virt;
 		struct ice_aqc_lldp_get_mib lldp_get_mib;
 		struct ice_aqc_lldp_set_mib_change lldp_set_event;
 		struct ice_aqc_lldp_start lldp_start;
+		struct ice_aqc_lldp_set_local_mib lldp_set_mib;
 		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
@@ -1573,6 +1618,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_sched_elems			= 0x0404,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
+	ice_aqc_opc_query_port_ets			= 0x040E,
 	ice_aqc_opc_delete_sched_elems			= 0x040F,
 	ice_aqc_opc_query_sched_res			= 0x0412,
 
@@ -1595,6 +1641,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_lldp_set_mib_change			= 0x0A01,
 	ice_aqc_opc_lldp_start				= 0x0A06,
 	ice_aqc_opc_get_cee_dcb_cfg			= 0x0A07,
+	ice_aqc_opc_lldp_set_local_mib			= 0x0A08,
 	ice_aqc_opc_lldp_stop_start_specific_agent	= 0x0A09,
 
 	/* RSS commands */

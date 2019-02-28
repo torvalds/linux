@@ -3,6 +3,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_dcb_lib.h"
 
 /**
  * ice_setup_rx_ctx - Configure a receive ring context
@@ -1301,7 +1302,11 @@ err_out:
  * through the MSI-X enabling code. On a constrained vector budget, we map Tx
  * and Rx rings to the vector as "efficiently" as possible.
  */
+#ifdef CONFIG_DCB
+void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+#else
 static void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
+#endif /* CONFIG_DCB */
 {
 	int q_vectors = vsi->num_q_vectors;
 	int tx_rings_rem, rx_rings_rem;
@@ -2172,6 +2177,14 @@ err_out:
 	return -EIO;
 }
 
+static void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
+{
+	struct ice_dcbx_cfg *cfg = &vsi->port_info->local_dcbx_cfg;
+
+	vsi->tc_cfg.ena_tc = ice_dcb_get_ena_tc(cfg);
+	vsi->tc_cfg.numtc = ice_dcb_get_num_tc(cfg);
+}
+
 /**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
@@ -2815,3 +2828,125 @@ bool ice_is_reset_in_progress(unsigned long *state)
 	       test_bit(__ICE_CORER_REQ, state) ||
 	       test_bit(__ICE_GLOBR_REQ, state);
 }
+
+#ifdef CONFIG_DCB
+/**
+ * ice_vsi_update_q_map - update our copy of the VSI info with new queue map
+ * @vsi: VSI being configured
+ * @ctx: the context buffer returned from AQ VSI update command
+ */
+static void ice_vsi_update_q_map(struct ice_vsi *vsi, struct ice_vsi_ctx *ctx)
+{
+	vsi->info.mapping_flags = ctx->info.mapping_flags;
+	memcpy(&vsi->info.q_mapping, &ctx->info.q_mapping,
+	       sizeof(vsi->info.q_mapping));
+	memcpy(&vsi->info.tc_mapping, ctx->info.tc_mapping,
+	       sizeof(vsi->info.tc_mapping));
+}
+
+/**
+ * ice_vsi_cfg_netdev_tc - Setup the netdev TC configuration
+ * @vsi: the VSI being configured
+ * @ena_tc: TC map to be enabled
+ */
+static void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc)
+{
+	struct net_device *netdev = vsi->netdev;
+	struct ice_pf *pf = vsi->back;
+	struct ice_dcbx_cfg *dcbcfg;
+	u8 netdev_tc;
+	int i;
+
+	if (!netdev)
+		return;
+
+	if (!ena_tc) {
+		netdev_reset_tc(netdev);
+		return;
+	}
+
+	if (netdev_set_num_tc(netdev, vsi->tc_cfg.numtc))
+		return;
+
+	dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+
+	ice_for_each_traffic_class(i)
+		if (vsi->tc_cfg.ena_tc & BIT(i))
+			netdev_set_tc_queue(netdev,
+					    vsi->tc_cfg.tc_info[i].netdev_tc,
+					    vsi->tc_cfg.tc_info[i].qcount_tx,
+					    vsi->tc_cfg.tc_info[i].qoffset);
+
+	for (i = 0; i < ICE_MAX_USER_PRIORITY; i++) {
+		u8 ets_tc = dcbcfg->etscfg.prio_table[i];
+
+		/* Get the mapped netdev TC# for the UP */
+		netdev_tc = vsi->tc_cfg.tc_info[ets_tc].netdev_tc;
+		netdev_set_prio_tc_map(netdev, i, netdev_tc);
+	}
+}
+
+/**
+ * ice_vsi_cfg_tc - Configure VSI Tx Sched for given TC map
+ * @vsi: VSI to be configured
+ * @ena_tc: TC bitmap
+ *
+ * VSI queues expected to be quiesced before calling this function
+ */
+int ice_vsi_cfg_tc(struct ice_vsi *vsi, u8 ena_tc)
+{
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
+	struct ice_vsi_ctx *ctx;
+	struct ice_pf *pf = vsi->back;
+	enum ice_status status;
+	int i, ret = 0;
+	u8 num_tc = 0;
+
+	ice_for_each_traffic_class(i) {
+		/* build bitmap of enabled TCs */
+		if (ena_tc & BIT(i))
+			num_tc++;
+		/* populate max_txqs per TC */
+		max_txqs[i] = pf->num_lan_tx;
+	}
+
+	vsi->tc_cfg.ena_tc = ena_tc;
+	vsi->tc_cfg.numtc = num_tc;
+
+	ctx = devm_kzalloc(&pf->pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->vf_num = 0;
+	ctx->info = vsi->info;
+
+	ice_vsi_setup_q_map(vsi, ctx);
+
+	/* must to indicate which section of VSI context are being modified */
+	ctx->info.valid_sections = cpu_to_le16(ICE_AQ_VSI_PROP_RXQ_MAP_VALID);
+	status = ice_update_vsi(&pf->hw, vsi->idx, ctx, NULL);
+	if (status) {
+		dev_info(&pf->pdev->dev, "Failed VSI Update\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+
+	if (status) {
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed TC config, error %d\n",
+			vsi->vsi_num, status);
+		ret = -EIO;
+		goto out;
+	}
+	ice_vsi_update_q_map(vsi, ctx);
+	vsi->info.valid_sections = 0;
+
+	ice_vsi_cfg_netdev_tc(vsi, ena_tc);
+out:
+	devm_kfree(&pf->pdev->dev, ctx);
+	return ret;
+}
+#endif /* CONFIG_DCB */

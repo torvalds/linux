@@ -215,6 +215,8 @@ struct ice_nvm_info {
 #define ice_for_each_traffic_class(_i)	\
 	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
 
+#define ICE_INVAL_TEID 0xFFFFFFFF
+
 struct ice_sched_node {
 	struct ice_sched_node *parent;
 	struct ice_sched_node *sibling; /* next sibling in the same layer */

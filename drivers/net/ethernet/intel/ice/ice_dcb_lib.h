@@ -8,12 +8,25 @@
 #include "ice_lib.h"
 
 #ifdef CONFIG_DCB
+u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
+u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
 int ice_init_pf_dcb(struct ice_pf *pf);
 #else
+static inline u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
+{
+	return ICE_DFLT_TRAFFIC_CLASS;
+}
+
+static inline u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg __always_unused *dcbcfg)
+{
+	return 1;
+}
+
 static inline int ice_init_pf_dcb(struct ice_pf *pf)
 {
 	dev_dbg(&pf->pdev->dev, "DCB not supported\n");
 	return -EOPNOTSUPP;
 }
+
 #endif /* CONFIG_DCB */
 #endif /* _ICE_DCB_LIB_H_ */

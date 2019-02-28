@@ -70,6 +70,18 @@
 #define ICE_IEEE_APP_PRIO_S		5
 #define ICE_IEEE_APP_PRIO_M		(0x7 << ICE_IEEE_APP_PRIO_S)
 
+/* TLV definitions for preparing MIB */
+#define ICE_IEEE_TLV_ID_ETS_CFG		3
+#define ICE_IEEE_TLV_ID_ETS_REC		4
+#define ICE_IEEE_TLV_ID_PFC_CFG		5
+#define ICE_IEEE_TLV_ID_APP_PRI		6
+#define ICE_TLV_ID_END_OF_LLDPPDU	7
+#define ICE_TLV_ID_START		ICE_IEEE_TLV_ID_ETS_CFG
+
+#define ICE_IEEE_ETS_TLV_LEN		25
+#define ICE_IEEE_PFC_TLV_LEN		6
+#define ICE_IEEE_APP_TLV_LEN		11
+
 /* IEEE 802.1AB LLDP Organization specific TLV */
 struct ice_lldp_org_tlv {
 	__be16 typelen;
@@ -108,7 +120,12 @@ struct ice_cee_app_prio {
 } __packed;
 
 u8 ice_get_dcbx_status(struct ice_hw *hw);
+enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi);
 enum ice_status ice_init_dcb(struct ice_hw *hw);
+enum ice_status
+ice_query_port_ets(struct ice_port_info *pi,
+		   struct ice_aqc_port_ets_elem *buf, u16 buf_size,
+		   struct ice_sq_cd *cmd_details);
 #ifdef CONFIG_DCB
 enum ice_status ice_aq_start_lldp(struct ice_hw *hw, struct ice_sq_cd *cd);
 enum ice_status

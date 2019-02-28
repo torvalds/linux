@@ -378,6 +378,9 @@ struct ice_pf {
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
 	u8 stat_prev_loaded;	/* has previous stats been loaded */
+#ifdef CONFIG_DCB
+	u16 dcbx_cap;
+#endif /* CONFIG_DCB */
 	u32 tx_timeout_count;
 	unsigned long tx_timeout_last_recovery;
 	u32 tx_timeout_recovery_level;
@@ -414,12 +417,6 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
 
-static inline void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
-{
-	vsi->tc_cfg.ena_tc =  ICE_DFLT_TRAFFIC_CLASS;
-	vsi->tc_cfg.numtc = 1;
-}
-
 void ice_set_ethtool_ops(struct net_device *netdev);
 int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
@@ -428,5 +425,9 @@ int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 void ice_napi_del(struct ice_vsi *vsi);
+#ifdef CONFIG_DCB
+int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked);
+void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked);
+#endif /* CONFIG_DCB */
 
 #endif /* _ICE_H_ */

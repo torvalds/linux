@@ -127,7 +127,7 @@ ice_aqc_send_sched_elem_cmd(struct ice_hw *hw, enum ice_adminq_opc cmd_opc,
  *
  * Query scheduling elements (0x0404)
  */
-static enum ice_status
+enum ice_status
 ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 			 struct ice_aqc_get_elem *buf, u16 buf_size,
 			 u16 *elems_ret, struct ice_sq_cd *cd)
@@ -135,31 +135,6 @@ ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
 	return ice_aqc_send_sched_elem_cmd(hw, ice_aqc_opc_get_sched_elems,
 					   elems_req, (void *)buf, buf_size,
 					   elems_ret, cd);
-}
-
-/**
- * ice_sched_query_elem - query element information from HW
- * @hw: pointer to the HW struct
- * @node_teid: node TEID to be queried
- * @buf: buffer to element information
- *
- * This function queries HW element information
- */
-static enum ice_status
-ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
-		     struct ice_aqc_get_elem *buf)
-{
-	u16 buf_size, num_elem_ret = 0;
-	enum ice_status status;
-
-	buf_size = sizeof(*buf);
-	memset(buf, 0, buf_size);
-	buf->generic[0].node_teid = cpu_to_le32(node_teid);
-	status = ice_aq_query_sched_elems(hw, 1, buf, buf_size, &num_elem_ret,
-					  NULL);
-	if (status || num_elem_ret != 1)
-		ice_debug(hw, ICE_DBG_SCHED, "query element failed\n");
-	return status;
 }
 
 /**

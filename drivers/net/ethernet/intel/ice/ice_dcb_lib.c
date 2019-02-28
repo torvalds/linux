@@ -4,6 +4,189 @@
 #include "ice_dcb_lib.h"
 
 /**
+ * ice_dcb_get_ena_tc - return bitmap of enabled TCs
+ * @dcbcfg: DCB config to evaluate for enabled TCs
+ */
+u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg)
+{
+	u8 i, num_tc, ena_tc = 1;
+
+	num_tc = ice_dcb_get_num_tc(dcbcfg);
+
+	for (i = 0; i < num_tc; i++)
+		ena_tc |= BIT(i);
+
+	return ena_tc;
+}
+
+/**
+ * ice_dcb_get_num_tc - Get the number of TCs from DCBX config
+ * @dcbcfg: config to retrieve number of TCs from
+ */
+u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg)
+{
+	bool tc_unused = false;
+	u8 num_tc = 0;
+	u8 ret = 0;
+	int i;
+
+	/* Scan the ETS Config Priority Table to find traffic classes
+	 * enabled and create a bitmask of enabled TCs
+	 */
+	for (i = 0; i < CEE_DCBX_MAX_PRIO; i++)
+		num_tc |= BIT(dcbcfg->etscfg.prio_table[i]);
+
+	/* Scan bitmask for contiguous TCs starting with TC0 */
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		if (num_tc & BIT(i)) {
+			if (!tc_unused) {
+				ret++;
+			} else {
+				pr_err("Non-contiguous TCs - Disabling DCB\n");
+				return 1;
+			}
+		} else {
+			tc_unused = true;
+		}
+	}
+
+	/* There is always at least 1 TC */
+	if (!ret)
+		ret = 1;
+
+	return ret;
+}
+
+/**
+ * ice_pf_dcb_recfg - Reconfigure all VEBs and VSIs
+ * @pf: pointer to the PF struct
+ *
+ * Assumed caller has already disabled all VSIs before
+ * calling this function. Reconfiguring DCB based on
+ * local_dcbx_cfg.
+ */
+static void ice_pf_dcb_recfg(struct ice_pf *pf)
+{
+	struct ice_dcbx_cfg *dcbcfg = &pf->hw.port_info->local_dcbx_cfg;
+	u8 tc_map = 0;
+	int v, ret;
+
+	/* Update each VSI */
+	ice_for_each_vsi(pf, v) {
+		if (!pf->vsi[v])
+			continue;
+
+		if (pf->vsi[v]->type == ICE_VSI_PF)
+			tc_map = ice_dcb_get_ena_tc(dcbcfg);
+		else
+			tc_map = ICE_DFLT_TRAFFIC_CLASS;
+
+		ret = ice_vsi_cfg_tc(pf->vsi[v], tc_map);
+		if (ret)
+			dev_err(&pf->pdev->dev,
+				"Failed to config TC for VSI index: %d\n",
+				pf->vsi[v]->idx);
+		else
+			ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+	}
+}
+
+/**
+ * ice_pf_dcb_cfg - Apply new DCB configuration
+ * @pf: pointer to the PF struct
+ * @new_cfg: DCBX config to apply
+ */
+static int ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg)
+{
+	struct ice_dcbx_cfg *old_cfg, *curr_cfg;
+	struct ice_aqc_port_ets_elem buf = { 0 };
+	int ret = 0;
+
+	curr_cfg = &pf->hw.port_info->local_dcbx_cfg;
+
+	/* Enable DCB tagging only when more than one TC */
+	if (ice_dcb_get_num_tc(new_cfg) > 1) {
+		dev_dbg(&pf->pdev->dev, "DCB tagging enabled (num TC > 1)\n");
+		set_bit(ICE_FLAG_DCB_ENA, pf->flags);
+	} else {
+		dev_dbg(&pf->pdev->dev, "DCB tagging disabled (num TC = 1)\n");
+		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+	}
+
+	if (!memcmp(new_cfg, curr_cfg, sizeof(*new_cfg))) {
+		dev_dbg(&pf->pdev->dev, "No change in DCB config required\n");
+		return ret;
+	}
+
+	/* Store old config in case FW config fails */
+	old_cfg = devm_kzalloc(&pf->pdev->dev, sizeof(*old_cfg), GFP_KERNEL);
+	memcpy(old_cfg, curr_cfg, sizeof(*old_cfg));
+
+	/* avoid race conditions by holding the lock while disabling and
+	 * re-enabling the VSI
+	 */
+	rtnl_lock();
+	ice_pf_dis_all_vsi(pf, true);
+
+	memcpy(curr_cfg, new_cfg, sizeof(*curr_cfg));
+	memcpy(&curr_cfg->etsrec, &curr_cfg->etscfg, sizeof(curr_cfg->etsrec));
+
+	/* Only send new config to HW if we are in SW LLDP mode. Otherwise,
+	 * the new config came from the HW in the first place.
+	 */
+	if (pf->hw.port_info->is_sw_lldp) {
+		ret = ice_set_dcb_cfg(pf->hw.port_info);
+		if (ret) {
+			dev_err(&pf->pdev->dev, "Set DCB Config failed\n");
+			/* Restore previous settings to local config */
+			memcpy(curr_cfg, old_cfg, sizeof(*curr_cfg));
+			goto out;
+		}
+	}
+
+	ret = ice_query_port_ets(pf->hw.port_info, &buf, sizeof(buf), NULL);
+	if (ret) {
+		dev_err(&pf->pdev->dev, "Query Port ETS failed\n");
+		goto out;
+	}
+
+	ice_pf_dcb_recfg(pf);
+
+out:
+	ice_pf_ena_all_vsi(pf, true);
+	rtnl_unlock();
+	devm_kfree(&pf->pdev->dev, old_cfg);
+	return ret;
+}
+
+/**
+ * ice_dcb_init_cfg - set the initial DCB config in SW
+ * @pf: pf to apply config to
+ */
+static int ice_dcb_init_cfg(struct ice_pf *pf)
+{
+	struct ice_dcbx_cfg *newcfg;
+	struct ice_port_info *pi;
+	int ret = 0;
+
+	pi = pf->hw.port_info;
+	newcfg = devm_kzalloc(&pf->pdev->dev, sizeof(*newcfg), GFP_KERNEL);
+	if (!newcfg)
+		return -ENOMEM;
+
+	memcpy(newcfg, &pi->local_dcbx_cfg, sizeof(*newcfg));
+	memset(&pi->local_dcbx_cfg, 0, sizeof(*newcfg));
+
+	dev_info(&pf->pdev->dev, "Configuring initial DCB values\n");
+	if (ice_pf_dcb_cfg(pf, newcfg))
+		ret = -EINVAL;
+
+	devm_kfree(&pf->pdev->dev, newcfg);
+
+	return ret;
+}
+
+/**
  * ice_init_pf_dcb - initialize DCB for a PF
  * @pf: pf to initiialize DCB for
  */
@@ -12,6 +195,7 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 	struct device *dev = &pf->pdev->dev;
 	struct ice_port_info *port_info;
 	struct ice_hw *hw = &pf->hw;
+	int err;
 
 	port_info = hw->port_info;
 
@@ -38,5 +222,23 @@ int ice_init_pf_dcb(struct ice_pf *pf)
 		ice_aq_start_stop_dcbx(hw, true, &dcbx_status, NULL);
 	}
 
-	return ice_init_dcb(hw);
+	err = ice_init_dcb(hw);
+	if (err)
+		goto dcb_init_err;
+
+	/* DCBX in FW and LLDP enabled in FW */
+	pf->dcbx_cap = DCB_CAP_DCBX_LLD_MANAGED | DCB_CAP_DCBX_VER_IEEE;
+
+	set_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
+
+	err = ice_dcb_init_cfg(pf);
+	if (err)
+		goto dcb_init_err;
+
+	dev_info(&pf->pdev->dev, "DCBX offload supported\n");
+	return err;
+
+dcb_init_err:
+	dev_err(dev, "DCB init failed\n");
+	return err;
 }

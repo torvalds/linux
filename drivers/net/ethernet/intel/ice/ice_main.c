@@ -31,7 +31,6 @@ MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
 static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_ops;
 
-static void ice_pf_dis_all_vsi(struct ice_pf *pf);
 static void ice_rebuild(struct ice_pf *pf);
 
 static void ice_vsi_release_all(struct ice_pf *pf);
@@ -398,6 +397,51 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_dis_vsi - pause a VSI
+ * @vsi: the VSI being paused
+ * @locked: is the rtnl_lock already held
+ */
+static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
+{
+	if (test_bit(__ICE_DOWN, vsi->state))
+		return;
+
+	set_bit(__ICE_NEEDS_RESTART, vsi->state);
+
+	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
+		if (netif_running(vsi->netdev)) {
+			if (!locked) {
+				rtnl_lock();
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+				rtnl_unlock();
+			} else {
+				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
+			}
+		} else {
+			ice_vsi_close(vsi);
+		}
+	}
+}
+
+/**
+ * ice_pf_dis_all_vsi - Pause all VSIs on a PF
+ * @pf: the PF
+ * @locked: is the rtnl_lock already held
+ */
+#ifdef CONFIG_DCB
+void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
+#else
+static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
+#endif /* CONFIG_DCB */
+{
+	int v;
+
+	ice_for_each_vsi(pf, v)
+		if (pf->vsi[v])
+			ice_dis_vsi(pf->vsi[v], locked);
+}
+
+/**
  * ice_prepare_for_reset - prep for the core to reset
  * @pf: board private structure
  *
@@ -417,7 +461,7 @@ ice_prepare_for_reset(struct ice_pf *pf)
 		ice_vc_notify_reset(pf);
 
 	/* disable the VSIs and their queues that are not already DOWN */
-	ice_pf_dis_all_vsi(pf);
+	ice_pf_dis_all_vsi(pf, false);
 
 	if (hw->port_info)
 		ice_sched_clear_port(hw->port_info);
@@ -3581,46 +3625,30 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 }
 
 /**
- * ice_dis_vsi - pause a VSI
- * @vsi: the VSI being paused
- * @locked: is the rtnl_lock already held
- */
-static void ice_dis_vsi(struct ice_vsi *vsi, bool locked)
-{
-	if (test_bit(__ICE_DOWN, vsi->state))
-		return;
-
-	set_bit(__ICE_NEEDS_RESTART, vsi->state);
-
-	if (vsi->type == ICE_VSI_PF && vsi->netdev) {
-		if (netif_running(vsi->netdev)) {
-			if (!locked) {
-				rtnl_lock();
-				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-				rtnl_unlock();
-			} else {
-				vsi->netdev->netdev_ops->ndo_stop(vsi->netdev);
-			}
-		} else {
-			ice_vsi_close(vsi);
-		}
-	}
-}
-
-/**
  * ice_ena_vsi - resume a VSI
  * @vsi: the VSI being resume
+ * @locked: is the rtnl_lock already held
  */
-static int ice_ena_vsi(struct ice_vsi *vsi)
+static int ice_ena_vsi(struct ice_vsi *vsi, bool locked)
 {
 	int err = 0;
 
-	if (test_and_clear_bit(__ICE_NEEDS_RESTART, vsi->state) &&
-	    vsi->netdev) {
+	if (!test_bit(__ICE_NEEDS_RESTART, vsi->state))
+		return err;
+
+	clear_bit(__ICE_NEEDS_RESTART, vsi->state);
+
+	if (vsi->netdev && vsi->type == ICE_VSI_PF) {
+		struct net_device *netd = vsi->netdev;
+
 		if (netif_running(vsi->netdev)) {
-			rtnl_lock();
-			err = vsi->netdev->netdev_ops->ndo_open(vsi->netdev);
-			rtnl_unlock();
+			if (locked) {
+				err = netd->netdev_ops->ndo_open(netd);
+			} else {
+				rtnl_lock();
+				err = netd->netdev_ops->ndo_open(netd);
+				rtnl_unlock();
+			}
 		} else {
 			err = ice_vsi_open(vsi);
 		}
@@ -3630,29 +3658,21 @@ static int ice_ena_vsi(struct ice_vsi *vsi)
 }
 
 /**
- * ice_pf_dis_all_vsi - Pause all VSIs on a PF
- * @pf: the PF
- */
-static void ice_pf_dis_all_vsi(struct ice_pf *pf)
-{
-	int v;
-
-	ice_for_each_vsi(pf, v)
-		if (pf->vsi[v])
-			ice_dis_vsi(pf->vsi[v], false);
-}
-
-/**
  * ice_pf_ena_all_vsi - Resume all VSIs on a PF
  * @pf: the PF
+ * @locked: is the rtnl_lock already held
  */
-static int ice_pf_ena_all_vsi(struct ice_pf *pf)
+#ifdef CONFIG_DCB
+int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
+#else
+static int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
+#endif /* CONFIG_DCB */
 {
 	int v;
 
 	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v])
-			if (ice_ena_vsi(pf->vsi[v]))
+			if (ice_ena_vsi(pf->vsi[v], locked))
 				return -EIO;
 
 	return 0;
@@ -3800,7 +3820,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	}
 
 	/* restart the VSIs that were rebuilt and running before the reset */
-	err = ice_pf_ena_all_vsi(pf);
+	err = ice_pf_ena_all_vsi(pf, false);
 	if (err) {
 		dev_err(&pf->pdev->dev, "error enabling VSIs\n");
 		/* no need to disable VSIs in tear down path in ice_rebuild()
