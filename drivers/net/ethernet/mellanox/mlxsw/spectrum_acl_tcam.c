@@ -180,6 +180,10 @@ struct mlxsw_sp_acl_tcam_vgroup {
 	bool vregion_rehash_enabled;
 };
 
+struct mlxsw_sp_acl_tcam_rehash_ctx {
+	void *hints_priv;
+};
+
 struct mlxsw_sp_acl_tcam_vregion {
 	struct mutex lock; /* Protects consistency of region, region2 pointers
 			    * and vchunk_list.
@@ -194,6 +198,7 @@ struct mlxsw_sp_acl_tcam_vregion {
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
 	struct {
 		struct delayed_work dw;
+		struct mlxsw_sp_acl_tcam_rehash_ctx ctx;
 	} rehash;
 	struct mlxsw_sp *mlxsw_sp;
 	bool failed_rollback; /* Indicates failed rollback during migration */
@@ -1270,7 +1275,7 @@ rollback:
 static int
 mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion,
-				  void *hints_priv)
+				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
 	struct mlxsw_sp_acl_tcam_region *region2, *unused_region;
@@ -1279,7 +1284,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
 
 	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
-						  vregion, hints_priv);
+						  vregion, ctx->hints_priv);
 	if (IS_ERR(region2)) {
 		err = PTR_ERR(region2);
 		goto out;
@@ -1333,6 +1338,7 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_vregion *vregion)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	struct mlxsw_sp_acl_tcam_rehash_ctx *ctx = &vregion->rehash.ctx;
 	void *hints_priv;
 	int err;
 
@@ -1347,8 +1353,9 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 			dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
 		return err;
 	}
+	ctx->hints_priv = hints_priv;
 
-	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, hints_priv);
+	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, ctx);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to migrate vregion\n");
 		if (vregion->failed_rollback) {
@@ -1358,7 +1365,8 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		}
 	}
 
-	ops->region_rehash_hints_put(hints_priv);
+	ops->region_rehash_hints_put(ctx->hints_priv);
+	ctx->hints_priv = NULL;
 	return err;
 }
 
