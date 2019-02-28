@@ -52,30 +52,17 @@ irq_handler_idx dm_register_interrupt(
  * GPU registers access
  *
  */
-
+uint32_t dm_read_reg_func(
+	const struct dc_context *ctx,
+	uint32_t address,
+	const char *func_name);
 /* enable for debugging new code, this adds 50k to the driver size. */
 /* #define DM_CHECK_ADDR_0 */
 
 #define dm_read_reg(ctx, address)	\
 		dm_read_reg_func(ctx, address, __func__)
 
-static inline uint32_t dm_read_reg_func(
-	const struct dc_context *ctx,
-	uint32_t address,
-	const char *func_name)
-{
-	uint32_t value;
-#ifdef DM_CHECK_ADDR_0
-	if (address == 0) {
-		DC_ERR("invalid register read; address = 0\n");
-		return 0;
-	}
-#endif
-	value = cgs_read_register(ctx->cgs_device, address);
-	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
 
-	return value;
-}
 
 #define dm_write_reg(ctx, address, value)	\
 	dm_write_reg_func(ctx, address, value, __func__)

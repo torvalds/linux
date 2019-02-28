@@ -119,6 +119,24 @@ uint32_t generic_reg_set_ex(const struct dc_context *ctx,
 	return reg_val;
 }
 
+uint32_t dm_read_reg_func(
+	const struct dc_context *ctx,
+	uint32_t address,
+	const char *func_name)
+{
+	uint32_t value;
+#ifdef DM_CHECK_ADDR_0
+	if (address == 0) {
+		DC_ERR("invalid register read; address = 0\n");
+		return 0;
+	}
+#endif
+	value = cgs_read_register(ctx->cgs_device, address);
+	trace_amdgpu_dc_rreg(&ctx->perf_trace->read_count, address, value);
+
+	return value;
+}
+
 uint32_t generic_reg_get(const struct dc_context *ctx, uint32_t addr,
 		uint8_t shift, uint32_t mask, uint32_t *field_value)
 {
