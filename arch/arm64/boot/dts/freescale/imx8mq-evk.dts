@@ -31,6 +31,34 @@
 		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	buck2_reg: regulator-buck2 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_buck2>;
+		compatible = "regulator-gpio";
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <1000000>;
+		gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		states = <1000000 0x0
+			  900000 0x1>;
+	};
+};
+
+&A53_0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&A53_1 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&A53_2 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&A53_3 {
+	cpu-supply = <&buck2_reg>;
 };
 
 &fec1 {
@@ -203,6 +231,13 @@
 };
 
 &iomuxc {
+	pinctrl_buck2: vddarmgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19
+		>;
+
+	};
+
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_ENET_MDC_ENET1_MDC			0x3
