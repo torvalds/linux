@@ -1054,7 +1054,7 @@ void ice_vsi_free_q_vectors(struct ice_vsi *vsi)
 {
 	int v_idx;
 
-	for (v_idx = 0; v_idx < vsi->num_q_vectors; v_idx++)
+	ice_for_each_q_vector(vsi, v_idx)
 		ice_free_q_vector(vsi, v_idx);
 }
 
@@ -2409,7 +2409,7 @@ void ice_vsi_free_irq(struct ice_vsi *vsi)
 			return;
 
 		vsi->irqs_ready = false;
-		for (i = 0; i < vsi->num_q_vectors; i++) {
+		ice_for_each_q_vector(vsi, i) {
 			u16 vector = i + base;
 			int irq_num;
 
@@ -2633,7 +2633,7 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 			wr32(hw, GLINT_DYN_CTL(i), 0);
 
 		ice_flush(hw);
-		for (i = 0; i < vsi->num_q_vectors; i++)
+		ice_for_each_q_vector(vsi, i)
 			synchronize_irq(pf->msix_entries[i + base].vector);
 	}
 }
