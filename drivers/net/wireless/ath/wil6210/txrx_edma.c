@@ -428,6 +428,9 @@ static void wil_ring_free_edma(struct wil6210_priv *wil, struct wil_ring *ring)
 			     &ring->pa, ring->ctx);
 
 		wil_move_all_rx_buff_to_free_list(wil, ring);
+		dma_free_coherent(dev, sizeof(*ring->edma_rx_swtail.va),
+				  ring->edma_rx_swtail.va,
+				  ring->edma_rx_swtail.pa);
 		goto out;
 	}
 
