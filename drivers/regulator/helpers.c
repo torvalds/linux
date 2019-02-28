@@ -780,3 +780,89 @@ int regulator_set_active_discharge_regmap(struct regulator_dev *rdev,
 				  rdev->desc->active_discharge_mask, val);
 }
 EXPORT_SYMBOL_GPL(regulator_set_active_discharge_regmap);
+
+/**
+ * regulator_set_current_limit_regmap - set_current_limit for regmap users
+ *
+ * @rdev: regulator to operate on
+ * @min_uA: Lower bound for current limit
+ * @max_uA: Upper bound for current limit
+ *
+ * Regulators that use regmap for their register I/O can set curr_table,
+ * csel_reg and csel_mask fields in their descriptor and then use this
+ * as their set_current_limit operation, saving some code.
+ */
+int regulator_set_current_limit_regmap(struct regulator_dev *rdev,
+				       int min_uA, int max_uA)
+{
+	unsigned int n_currents = rdev->desc->n_current_limits;
+	int i, sel = -1;
+
+	if (n_currents == 0)
+		return -EINVAL;
+
+	if (rdev->desc->curr_table) {
+		const unsigned int *curr_table = rdev->desc->curr_table;
+		bool ascend = curr_table[n_currents - 1] > curr_table[0];
+
+		/* search for closest to maximum */
+		if (ascend) {
+			for (i = n_currents - 1; i >= 0; i--) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		} else {
+			for (i = 0; i < n_currents; i++) {
+				if (min_uA <= curr_table[i] &&
+				    curr_table[i] <= max_uA) {
+					sel = i;
+					break;
+				}
+			}
+		}
+	}
+
+	if (sel < 0)
+		return -EINVAL;
+
+	sel <<= ffs(rdev->desc->csel_mask) - 1;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->csel_reg,
+				  rdev->desc->csel_mask, sel);
+}
+EXPORT_SYMBOL_GPL(regulator_set_current_limit_regmap);
+
+/**
+ * regulator_get_current_limit_regmap - get_current_limit for regmap users
+ *
+ * @rdev: regulator to operate on
+ *
+ * Regulators that use regmap for their register I/O can set the
+ * csel_reg and csel_mask fields in their descriptor and then use this
+ * as their get_current_limit operation, saving some code.
+ */
+int regulator_get_current_limit_regmap(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->csel_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	val &= rdev->desc->csel_mask;
+	val >>= ffs(rdev->desc->csel_mask) - 1;
+
+	if (rdev->desc->curr_table) {
+		if (val >= rdev->desc->n_current_limits)
+			return -EINVAL;
+
+		return rdev->desc->curr_table[val];
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_get_current_limit_regmap);
