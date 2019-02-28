@@ -2696,6 +2696,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 
 			rc = cifs_write_allocate_pages(wdata->pages, nr_pages);
 			if (rc) {
+				kvfree(wdata->pages);
 				kfree(wdata);
 				add_credits_and_wake_if(server, credits, 0);
 				break;
@@ -2707,6 +2708,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 			if (rc) {
 				for (i = 0; i < nr_pages; i++)
 					put_page(wdata->pages[i]);
+				kvfree(wdata->pages);
 				kfree(wdata);
 				add_credits_and_wake_if(server, credits, 0);
 				break;
@@ -3386,8 +3388,12 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 			}
 
 			rc = cifs_read_allocate_pages(rdata, npages);
-			if (rc)
-				goto error;
+			if (rc) {
+				kvfree(rdata->pages);
+				kfree(rdata);
+				add_credits_and_wake_if(server, credits, 0);
+				break;
+			}
 
 			rdata->tailsz = PAGE_SIZE;
 		}
@@ -3407,7 +3413,6 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		if (!rdata->cfile->invalidHandle ||
 		    !(rc = cifs_reopen_file(rdata->cfile, true)))
 			rc = server->ops->async_readv(rdata);
-error:
 		if (rc) {
 			add_credits_and_wake_if(server, rdata->credits, 0);
 			kref_put(&rdata->refcount,

@@ -166,7 +166,8 @@ static int smc_llc_add_pending_send(struct smc_link *link,
 {
 	int rc;
 
-	rc = smc_wr_tx_get_free_slot(link, smc_llc_tx_handler, wr_buf, pend);
+	rc = smc_wr_tx_get_free_slot(link, smc_llc_tx_handler, wr_buf, NULL,
+				     pend);
 	if (rc < 0)
 		return rc;
 	BUILD_BUG_ON_MSG(

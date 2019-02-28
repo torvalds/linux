@@ -157,6 +157,7 @@ static void pop_wait(u32 pop_time)
 		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
 }
 
+__printf(3, 4)
 static void pop_dbg(struct device *dev, u32 pop_time, const char *fmt, ...)
 {
 	va_list args;
@@ -331,8 +332,10 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 	 */
 	if (_widget->sname) {
 		w->sname = kstrdup_const(_widget->sname, GFP_KERNEL);
-		if (!w->sname)
+		if (!w->sname) {
+			kfree(w);
 			return NULL;
+		}
 	}
 	return w;
 }

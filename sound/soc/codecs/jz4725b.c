@@ -173,12 +173,12 @@ static const char * const jz4725b_codec_adc_src_texts[] = {
 	"Mic 1", "Mic 2", "Line In", "Mixer",
 };
 static const unsigned int jz4725b_codec_adc_src_values[] = { 0, 1, 2, 3, };
-static const SOC_VALUE_ENUM_SINGLE_DECL(jz4725b_codec_adc_src_enum,
-					JZ4725B_CODEC_REG_CR3,
-					REG_CR3_INSEL_OFFSET,
-					REG_CR3_INSEL_MASK,
-					jz4725b_codec_adc_src_texts,
-					jz4725b_codec_adc_src_values);
+static SOC_VALUE_ENUM_SINGLE_DECL(jz4725b_codec_adc_src_enum,
+				  JZ4725B_CODEC_REG_CR3,
+				  REG_CR3_INSEL_OFFSET,
+				  REG_CR3_INSEL_MASK,
+				  jz4725b_codec_adc_src_texts,
+				  jz4725b_codec_adc_src_values);
 static const struct snd_kcontrol_new jz4725b_codec_adc_src_ctrl =
 			SOC_DAPM_ENUM("Route", jz4725b_codec_adc_src_enum);
 

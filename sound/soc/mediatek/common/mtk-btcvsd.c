@@ -250,7 +250,7 @@ static int mtk_btcvsd_snd_rx_init(struct mtk_btcvsd_snd *bt)
 	bt->rx->buf_size = BTCVSD_RX_BUF_SIZE;
 	bt->rx->timeout = 0;
 	bt->rx->rw_cnt = 0;
-	bt->tx->stream = SNDRV_PCM_STREAM_CAPTURE;
+	bt->rx->stream = SNDRV_PCM_STREAM_CAPTURE;
 	return 0;
 }
 
@@ -1269,7 +1269,7 @@ static int mtk_btcvsd_snd_probe(struct platform_device *pdev)
 	/* irq */
 	irq_id = platform_get_irq(pdev, 0);
 	if (irq_id <= 0) {
-		dev_err(dev, "%s no irq found\n", dev->of_node->name);
+		dev_err(dev, "%pOFn no irq found\n", dev->of_node);
 		return irq_id < 0 ? irq_id : -ENXIO;
 	}
 

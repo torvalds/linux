@@ -1790,7 +1790,7 @@ enum i915_power_well_id {
 #define _CNL_PORT_TX_C_LN0_OFFSET		0x162C40
 #define _CNL_PORT_TX_D_LN0_OFFSET		0x162E40
 #define _CNL_PORT_TX_F_LN0_OFFSET		0x162840
-#define _CNL_PORT_TX_DW_GRP(port, dw)	(_PICK((port), \
+#define _CNL_PORT_TX_DW_GRP(dw, port)	(_PICK((port), \
 					       _CNL_PORT_TX_AE_GRP_OFFSET, \
 					       _CNL_PORT_TX_B_GRP_OFFSET, \
 					       _CNL_PORT_TX_B_GRP_OFFSET, \
@@ -1798,7 +1798,7 @@ enum i915_power_well_id {
 					       _CNL_PORT_TX_AE_GRP_OFFSET, \
 					       _CNL_PORT_TX_F_GRP_OFFSET) + \
 					       4 * (dw))
-#define _CNL_PORT_TX_DW_LN0(port, dw)	(_PICK((port), \
+#define _CNL_PORT_TX_DW_LN0(dw, port)	(_PICK((port), \
 					       _CNL_PORT_TX_AE_LN0_OFFSET, \
 					       _CNL_PORT_TX_B_LN0_OFFSET, \
 					       _CNL_PORT_TX_B_LN0_OFFSET, \
@@ -1834,9 +1834,9 @@ enum i915_power_well_id {
 
 #define _CNL_PORT_TX_DW4_LN0_AE		0x162450
 #define _CNL_PORT_TX_DW4_LN1_AE		0x1624D0
-#define CNL_PORT_TX_DW4_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 4))
-#define CNL_PORT_TX_DW4_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 4))
-#define CNL_PORT_TX_DW4_LN(port, ln)   _MMIO(_CNL_PORT_TX_DW_LN0((port), 4) + \
+#define CNL_PORT_TX_DW4_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP(4, (port)))
+#define CNL_PORT_TX_DW4_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0(4, (port)))
+#define CNL_PORT_TX_DW4_LN(port, ln)   _MMIO(_CNL_PORT_TX_DW_LN0(4, (port)) + \
 					   ((ln) * (_CNL_PORT_TX_DW4_LN1_AE - \
 						    _CNL_PORT_TX_DW4_LN0_AE)))
 #define ICL_PORT_TX_DW4_AUX(port)	_MMIO(_ICL_PORT_TX_DW_AUX(4, port))
@@ -1864,8 +1864,12 @@ enum i915_power_well_id {
 #define   RTERM_SELECT(x)		((x) << 3)
 #define   RTERM_SELECT_MASK		(0x7 << 3)
 
-#define CNL_PORT_TX_DW7_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 7))
-#define CNL_PORT_TX_DW7_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 7))
+#define CNL_PORT_TX_DW7_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP(7, (port)))
+#define CNL_PORT_TX_DW7_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0(7, (port)))
+#define ICL_PORT_TX_DW7_AUX(port)	_MMIO(_ICL_PORT_TX_DW_AUX(7, port))
+#define ICL_PORT_TX_DW7_GRP(port)	_MMIO(_ICL_PORT_TX_DW_GRP(7, port))
+#define ICL_PORT_TX_DW7_LN0(port)	_MMIO(_ICL_PORT_TX_DW_LN(7, 0, port))
+#define ICL_PORT_TX_DW7_LN(port, ln)	_MMIO(_ICL_PORT_TX_DW_LN(7, ln, port))
 #define   N_SCALAR(x)			((x) << 24)
 #define   N_SCALAR_MASK			(0x7F << 24)
 

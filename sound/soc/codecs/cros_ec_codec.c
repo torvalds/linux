@@ -206,7 +206,7 @@ static const struct snd_soc_dai_ops cros_ec_i2s_dai_ops = {
 	.set_fmt = cros_ec_i2s_set_dai_fmt,
 };
 
-struct snd_soc_dai_driver cros_ec_dai[] = {
+static struct snd_soc_dai_driver cros_ec_dai[] = {
 	{
 		.name = "cros_ec_codec I2S",
 		.id = 0,

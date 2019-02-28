@@ -72,7 +72,7 @@ static int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 static int gue6_err_proto_handler(int proto, struct sk_buff *skb,
 				  struct inet6_skb_parm *opt,
-				  u8 type, u8 code, int offset, u32 info)
+				  u8 type, u8 code, int offset, __be32 info)
 {
 	const struct inet6_protocol *ipprot;
 

@@ -152,6 +152,10 @@ static int omap_enter_idle_coupled(struct cpuidle_device *dev,
 	mpuss_can_lose_context = (cx->mpu_state == PWRDM_POWER_RET) &&
 				 (cx->mpu_logic_state == PWRDM_POWER_OFF);
 
+	/* Enter broadcast mode for periodic timers */
+	tick_broadcast_enable();
+
+	/* Enter broadcast mode for one-shot timers */
 	tick_broadcast_enter();
 
 	/*
@@ -216,15 +220,6 @@ fail:
 	cpu_done[dev->cpu] = false;
 
 	return index;
-}
-
-/*
- * For each cpu, setup the broadcast timer because local timers
- * stops for the states above C1.
- */
-static void omap_setup_broadcast_timer(void *arg)
-{
-	tick_broadcast_enable();
 }
 
 static struct cpuidle_driver omap4_idle_driver = {
@@ -318,9 +313,6 @@ int __init omap4_idle_init(void)
 	cpu_clkdm[1] = clkdm_lookup("mpu1_clkdm");
 	if (!cpu_clkdm[0] || !cpu_clkdm[1])
 		return -ENODEV;
-
-	/* Configure the broadcast timer on each cpu */
-	on_each_cpu(omap_setup_broadcast_timer, NULL, 1);
 
 	return cpuidle_register(idle_driver, cpu_online_mask);
 }

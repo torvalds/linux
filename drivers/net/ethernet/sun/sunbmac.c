@@ -781,7 +781,7 @@ static void bigmac_tx(struct bigmac *bp)
 
 		DTX(("skb(%p) ", skb));
 		bp->tx_skbs[elem] = NULL;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 
 		elem = NEXT_TX(elem);
 	}

@@ -226,6 +226,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	}
 
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+	target.dst.protonum = IPPROTO_ICMPV6;
 	if (!nf_nat_ipv6_manip_pkt(skb, 0, &target, manip))
 		return 0;
 

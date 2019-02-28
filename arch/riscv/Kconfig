@@ -103,7 +103,7 @@ choice
 	prompt "Base ISA"
 	default ARCH_RV64I
 	help
-	  This selects the base ISA that this kernel will traget and must match
+	  This selects the base ISA that this kernel will target and must match
 	  the target platform.
 
 config ARCH_RV32I

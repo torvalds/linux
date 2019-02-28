@@ -26,6 +26,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/smt.h>
 #include <linux/slab.h>
 #include <linux/tboot.h>
 #include <linux/trace_events.h>
@@ -862,7 +863,8 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 	if (!entry_only)
 		j = find_msr(&m->host, msr);
 
-	if (i == NR_AUTOLOAD_MSRS || j == NR_AUTOLOAD_MSRS) {
+	if ((i < 0 && m->guest.nr == NR_AUTOLOAD_MSRS) ||
+		(j < 0 &&  m->host.nr == NR_AUTOLOAD_MSRS)) {
 		printk_once(KERN_WARNING "Not enough msr switch entries. "
 				"Can't add msr %x\n", msr);
 		return;
@@ -1192,21 +1194,6 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 	if (!pi_test_sn(pi_desc) && vcpu->cpu == cpu)
 		return;
 
-	/*
-	 * First handle the simple case where no cmpxchg is necessary; just
-	 * allow posting non-urgent interrupts.
-	 *
-	 * If the 'nv' field is POSTED_INTR_WAKEUP_VECTOR, do not change
-	 * PI.NDST: pi_post_block will do it for us and the wakeup_handler
-	 * expects the VCPU to be on the blocked_vcpu_list that matches
-	 * PI.NDST.
-	 */
-	if (pi_desc->nv == POSTED_INTR_WAKEUP_VECTOR ||
-	    vcpu->cpu == cpu) {
-		pi_clear_sn(pi_desc);
-		return;
-	}
-
 	/* The full case.  */
 	do {
 		old.control = new.control = pi_desc->control;
@@ -1221,6 +1208,17 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 		new.sn = 0;
 	} while (cmpxchg64(&pi_desc->control, old.control,
 			   new.control) != old.control);
+
+	/*
+	 * Clear SN before reading the bitmap.  The VT-d firmware
+	 * writes the bitmap and reads SN atomically (5.2.3 in the
+	 * spec), so it doesn't really have a memory barrier that
+	 * pairs with this, but we cannot do that and we need one.
+	 */
+	smp_mb__after_atomic();
+
+	if (!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS))
+		pi_set_on(pi_desc);
 }
 
 /*
@@ -6823,7 +6821,7 @@ static int vmx_vm_init(struct kvm *kvm)
 			 * Warn upon starting the first VM in a potentially
 			 * insecure environment.
 			 */
-			if (cpu_smt_control == CPU_SMT_ENABLED)
+			if (sched_smt_active())
 				pr_warn_once(L1TF_MSG_SMT);
 			if (l1tf_vmx_mitigation == VMENTER_L1D_FLUSH_NEVER)
 				pr_warn_once(L1TF_MSG_L1D);

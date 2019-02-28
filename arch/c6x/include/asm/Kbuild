@@ -30,6 +30,7 @@ generic-y += pgalloc.h
 generic-y += preempt.h
 generic-y += segment.h
 generic-y += serial.h
+generic-y += shmparam.h
 generic-y += tlbflush.h
 generic-y += topology.h
 generic-y += trace_clock.h

@@ -2297,7 +2297,8 @@ static unsigned int tcpm_pd_select_pps_apdo(struct tcpm_port *port)
 					      pdo_pps_apdo_max_voltage(snk));
 		port->pps_data.max_curr = min_pps_apdo_current(src, snk);
 		port->pps_data.out_volt = min(port->pps_data.max_volt,
-					      port->pps_data.out_volt);
+					      max(port->pps_data.min_volt,
+						  port->pps_data.out_volt));
 		port->pps_data.op_curr = min(port->pps_data.max_curr,
 					     port->pps_data.op_curr);
 	}

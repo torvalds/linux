@@ -90,8 +90,10 @@ static int psp_sw_fini(void *handle)
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);
 	adev->psp.asd_fw = NULL;
-	release_firmware(adev->psp.ta_fw);
-	adev->psp.ta_fw = NULL;
+	if (adev->psp.ta_fw) {
+		release_firmware(adev->psp.ta_fw);
+		adev->psp.ta_fw = NULL;
+	}
 	return 0;
 }
 
@@ -434,6 +436,9 @@ static int psp_xgmi_initialize(struct psp_context *psp)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
+
+	if (!psp->adev->psp.ta_fw)
+		return -ENOENT;
 
 	if (!psp->xgmi_context.initialized) {
 		ret = psp_xgmi_init_shared_buf(psp);
