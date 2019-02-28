@@ -1304,7 +1304,7 @@ static int pp_notify_smu_enable_pwe(void *handle)
 
 	if (hwmgr->hwmgr_func->smus_notify_pwe == NULL) {
 		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
@@ -1341,7 +1341,7 @@ static int pp_set_min_deep_sleep_dcefclk(void *handle, uint32_t clock)
 
 	if (hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk == NULL) {
 		pr_debug("%s was not implemented.\n", __func__);
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
@@ -1360,7 +1360,7 @@ static int pp_set_hard_min_dcefclk_by_freq(void *handle, uint32_t clock)
 
 	if (hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq == NULL) {
 		pr_debug("%s was not implemented.\n", __func__);
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
@@ -1379,7 +1379,7 @@ static int pp_set_hard_min_fclk_by_freq(void *handle, uint32_t clock)
 
 	if (hwmgr->hwmgr_func->set_hard_min_fclk_by_freq == NULL) {
 		pr_debug("%s was not implemented.\n", __func__);
-		return -EINVAL;;
+		return -EINVAL;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
