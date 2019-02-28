@@ -1445,7 +1445,8 @@ static bool rbd_obj_is_tail(struct rbd_obj_request *obj_req)
 static bool rbd_obj_copyup_enabled(struct rbd_obj_request *obj_req)
 {
 	if (!obj_req->num_img_extents ||
-	    rbd_obj_is_entire(obj_req))
+	    (rbd_obj_is_entire(obj_req) &&
+	     !obj_req->img_request->snapc->num_snaps))
 		return false;
 
 	return true;
@@ -1955,7 +1956,8 @@ static int count_zeroout_ops(struct rbd_obj_request *obj_req)
 {
 	int num_osd_ops;
 
-	if (rbd_obj_is_entire(obj_req) && obj_req->num_img_extents)
+	if (rbd_obj_is_entire(obj_req) && obj_req->num_img_extents &&
+	    !rbd_obj_copyup_enabled(obj_req))
 		num_osd_ops = 2; /* create + truncate */
 	else
 		num_osd_ops = 1; /* delete/truncate/zero */
@@ -1970,8 +1972,9 @@ static void __rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req,
 
 	if (rbd_obj_is_entire(obj_req)) {
 		if (obj_req->num_img_extents) {
-			osd_req_op_init(obj_req->osd_req, which++,
-					CEPH_OSD_OP_CREATE, 0);
+			if (!rbd_obj_copyup_enabled(obj_req))
+				osd_req_op_init(obj_req->osd_req, which++,
+						CEPH_OSD_OP_CREATE, 0);
 			opcode = CEPH_OSD_OP_TRUNCATE;
 		} else {
 			osd_req_op_init(obj_req->osd_req, which++,
@@ -2551,7 +2554,6 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 		__rbd_obj_setup_write(obj_req, which);
 		break;
 	case OBJ_OP_ZEROOUT:
-		rbd_assert(!rbd_obj_is_entire(obj_req));
 		__rbd_obj_setup_zeroout(obj_req, which);
 		break;
 	default:
