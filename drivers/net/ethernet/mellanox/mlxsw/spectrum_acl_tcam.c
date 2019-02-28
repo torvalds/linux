@@ -1256,7 +1256,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 
 	list_for_each_entry(vchunk, &vregion->vchunk_list, list) {
 		err = mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
-							   vregion->region2,
+							   vregion->region,
 							   false);
 		if (err)
 			goto rollback;
@@ -1264,6 +1264,10 @@ mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 rollback:
+	/* In case migration was not successful, we need to swap
+	 * so the original region pointer is assigned again to vregion->region.
+	 */
+	swap(vregion->region, vregion->region2);
 	list_for_each_entry_continue_reverse(vchunk, &vregion->vchunk_list,
 					     list) {
 		mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
@@ -1281,18 +1285,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
 	mutex_lock(&vregion->lock);
-
 	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion);
-	if (!vregion->failed_rollback) {
-		if (!err) {
-			/* In case of successful migration, region2 is used and
-			 * the original is unused. So swap them.
-			 */
-			swap(vregion->region, vregion->region2);
-		}
-		/* vregion->region2 contains pointer to unused region now. */
-	}
-
 	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
 	return err;
@@ -1305,7 +1298,7 @@ mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
-	struct mlxsw_sp_acl_tcam_region *region2;
+	struct mlxsw_sp_acl_tcam_region *new_region;
 	void *hints_priv;
 	int err;
 
@@ -1317,18 +1310,22 @@ mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(hints_priv))
 		return PTR_ERR(hints_priv);
 
-	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
-						  vregion, hints_priv);
-	if (IS_ERR(region2)) {
-		err = PTR_ERR(region2);
+	new_region = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
+						     vregion, hints_priv);
+	if (IS_ERR(new_region)) {
+		err = PTR_ERR(new_region);
 		goto err_region_create;
 	}
 
-	vregion->region2 = region2;
+	/* vregion->region contains the pointer to the new region
+	 * we are going to migrate to.
+	 */
+	vregion->region2 = vregion->region;
+	vregion->region = new_region;
 	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp,
-						    vregion->region->group,
-						    region2, priority,
-						    vregion->region);
+						    vregion->region2->group,
+						    new_region, priority,
+						    vregion->region2);
 	if (err)
 		goto err_group_region_attach;
 
@@ -1337,8 +1334,9 @@ mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_group_region_attach:
+	vregion->region = vregion->region2;
 	vregion->region2 = NULL;
-	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, region2);
+	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, new_region);
 err_region_create:
 	ops->region_rehash_hints_put(hints_priv);
 	return err;
