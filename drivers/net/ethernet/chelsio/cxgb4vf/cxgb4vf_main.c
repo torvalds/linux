@@ -845,6 +845,13 @@ static int cxgb4vf_open(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 
 	/*
+	 * If we don't have a connection to the firmware there's nothing we
+	 * can do.
+	 */
+	if (!(adapter->flags & FW_OK))
+		return -ENXIO;
+
+	/*
 	 * If this is the first interface that we're opening on the "adapter",
 	 * bring the "adapter" up now.
 	 */
@@ -2720,6 +2727,7 @@ static int adap_init0(struct adapter *adapter)
 	 */
 	size_nports_qsets(adapter);
 
+	adapter->flags |= FW_OK;
 	return 0;
 }
 
@@ -3084,7 +3092,9 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 	err = adap_init0(adapter);
 	if (err)
-		goto err_unmap_bar;
+		dev_err(&pdev->dev,
+			"Adapter initialization failed, error %d. Continuing in debug mode\n",
+			err);
 
 	/* Initialize hash mac addr list */
 	INIT_LIST_HEAD(&adapter->mac_hlist);
@@ -3109,13 +3119,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			break;
 		port_id = ffs(pmask) - 1;
 		pmask &= ~(1 << port_id);
-		viid = t4vf_alloc_vi(adapter, port_id);
-		if (viid < 0) {
-			dev_err(&pdev->dev, "cannot allocate VI for port %d:"
-				" err=%d\n", port_id, viid);
-			err = viid;
-			goto err_free_dev;
-		}
 
 		/*
 		 * Allocate our network device and stitch things together.
@@ -3123,7 +3126,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_PORT_QSETS);
 		if (netdev == NULL) {
-			t4vf_free_vi(adapter, viid);
 			err = -ENOMEM;
 			goto err_free_dev;
 		}
@@ -3133,7 +3135,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		pi->adapter = adapter;
 		pi->pidx = pidx;
 		pi->port_id = port_id;
-		pi->viid = viid;
 
 		/*
 		 * Initialize the starting state of our "port" and register
@@ -3158,6 +3159,23 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
 		netdev->ethtool_ops = &cxgb4vf_ethtool_ops;
 		netdev->dev_port = pi->port_id;
+
+		/*
+		 * If we haven't been able to contact the firmware, there's
+		 * nothing else we can do for this "port" ...
+		 */
+		if (!(adapter->flags & FW_OK))
+			continue;
+
+		viid = t4vf_alloc_vi(adapter, port_id);
+		if (viid < 0) {
+			dev_err(&pdev->dev,
+				"cannot allocate VI for port %d: err=%d\n",
+				port_id, viid);
+			err = viid;
+			goto err_free_dev;
+		}
+		pi->viid = viid;
 
 		/*
 		 * Initialize the hardware/software state for the port.
@@ -3302,13 +3320,13 @@ err_free_dev:
 		if (netdev == NULL)
 			continue;
 		pi = netdev_priv(netdev);
-		t4vf_free_vi(adapter, pi->viid);
+		if (pi->viid)
+			t4vf_free_vi(adapter, pi->viid);
 		if (test_bit(pidx, &adapter->registered_device_map))
 			unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
 
-err_unmap_bar:
 	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
 
@@ -3381,7 +3399,8 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 				continue;
 
 			pi = netdev_priv(netdev);
-			t4vf_free_vi(adapter, pi->viid);
+			if (pi->viid)
+				t4vf_free_vi(adapter, pi->viid);
 			free_netdev(netdev);
 		}
 		iounmap(adapter->regs);
