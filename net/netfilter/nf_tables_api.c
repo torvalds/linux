@@ -3193,9 +3193,7 @@ static int nf_msecs_to_jiffies64(const struct nlattr *nla, u64 *result)
 
 static __be64 nf_jiffies64_to_msecs(u64 input)
 {
-	u64 ms = jiffies64_to_nsecs(input);
-
-	return cpu_to_be64(div_u64(ms, NSEC_PER_MSEC));
+	return cpu_to_be64(jiffies64_to_msecs(input));
 }
 
 static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
