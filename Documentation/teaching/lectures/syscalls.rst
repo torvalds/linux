@@ -362,8 +362,8 @@ version.
 
 For example: x86 has two ways of issuing system calls: int 0x80 and
 sysenter. The later is significantly faster so it should be used when
-available. However, it is only available for processors newer then
-Pentium II and only for kernel versions greater 2.6.
+available. However, it is only available for processors newer than
+Pentium II and only for kernel versions greater than 2.6.
 
 With VDSO the system call interface is decided by the kernel:
 
