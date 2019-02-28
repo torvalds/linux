@@ -267,7 +267,7 @@ The usual routines for working with lists are the following:
      sentinel of a list when dynamic allocation is made, by setting the value of
      the :c:data:`next` and :c:data:`prev` to list fields.
    * :c:func:`list_add(struct list_head *new, struct list_head *head)` adds the
-     :c:data`new` element after the :c:data:`head` element.
+     :c:data:`new` element after the :c:data:`head` element.
    * :c:func:`list_del(struct list_head *entry)` deletes the item at the
      :c:data:`entry` address of the list it belongs to.
    * :c:macro:`list_entry(ptr, type, member)` returns the structure with the
@@ -459,7 +459,7 @@ Atomic variables
 ----------------
 
 Often, you only need to synchronize access to a simple variable, such as a
-counter. For this, an :c:type`atomic_t` type can be used (defined in
+counter. For this, an :c:type:`atomic_t` type can be used (defined in
 :file:`include/linux/atomic.h`), that holds an integer value. Below are some
 operations that can be performed on an :c:type:`atomic_t` variable.
 
@@ -701,7 +701,7 @@ free them (in :c:func:`memory_exit`).
 
 .. hint::
           Use :c:macro:`next_task` macro, which returns a pointer to the next
-          process (i.e a :c:type`struct task_struct` structure).
+          process (i.e a :c:type:`struct task_struct` structure).
 
 * PID of the next process of the next process, relative to the current
   process.
