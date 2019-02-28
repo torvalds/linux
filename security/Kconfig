@@ -40,8 +40,7 @@ config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help
 	  This will build the securityfs filesystem.  It is currently used by
-	  the TPM bios character driver and IMA, an integrity provider.  It is
-	  not used by SELinux or SMACK.
+	  various security modules (AppArmor, IMA, SafeSetID, TOMOYO, TPM).
 
 	  If you are unsure how to answer this question, answer N.
 
