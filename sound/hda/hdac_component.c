@@ -269,7 +269,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_acomp_register_notifier);
  */
 int snd_hdac_acomp_init(struct hdac_bus *bus,
 			const struct drm_audio_component_audio_ops *aops,
-			int (*match_master)(struct device *, void *),
+			int (*match_master)(struct device *, int, void *),
 			size_t extra_size)
 {
 	struct component_match *match = NULL;
@@ -288,7 +288,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 	bus->audio_component = acomp;
 	devres_add(dev, acomp);
 
-	component_match_add(dev, &match, match_master, bus);
+	component_match_add_typed(dev, &match, match_master, bus);
 	ret = component_master_add_with_match(dev, &hdac_component_master_ops,
 					      match);
 	if (ret < 0)
