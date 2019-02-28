@@ -2368,7 +2368,9 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 			      max_txqs);
 	if (ret) {
-		dev_info(&pf->pdev->dev, "Failed VSI lan queue config\n");
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, ret);
 		goto unroll_vector_base;
 	}
 
@@ -2869,8 +2871,9 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
 			      max_txqs);
 	if (ret) {
-		dev_info(&vsi->back->pdev->dev,
-			 "Failed VSI lan queue config\n");
+		dev_err(&pf->pdev->dev,
+			"VSI %d failed lan queue config, error %d\n",
+			vsi->vsi_num, ret);
 		goto err_vectors;
 	}
 	return 0;
