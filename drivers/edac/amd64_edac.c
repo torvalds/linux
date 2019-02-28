@@ -449,6 +449,9 @@ static void get_cs_base_and_mask(struct amd64_pvt *pvt, int csrow, u8 dct,
 #define for_each_chip_select_mask(i, dct, pvt) \
 	for (i = 0; i < pvt->csels[dct].m_cnt; i++)
 
+#define for_each_umc(i) \
+	for (i = 0; i < NUM_UMCS; i++)
+
 /*
  * @input_addr is an InputAddr associated with the node given by mci. Return the
  * csrow that input_addr maps to, or -1 on failure (no csrow claims input_addr).
@@ -722,7 +725,7 @@ static unsigned long determine_edac_cap(struct amd64_pvt *pvt)
 	if (pvt->umc) {
 		u8 i, umc_en_mask = 0, dimm_ecc_en_mask = 0;
 
-		for (i = 0; i < NUM_UMCS; i++) {
+		for_each_umc(i) {
 			if (!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT))
 				continue;
 
@@ -811,7 +814,7 @@ static void __dump_misc_regs_df(struct amd64_pvt *pvt)
 	struct amd64_umc *umc;
 	u32 i, tmp, umc_base;
 
-	for (i = 0; i < NUM_UMCS; i++) {
+	for_each_umc(i) {
 		umc_base = get_umc_base(i);
 		umc = &pvt->umc[i];
 
@@ -1388,7 +1391,7 @@ static int f17_early_channel_count(struct amd64_pvt *pvt)
 	int i, channels = 0;
 
 	/* SDP Control bit 31 (SdpInit) is clear for unused UMC channels */
-	for (i = 0; i < NUM_UMCS; i++)
+	for_each_umc(i)
 		channels += !!(pvt->umc[i].sdp_ctrl & UMC_SDP_INIT);
 
 	amd64_info("MCT channel count: %d\n", channels);
@@ -2612,7 +2615,7 @@ static void determine_ecc_sym_sz(struct amd64_pvt *pvt)
 	if (pvt->umc) {
 		u8 i;
 
-		for (i = 0; i < NUM_UMCS; i++) {
+		for_each_umc(i) {
 			/* Check enabled channels only: */
 			if ((pvt->umc[i].sdp_ctrl & UMC_SDP_INIT) &&
 			    (pvt->umc[i].ecc_ctrl & BIT(7))) {
@@ -2648,7 +2651,7 @@ static void __read_mc_regs_df(struct amd64_pvt *pvt)
 	u32 i, umc_base;
 
 	/* Read registers from each UMC */
-	for (i = 0; i < NUM_UMCS; i++) {
+	for_each_umc(i) {
 
 		umc_base = get_umc_base(i);
 		umc = &pvt->umc[i];
@@ -3061,7 +3064,7 @@ static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 	if (boot_cpu_data.x86 >= 0x17) {
 		u8 umc_en_mask = 0, ecc_en_mask = 0;
 
-		for (i = 0; i < NUM_UMCS; i++) {
+		for_each_umc(i) {
 			u32 base = get_umc_base(i);
 
 			/* Only check enabled UMCs. */
@@ -3114,7 +3117,7 @@ f17h_determine_edac_ctl_cap(struct mem_ctl_info *mci, struct amd64_pvt *pvt)
 {
 	u8 i, ecc_en = 1, cpk_en = 1;
 
-	for (i = 0; i < NUM_UMCS; i++) {
+	for_each_umc(i) {
 		if (pvt->umc[i].sdp_ctrl & UMC_SDP_INIT) {
 			ecc_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_ENABLED);
 			cpk_en &= !!(pvt->umc[i].umc_cap_hi & UMC_ECC_CHIPKILL_CAP);
