@@ -299,7 +299,6 @@ struct rcu_torture_ops {
 	int irq_capable;
 	int can_boost;
 	int extendables;
-	int ext_irq_conflict;
 	const char *name;
 };
 
@@ -1170,10 +1169,6 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
 	    ((!(mask & RCUTORTURE_RDR_BH) && (oldmask & RCUTORTURE_RDR_BH)) ||
 	     (!(mask & RCUTORTURE_RDR_RBH) && (oldmask & RCUTORTURE_RDR_RBH))))
 		mask |= RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH;
-	if ((mask & RCUTORTURE_RDR_IRQ) &&
-	    !(mask & cur_ops->ext_irq_conflict) &&
-	    (oldmask & cur_ops->ext_irq_conflict))
-		mask |= cur_ops->ext_irq_conflict; /* Or if readers object. */
 	return mask ?: RCUTORTURE_RDR_RCU;
 }
 
