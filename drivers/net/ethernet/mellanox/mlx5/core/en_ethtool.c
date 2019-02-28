@@ -997,8 +997,9 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 
 #define MLX5E_PTYS_EXT ((1ULL << ETHTOOL_LINK_MODE_50000baseKR_Full_BIT) - 1)
 
-	ext_requested = (link_ksettings->link_modes.advertising[0] >
-			MLX5E_PTYS_EXT);
+	ext_requested = !!(link_ksettings->link_modes.advertising[0] >
+			MLX5E_PTYS_EXT ||
+			link_ksettings->link_modes.advertising[1]);
 	ext_supported = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 
 	/*when ptys_extended_ethernet is set legacy link modes are deprecated */
