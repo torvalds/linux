@@ -2414,7 +2414,7 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 	rtnl_unlock();
 
 	qeth_l3_stop_card(card);
-	if ((card->options.cq == QETH_CQ_ENABLED) && card->dev) {
+	if (card->options.cq == QETH_CQ_ENABLED) {
 		rtnl_lock();
 		call_netdevice_notifiers(NETDEV_REBOOT, card->dev);
 		rtnl_unlock();
