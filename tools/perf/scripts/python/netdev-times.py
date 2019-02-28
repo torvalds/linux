@@ -8,6 +8,8 @@
 # dev=: show only thing related to specified device
 # debug: work with debug mode. It shows buffer status.
 
+from __future__ import print_function
+
 import os
 import sys
 
@@ -17,6 +19,7 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 from perf_trace_context import *
 from Core import *
 from Util import *
+from functools import cmp_to_key
 
 all_event_list = []; # insert all tracepoint event related with this script
 irq_dic = {}; # key is cpu and value is a list which stacks irqs
@@ -61,12 +64,12 @@ def diff_msec(src, dst):
 def print_transmit(hunk):
 	if dev != 0 and hunk['dev'].find(dev) < 0:
 		return
-	print "%7s %5d %6d.%06dsec %12.3fmsec      %12.3fmsec" % \
+	print("%7s %5d %6d.%06dsec %12.3fmsec      %12.3fmsec" %
 		(hunk['dev'], hunk['len'],
 		nsecs_secs(hunk['queue_t']),
 		nsecs_nsecs(hunk['queue_t'])/1000,
 		diff_msec(hunk['queue_t'], hunk['xmit_t']),
-		diff_msec(hunk['xmit_t'], hunk['free_t']))
+		diff_msec(hunk['xmit_t'], hunk['free_t'])))
 
 # Format for displaying rx packet processing
 PF_IRQ_ENTRY= "  irq_entry(+%.3fmsec irq=%d:%s)"
@@ -98,55 +101,55 @@ def print_receive(hunk):
 	if show_hunk == 0:
 		return
 
-	print "%d.%06dsec cpu=%d" % \
-		(nsecs_secs(base_t), nsecs_nsecs(base_t)/1000, cpu)
+	print("%d.%06dsec cpu=%d" %
+		(nsecs_secs(base_t), nsecs_nsecs(base_t)/1000, cpu))
 	for i in range(len(irq_list)):
-		print PF_IRQ_ENTRY % \
+		print(PF_IRQ_ENTRY %
 			(diff_msec(base_t, irq_list[i]['irq_ent_t']),
-			irq_list[i]['irq'], irq_list[i]['name'])
-		print PF_JOINT
+			irq_list[i]['irq'], irq_list[i]['name']))
+		print(PF_JOINT)
 		irq_event_list = irq_list[i]['event_list']
 		for j in range(len(irq_event_list)):
 			irq_event = irq_event_list[j]
 			if irq_event['event'] == 'netif_rx':
-				print PF_NET_RX % \
+				print(PF_NET_RX %
 					(diff_msec(base_t, irq_event['time']),
-					irq_event['skbaddr'])
-				print PF_JOINT
-	print PF_SOFT_ENTRY % \
-		diff_msec(base_t, hunk['sirq_ent_t'])
-	print PF_JOINT
+					irq_event['skbaddr']))
+				print(PF_JOINT)
+	print(PF_SOFT_ENTRY %
+		diff_msec(base_t, hunk['sirq_ent_t']))
+	print(PF_JOINT)
 	event_list = hunk['event_list']
 	for i in range(len(event_list)):
 		event = event_list[i]
 		if event['event_name'] == 'napi_poll':
-			print PF_NAPI_POLL % \
-			    (diff_msec(base_t, event['event_t']), event['dev'])
+			print(PF_NAPI_POLL %
+			    (diff_msec(base_t, event['event_t']), event['dev']))
 			if i == len(event_list) - 1:
-				print ""
+				print("")
 			else:
-				print PF_JOINT
+				print(PF_JOINT)
 		else:
-			print PF_NET_RECV % \
+			print(PF_NET_RECV %
 			    (diff_msec(base_t, event['event_t']), event['skbaddr'],
-				event['len'])
+				event['len']))
 			if 'comm' in event.keys():
-				print PF_WJOINT
-				print PF_CPY_DGRAM % \
+				print(PF_WJOINT)
+				print(PF_CPY_DGRAM %
 					(diff_msec(base_t, event['comm_t']),
-					event['pid'], event['comm'])
+					event['pid'], event['comm']))
 			elif 'handle' in event.keys():
-				print PF_WJOINT
+				print(PF_WJOINT)
 				if event['handle'] == "kfree_skb":
-					print PF_KFREE_SKB % \
+					print(PF_KFREE_SKB %
 						(diff_msec(base_t,
 						event['comm_t']),
-						event['location'])
+						event['location']))
 				elif event['handle'] == "consume_skb":
-					print PF_CONS_SKB % \
+					print(PF_CONS_SKB %
 						diff_msec(base_t,
-							event['comm_t'])
-			print PF_JOINT
+							event['comm_t']))
+			print(PF_JOINT)
 
 def trace_begin():
 	global show_tx
@@ -172,8 +175,7 @@ def trace_begin():
 
 def trace_end():
 	# order all events in time
-	all_event_list.sort(lambda a,b :cmp(a[EINFO_IDX_TIME],
-					    b[EINFO_IDX_TIME]))
+	all_event_list.sort(key=cmp_to_key(lambda a,b :a[EINFO_IDX_TIME] < b[EINFO_IDX_TIME]))
 	# process all events
 	for i in range(len(all_event_list)):
 		event_info = all_event_list[i]
@@ -210,19 +212,19 @@ def trace_end():
 			print_receive(receive_hunk_list[i])
 	# display transmit hunks
 	if show_tx:
-		print "   dev    len      Qdisc        " \
-			"       netdevice             free"
+		print("   dev    len      Qdisc        "
+			"       netdevice             free")
 		for i in range(len(tx_free_list)):
 			print_transmit(tx_free_list[i])
 	if debug:
-		print "debug buffer status"
-		print "----------------------------"
-		print "xmit Qdisc:remain:%d overflow:%d" % \
-			(len(tx_queue_list), of_count_tx_queue_list)
-		print "xmit netdevice:remain:%d overflow:%d" % \
-			(len(tx_xmit_list), of_count_tx_xmit_list)
-		print "receive:remain:%d overflow:%d" % \
-			(len(rx_skb_list), of_count_rx_skb_list)
+		print("debug buffer status")
+		print("----------------------------")
+		print("xmit Qdisc:remain:%d overflow:%d" %
+			(len(tx_queue_list), of_count_tx_queue_list))
+		print("xmit netdevice:remain:%d overflow:%d" %
+			(len(tx_xmit_list), of_count_tx_xmit_list))
+		print("receive:remain:%d overflow:%d" %
+			(len(rx_skb_list), of_count_rx_skb_list))
 
 # called from perf, when it finds a correspoinding event
 def irq__softirq_entry(name, context, cpu, sec, nsec, pid, comm, callchain, vec):

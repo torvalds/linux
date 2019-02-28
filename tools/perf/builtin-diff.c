@@ -708,7 +708,7 @@ static void data__fprintf(void)
 
 	data__for_each_file(i, d)
 		fprintf(stdout, "#  [%d] %s %s\n",
-			d->idx, d->data.file.path,
+			d->idx, d->data.path,
 			!d->idx ? "(Baseline)" : "");
 
 	fprintf(stdout, "#\n");
@@ -779,14 +779,14 @@ static int __cmd_diff(void)
 	data__for_each_file(i, d) {
 		d->session = perf_session__new(&d->data, false, &tool);
 		if (!d->session) {
-			pr_err("Failed to open %s\n", d->data.file.path);
+			pr_err("Failed to open %s\n", d->data.path);
 			ret = -1;
 			goto out_delete;
 		}
 
 		ret = perf_session__process_events(d->session);
 		if (ret) {
-			pr_err("Failed to process %s\n", d->data.file.path);
+			pr_err("Failed to process %s\n", d->data.path);
 			goto out_delete;
 		}
 
@@ -1289,9 +1289,9 @@ static int data_init(int argc, const char **argv)
 	data__for_each_file(i, d) {
 		struct perf_data *data = &d->data;
 
-		data->file.path = use_default ? defaults[i] : argv[i];
-		data->mode      = PERF_DATA_MODE_READ,
-		data->force     = force,
+		data->path  = use_default ? defaults[i] : argv[i];
+		data->mode  = PERF_DATA_MODE_READ,
+		data->force = force,
 
 		d->idx  = i;
 	}
