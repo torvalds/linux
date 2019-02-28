@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -195,14 +195,18 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	wil_dbg_pm(wil, "suspend keep radio on\n");
 
 	/* Prevent handling of new tx and wmi commands */
-	set_bit(wil_status_suspending, wil->status);
-	if (test_bit(wil_status_collecting_dumps, wil->status)) {
-		/* Device collects crash dump, cancel the suspend */
-		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
-		clear_bit(wil_status_suspending, wil->status);
+	rc = down_write_trylock(&wil->mem_lock);
+	if (!rc) {
+		wil_err(wil,
+			"device is busy. down_write_trylock failed, returned (0x%x)\n",
+			rc);
 		wil->suspend_stats.rejected_by_host++;
 		return -EBUSY;
 	}
+
+	set_bit(wil_status_suspending, wil->status);
+	up_write(&wil->mem_lock);
+
 	wil_pm_stop_all_net_queues(wil);
 
 	if (!wil_is_tx_idle(wil)) {
@@ -310,14 +314,17 @@ static int wil_suspend_radio_off(struct wil6210_priv *wil)
 
 	wil_dbg_pm(wil, "suspend radio off\n");
 
-	set_bit(wil_status_suspending, wil->status);
-	if (test_bit(wil_status_collecting_dumps, wil->status)) {
-		/* Device collects crash dump, cancel the suspend */
-		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
-		clear_bit(wil_status_suspending, wil->status);
+	rc = down_write_trylock(&wil->mem_lock);
+	if (!rc) {
+		wil_err(wil,
+			"device is busy. down_write_trylock failed, returned (0x%x)\n",
+			rc);
 		wil->suspend_stats.rejected_by_host++;
 		return -EBUSY;
 	}
+
+	set_bit(wil_status_suspending, wil->status);
+	up_write(&wil->mem_lock);
 
 	/* if netif up, hardware is alive, shut it down */
 	mutex_lock(&wil->vif_mutex);
