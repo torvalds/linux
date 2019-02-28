@@ -868,6 +868,7 @@ hisi_sas_device *alloc_dev_quirk_v2_hw(struct domain_device *device)
 
 			hisi_hba->devices[i].device_id = i;
 			sas_dev = &hisi_hba->devices[i];
+			sas_dev->dev_status = HISI_SAS_DEV_INIT;
 			sas_dev->dev_type = device->dev_type;
 			sas_dev->hisi_hba = hisi_hba;
 			sas_dev->sas_device = device;
