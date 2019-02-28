@@ -1034,6 +1034,7 @@ ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 						     25000baseCR_Full);
 		break;
 	case ICE_PHY_TYPE_LOW_25G_AUI_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     25000baseCR_Full);
 		break;
