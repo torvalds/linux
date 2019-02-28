@@ -1641,7 +1641,6 @@ int ice_vsi_kill_vlan(struct ice_vsi *vsi, u16 vid)
  */
 int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 {
-	int err = 0;
 	u16 i;
 
 	if (vsi->type == ICE_VSI_VF)
@@ -1656,14 +1655,19 @@ int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 	vsi->rx_buf_len = ICE_RXBUF_2048;
 setup_rings:
 	/* set up individual rings */
-	for (i = 0; i < vsi->num_rxq && !err; i++)
-		err = ice_setup_rx_ctx(vsi->rx_rings[i]);
+	for (i = 0; i < vsi->num_rxq; i++) {
+		int err;
 
-	if (err) {
-		dev_err(&vsi->back->pdev->dev, "ice_setup_rx_ctx failed\n");
-		return -EIO;
+		err = ice_setup_rx_ctx(vsi->rx_rings[i]);
+		if (err) {
+			dev_err(&vsi->back->pdev->dev,
+				"ice_setup_rx_ctx failed for RxQ %d, err %d\n",
+				i, err);
+			return err;
+		}
 	}
-	return err;
+
+	return 0;
 }
 
 /**
