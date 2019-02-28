@@ -1489,7 +1489,7 @@ apply_obj_config_object(struct bpf_object *obj)
 	struct bpf_map *map;
 	int err;
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		err = apply_obj_config_map(map);
 		if (err)
 			return err;
@@ -1513,7 +1513,7 @@ int bpf__apply_obj_config(void)
 
 #define bpf__for_each_map(pos, obj, objtmp)	\
 	bpf_object__for_each_safe(obj, objtmp)	\
-		bpf_map__for_each(pos, obj)
+		bpf_object__for_each_map(pos, obj)
 
 #define bpf__for_each_map_named(pos, obj, objtmp, name)	\
 	bpf__for_each_map(pos, obj, objtmp) 		\

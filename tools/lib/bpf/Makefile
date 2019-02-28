@@ -132,9 +132,9 @@ BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
 VERSION_SCRIPT := libbpf.map
 
-GLOBAL_SYM_COUNT = $(shell readelf -s $(BPF_IN) | \
+GLOBAL_SYM_COUNT = $(shell readelf -s --wide $(BPF_IN) | \
 			   awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {s++} END{print s}')
-VERSIONED_SYM_COUNT = $(shell readelf -s $(OUTPUT)libbpf.so | \
+VERSIONED_SYM_COUNT = $(shell readelf -s --wide $(OUTPUT)libbpf.so | \
 			      grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 | sort -u | wc -l)
 
 CMD_TARGETS = $(LIB_FILE)
