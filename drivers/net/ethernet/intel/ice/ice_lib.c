@@ -2072,7 +2072,8 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
 			u16 v_idx;
 
-			if (!rings || !rings[i] || !rings[i]->q_vector) {
+			if (!rings || !rings[q_idx] ||
+			    !rings[q_idx]->q_vector) {
 				err = -EINVAL;
 				goto err_out;
 			}
