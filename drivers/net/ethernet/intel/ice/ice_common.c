@@ -2932,14 +2932,17 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
 		return ICE_ERR_CFG;
 
-	/* if queue is disabled already yet the disable queue command has to be
-	 * sent to complete the VF reset, then call ice_aq_dis_lan_txq without
-	 * any queue information
-	 */
 
-	if (!num_queues && rst_src)
-		return ice_aq_dis_lan_txq(pi->hw, 0, NULL, 0, rst_src, vmvf_num,
-					  NULL);
+	if (!num_queues) {
+		/* if queue is disabled already yet the disable queue command
+		 * has to be sent to complete the VF reset, then call
+		 * ice_aq_dis_lan_txq without any queue information
+		 */
+		if (rst_src)
+			return ice_aq_dis_lan_txq(pi->hw, 0, NULL, 0, rst_src,
+						  vmvf_num, NULL);
+		return ICE_ERR_CFG;
+	}
 
 	mutex_lock(&pi->sched_lock);
 
