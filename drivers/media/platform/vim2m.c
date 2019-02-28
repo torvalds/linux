@@ -50,7 +50,14 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define MIN_H 32
 #define MAX_W 640
 #define MAX_H 480
-#define WIDTH_ALIGN 2 /* 2-byte alignment */
+
+/* Pixel alignment for non-bayer formats */
+#define WIDTH_ALIGN 2
+#define HEIGHT_ALIGN 1
+
+/* Pixel alignment for bayer formats */
+#define BAYER_WIDTH_ALIGN  2
+#define BAYER_HEIGHT_ALIGN 2
 
 /* Flags that indicate a format can be used for capture/output */
 #define MEM2MEM_CAPTURE	(1 << 0)
@@ -160,6 +167,24 @@ static struct vim2m_fmt *find_format(u32 fourcc)
 		return NULL;
 
 	return &formats[k];
+}
+
+static void get_alignment(u32 fourcc,
+			  unsigned int *walign, unsigned int *halign)
+{
+	switch (fourcc) {
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
+		*walign = BAYER_WIDTH_ALIGN;
+		*halign = BAYER_HEIGHT_ALIGN;
+		return;
+	default:
+		*walign = WIDTH_ALIGN;
+		*halign = HEIGHT_ALIGN;
+		return;
+	}
 }
 
 struct vim2m_dev {
@@ -691,8 +716,10 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	fsize->stepwise.min_height = MIN_H;
 	fsize->stepwise.max_width = MAX_W;
 	fsize->stepwise.max_height = MAX_H;
-	fsize->stepwise.step_width = WIDTH_ALIGN;
-	fsize->stepwise.step_height = 1;
+
+	get_alignment(fsize->pixel_format,
+		      &fsize->stepwise.step_width,
+		      &fsize->stepwise.step_height);
 	return 0;
 }
 
@@ -735,6 +762,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
 {
+	int walign, halign;
 	/* V4L2 specification suggests the driver corrects the format struct
 	 * if any of the dimensions is unsupported */
 	if (f->fmt.pix.height < MIN_H)
@@ -747,7 +775,9 @@ static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
 	else if (f->fmt.pix.width > MAX_W)
 		f->fmt.pix.width = MAX_W;
 
-	f->fmt.pix.width &= ~(WIDTH_ALIGN - 1);
+	get_alignment(f->fmt.pix.pixelformat, &walign, &halign);
+	f->fmt.pix.width &= ~(walign - 1);
+	f->fmt.pix.height &= ~(halign - 1);
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.field = V4L2_FIELD_NONE;
