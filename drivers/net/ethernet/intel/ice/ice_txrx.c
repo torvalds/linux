@@ -6,6 +6,7 @@
 #include <linux/prefetch.h>
 #include <linux/mm.h>
 #include "ice.h"
+#include "ice_dcb_lib.h"
 
 #define ICE_RX_HDR_SIZE		256
 
@@ -1798,7 +1799,7 @@ ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
 		 * to the encapsulated ethertype.
 		 */
 		skb->protocol = vlan_get_protocol(skb);
-		goto out;
+		return 0;
 	}
 
 	/* if we have a HW VLAN tag being added, default to the HW one */
@@ -1820,8 +1821,7 @@ ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
 		first->tx_flags |= ICE_TX_FLAGS_SW_VLAN;
 	}
 
-out:
-	return 0;
+	return ice_tx_prepare_vlan_flags_dcb(tx_ring, first);
 }
 
 /**
