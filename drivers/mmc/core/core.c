@@ -95,7 +95,7 @@ static void mmc_should_fail_request(struct mmc_host *host,
 	if (!data)
 		return;
 
-	if (cmd->error || data->error ||
+	if ((cmd && cmd->error) || data->error ||
 	    !should_fail(&host->fail_mmc_request, data->blksz * data->blocks))
 		return;
 
