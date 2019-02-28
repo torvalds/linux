@@ -46,7 +46,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/platform_data/pca954x.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -348,14 +347,13 @@ static int pca954x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adap = client->adapter;
-	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device *dev = &client->dev;
 	struct device_node *np = dev->of_node;
 	bool idle_disconnect_dt;
 	struct gpio_desc *gpio;
-	int num, force, class;
 	struct i2c_mux_core *muxc;
 	struct pca954x *data;
+	int num;
 	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
@@ -422,24 +420,9 @@ static int pca954x_probe(struct i2c_client *client,
 
 	/* Now create an adapter for each channel */
 	for (num = 0; num < data->chip->nchans; num++) {
-		bool idle_disconnect_pd = false;
+		data->deselect |= idle_disconnect_dt << num;
 
-		force = 0;			  /* dynamic adap number */
-		class = 0;			  /* no class by default */
-		if (pdata) {
-			if (num < pdata->num_modes) {
-				/* force static number */
-				force = pdata->modes[num].adap_id;
-				class = pdata->modes[num].class;
-			} else
-				/* discard unconfigured channels */
-				break;
-			idle_disconnect_pd = pdata->modes[num].deselect_on_exit;
-		}
-		data->deselect |= (idle_disconnect_pd ||
-				   idle_disconnect_dt) << num;
-
-		ret = i2c_mux_add_adapter(muxc, force, num, class);
+		ret = i2c_mux_add_adapter(muxc, 0, num, 0);
 		if (ret)
 			goto fail_cleanup;
 	}
