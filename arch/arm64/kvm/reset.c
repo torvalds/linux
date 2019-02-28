@@ -20,10 +20,12 @@
  */
 
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/types.h>
 
 #include <kvm/arm_arch_timer.h>
@@ -37,6 +39,7 @@
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
+#include <asm/virt.h>
 
 /* Maximum phys_shift supported for any VM on this host */
 static u32 kvm_ipa_limit;
@@ -130,6 +133,27 @@ int kvm_arm_init_arch_resources(void)
 	return 0;
 }
 
+static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
+{
+	if (!system_supports_sve())
+		return -EINVAL;
+
+	/* Verify that KVM startup enforced this when SVE was detected: */
+	if (WARN_ON(!has_vhe()))
+		return -EINVAL;
+
+	vcpu->arch.sve_max_vl = kvm_sve_max_vl;
+
+	/*
+	 * Userspace can still customize the vector lengths by writing
+	 * KVM_REG_ARM64_SVE_VLS.  Allocation is deferred until
+	 * kvm_arm_vcpu_finalize(), which freezes the configuration.
+	 */
+	vcpu->arch.flags |= KVM_ARM64_GUEST_HAS_SVE;
+
+	return 0;
+}
+
 /*
  * Finalize vcpu's maximum SVE vector length, allocating
  * vcpu->arch.sve_state as necessary.
@@ -188,13 +212,20 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	kfree(vcpu->arch.sve_state);
 }
 
+static void kvm_vcpu_reset_sve(struct kvm_vcpu *vcpu)
+{
+	if (vcpu_has_sve(vcpu))
+		memset(vcpu->arch.sve_state, 0, vcpu_sve_state_size(vcpu));
+}
+
 /**
  * kvm_reset_vcpu - sets core registers and sys_regs to reset value
  * @vcpu: The VCPU pointer
  *
  * This function finds the right table above and sets the registers on
  * the virtual CPU struct to their architecturally defined reset
- * values.
+ * values, except for registers whose reset is deferred until
+ * kvm_arm_vcpu_finalize().
  *
  * Note: This function can be called from two paths: The KVM_ARM_VCPU_INIT
  * ioctl or as part of handling a request issued by another VCPU in the PSCI
@@ -216,6 +247,16 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	loaded = (vcpu->cpu != -1);
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
+
+	if (!kvm_arm_vcpu_sve_finalized(vcpu)) {
+		if (test_bit(KVM_ARM_VCPU_SVE, vcpu->arch.features)) {
+			ret = kvm_vcpu_enable_sve(vcpu);
+			if (ret)
+				goto out;
+		}
+	} else {
+		kvm_vcpu_reset_sve(vcpu);
+	}
 
 	switch (vcpu->arch.target) {
 	default:
