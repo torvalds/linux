@@ -29,7 +29,8 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = ARMCP_PACKET_I2C_RD << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_I2C_RD <<
+				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
@@ -54,11 +55,12 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = ARMCP_PACKET_I2C_WR << ARMCP_PKT_CTL_OPCODE_SHIFT;
+	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_I2C_WR <<
+				ARMCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
-	pkt.value = val;
+	pkt.value = __cpu_to_le64(val);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 					HL_DEVICE_TIMEOUT_USEC, NULL);
@@ -79,9 +81,10 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = ARMCP_PACKET_LED_SET << ARMCP_PKT_CTL_OPCODE_SHIFT;
-	pkt.led_index = led;
-	pkt.value = state;
+	pkt.ctl = __cpu_to_le32(ARMCP_PACKET_LED_SET <<
+				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.led_index = __cpu_to_le32(led);
+	pkt.value = __cpu_to_le64(state);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						HL_DEVICE_TIMEOUT_USEC, NULL);

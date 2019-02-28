@@ -80,9 +80,9 @@ static void ext_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
 
 	bd = (struct hl_bd *) (uintptr_t) q->kernel_address;
 	bd += hl_pi_2_offset(q->pi);
-	bd->ctl = ctl;
-	bd->len = len;
-	bd->ptr = ptr + hdev->asic_prop.host_phys_base_address;
+	bd->ctl = __cpu_to_le32(ctl);
+	bd->len = __cpu_to_le32(len);
+	bd->ptr = __cpu_to_le64(ptr + hdev->asic_prop.host_phys_base_address);
 
 	q->pi = hl_queue_inc_ptr(q->pi);
 	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
@@ -249,10 +249,11 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	len = job->job_cb_size;
 	ptr = cb->bus_address;
 
-	cq_pkt.data = (q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
-					& CQ_ENTRY_SHADOW_INDEX_MASK;
-	cq_pkt.data |= 1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT;
-	cq_pkt.data |= 1 << CQ_ENTRY_READY_SHIFT;
+	cq_pkt.data = __cpu_to_le32(
+				((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
+					& CQ_ENTRY_SHADOW_INDEX_MASK) |
+				(1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT) |
+				(1 << CQ_ENTRY_READY_SHIFT));
 
 	/*
 	 * No need to protect pi_offset because scheduling to the
@@ -267,7 +268,9 @@ static void ext_hw_queue_schedule_job(struct hl_cs_job *job)
 	cq_addr += cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(cb->kernel_address, len,
-				cq_addr, cq_pkt.data, q->hw_queue_id);
+						cq_addr,
+						__le32_to_cpu(cq_pkt.data),
+						q->hw_queue_id);
 
 	q->shadow_queue[hl_pi_2_offset(q->pi)] = job;
 
@@ -292,8 +295,8 @@ static void int_hw_queue_schedule_job(struct hl_cs_job *job)
 	u64 *pi, *pbd = (u64 *) &bd;
 
 	bd.ctl = 0;
-	bd.len = job->job_cb_size;
-	bd.ptr = (u64) (uintptr_t) job->user_cb;
+	bd.len = __cpu_to_le32(job->job_cb_size);
+	bd.ptr = __cpu_to_le64((u64) (uintptr_t) job->user_cb);
 
 	pi = (u64 *) (uintptr_t) (q->kernel_address +
 		((q->pi & (q->int_queue_len - 1)) * sizeof(bd)));
