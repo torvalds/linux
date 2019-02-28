@@ -744,7 +744,7 @@ mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(struct mlxsw_sp_acl_tcam_vregion 
 			       msecs_to_jiffies(interval));
 }
 
-static int
+static void
 mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_vregion *vregion,
 				 int *credits);
@@ -755,10 +755,8 @@ static void mlxsw_sp_acl_tcam_vregion_rehash_work(struct work_struct *work)
 		container_of(work, struct mlxsw_sp_acl_tcam_vregion,
 			     rehash.dw.work);
 	int credits = MLXSW_SP_ACL_TCAM_VREGION_REHASH_CREDITS;
-	int err;
 
-	err = mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp,
-					       vregion, &credits);
+	mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp, vregion, &credits);
 	if (credits < 0)
 		/* Rehash gone out of credits so it was interrupted.
 		 * Schedule the work as soon as possible to continue.
@@ -1482,7 +1480,7 @@ mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
 	ctx->hints_priv = NULL;
 }
 
-static int
+static void
 mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_vregion *vregion,
 				 int *credits)
@@ -1500,7 +1498,7 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		if (err) {
 			if (err != -EAGAIN)
 				dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
-			return err;
+			return;
 		}
 	}
 
@@ -1517,8 +1515,6 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 
 	if (*credits >= 0)
 		mlxsw_sp_acl_tcam_vregion_rehash_end(mlxsw_sp, vregion, ctx);
-
-	return err;
 }
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
