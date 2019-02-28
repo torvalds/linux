@@ -2788,10 +2788,11 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 	if (!tg->funcs->validate_timing(tg, &stream->timing))
 		res = DC_FAIL_CONTROLLER_VALIDATE;
 
-	if (res == DC_OK)
+	if (res == DC_OK) {
 		if (!link->link_enc->funcs->validate_output_with_stream(
 						link->link_enc, stream))
 			res = DC_FAIL_ENC_VALIDATE;
+	}
 
 	/* TODO: validate audio ASIC caps, encoder */
 
