@@ -187,7 +187,6 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 
 extern const u16 mt76x02_beacon_offsets[16];
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
-void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);
@@ -208,12 +207,12 @@ static inline bool is_mt76x2(struct mt76x02_dev *dev)
 
 static inline void mt76x02_irq_enable(struct mt76x02_dev *dev, u32 mask)
 {
-	mt76x02_set_irq_mask(dev, 0, mask);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
 }
 
 static inline void mt76x02_irq_disable(struct mt76x02_dev *dev, u32 mask)
 {
-	mt76x02_set_irq_mask(dev, mask, 0);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 static inline bool

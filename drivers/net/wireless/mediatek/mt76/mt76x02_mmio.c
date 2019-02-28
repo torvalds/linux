@@ -336,18 +336,6 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 }
 EXPORT_SYMBOL_GPL(mt76x02_irq_handler);
 
-void mt76x02_set_irq_mask(struct mt76x02_dev *dev, u32 clear, u32 set)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
-	dev->mt76.mmio.irqmask &= ~clear;
-	dev->mt76.mmio.irqmask |= set;
-	mt76_wr(dev, MT_INT_MASK_CSR, dev->mt76.mmio.irqmask);
-	spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
-}
-EXPORT_SYMBOL_GPL(mt76x02_set_irq_mask);
-
 static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 {
 	u32 val;

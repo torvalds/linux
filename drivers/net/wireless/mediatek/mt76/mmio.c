@@ -70,6 +70,19 @@ static int mt76_mmio_rd_rp(struct mt76_dev *dev, u32 base,
 	return 0;
 }
 
+void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr,
+		       u32 clear, u32 set)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->mmio.irq_lock, flags);
+	dev->mmio.irqmask &= ~clear;
+	dev->mmio.irqmask |= set;
+	mt76_mmio_wr(dev, addr, dev->mmio.irqmask);
+	spin_unlock_irqrestore(&dev->mmio.irq_lock, flags);
+}
+EXPORT_SYMBOL_GPL(mt76_set_irq_mask);
+
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs)
 {
 	static const struct mt76_bus_ops mt76_mmio_ops = {

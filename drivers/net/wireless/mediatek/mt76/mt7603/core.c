@@ -2,17 +2,6 @@
 
 #include "mt7603.h"
 
-void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->mt76.mmio.irq_lock, flags);
-	dev->mt76.mmio.irqmask &= ~clear;
-	dev->mt76.mmio.irqmask |= set;
-	mt76_wr(dev, MT_INT_MASK_CSR, dev->mt76.mmio.irqmask);
-	spin_unlock_irqrestore(&dev->mt76.mmio.irq_lock, flags);
-}
-
 void mt7603_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);

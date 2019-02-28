@@ -179,16 +179,14 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev);
 int mt7603_mcu_init(struct mt7603_dev *dev);
 void mt7603_init_debugfs(struct mt7603_dev *dev);
 
-void mt7603_set_irq_mask(struct mt7603_dev *dev, u32 clear, u32 set);
-
 static inline void mt7603_irq_enable(struct mt7603_dev *dev, u32 mask)
 {
-	mt7603_set_irq_mask(dev, 0, mask);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
 }
 
 static inline void mt7603_irq_disable(struct mt7603_dev *dev, u32 mask)
 {
-	mt7603_set_irq_mask(dev, mask, 0);
+	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 void mt7603_mac_dma_start(struct mt7603_dev *dev);
