@@ -59,9 +59,9 @@ LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
 CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
 TRACE_HELPERS := ../../tools/testing/selftests/bpf/trace_helpers.o
 
-fds_example-objs := bpf_load.o fds_example.o
-sockex1-objs := bpf_load.o sockex1_user.o
-sockex2-objs := bpf_load.o sockex2_user.o
+fds_example-objs := fds_example.o
+sockex1-objs := sockex1_user.o
+sockex2-objs := sockex2_user.o
 sockex3-objs := bpf_load.o sockex3_user.o
 tracex1-objs := bpf_load.o tracex1_user.o
 tracex2-objs := bpf_load.o tracex2_user.o
