@@ -606,6 +606,29 @@ v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_subdev);
 
+int
+v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
+					     struct fwnode_handle *endpoint,
+					     struct v4l2_async_subdev *asd)
+{
+	struct fwnode_handle *remote;
+	int ret;
+
+	remote = fwnode_graph_get_remote_port_parent(endpoint);
+	if (!remote)
+		return -ENOTCONN;
+
+	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+	asd->match.fwnode = remote;
+
+	ret = v4l2_async_notifier_add_subdev(notif, asd);
+	if (ret)
+		fwnode_handle_put(remote);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_remote_subdev);
+
 struct v4l2_async_subdev *
 v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
 				   int adapter_id, unsigned short address,
