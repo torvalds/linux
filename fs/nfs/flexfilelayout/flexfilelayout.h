@@ -218,8 +218,9 @@ struct rpc_clnt *
 nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 				 struct nfs_client *ds_clp,
 				 struct inode *inode);
-const struct cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,
-				       u32 ds_idx, const struct cred *mdscred);
+const struct cred *ff_layout_get_ds_cred(struct nfs4_ff_layout_mirror *mirror,
+					 const struct pnfs_layout_range *range,
+					 const struct cred *mdscred);
 bool ff_layout_avoid_mds_available_ds(struct pnfs_layout_segment *lseg);
 bool ff_layout_avoid_read_on_rw(struct pnfs_layout_segment *lseg);
 

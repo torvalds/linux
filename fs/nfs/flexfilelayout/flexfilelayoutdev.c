@@ -446,14 +446,14 @@ out:
 }
 
 const struct cred *
-ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg, u32 ds_idx,
+ff_layout_get_ds_cred(struct nfs4_ff_layout_mirror *mirror,
+		      const struct pnfs_layout_range *range,
 		      const struct cred *mdscred)
 {
-	struct nfs4_ff_layout_mirror *mirror = FF_LAYOUT_COMP(lseg, ds_idx);
 	const struct cred *cred;
 
 	if (mirror && !mirror->mirror_ds->ds_versions[0].tightly_coupled) {
-		cred = ff_layout_get_mirror_cred(mirror, lseg->pls_range.iomode);
+		cred = ff_layout_get_mirror_cred(mirror, range->iomode);
 		if (!cred)
 			cred = get_cred(mdscred);
 	} else {
