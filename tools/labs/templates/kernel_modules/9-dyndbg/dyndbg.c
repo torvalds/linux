@@ -8,9 +8,9 @@ MODULE_LICENSE("GPL");
 
 void my_debug_func(void)
 {
-	pr_info("Important dyndbg debug message1\n");
-	pr_info("Important dyndbg debug message2\n");
-	pr_info("Verbose dyndbg debug message\n");
+	pr_debug("Important dyndbg debug message1\n");
+	pr_debug("Important dyndbg debug message2\n");
+	pr_debug("Verbose dyndbg debug message\n");
 }
 EXPORT_SYMBOL(my_debug_func);
 
