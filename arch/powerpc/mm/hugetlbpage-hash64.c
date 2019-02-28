@@ -26,7 +26,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	real_pte_t rpte;
 	unsigned long vpn;
 	unsigned long old_pte, new_pte;
-	unsigned long rflags, pa, sz;
+	unsigned long rflags, pa;
 	long slot, offset;
 
 	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
@@ -73,7 +73,6 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		offset = PTRS_PER_PMD;
 	rpte = __real_pte(__pte(old_pte), ptep, offset);
 
-	sz = ((1UL) << shift);
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		/* No CPU has hugepages but lacks no execute, so we
 		 * don't need to worry about that case */
