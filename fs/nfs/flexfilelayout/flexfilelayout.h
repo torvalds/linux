@@ -215,8 +215,7 @@ nfs4_ff_layout_prepare_ds(struct pnfs_layout_segment *lseg,
 			  bool fail_return);
 
 struct rpc_clnt *
-nfs4_ff_find_or_create_ds_client(struct pnfs_layout_segment *lseg,
-				 u32 ds_idx,
+nfs4_ff_find_or_create_ds_client(struct nfs4_ff_layout_mirror *mirror,
 				 struct nfs_client *ds_clp,
 				 struct inode *inode);
 const struct cred *ff_layout_get_ds_cred(struct pnfs_layout_segment *lseg,

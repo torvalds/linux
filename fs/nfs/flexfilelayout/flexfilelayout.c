@@ -1778,7 +1778,7 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 	if (!ds)
 		goto out_failed;
 
-	ds_clnt = nfs4_ff_find_or_create_ds_client(lseg, idx, ds->ds_clp,
+	ds_clnt = nfs4_ff_find_or_create_ds_client(mirror, ds->ds_clp,
 						   hdr->inode);
 	if (IS_ERR(ds_clnt))
 		goto out_failed;
@@ -1843,7 +1843,7 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 	if (!ds)
 		goto out_failed;
 
-	ds_clnt = nfs4_ff_find_or_create_ds_client(lseg, idx, ds->ds_clp,
+	ds_clnt = nfs4_ff_find_or_create_ds_client(mirror, ds->ds_clp,
 						   hdr->inode);
 	if (IS_ERR(ds_clnt))
 		goto out_failed;
@@ -1928,7 +1928,7 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	if (!ds)
 		goto out_err;
 
-	ds_clnt = nfs4_ff_find_or_create_ds_client(lseg, idx, ds->ds_clp,
+	ds_clnt = nfs4_ff_find_or_create_ds_client(mirror, ds->ds_clp,
 						   data->inode);
 	if (IS_ERR(ds_clnt))
 		goto out_err;
