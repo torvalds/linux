@@ -110,6 +110,8 @@ obj-$(CONFIG_NFT_OSF)		+= nft_osf.o
 obj-$(CONFIG_NFT_TPROXY)	+= nft_tproxy.o
 obj-$(CONFIG_NFT_XFRM)		+= nft_xfrm.o
 
+obj-$(CONFIG_NFT_NAT)		+= nft_chain_nat.o
+
 # nf_tables netdev
 obj-$(CONFIG_NFT_DUP_NETDEV)	+= nft_dup_netdev.o
 obj-$(CONFIG_NFT_FWD_NETDEV)	+= nft_fwd_netdev.o

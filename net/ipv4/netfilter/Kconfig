@@ -95,19 +95,6 @@ config NF_REJECT_IPV4
 	default m if NETFILTER_ADVANCED=n
 
 if NF_NAT
-
-if NF_TABLES
-config NFT_CHAIN_NAT_IPV4
-	depends on NF_TABLES_IPV4
-	tristate "IPv4 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv4 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
-
-endif # NF_TABLES
-
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
 	depends on NF_CONNTRACK_SNMP

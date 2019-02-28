@@ -550,6 +550,7 @@ config NFT_REDIR
 config NFT_NAT
 	depends on NF_CONNTRACK
 	select NF_NAT
+	depends on NF_TABLES_IPV4 || NF_TABLES_IPV6
 	tristate "Netfilter nf_tables nat module"
 	help
 	  This option adds the "nat" expression that you can use to perform
