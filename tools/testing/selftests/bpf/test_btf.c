@@ -5936,9 +5936,9 @@ static int do_test_dedup(unsigned int test_num)
 	}
 
 	test_hdr = test_btf_data;
-	test_strs = test_btf_data + test_hdr->str_off;
+	test_strs = test_btf_data + sizeof(*test_hdr) + test_hdr->str_off;
 	expect_hdr = expect_btf_data;
-	expect_strs = expect_btf_data + expect_hdr->str_off;
+	expect_strs = expect_btf_data + sizeof(*test_hdr) + expect_hdr->str_off;
 	if (CHECK(test_hdr->str_len != expect_hdr->str_len,
 		  "test_hdr->str_len:%u != expect_hdr->str_len:%u",
 		  test_hdr->str_len, expect_hdr->str_len)) {
