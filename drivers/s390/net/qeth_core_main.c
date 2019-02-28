@@ -92,12 +92,11 @@ static void qeth_close_dev_handler(struct work_struct *work)
 	ccwgroup_set_offline(card->gdev);
 }
 
-void qeth_close_dev(struct qeth_card *card)
+static void qeth_close_dev(struct qeth_card *card)
 {
 	QETH_CARD_TEXT(card, 2, "cldevsubm");
 	queue_work(qeth_wq, &card->close_dev_work);
 }
-EXPORT_SYMBOL_GPL(qeth_close_dev);
 
 static const char *qeth_get_cardname(struct qeth_card *card)
 {
