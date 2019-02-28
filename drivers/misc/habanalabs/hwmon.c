@@ -17,7 +17,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev,
 				struct armcp_sensor *sensors_arr)
 {
 	u32 counts[HWMON_NR_SENSOR_TYPES] = {0};
-	u32 *sensors_by_type[HWMON_NR_SENSOR_TYPES] = {0};
+	u32 *sensors_by_type[HWMON_NR_SENSOR_TYPES] = {NULL};
 	u32 sensors_by_type_next_index[HWMON_NR_SENSOR_TYPES] = {0};
 	struct hwmon_channel_info **channels_info;
 	u32 num_sensors_for_type, num_active_sensor_types = 0,
