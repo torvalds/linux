@@ -1132,6 +1132,27 @@ struct ice_aqc_pf_vf_msg {
 	__le32 addr_low;
 };
 
+/* Start LLDP (direct 0x0A06) */
+struct ice_aqc_lldp_start {
+	u8 command;
+#define ICE_AQ_LLDP_AGENT_START		BIT(0)
+#define ICE_AQ_LLDP_AGENT_PERSIST_ENA	BIT(1)
+	u8 reserved[15];
+};
+
+/* Stop/Start LLDP Agent (direct 0x0A09)
+ * Used for stopping/starting specific LLDP agent. e.g. DCBx.
+ * The same structure is used for the response, with the command field
+ * being used as the status field.
+ */
+struct ice_aqc_lldp_stop_start_specific_agent {
+	u8 command;
+#define ICE_AQC_START_STOP_AGENT_M		BIT(0)
+#define ICE_AQC_START_STOP_AGENT_STOP_DCBX	0
+#define ICE_AQC_START_STOP_AGENT_START_DCBX	ICE_AQC_START_STOP_AGENT_M
+	u8 reserved[15];
+};
+
 /* Get/Set RSS key (indirect 0x0B04/0x0B02) */
 struct ice_aqc_get_set_rss_key {
 #define ICE_AQC_GSET_RSS_KEY_VSI_VALID	BIT(15)
@@ -1390,6 +1411,8 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_pf_vf_msg virt;
+		struct ice_aqc_lldp_start lldp_start;
+		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
 		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
 		struct ice_aqc_get_set_rss_key get_set_rss_key;
 		struct ice_aqc_add_txqs add_txqs;
@@ -1491,6 +1514,9 @@ enum ice_adminq_opc {
 	/* PF/VF mailbox commands */
 	ice_mbx_opc_send_msg_to_pf			= 0x0801,
 	ice_mbx_opc_send_msg_to_vf			= 0x0802,
+	/* LLDP commands */
+	ice_aqc_opc_lldp_start				= 0x0A06,
+	ice_aqc_opc_lldp_stop_start_specific_agent	= 0x0A09,
 
 	/* RSS commands */
 	ice_aqc_opc_set_rss_key				= 0x0B02,

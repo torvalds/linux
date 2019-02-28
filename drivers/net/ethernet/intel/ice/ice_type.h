@@ -148,6 +148,8 @@ struct ice_hw_common_caps {
 	/* RSS related capabilities */
 	u16 rss_table_size;		/* 512 for PFs and 64 for VFs */
 	u8 rss_table_entry_width;	/* RSS Entry width in bits */
+
+	u8 dcb;
 };
 
 /* Function specific capabilities */
@@ -277,6 +279,8 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
+	/* LLDP/DCBX Status */
+	u8 dcbx_status;
 	u8 lport;
 #define ICE_LPORT_MASK		0xff
 	u8 is_vf;

@@ -7,6 +7,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
+#include "ice_dcb_lib.h"
 
 #define DRV_VERSION	"0.7.3-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
@@ -2284,6 +2285,15 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 		 hw->api_maj_ver, hw->api_min_ver);
 
 	ice_init_pf(pf);
+
+	err = ice_init_pf_dcb(pf);
+	if (err) {
+		clear_bit(ICE_FLAG_DCB_CAPABLE, pf->flags);
+		clear_bit(ICE_FLAG_DCB_ENA, pf->flags);
+
+		/* do not fail overall init if DCB init fails */
+		err = 0;
+	}
 
 	ice_determine_q_usage(pf);
 

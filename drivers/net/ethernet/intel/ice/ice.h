@@ -34,6 +34,7 @@
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"
+#include "ice_dcb.h"
 #include "ice_switch.h"
 #include "ice_common.h"
 #include "ice_sched.h"
@@ -321,6 +322,8 @@ enum ice_pf_flags {
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
+	ICE_FLAG_DCB_CAPABLE,
+	ICE_FLAG_DCB_ENA,
 	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
