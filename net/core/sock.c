@@ -1219,6 +1219,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	union {
 		int val;
 		u64 val64;
+		unsigned long ulval;
 		struct linger ling;
 		struct old_timeval32 tm32;
 		struct __kernel_old_timeval tm;
@@ -1464,8 +1465,13 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 #endif
 
 	case SO_MAX_PACING_RATE:
-		/* 32bit version */
-		v.val = min_t(unsigned long, sk->sk_max_pacing_rate, ~0U);
+		if (sizeof(v.ulval) != sizeof(v.val) && len >= sizeof(v.ulval)) {
+			lv = sizeof(v.ulval);
+			v.ulval = sk->sk_max_pacing_rate;
+		} else {
+			/* 32bit version */
+			v.val = min_t(unsigned long, sk->sk_max_pacing_rate, ~0U);
+		}
 		break;
 
 	case SO_INCOMING_CPU:
