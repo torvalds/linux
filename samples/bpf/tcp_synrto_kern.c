@@ -8,7 +8,7 @@
  * and the first 5.5 bytes of the IPv6 addresses are the same (in this example
  * that means both hosts are in the same datacenter).
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>
