@@ -107,6 +107,8 @@ install both packages and add the following lines to the file
             nmap `<C-\>`f :cs find f `<C-R>`=expand("`<cfile>`")`<CR>``<CR>`
             nmap `<C-\>`i :cs find i ^`<C-R>`=expand("`<cfile>`")`<CR>`$`<CR>`
             nmap `<C-\>`d :cs find d `<C-R>`=expand("`<cword>`")`<CR>``<CR>`
+            nmap <F6> :cnext <CR>
+            nmap <F5> :cprev <CR>
 
             " Open a quickfix window for the following queries.
             set cscopequickfix=s-,c-,d-,i-,t-,e-,g-
