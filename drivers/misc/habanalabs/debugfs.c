@@ -723,7 +723,7 @@ static ssize_t hl_device_read(struct file *f, char __user *buf,
 		return 0;
 
 	sprintf(tmp_buf,
-		"Valid values are: disable, enable, suspend, resume\n");
+		"Valid values: disable, enable, suspend, resume, cpu_timeout\n");
 	rc = simple_read_from_buffer(buf, strlen(tmp_buf) + 1, ppos, tmp_buf,
 			strlen(tmp_buf) + 1);
 
@@ -751,9 +751,11 @@ static ssize_t hl_device_write(struct file *f, const char __user *buf,
 		hdev->asic_funcs->suspend(hdev);
 	} else if (strncmp("resume", data, strlen("resume")) == 0) {
 		hdev->asic_funcs->resume(hdev);
+	} else if (strncmp("cpu_timeout", data, strlen("cpu_timeout")) == 0) {
+		hdev->device_cpu_disabled = true;
 	} else {
 		dev_err(hdev->dev,
-			"Valid values are: disable, enable, suspend, resume\n");
+			"Valid values: disable, enable, suspend, resume, cpu_timeout\n");
 		count = -EINVAL;
 	}
 

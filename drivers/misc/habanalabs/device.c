@@ -636,6 +636,8 @@ again:
 	/* Finished tear-down, starting to re-initialize */
 
 	if (hard_reset) {
+		hdev->device_cpu_disabled = false;
+
 		/* Allocate the kernel context */
 		hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx),
 						GFP_KERNEL);

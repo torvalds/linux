@@ -1079,6 +1079,7 @@ struct hl_device_reset_work {
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
+ * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1146,6 +1147,7 @@ struct hl_device {
 	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
 	u8				init_done;
+	u8				device_cpu_disabled;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;

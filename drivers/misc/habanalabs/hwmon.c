@@ -10,7 +10,7 @@
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 
-#define SENSORS_PKT_TIMEOUT		100000	/* 100ms */
+#define SENSORS_PKT_TIMEOUT		1000000	/* 1s */
 #define HWMON_NR_SENSOR_TYPES		(hwmon_pwm + 1)
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,

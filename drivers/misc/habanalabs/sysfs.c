@@ -9,8 +9,8 @@
 
 #include <linux/pci.h>
 
-#define SET_CLK_PKT_TIMEOUT	200000	/* 200ms */
-#define SET_PWR_PKT_TIMEOUT	400000	/* 400ms */
+#define SET_CLK_PKT_TIMEOUT	1000000	/* 1s */
+#define SET_PWR_PKT_TIMEOUT	1000000	/* 1s */
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {

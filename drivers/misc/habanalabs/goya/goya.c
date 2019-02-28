@@ -3232,6 +3232,11 @@ int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 	if (hdev->disabled)
 		goto out;
 
+	if (hdev->device_cpu_disabled) {
+		rc = -EIO;
+		goto out;
+	}
+
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, GOYA_QUEUE_ID_CPU_PQ, len,
 			pkt_dma_addr);
 	if (rc) {
@@ -3245,8 +3250,8 @@ int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
 	hl_hw_queue_inc_ci_kernel(hdev, GOYA_QUEUE_ID_CPU_PQ);
 
 	if (rc == -ETIMEDOUT) {
-		dev_err(hdev->dev,
-			"Timeout while waiting for CPU packet fence\n");
+		dev_err(hdev->dev, "Timeout while waiting for device CPU\n");
+		hdev->device_cpu_disabled = true;
 		goto out;
 	}
 
