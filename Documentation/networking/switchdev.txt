@@ -371,22 +371,3 @@ The driver can monitor for updates to arp_tbl using the netevent notifier
 NETEVENT_NEIGH_UPDATE.  The device can be programmed with resolved nexthops
 for the routes as arp_tbl updates.  The driver implements ndo_neigh_destroy
 to know when arp_tbl neighbor entries are purged from the port.
-
-Transaction item queue
-^^^^^^^^^^^^^^^^^^^^^^
-
-For switchdev ops attr_set and obj_add, there is a 2 phase transaction model
-used. First phase is to "prepare" anything needed, including various checks,
-memory allocation, etc. The goal is to handle the stuff that is not unlikely
-to fail here. The second phase is to "commit" the actual changes.
-
-Switchdev provides an infrastructure for sharing items (for example memory
-allocations) between the two phases.
-
-The object created by a driver in "prepare" phase and it is queued up by:
-switchdev_trans_item_enqueue()
-During the "commit" phase, the driver gets the object by:
-switchdev_trans_item_dequeue()
-
-If a transaction is aborted during "prepare" phase, switchdev code will handle
-cleanup of the queued-up objects.

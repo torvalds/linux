@@ -20,14 +20,7 @@
 #define SWITCHDEV_F_SKIP_EOPNOTSUPP	BIT(1)
 #define SWITCHDEV_F_DEFER		BIT(2)
 
-struct switchdev_trans_item {
-	struct list_head list;
-	void *data;
-	void (*destructor)(const void *data);
-};
-
 struct switchdev_trans {
-	struct list_head item_list;
 	bool ph_prepare;
 };
 
@@ -104,11 +97,6 @@ struct switchdev_obj_port_mdb {
 
 #define SWITCHDEV_OBJ_PORT_MDB(OBJ) \
 	container_of((OBJ), struct switchdev_obj_port_mdb, obj)
-
-void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
-				  void *data, void (*destructor)(void const *),
-				  struct switchdev_trans_item *tritem);
-void *switchdev_trans_item_dequeue(struct switchdev_trans *trans);
 
 typedef int switchdev_obj_dump_cb_t(struct switchdev_obj *obj);
 
