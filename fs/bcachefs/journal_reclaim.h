@@ -42,6 +42,7 @@ void bch2_journal_pin_add_if_older(struct journal *,
 void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_do_discards(struct journal *);
+void bch2_journal_reclaim(struct journal *);
 void bch2_journal_reclaim_work(struct work_struct *);
 
 void bch2_journal_flush_pins(struct journal *, u64);

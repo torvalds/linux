@@ -390,7 +390,10 @@ retry:
 				goto retry;
 			}
 
-			bch2_journal_reclaim_work(&j->reclaim_work.work);
+			if (mutex_trylock(&j->reclaim_lock)) {
+				bch2_journal_reclaim(j);
+				mutex_unlock(&j->reclaim_lock);
+			}
 		}
 
 		ret = -EAGAIN;

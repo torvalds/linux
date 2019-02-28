@@ -433,7 +433,7 @@ static void journal_flush_pins(struct journal *j, u64 seq_to_flush,
 }
 
 /**
- * bch2_journal_reclaim_work - free up journal buckets
+ * bch2_journal_reclaim - free up journal buckets
  *
  * Background journal reclaim writes out btree nodes. It should be run
  * early enough so that we never completely run out of journal buckets.
@@ -450,18 +450,17 @@ static void journal_flush_pins(struct journal *j, u64 seq_to_flush,
  * 512 journal entries or 25% of all journal buckets, then
  * journal_next_bucket() should not stall.
  */
-void bch2_journal_reclaim_work(struct work_struct *work)
+void bch2_journal_reclaim(struct journal *j)
 {
-	struct bch_fs *c = container_of(to_delayed_work(work),
-				struct bch_fs, journal.reclaim_work);
-	struct journal *j = &c->journal;
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	unsigned iter, bucket_to_flush, min_nr = 0;
 	u64 seq_to_flush = 0;
 
+	lockdep_assert_held(&j->reclaim_lock);
+
 	bch2_journal_do_discards(j);
 
-	mutex_lock(&j->reclaim_lock);
 	spin_lock(&j->lock);
 
 	for_each_rw_member(ca, c, iter) {
@@ -493,11 +492,19 @@ void bch2_journal_reclaim_work(struct work_struct *work)
 
 	journal_flush_pins(j, seq_to_flush, min_nr);
 
-	mutex_unlock(&j->reclaim_lock);
-
 	if (!test_bit(BCH_FS_RO, &c->flags))
 		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
 				   msecs_to_jiffies(j->reclaim_delay_ms));
+}
+
+void bch2_journal_reclaim_work(struct work_struct *work)
+{
+	struct journal *j = container_of(to_delayed_work(work),
+				struct journal, reclaim_work);
+
+	mutex_lock(&j->reclaim_lock);
+	bch2_journal_reclaim(j);
+	mutex_unlock(&j->reclaim_lock);
 }
 
 static int journal_flush_done(struct journal *j, u64 seq_to_flush)
