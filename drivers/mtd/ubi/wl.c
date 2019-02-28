@@ -1517,7 +1517,7 @@ int ubi_bitflip_check(struct ubi_device *ubi, int pnum, int force)
 		mutex_unlock(&ubi->buf_mutex);
 	}
 
-	if (err == UBI_IO_BITFLIPS || force) {
+	if (force || err == UBI_IO_BITFLIPS) {
 		/*
 		 * Okay, bit flip happened, let's figure out what we can do.
 		 */
