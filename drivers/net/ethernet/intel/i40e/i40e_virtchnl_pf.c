@@ -3129,7 +3129,7 @@ static int i40e_validate_cloud_filter(struct i40e_vf *vf,
 	}
 
 	if (mask.dst_port & data.dst_port) {
-		if (!data.dst_port || be16_to_cpu(data.dst_port) > 0xFFFF) {
+		if (!data.dst_port) {
 			dev_info(&pf->pdev->dev, "VF %d: Invalid Dest port\n",
 				 vf->vf_id);
 			goto err;
@@ -3137,7 +3137,7 @@ static int i40e_validate_cloud_filter(struct i40e_vf *vf,
 	}
 
 	if (mask.src_port & data.src_port) {
-		if (!data.src_port || be16_to_cpu(data.src_port) > 0xFFFF) {
+		if (!data.src_port) {
 			dev_info(&pf->pdev->dev, "VF %d: Invalid Source port\n",
 				 vf->vf_id);
 			goto err;
