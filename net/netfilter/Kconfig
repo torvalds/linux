@@ -541,6 +541,7 @@ config NFT_REDIR
 	depends on NF_CONNTRACK
 	depends on NF_NAT
 	tristate "Netfilter nf_tables redirect support"
+	select NF_NAT_REDIRECT
 	help
 	  This options adds the "redirect" expression that you can use
 	  to perform NAT in the redirect flavour.
