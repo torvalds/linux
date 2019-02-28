@@ -33,6 +33,8 @@ enum {
 #define I915_PRIORITY_WAIT	((u8)BIT(0))
 #define I915_PRIORITY_NEWCLIENT	((u8)BIT(1))
 
+#define __NO_PREEMPTION (I915_PRIORITY_WAIT)
+
 struct i915_sched_attr {
 	/**
 	 * @priority: execution and service priority

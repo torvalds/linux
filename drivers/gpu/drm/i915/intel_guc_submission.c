@@ -720,7 +720,7 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static inline int port_prio(const struct execlist_port *port)
 {
-	return rq_prio(port_request(port));
+	return rq_prio(port_request(port)) | __NO_PREEMPTION;
 }
 
 static bool __guc_dequeue(struct intel_engine_cs *engine)

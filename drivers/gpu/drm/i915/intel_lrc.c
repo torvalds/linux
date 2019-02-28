@@ -188,6 +188,12 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority;
 }
 
+static int effective_prio(const struct i915_request *rq)
+{
+	/* Restrict mere WAIT boosts from triggering preemption */
+	return rq_prio(rq) | __NO_PREEMPTION;
+}
+
 static int queue_prio(const struct intel_engine_execlists *execlists)
 {
 	struct i915_priolist *p;
@@ -208,7 +214,7 @@ static int queue_prio(const struct intel_engine_execlists *execlists)
 static inline bool need_preempt(const struct intel_engine_cs *engine,
 				const struct i915_request *rq)
 {
-	const int last_prio = rq_prio(rq);
+	int last_prio;
 
 	if (!intel_engine_has_preemption(engine))
 		return false;
@@ -228,6 +234,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 	 * preempt. If that hint is stale or we may be trying to preempt
 	 * ourselves, ignore the request.
 	 */
+	last_prio = effective_prio(rq);
 	if (!__execlists_need_preempt(engine->execlists.queue_priority_hint,
 				      last_prio))
 		return false;

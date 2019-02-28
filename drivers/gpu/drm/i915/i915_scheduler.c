@@ -324,7 +324,6 @@ static void __i915_schedule(struct i915_request *rq,
 			if (node_signaled(p->signaler))
 				continue;
 
-			GEM_BUG_ON(p->signaler->attr.priority < node->attr.priority);
 			if (prio > READ_ONCE(p->signaler->attr.priority))
 				list_move_tail(&p->dfs_link, &dfs);
 		}
