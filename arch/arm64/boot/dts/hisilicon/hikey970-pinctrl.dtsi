@@ -196,6 +196,16 @@
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 10 0>;
 
+			sdio_pmx_func: sdio_pmx_func {
+				pinctrl-single,pins = <
+					0x000 MUX_M1 /* SDIO_CLK */
+					0x004 MUX_M1 /* SDIO_CMD */
+					0x008 MUX_M1 /* SDIO_DATA0 */
+					0x00c MUX_M1 /* SDIO_DATA1 */
+					0x010 MUX_M1 /* SDIO_DATA2 */
+					0x014 MUX_M1 /* SDIO_DATA3 */
+				>;
+			};
 		};
 
 		pmx6: pinmux@fc182800 {
@@ -203,6 +213,52 @@
 			reg = <0x0 0xfc182800 0x0 0x028>;
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
+
+			sdio_clk_cfg_func: sdio_clk_cfg_func {
+				pinctrl-single,pins = <
+					0x000 0x0 /* SDIO_CLK */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE6_32MA DRIVE6_MASK
+				>;
+			};
+
+			sdio_cfg_func: sdio_cfg_func {
+				pinctrl-single,pins = <
+					0x004 0x0 /* SDIO_CMD */
+					0x008 0x0 /* SDIO_DATA0 */
+					0x00c 0x0 /* SDIO_DATA1 */
+					0x010 0x0 /* SDIO_DATA2 */
+					0x014 0x0 /* SDIO_DATA3 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE6_19MA DRIVE6_MASK
+				>;
+			};
 		};
 
 		pmx7: pinmux@ff37e000 {
@@ -214,6 +270,17 @@
 			pinctrl-single,function-mask = <7>;
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 12 0>;
+
+			sd_pmx_func: sd_pmx_func {
+				pinctrl-single,pins = <
+					0x000 MUX_M1 /* SD_CLK */
+					0x004 MUX_M1 /* SD_CMD */
+					0x008 MUX_M1 /* SD_DATA0 */
+					0x00c MUX_M1 /* SD_DATA1 */
+					0x010 MUX_M1 /* SD_DATA2 */
+					0x014 MUX_M1 /* SD_DATA3 */
+				>;
+			};
 		};
 
 		pmx8: pinmux@ff37e800 {
@@ -221,6 +288,54 @@
 			reg = <0x0 0xff37e800 0x0 0x030>;
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
+
+			sd_clk_cfg_func: sd_clk_cfg_func {
+				pinctrl-single,pins = <
+					0x000 0x0 /* SD_CLK */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_DIS
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE6_32MA
+					DRIVE6_MASK
+				>;
+			};
+
+			sd_cfg_func: sd_cfg_func {
+				pinctrl-single,pins = <
+					0x004 0x0 /* SD_CMD */
+					0x008 0x0 /* SD_DATA0 */
+					0x00c 0x0 /* SD_DATA1 */
+					0x010 0x0 /* SD_DATA2 */
+					0x014 0x0 /* SD_DATA3 */
+				>;
+				pinctrl-single,bias-pulldown = <
+					PULL_DIS
+					PULL_DOWN
+					PULL_DIS
+					PULL_DOWN
+				>;
+				pinctrl-single,bias-pullup = <
+					PULL_UP
+					PULL_UP
+					PULL_DIS
+					PULL_UP
+				>;
+				pinctrl-single,drive-strength = <
+					DRIVE6_19MA
+					DRIVE6_MASK
+				>;
+			};
 		};
 
 		pmx1: pinmux@fff11000 {
