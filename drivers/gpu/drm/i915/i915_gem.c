@@ -101,7 +101,7 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 	spin_unlock(&dev_priv->mm.object_stat_lock);
 }
 
-static u32 __i915_gem_park(struct drm_i915_private *i915)
+static void __i915_gem_park(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
 
@@ -112,9 +112,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 	GEM_BUG_ON(!list_empty(&i915->gt.active_rings));
 
 	if (!i915->gt.awake)
-		return I915_EPOCH_INVALID;
-
-	GEM_BUG_ON(i915->gt.epoch == I915_EPOCH_INVALID);
+		return;
 
 	/*
 	 * Be paranoid and flush a concurrent interrupt to make sure
@@ -143,7 +141,7 @@ static u32 __i915_gem_park(struct drm_i915_private *i915)
 
 	intel_display_power_put(i915, POWER_DOMAIN_GT_IRQ, wakeref);
 
-	return i915->gt.epoch;
+	i915_globals_park();
 }
 
 void i915_gem_park(struct drm_i915_private *i915)
@@ -184,9 +182,6 @@ void i915_gem_unpark(struct drm_i915_private *i915)
 	 */
 	i915->gt.awake = intel_display_power_get(i915, POWER_DOMAIN_GT_IRQ);
 	GEM_BUG_ON(!i915->gt.awake);
-
-	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
-		i915->gt.epoch = 1;
 
 	i915_globals_unpark();
 
@@ -2877,62 +2872,6 @@ i915_gem_retire_work_handler(struct work_struct *work)
 				   round_jiffies_up_relative(HZ));
 }
 
-static void shrink_caches(struct drm_i915_private *i915)
-{
-	/*
-	 * kmem_cache_shrink() discards empty slabs and reorders partially
-	 * filled slabs to prioritise allocating from the mostly full slabs,
-	 * with the aim of reducing fragmentation.
-	 */
-	i915_globals_park();
-}
-
-struct sleep_rcu_work {
-	union {
-		struct rcu_head rcu;
-		struct work_struct work;
-	};
-	struct drm_i915_private *i915;
-	unsigned int epoch;
-};
-
-static inline bool
-same_epoch(struct drm_i915_private *i915, unsigned int epoch)
-{
-	/*
-	 * There is a small chance that the epoch wrapped since we started
-	 * sleeping. If we assume that epoch is at least a u32, then it will
-	 * take at least 2^32 * 100ms for it to wrap, or about 326 years.
-	 */
-	return epoch == READ_ONCE(i915->gt.epoch);
-}
-
-static void __sleep_work(struct work_struct *work)
-{
-	struct sleep_rcu_work *s = container_of(work, typeof(*s), work);
-	struct drm_i915_private *i915 = s->i915;
-	unsigned int epoch = s->epoch;
-
-	kfree(s);
-	if (same_epoch(i915, epoch))
-		shrink_caches(i915);
-}
-
-static void __sleep_rcu(struct rcu_head *rcu)
-{
-	struct sleep_rcu_work *s = container_of(rcu, typeof(*s), rcu);
-	struct drm_i915_private *i915 = s->i915;
-
-	destroy_rcu_head(&s->rcu);
-
-	if (same_epoch(i915, s->epoch)) {
-		INIT_WORK(&s->work, __sleep_work);
-		queue_work(i915->wq, &s->work);
-	} else {
-		kfree(s);
-	}
-}
-
 static inline bool
 new_requests_since_last_retire(const struct drm_i915_private *i915)
 {
@@ -2961,7 +2900,6 @@ i915_gem_idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
-	unsigned int epoch = I915_EPOCH_INVALID;
 	bool rearm_hangcheck;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
@@ -3016,7 +2954,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	if (new_requests_since_last_retire(dev_priv))
 		goto out_unlock;
 
-	epoch = __i915_gem_park(dev_priv);
+	__i915_gem_park(dev_priv);
 
 	assert_kernel_context_is_current(dev_priv);
 
@@ -3028,24 +2966,6 @@ out_rearm:
 	if (rearm_hangcheck) {
 		GEM_BUG_ON(!dev_priv->gt.awake);
 		i915_queue_hangcheck(dev_priv);
-	}
-
-	/*
-	 * When we are idle, it is an opportune time to reap our caches.
-	 * However, we have many objects that utilise RCU and the ordered
-	 * i915->wq that this work is executing on. To try and flush any
-	 * pending frees now we are idle, we first wait for an RCU grace
-	 * period, and then queue a task (that will run last on the wq) to
-	 * shrink and re-optimize the caches.
-	 */
-	if (same_epoch(dev_priv, epoch)) {
-		struct sleep_rcu_work *s = kmalloc(sizeof(*s), GFP_KERNEL);
-		if (s) {
-			init_rcu_head(&s->rcu);
-			s->i915 = dev_priv;
-			s->epoch = epoch;
-			call_rcu(&s->rcu, __sleep_rcu);
-		}
 	}
 }
 
