@@ -126,6 +126,7 @@ struct mt76_queue {
 	int ndesc;
 	int queued;
 	int buf_size;
+	bool stopped;
 
 	u8 buf_offset;
 	u8 hw_idx;
