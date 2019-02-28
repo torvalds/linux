@@ -1,0 +1,49 @@
+* Hisilicon 6210 i2s controller
+
+Required properties:
+
+- compatible: should be one of the following:
+   - "hisilicon,hi3660-i2s-1.0"
+- reg: physical base address of the i2s controller unit and length of
+   memory mapped region.
+- interrupts: should contain the i2s interrupt.
+- clocks: a list of phandle + clock-specifier pairs, one for each entry
+  in clock-names.
+- clock-names: should contain following:
+   - "dacodec"
+   - "i2s-base"
+- dmas: DMA specifiers for tx dma. See the DMA client binding,
+  Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should be "tx" and "rx"
+- hisilicon,sysctrl-syscon: phandle to sysctrl syscon
+- #sound-dai-cells: Should be set to 1 (for multi-dai)
+
+Example for the hi3660 i2s controller:
+
+	i2s2: hisi_i2s {
+		compatible = "hisilicon,hi3660-i2s-1.0";
+		reg = <0x0 0xe804f800 0x0 0x400>,
+			  <0x0 0xe804e000 0x0 0x400>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s2_pmx_func &i2s2_cfg_func>;
+		dmas = <&asp_dmac 18 &asp_dmac 19>;
+		dma-names = "rx", "tx";
+		#sound-dai-cells = <0>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "hikey-hdmi";
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,bitclock-master = <&sound_master>;
+		simple-audio-card,frame-master = <&sound_master>;
+
+		sound_master: simple-audio-card,cpu {
+			sound-dai = <&i2s2>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&adv7533>;
+		};
+	};
