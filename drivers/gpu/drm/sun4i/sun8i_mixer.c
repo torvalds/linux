@@ -554,6 +554,7 @@ static int sun8i_mixer_remove(struct platform_device *pdev)
 static const struct sun8i_mixer_cfg sun8i_a83t_mixer0_cfg = {
 	.ccsc		= 0,
 	.scaler_mask	= 0xf,
+	.scanline_yuv	= 2048,
 	.ui_num		= 3,
 	.vi_num		= 1,
 };
@@ -561,6 +562,7 @@ static const struct sun8i_mixer_cfg sun8i_a83t_mixer0_cfg = {
 static const struct sun8i_mixer_cfg sun8i_a83t_mixer1_cfg = {
 	.ccsc		= 1,
 	.scaler_mask	= 0x3,
+	.scanline_yuv	= 2048,
 	.ui_num		= 1,
 	.vi_num		= 1,
 };
@@ -569,6 +571,7 @@ static const struct sun8i_mixer_cfg sun8i_h3_mixer0_cfg = {
 	.ccsc		= 0,
 	.mod_rate	= 432000000,
 	.scaler_mask	= 0xf,
+	.scanline_yuv	= 2048,
 	.ui_num		= 3,
 	.vi_num		= 1,
 };
@@ -577,6 +580,7 @@ static const struct sun8i_mixer_cfg sun8i_r40_mixer0_cfg = {
 	.ccsc		= 0,
 	.mod_rate	= 297000000,
 	.scaler_mask	= 0xf,
+	.scanline_yuv	= 2048,
 	.ui_num		= 3,
 	.vi_num		= 1,
 };
@@ -585,6 +589,7 @@ static const struct sun8i_mixer_cfg sun8i_r40_mixer1_cfg = {
 	.ccsc		= 1,
 	.mod_rate	= 297000000,
 	.scaler_mask	= 0x3,
+	.scanline_yuv	= 2048,
 	.ui_num		= 1,
 	.vi_num		= 1,
 };
@@ -593,6 +598,7 @@ static const struct sun8i_mixer_cfg sun8i_v3s_mixer_cfg = {
 	.vi_num = 2,
 	.ui_num = 1,
 	.scaler_mask = 0x3,
+	.scanline_yuv = 2048,
 	.ccsc = 0,
 	.mod_rate = 150000000,
 };
@@ -601,6 +607,7 @@ static const struct sun8i_mixer_cfg sun50i_a64_mixer0_cfg = {
 	.ccsc		= 0,
 	.mod_rate	= 297000000,
 	.scaler_mask	= 0xf,
+	.scanline_yuv	= 4096,
 	.ui_num		= 3,
 	.vi_num		= 1,
 };
@@ -609,6 +616,7 @@ static const struct sun8i_mixer_cfg sun50i_a64_mixer1_cfg = {
 	.ccsc		= 1,
 	.mod_rate	= 297000000,
 	.scaler_mask	= 0x3,
+	.scanline_yuv	= 2048,
 	.ui_num		= 1,
 	.vi_num		= 1,
 };
@@ -618,6 +626,7 @@ static const struct sun8i_mixer_cfg sun50i_h6_mixer0_cfg = {
 	.is_de3		= true,
 	.mod_rate	= 600000000,
 	.scaler_mask	= 0xf,
+	.scanline_yuv	= 4096,
 	.ui_num		= 3,
 	.vi_num		= 1,
 };
