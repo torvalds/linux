@@ -294,7 +294,12 @@ int __init i915_global_active_init(void)
 	return 0;
 }
 
-void __exit i915_global_active_exit(void)
+void i915_global_active_shrink(void)
+{
+	kmem_cache_shrink(global.slab_cache);
+}
+
+void i915_global_active_exit(void)
 {
 	kmem_cache_destroy(global.slab_cache);
 }

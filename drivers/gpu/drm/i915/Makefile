@@ -77,6 +77,7 @@ i915-y += \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gemfs.o \
+	  i915_globals.o \
 	  i915_query.o \
 	  i915_request.o \
 	  i915_scheduler.o \

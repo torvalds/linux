@@ -32,6 +32,11 @@
 #include "i915_active.h"
 #include "i915_reset.h"
 
+static struct i915_global_request {
+	struct kmem_cache *slab_requests;
+	struct kmem_cache *slab_dependencies;
+} global;
+
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "i915";
@@ -86,7 +91,7 @@ static void i915_fence_release(struct dma_fence *fence)
 	 */
 	i915_sw_fence_fini(&rq->submit);
 
-	kmem_cache_free(rq->i915->requests, rq);
+	kmem_cache_free(global.slab_requests, rq);
 }
 
 const struct dma_fence_ops i915_fence_ops = {
@@ -292,7 +297,7 @@ static void i915_request_retire(struct i915_request *request)
 
 	unreserve_gt(request->i915);
 
-	i915_sched_node_fini(request->i915, &request->sched);
+	i915_sched_node_fini(&request->sched);
 	i915_request_put(request);
 }
 
@@ -491,7 +496,7 @@ i915_request_alloc_slow(struct intel_context *ce)
 	ring_retire_requests(ring);
 
 out:
-	return kmem_cache_alloc(ce->gem_context->i915->requests, GFP_KERNEL);
+	return kmem_cache_alloc(global.slab_requests, GFP_KERNEL);
 }
 
 static int add_timeline_barrier(struct i915_request *rq)
@@ -579,7 +584,7 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 *
 	 * Do not use kmem_cache_zalloc() here!
 	 */
-	rq = kmem_cache_alloc(i915->requests,
+	rq = kmem_cache_alloc(global.slab_requests,
 			      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (unlikely(!rq)) {
 		rq = i915_request_alloc_slow(ce);
@@ -666,7 +671,7 @@ err_unwind:
 	GEM_BUG_ON(!list_empty(&rq->sched.signalers_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.waiters_list));
 
-	kmem_cache_free(i915->requests, rq);
+	kmem_cache_free(global.slab_requests, rq);
 err_unreserve:
 	unreserve_gt(i915);
 	intel_context_unpin(ce);
@@ -685,9 +690,7 @@ i915_request_await_request(struct i915_request *to, struct i915_request *from)
 		return 0;
 
 	if (to->engine->schedule) {
-		ret = i915_sched_node_add_dependency(to->i915,
-						     &to->sched,
-						     &from->sched);
+		ret = i915_sched_node_add_dependency(&to->sched, &from->sched);
 		if (ret < 0)
 			return ret;
 	}
@@ -1175,3 +1178,37 @@ void i915_retire_requests(struct drm_i915_private *i915)
 #include "selftests/mock_request.c"
 #include "selftests/i915_request.c"
 #endif
+
+int __init i915_global_request_init(void)
+{
+	global.slab_requests = KMEM_CACHE(i915_request,
+					  SLAB_HWCACHE_ALIGN |
+					  SLAB_RECLAIM_ACCOUNT |
+					  SLAB_TYPESAFE_BY_RCU);
+	if (!global.slab_requests)
+		return -ENOMEM;
+
+	global.slab_dependencies = KMEM_CACHE(i915_dependency,
+					      SLAB_HWCACHE_ALIGN |
+					      SLAB_RECLAIM_ACCOUNT);
+	if (!global.slab_dependencies)
+		goto err_requests;
+
+	return 0;
+
+err_requests:
+	kmem_cache_destroy(global.slab_requests);
+	return -ENOMEM;
+}
+
+void i915_global_request_shrink(void)
+{
+	kmem_cache_shrink(global.slab_dependencies);
+	kmem_cache_shrink(global.slab_requests);
+}
+
+void i915_global_request_exit(void)
+{
+	kmem_cache_destroy(global.slab_dependencies);
+	kmem_cache_destroy(global.slab_requests);
+}

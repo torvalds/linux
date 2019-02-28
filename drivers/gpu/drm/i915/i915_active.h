@@ -420,6 +420,7 @@ static inline void i915_active_fini(struct i915_active *ref) { }
 #endif
 
 int i915_global_active_init(void);
+void i915_global_active_shrink(void);
 void i915_global_active_exit(void);
 
 #endif /* _I915_ACTIVE_H_ */

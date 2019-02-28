@@ -187,23 +187,6 @@ enum intel_engine_id {
 #define _VECS(n) (VECS + (n))
 };
 
-struct i915_priolist {
-	struct list_head requests[I915_PRIORITY_COUNT];
-	struct rb_node node;
-	unsigned long used;
-	int priority;
-};
-
-#define priolist_for_each_request(it, plist, idx) \
-	for (idx = 0; idx < ARRAY_SIZE((plist)->requests); idx++) \
-		list_for_each_entry(it, &(plist)->requests[idx], sched.link)
-
-#define priolist_for_each_request_consume(it, n, plist, idx) \
-	for (; (idx = ffs((plist)->used)); (plist)->used &= ~BIT(idx - 1)) \
-		list_for_each_entry_safe(it, n, \
-					 &(plist)->requests[idx - 1], \
-					 sched.link)
-
 struct st_preempt_hang {
 	struct completion completion;
 	unsigned int count;

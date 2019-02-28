@@ -781,8 +781,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		if (p->priority != I915_PRIORITY_NORMAL)
-			kmem_cache_free(engine->i915->priorities, p);
+		i915_priolist_free(p);
 	}
 
 done:
@@ -935,8 +934,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
-		if (p->priority != I915_PRIORITY_NORMAL)
-			kmem_cache_free(engine->i915->priorities, p);
+		i915_priolist_free(p);
 	}
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */

@@ -42,6 +42,7 @@
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gemfs.h"
+#include "i915_globals.h"
 #include "i915_reset.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
@@ -186,6 +187,8 @@ void i915_gem_unpark(struct drm_i915_private *i915)
 
 	if (unlikely(++i915->gt.epoch == 0)) /* keep 0 as invalid */
 		i915->gt.epoch = 1;
+
+	i915_globals_unpark();
 
 	intel_enable_gt_powersave(i915);
 	i915_update_gfx_val(i915);
@@ -2892,12 +2895,11 @@ static void shrink_caches(struct drm_i915_private *i915)
 	 * filled slabs to prioritise allocating from the mostly full slabs,
 	 * with the aim of reducing fragmentation.
 	 */
-	kmem_cache_shrink(i915->priorities);
-	kmem_cache_shrink(i915->dependencies);
-	kmem_cache_shrink(i915->requests);
 	kmem_cache_shrink(i915->luts);
 	kmem_cache_shrink(i915->vmas);
 	kmem_cache_shrink(i915->objects);
+
+	i915_globals_park();
 }
 
 struct sleep_rcu_work {
@@ -5237,23 +5239,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 	if (!dev_priv->luts)
 		goto err_vmas;
 
-	dev_priv->requests = KMEM_CACHE(i915_request,
-					SLAB_HWCACHE_ALIGN |
-					SLAB_RECLAIM_ACCOUNT |
-					SLAB_TYPESAFE_BY_RCU);
-	if (!dev_priv->requests)
-		goto err_luts;
-
-	dev_priv->dependencies = KMEM_CACHE(i915_dependency,
-					    SLAB_HWCACHE_ALIGN |
-					    SLAB_RECLAIM_ACCOUNT);
-	if (!dev_priv->dependencies)
-		goto err_requests;
-
-	dev_priv->priorities = KMEM_CACHE(i915_priolist, SLAB_HWCACHE_ALIGN);
-	if (!dev_priv->priorities)
-		goto err_dependencies;
-
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
 	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);
 
@@ -5278,12 +5263,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 
 	return 0;
 
-err_dependencies:
-	kmem_cache_destroy(dev_priv->dependencies);
-err_requests:
-	kmem_cache_destroy(dev_priv->requests);
-err_luts:
-	kmem_cache_destroy(dev_priv->luts);
 err_vmas:
 	kmem_cache_destroy(dev_priv->vmas);
 err_objects:
@@ -5301,9 +5280,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 
 	cleanup_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
 
-	kmem_cache_destroy(dev_priv->priorities);
-	kmem_cache_destroy(dev_priv->dependencies);
-	kmem_cache_destroy(dev_priv->requests);
 	kmem_cache_destroy(dev_priv->luts);
 	kmem_cache_destroy(dev_priv->vmas);
 	kmem_cache_destroy(dev_priv->objects);

@@ -76,26 +76,26 @@ static void mock_ring_free(struct intel_ring *base)
 	kfree(ring);
 }
 
-static struct mock_request *first_request(struct mock_engine *engine)
+static struct i915_request *first_request(struct mock_engine *engine)
 {
 	return list_first_entry_or_null(&engine->hw_queue,
-					struct mock_request,
-					link);
+					struct i915_request,
+					mock.link);
 }
 
-static void advance(struct mock_request *request)
+static void advance(struct i915_request *request)
 {
-	list_del_init(&request->link);
-	i915_request_mark_complete(&request->base);
-	GEM_BUG_ON(!i915_request_completed(&request->base));
+	list_del_init(&request->mock.link);
+	i915_request_mark_complete(request);
+	GEM_BUG_ON(!i915_request_completed(request));
 
-	intel_engine_queue_breadcrumbs(request->base.engine);
+	intel_engine_queue_breadcrumbs(request->engine);
 }
 
 static void hw_delay_complete(struct timer_list *t)
 {
 	struct mock_engine *engine = from_timer(engine, t, hw_delay);
-	struct mock_request *request;
+	struct i915_request *request;
 	unsigned long flags;
 
 	spin_lock_irqsave(&engine->hw_lock, flags);
@@ -110,8 +110,9 @@ static void hw_delay_complete(struct timer_list *t)
 	 * requeue the timer for the next delayed request.
 	 */
 	while ((request = first_request(engine))) {
-		if (request->delay) {
-			mod_timer(&engine->hw_delay, jiffies + request->delay);
+		if (request->mock.delay) {
+			mod_timer(&engine->hw_delay,
+				  jiffies + request->mock.delay);
 			break;
 		}
 
@@ -169,10 +170,8 @@ err:
 
 static int mock_request_alloc(struct i915_request *request)
 {
-	struct mock_request *mock = container_of(request, typeof(*mock), base);
-
-	INIT_LIST_HEAD(&mock->link);
-	mock->delay = 0;
+	INIT_LIST_HEAD(&request->mock.link);
+	request->mock.delay = 0;
 
 	return 0;
 }
@@ -190,7 +189,6 @@ static u32 *mock_emit_breadcrumb(struct i915_request *request, u32 *cs)
 
 static void mock_submit_request(struct i915_request *request)
 {
-	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
 	unsigned long flags;
@@ -198,12 +196,13 @@ static void mock_submit_request(struct i915_request *request)
 	i915_request_submit(request);
 
 	spin_lock_irqsave(&engine->hw_lock, flags);
-	list_add_tail(&mock->link, &engine->hw_queue);
-	if (mock->link.prev == &engine->hw_queue) {
-		if (mock->delay)
-			mod_timer(&engine->hw_delay, jiffies + mock->delay);
+	list_add_tail(&request->mock.link, &engine->hw_queue);
+	if (list_is_first(&request->mock.link, &engine->hw_queue)) {
+		if (request->mock.delay)
+			mod_timer(&engine->hw_delay,
+				  jiffies + request->mock.delay);
 		else
-			advance(mock);
+			advance(request);
 	}
 	spin_unlock_irqrestore(&engine->hw_lock, flags);
 }
@@ -263,12 +262,12 @@ void mock_engine_flush(struct intel_engine_cs *engine)
 {
 	struct mock_engine *mock =
 		container_of(engine, typeof(*mock), base);
-	struct mock_request *request, *rn;
+	struct i915_request *request, *rn;
 
 	del_timer_sync(&mock->hw_delay);
 
 	spin_lock_irq(&mock->hw_lock);
-	list_for_each_entry_safe(request, rn, &mock->hw_queue, link)
+	list_for_each_entry_safe(request, rn, &mock->hw_queue, mock.link)
 		advance(request);
 	spin_unlock_irq(&mock->hw_lock);
 }

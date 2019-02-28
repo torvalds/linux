@@ -1473,9 +1473,6 @@ struct drm_i915_private {
 	struct kmem_cache *objects;
 	struct kmem_cache *vmas;
 	struct kmem_cache *luts;
-	struct kmem_cache *requests;
-	struct kmem_cache *dependencies;
-	struct kmem_cache *priorities;
 
 	const struct intel_device_info __info; /* Use INTEL_INFO() to access. */
 	struct intel_runtime_info __runtime; /* Use RUNTIME_INFO() to access. */

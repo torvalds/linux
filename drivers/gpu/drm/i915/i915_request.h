@@ -29,6 +29,7 @@
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
+#include "i915_selftest.h"
 #include "i915_sw_fence.h"
 
 #include <uapi/drm/i915_drm.h>
@@ -196,6 +197,11 @@ struct i915_request {
 	struct drm_i915_file_private *file_priv;
 	/** file_priv list entry for this request */
 	struct list_head client_link;
+
+	I915_SELFTEST_DECLARE(struct {
+		struct list_head link;
+		unsigned long delay;
+	} mock;)
 };
 
 #define I915_FENCE_GFP (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
@@ -370,5 +376,9 @@ static inline void i915_request_mark_complete(struct i915_request *rq)
 }
 
 void i915_retire_requests(struct drm_i915_private *i915);
+
+int i915_global_request_init(void);
+void i915_global_request_shrink(void);
+void i915_global_request_exit(void);
 
 #endif /* I915_REQUEST_H */
