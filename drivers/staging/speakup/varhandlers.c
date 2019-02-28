@@ -238,7 +238,8 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data->u.n.out_str)
 		sprintf(cp, var_data->u.n.synth_fmt, (int)val);
 	else
-		sprintf(cp, var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
+		sprintf(cp, var_data->u.n.synth_fmt,
+			var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
 	return 0;
 }
