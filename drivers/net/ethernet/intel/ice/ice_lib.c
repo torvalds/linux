@@ -1715,8 +1715,8 @@ ice_vsi_cfg_txqs(struct ice_vsi *vsi, struct ice_ring **rings, int offset)
 			rings[q_idx]->tail =
 				pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
 			status = ice_ena_vsi_txq(vsi->port_info, vsi->idx, tc,
-						 num_q_grps, qg_buf, buf_len,
-						 NULL);
+						 i, num_q_grps, qg_buf,
+						 buf_len, NULL);
 			if (status) {
 				dev_err(&vsi->back->pdev->dev,
 					"Failed to set LAN Tx queue context, error: %d\n",
@@ -2033,10 +2033,10 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
+	int tc, q_idx = 0, err = 0;
+	u16 *q_ids, *q_handles, i;
 	enum ice_status status;
 	u32 *q_teids, val;
-	u16 *q_ids, i;
-	int err = 0;
 
 	if (vsi->num_txq > ICE_LAN_TXQ_MAX_QDIS)
 		return -EINVAL;
@@ -2053,50 +2053,71 @@ ice_vsi_stop_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 		goto err_alloc_q_ids;
 	}
 
-	/* set up the Tx queue list to be disabled */
-	ice_for_each_txq(vsi, i) {
-		u16 v_idx;
-
-		if (!rings || !rings[i] || !rings[i]->q_vector) {
-			err = -EINVAL;
-			goto err_out;
-		}
-
-		q_ids[i] = vsi->txq_map[i + offset];
-		q_teids[i] = rings[i]->txq_teid;
-
-		/* clear cause_ena bit for disabled queues */
-		val = rd32(hw, QINT_TQCTL(rings[i]->reg_idx));
-		val &= ~QINT_TQCTL_CAUSE_ENA_M;
-		wr32(hw, QINT_TQCTL(rings[i]->reg_idx), val);
-
-		/* software is expected to wait for 100 ns */
-		ndelay(100);
-
-		/* trigger a software interrupt for the vector associated to
-		 * the queue to schedule NAPI handler
-		 */
-		v_idx = rings[i]->q_vector->v_idx;
-		wr32(hw, GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
-		     GLINT_DYN_CTL_SWINT_TRIG_M | GLINT_DYN_CTL_INTENA_MSK_M);
+	q_handles = devm_kcalloc(&pf->pdev->dev, vsi->num_txq,
+				 sizeof(*q_handles), GFP_KERNEL);
+	if (!q_handles) {
+		err = -ENOMEM;
+		goto err_alloc_q_handles;
 	}
-	status = ice_dis_vsi_txq(vsi->port_info, vsi->num_txq, q_ids, q_teids,
-				 rst_src, rel_vmvf_num, NULL);
-	/* if the disable queue command was exercised during an active reset
-	 * flow, ICE_ERR_RESET_ONGOING is returned. This is not an error as
-	 * the reset operation disables queues at the hardware level anyway.
-	 */
-	if (status == ICE_ERR_RESET_ONGOING) {
-		dev_info(&pf->pdev->dev,
-			 "Reset in progress. LAN Tx queues already disabled\n");
-	} else if (status) {
-		dev_err(&pf->pdev->dev,
-			"Failed to disable LAN Tx queues, error: %d\n",
-			status);
-		err = -ENODEV;
+
+	/* set up the Tx queue list to be disabled for each enabled TC */
+	ice_for_each_traffic_class(tc) {
+		if (!(vsi->tc_cfg.ena_tc & BIT(tc)))
+			break;
+
+		for (i = 0; i < vsi->tc_cfg.tc_info[tc].qcount_tx; i++) {
+			u16 v_idx;
+
+			if (!rings || !rings[i] || !rings[i]->q_vector) {
+				err = -EINVAL;
+				goto err_out;
+			}
+
+			q_ids[i] = vsi->txq_map[q_idx + offset];
+			q_teids[i] = rings[q_idx]->txq_teid;
+			q_handles[i] = i;
+
+			/* clear cause_ena bit for disabled queues */
+			val = rd32(hw, QINT_TQCTL(rings[i]->reg_idx));
+			val &= ~QINT_TQCTL_CAUSE_ENA_M;
+			wr32(hw, QINT_TQCTL(rings[i]->reg_idx), val);
+
+			/* software is expected to wait for 100 ns */
+			ndelay(100);
+
+			/* trigger a software interrupt for the vector
+			 * associated to the queue to schedule NAPI handler
+			 */
+			v_idx = rings[i]->q_vector->v_idx;
+			wr32(hw, GLINT_DYN_CTL(vsi->hw_base_vector + v_idx),
+			     GLINT_DYN_CTL_SWINT_TRIG_M |
+			     GLINT_DYN_CTL_INTENA_MSK_M);
+			q_idx++;
+		}
+		status = ice_dis_vsi_txq(vsi->port_info, vsi->idx, tc,
+					 vsi->num_txq, q_handles, q_ids,
+					 q_teids, rst_src, rel_vmvf_num, NULL);
+
+		/* if the disable queue command was exercised during an active
+		 * reset flow, ICE_ERR_RESET_ONGOING is returned. This is not
+		 * an error as the reset operation disables queues at the
+		 * hardware level anyway.
+		 */
+		if (status == ICE_ERR_RESET_ONGOING) {
+			dev_dbg(&pf->pdev->dev,
+				"Reset in progress. LAN Tx queues already disabled\n");
+		} else if (status) {
+			dev_err(&pf->pdev->dev,
+				"Failed to disable LAN Tx queues, error: %d\n",
+				status);
+			err = -ENODEV;
+		}
 	}
 
 err_out:
+	devm_kfree(&pf->pdev->dev, q_handles);
+
+err_alloc_q_handles:
 	devm_kfree(&pf->pdev->dev, q_ids);
 
 err_alloc_q_ids:

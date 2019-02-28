@@ -996,8 +996,8 @@ static bool ice_reset_vf(struct ice_vf *vf, bool is_vflr)
 		/* Call Disable LAN Tx queue AQ call even when queues are not
 		 * enabled. This is needed for successful completiom of VFR
 		 */
-		ice_dis_vsi_txq(vsi->port_info, 0, NULL, NULL, ICE_VF_RESET,
-				vf->vf_id, NULL);
+		ice_dis_vsi_txq(vsi->port_info, vsi->idx, 0, 0, NULL, NULL,
+				NULL, ICE_VF_RESET, vf->vf_id, NULL);
 	}
 
 	hw = &pf->hw;
