@@ -1663,7 +1663,7 @@ static __u32 btf_hash_struct(struct btf_type *t)
  * IDs. This check is performed during type graph equivalence check and
  * referenced types equivalence is checked separately.
  */
-static bool btf_equal_struct(struct btf_type *t1, struct btf_type *t2)
+static bool btf_shallow_equal_struct(struct btf_type *t1, struct btf_type *t2)
 {
 	struct btf_member *m1, *m2;
 	__u16 vlen;
@@ -2124,7 +2124,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		struct btf_member *cand_m, *canon_m;
 		__u16 vlen;
 
-		if (!btf_equal_struct(cand_type, canon_type))
+		if (!btf_shallow_equal_struct(cand_type, canon_type))
 			return 0;
 		vlen = BTF_INFO_VLEN(cand_type->info);
 		cand_m = (struct btf_member *)(cand_type + 1);
@@ -2265,7 +2265,7 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 {
 	struct btf_dedup_node *cand_node;
-	struct btf_type *t;
+	struct btf_type *cand_type, *t;
 	/* if we don't find equivalent type, then we are canonical */
 	__u32 new_id = type_id;
 	__u16 kind;
@@ -2284,6 +2284,20 @@ static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 	h = btf_hash_struct(t);
 	for_each_dedup_cand(d, h, cand_node) {
 		int eq;
+
+		/*
+		 * Even though btf_dedup_is_equiv() checks for
+		 * btf_shallow_equal_struct() internally when checking two
+		 * structs (unions) for equivalence, we need to guard here
+		 * from picking matching FWD type as a dedup candidate.
+		 * This can happen due to hash collision. In such case just
+		 * relying on btf_dedup_is_equiv() would lead to potentially
+		 * creating a loop (FWD -> STRUCT and STRUCT -> FWD), because
+		 * FWD and compatible STRUCT/UNION are considered equivalent.
+		 */
+		cand_type = d->btf->types[cand_node->type_id];
+		if (!btf_shallow_equal_struct(t, cand_type))
+			continue;
 
 		btf_dedup_clear_hypot_map(d);
 		eq = btf_dedup_is_equiv(d, type_id, cand_node->type_id);
