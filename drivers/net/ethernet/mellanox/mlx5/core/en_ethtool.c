@@ -603,16 +603,18 @@ static void ptys2ethtool_supported_link(struct mlx5_core_dev *mdev,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static void ptys2ethtool_adver_link(struct mlx5_core_dev *mdev,
-				    unsigned long *advertising_modes,
-				    u32 eth_proto_cap)
+static void ptys2ethtool_adver_link(unsigned long *advertising_modes,
+				    u32 eth_proto_cap, bool ext)
 {
 	unsigned long proto_cap = eth_proto_cap;
 	struct ptys2ethtool_config *table;
 	u32 max_size;
 	int proto;
 
-	mlx5e_ethtool_get_speed_arr(mdev, &table, &max_size);
+	table = ext ? ptys2ext_ethtool_table : ptys2legacy_ethtool_table;
+	max_size = ext ? ARRAY_SIZE(ptys2ext_ethtool_table) :
+			 ARRAY_SIZE(ptys2legacy_ethtool_table);
+
 	for_each_set_bit(proto, &proto_cap, max_size)
 		bitmap_or(advertising_modes, advertising_modes,
 			  table[proto].advertised,
@@ -794,12 +796,12 @@ static void get_supported(struct mlx5_core_dev *mdev, u32 eth_proto_cap,
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Pause);
 }
 
-static void get_advertising(struct mlx5_core_dev *mdev, u32 eth_proto_cap,
-			    u8 tx_pause, u8 rx_pause,
-			    struct ethtool_link_ksettings *link_ksettings)
+static void get_advertising(u32 eth_proto_cap, u8 tx_pause, u8 rx_pause,
+			    struct ethtool_link_ksettings *link_ksettings,
+			    bool ext)
 {
 	unsigned long *advertising = link_ksettings->link_modes.advertising;
-	ptys2ethtool_adver_link(mdev, advertising, eth_proto_cap);
+	ptys2ethtool_adver_link(advertising, eth_proto_cap, ext);
 
 	if (rx_pause)
 		ethtool_link_ksettings_add_link_mode(link_ksettings, advertising, Pause);
@@ -854,8 +856,9 @@ static void get_lp_advertising(struct mlx5_core_dev *mdev, u32 eth_proto_lp,
 			       struct ethtool_link_ksettings *link_ksettings)
 {
 	unsigned long *lp_advertising = link_ksettings->link_modes.lp_advertising;
+	bool ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 
-	ptys2ethtool_adver_link(mdev, lp_advertising, eth_proto_lp);
+	ptys2ethtool_adver_link(lp_advertising, eth_proto_lp, ext);
 }
 
 int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
@@ -872,6 +875,7 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	u8 an_disable_admin;
 	u8 an_status;
 	u8 connector_type;
+	bool admin_ext;
 	bool ext;
 	int err;
 
@@ -886,6 +890,19 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 					      eth_proto_capability);
 	eth_proto_admin  = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 					      eth_proto_admin);
+	/* Fields: eth_proto_admin and ext_eth_proto_admin  are
+	 * mutually exclusive. Hence try reading legacy advertising
+	 * when extended advertising is zero.
+	 * admin_ext indicates how eth_proto_admin should be
+	 * interpreted
+	 */
+	admin_ext = ext;
+	if (ext && !eth_proto_admin) {
+		eth_proto_admin  = MLX5_GET_ETH_PROTO(ptys_reg, out, false,
+						      eth_proto_admin);
+		admin_ext = false;
+	}
+
 	eth_proto_oper   = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 					      eth_proto_oper);
 	eth_proto_lp	    = MLX5_GET(ptys_reg, out, eth_proto_lp_advertise);
@@ -899,7 +916,8 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
 
 	get_supported(mdev, eth_proto_cap, link_ksettings);
-	get_advertising(mdev, eth_proto_admin, tx_pause, rx_pause, link_ksettings);
+	get_advertising(eth_proto_admin, tx_pause, rx_pause, link_ksettings,
+			admin_ext);
 	get_speed_duplex(priv->netdev, eth_proto_oper, link_ksettings);
 
 	eth_proto_oper = eth_proto_oper ? eth_proto_oper : eth_proto_cap;
@@ -1001,16 +1019,13 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 			MLX5E_PTYS_EXT ||
 			link_ksettings->link_modes.advertising[1]);
 	ext_supported = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
-
-	/*when ptys_extended_ethernet is set legacy link modes are deprecated */
-	if (ext_requested != ext_supported)
-		return -EPROTONOSUPPORT;
+	ext_requested &= ext_supported;
 
 	speed = link_ksettings->base.speed;
 	ethtool2ptys_adver_func = ext_requested ?
 				  mlx5e_ethtool2ptys_ext_adver_link :
 				  mlx5e_ethtool2ptys_adver_link;
-	err = mlx5_port_query_eth_proto(mdev, 1, ext_supported, &eproto);
+	err = mlx5_port_query_eth_proto(mdev, 1, ext_requested, &eproto);
 	if (err) {
 		netdev_err(priv->netdev, "%s: query port eth proto failed: %d\n",
 			   __func__, err);
@@ -1038,7 +1053,7 @@ int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	if (!an_changes && link_modes == eproto.admin)
 		goto out;
 
-	mlx5_port_set_eth_ptys(mdev, an_disable, link_modes, ext_supported);
+	mlx5_port_set_eth_ptys(mdev, an_disable, link_modes, ext_requested);
 	mlx5_toggle_port_link(mdev);
 
 out:
