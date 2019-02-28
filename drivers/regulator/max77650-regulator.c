@@ -26,9 +26,6 @@
 #define MAX77650_REGULATOR_AD_ENABLED		BIT(3)
 
 #define MAX77650_REGULATOR_CURR_LIM_MASK	GENMASK(7, 6)
-#define MAX77650_REGULATOR_CURR_LIM_BITS(_reg) \
-		(((_reg) & MAX77650_REGULATOR_CURR_LIM_MASK) >> 6)
-#define MAX77650_REGULATOR_CURR_LIM_SHIFT(_val)	((_val) << 6)
 
 enum {
 	MAX77650_REGULATOR_ID_LDO = 0,
@@ -82,7 +79,7 @@ static const u32 max77651_sbb1_regulator_volt_table[] = {
 		_val = MAX77651_REGULATOR_SBB1_SEL_ENC(_val);		\
 	} while (0)
 
-static const int max77650_current_limit_table[] = {
+static const unsigned int max77650_current_limit_table[] = {
 	1000000, 866000, 707000, 500000,
 };
 
@@ -220,47 +217,6 @@ static int max77651_regulator_sbb1_set_voltage_sel(struct regulator_dev *rdev,
 	return 0;
 }
 
-static int max77650_regulator_get_current_limit(struct regulator_dev *rdev)
-{
-	struct max77650_regulator_desc *rdesc;
-	struct regmap *map;
-	int val, rv, limit;
-
-	rdesc = rdev_get_drvdata(rdev);
-	map = rdev_get_regmap(rdev);
-
-	rv = regmap_read(map, rdesc->regA, &val);
-	if (rv)
-		return rv;
-
-	limit = MAX77650_REGULATOR_CURR_LIM_BITS(val);
-
-	return max77650_current_limit_table[limit];
-}
-
-static int max77650_regulator_set_current_limit(struct regulator_dev *rdev,
-						int min_uA, int max_uA)
-{
-	struct max77650_regulator_desc *rdesc;
-	struct regmap *map;
-	int i, limit;
-
-	rdesc = rdev_get_drvdata(rdev);
-	map = rdev_get_regmap(rdev);
-
-	for (i = 0; i < ARRAY_SIZE(max77650_current_limit_table); i++) {
-		limit = max77650_current_limit_table[i];
-
-		if (limit >= min_uA && limit <= max_uA) {
-			return regmap_update_bits(map, rdesc->regA,
-					MAX77650_REGULATOR_CURR_LIM_MASK,
-					MAX77650_REGULATOR_CURR_LIM_SHIFT(i));
-		}
-	}
-
-	return -EINVAL;
-}
-
 static const struct regulator_ops max77650_regulator_LDO_ops = {
 	.is_enabled		= max77650_regulator_is_enabled,
 	.enable			= max77650_regulator_enable,
@@ -280,8 +236,8 @@ static const struct regulator_ops max77650_regulator_SBB_ops = {
 	.map_voltage		= regulator_map_voltage_linear,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= max77650_regulator_set_voltage_sel,
-	.get_current_limit	= max77650_regulator_get_current_limit,
-	.set_current_limit	= max77650_regulator_set_current_limit,
+	.get_current_limit	= regulator_get_current_limit_regmap,
+	.set_current_limit	= regulator_set_current_limit_regmap,
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
 };
 
@@ -293,8 +249,8 @@ static const struct regulator_ops max77651_SBB1_regulator_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= max77651_regulator_sbb1_set_voltage_sel,
-	.get_current_limit	= max77650_regulator_get_current_limit,
-	.set_current_limit	= max77650_regulator_set_current_limit,
+	.get_current_limit	= regulator_get_current_limit_regmap,
+	.set_current_limit	= regulator_set_current_limit_regmap,
 	.set_active_discharge	= regulator_set_active_discharge_regmap,
 };
 
@@ -343,6 +299,10 @@ static struct max77650_regulator_desc max77650_SBB0_desc = {
 		.enable_time		= 100,
 		.type			= REGULATOR_VOLTAGE,
 		.owner			= THIS_MODULE,
+		.csel_reg		= MAX77650_REG_CNFG_SBB0_A,
+		.csel_mask		= MAX77650_REGULATOR_CURR_LIM_MASK,
+		.curr_table		= max77650_current_limit_table,
+		.n_current_limits = ARRAY_SIZE(max77650_current_limit_table),
 	},
 	.regA		= MAX77650_REG_CNFG_SBB0_A,
 	.regB		= MAX77650_REG_CNFG_SBB0_B,
@@ -368,6 +328,10 @@ static struct max77650_regulator_desc max77650_SBB1_desc = {
 		.enable_time		= 100,
 		.type			= REGULATOR_VOLTAGE,
 		.owner			= THIS_MODULE,
+		.csel_reg		= MAX77650_REG_CNFG_SBB1_A,
+		.csel_mask		= MAX77650_REGULATOR_CURR_LIM_MASK,
+		.curr_table		= max77650_current_limit_table,
+		.n_current_limits = ARRAY_SIZE(max77650_current_limit_table),
 	},
 	.regA		= MAX77650_REG_CNFG_SBB1_A,
 	.regB		= MAX77650_REG_CNFG_SBB1_B,
@@ -392,6 +356,10 @@ static struct max77650_regulator_desc max77651_SBB1_desc = {
 		.enable_time		= 100,
 		.type			= REGULATOR_VOLTAGE,
 		.owner			= THIS_MODULE,
+		.csel_reg		= MAX77650_REG_CNFG_SBB1_A,
+		.csel_mask		= MAX77650_REGULATOR_CURR_LIM_MASK,
+		.curr_table		= max77650_current_limit_table,
+		.n_current_limits = ARRAY_SIZE(max77650_current_limit_table),
 	},
 	.regA		= MAX77650_REG_CNFG_SBB1_A,
 	.regB		= MAX77650_REG_CNFG_SBB1_B,
@@ -417,6 +385,10 @@ static struct max77650_regulator_desc max77650_SBB2_desc = {
 		.enable_time		= 100,
 		.type			= REGULATOR_VOLTAGE,
 		.owner			= THIS_MODULE,
+		.csel_reg		= MAX77650_REG_CNFG_SBB2_A,
+		.csel_mask		= MAX77650_REGULATOR_CURR_LIM_MASK,
+		.curr_table		= max77650_current_limit_table,
+		.n_current_limits = ARRAY_SIZE(max77650_current_limit_table),
 	},
 	.regA		= MAX77650_REG_CNFG_SBB2_A,
 	.regB		= MAX77650_REG_CNFG_SBB2_B,
@@ -442,6 +414,10 @@ static struct max77650_regulator_desc max77651_SBB2_desc = {
 		.enable_time		= 100,
 		.type			= REGULATOR_VOLTAGE,
 		.owner			= THIS_MODULE,
+		.csel_reg		= MAX77650_REG_CNFG_SBB2_A,
+		.csel_mask		= MAX77650_REGULATOR_CURR_LIM_MASK,
+		.curr_table		= max77650_current_limit_table,
+		.n_current_limits = ARRAY_SIZE(max77650_current_limit_table),
 	},
 	.regA		= MAX77650_REG_CNFG_SBB2_A,
 	.regB		= MAX77650_REG_CNFG_SBB2_B,
