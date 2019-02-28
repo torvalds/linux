@@ -1594,6 +1594,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
+			pr_debug("%s: Perhaps the card was replaced\n",
+				mmc_hostname(host));
 			err = -ENOENT;
 			goto err;
 		}
