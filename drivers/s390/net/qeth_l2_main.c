@@ -820,12 +820,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		rc = -ENODEV;
 		goto out_remove;
 	}
-	qeth_bridgeport_query_support(card);
-	if (card->options.sbp.supported_funcs)
-		dev_info(&card->gdev->dev,
-		"The device represents a Bridge Capable Port\n");
-
-	qeth_l2_register_dev_addr(card);
 
 	if (qeth_is_diagass_supported(card, QETH_DIAGS_CMD_TRAP)) {
 		if (card->info.hwtrap &&
@@ -833,6 +827,13 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 			card->info.hwtrap = 0;
 	} else
 		card->info.hwtrap = 0;
+
+	qeth_bridgeport_query_support(card);
+	if (card->options.sbp.supported_funcs)
+		dev_info(&card->gdev->dev,
+		"The device represents a Bridge Capable Port\n");
+
+	qeth_l2_register_dev_addr(card);
 
 	/* for the rx_bcast characteristic, init VNICC after setmac */
 	qeth_l2_vnicc_init(card);
@@ -927,16 +928,17 @@ static int __qeth_l2_set_offline(struct ccwgroup_device *cgdev,
 	QETH_DBF_TEXT(SETUP, 3, "setoffl");
 	QETH_DBF_HEX(SETUP, 3, &card, sizeof(void *));
 
+	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
+		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
+		card->info.hwtrap = 1;
+	}
+
 	rtnl_lock();
 	card->info.open_when_online = card->dev->flags & IFF_UP;
 	netif_device_detach(card->dev);
 	netif_carrier_off(card->dev);
 	rtnl_unlock();
 
-	if ((!recovery_mode && card->info.hwtrap) || card->info.hwtrap == 2) {
-		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
-		card->info.hwtrap = 1;
-	}
 	qeth_l2_stop_card(card, recovery_mode);
 	rc  = ccw_device_set_offline(CARD_DDEV(card));
 	rc2 = ccw_device_set_offline(CARD_WDEV(card));
