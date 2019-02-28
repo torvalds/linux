@@ -1036,15 +1036,15 @@ static void goya_init_dma_ch(struct hl_device *hdev, int dma_id)
 	WREG32(mmDMA_CH_0_ERRMSG_WDATA + reg_off,
 			GOYA_ASYNC_EVENT_ID_DMA0_CH + dma_id);
 
-	if (dma_id) {
+	if (dma_id)
 		sob_addr = CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1000 +
 				(dma_id - 1) * 4;
-		WREG32(mmDMA_CH_0_WR_COMP_ADDR_LO + reg_off,
-				lower_32_bits(sob_addr));
-		WREG32(mmDMA_CH_0_WR_COMP_ADDR_HI + reg_off,
-				upper_32_bits(sob_addr));
-		WREG32(mmDMA_CH_0_WR_COMP_WDATA + reg_off, 0x80000001);
-	}
+	else
+		sob_addr = CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1007;
+
+	WREG32(mmDMA_CH_0_WR_COMP_ADDR_LO + reg_off, lower_32_bits(sob_addr));
+	WREG32(mmDMA_CH_0_WR_COMP_ADDR_HI + reg_off, upper_32_bits(sob_addr));
+	WREG32(mmDMA_CH_0_WR_COMP_WDATA + reg_off, 0x80000001);
 }
 
 /*

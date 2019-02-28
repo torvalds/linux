@@ -108,6 +108,7 @@
 #define mmSYNC_MNGR_MON_PAY_ADDRL_0                                  0x113000
 #define mmSYNC_MNGR_SOB_OBJ_0                                        0x112000
 #define mmSYNC_MNGR_SOB_OBJ_1000                                     0x112FA0
+#define mmSYNC_MNGR_SOB_OBJ_1007                                     0x112FBC
 #define mmSYNC_MNGR_SOB_OBJ_1023                                     0x112FFC
 #define mmSYNC_MNGR_MON_STATUS_0                                     0x114000
 #define mmSYNC_MNGR_MON_STATUS_255                                   0x1143FC
