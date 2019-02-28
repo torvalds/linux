@@ -1795,7 +1795,7 @@ ff_layout_read_pagelist(struct nfs_pgio_header *hdr)
 	hdr->pgio_done_cb = ff_layout_read_done_cb;
 	refcount_inc(&ds->ds_clp->cl_count);
 	hdr->ds_clp = ds->ds_clp;
-	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
+	fh = nfs4_ff_layout_select_ds_fh(mirror);
 	if (fh)
 		hdr->args.fh = fh;
 
@@ -1863,7 +1863,7 @@ ff_layout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 	refcount_inc(&ds->ds_clp->cl_count);
 	hdr->ds_clp = ds->ds_clp;
 	hdr->ds_commit_idx = idx;
-	fh = nfs4_ff_layout_select_ds_fh(lseg, idx);
+	fh = nfs4_ff_layout_select_ds_fh(mirror);
 	if (fh)
 		hdr->args.fh = fh;
 

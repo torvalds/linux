@@ -203,7 +203,7 @@ unsigned int ff_layout_fetch_ds_ioerr(struct pnfs_layout_hdr *lo,
 		struct list_head *head,
 		unsigned int maxnum);
 struct nfs_fh *
-nfs4_ff_layout_select_ds_fh(struct pnfs_layout_segment *lseg, u32 mirror_idx);
+nfs4_ff_layout_select_ds_fh(struct nfs4_ff_layout_mirror *mirror);
 int
 nfs4_ff_layout_select_ds_stateid(struct pnfs_layout_segment *lseg,
 				u32 mirror_idx,
