@@ -510,18 +510,23 @@ int db_export__call_path(struct db_export *dbe, struct call_path *cp)
 	return 0;
 }
 
-int db_export__call_return(struct db_export *dbe, struct call_return *cr)
+int db_export__call_return(struct db_export *dbe, struct call_return *cr,
+			   u64 *parent_db_id)
 {
 	int err;
-
-	if (cr->db_id)
-		return 0;
 
 	err = db_export__call_path(dbe, cr->cp);
 	if (err)
 		return err;
 
-	cr->db_id = ++dbe->call_return_last_db_id;
+	if (!cr->db_id)
+		cr->db_id = ++dbe->call_return_last_db_id;
+
+	if (parent_db_id) {
+		if (!*parent_db_id)
+			*parent_db_id = ++dbe->call_return_last_db_id;
+		cr->parent_db_id = *parent_db_id;
+	}
 
 	if (dbe->export_call_return)
 		return dbe->export_call_return(dbe, cr);

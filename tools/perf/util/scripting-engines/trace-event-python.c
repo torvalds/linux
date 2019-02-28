@@ -1173,7 +1173,7 @@ static int python_export_call_return(struct db_export *dbe,
 	u64 comm_db_id = cr->comm ? cr->comm->db_id : 0;
 	PyObject *t;
 
-	t = tuple_new(11);
+	t = tuple_new(12);
 
 	tuple_set_u64(t, 0, cr->db_id);
 	tuple_set_u64(t, 1, cr->thread->db_id);
@@ -1186,6 +1186,7 @@ static int python_export_call_return(struct db_export *dbe,
 	tuple_set_u64(t, 8, cr->return_ref);
 	tuple_set_u64(t, 9, cr->cp->parent->db_id);
 	tuple_set_s32(t, 10, cr->flags);
+	tuple_set_u64(t, 11, cr->parent_db_id);
 
 	call_object(tables->call_return_handler, t, "call_return_table");
 
@@ -1194,11 +1195,12 @@ static int python_export_call_return(struct db_export *dbe,
 	return 0;
 }
 
-static int python_process_call_return(struct call_return *cr, void *data)
+static int python_process_call_return(struct call_return *cr, u64 *parent_db_id,
+				      void *data)
 {
 	struct db_export *dbe = data;
 
-	return db_export__call_return(dbe, cr);
+	return db_export__call_return(dbe, cr, parent_db_id);
 }
 
 static void python_process_general_event(struct perf_sample *sample,
