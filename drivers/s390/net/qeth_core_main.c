@@ -74,33 +74,14 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
-static struct workqueue_struct *qeth_wq;
-
-int qeth_card_hw_is_reachable(struct qeth_card *card)
-{
-	return (card->state == CARD_STATE_SOFTSETUP) ||
-		(card->state == CARD_STATE_UP);
-}
-EXPORT_SYMBOL_GPL(qeth_card_hw_is_reachable);
-
 static void qeth_close_dev_handler(struct work_struct *work)
 {
 	struct qeth_card *card;
 
 	card = container_of(work, struct qeth_card, close_dev_work);
 	QETH_CARD_TEXT(card, 2, "cldevhdl");
-	rtnl_lock();
-	dev_close(card->dev);
-	rtnl_unlock();
 	ccwgroup_set_offline(card->gdev);
 }
-
-void qeth_close_dev(struct qeth_card *card)
-{
-	QETH_CARD_TEXT(card, 2, "cldevsubm");
-	queue_work(qeth_wq, &card->close_dev_work);
-}
-EXPORT_SYMBOL_GPL(qeth_close_dev);
 
 static const char *qeth_get_cardname(struct qeth_card *card)
 {
@@ -265,8 +246,7 @@ int qeth_realloc_buffer_pool(struct qeth_card *card, int bufcnt)
 {
 	QETH_CARD_TEXT(card, 2, "realcbp");
 
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER))
+	if (card->state != CARD_STATE_DOWN)
 		return -EPERM;
 
 	/* TODO: steel/add buffers from/to a running card's buffer pool (?) */
@@ -639,7 +619,7 @@ static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
 			dev_err(&card->gdev->dev,
 				"Interface %s is down because the adjacent port is no longer in reflective relay mode\n",
 				QETH_CARD_IFNAME(card));
-			qeth_close_dev(card);
+			schedule_work(&card->close_dev_work);
 		} else {
 			dev_warn(&card->gdev->dev,
 				 "The link for interface %s on CHPID 0x%X failed\n",
@@ -3479,8 +3459,7 @@ int qeth_configure_cq(struct qeth_card *card, enum qeth_cq cq)
 			goto out;
 		}
 
-		if (card->state != CARD_STATE_DOWN &&
-		    card->state != CARD_STATE_RECOVER) {
+		if (card->state != CARD_STATE_DOWN) {
 			rc = -1;
 			goto out;
 		}
@@ -6220,7 +6199,6 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_bytes += queue->stats.tx_bytes;
 		stats->tx_errors += queue->stats.tx_errors;
 		stats->tx_dropped += queue->stats.tx_dropped;
-		stats->tx_carrier_errors += queue->stats.tx_carrier_errors;
 	}
 }
 EXPORT_SYMBOL_GPL(qeth_get_stats64);
@@ -6230,16 +6208,11 @@ int qeth_open(struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 
 	QETH_CARD_TEXT(card, 4, "qethopen");
-	if (card->state == CARD_STATE_UP)
-		return 0;
-	if (card->state != CARD_STATE_SOFTSETUP)
-		return -ENODEV;
 
 	if (qdio_stop_irq(CARD_DDEV(card), 0) < 0)
 		return -EIO;
 
 	card->data.state = CH_STATE_UP;
-	card->state = CARD_STATE_UP;
 	netif_start_queue(dev);
 
 	napi_enable(&card->napi);
@@ -6257,10 +6230,7 @@ int qeth_stop(struct net_device *dev)
 
 	QETH_CARD_TEXT(card, 4, "qethstop");
 	netif_tx_disable(dev);
-	if (card->state == CARD_STATE_UP) {
-		card->state = CARD_STATE_SOFTSETUP;
-		napi_disable(&card->napi);
-	}
+	napi_disable(&card->napi);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_stop);
@@ -6270,12 +6240,6 @@ static int __init qeth_core_init(void)
 	int rc;
 
 	pr_info("loading core functions\n");
-
-	qeth_wq = create_singlethread_workqueue("qeth_wq");
-	if (!qeth_wq) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
 
 	rc = qeth_register_dbf_views();
 	if (rc)
@@ -6318,8 +6282,6 @@ slab_err:
 register_err:
 	qeth_unregister_dbf_views();
 dbf_err:
-	destroy_workqueue(qeth_wq);
-out_err:
 	pr_err("Initializing the qeth device driver failed\n");
 	return rc;
 }
@@ -6327,7 +6289,6 @@ out_err:
 static void __exit qeth_core_exit(void)
 {
 	qeth_clear_dbf_list();
-	destroy_workqueue(qeth_wq);
 	ccwgroup_driver_unregister(&qeth_core_ccwgroup_driver);
 	ccw_driver_unregister(&qeth_ccw_driver);
 	kmem_cache_destroy(qeth_qdio_outbuf_cache);

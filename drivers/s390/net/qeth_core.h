@@ -483,7 +483,6 @@ struct qeth_out_q_stats {
 	u64 tx_bytes;
 	u64 tx_errors;
 	u64 tx_dropped;
-	u64 tx_carrier_errors;
 };
 
 struct qeth_qdio_out_q {
@@ -552,8 +551,6 @@ enum qeth_card_states {
 	CARD_STATE_DOWN,
 	CARD_STATE_HARDSETUP,
 	CARD_STATE_SOFTSETUP,
-	CARD_STATE_UP,
-	CARD_STATE_RECOVER,
 };
 
 /**
@@ -665,6 +662,7 @@ struct qeth_card_info {
 	unsigned short chpid;
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
+	u8 open_when_online:1;
 	int guestlan;
 	int mac_bits;
 	enum qeth_card_types type;
@@ -808,6 +806,11 @@ struct qeth_card {
 	struct work_struct close_dev_work;
 };
 
+static inline bool qeth_card_hw_is_reachable(struct qeth_card *card)
+{
+	return card->state == CARD_STATE_SOFTSETUP;
+}
+
 struct qeth_trap_id {
 	__u16 lparnr;
 	char vmname[8];
@@ -942,7 +945,6 @@ extern const struct attribute_group qeth_device_attr_group;
 extern const struct attribute_group qeth_device_blkt_group;
 extern const struct device_type qeth_generic_devtype;
 
-int qeth_card_hw_is_reachable(struct qeth_card *);
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
 int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);
@@ -1002,7 +1004,6 @@ int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);
-void qeth_close_dev(struct qeth_card *);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
 struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 enum qeth_ipa_funcs,

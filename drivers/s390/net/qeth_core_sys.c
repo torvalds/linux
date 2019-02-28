@@ -29,13 +29,11 @@ static ssize_t qeth_dev_state_show(struct device *dev,
 	case CARD_STATE_HARDSETUP:
 		return sprintf(buf, "HARDSETUP\n");
 	case CARD_STATE_SOFTSETUP:
+		if (card->dev->flags & IFF_UP)
+			return sprintf(buf, "UP (LAN %s)\n",
+				       netif_carrier_ok(card->dev) ? "ONLINE" :
+								     "OFFLINE");
 		return sprintf(buf, "SOFTSETUP\n");
-	case CARD_STATE_UP:
-		return sprintf(buf, "UP (LAN %s)\n",
-			       netif_carrier_ok(card->dev) ? "ONLINE" :
-							     "OFFLINE");
-	case CARD_STATE_RECOVER:
-		return sprintf(buf, "RECOVER\n");
 	default:
 		return sprintf(buf, "UNKNOWN\n");
 	}
@@ -126,8 +124,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -202,8 +199,7 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -285,8 +281,7 @@ static ssize_t qeth_dev_bufcnt_store(struct device *dev,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
@@ -421,7 +416,6 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 		goto out;
 	}
 
-	card->info.mac_bits = 0;
 	if (card->discipline) {
 		/* start with a new, pristine netdevice: */
 		ndev = qeth_clone_netdev(card->dev);
@@ -634,8 +628,7 @@ static ssize_t qeth_dev_blkt_store(struct qeth_card *card,
 		return -EINVAL;
 
 	mutex_lock(&card->conf_mutex);
-	if ((card->state != CARD_STATE_DOWN) &&
-	    (card->state != CARD_STATE_RECOVER)) {
+	if (card->state != CARD_STATE_DOWN) {
 		rc = -EPERM;
 		goto out;
 	}
