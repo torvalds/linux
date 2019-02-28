@@ -145,7 +145,7 @@ Strings of characters
 ---------------------
 
 In Linux, the kernel programmer is provided with the usual routine functions:
-:c:func:`strcpy`, :c:func:`strncpy`, :c;func:`strlcpy`, :c:func:`strcat`,
+:c:func:`strcpy`, :c:func:`strncpy`, :c:func:`strlcpy`, :c:func:`strcat`,
 :c:func:`strncat`, :c:func:`strlcat`, :c:func:`strcmp`, :c:func:`strncmp`,
 :c:func:`strnicmp`, :c:func:`strnchr`, :c:func:`strrchr`, :c:func:`strrchr`,
 :c:func:`strstr`, :c:func:`strlen`, :c:func:`memset`, :c:func:`memmove`,
