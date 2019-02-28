@@ -3769,7 +3769,7 @@ static int goya_validate_wreg32(struct hl_device *hdev,
 	dev_dbg(hdev->dev, "reg_offset == 0x%x\n", reg_offset);
 	dev_dbg(hdev->dev, "value      == 0x%x\n", wreg_pkt->value);
 
-	if (reg_offset != (mmDMA_CH_1_WR_COMP_ADDR_LO & 0xFFFF)) {
+	if (reg_offset != (mmDMA_CH_0_WR_COMP_ADDR_LO & 0x1FFF)) {
 		dev_err(hdev->dev, "WREG32 packet with illegal address 0x%x\n",
 			reg_offset);
 		return -EPERM;
