@@ -914,9 +914,43 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
 	} else if (pvt->fam == 0x15 && pvt->model == 0x30) {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 4;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 2;
+	} else if (pvt->fam >= 0x17) {
+		int umc;
+
+		for_each_umc(umc) {
+			pvt->csels[umc].b_cnt = 8;
+			pvt->csels[umc].m_cnt = 4;
+		}
+
 	} else {
 		pvt->csels[0].b_cnt = pvt->csels[1].b_cnt = 8;
 		pvt->csels[0].m_cnt = pvt->csels[1].m_cnt = 4;
+	}
+}
+
+static void read_umc_base_mask(struct amd64_pvt *pvt)
+{
+	int cs, umc;
+
+	for_each_umc(umc) {
+		u32 umc_base_reg = get_umc_base(umc) + UMCCH_BASE_ADDR;
+		u32 umc_mask_reg = get_umc_base(umc) + UMCCH_ADDR_MASK;
+
+		for_each_chip_select(cs, 0, pvt) {
+			u32 *base = &pvt->csels[umc].csbases[cs];
+			u32 *mask = &pvt->csels[umc].csmasks[cs];
+
+			u32 base_reg = umc_base_reg + (cs * 4);
+			u32 mask_reg = umc_mask_reg + ((cs >> 1) * 4);
+
+			if (!amd_smn_read(pvt->mc_node_id, base_reg, base))
+				edac_dbg(0, "  DCSB%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *base, base_reg);
+
+			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask))
+				edac_dbg(0, "    DCSM%d[%d]=0x%08x reg: 0x%x\n",
+					 umc, cs, *mask, mask_reg);
+		}
 	}
 }
 
@@ -925,78 +959,49 @@ static void prep_chip_selects(struct amd64_pvt *pvt)
  */
 static void read_dct_base_mask(struct amd64_pvt *pvt)
 {
-	int base_reg0, base_reg1, mask_reg0, mask_reg1, cs;
+	int cs;
 
 	prep_chip_selects(pvt);
 
-	if (pvt->umc) {
-		base_reg0 = get_umc_base(0) + UMCCH_BASE_ADDR;
-		base_reg1 = get_umc_base(1) + UMCCH_BASE_ADDR;
-		mask_reg0 = get_umc_base(0) + UMCCH_ADDR_MASK;
-		mask_reg1 = get_umc_base(1) + UMCCH_ADDR_MASK;
-	} else {
-		base_reg0 = DCSB0;
-		base_reg1 = DCSB1;
-		mask_reg0 = DCSM0;
-		mask_reg1 = DCSM1;
-	}
+	if (pvt->umc)
+		return read_umc_base_mask(pvt);
 
 	for_each_chip_select(cs, 0, pvt) {
-		int reg0   = base_reg0 + (cs * 4);
-		int reg1   = base_reg1 + (cs * 4);
+		int reg0   = DCSB0 + (cs * 4);
+		int reg1   = DCSB1 + (cs * 4);
 		u32 *base0 = &pvt->csels[0].csbases[cs];
 		u32 *base1 = &pvt->csels[1].csbases[cs];
 
-		if (pvt->umc) {
-			if (!amd_smn_read(pvt->mc_node_id, reg0, base0))
-				edac_dbg(0, "  DCSB0[%d]=0x%08x reg: 0x%x\n",
-					 cs, *base0, reg0);
+		if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, base0))
+			edac_dbg(0, "  DCSB0[%d]=0x%08x reg: F2x%x\n",
+				 cs, *base0, reg0);
 
-			if (!amd_smn_read(pvt->mc_node_id, reg1, base1))
-				edac_dbg(0, "  DCSB1[%d]=0x%08x reg: 0x%x\n",
-					 cs, *base1, reg1);
-		} else {
-			if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, base0))
-				edac_dbg(0, "  DCSB0[%d]=0x%08x reg: F2x%x\n",
-					 cs, *base0, reg0);
+		if (pvt->fam == 0xf)
+			continue;
 
-			if (pvt->fam == 0xf)
-				continue;
-
-			if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, base1))
-				edac_dbg(0, "  DCSB1[%d]=0x%08x reg: F2x%x\n",
-					 cs, *base1, (pvt->fam == 0x10) ? reg1
-								: reg0);
-		}
+		if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, base1))
+			edac_dbg(0, "  DCSB1[%d]=0x%08x reg: F2x%x\n",
+				 cs, *base1, (pvt->fam == 0x10) ? reg1
+							: reg0);
 	}
 
 	for_each_chip_select_mask(cs, 0, pvt) {
-		int reg0   = mask_reg0 + (cs * 4);
-		int reg1   = mask_reg1 + (cs * 4);
+		int reg0   = DCSM0 + (cs * 4);
+		int reg1   = DCSM1 + (cs * 4);
 		u32 *mask0 = &pvt->csels[0].csmasks[cs];
 		u32 *mask1 = &pvt->csels[1].csmasks[cs];
 
-		if (pvt->umc) {
-			if (!amd_smn_read(pvt->mc_node_id, reg0, mask0))
-				edac_dbg(0, "    DCSM0[%d]=0x%08x reg: 0x%x\n",
-					 cs, *mask0, reg0);
+		if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, mask0))
+			edac_dbg(0, "    DCSM0[%d]=0x%08x reg: F2x%x\n",
+				 cs, *mask0, reg0);
 
-			if (!amd_smn_read(pvt->mc_node_id, reg1, mask1))
-				edac_dbg(0, "    DCSM1[%d]=0x%08x reg: 0x%x\n",
-					 cs, *mask1, reg1);
-		} else {
-			if (!amd64_read_dct_pci_cfg(pvt, 0, reg0, mask0))
-				edac_dbg(0, "    DCSM0[%d]=0x%08x reg: F2x%x\n",
-					 cs, *mask0, reg0);
+		if (pvt->fam == 0xf)
+			continue;
 
-			if (pvt->fam == 0xf)
-				continue;
-
-			if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, mask1))
-				edac_dbg(0, "    DCSM1[%d]=0x%08x reg: F2x%x\n",
-					 cs, *mask1, (pvt->fam == 0x10) ? reg1
-								: reg0);
-		}
+		if (!amd64_read_dct_pci_cfg(pvt, 1, reg0, mask1))
+			edac_dbg(0, "    DCSM1[%d]=0x%08x reg: F2x%x\n",
+				 cs, *mask1, (pvt->fam == 0x10) ? reg1
+							: reg0);
 	}
 }
 
