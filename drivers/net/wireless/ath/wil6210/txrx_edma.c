@@ -807,17 +807,8 @@ static int wil_rx_error_check_edma(struct wil6210_priv *wil,
 				   struct sk_buff *skb,
 				   struct wil_net_stats *stats)
 {
-	int error;
 	int l2_rx_status;
-	int l3_rx_status;
-	int l4_rx_status;
 	void *msg = wil_skb_rxstatus(skb);
-
-	error = wil_rx_status_get_error(msg);
-	if (!error) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		return 0;
-	}
 
 	l2_rx_status = wil_rx_status_get_l2_rx_status(msg);
 	if (l2_rx_status != 0) {
@@ -847,17 +838,7 @@ static int wil_rx_error_check_edma(struct wil6210_priv *wil,
 		return -EFAULT;
 	}
 
-	l3_rx_status = wil_rx_status_get_l3_rx_status(msg);
-	l4_rx_status = wil_rx_status_get_l4_rx_status(msg);
-	if (!l3_rx_status && !l4_rx_status)
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	/* If HW reports bad checksum, let IP stack re-check it
-	 * For example, HW don't understand Microsoft IP stack that
-	 * mis-calculates TCP checksum - if it should be 0x0,
-	 * it writes 0xffff in violation of RFC 1624
-	 */
-	else
-		stats->rx_csum_err++;
+	skb->ip_summed = wil_rx_status_get_checksum(msg, stats);
 
 	return 0;
 }
