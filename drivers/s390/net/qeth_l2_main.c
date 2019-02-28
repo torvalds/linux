@@ -988,12 +988,8 @@ static int qeth_l2_pm_suspend(struct ccwgroup_device *gdev)
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 	if (gdev->state == CCWGROUP_OFFLINE)
 		return 0;
-	if (card->state == CARD_STATE_UP) {
-		if (card->info.hwtrap)
-			qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
-		__qeth_l2_set_offline(card->gdev, 1);
-	} else
-		__qeth_l2_set_offline(card->gdev, 0);
+
+	qeth_l2_set_offline(gdev);
 	return 0;
 }
 
