@@ -236,11 +236,14 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 static void cb_vm_close(struct vm_area_struct *vma)
 {
 	struct hl_cb *cb = (struct hl_cb *) vma->vm_private_data;
+	long new_mmap_size;
 
-	cb->mmap_size -= vma->vm_end - vma->vm_start;
+	new_mmap_size = cb->mmap_size - (vma->vm_end - vma->vm_start);
 
-	if (cb->mmap_size)
+	if (new_mmap_size > 0) {
+		cb->mmap_size = new_mmap_size;
 		return;
+	}
 
 	spin_lock(&cb->lock);
 	cb->mmap = false;
@@ -273,7 +276,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	}
 
 	/* Validation check */
-	if ((vma->vm_end - vma->vm_start) != cb->size) {
+	if ((vma->vm_end - vma->vm_start) != ALIGN(cb->size, PAGE_SIZE)) {
 		dev_err(hdev->dev,
 			"CB mmap failed, mmap size 0x%lx != 0x%x cb size\n",
 			vma->vm_end - vma->vm_start, cb->size);
