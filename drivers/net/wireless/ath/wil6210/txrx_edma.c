@@ -29,6 +29,7 @@
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
 /* RX buffer size must be aligned to 4 bytes */
 #define WIL_EDMA_RX_BUF_LEN_DEFAULT (2048)
+#define MAX_INVALID_BUFF_ID_RETRY (3)
 
 static void wil_tx_desc_unmap_edma(struct device *dev,
 				   union wil_tx_desc *desc,
@@ -312,7 +313,8 @@ static int wil_init_rx_buff_arr(struct wil6210_priv *wil,
 	struct list_head *free = &wil->rx_buff_mgmt.free;
 	int i;
 
-	wil->rx_buff_mgmt.buff_arr = kcalloc(size, sizeof(struct wil_rx_buff),
+	wil->rx_buff_mgmt.buff_arr = kcalloc(size + 1,
+					     sizeof(struct wil_rx_buff),
 					     GFP_KERNEL);
 	if (!wil->rx_buff_mgmt.buff_arr)
 		return -ENOMEM;
@@ -321,14 +323,16 @@ static int wil_init_rx_buff_arr(struct wil6210_priv *wil,
 	INIT_LIST_HEAD(active);
 	INIT_LIST_HEAD(free);
 
-	/* Linkify the list */
+	/* Linkify the list.
+	 * buffer id 0 should not be used (marks invalid id).
+	 */
 	buff_arr = wil->rx_buff_mgmt.buff_arr;
-	for (i = 0; i < size; i++) {
+	for (i = 1; i <= size; i++) {
 		list_add(&buff_arr[i].list, free);
 		buff_arr[i].id = i;
 	}
 
-	wil->rx_buff_mgmt.size = size;
+	wil->rx_buff_mgmt.size = size + 1;
 
 	return 0;
 }
@@ -876,25 +880,49 @@ again:
 
 	/* Extract the buffer ID from the status message */
 	buff_id = le16_to_cpu(wil_rx_status_get_buff_id(msg));
-	if (unlikely(!wil_val_in_range(buff_id, 0, wil->rx_buff_mgmt.size))) {
-		wil_err(wil, "Corrupt buff_id=%d, sring->swhead=%d\n",
-			buff_id, sring->swhead);
-		wil_sring_advance_swhead(sring);
-		goto again;
+
+	while (!buff_id) {
+		struct wil_rx_status_extended *s;
+		int invalid_buff_id_retry = 0;
+
+		wil_dbg_txrx(wil,
+			     "buff_id is not updated yet by HW, (swhead 0x%x)\n",
+			     sring->swhead);
+		if (++invalid_buff_id_retry > MAX_INVALID_BUFF_ID_RETRY)
+			break;
+
+		/* Read the status message again */
+		s = (struct wil_rx_status_extended *)
+			(sring->va + (sring->elem_size * sring->swhead));
+		*(struct wil_rx_status_extended *)msg = *s;
+		buff_id = le16_to_cpu(wil_rx_status_get_buff_id(msg));
 	}
 
-	wil_sring_advance_swhead(sring);
+	if (unlikely(!wil_val_in_range(buff_id, 1, wil->rx_buff_mgmt.size))) {
+		wil_err(wil, "Corrupt buff_id=%d, sring->swhead=%d\n",
+			buff_id, sring->swhead);
+		wil_rx_status_reset_buff_id(sring);
+		wil_sring_advance_swhead(sring);
+		sring->invalid_buff_id_cnt++;
+		goto again;
+	}
 
 	/* Extract the SKB from the rx_buff management array */
 	skb = wil->rx_buff_mgmt.buff_arr[buff_id].skb;
 	wil->rx_buff_mgmt.buff_arr[buff_id].skb = NULL;
 	if (!skb) {
 		wil_err(wil, "No Rx skb at buff_id %d\n", buff_id);
+		wil_rx_status_reset_buff_id(sring);
 		/* Move the buffer from the active list to the free list */
-		list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
-			  &wil->rx_buff_mgmt.free);
+		list_move_tail(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
+			       &wil->rx_buff_mgmt.free);
+		wil_sring_advance_swhead(sring);
+		sring->invalid_buff_id_cnt++;
 		goto again;
 	}
+
+	wil_rx_status_reset_buff_id(sring);
+	wil_sring_advance_swhead(sring);
 
 	memcpy(&pa, skb->cb, sizeof(pa));
 	dma_unmap_single(dev, pa, sz, DMA_FROM_DEVICE);
@@ -910,8 +938,8 @@ again:
 			  sizeof(struct wil_rx_status_extended), false);
 
 	/* Move the buffer from the active list to the free list */
-	list_move(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
-		  &wil->rx_buff_mgmt.free);
+	list_move_tail(&wil->rx_buff_mgmt.buff_arr[buff_id].list,
+		       &wil->rx_buff_mgmt.free);
 
 	eop = wil_rx_status_get_eop(msg);
 

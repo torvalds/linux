@@ -427,6 +427,12 @@ static inline int wil_rx_status_get_eop(void *msg) /* EoP = End of Packet */
 			    30, 30);
 }
 
+static inline void wil_rx_status_reset_buff_id(struct wil_status_ring *s)
+{
+	((struct wil_rx_status_compressed *)
+		(s->va + (s->elem_size * s->swhead)))->buff_id = 0;
+}
+
 static inline __le16 wil_rx_status_get_buff_id(void *msg)
 {
 	return ((struct wil_rx_status_compressed *)msg)->buff_id;
