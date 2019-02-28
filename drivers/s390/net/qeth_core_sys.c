@@ -29,11 +29,11 @@ static ssize_t qeth_dev_state_show(struct device *dev,
 	case CARD_STATE_HARDSETUP:
 		return sprintf(buf, "HARDSETUP\n");
 	case CARD_STATE_SOFTSETUP:
+		if (card->dev->flags & IFF_UP)
+			return sprintf(buf, "UP (LAN %s)\n",
+				       netif_carrier_ok(card->dev) ? "ONLINE" :
+								     "OFFLINE");
 		return sprintf(buf, "SOFTSETUP\n");
-	case CARD_STATE_UP:
-		return sprintf(buf, "UP (LAN %s)\n",
-			       netif_carrier_ok(card->dev) ? "ONLINE" :
-							     "OFFLINE");
 	default:
 		return sprintf(buf, "UNKNOWN\n");
 	}

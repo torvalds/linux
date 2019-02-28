@@ -74,13 +74,6 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *queue,
 static void qeth_release_skbs(struct qeth_qdio_out_buffer *buf);
 static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 
-int qeth_card_hw_is_reachable(struct qeth_card *card)
-{
-	return (card->state == CARD_STATE_SOFTSETUP) ||
-		(card->state == CARD_STATE_UP);
-}
-EXPORT_SYMBOL_GPL(qeth_card_hw_is_reachable);
-
 static void qeth_close_dev_handler(struct work_struct *work)
 {
 	struct qeth_card *card;
@@ -6206,7 +6199,6 @@ void qeth_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_bytes += queue->stats.tx_bytes;
 		stats->tx_errors += queue->stats.tx_errors;
 		stats->tx_dropped += queue->stats.tx_dropped;
-		stats->tx_carrier_errors += queue->stats.tx_carrier_errors;
 	}
 }
 EXPORT_SYMBOL_GPL(qeth_get_stats64);
@@ -6216,16 +6208,11 @@ int qeth_open(struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 
 	QETH_CARD_TEXT(card, 4, "qethopen");
-	if (card->state == CARD_STATE_UP)
-		return 0;
-	if (card->state != CARD_STATE_SOFTSETUP)
-		return -ENODEV;
 
 	if (qdio_stop_irq(CARD_DDEV(card), 0) < 0)
 		return -EIO;
 
 	card->data.state = CH_STATE_UP;
-	card->state = CARD_STATE_UP;
 	netif_start_queue(dev);
 
 	napi_enable(&card->napi);
@@ -6243,10 +6230,7 @@ int qeth_stop(struct net_device *dev)
 
 	QETH_CARD_TEXT(card, 4, "qethstop");
 	netif_tx_disable(dev);
-	if (card->state == CARD_STATE_UP) {
-		card->state = CARD_STATE_SOFTSETUP;
-		napi_disable(&card->napi);
-	}
+	napi_disable(&card->napi);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qeth_stop);

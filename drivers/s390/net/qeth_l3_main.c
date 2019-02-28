@@ -1412,13 +1412,11 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	qeth_set_allowed_threads(card, 0, 1);
+
 	if (card->options.sniffer &&
 	    (card->info.promisc_mode == SET_PROMISC_MODE_ON))
 		qeth_diags_trace(card, QETH_DIAGS_CMD_TRACE_DISABLE);
-	if (card->read.state == CH_STATE_UP &&
-	    card->write.state == CH_STATE_UP &&
-	    card->state == CARD_STATE_UP)
-		card->state = CARD_STATE_SOFTSETUP;
+
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_l3_clear_ip_htable(card, 1);
 		qeth_clear_ipacmd_list(card);
@@ -2074,11 +2072,6 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 		    (card->options.cq == QETH_CQ_ENABLED &&
 		     skb->protocol != htons(ETH_P_AF_IUCV)))
 			goto tx_drop;
-	}
-
-	if (card->state != CARD_STATE_UP) {
-		QETH_TXQ_STAT_INC(queue, tx_carrier_errors);
-		goto tx_drop;
 	}
 
 	if (cast_type == RTN_BROADCAST && !card->info.broadcast_capable)

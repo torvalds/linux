@@ -291,10 +291,7 @@ static void qeth_l2_stop_card(struct qeth_card *card)
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
 	qeth_set_allowed_threads(card, 0, 1);
-	if (card->read.state == CH_STATE_UP &&
-	    card->write.state == CH_STATE_UP &&
-	    card->state == CARD_STATE_UP)
-		card->state = CARD_STATE_SOFTSETUP;
+
 	if (card->state == CARD_STATE_SOFTSETUP) {
 		qeth_l2_del_all_macs(card);
 		qeth_clear_ipacmd_list(card);
@@ -614,11 +611,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 
 	queue = qeth_get_tx_queue(card, skb, ipv, cast_type);
 
-	if (card->state != CARD_STATE_UP) {
-		QETH_TXQ_STAT_INC(queue, tx_carrier_errors);
-		goto tx_drop;
-	}
-
 	netif_stop_queue(dev);
 
 	if (IS_OSN(card))
@@ -636,7 +628,6 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	} /* else fall through */
 
-tx_drop:
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
 	QETH_TXQ_STAT_INC(queue, tx_errors);
 	dev_kfree_skb_any(skb);
