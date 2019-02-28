@@ -1273,21 +1273,10 @@ void ice_process_vflr_event(struct ice_pf *pf)
 	int vf_id;
 	u32 reg;
 
-	if (!test_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
+	if (!test_and_clear_bit(__ICE_VFLR_EVENT_PENDING, pf->state) ||
 	    !pf->num_alloc_vfs)
 		return;
 
-	/* Re-enable the VFLR interrupt cause here, before looking for which
-	 * VF got reset. Otherwise, if another VF gets a reset while the
-	 * first one is being processed, that interrupt will be lost, and
-	 * that VF will be stuck in reset forever.
-	 */
-	reg = rd32(hw, PFINT_OICR_ENA);
-	reg |= PFINT_OICR_VFLR_M;
-	wr32(hw, PFINT_OICR_ENA, reg);
-	ice_flush(hw);
-
-	clear_bit(__ICE_VFLR_EVENT_PENDING, pf->state);
 	for (vf_id = 0; vf_id < pf->num_alloc_vfs; vf_id++) {
 		struct ice_vf *vf = &pf->vf[vf_id];
 		u32 reg_idx, bit_idx;
