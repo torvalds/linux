@@ -1932,6 +1932,8 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  * TCP Segmentation Offload flags which we support.
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+#define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
+		   NETIF_F_GRO | NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
 static const struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_link_ksettings	= cxgb4vf_get_link_ksettings,
@@ -3141,16 +3143,13 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
-			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
-		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
-			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HIGHDMA;
-		netdev->features = netdev->hw_features |
-				   NETIF_F_HW_VLAN_CTAG_TX;
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS | NETIF_F_GRO |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
+			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
+		netdev->features = netdev->hw_features;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
+		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 		netdev->min_mtu = 81;
