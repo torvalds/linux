@@ -678,8 +678,8 @@ int c4iw_dealloc_mw(struct ib_mw *mw)
 			  mhp->wr_waitp);
 	kfree_skb(mhp->dereg_skb);
 	c4iw_put_wr_wait(mhp->wr_waitp);
-	kfree(mhp);
 	pr_debug("ib_mw %p mmid 0x%x ptr %p\n", mw, mmid, mhp);
+	kfree(mhp);
 	return 0;
 }
 
