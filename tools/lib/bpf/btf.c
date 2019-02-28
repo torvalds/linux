@@ -2326,7 +2326,8 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 	struct btf_type *t, *cand;
 	/* if we don't find equivalent type, then we are representative type */
 	__u32 new_id = type_id;
-	__u32 h, ref_type_id;
+	int ref_type_id;
+	__u32 h;
 
 	if (d->map[type_id] == BTF_IN_PROGRESS_ID)
 		return -ELOOP;
