@@ -2900,6 +2900,29 @@ static void dcn10_setup_vupdate_interrupt(struct pipe_ctx *pipe_ctx)
 		tg->funcs->setup_vertical_interrupt2(tg, start_line);
 }
 
+static void dcn10_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings)
+{
+	struct encoder_unblank_param params = { { 0 } };
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+
+	/* only 3 items below are used by unblank */
+	params.timing = pipe_ctx->stream->timing;
+
+	params.link_settings.link_rate = link_settings->link_rate;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (params.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			params.timing.pix_clk_100hz /= 2;
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
+	}
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+		link->dc->hwss.edp_backlight_control(link, true);
+	}
+}
+
 static const struct hw_sequencer_funcs dcn10_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = dcn10_init_hw,
@@ -2921,7 +2944,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.update_info_frame = dce110_update_info_frame,
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,
-	.unblank_stream = dce110_unblank_stream,
+	.unblank_stream = dcn10_unblank_stream,
 	.blank_stream = dce110_blank_stream,
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,

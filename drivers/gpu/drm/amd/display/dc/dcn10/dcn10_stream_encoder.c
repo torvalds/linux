@@ -836,14 +836,15 @@ void enc1_stream_encoder_dp_unblank(
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
-		if (param->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		if (param->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+			/*this param->pixel_clk_khz is half of 444 rate for 420 already*/
 			n_multiply = 1;
-
+		}
 		/* M / N = Fstream / Flink
 		 * m_vid / n_vid = pixel rate / link rate
 		 */
 
-		m_vid_l *= param->pixel_clk_khz;
+		m_vid_l *= param->timing.pix_clk_100hz / 10;
 		m_vid_l = div_u64(m_vid_l,
 			param->link_settings.link_rate
 				* LINK_RATE_REF_FREQ_IN_KHZ);

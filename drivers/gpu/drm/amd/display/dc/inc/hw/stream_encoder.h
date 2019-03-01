@@ -67,8 +67,7 @@ struct encoder_info_frame {
 
 struct encoder_unblank_param {
 	struct dc_link_settings link_settings;
-	unsigned int pixel_clk_khz;
-	enum dc_pixel_encoding pixel_encoding;
+	struct dc_crtc_timing timing;
 };
 
 struct encoder_set_dp_phy_pattern_param {
