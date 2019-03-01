@@ -413,11 +413,13 @@ int bch2_fs_initialize(struct bch_fs *c)
 		bch2_btree_root_alloc(c, i);
 
 	err = "unable to allocate journal buckets";
-	for_each_online_member(ca, c, i)
-		if (bch2_dev_journal_alloc(ca)) {
+	for_each_online_member(ca, c, i) {
+		ret = bch2_dev_journal_alloc(ca);
+		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			goto err;
 		}
+	}
 
 	/*
 	 * journal_res_get() will crash if called before this has
