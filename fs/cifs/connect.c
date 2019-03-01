@@ -102,7 +102,7 @@ enum {
 	Opt_backupuid, Opt_backupgid, Opt_uid,
 	Opt_cruid, Opt_gid, Opt_file_mode,
 	Opt_dirmode, Opt_port,
-	Opt_rsize, Opt_wsize, Opt_actimeo,
+	Opt_blocksize, Opt_rsize, Opt_wsize, Opt_actimeo,
 	Opt_echo_interval, Opt_max_credits,
 	Opt_snapshot,
 
@@ -204,6 +204,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_dirmode, "dirmode=%s" },
 	{ Opt_dirmode, "dir_mode=%s" },
 	{ Opt_port, "port=%s" },
+	{ Opt_blocksize, "bsize=%s" },
 	{ Opt_rsize, "rsize=%s" },
 	{ Opt_wsize, "wsize=%s" },
 	{ Opt_actimeo, "actimeo=%s" },
@@ -1571,7 +1572,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->cred_uid = current_uid();
 	vol->linux_uid = current_uid();
 	vol->linux_gid = current_gid();
-
+	vol->bsize = 1024 * 1024; /* can improve cp performance significantly */
 	/*
 	 * default to SFM style remapping of seven reserved characters
 	 * unless user overrides it or we negotiate CIFS POSIX where
@@ -1943,6 +1944,26 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 			port = (unsigned short)option;
+			break;
+		case Opt_blocksize:
+			if (get_option_ul(args, &option)) {
+				cifs_dbg(VFS, "%s: Invalid blocksize value\n",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			/*
+			 * inode blocksize realistically should never need to be
+			 * less than 16K or greater than 16M and default is 1MB.
+			 * Note that small inode block sizes (e.g. 64K) can lead
+			 * to very poor performance of common tools like cp and scp
+			 */
+			if ((option < CIFS_MAX_MSGSIZE) ||
+			   (option > (4 * SMB3_DEFAULT_IOSIZE))) {
+				cifs_dbg(VFS, "%s: Invalid blocksize\n",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->bsize = option;
 			break;
 		case Opt_rsize:
 			if (get_option_ul(args, &option)) {
@@ -3839,6 +3860,7 @@ int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
+	cifs_sb->bsize = pvolume_info->bsize;
 	/*
 	 * Temporarily set r/wsize for matching superblock. If we end up using
 	 * new sb then client will later negotiate it downward if needed.
