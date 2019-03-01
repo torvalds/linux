@@ -42,6 +42,7 @@ struct tda998x_audio_port {
 
 struct tda998x_audio_settings {
 	struct tda998x_audio_params params;
+	u8 ena_ap;
 	u8 i2s_format;
 	u8 cts_n;
 };
@@ -961,10 +962,14 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	u8 buf[6], clksel_aip, clksel_fs, adiv;
 	u32 n;
 
+	/* If audio is not configured, there is nothing to do. */
+	if (settings->ena_ap == 0)
+		return 0;
+
 	adiv = tda998x_get_adiv(priv, settings->params.sample_rate);
 
 	/* Enable audio ports */
-	reg_write(priv, REG_ENA_AP, settings->params.config);
+	reg_write(priv, REG_ENA_AP, settings->ena_ap);
 
 	/* Set audio input source */
 	switch (settings->params.format) {
@@ -1074,9 +1079,9 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 
 	for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
 		if (priv->audio_port[i].format == audio.params.format)
-			audio.params.config = priv->audio_port[i].config;
+			audio.ena_ap = priv->audio_port[i].config;
 
-	if (audio.params.config == 0) {
+	if (audio.ena_ap == 0) {
 		dev_err(dev, "%s: No audio configuration found\n", __func__);
 		return -EINVAL;
 	}
@@ -1116,8 +1121,7 @@ static void tda998x_audio_shutdown(struct device *dev, void *data)
 	mutex_lock(&priv->audio_mutex);
 
 	reg_write(priv, REG_ENA_AP, 0);
-
-	priv->audio.params.format = AFMT_UNUSED;
+	priv->audio.ena_ap = 0;
 
 	mutex_unlock(&priv->audio_mutex);
 }
@@ -1623,8 +1627,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 
 		tda998x_write_avi(priv, adjusted_mode);
 
-		if (priv->audio.params.format != AFMT_UNUSED &&
-		    priv->sink_has_audio)
+		if (priv->sink_has_audio)
 			tda998x_configure_audio(priv, &priv->audio);
 	}
 
@@ -1705,6 +1708,7 @@ static int tda998x_set_config(struct tda998x_priv *priv,
 		bool spdif = p->audio_params.format == AFMT_SPDIF;
 
 		priv->audio.params = p->audio_params;
+		priv->audio.ena_ap = p->audio_params.config;
 		priv->audio.i2s_format = I2S_FORMAT_PHILIPS;
 
 		ratio = spdif ? 64 : p->audio_params.sample_width * 2;
