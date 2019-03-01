@@ -1002,23 +1002,6 @@ mdp5_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\tcmd_mode=%d\n", mdp5_cstate->cmd_mode);
 }
 
-static void mdp5_crtc_reset(struct drm_crtc *crtc)
-{
-	struct mdp5_crtc_state *mdp5_cstate;
-
-	if (crtc->state) {
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-		kfree(to_mdp5_crtc_state(crtc->state));
-	}
-
-	mdp5_cstate = kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
-
-	if (mdp5_cstate) {
-		mdp5_cstate->base.crtc = crtc;
-		crtc->state = &mdp5_cstate->base;
-	}
-}
-
 static struct drm_crtc_state *
 mdp5_crtc_duplicate_state(struct drm_crtc *crtc)
 {
@@ -1044,6 +1027,17 @@ static void mdp5_crtc_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state
 	__drm_atomic_helper_crtc_destroy_state(state);
 
 	kfree(mdp5_cstate);
+}
+
+static void mdp5_crtc_reset(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc_state *mdp5_cstate =
+		kzalloc(sizeof(*mdp5_cstate), GFP_KERNEL);
+
+	if (crtc->state)
+		mdp5_crtc_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, &mdp5_cstate->base);
 }
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
