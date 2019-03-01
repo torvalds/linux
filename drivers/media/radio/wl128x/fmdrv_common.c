@@ -1047,7 +1047,7 @@ static void fm_irq_handle_intmsk_cmd_resp(struct fmdev *fmdev)
 		clear_bit(FM_INTTASK_RUNNING, &fmdev->flag);
 }
 
-/* Returns availability of RDS data in internel buffer */
+/* Returns availability of RDS data in internal buffer */
 int fmc_is_rds_data_available(struct fmdev *fmdev, struct file *file,
 				struct poll_table_struct *pts)
 {

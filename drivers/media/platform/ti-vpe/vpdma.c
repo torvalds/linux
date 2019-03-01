@@ -1008,7 +1008,7 @@ unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num)
 }
 EXPORT_SYMBOL(vpdma_get_list_mask);
 
-/* clear previously occurred list interupts in the LIST_STAT register */
+/* clear previously occurred list interrupts in the LIST_STAT register */
 void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num,
 			   int list_num)
 {

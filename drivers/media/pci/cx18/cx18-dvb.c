@@ -458,7 +458,7 @@ void cx18_dvb_unregister(struct cx18_stream *stream)
 	dvb_unregister_adapter(dvb_adapter);
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card. cx18_dvb_start_feed() will also need changes.
  */
 static int dvb_register(struct cx18_stream *stream)
