@@ -200,14 +200,87 @@ static const struct file_operations amdgpu_ras_debugfs_ops = {
 	.llseek = default_llseek
 };
 
+static int amdgpu_ras_find_block_id_by_name(const char *name, int *block_id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ras_block_string); i++) {
+		*block_id = i;
+		if (strcmp(name, ras_block_str(i)) == 0)
+			return 0;
+	}
+	return -EINVAL;
+}
+
+static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
+		const char __user *buf, size_t size,
+		loff_t *pos, struct ras_debug_if *data)
+{
+	ssize_t s = min_t(u64, 64, size);
+	char str[65];
+	char block_name[33];
+	char err[9] = "ue";
+	int op = -1;
+	int block_id;
+	u64 address, value;
+
+	if (*pos)
+		return -EINVAL;
+	*pos = size;
+
+	memset(str, 0, sizeof(str));
+	memset(data, 0, sizeof(*data));
+
+	if (copy_from_user(str, buf, s))
+		return -EINVAL;
+
+	if (sscanf(str, "disable %32s", block_name) == 1)
+		op = 0;
+	else if (sscanf(str, "enable %32s %8s", block_name, err) == 2)
+		op = 1;
+	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
+		op = 2;
+	else if (sscanf(str, "%32s", block_name) == 1)
+		/* ascii string, but commands are not matched. */
+		return -EINVAL;
+
+	if (op != -1) {
+		if (amdgpu_ras_find_block_id_by_name(block_name, &block_id))
+			return -EINVAL;
+
+		data->head.block = block_id;
+		data->head.type = memcmp("ue", err, 2) == 0 ?
+			AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE :
+			AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		data->op = op;
+
+		if (op == 2) {
+			if (sscanf(str, "%*s %*s %*s %llu %llu",
+						&address, &value) != 2)
+				if (sscanf(str, "%*s %*s %*s 0x%llx 0x%llx",
+							&address, &value) != 2)
+					return -EINVAL;
+			data->inject.address = address;
+			data->inject.value = value;
+		}
+	} else {
+		if (size < sizeof(data))
+			return -EINVAL;
+
+		if (copy_from_user(data, buf, sizeof(*data)))
+			return -EINVAL;
+	}
+
+	return 0;
+}
 /*
  * DOC: ras debugfs control interface
  *
  * It accepts struct ras_debug_if who has two members.
  *
  * First member: ras_debug_if::head or ras_debug_if::inject.
- * It is used to indicate which IP block will be under control.
- * Its contents are not human readable, IOW, write it by your programs.
+ *
+ * head is used to indicate which IP block will be under control.
  *
  * head has four members, they are block, type, sub_block_index, name.
  * block: which IP will be under control.
@@ -224,6 +297,28 @@ static const struct file_operations amdgpu_ras_debugfs_ops = {
  *  0: disable RAS on the block. Take ::head as its data.
  *  1: enable RAS on the block. Take ::head as its data.
  *  2: inject errors on the block. Take ::inject as its data.
+ *
+ * How to use the interface?
+ * programs:
+ * copy the struct ras_debug_if in your codes and initialize it.
+ * write the struct to the control node.
+ *
+ * bash:
+ * echo op block [error [address value]] > .../ras/ras_ctrl
+ *	op: disable, enable, inject
+ *		disable: only block is needed
+ *		enable: block and error are needed
+ *		inject: error, address, value are needed
+ *	block: umc, smda, gfx, .........
+ *		see ras_block_string[] for details
+ *	error: ue, ce
+ *		ue: multi_uncorrectable
+ *		ce: single_correctable
+ *
+ * here are some examples for bash commands,
+ *	echo inject umc ue 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ce 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
  * How to check the result?
  *
@@ -243,18 +338,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	struct ras_debug_if data;
 	int ret = 0;
 
-	if (size < sizeof(data))
+	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
+	if (ret)
 		return -EINVAL;
-
-	memset(&data, 0, sizeof(data));
-
-	if (*pos)
-		return -EINVAL;
-
-	if (copy_from_user(&data, buf, sizeof(data)))
-		return -EINVAL;
-
-	*pos = size;
 
 	if (!amdgpu_ras_is_supported(adev, data.head.block))
 		return -EINVAL;
@@ -268,6 +354,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		break;
 	case 2:
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
+		break;
+	default:
+		ret = -EINVAL;
 		break;
 	};
 
