@@ -71,6 +71,17 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 	net_dim(&rq->dim, dim_sample);
 }
 
+void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	struct mlx5e_tx_wqe *nopwqe;
+	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+
+	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
+	nopwqe = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
+}
+
 int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_channel *c = container_of(napi, struct mlx5e_channel,

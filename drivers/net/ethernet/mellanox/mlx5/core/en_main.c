@@ -877,16 +877,8 @@ err_free_rq:
 
 static void mlx5e_activate_rq(struct mlx5e_rq *rq)
 {
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *nopwqe;
-
-	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-
 	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-	sq->db.ico_wqe[pi].opcode     = MLX5_OPCODE_NOP;
-	nopwqe = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
+	mlx5e_trigger_irq(&rq->channel->icosq);
 }
 
 static void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
