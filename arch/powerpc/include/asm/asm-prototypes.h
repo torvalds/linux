@@ -49,14 +49,6 @@ int exit_vmx_usercopy(void);
 int enter_vmx_ops(void);
 void *exit_vmx_ops(void *dest);
 
-/* Exceptions */
-#ifdef CONFIG_PPC_POWERNV
-extern unsigned long real_trampolines_start;
-extern unsigned long real_trampolines_end;
-extern unsigned long virt_trampolines_start;
-extern unsigned long virt_trampolines_end;
-#endif
-
 /* Traps */
 long machine_check_early(struct pt_regs *regs);
 long hmi_exception_realmode(struct pt_regs *regs);

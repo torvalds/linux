@@ -419,12 +419,13 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 		goto nonrecoverable;
 	if ((nip >= 0xf80 && nip < 0xfa0) || (nip >= 0x4f80 && nip < 0x4fa0))
 		goto nonrecoverable;
+
 	/* Trampoline code runs un-relocated so subtract kbase. */
-	if (nip >= real_trampolines_start - kbase &&
-			nip < real_trampolines_end - kbase)
+	if (nip >= (unsigned long)(start_real_trampolines - kbase) &&
+			nip < (unsigned long)(end_real_trampolines - kbase))
 		goto nonrecoverable;
-	if (nip >= virt_trampolines_start - kbase &&
-			nip < virt_trampolines_end - kbase)
+	if (nip >= (unsigned long)(start_virt_trampolines - kbase) &&
+			nip < (unsigned long)(end_virt_trampolines - kbase))
 		goto nonrecoverable;
 	return;
 

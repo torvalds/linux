@@ -70,10 +70,10 @@ OPEN_FIXED_SECTION(virt_vectors,        0x4000, 0x5900)
 OPEN_FIXED_SECTION(virt_trampolines,    0x5900, 0x7000)
 
 #ifdef CONFIG_PPC_POWERNV
-	.globl real_trampolines_start
-	.globl real_trampolines_end
-	.globl virt_trampolines_start
-	.globl virt_trampolines_end
+	.globl start_real_trampolines
+	.globl end_real_trampolines
+	.globl start_virt_trampolines
+	.globl end_virt_trampolines
 #endif
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
