@@ -209,6 +209,9 @@ static int acpi_pptt_leaf_node(struct acpi_table_header *table_hdr,
 	struct acpi_pptt_processor *cpu_node;
 	u32 proc_sz;
 
+	if (table_hdr->revision > 1)
+		return (node->flags & ACPI_PPTT_ACPI_LEAF_NODE);
+
 	table_end = (unsigned long)table_hdr + table_hdr->length;
 	node_entry = ACPI_PTR_DIFF(node, table_hdr);
 	entry = ACPI_ADD_PTR(struct acpi_subtable_header, table_hdr,
