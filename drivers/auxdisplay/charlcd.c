@@ -763,6 +763,12 @@ static void charlcd_puts(struct charlcd *lcd, const char *s)
 	}
 }
 
+#ifdef CONFIG_PANEL_BOOT_MESSAGE
+#define LCD_INIT_TEXT CONFIG_PANEL_BOOT_MESSAGE
+#else
+#define LCD_INIT_TEXT "Linux-" UTS_RELEASE "\n"
+#endif
+
 /* initialize the LCD driver */
 static int charlcd_init(struct charlcd *lcd)
 {
@@ -784,13 +790,8 @@ static int charlcd_init(struct charlcd *lcd)
 		return ret;
 
 	/* display a short message */
-#ifdef CONFIG_PANEL_CHANGE_MESSAGE
-#ifdef CONFIG_PANEL_BOOT_MESSAGE
-	charlcd_puts(lcd, "\x1b[Lc\x1b[Lb\x1b[L*" CONFIG_PANEL_BOOT_MESSAGE);
-#endif
-#else
-	charlcd_puts(lcd, "\x1b[Lc\x1b[Lb\x1b[L*Linux-" UTS_RELEASE "\n");
-#endif
+	charlcd_puts(lcd, "\x1b[Lc\x1b[Lb\x1b[L*" LCD_INIT_TEXT);
+
 	/* clear the display on the next device opening */
 	priv->must_clear = true;
 	charlcd_home(lcd);
