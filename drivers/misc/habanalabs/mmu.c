@@ -261,9 +261,9 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
 			!hdev->dram_default_page_mapping)
 		return 0;
 
-	num_of_hop3 = (prop->dram_size_for_default_page_mapping /
-			prop->dram_page_size) /
-			PTE_ENTRIES_IN_HOP;
+	num_of_hop3 = prop->dram_size_for_default_page_mapping;
+	do_div(num_of_hop3, prop->dram_page_size);
+	do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
 
 	/* add hop1 and hop2 */
 	total_hops = num_of_hop3 + 2;
@@ -378,9 +378,9 @@ void hl_mmu_ctx_fini(struct hl_ctx *ctx)
 	if (hdev->dram_supports_virtual_memory &&
 			hdev->dram_default_page_mapping) {
 
-		num_of_hop3 = (prop->dram_size_for_default_page_mapping /
-				prop->dram_page_size) /
-				PTE_ENTRIES_IN_HOP;
+		num_of_hop3 = prop->dram_size_for_default_page_mapping;
+		do_div(num_of_hop3, prop->dram_page_size);
+		do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
 
 		/* add hop1 and hop2 */
 		total_hops = num_of_hop3 + 2;
