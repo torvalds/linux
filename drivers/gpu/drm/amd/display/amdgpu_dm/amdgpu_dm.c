@@ -4666,32 +4666,27 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(new_pcrtc_state);
 	struct dm_crtc_state *dm_old_crtc_state =
 			to_dm_crtc_state(drm_atomic_get_old_crtc_state(state, pcrtc));
-	int flip_count = 0, planes_count = 0, vpos, hpos;
+	int planes_count = 0, vpos, hpos;
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags, dcc_address;
 	uint32_t target, target_vblank;
 	uint64_t last_flip_vblank;
 	bool vrr_active = acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
-
-	struct {
-		struct dc_surface_update surface_updates[MAX_SURFACES];
-		struct dc_flip_addrs flip_addrs[MAX_SURFACES];
-		struct dc_stream_update stream_update;
-	} *flip;
+	bool pflip_present = false;
 
 	struct {
 		struct dc_surface_update surface_updates[MAX_SURFACES];
 		struct dc_plane_info plane_infos[MAX_SURFACES];
 		struct dc_scaling_info scaling_infos[MAX_SURFACES];
+		struct dc_flip_addrs flip_addrs[MAX_SURFACES];
 		struct dc_stream_update stream_update;
-	} *full;
+	} *bundle;
 
-	flip = kzalloc(sizeof(*flip), GFP_KERNEL);
-	full = kzalloc(sizeof(*full), GFP_KERNEL);
+	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
 
-	if (!flip || !full) {
-		dm_error("Failed to allocate update bundles\n");
+	if (!bundle) {
+		dm_error("Failed to allocate update bundle\n");
 		goto cleanup;
 	}
 
@@ -4701,7 +4696,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct drm_crtc_state *new_crtc_state;
 		struct drm_framebuffer *fb = new_plane_state->fb;
 		struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(fb);
-		bool pflip_needed;
+		bool framebuffer_changed;
 		struct dc_plane_state *dc_plane;
 		struct dm_plane_state *dm_new_plane_state = to_dm_plane_state(new_plane_state);
 
@@ -4716,12 +4711,14 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		if (!new_crtc_state->active)
 			continue;
 
-		pflip_needed = old_plane_state->fb &&
-			old_plane_state->fb != new_plane_state->fb;
-
 		dc_plane = dm_new_plane_state->dc_state;
 
-		if (pflip_needed) {
+		framebuffer_changed = old_plane_state->fb &&
+			old_plane_state->fb != new_plane_state->fb;
+
+		pflip_present = pflip_present || framebuffer_changed;
+
+		if (framebuffer_changed) {
 			/*
 			 * TODO This might fail and hence better not used, wait
 			 * explicitly on fences instead
@@ -4750,22 +4747,22 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 			amdgpu_bo_unreserve(abo);
 
-			flip->flip_addrs[flip_count].address.grph.addr.low_part = lower_32_bits(afb->address);
-			flip->flip_addrs[flip_count].address.grph.addr.high_part = upper_32_bits(afb->address);
+			bundle->flip_addrs[planes_count].address.grph.addr.low_part = lower_32_bits(afb->address);
+			bundle->flip_addrs[planes_count].address.grph.addr.high_part = upper_32_bits(afb->address);
 
 			dcc_address = get_dcc_address(afb->address, tiling_flags);
-			flip->flip_addrs[flip_count].address.grph.meta_addr.low_part = lower_32_bits(dcc_address);
-			flip->flip_addrs[flip_count].address.grph.meta_addr.high_part = upper_32_bits(dcc_address);
+			bundle->flip_addrs[planes_count].address.grph.meta_addr.low_part = lower_32_bits(dcc_address);
+			bundle->flip_addrs[planes_count].address.grph.meta_addr.high_part = upper_32_bits(dcc_address);
 
-			flip->flip_addrs[flip_count].flip_immediate =
+			bundle->flip_addrs[planes_count].flip_immediate =
 					(crtc->state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 			timestamp_ns = ktime_get_ns();
-			flip->flip_addrs[flip_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
-			flip->surface_updates[flip_count].flip_addr = &flip->flip_addrs[flip_count];
-			flip->surface_updates[flip_count].surface = dc_plane;
+			bundle->flip_addrs[planes_count].flip_timestamp_in_us = div_u64(timestamp_ns, 1000);
+			bundle->surface_updates[planes_count].flip_addr = &bundle->flip_addrs[planes_count];
+			bundle->surface_updates[planes_count].surface = dc_plane;
 
-			if (!flip->surface_updates[flip_count].surface) {
+			if (!bundle->surface_updates[planes_count].surface) {
 				DRM_ERROR("No surface for CRTC: id=%d\n",
 						acrtc_attach->crtc_id);
 				continue;
@@ -4777,53 +4774,45 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 					acrtc_state,
 					acrtc_state->stream,
 					dc_plane,
-					flip->flip_addrs[flip_count].flip_timestamp_in_us);
+					bundle->flip_addrs[planes_count].flip_timestamp_in_us);
 
 			DRM_DEBUG_DRIVER("%s Flipping to hi: 0x%x, low: 0x%x\n",
 					 __func__,
-					 flip->flip_addrs[flip_count].address.grph.addr.high_part,
-					 flip->flip_addrs[flip_count].address.grph.addr.low_part);
-
-			flip_count += 1;
+					 bundle->flip_addrs[planes_count].address.grph.addr.high_part,
+					 bundle->flip_addrs[planes_count].address.grph.addr.low_part);
 		}
 
-		full->surface_updates[planes_count].surface = dc_plane;
+		bundle->surface_updates[planes_count].surface = dc_plane;
 		if (new_pcrtc_state->color_mgmt_changed) {
-			full->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
-			full->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
+			bundle->surface_updates[planes_count].gamma = dc_plane->gamma_correction;
+			bundle->surface_updates[planes_count].in_transfer_func = dc_plane->in_transfer_func;
 		}
 
 
-		full->scaling_infos[planes_count].scaling_quality = dc_plane->scaling_quality;
-		full->scaling_infos[planes_count].src_rect = dc_plane->src_rect;
-		full->scaling_infos[planes_count].dst_rect = dc_plane->dst_rect;
-		full->scaling_infos[planes_count].clip_rect = dc_plane->clip_rect;
-		full->surface_updates[planes_count].scaling_info = &full->scaling_infos[planes_count];
+		bundle->scaling_infos[planes_count].scaling_quality = dc_plane->scaling_quality;
+		bundle->scaling_infos[planes_count].src_rect = dc_plane->src_rect;
+		bundle->scaling_infos[planes_count].dst_rect = dc_plane->dst_rect;
+		bundle->scaling_infos[planes_count].clip_rect = dc_plane->clip_rect;
+		bundle->surface_updates[planes_count].scaling_info = &bundle->scaling_infos[planes_count];
 
 
-		full->plane_infos[planes_count].color_space = dc_plane->color_space;
-		full->plane_infos[planes_count].format = dc_plane->format;
-		full->plane_infos[planes_count].plane_size = dc_plane->plane_size;
-		full->plane_infos[planes_count].rotation = dc_plane->rotation;
-		full->plane_infos[planes_count].horizontal_mirror = dc_plane->horizontal_mirror;
-		full->plane_infos[planes_count].stereo_format = dc_plane->stereo_format;
-		full->plane_infos[planes_count].tiling_info = dc_plane->tiling_info;
-		full->plane_infos[planes_count].visible = dc_plane->visible;
-		full->plane_infos[planes_count].per_pixel_alpha = dc_plane->per_pixel_alpha;
-		full->plane_infos[planes_count].dcc = dc_plane->dcc;
-		full->surface_updates[planes_count].plane_info = &full->plane_infos[planes_count];
+		bundle->plane_infos[planes_count].color_space = dc_plane->color_space;
+		bundle->plane_infos[planes_count].format = dc_plane->format;
+		bundle->plane_infos[planes_count].plane_size = dc_plane->plane_size;
+		bundle->plane_infos[planes_count].rotation = dc_plane->rotation;
+		bundle->plane_infos[planes_count].horizontal_mirror = dc_plane->horizontal_mirror;
+		bundle->plane_infos[planes_count].stereo_format = dc_plane->stereo_format;
+		bundle->plane_infos[planes_count].tiling_info = dc_plane->tiling_info;
+		bundle->plane_infos[planes_count].visible = dc_plane->visible;
+		bundle->plane_infos[planes_count].per_pixel_alpha = dc_plane->per_pixel_alpha;
+		bundle->plane_infos[planes_count].dcc = dc_plane->dcc;
+		bundle->surface_updates[planes_count].plane_info = &bundle->plane_infos[planes_count];
 
 		planes_count += 1;
 
 	}
 
-	/*
-	 * TODO: For proper atomic behaviour, we should be calling into DC once with
-	 * all the changes.  However, DC refuses to do pageflips and non-pageflip
-	 * changes in the same call.  Change DC to respect atomic behaviour,
-	 * hopefully eliminating dc_*_update structs in their entirety.
-	 */
-	if (flip_count) {
+	if (pflip_present) {
 		if (!vrr_active) {
 			/* Use old throttling in non-vrr fixed refresh rate mode
 			 * to keep flip scheduling based on target vblank counts
@@ -4882,43 +4871,34 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		if (acrtc_state->stream) {
 
 			if (acrtc_state->freesync_timing_changed)
-				flip->stream_update.adjust =
+				bundle->stream_update.adjust =
 					&acrtc_state->stream->adjust;
 
 			if (acrtc_state->freesync_vrr_info_changed)
-				flip->stream_update.vrr_infopacket =
+				bundle->stream_update.vrr_infopacket =
 					&acrtc_state->stream->vrr_infopacket;
 		}
-
-		mutex_lock(&dm->dc_lock);
-		dc_commit_updates_for_stream(dm->dc,
-						     flip->surface_updates,
-						     flip_count,
-						     acrtc_state->stream,
-						     &flip->stream_update,
-						     dc_state);
-		mutex_unlock(&dm->dc_lock);
 	}
 
 	if (planes_count) {
 		if (new_pcrtc_state->mode_changed) {
-			full->stream_update.src = acrtc_state->stream->src;
-			full->stream_update.dst = acrtc_state->stream->dst;
+			bundle->stream_update.src = acrtc_state->stream->src;
+			bundle->stream_update.dst = acrtc_state->stream->dst;
 		}
 
 		if (new_pcrtc_state->color_mgmt_changed)
-			full->stream_update.out_transfer_func = acrtc_state->stream->out_transfer_func;
+			bundle->stream_update.out_transfer_func = acrtc_state->stream->out_transfer_func;
 
 		acrtc_state->stream->abm_level = acrtc_state->abm_level;
 		if (acrtc_state->abm_level != dm_old_crtc_state->abm_level)
-			full->stream_update.abm_level = &acrtc_state->abm_level;
+			bundle->stream_update.abm_level = &acrtc_state->abm_level;
 
 		mutex_lock(&dm->dc_lock);
 		dc_commit_updates_for_stream(dm->dc,
-						     full->surface_updates,
+						     bundle->surface_updates,
 						     planes_count,
 						     acrtc_state->stream,
-						     &full->stream_update,
+						     &bundle->stream_update,
 						     dc_state);
 		mutex_unlock(&dm->dc_lock);
 	}
@@ -4928,8 +4908,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			handle_cursor_update(plane, old_plane_state);
 
 cleanup:
-	kfree(flip);
-	kfree(full);
+	kfree(bundle);
 }
 
 /*
