@@ -16,6 +16,30 @@
 #include <asm/smap.h>
 #include <asm/export.h>
 
+.macro ALIGN_DESTINATION
+	/* check for bad alignment of destination */
+	movl %edi,%ecx
+	andl $7,%ecx
+	jz 102f				/* already aligned */
+	subl $8,%ecx
+	negl %ecx
+	subl %ecx,%edx
+100:	movb (%rsi),%al
+101:	movb %al,(%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz 100b
+102:
+	.section .fixup,"ax"
+103:	addl %ecx,%edx			/* ecx is zerorest also */
+	jmp copy_user_handle_tail
+	.previous
+
+	_ASM_EXTABLE_UA(100b, 103b)
+	_ASM_EXTABLE_UA(101b, 103b)
+	.endm
+
 /*
  * copy_user_generic_unrolled - memory copy with exception handling.
  * This version is for CPUs like P4 that don't have efficient micro
@@ -192,6 +216,30 @@ ENTRY(copy_user_enhanced_fast_string)
 	_ASM_EXTABLE_UA(1b, 12b)
 ENDPROC(copy_user_enhanced_fast_string)
 EXPORT_SYMBOL(copy_user_enhanced_fast_string)
+
+/*
+ * Try to copy last bytes and clear the rest if needed.
+ * Since protection fault in copy_from/to_user is not a normal situation,
+ * it is not necessary to optimize tail handling.
+ *
+ * Input:
+ * rdi destination
+ * rsi source
+ * rdx count
+ *
+ * Output:
+ * eax uncopied bytes or 0 if successful.
+ */
+ALIGN;
+copy_user_handle_tail:
+	movl %edx,%ecx
+1:	rep movsb
+2:	mov %ecx,%eax
+	ASM_CLAC
+	ret
+
+	_ASM_EXTABLE_UA(1b, 2b)
+ENDPROC(copy_user_handle_tail)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling

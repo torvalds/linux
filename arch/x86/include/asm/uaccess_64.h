@@ -208,9 +208,6 @@ __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
 }
 
 unsigned long
-copy_user_handle_tail(char *to, char *from, unsigned len);
-
-unsigned long
 mcsafe_handle_tail(char *to, char *from, unsigned len);
 
 #endif /* _ASM_X86_UACCESS_64_H */
