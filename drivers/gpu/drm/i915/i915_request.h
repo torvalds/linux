@@ -38,6 +38,7 @@ struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
 struct i915_timeline;
+struct i915_timeline_cacheline;
 
 struct i915_capture_list {
 	struct i915_capture_list *next;
@@ -147,6 +148,16 @@ struct i915_request {
 	 * path would be rq->hw_context->ring->timeline->hwsp_seqno.
 	 */
 	const u32 *hwsp_seqno;
+
+	/*
+	 * If we need to access the timeline's seqno for this request in
+	 * another request, we need to keep a read reference to this associated
+	 * cacheline, so that we do not free and recycle it before the foreign
+	 * observers have completed. Hence, we keep a pointer to the cacheline
+	 * inside the timeline's HWSP vma, but it is only valid while this
+	 * request has not completed and guarded by the timeline mutex.
+	 */
+	struct i915_timeline_cacheline *hwsp_cacheline;
 
 	/** Position in the ring of the start of the request */
 	u32 head;

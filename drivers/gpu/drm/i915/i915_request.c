@@ -325,11 +325,6 @@ void i915_request_retire_upto(struct i915_request *rq)
 	} while (tmp != rq);
 }
 
-static u32 timeline_get_seqno(struct i915_timeline *tl)
-{
-	return tl->seqno += 1 + tl->has_initial_breadcrumb;
-}
-
 static void move_to_timeline(struct i915_request *request,
 			     struct i915_timeline *timeline)
 {
@@ -532,8 +527,10 @@ struct i915_request *
 i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct i915_request *rq;
 	struct intel_context *ce;
+	struct i915_timeline *tl;
+	struct i915_request *rq;
+	u32 seqno;
 	int ret;
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
@@ -610,24 +607,27 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 		}
 	}
 
-	rq->rcustate = get_state_synchronize_rcu();
-
 	INIT_LIST_HEAD(&rq->active_list);
+
+	tl = ce->ring->timeline;
+	ret = i915_timeline_get_seqno(tl, rq, &seqno);
+	if (ret)
+		goto err_free;
+
 	rq->i915 = i915;
 	rq->engine = engine;
 	rq->gem_context = ctx;
 	rq->hw_context = ce;
 	rq->ring = ce->ring;
-	rq->timeline = ce->ring->timeline;
+	rq->timeline = tl;
 	GEM_BUG_ON(rq->timeline == &engine->timeline);
-	rq->hwsp_seqno = rq->timeline->hwsp_seqno;
+	rq->hwsp_seqno = tl->hwsp_seqno;
+	rq->hwsp_cacheline = tl->hwsp_cacheline;
+	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
 
 	spin_lock_init(&rq->lock);
-	dma_fence_init(&rq->fence,
-		       &i915_fence_ops,
-		       &rq->lock,
-		       rq->timeline->fence_context,
-		       timeline_get_seqno(rq->timeline));
+	dma_fence_init(&rq->fence, &i915_fence_ops, &rq->lock,
+		       tl->fence_context, seqno);
 
 	/* We bump the ref for the fence chain */
 	i915_sw_fence_init(&i915_request_get(rq)->submit, submit_notify);
@@ -687,6 +687,7 @@ err_unwind:
 	GEM_BUG_ON(!list_empty(&rq->sched.signalers_list));
 	GEM_BUG_ON(!list_empty(&rq->sched.waiters_list));
 
+err_free:
 	kmem_cache_free(global.slab_requests, rq);
 err_unreserve:
 	mutex_unlock(&ce->ring->timeline->mutex);

@@ -34,7 +34,7 @@
 #include "i915_utils.h"
 
 struct i915_vma;
-struct i915_timeline_hwsp;
+struct i915_timeline_cacheline;
 
 struct i915_timeline {
 	u64 fence_context;
@@ -50,6 +50,8 @@ struct i915_timeline {
 	const u32 *hwsp_seqno;
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;
+
+	struct i915_timeline_cacheline *hwsp_cacheline;
 
 	bool has_initial_breadcrumb;
 
@@ -162,7 +164,14 @@ static inline bool i915_timeline_sync_is_later(struct i915_timeline *tl,
 }
 
 int i915_timeline_pin(struct i915_timeline *tl);
+int i915_timeline_get_seqno(struct i915_timeline *tl,
+			    struct i915_request *rq,
+			    u32 *seqno);
 void i915_timeline_unpin(struct i915_timeline *tl);
+
+int i915_timeline_read_hwsp(struct i915_request *from,
+			    struct i915_request *until,
+			    u32 *hwsp_offset);
 
 void i915_timelines_init(struct drm_i915_private *i915);
 void i915_timelines_park(struct drm_i915_private *i915);
