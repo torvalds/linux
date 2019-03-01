@@ -746,6 +746,7 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 
 static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 {
+	struct enetc_pf *pf = enetc_si_priv(priv->si);
 	struct device_node *np = priv->dev->of_node;
 	int err;
 
@@ -770,12 +771,22 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 		priv->phy_node = of_node_get(np);
 	}
 
+	if (!of_phy_is_fixed_link(np)) {
+		err = enetc_mdio_probe(pf);
+		if (err) {
+			of_node_put(priv->phy_node);
+			return err;
+		}
+	}
+
 	priv->if_mode = of_get_phy_mode(np);
 	if (priv->if_mode < 0) {
 		dev_err(priv->dev, "missing phy type\n");
 		of_node_put(priv->phy_node);
 		if (of_phy_is_fixed_link(np))
 			of_phy_deregister_fixed_link(np);
+		else
+			enetc_mdio_remove(pf);
 
 		return -EINVAL;
 	}
@@ -898,6 +909,7 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 
 	unregister_netdev(si->ndev);
 
+	enetc_mdio_remove(pf);
 	enetc_of_put_phy(priv);
 
 	enetc_free_msix(priv);
