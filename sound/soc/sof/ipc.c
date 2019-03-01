@@ -293,33 +293,32 @@ static void ipc_tx_next_msg(struct work_struct *work)
 	spin_lock_irq(&sdev->ipc_lock);
 
 	/* send message if HW ready and message in TX list */
-	if (!list_empty(&ipc->tx_list) && snd_sof_dsp_is_ipc_ready(sdev)) {
-		/* send first message in TX list */
-		msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg,
-				       list);
-		ret = snd_sof_dsp_send_msg(sdev, msg);
-		if (ret < 0) {
+	if (list_empty(&ipc->tx_list) || !snd_sof_dsp_is_ipc_ready(sdev))
+		goto unlock;
 
-			/*
-			 * if ipc tx fails, the msg will be retained in the
-			 * msg_list, so that it can be re-tried until it
-			 * succeeds or times-out. The ipc re-try mechanism in
-			 * SOF currently relies upon tx_kwork being
-			 * rescheduled, which is not guaranteed. This needs
-			 * to be enhanced with a better mechanism.
-			 */
-			dev_err_ratelimited(sdev->dev,
-					    "error: ipc tx failed with error %d\n",
-					    ret);
-		} else {
+	/* send first message in TX list */
+	msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg, list);
 
-			/* message sent. move it to the reply list */
-			list_move(&msg->list, &ipc->reply_list);
+	ret = snd_sof_dsp_send_msg(sdev, msg);
+	if (ret < 0) {
+		/*
+		 * if ipc tx fails, the msg will be retained in the msg_list, so
+		 * that it can be re-tried until it succeeds or times-out. The
+		 * ipc re-try mechanism in SOF currently relies upon tx_kwork
+		 * being rescheduled, which is not guaranteed. This needs to be
+		 * enhanced with a better mechanism.
+		 */
+		dev_err_ratelimited(sdev->dev,
+				    "error: ipc tx failed with error %d\n",
+				    ret);
+	} else {
+		/* message sent. move it to the reply list */
+		list_move(&msg->list, &ipc->reply_list);
 
-			ipc_log_header(sdev->dev, "ipc tx", msg->header);
-		}
+		ipc_log_header(sdev->dev, "ipc tx", msg->header);
 	}
 
+unlock:
 	spin_unlock_irq(&sdev->ipc_lock);
 }
 
