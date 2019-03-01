@@ -750,7 +750,7 @@ static int vdic_link_setup(struct media_entity *entity,
 		remote_sd = media_entity_to_v4l2_subdev(remote->entity);
 
 		/* direct pad must connect to a CSI */
-		if (!(remote_sd->grp_id & IMX_MEDIA_GRP_ID_CSI) ||
+		if (!(remote_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) ||
 		    remote->index != CSI_SRC_PAD_DIRECT) {
 			ret = -EINVAL;
 			goto out;
