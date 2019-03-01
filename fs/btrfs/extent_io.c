@@ -614,6 +614,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int clear = 0;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
+	trace_btrfs_clear_extent_bit(tree, start, end - start + 1, bits);
 
 	if (bits & EXTENT_DELALLOC)
 		bits |= EXTENT_NORESERVE;
@@ -883,6 +884,7 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	u64 last_end;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
+	trace_btrfs_set_extent_bit(tree, start, end - start + 1, bits);
 
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
@@ -1115,6 +1117,8 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	bool first_iteration = true;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
+	trace_btrfs_convert_extent_bit(tree, start, end - start + 1, bits,
+				       clear_bits);
 
 again:
 	if (!prealloc) {
