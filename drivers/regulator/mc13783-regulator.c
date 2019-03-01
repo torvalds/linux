@@ -226,7 +226,7 @@ static const unsigned int mc13783_pwgtdrv_val[] = {
 	5500000,
 };
 
-static struct regulator_ops mc13783_gpo_regulator_ops;
+static const struct regulator_ops mc13783_gpo_regulator_ops;
 
 #define MC13783_DEFINE(prefix, name, node, reg, vsel_reg, voltages)	\
 	MC13xxx_DEFINE(MC13783_REG_, name, node, reg, vsel_reg, voltages, \
@@ -380,7 +380,7 @@ static int mc13783_gpo_regulator_is_enabled(struct regulator_dev *rdev)
 	return (val & mc13xxx_regulators[id].enable_bit) != 0;
 }
 
-static struct regulator_ops mc13783_gpo_regulator_ops = {
+static const struct regulator_ops mc13783_gpo_regulator_ops = {
 	.enable = mc13783_gpo_regulator_enable,
 	.disable = mc13783_gpo_regulator_disable,
 	.is_enabled = mc13783_gpo_regulator_is_enabled,

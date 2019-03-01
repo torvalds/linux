@@ -53,8 +53,8 @@ static inline struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 }
 #endif
 
-extern struct regulator_ops mc13xxx_regulator_ops;
-extern struct regulator_ops mc13xxx_fixed_regulator_ops;
+extern const struct regulator_ops mc13xxx_regulator_ops;
+extern const struct regulator_ops mc13xxx_fixed_regulator_ops;
 
 #define MC13xxx_DEFINE(prefix, _name, _node, _reg, _vsel_reg, _voltages, _ops)	\
 	[prefix ## _name] = {				\
