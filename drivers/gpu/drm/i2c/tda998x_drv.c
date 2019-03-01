@@ -35,9 +35,10 @@
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 
-struct tda998x_audio_port {
-	u8 format;		/* AFMT_xxx */
-	u8 config;		/* AP value */
+enum {
+	AUDIO_ROUTE_I2S,
+	AUDIO_ROUTE_SPDIF,
+	AUDIO_ROUTE_NUM
 };
 
 struct tda998x_audio_settings {
@@ -79,7 +80,7 @@ struct tda998x_priv {
 	struct drm_bridge bridge;
 	struct drm_connector connector;
 
-	struct tda998x_audio_port audio_port[2];
+	u8 audio_port_enable[AUDIO_ROUTE_NUM];
 	struct tda9950_glue cec_glue;
 	struct gpio_desc *calib;
 	struct cec_notifier *cec_notify;
@@ -1045,7 +1046,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 	unsigned int bclk_ratio;
 	bool spdif = daifmt->fmt == HDMI_SPDIF;
-	int i, ret;
+	int ret;
 	struct tda998x_audio_settings audio = {
 		.params = {
 			.sample_width = params->sample_width,
@@ -1077,10 +1078,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 
 	audio.params.format = spdif ? AFMT_SPDIF : AFMT_I2S;
 
-	for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
-		if (priv->audio_port[i].format == audio.params.format)
-			audio.ena_ap = priv->audio_port[i].config;
-
+	audio.ena_ap = priv->audio_port_enable[AUDIO_ROUTE_I2S + spdif];
 	if (audio.ena_ap == 0) {
 		dev_err(dev, "%s: No audio configuration found\n", __func__);
 		return -EINVAL;
@@ -1165,16 +1163,11 @@ static int tda998x_audio_codec_init(struct tda998x_priv *priv,
 		.ops = &audio_codec_ops,
 		.max_i2s_channels = 2,
 	};
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++) {
-		if (priv->audio_port[i].format == AFMT_I2S &&
-		    priv->audio_port[i].config != 0)
-			codec_data.i2s = 1;
-		if (priv->audio_port[i].format == AFMT_SPDIF &&
-		    priv->audio_port[i].config != 0)
-			codec_data.spdif = 1;
-	}
+	if (priv->audio_port_enable[AUDIO_ROUTE_I2S])
+		codec_data.i2s = 1;
+	if (priv->audio_port_enable[AUDIO_ROUTE_SPDIF])
+		codec_data.spdif = 1;
 
 	priv->audio_pdev = platform_device_register_data(
 		dev, HDMI_CODEC_DRV_NAME, PLATFORM_DEVID_AUTO,
@@ -1657,7 +1650,7 @@ static int tda998x_get_audio_ports(struct tda998x_priv *priv,
 		return 0;
 
 	size /= sizeof(u32);
-	if (size > 2 * ARRAY_SIZE(priv->audio_port) || size % 2 != 0) {
+	if (size > 2 * ARRAY_SIZE(priv->audio_port_enable) || size % 2 != 0) {
 		dev_err(&priv->hdmi->dev,
 			"Bad number of elements in audio-ports dt-property\n");
 		return -EINVAL;
@@ -1666,23 +1659,30 @@ static int tda998x_get_audio_ports(struct tda998x_priv *priv,
 	size /= 2;
 
 	for (i = 0; i < size; i++) {
+		unsigned int route;
 		u8 afmt = be32_to_cpup(&port_data[2*i]);
 		u8 ena_ap = be32_to_cpup(&port_data[2*i+1]);
 
-		if (afmt != AFMT_SPDIF && afmt != AFMT_I2S) {
+		switch (afmt) {
+		case AFMT_I2S:
+			route = AUDIO_ROUTE_I2S;
+			break;
+		case AFMT_SPDIF:
+			route = AUDIO_ROUTE_SPDIF;
+			break;
+		default:
 			dev_err(&priv->hdmi->dev,
 				"Bad audio format %u\n", afmt);
 			return -EINVAL;
 		}
 
-		priv->audio_port[i].format = afmt;
-		priv->audio_port[i].config = ena_ap;
-	}
+		if (priv->audio_port_enable[route]) {
+			dev_err(&priv->hdmi->dev,
+				"There can only be on I2S port and one SPDIF port\n");
+			return -EINVAL;
+		}
 
-	if (priv->audio_port[0].format == priv->audio_port[1].format) {
-		dev_err(&priv->hdmi->dev,
-			"There can only be on I2S port and one SPDIF port\n");
-		return -EINVAL;
+		priv->audio_port_enable[route] = ena_ap;
 	}
 	return 0;
 }
@@ -1914,7 +1914,8 @@ static int tda998x_create(struct device *dev)
 		if (ret)
 			goto fail;
 
-		if (priv->audio_port[0].format != AFMT_UNUSED)
+		if (priv->audio_port_enable[AUDIO_ROUTE_I2S] ||
+		    priv->audio_port_enable[AUDIO_ROUTE_SPDIF])
 			tda998x_audio_codec_init(priv, &client->dev);
 	} else if (dev->platform_data) {
 		ret = tda998x_set_config(priv, dev->platform_data);
