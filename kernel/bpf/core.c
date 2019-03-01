@@ -109,6 +109,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 {
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog *prog;
+	int cpu;
 
 	prog = bpf_prog_alloc_no_stats(size, gfp_extra_flags);
 	if (!prog)
@@ -121,7 +122,12 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 		return NULL;
 	}
 
-	u64_stats_init(&prog->aux->stats->syncp);
+	for_each_possible_cpu(cpu) {
+		struct bpf_prog_stats *pstats;
+
+		pstats = per_cpu_ptr(prog->aux->stats, cpu);
+		u64_stats_init(&pstats->syncp);
+	}
 	return prog;
 }
 EXPORT_SYMBOL_GPL(bpf_prog_alloc);
