@@ -40,6 +40,10 @@ struct tda998x_audio_port {
 	u8 config;		/* AP value */
 };
 
+struct tda998x_audio_settings {
+	struct tda998x_audio_params params;
+};
+
 struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
@@ -54,7 +58,7 @@ struct tda998x_priv {
 	u8 vip_cntrl_1;
 	u8 vip_cntrl_2;
 	unsigned long tmds_clock;
-	struct tda998x_audio_params audio_params;
+	struct tda998x_audio_settings audio;
 
 	struct platform_device *audio_pdev;
 	struct mutex audio_mutex;
@@ -833,7 +837,7 @@ tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
 }
 
 static int tda998x_write_aif(struct tda998x_priv *priv,
-			     struct hdmi_audio_infoframe *cea)
+			     const struct hdmi_audio_infoframe *cea)
 {
 	union hdmi_infoframe frame;
 
@@ -869,18 +873,17 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 	}
 }
 
-static int
-tda998x_configure_audio(struct tda998x_priv *priv,
-			struct tda998x_audio_params *params)
+static int tda998x_configure_audio(struct tda998x_priv *priv,
+				 const struct tda998x_audio_settings *settings)
 {
 	u8 buf[6], clksel_aip, clksel_fs, cts_n, adiv;
 	u32 n;
 
 	/* Enable audio ports */
-	reg_write(priv, REG_ENA_AP, params->config);
+	reg_write(priv, REG_ENA_AP, settings->params.config);
 
 	/* Set audio input source */
-	switch (params->format) {
+	switch (settings->params.format) {
 	case AFMT_SPDIF:
 		reg_write(priv, REG_ENA_ACLK, 0);
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_SPDIF);
@@ -894,7 +897,7 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_I2S);
 		clksel_aip = AIP_CLKSEL_AIP_I2S;
 		clksel_fs = AIP_CLKSEL_FS_ACLK;
-		switch (params->sample_width) {
+		switch (settings->params.sample_width) {
 		case 16:
 			cts_n = CTS_N_M(3) | CTS_N_K(1);
 			break;
@@ -932,7 +935,7 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 		adiv++;			/* AUDIO_DIV_SERCLK_16 */
 
 	/* S/PDIF asks for a larger divider */
-	if (params->format == AFMT_SPDIF)
+	if (settings->params.format == AFMT_SPDIF)
 		adiv++;			/* AUDIO_DIV_SERCLK_16 or _32 */
 
 	reg_write(priv, REG_AUDIO_DIV, adiv);
@@ -941,7 +944,7 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	 * This is the approximate value of N, which happens to be
 	 * the recommended values for non-coherent clocks.
 	 */
-	n = 128 * params->sample_rate / 1000;
+	n = 128 * settings->params.sample_rate / 1000;
 
 	/* Write the CTS and N values */
 	buf[0] = 0x44;
@@ -963,17 +966,17 @@ tda998x_configure_audio(struct tda998x_priv *priv,
 	 * The REG_CH_STAT_B-registers skip IEC958 AES2 byte, because
 	 * there is a separate register for each I2S wire.
 	 */
-	buf[0] = params->status[0];
-	buf[1] = params->status[1];
-	buf[2] = params->status[3];
-	buf[3] = params->status[4];
+	buf[0] = settings->params.status[0];
+	buf[1] = settings->params.status[1];
+	buf[2] = settings->params.status[3];
+	buf[3] = settings->params.status[4];
 	reg_write_range(priv, REG_CH_STAT_B(0), buf, 4);
 
 	tda998x_audio_mute(priv, true);
 	msleep(20);
 	tda998x_audio_mute(priv, false);
 
-	return tda998x_write_aif(priv, &params->cea);
+	return tda998x_write_aif(priv, &settings->params.cea);
 }
 
 static int tda998x_audio_hw_params(struct device *dev, void *data,
@@ -982,14 +985,16 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 	int i, ret;
-	struct tda998x_audio_params audio = {
-		.sample_width = params->sample_width,
-		.sample_rate = params->sample_rate,
-		.cea = params->cea,
+	struct tda998x_audio_settings audio = {
+		.params = {
+			.sample_width = params->sample_width,
+			.sample_rate = params->sample_rate,
+			.cea = params->cea,
+		},
 	};
 
-	memcpy(audio.status, params->iec.status,
-	       min(sizeof(audio.status), sizeof(params->iec.status)));
+	memcpy(audio.params.status, params->iec.status,
+	       min(sizeof(audio.params.status), sizeof(params->iec.status)));
 
 	switch (daifmt->fmt) {
 	case HDMI_I2S:
@@ -1003,21 +1008,21 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 		}
 		for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
 			if (priv->audio_port[i].format == AFMT_I2S)
-				audio.config = priv->audio_port[i].config;
-		audio.format = AFMT_I2S;
+				audio.params.config = priv->audio_port[i].config;
+		audio.params.format = AFMT_I2S;
 		break;
 	case HDMI_SPDIF:
 		for (i = 0; i < ARRAY_SIZE(priv->audio_port); i++)
 			if (priv->audio_port[i].format == AFMT_SPDIF)
-				audio.config = priv->audio_port[i].config;
-		audio.format = AFMT_SPDIF;
+				audio.params.config = priv->audio_port[i].config;
+		audio.params.format = AFMT_SPDIF;
 		break;
 	default:
 		dev_err(dev, "%s: Invalid format %d\n", __func__, daifmt->fmt);
 		return -EINVAL;
 	}
 
-	if (audio.config == 0) {
+	if (audio.params.config == 0) {
 		dev_err(dev, "%s: No audio configuration found\n", __func__);
 		return -EINVAL;
 	}
@@ -1029,7 +1034,7 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 		ret = 0;
 
 	if (ret == 0)
-		priv->audio_params = audio;
+		priv->audio = audio;
 	mutex_unlock(&priv->audio_mutex);
 
 	return ret;
@@ -1043,7 +1048,7 @@ static void tda998x_audio_shutdown(struct device *dev, void *data)
 
 	reg_write(priv, REG_ENA_AP, 0);
 
-	priv->audio_params.format = AFMT_UNUSED;
+	priv->audio.params.format = AFMT_UNUSED;
 
 	mutex_unlock(&priv->audio_mutex);
 }
@@ -1549,9 +1554,9 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 
 		tda998x_write_avi(priv, adjusted_mode);
 
-		if (priv->audio_params.format != AFMT_UNUSED &&
+		if (priv->audio.params.format != AFMT_UNUSED &&
 		    priv->sink_has_audio)
-			tda998x_configure_audio(priv, &priv->audio_params);
+			tda998x_configure_audio(priv, &priv->audio);
 	}
 
 	mutex_unlock(&priv->audio_mutex);
@@ -1626,7 +1631,8 @@ static void tda998x_set_config(struct tda998x_priv *priv,
 			    VIP_CNTRL_2_SWAP_F(p->swap_f) |
 			    (p->mirr_f ? VIP_CNTRL_2_MIRR_F : 0);
 
-	priv->audio_params = p->audio_params;
+	if (p->audio_params.format != AFMT_UNUSED)
+		priv->audio.params = p->audio_params;
 }
 
 static void tda998x_destroy(struct device *dev)
