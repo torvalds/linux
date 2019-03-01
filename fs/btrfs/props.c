@@ -55,9 +55,9 @@ find_prop_handler(const char *name,
 	return NULL;
 }
 
-int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
-		   const char *name, const char *value, size_t value_len,
-		   int flags)
+static int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
+			  const char *name, const char *value, size_t value_len,
+			  int flags)
 {
 	const struct prop_handler *handler;
 	int ret;
@@ -98,6 +98,12 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct inode *inode,
 	set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
 
 	return 0;
+}
+
+int btrfs_set_prop_trans(struct inode *inode, const char *name,
+			 const char *value, size_t value_len, int flags)
+{
+	return btrfs_set_prop(NULL, inode, name, value, value_len, flags);
 }
 
 static int iterate_object_props(struct btrfs_root *root,
