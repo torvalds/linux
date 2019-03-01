@@ -993,6 +993,7 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
+	struct switchdev_trans trans;
 	struct bridge_vlan_info info;
 	int ret;
 
@@ -1009,11 +1010,13 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 			return -EBUSY;
 	}
 
-	ret = dsa_port_vlan_add(dp, &vlan, NULL);
+	trans.ph_prepare = true;
+	ret = dsa_port_vlan_add(dp, &vlan, &trans);
 	if (ret == -EOPNOTSUPP)
-		ret = 0;
+		return 0;
 
-	return ret;
+	trans.ph_prepare = false;
+	return dsa_port_vlan_add(dp, &vlan, &trans);
 }
 
 static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
