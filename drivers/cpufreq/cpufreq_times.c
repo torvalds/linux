@@ -137,27 +137,10 @@ static struct uid_entry *find_or_register_uid_locked(uid_t uid)
 	return uid_entry;
 }
 
-static bool freq_index_invalid(unsigned int index)
-{
-	unsigned int cpu;
-	struct cpu_freqs *freqs;
-
-	for_each_possible_cpu(cpu) {
-		freqs = all_freqs[cpu];
-		if (!freqs || index < freqs->offset ||
-		    freqs->offset + freqs->max_state <= index)
-			continue;
-		return freqs->freq_table[index - freqs->offset] ==
-			CPUFREQ_ENTRY_INVALID;
-	}
-	return true;
-}
-
 static int single_uid_time_in_state_show(struct seq_file *m, void *ptr)
 {
 	struct uid_entry *uid_entry;
 	unsigned int i;
-	u64 time;
 	uid_t uid = from_kuid_munged(current_user_ns(), *(kuid_t *)m->private);
 
 	if (uid == overflowuid)
@@ -172,9 +155,7 @@ static int single_uid_time_in_state_show(struct seq_file *m, void *ptr)
 	}
 
 	for (i = 0; i < uid_entry->max_state; ++i) {
-		if (freq_index_invalid(i))
-			continue;
-		time = nsec_to_clock_t(uid_entry->time_in_state[i]);
+		u64 time = nsec_to_clock_t(uid_entry->time_in_state[i]);
 		seq_write(m, &time, sizeof(time));
 	}
 
@@ -219,9 +200,6 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 				continue;
 			last_freqs = freqs;
 			for (i = 0; i < freqs->max_state; i++) {
-				if (freqs->freq_table[i] ==
-				    CPUFREQ_ENTRY_INVALID)
-					continue;
 				seq_put_decimal_ull(m, " ",
 						    freqs->freq_table[i]);
 			}
@@ -237,10 +215,7 @@ static int uid_time_in_state_seq_show(struct seq_file *m, void *v)
 			seq_putc(m, ':');
 		}
 		for (i = 0; i < uid_entry->max_state; ++i) {
-			u64 time;
-			if (freq_index_invalid(i))
-				continue;
-			time = nsec_to_clock_t(uid_entry->time_in_state[i]);
+			u64 time = nsec_to_clock_t(uid_entry->time_in_state[i]);
 			seq_put_decimal_ull(m, " ", time);
 		}
 		if (uid_entry->max_state)
@@ -407,8 +382,6 @@ int proc_time_in_state_show(struct seq_file *m, struct pid_namespace *ns,
 
 		seq_printf(m, "cpu%u\n", cpu);
 		for (i = 0; i < freqs->max_state; i++) {
-			if (freqs->freq_table[i] == CPUFREQ_ENTRY_INVALID)
-				continue;
 			cputime = 0;
 			if (freqs->offset + i < p->max_state &&
 			    p->time_in_state)
@@ -488,9 +461,19 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime)
 	rcu_read_unlock();
 }
 
+static int cpufreq_times_get_index(struct cpu_freqs *freqs, unsigned int freq)
+{
+	int index;
+        for (index = 0; index < freqs->max_state; ++index) {
+		if (freqs->freq_table[index] == freq)
+			return index;
+        }
+	return -1;
+}
+
 void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 {
-	int cpu, index;
+	int cpu, index = 0;
 	unsigned int count = 0;
 	struct cpufreq_frequency_table *pos, *table;
 	struct cpu_freqs *freqs;
@@ -503,7 +486,7 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 	if (!table)
 		return;
 
-	cpufreq_for_each_entry(pos, table)
+	cpufreq_for_each_valid_entry(pos, table)
 		count++;
 
 	tmp =  kzalloc(sizeof(*freqs) + sizeof(freqs->freq_table[0]) * count,
@@ -514,12 +497,12 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 	freqs = tmp;
 	freqs->max_state = count;
 
-	index = cpufreq_frequency_table_get_index(policy, policy->cur);
+	cpufreq_for_each_valid_entry(pos, table)
+		freqs->freq_table[index++] = pos->frequency;
+
+	index = cpufreq_times_get_index(freqs, policy->cur);
 	if (index >= 0)
 		WRITE_ONCE(freqs->last_index, index);
-
-	cpufreq_for_each_entry(pos, table)
-		freqs->freq_table[pos - table] = pos->frequency;
 
 	freqs->offset = next_offset;
 	WRITE_ONCE(next_offset, freqs->offset + count);
@@ -564,7 +547,7 @@ void cpufreq_times_record_transition(struct cpufreq_policy *policy,
 	if (!freqs)
 		return;
 
-	index = cpufreq_frequency_table_get_index(policy, new_freq);
+	index = cpufreq_times_get_index(freqs, new_freq);
 	if (index >= 0)
 		WRITE_ONCE(freqs->last_index, index);
 }
