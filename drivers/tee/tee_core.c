@@ -1041,6 +1041,15 @@ int tee_client_invoke_func(struct tee_context *ctx,
 }
 EXPORT_SYMBOL_GPL(tee_client_invoke_func);
 
+int tee_client_cancel_req(struct tee_context *ctx,
+			  struct tee_ioctl_cancel_arg *arg)
+{
+	if (!ctx->teedev->desc->ops->cancel_req)
+		return -EINVAL;
+	return ctx->teedev->desc->ops->cancel_req(ctx, arg->cancel_id,
+						  arg->session);
+}
+
 static int tee_client_device_match(struct device *dev,
 				   struct device_driver *drv)
 {
