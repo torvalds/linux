@@ -5732,6 +5732,51 @@ const struct btf_dedup_test dedup_tests[] = {
 	},
 },
 {
+	.descr = "dedup: struct <-> fwd resolution w/ hash collision",
+	/*
+	 * // CU 1:
+	 * struct x;
+	 * struct s {
+	 *	struct x *x;
+	 * };
+	 * // CU 2:
+	 * struct x {};
+	 * struct s {
+	 *	struct x *x;
+	 * };
+	 */
+	.input = {
+		.raw_types = {
+			/* CU 1 */
+			BTF_FWD_ENC(NAME_TBD, 0 /* struct fwd */),	/* [1] fwd x      */
+			BTF_PTR_ENC(1),					/* [2] ptr -> [1] */
+			BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [3] struct s   */
+				BTF_MEMBER_ENC(NAME_TBD, 2, 0),
+			/* CU 2 */
+			BTF_STRUCT_ENC(NAME_TBD, 0, 0),			/* [4] struct x   */
+			BTF_PTR_ENC(4),					/* [5] ptr -> [4] */
+			BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [6] struct s   */
+				BTF_MEMBER_ENC(NAME_TBD, 5, 0),
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0x\0s\0x\0x\0s\0x\0"),
+	},
+	.expect = {
+		.raw_types = {
+			BTF_PTR_ENC(3),					/* [1] ptr -> [3] */
+			BTF_STRUCT_ENC(NAME_TBD, 1, 8),			/* [2] struct s   */
+				BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+			BTF_STRUCT_ENC(NAME_NTH(2), 0, 0),		/* [3] struct x   */
+			BTF_END_RAW,
+		},
+		BTF_STR_SEC("\0s\0x"),
+	},
+	.opts = {
+		.dont_resolve_fwds = false,
+		.dedup_table_size = 1, /* force hash collisions */
+	},
+},
+{
 	.descr = "dedup: all possible kinds (no duplicates)",
 	.input = {
 		.raw_types = {
@@ -5936,9 +5981,9 @@ static int do_test_dedup(unsigned int test_num)
 	}
 
 	test_hdr = test_btf_data;
-	test_strs = test_btf_data + test_hdr->str_off;
+	test_strs = test_btf_data + sizeof(*test_hdr) + test_hdr->str_off;
 	expect_hdr = expect_btf_data;
-	expect_strs = expect_btf_data + expect_hdr->str_off;
+	expect_strs = expect_btf_data + sizeof(*test_hdr) + expect_hdr->str_off;
 	if (CHECK(test_hdr->str_len != expect_hdr->str_len,
 		  "test_hdr->str_len:%u != expect_hdr->str_len:%u",
 		  test_hdr->str_len, expect_hdr->str_len)) {
