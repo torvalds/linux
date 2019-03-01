@@ -646,7 +646,7 @@ static void mt7530_adjust_link(struct dsa_switch *ds, int port,
 		case SPEED_100:
 			mcr |= PMCR_FORCE_SPEED_100;
 			break;
-		};
+		}
 
 		if (phydev->link)
 			mcr |= PMCR_FORCE_LNK;

@@ -226,7 +226,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 	case SPEED_100:
 		mcr |= MAC_MCR_SPEED_100;
 		break;
-	};
+	}
 
 	if (MTK_HAS_CAPS(mac->hw->soc->caps, MTK_GMAC1_TRGMII) &&
 	    !mac->id && !mac->trgmii)
