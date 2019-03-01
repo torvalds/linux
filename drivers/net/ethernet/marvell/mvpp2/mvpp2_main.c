@@ -1015,26 +1015,19 @@ static void mvpp22_gop_init_10gkr(struct mvpp2_port *port)
 	void __iomem *xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
 	u32 val;
 
-	/* XPCS */
 	val = readl(xpcs + MVPP22_XPCS_CFG0);
 	val &= ~(MVPP22_XPCS_CFG0_PCS_MODE(0x3) |
 		 MVPP22_XPCS_CFG0_ACTIVE_LANE(0x3));
 	val |= MVPP22_XPCS_CFG0_ACTIVE_LANE(2);
 	writel(val, xpcs + MVPP22_XPCS_CFG0);
 
-	/* MPCS */
 	val = readl(mpcs + MVPP22_MPCS_CTRL);
 	val &= ~MVPP22_MPCS_CTRL_FWD_ERR_CONN;
 	writel(val, mpcs + MVPP22_MPCS_CTRL);
 
 	val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
-	val &= ~(MVPP22_MPCS_CLK_RESET_DIV_RATIO(0x7) | MAC_CLK_RESET_MAC |
-		 MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX);
+	val &= ~MVPP22_MPCS_CLK_RESET_DIV_RATIO(0x7);
 	val |= MVPP22_MPCS_CLK_RESET_DIV_RATIO(1);
-	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
-
-	val &= ~MVPP22_MPCS_CLK_RESET_DIV_SET;
-	val |= MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX;
 	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
 }
 
@@ -1381,6 +1374,57 @@ static void mvpp2_mac_reset_assert(struct mvpp2_port *port)
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG) &
 		      ~MVPP22_XLG_CTRL0_MAC_RESET_DIS;
 		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+	}
+}
+
+static void mvpp22_pcs_reset_assert(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	void __iomem *mpcs, *xpcs;
+	u32 val;
+
+	if (port->priv->hw_version != MVPP22 || port->gop_id != 0)
+		return;
+
+	mpcs = priv->iface_base + MVPP22_MPCS_BASE(port->gop_id);
+	xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
+
+	val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
+	val &= ~(MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX);
+	val |= MVPP22_MPCS_CLK_RESET_DIV_SET;
+	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
+
+	val = readl(xpcs + MVPP22_XPCS_CFG0);
+	writel(val & ~MVPP22_XPCS_CFG0_RESET_DIS, xpcs + MVPP22_XPCS_CFG0);
+}
+
+static void mvpp22_pcs_reset_deassert(struct mvpp2_port *port)
+{
+	struct mvpp2 *priv = port->priv;
+	void __iomem *mpcs, *xpcs;
+	u32 val;
+
+	if (port->priv->hw_version != MVPP22 || port->gop_id != 0)
+		return;
+
+	mpcs = priv->iface_base + MVPP22_MPCS_BASE(port->gop_id);
+	xpcs = priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
+
+	switch (port->phy_interface) {
+	case PHY_INTERFACE_MODE_10GKR:
+		val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
+		val |= MAC_CLK_RESET_MAC | MAC_CLK_RESET_SD_RX |
+		       MAC_CLK_RESET_SD_TX;
+		val &= ~MVPP22_MPCS_CLK_RESET_DIV_SET;
+		writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
+		break;
+	case PHY_INTERFACE_MODE_XAUI:
+	case PHY_INTERFACE_MODE_RXAUI:
+		val = readl(xpcs + MVPP22_XPCS_CFG0);
+		writel(val | MVPP22_XPCS_CFG0_RESET_DIS, xpcs + MVPP22_XPCS_CFG0);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -3139,11 +3183,16 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 	/* Set the GMAC & XLG MAC in reset */
 	mvpp2_mac_reset_assert(port);
 
+	/* Set the MPCS and XPCS in reset */
+	mvpp22_pcs_reset_assert(port);
+
 	/* comphy reconfiguration */
 	mvpp22_comphy_init(port);
 
 	/* gop reconfiguration */
 	mvpp22_gop_init(port);
+
+	mvpp22_pcs_reset_deassert(port);
 
 	/* Only GOP port 0 has an XLG MAC */
 	if (port->gop_id == 0) {
@@ -4959,6 +5008,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	mvpp2_port_periodic_xon_disable(port);
 
 	mvpp2_mac_reset_assert(port);
+	mvpp22_pcs_reset_assert(port);
 
 	port->pcpu = alloc_percpu(struct mvpp2_port_pcpu);
 	if (!port->pcpu) {
