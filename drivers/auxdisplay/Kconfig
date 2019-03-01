@@ -445,6 +445,27 @@ config PANEL_BOOT_MESSAGE
 	  An empty message will only clear the display at driver init time. Any other
 	  printf()-formatted message is valid with newline and escape codes.
 
+choice
+	prompt "Backlight initial state"
+	default CHARLCD_BL_FLASH
+
+	config CHARLCD_BL_OFF
+		bool "Off"
+		help
+		  Backlight is initially turned off
+
+	config CHARLCD_BL_ON
+		bool "On"
+		help
+		  Backlight is initially turned on
+
+	config CHARLCD_BL_FLASH
+		bool "Flash"
+		help
+		  Backlight is flashed briefly on init
+
+endchoice
+
 endif # AUXDISPLAY
 
 config PANEL
