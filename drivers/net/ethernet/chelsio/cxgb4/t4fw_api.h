@@ -1312,6 +1312,14 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_RAWF_END = 0x37,
 	FW_PARAMS_PARAM_PFVF_NCRYPTO_LOOKASIDE = 0x39,
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
+	FW_PARAMS_PARAM_PFVF_LINK_STATE = 0x40,
+};
+
+/* Virtual link state as seen by the specified VF */
+enum vf_link_states {
+	FW_VF_LINK_STATE_AUTO		= 0x00,
+	FW_VF_LINK_STATE_ENABLE		= 0x01,
+	FW_VF_LINK_STATE_DISABLE	= 0x02,
 };
 
 /*
