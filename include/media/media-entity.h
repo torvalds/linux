@@ -865,19 +865,6 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
 
 /**
- * media_entity_get - Get a reference to the parent module
- *
- * @entity: The entity
- *
- * Get a reference to the parent media device module.
- *
- * The function will return immediately if @entity is %NULL.
- *
- * Return: returns a pointer to the entity on success or %NULL on failure.
- */
-struct media_entity *media_entity_get(struct media_entity *entity);
-
-/**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
  *
  * @entity: The entity
@@ -915,17 +902,6 @@ __must_check int media_graph_walk_init(
  * @graph: Media graph structure that will be used to walk the graph
  */
 void media_graph_walk_cleanup(struct media_graph *graph);
-
-/**
- * media_entity_put - Release the reference to the parent module
- *
- * @entity: The entity
- *
- * Release the reference count acquired by media_entity_get().
- *
- * The function will return immediately if @entity is %NULL.
- */
-void media_entity_put(struct media_entity *entity);
 
 /**
  * media_graph_walk_start - Start walking the media graph at a
