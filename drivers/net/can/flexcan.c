@@ -278,8 +278,8 @@ struct flexcan_priv {
 	u8 clk_src;	/* clock source of CAN Protocol Engine */
 
 	u32 reg_ctrl_default;
-	u32 reg_imask1_default;
-	u32 reg_imask2_default;
+	u32 rx_mask1;
+	u32 rx_mask2;
 
 	struct clk *clk_ipg;
 	struct clk *clk_per;
@@ -878,9 +878,9 @@ static inline u64 flexcan_read_reg_iflag_rx(struct flexcan_priv *priv)
 	struct flexcan_regs __iomem *regs = priv->regs;
 	u32 iflag1, iflag2;
 
-	iflag2 = priv->read(&regs->iflag2) & priv->reg_imask2_default &
+	iflag2 = priv->read(&regs->iflag2) & priv->rx_mask2 &
 		~FLEXCAN_IFLAG2_MB(priv->tx_mb_idx);
-	iflag1 = priv->read(&regs->iflag1) & priv->reg_imask1_default;
+	iflag1 = priv->read(&regs->iflag1) & priv->rx_mask1;
 
 	return (u64)iflag2 << 32 | iflag1;
 }
@@ -1227,8 +1227,8 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* enable interrupts atomically */
 	disable_irq(dev->irq);
 	priv->write(priv->reg_ctrl_default, &regs->ctrl);
-	priv->write(priv->reg_imask1_default, &regs->imask1);
-	priv->write(priv->reg_imask2_default, &regs->imask2);
+	priv->write(priv->rx_mask1, &regs->imask1);
+	priv->write(priv->rx_mask2, &regs->imask2);
 	enable_irq(dev->irq);
 
 	/* print chip status */
@@ -1297,8 +1297,8 @@ static int flexcan_open(struct net_device *dev)
 	priv->tx_mb_idx = priv->mb_count - 1;
 	priv->tx_mb = flexcan_get_mb(priv, priv->tx_mb_idx);
 
-	priv->reg_imask1_default = 0;
-	priv->reg_imask2_default = FLEXCAN_IFLAG2_MB(priv->tx_mb_idx);
+	priv->rx_mask1 = 0;
+	priv->rx_mask2 = FLEXCAN_IFLAG2_MB(priv->tx_mb_idx);
 
 	priv->offload.mailbox_read = flexcan_mailbox_read;
 
@@ -1310,12 +1310,12 @@ static int flexcan_open(struct net_device *dev)
 
 		imask = GENMASK_ULL(priv->offload.mb_last,
 				    priv->offload.mb_first);
-		priv->reg_imask1_default |= imask;
-		priv->reg_imask2_default |= imask >> 32;
+		priv->rx_mask1 |= imask;
+		priv->rx_mask2 |= imask >> 32;
 
 		err = can_rx_offload_add_timestamp(dev, &priv->offload);
 	} else {
-		priv->reg_imask1_default |= FLEXCAN_IFLAG_RX_FIFO_OVERFLOW |
+		priv->rx_mask1 |= FLEXCAN_IFLAG_RX_FIFO_OVERFLOW |
 			FLEXCAN_IFLAG_RX_FIFO_AVAILABLE;
 		err = can_rx_offload_add_fifo(dev, &priv->offload,
 					      FLEXCAN_NAPI_WEIGHT);
