@@ -39,8 +39,8 @@ struct amd_fch_gpio_priv {
 	spinlock_t			lock;
 };
 
-static void *amd_fch_gpio_addr(struct amd_fch_gpio_priv *priv,
-			       unsigned int gpio)
+static void __iomem *amd_fch_gpio_addr(struct amd_fch_gpio_priv *priv,
+				       unsigned int gpio)
 {
 	return priv->base + priv->pdata->gpio_reg[gpio]*sizeof(u32);
 }
@@ -50,7 +50,7 @@ static int amd_fch_gpio_direction_input(struct gpio_chip *gc,
 {
 	unsigned long flags;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
-	void *ptr = amd_fch_gpio_addr(priv, offset);
+	void __iomem *ptr = amd_fch_gpio_addr(priv, offset);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	writel_relaxed(readl_relaxed(ptr) & ~AMD_FCH_GPIO_FLAG_DIRECTION, ptr);
@@ -64,7 +64,7 @@ static int amd_fch_gpio_direction_output(struct gpio_chip *gc,
 {
 	unsigned long flags;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
-	void *ptr = amd_fch_gpio_addr(priv, gpio);
+	void __iomem *ptr = amd_fch_gpio_addr(priv, gpio);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	writel_relaxed(readl_relaxed(ptr) | AMD_FCH_GPIO_FLAG_DIRECTION, ptr);
@@ -78,7 +78,7 @@ static int amd_fch_gpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
 	int ret;
 	unsigned long flags;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
-	void *ptr = amd_fch_gpio_addr(priv, gpio);
+	void __iomem *ptr = amd_fch_gpio_addr(priv, gpio);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	ret = (readl_relaxed(ptr) & AMD_FCH_GPIO_FLAG_DIRECTION);
@@ -92,7 +92,7 @@ static void amd_fch_gpio_set(struct gpio_chip *gc,
 {
 	unsigned long flags;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
-	void *ptr = amd_fch_gpio_addr(priv, gpio);
+	void __iomem *ptr = amd_fch_gpio_addr(priv, gpio);
 	u32 mask;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -113,7 +113,7 @@ static int amd_fch_gpio_get(struct gpio_chip *gc,
 	unsigned long flags;
 	int ret;
 	struct amd_fch_gpio_priv *priv = gpiochip_get_data(gc);
-	void *ptr = amd_fch_gpio_addr(priv, offset);
+	void __iomem *ptr = amd_fch_gpio_addr(priv, offset);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	ret = (readl_relaxed(ptr) & AMD_FCH_GPIO_FLAG_READ);
