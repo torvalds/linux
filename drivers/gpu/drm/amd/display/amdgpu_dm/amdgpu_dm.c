@@ -4654,7 +4654,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct drm_device *dev,
 				    struct amdgpu_display_manager *dm,
 				    struct drm_crtc *pcrtc,
-				    bool *wait_for_vblank)
+				    bool wait_for_vblank)
 {
 	uint32_t i, r;
 	uint64_t timestamp_ns;
@@ -4722,14 +4722,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		dc_plane = dm_new_plane_state->dc_state;
 
 		if (pflip_needed) {
-			/*
-			 * Assume even ONE crtc with immediate flip means
-			 * entire can't wait for VBLANK
-			 * TODO Check if it's correct
-			 */
-			if (new_pcrtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
-				*wait_for_vblank = false;
-
 			/*
 			 * TODO This might fail and hence better not used, wait
 			 * explicitly on fences instead
@@ -4855,7 +4847,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 
-		target = (uint32_t)last_flip_vblank + *wait_for_vblank;
+		target = (uint32_t)last_flip_vblank + wait_for_vblank;
 
 		/* Prepare wait for target vblank early - before the fence-waits */
 		target_vblank = target - (uint32_t)drm_crtc_vblank_count(pcrtc) +
@@ -5234,13 +5226,17 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #endif
 	}
 
+	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
+		if (new_crtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
+			wait_for_vblank = false;
+
 	/* update planes when needed per crtc*/
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j) {
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
 		if (dm_new_crtc_state->stream)
 			amdgpu_dm_commit_planes(state, dc_state, dev,
-						dm, crtc, &wait_for_vblank);
+						dm, crtc, wait_for_vblank);
 	}
 
 
