@@ -499,23 +499,6 @@ more details, with real examples.
 	In the above example, -Wno-unused-but-set-variable will be added to
 	KBUILD_CFLAGS only if gcc really accepts it.
 
-    cc-version
-	cc-version returns a numerical version of the $(CC) compiler version.
-	The format is <major><minor> where both are two digits. So for example
-	gcc 3.41 would return 0341.
-	cc-version is useful when a specific $(CC) version is faulty in one
-	area, for example -mregparm=3 was broken in some gcc versions
-	even though the option was accepted by gcc.
-
-	Example:
-		#arch/x86/Makefile
-		cflags-y += $(shell \
-		if [ $(cc-version) -ge 0300 ] ; then \
-			echo "-mregparm=3"; fi ;)
-
-	In the above example, -mregparm=3 is only used for gcc version greater
-	than or equal to gcc 3.0.
-
     cc-ifversion
 	cc-ifversion tests the version of $(CC) and equals the fourth parameter
 	if version expression is true, or the fifth (if given) if the version
