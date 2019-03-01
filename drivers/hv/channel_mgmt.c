@@ -141,7 +141,7 @@ static const struct vmbus_device vmbus_devs[] = {
 };
 
 static const struct {
-	uuid_le guid;
+	guid_t guid;
 } vmbus_unsupported_devs[] = {
 	{ HV_AVMA1_GUID },
 	{ HV_AVMA2_GUID },
@@ -171,26 +171,26 @@ static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 }
 
-static bool is_unsupported_vmbus_devs(const uuid_le *guid)
+static bool is_unsupported_vmbus_devs(const guid_t *guid)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vmbus_unsupported_devs); i++)
-		if (!uuid_le_cmp(*guid, vmbus_unsupported_devs[i].guid))
+		if (guid_equal(guid, &vmbus_unsupported_devs[i].guid))
 			return true;
 	return false;
 }
 
 static u16 hv_get_dev_type(const struct vmbus_channel *channel)
 {
-	const uuid_le *guid = &channel->offermsg.offer.if_type;
+	const guid_t *guid = &channel->offermsg.offer.if_type;
 	u16 i;
 
 	if (is_hvsock_channel(channel) || is_unsupported_vmbus_devs(guid))
 		return HV_UNKNOWN;
 
 	for (i = HV_IDE; i < HV_UNKNOWN; i++) {
-		if (!uuid_le_cmp(*guid, vmbus_devs[i].guid))
+		if (guid_equal(guid, &vmbus_devs[i].guid))
 			return i;
 	}
 	pr_info("Unknown GUID: %pUl\n", guid);
@@ -561,10 +561,10 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	atomic_dec(&vmbus_connection.offer_in_progress);
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
-		if (!uuid_le_cmp(channel->offermsg.offer.if_type,
-				 newchannel->offermsg.offer.if_type) &&
-		    !uuid_le_cmp(channel->offermsg.offer.if_instance,
-				 newchannel->offermsg.offer.if_instance)) {
+		if (guid_equal(&channel->offermsg.offer.if_type,
+			       &newchannel->offermsg.offer.if_type) &&
+		    guid_equal(&channel->offermsg.offer.if_instance,
+			       &newchannel->offermsg.offer.if_instance)) {
 			fnew = false;
 			break;
 		}
