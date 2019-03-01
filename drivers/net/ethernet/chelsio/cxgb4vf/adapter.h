@@ -406,12 +406,12 @@ struct adapter {
 };
 
 enum { /* adapter flags */
-	FULL_INIT_DONE     = (1UL << 0),
-	USING_MSI          = (1UL << 1),
-	USING_MSIX         = (1UL << 2),
-	QUEUES_BOUND       = (1UL << 3),
-	ROOT_NO_RELAXED_ORDERING = (1UL << 4),
-	FW_OK              = (1UL << 5),
+	CXGB4VF_FULL_INIT_DONE			= (1UL << 0),
+	CXGB4VF_USING_MSI			= (1UL << 1),
+	CXGB4VF_USING_MSIX			= (1UL << 2),
+	CXGB4VF_QUEUES_BOUND			= (1UL << 3),
+	CXGB4VF_ROOT_NO_RELAXED_ORDERING	= (1UL << 4),
+	CXGB4VF_FW_OK				= (1UL << 5),
 };
 
 /*

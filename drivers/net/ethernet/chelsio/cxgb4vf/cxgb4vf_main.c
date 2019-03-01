@@ -469,7 +469,7 @@ static void enable_rx(struct adapter *adapter)
 	 * The interrupt queue doesn't use NAPI so we do the 0-increment of
 	 * its Going To Sleep register here to get it started.
 	 */
-	if (adapter->flags & USING_MSI)
+	if (adapter->flags & CXGB4VF_USING_MSI)
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
 			     CIDXINC_V(0) |
 			     SEINTARM_V(s->intrq.intr_params) |
@@ -613,7 +613,7 @@ static int setup_sge_queues(struct adapter *adapter)
 	 * the intrq's queue ID as the interrupt forwarding queue for the
 	 * subsequent calls ...
 	 */
-	if (adapter->flags & USING_MSI) {
+	if (adapter->flags & CXGB4VF_USING_MSI) {
 		err = t4vf_sge_alloc_rxq(adapter, &s->intrq, false,
 					 adapter->port[0], 0, NULL, NULL);
 		if (err)
@@ -773,7 +773,7 @@ static int adapter_up(struct adapter *adapter)
 	 * adapter setup.  Once we've done this, many of our adapter
 	 * parameters can no longer be changed ...
 	 */
-	if ((adapter->flags & FULL_INIT_DONE) == 0) {
+	if ((adapter->flags & CXGB4VF_FULL_INIT_DONE) == 0) {
 		err = setup_sge_queues(adapter);
 		if (err)
 			return err;
@@ -783,17 +783,18 @@ static int adapter_up(struct adapter *adapter)
 			return err;
 		}
 
-		if (adapter->flags & USING_MSIX)
+		if (adapter->flags & CXGB4VF_USING_MSIX)
 			name_msix_vecs(adapter);
 
-		adapter->flags |= FULL_INIT_DONE;
+		adapter->flags |= CXGB4VF_FULL_INIT_DONE;
 	}
 
 	/*
 	 * Acquire our interrupt resources.  We only support MSI-X and MSI.
 	 */
-	BUG_ON((adapter->flags & (USING_MSIX|USING_MSI)) == 0);
-	if (adapter->flags & USING_MSIX)
+	BUG_ON((adapter->flags &
+	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
+	if (adapter->flags & CXGB4VF_USING_MSIX)
 		err = request_msix_queue_irqs(adapter);
 	else
 		err = request_irq(adapter->pdev->irq,
@@ -824,7 +825,7 @@ static void adapter_down(struct adapter *adapter)
 	/*
 	 * Free interrupt resources.
 	 */
-	if (adapter->flags & USING_MSIX)
+	if (adapter->flags & CXGB4VF_USING_MSIX)
 		free_msix_queue_irqs(adapter);
 	else
 		free_irq(adapter->pdev->irq, adapter);
@@ -848,7 +849,7 @@ static int cxgb4vf_open(struct net_device *dev)
 	 * If we don't have a connection to the firmware there's nothing we
 	 * can do.
 	 */
-	if (!(adapter->flags & FW_OK))
+	if (!(adapter->flags & CXGB4VF_FW_OK))
 		return -ENXIO;
 
 	/*
@@ -1240,7 +1241,7 @@ static void cxgb4vf_poll_controller(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		struct sge_eth_rxq *rxq;
 		int nqsets;
 
@@ -1655,7 +1656,7 @@ static int cxgb4vf_set_ringparam(struct net_device *dev,
 	    rp->tx_pending < MIN_TXQ_ENTRIES)
 		return -EINVAL;
 
-	if (adapter->flags & FULL_INIT_DONE)
+	if (adapter->flags & CXGB4VF_FULL_INIT_DONE)
 		return -EBUSY;
 
 	for (qs = pi->first_qset; qs < pi->first_qset + pi->nqsets; qs++) {
@@ -2172,7 +2173,7 @@ static int sge_qinfo_show(struct seq_file *seq, void *v)
 static int sge_queue_entries(const struct adapter *adapter)
 {
 	return DIV_ROUND_UP(adapter->sge.ethqsets, QPL) + 1 +
-		((adapter->flags & USING_MSI) != 0);
+		((adapter->flags & CXGB4VF_USING_MSI) != 0);
 }
 
 static void *sge_queue_start(struct seq_file *seq, loff_t *pos)
@@ -2318,7 +2319,7 @@ static int sge_qstats_show(struct seq_file *seq, void *v)
 static int sge_qstats_entries(const struct adapter *adapter)
 {
 	return DIV_ROUND_UP(adapter->sge.ethqsets, QPL) + 1 +
-		((adapter->flags & USING_MSI) != 0);
+		((adapter->flags & CXGB4VF_USING_MSI) != 0);
 }
 
 static void *sge_qstats_start(struct seq_file *seq, loff_t *pos)
@@ -2727,7 +2728,7 @@ static int adap_init0(struct adapter *adapter)
 	 */
 	size_nports_qsets(adapter);
 
-	adapter->flags |= FW_OK;
+	adapter->flags |= CXGB4VF_FW_OK;
 	return 0;
 }
 
@@ -2762,7 +2763,8 @@ static void cfg_queues(struct adapter *adapter)
 	 * support.  In particular, this means that we need to know what kind
 	 * of interrupts we'll be using ...
 	 */
-	BUG_ON((adapter->flags & (USING_MSIX|USING_MSI)) == 0);
+	BUG_ON((adapter->flags &
+	       (CXGB4VF_USING_MSIX | CXGB4VF_USING_MSI)) == 0);
 
 	/*
 	 * Count the number of 10GbE Virtual Interfaces that we have.
@@ -3088,7 +3090,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * using Relaxed Ordering.
 	 */
 	if (!pcie_relaxed_ordering_enabled(pdev))
-		adapter->flags |= ROOT_NO_RELAXED_ORDERING;
+		adapter->flags |= CXGB4VF_ROOT_NO_RELAXED_ORDERING;
 
 	err = adap_init0(adapter);
 	if (err)
@@ -3164,7 +3166,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		 * If we haven't been able to contact the firmware, there's
 		 * nothing else we can do for this "port" ...
 		 */
-		if (!(adapter->flags & FW_OK))
+		if (!(adapter->flags & CXGB4VF_FW_OK))
 			continue;
 
 		viid = t4vf_alloc_vi(adapter, port_id);
@@ -3214,7 +3216,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * get MSI interrupts we bail with the error.
 	 */
 	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
+		adapter->flags |= CXGB4VF_USING_MSIX;
 	else {
 		if (msi == MSI_MSIX) {
 			dev_info(adapter->pdev_dev,
@@ -3234,7 +3236,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 				" err=%d\n", err);
 			goto err_free_dev;
 		}
-		adapter->flags |= USING_MSI;
+		adapter->flags |= CXGB4VF_USING_MSI;
 	}
 
 	/* Now that we know how many "ports" we have and what interrupt
@@ -3292,8 +3294,8 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	for_each_port(adapter, pidx) {
 		dev_info(adapter->pdev_dev, "%s: Chelsio VF NIC PCIe %s\n",
 			 adapter->port[pidx]->name,
-			 (adapter->flags & USING_MSIX) ? "MSI-X" :
-			 (adapter->flags & USING_MSI)  ? "MSI" : "");
+			 (adapter->flags & CXGB4VF_USING_MSIX) ? "MSI-X" :
+			 (adapter->flags & CXGB4VF_USING_MSI)  ? "MSI" : "");
 	}
 
 	/*
@@ -3306,12 +3308,12 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * so far and return the error.
 	 */
 err_disable_interrupts:
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		pci_disable_msix(adapter->pdev);
-		adapter->flags &= ~USING_MSIX;
-	} else if (adapter->flags & USING_MSI) {
+		adapter->flags &= ~CXGB4VF_USING_MSIX;
+	} else if (adapter->flags & CXGB4VF_USING_MSI) {
 		pci_disable_msi(adapter->pdev);
-		adapter->flags &= ~USING_MSI;
+		adapter->flags &= ~CXGB4VF_USING_MSI;
 	}
 
 err_free_dev:
@@ -3371,12 +3373,12 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 			if (test_bit(pidx, &adapter->registered_device_map))
 				unregister_netdev(adapter->port[pidx]);
 		t4vf_sge_stop(adapter);
-		if (adapter->flags & USING_MSIX) {
+		if (adapter->flags & CXGB4VF_USING_MSIX) {
 			pci_disable_msix(adapter->pdev);
-			adapter->flags &= ~USING_MSIX;
-		} else if (adapter->flags & USING_MSI) {
+			adapter->flags &= ~CXGB4VF_USING_MSIX;
+		} else if (adapter->flags & CXGB4VF_USING_MSI) {
 			pci_disable_msi(adapter->pdev);
-			adapter->flags &= ~USING_MSI;
+			adapter->flags &= ~CXGB4VF_USING_MSI;
 		}
 
 		/*
@@ -3448,12 +3450,12 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 	 * Interrupts allowing various internal pathways to drain.
 	 */
 	t4vf_sge_stop(adapter);
-	if (adapter->flags & USING_MSIX) {
+	if (adapter->flags & CXGB4VF_USING_MSIX) {
 		pci_disable_msix(adapter->pdev);
-		adapter->flags &= ~USING_MSIX;
-	} else if (adapter->flags & USING_MSI) {
+		adapter->flags &= ~CXGB4VF_USING_MSIX;
+	} else if (adapter->flags & CXGB4VF_USING_MSI) {
 		pci_disable_msi(adapter->pdev);
-		adapter->flags &= ~USING_MSI;
+		adapter->flags &= ~CXGB4VF_USING_MSI;
 	}
 
 	/*
