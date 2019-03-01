@@ -2744,18 +2744,13 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->display.set_cdclk = chv_set_cdclk;
+	if (IS_ICELAKE(dev_priv)) {
+		dev_priv->display.set_cdclk = icl_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		dev_priv->display.set_cdclk = cnl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
-	} else if (IS_VALLEYVIEW(dev_priv)) {
-		dev_priv->display.set_cdclk = vlv_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			vlv_modeset_calc_cdclk;
-	} else if (IS_BROADWELL(dev_priv)) {
-		dev_priv->display.set_cdclk = bdw_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk =
-			bdw_modeset_calc_cdclk;
+			cnl_modeset_calc_cdclk;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
@@ -2764,23 +2759,28 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			skl_modeset_calc_cdclk;
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		dev_priv->display.set_cdclk = cnl_set_cdclk;
+	} else if (IS_BROADWELL(dev_priv)) {
+		dev_priv->display.set_cdclk = bdw_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
-			cnl_modeset_calc_cdclk;
-	} else if (IS_ICELAKE(dev_priv)) {
-		dev_priv->display.set_cdclk = icl_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+			bdw_modeset_calc_cdclk;
+	} else if (IS_CHERRYVIEW(dev_priv)) {
+		dev_priv->display.set_cdclk = chv_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			vlv_modeset_calc_cdclk;
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		dev_priv->display.set_cdclk = vlv_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk =
+			vlv_modeset_calc_cdclk;
 	}
 
 	if (IS_ICELAKE(dev_priv))
 		dev_priv->display.get_cdclk = icl_get_cdclk;
 	else if (IS_CANNONLAKE(dev_priv))
 		dev_priv->display.get_cdclk = cnl_get_cdclk;
-	else if (IS_GEN9_BC(dev_priv))
-		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
+	else if (IS_GEN9_BC(dev_priv))
+		dev_priv->display.get_cdclk = skl_get_cdclk;
 	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.get_cdclk = bdw_get_cdclk;
 	else if (IS_HASWELL(dev_priv))

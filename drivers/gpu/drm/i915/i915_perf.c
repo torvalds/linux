@@ -2881,12 +2881,24 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 
 	sysfs_attr_init(&dev_priv->perf.oa.test_config.sysfs_metric_id.attr);
 
-	if (IS_HASWELL(dev_priv)) {
-		i915_perf_load_test_config_hsw(dev_priv);
-	} else if (IS_BROADWELL(dev_priv)) {
-		i915_perf_load_test_config_bdw(dev_priv);
-	} else if (IS_CHERRYVIEW(dev_priv)) {
-		i915_perf_load_test_config_chv(dev_priv);
+	if (IS_ICELAKE(dev_priv)) {
+		i915_perf_load_test_config_icl(dev_priv);
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		i915_perf_load_test_config_cnl(dev_priv);
+	} else if (IS_COFFEELAKE(dev_priv)) {
+		if (IS_CFL_GT2(dev_priv))
+			i915_perf_load_test_config_cflgt2(dev_priv);
+		if (IS_CFL_GT3(dev_priv))
+			i915_perf_load_test_config_cflgt3(dev_priv);
+	} else if (IS_GEMINILAKE(dev_priv)) {
+		i915_perf_load_test_config_glk(dev_priv);
+	} else if (IS_KABYLAKE(dev_priv)) {
+		if (IS_KBL_GT2(dev_priv))
+			i915_perf_load_test_config_kblgt2(dev_priv);
+		else if (IS_KBL_GT3(dev_priv))
+			i915_perf_load_test_config_kblgt3(dev_priv);
+	} else if (IS_BROXTON(dev_priv)) {
+		i915_perf_load_test_config_bxt(dev_priv);
 	} else if (IS_SKYLAKE(dev_priv)) {
 		if (IS_SKL_GT2(dev_priv))
 			i915_perf_load_test_config_sklgt2(dev_priv);
@@ -2894,25 +2906,13 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 			i915_perf_load_test_config_sklgt3(dev_priv);
 		else if (IS_SKL_GT4(dev_priv))
 			i915_perf_load_test_config_sklgt4(dev_priv);
-	} else if (IS_BROXTON(dev_priv)) {
-		i915_perf_load_test_config_bxt(dev_priv);
-	} else if (IS_KABYLAKE(dev_priv)) {
-		if (IS_KBL_GT2(dev_priv))
-			i915_perf_load_test_config_kblgt2(dev_priv);
-		else if (IS_KBL_GT3(dev_priv))
-			i915_perf_load_test_config_kblgt3(dev_priv);
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		i915_perf_load_test_config_glk(dev_priv);
-	} else if (IS_COFFEELAKE(dev_priv)) {
-		if (IS_CFL_GT2(dev_priv))
-			i915_perf_load_test_config_cflgt2(dev_priv);
-		if (IS_CFL_GT3(dev_priv))
-			i915_perf_load_test_config_cflgt3(dev_priv);
-	} else if (IS_CANNONLAKE(dev_priv)) {
-		i915_perf_load_test_config_cnl(dev_priv);
-	} else if (IS_ICELAKE(dev_priv)) {
-		i915_perf_load_test_config_icl(dev_priv);
-	}
+	} else if (IS_CHERRYVIEW(dev_priv)) {
+		i915_perf_load_test_config_chv(dev_priv);
+	} else if (IS_BROADWELL(dev_priv)) {
+		i915_perf_load_test_config_bdw(dev_priv);
+	} else if (IS_HASWELL(dev_priv)) {
+		i915_perf_load_test_config_hsw(dev_priv);
+}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
 		goto sysfs_error;

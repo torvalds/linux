@@ -219,20 +219,20 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_GEN(dev_priv, 5))
-		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
-	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
-		id = INTEL_PCH_CPT_DEVICE_ID_TYPE;
+	if (IS_ICELAKE(dev_priv))
+		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
+	else if (IS_CANNONLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
+		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
+	else if (IS_KABYLAKE(dev_priv) || IS_SKYLAKE(dev_priv))
+		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;
 	else if (IS_HSW_ULT(dev_priv) || IS_BDW_ULT(dev_priv))
 		id = INTEL_PCH_LPT_LP_DEVICE_ID_TYPE;
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		id = INTEL_PCH_LPT_DEVICE_ID_TYPE;
-	else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-		id = INTEL_PCH_SPT_DEVICE_ID_TYPE;
-	else if (IS_COFFEELAKE(dev_priv) || IS_CANNONLAKE(dev_priv))
-		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
-	else if (IS_ICELAKE(dev_priv))
-		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
+	else if (IS_GEN(dev_priv, 6) || IS_IVYBRIDGE(dev_priv))
+		id = INTEL_PCH_CPT_DEVICE_ID_TYPE;
+	else if (IS_GEN(dev_priv, 5))
+		id = INTEL_PCH_IBX_DEVICE_ID_TYPE;
 
 	if (id)
 		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
