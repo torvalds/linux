@@ -103,7 +103,7 @@ struct dc_context {
 };
 
 
-#define DC_MAX_EDID_BUFFER_SIZE 512
+#define DC_MAX_EDID_BUFFER_SIZE 1024
 #define EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
