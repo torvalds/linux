@@ -89,12 +89,28 @@
  */
 #define DPAA2_ETH_SWA_SIZE		64
 
+/* We store different information in the software annotation area of a Tx frame
+ * based on what type of frame it is
+ */
+enum dpaa2_eth_swa_type {
+	DPAA2_ETH_SWA_SINGLE,
+	DPAA2_ETH_SWA_SG,
+};
+
 /* Must keep this struct smaller than DPAA2_ETH_SWA_SIZE */
 struct dpaa2_eth_swa {
-	struct sk_buff *skb;
-	struct scatterlist *scl;
-	int num_sg;
-	int sgt_size;
+	enum dpaa2_eth_swa_type type;
+	union {
+		struct {
+			struct sk_buff *skb;
+		} single;
+		struct {
+			struct sk_buff *skb;
+			struct scatterlist *scl;
+			int num_sg;
+			int sgt_size;
+		} sg;
+	};
 };
 
 /* Annotation valid bits in FD FRC */
