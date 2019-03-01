@@ -49,7 +49,9 @@ struct tda998x_audio_route {
 
 struct tda998x_audio_settings {
 	const struct tda998x_audio_route *route;
-	struct tda998x_audio_params params;
+	struct hdmi_audio_infoframe cea;
+	unsigned int sample_rate;
+	u8 status[5];
 	u8 ena_ap;
 	u8 i2s_format;
 	u8 cts_n;
@@ -1000,7 +1002,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 	if (settings->ena_ap == 0)
 		return;
 
-	adiv = tda998x_get_adiv(priv, settings->params.sample_rate);
+	adiv = tda998x_get_adiv(priv, settings->sample_rate);
 
 	/* Enable audio ports */
 	reg_write(priv, REG_ENA_AP, settings->ena_ap);
@@ -1017,7 +1019,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 	 * This is the approximate value of N, which happens to be
 	 * the recommended values for non-coherent clocks.
 	 */
-	n = 128 * settings->params.sample_rate / 1000;
+	n = 128 * settings->sample_rate / 1000;
 
 	/* Write the CTS and N values */
 	buf[0] = 0x44;
@@ -1036,17 +1038,17 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 	 * The REG_CH_STAT_B-registers skip IEC958 AES2 byte, because
 	 * there is a separate register for each I2S wire.
 	 */
-	buf[0] = settings->params.status[0];
-	buf[1] = settings->params.status[1];
-	buf[2] = settings->params.status[3];
-	buf[3] = settings->params.status[4];
+	buf[0] = settings->status[0];
+	buf[1] = settings->status[1];
+	buf[2] = settings->status[3];
+	buf[3] = settings->status[4];
 	reg_write_range(priv, REG_CH_STAT_B(0), buf, 4);
 
 	tda998x_audio_mute(priv, true);
 	msleep(20);
 	tda998x_audio_mute(priv, false);
 
-	tda998x_write_aif(priv, &settings->params.cea);
+	tda998x_write_aif(priv, &settings->cea);
 }
 
 static int tda998x_audio_hw_params(struct device *dev, void *data,
@@ -1058,15 +1060,12 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 	bool spdif = daifmt->fmt == HDMI_SPDIF;
 	int ret;
 	struct tda998x_audio_settings audio = {
-		.params = {
-			.sample_width = params->sample_width,
-			.sample_rate = params->sample_rate,
-			.cea = params->cea,
-		},
+		.sample_rate = params->sample_rate,
+		.cea = params->cea,
 	};
 
-	memcpy(audio.params.status, params->iec.status,
-	       min(sizeof(audio.params.status), sizeof(params->iec.status)));
+	memcpy(audio.status, params->iec.status,
+	       min(sizeof(audio.status), sizeof(params->iec.status)));
 
 	switch (daifmt->fmt) {
 	case HDMI_I2S:
@@ -1678,9 +1677,15 @@ static int tda998x_get_audio_ports(struct tda998x_priv *priv,
 			return -EINVAL;
 		}
 
+		if (!ena_ap) {
+			dev_err(&priv->hdmi->dev, "invalid zero port config\n");
+			continue;
+		}
+
 		if (priv->audio_port_enable[route]) {
 			dev_err(&priv->hdmi->dev,
-				"There can only be on I2S port and one SPDIF port\n");
+				"%s format already configured\n",
+				route == AUDIO_ROUTE_SPDIF ? "SPDIF" : "I2S");
 			return -EINVAL;
 		}
 
@@ -1712,7 +1717,11 @@ static int tda998x_set_config(struct tda998x_priv *priv,
 		route = AUDIO_ROUTE_I2S + spdif;
 
 		priv->audio.route = &tda998x_audio_route[route];
-		priv->audio.params = p->audio_params;
+		priv->audio.cea = p->audio_params.cea;
+		priv->audio.sample_rate = p->audio_params.sample_rate;
+		memcpy(priv->audio.status, p->audio_params.status,
+		       min(sizeof(priv->audio.status),
+			   sizeof(p->audio_params.status)));
 		priv->audio.ena_ap = p->audio_params.config;
 		priv->audio.i2s_format = I2S_FORMAT_PHILIPS;
 
