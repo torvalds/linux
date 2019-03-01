@@ -3136,7 +3136,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		 * it.
 		 */
 		pi->xact_addr_filt = -1;
-		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS | NETIF_F_GRO |
@@ -3259,6 +3258,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 			continue;
 		}
 
+		netif_carrier_off(netdev);
 		set_bit(pidx, &adapter->registered_device_map);
 	}
 	if (adapter->registered_device_map == 0) {
