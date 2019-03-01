@@ -373,7 +373,6 @@
 		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH 0>;
 		arasan,soc-ctl-syscon = <&grf>;
 		assigned-clocks = <&cru SCLK_EMMC>;
-		assigned-clock-parents = <&cru PLL_CPLL>;
 		assigned-clock-rates = <200000000>;
 		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
 		clock-names = "clk_xin", "clk_ahb";
