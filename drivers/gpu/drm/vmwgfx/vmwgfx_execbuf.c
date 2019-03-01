@@ -660,7 +660,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 
 		res = vmw_user_resource_noref_lookup_handle
 			(dev_priv, sw_context->fp->tfile, *id_loc, converter);
-		if (unlikely(IS_ERR(res))) {
+		if (IS_ERR(res)) {
 			DRM_ERROR("Could not find or use resource 0x%08x.\n",
 				  (unsigned int) *id_loc);
 			return PTR_ERR(res);
@@ -3835,7 +3835,7 @@ static int vmw_execbuf_tie_context(struct vmw_private *dev_priv,
 	res = vmw_user_resource_noref_lookup_handle
 		(dev_priv, sw_context->fp->tfile, handle,
 		 user_context_converter);
-	if (unlikely(IS_ERR(res))) {
+	if (IS_ERR(res)) {
 		DRM_ERROR("Could not find or user DX context 0x%08x.\n",
 			  (unsigned) handle);
 		return PTR_ERR(res);

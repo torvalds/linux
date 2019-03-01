@@ -210,7 +210,7 @@ static int vmw_gb_context_init(struct vmw_private *dev_priv,
 		for (i = 0; i < SVGA_COTABLE_DX10_MAX; ++i) {
 			uctx->cotables[i] = vmw_cotable_alloc(dev_priv,
 							      &uctx->res, i);
-			if (unlikely(IS_ERR(uctx->cotables[i]))) {
+			if (IS_ERR(uctx->cotables[i])) {
 				ret = PTR_ERR(uctx->cotables[i]);
 				goto out_cotables;
 			}
