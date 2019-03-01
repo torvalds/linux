@@ -113,7 +113,7 @@ static struct vim2m_fmt formats[] = {
 	}, {
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.depth	= 16,
-		.types  = MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
+		.types  = MEM2MEM_CAPTURE,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_SBGGR8,
 		.depth	= 8,
@@ -280,26 +280,6 @@ static void fast_copy_two_pixels(struct vim2m_q_data *q_data_in,
 		return;
 	}
 
-	/* Copy line at reverse order - YUYV format */
-	if (q_data_in->fmt->fourcc == V4L2_PIX_FMT_YUYV) {
-		int u, v, y, y1;
-
-		*src -= 2;
-
-		y1 = (*src)[0]; /* copy as second point */
-		u  = (*src)[1];
-		y  = (*src)[2]; /* copy as first point */
-		v  = (*src)[3];
-
-		*src -= 2;
-
-		*(*dst)++ = y;
-		*(*dst)++ = u;
-		*(*dst)++ = y1;
-		*(*dst)++ = v;
-		return;
-	}
-
 	/* copy RGB formats in reverse order */
 	memcpy(*dst, *src, depth);
 	memcpy(*dst + depth, *src - depth, depth);
@@ -352,6 +332,7 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 			*src += step << 1;
 		}
 		break;
+	default:
 	case V4L2_PIX_FMT_RGB24:
 		for (i = 0; i < 2; i++) {
 			*r++ = (*src)[0];
@@ -370,40 +351,6 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 			*src += step * 3;
 		}
 		break;
-	default: /* V4L2_PIX_FMT_YUYV */
-	{
-		int u, v, y, y1, u1, v1, tmp;
-
-		if (reverse) {
-			*src -= 2;
-
-			y1 = (*src)[0]; /* copy as second point */
-			u  = (*src)[1];
-			y  = (*src)[2]; /* copy as first point */
-			v  = (*src)[3];
-
-			*src -= 2;
-		} else {
-			y  = *(*src)++;
-			u  = *(*src)++;
-			y1 = *(*src)++;
-			v  = *(*src)++;
-		}
-
-		u1 = (((u - 128) << 7) +  (u - 128)) >> 6;
-		tmp = (((u - 128) << 1) + (u - 128) +
-		       ((v - 128) << 2) + ((v - 128) << 1)) >> 3;
-		v1 = (((v - 128) << 1) +  (v - 128)) >> 1;
-
-		*r++ = CLIP(y + v1);
-		*g++ = CLIP(y - tmp);
-		*b++ = CLIP(y + u1);
-
-		*r = CLIP(y1 + v1);
-		*g = CLIP(y1 - tmp);
-		*b = CLIP(y1 + u1);
-		break;
-	}
 	}
 
 	/* Step 2: store two consecutive points, reversing them if needed */
