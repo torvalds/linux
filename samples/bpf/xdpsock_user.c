@@ -446,7 +446,7 @@ static void kick_tx(struct xsk_socket_info *xsk)
 
 static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk)
 {
-	u32 idx_cq, idx_fq;
+	u32 idx_cq = 0, idx_fq = 0;
 	unsigned int rcvd;
 	size_t ndescs;
 
@@ -503,7 +503,7 @@ static inline void complete_tx_only(struct xsk_socket_info *xsk)
 static void rx_drop(struct xsk_socket_info *xsk)
 {
 	unsigned int rcvd, i;
-	u32 idx_rx, idx_fq = 0;
+	u32 idx_rx = 0, idx_fq = 0;
 	int ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, BATCH_SIZE, &idx_rx);
@@ -603,7 +603,7 @@ static void l2fwd(struct xsk_socket_info *xsk)
 {
 	for (;;) {
 		unsigned int rcvd, i;
-		u32 idx_rx, idx_tx = 0;
+		u32 idx_rx = 0, idx_tx = 0;
 		int ret;
 
 		for (;;) {
