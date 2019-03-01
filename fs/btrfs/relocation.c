@@ -4222,7 +4222,7 @@ out:
 	return inode;
 }
 
-static struct reloc_control *alloc_reloc_control(void)
+static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 {
 	struct reloc_control *rc;
 
@@ -4234,7 +4234,7 @@ static struct reloc_control *alloc_reloc_control(void)
 	INIT_LIST_HEAD(&rc->dirty_subvol_roots);
 	backref_cache_init(&rc->backref_cache);
 	mapping_tree_init(&rc->reloc_root_tree);
-	extent_io_tree_init(&rc->processed_blocks, NULL);
+	extent_io_tree_init(fs_info, &rc->processed_blocks, NULL);
 	return rc;
 }
 
@@ -4276,7 +4276,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		return -ETXTBSY;
 	}
 
-	rc = alloc_reloc_control();
+	rc = alloc_reloc_control(fs_info);
 	if (!rc) {
 		btrfs_put_block_group(bg);
 		return -ENOMEM;
@@ -4472,7 +4472,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 	if (list_empty(&reloc_roots))
 		goto out;
 
-	rc = alloc_reloc_control();
+	rc = alloc_reloc_control(fs_info);
 	if (!rc) {
 		err = -ENOMEM;
 		goto out;

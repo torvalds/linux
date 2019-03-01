@@ -108,6 +108,7 @@ struct extent_io_ops {
 
 struct extent_io_tree {
 	struct rb_root state;
+	struct btrfs_fs_info *fs_info;
 	void *private_data;
 	u64 dirty_bytes;
 	int track_uptodate;
@@ -239,7 +240,8 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 					  u64 start, u64 len,
 					  int create);
 
-void extent_io_tree_init(struct extent_io_tree *tree, void *private_data);
+void extent_io_tree_init(struct btrfs_fs_info *fs_info,
+			 struct extent_io_tree *tree, void *private_data);
 int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,

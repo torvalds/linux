@@ -232,9 +232,10 @@ void __cold extent_io_exit(void)
 	bioset_exit(&btrfs_bioset);
 }
 
-void extent_io_tree_init(struct extent_io_tree *tree,
-			 void *private_data)
+void extent_io_tree_init(struct btrfs_fs_info *fs_info,
+			 struct extent_io_tree *tree, void *private_data)
 {
+	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
 	tree->ops = NULL;
 	tree->dirty_bytes = 0;
