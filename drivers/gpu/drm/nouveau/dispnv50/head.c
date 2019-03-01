@@ -420,22 +420,15 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 }
 
 static void
-__drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
-			       struct drm_crtc_state *state)
-{
-	if (crtc->state)
-		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
-	crtc->state = state;
-	crtc->state->crtc = crtc;
-}
-
-static void
 nv50_head_reset(struct drm_crtc *crtc)
 {
 	struct nv50_head_atom *asyh;
 
 	if (WARN_ON(!(asyh = kzalloc(sizeof(*asyh), GFP_KERNEL))))
 		return;
+
+	if (crtc->state)
+		nv50_head_atomic_destroy_state(crtc, crtc->state);
 
 	__drm_atomic_helper_crtc_reset(crtc, &asyh->state);
 }

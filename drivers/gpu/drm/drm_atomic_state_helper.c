@@ -57,6 +57,29 @@
  */
 
 /**
+ * __drm_atomic_helper_crtc_reset - reset state on CRTC
+ * @crtc: drm CRTC
+ * @crtc_state: CRTC state to assign
+ *
+ * Initializes the newly allocated @crtc_state and assigns it to
+ * the &drm_crtc->state pointer of @crtc, usually required when
+ * initializing the drivers or when called from the &drm_crtc_funcs.reset
+ * hook.
+ *
+ * This is useful for drivers that subclass the CRTC state.
+ */
+void
+__drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
+			       struct drm_crtc_state *crtc_state)
+{
+	if (crtc_state)
+		crtc_state->crtc = crtc;
+
+	crtc->state = crtc_state;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_crtc_reset);
+
+/**
  * drm_atomic_helper_crtc_reset - default &drm_crtc_funcs.reset hook for CRTCs
  * @crtc: drm CRTC
  *
@@ -65,14 +88,13 @@
  */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
-	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-
-	kfree(crtc->state);
-	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
+	struct drm_crtc_state *crtc_state =
+		kzalloc(sizeof(*crtc->state), GFP_KERNEL);
 
 	if (crtc->state)
-		crtc->state->crtc = crtc;
+		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, crtc_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
 
