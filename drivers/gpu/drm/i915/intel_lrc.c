@@ -164,6 +164,8 @@
 #define WA_TAIL_DWORDS 2
 #define WA_TAIL_BYTES (sizeof(u32) * WA_TAIL_DWORDS)
 
+#define ACTIVE_PRIORITY (I915_PRIORITY_NEWCLIENT)
+
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine,
 					    struct intel_context *ce);
@@ -190,8 +192,30 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static int effective_prio(const struct i915_request *rq)
 {
+	int prio = rq_prio(rq);
+
+	/*
+	 * On unwinding the active request, we give it a priority bump
+	 * equivalent to a freshly submitted request. This protects it from
+	 * being gazumped again, but it would be preferable if we didn't
+	 * let it be gazumped in the first place!
+	 *
+	 * See __unwind_incomplete_requests()
+	 */
+	if (~prio & ACTIVE_PRIORITY && __i915_request_has_started(rq)) {
+		/*
+		 * After preemption, we insert the active request at the
+		 * end of the new priority level. This means that we will be
+		 * _lower_ priority than the preemptee all things equal (and
+		 * so the preemption is valid), so adjust our comparison
+		 * accordingly.
+		 */
+		prio |= ACTIVE_PRIORITY;
+		prio--;
+	}
+
 	/* Restrict mere WAIT boosts from triggering preemption */
-	return rq_prio(rq) | __NO_PREEMPTION;
+	return prio | __NO_PREEMPTION;
 }
 
 static int queue_prio(const struct intel_engine_execlists *execlists)
@@ -359,7 +383,7 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq, *rn, *active = NULL;
 	struct list_head *uninitialized_var(pl);
-	int prio = I915_PRIORITY_INVALID | I915_PRIORITY_NEWCLIENT;
+	int prio = I915_PRIORITY_INVALID | ACTIVE_PRIORITY;
 
 	lockdep_assert_held(&engine->timeline.lock);
 
@@ -390,9 +414,21 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	 * The active request is now effectively the start of a new client
 	 * stream, so give it the equivalent small priority bump to prevent
 	 * it being gazumped a second time by another peer.
+	 *
+	 * Note we have to be careful not to apply a priority boost to a request
+	 * still spinning on its semaphores. If the request hasn't started, that
+	 * means it is still waiting for its dependencies to be signaled, and
+	 * if we apply a priority boost to this request, we will boost it past
+	 * its signalers and so break PI.
+	 *
+	 * One consequence of this preemption boost is that we may jump
+	 * over lesser priorities (such as I915_PRIORITY_WAIT), effectively
+	 * making those priorities non-preemptible. They will be moved forward
+	 * in the priority queue, but they will not gain immediate access to
+	 * the GPU.
 	 */
-	if (!(prio & I915_PRIORITY_NEWCLIENT)) {
-		prio |= I915_PRIORITY_NEWCLIENT;
+	if (~prio & ACTIVE_PRIORITY && __i915_request_has_started(active)) {
+		prio |= ACTIVE_PRIORITY;
 		active->sched.attr.priority = prio;
 		list_move_tail(&active->sched.link,
 			       i915_sched_lookup_priolist(engine, prio));
