@@ -192,7 +192,7 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 	__i915_sw_fence_notify(fence, FENCE_FREE);
 }
 
-static void i915_sw_fence_complete(struct i915_sw_fence *fence)
+void i915_sw_fence_complete(struct i915_sw_fence *fence)
 {
 	debug_fence_assert(fence);
 
@@ -202,7 +202,7 @@ static void i915_sw_fence_complete(struct i915_sw_fence *fence)
 	__i915_sw_fence_complete(fence, NULL);
 }
 
-static void i915_sw_fence_await(struct i915_sw_fence *fence)
+void i915_sw_fence_await(struct i915_sw_fence *fence)
 {
 	debug_fence_assert(fence);
 	WARN_ON(atomic_inc_return(&fence->pending) <= 1);

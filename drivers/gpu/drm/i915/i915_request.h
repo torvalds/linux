@@ -129,6 +129,7 @@ struct i915_request {
 	 */
 	struct i915_sw_fence submit;
 	wait_queue_entry_t submitq;
+	struct list_head execute_cb;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -343,10 +344,27 @@ static inline bool __i915_request_has_started(const struct i915_request *rq)
  * i915_request_started - check if the request has begun being executed
  * @rq: the request
  *
- * Returns true if the request has been submitted to hardware, and the hardware
- * has advanced passed the end of the previous request and so should be either
- * currently processing the request (though it may be preempted and so
- * not necessarily the next request to complete) or have completed the request.
+ * If the timeline is not using initial breadcrumbs, a request is
+ * considered started if the previous request on its timeline (i.e.
+ * context) has been signaled.
+ *
+ * If the timeline is using semaphores, it will also be emitting an
+ * "initial breadcrumb" after the semaphores are complete and just before
+ * it began executing the user payload. A request can therefore be active
+ * on the HW and not yet started as it is still busywaiting on its
+ * dependencies (via HW semaphores).
+ *
+ * If the request has started, its dependencies will have been signaled
+ * (either by fences or by semaphores) and it will have begun processing
+ * the user payload.
+ *
+ * However, even if a request has started, it may have been preempted and
+ * so no longer active, or it may have already completed.
+ *
+ * See also i915_request_is_active().
+ *
+ * Returns true if the request has begun executing the user payload, or
+ * has completed:
  */
 static inline bool i915_request_started(const struct i915_request *rq)
 {

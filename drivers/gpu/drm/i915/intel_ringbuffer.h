@@ -499,6 +499,7 @@ struct intel_engine_cs {
 #define I915_ENGINE_NEEDS_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
 #define I915_ENGINE_HAS_PREEMPTION   BIT(2)
+#define I915_ENGINE_HAS_SEMAPHORES   BIT(3)
 	unsigned int flags;
 
 	/*
@@ -574,6 +575,12 @@ static inline bool
 intel_engine_has_preemption(const struct intel_engine_cs *engine)
 {
 	return engine->flags & I915_ENGINE_HAS_PREEMPTION;
+}
+
+static inline bool
+intel_engine_has_semaphores(const struct intel_engine_cs *engine)
+{
+	return engine->flags & I915_ENGINE_HAS_SEMAPHORES;
 }
 
 void intel_engines_set_scheduler_caps(struct drm_i915_private *i915);

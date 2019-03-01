@@ -79,6 +79,9 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 				    unsigned long timeout,
 				    gfp_t gfp);
 
+void i915_sw_fence_await(struct i915_sw_fence *fence);
+void i915_sw_fence_complete(struct i915_sw_fence *fence);
+
 static inline bool i915_sw_fence_signaled(const struct i915_sw_fence *fence)
 {
 	return atomic_read(&fence->pending) <= 0;
