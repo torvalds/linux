@@ -794,14 +794,36 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		.head = head,
 		.table = table,
 		.write = write,
+		.cur_val = NULL,
+		.cur_len = PAGE_SIZE,
 	};
 	struct cgroup *cgrp;
 	int ret;
+
+	ctx.cur_val = kmalloc_track_caller(ctx.cur_len, GFP_KERNEL);
+	if (ctx.cur_val) {
+		mm_segment_t old_fs;
+		loff_t pos = 0;
+
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		if (table->proc_handler(table, 0, (void __user *)ctx.cur_val,
+					&ctx.cur_len, &pos)) {
+			/* Let BPF program decide how to proceed. */
+			ctx.cur_len = 0;
+		}
+		set_fs(old_fs);
+	} else {
+		/* Let BPF program decide how to proceed. */
+		ctx.cur_len = 0;
+	}
 
 	rcu_read_lock();
 	cgrp = task_dfl_cgroup(current);
 	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], &ctx, BPF_PROG_RUN);
 	rcu_read_unlock();
+
+	kfree(ctx.cur_val);
 
 	return ret == 1 ? 0 : -EPERM;
 }
@@ -869,12 +891,55 @@ static const struct bpf_func_proto bpf_sysctl_get_name_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
+static int copy_sysctl_value(char *dst, size_t dst_len, char *src,
+			     size_t src_len)
+{
+	if (!dst)
+		return -EINVAL;
+
+	if (!dst_len)
+		return -E2BIG;
+
+	if (!src || !src_len) {
+		memset(dst, 0, dst_len);
+		return -EINVAL;
+	}
+
+	memcpy(dst, src, min(dst_len, src_len));
+
+	if (dst_len > src_len) {
+		memset(dst + src_len, '\0', dst_len - src_len);
+		return src_len;
+	}
+
+	dst[dst_len - 1] = '\0';
+
+	return -E2BIG;
+}
+
+BPF_CALL_3(bpf_sysctl_get_current_value, struct bpf_sysctl_kern *, ctx,
+	   char *, buf, size_t, buf_len)
+{
+	return copy_sysctl_value(buf, buf_len, ctx->cur_val, ctx->cur_len);
+}
+
+static const struct bpf_func_proto bpf_sysctl_get_current_value_proto = {
+	.func		= bpf_sysctl_get_current_value,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+};
+
 static const struct bpf_func_proto *
 sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_sysctl_get_name:
 		return &bpf_sysctl_get_name_proto;
+	case BPF_FUNC_sysctl_get_current_value:
+		return &bpf_sysctl_get_current_value_proto;
 	default:
 		return cgroup_base_func_proto(func_id, prog);
 	}
