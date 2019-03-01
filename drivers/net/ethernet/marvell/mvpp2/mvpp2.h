@@ -803,7 +803,7 @@ struct mvpp2_port {
 	u8 id;
 
 	/* Index of the port from the "group of ports" complex point
-	 * of view
+	 * of view. This is specific to PPv2.2.
 	 */
 	int gop_id;
 
