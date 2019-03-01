@@ -466,7 +466,7 @@ advk_pci_bridge_emul_pcie_conf_write(struct pci_bridge_emul *bridge,
 	}
 }
 
-struct pci_bridge_emul_ops advk_pci_bridge_emul_ops = {
+static struct pci_bridge_emul_ops advk_pci_bridge_emul_ops = {
 	.read_pcie = advk_pci_bridge_emul_pcie_conf_read,
 	.write_pcie = advk_pci_bridge_emul_pcie_conf_write,
 };
