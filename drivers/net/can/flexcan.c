@@ -778,6 +778,23 @@ static void flexcan_irq_state(struct net_device *dev, u32 reg_esr)
 		dev->stats.rx_fifo_errors++;
 }
 
+static inline u64 flexcan_read64_mask(struct flexcan_priv *priv, void __iomem *addr, u64 mask)
+{
+	u64 reg = 0;
+
+	if (upper_32_bits(mask))
+		reg = (u64)priv->read(addr - 4) << 32;
+	if (lower_32_bits(mask))
+		reg |= priv->read(addr);
+
+	return reg & mask;
+}
+
+static inline u64 flexcan_read_reg_iflag_rx(struct flexcan_priv *priv)
+{
+	return flexcan_read64_mask(priv, &priv->regs->iflag1, priv->rx_mask);
+}
+
 static inline struct flexcan_priv *rx_offload_to_priv(struct can_rx_offload *offload)
 {
 	return container_of(offload, struct flexcan_priv, offload);
@@ -870,17 +887,6 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 	priv->read(&regs->timer);
 
 	return skb;
-}
-
-static inline u64 flexcan_read_reg_iflag_rx(struct flexcan_priv *priv)
-{
-	struct flexcan_regs __iomem *regs = priv->regs;
-	u64 iflag;
-
-	iflag = (u64)priv->read(&regs->iflag2) << 32 |
-		priv->read(&regs->iflag1);
-
-	return iflag & priv->rx_mask;
 }
 
 static irqreturn_t flexcan_irq(int irq, void *dev_id)
