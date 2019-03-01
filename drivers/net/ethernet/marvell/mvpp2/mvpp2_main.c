@@ -4672,16 +4672,14 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 
 	/* Make sure the port is disabled when reconfiguring the mode */
 	mvpp2_port_disable(port);
-	if (change_interface) {
+	if (port->priv->hw_version == MVPP22 && change_interface) {
 		mvpp22_gop_mask_irq(port);
 
-		if (port->priv->hw_version == MVPP22) {
-			port->phy_interface = state->interface;
+		port->phy_interface = state->interface;
 
-			/* Reconfigure the serdes lanes */
-			phy_power_off(port->comphy);
-			mvpp22_mode_reconfigure(port);
-		}
+		/* Reconfigure the serdes lanes */
+		phy_power_off(port->comphy);
+		mvpp22_mode_reconfigure(port);
 	}
 
 	/* mac (re)configuration */
@@ -4695,7 +4693,7 @@ static void mvpp2_mac_config(struct net_device *dev, unsigned int mode,
 	if (port->priv->hw_version == MVPP21 && port->flags & MVPP2_F_LOOPBACK)
 		mvpp2_port_loopback_set(port, state);
 
-	if (change_interface)
+	if (port->priv->hw_version == MVPP22 && change_interface)
 		mvpp22_gop_unmask_irq(port);
 
 	mvpp2_port_enable(port);
