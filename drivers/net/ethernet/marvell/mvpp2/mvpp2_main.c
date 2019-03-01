@@ -4505,10 +4505,11 @@ static void mvpp2_mac_an_restart(struct net_device *dev)
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
-	u32 ctrl0, ctrl4;
+	u32 old_ctrl0, ctrl0;
+	u32 old_ctrl4, ctrl4;
 
-	ctrl0 = readl(port->base + MVPP22_XLG_CTRL0_REG);
-	ctrl4 = readl(port->base + MVPP22_XLG_CTRL4_REG);
+	old_ctrl0 = ctrl0 = readl(port->base + MVPP22_XLG_CTRL0_REG);
+	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_XLG_CTRL4_REG);
 
 	if (state->pause & MLO_PAUSE_TX)
 		ctrl0 |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
@@ -4524,8 +4525,10 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 	ctrl4 |= MVPP22_XLG_CTRL4_FWD_FC | MVPP22_XLG_CTRL4_FWD_PFC |
 		 MVPP22_XLG_CTRL4_EN_IDLE_CHECK;
 
-	writel(ctrl0, port->base + MVPP22_XLG_CTRL0_REG);
-	writel(ctrl4, port->base + MVPP22_XLG_CTRL4_REG);
+	if (old_ctrl0 != ctrl0)
+		writel(ctrl0, port->base + MVPP22_XLG_CTRL0_REG);
+	if (old_ctrl4 != ctrl4)
+		writel(ctrl4, port->base + MVPP22_XLG_CTRL4_REG);
 }
 
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
