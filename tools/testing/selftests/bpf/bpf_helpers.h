@@ -180,6 +180,8 @@ static struct bpf_sock *(*bpf_sk_fullsock)(struct bpf_sock *sk) =
 	(void *) BPF_FUNC_sk_fullsock;
 static struct bpf_tcp_sock *(*bpf_tcp_sock)(struct bpf_sock *sk) =
 	(void *) BPF_FUNC_tcp_sock;
+static int (*bpf_skb_ecn_set_ce)(void *ctx) =
+	(void *) BPF_FUNC_skb_ecn_set_ce;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
