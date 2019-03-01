@@ -142,6 +142,7 @@
 #define FLEXCAN_TX_MB_RESERVED_OFF_FIFO		8
 #define FLEXCAN_TX_MB_RESERVED_OFF_TIMESTAMP	0
 #define FLEXCAN_RX_MB_OFF_TIMESTAMP_FIRST	(FLEXCAN_TX_MB_RESERVED_OFF_TIMESTAMP + 1)
+#define FLEXCAN_IFLAG_MB(x)		BIT_ULL(x)
 #define FLEXCAN_IFLAG2_MB(x)		BIT((x) & 0x1f)
 #define FLEXCAN_IFLAG_RX_FIFO_OVERFLOW	BIT(7)
 #define FLEXCAN_IFLAG_RX_FIFO_WARN	BIT(6)
@@ -277,9 +278,8 @@ struct flexcan_priv {
 	u8 mb_size;
 	u8 clk_src;	/* clock source of CAN Protocol Engine */
 
+	u64 rx_mask;
 	u32 reg_ctrl_default;
-	u32 rx_mask1;
-	u32 rx_mask2;
 
 	struct clk *clk_ipg;
 	struct clk *clk_per;
@@ -872,16 +872,15 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 	return skb;
 }
 
-
 static inline u64 flexcan_read_reg_iflag_rx(struct flexcan_priv *priv)
 {
 	struct flexcan_regs __iomem *regs = priv->regs;
-	u32 iflag1, iflag2;
+	u64 iflag;
 
-	iflag2 = priv->read(&regs->iflag2) & priv->rx_mask2;
-	iflag1 = priv->read(&regs->iflag1) & priv->rx_mask1;
+	iflag = (u64)priv->read(&regs->iflag2) << 32 |
+		priv->read(&regs->iflag1);
 
-	return (u64)iflag2 << 32 | iflag1;
+	return iflag & priv->rx_mask;
 }
 
 static irqreturn_t flexcan_irq(int irq, void *dev_id)
@@ -1052,6 +1051,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->regs;
 	u32 reg_mcr, reg_ctrl, reg_ctrl2, reg_mecr;
+	u64 reg_imask;
 	int err, i;
 	struct flexcan_mb __iomem *mb;
 
@@ -1226,8 +1226,9 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* enable interrupts atomically */
 	disable_irq(dev->irq);
 	priv->write(priv->reg_ctrl_default, &regs->ctrl);
-	priv->write(priv->rx_mask1, &regs->imask1);
-	priv->write(priv->rx_mask2 | FLEXCAN_IFLAG2_MB(priv->tx_mb_idx), &regs->imask2);
+	reg_imask = priv->rx_mask | FLEXCAN_IFLAG_MB(priv->tx_mb_idx);
+	priv->write(upper_32_bits(reg_imask), &regs->imask2);
+	priv->write(lower_32_bits(reg_imask), &regs->imask1);
 	enable_irq(dev->irq);
 
 	/* print chip status */
@@ -1299,19 +1300,14 @@ static int flexcan_open(struct net_device *dev)
 	priv->offload.mailbox_read = flexcan_mailbox_read;
 
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP) {
-		u64 imask;
-
 		priv->offload.mb_first = FLEXCAN_RX_MB_OFF_TIMESTAMP_FIRST;
 		priv->offload.mb_last = priv->mb_count - 2;
 
-		imask = GENMASK_ULL(priv->offload.mb_last,
-				    priv->offload.mb_first);
-		priv->rx_mask1 = imask;
-		priv->rx_mask2 = imask >> 32;
-
+		priv->rx_mask = GENMASK_ULL(priv->offload.mb_last,
+					    priv->offload.mb_first);
 		err = can_rx_offload_add_timestamp(dev, &priv->offload);
 	} else {
-		priv->rx_mask1 = FLEXCAN_IFLAG_RX_FIFO_OVERFLOW |
+		priv->rx_mask = FLEXCAN_IFLAG_RX_FIFO_OVERFLOW |
 			FLEXCAN_IFLAG_RX_FIFO_AVAILABLE;
 		err = can_rx_offload_add_fifo(dev, &priv->offload,
 					      FLEXCAN_NAPI_WEIGHT);
