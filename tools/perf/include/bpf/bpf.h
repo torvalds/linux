@@ -24,7 +24,13 @@ struct bpf_map SEC("maps") name = {				\
 	.key_size    = sizeof(type_key),			\
 	.value_size  = sizeof(type_val),			\
 	.max_entries = _max_entries,				\
-}
+};								\
+struct ____btf_map_##name {					\
+	type_key key;						\
+	type_val value;                                 	\
+};								\
+struct ____btf_map_##name __attribute__((section(".maps." #name), used)) \
+	____btf_map_##name = { }
 
 /*
  * FIXME: this should receive .max_entries as a parameter, as careful
