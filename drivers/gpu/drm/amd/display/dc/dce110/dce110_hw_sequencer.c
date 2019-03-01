@@ -974,9 +974,8 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 			set_pme_wa_enable_by_version(core_dc);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
-		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
-			pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-				pipe_ctx->stream_res.stream_enc, false);
+		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+					pipe_ctx->stream_res.stream_enc, false);
 	}
 }
 
