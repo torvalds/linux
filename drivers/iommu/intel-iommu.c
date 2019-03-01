@@ -2056,7 +2056,6 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		int agaw;
 
 		context_set_domain_id(context, did);
-		context_set_translation_type(context, translation);
 
 		if (translation != CONTEXT_TT_PASS_THROUGH) {
 			/*
@@ -2086,6 +2085,8 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 			 */
 			context_set_address_width(context, iommu->msagaw);
 		}
+
+		context_set_translation_type(context, translation);
 	}
 
 	context_set_fault_enable(context);
