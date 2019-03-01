@@ -1553,27 +1553,33 @@ static int cdns_uart_probe(struct platform_device *pdev)
 	}
 
 	cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(cdns_uart_data->pclk)) {
-		cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "aper_clk");
-		if (!IS_ERR(cdns_uart_data->pclk))
-			dev_err(&pdev->dev, "clock name 'aper_clk' is deprecated.\n");
-	}
-	if (IS_ERR(cdns_uart_data->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+	if (PTR_ERR(cdns_uart_data->pclk) == -EPROBE_DEFER) {
 		rc = PTR_ERR(cdns_uart_data->pclk);
 		goto err_out_unregister_driver;
 	}
 
-	cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "uart_clk");
-	if (IS_ERR(cdns_uart_data->uartclk)) {
-		cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "ref_clk");
-		if (!IS_ERR(cdns_uart_data->uartclk))
-			dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
+	if (IS_ERR(cdns_uart_data->pclk)) {
+		cdns_uart_data->pclk = devm_clk_get(&pdev->dev, "aper_clk");
+		if (IS_ERR(cdns_uart_data->pclk)) {
+			rc = PTR_ERR(cdns_uart_data->pclk);
+			goto err_out_unregister_driver;
+		}
+		dev_err(&pdev->dev, "clock name 'aper_clk' is deprecated.\n");
 	}
-	if (IS_ERR(cdns_uart_data->uartclk)) {
-		dev_err(&pdev->dev, "uart_clk clock not found.\n");
+
+	cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "uart_clk");
+	if (PTR_ERR(cdns_uart_data->uartclk) == -EPROBE_DEFER) {
 		rc = PTR_ERR(cdns_uart_data->uartclk);
 		goto err_out_unregister_driver;
+	}
+
+	if (IS_ERR(cdns_uart_data->uartclk)) {
+		cdns_uart_data->uartclk = devm_clk_get(&pdev->dev, "ref_clk");
+		if (IS_ERR(cdns_uart_data->uartclk)) {
+			rc = PTR_ERR(cdns_uart_data->uartclk);
+			goto err_out_unregister_driver;
+		}
+		dev_err(&pdev->dev, "clock name 'ref_clk' is deprecated.\n");
 	}
 
 	rc = clk_prepare_enable(cdns_uart_data->pclk);
