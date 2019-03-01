@@ -258,7 +258,8 @@ enum {
 	CAKE_FLAG_AUTORATE_INGRESS = BIT(1),
 	CAKE_FLAG_INGRESS	   = BIT(2),
 	CAKE_FLAG_WASH		   = BIT(3),
-	CAKE_FLAG_SPLIT_GSO	   = BIT(4)
+	CAKE_FLAG_SPLIT_GSO	   = BIT(4),
+	CAKE_FLAG_FWMARK	   = BIT(5)
 };
 
 /* COBALT operates the Codel and BLUE algorithms in parallel, in order to
@@ -1566,12 +1567,20 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 		if (q->rate_flags & CAKE_FLAG_WASH)
 			cake_wash_diffserv(skb);
 	} else if (q->tin_mode != CAKE_DIFFSERV_BESTEFFORT) {
-		/* extract the Diffserv Precedence field, if it exists */
-		/* and clear DSCP bits if washing */
-		tin = q->tin_index[cake_handle_diffserv(skb,
-				q->rate_flags & CAKE_FLAG_WASH)];
-		if (unlikely(tin >= q->tin_cnt))
-			tin = 0;
+		if (q->rate_flags & CAKE_FLAG_FWMARK && /* use fw mark */
+		    skb->mark &&
+		    skb->mark <= q->tin_cnt) {
+			tin = q->tin_order[skb->mark - 1];
+			if (q->rate_flags & CAKE_FLAG_WASH)
+				cake_wash_diffserv(skb);
+		} else {
+			/* extract the Diffserv Precedence field, if it exists */
+			/* and clear DSCP bits if washing */
+			tin = q->tin_index[cake_handle_diffserv(skb,
+					q->rate_flags & CAKE_FLAG_WASH)];
+			if (unlikely(tin >= q->tin_cnt))
+				tin = 0;
+		}
 	} else {
 		tin = 0;
 		if (q->rate_flags & CAKE_FLAG_WASH)
@@ -2624,6 +2633,13 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 			q->rate_flags &= ~CAKE_FLAG_SPLIT_GSO;
 	}
 
+	if (tb[TCA_CAKE_FWMARK]) {
+		if (!!nla_get_u32(tb[TCA_CAKE_FWMARK]))
+			q->rate_flags |= CAKE_FLAG_FWMARK;
+		else
+			q->rate_flags &= ~CAKE_FLAG_FWMARK;
+	}
+
 	if (q->tins) {
 		sch_tree_lock(sch);
 		cake_reconfigure(sch);
@@ -2781,6 +2797,10 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	if (nla_put_u32(skb, TCA_CAKE_SPLIT_GSO,
 			!!(q->rate_flags & CAKE_FLAG_SPLIT_GSO)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, TCA_CAKE_FWMARK,
+			!!(q->rate_flags & CAKE_FLAG_FWMARK)))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
