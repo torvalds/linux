@@ -290,12 +290,12 @@ static void fast_copy_two_pixels(struct vim2m_q_data *q_data_in,
 
 static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 			    struct vim2m_q_data *q_data_out,
-			    u8 **src, u8 **dst, int ypos, bool reverse)
+			    u8 *src[2], u8 **dst, int ypos, bool reverse)
 {
 	struct vim2m_fmt *out = q_data_out->fmt;
 	struct vim2m_fmt *in = q_data_in->fmt;
 	u8 _r[2], _g[2], _b[2], *r, *g, *b;
-	int i, step;
+	int i;
 
 	/* Step 1: read two consecutive pixels from src pointer */
 
@@ -303,52 +303,39 @@ static void copy_two_pixels(struct vim2m_q_data *q_data_in,
 	g = _g;
 	b = _b;
 
-	if (reverse)
-		step = -1;
-	else
-		step = 1;
-
 	switch (in->fourcc) {
 	case V4L2_PIX_FMT_RGB565: /* rrrrrggg gggbbbbb */
 		for (i = 0; i < 2; i++) {
-			u16 pix = *(u16 *)*src;
+			u16 pix = *(u16 *)(src[i]);
 
 			*r++ = (u8)(((pix & 0xf800) >> 11) << 3) | 0x07;
 			*g++ = (u8)((((pix & 0x07e0) >> 5)) << 2) | 0x03;
 			*b++ = (u8)((pix & 0x1f) << 3) | 0x07;
-
-			*src += step << 1;
 		}
 		break;
 	case V4L2_PIX_FMT_RGB565X: /* gggbbbbb rrrrrggg */
 		for (i = 0; i < 2; i++) {
-			u16 pix = *(u16 *)*src;
+			u16 pix = *(u16 *)(src[i]);
 
 			*r++ = (u8)(((0x00f8 & pix) >> 3) << 3) | 0x07;
 			*g++ = (u8)(((pix & 0x7) << 2) |
 				    ((pix & 0xe000) >> 5)) | 0x03;
 			*b++ = (u8)(((pix & 0x1f00) >> 8) << 3) | 0x07;
-
-			*src += step << 1;
 		}
 		break;
 	default:
 	case V4L2_PIX_FMT_RGB24:
 		for (i = 0; i < 2; i++) {
-			*r++ = (*src)[0];
-			*g++ = (*src)[1];
-			*b++ = (*src)[2];
-
-			*src += step * 3;
+			*r++ = src[i][0];
+			*g++ = src[i][1];
+			*b++ = src[i][2];
 		}
 		break;
 	case V4L2_PIX_FMT_BGR24:
 		for (i = 0; i < 2; i++) {
-			*b++ = (*src)[0];
-			*g++ = (*src)[1];
-			*r++ = (*src)[2];
-
-			*src += step * 3;
+			*b++ = src[i][0];
+			*g++ = src[i][1];
+			*r++ = src[i][2];
 		}
 		break;
 	}
@@ -461,23 +448,20 @@ static int device_process(struct vim2m_ctx *ctx,
 {
 	struct vim2m_dev *dev = ctx->dev;
 	struct vim2m_q_data *q_data_in, *q_data_out;
-	u8 *p_in, *p, *p_out;
-	unsigned int width, height, bytesperline;
-	unsigned int x, y, y_in, y_out;
+	u8 *p_in, *p_line, *p_in_x[2], *p, *p_out;
+	unsigned int width, height, bytesperline, bytes_per_pixel;
+	unsigned int x, y, y_in, y_out, x_int, x_fract, x_err, x_offset;
 	int start, end, step;
 
 	q_data_in = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	bytesperline = (q_data_in->width * q_data_in->fmt->depth) >> 3;
+	bytes_per_pixel = q_data_in->fmt->depth >> 3;
 
 	q_data_out = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-	/* As we're doing vertical scaling use the out height here */
+	/* As we're doing scaling, use the output dimensions here */
 	height = q_data_out->height;
-
-	/* Crop to the limits of the destination image */
-	width = q_data_in->width;
-	if (width > q_data_out->width)
-		width = q_data_out->width;
+	width = q_data_out->width;
 
 	p_in = vb2_plane_vaddr(&in_vb->vb2_buf, 0);
 	p_out = vb2_plane_vaddr(&out_vb->vb2_buf, 0);
@@ -521,22 +505,52 @@ static int device_process(struct vim2m_ctx *ctx,
 	}
 
 	/* Slower algorithm with format conversion and scaler */
+
+	/* To speed scaler up, use Bresenham for X dimension */
+	x_int = q_data_in->width / q_data_out->width;
+	x_fract = q_data_in->width % q_data_out->width;
+
 	for (y = start; y != end; y += step, y_out++) {
 		y_in = (y * q_data_in->height) / q_data_out->height;
+		x_offset = 0;
+		x_err = 0;
 
-		p = p_in + (y_in * bytesperline);
+		p_line = p_in + (y_in * bytesperline);
 		if (ctx->mode & MEM2MEM_HFLIP)
-			p += bytesperline - (q_data_in->fmt->depth >> 3);
+			p_line += bytesperline - (q_data_in->fmt->depth >> 3);
+		p_in_x[0] = p_line;
 
-		for (x = 0; x < width >> 1; x++)
-			copy_two_pixels(q_data_in, q_data_out, &p,
-					&p_out, y_out,
+		for (x = 0; x < width >> 1; x++) {
+			x_offset += x_int;
+			x_err += x_fract;
+			if (x_err > width) {
+				x_offset++;
+				x_err -= width;
+			}
+
+			if (ctx->mode & MEM2MEM_HFLIP)
+				p_in_x[1] = p_line - x_offset * bytes_per_pixel;
+			else
+				p_in_x[1] = p_line + x_offset * bytes_per_pixel;
+
+			copy_two_pixels(q_data_in, q_data_out,
+					p_in_x, &p_out, y_out,
 					ctx->mode & MEM2MEM_HFLIP);
 
-		/* Go to the next line at the out buffer */
-		if (width < q_data_out->width)
-			p_out += ((q_data_out->width - width)
-				  * q_data_out->fmt->depth) >> 3;
+			/* Calculate the next p_in_x0 */
+			x_offset += x_int;
+			x_err += x_fract;
+			if (x_err > width) {
+				x_offset++;
+				x_err -= width;
+			}
+
+			if (ctx->mode & MEM2MEM_HFLIP)
+				p_in_x[0] = p_line - x_offset * bytes_per_pixel;
+			else
+				p_in_x[0] = p_line + x_offset * bytes_per_pixel;
+		}
+
 	}
 
 	return 0;
