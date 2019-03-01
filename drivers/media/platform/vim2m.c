@@ -267,25 +267,22 @@ static const char *type_name(enum v4l2_buf_type type)
 #define CLIP(__color) \
 	(u8)(((__color) > 0xff) ? 0xff : (((__color) < 0) ? 0 : (__color)))
 
-static void fast_copy_two_pixels(struct vim2m_q_data *q_data_in,
-				 struct vim2m_q_data *q_data_out,
-				 u8 **src, u8 **dst, bool reverse)
+static void copy_line(struct vim2m_q_data *q_data_out,
+		      u8 *src, u8 *dst, bool reverse)
 {
-	int depth = q_data_out->fmt->depth >> 3;
+	int x, depth = q_data_out->fmt->depth >> 3;
 
 	if (!reverse) {
-		memcpy(*dst, *src, depth << 1);
-		*src += depth << 1;
-		*dst += depth << 1;
+		memcpy(dst, src, q_data_out->width * depth);
+	} else {
+		for (x = 0; x < q_data_out->width >> 1; x++) {
+			memcpy(dst, src, depth);
+			memcpy(dst + depth, src - depth, depth);
+			src -= depth << 1;
+			dst += depth << 1;
+		}
 		return;
 	}
-
-	/* copy RGB formats in reverse order */
-	memcpy(*dst, *src, depth);
-	memcpy(*dst + depth, *src - depth, depth);
-	*src -= depth << 1;
-	*dst += depth << 1;
-	return;
 }
 
 static void copy_two_pixels(struct vim2m_q_data *q_data_in,
@@ -487,7 +484,7 @@ static int device_process(struct vim2m_ctx *ctx,
 	}
 	y_out = 0;
 
-	/* Faster copy logic,  when format and resolution are identical */
+	/* When format and resolution are identical, we can use a faster copy logic */
 	if (q_data_in->fmt->fourcc == q_data_out->fmt->fourcc &&
 	    q_data_in->width == q_data_out->width &&
 	    q_data_in->height == q_data_out->height) {
@@ -496,15 +493,15 @@ static int device_process(struct vim2m_ctx *ctx,
 			if (ctx->mode & MEM2MEM_HFLIP)
 				p += bytesperline - (q_data_in->fmt->depth >> 3);
 
-			for (x = 0; x < width >> 1; x++)
-				fast_copy_two_pixels(q_data_in, q_data_out,
-						     &p, &p_out,
-						     ctx->mode & MEM2MEM_HFLIP);
+			copy_line(q_data_out, p, p_out,
+				  ctx->mode & MEM2MEM_HFLIP);
+
+			p_out += bytesperline;
 		}
 		return 0;
 	}
 
-	/* Slower algorithm with format conversion and scaler */
+	/* Slower algorithm with format conversion, hflip, vflip and scaler */
 
 	/* To speed scaler up, use Bresenham for X dimension */
 	x_int = q_data_in->width / q_data_out->width;
