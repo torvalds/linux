@@ -897,13 +897,13 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 
 	/* reception interrupt */
 	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP) {
-		u64 reg_iflag;
+		u64 reg_iflag_rx;
 		int ret;
 
-		while ((reg_iflag = flexcan_read_reg_iflag_rx(priv))) {
+		while ((reg_iflag_rx = flexcan_read_reg_iflag_rx(priv))) {
 			handled = IRQ_HANDLED;
 			ret = can_rx_offload_irq_offload_timestamp(&priv->offload,
-								   reg_iflag);
+								   reg_iflag_rx);
 			if (!ret)
 				break;
 		}
