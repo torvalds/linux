@@ -1467,7 +1467,7 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 	return 0;
 }
 
-static bool flush_done(struct bch_fs *c)
+static bool flush_held_btree_writes(struct bch_fs *c)
 {
 	struct bucket_table *tbl;
 	struct rhash_head *pos;
@@ -1502,13 +1502,6 @@ again:
 		!bch2_btree_interior_updates_nr_pending(c);
 }
 
-static void flush_held_btree_writes(struct bch_fs *c)
-{
-	clear_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
-
-	closure_wait_event(&c->btree_interior_update_wait, flush_done(c));
-}
-
 static void allocator_start_issue_discards(struct bch_fs *c)
 {
 	struct bch_dev *ca;
@@ -1540,25 +1533,24 @@ static int resize_free_inc(struct bch_dev *ca)
 	return 0;
 }
 
-static int __bch2_fs_allocator_start(struct bch_fs *c)
+static bool bch2_fs_allocator_start_fast(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned dev_iter;
-	u64 journal_seq = 0;
-	long bu;
-	int ret = 0;
+	bool ret = true;
 
 	if (test_alloc_startup(c))
-		goto not_enough;
+		return false;
+
+	down_read(&c->gc_lock);
 
 	/* Scan for buckets that are already invalidated: */
 	for_each_rw_member(ca, c, dev_iter) {
 		struct bucket_array *buckets;
 		struct bucket_mark m;
+		long bu;
 
 		down_read(&ca->bucket_lock);
-		percpu_down_read(&c->mark_lock);
-
 		buckets = bucket_array(ca);
 
 		for (bu = buckets->first_bucket;
@@ -1566,13 +1558,16 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 			m = READ_ONCE(buckets->b[bu].mark);
 
 			if (!buckets->b[bu].gen_valid ||
-			    !test_bit(bu, ca->buckets_nouse) ||
 			    !is_available_bucket(m) ||
-			    m.cached_sectors)
+			    m.cached_sectors ||
+			    (ca->buckets_nouse &&
+			     test_bit(bu, ca->buckets_nouse)))
 				continue;
 
+			percpu_down_read(&c->mark_lock);
 			bch2_mark_alloc_bucket(c, ca, bu, true,
 					gc_pos_alloc(c, NULL), 0);
+			percpu_up_read(&c->mark_lock);
 
 			fifo_push(&ca->free_inc, bu);
 
@@ -1581,19 +1576,28 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 			if (fifo_full(&ca->free[RESERVE_BTREE]))
 				break;
 		}
-		percpu_up_read(&c->mark_lock);
 		up_read(&ca->bucket_lock);
 	}
 
+	up_read(&c->gc_lock);
+
 	/* did we find enough buckets? */
 	for_each_rw_member(ca, c, dev_iter)
-		if (!fifo_full(&ca->free[RESERVE_BTREE])) {
-			percpu_ref_put(&ca->io_ref);
-			goto not_enough;
-		}
+		if (!fifo_full(&ca->free[RESERVE_BTREE]))
+			ret = false;
 
-	return 0;
-not_enough:
+	return ret;
+}
+
+static int __bch2_fs_allocator_start(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned dev_iter;
+	u64 journal_seq = 0;
+	bool wrote;
+	long bu;
+	int ret = 0;
+
 	pr_debug("not enough empty buckets; scanning for reclaimable buckets");
 
 	/*
@@ -1607,8 +1611,9 @@ not_enough:
 	 */
 	set_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
 
-	while (1) {
-		bool wrote = false;
+	down_read(&c->gc_lock);
+	do {
+		wrote = false;
 
 		for_each_rw_member(ca, c, dev_iter) {
 			find_reclaimable_buckets(c, ca);
@@ -1618,7 +1623,8 @@ not_enough:
 				ret = resize_free_inc(ca);
 				if (ret) {
 					percpu_ref_put(&ca->io_ref);
-					return ret;
+					up_read(&c->gc_lock);
+					goto err;
 				}
 
 				bch2_invalidate_one_bucket(c, ca, bu,
@@ -1644,27 +1650,26 @@ not_enough:
 		 * enough buckets, so just scan and loop again as long as it
 		 * made some progress:
 		 */
-		if (!wrote && ret)
-			return ret;
-		if (!wrote && !ret)
-			break;
-	}
+	} while (wrote);
+	up_read(&c->gc_lock);
+
+	if (ret)
+		goto err;
 
 	pr_debug("flushing journal");
 
 	ret = bch2_journal_flush(&c->journal);
 	if (ret)
-		return ret;
+		goto err;
 
 	pr_debug("issuing discards");
 	allocator_start_issue_discards(c);
+err:
+	clear_bit(BCH_FS_HOLD_BTREE_WRITES, &c->flags);
+	closure_wait_event(&c->btree_interior_update_wait,
+			   flush_held_btree_writes(c));
 
-	set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
-
-	/* now flush dirty btree nodes: */
-	flush_held_btree_writes(c);
-
-	return 0;
+	return ret;
 }
 
 int bch2_fs_allocator_start(struct bch_fs *c)
@@ -1673,12 +1678,12 @@ int bch2_fs_allocator_start(struct bch_fs *c)
 	unsigned i;
 	int ret;
 
-	down_read(&c->gc_lock);
-	ret = __bch2_fs_allocator_start(c);
-	up_read(&c->gc_lock);
-
+	ret = bch2_fs_allocator_start_fast(c) ? 0 :
+		__bch2_fs_allocator_start(c);
 	if (ret)
 		return ret;
+
+	set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
 
 	for_each_rw_member(ca, c, i) {
 		ret = bch2_dev_allocator_start(ca);
