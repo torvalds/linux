@@ -14,6 +14,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_rlimit.h"
 
 enum bpf_array_idx {
 	SRV_IDX,
