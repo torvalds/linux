@@ -345,7 +345,7 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 	int i = 0;
 
 	if (mm->type != INTEL_GVT_MM_PPGTT || !mm->ppgtt_mm.shadowed)
-		return -1;
+		return -EINVAL;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
 		px_dma(&ppgtt->pml4) = mm->ppgtt_mm.shadow_pdps[0];
@@ -408,12 +408,6 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 
 	if (workload->shadow)
 		return 0;
-
-	ret = set_context_ppgtt_from_shadow(workload, shadow_ctx);
-	if (ret < 0) {
-		gvt_vgpu_err("workload shadow ppgtt isn't ready\n");
-		return ret;
-	}
 
 	/* pin shadow context by gvt even the shadow context will be pinned
 	 * when i915 alloc request. That is because gvt will update the guest
@@ -677,6 +671,8 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct i915_gem_context *shadow_ctx = s->shadow_ctx;
 	struct i915_request *rq;
 	int ring_id = workload->ring_id;
 	int ret;
@@ -686,6 +682,12 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 
 	mutex_lock(&vgpu->vgpu_lock);
 	mutex_lock(&dev_priv->drm.struct_mutex);
+
+	ret = set_context_ppgtt_from_shadow(workload, shadow_ctx);
+	if (ret < 0) {
+		gvt_vgpu_err("workload shadow ppgtt isn't ready\n");
+		goto err_req;
+	}
 
 	ret = intel_gvt_workload_req_alloc(workload);
 	if (ret)
