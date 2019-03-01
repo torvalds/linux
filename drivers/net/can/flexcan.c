@@ -143,7 +143,6 @@
 #define FLEXCAN_TX_MB_RESERVED_OFF_TIMESTAMP	0
 #define FLEXCAN_RX_MB_OFF_TIMESTAMP_FIRST	(FLEXCAN_TX_MB_RESERVED_OFF_TIMESTAMP + 1)
 #define FLEXCAN_IFLAG_MB(x)		BIT_ULL(x)
-#define FLEXCAN_IFLAG2_MB(x)		BIT((x) & 0x1f)
 #define FLEXCAN_IFLAG_RX_FIFO_OVERFLOW	BIT(7)
 #define FLEXCAN_IFLAG_RX_FIFO_WARN	BIT(6)
 #define FLEXCAN_IFLAG_RX_FIFO_AVAILABLE	BIT(5)
@@ -279,6 +278,7 @@ struct flexcan_priv {
 	u8 clk_src;	/* clock source of CAN Protocol Engine */
 
 	u64 rx_mask;
+	u64 tx_mask;
 	u32 reg_ctrl_default;
 
 	struct clk *clk_ipg;
@@ -890,7 +890,8 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	struct flexcan_regs __iomem *regs = priv->regs;
 	irqreturn_t handled = IRQ_NONE;
-	u32 reg_iflag2, reg_esr;
+	u64 reg_iflag_tx;
+	u32 reg_esr;
 	enum can_state last_state = priv->can.state;
 
 	/* reception interrupt */
@@ -924,10 +925,10 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		}
 	}
 
-	reg_iflag2 = priv->read(&regs->iflag2);
+	reg_iflag_tx = (u64)priv->read(&regs->iflag2) << 32;
 
 	/* transmission complete interrupt */
-	if (reg_iflag2 & FLEXCAN_IFLAG2_MB(priv->tx_mb_idx)) {
+	if (reg_iflag_tx & priv->tx_mask) {
 		u32 reg_ctrl = priv->read(&priv->tx_mb->can_ctrl);
 
 		handled = IRQ_HANDLED;
@@ -939,7 +940,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		/* after sending a RTR frame MB is in RX mode */
 		priv->write(FLEXCAN_MB_CODE_TX_INACTIVE,
 			    &priv->tx_mb->can_ctrl);
-		priv->write(FLEXCAN_IFLAG2_MB(priv->tx_mb_idx), &regs->iflag2);
+		priv->write(priv->tx_mask >> 32, &regs->iflag2);
 		netif_wake_queue(dev);
 	}
 
@@ -1226,7 +1227,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* enable interrupts atomically */
 	disable_irq(dev->irq);
 	priv->write(priv->reg_ctrl_default, &regs->ctrl);
-	reg_imask = priv->rx_mask | FLEXCAN_IFLAG_MB(priv->tx_mb_idx);
+	reg_imask = priv->rx_mask | priv->tx_mask;
 	priv->write(upper_32_bits(reg_imask), &regs->imask2);
 	priv->write(lower_32_bits(reg_imask), &regs->imask1);
 	enable_irq(dev->irq);
@@ -1296,6 +1297,7 @@ static int flexcan_open(struct net_device *dev)
 			flexcan_get_mb(priv, FLEXCAN_TX_MB_RESERVED_OFF_FIFO);
 	priv->tx_mb_idx = priv->mb_count - 1;
 	priv->tx_mb = flexcan_get_mb(priv, priv->tx_mb_idx);
+	priv->tx_mask = FLEXCAN_IFLAG_MB(priv->tx_mb_idx);
 
 	priv->offload.mailbox_read = flexcan_mailbox_read;
 
