@@ -18,6 +18,11 @@
 #include "ksz9477_reg.h"
 #include "ksz_common.h"
 
+/* Used with variable features to indicate capabilities. */
+#define GBIT_SUPPORT			BIT(0)
+#define NEW_XMII			BIT(1)
+#define IS_9893				BIT(2)
+
 static const struct {
 	int index;
 	char string[ETH_GSTRING_LEN];
@@ -328,7 +333,12 @@ static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 static enum dsa_tag_protocol ksz9477_get_tag_protocol(struct dsa_switch *ds,
 						      int port)
 {
-	return DSA_TAG_PROTO_KSZ9477;
+	enum dsa_tag_protocol proto = DSA_TAG_PROTO_KSZ9477;
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->features & IS_9893)
+		proto = DSA_TAG_PROTO_KSZ9893;
+	return proto;
 }
 
 static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
@@ -388,6 +398,10 @@ static int ksz9477_phy_write16(struct dsa_switch *ds, int addr, int reg,
 
 	/* No real PHY after this. */
 	if (addr >= dev->phy_port_cnt)
+		return 0;
+
+	/* No gigabit support.  Do not write to this register. */
+	if (!(dev->features & GBIT_SUPPORT) && reg == MII_CTRL1000)
 		return 0;
 	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
 
@@ -998,11 +1012,156 @@ static void ksz9477_port_mirror_del(struct dsa_switch *ds, int port,
 static void ksz9477_phy_setup(struct ksz_device *dev, int port,
 			      struct phy_device *phy)
 {
-	if (port < dev->phy_port_cnt) {
-		/* The MAC actually cannot run in 1000 half-duplex mode. */
+	/* Only apply to port with PHY. */
+	if (port >= dev->phy_port_cnt)
+		return;
+
+	/* The MAC actually cannot run in 1000 half-duplex mode. */
+	phy_remove_link_mode(phy,
+			     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+
+	/* PHY does not support gigabit. */
+	if (!(dev->features & GBIT_SUPPORT))
 		phy_remove_link_mode(phy,
-				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
+				     ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
+}
+
+static bool ksz9477_get_gbit(struct ksz_device *dev, u8 data)
+{
+	bool gbit;
+
+	if (dev->features & NEW_XMII)
+		gbit = !(data & PORT_MII_NOT_1GBIT);
+	else
+		gbit = !!(data & PORT_MII_1000MBIT_S1);
+	return gbit;
+}
+
+static void ksz9477_set_gbit(struct ksz_device *dev, bool gbit, u8 *data)
+{
+	if (dev->features & NEW_XMII) {
+		if (gbit)
+			*data &= ~PORT_MII_NOT_1GBIT;
+		else
+			*data |= PORT_MII_NOT_1GBIT;
+	} else {
+		if (gbit)
+			*data |= PORT_MII_1000MBIT_S1;
+		else
+			*data &= ~PORT_MII_1000MBIT_S1;
 	}
+}
+
+static int ksz9477_get_xmii(struct ksz_device *dev, u8 data)
+{
+	int mode;
+
+	if (dev->features & NEW_XMII) {
+		switch (data & PORT_MII_SEL_M) {
+		case PORT_MII_SEL:
+			mode = 0;
+			break;
+		case PORT_RMII_SEL:
+			mode = 1;
+			break;
+		case PORT_GMII_SEL:
+			mode = 2;
+			break;
+		default:
+			mode = 3;
+		}
+	} else {
+		switch (data & PORT_MII_SEL_M) {
+		case PORT_MII_SEL_S1:
+			mode = 0;
+			break;
+		case PORT_RMII_SEL_S1:
+			mode = 1;
+			break;
+		case PORT_GMII_SEL_S1:
+			mode = 2;
+			break;
+		default:
+			mode = 3;
+		}
+	}
+	return mode;
+}
+
+static void ksz9477_set_xmii(struct ksz_device *dev, int mode, u8 *data)
+{
+	u8 xmii;
+
+	if (dev->features & NEW_XMII) {
+		switch (mode) {
+		case 0:
+			xmii = PORT_MII_SEL;
+			break;
+		case 1:
+			xmii = PORT_RMII_SEL;
+			break;
+		case 2:
+			xmii = PORT_GMII_SEL;
+			break;
+		default:
+			xmii = PORT_RGMII_SEL;
+			break;
+		}
+	} else {
+		switch (mode) {
+		case 0:
+			xmii = PORT_MII_SEL_S1;
+			break;
+		case 1:
+			xmii = PORT_RMII_SEL_S1;
+			break;
+		case 2:
+			xmii = PORT_GMII_SEL_S1;
+			break;
+		default:
+			xmii = PORT_RGMII_SEL_S1;
+			break;
+		}
+	}
+	*data &= ~PORT_MII_SEL_M;
+	*data |= xmii;
+}
+
+static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
+{
+	phy_interface_t interface;
+	bool gbit;
+	int mode;
+	u8 data8;
+
+	if (port < dev->phy_port_cnt)
+		return PHY_INTERFACE_MODE_NA;
+	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
+	gbit = ksz9477_get_gbit(dev, data8);
+	mode = ksz9477_get_xmii(dev, data8);
+	switch (mode) {
+	case 2:
+		interface = PHY_INTERFACE_MODE_GMII;
+		if (gbit)
+			break;
+	case 0:
+		interface = PHY_INTERFACE_MODE_MII;
+		break;
+	case 1:
+		interface = PHY_INTERFACE_MODE_RMII;
+		break;
+	default:
+		interface = PHY_INTERFACE_MODE_RGMII;
+		if (data8 & PORT_RGMII_ID_EG_ENABLE)
+			interface = PHY_INTERFACE_MODE_RGMII_TXID;
+		if (data8 & PORT_RGMII_ID_IG_ENABLE) {
+			interface = PHY_INTERFACE_MODE_RGMII_RXID;
+			if (data8 & PORT_RGMII_ID_EG_ENABLE)
+				interface = PHY_INTERFACE_MODE_RGMII_ID;
+		}
+		break;
+	}
+	return interface;
 }
 
 static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
@@ -1051,24 +1210,25 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 
 		/* configure MAC to 1G & RGMII mode */
 		ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-		data8 &= ~PORT_MII_NOT_1GBIT;
-		data8 &= ~PORT_MII_SEL_M;
 		switch (dev->interface) {
 		case PHY_INTERFACE_MODE_MII:
-			data8 |= PORT_MII_NOT_1GBIT;
-			data8 |= PORT_MII_SEL;
+			ksz9477_set_xmii(dev, 0, &data8);
+			ksz9477_set_gbit(dev, false, &data8);
 			p->phydev.speed = SPEED_100;
 			break;
 		case PHY_INTERFACE_MODE_RMII:
-			data8 |= PORT_MII_NOT_1GBIT;
-			data8 |= PORT_RMII_SEL;
+			ksz9477_set_xmii(dev, 1, &data8);
+			ksz9477_set_gbit(dev, false, &data8);
 			p->phydev.speed = SPEED_100;
 			break;
 		case PHY_INTERFACE_MODE_GMII:
-			data8 |= PORT_GMII_SEL;
+			ksz9477_set_xmii(dev, 2, &data8);
+			ksz9477_set_gbit(dev, true, &data8);
 			p->phydev.speed = SPEED_1000;
 			break;
 		default:
+			ksz9477_set_xmii(dev, 3, &data8);
+			ksz9477_set_gbit(dev, true, &data8);
 			data8 &= ~PORT_RGMII_ID_IG_ENABLE;
 			data8 &= ~PORT_RGMII_ID_EG_ENABLE;
 			if (dev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
@@ -1077,7 +1237,6 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 			if (dev->interface == PHY_INTERFACE_MODE_RGMII_ID ||
 			    dev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
 				data8 |= PORT_RGMII_ID_EG_ENABLE;
-			data8 |= PORT_RGMII_SEL;
 			p->phydev.speed = SPEED_1000;
 			break;
 		}
@@ -1115,9 +1274,24 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 	for (i = 0; i < dev->port_cnt; i++) {
 		if (dsa_is_cpu_port(ds, i) && (dev->cpu_ports & (1 << i))) {
+			phy_interface_t interface;
+
 			dev->cpu_port = i;
 			dev->host_mask = (1 << dev->cpu_port);
 			dev->port_mask |= dev->host_mask;
+
+			/* Read from XMII register to determine host port
+			 * interface.  If set specifically in device tree
+			 * note the difference to help debugging.
+			 */
+			interface = ksz9477_get_interface(dev, i);
+			if (!dev->interface)
+				dev->interface = interface;
+			if (interface && interface != dev->interface)
+				dev_info(dev->dev,
+					 "use %s instead of %s\n",
+					  phy_modes(dev->interface),
+					  phy_modes(interface));
 
 			/* enable cpu port */
 			ksz9477_port_setup(dev, i, true);
@@ -1171,6 +1345,9 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	/* Required for port partitioning. */
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
 		      true);
+
+	/* Do not work correctly with tail tagging. */
+	ksz_cfg(dev, REG_SW_MAC_CTRL_0, SW_CHECK_LENGTH, false);
 
 	/* accept packet up to 2000bytes */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, SW_LEGAL_PACKET_DISABLE, true);
@@ -1230,6 +1407,8 @@ static u32 ksz9477_get_port_addr(int port, int offset)
 static int ksz9477_switch_detect(struct ksz_device *dev)
 {
 	u8 data8;
+	u8 id_hi;
+	u8 id_lo;
 	u32 id32;
 	int ret;
 
@@ -1247,10 +1426,39 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	ret = ksz_read32(dev, REG_CHIP_ID0__1, &id32);
 	if (ret)
 		return ret;
+	ret = ksz_read8(dev, REG_GLOBAL_OPTIONS, &data8);
+	if (ret)
+		return ret;
 
 	/* Number of ports can be reduced depending on chip. */
 	dev->mib_port_cnt = TOTAL_PORT_NUM;
 	dev->phy_port_cnt = 5;
+
+	/* Default capability is gigabit capable. */
+	dev->features = GBIT_SUPPORT;
+
+	id_hi = (u8)(id32 >> 16);
+	id_lo = (u8)(id32 >> 8);
+	if ((id_lo & 0xf) == 3) {
+		/* Chip is from KSZ9893 design. */
+		dev->features |= IS_9893;
+
+		/* Chip does not support gigabit. */
+		if (data8 & SW_QW_ABLE)
+			dev->features &= ~GBIT_SUPPORT;
+		dev->mib_port_cnt = 3;
+		dev->phy_port_cnt = 2;
+	} else {
+		/* Chip uses new XMII register definitions. */
+		dev->features |= NEW_XMII;
+
+		/* Chip does not support gigabit. */
+		if (!(data8 & SW_GIGABIT_ABLE))
+			dev->features &= ~GBIT_SUPPORT;
+	}
+
+	/* Change chip id to known ones so it can be matched against them. */
+	id32 = (id_hi << 16) | (id_lo << 8);
 
 	dev->chip_id = id32;
 
@@ -1285,6 +1493,15 @@ static const struct ksz_chip_data ksz9477_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+	},
+	{
+		.chip_id = 0x00989300,
+		.dev_name = "KSZ9893",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x07,	/* can be configured as cpu port */
+		.port_cnt = 3,		/* total port count */
 	},
 };
 
@@ -1333,7 +1550,6 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
 	}
-	dev->interface = PHY_INTERFACE_MODE_RGMII_TXID;
 
 	return 0;
 }
