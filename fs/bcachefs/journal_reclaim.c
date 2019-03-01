@@ -333,8 +333,6 @@ journal_get_next_pin(struct journal *j, u64 max_seq, u64 *seq)
 
 	spin_lock(&j->lock);
 
-	BUG_ON(!atomic_read(&fifo_peek_front(&j->pin).count));
-
 	fifo_for_each_entry_ptr(pin_list, &j->pin, *seq)
 		if (*seq > max_seq ||
 		    (ret = list_first_entry_or_null(&pin_list->list,
