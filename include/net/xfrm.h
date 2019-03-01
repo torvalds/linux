@@ -219,7 +219,7 @@ struct xfrm_state {
 	struct xfrm_stats	stats;
 
 	struct xfrm_lifetime_cur curlft;
-	struct tasklet_hrtimer	mtimer;
+	struct hrtimer		mtimer;
 
 	struct xfrm_state_offload xso;
 
