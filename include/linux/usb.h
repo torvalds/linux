@@ -1545,10 +1545,10 @@ typedef void (*usb_complete_t)(struct urb *);
 struct urb {
 	/* private: usb core and host controller only fields in the urb */
 	struct kref kref;		/* reference count of the URB */
+	int unlinked;			/* unlink error code */
 	void *hcpriv;			/* private data for host controller */
 	atomic_t use_count;		/* concurrent submissions counter */
 	atomic_t reject;		/* submissions will fail */
-	int unlinked;			/* unlink error code */
 
 	/* public: documented fields in the urb that can be used by drivers */
 	struct list_head urb_list;	/* list head for use by the urb's
