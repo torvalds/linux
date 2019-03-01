@@ -883,15 +883,10 @@ static struct sk_buff *flexcan_mailbox_read(struct can_rx_offload *offload,
 	}
 
  mark_as_read:
-	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP) {
-		/* Clear IRQ */
-		if (n < 32)
-			priv->write(BIT(n), &regs->iflag1);
-		else
-			priv->write(BIT(n - 32), &regs->iflag2);
-	} else {
+	if (priv->devtype_data->quirks & FLEXCAN_QUIRK_USE_OFF_TIMESTAMP)
+		flexcan_write64(priv, FLEXCAN_IFLAG_MB(n), &regs->iflag1);
+	else
 		priv->write(FLEXCAN_IFLAG_RX_FIFO_AVAILABLE, &regs->iflag1);
-	}
 
 	/* Read the Free Running Timer. It is optional but recommended
 	 * to unlock Mailbox as soon as possible and make it available
