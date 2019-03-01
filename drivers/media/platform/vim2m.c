@@ -35,10 +35,10 @@
 MODULE_DESCRIPTION("Virtual device for mem2mem framework testing");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.1.1");
+MODULE_VERSION("0.2");
 MODULE_ALIAS("mem2mem_testdev");
 
-static unsigned debug;
+static unsigned int debug;
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "debug level");
 
@@ -61,8 +61,8 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define BAYER_HEIGHT_ALIGN 2
 
 /* Flags that indicate a format can be used for capture/output */
-#define MEM2MEM_CAPTURE	(1 << 0)
-#define MEM2MEM_OUTPUT	(1 << 1)
+#define MEM2MEM_CAPTURE	BIT(0)
+#define MEM2MEM_OUTPUT	BIT(1)
 
 #define MEM2MEM_NAME		"vim2m"
 
@@ -72,12 +72,11 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define MEM2MEM_VID_MEM_LIMIT	(16 * 1024 * 1024)
 
 /* Flags that indicate processing mode */
-#define MEM2MEM_HFLIP	(1 << 0)
-#define MEM2MEM_VFLIP	(1 << 1)
+#define MEM2MEM_HFLIP	BIT(0)
+#define MEM2MEM_VFLIP	BIT(1)
 
 #define dprintk(dev, lvl, fmt, arg...) \
 	v4l2_dbg(lvl, debug, &(dev)->v4l2_dev, "%s: " fmt, __func__, ## arg)
-
 
 static void vim2m_dev_release(struct device *dev)
 {}
@@ -240,7 +239,7 @@ static inline struct vim2m_ctx *file2ctx(struct file *file)
 }
 
 static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
-					 enum v4l2_buf_type type)
+				       enum v4l2_buf_type type)
 {
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
@@ -487,7 +486,10 @@ static int device_process(struct vim2m_ctx *ctx,
 	}
 	y_out = 0;
 
-	/* When format and resolution are identical, we can use a faster copy logic */
+	/*
+	 * When format and resolution are identical,
+	 * we can use a faster copy logic
+	 */
 	if (q_data_in->fmt->fourcc == q_data_out->fmt->fourcc &&
 	    q_data_in->width == q_data_out->width &&
 	    q_data_in->height == q_data_out->height) {
@@ -550,7 +552,6 @@ static int device_process(struct vim2m_ctx *ctx,
 			else
 				p_in_x[0] = p_line + x_offset * bytes_per_pixel;
 		}
-
 	}
 
 	return 0;
@@ -621,7 +622,7 @@ static void device_work(struct work_struct *w)
 
 	curr_ctx = container_of(w, struct vim2m_ctx, work_run.work);
 
-	if (NULL == curr_ctx) {
+	if (!curr_ctx) {
 		pr_err("Instance released before the end of transaction\n");
 		return;
 	}
@@ -657,7 +658,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, MEM2MEM_NAME, sizeof(cap->card) - 1);
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-			"platform:%s", MEM2MEM_NAME);
+		 "platform:%s", MEM2MEM_NAME);
 	return 0;
 }
 
@@ -767,8 +768,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
 {
 	int walign, halign;
-	/* V4L2 specification suggests the driver corrects the format struct
-	 * if any of the dimensions is unsupported */
+	/*
+	 * V4L2 specification specifies the driver corrects the
+	 * format struct if any of the dimensions is unsupported
+	 */
 	if (f->fmt.pix.height < MIN_H)
 		f->fmt.pix.height = MIN_H;
 	else if (f->fmt.pix.height > MAX_H)
@@ -947,7 +950,6 @@ static const struct v4l2_ctrl_ops vim2m_ctrl_ops = {
 	.s_ctrl = vim2m_s_ctrl,
 };
 
-
 static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 
@@ -977,14 +979,15 @@ static const struct v4l2_ioctl_ops vim2m_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-
 /*
  * Queue operations
  */
 
 static int vim2m_queue_setup(struct vb2_queue *vq,
-				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], struct device *alloc_devs[])
+			     unsigned int *nbuffers,
+			     unsigned int *nplanes,
+			     unsigned int sizes[],
+			     struct device *alloc_devs[])
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(vq);
 	struct vim2m_q_data *q_data;
@@ -1058,7 +1061,7 @@ static void vim2m_buf_queue(struct vb2_buffer *vb)
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
-static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
+static int vim2m_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
 	struct vim2m_q_data *q_data = get_q_data(ctx, q->type);
@@ -1083,7 +1086,7 @@ static void vim2m_stop_streaming(struct vb2_queue *q)
 			vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		else
 			vbuf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-		if (vbuf == NULL)
+		if (!vbuf)
 			return;
 		v4l2_ctrl_request_complete(vbuf->vb2_buf.req_obj.req,
 					   &ctx->hdl);
@@ -1112,7 +1115,8 @@ static const struct vb2_ops vim2m_qops = {
 	.buf_request_complete = vim2m_buf_request_complete,
 };
 
-static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
+static int queue_init(void *priv, struct vb2_queue *src_vq,
+		      struct vb2_queue *dst_vq)
 {
 	struct vim2m_ctx *ctx = priv;
 	int ret;
@@ -1318,7 +1322,7 @@ static int vim2m_probe(struct platform_device *pdev)
 
 	video_set_drvdata(vfd, dev);
 	v4l2_info(&dev->v4l2_dev,
-			"Device registered as /dev/video%d\n", vfd->num);
+		  "Device registered as /dev/video%d\n", vfd->num);
 
 	platform_set_drvdata(pdev, dev);
 
@@ -1338,8 +1342,8 @@ static int vim2m_probe(struct platform_device *pdev)
 	dev->mdev.ops = &m2m_media_ops;
 	dev->v4l2_dev.mdev = &dev->mdev;
 
-	ret = v4l2_m2m_register_media_controller(dev->m2m_dev,
-			vfd, MEDIA_ENT_F_PROC_VIDEO_SCALER);
+	ret = v4l2_m2m_register_media_controller(dev->m2m_dev, vfd,
+						 MEDIA_ENT_F_PROC_VIDEO_SCALER);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to init mem2mem media controller\n");
 		goto unreg_m2m;
