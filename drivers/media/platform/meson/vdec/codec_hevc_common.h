@@ -25,6 +25,19 @@ static const u16 vdec_hevc_parser_cmd[] = {
 	0x7C00
 };
 
+#define MAX_REF_PIC_NUM	24
+
+struct codec_hevc_common {
+	void      *fbc_buffer_vaddr[MAX_REF_PIC_NUM];
+	dma_addr_t fbc_buffer_paddr[MAX_REF_PIC_NUM];
+
+	void      *mmu_header_vaddr[MAX_REF_PIC_NUM];
+	dma_addr_t mmu_header_paddr[MAX_REF_PIC_NUM];
+
+	void      *mmu_map_vaddr;
+	dma_addr_t mmu_map_paddr;
+};
+
 /* Returns 1 if we must use framebuffer compression */
 static inline int codec_hevc_use_fbc(u32 pixfmt, int is_10bit)
 {
@@ -37,13 +50,27 @@ static inline int codec_hevc_use_downsample(u32 pixfmt, int is_10bit)
 	return pixfmt == V4L2_PIX_FMT_NV12M && is_10bit;
 }
 
+/* Returns 1 if we are decoding using the IOMMU */
+static inline int codec_hevc_use_mmu(u32 revision, u32 pixfmt, int is_10bit)
+{
+	return revision >= VDEC_REVISION_G12A &&
+	       codec_hevc_use_fbc(pixfmt, is_10bit);
+}
+
 /**
  * Configure decode head read mode
  */
 void codec_hevc_setup_decode_head(struct amvdec_session *sess, int is_10bit);
 
-void codec_hevc_free_fbc_buffers(struct amvdec_session *sess);
+void codec_hevc_free_fbc_buffers(struct amvdec_session *sess,
+				 struct codec_hevc_common *comm);
 
-int codec_hevc_setup_buffers(struct amvdec_session *sess, int is_10bit);
+int codec_hevc_setup_buffers(struct amvdec_session *sess,
+			     struct codec_hevc_common *comm,
+			     int is_10bit);
+
+void codec_hevc_fill_mmu_map(struct amvdec_session *sess,
+			     struct codec_hevc_common *comm,
+			     struct vb2_buffer *vb);
 
 #endif

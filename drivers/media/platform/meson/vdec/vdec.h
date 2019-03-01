@@ -20,8 +20,6 @@
 /* 32 buffers in 3-plane YUV420 */
 #define MAX_CANVAS	(32 * 3)
 
-#define MAX_REF_PIC_NUM	24
-
 struct amvdec_buffer {
 	struct list_head list;
 	struct vb2_buffer *vb;
@@ -260,9 +258,6 @@ struct amvdec_session {
 	u32 wrap_count;
 	u32 dpb_size;
 	u32 fw_idx_to_vb2_idx[32];
-
-	void      *fbc_buffer_vaddr[MAX_REF_PIC_NUM];
-	dma_addr_t fbc_buffer_paddr[MAX_REF_PIC_NUM];
 
 	enum amvdec_status status;
 	void *priv;
