@@ -1082,7 +1082,7 @@ static void journal_write_done(struct closure *cl)
 	 * Must come before signaling write completion, for
 	 * bch2_fs_journal_stop():
 	 */
-	mod_delayed_work(system_freezable_wq, &j->reclaim_work, 0);
+	mod_delayed_work(c->journal_reclaim_wq, &j->reclaim_work, 0);
 out:
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);

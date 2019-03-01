@@ -971,7 +971,7 @@ void bch2_fs_journal_start(struct journal *j)
 	 */
 	bch2_journal_seq_blacklist_write(j);
 
-	queue_delayed_work(system_freezable_wq, &j->reclaim_work, 0);
+	queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work, 0);
 }
 
 /* init/exit: */
