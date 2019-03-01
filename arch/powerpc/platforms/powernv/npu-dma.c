@@ -564,7 +564,7 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 		}
 	} else {
 		/* Create a group for 1 GPU and attached NPUs for POWER8 */
-		pe->npucomp = kzalloc(sizeof(pe->npucomp), GFP_KERNEL);
+		pe->npucomp = kzalloc(sizeof(*pe->npucomp), GFP_KERNEL);
 		table_group = &pe->npucomp->table_group;
 		table_group->ops = &pnv_npu_peers_ops;
 		iommu_register_group(table_group, hose->global_number,

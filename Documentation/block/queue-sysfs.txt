@@ -67,6 +67,13 @@ If set to a value larger than 0, the kernel will put the process issuing
 IO to sleep for this amount of microseconds before entering classic
 polling.
 
+io_timeout (RW)
+---------------
+io_timeout is the request timeout in milliseconds. If a request does not
+complete in this time then the block driver timeout handler is invoked.
+That timeout handler can decide to retry the request, to fail it or to start
+a device recovery strategy.
+
 iostats (RW)
 -------------
 This file is used to control (on/off) the iostats accounting of the

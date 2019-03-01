@@ -109,8 +109,8 @@ int i40e_allocate_dma_mem_d(struct i40e_hw *hw, struct i40e_dma_mem *mem,
 	struct i40e_pf *pf = (struct i40e_pf *)hw->back;
 
 	mem->size = ALIGN(size, alignment);
-	mem->va = dma_zalloc_coherent(&pf->pdev->dev, mem->size,
-				      &mem->pa, GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&pf->pdev->dev, mem->size, &mem->pa,
+				     GFP_KERNEL);
 	if (!mem->va)
 		return -ENOMEM;
 
@@ -3289,8 +3289,11 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	     i40e_alloc_rx_buffers_zc(ring, I40E_DESC_UNUSED(ring)) :
 	     !i40e_alloc_rx_buffers(ring, I40E_DESC_UNUSED(ring));
 	if (!ok) {
+		/* Log this in case the user has forgotten to give the kernel
+		 * any buffers, even later in the application.
+		 */
 		dev_info(&vsi->back->pdev->dev,
-			 "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
+			 "Failed to allocate some buffers on %sRx ring %d (pf_q %d)\n",
 			 ring->xsk_umem ? "UMEM enabled " : "",
 			 ring->queue_index, pf_q);
 	}
@@ -6725,8 +6728,13 @@ void i40e_down(struct i40e_vsi *vsi)
 
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		i40e_clean_tx_ring(vsi->tx_rings[i]);
-		if (i40e_enabled_xdp_vsi(vsi))
+		if (i40e_enabled_xdp_vsi(vsi)) {
+			/* Make sure that in-progress ndo_xdp_xmit
+			 * calls are completed.
+			 */
+			synchronize_rcu();
 			i40e_clean_tx_ring(vsi->xdp_rings[i]);
+		}
 		i40e_clean_rx_ring(vsi->rx_rings[i]);
 	}
 
@@ -11895,6 +11903,14 @@ static int i40e_xdp_setup(struct i40e_vsi *vsi,
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
+	/* Kick start the NAPI context if there is an AF_XDP socket open
+	 * on that queue id. This so that receiving will start.
+	 */
+	if (need_reset && prog)
+		for (i = 0; i < vsi->num_queue_pairs; i++)
+			if (vsi->xdp_rings[i]->xsk_umem)
+				(void)i40e_xsk_async_xmit(vsi->netdev, i);
+
 	return 0;
 }
 
@@ -11955,8 +11971,13 @@ static void i40e_queue_pair_reset_stats(struct i40e_vsi *vsi, int queue_pair)
 static void i40e_queue_pair_clean_rings(struct i40e_vsi *vsi, int queue_pair)
 {
 	i40e_clean_tx_ring(vsi->tx_rings[queue_pair]);
-	if (i40e_enabled_xdp_vsi(vsi))
+	if (i40e_enabled_xdp_vsi(vsi)) {
+		/* Make sure that in-progress ndo_xdp_xmit calls are
+		 * completed.
+		 */
+		synchronize_rcu();
 		i40e_clean_tx_ring(vsi->xdp_rings[queue_pair]);
+	}
 	i40e_clean_rx_ring(vsi->rx_rings[queue_pair]);
 }
 

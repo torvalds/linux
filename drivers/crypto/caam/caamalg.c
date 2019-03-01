@@ -3476,7 +3476,7 @@ static int __init caam_algapi_init(void)
 		 * Skip algorithms requiring message digests
 		 * if MD or MD size is not supported by device.
 		 */
-		if ((c2_alg_sel & ~OP_ALG_ALGSEL_SUBMASK) == 0x40 &&
+		if (is_mdha(c2_alg_sel) &&
 		    (!md_inst || t_alg->aead.maxauthsize > md_limit))
 			continue;
 

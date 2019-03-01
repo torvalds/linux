@@ -3449,10 +3449,10 @@ alloc_ext_stats:
 			goto alloc_tx_ext_stats;
 
 		bp->hw_rx_port_stats_ext =
-			dma_zalloc_coherent(&pdev->dev,
-					    sizeof(struct rx_port_stats_ext),
-					    &bp->hw_rx_port_stats_ext_map,
-					    GFP_KERNEL);
+			dma_alloc_coherent(&pdev->dev,
+					   sizeof(struct rx_port_stats_ext),
+					   &bp->hw_rx_port_stats_ext_map,
+					   GFP_KERNEL);
 		if (!bp->hw_rx_port_stats_ext)
 			return 0;
 
@@ -3462,10 +3462,10 @@ alloc_tx_ext_stats:
 
 		if (bp->hwrm_spec_code >= 0x10902) {
 			bp->hw_tx_port_stats_ext =
-				dma_zalloc_coherent(&pdev->dev,
-					    sizeof(struct tx_port_stats_ext),
-					    &bp->hw_tx_port_stats_ext_map,
-					    GFP_KERNEL);
+				dma_alloc_coherent(&pdev->dev,
+						   sizeof(struct tx_port_stats_ext),
+						   &bp->hw_tx_port_stats_ext_map,
+						   GFP_KERNEL);
 		}
 		bp->flags |= BNXT_FLAG_PORT_STATS_EXT;
 	}
@@ -3903,7 +3903,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			if (len)
 				break;
 			/* on first few passes, just barely sleep */
-			if (i < DFLT_HWRM_CMD_TIMEOUT)
+			if (i < HWRM_SHORT_TIMEOUT_COUNTER)
 				usleep_range(HWRM_SHORT_MIN_TIMEOUT,
 					     HWRM_SHORT_MAX_TIMEOUT);
 			else
@@ -3926,7 +3926,7 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 			dma_rmb();
 			if (*valid)
 				break;
-			udelay(1);
+			usleep_range(1, 5);
 		}
 
 		if (j >= HWRM_VALID_BIT_DELAY_USEC) {
@@ -4973,12 +4973,18 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 		struct bnxt_ring_struct *ring = &cpr->cp_ring_struct;
 		u32 map_idx = ring->map_idx;
+		unsigned int vector;
 
+		vector = bp->irq_tbl[map_idx].vector;
+		disable_irq_nosync(vector);
 		rc = hwrm_ring_alloc_send_msg(bp, ring, type, map_idx);
-		if (rc)
+		if (rc) {
+			enable_irq(vector);
 			goto err_out;
+		}
 		bnxt_set_db(bp, &cpr->cp_db, type, map_idx, ring->fw_ring_id);
 		bnxt_db_nq(bp, &cpr->cp_db, cpr->cp_raw_cons);
+		enable_irq(vector);
 		bp->grp_info[i].cp_fw_ring_id = ring->fw_ring_id;
 
 		if (!i) {
@@ -5601,7 +5607,8 @@ static int bnxt_hwrm_check_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 			 FUNC_CFG_REQ_FLAGS_STAT_CTX_ASSETS_TEST |
 			 FUNC_CFG_REQ_FLAGS_VNIC_ASSETS_TEST;
 		if (bp->flags & BNXT_FLAG_CHIP_P5)
-			flags |= FUNC_CFG_REQ_FLAGS_RSSCOS_CTX_ASSETS_TEST;
+			flags |= FUNC_CFG_REQ_FLAGS_RSSCOS_CTX_ASSETS_TEST |
+				 FUNC_CFG_REQ_FLAGS_NQ_ASSETS_TEST;
 		else
 			flags |= FUNC_CFG_REQ_FLAGS_RING_GRP_ASSETS_TEST;
 	}
@@ -6221,9 +6228,12 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 			rmem->pg_tbl_map = ctx_pg->ctx_dma_arr[i];
 			rmem->depth = 1;
 			rmem->nr_pages = MAX_CTX_PAGES;
-			if (i == (nr_tbls - 1))
-				rmem->nr_pages = ctx_pg->nr_pages %
-						 MAX_CTX_PAGES;
+			if (i == (nr_tbls - 1)) {
+				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
+
+				if (rem)
+					rmem->nr_pages = rem;
+			}
 			rc = bnxt_alloc_ctx_mem_blk(bp, pg_tbl);
 			if (rc)
 				break;

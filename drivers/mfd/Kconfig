@@ -102,6 +102,7 @@ config MFD_AAT2870_CORE
 config MFD_AT91_USART
 	tristate "AT91 USART Driver"
 	select MFD_CORE
+	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  Select this to get support for AT91 USART IP. This is a wrapper
 	  over at91-usart-serial driver and usart-spi-driver. Only one function
@@ -1418,7 +1419,7 @@ config MFD_TPS65217
 
 config MFD_TPS68470
 	bool "TI TPS68470 Power Management / LED chips"
-	depends on ACPI && I2C=y
+	depends on ACPI && PCI && I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select I2C_DESIGNWARE_PLATFORM

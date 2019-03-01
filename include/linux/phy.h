@@ -48,6 +48,7 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
 extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 
 #define PHY_BASIC_FEATURES ((unsigned long *)&phy_basic_features)
@@ -56,6 +57,7 @@ extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_ini
 #define PHY_GBIT_FIBRE_FEATURES ((unsigned long *)&phy_gbit_fibre_features)
 #define PHY_GBIT_ALL_PORTS_FEATURES ((unsigned long *)&phy_gbit_all_ports_features)
 #define PHY_10GBIT_FEATURES ((unsigned long *)&phy_10gbit_features)
+#define PHY_10GBIT_FEC_FEATURES ((unsigned long *)&phy_10gbit_fec_features)
 #define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
 extern const int phy_10_100_features_array[4];
@@ -467,8 +469,8 @@ struct phy_device {
  *   only works for PHYs with IDs which match this field
  * name: The friendly name of this PHY type
  * phy_id_mask: Defines the important bits of the phy_id
- * features: A list of features (speed, duplex, etc) supported
- *   by this PHY
+ * features: A mandatory list of features (speed, duplex, etc)
+ *   supported by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
  *
@@ -672,26 +674,13 @@ phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
 size_t phy_speeds(unsigned int *speeds, size_t size,
 		  unsigned long *mask);
 
-static inline bool __phy_is_started(struct phy_device *phydev)
-{
-	WARN_ON(!mutex_is_locked(&phydev->lock));
-
-	return phydev->state >= PHY_UP;
-}
-
 /**
  * phy_is_started - Convenience function to check whether PHY is started
  * @phydev: The phy_device struct
  */
 static inline bool phy_is_started(struct phy_device *phydev)
 {
-	bool started;
-
-	mutex_lock(&phydev->lock);
-	started = __phy_is_started(phydev);
-	mutex_unlock(&phydev->lock);
-
-	return started;
+	return phydev->state >= PHY_UP;
 }
 
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
@@ -1000,6 +989,14 @@ int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
 static inline int genphy_no_soft_reset(struct phy_device *phydev)
+{
+	return 0;
+}
+static inline int genphy_no_ack_interrupt(struct phy_device *phydev)
+{
+	return 0;
+}
+static inline int genphy_no_config_intr(struct phy_device *phydev)
 {
 	return 0;
 }

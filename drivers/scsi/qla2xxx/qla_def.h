@@ -4394,6 +4394,8 @@ typedef struct scsi_qla_host {
 	uint16_t	n2n_id;
 	struct list_head gpnid_list;
 	struct fab_scan scan;
+
+	unsigned int irq_offset;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {

@@ -58,7 +58,8 @@ struct mlx5e_rep_indr_block_priv {
 	struct list_head list;
 };
 
-static void mlx5e_rep_indr_unregister_block(struct net_device *netdev);
+static void mlx5e_rep_indr_unregister_block(struct mlx5e_rep_priv *rpriv,
+					    struct net_device *netdev);
 
 static void mlx5e_rep_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
@@ -179,6 +180,7 @@ static void mlx5e_rep_update_sw_counters(struct mlx5e_priv *priv)
 
 			s->tx_packets		+= sq_stats->packets;
 			s->tx_bytes		+= sq_stats->bytes;
+			s->tx_queue_dropped	+= sq_stats->dropped;
 		}
 	}
 }
@@ -594,6 +596,10 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
 		ether_addr_copy(e->h_dest, ha);
 		ether_addr_copy(eth->h_dest, ha);
+		/* Update the encap source mac, in case that we delete
+		 * the flows when encap source mac changed.
+		 */
+		ether_addr_copy(eth->h_source, e->route_dev->dev_addr);
 
 		mlx5e_tc_encap_flows_add(priv, e);
 	}
@@ -663,7 +669,7 @@ static void mlx5e_rep_indr_clean_block_privs(struct mlx5e_rep_priv *rpriv)
 	struct list_head *head = &rpriv->uplink_priv.tc_indr_block_priv_list;
 
 	list_for_each_entry_safe(cb_priv, temp, head, list) {
-		mlx5e_rep_indr_unregister_block(cb_priv->netdev);
+		mlx5e_rep_indr_unregister_block(rpriv, cb_priv->netdev);
 		kfree(cb_priv);
 	}
 }
@@ -735,7 +741,7 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 
 		err = tcf_block_cb_register(f->block,
 					    mlx5e_rep_indr_setup_block_cb,
-					    netdev, indr_priv, f->extack);
+					    indr_priv, indr_priv, f->extack);
 		if (err) {
 			list_del(&indr_priv->list);
 			kfree(indr_priv);
@@ -743,14 +749,15 @@ mlx5e_rep_indr_setup_tc_block(struct net_device *netdev,
 
 		return err;
 	case TC_BLOCK_UNBIND:
+		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
+		if (!indr_priv)
+			return -ENOENT;
+
 		tcf_block_cb_unregister(f->block,
 					mlx5e_rep_indr_setup_block_cb,
-					netdev);
-		indr_priv = mlx5e_rep_indr_block_priv_lookup(rpriv, netdev);
-		if (indr_priv) {
-			list_del(&indr_priv->list);
-			kfree(indr_priv);
-		}
+					indr_priv);
+		list_del(&indr_priv->list);
+		kfree(indr_priv);
 
 		return 0;
 	default:
@@ -779,7 +786,7 @@ static int mlx5e_rep_indr_register_block(struct mlx5e_rep_priv *rpriv,
 
 	err = __tc_indr_block_cb_register(netdev, rpriv,
 					  mlx5e_rep_indr_setup_tc_cb,
-					  netdev);
+					  rpriv);
 	if (err) {
 		struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 
@@ -789,10 +796,11 @@ static int mlx5e_rep_indr_register_block(struct mlx5e_rep_priv *rpriv,
 	return err;
 }
 
-static void mlx5e_rep_indr_unregister_block(struct net_device *netdev)
+static void mlx5e_rep_indr_unregister_block(struct mlx5e_rep_priv *rpriv,
+					    struct net_device *netdev)
 {
 	__tc_indr_block_cb_unregister(netdev, mlx5e_rep_indr_setup_tc_cb,
-				      netdev);
+				      rpriv);
 }
 
 static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
@@ -811,7 +819,7 @@ static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
 		mlx5e_rep_indr_register_block(rpriv, netdev);
 		break;
 	case NETDEV_UNREGISTER:
-		mlx5e_rep_indr_unregister_block(netdev);
+		mlx5e_rep_indr_unregister_block(rpriv, netdev);
 		break;
 	}
 	return NOTIFY_OK;
@@ -1122,9 +1130,17 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
-	int ret;
+	int ret, pf_num;
 
-	ret = snprintf(buf, len, "%d", rep->vport - 1);
+	ret = mlx5_lag_get_pf_num(priv->mdev, &pf_num);
+	if (ret)
+		return ret;
+
+	if (rep->vport == FDB_UPLINK_VPORT)
+		ret = snprintf(buf, len, "p%d", pf_num);
+	else
+		ret = snprintf(buf, len, "pf%dvf%d", pf_num, rep->vport - 1);
+
 	if (ret >= len)
 		return -EOPNOTSUPP;
 
@@ -1281,6 +1297,18 @@ static int mlx5e_uplink_rep_set_mac(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static int mlx5e_uplink_rep_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos,
+					__be16 vlan_proto)
+{
+	netdev_warn_once(dev, "legacy vf vlan setting isn't supported in switchdev mode\n");
+
+	if (vlan != 0)
+		return -EOPNOTSUPP;
+
+	/* allow setting 0-vid for compatibility with libvirt */
+	return 0;
+}
+
 static const struct switchdev_ops mlx5e_rep_switchdev_ops = {
 	.switchdev_port_attr_get	= mlx5e_attr_get,
 };
@@ -1315,6 +1343,7 @@ static const struct net_device_ops mlx5e_netdev_ops_uplink_rep = {
 	.ndo_set_vf_rate         = mlx5e_set_vf_rate,
 	.ndo_get_vf_config       = mlx5e_get_vf_config,
 	.ndo_get_vf_stats        = mlx5e_get_vf_stats,
+	.ndo_set_vf_vlan         = mlx5e_uplink_rep_set_vf_vlan,
 };
 
 bool mlx5e_eswitch_rep(struct net_device *netdev)

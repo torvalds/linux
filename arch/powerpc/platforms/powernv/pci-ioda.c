@@ -1593,6 +1593,8 @@ static void pnv_ioda_setup_vf_PE(struct pci_dev *pdev, u16 num_vfs)
 
 		pnv_pci_ioda2_setup_dma_pe(phb, pe);
 #ifdef CONFIG_IOMMU_API
+		iommu_register_group(&pe->table_group,
+				pe->phb->hose->global_number, pe->pe_number);
 		pnv_ioda_setup_bus_iommu_group(pe, &pe->table_group, NULL);
 #endif
 	}
@@ -2681,7 +2683,8 @@ static void pnv_pci_ioda_setup_iommu_api(void)
 	list_for_each_entry(hose, &hose_list, list_node) {
 		phb = hose->private_data;
 
-		if (phb->type == PNV_PHB_NPU_NVLINK)
+		if (phb->type == PNV_PHB_NPU_NVLINK ||
+		    phb->type == PNV_PHB_NPU_OCAPI)
 			continue;
 
 		list_for_each_entry(pe, &phb->ioda.pe_list, list) {

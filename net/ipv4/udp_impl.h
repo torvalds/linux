@@ -10,6 +10,7 @@ int __udp4_lib_rcv(struct sk_buff *, struct udp_table *, int);
 int __udp4_lib_err(struct sk_buff *, u32, struct udp_table *);
 
 int udp_v4_get_port(struct sock *sk, unsigned short snum);
+void udp_v4_rehash(struct sock *sk);
 
 int udp_setsockopt(struct sock *sk, int level, int optname,
 		   char __user *optval, unsigned int optlen);

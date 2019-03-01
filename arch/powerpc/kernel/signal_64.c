@@ -755,11 +755,12 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		if (restore_tm_sigcontexts(current, &uc->uc_mcontext,
 					   &uc_transact->uc_mcontext))
 			goto badframe;
-	}
+	} else
 #endif
-	/* Fall through, for non-TM restore */
-	if (!MSR_TM_ACTIVE(msr)) {
+	{
 		/*
+		 * Fall through, for non-TM restore
+		 *
 		 * Unset MSR[TS] on the thread regs since MSR from user
 		 * context does not have MSR active, and recheckpoint was
 		 * not called since restore_tm_sigcontexts() was not called

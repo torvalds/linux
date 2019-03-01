@@ -1394,10 +1394,9 @@ static int qedi_alloc_nvm_iscsi_cfg(struct qedi_ctx *qedi)
 {
 	struct qedi_nvm_iscsi_image nvm_image;
 
-	qedi->iscsi_image = dma_zalloc_coherent(&qedi->pdev->dev,
-						sizeof(nvm_image),
-						&qedi->nvm_buf_dma,
-						GFP_KERNEL);
+	qedi->iscsi_image = dma_alloc_coherent(&qedi->pdev->dev,
+					       sizeof(nvm_image),
+					       &qedi->nvm_buf_dma, GFP_KERNEL);
 	if (!qedi->iscsi_image) {
 		QEDI_ERR(&qedi->dbg_ctx, "Could not allocate NVM BUF.\n");
 		return -ENOMEM;
@@ -1510,10 +1509,10 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	}
 
 	/* Allocate list of PBL pages */
-	qedi->bdq_pbl_list = dma_zalloc_coherent(&qedi->pdev->dev,
-						 QEDI_PAGE_SIZE,
-						 &qedi->bdq_pbl_list_dma,
-						 GFP_KERNEL);
+	qedi->bdq_pbl_list = dma_alloc_coherent(&qedi->pdev->dev,
+						QEDI_PAGE_SIZE,
+						&qedi->bdq_pbl_list_dma,
+						GFP_KERNEL);
 	if (!qedi->bdq_pbl_list) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Could not allocate list of PBL pages.\n");
@@ -1609,10 +1608,10 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 		    (qedi->global_queues[i]->cq_pbl_size +
 		    (QEDI_PAGE_SIZE - 1));
 
-		qedi->global_queues[i]->cq = dma_zalloc_coherent(&qedi->pdev->dev,
-								 qedi->global_queues[i]->cq_mem_size,
-								 &qedi->global_queues[i]->cq_dma,
-								 GFP_KERNEL);
+		qedi->global_queues[i]->cq = dma_alloc_coherent(&qedi->pdev->dev,
+								qedi->global_queues[i]->cq_mem_size,
+								&qedi->global_queues[i]->cq_dma,
+								GFP_KERNEL);
 
 		if (!qedi->global_queues[i]->cq) {
 			QEDI_WARN(&qedi->dbg_ctx,
@@ -1620,10 +1619,10 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 			status = -ENOMEM;
 			goto mem_alloc_failure;
 		}
-		qedi->global_queues[i]->cq_pbl = dma_zalloc_coherent(&qedi->pdev->dev,
-								     qedi->global_queues[i]->cq_pbl_size,
-								     &qedi->global_queues[i]->cq_pbl_dma,
-								     GFP_KERNEL);
+		qedi->global_queues[i]->cq_pbl = dma_alloc_coherent(&qedi->pdev->dev,
+								    qedi->global_queues[i]->cq_pbl_size,
+								    &qedi->global_queues[i]->cq_pbl_dma,
+								    GFP_KERNEL);
 
 		if (!qedi->global_queues[i]->cq_pbl) {
 			QEDI_WARN(&qedi->dbg_ctx,
@@ -1691,16 +1690,16 @@ int qedi_alloc_sq(struct qedi_ctx *qedi, struct qedi_endpoint *ep)
 	ep->sq_pbl_size = (ep->sq_mem_size / QEDI_PAGE_SIZE) * sizeof(void *);
 	ep->sq_pbl_size = ep->sq_pbl_size + QEDI_PAGE_SIZE;
 
-	ep->sq = dma_zalloc_coherent(&qedi->pdev->dev, ep->sq_mem_size,
-				     &ep->sq_dma, GFP_KERNEL);
+	ep->sq = dma_alloc_coherent(&qedi->pdev->dev, ep->sq_mem_size,
+				    &ep->sq_dma, GFP_KERNEL);
 	if (!ep->sq) {
 		QEDI_WARN(&qedi->dbg_ctx,
 			  "Could not allocate send queue.\n");
 		rval = -ENOMEM;
 		goto out;
 	}
-	ep->sq_pbl = dma_zalloc_coherent(&qedi->pdev->dev, ep->sq_pbl_size,
-					 &ep->sq_pbl_dma, GFP_KERNEL);
+	ep->sq_pbl = dma_alloc_coherent(&qedi->pdev->dev, ep->sq_pbl_size,
+					&ep->sq_pbl_dma, GFP_KERNEL);
 	if (!ep->sq_pbl) {
 		QEDI_WARN(&qedi->dbg_ctx,
 			  "Could not allocate send queue PBL.\n");

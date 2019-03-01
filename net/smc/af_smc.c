@@ -146,6 +146,9 @@ static int smc_release(struct socket *sock)
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
 	}
+
+	sk->sk_prot->unhash(sk);
+
 	if (smc->clcsock) {
 		if (smc->use_fallback && sk->sk_state == SMC_LISTEN) {
 			/* wake up clcsock accept */
@@ -170,7 +173,6 @@ static int smc_release(struct socket *sock)
 		smc_conn_free(&smc->conn);
 	release_sock(sk);
 
-	sk->sk_prot->unhash(sk);
 	sock_put(sk); /* final sock_put */
 out:
 	return rc;
@@ -1503,6 +1505,11 @@ static int smc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
+	if (sk->sk_state == SMC_CLOSED && (sk->sk_shutdown & RCV_SHUTDOWN)) {
+		/* socket was connected before, no more data to read */
+		rc = 0;
+		goto out;
+	}
 	if ((sk->sk_state == SMC_INIT) ||
 	    (sk->sk_state == SMC_LISTEN) ||
 	    (sk->sk_state == SMC_CLOSED))
@@ -1838,7 +1845,11 @@ static ssize_t smc_splice_read(struct socket *sock, loff_t *ppos,
 
 	smc = smc_sk(sk);
 	lock_sock(sk);
-
+	if (sk->sk_state == SMC_CLOSED && (sk->sk_shutdown & RCV_SHUTDOWN)) {
+		/* socket was connected before, no more data to read */
+		rc = 0;
+		goto out;
+	}
 	if (sk->sk_state == SMC_INIT ||
 	    sk->sk_state == SMC_LISTEN ||
 	    sk->sk_state == SMC_CLOSED)

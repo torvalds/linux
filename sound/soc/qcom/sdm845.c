@@ -158,17 +158,24 @@ static int sdm845_snd_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static void sdm845_jack_free(struct snd_jack *jack)
+{
+	struct snd_soc_component *component = jack->private_data;
+
+	snd_soc_component_set_jack(component, NULL, NULL);
+}
+
 static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component;
-	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct sdm845_snd_data *pdata = snd_soc_card_get_drvdata(card);
-	int i, rval;
+	struct snd_jack *jack;
+	int rval;
 
 	if (!pdata->jack_setup) {
-		struct snd_jack *jack;
-
 		rval = snd_soc_card_jack_new(card, "Headset Jack",
 				SND_JACK_HEADSET |
 				SND_JACK_HEADPHONE |
@@ -190,16 +197,22 @@ static int sdm845_dai_init(struct snd_soc_pcm_runtime *rtd)
 		pdata->jack_setup = true;
 	}
 
-	for (i = 0 ; i < dai_link->num_codecs; i++) {
-		struct snd_soc_dai *dai = rtd->codec_dais[i];
+	switch (cpu_dai->id) {
+	case PRIMARY_MI2S_RX:
+		jack  = pdata->jack.jack;
+		component = codec_dai->component;
 
-		component = dai->component;
-		rval = snd_soc_component_set_jack(
-				component, &pdata->jack, NULL);
+		jack->private_data = component;
+		jack->private_free = sdm845_jack_free;
+		rval = snd_soc_component_set_jack(component,
+						  &pdata->jack, NULL);
 		if (rval != 0 && rval != -ENOTSUPP) {
 			dev_warn(card->dev, "Failed to set jack: %d\n", rval);
 			return rval;
 		}
+		break;
+	default:
+		break;
 	}
 
 	return 0;

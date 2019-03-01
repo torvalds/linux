@@ -2190,8 +2190,7 @@ int dc_link_get_backlight_level(const struct dc_link *link)
 
 bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp,
-		const struct dc_stream_state *stream)
+		uint32_t frame_ramp)
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
@@ -2205,10 +2204,6 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		(abm == NULL) ||
 		(abm->funcs->set_backlight_level_pwm == NULL))
 		return false;
-
-	if (stream)
-		((struct dc_stream_state *)stream)->bl_pwm_level =
-				backlight_pwm_u16_16;
 
 	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
@@ -2637,11 +2632,6 @@ void core_link_enable_stream(
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
-
-		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
-				pipe_ctx->stream->bl_pwm_level,
-				0,
-				pipe_ctx->stream);
 	}
 
 }

@@ -261,7 +261,7 @@ static void dwc2_gadget_wkup_alert_handler(struct dwc2_hsotg *hsotg)
 
 	if (gintsts2 & GINTSTS2_WKUP_ALERT_INT) {
 		dev_dbg(hsotg->dev, "%s: Wkup_Alert_Int\n", __func__);
-		dwc2_clear_bit(hsotg, GINTSTS2, GINTSTS2_WKUP_ALERT_INT);
+		dwc2_set_bit(hsotg, GINTSTS2, GINTSTS2_WKUP_ALERT_INT);
 		dwc2_set_bit(hsotg, DCTL, DCTL_RMTWKUPSIG);
 	}
 }

@@ -316,11 +316,9 @@ static ssize_t idle_store(struct device *dev,
 		 * See the comment in writeback_store.
 		 */
 		zram_slot_lock(zram, index);
-		if (!zram_allocated(zram, index) ||
-				zram_test_flag(zram, index, ZRAM_UNDER_WB))
-			goto next;
-		zram_set_flag(zram, index, ZRAM_IDLE);
-next:
+		if (zram_allocated(zram, index) &&
+				!zram_test_flag(zram, index, ZRAM_UNDER_WB))
+			zram_set_flag(zram, index, ZRAM_IDLE);
 		zram_slot_unlock(zram, index);
 	}
 
@@ -330,6 +328,41 @@ next:
 }
 
 #ifdef CONFIG_ZRAM_WRITEBACK
+static ssize_t writeback_limit_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct zram *zram = dev_to_zram(dev);
+	u64 val;
+	ssize_t ret = -EINVAL;
+
+	if (kstrtoull(buf, 10, &val))
+		return ret;
+
+	down_read(&zram->init_lock);
+	spin_lock(&zram->wb_limit_lock);
+	zram->wb_limit_enable = val;
+	spin_unlock(&zram->wb_limit_lock);
+	up_read(&zram->init_lock);
+	ret = len;
+
+	return ret;
+}
+
+static ssize_t writeback_limit_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	bool val;
+	struct zram *zram = dev_to_zram(dev);
+
+	down_read(&zram->init_lock);
+	spin_lock(&zram->wb_limit_lock);
+	val = zram->wb_limit_enable;
+	spin_unlock(&zram->wb_limit_lock);
+	up_read(&zram->init_lock);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+}
+
 static ssize_t writeback_limit_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
@@ -341,9 +374,9 @@ static ssize_t writeback_limit_store(struct device *dev,
 		return ret;
 
 	down_read(&zram->init_lock);
-	atomic64_set(&zram->stats.bd_wb_limit, val);
-	if (val == 0)
-		zram->stop_writeback = false;
+	spin_lock(&zram->wb_limit_lock);
+	zram->bd_wb_limit = val;
+	spin_unlock(&zram->wb_limit_lock);
 	up_read(&zram->init_lock);
 	ret = len;
 
@@ -357,7 +390,9 @@ static ssize_t writeback_limit_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	down_read(&zram->init_lock);
-	val = atomic64_read(&zram->stats.bd_wb_limit);
+	spin_lock(&zram->wb_limit_lock);
+	val = zram->bd_wb_limit;
+	spin_unlock(&zram->wb_limit_lock);
 	up_read(&zram->init_lock);
 
 	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
@@ -588,8 +623,8 @@ static int read_from_bdev_async(struct zram *zram, struct bio_vec *bvec,
 	return 1;
 }
 
-#define HUGE_WRITEBACK 0x1
-#define IDLE_WRITEBACK 0x2
+#define HUGE_WRITEBACK 1
+#define IDLE_WRITEBACK 2
 
 static ssize_t writeback_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
@@ -602,7 +637,7 @@ static ssize_t writeback_store(struct device *dev,
 	struct page *page;
 	ssize_t ret, sz;
 	char mode_buf[8];
-	unsigned long mode = -1UL;
+	int mode = -1;
 	unsigned long blk_idx = 0;
 
 	sz = strscpy(mode_buf, buf, sizeof(mode_buf));
@@ -618,7 +653,7 @@ static ssize_t writeback_store(struct device *dev,
 	else if (!strcmp(mode_buf, "huge"))
 		mode = HUGE_WRITEBACK;
 
-	if (mode == -1UL)
+	if (mode == -1)
 		return -EINVAL;
 
 	down_read(&zram->init_lock);
@@ -645,10 +680,13 @@ static ssize_t writeback_store(struct device *dev,
 		bvec.bv_len = PAGE_SIZE;
 		bvec.bv_offset = 0;
 
-		if (zram->stop_writeback) {
+		spin_lock(&zram->wb_limit_lock);
+		if (zram->wb_limit_enable && !zram->bd_wb_limit) {
+			spin_unlock(&zram->wb_limit_lock);
 			ret = -EIO;
 			break;
 		}
+		spin_unlock(&zram->wb_limit_lock);
 
 		if (!blk_idx) {
 			blk_idx = alloc_block_bdev(zram);
@@ -667,10 +705,11 @@ static ssize_t writeback_store(struct device *dev,
 				zram_test_flag(zram, index, ZRAM_UNDER_WB))
 			goto next;
 
-		if ((mode & IDLE_WRITEBACK &&
-			  !zram_test_flag(zram, index, ZRAM_IDLE)) &&
-		    (mode & HUGE_WRITEBACK &&
-			  !zram_test_flag(zram, index, ZRAM_HUGE)))
+		if (mode == IDLE_WRITEBACK &&
+			  !zram_test_flag(zram, index, ZRAM_IDLE))
+			goto next;
+		if (mode == HUGE_WRITEBACK &&
+			  !zram_test_flag(zram, index, ZRAM_HUGE))
 			goto next;
 		/*
 		 * Clearing ZRAM_UNDER_WB is duty of caller.
@@ -732,11 +771,10 @@ static ssize_t writeback_store(struct device *dev,
 		zram_set_element(zram, index, blk_idx);
 		blk_idx = 0;
 		atomic64_inc(&zram->stats.pages_stored);
-		if (atomic64_add_unless(&zram->stats.bd_wb_limit,
-					-1 << (PAGE_SHIFT - 12), 0)) {
-			if (atomic64_read(&zram->stats.bd_wb_limit) == 0)
-				zram->stop_writeback = true;
-		}
+		spin_lock(&zram->wb_limit_lock);
+		if (zram->wb_limit_enable && zram->bd_wb_limit > 0)
+			zram->bd_wb_limit -=  1UL << (PAGE_SHIFT - 12);
+		spin_unlock(&zram->wb_limit_lock);
 next:
 		zram_slot_unlock(zram, index);
 	}
@@ -1812,6 +1850,7 @@ static DEVICE_ATTR_RW(comp_algorithm);
 static DEVICE_ATTR_RW(backing_dev);
 static DEVICE_ATTR_WO(writeback);
 static DEVICE_ATTR_RW(writeback_limit);
+static DEVICE_ATTR_RW(writeback_limit_enable);
 #endif
 
 static struct attribute *zram_disk_attrs[] = {
@@ -1828,6 +1867,7 @@ static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_backing_dev.attr,
 	&dev_attr_writeback.attr,
 	&dev_attr_writeback_limit.attr,
+	&dev_attr_writeback_limit_enable.attr,
 #endif
 	&dev_attr_io_stat.attr,
 	&dev_attr_mm_stat.attr,
@@ -1867,7 +1907,9 @@ static int zram_add(void)
 	device_id = ret;
 
 	init_rwsem(&zram->init_lock);
-
+#ifdef CONFIG_ZRAM_WRITEBACK
+	spin_lock_init(&zram->wb_limit_lock);
+#endif
 	queue = blk_alloc_queue(GFP_KERNEL);
 	if (!queue) {
 		pr_err("Error allocating disk queue for device %d\n",

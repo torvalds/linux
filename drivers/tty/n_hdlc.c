@@ -597,6 +597,7 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 				/* too large for caller's buffer */
 				ret = -EOVERFLOW;
 			} else {
+				__set_current_state(TASK_RUNNING);
 				if (copy_to_user(buf, rbuf->buf, rbuf->count))
 					ret = -EFAULT;
 				else

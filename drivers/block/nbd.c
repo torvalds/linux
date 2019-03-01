@@ -288,9 +288,10 @@ static void nbd_size_update(struct nbd_device *nbd)
 	blk_queue_physical_block_size(nbd->disk->queue, config->blksize);
 	set_capacity(nbd->disk, config->bytesize >> 9);
 	if (bdev) {
-		if (bdev->bd_disk)
+		if (bdev->bd_disk) {
 			bd_set_size(bdev, config->bytesize);
-		else
+			set_blocksize(bdev, config->blksize);
+		} else
 			bdev->bd_invalidated = 1;
 		bdput(bdev);
 	}

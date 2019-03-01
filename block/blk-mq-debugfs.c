@@ -308,8 +308,9 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(PREFLUSH),
 	CMD_FLAG_NAME(RAHEAD),
 	CMD_FLAG_NAME(BACKGROUND),
-	CMD_FLAG_NAME(NOUNMAP),
 	CMD_FLAG_NAME(NOWAIT),
+	CMD_FLAG_NAME(NOUNMAP),
+	CMD_FLAG_NAME(HIPRI),
 };
 #undef CMD_FLAG_NAME
 
@@ -838,6 +839,9 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 static bool debugfs_create_files(struct dentry *parent, void *data,
 				 const struct blk_mq_debugfs_attr *attr)
 {
+	if (IS_ERR_OR_NULL(parent))
+		return false;
+
 	d_inode(parent)->i_private = data;
 
 	for (; attr->name; attr++) {

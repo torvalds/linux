@@ -543,13 +543,6 @@ int phy_start_aneg(struct phy_device *phydev)
 
 	mutex_lock(&phydev->lock);
 
-	if (!__phy_is_started(phydev)) {
-		WARN(1, "called from state %s\n",
-		     phy_state_to_str(phydev->state));
-		err = -EBUSY;
-		goto out_unlock;
-	}
-
 	if (AUTONEG_DISABLE == phydev->autoneg)
 		phy_sanitize_settings(phydev);
 
@@ -560,11 +553,13 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (phydev->autoneg == AUTONEG_ENABLE) {
-		err = phy_check_link_status(phydev);
-	} else {
-		phydev->state = PHY_FORCING;
-		phydev->link_timeout = PHY_FORCE_TIMEOUT;
+	if (phy_is_started(phydev)) {
+		if (phydev->autoneg == AUTONEG_ENABLE) {
+			err = phy_check_link_status(phydev);
+		} else {
+			phydev->state = PHY_FORCING;
+			phydev->link_timeout = PHY_FORCE_TIMEOUT;
+		}
 	}
 
 out_unlock:
@@ -714,7 +709,7 @@ void phy_stop_machine(struct phy_device *phydev)
 	cancel_delayed_work_sync(&phydev->state_queue);
 
 	mutex_lock(&phydev->lock);
-	if (__phy_is_started(phydev))
+	if (phy_is_started(phydev))
 		phydev->state = PHY_UP;
 	mutex_unlock(&phydev->lock);
 }
@@ -766,9 +761,6 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 {
 	struct phy_device *phydev = phy_dat;
-
-	if (!phy_is_started(phydev))
-		return IRQ_NONE;		/* It can't be ours.  */
 
 	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
 		return IRQ_NONE;
@@ -847,14 +839,13 @@ EXPORT_SYMBOL(phy_stop_interrupts);
  */
 void phy_stop(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
-
-	if (!__phy_is_started(phydev)) {
+	if (!phy_is_started(phydev)) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
-		mutex_unlock(&phydev->lock);
 		return;
 	}
+
+	mutex_lock(&phydev->lock);
 
 	if (phy_interrupt_is_valid(phydev))
 		phy_disable_interrupts(phydev);
@@ -994,8 +985,10 @@ void phy_state_machine(struct work_struct *work)
 	 * state machine would be pointless and possibly error prone when
 	 * called from phy_disconnect() synchronously.
 	 */
+	mutex_lock(&phydev->lock);
 	if (phy_polling_mode(phydev) && phy_is_started(phydev))
 		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+	mutex_unlock(&phydev->lock);
 }
 
 /**

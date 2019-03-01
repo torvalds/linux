@@ -354,9 +354,6 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	new_channels.params = priv->channels.params;
 	new_channels.params.num_channels = count;
-	if (!netif_is_rxfh_configured(priv->netdev))
-		mlx5e_build_default_indir_rqt(priv->rss_params.indirection_rqt,
-					      MLX5E_INDIR_RQT_SIZE, count);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -371,6 +368,10 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	arfs_enabled = priv->netdev->features & NETIF_F_NTUPLE;
 	if (arfs_enabled)
 		mlx5e_arfs_disable(priv);
+
+	if (!netif_is_rxfh_configured(priv->netdev))
+		mlx5e_build_default_indir_rqt(priv->rss_params.indirection_rqt,
+					      MLX5E_INDIR_RQT_SIZE, count);
 
 	/* Switch to new channels, set new parameters and close old ones */
 	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
@@ -844,9 +845,12 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
 					     Autoneg);
 
-	if (get_fec_supported_advertised(mdev, link_ksettings))
+	err = get_fec_supported_advertised(mdev, link_ksettings);
+	if (err) {
 		netdev_dbg(priv->netdev, "%s: FEC caps query failed: %d\n",
 			   __func__, err);
+		err = 0; /* don't fail caps query because of FEC error */
+	}
 
 	if (!an_disable_admin)
 		ethtool_link_ksettings_add_link_mode(link_ksettings,

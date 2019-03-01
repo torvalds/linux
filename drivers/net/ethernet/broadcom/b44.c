@@ -638,7 +638,7 @@ static void b44_tx(struct b44 *bp)
 		bytes_compl += skb->len;
 		pkts_compl++;
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 
 	netdev_completed_queue(bp->dev, pkts_compl, bytes_compl);
@@ -1012,7 +1012,7 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		skb_copy_from_linear_data(skb, skb_put(bounce_skb, len), len);
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = bounce_skb;
 	}
 

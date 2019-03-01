@@ -825,7 +825,7 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!cgx->cgx_cmd_workq) {
 		dev_err(dev, "alloc workqueue failed for cgx cmd");
 		err = -ENOMEM;
-		goto err_release_regions;
+		goto err_free_irq_vectors;
 	}
 
 	list_add(&cgx->cgx_list, &cgx_list);
@@ -841,6 +841,8 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_release_lmac:
 	cgx_lmac_exit(cgx);
 	list_del(&cgx->cgx_list);
+err_free_irq_vectors:
+	pci_free_irq_vectors(pdev);
 err_release_regions:
 	pci_release_regions(pdev);
 err_disable_device:

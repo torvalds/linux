@@ -289,7 +289,7 @@ static bool pca953x_volatile_register(struct device *dev, unsigned int reg)
 	return pca953x_check_register(chip, reg, bank);
 }
 
-const struct regmap_config pca953x_i2c_regmap = {
+static const struct regmap_config pca953x_i2c_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

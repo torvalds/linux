@@ -147,8 +147,8 @@ static int rpi_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	ts->pdev = pdev;
 
-	ts->fw_regs_va = dma_zalloc_coherent(dev, PAGE_SIZE, &ts->fw_regs_phys,
-					     GFP_KERNEL);
+	ts->fw_regs_va = dma_alloc_coherent(dev, PAGE_SIZE, &ts->fw_regs_phys,
+					    GFP_KERNEL);
 	if (!ts->fw_regs_va) {
 		dev_err(dev, "failed to dma_alloc_coherent\n");
 		return -ENOMEM;

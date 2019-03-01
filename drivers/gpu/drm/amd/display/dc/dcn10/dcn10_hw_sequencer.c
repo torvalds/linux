@@ -2355,29 +2355,22 @@ static void dcn10_apply_ctx_for_surface(
 			top_pipe_to_program->plane_state->update_flags.bits.full_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
+			tg = pipe_ctx->stream_res.tg;
 			/* Skip inactive pipes and ones already updated */
 			if (!pipe_ctx->stream || pipe_ctx->stream == stream
-					|| !pipe_ctx->plane_state)
+					|| !pipe_ctx->plane_state
+					|| !tg->funcs->is_tg_enabled(tg))
 				continue;
 
-			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+			tg->funcs->lock(tg);
 
 			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
 				pipe_ctx->plane_res.hubp,
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
+
+			tg->funcs->unlock(tg);
 		}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->stream || pipe_ctx->stream == stream
-				|| !pipe_ctx->plane_state)
-			continue;
-
-		dcn10_pipe_control_lock(dc, pipe_ctx, false);
-	}
 
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
@@ -2665,8 +2658,8 @@ static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
 
-	pos_cpy.x -= pipe_ctx->plane_state->dst_rect.x;
-	pos_cpy.y -= pipe_ctx->plane_state->dst_rect.y;
+	pos_cpy.x_hotspot += pipe_ctx->plane_state->dst_rect.x;
+	pos_cpy.y_hotspot += pipe_ctx->plane_state->dst_rect.y;
 
 	if (pipe_ctx->plane_state->address.type
 			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)

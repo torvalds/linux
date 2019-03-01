@@ -1281,10 +1281,10 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 	u32 addr;
 
 	devinfo->shared.scratch =
-		dma_zalloc_coherent(&devinfo->pdev->dev,
-					BRCMF_DMA_D2H_SCRATCH_BUF_LEN,
-					&devinfo->shared.scratch_dmahandle,
-					GFP_KERNEL);
+		dma_alloc_coherent(&devinfo->pdev->dev,
+				   BRCMF_DMA_D2H_SCRATCH_BUF_LEN,
+				   &devinfo->shared.scratch_dmahandle,
+				   GFP_KERNEL);
 	if (!devinfo->shared.scratch)
 		goto fail;
 
@@ -1298,10 +1298,10 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 	brcmf_pcie_write_tcm32(devinfo, addr, BRCMF_DMA_D2H_SCRATCH_BUF_LEN);
 
 	devinfo->shared.ringupd =
-		dma_zalloc_coherent(&devinfo->pdev->dev,
-					BRCMF_DMA_D2H_RINGUPD_BUF_LEN,
-					&devinfo->shared.ringupd_dmahandle,
-					GFP_KERNEL);
+		dma_alloc_coherent(&devinfo->pdev->dev,
+				   BRCMF_DMA_D2H_RINGUPD_BUF_LEN,
+				   &devinfo->shared.ringupd_dmahandle,
+				   GFP_KERNEL);
 	if (!devinfo->shared.ringupd)
 		goto fail;
 

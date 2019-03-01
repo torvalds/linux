@@ -1373,10 +1373,10 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 	if (ioread32(&stdev->mmio_mrpc->dma_ver) == 0)
 		return 0;
 
-	stdev->dma_mrpc = dma_zalloc_coherent(&stdev->pdev->dev,
-					      sizeof(*stdev->dma_mrpc),
-					      &stdev->dma_mrpc_dma_addr,
-					      GFP_KERNEL);
+	stdev->dma_mrpc = dma_alloc_coherent(&stdev->pdev->dev,
+					     sizeof(*stdev->dma_mrpc),
+					     &stdev->dma_mrpc_dma_addr,
+					     GFP_KERNEL);
 	if (stdev->dma_mrpc == NULL)
 		return -ENOMEM;
 

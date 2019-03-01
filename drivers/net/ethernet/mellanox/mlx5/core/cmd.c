@@ -1583,6 +1583,24 @@ no_trig:
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 }
 
+void mlx5_cmd_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	int i;
+
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		while (down_trylock(&cmd->sem))
+			mlx5_cmd_trigger_completions(dev);
+
+	while (down_trylock(&cmd->pages_sem))
+		mlx5_cmd_trigger_completions(dev);
+
+	/* Unlock cmdif */
+	up(&cmd->pages_sem);
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		up(&cmd->sem);
+}
+
 static int status_to_err(u8 status)
 {
 	return status ? -1 : 0; /* TBD more meaningful codes */
@@ -1789,8 +1807,8 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 {
 	struct device *ddev = &dev->pdev->dev;
 
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 
@@ -1804,9 +1822,9 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 
 	dma_free_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE, cmd->cmd_alloc_buf,
 			  cmd->alloc_dma);
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev,
-						 2 * MLX5_ADAPTER_PAGE_SIZE - 1,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev,
+						2 * MLX5_ADAPTER_PAGE_SIZE - 1,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 

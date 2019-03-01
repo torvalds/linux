@@ -234,7 +234,7 @@ int mmc_of_parse(struct mmc_host *host)
 		if (device_property_read_bool(dev, "broken-cd"))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
-		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
+		ret = mmc_gpiod_request_cd(host, "cd", 0, false,
 					   cd_debounce_delay_ms * 1000,
 					   &cd_gpio_invert);
 		if (!ret)

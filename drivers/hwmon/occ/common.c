@@ -380,8 +380,8 @@ static ssize_t occ_show_power_1(struct device *dev,
 		val *= 1000000ULL;
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->value) * 1000000ULL;
@@ -425,8 +425,8 @@ static ssize_t occ_show_power_2(struct device *dev,
 				       &power->update_tag);
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->value) * 1000000ULL;
@@ -463,8 +463,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->system.update_tag);
 		break;
 	case 2:
-		val = get_unaligned_be32(&power->system.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->system.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 3:
 		val = get_unaligned_be16(&power->system.value) * 1000000ULL;
@@ -477,8 +477,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->proc.update_tag);
 		break;
 	case 6:
-		val = get_unaligned_be32(&power->proc.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->proc.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 7:
 		val = get_unaligned_be16(&power->proc.value) * 1000000ULL;
@@ -491,8 +491,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->vdd.update_tag);
 		break;
 	case 10:
-		val = get_unaligned_be32(&power->vdd.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->vdd.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 11:
 		val = get_unaligned_be16(&power->vdd.value) * 1000000ULL;
@@ -505,8 +505,8 @@ static ssize_t occ_show_power_a0(struct device *dev,
 				       &power->vdn.update_tag);
 		break;
 	case 14:
-		val = get_unaligned_be32(&power->vdn.update_tag) *
-			occ->powr_sample_time_us;
+		val = (u64)get_unaligned_be32(&power->vdn.update_tag) *
+			   occ->powr_sample_time_us;
 		break;
 	case 15:
 		val = get_unaligned_be16(&power->vdn.value) * 1000000ULL;

@@ -407,10 +407,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	/* Allocate enough storage to hold the page pointers and the page
 	 * list
 	 */
-	pagelist = dma_zalloc_coherent(g_dev,
-				       pagelist_size,
-				       &dma_addr,
-				       GFP_KERNEL);
+	pagelist = dma_alloc_coherent(g_dev, pagelist_size, &dma_addr,
+				      GFP_KERNEL);
 
 	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK", __func__, pagelist);
 

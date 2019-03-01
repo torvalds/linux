@@ -822,6 +822,7 @@ out_unmap:
 static const struct irq_domain_ops stm32_exti_h_domain_ops = {
 	.alloc	= stm32_exti_h_domain_alloc,
 	.free	= irq_domain_free_irqs_common,
+	.xlate = irq_domain_xlate_twocell,
 };
 
 static int

@@ -134,6 +134,10 @@ static void bcm_sysport_set_rx_csum(struct net_device *dev,
 
 	priv->rx_chk_en = !!(wanted & NETIF_F_RXCSUM);
 	reg = rxchk_readl(priv, RXCHK_CONTROL);
+	/* Clear L2 header checks, which would prevent BPDUs
+	 * from being received.
+	 */
+	reg &= ~RXCHK_L2_HDR_DIS;
 	if (priv->rx_chk_en)
 		reg |= RXCHK_EN;
 	else
@@ -520,7 +524,6 @@ static void bcm_sysport_get_wol(struct net_device *dev,
 				struct ethtool_wolinfo *wol)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
-	u32 reg;
 
 	wol->supported = WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER;
 	wol->wolopts = priv->wolopts;
@@ -528,11 +531,7 @@ static void bcm_sysport_get_wol(struct net_device *dev,
 	if (!(priv->wolopts & WAKE_MAGICSECURE))
 		return;
 
-	/* Return the programmed SecureOn password */
-	reg = umac_readl(priv, UMAC_PSW_MS);
-	put_unaligned_be16(reg, &wol->sopass[0]);
-	reg = umac_readl(priv, UMAC_PSW_LS);
-	put_unaligned_be32(reg, &wol->sopass[2]);
+	memcpy(wol->sopass, priv->sopass, sizeof(priv->sopass));
 }
 
 static int bcm_sysport_set_wol(struct net_device *dev,
@@ -548,13 +547,8 @@ static int bcm_sysport_set_wol(struct net_device *dev,
 	if (wol->wolopts & ~supported)
 		return -EINVAL;
 
-	/* Program the SecureOn password */
-	if (wol->wolopts & WAKE_MAGICSECURE) {
-		umac_writel(priv, get_unaligned_be16(&wol->sopass[0]),
-			    UMAC_PSW_MS);
-		umac_writel(priv, get_unaligned_be32(&wol->sopass[2]),
-			    UMAC_PSW_LS);
-	}
+	if (wol->wolopts & WAKE_MAGICSECURE)
+		memcpy(priv->sopass, wol->sopass, sizeof(priv->sopass));
 
 	/* Flag the device and relevant IRQ as wakeup capable */
 	if (wol->wolopts) {
@@ -1506,8 +1500,8 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	/* We just need one DMA descriptor which is DMA-able, since writing to
 	 * the port will allocate a new descriptor in its internal linked-list
 	 */
-	p = dma_zalloc_coherent(kdev, sizeof(struct dma_desc), &ring->desc_dma,
-				GFP_KERNEL);
+	p = dma_alloc_coherent(kdev, sizeof(struct dma_desc), &ring->desc_dma,
+			       GFP_KERNEL);
 	if (!p) {
 		netif_err(priv, hw, priv->netdev, "DMA alloc failed\n");
 		return -ENOMEM;
@@ -2649,13 +2643,18 @@ static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 	unsigned int index, i = 0;
 	u32 reg;
 
-	/* Password has already been programmed */
 	reg = umac_readl(priv, UMAC_MPD_CTRL);
 	if (priv->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE))
 		reg |= MPD_EN;
 	reg &= ~PSW_EN;
-	if (priv->wolopts & WAKE_MAGICSECURE)
+	if (priv->wolopts & WAKE_MAGICSECURE) {
+		/* Program the SecureOn password */
+		umac_writel(priv, get_unaligned_be16(&priv->sopass[0]),
+			    UMAC_PSW_MS);
+		umac_writel(priv, get_unaligned_be32(&priv->sopass[2]),
+			    UMAC_PSW_LS);
 		reg |= PSW_EN;
+	}
 	umac_writel(priv, reg, UMAC_MPD_CTRL);
 
 	if (priv->wolopts & WAKE_FILTER) {

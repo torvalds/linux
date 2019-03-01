@@ -611,13 +611,15 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	}
 	irqflags = *((unsigned int *)(pdev->dev.platform_data));
 
-	adata = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dev_data),
-			     GFP_KERNEL);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
 			return -ENODEV;
 	}
+
+	adata = devm_kzalloc(&pdev->dev, sizeof(*adata), GFP_KERNEL);
+	if (!adata)
+		return -ENOMEM;
 
 	adata->acp3x_base = devm_ioremap(&pdev->dev, res->start,
 					 resource_size(res));

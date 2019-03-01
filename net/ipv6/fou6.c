@@ -72,7 +72,7 @@ static int gue6_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 static int gue6_err_proto_handler(int proto, struct sk_buff *skb,
 				  struct inet6_skb_parm *opt,
-				  u8 type, u8 code, int offset, u32 info)
+				  u8 type, u8 code, int offset, __be32 info)
 {
 	const struct inet6_protocol *ipprot;
 
@@ -90,10 +90,11 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 {
 	int transport_offset = skb_transport_offset(skb);
 	struct guehdr *guehdr;
-	size_t optlen;
+	size_t len, optlen;
 	int ret;
 
-	if (skb->len < sizeof(struct udphdr) + sizeof(struct guehdr))
+	len = sizeof(struct udphdr) + sizeof(struct guehdr);
+	if (!pskb_may_pull(skb, len))
 		return -EINVAL;
 
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
@@ -128,8 +129,20 @@ static int gue6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	optlen = guehdr->hlen << 2;
 
+	if (!pskb_may_pull(skb, len + optlen))
+		return -EINVAL;
+
+	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 	if (validate_gue_flags(guehdr, optlen))
 		return -EINVAL;
+
+	/* Handling exceptions for direct UDP encapsulation in GUE would lead to
+	 * recursion. Besides, this kind of encapsulation can't even be
+	 * configured currently. Discard this.
+	 */
+	if (guehdr->proto_ctype == IPPROTO_UDP ||
+	    guehdr->proto_ctype == IPPROTO_UDPLITE)
+		return -EOPNOTSUPP;
 
 	skb_set_transport_header(skb, -(int)sizeof(struct icmp6hdr));
 	ret = gue6_err_proto_handler(guehdr->proto_ctype, skb,

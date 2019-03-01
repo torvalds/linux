@@ -146,8 +146,7 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
  */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link,
 		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp,
-		const struct dc_stream_state *stream);
+		uint32_t frame_ramp);
 
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 

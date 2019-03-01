@@ -1396,8 +1396,7 @@ static int mtk_qdma_tx_alloc_tx(struct mtk_eth *eth)
 	if (!ring->tx_buf)
 		goto no_tx_mem;
 
-	ring->tx_dma = dma_zalloc_coherent(eth->dev,
-					  ring->tx_ring_size * sz,
+	ring->tx_dma = dma_alloc_coherent(eth->dev, ring->tx_ring_size * sz,
 					  &ring->tx_phys,
 					  GFP_ATOMIC | __GFP_ZERO);
 	if (!ring->tx_dma)

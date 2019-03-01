@@ -1465,7 +1465,7 @@ TRACE_EVENT(kvm_hv_send_ipi_ex,
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH arch/x86/kvm
+#define TRACE_INCLUDE_PATH ../../arch/x86/kvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

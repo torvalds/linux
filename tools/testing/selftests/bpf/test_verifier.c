@@ -6934,6 +6934,126 @@ static struct bpf_test tests[] = {
 		.retval = 1,
 	},
 	{
+		"map access: mixing value pointer and scalar, 1",
+		.insns = {
+			// load map value pointer into r0 and r2
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_LD_MAP_FD(BPF_REG_ARG1, 0),
+			BPF_MOV64_REG(BPF_REG_ARG2, BPF_REG_FP),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_ARG2, -16),
+			BPF_ST_MEM(BPF_DW, BPF_REG_FP, -16, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			// load some number from the map into r1
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			// depending on r1, branch:
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 3),
+			// branch A
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_JMP_A(2),
+			// branch B
+			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_3, 0x100000),
+			// common instruction
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			// depending on r1, branch:
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 1),
+			// branch A
+			BPF_JMP_A(4),
+			// branch B
+			BPF_MOV64_IMM(BPF_REG_0, 0x13371337),
+			// verifier follows fall-through
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, 0x100000, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			// fake-dead code; targeted from branch A to
+			// prevent dead code sanitization
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_array_48b = { 1 },
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.errstr_unpriv = "R2 tried to add from different pointers or scalars",
+		.retval = 0,
+	},
+	{
+		"map access: mixing value pointer and scalar, 2",
+		.insns = {
+			// load map value pointer into r0 and r2
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_LD_MAP_FD(BPF_REG_ARG1, 0),
+			BPF_MOV64_REG(BPF_REG_ARG2, BPF_REG_FP),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_ARG2, -16),
+			BPF_ST_MEM(BPF_DW, BPF_REG_FP, -16, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			// load some number from the map into r1
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			// depending on r1, branch:
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 3),
+			// branch A
+			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_3, 0x100000),
+			BPF_JMP_A(2),
+			// branch B
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			// common instruction
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			// depending on r1, branch:
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_1, 0, 1),
+			// branch A
+			BPF_JMP_A(4),
+			// branch B
+			BPF_MOV64_IMM(BPF_REG_0, 0x13371337),
+			// verifier follows fall-through
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_2, 0x100000, 2),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			// fake-dead code; targeted from branch A to
+			// prevent dead code sanitization
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_array_48b = { 1 },
+		.result = ACCEPT,
+		.result_unpriv = REJECT,
+		.errstr_unpriv = "R2 tried to add from different maps or paths",
+		.retval = 0,
+	},
+	{
+		"sanitation: alu with different scalars",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_LD_MAP_FD(BPF_REG_ARG1, 0),
+			BPF_MOV64_REG(BPF_REG_ARG2, BPF_REG_FP),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_ARG2, -16),
+			BPF_ST_MEM(BPF_DW, BPF_REG_FP, -16, 0),
+			BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 1),
+			BPF_EXIT_INSN(),
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 3),
+			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_3, 0x100000),
+			BPF_JMP_A(2),
+			BPF_MOV64_IMM(BPF_REG_2, 42),
+			BPF_MOV64_IMM(BPF_REG_3, 0x100001),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_2, BPF_REG_3),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map_array_48b = { 1 },
+		.result = ACCEPT,
+		.retval = 0x100000,
+	},
+	{
 		"map access: value_ptr += known scalar, upper oob arith, test 1",
 		.insns = {
 			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),

@@ -116,7 +116,7 @@ config MMC_RICOH_MMC
 
 config MMC_SDHCI_ACPI
 	tristate "SDHCI support for ACPI enumerated SDHCI controllers"
-	depends on MMC_SDHCI && ACPI
+	depends on MMC_SDHCI && ACPI && PCI
 	select IOSF_MBI if X86
 	help
 	  This selects support for ACPI enumerated SDHCI controllers,
@@ -978,7 +978,7 @@ config MMC_SDHCI_OMAP
 	tristate "TI SDHCI Controller Support"
 	depends on MMC_SDHCI_PLTFM && OF
 	select THERMAL
-	select TI_SOC_THERMAL
+	imply TI_SOC_THERMAL
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's DRA7 SOCs. The controller supports

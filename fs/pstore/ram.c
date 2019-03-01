@@ -128,7 +128,6 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		     struct pstore_record *record)
 {
 	struct persistent_ram_zone *prz;
-	bool update = (record->type == PSTORE_TYPE_DMESG);
 
 	/* Give up if we never existed or have hit the end. */
 	if (!przs)
@@ -139,7 +138,7 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], int id,
 		return NULL;
 
 	/* Update old/shadowed buffer. */
-	if (update)
+	if (prz->type == PSTORE_TYPE_DMESG)
 		persistent_ram_save_old(prz);
 
 	if (!persistent_ram_old_size(prz))
@@ -711,18 +710,15 @@ static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = dev->platform_data;
+	struct ramoops_platform_data pdata_local;
 	struct ramoops_context *cxt = &oops_cxt;
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
 
 	if (dev_of_node(dev) && !pdata) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			pr_err("cannot allocate platform data buffer\n");
-			err = -ENOMEM;
-			goto fail_out;
-		}
+		pdata = &pdata_local;
+		memset(pdata, 0, sizeof(*pdata));
 
 		err = ramoops_parse_dt(pdev, pdata);
 		if (err < 0)

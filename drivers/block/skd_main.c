@@ -2641,8 +2641,8 @@ static int skd_cons_skcomp(struct skd_device *skdev)
 		"comp pci_alloc, total bytes %zd entries %d\n",
 		SKD_SKCOMP_SIZE, SKD_N_COMPLETION_ENTRY);
 
-	skcomp = dma_zalloc_coherent(&skdev->pdev->dev, SKD_SKCOMP_SIZE,
-				     &skdev->cq_dma_address, GFP_KERNEL);
+	skcomp = dma_alloc_coherent(&skdev->pdev->dev, SKD_SKCOMP_SIZE,
+				    &skdev->cq_dma_address, GFP_KERNEL);
 
 	if (skcomp == NULL) {
 		rc = -ENOMEM;

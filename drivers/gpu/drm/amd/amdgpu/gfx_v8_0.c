@@ -4233,7 +4233,6 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	u32 tmp;
 	u32 rb_bufsz;
 	u64 rb_addr, rptr_addr, wptr_gpu_addr;
-	int r;
 
 	/* Set the write pointer delay */
 	WREG32(mmCP_RB_WPTR_DELAY, 0);
@@ -4278,9 +4277,8 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	amdgpu_ring_clear_ring(ring);
 	gfx_v8_0_cp_gfx_start(adev);
 	ring->sched.ready = true;
-	r = amdgpu_ring_test_helper(ring);
 
-	return r;
+	return 0;
 }
 
 static void gfx_v8_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
@@ -4369,10 +4367,9 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 		amdgpu_ring_write(kiq_ring, upper_32_bits(wptr_addr));
 	}
 
-	r = amdgpu_ring_test_helper(kiq_ring);
-	if (r)
-		DRM_ERROR("KCQ enable failed\n");
-	return r;
+	amdgpu_ring_commit(kiq_ring);
+
+	return 0;
 }
 
 static int gfx_v8_0_deactivate_hqd(struct amdgpu_device *adev, u32 req)
@@ -4709,16 +4706,32 @@ static int gfx_v8_0_kcq_resume(struct amdgpu_device *adev)
 	if (r)
 		goto done;
 
-	/* Test KCQs - reversing the order of rings seems to fix ring test failure
-	 * after GPU reset
-	 */
-	for (i = adev->gfx.num_compute_rings - 1; i >= 0; i--) {
-		ring = &adev->gfx.compute_ring[i];
-		r = amdgpu_ring_test_helper(ring);
-	}
-
 done:
 	return r;
+}
+
+static int gfx_v8_0_cp_test_all_rings(struct amdgpu_device *adev)
+{
+	int r, i;
+	struct amdgpu_ring *ring;
+
+	/* collect all the ring_tests here, gfx, kiq, compute */
+	ring = &adev->gfx.gfx_ring[0];
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
+		return r;
+
+	ring = &adev->gfx.kiq.ring;
+	r = amdgpu_ring_test_helper(ring);
+	if (r)
+		return r;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
+		amdgpu_ring_test_helper(ring);
+	}
+
+	return 0;
 }
 
 static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
@@ -4739,6 +4752,11 @@ static int gfx_v8_0_cp_resume(struct amdgpu_device *adev)
 	r = gfx_v8_0_kcq_resume(adev);
 	if (r)
 		return r;
+
+	r = gfx_v8_0_cp_test_all_rings(adev);
+	if (r)
+		return r;
+
 	gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 
 	return 0;
@@ -5085,6 +5103,8 @@ static int gfx_v8_0_post_soft_reset(void *handle)
 	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX))
 		gfx_v8_0_cp_gfx_resume(adev);
+
+	gfx_v8_0_cp_test_all_rings(adev);
 
 	adev->gfx.rlc.funcs->start(adev);
 

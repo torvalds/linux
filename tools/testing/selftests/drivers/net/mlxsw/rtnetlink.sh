@@ -25,6 +25,7 @@ ALL_TESTS="
 	lag_unlink_slaves_test
 	lag_dev_deletion_test
 	vlan_interface_uppers_test
+	bridge_extern_learn_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
@@ -537,6 +538,25 @@ vlan_interface_uppers_test()
 	ip link del dev br-test
 
 	log_test "vlan interface uppers"
+
+	ip link del dev br0
+}
+
+bridge_extern_learn_test()
+{
+	# Test that externally learned entries added from user space are
+	# marked as offloaded
+	RET=0
+
+	ip link add name br0 type bridge
+	ip link set dev $swp1 master br0
+
+	bridge fdb add de:ad:be:ef:13:37 dev $swp1 master extern_learn
+
+	bridge fdb show brport $swp1 | grep de:ad:be:ef:13:37 | grep -q offload
+	check_err $? "fdb entry not marked as offloaded when should"
+
+	log_test "externally learned fdb entry"
 
 	ip link del dev br0
 }

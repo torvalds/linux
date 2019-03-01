@@ -816,14 +816,14 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 	ops = nve->nve_ops_arr[params->type];
 
 	if (!ops->can_offload(nve, params->dev, extack))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	memset(&config, 0, sizeof(config));
 	ops->nve_config(nve, params->dev, &config);
 	if (nve->num_nve_tunnels &&
 	    memcmp(&config, &nve->config, sizeof(config))) {
 		NL_SET_ERR_MSG_MOD(extack, "Conflicting NVE tunnels configuration");
-		return -EOPNOTSUPP;
+		return -EINVAL;
 	}
 
 	err = mlxsw_sp_nve_tunnel_init(mlxsw_sp, &config);

@@ -13,6 +13,7 @@
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
 
+#include <linux/err.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 

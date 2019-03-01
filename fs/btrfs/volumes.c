@@ -957,10 +957,10 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		else
 			fs_devices = alloc_fs_devices(disk_super->fsid, NULL);
 
-		fs_devices->fsid_change = fsid_change_in_progress;
-
 		if (IS_ERR(fs_devices))
 			return ERR_CAST(fs_devices);
+
+		fs_devices->fsid_change = fsid_change_in_progress;
 
 		mutex_lock(&fs_devices->device_list_mutex);
 		list_add(&fs_devices->fs_list, &fs_uuids);
@@ -7825,6 +7825,18 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 		ret = -EUCLEAN;
 		goto out;
 	}
+
+	/* It's possible this device is a dummy for seed device */
+	if (dev->disk_total_bytes == 0) {
+		dev = find_device(fs_info->fs_devices->seed, devid, NULL);
+		if (!dev) {
+			btrfs_err(fs_info, "failed to find seed devid %llu",
+				  devid);
+			ret = -EUCLEAN;
+			goto out;
+		}
+	}
+
 	if (physical_offset + physical_len > dev->disk_total_bytes) {
 		btrfs_err(fs_info,
 "dev extent devid %llu physical offset %llu len %llu is beyond device boundary %llu",

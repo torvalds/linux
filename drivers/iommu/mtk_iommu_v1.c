@@ -232,9 +232,8 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_data *data)
 
 	spin_lock_init(&dom->pgtlock);
 
-	dom->pgt_va = dma_zalloc_coherent(data->dev,
-				M2701_IOMMU_PGT_SIZE,
-				&dom->pgt_pa, GFP_KERNEL);
+	dom->pgt_va = dma_alloc_coherent(data->dev, M2701_IOMMU_PGT_SIZE,
+					 &dom->pgt_pa, GFP_KERNEL);
 	if (!dom->pgt_va)
 		return -ENOMEM;
 
@@ -475,7 +474,7 @@ static int mtk_iommu_add_device(struct device *dev)
 		return err;
 	}
 
-	return iommu_device_link(&data->iommu, dev);;
+	return iommu_device_link(&data->iommu, dev);
 }
 
 static void mtk_iommu_remove_device(struct device *dev)

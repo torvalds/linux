@@ -374,20 +374,17 @@ enum {
 #define QI_DEV_EIOTLB_PFSID(pfsid) (((u64)(pfsid & 0xf) << 12) | ((u64)(pfsid & 0xfff) << 52))
 #define QI_DEV_EIOTLB_MAX_INVS	32
 
-#define QI_PGRP_IDX(idx)	(((u64)(idx)) << 55)
-#define QI_PGRP_PRIV(priv)	(((u64)(priv)) << 32)
-#define QI_PGRP_RESP_CODE(res)	((u64)(res))
-#define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
-#define QI_PGRP_DID(did)	(((u64)(did)) << 16)
+/* Page group response descriptor QW0 */
 #define QI_PGRP_PASID_P(p)	(((u64)(p)) << 4)
+#define QI_PGRP_PDP(p)		(((u64)(p)) << 5)
+#define QI_PGRP_RESP_CODE(res)	(((u64)(res)) << 12)
+#define QI_PGRP_DID(rid)	(((u64)(rid)) << 16)
+#define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
 
-#define QI_PSTRM_ADDR(addr)	(((u64)(addr)) & VTD_PAGE_MASK)
-#define QI_PSTRM_DEVFN(devfn)	(((u64)(devfn)) << 4)
-#define QI_PSTRM_RESP_CODE(res)	((u64)(res))
-#define QI_PSTRM_IDX(idx)	(((u64)(idx)) << 55)
-#define QI_PSTRM_PRIV(priv)	(((u64)(priv)) << 32)
-#define QI_PSTRM_BUS(bus)	(((u64)(bus)) << 24)
-#define QI_PSTRM_PASID(pasid)	(((u64)(pasid)) << 4)
+/* Page group response descriptor QW1 */
+#define QI_PGRP_LPIG(x)		(((u64)(x)) << 2)
+#define QI_PGRP_IDX(idx)	(((u64)(idx)) << 3)
+
 
 #define QI_RESP_SUCCESS		0x0
 #define QI_RESP_INVALID		0x1

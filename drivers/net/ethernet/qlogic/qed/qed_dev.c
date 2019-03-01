@@ -795,19 +795,19 @@ static void qed_init_qm_pq(struct qed_hwfn *p_hwfn,
 
 /* get pq index according to PQ_FLAGS */
 static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
-					   u32 pq_flags)
+					   unsigned long pq_flags)
 {
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 
 	/* Can't have multiple flags set here */
-	if (bitmap_weight((unsigned long *)&pq_flags,
+	if (bitmap_weight(&pq_flags,
 			  sizeof(pq_flags) * BITS_PER_BYTE) > 1) {
-		DP_ERR(p_hwfn, "requested multiple pq flags 0x%x\n", pq_flags);
+		DP_ERR(p_hwfn, "requested multiple pq flags 0x%lx\n", pq_flags);
 		goto err;
 	}
 
 	if (!(qed_get_pq_flags(p_hwfn) & pq_flags)) {
-		DP_ERR(p_hwfn, "pq flag 0x%x is not set\n", pq_flags);
+		DP_ERR(p_hwfn, "pq flag 0x%lx is not set\n", pq_flags);
 		goto err;
 	}
 

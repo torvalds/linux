@@ -25,9 +25,9 @@ static int nitrox_cmdq_init(struct nitrox_cmdq *cmdq, int align_bytes)
 	struct nitrox_device *ndev = cmdq->ndev;
 
 	cmdq->qsize = (ndev->qlen * cmdq->instr_size) + align_bytes;
-	cmdq->unalign_base = dma_zalloc_coherent(DEV(ndev), cmdq->qsize,
-						 &cmdq->unalign_dma,
-						 GFP_KERNEL);
+	cmdq->unalign_base = dma_alloc_coherent(DEV(ndev), cmdq->qsize,
+						&cmdq->unalign_dma,
+						GFP_KERNEL);
 	if (!cmdq->unalign_base)
 		return -ENOMEM;
 

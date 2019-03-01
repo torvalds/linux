@@ -24,10 +24,6 @@ depfile = $(subst $(comma),_,$(dot-target).d)
 basetarget = $(basename $(notdir $@))
 
 ###
-# filename of first prerequisite with directory and extension stripped
-baseprereq = $(basename $(notdir $<))
-
-###
 # Escape single quote for use in echo statements
 escsq = $(subst $(squote),'\$(squote)',$1)
 

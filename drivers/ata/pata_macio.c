@@ -915,6 +915,10 @@ static struct scsi_host_template pata_macio_sht = {
 	.sg_tablesize		= MAX_DCMDS,
 	/* We may not need that strict one */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
+	/* Not sure what the real max is but we know it's less than 64K, let's
+	 * use 64K minus 256
+	 */
+	.max_segment_size	= MAX_DBDMA_SEG,
 	.slave_configure	= pata_macio_slave_config,
 };
 
@@ -1043,11 +1047,6 @@ static int pata_macio_common_init(struct pata_macio_priv *priv,
 
 	/* Make sure we have sane initial timings in the cache */
 	pata_macio_default_timings(priv);
-
-	/* Not sure what the real max is but we know it's less than 64K, let's
-	 * use 64K minus 256
-	 */
-	dma_set_max_seg_size(priv->dev, MAX_DBDMA_SEG);
 
 	/* Allocate libata host for 1 port */
 	memset(&pinfo, 0, sizeof(struct ata_port_info));

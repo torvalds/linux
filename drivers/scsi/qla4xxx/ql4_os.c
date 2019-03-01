@@ -2704,9 +2704,9 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, void *data, uint32_t len)
 	uint32_t rem = len;
 	struct nlattr *attr;
 
-	init_fw_cb = dma_zalloc_coherent(&ha->pdev->dev,
-					 sizeof(struct addr_ctrl_blk),
-					 &init_fw_cb_dma, GFP_KERNEL);
+	init_fw_cb = dma_alloc_coherent(&ha->pdev->dev,
+					sizeof(struct addr_ctrl_blk),
+					&init_fw_cb_dma, GFP_KERNEL);
 	if (!init_fw_cb) {
 		ql4_printk(KERN_ERR, ha, "%s: Unable to alloc init_cb\n",
 			   __func__);
@@ -4206,8 +4206,8 @@ static int qla4xxx_mem_alloc(struct scsi_qla_host *ha)
 			  sizeof(struct shadow_regs) +
 			  MEM_ALIGN_VALUE +
 			  (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
-	ha->queues = dma_zalloc_coherent(&ha->pdev->dev, ha->queues_len,
-					 &ha->queues_dma, GFP_KERNEL);
+	ha->queues = dma_alloc_coherent(&ha->pdev->dev, ha->queues_len,
+					&ha->queues_dma, GFP_KERNEL);
 	if (ha->queues == NULL) {
 		ql4_printk(KERN_WARNING, ha,
 		    "Memory Allocation failed - queues.\n");
@@ -7232,6 +7232,8 @@ static int qla4xxx_sysfs_ddb_tgt_create(struct scsi_qla_host *ha,
 
 	rc = qla4xxx_copy_from_fwddb_param(fnode_sess, fnode_conn,
 					   fw_ddb_entry);
+	if (rc)
+		goto free_sess;
 
 	ql4_printk(KERN_INFO, ha, "%s: sysfs entry %s created\n",
 		   __func__, fnode_sess->dev.kobj.name);

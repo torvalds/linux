@@ -607,11 +607,17 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	char buf[MAX_EVENT_NAME_LEN];
 	unsigned int flags = TPARG_FL_KERNEL;
 
-	/* argc must be >= 1 */
-	if (argv[0][0] == 'r') {
+	switch (argv[0][0]) {
+	case 'r':
 		is_return = true;
 		flags |= TPARG_FL_RETURN;
-	} else if (argv[0][0] != 'p' || argc < 2)
+		break;
+	case 'p':
+		break;
+	default:
+		return -ECANCELED;
+	}
+	if (argc < 2)
 		return -ECANCELED;
 
 	event = strchr(&argv[0][1], ':');
@@ -855,21 +861,13 @@ static const struct file_operations kprobe_profile_ops = {
 static nokprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
-	mm_segment_t old_fs;
 	int ret, len = 0;
 	u8 c;
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-
 	do {
-		ret = __copy_from_user_inatomic(&c, (u8 *)addr + len, 1);
+		ret = probe_mem_read(&c, (u8 *)addr + len, 1);
 		len++;
 	} while (c && ret == 0 && len < MAX_STRING_SIZE);
-
-	pagefault_enable();
-	set_fs(old_fs);
 
 	return (ret < 0) ? ret : len;
 }

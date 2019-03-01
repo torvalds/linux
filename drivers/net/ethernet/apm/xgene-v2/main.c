@@ -206,8 +206,8 @@ static netdev_tx_t xge_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	/* Packet buffers should be 64B aligned */
-	pkt_buf = dma_zalloc_coherent(dev, XGENE_ENET_STD_MTU, &dma_addr,
-				      GFP_ATOMIC);
+	pkt_buf = dma_alloc_coherent(dev, XGENE_ENET_STD_MTU, &dma_addr,
+				     GFP_ATOMIC);
 	if (unlikely(!pkt_buf)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -428,8 +428,8 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	ring->ndev = ndev;
 
 	size = XGENE_ENET_DESC_SIZE * XGENE_ENET_NUM_DESC;
-	ring->desc_addr = dma_zalloc_coherent(dev, size, &ring->dma_addr,
-					      GFP_KERNEL);
+	ring->desc_addr = dma_alloc_coherent(dev, size, &ring->dma_addr,
+					     GFP_KERNEL);
 	if (!ring->desc_addr)
 		goto err;
 

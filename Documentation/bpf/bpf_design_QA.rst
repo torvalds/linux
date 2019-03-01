@@ -157,12 +157,11 @@ Q: Does BPF have a stable ABI?
 ------------------------------
 A: YES. BPF instructions, arguments to BPF programs, set of helper
 functions and their arguments, recognized return codes are all part
-of ABI. However when tracing programs are using bpf_probe_read() helper
-to walk kernel internal datastructures and compile with kernel
-internal headers these accesses can and will break with newer
-kernels. The union bpf_attr -> kern_version is checked at load time
-to prevent accidentally loading kprobe-based bpf programs written
-for a different kernel. Networking programs don't do kern_version check.
+of ABI. However there is one specific exception to tracing programs
+which are using helpers like bpf_probe_read() to walk kernel internal
+data structures and compile with kernel internal headers. Both of these
+kernel internals are subject to change and can break with newer kernels
+such that the program needs to be adapted accordingly.
 
 Q: How much stack space a BPF program uses?
 -------------------------------------------

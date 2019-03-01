@@ -298,8 +298,6 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 		return;
 	}
 
-	cache->align = round_up(cache->align, KASAN_SHADOW_SCALE_SIZE);
-
 	*flags |= SLAB_KASAN;
 }
 
@@ -349,28 +347,48 @@ void kasan_poison_object_data(struct kmem_cache *cache, void *object)
 }
 
 /*
- * Since it's desirable to only call object contructors once during slab
- * allocation, we preassign tags to all such objects. Also preassign tags for
- * SLAB_TYPESAFE_BY_RCU slabs to avoid use-after-free reports.
- * For SLAB allocator we can't preassign tags randomly since the freelist is
- * stored as an array of indexes instead of a linked list. Assign tags based
- * on objects indexes, so that objects that are next to each other get
- * different tags.
- * After a tag is assigned, the object always gets allocated with the same tag.
- * The reason is that we can't change tags for objects with constructors on
- * reallocation (even for non-SLAB_TYPESAFE_BY_RCU), because the constructor
- * code can save the pointer to the object somewhere (e.g. in the object
- * itself). Then if we retag it, the old saved pointer will become invalid.
+ * This function assigns a tag to an object considering the following:
+ * 1. A cache might have a constructor, which might save a pointer to a slab
+ *    object somewhere (e.g. in the object itself). We preassign a tag for
+ *    each object in caches with constructors during slab creation and reuse
+ *    the same tag each time a particular object is allocated.
+ * 2. A cache might be SLAB_TYPESAFE_BY_RCU, which means objects can be
+ *    accessed after being freed. We preassign tags for objects in these
+ *    caches as well.
+ * 3. For SLAB allocator we can't preassign tags randomly since the freelist
+ *    is stored as an array of indexes instead of a linked list. Assign tags
+ *    based on objects indexes, so that objects that are next to each other
+ *    get different tags.
  */
-static u8 assign_tag(struct kmem_cache *cache, const void *object, bool new)
+static u8 assign_tag(struct kmem_cache *cache, const void *object,
+			bool init, bool keep_tag)
 {
-	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
-		return new ? KASAN_TAG_KERNEL : random_tag();
+	/*
+	 * 1. When an object is kmalloc()'ed, two hooks are called:
+	 *    kasan_slab_alloc() and kasan_kmalloc(). We assign the
+	 *    tag only in the first one.
+	 * 2. We reuse the same tag for krealloc'ed objects.
+	 */
+	if (keep_tag)
+		return get_tag(object);
 
+	/*
+	 * If the cache neither has a constructor nor has SLAB_TYPESAFE_BY_RCU
+	 * set, assign a tag when the object is being allocated (init == false).
+	 */
+	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
+		return init ? KASAN_TAG_KERNEL : random_tag();
+
+	/* For caches that either have a constructor or SLAB_TYPESAFE_BY_RCU: */
 #ifdef CONFIG_SLAB
+	/* For SLAB assign tags based on the object index in the freelist. */
 	return (u8)obj_to_index(cache, virt_to_page(object), (void *)object);
 #else
-	return new ? random_tag() : get_tag(object);
+	/*
+	 * For SLUB assign a random tag during slab creation, otherwise reuse
+	 * the already assigned tag.
+	 */
+	return init ? random_tag() : get_tag(object);
 #endif
 }
 
@@ -386,15 +404,10 @@ void * __must_check kasan_init_slab_obj(struct kmem_cache *cache,
 	__memset(alloc_info, 0, sizeof(*alloc_info));
 
 	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
-		object = set_tag(object, assign_tag(cache, object, true));
+		object = set_tag(object,
+				assign_tag(cache, object, true, false));
 
 	return (void *)object;
-}
-
-void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
-					gfp_t flags)
-{
-	return kasan_kmalloc(cache, object, cache->object_size, flags);
 }
 
 static inline bool shadow_invalid(u8 tag, s8 shadow_byte)
@@ -452,8 +465,8 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
 	return __kasan_slab_free(cache, object, ip, true);
 }
 
-void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
-					size_t size, gfp_t flags)
+static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
+				size_t size, gfp_t flags, bool keep_tag)
 {
 	unsigned long redzone_start;
 	unsigned long redzone_end;
@@ -471,7 +484,7 @@ void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
 				KASAN_SHADOW_SCALE_SIZE);
 
 	if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
-		tag = assign_tag(cache, object, false);
+		tag = assign_tag(cache, object, false, keep_tag);
 
 	/* Tag is ignored in set_tag without CONFIG_KASAN_SW_TAGS */
 	kasan_unpoison_shadow(set_tag(object, tag), size);
@@ -482,6 +495,18 @@ void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
 		set_track(&get_alloc_info(cache, object)->alloc_track, flags);
 
 	return set_tag(object, tag);
+}
+
+void * __must_check kasan_slab_alloc(struct kmem_cache *cache, void *object,
+					gfp_t flags)
+{
+	return __kasan_kmalloc(cache, object, cache->object_size, flags, false);
+}
+
+void * __must_check kasan_kmalloc(struct kmem_cache *cache, const void *object,
+				size_t size, gfp_t flags)
+{
+	return __kasan_kmalloc(cache, object, size, flags, true);
 }
 EXPORT_SYMBOL(kasan_kmalloc);
 
@@ -522,7 +547,8 @@ void * __must_check kasan_krealloc(const void *object, size_t size, gfp_t flags)
 	if (unlikely(!PageSlab(page)))
 		return kasan_kmalloc_large(object, size, flags);
 	else
-		return kasan_kmalloc(page->slab_cache, object, size, flags);
+		return __kasan_kmalloc(page->slab_cache, object, size,
+						flags, true);
 }
 
 void kasan_poison_kfree(void *ptr, unsigned long ip)

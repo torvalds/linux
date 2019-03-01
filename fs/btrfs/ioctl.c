@@ -3221,6 +3221,26 @@ static void btrfs_double_inode_lock(struct inode *inode1, struct inode *inode2)
 	inode_lock_nested(inode2, I_MUTEX_CHILD);
 }
 
+static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
+				       struct inode *inode2, u64 loff2, u64 len)
+{
+	unlock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
+	unlock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
+}
+
+static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
+				     struct inode *inode2, u64 loff2, u64 len)
+{
+	if (inode1 < inode2) {
+		swap(inode1, inode2);
+		swap(loff1, loff2);
+	} else if (inode1 == inode2 && loff2 < loff1) {
+		swap(loff1, loff2);
+	}
+	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
+	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
+}
+
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
 				   struct inode *dst, u64 dst_loff)
 {
@@ -3242,11 +3262,12 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
 		return -EINVAL;
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages().
+	 * Lock destination range to serialize with concurrent readpages() and
+	 * source range to serialize with relocation.
 	 */
-	lock_extent(&BTRFS_I(dst)->io_tree, dst_loff, dst_loff + len - 1);
+	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
 	ret = btrfs_clone(src, dst, loff, olen, len, dst_loff, 1);
-	unlock_extent(&BTRFS_I(dst)->io_tree, dst_loff, dst_loff + len - 1);
+	btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
 
 	return ret;
 }
@@ -3905,17 +3926,33 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 		len = ALIGN(src->i_size, bs) - off;
 
 	if (destoff > inode->i_size) {
+		const u64 wb_start = ALIGN_DOWN(inode->i_size, bs);
+
 		ret = btrfs_cont_expand(inode, inode->i_size, destoff);
+		if (ret)
+			return ret;
+		/*
+		 * We may have truncated the last block if the inode's size is
+		 * not sector size aligned, so we need to wait for writeback to
+		 * complete before proceeding further, otherwise we can race
+		 * with cloning and attempt to increment a reference to an
+		 * extent that no longer exists (writeback completed right after
+		 * we found the previous extent covering eof and before we
+		 * attempted to increment its reference count).
+		 */
+		ret = btrfs_wait_ordered_range(inode, wb_start,
+					       destoff - wb_start);
 		if (ret)
 			return ret;
 	}
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages().
+	 * Lock destination range to serialize with concurrent readpages() and
+	 * source range to serialize with relocation.
 	 */
-	lock_extent(&BTRFS_I(inode)->io_tree, destoff, destoff + len - 1);
+	btrfs_double_extent_lock(src, off, inode, destoff, len);
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
-	unlock_extent(&BTRFS_I(inode)->io_tree, destoff, destoff + len - 1);
+	btrfs_double_extent_unlock(src, off, inode, destoff, len);
 	/*
 	 * Truncate page cache pages so that future reads will see the cloned
 	 * data immediately and not the previous data.

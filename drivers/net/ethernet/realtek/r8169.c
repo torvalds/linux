@@ -205,6 +205,8 @@ enum cfg_version {
 };
 
 static const struct pci_device_id rtl8169_pci_tbl[] = {
+	{ PCI_VDEVICE(REALTEK,	0x2502), RTL_CFG_1 },
+	{ PCI_VDEVICE(REALTEK,	0x2600), RTL_CFG_1 },
 	{ PCI_VDEVICE(REALTEK,	0x8129), RTL_CFG_0 },
 	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_2 },
 	{ PCI_VDEVICE(REALTEK,	0x8161), RTL_CFG_1 },
@@ -706,6 +708,7 @@ module_param(use_dac, int, 0);
 MODULE_PARM_DESC(use_dac, "Enable PCI DAC. Unsafe on 32 bit PCI slot.");
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+MODULE_SOFTDEP("pre: realtek");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_8168D_1);
 MODULE_FIRMWARE(FIRMWARE_8168D_2);
@@ -1283,11 +1286,13 @@ static u16 rtl_get_events(struct rtl8169_private *tp)
 static void rtl_ack_events(struct rtl8169_private *tp, u16 bits)
 {
 	RTL_W16(tp, IntrStatus, bits);
+	mmiowb();
 }
 
 static void rtl_irq_disable(struct rtl8169_private *tp)
 {
 	RTL_W16(tp, IntrMask, 0);
+	mmiowb();
 }
 
 #define RTL_EVENT_NAPI_RX	(RxOK | RxErr)
@@ -1679,11 +1684,13 @@ static bool rtl8169_reset_counters(struct rtl8169_private *tp)
 
 static bool rtl8169_update_counters(struct rtl8169_private *tp)
 {
+	u8 val = RTL_R8(tp, ChipCmd);
+
 	/*
 	 * Some chips are unable to dump tally counters when the receiver
-	 * is disabled.
+	 * is disabled. If 0xff chip may be in a PCI power-save state.
 	 */
-	if ((RTL_R8(tp, ChipCmd) & CmdRxEnb) == 0)
+	if (!(val & CmdRxEnb) || val == 0xff)
 		return true;
 
 	return rtl8169_do_counters(tp, CounterDump);
@@ -6067,7 +6074,6 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	struct device *d = tp_to_dev(tp);
 	dma_addr_t mapping;
 	u32 opts[2], len;
-	bool stop_queue;
 	int frags;
 
 	if (unlikely(!rtl_tx_slots_avail(tp, skb_shinfo(skb)->nr_frags))) {
@@ -6109,6 +6115,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	txd->opts2 = cpu_to_le32(opts[1]);
 
+	netdev_sent_queue(dev, skb->len);
+
 	skb_tx_timestamp(skb);
 
 	/* Force memory writes to complete before releasing descriptor */
@@ -6121,14 +6129,16 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	tp->cur_tx += frags + 1;
 
-	stop_queue = !rtl_tx_slots_avail(tp, MAX_SKB_FRAGS);
-	if (unlikely(stop_queue))
+	RTL_W8(tp, TxPoll, NPQ);
+
+	mmiowb();
+
+	if (!rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
+		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
+		 * not miss a ring update when it notices a stopped queue.
+		 */
+		smp_wmb();
 		netif_stop_queue(dev);
-
-	if (__netdev_sent_queue(dev, skb->len, skb->xmit_more))
-		RTL_W8(tp, TxPoll, NPQ);
-
-	if (unlikely(stop_queue)) {
 		/* Sync with rtl_tx:
 		 * - publish queue status and cur_tx ring index (write barrier)
 		 * - refresh dirty_tx ring index (read barrier).
@@ -6478,7 +6488,9 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
+
 		rtl_irq_enable(tp);
+		mmiowb();
 	}
 
 	return work_done;

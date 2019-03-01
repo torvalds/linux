@@ -494,7 +494,10 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 	id_priv->id.route.addr.dev_addr.transport =
 		rdma_node_get_transport(cma_dev->device->node_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
-	rdma_restrack_kadd(&id_priv->res);
+	if (id_priv->res.kern_name)
+		rdma_restrack_kadd(&id_priv->res);
+	else
+		rdma_restrack_uadd(&id_priv->res);
 }
 
 static void cma_attach_to_dev(struct rdma_id_private *id_priv,

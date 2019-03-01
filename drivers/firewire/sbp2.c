@@ -1144,10 +1144,6 @@ static int sbp2_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (device->is_local)
 		return -ENODEV;
 
-	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
-		WARN_ON(dma_set_max_seg_size(device->card->device,
-					     SBP2_MAX_SEG_SIZE));
-
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
 		return -ENOMEM;
@@ -1610,6 +1606,7 @@ static struct scsi_host_template scsi_driver_template = {
 	.eh_abort_handler	= sbp2_scsi_abort,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
+	.max_segment_size	= SBP2_MAX_SEG_SIZE,
 	.can_queue		= 1,
 	.sdev_attrs		= sbp2_scsi_sysfs_attrs,
 };

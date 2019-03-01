@@ -25,6 +25,7 @@
 enum afs_call_trace {
 	afs_call_trace_alloc,
 	afs_call_trace_free,
+	afs_call_trace_get,
 	afs_call_trace_put,
 	afs_call_trace_wake,
 	afs_call_trace_work,
@@ -159,6 +160,7 @@ enum afs_file_error {
 #define afs_call_traces \
 	EM(afs_call_trace_alloc,		"ALLOC") \
 	EM(afs_call_trace_free,			"FREE ") \
+	EM(afs_call_trace_get,			"GET  ") \
 	EM(afs_call_trace_put,			"PUT  ") \
 	EM(afs_call_trace_wake,			"WAKE ") \
 	E_(afs_call_trace_work,			"WORK ")

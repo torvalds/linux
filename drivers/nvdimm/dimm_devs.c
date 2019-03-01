@@ -578,13 +578,25 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
 
-int nvdimm_security_setup_events(struct nvdimm *nvdimm)
+static void shutdown_security_notify(void *data)
 {
-	nvdimm->sec.overwrite_state = sysfs_get_dirent(nvdimm->dev.kobj.sd,
-			"security");
+	struct nvdimm *nvdimm = data;
+
+	sysfs_put(nvdimm->sec.overwrite_state);
+}
+
+int nvdimm_security_setup_events(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	if (nvdimm->sec.state < 0 || !nvdimm->sec.ops
+			|| !nvdimm->sec.ops->overwrite)
+		return 0;
+	nvdimm->sec.overwrite_state = sysfs_get_dirent(dev->kobj.sd, "security");
 	if (!nvdimm->sec.overwrite_state)
-		return -ENODEV;
-	return 0;
+		return -ENOMEM;
+
+	return devm_add_action_or_reset(dev, shutdown_security_notify, nvdimm);
 }
 EXPORT_SYMBOL_GPL(nvdimm_security_setup_events);
 

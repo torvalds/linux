@@ -976,6 +976,9 @@ static int seccomp_notify_release(struct inode *inode, struct file *file)
 	struct seccomp_filter *filter = file->private_data;
 	struct seccomp_knotif *knotif;
 
+	if (!filter)
+		return 0;
+
 	mutex_lock(&filter->notify_lock);
 
 	/*
@@ -1300,6 +1303,7 @@ out:
 out_put_fd:
 	if (flags & SECCOMP_FILTER_FLAG_NEW_LISTENER) {
 		if (ret < 0) {
+			listener_f->private_data = NULL;
 			fput(listener_f);
 			put_unused_fd(listener);
 		} else {
