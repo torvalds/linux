@@ -829,7 +829,7 @@ tracing filters may do to maintain counters of events, for example. Register R9
 is not used by socket filters either, but more complex filters may be running
 out of registers and would have to resort to spill/fill to stack.
 
-Internal BPF can used as generic assembler for last step performance
+Internal BPF can be used as a generic assembler for last step performance
 optimizations, socket filters and seccomp are using it as assembler. Tracing
 filters may use it as assembler to generate code from kernel. In kernel usage
 may not be bounded by security considerations, since generated internal BPF code
