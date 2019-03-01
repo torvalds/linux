@@ -1820,7 +1820,7 @@ out:
 int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
-	u32 multipath_hash = fl4->flowi4_multipath_hash;
+	u32 multipath_hash = fl4 ? fl4->flowi4_multipath_hash : 0;
 	struct flow_keys hash_keys;
 	u32 mhash;
 
