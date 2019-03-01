@@ -37,6 +37,8 @@
 #define RENDER_TIMES_MAX_COUNT 10
 /* Threshold to exit BTR (to avoid frequent enter-exits at the lower limit) */
 #define BTR_EXIT_MARGIN 2000
+/* Threshold to change BTR multiplier (to avoid frequent changes) */
+#define BTR_DRIFT_MARGIN 2000
 /*Threshold to exit fixed refresh rate*/
 #define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
 /* Number of consecutive frames to check before entering/exiting fixed refresh*/
@@ -248,6 +250,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	unsigned int frames_to_insert = 0;
 	unsigned int min_frame_duration_in_ns = 0;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
+	unsigned int delta_from_mid_point_delta_in_us;
 
 	min_frame_duration_in_ns = ((unsigned int) (div64_u64(
 		(1000000000ULL * 1000000),
@@ -318,10 +321,27 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		/* Choose number of frames to insert based on how close it
 		 * can get to the mid point of the variable range.
 		 */
-		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2)
+		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2) {
 			frames_to_insert = mid_point_frames_ceil;
-		else
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_2 -
+					delta_from_mid_point_in_us_1;
+		} else {
 			frames_to_insert = mid_point_frames_floor;
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_1 -
+					delta_from_mid_point_in_us_2;
+		}
+
+		/* Prefer current frame multiplier when BTR is enabled unless it drifts
+		 * too far from the midpoint
+		 */
+		if (in_out_vrr->btr.frames_to_insert != 0 &&
+				delta_from_mid_point_delta_in_us < BTR_DRIFT_MARGIN) {
+			if (((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) <
+					in_out_vrr->max_duration_in_us) &&
+				((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) >
+					in_out_vrr->min_duration_in_us))
+				frames_to_insert = in_out_vrr->btr.frames_to_insert;
+		}
 
 		/* Either we've calculated the number of frames to insert,
 		 * or we need to insert min duration frames
