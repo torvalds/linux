@@ -253,15 +253,10 @@ void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 
-	/* enable IPC DONE interrupt */
+	/* enable IPC DONE and BUSY interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_DONE,
-				HDA_DSP_REG_HIPCCTL_DONE);
-
-	/* enable IPC BUSY interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_BUSY,
-				HDA_DSP_REG_HIPCCTL_BUSY);
+			HDA_DSP_REG_HIPCCTL_DONE | HDA_DSP_REG_HIPCCTL_BUSY,
+			HDA_DSP_REG_HIPCCTL_DONE | HDA_DSP_REG_HIPCCTL_BUSY);
 
 	/* enable IPC interrupt */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
@@ -277,13 +272,9 @@ void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
 				HDA_DSP_ADSPIC_IPC, 0);
 
-	/* disable IPC BUSY interrupt */
+	/* disable IPC BUSY and DONE interrupt */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_BUSY, 0);
-
-	/* disable IPC DONE interrupt */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
-				HDA_DSP_REG_HIPCCTL_DONE, 0);
+			HDA_DSP_REG_HIPCCTL_BUSY | HDA_DSP_REG_HIPCCTL_DONE, 0);
 }
 
 static int hda_suspend(struct snd_sof_dev *sdev, int state)
