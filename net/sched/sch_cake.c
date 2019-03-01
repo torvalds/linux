@@ -1513,20 +1513,6 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	return idx + (tin << 16);
 }
 
-static void cake_wash_diffserv(struct sk_buff *skb)
-{
-	switch (skb->protocol) {
-	case htons(ETH_P_IP):
-		ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, 0);
-		break;
-	case htons(ETH_P_IPV6):
-		ipv6_change_dsfield(ipv6_hdr(skb), INET_ECN_MASK, 0);
-		break;
-	default:
-		break;
-	}
-}
-
 static u8 cake_handle_diffserv(struct sk_buff *skb, u16 wash)
 {
 	u8 dscp;
@@ -1558,33 +1544,32 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	u32 tin;
+	u8 dscp;
 
-	if (TC_H_MAJ(skb->priority) == sch->handle &&
-	    TC_H_MIN(skb->priority) > 0 &&
-	    TC_H_MIN(skb->priority) <= q->tin_cnt) {
+	/* Tin selection: Default to diffserv-based selection, allow overriding
+	 * using firewall marks or skb->priority.
+	 */
+	dscp = cake_handle_diffserv(skb,
+				    q->rate_flags & CAKE_FLAG_WASH);
+
+	if (q->tin_mode == CAKE_DIFFSERV_BESTEFFORT)
+		tin = 0;
+
+	else if (q->rate_flags & CAKE_FLAG_FWMARK && /* use fw mark */
+		 skb->mark &&
+		 skb->mark <= q->tin_cnt)
+		tin = q->tin_order[skb->mark - 1];
+
+	else if (TC_H_MAJ(skb->priority) == sch->handle &&
+		 TC_H_MIN(skb->priority) > 0 &&
+		 TC_H_MIN(skb->priority) <= q->tin_cnt)
 		tin = q->tin_order[TC_H_MIN(skb->priority) - 1];
 
-		if (q->rate_flags & CAKE_FLAG_WASH)
-			cake_wash_diffserv(skb);
-	} else if (q->tin_mode != CAKE_DIFFSERV_BESTEFFORT) {
-		if (q->rate_flags & CAKE_FLAG_FWMARK && /* use fw mark */
-		    skb->mark &&
-		    skb->mark <= q->tin_cnt) {
-			tin = q->tin_order[skb->mark - 1];
-			if (q->rate_flags & CAKE_FLAG_WASH)
-				cake_wash_diffserv(skb);
-		} else {
-			/* extract the Diffserv Precedence field, if it exists */
-			/* and clear DSCP bits if washing */
-			tin = q->tin_index[cake_handle_diffserv(skb,
-					q->rate_flags & CAKE_FLAG_WASH)];
-			if (unlikely(tin >= q->tin_cnt))
-				tin = 0;
-		}
-	} else {
-		tin = 0;
-		if (q->rate_flags & CAKE_FLAG_WASH)
-			cake_wash_diffserv(skb);
+	else {
+		tin = q->tin_index[dscp];
+
+		if (unlikely(tin >= q->tin_cnt))
+			tin = 0;
 	}
 
 	return &q->tins[tin];
