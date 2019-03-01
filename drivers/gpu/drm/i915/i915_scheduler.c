@@ -39,6 +39,7 @@ void i915_sched_node_init(struct i915_sched_node *node)
 	INIT_LIST_HEAD(&node->waiters_list);
 	INIT_LIST_HEAD(&node->link);
 	node->attr.priority = I915_PRIORITY_INVALID;
+	node->flags = 0;
 }
 
 static struct i915_dependency *
@@ -68,6 +69,11 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		list_add(&dep->signal_link, &node->signalers_list);
 		dep->signaler = signal;
 		dep->flags = flags;
+
+		/* Keep track of whether anyone on this chain has a semaphore */
+		if (signal->flags & I915_SCHED_HAS_SEMAPHORE &&
+		    !node_started(signal))
+			node->flags |= I915_SCHED_HAS_SEMAPHORE;
 
 		ret = true;
 	}

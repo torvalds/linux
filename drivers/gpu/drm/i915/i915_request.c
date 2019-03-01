@@ -813,6 +813,7 @@ emit_semaphore_wait(struct i915_request *to,
 	*cs++ = 0;
 
 	intel_ring_advance(to, cs);
+	to->sched.flags |= I915_SCHED_HAS_SEMAPHORE;
 	return 0;
 }
 
@@ -1082,6 +1083,21 @@ void i915_request_add(struct i915_request *request)
 	rcu_read_lock(); /* RCU serialisation for set-wedged protection */
 	if (engine->schedule) {
 		struct i915_sched_attr attr = request->gem_context->sched;
+
+		/*
+		 * Boost actual workloads past semaphores!
+		 *
+		 * With semaphores we spin on one engine waiting for another,
+		 * simply to reduce the latency of starting our work when
+		 * the signaler completes. However, if there is any other
+		 * work that we could be doing on this engine instead, that
+		 * is better utilisation and will reduce the overall duration
+		 * of the current work. To avoid PI boosting a semaphore
+		 * far in the distance past over useful work, we keep a history
+		 * of any semaphore use along our dependency chain.
+		 */
+		if (!(request->sched.flags & I915_SCHED_HAS_SEMAPHORE))
+			attr.priority |= I915_PRIORITY_NOSEMAPHORE;
 
 		/*
 		 * Boost priorities to new clients (new request flows).

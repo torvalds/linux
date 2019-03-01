@@ -24,14 +24,15 @@ enum {
 	I915_PRIORITY_INVALID = INT_MIN
 };
 
-#define I915_USER_PRIORITY_SHIFT 2
+#define I915_USER_PRIORITY_SHIFT 3
 #define I915_USER_PRIORITY(x) ((x) << I915_USER_PRIORITY_SHIFT)
 
 #define I915_PRIORITY_COUNT BIT(I915_USER_PRIORITY_SHIFT)
 #define I915_PRIORITY_MASK (I915_PRIORITY_COUNT - 1)
 
-#define I915_PRIORITY_WAIT	((u8)BIT(0))
-#define I915_PRIORITY_NEWCLIENT	((u8)BIT(1))
+#define I915_PRIORITY_WAIT		((u8)BIT(0))
+#define I915_PRIORITY_NEWCLIENT		((u8)BIT(1))
+#define I915_PRIORITY_NOSEMAPHORE	((u8)BIT(2))
 
 #define __NO_PREEMPTION (I915_PRIORITY_WAIT)
 
@@ -74,6 +75,8 @@ struct i915_sched_node {
 	struct list_head waiters_list; /* those after us, they depend upon us */
 	struct list_head link;
 	struct i915_sched_attr attr;
+	unsigned int flags;
+#define I915_SCHED_HAS_SEMAPHORE	BIT(0)
 };
 
 struct i915_dependency {
