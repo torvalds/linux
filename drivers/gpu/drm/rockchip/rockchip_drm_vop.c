@@ -1210,17 +1210,6 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
-static void vop_crtc_reset(struct drm_crtc *crtc)
-{
-	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-	kfree(crtc->state);
-
-	crtc->state = kzalloc(sizeof(struct rockchip_crtc_state), GFP_KERNEL);
-	if (crtc->state)
-		crtc->state->crtc = crtc;
-}
-
 static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *rockchip_state;
@@ -1240,6 +1229,17 @@ static void vop_crtc_destroy_state(struct drm_crtc *crtc,
 
 	__drm_atomic_helper_crtc_destroy_state(&s->base);
 	kfree(s);
+}
+
+static void vop_crtc_reset(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *crtc_state =
+		kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+
+	if (crtc->state)
+		vop_crtc_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, &crtc_state->base);
 }
 
 #ifdef CONFIG_DRM_ANALOGIX_DP
