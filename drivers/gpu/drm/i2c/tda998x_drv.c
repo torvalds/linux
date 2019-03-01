@@ -41,7 +41,14 @@ enum {
 	AUDIO_ROUTE_NUM
 };
 
+struct tda998x_audio_route {
+	u8 ena_aclk;
+	u8 mux_ap;
+	u8 aip_clksel;
+};
+
 struct tda998x_audio_settings {
+	const struct tda998x_audio_route *route;
 	struct tda998x_audio_params params;
 	u8 ena_ap;
 	u8 i2s_format;
@@ -868,6 +875,34 @@ tda998x_write_avi(struct tda998x_priv *priv, const struct drm_display_mode *mode
 
 /* Audio support */
 
+static const struct tda998x_audio_route tda998x_audio_route[AUDIO_ROUTE_NUM] = {
+	[AUDIO_ROUTE_I2S] = {
+		.ena_aclk = 1,
+		.mux_ap = MUX_AP_SELECT_I2S,
+		.aip_clksel = AIP_CLKSEL_AIP_I2S | AIP_CLKSEL_FS_ACLK,
+	},
+	[AUDIO_ROUTE_SPDIF] = {
+		.ena_aclk = 0,
+		.mux_ap = MUX_AP_SELECT_SPDIF,
+		.aip_clksel = AIP_CLKSEL_AIP_SPDIF | AIP_CLKSEL_FS_FS64SPDIF,
+	},
+};
+
+/* Configure the TDA998x audio data and clock routing. */
+static int tda998x_derive_routing(struct tda998x_priv *priv,
+				  struct tda998x_audio_settings *s,
+				  unsigned int route)
+{
+	s->route = &tda998x_audio_route[route];
+	s->ena_ap = priv->audio_port_enable[route];
+	if (s->ena_ap == 0) {
+		dev_err(&priv->hdmi->dev, "no audio configuration found\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * The audio clock divisor register controls a divider producing Audio_Clk_Out
  * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't know what
@@ -960,7 +995,7 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 static int tda998x_configure_audio(struct tda998x_priv *priv,
 				 const struct tda998x_audio_settings *settings)
 {
-	u8 buf[6], aip_clksel, adiv;
+	u8 buf[6], adiv;
 	u32 n;
 
 	/* If audio is not configured, there is nothing to do. */
@@ -971,28 +1006,10 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 
 	/* Enable audio ports */
 	reg_write(priv, REG_ENA_AP, settings->ena_ap);
-
-	/* Set audio input source */
-	switch (settings->params.format) {
-	case AFMT_SPDIF:
-		reg_write(priv, REG_ENA_ACLK, 0);
-		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_SPDIF);
-		aip_clksel = AIP_CLKSEL_AIP_SPDIF | AIP_CLKSEL_FS_FS64SPDIF;
-		break;
-
-	case AFMT_I2S:
-		reg_write(priv, REG_ENA_ACLK, 1);
-		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_I2S);
-		aip_clksel = AIP_CLKSEL_AIP_I2S | AIP_CLKSEL_FS_ACLK;
-		break;
-
-	default:
-		dev_err(&priv->hdmi->dev, "Unsupported I2S format\n");
-		return -EINVAL;
-	}
-
+	reg_write(priv, REG_ENA_ACLK, settings->route->ena_aclk);
+	reg_write(priv, REG_MUX_AP, settings->route->mux_ap);
 	reg_write(priv, REG_I2S_FORMAT, settings->i2s_format);
-	reg_write(priv, REG_AIP_CLKSEL, aip_clksel);
+	reg_write(priv, REG_AIP_CLKSEL, settings->route->aip_clksel);
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_LAYOUT |
 					AIP_CNTRL_0_ACR_MAN);	/* auto CTS */
 	reg_write(priv, REG_CTS_N, settings->cts_n);
@@ -1071,14 +1088,6 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 		return -EINVAL;
 	}
 
-	audio.params.format = spdif ? AFMT_SPDIF : AFMT_I2S;
-
-	audio.ena_ap = priv->audio_port_enable[AUDIO_ROUTE_I2S + spdif];
-	if (audio.ena_ap == 0) {
-		dev_err(dev, "%s: No audio configuration found\n", __func__);
-		return -EINVAL;
-	}
-
 	if (!spdif &&
 	    (daifmt->bit_clk_inv || daifmt->frame_clk_inv ||
 	     daifmt->bit_clk_master || daifmt->frame_clk_master)) {
@@ -1088,6 +1097,10 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 			daifmt->frame_clk_master);
 		return -EINVAL;
 	}
+
+	ret = tda998x_derive_routing(priv, &audio, AUDIO_ROUTE_I2S + spdif);
+	if (ret < 0)
+		return ret;
 
 	bclk_ratio = spdif ? 64 : params->sample_width * 2;
 	ret = tda998x_derive_cts_n(priv, &audio, bclk_ratio);
@@ -1699,9 +1712,12 @@ static int tda998x_set_config(struct tda998x_priv *priv,
 			    (p->mirr_f ? VIP_CNTRL_2_MIRR_F : 0);
 
 	if (p->audio_params.format != AFMT_UNUSED) {
-		unsigned int ratio;
+		unsigned int ratio, route;
 		bool spdif = p->audio_params.format == AFMT_SPDIF;
 
+		route = AUDIO_ROUTE_I2S + spdif;
+
+		priv->audio.route = &tda998x_audio_route[route];
 		priv->audio.params = p->audio_params;
 		priv->audio.ena_ap = p->audio_params.config;
 		priv->audio.i2s_format = I2S_FORMAT_PHILIPS;
