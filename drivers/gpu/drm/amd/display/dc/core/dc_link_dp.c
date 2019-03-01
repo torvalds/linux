@@ -2418,6 +2418,10 @@ static bool retrieve_link_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[DP_ADAPTER_CAP - DP_DPCD_REV + 1];
 
+	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
+	 */
+	uint8_t dpcd_dprx_data = '\0';
+
 	struct dp_device_vendor_id sink_id;
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
@@ -2454,7 +2458,10 @@ static bool retrieve_link_cap(struct dc_link *link)
 		aux_rd_interval.raw =
 			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
-		if (aux_rd_interval.bits.EXT_RECIEVER_CAP_FIELD_PRESENT == 1) {
+		link->dpcd_caps.ext_receiver_cap_field_present =
+				aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1 ? true:false;
+
+		if (aux_rd_interval.bits.EXT_RECEIVER_CAP_FIELD_PRESENT == 1) {
 			uint8_t ext_cap_data[16];
 
 			memset(ext_cap_data, '\0', sizeof(ext_cap_data));
@@ -2474,6 +2481,31 @@ static bool retrieve_link_cap(struct dc_link *link)
 		}
 	}
 
+	link->dpcd_caps.dpcd_rev.raw =
+			dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
+
+	if (link->dpcd_caps.dpcd_rev.raw >= 0x14) {
+		for (i = 0; i < read_dpcd_retry_cnt; i++) {
+			status = core_link_read_dpcd(
+					link,
+					DP_DPRX_FEATURE_ENUMERATION_LIST,
+					&dpcd_dprx_data,
+					sizeof(dpcd_dprx_data));
+			if (status == DC_OK)
+				break;
+		}
+
+		link->dpcd_caps.dprx_feature.raw = dpcd_dprx_data;
+
+		if (status != DC_OK)
+			dm_error("%s: Read DPRX caps data failed.\n", __func__);
+	}
+
+	else {
+		link->dpcd_caps.dprx_feature.raw = 0;
+	}
+
+
 	/* Error condition checking...
 	 * It is impossible for Sink to report Max Lane Count = 0.
 	 * It is possible for Sink to report Max Link Rate = 0, if it is
@@ -2482,9 +2514,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 */
 	if (dpcd_data[DP_MAX_LANE_COUNT - DP_DPCD_REV] == 0)
 		return false;
-
-	link->dpcd_caps.dpcd_rev.raw =
-		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
 
 	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
 				 DP_DPCD_REV];

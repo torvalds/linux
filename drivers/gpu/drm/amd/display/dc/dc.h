@@ -681,6 +681,7 @@ struct dpcd_caps {
 	union dpcd_rev dpcd_rev;
 	union max_lane_count max_ln_count;
 	union max_down_spread max_down_spread;
+	union dprx_feature dprx_feature;
 
 	/* valid only for eDP v1.4 or higher*/
 	uint8_t edp_supported_link_rates_count;
@@ -707,6 +708,7 @@ struct dpcd_caps {
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
+	bool ext_receiver_cap_field_present;
 };
 
 #include "dc_link.h"
