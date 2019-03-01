@@ -3525,6 +3525,9 @@ static int mvpp2_stop(struct net_device *dev)
 
 	cancel_delayed_work_sync(&port->stats_work);
 
+	mvpp2_mac_reset_assert(port);
+	mvpp22_pcs_reset_assert(port);
+
 	return 0;
 }
 
