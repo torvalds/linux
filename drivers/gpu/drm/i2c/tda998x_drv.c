@@ -960,7 +960,7 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 static int tda998x_configure_audio(struct tda998x_priv *priv,
 				 const struct tda998x_audio_settings *settings)
 {
-	u8 buf[6], clksel_aip, clksel_fs, adiv;
+	u8 buf[6], aip_clksel, adiv;
 	u32 n;
 
 	/* If audio is not configured, there is nothing to do. */
@@ -977,15 +977,13 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	case AFMT_SPDIF:
 		reg_write(priv, REG_ENA_ACLK, 0);
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_SPDIF);
-		clksel_aip = AIP_CLKSEL_AIP_SPDIF;
-		clksel_fs = AIP_CLKSEL_FS_FS64SPDIF;
+		aip_clksel = AIP_CLKSEL_AIP_SPDIF | AIP_CLKSEL_FS_FS64SPDIF;
 		break;
 
 	case AFMT_I2S:
 		reg_write(priv, REG_ENA_ACLK, 1);
 		reg_write(priv, REG_MUX_AP, MUX_AP_SELECT_I2S);
-		clksel_aip = AIP_CLKSEL_AIP_I2S;
-		clksel_fs = AIP_CLKSEL_FS_ACLK;
+		aip_clksel = AIP_CLKSEL_AIP_I2S | AIP_CLKSEL_FS_ACLK;
 		break;
 
 	default:
@@ -994,7 +992,7 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	}
 
 	reg_write(priv, REG_I2S_FORMAT, settings->i2s_format);
-	reg_write(priv, REG_AIP_CLKSEL, clksel_aip);
+	reg_write(priv, REG_AIP_CLKSEL, aip_clksel);
 	reg_clear(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_LAYOUT |
 					AIP_CNTRL_0_ACR_MAN);	/* auto CTS */
 	reg_write(priv, REG_CTS_N, settings->cts_n);
@@ -1014,9 +1012,6 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	buf[4] = n >> 8;
 	buf[5] = n >> 16;
 	reg_write_range(priv, REG_ACR_CTS_0, buf, 6);
-
-	/* Set CTS clock reference */
-	reg_write(priv, REG_AIP_CLKSEL, clksel_aip | clksel_fs);
 
 	/* Reset CTS generator */
 	reg_set(priv, REG_AIP_CNTRL_0, AIP_CNTRL_0_RST_CTS);
