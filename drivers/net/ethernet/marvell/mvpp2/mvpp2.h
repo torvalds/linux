@@ -549,8 +549,8 @@
 #define MVPP2_MAX_TSO_SEGS		300
 #define MVPP2_MAX_SKB_DESCS		(MVPP2_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
 
-/* Default number of RXQs in use */
-#define MVPP2_DEFAULT_RXQ		1
+/* Max number of RXQs per port */
+#define MVPP2_PORT_MAX_RXQ		32
 
 /* Max number of Rx descriptors */
 #define MVPP2_MAX_RXD_MAX		1024
