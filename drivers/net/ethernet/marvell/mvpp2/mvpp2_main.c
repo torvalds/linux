@@ -4626,9 +4626,19 @@ static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
 		}
 	}
 
+/* Some fields of the auto-negotiation register require the port to be down when
+ * their value is updated.
+ */
+#define MVPP2_GMAC_AN_PORT_DOWN_MASK	\
+		(MVPP2_GMAC_IN_BAND_AUTONEG | \
+		 MVPP2_GMAC_IN_BAND_AUTONEG_BYPASS | \
+		 MVPP2_GMAC_CONFIG_MII_SPEED | MVPP2_GMAC_CONFIG_GMII_SPEED | \
+		 MVPP2_GMAC_AN_SPEED_EN | MVPP2_GMAC_CONFIG_FULL_DUPLEX | \
+		 MVPP2_GMAC_AN_DUPLEX_EN)
+
 	if ((old_ctrl0 ^ ctrl0) & MVPP2_GMAC_PORT_TYPE_MASK ||
 	    (old_ctrl2 ^ ctrl2) & MVPP2_GMAC_INBAND_AN_MASK ||
-	    (old_an ^ an) & MVPP2_GMAC_IN_BAND_AUTONEG) {
+	    (old_an ^ an) & MVPP2_GMAC_AN_PORT_DOWN_MASK) {
 		/* Force link down */
 		old_an &= ~MVPP2_GMAC_FORCE_LINK_PASS;
 		old_an |= MVPP2_GMAC_FORCE_LINK_DOWN;
