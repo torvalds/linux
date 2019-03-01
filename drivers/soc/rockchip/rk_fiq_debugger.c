@@ -710,6 +710,11 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 	if (!ok)
 		return -EINVAL;
 
+	if (of_device_is_available(np)) {
+		pr_err("uart%d is enabled, please disable it\n", serial_id);
+		return -EINVAL;
+	}
+
 	/* parse serial hw irq */
 	if (!of_irq_parse_one(np, 0, &oirq))
 		serial_hwirq = oirq.args[1] + 32;
