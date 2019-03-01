@@ -790,9 +790,22 @@ static inline u64 flexcan_read64_mask(struct flexcan_priv *priv, void __iomem *a
 	return reg & mask;
 }
 
+static inline void flexcan_write64(struct flexcan_priv *priv, u64 val, void __iomem *addr)
+{
+	if (upper_32_bits(val))
+		priv->write(upper_32_bits(val), addr - 4);
+	if (lower_32_bits(val))
+		priv->write(lower_32_bits(val), addr);
+}
+
 static inline u64 flexcan_read_reg_iflag_rx(struct flexcan_priv *priv)
 {
 	return flexcan_read64_mask(priv, &priv->regs->iflag1, priv->rx_mask);
+}
+
+static inline u64 flexcan_read_reg_iflag_tx(struct flexcan_priv *priv)
+{
+	return flexcan_read64_mask(priv, &priv->regs->iflag1, priv->tx_mask);
 }
 
 static inline struct flexcan_priv *rx_offload_to_priv(struct can_rx_offload *offload)
@@ -931,7 +944,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		}
 	}
 
-	reg_iflag_tx = (u64)priv->read(&regs->iflag2) << 32;
+	reg_iflag_tx = flexcan_read_reg_iflag_tx(priv);
 
 	/* transmission complete interrupt */
 	if (reg_iflag_tx & priv->tx_mask) {
@@ -946,7 +959,7 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 		/* after sending a RTR frame MB is in RX mode */
 		priv->write(FLEXCAN_MB_CODE_TX_INACTIVE,
 			    &priv->tx_mb->can_ctrl);
-		priv->write(priv->tx_mask >> 32, &regs->iflag2);
+		flexcan_write64(priv, priv->tx_mask, &regs->iflag1);
 		netif_wake_queue(dev);
 	}
 
