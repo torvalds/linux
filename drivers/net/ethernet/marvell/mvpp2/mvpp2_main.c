@@ -1188,8 +1188,7 @@ static void mvpp2_port_enable(struct mvpp2_port *port)
 	/* Only GOP port 0 has an XLG MAC */
 	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface)) {
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
-		val |= MVPP22_XLG_CTRL0_PORT_EN |
-		       MVPP22_XLG_CTRL0_MAC_RESET_DIS;
+		val |= MVPP22_XLG_CTRL0_PORT_EN;
 		val &= ~MVPP22_XLG_CTRL0_MIB_CNT_DIS;
 		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
 	} else {
@@ -1208,10 +1207,6 @@ static void mvpp2_port_disable(struct mvpp2_port *port)
 	if (port->gop_id == 0 && mvpp2_is_xlg(port->phy_interface)) {
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
 		val &= ~MVPP22_XLG_CTRL0_PORT_EN;
-		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
-
-		/* Disable & reset should be done separately */
-		val &= ~MVPP22_XLG_CTRL0_MAC_RESET_DIS;
 		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
 	}
 
@@ -1369,10 +1364,10 @@ static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
 	return -EOPNOTSUPP;
 }
 
-static void mvpp2_port_reset(struct mvpp2_port *port)
+static void mvpp2_mac_reset_assert(struct mvpp2_port *port)
 {
-	u32 val;
 	unsigned int i;
+	u32 val;
 
 	/* Read the GOP statistics to reset the hardware counters */
 	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
@@ -1381,6 +1376,12 @@ static void mvpp2_port_reset(struct mvpp2_port *port)
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) |
 	      MVPP2_GMAC_PORT_RESET_MASK;
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
+
+	if (port->priv->hw_version == MVPP22 && port->gop_id == 0) {
+		val = readl(port->base + MVPP22_XLG_CTRL0_REG) &
+		      ~MVPP22_XLG_CTRL0_MAC_RESET_DIS;
+		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+	}
 }
 
 /* Change maximum receive size of the port */
@@ -4511,6 +4512,8 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 	old_ctrl0 = ctrl0 = readl(port->base + MVPP22_XLG_CTRL0_REG);
 	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_XLG_CTRL4_REG);
 
+	ctrl0 |= MVPP22_XLG_CTRL0_MAC_RESET_DIS;
+
 	if (state->pause & MLO_PAUSE_TX)
 		ctrl0 |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
 	else
@@ -4529,6 +4532,12 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 		writel(ctrl0, port->base + MVPP22_XLG_CTRL0_REG);
 	if (old_ctrl4 != ctrl4)
 		writel(ctrl4, port->base + MVPP22_XLG_CTRL4_REG);
+
+	if (!(old_ctrl0 & MVPP22_XLG_CTRL0_MAC_RESET_DIS)) {
+		while (!(readl(port->base + MVPP22_XLG_CTRL0_REG) &
+			 MVPP22_XLG_CTRL0_MAC_RESET_DIS))
+			continue;
+	}
 }
 
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
@@ -4946,7 +4955,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	mvpp2_port_periodic_xon_disable(port);
 
-	mvpp2_port_reset(port);
+	mvpp2_mac_reset_assert(port);
 
 	port->pcpu = alloc_percpu(struct mvpp2_port_pcpu);
 	if (!port->pcpu) {
