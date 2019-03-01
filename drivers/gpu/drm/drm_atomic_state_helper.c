@@ -336,7 +336,7 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
  * @conn_state: connector state to assign
  *
  * Initializes the newly allocated @conn_state and assigns it to
- * the &drm_conector->state pointer of @connector, usually required when
+ * the &drm_connector->state pointer of @connector, usually required when
  * initializing the drivers or when called from the &drm_connector_funcs.reset
  * hook.
  *
