@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menu "CPU selection"
+menu "Rockchip CPU selection"
 	depends on ARCH_ROCKCHIP
 
 config CPU_RK312X
