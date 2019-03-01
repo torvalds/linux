@@ -241,7 +241,7 @@
 struct samsung_aes_variant {
 	unsigned int			aes_offset;
 	unsigned int			hash_offset;
-	const char			*clk_names[];
+	const char			*clk_names[2];
 };
 
 struct s5p_aes_reqctx {
