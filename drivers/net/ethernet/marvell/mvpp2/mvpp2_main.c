@@ -4738,13 +4738,6 @@ static void mvpp2_mac_link_down(struct net_device *dev, unsigned int mode,
 	mvpp2_egress_disable(port);
 	mvpp2_ingress_disable(port);
 
-	/* When using link interrupts to notify phylink of a MAC state change,
-	 * we do not want the port to be disabled (we want to receive further
-	 * interrupts, to be notified when the port will have a link later).
-	 */
-	if (!port->has_phy)
-		return;
-
 	mvpp2_port_disable(port);
 }
 
