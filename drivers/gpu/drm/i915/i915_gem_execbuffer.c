@@ -2312,10 +2312,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (args->flags & I915_EXEC_IS_PINNED)
 		eb.batch_flags |= I915_DISPATCH_PINNED;
 
-	eb.engine = eb_select_engine(eb.i915, file, args);
-	if (!eb.engine)
-		return -EINVAL;
-
 	if (args->flags & I915_EXEC_FENCE_IN) {
 		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
 		if (!in_fence)
@@ -2339,6 +2335,12 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	err = eb_select_context(&eb);
 	if (unlikely(err))
 		goto err_destroy;
+
+	eb.engine = eb_select_engine(eb.i915, file, args);
+	if (!eb.engine) {
+		err = -EINVAL;
+		goto err_engine;
+	}
 
 	/*
 	 * Take a local wakeref for preparing to dispatch the execbuf as
@@ -2505,6 +2507,7 @@ err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
 	intel_runtime_pm_put(eb.i915, wakeref);
+err_engine:
 	i915_gem_context_put(eb.ctx);
 err_destroy:
 	eb_destroy(&eb);
