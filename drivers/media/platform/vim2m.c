@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * A virtual v4l2-mem2mem example device.
  *
@@ -247,9 +248,8 @@ static struct vim2m_q_data *get_q_data(struct vim2m_ctx *ctx,
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		return &ctx->q_data[V4L2_M2M_DST];
 	default:
-		BUG();
+		return NULL;
 	}
-	return NULL;
 }
 
 static const char *type_name(enum v4l2_buf_type type)
@@ -451,10 +451,14 @@ static int device_process(struct vim2m_ctx *ctx,
 	int start, end, step;
 
 	q_data_in = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	if (!q_data_in)
+		return 0;
 	bytesperline = (q_data_in->width * q_data_in->fmt->depth) >> 3;
 	bytes_per_pixel = q_data_in->fmt->depth >> 3;
 
 	q_data_out = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (!q_data_out)
+		return 0;
 
 	/* As we're doing scaling, use the output dimensions here */
 	height = q_data_out->height;
@@ -468,8 +472,7 @@ static int device_process(struct vim2m_ctx *ctx,
 		return -EFAULT;
 	}
 
-	out_vb->sequence = get_q_data(ctx,
-				      V4L2_BUF_TYPE_VIDEO_CAPTURE)->sequence++;
+	out_vb->sequence = q_data_out->sequence++;
 	in_vb->sequence = q_data_in->sequence++;
 	v4l2_m2m_buf_copy_metadata(in_vb, out_vb, true);
 
@@ -732,6 +735,8 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
+	if (!q_data)
+		return -EINVAL;
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
@@ -986,6 +991,8 @@ static int vim2m_queue_setup(struct vb2_queue *vq,
 	unsigned int size, count = *nbuffers;
 
 	q_data = get_q_data(ctx, vq->type);
+	if (!q_data)
+		return -EINVAL;
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
 
@@ -1028,6 +1035,8 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 	dprintk(ctx->dev, 2, "type: %s\n", type_name(vb->vb2_queue->type));
 
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
+	if (!q_data)
+		return -EINVAL;
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev, 1,
 			"%s data will not fit into plane (%lu < %lu)\n",
@@ -1053,6 +1062,9 @@ static int vim2m_start_streaming(struct vb2_queue *q, unsigned count)
 {
 	struct vim2m_ctx *ctx = vb2_get_drv_priv(q);
 	struct vim2m_q_data *q_data = get_q_data(ctx, q->type);
+
+	if (!q_data)
+		return -EINVAL;
 
 	q_data->sequence = 0;
 	return 0;
