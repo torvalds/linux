@@ -44,6 +44,8 @@ struct i915_timeline {
 #define TIMELINE_CLIENT 0 /* default subclass */
 #define TIMELINE_ENGINE 1
 
+	struct mutex mutex; /* protects the flow of requests */
+
 	unsigned int pin_count;
 	const u32 *hwsp_seqno;
 	struct i915_vma *hwsp_ggtt;

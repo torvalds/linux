@@ -141,14 +141,12 @@ static int igt_fence_wait(void *arg)
 		err = -ENOMEM;
 		goto out_locked;
 	}
-	mutex_unlock(&i915->drm.struct_mutex); /* safe as we are single user */
 
 	if (dma_fence_wait_timeout(&request->fence, false, T) != -ETIME) {
 		pr_err("fence wait success before submit (expected timeout)!\n");
-		goto out_device;
+		goto out_locked;
 	}
 
-	mutex_lock(&i915->drm.struct_mutex);
 	i915_request_add(request);
 	mutex_unlock(&i915->drm.struct_mutex);
 
