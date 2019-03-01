@@ -233,7 +233,8 @@ void __cold extent_io_exit(void)
 }
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
-			 struct extent_io_tree *tree, void *private_data)
+			 struct extent_io_tree *tree, unsigned int owner,
+			 void *private_data)
 {
 	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
@@ -241,6 +242,7 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
 	tree->private_data = private_data;
+	tree->owner = owner;
 }
 
 static struct extent_state *alloc_extent_state(gfp_t mask)

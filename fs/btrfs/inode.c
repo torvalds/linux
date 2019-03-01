@@ -9182,8 +9182,9 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 
 	inode = &ei->vfs_inode;
 	extent_map_tree_init(&ei->extent_tree);
-	extent_io_tree_init(fs_info, &ei->io_tree, inode);
-	extent_io_tree_init(fs_info, &ei->io_failure_tree, inode);
+	extent_io_tree_init(fs_info, &ei->io_tree, IO_TREE_INODE_IO, inode);
+	extent_io_tree_init(fs_info, &ei->io_failure_tree,
+			    IO_TREE_INODE_IO_FAILURE, inode);
 	ei->io_tree.track_uptodate = true;
 	ei->io_failure_tree.track_uptodate = true;
 	atomic_set(&ei->sync_writers, 0);

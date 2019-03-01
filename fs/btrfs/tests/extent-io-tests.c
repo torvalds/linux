@@ -77,7 +77,11 @@ static int test_find_delalloc(u32 sectorsize)
 		return -ENOMEM;
 	}
 
-	extent_io_tree_init(NULL, &tmp, NULL);
+	/*
+	 * Passing NULL as we don't have fs_info but tracepoints are not used
+	 * at this point
+	 */
+	extent_io_tree_init(NULL, &tmp, IO_TREE_SELFTEST, NULL);
 
 	/*
 	 * First go through and create and mark all of our pages dirty, we pin

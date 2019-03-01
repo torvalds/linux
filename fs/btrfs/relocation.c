@@ -4234,7 +4234,8 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 	INIT_LIST_HEAD(&rc->dirty_subvol_roots);
 	backref_cache_init(&rc->backref_cache);
 	mapping_tree_init(&rc->reloc_root_tree);
-	extent_io_tree_init(fs_info, &rc->processed_blocks, NULL);
+	extent_io_tree_init(fs_info, &rc->processed_blocks,
+			    IO_TREE_RELOC_BLOCKS, NULL);
 	return rc;
 }
 
