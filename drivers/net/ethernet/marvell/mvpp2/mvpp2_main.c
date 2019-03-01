@@ -3136,6 +3136,9 @@ static void mvpp22_mode_reconfigure(struct mvpp2_port *port)
 {
 	u32 ctrl3;
 
+	/* Set the GMAC & XLG MAC in reset */
+	mvpp2_mac_reset_assert(port);
+
 	/* comphy reconfiguration */
 	mvpp22_comphy_init(port);
 
