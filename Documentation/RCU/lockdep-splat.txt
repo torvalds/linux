@@ -24,11 +24,11 @@ other info that might help us debug this:
 
 rcu_scheduler_active = 1, debug_locks = 0
 3 locks held by scsi_scan_6/1552:
- #0:  (&shost->scan_mutex){+.+.+.}, at: [<ffffffff8145efca>]
+ #0:  (&shost->scan_mutex){+.+.}, at: [<ffffffff8145efca>]
 scsi_scan_host_selected+0x5a/0x150
- #1:  (&eq->sysfs_lock){+.+...}, at: [<ffffffff812a5032>]
+ #1:  (&eq->sysfs_lock){+.+.}, at: [<ffffffff812a5032>]
 elevator_exit+0x22/0x60
- #2:  (&(&q->__queue_lock)->rlock){-.-...}, at: [<ffffffff812b6233>]
+ #2:  (&(&q->__queue_lock)->rlock){-.-.}, at: [<ffffffff812b6233>]
 cfq_exit_queue+0x43/0x190
 
 stack backtrace:
