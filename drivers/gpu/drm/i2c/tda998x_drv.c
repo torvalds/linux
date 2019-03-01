@@ -849,16 +849,14 @@ tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
 	reg_set(priv, REG_DIP_IF_FLAGS, bit);
 }
 
-static int tda998x_write_aif(struct tda998x_priv *priv,
-			     const struct hdmi_audio_infoframe *cea)
+static void tda998x_write_aif(struct tda998x_priv *priv,
+			      const struct hdmi_audio_infoframe *cea)
 {
 	union hdmi_infoframe frame;
 
 	frame.audio = *cea;
 
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF4, REG_IF4_HB0, &frame);
-
-	return 0;
 }
 
 static void
@@ -992,15 +990,15 @@ static void tda998x_audio_mute(struct tda998x_priv *priv, bool on)
 	}
 }
 
-static int tda998x_configure_audio(struct tda998x_priv *priv,
-				 const struct tda998x_audio_settings *settings)
+static void tda998x_configure_audio(struct tda998x_priv *priv)
 {
+	const struct tda998x_audio_settings *settings = &priv->audio;
 	u8 buf[6], adiv;
 	u32 n;
 
 	/* If audio is not configured, there is nothing to do. */
 	if (settings->ena_ap == 0)
-		return 0;
+		return;
 
 	adiv = tda998x_get_adiv(priv, settings->params.sample_rate);
 
@@ -1048,7 +1046,7 @@ static int tda998x_configure_audio(struct tda998x_priv *priv,
 	msleep(20);
 	tda998x_audio_mute(priv, false);
 
-	return tda998x_write_aif(priv, &settings->params.cea);
+	tda998x_write_aif(priv, &settings->params.cea);
 }
 
 static int tda998x_audio_hw_params(struct device *dev, void *data,
@@ -1108,16 +1106,12 @@ static int tda998x_audio_hw_params(struct device *dev, void *data,
 		return ret;
 
 	mutex_lock(&priv->audio_mutex);
+	priv->audio = audio;
 	if (priv->supports_infoframes && priv->sink_has_audio)
-		ret = tda998x_configure_audio(priv, &audio);
-	else
-		ret = 0;
-
-	if (ret == 0)
-		priv->audio = audio;
+		tda998x_configure_audio(priv);
 	mutex_unlock(&priv->audio_mutex);
 
-	return ret;
+	return 0;
 }
 
 static void tda998x_audio_shutdown(struct device *dev, void *data)
@@ -1629,7 +1623,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 		tda998x_write_avi(priv, adjusted_mode);
 
 		if (priv->sink_has_audio)
-			tda998x_configure_audio(priv, &priv->audio);
+			tda998x_configure_audio(priv);
 	}
 
 	mutex_unlock(&priv->audio_mutex);
