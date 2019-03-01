@@ -293,6 +293,12 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76x02_dev *dev = hw->priv;
 	unsigned int idx = 0;
 
+	/* Allow to change address in HW if we create first interface. */
+	if (!dev->vif_mask &&
+	    (((vif->addr[0] ^ dev->mt76.macaddr[0]) & ~GENMASK(4, 1)) ||
+	     memcmp(vif->addr + 1, dev->mt76.macaddr + 1, ETH_ALEN - 1)))
+		mt76x02_mac_setaddr(dev, vif->addr);
+
 	if (vif->addr[0] & BIT(1))
 		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
 
@@ -314,10 +320,6 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	if (dev->vif_mask & BIT(idx))
 		return -EBUSY;
-
-	/* Allow to change address in HW if we create first interface. */
-	if (!dev->vif_mask && !ether_addr_equal(dev->mt76.macaddr, vif->addr))
-                mt76x02_mac_setaddr(dev, vif->addr);
 
 	dev->vif_mask |= BIT(idx);
 
