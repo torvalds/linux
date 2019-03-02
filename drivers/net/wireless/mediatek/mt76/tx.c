@@ -468,6 +468,7 @@ mt76_txq_send_burst(struct mt76_dev *dev, struct mt76_sw_queue *sq,
 	} while (n_frames < limit);
 
 	if (!probe) {
+		hwq->entry[idx].qid = sq - dev->q_tx;
 		hwq->entry[idx].schedule = true;
 		sq->swq_queued++;
 	}

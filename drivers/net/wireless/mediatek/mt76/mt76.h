@@ -100,6 +100,7 @@ struct mt76_queue_entry {
 		struct mt76_txwi_cache *txwi;
 		struct mt76u_buf ubuf;
 	};
+	enum mt76_txq_id qid;
 	bool schedule;
 };
 
