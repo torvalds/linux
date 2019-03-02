@@ -2295,12 +2295,10 @@ rcu_report_qs_rdp(int cpu, struct rcu_data *rdp)
 		return;
 	}
 	mask = rdp->grpmask;
+	rdp->core_needs_qs = false;
 	if ((rnp->qsmask & mask) == 0) {
-		rdp->core_needs_qs = false;
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	} else {
-		rdp->core_needs_qs = false;
-
 		/*
 		 * This GP can't end until cpu checks in, so all of our
 		 * callbacks can be processed during the next GP.
