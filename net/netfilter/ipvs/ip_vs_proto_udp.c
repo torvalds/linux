@@ -143,8 +143,8 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct udphdr *udph;
 	unsigned int udphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -172,7 +172,7 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - udphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;
@@ -226,8 +226,8 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct udphdr *udph;
 	unsigned int udphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -256,7 +256,7 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ret == 1)
 			oldlen = skb->len - udphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	udph = (void *)skb_network_header(skb) + udphoff;

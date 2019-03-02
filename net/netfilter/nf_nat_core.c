@@ -22,8 +22,6 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_l3proto.h>
-#include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
@@ -35,8 +33,6 @@
 static spinlock_t nf_nat_locks[CONNTRACK_LOCKS];
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
-static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
-						__read_mostly;
 static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
@@ -58,16 +54,75 @@ struct nat_net {
 	struct nf_nat_hooks_net nat_proto_net[NFPROTO_NUMPROTO];
 };
 
-inline const struct nf_nat_l3proto *
-__nf_nat_l3proto_find(u8 family)
+#ifdef CONFIG_XFRM
+static void nf_nat_ipv4_decode_session(struct sk_buff *skb,
+				       const struct nf_conn *ct,
+				       enum ip_conntrack_dir dir,
+				       unsigned long statusbit,
+				       struct flowi *fl)
 {
-	return rcu_dereference(nf_nat_l3protos[family]);
+	const struct nf_conntrack_tuple *t = &ct->tuplehash[dir].tuple;
+	struct flowi4 *fl4 = &fl->u.ip4;
+
+	if (ct->status & statusbit) {
+		fl4->daddr = t->dst.u3.ip;
+		if (t->dst.protonum == IPPROTO_TCP ||
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
+			fl4->fl4_dport = t->dst.u.all;
+	}
+
+	statusbit ^= IPS_NAT_MASK;
+
+	if (ct->status & statusbit) {
+		fl4->saddr = t->src.u3.ip;
+		if (t->dst.protonum == IPPROTO_TCP ||
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
+			fl4->fl4_sport = t->src.u.all;
+	}
 }
 
-#ifdef CONFIG_XFRM
+static void nf_nat_ipv6_decode_session(struct sk_buff *skb,
+				       const struct nf_conn *ct,
+				       enum ip_conntrack_dir dir,
+				       unsigned long statusbit,
+				       struct flowi *fl)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	const struct nf_conntrack_tuple *t = &ct->tuplehash[dir].tuple;
+	struct flowi6 *fl6 = &fl->u.ip6;
+
+	if (ct->status & statusbit) {
+		fl6->daddr = t->dst.u3.in6;
+		if (t->dst.protonum == IPPROTO_TCP ||
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
+			fl6->fl6_dport = t->dst.u.all;
+	}
+
+	statusbit ^= IPS_NAT_MASK;
+
+	if (ct->status & statusbit) {
+		fl6->saddr = t->src.u3.in6;
+		if (t->dst.protonum == IPPROTO_TCP ||
+		    t->dst.protonum == IPPROTO_UDP ||
+		    t->dst.protonum == IPPROTO_UDPLITE ||
+		    t->dst.protonum == IPPROTO_DCCP ||
+		    t->dst.protonum == IPPROTO_SCTP)
+			fl6->fl6_sport = t->src.u.all;
+	}
+#endif
+}
+
 static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 {
-	const struct nf_nat_l3proto *l3proto;
 	const struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	enum ip_conntrack_dir dir;
@@ -79,17 +134,20 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		return;
 
 	family = nf_ct_l3num(ct);
-	l3proto = __nf_nat_l3proto_find(family);
-	if (l3proto == NULL)
-		return;
-
 	dir = CTINFO2DIR(ctinfo);
 	if (dir == IP_CT_DIR_ORIGINAL)
 		statusbit = IPS_DST_NAT;
 	else
 		statusbit = IPS_SRC_NAT;
 
-	l3proto->decode_session(skb, ct, dir, statusbit, fl);
+	switch (family) {
+	case NFPROTO_IPV4:
+		nf_nat_ipv4_decode_session(skb, ct, dir, statusbit, fl);
+		return;
+	case NFPROTO_IPV6:
+		nf_nat_ipv6_decode_session(skb, ct, dir, statusbit, fl);
+		return;
+	}
 }
 
 int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
@@ -182,7 +240,7 @@ static bool l4proto_in_range(const struct nf_conntrack_tuple *tuple,
 	__be16 port;
 
 	switch (tuple->dst.protonum) {
-	case IPPROTO_ICMP: /* fallthrough */
+	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 		return ntohs(tuple->src.u.icmp.id) >= ntohs(min->icmp.id) &&
 		       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
@@ -631,23 +689,6 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
-static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
-				     enum nf_nat_manip_type mtype,
-				     enum ip_conntrack_dir dir)
-{
-	const struct nf_nat_l3proto *l3proto;
-	struct nf_conntrack_tuple target;
-
-	/* We are aiming to look like inverse of other direction. */
-	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
-
-	l3proto = __nf_nat_l3proto_find(target.src.l3num);
-	if (!l3proto->manip_pkt(skb, 0, &target, mtype))
-		return NF_DROP;
-
-	return NF_ACCEPT;
-}
-
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
@@ -798,33 +839,6 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	return 0;
 }
 
-static void nf_nat_l3proto_clean(u8 l3proto)
-{
-	struct nf_nat_proto_clean clean = {
-		.l3proto = l3proto,
-	};
-
-	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
-}
-
-int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
-{
-	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_register);
-
-void nf_nat_l3proto_unregister(const struct nf_nat_l3proto *l3proto)
-{
-	mutex_lock(&nf_nat_proto_mutex);
-	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], NULL);
-	mutex_unlock(&nf_nat_proto_mutex);
-	synchronize_rcu();
-
-	nf_nat_l3proto_clean(l3proto->l3proto);
-}
-EXPORT_SYMBOL_GPL(nf_nat_l3proto_unregister);
-
 /* No one using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
@@ -887,10 +901,43 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 	[CTA_NAT_PROTO]		= { .type = NLA_NESTED },
 };
 
+static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
+				       struct nf_nat_range2 *range)
+{
+	if (tb[CTA_NAT_V4_MINIP]) {
+		range->min_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MINIP]);
+		range->flags |= NF_NAT_RANGE_MAP_IPS;
+	}
+
+	if (tb[CTA_NAT_V4_MAXIP])
+		range->max_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MAXIP]);
+	else
+		range->max_addr.ip = range->min_addr.ip;
+
+	return 0;
+}
+
+static int nf_nat_ipv6_nlattr_to_range(struct nlattr *tb[],
+				       struct nf_nat_range2 *range)
+{
+	if (tb[CTA_NAT_V6_MINIP]) {
+		nla_memcpy(&range->min_addr.ip6, tb[CTA_NAT_V6_MINIP],
+			   sizeof(struct in6_addr));
+		range->flags |= NF_NAT_RANGE_MAP_IPS;
+	}
+
+	if (tb[CTA_NAT_V6_MAXIP])
+		nla_memcpy(&range->max_addr.ip6, tb[CTA_NAT_V6_MAXIP],
+			   sizeof(struct in6_addr));
+	else
+		range->max_addr = range->min_addr;
+
+	return 0;
+}
+
 static int
 nfnetlink_parse_nat(const struct nlattr *nat,
-		    const struct nf_conn *ct, struct nf_nat_range2 *range,
-		    const struct nf_nat_l3proto *l3proto)
+		    const struct nf_conn *ct, struct nf_nat_range2 *range)
 {
 	struct nlattr *tb[CTA_NAT_MAX+1];
 	int err;
@@ -901,8 +948,19 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 	if (err < 0)
 		return err;
 
-	err = l3proto->nlattr_to_range(tb, range);
-	if (err < 0)
+	switch (nf_ct_l3num(ct)) {
+	case NFPROTO_IPV4:
+		err = nf_nat_ipv4_nlattr_to_range(tb, range);
+		break;
+	case NFPROTO_IPV6:
+		err = nf_nat_ipv6_nlattr_to_range(tb, range);
+		break;
+	default:
+		err = -EPROTONOSUPPORT;
+		break;
+	}
+
+	if (err)
 		return err;
 
 	if (!tb[CTA_NAT_PROTO])
@@ -918,7 +976,6 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  const struct nlattr *attr)
 {
 	struct nf_nat_range2 range;
-	const struct nf_nat_l3proto *l3proto;
 	int err;
 
 	/* Should not happen, restricted to creating new conntracks
@@ -927,18 +984,11 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 	if (WARN_ON_ONCE(nf_nat_initialized(ct, manip)))
 		return -EEXIST;
 
-	/* Make sure that L3 NAT is there by when we call nf_nat_setup_info to
-	 * attach the null binding, otherwise this may oops.
-	 */
-	l3proto = __nf_nat_l3proto_find(nf_ct_l3num(ct));
-	if (l3proto == NULL)
-		return -EAGAIN;
-
 	/* No NAT information has been passed, allocate the null-binding */
 	if (attr == NULL)
 		return __nf_nat_alloc_null_binding(ct, manip) == NF_DROP ? -ENOMEM : 0;
 
-	err = nfnetlink_parse_nat(attr, ct, &range, l3proto);
+	err = nfnetlink_parse_nat(attr, ct, &range);
 	if (err < 0)
 		return err;
 
@@ -1035,7 +1085,6 @@ int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
 	mutex_unlock(&nf_nat_proto_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_nat_register_fn);
 
 void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
 		          unsigned int ops_count)
@@ -1084,7 +1133,6 @@ void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
 unlock:
 	mutex_unlock(&nf_nat_proto_mutex);
 }
-EXPORT_SYMBOL_GPL(nf_nat_unregister_fn);
 
 static struct pernet_operations nat_net_ops = {
 	.id = &nat_net_id,
