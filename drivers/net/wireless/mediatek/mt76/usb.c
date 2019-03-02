@@ -651,7 +651,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 			q->queued--;
 
 			spin_unlock_bh(&q->lock);
-			dev->drv->tx_complete_skb(dev, q, &entry, false);
+			dev->drv->tx_complete_skb(dev, i, &entry);
 			spin_lock_bh(&q->lock);
 		}
 		mt76_txq_schedule(dev, q);

@@ -171,7 +171,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 
 		if (entry.skb) {
 			spin_unlock_bh(&q->lock);
-			dev->drv->tx_complete_skb(dev, q, &entry, flush);
+			dev->drv->tx_complete_skb(dev, qid, &entry);
 			spin_lock_bh(&q->lock);
 		}
 
@@ -348,7 +348,7 @@ unmap:
 free:
 	e.skb = skb;
 	e.txwi = t;
-	dev->drv->tx_complete_skb(dev, q, &e, true);
+	dev->drv->tx_complete_skb(dev, qid, &e);
 	mt76_put_txwi(dev, t);
 	return ret;
 }
