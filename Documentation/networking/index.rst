@@ -25,6 +25,7 @@ Contents:
    device_drivers/intel/iavf
    device_drivers/intel/ice
    devlink-info-versions
+   ieee802154
    kapi
    z8530book
    msg_zerocopy
