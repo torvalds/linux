@@ -85,7 +85,7 @@ msm_gem_map_vma(struct msm_gem_address_space *aspace,
 
 	vma->mapped = true;
 
-	if (aspace->mmu)
+	if (aspace && aspace->mmu)
 		ret = aspace->mmu->funcs->map(aspace->mmu, vma->iova, sgt,
 				size, prot);
 
