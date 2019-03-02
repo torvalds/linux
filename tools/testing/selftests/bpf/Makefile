@@ -165,7 +165,11 @@ $(ALU32_BUILD_DIR)/urandom_read: $(OUTPUT)/urandom_read
 $(ALU32_BUILD_DIR)/test_progs_32: test_progs.c $(ALU32_BUILD_DIR) \
 						$(ALU32_BUILD_DIR)/urandom_read
 	$(CC) $(CFLAGS) -o $(ALU32_BUILD_DIR)/test_progs_32 $< \
-		trace_helpers.c $(OUTPUT)/libbpf.a $(LDLIBS)
+		trace_helpers.c prog_tests/*.c $(OUTPUT)/libbpf.a $(LDLIBS)
+
+$(ALU32_BUILD_DIR)/test_progs_32: $(PROG_TESTS_H)
+$(ALU32_BUILD_DIR)/test_progs_32: CFLAGS += -I$(OUTPUT)
+$(ALU32_BUILD_DIR)/test_progs_32: prog_tests/*.c
 
 $(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR) \
 					$(ALU32_BUILD_DIR)/test_progs_32
@@ -196,6 +200,25 @@ ifeq ($(DWARF2BTF),y)
 	$(BTF_PAHOLE) -J $@
 endif
 
+PROG_TESTS_H := $(OUTPUT)/prog_tests/tests.h
+$(OUTPUT)/test_progs: $(PROG_TESTS_H)
+$(OUTPUT)/test_progs: CFLAGS += -I$(OUTPUT)
+$(OUTPUT)/test_progs: prog_tests/*.c
+
+PROG_TESTS_FILES := $(wildcard prog_tests/*.c)
+$(PROG_TESTS_H): $(PROG_TESTS_FILES)
+	$(shell ( cd prog_tests/
+		  echo '/* Generated header, do not edit */'; \
+		  echo '#ifdef DECLARE'; \
+		  ls *.c 2> /dev/null | \
+			sed -e 's@\([^\.]*\)\.c@extern void test_\1(void);@'; \
+		  echo '#endif'; \
+		  echo '#ifdef CALL'; \
+		  ls *.c 2> /dev/null | \
+			sed -e 's@\([^\.]*\)\.c@test_\1();@'; \
+		  echo '#endif' \
+		 ) > $(PROG_TESTS_H))
+
 VERIFIER_TESTS_H := $(OUTPUT)/verifier/tests.h
 $(OUTPUT)/test_verifier: $(VERIFIER_TESTS_H)
 $(OUTPUT)/test_verifier: CFLAGS += -I$(OUTPUT)
@@ -211,4 +234,4 @@ $(OUTPUT)/verifier/tests.h: $(VERIFIER_TEST_FILES)
 		 ) > $(VERIFIER_TESTS_H))
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS) $(ALU32_BUILD_DIR) \
-	$(VERIFIER_TESTS_H)
+	$(VERIFIER_TESTS_H) $(PROG_TESTS_H)
