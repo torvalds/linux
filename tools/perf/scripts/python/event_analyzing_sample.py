@@ -37,7 +37,7 @@ con = sqlite3.connect("/dev/shm/perf.db")
 con.isolation_level = None
 
 def trace_begin():
-	print "In trace_begin:\n"
+        print "In trace_begin:\n"
 
         #
         # Will create several tables at the start, pebs_ll is for PEBS data with
@@ -102,7 +102,7 @@ def insert_db(event):
                                 event.ip, event.status, event.dse, event.dla, event.lat))
 
 def trace_end():
-	print "In trace_end:\n"
+        print "In trace_end:\n"
         # We show the basic info for the 2 type of event classes
         show_general_events()
         show_pebs_ll()
@@ -187,4 +187,4 @@ def show_pebs_ll():
              print "%32s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
 def trace_unhandled(event_name, context, event_fields_dict):
-		print ' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())])
+        print ' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())])

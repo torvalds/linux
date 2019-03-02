@@ -85,22 +85,22 @@ def print_common_ip(sample, symbol, dso):
 	print "%16x %s (%s)" % (ip, symbol, dso)
 
 def process_event(param_dict):
-        event_attr = param_dict["attr"]
-        sample     = param_dict["sample"]
-        raw_buf    = param_dict["raw_buf"]
-        comm       = param_dict["comm"]
-        name       = param_dict["ev_name"]
+	event_attr = param_dict["attr"]
+	sample	 = param_dict["sample"]
+	raw_buf	= param_dict["raw_buf"]
+	comm	   = param_dict["comm"]
+	name	   = param_dict["ev_name"]
 
-        # Symbol and dso info are not always resolved
-        if (param_dict.has_key("dso")):
-                dso = param_dict["dso"]
-        else:
-                dso = "[unknown]"
+	# Symbol and dso info are not always resolved
+	if (param_dict.has_key("dso")):
+		dso = param_dict["dso"]
+	else:
+		dso = "[unknown]"
 
-        if (param_dict.has_key("symbol")):
-                symbol = param_dict["symbol"]
-        else:
-                symbol = "[unknown]"
+	if (param_dict.has_key("symbol")):
+		symbol = param_dict["symbol"]
+	else:
+		symbol = "[unknown]"
 
 	if name == "ptwrite":
 		print_common_start(comm, sample, name)
