@@ -1726,6 +1726,10 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 
 	probereq_skb = ieee80211_probereq_get(common->priv->hw, vif->addr, ssid,
 					      ssid_len, scan_req->ie_len);
+	if (!probereq_skb) {
+		dev_kfree_skb(skb);
+		return -ENOMEM;
+	}
 
 	memcpy(&skb->data[frame_len], probereq_skb->data, probereq_skb->len);
 

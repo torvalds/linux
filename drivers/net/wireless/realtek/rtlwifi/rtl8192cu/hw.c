@@ -747,6 +747,7 @@ static void _rtl92cu_init_queue_priority(struct ieee80211_hw *hw,
 						u8 queue_sel)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
 	if (IS_NORMAL_CHIP(rtlhal->version))
 		_rtl92cu_init_chipn_queue_priority(hw, wmm_enable, out_ep_num,
 						   queue_sel);
@@ -813,6 +814,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	u8 wmm_enable = false; /* TODO */
 	u8 out_ep_nums = rtlusb->out_ep_nums;
 	u8 queue_sel = rtlusb->out_queue_sel;
+
 	err = _rtl92cu_init_power_on(hw);
 
 	if (err) {
@@ -1013,6 +1015,7 @@ d.	SYS_FUNC_EN 0x02[7:0] = 0x16	reset BB state machine
 e.	SYS_FUNC_EN 0x02[7:0] = 0x14	reset BB state machine
 ***************************************/
 	u8 erfpath = 0, value8 = 0;
+
 	rtl_write_byte(rtlpriv, REG_TXPAUSE, 0xFF);
 	rtl_set_rfreg(hw, (enum radio_path)erfpath, 0x0, MASKBYTE0, 0x0);
 
@@ -1204,6 +1207,7 @@ static void _rtl92cu_stop_tx_beacon(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u8 tmp1byte = 0;
+
 	if (IS_NORMAL_CHIP(rtlhal->version)) {
 		tmp1byte = rtl_read_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2);
 		rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2,
@@ -1353,6 +1357,7 @@ void rtl92cu_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 
 	if (check_bssid) {
 		u8 tmp;
+
 		if (IS_NORMAL_CHIP(rtlhal->version)) {
 			reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 			tmp = BIT(4);
@@ -1365,6 +1370,7 @@ void rtl92cu_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 		_rtl92cu_set_bcn_ctrl_reg(hw, 0, tmp);
 	} else {
 		u8 tmp;
+
 		if (IS_NORMAL_CHIP(rtlhal->version)) {
 			reg_rcr &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 			tmp = BIT(4);
@@ -1631,6 +1637,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_ACK_PREAMBLE:{
 			u8 reg_tmp;
 			u8 short_preamble = (bool)*val;
+
 			reg_tmp = 0;
 			if (short_preamble)
 				reg_tmp |= 0x80;
@@ -1881,6 +1888,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	case HW_VAR_KEEP_ALIVE:{
 			u8 array[2];
+
 			array[0] = 0xff;
 			array[1] = *((u8 *)val);
 			rtl92c_fill_h2c_cmd(hw, H2C_92C_KEEP_ALIVE_CTRL, 2,
@@ -1963,7 +1971,6 @@ static void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw,
 	if (nmode && ((curtxbw_40mhz &&
 			 curshortgi_40mhz) || (!curtxbw_40mhz &&
 					       curshortgi_20mhz))) {
-
 		ratr_value |= 0x10000000;
 		tmp_ratr_value = (ratr_value >> 12);
 

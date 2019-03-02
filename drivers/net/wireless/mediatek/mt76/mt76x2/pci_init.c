@@ -173,13 +173,6 @@ int mt76x2_mac_start(struct mt76x02_dev *dev)
 	return 0;
 }
 
-void mt76x2_mac_resume(struct mt76x02_dev *dev)
-{
-	mt76_wr(dev, MT_MAC_SYS_CTRL,
-		MT_MAC_SYS_CTRL_ENABLE_TX |
-		MT_MAC_SYS_CTRL_ENABLE_RX);
-}
-
 static void
 mt76x2_power_on_rf_patch(struct mt76x02_dev *dev)
 {

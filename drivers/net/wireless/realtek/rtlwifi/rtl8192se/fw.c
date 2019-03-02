@@ -136,7 +136,6 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct sk_buff *skb;
 	struct rtl_tcb_desc *tcb_desc;
-	unsigned char *seg_ptr;
 	u16 frag_threshold = MAX_FIRMWARE_CODE_SIZE;
 	u16 frag_length, frag_offset = 0;
 	u16 extra_descoffset = 0;
@@ -166,9 +165,8 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		if (!skb)
 			return false;
 		skb_reserve(skb, extra_descoffset);
-		seg_ptr = skb_put_data(skb,
-				       code_virtual_address + frag_offset,
-				       (u32)(frag_length - extra_descoffset));
+		skb_put_data(skb, code_virtual_address + frag_offset,
+			     (u32)(frag_length - extra_descoffset));
 
 		tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 		tcb_desc->queue_index = TXCMD_QUEUE;

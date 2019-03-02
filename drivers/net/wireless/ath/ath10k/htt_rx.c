@@ -2119,9 +2119,15 @@ static bool ath10k_htt_rx_proc_rx_ind_hl(struct ath10k_htt *htt,
 	hdr = (struct ieee80211_hdr *)skb->data;
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	rx_status->chains |= BIT(0);
-	rx_status->signal = ATH10K_DEFAULT_NOISE_FLOOR +
-			    rx->ppdu.combined_rssi;
-	rx_status->flag &= ~RX_FLAG_NO_SIGNAL_VAL;
+	if (rx->ppdu.combined_rssi == 0) {
+		/* SDIO firmware does not provide signal */
+		rx_status->signal = 0;
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+	} else {
+		rx_status->signal = ATH10K_DEFAULT_NOISE_FLOOR +
+			rx->ppdu.combined_rssi;
+		rx_status->flag &= ~RX_FLAG_NO_SIGNAL_VAL;
+	}
 
 	spin_lock_bh(&ar->data_lock);
 	ch = ar->scan_channel;
@@ -2210,7 +2216,7 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	__le16 msdu_id, *msdus;
 	bool rssi_enabled = false;
 	u8 msdu_count = 0, num_airtime_records, tid;
-	int i;
+	int i, htt_pad = 0;
 	struct htt_data_tx_compl_ppdu_dur *ppdu_info;
 	struct ath10k_peer *peer;
 	u16 ppdu_info_offset = 0, peer_id;
@@ -2239,9 +2245,11 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 
 	msdu_count = resp->data_tx_completion.num_msdus;
 	msdus = resp->data_tx_completion.msdus;
+	rssi_enabled = ath10k_is_rssi_enable(&ar->hw_params, resp);
 
-	if (resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_DATA_RSSI)
-		rssi_enabled = true;
+	if (rssi_enabled)
+		htt_pad = ath10k_tx_data_rssi_get_pad_bytes(&ar->hw_params,
+							    resp);
 
 	for (i = 0; i < msdu_count; i++) {
 		msdu_id = msdus[i];
@@ -2253,10 +2261,10 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 			 * last msdu id with 0xffff
 			 */
 			if (msdu_count & 0x01) {
-				msdu_id = msdus[msdu_count +  i + 1];
+				msdu_id = msdus[msdu_count +  i + 1 + htt_pad];
 				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
 			} else {
-				msdu_id = msdus[msdu_count +  i];
+				msdu_id = msdus[msdu_count +  i + htt_pad];
 				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
 			}
 		}
@@ -2913,17 +2921,19 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	struct rate_info *txrate = &arsta->txrate;
 	struct ath10k_htt_tx_stats *tx_stats;
 	int idx, ht_idx, gi, mcs, bw, nss;
+	unsigned long flags;
 
 	if (!arsta->tx_stats)
 		return;
 
 	tx_stats = arsta->tx_stats;
-	gi = (arsta->txrate.flags & RATE_INFO_FLAGS_SHORT_GI);
-	ht_idx = txrate->mcs + txrate->nss * 8;
-	mcs = txrate->mcs;
+	flags = txrate->flags;
+	gi = test_bit(ATH10K_RATE_INFO_FLAGS_SGI_BIT, &flags);
+	mcs = ATH10K_HW_MCS_RATE(pstats->ratecode);
 	bw = txrate->bw;
 	nss = txrate->nss;
-	idx = mcs * 8 + 8 * 10 * nss;
+	ht_idx = mcs + (nss - 1) * 8;
+	idx = mcs * 8 + 8 * 10 * (nss - 1);
 	idx += bw * 2 + gi;
 
 #define STATS_OP_FMT(name) tx_stats->stats[ATH10K_STATS_TYPE_##name]
@@ -2969,7 +2979,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 		}
 		STATS_OP_FMT(AMPDU).bw[0][bw] +=
 			pstats->succ_bytes + pstats->retry_bytes;
-		STATS_OP_FMT(AMPDU).nss[0][nss] +=
+		STATS_OP_FMT(AMPDU).nss[0][nss - 1] +=
 			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).gi[0][gi] +=
 			pstats->succ_bytes + pstats->retry_bytes;
@@ -2977,7 +2987,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).bw[1][bw] +=
 			pstats->succ_pkts + pstats->retry_pkts;
-		STATS_OP_FMT(AMPDU).nss[1][nss] +=
+		STATS_OP_FMT(AMPDU).nss[1][nss - 1] +=
 			pstats->succ_pkts + pstats->retry_pkts;
 		STATS_OP_FMT(AMPDU).gi[1][gi] +=
 			pstats->succ_pkts + pstats->retry_pkts;
@@ -2989,27 +2999,27 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	}
 
 	STATS_OP_FMT(SUCC).bw[0][bw] += pstats->succ_bytes;
-	STATS_OP_FMT(SUCC).nss[0][nss] += pstats->succ_bytes;
+	STATS_OP_FMT(SUCC).nss[0][nss - 1] += pstats->succ_bytes;
 	STATS_OP_FMT(SUCC).gi[0][gi] += pstats->succ_bytes;
 
 	STATS_OP_FMT(SUCC).bw[1][bw] += pstats->succ_pkts;
-	STATS_OP_FMT(SUCC).nss[1][nss] += pstats->succ_pkts;
+	STATS_OP_FMT(SUCC).nss[1][nss - 1] += pstats->succ_pkts;
 	STATS_OP_FMT(SUCC).gi[1][gi] += pstats->succ_pkts;
 
 	STATS_OP_FMT(FAIL).bw[0][bw] += pstats->failed_bytes;
-	STATS_OP_FMT(FAIL).nss[0][nss] += pstats->failed_bytes;
+	STATS_OP_FMT(FAIL).nss[0][nss - 1] += pstats->failed_bytes;
 	STATS_OP_FMT(FAIL).gi[0][gi] += pstats->failed_bytes;
 
 	STATS_OP_FMT(FAIL).bw[1][bw] += pstats->failed_pkts;
-	STATS_OP_FMT(FAIL).nss[1][nss] += pstats->failed_pkts;
+	STATS_OP_FMT(FAIL).nss[1][nss - 1] += pstats->failed_pkts;
 	STATS_OP_FMT(FAIL).gi[1][gi] += pstats->failed_pkts;
 
 	STATS_OP_FMT(RETRY).bw[0][bw] += pstats->retry_bytes;
-	STATS_OP_FMT(RETRY).nss[0][nss] += pstats->retry_bytes;
+	STATS_OP_FMT(RETRY).nss[0][nss - 1] += pstats->retry_bytes;
 	STATS_OP_FMT(RETRY).gi[0][gi] += pstats->retry_bytes;
 
 	STATS_OP_FMT(RETRY).bw[1][bw] += pstats->retry_pkts;
-	STATS_OP_FMT(RETRY).nss[1][nss] += pstats->retry_pkts;
+	STATS_OP_FMT(RETRY).nss[1][nss - 1] += pstats->retry_pkts;
 	STATS_OP_FMT(RETRY).gi[1][gi] += pstats->retry_pkts;
 
 	if (txrate->flags >= RATE_INFO_FLAGS_MCS) {

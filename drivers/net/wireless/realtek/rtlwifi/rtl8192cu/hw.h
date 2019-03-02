@@ -14,13 +14,11 @@
 #define TX_TOTAL_PAGE_NUMBER			0xF8
 #define TX_PAGE_BOUNDARY			(TX_TOTAL_PAGE_NUMBER + 1)
 
-
 #define CHIP_B_PAGE_NUM_PUBQ			0xE7
 
 /* For Test Chip Setting
  * (HPQ + LPQ + PUBQ) shall be TX_TOTAL_PAGE_NUMBER */
 #define CHIP_A_PAGE_NUM_PUBQ			0x7E
-
 
 /* For Chip A Setting */
 #define WMM_CHIP_A_TX_TOTAL_PAGE_NUMBER		0xF5
@@ -30,8 +28,6 @@
 #define WMM_CHIP_A_PAGE_NUM_PUBQ		0xA3
 #define WMM_CHIP_A_PAGE_NUM_HPQ			0x29
 #define WMM_CHIP_A_PAGE_NUM_LPQ			0x29
-
-
 
 /* Note: For Chip B Setting ,modify later */
 #define WMM_CHIP_B_TX_TOTAL_PAGE_NUMBER		0xF5

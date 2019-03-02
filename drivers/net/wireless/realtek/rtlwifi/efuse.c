@@ -474,6 +474,7 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 
 		if (word_en != 0x0F) {
 			u8 tmpdata[8];
+
 			memcpy(tmpdata,
 			       &rtlefuse->efuse_map[EFUSE_MODIFY_MAP][base],
 			       8);
@@ -487,7 +488,6 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 				break;
 			}
 		}
-
 	}
 
 	efuse_power_switch(hw, true, false);
@@ -662,6 +662,7 @@ static int efuse_one_byte_write(struct ieee80211_hw *hw, u16 addr, u8 data)
 static void efuse_read_all_map(struct ieee80211_hw *hw, u8 *efuse)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	efuse_power_switch(hw, false, true);
 	read_efuse(hw, 0, rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE], efuse);
 	efuse_power_switch(hw, false, false);
@@ -812,6 +813,7 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 				if (0x0F != (badworden & 0x0F))	{
 					u8 reorg_offset = offset;
 					u8 reorg_worden = badworden;
+
 					efuse_pg_packet_write(hw, reorg_offset,
 							      reorg_worden,
 							      originaldata);
@@ -901,6 +903,7 @@ static void efuse_write_data_case2(struct ieee80211_hw *hw, u16 *efuse_addr,
 			if (0x0F != (badworden & 0x0F)) {
 				u8 reorg_offset = tmp_pkt.offset;
 				u8 reorg_worden = badworden;
+
 				efuse_pg_packet_write(hw, reorg_offset,
 						      reorg_worden,
 						      originaldata);
@@ -957,7 +960,6 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 
 	while (continual && (efuse_addr < (EFUSE_MAX_SIZE -
 		rtlpriv->cfg->maps[EFUSE_OOB_PROTECT_BYTES_LEN]))) {
-
 		if (write_state == PG_STATE_HEADER) {
 			dataempty = true;
 			badworden = 0x0F;
@@ -1114,7 +1116,6 @@ void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 	u16 tmpv16;
 
 	if (pwrstate && (rtlhal->hw_type != HARDWARE_TYPE_RTL8192SE)) {
-
 		if (rtlhal->hw_type != HARDWARE_TYPE_RTL8192CE &&
 		    rtlhal->hw_type != HARDWARE_TYPE_RTL8192DE) {
 			rtl_write_byte(rtlpriv,
@@ -1219,6 +1220,7 @@ static u16 efuse_get_current_size(struct ieee80211_hw *hw)
 static u8 efuse_calculate_word_cnts(u8 word_en)
 {
 	u8 word_cnts = 0;
+
 	if (!(word_en & BIT(0)))
 		word_cnts++;
 	if (!(word_en & BIT(1)))
