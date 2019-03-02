@@ -40,33 +40,6 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 	return bpf_map__fd(map);
 }
 
-static void test_pkt_access(void)
-{
-	const char *file = "./test_pkt_access.o";
-	struct bpf_object *obj;
-	__u32 duration, retval;
-	int err, prog_fd;
-
-	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err) {
-		error_cnt++;
-		return;
-	}
-
-	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "ipv4",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
-
-	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v6, sizeof(pkt_v6),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
-	bpf_object__close(obj);
-}
-
 static void test_prog_run_xattr(void)
 {
 	const char *file = "./test_pkt_access.o";
@@ -646,28 +619,6 @@ static void test_bpf_obj_id(void)
 done:
 	for (i = 0; i < nr_iters; i++)
 		bpf_object__close(objs[i]);
-}
-
-static void test_pkt_md_access(void)
-{
-	const char *file = "./test_pkt_md_access.o";
-	struct bpf_object *obj;
-	__u32 duration, retval;
-	int err, prog_fd;
-
-	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
-	if (err) {
-		error_cnt++;
-		return;
-	}
-
-	err = bpf_prog_test_run(prog_fd, 10, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
-
-	bpf_object__close(obj);
 }
 
 static void test_obj_name(void)
@@ -2095,7 +2046,6 @@ int main(void)
 #define CALL
 #include <prog_tests/tests.h>
 #undef CALL
-	test_pkt_access();
 	test_prog_run_xattr();
 	test_xdp();
 	test_xdp_adjust_tail();
@@ -2103,7 +2053,6 @@ int main(void)
 	test_xdp_noinline();
 	test_tcp_estats();
 	test_bpf_obj_id();
-	test_pkt_md_access();
 	test_obj_name();
 	test_tp_attach_query();
 	test_stacktrace_map();
