@@ -726,10 +726,11 @@ mt76u_tx_build_sg(struct mt76_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		   struct sk_buff *skb, struct mt76_wcid *wcid,
 		   struct ieee80211_sta *sta)
 {
+	struct mt76_queue *q = &dev->q_tx[qid];
 	struct mt76u_buf *buf;
 	u16 idx = q->tail;
 	int err;
