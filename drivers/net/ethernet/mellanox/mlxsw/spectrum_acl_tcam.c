@@ -27,6 +27,7 @@ size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp)
 
 #define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_DFLT 5000 /* ms */
 #define MLXSW_SP_ACL_TCAM_VREGION_REHASH_INTRVL_MIN 3000 /* ms */
+#define MLXSW_SP_ACL_TCAM_VREGION_REHASH_CREDITS 100 /* number of entries */
 
 int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam)
@@ -180,6 +181,24 @@ struct mlxsw_sp_acl_tcam_vgroup {
 	bool vregion_rehash_enabled;
 };
 
+struct mlxsw_sp_acl_tcam_rehash_ctx {
+	void *hints_priv;
+	bool this_is_rollback;
+	struct mlxsw_sp_acl_tcam_vchunk *current_vchunk; /* vchunk being
+							  * currently migrated.
+							  */
+	struct mlxsw_sp_acl_tcam_ventry *start_ventry; /* ventry to start
+							* migration from in
+							* a vchunk being
+							* currently migrated.
+							*/
+	struct mlxsw_sp_acl_tcam_ventry *stop_ventry; /* ventry to stop
+						       * migration at
+						       * a vchunk being
+						       * currently migrated.
+						       */
+};
+
 struct mlxsw_sp_acl_tcam_vregion {
 	struct mutex lock; /* Protects consistency of region, region2 pointers
 			    * and vchunk_list.
@@ -192,7 +211,10 @@ struct mlxsw_sp_acl_tcam_vregion {
 	struct mlxsw_afk_key_info *key_info;
 	struct mlxsw_sp_acl_tcam *tcam;
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
-	struct delayed_work rehash_dw;
+	struct {
+		struct delayed_work dw;
+		struct mlxsw_sp_acl_tcam_rehash_ctx ctx;
+	} rehash;
 	struct mlxsw_sp *mlxsw_sp;
 	bool failed_rollback; /* Indicates failed rollback during migration */
 	unsigned int ref_count;
@@ -718,22 +740,55 @@ mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(struct mlxsw_sp_acl_tcam_vregion 
 
 	if (!interval)
 		return;
-	mlxsw_core_schedule_dw(&vregion->rehash_dw,
+	mlxsw_core_schedule_dw(&vregion->rehash.dw,
 			       msecs_to_jiffies(interval));
 }
 
-static int
+static void
 mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_tcam_vregion *vregion);
+				 struct mlxsw_sp_acl_tcam_vregion *vregion,
+				 int *credits);
 
 static void mlxsw_sp_acl_tcam_vregion_rehash_work(struct work_struct *work)
 {
 	struct mlxsw_sp_acl_tcam_vregion *vregion =
 		container_of(work, struct mlxsw_sp_acl_tcam_vregion,
-			     rehash_dw.work);
+			     rehash.dw.work);
+	int credits = MLXSW_SP_ACL_TCAM_VREGION_REHASH_CREDITS;
 
-	mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp, vregion);
-	mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
+	mlxsw_sp_acl_tcam_vregion_rehash(vregion->mlxsw_sp, vregion, &credits);
+	if (credits < 0)
+		/* Rehash gone out of credits so it was interrupted.
+		 * Schedule the work as soon as possible to continue.
+		 */
+		mlxsw_core_schedule_dw(&vregion->rehash.dw, 0);
+	else
+		mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
+}
+
+static void
+mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(struct mlxsw_sp_acl_tcam_vchunk *vchunk)
+{
+	struct mlxsw_sp_acl_tcam_vregion *vregion = vchunk->vregion;
+
+	/* If a rule was added or deleted from vchunk which is currently
+	 * under rehash migration, we have to reset the ventry pointers
+	 * to make sure all rules are properly migrated.
+	 */
+	if (vregion->rehash.ctx.current_vchunk == vchunk) {
+		vregion->rehash.ctx.start_ventry = NULL;
+		vregion->rehash.ctx.stop_ventry = NULL;
+	}
+}
+
+static void
+mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(struct mlxsw_sp_acl_tcam_vregion *vregion)
+{
+	/* If a chunk was added or deleted from vregion we have to reset
+	 * the current chunk pointer to make sure all chunks
+	 * are properly migrated.
+	 */
+	vregion->rehash.ctx.current_vchunk = NULL;
 }
 
 static struct mlxsw_sp_acl_tcam_vregion *
@@ -778,7 +833,7 @@ mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 
 	if (vgroup->vregion_rehash_enabled && ops->region_rehash_hints_get) {
 		/* Create the delayed work for vregion periodic rehash */
-		INIT_DELAYED_WORK(&vregion->rehash_dw,
+		INIT_DELAYED_WORK(&vregion->rehash.dw,
 				  mlxsw_sp_acl_tcam_vregion_rehash_work);
 		mlxsw_sp_acl_tcam_vregion_rehash_work_schedule(vregion);
 		mutex_lock(&tcam->lock);
@@ -809,7 +864,7 @@ mlxsw_sp_acl_tcam_vregion_destroy(struct mlxsw_sp *mlxsw_sp,
 		mutex_lock(&tcam->lock);
 		list_del(&vregion->tlist);
 		mutex_unlock(&tcam->lock);
-		cancel_delayed_work_sync(&vregion->rehash_dw);
+		cancel_delayed_work_sync(&vregion->rehash.dw);
 	}
 	mlxsw_sp_acl_tcam_vgroup_vregion_detach(mlxsw_sp, vregion);
 	if (vregion->region2)
@@ -847,9 +902,9 @@ int mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp,
 	mutex_lock(&tcam->lock);
 	list_for_each_entry(vregion, &tcam->vregion_list, tlist) {
 		if (val)
-			mlxsw_core_schedule_dw(&vregion->rehash_dw, 0);
+			mlxsw_core_schedule_dw(&vregion->rehash.dw, 0);
 		else
-			cancel_delayed_work_sync(&vregion->rehash_dw);
+			cancel_delayed_work_sync(&vregion->rehash.dw);
 	}
 	mutex_unlock(&tcam->lock);
 	return 0;
@@ -970,6 +1025,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_chunk_create;
 	}
 
+	mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(vregion);
 	list_add_tail(&vchunk->list, &vregion->vchunk_list);
 	mutex_unlock(&vregion->lock);
 
@@ -993,6 +1049,7 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup = vchunk->vgroup;
 
 	mutex_lock(&vregion->lock);
+	mlxsw_sp_acl_tcam_rehash_ctx_vregion_changed(vregion);
 	list_del(&vchunk->list);
 	if (vchunk->chunk2)
 		mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
@@ -1122,6 +1179,7 @@ static int mlxsw_sp_acl_tcam_ventry_add(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	list_add_tail(&ventry->list, &vchunk->ventry_list);
+	mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(vchunk);
 	mutex_unlock(&vregion->lock);
 
 	return 0;
@@ -1138,6 +1196,7 @@ static void mlxsw_sp_acl_tcam_ventry_del(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_vregion *vregion = vchunk->vregion;
 
 	mutex_lock(&vregion->lock);
+	mlxsw_sp_acl_tcam_rehash_ctx_vchunk_changed(vchunk);
 	list_del(&ventry->list);
 	mlxsw_sp_acl_tcam_entry_destroy(mlxsw_sp, ventry->entry);
 	mutex_unlock(&vregion->lock);
@@ -1168,165 +1227,198 @@ mlxsw_sp_acl_tcam_ventry_activity_get(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_ventry *ventry,
-				 struct mlxsw_sp_acl_tcam_chunk *chunk2)
+				 struct mlxsw_sp_acl_tcam_chunk *chunk,
+				 int *credits)
 {
-	struct mlxsw_sp_acl_tcam_entry *entry2;
+	struct mlxsw_sp_acl_tcam_entry *new_entry;
 
-	entry2 = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk2);
-	if (IS_ERR(entry2))
-		return PTR_ERR(entry2);
+	/* First check if the entry is not already where we want it to be. */
+	if (ventry->entry->chunk == chunk)
+		return 0;
+
+	if (--(*credits) < 0)
+		return 0;
+
+	new_entry = mlxsw_sp_acl_tcam_entry_create(mlxsw_sp, ventry, chunk);
+	if (IS_ERR(new_entry))
+		return PTR_ERR(new_entry);
 	mlxsw_sp_acl_tcam_entry_destroy(mlxsw_sp, ventry->entry);
-	ventry->entry = entry2;
+	ventry->entry = new_entry;
 	return 0;
+}
+
+static int
+mlxsw_sp_acl_tcam_vchunk_migrate_start(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_vchunk *vchunk,
+				       struct mlxsw_sp_acl_tcam_region *region,
+				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
+
+	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
+	if (IS_ERR(new_chunk)) {
+		if (ctx->this_is_rollback)
+			vchunk->vregion->failed_rollback = true;
+		return PTR_ERR(new_chunk);
+	}
+	vchunk->chunk2 = vchunk->chunk;
+	vchunk->chunk = new_chunk;
+	ctx->current_vchunk = vchunk;
+	ctx->start_ventry = NULL;
+	ctx->stop_ventry = NULL;
+	return 0;
+}
+
+static void
+mlxsw_sp_acl_tcam_vchunk_migrate_end(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
+	vchunk->chunk2 = NULL;
+	ctx->current_vchunk = NULL;
 }
 
 static int
 mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_vchunk *vchunk,
 				     struct mlxsw_sp_acl_tcam_region *region,
-				     bool this_is_rollback)
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				     int *credits)
 {
 	struct mlxsw_sp_acl_tcam_ventry *ventry;
-	struct mlxsw_sp_acl_tcam_chunk *chunk2;
 	int err;
-	int err2;
 
-	chunk2 = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
-	if (IS_ERR(chunk2)) {
-		if (this_is_rollback)
-			vchunk->vregion->failed_rollback = true;
-		return PTR_ERR(chunk2);
+	if (vchunk->chunk->region != region) {
+		err = mlxsw_sp_acl_tcam_vchunk_migrate_start(mlxsw_sp, vchunk,
+							     region, ctx);
+		if (err)
+			return err;
+	} else if (!vchunk->chunk2) {
+		/* The chunk is already as it should be, nothing to do. */
+		return 0;
 	}
-	vchunk->chunk2 = chunk2;
-	list_for_each_entry(ventry, &vchunk->ventry_list, list) {
-		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
-						       vchunk->chunk2);
-		if (err) {
-			if (this_is_rollback) {
-				vchunk->vregion->failed_rollback = true;
-				return err;
-			}
-			goto rollback;
-		}
-	}
-	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk);
-	vchunk->chunk = chunk2;
-	vchunk->chunk2 = NULL;
-	return 0;
 
-rollback:
-	/* Migrate the entries back to the original chunk. If some entry
-	 * migration fails, there's no good way how to proceed. Set the
-	 * vregion with "failed_rollback" flag.
+	/* If the migration got interrupted, we have the ventry to start from
+	 * stored in context.
 	 */
-	list_for_each_entry_continue_reverse(ventry, &vchunk->ventry_list,
-					     list) {
-		err2 = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
-							vchunk->chunk);
-		if (err2) {
-			vchunk->vregion->failed_rollback = true;
-			goto err_rollback;
+	if (ctx->start_ventry)
+		ventry = ctx->start_ventry;
+	else
+		ventry = list_first_entry(&vchunk->ventry_list,
+					  typeof(*ventry), list);
+
+	list_for_each_entry_from(ventry, &vchunk->ventry_list, list) {
+		/* During rollback, once we reach the ventry that failed
+		 * to migrate, we are done.
+		 */
+		if (ventry == ctx->stop_ventry)
+			break;
+
+		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
+						       vchunk->chunk, credits);
+		if (err) {
+			if (ctx->this_is_rollback)
+				return err;
+			/* Swap the chunk and chunk2 pointers so the follow-up
+			 * rollback call will see the original chunk pointer
+			 * in vchunk->chunk.
+			 */
+			swap(vchunk->chunk, vchunk->chunk2);
+			/* The rollback has to be done from beginning of the
+			 * chunk, that is why we have to null the start_ventry.
+			 * However, we know where to stop the rollback,
+			 * at the current ventry.
+			 */
+			ctx->start_ventry = NULL;
+			ctx->stop_ventry = ventry;
+			return err;
+		} else if (*credits < 0) {
+			/* We are out of credits, the rest of the ventries
+			 * will be migrated later. Save the ventry
+			 * which we ended with.
+			 */
+			ctx->start_ventry = ventry;
+			return 0;
 		}
 	}
 
-	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
-	vchunk->chunk2 = NULL;
-
-err_rollback:
-	return err;
+	mlxsw_sp_acl_tcam_vchunk_migrate_end(mlxsw_sp, vchunk, ctx);
+	return 0;
 }
 
 static int
 mlxsw_sp_acl_tcam_vchunk_migrate_all(struct mlxsw_sp *mlxsw_sp,
-				     struct mlxsw_sp_acl_tcam_vregion *vregion)
+				     struct mlxsw_sp_acl_tcam_vregion *vregion,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				     int *credits)
 {
 	struct mlxsw_sp_acl_tcam_vchunk *vchunk;
 	int err;
 
-	list_for_each_entry(vchunk, &vregion->vchunk_list, list) {
+	/* If the migration got interrupted, we have the vchunk
+	 * we are working on stored in context.
+	 */
+	if (ctx->current_vchunk)
+		vchunk = ctx->current_vchunk;
+	else
+		vchunk = list_first_entry(&vregion->vchunk_list,
+					  typeof(*vchunk), list);
+
+	list_for_each_entry_from(vchunk, &vregion->vchunk_list, list) {
 		err = mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
-							   vregion->region2,
-							   false);
-		if (err)
-			goto rollback;
+							   vregion->region,
+							   ctx, credits);
+		if (err || *credits < 0)
+			return err;
 	}
 	return 0;
-
-rollback:
-	list_for_each_entry_continue_reverse(vchunk, &vregion->vchunk_list,
-					     list) {
-		mlxsw_sp_acl_tcam_vchunk_migrate_one(mlxsw_sp, vchunk,
-						     vregion->region, true);
-	}
-	return err;
 }
 
 static int
 mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_acl_tcam_vregion *vregion,
-				  void *hints_priv)
+				  struct mlxsw_sp_acl_tcam_rehash_ctx *ctx,
+				  int *credits)
 {
-	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
-	struct mlxsw_sp_acl_tcam_region *region2, *unused_region;
-	int err;
+	int err, err2;
 
 	trace_mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion);
-
-	region2 = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
-						  vregion, hints_priv);
-	if (IS_ERR(region2)) {
-		err = PTR_ERR(region2);
-		goto out;
-	}
-
-	vregion->region2 = region2;
-	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp,
-						    vregion->region->group,
-						    region2, priority,
-						    vregion->region);
-	if (err)
-		goto err_group_region_attach;
-
 	mutex_lock(&vregion->lock);
-
-	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion);
-	if (!vregion->failed_rollback) {
-		if (!err) {
-			/* In case of successful migration, region2 is used and
-			 * the original is unused.
-			 */
-			unused_region = vregion->region;
-			vregion->region = vregion->region2;
-		} else {
-			/* In case of failure during migration, the original
-			 * region is still used.
-			 */
-			unused_region = vregion->region2;
-		}
-		mutex_unlock(&vregion->lock);
-		vregion->region2 = NULL;
-		mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
-		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
-	} else {
-		mutex_unlock(&vregion->lock);
+	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
+						   ctx, credits);
+	if (err) {
+		/* In case migration was not successful, we need to swap
+		 * so the original region pointer is assigned again
+		 * to vregion->region.
+		 */
+		swap(vregion->region, vregion->region2);
+		ctx->current_vchunk = NULL;
+		ctx->this_is_rollback = true;
+		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
+							    ctx, credits);
+		if (err2)
+			vregion->failed_rollback = true;
 	}
-
-	goto out;
-
-err_group_region_attach:
-	vregion->region2 = NULL;
-	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, region2);
-out:
+	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
-
 	return err;
 }
 
+static bool
+mlxsw_sp_acl_tcam_vregion_rehash_in_progress(const struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	return ctx->hints_priv;
+}
+
 static int
-mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_tcam_vregion *vregion)
+mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_vregion *vregion,
+				       struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
 {
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	unsigned int priority = mlxsw_sp_acl_tcam_vregion_prio(vregion);
+	struct mlxsw_sp_acl_tcam_region *new_region;
 	void *hints_priv;
 	int err;
 
@@ -1335,14 +1427,83 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		return -EBUSY;
 
 	hints_priv = ops->region_rehash_hints_get(vregion->region->priv);
-	if (IS_ERR(hints_priv)) {
-		err = PTR_ERR(hints_priv);
-		if (err != -EAGAIN)
-			dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
-		return err;
+	if (IS_ERR(hints_priv))
+		return PTR_ERR(hints_priv);
+
+	new_region = mlxsw_sp_acl_tcam_region_create(mlxsw_sp, vregion->tcam,
+						     vregion, hints_priv);
+	if (IS_ERR(new_region)) {
+		err = PTR_ERR(new_region);
+		goto err_region_create;
 	}
 
-	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion, hints_priv);
+	/* vregion->region contains the pointer to the new region
+	 * we are going to migrate to.
+	 */
+	vregion->region2 = vregion->region;
+	vregion->region = new_region;
+	err = mlxsw_sp_acl_tcam_group_region_attach(mlxsw_sp,
+						    vregion->region2->group,
+						    new_region, priority,
+						    vregion->region2);
+	if (err)
+		goto err_group_region_attach;
+
+	ctx->hints_priv = hints_priv;
+	ctx->this_is_rollback = false;
+
+	return 0;
+
+err_group_region_attach:
+	vregion->region = vregion->region2;
+	vregion->region2 = NULL;
+	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, new_region);
+err_region_create:
+	ops->region_rehash_hints_put(hints_priv);
+	return err;
+}
+
+static void
+mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_tcam_vregion *vregion,
+				     struct mlxsw_sp_acl_tcam_rehash_ctx *ctx)
+{
+	struct mlxsw_sp_acl_tcam_region *unused_region = vregion->region2;
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	if (!vregion->failed_rollback) {
+		vregion->region2 = NULL;
+		mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
+		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
+	}
+	ops->region_rehash_hints_put(ctx->hints_priv);
+	ctx->hints_priv = NULL;
+}
+
+static void
+mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_tcam_vregion *vregion,
+				 int *credits)
+{
+	struct mlxsw_sp_acl_tcam_rehash_ctx *ctx = &vregion->rehash.ctx;
+	int err;
+
+	/* Check if the previous rehash work was interrupted
+	 * which means we have to continue it now.
+	 * If not, start a new rehash.
+	 */
+	if (!mlxsw_sp_acl_tcam_vregion_rehash_in_progress(ctx)) {
+		err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp,
+							     vregion, ctx);
+		if (err) {
+			if (err != -EAGAIN)
+				dev_err(mlxsw_sp->bus_info->dev, "Failed get rehash hints\n");
+			return;
+		}
+	}
+
+	err = mlxsw_sp_acl_tcam_vregion_migrate(mlxsw_sp, vregion,
+						ctx, credits);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to migrate vregion\n");
 		if (vregion->failed_rollback) {
@@ -1352,8 +1513,8 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 		}
 	}
 
-	ops->region_rehash_hints_put(hints_priv);
-	return err;
+	if (*credits >= 0)
+		mlxsw_sp_acl_tcam_vregion_rehash_end(mlxsw_sp, vregion, ctx);
 }
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
