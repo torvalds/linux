@@ -3975,14 +3975,6 @@ static int modeset_pipe(struct drm_crtc *crtc,
 
 	crtc_state->mode_changed = true;
 
-	ret = drm_atomic_add_affected_connectors(state, crtc);
-	if (ret)
-		goto out;
-
-	ret = drm_atomic_add_affected_planes(state, crtc);
-	if (ret)
-		goto out;
-
 	ret = drm_atomic_commit(state);
 out:
 	drm_atomic_state_put(state);
