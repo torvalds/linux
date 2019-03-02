@@ -4,57 +4,13 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  */
-#include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <time.h>
-#include <signal.h>
-
-#include <linux/types.h>
-typedef __u16 __sum16;
-#include <arpa/inet.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/tcp.h>
-#include <linux/filter.h>
-#include <linux/perf_event.h>
-#include <linux/unistd.h>
-
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <linux/bpf.h>
-#include <linux/err.h>
-#include <bpf/bpf.h>
-#include <bpf/libbpf.h>
-
-#include "test_iptunnel_common.h"
-#include "bpf_util.h"
-#include "bpf_endian.h"
+#include "test_progs.h"
 #include "bpf_rlimit.h"
-#include "trace_helpers.h"
-#include "flow_dissector_load.h"
 
-static int error_cnt, pass_cnt;
-static bool jit_enabled;
+int error_cnt, pass_cnt;
+bool jit_enabled;
 
-#define MAGIC_BYTES 123
-
-/* ipv4 test vector */
-static struct {
-	struct ethhdr eth;
-	struct iphdr iph;
-	struct tcphdr tcp;
-} __packed pkt_v4 = {
+struct ipv4_packet pkt_v4 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
 	.iph.ihl = 5,
 	.iph.protocol = IPPROTO_TCP,
@@ -63,12 +19,7 @@ static struct {
 	.tcp.doff = 5,
 };
 
-/* ipv6 test vector */
-static struct {
-	struct ethhdr eth;
-	struct ipv6hdr iph;
-	struct tcphdr tcp;
-} __packed pkt_v6 = {
+struct ipv6_packet pkt_v6 = {
 	.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
 	.iph.nexthdr = IPPROTO_TCP,
 	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
@@ -76,26 +27,7 @@ static struct {
 	.tcp.doff = 5,
 };
 
-#define _CHECK(condition, tag, duration, format...) ({			\
-	int __ret = !!(condition);					\
-	if (__ret) {							\
-		error_cnt++;						\
-		printf("%s:FAIL:%s ", __func__, tag);			\
-		printf(format);						\
-	} else {							\
-		pass_cnt++;						\
-		printf("%s:PASS:%s %d nsec\n", __func__, tag, duration);\
-	}								\
-	__ret;								\
-})
-
-#define CHECK(condition, tag, format...) \
-	_CHECK(condition, tag, duration, format)
-#define CHECK_ATTR(condition, tag, format...) \
-	_CHECK(condition, tag, tattr.duration, format)
-
-static int bpf_find_map(const char *test, struct bpf_object *obj,
-			const char *name)
+int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 {
 	struct bpf_map *map;
 
@@ -2150,12 +2082,19 @@ static void test_signal_pending(enum bpf_prog_type prog_type)
 	signal(SIGALRM, SIG_DFL);
 }
 
+#define DECLARE
+#include <prog_tests/tests.h>
+#undef DECLARE
+
 int main(void)
 {
 	srand(time(NULL));
 
 	jit_enabled = is_jit_enabled();
 
+#define CALL
+#include <prog_tests/tests.h>
+#undef CALL
 	test_pkt_access();
 	test_prog_run_xattr();
 	test_xdp();
