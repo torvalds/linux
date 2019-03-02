@@ -3973,7 +3973,7 @@ static int modeset_pipe(struct drm_crtc *crtc,
 		goto out;
 	}
 
-	crtc_state->mode_changed = true;
+	crtc_state->connectors_changed = true;
 
 	ret = drm_atomic_commit(state);
 out:
