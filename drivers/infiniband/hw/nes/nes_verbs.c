@@ -1039,53 +1039,48 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if (udata) {
-					nesqp->user_mode = 1;
-					if (virt_wqs) {
-						err = 1;
-						list_for_each_entry(nespbl, &nes_ucontext->qp_reg_mem_list, list) {
-							if (nespbl->user_base == (unsigned long )req.user_wqe_buffers) {
-								list_del(&nespbl->list);
-								err = 0;
-								nes_debug(NES_DBG_QP, "Found PBL for virtual QP. nespbl=%p. user_base=0x%lx\n",
-									  nespbl, nespbl->user_base);
-								break;
-							}
-						}
-						if (err) {
-							nes_debug(NES_DBG_QP, "Didn't Find PBL for virtual QP. address = %llx.\n",
-								  (long long unsigned int)req.user_wqe_buffers);
-							nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
-							kfree(nesqp->allocated_buffer);
-							return ERR_PTR(-EFAULT);
-						}
-					}
 
-					nesqp->mmap_sq_db_index =
-						find_next_zero_bit(nes_ucontext->allocated_wqs,
-								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
-					/* nes_debug(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
-							nespd->mmap_db_index); */
-					if (nesqp->mmap_sq_db_index >= NES_MAX_USER_WQ_REGIONS) {
-						nes_debug(NES_DBG_QP,
-							  "db index > max user regions, failing create QP\n");
-						nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
-						if (virt_wqs) {
-							pci_free_consistent(nesdev->pcidev, nespbl->pbl_size, nespbl->pbl_vbase,
-									    nespbl->pbl_pbase);
-							kfree(nespbl);
+				nesqp->user_mode = 1;
+				if (virt_wqs) {
+					err = 1;
+					list_for_each_entry(nespbl, &nes_ucontext->qp_reg_mem_list, list) {
+						if (nespbl->user_base == (unsigned long )req.user_wqe_buffers) {
+							list_del(&nespbl->list);
+							err = 0;
+							nes_debug(NES_DBG_QP, "Found PBL for virtual QP. nespbl=%p. user_base=0x%lx\n",
+								  nespbl, nespbl->user_base);
+							break;
 						}
-						kfree(nesqp->allocated_buffer);
-						return ERR_PTR(-ENOMEM);
 					}
-					set_bit(nesqp->mmap_sq_db_index, nes_ucontext->allocated_wqs);
-					nes_ucontext->mmap_nesqp[nesqp->mmap_sq_db_index] = nesqp;
-					nes_ucontext->first_free_wq = nesqp->mmap_sq_db_index + 1;
-				} else {
-					nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
-					kfree(nesqp->allocated_buffer);
-					return ERR_PTR(-EFAULT);
+					if (err) {
+						nes_debug(NES_DBG_QP, "Didn't Find PBL for virtual QP. address = %llx.\n",
+							  (long long unsigned int)req.user_wqe_buffers);
+						nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
+						kfree(nesqp->allocated_buffer);
+						return ERR_PTR(-EFAULT);
+					}
 				}
+
+				nesqp->mmap_sq_db_index =
+					find_next_zero_bit(nes_ucontext->allocated_wqs,
+							   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
+				/* nes_debug(NES_DBG_QP, "find_first_zero_biton wqs returned %u\n",
+						nespd->mmap_db_index); */
+				if (nesqp->mmap_sq_db_index >= NES_MAX_USER_WQ_REGIONS) {
+					nes_debug(NES_DBG_QP,
+						  "db index > max user regions, failing create QP\n");
+					nes_free_resource(nesadapter, nesadapter->allocated_qps, qp_num);
+					if (virt_wqs) {
+						pci_free_consistent(nesdev->pcidev, nespbl->pbl_size, nespbl->pbl_vbase,
+								    nespbl->pbl_pbase);
+						kfree(nespbl);
+					}
+					kfree(nesqp->allocated_buffer);
+					return ERR_PTR(-ENOMEM);
+				}
+				set_bit(nesqp->mmap_sq_db_index, nes_ucontext->allocated_wqs);
+				nes_ucontext->mmap_nesqp[nesqp->mmap_sq_db_index] = nesqp;
+				nes_ucontext->first_free_wq = nesqp->mmap_sq_db_index + 1;
 			}
 			err = (!virt_wqs) ? nes_setup_mmap_qp(nesqp, nesvnic, sq_size, rq_size) :
 					nes_setup_virt_qp(nesqp, nespbl, nesvnic, sq_size, rq_size);
