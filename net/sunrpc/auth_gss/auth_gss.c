@@ -1208,7 +1208,7 @@ gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	struct gss_cred *new;
 
 	/* Make a copy of the cred so that we can reference count it */
-	new = kzalloc(sizeof(*gss_cred), GFP_NOIO);
+	new = kzalloc(sizeof(*gss_cred), GFP_NOFS);
 	if (new) {
 		struct auth_cred acred = {
 			.cred = gss_cred->gc_base.cr_cred,

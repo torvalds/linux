@@ -423,7 +423,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 
 	want = xs_alloc_sparse_pages(buf,
 			min_t(size_t, count - offset, buf->page_len),
-			GFP_NOWAIT);
+			GFP_KERNEL);
 	if (seek < want) {
 		ret = xs_read_bvec(sock, msg, flags, buf->bvec,
 				xdr_buf_pagecount(buf),
@@ -909,7 +909,7 @@ static int xs_nospace(struct rpc_rqst *req)
 static void
 xs_stream_prepare_request(struct rpc_rqst *req)
 {
-	req->rq_task->tk_status = xdr_alloc_bvec(&req->rq_rcv_buf, GFP_NOIO);
+	req->rq_task->tk_status = xdr_alloc_bvec(&req->rq_rcv_buf, GFP_KERNEL);
 }
 
 /*
