@@ -960,6 +960,7 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev, bool enable)
 		}
 	}
 	mt76x02_edcca_tx_enable(dev, true);
+	dev->ed_monitor_learning = true;
 
 	/* clear previous CCA timer value */
 	mt76_rr(dev, MT_ED_CCA_TIMER);
@@ -969,6 +970,10 @@ EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
 
 #define MT_EDCCA_TH		92
 #define MT_EDCCA_BLOCK_TH	2
+#define MT_EDCCA_LEARN_TH	50
+#define MT_EDCCA_LEARN_CCA	180
+#define MT_EDCCA_LEARN_TIMEOUT	(20 * HZ)
+
 static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 {
 	ktime_t cur_time;
@@ -991,11 +996,23 @@ static void mt76x02_edcca_check(struct mt76x02_dev *dev)
 		dev->ed_trigger = 0;
 	}
 
-	if (dev->ed_trigger > MT_EDCCA_BLOCK_TH &&
-	    !dev->ed_tx_blocked)
+	if (dev->cal.agc_lowest_gain &&
+	    dev->cal.false_cca > MT_EDCCA_LEARN_CCA &&
+	    dev->ed_trigger > MT_EDCCA_LEARN_TH) {
+		dev->ed_monitor_learning = false;
+		dev->ed_trigger_timeout = jiffies + 20 * HZ;
+	} else if (!dev->ed_monitor_learning &&
+		   time_is_after_jiffies(dev->ed_trigger_timeout)) {
+		dev->ed_monitor_learning = true;
+		mt76x02_edcca_tx_enable(dev, true);
+	}
+
+	if (dev->ed_monitor_learning)
+		return;
+
+	if (dev->ed_trigger > MT_EDCCA_BLOCK_TH && !dev->ed_tx_blocked)
 		mt76x02_edcca_tx_enable(dev, false);
-	else if (dev->ed_silent > MT_EDCCA_BLOCK_TH &&
-		 dev->ed_tx_blocked)
+	else if (dev->ed_silent > MT_EDCCA_BLOCK_TH && dev->ed_tx_blocked)
 		mt76x02_edcca_tx_enable(dev, true);
 }
 

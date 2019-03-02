@@ -51,6 +51,7 @@ struct mt76x02_calibration {
 	u16 false_cca;
 	s8 avg_rssi_all;
 	s8 agc_gain_adjust;
+	s8 agc_lowest_gain;
 	s8 low_gain;
 
 	s8 temp_vco;
@@ -114,8 +115,10 @@ struct mt76x02_dev {
 	struct mt76x02_dfs_pattern_detector dfs_pd;
 
 	/* edcca monitor */
+	unsigned long ed_trigger_timeout;
 	bool ed_tx_blocked;
 	bool ed_monitor;
+	u8 ed_monitor_learning;
 	u8 ed_trigger;
 	u8 ed_silent;
 	ktime_t ed_time;
