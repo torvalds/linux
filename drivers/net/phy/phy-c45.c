@@ -508,18 +508,11 @@ static int gen10g_read_status(struct phy_device *phydev)
 	return genphy_c45_read_link(phydev);
 }
 
-int gen10g_no_soft_reset(struct phy_device *phydev)
-{
-	/* Do nothing for now */
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gen10g_no_soft_reset);
-
 struct phy_driver genphy_10g_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic 10G PHY",
-	.soft_reset	= gen10g_no_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.features       = PHY_10GBIT_FEATURES,
 	.config_aneg    = gen10g_config_aneg,
 	.read_status    = gen10g_read_status,
