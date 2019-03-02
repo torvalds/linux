@@ -1948,6 +1948,19 @@
 /* default value of bitfield tx_buf_en */
 #define HW_ATL_TPB_TX_BUF_EN_DEFAULT 0x0
 
+/* register address for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_ADDR 0x00007900
+/* bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSK 0x00000100
+/* inverted bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSKN 0xFFFFFEFF
+/* lower bit position of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_SHIFT 8
+/* width of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_WIDTH 1
+/* default value of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_DEFAULT 0x0
+
 /* tx tx{b}_hi_thresh[c:0] bitfield definitions
  * preprocessor definitions for the bitfield "tx{b}_hi_thresh[c:0]".
  * parameter: buffer {b} | stride size 0x10 | range [0, 7]
