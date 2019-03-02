@@ -204,13 +204,11 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 		if (table_context->od_feature_capabilities)
 			return -EINVAL;
 
-		table_context->od_feature_capabilities = kzalloc(od_feature_array_size, GFP_KERNEL);
+		table_context->od_feature_capabilities = kmemdup(&powerplay_table->OverDrive8Table.ODFeatureCapabilities,
+								 od_feature_array_size,
+								 GFP_KERNEL);
 		if (!table_context->od_feature_capabilities)
 			return -ENOMEM;
-
-		memcpy(table_context->od_feature_capabilities,
-		       &powerplay_table->OverDrive8Table.ODFeatureCapabilities,
-		       od_feature_array_size);
 
 		/* Setup correct ODSettingCount, and store ODSettingArray from
 		 * powerplay table to od_settings_max and od_setting_min */
@@ -225,7 +223,9 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 		if (table_context->od_settings_max)
 			return -EINVAL;
 
-		table_context->od_settings_max = kzalloc(od_setting_array_size, GFP_KERNEL);
+		table_context->od_settings_max = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMax,
+							 od_setting_array_size,
+							 GFP_KERNEL);
 
 		if (!table_context->od_settings_max) {
 			kfree(table_context->od_feature_capabilities);
@@ -233,14 +233,12 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 			return -ENOMEM;
 		}
 
-		memcpy(table_context->od_settings_max,
-		       &powerplay_table->OverDrive8Table.ODSettingsMax,
-		       od_setting_array_size);
-
 		if (table_context->od_settings_min)
 			return -EINVAL;
 
-		table_context->od_settings_min = kzalloc(od_setting_array_size, GFP_KERNEL);
+		table_context->od_settings_min = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMin,
+							 od_setting_array_size,
+							 GFP_KERNEL);
 
 		if (!table_context->od_settings_min) {
 			kfree(table_context->od_feature_capabilities);
@@ -249,10 +247,6 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 			table_context->od_settings_max = NULL;
 			return -ENOMEM;
 		}
-
-		memcpy(table_context->od_settings_min,
-		       &powerplay_table->OverDrive8Table.ODSettingsMin,
-		       od_setting_array_size);
 	}
 
 	return 0;
