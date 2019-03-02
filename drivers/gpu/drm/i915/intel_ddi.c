@@ -3984,12 +3984,7 @@ static int modeset_pipe(struct drm_crtc *crtc,
 		goto out;
 
 	ret = drm_atomic_commit(state);
-	if (ret)
-		goto out;
-
-	return 0;
-
- out:
+out:
 	drm_atomic_state_put(state);
 
 	return ret;
