@@ -4723,7 +4723,7 @@ enum {
 #define   PP_SEQUENCE_STATE_OFF_S0_2	(0x2 << 0)
 #define   PP_SEQUENCE_STATE_OFF_S0_3	(0x3 << 0)
 #define   PP_SEQUENCE_STATE_ON_IDLE	(0x8 << 0)
-#define   PP_SEQUENCE_STATE_ON_S1_0	(0x9 << 0)
+#define   PP_SEQUENCE_STATE_ON_S1_1	(0x9 << 0)
 #define   PP_SEQUENCE_STATE_ON_S1_2	(0xa << 0)
 #define   PP_SEQUENCE_STATE_ON_S1_3	(0xb << 0)
 #define   PP_SEQUENCE_STATE_RESET	(0xf << 0)
