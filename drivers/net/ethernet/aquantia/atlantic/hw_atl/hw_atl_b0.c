@@ -279,6 +279,9 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 static int hw_atl_b0_hw_init_tx_path(struct aq_hw_s *self)
 {
+	/* Tx TC/Queue number config */
+	hw_atl_rpb_tps_tx_tc_mode_set(self, 1U);
+
 	hw_atl_thm_lso_tcp_flag_of_first_pkt_set(self, 0x0FF6U);
 	hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(self, 0x0FF6U);
 	hw_atl_thm_lso_tcp_flag_of_last_pkt_set(self, 0x0F7FU);

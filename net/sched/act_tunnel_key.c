@@ -394,7 +394,8 @@ release_dst_cache:
 		dst_cache_destroy(&metadata->u.tun_info.dst_cache);
 #endif
 release_tun_meta:
-	dst_release(&metadata->dst);
+	if (metadata)
+		dst_release(&metadata->dst);
 
 err_out:
 	if (exists)

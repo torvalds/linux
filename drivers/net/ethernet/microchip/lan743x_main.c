@@ -1400,7 +1400,8 @@ static int lan743x_tx_frame_start(struct lan743x_tx *tx,
 }
 
 static void lan743x_tx_frame_add_lso(struct lan743x_tx *tx,
-				     unsigned int frame_length)
+				     unsigned int frame_length,
+				     int nr_frags)
 {
 	/* called only from within lan743x_tx_xmit_frame.
 	 * assuming tx->ring_lock has already been acquired.
@@ -1410,6 +1411,10 @@ static void lan743x_tx_frame_add_lso(struct lan743x_tx *tx,
 
 	/* wrap up previous descriptor */
 	tx->frame_data0 |= TX_DESC_DATA0_EXT_;
+	if (nr_frags <= 0) {
+		tx->frame_data0 |= TX_DESC_DATA0_LS_;
+		tx->frame_data0 |= TX_DESC_DATA0_IOC_;
+	}
 	tx_descriptor = &tx->ring_cpu_ptr[tx->frame_tail];
 	tx_descriptor->data0 = tx->frame_data0;
 
@@ -1514,8 +1519,11 @@ static void lan743x_tx_frame_end(struct lan743x_tx *tx,
 	u32 tx_tail_flags = 0;
 
 	/* wrap up previous descriptor */
-	tx->frame_data0 |= TX_DESC_DATA0_LS_;
-	tx->frame_data0 |= TX_DESC_DATA0_IOC_;
+	if ((tx->frame_data0 & TX_DESC_DATA0_DTYPE_MASK_) ==
+	    TX_DESC_DATA0_DTYPE_DATA_) {
+		tx->frame_data0 |= TX_DESC_DATA0_LS_;
+		tx->frame_data0 |= TX_DESC_DATA0_IOC_;
+	}
 
 	tx_descriptor = &tx->ring_cpu_ptr[tx->frame_tail];
 	buffer_info = &tx->buffer_info[tx->frame_tail];
@@ -1600,7 +1608,7 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 	}
 
 	if (gso)
-		lan743x_tx_frame_add_lso(tx, frame_length);
+		lan743x_tx_frame_add_lso(tx, frame_length, nr_frags);
 
 	if (nr_frags <= 0)
 		goto finish;

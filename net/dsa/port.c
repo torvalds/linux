@@ -337,6 +337,7 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
+	of_node_put(phy_dn);
 	return phydev;
 }
 

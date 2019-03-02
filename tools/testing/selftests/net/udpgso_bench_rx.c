@@ -45,6 +45,8 @@ static int  cfg_alen 		= sizeof(struct sockaddr_in6);
 static int  cfg_expected_pkt_nr;
 static int  cfg_expected_pkt_len;
 static int  cfg_expected_gso_size;
+static int  cfg_connect_timeout_ms;
+static int  cfg_rcv_timeout_ms;
 static struct sockaddr_storage cfg_bind_addr;
 
 static bool interrupted;
@@ -87,7 +89,7 @@ static unsigned long gettimeofday_ms(void)
 	return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
 
-static void do_poll(int fd)
+static void do_poll(int fd, int timeout_ms)
 {
 	struct pollfd pfd;
 	int ret;
@@ -102,8 +104,16 @@ static void do_poll(int fd)
 			break;
 		if (ret == -1)
 			error(1, errno, "poll");
-		if (ret == 0)
-			continue;
+		if (ret == 0) {
+			if (!timeout_ms)
+				continue;
+
+			timeout_ms -= 10;
+			if (timeout_ms <= 0) {
+				interrupted = true;
+				break;
+			}
+		}
 		if (pfd.revents != POLLIN)
 			error(1, errno, "poll: 0x%x expected 0x%x\n",
 					pfd.revents, POLLIN);
@@ -134,7 +144,7 @@ static int do_socket(bool do_tcp)
 		if (listen(accept_fd, 1))
 			error(1, errno, "listen");
 
-		do_poll(accept_fd);
+		do_poll(accept_fd, cfg_connect_timeout_ms);
 		if (interrupted)
 			exit(0);
 
@@ -273,7 +283,9 @@ static void do_flush_udp(int fd)
 
 static void usage(const char *filepath)
 {
-	error(1, 0, "Usage: %s [-Grtv] [-b addr] [-p port] [-l pktlen] [-n packetnr] [-S gsosize]", filepath);
+	error(1, 0, "Usage: %s [-C connect_timeout] [-Grtv] [-b addr] [-p port]"
+	      " [-l pktlen] [-n packetnr] [-R rcv_timeout] [-S gsosize]",
+	      filepath);
 }
 
 static void parse_opts(int argc, char **argv)
@@ -282,7 +294,7 @@ static void parse_opts(int argc, char **argv)
 
 	/* bind to any by default */
 	setup_sockaddr(PF_INET6, "::", &cfg_bind_addr);
-	while ((c = getopt(argc, argv, "4b:Gl:n:p:rS:tv")) != -1) {
+	while ((c = getopt(argc, argv, "4b:C:Gl:n:p:rR:S:tv")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_family = PF_INET;
@@ -291,6 +303,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'b':
 			setup_sockaddr(cfg_family, optarg, &cfg_bind_addr);
+			break;
+		case 'C':
+			cfg_connect_timeout_ms = strtoul(optarg, NULL, 0);
 			break;
 		case 'G':
 			cfg_gro_segment = true;
@@ -306,6 +321,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'r':
 			cfg_read_all = true;
+			break;
+		case 'R':
+			cfg_rcv_timeout_ms = strtoul(optarg, NULL, 0);
 			break;
 		case 'S':
 			cfg_expected_gso_size = strtol(optarg, NULL, 0);
@@ -329,8 +347,9 @@ static void parse_opts(int argc, char **argv)
 
 static void do_recv(void)
 {
+	int timeout_ms = cfg_tcp ? cfg_rcv_timeout_ms : cfg_connect_timeout_ms;
 	unsigned long tnow, treport;
-	int fd, loop = 0;
+	int fd;
 
 	fd = do_socket(cfg_tcp);
 
@@ -342,12 +361,7 @@ static void do_recv(void)
 
 	treport = gettimeofday_ms() + 1000;
 	do {
-		/* force termination after the second poll(); this cope both
-		 * with sender slower than receiver and missing packet errors
-		 */
-		if (cfg_expected_pkt_nr && loop++)
-			interrupted = true;
-		do_poll(fd);
+		do_poll(fd, timeout_ms);
 
 		if (cfg_tcp)
 			do_flush_tcp(fd);
@@ -364,6 +378,8 @@ static void do_recv(void)
 			bytes = packets = 0;
 			treport = tnow + 1000;
 		}
+
+		timeout_ms = cfg_rcv_timeout_ms;
 
 	} while (!interrupted);
 
