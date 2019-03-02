@@ -1108,15 +1108,23 @@ set_rcvbuf:
 #endif
 
 	case SO_MAX_PACING_RATE:
-		if (val != ~0U)
+		{
+		unsigned long ulval = (val == ~0U) ? ~0UL : val;
+
+		if (sizeof(ulval) != sizeof(val) &&
+		    optlen >= sizeof(ulval) &&
+		    get_user(ulval, (unsigned long __user *)optval)) {
+			ret = -EFAULT;
+			break;
+		}
+		if (ulval != ~0UL)
 			cmpxchg(&sk->sk_pacing_status,
 				SK_PACING_NONE,
 				SK_PACING_NEEDED);
-		sk->sk_max_pacing_rate = (val == ~0U) ? ~0UL : val;
-		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
-					 sk->sk_max_pacing_rate);
+		sk->sk_max_pacing_rate = ulval;
+		sk->sk_pacing_rate = min(sk->sk_pacing_rate, ulval);
 		break;
-
+		}
 	case SO_INCOMING_CPU:
 		sk->sk_incoming_cpu = val;
 		break;
@@ -1211,6 +1219,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	union {
 		int val;
 		u64 val64;
+		unsigned long ulval;
 		struct linger ling;
 		struct old_timeval32 tm32;
 		struct __kernel_old_timeval tm;
@@ -1456,8 +1465,13 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 #endif
 
 	case SO_MAX_PACING_RATE:
-		/* 32bit version */
-		v.val = min_t(unsigned long, sk->sk_max_pacing_rate, ~0U);
+		if (sizeof(v.ulval) != sizeof(v.val) && len >= sizeof(v.ulval)) {
+			lv = sizeof(v.ulval);
+			v.ulval = sk->sk_max_pacing_rate;
+		} else {
+			/* 32bit version */
+			v.val = min_t(unsigned long, sk->sk_max_pacing_rate, ~0U);
+		}
 		break;
 
 	case SO_INCOMING_CPU:
