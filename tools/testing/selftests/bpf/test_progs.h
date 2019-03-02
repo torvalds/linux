@@ -82,3 +82,6 @@ extern struct ipv6_packet pkt_v6;
 #define VIP_NUM 5
 
 int bpf_find_map(const char *test, struct bpf_object *obj, const char *name);
+int compare_map_keys(int map1_fd, int map2_fd);
+int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len);
+int extract_build_id(char *build_id, size_t size);
