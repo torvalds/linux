@@ -52,6 +52,7 @@ hostprogs-y += xdpsock
 hostprogs-y += xdp_fwd
 hostprogs-y += task_fd_query
 hostprogs-y += xdp_sample_pkts
+hostprogs-y += hbm
 
 # Libbpf dependencies
 LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
@@ -107,6 +108,7 @@ xdpsock-objs := xdpsock_user.o
 xdp_fwd-objs := xdp_fwd_user.o
 task_fd_query-objs := bpf_load.o task_fd_query_user.o $(TRACE_HELPERS)
 xdp_sample_pkts-objs := xdp_sample_pkts_user.o $(TRACE_HELPERS)
+hbm-objs := bpf_load.o hbm.o $(CGROUP_HELPERS)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -164,6 +166,7 @@ always += xdp_adjust_tail_kern.o
 always += xdp_fwd_kern.o
 always += task_fd_query_kern.o
 always += xdp_sample_pkts_kern.o
+always += hbm_out_kern.o
 
 KBUILD_HOSTCFLAGS += -I$(objtree)/usr/include
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -263,6 +266,8 @@ $(BPF_SAMPLES_PATH)/*.c: verify_target_bpf $(LIBBPF)
 $(src)/*.c: verify_target_bpf $(LIBBPF)
 
 $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
+$(obj)/hbm_out_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
+$(obj)/hbm.o: $(src)/hbm.h
 
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is
