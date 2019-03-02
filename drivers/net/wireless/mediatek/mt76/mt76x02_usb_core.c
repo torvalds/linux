@@ -77,7 +77,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			    u32 *tx_info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
-	int pid, len = skb->len, ep = q2ep(mdev->q_tx[qid].hw_idx);
+	int pid, len = skb->len, ep = q2ep(mdev->q_tx[qid].q->hw_idx);
 	struct mt76x02_txwi *txwi;
 	enum mt76_qsel qsel;
 	u32 flags;

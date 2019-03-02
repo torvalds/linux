@@ -627,13 +627,15 @@ static void mt76u_tx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
 	struct mt76_queue_entry entry;
+	struct mt76_sw_queue *sq;
 	struct mt76u_buf *buf;
 	struct mt76_queue *q;
 	bool wake;
 	int i;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		q = &dev->q_tx[i];
+		sq = &dev->q_tx[i];
+		q = sq->q;
 
 		spin_lock_bh(&q->lock);
 		while (true) {
@@ -643,7 +645,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 			if (q->entry[q->head].schedule) {
 				q->entry[q->head].schedule = false;
-				q->swq_queued--;
+				sq->swq_queued--;
 			}
 
 			entry = q->entry[q->head];
@@ -654,7 +656,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 			dev->drv->tx_complete_skb(dev, i, &entry);
 			spin_lock_bh(&q->lock);
 		}
-		mt76_txq_schedule(dev, q);
+		mt76_txq_schedule(dev, sq);
 
 		wake = q->stopped && q->queued < q->ndesc - 8;
 		if (wake)
@@ -730,7 +732,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		   struct sk_buff *skb, struct mt76_wcid *wcid,
 		   struct ieee80211_sta *sta)
 {
-	struct mt76_queue *q = &dev->q_tx[qid];
+	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76u_buf *buf;
 	u16 idx = q->tail;
 	int err;
@@ -791,10 +793,15 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 	int i, j;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		q = &dev->q_tx[i];
+		INIT_LIST_HEAD(&dev->q_tx[i].swq);
+
+		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
+		if (!q)
+			return -ENOMEM;
+
 		spin_lock_init(&q->lock);
-		INIT_LIST_HEAD(&q->swq);
 		q->hw_idx = mt76_ac_to_hwq(i);
+		dev->q_tx[i].q = q;
 
 		q->entry = devm_kcalloc(dev->dev,
 					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
@@ -831,7 +838,7 @@ static void mt76u_free_tx(struct mt76_dev *dev)
 	int i, j;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		q = &dev->q_tx[i];
+		q = dev->q_tx[i].q;
 		for (j = 0; j < q->ndesc; j++)
 			usb_free_urb(q->entry[j].ubuf.urb);
 	}
@@ -843,7 +850,7 @@ static void mt76u_stop_tx(struct mt76_dev *dev)
 	int i, j;
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		q = &dev->q_tx[i];
+		q = dev->q_tx[i].q;
 		for (j = 0; j < q->ndesc; j++)
 			usb_kill_urb(q->entry[j].ubuf.urb);
 	}

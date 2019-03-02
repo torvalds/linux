@@ -386,10 +386,12 @@ EXPORT_SYMBOL_GPL(mt76_rx);
 
 static bool mt76_has_tx_pending(struct mt76_dev *dev)
 {
+	struct mt76_queue *q;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
-		if (dev->q_tx[i].queued)
+		q = dev->q_tx[i].q;
+		if (q && q->queued)
 			return true;
 	}
 

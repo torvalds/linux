@@ -792,7 +792,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_queue *q = &dev->mt76.q_tx[qid];
+	struct mt76_queue *q = dev->mt76.q_tx[qid].q;
 	struct mt7603_vif *mvif;
 	int wlan_idx;
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
@@ -1386,7 +1386,7 @@ static bool mt7603_tx_hang(struct mt7603_dev *dev)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		q = &dev->mt76.q_tx[i];
+		q = dev->mt76.q_tx[i].q;
 
 		if (!q->queued)
 			continue;

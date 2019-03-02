@@ -29,7 +29,6 @@ mt76_dma_alloc_queue(struct mt76_dev *dev, struct mt76_queue *q,
 	int i;
 
 	spin_lock_init(&q->lock);
-	INIT_LIST_HEAD(&q->swq);
 
 	q->regs = dev->mmio.regs + ring_base + idx * MT_RING_SIZE;
 	q->ndesc = n_desc;
@@ -147,12 +146,13 @@ mt76_dma_sync_idx(struct mt76_dev *dev, struct mt76_queue *q)
 static void
 mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 {
-	struct mt76_queue *q = &dev->q_tx[qid];
+	struct mt76_sw_queue *sq = &dev->q_tx[qid];
+	struct mt76_queue *q = sq->q;
 	struct mt76_queue_entry entry;
 	bool wake = false;
 	int last;
 
-	if (!q->ndesc)
+	if (!q)
 		return;
 
 	spin_lock_bh(&q->lock);
@@ -164,7 +164,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	while (q->queued && q->tail != last) {
 		mt76_dma_tx_cleanup_idx(dev, q, q->tail, &entry);
 		if (entry.schedule)
-			q->swq_queued--;
+			dev->q_tx[qid].swq_queued--;
 
 		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
@@ -185,7 +185,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	}
 
 	if (!flush)
-		mt76_txq_schedule(dev, q);
+		mt76_txq_schedule(dev, sq);
 	else
 		mt76_dma_sync_idx(dev, q);
 
@@ -258,7 +258,7 @@ static int
 mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 			  struct sk_buff *skb, u32 tx_info)
 {
-	struct mt76_queue *q = &dev->q_tx[qid];
+	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_queue_buf buf;
 	dma_addr_t addr;
 
@@ -282,7 +282,7 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta)
 {
-	struct mt76_queue *q = &dev->q_tx[qid];
+	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_queue_entry e;
 	struct mt76_txwi_cache *t;
 	struct mt76_queue_buf buf[32];

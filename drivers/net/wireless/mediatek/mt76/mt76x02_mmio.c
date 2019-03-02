@@ -103,7 +103,7 @@ mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
 static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 {
 	struct mt76x02_dev *dev = (struct mt76x02_dev *)arg;
-	struct mt76_queue *q = &dev->mt76.q_tx[MT_TXQ_PSD];
+	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD].q;
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i, nframes;
@@ -153,15 +153,22 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 }
 
 static int
-mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
+mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
 		      int idx, int n_desc)
 {
+	struct mt76_queue *hwq;
 	int err;
 
-	err = mt76_queue_alloc(dev, q, idx, n_desc, 0,
-			       MT_TX_RING_BASE);
+	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
+	if (!hwq)
+		return -ENOMEM;
+
+	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
 	if (err < 0)
 		return err;
+
+	INIT_LIST_HEAD(&q->swq);
+	q->q = hwq;
 
 	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));
 
@@ -313,7 +320,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 		if (dev->mt76.csa_complete)
 			mt76_csa_finish(&dev->mt76);
 		else
-			mt76_queue_kick(dev, &dev->mt76.q_tx[MT_TXQ_PSD]);
+			mt76_queue_kick(dev, dev->mt76.q_tx[MT_TXQ_PSD].q);
 	}
 
 	if (intr & MT_INT_TX_STAT) {
@@ -385,7 +392,7 @@ static bool mt76x02_tx_hang(struct mt76x02_dev *dev)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		q = &dev->mt76.q_tx[i];
+		q = dev->mt76.q_tx[i].q;
 
 		if (!q->queued)
 			continue;
