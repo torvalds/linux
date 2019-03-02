@@ -54,12 +54,24 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	struct neighbour *n = NULL;
 
 #if IS_ENABLED(CONFIG_INET)
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct net_device *uplink_dev;
 	int ret;
+
+	if (mlx5_lag_is_multipath(mdev)) {
+		struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+		uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+		fl4->flowi4_oif = uplink_dev->ifindex;
+	}
 
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
 	ret = PTR_ERR_OR_ZERO(rt);
 	if (ret)
 		return ret;
+
+	if (mlx5_lag_is_multipath(mdev) && !rt->rt_gateway)
+		return -ENETUNREACH;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -295,7 +307,9 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 
@@ -408,7 +422,9 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(n, NULL);
-		err = -EAGAIN;
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
 		goto out;
 	}
 

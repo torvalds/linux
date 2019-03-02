@@ -75,6 +75,7 @@ enum {
 	MLX5E_TC_FLOW_HAIRPIN_RSS = BIT(MLX5E_TC_FLOW_BASE + 2),
 	MLX5E_TC_FLOW_SLOW	  = BIT(MLX5E_TC_FLOW_BASE + 3),
 	MLX5E_TC_FLOW_DUP         = BIT(MLX5E_TC_FLOW_BASE + 4),
+	MLX5E_TC_FLOW_NOT_READY   = BIT(MLX5E_TC_FLOW_BASE + 5),
 };
 
 #define MLX5E_TC_MAX_SPLITS 1
@@ -116,6 +117,7 @@ struct mlx5e_tc_flow {
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	struct list_head	peer;    /* flows with peer flow */
+	struct list_head	unready; /* flows not ready to be offloaded (e.g due to missing route) */
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
@@ -850,12 +852,12 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow, int out_index);
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
-			      struct ip_tunnel_info *tun_info,
-			      struct net_device *mirred_dev,
-			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
+			      struct net_device *mirred_dev,
+			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      int out_index);
+			      struct net_device **encap_dev,
+			      bool *encap_valid);
 
 static struct mlx5_flow_handle *
 mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
@@ -927,6 +929,26 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	flow->flags &= ~MLX5E_TC_FLOW_SLOW;
 }
 
+static void add_unready_flow(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+
+	esw = flow->priv->mdev->priv.eswitch;
+	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	uplink_priv = &rpriv->uplink_priv;
+
+	flow->flags |= MLX5E_TC_FLOW_NOT_READY;
+	list_add_tail(&flow->unready, &uplink_priv->unready_flows);
+}
+
+static void remove_unready_flow(struct mlx5e_tc_flow *flow)
+{
+	list_del(&flow->unready);
+	flow->flags &= ~MLX5E_TC_FLOW_NOT_READY;
+}
+
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
@@ -941,7 +963,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
-	int err = 0, encap_err = 0;
+	bool encap_valid = true;
+	int err = 0;
 	int out_index;
 
 	if (!mlx5_eswitch_prios_supported(esw) && attr->prio != 1) {
@@ -970,14 +993,11 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		mirred_ifindex = parse_attr->mirred_ifindex[out_index];
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
 					     mirred_ifindex);
-		err = mlx5e_attach_encap(priv,
-					 &parse_attr->tun_info[out_index],
-					 out_dev, &encap_dev, flow,
-					 extack, out_index);
-		if (err && err != -EAGAIN)
+		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
+					 extack, &encap_dev, &encap_valid);
+		if (err)
 			goto err_attach_encap;
-		if (err == -EAGAIN)
-			encap_err = err;
+
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
 		attr->dests[out_index].rep = rpriv->rep;
@@ -1005,10 +1025,11 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		attr->counter = counter;
 	}
 
-	/* we get here if (1) there's no error or when
-	 * (2) there's an encap action and we're on -EAGAIN (no valid neigh)
+	/* we get here if one of the following takes place:
+	 * (1) there's no error
+	 * (2) there's an encap action and we don't have valid neigh
 	 */
-	if (encap_err == -EAGAIN) {
+	if (!encap_valid) {
 		/* continue with goto slow path rule instead */
 		struct mlx5_esw_flow_attr slow_attr;
 
@@ -1047,6 +1068,12 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5_esw_flow_attr slow_attr;
 	int out_index;
+
+	if (flow->flags & MLX5E_TC_FLOW_NOT_READY) {
+		remove_unready_flow(flow);
+		kvfree(attr->parse_attr);
+		return;
+	}
 
 	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 		if (flow->flags & MLX5E_TC_FLOW_SLOW)
@@ -2333,30 +2360,36 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 	peer_priv = netdev_priv(peer_netdev);
 
 	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
-		(priv->netdev->netdev_ops == peer_netdev->netdev_ops) &&
-		same_hw_devs(priv, peer_priv) &&
-		MLX5_VPORT_MANAGER(peer_priv->mdev) &&
-		(peer_priv->mdev->priv.eswitch->mode == SRIOV_OFFLOADS));
+		mlx5e_eswitch_rep(priv->netdev) &&
+		mlx5e_eswitch_rep(peer_netdev) &&
+		same_hw_devs(priv, peer_priv));
 }
 
 
 
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
-			      struct ip_tunnel_info *tun_info,
-			      struct net_device *mirred_dev,
-			      struct net_device **encap_dev,
 			      struct mlx5e_tc_flow *flow,
+			      struct net_device *mirred_dev,
+			      int out_index,
 			      struct netlink_ext_ack *extack,
-			      int out_index)
+			      struct net_device **encap_dev,
+			      bool *encap_valid)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
-	struct ip_tunnel_key *key = &tun_info->key;
+	struct mlx5e_tc_flow_parse_attr *parse_attr;
+	struct ip_tunnel_info *tun_info;
+	struct ip_tunnel_key *key;
 	struct mlx5e_encap_entry *e;
+	unsigned short family;
 	uintptr_t hash_key;
 	bool found = false;
 	int err = 0;
+
+	parse_attr = attr->parse_attr;
+	tun_info = &parse_attr->tun_info[out_index];
+	family = ip_tunnel_info_af(tun_info);
+	key = &tun_info->key;
 
 	hash_key = hash_encap_info(key);
 
@@ -2388,7 +2421,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	else if (family == AF_INET6)
 		err = mlx5e_tc_tun_create_header_ipv6(priv, mirred_dev, e);
 
-	if (err && err != -EAGAIN)
+	if (err)
 		goto out_err;
 
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
@@ -2400,8 +2433,9 @@ attach_flow:
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
 		attr->dests[out_index].encap_id = e->encap_id;
 		attr->dests[out_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+		*encap_valid = true;
 	} else {
-		err = -EAGAIN;
+		*encap_valid = false;
 	}
 
 	return err;
@@ -2697,8 +2731,15 @@ static bool is_peer_flow_needed(struct mlx5e_tc_flow *flow)
 	bool esw_paired = mlx5_devcom_is_paired(attr->in_mdev->priv.devcom,
 						MLX5_DEVCOM_ESW_OFFLOADS);
 
-	return esw_paired && mlx5_lag_is_sriov(attr->in_mdev) &&
-	       (is_rep_ingress || act_is_encap);
+	if (!esw_paired)
+		return false;
+
+	if ((mlx5_lag_is_sriov(attr->in_mdev) ||
+	     mlx5_lag_is_multipath(attr->in_mdev)) &&
+	    (is_rep_ingress || act_is_encap))
+		return true;
+
+	return false;
 }
 
 static int
@@ -2793,8 +2834,12 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_free;
 
 	err = mlx5e_tc_add_fdb_flow(priv, flow, extack);
-	if (err)
-		goto err_free;
+	if (err) {
+		if (!(err == -ENETUNREACH && mlx5_lag_is_multipath(in_mdev)))
+			goto err_free;
+
+		add_unready_flow(flow);
+	}
 
 	return flow;
 
@@ -2806,7 +2851,8 @@ out:
 }
 
 static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
-				      struct mlx5e_tc_flow *flow)
+				      struct mlx5e_tc_flow *flow,
+				      u16 flow_flags)
 {
 	struct mlx5e_priv *priv = flow->priv, *peer_priv;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch, *peer_esw;
@@ -2835,7 +2881,7 @@ static int mlx5e_tc_add_fdb_peer_flow(struct tc_cls_flower_offload *f,
 		in_mdev = priv->mdev;
 
 	parse_attr = flow->esw_attr->parse_attr;
-	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow->flags,
+	peer_flow = __mlx5e_add_fdb_flow(peer_priv, f, flow_flags,
 					 parse_attr->filter_dev,
 					 flow->esw_attr->in_rep, in_mdev);
 	if (IS_ERR(peer_flow)) {
@@ -2873,7 +2919,7 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		return PTR_ERR(flow);
 
 	if (is_peer_flow_needed(flow)) {
-		err = mlx5e_tc_add_fdb_peer_flow(f, flow);
+		err = mlx5e_tc_add_fdb_peer_flow(f, flow, flow_flags);
 		if (err) {
 			mlx5e_tc_del_fdb_flow(priv, flow);
 			goto out;
@@ -3038,23 +3084,25 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	struct mlx5_eswitch *peer_esw;
 	struct mlx5e_tc_flow *flow;
 	struct mlx5_fc *counter;
-	u64 bytes;
-	u64 packets;
-	u64 lastuse;
+	u64 lastuse = 0;
+	u64 packets = 0;
+	u64 bytes = 0;
 
 	flow = rhashtable_lookup_fast(tc_ht, &f->cookie, tc_ht_params);
 	if (!flow || !same_flow_direction(flow, flags))
 		return -EINVAL;
 
-	if (!(flow->flags & MLX5E_TC_FLOW_OFFLOADED))
-		return 0;
+	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
+		counter = mlx5e_tc_get_counter(flow);
+		if (!counter)
+			return 0;
 
-	counter = mlx5e_tc_get_counter(flow);
-	if (!counter)
-		return 0;
+		mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
+	}
 
-	mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
-
+	/* Under multipath it's possible for one rule to be currently
+	 * un-offloaded while the other rule is offloaded.
+	 */
 	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 	if (!peer_esw)
 		goto out;
@@ -3066,6 +3114,8 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		u64 lastuse2;
 
 		counter = mlx5e_tc_get_counter(flow->peer_flow);
+		if (!counter)
+			goto no_peer_counter;
 		mlx5_fc_query_cached(counter, &bytes2, &packets2, &lastuse2);
 
 		bytes += bytes2;
@@ -3073,8 +3123,8 @@ int mlx5e_stats_flower(struct net_device *dev, struct mlx5e_priv *priv,
 		lastuse = max_t(u64, lastuse, lastuse2);
 	}
 
+no_peer_counter:
 	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-
 out:
 	flow_stats_update(&f->stats, bytes, packets, lastuse);
 
@@ -3195,4 +3245,19 @@ void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw)
 
 	list_for_each_entry_safe(flow, tmp, &esw->offloads.peer_flows, peer)
 		__mlx5e_tc_del_fdb_peer_flow(flow);
+}
+
+void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
+{
+	struct mlx5_rep_uplink_priv *rpriv =
+		container_of(work, struct mlx5_rep_uplink_priv,
+			     reoffload_flows_work);
+	struct mlx5e_tc_flow *flow, *tmp;
+
+	rtnl_lock();
+	list_for_each_entry_safe(flow, tmp, &rpriv->unready_flows, unready) {
+		if (!mlx5e_tc_add_fdb_flow(flow->priv, flow, NULL))
+			remove_unready_flow(flow);
+	}
+	rtnl_unlock();
 }

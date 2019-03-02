@@ -371,6 +371,8 @@ static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev
 
 bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0,
 			 struct mlx5_core_dev *dev1);
+bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
+			       struct mlx5_core_dev *dev1);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 

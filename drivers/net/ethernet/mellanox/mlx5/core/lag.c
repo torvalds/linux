@@ -35,37 +35,8 @@
 #include <linux/mlx5/vport.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
-
-enum {
-	MLX5_LAG_FLAG_ROCE   = 1 << 0,
-	MLX5_LAG_FLAG_SRIOV  = 1 << 1,
-};
-
-#define MLX5_LAG_MODE_FLAGS (MLX5_LAG_FLAG_ROCE | MLX5_LAG_FLAG_SRIOV)
-
-struct lag_func {
-	struct mlx5_core_dev *dev;
-	struct net_device    *netdev;
-};
-
-/* Used for collection of netdev event info. */
-struct lag_tracker {
-	enum   netdev_lag_tx_type           tx_type;
-	struct netdev_lag_lower_state_info  netdev_state[MLX5_MAX_PORTS];
-	bool is_bonded;
-};
-
-/* LAG data of a ConnectX card.
- * It serves both its phys functions.
- */
-struct mlx5_lag {
-	u8                        flags;
-	u8                        v2p_map[MLX5_MAX_PORTS];
-	struct lag_func           pf[MLX5_MAX_PORTS];
-	struct lag_tracker        tracker;
-	struct delayed_work       bond_work;
-	struct notifier_block     nb;
-};
+#include "lag.h"
+#include "lag_mp.h"
 
 /* General purpose, use for short periods of time.
  * Beware of lock dependencies (preferably, no locks should be acquired
@@ -147,13 +118,8 @@ static int mlx5_cmd_query_cong_counter(struct mlx5_core_dev *dev,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 
-static struct mlx5_lag *mlx5_lag_dev_get(struct mlx5_core_dev *dev)
-{
-	return dev->priv.lag;
-}
-
-static int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
-				       struct net_device *ndev)
+int mlx5_lag_dev_get_netdev_idx(struct mlx5_lag *ldev,
+				struct net_device *ndev)
 {
 	int i;
 
@@ -174,11 +140,6 @@ static bool __mlx5_lag_is_sriov(struct mlx5_lag *ldev)
 	return !!(ldev->flags & MLX5_LAG_FLAG_SRIOV);
 }
 
-static bool __mlx5_lag_is_active(struct mlx5_lag *ldev)
-{
-	return !!(ldev->flags & MLX5_LAG_MODE_FLAGS);
-}
-
 static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 					   u8 *port1, u8 *port2)
 {
@@ -195,8 +156,8 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 		*port2 = 1;
 }
 
-static void mlx5_modify_lag(struct mlx5_lag *ldev,
-			    struct lag_tracker *tracker)
+void mlx5_modify_lag(struct mlx5_lag *ldev,
+		     struct lag_tracker *tracker)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
 	u8 v2p_port1, v2p_port2;
@@ -241,9 +202,9 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	return err;
 }
 
-static int mlx5_activate_lag(struct mlx5_lag *ldev,
-			     struct lag_tracker *tracker,
-			     u8 flags)
+int mlx5_activate_lag(struct mlx5_lag *ldev,
+		      struct lag_tracker *tracker,
+		      u8 flags)
 {
 	bool roce_lag = !!(flags & MLX5_LAG_FLAG_ROCE);
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
@@ -386,7 +347,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 
 static void mlx5_queue_bond_work(struct mlx5_lag *ldev, unsigned long delay)
 {
-	schedule_delayed_work(&ldev->bond_work, delay);
+	queue_delayed_work(ldev->wq, &ldev->bond_work, delay);
 }
 
 static void mlx5_do_bond_work(struct work_struct *work)
@@ -538,6 +499,12 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 	if (!ldev)
 		return NULL;
 
+	ldev->wq = create_singlethread_workqueue("mlx5_lag");
+	if (!ldev->wq) {
+		kfree(ldev);
+		return NULL;
+	}
+
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
 
 	return ldev;
@@ -545,6 +512,7 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(void)
 
 static void mlx5_lag_dev_free(struct mlx5_lag *ldev)
 {
+	destroy_workqueue(ldev->wq);
 	kfree(ldev);
 }
 
@@ -592,6 +560,7 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 {
 	struct mlx5_lag *ldev = NULL;
 	struct mlx5_core_dev *tmp_dev;
+	int err;
 
 	if (!MLX5_CAP_GEN(dev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(dev, lag_master) ||
@@ -619,6 +588,11 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 			mlx5_core_err(dev, "Failed to register LAG netdev notifier\n");
 		}
 	}
+
+	err = mlx5_lag_mp_init(ldev);
+	if (err)
+		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
+			      err);
 }
 
 int mlx5_lag_get_pf_num(struct mlx5_core_dev *dev, int *pf_num)
@@ -664,6 +638,7 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev)
 	if (i == MLX5_MAX_PORTS) {
 		if (ldev->nb.notifier_call)
 			unregister_netdevice_notifier(&ldev->nb);
+		mlx5_lag_mp_cleanup(ldev);
 		cancel_delayed_work_sync(&ldev->bond_work);
 		mlx5_lag_dev_free(ldev);
 	}

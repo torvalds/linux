@@ -74,6 +74,9 @@ struct mlx5_rep_uplink_priv {
 	struct notifier_block	    netdevice_nb;
 
 	struct mlx5_tun_entropy tun_entropy;
+
+	struct list_head            unready_flows;
+	struct work_struct          reoffload_flows_work;
 };
 
 struct mlx5e_rep_priv {
