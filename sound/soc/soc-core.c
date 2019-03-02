@@ -1974,10 +1974,13 @@ static void soc_check_tplg_fes(struct snd_soc_card *card)
 			continue;
 
 		/* for this machine ? */
+		if (!strcmp(component->driver->ignore_machine,
+			    card->dev->driver->name))
+			goto match;
 		if (strcmp(component->driver->ignore_machine,
-			   card->dev->driver->name))
+			   dev_name(card->dev)))
 			continue;
-
+match:
 		/* machine matches, so override the rtd data */
 		for_each_card_prelinks(card, i, dai_link) {
 
