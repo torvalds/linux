@@ -499,7 +499,7 @@ int gen10g_config_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(gen10g_config_aneg);
 
-int gen10g_read_status(struct phy_device *phydev)
+static int gen10g_read_status(struct phy_device *phydev)
 {
 	/* For now just lie and say it's 10G all the time */
 	phydev->speed = SPEED_10000;
@@ -507,7 +507,6 @@ int gen10g_read_status(struct phy_device *phydev)
 
 	return genphy_c45_read_link(phydev);
 }
-EXPORT_SYMBOL_GPL(gen10g_read_status);
 
 int gen10g_no_soft_reset(struct phy_device *phydev)
 {
