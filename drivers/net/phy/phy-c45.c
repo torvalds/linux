@@ -529,18 +529,6 @@ int gen10g_config_init(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(gen10g_config_init);
 
-int gen10g_suspend(struct phy_device *phydev)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gen10g_suspend);
-
-int gen10g_resume(struct phy_device *phydev)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gen10g_resume);
-
 struct phy_driver genphy_10g_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
@@ -550,6 +538,4 @@ struct phy_driver genphy_10g_driver = {
 	.features       = PHY_10GBIT_FEATURES,
 	.config_aneg    = gen10g_config_aneg,
 	.read_status    = gen10g_read_status,
-	.suspend        = gen10g_suspend,
-	.resume         = gen10g_resume,
 };

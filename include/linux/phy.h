@@ -1122,8 +1122,6 @@ int gen10g_config_aneg(struct phy_device *phydev);
 int gen10g_read_status(struct phy_device *phydev);
 int gen10g_no_soft_reset(struct phy_device *phydev);
 int gen10g_config_init(struct phy_device *phydev);
-int gen10g_suspend(struct phy_device *phydev);
-int gen10g_resume(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev)
 {
