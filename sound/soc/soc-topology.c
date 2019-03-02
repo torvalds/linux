@@ -996,8 +996,6 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 
 	for (i = 0; i < count; i++) {
 		ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
-		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-			ec->priv.size);
 
 		/* validate kcontrol */
 		if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
@@ -1007,6 +1005,9 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		se = kzalloc((sizeof(*se)), GFP_KERNEL);
 		if (se == NULL)
 			return -ENOMEM;
+
+		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
+			ec->priv.size);
 
 		dev_dbg(tplg->dev, "ASoC: adding enum kcontrol %s size %d\n",
 			ec->hdr.name, ec->items);
@@ -1284,13 +1285,13 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		if (sm == NULL)
 			goto err;
 
-		tplg->pos += (sizeof(struct snd_soc_tplg_mixer_control) +
-			mc->priv.size);
-
 		/* validate kcontrol */
 		if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 			goto err_str;
+
+		tplg->pos += (sizeof(struct snd_soc_tplg_mixer_control) +
+			mc->priv.size);
 
 		dev_dbg(tplg->dev, " adding DAPM widget mixer control %s at %d\n",
 			mc->hdr.name, i);
@@ -1377,6 +1378,9 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		if (se == NULL)
 			goto err;
 
+		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
+				ec->priv.size);
+
 		dev_dbg(tplg->dev, " adding DAPM widget enum control %s\n",
 			ec->hdr.name);
 
@@ -1441,9 +1445,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 				ec->hdr.name);
 			goto err_se;
 		}
-
-		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-				ec->priv.size);
 	}
 
 	return kc;
