@@ -516,25 +516,11 @@ int gen10g_no_soft_reset(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(gen10g_no_soft_reset);
 
-int gen10g_config_init(struct phy_device *phydev)
-{
-	/* Temporarily just say we support everything */
-	linkmode_zero(phydev->supported);
-
-	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-			 phydev->supported);
-	linkmode_copy(phydev->advertising, phydev->supported);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gen10g_config_init);
-
 struct phy_driver genphy_10g_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic 10G PHY",
 	.soft_reset	= gen10g_no_soft_reset,
-	.config_init    = gen10g_config_init,
 	.features       = PHY_10GBIT_FEATURES,
 	.config_aneg    = gen10g_config_aneg,
 	.read_status    = gen10g_read_status,
