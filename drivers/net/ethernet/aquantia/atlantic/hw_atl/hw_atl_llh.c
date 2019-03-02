@@ -1585,3 +1585,24 @@ void hw_atl_rpfl3l4_ipv6_dest_addr_set(struct aq_hw_s *aq_hw, u8 location,
 				HW_ATL_RPF_L3_DSTA_ADR(location + i),
 				ipv6_dest[i]);
 }
+
+u32 hw_atl_sem_ram_get(struct aq_hw_s *self)
+{
+	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
+}
+
+u32 hw_atl_scrpad_get(struct aq_hw_s *aq_hw, u32 scratch_scp)
+{
+	return aq_hw_read_reg(aq_hw,
+			      HW_ATL_GLB_CPU_SCRATCH_SCP_ADR(scratch_scp));
+}
+
+u32 hw_atl_scrpad12_get(struct aq_hw_s *self)
+{
+	return  hw_atl_scrpad_get(self, 0xB);
+}
+
+u32 hw_atl_scrpad25_get(struct aq_hw_s *self)
+{
+	return hw_atl_scrpad_get(self, 0x18);
+}
