@@ -288,7 +288,7 @@ struct mt76_driver_ops {
 	void (*update_survey)(struct mt76_dev *dev);
 
 	int (*tx_prepare_skb)(struct mt76_dev *dev, void *txwi_ptr,
-			      struct sk_buff *skb, struct mt76_queue *q,
+			      struct sk_buff *skb, enum mt76_txq_id qid,
 			      struct mt76_wcid *wcid,
 			      struct ieee80211_sta *sta, u32 *tx_info);
 

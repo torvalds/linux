@@ -739,7 +739,7 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		return -ENOSPC;
 
 	skb->prev = skb->next = NULL;
-	err = dev->drv->tx_prepare_skb(dev, NULL, skb, q, wcid, sta, NULL);
+	err = dev->drv->tx_prepare_skb(dev, NULL, skb, qid, wcid, sta, NULL);
 	if (err < 0)
 		return err;
 

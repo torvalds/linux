@@ -147,7 +147,7 @@ bool mt76x02_tx_status_data(struct mt76_dev *mdev, u8 *update)
 EXPORT_SYMBOL_GPL(mt76x02_tx_status_data);
 
 int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
-			   struct sk_buff *skb, struct mt76_queue *q,
+			   struct sk_buff *skb, enum mt76_txq_id qid,
 			   struct mt76_wcid *wcid, struct ieee80211_sta *sta,
 			   u32 *tx_info)
 {
@@ -157,7 +157,7 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	int pid;
 	int ret;
 
-	if (q == &dev->mt76.q_tx[MT_TXQ_PSD] && wcid && wcid->idx < 128)
+	if (qid == MT_TXQ_PSD && wcid && wcid->idx < 128)
 		mt76x02_mac_wcid_set_drop(dev, wcid->idx, false);
 
 	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, skb->len);
