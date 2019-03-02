@@ -2740,6 +2740,7 @@ static int cxgb4_mgmt_get_vf_config(struct net_device *dev,
 	ivi->min_tx_rate = 0;
 	ether_addr_copy(ivi->mac, vfinfo->vf_mac_addr);
 	ivi->vlan = vfinfo->vlan;
+	ivi->linkstate = vfinfo->link_state;
 	return 0;
 }
 
@@ -2877,6 +2878,49 @@ static int cxgb4_mgmt_set_vf_vlan(struct net_device *dev, int vf,
 
 	dev_err(adap->pdev_dev, "Err %d %s VLAN ACL for PF/VF %d/%d\n",
 		ret, (vlan ? "setting" : "clearing"), adap->pf, vf);
+	return ret;
+}
+
+static int cxgb4_mgmt_set_vf_link_state(struct net_device *dev, int vf,
+					int link)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	u32 param, val;
+	int ret = 0;
+
+	if (vf >= adap->num_vfs)
+		return -EINVAL;
+
+	switch (link) {
+	case IFLA_VF_LINK_STATE_AUTO:
+		val = FW_VF_LINK_STATE_AUTO;
+		break;
+
+	case IFLA_VF_LINK_STATE_ENABLE:
+		val = FW_VF_LINK_STATE_ENABLE;
+		break;
+
+	case IFLA_VF_LINK_STATE_DISABLE:
+		val = FW_VF_LINK_STATE_DISABLE;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_LINK_STATE));
+	ret = t4_set_params(adap, adap->mbox, adap->pf, vf + 1, 1,
+			    &param, &val);
+	if (ret) {
+		dev_err(adap->pdev_dev,
+			"Error %d in setting PF %d VF %d link state\n",
+			ret, adap->pf, vf);
+		return -EINVAL;
+	}
+
+	adap->vfinfo[vf].link_state = link;
 	return ret;
 }
 #endif /* CONFIG_PCI_IOV */
@@ -3294,12 +3338,13 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 
 #ifdef CONFIG_PCI_IOV
 static const struct net_device_ops cxgb4_mgmt_netdev_ops = {
-	.ndo_open             = cxgb4_mgmt_open,
-	.ndo_set_vf_mac       = cxgb4_mgmt_set_vf_mac,
-	.ndo_get_vf_config    = cxgb4_mgmt_get_vf_config,
-	.ndo_set_vf_rate      = cxgb4_mgmt_set_vf_rate,
-	.ndo_get_phys_port_id = cxgb4_mgmt_get_phys_port_id,
-	.ndo_set_vf_vlan      = cxgb4_mgmt_set_vf_vlan,
+	.ndo_open               = cxgb4_mgmt_open,
+	.ndo_set_vf_mac         = cxgb4_mgmt_set_vf_mac,
+	.ndo_get_vf_config      = cxgb4_mgmt_get_vf_config,
+	.ndo_set_vf_rate        = cxgb4_mgmt_set_vf_rate,
+	.ndo_get_phys_port_id   = cxgb4_mgmt_get_phys_port_id,
+	.ndo_set_vf_vlan        = cxgb4_mgmt_set_vf_vlan,
+	.ndo_set_vf_link_state	= cxgb4_mgmt_set_vf_link_state,
 };
 #endif
 
