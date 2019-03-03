@@ -583,13 +583,23 @@ static inline bool nvme_pci_use_sgls(struct nvme_dev *dev, struct request *req)
 	return true;
 }
 
-static void nvme_free_iod(struct nvme_dev *dev, struct request *req)
+static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+	enum dma_data_direction dma_dir = rq_data_dir(req) ?
+			DMA_TO_DEVICE : DMA_FROM_DEVICE;
 	const int last_prp = dev->ctrl.page_size / sizeof(__le64) - 1;
 	dma_addr_t dma_addr = iod->first_dma, next_dma_addr;
-
 	int i;
+
+	if (iod->nents) {
+		/* P2PDMA requests do not need to be unmapped */
+		if (!is_pci_p2pdma_page(sg_page(iod->sg)))
+			dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
+
+		if (blk_integrity_rq(req))
+			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
+	}
 
 	if (iod->npages == 0)
 		dma_pool_free(dev->prp_small_pool, nvme_pci_iod_list(req)[0],
@@ -847,48 +857,28 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 		ret = nvme_pci_setup_prps(dev, req, &cmnd->rw);
 
 	if (ret != BLK_STS_OK)
-		goto out_unmap;
+		goto out;
 
 	ret = BLK_STS_IOERR;
 	if (blk_integrity_rq(req)) {
 		if (blk_rq_count_integrity_sg(q, req->bio) != 1)
-			goto out_unmap;
+			goto out;
 
 		sg_init_table(&iod->meta_sg, 1);
 		if (blk_rq_map_integrity_sg(q, req->bio, &iod->meta_sg) != 1)
-			goto out_unmap;
+			goto out;
 
 		if (!dma_map_sg(dev->dev, &iod->meta_sg, 1, dma_dir))
-			goto out_unmap;
+			goto out;
 
 		cmnd->rw.metadata = cpu_to_le64(sg_dma_address(&iod->meta_sg));
 	}
 
 	return BLK_STS_OK;
 
-out_unmap:
-	dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
 out:
-	nvme_free_iod(dev, req);
+	nvme_unmap_data(dev, req);
 	return ret;
-}
-
-static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
-{
-	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
-	enum dma_data_direction dma_dir = rq_data_dir(req) ?
-			DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
-	if (iod->nents) {
-		/* P2PDMA requests do not need to be unmapped */
-		if (!is_pci_p2pdma_page(sg_page(iod->sg)))
-			dma_unmap_sg(dev->dev, iod->sg, iod->nents, dma_dir);
-
-		if (blk_integrity_rq(req))
-			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
-	}
-
-	nvme_free_iod(dev, req);
 }
 
 /*
