@@ -416,6 +416,27 @@ int hl_device_suspend(struct hl_device *hdev)
 
 	pci_save_state(hdev->pdev);
 
+	/* Block future CS/VM/JOB completion operations */
+	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
+	if (rc) {
+		dev_err(hdev->dev, "Can't suspend while in reset\n");
+		return -EIO;
+	}
+
+	/* This blocks all other stuff that is not blocked by in_reset */
+	hdev->disabled = true;
+
+	/*
+	 * Flush anyone that is inside the critical section of enqueue
+	 * jobs to the H/W
+	 */
+	hdev->asic_funcs->hw_queues_lock(hdev);
+	hdev->asic_funcs->hw_queues_unlock(hdev);
+
+	/* Flush processes that are sending message to CPU */
+	mutex_lock(&hdev->send_cpu_message_lock);
+	mutex_unlock(&hdev->send_cpu_message_lock);
+
 	rc = hdev->asic_funcs->suspend(hdev);
 	if (rc)
 		dev_err(hdev->dev,
@@ -443,21 +464,38 @@ int hl_device_resume(struct hl_device *hdev)
 
 	pci_set_power_state(hdev->pdev, PCI_D0);
 	pci_restore_state(hdev->pdev);
-	rc = pci_enable_device(hdev->pdev);
+	rc = pci_enable_device_mem(hdev->pdev);
 	if (rc) {
 		dev_err(hdev->dev,
 			"Failed to enable PCI device in resume\n");
 		return rc;
 	}
 
+	pci_set_master(hdev->pdev);
+
 	rc = hdev->asic_funcs->resume(hdev);
 	if (rc) {
-		dev_err(hdev->dev,
-			"Failed to enable PCI access from device CPU\n");
-		return rc;
+		dev_err(hdev->dev, "Failed to resume device after suspend\n");
+		goto disable_device;
+	}
+
+
+	hdev->disabled = false;
+	atomic_set(&hdev->in_reset, 0);
+
+	rc = hl_device_reset(hdev, true, false);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to reset device during resume\n");
+		goto disable_device;
 	}
 
 	return 0;
+
+disable_device:
+	pci_clear_master(hdev->pdev);
+	pci_disable_device(hdev->pdev);
+
+	return rc;
 }
 
 static void hl_device_hard_reset_pending(struct work_struct *work)
