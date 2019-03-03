@@ -416,6 +416,9 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 	}
 	spin_unlock_bh(&dev->ps_lock);
 
+	if (!skb_queue_empty(&list))
+		ieee80211_sta_eosp(sta);
+
 	mt7603_ps_tx_list(dev, &list);
 
 	if (nframes)
