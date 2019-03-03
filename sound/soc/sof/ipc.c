@@ -33,7 +33,6 @@ struct snd_sof_ipc {
 	struct snd_sof_dev *sdev;
 
 	/* TX message work and status */
-	wait_queue_head_t wait_txq;
 	struct work_struct tx_kwork;
 	u32 msg_pending;
 
@@ -784,7 +783,6 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	INIT_LIST_HEAD(&ipc->tx_list);
 	INIT_LIST_HEAD(&ipc->reply_list);
 	INIT_LIST_HEAD(&ipc->empty_list);
-	init_waitqueue_head(&ipc->wait_txq);
 	INIT_WORK(&ipc->tx_kwork, ipc_tx_next_msg);
 	ipc->sdev = sdev;
 
