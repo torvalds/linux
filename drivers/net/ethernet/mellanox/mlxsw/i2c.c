@@ -167,7 +167,7 @@ static int mlxsw_i2c_wait_go_bit(struct i2c_client *client,
 	return err > 0 ? 0 : err;
 }
 
-/* Routine posts a command to ASIC though mail box. */
+/* Routine posts a command to ASIC through mail box. */
 static int mlxsw_i2c_write_cmd(struct i2c_client *client,
 			       struct mlxsw_i2c *mlxsw_i2c,
 			       int immediate)
