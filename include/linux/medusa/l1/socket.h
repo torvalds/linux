@@ -38,4 +38,12 @@ struct med_unix_addr_i {
 };
 
 extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
+
+/*
+ * The following routine makes a support for many of access types,
+ * and it is used both in L1 and L2 code. It is defined in
+ * l2/evtype_getsocket.c.
+ */
+extern medusa_answer_t socket_kobj_validate(struct socket *sock);
+
 #endif
