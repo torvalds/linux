@@ -1,3 +1,5 @@
+This ABI is deprecated and will be removed after 2021. It is
+replaced with the batadv generic netlink family.
 
 What:           /sys/class/net/<mesh_iface>/mesh/aggregated_ogms
 Date:           May 2010
