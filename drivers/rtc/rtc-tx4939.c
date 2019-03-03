@@ -111,7 +111,7 @@ static int tx4939_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	spin_unlock_irq(&pdata->lock);
 	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
 		(buf[3] << 8) | buf[2];
-	rtc_time_to_tm(sec, tm);
+	rtc_time64_to_tm(sec, tm);
 	return 0;
 }
 
@@ -123,7 +123,7 @@ static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long sec;
 	unsigned char buf[6];
 
-	rtc_tm_to_time(&alrm->time, &sec);
+	sec = rtc_tm_to_time64(&alrm->time);
 	buf[0] = 0;
 	buf[1] = 0;
 	buf[2] = sec;
@@ -166,7 +166,7 @@ static int tx4939_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	spin_unlock_irq(&pdata->lock);
 	sec = ((unsigned long)buf[5] << 24) | (buf[4] << 16) |
 		(buf[3] << 8) | buf[2];
-	rtc_time_to_tm(sec, &alrm->time);
+	rtc_time64_to_tm(sec, &alrm->time);
 	return rtc_valid_tm(&alrm->time);
 }
 
