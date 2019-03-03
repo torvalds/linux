@@ -16,6 +16,7 @@
 
 /* Typically only one byte is used for tail tag. */
 #define KSZ_EGRESS_TAG_LEN		1
+#define KSZ_INGRESS_TAG_LEN		1
 
 static struct sk_buff *ksz_common_xmit(struct sk_buff *skb,
 				       struct net_device *dev, int len)
@@ -140,4 +141,37 @@ const struct dsa_device_ops ksz9477_netdev_ops = {
 	.xmit	= ksz9477_xmit,
 	.rcv	= ksz9477_rcv,
 	.overhead = KSZ9477_INGRESS_TAG_LEN,
+};
+
+#define KSZ9893_TAIL_TAG_OVERRIDE	BIT(5)
+#define KSZ9893_TAIL_TAG_LOOKUP		BIT(6)
+
+static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct sk_buff *nskb;
+	u8 *addr;
+	u8 *tag;
+
+	nskb = ksz_common_xmit(skb, dev, KSZ_INGRESS_TAG_LEN);
+	if (!nskb)
+		return NULL;
+
+	/* Tag encoding */
+	tag = skb_put(nskb, KSZ_INGRESS_TAG_LEN);
+	addr = skb_mac_header(nskb);
+
+	*tag = BIT(dp->index);
+
+	if (is_link_local_ether_addr(addr))
+		*tag |= KSZ9893_TAIL_TAG_OVERRIDE;
+
+	return nskb;
+}
+
+const struct dsa_device_ops ksz9893_netdev_ops = {
+	.xmit	= ksz9893_xmit,
+	.rcv	= ksz9477_rcv,
+	.overhead = KSZ_INGRESS_TAG_LEN,
 };
