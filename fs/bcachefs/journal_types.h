@@ -193,9 +193,6 @@ struct journal {
 		struct journal_entry_pin_list *data;
 	}			pin;
 
-	struct journal_entry_pin *flush_in_progress;
-	wait_queue_head_t	pin_flush_wait;
-
 	u64			replay_journal_seq;
 
 	struct mutex		blacklist_lock;
@@ -206,10 +203,13 @@ struct journal {
 	spinlock_t		err_lock;
 
 	struct delayed_work	reclaim_work;
-	unsigned long		last_flushed;
-
-	/* protects advancing ja->last_idx: */
 	struct mutex		reclaim_lock;
+	unsigned long		last_flushed;
+	struct journal_entry_pin *flush_in_progress;
+	wait_queue_head_t	pin_flush_wait;
+
+	/* protects advancing ja->discard_idx: */
+	struct mutex		discard_lock;
 	unsigned		write_delay_ms;
 	unsigned		reclaim_delay_ms;
 
@@ -240,17 +240,15 @@ struct journal_device {
 
 	unsigned		sectors_free;
 
-	/* Journal bucket we're currently writing to */
-	unsigned		cur_idx;
-
-	/* Last journal bucket that still contains an open journal entry */
-
 	/*
-	 * j->lock and j->reclaim_lock must both be held to modify, j->lock
-	 * sufficient to read:
+	 * discard_idx <= dirty_idx_ondisk <= dirty_idx <= cur_idx:
 	 */
-	unsigned		last_idx;
+	unsigned		discard_idx;		/* Next bucket to discard */
+	unsigned		dirty_idx_ondisk;
+	unsigned		dirty_idx;
+	unsigned		cur_idx;		/* Journal bucket we're currently writing to */
 	unsigned		nr;
+
 	u64			*buckets;
 
 	/* Bio for journal reads/writes to this device */

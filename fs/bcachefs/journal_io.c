@@ -625,11 +625,12 @@ static void bch2_journal_read_device(struct closure *cl)
 	ja->sectors_free = 0;
 
 	/*
-	 * Set last_idx to indicate the entire journal is full and needs to be
+	 * Set dirty_idx to indicate the entire journal is full and needs to be
 	 * reclaimed - journal reclaim will immediately reclaim whatever isn't
 	 * pinned when it first runs:
 	 */
-	ja->last_idx = (ja->cur_idx + 1) % ja->nr;
+	ja->discard_idx = ja->dirty_idx_ondisk =
+		ja->dirty_idx = (ja->cur_idx + 1) % ja->nr;
 out:
 	kvpfree(buf.data, buf.size);
 	percpu_ref_put(&ca->io_ref);
@@ -1069,11 +1070,12 @@ static void journal_write_done(struct closure *cl)
 		goto err;
 
 	spin_lock(&j->lock);
-	j->seq_ondisk		= seq;
-	j->last_seq_ondisk	= last_seq;
-
 	if (seq >= j->pin.front)
 		journal_seq_pin(j, seq)->devs = devs;
+
+	j->seq_ondisk		= seq;
+	j->last_seq_ondisk	= last_seq;
+	bch2_journal_space_available(j);
 
 	/*
 	 * Updating last_seq_ondisk may let bch2_journal_reclaim_work() discard

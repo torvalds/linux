@@ -14,22 +14,20 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	unsigned next = (ja->cur_idx + 1) % ja->nr;
-	unsigned available = (ja->last_idx + ja->nr - next) % ja->nr;
+	unsigned available = (ja->discard_idx + ja->nr - next) % ja->nr;
 
 	/*
 	 * Allocator startup needs some journal space before we can do journal
 	 * replay:
 	 */
-	if (available &&
-	    test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags))
-		available--;
+	if (available && test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags))
+		--available;
 
 	/*
 	 * Don't use the last bucket unless writing the new last_seq
 	 * will make another bucket available:
 	 */
-	if (available &&
-	    journal_last_seq(j) <= ja->bucket_seq[ja->last_idx])
+	if (available && ja->dirty_idx_ondisk == ja->dirty_idx)
 		--available;
 
 	return available;
@@ -55,12 +53,34 @@ void bch2_journal_space_available(struct journal *j)
 	for_each_member_device_rcu(ca, c, i,
 				   &c->rw_devs[BCH_DATA_JOURNAL]) {
 		struct journal_device *ja = &ca->journal;
-		unsigned buckets_this_device, sectors_this_device;
 
 		if (!ja->nr)
 			continue;
 
+		while (ja->dirty_idx != ja->cur_idx &&
+		       ja->bucket_seq[ja->dirty_idx] < journal_last_seq(j))
+			ja->dirty_idx = (ja->dirty_idx + 1) % ja->nr;
+
+		while (ja->dirty_idx_ondisk != ja->dirty_idx &&
+		       ja->bucket_seq[ja->dirty_idx_ondisk] < j->last_seq_ondisk)
+			ja->dirty_idx_ondisk = (ja->dirty_idx_ondisk + 1) % ja->nr;
+
 		nr_online++;
+	}
+
+	if (nr_online < c->opts.metadata_replicas_required) {
+		ret = -EROFS;
+		sectors_next_entry = 0;
+		goto out;
+	}
+
+	for_each_member_device_rcu(ca, c, i,
+				   &c->rw_devs[BCH_DATA_JOURNAL]) {
+		struct journal_device *ja = &ca->journal;
+		unsigned buckets_this_device, sectors_this_device;
+
+		if (!ja->nr)
+			continue;
 
 		buckets_this_device = bch2_journal_dev_buckets_available(j, ja);
 		sectors_this_device = ja->sectors_free;
@@ -100,20 +120,17 @@ void bch2_journal_space_available(struct journal *j)
 
 		nr_devs++;
 	}
-	rcu_read_unlock();
 
-	if (nr_online < c->opts.metadata_replicas_required) {
-		ret = -EROFS;
-		sectors_next_entry = 0;
-	} else if (!sectors_next_entry ||
-		   nr_devs < min_t(unsigned, nr_online,
-				   c->opts.metadata_replicas)) {
+	if (!sectors_next_entry ||
+	    nr_devs < min_t(unsigned, nr_online, c->opts.metadata_replicas)) {
 		ret = -ENOSPC;
 		sectors_next_entry = 0;
 	} else if (!fifo_free(&j->pin)) {
 		ret = -ENOSPC;
 		sectors_next_entry = 0;
 	}
+out:
+	rcu_read_unlock();
 
 	j->cur_entry_sectors	= sectors_next_entry;
 	j->cur_entry_error	= ret;
@@ -129,25 +146,23 @@ static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 	bool ret;
 
 	spin_lock(&j->lock);
-	ret = ja->nr &&
-		ja->last_idx != ja->cur_idx &&
-		ja->bucket_seq[ja->last_idx] < j->last_seq_ondisk;
+	ret = ja->discard_idx != ja->dirty_idx_ondisk;
 	spin_unlock(&j->lock);
 
 	return ret;
 }
 
 /*
- * Advance ja->last_idx as long as it points to buckets that are no longer
+ * Advance ja->discard_idx as long as it points to buckets that are no longer
  * dirty, issuing discards if necessary:
  */
-static void journal_do_discards(struct journal *j)
+static void bch2_journal_do_discards(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	unsigned iter;
 
-	mutex_lock(&j->reclaim_lock);
+	mutex_lock(&j->discard_lock);
 
 	for_each_rw_member(ca, c, iter) {
 		struct journal_device *ja = &ca->journal;
@@ -157,18 +172,18 @@ static void journal_do_discards(struct journal *j)
 			    bdev_max_discard_sectors(ca->disk_sb.bdev))
 				blkdev_issue_discard(ca->disk_sb.bdev,
 					bucket_to_sector(ca,
-						ja->buckets[ja->last_idx]),
+						ja->buckets[ja->discard_idx]),
 					ca->mi.bucket_size, GFP_NOIO);
 
 			spin_lock(&j->lock);
-			ja->last_idx = (ja->last_idx + 1) % ja->nr;
+			ja->discard_idx = (ja->discard_idx + 1) % ja->nr;
 
 			bch2_journal_space_available(j);
 			spin_unlock(&j->lock);
 		}
 	}
 
-	mutex_unlock(&j->reclaim_lock);
+	mutex_unlock(&j->discard_lock);
 }
 
 /*
@@ -399,7 +414,7 @@ void bch2_journal_reclaim_work(struct work_struct *work)
 	unsigned iter, bucket_to_flush, min_nr = 0;
 	u64 seq_to_flush = 0;
 
-	journal_do_discards(j);
+	bch2_journal_do_discards(j);
 
 	mutex_lock(&j->reclaim_lock);
 	spin_lock(&j->lock);

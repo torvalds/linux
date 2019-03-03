@@ -760,6 +760,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 
 	while (ja->nr < nr) {
 		struct open_bucket *ob = NULL;
+		unsigned pos;
 		long bucket;
 
 		if (new_fs) {
@@ -786,20 +787,24 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 			preempt_disable();
 		}
 
-		__array_insert_item(ja->buckets,		ja->nr, ja->last_idx);
-		__array_insert_item(ja->bucket_seq,		ja->nr, ja->last_idx);
-		__array_insert_item(journal_buckets->buckets,	ja->nr, ja->last_idx);
-
-		ja->buckets[ja->last_idx] = bucket;
-		ja->bucket_seq[ja->last_idx] = 0;
-		journal_buckets->buckets[ja->last_idx] = cpu_to_le64(bucket);
-
-		if (ja->last_idx < ja->nr) {
-			if (ja->cur_idx >= ja->last_idx)
-				ja->cur_idx++;
-			ja->last_idx++;
-		}
+		pos = ja->nr ? (ja->cur_idx + 1) % ja->nr : 0;
+		__array_insert_item(ja->buckets,		ja->nr, pos);
+		__array_insert_item(ja->bucket_seq,		ja->nr, pos);
+		__array_insert_item(journal_buckets->buckets,	ja->nr, pos);
 		ja->nr++;
+
+		ja->buckets[pos] = bucket;
+		ja->bucket_seq[pos] = 0;
+		journal_buckets->buckets[pos] = cpu_to_le64(bucket);
+
+		if (pos <= ja->discard_idx)
+			ja->discard_idx = (ja->discard_idx + 1) % ja->nr;
+		if (pos <= ja->dirty_idx_ondisk)
+			ja->dirty_idx_ondisk = (ja->dirty_idx_ondisk + 1) % ja->nr;
+		if (pos <= ja->dirty_idx)
+			ja->dirty_idx = (ja->dirty_idx + 1) % ja->nr;
+		if (pos <= ja->cur_idx)
+			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
 		bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_JOURNAL,
 					  ca->mi.bucket_size,
@@ -1042,6 +1047,7 @@ int bch2_fs_journal_init(struct journal *j)
 	mutex_init(&j->blacklist_lock);
 	INIT_LIST_HEAD(&j->seq_blacklist);
 	mutex_init(&j->reclaim_lock);
+	mutex_init(&j->discard_lock);
 
 	lockdep_init_map(&j->res_map, "journal res", &res_key, 0);
 
@@ -1138,13 +1144,17 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 		       "dev %u:\n"
 		       "\tnr\t\t%u\n"
 		       "\tavailable\t%u:%u\n"
-		       "\tcur_idx\t\t%u (seq %llu)\n"
-		       "\tlast_idx\t%u (seq %llu)\n",
+		       "\tdiscard_idx\t\t%u\n"
+		       "\tdirty_idx_ondisk\t%u (seq %llu)\n"
+		       "\tdirty_idx\t\t%u (seq %llu)\n"
+		       "\tcur_idx\t\t%u (seq %llu)\n",
 		       iter, ja->nr,
 		       bch2_journal_dev_buckets_available(j, ja),
 		       ja->sectors_free,
-		       ja->cur_idx,	ja->bucket_seq[ja->cur_idx],
-		       ja->last_idx,	ja->bucket_seq[ja->last_idx]);
+		       ja->discard_idx,
+		       ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk],
+		       ja->dirty_idx,		ja->bucket_seq[ja->dirty_idx],
+		       ja->cur_idx,		ja->bucket_seq[ja->cur_idx]);
 	}
 
 	spin_unlock(&j->lock);
