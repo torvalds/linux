@@ -222,6 +222,12 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, xrtcdev);
 
+	xrtcdev->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(xrtcdev->rtc))
+		return PTR_ERR(xrtcdev->rtc);
+
+	xrtcdev->rtc->ops = &xlnx_rtc_ops;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	xrtcdev->reg_base = devm_ioremap_resource(&pdev->dev, res);
@@ -263,9 +269,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	xrtcdev->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					 &xlnx_rtc_ops, THIS_MODULE);
-	return PTR_ERR_OR_ZERO(xrtcdev->rtc);
+	return rtc_register_device(xrtcdev->rtc);
 }
 
 static int xlnx_rtc_remove(struct platform_device *pdev)
