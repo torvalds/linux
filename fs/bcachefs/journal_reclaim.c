@@ -45,6 +45,7 @@ void bch2_journal_space_available(struct journal *j)
 	unsigned unwritten_sectors = j->reservations.prev_buf_unwritten
 		? journal_prev_buf(j)->sectors
 		: 0;
+	bool can_discard = false;
 	int ret = 0;
 
 	lockdep_assert_held(&j->lock);
@@ -65,8 +66,13 @@ void bch2_journal_space_available(struct journal *j)
 		       ja->bucket_seq[ja->dirty_idx_ondisk] < j->last_seq_ondisk)
 			ja->dirty_idx_ondisk = (ja->dirty_idx_ondisk + 1) % ja->nr;
 
+		if (ja->discard_idx != ja->dirty_idx_ondisk)
+			can_discard = true;
+
 		nr_online++;
 	}
+
+	j->can_discard = can_discard;
 
 	if (nr_online < c->opts.metadata_replicas_required) {
 		ret = -EROFS;
@@ -156,7 +162,7 @@ static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
  * Advance ja->discard_idx as long as it points to buckets that are no longer
  * dirty, issuing discards if necessary:
  */
-static void bch2_journal_do_discards(struct journal *j)
+void bch2_journal_do_discards(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;

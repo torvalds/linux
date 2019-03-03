@@ -322,6 +322,7 @@ static int __journal_res_get(struct journal *j, struct journal_res *res,
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf;
+	bool can_discard;
 	int ret;
 retry:
 	if (journal_res_get_fast(j, res, flags))
@@ -370,18 +371,28 @@ retry:
 	    !j->res_get_blocked_start)
 		j->res_get_blocked_start = local_clock() ?: 1;
 
+	can_discard = j->can_discard;
 	spin_unlock(&j->lock);
 
 	if (!ret)
 		goto retry;
+
 	if (ret == -ENOSPC) {
 		/*
 		 * Journal is full - can't rely on reclaim from work item due to
 		 * freezing:
 		 */
 		trace_journal_full(c);
-		if (!(flags & JOURNAL_RES_GET_NONBLOCK))
+
+		if (!(flags & JOURNAL_RES_GET_NONBLOCK)) {
+			if (can_discard) {
+				bch2_journal_do_discards(j);
+				goto retry;
+			}
+
 			bch2_journal_reclaim_work(&j->reclaim_work.work);
+		}
+
 		ret = -EAGAIN;
 	}
 

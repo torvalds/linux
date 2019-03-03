@@ -210,6 +210,8 @@ struct journal {
 
 	/* protects advancing ja->discard_idx: */
 	struct mutex		discard_lock;
+	bool			can_discard;
+
 	unsigned		write_delay_ms;
 	unsigned		reclaim_delay_ms;
 
