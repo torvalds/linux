@@ -56,6 +56,13 @@
 #define CHT_WC_USBSRC_TYPE_OTHER	8
 #define CHT_WC_USBSRC_TYPE_DCP_EXTPHY	9
 
+#define CHT_WC_CHGDISCTRL		0x5e2f
+#define CHT_WC_CHGDISCTRL_OUT		BIT(0)
+/* 0 - open drain, 1 - regular push-pull output */
+#define CHT_WC_CHGDISCTRL_DRV		BIT(4)
+/* 0 - pin is controlled by SW, 1 - by HW */
+#define CHT_WC_CHGDISCTRL_FN		BIT(6)
+
 #define CHT_WC_PWRSRC_IRQ		0x6e03
 #define CHT_WC_PWRSRC_IRQ_MASK		0x6e0f
 #define CHT_WC_PWRSRC_STS		0x6e1e
@@ -218,6 +225,18 @@ static void cht_wc_extcon_set_otgmode(struct cht_wc_extcon_data *ext,
 		dev_err(ext->dev, "Error updating CHGRCTRL1 reg: %d\n", ret);
 }
 
+static void cht_wc_extcon_enable_charging(struct cht_wc_extcon_data *ext,
+					  bool enable)
+{
+	unsigned int val = enable ? 0 : CHT_WC_CHGDISCTRL_OUT;
+	int ret;
+
+	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGDISCTRL,
+				 CHT_WC_CHGDISCTRL_OUT, val);
+	if (ret)
+		dev_err(ext->dev, "Error updating CHGDISCTRL reg: %d\n", ret);
+}
+
 /* Small helper to sync EXTCON_CHG_USB_SDP and EXTCON_USB state */
 static void cht_wc_extcon_set_state(struct cht_wc_extcon_data *ext,
 				    unsigned int cable, bool state)
@@ -242,6 +261,7 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 
 	id = cht_wc_extcon_get_id(ext, pwrsrc_sts);
 	if (id == USB_ID_GND) {
+		cht_wc_extcon_enable_charging(ext, false);
 		cht_wc_extcon_set_otgmode(ext, true);
 
 		/* The 5v boost causes a false VBUS / SDP detect, skip */
@@ -249,6 +269,7 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 	}
 
 	cht_wc_extcon_set_otgmode(ext, false);
+	cht_wc_extcon_enable_charging(ext, true);
 
 	/* Plugged into a host/charger or not connected? */
 	if (!(pwrsrc_sts & CHT_WC_PWRSRC_VBUS)) {
@@ -302,6 +323,14 @@ static int cht_wc_extcon_sw_control(struct cht_wc_extcon_data *ext, bool enable)
 {
 	int ret, mask, val;
 
+	val = enable ? 0 : CHT_WC_CHGDISCTRL_FN;
+	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGDISCTRL,
+				 CHT_WC_CHGDISCTRL_FN, val);
+	if (ret)
+		dev_err(ext->dev,
+			"Error setting sw control for CHGDIS pin: %d\n",
+			ret);
+
 	mask = CHT_WC_CHGRCTRL0_SWCONTROL | CHT_WC_CHGRCTRL0_CCSM_OFF;
 	val = enable ? mask : 0;
 	ret = regmap_update_bits(ext->regmap, CHT_WC_CHGRCTRL0, mask, val);
@@ -353,7 +382,10 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	/* Enable sw control */
 	ret = cht_wc_extcon_sw_control(ext, true);
 	if (ret)
-		return ret;
+		goto disable_sw_control;
+
+	/* Disable charging by external battery charger */
+	cht_wc_extcon_enable_charging(ext, false);
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(ext->dev, ext->edev);
