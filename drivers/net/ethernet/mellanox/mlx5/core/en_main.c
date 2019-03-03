@@ -2302,6 +2302,10 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 			goto err_close_channels;
 	}
 
+	if (!IS_ERR_OR_NULL(priv->tx_reporter))
+		devlink_health_reporter_state_update(priv->tx_reporter,
+						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
+
 	kvfree(cparam);
 	return 0;
 
