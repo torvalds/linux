@@ -4569,16 +4569,19 @@ dump_err:
 int devlink_health_report(struct devlink_health_reporter *reporter,
 			  const char *msg, void *priv_ctx)
 {
+	enum devlink_health_reporter_state prev_health_state;
 	struct devlink *devlink = reporter->devlink;
 
 	/* write a log message of the current error */
 	WARN_ON(!msg);
 	trace_devlink_health_report(devlink, reporter->ops->name, msg);
 	reporter->error_count++;
+	prev_health_state = reporter->health_state;
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
 
 	/* abort if the previous error wasn't recovered */
 	if (reporter->auto_recover &&
-	    (reporter->health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
+	    (prev_health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
 	     jiffies - reporter->last_recovery_ts <
 	     msecs_to_jiffies(reporter->graceful_period))) {
 		trace_devlink_health_recover_aborted(devlink,
