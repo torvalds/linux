@@ -611,6 +611,15 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
 	return true;
 }
 
+/*
+ * This driver has a lock-free design because there are IP cores (at least
+ * R-Car Gen2) which have an inherent race condition in their hardware design.
+ * There, we need to clear RCAR_BUS_MASK_DATA bits as soon as possible after
+ * the interrupt was generated, otherwise an unwanted repeated message gets
+ * generated. It turned out that taking a spinlock at the beginning of the ISR
+ * was already causing repeated messages. Thus, this driver was converted to
+ * the now lockless behaviour. Please keep this in mind when hacking the driver.
+ */
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
