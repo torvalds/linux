@@ -72,6 +72,25 @@ static const struct ts_dmi_data chuwi_hi8_pro_data = {
 	.properties	= chuwi_hi8_pro_props,
 };
 
+static const struct property_entry chuwi_hi10_air_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1981),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1271),
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 99),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 9),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_U32("touchscreen-fuzz-x", 5),
+	PROPERTY_ENTRY_U32("touchscreen-fuzz-y", 4),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-chuwi-hi10-air.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data chuwi_hi10_air_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= chuwi_hi10_air_props,
+};
+
 static const struct property_entry chuwi_vi8_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 4),
 	PROPERTY_ENTRY_U32("touchscreen-min-y", 6),
@@ -544,6 +563,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hampoo"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X1D3_C806N"),
+		},
+	},
+	{
+		/* Chuwi Hi10 Air */
+		.driver_data = (void *)&chuwi_hi10_air_data,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
+			DMI_MATCH(DMI_PRODUCT_SKU, "P1W6_C109D_B"),
 		},
 	},
 	{
