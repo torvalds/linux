@@ -414,7 +414,7 @@ static int mlxsw_i2c_skb_transmit(void *bus_priv, struct sk_buff *skb,
 static int
 mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	       const struct mlxsw_config_profile *profile,
-	       struct mlxsw_res *resources)
+	       struct mlxsw_res *res)
 {
 	struct mlxsw_i2c *mlxsw_i2c = bus_priv;
 
