@@ -182,6 +182,8 @@ int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 bool mlxsw_core_schedule_work(struct work_struct *work);
 void mlxsw_core_flush_owq(void);
+int mlxsw_core_resources_query(struct mlxsw_core *mlxsw_core, char *mbox,
+			       struct mlxsw_res *res);
 
 #define MLXSW_CONFIG_PROFILE_SWID_COUNT 8
 
