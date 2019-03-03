@@ -4409,11 +4409,6 @@ struct devlink_health_reporter {
 	u64 last_recovery_ts;
 };
 
-enum devlink_health_reporter_state {
-	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
-	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
-};
-
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
 {
@@ -4497,6 +4492,23 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 	kfree(reporter);
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
+
+void
+devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
+				     enum devlink_health_reporter_state state)
+{
+	if (WARN_ON(state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY &&
+		    state != DEVLINK_HEALTH_REPORTER_STATE_ERROR))
+		return;
+
+	if (reporter->health_state == state)
+		return;
+
+	reporter->health_state = state;
+	trace_devlink_health_reporter_state_update(reporter->devlink,
+						   reporter->ops->name, state);
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_state_update);
 
 static int
 devlink_health_reporter_recover(struct devlink_health_reporter *reporter,

@@ -140,6 +140,37 @@ TRACE_EVENT(devlink_health_recover_aborted,
 		  __entry->time_since_last_recover)
 );
 
+/*
+ * Tracepoint for devlink health reporter state update:
+ */
+TRACE_EVENT(devlink_health_reporter_state_update,
+	TP_PROTO(const struct devlink *devlink, const char *reporter_name,
+		 bool new_state),
+
+	TP_ARGS(devlink, reporter_name, new_state),
+
+	TP_STRUCT__entry(
+		__string(bus_name, devlink->dev->bus->name)
+		__string(dev_name, dev_name(devlink->dev))
+		__string(driver_name, devlink->dev->driver->name)
+		__string(reporter_name, reporter_name)
+		__field(u8, new_state)
+	),
+
+	TP_fast_assign(
+		__assign_str(bus_name, devlink->dev->bus->name);
+		__assign_str(dev_name, dev_name(devlink->dev));
+		__assign_str(driver_name, devlink->dev->driver->name);
+		__assign_str(reporter_name, reporter_name);
+		__entry->new_state = new_state;
+	),
+
+	TP_printk("bus_name=%s dev_name=%s driver_name=%s reporter_name=%s: new_state=%d",
+		  __get_str(bus_name), __get_str(dev_name),
+		  __get_str(driver_name), __get_str(reporter_name),
+		  __entry->new_state)
+);
+
 #endif /* _TRACE_DEVLINK_H */
 
 /* This part must be outside protection */
