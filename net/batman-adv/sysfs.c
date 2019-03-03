@@ -7,6 +7,7 @@
 #include "sysfs.h"
 #include "main.h"
 
+#include <asm/current.h>
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/device.h>
@@ -22,6 +23,7 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
@@ -39,6 +41,16 @@
 #include "netlink.h"
 #include "network-coding.h"
 #include "soft-interface.h"
+
+/**
+ * batadv_sysfs_deprecated() - Log use of deprecated batadv sysfs access
+ * @attr: attribute which was accessed
+ */
+static void batadv_sysfs_deprecated(struct attribute *attr)
+{
+	pr_warn_ratelimited(DEPRECATED "%s (pid %d) Use of sysfs file \"%s\".\nUse batadv genl family instead",
+			    current->comm, task_pid_nr(current), attr->name);
+}
 
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 {
@@ -129,6 +141,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	ssize_t length;							\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	length = __batadv_store_bool_attr(buff, count, _post_func, attr,\
 					  &bat_priv->_name, net_dev);	\
 									\
@@ -143,6 +156,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	return sprintf(buff, "%s\n",					\
 		       atomic_read(&bat_priv->_name) == 0 ?		\
 		       "disabled" : "enabled");				\
@@ -166,6 +180,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);		\
 	ssize_t length;							\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	length = __batadv_store_uint_attr(buff, count, _min, _max,	\
 					  _post_func, attr,		\
 					  &bat_priv->_var, net_dev,	\
@@ -182,6 +197,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 {									\
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);	\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	return sprintf(buff, "%i\n", atomic_read(&bat_priv->_var));	\
 }									\
 
@@ -206,6 +222,7 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 					      attr, &vlan->_name,	\
 					      bat_priv->soft_iface);	\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	if (vlan->vid)							\
 		batadv_netlink_notify_vlan(bat_priv, vlan);		\
 	else								\
@@ -226,6 +243,7 @@ ssize_t batadv_show_vlan_##_name(struct kobject *kobj,			\
 			     atomic_read(&vlan->_name) == 0 ?		\
 			     "disabled" : "enabled");			\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	batadv_softif_vlan_put(vlan);					\
 	return res;							\
 }
@@ -247,6 +265,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 	struct batadv_priv *bat_priv;					\
 	ssize_t length;							\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
@@ -274,6 +293,7 @@ ssize_t batadv_show_##_name(struct kobject *kobj,			\
 	struct batadv_hard_iface *hard_iface;				\
 	ssize_t length;							\
 									\
+	batadv_sysfs_deprecated(attr);					\
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);		\
 	if (!hard_iface)						\
 		return 0;						\
@@ -418,6 +438,7 @@ static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
+	batadv_sysfs_deprecated(attr);
 	return sprintf(buff, "%s\n", bat_priv->algo_ops->name);
 }
 
@@ -433,6 +454,8 @@ static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	int bytes_written;
+
+	batadv_sysfs_deprecated(attr);
 
 	/* GW mode is not available if the routing algorithm in use does not
 	 * implement the GW API
@@ -467,6 +490,8 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	char *curr_gw_mode_str;
 	int gw_mode_tmp = -1;
+
+	batadv_sysfs_deprecated(attr);
 
 	/* toggling GW mode is allowed only if the routing algorithm in use
 	 * provides the GW API
@@ -542,6 +567,8 @@ static ssize_t batadv_show_gw_sel_class(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
+	batadv_sysfs_deprecated(attr);
+
 	/* GW selection class is not available if the routing algorithm in use
 	 * does not implement the GW API
 	 */
@@ -561,6 +588,8 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	ssize_t length;
+
+	batadv_sysfs_deprecated(attr);
 
 	/* setting the GW selection class is allowed only if the routing
 	 * algorithm in use implements the GW API
@@ -592,6 +621,8 @@ static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	u32 down, up;
 
+	batadv_sysfs_deprecated(attr);
+
 	down = atomic_read(&bat_priv->gw.bandwidth_down);
 	up = atomic_read(&bat_priv->gw.bandwidth_up);
 
@@ -606,6 +637,8 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	ssize_t length;
+
+	batadv_sysfs_deprecated(attr);
 
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
@@ -631,6 +664,7 @@ static ssize_t batadv_show_isolation_mark(struct kobject *kobj,
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
 
+	batadv_sysfs_deprecated(attr);
 	return sprintf(buff, "%#.8x/%#.8x\n", bat_priv->isolation_mark,
 		       bat_priv->isolation_mark_mask);
 }
@@ -653,6 +687,8 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	u32 mark, mask;
 	char *mask_ptr;
+
+	batadv_sysfs_deprecated(attr);
 
 	/* parse the mask if it has been specified, otherwise assume the mask is
 	 * the biggest possible
@@ -909,6 +945,8 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 	ssize_t length;
 	const char *ifname;
 
+	batadv_sysfs_deprecated(attr);
+
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return 0;
@@ -1013,6 +1051,8 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct batadv_store_mesh_work *store_work;
 
+	batadv_sysfs_deprecated(attr);
+
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
 
@@ -1043,6 +1083,8 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct batadv_hard_iface *hard_iface;
 	ssize_t length;
+
+	batadv_sysfs_deprecated(attr);
 
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
@@ -1095,6 +1137,8 @@ static ssize_t batadv_store_throughput_override(struct kobject *kobj,
 	u32 old_tp_override;
 	bool ret;
 
+	batadv_sysfs_deprecated(attr);
+
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
 		return -EINVAL;
@@ -1133,6 +1177,8 @@ static ssize_t batadv_show_throughput_override(struct kobject *kobj,
 	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
 	struct batadv_hard_iface *hard_iface;
 	u32 tp_override;
+
+	batadv_sysfs_deprecated(attr);
 
 	hard_iface = batadv_hardif_get_by_netdev(net_dev);
 	if (!hard_iface)
