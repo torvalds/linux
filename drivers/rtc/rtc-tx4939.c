@@ -123,13 +123,6 @@ static int tx4939_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long sec;
 	unsigned char buf[6];
 
-	if (alrm->time.tm_sec < 0 ||
-	    alrm->time.tm_min < 0 ||
-	    alrm->time.tm_hour < 0 ||
-	    alrm->time.tm_mday < 0 ||
-	    alrm->time.tm_mon < 0 ||
-	    alrm->time.tm_year < 0)
-		return -EINVAL;
 	rtc_tm_to_time(&alrm->time, &sec);
 	buf[0] = 0;
 	buf[1] = 0;
