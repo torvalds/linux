@@ -970,7 +970,8 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 
 		if (sectors > ja->sectors_free &&
 		    sectors <= ca->mi.bucket_size &&
-		    bch2_journal_dev_buckets_available(j, ja)) {
+		    bch2_journal_dev_buckets_available(j, ja,
+					journal_space_discarded)) {
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 			ja->sectors_free = ca->mi.bucket_size;
 		}

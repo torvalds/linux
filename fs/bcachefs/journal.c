@@ -1160,7 +1160,7 @@ ssize_t bch2_journal_print_debug(struct journal *j, char *buf)
 		       "\tdirty_idx\t\t%u (seq %llu)\n"
 		       "\tcur_idx\t\t%u (seq %llu)\n",
 		       iter, ja->nr,
-		       bch2_journal_dev_buckets_available(j, ja),
+		       bch2_journal_dev_buckets_available(j, ja, journal_space_discarded),
 		       ja->sectors_free,
 		       ja->discard_idx,
 		       ja->dirty_idx_ondisk,	ja->bucket_seq[ja->dirty_idx_ondisk],
