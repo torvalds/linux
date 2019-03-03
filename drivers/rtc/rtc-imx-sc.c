@@ -41,7 +41,7 @@ static int imx_sc_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	rtc_time_to_tm(msg.time, tm);
+	rtc_time64_to_tm(msg.time, tm);
 
 	return 0;
 }
