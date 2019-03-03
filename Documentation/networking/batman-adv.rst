@@ -74,23 +74,9 @@ All mesh wide settings can be found in batman's own interface folder::
   bridge_loop_avoidance gw_sel_class  network_coding
   distributed_arp_table hop_penalty   orig_interval
 
-There is a special folder for debugging information::
-
-  $ ls /sys/kernel/debug/batman_adv/bat0/
-  bla_backbone_table log         neighbors         transtable_local
-  bla_claim_table    mcast_flags originators
-  dat_cache          nc          socket
-  gateways           nc_nodes    transtable_global
-
-Some of the files contain all sort of status information regarding the mesh
-network. For example, you can view the table of originators (mesh
-participants) with::
-
-  $ cat /sys/kernel/debug/batman_adv/bat0/originators
-
-Other files allow to change batman's behaviour to better fit your requirements.
-For instance, you can check the current originator interval (value in
-milliseconds which determines how often batman sends its broadcast packets)::
+Some files allow to change batman-adv's behaviour to better fit your
+requirements. For instance, you can check the current originator interval (value
+in milliseconds which determines how often batman sends its broadcast packets)::
 
   $ cat /sys/class/net/bat0/mesh/orig_interval
   1000
@@ -102,6 +88,10 @@ and also change its value::
 In very mobile scenarios, you might want to adjust the originator interval to a
 lower value. This will make the mesh more responsive to topology changes, but
 will also increase the overhead.
+
+Information about the current state can be accessed via the batadv generic
+netlink family. batctl provides human readable version via its debug tables
+subcommands.
 
 
 Usage
@@ -147,10 +137,9 @@ batman-adv module. When building batman-adv as part of kernel, use "make
 menuconfig" and enable the option ``B.A.T.M.A.N. debugging``
 (``CONFIG_BATMAN_ADV_DEBUG=y``).
 
-Those additional debug messages can be accessed using a special file in
-debugfs::
+Those additional debug messages can be accessed using the perf infrastructure::
 
-  $ cat /sys/kernel/debug/batman_adv/bat0/log
+  $ trace-cmd stream -e batadv:batadv_dbg
 
 The additional debug output is by default disabled. It can be enabled during
 run time. Following log_levels are defined:
