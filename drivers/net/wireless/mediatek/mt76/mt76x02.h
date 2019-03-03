@@ -118,6 +118,7 @@ struct mt76x02_dev {
 	unsigned long ed_trigger_timeout;
 	bool ed_tx_blocked;
 	bool ed_monitor;
+	u8 ed_monitor_enabled;
 	u8 ed_monitor_learning;
 	u8 ed_trigger;
 	u8 ed_silent;
