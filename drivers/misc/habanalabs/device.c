@@ -218,6 +218,7 @@ static int device_early_init(struct hl_device *hdev)
 	spin_lock_init(&hdev->hw_queues_mirror_lock);
 	atomic_set(&hdev->in_reset, 0);
 	atomic_set(&hdev->fd_open_cnt, 0);
+	atomic_set(&hdev->cs_active_cnt, 0);
 
 	return 0;
 

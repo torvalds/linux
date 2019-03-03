@@ -1056,13 +1056,15 @@ struct hl_device_reset_work {
  * @cb_pool_lock: protects the CB pool.
  * @user_ctx: current user context executing.
  * @dram_used_mem: current DRAM memory consumption.
- * @in_reset: is device in reset flow.
- * @curr_pll_profile: current PLL profile.
- * @fd_open_cnt: number of open user processes.
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, KMD will restore this
  *             value and update the F/W after the re-initialization
+ * @in_reset: is device in reset flow.
+ * @curr_pll_profile: current PLL profile.
+ * @fd_open_cnt: number of open user processes.
+ * @cs_active_cnt: number of active command submissions on this device (active
+ *                 means already in H/W queues)
  * @major: habanalabs KMD major.
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since KMD loading.
@@ -1128,11 +1130,12 @@ struct hl_device {
 	struct hl_ctx			*user_ctx;
 
 	atomic64_t			dram_used_mem;
+	u64				timeout_jiffies;
+	u64				max_power;
 	atomic_t			in_reset;
 	atomic_t			curr_pll_profile;
 	atomic_t			fd_open_cnt;
-	u64				timeout_jiffies;
-	u64				max_power;
+	atomic_t			cs_active_cnt;
 	u32				major;
 	u32				high_pll;
 	u32				soft_reset_cnt;
