@@ -49,7 +49,6 @@
 
 #define RTC_CALIB_DEF		0x198233
 #define RTC_CALIB_MASK		0x1FFFFF
-#define RTC_SEC_MAX_VAL		0xFFFFFFFF
 
 struct xlnx_rtc_dev {
 	struct rtc_device	*rtc;
@@ -70,9 +69,6 @@ static int xlnx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * to get the correct time on read.
 	 */
 	new_time = rtc_tm_to_time64(tm) + 1;
-
-	if (new_time > RTC_SEC_MAX_VAL)
-		return -EINVAL;
 
 	/*
 	 * Writing into calibration register will clear the Tick Counter and
@@ -154,9 +150,6 @@ static int xlnx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	alarm_time = rtc_tm_to_time64(&alrm->time);
 
-	if (alarm_time > RTC_SEC_MAX_VAL)
-		return -EINVAL;
-
 	writel((u32)alarm_time, (xrtcdev->reg_base + RTC_ALRM));
 
 	xlnx_rtc_alarm_irq_enable(dev, alrm->enabled);
@@ -227,6 +220,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(xrtcdev->rtc);
 
 	xrtcdev->rtc->ops = &xlnx_rtc_ops;
+	xrtcdev->rtc->range_max = U32_MAX;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
