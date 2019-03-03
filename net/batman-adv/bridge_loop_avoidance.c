@@ -47,7 +47,6 @@
 #include "netlink.h"
 #include "originator.h"
 #include "soft-interface.h"
-#include "sysfs.h"
 #include "translation-table.h"
 
 static const u8 batadv_announce_mac[4] = {0x43, 0x05, 0x43, 0x05};

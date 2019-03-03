@@ -102,22 +102,6 @@ batadv_kobj_to_vlan(struct batadv_priv *bat_priv, struct kobject *obj)
 	return vlan;
 }
 
-#define BATADV_UEV_TYPE_VAR	"BATTYPE="
-#define BATADV_UEV_ACTION_VAR	"BATACTION="
-#define BATADV_UEV_DATA_VAR	"BATDATA="
-
-static char *batadv_uev_action_str[] = {
-	"add",
-	"del",
-	"change",
-	"loopdetect",
-};
-
-static char *batadv_uev_type_str[] = {
-	"gw",
-	"bla",
-};
-
 /* Use this, if you have customized show and store functions for vlan attrs */
 #define BATADV_ATTR_VLAN(_name, _mode, _show, _store)	\
 struct batadv_attribute batadv_attr_vlan_##_name = {	\
@@ -1234,58 +1218,4 @@ void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
 	kobject_del(*hardif_obj);
 	kobject_put(*hardif_obj);
 	*hardif_obj = NULL;
-}
-
-/**
- * batadv_throw_uevent() - Send an uevent with batman-adv specific env data
- * @bat_priv: the bat priv with all the soft interface information
- * @type: subsystem type of event. Stored in uevent's BATTYPE
- * @action: action type of event. Stored in uevent's BATACTION
- * @data: string with additional information to the event (ignored for
- *  BATADV_UEV_DEL). Stored in uevent's BATDATA
- *
- * Return: 0 on success or negative error number in case of failure
- */
-int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
-			enum batadv_uev_action action, const char *data)
-{
-	int ret = -ENOMEM;
-	struct kobject *bat_kobj;
-	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
-
-	bat_kobj = &bat_priv->soft_iface->dev.kobj;
-
-	uevent_env[0] = kasprintf(GFP_ATOMIC,
-				  "%s%s", BATADV_UEV_TYPE_VAR,
-				  batadv_uev_type_str[type]);
-	if (!uevent_env[0])
-		goto out;
-
-	uevent_env[1] = kasprintf(GFP_ATOMIC,
-				  "%s%s", BATADV_UEV_ACTION_VAR,
-				  batadv_uev_action_str[action]);
-	if (!uevent_env[1])
-		goto out;
-
-	/* If the event is DEL, ignore the data field */
-	if (action != BATADV_UEV_DEL) {
-		uevent_env[2] = kasprintf(GFP_ATOMIC,
-					  "%s%s", BATADV_UEV_DATA_VAR, data);
-		if (!uevent_env[2])
-			goto out;
-	}
-
-	ret = kobject_uevent_env(bat_kobj, KOBJ_CHANGE, uevent_env);
-out:
-	kfree(uevent_env[0]);
-	kfree(uevent_env[1]);
-	kfree(uevent_env[2]);
-
-	if (ret)
-		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
-			   batadv_uev_type_str[type],
-			   batadv_uev_action_str[action],
-			   (action == BATADV_UEV_DEL ? "NULL" : data), ret);
-	return ret;
 }

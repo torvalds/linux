@@ -45,6 +45,8 @@ struct batadv_attribute {
 			 char *buf, size_t count);
 };
 
+#ifdef CONFIG_BATMAN_ADV_SYSFS
+
 int batadv_sysfs_add_meshif(struct net_device *dev);
 void batadv_sysfs_del_meshif(struct net_device *dev);
 int batadv_sysfs_add_hardif(struct kobject **hardif_obj,
@@ -54,7 +56,39 @@ int batadv_sysfs_add_vlan(struct net_device *dev,
 			  struct batadv_softif_vlan *vlan);
 void batadv_sysfs_del_vlan(struct batadv_priv *bat_priv,
 			   struct batadv_softif_vlan *vlan);
-int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
-			enum batadv_uev_action action, const char *data);
+
+#else
+
+static inline int batadv_sysfs_add_meshif(struct net_device *dev)
+{
+	return 0;
+}
+
+static inline void batadv_sysfs_del_meshif(struct net_device *dev)
+{
+}
+
+static inline int batadv_sysfs_add_hardif(struct kobject **hardif_obj,
+					  struct net_device *dev)
+{
+	return 0;
+}
+
+static inline void batadv_sysfs_del_hardif(struct kobject **hardif_obj)
+{
+}
+
+static inline int batadv_sysfs_add_vlan(struct net_device *dev,
+					struct batadv_softif_vlan *vlan)
+{
+	return 0;
+}
+
+static inline void batadv_sysfs_del_vlan(struct batadv_priv *bat_priv,
+					 struct batadv_softif_vlan *vlan)
+{
+}
+
+#endif
 
 #endif /* _NET_BATMAN_ADV_SYSFS_H_ */

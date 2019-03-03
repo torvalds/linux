@@ -41,7 +41,6 @@
 #include "originator.h"
 #include "routing.h"
 #include "soft-interface.h"
-#include "sysfs.h"
 #include "translation-table.h"
 
 /* These are the offsets of the "hw type" and "hw address length" in the dhcp

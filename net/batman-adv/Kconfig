@@ -97,6 +97,18 @@ config BATMAN_ADV_DEBUG
 	  buffer. The output is controlled via the batadv netdev specific
 	  log_level setting.
 
+config BATMAN_ADV_SYSFS
+	bool "batman-adv sysfs entries"
+	depends on BATMAN_ADV
+	default y
+	help
+	  Say Y here if you want to enable batman-adv device configuration and
+	  status interface through sysfs attributes. It is replaced by the
+	  batadv generic netlink family but still used by various userspace
+	  tools and scripts.
+
+	  If unsure, say Y.
+
 config BATMAN_ADV_TRACING
 	bool "B.A.T.M.A.N. tracing support"
 	depends on BATMAN_ADV
