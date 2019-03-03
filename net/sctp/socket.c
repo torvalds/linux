@@ -1866,6 +1866,7 @@ static int sctp_sendmsg_check_sflags(struct sctp_association *asoc,
 
 		pr_debug("%s: aborting association:%p\n", __func__, asoc);
 		sctp_primitive_ABORT(net, asoc, chunk);
+		iov_iter_revert(&msg->msg_iter, msg_len);
 
 		return 0;
 	}
