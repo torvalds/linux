@@ -65,10 +65,11 @@ static int tx4939_rtc_cmd(struct tx4939_rtc_reg __iomem *rtcreg, int cmd)
 	return 0;
 }
 
-static int tx4939_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int tx4939_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct tx4939rtc_plat_data *pdata = get_tx4939rtc_plat_data(dev);
 	struct tx4939_rtc_reg __iomem *rtcreg = pdata->rtcreg;
+	unsigned long secs = rtc_tm_to_time64(tm);
 	int i, ret;
 	unsigned char buf[6];
 
@@ -203,7 +204,7 @@ static const struct rtc_class_ops tx4939_rtc_ops = {
 	.read_time		= tx4939_rtc_read_time,
 	.read_alarm		= tx4939_rtc_read_alarm,
 	.set_alarm		= tx4939_rtc_set_alarm,
-	.set_mmss		= tx4939_rtc_set_mmss,
+	.set_time		= tx4939_rtc_set_time,
 	.alarm_irq_enable	= tx4939_rtc_alarm_irq_enable,
 };
 
