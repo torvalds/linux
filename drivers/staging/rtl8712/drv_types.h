@@ -145,7 +145,7 @@ struct _adapter {
 	struct	hal_priv	halpriv;
 	struct	led_priv	ledpriv;
 	struct mp_priv  mppriv;
-	s32	bDriverStopped;
+	bool	driver_stopped;
 	s32	bSurpriseRemoved;
 	s32	bSuspended;
 	u32	IsrContent;
