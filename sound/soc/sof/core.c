@@ -10,6 +10,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <asm/unaligned.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
@@ -215,16 +216,31 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 		 */
 		u32 idx = (5 * i) >> 1;
 		u32 pfn = snd_sgbuf_get_addr(dmab, i * PAGE_SIZE) >> PAGE_SHIFT;
-		u32 *pg_table;
+		u8 *pg_table;
 
 		dev_vdbg(sdev->dev, "pfn i %i idx %d pfn %x\n", i, idx, pfn);
 
-		pg_table = (u32 *)(page_table + idx);
+		pg_table = (u8 *)(page_table + idx);
 
+		/*
+		 * pagetable compression:
+		 * byte 0     byte 1     byte 2     byte 3     byte 4     byte 5
+		 * ___________pfn 0__________ __________pfn 1___________  _pfn 2...
+		 * .... ....  .... ....  .... ....  .... ....  .... ....  ....
+		 * It is created by:
+		 * 1. set current location to 0, PFN index i to 0
+		 * 2. put pfn[i] at current location in Little Endian byte order
+		 * 3. calculate an intermediate value as
+		 *    x = (pfn[i+1] << 4) | (pfn[i] & 0xf)
+		 * 4. put x at offset (current location + 2) in LE byte order
+		 * 5. increment current location by 5 bytes, increment i by 2
+		 * 6. continue to (1)
+		 */
 		if (i & 1)
-			*pg_table |= (pfn << 4);
+			put_unaligned_le32((pg_table[0] & 0xf) | pfn << 4,
+					   pg_table);
 		else
-			*pg_table |= pfn;
+			put_unaligned_le32(pfn, pg_table);
 	}
 
 	return pages;
