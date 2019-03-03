@@ -10,57 +10,57 @@
 #include "core.h"
 #include "i2c.h"
 
-static const char mlxsw_minimal_driver_name[] = "mlxsw_minimal";
+static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 
-static const struct mlxsw_config_profile mlxsw_minimal_config_profile;
+static const struct mlxsw_config_profile mlxsw_m_config_profile;
 
-static struct mlxsw_driver mlxsw_minimal_driver = {
-	.kind		= mlxsw_minimal_driver_name,
+static struct mlxsw_driver mlxsw_m_driver = {
+	.kind		= mlxsw_m_driver_name,
 	.priv_size	= 1,
-	.profile	= &mlxsw_minimal_config_profile,
+	.profile	= &mlxsw_m_config_profile,
 };
 
-static const struct i2c_device_id mlxsw_minimal_i2c_id[] = {
+static const struct i2c_device_id mlxsw_m_i2c_id[] = {
 	{ "mlxsw_minimal", 0},
 	{ },
 };
 
-static struct i2c_driver mlxsw_minimal_i2c_driver = {
+static struct i2c_driver mlxsw_m_i2c_driver = {
 	.driver.name = "mlxsw_minimal",
 	.class = I2C_CLASS_HWMON,
-	.id_table = mlxsw_minimal_i2c_id,
+	.id_table = mlxsw_m_i2c_id,
 };
 
-static int __init mlxsw_minimal_module_init(void)
+static int __init mlxsw_m_module_init(void)
 {
 	int err;
 
-	err = mlxsw_core_driver_register(&mlxsw_minimal_driver);
+	err = mlxsw_core_driver_register(&mlxsw_m_driver);
 	if (err)
 		return err;
 
-	err = mlxsw_i2c_driver_register(&mlxsw_minimal_i2c_driver);
+	err = mlxsw_i2c_driver_register(&mlxsw_m_i2c_driver);
 	if (err)
 		goto err_i2c_driver_register;
 
 	return 0;
 
 err_i2c_driver_register:
-	mlxsw_core_driver_unregister(&mlxsw_minimal_driver);
+	mlxsw_core_driver_unregister(&mlxsw_m_driver);
 
 	return err;
 }
 
-static void __exit mlxsw_minimal_module_exit(void)
+static void __exit mlxsw_m_module_exit(void)
 {
-	mlxsw_i2c_driver_unregister(&mlxsw_minimal_i2c_driver);
-	mlxsw_core_driver_unregister(&mlxsw_minimal_driver);
+	mlxsw_i2c_driver_unregister(&mlxsw_m_i2c_driver);
+	mlxsw_core_driver_unregister(&mlxsw_m_driver);
 }
 
-module_init(mlxsw_minimal_module_init);
-module_exit(mlxsw_minimal_module_exit);
+module_init(mlxsw_m_module_init);
+module_exit(mlxsw_m_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox minimal driver");
-MODULE_DEVICE_TABLE(i2c, mlxsw_minimal_i2c_id);
+MODULE_DEVICE_TABLE(i2c, mlxsw_m_i2c_id);
