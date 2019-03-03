@@ -333,11 +333,12 @@ static void mlxsw_m_fini(struct mlxsw_core *mlxsw_core)
 static const struct mlxsw_config_profile mlxsw_m_config_profile;
 
 static struct mlxsw_driver mlxsw_m_driver = {
-	.kind		= mlxsw_m_driver_name,
-	.priv_size	= sizeof(struct mlxsw_m),
-	.init		= mlxsw_m_init,
-	.fini		= mlxsw_m_fini,
-	.profile	= &mlxsw_m_config_profile,
+	.kind			= mlxsw_m_driver_name,
+	.priv_size		= sizeof(struct mlxsw_m),
+	.init			= mlxsw_m_init,
+	.fini			= mlxsw_m_fini,
+	.profile		= &mlxsw_m_config_profile,
+	.res_query_enabled	= true,
 };
 
 static const struct i2c_device_id mlxsw_m_i2c_id[] = {

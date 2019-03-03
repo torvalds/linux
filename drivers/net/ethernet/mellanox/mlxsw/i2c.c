@@ -14,6 +14,7 @@
 #include "cmd.h"
 #include "core.h"
 #include "i2c.h"
+#include "resources.h"
 
 #define MLXSW_I2C_CIR2_BASE		0x72000
 #define MLXSW_I2C_CIR_STATUS_OFF	0x18
@@ -499,10 +500,19 @@ mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	       struct mlxsw_res *res)
 {
 	struct mlxsw_i2c *mlxsw_i2c = bus_priv;
+	char *mbox;
+	int err;
 
 	mlxsw_i2c->core = mlxsw_core;
 
-	return 0;
+	mbox = mlxsw_cmd_mbox_alloc();
+	if (!mbox)
+		return -ENOMEM;
+
+	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
+
+	mlxsw_cmd_mbox_free(mbox);
+	return err;
 }
 
 static void mlxsw_i2c_fini(void *bus_priv)
