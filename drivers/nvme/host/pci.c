@@ -888,7 +888,6 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 			dma_unmap_sg(dev->dev, &iod->meta_sg, 1, dma_dir);
 	}
 
-	nvme_cleanup_cmd(req);
 	nvme_free_iod(dev, req);
 }
 
@@ -939,6 +938,7 @@ static void nvme_pci_complete_rq(struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 
+	nvme_cleanup_cmd(req);
 	nvme_unmap_data(iod->nvmeq->dev, req);
 	nvme_complete_rq(req);
 }
