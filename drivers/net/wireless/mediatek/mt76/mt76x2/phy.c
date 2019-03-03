@@ -260,10 +260,15 @@ mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 	gain_val[0] = dev->cal.agc_gain_cur[0] - dev->cal.agc_gain_adjust;
 	gain_val[1] = dev->cal.agc_gain_cur[1] - dev->cal.agc_gain_adjust;
 
-	if (dev->mt76.chandef.width >= NL80211_CHAN_WIDTH_40)
+	val = 0x1836 << 16;
+	if (!mt76x2_has_ext_lna(dev) &&
+	    dev->mt76.chandef.width >= NL80211_CHAN_WIDTH_40)
 		val = 0x1e42 << 16;
-	else
-		val = 0x1836 << 16;
+
+	if (mt76x2_has_ext_lna(dev) &&
+	    dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ &&
+	    dev->mt76.chandef.width < NL80211_CHAN_WIDTH_40)
+		val = 0x0f36 << 16;
 
 	val |= 0xf8;
 
