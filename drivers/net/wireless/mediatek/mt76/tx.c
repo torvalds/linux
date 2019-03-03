@@ -377,7 +377,10 @@ mt76_release_buffered_frames(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	if (last_skb) {
 		mt76_queue_ps_skb(dev, sta, last_skb, true);
 		dev->queue_ops->kick(dev, hwq);
+	} else {
+		ieee80211_sta_eosp(sta);
 	}
+
 	spin_unlock_bh(&hwq->lock);
 }
 EXPORT_SYMBOL_GPL(mt76_release_buffered_frames);
