@@ -2449,7 +2449,13 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 		    type == IWL_FW_INI_REGION_RXF)
 			iter += le32_to_cpu(reg->fifos.num_of_registers) *
 				sizeof(__le32);
-		else if (type != IWL_FW_INI_REGION_DRAM_BUFFER)
+		else if (type == IWL_FW_INI_REGION_DEVICE_MEMORY ||
+			 type == IWL_FW_INI_REGION_PERIPHERY_MAC ||
+			 type == IWL_FW_INI_REGION_PERIPHERY_PHY ||
+			 type == IWL_FW_INI_REGION_PERIPHERY_AUX ||
+			 type == IWL_FW_INI_REGION_INTERNAL_BUFFER ||
+			 type == IWL_FW_INI_REGION_PAGING ||
+			 type == IWL_FW_INI_REGION_CSR)
 			iter += le32_to_cpu(reg->internal.num_of_ranges) *
 				sizeof(__le32);
 
