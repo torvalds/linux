@@ -117,6 +117,16 @@ config INPUT_E3X0_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called e3x0_button.
 
+config INPUT_MSM_VIBRATOR
+	tristate "Qualcomm MSM vibrator driver"
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the vibrator that is found on various Qualcomm MSM
+	  SOCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called msm_vibrator.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
