@@ -150,6 +150,8 @@ EXPORT_SYMBOL_GPL(ppc_proc_freq);
 unsigned long ppc_tb_freq;
 EXPORT_SYMBOL_GPL(ppc_tb_freq);
 
+bool tb_invalid;
+
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /*
  * Factor for converting from cputime_t (timebase ticks) to
@@ -459,6 +461,13 @@ void __delay(unsigned long loops)
 				diff += 1000000000;
 			spin_cpu_relax();
 		} while (diff < loops);
+	} else if (tb_invalid) {
+		/*
+		 * TB is in error state and isn't ticking anymore.
+		 * HMI handler was unable to recover from TB error.
+		 * Return immediately, so that kernel won't get stuck here.
+		 */
+		spin_cpu_relax();
 	} else {
 		start = get_tbl();
 		while (get_tbl() - start < loops)
