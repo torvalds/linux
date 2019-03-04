@@ -89,7 +89,7 @@ config MDIO_BUS_MUX_MMIOREG
 
 config MDIO_BUS_MUX_MULTIPLEXER
 	tristate "MDIO bus multiplexer using kernel multiplexer subsystem"
-	depends on OF
+	depends on OF_MDIO
 	select MULTIPLEXER
 	select MDIO_BUS_MUX
 	help
