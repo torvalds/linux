@@ -193,6 +193,8 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 
 	for (i = 0; i < vha->hw->max_qpairs; i++) {
 		qpair = vha->hw->queue_pair_map[i];
+		if (!qpair)
+			continue;
 		qla_core_sbt_cmd += qpair->tgt_counters.qla_core_sbt_cmd;
 		core_qla_que_buf += qpair->tgt_counters.core_qla_que_buf;
 		qla_core_ret_ctio += qpair->tgt_counters.qla_core_ret_ctio;
