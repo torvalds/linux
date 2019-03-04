@@ -48,14 +48,6 @@
 #define PWMV2_CPRD		0x0C
 #define PWMV2_CPRDUPD		0x10
 
-/* Max values for period and prescaler */
-
-/* Only the LSB 16 bits are significant. */
-#define PWM_MAXV1_PRD		0xFFFF
-/* All 32 bits are significant. */
-#define PWM_MAXV2_PRD		0xFFFFFFFF
-#define PRD_MAXV1_PRES		10
-
 struct atmel_pwm_registers {
 	u8 period;
 	u8 period_upd;
@@ -294,8 +286,8 @@ static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= PWM_MAXV1_PRD,
-		.max_pres	= PRD_MAXV1_PRES,
+		.max_period	= 0xffff,
+		.max_pres	= 10,
 	},
 };
 
@@ -308,8 +300,8 @@ static const struct atmel_pwm_data atmel_sama5_pwm_data = {
 	},
 	.cfg = {
 		/* 16 bits to keep period and duty. */
-		.max_period	= PWM_MAXV1_PRD,
-		.max_pres	= PRD_MAXV1_PRES,
+		.max_period	= 0xffff,
+		.max_pres	= 10,
 	},
 };
 
@@ -322,8 +314,8 @@ static const struct atmel_pwm_data mchp_sam9x60_pwm_data = {
 	},
 	.cfg = {
 		/* 32 bits to keep period and duty. */
-		.max_period	= PWM_MAXV2_PRD,
-		.max_pres	= PRD_MAXV1_PRES,
+		.max_period	= 0xffffffff,
+		.max_pres	= 10,
 	},
 };
 
