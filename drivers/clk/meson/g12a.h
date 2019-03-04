@@ -50,6 +50,7 @@
 #define HHI_GCLK_MPEG2			0x148
 #define HHI_GCLK_OTHER			0x150
 #define HHI_GCLK_OTHER2			0x154
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c
 #define HHI_VID_CLK_DIV			0x164
 #define HHI_MPEG_CLK_CNTL		0x174
 #define HHI_AUD_CLK_CNTL		0x178
@@ -166,8 +167,27 @@
 #define CLKID_MALI_0_DIV			170
 #define CLKID_MALI_1_DIV			173
 #define CLKID_MPLL_5OM_DIV			176
+#define CLKID_SYS_PLL_DIV16_EN			178
+#define CLKID_SYS_PLL_DIV16			179
+#define CLKID_CPU_CLK_DYN0_SEL			180
+#define CLKID_CPU_CLK_DYN0_DIV			181
+#define CLKID_CPU_CLK_DYN0			182
+#define CLKID_CPU_CLK_DYN1_SEL			183
+#define CLKID_CPU_CLK_DYN1_DIV			184
+#define CLKID_CPU_CLK_DYN1			185
+#define CLKID_CPU_CLK_DYN			186
+#define CLKID_CPU_CLK_DIV16_EN			188
+#define CLKID_CPU_CLK_DIV16			189
+#define CLKID_CPU_CLK_APB_DIV			190
+#define CLKID_CPU_CLK_APB			191
+#define CLKID_CPU_CLK_ATB_DIV			192
+#define CLKID_CPU_CLK_ATB			193
+#define CLKID_CPU_CLK_AXI_DIV			194
+#define CLKID_CPU_CLK_AXI			195
+#define CLKID_CPU_CLK_TRACE_DIV			196
+#define CLKID_CPU_CLK_TRACE			197
 
-#define NR_CLKS					178
+#define NR_CLKS					198
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>
