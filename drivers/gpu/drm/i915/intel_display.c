@@ -12589,7 +12589,8 @@ intel_verify_planes(struct intel_atomic_state *state)
 
 	for_each_new_intel_plane_in_state(state, plane,
 					  plane_state, i)
-		assert_plane(plane, plane_state->base.visible);
+		assert_plane(plane, plane_state->slave ||
+			     plane_state->base.visible);
 }
 
 static void
