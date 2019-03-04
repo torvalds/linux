@@ -52,3 +52,6 @@ obj-$(CONFIG_PPC_MEM_KEYS)	+= pkeys.o
 # This is necessary for booting with kcov enabled on book3e machines
 KCOV_INSTRUMENT_tlb_nohash.o := n
 KCOV_INSTRUMENT_fsl_booke_mmu.o := n
+
+# Instrumenting the SLB fault path can lead to duplicate SLB entries
+KCOV_INSTRUMENT_slb.o := n
