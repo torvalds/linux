@@ -27,6 +27,7 @@ SEC("xdp_mimtest")
 int xdp_mimtest0(struct xdp_md *ctx)
 {
 	int value = 123;
+	int *value_p;
 	int key = 0;
 	void *map;
 
@@ -35,6 +36,9 @@ int xdp_mimtest0(struct xdp_md *ctx)
 		return XDP_DROP;
 
 	bpf_map_update_elem(map, &key, &value, 0);
+	value_p = bpf_map_lookup_elem(map, &key);
+	if (!value_p || *value_p != 123)
+		return XDP_DROP;
 
 	map = bpf_map_lookup_elem(&mim_hash, &key);
 	if (!map)

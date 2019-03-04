@@ -67,7 +67,7 @@ int test_walk_maps(struct bpf_object *obj, bool verbose)
 	struct bpf_map *map;
 	int cnt = 0;
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		cnt++;
 		if (verbose)
 			printf("Map (count:%d) name: %s\n", cnt,

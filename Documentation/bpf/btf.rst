@@ -5,43 +5,35 @@ BPF Type Format (BTF)
 1. Introduction
 ***************
 
-BTF (BPF Type Format) is the meta data format which
-encodes the debug info related to BPF program/map.
-The name BTF was used initially to describe
-data types. The BTF was later extended to include
-function info for defined subroutines, and line info
-for source/line information.
+BTF (BPF Type Format) is the metadata format which encodes the debug info
+related to BPF program/map. The name BTF was used initially to describe data
+types. The BTF was later extended to include function info for defined
+subroutines, and line info for source/line information.
 
-The debug info is used for map pretty print, function
-signature, etc. The function signature enables better
-bpf program/function kernel symbol.
-The line info helps generate
-source annotated translated byte code, jited code
-and verifier log.
+The debug info is used for map pretty print, function signature, etc. The
+function signature enables better bpf program/function kernel symbol. The line
+info helps generate source annotated translated byte code, jited code and
+verifier log.
 
 The BTF specification contains two parts,
   * BTF kernel API
   * BTF ELF file format
 
-The kernel API is the contract between
-user space and kernel. The kernel verifies
-the BTF info before using it.
-The ELF file format is a user space contract
-between ELF file and libbpf loader.
+The kernel API is the contract between user space and kernel. The kernel
+verifies the BTF info before using it. The ELF file format is a user space
+contract between ELF file and libbpf loader.
 
-The type and string sections are part of the
-BTF kernel API, describing the debug info
-(mostly types related) referenced by the bpf program.
-These two sections are discussed in
-details in :ref:`BTF_Type_String`.
+The type and string sections are part of the BTF kernel API, describing the
+debug info (mostly types related) referenced by the bpf program. These two
+sections are discussed in details in :ref:`BTF_Type_String`.
 
 .. _BTF_Type_String:
 
 2. BTF Type and String Encoding
 *******************************
 
-The file ``include/uapi/linux/btf.h`` provides high
-level definition on how types/strings are encoded.
+The file ``include/uapi/linux/btf.h`` provides high-level definition of how
+types/strings are encoded.
 
 The beginning of data blob must be::
 
@@ -59,25 +51,23 @@ The beginning of data blob must be::
     };
 
 The magic is ``0xeB9F``, which has different encoding for big and little
-endian system, and can be used to test whether BTF is generated for
-big or little endian target.
-The btf_header is designed to be extensible with hdr_len equal to
-``sizeof(struct btf_header)`` when the data blob is generated.
+endian systems, and can be used to test whether BTF is generated for big- or
+little-endian target. The ``btf_header`` is designed to be extensible with
+``hdr_len`` equal to ``sizeof(struct btf_header)`` when a data blob is
+generated.
 
 2.1 String Encoding
 ===================
 
-The first string in the string section must be a null string.
-The rest of string table is a concatenation of other null-treminated
-strings.
+The first string in the string section must be a null string. The rest of
+string table is a concatenation of other null-terminated strings.
 
 2.2 Type Encoding
 =================
 
-The type id ``0`` is reserved for ``void`` type.
-The type section is parsed sequentially and the type id is assigned to
-each recognized type starting from id ``1``.
-Currently, the following types are supported::
+The type id ``0`` is reserved for ``void`` type. The type section is parsed
+sequentially and type id is assigned to each recognized type starting from id
+``1``. Currently, the following types are supported::
 
     #define BTF_KIND_INT            1       /* Integer      */
     #define BTF_KIND_PTR            2       /* Pointer      */
@@ -122,9 +112,9 @@ Each type contains the following common data::
         };
     };
 
-For certain kinds, the common data are followed by kind specific data.
-The ``name_off`` in ``struct btf_type`` specifies the offset in the string table.
-The following details encoding of each kind.
+For certain kinds, the common data are followed by kind-specific data. The
+``name_off`` in ``struct btf_type`` specifies the offset in the string table.
+The following sections detail encoding of each kind.
 
 2.2.1 BTF_KIND_INT
 ~~~~~~~~~~~~~~~~~~
@@ -136,7 +126,7 @@ The following details encoding of each kind.
  * ``info.vlen``: 0
  * ``size``: the size of the int type in bytes.
 
-``btf_type`` is followed by a ``u32`` with following bits arrangement::
+``btf_type`` is followed by a ``u32`` with the following bits arrangement::
 
   #define BTF_INT_ENCODING(VAL)   (((VAL) & 0x0f000000) >> 24)
   #define BTF_INT_OFFSET(VAL)     (((VAL  & 0x00ff0000)) >> 16)
@@ -148,39 +138,33 @@ The ``BTF_INT_ENCODING`` has the following attributes::
   #define BTF_INT_CHAR    (1 << 1)
   #define BTF_INT_BOOL    (1 << 2)
 
-The ``BTF_INT_ENCODING()`` provides extra information, signness,
-char, or bool, for the int type. The char and bool encoding
-are mostly useful for pretty print. At most one encoding can
-be specified for the int type.
+The ``BTF_INT_ENCODING()`` provides extra information: signedness, char, or
+bool, for the int type. The char and bool encoding are mostly useful for
+pretty print. At most one encoding can be specified for the int type.
 
-The ``BTF_INT_BITS()`` specifies the number of actual bits held by
-this int type. For example, a 4-bit bitfield encodes
-``BTF_INT_BITS()`` equals to 4. The ``btf_type.size * 8``
-must be equal to or greater than ``BTF_INT_BITS()`` for the type.
-The maximum value of ``BTF_INT_BITS()`` is 128.
+The ``BTF_INT_BITS()`` specifies the number of actual bits held by this int
+type. For example, a 4-bit bitfield encodes ``BTF_INT_BITS()`` equals to 4.
+The ``btf_type.size * 8`` must be equal to or greater than ``BTF_INT_BITS()``
+for the type. The maximum value of ``BTF_INT_BITS()`` is 128.
 
-The ``BTF_INT_OFFSET()`` specifies the starting bit offset to
-calculate values for this int. For example, a bitfield struct
-member has
+The ``BTF_INT_OFFSET()`` specifies the starting bit offset to calculate values
+for this int. For example, a bitfield struct member has: * btf member bit
+offset 100 from the start of the structure, * btf member pointing to an int
+type, * the int type has ``BTF_INT_OFFSET() = 2`` and ``BTF_INT_BITS() = 4``
 
- * btf member bit offset 100 from the start of the structure,
- * btf member pointing to an int type,
- * the int type has ``BTF_INT_OFFSET() = 2`` and ``BTF_INT_BITS() = 4``
+Then in the struct memory layout, this member will occupy ``4`` bits starting
+from bits ``100 + 2 = 102``.
 
-Then in the struct memory layout, this member will occupy
-``4`` bits starting from bits ``100 + 2 = 102``.
-
-Alternatively, the bitfield struct member can be the following to
-access the same bits as the above:
+Alternatively, the bitfield struct member can be the following to access the
+same bits as the above:
 
  * btf member bit offset 102,
  * btf member pointing to an int type,
  * the int type has ``BTF_INT_OFFSET() = 0`` and ``BTF_INT_BITS() = 4``
 
-The original intention of ``BTF_INT_OFFSET()`` is to provide
-flexibility of bitfield encoding.
-Currently, both llvm and pahole generates ``BTF_INT_OFFSET() = 0``
-for all int types.
+The original intention of ``BTF_INT_OFFSET()`` is to provide flexibility of
+bitfield encoding. Currently, both llvm and pahole generate
+``BTF_INT_OFFSET() = 0`` for all int types.
 
 2.2.2 BTF_KIND_PTR
 ~~~~~~~~~~~~~~~~~~
@@ -204,7 +188,7 @@ No additional type data follow ``btf_type``.
   * ``info.vlen``: 0
   * ``size/type``: 0, not used
 
-btf_type is followed by one "struct btf_array"::
+``btf_type`` is followed by one ``struct btf_array``::
 
     struct btf_array {
         __u32   type;
@@ -217,27 +201,25 @@ The ``struct btf_array`` encoding:
   * ``index_type``: the index type
   * ``nelems``: the number of elements for this array (``0`` is also allowed).
 
-The ``index_type`` can be any regular int types
-(u8, u16, u32, u64, unsigned __int128).
-The original design of including ``index_type`` follows dwarf
-which has a ``index_type`` for its array type.
+The ``index_type`` can be any regular int type (``u8``, ``u16``, ``u32``,
+``u64``, ``unsigned __int128``). The original design of including
+``index_type`` follows DWARF, which has an ``index_type`` for its array type.
 Currently in BTF, beyond type verification, the ``index_type`` is not used.
 
 The ``struct btf_array`` allows chaining through element type to represent
-multiple dimensional arrays. For example, ``int a[5][6]``, the following
-type system illustrates the chaining:
+multidimensional arrays. For example, for ``int a[5][6]``, the following type
+information illustrates the chaining:
 
   * [1]: int
   * [2]: array, ``btf_array.type = [1]``, ``btf_array.nelems = 6``
   * [3]: array, ``btf_array.type = [2]``, ``btf_array.nelems = 5``
 
-Currently, both pahole and llvm collapse multiple dimensional array
-into one dimensional array, e.g., ``a[5][6]``, the btf_array.nelems
-equal to ``30``. This is because the original use case is map pretty
-print where the whole array is dumped out so one dimensional array
-is enough. As more BTF usage is explored, pahole and llvm can be
-changed to generate proper chained representation for
-multiple dimensional arrays.
+Currently, both pahole and llvm collapse multidimensional array into
+one-dimensional array, e.g., for ``a[5][6]``, the ``btf_array.nelems`` is
+equal to ``30``. This is because the original use case is map pretty print
+where the whole array is dumped out so one-dimensional array is enough. As
+more BTF usage is explored, pahole and llvm can be changed to generate proper
+chained representation for multidimensional arrays.
 
 2.2.4 BTF_KIND_STRUCT
 ~~~~~~~~~~~~~~~~~~~~~
@@ -264,28 +246,26 @@ multiple dimensional arrays.
   * ``type``: the member type
   * ``offset``: <see below>
 
-If the type info ``kind_flag`` is not set, the offset contains
-only bit offset of the member. Note that the base type of the
-bitfield can only be int or enum type. If the bitfield size
-is 32, the base type can be either int or enum type.
-If the bitfield size is not 32, the base type must be int,
-and int type ``BTF_INT_BITS()`` encodes the bitfield size.
+If the type info ``kind_flag`` is not set, the offset contains only bit offset
+of the member. Note that the base type of the bitfield can only be int or enum
+type. If the bitfield size is 32, the base type can be either int or enum
+type. If the bitfield size is not 32, the base type must be int, and int type
+``BTF_INT_BITS()`` encodes the bitfield size.
 
-If the ``kind_flag`` is set, the ``btf_member.offset``
-contains both member bitfield size and bit offset. The
-bitfield size and bit offset are calculated as below.::
+If the ``kind_flag`` is set, the ``btf_member.offset`` contains both member
+bitfield size and bit offset. The bitfield size and bit offset are calculated
+as below.::
 
   #define BTF_MEMBER_BITFIELD_SIZE(val)   ((val) >> 24)
   #define BTF_MEMBER_BIT_OFFSET(val)      ((val) & 0xffffff)
 
-In this case, if the base type is an int type, it must
-be a regular int type:
+In this case, if the base type is an int type, it must be a regular int type:
 
   * ``BTF_INT_OFFSET()`` must be 0.
   * ``BTF_INT_BITS()`` must be equal to ``{1,2,4,8,16} * 8``.
 
-The following kernel patch introduced ``kind_flag`` and
-explained why both modes exist:
+The following kernel patch introduced ``kind_flag`` and explained why both
+modes exist:
 
   https://github.com/torvalds/linux/commit/9d5f9f701b1891466fb3dbb1806ad97716f95cc3#diff-fa650a64fdd3968396883d2fe8215ff3
 
@@ -382,11 +362,11 @@ No additional type data follow ``btf_type``.
 
 No additional type data follow ``btf_type``.
 
-A BTF_KIND_FUNC defines, not a type, but a subprogram (function) whose
-signature is defined by ``type``. The subprogram is thus an instance of
-that type. The BTF_KIND_FUNC may in turn be referenced by a func_info in
-the :ref:`BTF_Ext_Section` (ELF) or in the arguments to
-:ref:`BPF_Prog_Load` (ABI).
+A BTF_KIND_FUNC defines not a type, but a subprogram (function) whose
+signature is defined by ``type``. The subprogram is thus an instance of that
+type. The BTF_KIND_FUNC may in turn be referenced by a func_info in the
+:ref:`BTF_Ext_Section` (ELF) or in the arguments to :ref:`BPF_Prog_Load`
+(ABI).
 
 2.2.13 BTF_KIND_FUNC_PROTO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -405,13 +385,13 @@ the :ref:`BTF_Ext_Section` (ELF) or in the arguments to
         __u32   type;
     };
 
-If a BTF_KIND_FUNC_PROTO type is referred by a BTF_KIND_FUNC type,
-then ``btf_param.name_off`` must point to a valid C identifier
-except for the possible last argument representing the variable
-argument. The btf_param.type refers to parameter type.
+If a BTF_KIND_FUNC_PROTO type is referred by a BTF_KIND_FUNC type, then
+``btf_param.name_off`` must point to a valid C identifier except for the
+possible last argument representing the variable argument. The btf_param.type
+refers to parameter type.
 
-If the function has variable arguments, the last parameter
-is encoded with ``name_off = 0`` and ``type = 0``.
+If the function has variable arguments, the last parameter is encoded with
+``name_off = 0`` and ``type = 0``.
 
 3. BTF Kernel API
 *****************
@@ -459,10 +439,9 @@ The workflow typically looks like:
 3.1 BPF_BTF_LOAD
 ================
 
-Load a blob of BTF data into kernel. A blob of data
-described in :ref:`BTF_Type_String`
-can be directly loaded into the kernel.
-A ``btf_fd`` returns to userspace.
+Load a blob of BTF data into kernel. A blob of data, described in
+:ref:`BTF_Type_String`, can be directly loaded into the kernel. A ``btf_fd``
+is returned to a userspace.
 
 3.2 BPF_MAP_CREATE
 ==================
@@ -484,18 +463,18 @@ In libbpf, the map can be defined with extra annotation like below:
     };
     BPF_ANNOTATE_KV_PAIR(btf_map, int, struct ipv_counts);
 
-Here, the parameters for macro BPF_ANNOTATE_KV_PAIR are map name,
-key and value types for the map.
-During ELF parsing, libbpf is able to extract key/value type_id's
-and assigned them to BPF_MAP_CREATE attributes automatically.
+Here, the parameters for macro BPF_ANNOTATE_KV_PAIR are map name, key and
+value types for the map. During ELF parsing, libbpf is able to extract
+key/value type_id's and assign them to BPF_MAP_CREATE attributes
+automatically.
 
 .. _BPF_Prog_Load:
 
 3.3 BPF_PROG_LOAD
 =================
 
-During prog_load, func_info and line_info can be passed to kernel with
-proper values for the following attributes:
+During prog_load, func_info and line_info can be passed to kernel with proper
+values for the following attributes:
 ::
 
     __u32           insn_cnt;
@@ -522,9 +501,9 @@ The func_info and line_info are an array of below, respectively.::
         __u32   line_col; /* line number and column number */
     };
 
-func_info_rec_size is the size of each func_info record, and line_info_rec_size
-is the size of each line_info record. Passing the record size to kernel make
-it possible to extend the record itself in the future.
+func_info_rec_size is the size of each func_info record, and
+line_info_rec_size is the size of each line_info record. Passing the record
+size to kernel make it possible to extend the record itself in the future.
 
 Below are requirements for func_info:
   * func_info[0].insn_off must be 0.
@@ -532,7 +511,7 @@ Below are requirements for func_info:
     bpf func boundaries.
 
 Below are requirements for line_info:
-  * the first insn in each func must points to a line_info record.
+  * the first insn in each func must have a line_info record pointing to it.
   * the line_info insn_off is in strictly increasing order.
 
 For line_info, the line number and column number are defined as below:
@@ -543,40 +522,38 @@ For line_info, the line number and column number are defined as below:
 
 3.4 BPF_{PROG,MAP}_GET_NEXT_ID
 
-In kernel, every loaded program, map or btf has a unique id.
-The id won't change during the life time of the program, map or btf.
+In kernel, every loaded program, map or btf has a unique id. The id won't
+change during the lifetime of a program, map, or btf.
 
-The bpf syscall command BPF_{PROG,MAP}_GET_NEXT_ID
-returns all id's, one for each command, to user space, for bpf
-program or maps,
-so the inspection tool can inspect all programs and maps.
+The bpf syscall command BPF_{PROG,MAP}_GET_NEXT_ID returns all id's, one for
+each command, to user space, for bpf program or maps, respectively, so an
+inspection tool can inspect all programs and maps.
 
 3.5 BPF_{PROG,MAP}_GET_FD_BY_ID
 
-The introspection tool cannot use id to get details about program or maps.
-A file descriptor needs to be obtained first for reference counting purpose.
+An introspection tool cannot use id to get details about program or maps.
+A file descriptor needs to be obtained first for reference-counting purpose.
 
 3.6 BPF_OBJ_GET_INFO_BY_FD
 ==========================
 
-Once a program/map fd is acquired, the introspection tool can
-get the detailed information from kernel about this fd,
-some of which is btf related. For example,
-``bpf_map_info`` returns ``btf_id``, key/value type id.
-``bpf_prog_info`` returns ``btf_id``, func_info and line info
-for translated bpf byte codes, and jited_line_info.
+Once a program/map fd is acquired, an introspection tool can get the detailed
+information from kernel about this fd, some of which are BTF-related. For
+example, ``bpf_map_info`` returns ``btf_id`` and key/value type ids.
+``bpf_prog_info`` returns ``btf_id``, func_info, and line info for translated
+bpf byte codes, and jited_line_info.
 
 3.7 BPF_BTF_GET_FD_BY_ID
 ========================
 
-With ``btf_id`` obtained in ``bpf_map_info`` and ``bpf_prog_info``,
-bpf syscall command BPF_BTF_GET_FD_BY_ID can retrieve a btf fd.
-Then, with command BPF_OBJ_GET_INFO_BY_FD, the btf blob, originally
-loaded into the kernel with BPF_BTF_LOAD, can be retrieved.
+With ``btf_id`` obtained in ``bpf_map_info`` and ``bpf_prog_info``, bpf
+syscall command BPF_BTF_GET_FD_BY_ID can retrieve a btf fd. Then, with
+command BPF_OBJ_GET_INFO_BY_FD, the btf blob, originally loaded into the
+kernel with BPF_BTF_LOAD, can be retrieved.
 
-With the btf blob, ``bpf_map_info`` and ``bpf_prog_info``, the introspection
-tool has full btf knowledge and is able to pretty print map key/values,
-dump func signatures, dump line info along with byte/jit codes.
+With the btf blob, ``bpf_map_info``, and ``bpf_prog_info``, an introspection
+tool has full btf knowledge and is able to pretty print map key/values, dump
+func signatures and line info, along with byte/jit codes.
 
 4. ELF File Format Interface
 ****************************
@@ -584,19 +561,19 @@ dump func signatures, dump line info along with byte/jit codes.
 4.1 .BTF section
 ================
 
-The .BTF section contains type and string data. The format of this section
-is same as the one describe in :ref:`BTF_Type_String`.
+The .BTF section contains type and string data. The format of this section is
+same as the one describe in :ref:`BTF_Type_String`.
 
 .. _BTF_Ext_Section:
 
 4.2 .BTF.ext section
 ====================
 
-The .BTF.ext section encodes func_info and line_info which
-needs loader manipulation before loading into the kernel.
+The .BTF.ext section encodes func_info and line_info which needs loader
+manipulation before loading into the kernel.
 
-The specification for .BTF.ext section is defined at
-``tools/lib/bpf/btf.h`` and ``tools/lib/bpf/btf.c``.
+The specification for .BTF.ext section is defined at ``tools/lib/bpf/btf.h``
+and ``tools/lib/bpf/btf.c``.
 
 The current header of .BTF.ext section::
 
@@ -613,9 +590,9 @@ The current header of .BTF.ext section::
         __u32   line_info_len;
     };
 
-It is very similar to .BTF section. Instead of type/string section,
-it contains func_info and line_info section. See :ref:`BPF_Prog_Load`
-for details about func_info and line_info record format.
+It is very similar to .BTF section. Instead of type/string section, it
+contains func_info and line_info section. See :ref:`BPF_Prog_Load` for details
+about func_info and line_info record format.
 
 The func_info is organized as below.::
 
@@ -624,9 +601,9 @@ The func_info is organized as below.::
      btf_ext_info_sec for section #2 /* func_info for section #2 */
      ...
 
-``func_info_rec_size`` specifies the size of ``bpf_func_info`` structure
-when .BTF.ext is generated. btf_ext_info_sec, defined below, is
-the func_info for each specific ELF section.::
+``func_info_rec_size`` specifies the size of ``bpf_func_info`` structure when
+.BTF.ext is generated. ``btf_ext_info_sec``, defined below, is a collection of
+func_info for each specific ELF section.::
 
      struct btf_ext_info_sec {
         __u32   sec_name_off; /* offset to section name */
@@ -644,14 +621,14 @@ The line_info is organized as below.::
      btf_ext_info_sec for section #2 /* line_info for section #2 */
      ...
 
-``line_info_rec_size`` specifies the size of ``bpf_line_info`` structure
-when .BTF.ext is generated.
+``line_info_rec_size`` specifies the size of ``bpf_line_info`` structure when
+.BTF.ext is generated.
 
 The interpretation of ``bpf_func_info->insn_off`` and
-``bpf_line_info->insn_off`` is different between kernel API and ELF API.
-For kernel API, the ``insn_off`` is the instruction offset in the unit
-of ``struct bpf_insn``. For ELF API, the ``insn_off`` is the byte offset
-from the beginning of section (``btf_ext_info_sec->sec_name_off``).
+``bpf_line_info->insn_off`` is different between kernel API and ELF API. For
+kernel API, the ``insn_off`` is the instruction offset in the unit of ``struct
+bpf_insn``. For ELF API, the ``insn_off`` is the byte offset from the
+beginning of section (``btf_ext_info_sec->sec_name_off``).
 
 5. Using BTF
 ************
@@ -659,10 +636,9 @@ from the beginning of section (``btf_ext_info_sec->sec_name_off``).
 5.1 bpftool map pretty print
 ============================
 
-With BTF, the map key/value can be printed based on fields rather than
-simply raw bytes. This is especially
-valuable for large structure or if you data structure
-has bitfields. For example, for the following map,::
+With BTF, the map key/value can be printed based on fields rather than simply
+raw bytes. This is especially valuable for large structure or if your data
+structure has bitfields. For example, for the following map,::
 
       enum A { A1, A2, A3, A4, A5 };
       typedef enum A ___A;
@@ -702,9 +678,9 @@ bpftool is able to pretty print like below:
 5.2 bpftool prog dump
 =====================
 
-The following is an example to show func_info and line_info
-can help prog dump with better kernel symbol name, function prototype
-and line information.::
+The following is an example showing how func_info and line_info can help prog
+dump with better kernel symbol names, function prototypes and line
+information.::
 
     $ bpftool prog dump jited pinned /sys/fs/bpf/test_btf_haskv
     [...]
@@ -733,10 +709,11 @@ and line information.::
     ; counts = bpf_map_lookup_elem(&btf_map, &key);
     [...]
 
-5.3 verifier log
+5.3 Verifier Log
 ================
 
-The following is an example how line_info can help verifier failure debug.::
+The following is an example of how line_info can help debugging verification
+failure.::
 
        /* The code at tools/testing/selftests/bpf/test_xdp_noinline.c
         * is modified as below.
@@ -765,8 +742,8 @@ You need latest pahole
 
   https://git.kernel.org/pub/scm/devel/pahole/pahole.git/
 
-or llvm (8.0 or later). The pahole acts as a dwarf2btf converter. It doesn't support .BTF.ext
-and btf BTF_KIND_FUNC type yet. For example,::
+or llvm (8.0 or later). The pahole acts as a dwarf2btf converter. It doesn't
+support .BTF.ext and btf BTF_KIND_FUNC type yet. For example,::
 
       -bash-4.4$ cat t.c
       struct t {
@@ -783,8 +760,9 @@ and btf BTF_KIND_FUNC type yet. For example,::
               c type_id=2 bitfield_size=2 bits_offset=5
       [2] INT int size=4 bit_offset=0 nr_bits=32 encoding=SIGNED
 
-The llvm is able to generate .BTF and .BTF.ext directly with -g for bpf target only.
-The assembly code (-S) is able to show the BTF encoding in assembly format.::
+The llvm is able to generate .BTF and .BTF.ext directly with -g for bpf target
+only. The assembly code (-S) is able to show the BTF encoding in assembly
+format.::
 
     -bash-4.4$ cat t2.c
     typedef int __int32;
@@ -867,4 +845,4 @@ The assembly code (-S) is able to show the BTF encoding in assembly format.::
 7. Testing
 **********
 
-Kernel bpf selftest `test_btf.c` provides extensive set of BTF related tests.
+Kernel bpf selftest `test_btf.c` provides extensive set of BTF-related tests.

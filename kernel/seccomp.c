@@ -267,6 +267,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 	 * All filters in the list are evaluated and the lowest BPF return
 	 * value always takes priority (ignoring the DATA).
 	 */
+	preempt_disable();
 	for (; f; f = f->prev) {
 		u32 cur_ret = BPF_PROG_RUN(f->prog, sd);
 
@@ -275,6 +276,7 @@ static u32 seccomp_run_filters(const struct seccomp_data *sd,
 			*match = f;
 		}
 	}
+	preempt_enable();
 	return ret;
 }
 #endif /* CONFIG_SECCOMP_FILTER */

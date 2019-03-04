@@ -1070,8 +1070,8 @@ done:
 	return err;
 }
 
-#define BTF_DEDUP_TABLE_SIZE_LOG 14
-#define BTF_DEDUP_TABLE_MOD ((1 << BTF_DEDUP_TABLE_SIZE_LOG) - 1)
+#define BTF_DEDUP_TABLE_DEFAULT_SIZE (1 << 14)
+#define BTF_DEDUP_TABLE_MAX_SIZE_LOG 31
 #define BTF_UNPROCESSED_ID ((__u32)-1)
 #define BTF_IN_PROGRESS_ID ((__u32)-2)
 
@@ -1128,18 +1128,21 @@ static inline __u32 hash_combine(__u32 h, __u32 value)
 #undef GOLDEN_RATIO_PRIME
 }
 
-#define for_each_hash_node(table, hash, node) \
-	for (node = table[hash & BTF_DEDUP_TABLE_MOD]; node; node = node->next)
+#define for_each_dedup_cand(d, hash, node) \
+	for (node = d->dedup_table[hash & (d->opts.dedup_table_size - 1)]; \
+	     node;							   \
+	     node = node->next)
 
 static int btf_dedup_table_add(struct btf_dedup *d, __u32 hash, __u32 type_id)
 {
 	struct btf_dedup_node *node = malloc(sizeof(struct btf_dedup_node));
+	int bucket = hash & (d->opts.dedup_table_size - 1);
 
 	if (!node)
 		return -ENOMEM;
 	node->type_id = type_id;
-	node->next = d->dedup_table[hash & BTF_DEDUP_TABLE_MOD];
-	d->dedup_table[hash & BTF_DEDUP_TABLE_MOD] = node;
+	node->next = d->dedup_table[bucket];
+	d->dedup_table[bucket] = node;
 	return 0;
 }
 
@@ -1177,7 +1180,7 @@ static void btf_dedup_table_free(struct btf_dedup *d)
 	if (!d->dedup_table)
 		return;
 
-	for (i = 0; i < (1 << BTF_DEDUP_TABLE_SIZE_LOG); i++) {
+	for (i = 0; i < d->opts.dedup_table_size; i++) {
 		while (d->dedup_table[i]) {
 			tmp = d->dedup_table[i];
 			d->dedup_table[i] = tmp->next;
@@ -1212,19 +1215,37 @@ static void btf_dedup_free(struct btf_dedup *d)
 	free(d);
 }
 
+/* Find closest power of two >= to size, capped at 2^max_size_log */
+static __u32 roundup_pow2_max(__u32 size, int max_size_log)
+{
+	int i;
+
+	for (i = 0; i < max_size_log  && (1U << i) < size;  i++)
+		;
+	return 1U << i;
+}
+
+
 static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 				       const struct btf_dedup_opts *opts)
 {
 	struct btf_dedup *d = calloc(1, sizeof(struct btf_dedup));
 	int i, err = 0;
+	__u32 sz;
 
 	if (!d)
 		return ERR_PTR(-ENOMEM);
 
+	d->opts.dont_resolve_fwds = opts && opts->dont_resolve_fwds;
+	sz = opts && opts->dedup_table_size ? opts->dedup_table_size
+					    : BTF_DEDUP_TABLE_DEFAULT_SIZE;
+	sz = roundup_pow2_max(sz, BTF_DEDUP_TABLE_MAX_SIZE_LOG);
+	d->opts.dedup_table_size = sz;
+
 	d->btf = btf;
 	d->btf_ext = btf_ext;
 
-	d->dedup_table = calloc(1 << BTF_DEDUP_TABLE_SIZE_LOG,
+	d->dedup_table = calloc(d->opts.dedup_table_size,
 				sizeof(struct btf_dedup_node *));
 	if (!d->dedup_table) {
 		err = -ENOMEM;
@@ -1248,8 +1269,6 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 	}
 	for (i = 0; i <= btf->nr_types; i++)
 		d->hypot_map[i] = BTF_UNPROCESSED_ID;
-
-	d->opts.dont_resolve_fwds = opts && opts->dont_resolve_fwds;
 
 done:
 	if (err) {
@@ -1644,7 +1663,7 @@ static __u32 btf_hash_struct(struct btf_type *t)
  * IDs. This check is performed during type graph equivalence check and
  * referenced types equivalence is checked separately.
  */
-static bool btf_equal_struct(struct btf_type *t1, struct btf_type *t2)
+static bool btf_shallow_equal_struct(struct btf_type *t1, struct btf_type *t2)
 {
 	struct btf_member *m1, *m2;
 	__u16 vlen;
@@ -1824,7 +1843,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 
 	case BTF_KIND_INT:
 		h = btf_hash_int(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_int(t, cand)) {
 				new_id = cand_node->type_id;
@@ -1835,7 +1854,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 
 	case BTF_KIND_ENUM:
 		h = btf_hash_enum(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_enum(t, cand)) {
 				new_id = cand_node->type_id;
@@ -1846,7 +1865,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 
 	case BTF_KIND_FWD:
 		h = btf_hash_common(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_common(t, cand)) {
 				new_id = cand_node->type_id;
@@ -2105,7 +2124,7 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		struct btf_member *cand_m, *canon_m;
 		__u16 vlen;
 
-		if (!btf_equal_struct(cand_type, canon_type))
+		if (!btf_shallow_equal_struct(cand_type, canon_type))
 			return 0;
 		vlen = BTF_INFO_VLEN(cand_type->info);
 		cand_m = (struct btf_member *)(cand_type + 1);
@@ -2246,7 +2265,7 @@ static void btf_dedup_merge_hypot_map(struct btf_dedup *d)
 static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 {
 	struct btf_dedup_node *cand_node;
-	struct btf_type *t;
+	struct btf_type *cand_type, *t;
 	/* if we don't find equivalent type, then we are canonical */
 	__u32 new_id = type_id;
 	__u16 kind;
@@ -2263,8 +2282,22 @@ static int btf_dedup_struct_type(struct btf_dedup *d, __u32 type_id)
 		return 0;
 
 	h = btf_hash_struct(t);
-	for_each_hash_node(d->dedup_table, h, cand_node) {
+	for_each_dedup_cand(d, h, cand_node) {
 		int eq;
+
+		/*
+		 * Even though btf_dedup_is_equiv() checks for
+		 * btf_shallow_equal_struct() internally when checking two
+		 * structs (unions) for equivalence, we need to guard here
+		 * from picking matching FWD type as a dedup candidate.
+		 * This can happen due to hash collision. In such case just
+		 * relying on btf_dedup_is_equiv() would lead to potentially
+		 * creating a loop (FWD -> STRUCT and STRUCT -> FWD), because
+		 * FWD and compatible STRUCT/UNION are considered equivalent.
+		 */
+		cand_type = d->btf->types[cand_node->type_id];
+		if (!btf_shallow_equal_struct(t, cand_type))
+			continue;
 
 		btf_dedup_clear_hypot_map(d);
 		eq = btf_dedup_is_equiv(d, type_id, cand_node->type_id);
@@ -2326,7 +2359,8 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 	struct btf_type *t, *cand;
 	/* if we don't find equivalent type, then we are representative type */
 	__u32 new_id = type_id;
-	__u32 h, ref_type_id;
+	int ref_type_id;
+	__u32 h;
 
 	if (d->map[type_id] == BTF_IN_PROGRESS_ID)
 		return -ELOOP;
@@ -2349,7 +2383,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 		t->type = ref_type_id;
 
 		h = btf_hash_common(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_common(t, cand)) {
 				new_id = cand_node->type_id;
@@ -2372,7 +2406,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 		info->index_type = ref_type_id;
 
 		h = btf_hash_array(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_array(t, cand)) {
 				new_id = cand_node->type_id;
@@ -2403,7 +2437,7 @@ static int btf_dedup_ref_type(struct btf_dedup *d, __u32 type_id)
 		}
 
 		h = btf_hash_fnproto(t);
-		for_each_hash_node(d->dedup_table, h, cand_node) {
+		for_each_dedup_cand(d, h, cand_node) {
 			cand = d->btf->types[cand_node->type_id];
 			if (btf_equal_fnproto(t, cand)) {
 				new_id = cand_node->type_id;

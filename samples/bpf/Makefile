@@ -40,7 +40,6 @@ hostprogs-y += lwt_len_hist
 hostprogs-y += xdp_tx_iptunnel
 hostprogs-y += test_map_in_map
 hostprogs-y += per_socket_stats_example
-hostprogs-y += load_sock_ops
 hostprogs-y += xdp_redirect
 hostprogs-y += xdp_redirect_map
 hostprogs-y += xdp_redirect_cpu
@@ -53,6 +52,7 @@ hostprogs-y += xdpsock
 hostprogs-y += xdp_fwd
 hostprogs-y += task_fd_query
 hostprogs-y += xdp_sample_pkts
+hostprogs-y += hbm
 
 # Libbpf dependencies
 LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
@@ -60,9 +60,9 @@ LIBBPF = $(TOOLS_PATH)/lib/bpf/libbpf.a
 CGROUP_HELPERS := ../../tools/testing/selftests/bpf/cgroup_helpers.o
 TRACE_HELPERS := ../../tools/testing/selftests/bpf/trace_helpers.o
 
-fds_example-objs := bpf_load.o fds_example.o
-sockex1-objs := bpf_load.o sockex1_user.o
-sockex2-objs := bpf_load.o sockex2_user.o
+fds_example-objs := fds_example.o
+sockex1-objs := sockex1_user.o
+sockex2-objs := sockex2_user.o
 sockex3-objs := bpf_load.o sockex3_user.o
 tracex1-objs := bpf_load.o tracex1_user.o
 tracex2-objs := bpf_load.o tracex2_user.o
@@ -71,7 +71,6 @@ tracex4-objs := bpf_load.o tracex4_user.o
 tracex5-objs := bpf_load.o tracex5_user.o
 tracex6-objs := bpf_load.o tracex6_user.o
 tracex7-objs := bpf_load.o tracex7_user.o
-load_sock_ops-objs := bpf_load.o load_sock_ops.o
 test_probe_write_user-objs := bpf_load.o test_probe_write_user_user.o
 trace_output-objs := bpf_load.o trace_output_user.o $(TRACE_HELPERS)
 lathist-objs := bpf_load.o lathist_user.o
@@ -109,6 +108,7 @@ xdpsock-objs := xdpsock_user.o
 xdp_fwd-objs := xdp_fwd_user.o
 task_fd_query-objs := bpf_load.o task_fd_query_user.o $(TRACE_HELPERS)
 xdp_sample_pkts-objs := xdp_sample_pkts_user.o $(TRACE_HELPERS)
+hbm-objs := bpf_load.o hbm.o $(CGROUP_HELPERS)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -163,10 +163,10 @@ always += xdp2skb_meta_kern.o
 always += syscall_tp_kern.o
 always += cpustat_kern.o
 always += xdp_adjust_tail_kern.o
-always += xdpsock_kern.o
 always += xdp_fwd_kern.o
 always += task_fd_query_kern.o
 always += xdp_sample_pkts_kern.o
+always += hbm_out_kern.o
 
 KBUILD_HOSTCFLAGS += -I$(objtree)/usr/include
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/
@@ -266,6 +266,8 @@ $(BPF_SAMPLES_PATH)/*.c: verify_target_bpf $(LIBBPF)
 $(src)/*.c: verify_target_bpf $(LIBBPF)
 
 $(obj)/tracex5_kern.o: $(obj)/syscall_nrs.h
+$(obj)/hbm_out_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
+$(obj)/hbm.o: $(src)/hbm.h
 
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
 # But, there is no easy way to fix it, so just exclude it since it is

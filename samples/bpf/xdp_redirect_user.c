@@ -57,7 +57,7 @@ static void int_exit(int sig)
 			printf("bpf_get_link_xdp_id failed\n");
 			exit(1);
 		}
-		if (prog_id == curr_prog_id)
+		if (dummy_prog_id == curr_prog_id)
 			bpf_set_link_xdp_fd(ifindex_out, -1, xdp_flags);
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on iface OUT\n");

@@ -296,31 +296,45 @@ int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
 	if (!repeat)
 		repeat = 1;
 
+	rcu_read_lock();
+	preempt_disable();
 	time_start = ktime_get_ns();
 	for (i = 0; i < repeat; i++) {
-		preempt_disable();
-		rcu_read_lock();
 		retval = __skb_flow_bpf_dissect(prog, skb,
 						&flow_keys_dissector,
 						&flow_keys);
-		rcu_read_unlock();
-		preempt_enable();
+
+		if (signal_pending(current)) {
+			preempt_enable();
+			rcu_read_unlock();
+
+			ret = -EINTR;
+			goto out;
+		}
 
 		if (need_resched()) {
-			if (signal_pending(current))
-				break;
 			time_spent += ktime_get_ns() - time_start;
+			preempt_enable();
+			rcu_read_unlock();
+
 			cond_resched();
+
+			rcu_read_lock();
+			preempt_disable();
 			time_start = ktime_get_ns();
 		}
 	}
 	time_spent += ktime_get_ns() - time_start;
+	preempt_enable();
+	rcu_read_unlock();
+
 	do_div(time_spent, repeat);
 	duration = time_spent > U32_MAX ? U32_MAX : (u32)time_spent;
 
 	ret = bpf_test_finish(kattr, uattr, &flow_keys, sizeof(flow_keys),
 			      retval, duration);
 
+out:
 	kfree_skb(skb);
 	kfree(sk);
 	return ret;
