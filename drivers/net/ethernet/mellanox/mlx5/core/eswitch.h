@@ -227,6 +227,18 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 		      int total_nvports);
 void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw);
 int esw_offloads_init_reps(struct mlx5_eswitch *esw);
+void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
+				     struct mlx5_vport *vport);
+int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
+				 struct mlx5_vport *vport);
+void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport);
+int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
+				struct mlx5_vport *vport);
+void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport);
+void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
+				   struct mlx5_vport *vport);
 
 /* E-Switch API */
 int mlx5_eswitch_init(struct mlx5_core_dev *dev);

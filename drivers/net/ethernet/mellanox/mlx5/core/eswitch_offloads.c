@@ -1601,12 +1601,179 @@ static void esw_offloads_devcom_cleanup(struct mlx5_eswitch *esw)
 	mlx5_devcom_unregister_component(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 }
 
+static int esw_vport_ingress_prio_tag_config(struct mlx5_eswitch *esw,
+					     struct mlx5_vport *vport)
+{
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_flow_act flow_act = {0};
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	/* For prio tag mode, there is only 1 FTEs:
+	 * 1) Untagged packets - push prio tag VLAN, allow
+	 * Unmatched traffic is allowed by default
+	 */
+
+	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+		return -EOPNOTSUPP;
+
+	esw_vport_cleanup_ingress_rules(esw, vport);
+
+	err = esw_vport_enable_ingress_acl(esw, vport);
+	if (err) {
+		mlx5_core_warn(esw->dev,
+			       "failed to enable prio tag ingress acl (%d) on vport[%d]\n",
+			       err, vport->vport);
+		return err;
+	}
+
+	esw_debug(esw->dev,
+		  "vport[%d] configure ingress rules\n", vport->vport);
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto out_no_mem;
+	}
+
+	/* Untagged packets - push prio tag VLAN, allow */
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
+	MLX5_SET(fte_match_param, spec->match_value, outer_headers.cvlan_tag, 0);
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH |
+			  MLX5_FLOW_CONTEXT_ACTION_ALLOW;
+	flow_act.vlan[0].ethtype = ETH_P_8021Q;
+	flow_act.vlan[0].vid = 0;
+	flow_act.vlan[0].prio = 0;
+	vport->ingress.allow_rule =
+		mlx5_add_flow_rules(vport->ingress.acl, spec,
+				    &flow_act, NULL, 0);
+	if (IS_ERR(vport->ingress.allow_rule)) {
+		err = PTR_ERR(vport->ingress.allow_rule);
+		esw_warn(esw->dev,
+			 "vport[%d] configure ingress untagged allow rule, err(%d)\n",
+			 vport->vport, err);
+		vport->ingress.allow_rule = NULL;
+		goto out;
+	}
+
+out:
+	kvfree(spec);
+out_no_mem:
+	if (err)
+		esw_vport_cleanup_ingress_rules(esw, vport);
+	return err;
+}
+
+static int esw_vport_egress_prio_tag_config(struct mlx5_eswitch *esw,
+					    struct mlx5_vport *vport)
+{
+	struct mlx5_flow_act flow_act = {0};
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	/* For prio tag mode, there is only 1 FTEs:
+	 * 1) prio tag packets - pop the prio tag VLAN, allow
+	 * Unmatched traffic is allowed by default
+	 */
+
+	esw_vport_cleanup_egress_rules(esw, vport);
+
+	err = esw_vport_enable_egress_acl(esw, vport);
+	if (err) {
+		mlx5_core_warn(esw->dev,
+			       "failed to enable egress acl (%d) on vport[%d]\n",
+			       err, vport->vport);
+		return err;
+	}
+
+	esw_debug(esw->dev,
+		  "vport[%d] configure prio tag egress rules\n", vport->vport);
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec) {
+		err = -ENOMEM;
+		goto out_no_mem;
+	}
+
+	/* prio tag vlan rule - pop it so VF receives untagged packets */
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.first_vid);
+	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, 0);
+
+	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_VLAN_POP |
+			  MLX5_FLOW_CONTEXT_ACTION_ALLOW;
+	vport->egress.allowed_vlan =
+		mlx5_add_flow_rules(vport->egress.acl, spec,
+				    &flow_act, NULL, 0);
+	if (IS_ERR(vport->egress.allowed_vlan)) {
+		err = PTR_ERR(vport->egress.allowed_vlan);
+		esw_warn(esw->dev,
+			 "vport[%d] configure egress pop prio tag vlan rule failed, err(%d)\n",
+			 vport->vport, err);
+		vport->egress.allowed_vlan = NULL;
+		goto out;
+	}
+
+out:
+	kvfree(spec);
+out_no_mem:
+	if (err)
+		esw_vport_cleanup_egress_rules(esw, vport);
+	return err;
+}
+
+static int esw_prio_tag_acls_config(struct mlx5_eswitch *esw, int nvports)
+{
+	int i, j;
+	int err;
+
+	mlx5_esw_for_each_vf_vport(esw, i, nvports) {
+		err = esw_vport_ingress_prio_tag_config(esw, &esw->vports[i]);
+		if (err)
+			goto err_ingress;
+		err = esw_vport_egress_prio_tag_config(esw, &esw->vports[i]);
+		if (err)
+			goto err_egress;
+	}
+
+	return 0;
+
+err_egress:
+	esw_vport_disable_ingress_acl(esw, &esw->vports[i]);
+err_ingress:
+	mlx5_esw_for_each_vf_vport_reverse(esw, j, i - 1) {
+		esw_vport_disable_egress_acl(esw, &esw->vports[j]);
+		esw_vport_disable_ingress_acl(esw, &esw->vports[j]);
+	}
+
+	return err;
+}
+
+static void esw_prio_tag_acls_cleanup(struct mlx5_eswitch *esw)
+{
+	int i;
+
+	mlx5_esw_for_each_vf_vport(esw, i, esw->nvports) {
+		esw_vport_disable_egress_acl(esw, &esw->vports[i]);
+		esw_vport_disable_ingress_acl(esw, &esw->vports[i]);
+	}
+}
+
 static int esw_offloads_steering_init(struct mlx5_eswitch *esw, int nvports)
 {
 	int err;
 
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
 	mutex_init(&esw->fdb_table.offloads.fdb_prio_lock);
+
+	if (MLX5_CAP_GEN(esw->dev, prio_tag_required)) {
+		err = esw_prio_tag_acls_config(esw, nvports);
+		if (err)
+			return err;
+	}
 
 	err = esw_create_offloads_fdb_tables(esw, nvports);
 	if (err)
@@ -1636,6 +1803,8 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_offloads_fdb_tables(esw);
+	if (MLX5_CAP_GEN(esw->dev, prio_tag_required))
+		esw_prio_tag_acls_cleanup(esw);
 }
 
 static void esw_host_params_event_handler(struct work_struct *work)

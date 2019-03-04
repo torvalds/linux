@@ -922,8 +922,8 @@ static void esw_vport_change_handler(struct work_struct *work)
 	mutex_unlock(&esw->state_lock);
 }
 
-static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
-				       struct mlx5_vport *vport)
+int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
+				struct mlx5_vport *vport)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *vlan_grp = NULL;
@@ -1006,8 +1006,8 @@ out:
 	return err;
 }
 
-static void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
-					   struct mlx5_vport *vport)
+void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
+				    struct mlx5_vport *vport)
 {
 	if (!IS_ERR_OR_NULL(vport->egress.allowed_vlan))
 		mlx5_del_flow_rules(vport->egress.allowed_vlan);
@@ -1019,8 +1019,8 @@ static void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
 	vport->egress.drop_rule = NULL;
 }
 
-static void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
-					 struct mlx5_vport *vport)
+void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
+				  struct mlx5_vport *vport)
 {
 	if (IS_ERR_OR_NULL(vport->egress.acl))
 		return;
@@ -1036,8 +1036,8 @@ static void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 	vport->egress.acl = NULL;
 }
 
-static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
-					struct mlx5_vport *vport)
+int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
+				 struct mlx5_vport *vport)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1168,8 +1168,8 @@ out:
 	return err;
 }
 
-static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
-					    struct mlx5_vport *vport)
+void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
+				     struct mlx5_vport *vport)
 {
 	if (!IS_ERR_OR_NULL(vport->ingress.drop_rule))
 		mlx5_del_flow_rules(vport->ingress.drop_rule);
@@ -1181,8 +1181,8 @@ static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
 	vport->ingress.allow_rule = NULL;
 }
 
-static void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
-					  struct mlx5_vport *vport)
+void esw_vport_disable_ingress_acl(struct mlx5_eswitch *esw,
+				   struct mlx5_vport *vport)
 {
 	if (IS_ERR_OR_NULL(vport->ingress.acl))
 		return;
