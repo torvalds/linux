@@ -765,8 +765,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	int i;
 
 	if (obj->bit_17 == NULL) {
-		obj->bit_17 = kcalloc(BITS_TO_LONGS(page_count),
-				      sizeof(long), GFP_KERNEL);
+		obj->bit_17 = bitmap_zalloc(page_count, GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
 			DRM_ERROR("Failed to allocate memory for bit 17 "
 				  "record\n");

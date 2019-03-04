@@ -4195,7 +4195,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		drm_gem_object_release(&obj->base);
 		i915_gem_info_remove_obj(i915, obj->base.size);
 
-		kfree(obj->bit_17);
+		bitmap_free(obj->bit_17);
 		i915_gem_object_free(obj);
 
 		GEM_BUG_ON(!atomic_read(&i915->mm.free_count));

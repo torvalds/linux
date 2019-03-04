@@ -258,8 +258,7 @@ static int live_forcewake_domains(void *arg)
 	if (!IS_ENABLED(CONFIG_DRM_I915_SELFTEST_BROKEN))
 		return 0;
 
-	valid = kcalloc(BITS_TO_LONGS(FW_RANGE), sizeof(*valid),
-			GFP_KERNEL);
+	valid = bitmap_zalloc(FW_RANGE, GFP_KERNEL);
 	if (!valid)
 		return -ENOMEM;
 
@@ -294,7 +293,7 @@ static int live_forcewake_domains(void *arg)
 		}
 	}
 
-	kfree(valid);
+	bitmap_free(valid);
 	return err;
 }
 
