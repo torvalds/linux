@@ -180,14 +180,8 @@ static int pic32_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
 	struct pic32_rtc_dev *pdata = dev_get_drvdata(dev);
 	void __iomem *base = pdata->reg_base;
-	int year = tm->tm_year - 100;
 
 	dev_dbg(dev, "set time %ptR\n", tm);
-
-	if (year < 0 || year >= 100) {
-		dev_err(dev, "rtc only supports 100 years\n");
-		return -EINVAL;
-	}
 
 	clk_enable(pdata->clk);
 	writeb(bin2bcd(tm->tm_sec),  base + PIC32_RTCSEC);
@@ -195,7 +189,7 @@ static int pic32_rtc_settime(struct device *dev, struct rtc_time *tm)
 	writeb(bin2bcd(tm->tm_hour), base + PIC32_RTCHOUR);
 	writeb(bin2bcd(tm->tm_mday), base + PIC32_RTCDAY);
 	writeb(bin2bcd(tm->tm_mon + 1), base + PIC32_RTCMON);
-	writeb(bin2bcd(year), base + PIC32_RTCYEAR);
+	writeb(bin2bcd(tm->tm_year - 100), base + PIC32_RTCYEAR);
 	clk_disable(pdata->clk);
 
 	return 0;
@@ -353,6 +347,8 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata->rtc);
 
 	pdata->rtc->ops = &pic32_rtcops;
+	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	pdata->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	ret = rtc_register_device(pdata->rtc);
 	if (ret)
