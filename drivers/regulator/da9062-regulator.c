@@ -53,16 +53,12 @@ enum {
 /* Regulator capabilities and registers description */
 struct da9062_regulator_info {
 	struct regulator_desc desc;
-	/* Current limiting */
-	unsigned int n_current_limits;
-	const int *current_limits;
 	/* Main register fields */
 	struct reg_field mode;
 	struct reg_field suspend;
 	struct reg_field sleep;
 	struct reg_field suspend_sleep;
 	unsigned int suspend_vsel_reg;
-	struct reg_field ilimit;
 	/* Event detection bit */
 	struct reg_field oc_event;
 };
@@ -78,7 +74,6 @@ struct da9062_regulator {
 	struct regmap_field			*suspend;
 	struct regmap_field			*sleep;
 	struct regmap_field			*suspend_sleep;
-	struct regmap_field			*ilimit;
 };
 
 /* Encapsulates all information for the regulators driver */
@@ -104,7 +99,7 @@ enum {
  * - DA9062_ID_[BUCK1|BUCK2|BUCK4]
  * Entry indexes corresponds to register values.
  */
-static const int da9062_buck_a_limits[] = {
+static const unsigned int da9062_buck_a_limits[] = {
 	 500000,  600000,  700000,  800000,  900000, 1000000, 1100000, 1200000,
 	1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1900000, 2000000
 };
@@ -114,43 +109,10 @@ static const int da9062_buck_a_limits[] = {
  * - DA9062_ID_BUCK3
  * Entry indexes corresponds to register values.
  */
-static const int da9062_buck_b_limits[] = {
+static const unsigned int da9062_buck_b_limits[] = {
 	1500000, 1600000, 1700000, 1800000, 1900000, 2000000, 2100000, 2200000,
 	2300000, 2400000, 2500000, 2600000, 2700000, 2800000, 2900000, 3000000
 };
-
-static int da9062_set_current_limit(struct regulator_dev *rdev,
-				    int min_ua, int max_ua)
-{
-	struct da9062_regulator *regl = rdev_get_drvdata(rdev);
-	const struct da9062_regulator_info *rinfo = regl->info;
-	int n, tval;
-
-	for (n = rinfo->n_current_limits - 1; n >= 0; n--) {
-		tval = rinfo->current_limits[n];
-		if (tval >= min_ua && tval <= max_ua)
-			return regmap_field_write(regl->ilimit, n);
-	}
-
-	return -EINVAL;
-}
-
-static int da9062_get_current_limit(struct regulator_dev *rdev)
-{
-	struct da9062_regulator *regl = rdev_get_drvdata(rdev);
-	const struct da9062_regulator_info *rinfo = regl->info;
-	unsigned int sel;
-	int ret;
-
-	ret = regmap_field_read(regl->ilimit, &sel);
-	if (ret < 0)
-		return ret;
-
-	if (sel >= rinfo->n_current_limits)
-		sel = rinfo->n_current_limits - 1;
-
-	return rinfo->current_limits[sel];
-}
 
 static int da9062_buck_set_mode(struct regulator_dev *rdev, unsigned mode)
 {
@@ -395,8 +357,8 @@ static const struct regulator_ops da9062_buck_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
-	.set_current_limit	= da9062_set_current_limit,
-	.get_current_limit	= da9062_get_current_limit,
+	.set_current_limit	= regulator_set_current_limit_regmap,
+	.get_current_limit	= regulator_get_current_limit_regmap,
 	.set_mode		= da9062_buck_set_mode,
 	.get_mode		= da9062_buck_get_mode,
 	.get_status		= da9062_buck_get_status,
@@ -433,8 +395,10 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
 		.desc.n_voltages = ((1570) - (300))/(10) + 1,
-		.current_limits = da9062_buck_a_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.curr_table = da9062_buck_a_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_C,
+		.desc.csel_mask = DA9062AA_BUCK1_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK1_CONT,
 		.desc.enable_mask = DA9062AA_BUCK1_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK1_A,
@@ -457,10 +421,6 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK1_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK1_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_C,
-			__builtin_ffs((int)DA9062AA_BUCK1_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK1_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9061_ID_BUCK2,
@@ -471,8 +431,10 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.min_uV = (800) * 1000,
 		.desc.uV_step = (20) * 1000,
 		.desc.n_voltages = ((3340) - (800))/(20) + 1,
-		.current_limits = da9062_buck_b_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_b_limits),
+		.desc.curr_table = da9062_buck_b_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_b_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_A,
+		.desc.csel_mask = DA9062AA_BUCK3_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK3_CONT,
 		.desc.enable_mask = DA9062AA_BUCK3_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK3_A,
@@ -495,10 +457,6 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK3_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK3_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_A,
-			__builtin_ffs((int)DA9062AA_BUCK3_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK3_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9061_ID_BUCK3,
@@ -509,8 +467,10 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 		.desc.min_uV = (530) * 1000,
 		.desc.uV_step = (10) * 1000,
 		.desc.n_voltages = ((1800) - (530))/(10) + 1,
-		.current_limits = da9062_buck_a_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.curr_table = da9062_buck_a_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_B,
+		.desc.csel_mask = DA9062AA_BUCK4_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK4_CONT,
 		.desc.enable_mask = DA9062AA_BUCK4_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK4_A,
@@ -533,10 +493,6 @@ static const struct da9062_regulator_info local_da9061_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK4_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK4_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_B,
-			__builtin_ffs((int)DA9062AA_BUCK4_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK4_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9061_ID_LDO1,
@@ -679,8 +635,10 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
 		.desc.n_voltages = ((1570) - (300))/(10) + 1,
-		.current_limits = da9062_buck_a_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.curr_table = da9062_buck_a_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_C,
+		.desc.csel_mask = DA9062AA_BUCK1_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK1_CONT,
 		.desc.enable_mask = DA9062AA_BUCK1_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK1_A,
@@ -703,10 +661,6 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK1_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK1_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_C,
-			__builtin_ffs((int)DA9062AA_BUCK1_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK1_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9062_ID_BUCK2,
@@ -717,8 +671,10 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.min_uV = (300) * 1000,
 		.desc.uV_step = (10) * 1000,
 		.desc.n_voltages = ((1570) - (300))/(10) + 1,
-		.current_limits = da9062_buck_a_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.curr_table = da9062_buck_a_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_C,
+		.desc.csel_mask = DA9062AA_BUCK2_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK2_CONT,
 		.desc.enable_mask = DA9062AA_BUCK2_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK2_A,
@@ -741,10 +697,6 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK2_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK2_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_C,
-			__builtin_ffs((int)DA9062AA_BUCK2_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK2_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9062_ID_BUCK3,
@@ -755,8 +707,10 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.min_uV = (800) * 1000,
 		.desc.uV_step = (20) * 1000,
 		.desc.n_voltages = ((3340) - (800))/(20) + 1,
-		.current_limits = da9062_buck_b_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_b_limits),
+		.desc.curr_table = da9062_buck_b_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_b_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_A,
+		.desc.csel_mask = DA9062AA_BUCK3_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK3_CONT,
 		.desc.enable_mask = DA9062AA_BUCK3_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK3_A,
@@ -779,10 +733,6 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK3_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK3_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_A,
-			__builtin_ffs((int)DA9062AA_BUCK3_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK3_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9062_ID_BUCK4,
@@ -793,8 +743,10 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 		.desc.min_uV = (530) * 1000,
 		.desc.uV_step = (10) * 1000,
 		.desc.n_voltages = ((1800) - (530))/(10) + 1,
-		.current_limits = da9062_buck_a_limits,
-		.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.curr_table = da9062_buck_a_limits,
+		.desc.n_current_limits = ARRAY_SIZE(da9062_buck_a_limits),
+		.desc.csel_reg = DA9062AA_BUCK_ILIM_B,
+		.desc.csel_mask = DA9062AA_BUCK4_ILIM_MASK,
 		.desc.enable_reg = DA9062AA_BUCK4_CONT,
 		.desc.enable_mask = DA9062AA_BUCK4_EN_MASK,
 		.desc.vsel_reg = DA9062AA_VBUCK4_A,
@@ -817,10 +769,6 @@ static const struct da9062_regulator_info local_da9062_regulator_info[] = {
 			__builtin_ffs((int)DA9062AA_VBUCK4_SEL_MASK) - 1,
 			sizeof(unsigned int) * 8 -
 			__builtin_clz((DA9062AA_VBUCK4_SEL_MASK)) - 1),
-		.ilimit = REG_FIELD(DA9062AA_BUCK_ILIM_B,
-			__builtin_ffs((int)DA9062AA_BUCK4_ILIM_MASK) - 1,
-			sizeof(unsigned int) * 8 -
-			__builtin_clz((DA9062AA_BUCK4_ILIM_MASK)) - 1),
 	},
 	{
 		.desc.id = DA9062_ID_LDO1,
@@ -1063,15 +1011,6 @@ static int da9062_regulator_probe(struct platform_device *pdev)
 					regl->info->suspend_sleep);
 			if (IS_ERR(regl->suspend_sleep))
 				return PTR_ERR(regl->suspend_sleep);
-		}
-
-		if (regl->info->ilimit.reg) {
-			regl->ilimit = devm_regmap_field_alloc(
-					&pdev->dev,
-					chip->regmap,
-					regl->info->ilimit);
-			if (IS_ERR(regl->ilimit))
-				return PTR_ERR(regl->ilimit);
 		}
 
 		/* Register regulator */
