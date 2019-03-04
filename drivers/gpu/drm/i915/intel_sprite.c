@@ -41,6 +41,19 @@
 #include "i915_drv.h"
 #include <drm/drm_color_mgmt.h>
 
+bool is_planar_yuv_format(u32 pixelformat)
+{
+	switch (pixelformat) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+		return true;
+	default:
+		return false;
+	}
+}
+
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
 {
@@ -335,7 +348,7 @@ skl_program_scaler(struct intel_plane *plane,
 				      0, INT_MAX);
 
 	/* TODO: handle sub-pixel coordinates */
-	if (plane_state->base.fb->format->format == DRM_FORMAT_NV12 &&
+	if (is_planar_yuv_format(plane_state->base.fb->format->format) &&
 	    !icl_is_hdr_plane(plane)) {
 		y_hphase = skl_scaler_calc_phase(1, hscale, false);
 		y_vphase = skl_scaler_calc_phase(1, vscale, false);
@@ -1551,10 +1564,10 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
 
 	/* Display WA #1106 */
-	if (fb->format->format == DRM_FORMAT_NV12 && src_w & 3 &&
+	if (is_planar_yuv_format(fb->format->format) && src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
-		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated NV12\n");
+		DRM_DEBUG_KMS("src width must be multiple of 4 for rotated planar YUV\n");
 		return -EINVAL;
 	}
 
@@ -1945,6 +1958,9 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
 		if (modifier == I915_FORMAT_MOD_Yf_TILED)
 			return true;
 		/* fall through */
