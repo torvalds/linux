@@ -1467,23 +1467,26 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct strp_msg *rxm = strp_msg(skb);
 	int err = 0;
 
-#ifdef CONFIG_TLS_DEVICE
-	err = tls_device_decrypted(sk, skb);
-	if (err < 0)
-		return err;
-#endif
 	if (!ctx->decrypted) {
-		err = decrypt_internal(sk, skb, dest, NULL, chunk, zc, async);
-		if (err < 0) {
-			if (err == -EINPROGRESS)
-				tls_advance_record_sn(sk, &tls_ctx->rx,
-						      version);
-
+#ifdef CONFIG_TLS_DEVICE
+		err = tls_device_decrypted(sk, skb);
+		if (err < 0)
 			return err;
+#endif
+		/* Still not decrypted after tls_device */
+		if (!ctx->decrypted) {
+			err = decrypt_internal(sk, skb, dest, NULL, chunk, zc,
+					       async);
+			if (err < 0) {
+				if (err == -EINPROGRESS)
+					tls_advance_record_sn(sk, &tls_ctx->rx,
+							      version);
+
+				return err;
+			}
 		}
 
 		rxm->full_len -= padding_length(ctx, tls_ctx, skb);
-
 		rxm->offset += prot->prepend_size;
 		rxm->full_len -= prot->overhead_size;
 		tls_advance_record_sn(sk, &tls_ctx->rx, version);
@@ -1693,7 +1696,8 @@ int tls_sw_recvmsg(struct sock *sk,
 		bool zc = false;
 		int to_decrypt;
 		int chunk = 0;
-		bool async;
+		bool async_capable;
+		bool async = false;
 
 		skb = tls_wait_data(sk, psock, flags, timeo, &err);
 		if (!skb) {
@@ -1727,21 +1731,23 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		/* Do not use async mode if record is non-data */
 		if (ctx->control == TLS_RECORD_TYPE_DATA)
-			async = ctx->async_capable;
+			async_capable = ctx->async_capable;
 		else
-			async = false;
+			async_capable = false;
 
 		err = decrypt_skb_update(sk, skb, &msg->msg_iter,
-					 &chunk, &zc, async);
+					 &chunk, &zc, async_capable);
 		if (err < 0 && err != -EINPROGRESS) {
 			tls_err_abort(sk, EBADMSG);
 			goto recv_end;
 		}
 
-		if (err == -EINPROGRESS)
+		if (err == -EINPROGRESS) {
+			async = true;
 			num_async++;
-		else if (prot->version == TLS_1_3_VERSION)
+		} else if (prot->version == TLS_1_3_VERSION) {
 			tlm->control = ctx->control;
+		}
 
 		/* If the type of records being processed is not known yet,
 		 * set it to record type just dequeued. If it is already known,
@@ -2124,6 +2130,19 @@ static void tx_work_handler(struct work_struct *work)
 	lock_sock(sk);
 	tls_tx_records(sk, -1);
 	release_sock(sk);
+}
+
+void tls_sw_write_space(struct sock *sk, struct tls_context *ctx)
+{
+	struct tls_sw_context_tx *tx_ctx = tls_sw_ctx_tx(ctx);
+
+	/* Schedule the transmission if tx list is ready */
+	if (is_tx_ready(tx_ctx) && !sk->sk_write_pending) {
+		/* Schedule the transmission */
+		if (!test_and_set_bit(BIT_TX_SCHEDULED,
+				      &tx_ctx->tx_bitmask))
+			schedule_delayed_work(&tx_ctx->tx_work.work, 0);
+	}
 }
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)

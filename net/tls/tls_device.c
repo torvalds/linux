@@ -271,7 +271,6 @@ static int tls_push_record(struct sock *sk,
 	list_add_tail(&record->list, &offload_ctx->records_list);
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
-	set_bit(TLS_PENDING_CLOSED_RECORD, &ctx->flags);
 	tls_advance_record_sn(sk, &ctx->tx, ctx->crypto_send.info.version);
 
 	for (i = 0; i < record->num_frags; i++) {
@@ -368,9 +367,11 @@ static int tls_push_data(struct sock *sk,
 		return -sk->sk_err;
 
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
-	rc = tls_complete_pending_work(sk, tls_ctx, flags, &timeo);
-	if (rc < 0)
-		return rc;
+	if (tls_is_partially_sent_record(tls_ctx)) {
+		rc = tls_push_partial_record(sk, tls_ctx, flags);
+		if (rc < 0)
+			return rc;
+	}
 
 	pfrag = sk_page_frag(sk);
 
@@ -543,6 +544,23 @@ static int tls_device_push_pending_record(struct sock *sk, int flags)
 
 	iov_iter_kvec(&msg_iter, WRITE, NULL, 0, 0);
 	return tls_push_data(sk, &msg_iter, 0, flags, TLS_RECORD_TYPE_DATA);
+}
+
+void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
+{
+	int rc = 0;
+
+	if (!sk->sk_write_pending && tls_is_partially_sent_record(ctx)) {
+		gfp_t sk_allocation = sk->sk_allocation;
+
+		sk->sk_allocation = GFP_ATOMIC;
+		rc = tls_push_partial_record(sk, ctx,
+					     MSG_DONTWAIT | MSG_NOSIGNAL);
+		sk->sk_allocation = sk_allocation;
+	}
+
+	if (!rc)
+		ctx->sk_write_space(sk);
 }
 
 void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)

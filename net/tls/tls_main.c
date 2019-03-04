@@ -209,23 +209,9 @@ int tls_push_partial_record(struct sock *sk, struct tls_context *ctx,
 	return tls_push_sg(sk, ctx, sg, offset, flags);
 }
 
-int tls_push_pending_closed_record(struct sock *sk,
-				   struct tls_context *tls_ctx,
-				   int flags, long *timeo)
-{
-	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
-
-	if (tls_is_partially_sent_record(tls_ctx) ||
-	    !list_empty(&ctx->tx_list))
-		return tls_tx_records(sk, flags);
-	else
-		return tls_ctx->push_pending_record(sk, flags);
-}
-
 static void tls_write_space(struct sock *sk)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
-	struct tls_sw_context_tx *tx_ctx = tls_sw_ctx_tx(ctx);
 
 	/* If in_tcp_sendpages call lower protocol write space handler
 	 * to ensure we wake up any waiting operations there. For example
@@ -236,14 +222,12 @@ static void tls_write_space(struct sock *sk)
 		return;
 	}
 
-	/* Schedule the transmission if tx list is ready */
-	if (is_tx_ready(tx_ctx) && !sk->sk_write_pending) {
-		/* Schedule the transmission */
-		if (!test_and_set_bit(BIT_TX_SCHEDULED, &tx_ctx->tx_bitmask))
-			schedule_delayed_work(&tx_ctx->tx_work.work, 0);
-	}
-
-	ctx->sk_write_space(sk);
+#ifdef CONFIG_TLS_DEVICE
+	if (ctx->tx_conf == TLS_HW)
+		tls_device_write_space(sk, ctx);
+	else
+#endif
+		tls_sw_write_space(sk, ctx);
 }
 
 static void tls_ctx_free(struct tls_context *ctx)
