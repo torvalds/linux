@@ -293,7 +293,7 @@ const struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void);
 #else
 static inline struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 #endif
 

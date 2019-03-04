@@ -90,9 +90,6 @@ static int process_api_request(u32 pm_id, u64 *pm_api_arg, u32 *pm_api_ret)
 	int ret;
 	struct zynqmp_pm_query_data qdata = {0};
 
-	if (!eemi_ops)
-		return -ENXIO;
-
 	switch (pm_id) {
 	case PM_GET_API_VERSION:
 		ret = eemi_ops->get_api_version(&pm_api_version);
