@@ -348,13 +348,15 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &pic32_rtcops,
-						 THIS_MODULE);
-	if (IS_ERR(pdata->rtc)) {
-		ret = PTR_ERR(pdata->rtc);
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(pdata->rtc))
+		return PTR_ERR(pdata->rtc);
+
+	pdata->rtc->ops = &pic32_rtcops;
+
+	ret = rtc_register_device(pdata->rtc);
+	if (ret)
 		goto err_nortc;
-	}
 
 	pdata->rtc->max_user_freq = 128;
 
