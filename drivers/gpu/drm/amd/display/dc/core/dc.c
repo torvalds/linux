@@ -524,6 +524,14 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	struct dc_stream_state *link_stream;
 	struct dc_link_settings store_settings = *link_setting;
 
+	link->preferred_link_setting = store_settings;
+
+	/* Retrain with preferred link settings only relevant for
+	 * DP signal type
+	 */
+	if (!dc_is_dp_signal(link->connector_signal))
+		return;
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->sink
@@ -539,7 +547,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
 
-	link->preferred_link_setting = store_settings;
+	/* Cannot retrain link if backend is off */
+	if (link_stream->dpms_off)
+		return;
+
 	if (link_stream)
 		decide_link_settings(link_stream, &store_settings);
 
