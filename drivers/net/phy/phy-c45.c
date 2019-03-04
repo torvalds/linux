@@ -99,10 +99,10 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev)
 
 	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
 
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE,
-			     ADVERTISE_ALL | ADVERTISE_100BASE4 |
-			     ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
-			     adv);
+	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_ADVERTISE,
+				     ADVERTISE_ALL | ADVERTISE_100BASE4 |
+				     ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
+				     adv);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
@@ -110,11 +110,10 @@ int genphy_c45_an_config_aneg(struct phy_device *phydev)
 
 	adv = linkmode_adv_to_mii_10gbt_adv_t(phydev->advertising);
 
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
-			     MDIO_AN_10GBT_CTRL_ADV10G |
-			     MDIO_AN_10GBT_CTRL_ADV5G |
-			     MDIO_AN_10GBT_CTRL_ADV2_5G,
-			     adv);
+	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+				     MDIO_AN_10GBT_CTRL_ADV10G |
+				     MDIO_AN_10GBT_CTRL_ADV5G |
+				     MDIO_AN_10GBT_CTRL_ADV2_5G, adv);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
