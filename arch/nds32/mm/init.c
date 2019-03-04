@@ -272,7 +272,7 @@ void __set_fixmap(enum fixed_addresses idx,
 
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
-	pte = (pte_t *)&fixmap_pmd_p[pte_index(addr)];;
+	pte = (pte_t *)&fixmap_pmd_p[pte_index(addr)];
 
 	if (pgprot_val(flags)) {
 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
