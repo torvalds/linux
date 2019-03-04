@@ -1418,8 +1418,7 @@ static inline int _nbu2ss_req_feature(struct nbu2ss_udc *udc, bool bset)
 						udc, ep_adrs);
 				}
 
-				_nbu2ss_set_endpoint_stall(
-					udc, ep_adrs, bset);
+				_nbu2ss_set_endpoint_stall(udc, ep_adrs, bset);
 
 				result = 0;
 			}
