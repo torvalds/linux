@@ -3,7 +3,7 @@
  * RTC driver for the Micro Crystal RV8803
  *
  * Copyright (C) 2015 Micro Crystal SA
- * Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ * Alexandre Belloni <alexandre.belloni@bootlin.com>
  *
  */
 
@@ -643,6 +643,6 @@ static struct i2c_driver rv8803_driver = {
 };
 module_i2c_driver(rv8803_driver);
 
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
+MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@bootlin.com>");
 MODULE_DESCRIPTION("Micro Crystal RV8803 RTC driver");
 MODULE_LICENSE("GPL v2");

@@ -5,7 +5,7 @@
  * Copyright 2014-2015 Macq S.A.
  *
  * Author: Philippe De Muyter <phdm@macqel.be>
- * Author: Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ * Author: Alexandre Belloni <alexandre.belloni@bootlin.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -906,6 +906,6 @@ static struct i2c_driver abx80x_driver = {
 module_i2c_driver(abx80x_driver);
 
 MODULE_AUTHOR("Philippe De Muyter <phdm@macqel.be>");
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
+MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@bootlin.com>");
 MODULE_DESCRIPTION("Abracon ABX80X RTC driver");
 MODULE_LICENSE("GPL v2");
