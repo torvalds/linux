@@ -189,6 +189,15 @@ static void debug_putc(struct platform_device *pdev, unsigned int c)
 	rk_fiq_write(t, c, UART_TX);
 }
 
+static int debug_getc_dummy(struct platform_device *pdev)
+{
+	return FIQ_DEBUGGER_NO_CHAR;
+}
+
+static void debug_putc_dummy(struct platform_device *pdev, unsigned int c)
+{
+}
+
 static void debug_flush(struct platform_device *pdev)
 {
 	struct rk_fiq_debugger *t;
@@ -598,6 +607,41 @@ out2:
 	kfree(t);
 }
 
+void rk_serial_debug_init_dummy(void)
+{
+	struct rk_fiq_debugger *t = NULL;
+	struct platform_device *pdev = NULL;
+
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (!t) {
+		pr_err("Failed to allocate for fiq debugger\n");
+		return;
+	}
+
+	t->pdata.uart_getc = debug_getc_dummy;
+	t->pdata.uart_putc = debug_putc_dummy;
+
+	pdev = kzalloc(sizeof(*pdev), GFP_KERNEL);
+	if (!pdev) {
+		pr_err("Failed to alloc fiq debugger platform device\n");
+		goto out2;
+	}
+
+	pdev->name = "fiq_debugger";
+	pdev->id = rk_fiq_debugger_id++;
+	pdev->dev.platform_data = &t->pdata;
+	if (platform_device_register(pdev)) {
+		pr_err("Failed to register fiq debugger\n");
+		goto out3;
+	}
+	return;
+
+out3:
+	kfree(pdev);
+out2:
+	kfree(t);
+}
+
 #if defined(CONFIG_OF)
 static const struct of_device_id rk_fiqdbg_of_match[] = {
 	{ .compatible = "rockchip,fiq-debugger", },
@@ -627,6 +671,11 @@ static int __init rk_fiqdbg_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "rockchip,serial-id", &serial_id))
 		return -EINVAL;
+
+	if (serial_id == -1) {
+		rk_serial_debug_init_dummy();
+		return 0;
+	}
 
 	if (of_property_read_u32(np, "rockchip,irq-mode-enable", &irq_mode))
 		irq_mode = -1;
