@@ -11132,7 +11132,8 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		lpfc_sli4_ras_dma_free(phba);
 
 	/* Stop the SLI4 device port */
-	phba->pport->work_port_events = 0;
+	if (phba->pport)
+		phba->pport->work_port_events = 0;
 }
 
  /**
