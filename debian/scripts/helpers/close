@@ -1,23 +1,56 @@
-#!/bin/bash -e
-#
-# This script is intended as a helper when closing a release.
-#
+#!/bin/bash -eu
+export LC_ALL=C
 
-# shellcheck disable=SC1091
-. debian/debian.env
+usage() {
+	cat << EOF
+Usage: ${P:-$(basename "$0")} [-h|--help] [-d|--dry-run] [-c|--include-config] [-s|--skip-master]
 
-# Parse args
-usage="$0 [-c] [-d] [-s]"$'\n\n'
-usage+="-c 			Include config changes in the closing commit."$'\n'
-usage+="-d 			Dry run (do not change files or commit)."$'\n'
-usage+="-s 			Skip master kernel changelog entries (used when bootstraping new kernels)."
-while getopts "cds" opt; do
-	case $opt in
-	c) commit_configs=1 ;;
-	d) dry_run=1 ;;
-	s) skip_master_entries=1 ;;
-	*) echo usage: "${usage}"; exit ;;
+Prepare the closing release commit. Include all the changelog entries
+in the current release, including the changes from the base
+kernel. Also close the changelog entry and check for config changes.
+
+Optional arguments:
+  -d, --dry-run         Perform a trial run with no changes made
+                        printing the commands instead.
+  -c, --include-config  Include config changes in the closing commit.
+  -s, --skip-master     Skip master kernel changelog entries (used when
+                        bootstraping new kernels).
+  -h, --help            Show this help message and exit.
+
+Examples:
+  Simply close a release:
+    \$ cranky close
+
+  Also include any config changes to the closing commit:
+    \$ cranky close -c
+
+EOF
+}
+
+dry_run=0
+commit_configs=0
+skip_master_entries=0
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-d|--dry-run)
+			dry_run=1
+			;;
+		-c|--include-config)
+			commit_configs=1
+			;;
+		-s|--skip-master)
+			skip_master_entries=1
+			;;
+		*)
+			usage
+			exit 1
+			;;
 	esac
+	shift
 done
 
 hl() { echo -e "\e[1m$*\e[0m"; }
@@ -29,14 +62,23 @@ run() {
 		quoted+=( "$(printf '%q' "$token")" )
 	done
 	# Run
-	if [ "$dry_run" ]; then
+	if [ "$dry_run" -eq 1 ]; then
 		hl "DRY RUN: ${quoted[*]}"
 	else
 		hl "${quoted[*]}"
-		eval "${quoted[*]}"
+		"$@"
 		echo
 	fi
 }
+
+# Trick shellcheck so it doesn't complain every time it's necessary to
+# use `run $CHROOT`. Use `chroot_run` instead.
+shopt -s expand_aliases
+alias chroot_run='run ${CHROOT:-}'
+
+DEBIAN=
+# shellcheck disable=SC1091
+. debian/debian.env
 
 # Check if the "debian.<branch>/" directory exists.
 if [ ! -d "$DEBIAN" ]; then
@@ -53,9 +95,9 @@ if [ "$series" != 'UNRELEASED' ]; then
 fi
 
 # Update configs
-run fakeroot debian/rules clean updateconfigs
+chroot_run fakeroot debian/rules clean updateconfigs
 changes=$(git diff HEAD -- "./$DEBIAN/config/")
-if ! [ "$commit_configs" ] && [ "$changes" ]; then
+if [ "$commit_configs" -eq 0 ] && [ -n "$changes" ]; then
 	echo "Config has changed! please, review it and commit."
 	exit 1
 fi
@@ -75,7 +117,7 @@ if [ "$branch" != 'master' ]; then
 		fi
 	fi
 
-	if ! [ "$skip_master_entries" ]; then
+	if [ "$skip_master_entries" -eq 0 ]; then
 	    offset=0
 	    # Loop through each entry of the current changelog, searching for an
 	    # entry that refers to the master version used as base (ie a line
@@ -105,7 +147,7 @@ run fakeroot debian/rules insertchanges
 # This should be the last step. If there were no changes to the
 # changelog, there is nothing to release, so nothing to commit.
 changes=$(git diff HEAD)
-if ! [ "$changes" ] && ! [ "$dry_run" ]; then
+if [ -z "$changes" ] && [ "$dry_run" -eq 0 ]; then
 	hl "No changes to commit."
 	exit 1
 fi

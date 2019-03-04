@@ -1,0 +1,212 @@
+#!/bin/bash -eu
+export LC_ALL=C
+
+usage() {
+	cat << EOF
+Usage: ${P:-$(basename "$0")} [-h|--help] [-d|--dry-run] [-r|--reuse-abi]
+
+Create a "start new release" commit. The new commit will contain ABI
+changes and any customization required by backport kernels.
+
+Optional arguments:
+  -d, --dry-run         Perform a trial run with no changes made
+                        printing the commands instead.
+  -r, --reuse-abi       Do not download the previous release ABI files
+                        for the new release and just rename the
+                        current ABI directory. This might cause the
+                        build to fail if the module list or the
+                        retpoline information has changed.
+  -h, --help            Show this help message and exit.
+
+Environment variable:
+  CRANKY_MAILENFORCE    Regular expression used to validate \$DEBEMAIL. If not
+                        set, it defaults to "@canonical.com$".
+
+Examples:
+  Simply start a new release (that will fetch the ABI files from the
+  archieve repositories):
+    \$ cranky open
+
+  Start a new release re-using the ABI files already present in the
+  tree:
+    \$ cranky open --reuse-abi
+
+EOF
+}
+
+dry_run=0
+reuse_abi=0
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-d|--dry-run)
+			dry_run=1
+			;;
+		-r|--reuse-abi)
+			reuse_abi=1
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+	shift
+done
+
+hl() { echo -e "\e[1m$*\e[0m"; }
+
+run() {
+	# Quote args for echo or eval
+	local quoted=()
+	for token; do
+		quoted+=("$(printf '%q' "$token")")
+	done
+	# Run
+	if [ "$dry_run" -eq 1 ]; then
+ 		hl "DRY RUN: ${quoted[*]}"
+	else
+		hl "${quoted[*]}"
+		"$@"
+		echo
+	fi
+}
+
+# Trick shellcheck so it doesn't complain every time it's necessary to
+# use `run $CHROOT`. Use `chroot_run` instead.
+shopt -s expand_aliases
+alias chroot_run='run ${CHROOT:-}'
+
+# Check DEBEMAIL (used to create the new changelog stanza):
+DEBEMAIL="${DEBEMAIL:-}"
+CRANKY_MAILENFORCE="${CRANKY_MAILENFORCE:-@canonical.com\$}"
+if [ -z "$DEBEMAIL" ] || ! echo "$DEBEMAIL" | grep -qE "$CRANKY_MAILENFORCE"; then
+	echo "DEBEMAIL is unset, or does not contain \"$CRANKY_MAILENFORCE\": $DEBEMAIL" >&2
+	exit 1
+fi
+
+# Requires a git repo
+if [ ! -e .git ]; then
+	echo "Not a git repository!" >&2
+	exit 1
+fi
+
+# Check the debian directory
+if [ ! -e debian/debian.env ]; then
+	echo "Cannot find debian/debian.env!" >&2
+	exit 1
+fi
+DEBIAN=
+# shellcheck disable=SC1091
+. debian/debian.env
+if [ -z "$DEBIAN" ] || [ ! -d "$DEBIAN" ]; then
+	echo "Invalid DEBIAN directory: $DEBIAN" >&2
+	exit 1
+fi
+
+# Abort if changes or untracked files are found in the debian
+# directory (ie, in "debian.master/"). cranky-open is expected to
+# change and commit files in this directory.
+if ! git diff-index --quiet HEAD -- "$DEBIAN/" || \
+		[ -n "$(git ls-files --others -- "$DEBIAN/")" ]; then
+	echo "\"$DEBIAN/\" is not clean!" >&2
+	exit 1
+fi
+
+# Check changelog
+series=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SDistribution)
+if [ "$series" == 'UNRELEASED' ]; then
+	echo "$DEBIAN/changelog is not closed!" >&2
+	exit 1
+fi
+
+# Load the info about derivative
+BACKPORT_SUFFIX=
+derivative_conf="$DEBIAN/etc/update.conf"
+if [ -f "$derivative_conf" ]; then
+	# shellcheck disable=SC1090
+	. "$derivative_conf"
+fi
+
+# Run the update script used for backport kernels
+if [ -n "$BACKPORT_SUFFIX" ]; then
+	update_from_master_script="$DEBIAN/scripts/helpers/copy-files"
+	if [ ! -x "$update_from_master_script" ]; then
+		echo "Backport kernel is missing the"\
+		     "\"$update_from_master_script\" script!";
+		exit 1
+	fi
+	# The tree should be clean at this point, since that is enforced at
+	# the beginning of the script. Because of that, it's safe to git add
+	# "$DEBIAN/".
+	run env CHROOT="$CHROOT" "$update_from_master_script"
+	run git add "$DEBIAN"
+	# Update configs after the necessary files were copied from
+	# the base kernel. It's not expected that `fdr updateconfigs`
+	# will fail at this point, because the base kernel's
+	# configuration and annotations file are expected to be in a
+	# correct state. `fdr updateconfigs` should only change a few
+	# configuration options that depend on the userspace tooling
+	# version, such as gcc.
+	if ! chroot_run fakeroot debian/rules clean updateconfigs; then
+		echo "Failed to update configs. Please review the previous" \
+		     "rebase operation and \"$update_from_master_script\"";
+		exit 1
+	fi
+	run git add "$DEBIAN/config"
+fi
+
+# fdr clean should be called after copy-files, that way we can git add
+# any changes in "debian.<branch>/" (`fdr clean` in trusty will
+# usually generate changes in "debian.<branch>/). Also, fdr clean
+# removes an ABI that matches the current version in the
+# changelog. Since `fdr startnewrelease` requires `fdr clean`, we need
+# to call it before getabis.
+chroot_run fakeroot debian/rules clean
+
+# Update ABI
+if [ -d "$DEBIAN/abi" ]; then
+	# The new ABI directory should use the current version in the
+	# changelog since `fdr startnewrelease` was't called at this
+	# point yet:
+	new=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion)
+
+	if [ "$reuse_abi" -ne 0 ]; then
+		# Get the old ABI directory:
+		old=$(find "$DEBIAN/abi/" -mindepth 1 -maxdepth 1 -type d -a -name "${new%%-*}*")
+		if [ "$(echo "$old" | wc -l)" -gt 1 ]; then
+			echo "Failed to rename the current ABI directory." \
+			     "Multiple directories found. Please check \"$DEBIAN/abi/\"!" >&2
+			exit 1
+		fi
+		new="$DEBIAN/abi/$new"
+		# Rename the ABI directory
+		run git mv "$old" "$new"
+	else
+		# Call in-tree getabis:
+		# Use the single argument form since getabis is now
+		# updated by cranky fix.
+		run debian/scripts/misc/getabis "${new}"
+		# getabis already handles the necessary git add/rm calls.
+	fi
+fi
+
+# Create the new changelog entry:
+run fakeroot debian/rules startnewrelease
+run git add "$DEBIAN/changelog"
+
+# Create the commit
+run git commit -s -F debian/commit-templates/newrelease
+
+# Perform a basic ABI check
+if [ "$dry_run" -eq 0 ]; then
+	version=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion -c1 -o1)
+	abi_dir="$DEBIAN/abi/$version"
+	[ ! -d "$abi_dir" ] && hl "Warning: ABI directory is missing: $abi_dir"
+fi
+
+# Mimic maint-startnewrelease
+[ "$dry_run" -eq 0 ] && \
+    hl "\n***** Now please inspect the commit before pushing *****"
