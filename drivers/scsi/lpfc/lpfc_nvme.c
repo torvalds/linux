@@ -964,7 +964,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	struct lpfc_nvme_lport *lport;
-	uint32_t code, status, idx, cpu;
+	uint32_t code, status, idx;
 	uint16_t cid, sqhd, data;
 	uint32_t *ptr;
 
@@ -1137,6 +1137,7 @@ out_err:
 		lpfc_nvme_ktime(phba, lpfc_ncmd);
 	}
 	if (phba->cpucheck_on & LPFC_CHECK_NVME_IO) {
+		uint32_t cpu;
 		idx = lpfc_ncmd->cur_iocbq.hba_wqidx;
 		cpu = smp_processor_id();
 		if (cpu < LPFC_CHECK_CPU_CNT) {
