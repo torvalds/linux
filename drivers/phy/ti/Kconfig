@@ -37,7 +37,7 @@ config OMAP_USB2
 	depends on USB_SUPPORT
 	select GENERIC_PHY
 	select USB_PHY
-	select OMAP_CONTROL_PHY if ARCH_OMAP2PLUS
+	select OMAP_CONTROL_PHY if ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  Enable this to support the transceiver that is part of SOC. This
 	  driver takes care of all the PHY functionality apart from comparator.
