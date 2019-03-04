@@ -791,7 +791,7 @@ out:
  * PCI rpm framework checks the existence of driver rpm callbacks.
  * Place a dummy callback here to avoid rpm going into error state.
  */
-static int imgu_rpm_dummy_cb(struct device *dev)
+static __maybe_unused int imgu_rpm_dummy_cb(struct device *dev)
 {
 	return 0;
 }
