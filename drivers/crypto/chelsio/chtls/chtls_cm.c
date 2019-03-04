@@ -616,7 +616,7 @@ int chtls_listen_start(struct chtls_dev *cdev, struct sock *sk)
 
 	pi = netdev_priv(ndev);
 	adap = pi->adapter;
-	if (!(adap->flags & FULL_INIT_DONE))
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE))
 		return -EBADF;
 
 	if (listen_hash_find(cdev, sk) >= 0)   /* already have it */

@@ -606,18 +606,18 @@ struct dentry;
 struct work_struct;
 
 enum {                                 /* adapter flags */
-	FULL_INIT_DONE     = (1 << 0),
-	DEV_ENABLED        = (1 << 1),
-	USING_MSI          = (1 << 2),
-	USING_MSIX         = (1 << 3),
-	FW_OK              = (1 << 4),
-	RSS_TNLALLLOOKUP   = (1 << 5),
-	USING_SOFT_PARAMS  = (1 << 6),
-	MASTER_PF          = (1 << 7),
-	FW_OFLD_CONN       = (1 << 9),
-	ROOT_NO_RELAXED_ORDERING = (1 << 10),
-	SHUTTING_DOWN	   = (1 << 11),
-	SGE_DBQ_TIMER      = (1 << 12),
+	CXGB4_FULL_INIT_DONE		= (1 << 0),
+	CXGB4_DEV_ENABLED		= (1 << 1),
+	CXGB4_USING_MSI			= (1 << 2),
+	CXGB4_USING_MSIX		= (1 << 3),
+	CXGB4_FW_OK			= (1 << 4),
+	CXGB4_RSS_TNLALLLOOKUP		= (1 << 5),
+	CXGB4_USING_SOFT_PARAMS		= (1 << 6),
+	CXGB4_MASTER_PF			= (1 << 7),
+	CXGB4_FW_OFLD_CONN		= (1 << 9),
+	CXGB4_ROOT_NO_RELAXED_ORDERING	= (1 << 10),
+	CXGB4_SHUTTING_DOWN		= (1 << 11),
+	CXGB4_SGE_DBQ_TIMER		= (1 << 12),
 };
 
 enum {

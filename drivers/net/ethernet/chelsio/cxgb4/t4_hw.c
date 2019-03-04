@@ -198,7 +198,7 @@ static void t4_report_fw_error(struct adapter *adap)
 	if (pcie_fw & PCIE_FW_ERR_F) {
 		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
 			reason[PCIE_FW_EVAL_G(pcie_fw)]);
-		adap->flags &= ~FW_OK;
+		adap->flags &= ~CXGB4_FW_OK;
 	}
 }
 
@@ -5243,7 +5243,7 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 
 static unsigned int t4_use_ldst(struct adapter *adap)
 {
-	return (adap->flags & FW_OK) && !adap->use_bd;
+	return (adap->flags & CXGB4_FW_OK) && !adap->use_bd;
 }
 
 /**
@@ -6132,7 +6132,7 @@ unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
 	 *        ( MPSBGMAP[Port 1] <<  8 ) |
 	 *        ( MPSBGMAP[Port 0] <<  0 ))
 	 */
-	if (adapter->flags & FW_OK) {
+	if (adapter->flags & CXGB4_FW_OK) {
 		u32 param, val;
 		int ret;
 
@@ -7093,10 +7093,10 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	if (!t4_fw_matches_chip(adap, fw_hdr))
 		return -EINVAL;
 
-	/* Disable FW_OK flag so that mbox commands with FW_OK flag set
-	 * wont be sent when we are flashing FW.
+	/* Disable CXGB4_FW_OK flag so that mbox commands with CXGB4_FW_OK flag
+	 * set wont be sent when we are flashing FW.
 	 */
-	adap->flags &= ~FW_OK;
+	adap->flags &= ~CXGB4_FW_OK;
 
 	ret = t4_fw_halt(adap, mbox, force);
 	if (ret < 0 && !force)
@@ -7135,7 +7135,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 */
 	(void)t4_init_devlog_params(adap);
 out:
-	adap->flags |= FW_OK;
+	adap->flags |= CXGB4_FW_OK;
 	return ret;
 }
 

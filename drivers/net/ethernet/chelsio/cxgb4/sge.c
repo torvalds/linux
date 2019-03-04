@@ -3375,7 +3375,7 @@ static irqreturn_t t4_intr_msi(int irq, void *cookie)
 {
 	struct adapter *adap = cookie;
 
-	if (adap->flags & MASTER_PF)
+	if (adap->flags & CXGB4_MASTER_PF)
 		t4_slow_intr_handler(adap);
 	process_intrq(adap);
 	return IRQ_HANDLED;
@@ -3391,7 +3391,7 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
 	struct adapter *adap = cookie;
 
 	t4_write_reg(adap, MYPF_REG(PCIE_PF_CLI_A), 0);
-	if (((adap->flags & MASTER_PF) && t4_slow_intr_handler(adap)) |
+	if (((adap->flags & CXGB4_MASTER_PF) && t4_slow_intr_handler(adap)) |
 	    process_intrq(adap))
 		return IRQ_HANDLED;
 	return IRQ_NONE;             /* probably shared interrupt */
@@ -3406,9 +3406,9 @@ static irqreturn_t t4_intr_intx(int irq, void *cookie)
  */
 irq_handler_t t4_intr_handler(struct adapter *adap)
 {
-	if (adap->flags & USING_MSIX)
+	if (adap->flags & CXGB4_USING_MSIX)
 		return t4_sge_intr_msix;
-	if (adap->flags & USING_MSI)
+	if (adap->flags & CXGB4_USING_MSI)
 		return t4_intr_msi;
 	return t4_intr_intx;
 }
@@ -3441,7 +3441,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
 	 * global Master PF activities like checking for chip ingress stalls,
 	 * etc.
 	 */
-	if (!(adap->flags & MASTER_PF))
+	if (!(adap->flags & CXGB4_MASTER_PF))
 		goto done;
 
 	t4_idma_monitor(adap, &s->idma_monitor, HZ, RX_QCHECK_PERIOD);
@@ -3549,7 +3549,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	struct fw_iq_cmd c;
 	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
-	int relaxed = !(adap->flags & ROOT_NO_RELAXED_ORDERING);
+	int relaxed = !(adap->flags & CXGB4_ROOT_NO_RELAXED_ORDERING);
 
 	/* Size needs to be multiple of 16, including status entry. */
 	iq->size = roundup(iq->size, 16);

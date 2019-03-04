@@ -875,7 +875,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	    e->rx_pending < MIN_FL_ENTRIES || e->tx_pending < MIN_TXQ_ENTRIES)
 		return -EINVAL;
 
-	if (adapter->flags & FULL_INIT_DONE)
+	if (adapter->flags & CXGB4_FULL_INIT_DONE)
 		return -EBUSY;
 
 	for (i = 0; i < pi->nqsets; ++i) {
@@ -940,7 +940,7 @@ static int get_dbqtimer_tick(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
 
-	if (!(adap->flags & SGE_DBQ_TIMER))
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
 		return 0;
 
 	return adap->sge.dbqtimer_tick;
@@ -957,7 +957,7 @@ static int get_dbqtimer(struct net_device *dev)
 
 	txq = &adap->sge.ethtxq[pi->first_qset];
 
-	if (!(adap->flags & SGE_DBQ_TIMER))
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
 		return 0;
 
 	/* all of the TX Queues use the same Timer Index */
@@ -979,7 +979,7 @@ static int set_dbqtimer_tick(struct net_device *dev, int usecs)
 	u32 param, val;
 	int ret;
 
-	if (!(adap->flags & SGE_DBQ_TIMER))
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
 		return 0;
 
 	/* return early if it's the same Timer Tick we're already using */
@@ -1015,7 +1015,7 @@ static int set_dbqtimer(struct net_device *dev, int usecs)
 	u32 param, val;
 	int ret;
 
-	if (!(adap->flags & SGE_DBQ_TIMER))
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
 		return 0;
 
 	/* Find the SGE Doorbell Timer Value that's closest to the requested
@@ -1042,7 +1042,7 @@ static int set_dbqtimer(struct net_device *dev, int usecs)
 		return 0;
 
 	for (qix = 0; qix < pi->nqsets; qix++, txq++) {
-		if (adap->flags & FULL_INIT_DONE) {
+		if (adap->flags & CXGB4_FULL_INIT_DONE) {
 			param =
 			 (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
 			  FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX) |
@@ -1263,7 +1263,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	 * firmware image otherwise we'll try to do the entire job from the
 	 * host ... and we always "force" the operation in this path.
 	 */
-	if (adap->flags & FULL_INIT_DONE)
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		mbox = adap->mbox;
 
 	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
@@ -1342,7 +1342,7 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 		return 0;
 
 	/* Interface must be brought up atleast once */
-	if (pi->adapter->flags & FULL_INIT_DONE) {
+	if (pi->adapter->flags & CXGB4_FULL_INIT_DONE) {
 		for (i = 0; i < pi->rss_size; i++)
 			pi->rss[i] = p[i];
 
