@@ -3,7 +3,8 @@
 #
 config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
-	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on RESET_CONTROLLER
 	depends on EXTCON
 	depends on POWER_SUPPLY
@@ -19,7 +20,8 @@ config PHY_SUN4I_USB
 
 config PHY_SUN6I_MIPI_DPHY
 	tristate "Allwinner A31 MIPI D-PHY Support"
-	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on RESET_CONTROLLER
 	select GENERIC_PHY
 	select GENERIC_PHY_MIPI_DPHY
@@ -31,7 +33,8 @@ config PHY_SUN6I_MIPI_DPHY
 
 config PHY_SUN9I_USB
 	tristate "Allwinner sun9i SoC USB PHY driver"
-	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on HAS_IOMEM
 	depends on RESET_CONTROLLER
 	depends on USB_SUPPORT
 	select USB_COMMON
