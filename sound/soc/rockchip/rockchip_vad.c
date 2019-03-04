@@ -39,7 +39,8 @@ module_param(voice_inactive_frames, uint, 0644);
 MODULE_PARM_DESC(voice_inactive_frames, "voice inactive frame count");
 
 enum rk_vad_version {
-	VAD_RK1808 = 1,
+	VAD_RK1808ES = 1,
+	VAD_RK1808,
 	VAD_RK3308,
 };
 
@@ -115,7 +116,7 @@ static int vad_buffer_sort(struct rockchip_vad *vad)
 	struct vad_buf *vbuf = &vad->vbuf;
 	int loop_cnt = vbuf->loop_cnt;
 
-	if (vad->version != VAD_RK1808)
+	if (vad->version != VAD_RK1808ES)
 		return 0;
 
 	if (vbuf->sorted || !vbuf->loop)
@@ -159,7 +160,7 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 		return 0;
 
 	/* sample cnt will be clear after vad disabled */
-	if (vad->version == VAD_RK1808)
+	if (vad->version == VAD_RK1808ES)
 		regmap_read(vad->regmap, VAD_SAMPLE_CNT, &frames);
 	regmap_update_bits(vad->regmap, VAD_CTRL, VAD_EN_MASK, VAD_DISABLE);
 	regmap_read(vad->regmap, VAD_CTRL, &val);
@@ -186,7 +187,7 @@ static int rockchip_vad_stop(struct rockchip_vad *vad)
 		vbuf->pos = vbuf->begin;
 	}
 
-	if (vad->version == VAD_RK1808) {
+	if (vad->version == VAD_RK1808ES) {
 		vbuf->loop_cnt = (frames / vframe_size(vad, vbuf->size)) % 16;
 		/* due to get loop_cnt before vad disable, we should take
 		 * the boundary issue into account, and judge whether the
@@ -768,7 +769,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (vad->version == VAD_RK1808) {
+	if (vad->version == VAD_RK1808ES) {
 		val = SRC_ADDR_MODE_INC | SRC_BURST_INCR16;
 		mask = SRC_ADDR_MODE_MASK | SRC_BURST_MASK | SRC_BURST_NUM_MASK;
 		if (params_channels(params) == 6)
@@ -789,7 +790,7 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 		buf_time = min(buf_time, vad->buffer_time);
 
 		val = params_rate(params) * buf_time / 1000;
-		if (vad->version == VAD_RK1808)
+		if (vad->version == VAD_RK1808ES)
 			val &= ~0xf; /* 16 align */
 		val *= frame_bytes;
 		val += vad->memphy;
@@ -1009,7 +1010,8 @@ static int rockchip_vad_debugfs_reg_show(struct seq_file *s, void *v)
 	unsigned int val;
 	unsigned int max_register;
 
-	if (vad->version == VAD_RK1808)
+	if (vad->version == VAD_RK1808 ||
+	    vad->version == VAD_RK1808ES)
 		max_register = VAD_NOISE_DATA;
 	else
 		max_register = VAD_INT;
@@ -1076,7 +1078,8 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 	       VAD_MODE_MASK;
 
 	regmap_update_bits(vad->regmap, VAD_CTRL, mask, val);
-	if (vad->version == VAD_RK1808) {
+	if (vad->version == VAD_RK1808 ||
+	    vad->version == VAD_RK1808ES) {
 		regmap_update_bits(vad->regmap, VAD_AUX_CONTROL,
 				   RAM_ITF_EN_MASK | BUS_WRITE_EN_MASK,
 				   RAM_ITF_DIS | BUS_WRITE_EN);
@@ -1086,6 +1089,7 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 }
 
 static const struct of_device_id rockchip_vad_match[] = {
+	{ .compatible = "rockchip,rk1808es-vad", .data = (void *)VAD_RK1808ES },
 	{ .compatible = "rockchip,rk1808-vad", .data = (void *)VAD_RK1808 },
 	{ .compatible = "rockchip,rk3308-vad", .data = (void *)VAD_RK3308 },
 	{},
@@ -1118,6 +1122,7 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 
 	switch (vad->version) {
 	case VAD_RK1808:
+	case VAD_RK1808ES:
 		regmap_config = &rk1808_vad_regmap_config;
 		break;
 	case VAD_RK3308:
