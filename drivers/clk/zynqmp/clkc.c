@@ -53,6 +53,10 @@
 #define RESERVED_CLK_NAME		""
 
 #define CLK_VALID_MASK			0x1
+#define NODE_CLASS_SHIFT		26U
+#define NODE_SUBCLASS_SHIFT		20U
+#define NODE_TYPE_SHIFT			14U
+#define NODE_INDEX_SHIFT		0U
 
 enum clk_type {
 	CLK_TYPE_OUTPUT,
@@ -80,6 +84,7 @@ struct clock_parent {
  * @num_nodes:		Number of nodes present in topology
  * @parent:		Parent of clock
  * @num_parents:	Number of parents of clock
+ * @clk_id:		Clock id
  */
 struct zynqmp_clock {
 	char clk_name[MAX_NAME_LEN];
@@ -89,6 +94,7 @@ struct zynqmp_clock {
 	u32 num_nodes;
 	struct clock_parent parent[MAX_PARENT];
 	u32 num_parents;
+	u32 clk_id;
 };
 
 static const char clk_type_postfix[][10] = {
@@ -396,7 +402,8 @@ static int zynqmp_clock_get_topology(u32 clk_id,
 
 	*num_nodes = 0;
 	for (j = 0; j <= MAX_NODES; j += 3) {
-		ret = zynqmp_pm_clock_get_topology(clk_id, j, pm_resp);
+		ret = zynqmp_pm_clock_get_topology(clock[clk_id].clk_id, j,
+						   pm_resp);
 		if (ret)
 			return ret;
 		ret = __zynqmp_clock_get_topology(topology, pm_resp, num_nodes);
@@ -459,7 +466,8 @@ static int zynqmp_clock_get_parents(u32 clk_id, struct clock_parent *parents,
 	*num_parents = 0;
 	do {
 		/* Get parents from firmware */
-		ret = zynqmp_pm_clock_get_parents(clk_id, j, pm_resp);
+		ret = zynqmp_pm_clock_get_parents(clock[clk_id].clk_id, j,
+						  pm_resp);
 		if (ret)
 			return ret;
 
@@ -528,13 +536,14 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 						   const char **parent_names)
 {
 	int j;
-	u32 num_nodes;
+	u32 num_nodes, clk_dev_id;
 	char *clk_out = NULL;
 	struct clock_topology *nodes;
 	struct clk_hw *hw = NULL;
 
 	nodes = clock[clk_id].node;
 	num_nodes = clock[clk_id].num_nodes;
+	clk_dev_id = clock[clk_id].clk_id;
 
 	for (j = 0; j < num_nodes; j++) {
 		/*
@@ -551,13 +560,14 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 		if (!clk_topology[nodes[j].type])
 			continue;
 
-		hw = (*clk_topology[nodes[j].type])(clk_out, clk_id,
+		hw = (*clk_topology[nodes[j].type])(clk_out, clk_dev_id,
 						    parent_names,
 						    num_parents,
 						    &nodes[j]);
 		if (IS_ERR(hw))
-			pr_warn_once("%s() %s register fail with %ld\n",
-				     __func__, clk_name, PTR_ERR(hw));
+			pr_warn_once("%s() 0x%x: %s register fail with %ld\n",
+				     __func__,  clk_dev_id, clk_name,
+				     PTR_ERR(hw));
 
 		parent_names[0] = clk_out;
 	}
@@ -621,20 +631,26 @@ static int zynqmp_register_clocks(struct device_node *np)
 static void zynqmp_get_clock_info(void)
 {
 	int i, ret;
-	u32 attr, type = 0;
+	u32 attr, type = 0, nodetype, subclass, class;
 
 	for (i = 0; i < clock_max_idx; i++) {
-		zynqmp_pm_clock_get_name(i, clock[i].clk_name);
-		if (!strcmp(clock[i].clk_name, RESERVED_CLK_NAME))
-			continue;
-
 		ret = zynqmp_pm_clock_get_attributes(i, &attr);
 		if (ret)
 			continue;
 
 		clock[i].valid = attr & CLK_VALID_MASK;
-		clock[i].type = attr >> CLK_TYPE_SHIFT ? CLK_TYPE_EXTERNAL :
-							CLK_TYPE_OUTPUT;
+		clock[i].type = ((attr >> CLK_TYPE_SHIFT) & 0x1) ?
+				CLK_TYPE_EXTERNAL : CLK_TYPE_OUTPUT;
+		nodetype = (attr >> NODE_TYPE_SHIFT) & 0x3F;
+		subclass = (attr >> NODE_SUBCLASS_SHIFT) & 0x3F;
+		class = (attr >> NODE_CLASS_SHIFT) & 0x3F;
+
+		clock[i].clk_id = (class << NODE_CLASS_SHIFT) |
+				  (subclass << NODE_SUBCLASS_SHIFT) |
+				  (nodetype << NODE_TYPE_SHIFT) |
+				  (i << NODE_INDEX_SHIFT);
+
+		zynqmp_pm_clock_get_name(clock[i].clk_id, clock[i].clk_name);
 	}
 
 	/* Get topology of all clock */
