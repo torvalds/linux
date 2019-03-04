@@ -76,7 +76,7 @@ amdgpu-y += \
 	gmc_v7_0.o \
 	gmc_v8_0.o \
 	gfxhub_v1_0.o mmhub_v1_0.o gmc_v9_0.o gfxhub_v1_1.o \
-	gfxhub_v2_0.o mmhub_v2_0.o
+	gfxhub_v2_0.o mmhub_v2_0.o gmc_v10_0.o
 
 # add IH block
 amdgpu-y += \
