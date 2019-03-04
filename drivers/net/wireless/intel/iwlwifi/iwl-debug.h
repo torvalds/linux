@@ -218,5 +218,7 @@ do {                                            			\
 #define IWL_DEBUG_TPT(p, f, a...)	IWL_DEBUG(p, IWL_DL_TPT, f, ## a)
 #define IWL_DEBUG_RPM(p, f, a...)	IWL_DEBUG(p, IWL_DL_RPM, f, ## a)
 #define IWL_DEBUG_LAR(p, f, a...)	IWL_DEBUG(p, IWL_DL_LAR, f, ## a)
+#define IWL_DEBUG_FW_INFO(p, f, a...)		\
+		IWL_DEBUG(p, IWL_DL_INFO | IWL_DL_FW, f, ## a)
 
 #endif
