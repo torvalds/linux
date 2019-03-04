@@ -644,8 +644,8 @@ static int error_type_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(error_type_fops, error_type_get,
-			error_type_set, "0x%llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(error_type_fops, error_type_get, error_type_set,
+			 "0x%llx\n");
 
 static int error_inject_set(void *data, u64 val)
 {
@@ -656,8 +656,7 @@ static int error_inject_set(void *data, u64 val)
 		error_param3, error_param4);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(error_inject_fops, NULL,
-			error_inject_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(error_inject_fops, NULL, error_inject_set, "%llu\n");
 
 static int einj_check_table(struct acpi_table_einj *einj_tab)
 {
@@ -709,10 +708,10 @@ static int __init einj_init(void)
 
 	debugfs_create_file("available_error_type", S_IRUSR, einj_debug_dir,
 			    NULL, &available_error_type_fops);
-	debugfs_create_file("error_type", S_IRUSR | S_IWUSR, einj_debug_dir,
-			    NULL, &error_type_fops);
-	debugfs_create_file("error_inject", S_IWUSR, einj_debug_dir,
-			    NULL, &error_inject_fops);
+	debugfs_create_file_unsafe("error_type", 0600, einj_debug_dir,
+				   NULL, &error_type_fops);
+	debugfs_create_file_unsafe("error_inject", 0200, einj_debug_dir,
+				   NULL, &error_inject_fops);
 
 	apei_resources_init(&einj_resources);
 	einj_exec_ctx_init(&ctx);
