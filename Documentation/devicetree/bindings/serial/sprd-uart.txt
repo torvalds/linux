@@ -7,7 +7,13 @@ Required properties:
 
 - reg: offset and length of the register set for the device
 - interrupts: exactly one interrupt specifier
-- clocks: phandles to input clocks.
+- clock-names: Should contain following entries:
+  "enable" for UART module enable clock,
+  "uart" for UART clock,
+  "source" for UART source (parent) clock.
+- clocks: Should contain a clock specifier for each entry in clock-names.
+  UART clock and source clock are optional properties, but enable clock
+  is required.
 
 Example:
 	uart0: serial@0 {
@@ -15,5 +21,6 @@ Example:
 			     "sprd,sc9836-uart";
 		reg = <0x0 0x100>;
 		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&ext_26m>;
+		clock-names = "enable", "uart", "source";
+		clocks = <&clk_ap_apb_gates 9>, <&clk_uart0>, <&ext_26m>;
 	};
