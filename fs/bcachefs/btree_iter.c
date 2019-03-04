@@ -1611,7 +1611,7 @@ void __bch2_btree_iter_init(struct btree_iter *iter, struct bch_fs *c,
 	prefetch(c->btree_roots[btree_id].b);
 }
 
-void bch2_btree_iter_unlink(struct btree_iter *iter)
+static void bch2_btree_iter_unlink(struct btree_iter *iter)
 {
 	struct btree_iter *linked;
 
@@ -1630,7 +1630,7 @@ void bch2_btree_iter_unlink(struct btree_iter *iter)
 	BUG();
 }
 
-void bch2_btree_iter_link(struct btree_iter *iter, struct btree_iter *new)
+static void bch2_btree_iter_link(struct btree_iter *iter, struct btree_iter *new)
 {
 	BUG_ON(btree_iter_linked(new));
 

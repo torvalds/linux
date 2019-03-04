@@ -229,20 +229,21 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 /* normal i_size/i_sectors update machinery: */
 
-static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
-				 bool *allocating)
+static int sum_sector_overwrites(struct btree_trans *trans,
+				 struct btree_iter *extent_iter,
+				 struct bkey_i *new, bool *allocating,
+				 s64 *delta)
 {
-	struct btree_iter iter;
+	struct btree_iter *iter;
 	struct bkey_s_c old;
-	s64 delta = 0;
 
-	bch2_btree_iter_init(&iter, _iter->c, BTREE_ID_EXTENTS, POS_MIN,
-			     BTREE_ITER_SLOTS);
+	*delta = 0;
 
-	bch2_btree_iter_link(_iter, &iter);
-	bch2_btree_iter_copy(&iter, _iter);
+	iter = bch2_trans_copy_iter(trans, extent_iter);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
 
-	old = bch2_btree_iter_peek_slot(&iter);
+	old = bch2_btree_iter_peek_slot(iter);
 
 	while (1) {
 		/*
@@ -258,7 +259,7 @@ static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
 		    bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(new)))
 			*allocating = true;
 
-		delta += (min(new->k.p.offset,
+		*delta += (min(new->k.p.offset,
 			      old.k->p.offset) -
 			  max(bkey_start_offset(&new->k),
 			      bkey_start_offset(old.k))) *
@@ -268,12 +269,11 @@ static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
 		if (bkey_cmp(old.k->p, new->k.p) >= 0)
 			break;
 
-		old = bch2_btree_iter_next_slot(&iter);
+		old = bch2_btree_iter_next_slot(iter);
 	}
 
-	bch2_btree_iter_unlink(&iter);
-
-	return delta;
+	bch2_trans_iter_free(trans, iter);
+	return 0;
 }
 
 static int bch2_extent_update(struct btree_trans *trans,
@@ -303,7 +303,12 @@ static int bch2_extent_update(struct btree_trans *trans,
 
 	bch2_extent_trim_atomic(k, extent_iter);
 
-	i_sectors_delta = sum_sector_overwrites(k, extent_iter, &allocating);
+	ret = sum_sector_overwrites(trans, extent_iter,
+				    k, &allocating,
+				    &i_sectors_delta);
+	if (ret)
+		return ret;
+
 	if (!may_allocate && allocating)
 		return -ENOSPC;
 
