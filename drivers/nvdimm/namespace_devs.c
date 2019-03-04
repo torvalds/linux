@@ -1506,13 +1506,13 @@ static ssize_t __holder_class_store(struct device *dev, const char *buf)
 	if (dev->driver || ndns->claim)
 		return -EBUSY;
 
-	if (strcmp(buf, "btt") == 0 || strcmp(buf, "btt\n") == 0)
+	if (sysfs_streq(buf, "btt"))
 		ndns->claim_class = btt_claim_class(dev);
-	else if (strcmp(buf, "pfn") == 0 || strcmp(buf, "pfn\n") == 0)
+	else if (sysfs_streq(buf, "pfn"))
 		ndns->claim_class = NVDIMM_CCLASS_PFN;
-	else if (strcmp(buf, "dax") == 0 || strcmp(buf, "dax\n") == 0)
+	else if (sysfs_streq(buf, "dax"))
 		ndns->claim_class = NVDIMM_CCLASS_DAX;
-	else if (strcmp(buf, "") == 0 || strcmp(buf, "\n") == 0)
+	else if (sysfs_streq(buf, ""))
 		ndns->claim_class = NVDIMM_CCLASS_NONE;
 	else
 		return -EINVAL;
