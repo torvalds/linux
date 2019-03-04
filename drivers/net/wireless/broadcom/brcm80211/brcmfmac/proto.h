@@ -54,7 +54,8 @@ struct brcmf_proto {
 
 
 int brcmf_proto_attach(struct brcmf_pub *drvr);
-void brcmf_proto_detach(struct brcmf_pub *drvr);
+void brcmf_proto_detach_pre_delif(struct brcmf_pub *drvr);
+void brcmf_proto_detach_post_delif(struct brcmf_pub *drvr);
 
 static inline int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 				      struct sk_buff *skb,

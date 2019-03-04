@@ -2443,17 +2443,25 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 	return fws;
 
 fail:
-	brcmf_fws_detach(fws);
+	brcmf_fws_detach_pre_delif(fws);
+	brcmf_fws_detach_post_delif(fws);
 	return ERR_PTR(rc);
 }
 
-void brcmf_fws_detach(struct brcmf_fws_info *fws)
+void brcmf_fws_detach_pre_delif(struct brcmf_fws_info *fws)
 {
 	if (!fws)
 		return;
-
-	if (fws->fws_wq)
+	if (fws->fws_wq) {
 		destroy_workqueue(fws->fws_wq);
+		fws->fws_wq = NULL;
+	}
+}
+
+void brcmf_fws_detach_post_delif(struct brcmf_fws_info *fws)
+{
+	if (!fws)
+		return;
 
 	/* cleanup */
 	brcmf_fws_lock(fws);
