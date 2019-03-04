@@ -1819,6 +1819,25 @@ static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_NV12,
 };
 
+static const uint32_t glk_planar_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_P010,
+	DRM_FORMAT_P012,
+	DRM_FORMAT_P016,
+};
+
 static const u64 skl_plane_format_modifiers_noccs[] = {
 	I915_FORMAT_MOD_Yf_TILED,
 	I915_FORMAT_MOD_Y_TILED,
@@ -2101,8 +2120,13 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->update_slave = icl_update_slave;
 
 	if (skl_plane_has_planar(dev_priv, pipe, plane_id)) {
-		formats = skl_planar_formats;
-		num_formats = ARRAY_SIZE(skl_planar_formats);
+		if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+			formats = glk_planar_formats;
+			num_formats = ARRAY_SIZE(glk_planar_formats);
+		} else {
+			formats = skl_planar_formats;
+			num_formats = ARRAY_SIZE(skl_planar_formats);
+		}
 	} else {
 		formats = skl_plane_formats;
 		num_formats = ARRAY_SIZE(skl_plane_formats);
