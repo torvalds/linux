@@ -1253,7 +1253,8 @@ static int mgmt_tx(struct wiphy *wiphy,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
-	u32 buf_len = len + sizeof(p2p_vendor_spec) + sizeof(priv->p2p.local_random);
+	u32 buf_len = len + sizeof(p2p_vendor_spec) +
+			sizeof(priv->p2p.local_random);
 	int ret = 0;
 
 	*cookie = prandom_u32();
