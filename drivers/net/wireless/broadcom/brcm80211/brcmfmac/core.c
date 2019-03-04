@@ -1244,6 +1244,8 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_DOWN);
 
+	brcmf_proto_detach_pre_delif(drvr);
+
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
 		brcmf_remove_interface(drvr->iflist[i], false);
@@ -1253,7 +1255,7 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_bus_stop(drvr->bus_if);
 
-	brcmf_proto_detach(drvr);
+	brcmf_proto_detach_post_delif(drvr);
 
 	bus_if->drvr = NULL;
 	wiphy_free(drvr->wiphy);
