@@ -32,6 +32,7 @@
 #include "spectrum.h"
 #include "pci.h"
 #include "core.h"
+#include "core_env.h"
 #include "reg.h"
 #include "port.h"
 #include "trap.h"
@@ -3161,99 +3162,18 @@ out:
 	return err;
 }
 
-#define MLXSW_SP_I2C_ADDR_LOW 0x50
-#define MLXSW_SP_I2C_ADDR_HIGH 0x51
-#define MLXSW_SP_EEPROM_PAGE_LENGTH 256
-
-static int mlxsw_sp_query_module_eeprom(struct mlxsw_sp_port *mlxsw_sp_port,
-					u16 offset, u16 size, void *data,
-					unsigned int *p_read_size)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	char eeprom_tmp[MLXSW_REG_MCIA_EEPROM_SIZE];
-	char mcia_pl[MLXSW_REG_MCIA_LEN];
-	u16 i2c_addr;
-	int status;
-	int err;
-
-	size = min_t(u16, size, MLXSW_REG_MCIA_EEPROM_SIZE);
-
-	if (offset < MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH &&
-	    offset + size > MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH)
-		/* Cross pages read, read until offset 256 in low page */
-		size = MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH - offset;
-
-	i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_LOW;
-	if (offset >= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) {
-		i2c_addr = MLXSW_REG_MCIA_I2C_ADDR_HIGH;
-		offset -= MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH;
-	}
-
-	mlxsw_reg_mcia_pack(mcia_pl, mlxsw_sp_port->mapping.module,
-			    0, 0, offset, size, i2c_addr);
-
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(mcia), mcia_pl);
-	if (err)
-		return err;
-
-	status = mlxsw_reg_mcia_status_get(mcia_pl);
-	if (status)
-		return -EIO;
-
-	mlxsw_reg_mcia_eeprom_memcpy_from(mcia_pl, eeprom_tmp);
-	memcpy(data, eeprom_tmp, size);
-	*p_read_size = size;
-
-	return 0;
-}
-
 static int mlxsw_sp_get_module_info(struct net_device *netdev,
 				    struct ethtool_modinfo *modinfo)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
-	u8 module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE];
-	u16 offset = MLXSW_REG_MCIA_EEPROM_MODULE_INFO_SIZE;
-	u8 module_rev_id, module_id;
-	unsigned int read_size;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int err;
 
-	err = mlxsw_sp_query_module_eeprom(mlxsw_sp_port, 0, offset,
-					   module_info, &read_size);
-	if (err)
-		return err;
+	err = mlxsw_env_get_module_info(mlxsw_sp->core,
+					mlxsw_sp_port->mapping.module,
+					modinfo);
 
-	if (read_size < offset)
-		return -EIO;
-
-	module_rev_id = module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID];
-	module_id = module_info[MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID];
-
-	switch (module_id) {
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP:
-		modinfo->type       = ETH_MODULE_SFF_8436;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
-		break;
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP_PLUS: /* fall-through */
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28:
-		if (module_id == MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_QSFP28 ||
-		    module_rev_id >=
-		    MLXSW_REG_MCIA_EEPROM_MODULE_INFO_REV_ID_8636) {
-			modinfo->type       = ETH_MODULE_SFF_8636;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
-		} else {
-			modinfo->type       = ETH_MODULE_SFF_8436;
-			modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
-		}
-		break;
-	case MLXSW_REG_MCIA_EEPROM_MODULE_INFO_ID_SFP:
-		modinfo->type       = ETH_MODULE_SFF_8472;
-		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return err;
 }
 
 static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
@@ -3261,30 +3181,14 @@ static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
 				      u8 *data)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
-	int offset = ee->offset;
-	unsigned int read_size;
-	int i = 0;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	int err;
 
-	if (!ee->len)
-		return -EINVAL;
+	err = mlxsw_env_get_module_eeprom(netdev, mlxsw_sp->core,
+					  mlxsw_sp_port->mapping.module, ee,
+					  data);
 
-	memset(data, 0, ee->len);
-
-	while (i < ee->len) {
-		err = mlxsw_sp_query_module_eeprom(mlxsw_sp_port, offset,
-						   ee->len - i, data + i,
-						   &read_size);
-		if (err) {
-			netdev_err(mlxsw_sp_port->dev, "Eeprom query failed\n");
-			return err;
-		}
-
-		i += read_size;
-		offset += read_size;
-	}
-
-	return 0;
+	return err;
 }
 
 static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
