@@ -115,7 +115,11 @@ static u32 calculate_volt_scaling_factor(const u32 voltage_mv)
 
 	const u32 v3 = v3_big / 1000;
 
-	return v3;
+	const u32 v4_big = v3 * voltage_mv;
+
+	const u32 v4 = v4_big / 1000;
+
+	return v4;
 }
 
 /**

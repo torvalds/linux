@@ -53,6 +53,13 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 			dynamic-power-coefficient = <74>;
 			#cooling-cells = <2>;
+			power-model {
+				compatible = "simple-power-model";
+				ref-leakage = <31>;
+				static-coefficient = <100000>;
+				ts = <59740 24105 (-245) 7>;
+				thermal-zone = "soc-thermal";
+			};
 		};
 
 		cpu1: cpu@1 {
@@ -576,7 +583,7 @@
 		soc_thermal: soc-thermal {
 			polling-delay-passive = <20>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
-			sustainable-power = <527>; /* milliwatts */
+			sustainable-power = <977>; /* milliwatts */
 
 			thermal-sensors = <&tsadc 0>;
 
@@ -1543,9 +1550,10 @@
 
 		npu_power_model: power-model {
 			compatible = "simple-power-model";
-			static-coefficient = <342478>;
+			ref-leakage = <31>;
+			static-coefficient = <100000>;
 			dynamic-coefficient = <3080>;
-			ts = <32000 4700 (-80) 2>;
+			ts = <8861 30312 (-500) 10>;
 			thermal-zone = "soc-thermal";
 		};
 	};
