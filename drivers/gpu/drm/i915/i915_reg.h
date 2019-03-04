@@ -6567,6 +6567,12 @@ enum {
 #define   PLANE_CTL_FORMAT_RGB_565		(14 << 24)
 #define   ICL_PLANE_CTL_FORMAT_MASK		(0x1f << 23)
 #define   PLANE_CTL_PIPE_CSC_ENABLE		(1 << 23) /* Pre-GLK */
+#define   PLANE_CTL_FORMAT_Y210                 (1 << 23)
+#define   PLANE_CTL_FORMAT_Y212                 (3 << 23)
+#define   PLANE_CTL_FORMAT_Y216                 (5 << 23)
+#define   PLANE_CTL_FORMAT_Y410                 (7 << 23)
+#define   PLANE_CTL_FORMAT_Y412                 (9 << 23)
+#define   PLANE_CTL_FORMAT_Y416                 (0xb << 23)
 #define   PLANE_CTL_KEY_ENABLE_MASK		(0x3 << 21)
 #define   PLANE_CTL_KEY_ENABLE_SOURCE		(1 << 21)
 #define   PLANE_CTL_KEY_ENABLE_DESTINATION	(2 << 21)
