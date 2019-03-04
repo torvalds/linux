@@ -1077,7 +1077,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 
 	seg = get_fs();
 	if (!user_mode(regs))
-		set_fs(get_ds());
+		set_fs(KERNEL_DS);
 
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
