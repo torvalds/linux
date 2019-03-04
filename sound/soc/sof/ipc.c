@@ -11,6 +11,8 @@
 // by platform driver code.
 //
 
+#include <linux/mutex.h>
+
 #include "sof-priv.h"
 #include "ops.h"
 
@@ -31,6 +33,9 @@ static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd);
 /* SOF generic IPC data */
 struct snd_sof_ipc {
 	struct snd_sof_dev *sdev;
+
+	/* protects messages and the disable flag */
+	struct mutex tx_mutex;
 
 	/* TX message work and status */
 	struct work_struct tx_kwork;
@@ -244,14 +249,23 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
+	int ret;
 
+	/* Serialise IPC TX */
+	mutex_lock(&ipc->tx_mutex);
+
+	/*
+	 * The spin-lock is also still needed to protect message objects against
+	 * other atomic contexts.
+	 */
 	spin_lock_irq(&sdev->ipc_lock);
 
 	/* get an empty message */
 	msg = msg_get_empty(ipc);
 	if (!msg) {
 		spin_unlock_irq(&sdev->ipc_lock);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto unlock;
 	}
 
 	msg->header = header;
@@ -273,7 +287,12 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		snd_sof_ipc_msgs_tx(sdev);
 
 	/* now wait for completion */
-	return tx_wait_done(ipc, msg, reply_data);
+	ret = tx_wait_done(ipc, msg, reply_data);
+
+unlock:
+	mutex_unlock(&ipc->tx_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
 
@@ -784,6 +803,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	INIT_LIST_HEAD(&ipc->reply_list);
 	INIT_LIST_HEAD(&ipc->empty_list);
 	INIT_WORK(&ipc->tx_kwork, ipc_tx_next_msg);
+	mutex_init(&ipc->tx_mutex);
 	ipc->sdev = sdev;
 
 	/* pre-allocate messages */
