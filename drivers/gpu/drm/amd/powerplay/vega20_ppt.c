@@ -1200,8 +1200,10 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 
 	case PP_PCIE:
 		if (soft_min_level >= NUM_LINK_LEVELS ||
-		    soft_max_level >= NUM_LINK_LEVELS)
-			return -EINVAL;
+		    soft_max_level >= NUM_LINK_LEVELS) {
+			ret = -EINVAL;
+			break;
+		}
 
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetMinLinkDpmByIndex, soft_min_level);
