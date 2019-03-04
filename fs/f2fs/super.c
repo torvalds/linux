@@ -838,10 +838,7 @@ static int parse_options(struct super_block *sb, char *options)
 		}
 
 		min_size = sizeof(struct f2fs_xattr_header) / sizeof(__le32);
-		max_size = DEF_ADDRS_PER_INODE -
-			F2FS_TOTAL_EXTRA_ATTR_SIZE / sizeof(__le32) -
-			DEF_INLINE_RESERVED_SIZE -
-			MIN_INLINE_DENTRY_SIZE / sizeof(__le32);
+		max_size = MAX_INLINE_XATTR_SIZE;
 
 		if (F2FS_OPTION(sbi).inline_xattr_size < min_size ||
 				F2FS_OPTION(sbi).inline_xattr_size > max_size) {
