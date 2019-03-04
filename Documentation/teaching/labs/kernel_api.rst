@@ -684,7 +684,7 @@ free them (in :c:func:`memory_exit`).
       process, with the following information:
 
       * PID of the current process, which can be retrieved from
-        :c:type:`struct task struct` structure, returned by :c:macro:`current`
+        :c:type:`struct task_struct` structure, returned by :c:macro:`current`
         macro.
 
 .. hint::
