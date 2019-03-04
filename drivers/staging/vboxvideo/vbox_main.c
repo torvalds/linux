@@ -32,9 +32,9 @@ void vbox_report_caps(struct vbox_private *vbox)
 	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION |
 		   VBVACAPS_IRQ | VBVACAPS_USE_VBVA_ONLY;
 
-	if (vbox->initial_mode_queried)
-		caps |= VBVACAPS_VIDEO_MODE_HINTS;
-
+	/* The host only accepts VIDEO_MODE_HINTS if it is send separately. */
+	hgsmi_send_caps_info(vbox->guest_pool, caps);
+	caps |= VBVACAPS_VIDEO_MODE_HINTS;
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 }
 

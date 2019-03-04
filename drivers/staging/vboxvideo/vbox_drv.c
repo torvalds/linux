@@ -200,36 +200,11 @@ static const struct file_operations vbox_fops = {
 	.read = drm_read,
 };
 
-static int vbox_master_set(struct drm_device *dev,
-			   struct drm_file *file_priv, bool from_open)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	/*
-	 * We do not yet know whether the new owner can handle hotplug, so we
-	 * do not advertise dynamic modes on the first query and send a
-	 * tentative hotplug notification after that to see if they query again.
-	 */
-	vbox->initial_mode_queried = false;
-
-	return 0;
-}
-
-static void vbox_master_drop(struct drm_device *dev, struct drm_file *file_priv)
-{
-	struct vbox_private *vbox = dev->dev_private;
-
-	/* See vbox_master_set() */
-	vbox->initial_mode_queried = false;
-}
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 
 	.lastclose = drm_fb_helper_lastclose,
-	.master_set = vbox_master_set,
-	.master_drop = vbox_master_drop,
 
 	.fops = &vbox_fops,
 	.irq_handler = vbox_irq_handler,
