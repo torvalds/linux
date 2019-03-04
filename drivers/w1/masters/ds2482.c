@@ -37,6 +37,11 @@ module_param_named(active_pullup, ds2482_active_pullup, int, 0644);
 MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
 				"0-disable, 1-enable (default)");
 
+/* extra configurations - e.g. 1WS */
+static int extra_config;
+module_param(extra_config, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8=1WS");
+
 /**
  * The DS2482 registers - there are 3 registers that are addressed by a read
  * pointer. The read pointer is set by the last command executed.
@@ -70,8 +75,6 @@ MODULE_PARM_DESC(active_pullup, "Active pullup (apply to all buses): " \
 #define DS2482_REG_CFG_PPM		0x02	/* presence pulse masking */
 #define DS2482_REG_CFG_APU		0x01	/* active pull-up */
 
-/* extra configurations - e.g. 1WS */
-static int extra_config;
 
 /**
  * Write and verify codes for the CHANNEL_SELECT command (DS2482-800 only).
@@ -130,6 +133,8 @@ struct ds2482_data {
  */
 static inline u8 ds2482_calculate_config(u8 conf)
 {
+	conf |= extra_config;
+
 	if (ds2482_active_pullup)
 		conf |= DS2482_REG_CFG_APU;
 
@@ -405,7 +410,7 @@ static u8 ds2482_w1_reset_bus(void *data)
 		/* If the chip did reset since detect, re-config it */
 		if (err & DS2482_REG_STS_RST)
 			ds2482_send_cmd_data(pdev, DS2482_CMD_WRITE_CONFIG,
-					ds2482_calculate_config(extra_config));
+					     ds2482_calculate_config(0x00));
 	}
 
 	mutex_unlock(&pdev->access_lock);
@@ -431,7 +436,8 @@ static u8 ds2482_w1_set_pullup(void *data, int delay)
 		ds2482_wait_1wire_idle(pdev);
 		/* note: it seems like both SPU and APU have to be set! */
 		retval = ds2482_send_cmd_data(pdev, DS2482_CMD_WRITE_CONFIG,
-			ds2482_calculate_config(extra_config|DS2482_REG_CFG_SPU|DS2482_REG_CFG_APU));
+			ds2482_calculate_config(DS2482_REG_CFG_SPU |
+						DS2482_REG_CFG_APU));
 		ds2482_wait_1wire_idle(pdev);
 	}
 
@@ -484,7 +490,7 @@ static int ds2482_probe(struct i2c_client *client,
 
 	/* Set all config items to 0 (off) */
 	ds2482_send_cmd_data(data, DS2482_CMD_WRITE_CONFIG,
-		ds2482_calculate_config(extra_config));
+		ds2482_calculate_config(0x00));
 
 	mutex_init(&data->access_lock);
 
@@ -559,7 +565,5 @@ module_i2c_driver(ds2482_driver);
 
 MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");
 MODULE_DESCRIPTION("DS2482 driver");
-module_param(extra_config, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(extra_config, "Extra Configuration settings 1=APU,2=PPM,3=SPU,8=1WS");
 
 MODULE_LICENSE("GPL");
