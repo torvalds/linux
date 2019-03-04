@@ -932,7 +932,7 @@ struct pxa2xx_spi_chip tsc2046_chip_info = {
 	.gpio_cs	= GPIO14_MAGICIAN_TSC2046_CS,
 };
 
-static struct pxa2xx_spi_master magician_spi_info = {
+static struct pxa2xx_spi_controller magician_spi_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };

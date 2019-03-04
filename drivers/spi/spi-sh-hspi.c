@@ -35,7 +35,7 @@
 
 struct hspi_priv {
 	void __iomem *addr;
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	struct device *dev;
 	struct clk *clk;
 };
@@ -140,10 +140,10 @@ static void hspi_hw_setup(struct hspi_priv *hspi,
 	hspi_write(hspi, SPSCR, 0x21);	/* master mode / CS control */
 }
 
-static int hspi_transfer_one_message(struct spi_master *master,
+static int hspi_transfer_one_message(struct spi_controller *ctlr,
 				     struct spi_message *msg)
 {
-	struct hspi_priv *hspi = spi_master_get_devdata(master);
+	struct hspi_priv *hspi = spi_controller_get_devdata(ctlr);
 	struct spi_transfer *t;
 	u32 tx;
 	u32 rx;
@@ -205,7 +205,7 @@ static int hspi_transfer_one_message(struct spi_master *master,
 		ndelay(nsecs);
 		hspi_hw_cs_disable(hspi);
 	}
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(ctlr);
 
 	return ret;
 }
@@ -213,7 +213,7 @@ static int hspi_transfer_one_message(struct spi_master *master,
 static int hspi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	struct hspi_priv *hspi;
 	struct clk *clk;
 	int ret;
@@ -225,11 +225,9 @@ static int hspi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*hspi));
-	if (!master) {
-		dev_err(&pdev->dev, "spi_alloc_master error.\n");
+	ctlr = spi_alloc_master(&pdev->dev, sizeof(*hspi));
+	if (!ctlr)
 		return -ENOMEM;
-	}
 
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -238,33 +236,32 @@ static int hspi_probe(struct platform_device *pdev)
 		goto error0;
 	}
 
-	hspi = spi_master_get_devdata(master);
+	hspi = spi_controller_get_devdata(ctlr);
 	platform_set_drvdata(pdev, hspi);
 
 	/* init hspi */
-	hspi->master	= master;
+	hspi->ctlr	= ctlr;
 	hspi->dev	= &pdev->dev;
 	hspi->clk	= clk;
 	hspi->addr	= devm_ioremap(hspi->dev,
 				       res->start, resource_size(res));
 	if (!hspi->addr) {
-		dev_err(&pdev->dev, "ioremap error.\n");
 		ret = -ENOMEM;
 		goto error1;
 	}
 
 	pm_runtime_enable(&pdev->dev);
 
-	master->bus_num		= pdev->id;
-	master->mode_bits	= SPI_CPOL | SPI_CPHA;
-	master->dev.of_node	= pdev->dev.of_node;
-	master->auto_runtime_pm = true;
-	master->transfer_one_message		= hspi_transfer_one_message;
-	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	ctlr->bus_num = pdev->id;
+	ctlr->mode_bits	= SPI_CPOL | SPI_CPHA;
+	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->auto_runtime_pm = true;
+	ctlr->transfer_one_message = hspi_transfer_one_message;
+	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "spi_register_master error.\n");
+		dev_err(&pdev->dev, "devm_spi_register_controller error.\n");
 		goto error2;
 	}
 
@@ -275,7 +272,7 @@ static int hspi_probe(struct platform_device *pdev)
  error1:
 	clk_put(clk);
  error0:
-	spi_master_put(master);
+	spi_controller_put(ctlr);
 
 	return ret;
 }
