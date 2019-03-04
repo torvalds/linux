@@ -49,9 +49,6 @@
 
 #define MAX_POWER_DEFAULT		200000		/* 200W */
 
-#define GOYA_ARMCP_INFO_TIMEOUT		10000000	/* 10s */
-#define GOYA_ARMCP_EEPROM_TIMEOUT	10000000	/* 10s */
-
 #define DRAM_PHYS_DEFAULT_SIZE		0x100000000ull	/* 4GB */
 
 /* DRAM Memory Map */
@@ -142,13 +139,6 @@
 #define HW_CAP_GOLDEN		0x00000400
 #define HW_CAP_TPC		0x00000800
 
-#define CPU_PKT_SHIFT		5
-#define CPU_PKT_SIZE		(1 << CPU_PKT_SHIFT)
-#define CPU_PKT_MASK		(~((1 << CPU_PKT_SHIFT) - 1))
-#define CPU_MAX_PKTS_IN_CB	32
-#define CPU_CB_SIZE		(CPU_PKT_SIZE * CPU_MAX_PKTS_IN_CB)
-#define CPU_ACCESSIBLE_MEM_SIZE	(HL_QUEUE_LENGTH * CPU_CB_SIZE)
-
 enum goya_fw_component {
 	FW_COMP_UBOOT,
 	FW_COMP_PREBOOT
@@ -192,7 +182,6 @@ void goya_init_security(struct hl_device *hdev);
 u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
 
-int goya_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
 void goya_late_fini(struct hl_device *hdev);
 int goya_suspend(struct hl_device *hdev);
 int goya_resume(struct hl_device *hdev);

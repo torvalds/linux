@@ -33,6 +33,9 @@
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
+#define HL_ARMCP_INFO_TIMEOUT_USEC	10000000 /* 10s */
+#define HL_ARMCP_EEPROM_TIMEOUT_USEC	10000000 /* 10s */
+
 #define HL_MAX_QUEUES			128
 
 #define HL_MAX_JOBS_PER_CS		64
@@ -1350,6 +1353,20 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size);
 int hl_mmu_unmap(struct hl_ctx *ctx, u64 virt_addr, u32 page_size);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
+
+int hl_fw_push_fw_to_device(struct hl_device *hdev, const char *fw_name,
+				void __iomem *dst);
+int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
+int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
+				u16 len, u32 timeout, long *result);
+int hl_fw_test_cpu_queue(struct hl_device *hdev);
+void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
+						dma_addr_t *dma_handle);
+void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
+					void *vaddr);
+int hl_fw_send_heartbeat(struct hl_device *hdev);
+int hl_fw_armcp_info_get(struct hl_device *hdev);
+int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
