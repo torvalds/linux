@@ -1336,8 +1336,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 		if (tc < 0)
 			return -EINVAL;
 	}
-	mask = kcalloc(BITS_TO_LONGS(dev->num_rx_queues), sizeof(long),
-		       GFP_KERNEL);
+	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
 	if (!mask)
 		return -ENOMEM;
 
@@ -1366,7 +1365,7 @@ out_no_maps:
 	rcu_read_unlock();
 
 	len = bitmap_print_to_pagebuf(false, buf, mask, dev->num_rx_queues);
-	kfree(mask);
+	bitmap_free(mask);
 
 	return len < PAGE_SIZE ? len : -EINVAL;
 }
@@ -1382,8 +1381,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	mask = kcalloc(BITS_TO_LONGS(dev->num_rx_queues), sizeof(long),
-		       GFP_KERNEL);
+	mask = bitmap_zalloc(dev->num_rx_queues, GFP_KERNEL);
 	if (!mask)
 		return -ENOMEM;
 
@@ -1391,7 +1389,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 
 	err = bitmap_parse(buf, len, mask, dev->num_rx_queues);
 	if (err) {
-		kfree(mask);
+		bitmap_free(mask);
 		return err;
 	}
 
@@ -1399,7 +1397,7 @@ static ssize_t xps_rxqs_store(struct netdev_queue *queue, const char *buf,
 	err = __netif_set_xps_queue(dev, mask, index, true);
 	cpus_read_unlock();
 
-	kfree(mask);
+	bitmap_free(mask);
 	return err ? : len;
 }
 
