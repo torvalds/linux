@@ -2204,10 +2204,10 @@ static int goya_enable_msix(struct hl_device *hdev)
 		}
 	}
 
-	irq = pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX);
+	irq = pci_irq_vector(hdev->pdev, GOYA_EVENT_QUEUE_MSIX_IDX);
 
 	rc = request_irq(irq, hl_irq_handler_eq, 0,
-			goya_irq_name[EVENT_QUEUE_MSIX_IDX],
+			goya_irq_name[GOYA_EVENT_QUEUE_MSIX_IDX],
 			&hdev->event_queue);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
@@ -2238,7 +2238,7 @@ static void goya_sync_irqs(struct hl_device *hdev)
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		synchronize_irq(pci_irq_vector(hdev->pdev, i));
 
-	synchronize_irq(pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX));
+	synchronize_irq(pci_irq_vector(hdev->pdev, GOYA_EVENT_QUEUE_MSIX_IDX));
 }
 
 static void goya_disable_msix(struct hl_device *hdev)
@@ -2251,7 +2251,7 @@ static void goya_disable_msix(struct hl_device *hdev)
 
 	goya_sync_irqs(hdev);
 
-	irq = pci_irq_vector(hdev->pdev, EVENT_QUEUE_MSIX_IDX);
+	irq = pci_irq_vector(hdev->pdev, GOYA_EVENT_QUEUE_MSIX_IDX);
 	free_irq(irq, &hdev->event_queue);
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++) {
