@@ -1685,6 +1685,9 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 		    !ops->fill_mem_hdr || !ops->fill_range))
 		return;
 
+	IWL_DEBUG_FW(fwrt, "WRT: collecting region: id=%d, type=%d\n",
+		     le32_to_cpu(reg->region_id), type);
+
 	num_of_ranges = ops->get_num_of_ranges(fwrt, reg);
 
 	(*data)->type = cpu_to_le32(type | INI_DUMP_BIT);
@@ -1698,7 +1701,8 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 
 	range = ops->fill_mem_hdr(fwrt, reg, header);
 	if (!range) {
-		IWL_ERR(fwrt, "Failed to fill region header: id=%d, type=%d\n",
+		IWL_ERR(fwrt,
+			"WRT: failed to fill region header: id=%d, type=%d\n",
 			le32_to_cpu(reg->region_id), type);
 		memset(*data, 0, le32_to_cpu((*data)->len));
 		return;
@@ -1708,7 +1712,8 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 		int range_size = ops->fill_range(fwrt, reg, range, i);
 
 		if (range_size < 0) {
-			IWL_ERR(fwrt, "Failed to dump region: id=%d, type=%d\n",
+			IWL_ERR(fwrt,
+				"WRT: failed to dump region: id=%d, type=%d\n",
 				le32_to_cpu(reg->region_id), type);
 			memset(*data, 0, le32_to_cpu((*data)->len));
 			return;
@@ -1734,8 +1739,12 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			continue;
 
 		reg = fwrt->dump.active_regs[reg_id];
-		if (WARN(!reg, "Unassigned region %d\n", reg_id))
+		if (!reg) {
+			IWL_WARN(fwrt,
+				 "WRT: unassigned region id %d, skipping\n",
+				 reg_id);
 			continue;
+		}
 
 		switch (le32_to_cpu(reg->region_type)) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
@@ -2108,6 +2117,12 @@ int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
 		return -EBUSY;
 
+	if (!iwl_fw_ini_trigger_on(fwrt, id)) {
+		IWL_WARN(fwrt, "WRT: Trigger %d is not active, aborting dump\n",
+			 id);
+		return -EINVAL;
+	}
+
 	active = &fwrt->dump.active_trigs[id];
 	delay = le32_to_cpu(active->trig->dump_delay);
 	occur = le32_to_cpu(active->trig->occurrences);
@@ -2117,14 +2132,14 @@ int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	active->trig->occurrences = cpu_to_le32(--occur);
 
 	if (le32_to_cpu(active->trig->force_restart)) {
-		IWL_WARN(fwrt, "Force restart: trigger %d fired.\n", id);
+		IWL_WARN(fwrt, "WRT: force restart: trigger %d fired.\n", id);
 		iwl_force_nmi(fwrt->trans);
 		return 0;
 	}
 
 	fwrt->dump.ini_trig_id = id;
 
-	IWL_WARN(fwrt, "Collecting data: ini trigger %d fired.\n", id);
+	IWL_WARN(fwrt, "WRT: collecting data: ini trigger %d fired.\n", id);
 
 	schedule_delayed_work(&fwrt->dump.wk, usecs_to_jiffies(delay));
 
@@ -2262,12 +2277,12 @@ void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt)
 
 	iwl_fw_dbg_stop_recording(fwrt, &params);
 
-	IWL_DEBUG_INFO(fwrt, "WRT dump start\n");
+	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection start\n");
 	if (fwrt->trans->ini_valid)
 		iwl_fw_error_ini_dump(fwrt);
 	else
 		iwl_fw_error_dump(fwrt);
-	IWL_DEBUG_INFO(fwrt, "WRT dump done\n");
+	IWL_DEBUG_FW_INFO(fwrt, "WRT: data collection done\n");
 
 	/* start recording again if the firmware is not crashed */
 	if (!test_bit(STATUS_FW_ERROR, &fwrt->trans->status) &&
@@ -2337,12 +2352,14 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 	if (!virtual_addr)
 		IWL_ERR(fwrt, "Failed to allocate debug memory\n");
 
+	IWL_DEBUG_FW(trans,
+		     "Allocated DRAM buffer[%d], size=0x%x\n",
+		     trans->num_blocks, size);
+
 	trans->fw_mon[trans->num_blocks].block = virtual_addr;
 	trans->fw_mon[trans->num_blocks].physical = phys_addr;
 	trans->fw_mon[trans->num_blocks].size = size;
 	trans->num_blocks++;
-
-	IWL_DEBUG_FW(trans, "Allocated debug block of size %d\n", size);
 }
 
 static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
@@ -2365,11 +2382,15 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 
 	if (buf_location == IWL_FW_INI_LOCATION_SRAM_PATH) {
 		if (!WARN(pnt != IWL_FW_INI_APPLY_EARLY,
-			  "Invalid apply point %d for SMEM buffer allocation",
-			  pnt))
+			  "WRT: Invalid apply point %d for SMEM buffer allocation, aborting\n",
+			  pnt)) {
+			IWL_DEBUG_FW(trans,
+				     "WRT: applying SMEM buffer destination\n");
+
 			/* set sram monitor by enabling bit 7 */
 			iwl_set_bit(fwrt->trans, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_MONITOR_SRAM);
+		}
 		return;
 	}
 
@@ -2388,6 +2409,9 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	if (trans->num_blocks == 1)
 		return;
 
+	IWL_DEBUG_FW(trans,
+		     "WRT: applying DRAM buffer[%d] destination\n", block_idx);
+
 	cmd->num_frags = cpu_to_le32(1);
 	cmd->fragments[0].address =
 		cpu_to_le64(trans->fw_mon[block_idx].physical);
@@ -2399,7 +2423,8 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 }
 
 static void iwl_fw_dbg_send_hcmd(struct iwl_fw_runtime *fwrt,
-				 struct iwl_ucode_tlv *tlv)
+				 struct iwl_ucode_tlv *tlv,
+				 bool ext)
 {
 	struct iwl_fw_ini_hcmd_tlv *hcmd_tlv = (void *)&tlv->data[0];
 	struct iwl_fw_ini_hcmd *data = &hcmd_tlv->hcmd;
@@ -2414,6 +2439,10 @@ static void iwl_fw_dbg_send_hcmd(struct iwl_fw_runtime *fwrt,
 	/* currently the driver supports always on domain only */
 	if (le32_to_cpu(hcmd_tlv->domain) != IWL_FW_INI_DBG_DOMAIN_ALWAYS_ON)
 		return;
+
+	IWL_DEBUG_FW(fwrt,
+		     "WRT: ext=%d. Sending host command id=0x%x, group=0x%x\n",
+		     ext, data->id, data->group);
 
 	iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
@@ -2431,17 +2460,20 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 		u32 type = le32_to_cpu(reg->region_type);
 
 		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_regs),
-			 "Invalid region id %d for apply point %d\n", id, pnt))
+			 "WRT: ext=%d. Invalid region id %d for apply point %d\n",
+			 ext, id, pnt))
 			break;
 
 		active = &fwrt->dump.active_regs[id];
 
 		if (*active)
-			IWL_WARN(fwrt->trans, "region TLV %d override\n", id);
+			IWL_WARN(fwrt->trans,
+				 "WRT: ext=%d. Region id %d override\n",
+				 ext, id);
 
 		IWL_DEBUG_FW(fwrt,
-			     "%s: apply point %d, activating region ID %d\n",
-			     __func__, pnt, id);
+			     "WRT: ext=%d. Activating region id %d\n",
+			     ext, id);
 
 		*active = reg;
 
@@ -2474,7 +2506,8 @@ static int iwl_fw_dbg_trig_realloc(struct iwl_fw_runtime *fwrt,
 
 	ptr = krealloc(active->trig, size, GFP_KERNEL);
 	if (!ptr) {
-		IWL_ERR(fwrt, "Failed to allocate memory for trigger %d\n", id);
+		IWL_ERR(fwrt, "WRT: Failed to allocate memory for trigger %d\n",
+			id);
 		return -ENOMEM;
 	}
 	active->trig = ptr;
@@ -2498,13 +2531,19 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 		u32 trig_regs_size = le32_to_cpu(trig->num_regions) *
 			sizeof(__le32);
 
-		if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
+		if (WARN(id >= ARRAY_SIZE(fwrt->dump.active_trigs),
+			 "WRT: ext=%d. Invalid trigger id %d for apply point %d\n",
+			 ext, id, apply_point))
 			break;
 
 		active = &fwrt->dump.active_trigs[id];
 
 		if (!active->active) {
 			size_t trig_size = sizeof(*trig) + trig_regs_size;
+
+			IWL_DEBUG_FW(fwrt,
+				     "WRT: ext=%d. Activating trigger %d\n",
+				     ext, id);
 
 			if (iwl_fw_dbg_trig_realloc(fwrt, active, id,
 						    trig_size))
@@ -2524,8 +2563,16 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 			int mem_to_add = trig_regs_size;
 
 			if (region_override) {
+				IWL_DEBUG_FW(fwrt,
+					     "WRT: ext=%d. Trigger %d regions override\n",
+					     ext, id);
+
 				mem_to_add -= active_regs * sizeof(__le32);
 			} else {
+				IWL_DEBUG_FW(fwrt,
+					     "WRT: ext=%d. Trigger %d regions appending\n",
+					     ext, id);
+
 				offset += active_regs;
 				new_regs += active_regs;
 			}
@@ -2534,8 +2581,13 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 						    active->size + mem_to_add))
 				goto next;
 
-			if (conf_override)
+			if (conf_override) {
+				IWL_DEBUG_FW(fwrt,
+					     "WRT: ext=%d. Trigger %d configuration override\n",
+					     ext, id);
+
 				memcpy(active->trig, trig, sizeof(*trig));
+			}
 
 			memcpy(active->trig->data + offset, trig->data,
 			       trig_regs_size);
@@ -2576,11 +2628,11 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_HCMD:
 			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
 				IWL_ERR(fwrt,
-					"Invalid apply point %x for host command\n",
-					pnt);
+					"WRT: ext=%d. Invalid apply point %d for host command\n",
+					ext, pnt);
 				goto next;
 			}
-			iwl_fw_dbg_send_hcmd(fwrt, tlv);
+			iwl_fw_dbg_send_hcmd(fwrt, tlv, ext);
 			break;
 		case IWL_UCODE_TLV_TYPE_REGIONS:
 			iwl_fw_dbg_update_regions(fwrt, ini_tlv, ext, pnt);
@@ -2591,7 +2643,9 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
 			break;
 		default:
-			WARN_ONCE(1, "Invalid TLV %x for apply point\n", type);
+			WARN_ONCE(1,
+				  "WRT: ext=%d. Invalid TLV 0x%x for apply point\n",
+				  ext, type);
 			break;
 		}
 next:
@@ -2604,6 +2658,8 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 {
 	void *data = &fwrt->trans->apply_points[apply_point];
 	int i;
+
+	IWL_DEBUG_FW(fwrt, "WRT: enabling apply point %d\n", apply_point);
 
 	if (apply_point == IWL_FW_INI_APPLY_EARLY) {
 		for (i = 0; i < IWL_FW_INI_MAX_REGION_ID; i++)

@@ -896,6 +896,8 @@ void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		if (!trans->num_blocks)
 			return;
 
+		IWL_DEBUG_FW(trans,
+			     "WRT: applying DRAM buffer[0] destination\n");
 		iwl_write_umac_prph(trans, MON_BUFF_BASE_ADDR_VER2,
 				    trans->fw_mon[0].physical >>
 				    MON_BUFF_SHIFT_VER2);
