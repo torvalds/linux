@@ -303,12 +303,11 @@ static void dm_pflip_high_irq(void *interrupt_params)
 		return;
 	}
 
+	/* Update to correct count(s) if racing with vblank irq */
+	amdgpu_crtc->last_flip_vblank = drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
 
 	/* wake up userspace */
 	if (amdgpu_crtc->event) {
-		/* Update to correct count(s) if racing with vblank irq */
-		drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
-
 		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
 
 		/* page flip completed. clean up */
@@ -4828,6 +4827,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			to_dm_crtc_state(drm_atomic_get_old_crtc_state(state, pcrtc));
 	int planes_count = 0;
 	unsigned long flags;
+	u64 last_flip_vblank;
+	bool vrr_active = acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE;
 
 	/* update planes when needed */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -4859,6 +4860,16 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			/* In commit tail framework this cannot happen */
 			WARN_ON(1);
 		}
+
+		/* For variable refresh rate mode only:
+		 * Get vblank of last completed flip to avoid > 1 vrr flips per
+		 * video frame by use of throttling, but allow flip programming
+		 * anywhere in the possibly large variable vrr vblank interval
+		 * for fine-grained flip timing control and more opportunity to
+		 * avoid stutter on late submission of amdgpu_dm_do_flip() calls.
+		 */
+		last_flip_vblank = acrtc_attach->last_flip_vblank;
+
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 		if (!pflip_needed || plane->type == DRM_PLANE_TYPE_OVERLAY) {
@@ -4882,10 +4893,18 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 				drm_crtc_vblank_get(crtc);
 
+			/* Use old throttling in non-vrr fixed refresh rate mode
+			 * to keep flip scheduling based on target vblank counts
+			 * working in a backwards compatible way, e.g., clients
+			 * using GLX_OML_sync_control extension.
+			 */
+			if (!vrr_active)
+				last_flip_vblank = drm_crtc_vblank_count(crtc);
+
 			amdgpu_dm_do_flip(
 				crtc,
 				fb,
-				(uint32_t)drm_crtc_vblank_count(crtc) + *wait_for_vblank,
+				(uint32_t) last_flip_vblank + *wait_for_vblank,
 				dc_state);
 		}
 

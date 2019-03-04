@@ -52,7 +52,10 @@ struct qdisc_size_table {
 struct qdisc_skb_head {
 	struct sk_buff	*head;
 	struct sk_buff	*tail;
-	__u32		qlen;
+	union {
+		u32		qlen;
+		atomic_t	atomic_qlen;
+	};
 	spinlock_t	lock;
 };
 
@@ -466,27 +469,19 @@ static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)
 	BUILD_BUG_ON(sizeof(qcb->data) < sz);
 }
 
-static inline int qdisc_qlen_cpu(const struct Qdisc *q)
-{
-	return this_cpu_ptr(q->cpu_qstats)->qlen;
-}
-
 static inline int qdisc_qlen(const struct Qdisc *q)
 {
 	return q->q.qlen;
 }
 
-static inline int qdisc_qlen_sum(const struct Qdisc *q)
+static inline u32 qdisc_qlen_sum(const struct Qdisc *q)
 {
-	__u32 qlen = q->qstats.qlen;
-	int i;
+	u32 qlen = q->qstats.qlen;
 
-	if (q->flags & TCQ_F_NOLOCK) {
-		for_each_possible_cpu(i)
-			qlen += per_cpu_ptr(q->cpu_qstats, i)->qlen;
-	} else {
+	if (q->flags & TCQ_F_NOLOCK)
+		qlen += atomic_read(&q->q.atomic_qlen);
+	else
 		qlen += q->q.qlen;
-	}
 
 	return qlen;
 }
@@ -882,14 +877,14 @@ static inline void qdisc_qstats_cpu_backlog_inc(struct Qdisc *sch,
 	this_cpu_add(sch->cpu_qstats->backlog, qdisc_pkt_len(skb));
 }
 
-static inline void qdisc_qstats_cpu_qlen_inc(struct Qdisc *sch)
+static inline void qdisc_qstats_atomic_qlen_inc(struct Qdisc *sch)
 {
-	this_cpu_inc(sch->cpu_qstats->qlen);
+	atomic_inc(&sch->q.atomic_qlen);
 }
 
-static inline void qdisc_qstats_cpu_qlen_dec(struct Qdisc *sch)
+static inline void qdisc_qstats_atomic_qlen_dec(struct Qdisc *sch)
 {
-	this_cpu_dec(sch->cpu_qstats->qlen);
+	atomic_dec(&sch->q.atomic_qlen);
 }
 
 static inline void qdisc_qstats_cpu_requeues_inc(struct Qdisc *sch)

@@ -158,7 +158,7 @@ extern int sysctl_aarp_retransmit_limit;
 extern int sysctl_aarp_resolve_time;
 
 #ifdef CONFIG_SYSCTL
-extern void atalk_register_sysctl(void);
+extern int atalk_register_sysctl(void);
 extern void atalk_unregister_sysctl(void);
 #else
 #define atalk_register_sysctl()		do { } while(0)

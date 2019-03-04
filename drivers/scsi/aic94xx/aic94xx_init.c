@@ -769,9 +769,11 @@ static int asd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto Err_remove;
 
-	err = -ENODEV;
-	if (dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(64)) ||
-	    dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32))) {
+	err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(64));
+	if (err)
+		err = dma_set_mask_and_coherent(&dev->dev, DMA_BIT_MASK(32));
+	if (err) {
+		err = -ENODEV;
 		asd_printk("no suitable DMA mask for %s\n", pci_name(dev));
 		goto Err_remove;
 	}

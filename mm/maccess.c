@@ -30,10 +30,8 @@ long __probe_kernel_read(void *dst, const void *src, size_t size)
 
 	set_fs(KERNEL_DS);
 	pagefault_disable();
-	current->kernel_uaccess_faults_ok++;
 	ret = __copy_from_user_inatomic(dst,
 			(__force const void __user *)src, size);
-	current->kernel_uaccess_faults_ok--;
 	pagefault_enable();
 	set_fs(old_fs);
 
@@ -60,9 +58,7 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
 
 	set_fs(KERNEL_DS);
 	pagefault_disable();
-	current->kernel_uaccess_faults_ok++;
 	ret = __copy_to_user_inatomic((__force void __user *)dst, src, size);
-	current->kernel_uaccess_faults_ok--;
 	pagefault_enable();
 	set_fs(old_fs);
 
@@ -98,13 +94,11 @@ long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count)
 
 	set_fs(KERNEL_DS);
 	pagefault_disable();
-	current->kernel_uaccess_faults_ok++;
 
 	do {
 		ret = __get_user(*dst++, (const char __user __force *)src++);
 	} while (dst[-1] && ret == 0 && src - unsafe_addr < count);
 
-	current->kernel_uaccess_faults_ok--;
 	dst[-1] = '\0';
 	pagefault_enable();
 	set_fs(old_fs);
