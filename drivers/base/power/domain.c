@@ -6,6 +6,8 @@
  * This file is released under the GPLv2.
  */
 
+#define pr_fmt(fmt) "PM: " fmt
+
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -1657,8 +1659,8 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 	genpd_lock_nested(genpd, SINGLE_DEPTH_NESTING);
 
 	if (!list_empty(&subdomain->master_links) || subdomain->device_count) {
-		pr_warn("%s: unable to remove subdomain %s\n", genpd->name,
-			subdomain->name);
+		pr_warn("%s: unable to remove subdomain %s\n",
+			genpd->name, subdomain->name);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1767,7 +1769,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 		if (ret)
 			return ret;
 	} else if (!gov) {
-		pr_warn("%s : no governor for states\n", genpd->name);
+		pr_warn("%s: no governor for states\n", genpd->name);
 	}
 
 	device_initialize(&genpd->dev);
@@ -2514,7 +2516,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 						&entry_latency);
 	if (err) {
 		pr_debug(" * %pOF missing entry-latency-us property\n",
-						state_node);
+			 state_node);
 		return -EINVAL;
 	}
 
@@ -2522,7 +2524,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 						&exit_latency);
 	if (err) {
 		pr_debug(" * %pOF missing exit-latency-us property\n",
-						state_node);
+			 state_node);
 		return -EINVAL;
 	}
 

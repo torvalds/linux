@@ -6,6 +6,8 @@
  * This file is released under the GPLv2.
  */
 
+#define pr_fmt(fmt) "PM: " fmt
+
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
@@ -853,7 +855,7 @@ bool pm_wakeup_pending(void)
 	raw_spin_unlock_irqrestore(&events_lock, flags);
 
 	if (ret) {
-		pr_debug("PM: Wakeup pending, aborting suspend\n");
+		pr_debug("Wakeup pending, aborting suspend\n");
 		pm_print_active_wakeup_sources();
 	}
 
