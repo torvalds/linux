@@ -133,7 +133,7 @@ In precedence order, they are:
 	call.  If there is no tracer present, ``-ENOSYS`` is returned to
 	userland and the system call is not executed.
 
-	A tracer will be notified if it requests ``PTRACE_O_TRACESECCOM``P
+	A tracer will be notified if it requests ``PTRACE_O_TRACESECCOMP``
 	using ``ptrace(PTRACE_SETOPTIONS)``.  The tracer will be notified
 	of a ``PTRACE_EVENT_SECCOMP`` and the ``SECCOMP_RET_DATA`` portion of
 	the BPF program return value will be available to the tracer
