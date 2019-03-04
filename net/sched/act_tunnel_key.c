@@ -392,8 +392,8 @@ release_dst_cache:
 #ifdef CONFIG_DST_CACHE
 	if (metadata)
 		dst_cache_destroy(&metadata->u.tun_info.dst_cache);
-#endif
 release_tun_meta:
+#endif
 	if (metadata)
 		dst_release(&metadata->dst);
 
