@@ -42,7 +42,7 @@ unsigned long __cpuid_to_hartid_map[NR_CPUS] = {
 
 void __init smp_setup_processor_id(void)
 {
-	cpuid_to_hartid_map(0) = boot_cpu_hartid;
+       cpuid_to_hartid_map(0) = boot_cpu_hartid;
 }
 
 /* A collection of single bit ipi messages.  */
