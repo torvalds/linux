@@ -2483,7 +2483,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
  * power-domain-names DT property. For further description see
  * genpd_dev_pm_attach_by_id().
  */
-struct device *genpd_dev_pm_attach_by_name(struct device *dev, char *name)
+struct device *genpd_dev_pm_attach_by_name(struct device *dev, const char *name)
 {
 	int index;
 
@@ -2948,18 +2948,11 @@ static int __init genpd_debug_init(void)
 
 	genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
 
-	if (!genpd_debugfs_dir)
-		return -ENOMEM;
-
-	d = debugfs_create_file("pm_genpd_summary", S_IRUGO,
-			genpd_debugfs_dir, NULL, &summary_fops);
-	if (!d)
-		return -ENOMEM;
+	debugfs_create_file("pm_genpd_summary", S_IRUGO, genpd_debugfs_dir,
+			    NULL, &summary_fops);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
 		d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
-		if (!d)
-			return -ENOMEM;
 
 		debugfs_create_file("current_state", 0444,
 				d, genpd, &status_fops);
