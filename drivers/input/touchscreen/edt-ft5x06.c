@@ -39,7 +39,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
-#include <linux/of_device.h>
 
 #define WORK_REGISTER_THRESHOLD		0x00
 #define WORK_REGISTER_REPORT_RATE	0x08
@@ -1073,7 +1072,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	chip_data = of_device_get_match_data(&client->dev);
+	chip_data = device_get_match_data(&client->dev);
 	if (!chip_data)
 		chip_data = (const struct edt_i2c_chip_data *)id->driver_data;
 	if (!chip_data || !chip_data->max_support_points) {
@@ -1254,7 +1253,6 @@ static const struct i2c_device_id edt_ft5x06_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, edt_ft5x06_ts_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ .compatible = "edt,edt-ft5206", .data = &edt_ft5x06_data },
 	{ .compatible = "edt,edt-ft5306", .data = &edt_ft5x06_data },
@@ -1266,12 +1264,11 @@ static const struct of_device_id edt_ft5x06_of_match[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, edt_ft5x06_of_match);
-#endif
 
 static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
 		.name = "edt_ft5x06",
-		.of_match_table = of_match_ptr(edt_ft5x06_of_match),
+		.of_match_table = edt_ft5x06_of_match,
 		.pm = &edt_ft5x06_ts_pm_ops,
 	},
 	.id_table = edt_ft5x06_ts_id,
