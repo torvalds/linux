@@ -86,6 +86,15 @@ struct vmw_fpriv {
 	bool gb_aware; /* user-space is guest-backed aware */
 };
 
+/**
+ * struct vmw_buffer_object - TTM buffer object with vmwgfx additions
+ * @base: The TTM buffer object
+ * @res_list: List of resources using this buffer object as a backing MOB
+ * @pin_count: pin depth
+ * @dx_query_ctx: DX context if this buffer object is used as a DX query MOB
+ * @map: Kmap object for semi-persistent mappings
+ * @res_prios: Eviction priority counts for attached resources
+ */
 struct vmw_buffer_object {
 	struct ttm_buffer_object base;
 	struct list_head res_list;
@@ -94,6 +103,7 @@ struct vmw_buffer_object {
 	struct vmw_resource *dx_query_ctx;
 	/* Protected by reservation */
 	struct ttm_bo_kmap_obj map;
+	u32 res_prios[TTM_MAX_BO_PRIORITY];
 };
 
 /**
@@ -145,6 +155,7 @@ struct vmw_resource {
 	struct kref kref;
 	struct vmw_private *dev_priv;
 	int id;
+	u32 used_prio;
 	unsigned long backup_size;
 	bool res_dirty;
 	bool backup_dirty;
@@ -709,6 +720,19 @@ extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
+void vmw_resource_mob_attach(struct vmw_resource *res);
+void vmw_resource_mob_detach(struct vmw_resource *res);
+
+/**
+ * vmw_resource_mob_attached - Whether a resource currently has a mob attached
+ * @res: The resource
+ *
+ * Return: true if the resource has a mob attached, false otherwise.
+ */
+static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
+{
+	return !list_empty(&res->mob_head);
+}
 
 /**
  * vmw_user_resource_noref_release - release a user resource pointer looked up
@@ -787,6 +811,54 @@ static inline void vmw_user_bo_noref_release(void)
 	ttm_base_object_noref_release();
 }
 
+/**
+ * vmw_bo_adjust_prio - Adjust the buffer object eviction priority
+ * according to attached resources
+ * @vbo: The struct vmw_buffer_object
+ */
+static inline void vmw_bo_prio_adjust(struct vmw_buffer_object *vbo)
+{
+	int i = ARRAY_SIZE(vbo->res_prios);
+
+	while (i--) {
+		if (vbo->res_prios[i]) {
+			vbo->base.priority = i;
+			return;
+		}
+	}
+
+	vbo->base.priority = 3;
+}
+
+/**
+ * vmw_bo_prio_add - Notify a buffer object of a newly attached resource
+ * eviction priority
+ * @vbo: The struct vmw_buffer_object
+ * @prio: The resource priority
+ *
+ * After being notified, the code assigns the highest resource eviction priority
+ * to the backing buffer object (mob).
+ */
+static inline void vmw_bo_prio_add(struct vmw_buffer_object *vbo, int prio)
+{
+	if (vbo->res_prios[prio]++ == 0)
+		vmw_bo_prio_adjust(vbo);
+}
+
+/**
+ * vmw_bo_prio_del - Notify a buffer object of a resource with a certain
+ * priority being removed
+ * @vbo: The struct vmw_buffer_object
+ * @prio: The resource priority
+ *
+ * After being notified, the code assigns the highest resource eviction priority
+ * to the backing buffer object (mob).
+ */
+static inline void vmw_bo_prio_del(struct vmw_buffer_object *vbo, int prio)
+{
+	if (--vbo->res_prios[prio] == 0)
+		vmw_bo_prio_adjust(vbo);
+}
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
