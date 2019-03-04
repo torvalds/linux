@@ -4,7 +4,7 @@
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -350,7 +350,7 @@ acpi_ns_internalize_name(const char *external_name, char **converted_name)
  *
  * FUNCTION:    acpi_ns_externalize_name
  *
- * PARAMETERS:  internal_name_length - Lenth of the internal name below
+ * PARAMETERS:  internal_name_length - Length of the internal name below
  *              internal_name       - Internal representation of name
  *              converted_name_length - Where the length is returned
  *              converted_name      - Where the resulting external name

@@ -10,6 +10,7 @@
 #include "acdebug.h"
 #include "acnamesp.h"
 #include "acpredef.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
 ACPI_MODULE_NAME("dbtest")
@@ -31,6 +32,9 @@ static acpi_status
 acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length);
 
 static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node);
+
+static acpi_status
+acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc);
 
 static acpi_status
 acpi_db_read_from_object(struct acpi_namespace_node *node,
@@ -74,7 +78,7 @@ static struct acpi_db_argument_info acpi_db_test_types[] = {
 static acpi_handle read_handle = NULL;
 static acpi_handle write_handle = NULL;
 
-/* ASL Definitions of the debugger read/write control methods */
+/* ASL Definitions of the debugger read/write control methods. AML below. */
 
 #if 0
 definition_block("ssdt.aml", "SSDT", 2, "Intel", "DEBUG", 0x00000001)
@@ -227,10 +231,8 @@ static void acpi_db_test_all_objects(void)
  * RETURN:      Status
  *
  * DESCRIPTION: Test one namespace object. Supported types are Integer,
- *              String, Buffer, buffer_field, and field_unit. All other object
- *              types are simply ignored.
- *
- *              Note: Support for Packages is not implemented.
+ *              String, Buffer, Package, buffer_field, and field_unit.
+ *              All other object types are simply ignored.
  *
  ******************************************************************************/
 
@@ -240,7 +242,6 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 {
 	struct acpi_namespace_node *node;
 	union acpi_operand_object *obj_desc;
-	union acpi_operand_object *region_obj;
 	acpi_object_type local_type;
 	u32 bit_length = 0;
 	u32 byte_length = 0;
@@ -281,18 +282,21 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		break;
 
 	case ACPI_TYPE_FIELD_UNIT:
-	case ACPI_TYPE_BUFFER_FIELD:
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
 
+		local_type = ACPI_TYPE_FIELD_UNIT;
+		break;
+
+	case ACPI_TYPE_BUFFER_FIELD:
+		/*
+		 * The returned object will be a Buffer if the field length
+		 * is larger than the size of an Integer (32 or 64 bits
+		 * depending on the DSDT version).
+		 */
 		local_type = ACPI_TYPE_INTEGER;
 		if (obj_desc) {
-			/*
-			 * Returned object will be a Buffer if the field length
-			 * is larger than the size of an Integer (32 or 64 bits
-			 * depending on the DSDT version).
-			 */
 			bit_length = obj_desc->common_field.bit_length;
 			byte_length = ACPI_ROUND_BITS_UP_TO_BYTES(bit_length);
 			if (bit_length > acpi_gbl_integer_bit_width) {
@@ -303,7 +307,7 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 
 	default:
 
-		/* Ignore all other types */
+		/* Ignore all non-data types - Methods, Devices, Scopes, etc. */
 
 		return (AE_OK);
 	}
@@ -314,38 +318,8 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		       acpi_ut_get_type_name(node->type), node->name.ascii);
 
 	if (!obj_desc) {
-		acpi_os_printf(" Ignoring, no attached object\n");
+		acpi_os_printf(" No attached sub-object, ignoring\n");
 		return (AE_OK);
-	}
-
-	/*
-	 * Check for unsupported region types. Note: acpi_exec simulates
-	 * access to system_memory, system_IO, PCI_Config, and EC.
-	 */
-	switch (node->type) {
-	case ACPI_TYPE_LOCAL_REGION_FIELD:
-
-		region_obj = obj_desc->field.region_obj;
-		switch (region_obj->region.space_id) {
-		case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		case ACPI_ADR_SPACE_SYSTEM_IO:
-		case ACPI_ADR_SPACE_PCI_CONFIG:
-
-			break;
-
-		default:
-
-			acpi_os_printf
-			    ("    %s space is not supported in this command [%4.4s]\n",
-			     acpi_ut_get_region_name(region_obj->region.
-						     space_id),
-			     region_obj->region.node->name.ascii);
-			return (AE_OK);
-		}
-		break;
-
-	default:
-		break;
 	}
 
 	/* At this point, we have resolved the object to one of the major types */
@@ -371,6 +345,11 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 		status = acpi_db_test_package_type(node);
 		break;
 
+	case ACPI_TYPE_FIELD_UNIT:
+
+		status = acpi_db_test_field_unit_type(obj_desc);
+		break;
+
 	default:
 
 		acpi_os_printf(" Ignoring, type not implemented (%2.2X)",
@@ -382,24 +361,8 @@ acpi_db_test_one_object(acpi_handle obj_handle,
 
 	if (ACPI_FAILURE(status)) {
 		status = AE_OK;
-		goto exit;
 	}
 
-	switch (node->type) {
-	case ACPI_TYPE_LOCAL_REGION_FIELD:
-
-		region_obj = obj_desc->field.region_obj;
-		acpi_os_printf(" (%s)",
-			       acpi_ut_get_region_name(region_obj->region.
-						       space_id));
-
-		break;
-
-	default:
-		break;
-	}
-
-exit:
 	acpi_os_printf("\n");
 	return (status);
 }
@@ -444,7 +407,7 @@ acpi_db_test_integer_type(struct acpi_namespace_node *node, u32 bit_length)
 		return (status);
 	}
 
-	acpi_os_printf(" (%4.4X/%3.3X) %8.8X%8.8X",
+	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " %8.8X%8.8X",
 		       bit_length, ACPI_ROUND_BITS_UP_TO_BYTES(bit_length),
 		       ACPI_FORMAT_UINT64(temp1->integer.value));
 
@@ -558,8 +521,9 @@ acpi_db_test_buffer_type(struct acpi_namespace_node *node, u32 bit_length)
 
 	/* Emit a few bytes of the buffer */
 
-	acpi_os_printf(" (%4.4X/%3.3X)", bit_length, temp1->buffer.length);
-	for (i = 0; ((i < 4) && (i < byte_length)); i++) {
+	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT, bit_length,
+		       temp1->buffer.length);
+	for (i = 0; ((i < 8) && (i < byte_length)); i++) {
 		acpi_os_printf(" %2.2X", temp1->buffer.pointer[i]);
 	}
 	acpi_os_printf("... ");
@@ -665,8 +629,9 @@ acpi_db_test_string_type(struct acpi_namespace_node *node, u32 byte_length)
 		return (status);
 	}
 
-	acpi_os_printf(" (%4.4X/%3.3X) \"%s\"", (temp1->string.length * 8),
-		       temp1->string.length, temp1->string.pointer);
+	acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " \"%s\"",
+		       (temp1->string.length * 8), temp1->string.length,
+		       temp1->string.pointer);
 
 	/* Write a new value */
 
@@ -750,9 +715,76 @@ static acpi_status acpi_db_test_package_type(struct acpi_namespace_node *node)
 		return (status);
 	}
 
-	acpi_os_printf(" %8.8X Elements", temp1->package.count);
+	acpi_os_printf(" %.2X Elements", temp1->package.count);
 	acpi_os_free(temp1);
 	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_test_field_unit_type
+ *
+ * PARAMETERS:  obj_desc                - A field unit object
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Test read/write on a named field unit.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_db_test_field_unit_type(union acpi_operand_object *obj_desc)
+{
+	union acpi_operand_object *region_obj;
+	u32 bit_length = 0;
+	u32 byte_length = 0;
+	acpi_status status = AE_OK;
+	union acpi_operand_object *ret_buffer_desc;
+
+	/* Supported spaces are memory/io/pci_config */
+
+	region_obj = obj_desc->field.region_obj;
+	switch (region_obj->region.space_id) {
+	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	case ACPI_ADR_SPACE_SYSTEM_IO:
+	case ACPI_ADR_SPACE_PCI_CONFIG:
+
+		/* Need the interpreter to execute */
+
+		acpi_ut_acquire_mutex(ACPI_MTX_INTERPRETER);
+		acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+
+		/* Exercise read-then-write */
+
+		status =
+		    acpi_ex_read_data_from_field(NULL, obj_desc,
+						 &ret_buffer_desc);
+		if (status == AE_OK) {
+			acpi_ex_write_data_to_field(ret_buffer_desc, obj_desc,
+						    NULL);
+			acpi_ut_remove_reference(ret_buffer_desc);
+		}
+
+		acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		acpi_ut_release_mutex(ACPI_MTX_INTERPRETER);
+
+		bit_length = obj_desc->common_field.bit_length;
+		byte_length = ACPI_ROUND_BITS_UP_TO_BYTES(bit_length);
+
+		acpi_os_printf(ACPI_DEBUG_LENGTH_FORMAT " [%s]", bit_length,
+			       byte_length,
+			       acpi_ut_get_region_name(region_obj->region.
+						       space_id));
+		return (status);
+
+	default:
+
+		acpi_os_printf
+		    ("      %s address space is not supported in this command [%4.4s]",
+		     acpi_ut_get_region_name(region_obj->region.space_id),
+		     region_obj->region.node->name.ascii);
+		return (AE_OK);
+	}
 }
 
 /*******************************************************************************

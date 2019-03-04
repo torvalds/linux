@@ -892,7 +892,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		 * event but only if the access here is ACPI_READ. In that
 		 * case we "borrow" the event GPIO instead.
 		 */
-		if (!found && agpio->sharable == ACPI_SHARED &&
+		if (!found && agpio->shareable == ACPI_SHARED &&
 		     function == ACPI_READ) {
 			struct acpi_gpio_event *event;
 

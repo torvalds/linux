@@ -3,7 +3,7 @@
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -311,7 +311,8 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 		  "An ACPI name contains invalid character(s)"),
 	EXCEP_TXT("AE_AML_NAME_NOT_FOUND",
 		  "Could not resolve a named reference"),
-	EXCEP_TXT("AE_AML_INTERNAL", "An internal error within the interprete"),
+	EXCEP_TXT("AE_AML_INTERNAL",
+		  "An internal error within the interpreter"),
 	EXCEP_TXT("AE_AML_INVALID_SPACE_ID",
 		  "An Operation Region SpaceID is invalid"),
 	EXCEP_TXT("AE_AML_STRING_LIMIT",

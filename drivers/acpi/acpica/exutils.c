@@ -3,7 +3,7 @@
  *
  * Module Name: exutils - interpreter/scanner utilities
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -160,7 +160,7 @@ u8 acpi_ex_truncate_for32bit_table(union acpi_operand_object *obj_desc)
  * RETURN:      None
  *
  * DESCRIPTION: Obtain the ACPI hardware Global Lock, only if the field
- *              flags specifiy that it is to be obtained before field access.
+ *              flags specify that it is to be obtained before field access.
  *
  ******************************************************************************/
 
