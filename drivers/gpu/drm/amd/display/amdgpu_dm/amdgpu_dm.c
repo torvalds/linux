@@ -303,12 +303,11 @@ static void dm_pflip_high_irq(void *interrupt_params)
 		return;
 	}
 
+	/* Update to correct count(s) if racing with vblank irq */
+	amdgpu_crtc->last_flip_vblank = drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
 
 	/* wake up userspace */
 	if (amdgpu_crtc->event) {
-		/* Update to correct count(s) if racing with vblank irq */
-		drm_crtc_accurate_vblank_count(&amdgpu_crtc->base);
-
 		drm_crtc_send_vblank_event(&amdgpu_crtc->base, amdgpu_crtc->event);
 
 		/* page flip completed. clean up */
@@ -786,12 +785,13 @@ static int dm_suspend(void *handle)
 	struct amdgpu_display_manager *dm = &adev->dm;
 	int ret = 0;
 
+	WARN_ON(adev->dm.cached_state);
+	adev->dm.cached_state = drm_atomic_helper_suspend(adev->ddev);
+
 	s3_handle_mst(adev->ddev, true);
 
 	amdgpu_dm_irq_suspend(adev);
 
-	WARN_ON(adev->dm.cached_state);
-	adev->dm.cached_state = drm_atomic_helper_suspend(adev->ddev);
 
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D3);
 

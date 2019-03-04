@@ -44,7 +44,7 @@ const struct trace_print_flags vmaflag_names[] = {
 
 void __dump_page(struct page *page, const char *reason)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping;
 	bool page_poisoned = PagePoisoned(page);
 	int mapcount;
 
@@ -57,6 +57,8 @@ void __dump_page(struct page *page, const char *reason)
 		pr_warn("page:%px is uninitialized and poisoned", page);
 		goto hex_only;
 	}
+
+	mapping = page_mapping(page);
 
 	/*
 	 * Avoid VM_BUG_ON() in page_mapcount().

@@ -612,8 +612,8 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 {
 	struct device_node *ports, *port;
 	struct dsa_port *dp;
+	int err = 0;
 	u32 reg;
-	int err;
 
 	ports = of_get_child_by_name(dn, "ports");
 	if (!ports) {
@@ -624,19 +624,23 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 	for_each_available_child_of_node(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
 		if (err)
-			return err;
+			goto out_put_node;
 
-		if (reg >= ds->num_ports)
-			return -EINVAL;
+		if (reg >= ds->num_ports) {
+			err = -EINVAL;
+			goto out_put_node;
+		}
 
 		dp = &ds->ports[reg];
 
 		err = dsa_port_parse_of(dp, port);
 		if (err)
-			return err;
+			goto out_put_node;
 	}
 
-	return 0;
+out_put_node:
+	of_node_put(ports);
+	return err;
 }
 
 static int dsa_switch_parse_member_of(struct dsa_switch *ds,

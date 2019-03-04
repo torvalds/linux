@@ -1274,6 +1274,15 @@ void hw_atl_tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en)
 			    HW_ATL_TPB_TX_BUF_EN_SHIFT, tx_buff_en);
 }
 
+void hw_atl_rpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
+				   u32 tx_traf_class_mode)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TX_TC_MODE_ADDR,
+			HW_ATL_TPB_TX_TC_MODE_MSK,
+			HW_ATL_TPB_TX_TC_MODE_SHIFT,
+			tx_traf_class_mode);
+}
+
 void hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 						u32 tx_buff_hi_threshold_per_tc,
 					 u32 buffer)
