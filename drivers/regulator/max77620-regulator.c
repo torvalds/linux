@@ -690,6 +690,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 			.active_discharge_mask = MAX77620_SD_CFG1_ADE_MASK, \
 			.active_discharge_reg = MAX77620_REG_##_id##_CFG, \
 			.type = REGULATOR_VOLTAGE,			\
+			.owner = THIS_MODULE,				\
 		},							\
 	}
 
@@ -721,6 +722,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 			.active_discharge_mask = MAX77620_LDO_CFG2_ADE_MASK, \
 			.active_discharge_reg = MAX77620_REG_##_id##_CFG2, \
 			.type = REGULATOR_VOLTAGE,			\
+			.owner = THIS_MODULE,				\
 		},							\
 	}
 

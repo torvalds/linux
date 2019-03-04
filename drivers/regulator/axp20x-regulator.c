@@ -367,13 +367,12 @@ static const int axp209_dcdc2_ldo3_slew_rates[] = {
 static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc = rdev->desc;
+	const struct regulator_desc *desc;
 	u8 reg, mask, enable, cfg = 0xff;
 	const int *slew_rates;
 	int rate_count = 0;
 
-	if (!rdev)
-		return -EINVAL;
+	desc = rdev->desc;
 
 	switch (axp20x->variant) {
 	case AXP209_ID:
@@ -436,10 +435,12 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 static int axp20x_regulator_enable_regmap(struct regulator_dev *rdev)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc = rdev->desc;
+	const struct regulator_desc *desc;
 
 	if (!rdev)
 		return -EINVAL;
+
+	desc = rdev->desc;
 
 	switch (axp20x->variant) {
 	case AXP209_ID:

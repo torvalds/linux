@@ -242,8 +242,8 @@ static const unsigned int mc13892_pwgtdrv[] = {
 	5000000,
 };
 
-static struct regulator_ops mc13892_gpo_regulator_ops;
-static struct regulator_ops mc13892_sw_regulator_ops;
+static const struct regulator_ops mc13892_gpo_regulator_ops;
+static const struct regulator_ops mc13892_sw_regulator_ops;
 
 
 #define MC13892_FIXED_DEFINE(name, node, reg, voltages)			\
@@ -387,7 +387,7 @@ static int mc13892_gpo_regulator_is_enabled(struct regulator_dev *rdev)
 }
 
 
-static struct regulator_ops mc13892_gpo_regulator_ops = {
+static const struct regulator_ops mc13892_gpo_regulator_ops = {
 	.enable = mc13892_gpo_regulator_enable,
 	.disable = mc13892_gpo_regulator_disable,
 	.is_enabled = mc13892_gpo_regulator_is_enabled,
@@ -479,7 +479,7 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static struct regulator_ops mc13892_sw_regulator_ops = {
+static const struct regulator_ops mc13892_sw_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,
