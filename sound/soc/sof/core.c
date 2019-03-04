@@ -470,6 +470,7 @@ int snd_sof_device_remove(struct device *dev)
 
 	/* release firmware */
 	release_firmware(pdata->fw);
+	pdata->fw = NULL;
 
 	return 0;
 }

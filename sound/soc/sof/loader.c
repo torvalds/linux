@@ -232,6 +232,10 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	/* set code loading condition to true */
 	sdev->code_loading = 1;
 
+	/* Don't request firmware again if firmware is already requested */
+	if (plat_data->fw)
+		return 0;
+
 	fw_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 				     "%s/%s",
 				     plat_data->fw_filename_prefix,
@@ -283,6 +287,7 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 
 error:
 	release_firmware(plat_data->fw);
+	plat_data->fw = NULL;
 	return ret;
 
 }
