@@ -285,6 +285,23 @@ static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
 	hsotg->params.power_down = val;
 }
 
+static void dwc2_set_param_lpm(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->lpm = hsotg->hw_params.lpm_mode;
+	if (p->lpm) {
+		p->lpm_clock_gating = true;
+		p->besl = true;
+		p->hird_threshold_en = true;
+		p->hird_threshold = 4;
+	} else {
+		p->lpm_clock_gating = false;
+		p->besl = false;
+		p->hird_threshold_en = false;
+	}
+}
+
 /**
  * dwc2_set_default_params() - Set all core parameters to their
  * auto-detected default values.
@@ -303,6 +320,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	dwc2_set_param_speed(hsotg);
 	dwc2_set_param_phy_utmi_width(hsotg);
 	dwc2_set_param_power_down(hsotg);
+	dwc2_set_param_lpm(hsotg);
 	p->phy_ulpi_ddr = false;
 	p->phy_ulpi_ext_vbus = false;
 
@@ -315,11 +333,6 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
 	p->uframe_sched = true;
 	p->external_id_pin_ctl = false;
-	p->lpm = true;
-	p->lpm_clock_gating = true;
-	p->besl = true;
-	p->hird_threshold_en = true;
-	p->hird_threshold = 4;
 	p->ipg_isoc_en = false;
 	p->service_interval = false;
 	p->max_packet_count = hw->max_packet_count;
