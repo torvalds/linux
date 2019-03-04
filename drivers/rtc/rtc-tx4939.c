@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TX4939 internal RTC driver
  * Based on RBTX49xx patch from CELF patch archive.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * (C) Copyright TOSHIBA CORPORATION 2005-2007
  */
@@ -310,5 +307,5 @@ module_platform_driver_probe(tx4939_rtc_driver, tx4939_rtc_probe);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TX4939 internal RTC driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:tx4939rtc");
