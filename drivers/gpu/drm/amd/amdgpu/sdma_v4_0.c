@@ -210,12 +210,14 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_4,
-						 ARRAY_SIZE(golden_settings_sdma_4));
-		soc15_program_register_sequence(adev,
-						 golden_settings_sdma_vg10,
-						 ARRAY_SIZE(golden_settings_sdma_vg10));
+		if (!amdgpu_virt_support_skip_setting(adev)) {
+			soc15_program_register_sequence(adev,
+							 golden_settings_sdma_4,
+							 ARRAY_SIZE(golden_settings_sdma_4));
+			soc15_program_register_sequence(adev,
+							 golden_settings_sdma_vg10,
+							 ARRAY_SIZE(golden_settings_sdma_vg10));
+		}
 		break;
 	case CHIP_VEGA12:
 		soc15_program_register_sequence(adev,

@@ -1024,11 +1024,17 @@ static void soc15_doorbell_range_init(struct amdgpu_device *adev)
 	int i;
 	struct amdgpu_ring *ring;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		ring = &adev->sdma.instance[i].ring;
-		adev->nbio_funcs->sdma_doorbell_range(adev, i,
-			ring->use_doorbell, ring->doorbell_index,
-			adev->doorbell_index.sdma_doorbell_range);
+	/*  Two reasons to skip
+	*		1, Host driver already programmed them
+	*		2, To avoid registers program violations in SR-IOV
+	*/
+	if (!amdgpu_virt_support_skip_setting(adev)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			ring = &adev->sdma.instance[i].ring;
+			adev->nbio_funcs->sdma_doorbell_range(adev, i,
+				ring->use_doorbell, ring->doorbell_index,
+				adev->doorbell_index.sdma_doorbell_range);
+		}
 	}
 
 	adev->nbio_funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,

@@ -308,12 +308,14 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-		soc15_program_register_sequence(adev,
-						 golden_settings_gc_9_0,
-						 ARRAY_SIZE(golden_settings_gc_9_0));
-		soc15_program_register_sequence(adev,
-						 golden_settings_gc_9_0_vg10,
-						 ARRAY_SIZE(golden_settings_gc_9_0_vg10));
+		if (!amdgpu_virt_support_skip_setting(adev)) {
+			soc15_program_register_sequence(adev,
+							 golden_settings_gc_9_0,
+							 ARRAY_SIZE(golden_settings_gc_9_0));
+			soc15_program_register_sequence(adev,
+							 golden_settings_gc_9_0_vg10,
+							 ARRAY_SIZE(golden_settings_gc_9_0_vg10));
+		}
 		break;
 	case CHIP_VEGA12:
 		soc15_program_register_sequence(adev,
