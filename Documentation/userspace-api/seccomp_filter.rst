@@ -123,9 +123,9 @@ In precedence order, they are:
 	to userland as the errno without executing the system call.
 
 ``SECCOMP_RET_USER_NOTIF``:
-    Results in a ``struct seccomp_notif`` message sent on the userspace
-    notification fd, if it is attached, or ``-ENOSYS`` if it is not. See below
-    on discussion of how to handle user notifications.
+	Results in a ``struct seccomp_notif`` message sent on the userspace
+	notification fd, if it is attached, or ``-ENOSYS`` if it is not. See
+	below on discussion of how to handle user notifications.
 
 ``SECCOMP_RET_TRACE``:
 	When returned, this value will cause the kernel to attempt to
