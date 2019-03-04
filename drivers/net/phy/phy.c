@@ -144,14 +144,10 @@ int phy_aneg_done(struct phy_device *phydev)
 {
 	if (phydev->drv && phydev->drv->aneg_done)
 		return phydev->drv->aneg_done(phydev);
-
-	/* Avoid genphy_aneg_done() if the Clause 45 PHY does not
-	 * implement Clause 22 registers
-	 */
-	if (phydev->is_c45 && !(phydev->c45_ids.devices_in_package & BIT(0)))
-		return -EINVAL;
-
-	return genphy_aneg_done(phydev);
+	else if (phydev->is_c45)
+		return genphy_c45_aneg_done(phydev);
+	else
+		return genphy_aneg_done(phydev);
 }
 EXPORT_SYMBOL(phy_aneg_done);
 

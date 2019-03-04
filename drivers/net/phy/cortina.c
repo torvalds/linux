@@ -80,10 +80,9 @@ static struct phy_driver cortina_driver[] = {
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Cortina CS4340",
 	.features       = PHY_10GBIT_FEATURES,
-	.config_init	= gen10g_config_init,
 	.config_aneg	= gen10g_config_aneg,
 	.read_status	= cortina_read_status,
-	.soft_reset	= gen10g_no_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.probe		= cortina_probe,
 },
 };
