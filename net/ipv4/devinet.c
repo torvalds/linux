@@ -2614,7 +2614,9 @@ static __net_init int devinet_init_net(struct net *net)
 	tbl[0].extra2 = net;
 #endif
 
-	if (sysctl_devconf_inherit_init_net != 2 && !net_eq(net, &init_net)) {
+	if ((!IS_ENABLED(CONFIG_SYSCTL) ||
+	     sysctl_devconf_inherit_init_net != 2) &&
+	    !net_eq(net, &init_net)) {
 		memcpy(all, init_net.ipv4.devconf_all, sizeof(ipv4_devconf));
 		memcpy(dflt, init_net.ipv4.devconf_dflt, sizeof(ipv4_devconf_dflt));
 	}
