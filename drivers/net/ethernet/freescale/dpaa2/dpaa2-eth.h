@@ -89,12 +89,33 @@
  */
 #define DPAA2_ETH_SWA_SIZE		64
 
+/* We store different information in the software annotation area of a Tx frame
+ * based on what type of frame it is
+ */
+enum dpaa2_eth_swa_type {
+	DPAA2_ETH_SWA_SINGLE,
+	DPAA2_ETH_SWA_SG,
+	DPAA2_ETH_SWA_XDP,
+};
+
 /* Must keep this struct smaller than DPAA2_ETH_SWA_SIZE */
 struct dpaa2_eth_swa {
-	struct sk_buff *skb;
-	struct scatterlist *scl;
-	int num_sg;
-	int sgt_size;
+	enum dpaa2_eth_swa_type type;
+	union {
+		struct {
+			struct sk_buff *skb;
+		} single;
+		struct {
+			struct sk_buff *skb;
+			struct scatterlist *scl;
+			int num_sg;
+			int sgt_size;
+		} sg;
+		struct {
+			int dma_size;
+			struct xdp_frame *xdpf;
+		} xdp;
+	};
 };
 
 /* Annotation valid bits in FD FRC */
@@ -257,6 +278,7 @@ struct dpaa2_eth_ch_stats {
 	__u64 xdp_drop;
 	__u64 xdp_tx;
 	__u64 xdp_tx_err;
+	__u64 xdp_redirect;
 };
 
 /* Maximum number of queues associated with a DPNI */
@@ -296,6 +318,7 @@ struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
 	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
 	int drop_cnt;
+	unsigned int res;
 };
 
 struct dpaa2_eth_channel {
@@ -310,6 +333,7 @@ struct dpaa2_eth_channel {
 	int buf_count;
 	struct dpaa2_eth_ch_stats stats;
 	struct dpaa2_eth_ch_xdp xdp;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -429,6 +453,12 @@ unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,
 				       struct sk_buff *skb)
 {
 	unsigned int headroom = DPAA2_ETH_SWA_SIZE;
+
+	/* If we don't have an skb (e.g. XDP buffer), we only need space for
+	 * the software annotation area
+	 */
+	if (!skb)
+		return headroom;
 
 	/* For non-linear skbs we have no headroom requirement, as we build a
 	 * SG frame with a newly allocated SGT buffer
