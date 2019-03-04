@@ -329,6 +329,8 @@ source "drivers/gpu/drm/tve200/Kconfig"
 
 source "drivers/gpu/drm/xen/Kconfig"
 
+source "drivers/gpu/drm/vboxvideo/Kconfig"
+
 # Keep legacy drivers last
 
 menuconfig DRM_LEGACY
