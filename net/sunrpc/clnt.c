@@ -1807,7 +1807,12 @@ call_encode(struct rpc_task *task)
 		xprt_request_enqueue_receive(task);
 	xprt_request_enqueue_transmit(task);
 out:
-	task->tk_action = call_bind;
+	task->tk_action = call_transmit;
+	/* Check that the connection is OK */
+	if (!xprt_bound(task->tk_xprt))
+		task->tk_action = call_bind;
+	else if (!xprt_connected(task->tk_xprt))
+		task->tk_action = call_connect;
 }
 
 /*
@@ -1999,13 +2004,19 @@ call_transmit(struct rpc_task *task)
 {
 	dprint_status(task);
 
-	task->tk_status = 0;
+	task->tk_action = call_transmit_status;
 	if (test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
 		if (!xprt_prepare_transmit(task))
 			return;
-		xprt_transmit(task);
+		task->tk_status = 0;
+		if (test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
+			if (!xprt_connected(task->tk_xprt)) {
+				task->tk_status = -ENOTCONN;
+				return;
+			}
+			xprt_transmit(task);
+		}
 	}
-	task->tk_action = call_transmit_status;
 	xprt_end_transmit(task);
 }
 
@@ -2067,6 +2078,8 @@ call_transmit_status(struct rpc_task *task)
 	case -EADDRINUSE:
 	case -ENOTCONN:
 	case -EPIPE:
+		task->tk_action = call_bind;
+		task->tk_status = 0;
 		break;
 	}
 }
