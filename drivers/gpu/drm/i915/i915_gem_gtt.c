@@ -809,8 +809,6 @@ static bool gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
 				u64 start, u64 length)
 {
 	unsigned int num_entries = gen8_pte_count(start, length);
-	unsigned int pte = gen8_pte_index(start);
-	unsigned int pte_end = pte + num_entries;
 	gen8_pte_t *vaddr;
 
 	GEM_BUG_ON(num_entries > pt->used_ptes);
@@ -820,8 +818,7 @@ static bool gen8_ppgtt_clear_pt(const struct i915_address_space *vm,
 		return true;
 
 	vaddr = kmap_atomic_px(pt);
-	while (pte < pte_end)
-		vaddr[pte++] = vm->scratch_pte;
+	memset64(vaddr + gen8_pte_index(start), vm->scratch_pte, num_entries);
 	kunmap_atomic(vaddr);
 
 	return false;
@@ -1672,8 +1669,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 
 	while (num_entries) {
 		struct i915_page_table *pt = ppgtt->base.pd.page_table[pde++];
-		const unsigned int end = min(pte + num_entries, GEN6_PTES);
-		const unsigned int count = end - pte;
+		const unsigned int count = min(num_entries, GEN6_PTES - pte);
 		gen6_pte_t *vaddr;
 
 		GEM_BUG_ON(pt == vm->scratch_pt);
@@ -1693,9 +1689,7 @@ static void gen6_ppgtt_clear_range(struct i915_address_space *vm,
 		 */
 
 		vaddr = kmap_atomic_px(pt);
-		do {
-			vaddr[pte++] = scratch_pte;
-		} while (pte < end);
+		memset32(vaddr + pte, scratch_pte, count);
 		kunmap_atomic(vaddr);
 
 		pte = 0;
