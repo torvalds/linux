@@ -4090,7 +4090,7 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 	/* Sanity check to ensure our sizing is right for both SCSI and NVME */
 	if (sizeof(struct lpfc_io_buf) > LPFC_COMMON_IO_BUF_SZ) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-				"6426 Common buffer size %ld exceeds %d\n",
+				"6426 Common buffer size %zd exceeds %d\n",
 				sizeof(struct lpfc_io_buf),
 				LPFC_COMMON_IO_BUF_SZ);
 		return 0;
