@@ -150,6 +150,7 @@ config HID_ASUS
 	tristate "Asus"
 	depends on LEDS_CLASS
 	depends on ASUS_WMI || ASUS_WMI=n
+	select POWER_SUPPLY
 	---help---
 	Support for Asus notebook built-in keyboard and touchpad via i2c, and
 	the Asus Republic of Gamers laptop keyboard special keys.
