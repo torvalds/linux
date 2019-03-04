@@ -69,13 +69,15 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 	unsigned char *payload;
 	struct device_info *dev_info;
 	int i, j;
-	size_t	payload_len, total_len, cur_pos;
+	size_t	payload_len, total_len, cur_pos, raw_len;
 	int report_type;
 	struct report_list *reports_list;
 	char *reports;
 	size_t report_len;
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 	int curr_hid_dev = client_data->cur_hid_dev;
+	struct ishtp_hid_data *hid_data = NULL;
+	struct hid_device *hid = NULL;
 
 	payload = recv_buf + sizeof(struct hostif_msg_hdr);
 	total_len = data_len;
@@ -219,18 +221,31 @@ do_get_report:
 			/* Get index of device that matches this id */
 			for (i = 0; i < client_data->num_hid_devices; ++i) {
 				if (recv_msg->hdr.device_id ==
-					client_data->hid_devices[i].dev_id)
-					if (client_data->hid_sensor_hubs[i]) {
-						hid_input_report(
-						client_data->hid_sensor_hubs[
-									i],
-						report_type, payload,
-						payload_len, 0);
-						ishtp_hid_wakeup(
-						client_data->hid_sensor_hubs[
-							i]);
+					  client_data->hid_devices[i].dev_id) {
+					hid = client_data->hid_sensor_hubs[i];
+					if (!hid)
 						break;
+
+					hid_data = hid->driver_data;
+					if (hid_data->raw_get_req) {
+						raw_len =
+						  (hid_data->raw_buf_size <
+								payload_len) ?
+						  hid_data->raw_buf_size :
+						  payload_len;
+
+						memcpy(hid_data->raw_buf,
+						       payload, raw_len);
+					} else {
+						hid_input_report
+							(hid, report_type,
+							 payload, payload_len,
+							 0);
 					}
+
+					ishtp_hid_wakeup(hid);
+					break;
+				}
 			}
 			break;
 

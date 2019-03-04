@@ -159,6 +159,9 @@ struct ishtp_cl_data {
  * @client_data:	Link to the client instance
  * @hid_wait:		Completion waitq
  *
+ * @raw_get_req:	Flag indicating raw get request ongoing
+ * @raw_buf:		raw request buffer filled on receiving get report
+ * @raw_buf_size:	raw request buffer size
  * Used to tie hid hid->driver data to driver client instance
  */
 struct ishtp_hid_data {
@@ -166,6 +169,11 @@ struct ishtp_hid_data {
 	bool request_done;
 	struct ishtp_cl_data *client_data;
 	wait_queue_head_t hid_wait;
+
+	/* raw request */
+	bool raw_get_req;
+	u8 *raw_buf;
+	size_t raw_buf_size;
 };
 
 /* Interface functions between HID LL driver and ISH TP client */
