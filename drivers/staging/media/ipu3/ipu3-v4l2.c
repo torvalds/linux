@@ -664,12 +664,11 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 		    struct v4l2_format *f, bool try)
 {
 	struct device *dev = &imgu->pci_dev->dev;
-	struct v4l2_pix_format_mplane try_fmts[IPU3_CSS_QUEUES];
 	struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES] = { NULL };
 	struct v4l2_rect *rects[IPU3_CSS_RECTS] = { NULL };
 	struct v4l2_mbus_framefmt pad_fmt;
 	unsigned int i, css_q;
-	int r;
+	int ret;
 	struct imgu_css_pipe *css_pipe = &imgu->css.pipes[pipe];
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 	struct imgu_v4l2_subdev *imgu_sd = &imgu_pipe->imgu_sd;
@@ -698,9 +697,13 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 			continue;
 
 		if (try) {
-			try_fmts[i] =
-				imgu_pipe->nodes[inode].vdev_fmt.fmt.pix_mp;
-			fmts[i] = &try_fmts[i];
+			fmts[i] = kmemdup(&imgu_pipe->nodes[inode].vdev_fmt.fmt.pix_mp,
+					  sizeof(struct v4l2_pix_format_mplane),
+					  GFP_KERNEL);
+			if (!fmts[i]) {
+				ret = -ENOMEM;
+				goto out;
+			}
 		} else {
 			fmts[i] = &imgu_pipe->nodes[inode].vdev_fmt.fmt.pix_mp;
 		}
@@ -730,26 +733,33 @@ static int imgu_fmt(struct imgu_device *imgu, unsigned int pipe, int node,
 	 * before we return success from this function, so set it here.
 	 */
 	css_q = imgu_node_to_queue(node);
-	if (fmts[css_q])
-		*fmts[css_q] = f->fmt.pix_mp;
-	else
-		return -EINVAL;
+	if (!fmts[css_q]) {
+		ret = -EINVAL;
+		goto out;
+	}
+	*fmts[css_q] = f->fmt.pix_mp;
 
 	if (try)
-		r = imgu_css_fmt_try(&imgu->css, fmts, rects, pipe);
+		ret = imgu_css_fmt_try(&imgu->css, fmts, rects, pipe);
 	else
-		r = imgu_css_fmt_set(&imgu->css, fmts, rects, pipe);
+		ret = imgu_css_fmt_set(&imgu->css, fmts, rects, pipe);
 
-	/* r is the binary number in the firmware blob */
-	if (r < 0)
-		return r;
+	/* ret is the binary number in the firmware blob */
+	if (ret < 0)
+		goto out;
 
 	if (try)
 		f->fmt.pix_mp = *fmts[css_q];
 	else
 		f->fmt = imgu_pipe->nodes[node].vdev_fmt.fmt;
 
-	return 0;
+out:
+	if (try) {
+		for (i = 0; i < IPU3_CSS_QUEUES; i++)
+			kfree(fmts[i]);
+	}
+
+	return ret;
 }
 
 static int imgu_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
