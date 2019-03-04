@@ -1506,9 +1506,10 @@ static int cio2_notifier_init(struct cio2_device *cio2)
 	if (ret < 0)
 		goto out;
 
-	if (list_empty(&cio2->notifier.asd_list))
-		return -ENODEV;	/* no endpoint */
-
+	/*
+	 * Proceed even without sensors connected to allow the device to
+	 * suspend.
+	 */
 	cio2->notifier.ops = &cio2_async_ops;
 	ret = v4l2_async_notifier_register(&cio2->v4l2_dev, &cio2->notifier);
 	if (ret) {
@@ -1815,8 +1816,7 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	/* Register notifier for subdevices we care */
 	r = cio2_notifier_init(cio2);
-	/* Proceed without sensors connected to allow the device to suspend. */
-	if (r && r != -ENODEV)
+	if (r)
 		goto fail_cio2_queue_exit;
 
 	r = devm_request_irq(&pci_dev->dev, pci_dev->irq, cio2_irq,
