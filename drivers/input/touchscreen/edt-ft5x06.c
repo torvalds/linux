@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Simon Budig, <simon.budig@kernelconcepts.de>
  * Daniel Wagener <daniel.wagener@kernelconcepts.de> (M09 firmware support)
  * Lothar Waßmann <LW@KARO-electronics.de> (DT support)
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /*
@@ -1280,4 +1268,4 @@ module_i2c_driver(edt_ft5x06_ts_driver);
 
 MODULE_AUTHOR("Simon Budig <simon.budig@kernelconcepts.de>");
 MODULE_DESCRIPTION("EDT FT5x06 I2C Touchscreen Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
