@@ -751,8 +751,8 @@ static int rkisp1_isp_stop(struct rkisp1_device *dev)
 	val = readl(base + CIF_ISP_CTRL);
 	writel(val | CIF_ISP_CTRL_ISP_CFG_UPD, base + CIF_ISP_CTRL);
 
-	readx_poll_timeout(readl, base + CIF_ISP_RIS,
-			   val, val & CIF_ISP_OFF, 20, 100);
+	readx_poll_timeout_atomic(readl, base + CIF_ISP_RIS,
+				  val, val & CIF_ISP_OFF, 20, 100);
 	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
 		"streaming(MP:%d, SP:%d), MI_CTRL:%x, ISP_CTRL:%x, MIPI_CTRL:%x\n",
 		 dev->stream[RKISP1_STREAM_SP].streaming,
