@@ -1652,37 +1652,6 @@ static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_conv_power_profile_to_pplib_workload(int power_profile)
-{
-	int pplib_workload = 0;
-
-	switch (power_profile) {
-	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
-	     pplib_workload = WORKLOAD_DEFAULT_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
-	     pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_POWERSAVING:
-	     pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_VIDEO:
-	     pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_VR:
-	     pplib_workload = WORKLOAD_PPLIB_VR_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_COMPUTE:
-	     pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
-	     break;
-	case PP_SMC_POWER_PROFILE_CUSTOM:
-		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
-		break;
-	}
-
-	return pplib_workload;
-}
-
 static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
@@ -1719,7 +1688,7 @@ static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-		workload_type = smu_v11_0_conv_power_profile_to_pplib_workload(i);
+		workload_type = smu_conv_profile_to_workload(smu, i);
 		result = smu_update_table_with_arg(smu, TABLE_ACTIVITY_MONITOR_COEFF,
 						   workload_type, &activity_monitor, false);
 		if (result) {
@@ -1868,8 +1837,7 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 	}
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type =
-		smu_v11_0_conv_power_profile_to_pplib_workload(smu->power_profile_mode);
+	workload_type = smu_conv_profile_to_workload(smu, smu->power_profile_mode);
 	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
 				    1 << workload_type);
 
@@ -2142,7 +2110,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_sclk = smu_v11_0_dpm_get_sclk,
 	.get_mclk = smu_v11_0_dpm_get_mclk,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
-	.conv_power_profile_to_pplib_workload = smu_v11_0_conv_power_profile_to_pplib_workload,
 	.get_power_profile_mode = smu_v11_0_get_power_profile_mode,
 	.set_power_profile_mode = smu_v11_0_set_power_profile_mode,
 	.update_od8_settings = smu_v11_0_update_od8_settings,

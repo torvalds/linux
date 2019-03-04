@@ -1496,6 +1496,37 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	return value;
 }
 
+static int vega20_conv_profile_to_workload(struct smu_context *smu, int power_profile)
+{
+	int pplib_workload = 0;
+
+	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
+		pplib_workload = WORKLOAD_DEFAULT_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VR:
+		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
+		break;
+	}
+
+	return pplib_workload;
+}
+
 static int
 vega20_get_profiling_clk_mask(struct smu_context *smu,
 			      enum amd_dpm_forced_level level,
@@ -2541,6 +2572,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
 	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
+	.conv_profile_to_workload = vega20_conv_profile_to_workload,
 	.get_performance_level = vega20_get_performance_level,
 	.force_performance_level = vega20_force_performance_level,
 	.update_specified_od8_value = vega20_update_specified_od8_value,

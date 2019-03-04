@@ -451,6 +451,7 @@ struct pptable_funcs {
 					      *clocks);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
+	int (*conv_profile_to_workload)(struct smu_context *smu, int power_profile);
 	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
 	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*pre_display_config_changed)(struct smu_context *smu);
@@ -728,6 +729,8 @@ struct smu_funcs
 	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
 #define smu_set_watermarks_for_clock_ranges(smu, clock_ranges) \
 	((smu)->funcs->set_watermarks_for_clock_ranges ? (smu)->funcs->set_watermarks_for_clock_ranges((smu), (clock_ranges)) : 0)
+#define smu_conv_profile_to_workload(smu, type) \
+	((smu)->ppt_funcs->conv_profile_to_workload ? (smu)->ppt_funcs->conv_profile_to_workload((smu), (type)) : 0)
 #define smu_dpm_set_uvd_enable(smu, enable) \
 	((smu)->funcs->dpm_set_uvd_enable ? (smu)->funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \
