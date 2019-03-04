@@ -380,7 +380,7 @@ static int sprd_spi_txrx_bufs(struct spi_device *sdev, struct spi_transfer *t)
 {
 	struct sprd_spi *ss = spi_controller_get_devdata(sdev->controller);
 	u32 trans_len = ss->trans_len, len;
-	int ret, write_size = 0;
+	int ret, write_size = 0, read_size = 0;
 
 	while (trans_len) {
 		len = trans_len > SPRD_SPI_FIFO_SIZE ? SPRD_SPI_FIFO_SIZE :
@@ -416,13 +416,15 @@ static int sprd_spi_txrx_bufs(struct spi_device *sdev, struct spi_transfer *t)
 			goto complete;
 
 		if (ss->trans_mode & SPRD_SPI_RX_MODE)
-			ss->read_bufs(ss, len);
+			read_size += ss->read_bufs(ss, len);
 
 		trans_len -= len;
 	}
 
-	ret = write_size;
-
+	if (ss->trans_mode & SPRD_SPI_TX_MODE)
+		ret = write_size;
+	else
+		ret = read_size;
 complete:
 	sprd_spi_enter_idle(ss);
 

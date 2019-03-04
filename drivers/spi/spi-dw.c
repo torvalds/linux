@@ -54,41 +54,41 @@ static ssize_t dw_spi_show_regs(struct file *file, char __user *user_buf,
 	if (!buf)
 		return 0;
 
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"%s registers:\n", dev_name(&dws->master->dev));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"=================================\n");
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"CTRL0: \t\t0x%08x\n", dw_readl(dws, DW_SPI_CTRL0));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"CTRL1: \t\t0x%08x\n", dw_readl(dws, DW_SPI_CTRL1));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SSIENR: \t0x%08x\n", dw_readl(dws, DW_SPI_SSIENR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SER: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SER));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"BAUDR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_BAUDR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"TXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_TXFLTR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"RXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_RXFLTR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"TXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_TXFLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"RXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_RXFLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"SR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"IMR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_IMR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"ISR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_ISR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMACR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_DMACR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMATDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMATDLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"DMARDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMARDLR));
-	len += snprintf(buf + len, SPI_REGS_BUFSIZE - len,
+	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
 			"=================================\n");
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
