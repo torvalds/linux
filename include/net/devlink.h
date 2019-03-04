@@ -447,6 +447,11 @@ typedef void devlink_snapshot_data_dest_t(const void *data);
 struct devlink_fmsg;
 struct devlink_health_reporter;
 
+enum devlink_health_reporter_state {
+	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
+	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
+};
+
 /**
  * struct devlink_health_reporter_ops - Reporter operations
  * @name: reporter name
@@ -715,6 +720,9 @@ void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
 int devlink_health_report(struct devlink_health_reporter *reporter,
 			  const char *msg, void *priv_ctx);
+void
+devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
+				     enum devlink_health_reporter_state state);
 
 void devlink_compat_running_version(struct net_device *dev,
 				    char *buf, size_t len);
@@ -1202,6 +1210,12 @@ devlink_health_report(struct devlink_health_reporter *reporter,
 		      const char *msg, void *priv_ctx)
 {
 	return 0;
+}
+
+static inline void
+devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
+				     enum devlink_health_reporter_state state)
+{
 }
 
 static inline void

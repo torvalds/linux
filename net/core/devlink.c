@@ -4409,11 +4409,6 @@ struct devlink_health_reporter {
 	u64 last_recovery_ts;
 };
 
-enum devlink_health_reporter_state {
-	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
-	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
-};
-
 void *
 devlink_health_reporter_priv(struct devlink_health_reporter *reporter)
 {
@@ -4498,6 +4493,23 @@ devlink_health_reporter_destroy(struct devlink_health_reporter *reporter)
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_destroy);
 
+void
+devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
+				     enum devlink_health_reporter_state state)
+{
+	if (WARN_ON(state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY &&
+		    state != DEVLINK_HEALTH_REPORTER_STATE_ERROR))
+		return;
+
+	if (reporter->health_state == state)
+		return;
+
+	reporter->health_state = state;
+	trace_devlink_health_reporter_state_update(reporter->devlink,
+						   reporter->ops->name, state);
+}
+EXPORT_SYMBOL_GPL(devlink_health_reporter_state_update);
+
 static int
 devlink_health_reporter_recover(struct devlink_health_reporter *reporter,
 				void *priv_ctx)
@@ -4569,16 +4581,19 @@ dump_err:
 int devlink_health_report(struct devlink_health_reporter *reporter,
 			  const char *msg, void *priv_ctx)
 {
+	enum devlink_health_reporter_state prev_health_state;
 	struct devlink *devlink = reporter->devlink;
 
 	/* write a log message of the current error */
 	WARN_ON(!msg);
 	trace_devlink_health_report(devlink, reporter->ops->name, msg);
 	reporter->error_count++;
+	prev_health_state = reporter->health_state;
+	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
 
 	/* abort if the previous error wasn't recovered */
 	if (reporter->auto_recover &&
-	    (reporter->health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
+	    (prev_health_state != DEVLINK_HEALTH_REPORTER_STATE_HEALTHY ||
 	     jiffies - reporter->last_recovery_ts <
 	     msecs_to_jiffies(reporter->graceful_period))) {
 		trace_devlink_health_recover_aborted(devlink,
