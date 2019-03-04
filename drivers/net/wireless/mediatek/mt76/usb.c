@@ -818,15 +818,14 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 			if (!buf->urb)
 				return -ENOMEM;
 
-			if (dev->usb.sg_en) {
-				size_t size = MT_SG_MAX_SIZE *
-					      sizeof(struct scatterlist);
+			if (!dev->usb.sg_en)
+				continue;
 
-				buf->urb->sg = devm_kzalloc(dev->dev, size,
-							    GFP_KERNEL);
-				if (!buf->urb->sg)
-					return -ENOMEM;
-			}
+			buf->urb->sg = devm_kcalloc(dev->dev, MT_SG_MAX_SIZE,
+						    sizeof(struct scatterlist),
+						    GFP_KERNEL);
+			if (!buf->urb->sg)
+				return -ENOMEM;
 		}
 	}
 	return 0;
