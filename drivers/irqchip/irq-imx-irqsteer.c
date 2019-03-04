@@ -169,8 +169,12 @@ static int imx_irqsteer_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&data->lock);
 
-	of_property_read_u32(np, "fsl,num-irqs", &irqs_num);
-	of_property_read_u32(np, "fsl,channel", &data->channel);
+	ret = of_property_read_u32(np, "fsl,num-irqs", &irqs_num);
+	if (ret)
+		return ret;
+	ret = of_property_read_u32(np, "fsl,channel", &data->channel);
+	if (ret)
+		return ret;
 
 	/*
 	 * There is one output irq for each group of 64 inputs.
