@@ -619,6 +619,10 @@ smb2_get_mid_entry(struct cifs_ses *ses, struct smb2_sync_hdr *shdr,
 		return -EAGAIN;
 	}
 
+	if (ses->server->tcpStatus == CifsNeedNegotiate &&
+	   shdr->Command != SMB2_NEGOTIATE)
+		return -EAGAIN;
+
 	if (ses->status == CifsNew) {
 		if ((shdr->Command != SMB2_SESSION_SETUP) &&
 		    (shdr->Command != SMB2_NEGOTIATE))
@@ -701,6 +705,10 @@ smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	struct smb2_sync_hdr *shdr =
 			(struct smb2_sync_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
+
+	if (server->tcpStatus == CifsNeedNegotiate &&
+	   shdr->Command != SMB2_NEGOTIATE)
+		return ERR_PTR(-EAGAIN);
 
 	smb2_seq_num_into_buf(server, shdr);
 
