@@ -71,7 +71,7 @@ static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
 	return 0;
 }
 
-struct dummy *livepatch_fix1_dummy_alloc(void)
+static struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
 	void *leak;
@@ -113,7 +113,7 @@ static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
 			 __func__, d, *shadow_leak);
 }
 
-void livepatch_fix1_dummy_free(struct dummy *d)
+static void livepatch_fix1_dummy_free(struct dummy *d)
 {
 	void **shadow_leak;
 
