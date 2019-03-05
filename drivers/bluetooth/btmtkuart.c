@@ -661,7 +661,7 @@ static int btmtkuart_change_baudrate(struct hci_dev *hdev)
 {
 	struct btmtkuart_dev *bdev = hci_get_drvdata(hdev);
 	struct btmtk_hci_wmt_params wmt_params;
-	u32 baudrate;
+	__le32 baudrate;
 	u8 param;
 	int err;
 
