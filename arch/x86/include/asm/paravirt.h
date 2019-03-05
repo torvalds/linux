@@ -433,7 +433,7 @@ static inline pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned 
 }
 
 static inline void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
-					   pte_t *ptep, pte_t pte)
+					   pte_t *ptep, pte_t old_pte, pte_t pte)
 {
 
 	if (sizeof(pteval_t) > sizeof(long))
