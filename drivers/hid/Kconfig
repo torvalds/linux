@@ -590,6 +590,13 @@ config HID_MAGICMOUSE
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
+config HID_MALTRON
+	tristate "Maltron L90 keyboard"
+	depends on HID
+	---help---
+	Adds support for the volume up, volume down, mute, and play/pause buttons
+	of the Maltron L90 keyboard.
+
 config HID_MAYFLASH
 	tristate "Mayflash game controller adapter force feedback"
 	depends on HID
