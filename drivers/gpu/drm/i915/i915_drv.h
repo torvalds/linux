@@ -2996,9 +2996,6 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
-struct i915_request *
-i915_gem_find_active_request(struct intel_engine_cs *engine);
-
 static inline bool __i915_wedged(struct i915_gpu_error *error)
 {
 	return unlikely(test_bit(I915_WEDGED, &error->flags));

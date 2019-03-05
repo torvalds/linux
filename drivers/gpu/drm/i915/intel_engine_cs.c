@@ -1545,7 +1545,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (&rq->link != &engine->timeline.requests)
 		print_request(m, rq, "\t\tlast   ");
 
-	rq = i915_gem_find_active_request(engine);
+	rq = intel_engine_find_active_request(engine);
 	if (rq) {
 		print_request(m, rq, "\t\tactive ");
 
@@ -1710,6 +1710,51 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine)
 		engine->stats.active = 0;
 	}
 	write_sequnlock_irqrestore(&engine->stats.lock, flags);
+}
+
+static bool match_ring(struct i915_request *rq)
+{
+	struct drm_i915_private *dev_priv = rq->i915;
+	u32 ring = I915_READ(RING_START(rq->engine->mmio_base));
+
+	return ring == i915_ggtt_offset(rq->ring->vma);
+}
+
+struct i915_request *
+intel_engine_find_active_request(struct intel_engine_cs *engine)
+{
+	struct i915_request *request, *active = NULL;
+	unsigned long flags;
+
+	/*
+	 * We are called by the error capture, reset and to dump engine
+	 * state at random points in time. In particular, note that neither is
+	 * crucially ordered with an interrupt. After a hang, the GPU is dead
+	 * and we assume that no more writes can happen (we waited long enough
+	 * for all writes that were in transaction to be flushed) - adding an
+	 * extra delay for a recent interrupt is pointless. Hence, we do
+	 * not need an engine->irq_seqno_barrier() before the seqno reads.
+	 * At all other times, we must assume the GPU is still running, but
+	 * we only care about the snapshot of this moment.
+	 */
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+	list_for_each_entry(request, &engine->timeline.requests, link) {
+		if (i915_request_completed(request))
+			continue;
+
+		if (!i915_request_started(request))
+			break;
+
+		/* More than one preemptible request may match! */
+		if (!match_ring(request))
+			break;
+
+		active = request;
+		break;
+	}
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+
+	return active;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

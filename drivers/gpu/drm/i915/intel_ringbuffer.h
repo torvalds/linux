@@ -1014,6 +1014,9 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine);
 
 ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
 
+struct i915_request *
+intel_engine_find_active_request(struct intel_engine_cs *engine);
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 
 static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)

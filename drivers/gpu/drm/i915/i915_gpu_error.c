@@ -1411,7 +1411,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 		error_record_engine_registers(error, engine, ee);
 		error_record_engine_execlists(engine, ee);
 
-		request = i915_gem_find_active_request(engine);
+		request = intel_engine_find_active_request(engine);
 		if (request) {
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
