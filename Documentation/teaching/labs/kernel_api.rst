@@ -490,7 +490,7 @@ Such an usage is shown schematically in the code below:
 
 .. code-block:: c
 
-   #define LOCKED		0
+   #define LOCKED	0
    #define UNLOCKED	1
 
    static atomic_t flag;
