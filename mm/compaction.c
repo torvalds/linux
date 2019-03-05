@@ -1040,6 +1040,12 @@ static bool suitable_migration_target(struct compact_control *cc,
 	return false;
 }
 
+static inline unsigned int
+freelist_scan_limit(struct compact_control *cc)
+{
+	return (COMPACT_CLUSTER_MAX >> cc->fast_search_fail) + 1;
+}
+
 /*
  * Test whether the free scanner has reached the same or lower pageblock than
  * the migration scanner, and compaction should thus terminate.
@@ -1048,6 +1054,19 @@ static inline bool compact_scanners_met(struct compact_control *cc)
 {
 	return (cc->free_pfn >> pageblock_order)
 		<= (cc->migrate_pfn >> pageblock_order);
+}
+
+/* Reorder the free list to reduce repeated future searches */
+static void
+move_freelist_tail(struct list_head *freelist, struct page *freepage)
+{
+	LIST_HEAD(sublist);
+
+	if (!list_is_first(freelist, &freepage->lru)) {
+		list_cut_position(&sublist, freelist, &freepage->lru);
+		if (!list_empty(&sublist))
+			list_splice_tail(&sublist, freelist);
+	}
 }
 
 /*
@@ -1207,6 +1226,148 @@ typedef enum {
  */
 int sysctl_compact_unevictable_allowed __read_mostly = 1;
 
+static inline void
+update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
+{
+	if (cc->fast_start_pfn == ULONG_MAX)
+		return;
+
+	if (!cc->fast_start_pfn)
+		cc->fast_start_pfn = pfn;
+
+	cc->fast_start_pfn = min(cc->fast_start_pfn, pfn);
+}
+
+static inline unsigned long
+reinit_migrate_pfn(struct compact_control *cc)
+{
+	if (!cc->fast_start_pfn || cc->fast_start_pfn == ULONG_MAX)
+		return cc->migrate_pfn;
+
+	cc->migrate_pfn = cc->fast_start_pfn;
+	cc->fast_start_pfn = ULONG_MAX;
+
+	return cc->migrate_pfn;
+}
+
+/*
+ * Briefly search the free lists for a migration source that already has
+ * some free pages to reduce the number of pages that need migration
+ * before a pageblock is free.
+ */
+static unsigned long fast_find_migrateblock(struct compact_control *cc)
+{
+	unsigned int limit = freelist_scan_limit(cc);
+	unsigned int nr_scanned = 0;
+	unsigned long distance;
+	unsigned long pfn = cc->migrate_pfn;
+	unsigned long high_pfn;
+	int order;
+
+	/* Skip hints are relied on to avoid repeats on the fast search */
+	if (cc->ignore_skip_hint)
+		return pfn;
+
+	/*
+	 * If the migrate_pfn is not at the start of a zone or the start
+	 * of a pageblock then assume this is a continuation of a previous
+	 * scan restarted due to COMPACT_CLUSTER_MAX.
+	 */
+	if (pfn != cc->zone->zone_start_pfn && pfn != pageblock_start_pfn(pfn))
+		return pfn;
+
+	/*
+	 * For smaller orders, just linearly scan as the number of pages
+	 * to migrate should be relatively small and does not necessarily
+	 * justify freeing up a large block for a small allocation.
+	 */
+	if (cc->order <= PAGE_ALLOC_COSTLY_ORDER)
+		return pfn;
+
+	/*
+	 * Only allow kcompactd and direct requests for movable pages to
+	 * quickly clear out a MOVABLE pageblock for allocation. This
+	 * reduces the risk that a large movable pageblock is freed for
+	 * an unmovable/reclaimable small allocation.
+	 */
+	if (cc->direct_compaction && cc->migratetype != MIGRATE_MOVABLE)
+		return pfn;
+
+	/*
+	 * When starting the migration scanner, pick any pageblock within the
+	 * first half of the search space. Otherwise try and pick a pageblock
+	 * within the first eighth to reduce the chances that a migration
+	 * target later becomes a source.
+	 */
+	distance = (cc->free_pfn - cc->migrate_pfn) >> 1;
+	if (cc->migrate_pfn != cc->zone->zone_start_pfn)
+		distance >>= 2;
+	high_pfn = pageblock_start_pfn(cc->migrate_pfn + distance);
+
+	for (order = cc->order - 1;
+	     order >= PAGE_ALLOC_COSTLY_ORDER && pfn == cc->migrate_pfn && nr_scanned < limit;
+	     order--) {
+		struct free_area *area = &cc->zone->free_area[order];
+		struct list_head *freelist;
+		unsigned long flags;
+		struct page *freepage;
+
+		if (!area->nr_free)
+			continue;
+
+		spin_lock_irqsave(&cc->zone->lock, flags);
+		freelist = &area->free_list[MIGRATE_MOVABLE];
+		list_for_each_entry(freepage, freelist, lru) {
+			unsigned long free_pfn;
+
+			nr_scanned++;
+			free_pfn = page_to_pfn(freepage);
+			if (free_pfn < high_pfn) {
+				update_fast_start_pfn(cc, free_pfn);
+
+				/*
+				 * Avoid if skipped recently. Ideally it would
+				 * move to the tail but even safe iteration of
+				 * the list assumes an entry is deleted, not
+				 * reordered.
+				 */
+				if (get_pageblock_skip(freepage)) {
+					if (list_is_last(freelist, &freepage->lru))
+						break;
+
+					continue;
+				}
+
+				/* Reorder to so a future search skips recent pages */
+				move_freelist_tail(freelist, freepage);
+
+				pfn = pageblock_start_pfn(free_pfn);
+				cc->fast_search_fail = 0;
+				set_pageblock_skip(freepage);
+				break;
+			}
+
+			if (nr_scanned >= limit) {
+				cc->fast_search_fail++;
+				move_freelist_tail(freelist, freepage);
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&cc->zone->lock, flags);
+	}
+
+	cc->total_migrate_scanned += nr_scanned;
+
+	/*
+	 * If fast scanning failed then use a cached entry for a page block
+	 * that had free pages as the basis for starting a linear scan.
+	 */
+	if (pfn == cc->migrate_pfn)
+		pfn = reinit_migrate_pfn(cc);
+
+	return pfn;
+}
+
 /*
  * Isolate all pages that can be migrated from the first suitable block,
  * starting at the block pointed to by the migrate scanner pfn within
@@ -1222,15 +1383,24 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	const isolate_mode_t isolate_mode =
 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
 		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+	bool fast_find_block;
 
 	/*
 	 * Start at where we last stopped, or beginning of the zone as
-	 * initialized by compact_zone()
+	 * initialized by compact_zone(). The first failure will use
+	 * the lowest PFN as the starting point for linear scanning.
 	 */
-	low_pfn = cc->migrate_pfn;
+	low_pfn = fast_find_migrateblock(cc);
 	block_start_pfn = pageblock_start_pfn(low_pfn);
 	if (block_start_pfn < zone->zone_start_pfn)
 		block_start_pfn = zone->zone_start_pfn;
+
+	/*
+	 * fast_find_migrateblock marks a pageblock skipped so to avoid
+	 * the isolation_suitable check below, check whether the fast
+	 * search was successful.
+	 */
+	fast_find_block = low_pfn != cc->migrate_pfn && !cc->fast_search_fail;
 
 	/* Only scan within a pageblock boundary */
 	block_end_pfn = pageblock_end_pfn(low_pfn);
@@ -1240,6 +1410,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	 * Do not cross the free scanner.
 	 */
 	for (; block_end_pfn <= cc->free_pfn;
+			fast_find_block = false,
 			low_pfn = block_end_pfn,
 			block_start_pfn = block_end_pfn,
 			block_end_pfn += pageblock_nr_pages) {
@@ -1259,7 +1430,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 			continue;
 
 		/* If isolation recently failed, do not retry */
-		if (!isolation_suitable(cc, page))
+		if (!isolation_suitable(cc, page) && !fast_find_block)
 			continue;
 
 		/*
@@ -1550,6 +1721,7 @@ static enum compact_result compact_zone(struct compact_control *cc)
 	 * want to compact the whole zone), but check that it is initialised
 	 * by ensuring the values are within zone boundaries.
 	 */
+	cc->fast_start_pfn = 0;
 	if (cc->whole_zone) {
 		cc->migrate_pfn = start_pfn;
 		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
