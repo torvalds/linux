@@ -65,7 +65,7 @@
 
 #define PCA_INT			0x0100
 #define PCA_PCAL		0x0200
-#define PCA_LATCH_INT (PCA_PCAL | PCA_INT)
+#define PCA_LATCH_INT		(PCA_PCAL | PCA_INT)
 #define PCA953X_TYPE		0x1000
 #define PCA957X_TYPE		0x2000
 #define PCA_TYPE_MASK		0xF000
@@ -88,9 +88,9 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "pca9575", 16 | PCA957X_TYPE | PCA_INT, },
 	{ "pca9698", 40 | PCA953X_TYPE, },
 
-	{ "pcal6416", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
-	{ "pcal6524", 24 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
-	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
+	{ "pcal6416", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ "pcal6524", 24 | PCA953X_TYPE | PCA_LATCH_INT, },
+	{ "pcal9555a", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
 
 	{ "max7310", 8  | PCA953X_TYPE, },
 	{ "max7312", 16 | PCA953X_TYPE | PCA_INT, },
@@ -109,7 +109,7 @@ static const struct i2c_device_id pca953x_id[] = {
 MODULE_DEVICE_TABLE(i2c, pca953x_id);
 
 static const struct acpi_device_id pca953x_acpi_ids[] = {
-	{ "INT3491", 16 | PCA953X_TYPE | PCA_INT | PCA_PCAL, },
+	{ "INT3491", 16 | PCA953X_TYPE | PCA_LATCH_INT, },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pca953x_acpi_ids);
