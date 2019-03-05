@@ -298,14 +298,14 @@ static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 	if (chan->desc->direction == DMA_MEM_TO_DEV) {
 		src_addr = sg->src_addr;
 		dst_addr = chan->fifo_addr;
-		ctrl0 = GDMA_REG_CTRL0_DST_ADDR_FIXED | \
-			(8 << GDMA_RT305X_CTRL0_SRC_REQ_SHIFT) | \
+		ctrl0 = GDMA_REG_CTRL0_DST_ADDR_FIXED |
+			(8 << GDMA_RT305X_CTRL0_SRC_REQ_SHIFT) |
 			(chan->slave_id << GDMA_RT305X_CTRL0_DST_REQ_SHIFT);
 	} else if (chan->desc->direction == DMA_DEV_TO_MEM) {
 		src_addr = chan->fifo_addr;
 		dst_addr = sg->dst_addr;
-		ctrl0 = GDMA_REG_CTRL0_SRC_ADDR_FIXED | \
-			(chan->slave_id << GDMA_RT305X_CTRL0_SRC_REQ_SHIFT) | \
+		ctrl0 = GDMA_REG_CTRL0_SRC_ADDR_FIXED |
+			(chan->slave_id << GDMA_RT305X_CTRL0_SRC_REQ_SHIFT) |
 			(8 << GDMA_RT305X_CTRL0_DST_REQ_SHIFT);
 	} else if (chan->desc->direction == DMA_MEM_TO_MEM) {
 		/*
@@ -314,8 +314,8 @@ static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 		 */
 		src_addr = sg->src_addr;
 		dst_addr = sg->dst_addr;
-		ctrl0 = GDMA_REG_CTRL0_SW_MODE | \
-			(8 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) | \
+		ctrl0 = GDMA_REG_CTRL0_SW_MODE |
+			(8 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) |
 			(8 << GDMA_REG_CTRL1_DST_REQ_SHIFT);
 	} else {
 		dev_err(dma_dev->ddev.dev, "direction type %d error\n",
@@ -323,8 +323,8 @@ static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 		return -EINVAL;
 	}
 
-	ctrl0 |= (sg->len << GDMA_REG_CTRL0_TX_SHIFT) | \
-		 (chan->burst_size << GDMA_REG_CTRL0_BURST_SHIFT) | \
+	ctrl0 |= (sg->len << GDMA_REG_CTRL0_TX_SHIFT) |
+		 (chan->burst_size << GDMA_REG_CTRL0_BURST_SHIFT) |
 		 GDMA_REG_CTRL0_DONE_INT | GDMA_REG_CTRL0_ENABLE;
 	ctrl1 = chan->id << GDMA_REG_CTRL1_NEXT_SHIFT;
 
@@ -376,21 +376,21 @@ static int rt3883_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 		src_addr = sg->src_addr;
 		dst_addr = chan->fifo_addr;
 		ctrl0 = GDMA_REG_CTRL0_DST_ADDR_FIXED;
-		ctrl1 = (32 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) | \
+		ctrl1 = (32 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) |
 			(chan->slave_id << GDMA_REG_CTRL1_DST_REQ_SHIFT);
 	} else if (chan->desc->direction == DMA_DEV_TO_MEM) {
 		src_addr = chan->fifo_addr;
 		dst_addr = sg->dst_addr;
 		ctrl0 = GDMA_REG_CTRL0_SRC_ADDR_FIXED;
-		ctrl1 = (chan->slave_id << GDMA_REG_CTRL1_SRC_REQ_SHIFT) | \
-			(32 << GDMA_REG_CTRL1_DST_REQ_SHIFT) | \
+		ctrl1 = (chan->slave_id << GDMA_REG_CTRL1_SRC_REQ_SHIFT) |
+			(32 << GDMA_REG_CTRL1_DST_REQ_SHIFT) |
 			GDMA_REG_CTRL1_COHERENT;
 	} else if (chan->desc->direction == DMA_MEM_TO_MEM) {
 		src_addr = sg->src_addr;
 		dst_addr = sg->dst_addr;
 		ctrl0 = GDMA_REG_CTRL0_SW_MODE;
-		ctrl1 = (32 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) | \
-			(32 << GDMA_REG_CTRL1_DST_REQ_SHIFT) | \
+		ctrl1 = (32 << GDMA_REG_CTRL1_SRC_REQ_SHIFT) |
+			(32 << GDMA_REG_CTRL1_DST_REQ_SHIFT) |
 			GDMA_REG_CTRL1_COHERENT;
 	} else {
 		dev_err(dma_dev->ddev.dev, "direction type %d error\n",
@@ -398,8 +398,8 @@ static int rt3883_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 		return -EINVAL;
 	}
 
-	ctrl0 |= (sg->len << GDMA_REG_CTRL0_TX_SHIFT) | \
-		 (chan->burst_size << GDMA_REG_CTRL0_BURST_SHIFT) | \
+	ctrl0 |= (sg->len << GDMA_REG_CTRL0_TX_SHIFT) |
+		 (chan->burst_size << GDMA_REG_CTRL0_BURST_SHIFT) |
 		 GDMA_REG_CTRL0_DONE_INT | GDMA_REG_CTRL0_ENABLE;
 	ctrl1 |= chan->id << GDMA_REG_CTRL1_NEXT_SHIFT;
 
