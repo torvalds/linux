@@ -189,7 +189,6 @@ void __init via_init(void)
 
 	/*
 	 * SE/30: disable video IRQ
-	 * XXX: testing for SE/30 VBL
 	 */
 
 	if (macintosh_config->ident == MAC_MODEL_SE30) {
@@ -197,13 +196,18 @@ void __init via_init(void)
 		via1[vBufB] |= 0x40;
 	}
 
-	/*
-	 * Set the RTC bits to a known state: all lines to outputs and
-	 * RTC disabled (yes that's 0 to enable and 1 to disable).
-	 */
-
-	via1[vDirB] |= (VIA1B_vRTCEnb | VIA1B_vRTCClk | VIA1B_vRTCData);
-	via1[vBufB] |= (VIA1B_vRTCEnb | VIA1B_vRTCClk);
+	switch (macintosh_config->adb_type) {
+	case MAC_ADB_IOP:
+	case MAC_ADB_II:
+	case MAC_ADB_PB1:
+		/*
+		 * Set the RTC bits to a known state: all lines to outputs and
+		 * RTC disabled (yes that's 0 to enable and 1 to disable).
+		 */
+		via1[vDirB] |= VIA1B_vRTCEnb | VIA1B_vRTCClk | VIA1B_vRTCData;
+		via1[vBufB] |= VIA1B_vRTCEnb | VIA1B_vRTCClk;
+		break;
+	}
 
 	/* Everything below this point is VIA2/RBV only... */
 
