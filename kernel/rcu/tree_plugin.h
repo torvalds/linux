@@ -1776,7 +1776,10 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
-	cpulist_parse(str, rcu_nocb_mask);
+	if (!strcasecmp(str, "all"))
+		cpumask_setall(rcu_nocb_mask);
+	else
+		cpulist_parse(str, rcu_nocb_mask);
 	return 1;
 }
 __setup("rcu_nocbs=", rcu_nocb_setup);
