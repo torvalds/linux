@@ -2155,7 +2155,8 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	else
 		chip->dac_bits = 8;
 
-	chip->ldac_pin = devm_gpiod_get_optional(dev, "adi,ldac", GPIOD_OUT_LOW);
+	chip->ldac_pin = devm_gpiod_get_optional(dev, "adi,ldac",
+						GPIOD_OUT_LOW);
 	if (IS_ERR(chip->ldac_pin)) {
 		ret = PTR_ERR(chip->ldac_pin);
 		dev_err(dev, "Failed to request ldac GPIO: %d\n", ret);
