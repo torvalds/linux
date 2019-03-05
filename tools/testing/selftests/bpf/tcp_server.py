@@ -35,13 +35,10 @@ MAX_PORTS = 2
 serverPort = SERVER_PORT
 serverSocket = None
 
-HostName = socket.gethostname()
-
 # create passive socket
 serverSocket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-host = socket.gethostname()
 
-try: serverSocket.bind((host, 0))
+try: serverSocket.bind(('localhost', 0))
 except socket.error as msg:
     print('bind fails: ' + str(msg))
 

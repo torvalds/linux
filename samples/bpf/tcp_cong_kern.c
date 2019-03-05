@@ -7,7 +7,7 @@
  * BPF program to set congestion control to dctcp when both hosts are
  * in the same datacenter (as deteremined by IPv6 prefix).
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>

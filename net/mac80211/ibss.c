@@ -8,6 +8,7 @@
  * Copyright 2009, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2018-2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1124,8 +1125,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_update_sta_info(sdata, mgmt, len, rx_status, elems, channel);
 
-	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
-					channel);
+	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, channel);
 	if (!bss)
 		return;
 
@@ -1604,7 +1604,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
-			       false, &elems);
+			       false, &elems, mgmt->bssid, NULL);
 
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 }
@@ -1654,7 +1654,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
-				ies_len, true, &elems);
+				ies_len, true, &elems, mgmt->bssid, NULL);
 
 			if (elems.parse_error)
 				break;

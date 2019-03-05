@@ -346,6 +346,7 @@ enum ice_tx_desc_cmd_bits {
 	ICE_TX_DESC_CMD_IIPT_IPV4		= 0x0040, /* 2 BITS */
 	ICE_TX_DESC_CMD_IIPT_IPV4_CSUM		= 0x0060, /* 2 BITS */
 	ICE_TX_DESC_CMD_L4T_EOFT_TCP		= 0x0100, /* 2 BITS */
+	ICE_TX_DESC_CMD_L4T_EOFT_SCTP		= 0x0200, /* 2 BITS */
 	ICE_TX_DESC_CMD_L4T_EOFT_UDP		= 0x0300, /* 2 BITS */
 };
 
@@ -488,5 +489,7 @@ static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
 #define ICE_LINK_SPEED_20000MBPS	20000
 #define ICE_LINK_SPEED_25000MBPS	25000
 #define ICE_LINK_SPEED_40000MBPS	40000
+#define ICE_LINK_SPEED_50000MBPS	50000
+#define ICE_LINK_SPEED_100000MBPS	100000
 
 #endif /* _ICE_LAN_TX_RX_H_ */

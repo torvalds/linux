@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Core PHY library, taken from phy.c
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/export.h>
 #include <linux/phy.h>
+#include <linux/of.h>
 
 const char *phy_speed_to_str(int speed)
 {
@@ -342,6 +339,77 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 	return count;
 }
 
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	const struct phy_setting *p;
+	int i;
+
+	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
+		if (p->speed > max_speed)
+			linkmode_clear_bit(p->bit, phydev->supported);
+		else
+			break;
+	}
+
+	return 0;
+}
+
+int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
+{
+	int err;
+
+	err = __set_phy_supported(phydev, max_speed);
+	if (err)
+		return err;
+
+	linkmode_copy(phydev->advertising, phydev->supported);
+
+	return 0;
+}
+EXPORT_SYMBOL(phy_set_max_speed);
+
+void of_set_phy_supported(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	u32 max_speed;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (!of_property_read_u32(node, "max-speed", &max_speed))
+		__set_phy_supported(phydev, max_speed);
+}
+
+void of_set_phy_eee_broken(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	u32 broken = 0;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (of_property_read_bool(node, "eee-broken-100tx"))
+		broken |= MDIO_EEE_100TX;
+	if (of_property_read_bool(node, "eee-broken-1000t"))
+		broken |= MDIO_EEE_1000T;
+	if (of_property_read_bool(node, "eee-broken-10gt"))
+		broken |= MDIO_EEE_10GT;
+	if (of_property_read_bool(node, "eee-broken-1000kx"))
+		broken |= MDIO_EEE_1000KX;
+	if (of_property_read_bool(node, "eee-broken-10gkx4"))
+		broken |= MDIO_EEE_10GKX4;
+	if (of_property_read_bool(node, "eee-broken-10gkr"))
+		broken |= MDIO_EEE_10GKR;
+
+	phydev->eee_broken_modes = broken;
+}
+
 /**
  * phy_resolve_aneg_linkmode - resolve the advertisements into phy settings
  * @phydev: The phy_device struct
@@ -353,45 +421,16 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i;
 
 	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
 
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, common)) {
-		phydev->speed = SPEED_10000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_5000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_2500;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_1000;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_1000;
-		phydev->duplex = DUPLEX_HALF;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_100;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_100;
-		phydev->duplex = DUPLEX_HALF;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				     common)) {
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_FULL;
-	} else if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				     common)) {
-		phydev->speed = SPEED_10;
-		phydev->duplex = DUPLEX_HALF;
-	}
+	for (i = 0; i < ARRAY_SIZE(settings); i++)
+		if (test_bit(settings[i].bit, common)) {
+			phydev->speed = settings[i].speed;
+			phydev->duplex = settings[i].duplex;
+			break;
+		}
 
 	if (phydev->duplex == DUPLEX_FULL) {
 		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
@@ -418,15 +457,15 @@ static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 }
 
 /**
- * phy_read_mmd - Convenience function for reading a register
+ * __phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
  * @phydev: The phy_device struct
  * @devad: The MMD to read from (0..31)
  * @regnum: The register on the MMD to read (0..65535)
  *
- * Same rules as for phy_read();
+ * Same rules as for __phy_read();
  */
-int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
+int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 {
 	int val;
 
@@ -438,21 +477,79 @@ int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 	} else if (phydev->is_c45) {
 		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
 
-		val = mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
+		val = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;
 
-		mutex_lock(&bus->mdio_lock);
 		mmd_phy_indirect(bus, phy_addr, devad, regnum);
 
 		/* Read the content of the MMD's selected register */
 		val = __mdiobus_read(bus, phy_addr, MII_MMD_DATA);
-		mutex_unlock(&bus->mdio_lock);
 	}
 	return val;
 }
+EXPORT_SYMBOL(__phy_read_mmd);
+
+/**
+ * phy_read_mmd - Convenience function for reading a register
+ * from an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ *
+ * Same rules as for phy_read();
+ */
+int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_read_mmd(phydev, devad, regnum);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
 EXPORT_SYMBOL(phy_read_mmd);
+
+/**
+ * __phy_write_mmd - Convenience function for writing a register
+ * on an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ * @val: value to write to @regnum
+ *
+ * Same rules as for __phy_write();
+ */
+int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
+{
+	int ret;
+
+	if (regnum > (u16)~0 || devad > 32)
+		return -EINVAL;
+
+	if (phydev->drv->write_mmd) {
+		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
+	} else if (phydev->is_c45) {
+		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
+
+		ret = __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
+				      addr, val);
+	} else {
+		struct mii_bus *bus = phydev->mdio.bus;
+		int phy_addr = phydev->mdio.addr;
+
+		mmd_phy_indirect(bus, phy_addr, devad, regnum);
+
+		/* Write the data into MMD's selected register */
+		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
+
+		ret = 0;
+	}
+	return ret;
+}
+EXPORT_SYMBOL(__phy_write_mmd);
 
 /**
  * phy_write_mmd - Convenience function for writing a register
@@ -468,35 +565,16 @@ int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 {
 	int ret;
 
-	if (regnum > (u16)~0 || devad > 32)
-		return -EINVAL;
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_write_mmd(phydev, devad, regnum, val);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
 
-	if (phydev->drv->write_mmd) {
-		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
-	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		ret = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
-				    addr, val);
-	} else {
-		struct mii_bus *bus = phydev->mdio.bus;
-		int phy_addr = phydev->mdio.addr;
-
-		mutex_lock(&bus->mdio_lock);
-		mmd_phy_indirect(bus, phy_addr, devad, regnum);
-
-		/* Write the data into MMD's selected register */
-		__mdiobus_write(bus, phy_addr, MII_MMD_DATA, val);
-		mutex_unlock(&bus->mdio_lock);
-
-		ret = 0;
-	}
 	return ret;
 }
 EXPORT_SYMBOL(phy_write_mmd);
 
 /**
- * __phy_modify() - Convenience function for modifying a PHY register
+ * __phy_modify_changed() - Convenience function for modifying a PHY register
  * @phydev: a pointer to a &struct phy_device
  * @regnum: register number
  * @mask: bit mask of bits to clear
@@ -504,16 +582,69 @@ EXPORT_SYMBOL(phy_write_mmd);
  *
  * Unlocked helper function which allows a PHY register to be modified as
  * new register value = (old register value & ~mask) | set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
  */
-int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
+int __phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
+			 u16 set)
 {
-	int ret;
+	int new, ret;
 
 	ret = __phy_read(phydev, regnum);
 	if (ret < 0)
 		return ret;
 
-	ret = __phy_write(phydev, regnum, (ret & ~mask) | set);
+	new = (ret & ~mask) | set;
+	if (new == ret)
+		return 0;
+
+	ret = __phy_write(phydev, regnum, new);
+
+	return ret < 0 ? ret : 1;
+}
+EXPORT_SYMBOL_GPL(__phy_modify_changed);
+
+/**
+ * phy_modify_changed - Function for modifying a PHY register
+ * @phydev: the phy_device struct
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_modify_changed(phydev, regnum, mask, set);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_modify_changed);
+
+/**
+ * __phy_modify - Convenience function for modifying a PHY register
+ * @phydev: the phy_device struct
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
+{
+	int ret;
+
+	ret = __phy_modify_changed(phydev, regnum, mask, set);
 
 	return ret < 0 ? ret : 0;
 }
@@ -541,6 +672,113 @@ int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phy_modify);
+
+/**
+ * __phy_modify_mmd_changed - Function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * Unlocked helper function which allows a MMD register to be modified as
+ * new register value = (old register value & ~mask) | set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int __phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			     u16 mask, u16 set)
+{
+	int new, ret;
+
+	ret = __phy_read_mmd(phydev, devad, regnum);
+	if (ret < 0)
+		return ret;
+
+	new = (ret & ~mask) | set;
+	if (new == ret)
+		return 0;
+
+	ret = __phy_write_mmd(phydev, devad, regnum, new);
+
+	return ret < 0 ? ret : 1;
+}
+EXPORT_SYMBOL_GPL(__phy_modify_mmd_changed);
+
+/**
+ * phy_modify_mmd_changed - Function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			   u16 mask, u16 set)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_modify_mmd_changed(phydev, devad, regnum, mask, set);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_modify_mmd_changed);
+
+/**
+ * __phy_modify_mmd - Convenience function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int __phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		     u16 mask, u16 set)
+{
+	int ret;
+
+	ret = __phy_modify_mmd_changed(phydev, devad, regnum, mask, set);
+
+	return ret < 0 ? ret : 0;
+}
+EXPORT_SYMBOL_GPL(__phy_modify_mmd);
+
+/**
+ * phy_modify_mmd - Convenience function for modifying a register on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @mask: bit mask of bits to clear
+ * @set: new value of bits set in mask to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		   u16 mask, u16 set)
+{
+	int ret;
+
+	mutex_lock(&phydev->mdio.bus->mdio_lock);
+	ret = __phy_modify_mmd(phydev, devad, regnum, mask, set);
+	mutex_unlock(&phydev->mdio.bus->mdio_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {

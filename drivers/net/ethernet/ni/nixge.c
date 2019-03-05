@@ -105,6 +105,12 @@
 #define NIXGE_MAX_JUMBO_FRAME_SIZE \
 	(NIXGE_JUMBO_MTU + NIXGE_HDR_SIZE + NIXGE_TRL_SIZE)
 
+enum nixge_version {
+	NIXGE_V2,
+	NIXGE_V3,
+	NIXGE_VERSION_COUNT
+};
+
 struct nixge_hw_dma_bd {
 	u32 next_lo;
 	u32 next_hi;
@@ -1225,11 +1231,60 @@ static void *nixge_get_nvmem_address(struct device *dev)
 	return mac;
 }
 
+/* Match table for of_platform binding */
+static const struct of_device_id nixge_dt_ids[] = {
+	{ .compatible = "ni,xge-enet-2.00", .data = (void *)NIXGE_V2 },
+	{ .compatible = "ni,xge-enet-3.00", .data = (void *)NIXGE_V3 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, nixge_dt_ids);
+
+static int nixge_of_get_resources(struct platform_device *pdev)
+{
+	const struct of_device_id *of_id;
+	enum nixge_version version;
+	struct resource *ctrlres;
+	struct resource *dmares;
+	struct net_device *ndev;
+	struct nixge_priv *priv;
+
+	ndev = platform_get_drvdata(pdev);
+	priv = netdev_priv(ndev);
+	of_id = of_match_node(nixge_dt_ids, pdev->dev.of_node);
+	if (!of_id)
+		return -ENODEV;
+
+	version = (enum nixge_version)of_id->data;
+	if (version <= NIXGE_V2)
+		dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	else
+		dmares = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						      "dma");
+
+	priv->dma_regs = devm_ioremap_resource(&pdev->dev, dmares);
+	if (IS_ERR(priv->dma_regs)) {
+		netdev_err(ndev, "failed to map dma regs\n");
+		return PTR_ERR(priv->dma_regs);
+	}
+	if (version <= NIXGE_V2) {
+		priv->ctrl_regs = priv->dma_regs + NIXGE_REG_CTRL_OFFSET;
+	} else {
+		ctrlres = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						       "ctrl");
+		priv->ctrl_regs = devm_ioremap_resource(&pdev->dev, ctrlres);
+	}
+	if (IS_ERR(priv->ctrl_regs)) {
+		netdev_err(ndev, "failed to map ctrl regs\n");
+		return PTR_ERR(priv->ctrl_regs);
+	}
+	return 0;
+}
+
 static int nixge_probe(struct platform_device *pdev)
 {
+	struct device_node *mn, *phy_node;
 	struct nixge_priv *priv;
 	struct net_device *ndev;
-	struct resource *dmares;
 	const u8 *mac_addr;
 	int err;
 
@@ -1261,14 +1316,9 @@ static int nixge_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 
 	netif_napi_add(ndev, &priv->napi, nixge_poll, NAPI_POLL_WEIGHT);
-
-	dmares = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->dma_regs = devm_ioremap_resource(&pdev->dev, dmares);
-	if (IS_ERR(priv->dma_regs)) {
-		netdev_err(ndev, "failed to map dma regs\n");
-		return PTR_ERR(priv->dma_regs);
-	}
-	priv->ctrl_regs = priv->dma_regs + NIXGE_REG_CTRL_OFFSET;
+	err = nixge_of_get_resources(pdev);
+	if (err)
+		return err;
 	__nixge_hw_set_mac_address(ndev);
 
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx");
@@ -1286,10 +1336,14 @@ static int nixge_probe(struct platform_device *pdev)
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	priv->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 
-	err = nixge_mdio_setup(priv, pdev->dev.of_node);
-	if (err) {
-		netdev_err(ndev, "error registering mdio bus");
-		goto free_netdev;
+	mn = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	if (mn) {
+		err = nixge_mdio_setup(priv, mn);
+		of_node_put(mn);
+		if (err) {
+			netdev_err(ndev, "error registering mdio bus");
+			goto free_netdev;
+		}
 	}
 
 	priv->phy_mode = of_get_phy_mode(pdev->dev.of_node);
@@ -1299,23 +1353,33 @@ static int nixge_probe(struct platform_device *pdev)
 		goto unregister_mdio;
 	}
 
-	priv->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-	if (!priv->phy_node) {
-		netdev_err(ndev, "not find \"phy-handle\" property\n");
-		err = -EINVAL;
-		goto unregister_mdio;
+	phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	if (!phy_node && of_phy_is_fixed_link(pdev->dev.of_node)) {
+		err = of_phy_register_fixed_link(pdev->dev.of_node);
+		if (err < 0) {
+			netdev_err(ndev, "broken fixed-link specification\n");
+			goto unregister_mdio;
+		}
+		phy_node = of_node_get(pdev->dev.of_node);
 	}
+	priv->phy_node = phy_node;
 
 	err = register_netdev(priv->ndev);
 	if (err) {
 		netdev_err(ndev, "register_netdev() error (%i)\n", err);
-		goto unregister_mdio;
+		goto free_phy;
 	}
 
 	return 0;
 
+free_phy:
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
+	of_node_put(phy_node);
+
 unregister_mdio:
-	mdiobus_unregister(priv->mii_bus);
+	if (priv->mii_bus)
+		mdiobus_unregister(priv->mii_bus);
 
 free_netdev:
 	free_netdev(ndev);
@@ -1330,19 +1394,17 @@ static int nixge_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 
-	mdiobus_unregister(priv->mii_bus);
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
+	of_node_put(priv->phy_node);
+
+	if (priv->mii_bus)
+		mdiobus_unregister(priv->mii_bus);
 
 	free_netdev(ndev);
 
 	return 0;
 }
-
-/* Match table for of_platform binding */
-static const struct of_device_id nixge_dt_ids[] = {
-	{ .compatible = "ni,xge-enet-2.00", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, nixge_dt_ids);
 
 static struct platform_driver nixge_driver = {
 	.probe		= nixge_probe,

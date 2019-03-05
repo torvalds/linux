@@ -199,6 +199,8 @@ struct sctp_sock {
 	__u32 flowlabel;
 	__u8  dscp;
 
+	int pf_retrans;
+
 	/* The initial Path MTU to use for new associations. */
 	__u32 pathmtu;
 
@@ -208,6 +210,8 @@ struct sctp_sock {
 
 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
+
+	__u32 default_ss;
 
 	struct sctp_rtoinfo rtoinfo;
 	struct sctp_paddrparams paddrparam;

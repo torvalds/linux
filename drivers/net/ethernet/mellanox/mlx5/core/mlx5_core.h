@@ -121,7 +121,7 @@ int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 				       u32 modify_bitmask);
 int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
-int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
+int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages);
 u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
 			     struct ptp_system_timestamp *sts);
 

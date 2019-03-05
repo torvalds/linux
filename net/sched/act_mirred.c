@@ -400,7 +400,7 @@ static void tcf_mirred_put_dev(struct net_device *dev)
 
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
-	.type		=	TCA_ACT_MIRRED,
+	.id		=	TCA_ID_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred_act,
 	.stats_update	=	tcf_stats_update,

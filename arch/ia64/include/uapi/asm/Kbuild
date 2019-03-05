@@ -2,3 +2,4 @@ include include/uapi/asm-generic/Kbuild.asm
 
 generated-y += unistd_64.h
 generic-y += kvm_para.h
+generic-y += socket.h

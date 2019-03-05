@@ -16,6 +16,9 @@
 
 #define HCLGE_MAX_PF_NUM		8
 
+#define HCLGE_RD_FIRST_STATS_NUM        2
+#define HCLGE_RD_OTHER_STATS_NUM        4
+
 #define HCLGE_INVALID_VPORT 0xffff
 
 #define HCLGE_PF_CFG_BLOCK_SIZE		32
@@ -185,6 +188,10 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_25G_BIT		BIT(2)
 #define HCLGE_SUPPORT_50G_BIT		BIT(3)
 #define HCLGE_SUPPORT_100G_BIT		BIT(4)
+#define HCLGE_SUPPORT_100M_BIT		BIT(6)
+#define HCLGE_SUPPORT_10M_BIT		BIT(7)
+#define HCLGE_SUPPORT_GE \
+	(HCLGE_SUPPORT_1G_BIT | HCLGE_SUPPORT_100M_BIT | HCLGE_SUPPORT_10M_BIT)
 
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
@@ -322,6 +329,7 @@ struct hclge_tm_info {
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;
 	u8 hw_pfc_map; /* Allow for packet drop or not on this TC */
+	u8 pfc_en;	/* PFC enabled or not for user priority */
 };
 
 struct hclge_comm_stats_str {
@@ -415,6 +423,10 @@ struct hclge_mac_stats {
 	u64 mac_rx_fcs_err_pkt_num;
 	u64 mac_rx_send_app_good_pkt_num;
 	u64 mac_rx_send_app_bad_pkt_num;
+	u64 mac_tx_pfc_pause_pkt_num;
+	u64 mac_rx_pfc_pause_pkt_num;
+	u64 mac_tx_ctrl_pkt_num;
+	u64 mac_rx_ctrl_pkt_num;
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	(60 * 5)
@@ -575,7 +587,6 @@ struct hclge_fd_key_cfg {
 
 struct hclge_fd_cfg {
 	u8 fd_mode;
-	u8 fd_en;
 	u16 max_key_length;
 	u32 proto_support;
 	u32 rule_num[2]; /* rule entry number */
@@ -619,6 +630,23 @@ struct hclge_fd_ad_data {
 	u8 write_rule_id_to_bd;
 	u8 next_input_key;
 	u16 rule_id;
+};
+
+struct hclge_vport_mac_addr_cfg {
+	struct list_head node;
+	int hd_tbl_status;
+	u8 mac_addr[ETH_ALEN];
+};
+
+enum HCLGE_MAC_ADDR_TYPE {
+	HCLGE_MAC_ADDR_UC,
+	HCLGE_MAC_ADDR_MC
+};
+
+struct hclge_vport_vlan_cfg {
+	struct list_head node;
+	int hd_tbl_status;
+	u16 vlan_id;
 };
 
 /* For each bit of TCAM entry, it uses a pair of 'x' and
@@ -678,7 +706,8 @@ struct hclge_dev {
 	u16 num_alloc_vport;		/* Num vports this driver supports */
 	u32 numa_node_mask;
 	u16 rx_buf_len;
-	u16 num_desc;
+	u16 num_tx_desc;		/* desc num of per tx queue */
+	u16 num_rx_desc;		/* desc num of per rx queue */
 	u8 hw_tc_map;
 	u8 tc_num_last_time;
 	enum hclge_fc_mode fc_mode_last_time;
@@ -750,6 +779,7 @@ struct hclge_dev {
 	struct hclge_fd_cfg fd_cfg;
 	struct hlist_head fd_rule_list;
 	u16 hclge_fd_rule_num;
+	u8 fd_en;
 
 	u16 wanted_umv_size;
 	/* max available unicast mac vlan space */
@@ -759,6 +789,8 @@ struct hclge_dev {
 	/* unicast mac vlan space shared by PF and its VFs */
 	u16 share_umv_size;
 	struct mutex umv_mutex; /* protect share_umv_size */
+
+	struct mutex vport_cfg_mutex;   /* Protect stored vf table */
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -826,6 +858,10 @@ struct hclge_vport {
 	unsigned long state;
 	unsigned long last_active_jiffies;
 	u32 mps; /* Max packet size */
+
+	struct list_head uc_mac_list;   /* Store VF unicast table */
+	struct list_head mc_mac_list;   /* Store VF multicast table */
+	struct list_head vlan_list;     /* Store VF vlan table */
 };
 
 void hclge_promisc_param_init(struct hclge_promisc_param *param, bool en_uc,
@@ -878,4 +914,19 @@ void hclge_vport_stop(struct hclge_vport *vport);
 int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf);
 u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id);
+int hclge_notify_client(struct hclge_dev *hdev,
+			enum hnae3_reset_notify_type type);
+void hclge_add_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			       enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
+			      bool is_write_tbl,
+			      enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
+				  enum HCLGE_MAC_ADDR_TYPE mac_type);
+void hclge_uninit_vport_mac_table(struct hclge_dev *hdev);
+void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id);
+void hclge_rm_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
+			       bool is_write_tbl);
+void hclge_rm_vport_all_vlan_table(struct hclge_vport *vport, bool is_del_list);
+void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev);
 #endif

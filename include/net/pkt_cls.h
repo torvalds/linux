@@ -6,6 +6,7 @@
 #include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
+#include <net/flow_offload.h>
 
 /* TC action not accessible from user space */
 #define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
@@ -16,6 +17,7 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
+	bool	nonempty;
 	unsigned long cookie;
 	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
 };
@@ -43,6 +45,10 @@ bool tcf_queue_work(struct rcu_work *rwork, work_func_t func);
 struct tcf_chain *tcf_chain_get_by_act(struct tcf_block *block,
 				       u32 chain_index);
 void tcf_chain_put_by_act(struct tcf_chain *chain);
+struct tcf_chain *tcf_get_next_chain(struct tcf_block *block,
+				     struct tcf_chain *chain);
+struct tcf_proto *tcf_get_next_proto(struct tcf_chain *chain,
+				     struct tcf_proto *tp, bool rtnl_held);
 void tcf_block_netif_keep_dst(struct tcf_block *block);
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
@@ -284,12 +290,13 @@ struct tcf_exts {
 	int police;
 };
 
-static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
+static inline int tcf_exts_init(struct tcf_exts *exts, struct net *net,
+				int action, int police)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
 	exts->nr_actions = 0;
-	exts->net = NULL;
+	exts->net = net;
 	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
 				GFP_KERNEL);
 	if (!exts->actions)
@@ -411,7 +418,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts, bool ovr,
+		      struct tcf_exts *exts, bool ovr, bool rtnl_held,
 		      struct netlink_ext_ack *extack);
 void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
@@ -619,8 +626,11 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
+int tc_setup_flow_action(struct flow_action *flow_action,
+			 const struct tcf_exts *exts);
 int tc_setup_cb_call(struct tcf_block *block, enum tc_setup_type type,
 		     void *type_data, bool err_stop);
+unsigned int tcf_exts_num_actions(struct tcf_exts *exts);
 
 enum tc_block_command {
 	TC_BLOCK_BIND,
@@ -760,12 +770,16 @@ struct tc_cls_flower_offload {
 	struct tc_cls_common_offload common;
 	enum tc_fl_command command;
 	unsigned long cookie;
-	struct flow_dissector *dissector;
-	struct fl_flow_key *mask;
-	struct fl_flow_key *key;
-	struct tcf_exts *exts;
+	struct flow_rule *rule;
+	struct flow_stats stats;
 	u32 classid;
 };
+
+static inline struct flow_rule *
+tc_cls_flower_offload_flow_rule(struct tc_cls_flower_offload *tc_flow_cmd)
+{
+	return tc_flow_cmd->rule;
+}
 
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,

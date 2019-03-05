@@ -42,6 +42,7 @@
 #include "bpf.h"
 #include "btf.h"
 #include "str_error.h"
+#include "libbpf_util.h"
 
 #ifndef EM_BPF
 #define EM_BPF 247
@@ -53,39 +54,33 @@
 
 #define __printf(a, b)	__attribute__((format(printf, a, b)))
 
-__printf(1, 2)
-static int __base_pr(const char *format, ...)
+static int __base_pr(enum libbpf_print_level level, const char *format,
+		     va_list args)
 {
-	va_list args;
-	int err;
+	if (level == LIBBPF_DEBUG)
+		return 0;
 
-	va_start(args, format);
-	err = vfprintf(stderr, format, args);
-	va_end(args);
-	return err;
+	return vfprintf(stderr, format, args);
 }
 
-static __printf(1, 2) libbpf_print_fn_t __pr_warning = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_info = __base_pr;
-static __printf(1, 2) libbpf_print_fn_t __pr_debug;
+static libbpf_print_fn_t __libbpf_pr = __base_pr;
 
-#define __pr(func, fmt, ...)	\
-do {				\
-	if ((func))		\
-		(func)("libbpf: " fmt, ##__VA_ARGS__); \
-} while (0)
-
-#define pr_warning(fmt, ...)	__pr(__pr_warning, fmt, ##__VA_ARGS__)
-#define pr_info(fmt, ...)	__pr(__pr_info, fmt, ##__VA_ARGS__)
-#define pr_debug(fmt, ...)	__pr(__pr_debug, fmt, ##__VA_ARGS__)
-
-void libbpf_set_print(libbpf_print_fn_t warn,
-		      libbpf_print_fn_t info,
-		      libbpf_print_fn_t debug)
+void libbpf_set_print(libbpf_print_fn_t fn)
 {
-	__pr_warning = warn;
-	__pr_info = info;
-	__pr_debug = debug;
+	__libbpf_pr = fn;
+}
+
+__printf(2, 3)
+void libbpf_print(enum libbpf_print_level level, const char *format, ...)
+{
+	va_list args;
+
+	if (!__libbpf_pr)
+		return;
+
+	va_start(args, format);
+	__libbpf_pr(level, format, args);
+	va_end(args);
 }
 
 #define STRERR_BUFSIZE  128
@@ -312,7 +307,7 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 		return -EINVAL;
 	}
 
-	bzero(prog, sizeof(*prog));
+	memset(prog, 0, sizeof(*prog));
 
 	prog->section_name = strdup(section_name);
 	if (!prog->section_name) {
@@ -839,9 +834,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		else if (strcmp(name, "maps") == 0)
 			obj->efile.maps_shndx = idx;
 		else if (strcmp(name, BTF_ELF_SEC) == 0) {
-			obj->btf = btf__new(data->d_buf, data->d_size,
-					    __pr_debug);
-			if (IS_ERR(obj->btf)) {
+			obj->btf = btf__new(data->d_buf, data->d_size);
+			if (IS_ERR(obj->btf) || btf__load(obj->btf)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_ELF_SEC, PTR_ERR(obj->btf));
 				obj->btf = NULL;
@@ -915,8 +909,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
 		} else {
 			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
-						    btf_ext_data->d_size,
-						    __pr_debug);
+						    btf_ext_data->d_size);
 			if (IS_ERR(obj->btf_ext)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_EXT_ELF_SEC,
@@ -1057,72 +1050,18 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 
 static int bpf_map_find_btf_info(struct bpf_map *map, const struct btf *btf)
 {
-	const struct btf_type *container_type;
-	const struct btf_member *key, *value;
 	struct bpf_map_def *def = &map->def;
-	const size_t max_name = 256;
-	char container_name[max_name];
-	__s64 key_size, value_size;
-	__s32 container_id;
+	__u32 key_type_id, value_type_id;
+	int ret;
 
-	if (snprintf(container_name, max_name, "____btf_map_%s", map->name) ==
-	    max_name) {
-		pr_warning("map:%s length of '____btf_map_%s' is too long\n",
-			   map->name, map->name);
-		return -EINVAL;
-	}
+	ret = btf__get_map_kv_tids(btf, map->name, def->key_size,
+				   def->value_size, &key_type_id,
+				   &value_type_id);
+	if (ret)
+		return ret;
 
-	container_id = btf__find_by_name(btf, container_name);
-	if (container_id < 0) {
-		pr_debug("map:%s container_name:%s cannot be found in BTF. Missing BPF_ANNOTATE_KV_PAIR?\n",
-			 map->name, container_name);
-		return container_id;
-	}
-
-	container_type = btf__type_by_id(btf, container_id);
-	if (!container_type) {
-		pr_warning("map:%s cannot find BTF type for container_id:%u\n",
-			   map->name, container_id);
-		return -EINVAL;
-	}
-
-	if (BTF_INFO_KIND(container_type->info) != BTF_KIND_STRUCT ||
-	    BTF_INFO_VLEN(container_type->info) < 2) {
-		pr_warning("map:%s container_name:%s is an invalid container struct\n",
-			   map->name, container_name);
-		return -EINVAL;
-	}
-
-	key = (struct btf_member *)(container_type + 1);
-	value = key + 1;
-
-	key_size = btf__resolve_size(btf, key->type);
-	if (key_size < 0) {
-		pr_warning("map:%s invalid BTF key_type_size\n",
-			   map->name);
-		return key_size;
-	}
-
-	if (def->key_size != key_size) {
-		pr_warning("map:%s btf_key_type_size:%u != map_def_key_size:%u\n",
-			   map->name, (__u32)key_size, def->key_size);
-		return -EINVAL;
-	}
-
-	value_size = btf__resolve_size(btf, value->type);
-	if (value_size < 0) {
-		pr_warning("map:%s invalid BTF value_type_size\n", map->name);
-		return value_size;
-	}
-
-	if (def->value_size != value_size) {
-		pr_warning("map:%s btf_value_type_size:%u != map_def_value_size:%u\n",
-			   map->name, (__u32)value_size, def->value_size);
-		return -EINVAL;
-	}
-
-	map->btf_key_type_id = key->type;
-	map->btf_value_type_id = value->type;
+	map->btf_key_type_id = key_type_id;
+	map->btf_value_type_id = value_type_id;
 
 	return 0;
 }
@@ -1172,6 +1111,20 @@ err_close_new_fd:
 err_free_new_name:
 	free(new_name);
 	return -errno;
+}
+
+int bpf_map__resize(struct bpf_map *map, __u32 max_entries)
+{
+	if (!map || !max_entries)
+		return -EINVAL;
+
+	/* If map already created, its attributes can't be changed. */
+	if (map->fd >= 0)
+		return -EBUSY;
+
+	map->def.max_entries = max_entries;
+
+	return 0;
 }
 
 static int
@@ -1637,7 +1590,7 @@ bpf_program__load(struct bpf_program *prog,
 		struct bpf_prog_prep_result result;
 		bpf_program_prep_t preprocessor = prog->preprocessor;
 
-		bzero(&result, sizeof(result));
+		memset(&result, 0, sizeof(result));
 		err = preprocessor(prog, i, prog->insns,
 				   prog->insns_cnt, &result);
 		if (err) {
@@ -2147,7 +2100,7 @@ int bpf_object__pin_maps(struct bpf_object *obj, const char *path)
 	if (err)
 		return err;
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		char buf[PATH_MAX];
 		int len;
 
@@ -2194,7 +2147,7 @@ int bpf_object__unpin_maps(struct bpf_object *obj, const char *path)
 	if (!obj)
 		return -ENOENT;
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		char buf[PATH_MAX];
 		int len;
 
@@ -2376,6 +2329,11 @@ const char *bpf_object__name(struct bpf_object *obj)
 unsigned int bpf_object__kversion(struct bpf_object *obj)
 {
 	return obj ? obj->kern_version : 0;
+}
+
+struct btf *bpf_object__btf(struct bpf_object *obj)
+{
+	return obj ? obj->btf : NULL;
 }
 
 int bpf_object__btf_fd(const struct bpf_object *obj)
@@ -2667,9 +2625,38 @@ static const struct {
 #undef BPF_EAPROG_SEC
 #undef BPF_APROG_COMPAT
 
+#define MAX_TYPE_NAME_SIZE 32
+
+static char *libbpf_get_type_names(bool attach_type)
+{
+	int i, len = ARRAY_SIZE(section_names) * MAX_TYPE_NAME_SIZE;
+	char *buf;
+
+	buf = malloc(len);
+	if (!buf)
+		return NULL;
+
+	buf[0] = '\0';
+	/* Forge string buf with all available names */
+	for (i = 0; i < ARRAY_SIZE(section_names); i++) {
+		if (attach_type && !section_names[i].is_attachable)
+			continue;
+
+		if (strlen(buf) + strlen(section_names[i].sec) + 2 > len) {
+			free(buf);
+			return NULL;
+		}
+		strcat(buf, " ");
+		strcat(buf, section_names[i].sec);
+	}
+
+	return buf;
+}
+
 int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			     enum bpf_attach_type *expected_attach_type)
 {
+	char *type_names;
 	int i;
 
 	if (!name)
@@ -2682,12 +2669,20 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 		*expected_attach_type = section_names[i].expected_attach_type;
 		return 0;
 	}
+	pr_warning("failed to guess program type based on ELF section name '%s'\n", name);
+	type_names = libbpf_get_type_names(false);
+	if (type_names != NULL) {
+		pr_info("supported section(type) names are:%s\n", type_names);
+		free(type_names);
+	}
+
 	return -EINVAL;
 }
 
 int libbpf_attach_type_by_name(const char *name,
 			       enum bpf_attach_type *attach_type)
 {
+	char *type_names;
 	int i;
 
 	if (!name)
@@ -2701,6 +2696,13 @@ int libbpf_attach_type_by_name(const char *name,
 		*attach_type = section_names[i].attach_type;
 		return 0;
 	}
+	pr_warning("failed to guess attach type based on ELF section name '%s'\n", name);
+	type_names = libbpf_get_type_names(true);
+	if (type_names != NULL) {
+		pr_info("attachable section(type) names are:%s\n", type_names);
+		free(type_names);
+	}
+
 	return -EINVAL;
 }
 
@@ -2833,11 +2835,17 @@ bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
 {
 	struct bpf_map *pos;
 
-	bpf_map__for_each(pos, obj) {
+	bpf_object__for_each_map(pos, obj) {
 		if (pos->name && !strcmp(pos->name, name))
 			return pos;
 	}
 	return NULL;
+}
+
+int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name)
+{
+	return bpf_map__fd(bpf_object__find_map_by_name(obj, name));
 }
 
 struct bpf_map *
@@ -2907,8 +2915,6 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 			err = bpf_program__identify_section(prog, &prog_type,
 							    &expected_attach_type);
 			if (err < 0) {
-				pr_warning("failed to guess program type based on section name %s\n",
-					   prog->section_name);
 				bpf_object__close(obj);
 				return -EINVAL;
 			}
@@ -2922,7 +2928,7 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 			first_prog = prog;
 	}
 
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		if (!bpf_map__is_offload_neutral(map))
 			map->map_ifindex = attr->ifindex;
 	}

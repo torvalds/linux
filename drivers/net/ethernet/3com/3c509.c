@@ -1266,12 +1266,14 @@ el3_up(struct net_device *dev)
 					pr_cont("Forcing 3c5x9b full-duplex mode");
 					break;
 				}
+				/* fall through */
 			case 8:
 				/* set full-duplex mode based on eeprom config setting */
 				if ((sw_info & 0x000f) && (sw_info & 0x8000)) {
 					pr_cont("Setting 3c5x9b full-duplex mode (from EEPROM configuration bit)");
 					break;
 				}
+				/* fall through */
 			default:
 				/* xcvr=(0 || 4) OR user has an old 3c5x9 non "B" model */
 				pr_cont("Setting 3c5x9/3c5x9B half-duplex mode");

@@ -2307,7 +2307,7 @@ _vortex_interrupt(int irq, struct net_device *dev)
 				dma_unmap_single(vp->gendev, vp->tx_skb_dma, (vp->tx_skb->len + 3) & ~3, DMA_TO_DEVICE);
 				pkts_compl++;
 				bytes_compl += vp->tx_skb->len;
-				dev_kfree_skb_irq(vp->tx_skb); /* Release the transferred buffer */
+				dev_consume_skb_irq(vp->tx_skb); /* Release the transferred buffer */
 				if (ioread16(ioaddr + TxFree) > 1536) {
 					/*
 					 * AKPM: FIXME: I don't think we need this.  If the queue was stopped due to
@@ -2449,7 +2449,7 @@ _boomerang_interrupt(int irq, struct net_device *dev)
 #endif
 					pkts_compl++;
 					bytes_compl += skb->len;
-					dev_kfree_skb_irq(skb);
+					dev_consume_skb_irq(skb);
 					vp->tx_skbuff[entry] = NULL;
 				} else {
 					pr_debug("boomerang_interrupt: no skb!\n");

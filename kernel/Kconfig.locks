@@ -242,6 +242,9 @@ config QUEUED_SPINLOCKS
 	def_bool y if ARCH_USE_QUEUED_SPINLOCKS
 	depends on SMP
 
+config BPF_ARCH_SPINLOCK
+	bool
+
 config ARCH_USE_QUEUED_RWLOCKS
 	bool
 

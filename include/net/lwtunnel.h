@@ -126,6 +126,8 @@ int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b);
 int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int lwtunnel_input(struct sk_buff *skb);
 int lwtunnel_xmit(struct sk_buff *skb);
+int bpf_lwt_push_ip_encap(struct sk_buff *skb, void *hdr, u32 len,
+			  bool ingress);
 
 static inline void lwtunnel_set_redirect(struct dst_entry *dst)
 {

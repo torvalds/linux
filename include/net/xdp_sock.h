@@ -42,6 +42,7 @@ struct xdp_umem {
 	struct work_struct work;
 	struct page **pgs;
 	u32 npgs;
+	int id;
 	struct net_device *dev;
 	struct xdp_umem_fq_reuse *fq_reuse;
 	u16 queue_id;

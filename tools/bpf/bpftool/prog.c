@@ -214,6 +214,10 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
 	jsonw_bool_field(json_wtr, "gpl_compatible", info->gpl_compatible);
+	if (info->run_time_ns) {
+		jsonw_uint_field(json_wtr, "run_time_ns", info->run_time_ns);
+		jsonw_uint_field(json_wtr, "run_cnt", info->run_cnt);
+	}
 
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
@@ -277,6 +281,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
 	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
 	printf("%s", info->gpl_compatible ? "  gpl" : "");
+	if (info->run_time_ns)
+		printf(" run_time_ns %lld run_cnt %lld",
+		       info->run_time_ns, info->run_cnt);
 	printf("\n");
 
 	if (info->load_time) {
@@ -931,10 +938,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			err = libbpf_prog_type_by_name(type, &attr.prog_type,
 						       &expected_attach_type);
 			free(type);
-			if (err < 0) {
-				p_err("unknown program type '%s'", *argv);
+			if (err < 0)
 				goto err_free_reuse_maps;
-			}
+
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
 			void *new_map_replace;
@@ -1029,11 +1035,8 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 
 			err = libbpf_prog_type_by_name(sec_name, &prog_type,
 						       &expected_attach_type);
-			if (err < 0) {
-				p_err("failed to guess program type based on section name %s\n",
-				      sec_name);
+			if (err < 0)
 				goto err_close_obj;
-			}
 		}
 
 		bpf_program__set_ifindex(pos, ifindex);
@@ -1050,7 +1053,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	j = 0;
 	while (j < old_map_fds && map_replace[j].name) {
 		i = 0;
-		bpf_map__for_each(map, obj) {
+		bpf_object__for_each_map(map, obj) {
 			if (!strcmp(bpf_map__name(map), map_replace[j].name)) {
 				map_replace[j].idx = i;
 				break;
@@ -1071,7 +1074,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 	/* Set ifindex and name reuse */
 	j = 0;
 	idx = 0;
-	bpf_map__for_each(map, obj) {
+	bpf_object__for_each_map(map, obj) {
 		if (!bpf_map__is_offload_neutral(map))
 			bpf_map__set_ifindex(map, ifindex);
 
@@ -1203,7 +1206,7 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
 		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
 		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | skb_parse |\n"
+		"       ATTACH_TYPE := { msg_verdict | stream_verdict | stream_parser |\n"
 		"                        flow_dissector }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",

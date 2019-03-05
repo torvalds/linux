@@ -49,6 +49,7 @@ config RISCV
 	select RISCV_TIMER
 	select GENERIC_IRQ_MULTI_HANDLER
 	select ARCH_HAS_PTE_SPECIAL
+	select HAVE_EBPF_JIT if 64BIT
 
 config MMU
 	def_bool y

@@ -224,6 +224,11 @@ static int proc_dostring_coredump(struct ctl_table *table, int write,
 #endif
 static int proc_dopipe_max_size(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos);
+#ifdef CONFIG_BPF_SYSCALL
+static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos);
+#endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
 /* Note: sysrq code uses its own private copy */
@@ -1227,6 +1232,15 @@ static struct ctl_table kern_table[] = {
 		/* only handle a transition from default "0" to "1" */
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "bpf_stats_enabled",
+		.data		= &sysctl_bpf_stats_enabled,
+		.maxlen		= sizeof(sysctl_bpf_stats_enabled),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax_bpf_stats,
+		.extra1		= &zero,
 		.extra2		= &one,
 	},
 #endif
@@ -3260,6 +3274,29 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 
 #endif /* CONFIG_PROC_SYSCTL */
 
+#ifdef CONFIG_BPF_SYSCALL
+static int proc_dointvec_minmax_bpf_stats(struct ctl_table *table, int write,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	int ret, bpf_stats = *(int *)table->data;
+	struct ctl_table tmp = *table;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	tmp.data = &bpf_stats;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret) {
+		*(int *)table->data = bpf_stats;
+		if (bpf_stats)
+			static_branch_enable(&bpf_stats_enabled_key);
+		else
+			static_branch_disable(&bpf_stats_enabled_key);
+	}
+	return ret;
+}
+#endif
 /*
  * No sense putting this after each symbol definition, twice,
  * exception granted :-)

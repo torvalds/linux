@@ -1850,6 +1850,15 @@ oom:
 	return 0;
 }
 
+static void packet_parse_headers(struct sk_buff *skb, struct socket *sock)
+{
+	if (!skb->protocol && sock->type == SOCK_RAW) {
+		skb_reset_mac_header(skb);
+		skb->protocol = dev_parse_header_protocol(skb);
+	}
+
+	skb_probe_transport_header(skb);
+}
 
 /*
  *	Output a raw packet to a device layer. This bypasses all the other
@@ -1970,7 +1979,7 @@ retry:
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;
 
-	skb_probe_transport_header(skb, 0);
+	packet_parse_headers(skb, sock);
 
 	dev_queue_xmit(skb);
 	rcu_read_unlock();
@@ -2404,15 +2413,6 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 	sock_wfree(skb);
 }
 
-static void tpacket_set_protocol(const struct net_device *dev,
-				 struct sk_buff *skb)
-{
-	if (dev->type == ARPHRD_ETHER) {
-		skb_reset_mac_header(skb);
-		skb->protocol = eth_hdr(skb)->h_proto;
-	}
-}
-
 static int __packet_snd_vnet_parse(struct virtio_net_hdr *vnet_hdr, size_t len)
 {
 	if ((vnet_hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -2483,8 +2483,6 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 			return err;
 		if (!dev_validate_header(dev, skb->data, hdrlen))
 			return -EINVAL;
-		if (!skb->protocol)
-			tpacket_set_protocol(dev, skb);
 
 		data += hdrlen;
 		to_write -= hdrlen;
@@ -2519,7 +2517,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		len = ((to_write > len_max) ? len_max : to_write);
 	}
 
-	skb_probe_transport_header(skb, 0);
+	packet_parse_headers(skb, sock);
 
 	return tp_len;
 }
@@ -2925,7 +2923,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		virtio_net_hdr_set_proto(skb, &vnet_hdr);
 	}
 
-	skb_probe_transport_header(skb, reserve);
+	packet_parse_headers(skb, sock);
 
 	if (unlikely(extra_len == 4))
 		skb->no_fcs = 1;

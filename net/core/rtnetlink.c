@@ -46,7 +46,6 @@
 
 #include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <net/switchdev.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/arp.h>
@@ -1146,22 +1145,17 @@ static int rtnl_phys_port_name_fill(struct sk_buff *skb, struct net_device *dev)
 
 static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 {
+	struct netdev_phys_item_id ppid = { };
 	int err;
-	struct switchdev_attr attr = {
-		.orig_dev = dev,
-		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
-		.flags = SWITCHDEV_F_NO_RECURSE,
-	};
 
-	err = switchdev_port_attr_get(dev, &attr);
+	err = dev_get_port_parent_id(dev, &ppid, false);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;
 		return err;
 	}
 
-	if (nla_put(skb, IFLA_PHYS_SWITCH_ID, attr.u.ppid.id_len,
-		    attr.u.ppid.id))
+	if (nla_put(skb, IFLA_PHYS_SWITCH_ID, ppid.id_len, ppid.id))
 		return -EMSGSIZE;
 
 	return 0;
@@ -3242,6 +3236,53 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return ret;
 }
 
+static int rtnl_valid_getlink_req(struct sk_buff *skb,
+				  const struct nlmsghdr *nlh,
+				  struct nlattr **tb,
+				  struct netlink_ext_ack *extack)
+{
+	struct ifinfomsg *ifm;
+	int i, err;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ifm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for get link");
+		return -EINVAL;
+	}
+
+	if (!netlink_strict_get_check(skb))
+		return nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy,
+				   extack);
+
+	ifm = nlmsg_data(nlh);
+	if (ifm->__ifi_pad || ifm->ifi_type || ifm->ifi_flags ||
+	    ifm->ifi_change) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for get link request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy,
+				 extack);
+	if (err)
+		return err;
+
+	for (i = 0; i <= IFLA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case IFLA_IFNAME:
+		case IFLA_EXT_MASK:
+		case IFLA_TARGET_NETNSID:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in get link request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
@@ -3256,7 +3297,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err;
 	u32 ext_filter_mask = 0;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy, extack);
+	err = rtnl_valid_getlink_req(skb, nlh, tb, extack);
 	if (err < 0)
 		return err;
 
@@ -3639,7 +3680,7 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		const struct net_device_ops *ops = br_dev->netdev_ops;
 
 		err = ops->ndo_fdb_add(ndm, tb, dev, addr, vid,
-				       nlh->nlmsg_flags);
+				       nlh->nlmsg_flags, extack);
 		if (err)
 			goto out;
 		else
@@ -3651,7 +3692,8 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (dev->netdev_ops->ndo_fdb_add)
 			err = dev->netdev_ops->ndo_fdb_add(ndm, tb, dev, addr,
 							   vid,
-							   nlh->nlmsg_flags);
+							   nlh->nlmsg_flags,
+							   extack);
 		else
 			err = ndo_dflt_fdb_add(ndm, tb, dev, addr, vid,
 					       nlh->nlmsg_flags);
@@ -4901,6 +4943,40 @@ static size_t if_nlmsg_stats_size(const struct net_device *dev,
 	return size;
 }
 
+static int rtnl_valid_stats_req(const struct nlmsghdr *nlh, bool strict_check,
+				bool is_dump, struct netlink_ext_ack *extack)
+{
+	struct if_stats_msg *ifsm;
+
+	if (nlh->nlmsg_len < sizeof(*ifsm)) {
+		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
+		return -EINVAL;
+	}
+
+	if (!strict_check)
+		return 0;
+
+	ifsm = nlmsg_data(nlh);
+
+	/* only requests using strict checks can pass data to influence
+	 * the dump. The legacy exception is filter_mask.
+	 */
+	if (ifsm->pad1 || ifsm->pad2 || (is_dump && ifsm->ifindex)) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for stats dump request");
+		return -EINVAL;
+	}
+	if (nlmsg_attrlen(nlh, sizeof(*ifsm))) {
+		NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
+		return -EINVAL;
+	}
+	if (ifsm->filter_mask >= IFLA_STATS_FILTER_BIT(IFLA_STATS_MAX + 1)) {
+		NL_SET_ERR_MSG(extack, "Invalid stats requested through filter mask");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
@@ -4912,8 +4988,10 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 filter_mask;
 	int err;
 
-	if (nlmsg_len(nlh) < sizeof(*ifsm))
-		return -EINVAL;
+	err = rtnl_valid_stats_req(nlh, netlink_strict_get_check(skb),
+				   false, extack);
+	if (err)
+		return err;
 
 	ifsm = nlmsg_data(nlh);
 	if (ifsm->ifindex > 0)
@@ -4965,27 +5043,11 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	cb->seq = net->dev_base_seq;
 
-	if (nlmsg_len(cb->nlh) < sizeof(*ifsm)) {
-		NL_SET_ERR_MSG(extack, "Invalid header for stats dump");
-		return -EINVAL;
-	}
+	err = rtnl_valid_stats_req(cb->nlh, cb->strict_check, true, extack);
+	if (err)
+		return err;
 
 	ifsm = nlmsg_data(cb->nlh);
-
-	/* only requests using strict checks can pass data to influence
-	 * the dump. The legacy exception is filter_mask.
-	 */
-	if (cb->strict_check) {
-		if (ifsm->pad1 || ifsm->pad2 || ifsm->ifindex) {
-			NL_SET_ERR_MSG(extack, "Invalid values in header for stats dump request");
-			return -EINVAL;
-		}
-		if (nlmsg_attrlen(cb->nlh, sizeof(*ifsm))) {
-			NL_SET_ERR_MSG(extack, "Invalid attributes after stats header");
-			return -EINVAL;
-		}
-	}
-
 	filter_mask = ifsm->filter_mask;
 	if (!filter_mask) {
 		NL_SET_ERR_MSG(extack, "Filter mask must be set for stats dump");

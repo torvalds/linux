@@ -4,7 +4,7 @@
  *
  * BPF program to automatically reflect TOS option from received syn packet
  *
- * Use load_sock_ops to load this BPF program.
+ * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */
 
 #include <uapi/linux/bpf.h>

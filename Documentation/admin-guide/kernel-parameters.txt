@@ -461,6 +461,11 @@
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
+	carrier_timeout=
+			[NET] Specifies amount of time (in seconds) that
+			the kernel should wait for a network carrier. By default
+			it waits 120 seconds.
+
 	ca_keys=	[KEYS] This parameter identifies a specific key(s) on
 			the system trusted keyring to be used for certificate
 			trust validation.

@@ -260,7 +260,7 @@ static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index)
 
 static struct tc_action_ops act_skbmod_ops = {
 	.kind		=	"skbmod",
-	.type		=	TCA_ACT_SKBMOD,
+	.id		=	TCA_ACT_SKBMOD,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_skbmod_act,
 	.dump		=	tcf_skbmod_dump,
