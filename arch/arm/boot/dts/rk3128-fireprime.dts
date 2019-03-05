@@ -341,6 +341,30 @@
 				};
 			};
 		};
+
+		battery {
+			compatible = "rk818-battery";
+			ocv_table = <3400 3650 3693 3707 3731 3749 3760
+				     3770 3782 3796 3812 3829 3852 3882
+				     3915 3951 3981 4047 4086 4132 4182>;
+			design_capacity = <4000>;
+			design_qmax = <4000>;
+			bat_res = <100>;
+			max_input_current = <2000>;
+			max_chrg_current = <1400>;
+			max_chrg_voltage = <4200>;
+			sleep_enter_current = <300>;
+			sleep_exit_current = <300>;
+			power_off_thresd = <3400>;
+			zero_algorithm_vol = <3850>;
+			energy_mode = <0>;
+			fb_temperature = <105>;
+			sample_res = <20>;
+			max_soc_offset = <60>;
+			monitor_sec = <5>;
+			virtual_power = <1>;
+			power_dc2otg = <0>;
+		};
 	};
 };
 
