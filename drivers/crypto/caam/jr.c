@@ -170,8 +170,10 @@ static void caam_jr_dequeue(unsigned long devarg)
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
 	void *userarg;
+	u32 outring_used = 0;
 
-	while (rd_reg32(&jrp->rregs->outring_used)) {
+	while (outring_used ||
+	       (outring_used = rd_reg32(&jrp->rregs->outring_used))) {
 
 		head = READ_ONCE(jrp->head);
 
@@ -236,6 +238,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 
 		/* Finally, execute user's callback */
 		usercall(dev, userdesc, userstatus, userarg);
+		outring_used--;
 	}
 
 	/* reenable / unmask IRQs */
@@ -345,7 +348,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	head = jrp->head;
 	tail = READ_ONCE(jrp->tail);
 
-	if (!rd_reg32(&jrp->rregs->inpring_avail) ||
+	if (!jrp->inpring_avail ||
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
 		spin_unlock_bh(&jrp->inplock);
 		dma_unmap_single(dev, desc_dma, desc_size, DMA_TO_DEVICE);
@@ -379,6 +382,10 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	wmb();
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
+
+	jrp->inpring_avail--;
+	if (!jrp->inpring_avail)
+		jrp->inpring_avail = rd_reg32(&jrp->rregs->inpring_avail);
 
 	spin_unlock_bh(&jrp->inplock);
 
@@ -442,6 +449,7 @@ static int caam_jr_init(struct device *dev)
 	wr_reg32(&jrp->rregs->outring_size, JOBR_DEPTH);
 
 	jrp->ringsize = JOBR_DEPTH;
+	jrp->inpring_avail = JOBR_DEPTH;
 
 	spin_lock_init(&jrp->inplock);
 	spin_lock_init(&jrp->outlock);

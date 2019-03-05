@@ -53,6 +53,7 @@ struct caam_drv_private_jr {
 	struct caam_jrentry_info *entinfo;	/* Alloc'ed 1 per ring entry */
 	spinlock_t inplock ____cacheline_aligned; /* Input ring index lock */
 	int inp_ring_write_index;	/* Input index "tail" */
+	u32 inpring_avail;	/* Number of free entries in input ring */
 	int head;			/* entinfo (s/w ring) head index */
 	dma_addr_t *inpring;	/* Base of input ring, alloc DMA-safe */
 	spinlock_t outlock ____cacheline_aligned; /* Output ring index lock */
