@@ -474,6 +474,7 @@ struct pptable_funcs {
 	int (*set_cpu_power_state)(struct smu_context *smu);
 	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
 	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
+	bool (*is_dpm_running)(struct smu_context *smu);
 };
 
 struct smu_funcs
@@ -505,7 +506,6 @@ struct smu_funcs
 	int (*init_display)(struct smu_context *smu);
 	int (*set_allowed_mask)(struct smu_context *smu);
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
-	bool (*is_dpm_running)(struct smu_context *smu);
 	int (*update_feature_enable_state)(struct smu_context *smu, uint32_t feature_id, bool enabled);
 	int (*notify_display_change)(struct smu_context *smu);
 	int (*get_power_limit)(struct smu_context *smu, uint32_t *limit, bool def);
@@ -623,7 +623,7 @@ struct smu_funcs
 #define smu_feature_get_enabled_mask(smu, mask, num) \
 	((smu)->funcs->get_enabled_mask? (smu)->funcs->get_enabled_mask((smu), (mask), (num)) : 0)
 #define smu_is_dpm_running(smu) \
-	((smu)->funcs->is_dpm_running ? (smu)->funcs->is_dpm_running((smu)) : 0)
+	((smu)->ppt_funcs->is_dpm_running ? (smu)->ppt_funcs->is_dpm_running((smu)) : 0)
 #define smu_feature_update_enable_state(smu, feature_id, enabled) \
 	((smu)->funcs->update_feature_enable_state? (smu)->funcs->update_feature_enable_state((smu), (feature_id), (enabled)) : 0)
 #define smu_notify_display_change(smu) \

@@ -52,16 +52,6 @@ MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
 #define SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES 1000
 #define SMU11_VOLTAGE_SCALE 4
 
-#define SMC_DPM_FEATURE (FEATURE_DPM_PREFETCHER_MASK | \
-			 FEATURE_DPM_GFXCLK_MASK | \
-			 FEATURE_DPM_UCLK_MASK | \
-			 FEATURE_DPM_SOCCLK_MASK | \
-			 FEATURE_DPM_UVD_MASK | \
-			 FEATURE_DPM_VCE_MASK | \
-			 FEATURE_DPM_MP0CLK_MASK | \
-			 FEATURE_DPM_LINK_MASK | \
-			 FEATURE_DPM_DCEFCLK_MASK)
-
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
@@ -846,17 +836,6 @@ static int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 	feature_mask[1] = feature_mask_high;
 
 	return ret;
-}
-
-static bool smu_v11_0_is_dpm_running(struct smu_context *smu)
-{
-	int ret = 0;
-	uint32_t feature_mask[2];
-	unsigned long feature_enabled;
-	ret = smu_v11_0_get_enabled_mask(smu, feature_mask, 2);
-	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
-			   ((uint64_t)feature_mask[1] << 32));
-	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
 static int smu_v11_0_system_features_control(struct smu_context *smu,
@@ -1876,7 +1855,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.init_display = smu_v11_0_init_display,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
-	.is_dpm_running = smu_v11_0_is_dpm_running,
 	.system_features_control = smu_v11_0_system_features_control,
 	.update_feature_enable_state = smu_v11_0_update_feature_enable_state,
 	.notify_display_change = smu_v11_0_notify_display_change,

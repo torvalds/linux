@@ -43,6 +43,16 @@
 #define MSG_MAP(msg) \
 	[SMU_MSG_##msg] = PPSMC_MSG_##msg
 
+#define SMC_DPM_FEATURE (FEATURE_DPM_PREFETCHER_MASK | \
+			 FEATURE_DPM_GFXCLK_MASK | \
+			 FEATURE_DPM_UCLK_MASK | \
+			 FEATURE_DPM_SOCCLK_MASK | \
+			 FEATURE_DPM_UVD_MASK | \
+			 FEATURE_DPM_VCE_MASK | \
+			 FEATURE_DPM_MP0CLK_MASK | \
+			 FEATURE_DPM_LINK_MASK | \
+			 FEATURE_DPM_DCEFCLK_MASK)
+
 static int vega20_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage),
 	MSG_MAP(GetSmuVersion),
@@ -2794,6 +2804,17 @@ static int vega20_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static bool vega20_is_dpm_running(struct smu_context *smu)
+{
+	int ret = 0;
+	uint32_t feature_mask[2];
+	unsigned long feature_enabled;
+	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	feature_enabled = (unsigned long)((uint64_t)feature_mask[0] |
+			   ((uint64_t)feature_mask[1] << 32));
+	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -2832,6 +2853,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
 	.set_ppfeature_status = vega20_set_ppfeature_status,
 	.get_ppfeature_status = vega20_get_ppfeature_status,
+	.is_dpm_running = vega20_is_dpm_running,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
