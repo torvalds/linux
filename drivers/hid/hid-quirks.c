@@ -855,7 +855,7 @@ static const struct hid_device_id hid_ignore_list[] = {
 	{ }
 };
 
-/**
+/*
  * hid_mouse_ignore_list - mouse devices which should not be handled by the hid layer
  *
  * There are composite devices for which we want to ignore only a certain
