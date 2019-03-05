@@ -103,6 +103,7 @@ to suspend the current process (it must adhere to the execution conditions in
 the interrupt context). Moreover, the CPU will not be released except for
 the case of an interrupt. Due to the mechanism used, it is important that a
 spinlock is being held as little time as possible.
+
 Preemptivity
 ============
 
