@@ -330,10 +330,9 @@ static void update_cached_migrate(struct compact_control *cc, unsigned long pfn)
  * future. The information is later cleared by __reset_isolation_suitable().
  */
 static void update_pageblock_skip(struct compact_control *cc,
-			struct page *page, unsigned long nr_isolated)
+			struct page *page, unsigned long pfn)
 {
 	struct zone *zone = cc->zone;
-	unsigned long pfn;
 
 	if (cc->no_set_skip_hint)
 		return;
@@ -341,12 +340,7 @@ static void update_pageblock_skip(struct compact_control *cc,
 	if (!page)
 		return;
 
-	if (nr_isolated)
-		return;
-
 	set_pageblock_skip(page);
-
-	pfn = page_to_pfn(page);
 
 	/* Update where async and sync compaction should restart */
 	if (pfn < zone->compact_cached_free_pfn)
@@ -365,7 +359,7 @@ static inline bool pageblock_skip_persistent(struct page *page)
 }
 
 static inline void update_pageblock_skip(struct compact_control *cc,
-			struct page *page, unsigned long nr_isolated)
+			struct page *page, unsigned long pfn)
 {
 }
 
@@ -449,7 +443,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 				bool strict)
 {
 	int nr_scanned = 0, total_isolated = 0;
-	struct page *cursor, *valid_page = NULL;
+	struct page *cursor;
 	unsigned long flags = 0;
 	bool locked = false;
 	unsigned long blockpfn = *start_pfn;
@@ -475,9 +469,6 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		nr_scanned++;
 		if (!pfn_valid_within(blockpfn))
 			goto isolate_fail;
-
-		if (!valid_page)
-			valid_page = page;
 
 		/*
 		 * For compound pages such as THP and hugetlbfs, we can save
@@ -565,10 +556,6 @@ isolate_fail:
 	 */
 	if (strict && blockpfn < end_pfn)
 		total_isolated = 0;
-
-	/* Update the pageblock-skip if the whole pageblock was scanned */
-	if (blockpfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, total_isolated);
 
 	cc->total_free_scanned += nr_scanned;
 	if (total_isolated)
@@ -1293,8 +1280,10 @@ fast_isolate_freepages(struct compact_control *cc)
 		}
 	}
 
-	if (highest && highest > cc->zone->compact_cached_free_pfn)
+	if (highest && highest >= cc->zone->compact_cached_free_pfn) {
+		highest -= pageblock_nr_pages;
 		cc->zone->compact_cached_free_pfn = highest;
+	}
 
 	cc->total_free_scanned += nr_scanned;
 	if (!page)
@@ -1373,6 +1362,10 @@ static void isolate_freepages(struct compact_control *cc)
 		/* Found a block suitable for isolating free pages from. */
 		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
 					freelist, false);
+
+		/* Update the skip hint if the full pageblock was scanned */
+		if (isolate_start_pfn == block_end_pfn)
+			update_pageblock_skip(cc, page, block_start_pfn);
 
 		/* Are enough freepages isolated? */
 		if (cc->nr_freepages >= cc->nr_migratepages) {
