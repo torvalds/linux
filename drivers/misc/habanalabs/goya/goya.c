@@ -363,12 +363,13 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GOYA_ASYNC_EVENT_ID_SIZE;
+	prop->high_pll = PLL_HIGH_DEFAULT;
 	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 	prop->max_power_default = MAX_POWER_DEFAULT;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
-
-	prop->high_pll = PLL_HIGH_DEFAULT;
+	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
+	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
 }
 
 /*
@@ -382,159 +383,18 @@ static void goya_get_fixed_properties(struct hl_device *hdev)
  */
 static int goya_pci_bars_map(struct hl_device *hdev)
 {
-	struct pci_dev *pdev = hdev->pdev;
+	static const char * const name[] = {"SRAM_CFG", "MSIX", "DDR"};
+	bool is_wc[3] = {false, false, true};
 	int rc;
 
-	rc = pci_request_regions(pdev, HL_NAME);
-	if (rc) {
-		dev_err(hdev->dev, "Cannot obtain PCI resources\n");
+	rc = hl_pci_bars_map(hdev, name, is_wc);
+	if (rc)
 		return rc;
-	}
-
-	hdev->pcie_bar[SRAM_CFG_BAR_ID] =
-			pci_ioremap_bar(pdev, SRAM_CFG_BAR_ID);
-	if (!hdev->pcie_bar[SRAM_CFG_BAR_ID]) {
-		dev_err(hdev->dev, "pci_ioremap_bar failed for CFG\n");
-		rc = -ENODEV;
-		goto err_release_regions;
-	}
-
-	hdev->pcie_bar[MSIX_BAR_ID] = pci_ioremap_bar(pdev, MSIX_BAR_ID);
-	if (!hdev->pcie_bar[MSIX_BAR_ID]) {
-		dev_err(hdev->dev, "pci_ioremap_bar failed for MSIX\n");
-		rc = -ENODEV;
-		goto err_unmap_sram_cfg;
-	}
-
-	hdev->pcie_bar[DDR_BAR_ID] = pci_ioremap_wc_bar(pdev, DDR_BAR_ID);
-	if (!hdev->pcie_bar[DDR_BAR_ID]) {
-		dev_err(hdev->dev, "pci_ioremap_bar failed for DDR\n");
-		rc = -ENODEV;
-		goto err_unmap_msix;
-	}
 
 	hdev->rmmio = hdev->pcie_bar[SRAM_CFG_BAR_ID] +
-				(CFG_BASE - SRAM_BASE_ADDR);
+			(CFG_BASE - SRAM_BASE_ADDR);
 
 	return 0;
-
-err_unmap_msix:
-	iounmap(hdev->pcie_bar[MSIX_BAR_ID]);
-err_unmap_sram_cfg:
-	iounmap(hdev->pcie_bar[SRAM_CFG_BAR_ID]);
-err_release_regions:
-	pci_release_regions(pdev);
-
-	return rc;
-}
-
-/*
- * goya_pci_bars_unmap - Unmap PCI BARS of Goya device
- *
- * @hdev: pointer to hl_device structure
- *
- * Release all PCI BARS and unmap their virtual addresses
- *
- */
-static void goya_pci_bars_unmap(struct hl_device *hdev)
-{
-	struct pci_dev *pdev = hdev->pdev;
-
-	iounmap(hdev->pcie_bar[DDR_BAR_ID]);
-	iounmap(hdev->pcie_bar[MSIX_BAR_ID]);
-	iounmap(hdev->pcie_bar[SRAM_CFG_BAR_ID]);
-	pci_release_regions(pdev);
-}
-
-/*
- * goya_elbi_write - Write through the ELBI interface
- *
- * @hdev: pointer to hl_device structure
- *
- * return 0 on success, -1 on failure
- *
- */
-static int goya_elbi_write(struct hl_device *hdev, u64 addr, u32 data)
-{
-	struct pci_dev *pdev = hdev->pdev;
-	ktime_t timeout;
-	u32 val;
-
-	/* Clear previous status */
-	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_STS, 0);
-
-	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_ADDR, (u32) addr);
-	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_DATA, data);
-	pci_write_config_dword(pdev, mmPCI_CONFIG_ELBI_CTRL,
-				PCI_CONFIG_ELBI_CTRL_WRITE);
-
-	timeout = ktime_add_ms(ktime_get(), 10);
-	for (;;) {
-		pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_STS, &val);
-		if (val & PCI_CONFIG_ELBI_STS_MASK)
-			break;
-		if (ktime_compare(ktime_get(), timeout) > 0) {
-			pci_read_config_dword(pdev, mmPCI_CONFIG_ELBI_STS,
-						&val);
-			break;
-		}
-		usleep_range(300, 500);
-	}
-
-	if ((val & PCI_CONFIG_ELBI_STS_MASK) == PCI_CONFIG_ELBI_STS_DONE)
-		return 0;
-
-	if (val & PCI_CONFIG_ELBI_STS_ERR) {
-		dev_err(hdev->dev, "Error writing to ELBI\n");
-		return -EIO;
-	}
-
-	if (!(val & PCI_CONFIG_ELBI_STS_MASK)) {
-		dev_err(hdev->dev, "ELBI write didn't finish in time\n");
-		return -EIO;
-	}
-
-	dev_err(hdev->dev, "ELBI write has undefined bits in status\n");
-	return -EIO;
-}
-
-/*
- * goya_iatu_write - iatu write routine
- *
- * @hdev: pointer to hl_device structure
- *
- */
-static int goya_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
-{
-	u32 dbi_offset;
-	int rc;
-
-	dbi_offset = addr & 0xFFF;
-
-	rc = goya_elbi_write(hdev, CFG_BASE + mmPCIE_AUX_DBI, 0x00300000);
-	rc |= goya_elbi_write(hdev, mmPCIE_DBI_BASE + dbi_offset, data);
-
-	if (rc)
-		return -EIO;
-
-	return 0;
-}
-
-static void goya_reset_link_through_bridge(struct hl_device *hdev)
-{
-	struct pci_dev *pdev = hdev->pdev;
-	struct pci_dev *parent_port;
-	u16 val;
-
-	parent_port = pdev->bus->self;
-	pci_read_config_word(parent_port, PCI_BRIDGE_CONTROL, &val);
-	val |= PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(parent_port, PCI_BRIDGE_CONTROL, val);
-	ssleep(1);
-
-	val &= ~(PCI_BRIDGE_CTL_BUS_RESET);
-	pci_write_config_word(parent_port, PCI_BRIDGE_CONTROL, val);
-	ssleep(3);
 }
 
 /*
@@ -556,20 +416,9 @@ static int goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 		return 0;
 
 	/* Inbound Region 1 - Bar 4 - Point to DDR */
-	rc = goya_iatu_write(hdev, 0x314, lower_32_bits(addr));
-	rc |= goya_iatu_write(hdev, 0x318, upper_32_bits(addr));
-	rc |= goya_iatu_write(hdev, 0x300, 0);
-	/* Enable + Bar match + match enable + Bar 4 */
-	rc |= goya_iatu_write(hdev, 0x304, 0xC0080400);
-
-	/* Return the DBI window to the default location */
-	rc |= goya_elbi_write(hdev, CFG_BASE + mmPCIE_AUX_DBI, 0);
-	rc |= goya_elbi_write(hdev, CFG_BASE + mmPCIE_AUX_DBI_32, 0);
-
-	if (rc) {
-		dev_err(hdev->dev, "failed to map DDR bar to 0x%08llx\n", addr);
-		return -EIO;
-	}
+	rc = hl_pci_set_dram_bar_base(hdev, 1, 4, addr);
+	if (rc)
+		return rc;
 
 	if (goya)
 		goya->ddr_bar_cur_addr = addr;
@@ -587,40 +436,8 @@ static int goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
  */
 static int goya_init_iatu(struct hl_device *hdev)
 {
-	int rc;
-
-	/* Inbound Region 0 - Bar 0 - Point to SRAM_BASE_ADDR */
-	rc  = goya_iatu_write(hdev, 0x114, lower_32_bits(SRAM_BASE_ADDR));
-	rc |= goya_iatu_write(hdev, 0x118, upper_32_bits(SRAM_BASE_ADDR));
-	rc |= goya_iatu_write(hdev, 0x100, 0);
-	/* Enable + Bar match + match enable */
-	rc |= goya_iatu_write(hdev, 0x104, 0xC0080000);
-
-	/* Inbound Region 1 - Bar 4 - Point to DDR */
-	rc |= goya_set_ddr_bar_base(hdev, DRAM_PHYS_BASE);
-
-	/* Outbound Region 0 - Point to Host */
-	rc |= goya_iatu_write(hdev, 0x008, lower_32_bits(HOST_PHYS_BASE));
-	rc |= goya_iatu_write(hdev, 0x00C, upper_32_bits(HOST_PHYS_BASE));
-	rc |= goya_iatu_write(hdev, 0x010,
-		lower_32_bits(HOST_PHYS_BASE + HOST_PHYS_SIZE - 1));
-	rc |= goya_iatu_write(hdev, 0x014, 0);
-	rc |= goya_iatu_write(hdev, 0x018, 0);
-	rc |= goya_iatu_write(hdev, 0x020,
-		upper_32_bits(HOST_PHYS_BASE + HOST_PHYS_SIZE - 1));
-	/* Increase region size */
-	rc |= goya_iatu_write(hdev, 0x000, 0x00002000);
-	/* Enable */
-	rc |= goya_iatu_write(hdev, 0x004, 0x80000000);
-
-	/* Return the DBI window to the default location */
-	rc |= goya_elbi_write(hdev, CFG_BASE + mmPCIE_AUX_DBI, 0);
-	rc |= goya_elbi_write(hdev, CFG_BASE + mmPCIE_AUX_DBI_32, 0);
-
-	if (rc)
-		return -EIO;
-
-	return 0;
+	return hl_pci_init_iatu(hdev, SRAM_BASE_ADDR, DRAM_PHYS_BASE,
+				HOST_PHYS_SIZE);
 }
 
 /*
@@ -666,52 +483,9 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
-	/* set DMA mask for GOYA */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(39));
-	if (rc) {
-		dev_warn(hdev->dev, "Unable to set pci dma mask to 39 bits\n");
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Unable to set pci dma mask to 32 bits\n");
-			return rc;
-		}
-	}
-
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
-	if (rc) {
-		dev_warn(hdev->dev,
-			"Unable to set pci consistent dma mask to 39 bits\n");
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Unable to set pci consistent dma mask to 32 bits\n");
-			return rc;
-		}
-	}
-
-	if (hdev->reset_pcilink)
-		goya_reset_link_through_bridge(hdev);
-
-	rc = pci_enable_device_mem(pdev);
-	if (rc) {
-		dev_err(hdev->dev, "can't enable PCI device\n");
+	rc = hl_pci_init(hdev);
+	if (rc)
 		return rc;
-	}
-
-	pci_set_master(pdev);
-
-	rc = goya_init_iatu(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize iATU\n");
-		goto disable_device;
-	}
-
-	rc = goya_pci_bars_map(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to initialize PCI BARS\n");
-		goto disable_device;
-	}
 
 	if (!hdev->pldm) {
 		val = RREG32(mmPSOC_GLOBAL_CONF_BOOT_STRAP_PINS);
@@ -721,12 +495,6 @@ static int goya_early_init(struct hl_device *hdev)
 	}
 
 	return 0;
-
-disable_device:
-	pci_clear_master(pdev);
-	pci_disable_device(pdev);
-
-	return rc;
 }
 
 /*
@@ -739,10 +507,7 @@ disable_device:
  */
 static int goya_early_fini(struct hl_device *hdev)
 {
-	goya_pci_bars_unmap(hdev);
-
-	pci_clear_master(hdev->pdev);
-	pci_disable_device(hdev->pdev);
+	hl_pci_fini(hdev);
 
 	return 0;
 }
@@ -5071,7 +4836,10 @@ static const struct hl_asic_funcs goya_funcs = {
 	.get_pci_id = goya_get_pci_id,
 	.get_eeprom_data = goya_get_eeprom_data,
 	.send_cpu_message = goya_send_cpu_message,
-	.get_hw_state = goya_get_hw_state
+	.get_hw_state = goya_get_hw_state,
+	.pci_bars_map = goya_pci_bars_map,
+	.set_dram_bar_base = goya_set_ddr_bar_base,
+	.init_iatu = goya_init_iatu
 };
 
 /*

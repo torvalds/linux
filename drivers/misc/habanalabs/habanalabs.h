@@ -148,6 +148,8 @@ enum hl_device_hw_state {
  *                             mapping DRAM memory.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
+ * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
+ * @pcie_aux_dbi_reg_addr: Address of the PCIE_AUX DBI register.
  * @mmu_pgt_addr: base physical address in DRAM of MMU page tables.
  * @mmu_dram_default_page_addr: DRAM default page physical address.
  * @mmu_pgt_size: MMU page tables total size.
@@ -189,6 +191,8 @@ struct asic_fixed_properties {
 	u64			va_space_dram_start_address;
 	u64			va_space_dram_end_address;
 	u64			dram_size_for_default_page_mapping;
+	u64			pcie_dbi_base_address;
+	u64			pcie_aux_dbi_reg_addr;
 	u64			mmu_pgt_addr;
 	u64			mmu_dram_default_page_addr;
 	u32			mmu_pgt_size;
@@ -485,6 +489,9 @@ enum hl_pll_frequency {
  * @get_eeprom_data: retrieve EEPROM data from F/W.
  * @send_cpu_message: send buffer to ArmCP.
  * @get_hw_state: retrieve the H/W state
+ * @pci_bars_map: Map PCI BARs.
+ * @set_dram_bar_base: Set DRAM BAR to map specific device address.
+ * @init_iatu: Initialize the iATU unit inside the PCI controller.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -558,6 +565,9 @@ struct hl_asic_funcs {
 	int (*send_cpu_message)(struct hl_device *hdev, u32 *msg,
 				u16 len, u32 timeout, long *result);
 	enum hl_device_hw_state (*get_hw_state)(struct hl_device *hdev);
+	int (*pci_bars_map)(struct hl_device *hdev);
+	int (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
+	int (*init_iatu)(struct hl_device *hdev);
 };
 
 
@@ -1367,6 +1377,16 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 int hl_fw_send_heartbeat(struct hl_device *hdev);
 int hl_fw_armcp_info_get(struct hl_device *hdev);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
+
+int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
+			bool is_wc[3]);
+int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
+int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
+				u64 addr);
+int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
+			u64 dram_base_address, u64 host_phys_size);
+int hl_pci_init(struct hl_device *hdev);
+void hl_pci_fini(struct hl_device *hdev);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);
