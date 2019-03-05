@@ -191,8 +191,6 @@ static int __init cma_debugfs_init(void)
 	int i;
 
 	cma_debugfs_root = debugfs_create_dir("cma", NULL);
-	if (!cma_debugfs_root)
-		return -ENOMEM;
 
 	for (i = 0; i < cma_area_count; i++)
 		cma_debugfs_add_one(&cma_areas[i], i);

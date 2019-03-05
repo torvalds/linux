@@ -2887,12 +2887,8 @@ DEFINE_SIMPLE_ATTRIBUTE(split_huge_pages_fops, NULL, split_huge_pages_set,
 
 static int __init split_huge_pages_debugfs(void)
 {
-	void *ret;
-
-	ret = debugfs_create_file("split_huge_pages", 0200, NULL, NULL,
-			&split_huge_pages_fops);
-	if (!ret)
-		pr_warn("Failed to create split_huge_pages in debugfs");
+	debugfs_create_file("split_huge_pages", 0200, NULL, NULL,
+			    &split_huge_pages_fops);
 	return 0;
 }
 late_initcall(split_huge_pages_debugfs);
