@@ -250,7 +250,6 @@ DMA
   dmaenginem_async_device_register()
   dmam_alloc_coherent()
   dmam_alloc_attrs()
-  dmam_declare_coherent_memory()
   dmam_free_coherent()
   dmam_pool_create()
   dmam_pool_destroy()

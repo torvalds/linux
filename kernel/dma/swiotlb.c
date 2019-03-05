@@ -378,6 +378,8 @@ void __init swiotlb_exit(void)
 		memblock_free_late(io_tlb_start,
 				   PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
 	}
+	io_tlb_start = 0;
+	io_tlb_end = 0;
 	io_tlb_nslabs = 0;
 	max_segment = 0;
 }

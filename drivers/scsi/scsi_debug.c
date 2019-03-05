@@ -62,7 +62,7 @@
 
 /* make sure inq_product_rev string corresponds to this version */
 #define SDEBUG_VERSION "0188"	/* format to fit INQUIRY revision field */
-static const char *sdebug_version_date = "20180128";
+static const char *sdebug_version_date = "20190125";
 
 #define MY_NAME "scsi_debug"
 
@@ -735,7 +735,7 @@ static inline bool scsi_debug_lbp(void)
 		(sdebug_lbpu || sdebug_lbpws || sdebug_lbpws10);
 }
 
-static void *fake_store(unsigned long long lba)
+static void *lba2fake_store(unsigned long long lba)
 {
 	lba = do_div(lba, sdebug_store_sectors);
 
@@ -2514,8 +2514,8 @@ static int do_device_access(struct scsi_cmnd *scmd, u32 sg_skip, u64 lba,
 	return ret;
 }
 
-/* If fake_store(lba,num) compares equal to arr(num), then copy top half of
- * arr into fake_store(lba,num) and return true. If comparison fails then
+/* If lba2fake_store(lba,num) compares equal to arr(num), then copy top half of
+ * arr into lba2fake_store(lba,num) and return true. If comparison fails then
  * return false. */
 static bool comp_write_worker(u64 lba, u32 num, const u8 *arr)
 {
@@ -2643,7 +2643,7 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 		if (sdt->app_tag == cpu_to_be16(0xffff))
 			continue;
 
-		ret = dif_verify(sdt, fake_store(sector), sector, ei_lba);
+		ret = dif_verify(sdt, lba2fake_store(sector), sector, ei_lba);
 		if (ret) {
 			dif_errors++;
 			return ret;
@@ -3261,10 +3261,12 @@ err_out:
 static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 			   u32 ei_lba, bool unmap, bool ndob)
 {
+	int ret;
 	unsigned long iflags;
 	unsigned long long i;
-	int ret;
-	u64 lba_off;
+	u32 lb_size = sdebug_sector_size;
+	u64 block, lbaa;
+	u8 *fs1p;
 
 	ret = check_device_access_params(scp, lba, num);
 	if (ret)
@@ -3276,31 +3278,30 @@ static int resp_write_same(struct scsi_cmnd *scp, u64 lba, u32 num,
 		unmap_region(lba, num);
 		goto out;
 	}
-
-	lba_off = lba * sdebug_sector_size;
+	lbaa = lba;
+	block = do_div(lbaa, sdebug_store_sectors);
 	/* if ndob then zero 1 logical block, else fetch 1 logical block */
+	fs1p = fake_storep + (block * lb_size);
 	if (ndob) {
-		memset(fake_storep + lba_off, 0, sdebug_sector_size);
+		memset(fs1p, 0, lb_size);
 		ret = 0;
 	} else
-		ret = fetch_to_dev_buffer(scp, fake_storep + lba_off,
-					  sdebug_sector_size);
+		ret = fetch_to_dev_buffer(scp, fs1p, lb_size);
 
 	if (-1 == ret) {
 		write_unlock_irqrestore(&atomic_rw, iflags);
 		return DID_ERROR << 16;
-	} else if (sdebug_verbose && !ndob && (ret < sdebug_sector_size))
+	} else if (sdebug_verbose && !ndob && (ret < lb_size))
 		sdev_printk(KERN_INFO, scp->device,
 			    "%s: %s: lb size=%u, IO sent=%d bytes\n",
-			    my_name, "write same",
-			    sdebug_sector_size, ret);
+			    my_name, "write same", lb_size, ret);
 
 	/* Copy first sector to remaining blocks */
-	for (i = 1 ; i < num ; i++)
-		memcpy(fake_storep + ((lba + i) * sdebug_sector_size),
-		       fake_storep + lba_off,
-		       sdebug_sector_size);
-
+	for (i = 1 ; i < num ; i++) {
+		lbaa = lba + i;
+		block = do_div(lbaa, sdebug_store_sectors);
+		memmove(fake_storep + (block * lb_size), fs1p, lb_size);
+	}
 	if (scsi_debug_lbp())
 		map_region(lba, num);
 out:

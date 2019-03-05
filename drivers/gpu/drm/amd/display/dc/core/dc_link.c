@@ -215,6 +215,9 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		return true;
 	}
 
+	if (link->connector_signal == SIGNAL_TYPE_EDP)
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 	if (hpd_pin == NULL)
@@ -339,7 +342,7 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
-
+	uint8_t retry = 0;
 	struct ddc *ddc;
 
 	enum connector_id connector_id =
@@ -368,11 +371,22 @@ bool dc_link_is_dp_sink_present(struct dc_link *link)
 		return present;
 	}
 
-	/* Read GPIO: DP sink is present if both clock and data pins are zero */
-	/* [anaumov] in DAL2, there was no check for GPIO failure */
-
-	gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
-	ASSERT(gpio_result == GPIO_RESULT_OK);
+	/*
+	 * Read GPIO: DP sink is present if both clock and data pins are zero
+	 *
+	 * [W/A] plug-unplug DP cable, sometimes customer board has
+	 * one short pulse on clk_pin(1V, < 1ms). DP will be config to HDMI/DVI
+	 * then monitor can't br light up. Add retry 3 times
+	 * But in real passive dongle, it need additional 3ms to detect
+	 */
+	do {
+		gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
+		ASSERT(gpio_result == GPIO_RESULT_OK);
+		if (clock_pin)
+			udelay(1000);
+		else
+			break;
+	} while (retry++ < 3);
 
 	present = (gpio_result == GPIO_RESULT_OK) && !clock_pin;
 
@@ -703,12 +717,26 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle downstream unplug */
+			/* Active dongle plug in without display or downstream unplug*/
 			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
 					bits.SINK_COUNT == 0) {
-				if (prev_sink != NULL)
+				if (prev_sink != NULL) {
+					/* Downstream unplug */
 					dc_sink_release(prev_sink);
+				} else {
+					/* Empty dongle plug in */
+					for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
+						int fail_count = 0;
+
+						dp_verify_link_cap(link,
+								  &link->reported_link_cap,
+								  &fail_count);
+
+						if (fail_count == 0)
+							break;
+					}
+				}
 				return true;
 			}
 
@@ -2162,8 +2190,7 @@ int dc_link_get_backlight_level(const struct dc_link *link)
 
 bool dc_link_set_backlight_level(const struct dc_link *link,
 		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp,
-		const struct dc_stream_state *stream)
+		uint32_t frame_ramp)
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
@@ -2177,10 +2204,6 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 		(abm == NULL) ||
 		(abm->funcs->set_backlight_level_pwm == NULL))
 		return false;
-
-	if (stream)
-		((struct dc_stream_state *)stream)->bl_pwm_level =
-				backlight_pwm_u16_16;
 
 	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
@@ -2609,11 +2632,6 @@ void core_link_enable_stream(
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			enable_stream_features(pipe_ctx);
-
-		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
-				pipe_ctx->stream->bl_pwm_level,
-				0,
-				pipe_ctx->stream);
 	}
 
 }
@@ -2622,10 +2640,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
+	core_dc->hwss.blank_stream(pipe_ctx);
+
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
-
-	core_dc->hwss.blank_stream(pipe_ctx);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 

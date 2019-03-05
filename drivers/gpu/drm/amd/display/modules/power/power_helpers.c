@@ -57,6 +57,7 @@ static const unsigned char abm_config[abm_defines_max_config][abm_defines_max_le
 #define NUM_POWER_FN_SEGS 8
 #define NUM_BL_CURVE_SEGS 16
 
+#pragma pack(push, 1)
 /* NOTE: iRAM is 256B in size */
 struct iram_table_v_2 {
 	/* flags                      */
@@ -100,6 +101,7 @@ struct iram_table_v_2 {
 	uint8_t dummy8;							/* 0xfe       */
 	uint8_t dummy9;							/* 0xff       */
 };
+#pragma pack(pop)
 
 static uint16_t backlight_8_to_16(unsigned int backlight_8bit)
 {

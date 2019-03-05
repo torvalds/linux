@@ -669,7 +669,6 @@ static void __ipoib_reap_ah(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 	struct ipoib_ah *ah, *tah;
-	LIST_HEAD(remove_list);
 	unsigned long flags;
 
 	netif_tx_lock_bh(dev);

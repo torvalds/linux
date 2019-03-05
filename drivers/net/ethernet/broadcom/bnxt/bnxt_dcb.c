@@ -316,8 +316,8 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 
 	n = IEEE_8021QAZ_MAX_TCS;
 	data_len = sizeof(*data) + sizeof(*fw_app) * n;
-	data = dma_zalloc_coherent(&bp->pdev->dev, data_len, &mapping,
-				   GFP_KERNEL);
+	data = dma_alloc_coherent(&bp->pdev->dev, data_len, &mapping,
+				  GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

@@ -433,9 +433,10 @@ static void reconn_inval_dfs_target(struct TCP_Server_Info *server,
 	kfree(server->hostname);
 
 	server->hostname = extract_hostname(name);
-	if (!server->hostname) {
-		cifs_dbg(FYI, "%s: failed to extract hostname from target: %d\n",
-			 __func__, -ENOMEM);
+	if (IS_ERR(server->hostname)) {
+		cifs_dbg(FYI,
+			 "%s: failed to extract hostname from target: %ld\n",
+			 __func__, PTR_ERR(server->hostname));
 	}
 }
 
@@ -719,6 +720,21 @@ server_unresponsive(struct TCP_Server_Info *server)
 	return false;
 }
 
+static inline bool
+zero_credits(struct TCP_Server_Info *server)
+{
+	int val;
+
+	spin_lock(&server->req_lock);
+	val = server->credits + server->echo_credits + server->oplock_credits;
+	if (server->in_flight == 0 && val == 0) {
+		spin_unlock(&server->req_lock);
+		return true;
+	}
+	spin_unlock(&server->req_lock);
+	return false;
+}
+
 static int
 cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 {
@@ -730,6 +746,12 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct msghdr *smb_msg)
 
 	for (total_read = 0; msg_data_left(smb_msg); total_read += length) {
 		try_to_freeze();
+
+		/* reconnect if no credits and no requests in flight */
+		if (zero_credits(server)) {
+			cifs_reconnect(server);
+			return -ECONNABORTED;
+		}
 
 		if (server_unresponsive(server))
 			return -ECONNABORTED;

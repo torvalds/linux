@@ -756,7 +756,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t hwsize,
 	 * Allocate the hardware ring and PCI DMA bus address space for said.
 	 */
 	size_t hwlen = nelem * hwsize + stat_size;
-	void *hwring = dma_zalloc_coherent(dev, hwlen, busaddrp, GFP_KERNEL);
+	void *hwring = dma_alloc_coherent(dev, hwlen, busaddrp, GFP_KERNEL);
 
 	if (!hwring)
 		return NULL;

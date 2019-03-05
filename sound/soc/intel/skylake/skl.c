@@ -336,9 +336,6 @@ static int skl_suspend(struct device *dev)
 		skl->skl_sst->fw_loaded = false;
 	}
 
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
-
 	return 0;
 }
 
@@ -349,10 +346,6 @@ static int skl_resume(struct device *dev)
 	struct skl *skl  = bus_to_skl(bus);
 	struct hdac_ext_link *hlink = NULL;
 	int ret;
-
-	/* Turned OFF in HDMI codec driver after codec reconfiguration */
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, true);
 
 	/*
 	 * resume only when we are not in suspend active, otherwise need to
@@ -446,8 +439,10 @@ static int skl_free(struct hdac_bus *bus)
 	snd_hdac_ext_bus_exit(bus);
 
 	cancel_work_sync(&skl->probe_work);
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 		snd_hdac_i915_exit(bus);
+	}
 
 	return 0;
 }
@@ -814,7 +809,7 @@ static void skl_probe_work(struct work_struct *work)
 	err = skl_platform_register(bus->dev);
 	if (err < 0) {
 		dev_err(bus->dev, "platform register failed: %d\n", err);
-		return;
+		goto out_err;
 	}
 
 	err = skl_machine_device_register(skl);

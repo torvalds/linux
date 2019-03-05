@@ -82,8 +82,6 @@ static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 	int bits_to_copy;
 	__u64 print_num;
 
-	data += BITS_ROUNDDOWN_BYTES(bit_offset);
-	bit_offset = BITS_PER_BYTE_MASKED(bit_offset);
 	bits_to_copy = bit_offset + nr_bits;
 	bytes_to_copy = BITS_ROUNDUP_BYTES(bits_to_copy);
 
@@ -118,7 +116,9 @@ static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
 	 * BTF_INT_OFFSET() cannot exceed 64 bits.
 	 */
 	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
-	btf_dumper_bitfield(nr_bits, total_bits_offset, data, jw,
+	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
+	bit_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	btf_dumper_bitfield(nr_bits, bit_offset, data, jw,
 			    is_plain_text);
 }
 
@@ -216,11 +216,12 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 		}
 
 		jsonw_name(d->jw, btf__name_by_offset(d->btf, m[i].name_off));
+		data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
 		if (bitfield_size) {
-			btf_dumper_bitfield(bitfield_size, bit_offset,
-					    data, d->jw, d->is_plain_text);
+			btf_dumper_bitfield(bitfield_size,
+					    BITS_PER_BYTE_MASKED(bit_offset),
+					    data_off, d->jw, d->is_plain_text);
 		} else {
-			data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
 			ret = btf_dumper_do_type(d, m[i].type,
 						 BITS_PER_BYTE_MASKED(bit_offset),
 						 data_off);

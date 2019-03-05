@@ -807,7 +807,9 @@ static void vim2m_stop_streaming(struct vb2_queue *q)
 	struct vb2_v4l2_buffer *vbuf;
 	unsigned long flags;
 
-	cancel_delayed_work_sync(&dev->work_run);
+	if (v4l2_m2m_get_curr_priv(dev->m2m_dev) == ctx)
+		cancel_delayed_work_sync(&dev->work_run);
+
 	for (;;) {
 		if (V4L2_TYPE_IS_OUTPUT(q->type))
 			vbuf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);

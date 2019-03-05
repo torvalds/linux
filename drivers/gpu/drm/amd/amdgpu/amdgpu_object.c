@@ -912,7 +912,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	struct ttm_operation_ctx ctx = { false, false };
 	int r, i;
 
-	if (!bo->pin_count) {
+	if (WARN_ON_ONCE(!bo->pin_count)) {
 		dev_warn(adev->dev, "%p unpin not necessary\n", bo);
 		return 0;
 	}

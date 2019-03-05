@@ -18,8 +18,8 @@ ssize_t security_show(struct device *dev,
 	 * For the test version we need to poll the "hardware" in order
 	 * to get the updated status for unlock testing.
 	 */
-	nvdimm->sec.state = nvdimm_security_state(nvdimm, false);
-	nvdimm->sec.ext_state = nvdimm_security_state(nvdimm, true);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
+	nvdimm->sec.ext_state = nvdimm_security_state(nvdimm, NVDIMM_MASTER);
 
 	switch (nvdimm->sec.state) {
 	case NVDIMM_SECURITY_DISABLED:

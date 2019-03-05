@@ -413,6 +413,7 @@ struct pci_dev {
 	unsigned int	non_compliant_bars:1;	/* Broken BARs; ignore them */
 	unsigned int	is_probed:1;		/* Device probing in progress */
 	unsigned int	link_active_reporting:1;/* Device capable of reporting link active */
+	unsigned int	no_vf_scan:1;		/* Don't scan for VFs after IOV enablement */
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -772,9 +773,9 @@ struct pci_driver {
 	int  (*suspend)(struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*suspend_late)(struct pci_dev *dev, pm_message_t state);
 	int  (*resume_early)(struct pci_dev *dev);
-	int  (*resume) (struct pci_dev *dev);	/* Device woken up */
-	void (*shutdown) (struct pci_dev *dev);
-	int  (*sriov_configure) (struct pci_dev *dev, int num_vfs); /* On PF */
+	int  (*resume)(struct pci_dev *dev);	/* Device woken up */
+	void (*shutdown)(struct pci_dev *dev);
+	int  (*sriov_configure)(struct pci_dev *dev, int num_vfs); /* On PF */
 	const struct pci_error_handlers *err_handler;
 	const struct attribute_group **groups;
 	struct device_driver	driver;

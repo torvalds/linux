@@ -49,6 +49,10 @@
 #include "soc15_common.h"
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
+#include "nbio/nbio_7_4_sh_mask.h"
+
+#define smnPCIE_LC_SPEED_CNTL			0x11140290
+#define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
 
 static void vega20_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
@@ -386,9 +390,9 @@ static int vega20_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
-	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO];
-	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
-	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 
 	vega20_set_default_registry_data(hwmgr);
 
@@ -975,6 +979,9 @@ static int vega20_od8_set_feature_capabilities(
 	if (pptable_information->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ZERO_RPM_CONTROL] &&
 	    pp_table->FanZeroRpmEnable)
 		od_settings->overdrive8_capabilities |= OD8_FAN_ZERO_RPM_CONTROL;
+
+	if (!od_settings->overdrive8_capabilities)
+		hwmgr->od_enabled = false;
 
 	return 0;
 }
@@ -1685,13 +1692,6 @@ static int vega20_upload_dpm_min_level(struct pp_hwmgr *hwmgr, uint32_t feature_
 					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
 					"Failed to set soft min memclk !",
 					return ret);
-
-		min_freq = data->dpm_table.mem_table.dpm_state.hard_min_level;
-		PP_ASSERT_WITH_CODE(!(ret = smum_send_msg_to_smc_with_parameter(
-					hwmgr, PPSMC_MSG_SetHardMinByFreq,
-					(PPCLK_UCLK << 16) | (min_freq & 0xffff))),
-					"Failed to set hard min memclk !",
-					return ret);
 	}
 
 	if (data->smu_features[GNLD_DPM_UVD].enabled &&
@@ -2244,6 +2244,13 @@ static int vega20_force_clock_level(struct pp_hwmgr *hwmgr,
 		soft_min_level = mask ? (ffs(mask) - 1) : 0;
 		soft_max_level = mask ? (fls(mask) - 1) : 0;
 
+		if (soft_max_level >= data->dpm_table.gfx_table.count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level,
+					data->dpm_table.gfx_table.count - 1);
+			return -EINVAL;
+		}
+
 		data->dpm_table.gfx_table.dpm_state.soft_min_level =
 			data->dpm_table.gfx_table.dpm_levels[soft_min_level].value;
 		data->dpm_table.gfx_table.dpm_state.soft_max_level =
@@ -2264,6 +2271,13 @@ static int vega20_force_clock_level(struct pp_hwmgr *hwmgr,
 		soft_min_level = mask ? (ffs(mask) - 1) : 0;
 		soft_max_level = mask ? (fls(mask) - 1) : 0;
 
+		if (soft_max_level >= data->dpm_table.mem_table.count) {
+			pr_err("Clock level specified %d is over max allowed %d\n",
+					soft_max_level,
+					data->dpm_table.mem_table.count - 1);
+			return -EINVAL;
+		}
+
 		data->dpm_table.mem_table.dpm_state.soft_min_level =
 			data->dpm_table.mem_table.dpm_levels[soft_min_level].value;
 		data->dpm_table.mem_table.dpm_state.soft_max_level =
@@ -2282,6 +2296,18 @@ static int vega20_force_clock_level(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_PCIE:
+		soft_min_level = mask ? (ffs(mask) - 1) : 0;
+		soft_max_level = mask ? (fls(mask) - 1) : 0;
+		if (soft_min_level >= NUM_LINK_LEVELS ||
+		    soft_max_level >= NUM_LINK_LEVELS)
+			return -EINVAL;
+
+		ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetMinLinkDpmByIndex, soft_min_level);
+		PP_ASSERT_WITH_CODE(!ret,
+			"Failed to set min link dpm level!",
+			return ret);
+
 		break;
 
 	default:
@@ -2758,9 +2784,14 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 			data->od8_settings.od8_settings_array;
 	OverDriveTable_t *od_table =
 			&(data->smc_state_table.overdrive_table);
+	struct phm_ppt_v3_information *pptable_information =
+		(struct phm_ppt_v3_information *)hwmgr->pptable;
+	PPTable_t *pptable = (PPTable_t *)pptable_information->smc_pptable;
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct pp_clock_levels_with_latency clocks;
 	int i, now, size = 0;
 	int ret = 0;
+	uint32_t gen_speed, lane_width;
 
 	switch (type) {
 	case PP_SCLK:
@@ -2798,6 +2829,28 @@ static int vega20_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 
 	case PP_PCIE:
+		gen_speed = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
+			     PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
+			    >> PSWUSP0_PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
+		lane_width = (RREG32_PCIE(smnPCIE_LC_LINK_WIDTH_CNTL) &
+			      PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD_MASK)
+			    >> PCIE_LC_LINK_WIDTH_CNTL__LC_LINK_WIDTH_RD__SHIFT;
+		for (i = 0; i < NUM_LINK_LEVELS; i++)
+			size += sprintf(buf + size, "%d: %s %s %dMhz %s\n", i,
+					(pptable->PcieGenSpeed[i] == 0) ? "2.5GT/s," :
+					(pptable->PcieGenSpeed[i] == 1) ? "5.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 2) ? "8.0GT/s," :
+					(pptable->PcieGenSpeed[i] == 3) ? "16.0GT/s," : "",
+					(pptable->PcieLaneCount[i] == 1) ? "x1" :
+					(pptable->PcieLaneCount[i] == 2) ? "x2" :
+					(pptable->PcieLaneCount[i] == 3) ? "x4" :
+					(pptable->PcieLaneCount[i] == 4) ? "x8" :
+					(pptable->PcieLaneCount[i] == 5) ? "x12" :
+					(pptable->PcieLaneCount[i] == 6) ? "x16" : "",
+					pptable->LclkFreq[i],
+					(gen_speed == pptable->PcieGenSpeed[i]) &&
+					(lane_width == pptable->PcieLaneCount[i]) ?
+					"*" : "");
 		break;
 
 	case OD_SCLK:
@@ -3218,6 +3271,9 @@ static int conv_power_profile_to_pplib_workload(int power_profile)
 	int pplib_workload = 0;
 
 	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
+		pplib_workload = WORKLOAD_DEFAULT_BIT;
+		break;
 	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
 		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
 		break;
@@ -3247,6 +3303,7 @@ static int vega20_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	uint32_t i, size = 0;
 	uint16_t workload_type = 0;
 	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
 					"3D_FULL_SCREEN",
 					"POWER_SAVING",
 					"VIDEO",

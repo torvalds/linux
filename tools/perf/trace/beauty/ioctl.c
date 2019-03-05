@@ -112,6 +112,17 @@ static size_t ioctl__scnprintf_perf_cmd(int nr, int dir, char *bf, size_t size)
 	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
 }
 
+static size_t ioctl__scnprintf_usbdevfs_cmd(int nr, int dir, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/usbdevfs_ioctl_array.c"
+	static DEFINE_STRARRAY(usbdevfs_ioctl_cmds, "");
+
+	if (nr < strarray__usbdevfs_ioctl_cmds.nr_entries && strarray__usbdevfs_ioctl_cmds.entries[nr] != NULL)
+		return scnprintf(bf, size, "USBDEVFS_%s", strarray__usbdevfs_ioctl_cmds.entries[nr]);
+
+	return scnprintf(bf, size, "(%c, %#x, %#x)", 'U', nr, dir);
+}
+
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size, bool show_prefix)
 {
 	const char *prefix = "_IOC_";
@@ -157,9 +168,20 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size, boo
 	return printed + scnprintf(bf + printed, size - printed, ", %#x, %#x, %#x)", type, nr, sz);
 }
 
+#ifndef USB_DEVICE_MAJOR
+#define USB_DEVICE_MAJOR 189
+#endif // USB_DEVICE_MAJOR
+
 size_t syscall_arg__scnprintf_ioctl_cmd(char *bf, size_t size, struct syscall_arg *arg)
 {
 	unsigned long cmd = arg->val;
+	unsigned int fd = syscall_arg__val(arg, 0);
+	struct file *file = thread__files_entry(arg->thread, fd);
+
+	if (file != NULL) {
+		if (file->dev_maj == USB_DEVICE_MAJOR)
+			return ioctl__scnprintf_usbdevfs_cmd(_IOC_NR(cmd), _IOC_DIR(cmd), bf, size);
+	}
 
 	return ioctl__scnprintf_cmd(cmd, bf, size, arg->show_string_prefix);
 }

@@ -123,6 +123,7 @@ static void read_arc_build_cfg_regs(void)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	const struct id_to_str *tbl;
 	struct bcr_isa_arcv2 isa;
+	struct bcr_actionpoint ap;
 
 	FIX_PTR(cpu);
 
@@ -195,6 +196,7 @@ static void read_arc_build_cfg_regs(void)
 		cpu->bpu.full = bpu.ft;
 		cpu->bpu.num_cache = 256 << bpu.bce;
 		cpu->bpu.num_pred = 2048 << bpu.pte;
+		cpu->bpu.ret_stk = 4 << bpu.rse;
 
 		if (cpu->core.family >= 0x54) {
 			unsigned int exec_ctrl;
@@ -207,16 +209,17 @@ static void read_arc_build_cfg_regs(void)
 		}
 	}
 
-	READ_BCR(ARC_REG_AP_BCR, bcr);
-	cpu->extn.ap = bcr.ver ? 1 : 0;
+	READ_BCR(ARC_REG_AP_BCR, ap);
+	if (ap.ver) {
+		cpu->extn.ap_num = 2 << ap.num;
+		cpu->extn.ap_full = !!ap.min;
+	}
 
 	READ_BCR(ARC_REG_SMART_BCR, bcr);
 	cpu->extn.smart = bcr.ver ? 1 : 0;
 
 	READ_BCR(ARC_REG_RTT_BCR, bcr);
 	cpu->extn.rtt = bcr.ver ? 1 : 0;
-
-	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart | cpu->extn.rtt;
 
 	READ_BCR(ARC_REG_ISA_CFG_BCR, isa);
 
@@ -299,10 +302,10 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	if (cpu->bpu.ver)
 		n += scnprintf(buf + n, len - n,
-			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d",
+			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d Return stk: %d",
 			      IS_AVAIL1(cpu->bpu.full, "full"),
 			      IS_AVAIL1(!cpu->bpu.full, "partial"),
-			      cpu->bpu.num_cache, cpu->bpu.num_pred);
+			      cpu->bpu.num_cache, cpu->bpu.num_pred, cpu->bpu.ret_stk);
 
 	if (is_isa_arcv2()) {
 		struct bcr_lpb lpb;
@@ -336,11 +339,17 @@ static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 			       IS_AVAIL1(cpu->extn.fpu_sp, "SP "),
 			       IS_AVAIL1(cpu->extn.fpu_dp, "DP "));
 
-	if (cpu->extn.debug)
-		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s%s\n",
-			       IS_AVAIL1(cpu->extn.ap, "ActionPoint "),
+	if (cpu->extn.ap_num | cpu->extn.smart | cpu->extn.rtt) {
+		n += scnprintf(buf + n, len - n, "DEBUG\t\t: %s%s",
 			       IS_AVAIL1(cpu->extn.smart, "smaRT "),
 			       IS_AVAIL1(cpu->extn.rtt, "RTT "));
+		if (cpu->extn.ap_num) {
+			n += scnprintf(buf + n, len - n, "ActionPoint %d/%s",
+				       cpu->extn.ap_num,
+				       cpu->extn.ap_full ? "full":"min");
+		}
+		n += scnprintf(buf + n, len - n, "\n");
+	}
 
 	if (cpu->dccm.sz || cpu->iccm.sz)
 		n += scnprintf(buf + n, len - n, "Extn [CCM]\t: DCCM @ %x, %d KB / ICCM: @ %x, %d KB\n",

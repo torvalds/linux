@@ -178,7 +178,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	state = drm_atomic_state_alloc(fb->dev);
 	if (!state) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_drop_locks;
 	}
 	state->acquire_ctx = &ctx;
 
@@ -238,6 +238,7 @@ out:
 	kfree(rects);
 	drm_atomic_state_put(state);
 
+out_drop_locks:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 

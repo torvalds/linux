@@ -260,6 +260,7 @@ struct irq_affinity {
 /**
  * struct irq_affinity_desc - Interrupt affinity descriptor
  * @mask:	cpumask to hold the affinity assignment
+ * @is_managed: 1 if the interrupt is managed internally
  */
 struct irq_affinity_desc {
 	struct cpumask	mask;

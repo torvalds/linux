@@ -3052,8 +3052,8 @@ F:	include/linux/bcm963xx_nvram.h
 F:	include/linux/bcm963xx_tag.h
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
-M:	Rasesh Mody <rasesh.mody@cavium.com>
-M:	Dept-GELinuxNICDev@cavium.com
+M:	Rasesh Mody <rmody@marvell.com>
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2.*
@@ -3072,9 +3072,9 @@ S:	Supported
 F:	drivers/scsi/bnx2i/
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
-M:	Ariel Elior <ariel.elior@cavium.com>
-M:	Sudarsana Kalluru <sudarsana.kalluru@cavium.com>
-M:	everest-linux-l2@cavium.com
+M:	Ariel Elior <aelior@marvell.com>
+M:	Sudarsana Kalluru <skalluru@marvell.com>
+M:	GR-everest-linux-l2@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
@@ -3249,9 +3249,9 @@ S:	Supported
 F:	drivers/scsi/bfa/
 
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
-M:	Rasesh Mody <rasesh.mody@cavium.com>
-M:	Sudarsana Kalluru <sudarsana.kalluru@cavium.com>
-M:	Dept-GELinuxNICDev@cavium.com
+M:	Rasesh Mody <rmody@marvell.com>
+M:	Sudarsana Kalluru <skalluru@marvell.com>
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/brocade/bna/
@@ -3471,10 +3471,9 @@ F:	drivers/i2c/busses/i2c-octeon*
 F:	drivers/i2c/busses/i2c-thunderx*
 
 CAVIUM LIQUIDIO NETWORK DRIVER
-M:	Derek Chickles <derek.chickles@caviumnetworks.com>
-M:	Satanand Burla <satananda.burla@caviumnetworks.com>
-M:	Felix Manlunas <felix.manlunas@caviumnetworks.com>
-M:	Raghu Vatsavayi <raghu.vatsavayi@caviumnetworks.com>
+M:	Derek Chickles <dchickles@marvell.com>
+M:	Satanand Burla <sburla@marvell.com>
+M:	Felix Manlunas <fmanlunas@marvell.com>
 L:	netdev@vger.kernel.org
 W:	http://www.cavium.com
 S:	Supported
@@ -3674,10 +3673,19 @@ F:	drivers/input/touchscreen/chipone_icn8505.c
 
 CHROME HARDWARE PLATFORM SUPPORT
 M:	Benson Leung <bleung@chromium.org>
-M:	Olof Johansson <olof@lixom.net>
+M:	Enric Balletbo i Serra <enric.balletbo@collabora.com>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bleung/chrome-platform.git
 F:	drivers/platform/chrome/
+
+CHROMEOS EC SUBDRIVERS
+M:	Benson Leung <bleung@chromium.org>
+M:	Enric Balletbo i Serra <enric.balletbo@collabora.com>
+R:	Guenter Roeck <groeck@chromium.org>
+S:	Maintained
+N:	cros_ec
+N:	cros-ec
+F:	drivers/power/supply/cros_usbpd-charger.c
 
 CIRRUS LOGIC AUDIO CODEC DRIVERS
 M:	Brian Austin <brian.austin@cirrus.com>
@@ -3942,7 +3950,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/ti/cpmac.c
 
-CPU FREQUENCY DRIVERS
+CPU FREQUENCY SCALING FRAMEWORK
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	linux-pm@vger.kernel.org
@@ -3950,6 +3958,8 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 T:	git git://git.linaro.org/people/vireshk/linux.git (For ARM Updates)
 B:	https://bugzilla.kernel.org
+F:	Documentation/admin-guide/pm/cpufreq.rst
+F:	Documentation/admin-guide/pm/intel_pstate.rst
 F:	Documentation/cpu-freq/
 F:	Documentation/devicetree/bindings/cpufreq/
 F:	drivers/cpufreq/
@@ -3968,6 +3978,7 @@ F:	drivers/cpufreq/arm_big_little.c
 CPU POWER MONITORING SUBSYSTEM
 M:	Thomas Renninger <trenn@suse.com>
 M:	Shuah Khan <shuah@kernel.org>
+M:	Shuah Khan <skhan@linuxfoundation.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	tools/power/cpupower/
@@ -3997,13 +4008,14 @@ S:	Supported
 F:	drivers/cpuidle/cpuidle-exynos.c
 F:	arch/arm/mach-exynos/pm.c
 
-CPUIDLE DRIVERS
+CPU IDLE TIME MANAGEMENT FRAMEWORK
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 B:	https://bugzilla.kernel.org
+F:	Documentation/admin-guide/pm/cpuidle.rst
 F:	drivers/cpuidle/*
 F:	include/linux/cpuidle.h
 
@@ -5710,7 +5722,7 @@ W:	http://ext4.wiki.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git
 S:	Maintained
-F:	Documentation/filesystems/ext4/ext4.rst
+F:	Documentation/filesystems/ext4/
 F:	fs/ext4/
 
 Extended Verification Module (EVM)
@@ -8247,6 +8259,7 @@ F:	include/uapi/linux/sunrpc/
 
 KERNEL SELFTEST FRAMEWORK
 M:	Shuah Khan <shuah@kernel.org>
+M:	Shuah Khan <skhan@linuxfoundation.org>
 L:	linux-kselftest@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shuah/linux-kselftest.git
 Q:	https://patchwork.kernel.org/project/linux-kselftest/list/
@@ -10677,9 +10690,9 @@ S:	Maintained
 F:	drivers/net/netdevsim/*
 
 NETXEN (1/10) GbE SUPPORT
-M:	Manish Chopra <manish.chopra@cavium.com>
-M:	Rahul Verma <rahul.verma@cavium.com>
-M:	Dept-GELinuxNICDev@cavium.com
+M:	Manish Chopra <manishc@marvell.com>
+M:	Rahul Verma <rahulv@marvell.com>
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/netxen/
@@ -11750,6 +11763,7 @@ F:	include/uapi/linux/pci*
 F:	lib/pci*
 F:	arch/x86/pci/
 F:	arch/x86/kernel/quirks.c
+F:	arch/x86/kernel/early-quirks.c
 
 PCI NATIVE HOST BRIDGE AND ENDPOINT DRIVERS
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -11758,6 +11772,13 @@ Q:	http://patchwork.ozlabs.org/project/linux-pci/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lpieralisi/pci.git/
 S:	Supported
 F:	drivers/pci/controller/
+
+PCIE DRIVER FOR AMLOGIC MESON
+M:	Yue Wang <yue.wang@Amlogic.com>
+L:	linux-pci@vger.kernel.org
+L:	linux-amlogic@lists.infradead.org
+S:	Maintained
+F:	drivers/pci/controller/dwc/pci-meson.c
 
 PCIE DRIVER FOR AXIS ARTPEC
 M:	Jesper Nilsson <jesper.nilsson@axis.com>
@@ -11791,7 +11812,6 @@ F:	Documentation/devicetree/bindings/pci/kirin-pcie.txt
 F:	drivers/pci/controller/dwc/pcie-kirin.c
 
 PCIE DRIVER FOR HISILICON STB
-M:	Jianguo Sun <sunjianguo1@huawei.com>
 M:	Shawn Guo <shawn.guo@linaro.org>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -11827,6 +11847,13 @@ L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/v3-v360epc-pci.txt
 F:	drivers/pci/controller/pci-v3-semi.c
+
+PCIE DRIVER FOR SOCIONEXT UNIPHIER
+M:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/uniphier-pcie.txt
+F:	drivers/pci/controller/dwc/pcie-uniphier.c
 
 PCIE DRIVER FOR ST SPEAR13XX
 M:	Pratyush Anand <pratyush.anand@gmail.com>
@@ -12449,8 +12476,8 @@ S:	Supported
 F:	drivers/scsi/qedi/
 
 QLOGIC QL4xxx ETHERNET DRIVER
-M:	Ariel Elior <Ariel.Elior@cavium.com>
-M:	everest-linux-l2@cavium.com
+M:	Ariel Elior <aelior@marvell.com>
+M:	GR-everest-linux-l2@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qed/
@@ -12458,8 +12485,8 @@ F:	include/linux/qed/
 F:	drivers/net/ethernet/qlogic/qede/
 
 QLOGIC QL4xxx RDMA DRIVER
-M:	Michal Kalderon <Michal.Kalderon@cavium.com>
-M:	Ariel Elior <Ariel.Elior@cavium.com>
+M:	Michal Kalderon <mkalderon@marvell.com>
+M:	Ariel Elior <aelior@marvell.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/qedr/
@@ -12479,7 +12506,7 @@ F:	Documentation/scsi/LICENSE.qla2xxx
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
-M:	Dept-GELinuxNICDev@cavium.com
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/qlogic/LICENSE.qla3xxx
@@ -12493,16 +12520,16 @@ F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Shahed Shaikh <Shahed.Shaikh@cavium.com>
-M:	Manish Chopra <manish.chopra@cavium.com>
-M:	Dept-GELinuxNICDev@cavium.com
+M:	Shahed Shaikh <shshaikh@marvell.com>
+M:	Manish Chopra <manishc@marvell.com>
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Manish Chopra <manish.chopra@cavium.com>
-M:	Dept-GELinuxNICDev@cavium.com
+M:	Manish Chopra <manishc@marvell.com>
+M:	GR-Linux-NIC-Dev@marvell.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/qlge/
@@ -13797,8 +13824,9 @@ F:	drivers/media/mmc/siano/
 
 SIFIVE DRIVERS
 M:	Palmer Dabbelt <palmer@sifive.com>
+M:	Paul Walmsley <paul.walmsley@sifive.com>
 L:	linux-riscv@lists.infradead.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/palmer/riscv-linux.git
+T:	git git://github.com/sifive/riscv-linux.git
 S:	Supported
 K:	sifive
 N:	sifive
@@ -14408,6 +14436,11 @@ M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
 F:	drivers/staging/rtl8712/
+
+STAGING - REALTEK RTL8188EU DRIVERS
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+S:	Odd Fixes
+F:	drivers/staging/rtl8188eu/
 
 STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
@@ -15779,7 +15812,6 @@ M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org
 L:	usb-storage@lists.one-eyed-alien.net
 S:	Maintained
-W:	http://www.one-eyed-alien.net/~mdharm/linux-usb/
 F:	drivers/usb/storage/
 
 USB MIDI DRIVER
@@ -15811,6 +15843,7 @@ F:	drivers/usb/common/usb-otg-fsm.c
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>
 M:	Shuah Khan <shuah@kernel.org>
+M:	Shuah Khan <skhan@linuxfoundation.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/usbip_protocol.txt
@@ -16608,6 +16641,15 @@ S:	Maintained
 F:	drivers/platform/x86/
 F:	drivers/platform/olpc/
 
+X86 PLATFORM DRIVERS - ARCH
+R:	Darren Hart <dvhart@infradead.org>
+R:	Andy Shevchenko <andy@infradead.org>
+L:	platform-driver-x86@vger.kernel.org
+L:	x86@kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core
+S:	Maintained
+F:	arch/x86/platform
+
 X86 VDSO
 M:	Andy Lutomirski <luto@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -16639,6 +16681,24 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/tuner-xc2028.*
+
+XDP (eXpress Data Path)
+M:	Alexei Starovoitov <ast@kernel.org>
+M:	Daniel Borkmann <daniel@iogearbox.net>
+M:	David S. Miller <davem@davemloft.net>
+M:	Jakub Kicinski <jakub.kicinski@netronome.com>
+M:	Jesper Dangaard Brouer <hawk@kernel.org>
+M:	John Fastabend <john.fastabend@gmail.com>
+L:	netdev@vger.kernel.org
+L:	xdp-newbies@vger.kernel.org
+S:	Supported
+F:	net/core/xdp.c
+F:	include/net/xdp.h
+F:	kernel/bpf/devmap.c
+F:	kernel/bpf/cpumap.c
+F:	include/trace/events/xdp.h
+K:	xdp
+N:	xdp
 
 XDP SOCKETS (AF_XDP)
 M:	Björn Töpel <bjorn.topel@intel.com>

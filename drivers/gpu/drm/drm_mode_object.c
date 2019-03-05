@@ -459,11 +459,11 @@ static int set_property_atomic(struct drm_mode_object *obj,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, 0);
-
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
 retry:
 	if (prop == state->dev->mode_config.dpms_property) {

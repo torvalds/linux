@@ -204,8 +204,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		ret = dma_alloc_from_pool(size, &page, flags);
 		if (!ret)
 			return NULL;
-		*dma_handle = phys_to_dma(dev, page_to_phys(page));
-		return ret;
+		goto done;
 	}
 
 	page = __dma_direct_alloc_pages(dev, size, dma_handle, flags, attrs);
@@ -215,8 +214,10 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	/* remove any dirty cache lines on the kernel alias */
 	arch_dma_prep_coherent(page, size);
 
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING)
-		return page; /* opaque cookie */
+	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
+		ret = page; /* opaque cookie */
+		goto done;
+	}
 
 	/* create a coherent mapping */
 	ret = dma_common_contiguous_remap(page, size, VM_USERMAP,
@@ -227,9 +228,9 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		return ret;
 	}
 
-	*dma_handle = phys_to_dma(dev, page_to_phys(page));
 	memset(ret, 0, size);
-
+done:
+	*dma_handle = phys_to_dma(dev, page_to_phys(page));
 	return ret;
 }
 

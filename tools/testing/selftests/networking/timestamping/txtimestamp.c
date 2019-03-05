@@ -240,7 +240,7 @@ static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
 			    cm->cmsg_type == IP_RECVERR) ||
 			   (cm->cmsg_level == SOL_IPV6 &&
 			    cm->cmsg_type == IPV6_RECVERR) ||
-			   (cm->cmsg_level = SOL_PACKET &&
+			   (cm->cmsg_level == SOL_PACKET &&
 			    cm->cmsg_type == PACKET_TX_TIMESTAMP)) {
 			serr = (void *) CMSG_DATA(cm);
 			if (serr->ee_errno != ENOMSG ||

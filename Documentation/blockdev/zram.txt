@@ -156,22 +156,23 @@ Per-device statistics are exported as various nodes under /sys/block/zram<id>/
 A brief description of exported device attributes. For more details please
 read Documentation/ABI/testing/sysfs-block-zram.
 
-Name            access            description
-----            ------            -----------
-disksize          RW    show and set the device's disk size
-initstate         RO    shows the initialization state of the device
-reset             WO    trigger device reset
-mem_used_max      WO    reset the `mem_used_max' counter (see later)
-mem_limit         WO    specifies the maximum amount of memory ZRAM can use
-                        to store the compressed data
-writeback_limit   WO    specifies the maximum amount of write IO zram can
-			write out to backing device as 4KB unit
-max_comp_streams  RW    the number of possible concurrent compress operations
-comp_algorithm    RW    show and change the compression algorithm
-compact           WO    trigger memory compaction
-debug_stat        RO    this file is used for zram debugging purposes
-backing_dev	  RW	set up backend storage for zram to write out
-idle		  WO	mark allocated slot as idle
+Name            	access            description
+----            	------            -----------
+disksize          	RW	show and set the device's disk size
+initstate         	RO	shows the initialization state of the device
+reset             	WO	trigger device reset
+mem_used_max      	WO	reset the `mem_used_max' counter (see later)
+mem_limit         	WO	specifies the maximum amount of memory ZRAM can use
+				to store the compressed data
+writeback_limit   	WO	specifies the maximum amount of write IO zram can
+				write out to backing device as 4KB unit
+writeback_limit_enable  RW	show and set writeback_limit feature
+max_comp_streams  	RW	the number of possible concurrent compress operations
+comp_algorithm    	RW	show and change the compression algorithm
+compact           	WO	trigger memory compaction
+debug_stat        	RO	this file is used for zram debugging purposes
+backing_dev	  	RW	set up backend storage for zram to write out
+idle		  	WO	mark allocated slot as idle
 
 
 User space is advised to use the following files to read the device statistics.
@@ -280,31 +281,50 @@ With the command, zram writeback idle pages from memory to the storage.
 If there are lots of write IO with flash device, potentially, it has
 flash wearout problem so that admin needs to design write limitation
 to guarantee storage health for entire product life.
-To overcome the concern, zram supports "writeback_limit".
-The "writeback_limit"'s default value is 0 so that it doesn't limit
-any writeback. If admin want to measure writeback count in a certain
-period, he could know it via /sys/block/zram0/bd_stat's 3rd column.
+
+To overcome the concern, zram supports "writeback_limit" feature.
+The "writeback_limit_enable"'s default value is 0 so that it doesn't limit
+any writeback. IOW, if admin want to apply writeback budget, he should
+enable writeback_limit_enable via
+
+	$ echo 1 > /sys/block/zramX/writeback_limit_enable
+
+Once writeback_limit_enable is set, zram doesn't allow any writeback
+until admin set the budget via /sys/block/zramX/writeback_limit.
+
+(If admin doesn't enable writeback_limit_enable, writeback_limit's value
+assigned via /sys/block/zramX/writeback_limit is meaninless.)
 
 If admin want to limit writeback as per-day 400M, he could do it
 like below.
 
-    MB_SHIFT=20
-    4K_SHIFT=12
-    echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
-	    /sys/block/zram0/writeback_limit.
+	$ MB_SHIFT=20
+	$ 4K_SHIFT=12
+	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
+		/sys/block/zram0/writeback_limit.
+	$ echo 1 > /sys/block/zram0/writeback_limit_enable
 
-If admin want to allow further write again, he could do it like below
+If admin want to allow further write again once the bugdet is exausted,
+he could do it like below
 
-    echo 0 > /sys/block/zram0/writeback_limit
+	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
+		/sys/block/zram0/writeback_limit
 
 If admin want to see remaining writeback budget since he set,
 
-    cat /sys/block/zram0/writeback_limit
+	$ cat /sys/block/zramX/writeback_limit
+
+If admin want to disable writeback limit, he could do
+
+	$ echo 0 > /sys/block/zramX/writeback_limit_enable
 
 The writeback_limit count will reset whenever you reset zram(e.g.,
 system reboot, echo 1 > /sys/block/zramX/reset) so keeping how many of
 writeback happened until you reset the zram to allocate extra writeback
 budget in next setting is user's job.
+
+If admin want to measure writeback count in a certain period, he could
+know it via /sys/block/zram0/bd_stat's 3rd column.
 
 = memory tracking
 

@@ -146,6 +146,9 @@ static int smc_release(struct socket *sock)
 		sock_set_flag(sk, SOCK_DEAD);
 		sk->sk_shutdown |= SHUTDOWN_MASK;
 	}
+
+	sk->sk_prot->unhash(sk);
+
 	if (smc->clcsock) {
 		if (smc->use_fallback && sk->sk_state == SMC_LISTEN) {
 			/* wake up clcsock accept */
@@ -170,7 +173,6 @@ static int smc_release(struct socket *sock)
 		smc_conn_free(&smc->conn);
 	release_sock(sk);
 
-	sk->sk_prot->unhash(sk);
 	sock_put(sk); /* final sock_put */
 out:
 	return rc;

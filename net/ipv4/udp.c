@@ -847,15 +847,23 @@ static int udp_send_skb(struct sk_buff *skb, struct flowi4 *fl4,
 		const int hlen = skb_network_header_len(skb) +
 				 sizeof(struct udphdr);
 
-		if (hlen + cork->gso_size > cork->fragsize)
+		if (hlen + cork->gso_size > cork->fragsize) {
+			kfree_skb(skb);
 			return -EINVAL;
-		if (skb->len > cork->gso_size * UDP_MAX_SEGMENTS)
+		}
+		if (skb->len > cork->gso_size * UDP_MAX_SEGMENTS) {
+			kfree_skb(skb);
 			return -EINVAL;
-		if (sk->sk_no_check_tx)
+		}
+		if (sk->sk_no_check_tx) {
+			kfree_skb(skb);
 			return -EINVAL;
+		}
 		if (skb->ip_summed != CHECKSUM_PARTIAL || is_udplite ||
-		    dst_xfrm(skb_dst(skb)))
+		    dst_xfrm(skb_dst(skb))) {
+			kfree_skb(skb);
 			return -EIO;
+		}
 
 		skb_shinfo(skb)->gso_size = cork->gso_size;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP_L4;
@@ -1918,7 +1926,7 @@ void udp_lib_rehash(struct sock *sk, u16 newhash)
 }
 EXPORT_SYMBOL(udp_lib_rehash);
 
-static void udp_v4_rehash(struct sock *sk)
+void udp_v4_rehash(struct sock *sk)
 {
 	u16 new_hash = ipv4_portaddr_hash(sock_net(sk),
 					  inet_sk(sk)->inet_rcv_saddr,

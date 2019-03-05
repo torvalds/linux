@@ -36,9 +36,6 @@ config GENERIC_CALIBRATE_DELAY
 config NO_IOPORT_MAP
 	def_bool y
 
-config HAS_DMA
-	def_bool y
-
 config FPU
 	def_bool n
 

@@ -1821,7 +1821,7 @@ EXPORT_SYMBOL_GPL(net_dec_egress_queue);
 #endif
 
 static DEFINE_STATIC_KEY_FALSE(netstamp_needed_key);
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 static atomic_t netstamp_needed_deferred;
 static atomic_t netstamp_wanted;
 static void netstamp_clear(struct work_struct *work)
@@ -1840,7 +1840,7 @@ static DECLARE_WORK(netstamp_work, netstamp_clear);
 
 void net_enable_timestamp(void)
 {
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	int wanted;
 
 	while (1) {
@@ -1860,7 +1860,7 @@ EXPORT_SYMBOL(net_enable_timestamp);
 
 void net_disable_timestamp(void)
 {
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	int wanted;
 
 	while (1) {
@@ -8711,6 +8711,9 @@ int init_dummy_netdev(struct net_device *dev)
 	/* a dummy interface is started by default */
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 	set_bit(__LINK_STATE_START, &dev->state);
+
+	/* napi_busy_loop stats accounting wants this */
+	dev_net_set(dev, &init_net);
 
 	/* Note : We dont allocate pcpu_refcnt for dummy devices,
 	 * because users of this 'device' dont need to change

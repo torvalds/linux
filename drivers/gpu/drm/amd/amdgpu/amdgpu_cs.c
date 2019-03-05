@@ -1428,6 +1428,9 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(fence))
 		return PTR_ERR(fence);
 
+	if (!fence)
+		fence = dma_fence_get_stub();
+
 	switch (info->in.what) {
 	case AMDGPU_FENCE_TO_HANDLE_GET_SYNCOBJ:
 		r = drm_syncobj_create(&syncobj, 0, fence);

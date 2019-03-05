@@ -844,9 +844,12 @@ int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
 					     Autoneg);
 
-	if (get_fec_supported_advertised(mdev, link_ksettings))
+	err = get_fec_supported_advertised(mdev, link_ksettings);
+	if (err) {
 		netdev_dbg(priv->netdev, "%s: FEC caps query failed: %d\n",
 			   __func__, err);
+		err = 0; /* don't fail caps query because of FEC error */
+	}
 
 	if (!an_disable_admin)
 		ethtool_link_ksettings_add_link_mode(link_ksettings,

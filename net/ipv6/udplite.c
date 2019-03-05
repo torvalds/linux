@@ -49,6 +49,7 @@ struct proto udplitev6_prot = {
 	.recvmsg	   = udpv6_recvmsg,
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
+	.rehash		   = udp_v6_rehash,
 	.get_port	   = udp_v6_get_port,
 	.memory_allocated  = &udp_memory_allocated,
 	.sysctl_mem	   = sysctl_udp_mem,

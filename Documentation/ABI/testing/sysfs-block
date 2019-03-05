@@ -279,3 +279,12 @@ Description:
 		size in 512B sectors of the zones of the device, with
 		the eventual exception of the last zone of the device
 		which may be smaller.
+
+What:		/sys/block/<disk>/queue/io_timeout
+Date:		November 2018
+Contact:	Weiping Zhang <zhangweiping@didiglobal.com>
+Description:
+		io_timeout is the request timeout in milliseconds. If a request
+		does not complete in this time then the block driver timeout
+		handler is invoked. That timeout handler can decide to retry
+		the request, to fail it or to start a device recovery strategy.

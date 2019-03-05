@@ -151,10 +151,6 @@ static bool create_links(
 		return false;
 	}
 
-	if (connectors_num == 0 && num_virtual_links == 0) {
-		dm_error("DC: Number of connectors is zero!\n");
-	}
-
 	dm_output_to_console(
 		"DC: %s: connectors_num: physical:%d, virtual:%d\n",
 		__func__,
@@ -1471,7 +1467,8 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
-					stream_update->vsc_infopacket) {
+					stream_update->vsc_infopacket ||
+					stream_update->vsp_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
@@ -1572,9 +1569,6 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
 	}
-
-	if (update_type == UPDATE_TYPE_FULL)
-		context_timing_trace(dc, &context->res_ctx);
 
 	// Update Type FAST, Surface updates
 	if (update_type == UPDATE_TYPE_FAST) {

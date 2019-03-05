@@ -714,7 +714,7 @@ static int __init iscsi_target_init_module(void)
 			sizeof(struct iscsi_queue_req),
 			__alignof__(struct iscsi_queue_req), 0, NULL);
 	if (!lio_qr_cache) {
-		pr_err("nable to kmem_cache_create() for"
+		pr_err("Unable to kmem_cache_create() for"
 				" lio_qr_cache\n");
 		goto bitmap_out;
 	}

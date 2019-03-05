@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// reset-uniphier-usb3.c - USB3 reset driver for UniPhier
+// reset-uniphier-glue.c - Glue layer reset driver for UniPhier
 // Copyright 2018 Socionext Inc.
 // Author: Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
 
@@ -15,24 +15,24 @@
 #define MAX_CLKS	2
 #define MAX_RSTS	2
 
-struct uniphier_usb3_reset_soc_data {
+struct uniphier_glue_reset_soc_data {
 	int nclks;
 	const char * const *clock_names;
 	int nrsts;
 	const char * const *reset_names;
 };
 
-struct uniphier_usb3_reset_priv {
+struct uniphier_glue_reset_priv {
 	struct clk_bulk_data clk[MAX_CLKS];
 	struct reset_control *rst[MAX_RSTS];
 	struct reset_simple_data rdata;
-	const struct uniphier_usb3_reset_soc_data *data;
+	const struct uniphier_glue_reset_soc_data *data;
 };
 
-static int uniphier_usb3_reset_probe(struct platform_device *pdev)
+static int uniphier_glue_reset_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct uniphier_usb3_reset_priv *priv;
+	struct uniphier_glue_reset_priv *priv;
 	struct resource *res;
 	resource_size_t size;
 	const char *name;
@@ -100,9 +100,9 @@ out_rst_assert:
 	return ret;
 }
 
-static int uniphier_usb3_reset_remove(struct platform_device *pdev)
+static int uniphier_glue_reset_remove(struct platform_device *pdev)
 {
-	struct uniphier_usb3_reset_priv *priv = platform_get_drvdata(pdev);
+	struct uniphier_glue_reset_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < priv->data->nrsts; i++)
@@ -117,7 +117,7 @@ static const char * const uniphier_pro4_clock_reset_names[] = {
 	"gio", "link",
 };
 
-static const struct uniphier_usb3_reset_soc_data uniphier_pro4_data = {
+static const struct uniphier_glue_reset_soc_data uniphier_pro4_data = {
 	.nclks = ARRAY_SIZE(uniphier_pro4_clock_reset_names),
 	.clock_names = uniphier_pro4_clock_reset_names,
 	.nrsts = ARRAY_SIZE(uniphier_pro4_clock_reset_names),
@@ -128,14 +128,14 @@ static const char * const uniphier_pxs2_clock_reset_names[] = {
 	"link",
 };
 
-static const struct uniphier_usb3_reset_soc_data uniphier_pxs2_data = {
+static const struct uniphier_glue_reset_soc_data uniphier_pxs2_data = {
 	.nclks = ARRAY_SIZE(uniphier_pxs2_clock_reset_names),
 	.clock_names = uniphier_pxs2_clock_reset_names,
 	.nrsts = ARRAY_SIZE(uniphier_pxs2_clock_reset_names),
 	.reset_names = uniphier_pxs2_clock_reset_names,
 };
 
-static const struct of_device_id uniphier_usb3_reset_match[] = {
+static const struct of_device_id uniphier_glue_reset_match[] = {
 	{
 		.compatible = "socionext,uniphier-pro4-usb3-reset",
 		.data = &uniphier_pro4_data,
@@ -152,20 +152,32 @@ static const struct of_device_id uniphier_usb3_reset_match[] = {
 		.compatible = "socionext,uniphier-pxs3-usb3-reset",
 		.data = &uniphier_pxs2_data,
 	},
+	{
+		.compatible = "socionext,uniphier-pro4-ahci-reset",
+		.data = &uniphier_pro4_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs2-ahci-reset",
+		.data = &uniphier_pxs2_data,
+	},
+	{
+		.compatible = "socionext,uniphier-pxs3-ahci-reset",
+		.data = &uniphier_pxs2_data,
+	},
 	{ /* Sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, uniphier_usb3_reset_match);
+MODULE_DEVICE_TABLE(of, uniphier_glue_reset_match);
 
-static struct platform_driver uniphier_usb3_reset_driver = {
-	.probe = uniphier_usb3_reset_probe,
-	.remove = uniphier_usb3_reset_remove,
+static struct platform_driver uniphier_glue_reset_driver = {
+	.probe = uniphier_glue_reset_probe,
+	.remove = uniphier_glue_reset_remove,
 	.driver = {
-		.name = "uniphier-usb3-reset",
-		.of_match_table = uniphier_usb3_reset_match,
+		.name = "uniphier-glue-reset",
+		.of_match_table = uniphier_glue_reset_match,
 	},
 };
-module_platform_driver(uniphier_usb3_reset_driver);
+module_platform_driver(uniphier_glue_reset_driver);
 
 MODULE_AUTHOR("Kunihiko Hayashi <hayashi.kunihiko@socionext.com>");
-MODULE_DESCRIPTION("UniPhier USB3 Reset Driver");
+MODULE_DESCRIPTION("UniPhier Glue layer reset driver");
 MODULE_LICENSE("GPL");

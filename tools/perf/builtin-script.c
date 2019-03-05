@@ -1073,9 +1073,18 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 
 	/*
 	 * Print final block upto sample
+	 *
+	 * Due to pipeline delays the LBRs might be missing a branch
+	 * or two, which can result in very large or negative blocks
+	 * between final branch and sample. When this happens just
+	 * continue walking after the last TO until we hit a branch.
 	 */
 	start = br->entries[0].to;
 	end = sample->ip;
+	if (end < start) {
+		/* Missing jump. Scan 128 bytes for the next branch */
+		end = start + 128;
+	}
 	len = grab_bb(buffer, start, end, machine, thread, &x.is64bit, &x.cpumode, true);
 	printed += ip__fprintf_sym(start, thread, x.cpumode, x.cpu, &lastsym, attr, fp);
 	if (len <= 0) {
@@ -1084,7 +1093,6 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			      machine, thread, &x.is64bit, &x.cpumode, false);
 		if (len <= 0)
 			goto out;
-
 		printed += fprintf(fp, "\t%016" PRIx64 "\t%s\n", sample->ip,
 			dump_insn(&x, sample->ip, buffer, len, NULL));
 		if (PRINT_FIELD(SRCCODE))
@@ -1096,6 +1104,13 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 				   dump_insn(&x, start + off, buffer + off, len - off, &ilen));
 		if (ilen == 0)
 			break;
+		if (arch_is_branch(buffer + off, len - off, x.is64bit) && start + off != sample->ip) {
+			/*
+			 * Hit a missing branch. Just stop.
+			 */
+			printed += fprintf(fp, "\t... not reaching sample ...\n");
+			break;
+		}
 		if (PRINT_FIELD(SRCCODE))
 			print_srccode(thread, x.cpumode, start + off);
 	}
@@ -1167,7 +1182,7 @@ static int perf_sample__fprintf_callindent(struct perf_sample *sample,
 					   struct addr_location *al, FILE *fp)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	size_t depth = thread_stack__depth(thread);
+	size_t depth = thread_stack__depth(thread, sample->cpu);
 	const char *name = NULL;
 	static int spacing;
 	int len = 0;
@@ -1666,13 +1681,8 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 		.force_header = false,
 	};
 	struct perf_evsel *ev2;
-	static bool init;
 	u64 val;
 
-	if (!init) {
-		perf_stat__init_shadow_stats();
-		init = true;
-	}
 	if (!evsel->stats)
 		perf_evlist__alloc_stats(script->session->evlist, false);
 	if (evsel_script(evsel->leader)->gnum++ == 0)
@@ -1701,7 +1711,7 @@ static bool show_event(struct perf_sample *sample,
 		       struct thread *thread,
 		       struct addr_location *al)
 {
-	int depth = thread_stack__depth(thread);
+	int depth = thread_stack__depth(thread, sample->cpu);
 
 	if (!symbol_conf.graph_function)
 		return true;
@@ -1779,7 +1789,7 @@ static void process_event(struct perf_script *script,
 		return;
 	}
 
-	if (PRINT_FIELD(TRACE)) {
+	if (PRINT_FIELD(TRACE) && sample->raw_data) {
 		event_format__fprintf(evsel->tp_format, sample->cpu,
 				      sample->raw_data, sample->raw_size, fp);
 	}
@@ -2343,6 +2353,8 @@ static int __cmd_script(struct perf_script *script)
 	int ret;
 
 	signal(SIGINT, sig_handler);
+
+	perf_stat__init_shadow_stats();
 
 	/* override event processing functions */
 	if (script->show_task_events) {

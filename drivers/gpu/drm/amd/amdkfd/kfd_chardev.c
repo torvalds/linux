@@ -1623,8 +1623,8 @@ static int kfd_ioctl_import_dmabuf(struct file *filep,
 		return -EINVAL;
 
 	dmabuf = dma_buf_get(args->dmabuf_fd);
-	if (!dmabuf)
-		return -EINVAL;
+	if (IS_ERR(dmabuf))
+		return PTR_ERR(dmabuf);
 
 	mutex_lock(&p->mutex);
 

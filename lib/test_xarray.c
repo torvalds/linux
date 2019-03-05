@@ -199,7 +199,7 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 		XA_BUG_ON(xa, xa_store_index(xa, index + 1, GFP_KERNEL));
 		xa_set_mark(xa, index + 1, XA_MARK_0);
 		XA_BUG_ON(xa, xa_store_index(xa, index + 2, GFP_KERNEL));
-		xa_set_mark(xa, index + 2, XA_MARK_1);
+		xa_set_mark(xa, index + 2, XA_MARK_2);
 		XA_BUG_ON(xa, xa_store_index(xa, next, GFP_KERNEL));
 		xa_store_order(xa, index, order, xa_mk_index(index),
 				GFP_KERNEL);
@@ -209,8 +209,8 @@ static noinline void check_xa_mark_1(struct xarray *xa, unsigned long index)
 			void *entry;
 
 			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_0));
-			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_1));
-			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_2));
+			XA_BUG_ON(xa, xa_get_mark(xa, i, XA_MARK_1));
+			XA_BUG_ON(xa, !xa_get_mark(xa, i, XA_MARK_2));
 
 			/* We should see two elements in the array */
 			rcu_read_lock();
@@ -357,7 +357,7 @@ static noinline void check_cmpxchg(struct xarray *xa)
 static noinline void check_reserve(struct xarray *xa)
 {
 	void *entry;
-	unsigned long index = 0;
+	unsigned long index;
 
 	/* An array with a reserved entry is not empty */
 	XA_BUG_ON(xa, !xa_empty(xa));
@@ -382,10 +382,12 @@ static noinline void check_reserve(struct xarray *xa)
 	xa_erase_index(xa, 12345678);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
-	/* And so does xa_insert */
+	/* But xa_insert does not */
 	xa_reserve(xa, 12345678, GFP_KERNEL);
-	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) != 0);
-	xa_erase_index(xa, 12345678);
+	XA_BUG_ON(xa, xa_insert(xa, 12345678, xa_mk_value(12345678), 0) !=
+			-EEXIST);
+	XA_BUG_ON(xa, xa_empty(xa));
+	XA_BUG_ON(xa, xa_erase(xa, 12345678) != NULL);
 	XA_BUG_ON(xa, !xa_empty(xa));
 
 	/* Can iterate through a reserved entry */
@@ -393,7 +395,7 @@ static noinline void check_reserve(struct xarray *xa)
 	xa_reserve(xa, 6, GFP_KERNEL);
 	xa_store_index(xa, 7, GFP_KERNEL);
 
-	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+	xa_for_each(xa, index, entry) {
 		XA_BUG_ON(xa, index != 5 && index != 7);
 	}
 	xa_destroy(xa);
@@ -812,17 +814,16 @@ static noinline void check_find_1(struct xarray *xa)
 static noinline void check_find_2(struct xarray *xa)
 {
 	void *entry;
-	unsigned long i, j, index = 0;
+	unsigned long i, j, index;
 
-	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+	xa_for_each(xa, index, entry) {
 		XA_BUG_ON(xa, true);
 	}
 
 	for (i = 0; i < 1024; i++) {
 		xa_store_index(xa, index, GFP_KERNEL);
 		j = 0;
-		index = 0;
-		xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+		xa_for_each(xa, index, entry) {
 			XA_BUG_ON(xa, xa_mk_index(index) != entry);
 			XA_BUG_ON(xa, index != j++);
 		}
@@ -839,6 +840,7 @@ static noinline void check_find_3(struct xarray *xa)
 
 	for (i = 0; i < 100; i++) {
 		for (j = 0; j < 100; j++) {
+			rcu_read_lock();
 			for (k = 0; k < 100; k++) {
 				xas_set(&xas, j);
 				xas_for_each_marked(&xas, entry, k, XA_MARK_0)
@@ -847,6 +849,7 @@ static noinline void check_find_3(struct xarray *xa)
 					XA_BUG_ON(xa,
 						xas.xa_node != XAS_RESTART);
 			}
+			rcu_read_unlock();
 		}
 		xa_store_index(xa, i, GFP_KERNEL);
 		xa_set_mark(xa, i, XA_MARK_0);
@@ -1183,6 +1186,35 @@ static noinline void check_store_range(struct xarray *xa)
 	}
 }
 
+static void check_align_1(struct xarray *xa, char *name)
+{
+	int i;
+	unsigned int id;
+	unsigned long index;
+	void *entry;
+
+	for (i = 0; i < 8; i++) {
+		id = 0;
+		XA_BUG_ON(xa, xa_alloc(xa, &id, UINT_MAX, name + i, GFP_KERNEL)
+				!= 0);
+		XA_BUG_ON(xa, id != i);
+	}
+	xa_for_each(xa, index, entry)
+		XA_BUG_ON(xa, xa_is_err(entry));
+	xa_destroy(xa);
+}
+
+static noinline void check_align(struct xarray *xa)
+{
+	char name[] = "Motorola 68000";
+
+	check_align_1(xa, name);
+	check_align_1(xa, name + 1);
+	check_align_1(xa, name + 2);
+	check_align_1(xa, name + 3);
+//	check_align_2(xa, name);
+}
+
 static LIST_HEAD(shadow_nodes);
 
 static void test_update_node(struct xa_node *node)
@@ -1332,6 +1364,7 @@ static int xarray_checks(void)
 	check_create_range(&array);
 	check_store_range(&array);
 	check_store_iter(&array);
+	check_align(&xa0);
 
 	check_workingset(&array, 0);
 	check_workingset(&array, 64);

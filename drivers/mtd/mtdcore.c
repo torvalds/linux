@@ -522,7 +522,7 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
 	mtd->nvmem = nvmem_register(&config);
 	if (IS_ERR(mtd->nvmem)) {
 		/* Just ignore if there is no NVMEM support in the kernel */
-		if (PTR_ERR(mtd->nvmem) == -ENOSYS) {
+		if (PTR_ERR(mtd->nvmem) == -EOPNOTSUPP) {
 			mtd->nvmem = NULL;
 		} else {
 			dev_err(&mtd->dev, "Failed to register NVMEM device\n");

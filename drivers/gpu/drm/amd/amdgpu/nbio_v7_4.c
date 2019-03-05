@@ -31,6 +31,7 @@
 
 #define smnCPM_CONTROL                                                                                  0x11180460
 #define smnPCIE_CNTL2                                                                                   0x11180070
+#define smnPCIE_CI_CNTL                                                                                 0x11180080
 
 static u32 nbio_v7_4_get_rev_id(struct amdgpu_device *adev)
 {
@@ -222,7 +223,13 @@ static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
+	uint32_t def, data;
 
+	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
+	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_CI_CNTL, data);
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {

@@ -10,10 +10,12 @@ include/uapi/linux/fs.h
 include/uapi/linux/kcmp.h
 include/uapi/linux/kvm.h
 include/uapi/linux/in.h
+include/uapi/linux/mount.h
 include/uapi/linux/perf_event.h
 include/uapi/linux/prctl.h
 include/uapi/linux/sched.h
 include/uapi/linux/stat.h
+include/uapi/linux/usbdevice_fs.h
 include/uapi/linux/vhost.h
 include/uapi/sound/asound.h
 include/linux/bits.h
@@ -48,7 +50,6 @@ arch/parisc/include/uapi/asm/errno.h
 arch/powerpc/include/uapi/asm/errno.h
 arch/sparc/include/uapi/asm/errno.h
 arch/x86/include/uapi/asm/errno.h
-arch/powerpc/include/uapi/asm/unistd.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/__fls.h

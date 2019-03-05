@@ -2075,6 +2075,7 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(base);
+	int err;
 
 	/*
 	 * Workaround the limited maximum vma->pin_count and the aliasing_ppgtt
@@ -2090,9 +2091,17 @@ int gen6_ppgtt_pin(struct i915_hw_ppgtt *base)
 	 * allocator works in address space sizes, so it's multiplied by page
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
-	return i915_vma_pin(ppgtt->vma,
-			    0, GEN6_PD_ALIGN,
-			    PIN_GLOBAL | PIN_HIGH);
+	err = i915_vma_pin(ppgtt->vma,
+			   0, GEN6_PD_ALIGN,
+			   PIN_GLOBAL | PIN_HIGH);
+	if (err)
+		goto unpin;
+
+	return 0;
+
+unpin:
+	ppgtt->pin_count = 0;
+	return err;
 }
 
 void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base)

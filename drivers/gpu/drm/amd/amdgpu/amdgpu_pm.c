@@ -2008,6 +2008,7 @@ void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
 
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 	int ret;
 
 	if (adev->pm.sysfs_initialized)
@@ -2091,12 +2092,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_power_profile_mode\n");
 		return ret;
 	}
-	ret = device_create_file(adev->dev,
-			&dev_attr_pp_od_clk_voltage);
-	if (ret) {
-		DRM_ERROR("failed to create device file	"
-				"pp_od_clk_voltage\n");
-		return ret;
+	if (hwmgr->od_enabled) {
+		ret = device_create_file(adev->dev,
+				&dev_attr_pp_od_clk_voltage);
+		if (ret) {
+			DRM_ERROR("failed to create device file	"
+					"pp_od_clk_voltage\n");
+			return ret;
+		}
 	}
 	ret = device_create_file(adev->dev,
 			&dev_attr_gpu_busy_percent);
@@ -2118,6 +2121,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 {
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
 	if (adev->pm.dpm_enabled == 0)
 		return;
 
@@ -2138,8 +2143,9 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_power_profile_mode);
-	device_remove_file(adev->dev,
-			&dev_attr_pp_od_clk_voltage);
+	if (hwmgr->od_enabled)
+		device_remove_file(adev->dev,
+				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
 }
 

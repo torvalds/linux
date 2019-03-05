@@ -107,6 +107,7 @@ struct br_tunnel_info {
 /* private vlan flags */
 enum {
 	BR_VLFLAG_PER_PORT_STATS = BIT(0),
+	BR_VLFLAG_ADDED_BY_SWITCHDEV = BIT(1),
 };
 
 /**

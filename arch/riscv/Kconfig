@@ -28,11 +28,13 @@ config RISCV
 	select GENERIC_STRNLEN_USER
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
+	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_FUTEX_CMPXCHG if FUTEX
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_PERF_EVENTS
+	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
 	select RISCV_ISA_A if SMP
 	select SPARSE_IRQ
@@ -40,6 +42,7 @@ config RISCV
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_PCI
 	select MODULES_USE_ELF_RELA if MODULES
+	select MODULE_SECTIONS if MODULES
 	select THREAD_INFO_IN_TASK
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_MSI if PCI
@@ -100,7 +103,7 @@ choice
 	prompt "Base ISA"
 	default ARCH_RV64I
 	help
-	  This selects the base ISA that this kernel will traget and must match
+	  This selects the base ISA that this kernel will target and must match
 	  the target platform.
 
 config ARCH_RV32I
@@ -152,7 +155,6 @@ choice
 		bool "2GiB"
 	config MAXPHYSMEM_128GB
 		depends on 64BIT && CMODEL_MEDANY
-		select MODULE_SECTIONS if MODULES
 		bool "128GiB"
 endchoice
 

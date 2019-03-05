@@ -1140,7 +1140,7 @@ void hubp1_cursor_set_position(
 	if (src_y_offset >= (int)param->viewport.height)
 		cur_en = 0;  /* not visible beyond bottom edge*/
 
-	if (src_y_offset < 0) //+ (int)hubp->curs_attr.height
+	if (src_y_offset + (int)hubp->curs_attr.height <= 0)
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)

@@ -113,8 +113,10 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 		child_count++;
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 0, endpoint_id,
 						  &panel, &bridge);
-		if (!ret)
+		if (!ret) {
+			of_node_put(endpoint);
 			break;
+		}
 	}
 
 	of_node_put(port);

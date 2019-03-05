@@ -1827,9 +1827,9 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 		 * page, this is used as a priori size of SLI4_PAGE_SIZE for
 		 * the later DMA memory free.
 		 */
-		viraddr = dma_zalloc_coherent(&phba->pcidev->dev,
-					      SLI4_PAGE_SIZE, &phyaddr,
-					      GFP_KERNEL);
+		viraddr = dma_alloc_coherent(&phba->pcidev->dev,
+					     SLI4_PAGE_SIZE, &phyaddr,
+					     GFP_KERNEL);
 		/* In case of malloc fails, proceed with whatever we have */
 		if (!viraddr)
 			break;

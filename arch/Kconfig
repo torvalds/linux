@@ -71,6 +71,7 @@ config KPROBES
 config JUMP_LABEL
        bool "Optimize very unlikely/likely branches"
        depends on HAVE_ARCH_JUMP_LABEL
+       depends on CC_HAS_ASM_GOTO
        help
          This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch

@@ -60,6 +60,10 @@ static int uverbs_response(struct uverbs_attr_bundle *attrs, const void *resp,
 {
 	int ret;
 
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
+		return uverbs_copy_to_struct_or_zero(
+			attrs, UVERBS_ATTR_CORE_OUT, resp, resp_len);
+
 	if (copy_to_user(attrs->ucore.outbuf, resp,
 			 min(attrs->ucore.outlen, resp_len)))
 		return -EFAULT;
@@ -1181,6 +1185,9 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		goto out_put;
 	}
 
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
+		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
+
 	ret = 0;
 
 out_put:
@@ -2012,8 +2019,10 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 		return -ENOMEM;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
-	if (!qp)
+	if (!qp) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	is_ud = qp->qp_type == IB_QPT_UD;
 	sg_ind = 0;

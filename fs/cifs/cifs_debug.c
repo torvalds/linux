@@ -252,6 +252,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, ",ACL");
 #endif
 	seq_putc(m, '\n');
+	seq_printf(m, "CIFSMaxBufSize: %d\n", CIFSMaxBufSize);
 	seq_printf(m, "Active VFS Requests: %d\n", GlobalTotalActiveXid);
 	seq_printf(m, "Servers:");
 

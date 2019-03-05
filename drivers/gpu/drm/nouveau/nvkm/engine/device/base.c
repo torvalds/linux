@@ -2435,6 +2435,38 @@ nv140_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv162_chipset = {
+	.name = "TU102",
+	.bar = tu104_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = tu104_devinit_new,
+	.fault = tu104_fault_new,
+	.fb = gv100_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp102_ltc_new,
+	.mc = tu104_mc_new,
+	.mmu = tu104_mmu_new,
+	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
+	.therm = gp100_therm_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = tu104_ce_new,
+	.ce[1] = tu104_ce_new,
+	.ce[2] = tu104_ce_new,
+	.ce[3] = tu104_ce_new,
+	.ce[4] = tu104_ce_new,
+	.disp = tu104_disp_new,
+	.dma = gv100_dma_new,
+	.fifo = tu104_fifo_new,
+};
+
+static const struct nvkm_device_chip
 nv164_chipset = {
 	.name = "TU104",
 	.bar = tu104_bar_new,
@@ -2950,6 +2982,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x138: device->chip = &nv138_chipset; break;
 		case 0x13b: device->chip = &nv13b_chipset; break;
 		case 0x140: device->chip = &nv140_chipset; break;
+		case 0x162: device->chip = &nv162_chipset; break;
 		case 0x164: device->chip = &nv164_chipset; break;
 		case 0x166: device->chip = &nv166_chipset; break;
 		default:

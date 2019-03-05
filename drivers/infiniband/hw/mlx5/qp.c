@@ -837,7 +837,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		goto err_umem;
 	}
 
-	uid = (attr->qp_type != IB_QPT_XRC_TGT) ? to_mpd(pd)->uid : 0;
+	uid = (attr->qp_type != IB_QPT_XRC_TGT &&
+	       attr->qp_type != IB_QPT_XRC_INI) ? to_mpd(pd)->uid : 0;
 	MLX5_SET(create_qp_in, *in, uid, uid);
 	pas = (__be64 *)MLX5_ADDR_OF(create_qp_in, *in, pas);
 	if (ubuffer->umem)
@@ -1911,14 +1912,16 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		}
 
 		if (!check_flags_mask(ucmd.flags,
+				      MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
+				      MLX5_QP_FLAG_BFREG_INDEX |
+				      MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE |
+				      MLX5_QP_FLAG_SCATTER_CQE |
 				      MLX5_QP_FLAG_SIGNATURE |
-					      MLX5_QP_FLAG_SCATTER_CQE |
-					      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
-					      MLX5_QP_FLAG_BFREG_INDEX |
-					      MLX5_QP_FLAG_TYPE_DCT |
-					      MLX5_QP_FLAG_TYPE_DCI |
-					      MLX5_QP_FLAG_ALLOW_SCATTER_CQE |
-					      MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE))
+				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC |
+				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
+				      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+				      MLX5_QP_FLAG_TYPE_DCI |
+				      MLX5_QP_FLAG_TYPE_DCT))
 			return -EINVAL;
 
 		err = get_qp_user_index(to_mucontext(pd->uobject->context),

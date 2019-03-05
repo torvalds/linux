@@ -144,6 +144,8 @@ struct hv_netvsc_packet {
 	u32 total_data_buflen;
 };
 
+#define NETVSC_HASH_KEYLEN 40
+
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
 	u32  num_chn;
@@ -151,6 +153,8 @@ struct netvsc_device_info {
 	u32  recv_sections;
 	u32  send_section_size;
 	u32  recv_section_size;
+
+	u8 rss_key[NETVSC_HASH_KEYLEN];
 };
 
 enum rndis_device_state {
@@ -159,8 +163,6 @@ enum rndis_device_state {
 	RNDIS_DEV_INITIALIZED,
 	RNDIS_DEV_DATAINITIALIZED,
 };
-
-#define NETVSC_HASH_KEYLEN 40
 
 struct rndis_device {
 	struct net_device *ndev;
@@ -209,7 +211,9 @@ int netvsc_recv_callback(struct net_device *net,
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
 
-int rndis_set_subchannel(struct net_device *ndev, struct netvsc_device *nvdev);
+int rndis_set_subchannel(struct net_device *ndev,
+			 struct netvsc_device *nvdev,
+			 struct netvsc_device_info *dev_info);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
@@ -1177,7 +1181,7 @@ enum ndis_per_pkt_info_type {
 
 enum rndis_per_pkt_info_interal_type {
 	RNDIS_PKTINFO_ID = 1,
-	/* Add more memebers here */
+	/* Add more members here */
 
 	RNDIS_PKTINFO_MAX
 };

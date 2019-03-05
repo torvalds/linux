@@ -256,7 +256,15 @@ static void gart_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	int npages;
 	int i;
 
-	if (dma_addr == DMA_MAPPING_ERROR ||
+	if (WARN_ON_ONCE(dma_addr == DMA_MAPPING_ERROR))
+		return;
+
+	/*
+	 * This driver will not always use a GART mapping, but might have
+	 * created a direct mapping instead.  If that is the case there is
+	 * nothing to unmap here.
+	 */
+	if (dma_addr < iommu_bus_base ||
 	    dma_addr >= iommu_bus_base + iommu_size)
 		return;
 

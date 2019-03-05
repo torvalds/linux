@@ -475,6 +475,7 @@ ENDPROC(__primary_switched)
 
 ENTRY(kimage_vaddr)
 	.quad		_text - TEXT_OFFSET
+EXPORT_SYMBOL(kimage_vaddr)
 
 /*
  * If we're fortunate enough to boot at EL2, ensure that the world is

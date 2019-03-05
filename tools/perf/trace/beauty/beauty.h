@@ -32,6 +32,13 @@ size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, boo
 struct trace;
 struct thread;
 
+struct file {
+	char *pathname;
+	int  dev_maj;
+};
+
+struct file *thread__files_entry(struct thread *thread, int fd);
+
 struct strarrays {
 	int		nr_entries;
 	struct strarray **entries;

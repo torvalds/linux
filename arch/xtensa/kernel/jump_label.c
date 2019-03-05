@@ -10,8 +10,6 @@
 
 #include <asm/cacheflush.h>
 
-#ifdef HAVE_JUMP_LABEL
-
 #define J_OFFSET_MASK 0x0003ffff
 #define J_SIGN_MASK (~(J_OFFSET_MASK >> 1))
 
@@ -95,5 +93,3 @@ void arch_jump_label_transform(struct jump_entry *e,
 
 	patch_text(jump_entry_code(e), &insn, JUMP_LABEL_NOP_SIZE);
 }
-
-#endif /* HAVE_JUMP_LABEL */

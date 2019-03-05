@@ -2214,7 +2214,7 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
 	 */
 	boost_watermark(zone);
 	if (alloc_flags & ALLOC_KSWAPD)
-		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
+		set_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
 
 	/* We are not allowed to try stealing from the whole block */
 	if (!whole_block)
@@ -3102,6 +3102,12 @@ struct page *rmqueue(struct zone *preferred_zone,
 	local_irq_restore(flags);
 
 out:
+	/* Separate test+clear to avoid unnecessary atomics */
+	if (test_bit(ZONE_BOOSTED_WATERMARK, &zone->flags)) {
+		clear_bit(ZONE_BOOSTED_WATERMARK, &zone->flags);
+		wakeup_kswapd(zone, 0, 0, zone_idx(zone));
+	}
+
 	VM_BUG_ON_PAGE(page && bad_range(zone, page), page);
 	return page;
 
@@ -5695,18 +5701,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			cond_resched();
 		}
 	}
-#ifdef CONFIG_SPARSEMEM
-	/*
-	 * If the zone does not span the rest of the section then
-	 * we should at least initialize those pages. Otherwise we
-	 * could blow up on a poisoned page in some paths which depend
-	 * on full sections being initialized (e.g. memory hotplug).
-	 */
-	while (end_pfn % PAGES_PER_SECTION) {
-		__init_single_page(pfn_to_page(end_pfn), end_pfn, zone, nid);
-		end_pfn++;
-	}
-#endif
 }
 
 #ifdef CONFIG_ZONE_DEVICE

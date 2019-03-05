@@ -10,6 +10,7 @@ menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on ARCH_SUPPORTS_ACPI
 	select PNP
+	select NLS
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 

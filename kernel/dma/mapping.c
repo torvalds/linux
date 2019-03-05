@@ -46,45 +46,6 @@ static int dmam_match(struct device *dev, void *res, void *match_data)
 }
 
 /**
- * dmam_alloc_coherent - Managed dma_alloc_coherent()
- * @dev: Device to allocate coherent memory for
- * @size: Size of allocation
- * @dma_handle: Out argument for allocated DMA handle
- * @gfp: Allocation flags
- *
- * Managed dma_alloc_coherent().  Memory allocated using this function
- * will be automatically released on driver detach.
- *
- * RETURNS:
- * Pointer to allocated memory on success, NULL on failure.
- */
-void *dmam_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t gfp)
-{
-	struct dma_devres *dr;
-	void *vaddr;
-
-	dr = devres_alloc(dmam_release, sizeof(*dr), gfp);
-	if (!dr)
-		return NULL;
-
-	vaddr = dma_alloc_coherent(dev, size, dma_handle, gfp);
-	if (!vaddr) {
-		devres_free(dr);
-		return NULL;
-	}
-
-	dr->vaddr = vaddr;
-	dr->dma_handle = *dma_handle;
-	dr->size = size;
-
-	devres_add(dev, dr);
-
-	return vaddr;
-}
-EXPORT_SYMBOL(dmam_alloc_coherent);
-
-/**
  * dmam_free_coherent - Managed dma_free_coherent()
  * @dev: Device to free coherent memory for
  * @size: Size of allocation
@@ -143,61 +104,6 @@ void *dmam_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	return vaddr;
 }
 EXPORT_SYMBOL(dmam_alloc_attrs);
-
-#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
-
-static void dmam_coherent_decl_release(struct device *dev, void *res)
-{
-	dma_release_declared_memory(dev);
-}
-
-/**
- * dmam_declare_coherent_memory - Managed dma_declare_coherent_memory()
- * @dev: Device to declare coherent memory for
- * @phys_addr: Physical address of coherent memory to be declared
- * @device_addr: Device address of coherent memory to be declared
- * @size: Size of coherent memory to be declared
- * @flags: Flags
- *
- * Managed dma_declare_coherent_memory().
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int dmam_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
-				 dma_addr_t device_addr, size_t size, int flags)
-{
-	void *res;
-	int rc;
-
-	res = devres_alloc(dmam_coherent_decl_release, 0, GFP_KERNEL);
-	if (!res)
-		return -ENOMEM;
-
-	rc = dma_declare_coherent_memory(dev, phys_addr, device_addr, size,
-					 flags);
-	if (!rc)
-		devres_add(dev, res);
-	else
-		devres_free(res);
-
-	return rc;
-}
-EXPORT_SYMBOL(dmam_declare_coherent_memory);
-
-/**
- * dmam_release_declared_memory - Managed dma_release_declared_memory().
- * @dev: Device to release declared coherent memory for
- *
- * Managed dmam_release_declared_memory().
- */
-void dmam_release_declared_memory(struct device *dev)
-{
-	WARN_ON(devres_destroy(dev, dmam_coherent_decl_release, NULL, NULL));
-}
-EXPORT_SYMBOL(dmam_release_declared_memory);
-
-#endif
 
 /*
  * Create scatter-list for the already allocated DMA buffer.

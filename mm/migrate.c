@@ -709,7 +709,6 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 	/* Simple case, sync compaction */
 	if (mode != MIGRATE_ASYNC) {
 		do {
-			get_bh(bh);
 			lock_buffer(bh);
 			bh = bh->b_this_page;
 
@@ -720,18 +719,15 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 
 	/* async case, we cannot block on lock_buffer so use trylock_buffer */
 	do {
-		get_bh(bh);
 		if (!trylock_buffer(bh)) {
 			/*
 			 * We failed to lock the buffer and cannot stall in
 			 * async migration. Release the taken locks
 			 */
 			struct buffer_head *failed_bh = bh;
-			put_bh(failed_bh);
 			bh = head;
 			while (bh != failed_bh) {
 				unlock_buffer(bh);
-				put_bh(bh);
 				bh = bh->b_this_page;
 			}
 			return false;
@@ -818,7 +814,6 @@ unlock_buffers:
 	bh = head;
 	do {
 		unlock_buffer(bh);
-		put_bh(bh);
 		bh = bh->b_this_page;
 
 	} while (bh != head);
@@ -1135,10 +1130,13 @@ out:
 	 * If migration is successful, decrease refcount of the newpage
 	 * which will not free the page because new page owner increased
 	 * refcounter. As well, if it is LRU page, add the page to LRU
-	 * list in here.
+	 * list in here. Use the old state of the isolated source page to
+	 * determine if we migrated a LRU page. newpage was already unlocked
+	 * and possibly modified by its owner - don't rely on the page
+	 * state.
 	 */
 	if (rc == MIGRATEPAGE_SUCCESS) {
-		if (unlikely(__PageMovable(newpage)))
+		if (unlikely(!is_lru))
 			put_page(newpage);
 		else
 			putback_lru_page(newpage);
@@ -1324,19 +1322,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 		goto put_anon;
 
 	if (page_mapped(hpage)) {
-		struct address_space *mapping = page_mapping(hpage);
-
-		/*
-		 * try_to_unmap could potentially call huge_pmd_unshare.
-		 * Because of this, take semaphore in write mode here and
-		 * set TTU_RMAP_LOCKED to let lower levels know we have
-		 * taken the lock.
-		 */
-		i_mmap_lock_write(mapping);
 		try_to_unmap(hpage,
-			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS|
-			TTU_RMAP_LOCKED);
-		i_mmap_unlock_write(mapping);
+			TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
 		page_was_mapped = 1;
 	}
 

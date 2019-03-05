@@ -10,8 +10,6 @@
 #include <linux/jump_label.h>
 #include <asm/ipl.h>
 
-#ifdef HAVE_JUMP_LABEL
-
 struct insn {
 	u16 opcode;
 	s32 offset;
@@ -103,5 +101,3 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 {
 	__jump_label_transform(entry, type, 1);
 }
-
-#endif

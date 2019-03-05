@@ -64,7 +64,7 @@ static inline int qmem_alloc(struct device *dev, struct qmem **q,
 
 	qmem->entry_sz = entry_sz;
 	qmem->alloc_sz = (qsize * entry_sz) + OTX2_ALIGN;
-	qmem->base = dma_zalloc_coherent(dev, qmem->alloc_sz,
+	qmem->base = dma_alloc_coherent(dev, qmem->alloc_sz,
 					 &qmem->iova, GFP_KERNEL);
 	if (!qmem->base)
 		return -ENOMEM;

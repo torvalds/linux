@@ -2628,7 +2628,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		addr	= saddr->sll_halen ? saddr->sll_addr : NULL;
 		dev = dev_get_by_index(sock_net(&po->sk), saddr->sll_ifindex);
 		if (addr && dev && saddr->sll_halen < dev->addr_len)
-			goto out;
+			goto out_put;
 	}
 
 	err = -ENXIO;
@@ -2828,7 +2828,7 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 		addr	= saddr->sll_halen ? saddr->sll_addr : NULL;
 		dev = dev_get_by_index(sock_net(sk), saddr->sll_ifindex);
 		if (addr && dev && saddr->sll_halen < dev->addr_len)
-			goto out;
+			goto out_unlock;
 	}
 
 	err = -ENXIO;
@@ -2887,7 +2887,8 @@ static int packet_snd(struct socket *sock, struct msghdr *msg, size_t len)
 			goto out_free;
 	} else if (reserve) {
 		skb_reserve(skb, -reserve);
-		if (len < reserve)
+		if (len < reserve + sizeof(struct ipv6hdr) &&
+		    dev->min_header_len != dev->hard_header_len)
 			skb_reset_network_header(skb);
 	}
 

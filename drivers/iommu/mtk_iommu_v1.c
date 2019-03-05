@@ -232,9 +232,8 @@ static int mtk_iommu_domain_finalise(struct mtk_iommu_data *data)
 
 	spin_lock_init(&dom->pgtlock);
 
-	dom->pgt_va = dma_zalloc_coherent(data->dev,
-				M2701_IOMMU_PGT_SIZE,
-				&dom->pgt_pa, GFP_KERNEL);
+	dom->pgt_va = dma_alloc_coherent(data->dev, M2701_IOMMU_PGT_SIZE,
+					 &dom->pgt_pa, GFP_KERNEL);
 	if (!dom->pgt_va)
 		return -ENOMEM;
 
@@ -442,6 +441,10 @@ static int mtk_iommu_add_device(struct device *dev)
 		iommu_spec.args_count = count;
 
 		mtk_iommu_create_mapping(dev, &iommu_spec);
+
+		/* dev->iommu_fwspec might have changed */
+		fwspec = dev_iommu_fwspec_get(dev);
+
 		of_node_put(iommu_spec.np);
 	}
 
