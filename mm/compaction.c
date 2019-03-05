@@ -949,8 +949,11 @@ isolate_success:
 		cc->nr_migratepages++;
 		nr_isolated++;
 
-		/* Avoid isolating too much */
-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
+		/*
+		 * Avoid isolating too much unless this block is being
+		 * rescanned (e.g. dirty/writeback pages, parallel allocation).
+		 */
+		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX && !cc->rescan) {
 			++low_pfn;
 			break;
 		}
@@ -997,11 +1000,14 @@ isolate_abort:
 		spin_unlock_irqrestore(zone_lru_lock(zone), flags);
 
 	/*
-	 * Updated the cached scanner pfn if the pageblock was scanned
-	 * without isolating a page. The pageblock may not be marked
-	 * skipped already if there were no LRU pages in the block.
+	 * Updated the cached scanner pfn once the pageblock has been scanned
+	 * Pages will either be migrated in which case there is no point
+	 * scanning in the near future or migration failed in which case the
+	 * failure reason may persist. The block is marked for skipping if
+	 * there were no pages isolated in the block or if the block is
+	 * rescanned twice in a row.
 	 */
-	if (low_pfn == end_pfn && !nr_isolated) {
+	if (low_pfn == end_pfn && (!nr_isolated || cc->rescan)) {
 		if (valid_page && !skip_updated)
 			set_pageblock_skip(valid_page);
 		update_cached_migrate(cc, low_pfn);
@@ -2034,6 +2040,20 @@ static enum compact_result compact_zone(struct compact_control *cc)
 	while ((ret = compact_finished(cc)) == COMPACT_CONTINUE) {
 		int err;
 		unsigned long start_pfn = cc->migrate_pfn;
+
+		/*
+		 * Avoid multiple rescans which can happen if a page cannot be
+		 * isolated (dirty/writeback in async mode) or if the migrated
+		 * pages are being allocated before the pageblock is cleared.
+		 * The first rescan will capture the entire pageblock for
+		 * migration. If it fails, it'll be marked skip and scanning
+		 * will proceed as normal.
+		 */
+		cc->rescan = false;
+		if (pageblock_start_pfn(last_migrated_pfn) ==
+		    pageblock_start_pfn(start_pfn)) {
+			cc->rescan = true;
+		}
 
 		switch (isolate_migratepages(cc->zone, cc)) {
 		case ISOLATE_ABORT:
