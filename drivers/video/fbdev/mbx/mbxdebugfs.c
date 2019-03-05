@@ -214,7 +214,7 @@ static void mbxfb_debugfs_init(struct fb_info *fbi)
 	struct dentry *dir;
 
 	dir = debugfs_create_dir("mbxfb", NULL);
-	mbfi->debugfs_dir = dir;
+	mfbi->debugfs_dir = dir;
 
 	debugfs_create_file("sysconf", 0444, dir, fbi, &sysconf_fops);
 	debugfs_create_file("clock", 0444, dir, fbi, &clock_fops);
