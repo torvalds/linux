@@ -290,7 +290,7 @@ EXPORT_SYMBOL(movable_zone);
 
 #if MAX_NUMNODES > 1
 unsigned int nr_node_ids __read_mostly = MAX_NUMNODES;
-int nr_online_nodes __read_mostly = 1;
+unsigned int nr_online_nodes __read_mostly = 1;
 EXPORT_SYMBOL(nr_node_ids);
 EXPORT_SYMBOL(nr_online_nodes);
 #endif
@@ -5664,7 +5664,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
 	else
 		page_group_by_mobility_disabled = 0;
 
-	pr_info("Built %i zonelists, mobility grouping %s.  Total pages: %ld\n",
+	pr_info("Built %u zonelists, mobility grouping %s.  Total pages: %ld\n",
 		nr_online_nodes,
 		page_group_by_mobility_disabled ? "off" : "on",
 		vm_total_pages);
