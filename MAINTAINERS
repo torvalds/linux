@@ -13616,10 +13616,17 @@ F:	drivers/mmc/host/sdhci-brcmstb*
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 M:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-mmc@vger.kernel.org
-T:	git git://git.infradead.org/users/ahunter/linux-sdhci.git
 S:	Maintained
 F:	drivers/mmc/host/sdhci*
 F:	include/linux/mmc/sdhci*
+
+EMMC CMDQ HOST CONTROLLER INTERFACE (CQHCI) DRIVER
+M:	Adrian Hunter <adrian.hunter@intel.com>
+M:	Ritesh Harjani <riteshh@codeaurora.org>
+M:	Asutosh Das <asutoshd@codeaurora.org>
+L:	linux-mmc@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/cqhci*
 
 SYNOPSYS SDHCI COMPLIANT DWC MSHC DRIVER
 M:	Prabu Thangamuthu <prabu.t@synopsys.com>
