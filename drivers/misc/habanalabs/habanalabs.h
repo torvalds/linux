@@ -793,11 +793,11 @@ struct hl_vm_hash_node {
  * struct hl_vm_phys_pg_pack - physical page pack.
  * @vm_type: describes the type of the virtual area descriptor.
  * @pages: the physical page array.
+ * @npages: num physical pages in the pack.
+ * @total_size: total size of all the pages in this list.
  * @mapping_cnt: number of shared mappings.
  * @asid: the context related to this list.
- * @npages: num physical pages in the pack.
  * @page_size: size of each page in the pack.
- * @total_size: total size of all the pages in this list.
  * @flags: HL_MEM_* flags related to this list.
  * @handle: the provided handle related to this list.
  * @offset: offset from the first page.
@@ -807,11 +807,11 @@ struct hl_vm_hash_node {
 struct hl_vm_phys_pg_pack {
 	enum vm_type_t		vm_type; /* must be first */
 	u64			*pages;
+	u64			npages;
+	u64			total_size;
 	atomic_t		mapping_cnt;
 	u32			asid;
-	u32			npages;
 	u32			page_size;
-	u32			total_size;
 	u32			flags;
 	u32			handle;
 	u32			offset;
