@@ -727,6 +727,12 @@ firmware:       keyspan_pda/keyspan_pda.fw
 firmware:       keyspan_pda/xircom_pgs.fw
 firmware:       korg/k1212.dsp
 firmware:       ks7010sd.rom
+firmware:       lantiq/xrx200_phy11g_a14.bin
+firmware:       lantiq/xrx200_phy11g_a22.bin
+firmware:       lantiq/xrx200_phy22f_a14.bin
+firmware:       lantiq/xrx200_phy22f_a22.bin
+firmware:       lantiq/xrx300_phy11g_a21.bin
+firmware:       lantiq/xrx300_phy22f_a21.bin
 firmware:       lattice-ecp3.bit
 firmware:       lbtf_usb.bin
 firmware:       lgs8g75.fw

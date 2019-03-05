@@ -2514,6 +2514,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	__hw_addr_sync
 EXPORT_SYMBOL vmlinux 0x00000000	__hw_addr_sync_dev
 EXPORT_SYMBOL vmlinux 0x00000000	__hw_addr_unsync
 EXPORT_SYMBOL vmlinux 0x00000000	__hw_addr_unsync_dev
+EXPORT_SYMBOL vmlinux 0x00000000	__icmp_send
 EXPORT_SYMBOL vmlinux 0x00000000	__inc_node_page_state
 EXPORT_SYMBOL vmlinux 0x00000000	__inc_zone_page_state
 EXPORT_SYMBOL vmlinux 0x00000000	__inet6_lookup_established
@@ -3991,7 +3992,6 @@ EXPORT_SYMBOL vmlinux 0x00000000	hsiphash_3u32
 EXPORT_SYMBOL vmlinux 0x00000000	hsiphash_4u32
 EXPORT_SYMBOL vmlinux 0x00000000	icmp_err_convert
 EXPORT_SYMBOL vmlinux 0x00000000	icmp_global_allow
-EXPORT_SYMBOL vmlinux 0x00000000	icmp_send
 EXPORT_SYMBOL vmlinux 0x00000000	icmpv6_err_convert
 EXPORT_SYMBOL vmlinux 0x00000000	icmpv6_send
 EXPORT_SYMBOL vmlinux 0x00000000	ida_alloc_range
