@@ -1568,14 +1568,9 @@ static int dm_atomic_get_state(struct drm_atomic_state *state,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct drm_private_state *priv_state;
-	int ret;
 
 	if (*dm_state)
 		return 0;
-
-	ret = drm_modeset_lock(&dm->atomic_obj_lock, state->acquire_ctx);
-	if (ret)
-		return ret;
 
 	priv_state = drm_atomic_get_private_obj_state(state, &dm->atomic_obj);
 	if (IS_ERR(priv_state))
@@ -1682,8 +1677,6 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	adev->ddev->mode_config.async_page_flip = true;
 
 	adev->ddev->mode_config.fb_base = adev->gmc.aper_base;
-
-	drm_modeset_lock_init(&adev->dm.atomic_obj_lock);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
