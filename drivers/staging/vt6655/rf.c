@@ -792,7 +792,7 @@ bool RFbSetPower(
 			byDec = byPwr + 10;
 
 		if (byDec >= priv->byMaxPwrLevel)
-			byDec = priv->byMaxPwrLevel-1;
+			byDec = priv->byMaxPwrLevel - 1;
 
 		byPwr = byDec;
 		break;
