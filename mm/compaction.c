@@ -440,6 +440,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 				unsigned long *start_pfn,
 				unsigned long end_pfn,
 				struct list_head *freelist,
+				unsigned int stride,
 				bool strict)
 {
 	int nr_scanned = 0, total_isolated = 0;
@@ -449,10 +450,14 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	unsigned long blockpfn = *start_pfn;
 	unsigned int order;
 
+	/* Strict mode is for isolation, speed is secondary */
+	if (strict)
+		stride = 1;
+
 	cursor = pfn_to_page(blockpfn);
 
 	/* Isolate free pages. */
-	for (; blockpfn < end_pfn; blockpfn++, cursor++) {
+	for (; blockpfn < end_pfn; blockpfn += stride, cursor += stride) {
 		int isolated;
 		struct page *page = cursor;
 
@@ -614,7 +619,7 @@ isolate_freepages_range(struct compact_control *cc,
 			break;
 
 		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
-						block_end_pfn, &freelist, true);
+					block_end_pfn, &freelist, 0, true);
 
 		/*
 		 * In strict mode, isolate_freepages_block() returns 0 if
@@ -1132,7 +1137,7 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
 
 	/* Scan before */
 	if (start_pfn != pfn) {
-		isolate_freepages_block(cc, &start_pfn, pfn, &cc->freepages, false);
+		isolate_freepages_block(cc, &start_pfn, pfn, &cc->freepages, 1, false);
 		if (cc->nr_freepages >= cc->nr_migratepages)
 			return;
 	}
@@ -1140,7 +1145,7 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
 	/* Scan after */
 	start_pfn = pfn + nr_isolated;
 	if (start_pfn != end_pfn)
-		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, false);
+		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
 
 	/* Skip this pageblock in the future as it's full or nearly full */
 	if (cc->nr_freepages < cc->nr_migratepages)
@@ -1332,6 +1337,7 @@ static void isolate_freepages(struct compact_control *cc)
 	unsigned long block_end_pfn;	/* end of current pageblock */
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	struct list_head *freelist = &cc->freepages;
+	unsigned int stride;
 
 	/* Try a small search of the free lists for a candidate */
 	isolate_start_pfn = fast_isolate_freepages(cc);
@@ -1354,6 +1360,7 @@ static void isolate_freepages(struct compact_control *cc)
 	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
 						zone_end_pfn(zone));
 	low_pfn = pageblock_end_pfn(cc->migrate_pfn);
+	stride = cc->mode == MIGRATE_ASYNC ? COMPACT_CLUSTER_MAX : 1;
 
 	/*
 	 * Isolate free pages until enough are available to migrate the
@@ -1364,6 +1371,8 @@ static void isolate_freepages(struct compact_control *cc)
 				block_end_pfn = block_start_pfn,
 				block_start_pfn -= pageblock_nr_pages,
 				isolate_start_pfn = block_start_pfn) {
+		unsigned long nr_isolated;
+
 		/*
 		 * This can iterate a massively long zone without finding any
 		 * suitable migration targets, so periodically check resched.
@@ -1385,8 +1394,8 @@ static void isolate_freepages(struct compact_control *cc)
 			continue;
 
 		/* Found a block suitable for isolating free pages from. */
-		isolate_freepages_block(cc, &isolate_start_pfn, block_end_pfn,
-					freelist, false);
+		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+					block_end_pfn, freelist, stride, false);
 
 		/* Update the skip hint if the full pageblock was scanned */
 		if (isolate_start_pfn == block_end_pfn)
@@ -1410,6 +1419,13 @@ static void isolate_freepages(struct compact_control *cc)
 			 */
 			break;
 		}
+
+		/* Adjust stride depending on isolation */
+		if (nr_isolated) {
+			stride = 1;
+			continue;
+		}
+		stride = min_t(unsigned int, COMPACT_CLUSTER_MAX, stride << 1);
 	}
 
 	/*
