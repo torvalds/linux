@@ -1883,6 +1883,9 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	ret = soc_tplg_dai_link_load(tplg, link, NULL);
 	if (ret < 0) {
 		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
+		kfree(link->name);
+		kfree(link->stream_name);
+		kfree(link->cpu_dai_name);
 		kfree(link);
 		return ret;
 	}
