@@ -3529,7 +3529,6 @@ F:	include/linux/spi/cc2520.h
 F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
 
 CCREE ARM TRUSTZONE CRYPTOCELL REE DRIVER
-M:	Yael Chemla <yael.chemla@foss.arm.com>
 M:	Gilad Ben-Yossef <gilad@benyossef.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported

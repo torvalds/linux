@@ -782,7 +782,7 @@ static struct caam_drv_ctx *get_drv_ctx(struct caam_ctx *ctx,
 
 			cpu = smp_processor_id();
 			drv_ctx = caam_drv_ctx_init(ctx->qidev, &cpu, desc);
-			if (likely(!IS_ERR_OR_NULL(drv_ctx)))
+			if (!IS_ERR_OR_NULL(drv_ctx))
 				drv_ctx->op_type = type;
 
 			ctx->drv_ctx[type] = drv_ctx;
@@ -802,7 +802,8 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 	if (dst != src) {
 		if (src_nents)
 			dma_unmap_sg(dev, src, src_nents, DMA_TO_DEVICE);
-		dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
+		if (dst_nents)
+			dma_unmap_sg(dev, dst, dst_nents, DMA_FROM_DEVICE);
 	} else {
 		dma_unmap_sg(dev, src, src_nents, DMA_BIDIRECTIONAL);
 	}
@@ -892,7 +893,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	struct caam_drv_ctx *drv_ctx;
 
 	drv_ctx = get_drv_ctx(ctx, encrypt ? ENCRYPT : DECRYPT);
-	if (unlikely(IS_ERR_OR_NULL(drv_ctx)))
+	if (IS_ERR_OR_NULL(drv_ctx))
 		return (struct aead_edesc *)drv_ctx;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
@@ -955,13 +956,19 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 			mapped_src_nents = 0;
 		}
 
-		mapped_dst_nents = dma_map_sg(qidev, req->dst, dst_nents,
-					      DMA_FROM_DEVICE);
-		if (unlikely(!mapped_dst_nents)) {
-			dev_err(qidev, "unable to map destination\n");
-			dma_unmap_sg(qidev, req->src, src_nents, DMA_TO_DEVICE);
-			qi_cache_free(edesc);
-			return ERR_PTR(-ENOMEM);
+		if (dst_nents) {
+			mapped_dst_nents = dma_map_sg(qidev, req->dst,
+						      dst_nents,
+						      DMA_FROM_DEVICE);
+			if (unlikely(!mapped_dst_nents)) {
+				dev_err(qidev, "unable to map destination\n");
+				dma_unmap_sg(qidev, req->src, src_nents,
+					     DMA_TO_DEVICE);
+				qi_cache_free(edesc);
+				return ERR_PTR(-ENOMEM);
+			}
+		} else {
+			mapped_dst_nents = 0;
 		}
 	}
 
@@ -1184,7 +1191,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	struct caam_drv_ctx *drv_ctx;
 
 	drv_ctx = get_drv_ctx(ctx, encrypt ? ENCRYPT : DECRYPT);
-	if (unlikely(IS_ERR_OR_NULL(drv_ctx)))
+	if (IS_ERR_OR_NULL(drv_ctx))
 		return (struct skcipher_edesc *)drv_ctx;
 
 	src_nents = sg_nents_for_len(req->src, req->cryptlen);
