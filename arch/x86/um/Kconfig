@@ -16,7 +16,6 @@ config 64BIT
 
 config X86_32
 	def_bool !64BIT
-	select HAVE_AOUT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select MODULES_USE_ELF_REL
 	select CLONE_BACKWARDS
