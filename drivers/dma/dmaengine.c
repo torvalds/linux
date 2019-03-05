@@ -63,6 +63,7 @@
 #include <linux/acpi_dma.h>
 #include <linux/of_dma.h>
 #include <linux/mempool.h>
+#include <linux/numa.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
 static DEFINE_IDA(dma_ida);
@@ -386,7 +387,8 @@ EXPORT_SYMBOL(dma_issue_pending_all);
 static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
 {
 	int node = dev_to_node(chan->device->dev);
-	return node == -1 || cpumask_test_cpu(cpu, cpumask_of_node(node));
+	return node == NUMA_NO_NODE ||
+		cpumask_test_cpu(cpu, cpumask_of_node(node));
 }
 
 /**
