@@ -254,8 +254,7 @@ static int rseq_ip_fixup(struct pt_regs *regs)
  * - signal delivery,
  * and return to user-space.
  *
- * This is how we can ensure that the entire rseq critical section,
- * consisting of both the C part and the assembly instruction sequence,
+ * This is how we can ensure that the entire rseq critical section
  * will issue the commit instruction only if executed atomically with
  * respect to other threads scheduled on the same CPU, and with respect
  * to signal handlers.
