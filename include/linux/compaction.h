@@ -93,7 +93,8 @@ extern int sysctl_compact_unevictable_allowed;
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		unsigned int order, unsigned int alloc_flags,
-		const struct alloc_context *ac, enum compact_priority prio);
+		const struct alloc_context *ac, enum compact_priority prio,
+		struct page **page);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
 		unsigned int alloc_flags, int classzone_idx);
