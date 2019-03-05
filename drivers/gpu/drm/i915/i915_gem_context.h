@@ -411,8 +411,4 @@ void intel_context_init(struct intel_context *ce,
 struct i915_lut_handle *i915_lut_handle_alloc(void);
 void i915_lut_handle_free(struct i915_lut_handle *lut);
 
-int i915_global_context_init(void);
-void i915_global_context_shrink(void);
-void i915_global_context_exit(void);
-
 #endif /* !__I915_GEM_CONTEXT_H__ */

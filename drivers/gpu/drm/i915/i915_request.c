@@ -31,6 +31,7 @@
 
 #include "i915_drv.h"
 #include "i915_active.h"
+#include "i915_globals.h"
 #include "i915_reset.h"
 
 struct execute_cb {
@@ -40,6 +41,7 @@ struct execute_cb {
 };
 
 static struct i915_global_request {
+	struct i915_global base;
 	struct kmem_cache *slab_requests;
 	struct kmem_cache *slab_dependencies;
 	struct kmem_cache *slab_execute_cbs;
@@ -1338,6 +1340,25 @@ void i915_retire_requests(struct drm_i915_private *i915)
 #include "selftests/i915_request.c"
 #endif
 
+static void i915_global_request_shrink(void)
+{
+	kmem_cache_shrink(global.slab_dependencies);
+	kmem_cache_shrink(global.slab_execute_cbs);
+	kmem_cache_shrink(global.slab_requests);
+}
+
+static void i915_global_request_exit(void)
+{
+	kmem_cache_destroy(global.slab_dependencies);
+	kmem_cache_destroy(global.slab_execute_cbs);
+	kmem_cache_destroy(global.slab_requests);
+}
+
+static struct i915_global_request global = { {
+	.shrink = i915_global_request_shrink,
+	.exit = i915_global_request_exit,
+} };
+
 int __init i915_global_request_init(void)
 {
 	global.slab_requests = KMEM_CACHE(i915_request,
@@ -1360,6 +1381,7 @@ int __init i915_global_request_init(void)
 	if (!global.slab_dependencies)
 		goto err_execute_cbs;
 
+	i915_global_register(&global.base);
 	return 0;
 
 err_execute_cbs:
@@ -1367,18 +1389,4 @@ err_execute_cbs:
 err_requests:
 	kmem_cache_destroy(global.slab_requests);
 	return -ENOMEM;
-}
-
-void i915_global_request_shrink(void)
-{
-	kmem_cache_shrink(global.slab_dependencies);
-	kmem_cache_shrink(global.slab_execute_cbs);
-	kmem_cache_shrink(global.slab_requests);
-}
-
-void i915_global_request_exit(void)
-{
-	kmem_cache_destroy(global.slab_dependencies);
-	kmem_cache_destroy(global.slab_execute_cbs);
-	kmem_cache_destroy(global.slab_requests);
 }

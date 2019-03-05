@@ -25,12 +25,14 @@
 #include "i915_vma.h"
 
 #include "i915_drv.h"
+#include "i915_globals.h"
 #include "intel_ringbuffer.h"
 #include "intel_frontbuffer.h"
 
 #include <drm/drm_gem.h>
 
 static struct i915_global_vma {
+	struct i915_global base;
 	struct kmem_cache *slab_vmas;
 } global;
 
@@ -1054,21 +1056,27 @@ unpin:
 #include "selftests/i915_vma.c"
 #endif
 
+static void i915_global_vma_shrink(void)
+{
+	kmem_cache_shrink(global.slab_vmas);
+}
+
+static void i915_global_vma_exit(void)
+{
+	kmem_cache_destroy(global.slab_vmas);
+}
+
+static struct i915_global_vma global = { {
+	.shrink = i915_global_vma_shrink,
+	.exit = i915_global_vma_exit,
+} };
+
 int __init i915_global_vma_init(void)
 {
 	global.slab_vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
 	if (!global.slab_vmas)
 		return -ENOMEM;
 
+	i915_global_register(&global.base);
 	return 0;
-}
-
-void i915_global_vma_shrink(void)
-{
-	kmem_cache_shrink(global.slab_vmas);
-}
-
-void i915_global_vma_exit(void)
-{
-	kmem_cache_destroy(global.slab_vmas);
 }

@@ -15,62 +15,61 @@
 #include "i915_scheduler.h"
 #include "i915_vma.h"
 
+static LIST_HEAD(globals);
+
+void __init i915_global_register(struct i915_global *global)
+{
+	GEM_BUG_ON(!global->shrink);
+	GEM_BUG_ON(!global->exit);
+
+	list_add_tail(&global->link, &globals);
+}
+
+static void __i915_globals_cleanup(void)
+{
+	struct i915_global *global, *next;
+
+	list_for_each_entry_safe_reverse(global, next, &globals, link)
+		global->exit();
+}
+
+static __initconst int (* const initfn[])(void) = {
+	i915_global_active_init,
+	i915_global_context_init,
+	i915_global_objects_init,
+	i915_global_request_init,
+	i915_global_scheduler_init,
+	i915_global_vma_init,
+};
+
 int __init i915_globals_init(void)
 {
-	int err;
+	int i;
 
-	err = i915_global_active_init();
-	if (err)
-		return err;
+	for (i = 0; i < ARRAY_SIZE(initfn); i++) {
+		int err;
 
-	err = i915_global_context_init();
-	if (err)
-		goto err_active;
-
-	err = i915_global_objects_init();
-	if (err)
-		goto err_context;
-
-	err = i915_global_request_init();
-	if (err)
-		goto err_objects;
-
-	err = i915_global_scheduler_init();
-	if (err)
-		goto err_request;
-
-	err = i915_global_vma_init();
-	if (err)
-		goto err_scheduler;
+		err = initfn[i]();
+		if (err) {
+			__i915_globals_cleanup();
+			return err;
+		}
+	}
 
 	return 0;
-
-err_scheduler:
-	i915_global_scheduler_exit();
-err_request:
-	i915_global_request_exit();
-err_objects:
-	i915_global_objects_exit();
-err_context:
-	i915_global_context_exit();
-err_active:
-	i915_global_active_exit();
-	return err;
 }
 
 static void i915_globals_shrink(void)
 {
+	struct i915_global *global;
+
 	/*
 	 * kmem_cache_shrink() discards empty slabs and reorders partially
 	 * filled slabs to prioritise allocating from the mostly full slabs,
 	 * with the aim of reducing fragmentation.
 	 */
-	i915_global_active_shrink();
-	i915_global_context_shrink();
-	i915_global_objects_shrink();
-	i915_global_request_shrink();
-	i915_global_scheduler_shrink();
-	i915_global_vma_shrink();
+	list_for_each_entry(global, &globals, link)
+		global->shrink();
 }
 
 static atomic_t active;
@@ -128,12 +127,7 @@ void __exit i915_globals_exit(void)
 	rcu_barrier();
 	flush_scheduled_work();
 
-	i915_global_vma_exit();
-	i915_global_scheduler_exit();
-	i915_global_request_exit();
-	i915_global_objects_exit();
-	i915_global_context_exit();
-	i915_global_active_exit();
+	__i915_globals_cleanup();
 
 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
 	rcu_barrier();

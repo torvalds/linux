@@ -443,8 +443,4 @@ void i915_vma_parked(struct drm_i915_private *i915);
 struct i915_vma *i915_vma_alloc(void);
 void i915_vma_free(struct i915_vma *vma);
 
-int i915_global_vma_init(void);
-void i915_global_vma_shrink(void);
-void i915_global_vma_exit(void);
-
 #endif

@@ -134,8 +134,4 @@ static inline void i915_priolist_free(struct i915_priolist *p)
 		__i915_priolist_free(p);
 }
 
-int i915_global_scheduler_init(void);
-void i915_global_scheduler_shrink(void);
-void i915_global_scheduler_exit(void);
-
 #endif /* _I915_SCHEDULER_H_ */

@@ -7,10 +7,12 @@
 #include <linux/mutex.h>
 
 #include "i915_drv.h"
+#include "i915_globals.h"
 #include "i915_request.h"
 #include "i915_scheduler.h"
 
 static struct i915_global_scheduler {
+	struct i915_global base;
 	struct kmem_cache *slab_dependencies;
 	struct kmem_cache *slab_priorities;
 } global;
@@ -437,6 +439,23 @@ void __i915_priolist_free(struct i915_priolist *p)
 	kmem_cache_free(global.slab_priorities, p);
 }
 
+static void i915_global_scheduler_shrink(void)
+{
+	kmem_cache_shrink(global.slab_dependencies);
+	kmem_cache_shrink(global.slab_priorities);
+}
+
+static void i915_global_scheduler_exit(void)
+{
+	kmem_cache_destroy(global.slab_dependencies);
+	kmem_cache_destroy(global.slab_priorities);
+}
+
+static struct i915_global_scheduler global = { {
+	.shrink = i915_global_scheduler_shrink,
+	.exit = i915_global_scheduler_exit,
+} };
+
 int __init i915_global_scheduler_init(void)
 {
 	global.slab_dependencies = KMEM_CACHE(i915_dependency,
@@ -449,21 +468,10 @@ int __init i915_global_scheduler_init(void)
 	if (!global.slab_priorities)
 		goto err_priorities;
 
+	i915_global_register(&global.base);
 	return 0;
 
 err_priorities:
 	kmem_cache_destroy(global.slab_priorities);
 	return -ENOMEM;
-}
-
-void i915_global_scheduler_shrink(void)
-{
-	kmem_cache_shrink(global.slab_dependencies);
-	kmem_cache_shrink(global.slab_priorities);
-}
-
-void i915_global_scheduler_exit(void)
-{
-	kmem_cache_destroy(global.slab_dependencies);
-	kmem_cache_destroy(global.slab_priorities);
 }

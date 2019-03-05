@@ -502,8 +502,4 @@ void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 					 unsigned int cache_level);
 void i915_gem_object_flush_if_display(struct drm_i915_gem_object *obj);
 
-int i915_global_objects_init(void);
-void i915_global_objects_shrink(void);
-void i915_global_objects_exit(void);
-
 #endif

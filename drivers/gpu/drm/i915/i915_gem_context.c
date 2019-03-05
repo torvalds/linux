@@ -88,6 +88,7 @@
 #include <linux/log2.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_globals.h"
 #include "i915_trace.h"
 #include "intel_lrc_reg.h"
 #include "intel_workarounds.h"
@@ -95,6 +96,7 @@
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
 static struct i915_global_context {
+	struct i915_global base;
 	struct kmem_cache *slab_luts;
 } global;
 
@@ -1423,21 +1425,27 @@ out_unlock:
 #include "selftests/i915_gem_context.c"
 #endif
 
+static void i915_global_context_shrink(void)
+{
+	kmem_cache_shrink(global.slab_luts);
+}
+
+static void i915_global_context_exit(void)
+{
+	kmem_cache_destroy(global.slab_luts);
+}
+
+static struct i915_global_context global = { {
+	.shrink = i915_global_context_shrink,
+	.exit = i915_global_context_exit,
+} };
+
 int __init i915_global_context_init(void)
 {
 	global.slab_luts = KMEM_CACHE(i915_lut_handle, 0);
 	if (!global.slab_luts)
 		return -ENOMEM;
 
+	i915_global_register(&global.base);
 	return 0;
-}
-
-void i915_global_context_shrink(void)
-{
-	kmem_cache_shrink(global.slab_luts);
-}
-
-void i915_global_context_exit(void)
-{
-	kmem_cache_destroy(global.slab_luts);
 }
