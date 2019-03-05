@@ -1801,13 +1801,11 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 	if (INTEL_GEN(dev_priv) >= 8)
 		return;
 
-	if (HAS_VEBOX(dev_priv)) {
-		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
+	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
 
-		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
-	}
+	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
+		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
 }
 
 static void gen9_guc_irq_handler(struct drm_i915_private *dev_priv, u32 gt_iir)
