@@ -883,7 +883,8 @@ bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 
 bool MACbIsIntDisable(struct vnt_private *priv);
 
-void MACvSetShortRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
+void MACvSetShortRetryLimit(struct vnt_private *priv,
+			    unsigned char byRetryLimit);
 
 void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
 void MACvGetLongRetryLimit(struct vnt_private *priv,
