@@ -37,8 +37,6 @@
 #include <linux/iio/consumer.h>
 
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
-#include <linux/thermal.h>
 
 struct ntc_compensation {
 	int		temp_c;
@@ -588,55 +586,87 @@ static int ntc_thermistor_get_ohm(struct ntc_data *data)
 	return -EINVAL;
 }
 
-static int ntc_read_temp(void *data, int *temp)
-{
-	int ohm;
-
-	ohm = ntc_thermistor_get_ohm(data);
-	if (ohm < 0)
-		return ohm;
-
-	*temp = get_temp_mc(data, ohm);
-
-	return 0;
-}
-
-static ssize_t ntc_type_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "4\n");
-}
-
-static ssize_t ntc_temp_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static int ntc_read(struct device *dev, enum hwmon_sensor_types type,
+		    u32 attr, int channel, long *val)
 {
 	struct ntc_data *data = dev_get_drvdata(dev);
 	int ohm;
 
-	ohm = ntc_thermistor_get_ohm(data);
-	if (ohm < 0)
-		return ohm;
-
-	return sprintf(buf, "%d\n", get_temp_mc(data, ohm));
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+			ohm = ntc_thermistor_get_ohm(data);
+			if (ohm < 0)
+				return ohm;
+			*val = get_temp_mc(data, ohm);
+			return 0;
+		case hwmon_temp_type:
+			*val = 4;
+			return 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
-static SENSOR_DEVICE_ATTR_RO(temp1_type, ntc_type, 0);
-static SENSOR_DEVICE_ATTR_RO(temp1_input, ntc_temp, 0);
+static umode_t ntc_is_visible(const void *data, enum hwmon_sensor_types type,
+			      u32 attr, int channel)
+{
+	if (type == hwmon_temp) {
+		switch (attr) {
+		case hwmon_temp_input:
+		case hwmon_temp_type:
+			return 0444;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
 
-static struct attribute *ntc_attrs[] = {
-	&sensor_dev_attr_temp1_type.dev_attr.attr,
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	NULL,
+static const u32 ntc_chip_config[] = {
+	HWMON_C_REGISTER_TZ,
+	0
 };
-ATTRIBUTE_GROUPS(ntc);
 
-static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
-	.get_temp = ntc_read_temp,
+static const struct hwmon_channel_info ntc_chip = {
+	.type = hwmon_chip,
+	.config = ntc_chip_config,
+};
+
+static const u32 ntc_temp_config[] = {
+	HWMON_T_INPUT, HWMON_T_TYPE,
+	0
+};
+
+static const struct hwmon_channel_info ntc_temp = {
+	.type = hwmon_temp,
+	.config = ntc_temp_config,
+};
+
+static const struct hwmon_channel_info *ntc_info[] = {
+	&ntc_chip,
+	&ntc_temp,
+	NULL
+};
+
+static const struct hwmon_ops ntc_hwmon_ops = {
+	.is_visible = ntc_is_visible,
+	.read = ntc_read,
+};
+
+static const struct hwmon_chip_info ntc_chip_info = {
+	.ops = &ntc_hwmon_ops,
+	.info = ntc_info,
 };
 
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
-	struct thermal_zone_device *tz;
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id =
 			of_match_device(of_match_ptr(ntc_match), dev);
@@ -697,8 +727,9 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	data->comp   = ntc_type[pdev_id->driver_data].comp;
 	data->n_comp = ntc_type[pdev_id->driver_data].n_comp;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev_id->name,
-							   data, ntc_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, pdev_id->name,
+							 data, &ntc_chip_info,
+							 NULL);
 	if (IS_ERR(hwmon_dev)) {
 		dev_err(dev, "unable to register as hwmon device.\n");
 		return PTR_ERR(hwmon_dev);
@@ -706,11 +737,6 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Thermistor type: %s successfully probed.\n",
 		 pdev_id->name);
-
-	tz = devm_thermal_zone_of_sensor_register(dev, 0, data,
-						  &ntc_of_thermal_ops);
-	if (IS_ERR(tz))
-		dev_dbg(dev, "Failed to register to thermal fw.\n");
 
 	return 0;
 }

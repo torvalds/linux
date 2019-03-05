@@ -362,11 +362,11 @@ static umode_t ltc4245_is_visible(const void *_data,
 		case hwmon_in_input:
 			if (channel > 9 && !data->use_extra_gpios)
 				return 0;
-			return S_IRUGO;
+			return 0444;
 		case hwmon_in_min_alarm:
 			if (channel > 8)
 				return 0;
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}
@@ -374,14 +374,14 @@ static umode_t ltc4245_is_visible(const void *_data,
 		switch (attr) {
 		case hwmon_curr_input:
 		case hwmon_curr_max_alarm:
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}
 	case hwmon_power:
 		switch (attr) {
 		case hwmon_power_input:
-			return S_IRUGO;
+			return 0444;
 		default:
 			return 0;
 		}

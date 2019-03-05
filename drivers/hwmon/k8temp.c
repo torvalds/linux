@@ -109,8 +109,8 @@ static ssize_t name_show(struct device *dev, struct device_attribute
 }
 
 
-static ssize_t show_temp(struct device *dev,
-			 struct device_attribute *devattr, char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct sensor_device_attribute_2 *attr =
 	    to_sensor_dev_attr_2(devattr);
@@ -129,10 +129,10 @@ static ssize_t show_temp(struct device *dev,
 
 /* core, place */
 
-static SENSOR_DEVICE_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, 0, 0);
-static SENSOR_DEVICE_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, 0, 1);
-static SENSOR_DEVICE_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 1, 0);
-static SENSOR_DEVICE_ATTR_2(temp4_input, S_IRUGO, show_temp, NULL, 1, 1);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_input, temp, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_input, temp, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_input, temp, 1, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_input, temp, 1, 1);
 static DEVICE_ATTR_RO(name);
 
 static const struct pci_device_id k8temp_ids[] = {
