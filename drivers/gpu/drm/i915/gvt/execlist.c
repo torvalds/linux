@@ -47,17 +47,16 @@
 		((a)->lrca == (b)->lrca))
 
 static int context_switch_events[] = {
-	[RCS] = RCS_AS_CONTEXT_SWITCH,
-	[BCS] = BCS_AS_CONTEXT_SWITCH,
-	[VCS] = VCS_AS_CONTEXT_SWITCH,
-	[VCS2] = VCS2_AS_CONTEXT_SWITCH,
-	[VECS] = VECS_AS_CONTEXT_SWITCH,
+	[RCS0]  = RCS_AS_CONTEXT_SWITCH,
+	[BCS0]  = BCS_AS_CONTEXT_SWITCH,
+	[VCS0]  = VCS_AS_CONTEXT_SWITCH,
+	[VCS1]  = VCS2_AS_CONTEXT_SWITCH,
+	[VECS0] = VECS_AS_CONTEXT_SWITCH,
 };
 
-static int ring_id_to_context_switch_event(int ring_id)
+static int ring_id_to_context_switch_event(unsigned int ring_id)
 {
-	if (WARN_ON(ring_id < RCS ||
-		    ring_id >= ARRAY_SIZE(context_switch_events)))
+	if (WARN_ON(ring_id >= ARRAY_SIZE(context_switch_events)))
 		return -EINVAL;
 
 	return context_switch_events[ring_id];
@@ -411,7 +410,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
 
-	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id)))
+	if (workload->status || (vgpu->resetting_eng & BIT(ring_id)))
 		goto out;
 
 	if (!list_empty(workload_q_head(vgpu, ring_id))) {

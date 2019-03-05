@@ -1126,7 +1126,7 @@ static int igt_reset_wait(void *arg)
 	long timeout;
 	int err;
 
-	if (!intel_engine_can_store_dword(i915->engine[RCS]))
+	if (!intel_engine_can_store_dword(i915->engine[RCS0]))
 		return 0;
 
 	/* Check that we detect a stuck waiter and issue a reset */
@@ -1138,7 +1138,7 @@ static int igt_reset_wait(void *arg)
 	if (err)
 		goto unlock;
 
-	rq = hang_create_request(&h, i915->engine[RCS]);
+	rq = hang_create_request(&h, i915->engine[RCS0]);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto fini;
@@ -1255,7 +1255,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 	struct hang h;
 	int err;
 
-	if (!intel_engine_can_store_dword(i915->engine[RCS]))
+	if (!intel_engine_can_store_dword(i915->engine[RCS0]))
 		return 0;
 
 	/* Check that we can recover an unbind stuck on a hanging request */
@@ -1285,7 +1285,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 		goto out_obj;
 	}
 
-	rq = hang_create_request(&h, i915->engine[RCS]);
+	rq = hang_create_request(&h, i915->engine[RCS0]);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto out_obj;
@@ -1358,7 +1358,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 
 out_reset:
 	igt_global_reset_lock(i915);
-	fake_hangcheck(rq->i915, intel_engine_flag(rq->engine));
+	fake_hangcheck(rq->i915, rq->engine->mask);
 	igt_global_reset_unlock(i915);
 
 	if (tsk) {
@@ -1537,7 +1537,7 @@ static int igt_reset_queue(void *arg)
 				goto fini;
 			}
 
-			reset_count = fake_hangcheck(i915, ENGINE_MASK(id));
+			reset_count = fake_hangcheck(i915, BIT(id));
 
 			if (prev->fence.error != -EIO) {
 				pr_err("GPU reset not recorded on hanging request [fence.error=%d]!\n",
@@ -1596,7 +1596,7 @@ unlock:
 static int igt_handle_error(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct intel_engine_cs *engine = i915->engine[RCS0];
 	struct hang h;
 	struct i915_request *rq;
 	struct i915_gpu_state *error;
@@ -1643,7 +1643,7 @@ static int igt_handle_error(void *arg)
 	/* Temporarily disable error capture */
 	error = xchg(&i915->gpu_error.first_error, (void *)-1);
 
-	i915_handle_error(i915, ENGINE_MASK(engine->id), 0, NULL);
+	i915_handle_error(i915, engine->mask, 0, NULL);
 
 	xchg(&i915->gpu_error.first_error, error);
 

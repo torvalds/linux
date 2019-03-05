@@ -150,14 +150,14 @@ struct sseu_dev_info {
 	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES];
 };
 
-typedef u8 intel_ring_mask_t;
+typedef u8 intel_engine_mask_t;
 
 struct intel_device_info {
 	u16 gen_mask;
 
 	u8 gen;
 	u8 gt; /* GT number, 0 if undefined */
-	intel_ring_mask_t ring_mask; /* Rings supported by the HW */
+	intel_engine_mask_t engine_mask; /* Engines supported by the HW */
 
 	enum intel_platform platform;
 	u32 platform_mask;
@@ -200,7 +200,7 @@ struct intel_runtime_info {
 	u8 num_sprites[I915_MAX_PIPES];
 	u8 num_scalers[I915_MAX_PIPES];
 
-	u8 num_rings;
+	u8 num_engines;
 
 	/* Slice/subslice/EU info */
 	struct sseu_dev_info sseu;

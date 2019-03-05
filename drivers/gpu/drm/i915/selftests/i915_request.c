@@ -42,7 +42,7 @@ static int igt_add_request(void *arg)
 	/* Basic preliminary test to create a request and let it loose! */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS],
+	request = mock_request(i915->engine[RCS0],
 			       i915->kernel_context,
 			       HZ / 10);
 	if (!request)
@@ -66,7 +66,7 @@ static int igt_wait_request(void *arg)
 	/* Submit a request, then wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -136,7 +136,7 @@ static int igt_fence_wait(void *arg)
 	/* Submit a request, treat it as a fence and wait upon it */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	request = mock_request(i915->engine[RCS], i915->kernel_context, T);
+	request = mock_request(i915->engine[RCS0], i915->kernel_context, T);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_locked;
@@ -193,7 +193,7 @@ static int igt_request_rewind(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 	ctx[0] = mock_context(i915, "A");
-	request = mock_request(i915->engine[RCS], ctx[0], 2 * HZ);
+	request = mock_request(i915->engine[RCS0], ctx[0], 2 * HZ);
 	if (!request) {
 		err = -ENOMEM;
 		goto err_context_0;
@@ -203,7 +203,7 @@ static int igt_request_rewind(void *arg)
 	i915_request_add(request);
 
 	ctx[1] = mock_context(i915, "B");
-	vip = mock_request(i915->engine[RCS], ctx[1], 0);
+	vip = mock_request(i915->engine[RCS0], ctx[1], 0);
 	if (!vip) {
 		err = -ENOMEM;
 		goto err_context_1;
@@ -415,7 +415,7 @@ static int mock_breadcrumbs_smoketest(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct smoketest t = {
-		.engine = i915->engine[RCS],
+		.engine = i915->engine[RCS0],
 		.ncontexts = 1024,
 		.max_batch = 1024,
 		.request_alloc = __mock_request_alloc
@@ -1216,7 +1216,7 @@ out_flush:
 		num_fences += atomic_long_read(&t[id].num_fences);
 	}
 	pr_info("Completed %lu waits for %lu fences across %d engines and %d cpus\n",
-		num_waits, num_fences, RUNTIME_INFO(i915)->num_rings, ncpus);
+		num_waits, num_fences, RUNTIME_INFO(i915)->num_engines, ncpus);
 
 	mutex_lock(&i915->drm.struct_mutex);
 	ret = igt_live_test_end(&live) ?: ret;

@@ -297,12 +297,12 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
-	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
-		[RCS] = GEN6_GRDOM_RENDER,
-		[BCS] = GEN6_GRDOM_BLT,
-		[VCS] = GEN6_GRDOM_MEDIA,
-		[VCS2] = GEN8_GRDOM_MEDIA2,
-		[VECS] = GEN6_GRDOM_VECS,
+	const u32 hw_engine_mask[] = {
+		[RCS0]  = GEN6_GRDOM_RENDER,
+		[BCS0]  = GEN6_GRDOM_BLT,
+		[VCS0]  = GEN6_GRDOM_MEDIA,
+		[VCS1]  = GEN8_GRDOM_MEDIA2,
+		[VECS0] = GEN6_GRDOM_VECS,
 	};
 	u32 hw_mask;
 
@@ -312,8 +312,10 @@ static int gen6_reset_engines(struct drm_i915_private *i915,
 		unsigned int tmp;
 
 		hw_mask = 0;
-		for_each_engine_masked(engine, i915, engine_mask, tmp)
+		for_each_engine_masked(engine, i915, engine_mask, tmp) {
+			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
+		}
 	}
 
 	return gen6_hw_domain_reset(i915, hw_mask);
@@ -420,28 +422,27 @@ static int gen11_reset_engines(struct drm_i915_private *i915,
 			       unsigned int engine_mask,
 			       unsigned int retry)
 {
-	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
-		[RCS] = GEN11_GRDOM_RENDER,
-		[BCS] = GEN11_GRDOM_BLT,
-		[VCS] = GEN11_GRDOM_MEDIA,
-		[VCS2] = GEN11_GRDOM_MEDIA2,
-		[VCS3] = GEN11_GRDOM_MEDIA3,
-		[VCS4] = GEN11_GRDOM_MEDIA4,
-		[VECS] = GEN11_GRDOM_VECS,
-		[VECS2] = GEN11_GRDOM_VECS2,
+	const u32 hw_engine_mask[] = {
+		[RCS0]  = GEN11_GRDOM_RENDER,
+		[BCS0]  = GEN11_GRDOM_BLT,
+		[VCS0]  = GEN11_GRDOM_MEDIA,
+		[VCS1]  = GEN11_GRDOM_MEDIA2,
+		[VCS2]  = GEN11_GRDOM_MEDIA3,
+		[VCS3]  = GEN11_GRDOM_MEDIA4,
+		[VECS0] = GEN11_GRDOM_VECS,
+		[VECS1] = GEN11_GRDOM_VECS2,
 	};
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
 	u32 hw_mask;
 	int ret;
 
-	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
-
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
 		hw_mask = 0;
 		for_each_engine_masked(engine, i915, engine_mask, tmp) {
+			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 			hw_mask |= gen11_lock_sfc(i915, engine);
 		}
@@ -692,7 +693,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 		return err;
 
 	for_each_engine(engine, i915, id)
-		intel_engine_reset(engine, stalled_mask & ENGINE_MASK(id));
+		intel_engine_reset(engine, stalled_mask & engine->mask);
 
 	i915_gem_restore_fences(i915);
 
@@ -1057,7 +1058,7 @@ error:
 static inline int intel_gt_reset_engine(struct drm_i915_private *i915,
 					struct intel_engine_cs *engine)
 {
-	return intel_gpu_reset(i915, intel_engine_flag(engine));
+	return intel_gpu_reset(i915, engine->mask);
 }
 
 /**
@@ -1193,7 +1194,7 @@ void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 				   I915_READ(RING_FAULT_REG(engine)) &
 				   ~RING_FAULT_VALID);
 		}
-		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS]));
+		POSTING_READ(RING_FAULT_REG(dev_priv->engine[RCS0]));
 	}
 }
 
@@ -1241,7 +1242,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 	 */
 	wakeref = intel_runtime_pm_get(i915);
 
-	engine_mask &= INTEL_INFO(i915)->ring_mask;
+	engine_mask &= INTEL_INFO(i915)->engine_mask;
 
 	if (flags & I915_ERROR_CAPTURE) {
 		i915_capture_error_state(i915, engine_mask, msg);
@@ -1260,7 +1261,7 @@ void i915_handle_error(struct drm_i915_private *i915,
 				continue;
 
 			if (i915_reset_engine(engine, msg) == 0)
-				engine_mask &= ~intel_engine_flag(engine);
+				engine_mask &= ~engine->mask;
 
 			clear_bit(I915_RESET_ENGINE + engine->id,
 				  &error->flags);

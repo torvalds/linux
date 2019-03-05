@@ -223,6 +223,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.i915 = i915;
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
+	engine->base.mask = BIT(id);
 	engine->base.status_page.addr = (void *)(engine + 1);
 
 	engine->base.context_pin = mock_context_pin;

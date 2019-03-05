@@ -583,7 +583,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
 
-	intel_engine_init_ctx_wa(dev_priv->engine[RCS]);
+	intel_engine_init_ctx_wa(dev_priv->engine[RCS0]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
@@ -1089,7 +1089,7 @@ __i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
 	int ret = 0;
 
 	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
-	GEM_BUG_ON(engine->id != RCS);
+	GEM_BUG_ON(engine->id != RCS0);
 
 	/* Nothing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))

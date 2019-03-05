@@ -411,7 +411,7 @@ static void error_print_instdone(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  INSTDONE: 0x%08x\n",
 		   ee->instdone.instdone);
 
-	if (ee->engine_id != RCS || INTEL_GEN(m->i915) <= 3)
+	if (ee->engine_id != RCS0 || INTEL_GEN(m->i915) <= 3)
 		return;
 
 	err_printf(m, "  SC_INSTDONE: 0x%08x\n",
@@ -1179,16 +1179,17 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		if (IS_GEN(dev_priv, 7)) {
 			switch (engine->id) {
 			default:
-			case RCS:
+				MISSING_CASE(engine->id);
+			case RCS0:
 				mmio = RENDER_HWS_PGA_GEN7;
 				break;
-			case BCS:
+			case BCS0:
 				mmio = BLT_HWS_PGA_GEN7;
 				break;
-			case VCS:
+			case VCS0:
 				mmio = BSD_HWS_PGA_GEN7;
 				break;
-			case VECS:
+			case VECS0:
 				mmio = VEBOX_HWS_PGA_GEN7;
 				break;
 			}

@@ -330,16 +330,16 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = dev_priv->overlay ? 1 : 0;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = !!dev_priv->engine[VCS];
+		value = !!dev_priv->engine[VCS0];
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = !!dev_priv->engine[BCS];
+		value = !!dev_priv->engine[BCS0];
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = !!dev_priv->engine[VECS];
+		value = !!dev_priv->engine[VECS0];
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = !!dev_priv->engine[VCS2];
+		value = !!dev_priv->engine[VCS1];
 		break;
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev_priv);

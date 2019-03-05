@@ -94,24 +94,24 @@ struct engine_info {
 };
 
 static const struct engine_info intel_engines[] = {
-	[RCS] = {
-		.hw_id = RCS_HW,
+	[RCS0] = {
+		.hw_id = RCS0_HW,
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_bases = {
 			{ .gen = 1, .base = RENDER_RING_BASE }
 		},
 	},
-	[BCS] = {
-		.hw_id = BCS_HW,
+	[BCS0] = {
+		.hw_id = BCS0_HW,
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
 			{ .gen = 6, .base = BLT_RING_BASE }
 		},
 	},
-	[VCS] = {
-		.hw_id = VCS_HW,
+	[VCS0] = {
+		.hw_id = VCS0_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -120,8 +120,8 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 4, .base = BSD_RING_BASE }
 		},
 	},
-	[VCS2] = {
-		.hw_id = VCS2_HW,
+	[VCS1] = {
+		.hw_id = VCS1_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_bases = {
@@ -129,24 +129,24 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 8, .base = GEN8_BSD2_RING_BASE }
 		},
 	},
-	[VCS3] = {
-		.hw_id = VCS3_HW,
+	[VCS2] = {
+		.hw_id = VCS2_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
 		.mmio_bases = {
 			{ .gen = 11, .base = GEN11_BSD3_RING_BASE }
 		},
 	},
-	[VCS4] = {
-		.hw_id = VCS4_HW,
+	[VCS3] = {
+		.hw_id = VCS3_HW,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
 		.mmio_bases = {
 			{ .gen = 11, .base = GEN11_BSD4_RING_BASE }
 		},
 	},
-	[VECS] = {
-		.hw_id = VECS_HW,
+	[VECS0] = {
+		.hw_id = VECS0_HW,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -154,8 +154,8 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 7, .base = VEBOX_RING_BASE }
 		},
 	},
-	[VECS2] = {
-		.hw_id = VECS2_HW,
+	[VECS1] = {
+		.hw_id = VECS1_HW,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
 		.mmio_bases = {
@@ -304,7 +304,10 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	if (!engine)
 		return -ENOMEM;
 
+	BUILD_BUG_ON(BITS_PER_TYPE(engine->mask) < I915_NUM_ENGINES);
+
 	engine->id = id;
+	engine->mask = BIT(id);
 	engine->i915 = dev_priv;
 	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
@@ -345,15 +348,15 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *device_info = mkwrite_device_info(dev_priv);
-	const unsigned int ring_mask = INTEL_INFO(dev_priv)->ring_mask;
+	const unsigned int engine_mask = INTEL_INFO(dev_priv)->engine_mask;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	unsigned int mask = 0;
 	unsigned int i;
 	int err;
 
-	WARN_ON(ring_mask == 0);
-	WARN_ON(ring_mask &
+	WARN_ON(engine_mask == 0);
+	WARN_ON(engine_mask &
 		GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
 
 	if (i915_inject_load_failure())
@@ -367,7 +370,7 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 		if (err)
 			goto cleanup;
 
-		mask |= ENGINE_MASK(i);
+		mask |= BIT(i);
 	}
 
 	/*
@@ -375,16 +378,16 @@ int intel_engines_init_mmio(struct drm_i915_private *dev_priv)
 	 * are added to the driver by a warning and disabling the forgotten
 	 * engines.
 	 */
-	if (WARN_ON(mask != ring_mask))
-		device_info->ring_mask = mask;
+	if (WARN_ON(mask != engine_mask))
+		device_info->engine_mask = mask;
 
 	/* We always presume we have at least RCS available for later probing */
-	if (WARN_ON(!HAS_ENGINE(dev_priv, RCS))) {
+	if (WARN_ON(!HAS_ENGINE(dev_priv, RCS0))) {
 		err = -ENODEV;
 		goto cleanup;
 	}
 
-	RUNTIME_INFO(dev_priv)->num_rings = hweight32(mask);
+	RUNTIME_INFO(dev_priv)->num_engines = hweight32(mask);
 
 	i915_check_and_clear_faults(dev_priv);
 
@@ -954,7 +957,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 	default:
 		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
 
-		if (engine->id != RCS)
+		if (engine->id != RCS0)
 			break;
 
 		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
@@ -970,7 +973,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 	case 7:
 		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
 
-		if (engine->id != RCS)
+		if (engine->id != RCS0)
 			break;
 
 		instdone->slice_common = I915_READ(GEN7_SC_INSTDONE);
@@ -983,7 +986,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 	case 4:
 		instdone->instdone = I915_READ(RING_INSTDONE(mmio_base));
 
-		if (engine->id == RCS)
+		if (engine->id == RCS0)
 			/* HACK: Using the wrong struct member */
 			instdone->slice_common = I915_READ(GEN4_INSTDONE1);
 		break;
@@ -1355,7 +1358,7 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		&engine->execlists;
 	u64 addr;
 
-	if (engine->id == RCS && IS_GEN_RANGE(dev_priv, 4, 7))
+	if (engine->id == RCS0 && IS_GEN_RANGE(dev_priv, 4, 7))
 		drm_printf(m, "\tCCID: 0x%08x\n", I915_READ(CCID));
 	drm_printf(m, "\tRING_START: 0x%08x\n",
 		   I915_READ(RING_START(engine->mmio_base)));

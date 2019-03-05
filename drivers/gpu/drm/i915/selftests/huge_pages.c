@@ -1535,7 +1535,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * land in the now stale 2M page.
 	 */
 
-	err = gpu_write(vma, ctx, dev_priv->engine[RCS], 0, 0xdeadbeaf);
+	err = gpu_write(vma, ctx, dev_priv->engine[RCS0], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 
@@ -1653,7 +1653,7 @@ static int igt_shrink_thp(void *arg)
 	if (err)
 		goto out_unpin;
 
-	err = gpu_write(vma, ctx, i915->engine[RCS], 0, 0xdeadbeaf);
+	err = gpu_write(vma, ctx, i915->engine[RCS0], 0, 0xdeadbeaf);
 	if (err)
 		goto out_unpin;
 

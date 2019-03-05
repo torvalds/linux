@@ -206,13 +206,13 @@ struct drm_i915_private *mock_gem_device(void)
 
 	mock_init_ggtt(i915, &i915->ggtt);
 
-	mkwrite_device_info(i915)->ring_mask = BIT(0);
+	mkwrite_device_info(i915)->engine_mask = BIT(0);
 	i915->kernel_context = mock_context(i915, NULL);
 	if (!i915->kernel_context)
 		goto err_unlock;
 
-	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
-	if (!i915->engine[RCS])
+	i915->engine[RCS0] = mock_engine(i915, "mock", RCS0);
+	if (!i915->engine[RCS0])
 		goto err_context;
 
 	mutex_unlock(&i915->drm.struct_mutex);

@@ -94,7 +94,7 @@
 	.gpu_reset_clobbers_display = true, \
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -133,7 +133,7 @@ static const struct intel_device_info intel_i865g_info = {
 	.num_pipes = 2, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -210,7 +210,7 @@ static const struct intel_device_info intel_pineview_info = {
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
-	.ring_mask = RENDER_RING, \
+	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -239,7 +239,7 @@ static const struct intel_device_info intel_i965gm_info = {
 static const struct intel_device_info intel_g45_info = {
 	GEN4_FEATURES,
 	PLATFORM(INTEL_G45),
-	.ring_mask = RENDER_RING | BSD_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -249,7 +249,7 @@ static const struct intel_device_info intel_gm45_info = {
 	.is_mobile = 1,
 	.display.has_fbc = 1,
 	.display.supports_tv = 1,
-	.ring_mask = RENDER_RING | BSD_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0),
 	.gpu_reset_clobbers_display = false,
 };
 
@@ -257,7 +257,7 @@ static const struct intel_device_info intel_gm45_info = {
 	GEN(5), \
 	.num_pipes = 2, \
 	.display.has_hotplug = 1, \
-	.ring_mask = RENDER_RING | BSD_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
@@ -283,7 +283,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.num_pipes = 2, \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
@@ -328,7 +328,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.num_pipes = 3, \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
 	.has_coherent_ggtt = true, \
 	.has_llc = 1, \
 	.has_rc6 = 1, \
@@ -389,7 +389,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.ppgtt = INTEL_PPGTT_FULL,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_DEFAULT_PAGE_SIZES,
 	GEN_DEFAULT_PIPEOFFSETS,
@@ -398,7 +398,7 @@ static const struct intel_device_info intel_valleyview_info = {
 
 #define G75_FEATURES  \
 	GEN7_FEATURES, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_psr = 1, \
@@ -462,7 +462,8 @@ static const struct intel_device_info intel_broadwell_rsvd_info = {
 static const struct intel_device_info intel_broadwell_gt3_info = {
 	BDW_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 static const struct intel_device_info intel_cherryview_info = {
@@ -471,7 +472,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.num_pipes = 3,
 	.display.has_hotplug = 1,
 	.is_lp = 1,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
 	.has_64bit_reloc = 1,
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
@@ -521,7 +522,8 @@ static const struct intel_device_info intel_skylake_gt2_info = {
 
 #define SKL_GT3_PLUS_PLATFORM \
 	SKL_PLATFORM, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING
+	.engine_mask = \
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1)
 
 
 static const struct intel_device_info intel_skylake_gt3_info = {
@@ -538,7 +540,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	GEN(9), \
 	.is_lp = 1, \
 	.display.has_hotplug = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING, \
+	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.num_pipes = 3, \
 	.has_64bit_reloc = 1, \
 	.display.has_ddi = 1, \
@@ -592,7 +594,8 @@ static const struct intel_device_info intel_kabylake_gt2_info = {
 static const struct intel_device_info intel_kabylake_gt3_info = {
 	KBL_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 #define CFL_PLATFORM \
@@ -612,7 +615,8 @@ static const struct intel_device_info intel_coffeelake_gt2_info = {
 static const struct intel_device_info intel_coffeelake_gt3_info = {
 	CFL_PLATFORM,
 	.gt = 3,
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS1),
 };
 
 #define GEN10_FEATURES \
@@ -655,7 +659,8 @@ static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ICELAKE),
 	.is_alpha_support = 1,
-	.ring_mask = RENDER_RING | BLT_RING | VEBOX_RING | BSD_RING | BSD3_RING,
+	.engine_mask =
+		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
 };
 
 #undef GEN

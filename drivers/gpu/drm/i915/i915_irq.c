@@ -1427,20 +1427,20 @@ static void ilk_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 	if (gt_iir & ILK_BSD_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 }
 
 static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 			       u32 gt_iir)
 {
 	if (gt_iir & GT_RENDER_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 	if (gt_iir & GT_BLT_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[BCS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[BCS0]);
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
@@ -1475,8 +1475,8 @@ static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 
 #define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
 		      GEN8_GT_BCS_IRQ | \
+		      GEN8_GT_VCS0_IRQ | \
 		      GEN8_GT_VCS1_IRQ | \
-		      GEN8_GT_VCS2_IRQ | \
 		      GEN8_GT_VECS_IRQ | \
 		      GEN8_GT_PM_IRQ | \
 		      GEN8_GT_GUC_IRQ)
@@ -1487,7 +1487,7 @@ static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 			raw_reg_write(regs, GEN8_GT_IIR(0), gt_iir[0]);
 	}
 
-	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
+	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
 		gt_iir[1] = raw_reg_read(regs, GEN8_GT_IIR(1));
 		if (likely(gt_iir[1]))
 			raw_reg_write(regs, GEN8_GT_IIR(1), gt_iir[1]);
@@ -1510,21 +1510,21 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 				u32 master_ctl, u32 gt_iir[4])
 {
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
-		gen8_cs_irq_handler(i915->engine[RCS],
+		gen8_cs_irq_handler(i915->engine[RCS0],
 				    gt_iir[0] >> GEN8_RCS_IRQ_SHIFT);
-		gen8_cs_irq_handler(i915->engine[BCS],
+		gen8_cs_irq_handler(i915->engine[BCS0],
 				    gt_iir[0] >> GEN8_BCS_IRQ_SHIFT);
 	}
 
-	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
-		gen8_cs_irq_handler(i915->engine[VCS],
+	if (master_ctl & (GEN8_GT_VCS0_IRQ | GEN8_GT_VCS1_IRQ)) {
+		gen8_cs_irq_handler(i915->engine[VCS0],
+				    gt_iir[1] >> GEN8_VCS0_IRQ_SHIFT);
+		gen8_cs_irq_handler(i915->engine[VCS1],
 				    gt_iir[1] >> GEN8_VCS1_IRQ_SHIFT);
-		gen8_cs_irq_handler(i915->engine[VCS2],
-				    gt_iir[1] >> GEN8_VCS2_IRQ_SHIFT);
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
-		gen8_cs_irq_handler(i915->engine[VECS],
+		gen8_cs_irq_handler(i915->engine[VECS0],
 				    gt_iir[3] >> GEN8_VECS_IRQ_SHIFT);
 	}
 
@@ -1802,7 +1802,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 		return;
 
 	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-		intel_engine_breadcrumbs_irq(dev_priv->engine[VECS]);
+		intel_engine_breadcrumbs_irq(dev_priv->engine[VECS0]);
 
 	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
 		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
@@ -3780,7 +3780,7 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		 * RPS interrupts will get enabled/disabled on demand when RPS
 		 * itself is enabled/disabled.
 		 */
-		if (HAS_VEBOX(dev_priv)) {
+		if (HAS_ENGINE(dev_priv, VECS0)) {
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 			dev_priv->pm_ier |= PM_VEBOX_USER_INTERRUPT;
 		}
@@ -3892,18 +3892,21 @@ static void gen8_gt_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	/* These are interrupts we'll toggle with the ring mask register */
 	u32 gt_interrupts[] = {
-		GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
-			GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT,
-		GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
-			GT_RENDER_USER_INTERRUPT << GEN8_VCS2_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS2_IRQ_SHIFT,
+		(GT_RENDER_USER_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_RCS_IRQ_SHIFT |
+		 GT_RENDER_USER_INTERRUPT << GEN8_BCS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_BCS_IRQ_SHIFT),
+
+		(GT_RENDER_USER_INTERRUPT << GEN8_VCS0_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS0_IRQ_SHIFT |
+		 GT_RENDER_USER_INTERRUPT << GEN8_VCS1_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VCS1_IRQ_SHIFT),
+
 		0,
-		GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
-			GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT
-		};
+
+		(GT_RENDER_USER_INTERRUPT << GEN8_VECS_IRQ_SHIFT |
+		 GT_CONTEXT_SWITCH_INTERRUPT << GEN8_VECS_IRQ_SHIFT)
+	};
 
 	dev_priv->pm_ier = 0x0;
 	dev_priv->pm_imr = ~dev_priv->pm_ier;
@@ -4231,7 +4234,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		I915_WRITE16(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4339,7 +4342,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
@@ -4484,10 +4487,10 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		I915_WRITE(IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
 
 		if (iir & I915_BSD_USER_INTERRUPT)
-			intel_engine_breadcrumbs_irq(dev_priv->engine[VCS]);
+			intel_engine_breadcrumbs_irq(dev_priv->engine[VCS0]);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);

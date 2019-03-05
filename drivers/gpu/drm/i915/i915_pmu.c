@@ -101,7 +101,7 @@ static bool pmu_needs_timer(struct drm_i915_private *i915, bool gpu_active)
 	 *
 	 * Use RCS as proxy for all engines.
 	 */
-	else if (intel_engine_supports_stats(i915->engine[RCS]))
+	else if (intel_engine_supports_stats(i915->engine[RCS0]))
 		enable &= ~BIT(I915_SAMPLE_BUSY);
 
 	/*

@@ -222,7 +222,7 @@ out_put:
 
 static int do_device_reset(struct intel_engine_cs *engine)
 {
-	i915_reset(engine->i915, ENGINE_MASK(engine->id), "live_workarounds");
+	i915_reset(engine->i915, engine->mask, "live_workarounds");
 	return 0;
 }
 
@@ -709,7 +709,7 @@ out_rpm:
 static int live_reset_whitelist(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct intel_engine_cs *engine = i915->engine[RCS];
+	struct intel_engine_cs *engine = i915->engine[RCS0];
 	int err = 0;
 
 	/* If we reset the gpu, we should not lose the RING_NONPRIV */

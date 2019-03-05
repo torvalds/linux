@@ -10,12 +10,12 @@
 #include <linux/seqlock.h>
 
 #include "i915_gem_batch_pool.h"
-
-#include "i915_reg.h"
 #include "i915_pmu.h"
+#include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
 #include "i915_timeline.h"
+#include "intel_device_info.h"
 #include "intel_gpu_commands.h"
 #include "intel_workarounds.h"
 
@@ -175,16 +175,16 @@ struct i915_request;
  * Keep instances of the same type engine together.
  */
 enum intel_engine_id {
-	RCS = 0,
-	BCS,
-	VCS,
+	RCS0 = 0,
+	BCS0,
+	VCS0,
+	VCS1,
 	VCS2,
 	VCS3,
-	VCS4,
-#define _VCS(n) (VCS + (n))
-	VECS,
-	VECS2
-#define _VECS(n) (VECS + (n))
+#define _VCS(n) (VCS0 + (n))
+	VECS0,
+	VECS1
+#define _VECS(n) (VECS0 + (n))
 };
 
 struct st_preempt_hang {
@@ -334,6 +334,7 @@ struct intel_engine_cs {
 	enum intel_engine_id id;
 	unsigned int hw_id;
 	unsigned int guc_id;
+	intel_engine_mask_t mask;
 
 	u8 uabi_class;
 
@@ -665,12 +666,6 @@ execlists_port_complete(struct intel_engine_execlists * const execlists,
 	memset(port + m, 0, sizeof(struct execlist_port));
 
 	return port;
-}
-
-static inline unsigned int
-intel_engine_flag(const struct intel_engine_cs *engine)
-{
-	return BIT(engine->id);
 }
 
 static inline u32

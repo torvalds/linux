@@ -56,7 +56,7 @@ static bool subunits_stuck(struct intel_engine_cs *engine)
 	int slice;
 	int subslice;
 
-	if (engine->id != RCS)
+	if (engine->id != RCS0)
 		return true;
 
 	intel_engine_get_instdone(engine, &instdone);
@@ -120,7 +120,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 */
 	tmp = I915_READ_CTL(engine);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev_priv, BIT(engine->id), 0,
+		i915_handle_error(dev_priv, engine->mask, 0,
 				  "stuck wait on %s", engine->name);
 		I915_WRITE_CTL(engine, tmp);
 		return ENGINE_WAIT_KICK;
@@ -282,13 +282,13 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		hangcheck_store_sample(engine, &hc);
 
 		if (hc.stalled) {
-			hung |= intel_engine_flag(engine);
+			hung |= engine->mask;
 			if (hc.action != ENGINE_DEAD)
-				stuck |= intel_engine_flag(engine);
+				stuck |= engine->mask;
 		}
 
 		if (hc.wedged)
-			wedged |= intel_engine_flag(engine);
+			wedged |= engine->mask;
 	}
 
 	if (GEM_SHOW_DEBUG() && (hung | stuck)) {

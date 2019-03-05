@@ -2099,7 +2099,7 @@ static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 
 /* Iterator over subset of engines selected by mask */
 #define for_each_engine_masked(engine__, dev_priv__, mask__, tmp__) \
-	for ((tmp__) = (mask__) & INTEL_INFO(dev_priv__)->ring_mask; \
+	for ((tmp__) = (mask__) & INTEL_INFO(dev_priv__)->engine_mask; \
 	     (tmp__) ? \
 	     ((engine__) = (dev_priv__)->engine[__mask_next_bit(tmp__)]), 1 : \
 	     0;)
@@ -2420,24 +2420,8 @@ static inline unsigned int i915_sg_segment_size(void)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
 
-#define ENGINE_MASK(id)	BIT(id)
-#define RENDER_RING	ENGINE_MASK(RCS)
-#define BSD_RING	ENGINE_MASK(VCS)
-#define BLT_RING	ENGINE_MASK(BCS)
-#define VEBOX_RING	ENGINE_MASK(VECS)
-#define BSD2_RING	ENGINE_MASK(VCS2)
-#define BSD3_RING	ENGINE_MASK(VCS3)
-#define BSD4_RING	ENGINE_MASK(VCS4)
-#define VEBOX2_RING	ENGINE_MASK(VECS2)
-#define ALL_ENGINES	(~0)
-
-#define HAS_ENGINE(dev_priv, id) \
-	(!!(INTEL_INFO(dev_priv)->ring_mask & ENGINE_MASK(id)))
-
-#define HAS_BSD(dev_priv)	HAS_ENGINE(dev_priv, VCS)
-#define HAS_BSD2(dev_priv)	HAS_ENGINE(dev_priv, VCS2)
-#define HAS_BLT(dev_priv)	HAS_ENGINE(dev_priv, BCS)
-#define HAS_VEBOX(dev_priv)	HAS_ENGINE(dev_priv, VECS)
+#define ALL_ENGINES	(~0u)
+#define HAS_ENGINE(dev_priv, id) (INTEL_INFO(dev_priv)->engine_mask & BIT(id))
 
 #define HAS_LLC(dev_priv)	(INTEL_INFO(dev_priv)->has_llc)
 #define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)

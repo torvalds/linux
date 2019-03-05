@@ -1957,7 +1957,7 @@ static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 	u32 *cs;
 	int i;
 
-	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS) {
+	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS0) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -2082,11 +2082,11 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 #define I915_USER_RINGS (4)
 
 static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
-	[I915_EXEC_DEFAULT]	= RCS,
-	[I915_EXEC_RENDER]	= RCS,
-	[I915_EXEC_BLT]		= BCS,
-	[I915_EXEC_BSD]		= VCS,
-	[I915_EXEC_VEBOX]	= VECS
+	[I915_EXEC_DEFAULT]	= RCS0,
+	[I915_EXEC_RENDER]	= RCS0,
+	[I915_EXEC_BLT]		= BCS0,
+	[I915_EXEC_BSD]		= VCS0,
+	[I915_EXEC_VEBOX]	= VECS0
 };
 
 static struct intel_engine_cs *
@@ -2109,7 +2109,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && HAS_BSD2(dev_priv)) {
+	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(dev_priv, VCS1)) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {

@@ -122,7 +122,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	 * because our GuC shared data is there.
 	 */
 	kernel_ctx_vma = to_intel_context(dev_priv->kernel_context,
-					  dev_priv->engine[RCS])->state;
+					  dev_priv->engine[RCS0])->state;
 	blob->ads.golden_context_lrca =
 		intel_guc_ggtt_offset(guc, kernel_ctx_vma) + skipped_offset;
 

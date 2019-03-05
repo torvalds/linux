@@ -1777,7 +1777,7 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	unsigned int i;
 	int ret;
 
-	if (GEM_DEBUG_WARN_ON(engine->id != RCS))
+	if (GEM_DEBUG_WARN_ON(engine->id != RCS0))
 		return -EINVAL;
 
 	switch (INTEL_GEN(engine->i915)) {
@@ -2376,11 +2376,11 @@ logical_ring_default_irqs(struct intel_engine_cs *engine)
 
 	if (INTEL_GEN(engine->i915) < 11) {
 		const u8 irq_shifts[] = {
-			[RCS]  = GEN8_RCS_IRQ_SHIFT,
-			[BCS]  = GEN8_BCS_IRQ_SHIFT,
-			[VCS]  = GEN8_VCS1_IRQ_SHIFT,
-			[VCS2] = GEN8_VCS2_IRQ_SHIFT,
-			[VECS] = GEN8_VECS_IRQ_SHIFT,
+			[RCS0]  = GEN8_RCS_IRQ_SHIFT,
+			[BCS0]  = GEN8_BCS_IRQ_SHIFT,
+			[VCS0]  = GEN8_VCS0_IRQ_SHIFT,
+			[VCS1]  = GEN8_VCS1_IRQ_SHIFT,
+			[VECS0] = GEN8_VECS_IRQ_SHIFT,
 		};
 
 		shift = irq_shifts[engine->id];

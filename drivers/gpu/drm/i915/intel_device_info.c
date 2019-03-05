@@ -738,7 +738,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		runtime->num_scalers[PIPE_C] = 1;
 	}
 
-	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
+	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 
 	if (IS_GEN(dev_priv, 11))
 		for_each_pipe(dev_priv, pipe)
@@ -887,7 +887,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 			continue;
 
 		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vdbox_enable)) {
-			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+			info->engine_mask &= ~BIT(_VCS(i));
 			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
 			continue;
 		}
@@ -906,7 +906,7 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 			continue;
 
 		if (!(BIT(i) & RUNTIME_INFO(dev_priv)->vebox_enable)) {
-			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+			info->engine_mask &= ~BIT(_VECS(i));
 			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
 		}
 	}

@@ -210,14 +210,14 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 /* Engine ID */
 
-#define RCS_HW		0
-#define VCS_HW		1
-#define BCS_HW		2
-#define VECS_HW		3
-#define VCS2_HW		4
-#define VCS3_HW		6
-#define VCS4_HW		7
-#define VECS2_HW	12
+#define RCS0_HW		0
+#define VCS0_HW		1
+#define BCS0_HW		2
+#define VECS0_HW	3
+#define VCS1_HW		4
+#define VCS2_HW		6
+#define VCS3_HW		7
+#define VECS1_HW	12
 
 /* Engine class */
 
@@ -7250,8 +7250,8 @@ enum {
 #define  GEN8_GT_VECS_IRQ		(1 << 6)
 #define  GEN8_GT_GUC_IRQ		(1 << 5)
 #define  GEN8_GT_PM_IRQ			(1 << 4)
-#define  GEN8_GT_VCS2_IRQ		(1 << 3)
-#define  GEN8_GT_VCS1_IRQ		(1 << 2)
+#define  GEN8_GT_VCS1_IRQ		(1 << 3) /* NB: VCS2 in bspec! */
+#define  GEN8_GT_VCS0_IRQ		(1 << 2) /* NB: VCS1 in bpsec! */
 #define  GEN8_GT_BCS_IRQ		(1 << 1)
 #define  GEN8_GT_RCS_IRQ		(1 << 0)
 
@@ -7272,8 +7272,8 @@ enum {
 
 #define GEN8_RCS_IRQ_SHIFT 0
 #define GEN8_BCS_IRQ_SHIFT 16
-#define GEN8_VCS1_IRQ_SHIFT 0
-#define GEN8_VCS2_IRQ_SHIFT 16
+#define GEN8_VCS0_IRQ_SHIFT 0  /* NB: VCS1 in bspec! */
+#define GEN8_VCS1_IRQ_SHIFT 16 /* NB: VCS2 in bpsec! */
 #define GEN8_VECS_IRQ_SHIFT 0
 #define GEN8_WD_IRQ_SHIFT 16
 

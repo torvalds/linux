@@ -552,16 +552,17 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 		 */
 		default:
 			GEM_BUG_ON(engine->id);
-		case RCS:
+			/* fallthrough */
+		case RCS0:
 			hwsp = RENDER_HWS_PGA_GEN7;
 			break;
-		case BCS:
+		case BCS0:
 			hwsp = BLT_HWS_PGA_GEN7;
 			break;
-		case VCS:
+		case VCS0:
 			hwsp = BSD_HWS_PGA_GEN7;
 			break;
-		case VECS:
+		case VECS0:
 			hwsp = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
@@ -1692,8 +1693,8 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	struct drm_i915_private *i915 = rq->i915;
 	struct intel_engine_cs *engine = rq->engine;
 	enum intel_engine_id id;
-	const int num_rings =
-		IS_HSW_GT1(i915) ? RUNTIME_INFO(i915)->num_rings - 1 : 0;
+	const int num_engines =
+		IS_HSW_GT1(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
 	bool force_restore = false;
 	int len;
 	u32 *cs;
@@ -1707,7 +1708,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 
 	len = 4;
 	if (IS_GEN(i915, 7))
-		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
+		len += 2 + (num_engines ? 4 * num_engines + 6 : 0);
 	if (flags & MI_FORCE_RESTORE) {
 		GEM_BUG_ON(flags & MI_RESTORE_INHIBIT);
 		flags &= ~MI_FORCE_RESTORE;
@@ -1722,10 +1723,10 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
 	if (IS_GEN(i915, 7)) {
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
-		if (num_rings) {
+		if (num_engines) {
 			struct intel_engine_cs *signaller;
 
-			*cs++ = MI_LOAD_REGISTER_IMM(num_rings);
+			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
 			for_each_engine(signaller, i915, id) {
 				if (signaller == engine)
 					continue;
@@ -1768,11 +1769,11 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	*cs++ = MI_NOOP;
 
 	if (IS_GEN(i915, 7)) {
-		if (num_rings) {
+		if (num_engines) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
-			*cs++ = MI_LOAD_REGISTER_IMM(num_rings);
+			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
 			for_each_engine(signaller, i915, id) {
 				if (signaller == engine)
 					continue;
@@ -1850,7 +1851,7 @@ static int switch_context(struct i915_request *rq)
 		 * explanation.
 		 */
 		loops = 1;
-		if (engine->id == BCS && IS_VALLEYVIEW(engine->i915))
+		if (engine->id == BCS0 && IS_VALLEYVIEW(engine->i915))
 			loops = 32;
 
 		do {
@@ -1859,15 +1860,15 @@ static int switch_context(struct i915_request *rq)
 				goto err;
 		} while (--loops);
 
-		if (intel_engine_flag(engine) & ppgtt->pd_dirty_rings) {
-			unwind_mm = intel_engine_flag(engine);
-			ppgtt->pd_dirty_rings &= ~unwind_mm;
+		if (ppgtt->pd_dirty_engines & engine->mask) {
+			unwind_mm = engine->mask;
+			ppgtt->pd_dirty_engines &= ~unwind_mm;
 			hw_flags = MI_FORCE_RESTORE;
 		}
 	}
 
 	if (rq->hw_context->state) {
-		GEM_BUG_ON(engine->id != RCS);
+		GEM_BUG_ON(engine->id != RCS0);
 
 		/*
 		 * The kernel context(s) is treated as pure scratch and is not
@@ -1927,7 +1928,7 @@ static int switch_context(struct i915_request *rq)
 
 err_mm:
 	if (unwind_mm)
-		ppgtt->pd_dirty_rings |= unwind_mm;
+		ppgtt->pd_dirty_engines |= unwind_mm;
 err:
 	return ret;
 }

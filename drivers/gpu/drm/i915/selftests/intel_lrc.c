@@ -929,7 +929,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 
 	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
 		count, flags,
-		RUNTIME_INFO(smoke->i915)->num_rings, smoke->ncontext);
+		RUNTIME_INFO(smoke->i915)->num_engines, smoke->ncontext);
 	return 0;
 }
 
@@ -957,7 +957,7 @@ static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 
 	pr_info("Submitted %lu random:%x requests across %d engines and %d contexts\n",
 		count, flags,
-		RUNTIME_INFO(smoke->i915)->num_rings, smoke->ncontext);
+		RUNTIME_INFO(smoke->i915)->num_engines, smoke->ncontext);
 	return 0;
 }
 
