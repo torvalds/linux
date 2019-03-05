@@ -57,8 +57,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 		vbox_write_ioport(VBE_DISPI_INDEX_VIRT_WIDTH, pitch * 8 / bpp);
 		vbox_write_ioport(VBE_DISPI_INDEX_BPP, bpp);
 		vbox_write_ioport(VBE_DISPI_INDEX_ENABLE, VBE_DISPI_ENABLED);
-		vbox_write_ioport(
-			VBE_DISPI_INDEX_X_OFFSET,
+		vbox_write_ioport(VBE_DISPI_INDEX_X_OFFSET,
 			vbox_crtc->fb_offset % pitch / bpp * 8 + vbox_crtc->x);
 		vbox_write_ioport(VBE_DISPI_INDEX_Y_OFFSET,
 				  vbox_crtc->fb_offset / pitch + vbox_crtc->y);
