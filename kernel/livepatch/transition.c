@@ -29,9 +29,13 @@
 #define MAX_STACK_ENTRIES  100
 #define STACK_ERR_BUF_SIZE 128
 
+#define SIGNALS_TIMEOUT 15
+
 struct klp_patch *klp_transition_patch;
 
 static int klp_target_state = KLP_UNDEFINED;
+
+static unsigned int klp_signals_cnt;
 
 /*
  * This work can be performed periodically to finish patching or unpatching any
@@ -344,6 +348,47 @@ done:
 }
 
 /*
+ * Sends a fake signal to all non-kthread tasks with TIF_PATCH_PENDING set.
+ * Kthreads with TIF_PATCH_PENDING set are woken up.
+ */
+static void klp_send_signals(void)
+{
+	struct task_struct *g, *task;
+
+	if (klp_signals_cnt == SIGNALS_TIMEOUT)
+		pr_notice("signaling remaining tasks\n");
+
+	read_lock(&tasklist_lock);
+	for_each_process_thread(g, task) {
+		if (!klp_patch_pending(task))
+			continue;
+
+		/*
+		 * There is a small race here. We could see TIF_PATCH_PENDING
+		 * set and decide to wake up a kthread or send a fake signal.
+		 * Meanwhile the task could migrate itself and the action
+		 * would be meaningless. It is not serious though.
+		 */
+		if (task->flags & PF_KTHREAD) {
+			/*
+			 * Wake up a kthread which sleeps interruptedly and
+			 * still has not been migrated.
+			 */
+			wake_up_state(task, TASK_INTERRUPTIBLE);
+		} else {
+			/*
+			 * Send fake signal to all non-kthread tasks which are
+			 * still not migrated.
+			 */
+			spin_lock_irq(&task->sighand->siglock);
+			signal_wake_up(task, 0);
+			spin_unlock_irq(&task->sighand->siglock);
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+/*
  * Try to switch all remaining tasks to the target patch state by walking the
  * stacks of sleeping tasks and looking for any to-be-patched or
  * to-be-unpatched functions.  If such functions are found, the task can't be
@@ -393,6 +438,10 @@ void klp_try_complete_transition(void)
 	put_online_cpus();
 
 	if (!complete) {
+		if (klp_signals_cnt && !(klp_signals_cnt % SIGNALS_TIMEOUT))
+			klp_send_signals();
+		klp_signals_cnt++;
+
 		/*
 		 * Some tasks weren't able to be switched over.  Try again
 		 * later and/or wait for other methods like kernel exit
@@ -454,6 +503,8 @@ void klp_start_transition(void)
 		if (task->patch_state != klp_target_state)
 			set_tsk_thread_flag(task, TIF_PATCH_PENDING);
 	}
+
+	klp_signals_cnt = 0;
 }
 
 /*
@@ -574,47 +625,6 @@ void klp_copy_process(struct task_struct *child)
 	child->patch_state = current->patch_state;
 
 	/* TIF_PATCH_PENDING gets copied in setup_thread_stack() */
-}
-
-/*
- * Sends a fake signal to all non-kthread tasks with TIF_PATCH_PENDING set.
- * Kthreads with TIF_PATCH_PENDING set are woken up. Only admin can request this
- * action currently.
- */
-void klp_send_signals(void)
-{
-	struct task_struct *g, *task;
-
-	pr_notice("signaling remaining tasks\n");
-
-	read_lock(&tasklist_lock);
-	for_each_process_thread(g, task) {
-		if (!klp_patch_pending(task))
-			continue;
-
-		/*
-		 * There is a small race here. We could see TIF_PATCH_PENDING
-		 * set and decide to wake up a kthread or send a fake signal.
-		 * Meanwhile the task could migrate itself and the action
-		 * would be meaningless. It is not serious though.
-		 */
-		if (task->flags & PF_KTHREAD) {
-			/*
-			 * Wake up a kthread which sleeps interruptedly and
-			 * still has not been migrated.
-			 */
-			wake_up_state(task, TASK_INTERRUPTIBLE);
-		} else {
-			/*
-			 * Send fake signal to all non-kthread tasks which are
-			 * still not migrated.
-			 */
-			spin_lock_irq(&task->sighand->siglock);
-			signal_wake_up(task, 0);
-			spin_unlock_irq(&task->sighand->siglock);
-		}
-	}
-	read_unlock(&tasklist_lock);
 }
 
 /*

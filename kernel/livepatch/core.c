@@ -313,7 +313,6 @@ static int klp_write_object_relocations(struct module *pmod,
  * /sys/kernel/livepatch/<patch>
  * /sys/kernel/livepatch/<patch>/enabled
  * /sys/kernel/livepatch/<patch>/transition
- * /sys/kernel/livepatch/<patch>/signal
  * /sys/kernel/livepatch/<patch>/force
  * /sys/kernel/livepatch/<patch>/<object>
  * /sys/kernel/livepatch/<patch>/<object>/<function,sympos>
@@ -382,35 +381,6 @@ static ssize_t transition_show(struct kobject *kobj,
 			patch == klp_transition_patch);
 }
 
-static ssize_t signal_store(struct kobject *kobj, struct kobj_attribute *attr,
-			    const char *buf, size_t count)
-{
-	struct klp_patch *patch;
-	int ret;
-	bool val;
-
-	ret = kstrtobool(buf, &val);
-	if (ret)
-		return ret;
-
-	if (!val)
-		return count;
-
-	mutex_lock(&klp_mutex);
-
-	patch = container_of(kobj, struct klp_patch, kobj);
-	if (patch != klp_transition_patch) {
-		mutex_unlock(&klp_mutex);
-		return -EINVAL;
-	}
-
-	klp_send_signals();
-
-	mutex_unlock(&klp_mutex);
-
-	return count;
-}
-
 static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -442,12 +412,10 @@ static ssize_t force_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 static struct kobj_attribute enabled_kobj_attr = __ATTR_RW(enabled);
 static struct kobj_attribute transition_kobj_attr = __ATTR_RO(transition);
-static struct kobj_attribute signal_kobj_attr = __ATTR_WO(signal);
 static struct kobj_attribute force_kobj_attr = __ATTR_WO(force);
 static struct attribute *klp_patch_attrs[] = {
 	&enabled_kobj_attr.attr,
 	&transition_kobj_attr.attr,
-	&signal_kobj_attr.attr,
 	&force_kobj_attr.attr,
 	NULL
 };
