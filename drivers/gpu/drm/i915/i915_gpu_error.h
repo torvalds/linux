@@ -111,7 +111,6 @@ struct i915_gpu_state {
 		u32 fault_reg;
 		u64 faddr;
 		u32 rc_psmi; /* sleep state */
-		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
 		struct intel_instdone instdone;
 
 		struct drm_i915_error_context {

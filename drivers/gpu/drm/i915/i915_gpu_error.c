@@ -502,13 +502,6 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 	if (INTEL_GEN(m->i915) >= 6) {
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
-		err_printf(m, "  SYNC_0: 0x%08x\n",
-			   ee->semaphore_mboxes[0]);
-		err_printf(m, "  SYNC_1: 0x%08x\n",
-			   ee->semaphore_mboxes[1]);
-		if (HAS_VEBOX(m->i915))
-			err_printf(m, "  SYNC_2: 0x%08x\n",
-				   ee->semaphore_mboxes[2]);
 	}
 	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
@@ -1138,18 +1131,6 @@ static void gem_record_fences(struct i915_gpu_state *error)
 	error->nfence = i;
 }
 
-static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
-					struct drm_i915_error_engine *ee)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	ee->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(engine->mmio_base));
-	ee->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(engine->mmio_base));
-	if (HAS_VEBOX(dev_priv))
-		ee->semaphore_mboxes[2] =
-			I915_READ(RING_SYNC_2(engine->mmio_base));
-}
-
 static void error_record_engine_registers(struct i915_gpu_state *error,
 					  struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
@@ -1158,12 +1139,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		ee->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
-		if (INTEL_GEN(dev_priv) >= 8) {
+		if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
-		} else {
-			gen6_record_semaphore_state(engine, ee);
+		else
 			ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
-		}
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
