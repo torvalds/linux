@@ -7,6 +7,7 @@
 / {
 	aliases {
 		serial0 = &blsp1_uart2;
+		serial1 = &blsp1_uart3;
 	};
 
 	chosen {
@@ -18,6 +19,32 @@
 		regulator-name = "vph_pwr";
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	vdd_ch0_3p3:
+	vdd_esmps3_3p3: vdd-esmps3-3p3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "eSMPS3_3P3";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+};
+
+&blsp1_uart3 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,wcn3990-bt";
+		vddio-supply = <&vreg_l6_1p8>;
+		vddxo-supply = <&vreg_l5_1p8>;
+		vddrf-supply = <&vreg_l1_1p3>;
+		vddch0-supply = <&vdd_ch0_3p3>;
+
+		local-bd-address = [ 02 00 00 00 5a ad ];
+
+		max-speed = <3200000>;
 	};
 };
 
@@ -223,5 +250,23 @@
 	tx {
 		drive-strength = <2>;
 		bias-disable;
+	};
+};
+
+&blsp1_uart3_default {
+	cts {
+		pins = "gpio84";
+		bias-disable;
+	};
+
+	rts-tx {
+		pins = "gpio85", "gpio82";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	rx {
+		pins = "gpio83";
+		bias-pull-up;
 	};
 };
