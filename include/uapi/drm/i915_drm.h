@@ -1127,32 +1127,34 @@ struct drm_i915_gem_busy {
 	 * as busy may become idle before the ioctl is completed.
 	 *
 	 * Furthermore, if the object is busy, which engine is busy is only
-	 * provided as a guide. There are race conditions which prevent the
-	 * report of which engines are busy from being always accurate.
-	 * However, the converse is not true. If the object is idle, the
-	 * result of the ioctl, that all engines are idle, is accurate.
+	 * provided as a guide and only indirectly by reporting its class
+	 * (there may be more than one engine in each class). There are race
+	 * conditions which prevent the report of which engines are busy from
+	 * being always accurate.  However, the converse is not true. If the
+	 * object is idle, the result of the ioctl, that all engines are idle,
+	 * is accurate.
 	 *
 	 * The returned dword is split into two fields to indicate both
-	 * the engines on which the object is being read, and the
-	 * engine on which it is currently being written (if any).
+	 * the engine classess on which the object is being read, and the
+	 * engine class on which it is currently being written (if any).
 	 *
 	 * The low word (bits 0:15) indicate if the object is being written
 	 * to by any engine (there can only be one, as the GEM implicit
 	 * synchronisation rules force writes to be serialised). Only the
-	 * engine for the last write is reported.
+	 * engine class (offset by 1, I915_ENGINE_CLASS_RENDER is reported as
+	 * 1 not 0 etc) for the last write is reported.
 	 *
-	 * The high word (bits 16:31) are a bitmask of which engines are
-	 * currently reading from the object. Multiple engines may be
+	 * The high word (bits 16:31) are a bitmask of which engines classes
+	 * are currently reading from the object. Multiple engines may be
 	 * reading from the object simultaneously.
 	 *
-	 * The value of each engine is the same as specified in the
-	 * EXECBUFFER2 ioctl, i.e. I915_EXEC_RENDER, I915_EXEC_BSD etc.
-	 * Note I915_EXEC_DEFAULT is a symbolic value and is mapped to
-	 * the I915_EXEC_RENDER engine for execution, and so it is never
+	 * The value of each engine class is the same as specified in the
+	 * I915_CONTEXT_SET_ENGINES parameter and via perf, i.e.
+	 * I915_ENGINE_CLASS_RENDER, I915_ENGINE_CLASS_COPY, etc.
 	 * reported as active itself. Some hardware may have parallel
 	 * execution engines, e.g. multiple media engines, which are
-	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
-	 * so are not separately reported for busyness.
+	 * mapped to the same class identifier and so are not separately
+	 * reported for busyness.
 	 *
 	 * Caveat emptor:
 	 * Only the boolean result of this query is reliable; that is whether

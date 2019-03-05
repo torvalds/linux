@@ -84,7 +84,6 @@ static const struct engine_class_info intel_engine_classes[] = {
 #define MAX_MMIO_BASES 3
 struct engine_info {
 	unsigned int hw_id;
-	unsigned int uabi_id;
 	u8 class;
 	u8 instance;
 	/* mmio bases table *must* be sorted in reverse gen order */
@@ -97,7 +96,6 @@ struct engine_info {
 static const struct engine_info intel_engines[] = {
 	[RCS] = {
 		.hw_id = RCS_HW,
-		.uabi_id = I915_EXEC_RENDER,
 		.class = RENDER_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -106,7 +104,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[BCS] = {
 		.hw_id = BCS_HW,
-		.uabi_id = I915_EXEC_BLT,
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -115,7 +112,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS] = {
 		.hw_id = VCS_HW,
-		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -126,7 +122,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS2] = {
 		.hw_id = VCS2_HW,
-		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
 		.mmio_bases = {
@@ -136,7 +131,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS3] = {
 		.hw_id = VCS3_HW,
-		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
 		.mmio_bases = {
@@ -145,7 +139,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VCS4] = {
 		.hw_id = VCS4_HW,
-		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
 		.mmio_bases = {
@@ -154,7 +147,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VECS] = {
 		.hw_id = VECS_HW,
-		.uabi_id = I915_EXEC_VEBOX,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
 		.mmio_bases = {
@@ -164,7 +156,6 @@ static const struct engine_info intel_engines[] = {
 	},
 	[VECS2] = {
 		.hw_id = VECS2_HW,
-		.uabi_id = I915_EXEC_VEBOX,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
 		.mmio_bases = {
@@ -321,7 +312,6 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->class = info->class;
 	engine->instance = info->instance;
 
-	engine->uabi_id = info->uabi_id;
 	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
 
 	engine->context_size = __intel_engine_context_size(dev_priv,

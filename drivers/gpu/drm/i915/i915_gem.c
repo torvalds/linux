@@ -3825,20 +3825,17 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 
 static __always_inline unsigned int __busy_read_flag(unsigned int id)
 {
-	/* Note that we could alias engines in the execbuf API, but
-	 * that would be very unwise as it prevents userspace from
-	 * fine control over engine selection. Ahem.
-	 *
-	 * This should be something like EXEC_MAX_ENGINE instead of
-	 * I915_NUM_ENGINES.
-	 */
-	BUILD_BUG_ON(I915_NUM_ENGINES > 16);
+	if (id == I915_ENGINE_CLASS_INVALID)
+		return 0xffff0000;
+
+	GEM_BUG_ON(id >= 16);
 	return 0x10000 << id;
 }
 
 static __always_inline unsigned int __busy_write_id(unsigned int id)
 {
-	/* The uABI guarantees an active writer is also amongst the read
+	/*
+	 * The uABI guarantees an active writer is also amongst the read
 	 * engines. This would be true if we accessed the activity tracking
 	 * under the lock, but as we perform the lookup of the object and
 	 * its activity locklessly we can not guarantee that the last_write
@@ -3846,16 +3843,20 @@ static __always_inline unsigned int __busy_write_id(unsigned int id)
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
 	 */
-	return id | __busy_read_flag(id);
+	if (id == I915_ENGINE_CLASS_INVALID)
+		return 0xffffffff;
+
+	return (id + 1) | __busy_read_flag(id);
 }
 
 static __always_inline unsigned int
 __busy_set_if_active(const struct dma_fence *fence,
 		     unsigned int (*flag)(unsigned int id))
 {
-	struct i915_request *rq;
+	const struct i915_request *rq;
 
-	/* We have to check the current hw status of the fence as the uABI
+	/*
+	 * We have to check the current hw status of the fence as the uABI
 	 * guarantees forward progress. We could rely on the idle worker
 	 * to eventually flush us, but to minimise latency just ask the
 	 * hardware.
@@ -3866,11 +3867,11 @@ __busy_set_if_active(const struct dma_fence *fence,
 		return 0;
 
 	/* opencode to_request() in order to avoid const warnings */
-	rq = container_of(fence, struct i915_request, fence);
+	rq = container_of(fence, const struct i915_request, fence);
 	if (i915_request_completed(rq))
 		return 0;
 
-	return flag(rq->engine->uabi_id);
+	return flag(rq->engine->uabi_class);
 }
 
 static __always_inline unsigned int
@@ -3904,7 +3905,8 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (!obj)
 		goto out;
 
-	/* A discrepancy here is that we do not report the status of
+	/*
+	 * A discrepancy here is that we do not report the status of
 	 * non-i915 fences, i.e. even though we may report the object as idle,
 	 * a call to set-domain may still stall waiting for foreign rendering.
 	 * This also means that wait-ioctl may report an object as busy,

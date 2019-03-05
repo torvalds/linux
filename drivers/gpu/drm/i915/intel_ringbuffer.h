@@ -335,7 +335,6 @@ struct intel_engine_cs {
 	unsigned int hw_id;
 	unsigned int guc_id;
 
-	u8 uabi_id;
 	u8 uabi_class;
 
 	u8 class;
