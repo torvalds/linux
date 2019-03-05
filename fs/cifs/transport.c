@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
+#include <linux/signal.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -291,6 +292,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	int n_vec;
 	unsigned int send_length = 0;
 	unsigned int i, j;
+	sigset_t mask, oldmask;
 	size_t total_len = 0, sent, size;
 	struct socket *ssocket = server->ssocket;
 	struct msghdr smb_msg;
@@ -305,6 +307,11 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	if (ssocket == NULL)
 		return -EAGAIN;
 
+	if (signal_pending(current)) {
+		cifs_dbg(FYI, "signal is pending before sending any data\n");
+		return -EINTR;
+	}
+
 	/* cork the socket */
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
 				(char *)&val, sizeof(val));
@@ -312,6 +319,16 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	for (j = 0; j < num_rqst; j++)
 		send_length += smb_rqst_len(server, &rqst[j]);
 	rfc1002_marker = cpu_to_be32(send_length);
+
+	/*
+	 * We should not allow signals to interrupt the network send because
+	 * any partial send will cause session reconnects thus increasing
+	 * latency of system calls and overload a server with unnecessary
+	 * requests.
+	 */
+
+	sigfillset(&mask);
+	sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
 	/* Generate a rfc1002 marker for SMB2+ */
 	if (server->vals->header_preamble_size == 0) {
@@ -322,7 +339,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		iov_iter_kvec(&smb_msg.msg_iter, WRITE, &hiov, 1, 4);
 		rc = smb_send_kvec(server, &smb_msg, &sent);
 		if (rc < 0)
-			goto uncork;
+			goto unmask;
 
 		total_len += sent;
 		send_length += 4;
@@ -344,7 +361,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 
 		rc = smb_send_kvec(server, &smb_msg, &sent);
 		if (rc < 0)
-			goto uncork;
+			goto unmask;
 
 		total_len += sent;
 
@@ -366,7 +383,25 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		}
 	}
 
-uncork:
+unmask:
+	sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+	/*
+	 * If signal is pending but we have already sent the whole packet to
+	 * the server we need to return success status to allow a corresponding
+	 * mid entry to be kept in the pending requests queue thus allowing
+	 * to handle responses from the server by the client.
+	 *
+	 * If only part of the packet has been sent there is no need to hide
+	 * interrupt because the session will be reconnected anyway, so there
+	 * won't be any response from the server to handle.
+	 */
+
+	if (signal_pending(current) && (total_len != send_length)) {
+		cifs_dbg(FYI, "signal is pending after attempt to send\n");
+		rc = -EINTR;
+	}
+
 	/* uncork it */
 	val = 0;
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
