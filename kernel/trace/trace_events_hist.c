@@ -2141,7 +2141,7 @@ static inline void save_comm(char *comm, struct task_struct *task)
 		return;
 	}
 
-	memcpy(comm, task->comm, TASK_COMM_LEN);
+	strncpy(comm, task->comm, TASK_COMM_LEN);
 }
 
 static void hist_elt_data_free(struct hist_elt_data *elt_data)
@@ -3557,7 +3557,7 @@ static bool cond_snapshot_update(struct trace_array *tr, void *cond_data)
 	elt_data = context->elt->private_data;
 	track_elt_data = track_data->elt.private_data;
 	if (elt_data->comm)
-		memcpy(track_elt_data->comm, elt_data->comm, TASK_COMM_LEN);
+		strncpy(track_elt_data->comm, elt_data->comm, TASK_COMM_LEN);
 
 	track_data->updated = true;
 
