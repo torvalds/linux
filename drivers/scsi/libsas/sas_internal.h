@@ -32,9 +32,13 @@
 #include <scsi/libsas.h>
 #include <scsi/sas_ata.h>
 
-#define sas_printk(fmt, ...) printk(KERN_NOTICE "sas: " fmt, ## __VA_ARGS__)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
 
-#define SAS_DPRINTK(fmt, ...) printk(KERN_DEBUG "sas: " fmt, ## __VA_ARGS__)
+#define SAS_FMT "sas: "
+
+#define pr_fmt(fmt) SAS_FMT fmt
 
 #define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
 #define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
@@ -120,10 +124,10 @@ static inline void sas_smp_host_handler(struct bsg_job *job,
 
 static inline void sas_fail_probe(struct domain_device *dev, const char *func, int err)
 {
-	SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
-		    func, dev->parent ? "exp-attached" :
-					    "direct-attached",
-		    SAS_ADDR(dev->sas_addr), err);
+	pr_warn("%s: for %s device %16llx returned %d\n",
+		func, dev->parent ? "exp-attached" :
+		"direct-attached",
+		SAS_ADDR(dev->sas_addr), err);
 	sas_unregister_dev(dev->port, dev);
 }
 

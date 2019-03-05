@@ -56,6 +56,7 @@ Optional properties:
    More details in Documentation/devicetree/bindings/gpio/gpio.txt.
  - st,bank-ioport: should correspond to the EXTI IOport selection (EXTI line
    used to select GPIOs as interrupts).
+ - hwlocks: reference to a phandle of a hardware spinlock provider node.
 
 Example 1:
 #include <dt-bindings/pinctrl/stm32f429-pinfunc.h>

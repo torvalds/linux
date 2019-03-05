@@ -289,7 +289,7 @@ static inline bool pfn_valid(unsigned long pfn)
  * page tables at arbitrary addresses, this breaks and will have to change.
  */
 #ifdef CONFIG_PPC64
-#define PD_HUGE 0x8000000000000000
+#define PD_HUGE 0x8000000000000000UL
 #else
 #define PD_HUGE 0x80000000
 #endif
@@ -335,23 +335,11 @@ void arch_free_page(struct page *page, int order);
 #endif
 
 struct vm_area_struct;
-#ifdef CONFIG_PPC_BOOK3S_64
-/*
- * For BOOK3s 64 with 4k and 64K linux page size
- * we want to use pointers, because the page table
- * actually store pfn
- */
-typedef pte_t *pgtable_t;
-#else
-#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC64)
-typedef pte_t *pgtable_t;
-#else
-typedef struct page *pgtable_t;
-#endif
-#endif
 
 #include <asm-generic/memory_model.h>
 #endif /* __ASSEMBLY__ */
 #include <asm/slice.h>
+
+#define ARCH_ZONE_DMA_BITS 31
 
 #endif /* _ASM_POWERPC_PAGE_H */

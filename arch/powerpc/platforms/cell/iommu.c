@@ -654,7 +654,6 @@ static const struct dma_map_ops dma_iommu_fixed_ops = {
 	.dma_supported  = dma_suported_and_switch,
 	.map_page       = dma_fixed_map_page,
 	.unmap_page     = dma_fixed_unmap_page,
-	.mapping_error	= dma_iommu_mapping_error,
 };
 
 static void cell_dma_dev_setup(struct device *dev)

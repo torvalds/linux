@@ -66,8 +66,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pin_sina31s>;
 
 		status {
 			label = "sina31s:status:usr";
@@ -116,7 +114,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&gmac_mii_pins>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	phy-supply = <&reg_dldo1>;
@@ -139,7 +137,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -147,14 +145,14 @@
 	vref-supply = <&reg_aldo3>;
 	status = "okay";
 
-	button@158 {
+	button-158 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <158730>;
 	};
 
-	button@349 {
+	button-349 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
@@ -163,8 +161,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_sina31s>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 4 GPIO_ACTIVE_LOW>; /* PA4 */
@@ -175,19 +171,6 @@
 	status = "okay";
 };
 
-&pio {
-	led_pin_sina31s: led_pin@0 {
-		pins = "PH13";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_sina31s: mmc0_cd_pin@0 {
-		pins = "PA4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-};
-
 &reg_dldo1 {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
@@ -196,7 +179,7 @@
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_pins_a>;
+	pinctrl-0 = <&spdif_tx_pin>;
 	status = "okay";
 };
 

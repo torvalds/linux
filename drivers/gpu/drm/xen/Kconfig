@@ -12,6 +12,7 @@ config DRM_XEN_FRONTEND
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	select XEN_XENBUS_FRONTEND
+	select XEN_FRONT_PGDIR_SHBUF
 	help
 	  Choose this option if you want to enable a para-virtualized
 	  frontend DRM/KMS driver for Xen guest OSes.

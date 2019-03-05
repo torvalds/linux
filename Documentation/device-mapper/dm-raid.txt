@@ -146,7 +146,7 @@ The target is named "raid" and it accepts the following parameters:
         [data_offset <sectors>]
 		This option value defines the offset into each data device
 		where the data starts. This is used to provide out-of-place
-		reshaping space to avoid writing over data whilst
+		reshaping space to avoid writing over data while
 		changing the layout of stripes, hence an interruption/crash
 		may happen at any time without the risk of losing data.
 		E.g. when adding devices to an existing raid set during

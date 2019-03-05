@@ -31,6 +31,9 @@ extern int gfs2_find_jhead(struct gfs2_jdesc *jd,
 		    struct gfs2_log_header_host *head);
 extern int gfs2_recover_journal(struct gfs2_jdesc *gfs2_jd, bool wait);
 extern void gfs2_recover_func(struct work_struct *work);
+extern int __get_log_header(struct gfs2_sbd *sdp,
+			    const struct gfs2_log_header *lh, unsigned int blkno,
+			    struct gfs2_log_header_host *head);
 
 #endif /* __RECOVERY_DOT_H__ */
 

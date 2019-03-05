@@ -320,9 +320,6 @@ static ssize_t brport_store(struct kobject *kobj,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (!p->dev || !p->br)
-		goto out_unlock;
-
 	if (brport_attr->store_raw) {
 		char *buf_copy;
 

@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015-2017 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __PINCTRL_UNIPHIER_H__
@@ -190,7 +181,7 @@ struct uniphier_pinctrl_socdata {
 	}
 
 int uniphier_pinctrl_probe(struct platform_device *pdev,
-			   struct uniphier_pinctrl_socdata *socdata);
+			   const struct uniphier_pinctrl_socdata *socdata);
 
 extern const struct dev_pm_ops uniphier_pinctrl_pm_ops;
 

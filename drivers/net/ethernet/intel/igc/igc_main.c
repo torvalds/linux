@@ -865,6 +865,8 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 	/* set the timestamp */
 	first->time_stamp = jiffies;
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.  (Only applicable for weak-ordered
 	 * memory model archs, such as IA-64).
@@ -958,8 +960,6 @@ static netdev_tx_t igc_xmit_frame_ring(struct sk_buff *skb,
 	first->skb = skb;
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
-
-	skb_tx_timestamp(skb);
 
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
@@ -1108,7 +1108,7 @@ static struct sk_buff *igc_build_skb(struct igc_ring *rx_ring,
 
 	/* update pointers within the skb to store the data */
 	skb_reserve(skb, IGC_SKB_PAD);
-	 __skb_put(skb, size);
+	__skb_put(skb, size);
 
 	/* update buffer offset */
 #if (PAGE_SIZE < 8192)
@@ -1160,9 +1160,9 @@ static struct sk_buff *igc_construct_skb(struct igc_ring *rx_ring,
 				(va + headlen) - page_address(rx_buffer->page),
 				size, truesize);
 #if (PAGE_SIZE < 8192)
-	rx_buffer->page_offset ^= truesize;
+		rx_buffer->page_offset ^= truesize;
 #else
-	rx_buffer->page_offset += truesize;
+		rx_buffer->page_offset += truesize;
 #endif
 	} else {
 		rx_buffer->pagecnt_bias++;
@@ -1668,8 +1668,8 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 				tx_buffer->next_to_watch,
 				jiffies,
 				tx_buffer->next_to_watch->wb.status);
-				netif_stop_subqueue(tx_ring->netdev,
-						    tx_ring->queue_index);
+			netif_stop_subqueue(tx_ring->netdev,
+					    tx_ring->queue_index);
 
 			/* we are about to reset, no point in enabling stuff */
 			return true;
@@ -1697,20 +1697,6 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	}
 
 	return !!budget;
-}
-
-/**
- * igc_ioctl - I/O control method
- * @netdev: network interface device structure
- * @ifreq: frequency
- * @cmd: command
- */
-static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	switch (cmd) {
-	default:
-		return -EOPNOTSUPP;
-	}
 }
 
 /**
@@ -2866,11 +2852,13 @@ static int igc_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* If not enough Rx work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-	igc_ring_irq_enable(q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		igc_ring_irq_enable(q_vector);
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**
@@ -3358,7 +3346,7 @@ static int __igc_open(struct net_device *netdev, bool resuming)
 		goto err_req_irq;
 
 	/* Notify the stack of the actual queue counts. */
-	netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
+	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
 	if (err)
 		goto err_set_queues;
 
@@ -3445,7 +3433,6 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_set_mac_address	= igc_set_mac,
 	.ndo_change_mtu		= igc_change_mtu,
 	.ndo_get_stats		= igc_get_stats,
-	.ndo_do_ioctl		= igc_ioctl,
 };
 
 /* PCIe configuration access */
@@ -3532,26 +3519,23 @@ static int igc_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct igc_hw *hw;
 	const struct igc_info *ei = igc_info_tbl[ent->driver_data];
-	int err, pci_using_dac;
+	int err;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	pci_using_dac = 0;
 	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
 		err = dma_set_coherent_mask(&pdev->dev,
 					    DMA_BIT_MASK(64));
-		if (!err)
-			pci_using_dac = 1;
 	} else {
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				IGC_ERR("Wrong DMA configuration, aborting\n");
+				dev_err(&pdev->dev, "igc: Wrong DMA config\n");
 				goto err_dma;
 			}
 		}

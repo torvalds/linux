@@ -298,7 +298,9 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace,
 		&a5xx_gpu->gpmu_bo, &a5xx_gpu->gpmu_iova);
 	if (IS_ERR(ptr))
-		goto err;
+		return;
+
+	msm_gem_object_set_name(a5xx_gpu->gpmu_bo, "gpmufw");
 
 	while (cmds_size > 0) {
 		int i;
@@ -317,15 +319,4 @@ void a5xx_gpmu_ucode_init(struct msm_gpu *gpu)
 
 	msm_gem_put_vaddr(a5xx_gpu->gpmu_bo);
 	a5xx_gpu->gpmu_dwords = dwords;
-
-	return;
-err:
-	if (a5xx_gpu->gpmu_iova)
-		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
-	if (a5xx_gpu->gpmu_bo)
-		drm_gem_object_put(a5xx_gpu->gpmu_bo);
-
-	a5xx_gpu->gpmu_bo = NULL;
-	a5xx_gpu->gpmu_iova = 0;
-	a5xx_gpu->gpmu_dwords = 0;
 }

@@ -326,6 +326,8 @@ module_param_cb(g6_is_space, &cougar_g6_is_space_ops, &g6_is_space, 0644);
 static struct hid_device_id cougar_id_table[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
 			 USB_DEVICE_ID_COUGAR_500K_GAMING_KEYBOARD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
+			 USB_DEVICE_ID_COUGAR_700K_GAMING_KEYBOARD) },
 	{}
 };
 MODULE_DEVICE_TABLE(hid, cougar_id_table);

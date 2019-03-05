@@ -1131,11 +1131,10 @@ static int __init debug_objects_replace_static_objects(void)
 	}
 
 	/*
-	 * When debug_objects_mem_init() is called we know that only
-	 * one CPU is up, so disabling interrupts is enough
-	 * protection. This avoids the lockdep hell of lock ordering.
+	 * debug_objects_mem_init() is now called early that only one CPU is up
+	 * and interrupts have been disabled, so it is safe to replace the
+	 * active object references.
 	 */
-	local_irq_disable();
 
 	/* Remove the statically allocated objects from the pool */
 	hlist_for_each_entry_safe(obj, tmp, &obj_pool, node)
@@ -1156,7 +1155,6 @@ static int __init debug_objects_replace_static_objects(void)
 			cnt++;
 		}
 	}
-	local_irq_enable();
 
 	pr_debug("%d of %d active objects replaced\n",
 		 cnt, obj_pool_used);

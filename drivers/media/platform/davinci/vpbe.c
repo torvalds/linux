@@ -93,28 +93,6 @@ static int vpbe_find_encoder_sd_index(struct vpbe_config *cfg,
 }
 
 /**
- * vpbe_g_cropcap - Get crop capabilities of the display
- * @vpbe_dev: vpbe device ptr
- * @cropcap: cropcap is a ptr to struct v4l2_cropcap
- *
- * Update the crop capabilities in crop cap for current
- * mode
- */
-static int vpbe_g_cropcap(struct vpbe_device *vpbe_dev,
-			  struct v4l2_cropcap *cropcap)
-{
-	if (!cropcap)
-		return -EINVAL;
-	cropcap->bounds.left = 0;
-	cropcap->bounds.top = 0;
-	cropcap->bounds.width = vpbe_dev->current_timings.xres;
-	cropcap->bounds.height = vpbe_dev->current_timings.yres;
-	cropcap->defrect = cropcap->bounds;
-
-	return 0;
-}
-
-/**
  * vpbe_enum_outputs - enumerate outputs
  * @vpbe_dev: vpbe device ptr
  * @output: ptr to v4l2_output structure
@@ -740,7 +718,7 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	if (ret) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Failed to set default output %s",
 			 def_output);
-		return ret;
+		goto fail_kfree_amp;
 	}
 
 	printk(KERN_NOTICE "Setting default mode to %s\n", def_mode);
@@ -748,12 +726,15 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	if (ret) {
 		v4l2_err(&vpbe_dev->v4l2_dev, "Failed to set default mode %s",
 			 def_mode);
-		return ret;
+		goto fail_kfree_amp;
 	}
 	vpbe_dev->initialized = 1;
 	/* TBD handling of bootargs for default output and mode */
 	return 0;
 
+fail_kfree_amp:
+	mutex_lock(&vpbe_dev->lock);
+	kfree(vpbe_dev->amp);
 fail_kfree_encoders:
 	kfree(vpbe_dev->encoders);
 fail_dev_unregister:
@@ -793,7 +774,6 @@ static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 }
 
 static const struct vpbe_device_ops vpbe_dev_ops = {
-	.g_cropcap = vpbe_g_cropcap,
 	.enum_outputs = vpbe_enum_outputs,
 	.set_output = vpbe_set_output,
 	.get_output = vpbe_get_output,

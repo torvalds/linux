@@ -57,12 +57,6 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 
 void drm_helper_resume_force_mode(struct drm_device *dev);
 
-int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode, int x, int y,
-			     struct drm_framebuffer *old_fb);
-int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-				  struct drm_framebuffer *old_fb);
-
 /* drm_probe_helper.c */
 int drm_helper_probe_single_connector_modes(struct drm_connector
 					    *connector, uint32_t maxX,

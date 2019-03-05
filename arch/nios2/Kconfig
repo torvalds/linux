@@ -4,7 +4,6 @@ config NIOS2
 	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_SWAP
-	select DMA_DIRECT_OPS
 	select TIMER_OF
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
@@ -35,9 +34,6 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config NO_IOPORT_MAP
-	def_bool y
-
-config HAS_DMA
 	def_bool y
 
 config FPU

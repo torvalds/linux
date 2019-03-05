@@ -26,10 +26,7 @@
 #include "chcr_core.h"
 #include "cxgb4_uld.h"
 
-static LIST_HEAD(uld_ctx_list);
-static DEFINE_MUTEX(dev_mutex);
-static atomic_t dev_count;
-static struct uld_ctx *ctx_rr;
+static struct chcr_driver_data drv_data;
 
 typedef int (*chcr_handler_func)(struct chcr_dev *dev, unsigned char *input);
 static int cpl_fw6_pld_handler(struct chcr_dev *dev, unsigned char *input);
@@ -53,6 +50,29 @@ static struct cxgb4_uld_info chcr_uld_info = {
 #endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 };
 
+static void detach_work_fn(struct work_struct *work)
+{
+	struct chcr_dev *dev;
+
+	dev = container_of(work, struct chcr_dev, detach_work.work);
+
+	if (atomic_read(&dev->inflight)) {
+		dev->wqretry--;
+		if (dev->wqretry) {
+			pr_debug("Request Inflight Count %d\n",
+				atomic_read(&dev->inflight));
+
+			schedule_delayed_work(&dev->detach_work, WQ_DETACH_TM);
+		} else {
+			WARN(1, "CHCR:%d request Still Pending\n",
+				atomic_read(&dev->inflight));
+			complete(&dev->detach_comp);
+		}
+	} else {
+		complete(&dev->detach_comp);
+	}
+}
+
 struct uld_ctx *assign_chcr_device(void)
 {
 	struct uld_ctx *u_ctx = NULL;
@@ -63,56 +83,74 @@ struct uld_ctx *assign_chcr_device(void)
 	 * Although One session must use the same device to
 	 * maintain request-response ordering.
 	 */
-	mutex_lock(&dev_mutex);
-	if (!list_empty(&uld_ctx_list)) {
-		u_ctx = ctx_rr;
-		if (list_is_last(&ctx_rr->entry, &uld_ctx_list))
-			ctx_rr = list_first_entry(&uld_ctx_list,
-						  struct uld_ctx,
-						  entry);
+	mutex_lock(&drv_data.drv_mutex);
+	if (!list_empty(&drv_data.act_dev)) {
+		u_ctx = drv_data.last_dev;
+		if (list_is_last(&drv_data.last_dev->entry, &drv_data.act_dev))
+			drv_data.last_dev = list_first_entry(&drv_data.act_dev,
+						  struct uld_ctx, entry);
 		else
-			ctx_rr = list_next_entry(ctx_rr, entry);
+			drv_data.last_dev =
+				list_next_entry(drv_data.last_dev, entry);
 	}
-	mutex_unlock(&dev_mutex);
+	mutex_unlock(&drv_data.drv_mutex);
 	return u_ctx;
 }
 
-static int chcr_dev_add(struct uld_ctx *u_ctx)
+static void chcr_dev_add(struct uld_ctx *u_ctx)
 {
 	struct chcr_dev *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENXIO;
-
-	spin_lock_init(&dev->lock_chcr_dev);
-	u_ctx->dev = dev;
-	dev->u_ctx = u_ctx;
-	atomic_inc(&dev_count);
-	mutex_lock(&dev_mutex);
-	list_add_tail(&u_ctx->entry, &uld_ctx_list);
-	if (!ctx_rr)
-		ctx_rr = u_ctx;
-	mutex_unlock(&dev_mutex);
-	return 0;
+	dev = &u_ctx->dev;
+	dev->state = CHCR_ATTACH;
+	atomic_set(&dev->inflight, 0);
+	mutex_lock(&drv_data.drv_mutex);
+	list_move(&u_ctx->entry, &drv_data.act_dev);
+	if (!drv_data.last_dev)
+		drv_data.last_dev = u_ctx;
+	mutex_unlock(&drv_data.drv_mutex);
 }
 
-static int chcr_dev_remove(struct uld_ctx *u_ctx)
+static void chcr_dev_init(struct uld_ctx *u_ctx)
 {
-	if (ctx_rr == u_ctx) {
-		if (list_is_last(&ctx_rr->entry, &uld_ctx_list))
-			ctx_rr = list_first_entry(&uld_ctx_list,
-						  struct uld_ctx,
-						  entry);
+	struct chcr_dev *dev;
+
+	dev = &u_ctx->dev;
+	spin_lock_init(&dev->lock_chcr_dev);
+	INIT_DELAYED_WORK(&dev->detach_work, detach_work_fn);
+	init_completion(&dev->detach_comp);
+	dev->state = CHCR_INIT;
+	dev->wqretry = WQ_RETRY;
+	atomic_inc(&drv_data.dev_count);
+	atomic_set(&dev->inflight, 0);
+	mutex_lock(&drv_data.drv_mutex);
+	list_add_tail(&u_ctx->entry, &drv_data.inact_dev);
+	if (!drv_data.last_dev)
+		drv_data.last_dev = u_ctx;
+	mutex_unlock(&drv_data.drv_mutex);
+}
+
+static int chcr_dev_move(struct uld_ctx *u_ctx)
+{
+	struct adapter *adap;
+
+	 mutex_lock(&drv_data.drv_mutex);
+	if (drv_data.last_dev == u_ctx) {
+		if (list_is_last(&drv_data.last_dev->entry, &drv_data.act_dev))
+			drv_data.last_dev = list_first_entry(&drv_data.act_dev,
+						  struct uld_ctx, entry);
 		else
-			ctx_rr = list_next_entry(ctx_rr, entry);
+			drv_data.last_dev =
+				list_next_entry(drv_data.last_dev, entry);
 	}
-	list_del(&u_ctx->entry);
-	if (list_empty(&uld_ctx_list))
-		ctx_rr = NULL;
-	kfree(u_ctx->dev);
-	u_ctx->dev = NULL;
-	atomic_dec(&dev_count);
+	list_move(&u_ctx->entry, &drv_data.inact_dev);
+	if (list_empty(&drv_data.act_dev))
+		drv_data.last_dev = NULL;
+	adap = padap(&u_ctx->dev);
+	memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
+	atomic_dec(&drv_data.dev_count);
+	mutex_unlock(&drv_data.drv_mutex);
+
 	return 0;
 }
 
@@ -131,12 +169,8 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 	ack_err_status =
 		ntohl(*(__be32 *)((unsigned char *)&fw6_pld->data[0] + 4));
-	if (ack_err_status) {
-		if (CHK_MAC_ERR_BIT(ack_err_status) ||
-		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EBADMSG;
-		atomic_inc(&adap->chcr_stats.error);
-	}
+	if (CHK_MAC_ERR_BIT(ack_err_status) || CHK_PAD_ERR_BIT(ack_err_status))
+		error_status = -EBADMSG;
 	/* call completion callback with failure status */
 	if (req) {
 		error_status = chcr_handle_resp(req, input, error_status);
@@ -144,6 +178,9 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;
 	}
+	if (error_status)
+		atomic_inc(&adap->chcr_stats.error);
+
 	return 0;
 }
 
@@ -167,6 +204,7 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 		goto out;
 	}
 	u_ctx->lldi = *lld;
+	chcr_dev_init(u_ctx);
 #ifdef CONFIG_CHELSIO_IPSEC_INLINE
 	if (lld->crypto & ULP_CRYPTO_IPSEC_INLINE)
 		chcr_add_xfrmops(lld);
@@ -179,7 +217,7 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *pgl)
 {
 	struct uld_ctx *u_ctx = (struct uld_ctx *)handle;
-	struct chcr_dev *dev = u_ctx->dev;
+	struct chcr_dev *dev = &u_ctx->dev;
 	const struct cpl_fw6_pld *rpl = (struct cpl_fw6_pld *)rsp;
 
 	if (rpl->opcode != CPL_FW6_PLD) {
@@ -201,6 +239,28 @@ int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
 }
 #endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 
+static void chcr_detach_device(struct uld_ctx *u_ctx)
+{
+	struct chcr_dev *dev = &u_ctx->dev;
+
+	spin_lock_bh(&dev->lock_chcr_dev);
+	if (dev->state == CHCR_DETACH) {
+		spin_unlock_bh(&dev->lock_chcr_dev);
+		pr_debug("Detached Event received for already detach device\n");
+		return;
+	}
+	dev->state = CHCR_DETACH;
+	spin_unlock_bh(&dev->lock_chcr_dev);
+
+	if (atomic_read(&dev->inflight) != 0) {
+		schedule_delayed_work(&dev->detach_work, WQ_DETACH_TM);
+		wait_for_completion(&dev->detach_comp);
+	}
+
+	// Move u_ctx to inactive_dev list
+	chcr_dev_move(u_ctx);
+}
+
 static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 {
 	struct uld_ctx *u_ctx = handle;
@@ -208,23 +268,16 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 	switch (state) {
 	case CXGB4_STATE_UP:
-		if (!u_ctx->dev) {
-			ret = chcr_dev_add(u_ctx);
-			if (ret != 0)
-				return ret;
+		if (u_ctx->dev.state != CHCR_INIT) {
+			// ALready Initialised.
+			return 0;
 		}
-		if (atomic_read(&dev_count) == 1)
-			ret = start_crypto();
+		chcr_dev_add(u_ctx);
+		ret = start_crypto();
 		break;
 
 	case CXGB4_STATE_DETACH:
-		if (u_ctx->dev) {
-			mutex_lock(&dev_mutex);
-			chcr_dev_remove(u_ctx);
-			mutex_unlock(&dev_mutex);
-		}
-		if (!atomic_read(&dev_count))
-			stop_crypto();
+		chcr_detach_device(u_ctx);
 		break;
 
 	case CXGB4_STATE_START_RECOVERY:
@@ -237,7 +290,13 @@ static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 
 static int __init chcr_crypto_init(void)
 {
+	INIT_LIST_HEAD(&drv_data.act_dev);
+	INIT_LIST_HEAD(&drv_data.inact_dev);
+	atomic_set(&drv_data.dev_count, 0);
+	mutex_init(&drv_data.drv_mutex);
+	drv_data.last_dev = NULL;
 	cxgb4_register_uld(CXGB4_ULD_CRYPTO, &chcr_uld_info);
+
 	return 0;
 }
 
@@ -245,18 +304,20 @@ static void __exit chcr_crypto_exit(void)
 {
 	struct uld_ctx *u_ctx, *tmp;
 
-	if (atomic_read(&dev_count))
-		stop_crypto();
+	stop_crypto();
 
+	cxgb4_unregister_uld(CXGB4_ULD_CRYPTO);
 	/* Remove all devices from list */
-	mutex_lock(&dev_mutex);
-	list_for_each_entry_safe(u_ctx, tmp, &uld_ctx_list, entry) {
-		if (u_ctx->dev)
-			chcr_dev_remove(u_ctx);
+	mutex_lock(&drv_data.drv_mutex);
+	list_for_each_entry_safe(u_ctx, tmp, &drv_data.act_dev, entry) {
+		list_del(&u_ctx->entry);
 		kfree(u_ctx);
 	}
-	mutex_unlock(&dev_mutex);
-	cxgb4_unregister_uld(CXGB4_ULD_CRYPTO);
+	list_for_each_entry_safe(u_ctx, tmp, &drv_data.inact_dev, entry) {
+		list_del(&u_ctx->entry);
+		kfree(u_ctx);
+	}
+	mutex_unlock(&drv_data.drv_mutex);
 }
 
 module_init(chcr_crypto_init);

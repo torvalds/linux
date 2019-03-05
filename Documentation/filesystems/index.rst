@@ -359,3 +359,24 @@ encryption of files and directories.
     :maxdepth: 2
 
     fscrypt
+
+Pathname lookup
+===============
+
+
+This write-up is based on three articles published at lwn.net:
+
+- <https://lwn.net/Articles/649115/> Pathname lookup in Linux
+- <https://lwn.net/Articles/649729/> RCU-walk: faster pathname lookup in Linux
+- <https://lwn.net/Articles/650786/> A walk among the symlinks
+
+Written by Neil Brown with help from Al Viro and Jon Corbet.
+It has subsequently been updated to reflect changes in the kernel
+including:
+
+- per-directory parallel name lookup.
+
+.. toctree::
+   :maxdepth: 2
+
+   path-lookup.rst

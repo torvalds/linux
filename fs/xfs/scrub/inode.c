@@ -509,7 +509,6 @@ xchk_inode_xref(
 	xfs_ino_t		ino,
 	struct xfs_dinode	*dip)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	int			error;
@@ -526,8 +525,7 @@ xchk_inode_xref(
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_inode_xref_finobt(sc, ino);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_INODES);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 	xchk_inode_xref_bmap(sc, dip);
 

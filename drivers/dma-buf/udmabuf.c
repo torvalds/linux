@@ -20,7 +20,7 @@ struct udmabuf {
 	struct page **pages;
 };
 
-static int udmabuf_vm_fault(struct vm_fault *vmf)
+static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct udmabuf *ubuf = vma->vm_private_data;

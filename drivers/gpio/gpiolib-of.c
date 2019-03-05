@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * OF helpers for the GPIO API
  *
@@ -54,9 +54,31 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 }
 
 static void of_gpio_flags_quirks(struct device_node *np,
+				 const char *propname,
 				 enum of_gpio_flags *flags,
 				 int index)
 {
+	/*
+	 * Handle MMC "cd-inverted" and "wp-inverted" semantics.
+	 */
+	if (IS_ENABLED(CONFIG_MMC)) {
+		/*
+		 * Active low is the default according to the
+		 * SDHCI specification and the device tree
+		 * bindings. However the code in the current
+		 * kernel was written such that the phandle
+		 * flags were always respected, and "cd-inverted"
+		 * would invert the flag from the device phandle.
+		 */
+		if (!strcmp(propname, "cd-gpios")) {
+			if (of_property_read_bool(np, "cd-inverted"))
+				*flags ^= OF_GPIO_ACTIVE_LOW;
+		}
+		if (!strcmp(propname, "wp-gpios")) {
+			if (of_property_read_bool(np, "wp-inverted"))
+				*flags ^= OF_GPIO_ACTIVE_LOW;
+		}
+	}
 	/*
 	 * Some GPIO fixed regulator quirks.
 	 * Note that active low is the default.
@@ -174,7 +196,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		goto out;
 
 	if (flags)
-		of_gpio_flags_quirks(np, flags, index);
+		of_gpio_flags_quirks(np, propname, flags, index);
 
 	pr_debug("%s: parsed '%s' property of node '%pOF[%d]' - status (%d)\n",
 		 __func__, propname, np, index,

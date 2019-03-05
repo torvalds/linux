@@ -199,6 +199,9 @@ Thermal:
 The thermal IP can probe the temperature all around the processor. It
 may feature several channels, each of them wired to one sensor.
 
+It is possible to setup an overheat interrupt by giving at least one
+critical point to any subnode of the thermal-zone node.
+
 For common binding part and usage, refer to
 Documentation/devicetree/bindings/thermal/thermal.txt
 
@@ -208,6 +211,11 @@ Required properties:
 - reg: register range associated with the thermal functions.
 
 Optional properties:
+- interrupts-extended: overheat interrupt handle. Should point to
+  a line of the ICU-SEI irqchip (116 is what is usually used by the
+  firmware). The ICU-SEI will redirect towards interrupt line #37 of the
+  AP SEI which is shared across all CPs.
+  See interrupt-controller/interrupts.txt
 - #thermal-sensor-cells: shall be <1> when thermal-zones subnodes refer
   to this IP and represents the channel ID. There is one sensor per
   channel. O refers to the thermal IP internal channel.
@@ -220,6 +228,7 @@ CP110_LABEL(syscon1): system-controller@6f8000 {
 	CP110_LABEL(thermal): thermal-sensor@70 {
 		compatible = "marvell,armada-cp110-thermal";
 		reg = <0x70 0x10>;
+		interrupts-extended = <&CP110_LABEL(icu_sei) 116 IRQ_TYPE_LEVEL_HIGH>;
 		#thermal-sensor-cells = <1>;
 	};
 };

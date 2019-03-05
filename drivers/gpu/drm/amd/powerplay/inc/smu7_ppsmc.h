@@ -397,6 +397,9 @@ typedef uint16_t PPSMC_Result;
 
 #define PPSMC_MSG_SetVBITimeout               ((uint16_t) 0x306)
 
+#define PPSMC_MSG_EnableFFC                   ((uint16_t) 0x307)
+#define PPSMC_MSG_DisableFFC                  ((uint16_t) 0x308)
+
 #define PPSMC_MSG_EnableDpmDidt               ((uint16_t) 0x309)
 #define PPSMC_MSG_DisableDpmDidt              ((uint16_t) 0x30A)
 

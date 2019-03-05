@@ -9,14 +9,13 @@ struct file_priv {
 	struct tpm_chip *chip;
 	struct tpm_space *space;
 
-	/* Holds the amount of data passed or an error code from async op */
-	ssize_t data_pending;
 	struct mutex buffer_mutex;
-
 	struct timer_list user_read_timer;      /* user needs to claim result */
 	struct work_struct timeout_work;
 	struct work_struct async_work;
 	wait_queue_head_t async_wait;
+	size_t response_length;
+	bool response_read;
 	bool command_enqueued;
 
 	u8 data_buffer[TPM_BUFSIZE];

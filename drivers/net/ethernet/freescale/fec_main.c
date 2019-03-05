@@ -1714,12 +1714,6 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 	struct phy_device *phy_dev = ndev->phydev;
 	int status_change = 0;
 
-	/* Prevent a state halted on mii error */
-	if (fep->mii_timeout && phy_dev->state == PHY_HALTED) {
-		phy_dev->state = PHY_RESUMING;
-		return;
-	}
-
 	/*
 	 * If the netdev is down, or is going down, we're not interested
 	 * in link state events, so just mark our idea of the link as down
@@ -1779,7 +1773,6 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	if (ret < 0)
 		return ret;
 
-	fep->mii_timeout = 0;
 	reinit_completion(&fep->mdio_done);
 
 	/* start a read op */
@@ -1791,7 +1784,6 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO read timeout\n");
 		ret = -ETIMEDOUT;
 		goto out;
@@ -1820,7 +1812,6 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	else
 		ret = 0;
 
-	fep->mii_timeout = 0;
 	reinit_completion(&fep->mdio_done);
 
 	/* start a write op */
@@ -1833,7 +1824,6 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO write timeout\n");
 		ret  = -ETIMEDOUT;
 	}
@@ -2001,8 +1991,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	fep->mii_timeout = 0;
-
 	/*
 	 * Set MII speed to 2.5 MHz (= clk_get_rate() / 2 * phy_speed)
 	 *
@@ -2110,6 +2098,7 @@ static int fec_enet_get_regs_len(struct net_device *ndev)
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
 	defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
 	defined(CONFIG_ARM64) || defined(CONFIG_COMPILE_TEST)
+static __u32 fec_enet_register_version = 2;
 static u32 fec_enet_register_offset[] = {
 	FEC_IEVENT, FEC_IMASK, FEC_R_DES_ACTIVE_0, FEC_X_DES_ACTIVE_0,
 	FEC_ECNTRL, FEC_MII_DATA, FEC_MII_SPEED, FEC_MIB_CTRLSTAT, FEC_R_CNTRL,
@@ -2140,6 +2129,7 @@ static u32 fec_enet_register_offset[] = {
 	IEEE_R_FDXFC, IEEE_R_OCTETS_OK
 };
 #else
+static __u32 fec_enet_register_version = 1;
 static u32 fec_enet_register_offset[] = {
 	FEC_ECNTRL, FEC_IEVENT, FEC_IMASK, FEC_IVEC, FEC_R_DES_ACTIVE_0,
 	FEC_R_DES_ACTIVE_1, FEC_R_DES_ACTIVE_2, FEC_X_DES_ACTIVE_0,
@@ -2160,6 +2150,8 @@ static void fec_enet_get_regs(struct net_device *ndev,
 	u32 __iomem *theregs = (u32 __iomem *)fep->hwp;
 	u32 *buf = (u32 *)regbuf;
 	u32 i, off;
+
+	regs->version = fec_enet_register_version;
 
 	memset(buf, 0, regs->len);
 
@@ -3479,7 +3471,7 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_clk_ipg;
 
-	fep->reg_phy = devm_regulator_get(&pdev->dev, "phy");
+	fep->reg_phy = devm_regulator_get_optional(&pdev->dev, "phy");
 	if (!IS_ERR(fep->reg_phy)) {
 		ret = regulator_enable(fep->reg_phy);
 		if (ret) {

@@ -432,7 +432,8 @@ static int arc_emac_open(struct net_device *ndev)
 	phy_dev->autoneg = AUTONEG_ENABLE;
 	phy_dev->speed = 0;
 	phy_dev->duplex = 0;
-	phy_dev->advertising &= phy_dev->supported;
+	linkmode_and(phy_dev->advertising, phy_dev->advertising,
+		     phy_dev->supported);
 
 	priv->last_rx_bd = 0;
 

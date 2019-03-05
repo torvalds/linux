@@ -38,6 +38,7 @@ struct vic {
 	struct iommu_domain *domain;
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *rst;
 
 	/* Platform configuration */
 	const struct vic_config *config;
@@ -56,13 +57,37 @@ static void vic_writel(struct vic *vic, u32 value, unsigned int offset)
 static int vic_runtime_resume(struct device *dev)
 {
 	struct vic *vic = dev_get_drvdata(dev);
+	int err;
 
-	return clk_prepare_enable(vic->clk);
+	err = clk_prepare_enable(vic->clk);
+	if (err < 0)
+		return err;
+
+	usleep_range(10, 20);
+
+	err = reset_control_deassert(vic->rst);
+	if (err < 0)
+		goto disable;
+
+	usleep_range(10, 20);
+
+	return 0;
+
+disable:
+	clk_disable_unprepare(vic->clk);
+	return err;
 }
 
 static int vic_runtime_suspend(struct device *dev)
 {
 	struct vic *vic = dev_get_drvdata(dev);
+	int err;
+
+	err = reset_control_assert(vic->rst);
+	if (err < 0)
+		return err;
+
+	usleep_range(2000, 4000);
 
 	clk_disable_unprepare(vic->clk);
 
@@ -282,10 +307,18 @@ static const struct vic_config vic_t186_config = {
 	.version = 0x18,
 };
 
+#define NVIDIA_TEGRA_194_VIC_FIRMWARE "nvidia/tegra194/vic.bin"
+
+static const struct vic_config vic_t194_config = {
+	.firmware = NVIDIA_TEGRA_194_VIC_FIRMWARE,
+	.version = 0x19,
+};
+
 static const struct of_device_id vic_match[] = {
 	{ .compatible = "nvidia,tegra124-vic", .data = &vic_t124_config },
 	{ .compatible = "nvidia,tegra210-vic", .data = &vic_t210_config },
 	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
+	{ .compatible = "nvidia,tegra194-vic", .data = &vic_t194_config },
 	{ },
 };
 
@@ -321,6 +354,14 @@ static int vic_probe(struct platform_device *pdev)
 	if (IS_ERR(vic->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(vic->clk);
+	}
+
+	if (!dev->pm_domain) {
+		vic->rst = devm_reset_control_get(dev, "vic");
+		if (IS_ERR(vic->rst)) {
+			dev_err(&pdev->dev, "failed to get reset\n");
+			return PTR_ERR(vic->rst);
+		}
 	}
 
 	vic->falcon.dev = dev;
@@ -417,4 +458,7 @@ MODULE_FIRMWARE(NVIDIA_TEGRA_210_VIC_FIRMWARE);
 #endif
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_186_SOC)
 MODULE_FIRMWARE(NVIDIA_TEGRA_186_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_194_VIC_FIRMWARE);
 #endif

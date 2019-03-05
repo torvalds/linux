@@ -254,5 +254,6 @@ void mt76x02_init_agc_gain(struct mt76x02_dev *dev)
 	memcpy(dev->cal.agc_gain_cur, dev->cal.agc_gain_init,
 	       sizeof(dev->cal.agc_gain_cur));
 	dev->cal.low_gain = -1;
+	dev->cal.gain_init_done = true;
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_agc_gain);

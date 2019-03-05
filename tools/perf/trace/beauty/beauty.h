@@ -9,25 +9,47 @@
 struct strarray {
 	int	    offset;
 	int	    nr_entries;
+	const char *prefix;
 	const char **entries;
 };
 
-#define DEFINE_STRARRAY(array) struct strarray strarray__##array = { \
+#define DEFINE_STRARRAY(array, _prefix) struct strarray strarray__##array = { \
 	.nr_entries = ARRAY_SIZE(array), \
 	.entries = array, \
+	.prefix = _prefix, \
 }
 
-#define DEFINE_STRARRAY_OFFSET(array, off) struct strarray strarray__##array = { \
+#define DEFINE_STRARRAY_OFFSET(array, _prefix, off) struct strarray strarray__##array = { \
 	.offset	    = off, \
 	.nr_entries = ARRAY_SIZE(array), \
 	.entries = array, \
+	.prefix = _prefix, \
 }
 
-size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);
-size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, unsigned long flags);
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
+size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, bool show_prefix, unsigned long flags);
 
 struct trace;
 struct thread;
+
+struct file {
+	char *pathname;
+	int  dev_maj;
+};
+
+struct file *thread__files_entry(struct thread *thread, int fd);
+
+struct strarrays {
+	int		nr_entries;
+	struct strarray **entries;
+};
+
+#define DEFINE_STRARRAYS(array) struct strarrays strarrays__##array = { \
+	.nr_entries = ARRAY_SIZE(array), \
+	.entries = array, \
+}
+
+size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
 
 size_t pid__scnprintf_fd(struct trace *trace, pid_t pid, int fd, char *bf, size_t size);
 
@@ -66,6 +88,7 @@ struct augmented_arg {
  * @parm: private area, may be an strarray, for instance
  * @idx: syscall arg idx (is this the first?)
  * @mask: a syscall arg may mask another arg, see syscall_arg__scnprintf_futex_op
+ * @show_string_prefix: When there is a common prefix in a string table, show it or not
  */
 
 struct syscall_arg {
@@ -80,6 +103,7 @@ struct syscall_arg {
 	void	      *parm;
 	u8	      idx;
 	u8	      mask;
+	bool	      show_string_prefix;
 };
 
 unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx);
@@ -92,6 +116,9 @@ size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 
 size_t syscall_arg__scnprintf_hex(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_HEX syscall_arg__scnprintf_hex
+
+size_t syscall_arg__scnprintf_ptr(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_PTR syscall_arg__scnprintf_ptr
 
 size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_INT syscall_arg__scnprintf_int
@@ -135,6 +162,9 @@ size_t syscall_arg__scnprintf_pkey_alloc_access_rights(char *bf, size_t size, st
 size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
 
+size_t syscall_arg__scnprintf_x86_arch_prctl_code(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_X86_ARCH_PRCTL_CODE syscall_arg__scnprintf_x86_arch_prctl_code
+
 size_t syscall_arg__scnprintf_prctl_option(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PRCTL_OPTION syscall_arg__scnprintf_prctl_option
 
@@ -143,6 +173,9 @@ size_t syscall_arg__scnprintf_prctl_arg2(char *bf, size_t size, struct syscall_a
 
 size_t syscall_arg__scnprintf_prctl_arg3(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PRCTL_ARG3 syscall_arg__scnprintf_prctl_arg3
+
+size_t syscall_arg__scnprintf_renameat2_flags(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_RENAMEAT2_FLAGS syscall_arg__scnprintf_renameat2_flags
 
 size_t syscall_arg__scnprintf_sockaddr(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SOCKADDR syscall_arg__scnprintf_sockaddr
@@ -156,7 +189,7 @@ size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_MASK syscall_arg__scnprintf_statx_mask
 
-size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size);
+size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));

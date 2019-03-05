@@ -145,7 +145,7 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
 	struct ib_cq *cq;
 	int ret = -ENOMEM;
 
-	cq = dev->create_cq(dev, &cq_attr, NULL, NULL);
+	cq = dev->ops.create_cq(dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(cq))
 		return cq;
 
@@ -162,7 +162,7 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
 
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_set_task(&cq->res, caller);
-	rdma_restrack_add(&cq->res);
+	rdma_restrack_kadd(&cq->res);
 
 	switch (cq->poll_ctx) {
 	case IB_POLL_DIRECT:
@@ -193,7 +193,7 @@ out_free_wc:
 	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
 out_destroy_cq:
-	cq->device->destroy_cq(cq);
+	cq->device->ops.destroy_cq(cq);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(__ib_alloc_cq);
@@ -225,7 +225,7 @@ void ib_free_cq(struct ib_cq *cq)
 
 	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
-	ret = cq->device->destroy_cq(cq);
+	ret = cq->device->ops.destroy_cq(cq);
 	WARN_ON_ONCE(ret);
 }
 EXPORT_SYMBOL(ib_free_cq);

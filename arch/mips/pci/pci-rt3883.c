@@ -445,8 +445,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* find the PCI host bridge child node */
 	for_each_child_of_node(np, child) {
-		if (child->type &&
-		    of_node_cmp(child->type, "pci") == 0) {
+		if (of_node_is_type(child, "pci")) {
 			rpc->pci_controller.of_node = child;
 			break;
 		}
@@ -464,8 +463,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(rpc->pci_controller.of_node, child) {
 		int devfn;
 
-		if (!child->type ||
-		    of_node_cmp(child->type, "pci") != 0)
+		if (!of_node_is_type(child, "pci"))
 			continue;
 
 		devfn = of_pci_get_devfn(child);

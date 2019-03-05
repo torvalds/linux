@@ -1809,7 +1809,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	 * level we can't disable it selectively, so ignore channel 0 for now if
 	 * the device is part of an IOMMU group.
 	 */
-	if (pdev->dev.iommu_group) {
+	if (device_iommu_mapped(&pdev->dev)) {
 		dmac->n_channels--;
 		channels_offset = 1;
 	}

@@ -53,7 +53,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
 	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o amdgpu_atomfirmware.o \
 	amdgpu_vf_error.o amdgpu_sched.o amdgpu_debugfs.o amdgpu_ids.o \
-	amdgpu_gmc.o amdgpu_xgmi.o
+	amdgpu_gmc.o amdgpu_xgmi.o amdgpu_csa.o
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
@@ -105,6 +105,7 @@ amdgpu-y += \
 # add GFX block
 amdgpu-y += \
 	amdgpu_gfx.o \
+	amdgpu_rlc.o \
 	gfx_v8_0.o \
 	gfx_v9_0.o
 

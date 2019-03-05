@@ -90,19 +90,13 @@
 
 &i2c0 {
 	/* pull-ups and device VDDIO use AXP221 DLDO3 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "failed";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	ctp@5d {
-		pinctrl-names = "default";
-		pinctrl-0 = <&gt911_int_primo81>;
 		compatible = "goodix,gt911";
 		reg = <0x5d>;
 		interrupt-parent = <&pio>;
@@ -112,8 +106,6 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	accelerometer@1c {
@@ -131,14 +123,14 @@
 	vref-supply = <&reg_aldo3>;
 	status = "okay";
 
-	button@158 {
+	button-158 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <158730>;
 	};
 
-	button@349 {
+	button-349 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
@@ -147,8 +139,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_primo81>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
@@ -156,19 +146,8 @@
 };
 
 &pio {
-	gt911_int_primo81: gt911_int_pin@0 {
-		pins = "PA3";
-		function = "gpio_in";
-	};
-
-	mma8452_int_primo81: mma8452_int_pin@0 {
+	mma8452_int_primo81: mma8452-int-pin {
 		pins = "PA9";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	mmc0_cd_pin_primo81: mmc0_cd_pin@0 {
-		pins = "PA8";
 		function = "gpio_in";
 		bias-pull-up;
 	};

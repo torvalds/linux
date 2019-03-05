@@ -64,7 +64,7 @@ int fat_clusters_flush(struct super_block *sb)
 	struct buffer_head *bh;
 	struct fat_boot_fsinfo *fsinfo;
 
-	if (sbi->fat_bits != 32)
+	if (!is_fat32(sbi))
 		return 0;
 
 	bh = sb_bread(sb, sbi->fsinfo_sector);

@@ -7,7 +7,9 @@ Interrupts (LPI).
 
 Main node required properties:
 
-- compatible : should at least contain  "arm,gic-v3".
+- compatible : should at least contain  "arm,gic-v3" or either
+		"qcom,msm8996-gic-v3", "arm,gic-v3" for msm8996 SoCs
+		to address SoC specific bugs/quirks
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. Must be a single cell with a value of at least 3.
@@ -76,7 +78,7 @@ Sub-nodes:
 PPI affinity can be expressed as a single "ppi-partitions" node,
 containing a set of sub-nodes, each with the following property:
 - affinity: Should be a list of phandles to CPU nodes (as described in
-Documentation/devicetree/bindings/arm/cpus.txt).
+  Documentation/devicetree/bindings/arm/cpus.yaml).
 
 GICv3 has one or more Interrupt Translation Services (ITS) that are
 used to route Message Signalled Interrupts (MSI) to the CPUs.

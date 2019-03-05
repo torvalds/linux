@@ -15,6 +15,8 @@ NAMES = {
           'DEV1': 'v0p1',
           'DEV2': '',
           'BATCH_FILE': './batch.txt',
+          # Length of time in seconds to wait before terminating a command
+          'TIMEOUT': 12,
           # Name of the namespace to use
           'NS': 'tcut',
           # Directory containing eBPF test programs

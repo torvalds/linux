@@ -149,4 +149,5 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 const struct dsa_device_ops dsa_netdev_ops = {
 	.xmit	= dsa_xmit,
 	.rcv	= dsa_rcv,
+	.overhead = DSA_HLEN,
 };

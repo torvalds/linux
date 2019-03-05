@@ -53,9 +53,9 @@ static int ad7314_spi_read(struct ad7314_data *chip)
 	return be16_to_cpu(chip->rx);
 }
 
-static ssize_t ad7314_show_temperature(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+static ssize_t ad7314_temperature_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	struct ad7314_data *chip = dev_get_drvdata(dev);
 	s16 data;
@@ -87,8 +87,7 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 	}
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
-			  ad7314_show_temperature, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, ad7314_temperature, 0);
 
 static struct attribute *ad7314_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

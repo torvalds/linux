@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL2.0
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function trace with cpumask
 
 if ! which nproc ; then

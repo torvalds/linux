@@ -523,7 +523,7 @@ static ssize_t validate_flash_write(struct file *file, const char __user *buf,
 		args_buf->status = VALIDATE_INCOMPLETE;
 	}
 
-	if (!access_ok(VERIFY_READ, buf, count)) {
+	if (!access_ok(buf, count)) {
 		rc = -EFAULT;
 		goto done;
 	}

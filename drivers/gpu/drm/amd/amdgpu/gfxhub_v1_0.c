@@ -35,20 +35,25 @@ u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
 	return (u64)RREG32_SOC15(GC, 0, mmMC_VM_FB_OFFSET) << 24;
 }
 
-static void gfxhub_v1_0_init_gart_pt_regs(struct amdgpu_device *adev)
+void gfxhub_v1_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
+				uint64_t page_table_base)
 {
-	uint64_t value = amdgpu_gmc_pd_addr(adev->gart.bo);
+	/* two registers distance between mmVM_CONTEXT0_* to mmVM_CONTEXT1_* */
+	int offset = mmVM_CONTEXT1_PAGE_TABLE_BASE_ADDR_LO32
+			- mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32;
 
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
-		     lower_32_bits(value));
+	WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+				offset * vmid, lower_32_bits(page_table_base));
 
-	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
-		     upper_32_bits(value));
+	WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+				offset * vmid, upper_32_bits(page_table_base));
 }
 
 static void gfxhub_v1_0_init_gart_aperture_regs(struct amdgpu_device *adev)
 {
-	gfxhub_v1_0_init_gart_pt_regs(adev);
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+
+	gfxhub_v1_0_setup_vm_pt_regs(adev, 0, pt_base);
 
 	WREG32_SOC15(GC, 0, mmVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
 		     (u32)(adev->gmc.gart_start >> 12));

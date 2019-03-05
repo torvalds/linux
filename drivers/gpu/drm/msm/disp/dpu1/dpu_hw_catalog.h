@@ -736,13 +736,4 @@ struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev);
  */
 void dpu_hw_catalog_deinit(struct dpu_mdss_cfg *dpu_cfg);
 
-/**
- * dpu_hw_sspp_multirect_enabled - check multirect enabled for the sspp
- * @cfg:          pointer to sspp cfg
- */
-static inline bool dpu_hw_sspp_multirect_enabled(const struct dpu_sspp_cfg *cfg)
-{
-	return test_bit(DPU_SSPP_SMART_DMA_V1, &cfg->features) ||
-			 test_bit(DPU_SSPP_SMART_DMA_V2, &cfg->features);
-}
 #endif /* _DPU_HW_CATALOG_H */

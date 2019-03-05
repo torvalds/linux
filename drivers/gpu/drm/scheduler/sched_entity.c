@@ -130,7 +130,14 @@ drm_sched_entity_get_free_sched(struct drm_sched_entity *entity)
 	int i;
 
 	for (i = 0; i < entity->num_rq_list; ++i) {
-		num_jobs = atomic_read(&entity->rq_list[i]->sched->num_jobs);
+		struct drm_gpu_scheduler *sched = entity->rq_list[i]->sched;
+
+		if (!entity->rq_list[i]->sched->ready) {
+			DRM_WARN("sched%s is not ready, skipping", sched->name);
+			continue;
+		}
+
+		num_jobs = atomic_read(&sched->num_jobs);
 		if (num_jobs < min_jobs) {
 			min_jobs = num_jobs;
 			rq = entity->rq_list[i];
@@ -204,7 +211,6 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 
 	drm_sched_fence_finished(job->s_fence);
 	WARN_ON(job->s_fence->parent);
-	dma_fence_put(&job->s_fence->finished);
 	job->sched->ops->free_job(job);
 }
 
@@ -434,13 +440,10 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 
 	while ((entity->dependency =
 			sched->ops->dependency(sched_job, entity))) {
+		trace_drm_sched_job_wait_dep(sched_job, entity->dependency);
 
-		if (drm_sched_entity_add_dependency_cb(entity)) {
-
-			trace_drm_sched_job_wait_dep(sched_job,
-						     entity->dependency);
+		if (drm_sched_entity_add_dependency_cb(entity))
 			return NULL;
-		}
 	}
 
 	/* skip jobs from entity that marked guilty */

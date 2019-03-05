@@ -158,6 +158,7 @@ static int c_show(struct seq_file *m, void *v)
 	    && strcmp(compat, "riscv"))
 		seq_printf(m, "uarch\t\t: %s\n", compat);
 	seq_puts(m, "\n");
+	of_node_put(node);
 
 	return 0;
 }

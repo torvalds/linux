@@ -332,10 +332,10 @@ static int qat_dh_compute_value(struct kpp_request *req)
 		} else {
 			int shift = ctx->p_size - req->src_len;
 
-			qat_req->src_align = dma_zalloc_coherent(dev,
-								 ctx->p_size,
-								 &qat_req->in.dh.in.b,
-								 GFP_KERNEL);
+			qat_req->src_align = dma_alloc_coherent(dev,
+								ctx->p_size,
+								&qat_req->in.dh.in.b,
+								GFP_KERNEL);
 			if (unlikely(!qat_req->src_align))
 				return ret;
 
@@ -360,9 +360,9 @@ static int qat_dh_compute_value(struct kpp_request *req)
 			goto unmap_src;
 
 	} else {
-		qat_req->dst_align = dma_zalloc_coherent(dev, ctx->p_size,
-							 &qat_req->out.dh.r,
-							 GFP_KERNEL);
+		qat_req->dst_align = dma_alloc_coherent(dev, ctx->p_size,
+							&qat_req->out.dh.r,
+							GFP_KERNEL);
 		if (unlikely(!qat_req->dst_align))
 			goto unmap_src;
 	}
@@ -447,7 +447,7 @@ static int qat_dh_set_params(struct qat_dh_ctx *ctx, struct dh *params)
 		return -EINVAL;
 
 	ctx->p_size = params->p_size;
-	ctx->p = dma_zalloc_coherent(dev, ctx->p_size, &ctx->dma_p, GFP_KERNEL);
+	ctx->p = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_p, GFP_KERNEL);
 	if (!ctx->p)
 		return -ENOMEM;
 	memcpy(ctx->p, params->p, ctx->p_size);
@@ -458,7 +458,7 @@ static int qat_dh_set_params(struct qat_dh_ctx *ctx, struct dh *params)
 		return 0;
 	}
 
-	ctx->g = dma_zalloc_coherent(dev, ctx->p_size, &ctx->dma_g, GFP_KERNEL);
+	ctx->g = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_g, GFP_KERNEL);
 	if (!ctx->g)
 		return -ENOMEM;
 	memcpy(ctx->g + (ctx->p_size - params->g_size), params->g,
@@ -503,8 +503,8 @@ static int qat_dh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	if (ret < 0)
 		goto err_clear_ctx;
 
-	ctx->xa = dma_zalloc_coherent(dev, ctx->p_size, &ctx->dma_xa,
-				      GFP_KERNEL);
+	ctx->xa = dma_alloc_coherent(dev, ctx->p_size, &ctx->dma_xa,
+				     GFP_KERNEL);
 	if (!ctx->xa) {
 		ret = -ENOMEM;
 		goto err_clear_ctx;
@@ -737,9 +737,9 @@ static int qat_rsa_enc(struct akcipher_request *req)
 	} else {
 		int shift = ctx->key_sz - req->src_len;
 
-		qat_req->src_align = dma_zalloc_coherent(dev, ctx->key_sz,
-							 &qat_req->in.rsa.enc.m,
-							 GFP_KERNEL);
+		qat_req->src_align = dma_alloc_coherent(dev, ctx->key_sz,
+							&qat_req->in.rsa.enc.m,
+							GFP_KERNEL);
 		if (unlikely(!qat_req->src_align))
 			return ret;
 
@@ -756,9 +756,9 @@ static int qat_rsa_enc(struct akcipher_request *req)
 			goto unmap_src;
 
 	} else {
-		qat_req->dst_align = dma_zalloc_coherent(dev, ctx->key_sz,
-							 &qat_req->out.rsa.enc.c,
-							 GFP_KERNEL);
+		qat_req->dst_align = dma_alloc_coherent(dev, ctx->key_sz,
+							&qat_req->out.rsa.enc.c,
+							GFP_KERNEL);
 		if (unlikely(!qat_req->dst_align))
 			goto unmap_src;
 
@@ -881,9 +881,9 @@ static int qat_rsa_dec(struct akcipher_request *req)
 	} else {
 		int shift = ctx->key_sz - req->src_len;
 
-		qat_req->src_align = dma_zalloc_coherent(dev, ctx->key_sz,
-							 &qat_req->in.rsa.dec.c,
-							 GFP_KERNEL);
+		qat_req->src_align = dma_alloc_coherent(dev, ctx->key_sz,
+							&qat_req->in.rsa.dec.c,
+							GFP_KERNEL);
 		if (unlikely(!qat_req->src_align))
 			return ret;
 
@@ -900,9 +900,9 @@ static int qat_rsa_dec(struct akcipher_request *req)
 			goto unmap_src;
 
 	} else {
-		qat_req->dst_align = dma_zalloc_coherent(dev, ctx->key_sz,
-							 &qat_req->out.rsa.dec.m,
-							 GFP_KERNEL);
+		qat_req->dst_align = dma_alloc_coherent(dev, ctx->key_sz,
+							&qat_req->out.rsa.dec.m,
+							GFP_KERNEL);
 		if (unlikely(!qat_req->dst_align))
 			goto unmap_src;
 
@@ -989,7 +989,7 @@ static int qat_rsa_set_n(struct qat_rsa_ctx *ctx, const char *value,
 		goto err;
 
 	ret = -ENOMEM;
-	ctx->n = dma_zalloc_coherent(dev, ctx->key_sz, &ctx->dma_n, GFP_KERNEL);
+	ctx->n = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_n, GFP_KERNEL);
 	if (!ctx->n)
 		goto err;
 
@@ -1018,7 +1018,7 @@ static int qat_rsa_set_e(struct qat_rsa_ctx *ctx, const char *value,
 		return -EINVAL;
 	}
 
-	ctx->e = dma_zalloc_coherent(dev, ctx->key_sz, &ctx->dma_e, GFP_KERNEL);
+	ctx->e = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_e, GFP_KERNEL);
 	if (!ctx->e)
 		return -ENOMEM;
 
@@ -1044,7 +1044,7 @@ static int qat_rsa_set_d(struct qat_rsa_ctx *ctx, const char *value,
 		goto err;
 
 	ret = -ENOMEM;
-	ctx->d = dma_zalloc_coherent(dev, ctx->key_sz, &ctx->dma_d, GFP_KERNEL);
+	ctx->d = dma_alloc_coherent(dev, ctx->key_sz, &ctx->dma_d, GFP_KERNEL);
 	if (!ctx->d)
 		goto err;
 
@@ -1077,7 +1077,7 @@ static void qat_rsa_setkey_crt(struct qat_rsa_ctx *ctx, struct rsa_key *rsa_key)
 	qat_rsa_drop_leading_zeros(&ptr, &len);
 	if (!len)
 		goto err;
-	ctx->p = dma_zalloc_coherent(dev, half_key_sz, &ctx->dma_p, GFP_KERNEL);
+	ctx->p = dma_alloc_coherent(dev, half_key_sz, &ctx->dma_p, GFP_KERNEL);
 	if (!ctx->p)
 		goto err;
 	memcpy(ctx->p + (half_key_sz - len), ptr, len);
@@ -1088,7 +1088,7 @@ static void qat_rsa_setkey_crt(struct qat_rsa_ctx *ctx, struct rsa_key *rsa_key)
 	qat_rsa_drop_leading_zeros(&ptr, &len);
 	if (!len)
 		goto free_p;
-	ctx->q = dma_zalloc_coherent(dev, half_key_sz, &ctx->dma_q, GFP_KERNEL);
+	ctx->q = dma_alloc_coherent(dev, half_key_sz, &ctx->dma_q, GFP_KERNEL);
 	if (!ctx->q)
 		goto free_p;
 	memcpy(ctx->q + (half_key_sz - len), ptr, len);
@@ -1099,8 +1099,8 @@ static void qat_rsa_setkey_crt(struct qat_rsa_ctx *ctx, struct rsa_key *rsa_key)
 	qat_rsa_drop_leading_zeros(&ptr, &len);
 	if (!len)
 		goto free_q;
-	ctx->dp = dma_zalloc_coherent(dev, half_key_sz, &ctx->dma_dp,
-				      GFP_KERNEL);
+	ctx->dp = dma_alloc_coherent(dev, half_key_sz, &ctx->dma_dp,
+				     GFP_KERNEL);
 	if (!ctx->dp)
 		goto free_q;
 	memcpy(ctx->dp + (half_key_sz - len), ptr, len);
@@ -1111,8 +1111,8 @@ static void qat_rsa_setkey_crt(struct qat_rsa_ctx *ctx, struct rsa_key *rsa_key)
 	qat_rsa_drop_leading_zeros(&ptr, &len);
 	if (!len)
 		goto free_dp;
-	ctx->dq = dma_zalloc_coherent(dev, half_key_sz, &ctx->dma_dq,
-				      GFP_KERNEL);
+	ctx->dq = dma_alloc_coherent(dev, half_key_sz, &ctx->dma_dq,
+				     GFP_KERNEL);
 	if (!ctx->dq)
 		goto free_dp;
 	memcpy(ctx->dq + (half_key_sz - len), ptr, len);
@@ -1123,8 +1123,8 @@ static void qat_rsa_setkey_crt(struct qat_rsa_ctx *ctx, struct rsa_key *rsa_key)
 	qat_rsa_drop_leading_zeros(&ptr, &len);
 	if (!len)
 		goto free_dq;
-	ctx->qinv = dma_zalloc_coherent(dev, half_key_sz, &ctx->dma_qinv,
-					GFP_KERNEL);
+	ctx->qinv = dma_alloc_coherent(dev, half_key_sz, &ctx->dma_qinv,
+				       GFP_KERNEL);
 	if (!ctx->qinv)
 		goto free_dq;
 	memcpy(ctx->qinv + (half_key_sz - len), ptr, len);

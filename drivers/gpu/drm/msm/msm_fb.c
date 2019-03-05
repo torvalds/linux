@@ -66,7 +66,7 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 	uint64_t iova;
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_iova(fb->obj[i], aspace, &iova);
+		ret = msm_gem_get_and_pin_iova(fb->obj[i], aspace, &iova);
 		DBG("FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
 		if (ret)
 			return ret;
@@ -81,7 +81,7 @@ void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
 	int i, n = fb->format->num_planes;
 
 	for (i = 0; i < n; i++)
-		msm_gem_put_iova(fb->obj[i], aspace);
+		msm_gem_unpin_iova(fb->obj[i], aspace);
 }
 
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
@@ -154,7 +154,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 	format = kms->funcs->get_format(kms, mode_cmd->pixel_format,
 			mode_cmd->modifier[0]);
 	if (!format) {
-		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
+		DRM_DEV_ERROR(dev->dev, "unsupported pixel format: %4.4s\n",
 				(char *)&mode_cmd->pixel_format);
 		ret = -EINVAL;
 		goto fail;
@@ -196,7 +196,7 @@ static struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 
 	ret = drm_framebuffer_init(dev, fb, &msm_framebuffer_funcs);
 	if (ret) {
-		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "framebuffer init failed: %d\n", ret);
 		goto fail;
 	}
 
@@ -233,13 +233,15 @@ msm_alloc_stolen_fb(struct drm_device *dev, int w, int h, int p, uint32_t format
 		bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC);
 	}
 	if (IS_ERR(bo)) {
-		dev_err(dev->dev, "failed to allocate buffer object\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate buffer object\n");
 		return ERR_CAST(bo);
 	}
 
+	msm_gem_object_set_name(bo, "stolenfb");
+
 	fb = msm_framebuffer_init(dev, &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
-		dev_err(dev->dev, "failed to allocate fb\n");
+		DRM_DEV_ERROR(dev->dev, "failed to allocate fb\n");
 		/* note: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */

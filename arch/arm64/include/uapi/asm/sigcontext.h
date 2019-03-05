@@ -130,6 +130,8 @@ struct sve_context {
 
 #endif /* !__ASSEMBLY__ */
 
+#include <asm/sve_context.h>
+
 /*
  * The SVE architecture leaves space for future expansion of the
  * vector length beyond its initial architectural limit of 2048 bits
@@ -138,21 +140,20 @@ struct sve_context {
  * See linux/Documentation/arm64/sve.txt for a description of the VL/VQ
  * terminology.
  */
-#define SVE_VQ_BYTES		16	/* number of bytes per quadword */
+#define SVE_VQ_BYTES		__SVE_VQ_BYTES	/* bytes per quadword */
 
-#define SVE_VQ_MIN		1
-#define SVE_VQ_MAX		512
+#define SVE_VQ_MIN		__SVE_VQ_MIN
+#define SVE_VQ_MAX		__SVE_VQ_MAX
 
-#define SVE_VL_MIN		(SVE_VQ_MIN * SVE_VQ_BYTES)
-#define SVE_VL_MAX		(SVE_VQ_MAX * SVE_VQ_BYTES)
+#define SVE_VL_MIN		__SVE_VL_MIN
+#define SVE_VL_MAX		__SVE_VL_MAX
 
-#define SVE_NUM_ZREGS		32
-#define SVE_NUM_PREGS		16
+#define SVE_NUM_ZREGS		__SVE_NUM_ZREGS
+#define SVE_NUM_PREGS		__SVE_NUM_PREGS
 
-#define sve_vl_valid(vl) \
-	((vl) % SVE_VQ_BYTES == 0 && (vl) >= SVE_VL_MIN && (vl) <= SVE_VL_MAX)
-#define sve_vq_from_vl(vl)	((vl) / SVE_VQ_BYTES)
-#define sve_vl_from_vq(vq)	((vq) * SVE_VQ_BYTES)
+#define sve_vl_valid(vl)	__sve_vl_valid(vl)
+#define sve_vq_from_vl(vl)	__sve_vq_from_vl(vl)
+#define sve_vl_from_vq(vq)	__sve_vl_from_vq(vq)
 
 /*
  * If the SVE registers are currently live for the thread at signal delivery,
@@ -205,34 +206,33 @@ struct sve_context {
  * Additional data might be appended in the future.
  */
 
-#define SVE_SIG_ZREG_SIZE(vq)	((__u32)(vq) * SVE_VQ_BYTES)
-#define SVE_SIG_PREG_SIZE(vq)	((__u32)(vq) * (SVE_VQ_BYTES / 8))
-#define SVE_SIG_FFR_SIZE(vq)	SVE_SIG_PREG_SIZE(vq)
+#define SVE_SIG_ZREG_SIZE(vq)	__SVE_ZREG_SIZE(vq)
+#define SVE_SIG_PREG_SIZE(vq)	__SVE_PREG_SIZE(vq)
+#define SVE_SIG_FFR_SIZE(vq)	__SVE_FFR_SIZE(vq)
 
 #define SVE_SIG_REGS_OFFSET					\
-	((sizeof(struct sve_context) + (SVE_VQ_BYTES - 1))	\
-		/ SVE_VQ_BYTES * SVE_VQ_BYTES)
+	((sizeof(struct sve_context) + (__SVE_VQ_BYTES - 1))	\
+		/ __SVE_VQ_BYTES * __SVE_VQ_BYTES)
 
-#define SVE_SIG_ZREGS_OFFSET	SVE_SIG_REGS_OFFSET
+#define SVE_SIG_ZREGS_OFFSET \
+		(SVE_SIG_REGS_OFFSET + __SVE_ZREGS_OFFSET)
 #define SVE_SIG_ZREG_OFFSET(vq, n) \
-	(SVE_SIG_ZREGS_OFFSET + SVE_SIG_ZREG_SIZE(vq) * (n))
-#define SVE_SIG_ZREGS_SIZE(vq) \
-	(SVE_SIG_ZREG_OFFSET(vq, SVE_NUM_ZREGS) - SVE_SIG_ZREGS_OFFSET)
+		(SVE_SIG_REGS_OFFSET + __SVE_ZREG_OFFSET(vq, n))
+#define SVE_SIG_ZREGS_SIZE(vq) __SVE_ZREGS_SIZE(vq)
 
 #define SVE_SIG_PREGS_OFFSET(vq) \
-	(SVE_SIG_ZREGS_OFFSET + SVE_SIG_ZREGS_SIZE(vq))
+		(SVE_SIG_REGS_OFFSET + __SVE_PREGS_OFFSET(vq))
 #define SVE_SIG_PREG_OFFSET(vq, n) \
-	(SVE_SIG_PREGS_OFFSET(vq) + SVE_SIG_PREG_SIZE(vq) * (n))
-#define SVE_SIG_PREGS_SIZE(vq) \
-	(SVE_SIG_PREG_OFFSET(vq, SVE_NUM_PREGS) - SVE_SIG_PREGS_OFFSET(vq))
+		(SVE_SIG_REGS_OFFSET + __SVE_PREG_OFFSET(vq, n))
+#define SVE_SIG_PREGS_SIZE(vq) __SVE_PREGS_SIZE(vq)
 
 #define SVE_SIG_FFR_OFFSET(vq) \
-	(SVE_SIG_PREGS_OFFSET(vq) + SVE_SIG_PREGS_SIZE(vq))
+		(SVE_SIG_REGS_OFFSET + __SVE_FFR_OFFSET(vq))
 
 #define SVE_SIG_REGS_SIZE(vq) \
-	(SVE_SIG_FFR_OFFSET(vq) + SVE_SIG_FFR_SIZE(vq) - SVE_SIG_REGS_OFFSET)
+		(__SVE_FFR_OFFSET(vq) + __SVE_FFR_SIZE(vq))
 
-#define SVE_SIG_CONTEXT_SIZE(vq) (SVE_SIG_REGS_OFFSET + SVE_SIG_REGS_SIZE(vq))
-
+#define SVE_SIG_CONTEXT_SIZE(vq) \
+		(SVE_SIG_REGS_OFFSET + SVE_SIG_REGS_SIZE(vq))
 
 #endif /* _UAPI__ASM_SIGCONTEXT_H */

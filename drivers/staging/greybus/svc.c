@@ -20,11 +20,10 @@ struct gb_svc_deferred_request {
 	struct gb_operation *operation;
 };
 
-
 static int gb_svc_queue_deferred_request(struct gb_operation *operation);
 
 static ssize_t endo_id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+			    struct device_attribute *attr, char *buf)
 {
 	struct gb_svc *svc = to_gb_svc(dev);
 
@@ -33,7 +32,7 @@ static ssize_t endo_id_show(struct device *dev,
 static DEVICE_ATTR_RO(endo_id);
 
 static ssize_t ap_intf_id_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct gb_svc *svc = to_gb_svc(dev);
 
@@ -304,8 +303,8 @@ int gb_svc_intf_vsys_set(struct gb_svc *svc, u8 intf_id, bool enable)
 		type = GB_SVC_TYPE_INTF_VSYS_DISABLE;
 
 	ret = gb_operation_sync(svc->connection, type,
-			&request, sizeof(request),
-			&response, sizeof(response));
+				&request, sizeof(request),
+				&response, sizeof(response));
 	if (ret < 0)
 		return ret;
 	if (response.result_code != GB_SVC_INTF_VSYS_OK)
@@ -327,8 +326,8 @@ int gb_svc_intf_refclk_set(struct gb_svc *svc, u8 intf_id, bool enable)
 		type = GB_SVC_TYPE_INTF_REFCLK_DISABLE;
 
 	ret = gb_operation_sync(svc->connection, type,
-			&request, sizeof(request),
-			&response, sizeof(response));
+				&request, sizeof(request),
+				&response, sizeof(response));
 	if (ret < 0)
 		return ret;
 	if (response.result_code != GB_SVC_INTF_REFCLK_OK)
@@ -350,8 +349,8 @@ int gb_svc_intf_unipro_set(struct gb_svc *svc, u8 intf_id, bool enable)
 		type = GB_SVC_TYPE_INTF_UNIPRO_DISABLE;
 
 	ret = gb_operation_sync(svc->connection, type,
-			&request, sizeof(request),
-			&response, sizeof(response));
+				&request, sizeof(request),
+				&response, sizeof(response));
 	if (ret < 0)
 		return ret;
 	if (response.result_code != GB_SVC_INTF_UNIPRO_OK)
@@ -368,15 +367,15 @@ int gb_svc_intf_activate(struct gb_svc *svc, u8 intf_id, u8 *intf_type)
 	request.intf_id = intf_id;
 
 	ret = gb_operation_sync_timeout(svc->connection,
-			GB_SVC_TYPE_INTF_ACTIVATE,
-			&request, sizeof(request),
-			&response, sizeof(response),
-			SVC_INTF_ACTIVATE_TIMEOUT);
+					GB_SVC_TYPE_INTF_ACTIVATE,
+					&request, sizeof(request),
+					&response, sizeof(response),
+					SVC_INTF_ACTIVATE_TIMEOUT);
 	if (ret < 0)
 		return ret;
 	if (response.status != GB_SVC_OP_SUCCESS) {
 		dev_err(&svc->dev, "failed to activate interface %u: %u\n",
-				intf_id, response.status);
+			intf_id, response.status);
 		return -EREMOTEIO;
 	}
 
@@ -430,14 +429,14 @@ int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&response, sizeof(response));
 	if (ret) {
 		dev_err(&svc->dev, "failed to get DME attribute (%u 0x%04x %u): %d\n",
-				intf_id, attr, selector, ret);
+			intf_id, attr, selector, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while getting DME attribute (%u 0x%04x %u): %u\n",
-				intf_id, attr, selector, result);
+			intf_id, attr, selector, result);
 		return -EREMOTEIO;
 	}
 
@@ -465,14 +464,14 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 				&response, sizeof(response));
 	if (ret) {
 		dev_err(&svc->dev, "failed to set DME attribute (%u 0x%04x %u %u): %d\n",
-				intf_id, attr, selector, value, ret);
+			intf_id, attr, selector, value, ret);
 		return ret;
 	}
 
 	result = le16_to_cpu(response.result_code);
 	if (result) {
 		dev_err(&svc->dev, "UniPro error while setting DME attribute (%u 0x%04x %u %u): %u\n",
-				intf_id, attr, selector, value, result);
+			intf_id, attr, selector, value, result);
 		return -EREMOTEIO;
 	}
 
@@ -480,9 +479,9 @@ int gb_svc_dme_peer_set(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
 }
 
 int gb_svc_connection_create(struct gb_svc *svc,
-				u8 intf1_id, u16 cport1_id,
-				u8 intf2_id, u16 cport2_id,
-				u8 cport_flags)
+			     u8 intf1_id, u16 cport1_id,
+			     u8 intf2_id, u16 cport2_id,
+			     u8 cport_flags)
 {
 	struct gb_svc_conn_create_request request;
 
@@ -513,13 +512,13 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 				&request, sizeof(request), NULL, 0);
 	if (ret) {
 		dev_err(&svc->dev, "failed to destroy connection (%u:%u %u:%u): %d\n",
-				intf1_id, cport1_id, intf2_id, cport2_id, ret);
+			intf1_id, cport1_id, intf2_id, cport2_id, ret);
 	}
 }
 
 /* Creates bi-directional routes between the devices */
 int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
-			       u8 intf2_id, u8 dev2_id)
+			u8 intf2_id, u8 dev2_id)
 {
 	struct gb_svc_route_create_request request;
 
@@ -545,7 +544,7 @@ void gb_svc_route_destroy(struct gb_svc *svc, u8 intf1_id, u8 intf2_id)
 				&request, sizeof(request), NULL, 0);
 	if (ret) {
 		dev_err(&svc->dev, "failed to destroy route (%u %u): %d\n",
-				intf1_id, intf2_id, ret);
+			intf1_id, intf2_id, ret);
 	}
 }
 
@@ -648,8 +647,8 @@ static int gb_svc_version_request(struct gb_operation *op)
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_err(&svc->dev, "short version request (%zu < %zu)\n",
-				op->request->payload_size,
-				sizeof(*request));
+			op->request->payload_size,
+			sizeof(*request));
 		return -EINVAL;
 	}
 
@@ -657,7 +656,7 @@ static int gb_svc_version_request(struct gb_operation *op)
 
 	if (request->major > GB_SVC_VERSION_MAJOR) {
 		dev_warn(&svc->dev, "unsupported major version (%u > %u)\n",
-				request->major, GB_SVC_VERSION_MAJOR);
+			 request->major, GB_SVC_VERSION_MAJOR);
 		return -ENOTSUPP;
 	}
 
@@ -845,8 +844,8 @@ static int gb_svc_hello(struct gb_operation *op)
 
 	if (op->request->payload_size < sizeof(*hello_request)) {
 		dev_warn(&svc->dev, "short hello request (%zu < %zu)\n",
-				op->request->payload_size,
-				sizeof(*hello_request));
+			 op->request->payload_size,
+			 sizeof(*hello_request));
 		return -EINVAL;
 	}
 
@@ -877,7 +876,7 @@ err_unregister_device:
 }
 
 static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
-							u8 intf_id)
+						    u8 intf_id)
 {
 	struct gb_host_device *hd = svc->hd;
 	struct gb_module *module;
@@ -889,7 +888,7 @@ static struct gb_interface *gb_svc_interface_lookup(struct gb_svc *svc,
 		num_interfaces = module->num_interfaces;
 
 		if (intf_id >= module_id &&
-				intf_id < module_id + num_interfaces) {
+		    intf_id < module_id + num_interfaces) {
 			return module->interfaces[intf_id - module_id];
 		}
 	}
@@ -938,8 +937,8 @@ static void gb_svc_process_hello_deferred(struct gb_operation *operation)
 
 	if (ret)
 		dev_warn(&svc->dev,
-			"power mode change failed on AP to switch link: %d\n",
-			ret);
+			 "power mode change failed on AP to switch link: %d\n",
+			 ret);
 }
 
 static void gb_svc_process_module_inserted(struct gb_operation *operation)
@@ -961,17 +960,17 @@ static void gb_svc_process_module_inserted(struct gb_operation *operation)
 	flags = le16_to_cpu(request->flags);
 
 	dev_dbg(&svc->dev, "%s - id = %u, num_interfaces = %zu, flags = 0x%04x\n",
-			__func__, module_id, num_interfaces, flags);
+		__func__, module_id, num_interfaces, flags);
 
 	if (flags & GB_SVC_MODULE_INSERTED_FLAG_NO_PRIMARY) {
 		dev_warn(&svc->dev, "no primary interface detected on module %u\n",
-				module_id);
+			 module_id);
 	}
 
 	module = gb_svc_module_lookup(svc, module_id);
 	if (module) {
 		dev_warn(&svc->dev, "unexpected module-inserted event %u\n",
-				module_id);
+			 module_id);
 		return;
 	}
 
@@ -1007,7 +1006,7 @@ static void gb_svc_process_module_removed(struct gb_operation *operation)
 	module = gb_svc_module_lookup(svc, module_id);
 	if (!module) {
 		dev_warn(&svc->dev, "unexpected module-removed event %u\n",
-				module_id);
+			 module_id);
 		return;
 	}
 
@@ -1066,7 +1065,7 @@ static void gb_svc_process_intf_mailbox_event(struct gb_operation *operation)
 	mailbox = le32_to_cpu(request->mailbox);
 
 	dev_dbg(&svc->dev, "%s - id = %u, result = 0x%04x, mailbox = 0x%08x\n",
-			__func__, intf_id, result_code, mailbox);
+		__func__, intf_id, result_code, mailbox);
 
 	intf = gb_svc_interface_lookup(svc, intf_id);
 	if (!intf) {
@@ -1140,7 +1139,7 @@ static int gb_svc_intf_reset_recv(struct gb_operation *op)
 
 	if (request->payload_size < sizeof(*reset)) {
 		dev_warn(&svc->dev, "short reset request received (%zu < %zu)\n",
-				request->payload_size, sizeof(*reset));
+			 request->payload_size, sizeof(*reset));
 		return -EINVAL;
 	}
 	reset = request->payload;
@@ -1157,14 +1156,14 @@ static int gb_svc_module_inserted_recv(struct gb_operation *op)
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short module-inserted request received (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*request));
+			 op->request->payload_size, sizeof(*request));
 		return -EINVAL;
 	}
 
 	request = op->request->payload;
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__,
-			request->primary_intf_id);
+		request->primary_intf_id);
 
 	return gb_svc_queue_deferred_request(op);
 }
@@ -1176,14 +1175,14 @@ static int gb_svc_module_removed_recv(struct gb_operation *op)
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short module-removed request received (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*request));
+			 op->request->payload_size, sizeof(*request));
 		return -EINVAL;
 	}
 
 	request = op->request->payload;
 
 	dev_dbg(&svc->dev, "%s - id = %u\n", __func__,
-			request->primary_intf_id);
+		request->primary_intf_id);
 
 	return gb_svc_queue_deferred_request(op);
 }
@@ -1209,7 +1208,7 @@ static int gb_svc_intf_mailbox_event_recv(struct gb_operation *op)
 
 	if (op->request->payload_size < sizeof(*request)) {
 		dev_warn(&svc->dev, "short mailbox request received (%zu < %zu)\n",
-				op->request->payload_size, sizeof(*request));
+			 op->request->payload_size, sizeof(*request));
 		return -EINVAL;
 	}
 
@@ -1254,7 +1253,7 @@ static int gb_svc_request_handler(struct gb_operation *op)
 
 	if (ret) {
 		dev_warn(&svc->dev, "unexpected request 0x%02x received (state %u)\n",
-				type, svc->state);
+			 type, svc->state);
 		return ret;
 	}
 
@@ -1329,10 +1328,10 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 	svc->hd = hd;
 
 	svc->connection = gb_connection_create_static(hd, GB_SVC_CPORT_ID,
-						gb_svc_request_handler);
+						      gb_svc_request_handler);
 	if (IS_ERR(svc->connection)) {
 		dev_err(&svc->dev, "failed to create connection: %ld\n",
-				PTR_ERR(svc->connection));
+			PTR_ERR(svc->connection));
 		goto err_put_device;
 	}
 

@@ -934,6 +934,7 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	struct domain_device *parent_dev = device->parent;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
+	u64 sas_addr;
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -966,8 +967,8 @@ static void setup_itct_v2_hw(struct hisi_hba *hisi_hba,
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */
-	memcpy(&itct->sas_addr, device->sas_addr, SAS_ADDR_SIZE);
-	itct->sas_addr = __swab64(itct->sas_addr);
+	memcpy(&sas_addr, device->sas_addr, SAS_ADDR_SIZE);
+	itct->sas_addr = cpu_to_le64(__swab64(sas_addr));
 
 	/* qw2 */
 	if (!dev_is_sata(device))
@@ -2044,11 +2045,11 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	struct task_status_struct *ts = &task->task_status;
 	struct hisi_sas_err_record_v2 *err_record =
 			hisi_sas_status_buf_addr_mem(slot);
-	u32 trans_tx_fail_type = cpu_to_le32(err_record->trans_tx_fail_type);
-	u32 trans_rx_fail_type = cpu_to_le32(err_record->trans_rx_fail_type);
-	u16 dma_tx_err_type = cpu_to_le16(err_record->dma_tx_err_type);
-	u16 sipc_rx_err_type = cpu_to_le16(err_record->sipc_rx_err_type);
-	u32 dma_rx_err_type = cpu_to_le32(err_record->dma_rx_err_type);
+	u32 trans_tx_fail_type = le32_to_cpu(err_record->trans_tx_fail_type);
+	u32 trans_rx_fail_type = le32_to_cpu(err_record->trans_rx_fail_type);
+	u16 dma_tx_err_type = le16_to_cpu(err_record->dma_tx_err_type);
+	u16 sipc_rx_err_type = le16_to_cpu(err_record->sipc_rx_err_type);
+	u32 dma_rx_err_type = le32_to_cpu(err_record->dma_rx_err_type);
 	int error = -1;
 
 	if (err_phase == 1) {
@@ -2059,8 +2060,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 					trans_tx_fail_type);
 	} else if (err_phase == 2) {
 		/* error in RX phase, the priority is: DW1 > DW3 > DW2 */
-		error = parse_trans_rx_err_code_v2_hw(
-					trans_rx_fail_type);
+		error = parse_trans_rx_err_code_v2_hw(trans_rx_fail_type);
 		if (error == -1) {
 			error = parse_dma_rx_err_code_v2_hw(
 					dma_rx_err_type);
@@ -2358,6 +2358,7 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
 	bool is_internal = slot->is_internal;
+	u32 dw0;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -EINVAL;
@@ -2382,8 +2383,9 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 	/* Use SAS+TMF status codes */
-	switch ((complete_hdr->dw0 & CMPLT_HDR_ABORT_STAT_MSK)
-			>> CMPLT_HDR_ABORT_STAT_OFF) {
+	dw0 = le32_to_cpu(complete_hdr->dw0);
+	switch ((dw0 & CMPLT_HDR_ABORT_STAT_MSK) >>
+		CMPLT_HDR_ABORT_STAT_OFF) {
 	case STAT_IO_ABORTED:
 		/* this io has been aborted by abort command */
 		ts->stat = SAS_ABORTED_TASK;
@@ -2408,9 +2410,8 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		break;
 	}
 
-	if ((complete_hdr->dw0 & CMPLT_HDR_ERX_MSK) &&
-		(!(complete_hdr->dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
-		u32 err_phase = (complete_hdr->dw0 & CMPLT_HDR_ERR_PHASE_MSK)
+	if ((dw0 & CMPLT_HDR_ERX_MSK) && (!(dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
+		u32 err_phase = (dw0 & CMPLT_HDR_ERR_PHASE_MSK)
 				>> CMPLT_HDR_ERR_PHASE_OFF;
 		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
 
@@ -2526,21 +2527,22 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_tmf_task *tmf = slot->tmf;
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
-	u32 dw1 = 0, dw2 = 0;
+	u32 dw0, dw1 = 0, dw2 = 0;
 
 	/* create header */
 	/* dw0 */
-	hdr->dw0 = cpu_to_le32(port->id << CMD_HDR_PORT_OFF);
+	dw0 = port->id << CMD_HDR_PORT_OFF;
 	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type))
-		hdr->dw0 |= cpu_to_le32(3 << CMD_HDR_CMD_OFF);
+		dw0 |= 3 << CMD_HDR_CMD_OFF;
 	else
-		hdr->dw0 |= cpu_to_le32(4 << CMD_HDR_CMD_OFF);
+		dw0 |= 4 << CMD_HDR_CMD_OFF;
 
 	if (tmf && tmf->force_phy) {
-		hdr->dw0 |= CMD_HDR_FORCE_PHY_MSK;
-		hdr->dw0 |= cpu_to_le32((1 << tmf->phy_id)
-				<< CMD_HDR_PHY_ID_OFF);
+		dw0 |= CMD_HDR_FORCE_PHY_MSK;
+		dw0 |= (1 << tmf->phy_id) << CMD_HDR_PHY_ID_OFF;
 	}
+
+	hdr->dw0 = cpu_to_le32(dw0);
 
 	/* dw1 */
 	switch (task->data_dir) {
@@ -3152,20 +3154,24 @@ static void cq_tasklet_v2_hw(unsigned long val)
 
 		/* Check for NCQ completion */
 		if (complete_hdr->act) {
-			u32 act_tmp = complete_hdr->act;
+			u32 act_tmp = le32_to_cpu(complete_hdr->act);
 			int ncq_tag_count = ffs(act_tmp);
+			u32 dw1 = le32_to_cpu(complete_hdr->dw1);
 
-			dev_id = (complete_hdr->dw1 & CMPLT_HDR_DEV_ID_MSK) >>
+			dev_id = (dw1 & CMPLT_HDR_DEV_ID_MSK) >>
 				 CMPLT_HDR_DEV_ID_OFF;
 			itct = &hisi_hba->itct[dev_id];
 
 			/* The NCQ tags are held in the itct header */
 			while (ncq_tag_count) {
-				__le64 *ncq_tag = &itct->qw4_15[0];
+				__le64 *_ncq_tag = &itct->qw4_15[0], __ncq_tag;
+				u64 ncq_tag;
 
-				ncq_tag_count -= 1;
-				iptt = (ncq_tag[ncq_tag_count / 5]
-					>> (ncq_tag_count % 5) * 12) & 0xfff;
+				ncq_tag_count--;
+				__ncq_tag = _ncq_tag[ncq_tag_count / 5];
+				ncq_tag = le64_to_cpu(__ncq_tag);
+				iptt = (ncq_tag >> (ncq_tag_count % 5) * 12) &
+				       0xfff;
 
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
@@ -3176,7 +3182,9 @@ static void cq_tasklet_v2_hw(unsigned long val)
 				ncq_tag_count = ffs(act_tmp);
 			}
 		} else {
-			iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
+			u32 dw1 = le32_to_cpu(complete_hdr->dw1);
+
+			iptt = dw1 & CMPLT_HDR_IPTT_MSK;
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
@@ -3552,6 +3560,11 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 	dev_dbg(dev, "wait commands complete %dms\n", time);
 }
 
+static struct device_attribute *host_attrs_v2_hw[] = {
+	&dev_attr_phy_event_threshold,
+	NULL
+};
+
 static struct scsi_host_template sht_v2_hw = {
 	.name			= DRV_NAME,
 	.module			= THIS_MODULE,
@@ -3563,14 +3576,13 @@ static struct scsi_host_template sht_v2_hw = {
 	.change_queue_depth	= sas_change_queue_depth,
 	.bios_param		= sas_bios_param,
 	.this_id		= -1,
-	.sg_tablesize		= SG_ALL,
+	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = sas_eh_device_reset_handler,
 	.eh_target_reset_handler = sas_eh_target_reset_handler,
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
-	.shost_attrs		= host_attrs,
+	.shost_attrs		= host_attrs_v2_hw,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

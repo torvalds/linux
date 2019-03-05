@@ -18,9 +18,32 @@ integrity verifications match.  A loaded Trusted Key can be updated with new
 when the kernel and initramfs are updated.  The same key can have many saved
 blobs under different PCR values, so multiple boots are easily supported.
 
+TPM 1.2
+-------
+
 By default, trusted keys are sealed under the SRK, which has the default
 authorization value (20 zeros).  This can be set at takeownership time with the
 trouser's utility: "tpm_takeownership -u -z".
+
+TPM 2.0
+-------
+
+The user must first create a storage key and make it persistent, so the key is
+available after reboot. This can be done using the following commands.
+
+With the IBM TSS 2 stack::
+
+  #> tsscreateprimary -hi o -st
+  Handle 80000000
+  #> tssevictcontrol -hi o -ho 80000000 -hp 81000001
+
+Or with the Intel TSS 2 stack::
+
+  #> tpm2_createprimary --hierarchy o -G rsa2048 -o key.ctxt
+  [...]
+  handle: 0x800000FF
+  #> tpm2_evictcontrol -c key.ctxt -p 0x81000001
+  persistentHandle: 0x81000001
 
 Usage::
 
@@ -30,7 +53,9 @@ Usage::
     keyctl print keyid
 
     options:
-       keyhandle=    ascii hex value of sealing key default 0x40000000 (SRK)
+       keyhandle=    ascii hex value of sealing key
+                       TPM 1.2: default 0x40000000 (SRK)
+                       TPM 2.0: no default; must be passed every time
        keyauth=	     ascii hex auth for sealing key default 0x00...i
                      (40 ascii zeros)
        blobauth=     ascii hex auth for sealed data default 0x00...
@@ -76,13 +101,17 @@ Usage::
 
 Where::
 
-	format:= 'default | ecryptfs'
+	format:= 'default | ecryptfs | enc32'
 	key-type:= 'trusted' | 'user'
 
 
 Examples of trusted and encrypted key usage:
 
 Create and save a trusted key named "kmk" of length 32 bytes::
+
+Note: When using a TPM 2.0 with a persistent key with handle 0x81000001,
+append 'keyhandle=0x81000001' to statements between quotes, such as
+"new 32 keyhandle=0x81000001".
 
     $ keyctl add trusted kmk "new 32" @u
     440502848
@@ -173,3 +202,7 @@ are anticipated.  In particular the new format 'ecryptfs' has been defined in
 in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
 ``Documentation/security/keys/ecryptfs.rst``.
+
+Another new format 'enc32' has been defined in order to support encrypted keys
+with payload size of 32 bytes. This will initially be used for nvdimm security
+but may expand to other usages that require 32 bytes payload.

@@ -24,7 +24,7 @@ struct selinux_map {
 };
 
 struct selinux_ss {
-	struct sidtab sidtab;
+	struct sidtab *sidtab;
 	struct policydb policydb;
 	rwlock_t policy_rwlock;
 	u32 latest_granting;

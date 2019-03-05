@@ -57,6 +57,8 @@
 	stw	lr, (sp, 60)
 	mflo	lr
 	stw	lr, (sp, 64)
+	mfcr	lr, cr14
+	stw	lr, (sp, 68)
 #endif
 	subi	sp, 80
 .endm
@@ -77,6 +79,8 @@
 	mthi	a0
 	ldw	a0, (sp, 144)
 	mtlo	a0
+	ldw	a0, (sp, 148)
+	mtcr	a0, cr14
 #endif
 
 	ldw     a0, (sp, 24)
@@ -93,9 +97,9 @@
 .endm
 
 .macro SAVE_SWITCH_STACK
-	subi	sp, 64
+	subi    sp, 64
 	stm	r4-r11, (sp)
-	stw	r15, (sp, 32)
+	stw	lr,  (sp, 32)
 	stw	r16, (sp, 36)
 	stw	r17, (sp, 40)
 	stw	r26, (sp, 44)
@@ -103,11 +107,29 @@
 	stw	r28, (sp, 52)
 	stw	r29, (sp, 56)
 	stw	r30, (sp, 60)
+#ifdef CONFIG_CPU_HAS_HILO
+	subi	sp, 16
+	mfhi	lr
+	stw	lr, (sp, 0)
+	mflo	lr
+	stw	lr, (sp, 4)
+	mfcr	lr, cr14
+	stw	lr, (sp, 8)
+#endif
 .endm
 
 .macro RESTORE_SWITCH_STACK
+#ifdef CONFIG_CPU_HAS_HILO
+	ldw	lr, (sp, 0)
+	mthi	lr
+	ldw	lr, (sp, 4)
+	mtlo	lr
+	ldw	lr, (sp, 8)
+	mtcr	lr, cr14
+	addi	sp, 16
+#endif
 	ldm	r4-r11, (sp)
-	ldw	r15, (sp, 32)
+	ldw	lr,  (sp, 32)
 	ldw	r16, (sp, 36)
 	ldw	r17, (sp, 40)
 	ldw	r26, (sp, 44)

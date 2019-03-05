@@ -65,8 +65,9 @@
  */
 #define RXE_UVERBS_ABI_VERSION		2
 
-#define IB_PHYS_STATE_LINK_UP		(5)
-#define IB_PHYS_STATE_LINK_DOWN		(3)
+#define RDMA_LINK_PHYS_STATE_LINK_UP	(5)
+#define RDMA_LINK_PHYS_STATE_DISABLED	(3)
+#define RDMA_LINK_PHYS_STATE_POLLING	(2)
 
 #define RXE_ROCE_V2_SPORT		(0xc000)
 
@@ -109,5 +110,6 @@ struct rxe_dev *get_rxe_by_name(const char *name);
 
 void rxe_port_up(struct rxe_dev *rxe);
 void rxe_port_down(struct rxe_dev *rxe);
+void rxe_set_port_state(struct rxe_dev *rxe);
 
 #endif /* RXE_H */

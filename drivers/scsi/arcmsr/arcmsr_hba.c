@@ -156,7 +156,6 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.sg_tablesize	        = ARCMSR_DEFAULT_SG_ENTRIES,
 	.max_sectors		= ARCMSR_MAX_XFER_SECTORS_C,
 	.cmd_per_lun		= ARCMSR_DEFAULT_CMD_PERLUN,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= arcmsr_host_attrs,
 	.no_write_same		= 1,
 };
@@ -588,8 +587,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 	case ACB_ADAPTER_TYPE_B: {
 		struct MessageUnit_B *reg;
 		acb->roundup_ccbsize = roundup(sizeof(struct MessageUnit_B), 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent) {
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;
@@ -618,8 +619,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		struct MessageUnit_D *reg;
 
 		acb->roundup_ccbsize = roundup(sizeof(struct MessageUnit_D), 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent) {
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;
@@ -660,8 +663,10 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		uint32_t completeQ_size;
 		completeQ_size = sizeof(struct deliver_completeQ) * ARCMSR_MAX_HBE_DONEQUEUE + 128;
 		acb->roundup_ccbsize = roundup(completeQ_size, 32);
-		dma_coherent = dma_zalloc_coherent(&pdev->dev, acb->roundup_ccbsize,
-			&dma_coherent_handle, GFP_KERNEL);
+		dma_coherent = dma_alloc_coherent(&pdev->dev,
+						  acb->roundup_ccbsize,
+						  &dma_coherent_handle,
+						  GFP_KERNEL);
 		if (!dma_coherent){
 			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
 			return false;
@@ -903,9 +908,9 @@ static int arcmsr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if(!host){
     		goto pci_disable_dev;
 	}
-	error = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if(error){
-		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if(error){
 			printk(KERN_WARNING
 			       "scsi%d: No suitable DMA mask available\n",
@@ -1049,9 +1054,9 @@ static int arcmsr_resume(struct pci_dev *pdev)
 		pr_warn("%s: pci_enable_device error\n", __func__);
 		return -ENODEV;
 	}
-	error = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (error) {
-		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		error = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (error) {
 			pr_warn("scsi%d: No suitable DMA mask available\n",
 			       host->host_no);

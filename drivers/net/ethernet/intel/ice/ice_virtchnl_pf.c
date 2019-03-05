@@ -156,8 +156,6 @@ static void ice_free_vf_res(struct ice_vf *vf)
 	clear_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
 }
 
-/***********************enable_vf routines*****************************/
-
 /**
  * ice_dis_vf_mappings
  * @vf: pointer to the VF structure
@@ -215,6 +213,15 @@ void ice_free_vfs(struct ice_pf *pf)
 	while (test_and_set_bit(__ICE_VF_DIS, pf->state))
 		usleep_range(1000, 2000);
 
+	/* Disable IOV before freeing resources. This lets any VF drivers
+	 * running in the host get themselves cleaned up before we yank
+	 * the carpet out from underneath their feet.
+	 */
+	if (!pci_vfs_assigned(pf->pdev))
+		pci_disable_sriov(pf->pdev);
+	else
+		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
+
 	/* Avoid wait time by stopping all VFs at the same time */
 	for (i = 0; i < pf->num_alloc_vfs; i++) {
 		if (!test_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states))
@@ -227,15 +234,6 @@ void ice_free_vfs(struct ice_pf *pf)
 
 		clear_bit(ICE_VF_STATE_ENA, pf->vf[i].vf_states);
 	}
-
-	/* Disable IOV before freeing resources. This lets any VF drivers
-	 * running in the host get themselves cleaned up before we yank
-	 * the carpet out from underneath their feet.
-	 */
-	if (!pci_vfs_assigned(pf->pdev))
-		pci_disable_sriov(pf->pdev);
-	else
-		dev_warn(&pf->pdev->dev, "VFs are assigned - not disabling SR-IOV\n");
 
 	tmp = pf->num_alloc_vfs;
 	pf->num_vf_qps = 0;
@@ -454,7 +452,7 @@ static int ice_alloc_vsi_res(struct ice_vf *vf)
 
 	/* Clear this bit after VF initialization since we shouldn't reclaim
 	 * and reassign interrupts for synchronous or asynchronous VFR events.
-	 * We don't want to reconfigure interrupts since AVF driver doesn't
+	 * We dont want to reconfigure interrupts since AVF driver doesn't
 	 * expect vector assignment to be changed unless there is a request for
 	 * more vectors.
 	 */
@@ -1105,7 +1103,7 @@ int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
  * ice_process_vflr_event - Free VF resources via IRQ calls
  * @pf: pointer to the PF structure
  *
- * called from the VLFR IRQ handler to
+ * called from the VFLR IRQ handler to
  * free up VF resources and state variables
  */
 void ice_process_vflr_event(struct ice_pf *pf)
@@ -1764,7 +1762,7 @@ static int ice_vc_cfg_qs_msg(struct ice_vf *vf, u8 *msg)
 		/* copy Tx queue info from VF into VSI */
 		vsi->tx_rings[i]->dma = qpi->txq.dma_ring_addr;
 		vsi->tx_rings[i]->count = qpi->txq.ring_len;
-		/* copy Rx queue info from VF into vsi */
+		/* copy Rx queue info from VF into VSI */
 		vsi->rx_rings[i]->dma = qpi->rxq.dma_ring_addr;
 		vsi->rx_rings[i]->count = qpi->rxq.ring_len;
 		if (qpi->rxq.databuffer_size > ((16 * 1024) - 128)) {
@@ -1830,7 +1828,7 @@ static bool ice_can_vf_change_mac(struct ice_vf *vf)
  * @msg: pointer to the msg buffer
  * @set: true if mac filters are being set, false otherwise
  *
- * add guest mac address filter
+ * add guest MAC address filter
  */
 static int
 ice_vc_handle_mac_addr_msg(struct ice_vf *vf, u8 *msg, bool set)
@@ -1968,9 +1966,9 @@ static int ice_vc_del_mac_addr_msg(struct ice_vf *vf, u8 *msg)
  * @msg: pointer to the msg buffer
  *
  * VFs get a default number of queues but can use this message to request a
- * different number.  If the request is successful, PF will reset the VF and
+ * different number. If the request is successful, PF will reset the VF and
  * return 0. If unsuccessful, PF will send message informing VF of number of
- * available queue pairs via virtchnl message response to VF.
+ * available queue pairs via virtchnl message response to vf.
  */
 static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 {
@@ -1991,7 +1989,7 @@ static int ice_vc_request_qs_msg(struct ice_vf *vf, u8 *msg)
 	tx_rx_queue_left = min_t(int, pf->q_left_tx, pf->q_left_rx);
 	if (req_queues <= 0) {
 		dev_err(&pf->pdev->dev,
-			"VF %d tried to request %d queues.  Ignoring.\n",
+			"VF %d tried to request %d queues. Ignoring.\n",
 			vf->vf_id, req_queues);
 	} else if (req_queues > ICE_MAX_QS_PER_VF) {
 		dev_err(&pf->pdev->dev,

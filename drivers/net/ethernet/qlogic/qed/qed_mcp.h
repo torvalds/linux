@@ -543,16 +543,6 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		      u32 cmd, u32 addr, u8 *p_buf, u32 len);
 
 /**
- * @brief Put file begin
- *
- *  @param cdev
- *  @param addr - nvm offset
- *
- * @return int - 0 - operation was successful.
- */
-int qed_mcp_nvm_put_file_begin(struct qed_dev *cdev, u32 addr);
-
-/**
  * @brief Check latest response
  *
  *  @param cdev

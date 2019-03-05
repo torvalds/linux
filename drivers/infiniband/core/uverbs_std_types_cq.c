@@ -58,13 +58,12 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_ucq_object *obj = container_of(
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE),
 		typeof(*obj), uobject);
 	struct ib_device *ib_dev = obj->uobject.context->device;
-	struct ib_udata uhw;
 	int ret;
 	u64 user_handle;
 	struct ib_cq_init_attr attr = {};
@@ -72,7 +71,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	struct ib_uverbs_completion_event_file    *ev_file = NULL;
 	struct ib_uobject *ev_file_uobj;
 
-	if (!ib_dev->create_cq || !ib_dev->destroy_cq)
+	if (!ib_dev->ops.create_cq || !ib_dev->ops.destroy_cq)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.comp_vector, attrs,
@@ -101,7 +100,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 		uverbs_uobject_get(ev_file_uobj);
 	}
 
-	if (attr.comp_vector >= file->device->num_comp_vectors) {
+	if (attr.comp_vector >= attrs->ufile->device->num_comp_vectors) {
 		ret = -EINVAL;
 		goto err_event_file;
 	}
@@ -111,10 +110,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	INIT_LIST_HEAD(&obj->comp_list);
 	INIT_LIST_HEAD(&obj->async_list);
 
-	/* Temporary, only until drivers get the new uverbs_attr_bundle */
-	create_udata(attrs, &uhw);
-
-	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context, &uhw);
+	cq = ib_dev->ops.create_cq(ib_dev, &attr, obj->uobject.context,
+				   &attrs->driver_udata);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_event_file;
@@ -129,7 +126,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	obj->uobject.user_handle = user_handle;
 	atomic_set(&cq->usecnt, 0);
 	cq->res.type = RDMA_RESTRACK_CQ;
-	rdma_restrack_add(&cq->res);
+	rdma_restrack_uadd(&cq->res);
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
 			     sizeof(cq->cqe));
@@ -173,7 +170,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_UHW());
 
 static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj =
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE);
@@ -207,3 +204,9 @@ DECLARE_UVERBS_NAMED_OBJECT(
 	&UVERBS_METHOD(UVERBS_METHOD_CQ_DESTROY)
 #endif
 );
+
+const struct uapi_definition uverbs_def_obj_cq[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_CQ,
+				      UAPI_DEF_OBJ_NEEDS_FN(destroy_cq)),
+	{}
+};

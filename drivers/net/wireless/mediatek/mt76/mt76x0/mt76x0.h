@@ -28,18 +28,26 @@
 #include "../mt76x02.h"
 #include "eeprom.h"
 
-#define MT_CALIBRATE_INTERVAL		(4 * HZ)
+#define MT7610E_FIRMWARE		"mediatek/mt7610e.bin"
+#define MT7650E_FIRMWARE		"mediatek/mt7650e.bin"
+
+#define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
 
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
 
 static inline bool is_mt7610e(struct mt76x02_dev *dev)
 {
-	/* TODO */
-	return false;
+	if (!mt76_is_mmio(dev))
+		return false;
+
+	return mt76_chip(&dev->mt76) == 0x7610;
 }
 
-void mt76x0_init_debugfs(struct mt76x02_dev *dev);
+static inline bool is_mt7630(struct mt76x02_dev *dev)
+{
+	return mt76_chip(&dev->mt76) == 0x7630;
+}
 
 /* Init */
 struct mt76x02_dev *
@@ -54,30 +62,12 @@ int mt76x0_mac_start(struct mt76x02_dev *dev);
 void mt76x0_mac_stop(struct mt76x02_dev *dev);
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
-void mt76x0_bss_info_changed(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *info, u32 changed);
-void mt76x0_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    const u8 *mac_addr);
-void mt76x0_sw_scan_complete(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif);
-int mt76x0_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 
 /* PHY */
 void mt76x0_phy_init(struct mt76x02_dev *dev);
-int mt76x0_wait_bbp_ready(struct mt76x02_dev *dev);
+int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev);
 int mt76x0_phy_set_channel(struct mt76x02_dev *dev,
 			    struct cfg80211_chan_def *chandef);
-void mt76x0_phy_recalibrate_after_assoc(struct mt76x02_dev *dev);
 void mt76x0_phy_set_txpower(struct mt76x02_dev *dev);
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
-
-/* MAC */
-void mt76x0_mac_work(struct work_struct *work);
-void mt76x0_mac_set_protection(struct mt76x02_dev *dev, bool legacy_prot,
-				int ht_mode);
-void mt76x0_mac_set_short_preamble(struct mt76x02_dev *dev, bool short_preamb);
-void mt76x0_mac_config_tsf(struct mt76x02_dev *dev, bool enable, int interval);
-void mt76x0_mac_set_ampdu_factor(struct mt76x02_dev *dev);
-
 #endif

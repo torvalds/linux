@@ -318,7 +318,6 @@ static struct phy_driver dp83822_driver[] = {
 		.phy_id_mask = 0xfffffff0,
 		.name = "TI DP83822",
 		.features = PHY_BASIC_FEATURES,
-		.flags = PHY_HAS_INTERRUPT,
 		.config_init = dp83822_config_init,
 		.soft_reset = dp83822_phy_reset,
 		.get_wol = dp83822_get_wol,

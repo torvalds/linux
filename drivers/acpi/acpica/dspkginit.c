@@ -152,6 +152,32 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 	 */
 	for (i = 0; arg && (i < element_count); i++) {
 		if (arg->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
+			if (!arg->common.node) {
+				/*
+				 * This is the case where an expression has returned a value.
+				 * The use of expressions (term_args) within individual
+				 * package elements is not supported by the AML interpreter,
+				 * even though the ASL grammar supports it. Example:
+				 *
+				 *      Name (INT1, 0x1234)
+				 *
+				 *      Name (PKG3, Package () {
+				 *          Add (INT1, 0xAAAA0000)
+				 *      })
+				 *
+				 *  1) No known AML interpreter supports this type of construct
+				 *  2) This fixes a fault if the construct is encountered
+				 */
+				ACPI_EXCEPTION((AE_INFO, AE_SUPPORT,
+						"Expressions within package elements are not supported"));
+
+				/* Cleanup the return object, it is not needed */
+
+				acpi_ut_remove_reference(walk_state->results->
+							 results.obj_desc[0]);
+				return_ACPI_STATUS(AE_SUPPORT);
+			}
+
 			if (arg->common.node->type == ACPI_TYPE_METHOD) {
 				/*
 				 * A method reference "looks" to the parser to be a method

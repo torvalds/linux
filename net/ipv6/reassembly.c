@@ -210,7 +210,7 @@ found:
 	if (next && next->ip_defrag_offset < end)
 		goto discard_fq;
 
-	/* Note : skb->ip_defrag_offset and skb->dev share the same location */
+	/* Note : skb->ip_defrag_offset and skb->sk share the same location */
 	dev = skb->dev;
 	if (dev)
 		fq->iif = dev->ifindex;

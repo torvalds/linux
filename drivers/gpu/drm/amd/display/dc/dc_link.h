@@ -128,8 +128,10 @@ struct dc_link {
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
 
-/*
- * Return an enumerated dc_link.  dc_link order is constant and determined at
+/**
+ * dc_get_link_at_index() - Return an enumerated dc_link.
+ *
+ * dc_link order is constant and determined at
  * boot time.  They cannot be created or destroyed.
  * Use dc_get_caps() to get number of links.
  */
@@ -138,9 +140,13 @@ static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_
 	return dc->links[link_index];
 }
 
-/* Set backlight level of an embedded panel (eDP, LVDS). */
-bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
-		uint32_t frame_ramp, const struct dc_stream_state *stream);
+/* Set backlight level of an embedded panel (eDP, LVDS).
+ * backlight_pwm_u16_16 is unsigned 32 bit with 16 bit integer
+ * and 16 bit fractional, where 1.0 is max backlight value.
+ */
+bool dc_link_set_backlight_level(const struct dc_link *dc_link,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp);
 
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 

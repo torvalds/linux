@@ -101,7 +101,7 @@ nv50_dma_push(struct nouveau_channel *chan, u64 offset, int length)
 
 	nvif_wr32(&chan->user, 0x8c, chan->dma.ib_put);
 	if (user->func && user->func->doorbell)
-		user->func->doorbell(user, chan->chid);
+		user->func->doorbell(user, chan->token);
 	chan->dma.ib_free--;
 }
 

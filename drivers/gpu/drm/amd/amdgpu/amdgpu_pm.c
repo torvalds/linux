@@ -33,6 +33,8 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/nospec.h>
+#include "hwmgr.h"
+#define WIDTH_4K 3840
 
 static int amdgpu_debugfs_pm_init(struct amdgpu_device *adev);
 
@@ -1642,6 +1644,19 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	    attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
+	/* Skip fan attributes on APU */
+	if ((adev->flags & AMD_IS_APU) &&
+	    (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_min.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_target.dev_attr.attr ||
+	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
+		return 0;
+
 	/* Skip limit attributes if DPM is not enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
@@ -1671,7 +1686,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		effective_mode &= ~S_IWUSR;
 
 	if ((adev->flags & AMD_IS_APU) &&
-	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr))
 		return 0;
@@ -1956,6 +1972,17 @@ void amdgpu_dpm_enable_uvd(struct amdgpu_device *adev, bool enable)
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_UVD, !enable);
 		mutex_unlock(&adev->pm.mutex);
 	}
+	/* enable/disable Low Memory PState for UVD (4k videos) */
+	if (adev->asic_type == CHIP_STONEY &&
+		adev->uvd.decode_image_width >= WIDTH_4K) {
+		struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
+		if (hwmgr && hwmgr->hwmgr_func &&
+		    hwmgr->hwmgr_func->update_nbdpm_pstate)
+			hwmgr->hwmgr_func->update_nbdpm_pstate(hwmgr,
+							       !enable,
+							       true);
+	}
 }
 
 void amdgpu_dpm_enable_vce(struct amdgpu_device *adev, bool enable)
@@ -1982,6 +2009,7 @@ void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
 
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 	int ret;
 
 	if (adev->pm.sysfs_initialized)
@@ -2065,12 +2093,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"pp_power_profile_mode\n");
 		return ret;
 	}
-	ret = device_create_file(adev->dev,
-			&dev_attr_pp_od_clk_voltage);
-	if (ret) {
-		DRM_ERROR("failed to create device file	"
-				"pp_od_clk_voltage\n");
-		return ret;
+	if (hwmgr->od_enabled) {
+		ret = device_create_file(adev->dev,
+				&dev_attr_pp_od_clk_voltage);
+		if (ret) {
+			DRM_ERROR("failed to create device file	"
+					"pp_od_clk_voltage\n");
+			return ret;
+		}
 	}
 	ret = device_create_file(adev->dev,
 			&dev_attr_gpu_busy_percent);
@@ -2092,6 +2122,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 
 void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 {
+	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
 	if (adev->pm.dpm_enabled == 0)
 		return;
 
@@ -2112,8 +2144,9 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_mclk_od);
 	device_remove_file(adev->dev,
 			&dev_attr_pp_power_profile_mode);
-	device_remove_file(adev->dev,
-			&dev_attr_pp_od_clk_voltage);
+	if (hwmgr->od_enabled)
+		device_remove_file(adev->dev,
+				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
 }
 
@@ -2129,7 +2162,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
-		if (ring && ring->ready)
+		if (ring && ring->sched.ready)
 			amdgpu_fence_wait_empty(ring);
 	}
 

@@ -60,6 +60,10 @@ OPTIONS
 	-m, --mapcompat
 		  Allow loading maps with unknown map definitions.
 
+	-n, --nomount
+		  Do not automatically attempt to mount any virtual file system
+		  (such as tracefs or BPF virtual file system) when necessary.
+
 
 SEE ALSO
 ========

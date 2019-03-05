@@ -204,6 +204,6 @@ config KVM_XIVE
 	default y
 	depends on KVM_XICS && PPC_XIVE_NATIVE && KVM_BOOK3S_HV_POSSIBLE
 
-source drivers/vhost/Kconfig
+source "drivers/vhost/Kconfig"
 
 endif # VIRTUALIZATION

@@ -105,6 +105,7 @@ struct tipc_skb_cb {
 	u32 bytes_read;
 	u32 orig_member;
 	struct sk_buff *tail;
+	unsigned long nxt_retr;
 	bool validated;
 	u16 chain_imp;
 	u16 ackers;
@@ -359,6 +360,28 @@ static inline void msg_set_bcast_ack(struct tipc_msg *m, u16 n)
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
+/* Note: reusing bits in word 1 for ACTIVATE_MSG only, to re-synch
+ * link peer session number
+ */
+static inline bool msg_dest_session_valid(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 16, 0x1);
+}
+
+static inline void msg_set_dest_session_valid(struct tipc_msg *m, bool valid)
+{
+	msg_set_bits(m, 1, 16, 0x1, valid);
+}
+
+static inline u16 msg_dest_session(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_dest_session(struct tipc_msg *m, u16 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
+}
 
 /*
  * Word 2

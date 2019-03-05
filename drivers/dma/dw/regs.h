@@ -200,6 +200,10 @@ enum dw_dma_msize {
 #define DWC_CFGH_FCMODE		(1 << 0)
 #define DWC_CFGH_FIFO_MODE	(1 << 1)
 #define DWC_CFGH_PROTCTL(x)	((x) << 2)
+#define DWC_CFGH_PROTCTL_DATA	(0 << 2)	/* data access - always set */
+#define DWC_CFGH_PROTCTL_PRIV	(1 << 2)	/* privileged -> AHB HPROT[1] */
+#define DWC_CFGH_PROTCTL_BUFFER	(2 << 2)	/* bufferable -> AHB HPROT[2] */
+#define DWC_CFGH_PROTCTL_CACHE	(4 << 2)	/* cacheable  -> AHB HPROT[3] */
 #define DWC_CFGH_DS_UPD_EN	(1 << 5)
 #define DWC_CFGH_SS_UPD_EN	(1 << 6)
 #define DWC_CFGH_SRC_PER(x)	((x) << 7)

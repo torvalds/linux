@@ -25,6 +25,7 @@ struct map {
 		struct rb_node	rb_node;
 		struct list_head node;
 	};
+	struct rb_node          rb_node_name;
 	u64			start;
 	u64			end;
 	bool			erange_warned;
@@ -57,6 +58,7 @@ struct kmap {
 
 struct maps {
 	struct rb_root	 entries;
+	struct rb_root	 names;
 	struct rw_semaphore lock;
 };
 
@@ -171,6 +173,22 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp);
 char *map__srcline(struct map *map, u64 addr, struct symbol *sym);
 int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 			 FILE *fp);
+
+struct srccode_state {
+	char *srcfile;
+	unsigned line;
+};
+
+static inline void srccode_state_init(struct srccode_state *state)
+{
+	state->srcfile = NULL;
+	state->line = 0;
+}
+
+void srccode_state_free(struct srccode_state *state);
+
+int map__fprintf_srccode(struct map *map, u64 addr,
+			 FILE *fp, struct srccode_state *state);
 
 int map__load(struct map *map);
 struct symbol *map__find_symbol(struct map *map, u64 addr);

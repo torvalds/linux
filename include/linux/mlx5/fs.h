@@ -86,6 +86,11 @@ struct mlx5_flow_spec {
 	u32  match_value[MLX5_ST_SZ_DW(fte_match_param)];
 };
 
+enum {
+	MLX5_FLOW_DEST_VPORT_VHCA_ID      = BIT(0),
+	MLX5_FLOW_DEST_VPORT_REFORMAT_ID  = BIT(1),
+};
+
 struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
@@ -96,7 +101,8 @@ struct mlx5_flow_destination {
 		struct {
 			u16		num;
 			u16		vhca_id;
-			bool		vhca_id_valid;
+			u32		reformat_id;
+			u8		flags;
 		} vport;
 	};
 };

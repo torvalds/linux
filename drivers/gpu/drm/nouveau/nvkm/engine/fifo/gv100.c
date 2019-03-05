@@ -28,7 +28,7 @@
 
 #include <nvif/class.h>
 
-static void
+void
 gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
 			struct nvkm_memory *memory, u32 offset)
 {
@@ -42,7 +42,7 @@ gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
 	nvkm_wo32(memory, offset + 0xc, upper_32_bits(inst));
 }
 
-static void
+void
 gv100_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
 			struct nvkm_memory *memory, u32 offset)
 {
@@ -57,9 +57,10 @@ gv100_fifo_runlist = {
 	.size = 16,
 	.cgrp = gv100_fifo_runlist_cgrp,
 	.chan = gv100_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
-static const struct nvkm_enum
+const struct nvkm_enum
 gv100_fifo_fault_gpcclient[] = {
 	{ 0x00, "T1_0" },
 	{ 0x01, "T1_1" },
@@ -161,7 +162,7 @@ gv100_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static const struct nvkm_enum
+const struct nvkm_enum
 gv100_fifo_fault_hubclient[] = {
 	{ 0x00, "VIP" },
 	{ 0x01, "CE0" },
@@ -223,7 +224,7 @@ gv100_fifo_fault_hubclient[] = {
 	{}
 };
 
-static const struct nvkm_enum
+const struct nvkm_enum
 gv100_fifo_fault_reason[] = {
 	{ 0x00, "PDE" },
 	{ 0x01, "PDE_SIZE" },
@@ -271,7 +272,7 @@ gv100_fifo_fault_engine[] = {
 	{}
 };
 
-static const struct nvkm_enum
+const struct nvkm_enum
 gv100_fifo_fault_access[] = {
 	{ 0x0, "VIRT_READ" },
 	{ 0x1, "VIRT_WRITE" },
@@ -287,7 +288,7 @@ gv100_fifo_fault_access[] = {
 
 static const struct gk104_fifo_func
 gv100_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gv100_fifo_fault_access,
 	.fault.engine = gv100_fifo_fault_engine,
 	.fault.reason = gv100_fifo_fault_reason,

@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
+#include <linux/gpio/machine.h>
 #include <linux/input.h>
 #include <linux/pda_power.h>
 #include <linux/pwm.h>
@@ -101,9 +102,19 @@ static unsigned long palmte2_pin_config[] __initdata = {
  ******************************************************************************/
 static struct pxamci_platform_data palmte2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_NR_PALMTE2_SD_DETECT_N,
-	.gpio_card_ro		= GPIO_NR_PALMTE2_SD_READONLY,
-	.gpio_power		= GPIO_NR_PALMTE2_SD_POWER,
+};
+
+static struct gpiod_lookup_table palmte2_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -354,6 +365,7 @@ static void __init palmte2_init(void)
 	pxa_set_stuart_info(NULL);
 
 	pxa_set_fb_info(NULL, &palmte2_lcd_screen);
+	gpiod_add_lookup_table(&palmte2_mci_gpio_table);
 	pxa_set_mci_info(&palmte2_mci_platform_data);
 	palmte2_udc_init();
 	pxa_set_ac97_info(&palmte2_ac97_pdata);

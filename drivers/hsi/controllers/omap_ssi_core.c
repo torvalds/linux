@@ -48,7 +48,7 @@
 static DEFINE_IDA(platform_omap_ssi_ida);
 
 #ifdef CONFIG_DEBUG_FS
-static int ssi_debug_show(struct seq_file *m, void *p __maybe_unused)
+static int ssi_regs_show(struct seq_file *m, void *p __maybe_unused)
 {
 	struct hsi_controller *ssi = m->private;
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
@@ -63,7 +63,7 @@ static int ssi_debug_show(struct seq_file *m, void *p __maybe_unused)
 	return 0;
 }
 
-static int ssi_debug_gdd_show(struct seq_file *m, void *p __maybe_unused)
+static int ssi_gdd_regs_show(struct seq_file *m, void *p __maybe_unused)
 {
 	struct hsi_controller *ssi = m->private;
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
@@ -117,29 +117,8 @@ static int ssi_debug_gdd_show(struct seq_file *m, void *p __maybe_unused)
 	return 0;
 }
 
-static int ssi_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ssi_debug_show, inode->i_private);
-}
-
-static int ssi_gdd_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ssi_debug_gdd_show, inode->i_private);
-}
-
-static const struct file_operations ssi_regs_fops = {
-	.open		= ssi_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations ssi_gdd_regs_fops = {
-	.open		= ssi_gdd_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ssi_regs);
+DEFINE_SHOW_ATTRIBUTE(ssi_gdd_regs);
 
 static int ssi_debug_add_ctrl(struct hsi_controller *ssi)
 {

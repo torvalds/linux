@@ -51,7 +51,7 @@
 #endif
 
 static void *agp_remap(unsigned long offset, unsigned long size,
-		       struct drm_device * dev)
+		       struct drm_device *dev)
 {
 	unsigned long i, num_pages =
 	    PAGE_ALIGN(size) / PAGE_SIZE;
@@ -94,26 +94,26 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 /** Wrapper around agp_free_memory() */
-void drm_free_agp(struct agp_memory * handle, int pages)
+void drm_free_agp(struct agp_memory *handle, int pages)
 {
 	agp_free_memory(handle);
 }
 
 /** Wrapper around agp_bind_memory() */
-int drm_bind_agp(struct agp_memory * handle, unsigned int start)
+int drm_bind_agp(struct agp_memory *handle, unsigned int start)
 {
 	return agp_bind_memory(handle, start);
 }
 
 /** Wrapper around agp_unbind_memory() */
-int drm_unbind_agp(struct agp_memory * handle)
+int drm_unbind_agp(struct agp_memory *handle)
 {
 	return agp_unbind_memory(handle);
 }
 
 #else /*  CONFIG_AGP  */
 static inline void *agp_remap(unsigned long offset, unsigned long size,
-			      struct drm_device * dev)
+			      struct drm_device *dev)
 {
 	return NULL;
 }

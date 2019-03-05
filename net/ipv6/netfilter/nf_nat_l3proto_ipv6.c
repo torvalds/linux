@@ -61,22 +61,8 @@ static void nf_nat_ipv6_decode_session(struct sk_buff *skb,
 }
 #endif
 
-static bool nf_nat_ipv6_in_range(const struct nf_conntrack_tuple *t,
-				 const struct nf_nat_range2 *range)
-{
-	return ipv6_addr_cmp(&t->src.u3.in6, &range->min_addr.in6) >= 0 &&
-	       ipv6_addr_cmp(&t->src.u3.in6, &range->max_addr.in6) <= 0;
-}
-
-static u32 nf_nat_ipv6_secure_port(const struct nf_conntrack_tuple *t,
-				   __be16 dport)
-{
-	return secure_ipv6_port_ephemeral(t->src.u3.ip6, t->dst.u3.ip6, dport);
-}
-
 static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
-				  const struct nf_nat_l4proto *l4proto,
 				  const struct nf_conntrack_tuple *target,
 				  enum nf_nat_manip_type maniptype)
 {
@@ -96,8 +82,8 @@ static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 		goto manip_addr;
 
 	if ((frag_off & htons(~0x7)) == 0 &&
-	    !l4proto->manip_pkt(skb, &nf_nat_l3proto_ipv6, iphdroff, hdroff,
-				target, maniptype))
+	    !nf_nat_l4proto_manip_pkt(skb, &nf_nat_l3proto_ipv6, iphdroff, hdroff,
+				      target, maniptype))
 		return false;
 
 	/* must reload, offset might have changed */
@@ -171,8 +157,6 @@ static int nf_nat_ipv6_nlattr_to_range(struct nlattr *tb[],
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
-	.secure_port		= nf_nat_ipv6_secure_port,
-	.in_range		= nf_nat_ipv6_in_range,
 	.manip_pkt		= nf_nat_ipv6_manip_pkt,
 	.csum_update		= nf_nat_ipv6_csum_update,
 	.csum_recalc		= nf_nat_ipv6_csum_recalc,
@@ -196,7 +180,6 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	} *inside;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	enum nf_nat_manip_type manip = HOOK2MANIP(hooknum);
-	const struct nf_nat_l4proto *l4proto;
 	struct nf_conntrack_tuple target;
 	unsigned long statusbit;
 
@@ -227,9 +210,8 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	if (!(ct->status & statusbit))
 		return 1;
 
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV6, inside->ip6.nexthdr);
 	if (!nf_nat_ipv6_manip_pkt(skb, hdrlen + sizeof(inside->icmp6),
-				   l4proto, &ct->tuplehash[!dir].tuple, !manip))
+				   &ct->tuplehash[!dir].tuple, !manip))
 		return 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
@@ -244,8 +226,8 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	}
 
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV6, IPPROTO_ICMPV6);
-	if (!nf_nat_ipv6_manip_pkt(skb, 0, l4proto, &target, manip))
+	target.dst.protonum = IPPROTO_ICMPV6;
+	if (!nf_nat_ipv6_manip_pkt(skb, 0, &target, manip))
 		return 0;
 
 	return 1;
@@ -415,26 +397,12 @@ EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv6_unregister_fn);
 
 static int __init nf_nat_l3proto_ipv6_init(void)
 {
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l3proto_register(&nf_nat_l3proto_ipv6);
-	if (err < 0)
-		goto err2;
-	return err;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
-err1:
-	return err;
+	return nf_nat_l3proto_register(&nf_nat_l3proto_ipv6);
 }
 
 static void __exit nf_nat_l3proto_ipv6_exit(void)
 {
 	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv6);
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
 }
 
 MODULE_LICENSE("GPL");

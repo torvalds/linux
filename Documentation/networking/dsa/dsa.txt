@@ -533,16 +533,12 @@ Bridge VLAN filtering
   function that the driver has to call for each VLAN the given port is a member
   of. A switchdev object is used to carry the VID and bridge flags.
 
-- port_fdb_prepare: bridge layer function invoked when the bridge prepares the
-  installation of a Forwarding Database entry. If the operation is not
-  supported, this function should return -EOPNOTSUPP to inform the bridge code
-  to fallback to a software implementation. No hardware setup must be done in
-  this function. See port_fdb_add for this and details.
-
 - port_fdb_add: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the
   specified address in the specified VLAN Id in the forwarding database
-  associated with this VLAN ID
+  associated with this VLAN ID. If the operation is not supported, this
+  function should return -EOPNOTSUPP to inform the bridge code to fallback to
+  a software implementation.
 
 Note: VLAN ID 0 corresponds to the port private database, which, in the context
 of DSA, would be the its port-based VLAN, used by the associated bridge device.

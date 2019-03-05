@@ -144,7 +144,7 @@ static int crypto_cfb_decrypt_segment(struct skcipher_walk *walk,
 
 	do {
 		crypto_cfb_encrypt_one(tfm, iv, dst);
-		crypto_xor(dst, iv, bsize);
+		crypto_xor(dst, src, bsize);
 		iv = src;
 
 		src += bsize;

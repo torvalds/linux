@@ -124,6 +124,8 @@ struct ice_phy_info {
 
 /* Common HW capabilities for SW use */
 struct ice_hw_common_caps {
+	u32 valid_functions;
+
 	/* TX/RX queues */
 	u16 num_rxq;		/* Number/Total RX queues */
 	u16 rxq_first_id;	/* First queue ID for RX queues */
@@ -150,7 +152,7 @@ struct ice_hw_func_caps {
 	struct ice_hw_common_caps common_cap;
 	u32 num_allocd_vfs;		/* Number of allocated VFs */
 	u32 vf_base_id;			/* Logical ID of the first VF */
-	u32 guaranteed_num_vsi;
+	u32 guar_num_vsi;
 };
 
 /* Device wide capabilities */

@@ -178,7 +178,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
-		p->relocs[i].tv.shared = !r->write_domain;
+		p->relocs[i].tv.num_shared = !r->write_domain;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
 				      priority);
@@ -253,7 +253,7 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 
 		resv = reloc->robj->tbo.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
-				     reloc->tv.shared);
+				     reloc->tv.num_shared);
 		if (r)
 			return r;
 	}

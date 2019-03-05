@@ -106,7 +106,7 @@ struct perf_evsel {
 	char			*name;
 	double			scale;
 	const char		*unit;
-	struct tep_event_format	*tp_format;
+	struct tep_event	*tp_format;
 	off_t			id_offset;
 	struct perf_stat_evsel  *stats;
 	void			*priv;
@@ -216,7 +216,7 @@ static inline struct perf_evsel *perf_evsel__newtp(const char *sys, const char *
 
 struct perf_evsel *perf_evsel__new_cycles(bool precise);
 
-struct tep_event_format *event_format__new(const char *sys, const char *name);
+struct tep_event *event_format__new(const char *sys, const char *name);
 
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx);

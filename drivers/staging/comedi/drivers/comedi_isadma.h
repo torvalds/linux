@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * COMEDI ISA DMA support functions
  * Copyright (c) 2014 H Hartley Sweeten <hsweeten@visionengravers.com>

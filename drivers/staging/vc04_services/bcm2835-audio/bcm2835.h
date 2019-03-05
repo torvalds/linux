@@ -77,6 +77,7 @@ struct bcm2835_alsa_stream {
 	unsigned int period_offset;
 	unsigned int buffer_size;
 	unsigned int period_size;
+	ktime_t interpolate_start;
 
 	struct bcm2835_audio_instance *instance;
 	int idx;

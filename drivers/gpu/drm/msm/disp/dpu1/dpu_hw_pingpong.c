@@ -16,7 +16,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_pingpong.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
 
@@ -177,7 +176,7 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	height = DPU_REG_READ(c, PP_SYNC_CONFIG_HEIGHT) & 0xFFFF;
 
 	if (height < init)
-		goto line_count_exit;
+		return line;
 
 	line = DPU_REG_READ(c, PP_INT_COUNT_VAL) & 0xFFFF;
 
@@ -186,7 +185,6 @@ static u32 dpu_hw_pp_get_line_count(struct dpu_hw_pingpong *pp)
 	else
 		line -= init;
 
-line_count_exit:
 	return line;
 }
 
@@ -201,10 +199,7 @@ static void _setup_pingpong_ops(struct dpu_hw_pingpong_ops *ops,
 	ops->get_line_count = dpu_hw_pp_get_line_count;
 };
 
-static struct dpu_hw_blk_ops dpu_hw_ops = {
-	.start = NULL,
-	.stop = NULL,
-};
+static struct dpu_hw_blk_ops dpu_hw_ops;
 
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 		void __iomem *addr,
@@ -212,7 +207,6 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 {
 	struct dpu_hw_pingpong *c;
 	struct dpu_pingpong_cfg *cfg;
-	int rc;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
@@ -228,18 +222,9 @@ struct dpu_hw_pingpong *dpu_hw_pingpong_init(enum dpu_pingpong idx,
 	c->caps = cfg;
 	_setup_pingpong_ops(&c->ops, c->caps);
 
-	rc = dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
-	if (rc) {
-		DPU_ERROR("failed to init hw blk %d\n", rc);
-		goto blk_init_error;
-	}
+	dpu_hw_blk_init(&c->base, DPU_HW_BLK_PINGPONG, idx, &dpu_hw_ops);
 
 	return c;
-
-blk_init_error:
-	kzfree(c);
-
-	return ERR_PTR(rc);
 }
 
 void dpu_hw_pingpong_destroy(struct dpu_hw_pingpong *pp)

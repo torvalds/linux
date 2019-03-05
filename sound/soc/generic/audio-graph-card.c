@@ -307,12 +307,10 @@ static int graph_dai_link_of_dpcm(struct graph_priv *priv,
 					     "prefix");
 	}
 
+	asoc_simple_card_canonicalize_platform(dai_link);
+
 	ret = asoc_simple_card_of_parse_tdm(ep, dai);
 	if (ret)
-		return ret;
-
-	ret = asoc_simple_card_canonicalize_dailink(dai_link);
-	if (ret < 0)
 		return ret;
 
 	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
@@ -405,10 +403,6 @@ static int graph_dai_link_of(struct graph_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_canonicalize_dailink(dai_link);
-	if (ret < 0)
-		return ret;
-
 	ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 						"%s-%s",
 						dai_link->cpu_dai_name,
@@ -419,6 +413,7 @@ static int graph_dai_link_of(struct graph_priv *priv,
 	dai_link->ops = &graph_ops;
 	dai_link->init = graph_dai_init;
 
+	asoc_simple_card_canonicalize_platform(dai_link);
 	asoc_simple_card_canonicalize_cpu(dai_link,
 		of_graph_get_endpoint_count(dai_link->cpu_of_node) == 1);
 

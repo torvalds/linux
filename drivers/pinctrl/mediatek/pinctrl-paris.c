@@ -282,8 +282,8 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		if (hw->soc->drive_set) {
 			err = hw->soc->drive_set(hw, desc, arg);
-		if (err)
-			return err;
+			if (err)
+				return err;
 		} else {
 			return -ENOTSUPP;
 		}
@@ -419,8 +419,8 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	pins = of_find_property(node, "pinmux", NULL);
 	if (!pins) {
-		dev_err(hw->dev, "missing pins property in node %s .\n",
-			node->name);
+		dev_err(hw->dev, "missing pins property in node %pOFn .\n",
+			node);
 		return -EINVAL;
 	}
 

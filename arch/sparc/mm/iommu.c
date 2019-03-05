@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>	/* pte_offset_map => kmap_atomic */
-#include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 
@@ -205,59 +205,67 @@ static u32 iommu_get_one(struct device *dev, struct page *page, int npages)
 	return busa0;
 }
 
-static u32 iommu_get_scsi_one(struct device *dev, char *vaddr, unsigned int len)
+static dma_addr_t __sbus_iommu_map_page(struct device *dev, struct page *page,
+		unsigned long offset, size_t len)
 {
-	unsigned long off;
-	int npages;
-	struct page *page;
-	u32 busa;
-
-	off = (unsigned long)vaddr & ~PAGE_MASK;
-	npages = (off + len + PAGE_SIZE-1) >> PAGE_SHIFT;
-	page = virt_to_page((unsigned long)vaddr & PAGE_MASK);
-	busa = iommu_get_one(dev, page, npages);
-	return busa + off;
+	void *vaddr = page_address(page) + offset;
+	unsigned long off = (unsigned long)vaddr & ~PAGE_MASK;
+	unsigned long npages = (off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	
+	/* XXX So what is maxphys for us and how do drivers know it? */
+	if (!len || len > 256 * 1024)
+		return DMA_MAPPING_ERROR;
+	return iommu_get_one(dev, virt_to_page(vaddr), npages) + off;
 }
 
-static __u32 iommu_get_scsi_one_gflush(struct device *dev, char *vaddr, unsigned long len)
+static dma_addr_t sbus_iommu_map_page_gflush(struct device *dev,
+		struct page *page, unsigned long offset, size_t len,
+		enum dma_data_direction dir, unsigned long attrs)
 {
 	flush_page_for_dma(0);
-	return iommu_get_scsi_one(dev, vaddr, len);
+	return __sbus_iommu_map_page(dev, page, offset, len);
 }
 
-static __u32 iommu_get_scsi_one_pflush(struct device *dev, char *vaddr, unsigned long len)
+static dma_addr_t sbus_iommu_map_page_pflush(struct device *dev,
+		struct page *page, unsigned long offset, size_t len,
+		enum dma_data_direction dir, unsigned long attrs)
 {
-	unsigned long page = ((unsigned long) vaddr) & PAGE_MASK;
+	void *vaddr = page_address(page) + offset;
+	unsigned long p = ((unsigned long)vaddr) & PAGE_MASK;
 
-	while(page < ((unsigned long)(vaddr + len))) {
-		flush_page_for_dma(page);
-		page += PAGE_SIZE;
+	while (p < (unsigned long)vaddr + len) {
+		flush_page_for_dma(p);
+		p += PAGE_SIZE;
 	}
-	return iommu_get_scsi_one(dev, vaddr, len);
+
+	return __sbus_iommu_map_page(dev, page, offset, len);
 }
 
-static void iommu_get_scsi_sgl_gflush(struct device *dev, struct scatterlist *sg, int sz)
+static int sbus_iommu_map_sg_gflush(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	int n;
+	struct scatterlist *sg;
+	int i, n;
 
 	flush_page_for_dma(0);
-	while (sz != 0) {
-		--sz;
+
+	for_each_sg(sgl, sg, nents, i) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
 		sg->dma_length = sg->length;
-		sg = sg_next(sg);
 	}
+
+	return nents;
 }
 
-static void iommu_get_scsi_sgl_pflush(struct device *dev, struct scatterlist *sg, int sz)
+static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	unsigned long page, oldpage = 0;
-	int n, i;
+	struct scatterlist *sg;
+	int i, j, n;
 
-	while(sz != 0) {
-		--sz;
-
+	for_each_sg(sgl, sg, nents, j) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 
 		/*
@@ -277,8 +285,9 @@ static void iommu_get_scsi_sgl_pflush(struct device *dev, struct scatterlist *sg
 
 		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
 		sg->dma_length = sg->length;
-		sg = sg_next(sg);
 	}
+
+	return nents;
 }
 
 static void iommu_release_one(struct device *dev, u32 busa, int npages)
@@ -297,39 +306,51 @@ static void iommu_release_one(struct device *dev, u32 busa, int npages)
 	bit_map_clear(&iommu->usemap, ioptex, npages);
 }
 
-static void iommu_release_scsi_one(struct device *dev, __u32 vaddr, unsigned long len)
+static void sbus_iommu_unmap_page(struct device *dev, dma_addr_t dma_addr,
+		size_t len, enum dma_data_direction dir, unsigned long attrs)
 {
-	unsigned long off;
+	unsigned long off = dma_addr & ~PAGE_MASK;
 	int npages;
 
-	off = vaddr & ~PAGE_MASK;
 	npages = (off + len + PAGE_SIZE-1) >> PAGE_SHIFT;
-	iommu_release_one(dev, vaddr & PAGE_MASK, npages);
+	iommu_release_one(dev, dma_addr & PAGE_MASK, npages);
 }
 
-static void iommu_release_scsi_sgl(struct device *dev, struct scatterlist *sg, int sz)
+static void sbus_iommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	int n;
+	struct scatterlist *sg;
+	int i, n;
 
-	while(sz != 0) {
-		--sz;
-
+	for_each_sg(sgl, sg, nents, i) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		iommu_release_one(dev, sg->dma_address & PAGE_MASK, n);
 		sg->dma_address = 0x21212121;
-		sg = sg_next(sg);
 	}
 }
 
 #ifdef CONFIG_SBUS
-static int iommu_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va,
-			      unsigned long addr, int len)
+static void *sbus_iommu_alloc(struct device *dev, size_t len,
+		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	struct iommu_struct *iommu = dev->archdata.iommu;
-	unsigned long page, end;
+	unsigned long va, addr, page, end, ret;
 	iopte_t *iopte = iommu->page_table;
 	iopte_t *first;
 	int ioptex;
+
+	/* XXX So what is maxphys for us and how do drivers know it? */
+	if (!len || len > 256 * 1024)
+		return NULL;
+
+	len = PAGE_ALIGN(len);
+	va = __get_free_pages(gfp | __GFP_ZERO, get_order(len));
+	if (va == 0)
+		return NULL;
+
+	addr = ret = sparc_dma_alloc_resource(dev, len);
+	if (!addr)
+		goto out_free_pages;
 
 	BUG_ON((va & ~PAGE_MASK) != 0);
 	BUG_ON((addr & ~PAGE_MASK) != 0);
@@ -385,16 +406,25 @@ static int iommu_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long
 	flush_tlb_all();
 	iommu_invalidate(iommu->regs);
 
-	*pba = iommu->start + (ioptex << PAGE_SHIFT);
-	return 0;
+	*dma_handle = iommu->start + (ioptex << PAGE_SHIFT);
+	return (void *)ret;
+
+out_free_pages:
+	free_pages(va, get_order(len));
+	return NULL;
 }
 
-static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len)
+static void sbus_iommu_free(struct device *dev, size_t len, void *cpu_addr,
+			       dma_addr_t busa, unsigned long attrs)
 {
 	struct iommu_struct *iommu = dev->archdata.iommu;
 	iopte_t *iopte = iommu->page_table;
-	unsigned long end;
+	struct page *page = virt_to_page(cpu_addr);
 	int ioptex = (busa - iommu->start) >> PAGE_SHIFT;
+	unsigned long end;
+
+	if (!sparc_dma_free_resource(cpu_addr, len))
+		return;
 
 	BUG_ON((busa & ~PAGE_MASK) != 0);
 	BUG_ON((len & ~PAGE_MASK) != 0);
@@ -408,38 +438,40 @@ static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len
 	flush_tlb_all();
 	iommu_invalidate(iommu->regs);
 	bit_map_clear(&iommu->usemap, ioptex, len >> PAGE_SHIFT);
+
+	__free_pages(page, get_order(len));
 }
 #endif
 
-static const struct sparc32_dma_ops iommu_dma_gflush_ops = {
-	.get_scsi_one		= iommu_get_scsi_one_gflush,
-	.get_scsi_sgl		= iommu_get_scsi_sgl_gflush,
-	.release_scsi_one	= iommu_release_scsi_one,
-	.release_scsi_sgl	= iommu_release_scsi_sgl,
+static const struct dma_map_ops sbus_iommu_dma_gflush_ops = {
 #ifdef CONFIG_SBUS
-	.map_dma_area		= iommu_map_dma_area,
-	.unmap_dma_area		= iommu_unmap_dma_area,
+	.alloc			= sbus_iommu_alloc,
+	.free			= sbus_iommu_free,
 #endif
+	.map_page		= sbus_iommu_map_page_gflush,
+	.unmap_page		= sbus_iommu_unmap_page,
+	.map_sg			= sbus_iommu_map_sg_gflush,
+	.unmap_sg		= sbus_iommu_unmap_sg,
 };
 
-static const struct sparc32_dma_ops iommu_dma_pflush_ops = {
-	.get_scsi_one		= iommu_get_scsi_one_pflush,
-	.get_scsi_sgl		= iommu_get_scsi_sgl_pflush,
-	.release_scsi_one	= iommu_release_scsi_one,
-	.release_scsi_sgl	= iommu_release_scsi_sgl,
+static const struct dma_map_ops sbus_iommu_dma_pflush_ops = {
 #ifdef CONFIG_SBUS
-	.map_dma_area		= iommu_map_dma_area,
-	.unmap_dma_area		= iommu_unmap_dma_area,
+	.alloc			= sbus_iommu_alloc,
+	.free			= sbus_iommu_free,
 #endif
+	.map_page		= sbus_iommu_map_page_pflush,
+	.unmap_page		= sbus_iommu_unmap_page,
+	.map_sg			= sbus_iommu_map_sg_pflush,
+	.unmap_sg		= sbus_iommu_unmap_sg,
 };
 
 void __init ld_mmu_iommu(void)
 {
 	if (flush_page_for_dma_global) {
 		/* flush_page_for_dma flushes everything, no matter of what page is it */
-		sparc32_dma_ops = &iommu_dma_gflush_ops;
+		dma_ops = &sbus_iommu_dma_gflush_ops;
 	} else {
-		sparc32_dma_ops = &iommu_dma_pflush_ops;
+		dma_ops = &sbus_iommu_dma_pflush_ops;
 	}
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {

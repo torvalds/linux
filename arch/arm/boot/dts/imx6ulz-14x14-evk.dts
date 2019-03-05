@@ -9,6 +9,8 @@
 
 /delete-node/ &fec1;
 /delete-node/ &fec2;
+/delete-node/ &can1;
+/delete-node/ &can2;
 /delete-node/ &lcdif;
 /delete-node/ &tsc;
 

@@ -142,5 +142,8 @@ extern int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls);
 extern int cppc_get_perf_caps(int cpu, struct cppc_perf_caps *caps);
 extern int acpi_get_psd_map(struct cppc_cpudata **);
 extern unsigned int cppc_get_transition_latency(int cpu);
+extern bool cpc_ffh_supported(void);
+extern int cpc_read_ffh(int cpunum, struct cpc_reg *reg, u64 *val);
+extern int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val);
 
 #endif /* _CPPC_ACPI_H*/

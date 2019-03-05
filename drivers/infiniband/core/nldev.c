@@ -227,6 +227,7 @@ static int fill_port_info(struct sk_buff *msg,
 	struct net_device *netdev = NULL;
 	struct ib_port_attr attr;
 	int ret;
+	u64 cap_flags = 0;
 
 	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;
@@ -239,10 +240,12 @@ static int fill_port_info(struct sk_buff *msg,
 		return ret;
 
 	if (rdma_protocol_ib(device, port)) {
-		BUILD_BUG_ON(sizeof(attr.port_cap_flags) > sizeof(u64));
+		BUILD_BUG_ON((sizeof(attr.port_cap_flags) +
+				sizeof(attr.port_cap_flags2)) > sizeof(u64));
+		cap_flags = attr.port_cap_flags |
+			((u64)attr.port_cap_flags2 << 32);
 		if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CAP_FLAGS,
-				      (u64)attr.port_cap_flags,
-				      RDMA_NLDEV_ATTR_PAD))
+				      cap_flags, RDMA_NLDEV_ATTR_PAD))
 			return -EMSGSIZE;
 		if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SUBNET_PREFIX,
 				      attr.subnet_prefix, RDMA_NLDEV_ATTR_PAD))
@@ -259,8 +262,8 @@ static int fill_port_info(struct sk_buff *msg,
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_PORT_PHYS_STATE, attr.phys_state))
 		return -EMSGSIZE;
 
-	if (device->get_netdev)
-		netdev = device->get_netdev(device, port);
+	if (device->ops.get_netdev)
+		netdev = device->ops.get_netdev(device, port);
 
 	if (netdev && net_eq(dev_net(netdev), net)) {
 		ret = nla_put_u32(msg,
@@ -308,6 +311,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 		[RDMA_RESTRACK_QP] = "qp",
 		[RDMA_RESTRACK_CM_ID] = "cm_id",
 		[RDMA_RESTRACK_MR] = "mr",
+		[RDMA_RESTRACK_CTX] = "ctx",
 	};
 
 	struct rdma_restrack_root *res = &device->res;
@@ -580,10 +584,6 @@ static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_USECNT,
 			      atomic_read(&pd->usecnt), RDMA_NLDEV_ATTR_PAD))
 		goto err;
-	if ((pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY) &&
-	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,
-			pd->unsafe_global_rkey))
-		goto err;
 
 	if (fill_res_name_pid(msg, res))
 		goto err;
@@ -636,13 +636,13 @@ static int nldev_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	nlmsg_end(msg, nlh);
 
-	put_device(&device->dev);
+	ib_device_put(device);
 	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
 
 err_free:
 	nlmsg_free(msg);
 err:
-	put_device(&device->dev);
+	ib_device_put(device);
 	return err;
 }
 
@@ -672,7 +672,7 @@ static int nldev_set_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = ib_device_rename(device, name);
 	}
 
-	put_device(&device->dev);
+	ib_device_put(device);
 	return err;
 }
 
@@ -756,14 +756,14 @@ static int nldev_port_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err_free;
 
 	nlmsg_end(msg, nlh);
-	put_device(&device->dev);
+	ib_device_put(device);
 
 	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
 
 err_free:
 	nlmsg_free(msg);
 err:
-	put_device(&device->dev);
+	ib_device_put(device);
 	return err;
 }
 
@@ -820,7 +820,7 @@ static int nldev_port_get_dumpit(struct sk_buff *skb,
 	}
 
 out:
-	put_device(&device->dev);
+	ib_device_put(device);
 	cb->args[0] = idx;
 	return skb->len;
 }
@@ -859,13 +859,13 @@ static int nldev_res_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err_free;
 
 	nlmsg_end(msg, nlh);
-	put_device(&device->dev);
+	ib_device_put(device);
 	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
 
 err_free:
 	nlmsg_free(msg);
 err:
-	put_device(&device->dev);
+	ib_device_put(device);
 	return ret;
 }
 
@@ -1058,7 +1058,7 @@ next:		idx++;
 	if (!filled)
 		goto err;
 
-	put_device(&device->dev);
+	ib_device_put(device);
 	return skb->len;
 
 res_err:
@@ -1069,7 +1069,7 @@ err:
 	nlmsg_cancel(skb, nlh);
 
 err_index:
-	put_device(&device->dev);
+	ib_device_put(device);
 	return ret;
 }
 

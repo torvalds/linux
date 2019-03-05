@@ -59,6 +59,28 @@ static const struct bpf_func_proto rc_keydown_proto = {
 	.arg4_type = ARG_ANYTHING,
 };
 
+BPF_CALL_3(bpf_rc_pointer_rel, u32*, sample, s32, rel_x, s32, rel_y)
+{
+	struct ir_raw_event_ctrl *ctrl;
+
+	ctrl = container_of(sample, struct ir_raw_event_ctrl, bpf_sample);
+
+	input_report_rel(ctrl->dev->input_dev, REL_X, rel_x);
+	input_report_rel(ctrl->dev->input_dev, REL_Y, rel_y);
+	input_sync(ctrl->dev->input_dev);
+
+	return 0;
+}
+
+static const struct bpf_func_proto rc_pointer_rel_proto = {
+	.func	   = bpf_rc_pointer_rel,
+	.gpl_only  = true,
+	.ret_type  = RET_INTEGER,
+	.arg1_type = ARG_PTR_TO_CTX,
+	.arg2_type = ARG_ANYTHING,
+	.arg3_type = ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *
 lirc_mode2_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -67,6 +89,8 @@ lirc_mode2_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &rc_repeat_proto;
 	case BPF_FUNC_rc_keydown:
 		return &rc_keydown_proto;
+	case BPF_FUNC_rc_pointer_rel:
+		return &rc_pointer_rel_proto;
 	case BPF_FUNC_map_lookup_elem:
 		return &bpf_map_lookup_elem_proto;
 	case BPF_FUNC_map_update_elem:

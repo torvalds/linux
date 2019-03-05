@@ -531,6 +531,44 @@ static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 		c4iw_restrack_funcs[res->type](msg, res) : 0;
 }
 
+static const struct ib_device_ops c4iw_dev_ops = {
+	.alloc_hw_stats = c4iw_alloc_stats,
+	.alloc_mr = c4iw_alloc_mr,
+	.alloc_mw = c4iw_alloc_mw,
+	.alloc_pd = c4iw_allocate_pd,
+	.alloc_ucontext = c4iw_alloc_ucontext,
+	.create_cq = c4iw_create_cq,
+	.create_qp = c4iw_create_qp,
+	.create_srq = c4iw_create_srq,
+	.dealloc_mw = c4iw_dealloc_mw,
+	.dealloc_pd = c4iw_deallocate_pd,
+	.dealloc_ucontext = c4iw_dealloc_ucontext,
+	.dereg_mr = c4iw_dereg_mr,
+	.destroy_cq = c4iw_destroy_cq,
+	.destroy_qp = c4iw_destroy_qp,
+	.destroy_srq = c4iw_destroy_srq,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = c4iw_get_dma_mr,
+	.get_hw_stats = c4iw_get_mib,
+	.get_netdev = get_netdev,
+	.get_port_immutable = c4iw_port_immutable,
+	.map_mr_sg = c4iw_map_mr_sg,
+	.mmap = c4iw_mmap,
+	.modify_qp = c4iw_ib_modify_qp,
+	.modify_srq = c4iw_modify_srq,
+	.poll_cq = c4iw_poll_cq,
+	.post_recv = c4iw_post_receive,
+	.post_send = c4iw_post_send,
+	.post_srq_recv = c4iw_post_srq_recv,
+	.query_device = c4iw_query_device,
+	.query_gid = c4iw_query_gid,
+	.query_pkey = c4iw_query_pkey,
+	.query_port = c4iw_query_port,
+	.query_qp = c4iw_ib_query_qp,
+	.reg_user_mr = c4iw_reg_user_mr,
+	.req_notify_cq = c4iw_arm_cq,
+};
+
 void c4iw_register_device(struct work_struct *work)
 {
 	int ret;
@@ -573,42 +611,7 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
-	dev->ibdev.query_device = c4iw_query_device;
-	dev->ibdev.query_port = c4iw_query_port;
-	dev->ibdev.query_pkey = c4iw_query_pkey;
-	dev->ibdev.query_gid = c4iw_query_gid;
-	dev->ibdev.alloc_ucontext = c4iw_alloc_ucontext;
-	dev->ibdev.dealloc_ucontext = c4iw_dealloc_ucontext;
-	dev->ibdev.mmap = c4iw_mmap;
-	dev->ibdev.alloc_pd = c4iw_allocate_pd;
-	dev->ibdev.dealloc_pd = c4iw_deallocate_pd;
-	dev->ibdev.create_qp = c4iw_create_qp;
-	dev->ibdev.modify_qp = c4iw_ib_modify_qp;
-	dev->ibdev.query_qp = c4iw_ib_query_qp;
-	dev->ibdev.destroy_qp = c4iw_destroy_qp;
-	dev->ibdev.create_srq = c4iw_create_srq;
-	dev->ibdev.modify_srq = c4iw_modify_srq;
-	dev->ibdev.destroy_srq = c4iw_destroy_srq;
-	dev->ibdev.create_cq = c4iw_create_cq;
-	dev->ibdev.destroy_cq = c4iw_destroy_cq;
-	dev->ibdev.poll_cq = c4iw_poll_cq;
-	dev->ibdev.get_dma_mr = c4iw_get_dma_mr;
-	dev->ibdev.reg_user_mr = c4iw_reg_user_mr;
-	dev->ibdev.dereg_mr = c4iw_dereg_mr;
-	dev->ibdev.alloc_mw = c4iw_alloc_mw;
-	dev->ibdev.dealloc_mw = c4iw_dealloc_mw;
-	dev->ibdev.alloc_mr = c4iw_alloc_mr;
-	dev->ibdev.map_mr_sg = c4iw_map_mr_sg;
-	dev->ibdev.req_notify_cq = c4iw_arm_cq;
-	dev->ibdev.post_send = c4iw_post_send;
-	dev->ibdev.post_recv = c4iw_post_receive;
-	dev->ibdev.post_srq_recv = c4iw_post_srq_recv;
-	dev->ibdev.alloc_hw_stats = c4iw_alloc_stats;
-	dev->ibdev.get_hw_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
-	dev->ibdev.get_port_immutable = c4iw_port_immutable;
-	dev->ibdev.get_dev_fw_str = get_dev_fw_str;
-	dev->ibdev.get_netdev = get_netdev;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm) {
@@ -630,6 +633,7 @@ void c4iw_register_device(struct work_struct *work)
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
+	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
 	ret = ib_register_device(&dev->ibdev, "cxgb4_%d", NULL);
 	if (ret)
 		goto err_kfree_iwcm;

@@ -31,6 +31,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/power/gpio-charger.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -291,9 +292,19 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 	.ocr_mask       	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init           	= tosa_mci_init,
 	.exit           	= tosa_mci_exit,
-	.gpio_card_detect	= TOSA_GPIO_nSD_DETECT,
-	.gpio_card_ro		= TOSA_GPIO_SD_WP,
-	.gpio_power		= TOSA_GPIO_PWR_ON,
+};
+
+static struct gpiod_lookup_table tosa_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_SD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_PWR_ON,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /*
@@ -908,6 +919,7 @@ static void __init tosa_init(void)
 	/* enable batt_fault */
 	PMCR = 0x01;
 
+	gpiod_add_lookup_table(&tosa_mci_gpio_table);
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

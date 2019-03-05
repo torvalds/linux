@@ -150,24 +150,26 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 static int iscsit_wait_for_tag(struct se_session *se_sess, int state, int *cpup)
 {
 	int tag = -1;
-	DEFINE_WAIT(wait);
+	DEFINE_SBQ_WAIT(wait);
 	struct sbq_wait_state *ws;
+	struct sbitmap_queue *sbq;
 
 	if (state == TASK_RUNNING)
 		return tag;
 
-	ws = &se_sess->sess_tag_pool.ws[0];
+	sbq = &se_sess->sess_tag_pool;
+	ws = &sbq->ws[0];
 	for (;;) {
-		prepare_to_wait_exclusive(&ws->wait, &wait, state);
+		sbitmap_prepare_to_wait(sbq, ws, &wait, state);
 		if (signal_pending_state(state, current))
 			break;
-		tag = sbitmap_queue_get(&se_sess->sess_tag_pool, cpup);
+		tag = sbitmap_queue_get(sbq, cpup);
 		if (tag >= 0)
 			break;
 		schedule();
 	}
 
-	finish_wait(&ws->wait, &wait);
+	sbitmap_finish_wait(sbq, ws, &wait);
 	return tag;
 }
 

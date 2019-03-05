@@ -23,7 +23,7 @@
  */
 #include <linux/list.h>
 #include "amdgpu.h"
-#include "amdgpu_psp.h"
+#include "amdgpu_xgmi.h"
 
 
 static DEFINE_MUTEX(xgmi_mutex);
@@ -31,15 +31,16 @@ static DEFINE_MUTEX(xgmi_mutex);
 #define AMDGPU_MAX_XGMI_HIVE			8
 #define AMDGPU_MAX_XGMI_DEVICE_PER_HIVE		4
 
-struct amdgpu_hive_info {
-	uint64_t		hive_id;
-	struct list_head	device_list;
-};
-
 static struct amdgpu_hive_info xgmi_hives[AMDGPU_MAX_XGMI_HIVE];
 static unsigned hive_count = 0;
 
-static struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
+
+void *amdgpu_xgmi_hive_try_lock(struct amdgpu_hive_info *hive)
+{
+	return &hive->device_list;
+}
+
+struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 {
 	int i;
 	struct amdgpu_hive_info *tmp;
@@ -58,62 +59,110 @@ static struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 	tmp = &xgmi_hives[hive_count++];
 	tmp->hive_id = adev->gmc.xgmi.hive_id;
 	INIT_LIST_HEAD(&tmp->device_list);
+	mutex_init(&tmp->hive_lock);
+
 	return tmp;
+}
+
+int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev)
+{
+	int ret = -EINVAL;
+
+	/* Each psp need to set the latest topology */
+	ret = psp_xgmi_set_topology_info(&adev->psp,
+					 hive->number_devices,
+					 &hive->topology_info);
+	if (ret)
+		dev_err(adev->dev,
+			"XGMI: Set topology failure on device %llx, hive %llx, ret %d",
+			adev->gmc.xgmi.node_id,
+			adev->gmc.xgmi.hive_id, ret);
+	else
+		dev_info(adev->dev, "XGMI: Set topology for node %d, hive 0x%llx.\n",
+			 adev->gmc.xgmi.physical_node_id,
+				 adev->gmc.xgmi.hive_id);
+
+	return ret;
 }
 
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 {
-	struct psp_xgmi_topology_info tmp_topology[AMDGPU_MAX_XGMI_DEVICE_PER_HIVE];
+	struct psp_xgmi_topology_info *hive_topology;
 	struct amdgpu_hive_info *hive;
 	struct amdgpu_xgmi	*entry;
-	struct amdgpu_device 	*tmp_adev;
+	struct amdgpu_device *tmp_adev = NULL;
 
 	int count = 0, ret = -EINVAL;
 
-	if ((adev->asic_type < CHIP_VEGA20) ||
-		(adev->flags & AMD_IS_APU) )
+	if (!adev->gmc.xgmi.supported)
 		return 0;
-	adev->gmc.xgmi.device_id = psp_xgmi_get_device_id(&adev->psp);
-	adev->gmc.xgmi.hive_id = psp_xgmi_get_hive_id(&adev->psp);
 
-	memset(&tmp_topology[0], 0, sizeof(tmp_topology));
+	ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
+	if (ret) {
+		dev_err(adev->dev,
+			"XGMI: Failed to get node id\n");
+		return ret;
+	}
+
+	ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
+	if (ret) {
+		dev_err(adev->dev,
+			"XGMI: Failed to get hive id\n");
+		return ret;
+	}
+
 	mutex_lock(&xgmi_mutex);
 	hive = amdgpu_get_xgmi_hive(adev);
 	if (!hive)
 		goto exit;
 
+	hive_topology = &hive->topology_info;
+
 	list_add_tail(&adev->gmc.xgmi.head, &hive->device_list);
 	list_for_each_entry(entry, &hive->device_list, head)
-		tmp_topology[count++].device_id = entry->device_id;
+		hive_topology->nodes[count++].node_id = entry->node_id;
+	hive->number_devices = count;
 
-	ret = psp_xgmi_get_topology_info(&adev->psp, count, tmp_topology);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
-			adev->gmc.xgmi.device_id,
-			adev->gmc.xgmi.hive_id, ret);
-		goto exit;
-	}
-	/* Each psp need to set the latest topology */
+	/* Each psp need to get the latest topology */
 	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		ret = psp_xgmi_set_topology_info(&tmp_adev->psp, count, tmp_topology);
+		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count, hive_topology);
 		if (ret) {
 			dev_err(tmp_adev->dev,
-				"XGMI: Set topology failure on device %llx, hive %llx, ret %d",
-				tmp_adev->gmc.xgmi.device_id,
+				"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
+				tmp_adev->gmc.xgmi.node_id,
 				tmp_adev->gmc.xgmi.hive_id, ret);
-			/* To do : continue with some  node failed or disable the  whole  hive */
+			/* To do : continue with some node failed or disable the whole hive */
 			break;
 		}
 	}
-	if (!ret)
-		dev_info(adev->dev, "XGMI: Add node %d to hive 0x%llx.\n",
-			adev->gmc.xgmi.physical_node_id,
-			adev->gmc.xgmi.hive_id);
+
+	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+		ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
+		if (ret)
+			break;
+	}
 
 exit:
 	mutex_unlock(&xgmi_mutex);
 	return ret;
 }
 
+void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive;
 
+	if (!adev->gmc.xgmi.supported)
+		return;
+
+	mutex_lock(&xgmi_mutex);
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		goto exit;
+
+	if (!(hive->number_devices--))
+		mutex_destroy(&hive->hive_lock);
+
+exit:
+	mutex_unlock(&xgmi_mutex);
+}

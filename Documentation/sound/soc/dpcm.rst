@@ -218,7 +218,7 @@ like a BT phone call :-
                       *           * <----DAI5-----> FM
                       *************
 
-This allows the host CPU to sleep whilst the DSP, MODEM DAI and the BT DAI are
+This allows the host CPU to sleep while the DSP, MODEM DAI and the BT DAI are
 still in operation.
 
 A BE DAI link can also set the codec to a dummy device if the code is a device

@@ -50,6 +50,11 @@ const struct clk_ops clk_regmap_gate_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_regmap_gate_ops);
 
+const struct clk_ops clk_regmap_gate_ro_ops = {
+	.is_enabled = clk_regmap_gate_is_enabled,
+};
+EXPORT_SYMBOL_GPL(clk_regmap_gate_ro_ops);
+
 static unsigned long clk_regmap_div_recalc_rate(struct clk_hw *hw,
 						unsigned long prate)
 {

@@ -35,13 +35,8 @@ config ARCH_HAS_DMA_COHERENT_TO_PFN
 config ARCH_HAS_DMA_MMAP_PGPROT
 	bool
 
-config DMA_DIRECT_OPS
-	bool
-	depends on HAS_DMA
-
 config DMA_NONCOHERENT_CACHE_SYNC
 	bool
-	depends on DMA_DIRECT_OPS
 
 config DMA_VIRT_OPS
 	bool
@@ -49,5 +44,12 @@ config DMA_VIRT_OPS
 
 config SWIOTLB
 	bool
-	select DMA_DIRECT_OPS
 	select NEED_DMA_MAP_STATE
+
+config DMA_REMAP
+	depends on MMU
+	bool
+
+config DMA_DIRECT_REMAP
+	bool
+	select DMA_REMAP

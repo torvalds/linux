@@ -15,6 +15,7 @@
  */
 
 #include "util.h"
+#include "qtn_hw_ids.h"
 
 void qtnf_sta_list_init(struct qtnf_sta_list *list)
 {
@@ -116,3 +117,20 @@ void qtnf_sta_list_free(struct qtnf_sta_list *list)
 
 	INIT_LIST_HEAD(&list->head);
 }
+
+const char *qtnf_chipid_to_string(unsigned long chip_id)
+{
+	switch (chip_id) {
+	case QTN_CHIP_ID_TOPAZ:
+		return "Topaz";
+	case QTN_CHIP_ID_PEARL:
+		return "Pearl revA";
+	case QTN_CHIP_ID_PEARL_B:
+		return "Pearl revB";
+	case QTN_CHIP_ID_PEARL_C:
+		return "Pearl revC";
+	default:
+		return "unknown";
+	}
+}
+EXPORT_SYMBOL_GPL(qtnf_chipid_to_string);

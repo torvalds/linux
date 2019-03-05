@@ -7,7 +7,6 @@
 #include "wilc_wlan_if.h"
 #include "wilc_wlan.h"
 #include "wilc_wlan_cfg.h"
-#include "coreconfigurator.h"
 #include "wilc_wfi_netdevice.h"
 
 enum cfg_cmd_type {

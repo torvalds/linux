@@ -11,9 +11,9 @@
 #include "audio_manager.h"
 #include "audio_manager_private.h"
 
-static ssize_t manager_sysfs_add_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_add_store(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t count)
 {
 	struct gb_audio_manager_module_descriptor desc = { {0} };
 
@@ -36,9 +36,9 @@ static ssize_t manager_sysfs_add_store(
 static struct kobj_attribute manager_add_attribute =
 	__ATTR(add, 0664, NULL, manager_sysfs_add_store);
 
-static ssize_t manager_sysfs_remove_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_remove_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf, size_t count)
 {
 	int id;
 
@@ -57,9 +57,9 @@ static ssize_t manager_sysfs_remove_store(
 static struct kobj_attribute manager_remove_attribute =
 	__ATTR(remove, 0664, NULL, manager_sysfs_remove_store);
 
-static ssize_t manager_sysfs_dump_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_dump_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
 	int id;
 
@@ -81,8 +81,8 @@ static ssize_t manager_sysfs_dump_store(
 static struct kobj_attribute manager_dump_attribute =
 	__ATTR(dump, 0664, NULL, manager_sysfs_dump_store);
 
-static void manager_sysfs_init_attribute(
-		struct kobject *kobj, struct kobj_attribute *kattr)
+static void manager_sysfs_init_attribute(struct kobject *kobj,
+					 struct kobj_attribute *kattr)
 {
 	int err;
 

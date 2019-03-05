@@ -133,7 +133,7 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sensor_settings->fs.fs_avl[i].num == 0)
-			goto st_sensors_match_odr_error;
+			return ret;
 
 		if (sensor_settings->fs.fs_avl[i].num == fs) {
 			*index_fs_avl = i;
@@ -142,7 +142,6 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 		}
 	}
 
-st_sensors_match_odr_error:
 	return ret;
 }
 

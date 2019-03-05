@@ -260,7 +260,7 @@ static int jz_nand_correct_ecc_rs(struct nand_chip *chip, uint8_t *dat,
 }
 
 static int jz_nand_ioremap_resource(struct platform_device *pdev,
-	const char *name, struct resource **res, void *__iomem *base)
+	const char *name, struct resource **res, void __iomem **base)
 {
 	int ret;
 
@@ -335,14 +335,14 @@ static int jz_nand_detect_bank(struct platform_device *pdev,
 			goto notfound_id;
 
 		/* Retrieve the IDs from the first chip. */
-		chip->select_chip(chip, 0);
+		nand_select_target(chip, 0);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		*nand_maf_id = id[0];
 		*nand_dev_id = id[1];
 	} else {
 		/* Detect additional chip. */
-		chip->select_chip(chip, chipnr);
+		nand_select_target(chip, chipnr);
 		nand_reset_op(chip);
 		nand_readid_op(chip, 0, id, sizeof(id));
 		if (*nand_maf_id != id[0] || *nand_dev_id != id[1]) {
@@ -427,8 +427,8 @@ static int jz_nand_probe(struct platform_device *pdev)
 
 	chip->legacy.chip_delay = 50;
 	chip->legacy.cmd_ctrl = jz_nand_cmd_ctrl;
-	chip->select_chip = jz_nand_select_chip;
-	chip->dummy_controller.ops = &jz_nand_controller_ops;
+	chip->legacy.select_chip = jz_nand_select_chip;
+	chip->legacy.dummy_controller.ops = &jz_nand_controller_ops;
 
 	if (nand->busy_gpio)
 		chip->legacy.dev_ready = jz_nand_dev_ready;

@@ -154,6 +154,10 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_free_dev;
+
 	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 

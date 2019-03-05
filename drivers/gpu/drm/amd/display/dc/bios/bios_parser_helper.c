@@ -88,3 +88,96 @@ uint32_t bios_get_vga_enabled_displays(
 	return active_disp;
 }
 
+bool bios_is_active_display(
+		struct dc_bios *bios,
+		enum signal_type signal,
+		const struct connector_device_tag_info *device_tag)
+{
+	uint32_t active = 0;
+	uint32_t connected = 0;
+	uint32_t bios_scratch_0 = 0;
+	uint32_t bios_scratch_3 = 0;
+
+	switch (signal)	{
+	case SIGNAL_TYPE_DVI_SINGLE_LINK:
+	case SIGNAL_TYPE_DVI_DUAL_LINK:
+	case SIGNAL_TYPE_HDMI_TYPE_A:
+	case SIGNAL_TYPE_DISPLAY_PORT:
+	case SIGNAL_TYPE_DISPLAY_PORT_MST:
+		{
+			if (device_tag->dev_id.device_type == DEVICE_TYPE_DFP) {
+				switch (device_tag->dev_id.enum_id)	{
+				case 1:
+					{
+						active    = ATOM_S3_DFP1_ACTIVE;
+						connected = 0x0008;	//ATOM_DISPLAY_DFP1_CONNECT
+					}
+					break;
+
+				case 2:
+					{
+						active    = ATOM_S3_DFP2_ACTIVE;
+						connected = 0x0080; //ATOM_DISPLAY_DFP2_CONNECT
+					}
+					break;
+
+				case 3:
+					{
+						active    = ATOM_S3_DFP3_ACTIVE;
+						connected = 0x0200; //ATOM_DISPLAY_DFP3_CONNECT
+					}
+					break;
+
+				case 4:
+					{
+						active    = ATOM_S3_DFP4_ACTIVE;
+						connected = 0x0400;	//ATOM_DISPLAY_DFP4_CONNECT
+					}
+					break;
+
+				case 5:
+					{
+						active    = ATOM_S3_DFP5_ACTIVE;
+						connected = 0x0800; //ATOM_DISPLAY_DFP5_CONNECT
+					}
+					break;
+
+				case 6:
+					{
+						active    = ATOM_S3_DFP6_ACTIVE;
+						connected = 0x0040; //ATOM_DISPLAY_DFP6_CONNECT
+					}
+					break;
+
+				default:
+					break;
+				}
+				}
+			}
+			break;
+
+	case SIGNAL_TYPE_LVDS:
+	case SIGNAL_TYPE_EDP:
+		{
+			active    = ATOM_S3_LCD1_ACTIVE;
+			connected = 0x0002;	//ATOM_DISPLAY_LCD1_CONNECT
+		}
+		break;
+
+	default:
+		break;
+	}
+
+
+	if (bios->regs->BIOS_SCRATCH_0) /*follow up with other asic, todo*/
+		bios_scratch_0 = REG_READ(BIOS_SCRATCH_0);
+	if (bios->regs->BIOS_SCRATCH_3) /*follow up with other asic, todo*/
+		bios_scratch_3 = REG_READ(BIOS_SCRATCH_3);
+
+	bios_scratch_3 &= ATOM_S3_DEVICE_ACTIVE_MASK;
+	if ((active & bios_scratch_3) && (connected & bios_scratch_0))
+		return true;
+
+	return false;
+}
+

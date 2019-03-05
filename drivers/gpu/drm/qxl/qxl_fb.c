@@ -111,7 +111,7 @@ static int qxlfb_create_pinned_object(struct qxl_device *qdev,
 	qbo->surf.stride = mode_cmd->pitches[0];
 	qbo->surf.format = SPICE_SURFACE_FMT_32_xRGB;
 
-	ret = qxl_bo_pin(qbo, QXL_GEM_DOMAIN_SURFACE, NULL);
+	ret = qxl_bo_pin(qbo);
 	if (ret) {
 		goto out_unref;
 	}
@@ -134,9 +134,9 @@ out_unref:
  */
 static int qxlfb_framebuffer_dirty(struct drm_framebuffer *fb,
 				   struct drm_file *file_priv,
-				   unsigned flags, unsigned color,
+				   unsigned int flags, unsigned int color,
 				   struct drm_clip_rect *clips,
-				   unsigned num_clips)
+				   unsigned int num_clips)
 {
 	struct qxl_device *qdev = fb->dev->dev_private;
 	struct fb_info *info = qdev->fb_helper.fbdev;

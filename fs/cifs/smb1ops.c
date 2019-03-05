@@ -929,19 +929,18 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	int rc;
-	unsigned int num_referrals = 0;
-	struct dfs_info3_param *referrals = NULL;
+	struct dfs_info3_param referral = {0};
 
-	rc = get_dfs_path(xid, tcon->ses, searchName, nls_codepage,
-			  &num_referrals, &referrals, 0);
+	rc = get_dfs_path(xid, tcon->ses, searchName, nls_codepage, &referral,
+			  0);
 
-	if (!rc && num_referrals > 0) {
-		*symlinkinfo = kstrndup(referrals->node_name,
-					strlen(referrals->node_name),
+	if (!rc) {
+		*symlinkinfo = kstrndup(referral.node_name,
+					strlen(referral.node_name),
 					GFP_KERNEL);
+		free_dfs_info_param(&referral);
 		if (!*symlinkinfo)
 			rc = -ENOMEM;
-		free_dfs_info_array(referrals, num_referrals);
 	}
 	return rc;
 #else /* No DFS support */

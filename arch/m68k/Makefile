@@ -154,5 +154,8 @@ endif
 archclean:
 	rm -f vmlinux.gz vmlinux.bz2
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/m68k/kernel/syscalls all
+
 install:
 	sh $(srctree)/arch/m68k/install.sh $(KERNELRELEASE) vmlinux.gz System.map "$(INSTALL_PATH)"

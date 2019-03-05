@@ -11,6 +11,7 @@
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
+#include "nfp_net.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net_repr.h"
 #include "nfp_net_sriov.h"
@@ -231,6 +232,27 @@ err_port_disable:
 	return err;
 }
 
+static netdev_features_t
+nfp_repr_fix_features(struct net_device *netdev, netdev_features_t features)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+	netdev_features_t old_features = features;
+	netdev_features_t lower_features;
+	struct net_device *lower_dev;
+
+	lower_dev = repr->dst->u.port_info.lower_dev;
+
+	lower_features = lower_dev->features;
+	if (lower_features & (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM))
+		lower_features |= NETIF_F_HW_CSUM;
+
+	features = netdev_intersect_features(features, lower_features);
+	features |= old_features & (NETIF_F_SOFT_FEATURES | NETIF_F_HW_TC);
+	features |= NETIF_F_LLTX;
+
+	return features;
+}
+
 const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_init		= nfp_app_ndo_init,
 	.ndo_uninit		= nfp_app_ndo_uninit,
@@ -248,9 +270,24 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_set_vf_spoofchk	= nfp_app_set_vf_spoofchk,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
+	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 };
+
+void
+nfp_repr_transfer_features(struct net_device *netdev, struct net_device *lower)
+{
+	struct nfp_repr *repr = netdev_priv(netdev);
+
+	if (repr->dst->u.port_info.lower_dev != lower)
+		return;
+
+	netdev->gso_max_size = lower->gso_max_size;
+	netdev->gso_max_segs = lower->gso_max_segs;
+
+	netdev_update_features(netdev);
+}
 
 static void nfp_repr_clean(struct nfp_repr *repr)
 {
@@ -281,6 +318,8 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 		  struct net_device *pf_netdev)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
+	struct nfp_net *nn = netdev_priv(pf_netdev);
+	u32 repr_cap = nn->tlv_caps.repr_cap;
 	int err;
 
 	nfp_repr_set_lockdep_class(netdev);
@@ -298,6 +337,55 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->max_mtu = pf_netdev->max_mtu;
 
 	SWITCHDEV_SET_OPS(netdev, &nfp_port_switchdev_ops);
+
+	/* Set features the lower device can support with representors */
+	if (repr_cap & NFP_NET_CFG_CTRL_LIVE_ADDR)
+		netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
+	netdev->hw_features = NETIF_F_HIGHDMA;
+	if (repr_cap & NFP_NET_CFG_CTRL_RXCSUM_ANY)
+		netdev->hw_features |= NETIF_F_RXCSUM;
+	if (repr_cap & NFP_NET_CFG_CTRL_TXCSUM)
+		netdev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	if (repr_cap & NFP_NET_CFG_CTRL_GATHER)
+		netdev->hw_features |= NETIF_F_SG;
+	if ((repr_cap & NFP_NET_CFG_CTRL_LSO && nn->fw_ver.major > 2) ||
+	    repr_cap & NFP_NET_CFG_CTRL_LSO2)
+		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
+	if (repr_cap & NFP_NET_CFG_CTRL_RSS_ANY)
+		netdev->hw_features |= NETIF_F_RXHASH;
+	if (repr_cap & NFP_NET_CFG_CTRL_VXLAN) {
+		if (repr_cap & NFP_NET_CFG_CTRL_LSO)
+			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
+	}
+	if (repr_cap & NFP_NET_CFG_CTRL_NVGRE) {
+		if (repr_cap & NFP_NET_CFG_CTRL_LSO)
+			netdev->hw_features |= NETIF_F_GSO_GRE;
+	}
+	if (repr_cap & (NFP_NET_CFG_CTRL_VXLAN | NFP_NET_CFG_CTRL_NVGRE))
+		netdev->hw_enc_features = netdev->hw_features;
+
+	netdev->vlan_features = netdev->hw_features;
+
+	if (repr_cap & NFP_NET_CFG_CTRL_RXVLAN)
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
+	if (repr_cap & NFP_NET_CFG_CTRL_TXVLAN) {
+		if (repr_cap & NFP_NET_CFG_CTRL_LSO2)
+			netdev_warn(netdev, "Device advertises both TSO2 and TXVLAN. Refusing to enable TXVLAN.\n");
+		else
+			netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX;
+	}
+	if (repr_cap & NFP_NET_CFG_CTRL_CTAG_FILTER)
+		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	netdev->features = netdev->hw_features;
+
+	/* Advertise but disable TSO by default. */
+	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
+
+	netdev->priv_flags |= IFF_NO_QUEUE;
+	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {
 		netdev->features |= NETIF_F_HW_TC;
@@ -442,7 +530,9 @@ int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 			continue;
 
 		nfp_app_repr_preclean(app, netdev);
+		rtnl_lock();
 		rcu_assign_pointer(reprs->reprs[i], NULL);
+		rtnl_unlock();
 		synchronize_rcu();
 		nfp_repr_clean(repr);
 	}

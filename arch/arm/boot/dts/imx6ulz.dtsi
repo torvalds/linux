@@ -20,8 +20,6 @@
 };
 
 /delete-node/ &adc1;
-/delete-node/ &can1;
-/delete-node/ &can2;
 /delete-node/ &ecspi3;
 /delete-node/ &ecspi4;
 /delete-node/ &epit2;

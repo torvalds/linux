@@ -54,14 +54,8 @@ static inline void set_fs(mm_segment_t fs)
 #define user_addr_max()	(get_fs())
 
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 /**
  * access_ok: - Checks if a user space pointer is valid
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
@@ -76,7 +70,7 @@ static inline void set_fs(mm_segment_t fs)
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) ({					\
+#define access_ok(addr, size) ({					\
 	__chk_user_ptr(addr);						\
 	likely(__access_ok((unsigned long __force)(addr), (size)));	\
 })
@@ -258,7 +252,7 @@ do {								\
 ({								\
 	const __typeof__(*(ptr)) __user *__p = (ptr);		\
 	might_fault();						\
-	access_ok(VERIFY_READ, __p, sizeof(*__p)) ?		\
+	access_ok(__p, sizeof(*__p)) ?		\
 		__get_user((x), __p) :				\
 		((x) = 0, -EFAULT);				\
 })
@@ -386,7 +380,7 @@ do {								\
 ({								\
 	__typeof__(*(ptr)) __user *__p = (ptr);			\
 	might_fault();						\
-	access_ok(VERIFY_WRITE, __p, sizeof(*__p)) ?		\
+	access_ok(__p, sizeof(*__p)) ?		\
 		__put_user((x), __p) :				\
 		-EFAULT;					\
 })
@@ -421,7 +415,7 @@ static inline
 unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
-	return access_ok(VERIFY_WRITE, to, n) ?
+	return access_ok(to, n) ?
 		__clear_user(to, n) : n;
 }
 

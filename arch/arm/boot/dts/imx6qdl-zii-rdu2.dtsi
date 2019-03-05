@@ -609,13 +609,14 @@
 	};
 
 	touchscreen@2a {
-		compatible = "eeti,egalax_ts";
+		compatible = "eeti,exc3000";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ts>;
 		reg = <0x2a>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
-		wakeup-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		touchscreen-inverted-x;
+		touchscreen-swapped-x-y;
 		status = "disabled";
 	};
 

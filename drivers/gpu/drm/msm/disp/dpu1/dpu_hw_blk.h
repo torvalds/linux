@@ -44,7 +44,7 @@ struct dpu_hw_blk {
 	struct dpu_hw_blk_ops ops;
 };
 
-int dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
+void dpu_hw_blk_init(struct dpu_hw_blk *hw_blk, u32 type, int id,
 		struct dpu_hw_blk_ops *ops);
 void dpu_hw_blk_destroy(struct dpu_hw_blk *hw_blk);
 

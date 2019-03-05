@@ -10,7 +10,7 @@ such as network interfaces, crypto accelerator instances, L2 switches,
 etc.
 
 For an overview of the DPAA2 architecture and fsl-mc bus see:
-Documentation/networking/dpaa2/overview.rst
+Documentation/networking/device_drivers/freescale/dpaa2/overview.rst
 
 As described in the above overview, all DPAA2 objects in a DPRC share the
 same hardware "isolation context" and a 10-bit value called an ICID

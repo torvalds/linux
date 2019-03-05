@@ -4,6 +4,7 @@
  */
 
 #include "ib_rep.h"
+#include "srq.h"
 
 static const struct mlx5_ib_profile rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_INIT,
@@ -21,6 +22,9 @@ static const struct mlx5_ib_profile rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
 		     mlx5_ib_stage_rep_roce_init,
 		     mlx5_ib_stage_rep_roce_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_SRQ,
+		     mlx5_init_srq_table,
+		     mlx5_cleanup_srq_table),
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
 		     mlx5_ib_stage_dev_res_init,
 		     mlx5_ib_stage_dev_res_cleanup),
@@ -44,13 +48,21 @@ static const struct mlx5_ib_profile rep_profile = {
 static int
 mlx5_ib_nic_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
+	struct mlx5_ib_dev *ibdev;
+
+	ibdev = mlx5_ib_rep_to_dev(rep);
+	if (!__mlx5_ib_add(ibdev, ibdev->profile))
+		return -EINVAL;
 	return 0;
 }
 
 static void
 mlx5_ib_nic_rep_unload(struct mlx5_eswitch_rep *rep)
 {
-	rep->rep_if[REP_IB].priv = NULL;
+	struct mlx5_ib_dev *ibdev;
+
+	ibdev = mlx5_ib_rep_to_dev(rep);
+	__mlx5_ib_remove(ibdev, ibdev->profile, MLX5_IB_STAGE_MAX);
 }
 
 static int
@@ -85,6 +97,7 @@ mlx5_ib_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	dev = mlx5_ib_rep_to_dev(rep);
 	__mlx5_ib_remove(dev, dev->profile, MLX5_IB_STAGE_MAX);
 	rep->rep_if[REP_IB].priv = NULL;
+	ib_dealloc_device(&dev->ib_dev);
 }
 
 static void *mlx5_ib_vport_get_proto_dev(struct mlx5_eswitch_rep *rep)

@@ -52,7 +52,7 @@ user root (0).  INITRAMFS_ROOT_GID can be set to a group ID that needs
 to be mapped to group root (0).
 
 A source file must be directives in the format required by the
-usr/gen_init_cpio utility (run 'usr/gen_init_cpio --help' to get the
+usr/gen_init_cpio utility (run 'usr/gen_init_cpio -h' to get the
 file format).  The directives in the file will be passed directly to
 usr/gen_init_cpio.
 

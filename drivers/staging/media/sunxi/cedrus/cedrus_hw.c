@@ -98,23 +98,6 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 	}
 }
 
-static irqreturn_t cedrus_bh(int irq, void *data)
-{
-	struct cedrus_dev *dev = data;
-	struct cedrus_ctx *ctx;
-
-	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
-	if (!ctx) {
-		v4l2_err(&dev->v4l2_dev,
-			 "Instance released before the end of transaction\n");
-		return IRQ_HANDLED;
-	}
-
-	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t cedrus_irq(int irq, void *data)
 {
 	struct cedrus_dev *dev = data;
@@ -122,24 +105,17 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	enum vb2_buffer_state state;
 	enum cedrus_irq_status status;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->irq_lock, flags);
 
 	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
 	if (!ctx) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Instance released before the end of transaction\n");
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
-
 		return IRQ_NONE;
 	}
 
 	status = dev->dec_ops[ctx->current_codec]->irq_status(ctx);
-	if (status == CEDRUS_IRQ_NONE) {
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
+	if (status == CEDRUS_IRQ_NONE)
 		return IRQ_NONE;
-	}
 
 	dev->dec_ops[ctx->current_codec]->irq_disable(ctx);
 	dev->dec_ops[ctx->current_codec]->irq_clear(ctx);
@@ -150,8 +126,6 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	if (!src_buf || !dst_buf) {
 		v4l2_err(&dev->v4l2_dev,
 			 "Missing source and/or destination buffers\n");
-		spin_unlock_irqrestore(&dev->irq_lock, flags);
-
 		return IRQ_HANDLED;
 	}
 
@@ -163,9 +137,9 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	v4l2_m2m_buf_done(src_buf, state);
 	v4l2_m2m_buf_done(dst_buf, state);
 
-	spin_unlock_irqrestore(&dev->irq_lock, flags);
+	v4l2_m2m_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx);
 
-	return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
 }
 
 int cedrus_hw_probe(struct cedrus_dev *dev)
@@ -187,9 +161,8 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 		return irq_dec;
 	}
-	ret = devm_request_threaded_irq(dev->dev, irq_dec, cedrus_irq,
-					cedrus_bh, 0, dev_name(dev->dev),
-					dev);
+	ret = devm_request_irq(dev->dev, irq_dec, cedrus_irq,
+			       0, dev_name(dev->dev), dev);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to request IRQ\n");
 

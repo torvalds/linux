@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
@@ -94,11 +94,11 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 #define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
-	(INTEL_GEN(dev_priv__) == 7 ? \
+	(IS_GEN7(dev_priv__) ? \
 	 1 : INTEL_INFO(dev_priv__)->sseu.slice_mask)
 
 #define instdone_subslice_mask(dev_priv__) \
-	(INTEL_GEN(dev_priv__) == 7 ? \
+	(IS_GEN7(dev_priv__) ? \
 	 1 : INTEL_INFO(dev_priv__)->sseu.subslice_mask[0])
 
 #define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \
@@ -191,10 +191,21 @@ enum intel_engine_id {
 };
 
 struct i915_priolist {
+	struct list_head requests[I915_PRIORITY_COUNT];
 	struct rb_node node;
-	struct list_head requests;
+	unsigned long used;
 	int priority;
 };
+
+#define priolist_for_each_request(it, plist, idx) \
+	for (idx = 0; idx < ARRAY_SIZE((plist)->requests); idx++) \
+		list_for_each_entry(it, &(plist)->requests[idx], sched.link)
+
+#define priolist_for_each_request_consume(it, n, plist, idx) \
+	for (; (idx = ffs((plist)->used)); (plist)->used &= ~BIT(idx - 1)) \
+		list_for_each_entry_safe(it, n, \
+					 &(plist)->requests[idx - 1], \
+					 sched.link)
 
 struct st_preempt_hang {
 	struct completion completion;
@@ -303,13 +314,6 @@ struct intel_engine_execlists {
 	struct rb_root_cached queue;
 
 	/**
-	 * @csb_read: control register for Context Switch buffer
-	 *
-	 * Note this register is always in mmio.
-	 */
-	u32 __iomem *csb_read;
-
-	/**
 	 * @csb_write: control register for Context Switch buffer
 	 *
 	 * Note this register may be either mmio or HWSP shadow.
@@ -327,15 +331,6 @@ struct intel_engine_execlists {
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
-
-	/**
-	 * @csb_write_reset: reset value for CSB write pointer
-	 *
-	 * As the CSB write pointer maybe either in HWSP or as a field
-	 * inside an mmio register, we want to reprogram it slightly
-	 * differently to avoid later confusion.
-	 */
-	u32 csb_write_reset;
 
 	/**
 	 * @csb_head: context status buffer head
@@ -420,16 +415,17 @@ struct intel_engine_cs {
 		/**
 		 * @enable_count: Reference count for the enabled samplers.
 		 *
-		 * Index number corresponds to the bit number from @enable.
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-		unsigned int enable_count[I915_PMU_SAMPLE_BITS];
+		unsigned int enable_count[I915_ENGINE_SAMPLE_COUNT];
 		/**
 		 * @sample: Counter values for sampling events.
 		 *
 		 * Our internal timer stores the current counters in this field.
+		 *
+		 * Index number corresponds to @enum drm_i915_pmu_engine_sample.
 		 */
-#define I915_ENGINE_SAMPLE_MAX (I915_SAMPLE_SEMA + 1)
-		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_MAX];
+		struct i915_pmu_sample sample[I915_ENGINE_SAMPLE_COUNT];
 	} pmu;
 
 	/*
@@ -441,7 +437,9 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
+	struct i915_wa_list ctx_wa_list;
 	struct i915_wa_list wa_list;
+	struct i915_wa_list whitelist;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -488,11 +486,10 @@ struct intel_engine_cs {
 	 */
 	void		(*submit_request)(struct i915_request *rq);
 
-	/* Call when the priority on a request has changed and it and its
+	/*
+	 * Call when the priority on a request has changed and it and its
 	 * dependencies may need rescheduling. Note the request itself may
 	 * not be ready to run!
-	 *
-	 * Called under the struct_mutex.
 	 */
 	void		(*schedule)(struct i915_request *request,
 				    const struct i915_sched_attr *attr);

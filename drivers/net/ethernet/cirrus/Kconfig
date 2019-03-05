@@ -23,7 +23,7 @@ config CS89x0
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the file
-	  <file:Documentation/networking/cs89x0.txt>.
+	  <file:Documentation/networking/device_drivers/cirrus/cs89x0.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.

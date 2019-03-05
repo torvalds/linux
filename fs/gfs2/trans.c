@@ -124,15 +124,13 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 }
 
 static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
-					       struct buffer_head *bh,
-					       const struct gfs2_log_operations *lops)
+					       struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
 	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
 	bd->bd_bh = bh;
 	bd->bd_gl = gl;
-	bd->bd_ops = lops;
 	INIT_LIST_HEAD(&bd->bd_list);
 	bh->b_private = bd;
 	return bd;
@@ -169,7 +167,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
 		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_databuf_lops);
+			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
 		lock_buffer(bh);
@@ -210,7 +208,7 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		unlock_buffer(bh);
 		lock_page(bh->b_page);
 		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_buf_lops);
+			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
 		unlock_page(bh->b_page);
