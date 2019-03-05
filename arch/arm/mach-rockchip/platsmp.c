@@ -245,6 +245,7 @@ static int __init rockchip_smp_prepare_pmu(void)
 	}
 
 	pmu_base = of_iomap(node, 0);
+	of_node_put(node);
 	if (!pmu_base) {
 		pr_err("%s: could not map pmu registers\n", __func__);
 		return -ENOMEM;
