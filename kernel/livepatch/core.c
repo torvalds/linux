@@ -522,7 +522,7 @@ static int klp_add_nops(struct klp_patch *patch)
 	struct klp_patch *old_patch;
 	struct klp_object *old_obj;
 
-	list_for_each_entry(old_patch, &klp_patches, list) {
+	klp_for_each_patch(old_patch) {
 		klp_for_each_object(old_patch, old_obj) {
 			int err;
 
@@ -1004,7 +1004,7 @@ int klp_enable_patch(struct klp_patch *patch)
 
 	if (!klp_have_reliable_stack()) {
 		pr_err("This architecture doesn't have support for the livepatch consistency model.\n");
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 	}
 
 
@@ -1057,7 +1057,7 @@ void klp_discard_replaced_patches(struct klp_patch *new_patch)
 {
 	struct klp_patch *old_patch, *tmp_patch;
 
-	list_for_each_entry_safe(old_patch, tmp_patch, &klp_patches, list) {
+	klp_for_each_patch_safe(old_patch, tmp_patch) {
 		if (old_patch == new_patch)
 			return;
 
@@ -1101,7 +1101,7 @@ static void klp_cleanup_module_patches_limited(struct module *mod,
 	struct klp_patch *patch;
 	struct klp_object *obj;
 
-	list_for_each_entry(patch, &klp_patches, list) {
+	klp_for_each_patch(patch) {
 		if (patch == limit)
 			break;
 
@@ -1109,21 +1109,14 @@ static void klp_cleanup_module_patches_limited(struct module *mod,
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 
-			/*
-			 * Only unpatch the module if the patch is enabled or
-			 * is in transition.
-			 */
-			if (patch->enabled || patch == klp_transition_patch) {
+			if (patch != klp_transition_patch)
+				klp_pre_unpatch_callback(obj);
 
-				if (patch != klp_transition_patch)
-					klp_pre_unpatch_callback(obj);
+			pr_notice("reverting patch '%s' on unloading module '%s'\n",
+				  patch->mod->name, obj->mod->name);
+			klp_unpatch_object(obj);
 
-				pr_notice("reverting patch '%s' on unloading module '%s'\n",
-					  patch->mod->name, obj->mod->name);
-				klp_unpatch_object(obj);
-
-				klp_post_unpatch_callback(obj);
-			}
+			klp_post_unpatch_callback(obj);
 
 			klp_free_object_loaded(obj);
 			break;
@@ -1148,7 +1141,7 @@ int klp_module_coming(struct module *mod)
 	 */
 	mod->klp_alive = true;
 
-	list_for_each_entry(patch, &klp_patches, list) {
+	klp_for_each_patch(patch) {
 		klp_for_each_object(patch, obj) {
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
@@ -1161,13 +1154,6 @@ int klp_module_coming(struct module *mod)
 					patch->mod->name, obj->mod->name, ret);
 				goto err;
 			}
-
-			/*
-			 * Only patch the module if the patch is enabled or is
-			 * in transition.
-			 */
-			if (!patch->enabled && patch != klp_transition_patch)
-				break;
 
 			pr_notice("applying patch '%s' to loading module '%s'\n",
 				  patch->mod->name, obj->mod->name);

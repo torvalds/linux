@@ -55,11 +55,10 @@ function is_livepatch_mod() {
 
 function __load_mod() {
 	local mod="$1"; shift
-	local args="$*"
 
-	local msg="% modprobe $mod $args"
+	local msg="% modprobe $mod $*"
 	log "${msg%% }"
-	ret=$(modprobe "$mod" "$args" 2>&1)
+	ret=$(modprobe "$mod" "$@" 2>&1)
 	if [[ "$ret" != "" ]]; then
 		die "$ret"
 	fi
@@ -75,12 +74,11 @@ function __load_mod() {
 #	params  - module parameters to pass to modprobe
 function load_mod() {
 	local mod="$1"; shift
-	local args="$*"
 
 	is_livepatch_mod "$mod" &&
 		die "use load_lp() to load the livepatch module $mod"
 
-	__load_mod "$mod" "$args"
+	__load_mod "$mod" "$@"
 }
 
 # load_lp_nowait(modname, params) - load a kernel module with a livepatch
@@ -89,12 +87,11 @@ function load_mod() {
 #	params  - module parameters to pass to modprobe
 function load_lp_nowait() {
 	local mod="$1"; shift
-	local args="$*"
 
 	is_livepatch_mod "$mod" ||
 		die "module $mod is not a livepatch"
 
-	__load_mod "$mod" "$args"
+	__load_mod "$mod" "$@"
 
 	# Wait for livepatch in sysfs ...
 	loop_until '[[ -e "/sys/kernel/livepatch/$mod" ]]' ||
@@ -106,9 +103,8 @@ function load_lp_nowait() {
 #	params  - module parameters to pass to modprobe
 function load_lp() {
 	local mod="$1"; shift
-	local args="$*"
 
-	load_lp_nowait "$mod" "$args"
+	load_lp_nowait "$mod" "$@"
 
 	# Wait until the transition finishes ...
 	loop_until 'grep -q '^0$' /sys/kernel/livepatch/$mod/transition' ||
@@ -120,11 +116,10 @@ function load_lp() {
 #	params  - module parameters to pass to modprobe
 function load_failing_mod() {
 	local mod="$1"; shift
-	local args="$*"
 
-	local msg="% modprobe $mod $args"
+	local msg="% modprobe $mod $*"
 	log "${msg%% }"
-	ret=$(modprobe "$mod" "$args" 2>&1)
+	ret=$(modprobe "$mod" "$@" 2>&1)
 	if [[ "$ret" == "" ]]; then
 		die "$mod unexpectedly loaded"
 	fi
