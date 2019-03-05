@@ -123,7 +123,7 @@ void __init setup_node_to_cpumask_map(void)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
+	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
@@ -866,7 +866,7 @@ const struct cpumask *cpumask_of_node(int node)
 {
 	if (node >= nr_node_ids) {
 		printk(KERN_WARNING
-			"cpumask_of_node(%d): node > nr_node_ids(%d)\n",
+			"cpumask_of_node(%d): node > nr_node_ids(%u)\n",
 			node, nr_node_ids);
 		dump_stack();
 		return cpu_none_mask;

@@ -84,7 +84,7 @@ static void __init setup_node_to_cpumask_map(void)
 		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
 
 	/* cpumask_of_node() will now work */
-	dbg("Node to cpumask map for %d nodes\n", nr_node_ids);
+	dbg("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 static int __init fake_numa_create_new_node(unsigned long end_pfn,

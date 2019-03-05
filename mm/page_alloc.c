@@ -289,7 +289,7 @@ EXPORT_SYMBOL(movable_zone);
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 #if MAX_NUMNODES > 1
-int nr_node_ids __read_mostly = MAX_NUMNODES;
+unsigned int nr_node_ids __read_mostly = MAX_NUMNODES;
 int nr_online_nodes __read_mostly = 1;
 EXPORT_SYMBOL(nr_node_ids);
 EXPORT_SYMBOL(nr_online_nodes);

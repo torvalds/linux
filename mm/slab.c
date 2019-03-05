@@ -677,12 +677,11 @@ static struct alien_cache *__alloc_alien_cache(int node, int entries,
 static struct alien_cache **alloc_alien_cache(int node, int limit, gfp_t gfp)
 {
 	struct alien_cache **alc_ptr;
-	size_t memsize = sizeof(void *) * nr_node_ids;
 	int i;
 
 	if (limit > 1)
 		limit = 12;
-	alc_ptr = kzalloc_node(memsize, gfp, node);
+	alc_ptr = kcalloc_node(nr_node_ids, sizeof(void *), gfp, node);
 	if (!alc_ptr)
 		return NULL;
 
