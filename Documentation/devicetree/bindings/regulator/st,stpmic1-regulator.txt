@@ -23,16 +23,14 @@ Switches are fixed voltage regulators with only enable/disable capability.
 Optional properties:
 - st,mask-reset: mask reset for this regulator: the regulator configuration
   is maintained during pmic reset.
-- regulator-pull-down: enable high pull down
-  if not specified light pull down is used
 - regulator-over-current-protection:
     if set, all regulators are switched off in case of over-current detection
     on this regulator,
     if not set, the driver only sends an over-current event.
-- interrupt-parent: phandle to the parent interrupt controller
 - interrupts: index of current limit detection interrupt
 - <regulator>-supply: phandle to the parent supply/regulator node
 	each regulator supply can be described except vref_ddr.
+- regulator-active-discharge: can be used on pwr_sw1 and pwr_sw2.
 
 Example:
 regulators {
@@ -43,7 +41,6 @@ regulators {
 	vdd_core: buck1 {
 		regulator-name = "vdd_core";
 		interrupts = <IT_CURLIM_BUCK1 0>;
-		interrupt-parent = <&pmic>;
 		st,mask-reset;
 		regulator-pull-down;
 		regulator-min-microvolt = <700000>;
@@ -53,7 +50,6 @@ regulators {
 	v3v3: buck4 {
 		regulator-name = "v3v3";
 		interrupts = <IT_CURLIM_BUCK4 0>;
-		interrupt-parent = <&mypmic>;
 
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
