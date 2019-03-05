@@ -126,7 +126,7 @@ int main(void)
 
 	d = opendir("/proc");
 	if (!d)
-		return 2;
+		return 4;
 	f(d, 0);
 	return 0;
 }
