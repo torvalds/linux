@@ -1441,19 +1441,6 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	}
 }
 
-static int intel_num_dvo_pipes(struct drm_i915_private *dev_priv)
-{
-	struct intel_crtc *crtc;
-	int count = 0;
-
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		count += crtc->base.state->active &&
-			intel_crtc_has_type(crtc->config, INTEL_OUTPUT_DVO);
-	}
-
-	return count;
-}
-
 static void i9xx_enable_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *crtc_state)
 {
@@ -1467,19 +1454,6 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
-
-	/* Enable DVO 2x clock on both PLLs if necessary */
-	if (IS_I830(dev_priv) && intel_num_dvo_pipes(dev_priv) > 0) {
-		/*
-		 * It appears to be important that we don't enable this
-		 * for the current pipe before otherwise configuring the
-		 * PLL. No idea how this should be handled if multiple
-		 * DVO outputs are enabled simultaneosly.
-		 */
-		dpll |= DPLL_DVO_2X_MODE;
-		I915_WRITE(DPLL(!crtc->pipe),
-			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
-	}
 
 	/*
 	 * Apparently we need to have VGA mode enabled prior to changing
@@ -1518,16 +1492,6 @@ static void i9xx_disable_pll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-
-	/* Disable DVO 2x clock on both PLLs if necessary */
-	if (IS_I830(dev_priv) &&
-	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO) &&
-	    !intel_num_dvo_pipes(dev_priv)) {
-		I915_WRITE(DPLL(PIPE_B),
-			   I915_READ(DPLL(PIPE_B)) & ~DPLL_DVO_2X_MODE);
-		I915_WRITE(DPLL(PIPE_A),
-			   I915_READ(DPLL(PIPE_A)) & ~DPLL_DVO_2X_MODE);
-	}
 
 	/* Don't disable pipe or pipe PLLs if needed */
 	if (IS_I830(dev_priv))
@@ -7493,7 +7457,19 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
 
-	if (!IS_I830(dev_priv) &&
+	/*
+	 * Bspec:
+	 * "[Almador Errata}: For the correct operation of the muxed DVO pins
+	 *  (GDEVSELB/I2Cdata, GIRDBY/I2CClk) and (GFRAMEB/DVI_Data,
+	 *  GTRDYB/DVI_Clk): Bit 31 (DPLL VCO Enable) and Bit 30 (2X Clock
+	 *  Enable) must be set to “1” in both the DPLL A Control Register
+	 *  (06014h-06017h) and DPLL B Control Register (06018h-0601Bh)."
+	 *
+	 * For simplicity We simply keep both bits always enabled in
+	 * both DPLLS. The spec says we should disable the DVO 2X clock
+	 * when not needed, but this seems to work fine in practice.
+	 */
+	if (IS_I830(dev_priv) ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DVO))
 		dpll |= DPLL_DVO_2X_MODE;
 
@@ -8217,14 +8193,6 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	}
 	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(crtc->pipe));
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-		/*
-		 * DPLL_DVO_2X_MODE must be enabled for both DPLLs
-		 * on 830. Filter it out here so that we don't
-		 * report errors due to that.
-		 */
-		if (IS_I830(dev_priv))
-			pipe_config->dpll_hw_state.dpll &= ~DPLL_DVO_2X_MODE;
-
 		pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(crtc->pipe));
 		pipe_config->dpll_hw_state.fp1 = I915_READ(FP1(crtc->pipe));
 	} else {
@@ -15616,7 +15584,7 @@ void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 		      pipe_name(pipe), clock.vco, clock.dot);
 
 	fp = i9xx_dpll_compute_fp(&clock);
-	dpll = (I915_READ(DPLL(pipe)) & DPLL_DVO_2X_MODE) |
+	dpll = DPLL_DVO_2X_MODE |
 		DPLL_VGA_MODE_DIS |
 		((clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT) |
 		PLL_P2_DIVIDE_BY_4 |
