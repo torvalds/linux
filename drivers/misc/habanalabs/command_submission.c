@@ -604,7 +604,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	bool need_soft_reset = false;
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_warn(hdev->dev,
+		dev_warn_ratelimited(hdev->dev,
 			"Device is %s. Can't submit new CS\n",
 			atomic_read(&hdev->in_reset) ? "in_reset" : "disabled");
 		rc = -EBUSY;

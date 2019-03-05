@@ -106,7 +106,7 @@ static int hl_info_ioctl(struct hl_fpriv *hpriv, void *data)
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev)) {
-		dev_err(hdev->dev,
+		dev_warn_ratelimited(hdev->dev,
 			"Device is disabled or in reset. Can't execute INFO IOCTL\n");
 		return -EBUSY;
 	}
