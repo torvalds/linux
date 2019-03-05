@@ -374,7 +374,7 @@ unlock:
 }
 #endif
 
-static int expected_page_refs(struct page *page)
+static int expected_page_refs(struct address_space *mapping, struct page *page)
 {
 	int expected_count = 1;
 
@@ -384,7 +384,7 @@ static int expected_page_refs(struct page *page)
 	 */
 	expected_count += is_device_private_page(page);
 	expected_count += is_device_public_page(page);
-	if (page_mapping(page))
+	if (mapping)
 		expected_count += hpage_nr_pages(page) + page_has_private(page);
 
 	return expected_count;
@@ -405,7 +405,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
 	XA_STATE(xas, &mapping->i_pages, page_index(page));
 	struct zone *oldzone, *newzone;
 	int dirty;
-	int expected_count = expected_page_refs(page) + extra_count;
+	int expected_count = expected_page_refs(mapping, page) + extra_count;
 
 	if (!mapping) {
 		/* Anonymous page without mapping */
@@ -750,7 +750,7 @@ static int __buffer_migrate_page(struct address_space *mapping,
 		return migrate_page(mapping, newpage, page, mode);
 
 	/* Check whether page does not have extra refs before we do more work */
-	expected_count = expected_page_refs(page);
+	expected_count = expected_page_refs(mapping, page);
 	if (page_count(page) != expected_count)
 		return -EAGAIN;
 
