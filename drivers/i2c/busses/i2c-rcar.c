@@ -399,7 +399,7 @@ static void rcar_i2c_dma_callback(void *data)
 	rcar_i2c_dma_unmap(priv);
 }
 
-static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
+static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
 {
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
 	struct i2c_msg *msg = priv->msg;
@@ -415,7 +415,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	/* Do various checks to see if DMA is feasible at all */
 	if (IS_ERR(chan) || msg->len < RCAR_MIN_DMA_LEN ||
 	    !(msg->flags & I2C_M_DMA_SAFE) || (read && priv->flags & ID_P_NO_RXDMA))
-		return;
+		return false;
 
 	if (read) {
 		/*
@@ -435,7 +435,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
 	if (dma_mapping_error(chan->device->dev, dma_addr)) {
 		dev_dbg(dev, "dma map failed, using PIO\n");
-		return;
+		return false;
 	}
 
 	sg_dma_len(&priv->sg) = len;
@@ -449,7 +449,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	if (!txdesc) {
 		dev_dbg(dev, "dma prep slave sg failed, using PIO\n");
 		rcar_i2c_cleanup_dma(priv);
-		return;
+		return false;
 	}
 
 	txdesc->callback = rcar_i2c_dma_callback;
@@ -459,7 +459,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	if (dma_submit_error(cookie)) {
 		dev_dbg(dev, "submitting dma failed, using PIO\n");
 		rcar_i2c_cleanup_dma(priv);
-		return;
+		return false;
 	}
 
 	/* Enable DMA Master Received/Transmitted */
@@ -469,6 +469,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 		rcar_i2c_write(priv, ICDMAER, TMDMAE);
 
 	dma_async_issue_pending(chan);
+	return true;
 }
 
 static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
