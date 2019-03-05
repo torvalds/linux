@@ -792,14 +792,15 @@ static void gen8_initialize_pml4(struct i915_address_space *vm,
 	memset_p((void **)pml4->pdps, vm->scratch_pdp, GEN8_PML4ES_PER_PML4);
 }
 
-/* PDE TLBs are a pain to invalidate on GEN8+. When we modify
+/*
+ * PDE TLBs are a pain to invalidate on GEN8+. When we modify
  * the page table structures, we mark them dirty so that
  * context switching/execlist queuing code takes extra steps
  * to ensure that tlbs are flushed.
  */
 static void mark_tlbs_dirty(struct i915_hw_ppgtt *ppgtt)
 {
-	ppgtt->pd_dirty_engines = INTEL_INFO(ppgtt->vm.i915)->engine_mask;
+	ppgtt->pd_dirty_engines = ALL_ENGINES;
 }
 
 /* Removes entries from a single page table, releasing it if it's empty.
