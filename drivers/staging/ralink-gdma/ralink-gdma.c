@@ -268,14 +268,14 @@ static int gdma_dma_terminate_all(struct dma_chan *c)
 
 static void rt305x_dump_reg(struct gdma_dma_dev *dma_dev, int id)
 {
-	dev_dbg(dma_dev->ddev.dev, "chan %d, src %08x, dst %08x, ctr0 %08x, " \
-			"ctr1 %08x, intr %08x, signal %08x\n", id,
-			gdma_dma_read(dma_dev, GDMA_REG_SRC_ADDR(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_DST_ADDR(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_CTRL0(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_CTRL1(id)),
-			gdma_dma_read(dma_dev, GDMA_RT305X_STATUS_INT),
-			gdma_dma_read(dma_dev, GDMA_RT305X_STATUS_SIGNAL));
+	dev_dbg(dma_dev->ddev.dev, "chan %d, src %08x, dst %08x, ctr0 %08x, ctr1 %08x, intr %08x, signal %08x\n",
+		id,
+		gdma_dma_read(dma_dev, GDMA_REG_SRC_ADDR(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_DST_ADDR(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_CTRL0(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_CTRL1(id)),
+		gdma_dma_read(dma_dev, GDMA_RT305X_STATUS_INT),
+		gdma_dma_read(dma_dev, GDMA_RT305X_STATUS_SIGNAL));
 }
 
 static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
@@ -342,18 +342,17 @@ static int rt305x_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
 
 static void rt3883_dump_reg(struct gdma_dma_dev *dma_dev, int id)
 {
-	dev_dbg(dma_dev->ddev.dev, "chan %d, src %08x, dst %08x, ctr0 %08x, " \
-			"ctr1 %08x, unmask %08x, done %08x, " \
-			"req %08x, ack %08x, fin %08x\n", id,
-			gdma_dma_read(dma_dev, GDMA_REG_SRC_ADDR(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_DST_ADDR(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_CTRL0(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_CTRL1(id)),
-			gdma_dma_read(dma_dev, GDMA_REG_UNMASK_INT),
-			gdma_dma_read(dma_dev, GDMA_REG_DONE_INT),
-			gdma_dma_read(dma_dev, GDMA_REG_REQSTS),
-			gdma_dma_read(dma_dev, GDMA_REG_ACKSTS),
-			gdma_dma_read(dma_dev, GDMA_REG_FINSTS));
+	dev_dbg(dma_dev->ddev.dev, "chan %d, src %08x, dst %08x, ctr0 %08x, ctr1 %08x, unmask %08x, done %08x, req %08x, ack %08x, fin %08x\n",
+		id,
+		gdma_dma_read(dma_dev, GDMA_REG_SRC_ADDR(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_DST_ADDR(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_CTRL0(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_CTRL1(id)),
+		gdma_dma_read(dma_dev, GDMA_REG_UNMASK_INT),
+		gdma_dma_read(dma_dev, GDMA_REG_DONE_INT),
+		gdma_dma_read(dma_dev, GDMA_REG_REQSTS),
+		gdma_dma_read(dma_dev, GDMA_REG_ACKSTS),
+		gdma_dma_read(dma_dev, GDMA_REG_FINSTS));
 }
 
 static int rt3883_gdma_start_transfer(struct gdma_dmaengine_chan *chan)
