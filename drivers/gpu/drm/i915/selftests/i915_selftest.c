@@ -133,7 +133,7 @@ static int __run_selftests(const char *name,
 		if (signal_pending(current))
 			return -EINTR;
 
-		pr_debug(DRIVER_NAME ": Running %s\n", st->name);
+		pr_info(DRIVER_NAME ": Running %s\n", st->name);
 		if (data)
 			err = st->live(data);
 		else
@@ -255,7 +255,7 @@ int __i915_subtests(const char *caller,
 		if (!apply_subtest_filter(caller, st->name))
 			continue;
 
-		pr_debug(DRIVER_NAME ": Running %s/%s\n", caller, st->name);
+		pr_info(DRIVER_NAME ": Running %s/%s\n", caller, st->name);
 		GEM_TRACE("Running %s/%s\n", caller, st->name);
 
 		err = st->func(data);
