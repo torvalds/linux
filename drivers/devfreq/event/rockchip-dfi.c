@@ -380,11 +380,19 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
 		if (!(info->ch_msk & BIT(i)))
 			continue;
-		info->ch_usage[i].access = readl_relaxed(dfi_regs +
-				DDRMON_CH0_DFI_ACCESS_NUM + i * 20) * 4;
+
 		info->ch_usage[i].total = readl_relaxed(dfi_regs +
 				DDRMON_CH0_COUNT_NUM + i * 20);
-		tmp = info->ch_usage[i].access;
+
+		/* LPDDR4 BL = 16,other DDR type BL = 8 */
+		tmp = readl_relaxed(dfi_regs +
+				DDRMON_CH0_DFI_ACCESS_NUM + i * 20);
+		if (info->dram_type == LPDDR4)
+			tmp *= 8;
+		else
+			tmp *= 4;
+		info->ch_usage[i].access = tmp;
+
 		if (tmp > max) {
 			busier_ch = i;
 			max = tmp;
