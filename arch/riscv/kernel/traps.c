@@ -156,7 +156,7 @@ int is_valid_bugaddr(unsigned long pc)
 {
 	bug_insn_t insn;
 
-	if (pc < PAGE_OFFSET)
+	if (pc < VMALLOC_START)
 		return 0;
 	if (probe_kernel_address((bug_insn_t *)pc, insn))
 		return 0;
