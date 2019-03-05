@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
+#include "dm_helpers.h"
 
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
@@ -731,6 +732,88 @@ static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *b
 
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
+static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+
+	if (size < sizeof(connector->debugfs_dpcd_address))
+		return 0;
+
+	r = copy_from_user(&connector->debugfs_dpcd_address,
+			buf, sizeof(connector->debugfs_dpcd_address));
+
+	return size - r;
+}
+
+static ssize_t dp_dpcd_size_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+
+	if (size < sizeof(connector->debugfs_dpcd_size))
+		return 0;
+
+	r = copy_from_user(&connector->debugfs_dpcd_size,
+			buf, sizeof(connector->debugfs_dpcd_size));
+
+	if (connector->debugfs_dpcd_size > 256)
+		connector->debugfs_dpcd_size = 0;
+
+	return size - r;
+}
+
+static ssize_t dp_dpcd_data_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	char *data;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	uint32_t write_size = connector->debugfs_dpcd_size;
+
+	if (size < write_size)
+		return 0;
+
+	data = kzalloc(write_size, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	r = copy_from_user(data, buf, write_size);
+
+	dm_helpers_dp_write_dpcd(link->ctx, link,
+			connector->debugfs_dpcd_address, data, write_size - r);
+	kfree(data);
+	return write_size - r;
+}
+
+static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	char *data;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	uint32_t read_size = connector->debugfs_dpcd_size;
+
+	if (size < read_size)
+		return 0;
+
+	data = kzalloc(read_size, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	dm_helpers_dp_read_dpcd(link->ctx, link,
+			connector->debugfs_dpcd_address, data, read_size);
+
+	r = copy_to_user(buf, data, read_size);
+
+	kfree(data);
+	return read_size - r;
+}
+
 static const struct file_operations dp_link_settings_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.read = dp_link_settings_read,
@@ -757,6 +840,25 @@ static const struct file_operations sdp_message_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations dp_dpcd_address_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_dpcd_address_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dpcd_size_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_dpcd_size_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dpcd_data_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dpcd_data_read,
+	.write = dp_dpcd_data_write,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -765,7 +867,10 @@ static const struct {
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
 		{"vrr_range", &vrr_range_fops},
-		{"sdp_message", &sdp_message_fops}
+		{"sdp_message", &sdp_message_fops},
+		{"aux_dpcd_address", &dp_dpcd_address_debugfs_fops},
+		{"aux_dpcd_size", &dp_dpcd_size_debugfs_fops},
+		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
 int connector_debugfs_init(struct amdgpu_dm_connector *connector)

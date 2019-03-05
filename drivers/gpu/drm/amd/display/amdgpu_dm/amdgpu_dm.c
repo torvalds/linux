@@ -4395,6 +4395,8 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 		DRM_ERROR("Failed to create debugfs for connector");
 		goto out_free;
 	}
+	aconnector->debugfs_dpcd_address = 0;
+	aconnector->debugfs_dpcd_size = 0;
 #endif
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
