@@ -1486,8 +1486,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	 * the P1/P2 dividers. Otherwise the DPLL will keep using the old
 	 * dividers, even though the register value does change.
 	 */
-	I915_WRITE(reg, 0);
-
+	I915_WRITE(reg, dpll & ~DPLL_VGA_MODE_DIS);
 	I915_WRITE(reg, dpll);
 
 	/* Wait for the clocks to stabilize. */
