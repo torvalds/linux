@@ -81,6 +81,8 @@ static void read_cache_pages_invalidate_pages(struct address_space *mapping,
  * @data: private data for the callback routine.
  *
  * Hides the details of the LRU cache etc from the filesystems.
+ *
+ * Returns: %0 on success, error return by @filler otherwise
  */
 int read_cache_pages(struct address_space *mapping, struct list_head *pages,
 			int (*filler)(void *, struct page *), void *data)

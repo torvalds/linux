@@ -844,7 +844,7 @@ static void *vmap_block_vaddr(unsigned long va_start, unsigned long pages_off)
  * @order:    how many 2^order pages should be occupied in newly allocated block
  * @gfp_mask: flags for the page level allocator
  *
- * Returns: virtual address in a newly allocated block or ERR_PTR(-errno)
+ * Return: virtual address in a newly allocated block or ERR_PTR(-errno)
  */
 static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
 {
@@ -1433,6 +1433,8 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
  * Search an area of @size in the kernel virtual mapping area,
  * and reserved it for out purposes.  Returns the area descriptor
  * on success or %NULL on failure.
+ *
+ * Return: the area descriptor on success or %NULL on failure.
  */
 struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 {
@@ -1455,6 +1457,8 @@ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
  * Search for the kernel VM area starting at @addr, and return it.
  * It is up to the caller to do all required locking to keep the returned
  * pointer valid.
+ *
+ * Return: pointer to the found area or %NULL on faulure
  */
 struct vm_struct *find_vm_area(const void *addr)
 {
@@ -1474,6 +1478,8 @@ struct vm_struct *find_vm_area(const void *addr)
  * Search for the kernel VM area starting at @addr, and remove it.
  * This function returns the found VM area, but using it is NOT safe
  * on SMP machines, except for its size or flags.
+ *
+ * Return: pointer to the found area or %NULL on faulure
  */
 struct vm_struct *remove_vm_area(const void *addr)
 {
@@ -1636,6 +1642,8 @@ EXPORT_SYMBOL(vunmap);
  *
  * Maps @count pages from @pages into contiguous kernel virtual
  * space.
+ *
+ * Return: the address of the area or %NULL on failure
  */
 void *vmap(struct page **pages, unsigned int count,
 	   unsigned long flags, pgprot_t prot)
@@ -1739,6 +1747,8 @@ fail:
  * Allocate enough pages to cover @size from the page level
  * allocator with @gfp_mask flags.  Map them into contiguous
  * kernel virtual space, using a pagetable protection of @prot.
+ *
+ * Return: the address of the area or %NULL on failure
  */
 void *__vmalloc_node_range(unsigned long size, unsigned long align,
 			unsigned long start, unsigned long end, gfp_t gfp_mask,
@@ -1806,6 +1816,8 @@ EXPORT_SYMBOL_GPL(__vmalloc_node_range);
  *
  * Any use of gfp flags outside of GFP_KERNEL should be consulted
  * with mm people.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 static void *__vmalloc_node(unsigned long size, unsigned long align,
 			    gfp_t gfp_mask, pgprot_t prot,
@@ -1845,6 +1857,8 @@ void *__vmalloc_node_flags_caller(unsigned long size, int node, gfp_t flags,
  *
  * For tight control over page level allocator and protection flags
  * use __vmalloc() instead.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc(unsigned long size)
 {
@@ -1863,6 +1877,8 @@ EXPORT_SYMBOL(vmalloc);
  *
  * For tight control over page level allocator and protection flags
  * use __vmalloc() instead.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vzalloc(unsigned long size)
 {
@@ -1877,6 +1893,8 @@ EXPORT_SYMBOL(vzalloc);
  *
  * The resulting memory area is zeroed so it can be mapped to userspace
  * without leaking data.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_user(unsigned long size)
 {
@@ -1897,6 +1915,8 @@ EXPORT_SYMBOL(vmalloc_user);
  *
  * For tight control over page level allocator and protection flags
  * use __vmalloc() instead.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_node(unsigned long size, int node)
 {
@@ -1916,6 +1936,8 @@ EXPORT_SYMBOL(vmalloc_node);
  *
  * For tight control over page level allocator and protection flags
  * use __vmalloc_node() instead.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vzalloc_node(unsigned long size, int node)
 {
@@ -1934,6 +1956,8 @@ EXPORT_SYMBOL(vzalloc_node);
  *
  * For tight control over page level allocator and protection flags
  * use __vmalloc() instead.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_exec(unsigned long size)
 {
@@ -1959,6 +1983,8 @@ void *vmalloc_exec(unsigned long size)
  *
  * Allocate enough 32bit PA addressable pages to cover @size from the
  * page level allocator and map them into contiguous kernel virtual space.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_32(unsigned long size)
 {
@@ -1973,6 +1999,8 @@ EXPORT_SYMBOL(vmalloc_32);
  *
  * The resulting memory area is 32bit addressable and zeroed so it can be
  * mapped to userspace without leaking data.
+ *
+ * Return: pointer to the allocated memory or %NULL on error
  */
 void *vmalloc_32_user(unsigned long size)
 {
@@ -2070,10 +2098,6 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
  * @addr:    vm address.
  * @count:   number of bytes to be read.
  *
- * Returns # of bytes which addr and buf should be increased.
- * (same number to @count). Returns 0 if [addr...addr+count) doesn't
- * includes any intersect with alive vmalloc area.
- *
  * This function checks that addr is a valid vmalloc'ed area, and
  * copy data from that area to a given buffer. If the given memory range
  * of [addr...addr+count) includes some valid address, data is copied to
@@ -2087,6 +2111,10 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
  * should know vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
  * any informaion, as /dev/kmem.
+ *
+ * Return: number of bytes for which addr and buf should be increased
+ * (same number as @count) or %0 if [addr...addr+count) doesn't
+ * include any intersection with valid vmalloc area
  */
 long vread(char *buf, char *addr, unsigned long count)
 {
@@ -2149,11 +2177,6 @@ finished:
  * @addr:     vm address.
  * @count:    number of bytes to be read.
  *
- * Returns # of bytes which addr and buf should be incresed.
- * (same number to @count).
- * If [addr...addr+count) doesn't includes any intersect with valid
- * vmalloc area, returns 0.
- *
  * This function checks that addr is a valid vmalloc'ed area, and
  * copy data from a buffer to the given addr. If specified range of
  * [addr...addr+count) includes some valid address, data is copied from
@@ -2167,6 +2190,10 @@ finished:
  * should know vmalloc() area is valid and can use memcpy().
  * This is for routines which have to access vmalloc area without
  * any informaion, as /dev/kmem.
+ *
+ * Return: number of bytes for which addr and buf should be
+ * increased (same number as @count) or %0 if [addr...addr+count)
+ * doesn't include any intersection with valid vmalloc area
  */
 long vwrite(char *buf, char *addr, unsigned long count)
 {
