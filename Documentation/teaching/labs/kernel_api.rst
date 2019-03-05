@@ -59,7 +59,7 @@ is where the device driver needs to access a buffer from the user-space. In
 this case, the device driver must use special features and not directly access
 the buffer. This is necessary to prevent access to invalid memory areas.
 
-Another difference from the userpace scheduling, relative to memory, is due to
+Another difference from the user-space scheduling, relative to memory, is due to
 the stack, a stack whose size is fixed and limited. A stack of 4K it is used in
 Linux, and a stack of 12K is used in Windows. For this reason, the
 allocation of large structures on stack or the use of recursive calls should
@@ -353,7 +353,7 @@ using :c:macro:`list_entry`. This idea of implementing and using a list is not
 new, as it has already been described in The Art of Computer Programming by
 Donald Knuth in the 1980s.
 
-Several kernel list functions and macrodefinitions are presented and explained
+Several kernel list functions and macro definitions are presented and explained
 in the :file:`include/linux/list.h` header.
 
 Spinlock
@@ -449,7 +449,7 @@ Functions and macros for working with mutexes are listed below:
   /* functions for mutex release */
   void mutex_unlock(struct mutex *mutex);
 
-Operations are similar to classic mutex operations in userspace or spinlock
+Operations are similar to classic mutex operations in user-space or spinlock
 operations: the mutex is acquired before entering the critical region and it is
 released after exiting the critical region. Unlike spinlocks, these operations
 can only be used in process context.
@@ -569,7 +569,7 @@ updates of the respective variable. The code below is such an example:
    void my_init(void)
    {
 	[...]
-	/* Initilized buffer and size. */
+	/* Initialized buffer and size. */
 	atomic_set(&size, 0);
 	memset(buffer, 0, sizeof(buffer));
 
