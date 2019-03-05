@@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
    Other lock order is following:
    PG_locked.
    mm->page_table_lock
-       zone_lru_lock
+       pgdat->lru_lock
 	  lock_page_cgroup.
   In many cases, just lock_page_cgroup() is called.
   per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
-  zone_lru_lock, it has no lock of its own.
+  pgdat->lru_lock, it has no lock of its own.
 
 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
 
