@@ -301,8 +301,9 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		rc = smbd_send(server, rqst);
 		goto smbd_done;
 	}
+
 	if (ssocket == NULL)
-		return -ENOTSOCK;
+		return -EAGAIN;
 
 	/* cork the socket */
 	kernel_setsockopt(ssocket, SOL_TCP, TCP_CORK,
