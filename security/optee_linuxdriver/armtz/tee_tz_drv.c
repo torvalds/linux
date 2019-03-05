@@ -1224,8 +1224,6 @@ static int tz_start(struct tee *tee)
 	BUG_ON(ptee->started);
 	ptee->started = true;
 
-	rk_set_uart_port(ptee);
-
 	ret = configure_shm(ptee);
 	if (ret)
 		goto exit;
@@ -1371,6 +1369,8 @@ static int tz_tee_probe(struct platform_device *pdev)
 	ret = tee_core_add(tee);
 	if (ret)
 		goto bail1;
+
+	rk_set_uart_port(ptee);
 
 #ifdef _TEE_DEBUG
 	pr_debug("- tee=%p, id=%d, iminor=%d\n", tee, tee->id,
