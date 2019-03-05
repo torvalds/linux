@@ -221,6 +221,7 @@ config VIDEO_ADV748X
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on OF
 	select REGMAP_I2C
+	select V4L2_FWNODE
 	---help---
 	  V4L2 subdevice driver for the Analog Devices
 	  ADV7481 and ADV7482 HDMI/Analog video decoders.
