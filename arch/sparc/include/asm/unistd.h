@@ -30,8 +30,8 @@
 #define __ARCH_WANT_SYS_GETHOSTNAME
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_SIGNAL
-#define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME
+#define __ARCH_WANT_SYS_TIME32
+#define __ARCH_WANT_SYS_UTIME32
 #define __ARCH_WANT_SYS_WAITPID
 #define __ARCH_WANT_SYS_SOCKETCALL
 #define __ARCH_WANT_SYS_FADVISE64
@@ -43,8 +43,8 @@
 #ifdef __32bit_syscall_numbers__
 #define __ARCH_WANT_SYS_IPC
 #else
-#define __ARCH_WANT_COMPAT_SYS_TIME
-#define __ARCH_WANT_SYS_UTIME32
+#define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_SYS_UTIME
 #define __ARCH_WANT_COMPAT_SYS_SENDFILE
 #endif
 
@@ -58,10 +58,5 @@
 #define __IGNORE_setresgid
 #define __IGNORE_getresgid
 #endif
-
-/* Sparc doesn't have protection keys. */
-#define __IGNORE_pkey_mprotect
-#define __IGNORE_pkey_alloc
-#define __IGNORE_pkey_free
 
 #endif /* _SPARC_UNISTD_H */

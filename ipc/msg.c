@@ -567,9 +567,8 @@ out_unlock:
 	return err;
 }
 
-long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
+static long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf, int version)
 {
-	int version;
 	struct ipc_namespace *ns;
 	struct msqid64_ds msqid64;
 	int err;
@@ -577,7 +576,6 @@ long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 	if (msqid < 0 || cmd < 0)
 		return -EINVAL;
 
-	version = ipc_parse_version(&cmd);
 	ns = current->nsproxy->ipc_ns;
 
 	switch (cmd) {
@@ -613,8 +611,22 @@ long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 
 SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 {
-	return ksys_msgctl(msqid, cmd, buf);
+	return ksys_msgctl(msqid, cmd, buf, IPC_64);
 }
+
+#ifdef CONFIG_ARCH_WANT_IPC_PARSE_VERSION
+long ksys_old_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
+{
+	int version = ipc_parse_version(&cmd);
+
+	return ksys_msgctl(msqid, cmd, buf, version);
+}
+
+SYSCALL_DEFINE3(old_msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
+{
+	return ksys_old_msgctl(msqid, cmd, buf);
+}
+#endif
 
 #ifdef CONFIG_COMPAT
 
@@ -689,12 +701,11 @@ static int copy_compat_msqid_to_user(void __user *buf, struct msqid64_ds *in,
 	}
 }
 
-long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr)
+static long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr, int version)
 {
 	struct ipc_namespace *ns;
 	int err;
 	struct msqid64_ds msqid64;
-	int version = compat_ipc_parse_version(&cmd);
 
 	ns = current->nsproxy->ipc_ns;
 
@@ -734,8 +745,22 @@ long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr)
 
 COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
 {
-	return compat_ksys_msgctl(msqid, cmd, uptr);
+	return compat_ksys_msgctl(msqid, cmd, uptr, IPC_64);
 }
+
+#ifdef CONFIG_ARCH_WANT_COMPAT_IPC_PARSE_VERSION
+long compat_ksys_old_msgctl(int msqid, int cmd, void __user *uptr)
+{
+	int version = compat_ipc_parse_version(&cmd);
+
+	return compat_ksys_msgctl(msqid, cmd, uptr, version);
+}
+
+COMPAT_SYSCALL_DEFINE3(old_msgctl, int, msqid, int, cmd, void __user *, uptr)
+{
+	return compat_ksys_old_msgctl(msqid, cmd, uptr);
+}
+#endif
 #endif
 
 static int testmsg(struct msg_msg *msg, long type, int mode)

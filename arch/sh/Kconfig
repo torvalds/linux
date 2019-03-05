@@ -62,6 +62,7 @@ config SUPERH
 
 config SUPERH32
 	def_bool "$(ARCH)" = "sh"
+	select ARCH_32BIT_OFF_T
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_IOREMAP_PROT if MMU && !X2TLB

@@ -42,9 +42,11 @@ COND_SYSCALL(io_destroy);
 COND_SYSCALL(io_submit);
 COND_SYSCALL_COMPAT(io_submit);
 COND_SYSCALL(io_cancel);
+COND_SYSCALL(io_getevents_time32);
 COND_SYSCALL(io_getevents);
+COND_SYSCALL(io_pgetevents_time32);
 COND_SYSCALL(io_pgetevents);
-COND_SYSCALL_COMPAT(io_getevents);
+COND_SYSCALL_COMPAT(io_pgetevents_time32);
 COND_SYSCALL_COMPAT(io_pgetevents);
 
 /* fs/xattr.c */
@@ -114,9 +116,9 @@ COND_SYSCALL_COMPAT(signalfd4);
 /* fs/timerfd.c */
 COND_SYSCALL(timerfd_create);
 COND_SYSCALL(timerfd_settime);
-COND_SYSCALL_COMPAT(timerfd_settime);
+COND_SYSCALL(timerfd_settime32);
 COND_SYSCALL(timerfd_gettime);
-COND_SYSCALL_COMPAT(timerfd_gettime);
+COND_SYSCALL(timerfd_gettime32);
 
 /* fs/utimes.c */
 
@@ -135,7 +137,7 @@ COND_SYSCALL(capset);
 
 /* kernel/futex.c */
 COND_SYSCALL(futex);
-COND_SYSCALL_COMPAT(futex);
+COND_SYSCALL(futex_time32);
 COND_SYSCALL(set_robust_list);
 COND_SYSCALL_COMPAT(set_robust_list);
 COND_SYSCALL(get_robust_list);
@@ -187,9 +189,9 @@ COND_SYSCALL(mq_open);
 COND_SYSCALL_COMPAT(mq_open);
 COND_SYSCALL(mq_unlink);
 COND_SYSCALL(mq_timedsend);
-COND_SYSCALL_COMPAT(mq_timedsend);
+COND_SYSCALL(mq_timedsend_time32);
 COND_SYSCALL(mq_timedreceive);
-COND_SYSCALL_COMPAT(mq_timedreceive);
+COND_SYSCALL(mq_timedreceive_time32);
 COND_SYSCALL(mq_notify);
 COND_SYSCALL_COMPAT(mq_notify);
 COND_SYSCALL(mq_getsetattr);
@@ -197,6 +199,7 @@ COND_SYSCALL_COMPAT(mq_getsetattr);
 
 /* ipc/msg.c */
 COND_SYSCALL(msgget);
+COND_SYSCALL(old_msgctl);
 COND_SYSCALL(msgctl);
 COND_SYSCALL_COMPAT(msgctl);
 COND_SYSCALL(msgrcv);
@@ -206,14 +209,16 @@ COND_SYSCALL_COMPAT(msgsnd);
 
 /* ipc/sem.c */
 COND_SYSCALL(semget);
+COND_SYSCALL(old_semctl);
 COND_SYSCALL(semctl);
 COND_SYSCALL_COMPAT(semctl);
 COND_SYSCALL(semtimedop);
-COND_SYSCALL_COMPAT(semtimedop);
+COND_SYSCALL(semtimedop_time32);
 COND_SYSCALL(semop);
 
 /* ipc/shm.c */
 COND_SYSCALL(shmget);
+COND_SYSCALL(old_shmctl);
 COND_SYSCALL(shmctl);
 COND_SYSCALL_COMPAT(shmctl);
 COND_SYSCALL(shmat);
@@ -285,7 +290,7 @@ COND_SYSCALL(perf_event_open);
 COND_SYSCALL(accept4);
 COND_SYSCALL(recvmmsg);
 COND_SYSCALL(recvmmsg_time32);
-COND_SYSCALL_COMPAT(recvmmsg);
+COND_SYSCALL_COMPAT(recvmmsg_time32);
 COND_SYSCALL_COMPAT(recvmmsg_time64);
 
 /*
