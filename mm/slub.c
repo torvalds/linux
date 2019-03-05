@@ -2482,8 +2482,7 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 		stat(s, ALLOC_SLAB);
 		c->page = page;
 		*pc = c;
-	} else
-		freelist = NULL;
+	}
 
 	return freelist;
 }
