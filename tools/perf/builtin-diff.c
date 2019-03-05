@@ -83,6 +83,9 @@ static unsigned int sort_compute = 1;
 static s64 compute_wdiff_w1;
 static s64 compute_wdiff_w2;
 
+static const char		*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+
 enum {
 	COMPUTE_DELTA,
 	COMPUTE_RATIO,
@@ -352,6 +355,11 @@ static int diff__process_sample_event(struct perf_tool *tool,
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
+	}
+
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap)) {
+		ret = 0;
+		goto out_put;
 	}
 
 	if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample, true)) {
@@ -892,6 +900,13 @@ static int __cmd_diff(void)
 				goto out_delete;
 		}
 
+		if (cpu_list) {
+			ret = perf_session__cpu_bitmap(d->session, cpu_list,
+						       cpu_bitmap);
+			if (ret < 0)
+				goto out_delete;
+		}
+
 		ret = perf_session__process_events(d->session);
 		if (ret) {
 			pr_err("Failed to process %s\n", d->data.path);
@@ -969,6 +984,7 @@ static const struct option options[] = {
 		     "How to display percentage of filtered entries", parse_filter_percentage),
 	OPT_STRING(0, "time", &pdiff.time_str, "str",
 		   "Time span (time percent or absolute timestamp)"),
+	OPT_STRING(0, "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_END()
 };
 

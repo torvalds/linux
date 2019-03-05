@@ -163,6 +163,11 @@ OPTIONS
 	the end of perf.data.old and analyzes the perf.data from the
 	timestamp 3971.150589 to the end of perf.data.
 
+--cpu:: Only diff samples for the list of CPUs provided. Multiple CPUs can
+	be provided as a comma-separated list with no space: 0,1. Ranges of
+	CPUs are specified with -: 0-2. Default is to report samples on all
+	CPUs.
+
 COMPARISON
 ----------
 The comparison is governed by the baseline file. The baseline perf.data
