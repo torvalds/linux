@@ -79,14 +79,15 @@ enum {
 #define BYT_RT5651_SSP0_AIF2		BIT(21)
 #define BYT_RT5651_HP_LR_SWAPPED	BIT(22)
 #define BYT_RT5651_MONO_SPEAKER		BIT(23)
+#define BYT_RT5651_JD_NOT_INV		BIT(24)
 
 #define BYT_RT5651_DEFAULT_QUIRKS	(BYT_RT5651_MCLK_EN | \
 					 BYT_RT5651_JD1_1   | \
 					 BYT_RT5651_OVCD_TH_2000UA | \
 					 BYT_RT5651_OVCD_SF_0P75)
 
-/* jack-detect-source + dmic-en + ovcd-th + -sf + terminating empty entry */
-#define MAX_NO_PROPS 5
+/* jack-detect-source + inv + dmic-en + ovcd-th + -sf + terminating entry */
+#define MAX_NO_PROPS 6
 
 struct byt_rt5651_private {
 	struct clk *mclk;
@@ -137,6 +138,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk SSP0_AIF2 enabled\n");
 	if (byt_rt5651_quirk & BYT_RT5651_MONO_SPEAKER)
 		dev_info(dev, "quirk MONO_SPEAKER enabled\n");
+	if (byt_rt5651_quirk & BYT_RT5651_JD_NOT_INV)
+		dev_info(dev, "quirk JD_NOT_INV enabled\n");
 }
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
@@ -415,6 +418,18 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_MONO_SPEAKER),
 	},
 	{
+		/* Complet Electro Serv MY8307 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Complet Electro Serv"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MY8307"),
+		},
+		.driver_data = (void *)(BYT_RT5651_DEFAULT_QUIRKS |
+					BYT_RT5651_IN2_MAP |
+					BYT_RT5651_MONO_SPEAKER |
+					BYT_RT5651_JD_NOT_INV),
+	},
+	{
 		/* I.T.Works TW701, Ployer Momo7w and Trekstor ST70416-6
 		 * (these all use the same mainboard) */
 		.callback = byt_rt5651_quirk_cb,
@@ -524,6 +539,9 @@ static int byt_rt5651_add_codec_device_props(struct device *i2c_dev)
 
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
+
+	if (byt_rt5651_quirk & BYT_RT5651_JD_NOT_INV)
+		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,jack-detect-not-inverted");
 
 	return device_add_properties(i2c_dev, props);
 }
