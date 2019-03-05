@@ -43,7 +43,7 @@ static inline bool kasan_p4d_table(pgd_t pgd)
 #else
 static inline bool kasan_p4d_table(pgd_t pgd)
 {
-	return 0;
+	return false;
 }
 #endif
 #if CONFIG_PGTABLE_LEVELS > 3
@@ -55,7 +55,7 @@ static inline bool kasan_pud_table(p4d_t p4d)
 #else
 static inline bool kasan_pud_table(p4d_t p4d)
 {
-	return 0;
+	return false;
 }
 #endif
 #if CONFIG_PGTABLE_LEVELS > 2
@@ -67,7 +67,7 @@ static inline bool kasan_pmd_table(pud_t pud)
 #else
 static inline bool kasan_pmd_table(pud_t pud)
 {
-	return 0;
+	return false;
 }
 #endif
 pte_t kasan_early_shadow_pte[PTRS_PER_PTE] __page_aligned_bss;
