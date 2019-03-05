@@ -100,7 +100,7 @@ int isolate_movable_page(struct page *page, isolate_mode_t mode)
 	/*
 	 * Check PageMovable before holding a PG_lock because page's owner
 	 * assumes anybody doesn't touch PG_lock of newly allocated page
-	 * so unconditionally grapping the lock ruins page's owner side.
+	 * so unconditionally grabbing the lock ruins page's owner side.
 	 */
 	if (unlikely(!__PageMovable(page)))
 		goto out_putpage;
