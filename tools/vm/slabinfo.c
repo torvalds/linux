@@ -114,7 +114,6 @@ static void usage(void)
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"
 		"-B|--Bytes             Show size in bytes\n"
-		"-d<options>|--debug=<options> Set/Clear Debug options\n"
 		"-D|--display-active    Switch line format to activity\n"
 		"-e|--empty             Show empty slabs\n"
 		"-f|--first-alias       Show first alias\n"
@@ -136,14 +135,17 @@ static void usage(void)
 		"-1|--1ref              Single reference\n"
 		"-X|--Xtotals           Show extended summary information\n"
 
-		"\nValid debug options (FZPUT may be combined)\n"
-		"a / A          Switch on all debug options (=FZUP)\n"
-		"-              Switch off all debug options\n"
-		"f / F          Sanity Checks (SLAB_CONSISTENCY_CHECKS)\n"
-		"z / Z          Redzoning\n"
-		"p / P          Poisoning\n"
-		"u / U          Tracking\n"
-		"t / T          Tracing\n"
+		"\n"
+		"-d  | --debug          Switch off all debug options\n"
+		"-da | --debug=a        Switch on all debug options (--debug=FZPU)\n"
+
+		"\n"
+		"-d[afzput] | --debug=[afzput]\n"
+		"    f | F              Sanity Checks (SLAB_CONSISTENCY_CHECKS)\n"
+		"    z | Z              Redzoning\n"
+		"    p | P              Poisoning\n"
+		"    u | U              Tracking\n"
+		"    t | T              Tracing\n"
 	);
 }
 
