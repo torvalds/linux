@@ -9814,6 +9814,14 @@ F:	kernel/sched/membarrier.c
 F:	include/uapi/linux/membarrier.h
 F:	arch/powerpc/include/asm/membarrier.h
 
+MEMBLOCK
+M:	Mike Rapoport <rppt@linux.ibm.com>
+L:	linux-mm@kvack.org
+S:	Maintained
+F:	include/linux/memblock.h
+F:	mm/memblock.c
+F:	Documentation/core-api/boot-time-mm.rst
+
 MEMORY MANAGEMENT
 L:	linux-mm@kvack.org
 W:	http://www.linux-mm.org
