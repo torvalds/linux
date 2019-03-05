@@ -156,6 +156,8 @@ lock.cat
 README
 	This file.
 
+scripts	Various scripts, see scripts/README.
+
 
 ===========
 LIMITATIONS

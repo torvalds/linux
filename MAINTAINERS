@@ -10827,6 +10827,12 @@ F:	drivers/power/supply/bq27xxx_battery_i2c.c
 F:	drivers/power/supply/isp1704_charger.c
 F:	drivers/power/supply/rx51_battery.c
 
+NOLIBC HEADER FILE
+M:	Willy Tarreau <w@1wt.eu>
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wtarreau/nolibc.git
+F:	tools/include/nolibc/
+
 NTB AMD DRIVER
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
 L:	linux-ntb@googlegroups.com

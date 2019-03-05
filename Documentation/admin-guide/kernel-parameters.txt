@@ -3658,19 +3658,6 @@
 			latencies, which will choose a value aligned
 			with the appropriate hardware boundaries.
 
-	rcutree.jiffies_till_sched_qs= [KNL]
-			Set required age in jiffies for a
-			given grace period before RCU starts
-			soliciting quiescent-state help from
-			rcu_note_context_switch().  If not specified, the
-			kernel will calculate a value based on the most
-			recent settings of rcutree.jiffies_till_first_fqs
-			and rcutree.jiffies_till_next_fqs.
-			This calculated value may be viewed in
-			rcutree.jiffies_to_sched_qs.  Any attempt to
-			set rcutree.jiffies_to_sched_qs will be
-			cheerfully overwritten.
-
 	rcutree.jiffies_till_first_fqs= [KNL]
 			Set delay from grace-period initialization to
 			first attempt to force quiescent states.
@@ -3681,6 +3668,20 @@
 			Set delay between subsequent attempts to force
 			quiescent states.  Units are jiffies, minimum
 			value is one, and maximum value is HZ.
+
+	rcutree.jiffies_till_sched_qs= [KNL]
+			Set required age in jiffies for a
+			given grace period before RCU starts
+			soliciting quiescent-state help from
+			rcu_note_context_switch() and cond_resched().
+			If not specified, the kernel will calculate
+			a value based on the most recent settings
+			of rcutree.jiffies_till_first_fqs
+			and rcutree.jiffies_till_next_fqs.
+			This calculated value may be viewed in
+			rcutree.jiffies_to_sched_qs.  Any attempt to set
+			rcutree.jiffies_to_sched_qs will be cheerfully
+			overwritten.
 
 	rcutree.kthread_prio= 	 [KNL,BOOT]
 			Set the SCHED_FIFO priority of the RCU per-CPU
@@ -3724,6 +3725,11 @@
 			it should at force-quiescent-state time.
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
+
+	rcutree.sysrq_rcu= [KNL]
+			Commandeer a sysrq key to dump out Tree RCU's
+			rcu_node tree with an eye towards determining
+			why a new grace period has not yet started.
 
 	rcuperf.gp_async= [KNL]
 			Measure performance of asynchronous

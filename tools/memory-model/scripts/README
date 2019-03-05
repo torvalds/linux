@@ -1,0 +1,70 @@
+			============
+			LKMM SCRIPTS
+			============
+
+
+These scripts are run from the tools/memory-model directory.
+
+checkalllitmus.sh
+
+	Run all litmus tests in the litmus-tests directory, checking
+	the results against the expected results recorded in the
+	"Result:" comment lines.
+
+checkghlitmus.sh
+
+	Run all litmus tests in the https://github.com/paulmckrcu/litmus
+	archive that are C-language and that have "Result:" comment lines
+	documenting expected results, comparing the actual results to
+	those expected.
+
+checklitmushist.sh
+
+	Run all litmus tests having .litmus.out files from previous
+	initlitmushist.sh or newlitmushist.sh runs, comparing the
+	herd output to that of the original runs.
+
+checklitmus.sh
+
+	Check a single litmus test against its "Result:" expected result.
+
+cmplitmushist.sh
+
+	Compare output from two different runs of the same litmus tests,
+	with the absolute pathnames of the tests to run provided one
+	name per line on standard input.  Not normally run manually,
+	provided instead for use by other scripts.
+
+initlitmushist.sh
+
+	Run all litmus tests having no more than the specified number
+	of processes given a specified timeout, recording the results
+	in .litmus.out files.
+
+judgelitmus.sh
+
+	Given a .litmus file and its .litmus.out herd output, check the
+	.litmus.out file against the .litmus file's "Result:" comment to
+	judge whether the test ran correctly.  Not normally run manually,
+	provided instead for use by other scripts.
+
+newlitmushist.sh
+
+	For all new or updated litmus tests having no more than the
+	specified number of processes given a specified timeout, run
+	and record the results in .litmus.out files.
+
+parseargs.sh
+
+	Parse command-line arguments.  Not normally run manually,
+	provided instead for use by other scripts.
+
+runlitmushist.sh
+
+	Run the litmus tests whose absolute pathnames are provided one
+	name per line on standard input.  Not normally run manually,
+	provided instead for use by other scripts.
+
+README
+
+	This file

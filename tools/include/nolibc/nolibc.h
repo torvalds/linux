@@ -3,7 +3,85 @@
  * Copyright (C) 2017-2018 Willy Tarreau <w@1wt.eu>
  */
 
-/* some archs (at least aarch64) don't expose the regular syscalls anymore by
+/*
+ * This file is designed to be used as a libc alternative for minimal programs
+ * with very limited requirements. It consists of a small number of syscall and
+ * type definitions, and the minimal startup code needed to call main().
+ * All syscalls are declared as static functions so that they can be optimized
+ * away by the compiler when not used.
+ *
+ * Syscalls are split into 3 levels:
+ *   - The lower level is the arch-specific syscall() definition, consisting in
+ *     assembly code in compound expressions. These are called my_syscall0() to
+ *     my_syscall6() depending on the number of arguments. The MIPS
+ *     implementation is limited to 5 arguments. All input arguments are cast
+ *     to a long stored in a register. These expressions always return the
+ *     syscall's return value as a signed long value which is often either a
+ *     pointer or the negated errno value.
+ *
+ *   - The second level is mostly architecture-independent. It is made of
+ *     static functions called sys_<name>() which rely on my_syscallN()
+ *     depending on the syscall definition. These functions are responsible
+ *     for exposing the appropriate types for the syscall arguments (int,
+ *     pointers, etc) and for setting the appropriate return type (often int).
+ *     A few of them are architecture-specific because the syscalls are not all
+ *     mapped exactly the same among architectures. For example, some archs do
+ *     not implement select() and need pselect6() instead, so the sys_select()
+ *     function will have to abstract this.
+ *
+ *   - The third level is the libc call definition. It exposes the lower raw
+ *     sys_<name>() calls in a way that looks like what a libc usually does,
+ *     takes care of specific input values, and of setting errno upon error.
+ *     There can be minor variations compared to standard libc calls. For
+ *     example the open() call always takes 3 args here.
+ *
+ * The errno variable is declared static and unused. This way it can be
+ * optimized away if not used. However this means that a program made of
+ * multiple C files may observe different errno values (one per C file). For
+ * the type of programs this project targets it usually is not a problem. The
+ * resulting program may even be reduced by defining the NOLIBC_IGNORE_ERRNO
+ * macro, in which case the errno value will never be assigned.
+ *
+ * Some stdint-like integer types are defined. These are valid on all currently
+ * supported architectures, because signs are enforced, ints are assumed to be
+ * 32 bits, longs the size of a pointer and long long 64 bits. If more
+ * architectures have to be supported, this may need to be adapted.
+ *
+ * Some macro definitions like the O_* values passed to open(), and some
+ * structures like the sys_stat struct depend on the architecture.
+ *
+ * The definitions start with the architecture-specific parts, which are picked
+ * based on what the compiler knows about the target architecture, and are
+ * completed with the generic code. Since it is the compiler which sets the
+ * target architecture, cross-compiling normally works out of the box without
+ * having to specify anything.
+ *
+ * Finally some very common libc-level functions are provided. It is the case
+ * for a few functions usually found in string.h, ctype.h, or stdlib.h. Nothing
+ * is currently provided regarding stdio emulation.
+ *
+ * The macro NOLIBC is always defined, so that it is possible for a program to
+ * check this macro to know if it is being built against and decide to disable
+ * some features or simply not to include some standard libc files.
+ *
+ * Ideally this file should be split in multiple files for easier long term
+ * maintenance, but provided as a single file as it is now, it's quite
+ * convenient to use. Maybe some variations involving a set of includes at the
+ * top could work.
+ *
+ * A simple static executable may be built this way :
+ *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
+ *            -static -include nolibc.h -lgcc -o hello hello.c
+ *
+ * A very useful calling convention table may be found here :
+ *      http://man7.org/linux/man-pages/man2/syscall.2.html
+ *
+ * This doc is quite convenient though not necessarily up to date :
+ *      https://w3challs.com/syscalls/
+ *
+ */
+
+/* Some archs (at least aarch64) don't expose the regular syscalls anymore by
  * default, either because they have an "_at" replacement, or because there are
  * more modern alternatives. For now we'd rather still use them.
  */
@@ -18,18 +96,6 @@
 #include <linux/loop.h>
 
 #define NOLIBC
-
-/* Build a static executable this way :
- *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
- *            -static -include nolibc.h -lgcc -o hello hello.c
- *
- * Useful calling convention table found here :
- *      http://man7.org/linux/man-pages/man2/syscall.2.html
- *
- * This doc is even better :
- *      https://w3challs.com/syscalls/
- */
-
 
 /* this way it will be removed if unused */
 static int errno;
@@ -81,9 +147,9 @@ typedef   signed long        time_t;
 
 /* for poll() */
 struct pollfd {
-    int fd;
-    short int events;
-    short int revents;
+	int fd;
+	short int events;
+	short int revents;
 };
 
 /* for select() */
@@ -239,7 +305,7 @@ struct stat {
 		"syscall\n"                                                   \
 		: "=a" (_ret)                                                 \
 		: "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -255,7 +321,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1),                                                 \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -272,7 +338,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2),                                     \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -290,7 +356,7 @@ struct stat {
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
 		  "0"(_num)                                                   \
-		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"                                \
+		: "rcx", "r8", "r9", "r10", "r11", "memory", "cc"             \
 	);                                                                    \
 	_ret;                                                                 \
 })
@@ -1006,7 +1072,7 @@ struct sys_stat_struct {
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "r"(_num)                                                   \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1025,7 +1091,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1)                                                  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1045,7 +1111,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2)                                      \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1066,7 +1132,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3)                          \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1087,7 +1153,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4)              \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -1110,7 +1176,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-									      \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
