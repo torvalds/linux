@@ -2256,14 +2256,18 @@ static void mlx5e_activate_channels(struct mlx5e_channels *chs)
 		mlx5e_activate_channel(chs->c[i]);
 }
 
+#define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
+
 static int mlx5e_wait_channels_min_rx_wqes(struct mlx5e_channels *chs)
 {
 	int err = 0;
 	int i;
 
-	for (i = 0; i < chs->num; i++)
-		err |= mlx5e_wait_for_min_rx_wqes(&chs->c[i]->rq,
-						  err ? 0 : 20000);
+	for (i = 0; i < chs->num; i++) {
+		int timeout = err ? 0 : MLX5E_RQ_WQES_TIMEOUT;
+
+		err |= mlx5e_wait_for_min_rx_wqes(&chs->c[i]->rq, timeout);
+	}
 
 	return err ? -ETIMEDOUT : 0;
 }
