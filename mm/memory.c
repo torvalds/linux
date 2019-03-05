@@ -1452,7 +1452,7 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
 	spinlock_t *ptl;
 
 	retval = -EINVAL;
-	if (PageAnon(page))
+	if (PageAnon(page) || PageSlab(page))
 		goto out;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
