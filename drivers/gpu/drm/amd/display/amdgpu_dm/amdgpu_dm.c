@@ -1915,7 +1915,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	primary_planes = dm->dc->caps.max_streams;
 
 	total_planes = primary_planes + overlay_planes;
-	ASSERT(total_planes < AMDGPU_MAX_PLANES);
+	ASSERT(total_planes <= AMDGPU_MAX_PLANES);
 
 	/*
 	 * Initialize primary planes, implicit planes for legacy IOCTLS.
