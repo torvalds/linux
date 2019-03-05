@@ -13,7 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
-#define PROCFS_MAX_SIZE		1024
+#define PROCFS_MAX_SIZE		512
 
 #define procfs_dir_name		"list"
 #define procfs_file_read	"preview"
