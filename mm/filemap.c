@@ -1837,16 +1837,6 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t index,
 		if (unlikely(page != xas_reload(&xas)))
 			goto put_page;
 
-		/*
-		 * must check mapping and index after taking the ref.
-		 * otherwise we can get both false positives and false
-		 * negatives, which is just confusing to the caller.
-		 */
-		if (!page->mapping || page_to_pgoff(page) != xas.xa_index) {
-			put_page(page);
-			break;
-		}
-
 		pages[ret] = page;
 		if (++ret == nr_pages)
 			break;
