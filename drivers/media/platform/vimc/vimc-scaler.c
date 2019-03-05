@@ -348,6 +348,18 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 	return vsca->src_frame;
 };
 
+static void vimc_sca_release(struct v4l2_subdev *sd)
+{
+	struct vimc_sca_device *vsca =
+				container_of(sd, struct vimc_sca_device, sd);
+
+	kfree(vsca);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_sca_int_ops = {
+	.release = vimc_sca_release,
+};
+
 static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
 				 void *master_data)
 {
@@ -356,7 +368,6 @@ static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
 						    ved);
 
 	vimc_ent_sd_unregister(ved, &vsca->sd);
-	kfree(vsca);
 }
 
 
@@ -379,7 +390,7 @@ static int vimc_sca_comp_bind(struct device *comp, struct device *master,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
 				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
 				   MEDIA_PAD_FL_SOURCE},
-				   &vimc_sca_ops);
+				   &vimc_sca_int_ops, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
 		return ret;
