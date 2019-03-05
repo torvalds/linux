@@ -2772,6 +2772,28 @@ static int vega20_set_ppfeature_status(struct smu_context *smu, uint64_t new_ppf
 	return 0;
 }
 
+static int vega20_read_sensor(struct smu_context *smu,
+			      enum amd_pp_sensors sensor,
+			      void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_UVD_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCE_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.alloc_dpm_context = vega20_allocate_dpm_context,
 	.store_powerplay_table = vega20_store_powerplay_table,
@@ -2799,6 +2821,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
 	.dpm_set_uvd_enable = vega20_dpm_set_uvd_enable,
 	.dpm_set_vce_enable = vega20_dpm_set_vce_enable,
+	.read_sensor = vega20_read_sensor,
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,

@@ -1381,14 +1381,6 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT) ? 1 : 0;
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT) ? 1 : 0;
-		*size = 4;
-		break;
 	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
 		*(uint32_t *)data = 0;
 		*size = 4;
@@ -1401,6 +1393,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_common_read_sensor(smu, sensor, data, size);
 		break;
 	}
+
+	/* try get sensor data by asic */
+	if (ret)
+		ret = smu_asic_read_sensor(smu, sensor, data, size);
 
 	if (ret)
 		*size = 0;

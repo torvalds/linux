@@ -456,6 +456,8 @@ struct pptable_funcs {
 	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
 	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
+	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size);
 	int (*pre_display_config_changed)(struct smu_context *smu);
 	int (*display_config_changed)(struct smu_context *smu);
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
@@ -660,6 +662,8 @@ struct smu_funcs
 	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
 #define smu_read_sensor(smu, sensor, data, size) \
 	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
+#define smu_asic_read_sensor(smu, sensor, data, size) \
+	((smu)->ppt_funcs->read_sensor? (smu)->ppt_funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
 #define smu_get_power_profile_mode(smu, buf) \
 	((smu)->ppt_funcs->get_power_profile_mode ? (smu)->ppt_funcs->get_power_profile_mode((smu), buf) : 0)
 #define smu_set_power_profile_mode(smu, param, param_size) \
