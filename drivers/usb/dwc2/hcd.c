@@ -2247,25 +2247,31 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 		num_channels = hsotg->params.host_channels;
 		for (i = 0; i < num_channels; i++) {
 			hcchar = dwc2_readl(hsotg, HCCHAR(i));
-			hcchar &= ~HCCHAR_CHENA;
-			hcchar |= HCCHAR_CHDIS;
-			hcchar &= ~HCCHAR_EPDIR;
-			dwc2_writel(hsotg, hcchar, HCCHAR(i));
+			if (hcchar & HCCHAR_CHENA) {
+				hcchar &= ~HCCHAR_CHENA;
+				hcchar |= HCCHAR_CHDIS;
+				hcchar &= ~HCCHAR_EPDIR;
+				dwc2_writel(hsotg, hcchar, HCCHAR(i));
+			}
 		}
 
 		/* Halt all channels to put them into a known state */
 		for (i = 0; i < num_channels; i++) {
 			hcchar = dwc2_readl(hsotg, HCCHAR(i));
-			hcchar |= HCCHAR_CHENA | HCCHAR_CHDIS;
-			hcchar &= ~HCCHAR_EPDIR;
-			dwc2_writel(hsotg, hcchar, HCCHAR(i));
-			dev_dbg(hsotg->dev, "%s: Halt channel %d\n",
-				__func__, i);
+			if (hcchar & HCCHAR_CHENA) {
+				hcchar |= HCCHAR_CHENA | HCCHAR_CHDIS;
+				hcchar &= ~HCCHAR_EPDIR;
+				dwc2_writel(hsotg, hcchar, HCCHAR(i));
+				dev_dbg(hsotg->dev, "%s: Halt channel %d\n",
+					__func__, i);
 
-			if (dwc2_hsotg_wait_bit_clear(hsotg, HCCHAR(i),
-						      HCCHAR_CHENA, 1000)) {
-				dev_warn(hsotg->dev, "Unable to clear enable on channel %d\n",
-					 i);
+				if (dwc2_hsotg_wait_bit_clear(hsotg, HCCHAR(i),
+							      HCCHAR_CHENA,
+							      1000)) {
+					dev_warn(hsotg->dev,
+						 "Unable to clear enable on channel %d\n",
+						 i);
+				}
 			}
 		}
 	}
