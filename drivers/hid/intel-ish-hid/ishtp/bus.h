@@ -85,7 +85,7 @@ int	ishtp_send_msg(struct ishtp_device *dev,
 /* Write a single-fragment message */
 int	ishtp_write_message(struct ishtp_device *dev,
 			    struct ishtp_msg_hdr *hdr,
-			    unsigned char *buf);
+			    void *buf);
 
 /* Use DMA to send/receive messages */
 int ishtp_use_dma_transfer(void);
