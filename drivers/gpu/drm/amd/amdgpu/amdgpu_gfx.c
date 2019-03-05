@@ -450,6 +450,53 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 	return amdgpu_ring_test_ring(kiq_ring);
 }
 
+int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
+{
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	uint64_t queue_mask = 0;
+	int r, i;
+
+	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
+		return -EINVAL;
+
+	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
+		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
+			continue;
+
+		/* This situation may be hit in the future if a new HW
+		 * generation exposes more than 64 queues. If so, the
+		 * definition of queue_mask needs updating */
+		if (WARN_ON(i > (sizeof(queue_mask)*8))) {
+			DRM_ERROR("Invalid KCQ enabled: %d\n", i);
+			break;
+		}
+
+		queue_mask |= (1ull << i);
+	}
+
+	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
+							kiq_ring->queue);
+
+	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
+					adev->gfx.num_compute_rings +
+					kiq->pmf->set_resources_size);
+	if (r) {
+		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		return r;
+	}
+
+	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
+	for (i = 0; i < adev->gfx.num_compute_rings; i++)
+		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
+
+	r = amdgpu_ring_test_helper(kiq_ring);
+	if (r)
+		DRM_ERROR("KCQ enable failed\n");
+
+	return r;
+}
+
 /* amdgpu_gfx_off_ctrl - Handle gfx off feature enable/disable
  *
  * @adev: amdgpu_device pointer
