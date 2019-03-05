@@ -17,8 +17,8 @@
 #include <linux/shm.h>
 #include <linux/uaccess.h>
 
-SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
-		unsigned long, third, void __user *, ptr, long, fifth)
+int ksys_ipc(unsigned int call, int first, unsigned long second,
+	unsigned long third, void __user * ptr, long fifth)
 {
 	int version, ret;
 
@@ -106,6 +106,12 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 		return -ENOSYS;
 	}
 }
+
+SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
+		unsigned long, third, void __user *, ptr, long, fifth)
+{
+	return ksys_ipc(call, first, second, third, ptr, fifth);
+}
 #endif
 
 #ifdef CONFIG_COMPAT
@@ -121,8 +127,8 @@ struct compat_ipc_kludge {
 };
 
 #ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
-COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
-	u32, third, compat_uptr_t, ptr, u32, fifth)
+int compat_ksys_ipc(u32 call, int first, int second,
+	u32 third, compat_uptr_t ptr, u32 fifth)
 {
 	int version;
 	u32 pad;
@@ -194,6 +200,12 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 	}
 
 	return -ENOSYS;
+}
+
+COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+	u32, third, compat_uptr_t, ptr, u32, fifth)
+{
+	return compat_ksys_ipc(call, first, second, third, ptr, fifth);
 }
 #endif
 #endif

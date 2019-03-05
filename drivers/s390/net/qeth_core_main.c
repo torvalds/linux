@@ -4884,8 +4884,8 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.output_handler	 = qeth_qdio_output_handler;
 	init_data.queue_start_poll_array = queue_start_poll;
 	init_data.int_parm               = (unsigned long) card;
-	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
-	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
+	init_data.input_sbal_addr_array  = in_sbal_ptrs;
+	init_data.output_sbal_addr_array = out_sbal_ptrs;
 	init_data.output_sbal_state_array = card->qdio.out_bufstates;
 	init_data.scan_threshold =
 		(card->info.type == QETH_CARD_TYPE_IQD) ? 1 : 32;
