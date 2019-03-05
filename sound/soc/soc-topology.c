@@ -535,6 +535,8 @@ static void remove_dai(struct snd_soc_component *comp,
 		if (dai->driver == dai_drv)
 			dai->driver = NULL;
 
+	kfree(dai_drv->playback.stream_name);
+	kfree(dai_drv->capture.stream_name);
 	kfree(dai_drv->name);
 	list_del(&dobj->list);
 	kfree(dai_drv);
@@ -1808,6 +1810,9 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	ret = soc_tplg_dai_load(tplg, dai_drv, pcm, NULL);
 	if (ret < 0) {
 		dev_err(tplg->comp->dev, "ASoC: DAI loading failed\n");
+		kfree(dai_drv->playback.stream_name);
+		kfree(dai_drv->capture.stream_name);
+		kfree(dai_drv->name);
 		kfree(dai_drv);
 		return ret;
 	}
