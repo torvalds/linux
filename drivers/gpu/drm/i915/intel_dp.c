@@ -6425,15 +6425,16 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 
 	intel_pps_get_registers(intel_dp, &regs);
 
-	/* Workaround: Need to write PP_CONTROL with the unlock key as
-	 * the very first thing. */
 	pp_ctl = ironlake_get_pp_control(intel_dp);
+
+	/* Ensure PPS is unlocked */
+	if (!HAS_DDI(dev_priv))
+		I915_WRITE(regs.pp_ctrl, pp_ctl);
 
 	pp_on = I915_READ(regs.pp_on);
 	pp_off = I915_READ(regs.pp_off);
 	if (!IS_GEN9_LP(dev_priv) && !HAS_PCH_CNP(dev_priv) &&
 	    !HAS_PCH_ICP(dev_priv)) {
-		I915_WRITE(regs.pp_ctrl, pp_ctl);
 		pp_div = I915_READ(regs.pp_div);
 	}
 
