@@ -63,7 +63,7 @@ unsigned long hub_pio_map(cnodeid_t cnode, xwidgetnum_t widget,
 		 * after we write it.
 		 */
 		IIO_ITTE_PUT(nasid, i, HUB_PIO_MAP_TO_MEM, widget, xtalk_addr);
-		(void) HUB_L(IIO_ITTE_GET(nasid, i));
+		__raw_readq(IIO_ITTE_GET(nasid, i));
 
 		return NODE_BWIN_BASE(nasid, widget) + (xtalk_addr % BWIN_SIZE);
 	}
@@ -135,7 +135,7 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
  **/
 static void hub_set_piomode(nasid_t nasid)
 {
-	hubreg_t ii_iowa;
+	u64 ii_iowa;
 	hubii_wcr_t ii_wcr;
 	unsigned i;
 

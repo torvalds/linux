@@ -120,13 +120,8 @@ static inline void dma_sync_phys(phys_addr_t paddr, size_t size,
 		if (PageHighMem(page)) {
 			void *addr;
 
-			if (offset + len > PAGE_SIZE) {
-				if (offset >= PAGE_SIZE) {
-					page += offset >> PAGE_SHIFT;
-					offset &= ~PAGE_MASK;
-				}
+			if (offset + len > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
-			}
 
 			addr = kmap_atomic(page);
 			dma_sync_virt(addr + offset, len, dir);
@@ -145,12 +140,14 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 	dma_sync_phys(paddr, size, dir);
 }
 
+#ifdef CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU
 void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		size_t size, enum dma_data_direction dir)
 {
 	if (cpu_needs_post_dma_flush(dev))
 		dma_sync_phys(paddr, size, dir);
 }
+#endif
 
 void arch_dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)

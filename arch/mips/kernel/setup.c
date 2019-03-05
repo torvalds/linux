@@ -1011,12 +1011,7 @@ unsigned long fw_passed_dtb;
 struct dentry *mips_debugfs_dir;
 static int __init debugfs_mips(void)
 {
-	struct dentry *d;
-
-	d = debugfs_create_dir("mips", NULL);
-	if (!d)
-		return -ENOMEM;
-	mips_debugfs_dir = d;
+	mips_debugfs_dir = debugfs_create_dir("mips", NULL);
 	return 0;
 }
 arch_initcall(debugfs_mips);
