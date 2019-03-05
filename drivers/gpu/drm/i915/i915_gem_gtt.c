@@ -613,7 +613,7 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 
 		vm->scratch_page.page = page;
 		vm->scratch_page.daddr = addr;
-		vm->scratch_page.order = order;
+		vm->scratch_order = order;
 		return 0;
 
 unmap_page:
@@ -632,10 +632,11 @@ skip:
 static void cleanup_scratch_page(struct i915_address_space *vm)
 {
 	struct i915_page_dma *p = &vm->scratch_page;
+	int order = vm->scratch_order;
 
-	dma_unmap_page(vm->dma, p->daddr, BIT(p->order) << PAGE_SHIFT,
+	dma_unmap_page(vm->dma, p->daddr, BIT(order) << PAGE_SHIFT,
 		       PCI_DMA_BIDIRECTIONAL);
-	__free_pages(p->page, p->order);
+	__free_pages(p->page, order);
 }
 
 static struct i915_page_table *alloc_pt(struct i915_address_space *vm)
@@ -1216,7 +1217,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 
 		GEM_BUG_ON(!clone->has_read_only);
 
-		vm->scratch_page.order = clone->scratch_page.order;
+		vm->scratch_order = clone->scratch_order;
 		vm->scratch_pte = clone->scratch_pte;
 		vm->scratch_pt  = clone->scratch_pt;
 		vm->scratch_pd  = clone->scratch_pd;

@@ -213,7 +213,6 @@ struct i915_vma;
 
 struct i915_page_dma {
 	struct page *page;
-	int order;
 	union {
 		dma_addr_t daddr;
 
@@ -293,6 +292,7 @@ struct i915_address_space {
 #define VM_CLASS_PPGTT 1
 
 	u64 scratch_pte;
+	int scratch_order;
 	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
@@ -356,7 +356,7 @@ i915_vm_is_48bit(const struct i915_address_space *vm)
 static inline bool
 i915_vm_has_scratch_64K(struct i915_address_space *vm)
 {
-	return vm->scratch_page.order == get_order(I915_GTT_PAGE_SIZE_64K);
+	return vm->scratch_order == get_order(I915_GTT_PAGE_SIZE_64K);
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
