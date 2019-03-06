@@ -70,7 +70,8 @@ static void replace_tlb_one_pid(unsigned long addr, unsigned long mmu_pid, unsig
 		if (pid != mmu_pid)
 			continue;
 
-		tlbmisc = mmu_pid | TLBMISC_WE | (way << TLBMISC_WAY_SHIFT);
+		tlbmisc = (mmu_pid << TLBMISC_PID_SHIFT) | TLBMISC_WE |
+			  (way << TLBMISC_WAY_SHIFT);
 		WRCTL(CTL_TLBMISC, tlbmisc);
 		if (tlbacc == 0)
 			WRCTL(CTL_PTEADDR, pteaddr_invalid(addr));
