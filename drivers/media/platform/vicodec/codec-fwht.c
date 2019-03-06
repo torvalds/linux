@@ -841,6 +841,7 @@ static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco,
 	s16 copy[8 * 8];
 	u16 stat;
 	unsigned int i, j;
+	bool is_intra = !ref;
 
 	width = round_up(width, 8);
 	height = round_up(height, 8);
@@ -872,7 +873,7 @@ static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco,
 
 			if (copies) {
 				memcpy(cf->de_fwht, copy, sizeof(copy));
-				if (stat & PFRAME_BIT)
+				if ((stat & PFRAME_BIT) && !is_intra)
 					add_deltas(cf->de_fwht, refp,
 						   ref_stride, ref_step);
 				fill_decoder_block(dstp, cf->de_fwht,
@@ -884,18 +885,18 @@ static bool decode_plane(struct fwht_cframe *cf, const __be16 **rlco,
 			stat = derlc(rlco, cf->coeffs, end_of_rlco_buf);
 			if (stat & OVERFLOW_BIT)
 				return false;
-			if (stat & PFRAME_BIT)
+			if ((stat & PFRAME_BIT) && !is_intra)
 				dequantize_inter(cf->coeffs);
 			else
 				dequantize_intra(cf->coeffs);
 
 			ifwht(cf->coeffs, cf->de_fwht,
-			      (stat & PFRAME_BIT) ? 0 : 1);
+			      ((stat & PFRAME_BIT) && !is_intra) ? 0 : 1);
 
 			copies = (stat & DUPS_MASK) >> 1;
 			if (copies)
 				memcpy(copy, cf->de_fwht, sizeof(copy));
-			if (stat & PFRAME_BIT)
+			if ((stat & PFRAME_BIT) && !is_intra)
 				add_deltas(cf->de_fwht, refp,
 					   ref_stride, ref_step);
 			fill_decoder_block(dstp, cf->de_fwht, dst_stride,

@@ -99,6 +99,17 @@ static int prepare_raw_frame(struct fwht_raw_frame *rf,
 	rf->alpha = NULL;
 	rf->components_num = info->components_num;
 
+	/*
+	 * The buffer is NULL if it is the reference
+	 * frame of an I-frame in the stateless decoder
+	 */
+	if (!buf) {
+		rf->luma = NULL;
+		rf->cb = NULL;
+		rf->cr = NULL;
+		rf->alpha = NULL;
+		return 0;
+	}
 	switch (info->id) {
 	case V4L2_PIX_FMT_GREY:
 		rf->cb = NULL;
