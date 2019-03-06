@@ -37,7 +37,7 @@
 
 		a53_0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0>;
 			clocks = <&cpg CPG_CORE R8A77970_CLK_Z2>;
 			power-domains = <&sysc R8A77970_PD_CA53_CPU0>;
@@ -47,7 +47,7 @@
 
 		a53_1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <1>;
 			clocks = <&cpg CPG_CORE R8A77970_CLK_Z2>;
 			power-domains = <&sysc R8A77970_PD_CA53_CPU1>;

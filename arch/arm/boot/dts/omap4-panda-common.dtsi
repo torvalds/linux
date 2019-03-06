@@ -485,8 +485,10 @@
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1271";
 		reg = <2>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <21 IRQ_TYPE_EDGE_RISING>; /* gpio 53 */
+		/* gpio_53 with gpmc_ncs3 pad as wakeup */
+		interrupts-extended = <&gpio2 21 IRQ_TYPE_EDGE_RISING>,
+				      <&omap4_pmx_core 0x3a>;
+		interrupt-names = "irq", "wakeup";
 		ref-clock-frequency = <38400000>;
 	};
 };

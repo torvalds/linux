@@ -118,6 +118,7 @@
 		reset-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
 		clocks = <&pmic>;
 		clock-names = "ext_clock";
+		post-power-on-delay-ms = <10>;
 		power-off-delay-us = <10>;
 	};
 
@@ -300,7 +301,6 @@
 
 		dwmmc_0: dwmmc0@f723d000 {
 			cap-mmc-highspeed;
-			mmc-hs200-1_8v;
 			non-removable;
 			bus-width = <0x8>;
 			vmmc-supply = <&ldo19>;

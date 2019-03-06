@@ -6,13 +6,14 @@
  * Licensed under GPLv2 only.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/at91.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel AT91SAM9263 family SoC";
 	compatible = "atmel,at91sam9263";
 	interrupt-parent = <&aic>;
@@ -45,6 +46,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x08000000>;
 	};
 

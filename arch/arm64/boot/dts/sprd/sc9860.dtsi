@@ -50,7 +50,7 @@
 
 		CPU0: cpu@530000 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530000>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -58,7 +58,7 @@
 
 		CPU1: cpu@530001 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530001>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -66,7 +66,7 @@
 
 		CPU2: cpu@530002 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530002>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -74,7 +74,7 @@
 
 		CPU3: cpu@530003 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530003>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -82,7 +82,7 @@
 
 		CPU4: cpu@530100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530100>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -90,7 +90,7 @@
 
 		CPU5: cpu@530101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530101>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -98,7 +98,7 @@
 
 		CPU6: cpu@530102 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530102>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;
@@ -106,7 +106,7 @@
 
 		CPU7: cpu@530103 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x530103>;
 			enable-method = "psci";
 			cpu-idle-states = <&CORE_PD &CLUSTER_PD>;

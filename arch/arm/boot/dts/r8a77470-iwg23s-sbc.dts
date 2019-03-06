@@ -84,10 +84,28 @@
 	clock-frequency = <20000000>;
 };
 
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	rtc@51 {
+		compatible = "nxp,pcf85263";
+		reg = <0x51>;
+	};
+};
+
 &pfc {
 	avb_pins: avb {
 		groups = "avb_mdio", "avb_gmii_tx_rx";
 		function = "avb";
+	};
+
+	i2c3_pins: i2c3 {
+		groups = "i2c3_c";
+		function = "i2c3";
 	};
 
 	mmc_pins_uhs: mmc_uhs {

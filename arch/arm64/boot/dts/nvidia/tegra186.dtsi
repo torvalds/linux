@@ -136,7 +136,7 @@
 	};
 
 	gen1_i2c: i2c@3160000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03160000 0x0 0x10000>;
 		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -149,7 +149,7 @@
 	};
 
 	cam_i2c: i2c@3180000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03180000 0x0 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -163,7 +163,7 @@
 
 	/* shares pads with dpaux1 */
 	dp_aux_ch1_i2c: i2c@3190000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x03190000 0x0 0x10000>;
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -177,7 +177,7 @@
 
 	/* controlled by BPMP, should not be enabled */
 	pwr_i2c: i2c@31a0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -191,7 +191,7 @@
 
 	/* shares pads with dpaux0 */
 	dp_aux_ch0_i2c: i2c@31b0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031b0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -204,7 +204,7 @@
 	};
 
 	gen7_i2c: i2c@31c0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031c0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -217,7 +217,7 @@
 	};
 
 	gen9_i2c: i2c@31e0000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x031e0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -315,10 +315,13 @@
 		nvidia,pad-autocal-pull-down-offset-hs400 = <0x05>;
 		nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
 		nvidia,pad-autocal-pull-down-offset-1v8-timeout = <0x0a>;
+		nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x0a>;
+		nvidia,pad-autocal-pull-down-offset-3v3-timeout = <0x0a>;
 		nvidia,default-tap = <0x5>;
 		nvidia,default-trim = <0x9>;
 		nvidia,dqs-trim = <63>;
 		mmc-hs400-1_8v;
+		supports-cqe;
 		status = "disabled";
 	};
 
@@ -375,7 +378,7 @@
 	};
 
 	gen2_i2c: i2c@c240000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x0c240000 0x0 0x10000>;
 		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -388,7 +391,7 @@
 	};
 
 	gen8_i2c: i2c@c250000 {
-		compatible = "nvidia,tegra186-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra186-i2c", "nvidia,tegra210-i2c";
 		reg = <0x0 0x0c250000 0x0 0x10000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -982,37 +985,37 @@
 		#size-cells = <0>;
 
 		cpu@0 {
-			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			reg = <0x000>;
 		};
 
 		cpu@1 {
-			compatible = "nvidia,tegra186-denver", "arm,armv8";
+			compatible = "nvidia,tegra186-denver";
 			device_type = "cpu";
 			reg = <0x001>;
 		};
 
 		cpu@2 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x100>;
 		};
 
 		cpu@3 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x101>;
 		};
 
 		cpu@4 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x102>;
 		};
 
 		cpu@5 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			device_type = "cpu";
 			reg = <0x103>;
 		};

@@ -627,6 +627,7 @@
 			device_type = "pci";
 			dma-coherent;
 			num-lanes = <4>;
+			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
@@ -648,6 +649,7 @@
 			device_type = "pci";
 			dma-coherent;
 			num-lanes = <4>;
+			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
@@ -669,6 +671,7 @@
 			device_type = "pci";
 			dma-coherent;
 			num-lanes = <8>;
+			num-viewport = <256>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
@@ -690,6 +693,7 @@
 			device_type = "pci";
 			dma-coherent;
 			num-lanes = <4>;
+			num-viewport = <6>;
 			bus-range = <0x0 0xff>;
 			msi-parent = <&its>;
 			#interrupt-cells = <1>;
@@ -727,6 +731,7 @@
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
+			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
 		};
 
 		usb1: usb3@3110000 {
@@ -737,6 +742,7 @@
 			dr_mode = "host";
 			snps,quirk-frame-length-adjustment = <0x20>;
 			snps,dis_rxdet_inp3_quirk;
+			snps,incr-burst-type-adjustment = <1>, <4>, <8>, <16>;
 		};
 
 		ccn@4000000 {

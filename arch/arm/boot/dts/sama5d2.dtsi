@@ -43,13 +43,14 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/at91.h>
 #include <dt-bindings/iio/adc/at91-sama5d2_adc.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel SAMA5D2 family SoC";
 	compatible = "atmel,sama5d2";
 	interrupt-parent = <&aic>;
@@ -113,6 +114,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x20000000>;
 	};
 

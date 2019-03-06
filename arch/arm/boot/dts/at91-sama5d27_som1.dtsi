@@ -62,6 +62,20 @@
 
 	ahb {
 		apb {
+			qspi1: spi@f0024000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_qspi1_default>;
+
+				flash@0 {
+					compatible = "jedec,spi-nor";
+					reg = <0>;
+					spi-max-frequency = <80000000>;
+					spi-tx-bus-width = <4>;
+					spi-rx-bus-width = <4>;
+					m25p,fast-read;
+				};
+			};
+
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_default>;
@@ -77,6 +91,22 @@
 			};
 
 			pinctrl@fc038000 {
+
+				pinctrl_qspi1_default: qspi1_default {
+					sck_cs {
+						pinmux = <PIN_PB5__QSPI1_SCK>,
+							 <PIN_PB6__QSPI1_CS>;
+						bias-disable;
+					};
+
+					data {
+						pinmux = <PIN_PB7__QSPI1_IO0>,
+							 <PIN_PB8__QSPI1_IO1>,
+							 <PIN_PB9__QSPI1_IO2>,
+							 <PIN_PB10__QSPI1_IO3>;
+						bias-pull-up;
+					};
+				};
 
 				pinctrl_macb0_default: macb0_default {
 					pinmux = <PIN_PD9__GTXCK>,

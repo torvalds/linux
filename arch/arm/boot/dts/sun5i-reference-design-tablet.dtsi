@@ -54,7 +54,7 @@
 		pwms = <&pwm 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 10 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <8>;
-		/* TODO: backlight uses axp gpio1 as enable pin */
+		enable-gpios = <&axp_gpio 1 GPIO_ACTIVE_HIGH>; /* AXP GPIO1 */
 	};
 
 	chosen {

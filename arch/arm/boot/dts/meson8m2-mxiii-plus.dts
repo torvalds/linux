@@ -28,6 +28,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 
@@ -42,6 +43,11 @@
 			linux,code = <KEY_FN>;
 			press-threshold-microvolt = <10000>;
 		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&saradc 8>;
 	};
 
 	vcc_3v3: regulator-vcc3v3 {

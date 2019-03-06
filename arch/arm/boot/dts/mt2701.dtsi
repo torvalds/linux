@@ -12,10 +12,11 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
 #include <dt-bindings/reset/mt2701-resets.h>
-#include "skeleton64.dtsi"
 #include "mt2701-pinfunc.h"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "mediatek,mt2701";
 	interrupt-parent = <&cirq>;
 

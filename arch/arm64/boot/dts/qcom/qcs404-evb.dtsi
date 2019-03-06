@@ -127,6 +127,7 @@
 	status = "ok";
 
 	mmc-ddr-1_8v;
+	mmc-hs400-1_8v;
 	bus-width = <8>;
 	non-removable;
 
@@ -184,5 +185,23 @@
 			pins = "sdc1_rclk";
 			bias-pull-down;
 		};
+	};
+};
+
+&wifi {
+	status = "okay";
+};
+
+/* PINCTRL - additions to nodes defined in qcs404.dtsi */
+
+&blsp1_uart2_default {
+	rx {
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tx {
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

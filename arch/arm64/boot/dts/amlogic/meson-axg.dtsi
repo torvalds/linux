@@ -68,7 +68,7 @@
 
 		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
@@ -77,7 +77,7 @@
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
@@ -86,7 +86,7 @@
 
 		cpu2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
@@ -95,7 +95,7 @@
 
 		cpu3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			next-level-cache = <&l2>;
@@ -109,6 +109,14 @@
 
 	sm: secure-monitor {
 		compatible = "amlogic,meson-gxbb-sm";
+	};
+
+	efuse: efuse {
+		compatible = "amlogic,meson-gxbb-efuse";
+		clocks = <&clkc CLKID_EFUSE>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		read-only;
 	};
 
 	psci {
@@ -1260,6 +1268,18 @@
 				status = "disabled";
 			};
 
+			spdifin: audio-controller@400 {
+				compatible = "amlogic,axg-spdifin";
+				reg = <0x0 0x400 0x0 0x30>;
+				#sound-dai-cells = <0>;
+				sound-name-prefix = "SPDIFIN";
+				interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc_audio AUD_CLKID_SPDIFIN>,
+					 <&clkc_audio AUD_CLKID_SPDIFIN_CLK>;
+				clock-names = "pclk", "refclk";
+				status = "disabled";
+			};
+
 			spdifout: audio-controller@480 {
 				compatible = "amlogic,axg-spdifout";
 				reg = <0x0 0x480 0x0 0x50>;
@@ -1588,6 +1608,11 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
+			};
+
+			clk_msr: clock-measure@18000 {
+				compatible = "amlogic,meson-axg-clk-measure";
+				reg = <0x0 0x18000 0x0 0x10>;
 			};
 
 			i2c3: i2c@1c000 {

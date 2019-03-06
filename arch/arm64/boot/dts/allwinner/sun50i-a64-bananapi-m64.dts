@@ -222,6 +222,14 @@
 
 #include "axp803.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
+
 &reg_aldo1 {
 	/*
 	 * This regulator also drives the PE pingroup GPIOs,

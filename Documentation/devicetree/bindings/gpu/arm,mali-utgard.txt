@@ -13,6 +13,8 @@ Required properties:
       + allwinner,sun8i-h3-mali
       + allwinner,sun50i-a64-mali
       + allwinner,sun50i-h5-mali
+      + amlogic,meson8-mali
+      + amlogic,meson8b-mali
       + amlogic,meson-gxbb-mali
       + amlogic,meson-gxl-mali
       + rockchip,rk3036-mali
@@ -79,6 +81,10 @@ to specify one more vendor-specific compatible, among:
       * resets: phandle to the reset line for the GPU
 
   - allwinner,sun50i-h5-mali
+    Required properties:
+      * resets: phandle to the reset line for the GPU
+
+  - amlogic,meson8-mali and amlogic,meson8b-mali
     Required properties:
       * resets: phandle to the reset line for the GPU
 

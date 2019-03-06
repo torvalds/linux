@@ -149,7 +149,7 @@
 		};
 
 		a57_0: cpu@0 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA57_CPU0>;
@@ -162,7 +162,7 @@
 		};
 
 		a57_1: cpu@1 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x1>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA57_CPU1>;
@@ -175,7 +175,7 @@
 		};
 
 		a57_2: cpu@2 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x2>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA57_CPU2>;
@@ -188,7 +188,7 @@
 		};
 
 		a57_3: cpu@3 {
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x3>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA57_CPU3>;
@@ -201,7 +201,7 @@
 		};
 
 		a53_0: cpu@100 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA53_CPU0>;
@@ -213,7 +213,7 @@
 		};
 
 		a53_1: cpu@101 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA53_CPU1>;
@@ -225,7 +225,7 @@
 		};
 
 		a53_2: cpu@102 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x102>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA53_CPU2>;
@@ -237,7 +237,7 @@
 		};
 
 		a53_3: cpu@103 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x103>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A7795_PD_CA53_CPU3>;
@@ -2174,53 +2174,53 @@
 			rcar_sound,ssi {
 				ssi0: ssi-0 {
 					interrupts = <GIC_SPI 370 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x01>, <&audma1 0x02>, <&audma0 0x15>, <&audma1 0x16>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x01>, <&audma1 0x02>;
+					dma-names = "rx", "tx";
 				};
 				ssi1: ssi-1 {
 					 interrupts = <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x03>, <&audma1 0x04>, <&audma0 0x49>, <&audma1 0x4a>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x03>, <&audma1 0x04>;
+					dma-names = "rx", "tx";
 				};
 				ssi2: ssi-2 {
 					interrupts = <GIC_SPI 372 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x05>, <&audma1 0x06>, <&audma0 0x63>, <&audma1 0x64>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x05>, <&audma1 0x06>;
+					dma-names = "rx", "tx";
 				};
 				ssi3: ssi-3 {
 					interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x07>, <&audma1 0x08>, <&audma0 0x6f>, <&audma1 0x70>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x07>, <&audma1 0x08>;
+					dma-names = "rx", "tx";
 				};
 				ssi4: ssi-4 {
 					interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x09>, <&audma1 0x0a>, <&audma0 0x71>, <&audma1 0x72>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x09>, <&audma1 0x0a>;
+					dma-names = "rx", "tx";
 				};
 				ssi5: ssi-5 {
 					interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x0b>, <&audma1 0x0c>, <&audma0 0x73>, <&audma1 0x74>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x0b>, <&audma1 0x0c>;
+					dma-names = "rx", "tx";
 				};
 				ssi6: ssi-6 {
 					interrupts = <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x0d>, <&audma1 0x0e>, <&audma0 0x75>, <&audma1 0x76>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x0d>, <&audma1 0x0e>;
+					dma-names = "rx", "tx";
 				};
 				ssi7: ssi-7 {
 					interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x0f>, <&audma1 0x10>, <&audma0 0x79>, <&audma1 0x7a>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x0f>, <&audma1 0x10>;
+					dma-names = "rx", "tx";
 				};
 				ssi8: ssi-8 {
 					interrupts = <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x11>, <&audma1 0x12>, <&audma0 0x7b>, <&audma1 0x7c>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x11>, <&audma1 0x12>;
+					dma-names = "rx", "tx";
 				};
 				ssi9: ssi-9 {
 					interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>;
-					dmas = <&audma0 0x13>, <&audma1 0x14>, <&audma0 0x7d>, <&audma1 0x7e>;
-					dma-names = "rx", "tx", "rxu", "txu";
+					dmas = <&audma0 0x13>, <&audma1 0x14>;
+					dma-names = "rx", "tx";
 				};
 			};
 		};

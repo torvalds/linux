@@ -57,4 +57,34 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
+
+	tscadc0: tscadc@40200000 {
+		compatible = "ti,am654-tscadc", "ti,am3359-tscadc";
+		reg = <0x0 0x40200000 0x0 0x1000>;
+		interrupts = <GIC_SPI 580 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 0 2>;
+		assigned-clocks = <&k3_clks 0 2>;
+		assigned-clock-rates = <60000000>;
+		clock-names = "adc_tsc_fck";
+
+		adc {
+			#io-channel-cells = <1>;
+			compatible = "ti,am654-adc", "ti,am3359-adc";
+		};
+	};
+
+	tscadc1: tscadc@40210000 {
+		compatible = "ti,am654-tscadc", "ti,am3359-tscadc";
+		reg = <0x0 0x40210000 0x0 0x1000>;
+		interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 1 2>;
+		assigned-clocks = <&k3_clks 1 2>;
+		assigned-clock-rates = <60000000>;
+		clock-names = "adc_tsc_fck";
+
+		adc {
+			#io-channel-cells = <1>;
+			compatible = "ti,am654-adc", "ti,am3359-adc";
+		};
+	};
 };

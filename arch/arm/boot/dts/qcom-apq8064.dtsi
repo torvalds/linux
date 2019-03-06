@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-msm8960.h>
 #include <dt-bindings/reset/qcom,gcc-msm8960.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8960.h>
@@ -10,6 +9,8 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm APQ8064";
 	compatible = "qcom,apq8064";
 	interrupt-parent = <&intc>;
@@ -92,6 +93,11 @@
 				min-residency-us = <3000>;
 			};
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	thermal-zones {

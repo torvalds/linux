@@ -6,6 +6,26 @@
  */
 
 &cbass_main {
+	msmc_ram: sram@70000000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x70000000 0x0 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x70000000 0x200000>;
+
+		atf-sram@0 {
+			reg = <0x0 0x20000>;
+		};
+
+		sysfw-sram@f0000 {
+			reg = <0xf0000 0x10000>;
+		};
+
+		l3cache-sram@100000 {
+			reg = <0x100000 0x100000>;
+		};
+	};
+
 	gic500: interrupt-controller@1800000 {
 		compatible = "arm,gic-v3";
 		#address-cells = <2>;
@@ -190,5 +210,103 @@
 		power-domains = <&k3_pds 141>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	sdhci0: sdhci@4f80000 {
+		compatible = "ti,am654-sdhci-5.1";
+		reg = <0x0 0x4f80000 0x0 0x260>, <0x0 0x4f90000 0x0 0x134>;
+		power-domains = <&k3_pds 47>;
+		clocks = <&k3_clks 47 0>, <&k3_clks 47 1>;
+		clock-names = "clk_ahb", "clk_xin";
+		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
+		mmc-ddr-1_8v;
+		mmc-hs200-1_8v;
+		ti,otap-del-sel = <0x2>;
+		ti,trm-icp = <0x8>;
+		dma-coherent;
+	};
+
+	scm_conf: scm_conf@100000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0 0x00100000 0 0x1c000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x00100000 0x1c000>;
+	};
+
+	dwc3_0: dwc3@4000000 {
+		compatible = "ti,am654-dwc3";
+		reg = <0x0 0x4000000 0x0 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x4000000 0x20000>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		dma-coherent;
+		power-domains = <&k3_pds 151>;
+		assigned-clocks = <&k3_clks 151 2>, <&k3_clks 151 7>;
+		assigned-clock-parents = <&k3_clks 151 4>,	/* set REF_CLK to 20MHz i.e. PER0_PLL/48 */
+					 <&k3_clks 151 9>;	/* set PIPE3_TXB_CLK to CLK_12M_RC/256 (for HS only) */
+
+		usb0: usb@10000 {
+			compatible = "snps,dwc3";
+			reg = <0x10000 0x10000>;
+			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "peripheral",
+					  "host",
+					  "otg";
+			maximum-speed = "high-speed";
+			dr_mode = "otg";
+			phys = <&usb0_phy>;
+			phy-names = "usb2-phy";
+			snps,dis_u3_susphy_quirk;
+		};
+	};
+
+	usb0_phy: phy@4100000 {
+		compatible = "ti,am654-usb2", "ti,omap-usb2";
+		reg = <0x0 0x4100000 0x0 0x54>;
+		syscon-phy-power = <&scm_conf 0x4000>;
+		clocks = <&k3_clks 151 0>, <&k3_clks 151 1>;
+		clock-names = "wkupclk", "refclk";
+		#phy-cells = <0>;
+	};
+
+	dwc3_1: dwc3@4020000 {
+		compatible = "ti,am654-dwc3";
+		reg = <0x0 0x4020000 0x0 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x4020000 0x20000>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		dma-coherent;
+		power-domains = <&k3_pds 152>;
+		assigned-clocks = <&k3_clks 152 2>;
+		assigned-clock-parents = <&k3_clks 152 4>;	/* set REF_CLK to 20MHz i.e. PER0_PLL/48 */
+
+		usb1: usb@10000 {
+			compatible = "snps,dwc3";
+			reg = <0x10000 0x10000>;
+			interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "peripheral",
+					  "host",
+					  "otg";
+			maximum-speed = "high-speed";
+			dr_mode = "otg";
+			phys = <&usb1_phy>;
+			phy-names = "usb2-phy";
+		};
+	};
+
+	usb1_phy: phy@4110000 {
+		compatible = "ti,am654-usb2", "ti,omap-usb2";
+		reg = <0x0 0x4110000 0x0 0x54>;
+		syscon-phy-power = <&scm_conf 0x4020>;
+		clocks = <&k3_clks 152 0>, <&k3_clks 152 1>;
+		clock-names = "wkupclk", "refclk";
+		#phy-cells = <0>;
 	};
 };

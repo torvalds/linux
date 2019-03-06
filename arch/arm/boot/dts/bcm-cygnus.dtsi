@@ -34,15 +34,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-cygnus.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,cygnus";
 	model = "Broadcom Cygnus SoC";
 	interrupt-parent = <&gic>;
 
 	aliases {
 		ethernet0 = &eth0;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>;
 	};
 
 	cpus {
