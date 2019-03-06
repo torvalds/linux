@@ -12,7 +12,7 @@ static void test_signal_pending_by_type(enum bpf_prog_type prog_type)
 	struct itimerval timeo = {
 		.it_value.tv_usec = 100000, /* 100ms */
 	};
-	__u32 duration, retval;
+	__u32 duration = 0, retval;
 	int prog_fd;
 	int err;
 	int i;
