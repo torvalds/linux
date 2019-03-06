@@ -687,10 +687,13 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 
 		if (ret < 0) {
 			/*
-			 * Release pages, starting at the the first page
-			 * that experienced an error.
+			 * Release pages, remembering that the first page
+			 * to hit an error was already released by
+			 * ib_umem_odp_map_dma_single_page().
 			 */
-			release_pages(&local_page_list[j], npages - j);
+			if (npages - (j + 1) > 0)
+				release_pages(&local_page_list[j+1],
+					      npages - (j + 1));
 			break;
 		}
 	}
