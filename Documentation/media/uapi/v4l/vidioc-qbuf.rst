@@ -189,6 +189,10 @@ EACCES
     The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was set but the device does not
     support requests for the given buffer type.
 
+EBADR
+    The ``V4L2_BUF_FLAG_REQUEST_FD`` flag was not set but the device requires
+    that the buffer is part of a request.
+
 EBUSY
     The first buffer was queued via a request, but the application now tries
     to queue it directly, or vice versa (it is not permitted to mix the two
