@@ -298,7 +298,6 @@ static u32 goya_all_events[] = {
 	GOYA_ASYNC_EVENT_ID_DMA_BM_CH4
 };
 
-static int goya_armcp_info_get(struct hl_device *hdev);
 static void goya_mmu_prepare(struct hl_device *hdev, u32 asid);
 static int goya_mmu_clear_pgt_range(struct hl_device *hdev);
 static int goya_mmu_set_dram_default_page(struct hl_device *hdev);
@@ -538,10 +537,9 @@ static void goya_fetch_psoc_frequency(struct hl_device *hdev)
 static int goya_late_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	struct goya_device *goya = hdev->asic_specific;
 	int rc;
 
-	rc = goya->armcp_info_get(hdev);
+	rc = goya_armcp_info_get(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get armcp info\n");
 		return rc;
@@ -627,9 +625,6 @@ static int goya_sw_init(struct hl_device *hdev)
 	goya = kzalloc(sizeof(*goya), GFP_KERNEL);
 	if (!goya)
 		return -ENOMEM;
-
-	goya->test_cpu_queue = goya_test_cpu_queue;
-	goya->armcp_info_get = goya_armcp_info_get;
 
 	/* according to goya_init_iatu */
 	goya->ddr_bar_cur_addr = DRAM_PHYS_BASE;
@@ -2968,7 +2963,6 @@ int goya_test_cpu_queue(struct hl_device *hdev)
 
 static int goya_test_queues(struct hl_device *hdev)
 {
-	struct goya_device *goya = hdev->asic_specific;
 	int i, rc, ret_val = 0;
 
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++) {
@@ -2978,7 +2972,7 @@ static int goya_test_queues(struct hl_device *hdev)
 	}
 
 	if (hdev->cpu_queues_enable) {
-		rc = goya->test_cpu_queue(hdev);
+		rc = goya_test_cpu_queue(hdev);
 		if (rc)
 			ret_val = -EINVAL;
 	}
@@ -4656,7 +4650,7 @@ int goya_send_heartbeat(struct hl_device *hdev)
 	return hl_fw_send_heartbeat(hdev);
 }
 
-static int goya_armcp_info_get(struct hl_device *hdev)
+int goya_armcp_info_get(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;

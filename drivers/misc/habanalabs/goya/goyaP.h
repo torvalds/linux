@@ -143,9 +143,6 @@ enum goya_fw_component {
 };
 
 struct goya_device {
-	int (*test_cpu_queue)(struct hl_device *hdev);
-	int (*armcp_info_get)(struct hl_device *hdev);
-
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t	hw_queues_lock;
 
@@ -176,6 +173,7 @@ void goya_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state);
 void goya_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 void goya_add_device_attr(struct hl_device *hdev,
 			struct attribute_group *dev_attr_grp);
+int goya_armcp_info_get(struct hl_device *hdev);
 void goya_init_security(struct hl_device *hdev);
 u64 goya_get_max_power(struct hl_device *hdev);
 void goya_set_max_power(struct hl_device *hdev, u64 value);
