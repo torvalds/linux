@@ -2155,12 +2155,13 @@ int ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		int our = 0;
 		int err = -EINVAL;
 
-		if (in_dev)
-			our = ip_check_mc_rcu(in_dev, daddr, saddr,
-					      ip_hdr(skb)->protocol);
+		if (!in_dev)
+			return err;
+		our = ip_check_mc_rcu(in_dev, daddr, saddr,
+				      ip_hdr(skb)->protocol);
 
 		/* check l3 master if no match yet */
-		if ((!in_dev || !our) && netif_is_l3_slave(dev)) {
+		if (!our && netif_is_l3_slave(dev)) {
 			struct in_device *l3_in_dev;
 
 			l3_in_dev = __in_dev_get_rcu(skb->dev);
