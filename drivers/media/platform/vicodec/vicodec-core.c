@@ -1628,6 +1628,7 @@ static int vicodec_release(struct file *file)
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->hdl);
+	kvfree(ctx->state.compressed_frame);
 	kfree(ctx);
 
 	return 0;
