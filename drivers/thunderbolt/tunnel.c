@@ -475,7 +475,7 @@ err_free:
  * tb_tunnel_free() - free a tunnel
  * @tunnel: Tunnel to be freed
  *
- * The tunnel must have been deactivated.
+ * Frees a tunnel. The tunnel does not need to be deactivated.
  */
 void tb_tunnel_free(struct tb_tunnel *tunnel)
 {
@@ -483,14 +483,6 @@ void tb_tunnel_free(struct tb_tunnel *tunnel)
 
 	if (!tunnel)
 		return;
-
-	for (i = 0; i < tunnel->npaths; i++) {
-		if (tunnel->paths[i] && tunnel->paths[i]->activated) {
-			tb_tunnel_WARN(tunnel,
-				       "trying to free an activated tunnel\n");
-			return;
-		}
-	}
 
 	for (i = 0; i < tunnel->npaths; i++) {
 		if (tunnel->paths[i])

@@ -304,16 +304,14 @@ err:
 }
 
 /**
- * tb_path_free() - free a deactivated path
+ * tb_path_free() - free a path
+ * @path: Path to free
+ *
+ * Frees a path. The path does not need to be deactivated.
  */
 void tb_path_free(struct tb_path *path)
 {
 	int i;
-
-	if (path->activated) {
-		tb_WARN(path->tb, "trying to free an activated path\n")
-		return;
-	}
 
 	for (i = 0; i < path->path_length; i++) {
 		const struct tb_path_hop *hop = &path->hops[i];

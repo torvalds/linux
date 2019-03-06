@@ -500,10 +500,8 @@ static void tb_stop(struct tb *tb)
 	struct tb_tunnel *n;
 
 	/* tunnels are only present after everything has been initialized */
-	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
-		tb_tunnel_deactivate(tunnel);
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
 		tb_tunnel_free(tunnel);
-	}
 	tb_switch_remove(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 }
