@@ -327,6 +327,9 @@ static void tegra_smmu_domain_free(struct iommu_domain *domain)
 
 	/* TODO: free page directory and page tables */
 
+	WARN_ON_ONCE(as->use_count);
+	kfree(as->count);
+	kfree(as->pts);
 	kfree(as);
 }
 
