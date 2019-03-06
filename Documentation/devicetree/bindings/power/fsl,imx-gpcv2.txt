@@ -32,6 +32,9 @@ Required properties:
 Optional properties:
 
 - power-supply: Power supply used to power the domain
+- clocks: a number of phandles to clocks that need to be enabled during
+  domain power-up sequencing to ensure reset propagation into devices
+  located inside this power domain
 
 Example:
 

@@ -14,6 +14,7 @@
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/reset/sunxi.h>
 
 #include <asm/mach/arch.h>
 #include <asm/secure_cntvoff.h>
@@ -37,7 +38,6 @@ static const char * const sun6i_board_dt_compat[] = {
 	NULL,
 };
 
-extern void __init sun6i_reset_init(void);
 static void __init sun6i_timer_init(void)
 {
 	of_clk_init(NULL);
