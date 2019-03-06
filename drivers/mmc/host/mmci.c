@@ -47,7 +47,7 @@
 #define DRIVER_NAME "mmci-pl18x"
 
 #ifdef CONFIG_DMA_ENGINE
-void mmci_variant_init(struct mmci_host *host);
+static void mmci_variant_init(struct mmci_host *host);
 #else
 static inline void mmci_variant_init(struct mmci_host *host) {}
 #endif
