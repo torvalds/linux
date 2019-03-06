@@ -17,12 +17,8 @@
 
 #ifdef CONFIG_MMC_QCOM_DML
 void qcom_variant_init(struct mmci_host *host);
-void dml_start_xfer(struct mmci_host *host, struct mmc_data *data);
 #else
 static inline void qcom_variant_init(struct mmci_host *host)
-{
-}
-static inline void dml_start_xfer(struct mmci_host *host, struct mmc_data *data)
 {
 }
 #endif /* CONFIG_MMC_QCOM_DML */

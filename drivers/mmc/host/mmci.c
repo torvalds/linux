@@ -886,14 +886,10 @@ int mmci_dmae_prep_data(struct mmci_host *host,
 int mmci_dmae_start(struct mmci_host *host, unsigned int *datactrl)
 {
 	struct mmci_dmae_priv *dmae = host->dma_priv;
-	struct mmc_data *data = host->data;
 
 	host->dma_in_progress = true;
 	dmaengine_submit(dmae->desc_current);
 	dma_async_issue_pending(dmae->cur);
-
-	if (host->variant->qcom_dml)
-		dml_start_xfer(host, data);
 
 	*datactrl |= MCI_DPSM_DMAENABLE;
 
