@@ -1704,6 +1704,122 @@ enum v4l2_mpeg_mfc51_video_force_frame_type -
       - Force a non-coded frame.
 
 
+.. _v4l2-mpeg-fwht:
+
+``V4L2_CID_MPEG_VIDEO_FWHT_PARAMS (struct)``
+    Specifies the fwht parameters (as extracted from the bitstream) for the
+    associated FWHT data. This includes the necessary parameters for
+    configuring a stateless hardware decoding pipeline for FWHT.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
+.. c:type:: v4l2_ctrl_fwht_params
+
+.. cssclass:: longtable
+
+.. flat-table:: struct v4l2_ctrl_fwht_params
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - __u64
+      - ``backward_ref_ts``
+      - Timestamp of the V4L2 capture buffer to use as backward reference, used
+        with P-coded frames. The timestamp refers to the
+	``timestamp`` field in struct :c:type:`v4l2_buffer`. Use the
+	:c:func:`v4l2_timeval_to_ns()` function to convert the struct
+	:c:type:`timeval` in struct :c:type:`v4l2_buffer` to a __u64.
+    * - __u32
+      - ``version``
+      - The version of the codec
+    * - __u32
+      - ``width``
+      - The width of the frame
+    * - __u32
+      - ``height``
+      - The height of the frame
+    * - __u32
+      - ``flags``
+      - The flags of the frame, see :ref:`fwht-flags`.
+    * - __u32
+      - ``colorspace``
+      - The colorspace of the frame, from enum :c:type:`v4l2_colorspace`.
+    * - __u32
+      - ``xfer_func``
+      - The transfer function, from enum :c:type:`v4l2_xfer_func`.
+    * - __u32
+      - ``ycbcr_enc``
+      - The Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
+    * - __u32
+      - ``quantization``
+      - The quantization range, from enum :c:type:`v4l2_quantization`.
+
+
+
+.. _fwht-flags:
+
+FWHT Flags
+============
+.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
+
+.. cssclass:: longtable
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
+
+    * - ``FWHT_FL_IS_INTERLACED``
+      - 0x00000001
+      - Set if this is an interlaced format
+    * - ``FWHT_FL_IS_BOTTOM_FIRST``
+      - 0x00000002
+      - Set if this is a bottom-first (NTSC) interlaced format
+    * - ``FWHT_FL_IS_ALTERNATE``
+      - 0x00000004
+      - Set if each 'frame' contains just one field
+    * - ``FWHT_FL_IS_BOTTOM_FIELD``
+      - 0x00000008
+      - If FWHT_FL_IS_ALTERNATE was set, then this is set if this 'frame' is the
+	bottom field, else it is the top field.
+    * - ``FWHT_FL_LUMA_IS_UNCOMPRESSED``
+      - 0x00000010
+      - Set if the luma plane is uncompressed
+    * - ``FWHT_FL_CB_IS_UNCOMPRESSED``
+      - 0x00000020
+      - Set if the cb plane is uncompressed
+    * - ``FWHT_FL_CR_IS_UNCOMPRESSED``
+      - 0x00000040
+      - Set if the cr plane is uncompressed
+    * - ``FWHT_FL_CHROMA_FULL_HEIGHT``
+      - 0x00000080
+      - Set if the chroma plane has the same height as the luma plane,
+	else the chroma plane is half the height of the luma plane
+    * - ``FWHT_FL_CHROMA_FULL_WIDTH``
+      - 0x00000100
+      - Set if the chroma plane has the same width as the luma plane,
+	else the chroma plane is half the width of the luma plane
+    * - ``FWHT_FL_ALPHA_IS_UNCOMPRESSED``
+      - 0x00000200
+      - Set if the alpha plane is uncompressed
+    * - ``FWHT_FL_I_FRAME``
+      - 0x00000400
+      - Set if this is an I-frame
+    * - ``FWHT_FL_COMPONENTS_NUM_MSK``
+      - 0x00070000
+      - A 4-values flag - the number of components - 1
+    * - ``FWHT_FL_PIXENC_YUV``
+      - 0x00080000
+      - Set if the pixel encoding is YUV
+    * - ``FWHT_FL_PIXENC_RGB``
+      - 0x00100000
+      - Set if the pixel encoding is RGB
+    * - ``FWHT_FL_PIXENC_HSV``
+      - 0x00180000
+      - Set if the pixel encoding is HSV
 
 
 CX2341x MPEG Controls
