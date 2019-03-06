@@ -9856,11 +9856,11 @@ enum skl_power_gate {
 #define  BXT_DRAM_WIDTH_X64			(0x3 << 4)
 #define  BXT_DRAM_SIZE_MASK			(0x7 << 6)
 #define  BXT_DRAM_SIZE_SHIFT			6
-#define  BXT_DRAM_SIZE_4GB			(0x0 << 6)
-#define  BXT_DRAM_SIZE_6GB			(0x1 << 6)
-#define  BXT_DRAM_SIZE_8GB			(0x2 << 6)
-#define  BXT_DRAM_SIZE_12GB			(0x3 << 6)
-#define  BXT_DRAM_SIZE_16GB			(0x4 << 6)
+#define  BXT_DRAM_SIZE_4GBIT			(0x0 << 6)
+#define  BXT_DRAM_SIZE_6GBIT			(0x1 << 6)
+#define  BXT_DRAM_SIZE_8GBIT			(0x2 << 6)
+#define  BXT_DRAM_SIZE_12GBIT			(0x3 << 6)
+#define  BXT_DRAM_SIZE_16GBIT			(0x4 << 6)
 
 #define SKL_MEMORY_FREQ_MULTIPLIER_HZ		266666666
 #define SKL_MC_BIOS_DATA_0_0_0_MCHBAR_PCU	_MMIO(MCHBAR_MIRROR_BASE_SNB + 0x5E04)

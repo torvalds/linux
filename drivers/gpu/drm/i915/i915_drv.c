@@ -1242,15 +1242,15 @@ skl_get_dram_info(struct drm_i915_private *dev_priv)
 static int bxt_get_dimm_size(u32 val)
 {
 	switch (val & BXT_DRAM_SIZE_MASK) {
-	case BXT_DRAM_SIZE_4GB:
+	case BXT_DRAM_SIZE_4GBIT:
 		return 4;
-	case BXT_DRAM_SIZE_6GB:
+	case BXT_DRAM_SIZE_6GBIT:
 		return 6;
-	case BXT_DRAM_SIZE_8GB:
+	case BXT_DRAM_SIZE_8GBIT:
 		return 8;
-	case BXT_DRAM_SIZE_12GB:
+	case BXT_DRAM_SIZE_12GBIT:
 		return 12;
-	case BXT_DRAM_SIZE_16GB:
+	case BXT_DRAM_SIZE_16GBIT:
 		return 16;
 	default:
 		MISSING_CASE(val);
@@ -1287,9 +1287,14 @@ static int bxt_get_dimm_ranks(u32 val)
 static void bxt_get_dimm_info(struct dram_dimm_info *dimm,
 			      u32 val)
 {
-	dimm->size = bxt_get_dimm_size(val);
 	dimm->width = bxt_get_dimm_width(val);
 	dimm->ranks = bxt_get_dimm_ranks(val);
+
+	/*
+	 * Size in register is Gb per DRAM device. Convert to total
+	 * GB to match the way we report this for non-LP platforms.
+	 */
+	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm) / 8;
 }
 
 static int
