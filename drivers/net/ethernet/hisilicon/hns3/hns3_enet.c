@@ -2472,6 +2472,8 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 		desc = &ring->desc[ring->next_to_clean];
 		desc_cb = &ring->desc_cb[ring->next_to_clean];
 		bd_base_info = le32_to_cpu(desc->rx.bd_base_info);
+		/* make sure HW write desc complete */
+		dma_rmb();
 		if (!(bd_base_info & BIT(HNS3_RXD_VLD_B)))
 			return -ENXIO;
 
