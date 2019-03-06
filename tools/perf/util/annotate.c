@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include "util.h"
 #include "ui/ui.h"
 #include "sort.h"
@@ -16,6 +17,7 @@
 #include "color.h"
 #include "config.h"
 #include "cache.h"
+#include "map.h"
 #include "symbol.h"
 #include "units.h"
 #include "debug.h"
@@ -1889,6 +1891,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 		     struct annotation_options *options,
 		     struct arch **parch)
 {
+	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
 		.privsize	= privsize,
 		.evsel		= evsel,
@@ -1919,6 +1922,7 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 
 	args.ms.map = map;
 	args.ms.sym = sym;
+	notes->start = map__rip_2objdump(map, sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -2793,8 +2797,6 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 	notes->options = options;
 
 	symbol__calc_percent(sym, evsel);
-
-	notes->start = map__rip_2objdump(map, sym->start);
 
 	annotation__set_offsets(notes, size);
 	annotation__mark_jump_targets(notes, sym);

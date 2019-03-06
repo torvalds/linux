@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 # SPDX-License-Identifier: GPL-2.0
 # exported-sql-viewer.py: view data from sql database
 # Copyright (c) 2014-2018, Intel Corporation.
@@ -1398,18 +1398,28 @@ class BranchModel(TreeModel):
 	def HasMoreRecords(self):
 		return self.more
 
+# Report Variables
+
+class ReportVars():
+
+	def __init__(self, name = "", where_clause = "", limit = ""):
+		self.name = name
+		self.where_clause = where_clause
+		self.limit = limit
+
+	def UniqueId(self):
+		return str(self.where_clause + ";" + self.limit)
+
 # Branch window
 
 class BranchWindow(QMdiSubWindow):
 
-	def __init__(self, glb, event_id, name, where_clause, parent=None):
+	def __init__(self, glb, event_id, report_vars, parent=None):
 		super(BranchWindow, self).__init__(parent)
 
-		model_name = "Branch Events " + str(event_id)
-		if len(where_clause):
-			model_name = where_clause + " " + model_name
+		model_name = "Branch Events " + str(event_id) +  " " + report_vars.UniqueId()
 
-		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, where_clause))
+		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, report_vars.where_clause))
 
 		self.view = QTreeView()
 		self.view.setUniformRowHeights(True)
@@ -1427,7 +1437,7 @@ class BranchWindow(QMdiSubWindow):
 
 		self.setWidget(self.vbox.Widget())
 
-		AddSubWindow(glb.mainwindow.mdi_area, self, name + " Branch Events")
+		AddSubWindow(glb.mainwindow.mdi_area, self, report_vars.name + " Branch Events")
 
 	def ResizeColumnToContents(self, column, n):
 		# Using the view's resizeColumnToContents() here is extrememly slow
@@ -1472,46 +1482,133 @@ class BranchWindow(QMdiSubWindow):
 		else:
 			self.find_bar.NotFound()
 
-# Dialog data item converted and validated using a SQL table
+# Line edit data item
 
-class SQLTableDialogDataItem():
+class LineEditDataItem(object):
 
-	def __init__(self, glb, label, placeholder_text, table_name, match_column, column_name1, column_name2, parent):
+	def __init__(self, glb, label, placeholder_text, parent, id = "", default = ""):
 		self.glb = glb
 		self.label = label
 		self.placeholder_text = placeholder_text
-		self.table_name = table_name
-		self.match_column = match_column
-		self.column_name1 = column_name1
-		self.column_name2 = column_name2
 		self.parent = parent
+		self.id = id
 
-		self.value = ""
+		self.value = default
 
-		self.widget = QLineEdit()
+		self.widget = QLineEdit(default)
 		self.widget.editingFinished.connect(self.Validate)
 		self.widget.textChanged.connect(self.Invalidate)
 		self.red = False
 		self.error = ""
 		self.validated = True
 
-		self.last_id = 0
-		self.first_time = 0
-		self.last_time = 2 ** 64
-		if self.table_name == "<timeranges>":
-			query = QSqlQuery(self.glb.db)
-			QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
-			if query.next():
-				self.last_id = int(query.value(0))
-				self.last_time = int(query.value(1))
-			QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
-			if query.next():
-				self.first_time = int(query.value(0))
-			if placeholder_text:
-				placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
-
 		if placeholder_text:
 			self.widget.setPlaceholderText(placeholder_text)
+
+	def TurnTextRed(self):
+		if not self.red:
+			palette = QPalette()
+			palette.setColor(QPalette.Text,Qt.red)
+			self.widget.setPalette(palette)
+			self.red = True
+
+	def TurnTextNormal(self):
+		if self.red:
+			palette = QPalette()
+			self.widget.setPalette(palette)
+			self.red = False
+
+	def InvalidValue(self, value):
+		self.value = ""
+		self.TurnTextRed()
+		self.error = self.label + " invalid value '" + value + "'"
+		self.parent.ShowMessage(self.error)
+
+	def Invalidate(self):
+		self.validated = False
+
+	def DoValidate(self, input_string):
+		self.value = input_string.strip()
+
+	def Validate(self):
+		self.validated = True
+		self.error = ""
+		self.TurnTextNormal()
+		self.parent.ClearMessage()
+		input_string = self.widget.text()
+		if not len(input_string.strip()):
+			self.value = ""
+			return
+		self.DoValidate(input_string)
+
+	def IsValid(self):
+		if not self.validated:
+			self.Validate()
+		if len(self.error):
+			self.parent.ShowMessage(self.error)
+			return False
+		return True
+
+	def IsNumber(self, value):
+		try:
+			x = int(value)
+		except:
+			x = 0
+		return str(x) == value
+
+# Non-negative integer ranges dialog data item
+
+class NonNegativeIntegerRangesDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, column_name, parent):
+		super(NonNegativeIntegerRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
+
+		self.column_name = column_name
+
+	def DoValidate(self, input_string):
+		singles = []
+		ranges = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			if "-" in value:
+				vrange = value.split("-")
+				if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+					return self.InvalidValue(value)
+				ranges.append(vrange)
+			else:
+				if not self.IsNumber(value):
+					return self.InvalidValue(value)
+				singles.append(value)
+		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
+		if len(singles):
+			ranges.append(self.column_name + " IN (" + ",".join(singles) + ")")
+		self.value = " OR ".join(ranges)
+
+# Positive integer dialog data item
+
+class PositiveIntegerDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, parent, id = "", default = ""):
+		super(PositiveIntegerDataItem, self).__init__(glb, label, placeholder_text, parent, id, default)
+
+	def DoValidate(self, input_string):
+		if not self.IsNumber(input_string.strip()):
+			return self.InvalidValue(input_string)
+		value = int(input_string.strip())
+		if value <= 0:
+			return self.InvalidValue(input_string)
+		self.value = str(value)
+
+# Dialog data item converted and validated using a SQL table
+
+class SQLTableDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, table_name, match_column, column_name1, column_name2, parent):
+		super(SQLTableDataItem, self).__init__(glb, label, placeholder_text, parent)
+
+		self.table_name = table_name
+		self.match_column = match_column
+		self.column_name1 = column_name1
+		self.column_name2 = column_name2
 
 	def ValueToIds(self, value):
 		ids = []
@@ -1522,6 +1619,42 @@ class SQLTableDialogDataItem():
 			while query.next():
 				ids.append(str(query.value(0)))
 		return ids
+
+	def DoValidate(self, input_string):
+		all_ids = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			ids = self.ValueToIds(value)
+			if len(ids):
+				all_ids.extend(ids)
+			else:
+				return self.InvalidValue(value)
+		self.value = self.column_name1 + " IN (" + ",".join(all_ids) + ")"
+		if self.column_name2:
+			self.value = "( " + self.value + " OR " + self.column_name2 + " IN (" + ",".join(all_ids) + ") )"
+
+# Sample time ranges dialog data item converted and validated using 'samples' SQL table
+
+class SampleTimeRangesDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, column_name, parent):
+		self.column_name = column_name
+
+		self.last_id = 0
+		self.first_time = 0
+		self.last_time = 2 ** 64
+
+		query = QSqlQuery(glb.db)
+		QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
+		if query.next():
+			self.last_id = int(query.value(0))
+			self.last_time = int(query.value(1))
+		QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
+		if query.next():
+			self.first_time = int(query.value(0))
+		if placeholder_text:
+			placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
+
+		super(SampleTimeRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
 
 	def IdBetween(self, query, lower_id, higher_id, order):
 		QueryExec(query, "SELECT id FROM samples WHERE id > " + str(lower_id) + " AND id < " + str(higher_id) + " ORDER BY id " + order + " LIMIT 1")
@@ -1560,7 +1693,6 @@ class SQLTableDialogDataItem():
 					return str(lower_id)
 
 	def ConvertRelativeTime(self, val):
-		print "val ", val
 		mult = 1
 		suffix = val[-2:]
 		if suffix == "ms":
@@ -1582,29 +1714,23 @@ class SQLTableDialogDataItem():
 		return str(val)
 
 	def ConvertTimeRange(self, vrange):
-		print "vrange ", vrange
 		if vrange[0] == "":
 			vrange[0] = str(self.first_time)
 		if vrange[1] == "":
 			vrange[1] = str(self.last_time)
 		vrange[0] = self.ConvertRelativeTime(vrange[0])
 		vrange[1] = self.ConvertRelativeTime(vrange[1])
-		print "vrange2 ", vrange
 		if not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
 			return False
-		print "ok1"
 		beg_range = max(int(vrange[0]), self.first_time)
 		end_range = min(int(vrange[1]), self.last_time)
 		if beg_range > self.last_time or end_range < self.first_time:
 			return False
-		print "ok2"
 		vrange[0] = self.BinarySearchTime(0, self.last_id, beg_range, True)
 		vrange[1] = self.BinarySearchTime(1, self.last_id + 1, end_range, False)
-		print "vrange3 ", vrange
 		return True
 
 	def AddTimeRange(self, value, ranges):
-		print "value ", value
 		n = value.count("-")
 		if n == 1:
 			pass
@@ -1622,111 +1748,31 @@ class SQLTableDialogDataItem():
 			return True
 		return False
 
-	def InvalidValue(self, value):
-		self.value = ""
-		palette = QPalette()
-		palette.setColor(QPalette.Text,Qt.red)
-		self.widget.setPalette(palette)
-		self.red = True
-		self.error = self.label + " invalid value '" + value + "'"
-		self.parent.ShowMessage(self.error)
+	def DoValidate(self, input_string):
+		ranges = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			if not self.AddTimeRange(value, ranges):
+				return self.InvalidValue(value)
+		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
+		self.value = " OR ".join(ranges)
 
-	def IsNumber(self, value):
-		try:
-			x = int(value)
-		except:
-			x = 0
-		return str(x) == value
+# Report Dialog Base
 
-	def Invalidate(self):
-		self.validated = False
+class ReportDialogBase(QDialog):
 
-	def Validate(self):
-		input_string = self.widget.text()
-		self.validated = True
-		if self.red:
-			palette = QPalette()
-			self.widget.setPalette(palette)
-			self.red = False
-		if not len(input_string.strip()):
-			self.error = ""
-			self.value = ""
-			return
-		if self.table_name == "<timeranges>":
-			ranges = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				if not self.AddTimeRange(value, ranges):
-					return self.InvalidValue(value)
-			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
-			self.value = " OR ".join(ranges)
-		elif self.table_name == "<ranges>":
-			singles = []
-			ranges = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				if "-" in value:
-					vrange = value.split("-")
-					if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
-						return self.InvalidValue(value)
-					ranges.append(vrange)
-				else:
-					if not self.IsNumber(value):
-						return self.InvalidValue(value)
-					singles.append(value)
-			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
-			if len(singles):
-				ranges.append(self.column_name1 + " IN (" + ",".join(singles) + ")")
-			self.value = " OR ".join(ranges)
-		elif self.table_name:
-			all_ids = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				ids = self.ValueToIds(value)
-				if len(ids):
-					all_ids.extend(ids)
-				else:
-					return self.InvalidValue(value)
-			self.value = self.column_name1 + " IN (" + ",".join(all_ids) + ")"
-			if self.column_name2:
-				self.value = "( " + self.value + " OR " + self.column_name2 + " IN (" + ",".join(all_ids) + ") )"
-		else:
-			self.value = input_string.strip()
-		self.error = ""
-		self.parent.ClearMessage()
-
-	def IsValid(self):
-		if not self.validated:
-			self.Validate()
-		if len(self.error):
-			self.parent.ShowMessage(self.error)
-			return False
-		return True
-
-# Selected branch report creation dialog
-
-class SelectedBranchDialog(QDialog):
-
-	def __init__(self, glb, parent=None):
-		super(SelectedBranchDialog, self).__init__(parent)
+	def __init__(self, glb, title, items, partial, parent=None):
+		super(ReportDialogBase, self).__init__(parent)
 
 		self.glb = glb
 
-		self.name = ""
-		self.where_clause = ""
+		self.report_vars = ReportVars()
 
-		self.setWindowTitle("Selected Branches")
+		self.setWindowTitle(title)
 		self.setMinimumWidth(600)
 
-		items = (
-			("Report name:", "Enter a name to appear in the window title bar", "", "", "", ""),
-			("Time ranges:", "Enter time ranges", "<timeranges>", "", "samples.id", ""),
-			("CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "<ranges>", "", "cpu", ""),
-			("Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", ""),
-			("PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", ""),
-			("TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", ""),
-			("DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id"),
-			("Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id"),
-			("Raw SQL clause: ", "Enter a raw SQL WHERE clause", "", "", "", ""),
-			)
-		self.data_items = [SQLTableDialogDataItem(glb, *x, parent=self) for x in items]
+		self.data_items = [x(glb, self) for x in items]
+
+		self.partial = partial
 
 		self.grid = QGridLayout()
 
@@ -1758,23 +1804,28 @@ class SelectedBranchDialog(QDialog):
 		self.setLayout(self.vbox);
 
 	def Ok(self):
-		self.name = self.data_items[0].value
-		if not self.name:
+		vars = self.report_vars
+		for d in self.data_items:
+			if d.id == "REPORTNAME":
+				vars.name = d.value
+		if not vars.name:
 			self.ShowMessage("Report name is required")
 			return
 		for d in self.data_items:
 			if not d.IsValid():
 				return
 		for d in self.data_items[1:]:
-			if len(d.value):
-				if len(self.where_clause):
-					self.where_clause += " AND "
-				self.where_clause += d.value
-		if len(self.where_clause):
-			self.where_clause = " AND ( " + self.where_clause + " ) "
-		else:
-			self.ShowMessage("No selection")
-			return
+			if d.id == "LIMIT":
+				vars.limit = d.value
+			elif len(d.value):
+				if len(vars.where_clause):
+					vars.where_clause += " AND "
+				vars.where_clause += d.value
+		if len(vars.where_clause):
+			if self.partial:
+				vars.where_clause = " AND ( " + vars.where_clause + " ) "
+			else:
+				vars.where_clause = " WHERE " + vars.where_clause + " "
 		self.accept()
 
 	def ShowMessage(self, msg):
@@ -1782,6 +1833,23 @@ class SelectedBranchDialog(QDialog):
 
 	def ClearMessage(self):
 		self.status.setText("")
+
+# Selected branch report creation dialog
+
+class SelectedBranchDialog(ReportDialogBase):
+
+	def __init__(self, glb, parent=None):
+		title = "Selected Branches"
+		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
+			 lambda g, p: SampleTimeRangesDataItem(g, "Time ranges:", "Enter time ranges", "samples.id", p),
+			 lambda g, p: NonNegativeIntegerRangesDataItem(g, "CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "cpu", p),
+			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id", p),
+			 lambda g, p: SQLTableDataItem(g, "Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id", p),
+			 lambda g, p: LineEditDataItem(g, "Raw SQL clause: ", "Enter a raw SQL WHERE clause", p))
+		super(SelectedBranchDialog, self).__init__(glb, title, items, True, parent)
 
 # Event list
 
@@ -1792,6 +1860,16 @@ def GetEventList(db):
 	while query.next():
 		events.append(query.value(0))
 	return events
+
+# Is a table selectable
+
+def IsSelectable(db, table):
+	query = QSqlQuery(db)
+	try:
+		QueryExec(query, "SELECT * FROM " + table + " LIMIT 1")
+	except:
+		return False
+	return True
 
 # SQL data preparation
 
@@ -1818,12 +1896,13 @@ class SQLTableModel(TableModel):
 
 	progress = Signal(object)
 
-	def __init__(self, glb, sql, column_count, parent=None):
+	def __init__(self, glb, sql, column_headers, parent=None):
 		super(SQLTableModel, self).__init__(parent)
 		self.glb = glb
 		self.more = True
 		self.populated = 0
-		self.fetcher = SQLFetcher(glb, sql, lambda x, y=column_count: SQLTableDataPrep(x, y), self.AddSample)
+		self.column_headers = column_headers
+		self.fetcher = SQLFetcher(glb, sql, lambda x, y=len(column_headers): SQLTableDataPrep(x, y), self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
@@ -1861,6 +1940,12 @@ class SQLTableModel(TableModel):
 	def HasMoreRecords(self):
 		return self.more
 
+	def columnCount(self, parent=None):
+		return len(self.column_headers)
+
+	def columnHeader(self, column):
+		return self.column_headers[column]
+
 # SQL automatic table data model
 
 class SQLAutoTableModel(SQLTableModel):
@@ -1870,12 +1955,12 @@ class SQLAutoTableModel(SQLTableModel):
 		if table_name == "comm_threads_view":
 			# For now, comm_threads_view has no id column
 			sql = "SELECT * FROM " + table_name + " WHERE comm_id > $$last_id$$ ORDER BY comm_id LIMIT " + str(glb_chunk_sz)
-		self.column_headers = []
+		column_headers = []
 		query = QSqlQuery(glb.db)
 		if glb.dbref.is_sqlite3:
 			QueryExec(query, "PRAGMA table_info(" + table_name + ")")
 			while query.next():
-				self.column_headers.append(query.value(1))
+				column_headers.append(query.value(1))
 			if table_name == "sqlite_master":
 				sql = "SELECT * FROM " + table_name
 		else:
@@ -1888,14 +1973,8 @@ class SQLAutoTableModel(SQLTableModel):
 				schema = "public"
 			QueryExec(query, "SELECT column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' and table_name = '" + select_table_name + "'")
 			while query.next():
-				self.column_headers.append(query.value(0))
-		super(SQLAutoTableModel, self).__init__(glb, sql, len(self.column_headers), parent)
-
-	def columnCount(self, parent=None):
-		return len(self.column_headers)
-
-	def columnHeader(self, column):
-		return self.column_headers[column]
+				column_headers.append(query.value(0))
+		super(SQLAutoTableModel, self).__init__(glb, sql, column_headers, parent)
 
 # Base class for custom ResizeColumnsToContents
 
@@ -1997,6 +2076,103 @@ def GetTableList(glb):
 		tables.append("information_schema.views")
 		tables.append("information_schema.columns")
 	return tables
+
+# Top Calls data model
+
+class TopCallsModel(SQLTableModel):
+
+	def __init__(self, glb, report_vars, parent=None):
+		text = ""
+		if not glb.dbref.is_sqlite3:
+			text = "::text"
+		limit = ""
+		if len(report_vars.limit):
+			limit = " LIMIT " + report_vars.limit
+		sql = ("SELECT comm, pid, tid, name,"
+			" CASE"
+			" WHEN (short_name = '[kernel.kallsyms]') THEN '[kernel]'" + text +
+			" ELSE short_name"
+			" END AS dso,"
+			" call_time, return_time, (return_time - call_time) AS elapsed_time, branch_count, "
+			" CASE"
+			" WHEN (calls.flags = 1) THEN 'no call'" + text +
+			" WHEN (calls.flags = 2) THEN 'no return'" + text +
+			" WHEN (calls.flags = 3) THEN 'no call/return'" + text +
+			" ELSE ''" + text +
+			" END AS flags"
+			" FROM calls"
+			" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
+			" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
+			" INNER JOIN dsos ON symbols.dso_id = dsos.id"
+			" INNER JOIN comms ON calls.comm_id = comms.id"
+			" INNER JOIN threads ON calls.thread_id = threads.id" +
+			report_vars.where_clause +
+			" ORDER BY elapsed_time DESC" +
+			limit
+			)
+		column_headers = ("Command", "PID", "TID", "Symbol", "Object", "Call Time", "Return Time", "Elapsed Time (ns)", "Branch Count", "Flags")
+		self.alignment = (Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignLeft)
+		super(TopCallsModel, self).__init__(glb, sql, column_headers, parent)
+
+	def columnAlignment(self, column):
+		return self.alignment[column]
+
+# Top Calls report creation dialog
+
+class TopCallsDialog(ReportDialogBase):
+
+	def __init__(self, glb, parent=None):
+		title = "Top Calls by Elapsed Time"
+		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
+			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only calls with these commands will be included", "comms", "comm", "comm_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "PIDs:", "Only calls with these process IDs will be included", "threads", "pid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "TIDs:", "Only calls with these thread IDs will be included", "threads", "tid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "DSOs:", "Only calls with these DSOs will be included", "dsos", "short_name", "dso_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "Symbols:", "Only calls with these symbols will be included", "symbols", "name", "symbol_id", "", p),
+			 lambda g, p: LineEditDataItem(g, "Raw SQL clause: ", "Enter a raw SQL WHERE clause", p),
+			 lambda g, p: PositiveIntegerDataItem(g, "Record limit:", "Limit selection to this number of records", p, "LIMIT", "100"))
+		super(TopCallsDialog, self).__init__(glb, title, items, False, parent)
+
+# Top Calls window
+
+class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
+
+	def __init__(self, glb, report_vars, parent=None):
+		super(TopCallsWindow, self).__init__(parent)
+
+		self.data_model = LookupCreateModel("Top Calls " + report_vars.UniqueId(), lambda: TopCallsModel(glb, report_vars))
+		self.model = self.data_model
+
+		self.view = QTableView()
+		self.view.setModel(self.model)
+		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.verticalHeader().setVisible(False)
+
+		self.ResizeColumnsToContents()
+
+		self.find_bar = FindBar(self, self, True)
+
+		self.finder = ChildDataItemFinder(self.model)
+
+		self.fetch_bar = FetchMoreRecordsBar(self.data_model, self)
+
+		self.vbox = VBox(self.view, self.find_bar.Widget(), self.fetch_bar.Widget())
+
+		self.setWidget(self.vbox.Widget())
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, report_vars.name)
+
+	def Find(self, value, direction, pattern, context):
+		self.view.setFocus()
+		self.find_bar.Busy()
+		self.finder.Find(value, direction, pattern, context, self.FindDone)
+
+	def FindDone(self, row):
+		self.find_bar.Idle()
+		if row >= 0:
+			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
+		else:
+			self.find_bar.NotFound()
 
 # Action Definition
 
@@ -2101,6 +2277,7 @@ p.c2 {
 <p class=c2><a href=#callgraph>1.1 Context-Sensitive Call Graph</a></p>
 <p class=c2><a href=#allbranches>1.2 All branches</a></p>
 <p class=c2><a href=#selectedbranches>1.3 Selected branches</a></p>
+<p class=c2><a href=#topcallsbyelapsedtime>1.4 Top calls by elapsed time</a></p>
 <p class=c1><a href=#tables>2. Tables</a></p>
 <h1 id=reports>1. Reports</h1>
 <h2 id=callgraph>1.1 Context-Sensitive Call Graph</h2>
@@ -2176,6 +2353,10 @@ ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
 	-10ms-			The last 10ms
 </pre>
 N.B. Due to the granularity of timestamps, there could be no branches in any given time range.
+<h2 id=topcallsbyelapsedtime>1.4 Top calls by elapsed time</h2>
+The Top calls by elapsed time report displays calls in descending order of time elapsed between when the function was called and when it returned.
+The data is reduced by various selection criteria. A dialog box displays available criteria which are AND'ed together.
+If not all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
 <h1 id=tables>2. Tables</h1>
 The Tables menu shows all tables and views in the database. Most tables have an associated view
 which displays the information in a more friendly way. Not all data for large tables is fetched
@@ -2305,9 +2486,13 @@ class MainWindow(QMainWindow):
 		edit_menu.addAction(CreateAction("&Enlarge Font", "Make text bigger", self.EnlargeFont, self, [QKeySequence("Ctrl++")]))
 
 		reports_menu = menu.addMenu("&Reports")
-		reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
+		if IsSelectable(glb.db, "calls"):
+			reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
 
 		self.EventMenu(GetEventList(glb.db), reports_menu)
+
+		if IsSelectable(glb.db, "calls"):
+			reports_menu.addAction(CreateAction("&Top calls by elapsed time", "Create a new window displaying top calls by elapsed time", self.NewTopCalls, self))
 
 		self.TableMenu(GetTableList(glb), menu)
 
@@ -2364,14 +2549,20 @@ class MainWindow(QMainWindow):
 	def NewCallGraph(self):
 		CallGraphWindow(self.glb, self)
 
+	def NewTopCalls(self):
+		dialog = TopCallsDialog(self.glb, self)
+		ret = dialog.exec_()
+		if ret:
+			TopCallsWindow(self.glb, dialog.report_vars, self)
+
 	def NewBranchView(self, event_id):
-		BranchWindow(self.glb, event_id, "", "", self)
+		BranchWindow(self.glb, event_id, ReportVars(), self)
 
 	def NewSelectedBranchView(self, event_id):
 		dialog = SelectedBranchDialog(self.glb, self)
 		ret = dialog.exec_()
 		if ret:
-			BranchWindow(self.glb, event_id, dialog.name, dialog.where_clause, self)
+			BranchWindow(self.glb, event_id, dialog.report_vars, self)
 
 	def NewTableView(self, table_name):
 		TableWindow(self.glb, table_name, self)

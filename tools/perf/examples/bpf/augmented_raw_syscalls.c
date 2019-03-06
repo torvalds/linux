@@ -18,23 +18,13 @@
 #include <pid_filter.h>
 
 /* bpf-output associated map */
-struct bpf_map SEC("maps") __augmented_syscalls__ = {
-	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(u32),
-	.max_entries = __NR_CPUS__,
-};
+bpf_map(__augmented_syscalls__, PERF_EVENT_ARRAY, int, u32, __NR_CPUS__);
 
 struct syscall {
 	bool	enabled;
 };
 
-struct bpf_map SEC("maps") syscalls = {
-	.type	     = BPF_MAP_TYPE_ARRAY,
-	.key_size    = sizeof(int),
-	.value_size  = sizeof(struct syscall),
-	.max_entries = 512,
-};
+bpf_map(syscalls, ARRAY, int, struct syscall, 512);
 
 struct syscall_enter_args {
 	unsigned long long common_tp_fields;
@@ -141,8 +131,8 @@ int sys_enter(struct syscall_enter_args *args)
 		len = sizeof(augmented_args.args);
 	}
 
-	perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, len);
-	return 0;
+	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
+	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, &augmented_args, len);
 }
 
 SEC("raw_syscalls:sys_exit")

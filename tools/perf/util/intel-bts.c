@@ -27,6 +27,8 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
+#include "map.h"
+#include "symbol.h"
 #include "session.h"
 #include "util.h"
 #include "thread.h"
@@ -142,7 +144,7 @@ static int intel_bts_lost(struct intel_bts *bts, struct perf_sample *sample)
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
 			     INTEL_BTS_ERR_LOST, sample->cpu, sample->pid,
-			     sample->tid, 0, "Lost trace data");
+			     sample->tid, 0, "Lost trace data", sample->time);
 
 	err = perf_session__deliver_synth_event(bts->session, &event, NULL);
 	if (err)
@@ -372,7 +374,7 @@ static int intel_bts_synth_error(struct intel_bts *bts, int cpu, pid_t pid,
 
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
 			     INTEL_BTS_ERR_NOINSN, cpu, pid, tid, ip,
-			     "Failed to get instruction");
+			     "Failed to get instruction", 0);
 
 	err = perf_session__deliver_synth_event(bts->session, &event, NULL);
 	if (err)

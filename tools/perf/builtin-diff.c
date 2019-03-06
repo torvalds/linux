@@ -429,7 +429,7 @@ get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
 
 static void hists__baseline_only(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -437,13 +437,13 @@ static void hists__baseline_only(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
 
 		next = rb_next(&he->rb_node_in);
 		if (!hist_entry__next_pair(he)) {
-			rb_erase(&he->rb_node_in, root);
+			rb_erase_cached(&he->rb_node_in, root);
 			hist_entry__delete(he);
 		}
 	}
@@ -451,7 +451,7 @@ static void hists__baseline_only(struct hists *hists)
 
 static void hists__precompute(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -459,7 +459,7 @@ static void hists__precompute(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he, *pair;
 		struct data__file *d;
@@ -708,7 +708,7 @@ static void data__fprintf(void)
 
 	data__for_each_file(i, d)
 		fprintf(stdout, "#  [%d] %s %s\n",
-			d->idx, d->data.file.path,
+			d->idx, d->data.path,
 			!d->idx ? "(Baseline)" : "");
 
 	fprintf(stdout, "#\n");
@@ -779,14 +779,14 @@ static int __cmd_diff(void)
 	data__for_each_file(i, d) {
 		d->session = perf_session__new(&d->data, false, &tool);
 		if (!d->session) {
-			pr_err("Failed to open %s\n", d->data.file.path);
+			pr_err("Failed to open %s\n", d->data.path);
 			ret = -1;
 			goto out_delete;
 		}
 
 		ret = perf_session__process_events(d->session);
 		if (ret) {
-			pr_err("Failed to process %s\n", d->data.file.path);
+			pr_err("Failed to process %s\n", d->data.path);
 			goto out_delete;
 		}
 
@@ -1289,9 +1289,9 @@ static int data_init(int argc, const char **argv)
 	data__for_each_file(i, d) {
 		struct perf_data *data = &d->data;
 
-		data->file.path = use_default ? defaults[i] : argv[i];
-		data->mode      = PERF_DATA_MODE_READ,
-		data->force     = force,
+		data->path  = use_default ? defaults[i] : argv[i];
+		data->mode  = PERF_DATA_MODE_READ,
+		data->force = force,
 
 		d->idx  = i;
 	}

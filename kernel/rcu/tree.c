@@ -50,6 +50,7 @@
 #include <linux/ftrace.h>
 #include <linux/tick.h>
 #include <linux/sysrq.h>
+#include <linux/kprobes.h>
 
 #include "tree.h"
 #include "rcu.h"
@@ -882,6 +883,7 @@ void rcu_nmi_enter(void)
 {
 	rcu_nmi_enter_common(false);
 }
+NOKPROBE_SYMBOL(rcu_nmi_enter);
 
 /**
  * rcu_irq_enter - inform RCU that current CPU is entering irq away from idle

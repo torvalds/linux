@@ -35,10 +35,13 @@ struct call_path;
  *
  * CALL_RETURN_NO_CALL: 'return' but no matching 'call'
  * CALL_RETURN_NO_RETURN: 'call' but no matching 'return'
+ * CALL_RETURN_NON_CALL: a branch but not a 'call' to the start of a different
+ *                       symbol
  */
 enum {
 	CALL_RETURN_NO_CALL	= 1 << 0,
 	CALL_RETURN_NO_RETURN	= 1 << 1,
+	CALL_RETURN_NON_CALL	= 1 << 2,
 };
 
 /**

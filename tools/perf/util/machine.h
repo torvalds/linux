@@ -4,7 +4,7 @@
 
 #include <sys/types.h>
 #include <linux/rbtree.h>
-#include "map.h"
+#include "map_groups.h"
 #include "dso.h"
 #include "event.h"
 #include "rwsem.h"
@@ -29,11 +29,11 @@ struct vdso_info;
 #define THREADS__TABLE_SIZE	(1 << THREADS__TABLE_BITS)
 
 struct threads {
-	struct rb_root	  entries;
-	struct rw_semaphore lock;
-	unsigned int	  nr;
-	struct list_head  dead;
-	struct thread	  *last_match;
+	struct rb_root_cached  entries;
+	struct rw_semaphore    lock;
+	unsigned int	       nr;
+	struct list_head       dead;
+	struct thread	       *last_match;
 };
 
 struct machine {
@@ -130,6 +130,9 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 				struct perf_sample *sample);
 int machine__process_mmap2_event(struct machine *machine, union perf_event *event,
 				 struct perf_sample *sample);
+int machine__process_ksymbol(struct machine *machine,
+			     union perf_event *event,
+			     struct perf_sample *sample);
 int machine__process_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
 
@@ -137,7 +140,7 @@ typedef void (*machine__process_t)(struct machine *machine, void *data);
 
 struct machines {
 	struct machine host;
-	struct rb_root guests;
+	struct rb_root_cached guests;
 };
 
 void machines__init(struct machines *machines);

@@ -5,14 +5,18 @@
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
 #include <linux/list.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "symbol.h"
-#include "map.h"
+#include "srccode.h"
+#include "symbol_conf.h"
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
 
+struct addr_location;
+struct map;
+struct namespaces_event;
 struct thread_stack;
 struct unwind_libunwind_ops;
 

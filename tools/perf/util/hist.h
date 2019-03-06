@@ -2,9 +2,9 @@
 #ifndef __PERF_HIST_H
 #define __PERF_HIST_H
 
+#include <linux/rbtree.h>
 #include <linux/types.h>
 #include <pthread.h>
-#include "callchain.h"
 #include "evsel.h"
 #include "header.h"
 #include "color.h"
@@ -13,6 +13,9 @@
 struct hist_entry;
 struct hist_entry_ops;
 struct addr_location;
+struct map_symbol;
+struct mem_info;
+struct branch_info;
 struct symbol;
 
 enum hist_filter {
@@ -70,10 +73,10 @@ struct thread;
 struct dso;
 
 struct hists {
-	struct rb_root		entries_in_array[2];
-	struct rb_root		*entries_in;
-	struct rb_root		entries;
-	struct rb_root		entries_collapsed;
+	struct rb_root_cached	entries_in_array[2];
+	struct rb_root_cached	*entries_in;
+	struct rb_root_cached	entries;
+	struct rb_root_cached	entries_collapsed;
 	u64			nr_entries;
 	u64			nr_non_filtered_entries;
 	u64			callchain_period;
@@ -160,8 +163,10 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
 				   struct perf_hpp_fmt *fmt, int printed);
 void hist_entry__delete(struct hist_entry *he);
 
-typedef int (*hists__resort_cb_t)(struct hist_entry *he);
+typedef int (*hists__resort_cb_t)(struct hist_entry *he, void *arg);
 
+void perf_evsel__output_resort_cb(struct perf_evsel *evsel, struct ui_progress *prog,
+				  hists__resort_cb_t cb, void *cb_arg);
 void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *prog);
 void hists__output_resort(struct hists *hists, struct ui_progress *prog);
 void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,
@@ -230,7 +235,7 @@ static __pure inline bool hists__has_callchains(struct hists *hists)
 int hists__init(void);
 int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list);
 
-struct rb_root *hists__get_rotate_entries_in(struct hists *hists);
+struct rb_root_cached *hists__get_rotate_entries_in(struct hists *hists);
 
 struct perf_hpp {
 	char *buf;
