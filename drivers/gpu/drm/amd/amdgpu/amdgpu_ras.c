@@ -589,7 +589,7 @@ static int amdgpu_ras_disable_all_features(struct amdgpu_device *adev,
 			if (amdgpu_ras_feature_enable(adev, &obj->head, 0))
 				break;
 		}
-	};
+	}
 
 	return con->features;
 }
@@ -619,7 +619,7 @@ static int amdgpu_ras_enable_all_features(struct amdgpu_device *adev,
 			if (amdgpu_ras_feature_enable(adev, &head, 1))
 				break;
 		}
-	};
+	}
 
 	return con->features;
 }
