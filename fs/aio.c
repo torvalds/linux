@@ -1071,6 +1071,8 @@ out:
 
 static inline void iocb_destroy(struct aio_kiocb *iocb)
 {
+	if (iocb->ki_eventfd)
+		eventfd_ctx_put(iocb->ki_eventfd);
 	if (iocb->ki_filp)
 		fput(iocb->ki_filp);
 	percpu_ref_put(&iocb->ki_ctx->reqs);
@@ -1138,10 +1140,8 @@ static void aio_complete(struct aio_kiocb *iocb)
 	 * eventfd. The eventfd_signal() function is safe to be called
 	 * from IRQ context.
 	 */
-	if (iocb->ki_eventfd) {
+	if (iocb->ki_eventfd)
 		eventfd_signal(iocb->ki_eventfd, 1);
-		eventfd_ctx_put(iocb->ki_eventfd);
-	}
 
 	/*
 	 * We have to order our ring_info tail store above and test
@@ -1807,18 +1807,19 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		goto out_put_req;
 
 	if (iocb->aio_flags & IOCB_FLAG_RESFD) {
+		struct eventfd_ctx *eventfd;
 		/*
 		 * If the IOCB_FLAG_RESFD flag of aio_flags is set, get an
 		 * instance of the file* now. The file descriptor must be
 		 * an eventfd() fd, and will be signaled for each completed
 		 * event using the eventfd_signal() function.
 		 */
-		req->ki_eventfd = eventfd_ctx_fdget((int) iocb->aio_resfd);
-		if (IS_ERR(req->ki_eventfd)) {
-			ret = PTR_ERR(req->ki_eventfd);
-			req->ki_eventfd = NULL;
+		eventfd = eventfd_ctx_fdget(iocb->aio_resfd);
+		if (IS_ERR(eventfd)) {
+			ret = PTR_ERR(eventfd);
 			goto out_put_req;
 		}
+		req->ki_eventfd = eventfd;
 	}
 
 	ret = put_user(KIOCB_KEY, &user_iocb->aio_key);
@@ -1872,8 +1873,6 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		return 0;
 
 out_put_req:
-	if (req->ki_eventfd)
-		eventfd_ctx_put(req->ki_eventfd);
 	iocb_destroy(req);
 out_put_reqs_available:
 	put_reqs_available(ctx, 1);
