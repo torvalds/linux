@@ -515,7 +515,8 @@ static int add_jump_destinations(struct objtool_file *file)
 			continue;
 		} else {
 			/* sibling call */
-			insn->jump_dest = 0;
+			insn->call_dest = rela->sym;
+			insn->jump_dest = NULL;
 			continue;
 		}
 
@@ -537,25 +538,38 @@ static int add_jump_destinations(struct objtool_file *file)
 		}
 
 		/*
-		 * For GCC 8+, create parent/child links for any cold
-		 * subfunctions.  This is _mostly_ redundant with a similar
-		 * initialization in read_symbols().
-		 *
-		 * If a function has aliases, we want the *first* such function
-		 * in the symbol table to be the subfunction's parent.  In that
-		 * case we overwrite the initialization done in read_symbols().
-		 *
-		 * However this code can't completely replace the
-		 * read_symbols() code because this doesn't detect the case
-		 * where the parent function's only reference to a subfunction
-		 * is through a switch table.
+		 * Cross-function jump.
 		 */
 		if (insn->func && insn->jump_dest->func &&
-		    insn->func != insn->jump_dest->func &&
-		    !strstr(insn->func->name, ".cold.") &&
-		    strstr(insn->jump_dest->func->name, ".cold.")) {
-			insn->func->cfunc = insn->jump_dest->func;
-			insn->jump_dest->func->pfunc = insn->func;
+		    insn->func != insn->jump_dest->func) {
+
+			/*
+			 * For GCC 8+, create parent/child links for any cold
+			 * subfunctions.  This is _mostly_ redundant with a
+			 * similar initialization in read_symbols().
+			 *
+			 * If a function has aliases, we want the *first* such
+			 * function in the symbol table to be the subfunction's
+			 * parent.  In that case we overwrite the
+			 * initialization done in read_symbols().
+			 *
+			 * However this code can't completely replace the
+			 * read_symbols() code because this doesn't detect the
+			 * case where the parent function's only reference to a
+			 * subfunction is through a switch table.
+			 */
+			if (!strstr(insn->func->name, ".cold.") &&
+			    strstr(insn->jump_dest->func->name, ".cold.")) {
+				insn->func->cfunc = insn->jump_dest->func;
+				insn->jump_dest->func->pfunc = insn->func;
+
+			} else if (insn->jump_dest->func->pfunc != insn->func->pfunc &&
+				   insn->jump_dest->offset == insn->jump_dest->func->offset) {
+
+				/* sibling class */
+				insn->call_dest = insn->jump_dest->func;
+				insn->jump_dest = NULL;
+			}
 		}
 	}
 
@@ -1785,6 +1799,17 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 	return false;
 }
 
+static int validate_sibling_call(struct instruction *insn, struct insn_state *state)
+{
+	if (has_modified_stack_frame(state)) {
+		WARN_FUNC("sibling call from callable instruction with modified stack frame",
+				insn->sec, insn->offset);
+		return 1;
+	}
+
+	return 0;
+}
+
 /*
  * Follow the branch starting at the given instruction, and recursively follow
  * any other branches (jumps).  Meanwhile, track the frame pointer state at
@@ -1935,9 +1960,14 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		case INSN_JUMP_CONDITIONAL:
 		case INSN_JUMP_UNCONDITIONAL:
-			if (insn->jump_dest &&
-			    (!func || !insn->jump_dest->func ||
-			     insn->jump_dest->func->pfunc == func)) {
+			if (func && !insn->jump_dest) {
+				ret = validate_sibling_call(insn, &state);
+				if (ret)
+					return ret;
+
+			} else if (insn->jump_dest &&
+				   (!func || !insn->jump_dest->func ||
+				    insn->jump_dest->func->pfunc == func)) {
 				ret = validate_branch(file, insn->jump_dest,
 						      state);
 				if (ret) {
@@ -1945,11 +1975,6 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 						BT_FUNC("(branch)", insn);
 					return ret;
 				}
-
-			} else if (func && has_modified_stack_frame(&state)) {
-				WARN_FUNC("sibling call from callable instruction with modified stack frame",
-					  sec, insn->offset);
-				return 1;
 			}
 
 			if (insn->type == INSN_JUMP_UNCONDITIONAL)
@@ -1958,11 +1983,10 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 			break;
 
 		case INSN_JUMP_DYNAMIC:
-			if (func && list_empty(&insn->alts) &&
-			    has_modified_stack_frame(&state)) {
-				WARN_FUNC("sibling call from callable instruction with modified stack frame",
-					  sec, insn->offset);
-				return 1;
+			if (func && list_empty(&insn->alts)) {
+				ret = validate_sibling_call(insn, &state);
+				if (ret)
+					return ret;
 			}
 
 			return 0;
