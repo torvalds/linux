@@ -557,6 +557,36 @@ vmballoon_page_in_frames(enum vmballoon_page_size_type page_size)
 }
 
 /**
+ * vmballoon_mark_page_offline() - mark a page as offline
+ * @page: pointer for the page.
+ * @page_size: the size of the page.
+ */
+static void
+vmballoon_mark_page_offline(struct page *page,
+			    enum vmballoon_page_size_type page_size)
+{
+	int i;
+
+	for (i = 0; i < vmballoon_page_in_frames(page_size); i++)
+		__SetPageOffline(page + i);
+}
+
+/**
+ * vmballoon_mark_page_online() - mark a page as online
+ * @page: pointer for the page.
+ * @page_size: the size of the page.
+ */
+static void
+vmballoon_mark_page_online(struct page *page,
+			   enum vmballoon_page_size_type page_size)
+{
+	int i;
+
+	for (i = 0; i < vmballoon_page_in_frames(page_size); i++)
+		__ClearPageOffline(page + i);
+}
+
+/**
  * vmballoon_send_get_target() - Retrieve desired balloon size from the host.
  *
  * @b: pointer to the balloon.
@@ -612,6 +642,7 @@ static int vmballoon_alloc_page_list(struct vmballoon *b,
 					 ctl->page_size);
 
 		if (page) {
+			vmballoon_mark_page_offline(page, ctl->page_size);
 			/* Success. Add the page to the list and continue. */
 			list_add(&page->lru, &ctl->pages);
 			continue;
@@ -850,6 +881,7 @@ static void vmballoon_release_page_list(struct list_head *page_list,
 
 	list_for_each_entry_safe(page, tmp, page_list, lru) {
 		list_del(&page->lru);
+		vmballoon_mark_page_online(page, page_size);
 		__free_pages(page, vmballoon_page_order(page_size));
 	}
 

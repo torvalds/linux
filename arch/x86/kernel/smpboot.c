@@ -56,6 +56,7 @@
 #include <linux/stackprotector.h>
 #include <linux/gfp.h>
 #include <linux/cpuidle.h>
+#include <linux/numa.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -841,7 +842,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 /* reduce the number of lines printed when booting a large cpu count system */
 static void announce_cpu(int cpu, int apicid)
 {
-	static int current_node = -1;
+	static int current_node = NUMA_NO_NODE;
 	int node = early_cpu_to_node(cpu);
 	static int width, node_width;
 

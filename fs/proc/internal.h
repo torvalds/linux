@@ -162,7 +162,7 @@ extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struc
 extern void pid_update_inode(struct task_struct *, struct inode *);
 extern int pid_delete_dentry(const struct dentry *);
 extern int proc_pid_readdir(struct file *, struct dir_context *);
-extern struct dentry *proc_pid_lookup(struct inode *, struct dentry *, unsigned int);
+struct dentry *proc_pid_lookup(struct dentry *, unsigned int);
 extern loff_t mem_lseek(struct file *, loff_t, int);
 
 /* Lookups */

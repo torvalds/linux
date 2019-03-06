@@ -222,7 +222,6 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
-	default 3072 if KASAN_EXTRA
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1280 if (!64BIT && PARISC)
 	default 1024 if (!64BIT && !PARISC)
@@ -265,23 +264,6 @@ config UNUSED_SYMBOLS
 	  mail to the linux kernel mailing list mentioning the symbol and why
 	  you really need it, and what the merge plan to the mainline kernel for
 	  your module is.
-
-config PAGE_OWNER
-	bool "Track page owner"
-	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
-	select DEBUG_FS
-	select STACKTRACE
-	select STACKDEPOT
-	select PAGE_EXTENSION
-	help
-	  This keeps track of what call chain is the owner of a page, may
-	  help to find bare alloc_page(s) leaks. Even if you include this
-	  feature on your build, it is disabled in default. You should pass
-	  "page_owner=on" to boot parameter in order to enable it. Eats
-	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
-	  for user-space helper.
-
-	  If unsure, say N.
 
 config DEBUG_FS
 	bool "Debug Filesystem"
@@ -1873,6 +1855,19 @@ config TEST_LKM
 	  validating module verification). It lacks any extra dependencies,
 	  and will not normally be loaded by the system unless explicitly
 	  requested by name.
+
+	  If unsure, say N.
+
+config TEST_VMALLOC
+	tristate "Test module for stress/performance analysis of vmalloc allocator"
+	default n
+       depends on MMU
+	depends on m
+	help
+	  This builds the "test_vmalloc" module that should be used for
+	  stress and performance analysis. So, any new change for vmalloc
+	  subsystem can be evaluated from performance and stability point
+	  of view.
 
 	  If unsure, say N.
 

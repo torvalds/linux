@@ -2005,8 +2005,7 @@ DEFINE_SHOW_ATTRIBUTE(memblock_debug);
 static int __init memblock_init_debugfs(void)
 {
 	struct dentry *root = debugfs_create_dir("memblock", NULL);
-	if (!root)
-		return -ENXIO;
+
 	debugfs_create_file("memory", 0444, root,
 			    &memblock.memory, &memblock_debug_fops);
 	debugfs_create_file("reserved", 0444, root,

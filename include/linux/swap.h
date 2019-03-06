@@ -307,7 +307,7 @@ struct vma_swap_readahead {
 };
 
 /* linux/mm/workingset.c */
-void *workingset_eviction(struct address_space *mapping, struct page *page);
+void *workingset_eviction(struct page *page);
 void workingset_refault(struct page *page, void *shadow);
 void workingset_activation(struct page *page);
 
@@ -625,7 +625,7 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
 		return vm_swappiness;
 
 	/* root ? */
-	if (mem_cgroup_disabled() || !memcg->css.parent)
+	if (mem_cgroup_disabled() || mem_cgroup_is_root(memcg))
 		return vm_swappiness;
 
 	return memcg->swappiness;

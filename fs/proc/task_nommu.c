@@ -178,7 +178,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 		seq_file_path(m, file, "");
 	} else if (mm && is_stack(vma)) {
 		seq_pad(m, ' ');
-		seq_printf(m, "[stack]");
+		seq_puts(m, "[stack]");
 	}
 
 	seq_putc(m, '\n');
