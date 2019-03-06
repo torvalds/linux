@@ -1879,6 +1879,33 @@ static int rk312x_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return 0;
 }
 
+static int rk3328_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	int ret;
+
+	/* Open debug mode for tuning */
+	ret = regmap_write(rphy->grf, 0x2c, 0xffff0400);
+	if (ret)
+		return ret;
+
+	/* Open pre-emphasize in non-chirp state for otg port */
+	ret = regmap_write(rphy->grf, 0x0, 0x00070004);
+	if (ret)
+		return ret;
+
+	/* Open pre-emphasize in non-chirp state for host port */
+	ret = regmap_write(rphy->grf, 0x30, 0x00070004);
+	if (ret)
+		return ret;
+
+	/* Turn off differential receiver in suspend mode */
+	ret = regmap_write(rphy->grf, 0x18, 0x00040000);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int rk3366_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	unsigned int open_pre_emphasize = 0xffff851f;
@@ -2192,6 +2219,7 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 	{
 		.reg = 0x100,
 		.num_ports	= 2,
+		.phy_tuning = rk3328_usb2phy_tuning,
 		.clkout_ctl	= { 0x108, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
