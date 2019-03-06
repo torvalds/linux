@@ -34,6 +34,10 @@
 #define CREATE_TRACE_POINTS
 #include "trace-rpmh.h"
 
+#include <linux/ipc_logging.h>
+
+#define RSC_DRV_IPC_LOG_SIZE		2
+
 #define RSC_DRV_TCS_OFFSET		672
 #define RSC_DRV_CMD_OFFSET		20
 
@@ -412,6 +416,7 @@ static irqreturn_t tcs_tx_done(int irq, void *p)
 			goto skip;
 
 		trace_rpmh_tx_done(drv, i, req);
+		ipc_log_string(drv->ipc_log_ctx, "IRQ response: m=%d", i);
 
 		/*
 		 * If wake tcs was re-purposed for sending active
@@ -478,6 +483,10 @@ static void __tcs_buffer_write(struct rsc_drv *drv, int tcs_id, int cmd_id,
 		write_tcs_cmd(drv, RSC_DRV_CMD_ADDR, tcs_id, j, cmd->addr);
 		write_tcs_cmd(drv, RSC_DRV_CMD_DATA, tcs_id, j, cmd->data);
 		trace_rpmh_send_msg(drv, tcs_id, j, msgid, cmd);
+		ipc_log_string(drv->ipc_log_ctx,
+			       "TCS write: m=%d n=%d msgid=%#x addr=%#x data=%#x wait=%d",
+			       tcs_id, j, msgid, cmd->addr,
+			       cmd->data, cmd->wait);
 	}
 
 	cmd_enable |= read_tcs_reg(drv, RSC_DRV_CMD_ENABLE, tcs_id);
@@ -648,6 +657,7 @@ int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg)
 	 */
 	__tcs_buffer_write(drv, tcs_id, 0, msg);
 	__tcs_set_trigger(drv, tcs_id, true);
+	ipc_log_string(drv->ipc_log_ctx, "TCS trigger: m=%d", tcs_id);
 
 	return 0;
 }
@@ -978,6 +988,8 @@ int rpmh_rsc_mode_solver_set(struct rsc_drv *drv, bool enable)
 		if (!enable || !rpmh_rsc_ctrlr_is_busy(drv)) {
 			drv->in_solver_mode = enable;
 			trace_rpmh_solver_set(drv, enable);
+			ipc_log_string(drv->ipc_log_ctx,
+				       "solver mode set: %d", enable);
 			ret = 0;
 		}
 		spin_unlock(&drv->lock);
@@ -1261,6 +1273,9 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	spin_lock_init(&drv->client.cache_lock);
 	INIT_LIST_HEAD(&drv->client.cache);
 	INIT_LIST_HEAD(&drv->client.batch_cache);
+
+	drv->ipc_log_ctx = ipc_log_context_create(RSC_DRV_IPC_LOG_SIZE,
+						  drv->name, 0);
 
 	dev_set_drvdata(&pdev->dev, drv);
 

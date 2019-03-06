@@ -119,6 +119,7 @@ struct rpmh_ctrlr {
  * @client:             Handle to the DRV's client.
  * @genpd_nb:           PM Domain notifier
  * @dev:                RSC device
+ * @ipc_log_ctx:        IPC logger handle
  */
 struct rsc_drv {
 	const char *name;
@@ -136,6 +137,7 @@ struct rsc_drv {
 	struct rpmh_ctrlr client;
 	struct notifier_block genpd_nb;
 	struct device *dev;
+	void *ipc_log_ctx;
 };
 
 extern bool rpmh_standalone;
