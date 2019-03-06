@@ -763,7 +763,7 @@ config PCI_NR_FUNCTIONS
 	  This allows you to specify the maximum number of PCI functions which
 	  this kernel will support.
 
-endif	# PCI
+endif # PCI
 
 config HAS_IOMEM
 	def_bool PCI

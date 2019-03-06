@@ -91,14 +91,14 @@ config SCLP_ASYNC
 	  need this feature and intend to run your kernel in LPAR.
 
 config SCLP_ASYNC_ID
-       string "Component ID for Call Home"
-       depends on SCLP_ASYNC
-       default "000000000"
-       help
-	 The Component ID for Call Home is used to identify the correct
-	 problem reporting queue the call home records should be sent to.
+	string "Component ID for Call Home"
+	depends on SCLP_ASYNC
+	default "000000000"
+	help
+	  The Component ID for Call Home is used to identify the correct
+	  problem reporting queue the call home records should be sent to.
 
-	 If your are unsure, please use the default value "000000000".
+	  If your are unsure, please use the default value "000000000".
 
 config HMC_DRV
 	def_tristate m
@@ -205,4 +205,3 @@ config S390_VMUR
 	depends on S390
 	help
 	  Character device driver for z/VM reader, puncher and printer.
-
