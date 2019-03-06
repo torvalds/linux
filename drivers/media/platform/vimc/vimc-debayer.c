@@ -66,7 +66,7 @@ struct vimc_deb_device {
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.width = 640,
 	.height = 480,
-	.code = MEDIA_BUS_FMT_RGB888_1X24,
+	.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 	.field = V4L2_FIELD_NONE,
 	.colorspace = V4L2_COLORSPACE_DEFAULT,
 };
