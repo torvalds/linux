@@ -544,7 +544,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev_err(rtd->dev, "error: invalid DAI ID %d\n",
 			rtd->cpu_dai->id);
 		return -EINVAL;
-	};
+	}
 
 	ret = sst_hsw_stream_format(hsw, pcm_data->stream,
 		path_id, stream_type, SST_HSW_STREAM_FORMAT_PCM_FORMAT);
@@ -861,7 +861,7 @@ static int hsw_pcm_close(struct snd_pcm_substream *substream)
 		dev_dbg(rtd->dev, "error: free stream failed %d\n", ret);
 		goto out;
 	}
-	pcm_data->allocated = 0;
+	pcm_data->allocated = false;
 	pcm_data->stream = NULL;
 
 out:
@@ -946,27 +946,21 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct sst_pdata *pdata = dev_get_platdata(component->dev);
 	struct hsw_priv_data *priv_data = dev_get_drvdata(component->dev);
 	struct device *dev = pdata->dma_dev;
-	int ret = 0;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
-		ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_DEV_SG,
 			dev,
 			hsw_pcm_hardware.buffer_bytes_max,
 			hsw_pcm_hardware.buffer_bytes_max);
-		if (ret) {
-			dev_err(rtd->dev, "dma buffer allocation failed %d\n",
-				ret);
-			return ret;
-		}
 	}
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
 		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
 	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream)
 		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
 
-	return ret;
+	return 0;
 }
 
 #define HSW_FORMATS \

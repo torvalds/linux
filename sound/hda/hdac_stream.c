@@ -13,6 +13,40 @@
 #include "trace.h"
 
 /**
+ * snd_hdac_get_stream_stripe_ctl - get stripe control value
+ * @bus: HD-audio core bus
+ * @substream: PCM substream
+ */
+int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
+				   struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned int channels = runtime->channels,
+		     rate = runtime->rate,
+		     bits_per_sample = runtime->sample_bits,
+		     max_sdo_lines, value, sdo_line;
+
+	/* T_AZA_GCAP_NSDO is 1:2 bitfields in GCAP */
+	max_sdo_lines = snd_hdac_chip_readl(bus, GCAP) & AZX_GCAP_NSDO;
+
+	/* following is from HD audio spec */
+	for (sdo_line = max_sdo_lines; sdo_line > 0; sdo_line >>= 1) {
+		if (rate > 48000)
+			value = (channels * bits_per_sample *
+					(rate / 48000)) / sdo_line;
+		else
+			value = (channels * bits_per_sample) / sdo_line;
+
+		if (value >= 8)
+			break;
+	}
+
+	/* stripe value: 0 for 1SDO, 1 for 2SDO, 2 for 4SDO lines */
+	return sdo_line >> 1;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_get_stream_stripe_ctl);
+
+/**
  * snd_hdac_stream_init - initialize each stream (aka device)
  * @bus: HD-audio core bus
  * @azx_dev: HD-audio core stream object to initialize
@@ -48,6 +82,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_init);
 void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 {
 	struct hdac_bus *bus = azx_dev->bus;
+	int stripe_ctl;
 
 	trace_snd_hdac_stream_start(bus, azx_dev);
 
@@ -56,7 +91,13 @@ void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 		azx_dev->start_wallclk -= azx_dev->period_wallclk;
 
 	/* enable SIE */
-	snd_hdac_chip_updatel(bus, INTCTL, 0, 1 << azx_dev->index);
+	snd_hdac_chip_updatel(bus, INTCTL,
+			      1 << azx_dev->index,
+			      1 << azx_dev->index);
+	/* set stripe control */
+	stripe_ctl = snd_hdac_get_stream_stripe_ctl(bus, azx_dev->substream);
+	snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK,
+				stripe_ctl);
 	/* set DMA start and interrupt mask */
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				0, SD_CTL_DMA_START | SD_INT_MASK);
@@ -73,6 +114,7 @@ void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				SD_CTL_DMA_START | SD_INT_MASK, 0);
 	snd_hdac_stream_writeb(azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
+	snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK, 0);
 	azx_dev->running = false;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);

@@ -354,6 +354,10 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		ep = 0x81;
 		ifnum = 1;
 		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x07fd, 0x0004): /* MOTU MicroBook II */
+		ep = 0x84;
+		ifnum = 0;
+		goto add_sync_ep_from_ifnum;
 	}
 
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&

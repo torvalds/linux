@@ -2,7 +2,7 @@
 // Copyright(c) 2018 Intel Corporation.
 
 /*
- * Intel Kabylake I2S Machine Driver with MAX98927 & DA7219 Codecs
+ * Intel Kabylake I2S Machine Driver with MAX98927, MAX98373 & DA7219 Codecs
  *
  * Modified from:
  *   Intel Kabylake I2S Machine driver supporting MAX98927 and
@@ -24,8 +24,14 @@
 
 #define KBL_DIALOG_CODEC_DAI	"da7219-hifi"
 #define MAX98927_CODEC_DAI	"max98927-aif1"
-#define MAXIM_DEV0_NAME		"i2c-MX98927:00"
-#define MAXIM_DEV1_NAME		"i2c-MX98927:01"
+#define MAX98927_DEV0_NAME	"i2c-MX98927:00"
+#define MAX98927_DEV1_NAME	"i2c-MX98927:01"
+
+#define MAX98373_CODEC_DAI	"max98373-aif1"
+#define MAX98373_DEV0_NAME	"i2c-MX98373:00"
+#define MAX98373_DEV1_NAME	"i2c-MX98373:01"
+
+
 #define DUAL_CHANNEL	2
 #define QUAD_CHANNEL	4
 #define NAME_SIZE	32
@@ -176,17 +182,35 @@ static int kabylake_ssp0_hw_params(struct snd_pcm_substream *substream,
 	for (j = 0; j < runtime->num_codecs; j++) {
 		struct snd_soc_dai *codec_dai = runtime->codec_dais[j];
 
-		if (!strcmp(codec_dai->component->name, MAXIM_DEV0_NAME)) {
+		if (!strcmp(codec_dai->component->name, MAX98927_DEV0_NAME)) {
 			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x30, 3, 8, 16);
 			if (ret < 0) {
 				dev_err(runtime->dev, "DEV0 TDM slot err:%d\n", ret);
 				return ret;
 			}
 		}
-		if (!strcmp(codec_dai->component->name, MAXIM_DEV1_NAME)) {
+		if (!strcmp(codec_dai->component->name, MAX98927_DEV1_NAME)) {
 			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xC0, 3, 8, 16);
 			if (ret < 0) {
 				dev_err(runtime->dev, "DEV1 TDM slot err:%d\n", ret);
+				return ret;
+			}
+		}
+		if (!strcmp(codec_dai->component->name, MAX98373_DEV0_NAME)) {
+			ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							0x03, 3, 8, 24);
+			if (ret < 0) {
+				dev_err(runtime->dev,
+						"DEV0 TDM slot err:%d\n", ret);
+				return ret;
+			}
+		}
+		if (!strcmp(codec_dai->component->name, MAX98373_DEV1_NAME)) {
+			ret = snd_soc_dai_set_tdm_slot(codec_dai,
+							0x0C, 3, 8, 24);
+			if (ret < 0) {
+				dev_err(runtime->dev,
+						"DEV0 TDM slot err:%d\n", ret);
 				return ret;
 			}
 		}
@@ -213,6 +237,25 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_soc_dai_link *be_dai_link = dpcm->be->dai_link;
 
 	/*
+	 * Topology for kblda7219m98373 & kblmax98373 supports only S24_LE,
+	 * where as kblda7219m98927 & kblmax98927 supports S16_LE by default.
+	 * Skipping the port wise FE and BE configuration for kblda7219m98373 &
+	 * kblmax98373 as the topology (FE & BE) supports S24_LE only.
+	 */
+
+	if (!strcmp(rtd->card->name, "kblda7219m98373") ||
+		!strcmp(rtd->card->name, "kblmax98373")) {
+		/* The ADSP will convert the FE rate to 48k, stereo */
+		rate->min = rate->max = 48000;
+		channels->min = channels->max = DUAL_CHANNEL;
+
+		/* set SSP to 24 bit */
+		snd_mask_none(fmt);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
+		return 0;
+	}
+
+	/*
 	 * The ADSP will convert the FE rate to 48k, stereo, 24 bit
 	 */
 	if (!strcmp(fe_dai_link->name, "Kbl Audio Port") ||
@@ -221,7 +264,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 		rate->min = rate->max = 48000;
 		channels->min = channels->max = 2;
 		snd_mask_none(fmt);
-		snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 	}
 
 	/*
@@ -229,7 +272,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	 * thus changing the mask here
 	 */
 	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
-		snd_mask_set(fmt, SNDRV_PCM_FORMAT_S16_LE);
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 
 	return 0;
 }
@@ -352,20 +395,31 @@ static struct snd_pcm_hw_constraint_list constraints_channels_quad = {
 static int kbl_fe_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_rt = substream->private_data;
 
 	/*
 	 * On this platform for PCM device we support,
 	 * 48Khz
 	 * stereo
-	 * 16 bit audio
 	 */
 
 	runtime->hw.channels_max = DUAL_CHANNEL;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 					   &constraints_channels);
+	/*
+	 * Setup S24_LE (32 bit container and 24 bit valid data) for
+	 * kblda7219m98373 & kblmax98373. For kblda7219m98927 &
+	 * kblmax98927 keeping it as 16/16 due to topology FW dependency.
+	 */
+	if (!strcmp(soc_rt->card->name, "kblda7219m98373") ||
+		!strcmp(soc_rt->card->name, "kblmax98373")) {
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_LE;
+		snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
 
-	runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
-	snd_pcm_hw_constraint_msbits(runtime, 0, 16, 16);
+	} else {
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+		snd_pcm_hw_constraint_msbits(runtime, 0, 16, 16);
+	}
 
 	snd_pcm_hw_constraint_list(runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
@@ -398,10 +452,22 @@ static int kabylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 static int kabylake_dmic_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *soc_rt = substream->private_data;
 
 	runtime->hw.channels_min = runtime->hw.channels_max = QUAD_CHANNEL;
 	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 			&constraints_channels_quad);
+
+	/*
+	 * Topology for kblda7219m98373 & kblmax98373 supports only S24_LE.
+	 * The DMIC also configured for S24_LE. Forcing the DMIC format to
+	 * S24_LE due to the topology FW dependency.
+	 */
+	if (!strcmp(soc_rt->card->name, "kblda7219m98373") ||
+		!strcmp(soc_rt->card->name, "kblmax98373")) {
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S24_LE;
+		snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+	}
 
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
@@ -448,25 +514,51 @@ static struct snd_soc_ops skylake_refcap_ops = {
 static struct snd_soc_codec_conf max98927_codec_conf[] = {
 
 	{
-		.dev_name = MAXIM_DEV0_NAME,
+		.dev_name = MAX98927_DEV0_NAME,
 		.name_prefix = "Right",
 	},
 
 	{
-		.dev_name = MAXIM_DEV1_NAME,
+		.dev_name = MAX98927_DEV1_NAME,
 		.name_prefix = "Left",
 	},
 };
 
-static struct snd_soc_dai_link_component ssp0_codec_components[] = {
+static struct snd_soc_codec_conf max98373_codec_conf[] = {
+
+	{
+		.dev_name = MAX98373_DEV0_NAME,
+		.name_prefix = "Right",
+	},
+
+	{
+		.dev_name = MAX98373_DEV1_NAME,
+		.name_prefix = "Left",
+	},
+};
+
+static struct snd_soc_dai_link_component max98927_ssp0_codec_components[] = {
 	{ /* Left */
-		.name = MAXIM_DEV0_NAME,
+		.name = MAX98927_DEV0_NAME,
 		.dai_name = MAX98927_CODEC_DAI,
 	},
 
 	{  /* For Right */
-		.name = MAXIM_DEV1_NAME,
+		.name = MAX98927_DEV1_NAME,
 		.dai_name = MAX98927_CODEC_DAI,
+	},
+
+};
+
+static struct snd_soc_dai_link_component max98373_ssp0_codec_components[] = {
+	{ /* Left */
+		.name = MAX98373_DEV0_NAME,
+		.dai_name = MAX98373_CODEC_DAI,
+	},
+
+	{  /* For Right */
+		.name = MAX98373_DEV1_NAME,
+		.dai_name = MAX98373_CODEC_DAI,
 	},
 
 };
@@ -607,8 +699,8 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.cpu_dai_name = "SSP0 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
-		.codecs = ssp0_codec_components,
-		.num_codecs = ARRAY_SIZE(ssp0_codec_components),
+		.codecs = max98927_ssp0_codec_components,
+		.num_codecs = ARRAY_SIZE(max98927_ssp0_codec_components),
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
@@ -683,7 +775,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 };
 
 /* kabylake digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link kabylake_max98927_dais[] = {
+static struct snd_soc_dai_link kabylake_max98_927_373_dais[] = {
 	/* Front End DAI links */
 	[KBL_DPCM_AUDIO_PB] = {
 		.name = "Kbl Audio Port",
@@ -802,8 +894,8 @@ static struct snd_soc_dai_link kabylake_max98927_dais[] = {
 		.cpu_dai_name = "SSP0 Pin",
 		.platform_name = "0000:00:1f.3",
 		.no_pcm = 1,
-		.codecs = ssp0_codec_components,
-		.num_codecs = ARRAY_SIZE(ssp0_codec_components),
+		.codecs = max98927_ssp0_codec_components,
+		.num_codecs = ARRAY_SIZE(max98927_ssp0_codec_components),
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
@@ -917,8 +1009,8 @@ static struct snd_soc_card kbl_audio_card_da7219_m98927 = {
 static struct snd_soc_card kbl_audio_card_max98927 = {
 	.name = "kblmax98927",
 	.owner = THIS_MODULE,
-	.dai_link = kabylake_max98927_dais,
-	.num_links = ARRAY_SIZE(kabylake_max98927_dais),
+	.dai_link = kabylake_max98_927_373_dais,
+	.num_links = ARRAY_SIZE(kabylake_max98_927_373_dais),
 	.controls = kabylake_controls,
 	.num_controls = ARRAY_SIZE(kabylake_controls),
 	.dapm_widgets = kabylake_widgets,
@@ -931,9 +1023,46 @@ static struct snd_soc_card kbl_audio_card_max98927 = {
 	.late_probe = kabylake_card_late_probe,
 };
 
+static struct snd_soc_card kbl_audio_card_da7219_m98373 = {
+	.name = "kblda7219m98373",
+	.owner = THIS_MODULE,
+	.dai_link = kabylake_dais,
+	.num_links = ARRAY_SIZE(kabylake_dais),
+	.controls = kabylake_controls,
+	.num_controls = ARRAY_SIZE(kabylake_controls),
+	.dapm_widgets = kabylake_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(kabylake_widgets),
+	.dapm_routes = kabylake_map,
+	.num_dapm_routes = ARRAY_SIZE(kabylake_map),
+	.codec_conf = max98373_codec_conf,
+	.num_configs = ARRAY_SIZE(max98373_codec_conf),
+	.fully_routed = true,
+	.late_probe = kabylake_card_late_probe,
+};
+
+static struct snd_soc_card kbl_audio_card_max98373 = {
+	.name = "kblmax98373",
+	.owner = THIS_MODULE,
+	.dai_link = kabylake_max98_927_373_dais,
+	.num_links = ARRAY_SIZE(kabylake_max98_927_373_dais),
+	.controls = kabylake_controls,
+	.num_controls = ARRAY_SIZE(kabylake_controls),
+	.dapm_widgets = kabylake_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(kabylake_widgets),
+	.dapm_routes = kabylake_map,
+	.num_dapm_routes = ARRAY_SIZE(kabylake_map),
+	.codec_conf = max98373_codec_conf,
+	.num_configs = ARRAY_SIZE(max98373_codec_conf),
+	.fully_routed = true,
+	.late_probe = kabylake_card_late_probe,
+};
+
 static int kabylake_audio_probe(struct platform_device *pdev)
 {
 	struct kbl_codec_private *ctx;
+	struct snd_soc_dai_link *kbl_dai_link;
+	struct snd_soc_dai_link_component **codecs;
+	int i = 0;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -944,6 +1073,22 @@ static int kabylake_audio_probe(struct platform_device *pdev)
 	kabylake_audio_card =
 		(struct snd_soc_card *)pdev->id_entry->driver_data;
 
+	kbl_dai_link = kabylake_audio_card->dai_link;
+
+	/* Update codecs for SSP0 with max98373 codec info */
+	if (!strcmp(pdev->name, "kbl_da7219_max98373") ||
+		(!strcmp(pdev->name, "kbl_max98373"))) {
+		for (i = 0; i < kabylake_audio_card->num_links; ++i) {
+			if (strcmp(kbl_dai_link[i].name, "SSP0-Codec"))
+				continue;
+
+			codecs = &(kbl_dai_link[i].codecs);
+			*codecs = max98373_ssp0_codec_components;
+			kbl_dai_link[i].num_codecs =
+				ARRAY_SIZE(max98373_ssp0_codec_components);
+			break;
+		}
+	}
 	kabylake_audio_card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(kabylake_audio_card, ctx);
 
@@ -961,13 +1106,23 @@ static const struct platform_device_id kbl_board_ids[] = {
 		.driver_data =
 			(kernel_ulong_t)&kbl_audio_card_max98927,
 	},
+	{
+		.name = "kbl_da7219_max98373",
+		.driver_data =
+			(kernel_ulong_t)&kbl_audio_card_da7219_m98373,
+	},
+	{
+		.name = "kbl_max98373",
+		.driver_data =
+			(kernel_ulong_t)&kbl_audio_card_max98373,
+	},
 	{ }
 };
 
 static struct platform_driver kabylake_audio = {
 	.probe = kabylake_audio_probe,
 	.driver = {
-		.name = "kbl_da7219_max98927",
+		.name = "kbl_da7219_max98_927_373",
 		.pm = &snd_soc_pm_ops,
 	},
 	.id_table = kbl_board_ids,
@@ -976,8 +1131,10 @@ static struct platform_driver kabylake_audio = {
 module_platform_driver(kabylake_audio)
 
 /* Module information */
-MODULE_DESCRIPTION("Audio KabyLake Machine driver for MAX98927 & DA7219");
+MODULE_DESCRIPTION("Audio KabyLake Machine driver for MAX98927/MAX98373 & DA7219");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:kbl_da7219_max98927");
 MODULE_ALIAS("platform:kbl_max98927");
+MODULE_ALIAS("platform:kbl_da7219_max98373");
+MODULE_ALIAS("platform:kbl_max98373");

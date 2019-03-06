@@ -29,6 +29,7 @@
 #include <linux/platform_data/davinci_asp.h>
 #include <linux/math64.h>
 #include <linux/bitmap.h>
+#include <linux/gpio/driver.h>
 
 #include <sound/asoundef.h>
 #include <sound/core.h>
@@ -54,6 +55,7 @@ static u32 context_regs[] = {
 	DAVINCI_MCASP_AHCLKXCTL_REG,
 	DAVINCI_MCASP_AHCLKRCTL_REG,
 	DAVINCI_MCASP_PDIR_REG,
+	DAVINCI_MCASP_PFUNC_REG,
 	DAVINCI_MCASP_RXMASK_REG,
 	DAVINCI_MCASP_TXMASK_REG,
 	DAVINCI_MCASP_RXTDM_REG,
@@ -107,6 +109,10 @@ struct davinci_mcasp {
 
 	/* Used for comstraint setting on the second stream */
 	u32	channels;
+
+#ifdef CONFIG_GPIOLIB
+	struct gpio_chip gpio_chip;
+#endif
 
 #ifdef CONFIG_PM
 	struct davinci_mcasp_context context;
@@ -817,9 +823,6 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	/* Default configuration */
 	if (mcasp->version < MCASP_VERSION_3)
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PWREMUMGT_REG, MCASP_SOFT);
-
-	/* All PINS as McASP */
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_PFUNC_REG, 0x00000000);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG, 0xFFFFFFFF);
@@ -1845,6 +1848,147 @@ static u32 davinci_mcasp_rxdma_offset(struct davinci_mcasp_pdata *pdata)
 	return offset;
 }
 
+#ifdef CONFIG_GPIOLIB
+static int davinci_mcasp_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+
+	if (mcasp->num_serializer && offset < mcasp->num_serializer &&
+	    mcasp->serial_dir[offset] != INACTIVE_MODE) {
+		dev_err(mcasp->dev, "AXR%u pin is  used for audio\n", offset);
+		return -EBUSY;
+	}
+
+	/* Do not change the PIN yet */
+
+	return pm_runtime_get_sync(mcasp->dev);
+}
+
+static void davinci_mcasp_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+
+	/* Set the direction to input */
+	mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, BIT(offset));
+
+	/* Set the pin as McASP pin */
+	mcasp_clr_bits(mcasp, DAVINCI_MCASP_PFUNC_REG, BIT(offset));
+
+	pm_runtime_put_sync(mcasp->dev);
+}
+
+static int davinci_mcasp_gpio_direction_out(struct gpio_chip *chip,
+					    unsigned offset, int value)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+	u32 val;
+
+	if (value)
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
+	else
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
+
+	val = mcasp_get_reg(mcasp, DAVINCI_MCASP_PFUNC_REG);
+	if (!(val & BIT(offset))) {
+		/* Set the pin as GPIO pin */
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PFUNC_REG, BIT(offset));
+
+		/* Set the direction to output */
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, BIT(offset));
+	}
+
+	return 0;
+}
+
+static void davinci_mcasp_gpio_set(struct gpio_chip *chip, unsigned offset,
+				  int value)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+
+	if (value)
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
+	else
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDOUT_REG, BIT(offset));
+}
+
+static int davinci_mcasp_gpio_direction_in(struct gpio_chip *chip,
+					   unsigned offset)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+	u32 val;
+
+	val = mcasp_get_reg(mcasp, DAVINCI_MCASP_PFUNC_REG);
+	if (!(val & BIT(offset))) {
+		/* Set the direction to input */
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, BIT(offset));
+
+		/* Set the pin as GPIO pin */
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PFUNC_REG, BIT(offset));
+	}
+
+	return 0;
+}
+
+static int davinci_mcasp_gpio_get(struct gpio_chip *chip, unsigned offset)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+	u32 val;
+
+	val = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDSET_REG);
+	if (val & BIT(offset))
+		return 1;
+
+	return 0;
+}
+
+static int davinci_mcasp_gpio_get_direction(struct gpio_chip *chip,
+					    unsigned offset)
+{
+	struct davinci_mcasp *mcasp = gpiochip_get_data(chip);
+	u32 val;
+
+	val = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDIR_REG);
+	if (val & BIT(offset))
+		return 0;
+
+	return 1;
+}
+
+static const struct gpio_chip davinci_mcasp_template_chip = {
+	.owner			= THIS_MODULE,
+	.request		= davinci_mcasp_gpio_request,
+	.free			= davinci_mcasp_gpio_free,
+	.direction_output	= davinci_mcasp_gpio_direction_out,
+	.set			= davinci_mcasp_gpio_set,
+	.direction_input	= davinci_mcasp_gpio_direction_in,
+	.get			= davinci_mcasp_gpio_get,
+	.get_direction		= davinci_mcasp_gpio_get_direction,
+	.base			= -1,
+	.ngpio			= 32,
+};
+
+static int davinci_mcasp_init_gpiochip(struct davinci_mcasp *mcasp)
+{
+	if (!of_property_read_bool(mcasp->dev->of_node, "gpio-controller"))
+		return 0;
+
+	mcasp->gpio_chip = davinci_mcasp_template_chip;
+	mcasp->gpio_chip.label = dev_name(mcasp->dev);
+	mcasp->gpio_chip.parent = mcasp->dev;
+#ifdef CONFIG_OF_GPIO
+	mcasp->gpio_chip.of_node = mcasp->dev->of_node;
+#endif
+
+	return devm_gpiochip_add_data(mcasp->dev, &mcasp->gpio_chip, mcasp);
+}
+
+#else /* CONFIG_GPIOLIB */
+static inline int davinci_mcasp_init_gpiochip(struct davinci_mcasp *mcasp)
+{
+	return 0;
+}
+#endif /* CONFIG_GPIOLIB */
+
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
@@ -2069,6 +2213,15 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	mcasp_reparent_fck(pdev);
 
+	/* All PINS as McASP */
+	pm_runtime_get_sync(mcasp->dev);
+	mcasp_set_reg(mcasp, DAVINCI_MCASP_PFUNC_REG, 0x00000000);
+	pm_runtime_put(mcasp->dev);
+
+	ret = davinci_mcasp_init_gpiochip(mcasp);
+	if (ret)
+		goto err;
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					&davinci_mcasp_component,
 					&davinci_mcasp_dai[pdata->op_mode], 1);
@@ -2079,26 +2232,10 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = davinci_mcasp_get_dma_type(mcasp);
 	switch (ret) {
 	case PCM_EDMA:
-#if IS_BUILTIN(CONFIG_SND_SOC_TI_EDMA_PCM) || \
-	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
-	 IS_MODULE(CONFIG_SND_SOC_TI_EDMA_PCM))
 		ret = edma_pcm_platform_register(&pdev->dev);
-#else
-		dev_err(&pdev->dev, "Missing SND_EDMA_SOC\n");
-		ret = -EINVAL;
-		goto err;
-#endif
 		break;
 	case PCM_SDMA:
-#if IS_BUILTIN(CONFIG_SND_SOC_TI_SDMA_PCM) || \
-	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
-	 IS_MODULE(CONFIG_SND_SOC_TI_SDMA_PCM))
 		ret = sdma_pcm_platform_register(&pdev->dev, NULL, NULL);
-#else
-		dev_err(&pdev->dev, "Missing SND_SDMA_SOC\n");
-		ret = -EINVAL;
-		goto err;
-#endif
 		break;
 	default:
 		dev_err(&pdev->dev, "No DMA controller found (%d)\n", ret);

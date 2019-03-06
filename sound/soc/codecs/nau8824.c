@@ -807,7 +807,7 @@ static const struct snd_soc_dapm_route nau8824_dapm_routes[] = {
 static bool nau8824_is_jack_inserted(struct nau8824 *nau8824)
 {
 	struct snd_soc_jack *jack = nau8824->jack;
-	bool insert = FALSE;
+	bool insert = false;
 
 	if (nau8824->irq && jack)
 		insert = jack->status & SND_JACK_HEADPHONE;
