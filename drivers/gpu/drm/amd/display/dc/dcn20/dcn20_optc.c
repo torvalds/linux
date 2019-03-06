@@ -330,6 +330,65 @@ void optc2_triplebuffer_unlock(struct timing_generator *optc)
 
 }
 
+
+void optc2_setup_global_lock(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t v_blank_start = 0;
+	uint32_t h_blank_start = 0, h_total = 0;
+
+	REG_SET(OTG_GLOBAL_CONTROL1, 0, MASTER_UPDATE_LOCK_DB_EN, 1);
+
+	REG_SET(OTG_GLOBAL_CONTROL2, 0, DIG_UPDATE_LOCATION, 20);
+
+	REG_GET(OTG_V_BLANK_START_END, OTG_V_BLANK_START, &v_blank_start);
+
+	REG_GET(OTG_H_BLANK_START_END, OTG_H_BLANK_START, &h_blank_start);
+
+	REG_GET(OTG_H_TOTAL, OTG_H_TOTAL, &h_total);
+	REG_UPDATE_2(OTG_GLOBAL_CONTROL1,
+			MASTER_UPDATE_LOCK_DB_X,
+			h_blank_start - 200 - 1,
+			MASTER_UPDATE_LOCK_DB_Y,
+			v_blank_start - 1);
+}
+
+void optc2_lock_global(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 1);
+
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc->inst);
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 1);
+
+	/* Should be fast, status does not update on maximus */
+	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+				UPDATE_LOCK_STATUS, 1,
+				1, 10);
+}
+
+void optc2_lock(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, 0);
+
+	REG_SET(OTG_GLOBAL_CONTROL0, 0,
+			OTG_MASTER_UPDATE_LOCK_SEL, optc->inst);
+	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
+			OTG_MASTER_UPDATE_LOCK, 1);
+
+	/* Should be fast, status does not update on maximus */
+	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+				UPDATE_LOCK_STATUS, 1,
+				1, 10);
+}
+
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -424,8 +483,10 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.triplebuffer_lock = optc2_triplebuffer_lock,
 		.triplebuffer_unlock = optc2_triplebuffer_unlock,
 		.disable_reset_trigger = optc1_disable_reset_trigger,
-		.lock = optc1_lock,
+		.lock = optc2_lock,
 		.unlock = optc1_unlock,
+		.lock_global = optc2_lock_global,
+		.setup_global_lock = optc2_setup_global_lock,
 		.lock_doublebuffer_enable = optc2_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc2_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,

@@ -727,6 +727,10 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
+	if (pipe_ctx->stream_res.tg->funcs->setup_global_lock)
+		pipe_ctx->stream_res.tg->funcs->setup_global_lock(
+				pipe_ctx->stream_res.tg);
+
 	/* program otg blank color */
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
