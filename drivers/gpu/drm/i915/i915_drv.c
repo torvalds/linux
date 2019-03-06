@@ -1363,13 +1363,7 @@ static void
 intel_get_dram_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
-	char bandwidth_str[32];
 	int ret;
-
-	dram_info->valid = false;
-	dram_info->ranks = 0;
-	dram_info->bandwidth_kbps = 0;
-	dram_info->num_channels = 0;
 
 	/*
 	 * Assume 16Gb DIMMs are present until proven otherwise.
@@ -1391,12 +1385,10 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	if (ret)
 		return;
 
-	if (dram_info->bandwidth_kbps)
-		sprintf(bandwidth_str, "%d KBps", dram_info->bandwidth_kbps);
-	else
-		sprintf(bandwidth_str, "unknown");
-	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
-		      bandwidth_str, dram_info->num_channels);
+	DRM_DEBUG_KMS("DRAM bandwidth: %u kBps, channels: %u\n",
+		      dram_info->bandwidth_kbps,
+		      dram_info->num_channels);
+
 	DRM_DEBUG_KMS("DRAM ranks: %u, 16Gb DIMMs: %s\n",
 		      dram_info->ranks, yesno(dram_info->is_16gb_dimm));
 }
