@@ -2690,7 +2690,7 @@ static void vxlan_cleanup(struct timer_list *t)
 	for (h = 0; h < FDB_HASH_SIZE; ++h) {
 		struct hlist_node *p, *n;
 
-		spin_lock_bh(&vxlan->hash_lock);
+		spin_lock(&vxlan->hash_lock);
 		hlist_for_each_safe(p, n, &vxlan->fdb_head[h]) {
 			struct vxlan_fdb *f
 				= container_of(p, struct vxlan_fdb, hlist);
@@ -2712,7 +2712,7 @@ static void vxlan_cleanup(struct timer_list *t)
 			} else if (time_before(timeout, next_timer))
 				next_timer = timeout;
 		}
-		spin_unlock_bh(&vxlan->hash_lock);
+		spin_unlock(&vxlan->hash_lock);
 	}
 
 	mod_timer(&vxlan->age_timer, next_timer);
