@@ -1,9 +1,10 @@
-=======================
-Device Power Management
-=======================
+===============================
+CPU and Device Power Management
+===============================
 
 .. toctree::
 
+   cpuidle
    devices
    notifiers
    types

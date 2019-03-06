@@ -1736,6 +1736,7 @@ F:	arch/arm/configs/mvebu_*_defconfig
 F:	arch/arm/mach-mvebu/
 F:	arch/arm64/boot/dts/marvell/armada*
 F:	drivers/cpufreq/armada-37xx-cpufreq.c
+F:	drivers/cpufreq/armada-8k-cpufreq.c
 F:	drivers/cpufreq/mvebu-cpufreq.c
 F:	drivers/irqchip/irq-armada-370-xp.c
 F:	drivers/irqchip/irq-mvebu-*
@@ -3994,7 +3995,7 @@ M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
-T:	git git://git.linaro.org/people/vireshk/linux.git (For ARM Updates)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vireshk/pm.git (For ARM Updates)
 B:	https://bugzilla.kernel.org
 F:	Documentation/admin-guide/pm/cpufreq.rst
 F:	Documentation/admin-guide/pm/intel_pstate.rst
@@ -4054,6 +4055,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 B:	https://bugzilla.kernel.org
 F:	Documentation/admin-guide/pm/cpuidle.rst
+F:	Documentation/driver-api/pm/cpuidle.rst
 F:	drivers/cpuidle/*
 F:	include/linux/cpuidle.h
 
@@ -12679,11 +12681,11 @@ F:	Documentation/media/v4l-drivers/qcom_camss.rst
 F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CPUFREQ DRIVER MSM8996/APQ8096
-M:  Ilia Lin <ilia.lin@gmail.com>
-L:  linux-pm@vger.kernel.org
-S:  Maintained
-F:  Documentation/devicetree/bindings/opp/kryo-cpufreq.txt
-F:  drivers/cpufreq/qcom-cpufreq-kryo.c
+M:	Ilia Lin <ilia.lin@kernel.org>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/opp/kryo-cpufreq.txt
+F:	drivers/cpufreq/qcom-cpufreq-kryo.c
 
 QUALCOMM EMAC GIGABIT ETHERNET DRIVER
 M:	Timur Tabi <timur@kernel.org>

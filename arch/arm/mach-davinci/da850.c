@@ -22,6 +22,7 @@
 #include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/platform_data/clk-da8xx-cfgchip.h>
 #include <linux/platform_data/clk-davinci-pll.h>
+#include <linux/platform_data/davinci-cpufreq.h>
 #include <linux/platform_data/gpio-davinci.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
-#include <mach/cpufreq.h>
 #include <mach/cputype.h>
 #include <mach/da8xx.h>
 #include <mach/pm.h>
