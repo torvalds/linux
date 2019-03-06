@@ -390,7 +390,7 @@ config HX711
 
 	  This driver uses two GPIOs, one acts as the clock and controls the
 	  channel selection and gain, the other one is used for the measurement
-          data
+	  data
 
 	  Currently the raw value is read from the chip and delivered.
 	  To get an actual weight one needs to subtract the
@@ -585,17 +585,17 @@ config MCP3911
 	  called mcp3911.
 
 config MEDIATEK_MT6577_AUXADC
-        tristate "MediaTek AUXADC driver"
-        depends on ARCH_MEDIATEK || COMPILE_TEST
-        depends on HAS_IOMEM
-        help
-          Say yes here to enable support for MediaTek mt65xx AUXADC.
+	tristate "MediaTek AUXADC driver"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say yes here to enable support for MediaTek mt65xx AUXADC.
 
-          The driver supports immediate mode operation to read from one of sixteen
-          channels (external or internal).
+	  The driver supports immediate mode operation to read from one of sixteen
+	  channels (external or internal).
 
-          This driver can also be built as a module. If so, the module will be
-          called mt6577_auxadc.
+	  This driver can also be built as a module. If so, the module will be
+	  called mt6577_auxadc.
 
 config MEN_Z188_ADC
 	tristate "MEN 16z188 ADC IP Core support"
