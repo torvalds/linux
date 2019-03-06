@@ -423,8 +423,8 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  * debugfs core.
  *
  * It is your responsibility to protect your struct file_operation
- * methods against file removals by means of debugfs_use_file_start()
- * and debugfs_use_file_finish(). ->open() is still protected by
+ * methods against file removals by means of debugfs_file_get()
+ * and debugfs_file_put(). ->open() is still protected by
  * debugfs though.
  *
  * Any struct file_operations defined by means of

@@ -24,6 +24,10 @@
 #include <getopt.h>
 
 
+#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
+#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+#define ALIGN(x, a)			__ALIGN_KERNEL((x), (a))
+
 struct ihex_binrec {
 	struct ihex_binrec *next; /* not part of the real data structure */
         uint32_t addr;
@@ -131,6 +135,7 @@ int main(int argc, char **argv)
 static int process_ihex(uint8_t *data, ssize_t size)
 {
 	struct ihex_binrec *record;
+	size_t record_size;
 	uint32_t offset = 0;
 	uint32_t data32;
 	uint8_t type, crc = 0, crcbyte = 0;
@@ -157,12 +162,13 @@ next_record:
 		len <<= 8;
 		len += hex(data + i, &crc); i += 2;
 	}
-	record = malloc((sizeof (*record) + len + 3) & ~3);
+	record_size = ALIGN(sizeof(*record) + len, 4);
+	record = malloc(record_size);
 	if (!record) {
 		fprintf(stderr, "out of memory for records\n");
 		return -ENOMEM;
 	}
-	memset(record, 0, (sizeof(*record) + len + 3) & ~3);
+	memset(record, 0, record_size);
 	record->len = len;
 
 	/* now check if we have enough data to read everything */
@@ -259,13 +265,18 @@ static void file_record(struct ihex_binrec *record)
 	*p = record;
 }
 
+static uint16_t ihex_binrec_size(struct ihex_binrec *p)
+{
+	return p->len + sizeof(p->addr) + sizeof(p->len);
+}
+
 static int output_records(int outfd)
 {
 	unsigned char zeroes[6] = {0, 0, 0, 0, 0, 0};
 	struct ihex_binrec *p = records;
 
 	while (p) {
-		uint16_t writelen = (p->len + 9) & ~3;
+		uint16_t writelen = ALIGN(ihex_binrec_size(p), 4);
 
 		p->addr = htonl(p->addr);
 		p->len = htons(p->len);

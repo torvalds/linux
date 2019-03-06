@@ -341,6 +341,7 @@ struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, void *data,
 				  int (*match)(struct device *dev, void *data));
 
+void driver_deferred_probe_add(struct device *dev);
 int driver_deferred_probe_check_state(struct device *dev);
 
 /**
@@ -827,12 +828,14 @@ enum device_link_state {
  * PM_RUNTIME: If set, the runtime PM framework will use this link.
  * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
  * AUTOREMOVE_SUPPLIER: Remove the link automatically on supplier driver unbind.
+ * AUTOPROBE_CONSUMER: Probe consumer driver automatically after supplier binds.
  */
 #define DL_FLAG_STATELESS		BIT(0)
 #define DL_FLAG_AUTOREMOVE_CONSUMER	BIT(1)
 #define DL_FLAG_PM_RUNTIME		BIT(2)
 #define DL_FLAG_RPM_ACTIVE		BIT(3)
 #define DL_FLAG_AUTOREMOVE_SUPPLIER	BIT(4)
+#define DL_FLAG_AUTOPROBE_CONSUMER	BIT(5)
 
 /**
  * struct device_link - Device link representation.
@@ -845,6 +848,7 @@ enum device_link_state {
  * @rpm_active: Whether or not the consumer device is runtime-PM-active.
  * @kref: Count repeated addition of the same link.
  * @rcu_head: An RCU head to use for deferred execution of SRCU callbacks.
+ * @supplier_preactivated: Supplier has been made active before consumer probe.
  */
 struct device_link {
 	struct device *supplier;
@@ -853,11 +857,12 @@ struct device_link {
 	struct list_head c_node;
 	enum device_link_state status;
 	u32 flags;
-	bool rpm_active;
+	refcount_t rpm_active;
 	struct kref kref;
 #ifdef CONFIG_SRCU
 	struct rcu_head rcu_head;
 #endif
+	bool supplier_preactivated; /* Owned by consumer probe. */
 };
 
 /**
@@ -985,7 +990,7 @@ struct device {
 	void		*platform_data;	/* Platform specific data, device
 					   core doesn't touch it */
 	void		*driver_data;	/* Driver data, set and get with
-					   dev_set/get_drvdata */
+					   dev_set_drvdata/dev_get_drvdata */
 	struct dev_links_info	links;
 	struct dev_pm_info	power;
 	struct dev_pm_domain	*pm_domain;
@@ -1035,7 +1040,6 @@ struct device {
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
 
-	struct klist_node	knode_class;
 	struct class		*class;
 	const struct attribute_group **groups;	/* optional groups */
 
@@ -1392,28 +1396,28 @@ void device_link_remove(void *consumer, struct device *supplier);
 
 #ifdef CONFIG_PRINTK
 
-__printf(3, 0)
+__printf(3, 0) __cold
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args);
-__printf(3, 4)
+__printf(3, 4) __cold
 int dev_printk_emit(int level, const struct device *dev, const char *fmt, ...);
 
-__printf(3, 4)
+__printf(3, 4) __cold
 void dev_printk(const char *level, const struct device *dev,
 		const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_emerg(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_alert(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_crit(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_err(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_warn(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_notice(const struct device *dev, const char *fmt, ...);
-__printf(2, 3)
+__printf(2, 3) __cold
 void _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
