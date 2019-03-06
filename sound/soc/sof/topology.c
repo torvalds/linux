@@ -10,6 +10,7 @@
 
 #include <linux/firmware.h>
 #include <sound/tlv.h>
+#include <sound/pcm_params.h>
 #include <uapi/sound/sof/tokens.h>
 #include "sof-priv.h"
 #include "ops.h"
@@ -37,6 +38,149 @@
 #define TLV_MIN		0
 #define TLV_STEP	1
 #define TLV_MUTE	2
+
+/* send pcm params ipc */
+static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
+{
+	struct sof_ipc_pcm_params_reply ipc_params_reply;
+	struct snd_sof_dev *sdev = swidget->sdev;
+	struct sof_ipc_pcm_params pcm;
+	struct snd_pcm_hw_params *params;
+	struct snd_sof_pcm *spcm;
+	int ret = 0;
+
+	memset(&pcm, 0, sizeof(pcm));
+
+	/* get runtime PCM params using widget's stream name */
+	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
+	if (!spcm) {
+		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+			swidget->widget->name);
+		return -EINVAL;
+	}
+
+	params = &spcm->params[dir];
+
+	/* set IPC PCM params */
+	pcm.hdr.size = sizeof(pcm);
+	pcm.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_PARAMS;
+	pcm.comp_id = swidget->comp_id;
+	pcm.params.hdr.size = sizeof(pcm.params);
+	pcm.params.direction = dir;
+	pcm.params.sample_valid_bytes = params_width(params) >> 3;
+	pcm.params.buffer_fmt = SOF_IPC_BUFFER_INTERLEAVED;
+	pcm.params.rate = params_rate(params);
+	pcm.params.channels = params_channels(params);
+	pcm.params.host_period_bytes = params_period_bytes(params);
+
+	/* set format */
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16:
+		pcm.params.frame_fmt = SOF_IPC_FRAME_S16_LE;
+		break;
+	case SNDRV_PCM_FORMAT_S24:
+		pcm.params.frame_fmt = SOF_IPC_FRAME_S24_4LE;
+		break;
+	case SNDRV_PCM_FORMAT_S32:
+		pcm.params.frame_fmt = SOF_IPC_FRAME_S32_LE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* send IPC to the DSP */
+	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
+				 &ipc_params_reply, sizeof(ipc_params_reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "error: pcm params failed for %s\n",
+			swidget->widget->name);
+
+	return ret;
+}
+
+ /* send stream trigger ipc */
+static int ipc_trigger(struct snd_sof_widget *swidget, int cmd)
+{
+	struct snd_sof_dev *sdev = swidget->sdev;
+	struct sof_ipc_stream stream;
+	struct sof_ipc_reply reply;
+	int ret = 0;
+
+	/* set IPC stream params */
+	stream.hdr.size = sizeof(stream);
+	stream.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | cmd;
+	stream.comp_id = swidget->comp_id;
+
+	/* send IPC to the DSP */
+	ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd, &stream,
+				 sizeof(stream), &reply, sizeof(reply));
+	if (ret < 0)
+		dev_err(sdev->dev, "error: failed to trigger %s\n",
+			swidget->widget->name);
+
+	return ret;
+}
+
+static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *k, int event)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_sof_dev *sdev;
+	int ret = 0;
+
+	if (!swidget)
+		return 0;
+
+	sdev = swidget->sdev;
+
+	dev_dbg(sdev->dev, "received event %d for widget %s\n",
+		event, w->name);
+
+	/* process events */
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* set pcm params */
+		ret = ipc_pcm_params(swidget, SOF_IPC_STREAM_CAPTURE);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: failed to set pcm params for widget %s\n",
+				swidget->widget->name);
+			break;
+		}
+
+		/* start trigger */
+		ret = ipc_trigger(swidget, SOF_IPC_STREAM_TRIG_START);
+		if (ret < 0)
+			dev_err(sdev->dev,
+				"error: failed to trigger widget %s\n",
+				swidget->widget->name);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* stop trigger */
+		ret = ipc_trigger(swidget, SOF_IPC_STREAM_TRIG_STOP);
+		if (ret < 0)
+			dev_err(sdev->dev,
+				"error: failed to trigger widget %s\n",
+				swidget->widget->name);
+
+		/* pcm free */
+		ret = ipc_trigger(swidget, SOF_IPC_STREAM_PCM_FREE);
+		if (ret < 0)
+			dev_err(sdev->dev,
+				"error: failed to trigger widget %s\n",
+				swidget->widget->name);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+/* event handlers for keyword detect component */
+static const struct snd_soc_tplg_widget_events sof_kwd_events[] = {
+	{SOF_KEYWORD_DETECT_DAPM_EVENT, sof_keyword_dapm_event},
+};
 
 static inline int get_tlv_data(const int *p, int tlv[TLV_ITEMS])
 {
@@ -1769,6 +1913,38 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
+static int sof_widget_bind_event(struct snd_sof_dev *sdev,
+				 struct snd_sof_widget *swidget,
+				 u16 event_type)
+{
+	struct sof_ipc_comp *ipc_comp;
+
+	/* validate widget event type */
+	switch (event_type) {
+	case SOF_KEYWORD_DETECT_DAPM_EVENT:
+		/* only KEYWORD_DETECT comps should handle this */
+		if (swidget->id != snd_soc_dapm_effect)
+			break;
+
+		ipc_comp = swidget->private;
+		if (ipc_comp && ipc_comp->type != SOF_COMP_KEYWORD_DETECT)
+			break;
+
+		/* bind event to keyword detect comp */
+		return snd_soc_tplg_widget_bind_event(swidget->widget,
+						      sof_kwd_events,
+						      ARRAY_SIZE(sof_kwd_events),
+						      event_type);
+	default:
+		break;
+	}
+
+	dev_err(sdev->dev,
+		"error: invalid event type %d for widget %s\n",
+		event_type, swidget->widget->name);
+	return -EINVAL;
+}
+
 /* external widget init - used for any driver specific init */
 static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			    struct snd_soc_dapm_widget *w,
@@ -1879,6 +2055,18 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 				? tw->sname : "none", reply.rhdr.error);
 		kfree(swidget);
 		return ret;
+	}
+
+	/* bind widget to external event */
+	if (tw->event_type) {
+		ret = sof_widget_bind_event(sdev, swidget,
+					    le16_to_cpu(tw->event_type));
+		if (ret) {
+			dev_err(sdev->dev, "error: widget event binding failed\n");
+			kfree(swidget->private);
+			kfree(swidget);
+			return ret;
+		}
 	}
 
 	w->dobj.private = swidget;
