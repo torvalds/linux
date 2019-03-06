@@ -557,6 +557,11 @@ static const struct iwl_prph_range iwl_prph_dump_addr_22000[] = {
 	{ .start = 0x00a0c1b0, .end = 0x00a0c1b8 },
 };
 
+static const struct iwl_prph_range iwl_prph_dump_addr_ax210[] = {
+	{ .start = 0x00d03c00, .end = 0x00d03c64 },
+	{ .start = 0x00d0c000, .end = 0x00d0c174 },
+};
+
 static void iwl_read_prph_block(struct iwl_trans *trans, u32 start,
 				u32 len_bytes, __le32 *data)
 {
@@ -675,7 +680,8 @@ static void iwl_fw_prph_handler(struct iwl_fw_runtime *fwrt, void *ptr,
 	u32 range_len;
 
 	if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		/* TODO */
+		range_len = ARRAY_SIZE(iwl_prph_dump_addr_ax210);
+		handler(fwrt, iwl_prph_dump_addr_ax210, range_len, ptr);
 	} else if (fwrt->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
 		range_len = ARRAY_SIZE(iwl_prph_dump_addr_22000);
 		handler(fwrt, iwl_prph_dump_addr_22000, range_len, ptr);
