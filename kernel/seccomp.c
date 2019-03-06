@@ -331,7 +331,7 @@ static int is_ancestor(struct seccomp_filter *parent,
  * Expects sighand and cred_guard_mutex locks to be held.
  *
  * Returns 0 on success, -ve on error, or the pid of a thread which was
- * either not in the correct seccomp mode or it did not have an ancestral
+ * either not in the correct seccomp mode or did not have an ancestral
  * seccomp filter.
  */
 static inline pid_t seccomp_can_sync_threads(void)
