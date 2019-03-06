@@ -1068,6 +1068,26 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
+#define DRAM_TYPE_STR(type) [INTEL_DRAM_ ## type] = #type
+
+static const char *intel_dram_type_str(enum intel_dram_type type)
+{
+	static const char * const str[] = {
+		DRAM_TYPE_STR(UNKNOWN),
+		DRAM_TYPE_STR(DDR3),
+		DRAM_TYPE_STR(DDR4),
+		DRAM_TYPE_STR(LPDDR3),
+		DRAM_TYPE_STR(LPDDR4),
+	};
+
+	if (type >= ARRAY_SIZE(str))
+		type = INTEL_DRAM_UNKNOWN;
+
+	return str[type];
+}
+
+#undef DRAM_TYPE_STR
+
 static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
 {
 	return dimm->ranks * 64 / (dimm->width ?: 1);
@@ -1254,12 +1274,37 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static enum intel_dram_type
+skl_get_dram_type(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	val = I915_READ(SKL_MAD_INTER_CHANNEL_0_0_0_MCHBAR_MCMAIN);
+
+	switch (val & SKL_DRAM_DDR_TYPE_MASK) {
+	case SKL_DRAM_DDR_TYPE_DDR3:
+		return INTEL_DRAM_DDR3;
+	case SKL_DRAM_DDR_TYPE_DDR4:
+		return INTEL_DRAM_DDR4;
+	case SKL_DRAM_DDR_TYPE_LPDDR3:
+		return INTEL_DRAM_LPDDR3;
+	case SKL_DRAM_DDR_TYPE_LPDDR4:
+		return INTEL_DRAM_LPDDR4;
+	default:
+		MISSING_CASE(val);
+		return INTEL_DRAM_UNKNOWN;
+	}
+}
+
 static int
 skl_get_dram_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
 	u32 mem_freq_khz, val;
 	int ret;
+
+	dram_info->type = skl_get_dram_type(dev_priv);
+	DRM_DEBUG_KMS("DRAM type: %s\n", intel_dram_type_str(dram_info->type));
 
 	ret = skl_dram_get_channels_info(dev_priv);
 	if (ret)
@@ -1327,6 +1372,26 @@ static int bxt_get_dimm_ranks(u32 val)
 	}
 }
 
+static enum intel_dram_type bxt_get_dimm_type(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return INTEL_DRAM_UNKNOWN;
+
+	switch (val & BXT_DRAM_TYPE_MASK) {
+	case BXT_DRAM_TYPE_DDR3:
+		return INTEL_DRAM_DDR3;
+	case BXT_DRAM_TYPE_LPDDR3:
+		return INTEL_DRAM_LPDDR3;
+	case BXT_DRAM_TYPE_DDR4:
+		return INTEL_DRAM_DDR4;
+	case BXT_DRAM_TYPE_LPDDR4:
+		return INTEL_DRAM_LPDDR4;
+	default:
+		MISSING_CASE(val);
+		return INTEL_DRAM_UNKNOWN;
+	}
+}
+
 static void bxt_get_dimm_info(struct dram_dimm_info *dimm,
 			      u32 val)
 {
@@ -1369,6 +1434,7 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 	 */
 	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
 		struct dram_dimm_info dimm;
+		enum intel_dram_type type;
 
 		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
 		if (val == 0xFFFFFFFF)
@@ -1377,10 +1443,16 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 		dram_info->num_channels++;
 
 		bxt_get_dimm_info(&dimm, val);
+		type = bxt_get_dimm_type(val);
 
-		DRM_DEBUG_KMS("CH%u DIMM size: %u GB, width: X%u, ranks: %u\n",
+		WARN_ON(type != INTEL_DRAM_UNKNOWN &&
+			dram_info->type != INTEL_DRAM_UNKNOWN &&
+			dram_info->type != type);
+
+		DRM_DEBUG_KMS("CH%u DIMM size: %u GB, width: X%u, ranks: %u, type: %s\n",
 			      i - BXT_D_CR_DRP0_DUNIT_START,
-			      dimm.size, dimm.width, dimm.ranks);
+			      dimm.size, dimm.width, dimm.ranks,
+			      intel_dram_type_str(type));
 
 		/*
 		 * If any of the channel is single rank channel,
@@ -1391,10 +1463,14 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 			dram_info->ranks = dimm.ranks;
 		else if (dimm.ranks == 1)
 			dram_info->ranks = 1;
+
+		if (type != INTEL_DRAM_UNKNOWN)
+			dram_info->type = type;
 	}
 
-	if (dram_info->ranks == 0) {
-		DRM_INFO("couldn't get memory rank information\n");
+	if (dram_info->type == INTEL_DRAM_UNKNOWN ||
+	    dram_info->ranks == 0) {
+		DRM_INFO("couldn't get memory information\n");
 		return -EINVAL;
 	}
 

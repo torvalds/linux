@@ -1829,6 +1829,13 @@ struct drm_i915_private {
 		u8 ranks;
 		u32 bandwidth_kbps;
 		bool symmetric_memory;
+		enum intel_dram_type {
+			INTEL_DRAM_UNKNOWN,
+			INTEL_DRAM_DDR3,
+			INTEL_DRAM_DDR4,
+			INTEL_DRAM_LPDDR3,
+			INTEL_DRAM_LPDDR4
+		} type;
 	} dram_info;
 
 	struct i915_runtime_pm runtime_pm;
