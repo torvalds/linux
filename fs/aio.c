@@ -1033,6 +1033,11 @@ static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 	if (unlikely(!req))
 		return NULL;
 
+	if (unlikely(!get_reqs_available(ctx))) {
+		kfree(req);
+		return NULL;
+	}
+
 	percpu_ref_get(&ctx->reqs);
 	req->ki_ctx = ctx;
 	INIT_LIST_HEAD(&req->ki_list);
@@ -1793,13 +1798,9 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		return -EINVAL;
 	}
 
-	if (!get_reqs_available(ctx))
-		return -EAGAIN;
-
-	ret = -EAGAIN;
 	req = aio_get_req(ctx);
 	if (unlikely(!req))
-		goto out_put_reqs_available;
+		return -EAGAIN;
 
 	req->ki_filp = fget(iocb->aio_fildes);
 	ret = -EBADF;
@@ -1874,7 +1875,6 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 
 out_put_req:
 	iocb_destroy(req);
-out_put_reqs_available:
 	put_reqs_available(ctx, 1);
 	return ret;
 }
