@@ -108,52 +108,32 @@ static const struct file_operations acpi_ec_io_ops = {
 	.llseek = default_llseek,
 };
 
-static int acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
+static void acpi_ec_add_debugfs(struct acpi_ec *ec, unsigned int ec_device_count)
 {
 	struct dentry *dev_dir;
 	char name[64];
 	umode_t mode = 0400;
 
-	if (ec_device_count == 0) {
+	if (ec_device_count == 0)
 		acpi_ec_debugfs_dir = debugfs_create_dir("ec", NULL);
-		if (!acpi_ec_debugfs_dir)
-			return -ENOMEM;
-	}
 
 	sprintf(name, "ec%u", ec_device_count);
 	dev_dir = debugfs_create_dir(name, acpi_ec_debugfs_dir);
-	if (!dev_dir) {
-		if (ec_device_count != 0)
-			goto error;
-		return -ENOMEM;
-	}
 
-	if (!debugfs_create_x32("gpe", 0444, dev_dir, &first_ec->gpe))
-		goto error;
-	if (!debugfs_create_bool("use_global_lock", 0444, dev_dir,
-				 &first_ec->global_lock))
-		goto error;
+	debugfs_create_x32("gpe", 0444, dev_dir, &first_ec->gpe);
+	debugfs_create_bool("use_global_lock", 0444, dev_dir,
+			    &first_ec->global_lock);
 
 	if (write_support)
 		mode = 0600;
-	if (!debugfs_create_file("io", mode, dev_dir, ec, &acpi_ec_io_ops))
-		goto error;
-
-	return 0;
-
-error:
-	debugfs_remove_recursive(acpi_ec_debugfs_dir);
-	return -ENOMEM;
+	debugfs_create_file("io", mode, dev_dir, ec, &acpi_ec_io_ops);
 }
 
 static int __init acpi_ec_sys_init(void)
 {
-	int err = 0;
 	if (first_ec)
-		err = acpi_ec_add_debugfs(first_ec, 0);
-	else
-		err = -ENODEV;
-	return err;
+		acpi_ec_add_debugfs(first_ec, 0);
+	return 0;
 }
 
 static void __exit acpi_ec_sys_exit(void)

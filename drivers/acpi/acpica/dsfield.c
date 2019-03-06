@@ -3,7 +3,7 @@
  *
  * Module Name: dsfield - Dispatcher field routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -518,6 +518,13 @@ acpi_ds_create_field(union acpi_parse_object *op,
 	info.region_node = region_node;
 
 	status = acpi_ds_get_field_names(&info, walk_state, arg->common.next);
+	if (info.region_node->object->region.space_id ==
+	    ACPI_ADR_SPACE_PLATFORM_COMM
+	    && !(region_node->object->field.internal_pcc_buffer =
+		 ACPI_ALLOCATE_ZEROED(info.region_node->object->region.
+				      length))) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
 	return_ACPI_STATUS(status);
 }
 
