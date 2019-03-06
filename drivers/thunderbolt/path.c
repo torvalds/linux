@@ -13,21 +13,22 @@
 
 #include "tb.h"
 
-static void tb_dump_hop(struct tb_port *port, struct tb_regs_hop *hop)
+static void tb_dump_hop(const struct tb_path_hop *hop, const struct tb_regs_hop *regs)
 {
-	tb_port_dbg(port, " Hop through port %d to hop %d (%s)\n",
-		    hop->out_port, hop->next_hop,
-		    hop->enable ? "enabled" : "disabled");
+	const struct tb_port *port = hop->in_port;
+
+	tb_port_dbg(port, " In HopID: %d => Out port: %d Out HopID: %d\n",
+		    hop->in_hop_index, regs->out_port, regs->next_hop);
 	tb_port_dbg(port, "  Weight: %d Priority: %d Credits: %d Drop: %d\n",
-		    hop->weight, hop->priority,
-		    hop->initial_credits, hop->drop_packages);
+		    regs->weight, regs->priority,
+		    regs->initial_credits, regs->drop_packages);
 	tb_port_dbg(port, "   Counter enabled: %d Counter index: %d\n",
-		    hop->counter_enable, hop->counter);
+		    regs->counter_enable, regs->counter);
 	tb_port_dbg(port, "  Flow Control (In/Eg): %d/%d Shared Buffer (In/Eg): %d/%d\n",
-		    hop->ingress_fc, hop->egress_fc,
-		    hop->ingress_shared_buffer, hop->egress_shared_buffer);
+		    regs->ingress_fc, regs->egress_fc,
+		    regs->ingress_shared_buffer, regs->egress_shared_buffer);
 	tb_port_dbg(port, "  Unknown1: %#x Unknown2: %#x Unknown3: %#x\n",
-		    hop->unknown1, hop->unknown2, hop->unknown3);
+		    regs->unknown1, regs->unknown2, regs->unknown3);
 }
 
 static struct tb_port *tb_path_find_dst_port(struct tb_port *src, int src_hopid,
@@ -500,9 +501,8 @@ int tb_path_activate(struct tb_path *path)
 					    & out_mask;
 		hop.unknown3 = 0;
 
-		tb_port_dbg(path->hops[i].in_port, "Writing hop %d, index %d\n",
-			    i, path->hops[i].in_hop_index);
-		tb_dump_hop(path->hops[i].in_port, &hop);
+		tb_port_dbg(path->hops[i].in_port, "Writing hop %d\n", i);
+		tb_dump_hop(&path->hops[i], &hop);
 		res = tb_port_write(path->hops[i].in_port, &hop, TB_CFG_HOPS,
 				    2 * path->hops[i].in_hop_index, 2);
 		if (res) {
