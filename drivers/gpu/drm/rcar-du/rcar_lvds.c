@@ -63,7 +63,6 @@ struct rcar_lvds {
 		struct clk *extal;		/* External clock */
 		struct clk *dotclkin[2];	/* External DU clocks */
 	} clocks;
-	bool enabled;
 
 	struct drm_display_mode display_mode;
 	enum rcar_lvds_mode mode;
@@ -368,15 +367,12 @@ int rcar_lvds_clk_enable(struct drm_bridge *bridge, unsigned long freq)
 
 	dev_dbg(lvds->dev, "enabling LVDS PLL, freq=%luHz\n", freq);
 
-	WARN_ON(lvds->enabled);
-
 	ret = clk_prepare_enable(lvds->clocks.mod);
 	if (ret < 0)
 		return ret;
 
 	__rcar_lvds_pll_setup_d3_e3(lvds, freq, true);
 
-	lvds->enabled = true;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_clk_enable);
@@ -390,13 +386,9 @@ void rcar_lvds_clk_disable(struct drm_bridge *bridge)
 
 	dev_dbg(lvds->dev, "disabling LVDS PLL\n");
 
-	WARN_ON(!lvds->enabled);
-
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
 	clk_disable_unprepare(lvds->clocks.mod);
-
-	lvds->enabled = false;
 }
 EXPORT_SYMBOL_GPL(rcar_lvds_clk_disable);
 
@@ -416,8 +408,6 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	u32 lvdhcr;
 	u32 lvdcr0;
 	int ret;
-
-	WARN_ON(lvds->enabled);
 
 	ret = clk_prepare_enable(lvds->clocks.mod);
 	if (ret < 0)
@@ -507,15 +497,11 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 		drm_panel_prepare(lvds->panel);
 		drm_panel_enable(lvds->panel);
 	}
-
-	lvds->enabled = true;
 }
 
 static void rcar_lvds_disable(struct drm_bridge *bridge)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	WARN_ON(!lvds->enabled);
 
 	if (lvds->panel) {
 		drm_panel_disable(lvds->panel);
@@ -527,8 +513,6 @@ static void rcar_lvds_disable(struct drm_bridge *bridge)
 	rcar_lvds_write(lvds, LVDPLLCR, 0);
 
 	clk_disable_unprepare(lvds->clocks.mod);
-
-	lvds->enabled = false;
 }
 
 static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
@@ -591,8 +575,6 @@ static void rcar_lvds_mode_set(struct drm_bridge *bridge,
 			       const struct drm_display_mode *adjusted_mode)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	WARN_ON(lvds->enabled);
 
 	lvds->display_mode = *adjusted_mode;
 
@@ -793,7 +775,6 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 
 	lvds->dev = &pdev->dev;
 	lvds->info = of_device_get_match_data(&pdev->dev);
-	lvds->enabled = false;
 
 	ret = rcar_lvds_parse_dt(lvds);
 	if (ret < 0)
