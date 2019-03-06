@@ -441,3 +441,9 @@ int mmci_dmae_start(struct mmci_host *host, unsigned int *datactrl);
 void mmci_dmae_finalize(struct mmci_host *host, struct mmc_data *data);
 void mmci_dmae_error(struct mmci_host *host);
 #endif
+
+#ifdef CONFIG_MMC_QCOM_DML
+void qcom_variant_init(struct mmci_host *host);
+#else
+static inline void qcom_variant_init(struct mmci_host *host) {}
+#endif
