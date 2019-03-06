@@ -46,19 +46,18 @@ static struct media_entity *vimc_get_source_entity(struct media_entity *ent)
  */
 static void vimc_streamer_pipeline_terminate(struct vimc_stream *stream)
 {
-	struct media_entity *entity;
+	struct vimc_ent_device *ved;
 	struct v4l2_subdev *sd;
 
 	while (stream->pipe_size) {
 		stream->pipe_size--;
-		entity = stream->ved_pipeline[stream->pipe_size]->ent;
-		entity = vimc_get_source_entity(entity);
+		ved = stream->ved_pipeline[stream->pipe_size];
 		stream->ved_pipeline[stream->pipe_size] = NULL;
 
-		if (!is_media_entity_v4l2_subdev(entity))
+		if (!is_media_entity_v4l2_subdev(ved->ent))
 			continue;
 
-		sd = media_entity_to_v4l2_subdev(entity);
+		sd = media_entity_to_v4l2_subdev(ved->ent);
 		v4l2_subdev_call(sd, video, s_stream, 0);
 	}
 }
@@ -89,18 +88,25 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 		}
 		stream->ved_pipeline[stream->pipe_size++] = ved;
 
+		if (is_media_entity_v4l2_subdev(ved->ent)) {
+			sd = media_entity_to_v4l2_subdev(ved->ent);
+			ret = v4l2_subdev_call(sd, video, s_stream, 1);
+			if (ret && ret != -ENOIOCTLCMD) {
+				pr_err("subdev_call error %s\n",
+				       ved->ent->name);
+				vimc_streamer_pipeline_terminate(stream);
+				return ret;
+			}
+		}
+
 		entity = vimc_get_source_entity(ved->ent);
 		/* Check if the end of the pipeline was reached*/
 		if (!entity)
 			return 0;
 
+		/* Get the next device in the pipeline */
 		if (is_media_entity_v4l2_subdev(entity)) {
 			sd = media_entity_to_v4l2_subdev(entity);
-			ret = v4l2_subdev_call(sd, video, s_stream, 1);
-			if (ret && ret != -ENOIOCTLCMD) {
-				vimc_streamer_pipeline_terminate(stream);
-				return ret;
-			}
 			ved = v4l2_get_subdevdata(sd);
 		} else {
 			vdev = container_of(entity,
