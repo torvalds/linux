@@ -263,16 +263,16 @@ destroy:
 
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *dct,
-			 u32 *in, int inlen)
+			 u32 *in, int inlen,
+			 u32 *out, int outlen)
 {
-	u32 out[MLX5_ST_SZ_DW(create_dct_out)]   = {0};
 	struct mlx5_core_qp *qp = &dct->mqp;
 	int err;
 
 	init_completion(&dct->drained);
 	MLX5_SET(create_dct_in, in, opcode, MLX5_CMD_OP_CREATE_DCT);
 
-	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err) {
 		mlx5_core_warn(dev, "create DCT failed, ret %d\n", err);
 		return err;
