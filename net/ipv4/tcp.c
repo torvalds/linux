@@ -943,6 +943,10 @@ ssize_t do_tcp_sendpages(struct sock *sk, struct page *page, int offset,
 	ssize_t copied;
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
+	if (IS_ENABLED(CONFIG_DEBUG_VM) &&
+	    WARN_ONCE(PageSlab(page), "page must not be a Slab one"))
+		return -EINVAL;
+
 	/* Wait for a connection to finish. One exception is TCP Fast Open
 	 * (passive side) where data is allowed to be sent before a connection
 	 * is fully established.
