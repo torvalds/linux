@@ -323,13 +323,14 @@ ENTRY(startup_kdump)
 
 #
 # params at 10400 (setup.h)
+# Must be keept in sync with struct parmarea in setup.h
 #
 	.org	PARMAREA
-	.long	0,0			# IPL_DEVICE
-	.long	0,0			# INITRD_START
-	.long	0,0			# INITRD_SIZE
-	.long	0,0			# OLDMEM_BASE
-	.long	0,0			# OLDMEM_SIZE
+	.quad	0			# IPL_DEVICE
+	.quad	0			# INITRD_START
+	.quad	0			# INITRD_SIZE
+	.quad	0			# OLDMEM_BASE
+	.quad	0			# OLDMEM_SIZE
 
 	.org	COMMAND_LINE
 	.byte	"root=/dev/ram0 ro"

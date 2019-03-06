@@ -32,6 +32,7 @@ static int kexec_file_add_image_kernel(struct kimage *image,
 	ret = kexec_add_buffer(&buf);
 
 	data->kernel_buf = kernel;
+	data->parm = (void *)kernel + PARMAREA;
 	data->memsz += buf.memsz + STARTUP_NORMAL_OFFSET;
 
 	return ret;

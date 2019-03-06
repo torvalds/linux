@@ -11,6 +11,7 @@
 
 #include <asm/processor.h>
 #include <asm/page.h>
+#include <asm/setup.h>
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
@@ -51,11 +52,11 @@ struct s390_load_data {
 	/* Pointer to the kernel buffer. Used to register cmdline etc.. */
 	void *kernel_buf;
 
+	/* Parmarea in the kernel buffer. */
+	struct parmarea *parm;
+
 	/* Total size of loaded segments in memory. Used as an offset. */
 	size_t memsz;
-
-	/* Load address of initrd. Used to register INITRD_START in kernel. */
-	unsigned long initrd_load_addr;
 };
 
 int kexec_file_add_purgatory(struct kimage *image,

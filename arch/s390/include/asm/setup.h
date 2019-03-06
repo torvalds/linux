@@ -65,6 +65,16 @@
 #define OLDMEM_SIZE	(*(unsigned long *)  (OLDMEM_SIZE_OFFSET))
 #define COMMAND_LINE	((char *)	     (COMMAND_LINE_OFFSET))
 
+struct parmarea {
+	unsigned long ipl_device;			/* 0x10400 */
+	unsigned long initrd_start;			/* 0x10408 */
+	unsigned long initrd_size;			/* 0x10410 */
+	unsigned long oldmem_base;			/* 0x10418 */
+	unsigned long oldmem_size;			/* 0x10420 */
+	char pad1[0x10480 - 0x10428];			/* 0x10428 - 0x10480 */
+	char command_line[ARCH_COMMAND_LINE_SIZE];	/* 0x10480 */
+};
+
 extern int noexec_disabled;
 extern int memory_end_set;
 extern unsigned long memory_end;

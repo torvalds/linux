@@ -25,24 +25,12 @@ int *kexec_file_update_kernel(struct kimage *image,
 	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	if (image->cmdline_buf_len)
-		memcpy(data->kernel_buf + COMMAND_LINE_OFFSET,
-		       image->cmdline_buf, image->cmdline_buf_len);
+	memcpy(data->parm->command_line, image->cmdline_buf,
+	       image->cmdline_buf_len);
 
 	if (image->type == KEXEC_TYPE_CRASH) {
-		loc = (unsigned long *)(data->kernel_buf + OLDMEM_BASE_OFFSET);
-		*loc = crashk_res.start;
-
-		loc = (unsigned long *)(data->kernel_buf + OLDMEM_SIZE_OFFSET);
-		*loc = crashk_res.end - crashk_res.start + 1;
-	}
-
-	if (image->initrd_buf) {
-		loc = (unsigned long *)(data->kernel_buf + INITRD_START_OFFSET);
-		*loc = data->initrd_load_addr;
-
-		loc = (unsigned long *)(data->kernel_buf + INITRD_SIZE_OFFSET);
-		*loc = image->initrd_buf_len;
+		data->parm->oldmem_base = crashk_res.start;
+		data->parm->oldmem_size = crashk_res.end - crashk_res.start + 1;
 	}
 
 	return NULL;
@@ -127,7 +115,8 @@ int kexec_file_add_initrd(struct kimage *image, struct s390_load_data *data,
 		buf.mem += crashk_res.start;
 	buf.memsz = buf.bufsz;
 
-	data->initrd_load_addr = buf.mem;
+	data->parm->initrd_start = buf.mem;
+	data->parm->initrd_size = buf.memsz;
 	data->memsz += buf.memsz;
 
 	ret = kexec_add_buffer(&buf);

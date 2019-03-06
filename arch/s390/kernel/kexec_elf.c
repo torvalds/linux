@@ -42,6 +42,7 @@ static int kexec_file_add_elf_kernel(struct kimage *image,
 
 		if (entry - phdr->p_paddr < phdr->p_memsz) {
 			data->kernel_buf = buf.buffer;
+			data->parm = buf.buffer + PARMAREA;
 			data->memsz += STARTUP_NORMAL_OFFSET;
 
 			buf.buffer += STARTUP_NORMAL_OFFSET;
