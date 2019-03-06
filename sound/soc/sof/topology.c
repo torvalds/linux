@@ -2913,6 +2913,16 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
+	/*
+	 * Virtual widgets of type output/out_drv may be added in topology
+	 * for compatibility. These are not handled by the FW.
+	 * So, don't send routes whose source/sink widget is of such types
+	 * to the DSP.
+	 */
+	if (source_swidget->id == snd_soc_dapm_out_drv ||
+	    source_swidget->id == snd_soc_dapm_output)
+		goto err;
+
 	connect->source_id = source_swidget->comp_id;
 
 	/* sink component */
@@ -2924,11 +2934,18 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		goto err;
 	}
 
+	/*
+	 * Don't send routes whose sink widget is of type
+	 * output or out_drv to the DSP
+	 */
+	if (sink_swidget->id == snd_soc_dapm_out_drv ||
+	    sink_swidget->id == snd_soc_dapm_output)
+		goto err;
+
 	connect->sink_id = sink_swidget->comp_id;
 
 	/*
-	 * Some virtual routes and widgets may been added in topology for
-	 * compatibility. For virtual routes, both sink and source are not
+	 * For virtual routes, both sink and source are not
 	 * buffer. Since only buffer linked to component is supported by
 	 * FW, others are reported as error, add check in route function,
 	 * do not send it to FW when both source and sink are not buffer
