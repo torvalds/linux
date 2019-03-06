@@ -1068,16 +1068,37 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
-static int skl_get_dimm_ranks(u8 size, u32 rank)
+/* Returns total GB for the whole DIMM */
+static int skl_get_dimm_size(u16 val)
 {
-	if (size == 0)
-		return 0;
-	if (rank == SKL_DRAM_RANK_SINGLE)
-		return 1;
-	else if (rank == SKL_DRAM_RANK_DUAL)
-		return 2;
+	return val & SKL_DRAM_SIZE_MASK;
+}
 
-	return 0;
+static int skl_get_dimm_width(u16 val)
+{
+	if (skl_get_dimm_size(val) == 0)
+		return 0;
+
+	switch (val & SKL_DRAM_WIDTH_MASK) {
+	case SKL_DRAM_WIDTH_X8:
+	case SKL_DRAM_WIDTH_X16:
+	case SKL_DRAM_WIDTH_X32:
+		val = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+		return 8 << val;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int skl_get_dimm_ranks(u16 val)
+{
+	if (skl_get_dimm_size(val) == 0)
+		return 0;
+
+	val = (val & SKL_DRAM_RANK_MASK) >> SKL_DRAM_RANK_SHIFT;
+
+	return val + 1;
 }
 
 static bool
@@ -1098,30 +1119,22 @@ skl_is_16gb_dimm(u8 ranks, u8 size, u8 width)
 static int
 skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
 {
-	u32 tmp_l, tmp_s;
-	u32 s_val = val >> SKL_DRAM_S_SHIFT;
+	u16 tmp_l, tmp_s;
 
-	if (!val)
+	tmp_l = val & 0xffff;
+	tmp_s = val >> 16;
+
+	ch->l_info.size = skl_get_dimm_size(tmp_l);
+	ch->s_info.size = skl_get_dimm_size(tmp_s);
+
+	if (ch->l_info.size == 0 && ch->s_info.size == 0)
 		return -EINVAL;
 
-	tmp_l = val & SKL_DRAM_SIZE_MASK;
-	tmp_s = s_val & SKL_DRAM_SIZE_MASK;
+	ch->l_info.width = skl_get_dimm_width(tmp_l);
+	ch->s_info.width = skl_get_dimm_width(tmp_s);
 
-	if (tmp_l == 0 && tmp_s == 0)
-		return -EINVAL;
-
-	ch->l_info.size = tmp_l;
-	ch->s_info.size = tmp_s;
-
-	tmp_l = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-	tmp_s = (s_val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-	ch->l_info.width = (1 << tmp_l) * 8;
-	ch->s_info.width = (1 << tmp_s) * 8;
-
-	tmp_l = val & SKL_DRAM_RANK_MASK;
-	tmp_s = s_val & SKL_DRAM_RANK_MASK;
-	ch->l_info.ranks = skl_get_dimm_ranks(ch->l_info.size, tmp_l);
-	ch->s_info.ranks = skl_get_dimm_ranks(ch->s_info.size, tmp_s);
+	ch->l_info.ranks = skl_get_dimm_ranks(tmp_l);
+	ch->s_info.ranks = skl_get_dimm_ranks(tmp_s);
 
 	if (ch->l_info.ranks == 2 || ch->s_info.ranks == 2)
 		ch->ranks = 2;
