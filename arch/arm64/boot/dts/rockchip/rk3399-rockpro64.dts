@@ -649,6 +649,12 @@
 			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	i2s0 {
+		i2s_8ch_mclk: i2s-8ch-mclk {
+			rockchip,pins = <4 0 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm0 {
