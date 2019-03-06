@@ -2052,10 +2052,12 @@ struct drm_i915_private {
 	 */
 };
 
+struct dram_dimm_info {
+	u8 size, width, ranks;
+};
+
 struct dram_channel_info {
-	struct info {
-		u8 size, width, ranks;
-	} l_info, s_info;
+	struct dram_dimm_info l_info, s_info;
 	u8 ranks;
 	bool is_16gb_dimm;
 };

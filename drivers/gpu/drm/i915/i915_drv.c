@@ -1068,6 +1068,11 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 	intel_gvt_sanitize_options(dev_priv);
 }
 
+static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
+{
+	return dimm->ranks * 64 / (dimm->width ?: 1);
+}
+
 /* Returns total GB for the whole DIMM */
 static int skl_get_dimm_size(u16 val)
 {
@@ -1102,18 +1107,10 @@ static int skl_get_dimm_ranks(u16 val)
 }
 
 static bool
-skl_is_16gb_dimm(u8 ranks, u8 size, u8 width)
+skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 {
-	if (ranks == 1 && width == 8 && size == 16)
-		return true;
-	else if (ranks == 2 && width == 8 && size == 32)
-		return true;
-	else if (ranks == 1 && width == 16 && size == 8)
-		return true;
-	else if (ranks == 2 && width == 16 && size == 16)
-		return true;
-
-	return false;
+	/* Convert total GB to Gb per DRAM device */
+	return 8 * dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
 }
 
 static int
@@ -1143,10 +1140,9 @@ skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
 	else
 		ch->ranks = 1;
 
-	ch->is_16gb_dimm = skl_is_16gb_dimm(ch->l_info.ranks, ch->l_info.size,
-					    ch->l_info.width) ||
-			   skl_is_16gb_dimm(ch->s_info.ranks, ch->s_info.size,
-					    ch->s_info.width);
+	ch->is_16gb_dimm =
+		skl_is_16gb_dimm(&ch->l_info) ||
+		skl_is_16gb_dimm(&ch->s_info);
 
 	DRM_DEBUG_KMS("(size:width:ranks) L(%uGB:X%u:%u) S(%uGB:X%u:%u)\n",
 		      ch->l_info.size, ch->l_info.width, ch->l_info.ranks,
@@ -1364,7 +1360,7 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 		sprintf(bandwidth_str, "unknown");
 	DRM_DEBUG_KMS("DRAM bandwidth:%s, total-channels: %u\n",
 		      bandwidth_str, dram_info->num_channels);
-	DRM_DEBUG_KMS("DRAM ranks: %u, 16GB-dimm:%s\n",
+	DRM_DEBUG_KMS("DRAM ranks: %u, 16Gb DIMMs: %s\n",
 		      dram_info->ranks, yesno(dram_info->is_16gb_dimm));
 }
 
