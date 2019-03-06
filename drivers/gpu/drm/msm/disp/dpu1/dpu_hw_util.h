@@ -18,7 +18,6 @@
 #include "dpu_hw_mdss.h"
 
 #define REG_MASK(n)                     ((BIT(n)) - 1)
-struct dpu_format_extended;
 
 /*
  * This is the common struct maintained by each sub block

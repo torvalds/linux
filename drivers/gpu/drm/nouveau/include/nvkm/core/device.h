@@ -28,6 +28,7 @@ enum nvkm_devidx {
 	NVKM_SUBDEV_ICCSENSE,
 	NVKM_SUBDEV_THERM,
 	NVKM_SUBDEV_CLK,
+	NVKM_SUBDEV_GSP,
 	NVKM_SUBDEV_SECBOOT,
 
 	NVKM_ENGINE_BSP,
@@ -137,6 +138,7 @@ struct nvkm_device {
 	struct nvkm_fb *fb;
 	struct nvkm_fuse *fuse;
 	struct nvkm_gpio *gpio;
+	struct nvkm_gsp *gsp;
 	struct nvkm_i2c *i2c;
 	struct nvkm_subdev *ibus;
 	struct nvkm_iccsense *iccsense;
@@ -209,6 +211,7 @@ struct nvkm_device_chip {
 	int (*fb      )(struct nvkm_device *, int idx, struct nvkm_fb **);
 	int (*fuse    )(struct nvkm_device *, int idx, struct nvkm_fuse **);
 	int (*gpio    )(struct nvkm_device *, int idx, struct nvkm_gpio **);
+	int (*gsp     )(struct nvkm_device *, int idx, struct nvkm_gsp **);
 	int (*i2c     )(struct nvkm_device *, int idx, struct nvkm_i2c **);
 	int (*ibus    )(struct nvkm_device *, int idx, struct nvkm_subdev **);
 	int (*iccsense)(struct nvkm_device *, int idx, struct nvkm_iccsense **);

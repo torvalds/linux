@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2019 Ilia Mirkin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,26 +18,43 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Authors: Ilia Mirkin
  */
-#include "mem.h"
-#include "vmm.h"
+#include "priv.h"
 
-#include <core/option.h>
+#include <subdev/fuse.h>
 
-#include <nvif/class.h>
+static int
+gf117_volt_speedo_read(struct nvkm_volt *volt)
+{
+	struct nvkm_device *device = volt->subdev.device;
+	struct nvkm_fuse *fuse = device->fuse;
 
-static const struct nvkm_mmu_func
-tu104_mmu = {
-	.dma_bits = 47,
-	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
-	.mem = {{ -1,  0, NVIF_CLASS_MEM_GF100}, gf100_mem_new, gf100_mem_map },
-	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GP100}, tu104_vmm_new },
-	.kind = gm200_mmu_kind,
-	.kind_sys = true,
+	if (!fuse)
+		return -EINVAL;
+
+	return nvkm_fuse_read(fuse, 0x3a8);
+}
+
+static const struct nvkm_volt_func
+gf117_volt = {
+	.oneinit = gf100_volt_oneinit,
+	.vid_get = nvkm_voltgpio_get,
+	.vid_set = nvkm_voltgpio_set,
+	.speedo_read = gf117_volt_speedo_read,
 };
 
 int
-tu104_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
+gf117_volt_new(struct nvkm_device *device, int index, struct nvkm_volt **pvolt)
 {
-	return nvkm_mmu_new_(&tu104_mmu, device, index, pmmu);
+	struct nvkm_volt *volt;
+	int ret;
+
+	ret = nvkm_volt_new_(&gf117_volt, device, index, &volt);
+	*pvolt = volt;
+	if (ret)
+		return ret;
+
+	return nvkm_voltgpio_init(volt);
 }

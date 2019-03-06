@@ -29,7 +29,7 @@
 #include <subdev/timer.h>
 
 static int
-tu104_disp_init(struct nv50_disp *disp)
+tu102_disp_init(struct nv50_disp *disp)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;
 	struct nvkm_head *head;
@@ -132,21 +132,21 @@ tu104_disp_init(struct nv50_disp *disp)
 }
 
 static const struct nv50_disp_func
-tu104_disp = {
-	.init = tu104_disp_init,
+tu102_disp = {
+	.init = tu102_disp_init,
 	.fini = gv100_disp_fini,
 	.intr = gv100_disp_intr,
 	.uevent = &gv100_disp_chan_uevent,
 	.super = gv100_disp_super,
-	.root = &tu104_disp_root_oclass,
+	.root = &tu102_disp_root_oclass,
 	.wndw = { .cnt = gv100_disp_wndw_cnt },
 	.head = { .cnt = gv100_head_cnt, .new = gv100_head_new },
-	.sor = { .cnt = gv100_sor_cnt, .new = tu104_sor_new },
+	.sor = { .cnt = gv100_sor_cnt, .new = tu102_sor_new },
 	.ramht_size = 0x2000,
 };
 
 int
-tu104_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+tu102_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&tu104_disp, device, index, pdisp);
+	return nv50_disp_new_(&tu102_disp, device, index, pdisp);
 }

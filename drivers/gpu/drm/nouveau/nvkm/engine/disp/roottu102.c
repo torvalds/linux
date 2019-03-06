@@ -19,27 +19,34 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "user.h"
+#include "rootnv50.h"
+#include "channv50.h"
 
-static int
-tu104_fifo_user_map(struct nvkm_object *object, void *argv, u32 argc,
-		    enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvkm_device *device = object->engine->subdev.device;
-	*addr = 0xbb0000 + device->func->resource_addr(device, 0);
-	*size = 0x010000;
-	*type = NVKM_OBJECT_MAP_IO;
-	return 0;
-}
+#include <nvif/class.h>
 
-static const struct nvkm_object_func
-tu104_fifo_user = {
-	.map = tu104_fifo_user_map,
+static const struct nv50_disp_root_func
+tu102_disp_root = {
+	.user = {
+		{{0,0,TU102_DISP_CURSOR                }, gv100_disp_curs_new },
+		{{0,0,TU102_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
+		{{0,0,TU102_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
+		{{0,0,TU102_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
+		{}
+	},
 };
 
-int
-tu104_fifo_user_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
+static int
+tu102_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
 {
-	return nvkm_object_new_(&tu104_fifo_user, oclass, argv, argc, pobject);
+	return nv50_disp_root_new_(&tu102_disp_root, disp, oclass,
+				   data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+tu102_disp_root_oclass = {
+	.base.oclass = TU102_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = tu102_disp_root_new,
+};

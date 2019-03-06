@@ -483,11 +483,16 @@ void optc1_program_timing(
 	const struct dc_crtc_timing *dc_crtc_timing,
 	bool use_vbios);
 
-void optc1_program_vline_interrupt(
+void optc1_setup_vertical_interrupt0(
 		struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing,
-		enum vline_select vline,
-		const union vline_config *vline_config);
+		uint32_t start_line,
+		uint32_t end_line);
+void optc1_setup_vertical_interrupt1(
+		struct timing_generator *optc,
+		uint32_t start_line);
+void optc1_setup_vertical_interrupt2(
+		struct timing_generator *optc,
+		uint32_t start_line);
 
 void optc1_program_global_sync(
 		struct timing_generator *optc);

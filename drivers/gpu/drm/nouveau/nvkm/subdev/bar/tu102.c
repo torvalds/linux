@@ -25,7 +25,7 @@
 #include <subdev/timer.h>
 
 static void
-tu104_bar_bar2_wait(struct nvkm_bar *bar)
+tu102_bar_bar2_wait(struct nvkm_bar *bar)
 {
 	struct nvkm_device *device = bar->subdev.device;
 	nvkm_msec(device, 2000,
@@ -35,13 +35,13 @@ tu104_bar_bar2_wait(struct nvkm_bar *bar)
 }
 
 static void
-tu104_bar_bar2_fini(struct nvkm_bar *bar)
+tu102_bar_bar2_fini(struct nvkm_bar *bar)
 {
 	nvkm_mask(bar->subdev.device, 0xb80f48, 0x80000000, 0x00000000);
 }
 
 static void
-tu104_bar_bar2_init(struct nvkm_bar *base)
+tu102_bar_bar2_init(struct nvkm_bar *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct gf100_bar *bar = gf100_bar(base);
@@ -52,7 +52,7 @@ tu104_bar_bar2_init(struct nvkm_bar *base)
 }
 
 static void
-tu104_bar_bar1_wait(struct nvkm_bar *bar)
+tu102_bar_bar1_wait(struct nvkm_bar *bar)
 {
 	struct nvkm_device *device = bar->subdev.device;
 	nvkm_msec(device, 2000,
@@ -62,13 +62,13 @@ tu104_bar_bar1_wait(struct nvkm_bar *bar)
 }
 
 static void
-tu104_bar_bar1_fini(struct nvkm_bar *bar)
+tu102_bar_bar1_fini(struct nvkm_bar *bar)
 {
 	nvkm_mask(bar->subdev.device, 0xb80f40, 0x80000000, 0x00000000);
 }
 
 static void
-tu104_bar_bar1_init(struct nvkm_bar *base)
+tu102_bar_bar1_init(struct nvkm_bar *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct gf100_bar *bar = gf100_bar(base);
@@ -77,22 +77,22 @@ tu104_bar_bar1_init(struct nvkm_bar *base)
 }
 
 static const struct nvkm_bar_func
-tu104_bar = {
+tu102_bar = {
 	.dtor = gf100_bar_dtor,
 	.oneinit = gf100_bar_oneinit,
-	.bar1.init = tu104_bar_bar1_init,
-	.bar1.fini = tu104_bar_bar1_fini,
-	.bar1.wait = tu104_bar_bar1_wait,
+	.bar1.init = tu102_bar_bar1_init,
+	.bar1.fini = tu102_bar_bar1_fini,
+	.bar1.wait = tu102_bar_bar1_wait,
 	.bar1.vmm = gf100_bar_bar1_vmm,
-	.bar2.init = tu104_bar_bar2_init,
-	.bar2.fini = tu104_bar_bar2_fini,
-	.bar2.wait = tu104_bar_bar2_wait,
+	.bar2.init = tu102_bar_bar2_init,
+	.bar2.fini = tu102_bar_bar2_fini,
+	.bar2.wait = tu102_bar_bar2_wait,
 	.bar2.vmm = gf100_bar_bar2_vmm,
 	.flush = g84_bar_flush,
 };
 
 int
-tu104_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
+tu102_bar_new(struct nvkm_device *device, int index, struct nvkm_bar **pbar)
 {
-	return gf100_bar_new_(&tu104_bar, device, index, pbar);
+	return gf100_bar_new_(&tu102_bar, device, index, pbar);
 }

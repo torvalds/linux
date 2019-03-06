@@ -108,7 +108,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 		      unsigned client_id, unsigned src_id,
 		      struct amdgpu_irq_src *source);
 void amdgpu_irq_dispatch(struct amdgpu_device *adev,
-			 struct amdgpu_iv_entry *entry);
+			 struct amdgpu_ih_ring *ih);
 int amdgpu_irq_update(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 		      unsigned type);
 int amdgpu_irq_get(struct amdgpu_device *adev, struct amdgpu_irq_src *src,

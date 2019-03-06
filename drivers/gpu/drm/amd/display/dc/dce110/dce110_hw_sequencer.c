@@ -1300,6 +1300,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
 
+	if (dc->hwss.disable_stream_gating) {
+		dc->hwss.disable_stream_gating(dc, pipe_ctx);
+	}
+
 	if (pipe_ctx->stream_res.audio != NULL) {
 		struct audio_output audio_output;
 
@@ -1329,10 +1333,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (!pipe_ctx->stream->apply_seamless_boot_optimization)
 		dc->hwss.enable_stream_timing(pipe_ctx, context, dc);
 
-	if (pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt)
-		pipe_ctx->stream_res.tg->funcs->program_vupdate_interrupt(
-						pipe_ctx->stream_res.tg,
-							&stream->timing);
+	if (dc->hwss.setup_vupdate_interrupt)
+		dc->hwss.setup_vupdate_interrupt(pipe_ctx);
 
 	params.vertical_total_min = stream->adjust.v_total_min;
 	params.vertical_total_max = stream->adjust.v_total_max;
@@ -1521,6 +1523,14 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	struct dc_link *edp_link = get_link_for_edp(dc);
 	bool can_edp_fast_boot_optimize = false;
 	bool apply_edp_fast_boot_optimization = false;
+	bool can_apply_seamless_boot = false;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->streams[i]->apply_seamless_boot_optimization) {
+			can_apply_seamless_boot = true;
+			break;
+		}
+	}
 
 	if (edp_link) {
 		/* this seems to cause blank screens on DCE8 */
@@ -1549,7 +1559,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (!apply_edp_fast_boot_optimization) {
+	if (!apply_edp_fast_boot_optimization && !can_apply_seamless_boot) {
 		if (edp_link_to_turnoff) {
 			/*turn off backlight before DP_blank and encoder powered down*/
 			dc->hwss.edp_backlight_control(edp_link_to_turnoff, false);
@@ -2676,6 +2686,8 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
 	.enable_stream_timing = dce110_enable_stream_timing,
+	.disable_stream_gating = NULL,
+	.enable_stream_gating = NULL,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,

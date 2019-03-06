@@ -26,7 +26,7 @@
 #include <subdev/clk/pll.h>
 
 static int
-tu104_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
+tu102_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 {
 	struct nvkm_subdev *subdev = &init->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -66,7 +66,7 @@ tu104_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 }
 
 static int
-tu104_devinit_post(struct nvkm_devinit *base, bool post)
+tu102_devinit_post(struct nvkm_devinit *base, bool post)
 {
 	struct nv50_devinit *init = nv50_devinit(base);
 	gm200_devinit_preos(init, post);
@@ -74,16 +74,16 @@ tu104_devinit_post(struct nvkm_devinit *base, bool post)
 }
 
 static const struct nvkm_devinit_func
-tu104_devinit = {
+tu102_devinit = {
 	.init = nv50_devinit_init,
-	.post = tu104_devinit_post,
-	.pll_set = tu104_devinit_pll_set,
+	.post = tu102_devinit_post,
+	.pll_set = tu102_devinit_pll_set,
 	.disable = gm107_devinit_disable,
 };
 
 int
-tu104_devinit_new(struct nvkm_device *device, int index,
+tu102_devinit_new(struct nvkm_device *device, int index,
 		struct nvkm_devinit **pinit)
 {
-	return nv50_devinit_new_(&tu104_devinit, device, index, pinit);
+	return nv50_devinit_new_(&tu102_devinit, device, index, pinit);
 }

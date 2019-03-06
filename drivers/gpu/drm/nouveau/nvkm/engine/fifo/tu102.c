@@ -29,7 +29,7 @@
 #include <nvif/class.h>
 
 static void
-tu104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
+tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 			  struct nvkm_memory *mem, int nr)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
@@ -44,15 +44,15 @@ tu104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 }
 
 const struct gk104_fifo_runlist_func
-tu104_fifo_runlist = {
+tu102_fifo_runlist = {
 	.size = 16,
 	.cgrp = gv100_fifo_runlist_cgrp,
 	.chan = gv100_fifo_runlist_chan,
-	.commit = tu104_fifo_runlist_commit,
+	.commit = tu102_fifo_runlist_commit,
 };
 
 static const struct nvkm_enum
-tu104_fifo_fault_engine[] = {
+tu102_fifo_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
 	{ 0x03, "PTP" },
 	{ 0x06, "PWR_PMU" },
@@ -80,7 +80,7 @@ tu104_fifo_fault_engine[] = {
 };
 
 static void
-tu104_fifo_pbdma_init(struct gk104_fifo *fifo)
+tu102_fifo_pbdma_init(struct gk104_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	const u32 mask = (1 << fifo->pbdma_nr) - 1;
@@ -89,28 +89,28 @@ tu104_fifo_pbdma_init(struct gk104_fifo *fifo)
 }
 
 static const struct gk104_fifo_pbdma_func
-tu104_fifo_pbdma = {
+tu102_fifo_pbdma = {
 	.nr = gm200_fifo_pbdma_nr,
-	.init = tu104_fifo_pbdma_init,
+	.init = tu102_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
 };
 
 static const struct gk104_fifo_func
-tu104_fifo = {
-	.pbdma = &tu104_fifo_pbdma,
+tu102_fifo = {
+	.pbdma = &tu102_fifo_pbdma,
 	.fault.access = gv100_fifo_fault_access,
-	.fault.engine = tu104_fifo_fault_engine,
+	.fault.engine = tu102_fifo_fault_engine,
 	.fault.reason = gv100_fifo_fault_reason,
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
-	.runlist = &tu104_fifo_runlist,
-	.user = {{-1,-1,VOLTA_USERMODE_A       }, tu104_fifo_user_new   },
-	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu104_fifo_gpfifo_new },
+	.runlist = &tu102_fifo_runlist,
+	.user = {{-1,-1,VOLTA_USERMODE_A       }, tu102_fifo_user_new   },
+	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu102_fifo_gpfifo_new },
 	.cgrp_force = true,
 };
 
 int
-tu104_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+tu102_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&tu104_fifo, device, index, 4096, pfifo);
+	return gk104_fifo_new_(&tu102_fifo, device, index, 4096, pfifo);
 }

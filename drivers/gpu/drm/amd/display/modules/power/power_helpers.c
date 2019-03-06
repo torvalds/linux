@@ -165,18 +165,11 @@ struct iram_table_v_2_2 {
 };
 #pragma pack(pop)
 
-static uint16_t backlight_8_to_16(unsigned int backlight_8bit)
-{
-	return (uint16_t)(backlight_8bit * 0x101);
-}
-
 static void fill_backlight_transform_table(struct dmcu_iram_parameters params,
 		struct iram_table_v_2 *table)
 {
 	unsigned int i;
 	unsigned int num_entries = NUM_BL_CURVE_SEGS;
-	unsigned int query_input_8bit;
-	unsigned int query_output_8bit;
 	unsigned int lut_index;
 
 	table->backlight_thresholds[0] = 0;
@@ -194,16 +187,13 @@ static void fill_backlight_transform_table(struct dmcu_iram_parameters params,
 	 * format U4.10.
 	 */
 	for (i = 1; i+1 < num_entries; i++) {
-		query_input_8bit = DIV_ROUNDUP((i * 256), num_entries);
-
 		lut_index = (params.backlight_lut_array_size - 1) * i / (num_entries - 1);
 		ASSERT(lut_index < params.backlight_lut_array_size);
-		query_output_8bit = params.backlight_lut_array[lut_index] >> 8;
 
 		table->backlight_thresholds[i] =
-				backlight_8_to_16(query_input_8bit);
+			cpu_to_be16(DIV_ROUNDUP((i * 65536), num_entries));
 		table->backlight_offsets[i] =
-				backlight_8_to_16(query_output_8bit);
+			cpu_to_be16(params.backlight_lut_array[lut_index]);
 	}
 }
 
@@ -212,8 +202,6 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 {
 	unsigned int i;
 	unsigned int num_entries = NUM_BL_CURVE_SEGS;
-	unsigned int query_input_8bit;
-	unsigned int query_output_8bit;
 	unsigned int lut_index;
 
 	table->backlight_thresholds[0] = 0;
@@ -231,16 +219,13 @@ static void fill_backlight_transform_table_v_2_2(struct dmcu_iram_parameters par
 	 * format U4.10.
 	 */
 	for (i = 1; i+1 < num_entries; i++) {
-		query_input_8bit = DIV_ROUNDUP((i * 256), num_entries);
-
 		lut_index = (params.backlight_lut_array_size - 1) * i / (num_entries - 1);
 		ASSERT(lut_index < params.backlight_lut_array_size);
-		query_output_8bit = params.backlight_lut_array[lut_index] >> 8;
 
 		table->backlight_thresholds[i] =
-				backlight_8_to_16(query_input_8bit);
+			cpu_to_be16(DIV_ROUNDUP((i * 65536), num_entries));
 		table->backlight_offsets[i] =
-				backlight_8_to_16(query_output_8bit);
+			cpu_to_be16(params.backlight_lut_array[lut_index]);
 	}
 }
 

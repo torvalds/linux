@@ -81,6 +81,10 @@ void vega10_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.uvd_vce.vce_ring2_3 = AMDGPU_DOORBELL64_VCE_RING2_3;
 	adev->doorbell_index.uvd_vce.vce_ring4_5 = AMDGPU_DOORBELL64_VCE_RING4_5;
 	adev->doorbell_index.uvd_vce.vce_ring6_7 = AMDGPU_DOORBELL64_VCE_RING6_7;
+
+	adev->doorbell_index.first_non_cp = AMDGPU_DOORBELL64_FIRST_NON_CP;
+	adev->doorbell_index.last_non_cp = AMDGPU_DOORBELL64_LAST_NON_CP;
+
 	/* In unit of dword doorbell */
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL64_MAX_ASSIGNMENT << 1;
 	adev->doorbell_index.sdma_doorbell_range = 4;

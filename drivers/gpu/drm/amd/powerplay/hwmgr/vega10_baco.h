@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __VEGA10_BOCO_H__
-#define __VEGA10_BOCO_H__
+#ifndef __VEGA10_BACO_H__
+#define __VEGA10_BACO_H__
 #include "hwmgr.h"
 #include "common_baco.h"
 

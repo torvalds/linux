@@ -51,9 +51,19 @@ struct freesync_context {
 	bool dummy;
 };
 
-union vline_config {
-	unsigned int line_number;
-	unsigned long long delta_in_ns;
+enum vertical_interrupt_ref_point {
+	START_V_UPDATE = 0,
+	START_V_SYNC,
+	INVALID_POINT
+
+	//For now, only v_update interrupt is used.
+	//START_V_BLANK,
+	//START_V_ACTIVE
+};
+
+struct periodic_interrupt_config {
+	enum vertical_interrupt_ref_point ref_point;
+	int lines_offset;
 };
 
 
@@ -106,8 +116,8 @@ struct dc_stream_state {
 	/* DMCU info */
 	unsigned int abm_level;
 
-	union vline_config periodic_vsync_config;
-	union vline_config enhanced_sync_config;
+	struct periodic_interrupt_config periodic_interrupt0;
+	struct periodic_interrupt_config periodic_interrupt1;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -158,8 +168,8 @@ struct dc_stream_update {
 	struct dc_info_packet *hdr_static_metadata;
 	unsigned int *abm_level;
 
-	union vline_config *periodic_vsync_config;
-	union vline_config *enhanced_sync_config;
+	struct periodic_interrupt_config *periodic_interrupt0;
+	struct periodic_interrupt_config *periodic_interrupt1;
 
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;

@@ -24,7 +24,7 @@
 #include <subdev/timer.h>
 
 static void
-tu104_sor_dp_vcpi(struct nvkm_ior *sor, int head,
+tu102_sor_dp_vcpi(struct nvkm_ior *sor, int head,
 		  u8 slot, u8 slot_nr, u16 pbn, u16 aligned)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -35,7 +35,7 @@ tu104_sor_dp_vcpi(struct nvkm_ior *sor, int head,
 }
 
 static int
-tu104_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
+tu102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32 soff = nv50_ior_base(sor);
@@ -62,7 +62,7 @@ tu104_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 }
 
 static const struct nvkm_ior_func
-tu104_sor = {
+tu102_sor = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
@@ -75,11 +75,11 @@ tu104_sor = {
 	},
 	.dp = {
 		.lanes = { 0, 1, 2, 3 },
-		.links = tu104_sor_dp_links,
+		.links = tu102_sor_dp_links,
 		.power = g94_sor_dp_power,
 		.pattern = gm107_sor_dp_pattern,
 		.drive = gm200_sor_dp_drive,
-		.vcpi = tu104_sor_dp_vcpi,
+		.vcpi = tu102_sor_dp_vcpi,
 		.audio = gv100_sor_dp_audio,
 		.audio_sym = gv100_sor_dp_audio_sym,
 		.watermark = gv100_sor_dp_watermark,
@@ -91,7 +91,7 @@ tu104_sor = {
 };
 
 int
-tu104_sor_new(struct nvkm_disp *disp, int id)
+tu102_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&tu104_sor, disp, SOR, id);
+	return nvkm_ior_new_(&tu102_sor, disp, SOR, id);
 }
