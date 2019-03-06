@@ -52,6 +52,11 @@ config ARCH_BERLIN
 	help
 	  This enables support for Marvell Berlin SoC Family
 
+config ARCH_BITMAIN
+	bool "Bitmain SoC Platforms"
+	help
+	  This enables support for the Bitmain SoC Family.
+
 config ARCH_BRCMSTB
 	bool "Broadcom Set-Top-Box SoCs"
 	select BRCMSTB_L2_IRQ
