@@ -88,6 +88,9 @@ static int live_preempt(void *arg)
 	if (!HAS_LOGICAL_RING_PREEMPTION(i915))
 		return 0;
 
+	if (!(i915->caps.scheduler & I915_SCHEDULER_CAP_PREEMPTION))
+		pr_err("Logical preemption supported, but not exposed\n");
+
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(i915);
 
@@ -111,6 +114,9 @@ static int live_preempt(void *arg)
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
 		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
 						MI_ARB_CHECK);
@@ -202,6 +208,9 @@ static int live_late_preempt(void *arg)
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
 		rq = igt_spinner_create_request(&spin_lo, ctx_lo, engine,
 						MI_ARB_CHECK);
@@ -334,6 +343,9 @@ static int live_suppress_self_preempt(void *arg)
 	for_each_engine(engine, i915, id) {
 		struct i915_request *rq_a, *rq_b;
 		int depth;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
 		engine->execlists.preempt_hang.count = 0;
 
@@ -481,6 +493,9 @@ static int live_suppress_wait_preempt(void *arg)
 	for_each_engine(engine, i915, id) {
 		int depth;
 
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
 		if (!engine->emit_init_breadcrumb)
 			continue;
 
@@ -601,6 +616,9 @@ static int live_chain_preempt(void *arg)
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
 		int count, i;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
 		for_each_prime_number_from(count, 1, 32) { /* must fit ring! */
 			struct i915_request *rq;
