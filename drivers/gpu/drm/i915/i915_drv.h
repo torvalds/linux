@@ -1826,11 +1826,7 @@ struct drm_i915_private {
 		bool valid;
 		bool is_16gb_dimm;
 		u8 num_channels;
-		enum dram_rank {
-			I915_DRAM_RANK_INVALID = 0,
-			I915_DRAM_RANK_SINGLE,
-			I915_DRAM_RANK_DUAL
-		} rank;
+		u8 ranks;
 		u32 bandwidth_kbps;
 		bool symmetric_memory;
 	} dram_info;
@@ -2058,10 +2054,9 @@ struct drm_i915_private {
 
 struct dram_channel_info {
 	struct info {
-		u8 size, width;
-		enum dram_rank rank;
+		u8 size, width, ranks;
 	} l_info, s_info;
-	enum dram_rank rank;
+	u8 ranks;
 	bool is_16gb_dimm;
 };
 
