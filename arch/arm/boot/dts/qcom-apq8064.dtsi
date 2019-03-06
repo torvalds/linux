@@ -714,6 +714,7 @@
 					interrupt-controller;
 					#interrupt-cells = <2>;
 					gpio-controller;
+					gpio-ranges = <&pm8921_gpio 0 0 44>;
 					#gpio-cells = <2>;
 
 				};
