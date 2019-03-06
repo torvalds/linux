@@ -727,7 +727,8 @@ static int enum_fmt(struct v4l2_fmtdesc *f, struct vicodec_ctx *ctx,
 	} else {
 		if (f->index)
 			return -EINVAL;
-		f->pixelformat = V4L2_PIX_FMT_FWHT;
+		f->pixelformat = ctx->is_stateless ?
+			V4L2_PIX_FMT_FWHT_STATELESS : V4L2_PIX_FMT_FWHT;
 	}
 	return 0;
 }
@@ -829,13 +830,15 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pix_mp;
 	struct v4l2_pix_format *pix;
 	struct v4l2_plane_pix_format *plane;
-	const struct v4l2_fwht_pixfmt_info *info = &pixfmt_fwht;
+	const struct v4l2_fwht_pixfmt_info *info = ctx->is_stateless ?
+		&pixfmt_stateless_fwht : &pixfmt_fwht;
 
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		pix = &f->fmt.pix;
-		if (pix->pixelformat != V4L2_PIX_FMT_FWHT)
+		if (pix->pixelformat != V4L2_PIX_FMT_FWHT &&
+		    pix->pixelformat != V4L2_PIX_FMT_FWHT_STATELESS)
 			info = find_fmt(pix->pixelformat);
 
 		pix->width = clamp(pix->width, MIN_WIDTH, MAX_WIDTH);
@@ -856,7 +859,8 @@ static int vidioc_try_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		pix_mp = &f->fmt.pix_mp;
 		plane = pix_mp->plane_fmt;
-		if (pix_mp->pixelformat != V4L2_PIX_FMT_FWHT)
+		if (pix_mp->pixelformat != V4L2_PIX_FMT_FWHT &&
+		    pix_mp->pixelformat != V4L2_PIX_FMT_FWHT_STATELESS)
 			info = find_fmt(pix_mp->pixelformat);
 		pix_mp->num_planes = 1;
 
@@ -933,8 +937,12 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 		if (multiplanar)
 			return -EINVAL;
 		pix = &f->fmt.pix;
-		pix->pixelformat = !ctx->is_enc ? V4L2_PIX_FMT_FWHT :
-				   find_fmt(pix->pixelformat)->id;
+		if (ctx->is_enc)
+			pix->pixelformat = find_fmt(pix->pixelformat)->id;
+		else if (ctx->is_stateless)
+			pix->pixelformat = V4L2_PIX_FMT_FWHT_STATELESS;
+		else
+			pix->pixelformat = V4L2_PIX_FMT_FWHT;
 		if (!pix->colorspace)
 			pix->colorspace = V4L2_COLORSPACE_REC709;
 		break;
@@ -942,8 +950,12 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 		if (!multiplanar)
 			return -EINVAL;
 		pix_mp = &f->fmt.pix_mp;
-		pix_mp->pixelformat = !ctx->is_enc ? V4L2_PIX_FMT_FWHT :
-				      find_fmt(pix_mp->pixelformat)->id;
+		if (ctx->is_enc)
+			pix_mp->pixelformat = find_fmt(pix_mp->pixelformat)->id;
+		else if (ctx->is_stateless)
+			pix_mp->pixelformat = V4L2_PIX_FMT_FWHT_STATELESS;
+		else
+			pix_mp->pixelformat = V4L2_PIX_FMT_FWHT;
 		if (!pix_mp->colorspace)
 			pix_mp->colorspace = V4L2_COLORSPACE_REC709;
 		break;
@@ -986,6 +998,8 @@ static int vidioc_s_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 
 		if (pix->pixelformat == V4L2_PIX_FMT_FWHT)
 			q_data->info = &pixfmt_fwht;
+		else if (pix->pixelformat == V4L2_PIX_FMT_FWHT_STATELESS)
+			q_data->info = &pixfmt_stateless_fwht;
 		else
 			q_data->info = find_fmt(pix->pixelformat);
 		q_data->coded_width = pix->width;
@@ -1007,6 +1021,8 @@ static int vidioc_s_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 
 		if (pix_mp->pixelformat == V4L2_PIX_FMT_FWHT)
 			q_data->info = &pixfmt_fwht;
+		else if (pix_mp->pixelformat == V4L2_PIX_FMT_FWHT_STATELESS)
+			q_data->info = &pixfmt_stateless_fwht;
 		else
 			q_data->info = find_fmt(pix_mp->pixelformat);
 		q_data->coded_width = pix_mp->width;
@@ -1231,6 +1247,8 @@ static int vicodec_enum_framesizes(struct file *file, void *fh,
 				   struct v4l2_frmsizeenum *fsize)
 {
 	switch (fsize->pixel_format) {
+	case V4L2_PIX_FMT_FWHT_STATELESS:
+		break;
 	case V4L2_PIX_FMT_FWHT:
 		break;
 	default:
@@ -1518,7 +1536,8 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	    (!V4L2_TYPE_IS_OUTPUT(q->type) && ctx->is_enc))
 		return 0;
 
-	if (info->id == V4L2_PIX_FMT_FWHT) {
+	if (info->id == V4L2_PIX_FMT_FWHT ||
+	    info->id == V4L2_PIX_FMT_FWHT_STATELESS) {
 		vicodec_return_bufs(q, VB2_BUF_STATE_QUEUED);
 		return -EINVAL;
 	}
@@ -1794,15 +1813,19 @@ static int vicodec_open(struct file *file)
 	ctx->fh.ctrl_handler = hdl;
 	v4l2_ctrl_handler_setup(hdl);
 
-	ctx->q_data[V4L2_M2M_SRC].info =
-		ctx->is_enc ? v4l2_fwht_get_pixfmt(0) : &pixfmt_fwht;
+	if (ctx->is_enc)
+		ctx->q_data[V4L2_M2M_SRC].info = v4l2_fwht_get_pixfmt(0);
+	else if (ctx->is_stateless)
+		ctx->q_data[V4L2_M2M_SRC].info = &pixfmt_stateless_fwht;
+	else
+		ctx->q_data[V4L2_M2M_SRC].info = &pixfmt_fwht;
 	ctx->q_data[V4L2_M2M_SRC].coded_width = 1280;
 	ctx->q_data[V4L2_M2M_SRC].coded_height = 720;
 	ctx->q_data[V4L2_M2M_SRC].visible_width = 1280;
 	ctx->q_data[V4L2_M2M_SRC].visible_height = 720;
 	size = 1280 * 720 * ctx->q_data[V4L2_M2M_SRC].info->sizeimage_mult /
 		ctx->q_data[V4L2_M2M_SRC].info->sizeimage_div;
-	if (ctx->is_enc)
+	if (ctx->is_enc || ctx->is_stateless)
 		ctx->q_data[V4L2_M2M_SRC].sizeimage = size;
 	else
 		ctx->q_data[V4L2_M2M_SRC].sizeimage =
