@@ -1238,6 +1238,60 @@ skl_get_dram_info(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+/* Returns Gb per DRAM device */
+static int bxt_get_dimm_size(u32 val)
+{
+	switch (val & BXT_DRAM_SIZE_MASK) {
+	case BXT_DRAM_SIZE_4GB:
+		return 4;
+	case BXT_DRAM_SIZE_6GB:
+		return 6;
+	case BXT_DRAM_SIZE_8GB:
+		return 8;
+	case BXT_DRAM_SIZE_12GB:
+		return 12;
+	case BXT_DRAM_SIZE_16GB:
+		return 16;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int bxt_get_dimm_width(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return 0;
+
+	val = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
+
+	return 8 << val;
+}
+
+static int bxt_get_dimm_ranks(u32 val)
+{
+	if (!bxt_get_dimm_size(val))
+		return 0;
+
+	switch (val & BXT_DRAM_RANK_MASK) {
+	case BXT_DRAM_RANK_SINGLE:
+		return 1;
+	case BXT_DRAM_RANK_DUAL:
+		return 2;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static void bxt_get_dimm_info(struct dram_dimm_info *dimm,
+			      u32 val)
+{
+	dimm->size = bxt_get_dimm_size(val);
+	dimm->width = bxt_get_dimm_width(val);
+	dimm->ranks = bxt_get_dimm_ranks(val);
+}
+
 static int
 bxt_get_dram_info(struct drm_i915_private *dev_priv)
 {
@@ -1266,41 +1320,19 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 	 * Now read each DUNIT8/9/10/11 to check the rank of each dimms.
 	 */
 	for (i = BXT_D_CR_DRP0_DUNIT_START; i <= BXT_D_CR_DRP0_DUNIT_END; i++) {
-		u8 size, width, ranks;
-		u32 tmp;
+		struct dram_dimm_info dimm;
 
 		val = I915_READ(BXT_D_CR_DRP0_DUNIT(i));
 		if (val == 0xFFFFFFFF)
 			continue;
 
 		dram_info->num_channels++;
-		tmp = val & BXT_DRAM_RANK_MASK;
 
-		if (tmp == BXT_DRAM_RANK_SINGLE)
-			ranks = 1;
-		else if (tmp == BXT_DRAM_RANK_DUAL)
-			ranks = 2;
-		else
-			ranks = 0;
+		bxt_get_dimm_info(&dimm, val);
 
-		tmp = val & BXT_DRAM_SIZE_MASK;
-		if (tmp == BXT_DRAM_SIZE_4GB)
-			size = 4;
-		else if (tmp == BXT_DRAM_SIZE_6GB)
-			size = 6;
-		else if (tmp == BXT_DRAM_SIZE_8GB)
-			size = 8;
-		else if (tmp == BXT_DRAM_SIZE_12GB)
-			size = 12;
-		else if (tmp == BXT_DRAM_SIZE_16GB)
-			size = 16;
-		else
-			size = 0;
-
-		tmp = (val & BXT_DRAM_WIDTH_MASK) >> BXT_DRAM_WIDTH_SHIFT;
-		width = (1 << tmp) * 8;
-		DRM_DEBUG_KMS("dram size:%uGB width:X%u ranks:%u\n",
-			      size, width, ranks);
+		DRM_DEBUG_KMS("CH%u DIMM size: %u GB, width: X%u, ranks: %u\n",
+			      i - BXT_D_CR_DRP0_DUNIT_START,
+			      dimm.size, dimm.width, dimm.ranks);
 
 		/*
 		 * If any of the channel is single rank channel,
@@ -1308,8 +1340,8 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 		 * memory, so consider single rank memory.
 		 */
 		if (dram_info->ranks == 0)
-			dram_info->ranks = ranks;
-		else if (ranks == 1)
+			dram_info->ranks = dimm.ranks;
+		else if (dimm.ranks == 1)
 			dram_info->ranks = 1;
 	}
 
