@@ -187,8 +187,8 @@ static int vimc_cap_enum_framesizes(struct file *file, void *fh,
 	fsize->stepwise.max_width = VIMC_FRAME_MAX_WIDTH;
 	fsize->stepwise.min_height = VIMC_FRAME_MIN_HEIGHT;
 	fsize->stepwise.max_height = VIMC_FRAME_MAX_HEIGHT;
-	fsize->stepwise.step_width = 2;
-	fsize->stepwise.step_height = 2;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
 
 	return 0;
 }
