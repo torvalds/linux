@@ -486,7 +486,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 
 	res = hsr_add_port(hsr, hsr_dev, HSR_PT_MASTER);
 	if (res)
-		return res;
+		goto err_add_port;
 
 	res = register_netdevice(hsr_dev);
 	if (res)
@@ -506,6 +506,8 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 fail:
 	hsr_for_each_port(hsr, port)
 		hsr_del_port(port);
+err_add_port:
+	hsr_del_node(&hsr->self_node_db);
 
 	return res;
 }
