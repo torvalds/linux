@@ -588,7 +588,7 @@ nfsd3_proc_fsinfo(struct svc_rqst *rqstp)
 	resp->f_wtmax  = max_blocksize;
 	resp->f_wtpref = max_blocksize;
 	resp->f_wtmult = PAGE_SIZE;
-	resp->f_dtpref = PAGE_SIZE;
+	resp->f_dtpref = max_blocksize;
 	resp->f_maxfilesize = ~(u32) 0;
 	resp->f_properties = NFS3_FSF_DEFAULT;
 
