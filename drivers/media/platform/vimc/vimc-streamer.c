@@ -117,6 +117,7 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 static int vimc_streamer_thread(void *data)
 {
 	struct vimc_stream *stream = data;
+	u8 *frame = NULL;
 	int i;
 
 	set_freezable();
@@ -127,12 +128,9 @@ static int vimc_streamer_thread(void *data)
 			break;
 
 		for (i = stream->pipe_size - 1; i >= 0; i--) {
-			stream->frame = stream->ved_pipeline[i]->process_frame(
-					stream->ved_pipeline[i],
-					stream->frame);
-			if (!stream->frame)
-				break;
-			if (IS_ERR(stream->frame))
+			frame = stream->ved_pipeline[i]->process_frame(
+					stream->ved_pipeline[i], frame);
+			if (!frame || IS_ERR(frame))
 				break;
 		}
 		//wait for 60hz

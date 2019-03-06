@@ -19,7 +19,6 @@ struct vimc_stream {
 	struct media_pipeline pipe;
 	struct vimc_ent_device *ved_pipeline[VIMC_STREAMER_PIPELINE_MAX_SIZE];
 	unsigned int pipe_size;
-	u8 *frame;
 	struct task_struct *kthread;
 };
 
