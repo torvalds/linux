@@ -68,7 +68,7 @@ static void update_BCNTIM(struct adapter *padapter)
 
 	/* update TIM IE */
 	p = rtw_get_ie(pie + _FIXED_IE_LENGTH_, _TIM_IE_, &tim_ielen,
-			pnetwork_mlmeext->ie_length - _FIXED_IE_LENGTH_);
+		       pnetwork_mlmeext->ie_length - _FIXED_IE_LENGTH_);
 	if (p && tim_ielen > 0) {
 		tim_ielen += 2;
 		premainder_ie = p + tim_ielen;
@@ -89,7 +89,7 @@ static void update_BCNTIM(struct adapter *padapter)
 			       &tmp_len, (pnetwork_mlmeext->ie_length -
 					  _BEACON_IE_OFFSET_));
 		if (p)
-			offset += tmp_len+2;
+			offset += tmp_len + 2;
 
 		/* DS Parameter Set IE, len = 3 */
 		offset += 3;
@@ -162,7 +162,7 @@ static u8 chk_sta_is_alive(struct sta_info *psta)
 	return ret;
 }
 
-void	expire_timeout_chk(struct adapter *padapter)
+void expire_timeout_chk(struct adapter *padapter)
 {
 	struct list_head *phead, *plist;
 	u8 updated = 0;
