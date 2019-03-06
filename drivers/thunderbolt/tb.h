@@ -320,7 +320,7 @@ static inline bool tb_is_upstream_port(const struct tb_port *port)
 	return port == upstream_port || port->dual_link_port == upstream_port;
 }
 
-static inline u64 tb_route(struct tb_switch *sw)
+static inline u64 tb_route(const struct tb_switch *sw)
 {
 	return ((u64) sw->config.route_hi) << 32 | sw->config.route_lo;
 }
@@ -442,7 +442,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 
 #define __TB_SW_PRINT(level, sw, fmt, arg...)           \
 	do {                                            \
-		struct tb_switch *__sw = (sw);          \
+		const struct tb_switch *__sw = (sw);    \
 		level(__sw->tb, "%llx: " fmt,           \
 		      tb_route(__sw), ## arg);          \
 	} while (0)
@@ -453,7 +453,7 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 
 #define __TB_PORT_PRINT(level, _port, fmt, arg...)                      \
 	do {                                                            \
-		struct tb_port *__port = (_port);                       \
+		const struct tb_port *__port = (_port);                 \
 		level(__port->sw->tb, "%llx:%x: " fmt,                  \
 		      tb_route(__port->sw), __port->port, ## arg);      \
 	} while (0)
