@@ -37,7 +37,19 @@ static const struct v4l2_fwht_pixfmt_info v4l2_fwht_pixfmts[] = {
 	{ V4L2_PIX_FMT_GREY,    1, 1, 1, 1, 0, 1, 1, 1, 1, FWHT_FL_PIXENC_RGB},
 };
 
-const struct v4l2_fwht_pixfmt_info *v4l2_fwht_default_fmt(u32 width_div,
+bool v4l2_fwht_validate_fmt(const struct v4l2_fwht_pixfmt_info *info,
+			    u32 width_div, u32 height_div, u32 components_num,
+			    u32 pixenc)
+{
+	if (info->width_div == width_div &&
+	    info->height_div == height_div &&
+	    (!pixenc || info->pixenc == pixenc) &&
+	    info->components_num == components_num)
+		return true;
+	return false;
+}
+
+const struct v4l2_fwht_pixfmt_info *v4l2_fwht_find_nth_fmt(u32 width_div,
 							  u32 height_div,
 							  u32 components_num,
 							  u32 pixenc,
@@ -46,10 +58,10 @@ const struct v4l2_fwht_pixfmt_info *v4l2_fwht_default_fmt(u32 width_div,
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(v4l2_fwht_pixfmts); i++) {
-		if (v4l2_fwht_pixfmts[i].width_div == width_div &&
-		    v4l2_fwht_pixfmts[i].height_div == height_div &&
-		    (!pixenc || v4l2_fwht_pixfmts[i].pixenc == pixenc) &&
-		    v4l2_fwht_pixfmts[i].components_num == components_num) {
+		bool is_valid = v4l2_fwht_validate_fmt(&v4l2_fwht_pixfmts[i],
+						       width_div, height_div,
+						       components_num, pixenc);
+		if (is_valid) {
 			if (start_idx == 0)
 				return v4l2_fwht_pixfmts + i;
 			start_idx--;
