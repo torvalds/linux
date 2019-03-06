@@ -170,7 +170,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine,
 					    struct intel_context *ce);
 static void execlists_init_reg_state(u32 *reg_state,
-				     struct i915_gem_context *ctx,
+				     struct intel_context *ce,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
@@ -1320,8 +1320,8 @@ __execlists_update_reg_state(struct intel_engine_cs *engine,
 
 	/* RPCS */
 	if (engine->class == RENDER_CLASS)
-		regs[CTX_R_PWR_CLK_STATE + 1] = gen8_make_rpcs(engine->i915,
-							       &ce->sseu);
+		regs[CTX_R_PWR_CLK_STATE + 1] =
+			gen8_make_rpcs(engine->i915, &ce->sseu);
 }
 
 static struct intel_context *
@@ -2021,7 +2021,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	rq->ring->head = intel_ring_wrap(rq->ring, rq->head);
 	intel_ring_update_space(rq->ring);
 
-	execlists_init_reg_state(regs, rq->gem_context, engine, rq->ring);
+	execlists_init_reg_state(regs, rq->hw_context, engine, rq->ring);
 	__execlists_update_reg_state(engine, rq->hw_context);
 
 out_unlock:
@@ -2659,13 +2659,13 @@ static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *engine)
 }
 
 static void execlists_init_reg_state(u32 *regs,
-				     struct i915_gem_context *ctx,
+				     struct intel_context *ce,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	u32 base = engine->mmio_base;
+	struct i915_hw_ppgtt *ppgtt = ce->gem_context->ppgtt;
 	bool rcs = engine->class == RENDER_CLASS;
+	u32 base = engine->mmio_base;
 
 	/* A context is actually a big batch buffer with several
 	 * MI_LOAD_REGISTER_IMM commands followed by (reg, value) pairs. The
@@ -2680,7 +2680,7 @@ static void execlists_init_reg_state(u32 *regs,
 	CTX_REG(regs, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(engine),
 		_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
 		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH));
-	if (INTEL_GEN(dev_priv) < 11) {
+	if (INTEL_GEN(engine->i915) < 11) {
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT |
 					    CTX_CTRL_RS_CTX_ENABLE);
@@ -2735,33 +2735,33 @@ static void execlists_init_reg_state(u32 *regs,
 	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0), 0);
 	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0), 0);
 
-	if (i915_vm_is_48bit(&ctx->ppgtt->vm)) {
+	if (i915_vm_is_48bit(&ppgtt->vm)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.
 		 */
-		ASSIGN_CTX_PML4(ctx->ppgtt, regs);
+		ASSIGN_CTX_PML4(ppgtt, regs);
 	} else {
-		ASSIGN_CTX_PDP(ctx->ppgtt, regs, 3);
-		ASSIGN_CTX_PDP(ctx->ppgtt, regs, 2);
-		ASSIGN_CTX_PDP(ctx->ppgtt, regs, 1);
-		ASSIGN_CTX_PDP(ctx->ppgtt, regs, 0);
+		ASSIGN_CTX_PDP(ppgtt, regs, 3);
+		ASSIGN_CTX_PDP(ppgtt, regs, 2);
+		ASSIGN_CTX_PDP(ppgtt, regs, 1);
+		ASSIGN_CTX_PDP(ppgtt, regs, 0);
 	}
 
 	if (rcs) {
 		regs[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
 		CTX_REG(regs, CTX_R_PWR_CLK_STATE, GEN8_R_PWR_CLK_STATE, 0);
 
-		i915_oa_init_reg_state(engine, ctx, regs);
+		i915_oa_init_reg_state(engine, ce, regs);
 	}
 
 	regs[CTX_END] = MI_BATCH_BUFFER_END;
-	if (INTEL_GEN(dev_priv) >= 10)
+	if (INTEL_GEN(engine->i915) >= 10)
 		regs[CTX_END] |= BIT(0);
 }
 
 static int
-populate_lr_context(struct i915_gem_context *ctx,
+populate_lr_context(struct intel_context *ce,
 		    struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *engine,
 		    struct intel_ring *ring)
@@ -2807,11 +2807,12 @@ populate_lr_context(struct i915_gem_context *ctx,
 	/* The second page of the context object contains some fields which must
 	 * be set up prior to the first execution. */
 	regs = vaddr + LRC_STATE_PN * PAGE_SIZE;
-	execlists_init_reg_state(regs, ctx, engine, ring);
+	execlists_init_reg_state(regs, ce, engine, ring);
 	if (!engine->default_state)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
-	if (ctx == ctx->i915->preempt_context && INTEL_GEN(engine->i915) < 11)
+	if (ce->gem_context == engine->i915->preempt_context &&
+	    INTEL_GEN(engine->i915) < 11)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
@@ -2866,7 +2867,7 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 		goto error_deref_obj;
 	}
 
-	ret = populate_lr_context(ctx, ctx_obj, engine, ring);
+	ret = populate_lr_context(ce, ctx_obj, engine, ring);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Failed to populate LRC: %d\n", ret);
 		goto error_ring_free;
