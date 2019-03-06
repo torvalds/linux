@@ -465,8 +465,10 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 
 	iounmap(msix_tbl);
 
-	if (vec_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT)
+	if (vec_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT) {
+		dev_dbg(pci->dev, "MSI-X entry ctrl set\n");
 		return -EPERM;
+	}
 
 	ret = dw_pcie_ep_map_addr(epc, func_no, ep->msi_mem_phys, msg_addr,
 				  epc->mem->page_size);
