@@ -153,6 +153,43 @@ static struct vicodec_q_data *get_q_data(struct vicodec_ctx *ctx,
 	return NULL;
 }
 
+static void copy_cap_to_ref(const u8 *cap, const struct v4l2_fwht_pixfmt_info *info,
+		struct v4l2_fwht_state *state)
+{
+	int plane_idx;
+	u8 *p_ref = state->ref_frame.buf;
+	unsigned int cap_stride = state->stride;
+	unsigned int ref_stride = state->ref_stride;
+
+	for (plane_idx = 0; plane_idx < info->planes_num; plane_idx++) {
+		int i;
+		unsigned int h_div = (plane_idx == 1 || plane_idx == 2) ?
+			info->height_div : 1;
+		const u8 *row_cap = cap;
+		u8 *row_ref = p_ref;
+
+		if (info->planes_num == 3 && plane_idx == 1) {
+			cap_stride /= 2;
+			ref_stride /= 2;
+		}
+
+		if (plane_idx == 1 &&
+		    (info->id == V4L2_PIX_FMT_NV24 ||
+		     info->id == V4L2_PIX_FMT_NV42)) {
+			cap_stride *= 2;
+			ref_stride *= 2;
+		}
+
+		for (i = 0; i < state->visible_height / h_div; i++) {
+			memcpy(row_ref, row_cap, ref_stride);
+			row_ref += ref_stride;
+			row_cap += cap_stride;
+		}
+		cap += cap_stride * (state->coded_height / h_div);
+		p_ref += ref_stride * (state->coded_height / h_div);
+	}
+}
+
 static int device_process(struct vicodec_ctx *ctx,
 			  struct vb2_v4l2_buffer *src_vb,
 			  struct vb2_v4l2_buffer *dst_vb)
@@ -194,6 +231,8 @@ static int device_process(struct vicodec_ctx *ctx,
 		ret = v4l2_fwht_decode(state, p_src, p_dst);
 		if (ret < 0)
 			return ret;
+		copy_cap_to_ref(p_dst, ctx->state.info, &ctx->state);
+
 		vb2_set_plane_payload(&dst_vb->vb2_buf, 0, q_dst->sizeimage);
 	}
 	return 0;
@@ -1366,6 +1405,7 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 	state->stride = q_data->coded_width *
 				info->bytesperline_mult;
 
+	state->ref_stride = q_data->coded_width * info->luma_alpha_step;
 	state->ref_frame.buf = kvmalloc(total_planes_size, GFP_KERNEL);
 	state->ref_frame.luma = state->ref_frame.buf;
 	ctx->comp_max_size = total_planes_size;
