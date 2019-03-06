@@ -1105,6 +1105,13 @@ static const struct dmi_system_id no_hw_rfkill_list[] = {
 		},
 	},
 	{
+		.ident = "Lenovo ideapad S130-14IGM",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad S130-14IGM"),
+		},
+	},
+	{
 		.ident = "Lenovo ideapad Y700-14ISK",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
