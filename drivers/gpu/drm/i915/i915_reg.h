@@ -9877,8 +9877,21 @@ enum skl_power_gate {
 #define  SKL_DRAM_WIDTH_X32			(0x2 << 8)
 #define  SKL_DRAM_RANK_MASK			(0x1 << 10)
 #define  SKL_DRAM_RANK_SHIFT			10
-#define  SKL_DRAM_RANK_SINGLE			(0x0 << 10)
-#define  SKL_DRAM_RANK_DUAL			(0x1 << 10)
+#define  SKL_DRAM_RANK_1			(0x0 << 10)
+#define  SKL_DRAM_RANK_2			(0x1 << 10)
+#define  SKL_DRAM_RANK_MASK			(0x1 << 10)
+#define  CNL_DRAM_SIZE_MASK			0x7F
+#define  CNL_DRAM_WIDTH_MASK			(0x3 << 7)
+#define  CNL_DRAM_WIDTH_SHIFT			7
+#define  CNL_DRAM_WIDTH_X8			(0x0 << 7)
+#define  CNL_DRAM_WIDTH_X16			(0x1 << 7)
+#define  CNL_DRAM_WIDTH_X32			(0x2 << 7)
+#define  CNL_DRAM_RANK_MASK			(0x3 << 9)
+#define  CNL_DRAM_RANK_SHIFT			9
+#define  CNL_DRAM_RANK_1			(0x0 << 9)
+#define  CNL_DRAM_RANK_2			(0x1 << 9)
+#define  CNL_DRAM_RANK_3			(0x2 << 9)
+#define  CNL_DRAM_RANK_4			(0x3 << 9)
 
 /* Please see hsw_read_dcomp() and hsw_write_dcomp() before using this register,
  * since on HSW we can't write to it using I915_WRITE. */

@@ -1106,6 +1106,39 @@ static int skl_get_dimm_ranks(u16 val)
 	return val + 1;
 }
 
+/* Returns total GB for the whole DIMM */
+static int cnl_get_dimm_size(u16 val)
+{
+	return (val & CNL_DRAM_SIZE_MASK) / 2;
+}
+
+static int cnl_get_dimm_width(u16 val)
+{
+	if (cnl_get_dimm_size(val) == 0)
+		return 0;
+
+	switch (val & CNL_DRAM_WIDTH_MASK) {
+	case CNL_DRAM_WIDTH_X8:
+	case CNL_DRAM_WIDTH_X16:
+	case CNL_DRAM_WIDTH_X32:
+		val = (val & CNL_DRAM_WIDTH_MASK) >> CNL_DRAM_WIDTH_SHIFT;
+		return 8 << val;
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
+
+static int cnl_get_dimm_ranks(u16 val)
+{
+	if (cnl_get_dimm_size(val) == 0)
+		return 0;
+
+	val = (val & CNL_DRAM_RANK_MASK) >> CNL_DRAM_RANK_SHIFT;
+
+	return val + 1;
+}
+
 static bool
 skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 {
@@ -1114,12 +1147,19 @@ skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 }
 
 static void
-skl_dram_get_dimm_info(struct dram_dimm_info *dimm,
+skl_dram_get_dimm_info(struct drm_i915_private *dev_priv,
+		       struct dram_dimm_info *dimm,
 		       int channel, char dimm_name, u16 val)
 {
-	dimm->size = skl_get_dimm_size(val);
-	dimm->width = skl_get_dimm_width(val);
-	dimm->ranks = skl_get_dimm_ranks(val);
+	if (INTEL_GEN(dev_priv) >= 10) {
+		dimm->size = cnl_get_dimm_size(val);
+		dimm->width = cnl_get_dimm_width(val);
+		dimm->ranks = cnl_get_dimm_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_size(val);
+		dimm->width = skl_get_dimm_width(val);
+		dimm->ranks = skl_get_dimm_ranks(val);
+	}
 
 	DRM_DEBUG_KMS("CH%u DIMM %c size: %u GB, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
 		      channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
@@ -1127,11 +1167,14 @@ skl_dram_get_dimm_info(struct dram_dimm_info *dimm,
 }
 
 static int
-skl_dram_get_channel_info(struct dram_channel_info *ch,
+skl_dram_get_channel_info(struct drm_i915_private *dev_priv,
+			  struct dram_channel_info *ch,
 			  int channel, u32 val)
 {
-	skl_dram_get_dimm_info(&ch->dimm_l, channel, 'L', val & 0xffff);
-	skl_dram_get_dimm_info(&ch->dimm_s, channel, 'S', val >> 16);
+	skl_dram_get_dimm_info(dev_priv, &ch->dimm_l,
+			       channel, 'L', val & 0xffff);
+	skl_dram_get_dimm_info(dev_priv, &ch->dimm_s,
+			       channel, 'S', val >> 16);
 
 	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
 		DRM_DEBUG_KMS("CH%u not populated\n", channel);
@@ -1173,12 +1216,12 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 	int ret;
 
 	val = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch0, 0, val);
+	ret = skl_dram_get_channel_info(dev_priv, &ch0, 0, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
 	val = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch1, 1, val);
+	ret = skl_dram_get_channel_info(dev_priv, &ch1, 1, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
@@ -1375,13 +1418,10 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 9)
 		return;
 
-	/* Need to calculate bandwidth only for Gen9 */
 	if (IS_GEN9_LP(dev_priv))
 		ret = bxt_get_dram_info(dev_priv);
-	else if (IS_GEN(dev_priv, 9))
-		ret = skl_get_dram_info(dev_priv);
 	else
-		ret = skl_dram_get_channels_info(dev_priv);
+		ret = skl_get_dram_info(dev_priv);
 	if (ret)
 		return;
 
