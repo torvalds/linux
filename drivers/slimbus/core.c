@@ -21,7 +21,9 @@ static const struct slim_device_id *slim_match(const struct slim_device_id *id,
 {
 	while (id->manf_id != 0 || id->prod_code != 0) {
 		if (id->manf_id == sbdev->e_addr.manf_id &&
-		    id->prod_code == sbdev->e_addr.prod_code)
+		    id->prod_code == sbdev->e_addr.prod_code &&
+		    id->dev_index == sbdev->e_addr.dev_index &&
+		    id->instance == sbdev->e_addr.instance)
 			return id;
 		id++;
 	}
@@ -40,6 +42,23 @@ static int slim_device_match(struct device *dev, struct device_driver *drv)
 	return !!slim_match(sbdrv->id_table, sbdev);
 }
 
+static void slim_device_update_status(struct slim_device *sbdev,
+				      enum slim_device_status status)
+{
+	struct slim_driver *sbdrv;
+
+	if (sbdev->status == status)
+		return;
+
+	sbdev->status = status;
+	if (!sbdev->dev.driver)
+		return;
+
+	sbdrv = to_slim_driver(sbdev->dev.driver);
+	if (sbdrv->device_status)
+		sbdrv->device_status(sbdev, sbdev->status);
+}
+
 static int slim_device_probe(struct device *dev)
 {
 	struct slim_device	*sbdev = to_slim_device(dev);
@@ -53,8 +72,7 @@ static int slim_device_probe(struct device *dev)
 	/* try getting the logical address after probe */
 	ret = slim_get_logical_addr(sbdev);
 	if (!ret) {
-		if (sbdrv->device_status)
-			sbdrv->device_status(sbdev, sbdev->status);
+		slim_device_update_status(sbdev, SLIM_DEVICE_STATUS_UP);
 	} else {
 		dev_err(&sbdev->dev, "Failed to get logical address\n");
 		ret = -EPROBE_DEFER;
@@ -256,6 +274,7 @@ int slim_register_controller(struct slim_controller *ctrl)
 	mutex_init(&ctrl->lock);
 	mutex_init(&ctrl->sched.m_reconf);
 	init_completion(&ctrl->sched.pause_comp);
+	spin_lock_init(&ctrl->txn_lock);
 
 	dev_dbg(ctrl->dev, "Bus [%s] registered:dev:%p\n",
 		ctrl->name, ctrl->dev);
@@ -294,23 +313,6 @@ int slim_unregister_controller(struct slim_controller *ctrl)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(slim_unregister_controller);
-
-static void slim_device_update_status(struct slim_device *sbdev,
-				      enum slim_device_status status)
-{
-	struct slim_driver *sbdrv;
-
-	if (sbdev->status == status)
-		return;
-
-	sbdev->status = status;
-	if (!sbdev->dev.driver)
-		return;
-
-	sbdrv = to_slim_driver(sbdev->dev.driver);
-	if (sbdrv->device_status)
-		sbdrv->device_status(sbdev, sbdev->status);
-}
 
 /**
  * slim_report_absent() - Controller calls this function when a device
@@ -464,12 +466,15 @@ static int slim_device_alloc_laddr(struct slim_device *sbdev,
 
 	sbdev->laddr = laddr;
 	sbdev->is_laddr_valid = true;
+	mutex_unlock(&ctrl->lock);
 
 	slim_device_update_status(sbdev, SLIM_DEVICE_STATUS_UP);
 
 	dev_dbg(ctrl->dev, "setting slimbus l-addr:%x, ea:%x,%x,%x,%x\n",
 		laddr, sbdev->e_addr.manf_id, sbdev->e_addr.prod_code,
 		sbdev->e_addr.dev_index, sbdev->e_addr.instance);
+
+	return 0;
 
 err:
 	mutex_unlock(&ctrl->lock);

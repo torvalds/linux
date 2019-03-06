@@ -377,7 +377,7 @@ static __init int hpet_mmap_enable(char *str)
 	pr_info("HPET mmap %s\n", hpet_mmap_enabled ? "enabled" : "disabled");
 	return 1;
 }
-__setup("hpet_mmap", hpet_mmap_enable);
+__setup("hpet_mmap=", hpet_mmap_enable);
 
 static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -842,7 +842,6 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpet_dev *devp;
 	u32 i, ntimer;
 	struct hpets *hpetp;
-	size_t siz;
 	struct hpet __iomem *hpet;
 	static struct hpets *last;
 	unsigned long period;
@@ -860,10 +859,8 @@ int hpet_alloc(struct hpet_data *hdp)
 		return 0;
 	}
 
-	siz = sizeof(struct hpets) + ((hdp->hd_nirqs - 1) *
-				      sizeof(struct hpet_dev));
-
-	hpetp = kzalloc(siz, GFP_KERNEL);
+	hpetp = kzalloc(struct_size(hpetp, hp_dev, hdp->hd_nirqs - 1),
+			GFP_KERNEL);
 
 	if (!hpetp)
 		return -ENOMEM;

@@ -179,6 +179,7 @@ config PPC
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
+	select HAVE_ARCH_NVRAM_OPS
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_CBPF_JIT			if !PPC64
@@ -274,11 +275,6 @@ config SYSVIPC_COMPAT
 	bool
 	depends on COMPAT && SYSVIPC
 	default y
-
-# All PPC32s use generic nvram driver through ppc_md
-config GENERIC_NVRAM
-	bool
-	default y if PPC32
 
 config SCHED_OMIT_FRAME_POINTER
 	bool

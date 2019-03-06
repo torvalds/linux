@@ -284,6 +284,10 @@ static int rtsx_base_disable_auto_blink(struct rtsx_pcr *pcr)
 static int rtsx_base_card_power_on(struct rtsx_pcr *pcr, int card)
 {
 	int err;
+	struct rtsx_cr_option *option = &pcr->option;
+
+	if (option->ocp_en)
+		rtsx_pci_enable_ocp(pcr);
 
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
@@ -306,12 +310,15 @@ static int rtsx_base_card_power_on(struct rtsx_pcr *pcr, int card)
 
 static int rtsx_base_card_power_off(struct rtsx_pcr *pcr, int card)
 {
-	rtsx_pci_init_cmd(pcr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
-			SD_POWER_MASK, SD_POWER_OFF);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
-			LDO3318_PWR_MASK, 0x00);
-	return rtsx_pci_send_cmd(pcr, 100);
+	struct rtsx_cr_option *option = &pcr->option;
+
+	if (option->ocp_en)
+		rtsx_pci_disable_ocp(pcr);
+
+	rtsx_pci_write_register(pcr, CARD_PWR_CTL, SD_POWER_MASK, SD_POWER_OFF);
+
+	rtsx_pci_write_register(pcr, PWR_GATE_CTRL, LDO3318_PWR_MASK, 0x00);
+	return 0;
 }
 
 static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
@@ -629,6 +636,13 @@ void rts524a_init_params(struct rtsx_pcr *pcr)
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
 	pcr->ops = &rts524a_pcr_ops;
+
+	pcr->option.ocp_en = 1;
+	if (pcr->option.ocp_en)
+		pcr->hw_param.interrupt_en |= SD_OC_INT_EN;
+	pcr->hw_param.ocp_glitch = SD_OCP_GLITCH_10M;
+	pcr->option.sd_800mA_ocp_thd = RTS524A_OCP_THD_800;
+
 }
 
 static int rts525a_card_power_on(struct rtsx_pcr *pcr, int card)
@@ -737,4 +751,10 @@ void rts525a_init_params(struct rtsx_pcr *pcr)
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
 	pcr->ops = &rts525a_pcr_ops;
+
+	pcr->option.ocp_en = 1;
+	if (pcr->option.ocp_en)
+		pcr->hw_param.interrupt_en |= SD_OC_INT_EN;
+	pcr->hw_param.ocp_glitch = SD_OCP_GLITCH_10M;
+	pcr->option.sd_800mA_ocp_thd = RTS525A_OCP_THD_800;
 }
