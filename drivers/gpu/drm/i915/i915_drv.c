@@ -1113,25 +1113,30 @@ skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 	return 8 * dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
 }
 
-static int
-skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
+static void
+skl_dram_get_dimm_info(struct dram_dimm_info *dimm,
+		       int channel, char dimm_name, u16 val)
 {
-	u16 tmp_l, tmp_s;
+	dimm->size = skl_get_dimm_size(val);
+	dimm->width = skl_get_dimm_width(val);
+	dimm->ranks = skl_get_dimm_ranks(val);
 
-	tmp_l = val & 0xffff;
-	tmp_s = val >> 16;
+	DRM_DEBUG_KMS("CH%u DIMM %c size: %u GB, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
+		      channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
+		      yesno(skl_is_16gb_dimm(dimm)));
+}
 
-	ch->l_info.size = skl_get_dimm_size(tmp_l);
-	ch->s_info.size = skl_get_dimm_size(tmp_s);
+static int
+skl_dram_get_channel_info(struct dram_channel_info *ch,
+			  int channel, u32 val)
+{
+	skl_dram_get_dimm_info(&ch->l_info, channel, 'L', val & 0xffff);
+	skl_dram_get_dimm_info(&ch->s_info, channel, 'S', val >> 16);
 
-	if (ch->l_info.size == 0 && ch->s_info.size == 0)
+	if (ch->l_info.size == 0 && ch->s_info.size == 0) {
+		DRM_DEBUG_KMS("CH%u not populated\n", channel);
 		return -EINVAL;
-
-	ch->l_info.width = skl_get_dimm_width(tmp_l);
-	ch->s_info.width = skl_get_dimm_width(tmp_s);
-
-	ch->l_info.ranks = skl_get_dimm_ranks(tmp_l);
-	ch->s_info.ranks = skl_get_dimm_ranks(tmp_s);
+	}
 
 	if (ch->l_info.ranks == 2 || ch->s_info.ranks == 2)
 		ch->ranks = 2;
@@ -1144,9 +1149,8 @@ skl_dram_get_channel_info(struct dram_channel_info *ch, u32 val)
 		skl_is_16gb_dimm(&ch->l_info) ||
 		skl_is_16gb_dimm(&ch->s_info);
 
-	DRM_DEBUG_KMS("(size:width:ranks) L(%uGB:X%u:%u) S(%uGB:X%u:%u)\n",
-		      ch->l_info.size, ch->l_info.width, ch->l_info.ranks,
-		      ch->s_info.size, ch->s_info.width, ch->s_info.ranks);
+	DRM_DEBUG_KMS("CH%u ranks: %u, 16Gb DIMMs: %s\n",
+		      channel, ch->ranks, yesno(ch->is_16gb_dimm));
 
 	return 0;
 }
@@ -1166,17 +1170,17 @@ static int
 skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 {
 	struct dram_info *dram_info = &dev_priv->dram_info;
-	struct dram_channel_info ch0, ch1;
+	struct dram_channel_info ch0 = {}, ch1 = {};
 	u32 val_ch0, val_ch1;
 	int ret;
 
 	val_ch0 = I915_READ(SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch0, val_ch0);
+	ret = skl_dram_get_channel_info(&ch0, 0, val_ch0);
 	if (ret == 0)
 		dram_info->num_channels++;
 
 	val_ch1 = I915_READ(SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(&ch1, val_ch1);
+	ret = skl_dram_get_channel_info(&ch1, 1, val_ch1);
 	if (ret == 0)
 		dram_info->num_channels++;
 
