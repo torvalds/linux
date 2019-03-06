@@ -40,7 +40,7 @@
 #define ST_SENSORS_DEFAULT_STAT_ADDR		0x27
 
 #define ST_SENSORS_MAX_NAME			17
-#define ST_SENSORS_MAX_4WAI			7
+#define ST_SENSORS_MAX_4WAI			8
 
 #define ST_SENSORS_LSM_CHANNELS(device_type, mask, index, mod, \
 					ch2, s, endian, rbits, sbits, addr) \

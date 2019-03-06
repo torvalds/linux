@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -615,13 +616,22 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower		= spitz_mci_setpower,
-	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
-	.gpio_card_ro		= SPITZ_GPIO_nSD_WP,
-	.gpio_power		= -1,
+};
+
+static struct gpiod_lookup_table spitz_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init spitz_mmc_init(void)
 {
+	gpiod_add_lookup_table(&spitz_mci_gpio_table);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 }
 #else

@@ -350,15 +350,10 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err;
 
-	ret = drm_vblank_init(dev, 1);
-	if (ret)
-		goto err_fb;
-
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
-err_fb:
-	udl_fbdev_cleanup(dev);
+
 err:
 	if (udl->urbs.count)
 		udl_free_urb_list(dev);

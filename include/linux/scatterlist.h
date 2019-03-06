@@ -324,10 +324,10 @@ size_t sg_zero_buffer(struct scatterlist *sgl, unsigned int nents,
  * Like SG_CHUNK_SIZE, but for archs that have sg chaining. This limit
  * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
  */
-#ifdef CONFIG_ARCH_HAS_SG_CHAIN
-#define SG_MAX_SEGMENTS	2048
-#else
+#ifdef CONFIG_ARCH_NO_SG_CHAIN
 #define SG_MAX_SEGMENTS	SG_CHUNK_SIZE
+#else
+#define SG_MAX_SEGMENTS	2048
 #endif
 
 #ifdef CONFIG_SG_POOL

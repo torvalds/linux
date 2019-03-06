@@ -10,6 +10,17 @@ menuconfig DRM_TINYDRM
 config TINYDRM_MIPI_DBI
 	tristate
 
+config TINYDRM_HX8357D
+	tristate "DRM support for HX8357D display panels"
+	depends on DRM_TINYDRM && SPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select TINYDRM_MIPI_DBI
+	help
+	  DRM driver for the following HX8357D panels:
+	  * YX350HV15-T 3.5" 340x350 TFT (Adafruit 3.5")
+
+	  If M is selected the module will be called hx8357d.
+
 config TINYDRM_ILI9225
 	tristate "DRM support for ILI9225 display panels"
 	depends on DRM_TINYDRM && SPI

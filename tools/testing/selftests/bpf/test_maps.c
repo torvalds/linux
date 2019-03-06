@@ -258,23 +258,35 @@ static void test_hashmap_percpu(int task, void *data)
 	close(fd);
 }
 
+static int helper_fill_hashmap(int max_entries)
+{
+	int i, fd, ret;
+	long long key, value;
+
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+			    max_entries, map_flags);
+	CHECK(fd < 0,
+	      "failed to create hashmap",
+	      "err: %s, flags: 0x%x\n", strerror(errno), map_flags);
+
+	for (i = 0; i < max_entries; i++) {
+		key = i; value = key;
+		ret = bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST);
+		CHECK(ret != 0,
+		      "can't update hashmap",
+		      "err: %s\n", strerror(ret));
+	}
+
+	return fd;
+}
+
 static void test_hashmap_walk(int task, void *data)
 {
 	int fd, i, max_entries = 1000;
 	long long key, value, next_key;
 	bool next_key_valid = true;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-			    max_entries, map_flags);
-	if (fd < 0) {
-		printf("Failed to create hashmap '%s'!\n", strerror(errno));
-		exit(1);
-	}
-
-	for (i = 0; i < max_entries; i++) {
-		key = i; value = key;
-		assert(bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST) == 0);
-	}
+	fd = helper_fill_hashmap(max_entries);
 
 	for (i = 0; bpf_map_get_next_key(fd, !i ? NULL : &key,
 					 &next_key) == 0; i++) {
@@ -304,6 +316,39 @@ static void test_hashmap_walk(int task, void *data)
 
 	assert(i == max_entries);
 	close(fd);
+}
+
+static void test_hashmap_zero_seed(void)
+{
+	int i, first, second, old_flags;
+	long long key, next_first, next_second;
+
+	old_flags = map_flags;
+	map_flags |= BPF_F_ZERO_SEED;
+
+	first = helper_fill_hashmap(3);
+	second = helper_fill_hashmap(3);
+
+	for (i = 0; ; i++) {
+		void *key_ptr = !i ? NULL : &key;
+
+		if (bpf_map_get_next_key(first, key_ptr, &next_first) != 0)
+			break;
+
+		CHECK(bpf_map_get_next_key(second, key_ptr, &next_second) != 0,
+		      "next_key for second map must succeed",
+		      "key_ptr: %p", key_ptr);
+		CHECK(next_first != next_second,
+		      "keys must match",
+		      "i: %d first: %lld second: %lld\n", i,
+		      next_first, next_second);
+
+		key = next_first;
+	}
+
+	map_flags = old_flags;
+	close(first);
+	close(second);
 }
 
 static void test_arraymap(int task, void *data)
@@ -465,7 +510,7 @@ static void test_devmap(int task, void *data)
 	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP, sizeof(key), sizeof(value),
 			    2, 0);
 	if (fd < 0) {
-		printf("Failed to create arraymap '%s'!\n", strerror(errno));
+		printf("Failed to create devmap '%s'!\n", strerror(errno));
 		exit(1);
 	}
 
@@ -1080,6 +1125,94 @@ out_sockmap:
 	exit(1);
 }
 
+#define MAPINMAP_PROG "./test_map_in_map.o"
+static void test_map_in_map(void)
+{
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	struct bpf_map *map;
+	int mim_fd, fd, err;
+	int pos = 0;
+
+	obj = bpf_object__open(MAPINMAP_PROG);
+
+	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int), sizeof(int),
+			    2, 0);
+	if (fd < 0) {
+		printf("Failed to create hashmap '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	map = bpf_object__find_map_by_name(obj, "mim_array");
+	if (IS_ERR(map)) {
+		printf("Failed to load array of maps from test prog\n");
+		goto out_map_in_map;
+	}
+	err = bpf_map__set_inner_map_fd(map, fd);
+	if (err) {
+		printf("Failed to set inner_map_fd for array of maps\n");
+		goto out_map_in_map;
+	}
+
+	map = bpf_object__find_map_by_name(obj, "mim_hash");
+	if (IS_ERR(map)) {
+		printf("Failed to load hash of maps from test prog\n");
+		goto out_map_in_map;
+	}
+	err = bpf_map__set_inner_map_fd(map, fd);
+	if (err) {
+		printf("Failed to set inner_map_fd for hash of maps\n");
+		goto out_map_in_map;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		bpf_program__set_xdp(prog);
+	}
+	bpf_object__load(obj);
+
+	map = bpf_object__find_map_by_name(obj, "mim_array");
+	if (IS_ERR(map)) {
+		printf("Failed to load array of maps from test prog\n");
+		goto out_map_in_map;
+	}
+	mim_fd = bpf_map__fd(map);
+	if (mim_fd < 0) {
+		printf("Failed to get descriptor for array of maps\n");
+		goto out_map_in_map;
+	}
+
+	err = bpf_map_update_elem(mim_fd, &pos, &fd, 0);
+	if (err) {
+		printf("Failed to update array of maps\n");
+		goto out_map_in_map;
+	}
+
+	map = bpf_object__find_map_by_name(obj, "mim_hash");
+	if (IS_ERR(map)) {
+		printf("Failed to load hash of maps from test prog\n");
+		goto out_map_in_map;
+	}
+	mim_fd = bpf_map__fd(map);
+	if (mim_fd < 0) {
+		printf("Failed to get descriptor for hash of maps\n");
+		goto out_map_in_map;
+	}
+
+	err = bpf_map_update_elem(mim_fd, &pos, &fd, 0);
+	if (err) {
+		printf("Failed to update hash of maps\n");
+		goto out_map_in_map;
+	}
+
+	close(fd);
+	bpf_object__close(obj);
+	return;
+
+out_map_in_map:
+	close(fd);
+	exit(1);
+}
+
 #define MAP_SIZE (32 * 1024)
 
 static void test_map_large(void)
@@ -1534,6 +1667,7 @@ static void run_all_tests(void)
 	test_hashmap(0, NULL);
 	test_hashmap_percpu(0, NULL);
 	test_hashmap_walk(0, NULL);
+	test_hashmap_zero_seed();
 
 	test_arraymap(0, NULL);
 	test_arraymap_percpu(0, NULL);
@@ -1554,6 +1688,8 @@ static void run_all_tests(void)
 
 	test_queuemap(0, NULL);
 	test_stackmap(0, NULL);
+
+	test_map_in_map();
 }
 
 int main(void)

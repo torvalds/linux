@@ -607,17 +607,7 @@ static int available_error_type_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int available_error_type_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, available_error_type_show, NULL);
-}
-
-static const struct file_operations available_error_type_fops = {
-	.open		= available_error_type_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(available_error_type);
 
 static int error_type_get(void *data, u64 *val)
 {

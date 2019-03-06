@@ -544,7 +544,7 @@ static int ceph_tcp_recvpage(struct socket *sock, struct page *page,
  * shortly.
  */
 static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
-		     size_t kvlen, size_t len, int more)
+			    size_t kvlen, size_t len, bool more)
 {
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
 	int r;
@@ -560,24 +560,15 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 	return r;
 }
 
-static int __ceph_tcp_sendpage(struct socket *sock, struct page *page,
-		     int offset, size_t size, bool more)
-{
-	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | (more ? MSG_MORE : MSG_EOR);
-	int ret;
-
-	ret = kernel_sendpage(sock, page, offset, size, flags);
-	if (ret == -EAGAIN)
-		ret = 0;
-
-	return ret;
-}
-
+/*
+ * @more: either or both of MSG_MORE and MSG_SENDPAGE_NOTLAST
+ */
 static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
-		     int offset, size_t size, bool more)
+			     int offset, size_t size, int more)
 {
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL };
-	struct bio_vec bvec;
+	ssize_t (*sendpage)(struct socket *sock, struct page *page,
+			    int offset, size_t size, int flags);
+	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | more;
 	int ret;
 
 	/*
@@ -589,19 +580,11 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	 * triggers one of hardened usercopy checks.
 	 */
 	if (page_count(page) >= 1 && !PageSlab(page))
-		return __ceph_tcp_sendpage(sock, page, offset, size, more);
-
-	bvec.bv_page = page;
-	bvec.bv_offset = offset;
-	bvec.bv_len = size;
-
-	if (more)
-		msg.msg_flags |= MSG_MORE;
+		sendpage = sock->ops->sendpage;
 	else
-		msg.msg_flags |= MSG_EOR;  /* superfluous, but what the hell */
+		sendpage = sock_no_sendpage;
 
-	iov_iter_bvec(&msg.msg_iter, WRITE, &bvec, 1, size);
-	ret = sock_sendmsg(sock, &msg);
+	ret = sendpage(sock, page, offset, size, flags);
 	if (ret == -EAGAIN)
 		ret = 0;
 
@@ -1572,6 +1555,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
 	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
+	int more = MSG_MORE | MSG_SENDPAGE_NOTLAST;
 	u32 crc;
 
 	dout("%s %p msg %p\n", __func__, con, msg);
@@ -1592,7 +1576,6 @@ static int write_partial_message_data(struct ceph_connection *con)
 		struct page *page;
 		size_t page_offset;
 		size_t length;
-		bool last_piece;
 		int ret;
 
 		if (!cursor->resid) {
@@ -1600,10 +1583,11 @@ static int write_partial_message_data(struct ceph_connection *con)
 			continue;
 		}
 
-		page = ceph_msg_data_next(cursor, &page_offset, &length,
-					  &last_piece);
-		ret = ceph_tcp_sendpage(con->sock, page, page_offset,
-					length, !last_piece);
+		page = ceph_msg_data_next(cursor, &page_offset, &length, NULL);
+		if (length == cursor->total_resid)
+			more = MSG_MORE;
+		ret = ceph_tcp_sendpage(con->sock, page, page_offset, length,
+					more);
 		if (ret <= 0) {
 			if (do_datacrc)
 				msg->footer.data_crc = cpu_to_le32(crc);
@@ -1633,13 +1617,16 @@ static int write_partial_message_data(struct ceph_connection *con)
  */
 static int write_partial_skip(struct ceph_connection *con)
 {
+	int more = MSG_MORE | MSG_SENDPAGE_NOTLAST;
 	int ret;
 
 	dout("%s %p %d left\n", __func__, con, con->out_skip);
 	while (con->out_skip > 0) {
 		size_t size = min(con->out_skip, (int) PAGE_SIZE);
 
-		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, true);
+		if (size == con->out_skip)
+			more = MSG_MORE;
+		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, more);
 		if (ret <= 0)
 			goto out;
 		con->out_skip -= ret;
@@ -2071,6 +2058,8 @@ static int process_connect(struct ceph_connection *con)
 	dout("process_connect on %p tag %d\n", con, (int)con->in_tag);
 
 	if (con->auth) {
+		int len = le32_to_cpu(con->in_reply.authorizer_len);
+
 		/*
 		 * Any connection that defines ->get_authorizer()
 		 * should also define ->add_authorizer_challenge() and
@@ -2080,8 +2069,7 @@ static int process_connect(struct ceph_connection *con)
 		 */
 		if (con->in_reply.tag == CEPH_MSGR_TAG_CHALLENGE_AUTHORIZER) {
 			ret = con->ops->add_authorizer_challenge(
-				    con, con->auth->authorizer_reply_buf,
-				    le32_to_cpu(con->in_reply.authorizer_len));
+				    con, con->auth->authorizer_reply_buf, len);
 			if (ret < 0)
 				return ret;
 
@@ -2091,10 +2079,12 @@ static int process_connect(struct ceph_connection *con)
 			return 0;
 		}
 
-		ret = con->ops->verify_authorizer_reply(con);
-		if (ret < 0) {
-			con->error_msg = "bad authorize reply";
-			return ret;
+		if (len) {
+			ret = con->ops->verify_authorizer_reply(con);
+			if (ret < 0) {
+				con->error_msg = "bad authorize reply";
+				return ret;
+			}
 		}
 	}
 
@@ -3219,9 +3209,10 @@ void ceph_con_keepalive(struct ceph_connection *con)
 	dout("con_keepalive %p\n", con);
 	mutex_lock(&con->mutex);
 	clear_standby(con);
+	con_flag_set(con, CON_FLAG_KEEPALIVE_PENDING);
 	mutex_unlock(&con->mutex);
-	if (con_flag_test_and_set(con, CON_FLAG_KEEPALIVE_PENDING) == 0 &&
-	    con_flag_test_and_set(con, CON_FLAG_WRITE_PENDING) == 0)
+
+	if (con_flag_test_and_set(con, CON_FLAG_WRITE_PENDING) == 0)
 		queue_con(con);
 }
 EXPORT_SYMBOL(ceph_con_keepalive);

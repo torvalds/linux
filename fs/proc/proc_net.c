@@ -38,6 +38,22 @@ static struct net *get_proc_net(const struct inode *inode)
 	return maybe_get_net(PDE_NET(PDE(inode)));
 }
 
+static int proc_net_d_revalidate(struct dentry *dentry, unsigned int flags)
+{
+	return 0;
+}
+
+static const struct dentry_operations proc_net_dentry_ops = {
+	.d_revalidate	= proc_net_d_revalidate,
+	.d_delete	= always_delete_dentry,
+};
+
+static void pde_force_lookup(struct proc_dir_entry *pde)
+{
+	/* /proc/net/ entries can be changed under us by setns(CLONE_NEWNET) */
+	pde->proc_dops = &proc_net_dentry_ops;
+}
+
 static int seq_open_net(struct inode *inode, struct file *file)
 {
 	unsigned int state_size = PDE(inode)->state_size;
@@ -90,6 +106,7 @@ struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
+	pde_force_lookup(p);
 	p->proc_fops = &proc_net_seq_fops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
@@ -133,6 +150,7 @@ struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
+	pde_force_lookup(p);
 	p->proc_fops = &proc_net_seq_fops;
 	p->seq_ops = ops;
 	p->state_size = state_size;
@@ -181,6 +199,7 @@ struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
+	pde_force_lookup(p);
 	p->proc_fops = &proc_net_single_fops;
 	p->single_show = show;
 	return proc_register(parent, p);
@@ -223,6 +242,7 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 	p = proc_create_reg(name, mode, &parent, data);
 	if (!p)
 		return NULL;
+	pde_force_lookup(p);
 	p->proc_fops = &proc_net_single_fops;
 	p->single_show = show;
 	p->write = write;

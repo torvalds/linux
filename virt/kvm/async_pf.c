@@ -82,7 +82,7 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchromously to the task which owns
+	 * This work is run asynchronously to the task which owns
 	 * mm and might be done in another context, so we must
 	 * access remotely.
 	 */

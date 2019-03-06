@@ -13,11 +13,25 @@ raid6_pq-$(CONFIG_S390) += s390vx8.o recov_s390xc.o
 hostprogs-y	+= mktables
 
 quiet_cmd_unroll = UNROLL  $@
-      cmd_unroll = $(AWK) -f$(srctree)/$(src)/unroll.awk -vN=$(UNROLL) \
-                   < $< > $@ || ( rm -f $@ && exit 1 )
+      cmd_unroll = $(AWK) -f$(srctree)/$(src)/unroll.awk -vN=$(UNROLL) < $< > $@
 
 ifeq ($(CONFIG_ALTIVEC),y)
 altivec_flags := -maltivec $(call cc-option,-mabi=altivec)
+
+ifdef CONFIG_CC_IS_CLANG
+# clang ppc port does not yet support -maltivec when -msoft-float is
+# enabled. A future release of clang will resolve this
+# https://bugs.llvm.org/show_bug.cgi?id=31177
+CFLAGS_REMOVE_altivec1.o  += -msoft-float
+CFLAGS_REMOVE_altivec2.o  += -msoft-float
+CFLAGS_REMOVE_altivec4.o  += -msoft-float
+CFLAGS_REMOVE_altivec8.o  += -msoft-float
+CFLAGS_REMOVE_altivec8.o  += -msoft-float
+CFLAGS_REMOVE_vpermxor1.o += -msoft-float
+CFLAGS_REMOVE_vpermxor2.o += -msoft-float
+CFLAGS_REMOVE_vpermxor4.o += -msoft-float
+CFLAGS_REMOVE_vpermxor8.o += -msoft-float
+endif
 endif
 
 # The GCC option -ffreestanding is required in order to compile code containing
@@ -145,7 +159,7 @@ $(obj)/s390vx8.c:   $(src)/s390vx.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 quiet_cmd_mktable = TABLE   $@
-      cmd_mktable = $(obj)/mktables > $@ || ( rm -f $@ && exit 1 )
+      cmd_mktable = $(obj)/mktables > $@
 
 targets += tables.c
 $(obj)/tables.c: $(obj)/mktables FORCE

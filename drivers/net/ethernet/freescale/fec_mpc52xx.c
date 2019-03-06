@@ -369,7 +369,7 @@ static irqreturn_t mpc52xx_fec_tx_interrupt(int irq, void *dev_id)
 		dma_unmap_single(dev->dev.parent, bd->skb_pa, skb->len,
 				 DMA_TO_DEVICE);
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 	spin_unlock(&priv->lock);
 

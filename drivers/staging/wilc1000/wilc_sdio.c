@@ -30,6 +30,25 @@ struct wilc_sdio {
 	int has_thrpt_enh3;
 };
 
+struct sdio_cmd52 {
+	u32 read_write:		1;
+	u32 function:		3;
+	u32 raw:		1;
+	u32 address:		17;
+	u32 data:		8;
+};
+
+struct sdio_cmd53 {
+	u32 read_write:		1;
+	u32 function:		3;
+	u32 block_mode:		1;
+	u32 increment:		1;
+	u32 address:		17;
+	u32 count:		9;
+	u8 *buffer;
+	u32 block_size;
+};
+
 static const struct wilc_hif_func wilc_hif_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
@@ -125,7 +144,8 @@ static int linux_sdio_probe(struct sdio_func *func,
 	}
 
 	dev_dbg(&func->dev, "Initializing netdev\n");
-	ret = wilc_netdev_init(&wilc, &func->dev, HIF_SDIO, &wilc_hif_sdio);
+	ret = wilc_netdev_init(&wilc, &func->dev, WILC_HIF_SDIO,
+			       &wilc_hif_sdio);
 	if (ret) {
 		dev_err(&func->dev, "Couldn't initialize netdev\n");
 		kfree(sdio_priv);
@@ -841,6 +861,7 @@ static int sdio_read_int(struct wilc *wilc, u32 *int_status)
 	if (!sdio_priv->irq_gpio) {
 		int i;
 
+		cmd.read_write = 0;
 		cmd.function = 1;
 		cmd.address = 0x04;
 		cmd.data = 0;

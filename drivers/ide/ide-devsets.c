@@ -171,7 +171,7 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 	scsi_req(rq)->cmd_len = 5;
 	scsi_req(rq)->cmd[0] = REQ_DEVSET_EXEC;
 	*(int *)&scsi_req(rq)->cmd[1] = arg;
-	rq->special = setting->set;
+	ide_req(rq)->special = setting->set;
 
 	blk_execute_rq(q, NULL, rq, 0);
 	ret = scsi_req(rq)->result;
@@ -182,7 +182,7 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 
 ide_startstop_t ide_do_devset(ide_drive_t *drive, struct request *rq)
 {
-	int err, (*setfunc)(ide_drive_t *, int) = rq->special;
+	int err, (*setfunc)(ide_drive_t *, int) = ide_req(rq)->special;
 
 	err = setfunc(drive, *(int *)&scsi_req(rq)->cmd[1]);
 	if (err)

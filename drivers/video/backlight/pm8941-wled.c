@@ -330,7 +330,7 @@ static int pm8941_wled_configure(struct pm8941_wled *wled, struct device *dev)
 
 	rc = of_property_read_string(dev->of_node, "label", &wled->name);
 	if (rc)
-		wled->name = dev->of_node->name;
+		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
 
 	*cfg = pm8941_wled_config_defaults;
 	for (i = 0; i < ARRAY_SIZE(u32_opts); ++i) {

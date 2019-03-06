@@ -112,6 +112,18 @@ static inline struct kmem_cache *pool_cache(struct rxe_pool *pool)
 	return rxe_type_info[pool->type].cache;
 }
 
+static void rxe_cache_clean(size_t cnt)
+{
+	int i;
+	struct rxe_type_info *type;
+
+	for (i = 0; i < cnt; i++) {
+		type = &rxe_type_info[i];
+		kmem_cache_destroy(type->cache);
+		type->cache = NULL;
+	}
+}
+
 int rxe_cache_init(void)
 {
 	int err;
@@ -136,24 +148,14 @@ int rxe_cache_init(void)
 	return 0;
 
 err1:
-	while (--i >= 0) {
-		kmem_cache_destroy(type->cache);
-		type->cache = NULL;
-	}
+	rxe_cache_clean(i);
 
 	return err;
 }
 
 void rxe_cache_exit(void)
 {
-	int i;
-	struct rxe_type_info *type;
-
-	for (i = 0; i < RXE_NUM_TYPES; i++) {
-		type = &rxe_type_info[i];
-		kmem_cache_destroy(type->cache);
-		type->cache = NULL;
-	}
+	rxe_cache_clean(RXE_NUM_TYPES);
 }
 
 static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
@@ -241,7 +243,7 @@ static void rxe_pool_put(struct rxe_pool *pool)
 	kref_put(&pool->ref_cnt, rxe_pool_release);
 }
 
-int rxe_pool_cleanup(struct rxe_pool *pool)
+void rxe_pool_cleanup(struct rxe_pool *pool)
 {
 	unsigned long flags;
 
@@ -253,8 +255,6 @@ int rxe_pool_cleanup(struct rxe_pool *pool)
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 
 	rxe_pool_put(pool);
-
-	return 0;
 }
 
 static u32 alloc_index(struct rxe_pool *pool)

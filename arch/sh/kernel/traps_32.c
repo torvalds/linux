@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 'traps.c' handles hardware traps and faults after we have saved some
  * state in 'entry.S'.
@@ -6,10 +7,6 @@
  *                  Copyright (C) 2000 Philipp Rumpf
  *                  Copyright (C) 2000 David Howells
  *                  Copyright (C) 2002 - 2010 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/ptrace.h>

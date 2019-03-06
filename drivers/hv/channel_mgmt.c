@@ -405,7 +405,6 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
 		list_del(&channel->sc_list);
-		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 
@@ -1301,49 +1300,6 @@ cleanup:
 
 	return ret;
 }
-
-/*
- * Retrieve the (sub) channel on which to send an outgoing request.
- * When a primary channel has multiple sub-channels, we try to
- * distribute the load equally amongst all available channels.
- */
-struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
-{
-	struct list_head *cur, *tmp;
-	int cur_cpu;
-	struct vmbus_channel *cur_channel;
-	struct vmbus_channel *outgoing_channel = primary;
-	int next_channel;
-	int i = 1;
-
-	if (list_empty(&primary->sc_list))
-		return outgoing_channel;
-
-	next_channel = primary->next_oc++;
-
-	if (next_channel > (primary->num_sc)) {
-		primary->next_oc = 0;
-		return outgoing_channel;
-	}
-
-	cur_cpu = hv_cpu_number_to_vp_number(smp_processor_id());
-	list_for_each_safe(cur, tmp, &primary->sc_list) {
-		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
-		if (cur_channel->state != CHANNEL_OPENED_STATE)
-			continue;
-
-		if (cur_channel->target_vp == cur_cpu)
-			return cur_channel;
-
-		if (i == next_channel)
-			return cur_channel;
-
-		i++;
-	}
-
-	return outgoing_channel;
-}
-EXPORT_SYMBOL_GPL(vmbus_get_outgoing_channel);
 
 static void invoke_sc_cb(struct vmbus_channel *primary_channel)
 {

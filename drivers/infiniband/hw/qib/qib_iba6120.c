@@ -3237,7 +3237,6 @@ static int init_6120_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
-	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
 	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_6120_tidtemplate(dd);

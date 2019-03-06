@@ -885,10 +885,8 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	vbuf->field = V4L2_FIELD_NONE;
 
 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		unsigned int opb_sz = venus_helper_get_opb_size(inst);
-
 		vb = &vbuf->vb2_buf;
-		vb2_set_plane_payload(vb, 0, bytesused ? : opb_sz);
+		vb2_set_plane_payload(vb, 0, bytesused);
 		vb->planes[0].data_offset = data_offset;
 		vb->timestamp = timestamp_us * NSEC_PER_USEC;
 		vbuf->sequence = inst->sequence_cap++;

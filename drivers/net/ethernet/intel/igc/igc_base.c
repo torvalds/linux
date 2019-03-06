@@ -237,7 +237,6 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
 	s32 ret_val = 0;
-	u32 ctrl_ext;
 
 	if (hw->phy.media_type != igc_media_type_copper) {
 		phy->type = igc_phy_none;
@@ -246,8 +245,6 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 
 	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT_2500;
 	phy->reset_delay_us	= 100;
-
-	ctrl_ext = rd32(IGC_CTRL_EXT);
 
 	/* set lan id */
 	hw->bus.func = (rd32(IGC_STATUS) & IGC_STATUS_FUNC_MASK) >>
@@ -287,8 +284,6 @@ out:
 static s32 igc_get_invariants_base(struct igc_hw *hw)
 {
 	struct igc_mac_info *mac = &hw->mac;
-	u32 link_mode = 0;
-	u32 ctrl_ext = 0;
 	s32 ret_val = 0;
 
 	switch (hw->device_id) {
@@ -301,9 +296,6 @@ static s32 igc_get_invariants_base(struct igc_hw *hw)
 	}
 
 	hw->phy.media_type = igc_media_type_copper;
-
-	ctrl_ext = rd32(IGC_CTRL_EXT);
-	link_mode = ctrl_ext & IGC_CTRL_EXT_LINK_MODE_MASK;
 
 	/* mac initialization and operations */
 	ret_val = igc_init_mac_params_base(hw);

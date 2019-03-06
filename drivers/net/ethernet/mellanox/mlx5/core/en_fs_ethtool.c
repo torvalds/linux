@@ -771,6 +771,112 @@ void mlx5e_ethtool_init_steering(struct mlx5e_priv *priv)
 	INIT_LIST_HEAD(&priv->fs.ethtool.rules);
 }
 
+static enum mlx5e_traffic_types flow_type_to_traffic_type(u32 flow_type)
+{
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+		return  MLX5E_TT_IPV4_TCP;
+	case TCP_V6_FLOW:
+		return MLX5E_TT_IPV6_TCP;
+	case UDP_V4_FLOW:
+		return MLX5E_TT_IPV4_UDP;
+	case UDP_V6_FLOW:
+		return MLX5E_TT_IPV6_UDP;
+	case AH_V4_FLOW:
+		return MLX5E_TT_IPV4_IPSEC_AH;
+	case AH_V6_FLOW:
+		return MLX5E_TT_IPV6_IPSEC_AH;
+	case ESP_V4_FLOW:
+		return MLX5E_TT_IPV4_IPSEC_ESP;
+	case ESP_V6_FLOW:
+		return MLX5E_TT_IPV6_IPSEC_ESP;
+	case IPV4_FLOW:
+		return MLX5E_TT_IPV4;
+	case IPV6_FLOW:
+		return MLX5E_TT_IPV6;
+	default:
+		return MLX5E_NUM_INDIR_TIRS;
+	}
+}
+
+static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
+				  struct ethtool_rxnfc *nfc)
+{
+	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	enum mlx5e_traffic_types tt;
+	u8 rx_hash_field = 0;
+	void *in;
+
+	tt = flow_type_to_traffic_type(nfc->flow_type);
+	if (tt == MLX5E_NUM_INDIR_TIRS)
+		return -EINVAL;
+
+	/*  RSS does not support anything other than hashing to queues
+	 *  on src IP, dest IP, TCP/UDP src port and TCP/UDP dest
+	 *  port.
+	 */
+	if (nfc->flow_type != TCP_V4_FLOW &&
+	    nfc->flow_type != TCP_V6_FLOW &&
+	    nfc->flow_type != UDP_V4_FLOW &&
+	    nfc->flow_type != UDP_V6_FLOW)
+		return -EOPNOTSUPP;
+
+	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
+			  RXH_L4_B_0_1 | RXH_L4_B_2_3))
+		return -EOPNOTSUPP;
+
+	if (nfc->data & RXH_IP_SRC)
+		rx_hash_field |= MLX5_HASH_FIELD_SEL_SRC_IP;
+	if (nfc->data & RXH_IP_DST)
+		rx_hash_field |= MLX5_HASH_FIELD_SEL_DST_IP;
+	if (nfc->data & RXH_L4_B_0_1)
+		rx_hash_field |= MLX5_HASH_FIELD_SEL_L4_SPORT;
+	if (nfc->data & RXH_L4_B_2_3)
+		rx_hash_field |= MLX5_HASH_FIELD_SEL_L4_DPORT;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	mutex_lock(&priv->state_lock);
+
+	if (rx_hash_field == priv->rss_params.rx_hash_fields[tt])
+		goto out;
+
+	priv->rss_params.rx_hash_fields[tt] = rx_hash_field;
+	mlx5e_modify_tirs_hash(priv, in, inlen);
+
+out:
+	mutex_unlock(&priv->state_lock);
+	kvfree(in);
+	return 0;
+}
+
+static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
+				  struct ethtool_rxnfc *nfc)
+{
+	enum mlx5e_traffic_types tt;
+	u32 hash_field = 0;
+
+	tt = flow_type_to_traffic_type(nfc->flow_type);
+	if (tt == MLX5E_NUM_INDIR_TIRS)
+		return -EINVAL;
+
+	hash_field = priv->rss_params.rx_hash_fields[tt];
+	nfc->data = 0;
+
+	if (hash_field & MLX5_HASH_FIELD_SEL_SRC_IP)
+		nfc->data |= RXH_IP_SRC;
+	if (hash_field & MLX5_HASH_FIELD_SEL_DST_IP)
+		nfc->data |= RXH_IP_DST;
+	if (hash_field & MLX5_HASH_FIELD_SEL_L4_SPORT)
+		nfc->data |= RXH_L4_B_0_1;
+	if (hash_field & MLX5_HASH_FIELD_SEL_L4_DPORT)
+		nfc->data |= RXH_L4_B_2_3;
+
+	return 0;
+}
+
 int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
 	int err = 0;
@@ -782,6 +888,9 @@ int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
 		err = mlx5e_ethtool_flow_remove(priv, cmd->fs.location);
+		break;
+	case ETHTOOL_SRXFH:
+		err = mlx5e_set_rss_hash_opt(priv, cmd);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -809,6 +918,9 @@ int mlx5e_get_rxnfc(struct net_device *dev,
 		break;
 	case ETHTOOL_GRXCLSRLALL:
 		err = mlx5e_ethtool_get_all_flows(priv, info, rule_locs);
+		break;
+	case ETHTOOL_GRXFH:
+		err =  mlx5e_get_rss_hash_opt(priv, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

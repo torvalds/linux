@@ -474,6 +474,8 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 {
 	int err;
 
+	might_sleep_if(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+
 	walk->flags &= ~SKCIPHER_WALK_PHYS;
 
 	err = skcipher_walk_skcipher(walk, req);
@@ -577,8 +579,7 @@ static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
 	if (alg->cra_type == &crypto_blkcipher_type)
 		return sizeof(struct crypto_blkcipher *);
 
-	if (alg->cra_type == &crypto_ablkcipher_type ||
-	    alg->cra_type == &crypto_givcipher_type)
+	if (alg->cra_type == &crypto_ablkcipher_type)
 		return sizeof(struct crypto_ablkcipher *);
 
 	return crypto_alg_extsize(alg);
@@ -842,8 +843,7 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 	if (tfm->__crt_alg->cra_type == &crypto_blkcipher_type)
 		return crypto_init_skcipher_ops_blkcipher(tfm);
 
-	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type ||
-	    tfm->__crt_alg->cra_type == &crypto_givcipher_type)
+	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type)
 		return crypto_init_skcipher_ops_ablkcipher(tfm);
 
 	skcipher->setkey = skcipher_setkey;
@@ -897,21 +897,18 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct skcipher_alg *skcipher = container_of(alg, struct skcipher_alg,
 						     base);
 
-	strncpy(rblkcipher.type, "skcipher", sizeof(rblkcipher.type));
-	strncpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
+	memset(&rblkcipher, 0, sizeof(rblkcipher));
+
+	strscpy(rblkcipher.type, "skcipher", sizeof(rblkcipher.type));
+	strscpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = skcipher->min_keysize;
 	rblkcipher.max_keysize = skcipher->max_keysize;
 	rblkcipher.ivsize = skcipher->ivsize;
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
+		       sizeof(rblkcipher), &rblkcipher);
 }
 #else
 static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)

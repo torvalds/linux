@@ -30,7 +30,6 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn *ct;
 	unsigned int count;
-	bool addit;
 
 	tuple_ptr = &tuple;
 
@@ -44,19 +43,12 @@ static inline void nft_connlimit_do_eval(struct nft_connlimit *priv,
 		return;
 	}
 
-	nf_conncount_lookup(nft_net(pkt), &priv->list, tuple_ptr, zone,
-			    &addit);
-	count = priv->list.count;
-
-	if (!addit)
-		goto out;
-
-	if (nf_conncount_add(&priv->list, tuple_ptr, zone) == NF_CONNCOUNT_ERR) {
+	if (nf_conncount_add(nft_net(pkt), &priv->list, tuple_ptr, zone)) {
 		regs->verdict.code = NF_DROP;
 		return;
 	}
-	count++;
-out:
+
+	count = priv->list.count;
 
 	if ((count > priv->limit) ^ priv->invert) {
 		regs->verdict.code = NFT_BREAK;

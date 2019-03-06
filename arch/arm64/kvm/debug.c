@@ -236,24 +236,3 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 		}
 	}
 }
-
-
-/*
- * After successfully emulating an instruction, we might want to
- * return to user space with a KVM_EXIT_DEBUG. We can only do this
- * once the emulation is complete, though, so for userspace emulations
- * we have to wait until we have re-entered KVM before calling this
- * helper.
- *
- * Return true (and set exit_reason) to return to userspace or false
- * if no further action is required.
- */
-bool kvm_arm_handle_step_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.hsr = ESR_ELx_EC_SOFTSTP_LOW << ESR_ELx_EC_SHIFT;
-		return true;
-	}
-	return false;
-}

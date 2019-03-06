@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2000-2015 Avago Technologies.  All rights reserved.
+ * Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *          Name:  mpi2_cnfg.h
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.42
+ *    mpi2_cnfg.h Version:  02.00.46
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -231,6 +231,18 @@
  *                     Added NOIOB field to PCIe Device Page 2.
  *                     Added MPI26_PCIEDEV2_CAP_DATA_BLK_ALIGN_AND_GRAN to
  *                     the Capabilities field of PCIe Device Page 2.
+ * 07-22-18  02.00.43  Added defines for SAS3916 and SAS3816.
+ *                     Added WRiteCache defines to IO Unit Page 1.
+ *                     Added MaxEnclosureLevel to BIOS Page 1.
+ *                     Added OEMRD to SAS Enclosure Page 1.
+ *                     Added DMDReportPCIe to PCIe IO Unit Page 1.
+ *                     Added Flags field and flags for Retimers to
+ *                     PCIe Switch Page 1.
+ * 08-02-18  02.00.44  Added Slotx2, Slotx4 to ManPage 7.
+ * 08-15-18  02.00.45  Added ProductSpecific field at end of IOC Page 1
+ * 08-28-18  02.00.46  Added NVMs Write Cache flag to IOUnitPage1
+ *                     Added DMDReport Delay Time defines to
+ *                     PCIeIOUnitPage1
  * --------------------------------------------------------------------------
  */
 
@@ -568,8 +580,17 @@ typedef struct _MPI2_CONFIG_REPLY {
 #define MPI26_MFGPAGE_DEVID_SAS3616                 (0x00D1)
 #define MPI26_MFGPAGE_DEVID_SAS3708                 (0x00D2)
 
-#define MPI26_MFGPAGE_DEVID_SAS3816                 (0x00A1)
-#define MPI26_MFGPAGE_DEVID_SAS3916                 (0x00A0)
+#define MPI26_MFGPAGE_DEVID_SEC_MASK_3916           (0x0003)
+#define MPI26_MFGPAGE_DEVID_INVALID0_3916           (0x00E0)
+#define MPI26_MFGPAGE_DEVID_CFG_SEC_3916            (0x00E1)
+#define MPI26_MFGPAGE_DEVID_HARD_SEC_3916           (0x00E2)
+#define MPI26_MFGPAGE_DEVID_INVALID1_3916           (0x00E3)
+
+#define MPI26_MFGPAGE_DEVID_SEC_MASK_3816           (0x0003)
+#define MPI26_MFGPAGE_DEVID_INVALID0_3816           (0x00E4)
+#define MPI26_MFGPAGE_DEVID_CFG_SEC_3816            (0x00E5)
+#define MPI26_MFGPAGE_DEVID_HARD_SEC_3816           (0x00E6)
+#define MPI26_MFGPAGE_DEVID_INVALID1_3816           (0x00E7)
 
 
 /*Manufacturing Page 0 */
@@ -932,7 +953,11 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
 
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
-/*IO Unit Page 1 Flags defines */
+/* IO Unit Page 1 Flags defines */
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_MASK             (0x00030000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_ENABLE           (0x00000000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_DISABLE          (0x00010000)
+#define MPI26_IOUNITPAGE1_NVME_WRCACHE_NO_CHANGE        (0x00020000)
 #define MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK       (0x00004000)
 #define MPI25_IOUNITPAGE1_NEW_DEVICE_FAST_PATH_DISABLE  (0x00002000)
 #define MPI25_IOUNITPAGE1_DISABLE_FAST_PATH             (0x00001000)
@@ -1511,7 +1536,7 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 	U32                     BiosOptions;                /*0x04 */
 	U32                     IOCSettings;                /*0x08 */
 	U8                      SSUTimeout;                 /*0x0C */
-	U8                      Reserved1;                  /*0x0D */
+	U8                      MaxEnclosureLevel;          /*0x0D */
 	U16                     Reserved2;                  /*0x0E */
 	U32                     DeviceSettings;             /*0x10 */
 	U16                     NumberOfDevices;            /*0x14 */
@@ -1530,7 +1555,6 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_1 {
 #define MPI2_BIOSPAGE1_OPTIONS_BOOT_LIST_ADD_ALT_BOOT_DEVICE    (0x00008000)
 #define MPI2_BIOSPAGE1_OPTIONS_ADVANCED_CONFIG                  (0x00004000)
 
-#define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK                         (0x00003800)
 #define MPI2_BIOSPAGE1_OPTIONS_PNS_MASK                         (0x00003800)
 #define MPI2_BIOSPAGE1_OPTIONS_PNS_PBDHL                        (0x00000000)
 #define MPI2_BIOSPAGE1_OPTIONS_PNS_ENCSLOSURE                   (0x00000800)
@@ -3271,10 +3295,12 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 	U16	NumSlots;			/*0x18 */
 	U16	StartSlot;			/*0x1A */
 	U8	ChassisSlot;			/*0x1C */
-	U8	EnclosureLeve;			/*0x1D */
+	U8	EnclosureLevel;			/*0x1D */
 	U16	SEPDevHandle;			/*0x1E */
-	U32	Reserved3;			/*0x20 */
-	U32	Reserved4;			/*0x24 */
+	U8	OEMRD;				/*0x20 */
+	U8	Reserved1a;			/*0x21 */
+	U16	Reserved2;			/*0x22 */
+	U32	Reserved3;			/*0x24 */
 } MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
 	*PTR_MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0,
 	Mpi2SasEnclosurePage0_t, *pMpi2SasEnclosurePage0_t,
@@ -3285,6 +3311,8 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 #define MPI2_SASENCLOSURE0_PAGEVERSION      (0x04)
 
 /*values for SAS Enclosure Page 0 Flags field */
+#define MPI26_SAS_ENCLS0_FLAGS_OEMRD_VALID          (0x0080)
+#define MPI26_SAS_ENCLS0_FLAGS_OEMRD_COLLECTING     (0x0040)
 #define MPI2_SAS_ENCLS0_FLAGS_CHASSIS_SLOT_VALID    (0x0020)
 #define MPI2_SAS_ENCLS0_FLAGS_ENCL_LEVEL_VALID      (0x0010)
 #define MPI2_SAS_ENCLS0_FLAGS_MNG_MASK              (0x000F)
@@ -3298,6 +3326,8 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0 {
 #define MPI26_ENCLOSURE0_PAGEVERSION        (0x04)
 
 /*Values for Enclosure Page 0 Flags field */
+#define MPI26_ENCLS0_FLAGS_OEMRD_VALID              (0x0080)
+#define MPI26_ENCLS0_FLAGS_OEMRD_COLLECTING         (0x0040)
 #define MPI26_ENCLS0_FLAGS_CHASSIS_SLOT_VALID       (0x0020)
 #define MPI26_ENCLS0_FLAGS_ENCL_LEVEL_VALID         (0x0010)
 #define MPI26_ENCLS0_FLAGS_MNG_MASK                 (0x000F)
@@ -3696,8 +3726,9 @@ typedef struct _MPI26_PCIE_IO_UNIT1_PHY_DATA {
 	Mpi26PCIeIOUnit1PhyData_t, *pMpi26PCIeIOUnit1PhyData_t;
 
 /*values for LinkFlags */
-#define MPI26_PCIEIOUNIT1_LINKFLAGS_DIS_SRIS    (0x00)
-#define MPI26_PCIEIOUNIT1_LINKFLAGS_EN_SRIS     (0x01)
+#define MPI26_PCIEIOUNIT1_LINKFLAGS_DIS_SEPARATE_REFCLK     (0x00)
+#define MPI26_PCIEIOUNIT1_LINKFLAGS_SRIS_EN                 (0x01)
+#define MPI26_PCIEIOUNIT1_LINKFLAGS_SRNS_EN                 (0x02)
 
 /*
  *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
@@ -3714,7 +3745,7 @@ typedef struct _MPI26_CONFIG_PAGE_PIOUNIT_1 {
 	U16	AdditionalControlFlags;             /*0x0C */
 	U16	NVMeMaxQueueDepth;                  /*0x0E */
 	U8	NumPhys;                            /*0x10 */
-	U8	Reserved1;                          /*0x11 */
+	U8	DMDReportPCIe;                      /*0x11 */
 	U16	Reserved2;                          /*0x12 */
 	MPI26_PCIE_IO_UNIT1_PHY_DATA
 		PhyData[MPI26_PCIE_IOUNIT1_PHY_MAX];/*0x14 */
@@ -3735,6 +3766,12 @@ typedef struct _MPI26_CONFIG_PAGE_PIOUNIT_1 {
 #define MPI26_PCIEIOUNIT1_MAX_RATE_5_0                              (0x30)
 #define MPI26_PCIEIOUNIT1_MAX_RATE_8_0                              (0x40)
 #define MPI26_PCIEIOUNIT1_MAX_RATE_16_0                             (0x50)
+
+/*values for PCIe IO Unit Page 1 DMDReportPCIe */
+#define MPI26_PCIEIOUNIT1_DMDRPT_UNIT_MASK                          (0x80)
+#define MPI26_PCIEIOUNIT1_DMDRPT_UNIT_1_SEC                         (0x00)
+#define MPI26_PCIEIOUNIT1_DMDRPT_UNIT_16_SEC                        (0x80)
+#define MPI26_PCIEIOUNIT1_DMDRPT_DELAY_TIME_MASK                    (0x7F)
 
 /*see mpi2_pci.h for values for PCIe IO Unit Page 0 ControllerPhyDeviceInfo
  *values
@@ -3788,6 +3825,9 @@ typedef struct _MPI26_CONFIG_PAGE_PSWITCH_1 {
 
 /*use MPI26_PCIE_NEG_LINK_RATE_ defines for the NegotiatedLinkRate field */
 
+/* defines for the Flags field */
+#define MPI26_PCIESWITCH1_2_RETIMER_PRESENCE         (0x0002)
+#define MPI26_PCIESWITCH1_RETIMER_PRESENCE           (0x0001)
 
 /****************************************************************************
 *  PCIe Device Config Pages (MPI v2.6 and later)
@@ -3849,19 +3889,21 @@ typedef struct _MPI26_CONFIG_PAGE_PCIEDEV_0 {
  *field
  */
 
-/*values for PCIe Device Page 0 Flags field */
-#define MPI26_PCIEDEV0_FLAGS_UNAUTHORIZED_DEVICE            (0x8000)
-#define MPI26_PCIEDEV0_FLAGS_ENABLED_FAST_PATH              (0x4000)
-#define MPI26_PCIEDEV0_FLAGS_FAST_PATH_CAPABLE              (0x2000)
-#define MPI26_PCIEDEV0_FLAGS_ASYNCHRONOUS_NOTIFICATION      (0x0400)
-#define MPI26_PCIEDEV0_FLAGS_ATA_SW_PRESERVATION            (0x0200)
-#define MPI26_PCIEDEV0_FLAGS_UNSUPPORTED_DEVICE             (0x0100)
-#define MPI26_PCIEDEV0_FLAGS_ATA_48BIT_LBA_SUPPORTED        (0x0080)
-#define MPI26_PCIEDEV0_FLAGS_ATA_SMART_SUPPORTED            (0x0040)
-#define MPI26_PCIEDEV0_FLAGS_ATA_NCQ_SUPPORTED              (0x0020)
-#define MPI26_PCIEDEV0_FLAGS_ATA_FUA_SUPPORTED              (0x0010)
-#define MPI26_PCIEDEV0_FLAGS_ENCL_LEVEL_VALID               (0x0002)
-#define MPI26_PCIEDEV0_FLAGS_DEVICE_PRESENT                 (0x0001)
+/*values for PCIe Device Page 0 Flags field*/
+#define MPI26_PCIEDEV0_FLAGS_2_RETIMER_PRESENCE             (0x00020000)
+#define MPI26_PCIEDEV0_FLAGS_RETIMER_PRESENCE               (0x00010000)
+#define MPI26_PCIEDEV0_FLAGS_UNAUTHORIZED_DEVICE            (0x00008000)
+#define MPI26_PCIEDEV0_FLAGS_ENABLED_FAST_PATH              (0x00004000)
+#define MPI26_PCIEDEV0_FLAGS_FAST_PATH_CAPABLE              (0x00002000)
+#define MPI26_PCIEDEV0_FLAGS_ASYNCHRONOUS_NOTIFICATION      (0x00000400)
+#define MPI26_PCIEDEV0_FLAGS_ATA_SW_PRESERVATION            (0x00000200)
+#define MPI26_PCIEDEV0_FLAGS_UNSUPPORTED_DEVICE             (0x00000100)
+#define MPI26_PCIEDEV0_FLAGS_ATA_48BIT_LBA_SUPPORTED        (0x00000080)
+#define MPI26_PCIEDEV0_FLAGS_ATA_SMART_SUPPORTED            (0x00000040)
+#define MPI26_PCIEDEV0_FLAGS_ATA_NCQ_SUPPORTED              (0x00000020)
+#define MPI26_PCIEDEV0_FLAGS_ATA_FUA_SUPPORTED              (0x00000010)
+#define MPI26_PCIEDEV0_FLAGS_ENCL_LEVEL_VALID               (0x00000002)
+#define MPI26_PCIEDEV0_FLAGS_DEVICE_PRESENT                 (0x00000001)
 
 /* values for PCIe Device Page 0 SupportedLinkRates field */
 #define MPI26_PCIEDEV0_LINK_RATE_16_0_SUPPORTED             (0x08)

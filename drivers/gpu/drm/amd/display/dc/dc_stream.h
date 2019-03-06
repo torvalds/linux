@@ -56,6 +56,7 @@ struct dc_stream_state {
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
+	struct dc_info_packet vsp_infopacket;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -90,7 +91,6 @@ struct dc_stream_state {
 
 	/* DMCU info */
 	unsigned int abm_level;
-	unsigned int bl_pwm_level;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -103,8 +103,6 @@ struct dc_stream_state {
 	enum signal_type signal;
 	bool dpms_off;
 	bool apply_edp_fast_boot_optimization;
-
-	struct dc_stream_status status;
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
@@ -131,11 +129,13 @@ struct dc_stream_update {
 	struct dc_crtc_timing_adjust *adjust;
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;
+	struct dc_info_packet *vsp_infopacket;
 
 	bool *dpms_off;
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;
+	enum dc_dither_option *dither_option;
 
 	struct dc_csc_transform *output_csc_transform;
 

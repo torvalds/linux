@@ -119,7 +119,7 @@ _config_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		desc = "raid_volume";
 		break;
 	case MPI2_CONFIG_PAGETYPE_MANUFACTURING:
-		desc = "manufaucturing";
+		desc = "manufacturing";
 		break;
 	case MPI2_CONFIG_PAGETYPE_RAID_PHYSDISK:
 		desc = "physdisk";
@@ -300,11 +300,9 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 	void *config_page, u16 config_page_sz)
 {
 	u16 smid;
-	u32 ioc_state;
 	Mpi2ConfigRequest_t *config_request;
 	int r;
 	u8 retry_count, issue_host_reset = 0;
-	u16 wait_state_count;
 	struct config_request mem;
 	u32 ioc_status = UINT_MAX;
 
@@ -361,23 +359,10 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		ioc_info(ioc, "%s: attempting retry (%d)\n",
 			 __func__, retry_count);
 	}
-	wait_state_count = 0;
-	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		if (wait_state_count++ == MPT3_CONFIG_PAGE_DEFAULT_TIMEOUT) {
-			ioc_err(ioc, "%s: failed due to ioc not operational\n",
-				__func__);
-			ioc->config_cmds.status = MPT3_CMD_NOT_USED;
-			r = -EFAULT;
-			goto free_mem;
-		}
-		ssleep(1);
-		ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
-		ioc_info(ioc, "%s: waiting for operational state(count=%d)\n",
-			 __func__, wait_state_count);
-	}
-	if (wait_state_count)
-		ioc_info(ioc, "%s: ioc is operational\n", __func__);
+
+	r = mpt3sas_wait_for_ioc(ioc, MPT3_CONFIG_PAGE_DEFAULT_TIMEOUT);
+	if (r)
+		goto free_mem;
 
 	smid = mpt3sas_base_get_smid(ioc, ioc->config_cb_idx);
 	if (!smid) {
@@ -670,10 +655,6 @@ mpt3sas_config_set_manufacturing_pg11(struct MPT3SAS_ADAPTER *ioc,
 		goto out;
 
 	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_WRITE_CURRENT;
-	r = _config_request(ioc, &mpi_request, mpi_reply,
-	    MPT3_CONFIG_PAGE_DEFAULT_TIMEOUT, config_page,
-	    sizeof(*config_page));
-	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_WRITE_NVRAM;
 	r = _config_request(ioc, &mpi_request, mpi_reply,
 	    MPT3_CONFIG_PAGE_DEFAULT_TIMEOUT, config_page,
 	    sizeof(*config_page));

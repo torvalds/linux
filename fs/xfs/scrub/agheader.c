@@ -32,7 +32,6 @@ xchk_superblock_xref(
 	struct xfs_scrub	*sc,
 	struct xfs_buf		*bp)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agnumber_t		agno = sc->sm->sm_agno;
 	xfs_agblock_t		agbno;
@@ -49,8 +48,7 @@ xchk_superblock_xref(
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */
@@ -484,7 +482,6 @@ STATIC void
 xchk_agf_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
 	int			error;
@@ -502,8 +499,7 @@ xchk_agf_xref(
 	xchk_agf_xref_freeblks(sc);
 	xchk_agf_xref_cntbt(sc);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_agf_xref_btreeblks(sc);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 	xchk_agf_xref_refcblks(sc);
@@ -598,7 +594,6 @@ out:
 /* AGFL */
 
 struct xchk_agfl_info {
-	struct xfs_owner_info	oinfo;
 	unsigned int		sz_entries;
 	unsigned int		nr_entries;
 	xfs_agblock_t		*entries;
@@ -609,15 +604,14 @@ struct xchk_agfl_info {
 STATIC void
 xchk_agfl_block_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
-	struct xfs_owner_info	*oinfo)
+	xfs_agblock_t		agbno)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
-	xchk_xref_is_owned_by(sc, agbno, 1, oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_AG);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 }
 
@@ -638,7 +632,7 @@ xchk_agfl_block(
 	else
 		xchk_block_set_corrupt(sc, sc->sa.agfl_bp);
 
-	xchk_agfl_block_xref(sc, agbno, priv);
+	xchk_agfl_block_xref(sc, agbno);
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return XFS_BTREE_QUERY_RANGE_ABORT;
@@ -662,7 +656,6 @@ STATIC void
 xchk_agfl_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
 	int			error;
@@ -678,8 +671,7 @@ xchk_agfl_xref(
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 
 	/*
@@ -732,7 +724,6 @@ xchk_agfl(
 	}
 
 	/* Check the blocks in the AGFL. */
-	xfs_rmap_ag_owner(&sai.oinfo, XFS_RMAP_OWN_AG);
 	error = xfs_agfl_walk(sc->mp, XFS_BUF_TO_AGF(sc->sa.agf_bp),
 			sc->sa.agfl_bp, xchk_agfl_block, &sai);
 	if (error == XFS_BTREE_QUERY_RANGE_ABORT) {
@@ -791,7 +782,6 @@ STATIC void
 xchk_agi_xref(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_agblock_t		agbno;
 	int			error;
@@ -808,8 +798,7 @@ xchk_agi_xref(
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_xref_is_not_inode_chunk(sc, agbno, 1);
 	xchk_agi_xref_icounts(sc);
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_FS);
-	xchk_xref_is_owned_by(sc, agbno, 1, &oinfo);
+	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_FS);
 	xchk_xref_is_not_shared(sc, agbno, 1);
 
 	/* scrub teardown will take care of sc->sa for us */

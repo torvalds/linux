@@ -36,9 +36,12 @@ subarch-$(CONFIG_MODULES) += ../kernel/module.o
 
 USER_OBJS := bugs_$(BITS).o ptrace_user.o fault.o
 
-extra-y += user-offsets.s
 $(obj)/user-offsets.s: c_flags = -Wp,-MD,$(depfile) $(USER_CFLAGS) \
 	-Iarch/x86/include/generated
+targets += user-offsets.s
+
+include/generated/user_constants.h: $(obj)/user-offsets.s
+	$(call filechk,offsets,__USER_CONSTANT_H__)
 
 UNPROFILE_OBJS := stub_segv.o
 CFLAGS_stub_segv.o := $(CFLAGS_NO_HARDENING)

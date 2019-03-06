@@ -159,6 +159,9 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 			ret = err;
 	}
 out:
+	err = file_check_and_advance_wb_err(file);
+	if (ret == 0)
+		ret = err;
 	trace_ext4_sync_file_exit(inode, ret);
 	return ret;
 }

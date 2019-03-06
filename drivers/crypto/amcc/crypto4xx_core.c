@@ -283,9 +283,9 @@ static u32 crypto4xx_put_pd_to_pdr(struct crypto4xx_device *dev, u32 idx)
  */
 static u32 crypto4xx_build_gdr(struct crypto4xx_device *dev)
 {
-	dev->gdr = dma_zalloc_coherent(dev->core_dev->device,
-				       sizeof(struct ce_gd) * PPC4XX_NUM_GD,
-				       &dev->gdr_pa, GFP_ATOMIC);
+	dev->gdr = dma_alloc_coherent(dev->core_dev->device,
+				      sizeof(struct ce_gd) * PPC4XX_NUM_GD,
+				      &dev->gdr_pa, GFP_ATOMIC);
 	if (!dev->gdr)
 		return -ENOMEM;
 
@@ -596,7 +596,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 					  pd->pd_ctl_len.bf.pkt_len,
 					  dst);
 	} else {
-		__dma_sync_page(sg_page(dst), dst->offset, dst->length,
+		dma_unmap_page(dev->core_dev->device, pd->dest, dst->length,
 				DMA_FROM_DEVICE);
 	}
 

@@ -65,7 +65,6 @@ Description of Contents:
     3.2.3 I/O completion
     3.2.4 Implications for drivers that do not interpret bios (don't handle
  	  multiple segments)
-    3.2.5 Request command tagging
   3.3 I/O submission
 4. The I/O scheduler
 5. Scalability related changes
@@ -707,93 +706,6 @@ and transparent mapping of the next bio segment when a segment boundary
 is crossed on completion of a transfer. (The end*request* functions should
 be used if only if the request has come down from block/bio path, not for
 direct access requests which only specify rq->buffer without a valid rq->bio)
-
-3.2.5 Generic request command tagging
-
-3.2.5.1 Tag helpers
-
-Block now offers some simple generic functionality to help support command
-queueing (typically known as tagged command queueing), ie manage more than
-one outstanding command on a queue at any given time.
-
-	blk_queue_init_tags(struct request_queue *q, int depth)
-
-	Initialize internal command tagging structures for a maximum
-	depth of 'depth'.
-
-	blk_queue_free_tags((struct request_queue *q)
-
-	Teardown tag info associated with the queue. This will be done
-	automatically by block if blk_queue_cleanup() is called on a queue
-	that is using tagging.
-
-The above are initialization and exit management, the main helpers during
-normal operations are:
-
-	blk_queue_start_tag(struct request_queue *q, struct request *rq)
-
-	Start tagged operation for this request. A free tag number between
-	0 and 'depth' is assigned to the request (rq->tag holds this number),
-	and 'rq' is added to the internal tag management. If the maximum depth
-	for this queue is already achieved (or if the tag wasn't started for
-	some other reason), 1 is returned. Otherwise 0 is returned.
-
-	blk_queue_end_tag(struct request_queue *q, struct request *rq)
-
-	End tagged operation on this request. 'rq' is removed from the internal
-	book keeping structures.
-
-To minimize struct request and queue overhead, the tag helpers utilize some
-of the same request members that are used for normal request queue management.
-This means that a request cannot both be an active tag and be on the queue
-list at the same time. blk_queue_start_tag() will remove the request, but
-the driver must remember to call blk_queue_end_tag() before signalling
-completion of the request to the block layer. This means ending tag
-operations before calling end_that_request_last()! For an example of a user
-of these helpers, see the IDE tagged command queueing support.
-
-3.2.5.2 Tag info
-
-Some block functions exist to query current tag status or to go from a
-tag number to the associated request. These are, in no particular order:
-
-	blk_queue_tagged(q)
-
-	Returns 1 if the queue 'q' is using tagging, 0 if not.
-
-	blk_queue_tag_request(q, tag)
-
-	Returns a pointer to the request associated with tag 'tag'.
-
-	blk_queue_tag_depth(q)
-	
-	Return current queue depth.
-
-	blk_queue_tag_queue(q)
-
-	Returns 1 if the queue can accept a new queued command, 0 if we are
-	at the maximum depth already.
-
-	blk_queue_rq_tagged(rq)
-
-	Returns 1 if the request 'rq' is tagged.
-
-3.2.5.2 Internal structure
-
-Internally, block manages tags in the blk_queue_tag structure:
-
-	struct blk_queue_tag {
-		struct request **tag_index;	/* array or pointers to rq */
-		unsigned long *tag_map;		/* bitmap of free tags */
-		struct list_head busy_list;	/* fifo list of busy tags */
-		int busy;			/* queue depth */
-		int max_depth;			/* max queue depth */
-	};
-
-Most of the above is simple and straight forward, however busy_list may need
-a bit of explaining. Normally we don't care too much about request ordering,
-but in the event of any barrier requests in the tag queue we need to ensure
-that requests are restarted in the order they were queue.
 
 3.3 I/O Submission
 

@@ -69,6 +69,12 @@
 #define HISI_SAS_SATA_PROTOCOL_FPDMA		0x8
 #define HISI_SAS_SATA_PROTOCOL_ATAPI		0x10
 
+#define HISI_SAS_DIF_PROT_MASK (SHOST_DIF_TYPE1_PROTECTION | \
+				SHOST_DIF_TYPE2_PROTECTION | \
+				SHOST_DIF_TYPE3_PROTECTION)
+
+#define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK)
+
 struct hisi_hba;
 
 enum {
@@ -211,7 +217,7 @@ struct hisi_sas_slot {
 	/* Do not reorder/change members after here */
 	void	*buf;
 	dma_addr_t buf_dma;
-	int	idx;
+	u16	idx;
 };
 
 struct hisi_sas_hw {
@@ -268,6 +274,8 @@ struct hisi_hba {
 	struct pci_dev *pci_dev;
 	struct device *dev;
 
+	int prot_mask;
+
 	void __iomem *regs;
 	void __iomem *sgpio_regs;
 	struct regmap *ctrl;
@@ -322,6 +330,8 @@ struct hisi_hba {
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
 	u32 phy_state;
+	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
+	u32 intr_coal_count;	/* Interrupt count to coalesce */
 };
 
 /* Generic HW DMA host memory structures */
@@ -468,7 +478,6 @@ extern int hisi_sas_remove(struct platform_device *pdev);
 extern int hisi_sas_slave_configure(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
-extern struct device_attribute *host_attrs[];
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);
 extern void hisi_sas_phy_down(struct hisi_hba *hisi_hba, int phy_no, int rdy);
 extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,

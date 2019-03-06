@@ -56,24 +56,30 @@
 				 */
 				map0 {
 					trip = <&cpu0_alert0>;
-					cooling-device = <&cpu0 0 2>;
-				};
-				map1 {
-					trip = <&cpu0_alert0>;
-					cooling-device = <&cpu4 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				/*
 				 * When reaching cpu0_alert1, reduce CPU
 				 * further, down to 600 MHz (12 steps for big,
 				 * 7 steps for LITTLE).
 				 */
-				map2 {
+				map1 {
 					trip = <&cpu0_alert1>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map3 {
-					trip = <&cpu0_alert1>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -99,19 +105,25 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert0>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map1 {
-					trip = <&cpu1_alert0>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map2 {
 					trip = <&cpu1_alert1>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map3 {
-					trip = <&cpu1_alert1>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -137,19 +149,25 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert0>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map1 {
-					trip = <&cpu2_alert0>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map2 {
 					trip = <&cpu2_alert1>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map3 {
-					trip = <&cpu2_alert1>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};
@@ -175,19 +193,25 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert0>;
-					cooling-device = <&cpu0 0 2>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
 				};
 				map1 {
-					trip = <&cpu3_alert0>;
-					cooling-device = <&cpu4 0 2>;
-				};
-				map2 {
 					trip = <&cpu3_alert1>;
-					cooling-device = <&cpu0 3 7>;
-				};
-				map3 {
-					trip = <&cpu3_alert1>;
-					cooling-device = <&cpu4 3 12>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
 				};
 			};
 		};

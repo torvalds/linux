@@ -290,7 +290,7 @@ EXPORT_SYMBOL(otx2_mbox_nonempty);
 const char *otx2_mbox_id2name(u16 id)
 {
 	switch (id) {
-#define M(_name, _id, _1, _2) case _id: return # _name;
+#define M(_name, _id, _1, _2, _3) case _id: return # _name;
 	MBOX_MESSAGES
 #undef M
 	default:

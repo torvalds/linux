@@ -32,11 +32,12 @@ subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/freesync
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/color
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/info_packet
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/power
 
 #TODO: remove when Timing Sync feature is complete
 subdir-ccflags-y += -DBUILD_FEATURE_TIMING_SYNC=0
 
-DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet
+DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet modules/power
 
 AMD_DAL = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/,$(DAL_LIBS)))
 

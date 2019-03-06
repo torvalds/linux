@@ -9,12 +9,18 @@
 
 #include <linux/backlight.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/swab.h>
 
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 #include <drm/tinydrm/tinydrm.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
+#include <uapi/drm/drm.h>
 
 static unsigned int spi_max;
 module_param(spi_max, uint, 0400);

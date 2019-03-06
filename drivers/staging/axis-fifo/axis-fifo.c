@@ -485,7 +485,8 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 			 ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
 				>= words_to_write,
 			 fifo->write_queue_lock,
-			 (write_timeout >= 0) ? msecs_to_jiffies(write_timeout) :
+			 (write_timeout >= 0) ?
+				msecs_to_jiffies(write_timeout) :
 				MAX_SCHEDULE_TIMEOUT);
 		spin_unlock_irq(&fifo->write_queue_lock);
 

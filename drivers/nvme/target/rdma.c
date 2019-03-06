@@ -139,6 +139,10 @@ static void nvmet_rdma_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void nvmet_rdma_read_data_done(struct ib_cq *cq, struct ib_wc *wc);
 static void nvmet_rdma_qp_event(struct ib_event *event, void *priv);
 static void nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue);
+static void nvmet_rdma_free_rsp(struct nvmet_rdma_device *ndev,
+				struct nvmet_rdma_rsp *r);
+static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
+				struct nvmet_rdma_rsp *r);
 
 static const struct nvmet_fabrics_ops nvmet_rdma_ops;
 
@@ -182,9 +186,17 @@ nvmet_rdma_get_rsp(struct nvmet_rdma_queue *queue)
 	spin_unlock_irqrestore(&queue->rsps_lock, flags);
 
 	if (unlikely(!rsp)) {
-		rsp = kmalloc(sizeof(*rsp), GFP_KERNEL);
+		int ret;
+
+		rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
 		if (unlikely(!rsp))
 			return NULL;
+		ret = nvmet_rdma_alloc_rsp(queue->dev, rsp);
+		if (unlikely(ret)) {
+			kfree(rsp);
+			return NULL;
+		}
+
 		rsp->allocated = true;
 	}
 
@@ -196,7 +208,8 @@ nvmet_rdma_put_rsp(struct nvmet_rdma_rsp *rsp)
 {
 	unsigned long flags;
 
-	if (rsp->allocated) {
+	if (unlikely(rsp->allocated)) {
+		nvmet_rdma_free_rsp(rsp->queue->dev, rsp);
 		kfree(rsp);
 		return;
 	}
@@ -630,8 +643,11 @@ static u16 nvmet_rdma_map_sgl_inline(struct nvmet_rdma_rsp *rsp)
 	u64 off = le64_to_cpu(sgl->addr);
 	u32 len = le32_to_cpu(sgl->length);
 
-	if (!nvme_is_write(rsp->req.cmd))
+	if (!nvme_is_write(rsp->req.cmd)) {
+		rsp->req.error_loc =
+			offsetof(struct nvme_common_command, opcode);
 		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+	}
 
 	if (off + len > rsp->queue->dev->inline_data_size) {
 		pr_err("invalid inline data offset!\n");
@@ -696,6 +712,8 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			return nvmet_rdma_map_sgl_inline(rsp);
 		default:
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
+			rsp->req.error_loc =
+				offsetof(struct nvme_common_command, dptr);
 			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		}
 	case NVME_KEY_SGL_FMT_DATA_DESC:
@@ -706,10 +724,13 @@ static u16 nvmet_rdma_map_sgl(struct nvmet_rdma_rsp *rsp)
 			return nvmet_rdma_map_sgl_keyed(rsp, sgl, false);
 		default:
 			pr_err("invalid SGL subtype: %#x\n", sgl->type);
+			rsp->req.error_loc =
+				offsetof(struct nvme_common_command, dptr);
 			return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		}
 	default:
 		pr_err("invalid SGL type: %#x\n", sgl->type);
+		rsp->req.error_loc = offsetof(struct nvme_common_command, dptr);
 		return NVME_SC_SGL_INVALID_TYPE | NVME_SC_DNR;
 	}
 }

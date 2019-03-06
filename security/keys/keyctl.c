@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
@@ -26,6 +25,7 @@
 #include <linux/security.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <keys/request_key_auth-type.h>
 #include "internal.h"
 
 #define KEY_MAX_DESC_SIZE 4096

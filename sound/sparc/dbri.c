@@ -2541,8 +2541,8 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->op = op;
 	dbri->irq = irq;
 
-	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
-					&dbri->dma_dvma, GFP_KERNEL);
+	dbri->dma = dma_alloc_coherent(&op->dev, sizeof(struct dbri_dma),
+				       &dbri->dma_dvma, GFP_KERNEL);
 	if (!dbri->dma)
 		return -ENOMEM;
 

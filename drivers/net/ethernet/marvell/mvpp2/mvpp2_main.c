@@ -1165,28 +1165,13 @@ static void mvpp22_gop_setup_irq(struct mvpp2_port *port)
  */
 static int mvpp22_comphy_init(struct mvpp2_port *port)
 {
-	enum phy_mode mode;
 	int ret;
 
 	if (!port->comphy)
 		return 0;
 
-	switch (port->phy_interface) {
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_1000BASEX:
-		mode = PHY_MODE_SGMII;
-		break;
-	case PHY_INTERFACE_MODE_2500BASEX:
-		mode = PHY_MODE_2500SGMII;
-		break;
-	case PHY_INTERFACE_MODE_10GKR:
-		mode = PHY_MODE_10GKR;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = phy_set_mode(port->comphy, mode);
+	ret = phy_set_mode_ext(port->comphy, PHY_MODE_ETHERNET,
+			       port->phy_interface);
 	if (ret)
 		return ret;
 
@@ -2059,9 +2044,9 @@ static int mvpp2_aggr_txq_init(struct platform_device *pdev,
 	u32 txq_dma;
 
 	/* Allocate memory for TX descriptors */
-	aggr_txq->descs = dma_zalloc_coherent(&pdev->dev,
-				MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
-				&aggr_txq->descs_dma, GFP_KERNEL);
+	aggr_txq->descs = dma_alloc_coherent(&pdev->dev,
+					     MVPP2_AGGR_TXQ_SIZE * MVPP2_DESC_ALIGNED_SIZE,
+					     &aggr_txq->descs_dma, GFP_KERNEL);
 	if (!aggr_txq->descs)
 		return -ENOMEM;
 
@@ -5255,6 +5240,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (has_acpi_companion(&pdev->dev)) {
 		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
 					    &pdev->dev);
+		if (!acpi_id)
+			return -EINVAL;
 		priv->hw_version = (unsigned long)acpi_id->driver_data;
 	} else {
 		priv->hw_version =

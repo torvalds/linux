@@ -137,7 +137,7 @@ static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
  * @src_wdith:		width of source buffer
  * Return: fill level corresponding to the source buffer/format or 0 if error
  */
-static inline int _dpu_plane_calc_fill_level(struct drm_plane *plane,
+static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		const struct dpu_format *fmt, u32 src_width)
 {
 	struct dpu_plane *pdpu, *tmp;
@@ -365,19 +365,6 @@ static void _dpu_plane_set_qos_ctrl(struct drm_plane *plane,
 			&pdpu->pipe_qos_cfg);
 }
 
-static void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
-{
-	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
-
-	if (!pdpu->is_rt_pipe)
-		return;
-
-	pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	_dpu_plane_set_qos_ctrl(plane, enable, DPU_PLANE_QOS_PANIC_CTRL);
-	pm_runtime_put_sync(&dpu_kms->pdev->dev);
-}
-
 /**
  * _dpu_plane_set_ot_limit - set OT limit for the given plane
  * @plane:		Pointer to drm plane
@@ -430,24 +417,14 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 	dpu_vbif_set_qos_remap(dpu_kms, &qos_params);
 }
 
-/**
- * _dpu_plane_get_aspace: gets the address space
- */
-static inline struct msm_gem_address_space *_dpu_plane_get_aspace(
-		struct dpu_plane *pdpu)
-{
-	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
-
-	return kms->base.aspace;
-}
-
-static inline void _dpu_plane_set_scanout(struct drm_plane *plane,
+static void _dpu_plane_set_scanout(struct drm_plane *plane,
 		struct dpu_plane_state *pstate,
 		struct dpu_hw_pipe_cfg *pipe_cfg,
 		struct drm_framebuffer *fb)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
+	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
+	struct msm_gem_address_space *aspace = kms->base.aspace;
 	int ret;
 
 	ret = dpu_format_populate_layout(aspace, fb, &pipe_cfg->layout);
@@ -525,7 +502,7 @@ static void _dpu_plane_setup_scaler3(struct dpu_plane *pdpu,
 	scale_cfg->enable = 1;
 }
 
-static inline void _dpu_plane_setup_csc(struct dpu_plane *pdpu)
+static void _dpu_plane_setup_csc(struct dpu_plane *pdpu)
 {
 	static const struct dpu_csc_cfg dpu_csc_YUV2RGB_601L = {
 		{
@@ -801,7 +778,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct msm_gem_object *msm_obj;
 	struct dma_fence *fence;
-	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
+	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 	int ret;
 
 	if (!new_state->fb)
@@ -810,7 +787,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	DPU_DEBUG_PLANE(pdpu, "FB[%u]\n", fb->base.id);
 
 	/* cache aspace */
-	pstate->aspace = aspace;
+	pstate->aspace = kms->base.aspace;
 
 	/*
 	 * TODO: Need to sort out the msm_framebuffer_prepare() call below so
@@ -1179,8 +1156,6 @@ static void dpu_plane_destroy(struct drm_plane *plane)
 
 		mutex_destroy(&pdpu->lock);
 
-		drm_plane_helper_disable(plane, NULL);
-
 		/* this will destroy the states as well */
 		drm_plane_cleanup(plane);
 
@@ -1193,19 +1168,8 @@ static void dpu_plane_destroy(struct drm_plane *plane)
 static void dpu_plane_destroy_state(struct drm_plane *plane,
 		struct drm_plane_state *state)
 {
-	struct dpu_plane_state *pstate;
-
-	if (!plane || !state) {
-		DPU_ERROR("invalid arg(s), plane %d state %d\n",
-				plane != 0, state != 0);
-		return;
-	}
-
-	pstate = to_dpu_plane_state(state);
-
 	__drm_atomic_helper_plane_destroy_state(state);
-
-	kfree(pstate);
+	kfree(to_dpu_plane_state(state));
 }
 
 static struct drm_plane_state *
@@ -1271,30 +1235,29 @@ static void dpu_plane_reset(struct drm_plane *plane)
 }
 
 #ifdef CONFIG_DEBUG_FS
+static void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
+{
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct dpu_kms *dpu_kms = _dpu_plane_get_kms(plane);
+
+	if (!pdpu->is_rt_pipe)
+		return;
+
+	pm_runtime_get_sync(&dpu_kms->pdev->dev);
+	_dpu_plane_set_qos_ctrl(plane, enable, DPU_PLANE_QOS_PANIC_CTRL);
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+}
+
 static ssize_t _dpu_plane_danger_read(struct file *file,
 			char __user *buff, size_t count, loff_t *ppos)
 {
 	struct dpu_kms *kms = file->private_data;
-	struct dpu_mdss_cfg *cfg = kms->catalog;
-	int len = 0;
-	char buf[40] = {'\0'};
+	int len;
+	char buf[40];
 
-	if (!cfg)
-		return -ENODEV;
+	len = scnprintf(buf, sizeof(buf), "%d\n", !kms->has_danger_ctrl);
 
-	if (*ppos)
-		return 0; /* the end */
-
-	len = snprintf(buf, sizeof(buf), "%d\n", !kms->has_danger_ctrl);
-	if (len < 0 || len >= sizeof(buf))
-		return 0;
-
-	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len))
-		return -EFAULT;
-
-	*ppos += len;   /* increase offset */
-
-	return len;
+	return simple_read_from_buffer(buff, count, ppos, buf, len);
 }
 
 static void _dpu_plane_set_danger_state(struct dpu_kms *kms, bool enable)
@@ -1324,23 +1287,12 @@ static ssize_t _dpu_plane_danger_write(struct file *file,
 		    const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct dpu_kms *kms = file->private_data;
-	struct dpu_mdss_cfg *cfg = kms->catalog;
 	int disable_panic;
-	char buf[10];
+	int ret;
 
-	if (!cfg)
-		return -EFAULT;
-
-	if (count >= sizeof(buf))
-		return -EFAULT;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	buf[count] = 0;	/* end of string */
-
-	if (kstrtoint(buf, 0, &disable_panic))
-		return -EFAULT;
+	ret = kstrtouint_from_user(user_buf, count, 0, &disable_panic);
+	if (ret)
+		return ret;
 
 	if (disable_panic) {
 		/* Disable panic signal for all active pipes */
@@ -1365,33 +1317,10 @@ static const struct file_operations dpu_plane_danger_enable = {
 
 static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 {
-	struct dpu_plane *pdpu;
-	struct dpu_kms *kms;
-	struct msm_drm_private *priv;
-	const struct dpu_sspp_sub_blks *sblk = 0;
-	const struct dpu_sspp_cfg *cfg = 0;
-
-	if (!plane || !plane->dev) {
-		DPU_ERROR("invalid arguments\n");
-		return -EINVAL;
-	}
-
-	priv = plane->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
-		return -EINVAL;
-	}
-
-	kms = to_dpu_kms(priv->kms);
-	pdpu = to_dpu_plane(plane);
-
-	if (pdpu && pdpu->pipe_hw)
-		cfg = pdpu->pipe_hw->cap;
-	if (cfg)
-		sblk = cfg->sblk;
-
-	if (!sblk)
-		return 0;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct dpu_kms *kms = _dpu_plane_get_kms(plane);
+	const struct dpu_sspp_cfg *cfg = pdpu->pipe_hw->cap;
+	const struct dpu_sspp_sub_blks *sblk = cfg->sblk;
 
 	/* create overall sub-directory for the pipe */
 	pdpu->debugfs_root =
@@ -1462,24 +1391,10 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 
 	return 0;
 }
-
-static void _dpu_plane_destroy_debugfs(struct drm_plane *plane)
-{
-	struct dpu_plane *pdpu;
-
-	if (!plane)
-		return;
-	pdpu = to_dpu_plane(plane);
-
-	debugfs_remove_recursive(pdpu->debugfs_root);
-}
 #else
 static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 {
 	return 0;
-}
-static void _dpu_plane_destroy_debugfs(struct drm_plane *plane)
-{
 }
 #endif
 
@@ -1490,7 +1405,9 @@ static int dpu_plane_late_register(struct drm_plane *plane)
 
 static void dpu_plane_early_unregister(struct drm_plane *plane)
 {
-	_dpu_plane_destroy_debugfs(plane);
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+
+	debugfs_remove_recursive(pdpu->debugfs_root);
 }
 
 static const struct drm_plane_funcs dpu_plane_funcs = {
@@ -1539,7 +1456,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 	if (!pdpu) {
 		DPU_ERROR("[%u]failed to allocate local plane struct\n", pipe);
 		ret = -ENOMEM;
-		goto exit;
+		return ERR_PTR(ret);
 	}
 
 	/* cache local stuff for later */
@@ -1625,6 +1542,5 @@ clean_sspp:
 		dpu_hw_sspp_destroy(pdpu->pipe_hw);
 clean_plane:
 	kfree(pdpu);
-exit:
 	return ERR_PTR(ret);
 }

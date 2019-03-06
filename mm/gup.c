@@ -727,7 +727,7 @@ retry:
 		 * If we have a pending SIGKILL, don't keep faulting pages and
 		 * potentially allocating memory.
 		 */
-		if (unlikely(fatal_signal_pending(current))) {
+		if (fatal_signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			goto out;
 		}
@@ -1674,7 +1674,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 		if (!pmd_present(pmd))
 			return 0;
 
-		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
+		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd) ||
+			     pmd_devmap(pmd))) {
 			/*
 			 * NUMA hinting faults need to be handled in the GUP
 			 * slowpath for accounting purposes and so that they
@@ -1813,8 +1814,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
 	end = start + len;
 
-	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-					(void __user *)start, len)))
+	if (unlikely(!access_ok((void __user *)start, len)))
 		return 0;
 
 	/*
@@ -1868,8 +1868,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	if (nr_pages <= 0)
 		return 0;
 
-	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-					(void __user *)start, len)))
+	if (unlikely(!access_ok((void __user *)start, len)))
 		return -EFAULT;
 
 	if (gup_fast_permitted(start, nr_pages, write)) {

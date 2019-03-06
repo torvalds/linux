@@ -601,3 +601,71 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_store_next);
+
+/**
+ * dpaa2_io_query_fq_count() - Get the frame and byte count for a given fq.
+ * @d: the given DPIO object.
+ * @fqid: the id of frame queue to be queried.
+ * @fcnt: the queried frame count.
+ * @bcnt: the queried byte count.
+ *
+ * Knowing the FQ count at run-time can be useful in debugging situations.
+ * The instantaneous frame- and byte-count are hereby returned.
+ *
+ * Return 0 for a successful query, and negative error code if query fails.
+ */
+int dpaa2_io_query_fq_count(struct dpaa2_io *d, u32 fqid,
+			    u32 *fcnt, u32 *bcnt)
+{
+	struct qbman_fq_query_np_rslt state;
+	struct qbman_swp *swp;
+	unsigned long irqflags;
+	int ret;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	swp = d->swp;
+	spin_lock_irqsave(&d->lock_mgmt_cmd, irqflags);
+	ret = qbman_fq_query_state(swp, fqid, &state);
+	spin_unlock_irqrestore(&d->lock_mgmt_cmd, irqflags);
+	if (ret)
+		return ret;
+	*fcnt = qbman_fq_state_frame_count(&state);
+	*bcnt = qbman_fq_state_byte_count(&state);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dpaa2_io_query_fq_count);
+
+/**
+ * dpaa2_io_query_bp_count() - Query the number of buffers currently in a
+ * buffer pool.
+ * @d: the given DPIO object.
+ * @bpid: the index of buffer pool to be queried.
+ * @num: the queried number of buffers in the buffer pool.
+ *
+ * Return 0 for a successful query, and negative error code if query fails.
+ */
+int dpaa2_io_query_bp_count(struct dpaa2_io *d, u16 bpid, u32 *num)
+{
+	struct qbman_bp_query_rslt state;
+	struct qbman_swp *swp;
+	unsigned long irqflags;
+	int ret;
+
+	d = service_select(d);
+	if (!d)
+		return -ENODEV;
+
+	swp = d->swp;
+	spin_lock_irqsave(&d->lock_mgmt_cmd, irqflags);
+	ret = qbman_bp_query(swp, bpid, &state);
+	spin_unlock_irqrestore(&d->lock_mgmt_cmd, irqflags);
+	if (ret)
+		return ret;
+	*num = qbman_bp_info_num_free_bufs(&state);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dpaa2_io_query_bp_count);

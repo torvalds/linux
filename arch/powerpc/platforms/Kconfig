@@ -40,7 +40,7 @@ config EPAPR_PARAVIRT
 
 config PPC_NATIVE
 	bool
-	depends on 6xx || PPC64
+	depends on PPC_BOOK3S_32 || PPC64
 	help
 	  Support for running natively on the hardware, i.e. without
 	  a hypervisor. This option is not user-selectable but should
@@ -48,7 +48,7 @@ config PPC_NATIVE
 
 config PPC_OF_BOOT_TRAMPOLINE
 	bool "Support booting from Open Firmware or yaboot"
-	depends on 6xx || PPC64
+	depends on PPC_BOOK3S_32 || PPC64
 	default y
 	help
 	  Support from booting from Open Firmware or yaboot using an
@@ -197,7 +197,7 @@ endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && PPC_PMAC
+	depends on PPC_BOOK3S_32 && PPC_PMAC
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near
@@ -211,7 +211,7 @@ config PPC601_SYNC_FIX
 
 config TAU
 	bool "On-chip CPU temperature sensor support"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
@@ -265,7 +265,7 @@ config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
 	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select GPIOLIB
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on

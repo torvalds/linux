@@ -25,11 +25,13 @@
 #include <linux/if_packet.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 #include <linux/virtio_net.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <os.h>
 #include <um_malloc.h>
+#include <sys/uio.h>
 #include "vector_user.h"
 
 #define ID_GRE 0

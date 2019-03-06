@@ -278,7 +278,7 @@ static int asm9260_wdt_probe(struct platform_device *pdev)
 	struct watchdog_device *wdd;
 	struct resource *res;
 	int ret;
-	const char * const mode_name[] = { "hw", "sw", "debug", };
+	static const char * const mode_name[] = { "hw", "sw", "debug", };
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct asm9260_wdt_priv),
 			    GFP_KERNEL);

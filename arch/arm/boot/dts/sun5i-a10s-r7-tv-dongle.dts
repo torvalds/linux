@@ -76,8 +76,6 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_r7>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
@@ -85,8 +83,6 @@
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	non-removable;
@@ -98,33 +94,21 @@
 };
 
 &pio {
-	mmc0_cd_pin_r7: mmc0_cd_pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	led_pins_r7: led_pins@0 {
+	led_pins_r7: led-pin {
 		pins = "PB2";
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
-
-	usb1_vbus_pin_r7: usb1_vbus_pin@0 {
-		pins = "PG13";
-		function = "gpio_out";
-	};
 };
 
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_r7>;
 	gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

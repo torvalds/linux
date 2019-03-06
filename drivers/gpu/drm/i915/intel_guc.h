@@ -95,6 +95,11 @@ struct intel_guc {
 	void (*notify)(struct intel_guc *guc);
 };
 
+static inline bool intel_guc_is_alive(struct intel_guc *guc)
+{
+	return intel_uc_fw_is_loaded(&guc->fw);
+}
+
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {

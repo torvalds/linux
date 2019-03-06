@@ -1969,7 +1969,9 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	params.vport_id = vf->vport_id;
 	params.max_buffers_per_cqe = start->max_buffers_per_cqe;
 	params.mtu = vf->mtu;
-	params.check_mac = true;
+
+	/* Non trusted VFs should enable control frame filtering */
+	params.check_mac = !vf->p_vf_info.is_trusted_configured;
 
 	rc = qed_sp_eth_vport_start(p_hwfn, &params);
 	if (rc) {
@@ -5130,6 +5132,9 @@ static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
 		params.opaque_fid = vf->opaque_fid;
 		params.vport_id = vf->vport_id;
 
+		params.update_ctl_frame_check = 1;
+		params.mac_chk_en = !vf_info->is_trusted_configured;
+
 		if (vf_info->rx_accept_mode & mask) {
 			flags->update_rx_mode_config = 1;
 			flags->rx_accept_filter = vf_info->rx_accept_mode;
@@ -5147,7 +5152,8 @@ static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
 		}
 
 		if (flags->update_rx_mode_config ||
-		    flags->update_tx_mode_config)
+		    flags->update_tx_mode_config ||
+		    params.update_ctl_frame_check)
 			qed_sp_vport_update(hwfn, &params,
 					    QED_SPQ_MODE_EBLOCK, NULL);
 	}

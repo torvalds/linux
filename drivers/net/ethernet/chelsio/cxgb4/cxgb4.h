@@ -404,6 +404,7 @@ struct adapter_params {
 	bool fr_nsmr_tpte_wr_support;	  /* FW support for FR_NSMR_TPTE_WR */
 	u8 fw_caps_support;		/* 32-bit Port Capabilities */
 	bool filter2_wr_support;	/* FW support for FILTER2_WR */
+	unsigned int viid_smt_extn_support:1; /* FW returns vin and smt index */
 
 	/* MPS Buffer Group Map[per Port].  Bit i is set if buffer group i is
 	 * used by the Port
@@ -592,6 +593,13 @@ struct port_info {
 	bool ptp_enable;
 	struct sched_table *sched_tbl;
 	u32 eth_flags;
+
+	/* viid and smt fields either returned by fw
+	 * or decoded by parsing viid by driver.
+	 */
+	u8 vin;
+	u8 vivld;
+	u8 smt_idx;
 };
 
 struct dentry;
@@ -1757,7 +1765,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		unsigned int nexact, unsigned int rcaps, unsigned int wxcaps);
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		unsigned int *rss_size);
+		unsigned int *rss_size, u8 *vivld, u8 *vin);
 int t4_free_vi(struct adapter *adap, unsigned int mbox,
 	       unsigned int pf, unsigned int vf,
 	       unsigned int viid);
@@ -1783,7 +1791,7 @@ int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
 		     unsigned int viid, unsigned int naddr,
 		     const u8 **addr, bool sleep_ok);
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt);
+		  int idx, const u8 *addr, bool persist, u8 *smt_idx);
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,

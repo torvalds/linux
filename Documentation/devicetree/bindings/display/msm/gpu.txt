@@ -1,11 +1,13 @@
 Qualcomm adreno/snapdragon GPU
 
 Required properties:
-- compatible: "qcom,adreno-XYZ.W", "qcom,adreno"
+- compatible: "qcom,adreno-XYZ.W", "qcom,adreno" or
+	      "amd,imageon-XYZ.W", "amd,imageon"
     for example: "qcom,adreno-306.0", "qcom,adreno"
   Note that you need to list the less specific "qcom,adreno" (since this
   is what the device is matched on), in addition to the more specific
   with the chip-id.
+  If "amd,imageon" is used, there should be no top level msm device.
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the gpu.
 - clocks: device clocks
@@ -25,7 +27,6 @@ Example:
 		reg = <0x04300000 0x20000>;
 		reg-names = "kgsl_3d0_reg_memory";
 		interrupts = <GIC_SPI 80 0>;
-		interrupt-names = "kgsl_3d0_irq";
 		clock-names =
 		    "core",
 		    "iface",

@@ -94,4 +94,32 @@ struct rdma_id_private {
 	 */
 	struct rdma_restrack_entry     res;
 };
+
+#if IS_ENABLED(CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS)
+int cma_configfs_init(void);
+void cma_configfs_exit(void);
+#else
+static inline int cma_configfs_init(void)
+{
+	return 0;
+}
+
+static inline void cma_configfs_exit(void)
+{
+}
+#endif
+
+void cma_ref_dev(struct cma_device *dev);
+void cma_deref_dev(struct cma_device *dev);
+typedef bool (*cma_device_filter)(struct ib_device *, void *);
+struct cma_device *cma_enum_devices_by_ibdev(cma_device_filter filter,
+					     void *cookie);
+int cma_get_default_gid_type(struct cma_device *dev, unsigned int port);
+int cma_set_default_gid_type(struct cma_device *dev, unsigned int port,
+			     enum ib_gid_type default_gid_type);
+int cma_get_default_roce_tos(struct cma_device *dev, unsigned int port);
+int cma_set_default_roce_tos(struct cma_device *dev, unsigned int port,
+			     u8 default_roce_tos);
+struct ib_device *cma_get_ib_dev(struct cma_device *dev);
+
 #endif /* _CMA_PRIV_H */

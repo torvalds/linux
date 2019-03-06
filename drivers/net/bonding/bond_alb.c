@@ -1031,7 +1031,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[],
 	 */
 	memcpy(ss.__data, addr, len);
 	ss.ss_family = dev->type;
-	if (dev_set_mac_address(dev, (struct sockaddr *)&ss)) {
+	if (dev_set_mac_address(dev, (struct sockaddr *)&ss, NULL)) {
 		netdev_err(slave->bond->dev, "dev_set_mac_address of dev %s failed! ALB mode requires that the base driver support setting the hw address also when the network device's interface is open\n",
 			   dev->name);
 		return -EOPNOTSUPP;
@@ -1250,7 +1250,7 @@ static int alb_set_mac_address(struct bonding *bond, void *addr)
 		bond_hw_addr_copy(tmp_addr, slave->dev->dev_addr,
 				  slave->dev->addr_len);
 
-		res = dev_set_mac_address(slave->dev, addr);
+		res = dev_set_mac_address(slave->dev, addr, NULL);
 
 		/* restore net_device's hw address */
 		bond_hw_addr_copy(slave->dev->dev_addr, tmp_addr,
@@ -1273,7 +1273,7 @@ unwind:
 		bond_hw_addr_copy(tmp_addr, rollback_slave->dev->dev_addr,
 				  rollback_slave->dev->addr_len);
 		dev_set_mac_address(rollback_slave->dev,
-				    (struct sockaddr *)&ss);
+				    (struct sockaddr *)&ss, NULL);
 		bond_hw_addr_copy(rollback_slave->dev->dev_addr, tmp_addr,
 				  rollback_slave->dev->addr_len);
 	}
@@ -1732,7 +1732,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 				  bond->dev->addr_len);
 		ss.ss_family = bond->dev->type;
 		/* we don't care if it can't change its mac, best effort */
-		dev_set_mac_address(new_slave->dev, (struct sockaddr *)&ss);
+		dev_set_mac_address(new_slave->dev, (struct sockaddr *)&ss,
+				    NULL);
 
 		bond_hw_addr_copy(new_slave->dev->dev_addr, tmp_addr,
 				  new_slave->dev->addr_len);

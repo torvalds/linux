@@ -60,3 +60,13 @@ config NVME_TARGET_FCLOOP
 	  to test NVMe-FC transport interfaces.
 
 	  If unsure, say N.
+
+config NVME_TARGET_TCP
+	tristate "NVMe over Fabrics TCP target support"
+	depends on INET
+	depends on NVME_TARGET
+	help
+	  This enables the NVMe TCP target support, which allows exporting NVMe
+	  devices over TCP.
+
+	  If unsure, say N.

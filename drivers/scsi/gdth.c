@@ -4680,7 +4680,6 @@ static struct scsi_host_template gdth_template = {
         .sg_tablesize           = GDTH_MAXSG,
         .cmd_per_lun            = GDTH_MAXC_P_L,
         .unchecked_isa_dma      = 1,
-        .use_clustering         = ENABLE_CLUSTERING,
 	.no_write_same		= 1,
 };
 

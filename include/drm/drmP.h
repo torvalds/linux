@@ -68,7 +68,6 @@
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
@@ -109,5 +108,11 @@ static inline bool drm_can_sleep(void)
 		return false;
 	return true;
 }
+
+#if defined(CONFIG_DRM_DEBUG_SELFTEST_MODULE)
+#define EXPORT_SYMBOL_FOR_TESTS_ONLY(x) EXPORT_SYMBOL(x)
+#else
+#define EXPORT_SYMBOL_FOR_TESTS_ONLY(x)
+#endif
 
 #endif

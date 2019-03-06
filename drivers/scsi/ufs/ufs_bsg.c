@@ -157,7 +157,7 @@ void ufs_bsg_remove(struct ufs_hba *hba)
 	if (!hba->bsg_queue)
 		return;
 
-	bsg_unregister_queue(hba->bsg_queue);
+	bsg_remove_queue(hba->bsg_queue);
 
 	device_del(bsg_dev);
 	put_device(bsg_dev);
@@ -193,7 +193,7 @@ int ufs_bsg_probe(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
-	q = bsg_setup_queue(bsg_dev, dev_name(bsg_dev), ufs_bsg_request, 0);
+	q = bsg_setup_queue(bsg_dev, dev_name(bsg_dev), ufs_bsg_request, NULL, 0);
 	if (IS_ERR(q)) {
 		ret = PTR_ERR(q);
 		goto out;

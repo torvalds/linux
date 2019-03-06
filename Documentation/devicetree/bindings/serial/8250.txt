@@ -51,6 +51,7 @@ Optional properties:
 - tx-threshold: Specify the TX FIFO low water indication for parts with
   programmable TX FIFO thresholds.
 - resets : phandle + reset specifier pairs
+- overrun-throttle-ms : how long to pause uart rx when input overrun is encountered.
 
 Note:
 * fsl,ns16550:

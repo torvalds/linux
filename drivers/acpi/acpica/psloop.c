@@ -428,7 +428,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	parser_state = &walk_state->parser_state;
 	walk_state->arg_types = 0;
 
-#if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
+#ifndef ACPI_CONSTANT_EVAL_ONLY
 
 	if (walk_state->walk_type & ACPI_WALK_METHOD_RESTART) {
 
@@ -508,7 +508,8 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				 */
 				if ((walk_state->
 				     parse_flags & ACPI_PARSE_MODULE_LEVEL)
-				    && status == AE_ALREADY_EXISTS) {
+				    && ((status == AE_ALREADY_EXISTS)
+					|| (status == AE_NOT_FOUND))) {
 					status = AE_OK;
 				}
 				if (status == AE_CTRL_PARSE_CONTINUE) {
@@ -537,10 +538,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					 * the scope op because the parse failure indicates that
 					 * the device may not exist.
 					 */
-					ACPI_ERROR((AE_INFO,
-						    "Skip parsing opcode %s",
-						    acpi_ps_get_opcode_name
-						    (walk_state->opcode)));
+					ACPI_INFO(("Skipping parse of AML opcode: %s (0x%4.4X)", acpi_ps_get_opcode_name(walk_state->opcode), walk_state->opcode));
 
 					/*
 					 * Determine the opcode length before skipping the opcode.

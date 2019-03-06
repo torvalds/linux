@@ -16,7 +16,6 @@
 
 #include "mt76x0.h"
 #include "eeprom.h"
-#include "trace.h"
 #include "mcu.h"
 #include "initvals.h"
 
@@ -113,7 +112,7 @@ static int mt76x0_init_bbp(struct mt76x02_dev *dev)
 {
 	int ret, i;
 
-	ret = mt76x0_wait_bbp_ready(dev);
+	ret = mt76x0_phy_wait_bbp_ready(dev);
 	if (ret)
 		return ret;
 
@@ -134,80 +133,28 @@ static int mt76x0_init_bbp(struct mt76x02_dev *dev)
 
 static void mt76x0_init_mac_registers(struct mt76x02_dev *dev)
 {
-	u32 reg;
-
 	RANDOM_WRITE(dev, common_mac_reg_table);
-
-	mt76x02_set_beacon_offsets(dev);
 
 	/* Enable PBF and MAC clock SYS_CTRL[11:10] = 0x3 */
 	RANDOM_WRITE(dev, mt76x0_mac_reg_table);
 
 	/* Release BBP and MAC reset MAC_SYS_CTRL[1:0] = 0x0 */
-	reg = mt76_rr(dev, MT_MAC_SYS_CTRL);
-	reg &= ~0x3;
-	mt76_wr(dev, MT_MAC_SYS_CTRL, reg);
+	mt76_clear(dev, MT_MAC_SYS_CTRL, 0x3);
 
 	/* Set 0x141C[15:12]=0xF */
-	reg = mt76_rr(dev, MT_EXT_CCA_CFG);
-	reg |= 0x0000F000;
-	mt76_wr(dev, MT_EXT_CCA_CFG, reg);
+	mt76_set(dev, MT_EXT_CCA_CFG, 0xf000);
 
 	mt76_clear(dev, MT_FCE_L2_STUFF, MT_FCE_L2_STUFF_WR_MPDU_LEN_EN);
 
 	/*
-		TxRing 9 is for Mgmt frame.
-		TxRing 8 is for In-band command frame.
-		WMM_RG0_TXQMA: This register setting is for FCE to define the rule of TxRing 9.
-		WMM_RG1_TXQMA: This register setting is for FCE to define the rule of TxRing 8.
-	*/
-	reg = mt76_rr(dev, MT_WMM_CTRL);
-	reg &= ~0x000003FF;
-	reg |= 0x00000201;
-	mt76_wr(dev, MT_WMM_CTRL, reg);
-}
-
-static int mt76x0_init_wcid_mem(struct mt76x02_dev *dev)
-{
-	u32 *vals;
-	int i;
-
-	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
-	if (!vals)
-		return -ENOMEM;
-
-	for (i = 0; i < MT76_N_WCIDS; i++)  {
-		vals[i * 2] = 0xffffffff;
-		vals[i * 2 + 1] = 0x00ffffff;
-	}
-
-	mt76_wr_copy(dev, MT_WCID_ADDR_BASE, vals, MT76_N_WCIDS * 2);
-	kfree(vals);
-	return 0;
-}
-
-static void mt76x0_init_key_mem(struct mt76x02_dev *dev)
-{
-	u32 vals[4] = {};
-
-	mt76_wr_copy(dev, MT_SKEY_MODE_BASE_0, vals, ARRAY_SIZE(vals));
-}
-
-static int mt76x0_init_wcid_attr_mem(struct mt76x02_dev *dev)
-{
-	u32 *vals;
-	int i;
-
-	vals = kmalloc(sizeof(*vals) * MT76_N_WCIDS * 2, GFP_KERNEL);
-	if (!vals)
-		return -ENOMEM;
-
-	for (i = 0; i < MT76_N_WCIDS * 2; i++)
-		vals[i] = 1;
-
-	mt76_wr_copy(dev, MT_WCID_ATTR_BASE, vals, MT76_N_WCIDS * 2);
-	kfree(vals);
-	return 0;
+	 * tx_ring 9 is for mgmt frame
+	 * tx_ring 8 is for in-band command frame.
+	 * WMM_RG0_TXQMA: this register setting is for FCE to
+	 *		  define the rule of tx_ring 9
+	 * WMM_RG1_TXQMA: this register setting is for FCE to
+	 *		  define the rule of tx_ring 8
+	 */
+	mt76_rmw(dev, MT_WMM_CTRL, 0x3ff, 0x201);
 }
 
 static void mt76x0_reset_counters(struct mt76x02_dev *dev)
@@ -270,7 +217,7 @@ EXPORT_SYMBOL_GPL(mt76x0_mac_stop);
 
 int mt76x0_init_hardware(struct mt76x02_dev *dev)
 {
-	int ret;
+	int ret, i, k;
 
 	if (!mt76x02_wait_for_wpdma(&dev->mt76, 1000))
 		return -EIO;
@@ -280,7 +227,7 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return -ETIMEDOUT;
 
 	mt76x0_reset_csr_bbp(dev);
-	ret = mt76x02_mcu_function_select(dev, Q_SELECT, 1, false);
+	ret = mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 	if (ret)
 		return ret;
 
@@ -295,20 +242,12 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 
 	dev->mt76.rxfilter = mt76_rr(dev, MT_RX_FILTR_CFG);
 
-	ret = mt76x0_init_wcid_mem(dev);
-	if (ret)
-		return ret;
+	for (i = 0; i < 16; i++)
+		for (k = 0; k < 4; k++)
+			mt76x02_mac_shared_key_setup(dev, i, k, NULL);
 
-	mt76x0_init_key_mem(dev);
-
-	ret = mt76x0_init_wcid_attr_mem(dev);
-	if (ret)
-		return ret;
-
-	mt76_clear(dev, MT_BEACON_TIME_CFG, (MT_BEACON_TIME_CFG_TIMER_EN |
-					     MT_BEACON_TIME_CFG_SYNC_MODE |
-					     MT_BEACON_TIME_CFG_TBTT_EN |
-					     MT_BEACON_TIME_CFG_BEACON_TX));
+	for (i = 0; i < 256; i++)
+		mt76x02_mac_wcid_setup(dev, i, 0, NULL);
 
 	mt76x0_reset_counters(dev);
 
@@ -317,6 +256,7 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x0_phy_init(dev);
+	mt76x02_init_beacon_config(dev);
 
 	return 0;
 }
@@ -339,7 +279,6 @@ mt76x0_alloc_device(struct device *pdev,
 
 	dev = container_of(mdev, struct mt76x02_dev, mt76);
 	mutex_init(&dev->phy_mutex);
-	atomic_set(&dev->avg_ampdu_len, 1);
 
 	return dev;
 }
@@ -347,49 +286,21 @@ EXPORT_SYMBOL_GPL(mt76x0_alloc_device);
 
 int mt76x0_register_device(struct mt76x02_dev *dev)
 {
-	struct mt76_dev *mdev = &dev->mt76;
-	struct ieee80211_hw *hw = mdev->hw;
-	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
-	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
-	 * entry no. 1 like it does in the vendor driver.
-	 */
-	mdev->wcid_mask[0] |= 1;
+	mt76x02_init_device(dev);
+	mt76x02_config_mac_addr_list(dev);
 
-	/* init fake wcid for monitor interfaces */
-	mdev->global_wcid.idx = 0xff;
-	mdev->global_wcid.hw_key_idx = -1;
-
-	/* init antenna configuration */
-	mdev->antenna_mask = 1;
-
-	hw->queues = 4;
-	hw->max_rates = 1;
-	hw->max_report_rates = 7;
-	hw->max_rate_tries = 1;
-	hw->extra_tx_headroom = 2;
-	if (mt76_is_usb(dev))
-		hw->extra_tx_headroom += sizeof(struct mt76x02_txwi) +
-					 MT_DMA_HDR_LEN;
-
-	hw->sta_data_size = sizeof(struct mt76x02_sta);
-	hw->vif_data_size = sizeof(struct mt76x02_vif);
-
-	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-
-	INIT_DELAYED_WORK(&dev->mac_work, mt76x0_mac_work);
-
-	ret = mt76_register_device(mdev, true, mt76x02_rates,
+	ret = mt76_register_device(&dev->mt76, true, mt76x02_rates,
 				   ARRAY_SIZE(mt76x02_rates));
 	if (ret)
 		return ret;
 
 	/* overwrite unsupported features */
-	if (mdev->cap.has_5ghz)
+	if (dev->mt76.cap.has_5ghz)
 		mt76x0_vht_cap_mask(&dev->mt76.sband_5g.sband);
 
-	mt76x0_init_debugfs(dev);
+	mt76x02_init_debugfs(dev);
 
 	return 0;
 }

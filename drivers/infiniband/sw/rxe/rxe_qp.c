@@ -97,7 +97,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 		goto err1;
 
 	if (init->qp_type == IB_QPT_SMI || init->qp_type == IB_QPT_GSI) {
-		if (port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, port_num)) {
 			pr_warn("invalid port = %d\n", port_num);
 			goto err1;
 		}
@@ -336,13 +336,14 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
-		     struct ib_pd *ibpd)
+		     struct ib_pd *ibpd,
+		     struct ib_udata *udata)
 {
 	int err;
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
-	struct ib_ucontext *context = ibpd->uobject ? ibpd->uobject->context : NULL;
+	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
 
 	rxe_add_ref(pd);
 	rxe_add_ref(rcq);
@@ -433,7 +434,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	if (mask & IB_QP_PORT) {
-		if (attr->port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->port_num)) {
 			pr_warn("invalid port %d\n", attr->port_num);
 			goto err1;
 		}
@@ -448,7 +449,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	if (mask & IB_QP_ALT_PATH) {
 		if (rxe_av_chk_attr(rxe, &attr->alt_ah_attr))
 			goto err1;
-		if (attr->alt_port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->alt_port_num))  {
 			pr_warn("invalid alt port %d\n", attr->alt_port_num);
 			goto err1;
 		}

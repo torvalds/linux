@@ -39,4 +39,7 @@
 		(regs)->gpr[1] = current_stack_pointer();	\
 		asm volatile("mfmsr %0" : "=r" ((regs)->msr));	\
 	} while (0)
+
+/* To support perf_regs sier update */
+extern bool is_sier_available(void);
 #endif

@@ -26,7 +26,6 @@ config M68K
 	select MODULES_USE_ELF_RELA
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
-	select DMA_DIRECT_OPS if HAS_DMA
 	select ARCH_DISCARD_MEMBLOCK
 
 config CPU_BIG_ENDIAN
@@ -123,11 +122,11 @@ config BOOTINFO_PROC
 
 menu "Platform setup"
 
-source arch/m68k/Kconfig.cpu
+source "arch/m68k/Kconfig.cpu"
 
-source arch/m68k/Kconfig.machine
+source "arch/m68k/Kconfig.machine"
 
-source arch/m68k/Kconfig.bus
+source "arch/m68k/Kconfig.bus"
 
 endmenu
 

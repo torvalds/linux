@@ -27,7 +27,11 @@ MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
 
 static bool enable_dif;
 module_param_named(dif, enable_dif, bool, 0400);
-MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
+MODULE_PARM_DESC(dif, "Enable DIF data integrity support (default off)");
+
+bool zfcp_experimental_dix;
+module_param_named(dix, zfcp_experimental_dix, bool, 0400);
+MODULE_PARM_DESC(dix, "Enable experimental DIX (data integrity extension) support which implies DIF support (default off)");
 
 static bool allow_lun_scan = true;
 module_param(allow_lun_scan, bool, 0600);
@@ -226,7 +230,9 @@ static void zfcp_scsi_forget_cmnd(struct zfcp_fsf_req *old_req, void *data)
 		(struct zfcp_scsi_req_filter *)data;
 
 	/* already aborted - prevent side-effects - or not a SCSI command */
-	if (old_req->data == NULL || old_req->fsf_command != FSF_QTCB_FCP_CMND)
+	if (old_req->data == NULL ||
+	    zfcp_fsf_req_is_status_read_buffer(old_req) ||
+	    old_req->qtcb->header.fsf_command != FSF_QTCB_FCP_CMND)
 		return;
 
 	/* (tmf_scope == FCP_TMF_TGT_RESET || tmf_scope == FCP_TMF_LUN_RESET) */
@@ -422,8 +428,9 @@ static struct scsi_host_template zfcp_scsi_host_template = {
 	.max_sectors		 = (((QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
 				     * ZFCP_QDIO_MAX_SBALS_PER_REQ) - 2) * 8,
 				   /* GCD, adjusted later */
+	/* report size limit per scatter-gather segment */
+	.max_segment_size	 = ZFCP_QDIO_SBALE_LEN,
 	.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
-	.use_clustering		 = 1,
 	.shost_attrs		 = zfcp_sysfs_shost_attrs,
 	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
 	.track_queue_depth	 = 1,
@@ -788,11 +795,11 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 	data_div = atomic_read(&adapter->status) &
 		   ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED;
 
-	if (enable_dif &&
+	if ((enable_dif || zfcp_experimental_dix) &&
 	    adapter->adapter_features & FSF_FEATURE_DIF_PROT_TYPE1)
 		mask |= SHOST_DIF_TYPE1_PROTECTION;
 
-	if (enable_dif && data_div &&
+	if (zfcp_experimental_dix && data_div &&
 	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
 		mask |= SHOST_DIX_TYPE1_PROTECTION;
 		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);

@@ -364,12 +364,12 @@ pgd_t *get_pgd_fast(void)
  * Alignments up to the page size are the same for physical and virtual
  * addresses of the nocache area.
  */
-pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	unsigned long pte;
 	struct page *page;
 
-	if ((pte = (unsigned long)pte_alloc_one_kernel(mm, address)) == 0)
+	if ((pte = (unsigned long)pte_alloc_one_kernel(mm)) == 0)
 		return NULL;
 	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
 	if (!pgtable_page_ctor(page)) {

@@ -1465,11 +1465,11 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* all work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-
-	/* re-enable the q_vector */
-	fm10k_qv_enable(q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		fm10k_qv_enable(q_vector);
 
 	return min(work_done, budget - 1);
 }

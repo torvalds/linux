@@ -59,6 +59,12 @@ struct vfio_pci_regops {
 		      size_t count, loff_t *ppos, bool iswrite);
 	void	(*release)(struct vfio_pci_device *vdev,
 			   struct vfio_pci_region *region);
+	int	(*mmap)(struct vfio_pci_device *vdev,
+			struct vfio_pci_region *region,
+			struct vm_area_struct *vma);
+	int	(*add_capability)(struct vfio_pci_device *vdev,
+				  struct vfio_pci_region *region,
+				  struct vfio_info_cap *caps);
 };
 
 struct vfio_pci_region {
@@ -74,6 +80,11 @@ struct vfio_pci_dummy_resource {
 	struct resource		resource;
 	int			index;
 	struct list_head	res_next;
+};
+
+struct vfio_pci_reflck {
+	struct kref		kref;
+	struct mutex		lock;
 };
 
 struct vfio_pci_device {
@@ -104,6 +115,7 @@ struct vfio_pci_device {
 	bool			needs_reset;
 	bool			nointx;
 	struct pci_saved_state	*pci_saved_state;
+	struct vfio_pci_reflck	*reflck;
 	int			refcnt;
 	int			ioeventfds_nr;
 	struct eventfd_ctx	*err_trigger;
@@ -153,6 +165,20 @@ extern int vfio_pci_register_dev_region(struct vfio_pci_device *vdev,
 extern int vfio_pci_igd_init(struct vfio_pci_device *vdev);
 #else
 static inline int vfio_pci_igd_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+#endif
+#ifdef CONFIG_VFIO_PCI_NVLINK2
+extern int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev);
+extern int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev);
+#else
+static inline int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
+{
+	return -ENODEV;
+}
+
+static inline int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 {
 	return -ENODEV;
 }

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _ttx:
 
@@ -10,7 +17,7 @@ This interface was aimed at devices receiving and demodulating Teletext
 data [:ref:`ets300706`, :ref:`itu653`], evaluating the Teletext
 packages and storing formatted pages in cache memory. Such devices are
 usually implemented as microcontrollers with serial interface
-(I:sup:`2`\ C) and could be found on old TV cards, dedicated Teletext
+(I\ :sup:`2`\ C) and could be found on old TV cards, dedicated Teletext
 decoding cards and home-brew devices connected to the PC parallel port.
 
 The Teletext API was designed by Martin Buck. It was defined in the

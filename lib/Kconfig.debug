@@ -439,7 +439,7 @@ config DEBUG_KERNEL
 
 menu "Memory Debugging"
 
-source mm/Kconfig.debug
+source "mm/Kconfig.debug"
 
 config DEBUG_OBJECTS
 	bool "Debug object operations"
@@ -592,6 +592,21 @@ config DEBUG_KMEMLEAK_DEFAULT_OFF
 	help
 	  Say Y here to disable kmemleak by default. It can then be enabled
 	  on the command line via kmemleak=on.
+
+config DEBUG_KMEMLEAK_AUTO_SCAN
+	bool "Enable kmemleak auto scan thread on boot up"
+	default y
+	depends on DEBUG_KMEMLEAK
+	help
+	  Depending on the cpu, kmemleak scan may be cpu intensive and can
+	  stall user tasks at times. This option enables/disables automatic
+	  kmemleak scan at boot up.
+
+	  Say N here to disable kmemleak auto scan thread to stop automatic
+	  scanning. Disabling this option disables automatic reporting of
+	  memory leaks.
+
+	  If unsure, say Y.
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
@@ -1609,7 +1624,7 @@ config LATENCYTOP
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
 
-source kernel/trace/Kconfig
+source "kernel/trace/Kconfig"
 
 config PROVIDE_OHCI1394_DMA_INIT
 	bool "Remote debugging over FireWire early on boot"
@@ -1973,6 +1988,16 @@ config TEST_MEMCAT_P
 	help
 	  Test the memcat_p() helper for correctly merging two
 	  pointer arrays together.
+
+	  If unsure, say N.
+
+config TEST_OBJAGG
+	tristate "Perform selftest on object aggreration manager"
+	default n
+	depends on OBJAGG
+	help
+	  Enable this option to test object aggregation manager on boot
+	  (or module load).
 
 	  If unsure, say N.
 

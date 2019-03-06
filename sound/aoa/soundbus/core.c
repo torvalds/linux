@@ -74,11 +74,11 @@ static int soundbus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	of = &soundbus_dev->ofdev;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	retval = add_uevent_var(env, "OF_NAME=%s", of->dev.of_node->name);
+	retval = add_uevent_var(env, "OF_NAME=%pOFn", of->dev.of_node);
 	if (retval)
 		return retval;
 
-	retval = add_uevent_var(env, "OF_TYPE=%s", of->dev.of_node->type);
+	retval = add_uevent_var(env, "OF_TYPE=%s", of_node_get_device_type(of->dev.of_node));
 	if (retval)
 		return retval;
 

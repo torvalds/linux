@@ -7,6 +7,9 @@
 #define _ICE_HW_AUTOGEN_H_
 
 #define QTX_COMM_DBELL(_DBQM)			(0x002C0000 + ((_DBQM) * 4))
+#define QTX_COMM_HEAD(_DBQM)			(0x000E0000 + ((_DBQM) * 4))
+#define QTX_COMM_HEAD_HEAD_S			0
+#define QTX_COMM_HEAD_HEAD_M			ICE_M(0x1FFF, 0)
 #define PF_FW_ARQBAH				0x00080180
 #define PF_FW_ARQBAL				0x00080080
 #define PF_FW_ARQH				0x00080380

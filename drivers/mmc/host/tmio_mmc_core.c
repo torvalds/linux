@@ -43,6 +43,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mmc/sdio.h>
 #include <linux/scatterlist.h>
+#include <linux/sizes.h>
 #include <linux/spinlock.h>
 #include <linux/swiotlb.h>
 #include <linux/workqueue.h>
@@ -171,6 +172,18 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	}
 }
 
+static void tmio_mmc_hw_reset(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	host->reset(host);
+
+	tmio_mmc_abort_dma(host);
+
+	if (host->hw_reset)
+		host->hw_reset(host);
+}
+
 static void tmio_mmc_reset_work(struct work_struct *work)
 {
 	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
@@ -209,12 +222,11 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
-	host->reset(host);
+	tmio_mmc_hw_reset(host->mmc);
 
 	/* Ready for new calls */
 	host->mrq = NULL;
 
-	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -618,7 +630,7 @@ static bool __tmio_mmc_sdcard_irq(struct tmio_mmc_host *host, int ireg,
 	return false;
 }
 
-static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
+static bool __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct tmio_mmc_data *pdata = host->pdata;
@@ -626,7 +638,7 @@ static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 	unsigned int sdio_status;
 
 	if (!(pdata->flags & TMIO_MMC_SDIO_IRQ))
-		return;
+		return false;
 
 	status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
 	ireg = status & TMIO_SDIO_MASK_ALL & ~host->sdio_irq_mask;
@@ -639,6 +651,8 @@ static void __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 
 	if (mmc->caps & MMC_CAP_SDIO_IRQ && ireg & TMIO_SDIO_STAT_IOIRQ)
 		mmc_signal_sdio_irq(mmc);
+
+	return ireg;
 }
 
 irqreturn_t tmio_mmc_irq(int irq, void *devid)
@@ -657,9 +671,10 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	if (__tmio_mmc_sdcard_irq(host, ireg, status))
 		return IRQ_HANDLED;
 
-	__tmio_mmc_sdio_irq(host);
+	if (__tmio_mmc_sdio_irq(host))
+		return IRQ_HANDLED;
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 EXPORT_SYMBOL_GPL(tmio_mmc_irq);
 
@@ -689,19 +704,14 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 
 	/* Set transfer length / blocksize */
 	sd_ctrl_write16(host, CTL_SD_XFER_LEN, data->blksz);
-	sd_ctrl_write16(host, CTL_XFER_BLK_COUNT, data->blocks);
+	if (host->mmc->max_blk_count >= SZ_64K)
+		sd_ctrl_write32(host, CTL_XFER_BLK_COUNT, data->blocks);
+	else
+		sd_ctrl_write16(host, CTL_XFER_BLK_COUNT, data->blocks);
 
 	tmio_mmc_start_dma(host, data);
 
 	return 0;
-}
-
-static void tmio_mmc_hw_reset(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-
-	if (host->hw_reset)
-		host->hw_reset(host);
 }
 
 static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
@@ -734,8 +744,6 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		ret = mmc_send_tuning(mmc, opcode, NULL);
 		if (ret == 0)
 			set_bit(i, host->taps);
-
-		usleep_range(1000, 1200);
 	}
 
 	ret = host->select_tuning(host);
@@ -1167,11 +1175,13 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	if (ret < 0)
 		return ret;
 
-	if (pdata->flags & TMIO_MMC_USE_GPIO_CD) {
-		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio, 0);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * Look for a card detect GPIO, if it fails with anything
+	 * else than a probe deferral, just live without it.
+	 */
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	if (ret == -EPROBE_DEFER)
+		return ret;
 
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
@@ -1228,7 +1238,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 		_host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
 
 	_host->set_clock(_host, 0);
-	_host->reset(_host);
+	tmio_mmc_hw_reset(mmc);
 
 	_host->sdcard_irq_mask = sd_ctrl_read16_and_16_as_32(_host, CTL_IRQ_MASK);
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
@@ -1328,8 +1338,8 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 {
 	struct tmio_mmc_host *host = dev_get_drvdata(dev);
 
-	host->reset(host);
 	tmio_mmc_clk_enable(host);
+	tmio_mmc_hw_reset(host->mmc);
 
 	if (host->clk_cache)
 		host->set_clock(host, host->clk_cache);

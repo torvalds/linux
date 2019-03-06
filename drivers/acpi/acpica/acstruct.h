@@ -60,6 +60,8 @@ struct acpi_walk_state {
 	struct acpi_parse_state parser_state;	/* Current state of parser */
 	u32 prev_arg_types;
 	u32 arg_count;		/* push for fixed or var args */
+	u16 method_nesting_depth;
+	u8 method_is_nested;
 
 	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
 	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
@@ -74,7 +76,8 @@ struct acpi_walk_state {
 	struct acpi_namespace_node *method_call_node;	/* Called method Node */
 	union acpi_parse_object *method_call_op;	/* method_call Op if running a method */
 	union acpi_operand_object *method_desc;	/* Method descriptor if running a method */
-	struct acpi_namespace_node *method_node;	/* Method node if running a method. */
+	struct acpi_namespace_node *method_node;	/* Method node if running a method */
+	char *method_pathname;	/* Full pathname of running method */
 	union acpi_parse_object *op;	/* Current parser op */
 	const struct acpi_opcode_info *op_info;	/* Info on current opcode */
 	union acpi_parse_object *origin;	/* Start of walk [Obsolete] */

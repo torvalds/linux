@@ -600,9 +600,6 @@ static int add_mac_addr(struct net_device *netdev, const u8 *addr)
 	u16 vid = 0;
 	int err;
 
-	if (!is_valid_ether_addr(addr))
-		return -EADDRNOTAVAIL;
-
 	netif_info(nic_dev, drv, netdev, "set mac addr = %02x %02x %02x %02x %02x %02x\n",
 		   addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 
@@ -726,6 +723,7 @@ static void set_rx_mode(struct work_struct *work)
 {
 	struct hinic_rx_mode_work *rx_mode_work = work_to_rx_mode_work(work);
 	struct hinic_dev *nic_dev = rx_mode_work_to_nic_dev(rx_mode_work);
+	struct netdev_hw_addr *ha;
 
 	netif_info(nic_dev, drv, nic_dev->netdev, "set rx mode work\n");
 
@@ -733,6 +731,9 @@ static void set_rx_mode(struct work_struct *work)
 
 	__dev_uc_sync(nic_dev->netdev, add_mac_addr, remove_mac_addr);
 	__dev_mc_sync(nic_dev->netdev, add_mac_addr, remove_mac_addr);
+
+	netdev_for_each_mc_addr(ha, nic_dev->netdev)
+		add_mac_addr(nic_dev->netdev, ha->addr);
 }
 
 static void hinic_set_rx_mode(struct net_device *netdev)
@@ -806,7 +807,8 @@ static const struct net_device_ops hinic_netdev_ops = {
 static void netdev_features_init(struct net_device *netdev)
 {
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
-			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6;
+			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |
+			      NETIF_F_RXCSUM;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -869,11 +871,15 @@ static int set_features(struct hinic_dev *nic_dev,
 			netdev_features_t features, bool force_change)
 {
 	netdev_features_t changed = force_change ? ~0 : pre_features ^ features;
+	u32 csum_en = HINIC_RX_CSUM_OFFLOAD_EN;
 	int err = 0;
 
 	if (changed & NETIF_F_TSO)
 		err = hinic_port_set_tso(nic_dev, (features & NETIF_F_TSO) ?
 					 HINIC_TSO_ENABLE : HINIC_TSO_DISABLE);
+
+	if (changed & NETIF_F_RXCSUM)
+		err = hinic_set_rx_csum_offload(nic_dev, csum_en);
 
 	return err;
 }
@@ -1100,6 +1106,11 @@ static void hinic_remove(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "HiNIC driver - removed\n");
 }
 
+static void hinic_shutdown(struct pci_dev *pdev)
+{
+	pci_disable_device(pdev);
+}
+
 static const struct pci_device_id hinic_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_QUAD_PORT_25GE), 0},
 	{ PCI_VDEVICE(HUAWEI, HINIC_DEV_ID_DUAL_PORT_25GE), 0},
@@ -1113,6 +1124,7 @@ static struct pci_driver hinic_driver = {
 	.id_table       = hinic_pci_table,
 	.probe          = hinic_probe,
 	.remove         = hinic_remove,
+	.shutdown       = hinic_shutdown,
 };
 
 module_pci_driver(hinic_driver);

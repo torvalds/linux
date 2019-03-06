@@ -26,7 +26,7 @@
 #include <linux/watchdog.h>
 #include <asm/nmi.h>
 
-#define HPWDT_VERSION			"2.0.1"
+#define HPWDT_VERSION			"2.0.2"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -50,6 +50,11 @@ static const struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
+static const struct pci_device_id hpwdt_blacklist[] = {
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP, 0x1979) }, /* auxilary iLO */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP_3PAR, 0x0289) },  /* CL */
+	{0},			/* terminate list */
+};
 
 /*
  *	Watchdog operations
@@ -274,12 +279,10 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		return -ENODEV;
 	}
 
-	/*
-	 * Ignore all auxilary iLO devices with the following PCI ID
-	 */
-	if (dev->subsystem_vendor == PCI_VENDOR_ID_HP &&
-	    dev->subsystem_device == 0x1979)
+	if (pci_match_id(hpwdt_blacklist, dev)) {
+		dev_dbg(&dev->dev, "Not supported on this device\n");
 		return -ENODEV;
+	}
 
 	if (pci_enable_device(dev)) {
 		dev_warn(&dev->dev,

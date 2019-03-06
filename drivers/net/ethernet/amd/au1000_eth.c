@@ -940,11 +940,8 @@ static int au1000_open(struct net_device *dev)
 		return retval;
 	}
 
-	if (dev->phydev) {
-		/* cause the PHY state machine to schedule a link state check */
-		dev->phydev->state = PHY_CHANGELINK;
+	if (dev->phydev)
 		phy_start(dev->phydev);
-	}
 
 	netif_start_queue(dev);
 

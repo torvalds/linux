@@ -62,3 +62,18 @@ bus and shunt voltage conversion times multiplied by the averaging rate. We
 don't touch the conversion times and only modify the number of averages. The
 lower limit of the update_interval is 2 ms, the upper limit is 2253 ms.
 The actual programmed interval may vary from the desired value.
+
+General sysfs entries
+-------------
+
+in0_input		Shunt voltage(mV) channel
+in1_input		Bus voltage(mV) channel
+curr1_input		Current(mA) measurement channel
+power1_input		Power(uW) measurement channel
+shunt_resistor		Shunt resistance(uOhm) channel
+
+Sysfs entries for ina226, ina230 and ina231 only
+-------------
+
+update_interval		data conversion time; affects number of samples used
+			to average results for shunt and bus voltages.

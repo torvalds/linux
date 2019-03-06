@@ -58,19 +58,11 @@ This binding for the SCU power domain providers uses the generic power
 domain binding[2].
 
 Required properties:
-- compatible:		Should be "fsl,scu-pd".
-- #address-cells:	Should be 1.
-- #size-cells:		Should be 0.
-
-Required properties for power domain sub nodes:
-- #power-domain-cells:	Must be 0.
-
-Optional Properties:
-- reg:			Resource ID of this power domain.
-			No exist means uncontrollable by user.
+- compatible:		Should be "fsl,imx8qxp-scu-pd".
+- #power-domain-cells:	Must be 1. Contains the Resource ID used by
+			SCU commands.
 			See detailed Resource ID list from:
-			include/dt-bindings/power/imx-rsrc.h
-- power-domains:	phandle pointing to the parent power domain.
+			include/dt-bindings/firmware/imx/rsrc.h
 
 Clock bindings based on SCU Message Protocol
 ------------------------------------------------------------
@@ -96,13 +88,16 @@ Pinctrl bindings based on SCU Message Protocol
 This binding uses the i.MX common pinctrl binding[3].
 
 Required properties:
-- compatible:		Should be "fsl,imx8qxp-iomuxc".
+- compatible:		Should be one of:
+			"fsl,imx8qm-iomuxc",
+			"fsl,imx8qxp-iomuxc".
 
 Required properties for Pinctrl sub nodes:
 - fsl,pins:		Each entry consists of 3 integers which represents
 			the mux and config setting for one pin. The first 2
 			integers <pin_id mux_mode> are specified using a
 			PIN_FUNC_ID macro, which can be found in
+			<dt-bindings/pinctrl/pads-imx8qm.h>,
 			<dt-bindings/pinctrl/pads-imx8qxp.h>.
 			The last integer CONFIG is the pad setting value like
 			pull-up on this pin.
@@ -113,6 +108,12 @@ Required properties for Pinctrl sub nodes:
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Documentation/devicetree/bindings/power/power_domain.txt
 [3] Documentation/devicetree/bindings/pinctrl/fsl,imx-pinctrl.txt
+
+RTC bindings based on SCU Message Protocol
+------------------------------------------------------------
+
+Required properties:
+- compatible: should be "fsl,imx8qxp-sc-rtc";
 
 Example (imx8qxp):
 -------------
@@ -152,22 +153,13 @@ firmware {
 			...
 		};
 
-		imx8qx-pm {
-			compatible = "fsl,scu-pd";
-			#address-cells = <1>;
-			#size-cells = <0>;
+		pd: imx8qx-pd {
+			compatible = "fsl,imx8qxp-scu-pd";
+			#power-domain-cells = <1>;
+		};
 
-			pd_dma: dma-power-domain {
-				#power-domain-cells = <0>;
-
-				pd_dma_lpuart0: dma-lpuart0@57 {
-					reg = <SC_R_UART_0>;
-					#power-domain-cells = <0>;
-					power-domains = <&pd_dma>;
-				};
-				...
-			};
-			...
+		rtc: rtc {
+			compatible = "fsl,imx8qxp-sc-rtc";
 		};
 	};
 };
@@ -179,5 +171,5 @@ serial@5a060000 {
 	clocks = <&clk IMX8QXP_UART0_CLK>,
 		 <&clk IMX8QXP_UART0_IPG_CLK>;
 	clock-names = "per", "ipg";
-	power-domains = <&pd_dma_lpuart0>;
+	power-domains = <&pd IMX_SC_R_UART_0>;
 };

@@ -82,6 +82,16 @@ do {								\
 	}							\
 } while (0)
 
+#define SKIP_IF_MSG(x, msg)					\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[SKIP] Test skipped on line %d: %s\n",		\
+		 __LINE__, msg);				\
+		return MAGIC_SKIP_RETURN_VALUE;			\
+	}							\
+} while (0)
+
 #define _str(s) #s
 #define str(s) _str(s)
 

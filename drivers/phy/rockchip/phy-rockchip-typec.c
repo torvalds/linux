@@ -1176,10 +1176,10 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, child_np) {
 		struct phy *phy;
 
-		if (!of_node_cmp(child_np->name, "dp-port"))
+		if (of_node_name_eq(child_np, "dp-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_dp_phy_ops);
-		else if (!of_node_cmp(child_np->name, "usb3-port"))
+		else if (of_node_name_eq(child_np, "usb3-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_usb3_phy_ops);
 		else

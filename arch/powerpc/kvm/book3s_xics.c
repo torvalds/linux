@@ -1015,17 +1015,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	return 0;
 }
 
-static int xics_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xics_debug_show, inode->i_private);
-}
-
-static const struct file_operations xics_debug_fops = {
-	.open = xics_debug_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(xics_debug);
 
 static void xics_debugfs_init(struct kvmppc_xics *xics)
 {

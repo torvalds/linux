@@ -244,6 +244,7 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 {
 	acpi_status status;
 	u32 buffer_length;
+	u32 data_length;
 	void *buffer;
 	union acpi_operand_object *buffer_desc;
 	u32 function;
@@ -324,8 +325,9 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	/* Copy the input buffer data to the transfer buffer */
 
 	buffer = buffer_desc->buffer.pointer;
-	memcpy(buffer, source_desc->buffer.pointer,
-	       min(buffer_length, source_desc->buffer.length));
+	data_length = (buffer_length < source_desc->buffer.length ?
+		       buffer_length : source_desc->buffer.length);
+	memcpy(buffer, source_desc->buffer.pointer, data_length);
 
 	/* Lock entire transaction if requested */
 

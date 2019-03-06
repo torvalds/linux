@@ -382,7 +382,7 @@ static int pcrypt_cpumask_change_notify(struct notifier_block *self,
 
 	cpumask_copy(new_mask->mask, cpumask->cbcpu);
 	rcu_assign_pointer(pcrypt->cb_cpumask, new_mask);
-	synchronize_rcu_bh();
+	synchronize_rcu();
 
 	free_cpumask_var(old_mask->mask);
 	kfree(old_mask);
@@ -394,7 +394,7 @@ static int pcrypt_sysfs_add(struct padata_instance *pinst, const char *name)
 	int ret;
 
 	pinst->kobj.kset = pcrypt_kset;
-	ret = kobject_add(&pinst->kobj, NULL, name);
+	ret = kobject_add(&pinst->kobj, NULL, "%s", name);
 	if (!ret)
 		kobject_uevent(&pinst->kobj, KOBJ_ADD);
 

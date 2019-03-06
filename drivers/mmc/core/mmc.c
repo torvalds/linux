@@ -1181,6 +1181,9 @@ static int mmc_select_hs400(struct mmc_card *card)
 	if (err)
 		goto out_err;
 
+	if (host->ops->hs400_prepare_ddr)
+		host->ops->hs400_prepare_ddr(host);
+
 	/* Switch card to DDR */
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BUS_WIDTH,
@@ -2010,12 +2013,6 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 
 	if (mmc_card_suspended(host->card))
 		goto out;
-
-	if (mmc_card_doing_bkops(host->card)) {
-		err = mmc_stop_bkops(host->card);
-		if (err)
-			goto out;
-	}
 
 	err = mmc_flush_cache(host->card);
 	if (err)

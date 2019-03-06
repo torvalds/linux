@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 
 #include <asm/cpufeature.h>
+#include <asm/cacheinfo.h>
 #include <asm/amd_nb.h>
 #include <asm/smp.h>
 

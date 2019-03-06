@@ -53,6 +53,18 @@ mt76x02_efuse_read(struct mt76x02_dev *dev, u16 addr, u8 *data,
 	return 0;
 }
 
+int mt76x02_eeprom_copy(struct mt76x02_dev *dev,
+			enum mt76x02_eeprom_field field,
+			void *dest, int len)
+{
+	if (field + len > dev->mt76.eeprom.size)
+		return -1;
+
+	memcpy(dest, dev->mt76.eeprom.data + field, len);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76x02_eeprom_copy);
+
 int mt76x02_get_efuse_data(struct mt76x02_dev *dev, u16 base, void *buf,
 			   int len, enum mt76x02_eeprom_modes mode)
 {

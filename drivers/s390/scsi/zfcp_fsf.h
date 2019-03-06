@@ -438,8 +438,8 @@ struct zfcp_blk_drv_data {
 
 /**
  * struct zfcp_fsf_ct_els - zfcp data for ct or els request
- * @req: scatter-gather list for request
- * @resp: scatter-gather list for response
+ * @req: scatter-gather list for request, points to &zfcp_fc_req.sg_req or BSG
+ * @resp: scatter-gather list for response, points to &zfcp_fc_req.sg_rsp or BSG
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
  * @port: Optional pointer to port for zfcp internal ELS (only test link ADISC)

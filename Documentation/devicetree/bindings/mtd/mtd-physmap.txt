@@ -29,6 +29,8 @@ file systems on embedded devices.
  - use-advanced-sector-protection: boolean to enable support for the
    advanced sector protection (Spansion: PPB - Persistent Protection
    Bits) locking.
+ - addr-gpios : (optional) List of GPIO descriptors that will be used to
+   address the MSBs address lines. The order goes from LSB to MSB.
 
 For JEDEC compatible devices, the following additional properties
 are defined:

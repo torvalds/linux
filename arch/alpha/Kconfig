@@ -5,7 +5,11 @@ config ALPHA
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_NO_PREEMPT
+	select ARCH_NO_SG_CHAIN
 	select ARCH_USE_CMPXCHG_LOCKREF
+	select FORCE_PCI if !ALPHA_JENSEN
+	select PCI_DOMAINS if PCI
+	select PCI_SYSCALL if PCI
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -15,6 +19,7 @@ config ALPHA
 	select NEED_SG_DMA_LENGTH
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
+	select GENERIC_PCI_IOMAP if PCI
 	select AUTO_IRQ_AFFINITY if SMP
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -125,11 +130,13 @@ choice
 config ALPHA_GENERIC
 	bool "Generic"
 	depends on TTY
+	select HAVE_EISA
 	help
 	  A generic kernel will run on all supported Alpha hardware.
 
 config ALPHA_ALCOR
 	bool "Alcor/Alpha-XLT"
+	select HAVE_EISA
 	help
 	  For systems using the Digital ALCOR chipset: 5 chips (4, 64-bit data
 	  slices (Data Switch, DSW) - 208-pin PQFP and 1 control (Control, I/O
@@ -202,7 +209,7 @@ config ALPHA_EIGER
 config ALPHA_JENSEN
 	bool "Jensen"
 	depends on BROKEN
-	select DMA_DIRECT_OPS
+	select HAVE_EISA
 	help
 	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
 	  of the first-generation Alpha systems. A number of these systems
@@ -219,6 +226,7 @@ config ALPHA_LX164
 
 config ALPHA_LYNX
 	bool "Lynx"
+	select HAVE_EISA
 	help
 	  AlphaServer 2100A-based systems.
 
@@ -229,6 +237,7 @@ config ALPHA_MARVEL
 
 config ALPHA_MIATA
 	bool "Miata"
+	select HAVE_EISA
 	help
 	  The Digital PersonalWorkStation (PWS 433a, 433au, 500a, 500au, 600a,
 	  or 600au).
@@ -248,6 +257,7 @@ config ALPHA_NONAME_CH
 
 config ALPHA_NORITAKE
 	bool "Noritake"
+	select HAVE_EISA
 	help
 	  AlphaServer 1000A, AlphaServer 600A, and AlphaServer 800-based
 	  systems.
@@ -260,6 +270,7 @@ config ALPHA_P2K
 
 config ALPHA_RAWHIDE
 	bool "Rawhide"
+	select HAVE_EISA
 	help
 	  AlphaServer 1200, AlphaServer 4000 and AlphaServer 4100 machines.
 	  See HOWTO at
@@ -279,6 +290,7 @@ config ALPHA_SX164
 
 config ALPHA_SABLE
 	bool "Sable"
+	select HAVE_EISA
 	help
 	  Digital AlphaServer 2000 and 2100-based systems.
 
@@ -318,24 +330,6 @@ config ISA
 config ISA_DMA_API
 	bool
 	default y
-
-config PCI
-	bool
-	depends on !ALPHA_JENSEN
-	select GENERIC_PCI_IOMAP
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-config PCI_DOMAINS
-	bool
-	default y
-
-config PCI_SYSCALL
-	def_bool PCI
 
 config ALPHA_NONAME
 	bool
@@ -526,11 +520,6 @@ config ALPHA_SRM
 
 	  If unsure, say N.
 
-config EISA
-	bool
-	depends on ALPHA_GENERIC || ALPHA_JENSEN || ALPHA_ALCOR || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_RAWHIDE
-	default y
-
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 
@@ -680,11 +669,6 @@ config HZ
 	default 256 if HZ_256
 	default 1200 if HZ_1200
 	default 1024
-
-source "drivers/pci/Kconfig"
-source "drivers/eisa/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
 
 config SRM_ENV
 	tristate "SRM environment through procfs"

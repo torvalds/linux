@@ -205,6 +205,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	because the file may be huge. A time out is needed in such cases.
 	This option sets the time out limit. The default value is 500 ms.
 
+--sort-events::
+	Do sorting on batches of events, use when noticing out of order events that
+	may happen, for instance, when a thread gets migrated to a different CPU
+	while processing a syscall.
+
+
 PAGEFAULTS
 ----------
 

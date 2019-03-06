@@ -7,6 +7,7 @@
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
+#include <asm/fpu.h>
 
 #ifdef CONFIG_HWZOL
 	.macro push_zol
@@ -15,12 +16,31 @@
 	mfusr	$r16, $LC
 	.endm
 #endif
+	.macro  skip_save_fucop_ctl
+#if defined(CONFIG_FPU)
+skip_fucop_ctl:
+	smw.adm $p0, [$sp], $p0, #0x1
+	j fucop_ctl_done
+#endif
+	.endm
 
 	.macro	save_user_regs
-
+#if defined(CONFIG_FPU)
+	sethi   $p0, hi20(has_fpu)
+	lbsi 	$p0, [$p0+lo12(has_fpu)]
+	beqz	$p0, skip_fucop_ctl
+	mfsr    $p0, $FUCOP_CTL
+	smw.adm $p0, [$sp], $p0, #0x1
+	bclr    $p0, $p0, #FUCOP_CTL_offCP0EN
+	mtsr    $p0, $FUCOP_CTL
+fucop_ctl_done:
+	/* move $SP to the bottom of pt_regs */
+	addi    $sp, $sp, -FUCOP_CTL_OFFSET
+#else
 	smw.adm $sp, [$sp], $sp, #0x1
 	/* move $SP to the bottom of pt_regs */
 	addi    $sp, $sp, -OSP_OFFSET
+#endif
 
 	/* push $r0 ~ $r25 */
 	smw.bim $r0, [$sp], $r25
@@ -79,6 +99,7 @@ exception_handlers:
 	.long	eh_syscall		!Syscall
 	.long	asm_do_IRQ		!IRQ
 
+	skip_save_fucop_ctl
 common_exception_handler:
 	save_user_regs
 	mfsr	$p0, $ITYPE
@@ -103,7 +124,6 @@ common_exception_handler:
 	mtsr	$r21, $PSW
 	dsb
 	jr	$p1
-
 	/* syscall */
 1:
 	addi	$p1, $p0, #-NDS32_VECTOR_offEXCEPTION

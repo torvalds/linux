@@ -17,6 +17,7 @@ struct device_node;
 struct seq_file;
 struct gpio_device;
 struct module;
+enum gpiod_flags;
 
 #ifdef CONFIG_GPIOLIB
 
@@ -166,11 +167,6 @@ struct gpio_irq_chip {
 	 */
 	void		(*irq_disable)(struct irq_data *data);
 };
-
-static inline struct gpio_irq_chip *to_gpio_irq_chip(struct irq_chip *chip)
-{
-	return container_of(chip, struct gpio_irq_chip, chip);
-}
 #endif
 
 /**
@@ -422,7 +418,6 @@ static inline int gpiochip_add(struct gpio_chip *chip)
 extern void gpiochip_remove(struct gpio_chip *chip);
 extern int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
 				  void *data);
-extern void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip);
 
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
@@ -610,7 +605,8 @@ gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 #endif /* CONFIG_PINCTRL */
 
 struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
-					    const char *label);
+					    const char *label,
+					    enum gpiod_flags flags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */

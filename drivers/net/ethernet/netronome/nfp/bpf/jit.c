@@ -1291,14 +1291,9 @@ wrp_alu64_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 static int
 wrp_alu32_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-	      enum alu_op alu_op, bool skip)
+	      enum alu_op alu_op)
 {
 	const struct bpf_insn *insn = &meta->insn;
-
-	if (skip) {
-		meta->skip = true;
-		return 0;
-	}
 
 	wrp_alu_imm(nfp_prog, insn->dst_reg * 2, alu_op, insn->imm);
 	wrp_immed(nfp_prog, reg_both(insn->dst_reg * 2 + 1), 0);
@@ -2309,7 +2304,7 @@ static int xor_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int xor_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_XOR, !~meta->insn.imm);
+	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_XOR);
 }
 
 static int and_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2319,7 +2314,7 @@ static int and_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int and_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_AND, !~meta->insn.imm);
+	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_AND);
 }
 
 static int or_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2329,7 +2324,7 @@ static int or_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int or_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_OR, !meta->insn.imm);
+	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_OR);
 }
 
 static int add_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2339,7 +2334,7 @@ static int add_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int add_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_ADD, !meta->insn.imm);
+	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_ADD);
 }
 
 static int sub_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2349,7 +2344,7 @@ static int sub_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 static int sub_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
-	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_SUB, !meta->insn.imm);
+	return wrp_alu32_imm(nfp_prog, meta, ALU_OP_SUB);
 }
 
 static int mul_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -2380,6 +2375,49 @@ static int neg_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	wrp_immed(nfp_prog, reg_both(meta->insn.dst_reg * 2 + 1), 0);
 
 	return 0;
+}
+
+static int __ashr_imm(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
+{
+	/* Set signedness bit (MSB of result). */
+	emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR, reg_imm(0));
+	emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR, reg_b(dst),
+		 SHF_SC_R_SHF, shift_amt);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+
+	return 0;
+}
+
+static int ashr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u64 umin, umax;
+	u8 dst, src;
+
+	dst = insn->dst_reg * 2;
+	umin = meta->umin_src;
+	umax = meta->umax_src;
+	if (umin == umax)
+		return __ashr_imm(nfp_prog, dst, umin);
+
+	src = insn->src_reg * 2;
+	/* NOTE: the first insn will set both indirect shift amount (source A)
+	 * and signedness bit (MSB of result).
+	 */
+	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		       reg_b(dst), SHF_SC_R_SHF);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+
+	return 0;
+}
+
+static int ashr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+
+	return __ashr_imm(nfp_prog, dst, insn->imm);
 }
 
 static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
@@ -3009,26 +3047,19 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
 	u64 imm = insn->imm; /* sign extend */
+	u8 dst_gpr = insn->dst_reg * 2;
 	swreg tmp_reg;
 
-	if (!imm) {
-		meta->skip = true;
-		return 0;
-	}
-
-	if (imm & ~0U) {
-		tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
+	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
+	emit_alu(nfp_prog, imm_b(nfp_prog),
+		 reg_a(dst_gpr), ALU_OP_AND, tmp_reg);
+	/* Upper word of the mask can only be 0 or ~0 from sign extension,
+	 * so either ignore it or OR the whole thing in.
+	 */
+	if (imm >> 32)
 		emit_alu(nfp_prog, reg_none(),
-			 reg_a(insn->dst_reg * 2), ALU_OP_AND, tmp_reg);
-		emit_br(nfp_prog, BR_BNE, insn->off, 0);
-	}
-
-	if (imm >> 32) {
-		tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
-		emit_alu(nfp_prog, reg_none(),
-			 reg_a(insn->dst_reg * 2 + 1), ALU_OP_AND, tmp_reg);
-		emit_br(nfp_prog, BR_BNE, insn->off, 0);
-	}
+			 reg_a(dst_gpr + 1), ALU_OP_OR, imm_b(nfp_prog));
+	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
 	return 0;
 }
@@ -3286,6 +3317,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_DIV | BPF_K] =	div_imm,
 	[BPF_ALU | BPF_NEG] =		neg_reg,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
+	[BPF_ALU | BPF_ARSH | BPF_X] =	ashr_reg,
+	[BPF_ALU | BPF_ARSH | BPF_K] =	ashr_imm,
 	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
 	[BPF_LD | BPF_IMM | BPF_DW] =	imm_ld8,
 	[BPF_LD | BPF_ABS | BPF_B] =	data_ld1,

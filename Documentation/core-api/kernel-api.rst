@@ -291,12 +291,6 @@ Block Devices
 .. kernel-doc:: block/blk-lib.c
    :export:
 
-.. kernel-doc:: block/blk-tag.c
-   :export:
-
-.. kernel-doc:: block/blk-tag.c
-   :internal:
-
 .. kernel-doc:: block/blk-integrity.c
    :export:
 

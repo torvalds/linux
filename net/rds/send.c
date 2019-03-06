@@ -1107,7 +1107,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	size_t total_payload_len = payload_len, rdma_payload_len = 0;
 	bool zcopy = ((msg->msg_flags & MSG_ZEROCOPY) &&
 		      sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY));
-	int num_sgs = ceil(payload_len, PAGE_SIZE);
+	int num_sgs = DIV_ROUND_UP(payload_len, PAGE_SIZE);
 	int namelen;
 	struct rds_iov_vector_arr vct;
 	int ind;

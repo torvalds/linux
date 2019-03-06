@@ -70,7 +70,7 @@ Efuse_Write1ByteToFakeContent(
 	}
 	if (fakeEfuseBank == 0)
 		fakeEfuseContent[Offset] = Value;
-	else{
+	else {
 		fakeBTEfuseContent[fakeEfuseBank-1][Offset] = Value;
 	}
 	return true;
@@ -303,7 +303,7 @@ bool		bPseudoTest)
 	if (tmpidx < 100) {
 		*data = rtw_read8(padapter, EFUSE_CTRL);
 		bResult = true;
-	} else{
+	} else {
 		*data = 0xff;
 		bResult = false;
 		DBG_871X("%s: [ERROR] addr = 0x%x bResult =%d time out 1s !!!\n", __func__, addr, bResult);
@@ -359,7 +359,7 @@ bool		bPseudoTest)
 
 	if (tmpidx < 100) {
 		bResult = true;
-	} else{
+	} else {
 		bResult = false;
 		DBG_871X("%s: [ERROR] addr = 0x%x , efuseValue = 0x%x , bResult =%d time out 1s !!!\n",
 					__func__, addr, efuseValue, bResult);

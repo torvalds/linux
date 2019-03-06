@@ -7,7 +7,7 @@
 unsigned long raw_copy_from_user(void *to, const void *from,
 			unsigned long n)
 {
-	if (access_ok(VERIFY_READ, from, n))
+	if (access_ok(from, n))
 		__copy_user_zeroing(to, from, n);
 	else
 		memset(to, 0, n);
@@ -18,7 +18,7 @@ EXPORT_SYMBOL(raw_copy_from_user);
 unsigned long raw_copy_to_user(void *to, const void *from,
 			unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n))
 		__copy_user(to, from, n);
 	return n;
 }
@@ -113,7 +113,7 @@ long strncpy_from_user(char *dst, const char *src, long count)
 {
 	long res = -EFAULT;
 
-	if (access_ok(VERIFY_READ, src, 1))
+	if (access_ok(src, 1))
 		__do_strncpy_from_user(dst, src, count, res);
 	return res;
 }
@@ -236,7 +236,7 @@ do {							\
 unsigned long
 clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(VERIFY_WRITE, to, n))
+	if (access_ok(to, n))
 		__do_clear_user(to, n);
 	return n;
 }

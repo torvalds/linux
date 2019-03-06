@@ -214,8 +214,8 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 
 		if (kernel_uses_llsc && R10000_LLSC_WAR) {
 			__asm__ __volatile__ (
-			"	.set	arch=r4000			\n"
 			"	.set	push				\n"
+			"	.set	arch=r4000			\n"
 			"	.set	noreorder			\n"
 			"1:"	__LL	"%[tmp], %[buddy]		\n"
 			"	bnez	%[tmp], 2f			\n"
@@ -225,13 +225,13 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 			"	nop					\n"
 			"2:						\n"
 			"	.set	pop				\n"
-			"	.set	mips0				\n"
 			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
 			: [global] "r" (page_global));
 		} else if (kernel_uses_llsc) {
+			loongson_llsc_mb();
 			__asm__ __volatile__ (
-			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 			"	.set	push				\n"
+			"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"
 			"	.set	noreorder			\n"
 			"1:"	__LL	"%[tmp], %[buddy]		\n"
 			"	bnez	%[tmp], 2f			\n"
@@ -241,9 +241,9 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 			"	nop					\n"
 			"2:						\n"
 			"	.set	pop				\n"
-			"	.set	mips0				\n"
 			: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
 			: [global] "r" (page_global));
+			loongson_llsc_mb();
 		}
 #else /* !CONFIG_SMP */
 		if (pte_none(*buddy))

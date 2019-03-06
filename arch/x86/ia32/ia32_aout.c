@@ -51,7 +51,7 @@ static unsigned long get_dr(int n)
 /*
  * fill in the user structure for a core dump..
  */
-static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
+static void fill_dump(struct pt_regs *regs, struct user32 *dump)
 {
 	u32 fs, gs;
 	memset(dump, 0, sizeof(*dump));
@@ -157,10 +157,12 @@ static int aout_core_dump(struct coredump_params *cprm)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	has_dumped = 1;
+
+	fill_dump(cprm->regs, &dump);
+
 	strncpy(dump.u_comm, current->comm, sizeof(current->comm));
 	dump.u_ar0 = offsetof(struct user32, regs);
 	dump.signal = cprm->siginfo->si_signo;
-	dump_thread32(cprm->regs, &dump);
 
 	/*
 	 * If the size of the dump file exceeds the rlimit, then see
@@ -176,10 +178,10 @@ static int aout_core_dump(struct coredump_params *cprm)
 
 	/* make sure we actually have a data and stack area to dump */
 	set_fs(USER_DS);
-	if (!access_ok(VERIFY_READ, (void *) (unsigned long)START_DATA(dump),
+	if (!access_ok((void *) (unsigned long)START_DATA(dump),
 		       dump.u_dsize << PAGE_SHIFT))
 		dump.u_dsize = 0;
-	if (!access_ok(VERIFY_READ, (void *) (unsigned long)START_STACK(dump),
+	if (!access_ok((void *) (unsigned long)START_STACK(dump),
 		       dump.u_ssize << PAGE_SHIFT))
 		dump.u_ssize = 0;
 

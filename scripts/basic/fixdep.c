@@ -105,8 +105,7 @@
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: fixdep [-e] <depfile> <target> <cmdline>\n");
-	fprintf(stderr, " -e  insert extra dependencies given on stdin\n");
+	fprintf(stderr, "Usage: fixdep <depfile> <target> <cmdline>\n");
 	exit(1);
 }
 
@@ -129,21 +128,6 @@ static void print_dep(const char *m, int slen, const char *dir)
 		prev_c = c;
 	}
 	printf(".h) \\\n");
-}
-
-static void do_extra_deps(void)
-{
-	char buf[80];
-
-	while (fgets(buf, sizeof(buf), stdin)) {
-		int len = strlen(buf);
-
-		if (len < 2 || buf[len - 1] != '\n') {
-			fprintf(stderr, "fixdep: bad data on stdin\n");
-			exit(1);
-		}
-		print_dep(buf, len - 1, "include/ksym");
-	}
 }
 
 struct item {
@@ -293,7 +277,7 @@ static int is_ignored_file(const char *s, int len)
  * assignments are parsed not only by make, but also by the rather simple
  * parser in scripts/mod/sumversion.c.
  */
-static void parse_dep_file(char *m, const char *target, int insert_extra_deps)
+static void parse_dep_file(char *m, const char *target)
 {
 	char *p;
 	int is_last, is_target;
@@ -369,9 +353,6 @@ static void parse_dep_file(char *m, const char *target, int insert_extra_deps)
 		exit(1);
 	}
 
-	if (insert_extra_deps)
-		do_extra_deps();
-
 	printf("\n%s: $(deps_%s)\n\n", target, target);
 	printf("$(deps_%s):\n", target);
 }
@@ -379,13 +360,9 @@ static void parse_dep_file(char *m, const char *target, int insert_extra_deps)
 int main(int argc, char *argv[])
 {
 	const char *depfile, *target, *cmdline;
-	int insert_extra_deps = 0;
 	void *buf;
 
-	if (argc == 5 && !strcmp(argv[1], "-e")) {
-		insert_extra_deps = 1;
-		argv++;
-	} else if (argc != 4)
+	if (argc != 4)
 		usage();
 
 	depfile = argv[1];
@@ -395,7 +372,7 @@ int main(int argc, char *argv[])
 	printf("cmd_%s := %s\n\n", target, cmdline);
 
 	buf = read_file(depfile);
-	parse_dep_file(buf, target, insert_extra_deps);
+	parse_dep_file(buf, target);
 	free(buf);
 
 	return 0;

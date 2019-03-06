@@ -90,7 +90,7 @@ static int gpio_config(struct hdmi *hdmi, bool on)
 			if (gpio.num != -1) {
 				ret = gpio_request(gpio.num, gpio.label);
 				if (ret) {
-					dev_err(dev,
+					DRM_DEV_ERROR(dev,
 						"'%s'(%d) gpio_request failed: %d\n",
 						gpio.label, gpio.num, ret);
 					goto err;
@@ -156,7 +156,7 @@ static void enable_hpd_clocks(struct hdmi *hdmi, bool enable)
 
 			ret = clk_prepare_enable(hdmi->hpd_clks[i]);
 			if (ret) {
-				dev_err(dev,
+				DRM_DEV_ERROR(dev,
 					"failed to enable hpd clk: %s (%d)\n",
 					config->hpd_clk_names[i], ret);
 			}
@@ -180,7 +180,7 @@ int msm_hdmi_hpd_enable(struct drm_connector *connector)
 	for (i = 0; i < config->hpd_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->hpd_regs[i]);
 		if (ret) {
-			dev_err(dev, "failed to enable hpd regulator: %s (%d)\n",
+			DRM_DEV_ERROR(dev, "failed to enable hpd regulator: %s (%d)\n",
 					config->hpd_reg_names[i], ret);
 			goto fail;
 		}
@@ -188,13 +188,13 @@ int msm_hdmi_hpd_enable(struct drm_connector *connector)
 
 	ret = pinctrl_pm_select_default_state(dev);
 	if (ret) {
-		dev_err(dev, "pinctrl state chg failed: %d\n", ret);
+		DRM_DEV_ERROR(dev, "pinctrl state chg failed: %d\n", ret);
 		goto fail;
 	}
 
 	ret = gpio_config(hdmi, true);
 	if (ret) {
-		dev_err(dev, "failed to configure GPIOs: %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to configure GPIOs: %d\n", ret);
 		goto fail;
 	}
 

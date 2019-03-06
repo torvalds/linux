@@ -203,7 +203,7 @@ static int ioctl_fiemap(struct file *filp, unsigned long arg)
 	fieinfo.fi_extents_start = ufiemap->fm_extents;
 
 	if (fiemap.fm_extent_count != 0 &&
-	    !access_ok(VERIFY_WRITE, fieinfo.fi_extents_start,
+	    !access_ok(fieinfo.fi_extents_start,
 		       fieinfo.fi_extents_max * sizeof(struct fiemap_extent)))
 		return -EFAULT;
 

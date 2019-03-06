@@ -27,13 +27,7 @@ ENTRY(memcpy)
 
 	LABLE_ALIGN
 .L_len_larger_16bytes:
-#if defined(__CSKY_VDSPV2__)
-	vldx.8	vr0, (r1), r19
-	PRE_BNEZAD (r18)
-	addi	r1, 16
-	vstx.8	vr0, (r0), r19
-	addi	r0, 16
-#elif defined(__CK860__)
+#if defined(__CK860__)
 	ldw	r3, (r1, 0)
 	stw	r3, (r0, 0)
 	ldw	r3, (r1, 4)

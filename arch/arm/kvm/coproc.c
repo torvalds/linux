@@ -602,8 +602,8 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 		}
 	} else {
 		/* If access function fails, it should complain. */
-		kvm_err("Unsupported guest CP15 access at: %08lx\n",
-			*vcpu_pc(vcpu));
+		kvm_err("Unsupported guest CP15 access at: %08lx [%08lx]\n",
+			*vcpu_pc(vcpu), *vcpu_cpsr(vcpu));
 		print_cp_instr(params);
 		kvm_inject_undefined(vcpu);
 	}
@@ -1450,6 +1450,6 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 	reset_coproc_regs(vcpu, table, num);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		if (vcpu_cp15(vcpu, num) == 0x42424242)
-			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
+		WARN(vcpu_cp15(vcpu, num) == 0x42424242,
+		     "Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

@@ -119,18 +119,10 @@ void mips_mt_regdump(unsigned long mvpctl)
 	local_irq_restore(flags);
 }
 
-static int mt_opt_norps;
 static int mt_opt_rpsctl = -1;
 static int mt_opt_nblsu = -1;
 static int mt_opt_forceconfig7;
 static int mt_opt_config7 = -1;
-
-static int __init rps_disable(char *s)
-{
-	mt_opt_norps = 1;
-	return 1;
-}
-__setup("norps", rps_disable);
 
 static int __init rpsctl_set(char *str)
 {
@@ -169,9 +161,6 @@ void mips_mt_set_cpuoptions(void)
 	unsigned int oconfig7 = read_c0_config7();
 	unsigned int nconfig7 = oconfig7;
 
-	if (mt_opt_norps) {
-		printk("\"norps\" option deprecated: use \"rpsctl=\"\n");
-	}
 	if (mt_opt_rpsctl >= 0) {
 		printk("34K return prediction stack override set to %d.\n",
 			mt_opt_rpsctl);

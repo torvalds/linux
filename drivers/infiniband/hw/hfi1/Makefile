@@ -34,6 +34,7 @@ hfi1-y := \
 	ruc.o \
 	sdma.o \
 	sysfs.o \
+	tid_rdma.o \
 	trace.o \
 	uc.o \
 	ud.o \

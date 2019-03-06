@@ -80,6 +80,7 @@ static unsigned int features[] = {
 	 */
 	VIRTIO_GPU_F_VIRGL,
 #endif
+	VIRTIO_GPU_F_EDID,
 };
 static struct virtio_driver virtio_gpu_driver = {
 	.feature_table = features,
@@ -126,14 +127,10 @@ static struct drm_driver driver = {
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = virtio_gpu_debugfs_init,
 #endif
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = virtgpu_gem_prime_pin,
 	.gem_prime_unpin = virtgpu_gem_prime_unpin,
-	.gem_prime_get_sg_table = virtgpu_gem_prime_get_sg_table,
-	.gem_prime_import_sg_table = virtgpu_gem_prime_import_sg_table,
 	.gem_prime_vmap = virtgpu_gem_prime_vmap,
 	.gem_prime_vunmap = virtgpu_gem_prime_vunmap,
 	.gem_prime_mmap = virtgpu_gem_prime_mmap,

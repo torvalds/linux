@@ -607,7 +607,7 @@ out:
  * readdirplus.
  */
 static int
-nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		  u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
@@ -628,7 +628,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READDIR],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
-		.rpc_cred	= cred
+		.rpc_cred	= cred,
 	};
 	int status = -ENOMEM;
 

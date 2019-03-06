@@ -92,7 +92,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio26 for pm8998
 		    gpio1-gpio22 for pma8084
 		    gpio1-gpio10 for pmi8994
-		    gpio1-gpio11 for pms405
+		    gpio1-gpio12 for pms405 (holes on gpio1, gpio9 and gpio10)
 
 - function:
 	Usage: required

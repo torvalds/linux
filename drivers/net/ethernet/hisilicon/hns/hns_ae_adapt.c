@@ -147,12 +147,10 @@ static void hns_ae_put_handle(struct hnae_handle *handle)
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	int i;
 
-	vf_cb->mac_cb	 = NULL;
-
-	kfree(vf_cb);
-
 	for (i = 0; i < handle->q_num; i++)
 		hns_ae_get_ring_pair(handle->qs[i])->used_by_vf = 0;
+
+	kfree(vf_cb);
 }
 
 static int hns_ae_wait_flow_down(struct hnae_handle *handle)

@@ -58,6 +58,17 @@ struct psp_firmware_header_v1_0 {
 };
 
 /* version_major=1, version_minor=0 */
+struct ta_firmware_header_v1_0 {
+	struct common_firmware_header header;
+	uint32_t ta_xgmi_ucode_version;
+	uint32_t ta_xgmi_offset_bytes;
+	uint32_t ta_xgmi_size_bytes;
+	uint32_t ta_ras_ucode_version;
+	uint32_t ta_ras_offset_bytes;
+	uint32_t ta_ras_size_bytes;
+};
+
+/* version_major=1, version_minor=0 */
 struct gfx_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -170,6 +181,7 @@ union amdgpu_firmware_header {
 	struct mc_firmware_header_v1_0 mc;
 	struct smc_firmware_header_v1_0 smc;
 	struct psp_firmware_header_v1_0 psp;
+	struct ta_firmware_header_v1_0 ta;
 	struct gfx_firmware_header_v1_0 gfx;
 	struct rlc_firmware_header_v1_0 rlc;
 	struct rlc_firmware_header_v2_0 rlc_v2_0;

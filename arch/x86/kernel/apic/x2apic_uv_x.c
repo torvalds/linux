@@ -1079,7 +1079,7 @@ late_initcall(uv_init_heartbeat);
 #endif /* !CONFIG_HOTPLUG_CPU */
 
 /* Direct Legacy VGA I/O traffic to designated IOH */
-int uv_set_vga_state(struct pci_dev *pdev, bool decode, unsigned int command_bits, u32 flags)
+static int uv_set_vga_state(struct pci_dev *pdev, bool decode, unsigned int command_bits, u32 flags)
 {
 	int domain, bus, rc;
 
@@ -1148,7 +1148,7 @@ static void get_mn(struct mn *mnp)
 	mnp->m_shift = mnp->m_val ? 64 - mnp->m_val : 0;
 }
 
-void __init uv_init_hub_info(struct uv_hub_info_s *hi)
+static void __init uv_init_hub_info(struct uv_hub_info_s *hi)
 {
 	union uvh_node_id_u node_id;
 	struct mn mn;

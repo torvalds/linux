@@ -1094,7 +1094,7 @@ static int proc_control(struct usb_dev_state *ps, void __user *arg)
 		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
 		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
-		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
+		if (ctrl.wLength && !access_ok(ctrl.data,
 					       ctrl.wLength)) {
 			ret = -EINVAL;
 			goto done;
@@ -1183,7 +1183,7 @@ static int proc_bulk(struct usb_dev_state *ps, void __user *arg)
 	}
 	tmo = bulk.timeout;
 	if (bulk.ep & 0x80) {
-		if (len1 && !access_ok(VERIFY_WRITE, bulk.data, len1)) {
+		if (len1 && !access_ok(bulk.data, len1)) {
 			ret = -EINVAL;
 			goto done;
 		}
@@ -1584,8 +1584,7 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	}
 
 	if (uurb->buffer_length > 0 &&
-			!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
-				uurb->buffer, uurb->buffer_length)) {
+			!access_ok(uurb->buffer, uurb->buffer_length)) {
 		ret = -EFAULT;
 		goto error;
 	}

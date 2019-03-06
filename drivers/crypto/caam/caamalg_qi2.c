@@ -462,7 +462,15 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	edesc->dst_nents = dst_nents;
 	edesc->iv_dma = iv_dma;
 
-	edesc->assoclen = cpu_to_caam32(req->assoclen);
+	if ((alg->caam.class1_alg_type & OP_ALG_ALGSEL_MASK) ==
+	    OP_ALG_ALGSEL_CHACHA20 && ivsize != CHACHAPOLY_IV_SIZE)
+		/*
+		 * The associated data comes already with the IV but we need
+		 * to skip it when we authenticate or encrypt...
+		 */
+		edesc->assoclen = cpu_to_caam32(req->assoclen - ivsize);
+	else
+		edesc->assoclen = cpu_to_caam32(req->assoclen);
 	edesc->assoclen_dma = dma_map_single(dev, &edesc->assoclen, 4,
 					     DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, edesc->assoclen_dma)) {
@@ -530,6 +538,68 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	dpaa2_fl_set_len(out_fle, out_len);
 
 	return edesc;
+}
+
+static int chachapoly_set_sh_desc(struct crypto_aead *aead)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	struct device *dev = ctx->dev;
+	struct caam_flc *flc;
+	u32 *desc;
+
+	if (!ctx->cdata.keylen || !ctx->authsize)
+		return 0;
+
+	flc = &ctx->flc[ENCRYPT];
+	desc = flc->sh_desc;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, true, true);
+	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
+	dma_sync_single_for_device(dev, ctx->flc_dma[ENCRYPT],
+				   sizeof(flc->flc) + desc_bytes(desc),
+				   ctx->dir);
+
+	flc = &ctx->flc[DECRYPT];
+	desc = flc->sh_desc;
+	cnstr_shdsc_chachapoly(desc, &ctx->cdata, &ctx->adata, ivsize,
+			       ctx->authsize, false, true);
+	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
+	dma_sync_single_for_device(dev, ctx->flc_dma[DECRYPT],
+				   sizeof(flc->flc) + desc_bytes(desc),
+				   ctx->dir);
+
+	return 0;
+}
+
+static int chachapoly_setauthsize(struct crypto_aead *aead,
+				  unsigned int authsize)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+
+	if (authsize != POLY1305_DIGEST_SIZE)
+		return -EINVAL;
+
+	ctx->authsize = authsize;
+	return chachapoly_set_sh_desc(aead);
+}
+
+static int chachapoly_setkey(struct crypto_aead *aead, const u8 *key,
+			     unsigned int keylen)
+{
+	struct caam_ctx *ctx = crypto_aead_ctx(aead);
+	unsigned int ivsize = crypto_aead_ivsize(aead);
+	unsigned int saltlen = CHACHAPOLY_IV_SIZE - ivsize;
+
+	if (keylen != CHACHA_KEY_SIZE + saltlen) {
+		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return -EINVAL;
+	}
+
+	ctx->cdata.key_virt = key;
+	ctx->cdata.keylen = keylen - saltlen;
+
+	return chachapoly_set_sh_desc(aead);
 }
 
 static int gcm_set_sh_desc(struct crypto_aead *aead)
@@ -816,7 +886,9 @@ static int skcipher_setkey(struct crypto_skcipher *skcipher, const u8 *key,
 	u32 *desc;
 	u32 ctx1_iv_off = 0;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
-			       OP_ALG_AAI_CTR_MOD128);
+			       OP_ALG_AAI_CTR_MOD128) &&
+			       ((ctx->cdata.algtype & OP_ALG_ALGSEL_MASK) !=
+			       OP_ALG_ALGSEL_CHACHA20);
 	const bool is_rfc3686 = alg->caam.rfc3686;
 
 	print_hex_dump_debug("key in @" __stringify(__LINE__)": ",
@@ -1494,7 +1566,23 @@ static struct caam_skcipher_alg driver_algs[] = {
 			.ivsize = AES_BLOCK_SIZE,
 		},
 		.caam.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_XTS,
-	}
+	},
+	{
+		.skcipher = {
+			.base = {
+				.cra_name = "chacha20",
+				.cra_driver_name = "chacha20-caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = skcipher_setkey,
+			.encrypt = skcipher_encrypt,
+			.decrypt = skcipher_decrypt,
+			.min_keysize = CHACHA_KEY_SIZE,
+			.max_keysize = CHACHA_KEY_SIZE,
+			.ivsize = CHACHA_IV_SIZE,
+		},
+		.caam.class1_alg_type = OP_ALG_ALGSEL_CHACHA20,
+	},
 };
 
 static struct caam_aead_alg driver_aeads[] = {
@@ -2606,6 +2694,50 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_HMAC_PRECOMP,
 			.rfc3686 = true,
 			.geniv = true,
+		},
+	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539-chacha20-poly1305-"
+						   "caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.ivsize = CHACHAPOLY_IV_SIZE,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
+		},
+	},
+	{
+		.aead = {
+			.base = {
+				.cra_name = "rfc7539esp(chacha20,poly1305)",
+				.cra_driver_name = "rfc7539esp-chacha20-"
+						   "poly1305-caam-qi2",
+				.cra_blocksize = 1,
+			},
+			.setkey = chachapoly_setkey,
+			.setauthsize = chachapoly_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.ivsize = 8,
+			.maxauthsize = POLY1305_DIGEST_SIZE,
+		},
+		.caam = {
+			.class1_alg_type = OP_ALG_ALGSEL_CHACHA20 |
+					   OP_ALG_AAI_AEAD,
+			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
+					   OP_ALG_AAI_AEAD,
 		},
 	},
 	{
@@ -4908,6 +5040,11 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		    alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
+		    !priv->sec_attr.ccha_acc_num)
+			continue;
+
 		t_alg->caam.dev = dev;
 		caam_skcipher_alg_init(t_alg);
 
@@ -4940,11 +5077,22 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		    c1_alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
+		/* Skip CHACHA20 algorithms if not supported by device */
+		if (c1_alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
+		    !priv->sec_attr.ccha_acc_num)
+			continue;
+
+		/* Skip POLY1305 algorithms if not supported by device */
+		if (c2_alg_sel == OP_ALG_ALGSEL_POLY1305 &&
+		    !priv->sec_attr.ptha_acc_num)
+			continue;
+
 		/*
 		 * Skip algorithms requiring message digests
 		 * if MD not supported by device.
 		 */
-		if (!priv->sec_attr.md_acc_num && c2_alg_sel)
+		if ((c2_alg_sel & ~OP_ALG_ALGSEL_SUBMASK) == 0x40 &&
+		    !priv->sec_attr.md_acc_num)
 			continue;
 
 		t_alg->caam.dev = dev;

@@ -252,7 +252,7 @@ void rtw_wep_encrypt(struct adapter *padapter, u8 *pxmitframe)
 				arcfour_encrypt(&mycontext, payload, payload, length);
 				arcfour_encrypt(&mycontext, payload+length, crc, 4);
 
-			} else{
+			} else {
 				length = pxmitpriv->frag_len-pattrib->hdrlen-pattrib->iv_len-pattrib->icv_len;
 				*((__le32 *)crc) = getcrc32(payload, length);
 				arcfour_init(&mycontext, wepkey, 3+keylength);
@@ -821,7 +821,7 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				prwskeylen = 16;
-			} else{
+			} else {
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 				prwskeylen = 16;
 			}
@@ -1117,7 +1117,7 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 				byte_sub(ciphertext, intermediatea);
 				shift_row(intermediatea, intermediateb);
 				xor_128(intermediateb, round_key, ciphertext);
-			} else{   /* 1 - 9 */
+			} else {   /* 1 - 9 */
 				byte_sub(ciphertext, intermediatea);
 				shift_row(intermediatea, intermediateb);
 				mix_column(&intermediateb[0], &intermediatea[0]);

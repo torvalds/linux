@@ -593,31 +593,28 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	int hyst = vif->bss_conf.cqm_rssi_hyst;
 	u16 id = le32_to_cpu(data->mac_id);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u16 vif_id = mvmvif->id;
 
 	/* This doesn't need the MAC ID check since it's not taking the
 	 * data copied into the "data" struct, but rather the data from
 	 * the notification directly.
 	 */
-	if (data->general) {
-		u16 vif_id = mvmvif->id;
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		struct mvm_statistics_general_cdb *general =
+			data->general;
 
-		if (iwl_mvm_is_cdb_supported(mvm)) {
-			struct mvm_statistics_general_cdb *general =
-				data->general;
+		mvmvif->beacon_stats.num_beacons =
+			le32_to_cpu(general->beacon_counter[vif_id]);
+		mvmvif->beacon_stats.avg_signal =
+			-general->beacon_average_energy[vif_id];
+	} else {
+		struct mvm_statistics_general_v8 *general =
+			data->general;
 
-			mvmvif->beacon_stats.num_beacons =
-				le32_to_cpu(general->beacon_counter[vif_id]);
-			mvmvif->beacon_stats.avg_signal =
-				-general->beacon_average_energy[vif_id];
-		} else {
-			struct mvm_statistics_general_v8 *general =
-				data->general;
-
-			mvmvif->beacon_stats.num_beacons =
-				le32_to_cpu(general->beacon_counter[vif_id]);
-			mvmvif->beacon_stats.avg_signal =
-				-general->beacon_average_energy[vif_id];
-		}
+		mvmvif->beacon_stats.num_beacons =
+			le32_to_cpu(general->beacon_counter[vif_id]);
+		mvmvif->beacon_stats.avg_signal =
+			-general->beacon_average_energy[vif_id];
 	}
 
 	if (mvmvif->id != id)

@@ -16,7 +16,5 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/module.h>
-
 #define CREATE_TRACE_POINTS
 #include "trace.h"

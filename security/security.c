@@ -17,7 +17,7 @@
 #include <linux/bpf.h>
 #include <linux/capability.h>
 #include <linux/dcache.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/lsm_hooks.h>
@@ -384,20 +384,31 @@ void security_sb_free(struct super_block *sb)
 	call_void_hook(sb_free_security, sb);
 }
 
-int security_sb_copy_data(char *orig, char *copy)
+void security_free_mnt_opts(void **mnt_opts)
 {
-	return call_int_hook(sb_copy_data, 0, orig, copy);
+	if (!*mnt_opts)
+		return;
+	call_void_hook(sb_free_mnt_opts, *mnt_opts);
+	*mnt_opts = NULL;
 }
-EXPORT_SYMBOL(security_sb_copy_data);
+EXPORT_SYMBOL(security_free_mnt_opts);
 
-int security_sb_remount(struct super_block *sb, void *data)
+int security_sb_eat_lsm_opts(char *options, void **mnt_opts)
 {
-	return call_int_hook(sb_remount, 0, sb, data);
+	return call_int_hook(sb_eat_lsm_opts, 0, options, mnt_opts);
 }
+EXPORT_SYMBOL(security_sb_eat_lsm_opts);
 
-int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
+int security_sb_remount(struct super_block *sb,
+			void *mnt_opts)
 {
-	return call_int_hook(sb_kern_mount, 0, sb, flags, data);
+	return call_int_hook(sb_remount, 0, sb, mnt_opts);
+}
+EXPORT_SYMBOL(security_sb_remount);
+
+int security_sb_kern_mount(struct super_block *sb)
+{
+	return call_int_hook(sb_kern_mount, 0, sb);
 }
 
 int security_sb_show_options(struct seq_file *m, struct super_block *sb)
@@ -427,13 +438,13 @@ int security_sb_pivotroot(const struct path *old_path, const struct path *new_pa
 }
 
 int security_sb_set_mnt_opts(struct super_block *sb,
-				struct security_mnt_opts *opts,
+				void *mnt_opts,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags)
 {
 	return call_int_hook(sb_set_mnt_opts,
-				opts->num_mnt_opts ? -EOPNOTSUPP : 0, sb,
-				opts, kern_flags, set_kern_flags);
+				mnt_opts ? -EOPNOTSUPP : 0, sb,
+				mnt_opts, kern_flags, set_kern_flags);
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
@@ -447,11 +458,13 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
-int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+int security_add_mnt_opt(const char *option, const char *val, int len,
+			 void **mnt_opts)
 {
-	return call_int_hook(sb_parse_opts_str, 0, options, opts);
+	return call_int_hook(sb_add_mnt_opt, -EINVAL,
+					option, val, len, mnt_opts);
 }
-EXPORT_SYMBOL(security_sb_parse_opts_str);
+EXPORT_SYMBOL(security_add_mnt_opt);
 
 int security_inode_alloc(struct inode *inode)
 {
@@ -1014,6 +1027,13 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 
 void security_cred_free(struct cred *cred)
 {
+	/*
+	 * There is a failure case in prepare_creds() that
+	 * may result in a call here with ->security being NULL.
+	 */
+	if (unlikely(cred->security == NULL))
+		return;
+
 	call_void_hook(cred_free, cred);
 }
 

@@ -247,6 +247,7 @@ struct trace_array {
 	int			clock_id;
 	int			nr_topts;
 	bool			clear_trace;
+	int			buffer_percent;
 	struct tracer		*current_trace;
 	unsigned int		trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
@@ -534,6 +535,13 @@ enum {
 
 	TRACE_GRAPH_DEPTH_START_BIT,
 	TRACE_GRAPH_DEPTH_END_BIT,
+
+	/*
+	 * To implement set_graph_notrace, if this bit is set, we ignore
+	 * function graph tracing of called functions, until the return
+	 * function is called to clear it.
+	 */
+	TRACE_GRAPH_NOTRACE_BIT,
 };
 
 #define trace_recursion_set(bit)	do { (current)->trace_recursion |= (1<<(bit)); } while (0)
@@ -855,7 +863,12 @@ static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 #define TRACE_GRAPH_PRINT_FILL_MASK	(0x3 << TRACE_GRAPH_PRINT_FILL_SHIFT)
 
 extern void ftrace_graph_sleep_time_control(bool enable);
+
+#ifdef CONFIG_FUNCTION_PROFILER
 extern void ftrace_graph_graph_time_control(bool enable);
+#else
+static inline void ftrace_graph_graph_time_control(bool enable) { }
+#endif
 
 extern enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags);

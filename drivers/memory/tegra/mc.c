@@ -345,7 +345,7 @@ static int load_one_timing(struct tegra_mc *mc,
 	err = of_property_read_u32(node, "clock-frequency", &tmp);
 	if (err) {
 		dev_err(mc->dev,
-			"timing %s: failed to read rate\n", node->name);
+			"timing %pOFn: failed to read rate\n", node);
 		return err;
 	}
 
@@ -360,8 +360,8 @@ static int load_one_timing(struct tegra_mc *mc,
 					 mc->soc->num_emem_regs);
 	if (err) {
 		dev_err(mc->dev,
-			"timing %s: failed to read EMEM configuration\n",
-			node->name);
+			"timing %pOFn: failed to read EMEM configuration\n",
+			node);
 		return err;
 	}
 

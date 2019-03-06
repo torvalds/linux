@@ -38,13 +38,6 @@ static int bmi160_i2c_probe(struct i2c_client *client,
 	return bmi160_core_probe(&client->dev, regmap, name, false);
 }
 
-static int bmi160_i2c_remove(struct i2c_client *client)
-{
-	bmi160_core_remove(&client->dev);
-
-	return 0;
-}
-
 static const struct i2c_device_id bmi160_i2c_id[] = {
 	{"bmi160", 0},
 	{}
@@ -72,7 +65,6 @@ static struct i2c_driver bmi160_i2c_driver = {
 		.of_match_table		= of_match_ptr(bmi160_of_match),
 	},
 	.probe		= bmi160_i2c_probe,
-	.remove		= bmi160_i2c_remove,
 	.id_table	= bmi160_i2c_id,
 };
 module_i2c_driver(bmi160_i2c_driver);

@@ -88,6 +88,11 @@
 	status = "disabled";
 };
 
+&timer_abcde {
+	clocks = <&xtal>, <&clk81>;
+	clock-names = "xtal", "pclk";
+};
+
 &uart_AO {
 	clocks = <&xtal>, <&clk81>, <&clk81>;
 	clock-names = "xtal", "pclk", "baud";

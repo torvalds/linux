@@ -339,7 +339,9 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 		}
 	}
 
-	/* Insert new lock */
+	/*
+	 * Insert new lock.
+	 */
 	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
@@ -568,12 +570,11 @@ static void scrub_put_ctx(struct scrub_ctx *sctx)
 		scrub_free_ctx(sctx);
 }
 
-static noinline_for_stack
-struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
+static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
+		struct btrfs_fs_info *fs_info, int is_dev_replace)
 {
 	struct scrub_ctx *sctx;
 	int		i;
-	struct btrfs_fs_info *fs_info = dev->fs_info;
 
 	sctx = kzalloc(sizeof(*sctx), GFP_KERNEL);
 	if (!sctx)
@@ -582,7 +583,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	sctx->is_dev_replace = is_dev_replace;
 	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx->curr = -1;
-	sctx->fs_info = dev->fs_info;
+	sctx->fs_info = fs_info;
 	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
 		struct scrub_bio *sbio;
 
@@ -832,6 +833,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	int page_num;
 	int success;
 	bool full_stripe_locked;
+	unsigned int nofs_flag;
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
@@ -857,6 +859,16 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	dev = sblock_to_check->pagev[0]->dev;
 
 	/*
+	 * We must use GFP_NOFS because the scrub task might be waiting for a
+	 * worker task executing this function and in turn a transaction commit
+	 * might be waiting the scrub task to pause (which needs to wait for all
+	 * the worker tasks to complete before pausing).
+	 * We do allocations in the workers through insert_full_stripe_lock()
+	 * and scrub_add_page_to_wr_bio(), which happens down the call chain of
+	 * this function.
+	 */
+	nofs_flag = memalloc_nofs_save();
+	/*
 	 * For RAID5/6, race can happen for a different device scrub thread.
 	 * For data corruption, Parity and Data threads will both try
 	 * to recovery the data.
@@ -865,6 +877,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 */
 	ret = lock_full_stripe(fs_info, logical, &full_stripe_locked);
 	if (ret < 0) {
+		memalloc_nofs_restore(nofs_flag);
 		spin_lock(&sctx->stat_lock);
 		if (ret == -ENOMEM)
 			sctx->stat.malloc_errors++;
@@ -904,7 +917,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 */
 
 	sblocks_for_recheck = kcalloc(BTRFS_MAX_MIRRORS,
-				      sizeof(*sblocks_for_recheck), GFP_NOFS);
+				      sizeof(*sblocks_for_recheck), GFP_KERNEL);
 	if (!sblocks_for_recheck) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -1202,6 +1215,7 @@ out:
 	}
 
 	ret = unlock_full_stripe(fs_info, logical, full_stripe_locked);
+	memalloc_nofs_restore(nofs_flag);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -3540,7 +3554,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (!ret && sctx->is_dev_replace) {
 			/*
 			 * If we are doing a device replace wait for any tasks
-			 * that started dellaloc right before we set the block
+			 * that started delalloc right before we set the block
 			 * group to RO mode, as they might have just allocated
 			 * an extent from it or decided they could do a nocow
 			 * write. And if any such tasks did that, wait for their
@@ -3596,11 +3610,12 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			break;
 		}
 
-		btrfs_dev_replace_write_lock(&fs_info->dev_replace);
+		down_write(&fs_info->dev_replace.rwsem);
 		dev_replace->cursor_right = found_key.offset + length;
 		dev_replace->cursor_left = found_key.offset;
 		dev_replace->item_needs_writeback = 1;
-		btrfs_dev_replace_write_unlock(&fs_info->dev_replace);
+		up_write(&dev_replace->rwsem);
+
 		ret = scrub_chunk(sctx, scrub_dev, chunk_offset, length,
 				  found_key.offset, cache);
 
@@ -3636,10 +3651,10 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		scrub_pause_off(fs_info);
 
-		btrfs_dev_replace_write_lock(&fs_info->dev_replace);
+		down_write(&fs_info->dev_replace.rwsem);
 		dev_replace->cursor_left = dev_replace->cursor_right;
 		dev_replace->item_needs_writeback = 1;
-		btrfs_dev_replace_write_unlock(&fs_info->dev_replace);
+		up_write(&fs_info->dev_replace.rwsem);
 
 		if (ro_set)
 			btrfs_dec_block_group_ro(cache);
@@ -3772,6 +3787,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	struct scrub_ctx *sctx;
 	int ret;
 	struct btrfs_device *dev;
+	unsigned int nofs_flag;
 
 	if (btrfs_fs_closing(fs_info))
 		return -EINVAL;
@@ -3813,13 +3829,18 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return -EINVAL;
 	}
 
+	/* Allocate outside of device_list_mutex */
+	sctx = scrub_setup_ctx(fs_info, is_dev_replace);
+	if (IS_ERR(sctx))
+		return PTR_ERR(sctx);
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
 	if (!dev || (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state) &&
 		     !is_dev_replace)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_free_ctx;
 	}
 
 	if (!is_dev_replace && !readonly &&
@@ -3827,7 +3848,8 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		btrfs_err_in_rcu(fs_info, "scrub: device %s is not writable",
 				rcu_str_deref(dev->name));
-		return -EROFS;
+		ret = -EROFS;
+		goto out_free_ctx;
 	}
 
 	mutex_lock(&fs_info->scrub_lock);
@@ -3835,34 +3857,29 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	    test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &dev->dev_state)) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return -EIO;
+		ret = -EIO;
+		goto out_free_ctx;
 	}
 
-	btrfs_dev_replace_read_lock(&fs_info->dev_replace);
+	down_read(&fs_info->dev_replace.rwsem);
 	if (dev->scrub_ctx ||
 	    (!is_dev_replace &&
 	     btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))) {
-		btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
+		up_read(&fs_info->dev_replace.rwsem);
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return -EINPROGRESS;
+		ret = -EINPROGRESS;
+		goto out_free_ctx;
 	}
-	btrfs_dev_replace_read_unlock(&fs_info->dev_replace);
+	up_read(&fs_info->dev_replace.rwsem);
 
 	ret = scrub_workers_get(fs_info, is_dev_replace);
 	if (ret) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return ret;
+		goto out_free_ctx;
 	}
 
-	sctx = scrub_setup_ctx(dev, is_dev_replace);
-	if (IS_ERR(sctx)) {
-		mutex_unlock(&fs_info->scrub_lock);
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		scrub_workers_put(fs_info);
-		return PTR_ERR(sctx);
-	}
 	sctx->readonly = readonly;
 	dev->scrub_ctx = sctx;
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
@@ -3875,6 +3892,16 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	atomic_inc(&fs_info->scrubs_running);
 	mutex_unlock(&fs_info->scrub_lock);
 
+	/*
+	 * In order to avoid deadlock with reclaim when there is a transaction
+	 * trying to pause scrub, make sure we use GFP_NOFS for all the
+	 * allocations done at btrfs_scrub_pages() and scrub_pages_for_parity()
+	 * invoked by our callees. The pausing request is done when the
+	 * transaction commit starts, and it blocks the transaction until scrub
+	 * is paused (done at specific points at scrub_stripe() or right above
+	 * before incrementing fs_info->scrubs_running).
+	 */
+	nofs_flag = memalloc_nofs_save();
 	if (!is_dev_replace) {
 		/*
 		 * by holding device list mutex, we can
@@ -3887,6 +3914,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	if (!ret)
 		ret = scrub_enumerate_chunks(sctx, dev, start, end);
+	memalloc_nofs_restore(nofs_flag);
 
 	wait_event(sctx->list_wait, atomic_read(&sctx->bios_in_flight) == 0);
 	atomic_dec(&fs_info->scrubs_running);
@@ -3903,6 +3931,11 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	mutex_unlock(&fs_info->scrub_lock);
 
 	scrub_put_ctx(sctx);
+
+	return ret;
+
+out_free_ctx:
+	scrub_free_ctx(sctx);
 
 	return ret;
 }

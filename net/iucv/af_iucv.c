@@ -1873,30 +1873,26 @@ static void iucv_callback_txdone(struct iucv_path *path,
 	struct sock *sk = path->private;
 	struct sk_buff *this = NULL;
 	struct sk_buff_head *list = &iucv_sk(sk)->send_skb_q;
-	struct sk_buff *list_skb = list->next;
+	struct sk_buff *list_skb;
 	unsigned long flags;
 
 	bh_lock_sock(sk);
-	if (!skb_queue_empty(list)) {
-		spin_lock_irqsave(&list->lock, flags);
 
-		while (list_skb != (struct sk_buff *)list) {
-			if (msg->tag == IUCV_SKB_CB(list_skb)->tag) {
-				this = list_skb;
-				break;
-			}
-			list_skb = list_skb->next;
+	spin_lock_irqsave(&list->lock, flags);
+	skb_queue_walk(list, list_skb) {
+		if (msg->tag == IUCV_SKB_CB(list_skb)->tag) {
+			this = list_skb;
+			break;
 		}
-		if (this)
-			__skb_unlink(this, list);
+	}
+	if (this)
+		__skb_unlink(this, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 
-		spin_unlock_irqrestore(&list->lock, flags);
-
-		if (this) {
-			kfree_skb(this);
-			/* wake up any process waiting for sending */
-			iucv_sock_wake_msglim(sk);
-		}
+	if (this) {
+		kfree_skb(this);
+		/* wake up any process waiting for sending */
+		iucv_sock_wake_msglim(sk);
 	}
 
 	if (sk->sk_state == IUCV_CLOSING) {
@@ -2284,11 +2280,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 
 	list = &iucv->send_skb_q;
 	spin_lock_irqsave(&list->lock, flags);
-	if (skb_queue_empty(list))
-		goto out_unlock;
-	list_skb = list->next;
-	nskb = list_skb->next;
-	while (list_skb != (struct sk_buff *)list) {
+	skb_queue_walk_safe(list, list_skb, nskb) {
 		if (skb_shinfo(list_skb) == skb_shinfo(skb)) {
 			switch (n) {
 			case TX_NOTIFY_OK:
@@ -2321,10 +2313,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 			}
 			break;
 		}
-		list_skb = nskb;
-		nskb = nskb->next;
 	}
-out_unlock:
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (sk->sk_state == IUCV_CLOSING) {

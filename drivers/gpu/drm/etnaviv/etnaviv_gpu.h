@@ -6,9 +6,6 @@
 #ifndef __ETNAVIV_GPU_H__
 #define __ETNAVIV_GPU_H__
 
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
-
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
 
@@ -88,6 +85,8 @@ struct etnaviv_event {
 
 struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
+struct regulator;
+struct clk;
 
 #define ETNA_NR_EVENTS 30
 
@@ -98,7 +97,6 @@ struct etnaviv_gpu {
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
 	enum etnaviv_sec_mode sec_mode;
-	struct etnaviv_file_private *lastctx;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
 
@@ -121,7 +119,6 @@ struct etnaviv_gpu {
 	struct mutex fence_lock;
 	struct idr fence_idr;
 	u32 next_fence;
-	u32 active_fence;
 	u32 completed_fence;
 	wait_queue_head_t fence_event;
 	u64 fence_context;
@@ -159,11 +156,6 @@ static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
 static inline u32 gpu_read(struct etnaviv_gpu *gpu, u32 reg)
 {
 	return readl(gpu->mmio + reg);
-}
-
-static inline bool fence_completed(struct etnaviv_gpu *gpu, u32 fence)
-{
-	return fence_after_eq(gpu->completed_fence, fence);
 }
 
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value);

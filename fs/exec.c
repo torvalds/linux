@@ -218,55 +218,10 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 	if (ret <= 0)
 		return NULL;
 
-	if (write) {
-		unsigned long size = bprm->vma->vm_end - bprm->vma->vm_start;
-		unsigned long ptr_size, limit;
-
-		/*
-		 * Since the stack will hold pointers to the strings, we
-		 * must account for them as well.
-		 *
-		 * The size calculation is the entire vma while each arg page is
-		 * built, so each time we get here it's calculating how far it
-		 * is currently (rather than each call being just the newly
-		 * added size from the arg page).  As a result, we need to
-		 * always add the entire size of the pointers, so that on the
-		 * last call to get_arg_page() we'll actually have the entire
-		 * correct size.
-		 */
-		ptr_size = (bprm->argc + bprm->envc) * sizeof(void *);
-		if (ptr_size > ULONG_MAX - size)
-			goto fail;
-		size += ptr_size;
-
-		acct_arg_size(bprm, size / PAGE_SIZE);
-
-		/*
-		 * We've historically supported up to 32 pages (ARG_MAX)
-		 * of argument strings even with small stacks
-		 */
-		if (size <= ARG_MAX)
-			return page;
-
-		/*
-		 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
-		 * (whichever is smaller) for the argv+env strings.
-		 * This ensures that:
-		 *  - the remaining binfmt code will not run out of stack space,
-		 *  - the program will have a reasonable amount of stack left
-		 *    to work from.
-		 */
-		limit = _STK_LIM / 4 * 3;
-		limit = min(limit, bprm->rlim_stack.rlim_cur / 4);
-		if (size > limit)
-			goto fail;
-	}
+	if (write)
+		acct_arg_size(bprm, vma_pages(bprm->vma));
 
 	return page;
-
-fail:
-	put_page(page);
-	return NULL;
 }
 
 static void put_arg_page(struct page *page)
@@ -492,6 +447,50 @@ static int count(struct user_arg_ptr argv, int max)
 	return i;
 }
 
+static int prepare_arg_pages(struct linux_binprm *bprm,
+			struct user_arg_ptr argv, struct user_arg_ptr envp)
+{
+	unsigned long limit, ptr_size;
+
+	bprm->argc = count(argv, MAX_ARG_STRINGS);
+	if (bprm->argc < 0)
+		return bprm->argc;
+
+	bprm->envc = count(envp, MAX_ARG_STRINGS);
+	if (bprm->envc < 0)
+		return bprm->envc;
+
+	/*
+	 * Limit to 1/4 of the max stack size or 3/4 of _STK_LIM
+	 * (whichever is smaller) for the argv+env strings.
+	 * This ensures that:
+	 *  - the remaining binfmt code will not run out of stack space,
+	 *  - the program will have a reasonable amount of stack left
+	 *    to work from.
+	 */
+	limit = _STK_LIM / 4 * 3;
+	limit = min(limit, bprm->rlim_stack.rlim_cur / 4);
+	/*
+	 * We've historically supported up to 32 pages (ARG_MAX)
+	 * of argument strings even with small stacks
+	 */
+	limit = max_t(unsigned long, limit, ARG_MAX);
+	/*
+	 * We must account for the size of all the argv and envp pointers to
+	 * the argv and envp strings, since they will also take up space in
+	 * the stack. They aren't stored until much later when we can't
+	 * signal to the parent that the child has run out of stack space.
+	 * Instead, calculate it here so it's possible to fail gracefully.
+	 */
+	ptr_size = (bprm->argc + bprm->envc) * sizeof(void *);
+	if (limit <= ptr_size)
+		return -E2BIG;
+	limit -= ptr_size;
+
+	bprm->argmin = bprm->p - limit;
+	return 0;
+}
+
 /*
  * 'copy_strings()' copies argument/environment strings from the old
  * processes's memory to the new process's stack.  The call to get_user_pages()
@@ -527,6 +526,10 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 		pos = bprm->p;
 		str += len;
 		bprm->p -= len;
+#ifdef CONFIG_MMU
+		if (bprm->p < bprm->argmin)
+			goto out;
+#endif
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
@@ -1084,7 +1087,7 @@ static int de_thread(struct task_struct *tsk)
 		__set_current_state(TASK_KILLABLE);
 		spin_unlock_irq(lock);
 		schedule();
-		if (unlikely(__fatal_signal_pending(tsk)))
+		if (__fatal_signal_pending(tsk))
 			goto killed;
 		spin_lock_irq(lock);
 	}
@@ -1112,7 +1115,7 @@ static int de_thread(struct task_struct *tsk)
 			write_unlock_irq(&tasklist_lock);
 			cgroup_threadgroup_change_end(tsk);
 			schedule();
-			if (unlikely(__fatal_signal_pending(tsk)))
+			if (__fatal_signal_pending(tsk))
 				goto killed;
 		}
 
@@ -1399,7 +1402,7 @@ EXPORT_SYMBOL(finalize_exec);
  * Or, if exec fails before, free_bprm() should release ->cred and
  * and unlock.
  */
-int prepare_bprm_creds(struct linux_binprm *bprm)
+static int prepare_bprm_creds(struct linux_binprm *bprm)
 {
 	if (mutex_lock_interruptible(&current->signal->cred_guard_mutex))
 		return -ERESTARTNOINTR;
@@ -1789,12 +1792,8 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (retval)
 		goto out_unmark;
 
-	bprm->argc = count(argv, MAX_ARG_STRINGS);
-	if ((retval = bprm->argc) < 0)
-		goto out;
-
-	bprm->envc = count(envp, MAX_ARG_STRINGS);
-	if ((retval = bprm->envc) < 0)
+	retval = prepare_arg_pages(bprm, argv, envp);
+	if (retval < 0)
 		goto out;
 
 	retval = prepare_binprm(bprm);

@@ -218,6 +218,11 @@ static void irqsoff_graph_return(struct ftrace_graph_ret *trace)
 	atomic_dec(&data->disabled);
 }
 
+static struct fgraph_ops fgraph_ops = {
+	.entryfunc		= &irqsoff_graph_entry,
+	.retfunc		= &irqsoff_graph_return,
+};
+
 static void irqsoff_trace_open(struct trace_iterator *iter)
 {
 	if (is_graph(iter->tr))
@@ -272,13 +277,6 @@ __trace_function(struct trace_array *tr,
 #else
 #define __trace_function trace_function
 
-#ifdef CONFIG_FUNCTION_TRACER
-static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
-{
-	return -1;
-}
-#endif
-
 static enum print_line_t irqsoff_print_line(struct trace_iterator *iter)
 {
 	return TRACE_TYPE_UNHANDLED;
@@ -288,7 +286,6 @@ static void irqsoff_trace_open(struct trace_iterator *iter) { }
 static void irqsoff_trace_close(struct trace_iterator *iter) { }
 
 #ifdef CONFIG_FUNCTION_TRACER
-static void irqsoff_graph_return(struct ftrace_graph_ret *trace) { }
 static void irqsoff_print_header(struct seq_file *s)
 {
 	trace_default_header(s);
@@ -468,8 +465,7 @@ static int register_irqsoff_function(struct trace_array *tr, int graph, int set)
 		return 0;
 
 	if (graph)
-		ret = register_ftrace_graph(&irqsoff_graph_return,
-					    &irqsoff_graph_entry);
+		ret = register_ftrace_graph(&fgraph_ops);
 	else
 		ret = register_ftrace_function(tr->ops);
 
@@ -485,7 +481,7 @@ static void unregister_irqsoff_function(struct trace_array *tr, int graph)
 		return;
 
 	if (graph)
-		unregister_ftrace_graph();
+		unregister_ftrace_graph(&fgraph_ops);
 	else
 		unregister_ftrace_function(tr->ops);
 

@@ -62,7 +62,8 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 	if (ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) ||
 	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_PSDT) ||
 	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT) ||
-	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT)) {
+	    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_OSDT) ||
+	    ACPI_IS_OEM_SIG(table->signature)) {
 		return (TRUE);
 	}
 

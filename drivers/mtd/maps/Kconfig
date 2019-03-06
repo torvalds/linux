@@ -66,15 +66,15 @@ config MTD_PHYSMAP_BANKWIDTH
 	  used internally by the CFI drivers.
 
 config MTD_PHYSMAP_OF
-	tristate "Memory device in physical memory map based on OF description"
-	depends on OF && (MTD_CFI || MTD_JEDECPROBE || MTD_ROM || MTD_RAM)
+	bool "Memory device in physical memory map based on OF description"
+	depends on OF && MTD_PHYSMAP
 	help
 	  This provides a 'mapping' driver which allows the NOR Flash, ROM
 	  and RAM driver code to communicate with chips which are mapped
 	  physically into the CPU's memory. The mapping description here is
 	  taken from OF device tree.
 
-config MTD_PHYSMAP_OF_VERSATILE
+config MTD_PHYSMAP_VERSATILE
 	bool "ARM Versatile OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
 	depends on MFD_SYSCON
@@ -84,15 +84,25 @@ config MTD_PHYSMAP_OF_VERSATILE
 	  platforms, basically to add a VPP (write protection) callback so
 	  the flash can be taken out of write protection.
 
-config MTD_PHYSMAP_OF_GEMINI
+config MTD_PHYSMAP_GEMINI
 	bool "Cortina Gemini OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
 	depends on MFD_SYSCON
+	select MTD_COMPLEX_MAPPINGS
 	default ARCH_GEMINI
 	help
 	  This provides some extra DT physmap parsing for the Gemini
 	  platforms, some detection and setting up parallel mode on the
 	  external interface.
+
+config MTD_PHYSMAP_GPIO_ADDR
+	bool "GPIO-assisted Flash Chip Support"
+	depends on MTD_PHYSMAP
+	depends on GPIOLIB || COMPILE_TEST
+	depends on MTD_COMPLEX_MAPPINGS
+	help
+	  Extend the physmap driver to allow flashes to be partially
+	  physically addressed and assisted by GPIOs.
 
 config MTD_PMC_MSP_EVM
 	tristate "CFI Flash device mapped on PMC-Sierra MSP"
@@ -334,16 +344,6 @@ config MTD_PCMCIA_ANONYMOUS
 
 	  If unsure, say N.
 
-config MTD_GPIO_ADDR
-	tristate "GPIO-assisted Flash Chip Support"
-	depends on GPIOLIB || COMPILE_TEST
-	depends on MTD_COMPLEX_MAPPINGS
-	help
-	  Map driver which allows flashes to be partially physically addressed
-	  and assisted by GPIOs.
-
-	  If compiled as a module, it will be called gpio-addr-flash.
-
 config MTD_UCLINUX
 	bool "Generic uClinux RAM/ROM filesystem support"
 	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
@@ -399,14 +399,5 @@ config MTD_PISMO
 	  and/or MTD_PLATRAM according to the devices on your module.
 
 	  When built as a module, it will be called pismo.ko
-
-config MTD_LATCH_ADDR
-	tristate "Latch-assisted Flash Chip Support"
-	depends on MTD_COMPLEX_MAPPINGS
-	help
-	  Map driver which allows flashes to be partially physically addressed
-	  and have the upper address lines set by a board specific code.
-
-	  If compiled as a module, it will be called latch-addr-flash.
 
 endmenu

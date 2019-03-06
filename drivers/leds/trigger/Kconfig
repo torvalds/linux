@@ -136,4 +136,11 @@ config LEDS_TRIGGER_PATTERN
 	  which is a series of tuples, of brightness and duration (ms).
 	  If unsure, say N
 
+config LEDS_TRIGGER_AUDIO
+	tristate "Audio Mute LED Trigger"
+	help
+	  This allows LEDs to be controlled by audio drivers for following
+	  the audio mute and mic-mute changes.
+	  If unsure, say N
+
 endif # LEDS_TRIGGERS

@@ -75,7 +75,6 @@ sound {
 	simple-audio-card,bitclock-master = <&dpcmcpu>;
 	simple-audio-card,frame-master = <&dpcmcpu>;
 
-	simple-audio-card,prefix = "ak4642";
 	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
 			"ak4642 Playback", "DAI1 Playback";
 
@@ -88,6 +87,7 @@ sound {
 	};
 
 	codec {
+		prefix = "ak4642";
 		sound-dai = <&ak4643>;
 		clocks = <&audio_clock>;
 	};

@@ -641,6 +641,10 @@ enum mlxsw_reg_sfn_rec_type {
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC = 0x7,
 	/* Aged-out MAC address on a LAG port. */
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG = 0x8,
+	/* Learned unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_LEARNED_UNICAST_TUNNEL = 0xD,
+	/* Aged-out unicast tunnel record. */
+	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_UNICAST_TUNNEL = 0xE,
 };
 
 /* reg_sfn_rec_type
@@ -702,6 +706,66 @@ static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
 	*p_lag_id = mlxsw_reg_sfn_mac_lag_lag_id_get(payload, rec_index);
+}
+
+/* reg_sfn_uc_tunnel_uip_msb
+ * When protocol is IPv4, the most significant byte of the underlay IPv4
+ * address of the remote VTEP.
+ * When protocol is IPv6, reserved.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_msb, MLXSW_REG_SFN_BASE_LEN, 24,
+		     8, MLXSW_REG_SFN_REC_LEN, 0x08, false);
+
+enum mlxsw_reg_sfn_uc_tunnel_protocol {
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV4,
+	MLXSW_REG_SFN_UC_TUNNEL_PROTOCOL_IPV6,
+};
+
+/* reg_sfn_uc_tunnel_protocol
+ * IP protocol.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_protocol, MLXSW_REG_SFN_BASE_LEN, 27,
+		     1, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+/* reg_sfn_uc_tunnel_uip_lsb
+ * When protocol is IPv4, the least significant bytes of the underlay
+ * IPv4 address of the remote VTEP.
+ * When protocol is IPv6, ipv6_id to be queried from TNIPSD.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, uc_tunnel_uip_lsb, MLXSW_REG_SFN_BASE_LEN, 0,
+		     24, MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+enum mlxsw_reg_sfn_tunnel_port {
+	MLXSW_REG_SFN_TUNNEL_PORT_NVE,
+	MLXSW_REG_SFN_TUNNEL_PORT_VPLS,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL0,
+	MLXSW_REG_SFN_TUNNEL_FLEX_TUNNEL1,
+};
+
+/* reg_sfn_uc_tunnel_port
+ * Tunnel port.
+ * Reserved on Spectrum.
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, tunnel_port, MLXSW_REG_SFN_BASE_LEN, 0, 4,
+		     MLXSW_REG_SFN_REC_LEN, 0x10, false);
+
+static inline void
+mlxsw_reg_sfn_uc_tunnel_unpack(char *payload, int rec_index, char *mac,
+			       u16 *p_fid, u32 *p_uip,
+			       enum mlxsw_reg_sfn_uc_tunnel_protocol *p_proto)
+{
+	u32 uip_msb, uip_lsb;
+
+	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_fid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
+	uip_msb = mlxsw_reg_sfn_uc_tunnel_uip_msb_get(payload, rec_index);
+	uip_lsb = mlxsw_reg_sfn_uc_tunnel_uip_lsb_get(payload, rec_index);
+	*p_uip = uip_msb << 24 | uip_lsb;
+	*p_proto = mlxsw_reg_sfn_uc_tunnel_protocol_get(payload, rec_index);
 }
 
 /* SPMS - Switch Port MSTP/RSTP State Register
@@ -2431,6 +2495,43 @@ static inline void mlxsw_reg_pefa_unpack(char *payload, bool *p_a)
 	*p_a = mlxsw_reg_pefa_a_get(payload);
 }
 
+/* PEMRBT - Policy-Engine Multicast Router Binding Table Register
+ * --------------------------------------------------------------
+ * This register is used for binding Multicast router to an ACL group
+ * that serves the MC router.
+ * This register is not supported by SwitchX/-2 and Spectrum.
+ */
+#define MLXSW_REG_PEMRBT_ID 0x3014
+#define MLXSW_REG_PEMRBT_LEN 0x14
+
+MLXSW_REG_DEFINE(pemrbt, MLXSW_REG_PEMRBT_ID, MLXSW_REG_PEMRBT_LEN);
+
+enum mlxsw_reg_pemrbt_protocol {
+	MLXSW_REG_PEMRBT_PROTO_IPV4,
+	MLXSW_REG_PEMRBT_PROTO_IPV6,
+};
+
+/* reg_pemrbt_protocol
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pemrbt, protocol, 0x00, 0, 1);
+
+/* reg_pemrbt_group_id
+ * ACL group identifier.
+ * Range 0..cap_max_acl_groups-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pemrbt, group_id, 0x10, 0, 16);
+
+static inline void
+mlxsw_reg_pemrbt_pack(char *payload, enum mlxsw_reg_pemrbt_protocol protocol,
+		      u16 group_id)
+{
+	MLXSW_REG_ZERO(pemrbt, payload);
+	mlxsw_reg_pemrbt_protocol_set(payload, protocol);
+	mlxsw_reg_pemrbt_group_id_set(payload, group_id);
+}
+
 /* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
  * -----------------------------------------------------
  * This register is used for accessing rules within a TCAM region.
@@ -2642,7 +2743,7 @@ mlxsw_reg_perpt_pack(char *payload, u8 erpt_bank, u8 erpt_index,
 	mlxsw_reg_perpt_erpt_bank_set(payload, erpt_bank);
 	mlxsw_reg_perpt_erpt_index_set(payload, erpt_index);
 	mlxsw_reg_perpt_key_size_set(payload, key_size);
-	mlxsw_reg_perpt_bf_bypass_set(payload, true);
+	mlxsw_reg_perpt_bf_bypass_set(payload, false);
 	mlxsw_reg_perpt_erp_id_set(payload, erp_id);
 	mlxsw_reg_perpt_erpt_base_bank_set(payload, erpt_base_bank);
 	mlxsw_reg_perpt_erpt_base_index_set(payload, erpt_base_index);
@@ -2834,8 +2935,9 @@ static inline void mlxsw_reg_ptce3_pack(char *payload, bool valid,
 					u32 priority,
 					const char *tcam_region_info,
 					const char *key, u8 erp_id,
-					bool large_exists, u32 lkey_id,
-					u32 action_pointer)
+					u16 delta_start, u8 delta_mask,
+					u8 delta_value, bool large_exists,
+					u32 lkey_id, u32 action_pointer)
 {
 	MLXSW_REG_ZERO(ptce3, payload);
 	mlxsw_reg_ptce3_v_set(payload, valid);
@@ -2844,6 +2946,9 @@ static inline void mlxsw_reg_ptce3_pack(char *payload, bool valid,
 	mlxsw_reg_ptce3_tcam_region_info_memcpy_to(payload, tcam_region_info);
 	mlxsw_reg_ptce3_flex2_key_blocks_memcpy_to(payload, key);
 	mlxsw_reg_ptce3_erp_id_set(payload, erp_id);
+	mlxsw_reg_ptce3_delta_start_set(payload, delta_start);
+	mlxsw_reg_ptce3_delta_mask_set(payload, delta_mask);
+	mlxsw_reg_ptce3_delta_value_set(payload, delta_value);
 	mlxsw_reg_ptce3_large_exists_set(payload, large_exists);
 	mlxsw_reg_ptce3_large_entry_key_id_set(payload, lkey_id);
 	mlxsw_reg_ptce3_action_pointer_set(payload, action_pointer);
@@ -2901,7 +3006,7 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	mlxsw_reg_percr_region_id_set(payload, region_id);
 	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
-	mlxsw_reg_percr_bf_bypass_set(payload, true);
+	mlxsw_reg_percr_bf_bypass_set(payload, false);
 }
 
 /* PERERP - Policy-Engine Region eRP Register
@@ -2988,6 +3093,72 @@ static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id,
 	mlxsw_reg_pererp_erpt_bank_pointer_set(payload, erpt_bank_pointer);
 	mlxsw_reg_pererp_erpt_pointer_set(payload, erpt_pointer);
 	mlxsw_reg_pererp_master_rp_id_set(payload, master_rp_id);
+}
+
+/* PEABFE - Policy-Engine Algorithmic Bloom Filter Entries Register
+ * ----------------------------------------------------------------
+ * This register configures the Bloom filter entries.
+ */
+#define MLXSW_REG_PEABFE_ID 0x3022
+#define MLXSW_REG_PEABFE_BASE_LEN 0x10
+#define MLXSW_REG_PEABFE_BF_REC_LEN 0x4
+#define MLXSW_REG_PEABFE_BF_REC_MAX_COUNT 256
+#define MLXSW_REG_PEABFE_LEN (MLXSW_REG_PEABFE_BASE_LEN + \
+			      MLXSW_REG_PEABFE_BF_REC_LEN * \
+			      MLXSW_REG_PEABFE_BF_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(peabfe, MLXSW_REG_PEABFE_ID, MLXSW_REG_PEABFE_LEN);
+
+/* reg_peabfe_size
+ * Number of BF entries to be updated.
+ * Range 1..256
+ * Access: Op
+ */
+MLXSW_ITEM32(reg, peabfe, size, 0x00, 0, 9);
+
+/* reg_peabfe_bf_entry_state
+ * Bloom filter state
+ * 0 - Clear
+ * 1 - Set
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_state,
+		     MLXSW_REG_PEABFE_BASE_LEN,	31, 1,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_bank
+ * Bloom filter bank ID
+ * Range 0..cap_max_erp_table_banks-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_bank,
+		     MLXSW_REG_PEABFE_BASE_LEN,	24, 4,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_index
+ * Bloom filter entry index
+ * Range 0..2^cap_max_bf_log-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_index,
+		     MLXSW_REG_PEABFE_BASE_LEN,	0, 24,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_peabfe_pack(char *payload)
+{
+	MLXSW_REG_ZERO(peabfe, payload);
+}
+
+static inline void mlxsw_reg_peabfe_rec_pack(char *payload, int rec_index,
+					     u8 state, u8 bank, u32 bf_index)
+{
+	u8 num_rec = mlxsw_reg_peabfe_size_get(payload);
+
+	if (rec_index >= num_rec)
+		mlxsw_reg_peabfe_size_set(payload, rec_index + 1);
+	mlxsw_reg_peabfe_bf_entry_state_set(payload, rec_index, state);
+	mlxsw_reg_peabfe_bf_entry_bank_set(payload, rec_index, bank);
+	mlxsw_reg_peabfe_bf_entry_index_set(payload, rec_index, bf_index);
 }
 
 /* IEDR - Infrastructure Entry Delete Register
@@ -4231,8 +4402,11 @@ MLXSW_ITEM32(reg, ppcnt, pnat, 0x00, 14, 2);
 
 enum mlxsw_reg_ppcnt_grp {
 	MLXSW_REG_PPCNT_IEEE_8023_CNT = 0x0,
+	MLXSW_REG_PPCNT_RFC_2863_CNT = 0x1,
 	MLXSW_REG_PPCNT_RFC_2819_CNT = 0x2,
+	MLXSW_REG_PPCNT_RFC_3635_CNT = 0x3,
 	MLXSW_REG_PPCNT_EXT_CNT = 0x5,
+	MLXSW_REG_PPCNT_DISCARD_CNT = 0x6,
 	MLXSW_REG_PPCNT_PRIO_CNT = 0x10,
 	MLXSW_REG_PPCNT_TC_CNT = 0x11,
 	MLXSW_REG_PPCNT_TC_CONG_TC = 0x13,
@@ -4247,6 +4421,7 @@ enum mlxsw_reg_ppcnt_grp {
  * 0x2: RFC 2819 Counters
  * 0x3: RFC 3635 Counters
  * 0x5: Ethernet Extended Counters
+ * 0x6: Ethernet Discard Counters
  * 0x8: Link Level Retransmission Counters
  * 0x10: Per Priority Counters
  * 0x11: Per Traffic Class Counters
@@ -4390,7 +4565,45 @@ MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_received,
 MLXSW_ITEM64(reg, ppcnt, a_pause_mac_ctrl_frames_transmitted,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x90, 0, 64);
 
+/* Ethernet RFC 2863 Counter Group */
+
+/* reg_ppcnt_if_in_discards
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_in_discards,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x10, 0, 64);
+
+/* reg_ppcnt_if_out_discards
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_out_discards,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x38, 0, 64);
+
+/* reg_ppcnt_if_out_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, if_out_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
+
 /* Ethernet RFC 2819 Counter Group */
+
+/* reg_ppcnt_ether_stats_undersize_pkts
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_undersize_pkts,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x30, 0, 64);
+
+/* reg_ppcnt_ether_stats_oversize_pkts
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_oversize_pkts,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x38, 0, 64);
+
+/* reg_ppcnt_ether_stats_fragments
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ether_stats_fragments,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
 
 /* reg_ppcnt_ether_stats_pkts64octets
  * Access: RO
@@ -4452,6 +4665,32 @@ MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts4096to8191octets,
 MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts8192to10239octets,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0xA0, 0, 64);
 
+/* Ethernet RFC 3635 Counter Group */
+
+/* reg_ppcnt_dot3stats_fcs_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3stats_fcs_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* reg_ppcnt_dot3stats_symbol_errors
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3stats_symbol_errors,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
+
+/* reg_ppcnt_dot3control_in_unknown_opcodes
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3control_in_unknown_opcodes,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
+
+/* reg_ppcnt_dot3in_pause_frames
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, dot3in_pause_frames,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
+
 /* Ethernet Extended Counter Group Counters */
 
 /* reg_ppcnt_ecn_marked
@@ -4459,6 +4698,80 @@ MLXSW_ITEM64(reg, ppcnt, ether_stats_pkts8192to10239octets,
  */
 MLXSW_ITEM64(reg, ppcnt, ecn_marked,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* Ethernet Discard Counter Group Counters */
+
+/* reg_ppcnt_ingress_general
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_general,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
+
+/* reg_ppcnt_ingress_policy_engine
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_policy_engine,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
+
+/* reg_ppcnt_ingress_vlan_membership
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_vlan_membership,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x10, 0, 64);
+
+/* reg_ppcnt_ingress_tag_frame_type
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_tag_frame_type,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x18, 0, 64);
+
+/* reg_ppcnt_egress_vlan_membership
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_vlan_membership,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x20, 0, 64);
+
+/* reg_ppcnt_loopback_filter
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, loopback_filter,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x28, 0, 64);
+
+/* reg_ppcnt_egress_general
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_general,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x30, 0, 64);
+
+/* reg_ppcnt_egress_hoq
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_hoq,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x40, 0, 64);
+
+/* reg_ppcnt_egress_policy_engine
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_policy_engine,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x50, 0, 64);
+
+/* reg_ppcnt_ingress_tx_link_down
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, ingress_tx_link_down,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x58, 0, 64);
+
+/* reg_ppcnt_egress_stp_filter
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_stp_filter,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
+
+/* reg_ppcnt_egress_sll
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, egress_sll,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
 /* Ethernet Per Priority Group Counters */
 
@@ -4862,6 +5175,7 @@ enum mlxsw_reg_htgt_trap_group {
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_MLD,
 	MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_ND,
+	MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
 };
 
 /* reg_htgt_trap_group
@@ -9357,8 +9671,10 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
+	MLXSW_REG(pemrbt),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perpt),
+	MLXSW_REG(peabfe),
 	MLXSW_REG(perar),
 	MLXSW_REG(ptce3),
 	MLXSW_REG(percr),

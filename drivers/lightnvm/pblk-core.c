@@ -250,8 +250,8 @@ int pblk_alloc_rqd_meta(struct pblk *pblk, struct nvm_rq *rqd)
 	if (rqd->nr_ppas == 1)
 		return 0;
 
-	rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size;
-	rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size;
+	rqd->ppa_list = rqd->meta_list + pblk_dma_meta_size(pblk);
+	rqd->dma_ppa_list = rqd->dma_meta_list + pblk_dma_meta_size(pblk);
 
 	return 0;
 }
@@ -376,7 +376,7 @@ void pblk_write_should_kick(struct pblk *pblk)
 {
 	unsigned int secs_avail = pblk_rb_read_count(&pblk->rwb);
 
-	if (secs_avail >= pblk->min_write_pgs)
+	if (secs_avail >= pblk->min_write_pgs_data)
 		pblk_write_kick(pblk);
 }
 
@@ -407,7 +407,9 @@ struct list_head *pblk_line_gc_list(struct pblk *pblk, struct pblk_line *line)
 	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	struct list_head *move_list = NULL;
-	int vsc = le32_to_cpu(*line->vsc);
+	int packed_meta = (le32_to_cpu(*line->vsc) / pblk->min_write_pgs_data)
+			* (pblk->min_write_pgs - pblk->min_write_pgs_data);
+	int vsc = le32_to_cpu(*line->vsc) + packed_meta;
 
 	lockdep_assert_held(&line->lock);
 
@@ -531,7 +533,7 @@ void pblk_check_chunk_state_update(struct pblk *pblk, struct nvm_rq *rqd)
 		if (caddr == 0)
 			trace_pblk_chunk_state(pblk_disk_name(pblk),
 							ppa, NVM_CHK_ST_OPEN);
-		else if (caddr == chunk->cnlb)
+		else if (caddr == (chunk->cnlb - 1))
 			trace_pblk_chunk_state(pblk_disk_name(pblk),
 							ppa, NVM_CHK_ST_CLOSED);
 	}
@@ -620,11 +622,14 @@ out:
 }
 
 int pblk_calc_secs(struct pblk *pblk, unsigned long secs_avail,
-		   unsigned long secs_to_flush)
+		   unsigned long secs_to_flush, bool skip_meta)
 {
 	int max = pblk->sec_per_write;
 	int min = pblk->min_write_pgs;
 	int secs_to_sync = 0;
+
+	if (skip_meta && pblk->min_write_pgs_data != pblk->min_write_pgs)
+		min = max = pblk->min_write_pgs_data;
 
 	if (secs_avail >= max)
 		secs_to_sync = max;
@@ -796,10 +801,11 @@ static int pblk_line_smeta_write(struct pblk *pblk, struct pblk_line *line,
 	rqd.is_seq = 1;
 
 	for (i = 0; i < lm->smeta_sec; i++, paddr++) {
-		struct pblk_sec_meta *meta_list = rqd.meta_list;
+		struct pblk_sec_meta *meta = pblk_get_meta(pblk,
+							   rqd.meta_list, i);
 
 		rqd.ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
-		meta_list[i].lba = lba_list[paddr] = addr_empty;
+		meta->lba = lba_list[paddr] = addr_empty;
 	}
 
 	ret = pblk_submit_io_sync_sem(pblk, &rqd);
@@ -845,13 +851,13 @@ int pblk_line_emeta_read(struct pblk *pblk, struct pblk_line *line,
 	if (!meta_list)
 		return -ENOMEM;
 
-	ppa_list = meta_list + pblk_dma_meta_size;
-	dma_ppa_list = dma_meta_list + pblk_dma_meta_size;
+	ppa_list = meta_list + pblk_dma_meta_size(pblk);
+	dma_ppa_list = dma_meta_list + pblk_dma_meta_size(pblk);
 
 next_rq:
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
+	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	rq_len = rq_ppas * geo->csecs;
 
 	bio = pblk_bio_map_addr(pblk, emeta_buf, rq_ppas, rq_len,
@@ -1276,6 +1282,7 @@ static int pblk_line_prepare(struct pblk *pblk, struct pblk_line *line)
 	return 0;
 }
 
+/* Line allocations in the recovery path are always single threaded */
 int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 {
 	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
@@ -1295,15 +1302,22 @@ int pblk_line_recov_alloc(struct pblk *pblk, struct pblk_line *line)
 
 	ret = pblk_line_alloc_bitmaps(pblk, line);
 	if (ret)
-		return ret;
+		goto fail;
 
 	if (!pblk_line_init_bb(pblk, line, 0)) {
-		list_add(&line->list, &l_mg->free_list);
-		return -EINTR;
+		ret = -EINTR;
+		goto fail;
 	}
 
 	pblk_rl_free_lines_dec(&pblk->rl, line, true);
 	return 0;
+
+fail:
+	spin_lock(&l_mg->free_lock);
+	list_add(&line->list, &l_mg->free_list);
+	spin_unlock(&l_mg->free_lock);
+
+	return ret;
 }
 
 void pblk_line_recov_close(struct pblk *pblk, struct pblk_line *line)
@@ -2159,4 +2173,39 @@ void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 		}
 	}
 	spin_unlock(&pblk->trans_lock);
+}
+
+void *pblk_get_meta_for_writes(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	void *buffer;
+
+	if (pblk_is_oob_meta_supported(pblk)) {
+		/* Just use OOB metadata buffer as always */
+		buffer = rqd->meta_list;
+	} else {
+		/* We need to reuse last page of request (packed metadata)
+		 * in similar way as traditional oob metadata
+		 */
+		buffer = page_to_virt(
+			rqd->bio->bi_io_vec[rqd->bio->bi_vcnt - 1].bv_page);
+	}
+
+	return buffer;
+}
+
+void pblk_get_packed_meta(struct pblk *pblk, struct nvm_rq *rqd)
+{
+	void *meta_list = rqd->meta_list;
+	void *page;
+	int i = 0;
+
+	if (pblk_is_oob_meta_supported(pblk))
+		return;
+
+	page = page_to_virt(rqd->bio->bi_io_vec[rqd->bio->bi_vcnt - 1].bv_page);
+	/* We need to fill oob meta buffer with data from packed metadata */
+	for (; i < rqd->nr_ppas; i++)
+		memcpy(pblk_get_meta(pblk, meta_list, i),
+			page + (i * sizeof(struct pblk_sec_meta)),
+			sizeof(struct pblk_sec_meta));
 }

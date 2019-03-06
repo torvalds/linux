@@ -120,6 +120,8 @@ struct tls_rec {
 	struct scatterlist sg_aead_out[2];
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
+	u8 iv_data[TLS_CIPHER_AES_GCM_128_IV_SIZE +
+		   TLS_CIPHER_AES_GCM_128_SALT_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };
@@ -458,6 +460,15 @@ static inline struct tls_offload_context_tx *
 tls_offload_ctx_tx(const struct tls_context *tls_ctx)
 {
 	return (struct tls_offload_context_tx *)tls_ctx->priv_ctx_tx;
+}
+
+static inline bool tls_sw_has_ctx_tx(const struct sock *sk)
+{
+	struct tls_context *ctx = tls_get_ctx(sk);
+
+	if (!ctx)
+		return false;
+	return !!tls_sw_ctx_tx(ctx);
 }
 
 static inline struct tls_offload_context_rx *

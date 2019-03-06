@@ -214,6 +214,17 @@ static inline struct device *to_dma_dev(struct drm_device *dev)
 	return priv->dma_dev;
 }
 
+static inline bool is_drm_iommu_supported(struct drm_device *drm_dev)
+{
+	struct exynos_drm_private *priv = drm_dev->dev_private;
+
+	return priv->mapping ? true : false;
+}
+
+int exynos_drm_register_dma(struct drm_device *drm, struct device *dev);
+void exynos_drm_unregister_dma(struct drm_device *drm, struct device *dev);
+void exynos_drm_cleanup_dma(struct drm_device *drm);
+
 #ifdef CONFIG_DRM_EXYNOS_DPI
 struct drm_encoder *exynos_dpi_probe(struct device *dev);
 int exynos_dpi_remove(struct drm_encoder *encoder);

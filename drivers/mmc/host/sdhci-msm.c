@@ -232,6 +232,7 @@ struct sdhci_msm_variant_ops {
  */
 struct sdhci_msm_variant_info {
 	bool mci_removed;
+	bool restore_dll_config;
 	const struct sdhci_msm_variant_ops *var_ops;
 	const struct sdhci_msm_offset *offset;
 };
@@ -256,8 +257,11 @@ struct sdhci_msm_host {
 	bool pwr_irq_flag;
 	u32 caps_0;
 	bool mci_removed;
+	bool restore_dll_config;
 	const struct sdhci_msm_variant_ops *var_ops;
 	const struct sdhci_msm_offset *offset;
+	bool use_cdr;
+	u32 transfer_mode;
 };
 
 static const struct sdhci_msm_offset *sdhci_priv_msm_offset(struct sdhci_host *host)
@@ -1025,6 +1029,69 @@ out:
 	return ret;
 }
 
+static bool sdhci_msm_is_tuning_needed(struct sdhci_host *host)
+{
+	struct mmc_ios *ios = &host->mmc->ios;
+
+	/*
+	 * Tuning is required for SDR104, HS200 and HS400 cards and
+	 * if clock frequency is greater than 100MHz in these modes.
+	 */
+	if (host->clock <= CORE_FREQ_100MHZ ||
+	    !(ios->timing == MMC_TIMING_MMC_HS400 ||
+	    ios->timing == MMC_TIMING_MMC_HS200 ||
+	    ios->timing == MMC_TIMING_UHS_SDR104) ||
+	    ios->enhanced_strobe)
+		return false;
+
+	return true;
+}
+
+static int sdhci_msm_restore_sdr_dll_config(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	/*
+	 * SDR DLL comes into picture only for timing modes which needs
+	 * tuning.
+	 */
+	if (!sdhci_msm_is_tuning_needed(host))
+		return 0;
+
+	/* Reset the tuning block */
+	ret = msm_init_cm_dll(host);
+	if (ret)
+		return ret;
+
+	/* Restore the tuning block */
+	ret = msm_config_cm_dll_phase(host, msm_host->saved_tuning_phase);
+
+	return ret;
+}
+
+static void sdhci_msm_set_cdr(struct sdhci_host *host, bool enable)
+{
+	const struct sdhci_msm_offset *msm_offset = sdhci_priv_msm_offset(host);
+	u32 config, oldconfig = readl_relaxed(host->ioaddr +
+					      msm_offset->core_dll_config);
+
+	config = oldconfig;
+	if (enable) {
+		config |= CORE_CDR_EN;
+		config &= ~CORE_CDR_EXT_EN;
+	} else {
+		config &= ~CORE_CDR_EN;
+		config |= CORE_CDR_EXT_EN;
+	}
+
+	if (config != oldconfig) {
+		writel_relaxed(config, host->ioaddr +
+			       msm_offset->core_dll_config);
+	}
+}
+
 static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
@@ -1035,15 +1102,14 @@ static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 
-	/*
-	 * Tuning is required for SDR104, HS200 and HS400 cards and
-	 * if clock frequency is greater than 100MHz in these modes.
-	 */
-	if (host->clock <= CORE_FREQ_100MHZ ||
-	    !(ios.timing == MMC_TIMING_MMC_HS400 ||
-	    ios.timing == MMC_TIMING_MMC_HS200 ||
-	    ios.timing == MMC_TIMING_UHS_SDR104))
+	if (!sdhci_msm_is_tuning_needed(host)) {
+		msm_host->use_cdr = false;
+		sdhci_msm_set_cdr(host, false);
 		return 0;
+	}
+
+	/* Clock-Data-Recovery used to dynamically adjust RX sampling point */
+	msm_host->use_cdr = true;
 
 	/*
 	 * For HS400 tuning in HS200 timing requires:
@@ -1069,7 +1135,6 @@ retry:
 		if (rc)
 			return rc;
 
-		msm_host->saved_tuning_phase = phase;
 		rc = mmc_send_tuning(mmc, opcode, NULL);
 		if (!rc) {
 			/* Tuning is successful at this tuning point */
@@ -1094,6 +1159,7 @@ retry:
 		rc = msm_config_cm_dll_phase(host, phase);
 		if (rc)
 			return rc;
+		msm_host->saved_tuning_phase = phase;
 		dev_dbg(mmc_dev(mmc), "%s: Setting the tuning phase to %d\n",
 			 mmc_hostname(mmc), phase);
 	} else {
@@ -1525,6 +1591,19 @@ static int __sdhci_msm_check_write(struct sdhci_host *host, u16 val, int reg)
 	case SDHCI_POWER_CONTROL:
 		req_type = !val ? REQ_BUS_OFF : REQ_BUS_ON;
 		break;
+	case SDHCI_TRANSFER_MODE:
+		msm_host->transfer_mode = val;
+		break;
+	case SDHCI_COMMAND:
+		if (!msm_host->use_cdr)
+			break;
+		if ((msm_host->transfer_mode & SDHCI_TRNS_READ) &&
+		    SDHCI_GET_CMD(val) != MMC_SEND_TUNING_BLOCK_HS200 &&
+		    SDHCI_GET_CMD(val) != MMC_SEND_TUNING_BLOCK)
+			sdhci_msm_set_cdr(host, true);
+		else
+			sdhci_msm_set_cdr(host, false);
+		break;
 	}
 
 	if (req_type) {
@@ -1616,7 +1695,6 @@ static const struct sdhci_msm_variant_ops v5_var_ops = {
 };
 
 static const struct sdhci_msm_variant_info sdhci_msm_mci_var = {
-	.mci_removed = false,
 	.var_ops = &mci_var_ops,
 	.offset = &sdhci_msm_mci_offset,
 };
@@ -1627,9 +1705,17 @@ static const struct sdhci_msm_variant_info sdhci_msm_v5_var = {
 	.offset = &sdhci_msm_v5_offset,
 };
 
+static const struct sdhci_msm_variant_info sdm845_sdhci_var = {
+	.mci_removed = true,
+	.restore_dll_config = true,
+	.var_ops = &v5_var_ops,
+	.offset = &sdhci_msm_v5_offset,
+};
+
 static const struct of_device_id sdhci_msm_dt_match[] = {
 	{.compatible = "qcom,sdhci-msm-v4", .data = &sdhci_msm_mci_var},
 	{.compatible = "qcom,sdhci-msm-v5", .data = &sdhci_msm_v5_var},
+	{.compatible = "qcom,sdm845-sdhci", .data = &sdm845_sdhci_var},
 	{},
 };
 
@@ -1689,6 +1775,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	var_info = of_device_get_match_data(&pdev->dev);
 
 	msm_host->mci_removed = var_info->mci_removed;
+	msm_host->restore_dll_config = var_info->restore_dll_config;
 	msm_host->var_ops = var_info->var_ops;
 	msm_host->offset = var_info->offset;
 
@@ -1910,8 +1997,7 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int sdhci_msm_runtime_suspend(struct device *dev)
+static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1923,16 +2009,26 @@ static int sdhci_msm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sdhci_msm_runtime_resume(struct device *dev)
+static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	int ret;
 
-	return clk_bulk_prepare_enable(ARRAY_SIZE(msm_host->bulk_clks),
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(msm_host->bulk_clks),
 				       msm_host->bulk_clks);
+	if (ret)
+		return ret;
+	/*
+	 * Whenever core-clock is gated dynamically, it's needed to
+	 * restore the SDR DLL settings when the clock is ungated.
+	 */
+	if (msm_host->restore_dll_config && msm_host->clk_rate)
+		return sdhci_msm_restore_sdr_dll_config(host);
+
+	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_msm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,

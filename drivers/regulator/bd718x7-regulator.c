@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/rohm-bd718x7.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -130,6 +131,7 @@ static struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = bd718xx_set_voltage_sel_restricted,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
@@ -1007,7 +1009,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 };
 
 struct bd718xx_pmic_inits {
-	const struct bd718xx_regulator_data (*r_datas)[];
+	const struct bd718xx_regulator_data *r_datas;
 	unsigned int r_amount;
 };
 
@@ -1017,11 +1019,11 @@ static int bd718xx_probe(struct platform_device *pdev)
 	struct regulator_config config = { 0 };
 	struct bd718xx_pmic_inits pmic_regulators[] = {
 		[BD718XX_TYPE_BD71837] = {
-			.r_datas = &bd71837_regulators,
+			.r_datas = bd71837_regulators,
 			.r_amount = ARRAY_SIZE(bd71837_regulators),
 		},
 		[BD718XX_TYPE_BD71847] = {
-			.r_datas = &bd71847_regulators,
+			.r_datas = bd71847_regulators,
 			.r_amount = ARRAY_SIZE(bd71847_regulators),
 		},
 	};
@@ -1053,13 +1055,36 @@ static int bd718xx_probe(struct platform_device *pdev)
 			BD718XX_REG_REGLOCK);
 	}
 
+	/* At poweroff transition PMIC HW disables EN bit for regulators but
+	 * leaves SEL bit untouched. So if state transition from POWEROFF
+	 * is done to SNVS - then all power rails controlled by SW (having
+	 * SEL bit set) stay disabled as EN is cleared. This may result boot
+	 * failure if any crucial systems are powered by these rails.
+	 *
+	 * Change the next stage from poweroff to be READY instead of SNVS
+	 * for all reset types because OTP loading at READY will clear SEL
+	 * bit allowing HW defaults for power rails to be used
+	 */
+	err = regmap_update_bits(mfd->regmap, BD718XX_REG_TRANS_COND1,
+				 BD718XX_ON_REQ_POWEROFF_MASK |
+				 BD718XX_SWRESET_POWEROFF_MASK |
+				 BD718XX_WDOG_POWEROFF_MASK |
+				 BD718XX_KEY_L_POWEROFF_MASK,
+				 BD718XX_POWOFF_TO_RDY);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to change reset target\n");
+		goto err;
+	} else {
+		dev_dbg(&pdev->dev, "Changed all resets from SVNS to READY\n");
+	}
+
 	for (i = 0; i < pmic_regulators[mfd->chip_type].r_amount; i++) {
 
 		const struct regulator_desc *desc;
 		struct regulator_dev *rdev;
 		const struct bd718xx_regulator_data *r;
 
-		r = &(*pmic_regulators[mfd->chip_type].r_datas)[i];
+		r = &pmic_regulators[mfd->chip_type].r_datas[i];
 		desc = &r->desc;
 
 		config.dev = pdev->dev.parent;

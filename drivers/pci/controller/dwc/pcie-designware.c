@@ -93,7 +93,7 @@ static u32 dw_pcie_readl_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	return dw_pcie_readl_dbi(pci, offset + reg);
+	return dw_pcie_readl_atu(pci, offset + reg);
 }
 
 static void dw_pcie_writel_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg,
@@ -101,7 +101,7 @@ static void dw_pcie_writel_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg,
 {
 	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
 
-	dw_pcie_writel_dbi(pci, offset + reg, val);
+	dw_pcie_writel_atu(pci, offset + reg, val);
 }
 
 static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, int index,
@@ -187,7 +187,7 @@ static u32 dw_pcie_readl_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg)
 {
 	u32 offset = PCIE_GET_ATU_INB_UNR_REG_OFFSET(index);
 
-	return dw_pcie_readl_dbi(pci, offset + reg);
+	return dw_pcie_readl_atu(pci, offset + reg);
 }
 
 static void dw_pcie_writel_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg,
@@ -195,7 +195,7 @@ static void dw_pcie_writel_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg,
 {
 	u32 offset = PCIE_GET_ATU_INB_UNR_REG_OFFSET(index);
 
-	dw_pcie_writel_dbi(pci, offset + reg, val);
+	dw_pcie_writel_atu(pci, offset + reg, val);
 }
 
 static int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, int index,

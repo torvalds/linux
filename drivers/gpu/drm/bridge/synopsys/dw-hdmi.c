@@ -1664,6 +1664,7 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	case 0x131a:
 	case 0x132a:
 	case 0x201a:
+	case 0x212a:
 		count = 1;
 		break;
 	default:
@@ -1957,7 +1958,6 @@ static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
 
 static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = {
 	.get_modes = dw_hdmi_connector_get_modes,
-	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 static int dw_hdmi_bridge_attach(struct drm_bridge *bridge)
@@ -2205,7 +2205,9 @@ static int dw_hdmi_detect_phy(struct dw_hdmi *hdmi)
 	unsigned int i;
 	u8 phy_type;
 
-	phy_type = hdmi_readb(hdmi, HDMI_CONFIG2_ID);
+	phy_type = hdmi->plat_data->phy_force_vendor ?
+				DW_HDMI_PHY_VENDOR_PHY :
+				hdmi_readb(hdmi, HDMI_CONFIG2_ID);
 
 	if (phy_type == DW_HDMI_PHY_VENDOR_PHY) {
 		/* Vendor PHYs require support from the glue layer. */

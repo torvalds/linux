@@ -1,10 +1,6 @@
-/*
- * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2015 Freescale Semiconductor, Inc.
 
 #include "imx6sx-sdb.dtsi"
 
@@ -132,13 +128,29 @@
 		#size-cells = <1>;
 		compatible = "spansion,s25fl128s", "jedec,spi-nor";
 		spi-max-frequency = <66000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 	};
 
-	flash1: s25fl128s@1 {
-		reg = <1>;
+	flash1: s25fl128s@2 {
+		reg = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "spansion,s25fl128s", "jedec,spi-nor";
 		spi-max-frequency = <66000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
 	};
+};
+
+&reg_can_en {
+	/* Transceiver EN/STBY is active high on RevA board */
+	gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&reg_can_stby {
+	gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+	vin-supply = <&reg_can_en>;
 };

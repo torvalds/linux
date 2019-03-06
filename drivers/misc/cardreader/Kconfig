@@ -1,3 +1,14 @@
+config MISC_ALCOR_PCI
+	tristate "Alcor Micro/Alcor Link PCI-E card reader"
+	depends on PCI
+	select MFD_CORE
+	help
+	  This supports for Alcor Micro PCI-Express card reader including au6601,
+	  au6621.
+	  Alcor Micro card readers support access to many types of memory cards,
+	  such as Memory Stick, Memory Stick Pro, Secure Digital and
+	  MultiMediaCard.
+
 config MISC_RTSX_PCI
 	tristate "Realtek PCI-E card reader"
 	depends on PCI

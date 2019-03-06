@@ -878,7 +878,7 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 		return -EINVAL;
 	if (!unmap->size || unmap->size & mask)
 		return -EINVAL;
-	if (unmap->iova + unmap->size < unmap->iova ||
+	if (unmap->iova + unmap->size - 1 < unmap->iova ||
 	    unmap->size > SIZE_MAX)
 		return -EINVAL;
 
@@ -978,32 +978,6 @@ unlock:
 	return ret;
 }
 
-/*
- * Turns out AMD IOMMU has a page table bug where it won't map large pages
- * to a region that previously mapped smaller pages.  This should be fixed
- * soon, so this is just a temporary workaround to break mappings down into
- * PAGE_SIZE.  Better to map smaller pages than nothing.
- */
-static int map_try_harder(struct vfio_domain *domain, dma_addr_t iova,
-			  unsigned long pfn, long npage, int prot)
-{
-	long i;
-	int ret = 0;
-
-	for (i = 0; i < npage; i++, pfn++, iova += PAGE_SIZE) {
-		ret = iommu_map(domain->domain, iova,
-				(phys_addr_t)pfn << PAGE_SHIFT,
-				PAGE_SIZE, prot | domain->prot);
-		if (ret)
-			break;
-	}
-
-	for (; i < npage && i > 0; i--, iova -= PAGE_SIZE)
-		iommu_unmap(domain->domain, iova, PAGE_SIZE);
-
-	return ret;
-}
-
 static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
 			  unsigned long pfn, long npage, int prot)
 {
@@ -1013,11 +987,8 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
 	list_for_each_entry(d, &iommu->domain_list, next) {
 		ret = iommu_map(d->domain, iova, (phys_addr_t)pfn << PAGE_SHIFT,
 				npage << PAGE_SHIFT, prot | d->prot);
-		if (ret) {
-			if (ret != -EBUSY ||
-			    map_try_harder(d, iova, pfn, npage, prot))
-				goto unwind;
-		}
+		if (ret)
+			goto unwind;
 
 		cond_resched();
 	}

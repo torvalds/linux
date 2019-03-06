@@ -678,25 +678,24 @@ static void free_map_bootmem(struct page *memmap)
  * set.  If this is <=0, then that means that the passed-in
  * map was not consumed and must be freed.
  */
-int __meminit sparse_add_one_section(struct pglist_data *pgdat,
-		unsigned long start_pfn, struct vmem_altmap *altmap)
+int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+				     struct vmem_altmap *altmap)
 {
 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
 	struct mem_section *ms;
 	struct page *memmap;
 	unsigned long *usemap;
-	unsigned long flags;
 	int ret;
 
 	/*
 	 * no locking for this, because it does its own
 	 * plus, it does a kmalloc
 	 */
-	ret = sparse_index_init(section_nr, pgdat->node_id);
+	ret = sparse_index_init(section_nr, nid);
 	if (ret < 0 && ret != -EEXIST)
 		return ret;
 	ret = 0;
-	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
+	memmap = kmalloc_section_memmap(section_nr, nid, altmap);
 	if (!memmap)
 		return -ENOMEM;
 	usemap = __kmalloc_section_usemap();
@@ -704,8 +703,6 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
 		__kfree_section_memmap(memmap, altmap);
 		return -ENOMEM;
 	}
-
-	pgdat_resize_lock(pgdat, &flags);
 
 	ms = __pfn_to_section(start_pfn);
 	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
@@ -723,7 +720,6 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat,
 	sparse_init_one_section(ms, section_nr, memmap, usemap);
 
 out:
-	pgdat_resize_unlock(pgdat, &flags);
 	if (ret < 0) {
 		kfree(usemap);
 		__kfree_section_memmap(memmap, altmap);
@@ -738,6 +734,15 @@ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 	int i;
 
 	if (!memmap)
+		return;
+
+	/*
+	 * A further optimization is to have per section refcounted
+	 * num_poisoned_pages.  But that would need more space per memmap, so
+	 * for now just do a quick global check to speed up this routine in the
+	 * absence of bad pages.
+	 */
+	if (atomic_long_read(&num_poisoned_pages) == 0)
 		return;
 
 	for (i = 0; i < nr_pages; i++) {
@@ -785,10 +790,8 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 		unsigned long map_offset, struct vmem_altmap *altmap)
 {
 	struct page *memmap = NULL;
-	unsigned long *usemap = NULL, flags;
-	struct pglist_data *pgdat = zone->zone_pgdat;
+	unsigned long *usemap = NULL;
 
-	pgdat_resize_lock(pgdat, &flags);
 	if (ms->section_mem_map) {
 		usemap = ms->pageblock_flags;
 		memmap = sparse_decode_mem_map(ms->section_mem_map,
@@ -796,7 +799,6 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
 		ms->section_mem_map = 0;
 		ms->pageblock_flags = NULL;
 	}
-	pgdat_resize_unlock(pgdat, &flags);
 
 	clear_hwpoisoned_pages(memmap + map_offset,
 			PAGES_PER_SECTION - map_offset);

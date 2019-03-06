@@ -235,7 +235,7 @@ target_scsi2_reservation_release(struct se_cmd *cmd)
 	tpg = sess->se_tpg;
 	pr_debug("SCSI-2 Released reservation for %s LUN: %llu ->"
 		" MAPPED LUN: %llu for %s\n",
-		tpg->se_tpg_tfo->get_fabric_name(),
+		tpg->se_tpg_tfo->fabric_name,
 		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
 
@@ -278,7 +278,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 	if (dev->dev_reserved_node_acl &&
 	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
 		pr_err("SCSI-2 RESERVATION CONFLIFT for %s fabric\n",
-			tpg->se_tpg_tfo->get_fabric_name());
+			tpg->se_tpg_tfo->fabric_name);
 		pr_err("Original reserver LUN: %llu %s\n",
 			cmd->se_lun->unpacked_lun,
 			dev->dev_reserved_node_acl->initiatorname);
@@ -297,7 +297,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 		dev->dev_reservation_flags |= DRF_SPC2_RESERVATIONS_WITH_ISID;
 	}
 	pr_debug("SCSI-2 Reserved %s LUN: %llu -> MAPPED LUN: %llu"
-		" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+		" for %s\n", tpg->se_tpg_tfo->fabric_name,
 		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
 
@@ -914,11 +914,11 @@ static void core_scsi3_aptpl_reserve(
 
 	pr_debug("SPC-3 PR [%s] Service Action: APTPL RESERVE created"
 		" new reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		tpg->se_tpg_tfo->get_fabric_name(),
+		tpg->se_tpg_tfo->fabric_name,
 		core_scsi3_pr_dump_type(pr_reg->pr_res_type),
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] RESERVE Node: %s%s\n",
-		tpg->se_tpg_tfo->get_fabric_name(), node_acl->initiatorname,
+		tpg->se_tpg_tfo->fabric_name, node_acl->initiatorname,
 		i_buf);
 }
 
@@ -1036,19 +1036,19 @@ static void __core_scsi3_dump_registration(
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	pr_debug("SPC-3 PR [%s] Service Action: REGISTER%s Initiator"
-		" Node: %s%s\n", tfo->get_fabric_name(), (register_type == REGISTER_AND_MOVE) ?
+		" Node: %s%s\n", tfo->fabric_name, (register_type == REGISTER_AND_MOVE) ?
 		"_AND_MOVE" : (register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ?
 		"_AND_IGNORE_EXISTING_KEY" : "", nacl->initiatorname,
 		i_buf);
 	pr_debug("SPC-3 PR [%s] registration on Target Port: %s,0x%04x\n",
-		 tfo->get_fabric_name(), tfo->tpg_get_wwn(se_tpg),
+		 tfo->fabric_name, tfo->tpg_get_wwn(se_tpg),
 		tfo->tpg_get_tag(se_tpg));
 	pr_debug("SPC-3 PR [%s] for %s TCM Subsystem %s Object Target"
-		" Port(s)\n",  tfo->get_fabric_name(),
+		" Port(s)\n",  tfo->fabric_name,
 		(pr_reg->pr_reg_all_tg_pt) ? "ALL" : "SINGLE",
 		dev->transport->name);
 	pr_debug("SPC-3 PR [%s] SA Res Key: 0x%016Lx PRgeneration:"
-		" 0x%08x  APTPL: %d\n", tfo->get_fabric_name(),
+		" 0x%08x  APTPL: %d\n", tfo->fabric_name,
 		pr_reg->pr_res_key, pr_reg->pr_res_generation,
 		pr_reg->pr_reg_aptpl);
 }
@@ -1329,7 +1329,7 @@ static void __core_scsi3_free_registration(
 	 */
 	while (atomic_read(&pr_reg->pr_res_holders) != 0) {
 		pr_debug("SPC-3 PR [%s] waiting for pr_res_holders\n",
-				tfo->get_fabric_name());
+				tfo->fabric_name);
 		cpu_relax();
 	}
 
@@ -1341,15 +1341,15 @@ static void __core_scsi3_free_registration(
 
 	spin_lock(&pr_tmpl->registration_lock);
 	pr_debug("SPC-3 PR [%s] Service Action: UNREGISTER Initiator"
-		" Node: %s%s\n", tfo->get_fabric_name(),
+		" Node: %s%s\n", tfo->fabric_name,
 		pr_reg->pr_reg_nacl->initiatorname,
 		i_buf);
 	pr_debug("SPC-3 PR [%s] for %s TCM Subsystem %s Object Target"
-		" Port(s)\n", tfo->get_fabric_name(),
+		" Port(s)\n", tfo->fabric_name,
 		(pr_reg->pr_reg_all_tg_pt) ? "ALL" : "SINGLE",
 		dev->transport->name);
 	pr_debug("SPC-3 PR [%s] SA Res Key: 0x%016Lx PRgeneration:"
-		" 0x%08x\n", tfo->get_fabric_name(), pr_reg->pr_res_key,
+		" 0x%08x\n", tfo->fabric_name, pr_reg->pr_res_key,
 		pr_reg->pr_res_generation);
 
 	if (!preempt_and_abort_list) {
@@ -1645,7 +1645,7 @@ core_scsi3_decode_spec_i_port(
 			dest_tpg = tmp_tpg;
 			pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node:"
 				" %s Port RTPI: %hu\n",
-				dest_tpg->se_tpg_tfo->get_fabric_name(),
+				dest_tpg->se_tpg_tfo->fabric_name,
 				dest_node_acl->initiatorname, dest_rtpi);
 
 			spin_lock(&dev->se_port_lock);
@@ -1662,7 +1662,7 @@ core_scsi3_decode_spec_i_port(
 
 		pr_debug("SPC-3 PR SPEC_I_PT: Got %s data_length: %u tpdl: %u"
 			" tid_len: %d for %s + %s\n",
-			dest_tpg->se_tpg_tfo->get_fabric_name(), cmd->data_length,
+			dest_tpg->se_tpg_tfo->fabric_name, cmd->data_length,
 			tpdl, tid_len, i_str, iport_ptr);
 
 		if (tid_len > tpdl) {
@@ -1683,7 +1683,7 @@ core_scsi3_decode_spec_i_port(
 		if (!dest_se_deve) {
 			pr_err("Unable to locate %s dest_se_deve"
 				" from destination RTPI: %hu\n",
-				dest_tpg->se_tpg_tfo->get_fabric_name(),
+				dest_tpg->se_tpg_tfo->fabric_name,
 				dest_rtpi);
 
 			core_scsi3_nodeacl_undepend_item(dest_node_acl);
@@ -1704,7 +1704,7 @@ core_scsi3_decode_spec_i_port(
 
 		pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node: %s"
 			" dest_se_deve mapped_lun: %llu\n",
-			dest_tpg->se_tpg_tfo->get_fabric_name(),
+			dest_tpg->se_tpg_tfo->fabric_name,
 			dest_node_acl->initiatorname, dest_se_deve->mapped_lun);
 
 		/*
@@ -1815,7 +1815,7 @@ core_scsi3_decode_spec_i_port(
 
 		pr_debug("SPC-3 PR [%s] SPEC_I_PT: Successfully"
 			" registered Transport ID for Node: %s%s Mapped LUN:"
-			" %llu\n", dest_tpg->se_tpg_tfo->get_fabric_name(),
+			" %llu\n", dest_tpg->se_tpg_tfo->fabric_name,
 			dest_node_acl->initiatorname, i_buf, (dest_se_deve) ?
 			dest_se_deve->mapped_lun : 0);
 
@@ -1913,7 +1913,7 @@ static int core_scsi3_update_aptpl_buf(
 				"res_holder=1\nres_type=%02x\n"
 				"res_scope=%02x\nres_all_tg_pt=%d\n"
 				"mapped_lun=%llu\n", reg_count,
-				tpg->se_tpg_tfo->get_fabric_name(),
+				tpg->se_tpg_tfo->fabric_name,
 				pr_reg->pr_reg_nacl->initiatorname, isid_buf,
 				pr_reg->pr_res_key, pr_reg->pr_res_type,
 				pr_reg->pr_res_scope, pr_reg->pr_reg_all_tg_pt,
@@ -1923,7 +1923,7 @@ static int core_scsi3_update_aptpl_buf(
 				"initiator_fabric=%s\ninitiator_node=%s\n%s"
 				"sa_res_key=%llu\nres_holder=0\n"
 				"res_all_tg_pt=%d\nmapped_lun=%llu\n",
-				reg_count, tpg->se_tpg_tfo->get_fabric_name(),
+				reg_count, tpg->se_tpg_tfo->fabric_name,
 				pr_reg->pr_reg_nacl->initiatorname, isid_buf,
 				pr_reg->pr_res_key, pr_reg->pr_reg_all_tg_pt,
 				pr_reg->pr_res_mapped_lun);
@@ -1942,7 +1942,7 @@ static int core_scsi3_update_aptpl_buf(
 		 */
 		snprintf(tmp, 512, "target_fabric=%s\ntarget_node=%s\n"
 			"tpgt=%hu\nport_rtpi=%hu\ntarget_lun=%llu\nPR_REG_END:"
-			" %d\n", tpg->se_tpg_tfo->get_fabric_name(),
+			" %d\n", tpg->se_tpg_tfo->fabric_name,
 			tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 			tpg->se_tpg_tfo->tpg_get_tag(tpg),
 			pr_reg->tg_pt_sep_rtpi, pr_reg->pr_aptpl_target_lun,
@@ -2168,7 +2168,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		pr_reg->pr_res_key = sa_res_key;
 		pr_debug("SPC-3 PR [%s] REGISTER%s: Changed Reservation"
 			 " Key for %s to: 0x%016Lx PRgeneration:"
-			 " 0x%08x\n", cmd->se_tfo->get_fabric_name(),
+			 " 0x%08x\n", cmd->se_tfo->fabric_name,
 			 (register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ? "_AND_IGNORE_EXISTING_KEY" : "",
 			 pr_reg->pr_reg_nacl->initiatorname,
 			 pr_reg->pr_res_key, pr_reg->pr_res_generation);
@@ -2356,9 +2356,9 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 			pr_err("SPC-3 PR: Attempted RESERVE from"
 				" [%s]: %s while reservation already held by"
 				" [%s]: %s, returning RESERVATION_CONFLICT\n",
-				cmd->se_tfo->get_fabric_name(),
+				cmd->se_tfo->fabric_name,
 				se_sess->se_node_acl->initiatorname,
-				pr_res_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+				pr_res_nacl->se_tpg->se_tpg_tfo->fabric_name,
 				pr_res_holder->pr_reg_nacl->initiatorname);
 
 			spin_unlock(&dev->dev_reservation_lock);
@@ -2379,9 +2379,9 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 				" [%s]: %s trying to change TYPE and/or SCOPE,"
 				" while reservation already held by [%s]: %s,"
 				" returning RESERVATION_CONFLICT\n",
-				cmd->se_tfo->get_fabric_name(),
+				cmd->se_tfo->fabric_name,
 				se_sess->se_node_acl->initiatorname,
-				pr_res_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+				pr_res_nacl->se_tpg->se_tpg_tfo->fabric_name,
 				pr_res_holder->pr_reg_nacl->initiatorname);
 
 			spin_unlock(&dev->dev_reservation_lock);
@@ -2414,10 +2414,10 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 
 	pr_debug("SPC-3 PR [%s] Service Action: RESERVE created new"
 		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		cmd->se_tfo->get_fabric_name(), core_scsi3_pr_dump_type(type),
+		cmd->se_tfo->fabric_name, core_scsi3_pr_dump_type(type),
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] RESERVE Node: %s%s\n",
-			cmd->se_tfo->get_fabric_name(),
+			cmd->se_tfo->fabric_name,
 			se_sess->se_node_acl->initiatorname,
 			i_buf);
 	spin_unlock(&dev->dev_reservation_lock);
@@ -2506,12 +2506,12 @@ out:
 	if (!dev->dev_pr_res_holder) {
 		pr_debug("SPC-3 PR [%s] Service Action: %s RELEASE cleared"
 			" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-			tfo->get_fabric_name(), (explicit) ? "explicit" :
+			tfo->fabric_name, (explicit) ? "explicit" :
 			"implicit", core_scsi3_pr_dump_type(pr_res_type),
 			(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	}
 	pr_debug("SPC-3 PR [%s] RELEASE Node: %s%s\n",
-		tfo->get_fabric_name(), se_nacl->initiatorname,
+		tfo->fabric_name, se_nacl->initiatorname,
 		i_buf);
 	/*
 	 * Clear TYPE and SCOPE for the next PROUT Service Action: RESERVE
@@ -2609,9 +2609,9 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 			" reservation from [%s]: %s with different TYPE "
 			"and/or SCOPE  while reservation already held by"
 			" [%s]: %s, returning RESERVATION_CONFLICT\n",
-			cmd->se_tfo->get_fabric_name(),
+			cmd->se_tfo->fabric_name,
 			se_sess->se_node_acl->initiatorname,
-			pr_res_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+			pr_res_nacl->se_tpg->se_tpg_tfo->fabric_name,
 			pr_res_holder->pr_reg_nacl->initiatorname);
 
 		spin_unlock(&dev->dev_reservation_lock);
@@ -2752,7 +2752,7 @@ core_scsi3_emulate_pro_clear(struct se_cmd *cmd, u64 res_key)
 	spin_unlock(&pr_tmpl->registration_lock);
 
 	pr_debug("SPC-3 PR [%s] Service Action: CLEAR complete\n",
-		cmd->se_tfo->get_fabric_name());
+		cmd->se_tfo->fabric_name);
 
 	core_scsi3_update_and_write_aptpl(cmd->se_dev, false);
 
@@ -2791,11 +2791,11 @@ static void __core_scsi3_complete_pro_preempt(
 
 	pr_debug("SPC-3 PR [%s] Service Action: PREEMPT%s created new"
 		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		tfo->get_fabric_name(), (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
+		tfo->fabric_name, (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
 		core_scsi3_pr_dump_type(type),
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] PREEMPT%s from Node: %s%s\n",
-		tfo->get_fabric_name(), (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
+		tfo->fabric_name, (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
 		nacl->initiatorname, i_buf);
 	/*
 	 * For PREEMPT_AND_ABORT, add the preempting reservation's
@@ -3282,7 +3282,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 			" proto_ident: 0x%02x does not match ident: 0x%02x"
 			" from fabric: %s\n", proto_ident,
 			dest_se_tpg->proto_id,
-			dest_tf_ops->get_fabric_name());
+			dest_tf_ops->fabric_name);
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out;
 	}
@@ -3299,7 +3299,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	buf = NULL;
 
 	pr_debug("SPC-3 PR [%s] Extracted initiator %s identifier: %s"
-		" %s\n", dest_tf_ops->get_fabric_name(), (iport_ptr != NULL) ?
+		" %s\n", dest_tf_ops->fabric_name, (iport_ptr != NULL) ?
 		"port" : "device", initiator_str, (iport_ptr != NULL) ?
 		iport_ptr : "");
 	/*
@@ -3344,7 +3344,7 @@ after_iport_check:
 
 	if (!dest_node_acl) {
 		pr_err("Unable to locate %s dest_node_acl for"
-			" TransportID%s\n", dest_tf_ops->get_fabric_name(),
+			" TransportID%s\n", dest_tf_ops->fabric_name,
 			initiator_str);
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out;
@@ -3360,7 +3360,7 @@ after_iport_check:
 	}
 
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Found %s dest_node_acl:"
-		" %s from TransportID\n", dest_tf_ops->get_fabric_name(),
+		" %s from TransportID\n", dest_tf_ops->fabric_name,
 		dest_node_acl->initiatorname);
 
 	/*
@@ -3370,7 +3370,7 @@ after_iport_check:
 	dest_se_deve = core_get_se_deve_from_rtpi(dest_node_acl, rtpi);
 	if (!dest_se_deve) {
 		pr_err("Unable to locate %s dest_se_deve from RTPI:"
-			" %hu\n",  dest_tf_ops->get_fabric_name(), rtpi);
+			" %hu\n",  dest_tf_ops->fabric_name, rtpi);
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out;
 	}
@@ -3385,7 +3385,7 @@ after_iport_check:
 
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Located %s node %s LUN"
 		" ACL for dest_se_deve->mapped_lun: %llu\n",
-		dest_tf_ops->get_fabric_name(), dest_node_acl->initiatorname,
+		dest_tf_ops->fabric_name, dest_node_acl->initiatorname,
 		dest_se_deve->mapped_lun);
 
 	/*
@@ -3501,13 +3501,13 @@ after_iport_check:
 
 	pr_debug("SPC-3 PR [%s] Service Action: REGISTER_AND_MOVE"
 		" created new reservation holder TYPE: %s on object RTPI:"
-		" %hu  PRGeneration: 0x%08x\n", dest_tf_ops->get_fabric_name(),
+		" %hu  PRGeneration: 0x%08x\n", dest_tf_ops->fabric_name,
 		core_scsi3_pr_dump_type(type), rtpi,
 		dest_pr_reg->pr_res_generation);
 	pr_debug("SPC-3 PR Successfully moved reservation from"
 		" %s Fabric Node: %s%s -> %s Fabric Node: %s %s\n",
-		tf_ops->get_fabric_name(), pr_reg_nacl->initiatorname,
-		i_buf, dest_tf_ops->get_fabric_name(),
+		tf_ops->fabric_name, pr_reg_nacl->initiatorname,
+		i_buf, dest_tf_ops->fabric_name,
 		dest_node_acl->initiatorname, (iport_ptr != NULL) ?
 		iport_ptr : "");
 	/*
@@ -4094,6 +4094,8 @@ target_check_reservation(struct se_cmd *cmd)
 	if (!cmd->se_sess)
 		return 0;
 	if (dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)
+		return 0;
+	if (!dev->dev_attrib.emulate_pr)
 		return 0;
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return 0;

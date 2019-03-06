@@ -262,7 +262,6 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (xdst->u.rt6.rt6i_idev->dev == dev) {
 		struct inet6_dev *loopback_idev =
 			in6_dev_get(dev_net(dev)->loopback_dev);
-		BUG_ON(!loopback_idev);
 
 		do {
 			in6_dev_put(xdst->u.rt6.rt6i_idev);

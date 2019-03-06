@@ -82,6 +82,13 @@ static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 	vexpress_flags_set(__pa_symbol(versatile_secondary_startup));
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static void vexpress_cpu_die(unsigned int cpu)
+{
+	versatile_immitation_cpu_die(cpu, 0x40);
+}
+#endif
+
 const struct smp_operations vexpress_smp_dt_ops __initconst = {
 	.smp_prepare_cpus	= vexpress_smp_dt_prepare_cpus,
 	.smp_secondary_init	= versatile_secondary_init,

@@ -128,19 +128,19 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
-		printk(KERN_NOTICE "couldn't register sas phys:%d\n", error);
+		pr_notice("couldn't register sas phys:%d\n", error);
 		return error;
 	}
 
 	error = sas_register_ports(sas_ha);
 	if (error) {
-		printk(KERN_NOTICE "couldn't register sas ports:%d\n", error);
+		pr_notice("couldn't register sas ports:%d\n", error);
 		goto Undo_phys;
 	}
 
 	error = sas_init_events(sas_ha);
 	if (error) {
-		printk(KERN_NOTICE "couldn't start event thread:%d\n", error);
+		pr_notice("couldn't start event thread:%d\n", error);
 		goto Undo_ports;
 	}
 
@@ -623,8 +623,8 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
 	if (atomic_read(&phy->event_nr) > phy->ha->event_thres) {
 		if (i->dft->lldd_control_phy) {
 			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
-				sas_printk("The phy%02d bursting events, shut it down.\n",
-					phy->id);
+				pr_notice("The phy%02d bursting events, shut it down.\n",
+					  phy->id);
 				sas_notify_phy_event(phy, PHYE_SHUTDOWN);
 			}
 		} else {

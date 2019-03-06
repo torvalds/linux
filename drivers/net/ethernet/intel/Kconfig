@@ -33,7 +33,7 @@ config E100
 	  to identify the adapter.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e100.rst>.
+	  <file:Documentation/networking/device_drivers/intel/e100.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e100.
@@ -49,7 +49,7 @@ config E1000
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000.rst>.
+	  <file:Documentation/networking/device_drivers/intel/e1000.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000.
@@ -69,7 +69,7 @@ config E1000E
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000e.rst>.
+	  <file:Documentation/networking/device_drivers/intel/e1000e.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
@@ -97,7 +97,7 @@ config IGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/igb.rst>.
+	  <file:Documentation/networking/device_drivers/intel/igb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igb.
@@ -133,7 +133,7 @@ config IGBVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/igbvf.rst>.
+	  <file:Documentation/networking/device_drivers/intel/igbvf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called igbvf.
@@ -150,7 +150,7 @@ config IXGB
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgb.rst>.
+	  <file:Documentation/networking/device_drivers/intel/ixgb.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgb.
@@ -159,6 +159,7 @@ config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI
 	select MDIO
+	select PHYLIB
 	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
@@ -168,7 +169,7 @@ config IXGBE
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgbe.rst>.
+	  <file:Documentation/networking/device_drivers/intel/ixgbe.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
@@ -220,7 +221,7 @@ config IXGBEVF
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgbevf.rst>.
+	  <file:Documentation/networking/device_drivers/intel/ixgbevf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
@@ -247,7 +248,7 @@ config I40E
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/i40e.rst>.
+	  <file:Documentation/networking/device_drivers/intel/i40e.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called i40e.
@@ -282,7 +283,7 @@ config I40EVF
 	  This driver was formerly named i40evf.
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/iavf.rst>.
+	  <file:Documentation/networking/device_drivers/intel/iavf.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called iavf.  MSI-X interrupt support is required
@@ -300,7 +301,7 @@ config ICE
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ice.rst>.
+	  <file:Documentation/networking/device_drivers/intel/ice.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ice.
@@ -318,7 +319,7 @@ config FM10K
 	  <http://support.intel.com>
 
 	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/fm10k.rst>.
+	  <file:Documentation/networking/device_drivers/intel/fm10k.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called fm10k.  MSI-X interrupt support is required

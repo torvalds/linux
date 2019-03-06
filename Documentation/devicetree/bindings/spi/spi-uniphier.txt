@@ -5,6 +5,8 @@ UniPhier SoCs have SCSSI which supports SPI single channel.
 Required properties:
  - compatible: should be "socionext,uniphier-scssi"
  - reg: address and length of the spi master registers
+ - #address-cells: must be <1>, see spi-bus.txt
+ - #size-cells: must be <0>, see spi-bus.txt
  - interrupts: a single interrupt specifier
  - pinctrl-names: should be "default"
  - pinctrl-0: pin control state for the default mode
@@ -16,6 +18,8 @@ Example:
 spi0: spi@54006000 {
 	compatible = "socionext,uniphier-scssi";
 	reg = <0x54006000 0x100>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	interrupts = <0 39 4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi0>;

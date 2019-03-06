@@ -831,15 +831,6 @@ struct vmbus_channel {
 	 */
 	struct list_head sc_list;
 	/*
-	 * Current number of sub-channels.
-	 */
-	int num_sc;
-	/*
-	 * Number of a sub-channel (position within sc_list) which is supposed
-	 * to be used as the next outgoing channel.
-	 */
-	int next_oc;
-	/*
 	 * The primary channel this sub-channel belongs to.
 	 * This will be NULL for the primary channel.
 	 */
@@ -971,14 +962,6 @@ void vmbus_set_sc_create_callback(struct vmbus_channel *primary_channel,
 
 void vmbus_set_chn_rescind_callback(struct vmbus_channel *channel,
 		void (*chn_rescind_cb)(struct vmbus_channel *));
-
-/*
- * Retrieve the (sub) channel on which to send an outgoing request.
- * When a primary channel has multiple sub-channels, we choose a
- * channel whose VCPU binding is closest to the VCPU on which
- * this call is being made.
- */
-struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary);
 
 /*
  * Check if sub-channels have already been offerred. This API will be useful
@@ -1176,8 +1159,9 @@ struct hv_ring_buffer_debug_info {
 	u32 bytes_avail_towrite;
 };
 
-void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
-			    struct hv_ring_buffer_debug_info *debug_info);
+
+int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+				struct hv_ring_buffer_debug_info *debug_info);
 
 /* Vmbus interface */
 #define vmbus_driver_register(driver)	\

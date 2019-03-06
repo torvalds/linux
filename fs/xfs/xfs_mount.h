@@ -89,6 +89,13 @@ typedef struct xfs_mount {
 	int			m_logbsize;	/* size of each log buffer */
 	uint			m_rsumlevels;	/* rt summary levels */
 	uint			m_rsumsize;	/* size of rt summary, bytes */
+	/*
+	 * Optional cache of rt summary level per bitmap block with the
+	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
+	 * rsum[i][bbno] != 0. Reads and writes are serialized by the rsumip
+	 * inode lock.
+	 */
+	uint8_t			*m_rsum_cache;
 	struct xfs_inode	*m_rbmip;	/* pointer to bitmap inode */
 	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
 	struct xfs_inode	*m_rootip;	/* pointer to root directory */
@@ -101,6 +108,10 @@ typedef struct xfs_mount {
 	uint8_t			m_agno_log;	/* log #ag's */
 	uint8_t			m_agino_log;	/* #bits for agino in inum */
 	uint			m_inode_cluster_size;/* min inode buf size */
+	unsigned int		m_inodes_per_cluster;
+	unsigned int		m_blocks_per_cluster;
+	unsigned int		m_cluster_align;
+	unsigned int		m_cluster_align_inodes;
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */

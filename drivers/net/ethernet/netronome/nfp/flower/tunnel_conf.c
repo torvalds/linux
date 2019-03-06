@@ -4,7 +4,6 @@
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <net/netevent.h>
-#include <net/vxlan.h>
 #include <linux/idr.h>
 #include <net/dst_metadata.h>
 #include <net/arp.h>
@@ -180,18 +179,6 @@ void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
 		neigh_event_send(n, NULL);
 		neigh_release(n);
 	}
-}
-
-static bool nfp_tun_is_netdev_to_offload(struct net_device *netdev)
-{
-	if (!netdev->rtnl_link_ops)
-		return false;
-	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
-		return true;
-	if (netif_is_vxlan(netdev))
-		return true;
-
-	return false;
 }
 
 static int
@@ -615,7 +602,7 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 
 	if (nfp_netdev_is_nfp_repr(netdev))
 		port = nfp_repr_get_port_id(netdev);
-	else if (!nfp_tun_is_netdev_to_offload(netdev))
+	else if (!nfp_fl_is_netdev_to_offload(netdev))
 		return;
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
@@ -652,29 +639,16 @@ static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
 	mutex_unlock(&priv->nfp_mac_off_lock);
 }
 
-static int nfp_tun_mac_event_handler(struct notifier_block *nb,
-				     unsigned long event, void *ptr)
+int nfp_tunnel_mac_event_handler(struct nfp_app *app,
+				 struct net_device *netdev,
+				 unsigned long event, void *ptr)
 {
-	struct nfp_flower_priv *app_priv;
-	struct net_device *netdev;
-	struct nfp_app *app;
-
 	if (event == NETDEV_DOWN || event == NETDEV_UNREGISTER) {
-		app_priv = container_of(nb, struct nfp_flower_priv,
-					nfp_tun_mac_nb);
-		app = app_priv->app;
-		netdev = netdev_notifier_info_to_dev(ptr);
-
 		/* If non-nfp netdev then free its offload index. */
-		if (nfp_tun_is_netdev_to_offload(netdev))
+		if (nfp_fl_is_netdev_to_offload(netdev))
 			nfp_tun_del_mac_idx(app, netdev->ifindex);
 	} else if (event == NETDEV_UP || event == NETDEV_CHANGEADDR ||
 		   event == NETDEV_REGISTER) {
-		app_priv = container_of(nb, struct nfp_flower_priv,
-					nfp_tun_mac_nb);
-		app = app_priv->app;
-		netdev = netdev_notifier_info_to_dev(ptr);
-
 		nfp_tun_add_to_mac_offload_list(netdev, app);
 
 		/* Force a list write to keep NFP up to date. */
@@ -686,14 +660,11 @@ static int nfp_tun_mac_event_handler(struct notifier_block *nb,
 int nfp_tunnel_config_start(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
-	struct net_device *netdev;
-	int err;
 
 	/* Initialise priv data for MAC offloading. */
 	priv->nfp_mac_off_count = 0;
 	mutex_init(&priv->nfp_mac_off_lock);
 	INIT_LIST_HEAD(&priv->nfp_mac_off_list);
-	priv->nfp_tun_mac_nb.notifier_call = nfp_tun_mac_event_handler;
 	mutex_init(&priv->nfp_mac_index_lock);
 	INIT_LIST_HEAD(&priv->nfp_mac_index_list);
 	ida_init(&priv->nfp_mac_off_ids);
@@ -707,27 +678,7 @@ int nfp_tunnel_config_start(struct nfp_app *app)
 	INIT_LIST_HEAD(&priv->nfp_neigh_off_list);
 	priv->nfp_tun_neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
 
-	err = register_netdevice_notifier(&priv->nfp_tun_mac_nb);
-	if (err)
-		goto err_free_mac_ida;
-
-	err = register_netevent_notifier(&priv->nfp_tun_neigh_nb);
-	if (err)
-		goto err_unreg_mac_nb;
-
-	/* Parse netdevs already registered for MACs that need offloaded. */
-	rtnl_lock();
-	for_each_netdev(&init_net, netdev)
-		nfp_tun_add_to_mac_offload_list(netdev, app);
-	rtnl_unlock();
-
-	return 0;
-
-err_unreg_mac_nb:
-	unregister_netdevice_notifier(&priv->nfp_tun_mac_nb);
-err_free_mac_ida:
-	ida_destroy(&priv->nfp_mac_off_ids);
-	return err;
+	return register_netevent_notifier(&priv->nfp_tun_neigh_nb);
 }
 
 void nfp_tunnel_config_stop(struct nfp_app *app)
@@ -739,7 +690,6 @@ void nfp_tunnel_config_stop(struct nfp_app *app)
 	struct nfp_ipv4_addr_entry *ip_entry;
 	struct list_head *ptr, *storage;
 
-	unregister_netdevice_notifier(&priv->nfp_tun_mac_nb);
 	unregister_netevent_notifier(&priv->nfp_tun_neigh_nb);
 
 	/* Free any memory that may be occupied by MAC list. */

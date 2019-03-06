@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 i.MX Video Capture Driver
 =========================
 

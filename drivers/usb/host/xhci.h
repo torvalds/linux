@@ -1682,13 +1682,6 @@ struct xhci_bus_state {
  */
 #define	XHCI_MAX_REXIT_TIMEOUT_MS	20
 
-static inline unsigned int hcd_index(struct usb_hcd *hcd)
-{
-	if (hcd->speed >= HCD_USB3)
-		return 0;
-	else
-		return 1;
-}
 struct xhci_port {
 	__le32 __iomem		*addr;
 	int			hw_portnum;
@@ -1700,6 +1693,8 @@ struct xhci_hub {
 	struct xhci_port	**ports;
 	unsigned int		num_ports;
 	struct usb_hcd		*hcd;
+	/* keep track of bus suspend info */
+	struct xhci_bus_state   bus_state;
 	/* supported prococol extended capabiliy values */
 	u8			maj_rev;
 	u8			min_rev;
@@ -1854,13 +1849,9 @@ struct xhci_hcd {
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
-	/* There are two roothubs to keep track of bus suspend info for */
-	struct xhci_bus_state   bus_state[2];
 	struct xhci_port	*hw_ports;
 	struct xhci_hub		usb2_rhub;
 	struct xhci_hub		usb3_rhub;
-	/* support xHCI 0.96 spec USB2 software LPM */
-	unsigned		sw_lpm_support:1;
 	/* support xHCI 1.0 spec USB2 hardware LPM */
 	unsigned		hw_lpm_support:1;
 	/* Broken Suspend flag for SNPS Suspend resume issue */

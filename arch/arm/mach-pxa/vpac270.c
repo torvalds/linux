@@ -17,6 +17,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -240,14 +241,23 @@ static void __init vpac270_onenand_init(void) {}
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data vpac270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= -1,
-	.gpio_card_detect	= GPIO53_VPAC270_SD_DETECT_N,
-	.gpio_card_ro		= GPIO52_VPAC270_SD_READONLY,
 	.detect_delay_ms	= 200,
+};
+
+static struct gpiod_lookup_table vpac270_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO53_VPAC270_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO52_VPAC270_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init vpac270_mmc_init(void)
 {
+	gpiod_add_lookup_table(&vpac270_mci_gpio_table);
 	pxa_set_mci_info(&vpac270_mci_platform_data);
 }
 #else

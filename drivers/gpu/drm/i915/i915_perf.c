@@ -890,8 +890,8 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
 			  dev_priv->perf.oa.period_exponent);
 
-		dev_priv->perf.oa.ops.oa_disable(dev_priv);
-		dev_priv->perf.oa.ops.oa_enable(dev_priv);
+		dev_priv->perf.oa.ops.oa_disable(stream);
+		dev_priv->perf.oa.ops.oa_enable(stream);
 
 		/*
 		 * Note: .oa_enable() is expected to re-init the oabuffer and
@@ -1114,8 +1114,8 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
 			  dev_priv->perf.oa.period_exponent);
 
-		dev_priv->perf.oa.ops.oa_disable(dev_priv);
-		dev_priv->perf.oa.ops.oa_enable(dev_priv);
+		dev_priv->perf.oa.ops.oa_disable(stream);
+		dev_priv->perf.oa.ops.oa_enable(stream);
 
 		oastatus1 = I915_READ(GEN7_OASTATUS1);
 	}
@@ -1528,8 +1528,6 @@ static int alloc_oa_buffer(struct drm_i915_private *dev_priv)
 		goto err_unpin;
 	}
 
-	dev_priv->perf.oa.ops.init_oa_buffer(dev_priv);
-
 	DRM_DEBUG_DRIVER("OA Buffer initialized, gtt offset = 0x%x, vaddr = %p\n",
 			 i915_ggtt_offset(dev_priv->perf.oa.oa_buffer.vma),
 			 dev_priv->perf.oa.oa_buffer.vaddr);
@@ -1563,9 +1561,11 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 	}
 }
 
-static int hsw_enable_metric_set(struct drm_i915_private *dev_priv,
-				 const struct i915_oa_config *oa_config)
+static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
+
 	/* PRM:
 	 *
 	 * OA unit is using “crclk” for its functionality. When trunk
@@ -1767,9 +1767,10 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
-				  const struct i915_oa_config *oa_config)
+static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	const struct i915_oa_config *oa_config = stream->oa_config;
 	int ret;
 
 	/*
@@ -1837,10 +1838,10 @@ static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
 		   I915_READ(RPM_CONFIG1) & ~GEN10_GT_NOA_ENABLE);
 }
 
-static void gen7_oa_enable(struct drm_i915_private *dev_priv)
+static void gen7_oa_enable(struct i915_perf_stream *stream)
 {
-	struct i915_gem_context *ctx =
-			dev_priv->perf.oa.exclusive_stream->ctx;
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct i915_gem_context *ctx = stream->ctx;
 	u32 ctx_id = dev_priv->perf.oa.specific_ctx_id;
 	bool periodic = dev_priv->perf.oa.periodic;
 	u32 period_exponent = dev_priv->perf.oa.period_exponent;
@@ -1867,8 +1868,9 @@ static void gen7_oa_enable(struct drm_i915_private *dev_priv)
 		   GEN7_OACONTROL_ENABLE);
 }
 
-static void gen8_oa_enable(struct drm_i915_private *dev_priv)
+static void gen8_oa_enable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
 	u32 report_format = dev_priv->perf.oa.oa_buffer.format;
 
 	/*
@@ -1905,7 +1907,7 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	dev_priv->perf.oa.ops.oa_enable(dev_priv);
+	dev_priv->perf.oa.ops.oa_enable(stream);
 
 	if (dev_priv->perf.oa.periodic)
 		hrtimer_start(&dev_priv->perf.oa.poll_check_timer,
@@ -1913,8 +1915,10 @@ static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 			      HRTIMER_MODE_REL_PINNED);
 }
 
-static void gen7_oa_disable(struct drm_i915_private *dev_priv)
+static void gen7_oa_disable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+
 	I915_WRITE(GEN7_OACONTROL, 0);
 	if (intel_wait_for_register(dev_priv,
 				    GEN7_OACONTROL, GEN7_OACONTROL_ENABLE, 0,
@@ -1922,8 +1926,10 @@ static void gen7_oa_disable(struct drm_i915_private *dev_priv)
 		DRM_ERROR("wait for OA to be disabled timed out\n");
 }
 
-static void gen8_oa_disable(struct drm_i915_private *dev_priv)
+static void gen8_oa_disable(struct i915_perf_stream *stream)
 {
+	struct drm_i915_private *dev_priv = stream->dev_priv;
+
 	I915_WRITE(GEN8_OACONTROL, 0);
 	if (intel_wait_for_register(dev_priv,
 				    GEN8_OACONTROL, GEN8_OA_COUNTER_ENABLE, 0,
@@ -1943,7 +1949,7 @@ static void i915_oa_stream_disable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	dev_priv->perf.oa.ops.oa_disable(dev_priv);
+	dev_priv->perf.oa.ops.oa_disable(stream);
 
 	if (dev_priv->perf.oa.periodic)
 		hrtimer_cancel(&dev_priv->perf.oa.poll_check_timer);
@@ -1998,7 +2004,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 		return -EINVAL;
 	}
 
-	if (!dev_priv->perf.oa.ops.init_oa_buffer) {
+	if (!dev_priv->perf.oa.ops.enable_metric_set) {
 		DRM_DEBUG("OA unit not supported\n");
 		return -ENODEV;
 	}
@@ -2092,8 +2098,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_lock;
 
-	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv,
-						      stream->oa_config);
+	ret = dev_priv->perf.oa.ops.enable_metric_set(stream);
 	if (ret) {
 		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
@@ -3047,7 +3052,7 @@ static struct i915_oa_reg *alloc_oa_regs(struct drm_i915_private *dev_priv,
 	if (!n_regs)
 		return NULL;
 
-	if (!access_ok(VERIFY_READ, regs, n_regs * sizeof(u32) * 2))
+	if (!access_ok(regs, n_regs * sizeof(u32) * 2))
 		return ERR_PTR(-EFAULT);
 
 	/* No is_valid function means we're not allowing any register to be programmed. */
@@ -3387,7 +3392,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.is_valid_mux_reg =
 			hsw_is_valid_mux_addr;
 		dev_priv->perf.oa.ops.is_valid_flex_reg = NULL;
-		dev_priv->perf.oa.ops.init_oa_buffer = gen7_init_oa_buffer;
 		dev_priv->perf.oa.ops.enable_metric_set = hsw_enable_metric_set;
 		dev_priv->perf.oa.ops.disable_metric_set = hsw_disable_metric_set;
 		dev_priv->perf.oa.ops.oa_enable = gen7_oa_enable;
@@ -3406,7 +3410,6 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		 */
 		dev_priv->perf.oa.oa_formats = gen8_plus_oa_formats;
 
-		dev_priv->perf.oa.ops.init_oa_buffer = gen8_init_oa_buffer;
 		dev_priv->perf.oa.ops.oa_enable = gen8_oa_enable;
 		dev_priv->perf.oa.ops.oa_disable = gen8_oa_disable;
 		dev_priv->perf.oa.ops.read = gen8_oa_read;

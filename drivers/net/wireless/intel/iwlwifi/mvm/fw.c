@@ -377,6 +377,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		atomic_set(&mvm->mac80211_queue_stop_count[i], 0);
 
 	set_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_fw_set_dbg_rec_on(&mvm->fwrt);
+#endif
 	clear_bit(IWL_FWRT_STATUS_WAIT_ALIVE, &mvm->fwrt.status);
 
 	return 0;
@@ -407,6 +410,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+		iwl_fw_assert_error_dump(&mvm->fwrt);
 		goto error;
 	}
 
@@ -543,7 +547,9 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	if (mvm->nvm_file_name)
 		iwl_mvm_load_nvm_to_nic(mvm);
 
-	WARN_ON(iwl_nvm_check_version(mvm->nvm_data, mvm->trans));
+	WARN_ONCE(mvm->nvm_data->nvm_version < mvm->trans->cfg->nvm_ver,
+		  "Too old NVM version (0x%0x, required = 0x%0x)",
+		  mvm->nvm_data->nvm_version, mvm->trans->cfg->nvm_ver);
 
 	/*
 	 * abort after reading the nvm in case RF Kill is on, we will complete
@@ -1023,9 +1029,13 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
+	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_EARLY);
+
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret)
 		return ret;
+
+	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_AFTER_ALIVE);
 
 	return iwl_init_paging(&mvm->fwrt, mvm->fwrt.cur_fw_img);
 }
@@ -1045,6 +1055,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+		iwl_fw_assert_error_dump(&mvm->fwrt);
 		goto error;
 	}
 
@@ -1054,11 +1065,13 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
 
-	mvm->fwrt.dump.conf = FW_DBG_INVALID;
-	/* if we have a destination, assume EARLY START */
-	if (mvm->fw->dbg.dest_tlv)
-		mvm->fwrt.dump.conf = FW_DBG_START_FROM_ALIVE;
-	iwl_fw_start_dbg_conf(&mvm->fwrt, FW_DBG_START_FROM_ALIVE);
+	if (!mvm->trans->ini_valid) {
+		mvm->fwrt.dump.conf = FW_DBG_INVALID;
+		/* if we have a destination, assume EARLY START */
+		if (mvm->fw->dbg.dest_tlv)
+			mvm->fwrt.dump.conf = FW_DBG_START_FROM_ALIVE;
+		iwl_fw_start_dbg_conf(&mvm->fwrt, FW_DBG_START_FROM_ALIVE);
+	}
 
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)

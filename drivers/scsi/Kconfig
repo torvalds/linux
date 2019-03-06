@@ -50,18 +50,6 @@ config SCSI_NETLINK
 	default	n
 	depends on NET
 
-config SCSI_MQ_DEFAULT
-	bool "SCSI: use blk-mq I/O path by default"
-	default y
-	depends on SCSI
-	---help---
-	  This option enables the blk-mq based I/O path for SCSI devices by
-	  default.  With this option the scsi_mod.use_blk_mq module/boot
-	  option defaults to Y, without it to N, but it can still be
-	  overridden either way.
-
-	  If unsure say Y.
-
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
 	depends on SCSI && PROC_FS

@@ -59,7 +59,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
 	/* Pixel clock from REF_01 p. 20. Min/max height/width are unknown */
-	V4L2_INIT_BT_TIMINGS(1, 10000, 1, 10000, 0, 165000000,
+	V4L2_INIT_BT_TIMINGS(640, 1920, 350, 1200, 13000000, 165000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
 			V4L2_DV_BT_CAP_PROGRESSIVE |
@@ -444,7 +444,7 @@ static void print_avi_infoframe(struct v4l2_subdev *sd)
 
 	i2c_rd(sd, PK_AVI_0HEAD, buffer, HDMI_INFOFRAME_SIZE(AVI));
 
-	if (hdmi_infoframe_unpack(&frame, buffer) < 0) {
+	if (hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer)) < 0) {
 		v4l2_err(sd, "%s: unpack of AVI infoframe failed\n", __func__);
 		return;
 	}

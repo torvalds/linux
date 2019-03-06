@@ -47,9 +47,10 @@ extern unsigned long __xchg_called_with_bad_pointer(void)
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
+		"	.set	push				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"1:	" ld "	%0, %2		# __xchg_asm	\n"	\
-		"	.set	mips0				\n"	\
+		"	.set	pop				\n"	\
 		"	move	$1, %z3				\n"	\
 		"	.set	" MIPS_ISA_ARCH_LEVEL "		\n"	\
 		"	" st "	$1, %1				\n"	\
@@ -117,10 +118,11 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 		__asm__ __volatile__(					\
 		"	.set	push				\n"	\
 		"	.set	noat				\n"	\
+		"	.set	push				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"1:	" ld "	%0, %2		# __cmpxchg_asm \n"	\
 		"	bne	%0, %z3, 2f			\n"	\
-		"	.set	mips0				\n"	\
+		"	.set	pop				\n"	\
 		"	move	$1, %z4				\n"	\
 		"	.set	"MIPS_ISA_ARCH_LEVEL"		\n"	\
 		"	" st "	$1, %1				\n"	\

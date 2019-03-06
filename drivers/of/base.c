@@ -79,6 +79,13 @@ bool of_node_name_prefix(const struct device_node *np, const char *prefix)
 }
 EXPORT_SYMBOL(of_node_name_prefix);
 
+static bool __of_node_is_type(const struct device_node *np, const char *type)
+{
+	const char *match = __of_get_property(np, "device_type", NULL);
+
+	return np && match && type && !strcmp(match, type);
+}
+
 int of_n_addr_cells(struct device_node *np)
 {
 	u32 cells;
@@ -116,9 +123,6 @@ int __weak of_node_to_nid(struct device_node *np)
 }
 #endif
 
-static struct device_node **phandle_cache;
-static u32 phandle_cache_mask;
-
 /*
  * Assumptions behind phandle_cache implementation:
  *   - phandle property values are in a contiguous range of 1..n
@@ -127,6 +131,66 @@ static u32 phandle_cache_mask;
  *   - the phandle lookup overhead reduction provided by the cache
  *     will likely be less
  */
+
+static struct device_node **phandle_cache;
+static u32 phandle_cache_mask;
+
+/*
+ * Caller must hold devtree_lock.
+ */
+static void __of_free_phandle_cache(void)
+{
+	u32 cache_entries = phandle_cache_mask + 1;
+	u32 k;
+
+	if (!phandle_cache)
+		return;
+
+	for (k = 0; k < cache_entries; k++)
+		of_node_put(phandle_cache[k]);
+
+	kfree(phandle_cache);
+	phandle_cache = NULL;
+}
+
+int of_free_phandle_cache(void)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	__of_free_phandle_cache();
+
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	return 0;
+}
+#if !defined(CONFIG_MODULES)
+late_initcall_sync(of_free_phandle_cache);
+#endif
+
+/*
+ * Caller must hold devtree_lock.
+ */
+void __of_free_phandle_cache_entry(phandle handle)
+{
+	phandle masked_handle;
+	struct device_node *np;
+
+	if (!handle)
+		return;
+
+	masked_handle = handle & phandle_cache_mask;
+
+	if (phandle_cache) {
+		np = phandle_cache[masked_handle];
+		if (np && handle == np->phandle) {
+			of_node_put(np);
+			phandle_cache[masked_handle] = NULL;
+		}
+	}
+}
+
 void of_populate_phandle_cache(void)
 {
 	unsigned long flags;
@@ -136,8 +200,7 @@ void of_populate_phandle_cache(void)
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 
-	kfree(phandle_cache);
-	phandle_cache = NULL;
+	__of_free_phandle_cache();
 
 	for_each_of_allnodes(np)
 		if (np->phandle && np->phandle != OF_PHANDLE_ILLEGAL)
@@ -155,29 +218,14 @@ void of_populate_phandle_cache(void)
 		goto out;
 
 	for_each_of_allnodes(np)
-		if (np->phandle && np->phandle != OF_PHANDLE_ILLEGAL)
+		if (np->phandle && np->phandle != OF_PHANDLE_ILLEGAL) {
+			of_node_get(np);
 			phandle_cache[np->phandle & phandle_cache_mask] = np;
+		}
 
 out:
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 }
-
-int of_free_phandle_cache(void)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
-
-	kfree(phandle_cache);
-	phandle_cache = NULL;
-
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-
-	return 0;
-}
-#if !defined(CONFIG_MODULES)
-late_initcall_sync(of_free_phandle_cache);
-#endif
 
 void __init of_core_init(void)
 {
@@ -482,14 +530,14 @@ static int __of_device_is_compatible(const struct device_node *device,
 
 	/* Matching type is better than matching name */
 	if (type && type[0]) {
-		if (!device->type || of_node_cmp(type, device->type))
+		if (!__of_node_is_type(device, type))
 			return 0;
 		score += 2;
 	}
 
 	/* Matching name is a bit better than not */
 	if (name && name[0]) {
-		if (!device->name || of_node_cmp(name, device->name))
+		if (!of_node_name_eq(device, name))
 			return 0;
 		score++;
 	}
@@ -775,7 +823,7 @@ struct device_node *of_get_next_cpu_node(struct device_node *prev)
 	}
 	for (; next; next = next->sibling) {
 		if (!(of_node_name_eq(next, "cpu") ||
-		      (next->type && !of_node_cmp(next->type, "cpu"))))
+		      __of_node_is_type(next, "cpu")))
 			continue;
 		if (of_node_get(next))
 			break;
@@ -828,7 +876,7 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 	struct device_node *child;
 
 	for_each_child_of_node(node, child)
-		if (child->name && (of_node_cmp(child->name, name) == 0))
+		if (of_node_name_eq(child, name))
 			break;
 	return child;
 }
@@ -954,8 +1002,7 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for_each_of_allnodes_from(from, np)
-		if (np->name && (of_node_cmp(np->name, name) == 0)
-		    && of_node_get(np))
+		if (of_node_name_eq(np, name) && of_node_get(np))
 			break;
 	of_node_put(from);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
@@ -983,8 +1030,7 @@ struct device_node *of_find_node_by_type(struct device_node *from,
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for_each_of_allnodes_from(from, np)
-		if (np->type && (of_node_cmp(np->type, type) == 0)
-		    && of_node_get(np))
+		if (__of_node_is_type(np, type) && of_node_get(np))
 			break;
 	of_node_put(from);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
@@ -1190,13 +1236,23 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 		if (phandle_cache[masked_handle] &&
 		    handle == phandle_cache[masked_handle]->phandle)
 			np = phandle_cache[masked_handle];
+		if (np && of_node_check_flag(np, OF_DETACHED)) {
+			WARN_ON(1); /* did not uncache np on node removal */
+			of_node_put(np);
+			phandle_cache[masked_handle] = NULL;
+			np = NULL;
+		}
 	}
 
 	if (!np) {
 		for_each_of_allnodes(np)
-			if (np->phandle == handle) {
-				if (phandle_cache)
+			if (np->phandle == handle &&
+			    !of_node_check_flag(np, OF_DETACHED)) {
+				if (phandle_cache) {
+					/* will put when removed from cache */
+					of_node_get(np);
 					phandle_cache[masked_handle] = np;
+				}
 				break;
 			}
 	}
@@ -2108,9 +2164,9 @@ struct device_node *of_find_next_cache_node(const struct device_node *np)
 	/* OF on pmac has nodes instead of properties named "l2-cache"
 	 * beneath CPU nodes.
 	 */
-	if (IS_ENABLED(CONFIG_PPC_PMAC) && !strcmp(np->type, "cpu"))
+	if (IS_ENABLED(CONFIG_PPC_PMAC) && of_node_is_type(np, "cpu"))
 		for_each_child_of_node(np, child)
-			if (!strcmp(child->type, "cache"))
+			if (of_node_is_type(child, "cache"))
 				return child;
 
 	return NULL;

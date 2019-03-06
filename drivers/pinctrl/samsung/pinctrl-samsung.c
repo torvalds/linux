@@ -1071,7 +1071,7 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 			continue;
 		bank = d->pin_banks;
 		for (i = 0; i < d->nr_banks; ++i, ++bank) {
-			if (!strcmp(bank->name, np->name)) {
+			if (of_node_name_eq(np, bank->name)) {
 				bank->of_node = np;
 				break;
 			}

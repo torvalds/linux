@@ -2648,10 +2648,11 @@ tx_only:
 	if (vsi->back->flags & I40E_TXR_FLAGS_WB_ON_ITR)
 		q_vector->arm_wb_state = false;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-
-	i40e_update_enable_itr(vsi, q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		i40e_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
@@ -3454,6 +3455,8 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	tx_desc->cmd_type_offset_bsz =
 			build_ctob(td_cmd, td_offset, size, td_tag);
 
+	skb_tx_timestamp(skb);
+
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
 	 *
@@ -3507,6 +3510,7 @@ static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 	u16 i = xdp_ring->next_to_use;
 	struct i40e_tx_buffer *tx_bi;
 	struct i40e_tx_desc *tx_desc;
+	void *data = xdpf->data;
 	u32 size = xdpf->len;
 	dma_addr_t dma;
 
@@ -3514,8 +3518,7 @@ static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 		xdp_ring->tx_stats.tx_busy++;
 		return I40E_XDP_CONSUMED;
 	}
-
-	dma = dma_map_single(xdp_ring->dev, xdpf->data, size, DMA_TO_DEVICE);
+	dma = dma_map_single(xdp_ring->dev, data, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(xdp_ring->dev, dma))
 		return I40E_XDP_CONSUMED;
 
@@ -3633,8 +3636,6 @@ static netdev_tx_t i40e_xmit_frame_ring(struct sk_buff *skb,
 	if (tsyn)
 		tx_flags |= I40E_TX_FLAGS_TSYN;
 
-	skb_tx_timestamp(skb);
-
 	/* always enable CRC insertion offload */
 	td_cmd |= I40E_TX_DESC_CMD_ICRC;
 
@@ -3708,6 +3709,7 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	struct i40e_netdev_priv *np = netdev_priv(dev);
 	unsigned int queue_index = smp_processor_id();
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
 	struct i40e_ring *xdp_ring;
 	int drops = 0;
 	int i;
@@ -3715,7 +3717,8 @@ int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	if (test_bit(__I40E_VSI_DOWN, vsi->state))
 		return -ENETDOWN;
 
-	if (!i40e_enabled_xdp_vsi(vsi) || queue_index >= vsi->num_queue_pairs)
+	if (!i40e_enabled_xdp_vsi(vsi) || queue_index >= vsi->num_queue_pairs ||
+	    test_bit(__I40E_CONFIG_BUSY, pf->state))
 		return -ENXIO;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))

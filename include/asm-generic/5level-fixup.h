@@ -26,6 +26,7 @@
 #define p4d_clear(p4d)			pgd_clear(p4d)
 #define p4d_val(p4d)			pgd_val(p4d)
 #define p4d_populate(mm, p4d, pud)	pgd_populate(mm, p4d, pud)
+#define p4d_populate_safe(mm, p4d, pud)	pgd_populate(mm, p4d, pud)
 #define p4d_page(p4d)			pgd_page(p4d)
 #define p4d_page_vaddr(p4d)		pgd_page_vaddr(p4d)
 

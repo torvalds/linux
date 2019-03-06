@@ -81,7 +81,6 @@
 #include <linux/acpi.h>
 #include <linux/pci_ids.h>
 #include <linux/power_supply.h>
-#include <linux/thinkpad_acpi.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/initval.h>
@@ -476,6 +475,12 @@ do {									\
 	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
 	  .bios = TPID3(__id1, __id2, __id3),	\
 	  .ec = TPACPI_MATCH_ANY,		\
+	  .quirks = (__quirk) }
+
+#define TPACPI_QEC_IBM(__id1, __id2, __quirk)	\
+	{ .vendor = PCI_VENDOR_ID_IBM,		\
+	  .bios = TPACPI_MATCH_ANY,		\
+	  .ec = TPID(__id1, __id2),		\
 	  .quirks = (__quirk) }
 
 #define TPACPI_QEC_LNV(__id1, __id2, __quirk)	\
@@ -3457,7 +3462,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
 		KEY_UNKNOWN,
 
-		KEY_FAVORITES,       /* Favorite app, 0x311 */
+		KEY_BOOKMARKS,       /* Favorite app, 0x311 */
 		KEY_RESERVED,        /* Clipping tool */
 		KEY_CALC,            /* Calculator (above numpad, P52) */
 		KEY_BLUETOOTH,       /* Bluetooth */
@@ -5972,9 +5977,6 @@ static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
 	  .quirks = 0x00bfU,
 	},
 };
-
-#undef TPACPI_LEDQ_IBM
-#undef TPACPI_LEDQ_LNV
 
 static enum led_access_mode __init led_init_detect_mode(void)
 {
@@ -8710,39 +8712,17 @@ static const struct attribute_group fan_attr_group = {
 	.attrs = fan_attributes,
 };
 
-#define	TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
+#define TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
 #define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
 
-#define TPACPI_FAN_QI(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_IBM,		\
-	  .bios = TPACPI_MATCH_ANY,		\
-	  .ec = TPID(__id1, __id2),		\
-	  .quirks = __quirks }
-
-#define TPACPI_FAN_QL(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
-	  .bios = TPACPI_MATCH_ANY,		\
-	  .ec = TPID(__id1, __id2),		\
-	  .quirks = __quirks }
-
-#define TPACPI_FAN_QB(__id1, __id2, __quirks)	\
-	{ .vendor = PCI_VENDOR_ID_LENOVO,	\
-	  .bios = TPID(__id1, __id2),		\
-	  .ec = TPACPI_MATCH_ANY,		\
-	  .quirks = __quirks }
-
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
-	TPACPI_FAN_QI('1', 'Y', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '8', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '6', TPACPI_FAN_Q1),
-	TPACPI_FAN_QI('7', '0', TPACPI_FAN_Q1),
-	TPACPI_FAN_QL('7', 'M', TPACPI_FAN_2FAN),
-	TPACPI_FAN_QB('N', '1', TPACPI_FAN_2FAN),
+	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '8', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '6', TPACPI_FAN_Q1),
+	TPACPI_QEC_IBM('7', '0', TPACPI_FAN_Q1),
+	TPACPI_QEC_LNV('7', 'M', TPACPI_FAN_2FAN),
+	TPACPI_Q_LNV('N', '1', TPACPI_FAN_2FAN),
 };
-
-#undef TPACPI_FAN_QL
-#undef TPACPI_FAN_QI
-#undef TPACPI_FAN_QB
 
 static int __init fan_init(struct ibm_init_struct *iibm)
 {
@@ -9150,6 +9130,7 @@ static struct ibm_struct fan_driver_data = {
  * Mute LED subdriver
  */
 
+#define TPACPI_LED_MAX		2
 
 struct tp_led_table {
 	acpi_string name;
@@ -9158,13 +9139,13 @@ struct tp_led_table {
 	int state;
 };
 
-static struct tp_led_table led_tables[] = {
-	[TPACPI_LED_MUTE] = {
+static struct tp_led_table led_tables[TPACPI_LED_MAX] = {
+	[LED_AUDIO_MUTE] = {
 		.name = "SSMS",
 		.on_value = 1,
 		.off_value = 0,
 	},
-	[TPACPI_LED_MICMUTE] = {
+	[LED_AUDIO_MICMUTE] = {
 		.name = "MMTS",
 		.on_value = 2,
 		.off_value = 0,
@@ -9189,31 +9170,64 @@ static int mute_led_on_off(struct tp_led_table *t, bool state)
 	return state;
 }
 
-int tpacpi_led_set(int whichled, bool on)
+static int tpacpi_led_set(int whichled, bool on)
 {
 	struct tp_led_table *t;
-
-	if (whichled < 0 || whichled >= TPACPI_LED_MAX)
-		return -EINVAL;
 
 	t = &led_tables[whichled];
 	if (t->state < 0 || t->state == on)
 		return t->state;
 	return mute_led_on_off(t, on);
 }
-EXPORT_SYMBOL_GPL(tpacpi_led_set);
+
+static int tpacpi_led_mute_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	return tpacpi_led_set(LED_AUDIO_MUTE, brightness != LED_OFF);
+}
+
+static int tpacpi_led_micmute_set(struct led_classdev *led_cdev,
+				  enum led_brightness brightness)
+{
+	return tpacpi_led_set(LED_AUDIO_MICMUTE, brightness != LED_OFF);
+}
+
+static struct led_classdev mute_led_cdev[TPACPI_LED_MAX] = {
+	[LED_AUDIO_MUTE] = {
+		.name		= "platform::mute",
+		.max_brightness = 1,
+		.brightness_set_blocking = tpacpi_led_mute_set,
+		.default_trigger = "audio-mute",
+	},
+	[LED_AUDIO_MICMUTE] = {
+		.name		= "platform::micmute",
+		.max_brightness = 1,
+		.brightness_set_blocking = tpacpi_led_micmute_set,
+		.default_trigger = "audio-micmute",
+	},
+};
 
 static int mute_led_init(struct ibm_init_struct *iibm)
 {
 	acpi_handle temp;
-	int i;
+	int i, err;
 
 	for (i = 0; i < TPACPI_LED_MAX; i++) {
 		struct tp_led_table *t = &led_tables[i];
-		if (ACPI_SUCCESS(acpi_get_handle(hkey_handle, t->name, &temp)))
-			mute_led_on_off(t, false);
-		else
+		if (ACPI_FAILURE(acpi_get_handle(hkey_handle, t->name, &temp))) {
 			t->state = -ENODEV;
+			continue;
+		}
+
+		mute_led_cdev[i].brightness = ledtrig_audio_get(i);
+		err = led_classdev_register(&tpacpi_pdev->dev, &mute_led_cdev[i]);
+		if (err < 0) {
+			while (i--) {
+				if (led_tables[i].state >= 0)
+					led_classdev_unregister(&mute_led_cdev[i]);
+			}
+			return err;
+		}
 	}
 	return 0;
 }
@@ -9222,8 +9236,12 @@ static void mute_led_exit(void)
 {
 	int i;
 
-	for (i = 0; i < TPACPI_LED_MAX; i++)
-		tpacpi_led_set(i, false);
+	for (i = 0; i < TPACPI_LED_MAX; i++) {
+		if (led_tables[i].state >= 0) {
+			led_classdev_unregister(&mute_led_cdev[i]);
+			tpacpi_led_set(i, false);
+		}
+	}
 }
 
 static void mute_led_resume(void)

@@ -366,6 +366,15 @@ config TI_DAC5571
 
 	  If compiled as a module, it will be called ti-dac5571.
 
+config TI_DAC7311
+	tristate "Texas Instruments 8/10/12-bit 1-channel DAC driver"
+	depends on SPI
+	help
+	  Driver for the Texas Instruments
+	  DAC7311, DAC6311, DAC5311.
+
+	  If compiled as a module, it will be called ti-dac7311.
+
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
 	depends on OF

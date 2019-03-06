@@ -887,13 +887,15 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 	/* No redirected packets during ip_rt_redirect_silence;
 	 * reset the algorithm.
 	 */
-	if (time_after(jiffies, peer->rate_last + ip_rt_redirect_silence))
+	if (time_after(jiffies, peer->rate_last + ip_rt_redirect_silence)) {
 		peer->rate_tokens = 0;
+		peer->n_redirects = 0;
+	}
 
 	/* Too many ignored redirects; do not send anything
 	 * set dst.rate_last to the last seen redirected packet.
 	 */
-	if (peer->rate_tokens >= ip_rt_redirect_number) {
+	if (peer->n_redirects >= ip_rt_redirect_number) {
 		peer->rate_last = jiffies;
 		goto out_put_peer;
 	}
@@ -910,6 +912,7 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		icmp_send(skb, ICMP_REDIRECT, ICMP_REDIR_HOST, gw);
 		peer->rate_last = jiffies;
 		++peer->rate_tokens;
+		++peer->n_redirects;
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 		if (log_martians &&
 		    peer->rate_tokens == ip_rt_redirect_number)
@@ -1677,7 +1680,7 @@ static void ip_handle_martian_source(struct net_device *dev,
 			print_hex_dump(KERN_WARNING, "ll header: ",
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       skb_mac_header(skb),
-				       dev->hard_header_len, true);
+				       dev->hard_header_len, false);
 		}
 	}
 #endif
@@ -2800,7 +2803,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	if (tb[RTA_IP_PROTO]) {
 		err = rtm_getroute_parse_ip_proto(tb[RTA_IP_PROTO],
-						  &ip_proto, extack);
+						  &ip_proto, AF_INET, extack);
 		if (err)
 			return err;
 	}
@@ -2849,6 +2852,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			err = -rt->dst.error;
 	} else {
 		fl4.flowi4_iif = LOOPBACK_IFINDEX;
+		skb->dev = net->loopback_dev;
 		rt = ip_route_output_key_hash_rcu(net, &fl4, &res, skb);
 		err = 0;
 		if (IS_ERR(rt))

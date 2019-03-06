@@ -24,6 +24,7 @@ choice
 config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
+	select PPC_HAVE_PMU_SUPPORT
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -39,14 +40,14 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 
 config 44x
 	bool "AMCC 44x, 46x or 47x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select PHYS_64BIT
 
 config E200
@@ -179,11 +180,6 @@ config PPC_BOOK3E
 	def_bool y
 	depends on PPC_BOOK3E_64
 
-config 6xx
-	def_bool y
-	depends on PPC32 && PPC_BOOK3S
-	select PPC_HAVE_PMU_SUPPORT
-
 config E500
 	select FSL_EMB_PERFMON
 	select PPC_FSL_BOOK3E
@@ -266,7 +262,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
+	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -316,14 +312,6 @@ config SPE
 
 	  If in doubt, say Y here.
 
-config PPC_STD_MMU
-	def_bool y
-	depends on PPC_BOOK3S
-
-config PPC_STD_MMU_32
-	def_bool y
-	depends on PPC_STD_MMU && PPC32
-
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
 	def_bool y
 	depends on PPC_BOOK3S_64
@@ -358,7 +346,7 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
 
 config PPC_MMU_NOHASH
 	def_bool y
-	depends on !PPC_STD_MMU
+	depends on !PPC_BOOK3S
 
 config PPC_BOOK3E_MMU
 	def_bool y
@@ -412,7 +400,8 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || GAMECUBE_COMMON
+	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
+		GAMECUBE_COMMON || AMIGAONE
 	default n if PPC_47x
 	default y
 

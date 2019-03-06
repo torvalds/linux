@@ -9,9 +9,6 @@ struct bpf_map SEC("maps") __bpf_stdout__ = {
        .max_entries = __NR_CPUS__,
 };
 
-static int (*perf_event_output)(void *, struct bpf_map *, int, void *, unsigned long) =
-	(void *)BPF_FUNC_perf_event_output;
-
 #define puts(from) \
 	({ const int __len = sizeof(from); \
 	   char __from[__len] = from; \

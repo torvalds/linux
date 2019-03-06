@@ -371,20 +371,11 @@ device_initcall(hvc_vio_init); /* after drivers/tty/hvc/hvc_console.c */
 void __init hvc_vio_init_early(void)
 {
 	const __be32 *termno;
-	const char *name;
 	const struct hv_ops *ops;
 
 	/* find the boot console from /chosen/stdout */
-	if (!of_stdout)
-		return;
-	name = of_get_property(of_stdout, "name", NULL);
-	if (!name) {
-		printk(KERN_WARNING "stdout node missing 'name' property!\n");
-		return;
-	}
-
 	/* Check if it's a virtual terminal */
-	if (strncmp(name, "vty", 3) != 0)
+	if (!of_node_name_prefix(of_stdout, "vty"))
 		return;
 	termno = of_get_property(of_stdout, "reg", NULL);
 	if (termno == NULL)

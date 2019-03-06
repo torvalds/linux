@@ -19,6 +19,7 @@
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/midi.h>
+#include <linux/bits.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -668,15 +669,133 @@ static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
 }
 
 /*
- * C-Media CM6206 is based on CM106 with two additional
- * registers that are not documented in the data sheet.
- * Values here are chosen based on sniffing USB traffic
- * under Windows.
+ * CM6206 registers from the CM6206 datasheet rev 2.1
  */
+#define CM6206_REG0_DMA_MASTER BIT(15)
+#define CM6206_REG0_SPDIFO_RATE_48K (2 << 12)
+#define CM6206_REG0_SPDIFO_RATE_96K (7 << 12)
+/* Bit 4 thru 11 is the S/PDIF category code */
+#define CM6206_REG0_SPDIFO_CAT_CODE_GENERAL (0 << 4)
+#define CM6206_REG0_SPDIFO_EMPHASIS_CD BIT(3)
+#define CM6206_REG0_SPDIFO_COPYRIGHT_NA BIT(2)
+#define CM6206_REG0_SPDIFO_NON_AUDIO BIT(1)
+#define CM6206_REG0_SPDIFO_PRO_FORMAT BIT(0)
+
+#define CM6206_REG1_TEST_SEL_CLK BIT(14)
+#define CM6206_REG1_PLLBIN_EN BIT(13)
+#define CM6206_REG1_SOFT_MUTE_EN BIT(12)
+#define CM6206_REG1_GPIO4_OUT BIT(11)
+#define CM6206_REG1_GPIO4_OE BIT(10)
+#define CM6206_REG1_GPIO3_OUT BIT(9)
+#define CM6206_REG1_GPIO3_OE BIT(8)
+#define CM6206_REG1_GPIO2_OUT BIT(7)
+#define CM6206_REG1_GPIO2_OE BIT(6)
+#define CM6206_REG1_GPIO1_OUT BIT(5)
+#define CM6206_REG1_GPIO1_OE BIT(4)
+#define CM6206_REG1_SPDIFO_INVALID BIT(3)
+#define CM6206_REG1_SPDIF_LOOP_EN BIT(2)
+#define CM6206_REG1_SPDIFO_DIS BIT(1)
+#define CM6206_REG1_SPDIFI_MIX BIT(0)
+
+#define CM6206_REG2_DRIVER_ON BIT(15)
+#define CM6206_REG2_HEADP_SEL_SIDE_CHANNELS (0 << 13)
+#define CM6206_REG2_HEADP_SEL_SURROUND_CHANNELS (1 << 13)
+#define CM6206_REG2_HEADP_SEL_CENTER_SUBW (2 << 13)
+#define CM6206_REG2_HEADP_SEL_FRONT_CHANNELS (3 << 13)
+#define CM6206_REG2_MUTE_HEADPHONE_RIGHT BIT(12)
+#define CM6206_REG2_MUTE_HEADPHONE_LEFT BIT(11)
+#define CM6206_REG2_MUTE_REAR_SURROUND_RIGHT BIT(10)
+#define CM6206_REG2_MUTE_REAR_SURROUND_LEFT BIT(9)
+#define CM6206_REG2_MUTE_SIDE_SURROUND_RIGHT BIT(8)
+#define CM6206_REG2_MUTE_SIDE_SURROUND_LEFT BIT(7)
+#define CM6206_REG2_MUTE_SUBWOOFER BIT(6)
+#define CM6206_REG2_MUTE_CENTER BIT(5)
+#define CM6206_REG2_MUTE_RIGHT_FRONT BIT(3)
+#define CM6206_REG2_MUTE_LEFT_FRONT BIT(3)
+#define CM6206_REG2_EN_BTL BIT(2)
+#define CM6206_REG2_MCUCLKSEL_1_5_MHZ (0)
+#define CM6206_REG2_MCUCLKSEL_3_MHZ (1)
+#define CM6206_REG2_MCUCLKSEL_6_MHZ (2)
+#define CM6206_REG2_MCUCLKSEL_12_MHZ (3)
+
+/* Bit 11..13 sets the sensitivity to FLY tuner volume control VP/VD signal */
+#define CM6206_REG3_FLYSPEED_DEFAULT (2 << 11)
+#define CM6206_REG3_VRAP25EN BIT(10)
+#define CM6206_REG3_MSEL1 BIT(9)
+#define CM6206_REG3_SPDIFI_RATE_44_1K BIT(0 << 7)
+#define CM6206_REG3_SPDIFI_RATE_48K BIT(2 << 7)
+#define CM6206_REG3_SPDIFI_RATE_32K BIT(3 << 7)
+#define CM6206_REG3_PINSEL BIT(6)
+#define CM6206_REG3_FOE BIT(5)
+#define CM6206_REG3_ROE BIT(4)
+#define CM6206_REG3_CBOE BIT(3)
+#define CM6206_REG3_LOSE BIT(2)
+#define CM6206_REG3_HPOE BIT(1)
+#define CM6206_REG3_SPDIFI_CANREC BIT(0)
+
+#define CM6206_REG5_DA_RSTN BIT(13)
+#define CM6206_REG5_AD_RSTN BIT(12)
+#define CM6206_REG5_SPDIFO_AD2SPDO BIT(12)
+#define CM6206_REG5_SPDIFO_SEL_FRONT (0 << 9)
+#define CM6206_REG5_SPDIFO_SEL_SIDE_SUR (1 << 9)
+#define CM6206_REG5_SPDIFO_SEL_CEN_LFE (2 << 9)
+#define CM6206_REG5_SPDIFO_SEL_REAR_SUR (3 << 9)
+#define CM6206_REG5_CODECM BIT(8)
+#define CM6206_REG5_EN_HPF BIT(7)
+#define CM6206_REG5_T_SEL_DSDA4 BIT(6)
+#define CM6206_REG5_T_SEL_DSDA3 BIT(5)
+#define CM6206_REG5_T_SEL_DSDA2 BIT(4)
+#define CM6206_REG5_T_SEL_DSDA1 BIT(3)
+#define CM6206_REG5_T_SEL_DSDAD_NORMAL 0
+#define CM6206_REG5_T_SEL_DSDAD_FRONT 4
+#define CM6206_REG5_T_SEL_DSDAD_S_SURROUND 5
+#define CM6206_REG5_T_SEL_DSDAD_CEN_LFE 6
+#define CM6206_REG5_T_SEL_DSDAD_R_SURROUND 7
+
 static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 {
 	int err  = 0, reg;
-	int val[] = {0x2004, 0x3000, 0xf800, 0x143f, 0x0000, 0x3000};
+	int val[] = {
+		/*
+		 * Values here are chosen based on sniffing USB traffic
+		 * under Windows.
+		 *
+		 * REG0: DAC is master, sample rate 48kHz, no copyright
+		 */
+		CM6206_REG0_SPDIFO_RATE_48K |
+		CM6206_REG0_SPDIFO_COPYRIGHT_NA,
+		/*
+		 * REG1: PLL binary search enable, soft mute enable.
+		 */
+		CM6206_REG1_PLLBIN_EN |
+		CM6206_REG1_SOFT_MUTE_EN,
+		/*
+		 * REG2: enable output drivers,
+		 * select front channels to the headphone output,
+		 * then mute the headphone channels, run the MCU
+		 * at 1.5 MHz.
+		 */
+		CM6206_REG2_DRIVER_ON |
+		CM6206_REG2_HEADP_SEL_FRONT_CHANNELS |
+		CM6206_REG2_MUTE_HEADPHONE_RIGHT |
+		CM6206_REG2_MUTE_HEADPHONE_LEFT,
+		/*
+		 * REG3: default flyspeed, set 2.5V mic bias
+		 * enable all line out ports and enable SPDIF
+		 */
+		CM6206_REG3_FLYSPEED_DEFAULT |
+		CM6206_REG3_VRAP25EN |
+		CM6206_REG3_FOE |
+		CM6206_REG3_ROE |
+		CM6206_REG3_CBOE |
+		CM6206_REG3_LOSE |
+		CM6206_REG3_HPOE |
+		CM6206_REG3_SPDIFI_CANREC,
+		/* REG4 is just a bunch of GPIO lines */
+		0x0000,
+		/* REG5: de-assert AD/DA reset signals */
+		CM6206_REG5_DA_RSTN |
+		CM6206_REG5_AD_RSTN };
 
 	for (reg = 0; reg < ARRAY_SIZE(val); reg++) {
 		err = snd_usb_cm106_write_int_reg(dev, reg, val[reg]);
@@ -1373,6 +1492,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
+	case USB_ID(0x10cb, 0x0103): /* The Bit Opus #3; with fp->dsd_raw */
 	case USB_ID(0x152a, 0x85de): /* SMSL D1 DAC */
 	case USB_ID(0x16d0, 0x09dd): /* Encore mDSD */
 	case USB_ID(0x0d8c, 0x0316): /* Hegel HD12 DSD */
@@ -1447,6 +1567,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case 0x20b1:  /* XMOS based devices */
 	case 0x152a:  /* Thesycon devices */
 	case 0x25ce:  /* Mytek devices */
+	case 0x2ab6:  /* T+A devices */
 		if (fp->dsd_raw)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;

@@ -84,29 +84,13 @@ static int
 isl1208_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[],
 		      unsigned len)
 {
-	u8 reg_addr[1] = { reg };
-	struct i2c_msg msgs[2] = {
-		{
-			.addr = client->addr,
-			.len = sizeof(reg_addr),
-			.buf = reg_addr
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = buf
-		}
-	};
 	int ret;
 
 	WARN_ON(reg > ISL1219_REG_YRT);
 	WARN_ON(reg + len > ISL1219_REG_YRT + 1);
 
-	ret = i2c_transfer(client->adapter, msgs, 2);
-	if (ret > 0)
-		ret = 0;
-	return ret;
+	ret = i2c_smbus_read_i2c_block_data(client, reg, len, buf);
+	return (ret < 0) ? ret : 0;
 }
 
 /* block write */
@@ -114,26 +98,13 @@ static int
 isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 		     unsigned len)
 {
-	u8 i2c_buf[ISL1208_REG_USR2 + 2];
-	struct i2c_msg msgs[1] = {
-		{
-			.addr = client->addr,
-			.len = len + 1,
-			.buf = i2c_buf
-		}
-	};
 	int ret;
 
 	WARN_ON(reg > ISL1219_REG_YRT);
 	WARN_ON(reg + len > ISL1219_REG_YRT + 1);
 
-	i2c_buf[0] = reg;
-	memcpy(&i2c_buf[1], &buf[0], len);
-
-	ret = i2c_transfer(client->adapter, msgs, 1);
-	if (ret > 0)
-		ret = 0;
-	return ret;
+	ret = i2c_smbus_write_i2c_block_data(client, reg, len, buf);
+	return (ret < 0) ? ret : 0;
 }
 
 /* simple check to see whether we have a isl1208 */

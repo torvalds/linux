@@ -82,8 +82,8 @@ void sdhci_dumpregs(struct sdhci_host *host)
 	SDHCI_DUMP("Int enab:  0x%08x | Sig enab: 0x%08x\n",
 		   sdhci_readl(host, SDHCI_INT_ENABLE),
 		   sdhci_readl(host, SDHCI_SIGNAL_ENABLE));
-	SDHCI_DUMP("AC12 err:  0x%08x | Slot int: 0x%08x\n",
-		   sdhci_readw(host, SDHCI_ACMD12_ERR),
+	SDHCI_DUMP("ACmd stat: 0x%08x | Slot int: 0x%08x\n",
+		   sdhci_readw(host, SDHCI_AUTO_CMD_STATUS),
 		   sdhci_readw(host, SDHCI_SLOT_INT_STATUS));
 	SDHCI_DUMP("Caps:      0x%08x | Caps_1:   0x%08x\n",
 		   sdhci_readl(host, SDHCI_CAPABILITIES),
@@ -349,6 +349,9 @@ static void __sdhci_led_activate(struct sdhci_host *host)
 {
 	u8 ctrl;
 
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
+
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	ctrl |= SDHCI_CTRL_LED;
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
@@ -357,6 +360,9 @@ static void __sdhci_led_activate(struct sdhci_host *host)
 static void __sdhci_led_deactivate(struct sdhci_host *host)
 {
 	u8 ctrl;
+
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
 
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	ctrl &= ~SDHCI_CTRL_LED;
@@ -387,6 +393,9 @@ static int sdhci_led_register(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return 0;
+
 	snprintf(host->led_name, sizeof(host->led_name),
 		 "%s::", mmc_hostname(mmc));
 
@@ -400,6 +409,9 @@ static int sdhci_led_register(struct sdhci_host *host)
 
 static void sdhci_led_unregister(struct sdhci_host *host)
 {
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
+
 	led_classdev_unregister(&host->led);
 }
 
@@ -933,6 +945,11 @@ static void sdhci_set_transfer_irqs(struct sdhci_host *host)
 	else
 		host->ier = (host->ier & ~dma_irqs) | pio_irqs;
 
+	if (host->flags & (SDHCI_AUTO_CMD23 | SDHCI_AUTO_CMD12))
+		host->ier |= SDHCI_INT_AUTO_CMD_ERR;
+	else
+		host->ier &= ~SDHCI_INT_AUTO_CMD_ERR;
+
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 }
@@ -1191,8 +1208,7 @@ static bool sdhci_needs_reset(struct sdhci_host *host, struct mmc_request *mrq)
 	return (!(host->flags & SDHCI_DEVICE_DEAD) &&
 		((mrq->cmd && mrq->cmd->error) ||
 		 (mrq->sbc && mrq->sbc->error) ||
-		 (mrq->data && ((mrq->data->error && !mrq->data->stop) ||
-				(mrq->data->stop && mrq->data->stop->error))) ||
+		 (mrq->data && mrq->data->stop && mrq->data->stop->error) ||
 		 (host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)));
 }
 
@@ -1244,6 +1260,16 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	host->data = NULL;
 	host->data_cmd = NULL;
 
+	/*
+	 * The controller needs a reset of internal state machines upon error
+	 * conditions.
+	 */
+	if (data->error) {
+		if (!host->cmd || host->cmd == data_cmd)
+			sdhci_do_reset(host, SDHCI_RESET_CMD);
+		sdhci_do_reset(host, SDHCI_RESET_DATA);
+	}
+
 	if ((host->flags & (SDHCI_REQ_USE_DMA | SDHCI_USE_ADMA)) ==
 	    (SDHCI_REQ_USE_DMA | SDHCI_USE_ADMA))
 		sdhci_adma_table_post(host, data);
@@ -1268,17 +1294,6 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	if (data->stop &&
 	    (data->error ||
 	     !data->mrq->sbc)) {
-
-		/*
-		 * The controller needs a reset of internal state machines
-		 * upon error conditions.
-		 */
-		if (data->error) {
-			if (!host->cmd || host->cmd == data_cmd)
-				sdhci_do_reset(host, SDHCI_RESET_CMD);
-			sdhci_do_reset(host, SDHCI_RESET_DATA);
-		}
-
 		/*
 		 * 'cap_cmd_during_tfr' request must not use the command line
 		 * after mmc_command_done() has been called. It is upper layer's
@@ -2757,8 +2772,23 @@ static void sdhci_timeout_data_timer(struct timer_list *t)
  *                                                                           *
 \*****************************************************************************/
 
-static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
+static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *intmask_p)
 {
+	/* Handle auto-CMD12 error */
+	if (intmask & SDHCI_INT_AUTO_CMD_ERR && host->data_cmd) {
+		struct mmc_request *mrq = host->data_cmd->mrq;
+		u16 auto_cmd_status = sdhci_readw(host, SDHCI_AUTO_CMD_STATUS);
+		int data_err_bit = (auto_cmd_status & SDHCI_AUTO_CMD_TIMEOUT) ?
+				   SDHCI_INT_DATA_TIMEOUT :
+				   SDHCI_INT_DATA_CRC;
+
+		/* Treat auto-CMD12 error the same as data error */
+		if (!mrq->sbc && (host->flags & SDHCI_AUTO_CMD12)) {
+			*intmask_p |= data_err_bit;
+			return;
+		}
+	}
+
 	if (!host->cmd) {
 		/*
 		 * SDHCI recovers from errors by resetting the cmd and data
@@ -2780,25 +2810,32 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask)
 		else
 			host->cmd->error = -EILSEQ;
 
-		/*
-		 * If this command initiates a data phase and a response
-		 * CRC error is signalled, the card can start transferring
-		 * data - the card may have received the command without
-		 * error.  We must not terminate the mmc_request early.
-		 *
-		 * If the card did not receive the command or returned an
-		 * error which prevented it sending data, the data phase
-		 * will time out.
-		 */
+		/* Treat data command CRC error the same as data CRC error */
 		if (host->cmd->data &&
 		    (intmask & (SDHCI_INT_CRC | SDHCI_INT_TIMEOUT)) ==
 		     SDHCI_INT_CRC) {
 			host->cmd = NULL;
+			*intmask_p |= SDHCI_INT_DATA_CRC;
 			return;
 		}
 
 		sdhci_finish_mrq(host, host->cmd->mrq);
 		return;
+	}
+
+	/* Handle auto-CMD23 error */
+	if (intmask & SDHCI_INT_AUTO_CMD_ERR) {
+		struct mmc_request *mrq = host->cmd->mrq;
+		u16 auto_cmd_status = sdhci_readw(host, SDHCI_AUTO_CMD_STATUS);
+		int err = (auto_cmd_status & SDHCI_AUTO_CMD_TIMEOUT) ?
+			  -ETIMEDOUT :
+			  -EILSEQ;
+
+		if (mrq->sbc && (host->flags & SDHCI_AUTO_CMD23)) {
+			mrq->sbc->error = err;
+			sdhci_finish_mrq(host, mrq);
+			return;
+		}
 	}
 
 	if (intmask & SDHCI_INT_RESPONSE)
@@ -3021,7 +3058,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		}
 
 		if (intmask & SDHCI_INT_CMD_MASK)
-			sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK);
+			sdhci_cmd_irq(host, intmask & SDHCI_INT_CMD_MASK, &intmask);
 
 		if (intmask & SDHCI_INT_DATA_MASK)
 			sdhci_data_irq(host, intmask & SDHCI_INT_DATA_MASK);
@@ -3541,7 +3578,7 @@ void __sdhci_read_caps(struct sdhci_host *host, u16 *ver, u32 *caps, u32 *caps1)
 }
 EXPORT_SYMBOL_GPL(__sdhci_read_caps);
 
-static int sdhci_allocate_bounce_buffer(struct sdhci_host *host)
+static void sdhci_allocate_bounce_buffer(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	unsigned int max_blocks;
@@ -3579,7 +3616,7 @@ static int sdhci_allocate_bounce_buffer(struct sdhci_host *host)
 		 * Exiting with zero here makes sure we proceed with
 		 * mmc->max_segs == 1.
 		 */
-		return 0;
+		return;
 	}
 
 	host->bounce_addr = dma_map_single(mmc->parent,
@@ -3589,7 +3626,7 @@ static int sdhci_allocate_bounce_buffer(struct sdhci_host *host)
 	ret = dma_mapping_error(mmc->parent, host->bounce_addr);
 	if (ret)
 		/* Again fall back to max_segs == 1 */
-		return 0;
+		return;
 	host->bounce_buffer_size = bounce_size;
 
 	/* Lie about this since we're bouncing */
@@ -3599,8 +3636,6 @@ static int sdhci_allocate_bounce_buffer(struct sdhci_host *host)
 
 	pr_info("%s bounce up to %u segments into one, max segment size %u bytes\n",
 		mmc_hostname(mmc), max_blocks, bounce_size);
-
-	return 0;
 }
 
 static inline bool sdhci_can_64bit_dma(struct sdhci_host *host)
@@ -3728,8 +3763,9 @@ int sdhci_setup_host(struct sdhci_host *host)
 		 * Use zalloc to zero the reserved high 32-bits of 128-bit
 		 * descriptors so that they never need to be written.
 		 */
-		buf = dma_zalloc_coherent(mmc_dev(mmc), host->align_buffer_sz +
-					 host->adma_table_sz, &dma, GFP_KERNEL);
+		buf = dma_alloc_coherent(mmc_dev(mmc),
+					 host->align_buffer_sz + host->adma_table_sz,
+					 &dma, GFP_KERNEL);
 		if (!buf) {
 			pr_warn("%s: Unable to allocate ADMA buffers - falling back to standard DMA\n",
 				mmc_hostname(mmc));
@@ -4134,12 +4170,9 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 */
 	mmc->max_blk_count = (host->quirks & SDHCI_QUIRK_NO_MULTIBLOCK) ? 1 : 65535;
 
-	if (mmc->max_segs == 1) {
+	if (mmc->max_segs == 1)
 		/* This may alter mmc->*_blk_* parameters */
-		ret = sdhci_allocate_bounce_buffer(host);
-		if (ret)
-			return ret;
-	}
+		sdhci_allocate_bounce_buffer(host);
 
 	return 0;
 

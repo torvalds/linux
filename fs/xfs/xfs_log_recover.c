@@ -3850,7 +3850,6 @@ xlog_recover_do_icreate_pass2(
 	unsigned int		count;
 	unsigned int		isize;
 	xfs_agblock_t		length;
-	int			blks_per_cluster;
 	int			bb_per_cluster;
 	int			cancel_count;
 	int			nbufs;
@@ -3918,14 +3917,13 @@ xlog_recover_do_icreate_pass2(
 	 * buffers for cancellation so we don't overwrite anything written after
 	 * a cancellation.
 	 */
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	bb_per_cluster = XFS_FSB_TO_BB(mp, blks_per_cluster);
-	nbufs = length / blks_per_cluster;
+	bb_per_cluster = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
+	nbufs = length / mp->m_blocks_per_cluster;
 	for (i = 0, cancel_count = 0; i < nbufs; i++) {
 		xfs_daddr_t	daddr;
 
 		daddr = XFS_AGB_TO_DADDR(mp, agno,
-					 agbno + i * blks_per_cluster);
+					 agbno + i * mp->m_blocks_per_cluster);
 		if (xlog_check_buffer_cancelled(log, daddr, bb_per_cluster, 0))
 			cancel_count++;
 	}

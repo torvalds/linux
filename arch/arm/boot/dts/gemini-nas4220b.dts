@@ -28,7 +28,7 @@
 		compatible = "gpio-keys";
 
 		button-setup {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_SETUP>;
 			label = "Backup button";
@@ -36,7 +36,7 @@
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		};
 		button-restart {
-			debounce-interval = <50>;
+			debounce-interval = <100>;
 			wakeup-source;
 			linux,code = <KEY_RESTART>;
 			label = "Softreset button";
@@ -202,6 +202,14 @@
 		};
 
 		ata@63400000 {
+			status = "okay";
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
 			status = "okay";
 		};
 	};

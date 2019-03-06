@@ -1256,11 +1256,6 @@ static int usbg_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static char *usbg_get_fabric_name(void)
-{
-	return "usb_gadget";
-}
-
 static char *usbg_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct usbg_tpg *tpg = container_of(se_tpg,
@@ -1718,8 +1713,7 @@ static int usbg_check_stop_free(struct se_cmd *se_cmd)
 
 static const struct target_core_fabric_ops usbg_ops = {
 	.module				= THIS_MODULE,
-	.name				= "usb_gadget",
-	.get_fabric_name		= usbg_get_fabric_name,
+	.fabric_name			= "usb_gadget",
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
 	.tpg_get_tag			= usbg_get_tag,
 	.tpg_check_demo_mode		= usbg_check_true,

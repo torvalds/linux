@@ -1256,6 +1256,21 @@ int release_mem_region_adjustable(struct resource *parent,
 			continue;
 		}
 
+		/*
+		 * All memory regions added from memory-hotplug path have the
+		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
+		 * this flag, we know that we are dealing with a resource coming
+		 * from HMM/devm. HMM/devm use another mechanism to add/release
+		 * a resource. This goes via devm_request_mem_region and
+		 * devm_release_mem_region.
+		 * HMM/devm take care to release their resources when they want,
+		 * so if we are dealing with them, let us just back off here.
+		 */
+		if (!(res->flags & IORESOURCE_SYSRAM)) {
+			ret = 0;
+			break;
+		}
+
 		if (!(res->flags & IORESOURCE_MEM))
 			break;
 

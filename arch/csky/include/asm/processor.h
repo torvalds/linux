@@ -11,19 +11,13 @@
 #include <asm/cache.h>
 #include <abi/reg_ops.h>
 #include <abi/regdef.h>
+#include <abi/switch_context.h>
 #ifdef CONFIG_CPU_HAS_FPU
 #include <abi/fpu.h>
 #endif
 
 struct cpuinfo_csky {
-	unsigned long udelay_val;
 	unsigned long asid_cache;
-	/*
-	 * Capability and feature descriptor structure for CSKY CPU
-	 */
-	unsigned long options;
-	unsigned int processor_id[4];
-	unsigned int fpu_id;
 } __aligned(SMP_CACHE_BYTES);
 
 extern struct cpuinfo_csky cpu_data[];
@@ -49,20 +43,13 @@ extern struct cpuinfo_csky cpu_data[];
 struct thread_struct {
 	unsigned long  ksp;       /* kernel stack pointer */
 	unsigned long  sr;        /* saved status register */
-	unsigned long  esp0;      /* points to SR of stack frame */
-	unsigned long  hi;
-	unsigned long  lo;
-
-	/* Other stuff associated with the thread. */
-	unsigned long address;      /* Last user fault */
-	unsigned long error_code;
 
 	/* FPU regs */
 	struct user_fp __aligned(16) user_fp;
 };
 
 #define INIT_THREAD  { \
-	.ksp = (unsigned long) init_thread_union.stack + THREAD_SIZE, \
+	.ksp = sizeof(init_stack) + (unsigned long) &init_stack, \
 	.sr = DEFAULT_PSR_VALUE, \
 }
 
@@ -108,7 +95,7 @@ unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->usp)
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_SIZE + p->stack) - 1)
+	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 
 #define cpu_relax() barrier()
 

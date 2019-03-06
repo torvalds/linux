@@ -1294,7 +1294,7 @@ void __init arc_cache_init_master(void)
 	/*
 	 * In case of IOC (say IOC+SLC case), pointers above could still be set
 	 * but end up not being relevant as the first function in chain is not
-	 * called at all for @dma_direct_ops
+	 * called at all for devices using coherent DMA.
 	 *     arch_sync_dma_for_cpu() -> dma_cache_*() -> __dma_cache_*()
 	 */
 }

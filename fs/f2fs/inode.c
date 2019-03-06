@@ -103,7 +103,7 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 
 	while (start < end) {
 		if (*start++) {
-			f2fs_wait_on_page_writeback(ipage, NODE, true);
+			f2fs_wait_on_page_writeback(ipage, NODE, true, true);
 
 			set_inode_flag(inode, FI_DATA_EXIST);
 			set_raw_inline(inode, F2FS_INODE(ipage));
@@ -118,7 +118,7 @@ static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page
 {
 	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
 
-	if (!f2fs_sb_has_inode_chksum(sbi->sb))
+	if (!f2fs_sb_has_inode_chksum(sbi))
 		return false;
 
 	if (!IS_INODE(page) || !(ri->i_inline & F2FS_EXTRA_ATTR))
@@ -218,7 +218,7 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		return false;
 	}
 
-	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)
+	if (f2fs_sb_has_flexible_inline_xattr(sbi)
 			&& !f2fs_has_extra_attr(inode)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_msg(sbi->sb, KERN_WARNING,
@@ -228,7 +228,7 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 	}
 
 	if (f2fs_has_extra_attr(inode) &&
-			!f2fs_sb_has_extra_attr(sbi->sb)) {
+			!f2fs_sb_has_extra_attr(sbi)) {
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_msg(sbi->sb, KERN_WARNING,
 			"%s: inode (ino=%lx) is with extra_attr, "
@@ -340,7 +340,7 @@ static int do_read_inode(struct inode *inode)
 	fi->i_extra_isize = f2fs_has_extra_attr(inode) ?
 					le16_to_cpu(ri->i_extra_isize) : 0;
 
-	if (f2fs_sb_has_flexible_inline_xattr(sbi->sb)) {
+	if (f2fs_sb_has_flexible_inline_xattr(sbi)) {
 		fi->i_inline_xattr_size = le16_to_cpu(ri->i_inline_xattr_size);
 	} else if (f2fs_has_inline_xattr(inode) ||
 				f2fs_has_inline_dentry(inode)) {
@@ -390,14 +390,14 @@ static int do_read_inode(struct inode *inode)
 	if (fi->i_flags & F2FS_PROJINHERIT_FL)
 		set_inode_flag(inode, FI_PROJ_INHERIT);
 
-	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_project_quota(sbi->sb) &&
+	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_project_quota(sbi) &&
 			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_projid))
 		i_projid = (projid_t)le32_to_cpu(ri->i_projid);
 	else
 		i_projid = F2FS_DEF_PROJID;
 	fi->i_projid = make_kprojid(&init_user_ns, i_projid);
 
-	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_inode_crtime(sbi->sb) &&
+	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_inode_crtime(sbi) &&
 			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_crtime)) {
 		fi->i_crtime.tv_sec = le64_to_cpu(ri->i_crtime);
 		fi->i_crtime.tv_nsec = le32_to_cpu(ri->i_crtime_nsec);
@@ -497,7 +497,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	struct f2fs_inode *ri;
 	struct extent_tree *et = F2FS_I(inode)->extent_tree;
 
-	f2fs_wait_on_page_writeback(node_page, NODE, true);
+	f2fs_wait_on_page_writeback(node_page, NODE, true, true);
 	set_page_dirty(node_page);
 
 	f2fs_inode_synced(inode);
@@ -542,11 +542,11 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	if (f2fs_has_extra_attr(inode)) {
 		ri->i_extra_isize = cpu_to_le16(F2FS_I(inode)->i_extra_isize);
 
-		if (f2fs_sb_has_flexible_inline_xattr(F2FS_I_SB(inode)->sb))
+		if (f2fs_sb_has_flexible_inline_xattr(F2FS_I_SB(inode)))
 			ri->i_inline_xattr_size =
 				cpu_to_le16(F2FS_I(inode)->i_inline_xattr_size);
 
-		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)->sb) &&
+		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)) &&
 			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
 								i_projid)) {
 			projid_t i_projid;
@@ -556,7 +556,7 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 			ri->i_projid = cpu_to_le32(i_projid);
 		}
 
-		if (f2fs_sb_has_inode_crtime(F2FS_I_SB(inode)->sb) &&
+		if (f2fs_sb_has_inode_crtime(F2FS_I_SB(inode)) &&
 			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
 								i_crtime)) {
 			ri->i_crtime =

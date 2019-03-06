@@ -55,9 +55,6 @@
 #define MT7621_CPOL		BIT(4)
 #define MT7621_LSB_FIRST	BIT(3)
 
-#define RT2880_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA |		\
-				 SPI_LSB_FIRST | SPI_CS_HIGH)
-
 struct mt7621_spi;
 
 struct mt7621_spi {
@@ -86,16 +83,13 @@ static inline void mt7621_spi_write(struct mt7621_spi *rs, u32 reg, u32 val)
 	iowrite32(val, rs->base + reg);
 }
 
-static void mt7621_spi_reset(struct mt7621_spi *rs, int duplex)
+static void mt7621_spi_reset(struct mt7621_spi *rs)
 {
 	u32 master = mt7621_spi_read(rs, MT7621_SPI_MASTER);
 
 	master |= 7 << 29;
 	master |= 1 << 2;
-	if (duplex)
-		master |= 1 << 10;
-	else
-		master &= ~(1 << 10);
+	master &= ~(1 << 10);
 
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, master);
 	rs->pending_write = 0;
@@ -107,7 +101,7 @@ static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
 	int cs = spi->chip_select;
 	u32 polar = 0;
 
-	mt7621_spi_reset(rs, cs);
+	mt7621_spi_reset(rs);
 	if (enable)
 		polar = BIT(cs);
 	mt7621_spi_write(rs, MT7621_SPI_POLAR, polar);
@@ -139,20 +133,13 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 	if (spi->mode & SPI_LSB_FIRST)
 		reg |= MT7621_LSB_FIRST;
 
+	/* This SPI controller seems to be tested on SPI flash only
+	 * and some bits are swizzled under other SPI modes probably
+	 * due to incorrect wiring inside the silicon. Only mode 0
+	 * works correctly.
+	 */
 	reg &= ~(MT7621_CPHA | MT7621_CPOL);
-	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
-	case SPI_MODE_0:
-		break;
-	case SPI_MODE_1:
-		reg |= MT7621_CPHA;
-		break;
-	case SPI_MODE_2:
-		reg |= MT7621_CPOL;
-		break;
-	case SPI_MODE_3:
-		reg |= MT7621_CPOL | MT7621_CPHA;
-		break;
-	}
+
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, reg);
 
 	return 0;
@@ -261,7 +248,7 @@ static void mt7621_spi_write_half_duplex(struct mt7621_spi *rs,
 	rs->pending_write = len;
 }
 
-static int mt7621_spi_transfer_half_duplex(struct spi_master *master,
+static int mt7621_spi_transfer_one_message(struct spi_master *master,
 					   struct spi_message *m)
 {
 	struct mt7621_spi *rs = spi_master_get_devdata(master);
@@ -284,10 +271,20 @@ static int mt7621_spi_transfer_half_duplex(struct spi_master *master,
 	mt7621_spi_set_cs(spi, 1);
 	m->actual_length = 0;
 	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if (t->rx_buf)
+		if ((t->rx_buf) && (t->tx_buf)) {
+			/* This controller will shift some extra data out
+			 * of spi_opcode if (mosi_bit_cnt > 0) &&
+			 * (cmd_bit_cnt == 0). So the claimed full-duplex
+			 * support is broken since we have no way to read
+			 * the MISO value during that bit.
+			 */
+			status = -EIO;
+			goto msg_done;
+		} else if (t->rx_buf) {
 			mt7621_spi_read_half_duplex(rs, t->len, t->rx_buf);
-		else if (t->tx_buf)
+		} else if (t->tx_buf) {
 			mt7621_spi_write_half_duplex(rs, t->len, t->tx_buf);
+		}
 		m->actual_length += t->len;
 	}
 	mt7621_spi_flush(rs);
@@ -298,102 +295,6 @@ msg_done:
 	spi_finalize_current_message(master);
 
 	return 0;
-}
-
-static int mt7621_spi_transfer_full_duplex(struct spi_master *master,
-					   struct spi_message *m)
-{
-	struct mt7621_spi *rs = spi_master_get_devdata(master);
-	struct spi_device *spi = m->spi;
-	unsigned int speed = spi->max_speed_hz;
-	struct spi_transfer *t = NULL;
-	int status = 0;
-	int i, len = 0;
-	int rx_len = 0;
-	u32 data[9] = { 0 };
-	u32 val = 0;
-
-	mt7621_spi_wait_till_ready(rs);
-
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		const u8 *buf = t->tx_buf;
-
-		if (t->rx_buf)
-			rx_len += t->len;
-
-		if (!buf)
-			continue;
-
-		if (WARN_ON(len + t->len > 16)) {
-			status = -EIO;
-			goto msg_done;
-		}
-
-		for (i = 0; i < t->len; i++, len++)
-			data[len / 4] |= buf[i] << (8 * (len & 3));
-		if (speed > t->speed_hz)
-			speed = t->speed_hz;
-	}
-
-	if (WARN_ON(rx_len > 16)) {
-		status = -EIO;
-		goto msg_done;
-	}
-
-	if (mt7621_spi_prepare(spi, speed)) {
-		status = -EIO;
-		goto msg_done;
-	}
-
-	for (i = 0; i < len; i += 4)
-		mt7621_spi_write(rs, MT7621_SPI_DATA0 + i, data[i / 4]);
-
-	val |= len * 8;
-	val |= (rx_len * 8) << 12;
-	mt7621_spi_write(rs, MT7621_SPI_MOREBUF, val);
-
-	mt7621_spi_set_cs(spi, 1);
-
-	val = mt7621_spi_read(rs, MT7621_SPI_TRANS);
-	val |= SPI_CTL_START;
-	mt7621_spi_write(rs, MT7621_SPI_TRANS, val);
-
-	mt7621_spi_wait_till_ready(rs);
-
-	mt7621_spi_set_cs(spi, 0);
-
-	for (i = 0; i < rx_len; i += 4)
-		data[i / 4] = mt7621_spi_read(rs, MT7621_SPI_DATA4 + i);
-
-	m->actual_length = rx_len;
-
-	len = 0;
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		u8 *buf = t->rx_buf;
-
-		if (!buf)
-			continue;
-
-		for (i = 0; i < t->len; i++, len++)
-			buf[i] = data[len / 4] >> (8 * (len & 3));
-	}
-
-msg_done:
-	m->status = status;
-	spi_finalize_current_message(master);
-
-	return 0;
-}
-
-static int mt7621_spi_transfer_one_message(struct spi_master *master,
-					   struct spi_message *m)
-{
-	struct spi_device *spi = m->spi;
-	int cs = spi->chip_select;
-
-	if (cs)
-		return mt7621_spi_transfer_full_duplex(master, m);
-	return mt7621_spi_transfer_half_duplex(master, m);
 }
 
 static int mt7621_spi_setup(struct spi_device *spi)
@@ -457,7 +358,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	master->mode_bits = RT2880_SPI_MODE_BITS;
+	master->mode_bits = SPI_LSB_FIRST;
 
 	master->setup = mt7621_spi_setup;
 	master->transfer_one_message = mt7621_spi_transfer_one_message;
@@ -478,7 +379,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 
 	device_reset(&pdev->dev);
 
-	mt7621_spi_reset(rs, 0);
+	mt7621_spi_reset(rs);
 
 	return spi_register_master(master);
 }

@@ -543,7 +543,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 		goto out;
 
 	if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
-		ath10k_err(ar, "capablity req rejected: %d\n", resp->resp.error);
+		ath10k_err(ar, "capability req rejected: %d\n", resp->resp.error);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -623,7 +623,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 		goto out;
 	}
 
-	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi host capablity request completed\n");
+	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi host capability request completed\n");
 	return 0;
 
 out:
@@ -657,7 +657,7 @@ ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 			       wlfw_ind_register_req_msg_v01_ei, &req);
 	if (ret < 0) {
 		qmi_txn_cancel(&txn);
-		ath10k_err(ar, "failed to send indication registed request: %d\n", ret);
+		ath10k_err(ar, "failed to send indication registered request: %d\n", ret);
 		goto out;
 	}
 
@@ -931,9 +931,9 @@ static int ath10k_qmi_setup_msa_resources(struct ath10k_qmi *qmi, u32 msa_size)
 		qmi->msa_mem_size = resource_size(&r);
 		qmi->msa_va = devm_memremap(dev, qmi->msa_pa, qmi->msa_mem_size,
 					    MEMREMAP_WT);
-		if (!qmi->msa_pa) {
+		if (IS_ERR(qmi->msa_va)) {
 			dev_err(dev, "failed to map memory region: %pa\n", &r.start);
-			return -EBUSY;
+			return PTR_ERR(qmi->msa_va);
 		}
 	} else {
 		qmi->msa_va = dmam_alloc_coherent(dev, msa_size,

@@ -436,7 +436,7 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 	struct clp_state_data sd = {fid, ZPCI_FN_STATE_RESERVED};
 	int rc;
 
-	rrb = clp_alloc_block(GFP_KERNEL);
+	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
 		return -ENOMEM;
 

@@ -771,34 +771,6 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	return ipic;
 }
 
-int ipic_set_priority(unsigned int virq, unsigned int priority)
-{
-	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = virq_to_hw(virq);
-	u32 temp;
-
-	if (priority > 7)
-		return -EINVAL;
-	if (src > 127)
-		return -EINVAL;
-	if (ipic_info[src].prio == 0)
-		return -EINVAL;
-
-	temp = ipic_read(ipic->regs, ipic_info[src].prio);
-
-	if (priority < 4) {
-		temp &= ~(0x7 << (20 + (3 - priority) * 3));
-		temp |= ipic_info[src].prio_mask << (20 + (3 - priority) * 3);
-	} else {
-		temp &= ~(0x7 << (4 + (7 - priority) * 3));
-		temp |= ipic_info[src].prio_mask << (4 + (7 - priority) * 3);
-	}
-
-	ipic_write(ipic->regs, ipic_info[src].prio, temp);
-
-	return 0;
-}
-
 void ipic_set_highest_priority(unsigned int virq)
 {
 	struct ipic *ipic = ipic_from_irq(virq);

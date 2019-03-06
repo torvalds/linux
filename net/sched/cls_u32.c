@@ -491,7 +491,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	cls_u32.hnode.handle = h->handle;
 	cls_u32.hnode.prio = h->prio;
 
-	tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, false);
 }
 
 static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
@@ -509,7 +509,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	cls_u32.hnode.handle = h->handle;
 	cls_u32.hnode.prio = h->prio;
 
-	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, skip_sw);
+	err = tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, skip_sw);
 	if (err < 0) {
 		u32_clear_hw_hnode(tp, h, NULL);
 		return err;
@@ -533,7 +533,7 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	cls_u32.command = TC_CLSU32_DELETE_KNODE;
 	cls_u32.knode.handle = n->handle;
 
-	tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, false);
 	tcf_block_offload_dec(block, &n->flags);
 }
 
@@ -558,11 +558,12 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	cls_u32.knode.mask = 0;
 #endif
 	cls_u32.knode.sel = &n->sel;
+	cls_u32.knode.res = &n->res;
 	cls_u32.knode.exts = &n->exts;
 	if (n->ht_down)
 		cls_u32.knode.link_handle = ht->handle;
 
-	err = tc_setup_cb_call(block, NULL, TC_SETUP_CLSU32, &cls_u32, skip_sw);
+	err = tc_setup_cb_call(block, TC_SETUP_CLSU32, &cls_u32, skip_sw);
 	if (err < 0) {
 		u32_remove_hw_knode(tp, n, NULL);
 		return err;
@@ -1206,6 +1207,7 @@ static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 		cls_u32.knode.mask = 0;
 #endif
 		cls_u32.knode.sel = &n->sel;
+		cls_u32.knode.res = &n->res;
 		cls_u32.knode.exts = &n->exts;
 		if (n->ht_down)
 			cls_u32.knode.link_handle = ht->handle;

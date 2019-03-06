@@ -943,20 +943,8 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 				return 0;
 			}
 			spin_unlock_bh(&cmd->istate_lock);
-			/*
-			 * Determine if delayed TASK_ABORTED status for WRITEs
-			 * should be sent now if no unsolicited data out
-			 * payloads are expected, or if the delayed status
-			 * should be sent after unsolicited data out with
-			 * ISCSI_FLAG_CMD_FINAL set in iscsi_handle_data_out()
-			 */
-			if (transport_check_aborted_status(se_cmd,
-					(cmd->unsolicited_data == 0)) != 0)
+			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 				return 0;
-			/*
-			 * Otherwise send CHECK_CONDITION and sense for
-			 * exception
-			 */
 			return transport_send_check_condition_and_sense(se_cmd,
 					cmd->sense_reason, 0);
 		}
@@ -974,13 +962,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 
 			if (!(cmd->cmd_flags &
 					ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-				/*
-				 * Send the delayed TASK_ABORTED status for
-				 * WRITEs if no more unsolicitied data is
-				 * expected.
-				 */
-				if (transport_check_aborted_status(se_cmd, 1)
-						!= 0)
+				if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 					return 0;
 
 				iscsit_set_dataout_sequence_values(cmd);
@@ -995,11 +977,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 
 		if ((cmd->data_direction == DMA_TO_DEVICE) &&
 		    !(cmd->cmd_flags & ICF_NON_IMMEDIATE_UNSOLICITED_DATA)) {
-			/*
-			 * Send the delayed TASK_ABORTED status for WRITEs if
-			 * no more nsolicitied data is expected.
-			 */
-			if (transport_check_aborted_status(se_cmd, 1) != 0)
+			if (cmd->se_cmd.transport_state & CMD_T_ABORTED)
 				return 0;
 
 			iscsit_set_unsoliticed_dataout(cmd);

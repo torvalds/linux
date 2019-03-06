@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+plugins/
+*.xml
+*.tap

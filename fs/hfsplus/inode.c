@@ -270,6 +270,26 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
+int hfsplus_getattr(const struct path *path, struct kstat *stat,
+		    u32 request_mask, unsigned int query_flags)
+{
+	struct inode *inode = d_inode(path->dentry);
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+
+	if (inode->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (inode->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (hip->userflags & HFSPLUS_FLG_NODUMP)
+		stat->attributes |= STATX_ATTR_NODUMP;
+
+	stat->attributes_mask |= STATX_ATTR_APPEND | STATX_ATTR_IMMUTABLE |
+				 STATX_ATTR_NODUMP;
+
+	generic_fillattr(inode, stat);
+	return 0;
+}
+
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync)
 {
@@ -329,6 +349,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
 	.listxattr	= hfsplus_listxattr,
 };
 

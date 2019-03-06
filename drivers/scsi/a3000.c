@@ -175,7 +175,6 @@ static struct scsi_host_template amiga_a3000_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
-	.use_clustering		= ENABLE_CLUSTERING
 };
 
 static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)

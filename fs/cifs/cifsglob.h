@@ -701,6 +701,13 @@ struct TCP_Server_Info {
 	struct delayed_work reconnect; /* reconnect workqueue job */
 	struct mutex reconnect_mutex; /* prevent simultaneous reconnects */
 	unsigned long echo_interval;
+
+	/*
+	 * Number of targets available for reconnect. The more targets
+	 * the more tasks have to wait to let the demultiplex thread
+	 * reconnect.
+	 */
+	int nr_targets;
 };
 
 static inline unsigned int
@@ -1014,6 +1021,11 @@ struct cifs_tcon {
 	struct list_head pending_opens;	/* list of incomplete opens */
 	struct cached_fid crfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	char *dfs_path;
+	int remap:2;
+	struct list_head ulist; /* cache update list */
+#endif
 };
 
 /*
@@ -1426,6 +1438,7 @@ struct mid_q_entry {
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	unsigned int mid_flags;
 	__le16 command;		/* smb command code */
+	unsigned int optype;	/* operation type */
 	bool large_buf:1;	/* if valid response, is pointer to large buf */
 	bool multiRsp:1;	/* multiple trans2 responses for one request  */
 	bool multiEnd:1;	/* both received */
@@ -1508,6 +1521,7 @@ struct dfs_info3_param {
 	int ref_flag;
 	char *path_name;
 	char *node_name;
+	int ttl;
 };
 
 /*
@@ -1545,7 +1559,6 @@ static inline void free_dfs_info_param(struct dfs_info3_param *param)
 	if (param) {
 		kfree(param->path_name);
 		kfree(param->node_name);
-		kfree(param);
 	}
 }
 
@@ -1560,6 +1573,25 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 		kfree(param[i].node_name);
 	}
 	kfree(param);
+}
+
+static inline bool is_interrupt_error(int error)
+{
+	switch (error) {
+	case -EINTR:
+	case -ERESTARTSYS:
+	case -ERESTARTNOHAND:
+	case -ERESTARTNOINTR:
+		return true;
+	}
+	return false;
+}
+
+static inline bool is_retryable_error(int error)
+{
+	if (is_interrupt_error(error) || error == -EAGAIN)
+		return true;
+	return false;
 }
 
 #define   MID_FREE 0
@@ -1790,6 +1822,7 @@ extern struct smb_version_values smb3any_values;
 extern struct smb_version_operations smb30_operations;
 extern struct smb_version_values smb30_values;
 #define SMB302_VERSION_STRING	"3.02"
+#define ALT_SMB302_VERSION_STRING "3.0.2"
 /*extern struct smb_version_operations smb302_operations;*/ /* not needed yet */
 extern struct smb_version_values smb302_values;
 #define SMB311_VERSION_STRING	"3.1.1"

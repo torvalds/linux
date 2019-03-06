@@ -370,6 +370,13 @@
 			reg = <0x68000 0x6000>;
 		};
 
+		rng: rng@83000 {
+			compatible = "qcom,prng-ee";
+			reg = <0x00083000 0x1000>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+		};
+
 		tcsr_mutex_regs: syscon@740000 {
 			compatible = "syscon";
 			reg = <0x740000 0x20000>;
@@ -397,7 +404,7 @@
 		};
 
 		intc: interrupt-controller@9bc0000 {
-			compatible = "arm,gic-v3";
+			compatible = "qcom,msm8996-gic-v3", "arm,gic-v3";
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			#redistributor-regions = <1>;
@@ -886,8 +893,9 @@
 			status = "disabled";
 		};
 
-		usb2: usb@7600000 {
-			compatible = "qcom,dwc3";
+		usb2: usb@76f8800 {
+			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			reg = <0x76f8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -914,8 +922,9 @@
 			};
 		};
 
-		usb3: usb@6a00000 {
-			compatible = "qcom,dwc3";
+		usb3: usb@6af8800 {
+			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			reg = <0x6af8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -940,6 +949,158 @@
 				interrupts = <0 131 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&hsusb_phy1>, <&ssusb_phy_0>;
 				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
+
+		vfe_smmu: arm,smmu@da0000 {
+			compatible = "qcom,msm8996-smmu-v2", "qcom,smmu-v2";
+			reg = <0xda0000 0x10000>;
+
+			#global-interrupts = <1>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+			power-domains = <&mmcc MMAGIC_CAMSS_GDSC>;
+			clocks = <&mmcc SMMU_VFE_AHB_CLK>,
+				 <&mmcc SMMU_VFE_AXI_CLK>;
+			clock-names = "iface",
+				      "bus";
+			#iommu-cells = <1>;
+			status = "ok";
+		};
+
+		camss: camss@a00000 {
+			compatible = "qcom,msm8996-camss";
+			reg = <0xa34000 0x1000>,
+				<0xa00030 0x4>,
+				<0xa35000 0x1000>,
+				<0xa00038 0x4>,
+				<0xa36000 0x1000>,
+				<0xa00040 0x4>,
+				<0xa30000 0x100>,
+				<0xa30400 0x100>,
+				<0xa30800 0x100>,
+				<0xa30c00 0x100>,
+				<0xa31000 0x500>,
+				<0xa00020 0x10>,
+				<0xa10000 0x1000>,
+				<0xa14000 0x1000>;
+			reg-names = "csiphy0",
+				"csiphy0_clk_mux",
+				"csiphy1",
+				"csiphy1_clk_mux",
+				"csiphy2",
+				"csiphy2_clk_mux",
+				"csid0",
+				"csid1",
+				"csid2",
+				"csid3",
+				"ispif",
+				"csi_clk_mux",
+				"vfe0",
+				"vfe1";
+			interrupts = <GIC_SPI 78 0>,
+				<GIC_SPI 79 0>,
+				<GIC_SPI 80 0>,
+				<GIC_SPI 296 0>,
+				<GIC_SPI 297 0>,
+				<GIC_SPI 298 0>,
+				<GIC_SPI 299 0>,
+				<GIC_SPI 309 0>,
+				<GIC_SPI 314 0>,
+				<GIC_SPI 315 0>;
+			interrupt-names = "csiphy0",
+				"csiphy1",
+				"csiphy2",
+				"csid0",
+				"csid1",
+				"csid2",
+				"csid3",
+				"ispif",
+				"vfe0",
+				"vfe1";
+			power-domains = <&mmcc VFE0_GDSC>;
+			clocks = <&mmcc CAMSS_TOP_AHB_CLK>,
+				<&mmcc CAMSS_ISPIF_AHB_CLK>,
+				<&mmcc CAMSS_CSI0PHYTIMER_CLK>,
+				<&mmcc CAMSS_CSI1PHYTIMER_CLK>,
+				<&mmcc CAMSS_CSI2PHYTIMER_CLK>,
+				<&mmcc CAMSS_CSI0_AHB_CLK>,
+				<&mmcc CAMSS_CSI0_CLK>,
+				<&mmcc CAMSS_CSI0PHY_CLK>,
+				<&mmcc CAMSS_CSI0PIX_CLK>,
+				<&mmcc CAMSS_CSI0RDI_CLK>,
+				<&mmcc CAMSS_CSI1_AHB_CLK>,
+				<&mmcc CAMSS_CSI1_CLK>,
+				<&mmcc CAMSS_CSI1PHY_CLK>,
+				<&mmcc CAMSS_CSI1PIX_CLK>,
+				<&mmcc CAMSS_CSI1RDI_CLK>,
+				<&mmcc CAMSS_CSI2_AHB_CLK>,
+				<&mmcc CAMSS_CSI2_CLK>,
+				<&mmcc CAMSS_CSI2PHY_CLK>,
+				<&mmcc CAMSS_CSI2PIX_CLK>,
+				<&mmcc CAMSS_CSI2RDI_CLK>,
+				<&mmcc CAMSS_CSI3_AHB_CLK>,
+				<&mmcc CAMSS_CSI3_CLK>,
+				<&mmcc CAMSS_CSI3PHY_CLK>,
+				<&mmcc CAMSS_CSI3PIX_CLK>,
+				<&mmcc CAMSS_CSI3RDI_CLK>,
+				<&mmcc CAMSS_AHB_CLK>,
+				<&mmcc CAMSS_VFE0_CLK>,
+				<&mmcc CAMSS_CSI_VFE0_CLK>,
+				<&mmcc CAMSS_VFE0_AHB_CLK>,
+				<&mmcc CAMSS_VFE0_STREAM_CLK>,
+				<&mmcc CAMSS_VFE1_CLK>,
+				<&mmcc CAMSS_CSI_VFE1_CLK>,
+				<&mmcc CAMSS_VFE1_AHB_CLK>,
+				<&mmcc CAMSS_VFE1_STREAM_CLK>,
+				<&mmcc CAMSS_VFE_AHB_CLK>,
+				<&mmcc CAMSS_VFE_AXI_CLK>;
+			clock-names = "top_ahb",
+				"ispif_ahb",
+				"csiphy0_timer",
+				"csiphy1_timer",
+				"csiphy2_timer",
+				"csi0_ahb",
+				"csi0",
+				"csi0_phy",
+				"csi0_pix",
+				"csi0_rdi",
+				"csi1_ahb",
+				"csi1",
+				"csi1_phy",
+				"csi1_pix",
+				"csi1_rdi",
+				"csi2_ahb",
+				"csi2",
+				"csi2_phy",
+				"csi2_pix",
+				"csi2_rdi",
+				"csi3_ahb",
+				"csi3",
+				"csi3_phy",
+				"csi3_pix",
+				"csi3_rdi",
+				"ahb",
+				"vfe0",
+				"csi_vfe0",
+				"vfe0_ahb",
+				"vfe0_stream",
+				"vfe1",
+				"csi_vfe1",
+				"vfe1_ahb",
+				"vfe1_stream",
+				"vfe_ahb",
+				"vfe_axi";
+			vdda-supply = <&pm8994_l2>;
+			iommus = <&vfe_smmu 0>,
+				 <&vfe_smmu 1>,
+				 <&vfe_smmu 2>,
+				 <&vfe_smmu 3>;
+			status = "disabled";
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 

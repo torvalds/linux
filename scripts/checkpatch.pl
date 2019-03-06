@@ -468,6 +468,7 @@ our $logFunctions = qr{(?x:
 
 our $signature_tags = qr{(?xi:
 	Signed-off-by:|
+	Co-developed-by:|
 	Acked-by:|
 	Tested-by:|
 	Reviewed-by:|
@@ -572,6 +573,27 @@ foreach my $entry (@mode_permission_funcs) {
 	$mode_perms_search .= $entry->[0];
 }
 $mode_perms_search = "(?:${mode_perms_search})";
+
+our %deprecated_apis = (
+	"synchronize_rcu_bh"			=> "synchronize_rcu",
+	"synchronize_rcu_bh_expedited"		=> "synchronize_rcu_expedited",
+	"call_rcu_bh"				=> "call_rcu",
+	"rcu_barrier_bh"			=> "rcu_barrier",
+	"synchronize_sched"			=> "synchronize_rcu",
+	"synchronize_sched_expedited"		=> "synchronize_rcu_expedited",
+	"call_rcu_sched"			=> "call_rcu",
+	"rcu_barrier_sched"			=> "rcu_barrier",
+	"get_state_synchronize_sched"		=> "get_state_synchronize_rcu",
+	"cond_synchronize_sched"		=> "cond_synchronize_rcu",
+);
+
+#Create a search pattern for all these strings to speed up a loop below
+our $deprecated_apis_search = "";
+foreach my $entry (keys %deprecated_apis) {
+	$deprecated_apis_search .= '|' if ($deprecated_apis_search ne "");
+	$deprecated_apis_search .= $entry;
+}
+$deprecated_apis_search = "(?:${deprecated_apis_search})";
 
 our $mode_perms_world_writable = qr{
 	S_IWUGO		|
@@ -3869,14 +3891,23 @@ sub process {
 			WARN("STATIC_CONST_CHAR_ARRAY",
 			     "static const char * array should probably be static const char * const\n" .
 				$herecurr);
-               }
+		}
+
+# check for initialized const char arrays that should be static const
+		if ($line =~ /^\+\s*const\s+(char|unsigned\s+char|_*u8|(?:[us]_)?int8_t)\s+\w+\s*\[\s*(?:\w+\s*)?\]\s*=\s*"/) {
+			if (WARN("STATIC_CONST_CHAR_ARRAY",
+				 "const array should probably be static const\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/(^.\s*)const\b/${1}static const/;
+			}
+		}
 
 # check for static char foo[] = "bar" declarations.
 		if ($line =~ /\bstatic\s+char\s+(\w+)\s*\[\s*\]\s*=\s*"/) {
 			WARN("STATIC_CONST_CHAR_ARRAY",
 			     "static char array declaration should probably be static const char\n" .
 				$herecurr);
-               }
+		}
 
 # check for const <foo> const where <foo> is not a pointer or array type
 		if ($sline =~ /\bconst\s+($BasicType)\s+const\b/) {
@@ -6366,6 +6397,20 @@ sub process {
 		if ($line =~ /^.\s*__initcall\s*\(/) {
 			WARN("USE_DEVICE_INITCALL",
 			     "please use device_initcall() or more appropriate function instead of __initcall() (see include/linux/init.h)\n" . $herecurr);
+		}
+
+# check for spin_is_locked(), suggest lockdep instead
+		if ($line =~ /\bspin_is_locked\(/) {
+			WARN("USE_LOCKDEP",
+			     "Where possible, use lockdep_assert_held instead of assertions based on spin_is_locked\n" . $herecurr);
+		}
+
+# check for deprecated apis
+		if ($line =~ /\b($deprecated_apis_search)\b\s*\(/) {
+			my $deprecated_api = $1;
+			my $new_api = $deprecated_apis{$deprecated_api};
+			WARN("DEPRECATED_API",
+			     "Deprecated use of '$deprecated_api', prefer '$new_api' instead\n" . $herecurr);
 		}
 
 # check for various structs that are normally const (ops, kgdb, device_tree)

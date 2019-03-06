@@ -286,7 +286,6 @@ static struct scsi_host_template fcoe_shost_template = {
 	.this_id = -1,
 	.cmd_per_lun = 3,
 	.can_queue = FCOE_MAX_OUTSTANDING_COMMANDS,
-	.use_clustering = ENABLE_CLUSTERING,
 	.sg_tablesize = SG_ALL,
 	.max_sectors = 0xffff,
 	.track_queue_depth = 1,
@@ -1670,7 +1669,6 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	struct fc_stats *stats;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
-	struct fcoe_port *port;
 	struct fcoe_hdr *hp;
 
 	fr = fcoe_dev_from_skb(skb);
@@ -1688,7 +1686,6 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 			skb_end_pointer(skb), skb->csum,
 			skb->dev ? skb->dev->name : "<NULL>");
 
-	port = lport_priv(lport);
 	skb_linearize(skb); /* check for skb_is_nonlinear is within skb_linearize */
 
 	/*
@@ -1859,7 +1856,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
-	struct fcoe_port *port;
 	struct fc_stats *stats;
 	u32 link_possible = 1;
 	u32 mfs;
@@ -1897,7 +1893,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 		break;
 	case NETDEV_UNREGISTER:
 		list_del(&fcoe->list);
-		port = lport_priv(ctlr->lp);
 		fcoe_vport_remove(lport);
 		mutex_lock(&fcoe_config_mutex);
 		fcoe_if_destroy(lport);

@@ -341,7 +341,7 @@ nouveau_fence_sync(struct nouveau_bo *nvbo, struct nouveau_channel *chan, bool e
 	int ret = 0, i;
 
 	if (!exclusive) {
-		ret = reservation_object_reserve_shared(resv);
+		ret = reservation_object_reserve_shared(resv, 1);
 
 		if (ret)
 			return ret;

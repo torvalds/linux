@@ -208,22 +208,20 @@ struct dm_bl_data_point {
 		/* Brightness level as effective value in range 0-255,
 		 * corresponding to above percentage
 		 */
-		uint8_t signalLevel;
+		uint8_t signal_level;
 };
 
 /* Total size of the structure should not exceed 256 bytes */
 struct dm_acpi_atif_backlight_caps {
-
-
 	uint16_t size; /* Bytes 0-1 (2 bytes) */
 	uint16_t flags; /* Byted 2-3 (2 bytes) */
-	uint8_t  errorCode; /* Byte 4 */
-	uint8_t  acLevelPercentage; /* Byte 5 */
-	uint8_t  dcLevelPercentage; /* Byte 6 */
-	uint8_t  minInputSignal; /* Byte 7 */
-	uint8_t  maxInputSignal; /* Byte 8 */
-	uint8_t  numOfDataPoints; /* Byte 9 */
-	struct dm_bl_data_point dataPoints[99]; /* Bytes 10-207 (198 bytes)*/
+	uint8_t  error_code; /* Byte 4 */
+	uint8_t  ac_level_percentage; /* Byte 5 */
+	uint8_t  dc_level_percentage; /* Byte 6 */
+	uint8_t  min_input_signal; /* Byte 7 */
+	uint8_t  max_input_signal; /* Byte 8 */
+	uint8_t  num_data_points; /* Byte 9 */
+	struct dm_bl_data_point data_points[99]; /* Bytes 10-207 (198 bytes)*/
 };
 
 enum dm_acpi_display_type {

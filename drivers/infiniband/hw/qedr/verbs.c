@@ -216,10 +216,6 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 	struct qed_rdma_port *rdma_port;
 
 	dev = get_qedr_dev(ibdev);
-	if (port > 1) {
-		DP_ERR(dev, "invalid_port=0x%x\n", port);
-		return -EINVAL;
-	}
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "rdma_ctx is NULL\n");
@@ -263,14 +259,6 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 int qedr_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		     struct ib_port_modify *props)
 {
-	struct qedr_dev *dev;
-
-	dev = get_qedr_dev(ibdev);
-	if (port > 1) {
-		DP_ERR(dev, "invalid_port=0x%x\n", port);
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -568,8 +556,8 @@ static struct qedr_pbl *qedr_alloc_pbl_tbl(struct qedr_dev *dev,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < pbl_info->num_pbls; i++) {
-		va = dma_zalloc_coherent(&pdev->dev, pbl_info->pbl_size,
-					 &pa, flags);
+		va = dma_alloc_coherent(&pdev->dev, pbl_info->pbl_size, &pa,
+					flags);
 		if (!va)
 			goto err;
 
@@ -1148,7 +1136,8 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 }
 
 static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
-			       struct ib_qp_init_attr *attrs)
+			       struct ib_qp_init_attr *attrs,
+			       struct ib_udata *udata)
 {
 	struct qedr_device_attr *qattr = &dev->attr;
 
@@ -1189,7 +1178,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 	}
 
 	/* Unprivileged user space cannot create special QP */
-	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
+	if (udata && attrs->qp_type == IB_QPT_GSI) {
 		DP_ERR(dev,
 		       "create qp: userspace can't create special QPs of type=0x%x\n",
 		       attrs->qp_type);
@@ -1552,7 +1541,7 @@ int qedr_destroy_srq(struct ib_srq *ibsrq)
 	in_params.srq_id = srq->srq_id;
 	dev->ops->rdma_destroy_srq(dev->rdma_ctx, &in_params);
 
-	if (ibsrq->pd->uobject)
+	if (ibsrq->uobject)
 		qedr_free_srq_user_params(srq);
 	else
 		qedr_free_srq_kernel_params(srq);
@@ -2005,7 +1994,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
 		 udata ? "user library" : "kernel", pd);
 
-	rc = qedr_check_qp_attrs(ibpd, dev, attrs);
+	rc = qedr_check_qp_attrs(ibpd, dev, attrs, udata);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -2626,7 +2615,7 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 }
 
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata)
+			     u32 flags, struct ib_udata *udata)
 {
 	struct qedr_ah *ah;
 
@@ -2639,7 +2628,7 @@ struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	return &ah->ibah;
 }
 
-int qedr_destroy_ah(struct ib_ah *ibah)
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 

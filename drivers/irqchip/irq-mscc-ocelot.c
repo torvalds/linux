@@ -72,7 +72,7 @@ static int __init ocelot_irq_init(struct device_node *node,
 	domain = irq_domain_add_linear(node, OCELOT_NR_IRQ,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%s: unable to add irq domain\n", node->name);
+		pr_err("%pOFn: unable to add irq domain\n", node);
 		return -ENOMEM;
 	}
 
@@ -80,14 +80,14 @@ static int __init ocelot_irq_init(struct device_node *node,
 					     "icpu", handle_level_irq,
 					     0, 0, 0);
 	if (ret) {
-		pr_err("%s: unable to alloc irq domain gc\n", node->name);
+		pr_err("%pOFn: unable to alloc irq domain gc\n", node);
 		goto err_domain_remove;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
 	gc->reg_base = of_iomap(node, 0);
 	if (!gc->reg_base) {
-		pr_err("%s: unable to map resource\n", node->name);
+		pr_err("%pOFn: unable to map resource\n", node);
 		ret = -ENOMEM;
 		goto err_gc_free;
 	}

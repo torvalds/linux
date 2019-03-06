@@ -10,11 +10,13 @@
 #define FAN_CLOSE_WRITE		0x00000008	/* Writtable file closed */
 #define FAN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
 #define FAN_OPEN		0x00000020	/* File was opened */
+#define FAN_OPEN_EXEC		0x00001000	/* File was opened for exec */
 
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
 
 #define FAN_OPEN_PERM		0x00010000	/* File open in perm check */
 #define FAN_ACCESS_PERM		0x00020000	/* File accessed in perm check */
+#define FAN_OPEN_EXEC_PERM	0x00040000	/* File open/exec in perm check */
 
 #define FAN_ONDIR		0x40000000	/* event occurred against dir */
 

@@ -3794,7 +3794,7 @@ int t4_load_phy_fw(struct adapter *adap,
 	/* If we have version number support, then check to see if the adapter
 	 * already has up-to-date PHY firmware loaded.
 	 */
-	 if (phy_fw_version) {
+	if (phy_fw_version) {
 		new_phy_fw_vers = phy_fw_version(phy_fw_data, phy_fw_size);
 		ret = t4_phy_fw_ver(adap, &cur_phy_fw_ver);
 		if (ret < 0)
@@ -5880,7 +5880,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 {
 	int i, ofst = idx * 4;
 	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = TRCMULTIFILTER_F;
 
 	if (!enable) {
 		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst, 0);
@@ -5900,7 +5899,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		 * maximum packet capture size of 9600 bytes is recommended.
 		 * Also in this mode, only trace0 can be enabled and running.
 		 */
-		multitrc = 0;
 		if (tp->snap_len > 9600 || idx)
 			return -EINVAL;
 	}
@@ -7141,20 +7139,9 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			 unsigned int cache_line_size)
 {
 	unsigned int page_shift = fls(page_size) - 1;
-	unsigned int sge_hps = page_shift - 10;
 	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
-
-	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
-		     HOSTPAGESIZEPF0_V(sge_hps) |
-		     HOSTPAGESIZEPF1_V(sge_hps) |
-		     HOSTPAGESIZEPF2_V(sge_hps) |
-		     HOSTPAGESIZEPF3_V(sge_hps) |
-		     HOSTPAGESIZEPF4_V(sge_hps) |
-		     HOSTPAGESIZEPF5_V(sge_hps) |
-		     HOSTPAGESIZEPF6_V(sge_hps) |
-		     HOSTPAGESIZEPF7_V(sge_hps));
 
 	if (is_t4(adap->params.chip)) {
 		t4_set_reg_field(adap, SGE_CONTROL_A,
@@ -7488,7 +7475,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
  */
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		unsigned int *rss_size)
+		unsigned int *rss_size, u8 *vivld, u8 *vin)
 {
 	int ret;
 	struct fw_vi_cmd c;
@@ -7523,6 +7510,13 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 	}
 	if (rss_size)
 		*rss_size = FW_VI_CMD_RSSSIZE_G(be16_to_cpu(c.rsssize_pkd));
+
+	if (vivld)
+		*vivld = FW_VI_CMD_VFVLD_G(be32_to_cpu(c.alloc_to_len16));
+
+	if (vin)
+		*vin = FW_VI_CMD_VIN_G(be32_to_cpu(c.alloc_to_len16));
+
 	return FW_VI_CMD_VIID_G(be16_to_cpu(c.type_viid));
 }
 
@@ -7980,7 +7974,7 @@ int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
  *	MAC value.
  */
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt)
+		  int idx, const u8 *addr, bool persist, u8 *smt_idx)
 {
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
@@ -7989,7 +7983,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	if (idx < 0)                             /* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
-	mode = add_smt ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
+	mode = smt_idx ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
@@ -8006,6 +8000,23 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		ret = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
+		if (smt_idx) {
+			if (adap->params.viid_smt_extn_support) {
+				*smt_idx = FW_VI_MAC_CMD_SMTID_G
+						    (be32_to_cpu(c.op_to_viid));
+			} else {
+				/* In T4/T5, SMT contains 256 SMAC entries
+				 * organized in 128 rows of 2 entries each.
+				 * In T6, SMT contains 256 SMAC entries in
+				 * 256 rows.
+				 */
+				if (CHELSIO_CHIP_VERSION(adap->params.chip) <=
+								     CHELSIO_T5)
+					*smt_idx = (viid & FW_VIID_VIN_M) << 1;
+				else
+					*smt_idx = (viid & FW_VIID_VIN_M);
+			}
+		}
 	}
 	return ret;
 }
@@ -8593,7 +8604,7 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 {
 	unsigned int fw_caps = pi->adapter->params.fw_caps_support;
 	struct fw_port_cmd port_cmd;
-	unsigned int action, link_ok, speed, mtu;
+	unsigned int action, link_ok, mtu;
 	fw_port_cap32_t linkattr;
 	int ret;
 
@@ -8627,7 +8638,6 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 		mtu = FW_PORT_CMD_MTU32_G(
 			be32_to_cpu(port_cmd.u.info32.auxlinfo32_mtu32));
 	}
-	speed = fwcap_to_speed(linkattr);
 
 	*link_okp = link_ok;
 	*speedp = fwcap_to_speed(linkattr);
@@ -9374,6 +9384,7 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 	enum fw_port_type port_type;
 	int mdio_addr;
 	fw_port_cap32_t pcaps, acaps;
+	u8 vivld = 0, vin = 0;
 	int ret;
 
 	/* If we haven't yet determined whether we're talking to Firmware
@@ -9428,7 +9439,8 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 		acaps = be32_to_cpu(cmd.u.info32.acaps32);
 	}
 
-	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size);
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size,
+			  &vivld, &vin);
 	if (ret < 0)
 		return ret;
 
@@ -9436,6 +9448,18 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 	pi->tx_chan = port;
 	pi->lport = port;
 	pi->rss_size = rss_size;
+
+	/* If fw supports returning the VIN as part of FW_VI_CMD,
+	 * save the returned values.
+	 */
+	if (adapter->params.viid_smt_extn_support) {
+		pi->vivld = vivld;
+		pi->vin = vin;
+	} else {
+		/* Retrieve the values from VIID */
+		pi->vivld = FW_VIID_VIVLD_G(pi->viid);
+		pi->vin =  FW_VIID_VIN_G(pi->viid);
+	}
 
 	pi->port_type = port_type;
 	pi->mdio_addr = mdio_addr;

@@ -123,7 +123,7 @@ enum acp_dma_priority_level {
 };
 
 struct audio_substream_data {
-	struct page *pg;
+	dma_addr_t dma_addr;
 	unsigned int order;
 	u16 num_of_pages;
 	u16 i2s_instance;

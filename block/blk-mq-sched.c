@@ -31,15 +31,22 @@ void blk_mq_sched_free_hctx_data(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
 
-void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio)
+void blk_mq_sched_assign_ioc(struct request *rq)
 {
 	struct request_queue *q = rq->q;
-	struct io_context *ioc = rq_ioc(bio);
+	struct io_context *ioc;
 	struct io_cq *icq;
 
-	spin_lock_irq(q->queue_lock);
+	/*
+	 * May not have an IO context if it's a passthrough request
+	 */
+	ioc = current->io_context;
+	if (!ioc)
+		return;
+
+	spin_lock_irq(&q->queue_lock);
 	icq = ioc_lookup_icq(ioc, q);
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
 	if (!icq) {
 		icq = ioc_create_icq(ioc, q, GFP_ATOMIC);
@@ -54,13 +61,14 @@ void blk_mq_sched_assign_ioc(struct request *rq, struct bio *bio)
  * Mark a hardware queue as needing a restart. For shared queues, maintain
  * a count of how many hardware queues are marked for restart.
  */
-static void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx)
+void blk_mq_sched_mark_restart_hctx(struct blk_mq_hw_ctx *hctx)
 {
 	if (test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
 		return;
 
 	set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
 }
+EXPORT_SYMBOL_GPL(blk_mq_sched_mark_restart_hctx);
 
 void blk_mq_sched_restart(struct blk_mq_hw_ctx *hctx)
 {
@@ -85,14 +93,13 @@ static void blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 	do {
 		struct request *rq;
 
-		if (e->type->ops.mq.has_work &&
-				!e->type->ops.mq.has_work(hctx))
+		if (e->type->ops.has_work && !e->type->ops.has_work(hctx))
 			break;
 
 		if (!blk_mq_get_dispatch_budget(hctx))
 			break;
 
-		rq = e->type->ops.mq.dispatch_request(hctx);
+		rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
 			blk_mq_put_dispatch_budget(hctx);
 			break;
@@ -110,7 +117,7 @@ static void blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 static struct blk_mq_ctx *blk_mq_next_ctx(struct blk_mq_hw_ctx *hctx,
 					  struct blk_mq_ctx *ctx)
 {
-	unsigned idx = ctx->index_hw;
+	unsigned short idx = ctx->index_hw[hctx->type];
 
 	if (++idx == hctx->nr_ctx)
 		idx = 0;
@@ -163,7 +170,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 {
 	struct request_queue *q = hctx->queue;
 	struct elevator_queue *e = q->elevator;
-	const bool has_sched_dispatch = e && e->type->ops.mq.dispatch_request;
+	const bool has_sched_dispatch = e && e->type->ops.dispatch_request;
 	LIST_HEAD(rq_list);
 
 	/* RCU or SRCU read lock is needed before checking quiesced flag */
@@ -295,11 +302,14 @@ EXPORT_SYMBOL_GPL(blk_mq_bio_list_merge);
  * too much time checking for merges.
  */
 static bool blk_mq_attempt_merge(struct request_queue *q,
+				 struct blk_mq_hw_ctx *hctx,
 				 struct blk_mq_ctx *ctx, struct bio *bio)
 {
+	enum hctx_type type = hctx->type;
+
 	lockdep_assert_held(&ctx->lock);
 
-	if (blk_mq_bio_list_merge(q, &ctx->rq_list, bio)) {
+	if (blk_mq_bio_list_merge(q, &ctx->rq_lists[type], bio)) {
 		ctx->rq_merged++;
 		return true;
 	}
@@ -311,19 +321,21 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(q);
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx->cpu);
 	bool ret = false;
+	enum hctx_type type;
 
-	if (e && e->type->ops.mq.bio_merge) {
+	if (e && e->type->ops.bio_merge) {
 		blk_mq_put_ctx(ctx);
-		return e->type->ops.mq.bio_merge(hctx, bio);
+		return e->type->ops.bio_merge(hctx, bio);
 	}
 
+	type = hctx->type;
 	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
-			!list_empty_careful(&ctx->rq_list)) {
+			!list_empty_careful(&ctx->rq_lists[type])) {
 		/* default per sw-queue merge */
 		spin_lock(&ctx->lock);
-		ret = blk_mq_attempt_merge(q, ctx, bio);
+		ret = blk_mq_attempt_merge(q, hctx, ctx, bio);
 		spin_unlock(&ctx->lock);
 	}
 
@@ -367,7 +379,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct request_queue *q = rq->q;
 	struct elevator_queue *e = q->elevator;
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
 	/* flush rq in flush machinery need to be dispatched directly */
 	if (!(rq->rq_flags & RQF_FLUSH_SEQ) && op_is_flush(rq->cmd_flags)) {
@@ -380,11 +392,11 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	if (blk_mq_sched_bypass_insert(hctx, !!e, rq))
 		goto run;
 
-	if (e && e->type->ops.mq.insert_requests) {
+	if (e && e->type->ops.insert_requests) {
 		LIST_HEAD(list);
 
 		list_add(&rq->queuelist, &list);
-		e->type->ops.mq.insert_requests(hctx, &list, at_head);
+		e->type->ops.insert_requests(hctx, &list, at_head);
 	} else {
 		spin_lock(&ctx->lock);
 		__blk_mq_insert_request(hctx, rq, at_head);
@@ -396,27 +408,25 @@ run:
 		blk_mq_run_hw_queue(hctx, async);
 }
 
-void blk_mq_sched_insert_requests(struct request_queue *q,
+void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 				  struct blk_mq_ctx *ctx,
 				  struct list_head *list, bool run_queue_async)
 {
-	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, ctx->cpu);
-	struct elevator_queue *e = hctx->queue->elevator;
+	struct elevator_queue *e;
 
-	if (e && e->type->ops.mq.insert_requests)
-		e->type->ops.mq.insert_requests(hctx, list, false);
+	e = hctx->queue->elevator;
+	if (e && e->type->ops.insert_requests)
+		e->type->ops.insert_requests(hctx, list, false);
 	else {
 		/*
 		 * try to issue requests directly if the hw queue isn't
 		 * busy in case of 'none' scheduler, and this way may save
 		 * us one extra enqueue & dequeue to sw queue.
 		 */
-		if (!hctx->dispatch_busy && !e && !run_queue_async) {
+		if (!hctx->dispatch_busy && !e && !run_queue_async)
 			blk_mq_try_issue_list_directly(hctx, list);
-			if (list_empty(list))
-				return;
-		}
-		blk_mq_insert_requests(hctx, ctx, list);
+		else
+			blk_mq_insert_requests(hctx, ctx, list);
 	}
 
 	blk_mq_run_hw_queue(hctx, run_queue_async);
@@ -489,15 +499,15 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 			goto err;
 	}
 
-	ret = e->ops.mq.init_sched(q, e);
+	ret = e->ops.init_sched(q, e);
 	if (ret)
 		goto err;
 
 	blk_mq_debugfs_register_sched(q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (e->ops.mq.init_hctx) {
-			ret = e->ops.mq.init_hctx(hctx, i);
+		if (e->ops.init_hctx) {
+			ret = e->ops.init_hctx(hctx, i);
 			if (ret) {
 				eq = q->elevator;
 				blk_mq_exit_sched(q, eq);
@@ -523,14 +533,14 @@ void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e)
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		blk_mq_debugfs_unregister_sched_hctx(hctx);
-		if (e->type->ops.mq.exit_hctx && hctx->sched_data) {
-			e->type->ops.mq.exit_hctx(hctx, i);
+		if (e->type->ops.exit_hctx && hctx->sched_data) {
+			e->type->ops.exit_hctx(hctx, i);
 			hctx->sched_data = NULL;
 		}
 	}
 	blk_mq_debugfs_unregister_sched(q);
-	if (e->type->ops.mq.exit_sched)
-		e->type->ops.mq.exit_sched(e);
+	if (e->type->ops.exit_sched)
+		e->type->ops.exit_sched(e);
 	blk_mq_sched_tags_teardown(q);
 	q->elevator = NULL;
 }

@@ -251,8 +251,6 @@ void __init plat_time_init(void)
 	printk("CPU frequency %d.%02d MHz\n", freq/1000000,
 	       (freq%1000000)*100/1000000);
 
-	mips_scroll_message();
-
 #ifdef CONFIG_I8253
 	/* Only Malta has a PIT. */
 	setup_pit_timer();

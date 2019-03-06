@@ -437,7 +437,7 @@ kvp_send_key(struct work_struct *dummy)
 			val32 = in_msg->body.kvp_set.data.value_u32;
 			message->body.kvp_set.data.value_size =
 				sprintf(message->body.kvp_set.data.value,
-					"%d", val32) + 1;
+					"%u", val32) + 1;
 			break;
 
 		case REG_U64:

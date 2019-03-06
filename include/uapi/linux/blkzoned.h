@@ -138,6 +138,7 @@ struct blk_zone_range {
  * @BLKRESETZONE: Reset the write pointer of the zones in the specified
  *                sector range. The sector range must be zone aligned.
  * @BLKGETZONESZ: Get the device zone size in number of 512 B sectors.
+ * @BLKGETNRZONES: Get the total number of zones of the device.
  */
 #define BLKREPORTZONE	_IOWR(0x12, 130, struct blk_zone_report)
 #define BLKRESETZONE	_IOW(0x12, 131, struct blk_zone_range)

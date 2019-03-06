@@ -31,6 +31,7 @@
 #include "resource.h"
 #include "include/irq_service_interface.h"
 #include "dce120_resource.h"
+
 #include "dce112/dce112_resource.h"
 
 #include "dce110/dce110_resource.h"
@@ -39,7 +40,6 @@
 #include "irq/dce120/irq_service_dce120.h"
 #include "dce/dce_opp.h"
 #include "dce/dce_clock_source.h"
-#include "dce/dce_clocks.h"
 #include "dce/dce_ipp.h"
 #include "dce/dce_mem_input.h"
 
@@ -47,6 +47,7 @@
 #include "dce120/dce120_hw_sequencer.h"
 #include "dce/dce_transform.h"
 
+#include "dce/dce_clk_mgr.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
@@ -573,8 +574,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.dccg != NULL)
-		dce_dccg_destroy(&pool->base.dccg);
+	if (pool->base.clk_mgr != NULL)
+		dce_clk_mgr_destroy(&pool->base.clk_mgr);
 }
 
 static void read_dce_straps(
@@ -606,7 +607,8 @@ static struct audio *create_audio(
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
-		.ycbcr420_supported = true,
+		.hdmi_ycbcr420_supported = true,
+		.dp_ycbcr420_supported = false,
 		.flags.bits.IS_HBR2_CAPABLE = true,
 		.flags.bits.IS_HBR3_CAPABLE = true,
 		.flags.bits.IS_TPS3_CAPABLE = true,
@@ -834,12 +836,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER, 1000);
+		mem_clks.data[0].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER,
+		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * MEMORY_TYPE_MULTIPLIER_CZ,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -973,8 +975,8 @@ static bool construct(
 		}
 	}
 
-	pool->base.dccg = dce120_dccg_create(ctx);
-	if (pool->base.dccg == NULL) {
+	pool->base.clk_mgr = dce120_clk_mgr_create(ctx);
+	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
 		goto dccg_create_fail;

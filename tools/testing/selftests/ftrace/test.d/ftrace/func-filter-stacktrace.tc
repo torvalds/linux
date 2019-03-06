@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: GPL2.0
+# SPDX-License-Identifier: GPL-2.0
 # description: ftrace - stacktrace filter command
 # flags: instance
 

@@ -51,6 +51,7 @@ clk_get_regmap_gate_data(struct clk_regmap *clk)
 }
 
 extern const struct clk_ops clk_regmap_gate_ops;
+extern const struct clk_ops clk_regmap_gate_ro_ops;
 
 /**
  * struct clk_regmap_div_data - regmap backed adjustable divider specific data

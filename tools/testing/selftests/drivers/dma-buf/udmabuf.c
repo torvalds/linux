@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <fcntl.h>
+#include <linux/fcntl.h>
 #include <malloc.h>
 
 #include <sys/ioctl.h>
@@ -33,11 +33,18 @@ int main(int argc, char *argv[])
 		exit(77);
 	}
 
-	memfd = memfd_create("udmabuf-test", MFD_CLOEXEC);
+	memfd = memfd_create("udmabuf-test", MFD_ALLOW_SEALING);
 	if (memfd < 0) {
 		printf("%s: [skip,no-memfd]\n", TEST_PREFIX);
 		exit(77);
 	}
+
+	ret = fcntl(memfd, F_ADD_SEALS, F_SEAL_SHRINK);
+	if (ret < 0) {
+		printf("%s: [skip,fcntl-add-seals]\n", TEST_PREFIX);
+		exit(77);
+	}
+
 
 	size = getpagesize() * NUM_PAGES;
 	ret = ftruncate(memfd, size);

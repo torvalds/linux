@@ -190,13 +190,16 @@ ENOSPC:
 
         Simply running out of kernel/system memory is signalled through ENOMEM.
 
-EPERM/EACCESS:
+EPERM/EACCES:
         Returned for an operation that is valid, but needs more privileges.
         E.g. root-only or much more common, DRM master-only operations return
         this when when called by unpriviledged clients. There's no clear
-        difference between EACCESS and EPERM.
+        difference between EACCES and EPERM.
 
 ENODEV:
+        The device is not (yet) present or fully initialized.
+
+EOPNOTSUPP:
         Feature (like PRIME, modesetting, GEM) is not supported by the driver.
 
 ENXIO:

@@ -95,7 +95,7 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.target_alloc	= iscsi_target_alloc,
-	.use_clustering	= DISABLE_CLUSTERING,
+	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
 };
@@ -1144,7 +1144,7 @@ static void ddp_clear_map(struct cxgbi_device *cdev, struct cxgbi_ppm *ppm,
 }
 
 static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
-				       unsigned int tid, int pg_idx, bool reply)
+				unsigned int tid, int pg_idx)
 {
 	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
@@ -1160,7 +1160,7 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(reply ? 0 : 1);
+	req->reply = V_NO_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0xF0000000);
@@ -1177,11 +1177,10 @@ static int ddp_setup_conn_pgidx(struct cxgbi_sock *csk,
  * @tid: connection id
  * @hcrc: header digest enabled
  * @dcrc: data digest enabled
- * @reply: request reply from h/w
  * set up the iscsi digest settings for a connection identified by tid
  */
 static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
-			     int hcrc, int dcrc, int reply)
+				 int hcrc, int dcrc)
 {
 	struct sk_buff *skb = alloc_wr(sizeof(struct cpl_set_tcb_field), 0,
 					GFP_KERNEL);
@@ -1197,7 +1196,7 @@ static int ddp_setup_conn_digest(struct cxgbi_sock *csk, unsigned int tid,
 	req = (struct cpl_set_tcb_field *)skb->head;
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(reply ? 0 : 1);
+	req->reply = V_NO_REPLY(1);
 	req->cpu_idx = 0;
 	req->word = htons(31);
 	req->mask = cpu_to_be64(0x0F000000);

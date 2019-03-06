@@ -18,7 +18,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
@@ -658,7 +657,8 @@ static void mt7530_adjust_link(struct dsa_switch *ds, int port,
 			if (phydev->asym_pause)
 				rmt_adv |= LPA_PAUSE_ASYM;
 
-			lcl_adv = ethtool_adv_to_lcl_adv_t(phydev->advertising);
+			lcl_adv = linkmode_adv_to_lcl_adv_t(
+				phydev->advertising);
 			flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 
 			if (flowctrl & FLOW_CTRL_TX)

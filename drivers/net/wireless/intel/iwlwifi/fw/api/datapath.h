@@ -105,6 +105,11 @@ enum iwl_data_path_subcmd_ids {
 	HE_AIR_SNIFFER_CONFIG_CMD = 0x13,
 
 	/**
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 */
+	RX_NO_DATA_NOTIF = 0xF5,
+
+	/**
 	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
 	 */
 	TLC_MNG_UPDATE_NOTIF = 0xF7,

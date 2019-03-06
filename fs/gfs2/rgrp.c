@@ -2256,7 +2256,7 @@ static void rgblk_free(struct gfs2_sbd *sdp, struct gfs2_rgrpd *rgd,
  *
  */
 
-void gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_glock *gl)
 {
 	struct gfs2_rgrpd *rgd = gl->gl_object;
 	struct gfs2_blkreserv *trs;

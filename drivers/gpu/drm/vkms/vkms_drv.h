@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+
 #ifndef _VKMS_DRV_H_
 #define _VKMS_DRV_H_
 
@@ -126,9 +128,6 @@ vm_fault_t vkms_gem_fault(struct vm_fault *vmf);
 
 int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
 		     struct drm_mode_create_dumb *args);
-
-int vkms_dumb_map(struct drm_file *file, struct drm_device *dev,
-		  u32 handle, u64 *offset);
 
 void vkms_gem_free_object(struct drm_gem_object *obj);
 

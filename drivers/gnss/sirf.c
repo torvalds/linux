@@ -85,7 +85,7 @@ static int sirf_write_raw(struct gnss_device *gdev, const unsigned char *buf,
 
 	/* write is only buffered synchronously */
 	ret = serdev_device_write(serdev, buf, count, MAX_SCHEDULE_TIMEOUT);
-	if (ret < 0)
+	if (ret < 0 || ret < count)
 		return ret;
 
 	/* FIXME: determine if interrupted? */

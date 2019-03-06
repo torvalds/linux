@@ -322,6 +322,7 @@ int dso__data_get_fd(struct dso *dso, struct machine *machine);
 void dso__data_put_fd(struct dso *dso);
 void dso__data_close(struct dso *dso);
 
+int dso__data_file_size(struct dso *dso, struct machine *machine);
 off_t dso__data_size(struct dso *dso, struct machine *machine);
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size);

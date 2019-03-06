@@ -84,8 +84,9 @@
 
 #define NUMBER_OF_SMB2_COMMANDS	0x0013
 
-/* 4 len + 52 transform hdr + 64 hdr + 56 create rsp */
-#define MAX_SMB2_HDR_SIZE 0x00b0
+/* 52 transform hdr + 64 hdr + 88 create rsp */
+#define SMB2_TRANSFORM_HEADER_SIZE 52
+#define MAX_SMB2_HDR_SIZE 204
 
 #define SMB2_PROTO_NUMBER cpu_to_le32(0x424d53fe)
 #define SMB2_TRANSFORM_PROTO_NUM cpu_to_le32(0x424d53fd)
@@ -648,6 +649,13 @@ struct smb2_create_req {
 	__u8   Buffer[0];
 } __packed;
 
+/*
+ * Maximum size of a SMB2_CREATE response is 64 (smb2 header) +
+ * 88 (fixed part of create response) + 520 (path) + 150 (contexts) +
+ * 2 bytes of padding.
+ */
+#define MAX_SMB2_CREATE_RESPONSE_SIZE 824
+
 struct smb2_create_rsp {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 89 */
@@ -898,7 +906,7 @@ struct validate_negotiate_info_req {
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
 	__le16 SecurityMode;
 	__le16 DialectCount;
-	__le16 Dialects[3]; /* BB expand this if autonegotiate > 3 dialects */
+	__le16 Dialects[4]; /* BB expand this if autonegotiate > 4 dialects */
 } __packed;
 
 struct validate_negotiate_info_rsp {
@@ -995,6 +1003,11 @@ struct smb2_close_req {
 	__u64  PersistentFileId; /* opaque endianness */
 	__u64  VolatileFileId; /* opaque endianness */
 } __packed;
+
+/*
+ * Maximum size of a SMB2_CLOSE response is 64 (smb2 header) + 60 (data)
+ */
+#define MAX_SMB2_CLOSE_RESPONSE_SIZE 124
 
 struct smb2_close_rsp {
 	struct smb2_sync_hdr sync_hdr;
@@ -1397,9 +1410,6 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	__le32 FileNameLength;
 	char   FileName[0];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
-
-#define SMB2_MIN_EA_BUF  2048
-#define SMB2_MAX_EA_BUF 65536
 
 struct smb2_file_full_ea_info { /* encoding of response for level 15 */
 	__le32 next_entry_offset;

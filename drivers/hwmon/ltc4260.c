@@ -79,7 +79,7 @@ static int ltc4260_get_value(struct device *dev, u8 reg)
 	return val;
 }
 
-static ssize_t ltc4260_show_value(struct device *dev,
+static ssize_t ltc4260_value_show(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -91,7 +91,7 @@ static ssize_t ltc4260_show_value(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
-static ssize_t ltc4260_show_bool(struct device *dev,
+static ssize_t ltc4260_bool_show(struct device *dev,
 				 struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -111,30 +111,24 @@ static ssize_t ltc4260_show_bool(struct device *dev,
 }
 
 /* Voltages */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc4260_show_value, NULL,
-			  LTC4260_SOURCE);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc4260_show_value, NULL,
-			  LTC4260_ADIN);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ltc4260_value, LTC4260_SOURCE);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ltc4260_value, LTC4260_ADIN);
 
 /*
  * Voltage alarms
  * UV/OV faults are associated with the input voltage, and the POWER BAD and
  * FET SHORT faults are associated with the output voltage.
  */
-static SENSOR_DEVICE_ATTR(in1_min_alarm, S_IRUGO, ltc4260_show_bool, NULL,
-			  FAULT_UV);
-static SENSOR_DEVICE_ATTR(in1_max_alarm, S_IRUGO, ltc4260_show_bool, NULL,
-			  FAULT_OV);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, ltc4260_show_bool, NULL,
-			  FAULT_POWER_BAD | FAULT_FET_SHORT);
+static SENSOR_DEVICE_ATTR_RO(in1_min_alarm, ltc4260_bool, FAULT_UV);
+static SENSOR_DEVICE_ATTR_RO(in1_max_alarm, ltc4260_bool, FAULT_OV);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, ltc4260_bool,
+			     FAULT_POWER_BAD | FAULT_FET_SHORT);
 
 /* Current (via sense resistor) */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc4260_show_value, NULL,
-			  LTC4260_SENSE);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ltc4260_value, LTC4260_SENSE);
 
 /* Overcurrent alarm */
-static SENSOR_DEVICE_ATTR(curr1_max_alarm, S_IRUGO, ltc4260_show_bool, NULL,
-			  FAULT_OC);
+static SENSOR_DEVICE_ATTR_RO(curr1_max_alarm, ltc4260_bool, FAULT_OC);
 
 static struct attribute *ltc4260_attrs[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,
