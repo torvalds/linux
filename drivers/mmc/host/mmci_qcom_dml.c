@@ -133,7 +133,6 @@ static int qcom_dma_setup(struct mmci_host *host)
 	producer_id = of_get_dml_pipe_index(np, "rx");
 
 	if (producer_id < 0 || consumer_id < 0) {
-		host->variant->qcom_dml = false;
 		mmci_dmae_release(host);
 		return -EINVAL;
 	}
