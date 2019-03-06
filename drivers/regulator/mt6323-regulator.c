@@ -118,43 +118,43 @@ static const struct regulator_linear_range buck_volt_range3[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0, 0x3f, 50000),
 };
 
-static const u32 ldo_volt_table1[] = {
+static const unsigned int ldo_volt_table1[] = {
 	3300000, 3400000, 3500000, 3600000,
 };
 
-static const u32 ldo_volt_table2[] = {
+static const unsigned int ldo_volt_table2[] = {
 	1500000, 1800000, 2500000, 2800000,
 };
 
-static const u32 ldo_volt_table3[] = {
+static const unsigned int ldo_volt_table3[] = {
 	1800000, 3300000,
 };
 
-static const u32 ldo_volt_table4[] = {
+static const unsigned int ldo_volt_table4[] = {
 	3000000, 3300000,
 };
 
-static const u32 ldo_volt_table5[] = {
+static const unsigned int ldo_volt_table5[] = {
 	1200000, 1300000, 1500000, 1800000, 2000000, 2800000, 3000000, 3300000,
 };
 
-static const u32 ldo_volt_table6[] = {
+static const unsigned int ldo_volt_table6[] = {
 	1200000, 1300000, 1500000, 1800000, 2500000, 2800000, 3000000, 2000000,
 };
 
-static const u32 ldo_volt_table7[] = {
+static const unsigned int ldo_volt_table7[] = {
 	1200000, 1300000, 1500000, 1800000,
 };
 
-static const u32 ldo_volt_table8[] = {
+static const unsigned int ldo_volt_table8[] = {
 	1800000, 3000000,
 };
 
-static const u32 ldo_volt_table9[] = {
+static const unsigned int ldo_volt_table9[] = {
 	1200000, 1350000, 1500000, 1800000,
 };
 
-static const u32 ldo_volt_table10[] = {
+static const unsigned int ldo_volt_table10[] = {
 	1200000, 1300000, 1500000, 1800000,
 };
 
