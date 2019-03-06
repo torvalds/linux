@@ -286,7 +286,7 @@ static int vc4_drm_bind(struct device *dev)
 
 	vc4_kms_load(drm);
 
-	drm_fbdev_generic_setup(drm, 32);
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
 
