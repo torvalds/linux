@@ -259,6 +259,8 @@ struct workqueue_struct {
 	struct wq_device	*wq_dev;	/* I: for sysfs interface */
 #endif
 #ifdef CONFIG_LOCKDEP
+	char			*lock_name;
+	struct lock_class_key	key;
 	struct lockdep_map	lockdep_map;
 #endif
 	char			name[WQ_NAME_LEN]; /* I: workqueue name */
@@ -3337,10 +3339,48 @@ static int init_worker_pool(struct worker_pool *pool)
 	return 0;
 }
 
+#ifdef CONFIG_LOCKDEP
+static void wq_init_lockdep(struct workqueue_struct *wq)
+{
+	char *lock_name;
+
+	lockdep_register_key(&wq->key);
+	lock_name = kasprintf(GFP_KERNEL, "%s%s", "(wq_completion)", wq->name);
+	if (!lock_name)
+		lock_name = wq->name;
+	lockdep_init_map(&wq->lockdep_map, lock_name, &wq->key, 0);
+}
+
+static void wq_unregister_lockdep(struct workqueue_struct *wq)
+{
+	lockdep_unregister_key(&wq->key);
+}
+
+static void wq_free_lockdep(struct workqueue_struct *wq)
+{
+	if (wq->lock_name != wq->name)
+		kfree(wq->lock_name);
+}
+#else
+static void wq_init_lockdep(struct workqueue_struct *wq)
+{
+}
+
+static void wq_unregister_lockdep(struct workqueue_struct *wq)
+{
+}
+
+static void wq_free_lockdep(struct workqueue_struct *wq)
+{
+}
+#endif
+
 static void rcu_free_wq(struct rcu_head *rcu)
 {
 	struct workqueue_struct *wq =
 		container_of(rcu, struct workqueue_struct, rcu);
+
+	wq_free_lockdep(wq);
 
 	if (!(wq->flags & WQ_UNBOUND))
 		free_percpu(wq->cpu_pwqs);
@@ -3532,8 +3572,10 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	 * If we're the last pwq going away, @wq is already dead and no one
 	 * is gonna access it anymore.  Schedule RCU free.
 	 */
-	if (is_last)
+	if (is_last) {
+		wq_unregister_lockdep(wq);
 		call_rcu(&wq->rcu, rcu_free_wq);
+	}
 }
 
 /**
@@ -4067,11 +4109,9 @@ static int init_rescuer(struct workqueue_struct *wq)
 	return 0;
 }
 
-struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
-					       unsigned int flags,
-					       int max_active,
-					       struct lock_class_key *key,
-					       const char *lock_name, ...)
+struct workqueue_struct *alloc_workqueue(const char *fmt,
+					 unsigned int flags,
+					 int max_active, ...)
 {
 	size_t tbl_size = 0;
 	va_list args;
@@ -4106,7 +4146,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 			goto err_free_wq;
 	}
 
-	va_start(args, lock_name);
+	va_start(args, max_active);
 	vsnprintf(wq->name, sizeof(wq->name), fmt, args);
 	va_end(args);
 
@@ -4123,7 +4163,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 	INIT_LIST_HEAD(&wq->flusher_overflow);
 	INIT_LIST_HEAD(&wq->maydays);
 
-	lockdep_init_map(&wq->lockdep_map, lock_name, key, 0);
+	wq_init_lockdep(wq);
 	INIT_LIST_HEAD(&wq->list);
 
 	if (alloc_and_link_pwqs(wq) < 0)
@@ -4161,7 +4201,7 @@ err_destroy:
 	destroy_workqueue(wq);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__alloc_workqueue_key);
+EXPORT_SYMBOL_GPL(alloc_workqueue);
 
 /**
  * destroy_workqueue - safely terminate a workqueue
@@ -4214,6 +4254,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 		kthread_stop(wq->rescuer->task);
 
 	if (!(wq->flags & WQ_UNBOUND)) {
+		wq_unregister_lockdep(wq);
 		/*
 		 * The base ref is never dropped on per-cpu pwqs.  Directly
 		 * schedule RCU free.
