@@ -851,11 +851,6 @@ static int abx80x_probe(struct i2c_client *client,
 	return rtc_register_device(priv->rtc);
 }
 
-static int abx80x_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id abx80x_id[] = {
 	{ "abx80x", ABX80X },
 	{ "ab0801", AB0801 },
@@ -876,7 +871,6 @@ static struct i2c_driver abx80x_driver = {
 		.name	= "rtc-abx80x",
 	},
 	.probe		= abx80x_probe,
-	.remove		= abx80x_remove,
 	.id_table	= abx80x_id,
 };
 
