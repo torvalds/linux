@@ -447,3 +447,9 @@ void qcom_variant_init(struct mmci_host *host);
 #else
 static inline void qcom_variant_init(struct mmci_host *host) {}
 #endif
+
+#ifdef CONFIG_MMC_STM32_SDMMC
+void sdmmc_variant_init(struct mmci_host *host);
+#else
+static inline void sdmmc_variant_init(struct mmci_host *host) {}
+#endif
