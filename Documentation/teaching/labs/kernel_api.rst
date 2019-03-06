@@ -639,7 +639,7 @@ Generate the skeleton for the task named **2-sched-spin** and browse
 the contents of the :file:`sched-spin.c` file.
 
    1. Compile the source code and load the module, according the above info:
-      (:command:`make info` and :command:`make copy`)
+      (:command:`make build` and :command:`make copy`)
    2. Notice that it is waiting for 5 seconds until the insertion
       order is complete.
    3. Unload the kernel module.
