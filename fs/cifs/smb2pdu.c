@@ -107,13 +107,13 @@ smb2_hdr_assemble(struct smb2_sync_hdr *shdr, __le16 smb2_cmd,
 		struct TCP_Server_Info *server = tcon->ses->server;
 
 		spin_lock(&server->req_lock);
-		/* Request up to 2 credits but don't go over the limit. */
+		/* Request up to 10 credits but don't go over the limit. */
 		if (server->credits >= server->max_credits)
 			shdr->CreditRequest = cpu_to_le16(0);
 		else
 			shdr->CreditRequest = cpu_to_le16(
 				min_t(int, server->max_credits -
-						server->credits, 2));
+						server->credits, 10));
 		spin_unlock(&server->req_lock);
 	} else {
 		shdr->CreditRequest = cpu_to_le16(2);
