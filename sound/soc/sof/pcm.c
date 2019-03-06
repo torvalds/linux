@@ -93,7 +93,6 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	pcm.params.buffer.phy_addr =
 		spcm->stream[substream->stream].page_table.addr;
 	pcm.params.buffer.size = runtime->dma_bytes;
-	pcm.params.buffer.offset = 0;
 	pcm.params.direction = substream->stream;
 	pcm.params.sample_valid_bytes = params_width(params) >> 3;
 	pcm.params.buffer_fmt = SOF_IPC_BUFFER_INTERLEAVED;
