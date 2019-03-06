@@ -19,18 +19,19 @@ Optional properties:
   the default 100 kHz frequency will be used.
   For STM32F4 SoC Standard-mode and Fast-mode are supported, possible values are
   100000 and 400000.
-  For STM32F7 SoC, Standard-mode, Fast-mode and Fast-mode Plus are supported,
-  possible values are 100000, 400000 and 1000000.
-- i2c-scl-rising-time-ns: Only for STM32F7, I2C SCL Rising time for the board
-  (default: 25)
-- i2c-scl-falling-time-ns: Only for STM32F7, I2C SCL Falling time for the board
-  (default: 10)
+  For STM32F7, STM32H7 and STM32MP1 SoCs, Standard-mode, Fast-mode and Fast-mode
+  Plus are supported, possible values are 100000, 400000 and 1000000.
+- i2c-scl-rising-time-ns: I2C SCL Rising time for the board (default: 25)
+  For STM32F7, STM32H7 and STM32MP1 only.
+- i2c-scl-falling-time-ns: I2C SCL Falling time for the board (default: 10)
+  For STM32F7, STM32H7 and STM32MP1 only.
   I2C Timings are derived from these 2 values
-- st,syscfg-fmp: Only for STM32F7, use to set Fast Mode Plus bit within SYSCFG
-  whether Fast Mode Plus speed is selected by slave.
+- st,syscfg-fmp: Use to set Fast Mode Plus bit within SYSCFG when Fast Mode
+  Plus speed is selected by slave.
 	1st cell: phandle to syscfg
 	2nd cell: register offset within SYSCFG
 	3rd cell: register bitmask for FMP bit
+  For STM32F7, STM32H7 and STM32MP1 only.
 
 Example:
 
