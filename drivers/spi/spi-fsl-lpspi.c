@@ -255,6 +255,13 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 	u8 prescale;
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
+
+	if (config.speed_hz > perclk_rate / 2) {
+		dev_err(fsl_lpspi->dev,
+		      "per-clk should be at least two times of transfer speed");
+		return -EINVAL;
+	}
+
 	for (prescale = 0; prescale < 8; prescale++) {
 		scldiv = perclk_rate /
 			 (clkdivs[prescale] * config.speed_hz) - 2;
@@ -304,7 +311,7 @@ static int fsl_lpspi_config(struct fsl_lpspi_data *fsl_lpspi)
 	return 0;
 }
 
-static void fsl_lpspi_setup_transfer(struct spi_device *spi,
+static int fsl_lpspi_setup_transfer(struct spi_device *spi,
 				     struct spi_transfer *t)
 {
 	struct fsl_lpspi_data *fsl_lpspi =
@@ -337,7 +344,7 @@ static void fsl_lpspi_setup_transfer(struct spi_device *spi,
 	else
 		fsl_lpspi->watermark = fsl_lpspi->txfifosize;
 
-	fsl_lpspi_config(fsl_lpspi);
+	return fsl_lpspi_config(fsl_lpspi);
 }
 
 static int fsl_lpspi_slave_abort(struct spi_controller *controller)
@@ -429,7 +436,10 @@ static int fsl_lpspi_transfer_one_msg(struct spi_controller *controller,
 	msg->actual_length = 0;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		fsl_lpspi_setup_transfer(spi, xfer);
+		ret = fsl_lpspi_setup_transfer(spi, xfer);
+		if (ret < 0)
+			goto complete;
+
 		fsl_lpspi_set_cmd(fsl_lpspi, is_first_xfer);
 
 		is_first_xfer = false;
