@@ -4213,7 +4213,7 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 	if (!np)
 		return ERR_PTR(-ENOENT);
 
-	return __of_clk_get(np, -1, np->full_name, name);
+	return __of_clk_get(np, 0, np->full_name, name);
 }
 EXPORT_SYMBOL(of_clk_get_by_name);
 
