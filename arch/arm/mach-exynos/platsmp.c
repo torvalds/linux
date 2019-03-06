@@ -336,9 +336,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		/* wait max 10 ms until cpu1 is on */
 		while (exynos_cpu_power_state(core_id)
 		       != S5P_CORE_LOCAL_PWR_EN) {
-			if (timeout-- == 0)
+			if (timeout == 0)
 				break;
-
+			timeout--;
 			mdelay(1);
 		}
 
