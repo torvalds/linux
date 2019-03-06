@@ -1130,24 +1130,24 @@ static int
 skl_dram_get_channel_info(struct dram_channel_info *ch,
 			  int channel, u32 val)
 {
-	skl_dram_get_dimm_info(&ch->l_info, channel, 'L', val & 0xffff);
-	skl_dram_get_dimm_info(&ch->s_info, channel, 'S', val >> 16);
+	skl_dram_get_dimm_info(&ch->dimm_l, channel, 'L', val & 0xffff);
+	skl_dram_get_dimm_info(&ch->dimm_s, channel, 'S', val >> 16);
 
-	if (ch->l_info.size == 0 && ch->s_info.size == 0) {
+	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
 		DRM_DEBUG_KMS("CH%u not populated\n", channel);
 		return -EINVAL;
 	}
 
-	if (ch->l_info.ranks == 2 || ch->s_info.ranks == 2)
+	if (ch->dimm_l.ranks == 2 || ch->dimm_s.ranks == 2)
 		ch->ranks = 2;
-	else if (ch->l_info.ranks == 1 && ch->s_info.ranks == 1)
+	else if (ch->dimm_l.ranks == 1 && ch->dimm_s.ranks == 1)
 		ch->ranks = 2;
 	else
 		ch->ranks = 1;
 
 	ch->is_16gb_dimm =
-		skl_is_16gb_dimm(&ch->l_info) ||
-		skl_is_16gb_dimm(&ch->s_info);
+		skl_is_16gb_dimm(&ch->dimm_l) ||
+		skl_is_16gb_dimm(&ch->dimm_s);
 
 	DRM_DEBUG_KMS("CH%u ranks: %u, 16Gb DIMMs: %s\n",
 		      channel, ch->ranks, yesno(ch->is_16gb_dimm));
@@ -1160,8 +1160,8 @@ intel_is_dram_symmetric(const struct dram_channel_info *ch0,
 			const struct dram_channel_info *ch1)
 {
 	return !memcmp(ch0, ch1, sizeof(*ch0)) &&
-		(ch0->s_info.size == 0 ||
-		 !memcmp(&ch0->l_info, &ch0->s_info, sizeof(ch0->l_info)));
+		(ch0->dimm_s.size == 0 ||
+		 !memcmp(&ch0->dimm_l, &ch0->dimm_s, sizeof(ch0->dimm_l)));
 }
 
 static int
