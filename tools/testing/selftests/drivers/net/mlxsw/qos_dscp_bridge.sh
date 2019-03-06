@@ -148,9 +148,10 @@ dscp_ping_test()
 	eval "t0s=($(dscp_fetch_stats $dev_10 10)
 		   $(dscp_fetch_stats $dev_20 20))"
 
+	local ping_timeout=$((PING_TIMEOUT * 5))
 	ip vrf exec $vrf_name \
 	   ${PING} -Q $dscp_10 ${sip:+-I $sip} $dip \
-		   -c 10 -i 0.1 -w 2 &> /dev/null
+		   -c 10 -i 0.5 -w $ping_timeout &> /dev/null
 
 	local -A t1s
 	eval "t1s=($(dscp_fetch_stats $dev_10 10)

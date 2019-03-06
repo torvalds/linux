@@ -180,14 +180,28 @@
 				ethernet@0 {
 					phy-handle = <&phy2>;
 					cavium,alt-phy-handle = <&phy100>;
+					rx-delay = <0>;
+					tx-delay = <0>;
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
 				};
 				ethernet@1 {
 					phy-handle = <&phy3>;
 					cavium,alt-phy-handle = <&phy101>;
+					rx-delay = <0>;
+					tx-delay = <0>;
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
 				};
 				ethernet@2 {
 					phy-handle = <&phy4>;
 					cavium,alt-phy-handle = <&phy102>;
+					rx-delay = <0>;
+					tx-delay = <0>;
 				};
 				ethernet@3 {
 					compatible = "cavium,octeon-3860-pip-port";

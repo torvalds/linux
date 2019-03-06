@@ -1235,7 +1235,8 @@ static void tce_iommu_release_ownership_ddw(struct tce_container *container,
 	}
 
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
-		table_group->ops->unset_window(table_group, i);
+		if (container->tables[i])
+			table_group->ops->unset_window(table_group, i);
 
 	table_group->ops->release_ownership(table_group);
 }

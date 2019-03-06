@@ -258,6 +258,8 @@ const char *parse_fs_dst(struct trace_seq *p,
 	return ret;
 }
 
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_ft);
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_ft);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_set_fte);

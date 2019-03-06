@@ -224,9 +224,7 @@ subsequent_board:
 		        return;
 		}
 
-		mtable = kmalloc(sizeof(struct mediatable) +
-				 count * sizeof(struct medialeaf),
-				 GFP_KERNEL);
+		mtable = kmalloc(struct_size(mtable, mleaf, count), GFP_KERNEL);
 		if (mtable == NULL)
 			return;				/* Horrible, impossible failure. */
 		last_mediatable = tp->mtable = mtable;

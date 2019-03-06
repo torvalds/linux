@@ -369,8 +369,7 @@ static int r852_wait(struct nand_chip *chip)
 	unsigned long timeout;
 	u8 status;
 
-	timeout = jiffies + (chip->state == FL_ERASING ?
-		msecs_to_jiffies(400) : msecs_to_jiffies(20));
+	timeout = jiffies + msecs_to_jiffies(400);
 
 	while (time_before(jiffies, timeout))
 		if (chip->legacy.dev_ready(chip))

@@ -186,11 +186,13 @@ static const struct {
 
 enum {
 	QEDE_PRI_FLAG_CMT,
+	QEDE_PRI_FLAG_SMART_AN_SUPPORT, /* MFW supports SmartAN */
 	QEDE_PRI_FLAG_LEN,
 };
 
 static const char qede_private_arr[QEDE_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
 	"Coupled-Function",
+	"SmartAN capable",
 };
 
 enum qede_ethtool_tests {
@@ -404,8 +406,15 @@ static int qede_get_sset_count(struct net_device *dev, int stringset)
 static u32 qede_get_priv_flags(struct net_device *dev)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	u32 flags = 0;
 
-	return (!!(edev->dev_info.common.num_hwfns > 1)) << QEDE_PRI_FLAG_CMT;
+	if (edev->dev_info.common.num_hwfns > 1)
+		flags |= BIT(QEDE_PRI_FLAG_CMT);
+
+	if (edev->dev_info.common.smart_an)
+		flags |= BIT(QEDE_PRI_FLAG_SMART_AN_SUPPORT);
+
+	return flags;
 }
 
 struct qede_link_mode_mapping {

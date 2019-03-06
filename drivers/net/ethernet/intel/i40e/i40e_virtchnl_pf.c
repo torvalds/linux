@@ -2069,6 +2069,11 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
+	if (qci->num_queue_pairs > I40E_MAX_VF_QUEUES) {
+		aq_ret = I40E_ERR_PARAM;
+		goto error_param;
+	}
+
 	for (i = 0; i < qci->num_queue_pairs; i++) {
 		qpi = &qci->qpair[i];
 
@@ -3384,8 +3389,8 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		dev_info(&pf->pdev->dev,
 			 "VF %d: Invalid input/s, can't apply cloud filter\n",
 			 vf->vf_id);
-			aq_ret = I40E_ERR_PARAM;
-			goto err;
+		aq_ret = I40E_ERR_PARAM;
+		goto err;
 	}
 
 	cfilter = kzalloc(sizeof(*cfilter), GFP_KERNEL);
@@ -3656,7 +3661,7 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 	int ret;
 
 	pf->vf_aq_requests++;
-	if (local_vf_id >= pf->num_alloc_vfs)
+	if (local_vf_id < 0 || local_vf_id >= pf->num_alloc_vfs)
 		return -EINVAL;
 	vf = &(pf->vf[local_vf_id]);
 

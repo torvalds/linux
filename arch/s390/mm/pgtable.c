@@ -318,7 +318,6 @@ pte_t ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr,
 	}
 	return old;
 }
-EXPORT_SYMBOL(ptep_modify_prot_start);
 
 void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 			     pte_t *ptep, pte_t pte)
@@ -337,7 +336,6 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 	}
 	preempt_enable();
 }
-EXPORT_SYMBOL(ptep_modify_prot_commit);
 
 static inline void pmdp_idte_local(struct mm_struct *mm,
 				   unsigned long addr, pmd_t *pmdp)

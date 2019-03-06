@@ -223,7 +223,6 @@ void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_acl_ctcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
 					    struct mlxsw_sp_acl_ctcam_region *cregion,
-					    struct mlxsw_sp_acl_ctcam_chunk *cchunk,
 					    struct mlxsw_sp_acl_ctcam_entry *centry,
 					    struct mlxsw_sp_acl_rule_info *rulei)
 {

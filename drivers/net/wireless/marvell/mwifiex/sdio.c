@@ -489,6 +489,8 @@ static void mwifiex_sdio_coredump(struct device *dev)
 #define SDIO_DEVICE_ID_MARVELL_8887   (0x9135)
 /* Device ID for SD8801 */
 #define SDIO_DEVICE_ID_MARVELL_8801   (0x9139)
+/* Device ID for SD8977 */
+#define SDIO_DEVICE_ID_MARVELL_8977   (0x9145)
 /* Device ID for SD8997 */
 #define SDIO_DEVICE_ID_MARVELL_8997   (0x9141)
 
@@ -507,6 +509,8 @@ static const struct sdio_device_id mwifiex_ids[] = {
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8887},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8801),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8801},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8977),
+		.driver_data = (unsigned long)&mwifiex_sdio_sd8977},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8997),
 		.driver_data = (unsigned long)&mwifiex_sdio_sd8997},
 	{},
@@ -2726,4 +2730,5 @@ MODULE_FIRMWARE(SD8787_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8797_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8897_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8887_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8977_DEFAULT_FW_NAME);
 MODULE_FIRMWARE(SD8997_DEFAULT_FW_NAME);

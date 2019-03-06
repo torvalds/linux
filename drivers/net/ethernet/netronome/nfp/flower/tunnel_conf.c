@@ -98,47 +98,51 @@ struct nfp_ipv4_addr_entry {
 	struct list_head list;
 };
 
-/**
- * struct nfp_tun_mac_addr - configure MAC address of tunnel EP on NFP
- * @reserved:	reserved for future use
- * @count:	number of MAC addresses in the message
- * @addresses.index:	index of MAC address in the lookup table
- * @addresses.addr:	interface MAC address
- * @addresses:	series of MACs to offload
- */
-struct nfp_tun_mac_addr {
-	__be16 reserved;
-	__be16 count;
-	struct index_mac_addr {
-		__be16 index;
-		u8 addr[ETH_ALEN];
-	} addresses[];
-};
+#define NFP_TUN_MAC_OFFLOAD_DEL_FLAG	0x2
 
 /**
- * struct nfp_tun_mac_offload_entry - list of MACs to offload
- * @index:	index of MAC address for offloading
+ * struct nfp_tun_mac_addr_offload - configure MAC address of tunnel EP on NFP
+ * @flags:	MAC address offload options
+ * @count:	number of MAC addresses in the message (should be 1)
+ * @index:	index of MAC address in the lookup table
  * @addr:	interface MAC address
- * @list:	list pointer
  */
-struct nfp_tun_mac_offload_entry {
+struct nfp_tun_mac_addr_offload {
+	__be16 flags;
+	__be16 count;
 	__be16 index;
 	u8 addr[ETH_ALEN];
-	struct list_head list;
+};
+
+enum nfp_flower_mac_offload_cmd {
+	NFP_TUNNEL_MAC_OFFLOAD_ADD =		0,
+	NFP_TUNNEL_MAC_OFFLOAD_DEL =		1,
+	NFP_TUNNEL_MAC_OFFLOAD_MOD =		2,
 };
 
 #define NFP_MAX_MAC_INDEX       0xff
 
 /**
- * struct nfp_tun_mac_non_nfp_idx - converts non NFP netdev ifindex to 8-bit id
- * @ifindex:	netdev ifindex of the device
- * @index:	index of netdevs mac on NFP
- * @list:	list pointer
+ * struct nfp_tun_offloaded_mac - hashtable entry for an offloaded MAC
+ * @ht_node:	Hashtable entry
+ * @addr:	Offloaded MAC address
+ * @index:	Offloaded index for given MAC address
+ * @ref_count:	Number of devs using this MAC address
+ * @repr_list:	List of reprs sharing this MAC address
  */
-struct nfp_tun_mac_non_nfp_idx {
-	int ifindex;
-	u8 index;
-	struct list_head list;
+struct nfp_tun_offloaded_mac {
+	struct rhash_head ht_node;
+	u8 addr[ETH_ALEN];
+	u16 index;
+	int ref_count;
+	struct list_head repr_list;
+};
+
+static const struct rhashtable_params offloaded_macs_params = {
+	.key_offset	= offsetof(struct nfp_tun_offloaded_mac, addr),
+	.head_offset	= offsetof(struct nfp_tun_offloaded_mac, ht_node),
+	.key_len	= ETH_ALEN,
+	.automatic_shrinking	= true,
 };
 
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb)
@@ -205,15 +209,15 @@ static bool nfp_tun_has_route(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
-			spin_unlock_bh(&priv->nfp_neigh_off_lock);
+			spin_unlock_bh(&priv->tun.neigh_off_lock);
 			return true;
 		}
 	}
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 	return false;
 }
 
@@ -223,24 +227,24 @@ static void nfp_tun_add_route_to_cache(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
-			spin_unlock_bh(&priv->nfp_neigh_off_lock);
+			spin_unlock_bh(&priv->tun.neigh_off_lock);
 			return;
 		}
 	}
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
-		spin_unlock_bh(&priv->nfp_neigh_off_lock);
+		spin_unlock_bh(&priv->tun.neigh_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when storing new route.\n");
 		return;
 	}
 
 	entry->ipv4_addr = ipv4_addr;
-	list_add_tail(&entry->list, &priv->nfp_neigh_off_list);
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	list_add_tail(&entry->list, &priv->tun.neigh_off_list);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 }
 
 static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
@@ -249,8 +253,8 @@ static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
 	struct nfp_ipv4_route_entry *entry;
 	struct list_head *ptr, *storage;
 
-	spin_lock_bh(&priv->nfp_neigh_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	spin_lock_bh(&priv->tun.neigh_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_route_entry, list);
 		if (entry->ipv4_addr == ipv4_addr) {
 			list_del(&entry->list);
@@ -258,7 +262,7 @@ static void nfp_tun_del_route_from_cache(struct nfp_app *app, __be32 ipv4_addr)
 			break;
 		}
 	}
-	spin_unlock_bh(&priv->nfp_neigh_off_lock);
+	spin_unlock_bh(&priv->tun.neigh_off_lock);
 }
 
 static void
@@ -326,7 +330,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	if (!nfp_netdev_is_nfp_repr(n->dev))
 		return NOTIFY_DONE;
 
-	app_priv = container_of(nb, struct nfp_flower_priv, nfp_tun_neigh_nb);
+	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
 
 	/* Only concerned with changes to routes already added to NFP. */
@@ -401,11 +405,11 @@ static void nfp_tun_write_ipv4_list(struct nfp_app *app)
 	int count;
 
 	memset(&payload, 0, sizeof(struct nfp_tun_ipv4_addr));
-	mutex_lock(&priv->nfp_ipv4_off_lock);
+	mutex_lock(&priv->tun.ipv4_off_lock);
 	count = 0;
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		if (count >= NFP_FL_IPV4_ADDRS_MAX) {
-			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			mutex_unlock(&priv->tun.ipv4_off_lock);
 			nfp_flower_cmsg_warn(app, "IPv4 offload exceeds limit.\n");
 			return;
 		}
@@ -413,7 +417,7 @@ static void nfp_tun_write_ipv4_list(struct nfp_app *app)
 		payload.ipv4_addr[count++] = entry->ipv4_addr;
 	}
 	payload.count = cpu_to_be32(count);
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_IPS,
 				 sizeof(struct nfp_tun_ipv4_addr),
@@ -426,26 +430,26 @@ void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4)
 	struct nfp_ipv4_addr_entry *entry;
 	struct list_head *ptr, *storage;
 
-	mutex_lock(&priv->nfp_ipv4_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	mutex_lock(&priv->tun.ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		if (entry->ipv4_addr == ipv4) {
 			entry->ref_count++;
-			mutex_unlock(&priv->nfp_ipv4_off_lock);
+			mutex_unlock(&priv->tun.ipv4_off_lock);
 			return;
 		}
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry) {
-		mutex_unlock(&priv->nfp_ipv4_off_lock);
+		mutex_unlock(&priv->tun.ipv4_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
 		return;
 	}
 	entry->ipv4_addr = ipv4;
 	entry->ref_count = 1;
-	list_add_tail(&entry->list, &priv->nfp_ipv4_off_list);
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	list_add_tail(&entry->list, &priv->tun.ipv4_off_list);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_tun_write_ipv4_list(app);
 }
@@ -456,8 +460,8 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
 	struct nfp_ipv4_addr_entry *entry;
 	struct list_head *ptr, *storage;
 
-	mutex_lock(&priv->nfp_ipv4_off_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	mutex_lock(&priv->tun.ipv4_off_lock);
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		if (entry->ipv4_addr == ipv4) {
 			entry->ref_count--;
@@ -468,191 +472,357 @@ void nfp_tunnel_del_ipv4_off(struct nfp_app *app, __be32 ipv4)
 			break;
 		}
 	}
-	mutex_unlock(&priv->nfp_ipv4_off_lock);
+	mutex_unlock(&priv->tun.ipv4_off_lock);
 
 	nfp_tun_write_ipv4_list(app);
 }
 
-void nfp_tunnel_write_macs(struct nfp_app *app)
+static int
+__nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx, bool del)
 {
-	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_tun_mac_offload_entry *entry;
-	struct nfp_tun_mac_addr *payload;
-	struct list_head *ptr, *storage;
-	int mac_count, err, pay_size;
+	struct nfp_tun_mac_addr_offload payload;
 
-	mutex_lock(&priv->nfp_mac_off_lock);
-	if (!priv->nfp_mac_off_count) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
-		return;
-	}
+	memset(&payload, 0, sizeof(payload));
 
-	pay_size = sizeof(struct nfp_tun_mac_addr) +
-		   sizeof(struct index_mac_addr) * priv->nfp_mac_off_count;
+	if (del)
+		payload.flags = cpu_to_be16(NFP_TUN_MAC_OFFLOAD_DEL_FLAG);
 
-	payload = kzalloc(pay_size, GFP_KERNEL);
-	if (!payload) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
-		return;
-	}
+	/* FW supports multiple MACs per cmsg but restrict to single. */
+	payload.count = cpu_to_be16(1);
+	payload.index = cpu_to_be16(idx);
+	ether_addr_copy(payload.addr, mac);
 
-	payload->count = cpu_to_be16(priv->nfp_mac_off_count);
-
-	mac_count = 0;
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
-		entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
-				   list);
-		payload->addresses[mac_count].index = entry->index;
-		ether_addr_copy(payload->addresses[mac_count].addr,
-				entry->addr);
-		mac_count++;
-	}
-
-	err = nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_MAC,
-				       pay_size, payload, GFP_KERNEL);
-
-	kfree(payload);
-
-	if (err) {
-		mutex_unlock(&priv->nfp_mac_off_lock);
-		/* Write failed so retain list for future retry. */
-		return;
-	}
-
-	/* If list was successfully offloaded, flush it. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
-		entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
-				   list);
-		list_del(&entry->list);
-		kfree(entry);
-	}
-
-	priv->nfp_mac_off_count = 0;
-	mutex_unlock(&priv->nfp_mac_off_lock);
+	return nfp_flower_xmit_tun_conf(app, NFP_FLOWER_CMSG_TYPE_TUN_MAC,
+					sizeof(struct nfp_tun_mac_addr_offload),
+					&payload, GFP_KERNEL);
 }
 
-static int nfp_tun_get_mac_idx(struct nfp_app *app, int ifindex)
+static bool nfp_tunnel_port_is_phy_repr(int port)
 {
-	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_tun_mac_non_nfp_idx *entry;
-	struct list_head *ptr, *storage;
-	int idx;
-
-	mutex_lock(&priv->nfp_mac_index_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
-		entry = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx, list);
-		if (entry->ifindex == ifindex) {
-			idx = entry->index;
-			mutex_unlock(&priv->nfp_mac_index_lock);
-			return idx;
-		}
-	}
-
-	idx = ida_simple_get(&priv->nfp_mac_off_ids, 0,
-			     NFP_MAX_MAC_INDEX, GFP_KERNEL);
-	if (idx < 0) {
-		mutex_unlock(&priv->nfp_mac_index_lock);
-		return idx;
-	}
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		mutex_unlock(&priv->nfp_mac_index_lock);
-		return -ENOMEM;
-	}
-	entry->ifindex = ifindex;
-	entry->index = idx;
-	list_add_tail(&entry->list, &priv->nfp_mac_index_list);
-	mutex_unlock(&priv->nfp_mac_index_lock);
-
-	return idx;
-}
-
-static void nfp_tun_del_mac_idx(struct nfp_app *app, int ifindex)
-{
-	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_tun_mac_non_nfp_idx *entry;
-	struct list_head *ptr, *storage;
-
-	mutex_lock(&priv->nfp_mac_index_lock);
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
-		entry = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx, list);
-		if (entry->ifindex == ifindex) {
-			ida_simple_remove(&priv->nfp_mac_off_ids,
-					  entry->index);
-			list_del(&entry->list);
-			kfree(entry);
-			break;
-		}
-	}
-	mutex_unlock(&priv->nfp_mac_index_lock);
-}
-
-static void nfp_tun_add_to_mac_offload_list(struct net_device *netdev,
-					    struct nfp_app *app)
-{
-	struct nfp_flower_priv *priv = app->priv;
-	struct nfp_tun_mac_offload_entry *entry;
-	u16 nfp_mac_idx;
-	int port = 0;
-
-	/* Check if MAC should be offloaded. */
-	if (!is_valid_ether_addr(netdev->dev_addr))
-		return;
-
-	if (nfp_netdev_is_nfp_repr(netdev))
-		port = nfp_repr_get_port_id(netdev);
-	else if (!nfp_fl_is_netdev_to_offload(netdev))
-		return;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		nfp_flower_cmsg_warn(app, "Mem fail when offloading MAC.\n");
-		return;
-	}
-
 	if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port) ==
-	    NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT) {
-		nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT;
-	} else if (FIELD_GET(NFP_FLOWER_CMSG_PORT_TYPE, port) ==
-		   NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT) {
-		port = FIELD_GET(NFP_FLOWER_CMSG_PORT_VNIC, port);
-		nfp_mac_idx = port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PCIE_PORT;
-	} else {
-		/* Must assign our own unique 8-bit index. */
-		int idx = nfp_tun_get_mac_idx(app, netdev->ifindex);
+	    NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT)
+		return true;
 
-		if (idx < 0) {
-			nfp_flower_cmsg_warn(app, "Can't assign non-repr MAC index.\n");
-			kfree(entry);
-			return;
-		}
-		nfp_mac_idx = idx << 8 | NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+	return false;
+}
+
+static u16 nfp_tunnel_get_mac_idx_from_phy_port_id(int port)
+{
+	return port << 8 | NFP_FLOWER_CMSG_PORT_TYPE_PHYS_PORT;
+}
+
+static u16 nfp_tunnel_get_global_mac_idx_from_ida(int id)
+{
+	return id << 8 | NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+}
+
+static int nfp_tunnel_get_ida_from_global_mac_idx(u16 nfp_mac_idx)
+{
+	return nfp_mac_idx >> 8;
+}
+
+static bool nfp_tunnel_is_mac_idx_global(u16 nfp_mac_idx)
+{
+	return (nfp_mac_idx & 0xff) == NFP_FLOWER_CMSG_PORT_TYPE_OTHER_PORT;
+}
+
+static struct nfp_tun_offloaded_mac *
+nfp_tunnel_lookup_offloaded_macs(struct nfp_app *app, u8 *mac)
+{
+	struct nfp_flower_priv *priv = app->priv;
+
+	return rhashtable_lookup_fast(&priv->tun.offloaded_macs, mac,
+				      offloaded_macs_params);
+}
+
+static void
+nfp_tunnel_offloaded_macs_inc_ref_and_link(struct nfp_tun_offloaded_mac *entry,
+					   struct net_device *netdev, bool mod)
+{
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_flower_repr_priv *repr_priv;
+		struct nfp_repr *repr;
+
+		repr = netdev_priv(netdev);
+		repr_priv = repr->app_priv;
+
+		/* If modifing MAC, remove repr from old list first. */
+		if (mod)
+			list_del(&repr_priv->mac_list);
+
+		list_add_tail(&repr_priv->mac_list, &entry->repr_list);
 	}
 
-	entry->index = cpu_to_be16(nfp_mac_idx);
-	ether_addr_copy(entry->addr, netdev->dev_addr);
+	entry->ref_count++;
+}
 
-	mutex_lock(&priv->nfp_mac_off_lock);
-	priv->nfp_mac_off_count++;
-	list_add_tail(&entry->list, &priv->nfp_mac_off_list);
-	mutex_unlock(&priv->nfp_mac_off_lock);
+static int
+nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
+			  int port, bool mod)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	int ida_idx = NFP_MAX_MAC_INDEX, err;
+	struct nfp_tun_offloaded_mac *entry;
+	u16 nfp_mac_idx = 0;
+
+	entry = nfp_tunnel_lookup_offloaded_macs(app, netdev->dev_addr);
+	if (entry && nfp_tunnel_is_mac_idx_global(entry->index)) {
+		nfp_tunnel_offloaded_macs_inc_ref_and_link(entry, netdev, mod);
+		return 0;
+	}
+
+	/* Assign a global index if non-repr or MAC address is now shared. */
+	if (entry || !port) {
+		ida_idx = ida_simple_get(&priv->tun.mac_off_ids, 0,
+					 NFP_MAX_MAC_INDEX, GFP_KERNEL);
+		if (ida_idx < 0)
+			return ida_idx;
+
+		nfp_mac_idx = nfp_tunnel_get_global_mac_idx_from_ida(ida_idx);
+	} else {
+		nfp_mac_idx = nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+	}
+
+	if (!entry) {
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry) {
+			err = -ENOMEM;
+			goto err_free_ida;
+		}
+
+		ether_addr_copy(entry->addr, netdev->dev_addr);
+		INIT_LIST_HEAD(&entry->repr_list);
+
+		if (rhashtable_insert_fast(&priv->tun.offloaded_macs,
+					   &entry->ht_node,
+					   offloaded_macs_params)) {
+			err = -ENOMEM;
+			goto err_free_entry;
+		}
+	}
+
+	err = __nfp_tunnel_offload_mac(app, netdev->dev_addr,
+				       nfp_mac_idx, false);
+	if (err) {
+		/* If not shared then free. */
+		if (!entry->ref_count)
+			goto err_remove_hash;
+		goto err_free_ida;
+	}
+
+	entry->index = nfp_mac_idx;
+	nfp_tunnel_offloaded_macs_inc_ref_and_link(entry, netdev, mod);
+
+	return 0;
+
+err_remove_hash:
+	rhashtable_remove_fast(&priv->tun.offloaded_macs, &entry->ht_node,
+			       offloaded_macs_params);
+err_free_entry:
+	kfree(entry);
+err_free_ida:
+	if (ida_idx != NFP_MAX_MAC_INDEX)
+		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+
+	return err;
+}
+
+static int
+nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
+			  u8 *mac, bool mod)
+{
+	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_flower_repr_priv *repr_priv;
+	struct nfp_tun_offloaded_mac *entry;
+	struct nfp_repr *repr;
+	int ida_idx;
+
+	entry = nfp_tunnel_lookup_offloaded_macs(app, mac);
+	if (!entry)
+		return 0;
+
+	entry->ref_count--;
+	/* If del is part of a mod then mac_list is still in use elsewheree. */
+	if (nfp_netdev_is_nfp_repr(netdev) && !mod) {
+		repr = netdev_priv(netdev);
+		repr_priv = repr->app_priv;
+		list_del(&repr_priv->mac_list);
+	}
+
+	/* If MAC is now used by 1 repr set the offloaded MAC index to port. */
+	if (entry->ref_count == 1 && list_is_singular(&entry->repr_list)) {
+		u16 nfp_mac_idx;
+		int port, err;
+
+		repr_priv = list_first_entry(&entry->repr_list,
+					     struct nfp_flower_repr_priv,
+					     mac_list);
+		repr = repr_priv->nfp_repr;
+		port = nfp_repr_get_port_id(repr->netdev);
+		nfp_mac_idx = nfp_tunnel_get_mac_idx_from_phy_port_id(port);
+		err = __nfp_tunnel_offload_mac(app, mac, nfp_mac_idx, false);
+		if (err) {
+			nfp_flower_cmsg_warn(app, "MAC offload index revert failed on %s.\n",
+					     netdev_name(netdev));
+			return 0;
+		}
+
+		ida_idx = nfp_tunnel_get_ida_from_global_mac_idx(entry->index);
+		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+		entry->index = nfp_mac_idx;
+		return 0;
+	}
+
+	if (entry->ref_count)
+		return 0;
+
+	WARN_ON_ONCE(rhashtable_remove_fast(&priv->tun.offloaded_macs,
+					    &entry->ht_node,
+					    offloaded_macs_params));
+	/* If MAC has global ID then extract and free the ida entry. */
+	if (nfp_tunnel_is_mac_idx_global(entry->index)) {
+		ida_idx = nfp_tunnel_get_ida_from_global_mac_idx(entry->index);
+		ida_simple_remove(&priv->tun.mac_off_ids, ida_idx);
+	}
+
+	kfree(entry);
+
+	return __nfp_tunnel_offload_mac(app, mac, 0, true);
+}
+
+static int
+nfp_tunnel_offload_mac(struct nfp_app *app, struct net_device *netdev,
+		       enum nfp_flower_mac_offload_cmd cmd)
+{
+	struct nfp_flower_non_repr_priv *nr_priv = NULL;
+	bool non_repr = false, *mac_offloaded;
+	u8 *off_mac = NULL;
+	int err, port = 0;
+
+	if (nfp_netdev_is_nfp_repr(netdev)) {
+		struct nfp_flower_repr_priv *repr_priv;
+		struct nfp_repr *repr;
+
+		repr = netdev_priv(netdev);
+		if (repr->app != app)
+			return 0;
+
+		repr_priv = repr->app_priv;
+		mac_offloaded = &repr_priv->mac_offloaded;
+		off_mac = &repr_priv->offloaded_mac_addr[0];
+		port = nfp_repr_get_port_id(netdev);
+		if (!nfp_tunnel_port_is_phy_repr(port))
+			return 0;
+	} else if (nfp_fl_is_netdev_to_offload(netdev)) {
+		nr_priv = nfp_flower_non_repr_priv_get(app, netdev);
+		if (!nr_priv)
+			return -ENOMEM;
+
+		mac_offloaded = &nr_priv->mac_offloaded;
+		off_mac = &nr_priv->offloaded_mac_addr[0];
+		non_repr = true;
+	} else {
+		return 0;
+	}
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		err = -EINVAL;
+		goto err_put_non_repr_priv;
+	}
+
+	if (cmd == NFP_TUNNEL_MAC_OFFLOAD_MOD && !*mac_offloaded)
+		cmd = NFP_TUNNEL_MAC_OFFLOAD_ADD;
+
+	switch (cmd) {
+	case NFP_TUNNEL_MAC_OFFLOAD_ADD:
+		err = nfp_tunnel_add_shared_mac(app, netdev, port, false);
+		if (err)
+			goto err_put_non_repr_priv;
+
+		if (non_repr)
+			__nfp_flower_non_repr_priv_get(nr_priv);
+
+		*mac_offloaded = true;
+		ether_addr_copy(off_mac, netdev->dev_addr);
+		break;
+	case NFP_TUNNEL_MAC_OFFLOAD_DEL:
+		/* Only attempt delete if add was successful. */
+		if (!*mac_offloaded)
+			break;
+
+		if (non_repr)
+			__nfp_flower_non_repr_priv_put(nr_priv);
+
+		*mac_offloaded = false;
+
+		err = nfp_tunnel_del_shared_mac(app, netdev, netdev->dev_addr,
+						false);
+		if (err)
+			goto err_put_non_repr_priv;
+
+		break;
+	case NFP_TUNNEL_MAC_OFFLOAD_MOD:
+		/* Ignore if changing to the same address. */
+		if (ether_addr_equal(netdev->dev_addr, off_mac))
+			break;
+
+		err = nfp_tunnel_add_shared_mac(app, netdev, port, true);
+		if (err)
+			goto err_put_non_repr_priv;
+
+		/* Delete the previous MAC address. */
+		err = nfp_tunnel_del_shared_mac(app, netdev, off_mac, true);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to remove offload of replaced MAC addr on %s.\n",
+					     netdev_name(netdev));
+
+		ether_addr_copy(off_mac, netdev->dev_addr);
+		break;
+	default:
+		err = -EINVAL;
+		goto err_put_non_repr_priv;
+	}
+
+	if (non_repr)
+		__nfp_flower_non_repr_priv_put(nr_priv);
+
+	return 0;
+
+err_put_non_repr_priv:
+	if (non_repr)
+		__nfp_flower_non_repr_priv_put(nr_priv);
+
+	return err;
 }
 
 int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 				 struct net_device *netdev,
 				 unsigned long event, void *ptr)
 {
-	if (event == NETDEV_DOWN || event == NETDEV_UNREGISTER) {
-		/* If non-nfp netdev then free its offload index. */
-		if (nfp_fl_is_netdev_to_offload(netdev))
-			nfp_tun_del_mac_idx(app, netdev->ifindex);
-	} else if (event == NETDEV_UP || event == NETDEV_CHANGEADDR ||
-		   event == NETDEV_REGISTER) {
-		nfp_tun_add_to_mac_offload_list(netdev, app);
+	int err;
 
-		/* Force a list write to keep NFP up to date. */
-		nfp_tunnel_write_macs(app);
+	if (event == NETDEV_DOWN) {
+		err = nfp_tunnel_offload_mac(app, netdev,
+					     NFP_TUNNEL_MAC_OFFLOAD_DEL);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to delete offload MAC on %s.\n",
+					     netdev_name(netdev));
+	} else if (event == NETDEV_UP) {
+		err = nfp_tunnel_offload_mac(app, netdev,
+					     NFP_TUNNEL_MAC_OFFLOAD_ADD);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to offload MAC on %s.\n",
+					     netdev_name(netdev));
+	} else if (event == NETDEV_CHANGEADDR) {
+		/* Only offload addr change if netdev is already up. */
+		if (!(netdev->flags & IFF_UP))
+			return NOTIFY_OK;
+
+		err = nfp_tunnel_offload_mac(app, netdev,
+					     NFP_TUNNEL_MAC_OFFLOAD_MOD);
+		if (err)
+			nfp_flower_cmsg_warn(app, "Failed to offload MAC change on %s.\n",
+					     netdev_name(netdev));
 	}
 	return NOTIFY_OK;
 }
@@ -660,68 +830,62 @@ int nfp_tunnel_mac_event_handler(struct nfp_app *app,
 int nfp_tunnel_config_start(struct nfp_app *app)
 {
 	struct nfp_flower_priv *priv = app->priv;
+	int err;
 
-	/* Initialise priv data for MAC offloading. */
-	priv->nfp_mac_off_count = 0;
-	mutex_init(&priv->nfp_mac_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_mac_off_list);
-	mutex_init(&priv->nfp_mac_index_lock);
-	INIT_LIST_HEAD(&priv->nfp_mac_index_list);
-	ida_init(&priv->nfp_mac_off_ids);
+	/* Initialise rhash for MAC offload tracking. */
+	err = rhashtable_init(&priv->tun.offloaded_macs,
+			      &offloaded_macs_params);
+	if (err)
+		return err;
+
+	ida_init(&priv->tun.mac_off_ids);
 
 	/* Initialise priv data for IPv4 offloading. */
-	mutex_init(&priv->nfp_ipv4_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_ipv4_off_list);
+	mutex_init(&priv->tun.ipv4_off_lock);
+	INIT_LIST_HEAD(&priv->tun.ipv4_off_list);
 
 	/* Initialise priv data for neighbour offloading. */
-	spin_lock_init(&priv->nfp_neigh_off_lock);
-	INIT_LIST_HEAD(&priv->nfp_neigh_off_list);
-	priv->nfp_tun_neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
+	spin_lock_init(&priv->tun.neigh_off_lock);
+	INIT_LIST_HEAD(&priv->tun.neigh_off_list);
+	priv->tun.neigh_nb.notifier_call = nfp_tun_neigh_event_handler;
 
-	return register_netevent_notifier(&priv->nfp_tun_neigh_nb);
+	err = register_netevent_notifier(&priv->tun.neigh_nb);
+	if (err) {
+		rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
+					    nfp_check_rhashtable_empty, NULL);
+		return err;
+	}
+
+	return 0;
 }
 
 void nfp_tunnel_config_stop(struct nfp_app *app)
 {
-	struct nfp_tun_mac_offload_entry *mac_entry;
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_ipv4_route_entry *route_entry;
-	struct nfp_tun_mac_non_nfp_idx *mac_idx;
 	struct nfp_ipv4_addr_entry *ip_entry;
 	struct list_head *ptr, *storage;
 
-	unregister_netevent_notifier(&priv->nfp_tun_neigh_nb);
+	unregister_netevent_notifier(&priv->tun.neigh_nb);
 
-	/* Free any memory that may be occupied by MAC list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_off_list) {
-		mac_entry = list_entry(ptr, struct nfp_tun_mac_offload_entry,
-				       list);
-		list_del(&mac_entry->list);
-		kfree(mac_entry);
-	}
-
-	/* Free any memory that may be occupied by MAC index list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_mac_index_list) {
-		mac_idx = list_entry(ptr, struct nfp_tun_mac_non_nfp_idx,
-				     list);
-		list_del(&mac_idx->list);
-		kfree(mac_idx);
-	}
-
-	ida_destroy(&priv->nfp_mac_off_ids);
+	ida_destroy(&priv->tun.mac_off_ids);
 
 	/* Free any memory that may be occupied by ipv4 list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_ipv4_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.ipv4_off_list) {
 		ip_entry = list_entry(ptr, struct nfp_ipv4_addr_entry, list);
 		list_del(&ip_entry->list);
 		kfree(ip_entry);
 	}
 
 	/* Free any memory that may be occupied by the route list. */
-	list_for_each_safe(ptr, storage, &priv->nfp_neigh_off_list) {
+	list_for_each_safe(ptr, storage, &priv->tun.neigh_off_list) {
 		route_entry = list_entry(ptr, struct nfp_ipv4_route_entry,
 					 list);
 		list_del(&route_entry->list);
 		kfree(route_entry);
 	}
+
+	/* Destroy rhash. Entries should be cleaned on netdev notifier unreg. */
+	rhashtable_free_and_destroy(&priv->tun.offloaded_macs,
+				    nfp_check_rhashtable_empty, NULL);
 }

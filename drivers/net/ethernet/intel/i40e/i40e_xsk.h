@@ -10,8 +10,6 @@ struct zero_copy_allocator;
 
 int i40e_queue_pair_disable(struct i40e_vsi *vsi, int queue_pair);
 int i40e_queue_pair_enable(struct i40e_vsi *vsi, int queue_pair);
-int i40e_xsk_umem_query(struct i40e_vsi *vsi, struct xdp_umem **umem,
-			u16 qid);
 int i40e_xsk_umem_setup(struct i40e_vsi *vsi, struct xdp_umem *umem,
 			u16 qid);
 void i40e_zca_free(struct zero_copy_allocator *alloc, unsigned long handle);

@@ -99,7 +99,7 @@ int main(void)
 {
 	FILE *f;
 
-	f = popen("ping -c5 localhost", "r");
+	f = popen("ping -4 -c5 localhost", "r");
 	(void)f;
 
 	return test_sock();

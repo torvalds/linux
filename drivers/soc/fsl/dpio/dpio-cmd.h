@@ -25,6 +25,7 @@
 #define DPIO_CMDID_ENABLE				DPIO_CMD(0x002)
 #define DPIO_CMDID_DISABLE				DPIO_CMD(0x003)
 #define DPIO_CMDID_GET_ATTR				DPIO_CMD(0x004)
+#define DPIO_CMDID_RESET				DPIO_CMD(0x005)
 
 struct dpio_cmd_open {
 	__le32 dpio_id;

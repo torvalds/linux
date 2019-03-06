@@ -181,8 +181,8 @@ static struct lpddr_private *lpddr_probe_chip(struct map_info *map)
 	lpddr.numchips = 1;
 
 	numvirtchips = lpddr.numchips * lpddr.qinfo->HWPartsNum;
-	retlpddr = kzalloc(sizeof(struct lpddr_private) +
-			numvirtchips * sizeof(struct flchip), GFP_KERNEL);
+	retlpddr = kzalloc(struct_size(retlpddr, chips, numvirtchips),
+			   GFP_KERNEL);
 	if (!retlpddr)
 		return NULL;
 

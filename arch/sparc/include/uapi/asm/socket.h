@@ -3,6 +3,7 @@
 #define _ASM_SOCKET_H
 
 #include <asm/sockios.h>
+#include <asm/bitsperlong.h>
 
 /* For setsockopt(2) */
 #define SOL_SOCKET	0xffff
@@ -20,8 +21,8 @@
 #define SO_BSDCOMPAT    0x0400
 #define SO_RCVLOWAT     0x0800
 #define SO_SNDLOWAT     0x1000
-#define SO_RCVTIMEO     0x2000
-#define SO_SNDTIMEO     0x4000
+#define SO_RCVTIMEO_OLD     0x2000
+#define SO_SNDTIMEO_OLD     0x4000
 #define SO_ACCEPTCONN	0x8000
 
 #define SO_SNDBUF	0x1001
@@ -32,7 +33,6 @@
 #define SO_TYPE		0x1008
 #define SO_PROTOCOL	0x1028
 #define SO_DOMAIN	0x1029
-
 
 /* Linux specific, keep the same. */
 #define SO_NO_CHECK	0x000b
@@ -45,18 +45,11 @@
 #define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_PEERNAME		0x001c
-#define SO_TIMESTAMP		0x001d
-#define SCM_TIMESTAMP		SO_TIMESTAMP
 
 #define SO_PEERSEC		0x001e
 #define SO_PASSSEC		0x001f
-#define SO_TIMESTAMPNS		0x0021
-#define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
 #define SO_MARK			0x0022
-
-#define SO_TIMESTAMPING		0x0023
-#define SCM_TIMESTAMPING	SO_TIMESTAMPING
 
 #define SO_RXQ_OVFL             0x0024
 
@@ -104,9 +97,47 @@
 #define SO_TXTIME		0x003f
 #define SCM_TXTIME		SO_TXTIME
 
+#define SO_BINDTOIFINDEX	0x0041
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002
 #define SO_SECURITY_ENCRYPTION_NETWORK		0x5004
+
+#define SO_TIMESTAMP_OLD         0x001d
+#define SO_TIMESTAMPNS_OLD       0x0021
+#define SO_TIMESTAMPING_OLD      0x0023
+
+#define SO_TIMESTAMP_NEW         0x0046
+#define SO_TIMESTAMPNS_NEW       0x0042
+#define SO_TIMESTAMPING_NEW      0x0043
+
+#define SO_RCVTIMEO_NEW          0x0044
+#define SO_SNDTIMEO_NEW          0x0045
+
+#if !defined(__KERNEL__)
+
+
+#if __BITS_PER_LONG == 64
+#define SO_TIMESTAMP		SO_TIMESTAMP_OLD
+#define SO_TIMESTAMPNS		SO_TIMESTAMPNS_OLD
+#define SO_TIMESTAMPING		SO_TIMESTAMPING_OLD
+
+#define SO_RCVTIMEO		SO_RCVTIMEO_OLD
+#define SO_SNDTIMEO		SO_SNDTIMEO_OLD
+#else
+#define SO_TIMESTAMP (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_TIMESTAMP_OLD : SO_TIMESTAMP_NEW)
+#define SO_TIMESTAMPNS (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_TIMESTAMPNS_OLD : SO_TIMESTAMPNS_NEW)
+#define SO_TIMESTAMPING (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_TIMESTAMPING_OLD : SO_TIMESTAMPING_NEW)
+
+#define SO_RCVTIMEO (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_RCVTIMEO_OLD : SO_RCVTIMEO_NEW)
+#define SO_SNDTIMEO (sizeof(time_t) == sizeof(__kernel_long_t) ? SO_SNDTIMEO_OLD : SO_SNDTIMEO_NEW)
+#endif
+
+#define SCM_TIMESTAMP          SO_TIMESTAMP
+#define SCM_TIMESTAMPNS        SO_TIMESTAMPNS
+#define SCM_TIMESTAMPING       SO_TIMESTAMPING
+
+#endif
 
 #endif /* _ASM_SOCKET_H */

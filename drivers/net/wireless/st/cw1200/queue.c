@@ -283,7 +283,6 @@ int cw1200_queue_put(struct cw1200_queue *queue,
 		     struct cw1200_txpriv *txpriv)
 {
 	int ret = 0;
-	LIST_HEAD(gc_list);
 	struct cw1200_queue_stats *stats = queue->stats;
 
 	if (txpriv->link_id >= queue->stats->map_capacity)

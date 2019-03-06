@@ -190,7 +190,7 @@ int mv88e6xxx_port_set_duplex(struct mv88e6xxx_chip *chip, int port, int dup)
 		/* normal duplex detection */
 		break;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_MAC_CTL, reg);
@@ -398,6 +398,10 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		cmode = 0;
 	}
 
+	/* cmode doesn't change, nothing to do for us */
+	if (cmode == chip->ports[port].cmode)
+		return 0;
+
 	lane = mv88e6390x_serdes_get_lane(chip, port);
 	if (lane < 0)
 		return lane;
@@ -408,7 +412,7 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			return err;
 	}
 
-	err = mv88e6390_serdes_power(chip, port, false);
+	err = mv88e6390x_serdes_power(chip, port, false);
 	if (err)
 		return err;
 
@@ -424,7 +428,7 @@ int mv88e6390x_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 		if (err)
 			return err;
 
-		err = mv88e6390_serdes_power(chip, port, true);
+		err = mv88e6390x_serdes_power(chip, port, true);
 		if (err)
 			return err;
 
@@ -444,6 +448,8 @@ int mv88e6390_port_set_cmode(struct mv88e6xxx_chip *chip, int port,
 			     phy_interface_t mode)
 {
 	switch (mode) {
+	case PHY_INTERFACE_MODE_NA:
+		return 0;
 	case PHY_INTERFACE_MODE_XGMII:
 	case PHY_INTERFACE_MODE_XAUI:
 	case PHY_INTERFACE_MODE_RXAUI:

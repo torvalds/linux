@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update module-based torture test facility
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright (C) IBM Corporation, 2005, 2006
  *
- * Authors: Paul E. McKenney <paulmck@us.ibm.com>
+ * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  *	  Josh Triplett <josh@joshtriplett.org>
  *
  * See also:  Documentation/RCU/torture.txt
@@ -61,7 +48,7 @@
 #include "rcu.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
 
 /* Bits for ->extendables field, extendables param, and related definitions. */
@@ -1630,21 +1617,34 @@ static bool rcu_fwd_emergency_stop;
 #define MIN_FWD_CB_LAUNDERS	3	/* This many CB invocations to count. */
 #define MIN_FWD_CBS_LAUNDERED	100	/* Number of counted CBs. */
 #define FWD_CBS_HIST_DIV	10	/* Histogram buckets/second. */
-static long n_launders_hist[2 * MAX_FWD_CB_JIFFIES / (HZ / FWD_CBS_HIST_DIV)];
+struct rcu_launder_hist {
+	long n_launders;
+	unsigned long launder_gp_seq;
+};
+#define N_LAUNDERS_HIST (2 * MAX_FWD_CB_JIFFIES / (HZ / FWD_CBS_HIST_DIV))
+static struct rcu_launder_hist n_launders_hist[N_LAUNDERS_HIST];
+static unsigned long rcu_launder_gp_seq_start;
 
 static void rcu_torture_fwd_cb_hist(void)
 {
+	unsigned long gps;
+	unsigned long gps_old;
 	int i;
 	int j;
 
 	for (i = ARRAY_SIZE(n_launders_hist) - 1; i > 0; i--)
-		if (n_launders_hist[i] > 0)
+		if (n_launders_hist[i].n_launders > 0)
 			break;
 	pr_alert("%s: Callback-invocation histogram (duration %lu jiffies):",
 		 __func__, jiffies - rcu_fwd_startat);
-	for (j = 0; j <= i; j++)
-		pr_cont(" %ds/%d: %ld",
-			j + 1, FWD_CBS_HIST_DIV, n_launders_hist[j]);
+	gps_old = rcu_launder_gp_seq_start;
+	for (j = 0; j <= i; j++) {
+		gps = n_launders_hist[j].launder_gp_seq;
+		pr_cont(" %ds/%d: %ld:%ld",
+			j + 1, FWD_CBS_HIST_DIV, n_launders_hist[j].n_launders,
+			rcutorture_seq_diff(gps, gps_old));
+		gps_old = gps;
+	}
 	pr_cont("\n");
 }
 
@@ -1666,7 +1666,8 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	i = ((jiffies - rcu_fwd_startat) / (HZ / FWD_CBS_HIST_DIV));
 	if (i >= ARRAY_SIZE(n_launders_hist))
 		i = ARRAY_SIZE(n_launders_hist) - 1;
-	n_launders_hist[i]++;
+	n_launders_hist[i].n_launders++;
+	n_launders_hist[i].launder_gp_seq = cur_ops->get_gp_seq();
 	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 }
 
@@ -1786,9 +1787,10 @@ static void rcu_torture_fwd_prog_cr(void)
 	n_max_cbs = 0;
 	n_max_gps = 0;
 	for (i = 0; i < ARRAY_SIZE(n_launders_hist); i++)
-		n_launders_hist[i] = 0;
+		n_launders_hist[i].n_launders = 0;
 	cver = READ_ONCE(rcu_torture_current_version);
 	gps = cur_ops->get_gp_seq();
+	rcu_launder_gp_seq_start = gps;
 	while (time_before(jiffies, stopat) &&
 	       !READ_ONCE(rcu_fwd_emergency_stop) && !torture_must_stop()) {
 		rfcp = READ_ONCE(rcu_fwd_cb_head);
@@ -2228,6 +2230,14 @@ static void rcu_test_debug_objects(void)
 #endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 }
 
+static void rcutorture_sync(void)
+{
+	static unsigned long n;
+
+	if (cur_ops->sync && !(++n & 0xfff))
+		cur_ops->sync();
+}
+
 static int __init
 rcu_torture_init(void)
 {
@@ -2389,7 +2399,8 @@ rcu_torture_init(void)
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
 		goto unwind;
-	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval);
+	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval,
+				      rcutorture_sync);
 	if (firsterr)
 		goto unwind;
 	firsterr = rcu_torture_stall_init();

@@ -426,7 +426,7 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 	ssize_t result;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	/* The cast to a user pointer is valid due to the set_fs() */
 	result = vfs_read(file, (void __user *)buf, count, pos);
 	set_fs(old_fs);
@@ -499,7 +499,7 @@ ssize_t __kernel_write(struct file *file, const void *buf, size_t count, loff_t 
 		return -EINVAL;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	p = (__force const char __user *)buf;
 	if (count > MAX_RW_COUNT)
 		count =  MAX_RW_COUNT;
@@ -521,7 +521,7 @@ ssize_t kernel_write(struct file *file, const void *buf, size_t count,
 	ssize_t res;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	/* The cast to a user pointer is valid due to the set_fs() */
 	res = vfs_write(file, (__force const char __user *)buf, count, pos);
 	set_fs(old_fs);

@@ -381,16 +381,31 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	bool skip_sw = tc_skip_sw(f->flags);
 	int err;
 
+	cls_flower.rule = flow_rule_alloc(tcf_exts_num_actions(&f->exts));
+	if (!cls_flower.rule)
+		return -ENOMEM;
+
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, extack);
 	cls_flower.command = TC_CLSFLOWER_REPLACE;
 	cls_flower.cookie = (unsigned long) f;
-	cls_flower.dissector = &f->mask->dissector;
-	cls_flower.mask = &f->mask->key;
-	cls_flower.key = &f->mkey;
-	cls_flower.exts = &f->exts;
+	cls_flower.rule->match.dissector = &f->mask->dissector;
+	cls_flower.rule->match.mask = &f->mask->key;
+	cls_flower.rule->match.key = &f->mkey;
 	cls_flower.classid = f->res.classid;
 
+	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
+	if (err) {
+		kfree(cls_flower.rule);
+		if (skip_sw) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+			return err;
+		}
+		return 0;
+	}
+
 	err = tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, skip_sw);
+	kfree(cls_flower.rule);
+
 	if (err < 0) {
 		fl_hw_destroy_filter(tp, f, NULL);
 		return err;
@@ -413,10 +428,13 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	tc_cls_common_offload_init(&cls_flower.common, tp, f->flags, NULL);
 	cls_flower.command = TC_CLSFLOWER_STATS;
 	cls_flower.cookie = (unsigned long) f;
-	cls_flower.exts = &f->exts;
 	cls_flower.classid = f->res.classid;
 
 	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+
+	tcf_exts_stats_update(&f->exts, cls_flower.stats.bytes,
+			      cls_flower.stats.pkts,
+			      cls_flower.stats.lastused);
 }
 
 static bool __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
@@ -451,7 +469,8 @@ static void fl_destroy_sleepable(struct work_struct *work)
 	module_put(THIS_MODULE);
 }
 
-static void fl_destroy(struct tcf_proto *tp, struct netlink_ext_ack *extack)
+static void fl_destroy(struct tcf_proto *tp, bool rtnl_held,
+		       struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct fl_flow_mask *mask, *next_mask;
@@ -1258,7 +1277,8 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 {
 	int err;
 
-	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, extack);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr, true,
+				extack);
 	if (err < 0)
 		return err;
 
@@ -1285,7 +1305,8 @@ static int fl_set_parms(struct net *net, struct tcf_proto *tp,
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
-		     void **arg, bool ovr, struct netlink_ext_ack *extack)
+		     void **arg, bool ovr, bool rtnl_held,
+		     struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *fold = *arg;
@@ -1323,7 +1344,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_tb;
 	}
 
-	err = tcf_exts_init(&fnew->exts, TCA_FLOWER_ACT, 0);
+	err = tcf_exts_init(&fnew->exts, net, TCA_FLOWER_ACT, 0);
 	if (err < 0)
 		goto errout;
 
@@ -1422,7 +1443,7 @@ errout_mask_alloc:
 }
 
 static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
-		     struct netlink_ext_ack *extack)
+		     bool rtnl_held, struct netlink_ext_ack *extack)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;
@@ -1434,7 +1455,8 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 	return 0;
 }
 
-static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg)
+static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg,
+		    bool rtnl_held)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f;
@@ -1467,18 +1489,36 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 			if (tc_skip_hw(f->flags))
 				continue;
 
+			cls_flower.rule =
+				flow_rule_alloc(tcf_exts_num_actions(&f->exts));
+			if (!cls_flower.rule)
+				return -ENOMEM;
+
 			tc_cls_common_offload_init(&cls_flower.common, tp,
 						   f->flags, extack);
 			cls_flower.command = add ?
 				TC_CLSFLOWER_REPLACE : TC_CLSFLOWER_DESTROY;
 			cls_flower.cookie = (unsigned long)f;
-			cls_flower.dissector = &mask->dissector;
-			cls_flower.mask = &mask->key;
-			cls_flower.key = &f->mkey;
-			cls_flower.exts = &f->exts;
+			cls_flower.rule->match.dissector = &mask->dissector;
+			cls_flower.rule->match.mask = &mask->key;
+			cls_flower.rule->match.key = &f->mkey;
+
+			err = tc_setup_flow_action(&cls_flower.rule->action,
+						   &f->exts);
+			if (err) {
+				kfree(cls_flower.rule);
+				if (tc_skip_sw(f->flags)) {
+					NL_SET_ERR_MSG_MOD(extack, "Failed to setup flow action");
+					return err;
+				}
+				continue;
+			}
+
 			cls_flower.classid = f->res.classid;
 
 			err = cb(TC_SETUP_CLSFLOWER, &cls_flower, cb_priv);
+			kfree(cls_flower.rule);
+
 			if (err) {
 				if (add && tc_skip_sw(f->flags))
 					return err;
@@ -1493,25 +1533,30 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 	return 0;
 }
 
-static void fl_hw_create_tmplt(struct tcf_chain *chain,
-			       struct fl_flow_tmplt *tmplt)
+static int fl_hw_create_tmplt(struct tcf_chain *chain,
+			      struct fl_flow_tmplt *tmplt)
 {
 	struct tc_cls_flower_offload cls_flower = {};
 	struct tcf_block *block = chain->block;
-	struct tcf_exts dummy_exts = { 0, };
+
+	cls_flower.rule = flow_rule_alloc(0);
+	if (!cls_flower.rule)
+		return -ENOMEM;
 
 	cls_flower.common.chain_index = chain->index;
 	cls_flower.command = TC_CLSFLOWER_TMPLT_CREATE;
 	cls_flower.cookie = (unsigned long) tmplt;
-	cls_flower.dissector = &tmplt->dissector;
-	cls_flower.mask = &tmplt->mask;
-	cls_flower.key = &tmplt->dummy_key;
-	cls_flower.exts = &dummy_exts;
+	cls_flower.rule->match.dissector = &tmplt->dissector;
+	cls_flower.rule->match.mask = &tmplt->mask;
+	cls_flower.rule->match.key = &tmplt->dummy_key;
 
 	/* We don't care if driver (any of them) fails to handle this
 	 * call. It serves just as a hint for it.
 	 */
 	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
+	kfree(cls_flower.rule);
+
+	return 0;
 }
 
 static void fl_hw_destroy_tmplt(struct tcf_chain *chain,
@@ -1555,12 +1600,14 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 	err = fl_set_key(net, tb, &tmplt->dummy_key, &tmplt->mask, extack);
 	if (err)
 		goto errout_tmplt;
-	kfree(tb);
 
 	fl_init_dissector(&tmplt->dissector, &tmplt->mask);
 
-	fl_hw_create_tmplt(chain, tmplt);
+	err = fl_hw_create_tmplt(chain, tmplt);
+	if (err)
+		goto errout_tmplt;
 
+	kfree(tb);
 	return tmplt;
 
 errout_tmplt:
@@ -2008,7 +2055,7 @@ nla_put_failure:
 }
 
 static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
-		   struct sk_buff *skb, struct tcmsg *t)
+		   struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
 {
 	struct cls_fl_filter *f = fh;
 	struct nlattr *nest;

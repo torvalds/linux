@@ -104,6 +104,7 @@
 
 struct tmio_nand {
 	struct nand_chip chip;
+	struct completion comp;
 
 	struct platform_device *dev;
 
@@ -168,15 +169,11 @@ static int tmio_nand_dev_ready(struct nand_chip *chip)
 static irqreturn_t tmio_irq(int irq, void *__tmio)
 {
 	struct tmio_nand *tmio = __tmio;
-	struct nand_chip *nand_chip = &tmio->chip;
 
 	/* disable RDYREQ interrupt */
 	tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
+	complete(&tmio->comp);
 
-	if (unlikely(!waitqueue_active(&nand_chip->controller->wq)))
-		dev_warn(&tmio->dev->dev, "spurious interrupt\n");
-
-	wake_up(&nand_chip->controller->wq);
 	return IRQ_HANDLED;
 }
 
@@ -193,18 +190,18 @@ static int tmio_nand_wait(struct nand_chip *nand_chip)
 	u8 status;
 
 	/* enable RDYREQ interrupt */
+
 	tmio_iowrite8(0x0f, tmio->fcr + FCR_ISR);
+	reinit_completion(&tmio->comp);
 	tmio_iowrite8(0x81, tmio->fcr + FCR_IMR);
 
-	timeout = wait_event_timeout(nand_chip->controller->wq,
-		tmio_nand_dev_ready(nand_chip),
-		msecs_to_jiffies(nand_chip->state == FL_ERASING ? 400 : 20));
+	timeout = 400;
+	timeout = wait_for_completion_timeout(&tmio->comp,
+					      msecs_to_jiffies(timeout));
 
 	if (unlikely(!tmio_nand_dev_ready(nand_chip))) {
 		tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
-		dev_warn(&tmio->dev->dev, "still busy with %s after %d ms\n",
-			nand_chip->state == FL_ERASING ? "erase" : "program",
-			nand_chip->state == FL_ERASING ? 400 : 20);
+		dev_warn(&tmio->dev->dev, "still busy after 400 ms\n");
 
 	} else if (unlikely(!timeout)) {
 		tmio_iowrite8(0x00, tmio->fcr + FCR_IMR);
@@ -377,6 +374,8 @@ static int tmio_probe(struct platform_device *dev)
 	tmio = devm_kzalloc(&dev->dev, sizeof(*tmio), GFP_KERNEL);
 	if (!tmio)
 		return -ENOMEM;
+
+	init_completion(&tmio->comp);
 
 	tmio->dev = dev;
 

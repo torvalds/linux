@@ -55,6 +55,8 @@
 #include <asm/hardware.h>       /* for register_module() */
 #include <asm/parisc-device.h>
 
+#include "iommu.h"
+
 /* 
 ** Choose "ccio" since that's what HP-UX calls it.
 ** Make it easier for folks to migrate from one to the other :^)
@@ -1517,6 +1519,7 @@ static int __init ccio_probe(struct parisc_device *dev)
 {
 	int i;
 	struct ioc *ioc, **ioc_p = &ioc_list;
+	struct pci_hba_data *hba;
 
 	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
 	if (ioc == NULL) {
@@ -1543,11 +1546,13 @@ static int __init ccio_probe(struct parisc_device *dev)
 	ccio_ioc_init(ioc);
 	ccio_init_resources(ioc);
 	hppa_dma_ops = &ccio_ops;
-	dev->dev.platform_data = kzalloc(sizeof(struct pci_hba_data), GFP_KERNEL);
 
+	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
 	/* if this fails, no I/O cards will work, so may as well bug */
-	BUG_ON(dev->dev.platform_data == NULL);
-	HBA_DATA(dev->dev.platform_data)->iommu = ioc;
+	BUG_ON(hba == NULL);
+
+	hba->iommu = ioc;
+	dev->dev.platform_data = hba;
 
 #ifdef CONFIG_PROC_FS
 	if (ioc_count == 0) {

@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 #include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/refcount.h>
 #include <uapi/linux/igmp.h>
 
@@ -106,6 +107,14 @@ struct ip_mc_list {
 #define IGMPV3_QQIC(value) IGMPV3_EXP(0x80, 4, 3, value)
 #define IGMPV3_MRC(value) IGMPV3_EXP(0x80, 4, 3, value)
 
+static inline int ip_mc_may_pull(struct sk_buff *skb, unsigned int len)
+{
+	if (skb_transport_offset(skb) + ip_transport_len(skb) < len)
+		return -EINVAL;
+
+	return pskb_may_pull(skb, len);
+}
+
 extern int ip_check_mc_rcu(struct in_device *dev, __be32 mc_addr, __be32 src_addr, u8 proto);
 extern int igmp_rcv(struct sk_buff *);
 extern int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr);
@@ -128,8 +137,14 @@ extern void ip_mc_up(struct in_device *);
 extern void ip_mc_down(struct in_device *);
 extern void ip_mc_unmap(struct in_device *);
 extern void ip_mc_remap(struct in_device *);
-extern void ip_mc_dec_group(struct in_device *in_dev, __be32 addr);
+extern void __ip_mc_dec_group(struct in_device *in_dev, __be32 addr, gfp_t gfp);
+static inline void ip_mc_dec_group(struct in_device *in_dev, __be32 addr)
+{
+	return __ip_mc_dec_group(in_dev, addr, GFP_KERNEL);
+}
+extern void __ip_mc_inc_group(struct in_device *in_dev, __be32 addr,
+			      gfp_t gfp);
 extern void ip_mc_inc_group(struct in_device *in_dev, __be32 addr);
-int ip_mc_check_igmp(struct sk_buff *skb, struct sk_buff **skb_trimmed);
+int ip_mc_check_igmp(struct sk_buff *skb);
 
 #endif

@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "include/uapi/linux/bpf.h"
+#include "../../include/uapi/linux/bpf.h"
 #include <asm/unistd.h>
 #include "msgfmt.h"
 

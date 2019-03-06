@@ -14,6 +14,8 @@
 #ifndef AQ_HW_UTILS_H
 #define AQ_HW_UTILS_H
 
+#include <linux/iopoll.h>
+
 #include "aq_common.h"
 
 #ifndef HIDWORD
@@ -22,18 +24,6 @@
 #endif
 
 #define AQ_HW_SLEEP(_US_) mdelay(_US_)
-
-#define AQ_HW_WAIT_FOR(_B_, _US_, _N_) \
-do { \
-	unsigned int AQ_HW_WAIT_FOR_i; \
-	for (AQ_HW_WAIT_FOR_i = _N_; (!(_B_)) && (AQ_HW_WAIT_FOR_i);\
-	--AQ_HW_WAIT_FOR_i) {\
-		udelay(_US_); \
-	} \
-	if (!AQ_HW_WAIT_FOR_i) {\
-		err = -ETIME; \
-	} \
-} while (0)
 
 #define aq_pr_err(...) pr_err(AQ_CFG_DRV_NAME ": " __VA_ARGS__)
 #define aq_pr_trace(...) pr_info(AQ_CFG_DRV_NAME ": " __VA_ARGS__)

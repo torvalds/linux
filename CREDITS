@@ -842,10 +842,9 @@ D: ax25-utils maintainer.
 
 N: Helge Deller
 E: deller@gmx.de
-E: hdeller@redhat.de
-D: PA-RISC Linux hacker, LASI-, ASP-, WAX-, LCD/LED-driver
-S: Schimmelsrain 1
-S: D-69231 Rauenberg
+W: http://www.parisc-linux.org/
+D: PA-RISC Linux architecture maintainer
+D: LASI-, ASP-, WAX-, LCD/LED-driver
 S: Germany
 
 N: Jean Delvare
@@ -1361,7 +1360,7 @@ S: Stellenbosch, Western Cape
 S: South Africa
 
 N: Grant Grundler
-E: grundler@parisc-linux.org
+E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
 W: http://www.parisc-linux.org/
 D: obmouse - rewrote Olivier Florent's Omnibook 600 "pop-up" mouse driver
@@ -2492,7 +2491,7 @@ S: Syracuse, New York 13206
 S: USA
 
 N: Kyle McMartin
-E: kyle@parisc-linux.org
+E: kyle@mcmartin.ca
 D: Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
@@ -3780,14 +3779,13 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
-N: Thibaut Varene
-E: T-Bone@parisc-linux.org
-W: http://www.parisc-linux.org/~varenet/
-P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
+N: Thibaut Varène
+E: hacks+kernel@slashdirt.org
+W: http://hacks.slashdirt.org/
 D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
 D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
-S: Paris, France
+S: France
 
 N: Heikki Vatiainen
 E: hessu@cs.tut.fi

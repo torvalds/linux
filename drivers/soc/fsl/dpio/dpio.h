@@ -80,4 +80,8 @@ int dpio_get_api_version(struct fsl_mc_io *mc_io,
 			 u16 *major_ver,
 			 u16 *minor_ver);
 
+int dpio_reset(struct fsl_mc_io	*mc_io,
+	       u32 cmd_flags,
+	       u16 token);
+
 #endif /* __FSL_DPIO_H */

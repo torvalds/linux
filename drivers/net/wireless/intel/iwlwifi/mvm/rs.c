@@ -3,7 +3,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1643,8 +1643,26 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 
 static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 {
+	struct ieee80211_sta_vht_cap *sta_vht_cap = &sta->vht_cap;
+	struct ieee80211_vht_cap vht_cap = {
+		.vht_cap_info = cpu_to_le32(sta_vht_cap->cap),
+		.supp_mcs = sta_vht_cap->vht_mcs,
+	};
+
 	switch (sta->bandwidth) {
 	case IEEE80211_STA_RX_BW_160:
+		/*
+		 * Don't use 160 MHz if VHT extended NSS support
+		 * says we cannot use 2 streams, we don't want to
+		 * deal with this.
+		 * We only check MCS 0 - they will support that if
+		 * we got here at all and we don't care which MCS,
+		 * we want to determine a more global state.
+		 */
+		if (ieee80211_get_vht_max_nss(&vht_cap,
+					      IEEE80211_VHT_CHANWIDTH_160MHZ,
+					      0, true) < sta->rx_nss)
+			return RATE_MCS_CHAN_WIDTH_80;
 		return RATE_MCS_CHAN_WIDTH_160;
 	case IEEE80211_STA_RX_BW_80:
 		return RATE_MCS_CHAN_WIDTH_80;
@@ -1744,6 +1762,7 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			     enum rs_action scale_action)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	int i;
 
 	/*
 	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
@@ -1756,7 +1775,25 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	else
 		mvmsta->amsdu_enabled = 0xFFFF;
 
-	mvmsta->max_amsdu_len = sta->max_amsdu_len;
+	if (mvmsta->vif->bss_conf.he_support &&
+	    !iwlwifi_mod_params.disable_11ax)
+		mvmsta->max_amsdu_len = sta->max_amsdu_len;
+	else
+		mvmsta->max_amsdu_len = min_t(int, sta->max_amsdu_len, 8500);
+
+	sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
+
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
+		if (mvmsta->amsdu_enabled)
+			sta->max_tid_amsdu_len[i] =
+				iwl_mvm_max_amsdu_size(mvm, sta, i);
+		else
+			/*
+			 * Not so elegant, but this will effectively
+			 * prevent AMSDU on this TID
+			 */
+			sta->max_tid_amsdu_len[i] = 1;
+	}
 }
 
 /*
@@ -1777,7 +1814,7 @@ static bool rs_tweak_rate_tbl(struct iwl_mvm *mvm,
 			      struct iwl_scale_tbl_info *tbl,
 			      enum rs_action scale_action)
 {
-	if (sta->bandwidth != IEEE80211_STA_RX_BW_80)
+	if (rs_bw_from_sta_bw(sta) != RATE_MCS_CHAN_WIDTH_80)
 		return false;
 
 	if (!is_vht_siso(&tbl->rate))
@@ -3332,12 +3369,12 @@ static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
 /* Building the rate table is non trivial. When we're in MIMO2/VHT/80Mhz/SGI
  * column the rate table should look like this:
  *
- * rate[0] 0x400D019 VHT | ANT: AB BW: 80Mhz MCS: 9 NSS: 2 SGI
- * rate[1] 0x400D019 VHT | ANT: AB BW: 80Mhz MCS: 9 NSS: 2 SGI
- * rate[2] 0x400D018 VHT | ANT: AB BW: 80Mhz MCS: 8 NSS: 2 SGI
- * rate[3] 0x400D018 VHT | ANT: AB BW: 80Mhz MCS: 8 NSS: 2 SGI
- * rate[4] 0x400D017 VHT | ANT: AB BW: 80Mhz MCS: 7 NSS: 2 SGI
- * rate[5] 0x400D017 VHT | ANT: AB BW: 80Mhz MCS: 7 NSS: 2 SGI
+ * rate[0] 0x400F019 VHT | ANT: AB BW: 80Mhz MCS: 9 NSS: 2 SGI
+ * rate[1] 0x400F019 VHT | ANT: AB BW: 80Mhz MCS: 9 NSS: 2 SGI
+ * rate[2] 0x400F018 VHT | ANT: AB BW: 80Mhz MCS: 8 NSS: 2 SGI
+ * rate[3] 0x400F018 VHT | ANT: AB BW: 80Mhz MCS: 8 NSS: 2 SGI
+ * rate[4] 0x400F017 VHT | ANT: AB BW: 80Mhz MCS: 7 NSS: 2 SGI
+ * rate[5] 0x400F017 VHT | ANT: AB BW: 80Mhz MCS: 7 NSS: 2 SGI
  * rate[6] 0x4005007 VHT | ANT: A BW: 80Mhz MCS: 7 NSS: 1 NGI
  * rate[7] 0x4009006 VHT | ANT: B BW: 80Mhz MCS: 6 NSS: 1 NGI
  * rate[8] 0x4005005 VHT | ANT: A BW: 80Mhz MCS: 5 NSS: 1 NGI
@@ -4108,6 +4145,7 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 	.add_sta_debugfs = rs_drv_add_sta_debugfs,
 	.remove_sta_debugfs = rs_remove_sta_debugfs,
 #endif
+	.capa = RATE_CTRL_CAPA_VHT_EXT_NSS_BW,
 };
 
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,

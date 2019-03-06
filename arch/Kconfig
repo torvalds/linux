@@ -276,6 +276,16 @@ config ARCH_THREAD_STACK_ALLOCATOR
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
 
+config ARCH_32BIT_OFF_T
+	bool
+	depends on !64BIT
+	help
+	  All new 32-bit architectures should have 64-bit off_t type on
+	  userspace side which corresponds to the loff_t kernel type. This
+	  is the requirement for modern ABIs. Some existing architectures
+	  still support 32-bit off_t. This option is enabled for all such
+	  architectures explicitly.
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help
@@ -759,7 +769,7 @@ config 64BIT_TIME
 	  handling.
 
 config COMPAT_32BIT_TIME
-	def_bool (!64BIT && 64BIT_TIME) || COMPAT
+	def_bool !64BIT || COMPAT
 	help
 	  This enables 32 bit time_t support in addition to 64 bit time_t support.
 	  This is relevant on all 32-bit architectures, and 64-bit architectures

@@ -21,7 +21,7 @@
 #include "json_writer.h"
 #include "main.h"
 
-static const char * const map_type_name[] = {
+const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_UNSPEC]			= "unspec",
 	[BPF_MAP_TYPE_HASH]			= "hash",
 	[BPF_MAP_TYPE_ARRAY]			= "array",
@@ -47,6 +47,8 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
 };
+
+const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
 
 static bool map_is_per_cpu(__u32 type)
 {
@@ -285,16 +287,21 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		single_line = info->key_size + info->value_size <= 24 &&
 			!break_names;
 
-		printf("key:%c", break_names ? '\n' : ' ');
-		fprint_hex(stdout, key, info->key_size, " ");
+		if (info->key_size) {
+			printf("key:%c", break_names ? '\n' : ' ');
+			fprint_hex(stdout, key, info->key_size, " ");
 
-		printf(single_line ? "  " : "\n");
+			printf(single_line ? "  " : "\n");
+		}
 
-		printf("value:%c", break_names ? '\n' : ' ');
-		if (value)
-			fprint_hex(stdout, value, info->value_size, " ");
-		else
-			printf("<no entry>");
+		if (info->value_size) {
+			printf("value:%c", break_names ? '\n' : ' ');
+			if (value)
+				fprint_hex(stdout, value, info->value_size,
+					   " ");
+			else
+				printf("<no entry>");
+		}
 
 		printf("\n");
 	} else {
@@ -303,18 +310,22 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 		n = get_possible_cpus();
 		step = round_up(info->value_size, 8);
 
-		printf("key:\n");
-		fprint_hex(stdout, key, info->key_size, " ");
-		printf("\n");
-		for (i = 0; i < n; i++) {
-			printf("value (CPU %02d):%c",
-			       i, info->value_size > 16 ? '\n' : ' ');
-			if (value)
-				fprint_hex(stdout, value + i * step,
-					   info->value_size, " ");
-			else
-				printf("<no entry>");
+		if (info->key_size) {
+			printf("key:\n");
+			fprint_hex(stdout, key, info->key_size, " ");
 			printf("\n");
+		}
+		if (info->value_size) {
+			for (i = 0; i < n; i++) {
+				printf("value (CPU %02d):%c",
+				       i, info->value_size > 16 ? '\n' : ' ');
+				if (value)
+					fprint_hex(stdout, value + i * step,
+						   info->value_size, " ");
+				else
+					printf("<no entry>");
+				printf("\n");
+			}
 		}
 	}
 }
@@ -429,6 +440,9 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 				p_err("not enough value arguments for map of progs");
 				return -1;
 			}
+			if (is_prefix(*argv, "id"))
+				p_info("Warning: updating program array via MAP_ID, make sure this map is kept open\n"
+				       "         by some process or pinned otherwise update will be lost");
 
 			fd = prog_parse_fd(&argc, &argv);
 			if (fd < 0)
@@ -794,6 +808,32 @@ exit_free:
 	return err;
 }
 
+static int alloc_key_value(struct bpf_map_info *info, void **key, void **value)
+{
+	*key = NULL;
+	*value = NULL;
+
+	if (info->key_size) {
+		*key = malloc(info->key_size);
+		if (!*key) {
+			p_err("key mem alloc failed");
+			return -1;
+		}
+	}
+
+	if (info->value_size) {
+		*value = alloc_value(info);
+		if (!*value) {
+			p_err("value mem alloc failed");
+			free(*key);
+			*key = NULL;
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static int do_update(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
@@ -810,13 +850,9 @@ static int do_update(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
-	key = malloc(info.key_size);
-	value = alloc_value(&info);
-	if (!key || !value) {
-		p_err("mem alloc failed");
-		err = -1;
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
 		goto exit_free;
-	}
 
 	err = parse_elem(argv, &info, key, value, info.key_size,
 			 info.value_size, &flags, &value_fd);
@@ -841,12 +877,51 @@ exit_free:
 	return err;
 }
 
+static void print_key_value(struct bpf_map_info *info, void *key,
+			    void *value)
+{
+	json_writer_t *btf_wtr;
+	struct btf *btf = NULL;
+	int err;
+
+	err = btf__get_from_id(info->btf_id, &btf);
+	if (err) {
+		p_err("failed to get btf");
+		return;
+	}
+
+	if (json_output) {
+		print_entry_json(info, key, value, btf);
+	} else if (btf) {
+		/* if here json_wtr wouldn't have been initialised,
+		 * so let's create separate writer for btf
+		 */
+		btf_wtr = get_btf_writer();
+		if (!btf_wtr) {
+			p_info("failed to create json writer for btf. falling back to plain output");
+			btf__free(btf);
+			btf = NULL;
+			print_entry_plain(info, key, value);
+		} else {
+			struct btf_dumper d = {
+				.btf = btf,
+				.jw = btf_wtr,
+				.is_plain_text = true,
+			};
+
+			do_dump_btf(&d, info, key, value);
+			jsonw_destroy(&btf_wtr);
+		}
+	} else {
+		print_entry_plain(info, key, value);
+	}
+	btf__free(btf);
+}
+
 static int do_lookup(int argc, char **argv)
 {
 	struct bpf_map_info info = {};
 	__u32 len = sizeof(info);
-	json_writer_t *btf_wtr;
-	struct btf *btf = NULL;
 	void *key, *value;
 	int err;
 	int fd;
@@ -858,13 +933,9 @@ static int do_lookup(int argc, char **argv)
 	if (fd < 0)
 		return -1;
 
-	key = malloc(info.key_size);
-	value = alloc_value(&info);
-	if (!key || !value) {
-		p_err("mem alloc failed");
-		err = -1;
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
 		goto exit_free;
-	}
 
 	err = parse_elem(argv, &info, key, NULL, info.key_size, 0, NULL, NULL);
 	if (err)
@@ -888,43 +959,12 @@ static int do_lookup(int argc, char **argv)
 	}
 
 	/* here means bpf_map_lookup_elem() succeeded */
-	err = btf__get_from_id(info.btf_id, &btf);
-	if (err) {
-		p_err("failed to get btf");
-		goto exit_free;
-	}
-
-	if (json_output) {
-		print_entry_json(&info, key, value, btf);
-	} else if (btf) {
-		/* if here json_wtr wouldn't have been initialised,
-		 * so let's create separate writer for btf
-		 */
-		btf_wtr = get_btf_writer();
-		if (!btf_wtr) {
-			p_info("failed to create json writer for btf. falling back to plain output");
-			btf__free(btf);
-			btf = NULL;
-			print_entry_plain(&info, key, value);
-		} else {
-			struct btf_dumper d = {
-				.btf = btf,
-				.jw = btf_wtr,
-				.is_plain_text = true,
-			};
-
-			do_dump_btf(&d, &info, key, value);
-			jsonw_destroy(&btf_wtr);
-		}
-	} else {
-		print_entry_plain(&info, key, value);
-	}
+	print_key_value(&info, key, value);
 
 exit_free:
 	free(key);
 	free(value);
 	close(fd);
-	btf__free(btf);
 
 	return err;
 }
@@ -1137,6 +1177,49 @@ static int do_create(int argc, char **argv)
 	return 0;
 }
 
+static int do_pop_dequeue(int argc, char **argv)
+{
+	struct bpf_map_info info = {};
+	__u32 len = sizeof(info);
+	void *key, *value;
+	int err;
+	int fd;
+
+	if (argc < 2)
+		usage();
+
+	fd = map_parse_fd_and_info(&argc, &argv, &info, &len);
+	if (fd < 0)
+		return -1;
+
+	err = alloc_key_value(&info, &key, &value);
+	if (err)
+		goto exit_free;
+
+	err = bpf_map_lookup_and_delete_elem(fd, key, value);
+	if (err) {
+		if (errno == ENOENT) {
+			if (json_output)
+				jsonw_null(json_wtr);
+			else
+				printf("Error: empty map\n");
+		} else {
+			p_err("pop failed: %s", strerror(errno));
+		}
+
+		goto exit_free;
+	}
+
+	print_key_value(&info, key, value);
+
+exit_free:
+	free(key);
+	free(value);
+	close(fd);
+
+	return err;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1150,12 +1233,17 @@ static int do_help(int argc, char **argv)
 		"                              entries MAX_ENTRIES name NAME [flags FLAGS] \\\n"
 		"                              [dev NAME]\n"
 		"       %s %s dump       MAP\n"
-		"       %s %s update     MAP  key DATA value VALUE [UPDATE_FLAGS]\n"
-		"       %s %s lookup     MAP  key DATA\n"
+		"       %s %s update     MAP [key DATA] [value VALUE] [UPDATE_FLAGS]\n"
+		"       %s %s lookup     MAP [key DATA]\n"
 		"       %s %s getnext    MAP [key DATA]\n"
 		"       %s %s delete     MAP  key DATA\n"
 		"       %s %s pin        MAP  FILE\n"
 		"       %s %s event_pipe MAP [cpu N index M]\n"
+		"       %s %s peek       MAP\n"
+		"       %s %s push       MAP value VALUE\n"
+		"       %s %s pop        MAP\n"
+		"       %s %s enqueue    MAP value VALUE\n"
+		"       %s %s dequeue    MAP\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1173,7 +1261,8 @@ static int do_help(int argc, char **argv)
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1190,6 +1279,11 @@ static const struct cmd cmds[] = {
 	{ "pin",	do_pin },
 	{ "event_pipe",	do_event_pipe },
 	{ "create",	do_create },
+	{ "peek",	do_lookup },
+	{ "push",	do_update },
+	{ "enqueue",	do_update },
+	{ "pop",	do_pop_dequeue },
+	{ "dequeue",	do_pop_dequeue },
 	{ 0 }
 };
 

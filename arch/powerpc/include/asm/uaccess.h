@@ -28,7 +28,6 @@
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
 #endif
 
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current->thread.addr_limit)
 
 static inline void set_fs(mm_segment_t fs)

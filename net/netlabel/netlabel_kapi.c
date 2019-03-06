@@ -903,7 +903,8 @@ int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
 		    (state == 0 && (byte & bitmask) == 0))
 			return bit_spot;
 
-		bit_spot++;
+		if (++bit_spot >= bitmap_len)
+			return -1;
 		bitmask >>= 1;
 		if (bitmask == 0) {
 			byte = bitmap[++byte_offset];

@@ -170,6 +170,8 @@ void aq_pci_func_free_irqs(struct aq_nic_s *self)
 	for (i = 32U; i--;) {
 		if (!((1U << i) & self->msix_entry_mask))
 			continue;
+		if (i >= AQ_CFG_VECS_MAX)
+			continue;
 
 		if (pdev->msix_enabled)
 			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);

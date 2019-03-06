@@ -30,6 +30,8 @@ struct dpio_priv {
 	struct dpaa2_io *io;
 };
 
+static cpumask_var_t cpus_unused_mask;
+
 static irqreturn_t dpio_irq_handler(int irq_num, void *arg)
 {
 	struct device *dev = (struct device *)arg;
@@ -86,7 +88,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	struct dpio_priv *priv;
 	int err = -ENOMEM;
 	struct device *dev = &dpio_dev->dev;
-	static int next_cpu = -1;
+	int possible_next_cpu;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -106,6 +108,12 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	if (err) {
 		dev_err(dev, "dpio_open() failed\n");
 		goto err_open;
+	}
+
+	err = dpio_reset(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
+	if (err) {
+		dev_err(dev, "dpio_reset() failed\n");
+		goto err_reset;
 	}
 
 	err = dpio_get_attributes(dpio_dev->mc_io, 0, dpio_dev->mc_handle,
@@ -128,17 +136,14 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	desc.dpio_id = dpio_dev->obj_desc.id;
 
 	/* get the cpu to use for the affinity hint */
-	if (next_cpu == -1)
-		next_cpu = cpumask_first(cpu_online_mask);
-	else
-		next_cpu = cpumask_next(next_cpu, cpu_online_mask);
-
-	if (!cpu_possible(next_cpu)) {
+	possible_next_cpu = cpumask_first(cpus_unused_mask);
+	if (possible_next_cpu >= nr_cpu_ids) {
 		dev_err(dev, "probe failed. Number of DPIOs exceeds NR_CPUS.\n");
 		err = -ERANGE;
 		goto err_allocate_irqs;
 	}
-	desc.cpu = next_cpu;
+	desc.cpu = possible_next_cpu;
+	cpumask_clear_cpu(possible_next_cpu, cpus_unused_mask);
 
 	/*
 	 * Set the CENA regs to be the cache inhibited area of the portal to
@@ -171,7 +176,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	if (err)
 		goto err_register_dpio_irq;
 
-	priv->io = dpaa2_io_create(&desc);
+	priv->io = dpaa2_io_create(&desc, dev);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
 		err = -ENOMEM;
@@ -182,7 +187,6 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	dev_dbg(dev, "   receives_notifications = %d\n",
 		desc.receives_notifications);
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
-	fsl_mc_portal_free(dpio_dev->mc_io);
 
 	return 0;
 
@@ -193,6 +197,7 @@ err_register_dpio_irq:
 err_allocate_irqs:
 	dpio_disable(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_get_attr:
+err_reset:
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
@@ -211,7 +216,7 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 {
 	struct device *dev;
 	struct dpio_priv *priv;
-	int err;
+	int err = 0, cpu;
 
 	dev = &dpio_dev->dev;
 	priv = dev_get_drvdata(dev);
@@ -220,11 +225,8 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 
 	dpio_teardown_irqs(dpio_dev);
 
-	err = fsl_mc_portal_allocate(dpio_dev, 0, &dpio_dev->mc_io);
-	if (err) {
-		dev_err(dev, "MC portal allocation failed\n");
-		goto err_mcportal;
-	}
+	cpu = dpaa2_io_get_cpu(priv->io);
+	cpumask_set_cpu(cpu, cpus_unused_mask);
 
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,
 			&dpio_dev->mc_handle);
@@ -243,7 +245,7 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
-err_mcportal:
+
 	return err;
 }
 
@@ -267,11 +269,16 @@ static struct fsl_mc_driver dpaa2_dpio_driver = {
 
 static int dpio_driver_init(void)
 {
+	if (!zalloc_cpumask_var(&cpus_unused_mask, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_copy(cpus_unused_mask, cpu_online_mask);
+
 	return fsl_mc_driver_register(&dpaa2_dpio_driver);
 }
 
 static void dpio_driver_exit(void)
 {
+	free_cpumask_var(cpus_unused_mask);
 	fsl_mc_driver_unregister(&dpaa2_dpio_driver);
 }
 module_init(dpio_driver_init);

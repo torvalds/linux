@@ -224,8 +224,8 @@ SYSCALL_DEFINE2(utime, char __user *, filename, struct utimbuf __user *, times)
  * of sys_utimes.
  */
 #ifdef __ARCH_WANT_SYS_UTIME32
-COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
-		       struct old_utimbuf32 __user *, t)
+SYSCALL_DEFINE2(utime32, const char __user *, filename,
+		struct old_utimbuf32 __user *, t)
 {
 	struct timespec64 tv[2];
 
@@ -240,7 +240,7 @@ COMPAT_SYSCALL_DEFINE2(utime, const char __user *, filename,
 }
 #endif
 
-COMPAT_SYSCALL_DEFINE4(utimensat, unsigned int, dfd, const char __user *, filename, struct old_timespec32 __user *, t, int, flags)
+SYSCALL_DEFINE4(utimensat_time32, unsigned int, dfd, const char __user *, filename, struct old_timespec32 __user *, t, int, flags)
 {
 	struct timespec64 tv[2];
 
@@ -276,14 +276,14 @@ static long do_compat_futimesat(unsigned int dfd, const char __user *filename,
 	return do_utimes(dfd, filename, t ? tv : NULL, 0);
 }
 
-COMPAT_SYSCALL_DEFINE3(futimesat, unsigned int, dfd,
+SYSCALL_DEFINE3(futimesat_time32, unsigned int, dfd,
 		       const char __user *, filename,
 		       struct old_timeval32 __user *, t)
 {
 	return do_compat_futimesat(dfd, filename, t);
 }
 
-COMPAT_SYSCALL_DEFINE2(utimes, const char __user *, filename, struct old_timeval32 __user *, t)
+SYSCALL_DEFINE2(utimes_time32, const char __user *, filename, struct old_timeval32 __user *, t)
 {
 	return do_compat_futimesat(AT_FDCWD, filename, t);
 }

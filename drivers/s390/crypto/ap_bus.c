@@ -1336,6 +1336,16 @@ static int __match_queue_device_with_qid(struct device *dev, void *data)
 }
 
 /*
+ * Helper function to be used with bus_find_dev
+ * matches any queue device with given queue id
+ */
+static int __match_queue_device_with_queue_id(struct device *dev, void *data)
+{
+	return is_queue_dev(dev)
+		&& AP_QID_QUEUE(to_ap_queue(dev)->qid) == (int)(long) data;
+}
+
+/*
  * Helper function for ap_scan_bus().
  * Does the scan bus job for the given adapter id.
  */
@@ -1435,8 +1445,13 @@ static void _ap_scan_bus_adapter(int id)
 				borked = aq->state == AP_STATE_BORKED;
 				spin_unlock_bh(&aq->lock);
 			}
-			if (borked)	/* Remove broken device */
+			if (borked) {
+				/* Remove broken device */
+				AP_DBF(DBF_DEBUG,
+				       "removing broken queue=%02x.%04x\n",
+				       id, dom);
 				device_unregister(dev);
+			}
 			put_device(dev);
 			continue;
 		}
@@ -1506,7 +1521,7 @@ static void ap_scan_bus(struct work_struct *unused)
 		struct device *dev =
 			bus_find_device(&ap_bus_type, NULL,
 					(void *)(long) ap_domain_index,
-					__match_queue_device_with_qid);
+					__match_queue_device_with_queue_id);
 		if (dev)
 			put_device(dev);
 		else

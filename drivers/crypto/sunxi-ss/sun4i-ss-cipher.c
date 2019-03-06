@@ -517,7 +517,7 @@ int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	flags = crypto_skcipher_get_flags(tfm);
 
 	ret = des_ekey(tmp, key);
-	if (unlikely(!ret) && (flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (unlikely(!ret) && (flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
 		dev_dbg(ss->dev, "Weak key %u\n", keylen);
 		return -EINVAL;

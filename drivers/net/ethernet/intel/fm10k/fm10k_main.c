@@ -1603,14 +1603,12 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 {
 	struct fm10k_q_vector *q_vector;
 	struct fm10k_ring *ring;
-	int ring_count, size;
+	int ring_count;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct fm10k_q_vector) +
-	       (sizeof(struct fm10k_ring) * ring_count);
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc(size, GFP_KERNEL);
+	q_vector = kzalloc(struct_size(q_vector, ring, ring_count), GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 

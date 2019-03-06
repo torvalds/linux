@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -181,7 +182,7 @@ TRACE_EVENT(wil6210_rx,
 		__entry->seq = wil_rxdesc_seq(d);
 		__entry->mcs = wil_rxdesc_mcs(d);
 	),
-	TP_printk("index %d len %d mid %d cid %d tid %d mcs %d seq 0x%03x"
+	TP_printk("index %d len %d mid %d cid (%%8) %d tid %d mcs %d seq 0x%03x"
 		  " type 0x%1x subtype 0x%1x", __entry->index, __entry->len,
 		  __entry->mid, __entry->cid, __entry->tid, __entry->mcs,
 		  __entry->seq, __entry->type, __entry->subtype)

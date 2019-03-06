@@ -328,7 +328,7 @@ static irqreturn_t sonic_interrupt(int irq, void *dev_id)
 				}
 
 				/* We must free the original skb */
-				dev_kfree_skb_irq(lp->tx_skb[entry]);
+				dev_consume_skb_irq(lp->tx_skb[entry]);
 				lp->tx_skb[entry] = NULL;
 				/* and unmap DMA buffer */
 				dma_unmap_single(lp->device, lp->tx_laddr[entry], lp->tx_len[entry], DMA_TO_DEVICE);

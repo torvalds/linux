@@ -103,10 +103,10 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
 	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
-	if (irr == 0) { /* Probably shared interrupt line */
-		dev_err(dev, "Got interrupt with empty IRR\n");
+
+	if (irr == 0) /* Probably shared interrupt line */
 		return IRQ_NONE;
-	}
+
 	imr = cc_ioread(drvdata, CC_REG(HOST_IMR));
 
 	/* clear interrupt - must be before processing events */
@@ -539,13 +539,8 @@ static struct platform_driver ccree_driver = {
 
 static int __init ccree_init(void)
 {
-	int ret;
-
 	cc_hash_global_init();
-
-	ret = cc_debugfs_global_init();
-	if (ret)
-		return ret;
+	cc_debugfs_global_init();
 
 	return platform_driver_register(&ccree_driver);
 }

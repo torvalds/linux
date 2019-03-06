@@ -410,9 +410,8 @@ void mac_poweroff(void)
 
 void mac_reset(void)
 {
-	if (macintosh_config->adb_type == MAC_ADB_II) {
-		unsigned long flags;
-
+	if (macintosh_config->adb_type == MAC_ADB_II &&
+	    macintosh_config->ident != MAC_MODEL_SE30) {
 		/* need ROMBASE in booter */
 		/* indeed, plus need to MAP THE ROM !! */
 
@@ -422,17 +421,8 @@ void mac_reset(void)
 		/* works on some */
 		rom_reset = (void *) (mac_bi_data.rombase + 0xa);
 
-		if (macintosh_config->ident == MAC_MODEL_SE30) {
-			/*
-			 * MSch: Machines known to crash on ROM reset ...
-			 */
-		} else {
-			local_irq_save(flags);
-
-			rom_reset();
-
-			local_irq_restore(flags);
-		}
+		local_irq_disable();
+		rom_reset();
 #ifdef CONFIG_ADB_CUDA
 	} else if (macintosh_config->adb_type == MAC_ADB_EGRET ||
 	           macintosh_config->adb_type == MAC_ADB_CUDA) {

@@ -465,7 +465,7 @@ static int nfp_bpf_init(struct nfp_app *app)
 		app->ctrl_mtu = nfp_bpf_ctrl_cmsg_mtu(bpf);
 	}
 
-	bpf->bpf_dev = bpf_offload_dev_create(&nfp_bpf_dev_ops);
+	bpf->bpf_dev = bpf_offload_dev_create(&nfp_bpf_dev_ops, bpf);
 	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
 	if (err)
 		goto err_free_neutral_maps;

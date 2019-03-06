@@ -27,16 +27,11 @@
 
 #ifndef __ASSEMBLY__
 
-#define PS_UINT_CAST		(unsigned long)
 #define UINT64_CAST		(unsigned long)
-
-#define HUBREG_CAST		(volatile hubreg_t *)
 
 #else /* __ASSEMBLY__ */
 
-#define PS_UINT_CAST
 #define UINT64_CAST
-#define HUBREG_CAST
 
 #endif /* __ASSEMBLY__ */
 
@@ -256,40 +251,21 @@
  *	Otherwise, the recommended approach is to use *_HUB_L() and *_HUB_S().
  *	They're always safe.
  */
-#define LOCAL_HUB_ADDR(_x)	(HUBREG_CAST (IALIAS_BASE + (_x)))
-#define REMOTE_HUB_ADDR(_n, _x) (HUBREG_CAST (NODE_SWIN_BASE(_n, 1) +	\
-					      0x800000 + (_x)))
-#ifdef CONFIG_SGI_IP27
-#define REMOTE_HUB_PI_ADDR(_n, _sn, _x) (HUBREG_CAST (NODE_SWIN_BASE(_n, 1) +	\
-					      0x800000 + (_x)))
-#endif /* CONFIG_SGI_IP27 */
+#define LOCAL_HUB_ADDR(_x)	(IALIAS_BASE + (_x))
+#define REMOTE_HUB_ADDR(_n, _x) ((NODE_SWIN_BASE(_n, 1) + 0x800000 + (_x)))
 
 #ifndef __ASSEMBLY__
 
-#define HUB_L(_a)			*(_a)
-#define HUB_S(_a, _d)			*(_a) = (_d)
+#define LOCAL_HUB_PTR(_x)	((u64 *)LOCAL_HUB_ADDR((_x)))
+#define REMOTE_HUB_PTR(_n, _x)	((u64 *)REMOTE_HUB_ADDR((_n), (_x)))
 
-#define LOCAL_HUB_L(_r)			HUB_L(LOCAL_HUB_ADDR(_r))
-#define LOCAL_HUB_S(_r, _d)		HUB_S(LOCAL_HUB_ADDR(_r), (_d))
-#define REMOTE_HUB_L(_n, _r)		HUB_L(REMOTE_HUB_ADDR((_n), (_r)))
-#define REMOTE_HUB_S(_n, _r, _d)	HUB_S(REMOTE_HUB_ADDR((_n), (_r)), (_d))
-#define REMOTE_HUB_PI_L(_n, _sn, _r)	HUB_L(REMOTE_HUB_PI_ADDR((_n), (_sn), (_r)))
-#define REMOTE_HUB_PI_S(_n, _sn, _r, _d) HUB_S(REMOTE_HUB_PI_ADDR((_n), (_sn), (_r)), (_d))
+#define LOCAL_HUB_L(_r)			__raw_readq(LOCAL_HUB_PTR(_r))
+#define LOCAL_HUB_S(_r, _d)		__raw_writeq((_d), LOCAL_HUB_PTR(_r))
+#define REMOTE_HUB_L(_n, _r)		__raw_readq(REMOTE_HUB_PTR((_n), (_r)))
+#define REMOTE_HUB_S(_n, _r, _d)	__raw_writeq((_d),		\
+						REMOTE_HUB_PTR((_n), (_r)))
 
 #endif /* !__ASSEMBLY__ */
-
-/*
- * The following macros are used to get to a hub/bridge register, given
- * the base of the register space.
- */
-#define HUB_REG_PTR(_base, _off)	\
-	(HUBREG_CAST((__psunsigned_t)(_base) + (__psunsigned_t)(_off)))
-
-#define HUB_REG_PTR_L(_base, _off)	\
-	HUB_L(HUB_REG_PTR((_base), (_off)))
-
-#define HUB_REG_PTR_S(_base, _off, _data)	\
-	HUB_S(HUB_REG_PTR((_base), (_off)), (_data))
 
 /*
  * Software structure locations -- permanently fixed
@@ -387,43 +363,13 @@
 
 #define SYMMON_STK_END(nasid)	(SYMMON_STK_ADDR(nasid, 0) + KLD_SYMMON_STK(nasid)->size)
 
-/* loading symmon 4k below UNIX. the arcs loader needs the topaddr for a
- * relocatable program
- */
-#define UNIX_DEBUG_LOADADDR	0x300000
-#define SYMMON_LOADADDR(nasid)						\
-	TO_NODE(nasid, PHYS_TO_K0(UNIX_DEBUG_LOADADDR - 0x1000))
-
-#define FREEMEM_OFFSET(nasid)	KLD_FREEMEM(nasid)->offset
-#define FREEMEM_ADDR(nasid)	SYMMON_STK_END(nasid)
-/*
- * XXX
- * Fix this. FREEMEM_ADDR should be aware of if symmon is loaded.
- * Also, it should take into account what prom thinks to be a safe
- * address
-	PHYS_TO_K0(NODE_OFFSET(nasid) + FREEMEM_OFFSET(nasid))
- */
-#define FREEMEM_SIZE(nasid)	KLD_FREEMEM(nasid)->size
-
-#define PI_ERROR_OFFSET(nasid)	KLD_PI_ERROR(nasid)->offset
-#define PI_ERROR_ADDR(nasid)						\
-	TO_NODE_UNCAC((nasid), PI_ERROR_OFFSET(nasid))
-#define PI_ERROR_SIZE(nasid)	KLD_PI_ERROR(nasid)->size
-
 #define NODE_OFFSET_TO_K0(_nasid, _off)					\
 	PHYS_TO_K0((NODE_OFFSET(_nasid) + (_off)) | CAC_BASE)
 #define NODE_OFFSET_TO_K1(_nasid, _off)					\
 	TO_UNCAC((NODE_OFFSET(_nasid) + (_off)) | UNCAC_BASE)
-#define K0_TO_NODE_OFFSET(_k0addr)					\
-	((__psunsigned_t)(_k0addr) & NODE_ADDRSPACE_MASK)
 
 #define KERN_VARS_ADDR(nasid)	KLD_KERN_VARS(nasid)->pointer
 #define KERN_VARS_SIZE(nasid)	KLD_KERN_VARS(nasid)->size
-
-#define KERN_XP_ADDR(nasid)	KLD_KERN_XP(nasid)->pointer
-#define KERN_XP_SIZE(nasid)	KLD_KERN_XP(nasid)->size
-
-#define GPDA_ADDR(nasid)	TO_NODE_CAC(nasid, GPDA_OFFSET)
 
 #endif /* !__ASSEMBLY__ */
 

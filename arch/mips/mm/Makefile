@@ -3,9 +3,19 @@
 # Makefile for the Linux/MIPS-specific parts of the memory manager.
 #
 
-obj-y				+= cache.o extable.o fault.o \
-				   gup.o init.o mmap.o page.o page-funcs.o \
-				   pgtable.o tlbex.o tlbex-fault.o tlb-funcs.o
+obj-y				+= cache.o
+obj-y				+= context.o
+obj-y				+= extable.o
+obj-y				+= fault.o
+obj-y				+= gup.o
+obj-y				+= init.o
+obj-y				+= mmap.o
+obj-y				+= page.o
+obj-y				+= page-funcs.o
+obj-y				+= pgtable.o
+obj-y				+= tlbex.o
+obj-y				+= tlbex-fault.o
+obj-y				+= tlb-funcs.o
 
 ifdef CONFIG_CPU_MICROMIPS
 obj-y				+= uasm-micromips.o

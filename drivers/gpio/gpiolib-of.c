@@ -125,7 +125,7 @@ static void of_gpio_flags_quirks(struct device_node *np,
 
 		for_each_child_of_node(np, child) {
 			ret = of_property_read_u32(child, "reg", &cs);
-			if (!ret)
+			if (ret)
 				continue;
 			if (cs == index) {
 				/*

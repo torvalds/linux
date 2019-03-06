@@ -37,6 +37,10 @@ void dce100_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
 
+void dce100_optimize_bandwidth(
+		struct dc *dc,
+		struct dc_state *context);
+
 bool dce100_enable_display_power_gating(struct dc *dc, uint8_t controller_id,
 					struct dc_bios *dcb,
 					enum pipe_gating_control power_gating);

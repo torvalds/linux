@@ -847,7 +847,7 @@ static int ablk_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		goto out;
 
 	if (*flags & CRYPTO_TFM_RES_WEAK_KEY) {
-		if (*flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+		if (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 			ret = -EINVAL;
 		} else {
 			*flags &= ~CRYPTO_TFM_RES_WEAK_KEY;
@@ -1125,7 +1125,7 @@ static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 		goto out;
 
 	if (*flags & CRYPTO_TFM_RES_WEAK_KEY) {
-		if (*flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+		if (*flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 			ret = -EINVAL;
 			goto out;
 		} else {
