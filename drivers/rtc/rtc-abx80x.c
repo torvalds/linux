@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * A driver for the I2C members of the Abracon AB x8xx RTC family,
  * and compatible: AB 1805 and AB 0805
@@ -6,10 +7,6 @@
  *
  * Author: Philippe De Muyter <phdm@macqel.be>
  * Author: Alexandre Belloni <alexandre.belloni@bootlin.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  */
 
