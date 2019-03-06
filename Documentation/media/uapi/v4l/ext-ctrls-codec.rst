@@ -1537,6 +1537,14 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 	non-intra-coded frames, in zigzag scanning order. Only relevant for
 	non-4:2:0 YUV formats.
 
+``V4L2_CID_FWHT_I_FRAME_QP (integer)``
+    Quantization parameter for an I frame for FWHT. Valid range: from 1
+    to 31.
+
+``V4L2_CID_FWHT_P_FRAME_QP (integer)``
+    Quantization parameter for a P frame for FWHT. Valid range: from 1
+    to 31.
+
 MFC 5.1 MPEG Controls
 =====================
 
