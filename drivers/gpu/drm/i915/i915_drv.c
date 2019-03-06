@@ -1378,11 +1378,11 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	 */
 	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
 
-	if (INTEL_GEN(dev_priv) < 9 || IS_GEMINILAKE(dev_priv))
+	if (INTEL_GEN(dev_priv) < 9)
 		return;
 
 	/* Need to calculate bandwidth only for Gen9 */
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		ret = bxt_get_dram_info(dev_priv);
 	else if (IS_GEN(dev_priv, 9))
 		ret = skl_get_dram_info(dev_priv);
