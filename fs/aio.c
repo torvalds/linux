@@ -1777,35 +1777,12 @@ static int aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 }
 
 static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
-			   struct iocb __user *user_iocb, bool compat)
+			   struct iocb __user *user_iocb, struct aio_kiocb *req,
+			   bool compat)
 {
-	struct aio_kiocb *req;
-	int ret;
-
-	/* enforce forwards compatibility on users */
-	if (unlikely(iocb->aio_reserved2)) {
-		pr_debug("EINVAL: reserve field set\n");
-		return -EINVAL;
-	}
-
-	/* prevent overflows */
-	if (unlikely(
-	    (iocb->aio_buf != (unsigned long)iocb->aio_buf) ||
-	    (iocb->aio_nbytes != (size_t)iocb->aio_nbytes) ||
-	    ((ssize_t)iocb->aio_nbytes < 0)
-	   )) {
-		pr_debug("EINVAL: overflow check\n");
-		return -EINVAL;
-	}
-
-	req = aio_get_req(ctx);
-	if (unlikely(!req))
-		return -EAGAIN;
-
 	req->ki_filp = fget(iocb->aio_fildes);
-	ret = -EBADF;
 	if (unlikely(!req->ki_filp))
-		goto out_put_req;
+		return -EBADF;
 
 	if (iocb->aio_flags & IOCB_FLAG_RESFD) {
 		struct eventfd_ctx *eventfd;
@@ -1816,17 +1793,15 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		 * event using the eventfd_signal() function.
 		 */
 		eventfd = eventfd_ctx_fdget(iocb->aio_resfd);
-		if (IS_ERR(eventfd)) {
-			ret = PTR_ERR(eventfd);
-			goto out_put_req;
-		}
+		if (IS_ERR(eventfd))
+			return PTR_ERR(req->ki_eventfd);
+
 		req->ki_eventfd = eventfd;
 	}
 
-	ret = put_user(KIOCB_KEY, &user_iocb->aio_key);
-	if (unlikely(ret)) {
+	if (unlikely(put_user(KIOCB_KEY, &user_iocb->aio_key))) {
 		pr_debug("EFAULT: aio_key\n");
-		goto out_put_req;
+		return -EFAULT;
 	}
 
 	req->ki_res.obj = (u64)(unsigned long)user_iocb;
@@ -1836,58 +1811,70 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 
 	switch (iocb->aio_lio_opcode) {
 	case IOCB_CMD_PREAD:
-		ret = aio_read(&req->rw, iocb, false, compat);
-		break;
+		return aio_read(&req->rw, iocb, false, compat);
 	case IOCB_CMD_PWRITE:
-		ret = aio_write(&req->rw, iocb, false, compat);
-		break;
+		return aio_write(&req->rw, iocb, false, compat);
 	case IOCB_CMD_PREADV:
-		ret = aio_read(&req->rw, iocb, true, compat);
-		break;
+		return aio_read(&req->rw, iocb, true, compat);
 	case IOCB_CMD_PWRITEV:
-		ret = aio_write(&req->rw, iocb, true, compat);
-		break;
+		return aio_write(&req->rw, iocb, true, compat);
 	case IOCB_CMD_FSYNC:
-		ret = aio_fsync(&req->fsync, iocb, false);
-		break;
+		return aio_fsync(&req->fsync, iocb, false);
 	case IOCB_CMD_FDSYNC:
-		ret = aio_fsync(&req->fsync, iocb, true);
-		break;
+		return aio_fsync(&req->fsync, iocb, true);
 	case IOCB_CMD_POLL:
-		ret = aio_poll(req, iocb);
-		break;
+		return aio_poll(req, iocb);
 	default:
 		pr_debug("invalid aio operation %d\n", iocb->aio_lio_opcode);
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-
-	/* Done with the synchronous reference */
-	iocb_put(req);
-
-	/*
-	 * If ret is 0, we'd either done aio_complete() ourselves or have
-	 * arranged for that to be done asynchronously.  Anything non-zero
-	 * means that we need to destroy req ourselves.
-	 */
-	if (!ret)
-		return 0;
-
-out_put_req:
-	iocb_destroy(req);
-	put_reqs_available(ctx, 1);
-	return ret;
 }
 
 static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			 bool compat)
 {
+	struct aio_kiocb *req;
 	struct iocb iocb;
+	int err;
 
 	if (unlikely(copy_from_user(&iocb, user_iocb, sizeof(iocb))))
 		return -EFAULT;
 
-	return __io_submit_one(ctx, &iocb, user_iocb, compat);
+	/* enforce forwards compatibility on users */
+	if (unlikely(iocb.aio_reserved2)) {
+		pr_debug("EINVAL: reserve field set\n");
+		return -EINVAL;
+	}
+
+	/* prevent overflows */
+	if (unlikely(
+	    (iocb.aio_buf != (unsigned long)iocb.aio_buf) ||
+	    (iocb.aio_nbytes != (size_t)iocb.aio_nbytes) ||
+	    ((ssize_t)iocb.aio_nbytes < 0)
+	   )) {
+		pr_debug("EINVAL: overflow check\n");
+		return -EINVAL;
+	}
+
+	req = aio_get_req(ctx);
+	if (unlikely(!req))
+		return -EAGAIN;
+
+	err = __io_submit_one(ctx, &iocb, user_iocb, req, compat);
+
+	/* Done with the synchronous reference */
+	iocb_put(req);
+
+	/*
+	 * If err is 0, we'd either done aio_complete() ourselves or have
+	 * arranged for that to be done asynchronously.  Anything non-zero
+	 * means that we need to destroy req ourselves.
+	 */
+	if (unlikely(err)) {
+		iocb_destroy(req);
+		put_reqs_available(ctx, 1);
+	}
+	return err;
 }
 
 /* sys_io_submit:
