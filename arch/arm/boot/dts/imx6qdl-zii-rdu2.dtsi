@@ -528,6 +528,11 @@
 		};
 	};
 
+	watchdog@38 {
+		compatible = "zii,rave-wdt";
+		reg = <0x38>;
+	};
+
 	temp-sense@48 {
 		compatible = "national,lm75";
 		reg = <0x48>;
