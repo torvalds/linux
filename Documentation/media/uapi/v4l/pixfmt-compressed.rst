@@ -125,3 +125,9 @@ Compressed Formats
       - Video elementary stream using a codec based on the Fast Walsh Hadamard
         Transform. This codec is implemented by the vicodec ('Virtual Codec')
 	driver. See the codec-fwht.h header for more details.
+    * .. _V4L2-PIX-FMT-FWHT-STATELESS:
+
+      - ``V4L2_PIX_FMT_FWHT_STATELESS``
+      - 'SFWH'
+      - Same format as V4L2_PIX_FMT_FWHT but requires stateless codec implementation.
+	See the :ref:`associated Codec Control IDs <v4l2-mpeg-fwht>`.
