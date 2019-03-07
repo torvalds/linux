@@ -13,7 +13,7 @@ do
 done
 if [ "$build_needed" -eq 0 ]; then
 	echo "rebuild: short circuiting build for '${ADT_TEST_TRIGGERS}'"
-	exit 0
+	exit 77
 fi
 
 set -e
