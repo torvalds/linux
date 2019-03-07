@@ -27,6 +27,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/usb/of.h>
 #include <linux/usb/otg.h>
+#include <linux/wakelock.h>
 
 #define BIT_WRITEABLE_SHIFT	16
 #define SCHEDULE_DELAY		(60 * HZ)
@@ -248,6 +249,7 @@ struct rockchip_usb2phy_port {
 	struct		regulator *vbus;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
 	struct notifier_block	event_nb;
+	struct wake_lock	wakelock;
 	enum usb_otg_state	state;
 	enum usb_dr_mode	mode;
 };
@@ -1016,6 +1018,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 				switch (rphy->chg_type) {
 				case POWER_SUPPLY_TYPE_USB:
 					dev_dbg(&rport->phy->dev, "sdp cable is connected\n");
+					wake_lock(&rport->wakelock);
 					cable = EXTCON_CHG_USB_SDP;
 					mutex_unlock(&rport->mutex);
 					rockchip_usb2phy_power_on(rport->phy);
@@ -1031,6 +1034,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 					break;
 				case POWER_SUPPLY_TYPE_USB_CDP:
 					dev_dbg(&rport->phy->dev, "cdp cable is connected\n");
+					wake_lock(&rport->wakelock);
 					cable = EXTCON_CHG_USB_CDP;
 					mutex_unlock(&rport->mutex);
 					rockchip_usb2phy_power_on(rport->phy);
@@ -1066,6 +1070,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			rport->perip_connected = false;
 			sch_work = false;
+			wake_unlock(&rport->wakelock);
 		} else if (!rport->vbus_attached) {
 			dev_dbg(&rport->phy->dev, "usb disconnect\n");
 			rport->state = OTG_STATE_B_IDLE;
@@ -1073,6 +1078,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
 			delay = OTG_SCHEDULE_DELAY;
+			wake_unlock(&rport->wakelock);
 		}
 		sch_work = true;
 		break;
@@ -1615,6 +1621,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	if (rport->vbus_always_on)
 		goto out;
 
+	wake_lock_init(&rport->wakelock, WAKE_LOCK_SUSPEND, "rockchip_otg");
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
 			  rockchip_usb_bypass_uart_work);
 	INIT_DELAYED_WORK(&rport->chg_work, rockchip_chg_detect_work);
@@ -1636,13 +1643,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-mux irq handle\n");
-			return ret;
+			goto err;
 		}
 	} else {
 		rport->bvalid_irq = of_irq_get_byname(child_np, "otg-bvalid");
 		if (rport->bvalid_irq < 0) {
 			dev_err(rphy->dev, "no vbus valid irq provided\n");
-			return rport->bvalid_irq;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->bvalid_irq,
@@ -1654,13 +1662,14 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		if (ret) {
 			dev_err(rphy->dev,
 				"failed to request otg-bvalid irq handle\n");
-			return ret;
+			goto err;
 		}
 
 		rport->ls_irq = of_irq_get_byname(child_np, "linestate");
 		if (rport->ls_irq < 0) {
 			dev_err(rphy->dev, "no linestate irq provided\n");
-			return rport->ls_irq;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->ls_irq, NULL,
@@ -1669,7 +1678,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 						"rockchip_usb2phy", rport);
 		if (ret) {
 			dev_err(rphy->dev, "failed to request linestate irq handle\n");
-			return ret;
+			goto err;
 		}
 	}
 
@@ -1677,7 +1686,8 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		rport->id_irq = of_irq_get_byname(child_np, "otg-id");
 		if (rport->id_irq < 0) {
 			dev_err(rphy->dev, "no otg id irq provided\n");
-			return rport->id_irq;
+			ret = -EINVAL;
+			goto err;
 		}
 
 		ret = devm_request_threaded_irq(rphy->dev, rport->id_irq, NULL,
@@ -1686,7 +1696,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 						"rockchip_usb2phy_id", rport);
 		if (ret) {
 			dev_err(rphy->dev, "failed to request otg-id irq handle\n");
-			return ret;
+			goto err;
 		}
 
 		iddig = property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig);
@@ -1697,7 +1707,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			/* Enable VBUS supply */
 			ret = rockchip_set_vbus_power(rport, true);
 			if (ret)
-				return ret;
+				goto err;
 		}
 	}
 
@@ -1708,7 +1718,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 					EXTCON_USB_HOST, &rport->event_nb);
 		if (ret) {
 			dev_err(rphy->dev, "register USB HOST notifier failed\n");
-			return ret;
+			goto err;
 		}
 	}
 
@@ -1724,6 +1734,10 @@ out:
 	rport->suspended = true;
 
 	return 0;
+
+err:
+	wake_lock_destroy(&rport->wakelock);
+	return ret;
 }
 
 static int rockchip_usb2phy_probe(struct platform_device *pdev)
