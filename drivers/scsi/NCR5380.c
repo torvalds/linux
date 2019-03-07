@@ -1933,13 +1933,13 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					if (!hostdata->connected)
 						return;
 
-					/* Fall through to reject message */
-
+					/* Reject message */
+					/* Fall through */
+				default:
 					/*
 					 * If we get something weird that we aren't expecting,
-					 * reject it.
+					 * log it.
 					 */
-				default:
 					if (tmp == EXTENDED_MESSAGE)
 						scmd_printk(KERN_INFO, cmd,
 						            "rejecting unknown extended message code %02x, length %d\n",
