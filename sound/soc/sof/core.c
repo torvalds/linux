@@ -25,18 +25,23 @@
  */
 
 struct snd_sof_pcm *snd_sof_find_spcm_name(struct snd_sof_dev *sdev,
-					   char *name)
+					   const char *name)
 {
 	struct snd_sof_pcm *spcm = NULL;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		/* match with PCM dai name */
 		if (strcmp(spcm->pcm.dai_name, name) == 0)
 			return spcm;
 
-		if (strcmp(spcm->pcm.caps[0].name, name) == 0)
+		/* match with playback caps name if set */
+		if (*spcm->pcm.caps[0].name &&
+		    !strcmp(spcm->pcm.caps[0].name, name))
 			return spcm;
 
-		if (strcmp(spcm->pcm.caps[1].name, name) == 0)
+		/* match with capture caps name if set */
+		if (*spcm->pcm.caps[1].name &&
+		    !strcmp(spcm->pcm.caps[1].name, name))
 			return spcm;
 	}
 
