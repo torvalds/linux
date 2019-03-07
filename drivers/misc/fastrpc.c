@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
+#include <linux/sort.h>
 #include <linux/of_platform.h>
 #include <linux/rpmsg.h>
 #include <linux/scatterlist.h>
@@ -104,6 +105,15 @@ struct fastrpc_invoke_rsp {
 	int retval;		/* invoke return value */
 };
 
+struct fastrpc_buf_overlap {
+	u64 start;
+	u64 end;
+	int raix;
+	u64 mstart;
+	u64 mend;
+	u64 offset;
+};
+
 struct fastrpc_buf {
 	struct fastrpc_user *fl;
 	struct dma_buf *dmabuf;
@@ -156,6 +166,7 @@ struct fastrpc_invoke_ctx {
 	struct fastrpc_map **maps;
 	struct fastrpc_buf *buf;
 	struct fastrpc_invoke_args *args;
+	struct fastrpc_buf_overlap *olaps;
 	struct fastrpc_channel_ctx *cctx;
 };
 
@@ -300,6 +311,7 @@ static void fastrpc_context_free(struct kref *ref)
 	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	kfree(ctx->maps);
+	kfree(ctx->olaps);
 	kfree(ctx);
 }
 
@@ -319,6 +331,55 @@ static void fastrpc_context_put_wq(struct work_struct *work)
 			container_of(work, struct fastrpc_invoke_ctx, put_work);
 
 	fastrpc_context_put(ctx);
+}
+
+#define CMP(aa, bb) ((aa) == (bb) ? 0 : (aa) < (bb) ? -1 : 1)
+static int olaps_cmp(const void *a, const void *b)
+{
+	struct fastrpc_buf_overlap *pa = (struct fastrpc_buf_overlap *)a;
+	struct fastrpc_buf_overlap *pb = (struct fastrpc_buf_overlap *)b;
+	/* sort with lowest starting buffer first */
+	int st = CMP(pa->start, pb->start);
+	/* sort with highest ending buffer first */
+	int ed = CMP(pb->end, pa->end);
+
+	return st == 0 ? ed : st;
+}
+
+static void fastrpc_get_buff_overlaps(struct fastrpc_invoke_ctx *ctx)
+{
+	u64 max_end = 0;
+	int i;
+
+	for (i = 0; i < ctx->nbufs; ++i) {
+		ctx->olaps[i].start = ctx->args[i].ptr;
+		ctx->olaps[i].end = ctx->olaps[i].start + ctx->args[i].length;
+		ctx->olaps[i].raix = i;
+	}
+
+	sort(ctx->olaps, ctx->nbufs, sizeof(*ctx->olaps), olaps_cmp, NULL);
+
+	for (i = 0; i < ctx->nbufs; ++i) {
+		/* Falling inside previous range */
+		if (ctx->olaps[i].start < max_end) {
+			ctx->olaps[i].mstart = max_end;
+			ctx->olaps[i].mend = ctx->olaps[i].end;
+			ctx->olaps[i].offset = max_end - ctx->olaps[i].start;
+
+			if (ctx->olaps[i].end > max_end) {
+				max_end = ctx->olaps[i].end;
+			} else {
+				ctx->olaps[i].mend = 0;
+				ctx->olaps[i].mstart = 0;
+			}
+
+		} else  {
+			ctx->olaps[i].mend = ctx->olaps[i].end;
+			ctx->olaps[i].mstart = ctx->olaps[i].start;
+			ctx->olaps[i].offset = 0;
+			max_end = ctx->olaps[i].end;
+		}
+	}
 }
 
 static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
@@ -347,7 +408,15 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 			kfree(ctx);
 			return ERR_PTR(-ENOMEM);
 		}
+		ctx->olaps = kcalloc(ctx->nscalars,
+				    sizeof(*ctx->olaps), GFP_KERNEL);
+		if (!ctx->olaps) {
+			kfree(ctx->maps);
+			kfree(ctx);
+			return ERR_PTR(-ENOMEM);
+		}
 		ctx->args = args;
+		fastrpc_get_buff_overlaps(ctx);
 	}
 
 	ctx->sc = sc;
@@ -380,6 +449,7 @@ err_idr:
 	list_del(&ctx->node);
 	spin_unlock(&user->lock);
 	kfree(ctx->maps);
+	kfree(ctx->olaps);
 	kfree(ctx);
 
 	return ERR_PTR(ret);
@@ -598,8 +668,11 @@ static u64 fastrpc_get_payload_size(struct fastrpc_invoke_ctx *ctx, int metalen)
 	size = ALIGN(metalen, FASTRPC_ALIGN);
 	for (i = 0; i < ctx->nscalars; i++) {
 		if (ctx->args[i].fd == 0 || ctx->args[i].fd == -1) {
-			size = ALIGN(size, FASTRPC_ALIGN);
-			size += ctx->args[i].length;
+
+			if (ctx->olaps[i].offset == 0)
+				size = ALIGN(size, FASTRPC_ALIGN);
+
+			size += (ctx->olaps[i].mend - ctx->olaps[i].mstart);
 		}
 	}
 
@@ -637,11 +710,10 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 	struct fastrpc_remote_arg *rpra;
 	struct fastrpc_invoke_buf *list;
 	struct fastrpc_phy_page *pages;
-	int inbufs, i, err = 0;
-	u64 rlen, pkt_size;
+	int inbufs, i, oix, err = 0;
+	u64 len, rlen, pkt_size;
 	uintptr_t args;
 	int metalen;
-
 
 	inbufs = REMOTE_SCALARS_INBUFS(ctx->sc);
 	metalen = fastrpc_get_meta_size(ctx);
@@ -665,8 +737,11 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 	rlen = pkt_size - metalen;
 	ctx->rpra = rpra;
 
-	for (i = 0; i < ctx->nbufs; ++i) {
-		u64 len = ctx->args[i].length;
+	for (oix = 0; oix < ctx->nbufs; ++oix) {
+		int mlen;
+
+		i = ctx->olaps[oix].raix;
+		len = ctx->args[i].length;
 
 		rpra[i].pv = 0;
 		rpra[i].len = len;
@@ -690,16 +765,25 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 						 vma->vm_start;
 
 		} else {
-			rlen -= ALIGN(args, FASTRPC_ALIGN) - args;
-			args = ALIGN(args, FASTRPC_ALIGN);
-			if (rlen < len)
+
+			if (ctx->olaps[oix].offset == 0) {
+				rlen -= ALIGN(args, FASTRPC_ALIGN) - args;
+				args = ALIGN(args, FASTRPC_ALIGN);
+			}
+
+			mlen = ctx->olaps[oix].mend - ctx->olaps[oix].mstart;
+
+			if (rlen < mlen)
 				goto bail;
 
-			rpra[i].pv = args;
-			pages[i].addr = ctx->buf->phys + (pkt_size - rlen);
+			rpra[i].pv = args - ctx->olaps[oix].offset;
+			pages[i].addr = ctx->buf->phys -
+					ctx->olaps[oix].offset +
+					(pkt_size - rlen);
 			pages[i].addr = pages[i].addr &	PAGE_MASK;
-			args = args + len;
-			rlen -= len;
+
+			args = args + mlen;
+			rlen -= mlen;
 		}
 
 		if (i < inbufs && !ctx->maps[i]) {
