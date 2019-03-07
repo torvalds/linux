@@ -648,7 +648,7 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 * The following mb guarantees that previous clear of a PENDING bit
 	 * will not be reordered with any speculative LOADS or STORES from
 	 * work->current_func, which is executed afterwards.  This possible
-	 * reordering can lead to a missed execution on attempt to qeueue
+	 * reordering can lead to a missed execution on attempt to queue
 	 * the same @work.  E.g. consider this case:
 	 *
 	 *   CPU#0                         CPU#1
@@ -1343,7 +1343,7 @@ static bool is_chained_work(struct workqueue_struct *wq)
 
 	worker = current_wq_worker();
 	/*
-	 * Return %true iff I'm a worker execuing a work item on @wq.  If
+	 * Return %true iff I'm a worker executing a work item on @wq.  If
 	 * I'm @worker, it's safe to dereference it without locking.
 	 */
 	return worker && worker->current_pwq->wq == wq;
@@ -1725,7 +1725,7 @@ static void rcu_work_rcufn(struct rcu_head *rcu)
  *
  * Return: %false if @rwork was already pending, %true otherwise.  Note
  * that a full RCU grace period is guaranteed only after a %true return.
- * While @rwork is guarnateed to be executed after a %false return, the
+ * While @rwork is guaranteed to be executed after a %false return, the
  * execution may happen before a full RCU grace period has passed.
  */
 bool queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork)
@@ -3015,6 +3015,9 @@ static bool __flush_work(struct work_struct *work, bool from_cancel)
 	struct wq_barrier barr;
 
 	if (WARN_ON(!wq_online))
+		return false;
+
+	if (WARN_ON(!work->func))
 		return false;
 
 	if (!from_cancel) {
