@@ -43,6 +43,9 @@
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390
 
+/* Allow kexec_file to load a segment to 0 */
+#define KEXEC_BUF_MEM_UNKNOWN -1
+
 /* Provide a dummy definition to avoid build failures. */
 static inline void crash_setup_regs(struct pt_regs *newregs,
 					struct pt_regs *oldregs) { }
@@ -51,6 +54,9 @@ struct kimage;
 struct s390_load_data {
 	/* Pointer to the kernel buffer. Used to register cmdline etc.. */
 	void *kernel_buf;
+
+	/* Load address of the kernel_buf. */
+	unsigned long kernel_mem;
 
 	/* Parmarea in the kernel buffer. */
 	struct parmarea *parm;

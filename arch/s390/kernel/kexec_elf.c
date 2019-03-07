@@ -39,28 +39,20 @@ static int kexec_file_add_kernel_elf(struct kimage *image,
 		buf.bufsz = phdr->p_filesz;
 
 		buf.mem = ALIGN(phdr->p_paddr, phdr->p_align);
+		if (image->type == KEXEC_TYPE_CRASH)
+			buf.mem += crashk_res.start;
 		buf.memsz = phdr->p_memsz;
+		data->memsz = ALIGN(data->memsz, phdr->p_align) + buf.memsz;
 
 		if (entry - phdr->p_paddr < phdr->p_memsz) {
 			data->kernel_buf = buf.buffer;
+			data->kernel_mem = buf.mem;
 			data->parm = buf.buffer + PARMAREA;
-			data->memsz += STARTUP_NORMAL_OFFSET;
-
-			buf.buffer += STARTUP_NORMAL_OFFSET;
-			buf.bufsz -= STARTUP_NORMAL_OFFSET;
-
-			buf.mem += STARTUP_NORMAL_OFFSET;
-			buf.memsz -= STARTUP_NORMAL_OFFSET;
 		}
-
-		if (image->type == KEXEC_TYPE_CRASH)
-			buf.mem += crashk_res.start;
 
 		ret = kexec_add_buffer(&buf);
 		if (ret)
 			return ret;
-
-		data->memsz = ALIGN(data->memsz, phdr->p_align) + buf.memsz;
 	}
 
 	return data->memsz ? 0 : -EINVAL;

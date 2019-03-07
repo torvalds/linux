@@ -17,7 +17,8 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
 	NULL,
 };
 
-static int kexec_file_update_purgatory(struct kimage *image)
+static int kexec_file_update_purgatory(struct kimage *image,
+				       struct s390_load_data *data)
 {
 	u64 entry, type;
 	int ret;
@@ -76,7 +77,7 @@ static int kexec_file_add_purgatory(struct kimage *image,
 	if (ret)
 		return ret;
 
-	ret = kexec_file_update_purgatory(image);
+	ret = kexec_file_update_purgatory(image, data);
 	return ret;
 }
 
@@ -135,6 +136,13 @@ void *kexec_file_add_components(struct kimage *image,
 	ret = kexec_file_add_purgatory(image, &data);
 	if (ret)
 		return ERR_PTR(ret);
+
+	if (data.kernel_mem == 0) {
+		unsigned long restart_psw =  0x0008000080000000UL;
+		restart_psw += image->start;
+		memcpy(data.kernel_buf, &restart_psw, sizeof(restart_psw));
+		image->start = 0;
+	}
 
 	return NULL;
 }

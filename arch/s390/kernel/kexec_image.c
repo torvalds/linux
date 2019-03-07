@@ -19,17 +19,18 @@ static int kexec_file_add_kernel_image(struct kimage *image,
 
 	buf.image = image;
 
-	buf.buffer = image->kernel_buf + STARTUP_NORMAL_OFFSET;
-	buf.bufsz = image->kernel_buf_len - STARTUP_NORMAL_OFFSET;
+	buf.buffer = image->kernel_buf;
+	buf.bufsz = image->kernel_buf_len;
 
-	buf.mem = STARTUP_NORMAL_OFFSET;
+	buf.mem = 0;
 	if (image->type == KEXEC_TYPE_CRASH)
 		buf.mem += crashk_res.start;
 	buf.memsz = buf.bufsz;
 
 	data->kernel_buf = image->kernel_buf;
+	data->kernel_mem = buf.mem;
 	data->parm = image->kernel_buf + PARMAREA;
-	data->memsz += buf.memsz + STARTUP_NORMAL_OFFSET;
+	data->memsz += buf.memsz;
 
 	return kexec_add_buffer(&buf);
 }
