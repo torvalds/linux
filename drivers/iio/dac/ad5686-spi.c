@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
- * AD5672R, AD5676, AD5676R, AD5681R, AD5682R, AD5683, AD5683R,
- * AD5684, AD5684R, AD5685R, AD5686, AD5686R
+ * AD5672R, AD5674R, AD5676, AD5676R, AD5679R,
+ * AD5681R, AD5682R, AD5683, AD5683R, AD5684,
+ * AD5684R, AD5685R, AD5686, AD5686R
  * Digital to analog converters driver
  *
  * Copyright 2018 Analog Devices Inc.
@@ -102,8 +103,10 @@ static int ad5686_spi_remove(struct spi_device *spi)
 static const struct spi_device_id ad5686_spi_id[] = {
 	{"ad5310r", ID_AD5310R},
 	{"ad5672r", ID_AD5672R},
+	{"ad5674r", ID_AD5674R},
 	{"ad5676", ID_AD5676},
 	{"ad5676r", ID_AD5676R},
+	{"ad5679r", ID_AD5679R},
 	{"ad5681r", ID_AD5681R},
 	{"ad5682r", ID_AD5682R},
 	{"ad5683", ID_AD5683},

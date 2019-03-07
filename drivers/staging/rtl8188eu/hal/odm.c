@@ -209,17 +209,8 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 
 void ODM_CmnInfoPtrArrayHook(struct odm_dm_struct *pDM_Odm, enum odm_common_info_def CmnInfo, u16 Index, void *pValue)
 {
-	/*  Hook call by reference pointer. */
-	switch	(CmnInfo) {
-	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_STA_STATUS:
+	if (CmnInfo == ODM_CMNINFO_STA_STATUS)
 		pDM_Odm->pODM_StaInfo[Index] = (struct sta_info *)pValue;
-		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
-	default:
-		/* do nothing */
-		break;
-	}
 }
 
 void odm_CommonInfoSelfInit(struct odm_dm_struct *pDM_Odm)

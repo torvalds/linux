@@ -1560,11 +1560,11 @@ struct rtllib_device {
 	u16 scan_watch_dog;
 
 	/* map of allowed channels. 0 is dummy */
-	void *pDot11dInfo;
-	bool bGlobalDomain;
+	void *dot11d_info;
+	bool global_domain;
 	u8 active_channel_map[MAX_CHANNEL_NUMBER+1];
 
-	u8   IbssStartChnl;
+	u8   bss_start_channel;
 	u8   ibss_maxjoin_chal;
 
 	int rate;       /* current rate */

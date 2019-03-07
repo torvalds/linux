@@ -97,6 +97,10 @@
 #define AD7280A_NUM_CH			(AD7280A_AUX_ADC_6 - \
 					AD7280A_CELL_VOLTAGE_1 + 1)
 
+#define AD7280A_CALC_VOLTAGE_CHAN_NUM(d, c) ((d * AD7280A_CELLS_PER_DEV) + c)
+#define AD7280A_CALC_TEMP_CHAN_NUM(d, c)    ((d * AD7280A_CELLS_PER_DEV) + \
+					     c - AD7280A_CELLS_PER_DEV)
+
 #define AD7280A_DEVADDR_MASTER		0
 #define AD7280A_DEVADDR_ALL		0x1F
 /* 5-bit device address is sent LSB first */
@@ -496,72 +500,171 @@ static const struct attribute_group ad7280_attrs_group = {
 	.attrs = ad7280_attributes,
 };
 
+static void ad7280_voltage_channel_init(struct iio_chan_spec *chan, int i)
+{
+	chan->type = IIO_VOLTAGE;
+	chan->differential = 1;
+	chan->channel = i;
+	chan->channel2 = chan->channel + 1;
+}
+
+static void ad7280_temp_channel_init(struct iio_chan_spec *chan, int i)
+{
+	chan->type = IIO_TEMP;
+	chan->channel = i;
+}
+
+static void ad7280_common_fields_init(struct iio_chan_spec *chan, int addr,
+				      int cnt)
+{
+	chan->indexed = 1;
+	chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
+	chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
+	chan->address = addr;
+	chan->scan_index = cnt;
+	chan->scan_type.sign = 'u';
+	chan->scan_type.realbits = 12;
+	chan->scan_type.storagebits = 32;
+}
+
+static void ad7280_total_voltage_channel_init(struct iio_chan_spec *chan,
+					      int cnt, int dev)
+{
+	chan->type = IIO_VOLTAGE;
+	chan->differential = 1;
+	chan->channel = 0;
+	chan->channel2 = dev * AD7280A_CELLS_PER_DEV;
+	chan->address = AD7280A_ALL_CELLS;
+	chan->indexed = 1;
+	chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
+	chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
+	chan->scan_index = cnt;
+	chan->scan_type.sign = 'u';
+	chan->scan_type.realbits = 32;
+	chan->scan_type.storagebits = 32;
+}
+
+static void ad7280_timestamp_channel_init(struct iio_chan_spec *chan, int cnt)
+{
+	chan->type = IIO_TIMESTAMP;
+	chan->channel = -1;
+	chan->scan_index = cnt;
+	chan->scan_type.sign = 's';
+	chan->scan_type.realbits = 64;
+	chan->scan_type.storagebits = 64;
+}
+
+static void ad7280_init_dev_channels(struct ad7280_state *st, int dev, int *cnt)
+{
+	int addr, ch, i;
+	struct iio_chan_spec *chan;
+
+	for (ch = AD7280A_CELL_VOLTAGE_1; ch <= AD7280A_AUX_ADC_6; ch++) {
+		chan = &st->channels[*cnt];
+
+		if (ch < AD7280A_AUX_ADC_1) {
+			i = AD7280A_CALC_VOLTAGE_CHAN_NUM(dev, ch);
+			ad7280_voltage_channel_init(chan, i);
+		} else {
+			i = AD7280A_CALC_TEMP_CHAN_NUM(dev, ch);
+			ad7280_temp_channel_init(chan, i);
+		}
+
+		addr = ad7280a_devaddr(dev) << 8 | ch;
+		ad7280_common_fields_init(chan, addr, *cnt);
+
+		(*cnt)++;
+	}
+}
+
 static int ad7280_channel_init(struct ad7280_state *st)
 {
-	int dev, ch, cnt;
+	int dev, cnt = 0;
 
 	st->channels = devm_kcalloc(&st->spi->dev, (st->slave_num + 1) * 12 + 2,
 				    sizeof(*st->channels), GFP_KERNEL);
 	if (!st->channels)
 		return -ENOMEM;
 
-	for (dev = 0, cnt = 0; dev <= st->slave_num; dev++)
-		for (ch = AD7280A_CELL_VOLTAGE_1; ch <= AD7280A_AUX_ADC_6;
-			ch++, cnt++) {
-			if (ch < AD7280A_AUX_ADC_1) {
-				st->channels[cnt].type = IIO_VOLTAGE;
-				st->channels[cnt].differential = 1;
-				st->channels[cnt].channel = (dev * 6) + ch;
-				st->channels[cnt].channel2 =
-					st->channels[cnt].channel + 1;
-			} else {
-				st->channels[cnt].type = IIO_TEMP;
-				st->channels[cnt].channel = (dev * 6) + ch - 6;
-			}
-			st->channels[cnt].indexed = 1;
-			st->channels[cnt].info_mask_separate =
-				BIT(IIO_CHAN_INFO_RAW);
-			st->channels[cnt].info_mask_shared_by_type =
-				BIT(IIO_CHAN_INFO_SCALE);
-			st->channels[cnt].address =
-				ad7280a_devaddr(dev) << 8 | ch;
-			st->channels[cnt].scan_index = cnt;
-			st->channels[cnt].scan_type.sign = 'u';
-			st->channels[cnt].scan_type.realbits = 12;
-			st->channels[cnt].scan_type.storagebits = 32;
-			st->channels[cnt].scan_type.shift = 0;
-		}
+	for (dev = 0; dev <= st->slave_num; dev++)
+		ad7280_init_dev_channels(st, dev, &cnt);
 
-	st->channels[cnt].type = IIO_VOLTAGE;
-	st->channels[cnt].differential = 1;
-	st->channels[cnt].channel = 0;
-	st->channels[cnt].channel2 = dev * 6;
-	st->channels[cnt].address = AD7280A_ALL_CELLS;
-	st->channels[cnt].indexed = 1;
-	st->channels[cnt].info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
-	st->channels[cnt].info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
-	st->channels[cnt].scan_index = cnt;
-	st->channels[cnt].scan_type.sign = 'u';
-	st->channels[cnt].scan_type.realbits = 32;
-	st->channels[cnt].scan_type.storagebits = 32;
-	st->channels[cnt].scan_type.shift = 0;
+	ad7280_total_voltage_channel_init(&st->channels[cnt], cnt, dev);
 	cnt++;
-	st->channels[cnt].type = IIO_TIMESTAMP;
-	st->channels[cnt].channel = -1;
-	st->channels[cnt].scan_index = cnt;
-	st->channels[cnt].scan_type.sign = 's';
-	st->channels[cnt].scan_type.realbits = 64;
-	st->channels[cnt].scan_type.storagebits = 64;
-	st->channels[cnt].scan_type.shift = 0;
+	ad7280_timestamp_channel_init(&st->channels[cnt], cnt);
 
 	return cnt + 1;
 }
 
+static int ad7280_balance_switch_attr_init(struct iio_dev_attr *attr,
+					   struct device *dev, int addr, int i)
+{
+	attr->address = addr;
+	attr->dev_attr.attr.mode = 0644;
+	attr->dev_attr.show = ad7280_show_balance_sw;
+	attr->dev_attr.store = ad7280_store_balance_sw;
+	attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+						  "in%d-in%d_balance_switch_en",
+						  i, i + 1);
+	if (!attr->dev_attr.attr.name)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int ad7280_balance_timer_attr_init(struct iio_dev_attr *attr,
+					  struct device *dev, int addr, int i)
+{
+	attr->address = addr;
+	attr->dev_attr.attr.mode = 0644;
+	attr->dev_attr.show = ad7280_show_balance_timer;
+	attr->dev_attr.store = ad7280_store_balance_timer;
+	attr->dev_attr.attr.name = devm_kasprintf(dev, GFP_KERNEL,
+						  "in%d-in%d_balance_timer",
+						  i, i + 1);
+	if (!attr->dev_attr.attr.name)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int ad7280_init_dev_attrs(struct ad7280_state *st, int dev, int *cnt)
+{
+	int addr, ch, i, ret;
+	struct iio_dev_attr *iio_attr;
+	struct device *sdev = &st->spi->dev;
+
+	for (ch = AD7280A_CELL_VOLTAGE_1; ch <= AD7280A_CELL_VOLTAGE_6; ch++) {
+		iio_attr = &st->iio_attr[*cnt];
+		addr = ad7280a_devaddr(dev) << 8 | ch;
+		i = dev * AD7280A_CELLS_PER_DEV + ch;
+
+		ret = ad7280_balance_switch_attr_init(iio_attr, sdev, addr, i);
+		if (ret < 0)
+			return ret;
+
+		ad7280_attributes[*cnt] = &iio_attr->dev_attr.attr;
+
+		(*cnt)++;
+		iio_attr = &st->iio_attr[*cnt];
+		addr = ad7280a_devaddr(dev) << 8 | (AD7280A_CB1_TIMER + ch);
+
+		ret = ad7280_balance_timer_attr_init(iio_attr, sdev, addr, i);
+		if (ret < 0)
+			return ret;
+
+		ad7280_attributes[*cnt] = &iio_attr->dev_attr.attr;
+		(*cnt)++;
+	}
+
+	ad7280_attributes[*cnt] = NULL;
+
+	return 0;
+}
+
 static int ad7280_attr_init(struct ad7280_state *st)
 {
-	int dev, ch, cnt;
-	unsigned int index;
-	struct iio_dev_attr *iio_attr;
+	int dev, cnt = 0, ret;
 
 	st->iio_attr = devm_kcalloc(&st->spi->dev, 2, sizeof(*st->iio_attr) *
 				    (st->slave_num + 1) * AD7280A_CELLS_PER_DEV,
@@ -569,41 +672,11 @@ static int ad7280_attr_init(struct ad7280_state *st)
 	if (!st->iio_attr)
 		return -ENOMEM;
 
-	for (dev = 0, cnt = 0; dev <= st->slave_num; dev++)
-		for (ch = AD7280A_CELL_VOLTAGE_1; ch <= AD7280A_CELL_VOLTAGE_6;
-			ch++, cnt++) {
-			iio_attr = &st->iio_attr[cnt];
-			index = dev * AD7280A_CELLS_PER_DEV + ch;
-			iio_attr->address = ad7280a_devaddr(dev) << 8 | ch;
-			iio_attr->dev_attr.attr.mode = 0644;
-			iio_attr->dev_attr.show = ad7280_show_balance_sw;
-			iio_attr->dev_attr.store = ad7280_store_balance_sw;
-			iio_attr->dev_attr.attr.name =
-				devm_kasprintf(&st->spi->dev, GFP_KERNEL,
-					       "in%d-in%d_balance_switch_en",
-					       index, index + 1);
-			if (!iio_attr->dev_attr.attr.name)
-				return -ENOMEM;
-
-			ad7280_attributes[cnt] = &iio_attr->dev_attr.attr;
-			cnt++;
-			iio_attr = &st->iio_attr[cnt];
-			iio_attr->address = ad7280a_devaddr(dev) << 8 |
-				(AD7280A_CB1_TIMER + ch);
-			iio_attr->dev_attr.attr.mode = 0644;
-			iio_attr->dev_attr.show = ad7280_show_balance_timer;
-			iio_attr->dev_attr.store = ad7280_store_balance_timer;
-			iio_attr->dev_attr.attr.name =
-				devm_kasprintf(&st->spi->dev, GFP_KERNEL,
-					       "in%d-in%d_balance_timer",
-					       index, index + 1);
-			if (!iio_attr->dev_attr.attr.name)
-				return -ENOMEM;
-
-			ad7280_attributes[cnt] = &iio_attr->dev_attr.attr;
-		}
-
-	ad7280_attributes[cnt] = NULL;
+	for (dev = 0; dev <= st->slave_num; dev++) {
+		ret = ad7280_init_dev_attrs(st, dev, &cnt);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }

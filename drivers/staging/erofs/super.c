@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/seq_file.h>
 #include "internal.h"
+#include "xattr.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/erofs.h>
@@ -397,6 +398,11 @@ static int erofs_read_super(struct super_block *sb,
 	if (!silent)
 		infoln("root inode @ nid %llu", ROOT_NID(sbi));
 
+	if (test_opt(sbi, POSIX_ACL))
+		sb->s_flags |= SB_POSIXACL;
+	else
+		sb->s_flags &= ~SB_POSIXACL;
+
 #ifdef CONFIG_EROFS_FS_ZIP
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
 #endif
@@ -420,13 +426,14 @@ static int erofs_read_super(struct super_block *sb,
 		errln("rootino(nid %llu) is not a directory(i_mode %o)",
 			ROOT_NID(sbi), inode->i_mode);
 		err = -EINVAL;
-		goto err_isdir;
+		iput(inode);
+		goto err_iget;
 	}
 
 	sb->s_root = d_make_root(inode);
 	if (sb->s_root == NULL) {
 		err = -ENOMEM;
-		goto err_makeroot;
+		goto err_iget;
 	}
 
 	/* save the device name to sbi */
@@ -452,10 +459,6 @@ static int erofs_read_super(struct super_block *sb,
 	 */
 err_devname:
 	dput(sb->s_root);
-err_makeroot:
-err_isdir:
-	if (sb->s_root == NULL)
-		iput(inode);
 err_iget:
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	iput(sbi->managed_cache);
@@ -493,7 +496,8 @@ static void erofs_put_super(struct super_block *sb)
 	mutex_lock(&sbi->umount_mutex);
 
 #ifdef CONFIG_EROFS_FS_ZIP
-	erofs_workstation_cleanup_all(sb);
+	/* clean up the compression space of this sb */
+	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 #endif
 
 	erofs_unregister_super(sb);
@@ -536,12 +540,6 @@ static void erofs_kill_sb(struct super_block *sb)
 {
 	kill_block_super(sb);
 }
-
-static struct shrinker erofs_shrinker_info = {
-	.scan_objects = erofs_shrink_scan,
-	.count_objects = erofs_shrink_count,
-	.seeks = DEFAULT_SEEKS,
-};
 
 static struct file_system_type erofs_fs_type = {
 	.owner          = THIS_MODULE,
@@ -652,6 +650,11 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 	err = parse_options(sb, data);
 	if (err)
 		goto out;
+
+	if (test_opt(sbi, POSIX_ACL))
+		sb->s_flags |= SB_POSIXACL;
+	else
+		sb->s_flags &= ~SB_POSIXACL;
 
 	*flags |= SB_RDONLY;
 	return 0;

@@ -27,7 +27,7 @@
 #include <linux/usb/gadget.h>
 
 #include <linux/irq.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "emxx_udc.h"
 
@@ -2220,7 +2220,7 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 	mdelay(VBUS_CHATTERING_MDELAY);		/* wait (ms) */
 
 	/* VBUS ON Check*/
-	reg_dt = gpio_get_value(VBUS_VALUE);
+	reg_dt = gpiod_get_value(vbus_gpio);
 	if (reg_dt == 0) {
 		udc->linux_suspended = 0;
 
@@ -2247,7 +2247,7 @@ static inline void _nbu2ss_check_vbus(struct nbu2ss_udc *udc)
 		}
 	} else {
 		mdelay(5);		/* wait (5ms) */
-		reg_dt = gpio_get_value(VBUS_VALUE);
+		reg_dt = gpiod_get_value(vbus_gpio);
 		if (reg_dt == 0)
 			return;
 
@@ -2311,7 +2311,7 @@ static inline void _nbu2ss_int_usb_suspend(struct nbu2ss_udc *udc)
 	u32	reg_dt;
 
 	if (udc->usb_suspended == 0) {
-		reg_dt = gpio_get_value(VBUS_VALUE);
+		reg_dt = gpiod_get_value(vbus_gpio);
 
 		if (reg_dt == 0)
 			return;
@@ -2351,7 +2351,7 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 	struct nbu2ss_udc	*udc = (struct nbu2ss_udc *)_udc;
 	struct fc_regs __iomem *preg = udc->p_regs;
 
-	if (gpio_get_value(VBUS_VALUE) == 0) {
+	if (gpiod_get_value(vbus_gpio) == 0) {
 		_nbu2ss_writel(&preg->USB_INT_STA, ~USB_INT_STA_RW);
 		_nbu2ss_writel(&preg->USB_INT_ENA, 0);
 		return IRQ_HANDLED;
@@ -2360,7 +2360,7 @@ static irqreturn_t _nbu2ss_udc_irq(int irq, void *_udc)
 	spin_lock(&udc->lock);
 
 	for (;;) {
-		if (gpio_get_value(VBUS_VALUE) == 0) {
+		if (gpiod_get_value(vbus_gpio) == 0) {
 			_nbu2ss_writel(&preg->USB_INT_STA, ~USB_INT_STA_RW);
 			_nbu2ss_writel(&preg->USB_INT_ENA, 0);
 			status = 0;
@@ -2750,7 +2750,7 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 
 	preg = udc->p_regs;
 
-	data = gpio_get_value(VBUS_VALUE);
+	data = gpiod_get_value(vbus_gpio);
 	if (data == 0)
 		return -EINVAL;
 
@@ -2790,7 +2790,7 @@ static void  nbu2ss_ep_fifo_flush(struct usb_ep *_ep)
 		return;
 	}
 
-	data = gpio_get_value(VBUS_VALUE);
+	data = gpiod_get_value(vbus_gpio);
 	if (data == 0)
 		return;
 
@@ -2832,7 +2832,7 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	data = gpio_get_value(VBUS_VALUE);
+	data = gpiod_get_value(vbus_gpio);
 	if (data == 0)
 		return -EINVAL;
 
@@ -2854,7 +2854,7 @@ static int nbu2ss_gad_wakeup(struct usb_gadget *pgadget)
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
 
-	data = gpio_get_value(VBUS_VALUE);
+	data = gpiod_get_value(vbus_gpio);
 	if (data == 0) {
 		dev_warn(&pgadget->dev, "VBUS LEVEL = %d\n", data);
 		return -EINVAL;
@@ -3119,12 +3119,13 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 	}
 
 	/* VBUS Interrupt */
-	irq_set_irq_type(INT_VBUS, IRQ_TYPE_EDGE_BOTH);
-	status = request_irq(INT_VBUS,
+	vbus_irq = gpiod_to_irq(vbus_gpio);
+	irq_set_irq_type(vbus_irq, IRQ_TYPE_EDGE_BOTH);
+	status = request_irq(vbus_irq,
 			     _nbu2ss_vbus_irq, IRQF_SHARED, driver_name, udc);
 
 	if (status != 0) {
-		dev_err(udc->dev, "request_irq(INT_VBUS) failed\n");
+		dev_err(udc->dev, "request_irq(vbus_irq) failed\n");
 		return status;
 	}
 
@@ -3160,7 +3161,7 @@ static int nbu2ss_drv_remove(struct platform_device *pdev)
 	}
 
 	/* Interrupt Handler - Release */
-	free_irq(INT_VBUS, udc);
+	free_irq(vbus_irq, udc);
 
 	return 0;
 }
@@ -3201,7 +3202,7 @@ static int nbu2ss_drv_resume(struct platform_device *pdev)
 	if (!udc)
 		return 0;
 
-	data = gpio_get_value(VBUS_VALUE);
+	data = gpiod_get_value(vbus_gpio);
 	if (data) {
 		udc->vbus_active = 1;
 		udc->devstate = USB_STATE_POWERED;
