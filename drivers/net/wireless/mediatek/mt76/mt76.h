@@ -126,6 +126,7 @@ struct mt76_queue {
 	int ndesc;
 	int queued;
 	int buf_size;
+	bool stopped;
 
 	u8 buf_offset;
 	u8 hw_idx;
@@ -143,6 +144,7 @@ struct mt76_mcu_ops {
 			 const struct mt76_reg_pair *rp, int len);
 	int (*mcu_rd_rp)(struct mt76_dev *dev, u32 base,
 			 struct mt76_reg_pair *rp, int len);
+	int (*mcu_restart)(struct mt76_dev *dev);
 };
 
 struct mt76_queue_ops {

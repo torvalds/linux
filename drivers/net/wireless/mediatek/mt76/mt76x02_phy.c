@@ -194,6 +194,8 @@ bool mt76x02_phy_adjust_vga_gain(struct mt76x02_dev *dev)
 		ret = true;
 	}
 
+	dev->cal.agc_lowest_gain = dev->cal.agc_gain_adjust >= limit;
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt76x02_phy_adjust_vga_gain);

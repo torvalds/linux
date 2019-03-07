@@ -260,10 +260,15 @@ mt76x2_phy_set_gain_val(struct mt76x02_dev *dev)
 	gain_val[0] = dev->cal.agc_gain_cur[0] - dev->cal.agc_gain_adjust;
 	gain_val[1] = dev->cal.agc_gain_cur[1] - dev->cal.agc_gain_adjust;
 
-	if (dev->mt76.chandef.width >= NL80211_CHAN_WIDTH_40)
+	val = 0x1836 << 16;
+	if (!mt76x2_has_ext_lna(dev) &&
+	    dev->mt76.chandef.width >= NL80211_CHAN_WIDTH_40)
 		val = 0x1e42 << 16;
-	else
-		val = 0x1836 << 16;
+
+	if (mt76x2_has_ext_lna(dev) &&
+	    dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ &&
+	    dev->mt76.chandef.width < NL80211_CHAN_WIDTH_40)
+		val = 0x0f36 << 16;
 
 	val |= 0xf8;
 
@@ -280,6 +285,7 @@ void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 {
 	u8 *gain = dev->cal.agc_gain_init;
 	u8 low_gain_delta, gain_delta;
+	u32 agc_35, agc_37;
 	bool gain_change;
 	int low_gain;
 	u32 val;
@@ -318,6 +324,16 @@ void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 	else
 		low_gain_delta = 14;
 
+	agc_37 = 0x2121262c;
+	if (dev->mt76.chandef.chan->band == NL80211_BAND_2GHZ)
+		agc_35 = 0x11111516;
+	else if (low_gain == 2)
+		agc_35 = agc_37 = 0x08080808;
+	else if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
+		agc_35 = 0x10101014;
+	else
+		agc_35 = 0x11111116;
+
 	if (low_gain == 2) {
 		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a990);
 		mt76_wr(dev, MT_BBP(AGC, 35), 0x08080808);
@@ -326,14 +342,12 @@ void mt76x2_phy_update_channel_gain(struct mt76x02_dev *dev)
 		dev->cal.agc_gain_adjust = 0;
 	} else {
 		mt76_wr(dev, MT_BBP(RXO, 18), 0xf000a991);
-		if (dev->mt76.chandef.width == NL80211_CHAN_WIDTH_80)
-			mt76_wr(dev, MT_BBP(AGC, 35), 0x10101014);
-		else
-			mt76_wr(dev, MT_BBP(AGC, 35), 0x11111116);
-		mt76_wr(dev, MT_BBP(AGC, 37), 0x2121262C);
 		gain_delta = 0;
 		dev->cal.agc_gain_adjust = low_gain_delta;
 	}
+
+	mt76_wr(dev, MT_BBP(AGC, 35), agc_35);
+	mt76_wr(dev, MT_BBP(AGC, 37), agc_37);
 
 	dev->cal.agc_gain_cur[0] = gain[0] - gain_delta;
 	dev->cal.agc_gain_cur[1] = gain[1] - gain_delta;

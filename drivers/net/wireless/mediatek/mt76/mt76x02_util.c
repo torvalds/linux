@@ -237,6 +237,8 @@ int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	int idx = 0;
 
+	memset(msta, 0, sizeof(*msta));
+
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
 	if (idx < 0)
 		return -ENOSPC;
@@ -274,6 +276,8 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76_txq *mtxq;
 
+	memset(mvif, 0, sizeof(*mvif));
+
 	mvif->idx = idx;
 	mvif->group_wcid.idx = MT_VIF_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
@@ -288,6 +292,12 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	unsigned int idx = 0;
+
+	/* Allow to change address in HW if we create first interface. */
+	if (!dev->vif_mask &&
+	    (((vif->addr[0] ^ dev->mt76.macaddr[0]) & ~GENMASK(4, 1)) ||
+	     memcmp(vif->addr + 1, dev->mt76.macaddr + 1, ETH_ALEN - 1)))
+		mt76x02_mac_setaddr(dev, vif->addr);
 
 	if (vif->addr[0] & BIT(1))
 		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
@@ -310,10 +320,6 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	if (dev->vif_mask & BIT(idx))
 		return -EBUSY;
-
-	/* Allow to change address in HW if we create first interface. */
-	if (!dev->vif_mask && !ether_addr_equal(dev->mt76.macaddr, vif->addr))
-                mt76x02_mac_setaddr(dev, vif->addr);
 
 	dev->vif_mask |= BIT(idx);
 

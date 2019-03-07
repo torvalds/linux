@@ -289,8 +289,11 @@ mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
 	dev->queue_ops->tx_queue_skb(dev, q, skb, wcid, sta);
 	dev->queue_ops->kick(dev, q);
 
-	if (q->queued > q->ndesc - 8)
+	if (q->queued > q->ndesc - 8 && !q->stopped) {
 		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
+		q->stopped = true;
+	}
+
 	spin_unlock_bh(&q->lock);
 }
 EXPORT_SYMBOL_GPL(mt76_tx);
@@ -374,7 +377,10 @@ mt76_release_buffered_frames(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	if (last_skb) {
 		mt76_queue_ps_skb(dev, sta, last_skb, true);
 		dev->queue_ops->kick(dev, hwq);
+	} else {
+		ieee80211_sta_eosp(sta);
 	}
+
 	spin_unlock_bh(&hwq->lock);
 }
 EXPORT_SYMBOL_GPL(mt76_release_buffered_frames);
@@ -576,6 +582,9 @@ void mt76_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	struct mt76_dev *dev = hw->priv;
 	struct mt76_txq *mtxq = (struct mt76_txq *) txq->drv_priv;
 	struct mt76_queue *hwq = mtxq->hwq;
+
+	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
+		return;
 
 	spin_lock_bh(&hwq->lock);
 	if (list_empty(&mtxq->list))
