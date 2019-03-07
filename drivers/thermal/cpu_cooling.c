@@ -26,7 +26,6 @@
 #include <linux/thermal.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
-#include <linux/idr.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -95,7 +94,6 @@ struct cpufreq_cooling_device {
 	struct cpu_cooling_ops *plat_ops;
 };
 
-static DEFINE_IDA(cpufreq_ida);
 static DEFINE_MUTEX(cooling_list_lock);
 static LIST_HEAD(cpufreq_cdev_list);
 
@@ -556,7 +554,6 @@ __cpufreq_cooling_register(struct device_node *np,
 	struct cpufreq_cooling_device *cpufreq_cdev;
 	char dev_name[THERMAL_NAME_LENGTH];
 	unsigned int i, num_cpus;
-	int ret;
 	struct thermal_cooling_device_ops *cooling_ops;
 	bool first;
 
@@ -604,22 +601,16 @@ __cpufreq_cooling_register(struct device_node *np,
 #endif
 		cooling_ops = &cpufreq_cooling_ops;
 
-	cpufreq_cdev->plat_ops = plat_ops;
-
-	ret = ida_simple_get(&cpufreq_ida, 0, 0, GFP_KERNEL);
-	if (ret < 0) {
-		cdev = ERR_PTR(ret);
-		goto free_idle_time;
-	}
-	cpufreq_cdev->id = ret;
+	cpufreq_cdev->id = policy->cpu;
 
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
 		 cpufreq_cdev->id);
+	cpufreq_cdev->plat_ops = plat_ops;
 
 	cdev = thermal_of_cooling_device_register(np, dev_name, cpufreq_cdev,
 						  cooling_ops);
 	if (IS_ERR(cdev))
-		goto remove_ida;
+		goto free_idle_time;
 
 	cpufreq_cdev->clipped_freq = get_state_freq(cpufreq_cdev, 0);
 	cpufreq_cdev->cdev = cdev;
@@ -636,8 +627,6 @@ __cpufreq_cooling_register(struct device_node *np,
 
 	return cdev;
 
-remove_ida:
-	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
 free_idle_time:
 	kfree(cpufreq_cdev->idle_time);
 free_cdev:
@@ -766,7 +755,6 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 					    CPUFREQ_POLICY_NOTIFIER);
 
 	thermal_cooling_device_unregister(cpufreq_cdev->cdev);
-	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
 	kfree(cpufreq_cdev->idle_time);
 	kfree(cpufreq_cdev);
 }
