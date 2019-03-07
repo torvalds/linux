@@ -14,7 +14,7 @@
 #define _LINUX_CAPABILITY_H
 
 #include <uapi/linux/capability.h>
-
+#include <linux/uidgid.h>
 
 #define _KERNEL_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION_3
 #define _KERNEL_CAPABILITY_U32S    _LINUX_CAPABILITY_U32S_3
@@ -25,11 +25,12 @@ typedef struct kernel_cap_struct {
 	__u32 cap[_KERNEL_CAPABILITY_U32S];
 } kernel_cap_t;
 
-/* exact same as vfs_cap_data but in cpu endian and always filled completely */
+/* same as vfs_ns_cap_data but in cpu endian and always filled completely */
 struct cpu_vfs_cap_data {
 	__u32 magic_etc;
 	kernel_cap_t permitted;
 	kernel_cap_t inheritable;
+	kuid_t rootid;
 };
 
 #define _USER_CAP_HEADER_SIZE  (sizeof(struct __user_cap_header_struct))
