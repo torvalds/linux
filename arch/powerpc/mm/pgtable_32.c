@@ -254,26 +254,20 @@ static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 
 void __init mapin_ram(void)
 {
-	unsigned long s, top;
+	struct memblock_region *reg;
 
-#ifndef CONFIG_WII
-	top = total_lowmem;
-	s = mmu_mapin_ram(top);
-	__mapin_ram_chunk(s, top);
-#else
-	if (!wii_hole_size) {
-		s = mmu_mapin_ram(total_lowmem);
-		__mapin_ram_chunk(s, total_lowmem);
-	} else {
-		top = wii_hole_start;
-		s = mmu_mapin_ram(top);
-		__mapin_ram_chunk(s, top);
+	for_each_memblock(memory, reg) {
+		phys_addr_t base = reg->base;
+		phys_addr_t top = min(base + reg->size, total_lowmem);
 
-		top = memblock_end_of_DRAM();
-		s = wii_mmu_mapin_mem2(top);
-		__mapin_ram_chunk(s, top);
+		if (base >= top)
+			continue;
+		base = mmu_mapin_ram(base, top);
+		if (IS_ENABLED(CONFIG_BDI_SWITCH))
+			__mapin_ram_chunk(reg->base, top);
+		else
+			__mapin_ram_chunk(base, top);
 	}
-#endif
 }
 
 /* Scan the real Linux page tables and return a PTE pointer for
@@ -359,7 +353,10 @@ void mark_initmem_nx(void)
 	unsigned long numpages = PFN_UP((unsigned long)_einittext) -
 				 PFN_DOWN((unsigned long)_sinittext);
 
-	change_page_attr(page, numpages, PAGE_KERNEL);
+	if (v_block_mapped((unsigned long)_stext) + 1)
+		mmu_mark_initmem_nx();
+	else
+		change_page_attr(page, numpages, PAGE_KERNEL);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -367,6 +364,11 @@ void mark_rodata_ro(void)
 {
 	struct page *page;
 	unsigned long numpages;
+
+	if (v_block_mapped((unsigned long)_sinittext)) {
+		mmu_mark_rodata_ro();
+		return;
+	}
 
 	page = virt_to_page(_stext);
 	numpages = PFN_UP((unsigned long)_etext) -

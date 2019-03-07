@@ -27,6 +27,7 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
+#include <asm/swiotlb.h>
 #include <soc/fsl/qe/qe_ic.h>
 
 #include <linux/of_platform.h>
@@ -223,7 +224,3 @@ define_machine(corenet_generic) {
 };
 
 machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);
-
-#ifdef CONFIG_SWIOTLB
-machine_arch_initcall(corenet_generic, swiotlb_setup_bus_notifier);
-#endif

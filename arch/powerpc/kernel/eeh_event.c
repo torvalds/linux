@@ -121,7 +121,7 @@ int eeh_event_init(void)
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event(struct eeh_pe *pe)
+int __eeh_send_failure_event(struct eeh_pe *pe)
 {
 	unsigned long flags;
 	struct eeh_event *event;
@@ -142,6 +142,20 @@ int eeh_send_failure_event(struct eeh_pe *pe)
 	complete(&eeh_eventlist_event);
 
 	return 0;
+}
+
+int eeh_send_failure_event(struct eeh_pe *pe)
+{
+	/*
+	 * If we've manually supressed recovery events via debugfs
+	 * then just drop it on the floor.
+	 */
+	if (eeh_debugfs_no_recover) {
+		pr_err("EEH: Event dropped due to no_recover setting\n");
+		return 0;
+	}
+
+	return __eeh_send_failure_event(pe);
 }
 
 /**

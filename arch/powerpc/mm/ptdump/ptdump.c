@@ -28,7 +28,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
-#include "dump_linuxpagetables.h"
+#include "ptdump.h"
 
 #ifdef CONFIG_PPC32
 #define KERN_VIRT_START	0
@@ -143,14 +143,19 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 	unsigned long delta;
 
 #ifdef CONFIG_PPC64
-	seq_printf(st->seq, "0x%016lx-0x%016lx ", st->start_address, addr-1);
-	seq_printf(st->seq, "0x%016lx ", st->start_pa);
+#define REG		"0x%016lx"
 #else
-	seq_printf(st->seq, "0x%08lx-0x%08lx ", st->start_address, addr - 1);
-	seq_printf(st->seq, "0x%08lx ", st->start_pa);
+#define REG		"0x%08lx"
 #endif
 
-	delta = (addr - st->start_address) >> 10;
+	seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
+	if (st->start_pa == st->last_pa && st->start_address + PAGE_SIZE != addr) {
+		seq_printf(st->seq, "[" REG "]", st->start_pa);
+		delta = PAGE_SIZE >> 10;
+	} else {
+		seq_printf(st->seq, " " REG " ", st->start_pa);
+		delta = (addr - st->start_address) >> 10;
+	}
 	/* Work out what appropriate unit to use */
 	while (!(delta & 1023) && unit[1]) {
 		delta >>= 10;
@@ -184,7 +189,8 @@ static void note_page(struct pg_state *st, unsigned long addr,
 	 */
 	} else if (flag != st->current_flags || level != st->level ||
 		   addr >= st->marker[1].start_address ||
-		   pa != st->last_pa + PAGE_SIZE) {
+		   (pa != st->last_pa + PAGE_SIZE &&
+		    (pa != st->start_pa || st->start_pa != st->last_pa))) {
 
 		/* Check the PTE flags */
 		if (st->current_flags) {

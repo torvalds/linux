@@ -180,6 +180,7 @@ config CURRITUCK
 	depends on PPC_47x
 	select SWIOTLB
 	select 476FPE
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the IBM Currituck (476fpe) evaluation board

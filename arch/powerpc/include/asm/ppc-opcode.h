@@ -326,6 +326,7 @@
 #define PPC_INST_ADDI			0x38000000
 #define PPC_INST_ADDIS			0x3c000000
 #define PPC_INST_ADD			0x7c000214
+#define PPC_INST_ADDC			0x7c000014
 #define PPC_INST_SUB			0x7c000050
 #define PPC_INST_BLR			0x4e800020
 #define PPC_INST_BLRL			0x4e800021
@@ -334,6 +335,9 @@
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
 #define PPC_INST_MULLI			0x1c000000
+#define PPC_INST_MADDHD			0x10000030
+#define PPC_INST_MADDHDU		0x10000031
+#define PPC_INST_MADDLD			0x10000033
 #define PPC_INST_DIVWU			0x7c000396
 #define PPC_INST_DIVD			0x7c0003d2
 #define PPC_INST_RLWINM			0x54000000
@@ -377,6 +381,7 @@
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
 #define ___PPC_RB(b)	(((b) & 0x1f) << 11)
+#define ___PPC_RC(c)	(((c) & 0x1f) << 6)
 #define ___PPC_RS(s)	(((s) & 0x1f) << 21)
 #define ___PPC_RT(t)	___PPC_RS(t)
 #define ___PPC_R(r)	(((r) & 0x1) << 16)
@@ -396,7 +401,7 @@
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
 #define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
-#define __PPC_MB(s)	(((s) & 0x1f) << 6)
+#define __PPC_MB(s)	___PPC_RC(s)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))
 #define __PPC_ME64(s)	__PPC_MB64(s)
@@ -438,6 +443,15 @@
 #define PPC_STQCX(t, a, b)	stringify_in_c(.long PPC_INST_STQCX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b))
+#define PPC_MADDHD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDHDU(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHDU | \
+					___PPC_RT(t) | ___PPC_RA(a)   | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDLD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDLD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					___PPC_RB(b))
 #define PPC_MSGSYNC		stringify_in_c(.long PPC_INST_MSGSYNC)

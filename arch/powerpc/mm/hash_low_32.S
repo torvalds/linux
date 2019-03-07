@@ -47,14 +47,13 @@ mmu_hash_lock:
  * Returns to the caller if the access is illegal or there is no
  * mapping for the address.  Otherwise it places an appropriate PTE
  * in the hash table and returns from the exception.
- * Uses r0, r3 - r8, r10, ctr, lr.
+ * Uses r0, r3 - r6, r8, r10, ctr, lr.
  */
 	.text
 _GLOBAL(hash_page)
-	tophys(r7,0)			/* gets -KERNELBASE into r7 */
 #ifdef CONFIG_SMP
-	addis	r8,r7,mmu_hash_lock@h
-	ori	r8,r8,mmu_hash_lock@l
+	lis	r8, (mmu_hash_lock - PAGE_OFFSET)@h
+	ori	r8, r8, (mmu_hash_lock - PAGE_OFFSET)@l
 	lis	r0,0x0fff
 	b	10f
 11:	lwz	r6,0(r8)
@@ -70,14 +69,13 @@ _GLOBAL(hash_page)
 	/* Get PTE (linux-style) and check access */
 	lis	r0,KERNELBASE@h		/* check if kernel address */
 	cmplw	0,r4,r0
-	mfspr	r8,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
 	ori	r3,r3,_PAGE_USER|_PAGE_PRESENT /* test low addresses as user */
-	lwz	r5,PGDIR(r8)		/* virt page-table root */
+	mfspr	r5, SPRN_SPRG_PGDIR	/* virt page-table root */
 	blt+	112f			/* assume user more likely */
 	lis	r5,swapper_pg_dir@ha	/* if kernel address, use */
 	addi	r5,r5,swapper_pg_dir@l	/* kernel page table */
 	rlwimi	r3,r9,32-12,29,29	/* MSR_PR -> _PAGE_USER */
-112:	add	r5,r5,r7		/* convert to phys addr */
+112:	tophys(r5, r5)
 #ifndef CONFIG_PTE_64BIT
 	rlwimi	r5,r4,12,20,29		/* insert top 10 bits of address */
 	lwz	r8,0(r5)		/* get pmd entry */
@@ -144,25 +142,24 @@ retry:
 
 #ifdef CONFIG_SMP
 	eieio
-	addis	r8,r7,mmu_hash_lock@ha
+	lis	r8, (mmu_hash_lock - PAGE_OFFSET)@ha
 	li	r0,0
-	stw	r0,mmu_hash_lock@l(r8)
+	stw	r0, (mmu_hash_lock - PAGE_OFFSET)@l(r8)
 #endif
 
 	/* Return from the exception */
 	lwz	r5,_CTR(r11)
 	mtctr	r5
 	lwz	r0,GPR0(r11)
-	lwz	r7,GPR7(r11)
 	lwz	r8,GPR8(r11)
 	b	fast_exception_return
 
 #ifdef CONFIG_SMP
 hash_page_out:
 	eieio
-	addis	r8,r7,mmu_hash_lock@ha
+	lis	r8, (mmu_hash_lock - PAGE_OFFSET)@ha
 	li	r0,0
-	stw	r0,mmu_hash_lock@l(r8)
+	stw	r0, (mmu_hash_lock - PAGE_OFFSET)@l(r8)
 	blr
 #endif /* CONFIG_SMP */
 
@@ -186,8 +183,7 @@ _GLOBAL(add_hash_page)
 	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
 
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r8, r1)	/* use cpu number to make tag */
-	lwz	r8,TI_CPU(r8)		/* to go in mmu_hash_lock */
+	lwz	r8,TASK_CPU(r2)		/* to go in mmu_hash_lock */
 	oris	r8,r8,12
 #endif /* CONFIG_SMP */
 
@@ -208,11 +204,9 @@ _GLOBAL(add_hash_page)
 	SYNC_601
 	isync
 
-	tophys(r7,0)
-
 #ifdef CONFIG_SMP
-	addis	r6,r7,mmu_hash_lock@ha
-	addi	r6,r6,mmu_hash_lock@l
+	lis	r6, (mmu_hash_lock - PAGE_OFFSET)@ha
+	addi	r6, r6, (mmu_hash_lock - PAGE_OFFSET)@l
 10:	lwarx	r0,0,r6			/* take the mmu_hash_lock */
 	cmpi	0,r0,0
 	bne-	11f
@@ -257,8 +251,8 @@ _GLOBAL(add_hash_page)
 
 9:
 #ifdef CONFIG_SMP
-	addis	r6,r7,mmu_hash_lock@ha
-	addi	r6,r6,mmu_hash_lock@l
+	lis	r6, (mmu_hash_lock - PAGE_OFFSET)@ha
+	addi	r6, r6, (mmu_hash_lock - PAGE_OFFSET)@l
 	eieio
 	li	r0,0
 	stw	r0,0(r6)		/* clear mmu_hash_lock */
@@ -278,10 +272,8 @@ _GLOBAL(add_hash_page)
  * It is designed to be called with the MMU either on or off.
  * r3 contains the VSID, r4 contains the virtual address,
  * r5 contains the linux PTE, r6 contains the old value of the
- * linux PTE (before setting _PAGE_HASHPTE) and r7 contains the
- * offset to be added to addresses (0 if the MMU is on,
- * -KERNELBASE if it is off).  r10 contains the upper half of
- * the PTE if CONFIG_PTE_64BIT.
+ * linux PTE (before setting _PAGE_HASHPTE). r10 contains the
+ * upper half of the PTE if CONFIG_PTE_64BIT.
  * On SMP, the caller should have the mmu_hash_lock held.
  * We assume that the caller has (or will) set the _PAGE_HASHPTE
  * bit in the linux PTE in memory.  The value passed in r6 should
@@ -342,7 +334,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	patch_site	1f, patch__hash_page_A1
 	patch_site	2f, patch__hash_page_A2
 	/* Get the address of the primary PTE group in the hash table (r3) */
-0:	addis	r0,r7,Hash_base@h	/* base address of hash table */
+0:	lis	r0, (Hash_base - PAGE_OFFSET)@h	/* base address of hash table */
 1:	rlwimi	r0,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
 2:	rlwinm	r3,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
 	xor	r3,r3,r0		/* make primary hash */
@@ -356,10 +348,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	beq+	10f			/* no PTE: go look for an empty slot */
 	tlbie	r4
 
-	addis	r4,r7,htab_hash_searches@ha
-	lwz	r6,htab_hash_searches@l(r4)
+	lis	r4, (htab_hash_searches - PAGE_OFFSET)@ha
+	lwz	r6, (htab_hash_searches - PAGE_OFFSET)@l(r4)
 	addi	r6,r6,1			/* count how many searches we do */
-	stw	r6,htab_hash_searches@l(r4)
+	stw	r6, (htab_hash_searches - PAGE_OFFSET)@l(r4)
 
 	/* Search the primary PTEG for a PTE whose 1st (d)word matches r5 */
 	mtctr	r0
@@ -391,10 +383,10 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	beq+	found_empty
 
 	/* update counter of times that the primary PTEG is full */
-	addis	r4,r7,primary_pteg_full@ha
-	lwz	r6,primary_pteg_full@l(r4)
+	lis	r4, (primary_pteg_full - PAGE_OFFSET)@ha
+	lwz	r6, (primary_pteg_full - PAGE_OFFSET)@l(r4)
 	addi	r6,r6,1
-	stw	r6,primary_pteg_full@l(r4)
+	stw	r6, (primary_pteg_full - PAGE_OFFSET)@l(r4)
 
 	patch_site	0f, patch__hash_page_C
 	/* Search the secondary PTEG for an empty slot */
@@ -428,8 +420,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 	 * lockup here but that shouldn't happen
 	 */
 
-1:	addis	r4,r7,next_slot@ha		/* get next evict slot */
-	lwz	r6,next_slot@l(r4)
+1:	lis	r4, (next_slot - PAGE_OFFSET)@ha	/* get next evict slot */
+	lwz	r6, (next_slot - PAGE_OFFSET)@l(r4)
 	addi	r6,r6,HPTE_SIZE			/* search for candidate */
 	andi.	r6,r6,7*HPTE_SIZE
 	stw	r6,next_slot@l(r4)
@@ -501,8 +493,6 @@ htab_hash_searches:
  * We assume that there is a hash table in use (Hash != 0).
  */
 _GLOBAL(flush_hash_pages)
-	tophys(r7,0)
-
 	/*
 	 * We disable interrupts here, even on UP, because we want
 	 * the _PAGE_HASHPTE bit to be a reliable indication of
@@ -547,11 +537,9 @@ _GLOBAL(flush_hash_pages)
 	SET_V(r11)			/* set V (valid) bit */
 
 #ifdef CONFIG_SMP
-	addis	r9,r7,mmu_hash_lock@ha
-	addi	r9,r9,mmu_hash_lock@l
-	CURRENT_THREAD_INFO(r8, r1)
-	add	r8,r8,r7
-	lwz	r8,TI_CPU(r8)
+	lis	r9, (mmu_hash_lock - PAGE_OFFSET)@ha
+	addi	r9, r9, (mmu_hash_lock - PAGE_OFFSET)@l
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,9
 10:	lwarx	r0,0,r9
 	cmpi	0,r0,0
@@ -584,7 +572,7 @@ _GLOBAL(flush_hash_pages)
 	patch_site	1f, patch__flush_hash_A1
 	patch_site	2f, patch__flush_hash_A2
 	/* Get the address of the primary PTE group in the hash table (r3) */
-0:	addis	r8,r7,Hash_base@h	/* base address of hash table */
+0:	lis	r8, (Hash_base - PAGE_OFFSET)@h	/* base address of hash table */
 1:	rlwimi	r8,r3,LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT    /* VSID -> hash */
 2:	rlwinm	r0,r4,20+LG_PTEG_SIZE,HASH_LEFT,HASH_RIGHT /* PI -> hash */
 	xor	r8,r0,r8		/* make primary hash */
@@ -646,8 +634,7 @@ EXPORT_SYMBOL(flush_hash_pages)
  */
 _GLOBAL(_tlbie)
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r8, r1)
-	lwz	r8,TI_CPU(r8)
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,11
 	mfmsr	r10
 	SYNC
@@ -684,8 +671,7 @@ _GLOBAL(_tlbie)
  */
 _GLOBAL(_tlbia)
 #if defined(CONFIG_SMP)
-	CURRENT_THREAD_INFO(r8, r1)
-	lwz	r8,TI_CPU(r8)
+	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,10
 	mfmsr	r10
 	SYNC

@@ -7,19 +7,26 @@
 #include <linux/kernel.h>
 #include <asm/pgtable.h>
 
-#include "dump_linuxpagetables.h"
+#include "ptdump.h"
 
 static const struct flag_info flag_array[] = {
 	{
-		.mask	= _PAGE_USER,
-		.val	= _PAGE_USER,
+		.mask	= _PAGE_SH,
+		.val	= 0,
 		.set	= "user",
 		.clear	= "    ",
 	}, {
-		.mask	= _PAGE_RW,
-		.val	= _PAGE_RW,
+		.mask	= _PAGE_RO | _PAGE_NA,
+		.val	= 0,
 		.set	= "rw",
-		.clear	= "r ",
+	}, {
+		.mask	= _PAGE_RO | _PAGE_NA,
+		.val	= _PAGE_RO,
+		.set	= "r ",
+	}, {
+		.mask	= _PAGE_RO | _PAGE_NA,
+		.val	= _PAGE_NA,
+		.set	= "  ",
 	}, {
 		.mask	= _PAGE_EXEC,
 		.val	= _PAGE_EXEC,
@@ -45,11 +52,6 @@ static const struct flag_info flag_array[] = {
 		.val	= _PAGE_ACCESSED,
 		.set	= "accessed",
 		.clear	= "        ",
-	}, {
-		.mask	= _PAGE_WRITETHRU,
-		.val	= _PAGE_WRITETHRU,
-		.set	= "write through",
-		.clear	= "             ",
 	}, {
 		.mask	= _PAGE_NO_CACHE,
 		.val	= _PAGE_NO_CACHE,

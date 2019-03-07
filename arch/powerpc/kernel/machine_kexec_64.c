@@ -317,10 +317,8 @@ void default_machine_kexec(struct kimage *image)
 	 * We setup preempt_count to avoid using VMX in memcpy.
 	 * XXX: the task struct will likely be invalid once we do the copy!
 	 */
-	kexec_stack.thread_info.task = current_thread_info()->task;
-	kexec_stack.thread_info.flags = 0;
-	kexec_stack.thread_info.preempt_count = HARDIRQ_OFFSET;
-	kexec_stack.thread_info.cpu = current_thread_info()->cpu;
+	current_thread_info()->flags = 0;
+	current_thread_info()->preempt_count = HARDIRQ_OFFSET;
 
 	/* We need a static PACA, too; copy this CPU's PACA over and switch to
 	 * it. Also poison per_cpu_offset and NULL lppaca to catch anyone using
