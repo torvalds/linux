@@ -703,7 +703,7 @@ ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 	struct v4l2_mbus_framefmt *format;
 
 	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
-	if (format == NULL)
+	if (!format)
 		return -EINVAL;
 
 	ipipeif_try_format(ipipeif, cfg, fmt->pad, &fmt->format, fmt->which);
