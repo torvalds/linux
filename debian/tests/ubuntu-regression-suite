@@ -12,6 +12,21 @@ case $source in
 	;;
 esac
 
+# Only run regression-suite if we were requested to
+have_meta=0
+for trigger in ${ADT_TEST_TRIGGERS}
+do
+    case "$trigger" in
+	linux-meta/*|linux-meta-*/*)
+	    have_meta=1
+	    ;;
+    esac
+done
+if [ -n "$ADT_TEST_TRIGGERS" ] && [ "$have_meta" -eq 0 ]; then
+    echo "ubuntu-regression-suite is not requested, as there is no linux-meta trigger"
+    exit 77
+fi
+
 sver=`dpkg-parsechangelog -SVersion`
 read x rver x </proc/version_signature
 
