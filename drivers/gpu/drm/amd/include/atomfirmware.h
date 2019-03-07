@@ -494,6 +494,9 @@ enum atombios_firmware_capability
   ATOM_FIRMWARE_CAP_FIRMWARE_POSTED = 0x00000001,
   ATOM_FIRMWARE_CAP_GPU_VIRTUALIZATION  = 0x00000002,
   ATOM_FIRMWARE_CAP_WMI_SUPPORT  = 0x00000040,
+  ATOM_FIRMWARE_CAP_HWEMU_ENABLE  = 0x00000080,
+  ATOM_FIRMWARE_CAP_HWEMU_UMC_CFG = 0x00000100,
+  ATOM_FIRMWARE_CAP_SRAM_ECC      = 0x00000200,
 };
 
 enum atom_cooling_solution_id{
@@ -1810,6 +1813,56 @@ struct atom_umc_info_v3_1
   uint32_t mem_refclk_10khz;
 };
 
+// umc_info.umc_config
+enum atom_umc_config_def {
+  UMC_CONFIG__ENABLE_1KB_INTERLEAVE_MODE  =   0x00000001,
+  UMC_CONFIG__DEFAULT_MEM_ECC_ENABLE      =   0x00000002,
+  UMC_CONFIG__ENABLE_HBM_LANE_REPAIR      =   0x00000004,
+  UMC_CONFIG__ENABLE_BANK_HARVESTING      =   0x00000008,
+  UMC_CONFIG__ENABLE_PHY_REINIT           =   0x00000010,
+  UMC_CONFIG__DISABLE_UCODE_CHKSTATUS     =   0x00000020,
+};
+
+struct atom_umc_info_v3_2
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_version;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+};
+
+struct atom_umc_info_v3_3
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t ucode_reserved;
+  uint32_t ucode_rom_startaddr;
+  uint32_t ucode_length;
+  uint16_t umc_reg_init_offset;
+  uint16_t customer_ucode_name_offset;
+  uint16_t mclk_ss_percentage;
+  uint16_t mclk_ss_rate_10hz;
+  uint8_t umcip_min_ver;
+  uint8_t umcip_max_ver;
+  uint8_t vram_type;              //enum of atom_dgpu_vram_type
+  uint8_t umc_config;
+  uint32_t mem_refclk_10khz;
+  uint32_t pstate_uclk_10khz[4];
+  uint16_t umcgoldenoffset;
+  uint16_t densitygoldenoffset;
+  uint32_t reserved[4];
+};
 
 /* 
   ***************************************************************************
