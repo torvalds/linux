@@ -267,15 +267,6 @@ static inline int snd_sof_dsp_get_reply(struct snd_sof_dev *sdev,
 	return -ENOTSUPP;
 }
 
-static inline int snd_sof_dsp_is_ipc_ready(struct snd_sof_dev *sdev)
-{
-	if (sof_ops(sdev)->is_ipc_ready)
-		return sof_ops(sdev)->is_ipc_ready(sdev);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
-}
-
 static inline int snd_sof_dsp_cmd_done(struct snd_sof_dev *sdev,
 				       int dir)
 {

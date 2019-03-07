@@ -153,19 +153,6 @@ static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 	return 0;
 }
 
-static int cnl_is_ipc_ready(struct snd_sof_dev *sdev)
-{
-	u32 busy, done;
-
-	busy = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
-	done = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
-	if ((busy & CNL_DSP_REG_HIPCIDR_BUSY) ||
-	    (done & CNL_DSP_REG_HIPCIDA_DONE))
-		return 0;
-
-	return 1;
-}
-
 static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 			    struct snd_sof_ipc_msg *msg)
 {
@@ -208,7 +195,6 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	.send_msg	= cnl_ipc_send_msg,
 	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
-	.is_ipc_ready	= cnl_is_ipc_ready,
 	.cmd_done	= cnl_ipc_cmd_done,
 
 	/* debug */

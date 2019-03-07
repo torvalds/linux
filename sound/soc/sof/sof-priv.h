@@ -114,7 +114,6 @@ struct snd_sof_dsp_ops {
 			struct snd_sof_ipc_msg *msg); /* mandatory */
 	int (*get_reply)(struct snd_sof_dev *sof_dev,
 			 struct snd_sof_ipc_msg *msg); /* mandatory */
-	int (*is_ipc_ready)(struct snd_sof_dev *sof_dev); /* mandatory */
 	int (*cmd_done)(struct snd_sof_dev *sof_dev, int dir); /* mandatory */
 
 	/* FW loading */

@@ -207,24 +207,6 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 	return ret;
 }
 
-/* send next IPC message in list */
-static int ipc_tx_next_msg(struct snd_sof_ipc *ipc)
-{
-	struct snd_sof_dev *sdev = ipc->sdev;
-	struct snd_sof_ipc_msg *msg = &ipc->msg;
-	int ret = snd_sof_dsp_send_msg(sdev, msg);
-
-	if (ret < 0)
-		/* So far IPC TX never fails, consider making the above void */
-		dev_err_ratelimited(sdev->dev,
-				    "error: ipc tx failed with error %d\n",
-				    ret);
-	else
-		ipc_log_header(sdev->dev, "ipc tx", msg->header);
-
-	return ret;
-}
-
 /* send IPC message from host to DSP */
 int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		       void *msg_data, size_t msg_bytes, void *reply_data,
@@ -263,17 +245,22 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	if (msg_bytes)
 		memcpy(msg->msg_data, msg_data, msg_bytes);
 
-	/* send the message if not busy */
-	if (snd_sof_dsp_is_ipc_ready(sdev)) {
-		ret = ipc_tx_next_msg(sdev->ipc);
-		/* Next reply that we receive will be related to this message */
-		if (!ret)
-			msg->ipc_complete = false;
-	} else {
-		ret = -EAGAIN;
-	}
+	ret = snd_sof_dsp_send_msg(sdev, msg);
+	/* Next reply that we receive will be related to this message */
+	if (!ret)
+		msg->ipc_complete = false;
 
 	spin_unlock_irq(&sdev->ipc_lock);
+
+	if (ret < 0) {
+		/* So far IPC TX never fails, consider making the above void */
+		dev_err_ratelimited(sdev->dev,
+				    "error: ipc tx failed with error %d\n",
+				    ret);
+		goto unlock;
+	}
+
+	ipc_log_header(sdev->dev, "ipc tx", msg->header);
 
 	/* now wait for completion */
 	if (!ret)
@@ -301,11 +288,11 @@ int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 	unsigned long flags;
 
 	/*
-	 * Protect against a theoretical race with ipc_tx_next_msg(): if the DSP
-	 * is fast enough to receive an IPC message, reply to it, and the host
-	 * interrupt processing calls this function on a different core from the
-	 * one, where the sending is taking place, the message might not yet be
-	 * marked as expecting a reply.
+	 * Protect against a theoretical race with sof_ipc_tx_message(): if the
+	 * DSP is fast enough to receive an IPC message, reply to it, and the
+	 * host interrupt processing calls this function on a different core
+	 * from the one, where the sending is taking place, the message might
+	 * not yet be marked as expecting a reply.
 	 */
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
@@ -701,7 +688,7 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	struct snd_sof_ipc_msg *msg;
 
 	/* check if mandatory ops required for ipc are defined */
-	if (!sof_ops(sdev)->is_ipc_ready || !sof_ops(sdev)->fw_ready) {
+	if (!sof_ops(sdev)->fw_ready) {
 		dev_err(sdev->dev, "error: ipc mandatory ops not defined\n");
 		return NULL;
 	}

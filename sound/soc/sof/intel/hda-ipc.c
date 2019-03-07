@@ -55,20 +55,6 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir)
 	return 0;
 }
 
-int hda_dsp_is_ipc_ready(struct snd_sof_dev *sdev)
-{
-	u32 busy, done;
-
-	/* is DSP ready for next IPC command */
-	busy = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI);
-	done = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
-	if ((busy & HDA_DSP_REG_HIPCI_BUSY) ||
-	    (done & HDA_DSP_REG_HIPCIE_DONE))
-		return 0;
-
-	return 1;
-}
-
 int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	u32 cmd = msg->header;

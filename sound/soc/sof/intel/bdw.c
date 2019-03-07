@@ -465,17 +465,6 @@ static int bdw_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
  * IPC Mailbox IO
  */
 
-static int bdw_is_ipc_ready(struct snd_sof_dev *sdev)
-{
-	u32 val;
-
-	val = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
-	if ((val & SHIM_IPCX_BUSY) || (val & SHIM_IPCX_DONE))
-		return 0;
-
-	return 1;
-}
-
 static int bdw_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	/* send the message */
@@ -677,7 +666,6 @@ const struct snd_sof_dsp_ops sof_bdw_ops = {
 	.send_msg	= bdw_send_msg,
 	.get_reply	= bdw_get_reply,
 	.fw_ready	= bdw_fw_ready,
-	.is_ipc_ready	= bdw_is_ipc_ready,
 	.cmd_done	= bdw_cmd_done,
 
 	/* debug */
