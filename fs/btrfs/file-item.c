@@ -458,8 +458,6 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 			BUG_ON(!ordered); /* Logic error */
 		}
 
-		data = kmap_atomic(bvec.bv_page);
-
 		nr_sectors = BTRFS_BYTES_TO_BLKS(fs_info,
 						 bvec.bv_len + fs_info->sectorsize
 						 - 1);
@@ -469,7 +467,6 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				offset < ordered->file_offset) {
 				unsigned long bytes_left;
 
-				kunmap_atomic(data);
 				sums->len = this_sum_bytes;
 				this_sum_bytes = 0;
 				btrfs_add_ordered_sum(inode, ordered, sums);
@@ -489,16 +486,16 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				sums->bytenr = ((u64)bio->bi_iter.bi_sector << 9)
 					+ total_bytes;
 				index = 0;
-
-				data = kmap_atomic(bvec.bv_page);
 			}
 
 			sums->sums[index] = ~(u32)0;
+			data = kmap_atomic(bvec.bv_page);
 			sums->sums[index]
 				= btrfs_csum_data(data + bvec.bv_offset
 						+ (i * fs_info->sectorsize),
 						sums->sums[index],
 						fs_info->sectorsize);
+			kunmap_atomic(data);
 			btrfs_csum_final(sums->sums[index],
 					(char *)(sums->sums + index));
 			index++;
@@ -507,7 +504,6 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 			total_bytes += fs_info->sectorsize;
 		}
 
-		kunmap_atomic(data);
 	}
 	this_sum_bytes = 0;
 	btrfs_add_ordered_sum(inode, ordered, sums);
