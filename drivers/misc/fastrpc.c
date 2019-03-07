@@ -853,12 +853,12 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 
 	if (copy_from_user(&init, argp, sizeof(init))) {
 		err = -EFAULT;
-		goto bail;
+		goto err;
 	}
 
 	if (init.filelen > INIT_FILELEN_MAX) {
 		err = -EINVAL;
-		goto bail;
+		goto err;
 	}
 
 	inbuf.pgid = fl->tgid;
@@ -872,17 +872,15 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 	if (init.filelen && init.filefd) {
 		err = fastrpc_map_create(fl, init.filefd, init.filelen, &map);
 		if (err)
-			goto bail;
+			goto err;
 	}
 
 	memlen = ALIGN(max(INIT_FILELEN_MAX, (int)init.filelen * 4),
 		       1024 * 1024);
 	err = fastrpc_buf_alloc(fl, fl->sctx->dev, memlen,
 				&imem);
-	if (err) {
-		fastrpc_map_put(map);
-		goto bail;
-	}
+	if (err)
+		goto err_alloc;
 
 	fl->init_mem = imem;
 	args[0].ptr = (u64)(uintptr_t)&inbuf;
@@ -918,13 +916,24 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 
 	err = fastrpc_internal_invoke(fl, true, FASTRPC_INIT_HANDLE,
 				      sc, args);
+	if (err)
+		goto err_invoke;
 
-	if (err) {
+	kfree(args);
+
+	return 0;
+
+err_invoke:
+	fl->init_mem = NULL;
+	fastrpc_buf_free(imem);
+err_alloc:
+	if (map) {
+		spin_lock(&fl->lock);
+		list_del(&map->node);
+		spin_unlock(&fl->lock);
 		fastrpc_map_put(map);
-		fastrpc_buf_free(imem);
 	}
-
-bail:
+err:
 	kfree(args);
 
 	return err;
