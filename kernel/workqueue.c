@@ -3348,6 +3348,8 @@ static void wq_init_lockdep(struct workqueue_struct *wq)
 	lock_name = kasprintf(GFP_KERNEL, "%s%s", "(wq_completion)", wq->name);
 	if (!lock_name)
 		lock_name = wq->name;
+
+	wq->lock_name = lock_name;
 	lockdep_init_map(&wq->lockdep_map, lock_name, &wq->key, 0);
 }
 
