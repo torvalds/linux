@@ -93,7 +93,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	phys_pg_pack->flags = args->flags;
 	phys_pg_pack->contiguous = contiguous;
 
-	phys_pg_pack->pages = kcalloc(num_pgs, sizeof(u64), GFP_KERNEL);
+	phys_pg_pack->pages = kvmalloc_array(num_pgs, sizeof(u64), GFP_KERNEL);
 	if (!phys_pg_pack->pages) {
 		rc = -ENOMEM;
 		goto pages_arr_err;
@@ -148,7 +148,7 @@ page_err:
 			gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[i],
 					page_size);
 
-	kfree(phys_pg_pack->pages);
+	kvfree(phys_pg_pack->pages);
 pages_arr_err:
 	kfree(phys_pg_pack);
 pages_pack_err:
@@ -288,7 +288,7 @@ static void free_phys_pg_pack(struct hl_device *hdev,
 		}
 	}
 
-	kfree(phys_pg_pack->pages);
+	kvfree(phys_pg_pack->pages);
 	kfree(phys_pg_pack);
 }
 
@@ -692,7 +692,8 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 
 	page_mask = ~(((u64) page_size) - 1);
 
-	phys_pg_pack->pages = kcalloc(total_npages, sizeof(u64), GFP_KERNEL);
+	phys_pg_pack->pages = kvmalloc_array(total_npages, sizeof(u64),
+						GFP_KERNEL);
 	if (!phys_pg_pack->pages) {
 		rc = -ENOMEM;
 		goto page_pack_arr_mem_err;
