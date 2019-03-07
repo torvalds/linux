@@ -4918,11 +4918,15 @@ static union kvm_mmu_role
 kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 				   bool execonly)
 {
-	union kvm_mmu_role role;
+	union kvm_mmu_role role = {0};
+	union kvm_mmu_page_role root_base = vcpu->arch.root_mmu.mmu_role.base;
 
-	/* Base role is inherited from root_mmu */
-	role.base.word = vcpu->arch.root_mmu.mmu_role.base.word;
-	role.ext = kvm_calc_mmu_role_ext(vcpu);
+	/* Legacy paging and SMM flags are inherited from root_mmu */
+	role.base.smm = root_base.smm;
+	role.base.nxe = root_base.nxe;
+	role.base.cr0_wp = root_base.cr0_wp;
+	role.base.smep_andnot_wp = root_base.smep_andnot_wp;
+	role.base.smap_andnot_wp = root_base.smap_andnot_wp;
 
 	role.base.level = PT64_ROOT_4LEVEL;
 	role.base.direct = false;
@@ -4930,6 +4934,7 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 	role.base.guest_mode = true;
 	role.base.access = ACC_ALL;
 
+	role.ext = kvm_calc_mmu_role_ext(vcpu);
 	role.ext.execonly = execonly;
 
 	return role;
