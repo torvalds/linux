@@ -759,7 +759,7 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 		base = mmhub_v1_0_get_fb_location(adev);
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
-	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+	amdgpu_gmc_vram_location(adev, mc, base);
 	amdgpu_gmc_gart_location(adev, mc);
 	if (!amdgpu_sriov_vf(adev))
 		amdgpu_gmc_agp_location(adev, mc);
