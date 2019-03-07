@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_atomfirmware.h"
 
 struct ras_ih_data {
 	/* interrupt bottom half */
@@ -1327,36 +1328,21 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 }
 /* recovery end */
 
-struct ras_DID_capability {
-	u16 did;
-	u8 rid;
-	u32 capability;
-};
-
-static const struct ras_DID_capability supported_DID_array[] = {
-	{0x66a0, 0x00, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a0, 0x02, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a1, 0x00, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a1, 0x01, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a1, 0x04, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a3, 0x00, AMDGPU_RAS_BLOCK_MASK},
-	{0x66a7, 0x00, AMDGPU_RAS_BLOCK_MASK},
-};
-
 static uint32_t amdgpu_ras_check_supported(struct amdgpu_device *adev)
 {
-	/* TODO need check vbios table */
-	int i;
-	int did = adev->pdev->device;
-	int rid = adev->pdev->revision;
+	uint32_t supported = 0;
 
-	for (i = 0; i < ARRAY_SIZE(supported_DID_array); i++) {
-		if (did == supported_DID_array[i].did &&
-				rid == supported_DID_array[i].rid) {
-			return supported_DID_array[i].capability;
-		}
+	if (amdgpu_ras_enable == 0 ||
+			amdgpu_sriov_vf(adev) ||
+			adev->asic_type != CHIP_VEGA20)
+		return 0;
+
+	if (amdgpu_atomfirmware_mem_ecc_supported(adev) ||
+			amdgpu_atomfirmware_sram_ecc_supported(adev)) {
+		supported = AMDGPU_RAS_BLOCK_MASK;
 	}
-	return 0;
+
+	return supported & amdgpu_ras_mask;
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
@@ -1364,7 +1350,7 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	uint32_t supported = amdgpu_ras_check_supported(adev);
 
-	if (con || supported == 0)
+	if (con)
 		return 0;
 
 	con = kmalloc(sizeof(struct amdgpu_ras) +
