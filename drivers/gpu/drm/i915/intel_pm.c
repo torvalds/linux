@@ -3624,7 +3624,12 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 11)
 		return enabled_slices;
 
-	if (I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
+	/*
+	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
+	 * only that 1 slice enabled until we have a proper way for on-demand
+	 * toggling of the second slice.
+	 */
+	if (0 && I915_READ(DBUF_CTL_S2) & DBUF_POWER_STATE)
 		enabled_slices++;
 
 	return enabled_slices;
