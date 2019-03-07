@@ -222,8 +222,6 @@ static int find_group_dir(struct super_block *sb, struct inode *parent)
 			best_desc = desc;
 		}
 	}
-	if (!best_desc)
-		return -1;
 
 	return best_group;
 }
