@@ -243,9 +243,6 @@ static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 	return desc - &desc->gdev->descs[0];
 }
 
-void devprop_gpiochip_set_names(struct gpio_chip *chip,
-				const struct fwnode_handle *fwnode);
-
 /* With descriptor prefix */
 
 #define gpiod_emerg(desc, fmt, ...)					       \
