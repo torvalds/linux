@@ -303,6 +303,16 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 	return 1;
 }
 
+static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
+{
+	meson_clk_pll_init(hw);
+
+	if (meson_clk_pll_wait_lock(hw))
+		return -EIO;
+
+	return 0;
+}
+
 static int meson_clk_pll_enable(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
@@ -386,6 +396,22 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	return 0;
 }
+
+/*
+ * The Meson G12A PCIE PLL is fined tuned to deliver a very precise
+ * 100MHz reference clock for the PCIe Analog PHY, and thus requires
+ * a strict register sequence to enable the PLL.
+ * To simplify, re-use the _init() op to enable the PLL and keep
+ * the other ops except set_rate since the rate is fixed.
+ */
+const struct clk_ops meson_clk_pcie_pll_ops = {
+	.recalc_rate	= meson_clk_pll_recalc_rate,
+	.round_rate	= meson_clk_pll_round_rate,
+	.is_enabled	= meson_clk_pll_is_enabled,
+	.enable		= meson_clk_pcie_pll_enable,
+	.disable	= meson_clk_pll_disable
+};
+EXPORT_SYMBOL_GPL(meson_clk_pcie_pll_ops);
 
 const struct clk_ops meson_clk_pll_ops = {
 	.init		= meson_clk_pll_init,
