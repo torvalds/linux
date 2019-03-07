@@ -122,7 +122,9 @@ out:
 	return err;
 }
 
-/* xoff = ((301+2.16 * len [m]) * speed [Gbps] + 2.72 MTU [B]) */
+/* xoff = ((301+2.16 * len [m]) * speed [Gbps] + 2.72 MTU [B])
+ * minimum speed value is 40Gbps
+ */
 static u32 calculate_xoff(struct mlx5e_priv *priv, unsigned int mtu)
 {
 	u32 speed;
@@ -130,10 +132,9 @@ static u32 calculate_xoff(struct mlx5e_priv *priv, unsigned int mtu)
 	int err;
 
 	err = mlx5e_port_linkspeed(priv->mdev, &speed);
-	if (err) {
-		mlx5_core_warn(priv->mdev, "cannot get port speed\n");
-		return 0;
-	}
+	if (err)
+		speed = SPEED_40000;
+	speed = max_t(u32, speed, SPEED_40000);
 
 	xoff = (301 + 216 * priv->dcbx.cable_len / 100) * speed / 1000 + 272 * mtu / 100;
 
