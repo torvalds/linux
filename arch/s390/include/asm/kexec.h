@@ -59,13 +59,9 @@ struct s390_load_data {
 	size_t memsz;
 };
 
-int kexec_file_add_purgatory(struct kimage *image,
-			     struct s390_load_data *data);
-int kexec_file_add_initrd(struct kimage *image,
-			  struct s390_load_data *data,
-			  char *initrd, unsigned long initrd_len);
-int *kexec_file_update_kernel(struct kimage *iamge,
-			      struct s390_load_data *data);
+void *kexec_file_add_components(struct kimage *image,
+				int (*add_kernel)(struct kimage *image,
+						  struct s390_load_data *data));
 
 extern const struct kexec_file_ops s390_kexec_image_ops;
 extern const struct kexec_file_ops s390_kexec_elf_ops;

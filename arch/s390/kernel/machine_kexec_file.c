@@ -17,25 +17,6 @@ const struct kexec_file_ops * const kexec_file_loaders[] = {
 	NULL,
 };
 
-int *kexec_file_update_kernel(struct kimage *image,
-			      struct s390_load_data *data)
-{
-	unsigned long *loc;
-
-	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE)
-		return ERR_PTR(-EINVAL);
-
-	memcpy(data->parm->command_line, image->cmdline_buf,
-	       image->cmdline_buf_len);
-
-	if (image->type == KEXEC_TYPE_CRASH) {
-		data->parm->oldmem_base = crashk_res.start;
-		data->parm->oldmem_size = crashk_res.end - crashk_res.start + 1;
-	}
-
-	return NULL;
-}
-
 static int kexec_file_update_purgatory(struct kimage *image)
 {
 	u64 entry, type;
@@ -78,7 +59,8 @@ static int kexec_file_update_purgatory(struct kimage *image)
 	return ret;
 }
 
-int kexec_file_add_purgatory(struct kimage *image, struct s390_load_data *data)
+static int kexec_file_add_purgatory(struct kimage *image,
+				    struct s390_load_data *data)
 {
 	struct kexec_buf buf;
 	int ret;
@@ -98,16 +80,16 @@ int kexec_file_add_purgatory(struct kimage *image, struct s390_load_data *data)
 	return ret;
 }
 
-int kexec_file_add_initrd(struct kimage *image, struct s390_load_data *data,
-			  char *initrd, unsigned long initrd_len)
+static int kexec_file_add_initrd(struct kimage *image,
+				 struct s390_load_data *data)
 {
 	struct kexec_buf buf;
 	int ret;
 
 	buf.image = image;
 
-	buf.buffer = initrd;
-	buf.bufsz = initrd_len;
+	buf.buffer = image->initrd_buf;
+	buf.bufsz = image->initrd_buf_len;
 
 	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
 	buf.mem = data->memsz;
@@ -121,6 +103,40 @@ int kexec_file_add_initrd(struct kimage *image, struct s390_load_data *data,
 
 	ret = kexec_add_buffer(&buf);
 	return ret;
+}
+
+void *kexec_file_add_components(struct kimage *image,
+				int (*add_kernel)(struct kimage *image,
+						  struct s390_load_data *data))
+{
+	struct s390_load_data data = {0};
+	int ret;
+
+	ret = add_kernel(image, &data);
+	if (ret)
+		return ERR_PTR(ret);
+
+	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE)
+		return ERR_PTR(-EINVAL);
+	memcpy(data.parm->command_line, image->cmdline_buf,
+	       image->cmdline_buf_len);
+
+	if (image->type == KEXEC_TYPE_CRASH) {
+		data.parm->oldmem_base = crashk_res.start;
+		data.parm->oldmem_size = crashk_res.end - crashk_res.start + 1;
+	}
+
+	if (image->initrd_buf) {
+		ret = kexec_file_add_initrd(image, &data);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	ret = kexec_file_add_purgatory(image, &data);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return NULL;
 }
 
 int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
