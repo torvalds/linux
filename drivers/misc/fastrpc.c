@@ -283,6 +283,7 @@ static void fastrpc_context_free(struct kref *ref)
 {
 	struct fastrpc_invoke_ctx *ctx;
 	struct fastrpc_channel_ctx *cctx;
+	unsigned long flags;
 	int i;
 
 	ctx = container_of(ref, struct fastrpc_invoke_ctx, refcount);
@@ -294,9 +295,9 @@ static void fastrpc_context_free(struct kref *ref)
 	if (ctx->buf)
 		fastrpc_buf_free(ctx->buf);
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	idr_remove(&cctx->ctx_idr, ctx->ctxid >> 4);
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	kfree(ctx->maps);
 	kfree(ctx);
@@ -326,6 +327,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 {
 	struct fastrpc_channel_ctx *cctx = user->cctx;
 	struct fastrpc_invoke_ctx *ctx = NULL;
+	unsigned long flags;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -360,15 +362,15 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	list_add_tail(&ctx->node, &user->pending);
 	spin_unlock(&user->lock);
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	ret = idr_alloc_cyclic(&cctx->ctx_idr, ctx, 1,
 			       FASTRPC_CTX_MAX, GFP_ATOMIC);
 	if (ret < 0) {
-		spin_unlock(&cctx->lock);
+		spin_unlock_irqrestore(&cctx->lock, flags);
 		goto err_idr;
 	}
 	ctx->ctxid = ret << 4;
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	kref_init(&ctx->refcount);
 
@@ -948,9 +950,10 @@ static struct fastrpc_session_ctx *fastrpc_session_alloc(
 					struct fastrpc_channel_ctx *cctx)
 {
 	struct fastrpc_session_ctx *session = NULL;
+	unsigned long flags;
 	int i;
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	for (i = 0; i < cctx->sesscount; i++) {
 		if (!cctx->session[i].used && cctx->session[i].valid) {
 			cctx->session[i].used = true;
@@ -958,7 +961,7 @@ static struct fastrpc_session_ctx *fastrpc_session_alloc(
 			break;
 		}
 	}
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	return session;
 }
@@ -966,9 +969,11 @@ static struct fastrpc_session_ctx *fastrpc_session_alloc(
 static void fastrpc_session_free(struct fastrpc_channel_ctx *cctx,
 				 struct fastrpc_session_ctx *session)
 {
-	spin_lock(&cctx->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&cctx->lock, flags);
 	session->used = false;
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 }
 
 static int fastrpc_release_current_dsp_process(struct fastrpc_user *fl)
@@ -994,12 +999,13 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 	struct fastrpc_channel_ctx *cctx = fl->cctx;
 	struct fastrpc_invoke_ctx *ctx, *n;
 	struct fastrpc_map *map, *m;
+	unsigned long flags;
 
 	fastrpc_release_current_dsp_process(fl);
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	list_del(&fl->user);
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	if (fl->init_mem)
 		fastrpc_buf_free(fl->init_mem);
@@ -1027,6 +1033,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 {
 	struct fastrpc_channel_ctx *cctx = miscdev_to_cctx(filp->private_data);
 	struct fastrpc_user *fl = NULL;
+	unsigned long flags;
 
 	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
 	if (!fl)
@@ -1050,9 +1057,9 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	list_add_tail(&fl->user, &cctx->users);
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	return 0;
 }
@@ -1208,6 +1215,7 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	struct fastrpc_session_ctx *sess;
 	struct device *dev = &pdev->dev;
 	int i, sessions = 0;
+	unsigned long flags;
 
 	cctx = dev_get_drvdata(dev->parent);
 	if (!cctx)
@@ -1215,7 +1223,7 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 
 	of_property_read_u32(dev->of_node, "qcom,nsessions", &sessions);
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	sess = &cctx->session[cctx->sesscount];
 	sess->used = false;
 	sess->valid = true;
@@ -1236,7 +1244,7 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 		}
 	}
 	cctx->sesscount++;
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 	dma_set_mask(dev, DMA_BIT_MASK(32));
 
 	return 0;
@@ -1246,16 +1254,17 @@ static int fastrpc_cb_remove(struct platform_device *pdev)
 {
 	struct fastrpc_channel_ctx *cctx = dev_get_drvdata(pdev->dev.parent);
 	struct fastrpc_session_ctx *sess = dev_get_drvdata(&pdev->dev);
+	unsigned long flags;
 	int i;
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	for (i = 1; i < FASTRPC_MAX_SESSIONS; i++) {
 		if (cctx->session[i].sid == sess->sid) {
 			cctx->session[i].valid = false;
 			cctx->sesscount--;
 		}
 	}
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	return 0;
 }
@@ -1337,11 +1346,12 @@ static void fastrpc_rpmsg_remove(struct rpmsg_device *rpdev)
 {
 	struct fastrpc_channel_ctx *cctx = dev_get_drvdata(&rpdev->dev);
 	struct fastrpc_user *user;
+	unsigned long flags;
 
-	spin_lock(&cctx->lock);
+	spin_lock_irqsave(&cctx->lock, flags);
 	list_for_each_entry(user, &cctx->users, user)
 		fastrpc_notify_users(user);
-	spin_unlock(&cctx->lock);
+	spin_unlock_irqrestore(&cctx->lock, flags);
 
 	misc_deregister(&cctx->miscdev);
 	of_platform_depopulate(&rpdev->dev);
