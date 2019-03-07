@@ -842,7 +842,9 @@ static bool class_lock_list_valid(struct lock_class *c, struct list_head *h)
 	return true;
 }
 
-static u16 chain_hlocks[];
+#ifdef CONFIG_PROVE_LOCKING
+static u16 chain_hlocks[MAX_LOCKDEP_CHAIN_HLOCKS];
+#endif
 
 static bool check_lock_chain_key(struct lock_chain *chain)
 {
