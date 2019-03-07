@@ -33,6 +33,9 @@ limit in the hierarchy is followed).
 pids.current tracks all child cgroup hierarchies, so parent/pids.current is a
 superset of parent/child/pids.current.
 
+The pids.events file contains event counters:
+  - max: Number of times fork failed because limit was hit.
+
 Example
 -------
 
