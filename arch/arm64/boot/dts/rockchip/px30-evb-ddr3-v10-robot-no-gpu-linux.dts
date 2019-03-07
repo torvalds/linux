@@ -6,11 +6,50 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/input/input.h>
 #include "px30-robot-no-gpu.dtsi"
 
 / {
 	model = "Rockchip linux PX30 evb ddr3 board";
 	compatible = "rockchip,px30-evb-ddr3-v10-linux", "rockchip,px30";
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 2>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		esc-key {
+			linux,code = <KEY_ESC>;
+			label = "esc";
+			press-threshold-microvolt = <1310000>;
+		};
+
+		home-key {
+			linux,code = <KEY_HOME>;
+			label = "home";
+			press-threshold-microvolt = <624000>;
+		};
+
+		menu-key {
+			linux,code = <KEY_MENU>;
+			label = "menu";
+			press-threshold-microvolt = <987000>;
+		};
+
+		vol-down-key {
+			linux,code = <KEY_VOLUMEDOWN>;
+			label = "volume down";
+			press-threshold-microvolt = <300000>;
+		};
+
+		vol-up-key {
+			linux,code = <KEY_VOLUMEUP>;
+			label = "volume up";
+			press-threshold-microvolt = <17000>;
+		};
+	};
 
 	rk809-sound {
 		compatible = "simple-audio-card";
@@ -472,6 +511,11 @@
 			remote-endpoint = <&dphy_rx0_out>;
 		};
 	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc1v8_soc>;
 };
 
 &sdmmc {
