@@ -3549,6 +3549,9 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		return 0;
 	}
 
+	if (*ras_if)
+		goto resume;
+
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
 		return -ENOMEM;
@@ -3573,7 +3576,7 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	r = amdgpu_ras_sysfs_create(adev, &fs_info);
 	if (r)
 		goto sysfs;
-
+resume:
 	r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 	if (r)
 		goto irq;

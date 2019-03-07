@@ -1522,6 +1522,10 @@ static int sdma_v4_0_late_init(void *handle)
 		return 0;
 	}
 
+	/* handle resume path. */
+	if (*ras_if)
+		goto resume;
+
 	*ras_if = kmalloc(sizeof(**ras_if), GFP_KERNEL);
 	if (!*ras_if)
 		return -ENOMEM;
@@ -1546,7 +1550,7 @@ static int sdma_v4_0_late_init(void *handle)
 	r = amdgpu_ras_sysfs_create(adev, &fs_info);
 	if (r)
 		goto sysfs;
-
+resume:
 	r = amdgpu_irq_get(adev, &adev->sdma.ecc_irq, AMDGPU_SDMA_IRQ_ECC0);
 	if (r)
 		goto irq;
