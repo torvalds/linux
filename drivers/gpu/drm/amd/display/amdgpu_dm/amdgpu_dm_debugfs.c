@@ -688,6 +688,47 @@ static int vrr_range_show(struct seq_file *m, void *data)
 
 	return 0;
 }
+
+/* function description
+ *
+ * generic SDP message access for testing
+ *
+ * debugfs sdp_message is located at /syskernel/debug/dri/0/DP-x
+ *
+ * SDP header
+ * Hb0 : Secondary-Data Packet ID
+ * Hb1 : Secondary-Data Packet type
+ * Hb2 : Secondary-Data-packet-specific header, Byte 0
+ * Hb3 : Secondary-Data-packet-specific header, Byte 1
+ *
+ * for using custom sdp message: input 4 bytes SDP header and 32 bytes raw data
+ */
+static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	uint8_t data[36];
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dm_crtc_state *acrtc_state;
+	uint32_t write_size = 36;
+
+	if (connector->base.status != connector_status_connected)
+		return -ENODEV;
+
+	if (size == 0)
+		return 0;
+
+	acrtc_state = to_dm_crtc_state(connector->base.state->crtc->state);
+
+	r = copy_from_user(data, buf, write_size);
+
+	write_size -= r;
+
+	dc_stream_send_dp_sdp(acrtc_state->stream, data, write_size);
+
+	return write_size;
+}
+
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
 static const struct file_operations dp_link_settings_debugfs_fops = {
@@ -710,6 +751,12 @@ static const struct file_operations dp_phy_test_pattern_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations sdp_message_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_sdp_message_debugfs_write,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -717,7 +764,8 @@ static const struct {
 		{"link_settings", &dp_link_settings_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
-		{"vrr_range", &vrr_range_fops}
+		{"vrr_range", &vrr_range_fops},
+		{"sdp_message", &sdp_message_fops}
 };
 
 int connector_debugfs_init(struct amdgpu_dm_connector *connector)
