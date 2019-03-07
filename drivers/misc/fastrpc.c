@@ -149,6 +149,7 @@ struct fastrpc_invoke_ctx {
 	struct kref refcount;
 	struct list_head node; /* list of ctxs */
 	struct completion work;
+	struct work_struct put_work;
 	struct fastrpc_msg msg;
 	struct fastrpc_user *fl;
 	struct fastrpc_remote_arg *rpra;
@@ -311,6 +312,14 @@ static void fastrpc_context_put(struct fastrpc_invoke_ctx *ctx)
 	kref_put(&ctx->refcount, fastrpc_context_free);
 }
 
+static void fastrpc_context_put_wq(struct work_struct *work)
+{
+	struct fastrpc_invoke_ctx *ctx =
+			container_of(work, struct fastrpc_invoke_ctx, put_work);
+
+	fastrpc_context_put(ctx);
+}
+
 static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 			struct fastrpc_user *user, u32 kernel, u32 sc,
 			struct fastrpc_invoke_args *args)
@@ -345,6 +354,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	ctx->tgid = user->tgid;
 	ctx->cctx = cctx;
 	init_completion(&ctx->work);
+	INIT_WORK(&ctx->put_work, fastrpc_context_put_wq);
 
 	spin_lock(&user->lock);
 	list_add_tail(&ctx->node, &user->pending);
@@ -1349,7 +1359,13 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 
 	ctx->retval = rsp->retval;
 	complete(&ctx->work);
-	fastrpc_context_put(ctx);
+
+	/*
+	 * The DMA buffer associated with the context cannot be freed in
+	 * interrupt context so schedule it through a worker thread to
+	 * avoid a kernel BUG.
+	 */
+	schedule_work(&ctx->put_work);
 
 	return 0;
 }
