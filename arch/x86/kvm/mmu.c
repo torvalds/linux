@@ -182,7 +182,7 @@ struct kvm_shadow_walk_iterator {
 
 static const union kvm_mmu_page_role mmu_base_role_mask = {
 	.cr0_wp = 1,
-	.cr4_pae = 1,
+	.gpte_is_8_bytes = 1,
 	.nxe = 1,
 	.smep_andnot_wp = 1,
 	.smap_andnot_wp = 1,
@@ -2205,6 +2205,7 @@ static bool kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 				    struct list_head *invalid_list);
 
+
 #define for_each_valid_sp(_kvm, _sp, _gfn)				\
 	hlist_for_each_entry(_sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
@@ -2215,12 +2216,17 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 	for_each_valid_sp(_kvm, _sp, _gfn)				\
 		if ((_sp)->gfn != (_gfn) || (_sp)->role.direct) {} else
 
+static inline bool is_ept_sp(struct kvm_mmu_page *sp)
+{
+	return sp->role.cr0_wp && sp->role.smap_andnot_wp;
+}
+
 /* @sp->gfn should be write-protected at the call site */
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			    struct list_head *invalid_list)
 {
-	if (sp->role.cr4_pae != !!is_pae(vcpu)
-	    || vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
+	if ((!is_ept_sp(sp) && sp->role.gpte_is_8_bytes != !!is_pae(vcpu)) ||
+	    vcpu->arch.mmu->sync_page(vcpu, sp) == 0) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return false;
 	}
@@ -2423,7 +2429,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role.level = level;
 	role.direct = direct;
 	if (role.direct)
-		role.cr4_pae = 0;
+		role.gpte_is_8_bytes = true;
 	role.access = access;
 	if (!vcpu->arch.mmu->direct_map
 	    && vcpu->arch.mmu->root_level <= PT32_ROOT_LEVEL) {
@@ -4794,7 +4800,6 @@ static union kvm_mmu_role kvm_calc_mmu_role_common(struct kvm_vcpu *vcpu,
 
 	role.base.access = ACC_ALL;
 	role.base.nxe = !!is_nx(vcpu);
-	role.base.cr4_pae = !!is_pae(vcpu);
 	role.base.cr0_wp = is_write_protection(vcpu);
 	role.base.smm = is_smm(vcpu);
 	role.base.guest_mode = is_guest_mode(vcpu);
@@ -4815,6 +4820,7 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 	role.base.ad_disabled = (shadow_accessed_mask == 0);
 	role.base.level = kvm_x86_ops->get_tdp_level(vcpu);
 	role.base.direct = true;
+	role.base.gpte_is_8_bytes = true;
 
 	return role;
 }
@@ -4879,6 +4885,7 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 	role.base.smap_andnot_wp = role.ext.cr4_smap &&
 		!is_write_protection(vcpu);
 	role.base.direct = !is_paging(vcpu);
+	role.base.gpte_is_8_bytes = !!is_pae(vcpu);
 
 	if (!is_long_mode(vcpu))
 		role.base.level = PT32E_ROOT_LEVEL;
@@ -4919,20 +4926,23 @@ kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
 				   bool execonly)
 {
 	union kvm_mmu_role role = {0};
-	union kvm_mmu_page_role root_base = vcpu->arch.root_mmu.mmu_role.base;
 
-	/* Legacy paging and SMM flags are inherited from root_mmu */
-	role.base.smm = root_base.smm;
-	role.base.nxe = root_base.nxe;
-	role.base.cr0_wp = root_base.cr0_wp;
-	role.base.smep_andnot_wp = root_base.smep_andnot_wp;
-	role.base.smap_andnot_wp = root_base.smap_andnot_wp;
+	/* SMM flag is inherited from root_mmu */
+	role.base.smm = vcpu->arch.root_mmu.mmu_role.base.smm;
 
 	role.base.level = PT64_ROOT_4LEVEL;
+	role.base.gpte_is_8_bytes = true;
 	role.base.direct = false;
 	role.base.ad_disabled = !accessed_dirty;
 	role.base.guest_mode = true;
 	role.base.access = ACC_ALL;
+
+	/*
+	 * WP=1 and NOT_WP=1 is an impossible combination, use WP and the
+	 * SMAP variation to denote shadow EPT entries.
+	 */
+	role.base.cr0_wp = true;
+	role.base.smap_andnot_wp = true;
 
 	role.ext = kvm_calc_mmu_role_ext(vcpu);
 	role.ext.execonly = execonly;
@@ -5184,7 +5194,7 @@ static bool detect_write_misaligned(struct kvm_mmu_page *sp, gpa_t gpa,
 		 gpa, bytes, sp->role.word);
 
 	offset = offset_in_page(gpa);
-	pte_size = sp->role.cr4_pae ? 8 : 4;
+	pte_size = sp->role.gpte_is_8_bytes ? 8 : 4;
 
 	/*
 	 * Sometimes, the OS only writes the last one bytes to update status
@@ -5208,7 +5218,7 @@ static u64 *get_written_sptes(struct kvm_mmu_page *sp, gpa_t gpa, int *nspte)
 	page_offset = offset_in_page(gpa);
 	level = sp->role.level;
 	*nspte = 1;
-	if (!sp->role.cr4_pae) {
+	if (!sp->role.gpte_is_8_bytes) {
 		page_offset <<= 1;	/* 32->64 */
 		/*
 		 * A 32-bit pde maps 4MB while the shadow pdes map

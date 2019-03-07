@@ -253,14 +253,14 @@ struct kvm_mmu_memory_cache {
  * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
  * by indirect shadow page can not be more than 15 bits.
  *
- * Currently, we used 14 bits that are @level, @cr4_pae, @quadrant, @access,
+ * Currently, we used 14 bits that are @level, @gpte_is_8_bytes, @quadrant, @access,
  * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
  */
 union kvm_mmu_page_role {
 	u32 word;
 	struct {
 		unsigned level:4;
-		unsigned cr4_pae:1;
+		unsigned gpte_is_8_bytes:1;
 		unsigned quadrant:2;
 		unsigned direct:1;
 		unsigned access:3;
