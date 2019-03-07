@@ -306,7 +306,6 @@ struct snd_sof_widget {
 	int id;
 
 	struct snd_soc_dapm_widget *widget;
-	struct mutex mutex;	/* access mutex */
 	struct list_head list;	/* list in sdev widget list */
 
 	void *private;		/* core does not touch this */
