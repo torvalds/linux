@@ -15557,12 +15557,11 @@ F:	mm/shmem.c
 TOMOYO SECURITY MODULE
 M:	Kentaro Takeda <takedakn@nttdata.co.jp>
 M:	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-L:	tomoyo-dev-en@lists.sourceforge.jp (subscribers-only, for developers in English)
-L:	tomoyo-users-en@lists.sourceforge.jp (subscribers-only, for users in English)
-L:	tomoyo-dev@lists.sourceforge.jp (subscribers-only, for developers in Japanese)
-L:	tomoyo-users@lists.sourceforge.jp (subscribers-only, for users in Japanese)
-W:	http://tomoyo.sourceforge.jp/
-T:	quilt http://svn.sourceforge.jp/svnroot/tomoyo/trunk/2.5.x/tomoyo-lsm/patches/
+L:	tomoyo-dev-en@lists.osdn.me (subscribers-only, for developers in English)
+L:	tomoyo-users-en@lists.osdn.me (subscribers-only, for users in English)
+L:	tomoyo-dev@lists.osdn.me (subscribers-only, for developers in Japanese)
+L:	tomoyo-users@lists.osdn.me (subscribers-only, for users in Japanese)
+W:	https://tomoyo.osdn.jp/
 S:	Maintained
 F:	security/tomoyo/
 
