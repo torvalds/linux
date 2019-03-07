@@ -192,6 +192,13 @@ void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);
 
+static inline bool is_mt76x0(struct mt76x02_dev *dev)
+{
+	return mt76_chip(&dev->mt76) == 0x7610 ||
+	       mt76_chip(&dev->mt76) == 0x7630 ||
+	       mt76_chip(&dev->mt76) == 0x7650;
+}
+
 static inline bool is_mt76x2(struct mt76x02_dev *dev)
 {
 	return mt76_chip(&dev->mt76) == 0x7612 ||
