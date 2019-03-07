@@ -130,6 +130,7 @@ static int tegra_udc_remove(struct platform_device *pdev)
 {
 	struct tegra_udc *udc = platform_get_drvdata(pdev);
 
+	ci_hdrc_remove_device(udc->dev);
 	usb_phy_set_suspend(udc->phy, 1);
 	clk_disable_unprepare(udc->clk);
 

@@ -532,7 +532,7 @@ static void wusbhc_handle_dn_connect(struct wusbhc *wusbhc,
 	}
 
 	dnc = container_of(dn_hdr, struct wusb_dn_connect, hdr);
-	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &dnc->CDID);
+	sprintf(pr_cdid, "%16ph", dnc->CDID.data);
 	dev_info(dev, "DN CONNECT: device %s @ %x (%s) wants to %s\n",
 		 pr_cdid,
 		 wusb_dn_connect_prev_dev_addr(dnc),
