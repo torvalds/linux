@@ -77,6 +77,7 @@ static void	call_connect_status(struct rpc_task *task);
 static __be32	*rpc_encode_header(struct rpc_task *task);
 static __be32	*rpc_verify_header(struct rpc_task *task);
 static int	rpc_ping(struct rpc_clnt *clnt);
+static void	rpc_check_timeout(struct rpc_task *task);
 
 static void rpc_register_client(struct rpc_clnt *clnt)
 {
@@ -1941,8 +1942,7 @@ call_connect_status(struct rpc_task *task)
 			break;
 		if (clnt->cl_autobind) {
 			rpc_force_rebind(clnt);
-			task->tk_action = call_bind;
-			return;
+			goto out_retry;
 		}
 		/* fall through */
 	case -ECONNRESET:
@@ -1962,16 +1962,19 @@ call_connect_status(struct rpc_task *task)
 		/* fall through */
 	case -ENOTCONN:
 	case -EAGAIN:
-		/* Check for timeouts before looping back to call_bind */
 	case -ETIMEDOUT:
-		task->tk_action = call_timeout;
-		return;
+		goto out_retry;
 	case 0:
 		clnt->cl_stats->netreconn++;
 		task->tk_action = call_transmit;
 		return;
 	}
 	rpc_exit(task, status);
+	return;
+out_retry:
+	/* Check for timeouts before looping back to call_bind */
+	task->tk_action = call_bind;
+	rpc_check_timeout(task);
 }
 
 /*
@@ -2048,7 +2051,7 @@ call_transmit_status(struct rpc_task *task)
 				trace_xprt_ping(task->tk_xprt,
 						task->tk_status);
 			rpc_exit(task, task->tk_status);
-			break;
+			return;
 		}
 		/* fall through */
 	case -ECONNRESET:
@@ -2060,6 +2063,7 @@ call_transmit_status(struct rpc_task *task)
 		task->tk_status = 0;
 		break;
 	}
+	rpc_check_timeout(task);
 }
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
@@ -2196,7 +2200,7 @@ call_status(struct rpc_task *task)
 	case -EPIPE:
 	case -ENOTCONN:
 	case -EAGAIN:
-		task->tk_action = call_encode;
+		task->tk_action = call_timeout;
 		break;
 	case -EIO:
 		/* shutdown or soft timeout */
@@ -2210,20 +2214,13 @@ call_status(struct rpc_task *task)
 	}
 }
 
-/*
- * 6a.	Handle RPC timeout
- * 	We do not release the request slot, so we keep using the
- *	same XID for all retransmits.
- */
 static void
-call_timeout(struct rpc_task *task)
+rpc_check_timeout(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 
-	if (xprt_adjust_timeout(task->tk_rqstp) == 0) {
-		dprintk("RPC: %5u call_timeout (minor)\n", task->tk_pid);
-		goto retry;
-	}
+	if (xprt_adjust_timeout(task->tk_rqstp) == 0)
+		return;
 
 	dprintk("RPC: %5u call_timeout (major)\n", task->tk_pid);
 	task->tk_timeouts++;
@@ -2259,10 +2256,19 @@ call_timeout(struct rpc_task *task)
 	 * event? RFC2203 requires the server to drop all such requests.
 	 */
 	rpcauth_invalcred(task);
+}
 
-retry:
+/*
+ * 6a.	Handle RPC timeout
+ * 	We do not release the request slot, so we keep using the
+ *	same XID for all retransmits.
+ */
+static void
+call_timeout(struct rpc_task *task)
+{
 	task->tk_action = call_encode;
 	task->tk_status = 0;
+	rpc_check_timeout(task);
 }
 
 /*
