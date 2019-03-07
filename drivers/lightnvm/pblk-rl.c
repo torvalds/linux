@@ -233,9 +233,14 @@ void pblk_rl_init(struct pblk_rl *rl, int budget, int threshold)
 	/* To start with, all buffer is available to user I/O writers */
 	rl->rb_budget = budget;
 	rl->rb_user_max = budget;
-	rl->rb_max_io = threshold ? (budget - threshold) : (budget - 1);
 	rl->rb_gc_max = 0;
 	rl->rb_state = PBLK_RL_HIGH;
+
+	/* Maximize I/O size and ansure that back threshold is respected */
+	if (threshold)
+		rl->rb_max_io = budget - pblk->min_write_pgs_data - threshold;
+	else
+		rl->rb_max_io = budget - pblk->min_write_pgs_data - 1;
 
 	atomic_set(&rl->rb_user_cnt, 0);
 	atomic_set(&rl->rb_gc_cnt, 0);
