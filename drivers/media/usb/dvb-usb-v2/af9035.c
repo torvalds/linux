@@ -1218,6 +1218,48 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	dev_dbg(&intf->dev, "adap->id=%d\n", adap->id);
 
+	/* I2C master bus 2 clock speed 300k */
+	ret = af9035_wr_reg(d, 0x00f6a7, 0x07);
+	if (ret < 0)
+		goto err;
+
+	/* I2C master bus 1,3 clock speed 300k */
+	ret = af9035_wr_reg(d, 0x00f103, 0x07);
+	if (ret < 0)
+		goto err;
+
+	/* set gpio11 low */
+	ret = af9035_wr_reg_mask(d, 0xd8d4, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8d5, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8d3, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	/* Tuner enable using gpiot2_en, gpiot2_on and gpiot2_o (reset) */
+	ret = af9035_wr_reg_mask(d, 0xd8b8, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8b9, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
+	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x00, 0x01);
+	if (ret < 0)
+		goto err;
+
+	msleep(200);
+
+	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x01, 0x01);
+	if (ret < 0)
+		goto err;
+
 	memset(&si2168_config, 0, sizeof(si2168_config));
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &adap->fe[0];
@@ -1574,48 +1616,6 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 	struct si2157_config si2157_config;
 
 	dev_dbg(&intf->dev, "adap->id=%d\n", adap->id);
-
-	/* I2C master bus 2 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f6a7, 0x07);
-	if (ret < 0)
-		goto err;
-
-	/* I2C master bus 1,3 clock speed 300k */
-	ret = af9035_wr_reg(d, 0x00f103, 0x07);
-	if (ret < 0)
-		goto err;
-
-	/* set gpio11 low */
-	ret = af9035_wr_reg_mask(d, 0xd8d4, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8d5, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8d3, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	/* Tuner enable using gpiot2_en, gpiot2_on and gpiot2_o (reset) */
-	ret = af9035_wr_reg_mask(d, 0xd8b8, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8b9, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
-
-	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x00, 0x01);
-	if (ret < 0)
-		goto err;
-
-	msleep(200);
-
-	ret = af9035_wr_reg_mask(d, 0xd8b7, 0x01, 0x01);
-	if (ret < 0)
-		goto err;
 
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
