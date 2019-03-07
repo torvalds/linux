@@ -69,12 +69,24 @@ struct state {
 	u8 dual_mode:1;
 	u8 no_read:1;
 	u8 af9033_i2c_addr[2];
+	u8 it930x_addresses;
 	struct af9033_config af9033_config[2];
 	struct af9033_ops ops;
 	#define AF9035_I2C_CLIENT_MAX 4
 	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
 	struct i2c_adapter *i2c_adapter_demod;
 	struct platform_device *platform_device_tuner[2];
+};
+
+struct address_table {
+	u8 frontend_i2c_addr;
+	u8 tuner_i2c_addr;
+	u8 tuner_if_port;
+};
+
+static const struct address_table it930x_addresses_table[] = {
+	{ 0x67, 0x63, 1 },
+	{ 0x64, 0x60, 0 },
 };
 
 static const u32 clock_lut_af9035[] = {

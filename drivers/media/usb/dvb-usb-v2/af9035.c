@@ -846,6 +846,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 	state->af9033_config[1].adc_multiplier = AF9033_ADC_MULTIPLIER_2X;
 	state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
 	state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
+	state->it930x_addresses = 0;
 
 	if (state->chip_type == 0x9135) {
 		/* feed clock for integrated RF tuner */
@@ -872,6 +873,10 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		 * IT930x is an USB bridge, only single demod-single tuner
 		 * configurations seen so far.
 		 */
+		if ((le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) &&
+		    (le16_to_cpu(d->udev->descriptor.idProduct) == USB_PID_AVERMEDIA_TD310)) {
+			state->it930x_addresses = 1;
+		}
 		return 0;
 	}
 
@@ -1267,8 +1272,9 @@ static int it930x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	state->af9033_config[adap->id].fe = &adap->fe[0];
 	state->af9033_config[adap->id].ops = &state->ops;
-	ret = af9035_add_i2c_dev(d, "si2168", 0x67, &si2168_config,
-				&d->i2c_adap);
+	ret = af9035_add_i2c_dev(d, "si2168",
+				 it930x_addresses_table[state->it930x_addresses].frontend_i2c_addr,
+				 &si2168_config, &d->i2c_adap);
 	if (ret)
 		goto err;
 
@@ -1619,10 +1625,10 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
-	si2157_config.if_port = 1;
-	ret = af9035_add_i2c_dev(d, "si2157", 0x63,
-			&si2157_config, state->i2c_adapter_demod);
-
+	si2157_config.if_port = it930x_addresses_table[state->it930x_addresses].tuner_if_port;
+	ret = af9035_add_i2c_dev(d, "si2157",
+				 it930x_addresses_table[state->it930x_addresses].tuner_i2c_addr,
+				 &si2157_config, state->i2c_adapter_demod);
 	if (ret)
 		goto err;
 
@@ -2128,6 +2134,8 @@ static const struct usb_device_id af9035_id_table[] = {
 	/* IT930x devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9303,
 		&it930x_props, "ITE 9303 Generic", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TD310,
+		&it930x_props, "AVerMedia TD310 DVB-T2", NULL) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);
