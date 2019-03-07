@@ -865,7 +865,7 @@ fetch_store_strlen(unsigned long addr)
 	u8 c;
 
 	do {
-		ret = probe_mem_read(&c, (u8 *)addr + len, 1);
+		ret = probe_kernel_read(&c, (u8 *)addr + len, 1);
 		len++;
 	} while (c && ret == 0 && len < MAX_STRING_SIZE);
 
