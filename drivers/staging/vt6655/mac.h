@@ -887,8 +887,6 @@ void MACvSetShortRetryLimit(struct vnt_private *priv,
 			    unsigned char byRetryLimit);
 
 void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
-void MACvGetLongRetryLimit(struct vnt_private *priv,
-			   unsigned char *pbyRetryLimit);
 
 void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode);
 
