@@ -470,7 +470,6 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 }
 
 static int mlx5e_init_di_list(struct mlx5e_rq *rq,
-			      struct mlx5e_params *params,
 			      int wq_sz, int cpu)
 {
 	int len = wq_sz << rq->wqe.info.log_num_frags;
@@ -598,7 +597,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_free;
 		}
 
-		err = mlx5e_init_di_list(rq, params, wq_sz, c->cpu);
+		err = mlx5e_init_di_list(rq, wq_sz, c->cpu);
 		if (err)
 			goto err_free;
 		rq->post_wqes = mlx5e_post_rx_wqes;
