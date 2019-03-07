@@ -186,8 +186,11 @@
 #define CLKID_CPU_CLK_AXI			195
 #define CLKID_CPU_CLK_TRACE_DIV			196
 #define CLKID_CPU_CLK_TRACE			197
+#define CLKID_PCIE_PLL_DCO			198
+#define CLKID_PCIE_PLL_DCO_DIV2			199
+#define CLKID_PCIE_PLL_OD			200
 
-#define NR_CLKS					198
+#define NR_CLKS					202
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>
