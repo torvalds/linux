@@ -34,5 +34,6 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev);
 int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev);
 bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev);
+bool amdgpu_atomfirmware_sram_ecc_supported(struct amdgpu_device *adev);
 
 #endif

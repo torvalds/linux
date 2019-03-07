@@ -271,6 +271,36 @@ union firmware_info {
 	struct atom_firmware_info_v3_1 v31;
 };
 
+/*
+ * Return true if vbios supports sram ecc or false if not
+ */
+bool amdgpu_atomfirmware_sram_ecc_supported(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index;
+	u16 data_offset, size;
+	union firmware_info *firmware_info;
+	u8 frev, crev;
+	bool sram_ecc_supported = false;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+			firmwareinfo);
+
+	if (amdgpu_atom_parse_data_header(adev->mode_info.atom_context,
+				index, &size, &frev, &crev, &data_offset)) {
+		/* support firmware_info 3.1 + */
+		if ((frev == 3 && crev >=1) || (frev > 3)) {
+			firmware_info = (union firmware_info *)
+				(mode_info->atom_context->bios + data_offset);
+			sram_ecc_supported =
+				(le32_to_cpu(firmware_info->v31.firmware_capability) &
+				 ATOM_FIRMWARE_CAP_SRAM_ECC) ? true : false;
+		}
+	}
+
+	return sram_ecc_supported;
+}
+
 union smu_info {
 	struct atom_smu_info_v3_1 v31;
 };
