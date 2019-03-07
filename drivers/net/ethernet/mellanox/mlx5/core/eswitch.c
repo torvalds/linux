@@ -431,6 +431,8 @@ static int esw_create_legacy_table(struct mlx5_eswitch *esw)
 {
 	int err;
 
+	memset(&esw->fdb_table.legacy, 0, sizeof(struct legacy_fdb));
+
 	err = esw_create_legacy_vepa_table(esw);
 	if (err)
 		return err;
