@@ -1761,16 +1761,10 @@ static void icm_unplug_children(struct tb_switch *sw)
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 
-		if (tb_is_upstream_port(port))
-			continue;
-		if (port->xdomain) {
+		if (port->xdomain)
 			port->xdomain->is_unplugged = true;
-			continue;
-		}
-		if (!port->remote)
-			continue;
-
-		icm_unplug_children(port->remote->sw);
+		else if (tb_port_has_remote(port))
+			icm_unplug_children(port->remote->sw);
 	}
 }
 
@@ -1781,23 +1775,16 @@ static void icm_free_unplugged_children(struct tb_switch *sw)
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
 
-		if (tb_is_upstream_port(port))
-			continue;
-
 		if (port->xdomain && port->xdomain->is_unplugged) {
 			tb_xdomain_remove(port->xdomain);
 			port->xdomain = NULL;
-			continue;
-		}
-
-		if (!port->remote)
-			continue;
-
-		if (port->remote->sw->is_unplugged) {
-			tb_switch_remove(port->remote->sw);
-			port->remote = NULL;
-		} else {
-			icm_free_unplugged_children(port->remote->sw);
+		} else if (tb_port_has_remote(port)) {
+			if (port->remote->sw->is_unplugged) {
+				tb_switch_remove(port->remote->sw);
+				port->remote = NULL;
+			} else {
+				icm_free_unplugged_children(port->remote->sw);
+			}
 		}
 	}
 }

@@ -1580,14 +1580,13 @@ void tb_switch_remove(struct tb_switch *sw)
 
 	/* port 0 is the switch itself and never has a remote */
 	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (tb_is_upstream_port(&sw->ports[i]))
-			continue;
-		if (sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i])) {
 			tb_switch_remove(sw->ports[i].remote->sw);
-		sw->ports[i].remote = NULL;
-		if (sw->ports[i].xdomain)
+			sw->ports[i].remote = NULL;
+		} else if (sw->ports[i].xdomain) {
 			tb_xdomain_remove(sw->ports[i].xdomain);
-		sw->ports[i].xdomain = NULL;
+			sw->ports[i].xdomain = NULL;
+		}
 	}
 
 	if (!sw->is_unplugged)
@@ -1617,7 +1616,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 	}
 	sw->is_unplugged = true;
 	for (i = 0; i <= sw->config.max_port_number; i++) {
-		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i]))
 			tb_sw_set_unplugged(sw->ports[i].remote->sw);
 	}
 }
@@ -1663,10 +1662,10 @@ int tb_switch_resume(struct tb_switch *sw)
 	/* check for surviving downstream switches */
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
-		if (tb_is_upstream_port(port))
+
+		if (!tb_port_has_remote(port))
 			continue;
-		if (!port->remote)
-			continue;
+
 		if (tb_wait_for_port(port, true) <= 0
 			|| tb_switch_resume(port->remote->sw)) {
 			tb_port_warn(port,
@@ -1685,7 +1684,7 @@ void tb_switch_suspend(struct tb_switch *sw)
 		return;
 
 	for (i = 1; i <= sw->config.max_port_number; i++) {
-		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+		if (tb_port_has_remote(&sw->ports[i]))
 			tb_switch_suspend(sw->ports[i].remote->sw);
 	}
 

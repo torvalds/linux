@@ -270,6 +270,19 @@ static inline struct tb_port *tb_upstream_port(struct tb_switch *sw)
 	return &sw->ports[sw->config.upstream_port_number];
 }
 
+/**
+ * tb_is_upstream_port() - Is the port upstream facing
+ * @port: Port to check
+ *
+ * Returns true if @port is upstream facing port. In case of dual link
+ * ports both return true.
+ */
+static inline bool tb_is_upstream_port(const struct tb_port *port)
+{
+	const struct tb_port *upstream_port = tb_upstream_port(port->sw);
+	return port == upstream_port || port->dual_link_port == upstream_port;
+}
+
 static inline u64 tb_route(struct tb_switch *sw)
 {
 	return ((u64) sw->config.route_hi) << 32 | sw->config.route_lo;
@@ -283,6 +296,24 @@ static inline struct tb_port *tb_port_at(u64 route, struct tb_switch *sw)
 	if (WARN_ON(port > sw->config.max_port_number))
 		return NULL;
 	return &sw->ports[port];
+}
+
+/**
+ * tb_port_has_remote() - Does the port have switch connected downstream
+ * @port: Port to check
+ *
+ * Returns true only when the port is primary port and has remote set.
+ */
+static inline bool tb_port_has_remote(const struct tb_port *port)
+{
+	if (tb_is_upstream_port(port))
+		return false;
+	if (!port->remote)
+		return false;
+	if (port->dual_link_port && port->link_nr)
+		return false;
+
+	return true;
 }
 
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
@@ -487,11 +518,6 @@ int tb_lc_set_sleep(struct tb_switch *sw);
 static inline int tb_route_length(u64 route)
 {
 	return (fls64(route) + TB_ROUTE_SHIFT - 1) / TB_ROUTE_SHIFT;
-}
-
-static inline bool tb_is_upstream_port(struct tb_port *port)
-{
-	return port == tb_upstream_port(port->sw);
 }
 
 /**

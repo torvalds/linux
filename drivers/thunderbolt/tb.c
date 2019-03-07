@@ -47,7 +47,9 @@ static void tb_scan_switch(struct tb_switch *sw)
  */
 static void tb_scan_port(struct tb_port *port)
 {
+	struct tb_port *upstream_port;
 	struct tb_switch *sw;
+
 	if (tb_is_upstream_port(port))
 		return;
 	if (port->config.type != TB_TYPE_PORT)
@@ -80,8 +82,15 @@ static void tb_scan_port(struct tb_port *port)
 		return;
 	}
 
-	port->remote = tb_upstream_port(sw);
-	tb_upstream_port(sw)->remote = port;
+	/* Link the switches using both links if available */
+	upstream_port = tb_upstream_port(sw);
+	port->remote = upstream_port;
+	upstream_port->remote = port;
+	if (port->dual_link_port && upstream_port->dual_link_port) {
+		port->dual_link_port->remote = upstream_port->dual_link_port;
+		upstream_port->dual_link_port->remote = port->dual_link_port;
+	}
+
 	tb_scan_switch(sw);
 }
 
@@ -111,13 +120,15 @@ static void tb_free_unplugged_children(struct tb_switch *sw)
 	int i;
 	for (i = 1; i <= sw->config.max_port_number; i++) {
 		struct tb_port *port = &sw->ports[i];
-		if (tb_is_upstream_port(port))
+
+		if (!tb_port_has_remote(port))
 			continue;
-		if (!port->remote)
-			continue;
+
 		if (port->remote->sw->is_unplugged) {
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
+			if (port->dual_link_port)
+				port->dual_link_port->remote = NULL;
 		} else {
 			tb_free_unplugged_children(port->remote->sw);
 		}
@@ -273,18 +284,19 @@ static void tb_handle_hotplug(struct work_struct *work)
 	}
 	port = &sw->ports[ev->port];
 	if (tb_is_upstream_port(port)) {
-		tb_warn(tb,
-			"hotplug event for upstream port %llx:%x (unplug: %d)\n",
-			ev->route, ev->port, ev->unplug);
+		tb_dbg(tb, "hotplug event for upstream port %llx:%x (unplug: %d)\n",
+		       ev->route, ev->port, ev->unplug);
 		goto put_sw;
 	}
 	if (ev->unplug) {
-		if (port->remote) {
+		if (tb_port_has_remote(port)) {
 			tb_port_info(port, "unplugged\n");
 			tb_sw_set_unplugged(port->remote->sw);
 			tb_free_invalid_tunnels(tb);
 			tb_switch_remove(port->remote->sw);
 			port->remote = NULL;
+			if (port->dual_link_port)
+				port->dual_link_port->remote = NULL;
 		} else {
 			tb_port_info(port,
 				     "got unplug event for disconnected port, ignoring\n");
