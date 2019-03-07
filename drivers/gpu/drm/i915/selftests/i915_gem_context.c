@@ -1493,63 +1493,55 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 {
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
-	int err;
+	int pass;
 
 	GEM_TRACE("Testing %s\n", __engine_name(i915, engines));
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		struct i915_request *rq;
+	for (pass = 0; pass < 4; pass++) { /* Once busy; once idle; repeat */
+		bool from_idle = pass & 1;
+		int err;
 
-		rq = i915_request_alloc(engine, ctx);
-		if (IS_ERR(rq))
-			return PTR_ERR(rq);
+		if (!from_idle) {
+			for_each_engine_masked(engine, i915, engines, tmp) {
+				struct i915_request *rq;
 
-		i915_request_add(rq);
-	}
+				rq = i915_request_alloc(engine, ctx);
+				if (IS_ERR(rq))
+					return PTR_ERR(rq);
 
-	err = i915_gem_switch_to_kernel_context(i915);
-	if (err)
-		return err;
+				i915_request_add(rq);
+			}
+		}
 
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (!engine_has_kernel_context_barrier(engine)) {
-			pr_err("kernel context not last on engine %s!\n",
-			       engine->name);
+		err = i915_gem_switch_to_kernel_context(i915);
+		if (err)
+			return err;
+
+		if (!from_idle) {
+			err = i915_gem_wait_for_idle(i915,
+						     I915_WAIT_LOCKED,
+						     MAX_SCHEDULE_TIMEOUT);
+			if (err)
+				return err;
+		}
+
+		if (i915->gt.active_requests) {
+			pr_err("%d active requests remain after switching to kernel context, pass %d (%s) on %s engine%s\n",
+			       i915->gt.active_requests,
+			       pass, from_idle ? "idle" : "busy",
+			       __engine_name(i915, engines),
+			       is_power_of_2(engines) ? "" : "s");
 			return -EINVAL;
 		}
+
+		/* XXX Bonus points for proving we are the kernel context! */
+
+		mutex_unlock(&i915->drm.struct_mutex);
+		drain_delayed_work(&i915->gt.idle_work);
+		mutex_lock(&i915->drm.struct_mutex);
 	}
 
-	err = i915_gem_wait_for_idle(i915,
-				     I915_WAIT_LOCKED,
-				     MAX_SCHEDULE_TIMEOUT);
-	if (err)
-		return err;
-
-	GEM_BUG_ON(i915->gt.active_requests);
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (engine->last_retired_context->gem_context != i915->kernel_context) {
-			pr_err("engine %s not idling in kernel context!\n",
-			       engine->name);
-			return -EINVAL;
-		}
-	}
-
-	err = i915_gem_switch_to_kernel_context(i915);
-	if (err)
-		return err;
-
-	if (i915->gt.active_requests) {
-		pr_err("switch-to-kernel-context emitted %d requests even though it should already be idling in the kernel context\n",
-		       i915->gt.active_requests);
-		return -EINVAL;
-	}
-
-	for_each_engine_masked(engine, i915, engines, tmp) {
-		if (!intel_engine_has_kernel_context(engine)) {
-			pr_err("kernel context not last on engine %s!\n",
-			       engine->name);
-			return -EINVAL;
-		}
-	}
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		return -EIO;
 
 	return 0;
 }
@@ -1593,8 +1585,6 @@ static int igt_switch_to_kernel_context(void *arg)
 
 out_unlock:
 	GEM_TRACE_DUMP_ON(err);
-	if (igt_flush_test(i915, I915_WAIT_LOCKED))
-		err = -EIO;
 
 	intel_runtime_pm_put(i915, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
