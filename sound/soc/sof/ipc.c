@@ -12,6 +12,7 @@
 //
 
 #include <linux/mutex.h>
+#include <linux/types.h>
 
 #include "sof-priv.h"
 #include "ops.h"
@@ -36,10 +37,8 @@ struct snd_sof_ipc {
 
 	/* protects messages and the disable flag */
 	struct mutex tx_mutex;
-
-	/* TX message work and status */
-	struct work_struct tx_kwork;
-	u32 msg_pending;
+	/* disables further sending of ipc's */
+	bool disable_ipc_tx;
 
 	/* lists */
 	struct list_head tx_list;
@@ -236,8 +235,34 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 
 	snd_sof_dsp_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 
-	/* continue to schedule any remaining messages... */
-	snd_sof_ipc_msgs_tx(sdev);
+	return ret;
+}
+
+/* send next IPC message in list */
+static int ipc_tx_next_msg(struct snd_sof_ipc *ipc)
+{
+	struct snd_sof_dev *sdev = ipc->sdev;
+	struct snd_sof_ipc_msg *msg;
+	int ret;
+
+	/* send first message in TX list */
+	msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg, list);
+
+	ret = snd_sof_dsp_send_msg(sdev, msg);
+	if (ret < 0) {
+		/*
+		 * if ipc tx fails, the msg will be retained in the msg_list, so
+		 * that it can be re-tried until it succeeds or times-out.
+		 */
+		dev_err_ratelimited(sdev->dev,
+				    "error: ipc tx failed with error %d\n",
+				    ret);
+	} else {
+		/* message sent. move it to the reply list */
+		list_move(&msg->list, &ipc->reply_list);
+
+		ipc_log_header(sdev->dev, "ipc tx", msg->header);
+	}
 
 	return ret;
 }
@@ -253,6 +278,11 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 
 	/* Serialise IPC TX */
 	mutex_lock(&ipc->tx_mutex);
+
+	if (ipc->disable_ipc_tx) {
+		ret = -ENODEV;
+		goto unlock;
+	}
 
 	/*
 	 * The spin-lock is also still needed to protect message objects against
@@ -280,14 +310,17 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	/* add message to transmit list */
 	list_add_tail(&msg->list, &ipc->tx_list);
 
+	/* send the message if not busy */
+	if (snd_sof_dsp_is_ipc_ready(sdev))
+		ret = ipc_tx_next_msg(sdev->ipc);
+	else
+		ret = -EAGAIN;
+
 	spin_unlock_irq(&sdev->ipc_lock);
 
-	/* schedule the message if not busy */
-	if (snd_sof_dsp_is_ipc_ready(sdev))
-		snd_sof_ipc_msgs_tx(sdev);
-
 	/* now wait for completion */
-	ret = tx_wait_done(ipc, msg, reply_data);
+	if (!ret)
+		ret = tx_wait_done(ipc, msg, reply_data);
 
 unlock:
 	mutex_unlock(&ipc->tx_mutex);
@@ -295,47 +328,6 @@ unlock:
 	return ret;
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
-
-/* send next IPC message in list */
-static void ipc_tx_next_msg(struct work_struct *work)
-{
-	struct snd_sof_ipc *ipc =
-		container_of(work, struct snd_sof_ipc, tx_kwork);
-	struct snd_sof_dev *sdev = ipc->sdev;
-	struct snd_sof_ipc_msg *msg;
-	int ret;
-
-	spin_lock_irq(&sdev->ipc_lock);
-
-	/* send message if HW ready and message in TX list */
-	if (list_empty(&ipc->tx_list) || !snd_sof_dsp_is_ipc_ready(sdev))
-		goto unlock;
-
-	/* send first message in TX list */
-	msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg, list);
-
-	ret = snd_sof_dsp_send_msg(sdev, msg);
-	if (ret < 0) {
-		/*
-		 * if ipc tx fails, the msg will be retained in the msg_list, so
-		 * that it can be re-tried until it succeeds or times-out. The
-		 * ipc re-try mechanism in SOF currently relies upon tx_kwork
-		 * being rescheduled, which is not guaranteed. This needs to be
-		 * enhanced with a better mechanism.
-		 */
-		dev_err_ratelimited(sdev->dev,
-				    "error: ipc tx failed with error %d\n",
-				    ret);
-	} else {
-		/* message sent. move it to the reply list */
-		list_move(&msg->list, &ipc->reply_list);
-
-		ipc_log_header(sdev->dev, "ipc tx", msg->header);
-	}
-
-unlock:
-	spin_unlock_irq(&sdev->ipc_lock);
-}
 
 /* find original TX message from DSP reply */
 static struct snd_sof_ipc_msg *sof_ipc_reply_find_msg(struct snd_sof_ipc *ipc,
@@ -481,14 +473,6 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	snd_sof_dsp_cmd_done(sdev, SOF_IPC_HOST_REPLY);
 }
 EXPORT_SYMBOL(snd_sof_ipc_msgs_rx);
-
-/* schedule work to transmit any IPC in queue */
-void snd_sof_ipc_msgs_tx(struct snd_sof_dev *sdev)
-{
-	if (!sdev->disable_ipc_queue)
-		schedule_work(&sdev->ipc->tx_kwork);
-}
-EXPORT_SYMBOL(snd_sof_ipc_msgs_tx);
 
 /*
  * IPC trace mechanism.
@@ -816,7 +800,6 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	INIT_LIST_HEAD(&ipc->tx_list);
 	INIT_LIST_HEAD(&ipc->reply_list);
 	INIT_LIST_HEAD(&ipc->empty_list);
-	INIT_WORK(&ipc->tx_kwork, ipc_tx_next_msg);
 	mutex_init(&ipc->tx_mutex);
 	ipc->sdev = sdev;
 
@@ -850,9 +833,11 @@ EXPORT_SYMBOL(snd_sof_ipc_init);
 
 void snd_sof_ipc_free(struct snd_sof_dev *sdev)
 {
-	/* disable queueing of ipc's */
-	sdev->disable_ipc_queue = true;
+	struct snd_sof_ipc *ipc = sdev->ipc;
 
-	cancel_work_sync(&sdev->ipc->tx_kwork);
+	/* disable sending of ipc's */
+	mutex_lock(&ipc->tx_mutex);
+	ipc->disable_ipc_tx = true;
+	mutex_unlock(&ipc->tx_mutex);
 }
 EXPORT_SYMBOL(snd_sof_ipc_free);
