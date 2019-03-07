@@ -502,8 +502,8 @@ void bch2_journal_reclaim(struct journal *j)
 		nr_buckets = min(nr_buckets, ja->nr);
 
 		bucket_to_flush = (ja->cur_idx + nr_buckets) % ja->nr;
-		seq_to_flush = max_t(u64, seq_to_flush,
-				     ja->bucket_seq[bucket_to_flush]);
+		seq_to_flush = max(seq_to_flush,
+				   ja->bucket_seq[bucket_to_flush]);
 	}
 
 	/* Also flush if the pin fifo is more than half full */
@@ -520,12 +520,14 @@ void bch2_journal_reclaim(struct journal *j)
 		       msecs_to_jiffies(j->reclaim_delay_ms)))
 		min_nr = 1;
 
-	if (j->prereserved.reserved * 2 > j->prereserved.remaining)
+	if (j->prereserved.reserved * 2 > j->prereserved.remaining) {
+		seq_to_flush = max(seq_to_flush, journal_last_seq(j));
 		min_nr = 1;
+	}
 
 	journal_flush_pins(j, seq_to_flush, min_nr);
 
-	if (!test_bit(BCH_FS_RO, &c->flags))
+	if (!bch2_journal_error(j))
 		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
 				   msecs_to_jiffies(j->reclaim_delay_ms));
 }
