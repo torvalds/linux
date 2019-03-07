@@ -294,7 +294,6 @@ struct snd_sof_control {
 	enum sof_ipc_ctrl_cmd cmd;
 	u32 *volume_table; /* volume table computed from tlv data*/
 
-	struct mutex mutex;	/* access mutex */
 	struct list_head list;	/* list in sdev control list */
 };
 
