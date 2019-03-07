@@ -67,7 +67,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 				.line = __LINE__,			\
 			};						\
 		______r = !!(cond);					\
-		______f.miss_hit[______r]++;					\
+		______r ? ______f.miss_hit[1]++ : ______f.miss_hit[0]++;\
 		______r;						\
 	}))
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */
