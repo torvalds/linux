@@ -90,13 +90,13 @@ config GENERIC_CSUM
 config GENERIC_HWEIGHT
 	def_bool y
 
+config FIX_EARLYCON_MEM
+	def_bool y
+
 config PGTABLE_LEVELS
 	int
 	default 3 if 64BIT
 	default 2
-
-config HAVE_KPROBES
-	def_bool n
 
 menu "Platform type"
 
