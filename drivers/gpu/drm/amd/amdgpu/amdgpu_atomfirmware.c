@@ -236,6 +236,37 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 	return 0;
 }
 
+/*
+ * Return true if vbios enabled ecc by default, if umc info table is available
+ * or false if ecc is not enabled or umc info table is not available
+ */
+bool amdgpu_atomfirmware_mem_ecc_supported(struct amdgpu_device *adev)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	int index;
+	u16 data_offset, size;
+	union umc_info *umc_info;
+	u8 frev, crev;
+	bool ecc_default_enabled = false;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+			umc_info);
+
+	if (amdgpu_atom_parse_data_header(mode_info->atom_context,
+				index, &size, &frev, &crev, &data_offset)) {
+		/* support umc_info 3.1+ */
+		if ((frev == 3 && crev >= 1) || (frev > 3)) {
+			umc_info = (union umc_info *)
+				(mode_info->atom_context->bios + data_offset);
+			ecc_default_enabled =
+				(le32_to_cpu(umc_info->v31.umc_config) &
+				 UMC_CONFIG__DEFAULT_MEM_ECC_ENABLE) ? true : false;
+		}
+	}
+
+	return ecc_default_enabled;
+}
+
 union firmware_info {
 	struct atom_firmware_info_v3_1 v31;
 };
