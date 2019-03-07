@@ -8564,7 +8564,7 @@ F:	security/keys/encrypted-keys/
 KEYS-TRUSTED
 M:	James Bottomley <jejb@linux.ibm.com>
 M:      Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
-M:	Mimi Zohar <zohar@linuxibm.com>
+M:	Mimi Zohar <zohar@linux.ibm.com>
 L:	linux-integrity@vger.kernel.org
 L:	keyrings@vger.kernel.org
 S:	Supported
