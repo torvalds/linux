@@ -75,6 +75,8 @@ struct drm_i915_private;
 
 #define I915_NUM_ENGINES 8
 
+#define I915_GEM_IDLE_TIMEOUT (HZ / 5)
+
 void i915_gem_park(struct drm_i915_private *i915);
 void i915_gem_unpark(struct drm_i915_private *i915);
 

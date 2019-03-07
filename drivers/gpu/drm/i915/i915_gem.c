@@ -4684,7 +4684,9 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	if (err)
 		goto err_active;
 
-	if (i915_gem_wait_for_idle(i915, I915_WAIT_LOCKED, HZ / 5)) {
+	if (i915_gem_wait_for_idle(i915,
+				   I915_WAIT_LOCKED,
+				   I915_GEM_IDLE_TIMEOUT)) {
 		i915_gem_set_wedged(i915);
 		err = -EIO; /* Caller will declare us wedged */
 		goto err_active;
