@@ -104,7 +104,7 @@ ipipeif_get_cfg_src1(struct vpfe_ipipeif_device *ipipeif)
 
 	informat = &ipipeif->formats[IPIPEIF_PAD_SINK];
 	if (ipipeif->input == IPIPEIF_INPUT_MEMORY &&
-	   (informat->code == MEDIA_BUS_FMT_Y8_1X8 ||
+	    (informat->code == MEDIA_BUS_FMT_Y8_1X8 ||
 	    informat->code == MEDIA_BUS_FMT_UV8_1X8))
 		return IPIPEIF_CCDC;
 
@@ -360,7 +360,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 		default:
 			/* Bayer */
 			ipipeif_write(params.if_5_1.clip, ipipeif_base_addr,
-				IPIPEIF_OCLIP);
+				      IPIPEIF_OCLIP);
 		}
 		ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
 		break;
@@ -389,7 +389,7 @@ ipipeif_set_config(struct v4l2_subdev *sd, struct ipipeif_params *config)
 	ipipeif->config.rsz = config->rsz;
 	ipipeif->config.decimation = config->decimation;
 	if (ipipeif->config.decimation &&
-	   (ipipeif->config.rsz < IPIPEIF_RSZ_MIN ||
+	    (ipipeif->config.rsz < IPIPEIF_RSZ_MIN ||
 	    ipipeif->config.rsz > IPIPEIF_RSZ_MAX)) {
 		dev_err(dev, "rsz range is %d to %d\n",
 			IPIPEIF_RSZ_MIN, IPIPEIF_RSZ_MAX);
@@ -580,7 +580,7 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
  */
 static int
 ipipeif_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *fmt)
+		   struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 
@@ -679,8 +679,8 @@ ipipeif_enum_frame_size(struct v4l2_subdev *sd,
  */
 static struct v4l2_mbus_framefmt *
 __ipipeif_get_format(struct vpfe_ipipeif_device *ipipeif,
-		       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
-		       enum v4l2_subdev_format_whence which)
+		     struct v4l2_subdev_pad_config *cfg, unsigned int pad,
+		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&ipipeif->subdev, cfg, pad);
@@ -697,7 +697,7 @@ __ipipeif_get_format(struct vpfe_ipipeif_device *ipipeif,
  */
 static int
 ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *fmt)
+		   struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -879,7 +879,7 @@ static const struct vpfe_video_operations video_in_ops = {
 
 static int
 ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
-		const struct media_pad *remote, u32 flags)
+		   const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -975,7 +975,7 @@ vpfe_ipipeif_register_entities(struct vpfe_ipipeif_device *ipipeif,
 
 	flags = 0;
 	ret = media_create_pad_link(&ipipeif->video_in.video_dev.entity, 0,
-					&ipipeif->subdev.entity, 0, flags);
+				    &ipipeif->subdev.entity, 0, flags);
 	if (ret < 0)
 		goto fail;
 
