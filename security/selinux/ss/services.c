@@ -1280,7 +1280,8 @@ const char *security_get_initial_sid_context(u32 sid)
 
 static int security_sid_to_context_core(struct selinux_state *state,
 					u32 sid, char **scontext,
-					u32 *scontext_len, int force)
+					u32 *scontext_len, int force,
+					int only_invalid)
 {
 	struct policydb *policydb;
 	struct sidtab *sidtab;
@@ -1325,8 +1326,14 @@ static int security_sid_to_context_core(struct selinux_state *state,
 		rc = -EINVAL;
 		goto out_unlock;
 	}
-	rc = context_struct_to_string(policydb, context, scontext,
-				      scontext_len);
+	if (only_invalid && !context->len) {
+		scontext = NULL;
+		scontext_len = 0;
+		rc = 0;
+	} else {
+		rc = context_struct_to_string(policydb, context, scontext,
+					      scontext_len);
+	}
 out_unlock:
 	read_unlock(&state->ss->policy_rwlock);
 out:
@@ -1348,14 +1355,34 @@ int security_sid_to_context(struct selinux_state *state,
 			    u32 sid, char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(state, sid, scontext,
-					    scontext_len, 0);
+					    scontext_len, 0, 0);
 }
 
 int security_sid_to_context_force(struct selinux_state *state, u32 sid,
 				  char **scontext, u32 *scontext_len)
 {
 	return security_sid_to_context_core(state, sid, scontext,
-					    scontext_len, 1);
+					    scontext_len, 1, 0);
+}
+
+/**
+ * security_sid_to_context_inval - Obtain a context for a given SID if it
+ *                                 is invalid.
+ * @sid: security identifier, SID
+ * @scontext: security context
+ * @scontext_len: length in bytes
+ *
+ * Write the string representation of the context associated with @sid
+ * into a dynamically allocated string of the correct size, but only if the
+ * context is invalid in the current policy.  Set @scontext to point to
+ * this string (or NULL if the context is valid) and set @scontext_len to
+ * the length of the string (or 0 if the context is valid).
+ */
+int security_sid_to_context_inval(struct selinux_state *state, u32 sid,
+				  char **scontext, u32 *scontext_len)
+{
+	return security_sid_to_context_core(state, sid, scontext,
+					    scontext_len, 1, 1);
 }
 
 /*
