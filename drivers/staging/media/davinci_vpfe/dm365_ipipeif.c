@@ -920,8 +920,7 @@ ipipeif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		if (remote->entity == &vpfe->vpfe_ipipe.subdev.entity)
 			/* connencted to ipipe */
 			ipipeif->output = IPIPEIF_OUTPUT_IPIPE;
-		else if (remote->entity == &vpfe->vpfe_resizer.
-			crop_resizer.subdev.entity)
+		else if (remote->entity == &vpfe->vpfe_resizer.crop_resizer.subdev.entity)
 			/* connected to resizer */
 			ipipeif->output = IPIPEIF_OUTPUT_RESIZER;
 		else
