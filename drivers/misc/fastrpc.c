@@ -712,6 +712,7 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 	struct fastrpc_phy_page *pages;
 	int inbufs, i, oix, err = 0;
 	u64 len, rlen, pkt_size;
+	u64 pg_start, pg_end;
 	uintptr_t args;
 	int metalen;
 
@@ -751,8 +752,6 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 		if (!len)
 			continue;
 
-		pages[i].size = roundup(len, PAGE_SIZE);
-
 		if (ctx->maps[i]) {
 			struct vm_area_struct *vma = NULL;
 
@@ -763,6 +762,11 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 			if (vma)
 				pages[i].addr += ctx->args[i].ptr -
 						 vma->vm_start;
+
+			pg_start = (ctx->args[i].ptr & PAGE_MASK) >> PAGE_SHIFT;
+			pg_end = ((ctx->args[i].ptr + len - 1) & PAGE_MASK) >>
+				  PAGE_SHIFT;
+			pages[i].size = (pg_end - pg_start + 1) * PAGE_SIZE;
 
 		} else {
 
@@ -782,6 +786,9 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 					(pkt_size - rlen);
 			pages[i].addr = pages[i].addr &	PAGE_MASK;
 
+			pg_start = (args & PAGE_MASK) >> PAGE_SHIFT;
+			pg_end = ((args + len - 1) & PAGE_MASK) >> PAGE_SHIFT;
+			pages[i].size = (pg_end - pg_start + 1) * PAGE_SIZE;
 			args = args + mlen;
 			rlen -= mlen;
 		}
