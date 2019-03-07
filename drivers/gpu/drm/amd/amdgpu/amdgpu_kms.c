@@ -922,11 +922,14 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_RAS_ENABLED_FEATURES: {
 		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+		uint64_t ras_mask;
 
 		if (!ras)
 			return -EINVAL;
-		return copy_to_user(out, &ras->features,
-				min_t(u32, size, sizeof(ras->features))) ?
+		ras_mask = (uint64_t)ras->supported << 32 | ras->features;
+
+		return copy_to_user(out, &ras_mask,
+				min_t(u64, size, sizeof(ras_mask))) ?
 			-EFAULT : 0;
 	}
 	default:
