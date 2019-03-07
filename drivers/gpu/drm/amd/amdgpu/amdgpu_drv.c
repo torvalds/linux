@@ -498,18 +498,18 @@ MODULE_PARM_DESC(emu_mode, "Emulation mode, (1 = enable, 0 = disable)");
 module_param_named(emu_mode, amdgpu_emu_mode, int, 0444);
 
 /**
- * DOC: amdgpu_ras_enable (int)
+ * DOC: ras_enable (int)
  * Enable RAS features on the GPU (0 = disable, 1 = enable, -1 = auto (default))
  */
-MODULE_PARM_DESC(amdgpu_ras_enable, "Enable RAS features on the GPU (0 = disable, 1 = enable, -1 = auto (default))");
+MODULE_PARM_DESC(ras_enable, "Enable RAS features on the GPU (0 = disable, 1 = enable, -1 = auto (default))");
 module_param_named(ras_enable, amdgpu_ras_enable, int, 0444);
 
 /**
- * DOC: amdgpu_ras_mask (uint)
+ * DOC: ras_mask (uint)
  * Mask of RAS features to enable (default 0xffffffff), only valid when ras_enable == 1
  * See the flags in drivers/gpu/drm/amd/amdgpu/amdgpu_ras.h
  */
-MODULE_PARM_DESC(amdgpu_ras_mask, "Mask of RAS features to enable (default 0xffffffff), only valid when ras_enable == 1");
+MODULE_PARM_DESC(ras_mask, "Mask of RAS features to enable (default 0xffffffff), only valid when ras_enable == 1");
 module_param_named(ras_mask, amdgpu_ras_mask, uint, 0444);
 
 /**
