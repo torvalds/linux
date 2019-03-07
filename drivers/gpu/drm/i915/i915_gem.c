@@ -3123,13 +3123,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 
 		lockdep_assert_held(&i915->drm.struct_mutex);
 
-		if (GEM_SHOW_DEBUG() && !timeout) {
-			/* Presume that timeout was non-zero to begin with! */
-			dev_warn(&i915->drm.pdev->dev,
-				 "Missed idle-completion interrupt!\n");
-			GEM_TRACE_DUMP();
-		}
-
 		err = wait_for_engines(i915);
 		if (err)
 			return err;
@@ -4379,11 +4372,12 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 					     I915_WAIT_INTERRUPTIBLE |
 					     I915_WAIT_LOCKED |
 					     I915_WAIT_FOR_IDLE_BOOST,
-					     MAX_SCHEDULE_TIMEOUT);
-		if (ret && ret != -EIO)
+					     I915_GEM_IDLE_TIMEOUT);
+		if (ret == -EINTR)
 			goto err_unlock;
 
-		assert_kernel_context_is_current(i915);
+		/* Forcibly cancel outstanding work and leave the gpu quiet. */
+		i915_gem_set_wedged(i915);
 	}
 	i915_retire_requests(i915); /* ensure we flush after wedging */
 
@@ -4398,15 +4392,11 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	 */
 	drain_delayed_work(&i915->gt.idle_work);
 
-	intel_uc_suspend(i915);
-
 	/*
 	 * Assert that we successfully flushed all the work and
 	 * reset the GPU back to its idle, low power state.
 	 */
-	WARN_ON(i915->gt.awake);
-	if (WARN_ON(!intel_engines_are_idle(i915)))
-		i915_gem_set_wedged(i915); /* no hope, discard everything */
+	GEM_BUG_ON(i915->gt.awake);
 
 	intel_runtime_pm_put(i915, wakeref);
 	return 0;
