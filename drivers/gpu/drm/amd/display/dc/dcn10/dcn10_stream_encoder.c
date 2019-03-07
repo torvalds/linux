@@ -725,13 +725,19 @@ void enc1_stream_encoder_update_dp_info_packets(
 				3,  /* packetIndex */
 				&info_frame->hdrsmd);
 
+	if (info_frame->dpsdp.valid)
+		enc1_update_generic_info_packet(
+				enc1,
+				4,/* packetIndex */
+				&info_frame->dpsdp);
+
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
 	 */
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
 	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
-
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP4_ENABLE, info_frame->dpsdp.valid);
 
 	/* This bit is the master enable bit.
 	 * When enabling secondary stream engine,

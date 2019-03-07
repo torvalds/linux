@@ -63,6 +63,8 @@ struct encoder_info_frame {
 	struct dc_info_packet vsc;
 	/* HDR Static MetaData */
 	struct dc_info_packet hdrsmd;
+	/* custom sdp message */
+	struct dc_info_packet dpsdp;
 };
 
 struct encoder_unblank_param {
