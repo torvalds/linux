@@ -2783,6 +2783,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	dma_addr_t fence_dma_addr;
 	struct hl_cb *cb;
 	u32 tmp, timeout;
+	char buf[16] = {};
 	int rc;
 
 	if (hdev->pldm)
@@ -2790,9 +2791,10 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	else
 		timeout = HL_DEVICE_TIMEOUT_USEC;
 
-	if (!hdev->asic_funcs->is_device_idle(hdev)) {
+	if (!hdev->asic_funcs->is_device_idle(hdev, buf, sizeof(buf))) {
 		dev_err_ratelimited(hdev->dev,
-			"Can't send KMD job on QMAN0 if device is not idle\n");
+			"Can't send KMD job on QMAN0 because %s is busy\n",
+			buf);
 		return -EBUSY;
 	}
 
@@ -4691,7 +4693,7 @@ static void goya_disable_clock_gating(struct hl_device *hdev)
 
 }
 
-static bool goya_is_device_idle(struct hl_device *hdev)
+static bool goya_is_device_idle(struct hl_device *hdev, char *buf, size_t size)
 {
 	u64 offset, dma_qm_reg, tpc_qm_reg, tpc_cmdq_reg, tpc_cfg_reg;
 	int i;
@@ -4703,7 +4705,7 @@ static bool goya_is_device_idle(struct hl_device *hdev)
 
 		if ((RREG32(dma_qm_reg) & DMA_QM_IDLE_MASK) !=
 				DMA_QM_IDLE_MASK)
-			return false;
+			return HL_ENG_BUSY(buf, size, "DMA%d_QM", i);
 	}
 
 	offset = mmTPC1_QM_GLBL_STS0 - mmTPC0_QM_GLBL_STS0;
@@ -4715,31 +4717,31 @@ static bool goya_is_device_idle(struct hl_device *hdev)
 
 		if ((RREG32(tpc_qm_reg) & TPC_QM_IDLE_MASK) !=
 				TPC_QM_IDLE_MASK)
-			return false;
+			return HL_ENG_BUSY(buf, size, "TPC%d_QM", i);
 
 		if ((RREG32(tpc_cmdq_reg) & TPC_CMDQ_IDLE_MASK) !=
 				TPC_CMDQ_IDLE_MASK)
-			return false;
+			return HL_ENG_BUSY(buf, size, "TPC%d_CMDQ", i);
 
 		if ((RREG32(tpc_cfg_reg) & TPC_CFG_IDLE_MASK) !=
 				TPC_CFG_IDLE_MASK)
-			return false;
+			return HL_ENG_BUSY(buf, size, "TPC%d_CFG", i);
 	}
 
 	if ((RREG32(mmMME_QM_GLBL_STS0) & MME_QM_IDLE_MASK) !=
 			MME_QM_IDLE_MASK)
-		return false;
+		return HL_ENG_BUSY(buf, size, "MME_QM");
 
 	if ((RREG32(mmMME_CMDQ_GLBL_STS0) & MME_CMDQ_IDLE_MASK) !=
 			MME_CMDQ_IDLE_MASK)
-		return false;
+		return HL_ENG_BUSY(buf, size, "MME_CMDQ");
 
 	if ((RREG32(mmMME_ARCH_STATUS) & MME_ARCH_IDLE_MASK) !=
 			MME_ARCH_IDLE_MASK)
-		return false;
+		return HL_ENG_BUSY(buf, size, "MME_ARCH");
 
 	if (RREG32(mmMME_SHADOW_0_STATUS) & MME_SHADOW_IDLE_MASK)
-		return false;
+		return HL_ENG_BUSY(buf, size, "MME");
 
 	return true;
 }

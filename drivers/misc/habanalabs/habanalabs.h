@@ -555,7 +555,7 @@ struct hl_asic_funcs {
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
 	void (*disable_clock_gating)(struct hl_device *hdev);
-	bool (*is_device_idle)(struct hl_device *hdev);
+	bool (*is_device_idle)(struct hl_device *hdev, char *buf, size_t size);
 	int (*soft_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -1009,6 +1009,12 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_FIELD(reg, field, val)	\
 	WREG32(mm##reg, (RREG32(mm##reg) & ~REG_FIELD_MASK(reg, field)) | \
 			(val) << REG_FIELD_SHIFT(reg, field))
+
+#define HL_ENG_BUSY(buf, size, fmt, ...) ({ \
+		if (buf) \
+			snprintf(buf, size, fmt, ##__VA_ARGS__); \
+		false; \
+	})
 
 struct hwmon_chip_info;
 

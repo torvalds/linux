@@ -93,7 +93,7 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev);
+	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev, NULL, 0);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
