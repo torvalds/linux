@@ -134,7 +134,7 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 	return rate;
 }
 
-const static u32 bsdsr_table_pattern1[] = {
+static const u32 bsdsr_table_pattern1[] = {
 	0x01800000, /* 6 - 1/6 */
 	0x01000000, /* 6 - 1/4 */
 	0x00c00000, /* 6 - 1/3 */
@@ -143,7 +143,7 @@ const static u32 bsdsr_table_pattern1[] = {
 	0x00400000, /* 6 - 1   */
 };
 
-const static u32 bsdsr_table_pattern2[] = {
+static const u32 bsdsr_table_pattern2[] = {
 	0x02400000, /* 6 - 1/6 */
 	0x01800000, /* 6 - 1/4 */
 	0x01200000, /* 6 - 1/3 */
@@ -152,7 +152,7 @@ const static u32 bsdsr_table_pattern2[] = {
 	0x00600000, /* 6 - 1   */
 };
 
-const static u32 bsisr_table[] = {
+static const u32 bsisr_table[] = {
 	0x00100060, /* 6 - 1/6 */
 	0x00100040, /* 6 - 1/4 */
 	0x00100030, /* 6 - 1/3 */
@@ -161,7 +161,7 @@ const static u32 bsisr_table[] = {
 	0x00100020, /* 6 - 1   */
 };
 
-const static u32 chan288888[] = {
+static const u32 chan288888[] = {
 	0x00000006, /* 1 to 2 */
 	0x000001fe, /* 1 to 8 */
 	0x000001fe, /* 1 to 8 */
@@ -170,7 +170,7 @@ const static u32 chan288888[] = {
 	0x000001fe, /* 1 to 8 */
 };
 
-const static u32 chan244888[] = {
+static const u32 chan244888[] = {
 	0x00000006, /* 1 to 2 */
 	0x0000001e, /* 1 to 4 */
 	0x0000001e, /* 1 to 4 */
@@ -179,7 +179,7 @@ const static u32 chan244888[] = {
 	0x000001fe, /* 1 to 8 */
 };
 
-const static u32 chan222222[] = {
+static const u32 chan222222[] = {
 	0x00000006, /* 1 to 2 */
 	0x00000006, /* 1 to 2 */
 	0x00000006, /* 1 to 2 */
