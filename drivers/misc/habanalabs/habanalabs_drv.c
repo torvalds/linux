@@ -229,6 +229,9 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 		hdev->asic_type = asic_type;
 	}
 
+	/* Set default DMA mask to 32 bits */
+	hdev->dma_mask = 32;
+
 	mutex_lock(&hl_devs_idr_lock);
 
 	if (minor == -1) {

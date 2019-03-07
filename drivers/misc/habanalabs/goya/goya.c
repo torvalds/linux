@@ -482,7 +482,7 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
-	rc = hl_pci_init(hdev);
+	rc = hl_pci_init(hdev, 39);
 	if (rc)
 		return rc;
 
@@ -2445,28 +2445,16 @@ static int goya_hw_init(struct hl_device *hdev)
 		goto disable_msix;
 	}
 
-	/* CPU initialization is finished, we can now move to 48 bit DMA mask */
-	rc = pci_set_dma_mask(hdev->pdev, DMA_BIT_MASK(48));
-	if (rc) {
-		dev_warn(hdev->dev, "Unable to set pci dma mask to 48 bits\n");
-		rc = pci_set_dma_mask(hdev->pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Unable to set pci dma mask to 32 bits\n");
+	/*
+	 * Check if we managed to set the DMA mask to more then 32 bits. If so,
+	 * let's try to increase it again because in Goya we set the initial
+	 * dma mask to less then 39 bits so that the allocation of the memory
+	 * area for the device's cpu will be under 39 bits
+	 */
+	if (hdev->dma_mask > 32) {
+		rc = hl_pci_set_dma_mask(hdev, 48);
+		if (rc)
 			goto disable_pci_access;
-		}
-	}
-
-	rc = pci_set_consistent_dma_mask(hdev->pdev, DMA_BIT_MASK(48));
-	if (rc) {
-		dev_warn(hdev->dev,
-			"Unable to set pci consistent dma mask to 48 bits\n");
-		rc = pci_set_consistent_dma_mask(hdev->pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Unable to set pci consistent dma mask to 32 bits\n");
-			goto disable_pci_access;
-		}
 	}
 
 	/* Perform read from the device to flush all MSI-X configuration */

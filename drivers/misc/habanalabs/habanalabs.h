@@ -1106,6 +1106,7 @@ struct hl_device_reset_work {
  * @init_done: is the initialization of the device done.
  * @mmu_enable: is MMU enabled.
  * @device_cpu_disabled: is the device CPU disabled (due to timeouts)
+ * @dma_mask: the dma mask that was set for this device
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1176,6 +1177,7 @@ struct hl_device {
 	u8				dram_default_page_mapping;
 	u8				init_done;
 	u8				device_cpu_disabled;
+	u8				dma_mask;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;
@@ -1397,8 +1399,9 @@ int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
 				u64 addr);
 int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 			u64 dram_base_address, u64 host_phys_size);
-int hl_pci_init(struct hl_device *hdev);
+int hl_pci_init(struct hl_device *hdev, u8 dma_mask);
 void hl_pci_fini(struct hl_device *hdev);
+int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask);
 
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr);
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq);

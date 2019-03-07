@@ -287,41 +287,73 @@ int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
 }
 
 /**
- * hl_pci_init() - PCI initialization code.
+ * hl_pci_set_dma_mask() - Set DMA masks for the device.
  * @hdev: Pointer to hl_device structure.
+ * @dma_mask: number of bits for the requested dma mask.
  *
- * Set DMA masks, initialize the PCI controller and map the PCI BARs.
+ * This function sets the DMA masks (regular and consistent) for a specified
+ * value. If it doesn't succeed, it tries to set it to a fall-back value
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_init(struct hl_device *hdev)
+int hl_pci_set_dma_mask(struct hl_device *hdev, u8 dma_mask)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
 
 	/* set DMA mask */
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(39));
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
 	if (rc) {
-		dev_warn(hdev->dev, "Unable to set pci dma mask to 39 bits\n");
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		dev_warn(hdev->dev,
+			"Failed to set pci dma mask to %d bits, error %d\n",
+			dma_mask, rc);
+
+		dma_mask = hdev->dma_mask;
+
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
 		if (rc) {
 			dev_err(hdev->dev,
-				"Unable to set pci dma mask to 32 bits\n");
+				"Failed to set pci dma mask to %d bits, error %d\n",
+				dma_mask, rc);
 			return rc;
 		}
 	}
 
-	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
+	/*
+	 * We managed to set the dma mask, so update the dma mask field. If
+	 * the set to the coherent mask will fail with that mask, we will
+	 * fail the entire function
+	 */
+	hdev->dma_mask = dma_mask;
+
+	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_mask));
 	if (rc) {
-		dev_warn(hdev->dev,
-			"Unable to set pci consistent dma mask to 39 bits\n");
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (rc) {
-			dev_err(hdev->dev,
-				"Unable to set pci consistent dma mask to 32 bits\n");
-			return rc;
-		}
+		dev_err(hdev->dev,
+			"Failed to set pci consistent dma mask to %d bits, error %d\n",
+			dma_mask, rc);
+		return rc;
 	}
+
+	return 0;
+}
+
+/**
+ * hl_pci_init() - PCI initialization code.
+ * @hdev: Pointer to hl_device structure.
+ * @dma_mask: number of bits for the requested dma mask.
+ *
+ * Set DMA masks, initialize the PCI controller and map the PCI BARs.
+ *
+ * Return: 0 on success, non-zero for failure.
+ */
+int hl_pci_init(struct hl_device *hdev, u8 dma_mask)
+{
+	struct pci_dev *pdev = hdev->pdev;
+	int rc;
+
+	rc = hl_pci_set_dma_mask(hdev, dma_mask);
+	if (rc)
+		return rc;
 
 	if (hdev->reset_pcilink)
 		hl_pci_reset_link_through_bridge(hdev);
