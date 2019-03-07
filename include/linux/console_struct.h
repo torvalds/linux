@@ -119,7 +119,7 @@ struct vc_data {
 	unsigned int	vc_s_blink	: 1;
 	unsigned int	vc_s_reverse	: 1;
 	/* misc */
-	unsigned int	vc_ques		: 1;
+	unsigned int	vc_priv		: 3;
 	unsigned int	vc_need_wrap	: 1;
 	unsigned int	vc_can_do_color	: 1;
 	unsigned int	vc_report_mouse : 2;
