@@ -413,7 +413,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 		}
 		/* fall through */
 	default:
-		if (compat) {
+		if (IS_ENABLED(CONFIG_COMPAT) && compat) {
 #ifdef CONFIG_COMPAT
 			if (!dev->ops->compat_ioctl) {
 				error = -EINVAL;
