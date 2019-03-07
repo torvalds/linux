@@ -1251,8 +1251,195 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 	return ret;
 }
 
-static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context);
-static void omap_gpio_unidle(struct gpio_bank *bank);
+static void omap_gpio_init_context(struct gpio_bank *p)
+{
+	struct omap_gpio_reg_offs *regs = p->regs;
+	void __iomem *base = p->base;
+
+	p->context.ctrl		= readl_relaxed(base + regs->ctrl);
+	p->context.oe		= readl_relaxed(base + regs->direction);
+	p->context.wake_en	= readl_relaxed(base + regs->wkup_en);
+	p->context.leveldetect0	= readl_relaxed(base + regs->leveldetect0);
+	p->context.leveldetect1	= readl_relaxed(base + regs->leveldetect1);
+	p->context.risingdetect	= readl_relaxed(base + regs->risingdetect);
+	p->context.fallingdetect = readl_relaxed(base + regs->fallingdetect);
+	p->context.irqenable1	= readl_relaxed(base + regs->irqenable);
+	p->context.irqenable2	= readl_relaxed(base + regs->irqenable2);
+
+	if (regs->set_dataout && p->regs->clr_dataout)
+		p->context.dataout = readl_relaxed(base + regs->set_dataout);
+	else
+		p->context.dataout = readl_relaxed(base + regs->dataout);
+
+	p->context_valid = true;
+}
+
+static void omap_gpio_restore_context(struct gpio_bank *bank)
+{
+	writel_relaxed(bank->context.wake_en,
+				bank->base + bank->regs->wkup_en);
+	writel_relaxed(bank->context.ctrl, bank->base + bank->regs->ctrl);
+	writel_relaxed(bank->context.leveldetect0,
+				bank->base + bank->regs->leveldetect0);
+	writel_relaxed(bank->context.leveldetect1,
+				bank->base + bank->regs->leveldetect1);
+	writel_relaxed(bank->context.risingdetect,
+				bank->base + bank->regs->risingdetect);
+	writel_relaxed(bank->context.fallingdetect,
+				bank->base + bank->regs->fallingdetect);
+	if (bank->regs->set_dataout && bank->regs->clr_dataout)
+		writel_relaxed(bank->context.dataout,
+				bank->base + bank->regs->set_dataout);
+	else
+		writel_relaxed(bank->context.dataout,
+				bank->base + bank->regs->dataout);
+	writel_relaxed(bank->context.oe, bank->base + bank->regs->direction);
+
+	if (bank->dbck_enable_mask) {
+		writel_relaxed(bank->context.debounce, bank->base +
+					bank->regs->debounce);
+		writel_relaxed(bank->context.debounce_en,
+					bank->base + bank->regs->debounce_en);
+	}
+
+	writel_relaxed(bank->context.irqenable1,
+				bank->base + bank->regs->irqenable);
+	writel_relaxed(bank->context.irqenable2,
+				bank->base + bank->regs->irqenable2);
+}
+
+static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
+{
+	struct device *dev = bank->chip.parent;
+	u32 l1 = 0, l2 = 0;
+
+	if (bank->funcs.idle_enable_level_quirk)
+		bank->funcs.idle_enable_level_quirk(bank);
+
+	if (!bank->enabled_non_wakeup_gpios)
+		goto update_gpio_context_count;
+
+	if (!may_lose_context)
+		goto update_gpio_context_count;
+
+	/*
+	 * If going to OFF, remove triggering for all
+	 * non-wakeup GPIOs.  Otherwise spurious IRQs will be
+	 * generated.  See OMAP2420 Errata item 1.101.
+	 */
+	bank->saved_datain = readl_relaxed(bank->base +
+						bank->regs->datain);
+	l1 = bank->context.fallingdetect;
+	l2 = bank->context.risingdetect;
+
+	l1 &= ~bank->enabled_non_wakeup_gpios;
+	l2 &= ~bank->enabled_non_wakeup_gpios;
+
+	writel_relaxed(l1, bank->base + bank->regs->fallingdetect);
+	writel_relaxed(l2, bank->base + bank->regs->risingdetect);
+
+	bank->workaround_enabled = true;
+
+update_gpio_context_count:
+	if (bank->get_context_loss_count)
+		bank->context_loss_count =
+				bank->get_context_loss_count(dev);
+
+	omap_gpio_dbck_disable(bank);
+}
+
+static void omap_gpio_unidle(struct gpio_bank *bank)
+{
+	struct device *dev = bank->chip.parent;
+	u32 l = 0, gen, gen0, gen1;
+	int c;
+
+	/*
+	 * On the first resume during the probe, the context has not
+	 * been initialised and so initialise it now. Also initialise
+	 * the context loss count.
+	 */
+	if (bank->loses_context && !bank->context_valid) {
+		omap_gpio_init_context(bank);
+
+		if (bank->get_context_loss_count)
+			bank->context_loss_count =
+				bank->get_context_loss_count(dev);
+	}
+
+	omap_gpio_dbck_enable(bank);
+
+	if (bank->funcs.idle_disable_level_quirk)
+		bank->funcs.idle_disable_level_quirk(bank);
+
+	if (bank->loses_context) {
+		if (!bank->get_context_loss_count) {
+			omap_gpio_restore_context(bank);
+		} else {
+			c = bank->get_context_loss_count(dev);
+			if (c != bank->context_loss_count) {
+				omap_gpio_restore_context(bank);
+			} else {
+				return;
+			}
+		}
+	}
+
+	if (!bank->workaround_enabled)
+		return;
+
+	l = readl_relaxed(bank->base + bank->regs->datain);
+
+	/*
+	 * Check if any of the non-wakeup interrupt GPIOs have changed
+	 * state.  If so, generate an IRQ by software.  This is
+	 * horribly racy, but it's the best we can do to work around
+	 * this silicon bug.
+	 */
+	l ^= bank->saved_datain;
+	l &= bank->enabled_non_wakeup_gpios;
+
+	/*
+	 * No need to generate IRQs for the rising edge for gpio IRQs
+	 * configured with falling edge only; and vice versa.
+	 */
+	gen0 = l & bank->context.fallingdetect;
+	gen0 &= bank->saved_datain;
+
+	gen1 = l & bank->context.risingdetect;
+	gen1 &= ~(bank->saved_datain);
+
+	/* FIXME: Consider GPIO IRQs with level detections properly! */
+	gen = l & (~(bank->context.fallingdetect) &
+					 ~(bank->context.risingdetect));
+	/* Consider all GPIO IRQs needed to be updated */
+	gen |= gen0 | gen1;
+
+	if (gen) {
+		u32 old0, old1;
+
+		old0 = readl_relaxed(bank->base + bank->regs->leveldetect0);
+		old1 = readl_relaxed(bank->base + bank->regs->leveldetect1);
+
+		if (!bank->regs->irqstatus_raw0) {
+			writel_relaxed(old0 | gen, bank->base +
+						bank->regs->leveldetect0);
+			writel_relaxed(old1 | gen, bank->base +
+						bank->regs->leveldetect1);
+		}
+
+		if (bank->regs->irqstatus_raw0) {
+			writel_relaxed(old0 | l, bank->base +
+						bank->regs->leveldetect0);
+			writel_relaxed(old1 | l, bank->base +
+						bank->regs->leveldetect1);
+		}
+		writel_relaxed(old0, bank->base + bank->regs->leveldetect0);
+		writel_relaxed(old1, bank->base + bank->regs->leveldetect1);
+	}
+
+	bank->workaround_enabled = false;
+}
 
 static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 				  unsigned long cmd, void *v)
@@ -1281,7 +1468,93 @@ static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static const struct of_device_id omap_gpio_match[];
+static struct omap_gpio_reg_offs omap2_gpio_regs = {
+	.revision =		OMAP24XX_GPIO_REVISION,
+	.direction =		OMAP24XX_GPIO_OE,
+	.datain =		OMAP24XX_GPIO_DATAIN,
+	.dataout =		OMAP24XX_GPIO_DATAOUT,
+	.set_dataout =		OMAP24XX_GPIO_SETDATAOUT,
+	.clr_dataout =		OMAP24XX_GPIO_CLEARDATAOUT,
+	.irqstatus =		OMAP24XX_GPIO_IRQSTATUS1,
+	.irqstatus2 =		OMAP24XX_GPIO_IRQSTATUS2,
+	.irqenable =		OMAP24XX_GPIO_IRQENABLE1,
+	.irqenable2 =		OMAP24XX_GPIO_IRQENABLE2,
+	.set_irqenable =	OMAP24XX_GPIO_SETIRQENABLE1,
+	.clr_irqenable =	OMAP24XX_GPIO_CLEARIRQENABLE1,
+	.debounce =		OMAP24XX_GPIO_DEBOUNCE_VAL,
+	.debounce_en =		OMAP24XX_GPIO_DEBOUNCE_EN,
+	.ctrl =			OMAP24XX_GPIO_CTRL,
+	.wkup_en =		OMAP24XX_GPIO_WAKE_EN,
+	.leveldetect0 =		OMAP24XX_GPIO_LEVELDETECT0,
+	.leveldetect1 =		OMAP24XX_GPIO_LEVELDETECT1,
+	.risingdetect =		OMAP24XX_GPIO_RISINGDETECT,
+	.fallingdetect =	OMAP24XX_GPIO_FALLINGDETECT,
+};
+
+static struct omap_gpio_reg_offs omap4_gpio_regs = {
+	.revision =		OMAP4_GPIO_REVISION,
+	.direction =		OMAP4_GPIO_OE,
+	.datain =		OMAP4_GPIO_DATAIN,
+	.dataout =		OMAP4_GPIO_DATAOUT,
+	.set_dataout =		OMAP4_GPIO_SETDATAOUT,
+	.clr_dataout =		OMAP4_GPIO_CLEARDATAOUT,
+	.irqstatus =		OMAP4_GPIO_IRQSTATUS0,
+	.irqstatus2 =		OMAP4_GPIO_IRQSTATUS1,
+	.irqenable =		OMAP4_GPIO_IRQSTATUSSET0,
+	.irqenable2 =		OMAP4_GPIO_IRQSTATUSSET1,
+	.set_irqenable =	OMAP4_GPIO_IRQSTATUSSET0,
+	.clr_irqenable =	OMAP4_GPIO_IRQSTATUSCLR0,
+	.debounce =		OMAP4_GPIO_DEBOUNCINGTIME,
+	.debounce_en =		OMAP4_GPIO_DEBOUNCENABLE,
+	.ctrl =			OMAP4_GPIO_CTRL,
+	.wkup_en =		OMAP4_GPIO_IRQWAKEN0,
+	.leveldetect0 =		OMAP4_GPIO_LEVELDETECT0,
+	.leveldetect1 =		OMAP4_GPIO_LEVELDETECT1,
+	.risingdetect =		OMAP4_GPIO_RISINGDETECT,
+	.fallingdetect =	OMAP4_GPIO_FALLINGDETECT,
+};
+
+/*
+ * Note that omap2 does not currently support idle modes with context loss so
+ * no need to add OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER quirk flag to save
+ * and restore context.
+ */
+static const struct omap_gpio_platform_data omap2_pdata = {
+	.regs = &omap2_gpio_regs,
+	.bank_width = 32,
+	.dbck_flag = false,
+};
+
+static const struct omap_gpio_platform_data omap3_pdata = {
+	.regs = &omap2_gpio_regs,
+	.bank_width = 32,
+	.dbck_flag = true,
+	.quirks = OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER,
+};
+
+static const struct omap_gpio_platform_data omap4_pdata = {
+	.regs = &omap4_gpio_regs,
+	.bank_width = 32,
+	.dbck_flag = true,
+	.quirks = OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER,
+};
+
+static const struct of_device_id omap_gpio_match[] = {
+	{
+		.compatible = "ti,omap4-gpio",
+		.data = &omap4_pdata,
+	},
+	{
+		.compatible = "ti,omap3-gpio",
+		.data = &omap3_pdata,
+	},
+	{
+		.compatible = "ti,omap2-gpio",
+		.data = &omap2_pdata,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_gpio_match);
 
 static int omap_gpio_probe(struct platform_device *pdev)
 {
@@ -1439,200 +1712,6 @@ static int omap_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void omap_gpio_restore_context(struct gpio_bank *bank);
-
-static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
-{
-	struct device *dev = bank->chip.parent;
-	u32 l1 = 0, l2 = 0;
-
-	if (bank->funcs.idle_enable_level_quirk)
-		bank->funcs.idle_enable_level_quirk(bank);
-
-	if (!bank->enabled_non_wakeup_gpios)
-		goto update_gpio_context_count;
-
-	if (!may_lose_context)
-		goto update_gpio_context_count;
-
-	/*
-	 * If going to OFF, remove triggering for all
-	 * non-wakeup GPIOs.  Otherwise spurious IRQs will be
-	 * generated.  See OMAP2420 Errata item 1.101.
-	 */
-	bank->saved_datain = readl_relaxed(bank->base +
-						bank->regs->datain);
-	l1 = bank->context.fallingdetect;
-	l2 = bank->context.risingdetect;
-
-	l1 &= ~bank->enabled_non_wakeup_gpios;
-	l2 &= ~bank->enabled_non_wakeup_gpios;
-
-	writel_relaxed(l1, bank->base + bank->regs->fallingdetect);
-	writel_relaxed(l2, bank->base + bank->regs->risingdetect);
-
-	bank->workaround_enabled = true;
-
-update_gpio_context_count:
-	if (bank->get_context_loss_count)
-		bank->context_loss_count =
-				bank->get_context_loss_count(dev);
-
-	omap_gpio_dbck_disable(bank);
-}
-
-static void omap_gpio_init_context(struct gpio_bank *p);
-
-static void omap_gpio_unidle(struct gpio_bank *bank)
-{
-	struct device *dev = bank->chip.parent;
-	u32 l = 0, gen, gen0, gen1;
-	int c;
-
-	/*
-	 * On the first resume during the probe, the context has not
-	 * been initialised and so initialise it now. Also initialise
-	 * the context loss count.
-	 */
-	if (bank->loses_context && !bank->context_valid) {
-		omap_gpio_init_context(bank);
-
-		if (bank->get_context_loss_count)
-			bank->context_loss_count =
-				bank->get_context_loss_count(dev);
-	}
-
-	omap_gpio_dbck_enable(bank);
-
-	if (bank->funcs.idle_disable_level_quirk)
-		bank->funcs.idle_disable_level_quirk(bank);
-
-	if (bank->loses_context) {
-		if (!bank->get_context_loss_count) {
-			omap_gpio_restore_context(bank);
-		} else {
-			c = bank->get_context_loss_count(dev);
-			if (c != bank->context_loss_count) {
-				omap_gpio_restore_context(bank);
-			} else {
-				return;
-			}
-		}
-	}
-
-	if (!bank->workaround_enabled)
-		return;
-
-	l = readl_relaxed(bank->base + bank->regs->datain);
-
-	/*
-	 * Check if any of the non-wakeup interrupt GPIOs have changed
-	 * state.  If so, generate an IRQ by software.  This is
-	 * horribly racy, but it's the best we can do to work around
-	 * this silicon bug.
-	 */
-	l ^= bank->saved_datain;
-	l &= bank->enabled_non_wakeup_gpios;
-
-	/*
-	 * No need to generate IRQs for the rising edge for gpio IRQs
-	 * configured with falling edge only; and vice versa.
-	 */
-	gen0 = l & bank->context.fallingdetect;
-	gen0 &= bank->saved_datain;
-
-	gen1 = l & bank->context.risingdetect;
-	gen1 &= ~(bank->saved_datain);
-
-	/* FIXME: Consider GPIO IRQs with level detections properly! */
-	gen = l & (~(bank->context.fallingdetect) &
-					 ~(bank->context.risingdetect));
-	/* Consider all GPIO IRQs needed to be updated */
-	gen |= gen0 | gen1;
-
-	if (gen) {
-		u32 old0, old1;
-
-		old0 = readl_relaxed(bank->base + bank->regs->leveldetect0);
-		old1 = readl_relaxed(bank->base + bank->regs->leveldetect1);
-
-		if (!bank->regs->irqstatus_raw0) {
-			writel_relaxed(old0 | gen, bank->base +
-						bank->regs->leveldetect0);
-			writel_relaxed(old1 | gen, bank->base +
-						bank->regs->leveldetect1);
-		}
-
-		if (bank->regs->irqstatus_raw0) {
-			writel_relaxed(old0 | l, bank->base +
-						bank->regs->leveldetect0);
-			writel_relaxed(old1 | l, bank->base +
-						bank->regs->leveldetect1);
-		}
-		writel_relaxed(old0, bank->base + bank->regs->leveldetect0);
-		writel_relaxed(old1, bank->base + bank->regs->leveldetect1);
-	}
-
-	bank->workaround_enabled = false;
-}
-
-static void omap_gpio_init_context(struct gpio_bank *p)
-{
-	struct omap_gpio_reg_offs *regs = p->regs;
-	void __iomem *base = p->base;
-
-	p->context.ctrl		= readl_relaxed(base + regs->ctrl);
-	p->context.oe		= readl_relaxed(base + regs->direction);
-	p->context.wake_en	= readl_relaxed(base + regs->wkup_en);
-	p->context.leveldetect0	= readl_relaxed(base + regs->leveldetect0);
-	p->context.leveldetect1	= readl_relaxed(base + regs->leveldetect1);
-	p->context.risingdetect	= readl_relaxed(base + regs->risingdetect);
-	p->context.fallingdetect = readl_relaxed(base + regs->fallingdetect);
-	p->context.irqenable1	= readl_relaxed(base + regs->irqenable);
-	p->context.irqenable2	= readl_relaxed(base + regs->irqenable2);
-
-	if (regs->set_dataout && p->regs->clr_dataout)
-		p->context.dataout = readl_relaxed(base + regs->set_dataout);
-	else
-		p->context.dataout = readl_relaxed(base + regs->dataout);
-
-	p->context_valid = true;
-}
-
-static void omap_gpio_restore_context(struct gpio_bank *bank)
-{
-	writel_relaxed(bank->context.wake_en,
-				bank->base + bank->regs->wkup_en);
-	writel_relaxed(bank->context.ctrl, bank->base + bank->regs->ctrl);
-	writel_relaxed(bank->context.leveldetect0,
-				bank->base + bank->regs->leveldetect0);
-	writel_relaxed(bank->context.leveldetect1,
-				bank->base + bank->regs->leveldetect1);
-	writel_relaxed(bank->context.risingdetect,
-				bank->base + bank->regs->risingdetect);
-	writel_relaxed(bank->context.fallingdetect,
-				bank->base + bank->regs->fallingdetect);
-	if (bank->regs->set_dataout && bank->regs->clr_dataout)
-		writel_relaxed(bank->context.dataout,
-				bank->base + bank->regs->set_dataout);
-	else
-		writel_relaxed(bank->context.dataout,
-				bank->base + bank->regs->dataout);
-	writel_relaxed(bank->context.oe, bank->base + bank->regs->direction);
-
-	if (bank->dbck_enable_mask) {
-		writel_relaxed(bank->context.debounce, bank->base +
-					bank->regs->debounce);
-		writel_relaxed(bank->context.debounce_en,
-					bank->base + bank->regs->debounce_en);
-	}
-
-	writel_relaxed(bank->context.irqenable1,
-				bank->base + bank->regs->irqenable);
-	writel_relaxed(bank->context.irqenable2,
-				bank->base + bank->regs->irqenable2);
-}
-
 static int __maybe_unused omap_gpio_runtime_suspend(struct device *dev)
 {
 	struct gpio_bank *bank = dev_get_drvdata(dev);
@@ -1673,104 +1752,10 @@ unlock:
 	return error;
 }
 
-#ifdef CONFIG_ARCH_OMAP2PLUS
 static const struct dev_pm_ops gpio_pm_ops = {
 	SET_RUNTIME_PM_OPS(omap_gpio_runtime_suspend, omap_gpio_runtime_resume,
 									NULL)
 };
-#else
-static const struct dev_pm_ops gpio_pm_ops;
-#endif	/* CONFIG_ARCH_OMAP2PLUS */
-
-#if defined(CONFIG_OF)
-static struct omap_gpio_reg_offs omap2_gpio_regs = {
-	.revision =		OMAP24XX_GPIO_REVISION,
-	.direction =		OMAP24XX_GPIO_OE,
-	.datain =		OMAP24XX_GPIO_DATAIN,
-	.dataout =		OMAP24XX_GPIO_DATAOUT,
-	.set_dataout =		OMAP24XX_GPIO_SETDATAOUT,
-	.clr_dataout =		OMAP24XX_GPIO_CLEARDATAOUT,
-	.irqstatus =		OMAP24XX_GPIO_IRQSTATUS1,
-	.irqstatus2 =		OMAP24XX_GPIO_IRQSTATUS2,
-	.irqenable =		OMAP24XX_GPIO_IRQENABLE1,
-	.irqenable2 =		OMAP24XX_GPIO_IRQENABLE2,
-	.set_irqenable =	OMAP24XX_GPIO_SETIRQENABLE1,
-	.clr_irqenable =	OMAP24XX_GPIO_CLEARIRQENABLE1,
-	.debounce =		OMAP24XX_GPIO_DEBOUNCE_VAL,
-	.debounce_en =		OMAP24XX_GPIO_DEBOUNCE_EN,
-	.ctrl =			OMAP24XX_GPIO_CTRL,
-	.wkup_en =		OMAP24XX_GPIO_WAKE_EN,
-	.leveldetect0 =		OMAP24XX_GPIO_LEVELDETECT0,
-	.leveldetect1 =		OMAP24XX_GPIO_LEVELDETECT1,
-	.risingdetect =		OMAP24XX_GPIO_RISINGDETECT,
-	.fallingdetect =	OMAP24XX_GPIO_FALLINGDETECT,
-};
-
-static struct omap_gpio_reg_offs omap4_gpio_regs = {
-	.revision =		OMAP4_GPIO_REVISION,
-	.direction =		OMAP4_GPIO_OE,
-	.datain =		OMAP4_GPIO_DATAIN,
-	.dataout =		OMAP4_GPIO_DATAOUT,
-	.set_dataout =		OMAP4_GPIO_SETDATAOUT,
-	.clr_dataout =		OMAP4_GPIO_CLEARDATAOUT,
-	.irqstatus =		OMAP4_GPIO_IRQSTATUS0,
-	.irqstatus2 =		OMAP4_GPIO_IRQSTATUS1,
-	.irqenable =		OMAP4_GPIO_IRQSTATUSSET0,
-	.irqenable2 =		OMAP4_GPIO_IRQSTATUSSET1,
-	.set_irqenable =	OMAP4_GPIO_IRQSTATUSSET0,
-	.clr_irqenable =	OMAP4_GPIO_IRQSTATUSCLR0,
-	.debounce =		OMAP4_GPIO_DEBOUNCINGTIME,
-	.debounce_en =		OMAP4_GPIO_DEBOUNCENABLE,
-	.ctrl =			OMAP4_GPIO_CTRL,
-	.wkup_en =		OMAP4_GPIO_IRQWAKEN0,
-	.leveldetect0 =		OMAP4_GPIO_LEVELDETECT0,
-	.leveldetect1 =		OMAP4_GPIO_LEVELDETECT1,
-	.risingdetect =		OMAP4_GPIO_RISINGDETECT,
-	.fallingdetect =	OMAP4_GPIO_FALLINGDETECT,
-};
-
-/*
- * Note that omap2 does not currently support idle modes with context loss so
- * no need to add OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER quirk flag to save
- * and restore context.
- */
-static const struct omap_gpio_platform_data omap2_pdata = {
-	.regs = &omap2_gpio_regs,
-	.bank_width = 32,
-	.dbck_flag = false,
-};
-
-static const struct omap_gpio_platform_data omap3_pdata = {
-	.regs = &omap2_gpio_regs,
-	.bank_width = 32,
-	.dbck_flag = true,
-	.quirks = OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER,
-};
-
-static const struct omap_gpio_platform_data omap4_pdata = {
-	.regs = &omap4_gpio_regs,
-	.bank_width = 32,
-	.dbck_flag = true,
-	.quirks = OMAP_GPIO_QUIRK_IDLE_REMOVE_TRIGGER,
-};
-
-static const struct of_device_id omap_gpio_match[] = {
-	{
-		.compatible = "ti,omap4-gpio",
-		.data = &omap4_pdata,
-	},
-	{
-		.compatible = "ti,omap3-gpio",
-		.data = &omap3_pdata,
-	},
-	{
-		.compatible = "ti,omap2-gpio",
-		.data = &omap2_pdata,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, omap_gpio_match);
-#endif
 
 static struct platform_driver omap_gpio_driver = {
 	.probe		= omap_gpio_probe,
@@ -1778,7 +1763,7 @@ static struct platform_driver omap_gpio_driver = {
 	.driver		= {
 		.name	= "omap_gpio",
 		.pm	= &gpio_pm_ops,
-		.of_match_table = of_match_ptr(omap_gpio_match),
+		.of_match_table = omap_gpio_match,
 	},
 };
 
