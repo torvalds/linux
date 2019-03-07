@@ -122,6 +122,7 @@ static noinline void switch_commit_roots(struct btrfs_transaction *trans)
 		if (is_fstree(root->root_key.objectid))
 			btrfs_unpin_free_ino(root);
 		clear_btree_io_tree(&root->dirty_log_pages);
+		btrfs_qgroup_clean_swapped_blocks(root);
 	}
 
 	/* We can free old roots now. */
@@ -845,8 +846,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	btrfs_trans_release_metadata(trans);
 	trans->block_rsv = NULL;
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	btrfs_trans_release_chunk_metadata(trans);
 
@@ -1532,7 +1532,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	btrfs_set_lock_blocking(old);
+	btrfs_set_lock_blocking_write(old);
 
 	ret = btrfs_copy_root(trans, root, old, &tmp, objectid);
 	/* clean up in any case */
@@ -1943,8 +1943,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	cur_trans->delayed_refs.flushing = 1;
 	smp_wmb();
 
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
+	btrfs_create_pending_block_groups(trans);
 
 	ret = btrfs_run_delayed_refs(trans, 0);
 	if (ret) {

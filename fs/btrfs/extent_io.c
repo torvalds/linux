@@ -147,7 +147,38 @@ static int add_extent_changeset(struct extent_state *state, unsigned bits,
 	return ret;
 }
 
-static void flush_write_bio(struct extent_page_data *epd);
+static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+				       unsigned long bio_flags)
+{
+	blk_status_t ret = 0;
+	struct bio_vec *bvec = bio_last_bvec_all(bio);
+	struct page *page = bvec->bv_page;
+	struct extent_io_tree *tree = bio->bi_private;
+	u64 start;
+
+	start = page_offset(page) + bvec->bv_offset;
+
+	bio->bi_private = NULL;
+
+	if (tree->ops)
+		ret = tree->ops->submit_bio_hook(tree->private_data, bio,
+					   mirror_num, bio_flags, start);
+	else
+		btrfsic_submit_bio(bio);
+
+	return blk_status_to_errno(ret);
+}
+
+static void flush_write_bio(struct extent_page_data *epd)
+{
+	if (epd->bio) {
+		int ret;
+
+		ret = submit_one_bio(epd->bio, 0, 0);
+		BUG_ON(ret < 0); /* -ENOMEM */
+		epd->bio = NULL;
+	}
+}
 
 int __init extent_io_init(void)
 {
@@ -281,8 +312,8 @@ do_insert:
 }
 
 static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
-				      struct rb_node **prev_ret,
 				      struct rb_node **next_ret,
+				      struct rb_node **prev_ret,
 				      struct rb_node ***p_ret,
 				      struct rb_node **parent_ret)
 {
@@ -311,23 +342,23 @@ static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 	if (parent_ret)
 		*parent_ret = prev;
 
-	if (prev_ret) {
+	if (next_ret) {
 		orig_prev = prev;
 		while (prev && offset > prev_entry->end) {
 			prev = rb_next(prev);
 			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
 		}
-		*prev_ret = prev;
+		*next_ret = prev;
 		prev = orig_prev;
 	}
 
-	if (next_ret) {
+	if (prev_ret) {
 		prev_entry = rb_entry(prev, struct tree_entry, rb_node);
 		while (prev && offset < prev_entry->start) {
 			prev = rb_prev(prev);
 			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
 		}
-		*next_ret = prev;
+		*prev_ret = prev;
 	}
 	return NULL;
 }
@@ -338,12 +369,12 @@ tree_search_for_insert(struct extent_io_tree *tree,
 		       struct rb_node ***p_ret,
 		       struct rb_node **parent_ret)
 {
-	struct rb_node *prev = NULL;
+	struct rb_node *next= NULL;
 	struct rb_node *ret;
 
-	ret = __etree_search(tree, offset, &prev, NULL, p_ret, parent_ret);
+	ret = __etree_search(tree, offset, &next, NULL, p_ret, parent_ret);
 	if (!ret)
-		return prev;
+		return next;
 	return ret;
 }
 
@@ -585,7 +616,6 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 	if (delete)
 		bits |= ~EXTENT_CTLBITS;
-	bits |= EXTENT_FIRST_DELALLOC;
 
 	if (bits & (EXTENT_IOBITS | EXTENT_BOUNDARY))
 		clear = 1;
@@ -850,7 +880,6 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
-	bits |= EXTENT_FIRST_DELALLOC;
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
 		/*
@@ -2692,28 +2721,6 @@ struct bio *btrfs_bio_clone_partial(struct bio *orig, int offset, int size)
 	return bio;
 }
 
-static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
-				       unsigned long bio_flags)
-{
-	blk_status_t ret = 0;
-	struct bio_vec *bvec = bio_last_bvec_all(bio);
-	struct page *page = bvec->bv_page;
-	struct extent_io_tree *tree = bio->bi_private;
-	u64 start;
-
-	start = page_offset(page) + bvec->bv_offset;
-
-	bio->bi_private = NULL;
-
-	if (tree->ops)
-		ret = tree->ops->submit_bio_hook(tree->private_data, bio,
-					   mirror_num, bio_flags, start);
-	else
-		btrfsic_submit_bio(bio);
-
-	return blk_status_to_errno(ret);
-}
-
 /*
  * @opf:	bio REQ_OP_* and REQ_* flags as one value
  * @tree:	tree so we can call our merge_bio hook
@@ -4007,17 +4014,6 @@ retry:
 	return ret;
 }
 
-static void flush_write_bio(struct extent_page_data *epd)
-{
-	if (epd->bio) {
-		int ret;
-
-		ret = submit_one_bio(epd->bio, 0, 0);
-		BUG_ON(ret < 0); /* -ENOMEM */
-		epd->bio = NULL;
-	}
-}
-
 int extent_write_full_page(struct page *page, struct writeback_control *wbc)
 {
 	int ret;
@@ -4259,8 +4255,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 		if (len == 0)
 			break;
 		len = ALIGN(len, sectorsize);
-		em = btrfs_get_extent_fiemap(BTRFS_I(inode), NULL, 0, offset,
-				len, 0);
+		em = btrfs_get_extent_fiemap(BTRFS_I(inode), offset, len);
 		if (IS_ERR_OR_NULL(em))
 			return em;
 
