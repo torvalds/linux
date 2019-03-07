@@ -86,121 +86,6 @@ static const struct soc15_reg_golden golden_settings_athub_1_0_0[] =
 	SOC15_REG_GOLDEN_VALUE(ATHUB, 0, mmRPB_ARB_CNTL2, 0x00ff00ff, 0x00080008)
 };
 
-/* Ecc related register addresses, (BASE + reg offset) */
-/* Universal Memory Controller caps (may be fused). */
-/* UMCCH:UmcLocalCap */
-#define UMCLOCALCAPS_ADDR0	(0x00014306 + 0x00000000)
-#define UMCLOCALCAPS_ADDR1	(0x00014306 + 0x00000800)
-#define UMCLOCALCAPS_ADDR2	(0x00014306 + 0x00001000)
-#define UMCLOCALCAPS_ADDR3	(0x00014306 + 0x00001800)
-#define UMCLOCALCAPS_ADDR4	(0x00054306 + 0x00000000)
-#define UMCLOCALCAPS_ADDR5	(0x00054306 + 0x00000800)
-#define UMCLOCALCAPS_ADDR6	(0x00054306 + 0x00001000)
-#define UMCLOCALCAPS_ADDR7	(0x00054306 + 0x00001800)
-#define UMCLOCALCAPS_ADDR8	(0x00094306 + 0x00000000)
-#define UMCLOCALCAPS_ADDR9	(0x00094306 + 0x00000800)
-#define UMCLOCALCAPS_ADDR10	(0x00094306 + 0x00001000)
-#define UMCLOCALCAPS_ADDR11	(0x00094306 + 0x00001800)
-#define UMCLOCALCAPS_ADDR12	(0x000d4306 + 0x00000000)
-#define UMCLOCALCAPS_ADDR13	(0x000d4306 + 0x00000800)
-#define UMCLOCALCAPS_ADDR14	(0x000d4306 + 0x00001000)
-#define UMCLOCALCAPS_ADDR15	(0x000d4306 + 0x00001800)
-
-/* Universal Memory Controller Channel config. */
-/* UMCCH:UMC_CONFIG */
-#define UMCCH_UMC_CONFIG_ADDR0	(0x00014040 + 0x00000000)
-#define UMCCH_UMC_CONFIG_ADDR1	(0x00014040 + 0x00000800)
-#define UMCCH_UMC_CONFIG_ADDR2	(0x00014040 + 0x00001000)
-#define UMCCH_UMC_CONFIG_ADDR3	(0x00014040 + 0x00001800)
-#define UMCCH_UMC_CONFIG_ADDR4	(0x00054040 + 0x00000000)
-#define UMCCH_UMC_CONFIG_ADDR5	(0x00054040 + 0x00000800)
-#define UMCCH_UMC_CONFIG_ADDR6	(0x00054040 + 0x00001000)
-#define UMCCH_UMC_CONFIG_ADDR7	(0x00054040 + 0x00001800)
-#define UMCCH_UMC_CONFIG_ADDR8	(0x00094040 + 0x00000000)
-#define UMCCH_UMC_CONFIG_ADDR9	(0x00094040 + 0x00000800)
-#define UMCCH_UMC_CONFIG_ADDR10	(0x00094040 + 0x00001000)
-#define UMCCH_UMC_CONFIG_ADDR11	(0x00094040 + 0x00001800)
-#define UMCCH_UMC_CONFIG_ADDR12	(0x000d4040 + 0x00000000)
-#define UMCCH_UMC_CONFIG_ADDR13	(0x000d4040 + 0x00000800)
-#define UMCCH_UMC_CONFIG_ADDR14	(0x000d4040 + 0x00001000)
-#define UMCCH_UMC_CONFIG_ADDR15	(0x000d4040 + 0x00001800)
-
-/* Universal Memory Controller Channel Ecc config. */
-/* UMCCH:EccCtrl */
-#define UMCCH_ECCCTRL_ADDR0	(0x00014053 + 0x00000000)
-#define UMCCH_ECCCTRL_ADDR1	(0x00014053 + 0x00000800)
-#define UMCCH_ECCCTRL_ADDR2	(0x00014053 + 0x00001000)
-#define UMCCH_ECCCTRL_ADDR3	(0x00014053 + 0x00001800)
-#define UMCCH_ECCCTRL_ADDR4	(0x00054053 + 0x00000000)
-#define UMCCH_ECCCTRL_ADDR5	(0x00054053 + 0x00000800)
-#define UMCCH_ECCCTRL_ADDR6	(0x00054053 + 0x00001000)
-#define UMCCH_ECCCTRL_ADDR7	(0x00054053 + 0x00001800)
-#define UMCCH_ECCCTRL_ADDR8	(0x00094053 + 0x00000000)
-#define UMCCH_ECCCTRL_ADDR9	(0x00094053 + 0x00000800)
-#define UMCCH_ECCCTRL_ADDR10	(0x00094053 + 0x00001000)
-#define UMCCH_ECCCTRL_ADDR11	(0x00094053 + 0x00001800)
-#define UMCCH_ECCCTRL_ADDR12	(0x000d4053 + 0x00000000)
-#define UMCCH_ECCCTRL_ADDR13	(0x000d4053 + 0x00000800)
-#define UMCCH_ECCCTRL_ADDR14	(0x000d4053 + 0x00001000)
-#define UMCCH_ECCCTRL_ADDR15	(0x000d4053 + 0x00001800)
-
-static const uint32_t ecc_umclocalcap_addrs[] = {
-	UMCLOCALCAPS_ADDR0,
-	UMCLOCALCAPS_ADDR1,
-	UMCLOCALCAPS_ADDR2,
-	UMCLOCALCAPS_ADDR3,
-	UMCLOCALCAPS_ADDR4,
-	UMCLOCALCAPS_ADDR5,
-	UMCLOCALCAPS_ADDR6,
-	UMCLOCALCAPS_ADDR7,
-	UMCLOCALCAPS_ADDR8,
-	UMCLOCALCAPS_ADDR9,
-	UMCLOCALCAPS_ADDR10,
-	UMCLOCALCAPS_ADDR11,
-	UMCLOCALCAPS_ADDR12,
-	UMCLOCALCAPS_ADDR13,
-	UMCLOCALCAPS_ADDR14,
-	UMCLOCALCAPS_ADDR15,
-};
-
-static const uint32_t ecc_umcch_umc_config_addrs[] = {
-	UMCCH_UMC_CONFIG_ADDR0,
-	UMCCH_UMC_CONFIG_ADDR1,
-	UMCCH_UMC_CONFIG_ADDR2,
-	UMCCH_UMC_CONFIG_ADDR3,
-	UMCCH_UMC_CONFIG_ADDR4,
-	UMCCH_UMC_CONFIG_ADDR5,
-	UMCCH_UMC_CONFIG_ADDR6,
-	UMCCH_UMC_CONFIG_ADDR7,
-	UMCCH_UMC_CONFIG_ADDR8,
-	UMCCH_UMC_CONFIG_ADDR9,
-	UMCCH_UMC_CONFIG_ADDR10,
-	UMCCH_UMC_CONFIG_ADDR11,
-	UMCCH_UMC_CONFIG_ADDR12,
-	UMCCH_UMC_CONFIG_ADDR13,
-	UMCCH_UMC_CONFIG_ADDR14,
-	UMCCH_UMC_CONFIG_ADDR15,
-};
-
-static const uint32_t ecc_umcch_eccctrl_addrs[] = {
-	UMCCH_ECCCTRL_ADDR0,
-	UMCCH_ECCCTRL_ADDR1,
-	UMCCH_ECCCTRL_ADDR2,
-	UMCCH_ECCCTRL_ADDR3,
-	UMCCH_ECCCTRL_ADDR4,
-	UMCCH_ECCCTRL_ADDR5,
-	UMCCH_ECCCTRL_ADDR6,
-	UMCCH_ECCCTRL_ADDR7,
-	UMCCH_ECCCTRL_ADDR8,
-	UMCCH_ECCCTRL_ADDR9,
-	UMCCH_ECCCTRL_ADDR10,
-	UMCCH_ECCCTRL_ADDR11,
-	UMCCH_ECCCTRL_ADDR12,
-	UMCCH_ECCCTRL_ADDR13,
-	UMCCH_ECCCTRL_ADDR14,
-	UMCCH_ECCCTRL_ADDR15,
-};
-
 static const uint32_t ecc_umc_mcumc_ctrl_addrs[] = {
 	(0x000143c0 + 0x00000000),
 	(0x000143c0 + 0x00000800),
@@ -773,85 +658,6 @@ static int gmc_v9_0_early_init(void *handle)
 	return 0;
 }
 
-static int gmc_v9_0_ecc_available(struct amdgpu_device *adev)
-{
-	uint32_t reg_val;
-	uint32_t reg_addr;
-	uint32_t field_val;
-	size_t i;
-	uint32_t fv2;
-	size_t lost_sheep;
-
-	DRM_DEBUG("ecc: gmc_v9_0_ecc_available()\n");
-
-	lost_sheep = 0;
-	for (i = 0; i < ARRAY_SIZE(ecc_umclocalcap_addrs); ++i) {
-		reg_addr = ecc_umclocalcap_addrs[i];
-		DRM_DEBUG("ecc: "
-			  "UMCCH_UmcLocalCap[%zu]: reg_addr: 0x%08x\n",
-			  i, reg_addr);
-		reg_val = RREG32(reg_addr);
-		field_val = REG_GET_FIELD(reg_val, UMCCH0_0_UmcLocalCap,
-					  EccDis);
-		DRM_DEBUG("ecc: "
-			  "reg_val: 0x%08x, "
-			  "EccDis: 0x%08x, ",
-			  reg_val, field_val);
-		if (field_val) {
-			DRM_ERROR("ecc: UmcLocalCap:EccDis is set.\n");
-			++lost_sheep;
-		}
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ecc_umcch_umc_config_addrs); ++i) {
-		reg_addr = ecc_umcch_umc_config_addrs[i];
-		DRM_DEBUG("ecc: "
-			  "UMCCH0_0_UMC_CONFIG[%zu]: reg_addr: 0x%08x",
-			  i, reg_addr);
-		reg_val = RREG32(reg_addr);
-		field_val = REG_GET_FIELD(reg_val, UMCCH0_0_UMC_CONFIG,
-					  DramReady);
-		DRM_DEBUG("ecc: "
-			  "reg_val: 0x%08x, "
-			  "DramReady: 0x%08x\n",
-			  reg_val, field_val);
-
-		if (!field_val) {
-			DRM_ERROR("ecc: UMC_CONFIG:DramReady is not set.\n");
-			++lost_sheep;
-		}
-	}
-
-	for (i = 0; i < ARRAY_SIZE(ecc_umcch_eccctrl_addrs); ++i) {
-		reg_addr = ecc_umcch_eccctrl_addrs[i];
-		DRM_DEBUG("ecc: "
-			  "UMCCH_EccCtrl[%zu]: reg_addr: 0x%08x, ",
-			  i, reg_addr);
-		reg_val = RREG32(reg_addr);
-		field_val = REG_GET_FIELD(reg_val, UMCCH0_0_EccCtrl,
-					  WrEccEn);
-		fv2 = REG_GET_FIELD(reg_val, UMCCH0_0_EccCtrl,
-				    RdEccEn);
-		DRM_DEBUG("ecc: "
-			  "reg_val: 0x%08x, "
-			  "WrEccEn: 0x%08x, "
-			  "RdEccEn: 0x%08x\n",
-			  reg_val, field_val, fv2);
-
-		if (!field_val) {
-			DRM_DEBUG("ecc: WrEccEn is not set\n");
-			++lost_sheep;
-		}
-		if (!fv2) {
-			DRM_DEBUG("ecc: RdEccEn is not set\n");
-			++lost_sheep;
-		}
-	}
-
-	DRM_DEBUG("ecc: lost_sheep: %zu\n", lost_sheep);
-	return lost_sheep == 0;
-}
-
 static bool gmc_v9_0_keep_stolen_memory(struct amdgpu_device *adev)
 {
 
@@ -979,7 +785,7 @@ feature:
 static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r;
+	bool r;
 
 	if (!gmc_v9_0_keep_stolen_memory(adev))
 		amdgpu_bo_late_init(adev);
@@ -987,17 +793,29 @@ static int gmc_v9_0_late_init(void *handle)
 	r = gmc_v9_0_allocate_vm_inv_eng(adev);
 	if (r)
 		return r;
+	/* Check if ecc is available */
+	if (!amdgpu_sriov_vf(adev)) {
+		switch (adev->asic_type) {
+		case CHIP_VEGA10:
+		case CHIP_VEGA20:
+			r = amdgpu_atomfirmware_mem_ecc_supported(adev);
+			if (!r) {
+				DRM_INFO("ECC is not present.\n");
+				if (adev->df_funcs->enable_ecc_force_par_wr_rmw)
+					adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
+			} else {
+				DRM_INFO("ECC is active.\n");
+			}
 
-	if (adev->asic_type == CHIP_VEGA10 && !amdgpu_sriov_vf(adev)) {
-		r = gmc_v9_0_ecc_available(adev);
-		if (r == 1) {
-			DRM_INFO("ECC is active.\n");
-		} else if (r == 0) {
-			DRM_INFO("ECC is not present.\n");
-			adev->df_funcs->enable_ecc_force_par_wr_rmw(adev, false);
-		} else {
-			DRM_ERROR("gmc_v9_0_ecc_available() failed. r: %d\n", r);
-			return r;
+			r = amdgpu_atomfirmware_sram_ecc_supported(adev);
+			if (!r) {
+				DRM_INFO("SRAM ECC is not present.\n");
+			} else {
+				DRM_INFO("SRAM ECC is active.\n");
+			}
+			break;
+		default:
+			break;
 		}
 	}
 
