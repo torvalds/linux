@@ -33,7 +33,7 @@ enum goya_queue_id {
 	GOYA_QUEUE_ID_DMA_3,
 	GOYA_QUEUE_ID_DMA_4,
 	GOYA_QUEUE_ID_CPU_PQ,
-	GOYA_QUEUE_ID_MME,
+	GOYA_QUEUE_ID_MME,	/* Internal queues start here */
 	GOYA_QUEUE_ID_TPC0,
 	GOYA_QUEUE_ID_TPC1,
 	GOYA_QUEUE_ID_TPC2,
@@ -181,7 +181,10 @@ struct hl_cs_in {
 };
 
 struct hl_cs_out {
-	/* this holds the sequence number of the CS to pass to wait ioctl */
+	/*
+	 * seq holds the sequence number of the CS to pass to wait ioctl. All
+	 * values are valid except for 0 and ULLONG_MAX
+	 */
 	__u64 seq;
 	/* HL_CS_STATUS_* */
 	__u32 status;
