@@ -1,6 +1,17 @@
 #!/bin/sh
 set -e
 
+# Only run regression-suite on kernels we can boot in canonistack
+source=`dpkg-parsechangelog -SSource`
+case $source in
+    linux|linux-hwe|linux-kvm|linux-oem)
+	;;
+    *)
+	echo "ubuntu-regression-suite is pointless, if one cannot boot the kernel"
+	exit 77
+	;;
+esac
+
 sver=`dpkg-parsechangelog -SVersion`
 read x rver x </proc/version_signature
 
