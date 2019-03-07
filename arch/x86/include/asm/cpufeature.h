@@ -159,7 +159,7 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
  * These will statically patch the target code for additional
  * performance.
  */
-static __always_inline __pure bool _static_cpu_has(u16 bit)
+static __always_inline bool _static_cpu_has(u16 bit)
 {
 	asm_volatile_goto("1: jmp 6f\n"
 		 "2:\n"
