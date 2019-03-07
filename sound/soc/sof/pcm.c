@@ -404,13 +404,10 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 
 	caps = &spcm->pcm.caps[substream->stream];
 
-	mutex_lock(&spcm->mutex);
-
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: pcm open failed to resume %d\n",
 			ret);
-		mutex_unlock(&spcm->mutex);
 		return ret;
 	}
 
@@ -465,7 +462,6 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 				err);
 	}
 
-	mutex_unlock(&spcm->mutex);
 	return ret;
 }
 
@@ -500,7 +496,6 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 		 */
 	}
 
-	mutex_lock(&spcm->mutex);
 	pm_runtime_mark_last_busy(sdev->dev);
 
 	err = pm_runtime_put_autosuspend(sdev->dev);
@@ -508,7 +503,6 @@ static int sof_pcm_close(struct snd_pcm_substream *substream)
 		dev_err(sdev->dev, "error: pcm close failed to idle %d\n",
 			err);
 
-	mutex_unlock(&spcm->mutex);
 	return 0;
 }
 

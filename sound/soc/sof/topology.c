@@ -2029,7 +2029,6 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 		dev_dbg(sdev->dev, "tplg: load pcm %s\n", pcm->dai_name);
 	}
 	dai_drv->dobj.private = spcm;
-	mutex_init(&spcm->mutex);
 	list_add(&spcm->list, &sdev->pcm_list);
 
 	/* do we need to allocate playback PCM DMA pages */

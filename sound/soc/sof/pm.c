@@ -210,12 +210,10 @@ static void sof_set_restore_stream(struct snd_sof_dev *sdev)
 
 	/* suspend all running streams */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		mutex_lock(&spcm->mutex);
 
 		spcm->restore_stream[0] = 1;
 		spcm->restore_stream[1] = 1;
 
-		mutex_unlock(&spcm->mutex);
 	}
 }
 

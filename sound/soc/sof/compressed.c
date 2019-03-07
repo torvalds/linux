@@ -27,12 +27,10 @@ static int sof_compressed_open(struct snd_compr_stream *cstream)
 	struct snd_sof_pcm *spcm = rtd->private;
 	int ret;
 
-	mutex_lock(&spcm->mutex);
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: comp open failed to resume %d\n",
 			ret);
-	mutex_unlock(&spcm->mutex);
 	return ret;
 }
 
@@ -46,12 +44,10 @@ static int sof_compressed_free(struct snd_compr_stream *cstream)
 	struct snd_sof_pcm *spcm = rtd->private;
 	int err;
 
-	mutex_lock(&spcm->mutex);
 	err = pm_runtime_put(sdev->dev);
 	if (err < 0)
 		dev_err(sdev->dev, "error: comp close failed to idle %d\n",
 			err);
-	mutex_unlock(&spcm->mutex);
 	return err;
 }
 
