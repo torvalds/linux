@@ -142,41 +142,22 @@ xfs_dir3_leaf_check_int(
  */
 static xfs_failaddr_t
 xfs_dir3_leaf_verify(
-	struct xfs_buf		*bp,
-	uint16_t		magic)
+	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
+	xfs_failaddr_t		fa;
 
-	ASSERT(magic == XFS_DIR2_LEAF1_MAGIC || magic == XFS_DIR2_LEAFN_MAGIC);
-
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		uint16_t		magic3;
-
-		magic3 = (magic == XFS_DIR2_LEAF1_MAGIC) ? XFS_DIR3_LEAF1_MAGIC
-							 : XFS_DIR3_LEAFN_MAGIC;
-
-		if (leaf3->info.hdr.magic != cpu_to_be16(magic3))
-			return __this_address;
-		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(leaf3->info.lsn)))
-			return __this_address;
-	} else {
-		if (leaf->hdr.info.magic != cpu_to_be16(magic))
-			return __this_address;
-	}
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
 	return xfs_dir3_leaf_check_int(mp, NULL, NULL, leaf);
 }
 
 static void
-__read_verify(
-	struct xfs_buf  *bp,
-	uint16_t	magic)
+xfs_dir3_leaf_read_verify(
+	struct xfs_buf  *bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	xfs_failaddr_t		fa;
@@ -185,23 +166,22 @@ __read_verify(
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_LEAF_CRC_OFF))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
-		fa = xfs_dir3_leaf_verify(bp, magic);
+		fa = xfs_dir3_leaf_verify(bp);
 		if (fa)
 			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 	}
 }
 
 static void
-__write_verify(
-	struct xfs_buf  *bp,
-	uint16_t	magic)
+xfs_dir3_leaf_write_verify(
+	struct xfs_buf  *bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_leaf_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
 
-	fa = xfs_dir3_leaf_verify(bp, magic);
+	fa = xfs_dir3_leaf_verify(bp);
 	if (fa) {
 		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
@@ -216,60 +196,22 @@ __write_verify(
 	xfs_buf_update_cksum(bp, XFS_DIR3_LEAF_CRC_OFF);
 }
 
-static xfs_failaddr_t
-xfs_dir3_leaf1_verify(
-	struct xfs_buf	*bp)
-{
-	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static void
-xfs_dir3_leaf1_read_verify(
-	struct xfs_buf	*bp)
-{
-	__read_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static void
-xfs_dir3_leaf1_write_verify(
-	struct xfs_buf	*bp)
-{
-	__write_verify(bp, XFS_DIR2_LEAF1_MAGIC);
-}
-
-static xfs_failaddr_t
-xfs_dir3_leafn_verify(
-	struct xfs_buf	*bp)
-{
-	return xfs_dir3_leaf_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
-static void
-xfs_dir3_leafn_read_verify(
-	struct xfs_buf	*bp)
-{
-	__read_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
-static void
-xfs_dir3_leafn_write_verify(
-	struct xfs_buf	*bp)
-{
-	__write_verify(bp, XFS_DIR2_LEAFN_MAGIC);
-}
-
 const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
 	.name = "xfs_dir3_leaf1",
-	.verify_read = xfs_dir3_leaf1_read_verify,
-	.verify_write = xfs_dir3_leaf1_write_verify,
-	.verify_struct = xfs_dir3_leaf1_verify,
+	.magic16 = { cpu_to_be16(XFS_DIR2_LEAF1_MAGIC),
+		     cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) },
+	.verify_read = xfs_dir3_leaf_read_verify,
+	.verify_write = xfs_dir3_leaf_write_verify,
+	.verify_struct = xfs_dir3_leaf_verify,
 };
 
 const struct xfs_buf_ops xfs_dir3_leafn_buf_ops = {
 	.name = "xfs_dir3_leafn",
-	.verify_read = xfs_dir3_leafn_read_verify,
-	.verify_write = xfs_dir3_leafn_write_verify,
-	.verify_struct = xfs_dir3_leafn_verify,
+	.magic16 = { cpu_to_be16(XFS_DIR2_LEAFN_MAGIC),
+		     cpu_to_be16(XFS_DIR3_LEAFN_MAGIC) },
+	.verify_read = xfs_dir3_leaf_read_verify,
+	.verify_write = xfs_dir3_leaf_write_verify,
+	.verify_struct = xfs_dir3_leaf_verify,
 };
 
 int

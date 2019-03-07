@@ -743,7 +743,8 @@ xrep_findroot_block(
 
 	/* Ensure the block magic matches the btree type we're looking for. */
 	btblock = XFS_BUF_TO_BLOCK(bp);
-	if (be32_to_cpu(btblock->bb_magic) != fab->magic)
+	ASSERT(fab->buf_ops->magic[1] != 0);
+	if (btblock->bb_magic != fab->buf_ops->magic[1])
 		goto out;
 
 	/*
