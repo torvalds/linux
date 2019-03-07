@@ -7659,12 +7659,13 @@ enum {
 #define  GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE	(1 << 2)
 
 /*GEN11 chicken */
-#define _PIPEA_CHICKEN			0x70038
-#define _PIPEB_CHICKEN			0x71038
-#define _PIPEC_CHICKEN			0x72038
-#define  PER_PIXEL_ALPHA_BYPASS_EN	(1 << 7)
-#define PIPE_CHICKEN(pipe)		_MMIO_PIPE(pipe, _PIPEA_CHICKEN,\
-						   _PIPEB_CHICKEN)
+#define _PIPEA_CHICKEN				0x70038
+#define _PIPEB_CHICKEN				0x71038
+#define _PIPEC_CHICKEN				0x72038
+#define PIPE_CHICKEN(pipe)			_MMIO_PIPE(pipe, _PIPEA_CHICKEN,\
+							   _PIPEB_CHICKEN)
+#define   PIXEL_ROUNDING_TRUNC_FB_PASSTHRU 	(1 << 15)
+#define   PER_PIXEL_ALPHA_BYPASS_EN		(1 << 7)
 
 /* PCH */
 

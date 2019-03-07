@@ -3933,7 +3933,13 @@ static void icl_set_pipe_chicken(struct intel_crtc *crtc)
 	 * and rounding for per-pixel values 00 and 0xff
 	 */
 	tmp |= PER_PIXEL_ALPHA_BYPASS_EN;
-
+	/*
+	 * Display WA # 1605353570: icl
+	 * Set the pixel rounding bit to 1 for allowing
+	 * passthrough of Frame buffer pixels unmodified
+	 * across pipe
+	 */
+	tmp |= PIXEL_ROUNDING_TRUNC_FB_PASSTHRU;
 	I915_WRITE(PIPE_CHICKEN(pipe), tmp);
 }
 
