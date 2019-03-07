@@ -7,7 +7,7 @@ build_needed=0
 for trigger in ${ADT_TEST_TRIGGERS:-force}
 do
 	case "$trigger" in
-	linux/*|linux-lts-*/*|linux-meta*/*|linux-oem*/*)	;;
+	linux/*|linux-lts-*/*|linux-meta*/*|linux-oem*/*|fakeroot/*|gdb/*|git/*|bzr/*|gcc-multilib/*)	;;
 	*)						build_needed=1 ;;
 	esac
 done
