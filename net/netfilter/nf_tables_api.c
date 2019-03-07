@@ -6564,6 +6564,11 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 	struct nft_chain *chain;
 	struct nft_table *table;
 
+	if (list_empty(&net->nft.commit_list)) {
+		mutex_unlock(&net->nft.commit_mutex);
+		return 0;
+	}
+
 	/* 0. Validate ruleset, otherwise roll back for error reporting. */
 	if (nf_tables_validate(net) < 0)
 		return -EAGAIN;
