@@ -679,8 +679,16 @@ static int fastrpc_get_args(u32 kernel, struct fastrpc_invoke_ctx *ctx)
 		pages[i].size = roundup(len, PAGE_SIZE);
 
 		if (ctx->maps[i]) {
+			struct vm_area_struct *vma = NULL;
+
 			rpra[i].pv = (u64) ctx->args[i].ptr;
 			pages[i].addr = ctx->maps[i]->phys;
+
+			vma = find_vma(current->mm, ctx->args[i].ptr);
+			if (vma)
+				pages[i].addr += ctx->args[i].ptr -
+						 vma->vm_start;
+
 		} else {
 			rlen -= ALIGN(args, FASTRPC_ALIGN) - args;
 			args = ALIGN(args, FASTRPC_ALIGN);
