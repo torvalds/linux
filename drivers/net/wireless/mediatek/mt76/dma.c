@@ -278,9 +278,10 @@ mt76_dma_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
 	return 0;
 }
 
-int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
-			  struct sk_buff *skb, struct mt76_wcid *wcid,
-			  struct ieee80211_sta *sta)
+static int
+mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
+		      struct sk_buff *skb, struct mt76_wcid *wcid,
+		      struct ieee80211_sta *sta)
 {
 	struct mt76_queue *q = dev->q_tx[qid].q;
 	struct mt76_tx_info tx_info = {};
@@ -353,7 +354,6 @@ free:
 	mt76_put_txwi(dev, t);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mt76_dma_tx_queue_skb);
 
 static int
 mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q)
