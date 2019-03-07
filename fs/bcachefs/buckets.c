@@ -541,28 +541,39 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 }
 
 #define checked_add(a, b)					\
-do {								\
+({								\
 	unsigned _res = (unsigned) (a) + (b);			\
+	bool overflow = _res > U16_MAX;				\
+	if (overflow)						\
+		_res = U16_MAX;					\
 	(a) = _res;						\
-	BUG_ON((a) != _res);					\
-} while (0)
+	overflow;						\
+})
 
 static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 				       size_t b, enum bch_data_type type,
 				       unsigned sectors, bool gc)
 {
-	struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage[gc]);
 	struct bucket *g = __bucket(ca, b, gc);
-	struct bucket_mark new;
+	struct bucket_mark old, new;
+	bool overflow;
 
 	BUG_ON(type != BCH_DATA_SB &&
 	       type != BCH_DATA_JOURNAL);
 
-	bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
+	old = bucket_cmpxchg(g, new, ({
 		new.dirty	= true;
 		new.data_type	= type;
-		checked_add(new.dirty_sectors, sectors);
+		overflow = checked_add(new.dirty_sectors, sectors);
 	}));
+
+	bch2_fs_inconsistent_on(overflow, c,
+		"bucket sector count overflow: %u + %u > U16_MAX",
+		old.dirty_sectors, sectors);
+
+	if (c)
+		bch2_dev_usage_update(c, ca, this_cpu_ptr(c->usage[gc]),
+				      old, new, gc);
 
 	return 0;
 }
@@ -581,19 +592,7 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		do_mark_fn(__bch2_mark_metadata_bucket, c, pos, flags,
 			   ca, b, type, sectors);
 	} else {
-		struct bucket *g;
-		struct bucket_mark new;
-
-		rcu_read_lock();
-
-		g = bucket(ca, b);
-		bucket_cmpxchg(g, new, ({
-			new.dirty	= true;
-			new.data_type	= type;
-			checked_add(new.dirty_sectors, sectors);
-		}));
-
-		rcu_read_unlock();
+		__bch2_mark_metadata_bucket(c, ca, b, type, sectors, 0);
 	}
 
 	preempt_enable();
@@ -636,6 +635,7 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	size_t b = PTR_BUCKET_NR(ca, &p.ptr);
 	struct bucket *g = __bucket(ca, b, gc);
+	bool overflow;
 	u64 v;
 
 	v = atomic64_read(&g->_mark.v);
@@ -657,9 +657,9 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 		}
 
 		if (!p.ptr.cached)
-			checked_add(new.dirty_sectors, sectors);
+			overflow = checked_add(new.dirty_sectors, sectors);
 		else
-			checked_add(new.cached_sectors, sectors);
+			overflow = checked_add(new.cached_sectors, sectors);
 
 		if (!new.dirty_sectors &&
 		    !new.cached_sectors) {
@@ -680,6 +680,12 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 	} while ((v = atomic64_cmpxchg(&g->_mark.v,
 			      old.v.counter,
 			      new.v.counter)) != old.v.counter);
+
+	bch2_fs_inconsistent_on(overflow, c,
+		"bucket sector count overflow: %u + %lli > U16_MAX",
+		!p.ptr.cached
+		? old.dirty_sectors
+		: old.cached_sectors, sectors);
 
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
