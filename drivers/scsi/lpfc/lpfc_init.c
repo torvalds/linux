@@ -10049,7 +10049,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 {
 	struct pci_dev *pdev = phba->pcidev;
 	unsigned long bar0map_len, bar1map_len, bar2map_len;
-	int error = -ENODEV;
+	int error;
 	uint32_t if_type;
 
 	if (!pdev)
@@ -10066,7 +10066,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	 */
 	if (pci_read_config_dword(pdev, LPFC_SLI_INTF,
 				  &phba->sli4_hba.sli_intf.word0)) {
-		return error;
+		return -ENODEV;
 	}
 
 	/* There is no SLI3 failback for SLI4 devices. */
@@ -10076,7 +10076,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 				"2894 SLI_INTF reg contents invalid "
 				"sli_intf reg 0x%x\n",
 				phba->sli4_hba.sli_intf.word0);
-		return error;
+		return -ENODEV;
 	}
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
@@ -10100,7 +10100,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "ioremap failed for SLI4 PCI config "
 				   "registers.\n");
-			goto out;
+			return -ENODEV;
 		}
 		phba->pci_bar0_memmap_p = phba->sli4_hba.conf_regs_memmap_p;
 		/* Set up BAR0 PCI config space register memory map */
@@ -10111,7 +10111,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			dev_printk(KERN_ERR, &pdev->dev,
 			   "FATAL - No BAR0 mapping for SLI4, if_type 2\n");
-			goto out;
+			return -ENODEV;
 		}
 		phba->sli4_hba.conf_regs_memmap_p =
 				ioremap(phba->pci_bar0_map, bar0map_len);
@@ -10119,7 +10119,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_printk(KERN_ERR, &pdev->dev,
 				"ioremap failed for SLI4 PCI config "
 				"registers.\n");
-			goto out;
+			return -ENODEV;
 		}
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	}
@@ -10165,6 +10165,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		if (!phba->sli4_hba.drbl_regs_memmap_p) {
 			dev_err(&pdev->dev,
 			   "ioremap failed for SLI4 HBA doorbell registers.\n");
+			error = -ENOMEM;
 			goto out_iounmap_conf;
 		}
 		phba->pci_bar2_memmap_p = phba->sli4_hba.drbl_regs_memmap_p;
@@ -10214,6 +10215,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		if (!phba->sli4_hba.dpp_regs_memmap_p) {
 			dev_err(&pdev->dev,
 			   "ioremap failed for SLI4 HBA dpp registers.\n");
+			error = -ENOMEM;
 			goto out_iounmap_ctrl;
 		}
 		phba->pci_bar4_memmap_p = phba->sli4_hba.dpp_regs_memmap_p;
@@ -10244,7 +10246,7 @@ out_iounmap_ctrl:
 	iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
 out_iounmap_conf:
 	iounmap(phba->sli4_hba.conf_regs_memmap_p);
-out:
+
 	return error;
 }
 
