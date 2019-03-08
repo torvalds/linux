@@ -532,11 +532,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	int crtc_vdisplay = crtc_state->base.adjusted_mode.crtc_vdisplay;
 	int psr_max_h = 0, psr_max_v = 0;
 
-	/*
-	 * FIXME psr2_support is messed up. It's both computed
-	 * dynamically during PSR enable, and extracted from sink
-	 * caps during eDP detection.
-	 */
 	if (!dev_priv->psr.sink_psr2_support)
 		return false;
 
