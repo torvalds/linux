@@ -600,6 +600,77 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+__printf(4, 5)
+__cold
+static void dev_item_err(const struct btrfs_fs_info *fs_info,
+			 const struct extent_buffer *eb, int slot,
+			 const char *fmt, ...)
+{
+	struct btrfs_key key;
+	struct va_format vaf;
+	va_list args;
+
+	btrfs_item_key_to_cpu(eb, &key, slot);
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	btrfs_crit(fs_info,
+	"corrupt %s: root=%llu block=%llu slot=%d devid=%llu %pV",
+		btrfs_header_level(eb) == 0 ? "leaf" : "node",
+		btrfs_header_owner(eb), btrfs_header_bytenr(eb), slot,
+		key.objectid, &vaf);
+	va_end(args);
+}
+
+static int check_dev_item(struct btrfs_fs_info *fs_info,
+			  struct extent_buffer *leaf,
+			  struct btrfs_key *key, int slot)
+{
+	struct btrfs_dev_item *ditem;
+	u64 max_devid = max(BTRFS_MAX_DEVS(fs_info), BTRFS_MAX_DEVS_SYS_CHUNK);
+
+	if (key->objectid != BTRFS_DEV_ITEMS_OBJECTID) {
+		dev_item_err(fs_info, leaf, slot,
+			     "invalid objectid: has=%llu expect=%llu",
+			     key->objectid, BTRFS_DEV_ITEMS_OBJECTID);
+		return -EUCLEAN;
+	}
+	if (key->offset > max_devid) {
+		dev_item_err(fs_info, leaf, slot,
+			     "invalid devid: has=%llu expect=[0, %llu]",
+			     key->offset, max_devid);
+		return -EUCLEAN;
+	}
+	ditem = btrfs_item_ptr(leaf, slot, struct btrfs_dev_item);
+	if (btrfs_device_id(leaf, ditem) != key->offset) {
+		dev_item_err(fs_info, leaf, slot,
+			     "devid mismatch: key has=%llu item has=%llu",
+			     key->offset, btrfs_device_id(leaf, ditem));
+		return -EUCLEAN;
+	}
+
+	/*
+	 * For device total_bytes, we don't have reliable way to check it, as
+	 * it can be 0 for device removal. Device size check can only be done
+	 * by dev extents check.
+	 */
+	if (btrfs_device_bytes_used(leaf, ditem) >
+	    btrfs_device_total_bytes(leaf, ditem)) {
+		dev_item_err(fs_info, leaf, slot,
+			     "invalid bytes used: have %llu expect [0, %llu]",
+			     btrfs_device_bytes_used(leaf, ditem),
+			     btrfs_device_total_bytes(leaf, ditem));
+		return -EUCLEAN;
+	}
+	/*
+	 * Remaining members like io_align/type/gen/dev_group aren't really
+	 * utilized.  Skip them to make later usage of them easier.
+	 */
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -629,6 +700,9 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
 		ret = btrfs_check_chunk_valid(fs_info, leaf, chunk,
 					      key->offset);
+		break;
+	case BTRFS_DEV_ITEM_KEY:
+		ret = check_dev_item(fs_info, leaf, key, slot);
 		break;
 	}
 	return ret;
