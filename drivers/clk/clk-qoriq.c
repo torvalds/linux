@@ -1148,8 +1148,8 @@ static void __init create_one_pll(struct clockgen *cg, int idx)
 		pll->div[i].clk = clk;
 		ret = clk_register_clkdev(clk, pll->div[i].name, NULL);
 		if (ret != 0)
-			pr_err("%s: %s: register to lookup table failed %ld\n",
-			       __func__, pll->div[i].name, PTR_ERR(clk));
+			pr_err("%s: %s: register to lookup table failed %d\n",
+			       __func__, pll->div[i].name, ret);
 
 	}
 }
