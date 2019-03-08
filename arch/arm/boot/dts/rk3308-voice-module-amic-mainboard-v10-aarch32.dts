@@ -14,6 +14,8 @@
 };
 
 &acodec {
+	rockchip,micbias1;
+	rockchip,micbias2;
 	/* The grp2/3 (ADC5-8) keeps enabled always for VAD */
 	rockchip,en-always-grps = <2 3>;
 };
