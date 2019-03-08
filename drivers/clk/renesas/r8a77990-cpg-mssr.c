@@ -2,7 +2,7 @@
 /*
  * r8a77990 Clock Pulse Generator / Module Standby and Software Reset
  *
- * Copyright (C) 2018 Renesas Electronics Corp.
+ * Copyright (C) 2018-2019 Renesas Electronics Corp.
  *
  * Based on r8a7795-cpg-mssr.c
  *
@@ -154,14 +154,14 @@ static const struct mssr_mod_clk r8a77990_mod_clks[] __initconst = {
 	DEF_MOD("intc-ap",		 408,	R8A77990_CLK_S0D3),
 
 	DEF_MOD("audmac0",		 502,	R8A77990_CLK_S1D2),
-	DEF_MOD("drif7",		 508,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif6",		 509,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif5",		 510,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif4",		 511,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif3",		 512,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif2",		 513,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif1",		 514,	R8A77990_CLK_S3D2),
-	DEF_MOD("drif0",		 515,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif31",		 508,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif30",		 509,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif21",		 510,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif20",		 511,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif11",		 512,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif10",		 513,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif01",		 514,	R8A77990_CLK_S3D2),
+	DEF_MOD("drif00",		 515,	R8A77990_CLK_S3D2),
 	DEF_MOD("hscif4",		 516,	R8A77990_CLK_S3D1C),
 	DEF_MOD("hscif3",		 517,	R8A77990_CLK_S3D1C),
 	DEF_MOD("hscif2",		 518,	R8A77990_CLK_S3D1C),
