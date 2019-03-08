@@ -15,7 +15,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/exynos_drm.h>
 
 #include <linux/console.h>
@@ -88,7 +88,6 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	}
 
 	fbi->par = helper;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);

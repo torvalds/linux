@@ -32,7 +32,6 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -95,15 +94,17 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	intel_wakeref_t wakeref;
 	bool ret;
 
-	if (!intel_display_power_get_if_enabled(dev_priv,
-						encoder->power_domain))
+	wakeref = intel_display_power_get_if_enabled(dev_priv,
+						     encoder->power_domain);
+	if (!wakeref)
 		return false;
 
 	ret = intel_lvds_port_enabled(dev_priv, lvds_encoder->reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -279,7 +280,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	 * special lvds dither control bit on pch-split platforms, dithering is
 	 * only controlled through the PIPECONF reg.
 	 */
-	if (IS_GEN4(dev_priv)) {
+	if (IS_GEN(dev_priv, 4)) {
 		/*
 		 * Bspec wording suggests that LVDS port dithering only exists
 		 * for 18bpp panels.
@@ -379,9 +380,9 @@ intel_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
-				      struct intel_crtc_state *pipe_config,
-				      struct drm_connector_state *conn_state)
+static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder =
@@ -395,7 +396,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	/* Should never happen!! */
 	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
 		DRM_ERROR("Can't support LVDS on pipe A\n");
-		return false;
+		return -EINVAL;
 	}
 
 	if (lvds_encoder->a3_power == LVDS_A3_POWER_UP)
@@ -421,7 +422,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 			       adjusted_mode);
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return false;
+		return -EINVAL;
 
 	if (HAS_PCH_SPLIT(dev_priv)) {
 		pipe_config->has_pch_encoder = true;
@@ -440,7 +441,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	 * user's requested refresh rate.
 	 */
 
-	return true;
+	return 0;
 }
 
 static enum drm_connector_status
@@ -797,26 +798,6 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
-static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * With the introduction of the PCH we gained a dedicated
-	 * LVDS presence pin, use it.
-	 */
-	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
-		return true;
-
-	/*
-	 * Otherwise LVDS was only attached to mobile products,
-	 * except for the inglorious 830gm
-	 */
-	if (INTEL_GEN(dev_priv) <= 4 &&
-	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
-		return true;
-
-	return false;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev_priv: i915 device
@@ -840,9 +821,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	u32 lvds;
 	u8 pin;
 	u32 allowed_scalers;
-
-	if (!intel_lvds_supported(dev_priv))
-		return;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
@@ -909,6 +887,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
+	intel_encoder->update_pipe = intel_panel_update_backlight;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
@@ -919,7 +898,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->cloneable = 0;
 	if (HAS_PCH_SPLIT(dev_priv))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
-	else if (IS_GEN4(dev_priv))
+	else if (IS_GEN(dev_priv, 4))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);

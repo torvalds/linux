@@ -9,6 +9,8 @@
 #ifndef _DRM_HDCP_H_INCLUDED_
 #define _DRM_HDCP_H_INCLUDED_
 
+#include <linux/types.h>
+
 /* Period of hdcp checks (to ensure we're still authenticated) */
 #define DRM_HDCP_CHECK_PERIOD_MS		(128 * 16)
 

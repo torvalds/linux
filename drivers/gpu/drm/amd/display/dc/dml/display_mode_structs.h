@@ -30,22 +30,15 @@ typedef struct _vcs_dpi_soc_bounding_box_st soc_bounding_box_st;
 typedef struct _vcs_dpi_ip_params_st ip_params_st;
 typedef struct _vcs_dpi_display_pipe_source_params_st display_pipe_source_params_st;
 typedef struct _vcs_dpi_display_output_params_st display_output_params_st;
-typedef struct _vcs_dpi_display_bandwidth_st display_bandwidth_st;
 typedef struct _vcs_dpi_scaler_ratio_depth_st scaler_ratio_depth_st;
 typedef struct _vcs_dpi_scaler_taps_st scaler_taps_st;
 typedef struct _vcs_dpi_display_pipe_dest_params_st display_pipe_dest_params_st;
 typedef struct _vcs_dpi_display_pipe_params_st display_pipe_params_st;
 typedef struct _vcs_dpi_display_clocks_and_cfg_st display_clocks_and_cfg_st;
 typedef struct _vcs_dpi_display_e2e_pipe_params_st display_e2e_pipe_params_st;
-typedef struct _vcs_dpi_dchub_buffer_sizing_st dchub_buffer_sizing_st;
-typedef struct _vcs_dpi_watermarks_perf_st watermarks_perf_st;
-typedef struct _vcs_dpi_cstate_pstate_watermarks_st cstate_pstate_watermarks_st;
-typedef struct _vcs_dpi_wm_calc_pipe_params_st wm_calc_pipe_params_st;
-typedef struct _vcs_dpi_vratio_pre_st vratio_pre_st;
 typedef struct _vcs_dpi_display_data_rq_misc_params_st display_data_rq_misc_params_st;
 typedef struct _vcs_dpi_display_data_rq_sizing_params_st display_data_rq_sizing_params_st;
 typedef struct _vcs_dpi_display_data_rq_dlg_params_st display_data_rq_dlg_params_st;
-typedef struct _vcs_dpi_display_cur_rq_dlg_params_st display_cur_rq_dlg_params_st;
 typedef struct _vcs_dpi_display_rq_dlg_params_st display_rq_dlg_params_st;
 typedef struct _vcs_dpi_display_rq_sizing_params_st display_rq_sizing_params_st;
 typedef struct _vcs_dpi_display_rq_misc_params_st display_rq_misc_params_st;
@@ -55,8 +48,6 @@ typedef struct _vcs_dpi_display_ttu_regs_st display_ttu_regs_st;
 typedef struct _vcs_dpi_display_data_rq_regs_st display_data_rq_regs_st;
 typedef struct _vcs_dpi_display_rq_regs_st display_rq_regs_st;
 typedef struct _vcs_dpi_display_dlg_sys_params_st display_dlg_sys_params_st;
-typedef struct _vcs_dpi_display_dlg_prefetch_param_st display_dlg_prefetch_param_st;
-typedef struct _vcs_dpi_display_pipe_clock_st display_pipe_clock_st;
 typedef struct _vcs_dpi_display_arb_params_st display_arb_params_st;
 
 struct _vcs_dpi_voltage_scaling_st {
@@ -111,8 +102,6 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double xfc_bus_transport_time_us;
 	double xfc_xbuf_latency_tolerance_us;
 	int use_urgent_burst_bw;
-	double max_hscl_ratio;
-	double max_vscl_ratio;
 	unsigned int num_states;
 	struct _vcs_dpi_voltage_scaling_st clock_limits[8];
 };
@@ -129,7 +118,8 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int odm_capable;
 	unsigned int rob_buffer_size_kbytes;
 	unsigned int det_buffer_size_kbytes;
-	unsigned int dpte_buffer_size_in_pte_reqs;
+	unsigned int dpte_buffer_size_in_pte_reqs_luma;
+	unsigned int dpte_buffer_size_in_pte_reqs_chroma;
 	unsigned int pde_proc_buffer_size_64k_reqs;
 	unsigned int dpp_output_buffer_pixels;
 	unsigned int opp_output_buffer_lines;
@@ -192,7 +182,6 @@ struct _vcs_dpi_display_xfc_params_st {
 struct _vcs_dpi_display_pipe_source_params_st {
 	int source_format;
 	unsigned char dcc;
-	unsigned int dcc_override;
 	unsigned int dcc_rate;
 	unsigned char dcc_use_global;
 	unsigned char vm;
@@ -205,7 +194,6 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	int source_scan;
 	int sw_mode;
 	int macro_tile_size;
-	unsigned char is_display_sw;
 	unsigned int viewport_width;
 	unsigned int viewport_height;
 	unsigned int viewport_y_y;
@@ -252,14 +240,8 @@ struct _vcs_dpi_display_output_params_st {
 	int output_bpc;
 	int output_type;
 	int output_format;
-	int output_standard;
 	int dsc_slices;
 	struct writeback_st wb;
-};
-
-struct _vcs_dpi_display_bandwidth_st {
-	double total_bw_consumed_gbps;
-	double guaranteed_urgent_return_bw_gbps;
 };
 
 struct _vcs_dpi_scaler_ratio_depth_st {
@@ -300,11 +282,9 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vupdate_width;
 	unsigned int vready_offset;
 	unsigned char interlaced;
-	unsigned char underscan;
 	double pixel_rate_mhz;
 	unsigned char synchronized_vblank_all_planes;
 	unsigned char otg_inst;
-	unsigned char odm_split_cnt;
 	unsigned char odm_combine;
 	unsigned char use_maximum_vstartup;
 };
@@ -329,65 +309,6 @@ struct _vcs_dpi_display_e2e_pipe_params_st {
 	display_pipe_params_st pipe;
 	display_output_params_st dout;
 	display_clocks_and_cfg_st clks_cfg;
-};
-
-struct _vcs_dpi_dchub_buffer_sizing_st {
-	unsigned int swath_width_y;
-	unsigned int swath_height_y;
-	unsigned int swath_height_c;
-	unsigned int detail_buffer_size_y;
-};
-
-struct _vcs_dpi_watermarks_perf_st {
-	double stutter_eff_in_active_region_percent;
-	double urgent_latency_supported_us;
-	double non_urgent_latency_supported_us;
-	double dram_clock_change_margin_us;
-	double dram_access_eff_percent;
-};
-
-struct _vcs_dpi_cstate_pstate_watermarks_st {
-	double cstate_exit_us;
-	double cstate_enter_plus_exit_us;
-	double pstate_change_us;
-};
-
-struct _vcs_dpi_wm_calc_pipe_params_st {
-	unsigned int num_dpp;
-	int voltage;
-	int output_type;
-	double dcfclk_mhz;
-	double socclk_mhz;
-	double dppclk_mhz;
-	double pixclk_mhz;
-	unsigned char interlace_en;
-	unsigned char pte_enable;
-	unsigned char dcc_enable;
-	double dcc_rate;
-	double bytes_per_pixel_c;
-	double bytes_per_pixel_y;
-	unsigned int swath_width_y;
-	unsigned int swath_height_y;
-	unsigned int swath_height_c;
-	unsigned int det_buffer_size_y;
-	double h_ratio;
-	double v_ratio;
-	unsigned int h_taps;
-	unsigned int h_total;
-	unsigned int v_total;
-	unsigned int v_active;
-	unsigned int e2e_index;
-	double display_pipe_line_delivery_time;
-	double read_bw;
-	unsigned int lines_in_det_y;
-	unsigned int lines_in_det_y_rounded_down_to_swath;
-	double full_det_buffering_time;
-	double dcfclk_deepsleep_mhz_per_plane;
-};
-
-struct _vcs_dpi_vratio_pre_st {
-	double vratio_pre_l;
-	double vratio_pre_c;
 };
 
 struct _vcs_dpi_display_data_rq_misc_params_st {
@@ -423,16 +344,9 @@ struct _vcs_dpi_display_data_rq_dlg_params_st {
 	unsigned int meta_bytes_per_row_ub;
 };
 
-struct _vcs_dpi_display_cur_rq_dlg_params_st {
-	unsigned char enable;
-	unsigned int swath_height;
-	unsigned int req_per_line;
-};
-
 struct _vcs_dpi_display_rq_dlg_params_st {
 	display_data_rq_dlg_params_st rq_l;
 	display_data_rq_dlg_params_st rq_c;
-	display_cur_rq_dlg_params_st rq_cur0;
 };
 
 struct _vcs_dpi_display_rq_sizing_params_st {
@@ -498,6 +412,10 @@ struct _vcs_dpi_display_dlg_regs_st {
 	unsigned int xfc_reg_remote_surface_flip_latency;
 	unsigned int xfc_reg_prefetch_margin;
 	unsigned int dst_y_delta_drq_limit;
+	unsigned int refcyc_per_vm_group_vblank;
+	unsigned int refcyc_per_vm_group_flip;
+	unsigned int refcyc_per_vm_req_vblank;
+	unsigned int refcyc_per_vm_req_flip;
 };
 
 struct _vcs_dpi_display_ttu_regs_st {
@@ -554,19 +472,6 @@ struct _vcs_dpi_display_dlg_sys_params_st {
 	double deepsleep_dcfclk_mhz;
 	double total_flip_bw;
 	unsigned int total_flip_bytes;
-};
-
-struct _vcs_dpi_display_dlg_prefetch_param_st {
-	double prefetch_bw;
-	unsigned int flip_bytes;
-};
-
-struct _vcs_dpi_display_pipe_clock_st {
-	double dcfclk_mhz;
-	double dispclk_mhz;
-	double socclk_mhz;
-	double dscclk_mhz[6];
-	double dppclk_mhz[6];
 };
 
 struct _vcs_dpi_display_arb_params_st {

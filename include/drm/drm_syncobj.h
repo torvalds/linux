@@ -26,9 +26,9 @@
 #ifndef __DRM_SYNCOBJ_H__
 #define __DRM_SYNCOBJ_H__
 
-#include "linux/dma-fence.h"
+#include <linux/dma-fence.h>
 
-struct drm_syncobj_cb;
+struct drm_file;
 
 /**
  * struct drm_syncobj - sync object.
@@ -60,25 +60,6 @@ struct drm_syncobj {
 	 * @file: A file backing for this syncobj.
 	 */
 	struct file *file;
-};
-
-typedef void (*drm_syncobj_func_t)(struct drm_syncobj *syncobj,
-				   struct drm_syncobj_cb *cb);
-
-/**
- * struct drm_syncobj_cb - callback for drm_syncobj_add_callback
- * @node: used by drm_syncob_add_callback to append this struct to
- *	  &drm_syncobj.cb_list
- * @func: drm_syncobj_func_t to call
- *
- * This struct will be initialized by drm_syncobj_add_callback, additional
- * data can be passed along by embedding drm_syncobj_cb in another struct.
- * The callback will get called the next time drm_syncobj_replace_fence is
- * called.
- */
-struct drm_syncobj_cb {
-	struct list_head node;
-	drm_syncobj_func_t func;
 };
 
 void drm_syncobj_free(struct kref *kref);

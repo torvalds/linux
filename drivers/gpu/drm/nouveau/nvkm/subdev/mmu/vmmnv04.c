@@ -100,16 +100,17 @@ nv04_vmm = {
 
 int
 nv04_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
-	      u32 pd_header, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+	      u32 pd_header, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
 {
 	union {
 		struct nv04_vmm_vn vn;
 	} *args = argv;
 	int ret;
 
-	ret = nvkm_vmm_new_(func, mmu, pd_header, addr, size, key, name, pvmm);
+	ret = nvkm_vmm_new_(func, mmu, pd_header, managed, addr, size,
+			    key, name, pvmm);
 	if (ret)
 		return ret;
 
@@ -117,15 +118,15 @@ nv04_vmm_new_(const struct nvkm_vmm_func *func, struct nvkm_mmu *mmu,
 }
 
 int
-nv04_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	     struct lock_class_key *key, const char *name,
+nv04_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	     void *argv, u32 argc, struct lock_class_key *key, const char *name,
 	     struct nvkm_vmm **pvmm)
 {
 	struct nvkm_memory *mem;
 	struct nvkm_vmm *vmm;
 	int ret;
 
-	ret = nv04_vmm_new_(&nv04_vmm, mmu, 8, addr, size,
+	ret = nv04_vmm_new_(&nv04_vmm, mmu, 8, managed, addr, size,
 			    argv, argc, key, name, &vmm);
 	*pvmm = vmm;
 	if (ret)

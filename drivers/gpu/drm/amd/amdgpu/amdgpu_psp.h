@@ -65,8 +65,6 @@ struct psp_funcs
 	int (*init_microcode)(struct psp_context *psp);
 	int (*bootloader_load_sysdrv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
-	int (*prep_cmd_buf)(struct amdgpu_firmware_info *ucode,
-			    struct psp_gfx_cmd_resp *cmd);
 	int (*ring_init)(struct psp_context *psp, enum psp_ring_type ring_type);
 	int (*ring_create)(struct psp_context *psp,
 			   enum psp_ring_type ring_type);
@@ -176,7 +174,6 @@ struct psp_xgmi_topology_info {
 	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
 };
 
-#define psp_prep_cmd_buf(ucode, type) (psp)->funcs->prep_cmd_buf((ucode), (type))
 #define psp_ring_init(psp, type) (psp)->funcs->ring_init((psp), (type))
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
 #define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))

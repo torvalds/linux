@@ -33,7 +33,6 @@
 #include "amdgpu_sync.h"
 #include "amdgpu_vm.h"
 
-extern const struct kgd2kfd_calls *kgd2kfd;
 extern uint64_t amdgpu_amdkfd_total_mem_size;
 
 struct amdgpu_device;
@@ -213,5 +212,23 @@ int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
 
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo);
+
+/* KGD2KFD callbacks */
+int kgd2kfd_init(void);
+void kgd2kfd_exit(void);
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
+			      const struct kfd2kgd_calls *f2g);
+bool kgd2kfd_device_init(struct kfd_dev *kfd,
+			 const struct kgd2kfd_shared_resources *gpu_resources);
+void kgd2kfd_device_exit(struct kfd_dev *kfd);
+void kgd2kfd_suspend(struct kfd_dev *kfd);
+int kgd2kfd_resume(struct kfd_dev *kfd);
+int kgd2kfd_pre_reset(struct kfd_dev *kfd);
+int kgd2kfd_post_reset(struct kfd_dev *kfd);
+void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
+int kgd2kfd_quiesce_mm(struct mm_struct *mm);
+int kgd2kfd_resume_mm(struct mm_struct *mm);
+int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
+					       struct dma_fence *fence);
 
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

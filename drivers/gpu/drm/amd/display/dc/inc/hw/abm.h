@@ -46,6 +46,7 @@ struct abm_funcs {
 	void (*abm_init)(struct abm *abm);
 	bool (*set_abm_level)(struct abm *abm, unsigned int abm_level);
 	bool (*set_abm_immediate_disable)(struct abm *abm);
+	bool (*set_pipe)(struct abm *abm, unsigned int controller_id);
 	bool (*init_backlight)(struct abm *abm);
 
 	/* backlight_pwm_u16_16 is unsigned 32 bit,

@@ -41,7 +41,6 @@
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
-#include "drm_crtc_internal.h"
 
 /*
  * drm_debug: Enable debug output.
@@ -265,14 +264,13 @@ void drm_minor_release(struct drm_minor *minor)
  * DOC: driver instance overview
  *
  * A device instance for a drm driver is represented by &struct drm_device. This
- * is allocated with drm_dev_alloc(), usually from bus-specific ->probe()
+ * is initialized with drm_dev_init(), usually from bus-specific ->probe()
  * callbacks implemented by the driver. The driver then needs to initialize all
  * the various subsystems for the drm device like memory management, vblank
  * handling, modesetting support and intial output configuration plus obviously
- * initialize all the corresponding hardware bits. An important part of this is
- * also calling drm_dev_set_unique() to set the userspace-visible unique name of
- * this device instance. Finally when everything is up and running and ready for
- * userspace the device instance can be published using drm_dev_register().
+ * initialize all the corresponding hardware bits. Finally when everything is up
+ * and running and ready for userspace the device instance can be published
+ * using drm_dev_register().
  *
  * There is also deprecated support for initalizing device instances using
  * bus-specific helpers and the &drm_driver.load callback. But due to
@@ -288,9 +286,6 @@ void drm_minor_release(struct drm_minor *minor)
  * Note that the lifetime rules for &drm_device instance has still a lot of
  * historical baggage. Hence use the reference counting provided by
  * drm_dev_get() and drm_dev_put() only carefully.
- *
- * It is recommended that drivers embed &struct drm_device into their own device
- * structure, which is supported through drm_dev_init().
  */
 
 /**
@@ -475,6 +470,9 @@ static void drm_fs_inode_free(struct inode *inode)
  *
  * The initial ref-count of the object is 1. Use drm_dev_get() and
  * drm_dev_put() to take and drop further ref-counts.
+ *
+ * It is recommended that drivers embed &struct drm_device into their own device
+ * structure.
  *
  * Drivers that do not want to allocate their own device struct
  * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
@@ -766,7 +764,7 @@ static void remove_compat_control_link(struct drm_device *dev)
  * @flags: Flags passed to the driver's .load() function
  *
  * Register the DRM device @dev with the system, advertise device to user-space
- * and start normal device operation. @dev must be allocated via drm_dev_alloc()
+ * and start normal device operation. @dev must be initialized via drm_dev_init()
  * previously.
  *
  * Never call this twice on any device!
@@ -878,9 +876,9 @@ EXPORT_SYMBOL(drm_dev_unregister);
  * @dev: device of which to set the unique name
  * @name: unique name
  *
- * Sets the unique name of a DRM device using the specified string. Drivers
- * can use this at driver probe time if the unique name of the devices they
- * drive is static.
+ * Sets the unique name of a DRM device using the specified string. This is
+ * already done by drm_dev_init(), drivers should only override the default
+ * unique name for backwards compatibility reasons.
  *
  * Return: 0 on success or a negative error code on failure.
  */

@@ -6,7 +6,6 @@
  *         Manasi Navare <manasi.d.navare@intel.com>
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
@@ -1083,6 +1082,6 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 	I915_WRITE(dss_ctl2_reg, dss_ctl2_val);
 
 	/* Disable Power wells for VDSC/joining */
-	intel_display_power_put(dev_priv,
-				intel_dsc_power_domain(old_crtc_state));
+	intel_display_power_put_unchecked(dev_priv,
+					  intel_dsc_power_domain(old_crtc_state));
 }

@@ -238,6 +238,9 @@ of the following host1x client modules:
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
   - nvidia,panel: phandle of a display panel
+  - nvidia,xbar-cfg: 5 cells containing the crossbar configuration. Each lane
+    of the SOR, identified by the cell's index, is mapped via the crossbar to
+    the pad specified by the cell's value.
 
   Optional properties when driving an eDP output:
   - nvidia,dpaux: phandle to a DispayPort AUX interface

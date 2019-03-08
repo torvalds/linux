@@ -51,10 +51,6 @@
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
-struct dcn10_input_csc_matrix {
-	enum dc_color_space color_space;
-	uint16_t regval[12];
-};
 
 enum dcn10_coef_filter_type_sel {
 	SCL_COEF_LUMA_VERT_FILTER = 0,
@@ -99,7 +95,7 @@ enum gamut_remap_select {
 	GAMUT_REMAP_COMB_COEFF
 };
 
-static const struct dcn10_input_csc_matrix dcn10_input_csc_matrix[] = {
+static const struct dpp_input_csc_matrix dpp_input_csc_matrix[] = {
 	{COLOR_SPACE_SRGB,
 		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
 	{COLOR_SPACE_SRGB_LIMITED,
@@ -454,7 +450,7 @@ void dpp1_program_input_csc(
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
-	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
+	int arr_size = sizeof(dpp_input_csc_matrix)/sizeof(struct dpp_input_csc_matrix);
 	const uint16_t *regval = NULL;
 	uint32_t cur_select = 0;
 	enum dcn10_input_csc_select select;
@@ -467,8 +463,8 @@ void dpp1_program_input_csc(
 
 	if (tbl_entry == NULL) {
 		for (i = 0; i < arr_size; i++)
-			if (dcn10_input_csc_matrix[i].color_space == color_space) {
-				regval = dcn10_input_csc_matrix[i].regval;
+			if (dpp_input_csc_matrix[i].color_space == color_space) {
+				regval = dpp_input_csc_matrix[i].regval;
 				break;
 			}
 

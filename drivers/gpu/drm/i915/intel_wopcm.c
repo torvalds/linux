@@ -130,11 +130,11 @@ static inline int check_hw_restriction(struct drm_i915_private *i915,
 {
 	int err = 0;
 
-	if (IS_GEN9(i915))
+	if (IS_GEN(i915, 9))
 		err = gen9_check_dword_gap(guc_wopcm_base, guc_wopcm_size);
 
 	if (!err &&
-	    (IS_GEN9(i915) || IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)))
+	    (IS_GEN(i915, 9) || IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)))
 		err = gen9_check_huc_fw_fits(guc_wopcm_size, huc_fw_size);
 
 	return err;
@@ -163,7 +163,7 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 guc_wopcm_rsvd;
 	int err;
 
-	if (!USES_GUC(dev_priv))
+	if (!USES_GUC(i915))
 		return 0;
 
 	GEM_BUG_ON(!wopcm->size);

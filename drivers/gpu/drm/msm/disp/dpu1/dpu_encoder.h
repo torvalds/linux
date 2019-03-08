@@ -38,15 +38,6 @@ struct dpu_encoder_hw_resources {
 };
 
 /**
- * dpu_encoder_kickoff_params - info encoder requires at kickoff
- * @affected_displays:  bitmask, bit set means the ROI of the commit lies within
- *                      the bounds of the physical display at the bit index
- */
-struct dpu_encoder_kickoff_params {
-	unsigned long affected_displays;
-};
-
-/**
  * dpu_encoder_get_hw_resources - Populate table of required hardware resources
  * @encoder:	encoder pointer
  * @hw_res:	resource table to populate with encoder required resources
@@ -88,11 +79,9 @@ void dpu_encoder_register_frame_event_callback(struct drm_encoder *encoder,
  *	Immediately: if no previous commit is outstanding.
  *	Delayed: Block until next trigger can be issued.
  * @encoder:	encoder pointer
- * @params:	kickoff time parameters
  * @async:	true if this is an asynchronous commit
  */
-void dpu_encoder_prepare_for_kickoff(struct drm_encoder *encoder,
-		struct dpu_encoder_kickoff_params *params, bool async);
+void dpu_encoder_prepare_for_kickoff(struct drm_encoder *encoder,  bool async);
 
 /**
  * dpu_encoder_trigger_kickoff_pending - Clear the flush bits from previous

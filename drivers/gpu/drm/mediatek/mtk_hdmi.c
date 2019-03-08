@@ -14,7 +14,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
@@ -981,7 +981,8 @@ static int mtk_hdmi_setup_avi_infoframe(struct mtk_hdmi *hdmi,
 	u8 buffer[17];
 	ssize_t err;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &hdmi->conn, mode);
 	if (err < 0) {
 		dev_err(hdmi->dev,
 			"Failed to get AVI infoframe from mode: %zd\n", err);
@@ -1370,8 +1371,8 @@ static void mtk_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void mtk_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				     struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 

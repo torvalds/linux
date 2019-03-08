@@ -154,6 +154,7 @@ u8 drm_dp_link_rate_to_bw_code(int link_rate)
 	default:
 		WARN(1, "unknown DP link rate %d, using %x\n", link_rate,
 		     DP_LINK_BW_1_62);
+		/* fall through */
 	case 162000:
 		return DP_LINK_BW_1_62;
 	case 270000:
@@ -171,6 +172,7 @@ int drm_dp_bw_code_to_link_rate(u8 link_bw)
 	switch (link_bw) {
 	default:
 		WARN(1, "unknown DP link BW code %x, using 162000\n", link_bw);
+		/* fall through */
 	case DP_LINK_BW_1_62:
 		return 162000;
 	case DP_LINK_BW_2_7:
@@ -192,11 +194,11 @@ drm_dp_dump_access(const struct drm_dp_aux *aux,
 	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
 
 	if (ret > 0)
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
-			aux->name, offset, arrow, ret, min(ret, 20), buffer);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			     aux->name, offset, arrow, ret, min(ret, 20), buffer);
 	else
-		drm_dbg(DRM_UT_DP, "%s: 0x%05x AUX %s (ret=%3d)\n",
-			aux->name, offset, arrow, ret);
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
+			     aux->name, offset, arrow, ret);
 }
 
 /**
@@ -552,6 +554,7 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		case DP_DS_16BPC:
 			return 16;
 		}
+		/* fall through */
 	default:
 		return 0;
 	}
@@ -884,7 +887,8 @@ static void drm_dp_i2c_msg_set_request(struct drm_dp_aux_msg *msg,
 {
 	msg->request = (i2c_msg->flags & I2C_M_RD) ?
 		DP_AUX_I2C_READ : DP_AUX_I2C_WRITE;
-	msg->request |= DP_AUX_I2C_MOT;
+	if (!(i2c_msg->flags & I2C_M_STOP))
+		msg->request |= DP_AUX_I2C_MOT;
 }
 
 /*
@@ -1356,7 +1360,20 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 EXPORT_SYMBOL(drm_dp_read_desc);
 
 /**
- * DRM DP Helpers for DSC
+ * drm_dp_dsc_sink_max_slice_count() - Get the max slice count
+ * supported by the DSC sink.
+ * @dsc_dpcd: DSC capabilities from DPCD
+ * @is_edp: true if its eDP, false for DP
+ *
+ * Read the slice capabilities DPCD register from DSC sink to get
+ * the maximum slice count supported. This is used to populate
+ * the DSC parameters in the &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Maximum slice count supported by DSC sink or 0 its invalid
  */
 u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
 				   bool is_edp)
@@ -1401,6 +1418,21 @@ u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_max_slice_count);
 
+/**
+ * drm_dp_dsc_sink_line_buf_depth() - Get the line buffer depth in bits
+ * @dsc_dpcd: DSC capabilities from DPCD
+ *
+ * Read the DSC DPCD register to parse the line buffer depth in bits which is
+ * number of bits of precision within the decoder line buffer supported by
+ * the DSC sink. This is used to populate the DSC parameters in the
+ * &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Line buffer depth supported by DSC panel or 0 its invalid
+ */
 u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
 {
 	u8 line_buf_depth = dsc_dpcd[DP_DSC_LINE_BUF_BIT_DEPTH - DP_DSC_SUPPORT];
@@ -1430,6 +1462,23 @@ u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_line_buf_depth);
 
+/**
+ * drm_dp_dsc_sink_supported_input_bpcs() - Get all the input bits per component
+ * values supported by the DSC sink.
+ * @dsc_dpcd: DSC capabilities from DPCD
+ * @dsc_bpc: An array to be filled by this helper with supported
+ *           input bpcs.
+ *
+ * Read the DSC DPCD from the sink device to parse the supported bits per
+ * component values. This is used to populate the DSC parameters
+ * in the &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Number of input BPC values parsed from the DPCD
+ */
 int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
 					 u8 dsc_bpc[3])
 {

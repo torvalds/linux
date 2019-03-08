@@ -941,6 +941,69 @@ static bool vi_need_full_reset(struct amdgpu_device *adev)
 	}
 }
 
+static void vi_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
+			      uint64_t *count1)
+{
+	uint32_t perfctr = 0;
+	uint64_t cnt0_of, cnt1_of;
+	int tmp;
+
+	/* This reports 0 on APUs, so return to avoid writing/reading registers
+	 * that may or may not be different from their GPU counterparts
+	 */
+	if (adev->flags & AMD_IS_APU)
+		return;
+
+	/* Set the 2 events that we wish to watch, defined above */
+	/* Reg 40 is # received msgs, Reg 104 is # of posted requests sent */
+	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT0_SEL, 40);
+	perfctr = REG_SET_FIELD(perfctr, PCIE_PERF_CNTL_TXCLK, EVENT1_SEL, 104);
+
+	/* Write to enable desired perf counters */
+	WREG32_PCIE(ixPCIE_PERF_CNTL_TXCLK, perfctr);
+	/* Zero out and enable the perf counters
+	 * Write 0x5:
+	 * Bit 0 = Start all counters(1)
+	 * Bit 2 = Global counter reset enable(1)
+	 */
+	WREG32_PCIE(ixPCIE_PERF_COUNT_CNTL, 0x00000005);
+
+	msleep(1000);
+
+	/* Load the shadow and disable the perf counters
+	 * Write 0x2:
+	 * Bit 0 = Stop counters(0)
+	 * Bit 1 = Load the shadow counters(1)
+	 */
+	WREG32_PCIE(ixPCIE_PERF_COUNT_CNTL, 0x00000002);
+
+	/* Read register values to get any >32bit overflow */
+	tmp = RREG32_PCIE(ixPCIE_PERF_CNTL_TXCLK);
+	cnt0_of = REG_GET_FIELD(tmp, PCIE_PERF_CNTL_TXCLK, COUNTER0_UPPER);
+	cnt1_of = REG_GET_FIELD(tmp, PCIE_PERF_CNTL_TXCLK, COUNTER1_UPPER);
+
+	/* Get the values and add the overflow */
+	*count0 = RREG32_PCIE(ixPCIE_PERF_COUNT0_TXCLK) | (cnt0_of << 32);
+	*count1 = RREG32_PCIE(ixPCIE_PERF_COUNT1_TXCLK) | (cnt1_of << 32);
+}
+
+static bool vi_need_reset_on_init(struct amdgpu_device *adev)
+{
+	u32 clock_cntl, pc;
+
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	/* check if the SMC is already running */
+	clock_cntl = RREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0);
+	pc = RREG32_SMC(ixSMC_PC_C);
+	if ((0 == REG_GET_FIELD(clock_cntl, SMC_SYSCON_CLOCK_CNTL_0, ck_disable)) &&
+	    (0x20100 <= pc))
+		return true;
+
+	return false;
+}
+
 static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
@@ -956,6 +1019,8 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.invalidate_hdp = &vi_invalidate_hdp,
 	.need_full_reset = &vi_need_full_reset,
 	.init_doorbell_index = &legacy_doorbell_index_init,
+	.get_pcie_usage = &vi_get_pcie_usage,
+	.need_reset_on_init = &vi_need_reset_on_init,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \
@@ -1726,8 +1791,8 @@ void legacy_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.mec_ring6 = AMDGPU_DOORBELL_MEC_RING6;
 	adev->doorbell_index.mec_ring7 = AMDGPU_DOORBELL_MEC_RING7;
 	adev->doorbell_index.gfx_ring0 = AMDGPU_DOORBELL_GFX_RING0;
-	adev->doorbell_index.sdma_engine0 = AMDGPU_DOORBELL_sDMA_ENGINE0;
-	adev->doorbell_index.sdma_engine1 = AMDGPU_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.sdma_engine[0] = AMDGPU_DOORBELL_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine[1] = AMDGPU_DOORBELL_sDMA_ENGINE1;
 	adev->doorbell_index.ih = AMDGPU_DOORBELL_IH;
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_MAX_ASSIGNMENT;
 }

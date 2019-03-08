@@ -76,9 +76,10 @@ TRACE_EVENT(amdgpu_mm_wreg,
 );
 
 TRACE_EVENT(amdgpu_iv,
-	    TP_PROTO(struct amdgpu_iv_entry *iv),
-	    TP_ARGS(iv),
+	    TP_PROTO(unsigned ih, struct amdgpu_iv_entry *iv),
+	    TP_ARGS(ih, iv),
 	    TP_STRUCT__entry(
+			     __field(unsigned, ih)
 			     __field(unsigned, client_id)
 			     __field(unsigned, src_id)
 			     __field(unsigned, ring_id)
@@ -90,6 +91,7 @@ TRACE_EVENT(amdgpu_iv,
 			     __array(unsigned, src_data, 4)
 			    ),
 	    TP_fast_assign(
+			   __entry->ih = ih;
 			   __entry->client_id = iv->client_id;
 			   __entry->src_id = iv->src_id;
 			   __entry->ring_id = iv->ring_id;
@@ -103,8 +105,9 @@ TRACE_EVENT(amdgpu_iv,
 			   __entry->src_data[2] = iv->src_data[2];
 			   __entry->src_data[3] = iv->src_data[3];
 			   ),
-	    TP_printk("client_id:%u src_id:%u ring:%u vmid:%u timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x",
-		      __entry->client_id, __entry->src_id,
+	    TP_printk("ih:%u client_id:%u src_id:%u ring:%u vmid:%u "
+		      "timestamp: %llu pasid:%u src_data: %08x %08x %08x %08x",
+		      __entry->ih, __entry->client_id, __entry->src_id,
 		      __entry->ring_id, __entry->vmid,
 		      __entry->timestamp, __entry->pasid,
 		      __entry->src_data[0], __entry->src_data[1],

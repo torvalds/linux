@@ -8,6 +8,8 @@
 #ifndef ARMADA_CRTC_H
 #define ARMADA_CRTC_H
 
+#include <drm/drm_crtc.h>
+
 struct armada_gem_object;
 
 struct armada_regs {

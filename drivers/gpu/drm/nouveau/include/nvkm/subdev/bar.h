@@ -29,5 +29,5 @@ int gf100_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
 int gk20a_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
 int gm107_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
 int gm20b_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
-int tu104_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
+int tu102_bar_new(struct nvkm_device *, int, struct nvkm_bar **);
 #endif

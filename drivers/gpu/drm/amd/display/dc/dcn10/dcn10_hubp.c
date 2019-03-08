@@ -115,7 +115,7 @@ static void hubp1_set_hubp_blank_en(struct hubp *hubp, bool blank)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, blank_en);
 }
 
-static void hubp1_vready_workaround(struct hubp *hubp,
+void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	uint32_t value = 0;
@@ -317,7 +317,8 @@ void hubp1_program_pixel_format(
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
-	bool flip_immediate)
+	bool flip_immediate,
+	uint8_t vmid)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
@@ -1149,9 +1150,28 @@ void hubp1_cursor_set_position(
 	REG_UPDATE(CURSOR_CONTROL,
 			CURSOR_ENABLE, cur_en);
 
-	REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, pos->x,
+	//account for cases where we see negative offset relative to overlay plane
+	if (src_x_offset < 0 && src_y_offset < 0) {
+		REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, 0,
+			CURSOR_Y_POSITION, 0);
+		x_hotspot -= src_x_offset;
+		y_hotspot -= src_y_offset;
+	} else if (src_x_offset < 0) {
+		REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, 0,
 			CURSOR_Y_POSITION, pos->y);
+		x_hotspot -= src_x_offset;
+	} else if (src_y_offset < 0) {
+		REG_SET_2(CURSOR_POSITION, 0,
+			CURSOR_X_POSITION, pos->x,
+			CURSOR_Y_POSITION, 0);
+		y_hotspot -= src_y_offset;
+	} else {
+		REG_SET_2(CURSOR_POSITION, 0,
+				CURSOR_X_POSITION, pos->x,
+				CURSOR_Y_POSITION, pos->y);
+	}
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
 			CURSOR_HOT_SPOT_X, x_hotspot,

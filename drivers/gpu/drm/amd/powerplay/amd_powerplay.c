@@ -1404,6 +1404,97 @@ static int pp_set_active_display_count(void *handle, uint32_t count)
 	return ret;
 }
 
+static int pp_get_asic_baco_capability(void *handle, bool *cap)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->get_asic_baco_capability)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->get_asic_baco_capability(hwmgr, cap);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_get_asic_baco_state(void *handle, int *state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->get_asic_baco_state)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->get_asic_baco_state(hwmgr, (enum BACO_STATE *)state);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_asic_baco_state(void *handle, int state)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr)
+		return -EINVAL;
+
+	if (!hwmgr->pm_en || !hwmgr->hwmgr_func->set_asic_baco_state)
+		return 0;
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_asic_baco_state(hwmgr, (enum BACO_STATE)state);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_get_ppfeature_status(void *handle, char *buf)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en || !buf)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->get_ppfeature_status == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->get_ppfeature_status(hwmgr, buf);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
+static int pp_set_ppfeature_status(void *handle, uint64_t ppfeature_masks)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_ppfeature_status == NULL) {
+		pr_info_ratelimited("%s was not implemented.\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = hwmgr->hwmgr_func->set_ppfeature_status(hwmgr, ppfeature_masks);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1454,4 +1545,9 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_min_deep_sleep_dcefclk = pp_set_min_deep_sleep_dcefclk,
 	.set_hard_min_dcefclk_by_freq = pp_set_hard_min_dcefclk_by_freq,
 	.set_hard_min_fclk_by_freq = pp_set_hard_min_fclk_by_freq,
+	.get_asic_baco_capability = pp_get_asic_baco_capability,
+	.get_asic_baco_state = pp_get_asic_baco_state,
+	.set_asic_baco_state = pp_set_asic_baco_state,
+	.get_ppfeature_status = pp_get_ppfeature_status,
+	.set_ppfeature_status = pp_set_ppfeature_status,
 };

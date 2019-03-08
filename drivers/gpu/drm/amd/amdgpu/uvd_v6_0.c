@@ -977,7 +977,7 @@ static int uvd_v6_0_ring_test_ring(struct amdgpu_ring *ring)
 static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job,
 				  struct amdgpu_ib *ib,
-				  bool ctx_switch)
+				  uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 
@@ -1003,7 +1003,7 @@ static void uvd_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
 static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
 					struct amdgpu_job *job,
 					struct amdgpu_ib *ib,
-					bool ctx_switch)
+					uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 

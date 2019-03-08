@@ -30,6 +30,7 @@ config DRM_CDNS_DSI
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
 	depends on OF
 	help
 	  Support Cadence DPI to DSI bridge. This is an internal

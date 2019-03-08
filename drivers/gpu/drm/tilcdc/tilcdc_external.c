@@ -10,6 +10,7 @@
 
 #include <linux/component.h>
 #include <linux/of_graph.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_of.h>
 
 #include "tilcdc_drv.h"

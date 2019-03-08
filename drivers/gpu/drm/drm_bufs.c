@@ -377,6 +377,17 @@ int drm_legacy_addmap(struct drm_device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(drm_legacy_addmap);
 
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
+					 unsigned int token)
+{
+	struct drm_map_list *_entry;
+	list_for_each_entry(_entry, &dev->maplist, head)
+		if (_entry->user_token == token)
+			return _entry->map;
+	return NULL;
+}
+EXPORT_SYMBOL(drm_legacy_findmap);
+
 /**
  * Ioctl to specify a range of memory that is available for mapping by a
  * non-root process.
@@ -483,7 +494,7 @@ int drm_legacy_getmap_ioctl(struct drm_device *dev, void *data,
  * isn't in use.
  *
  * Searches the map on drm_device::maplist, removes it from the list, see if
- * its being used, and free any associate resource (such as MTRR's) if it's not
+ * it's being used, and free any associated resource (such as MTRR's) if it's not
  * being on use.
  *
  * \sa drm_legacy_addmap
@@ -610,7 +621,7 @@ int drm_legacy_rmmap_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	/* List has wrapped around to the head pointer, or its empty we didn't
+	/* List has wrapped around to the head pointer, or it's empty we didn't
 	 * find anything.
 	 */
 	if (list_empty(&dev->maplist) || !map) {

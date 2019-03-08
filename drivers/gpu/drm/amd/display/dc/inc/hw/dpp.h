@@ -39,6 +39,11 @@ struct dpp {
 
 };
 
+struct dpp_input_csc_matrix {
+	enum dc_color_space color_space;
+	uint16_t regval[12];
+};
+
 struct dpp_grph_csc_adjustment {
 	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
 	enum graphics_gamut_adjust_type gamut_adjust_type;

@@ -9,7 +9,9 @@
  *          Hans de Goede <hdegoede@redhat.com>
  */
 
-#include <drm/drm_crtc_helper.h>
+#include <linux/pci.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_probe_helper.h>
 
 #include "vbox_drv.h"
 #include "vboxvideo.h"

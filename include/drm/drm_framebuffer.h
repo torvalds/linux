@@ -23,13 +23,17 @@
 #ifndef __DRM_FRAMEBUFFER_H__
 #define __DRM_FRAMEBUFFER_H__
 
-#include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/list.h>
+#include <linux/sched.h>
+
 #include <drm/drm_mode_object.h>
 
-struct drm_framebuffer;
-struct drm_file;
+struct drm_clip_rect;
 struct drm_device;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_gem_object;
 
 /**
  * struct drm_framebuffer_funcs - framebuffer hooks

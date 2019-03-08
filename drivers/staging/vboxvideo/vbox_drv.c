@@ -7,11 +7,15 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
-#include <linux/module.h>
 #include <linux/console.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/vt_kern.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 
 #include "vbox_drv.h"
 
@@ -221,9 +225,7 @@ static void vbox_master_drop(struct drm_device *dev, struct drm_file *file_priv)
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_MODESET | DRIVER_GEM | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	    DRIVER_PRIME | DRIVER_ATOMIC,
-	.dev_priv_size = 0,
+	    DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 
 	.lastclose = drm_fb_helper_lastclose,
 	.master_set = vbox_master_set,

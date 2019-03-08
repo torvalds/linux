@@ -61,7 +61,7 @@ struct shadow_indirect_ctx {
 	unsigned long guest_gma;
 	unsigned long shadow_gma;
 	void *shadow_va;
-	uint32_t size;
+	u32 size;
 };
 
 #define PER_CTX_ADDR_MASK 0xfffff000

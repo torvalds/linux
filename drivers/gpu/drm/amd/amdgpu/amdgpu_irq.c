@@ -131,27 +131,6 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_irq_callback - callback from the IH ring
- *
- * @adev: amdgpu device pointer
- * @ih: amdgpu ih ring
- *
- * Callback from IH ring processing to handle the entry at the current position
- * and advance the read pointer.
- */
-static void amdgpu_irq_callback(struct amdgpu_device *adev,
-				struct amdgpu_ih_ring *ih)
-{
-	u32 ring_index = ih->rptr >> 2;
-	struct amdgpu_iv_entry entry;
-
-	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
-	amdgpu_ih_decode_iv(adev, &entry);
-
-	amdgpu_irq_dispatch(adev, &entry);
-}
-
-/**
  * amdgpu_irq_handler - IRQ handler
  *
  * @irq: IRQ number (unused)
@@ -168,10 +147,40 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	struct amdgpu_device *adev = dev->dev_private;
 	irqreturn_t ret;
 
-	ret = amdgpu_ih_process(adev, &adev->irq.ih, amdgpu_irq_callback);
+	ret = amdgpu_ih_process(adev, &adev->irq.ih);
 	if (ret == IRQ_HANDLED)
 		pm_runtime_mark_last_busy(dev->dev);
 	return ret;
+}
+
+/**
+ * amdgpu_irq_handle_ih1 - kick of processing for IH1
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 1.
+ */
+static void amdgpu_irq_handle_ih1(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih1_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih1);
+}
+
+/**
+ * amdgpu_irq_handle_ih2 - kick of processing for IH2
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH ring 2.
+ */
+static void amdgpu_irq_handle_ih2(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih2_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih2);
 }
 
 /**
@@ -237,6 +246,9 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 		INIT_WORK(&adev->hotplug_work,
 				amdgpu_hotplug_work_func);
 	}
+
+	INIT_WORK(&adev->irq.ih1_work, amdgpu_irq_handle_ih1);
+	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
 
 	adev->irq.installed = true;
 	r = drm_irq_install(adev->ddev, adev->ddev->pdev->irq);
@@ -359,15 +371,22 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
  * Dispatches IRQ to IP blocks.
  */
 void amdgpu_irq_dispatch(struct amdgpu_device *adev,
-			 struct amdgpu_iv_entry *entry)
+			 struct amdgpu_ih_ring *ih)
 {
-	unsigned client_id = entry->client_id;
-	unsigned src_id = entry->src_id;
+	u32 ring_index = ih->rptr >> 2;
+	struct amdgpu_iv_entry entry;
+	unsigned client_id, src_id;
 	struct amdgpu_irq_src *src;
 	bool handled = false;
 	int r;
 
-	trace_amdgpu_iv(entry);
+	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
+	amdgpu_ih_decode_iv(adev, &entry);
+
+	trace_amdgpu_iv(ih - &adev->irq.ih, &entry);
+
+	client_id = entry.client_id;
+	src_id = entry.src_id;
 
 	if (client_id >= AMDGPU_IRQ_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
@@ -383,7 +402,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 			  client_id, src_id);
 
 	} else if ((src = adev->irq.client[client_id].sources[src_id])) {
-		r = src->funcs->process(adev, src, entry);
+		r = src->funcs->process(adev, src, &entry);
 		if (r < 0)
 			DRM_ERROR("error processing interrupt (%d)\n", r);
 		else if (r)
@@ -395,7 +414,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 
 	/* Send it to amdkfd as well if it isn't already handled */
 	if (!handled)
-		amdgpu_amdkfd_interrupt(adev, entry->iv_entry);
+		amdgpu_amdkfd_interrupt(adev, entry.iv_entry);
 }
 
 /**

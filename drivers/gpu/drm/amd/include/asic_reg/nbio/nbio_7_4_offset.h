@@ -2567,6 +2567,8 @@
 
 // addressBlock: nbio_nbif0_rcc_strap_BIFDEC1
 // base address: 0x0
+#define mmRCC_BIF_STRAP0                                                                               0x0000
+#define mmRCC_BIF_STRAP0_BASE_IDX                                                                      2
 #define mmRCC_DEV0_EPF0_STRAP0                                                                         0x0011
 #define mmRCC_DEV0_EPF0_STRAP0_BASE_IDX                                                                2
 

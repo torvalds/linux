@@ -707,11 +707,6 @@ void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
 		bool independent_64b_blks);
 
-bool hubp1_program_surface_flip_and_addr(
-	struct hubp *hubp,
-	const struct dc_plane_address *address,
-	bool flip_immediate);
-
 bool hubp1_is_flip_pending(struct hubp *hubp);
 
 void hubp1_cursor_set_attributes(
@@ -745,5 +740,7 @@ void hubp1_clear_underflow(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
+void hubp1_vready_workaround(struct hubp *hubp,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
 #endif
