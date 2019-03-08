@@ -89,6 +89,8 @@ static int autofs_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",indirect");
 	if (sbi->flags & AUTOFS_SBI_STRICTEXPIRE)
 		seq_printf(m, ",strictexpire");
+	if (sbi->flags & AUTOFS_SBI_IGNORE)
+		seq_printf(m, ",ignore");
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	if (sbi->pipe)
 		seq_printf(m, ",pipe_ino=%ld", file_inode(sbi->pipe)->i_ino);
@@ -111,7 +113,8 @@ static const struct super_operations autofs_sops = {
 };
 
 enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
-	Opt_indirect, Opt_direct, Opt_offset, Opt_strictexpire};
+	Opt_indirect, Opt_direct, Opt_offset, Opt_strictexpire,
+	Opt_ignore};
 
 static const match_table_t tokens = {
 	{Opt_fd, "fd=%u"},
@@ -124,6 +127,7 @@ static const match_table_t tokens = {
 	{Opt_direct, "direct"},
 	{Opt_offset, "offset"},
 	{Opt_strictexpire, "strictexpire"},
+	{Opt_ignore, "ignore"},
 	{Opt_err, NULL}
 };
 
@@ -205,6 +209,9 @@ static int parse_options(char *options,
 			break;
 		case Opt_strictexpire:
 			sbi->flags |= AUTOFS_SBI_STRICTEXPIRE;
+			break;
+		case Opt_ignore:
+			sbi->flags |= AUTOFS_SBI_IGNORE;
 			break;
 		default:
 			return 1;
