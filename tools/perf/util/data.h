@@ -19,6 +19,7 @@ struct perf_data {
 	const char		*path;
 	struct perf_data_file	 file;
 	bool			 is_pipe;
+	bool			 is_dir;
 	bool			 force;
 	enum perf_data_mode	 mode;
 
@@ -41,6 +42,11 @@ static inline bool perf_data__is_write(struct perf_data *data)
 static inline int perf_data__is_pipe(struct perf_data *data)
 {
 	return data->is_pipe;
+}
+
+static inline bool perf_data__is_dir(struct perf_data *data)
+{
+	return data->is_dir;
 }
 
 static inline int perf_data__fd(struct perf_data *data)
