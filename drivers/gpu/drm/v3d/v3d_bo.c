@@ -117,7 +117,6 @@ static struct v3d_bo *v3d_bo_create_struct(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	obj = &bo->base;
 
-	INIT_LIST_HEAD(&bo->vmas);
 	INIT_LIST_HEAD(&bo->unref_head);
 	mutex_init(&bo->lock);
 

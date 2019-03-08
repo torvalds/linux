@@ -110,12 +110,6 @@ struct v3d_file_priv {
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 };
 
-/* Tracks a mapping of a BO into a per-fd address space */
-struct v3d_vma {
-	struct v3d_page_table *pt;
-	struct list_head list; /* entry in v3d_bo.vmas */
-};
-
 struct v3d_bo {
 	struct drm_gem_object base;
 
@@ -126,9 +120,6 @@ struct v3d_bo {
 	u32 pages_refcount;
 	struct page **pages;
 	struct sg_table *sgt;
-	void *vaddr;
-
-	struct list_head vmas;    /* list of v3d_vma */
 
 	/* List entry for the BO's position in
 	 * v3d_exec_info->unref_list
