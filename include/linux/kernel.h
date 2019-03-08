@@ -14,6 +14,7 @@
 #include <linux/printk.h>
 #include <linux/build_bug.h>
 #include <asm/byteorder.h>
+#include <asm/div64.h>
 #include <uapi/linux/kernel.h>
 
 #define USHRT_MAX	((u16)(~0U))
@@ -204,7 +205,6 @@
 #define _THIS_IP_  ({ __label__ __here; __here: (unsigned long)&&__here; })
 
 #ifdef CONFIG_LBDAF
-# include <asm/div64.h>
 # define sector_div(a, b) do_div(a, b)
 #else
 # define sector_div(n, b)( \
