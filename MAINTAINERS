@@ -1899,10 +1899,11 @@ F:	drivers/usb/host/ehci-w90x900.c
 F:	drivers/video/fbdev/nuc900fb.c
 
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
-M:	Nelson Castillo <arhuaco@freaks-unidos.net>
 L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
 W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
-S:	Supported
+S:	Orphan
+F:	arch/arm/mach-s3c24xx/mach-gta02.c
+F:	arch/arm/mach-s3c24xx/gta02.h
 
 ARM/Orion SoC/Technologic Systems TS-78xx platform support
 M:	Alexander Clouter <alex@digriz.org.uk>
