@@ -102,7 +102,7 @@ void __intel_context_remove(struct intel_context *ce)
 	spin_unlock(&ctx->hw_contexts_lock);
 }
 
-struct intel_context *
+static struct intel_context *
 intel_context_instance(struct i915_gem_context *ctx,
 		       struct intel_engine_cs *engine)
 {
@@ -127,22 +127,43 @@ intel_context_instance(struct i915_gem_context *ctx,
 }
 
 struct intel_context *
+intel_context_pin_lock(struct i915_gem_context *ctx,
+		       struct intel_engine_cs *engine)
+	__acquires(ce->pin_mutex)
+{
+	struct intel_context *ce;
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
+
+	if (mutex_lock_interruptible(&ce->pin_mutex))
+		return ERR_PTR(-EINTR);
+
+	return ce;
+}
+
+struct intel_context *
 intel_context_pin(struct i915_gem_context *ctx,
 		  struct intel_engine_cs *engine)
 {
 	struct intel_context *ce;
 	int err;
 
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-
 	ce = intel_context_instance(ctx, engine);
 	if (IS_ERR(ce))
 		return ce;
 
-	if (unlikely(!ce->pin_count++)) {
+	if (likely(atomic_inc_not_zero(&ce->pin_count)))
+		return ce;
+
+	if (mutex_lock_interruptible(&ce->pin_mutex))
+		return ERR_PTR(-EINTR);
+
+	if (likely(!atomic_read(&ce->pin_count))) {
 		err = ce->ops->pin(ce);
 		if (err)
-			goto err_unpin;
+			goto err;
 
 		mutex_lock(&ctx->mutex);
 		list_add(&ce->active_link, &ctx->active_engines);
@@ -150,14 +171,33 @@ intel_context_pin(struct i915_gem_context *ctx,
 
 		i915_gem_context_get(ctx);
 		GEM_BUG_ON(ce->gem_context != ctx);
-	}
-	GEM_BUG_ON(!ce->pin_count); /* no overflow! */
 
+		smp_mb__before_atomic(); /* flush pin before it is visible */
+	}
+
+	atomic_inc(&ce->pin_count);
+	GEM_BUG_ON(!intel_context_is_pinned(ce)); /* no overflow! */
+
+	mutex_unlock(&ce->pin_mutex);
 	return ce;
 
-err_unpin:
-	ce->pin_count = 0;
+err:
+	mutex_unlock(&ce->pin_mutex);
 	return ERR_PTR(err);
+}
+
+void intel_context_unpin(struct intel_context *ce)
+{
+	if (likely(atomic_add_unless(&ce->pin_count, -1, 1)))
+		return;
+
+	/* We may be called from inside intel_context_pin() to evict another */
+	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
+
+	if (likely(atomic_dec_and_test(&ce->pin_count)))
+		ce->ops->unpin(ce);
+
+	mutex_unlock(&ce->pin_mutex);
 }
 
 static void intel_context_retire(struct i915_active_request *active,
@@ -180,6 +220,8 @@ intel_context_init(struct intel_context *ce,
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);
+
+	mutex_init(&ce->pin_mutex);
 
 	/* Use the whole device by default */
 	ce->sseu = intel_device_default_sseu(ctx->i915);

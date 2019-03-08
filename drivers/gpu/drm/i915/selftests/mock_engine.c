@@ -131,7 +131,7 @@ static void mock_context_unpin(struct intel_context *ce)
 
 static void mock_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->pin_count);
+	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->ring)
 		mock_ring_free(ce->ring);

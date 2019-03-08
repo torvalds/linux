@@ -7,6 +7,8 @@
 #ifndef __INTEL_CONTEXT_H__
 #define __INTEL_CONTEXT_H__
 
+#include <linux/lockdep.h>
+
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
 
@@ -29,17 +31,29 @@ intel_context_lookup(struct i915_gem_context *ctx,
 		     struct intel_engine_cs *engine);
 
 /**
- * intel_context_instance - Lookup or allocate the HW context for (ctx, engine)
+ * intel_context_pin_lock - Stablises the 'pinned' status of the HW context
  * @ctx - the parent GEM context
  * @engine - the target HW engine
  *
- * Returns the existing HW context for this pair of (GEM context, engine), or
- * allocates and initialises a fresh context. Once allocated, the HW context
- * remains resident until the GEM context is destroyed.
+ * Acquire a lock on the pinned status of the HW context, such that the context
+ * can neither be bound to the GPU or unbound whilst the lock is held, i.e.
+ * intel_context_is_pinned() remains stable.
  */
 struct intel_context *
-intel_context_instance(struct i915_gem_context *ctx,
+intel_context_pin_lock(struct i915_gem_context *ctx,
 		       struct intel_engine_cs *engine);
+
+static inline bool
+intel_context_is_pinned(struct intel_context *ce)
+{
+	return atomic_read(&ce->pin_count);
+}
+
+static inline void intel_context_pin_unlock(struct intel_context *ce)
+__releases(ce->pin_mutex)
+{
+	mutex_unlock(&ce->pin_mutex);
+}
 
 struct intel_context *
 __intel_context_insert(struct i915_gem_context *ctx,
@@ -53,18 +67,10 @@ intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine);
 
 static inline void __intel_context_pin(struct intel_context *ce)
 {
-	GEM_BUG_ON(!ce->pin_count);
-	ce->pin_count++;
+	GEM_BUG_ON(!intel_context_is_pinned(ce));
+	atomic_inc(&ce->pin_count);
 }
 
-static inline void intel_context_unpin(struct intel_context *ce)
-{
-	GEM_BUG_ON(!ce->pin_count);
-	if (--ce->pin_count)
-		return;
-
-	GEM_BUG_ON(!ce->ops);
-	ce->ops->unpin(ce);
-}
+void intel_context_unpin(struct intel_context *ce);
 
 #endif /* __INTEL_CONTEXT_H__ */

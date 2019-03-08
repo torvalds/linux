@@ -4667,7 +4667,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		if (!state)
 			continue;
 
-		GEM_BUG_ON(ce->pin_count);
+		GEM_BUG_ON(intel_context_is_pinned(ce));
 
 		/*
 		 * As we will hold a reference to the logical state, it will

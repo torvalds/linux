@@ -810,7 +810,6 @@ static int get_sseu(struct i915_gem_context *ctx,
 	struct drm_i915_gem_context_param_sseu user_sseu;
 	struct intel_engine_cs *engine;
 	struct intel_context *ce;
-	int ret;
 
 	if (args->size == 0)
 		goto out;
@@ -830,21 +829,16 @@ static int get_sseu(struct i915_gem_context *ctx,
 	if (!engine)
 		return -EINVAL;
 
-	ce = intel_context_instance(ctx, engine);
+	ce = intel_context_pin_lock(ctx, engine); /* serialises with set_sseu */
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
-
-	/* Only use for mutex here is to serialize get_param and set_param. */
-	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
-	if (ret)
-		return ret;
 
 	user_sseu.slice_mask = ce->sseu.slice_mask;
 	user_sseu.subslice_mask = ce->sseu.subslice_mask;
 	user_sseu.min_eus_per_subslice = ce->sseu.min_eus_per_subslice;
 	user_sseu.max_eus_per_subslice = ce->sseu.max_eus_per_subslice;
 
-	mutex_unlock(&ctx->i915->drm.struct_mutex);
+	intel_context_pin_unlock(ce);
 
 	if (copy_to_user(u64_to_user_ptr(args->value), &user_sseu,
 			 sizeof(user_sseu)))
@@ -940,23 +934,28 @@ static int gen8_emit_rpcs_config(struct i915_request *rq,
 }
 
 static int
-gen8_modify_rpcs_gpu(struct intel_context *ce,
-		     struct intel_engine_cs *engine,
-		     struct intel_sseu sseu)
+gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 {
-	struct drm_i915_private *i915 = engine->i915;
+	struct drm_i915_private *i915 = ce->engine->i915;
 	struct i915_request *rq, *prev;
 	intel_wakeref_t wakeref;
 	int ret;
 
-	GEM_BUG_ON(!ce->pin_count);
+	lockdep_assert_held(&ce->pin_mutex);
 
-	lockdep_assert_held(&i915->drm.struct_mutex);
+	/*
+	 * If the context is not idle, we have to submit an ordered request to
+	 * modify its context image via the kernel context (writing to our own
+	 * image, or into the registers directory, does not stick). Pristine
+	 * and idle contexts will be configured on pinning.
+	 */
+	if (!intel_context_is_pinned(ce))
+		return 0;
 
 	/* Submitting requests etc needs the hw awake. */
 	wakeref = intel_runtime_pm_get(i915);
 
-	rq = i915_request_alloc(engine, i915->kernel_context);
+	rq = i915_request_alloc(ce->engine, i915->kernel_context);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
 		goto out_put;
@@ -1010,25 +1009,20 @@ __i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
 	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
 	GEM_BUG_ON(engine->id != RCS0);
 
-	ce = intel_context_instance(ctx, engine);
+	ce = intel_context_pin_lock(ctx, engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
 
 	/* Nothing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
-		return 0;
+		goto unlock;
 
-	/*
-	 * If context is not idle we have to submit an ordered request to modify
-	 * its context image via the kernel context. Pristine and idle contexts
-	 * will be configured on pinning.
-	 */
-	if (ce->pin_count)
-		ret = gen8_modify_rpcs_gpu(ce, engine, sseu);
-
+	ret = gen8_modify_rpcs(ce, sseu);
 	if (!ret)
 		ce->sseu = sseu;
 
+unlock:
+	intel_context_pin_unlock(ce);
 	return ret;
 }
 

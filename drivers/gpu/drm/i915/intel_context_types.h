@@ -8,6 +8,7 @@
 #define __INTEL_CONTEXT_TYPES__
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/types.h>
 
@@ -38,14 +39,19 @@ struct intel_context {
 	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *active;
+
 	struct list_head active_link;
 	struct list_head signal_link;
 	struct list_head signals;
+
 	struct i915_vma *state;
 	struct intel_ring *ring;
+
 	u32 *lrc_reg_state;
 	u64 lrc_desc;
-	int pin_count;
+
+	atomic_t pin_count;
+	struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
 
 	/**
 	 * active_tracker: Active tracker for the external rq activity

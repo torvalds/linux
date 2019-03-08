@@ -1244,7 +1244,7 @@ static void __execlists_context_fini(struct intel_context *ce)
 
 static void execlists_context_destroy(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->pin_count);
+	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->state)
 		__execlists_context_fini(ce);
@@ -1481,7 +1481,7 @@ static int execlists_request_alloc(struct i915_request *request)
 {
 	int ret;
 
-	GEM_BUG_ON(!request->hw_context->pin_count);
+	GEM_BUG_ON(!intel_context_is_pinned(request->hw_context));
 
 	/*
 	 * Flush enough space to reduce the likelihood of waiting after
