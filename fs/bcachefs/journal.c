@@ -248,13 +248,13 @@ static int journal_entry_open(struct journal *j)
 	do {
 		old.v = new.v = v;
 
-		EBUG_ON(journal_state_count(new, new.idx));
-
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
 			return -EROFS;
 
 		/* Handle any already added entries */
 		new.cur_entry_offset = le32_to_cpu(buf->data->u64s);
+
+		EBUG_ON(journal_state_count(new, new.idx));
 		journal_state_inc(&new);
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
