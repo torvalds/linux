@@ -572,7 +572,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 		},
 	}, {
 		.id = 0x34,
-		.name = "fdcwr2",
+		.name = "fdcdwr2",
 		.swgroup = TEGRA_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x22c,
