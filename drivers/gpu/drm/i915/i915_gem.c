@@ -2877,6 +2877,22 @@ static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
 	return result;
 }
 
+static bool load_power_context(struct drm_i915_private *i915)
+{
+	if (!switch_to_kernel_context_sync(i915))
+		return false;
+
+	/*
+	 * Immediately park the GPU so that we enable powersaving and
+	 * treat it as idle. The next time we issue a request, we will
+	 * unpark and start using the engine->pinned_default_state, otherwise
+	 * it is in limbo and an early reset may fail.
+	 */
+	__i915_gem_park(i915);
+
+	return true;
+}
+
 static void
 i915_gem_idle_work_handler(struct work_struct *work)
 {
@@ -4451,7 +4467,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	intel_uc_resume(i915);
 
 	/* Always reload a context for powersaving. */
-	if (i915_gem_switch_to_kernel_context(i915))
+	if (!load_power_context(i915))
 		goto err_wedged;
 
 out_unlock:
@@ -4616,7 +4632,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	struct i915_gem_context *ctx;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	int err;
+	int err = 0;
 
 	/*
 	 * As we reset the gpu during very early sanitisation, the current
@@ -4649,18 +4665,11 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_active;
 	}
 
-	if (!switch_to_kernel_context_sync(i915)) {
-		err = -EIO; /* Caller will declare us wedged */
+	/* Flush the default context image to memory, and enable powersaving. */
+	if (!load_power_context(i915)) {
+		err = -EIO;
 		goto err_active;
 	}
-
-	/*
-	 * Immediately park the GPU so that we enable powersaving and
-	 * treat it as idle. The next time we issue a request, we will
-	 * unpark and start using the engine->pinned_default_state, otherwise
-	 * it is in limbo and an early reset may fail.
-	 */
-	__i915_gem_park(i915);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_vma *state;
@@ -4727,19 +4736,10 @@ out_ctx:
 err_active:
 	/*
 	 * If we have to abandon now, we expect the engines to be idle
-	 * and ready to be torn-down. First try to flush any remaining
-	 * request, ensure we are pointing at the kernel context and
-	 * then remove it.
+	 * and ready to be torn-down. The quickest way we can accomplish
+	 * this is by declaring ourselves wedged.
 	 */
-	if (WARN_ON(i915_gem_switch_to_kernel_context(i915)))
-		goto out_ctx;
-
-	if (WARN_ON(i915_gem_wait_for_idle(i915,
-					   I915_WAIT_LOCKED,
-					   MAX_SCHEDULE_TIMEOUT)))
-		goto out_ctx;
-
-	i915_gem_contexts_lost(i915);
+	i915_gem_set_wedged(i915);
 	goto out_ctx;
 }
 
