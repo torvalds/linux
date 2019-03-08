@@ -449,13 +449,11 @@ static void brcmf_usb_free_q(struct list_head *q)
 {
 	struct brcmf_usbreq *req, *next;
 
-	int i = 0;
 	list_for_each_entry_safe(req, next, q, list) {
 		if (!req->urb) {
 			brcmf_err("bad req\n");
 			break;
 		}
-		i++;
 		usb_free_urb(req->urb);
 		list_del_init(&req->list);
 	}
