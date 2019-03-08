@@ -486,15 +486,24 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 }
 
 static int
-wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
-		      int *credits, unsigned int *instance)
+wait_for_free_credits(struct TCP_Server_Info *server, const int flags,
+		      unsigned int *instance)
 {
 	int rc;
+	int *credits;
+	int optype;
+
+	optype = flags & CIFS_OP_MASK;
 
 	*instance = 0;
 
+	credits = server->ops->get_credits_field(server, optype);
+	/* Since an echo is already inflight, no need to wait to send another */
+	if (*credits <= 0 && optype == CIFS_ECHO_OP)
+		return -EAGAIN;
+
 	spin_lock(&server->req_lock);
-	if (timeout == CIFS_ASYNC_OP) {
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
 		*credits -= 1;
@@ -525,7 +534,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int timeout,
 			 */
 
 			/* update # of requests on the wire to server */
-			if (timeout != CIFS_BLOCKING_OP) {
+			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
 				*credits -= 1;
 				server->in_flight++;
 				*instance = server->reconnect_instance;
@@ -541,18 +550,7 @@ static int
 wait_for_free_request(struct TCP_Server_Info *server, const int flags,
 		      unsigned int *instance)
 {
-	int *val;
-	int timeout, optype;
-
-	timeout = flags & CIFS_TIMEOUT_MASK;
-	optype = flags & CIFS_OP_MASK;
-
-	val = server->ops->get_credits_field(server, optype);
-	/* Since an echo is already inflight, no need to wait to send another */
-	if (*val <= 0 && optype == CIFS_ECHO_OP)
-		return -EAGAIN;
-
-	return wait_for_free_credits(server, timeout, val, instance);
+	return wait_for_free_credits(server, flags, instance);
 }
 
 int
