@@ -2723,7 +2723,7 @@ static int g4x_hrawclk(struct drm_i915_private *dev_priv)
  */
 void intel_update_rawclk(struct drm_i915_private *dev_priv)
 {
-	if (HAS_PCH_CNP(dev_priv) || HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		dev_priv->rawclk_freq = cnp_rawclk(dev_priv);
 	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->rawclk_freq = pch_rawclk(dev_priv);

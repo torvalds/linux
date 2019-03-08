@@ -523,6 +523,12 @@ struct i915_psr {
 	u16 su_x_granularity;
 };
 
+/*
+ * Sorted by south display engine compatibility.
+ * If the new PCH comes with a south display engine that is not
+ * inherited from the latest item, please do not add it to the
+ * end. Instead, add it right after its "parent" PCH.
+ */
 enum intel_pch {
 	PCH_NOP = -1,	/* PCH without south display */
 	PCH_NONE = 0,	/* No PCH present */

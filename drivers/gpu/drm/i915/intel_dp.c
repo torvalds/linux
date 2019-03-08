@@ -951,8 +951,7 @@ static void intel_pps_get_registers(struct intel_dp *intel_dp,
 	regs->pp_off = PP_OFF_DELAYS(pps_idx);
 
 	/* Cycle delay moved from PP_DIVISOR to PP_CONTROL */
-	if (IS_GEN9_LP(dev_priv) || HAS_PCH_CNP(dev_priv) ||
-	    HAS_PCH_ICP(dev_priv))
+	if (IS_GEN9_LP(dev_priv) || INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		regs->pp_div = INVALID_MMIO_REG;
 	else
 		regs->pp_div = PP_DIVISOR(pps_idx);

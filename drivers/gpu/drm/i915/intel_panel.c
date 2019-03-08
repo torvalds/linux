@@ -1894,15 +1894,14 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
-	} else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_ICP(dev_priv)) {
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
 		panel->backlight.setup = cnp_setup_backlight;
 		panel->backlight.enable = cnp_enable_backlight;
 		panel->backlight.disable = cnp_disable_backlight;
 		panel->backlight.set = bxt_set_backlight;
 		panel->backlight.get = bxt_get_backlight;
 		panel->backlight.hz_to_pwm = cnp_hz_to_pwm;
-	} else if (HAS_PCH_LPT(dev_priv) || HAS_PCH_SPT(dev_priv) ||
-		   HAS_PCH_KBP(dev_priv)) {
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_LPT) {
 		panel->backlight.setup = lpt_setup_backlight;
 		panel->backlight.enable = lpt_enable_backlight;
 		panel->backlight.disable = lpt_disable_backlight;

@@ -2831,9 +2831,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 			if (HAS_PCH_ICP(dev_priv))
 				icp_irq_handler(dev_priv, iir);
-			else if (HAS_PCH_SPT(dev_priv) ||
-				 HAS_PCH_KBP(dev_priv) ||
-				 HAS_PCH_CNP(dev_priv))
+			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 				spt_irq_handler(dev_priv, iir);
 			else
 				cpt_irq_handler(dev_priv, iir);
@@ -4621,8 +4619,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->disable_vblank = gen8_disable_vblank;
 		if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
-		else if (HAS_PCH_SPT(dev_priv) || HAS_PCH_KBP(dev_priv) ||
-			 HAS_PCH_CNP(dev_priv))
+		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
 			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
