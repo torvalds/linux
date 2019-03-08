@@ -175,7 +175,7 @@ struct poll_iocb {
 	struct file		*file;
 	struct wait_queue_head	*head;
 	__poll_t		events;
-	bool			woken;
+	bool			done;
 	bool			cancelled;
 	struct wait_queue_entry	wait;
 	struct work_struct	work;
@@ -1600,12 +1600,6 @@ static int aio_fsync(struct fsync_iocb *req, const struct iocb *iocb,
 	return 0;
 }
 
-static inline void aio_poll_complete(struct aio_kiocb *iocb, __poll_t mask)
-{
-	iocb->ki_res.res = mangle_poll(mask);
-	iocb_put(iocb);
-}
-
 static void aio_poll_complete_work(struct work_struct *work)
 {
 	struct poll_iocb *req = container_of(work, struct poll_iocb, work);
@@ -1631,9 +1625,11 @@ static void aio_poll_complete_work(struct work_struct *work)
 		return;
 	}
 	list_del_init(&iocb->ki_list);
+	iocb->ki_res.res = mangle_poll(mask);
+	req->done = true;
 	spin_unlock_irq(&ctx->ctx_lock);
 
-	aio_poll_complete(iocb, mask);
+	iocb_put(iocb);
 }
 
 /* assumes we are called with irqs disabled */
@@ -1661,31 +1657,27 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	__poll_t mask = key_to_poll(key);
 	unsigned long flags;
 
-	req->woken = true;
-
 	/* for instances that support it check for an event match first: */
-	if (mask) {
-		if (!(mask & req->events))
-			return 0;
+	if (mask && !(mask & req->events))
+		return 0;
 
+	list_del_init(&req->wait.entry);
+
+	if (mask && spin_trylock_irqsave(&iocb->ki_ctx->ctx_lock, flags)) {
 		/*
 		 * Try to complete the iocb inline if we can. Use
 		 * irqsave/irqrestore because not all filesystems (e.g. fuse)
 		 * call this function with IRQs disabled and because IRQs
 		 * have to be disabled before ctx_lock is obtained.
 		 */
-		if (spin_trylock_irqsave(&iocb->ki_ctx->ctx_lock, flags)) {
-			list_del(&iocb->ki_list);
-			spin_unlock_irqrestore(&iocb->ki_ctx->ctx_lock, flags);
-
-			list_del_init(&req->wait.entry);
-			aio_poll_complete(iocb, mask);
-			return 1;
-		}
+		list_del(&iocb->ki_list);
+		iocb->ki_res.res = mangle_poll(mask);
+		req->done = true;
+		spin_unlock_irqrestore(&iocb->ki_ctx->ctx_lock, flags);
+		iocb_put(iocb);
+	} else {
+		schedule_work(&req->work);
 	}
-
-	list_del_init(&req->wait.entry);
-	schedule_work(&req->work);
 	return 1;
 }
 
@@ -1717,6 +1709,7 @@ static ssize_t aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 	struct kioctx *ctx = aiocb->ki_ctx;
 	struct poll_iocb *req = &aiocb->poll;
 	struct aio_poll_table apt;
+	bool cancel = false;
 	__poll_t mask;
 
 	/* reject any unknown events outside the normal event mask. */
@@ -1730,7 +1723,7 @@ static ssize_t aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 	req->events = demangle_poll(iocb->aio_buf) | EPOLLERR | EPOLLHUP;
 
 	req->head = NULL;
-	req->woken = false;
+	req->done = false;
 	req->cancelled = false;
 
 	apt.pt._qproc = aio_poll_queue_proc;
@@ -1743,36 +1736,33 @@ static ssize_t aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 	init_waitqueue_func_entry(&req->wait, aio_poll_wake);
 
 	mask = vfs_poll(req->file, &apt.pt) & req->events;
-	if (unlikely(!req->head)) {
-		/* we did not manage to set up a waitqueue, done */
-		goto out;
-	}
-
 	spin_lock_irq(&ctx->ctx_lock);
-	spin_lock(&req->head->lock);
-	if (req->woken) {
-		/* wake_up context handles the rest */
-		mask = 0;
-		apt.error = 0;
-	} else if (mask || apt.error) {
-		/* if we get an error or a mask we are done */
-		WARN_ON_ONCE(list_empty(&req->wait.entry));
-		list_del_init(&req->wait.entry);
-	} else {
-		/* actually waiting for an event */
-		list_add_tail(&aiocb->ki_list, &ctx->active_reqs);
-		aiocb->ki_cancel = aio_poll_cancel;
+	if (likely(req->head)) {
+		spin_lock(&req->head->lock);
+		if (unlikely(list_empty(&req->wait.entry))) {
+			if (apt.error)
+				cancel = true;
+			apt.error = 0;
+			mask = 0;
+		}
+		if (mask || apt.error) {
+			list_del_init(&req->wait.entry);
+		} else if (cancel) {
+			WRITE_ONCE(req->cancelled, true);
+		} else if (!req->done) { /* actually waiting for an event */
+			list_add_tail(&aiocb->ki_list, &ctx->active_reqs);
+			aiocb->ki_cancel = aio_poll_cancel;
+		}
+		spin_unlock(&req->head->lock);
 	}
-	spin_unlock(&req->head->lock);
+	if (mask) { /* no async, we'd stolen it */
+		aiocb->ki_res.res = mangle_poll(mask);
+		apt.error = 0;
+	}
 	spin_unlock_irq(&ctx->ctx_lock);
-
-out:
-	if (unlikely(apt.error))
-		return apt.error;
-
 	if (mask)
-		aio_poll_complete(aiocb, mask);
-	return 0;
+		iocb_put(aiocb);
+	return apt.error;
 }
 
 static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
