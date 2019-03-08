@@ -18,11 +18,13 @@
 
 #define CG_PATH			"/foo"
 #define MAX_INSNS		512
+#define FIXUP_SYSCTL_VALUE	0
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
 
 struct sysctl_test {
 	const char *descr;
+	size_t fixup_value_insn;
 	struct bpf_insn	insns[MAX_INSNS];
 	enum bpf_attach_type attach_type;
 	const char *sysctl;
@@ -350,6 +352,190 @@ static struct sysctl_test tests[] = {
 		.open_flags = O_RDONLY,
 		.result = SUCCESS,
 	},
+	{
+		.descr = "sysctl_get_current_value sysctl:read ok, gt",
+		.insns = {
+			/* sysctl_get_current_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_current_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 8),
+
+			/* sysctl_get_current_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_current_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 6, 6),
+
+			/*     buf[0:6] == "Linux\n\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x000a78756e694cULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_current_value sysctl:read ok, eq",
+		.insns = {
+			/* sysctl_get_current_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_B, BPF_REG_7, BPF_REG_0, 7),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_current_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 7),
+
+			/* sysctl_get_current_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_current_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 6, 6),
+
+			/*     buf[0:6] == "Linux\n\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x000a78756e694cULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_current_value sysctl:read E2BIG truncated",
+		.insns = {
+			/* sysctl_get_current_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_H, BPF_REG_7, BPF_REG_0, 6),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_current_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 6),
+
+			/* sysctl_get_current_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_current_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 6),
+
+			/*     buf[0:6] == "Linux\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x000078756e694cULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_current_value sysctl:read EINVAL",
+		.insns = {
+			/* sysctl_get_current_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_current_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 8),
+
+			/* sysctl_get_current_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_current_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -EINVAL, 4),
+
+			/*     buf[0:8] is NUL-filled) */
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_9, 0, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv6/conf/lo/stable_secret", /* -EIO */
+		.open_flags = O_RDONLY,
+		.result = OP_EPERM,
+	},
+	{
+		.descr = "sysctl_get_current_value sysctl:write ok",
+		.fixup_value_insn = 6,
+		.insns = {
+			/* sysctl_get_current_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_current_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 8),
+
+			/* sysctl_get_current_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_current_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 4, 6),
+
+			/*     buf[0:4] == expected) */
+			BPF_LD_IMM64(BPF_REG_8, FIXUP_SYSCTL_VALUE),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_WRONLY,
+		.newval = "600", /* same as default, should fail anyway */
+		.result = OP_EPERM,
+	},
 };
 
 static size_t probe_prog_length(const struct bpf_insn *fp)
@@ -360,6 +546,27 @@ static size_t probe_prog_length(const struct bpf_insn *fp)
 		if (fp[len].code != 0 || fp[len].imm != 0)
 			break;
 	return len + 1;
+}
+
+static int fixup_sysctl_value(const char *buf, size_t buf_len,
+			      struct bpf_insn *prog, size_t insn_num)
+{
+	uint32_t value_num = 0;
+	uint8_t c, i;
+
+	if (buf_len > sizeof(value_num)) {
+		log_err("Value is too big (%zd) to use in fixup", buf_len);
+		return -1;
+	}
+
+	for (i = 0; i < buf_len; ++i) {
+		c = buf[i];
+		value_num |= (c << i * 8);
+	}
+
+	prog[insn_num].imm = value_num;
+
+	return 0;
 }
 
 static int load_sysctl_prog(struct sysctl_test *test, const char *sysctl_path)
@@ -373,6 +580,27 @@ static int load_sysctl_prog(struct sysctl_test *test, const char *sysctl_path)
 	attr.insns = prog;
 	attr.insns_cnt = probe_prog_length(attr.insns);
 	attr.license = "GPL";
+
+	if (test->fixup_value_insn) {
+		char buf[128];
+		ssize_t len;
+		int fd;
+
+		fd = open(sysctl_path, O_RDONLY | O_CLOEXEC);
+		if (fd < 0) {
+			log_err("open(%s) failed", sysctl_path);
+			return -1;
+		}
+		len = read(fd, buf, sizeof(buf));
+		if (len == -1) {
+			log_err("read(%s) failed", sysctl_path);
+			close(fd);
+			return -1;
+		}
+		close(fd);
+		if (fixup_sysctl_value(buf, len, prog, test->fixup_value_insn))
+			return -1;
+	}
 
 	ret = bpf_load_program_xattr(&attr, bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (ret < 0 && test->result != LOAD_REJECT) {
