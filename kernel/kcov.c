@@ -444,10 +444,8 @@ static int __init kcov_init(void)
 	 * there is no need to protect it against removal races. The
 	 * use of debugfs_create_file_unsafe() is actually safe here.
 	 */
-	if (!debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops)) {
-		pr_err("failed to create kcov in debugfs\n");
-		return -ENOMEM;
-	}
+	debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);
+
 	return 0;
 }
 
