@@ -646,6 +646,85 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 }
 EXPORT_SYMBOL(drm_gem_put_pages);
 
+static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
+			  struct drm_gem_object **objs)
+{
+	int i, ret = 0;
+	struct drm_gem_object *obj;
+
+	spin_lock(&filp->table_lock);
+
+	for (i = 0; i < count; i++) {
+		/* Check if we currently have a reference on the object */
+		obj = idr_find(&filp->object_idr, handle[i]);
+		if (!obj) {
+			ret = -ENOENT;
+			break;
+		}
+		drm_gem_object_get(obj);
+		objs[i] = obj;
+	}
+	spin_unlock(&filp->table_lock);
+
+	return ret;
+}
+
+/**
+ * drm_gem_objects_lookup - look up GEM objects from an array of handles
+ * @filp: DRM file private date
+ * @bo_handles: user pointer to array of userspace handle
+ * @count: size of handle array
+ * @objs_out: returned pointer to array of drm_gem_object pointers
+ *
+ * Takes an array of userspace handles and returns a newly allocated array of
+ * GEM objects.
+ *
+ * For a single handle lookup, use drm_gem_object_lookup().
+ *
+ * Returns:
+ *
+ * @objs filled in with GEM object pointers. Returned GEM objects need to be
+ * released with drm_gem_object_put(). -ENOENT is returned on a lookup
+ * failure. 0 is returned on success.
+ *
+ */
+int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
+			   int count, struct drm_gem_object ***objs_out)
+{
+	int ret;
+	u32 *handles;
+	struct drm_gem_object **objs;
+
+	if (!count)
+		return 0;
+
+	objs = kvmalloc_array(count, sizeof(struct drm_gem_object *),
+			     GFP_KERNEL | __GFP_ZERO);
+	if (!objs)
+		return -ENOMEM;
+
+	handles = kvmalloc_array(count, sizeof(u32), GFP_KERNEL);
+	if (!handles) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (copy_from_user(handles, bo_handles, count * sizeof(u32))) {
+		ret = -EFAULT;
+		DRM_DEBUG("Failed to copy in GEM handles\n");
+		goto out;
+	}
+
+	ret = objects_lookup(filp, handles, count, objs);
+	*objs_out = objs;
+
+out:
+	kvfree(handles);
+	return ret;
+
+}
+EXPORT_SYMBOL(drm_gem_objects_lookup);
+
 /**
  * drm_gem_object_lookup - look up a GEM object from its handle
  * @filp: DRM file private date
@@ -655,21 +734,15 @@ EXPORT_SYMBOL(drm_gem_put_pages);
  *
  * A reference to the object named by the handle if such exists on @filp, NULL
  * otherwise.
+ *
+ * If looking up an array of handles, use drm_gem_objects_lookup().
  */
 struct drm_gem_object *
 drm_gem_object_lookup(struct drm_file *filp, u32 handle)
 {
-	struct drm_gem_object *obj;
+	struct drm_gem_object *obj = NULL;
 
-	spin_lock(&filp->table_lock);
-
-	/* Check if we currently have a reference on the object */
-	obj = idr_find(&filp->object_idr, handle);
-	if (obj)
-		drm_gem_object_get(obj);
-
-	spin_unlock(&filp->table_lock);
-
+	objects_lookup(filp, &handle, 1, &obj);
 	return obj;
 }
 EXPORT_SYMBOL(drm_gem_object_lookup);
