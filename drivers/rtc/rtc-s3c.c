@@ -26,6 +26,7 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
@@ -39,7 +40,7 @@ struct s3c_rtc {
 	void __iomem *base;
 	struct clk *rtc_clk;
 	struct clk *rtc_src_clk;
-	bool clk_disabled;
+	bool alarm_enabled;
 
 	const struct s3c_rtc_data *data;
 
@@ -47,7 +48,7 @@ struct s3c_rtc {
 	int irq_tick;
 
 	spinlock_t pie_lock;
-	spinlock_t alarm_clk_lock;
+	spinlock_t alarm_lock;
 
 	int ticnt_save;
 	int ticnt_en_save;
@@ -70,44 +71,27 @@ struct s3c_rtc_data {
 
 static int s3c_rtc_enable_clk(struct s3c_rtc *info)
 {
-	unsigned long irq_flags;
-	int ret = 0;
+	int ret;
 
-	spin_lock_irqsave(&info->alarm_clk_lock, irq_flags);
+	ret = clk_enable(info->rtc_clk);
+	if (ret)
+		return ret;
 
-	if (info->clk_disabled) {
-		ret = clk_enable(info->rtc_clk);
-		if (ret)
-			goto out;
-
-		if (info->data->needs_src_clk) {
-			ret = clk_enable(info->rtc_src_clk);
-			if (ret) {
-				clk_disable(info->rtc_clk);
-				goto out;
-			}
+	if (info->data->needs_src_clk) {
+		ret = clk_enable(info->rtc_src_clk);
+		if (ret) {
+			clk_disable(info->rtc_clk);
+			return ret;
 		}
-		info->clk_disabled = false;
 	}
-
-out:
-	spin_unlock_irqrestore(&info->alarm_clk_lock, irq_flags);
-
-	return ret;
+	return 0;
 }
 
 static void s3c_rtc_disable_clk(struct s3c_rtc *info)
 {
-	unsigned long irq_flags;
-
-	spin_lock_irqsave(&info->alarm_clk_lock, irq_flags);
-	if (!info->clk_disabled) {
-		if (info->data->needs_src_clk)
-			clk_disable(info->rtc_src_clk);
-		clk_disable(info->rtc_clk);
-		info->clk_disabled = true;
-	}
-	spin_unlock_irqrestore(&info->alarm_clk_lock, irq_flags);
+	if (info->data->needs_src_clk)
+		clk_disable(info->rtc_src_clk);
+	clk_disable(info->rtc_clk);
 }
 
 /* IRQ Handlers */
@@ -135,6 +119,7 @@ static irqreturn_t s3c_rtc_alarmirq(int irq, void *id)
 static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 {
 	struct s3c_rtc *info = dev_get_drvdata(dev);
+	unsigned long flags;
 	unsigned int tmp;
 	int ret;
 
@@ -151,17 +136,19 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 
 	writeb(tmp, info->base + S3C2410_RTCALM);
 
+	spin_lock_irqsave(&info->alarm_lock, flags);
+
+	if (info->alarm_enabled && !enabled)
+		s3c_rtc_disable_clk(info);
+	else if (!info->alarm_enabled && enabled)
+		ret = s3c_rtc_enable_clk(info);
+
+	info->alarm_enabled = enabled;
+	spin_unlock_irqrestore(&info->alarm_lock, flags);
+
 	s3c_rtc_disable_clk(info);
 
-	if (enabled) {
-		ret = s3c_rtc_enable_clk(info);
-		if (ret)
-			return ret;
-	} else {
-		s3c_rtc_disable_clk(info);
-	}
-
-	return 0;
+	return ret;
 }
 
 /* Set RTC frequency */
@@ -357,9 +344,9 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	writeb(alrm_en, info->base + S3C2410_RTCALM);
 
-	s3c_rtc_disable_clk(info);
-
 	s3c_rtc_setaie(dev, alrm->enabled);
+
+	s3c_rtc_disable_clk(info);
 
 	return 0;
 }
@@ -456,16 +443,6 @@ static int s3c_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id s3c_rtc_dt_match[];
-
-static const struct s3c_rtc_data *s3c_rtc_get_data(struct platform_device *pdev)
-{
-	const struct of_device_id *match;
-
-	match = of_match_node(s3c_rtc_dt_match, pdev->dev.of_node);
-	return match->data;
-}
-
 static int s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct s3c_rtc *info = NULL;
@@ -485,13 +462,13 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	}
 
 	info->dev = &pdev->dev;
-	info->data = s3c_rtc_get_data(pdev);
+	info->data = of_device_get_match_data(&pdev->dev);
 	if (!info->data) {
 		dev_err(&pdev->dev, "failed getting s3c_rtc_data\n");
 		return -EINVAL;
 	}
 	spin_lock_init(&info->pie_lock);
-	spin_lock_init(&info->alarm_clk_lock);
+	spin_lock_init(&info->alarm_lock);
 
 	platform_set_drvdata(pdev, info);
 
@@ -590,6 +567,8 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		info->data->select_tick_clk(info);
 
 	s3c_rtc_setfreq(info, 1);
+
+	s3c_rtc_disable_clk(info);
 
 	return 0;
 
