@@ -3073,6 +3073,14 @@ sub process {
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|sh|dtsi|dts)$/);
 
+# check for using SPDX-License-Identifier on the wrong line number
+		if ($realline != $checklicenseline &&
+		    $rawline =~ /\bSPDX-License-Identifier:/ &&
+		    substr($line, @-, @+ - @-) eq "$;" x (@+ - @-)) {
+			WARN("SPDX_LICENSE_TAG",
+			     "Misplaced SPDX-License-Identifier tag - use line $checklicenseline instead\n" . $herecurr);
+		}
+
 # line length limit (with some exclusions)
 #
 # There are a few types of lines that may extend beyond $max_line_length:
