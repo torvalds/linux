@@ -6,15 +6,20 @@ For V3D 2.x, see brcm,bcm-vc4.txt.
 Required properties:
 - compatible:	Should be "brcm,7268-v3d" or "brcm,7278-v3d"
 - reg:		Physical base addresses and lengths of the register areas
-- reg-names:	Names for the register areas.  The "hub", "bridge", and "core0"
+- reg-names:	Names for the register areas.  The "hub" and "core0"
 		  register areas are always required.  The "gca" register area
-		  is required if the GCA cache controller is present.
+		  is required if the GCA cache controller is present.  The
+		  "bridge" register area is required if an external reset
+		  controller is not present.
 - interrupts:	The interrupt numbers.  The first interrupt is for the hub,
-		  while the following interrupts are for the cores.
+		  while the following interrupts are separate interrupt lines
+		  for the cores (if they don't share the hub's interrupt).
 		  See bindings/interrupt-controller/interrupts.txt
 
 Optional properties:
 - clocks:	The core clock the unit runs on
+- resets:	The reset line for v3d, if not using a mapping of the bridge
+		  See bindings/reset/reset.txt
 
 v3d {
 	compatible = "brcm,7268-v3d";
