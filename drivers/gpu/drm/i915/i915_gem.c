@@ -2848,10 +2848,13 @@ static bool switch_to_kernel_context_sync(struct drm_i915_private *i915,
 		result = false;
 
 	if (!result) {
+		if (i915_modparams.reset) { /* XXX hide warning from gem_eio */
+			dev_err(i915->drm.dev,
+				"Failed to idle engines, declaring wedged!\n");
+			GEM_TRACE_DUMP();
+		}
+
 		/* Forcibly cancel outstanding work and leave the gpu quiet. */
-		dev_err(i915->drm.dev,
-			"Failed to idle engines, declaring wedged!\n");
-		GEM_TRACE_DUMP();
 		i915_gem_set_wedged(i915);
 	}
 
