@@ -929,9 +929,10 @@ int ddebug_remove_module(const char *mod_name)
 
 	mutex_lock(&ddebug_lock);
 	list_for_each_entry_safe(dt, nextdt, &ddebug_tables, link) {
-		if (!strcmp(dt->mod_name, mod_name)) {
+		if (dt->mod_name == mod_name) {
 			ddebug_table_free(dt);
 			ret = 0;
+			break;
 		}
 	}
 	mutex_unlock(&ddebug_lock);
