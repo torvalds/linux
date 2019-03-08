@@ -1027,7 +1027,10 @@ void bch2_fs_mark_clean(struct bch_fs *c, bool clean)
 	sb_clean->flags		= 0;
 	sb_clean->read_clock	= cpu_to_le16(c->bucket_clock[READ].hand);
 	sb_clean->write_clock	= cpu_to_le16(c->bucket_clock[WRITE].hand);
-	sb_clean->journal_seq	= journal_cur_seq(&c->journal) - 1;
+	sb_clean->journal_seq	= cpu_to_le64(journal_cur_seq(&c->journal) - 1);
+
+	/* Trying to catch outstanding bug: */
+	BUG_ON(le64_to_cpu(sb_clean->journal_seq) > S64_MAX);
 
 	entry = sb_clean->start;
 	entry = bch2_journal_super_entries_add_common(c, entry, 0);
