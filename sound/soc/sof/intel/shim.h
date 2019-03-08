@@ -161,6 +161,7 @@ struct sof_intel_dsp_desc {
 	int ipc_ack;
 	int ipc_ack_mask;
 	int ipc_ctl;
+	int rom_init_timeout;
 };
 
 extern const struct snd_sof_dsp_ops sof_tng_ops;

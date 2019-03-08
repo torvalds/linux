@@ -131,7 +131,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 	ret = snd_sof_dsp_register_poll(sdev, HDA_DSP_BAR,
 					HDA_DSP_SRAM_REG_ROM_STATUS,
 					HDA_DSP_ROM_STS_MASK, HDA_DSP_ROM_INIT,
-					HDA_ROM_INIT_TIMEOUT,
+					chip->rom_init_timeout,
 					HDA_DSP_REG_POLL_INTERVAL_US);
 	if (!ret)
 		return 0;
