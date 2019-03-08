@@ -42,6 +42,10 @@ static inline void bch2_journal_pin_add(struct journal *j, u64 seq,
 		__bch2_journal_pin_add(j, seq, pin, flush_fn);
 }
 
+void bch2_journal_pin_update(struct journal *, u64,
+			     struct journal_entry_pin *,
+			     journal_pin_flush_fn);
+
 void bch2_journal_pin_copy(struct journal *,
 			   struct journal_entry_pin *,
 			   struct journal_entry_pin *,

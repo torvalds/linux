@@ -529,11 +529,20 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * to child nodes that weren't written yet: now, the child nodes have
 	 * been written so we can write out the update to the interior node.
 	 */
+
+	/*
+	 * We can't call into journal reclaim here: we'd block on the journal
+	 * reclaim lock, but we may need to release the open buckets we have
+	 * pinned in order for other btree updates to make forward progress, and
+	 * journal reclaim does btree updates when flushing bkey_cached entries,
+	 * which may require allocations as well.
+	 */
 	ret = bch2_trans_do(c, &as->disk_res, &journal_seq,
 			    BTREE_INSERT_NOFAIL|
 			    BTREE_INSERT_USE_RESERVE|
 			    BTREE_INSERT_USE_ALLOC_RESERVE|
 			    BTREE_INSERT_NOCHECK_RW|
+			    BTREE_INSERT_JOURNAL_RECLAIM|
 			    BTREE_INSERT_JOURNAL_RESERVED,
 			    btree_update_nodes_written_trans(&trans, as));
 	BUG_ON(ret && !bch2_journal_error(&c->journal));

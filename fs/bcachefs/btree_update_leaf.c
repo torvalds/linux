@@ -6,6 +6,7 @@
 #include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
+#include "btree_key_cache.h"
 #include "btree_locking.h"
 #include "buckets.h"
 #include "debug.h"
@@ -31,6 +32,9 @@ inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
 					    struct btree_iter *iter)
 {
 	bch2_btree_node_lock_write(b, iter);
+
+	if (btree_iter_type(iter) == BTREE_ITER_CACHED)
+		return;
 
 	if (unlikely(btree_node_just_written(b)) &&
 	    bch2_btree_post_write_cleanup(c, b))
@@ -202,6 +206,8 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 	return true;
 }
 
+/* Cached btree updates: */
+
 /* Normal update interface: */
 
 static inline void btree_insert_entry_checks(struct btree_trans *trans,
@@ -284,6 +290,31 @@ btree_key_can_insert(struct btree_trans *trans,
 	return BTREE_INSERT_OK;
 }
 
+static enum btree_insert_ret
+btree_key_can_insert_cached(struct btree_trans *trans,
+			    struct btree_iter *iter,
+			    struct bkey_i *insert,
+			    unsigned *u64s)
+{
+	struct bkey_cached *ck = (void *) iter->l[0].b;
+	unsigned new_u64s;
+	struct bkey_i *new_k;
+
+	BUG_ON(iter->level);
+
+	if (*u64s <= ck->u64s)
+		return BTREE_INSERT_OK;
+
+	new_u64s	= roundup_pow_of_two(*u64s);
+	new_k		= krealloc(ck->k, new_u64s * sizeof(u64), GFP_NOFS);
+	if (!new_k)
+		return -ENOMEM;
+
+	ck->u64s	= new_u64s;
+	ck->k		= new_k;
+	return BTREE_INSERT_OK;
+}
+
 static inline void do_btree_insert_one(struct btree_trans *trans,
 				       struct btree_iter *iter,
 				       struct bkey_i *insert)
@@ -297,7 +328,9 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 
 	insert->k.needs_whiteout = false;
 
-	did_work = btree_insert_key_leaf(trans, iter, insert);
+	did_work = (btree_iter_type(iter) != BTREE_ITER_CACHED)
+		? btree_insert_key_leaf(trans, iter, insert)
+		: bch2_btree_insert_key_cached(trans, iter, insert);
 	if (!did_work)
 		return;
 
@@ -335,10 +368,16 @@ static noinline void bch2_trans_mark_gc(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
 
-	trans_for_each_update(trans, i)
-		if (gc_visited(c, gc_pos_btree_node(iter_l(i->iter)->b)))
+	trans_for_each_update(trans, i) {
+		/*
+		 * XXX: synchronization of cached update triggers with gc
+		 */
+		BUG_ON(btree_iter_type(i->iter) == BTREE_ITER_CACHED);
+
+		if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
 			bch2_mark_update(trans, i->iter, i->k, NULL,
 					 i->trigger_flags|BTREE_TRIGGER_GC);
+	}
 }
 
 static inline int
@@ -371,7 +410,9 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			u64s = 0;
 
 		u64s += i->k->k.u64s;
-		ret = btree_key_can_insert(trans, i->iter, i->k, &u64s);
+		ret = btree_iter_type(i->iter) != BTREE_ITER_CACHED
+			? btree_key_can_insert(trans, i->iter, i->k, &u64s)
+			: btree_key_can_insert_cached(trans, i->iter, i->k, &u64s);
 		if (ret) {
 			*stopped_at = i;
 			return ret;
@@ -467,7 +508,9 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	ret = bch2_journal_preres_get(&trans->c->journal,
 			&trans->journal_preres, trans->journal_preres_u64s,
-			JOURNAL_RES_GET_NONBLOCK);
+			JOURNAL_RES_GET_NONBLOCK|
+			((trans->flags & BTREE_INSERT_JOURNAL_RECLAIM)
+			 ? JOURNAL_RES_GET_RECLAIM : 0));
 	if (unlikely(ret == -EAGAIN))
 		ret = bch2_trans_journal_preres_get_cold(trans,
 						trans->journal_preres_u64s);
@@ -523,7 +566,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		trans->nounlock = true;
 
 	trans_for_each_update2(trans, i)
-		if (!same_leaf_as_prev(trans, i))
+		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED &&
+		    !same_leaf_as_prev(trans, i))
 			bch2_foreground_maybe_merge(trans->c, i->iter,
 						    0, trans->flags);
 
@@ -808,6 +852,14 @@ int __bch2_trans_commit(struct btree_trans *trans)
 			return ret;
 	}
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+	trans_for_each_update(trans, i)
+		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED &&
+		    !(i->trigger_flags & BTREE_TRIGGER_NORUN))
+			bch2_btree_key_cache_verify_clean(trans,
+					i->iter->btree_id, i->iter->pos);
+#endif
+
 	/*
 	 * Running triggers will append more updates to the list of updates as
 	 * we're walking it:
@@ -880,7 +932,8 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		BUG_ON(i->iter->locks_want < 1);
 
 		u64s = jset_u64s(i->k->k.u64s);
-		if (0)
+		if (btree_iter_type(i->iter) == BTREE_ITER_CACHED &&
+		    likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)))
 			trans->journal_preres_u64s += u64s;
 		trans->journal_u64s += u64s;
 	}

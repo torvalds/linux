@@ -183,6 +183,7 @@ struct btree_node_iter {
 enum btree_iter_type {
 	BTREE_ITER_KEYS,
 	BTREE_ITER_NODES,
+	BTREE_ITER_CACHED,
 };
 
 #define BTREE_ITER_TYPE			((1 << 2) - 1)
@@ -214,6 +215,15 @@ enum btree_iter_type {
 #define BTREE_ITER_IS_EXTENTS		(1 << 6)
 #define BTREE_ITER_ERROR		(1 << 7)
 #define BTREE_ITER_SET_POS_AFTER_COMMIT	(1 << 8)
+#define BTREE_ITER_CACHED_NOFILL	(1 << 9)
+#define BTREE_ITER_CACHED_NOCREATE	(1 << 10)
+
+#define BTREE_ITER_USER_FLAGS				\
+	(BTREE_ITER_SLOTS				\
+	|BTREE_ITER_INTENT				\
+	|BTREE_ITER_PREFETCH				\
+	|BTREE_ITER_CACHED_NOFILL			\
+	|BTREE_ITER_CACHED_NOCREATE)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
@@ -221,6 +231,14 @@ enum btree_iter_uptodate {
 	BTREE_ITER_NEED_RELOCK		= 2,
 	BTREE_ITER_NEED_TRAVERSE	= 3,
 };
+
+#define BTREE_ITER_NO_NODE_GET_LOCKS	((struct btree *) 1)
+#define BTREE_ITER_NO_NODE_DROP		((struct btree *) 2)
+#define BTREE_ITER_NO_NODE_LOCK_ROOT	((struct btree *) 3)
+#define BTREE_ITER_NO_NODE_UP		((struct btree *) 4)
+#define BTREE_ITER_NO_NODE_DOWN		((struct btree *) 5)
+#define BTREE_ITER_NO_NODE_INIT		((struct btree *) 6)
+#define BTREE_ITER_NO_NODE_ERROR	((struct btree *) 7)
 
 /*
  * @pos			- iterator's current position
@@ -259,7 +277,8 @@ struct btree_iter {
 	unsigned long		ip_allocated;
 };
 
-static inline enum btree_iter_type btree_iter_type(struct btree_iter *iter)
+static inline enum btree_iter_type
+btree_iter_type(const struct btree_iter *iter)
 {
 	return iter->flags & BTREE_ITER_TYPE;
 }
@@ -268,6 +287,37 @@ static inline struct btree_iter_level *iter_l(struct btree_iter *iter)
 {
 	return iter->l + iter->level;
 }
+
+struct btree_key_cache {
+	struct mutex		lock;
+	struct rhashtable	table;
+	struct list_head	freed;
+	struct list_head	clean;
+};
+
+struct bkey_cached_key {
+	u32			btree_id;
+	struct bpos		pos;
+} __packed;
+
+#define BKEY_CACHED_DIRTY		0
+
+struct bkey_cached {
+	struct btree_bkey_cached_common c;
+
+	unsigned long		flags;
+	u8			u64s;
+	bool			valid;
+	struct bkey_cached_key	key;
+
+	struct rhash_head	hash;
+	struct list_head	list;
+
+	struct journal_preres	res;
+	struct journal_entry_pin journal;
+
+	struct bkey_i		*k;
+};
 
 struct btree_insert_entry {
 	unsigned		trigger_flags;
@@ -307,6 +357,7 @@ struct btree_trans {
 	unsigned		error:1;
 	unsigned		nounlock:1;
 	unsigned		need_reset:1;
+	unsigned		in_traverse_all:1;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;

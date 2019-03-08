@@ -13,6 +13,7 @@
 #include "bkey_sort.h"
 #include "btree_cache.h"
 #include "btree_gc.h"
+#include "btree_key_cache.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
 #include "chardev.h"
@@ -479,6 +480,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_fs_io_exit(c);
 	bch2_fs_btree_interior_update_exit(c);
 	bch2_fs_btree_iter_exit(c);
+	bch2_fs_btree_key_cache_exit(&c->btree_key_cache);
 	bch2_fs_btree_cache_exit(c);
 	bch2_fs_journal_exit(&c->journal);
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
@@ -650,6 +652,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
+	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
 	bch2_fs_allocator_background_init(c);
 	bch2_fs_allocator_foreground_init(c);
 	bch2_fs_rebalance_init(c);
@@ -746,6 +749,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_journal_init(&c->journal) ||
 	    bch2_fs_replicas_init(c) ||
 	    bch2_fs_btree_cache_init(c) ||
+	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ||
 	    bch2_fs_btree_iter_init(c) ||
 	    bch2_fs_btree_interior_update_init(c) ||
 	    bch2_fs_io_init(c) ||

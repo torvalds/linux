@@ -483,6 +483,7 @@ enum {
 	BCH_FS_ALLOCATOR_RUNNING,
 	BCH_FS_ALLOCATOR_STOPPING,
 	BCH_FS_INITIAL_GC_DONE,
+	BCH_FS_BTREE_INTERIOR_REPLAY_DONE,
 	BCH_FS_FSCK_DONE,
 	BCH_FS_STARTED,
 	BCH_FS_RW,
@@ -631,6 +632,8 @@ struct bch_fs {
 	struct mutex		btree_trans_lock;
 	struct list_head	btree_trans_list;
 	mempool_t		btree_iters_pool;
+
+	struct btree_key_cache	btree_key_cache;
 
 	struct workqueue_struct	*wq;
 	/* copygc needs its own workqueue for index updates.. */

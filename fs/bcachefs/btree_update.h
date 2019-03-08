@@ -23,6 +23,7 @@ enum btree_insert_flags {
 	__BTREE_INSERT_USE_ALLOC_RESERVE,
 	__BTREE_INSERT_JOURNAL_REPLAY,
 	__BTREE_INSERT_JOURNAL_RESERVED,
+	__BTREE_INSERT_JOURNAL_RECLAIM,
 	__BTREE_INSERT_NOWAIT,
 	__BTREE_INSERT_GC_LOCK_HELD,
 	__BCH_HASH_SET_MUST_CREATE,
@@ -47,7 +48,11 @@ enum btree_insert_flags {
 /* Insert is for journal replay - don't get journal reservations: */
 #define BTREE_INSERT_JOURNAL_REPLAY	(1 << __BTREE_INSERT_JOURNAL_REPLAY)
 
+/* Indicates that we have pre-reserved space in the journal: */
 #define BTREE_INSERT_JOURNAL_RESERVED	(1 << __BTREE_INSERT_JOURNAL_RESERVED)
+
+/* Insert is being called from journal reclaim path: */
+#define BTREE_INSERT_JOURNAL_RECLAIM (1 << __BTREE_INSERT_JOURNAL_RECLAIM)
 
 /* Don't block on allocation failure (for new btree nodes: */
 #define BTREE_INSERT_NOWAIT		(1 << __BTREE_INSERT_NOWAIT)
