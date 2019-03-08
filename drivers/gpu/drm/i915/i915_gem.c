@@ -2828,13 +2828,6 @@ i915_gem_retire_work_handler(struct work_struct *work)
 				   round_jiffies_up_relative(HZ));
 }
 
-static inline bool
-new_requests_since_last_retire(const struct drm_i915_private *i915)
-{
-	return (READ_ONCE(i915->gt.active_requests) ||
-		work_pending(&i915->gt.idle_work.work));
-}
-
 static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
@@ -2843,7 +2836,8 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 	if (i915_reset_failed(i915))
 		return;
 
-	GEM_BUG_ON(i915->gt.active_requests);
+	i915_retire_requests(i915);
+
 	for_each_engine(engine, i915, id) {
 		GEM_BUG_ON(__i915_active_request_peek(&engine->timeline.last_request));
 		GEM_BUG_ON(engine->last_retired_context !=
@@ -2851,77 +2845,86 @@ static void assert_kernel_context_is_current(struct drm_i915_private *i915)
 	}
 }
 
+static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
+{
+	bool result = true;
+
+	/*
+	 * Even if we fail to switch, give whatever is running a small chance
+	 * to save itself before we report the failure. Yes, this may be a
+	 * false positive due to e.g. ENOMEM, caveat emptor!
+	 */
+	if (i915_gem_switch_to_kernel_context(i915))
+		result = false;
+
+	if (i915_gem_wait_for_idle(i915,
+				   I915_WAIT_LOCKED |
+				   I915_WAIT_FOR_IDLE_BOOST,
+				   I915_GEM_IDLE_TIMEOUT))
+		result = false;
+
+	if (result) {
+		assert_kernel_context_is_current(i915);
+	} else {
+		/* Forcibly cancel outstanding work and leave the gpu quiet. */
+		dev_err(i915->drm.dev,
+			"Failed to idle engines, declaring wedged!\n");
+		GEM_TRACE_DUMP();
+		i915_gem_set_wedged(i915);
+	}
+
+	i915_retire_requests(i915); /* ensure we flush after wedging */
+	return result;
+}
+
 static void
 i915_gem_idle_work_handler(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), gt.idle_work.work);
+	struct drm_i915_private *i915 =
+		container_of(work, typeof(*i915), gt.idle_work.work);
 	bool rearm_hangcheck;
 
-	if (!READ_ONCE(dev_priv->gt.awake))
+	if (!READ_ONCE(i915->gt.awake))
 		return;
 
-	if (READ_ONCE(dev_priv->gt.active_requests))
+	if (READ_ONCE(i915->gt.active_requests))
 		return;
-
-	/*
-	 * Flush out the last user context, leaving only the pinned
-	 * kernel context resident. When we are idling on the kernel_context,
-	 * no more new requests (with a context switch) are emitted and we
-	 * can finally rest. A consequence is that the idle work handler is
-	 * always called at least twice before idling (and if the system is
-	 * idle that implies a round trip through the retire worker).
-	 */
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_gem_switch_to_kernel_context(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	GEM_TRACE("active_requests=%d (after switch-to-kernel-context)\n",
-		  READ_ONCE(dev_priv->gt.active_requests));
-
-	/*
-	 * Wait for last execlists context complete, but bail out in case a
-	 * new request is submitted. As we don't trust the hardware, we
-	 * continue on if the wait times out. This is necessary to allow
-	 * the machine to suspend even if the hardware dies, and we will
-	 * try to recover in resume (after depriving the hardware of power,
-	 * it may be in a better mmod).
-	 */
-	__wait_for(if (new_requests_since_last_retire(dev_priv)) return,
-		   intel_engines_are_idle(dev_priv),
-		   I915_IDLE_ENGINES_TIMEOUT * 1000,
-		   10, 500);
 
 	rearm_hangcheck =
-		cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
+		cancel_delayed_work_sync(&i915->gpu_error.hangcheck_work);
 
-	if (!mutex_trylock(&dev_priv->drm.struct_mutex)) {
+	if (!mutex_trylock(&i915->drm.struct_mutex)) {
 		/* Currently busy, come back later */
-		mod_delayed_work(dev_priv->wq,
-				 &dev_priv->gt.idle_work,
+		mod_delayed_work(i915->wq,
+				 &i915->gt.idle_work,
 				 msecs_to_jiffies(50));
 		goto out_rearm;
 	}
 
 	/*
-	 * New request retired after this work handler started, extend active
-	 * period until next instance of the work.
+	 * Flush out the last user context, leaving only the pinned
+	 * kernel context resident. Should anything unfortunate happen
+	 * while we are idle (such as the GPU being power cycled), no users
+	 * will be harmed.
 	 */
-	if (new_requests_since_last_retire(dev_priv))
-		goto out_unlock;
+	if (!work_pending(&i915->gt.idle_work.work) &&
+	    !i915->gt.active_requests) {
+		++i915->gt.active_requests; /* don't requeue idle */
 
-	__i915_gem_park(dev_priv);
+		switch_to_kernel_context_sync(i915);
 
-	assert_kernel_context_is_current(dev_priv);
+		if (!--i915->gt.active_requests) {
+			__i915_gem_park(i915);
+			rearm_hangcheck = false;
+		}
+	}
 
-	rearm_hangcheck = false;
-out_unlock:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 out_rearm:
 	if (rearm_hangcheck) {
-		GEM_BUG_ON(!dev_priv->gt.awake);
-		i915_queue_hangcheck(dev_priv);
+		GEM_BUG_ON(!i915->gt.awake);
+		i915_queue_hangcheck(i915);
 	}
 }
 
@@ -3128,7 +3131,6 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			return err;
 
 		i915_retire_requests(i915);
-		GEM_BUG_ON(i915->gt.active_requests);
 	}
 
 	return 0;
@@ -4340,10 +4342,9 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 }
 
-int i915_gem_suspend(struct drm_i915_private *i915)
+void i915_gem_suspend(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
-	int ret;
 
 	GEM_TRACE("\n");
 
@@ -4363,23 +4364,7 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	 * state. Fortunately, the kernel_context is disposable and we do
 	 * not rely on its state.
 	 */
-	if (!i915_reset_failed(i915)) {
-		ret = i915_gem_switch_to_kernel_context(i915);
-		if (ret)
-			goto err_unlock;
-
-		ret = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_INTERRUPTIBLE |
-					     I915_WAIT_LOCKED |
-					     I915_WAIT_FOR_IDLE_BOOST,
-					     I915_GEM_IDLE_TIMEOUT);
-		if (ret == -EINTR)
-			goto err_unlock;
-
-		/* Forcibly cancel outstanding work and leave the gpu quiet. */
-		i915_gem_set_wedged(i915);
-	}
-	i915_retire_requests(i915); /* ensure we flush after wedging */
+	switch_to_kernel_context_sync(i915);
 
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_reset_flush(i915);
@@ -4399,12 +4384,6 @@ int i915_gem_suspend(struct drm_i915_private *i915)
 	GEM_BUG_ON(i915->gt.awake);
 
 	intel_runtime_pm_put(i915, wakeref);
-	return 0;
-
-err_unlock:
-	mutex_unlock(&i915->drm.struct_mutex);
-	intel_runtime_pm_put(i915, wakeref);
-	return ret;
 }
 
 void i915_gem_suspend_late(struct drm_i915_private *i915)
@@ -4670,19 +4649,10 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_active;
 	}
 
-	err = i915_gem_switch_to_kernel_context(i915);
-	if (err)
-		goto err_active;
-
-	if (i915_gem_wait_for_idle(i915,
-				   I915_WAIT_LOCKED,
-				   I915_GEM_IDLE_TIMEOUT)) {
-		i915_gem_set_wedged(i915);
+	if (!switch_to_kernel_context_sync(i915)) {
 		err = -EIO; /* Caller will declare us wedged */
 		goto err_active;
 	}
-
-	assert_kernel_context_is_current(i915);
 
 	/*
 	 * Immediately park the GPU so that we enable powersaving and
@@ -4927,7 +4897,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 err_init_hw:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
-	WARN_ON(i915_gem_suspend(dev_priv));
+	i915_gem_suspend(dev_priv);
 	i915_gem_suspend_late(dev_priv);
 
 	i915_gem_drain_workqueue(dev_priv);

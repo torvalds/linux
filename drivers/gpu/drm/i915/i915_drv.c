@@ -714,8 +714,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	return 0;
 
 cleanup_gem:
-	if (i915_gem_suspend(dev_priv))
-		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
+	i915_gem_suspend(dev_priv);
 	i915_gem_fini(dev_priv);
 cleanup_modeset:
 	intel_modeset_cleanup(dev);
@@ -1933,8 +1932,7 @@ void i915_driver_unload(struct drm_device *dev)
 	/* Flush any external code that still may be under the RCU lock */
 	synchronize_rcu();
 
-	if (i915_gem_suspend(dev_priv))
-		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
+	i915_gem_suspend(dev_priv);
 
 	drm_atomic_helper_shutdown(dev);
 
@@ -2042,7 +2040,6 @@ static bool suspend_to_idle(struct drm_i915_private *dev_priv)
 static int i915_drm_prepare(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	int err;
 
 	/*
 	 * NB intel_display_suspend() may issue new requests after we've
@@ -2050,12 +2047,9 @@ static int i915_drm_prepare(struct drm_device *dev)
 	 * split out that work and pull it forward so that after point,
 	 * the GPU is not woken again.
 	 */
-	err = i915_gem_suspend(i915);
-	if (err)
-		dev_err(&i915->drm.pdev->dev,
-			"GEM idle failed, suspend/resume might fail\n");
+	i915_gem_suspend(i915);
 
-	return err;
+	return 0;
 }
 
 static int i915_drm_suspend(struct drm_device *dev)

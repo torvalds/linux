@@ -767,6 +767,10 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915)
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915->kernel_context);
 
+	/* Inoperable, so presume the GPU is safely pointing into the void! */
+	if (i915_terminally_wedged(i915))
+		return 0;
+
 	i915_retire_requests(i915);
 
 	for_each_engine(engine, i915, id) {
