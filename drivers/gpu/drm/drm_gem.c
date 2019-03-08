@@ -1233,3 +1233,81 @@ void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr)
 		obj->dev->driver->gem_prime_vunmap(obj, vaddr);
 }
 EXPORT_SYMBOL(drm_gem_vunmap);
+
+/**
+ * drm_gem_lock_reservations - Sets up the ww context and acquires
+ * the lock on an array of GEM objects.
+ *
+ * Once you've locked your reservations, you'll want to set up space
+ * for your shared fences (if applicable), submit your job, then
+ * drm_gem_unlock_reservations().
+ *
+ * @objs: drm_gem_objects to lock
+ * @count: Number of objects in @objs
+ * @acquire_ctx: struct ww_acquire_ctx that will be initialized as
+ * part of tracking this set of locked reservations.
+ */
+int
+drm_gem_lock_reservations(struct drm_gem_object **objs, int count,
+			  struct ww_acquire_ctx *acquire_ctx)
+{
+	int contended = -1;
+	int i, ret;
+
+	ww_acquire_init(acquire_ctx, &reservation_ww_class);
+
+retry:
+	if (contended != -1) {
+		struct drm_gem_object *obj = objs[contended];
+
+		ret = ww_mutex_lock_slow_interruptible(&obj->resv->lock,
+						       acquire_ctx);
+		if (ret) {
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < count; i++) {
+		if (i == contended)
+			continue;
+
+		ret = ww_mutex_lock_interruptible(&objs[i]->resv->lock,
+						  acquire_ctx);
+		if (ret) {
+			int j;
+
+			for (j = 0; j < i; j++)
+				ww_mutex_unlock(&objs[j]->resv->lock);
+
+			if (contended != -1 && contended >= i)
+				ww_mutex_unlock(&objs[contended]->resv->lock);
+
+			if (ret == -EDEADLK) {
+				contended = i;
+				goto retry;
+			}
+
+			ww_acquire_done(acquire_ctx);
+			return ret;
+		}
+	}
+
+	ww_acquire_done(acquire_ctx);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_lock_reservations);
+
+void
+drm_gem_unlock_reservations(struct drm_gem_object **objs, int count,
+			    struct ww_acquire_ctx *acquire_ctx)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		ww_mutex_unlock(&objs[i]->resv->lock);
+
+	ww_acquire_fini(acquire_ctx);
+}
+EXPORT_SYMBOL(drm_gem_unlock_reservations);
