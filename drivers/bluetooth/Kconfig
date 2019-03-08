@@ -379,6 +379,17 @@ config BT_WILINK
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module (btwilink).
 
+config BT_MTKSDIO
+	tristate "MediaTek HCI SDIO driver"
+	depends on MMC
+	help
+	  MediaTek Bluetooth HCI SDIO driver.
+	  This driver is required if you want to use MediaTek Bluetooth
+	  with SDIO interface.
+
+	  Say Y here to compile support for MediaTek Bluetooth SDIO devices
+	  into the kernel or say M to compile it as module (btmtksdio).
+
 config BT_MTKUART
 	tristate "MediaTek HCI UART driver"
 	depends on SERIAL_DEV_BUS
