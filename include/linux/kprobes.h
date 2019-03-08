@@ -442,6 +442,11 @@ static inline int enable_kprobe(struct kprobe *kp)
 {
 	return -ENOSYS;
 }
+
+static inline bool within_kprobe_blacklist(unsigned long addr)
+{
+	return true;
+}
 #endif /* CONFIG_KPROBES */
 static inline int disable_kretprobe(struct kretprobe *rp)
 {

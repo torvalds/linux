@@ -150,7 +150,7 @@ static inline void smpboot_restore_warm_reset_vector(void)
  */
 static void smp_callin(void)
 {
-	int cpuid, phys_id;
+	int cpuid;
 
 	/*
 	 * If waken up by an INIT in an 82489DX configuration
@@ -159,11 +159,6 @@ static void smp_callin(void)
 	 * now safe to touch our local APIC.
 	 */
 	cpuid = smp_processor_id();
-
-	/*
-	 * (This works even if the APIC is not enabled.)
-	 */
-	phys_id = read_apic_id();
 
 	/*
 	 * the boot CPU has finished the init stage and is spinning
