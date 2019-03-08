@@ -5334,6 +5334,9 @@ static int selinux_sctp_bind_connect(struct sock *sk, int optname,
 			return -EINVAL;
 		}
 
+		if (walk_size + len > addrlen)
+			return -EINVAL;
+
 		err = -EINVAL;
 		switch (optname) {
 		/* Bind checks */
