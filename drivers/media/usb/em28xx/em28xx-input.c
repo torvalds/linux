@@ -499,7 +499,7 @@ static int em28xx_probe_i2c_ir(struct em28xx *dev)
 	 * at address 0x18, so if that address is needed for another board in
 	 * the future, please put it after 0x1f.
 	 */
-	const unsigned short addr_list[] = {
+	static const unsigned short addr_list[] = {
 		 0x1f, 0x30, 0x47, I2C_CLIENT_END
 	};
 
