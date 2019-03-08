@@ -280,19 +280,18 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 	return 0;
 }
 
-static void hsw_pipe_A_crc_wa(struct drm_i915_private *dev_priv,
-			      bool enable)
+static void
+intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_A);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *pipe_config;
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
-	int ret = 0;
+	int ret;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_state_alloc(&dev_priv->drm);
 	if (!state) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -307,17 +306,9 @@ retry:
 		goto put_state;
 	}
 
-	if (HAS_IPS(dev_priv)) {
-		/*
-		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
-		 * enabled and disabled dynamically based on package C states,
-		 * user space can't make reliable use of the CRCs, so let's just
-		 * completely disable it.
-		 */
-		pipe_config->ips_force_disable = enable;
-	}
+	pipe_config->crc_enabled = enable;
 
-	if (IS_HASWELL(dev_priv)) {
+	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A) {
 		pipe_config->pch_pfit.force_thru = enable;
 		if (pipe_config->cpu_transcoder == TRANSCODER_EDP &&
 		    pipe_config->pch_pfit.enabled != enable)
@@ -343,8 +334,7 @@ unlock:
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				enum pipe pipe,
 				enum intel_pipe_crc_source *source,
-				u32 *val,
-				bool set_wa)
+				u32 *val)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
 		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
@@ -357,10 +347,6 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_PIPE:
-		if (set_wa && (IS_HASWELL(dev_priv) ||
-		     IS_BROADWELL(dev_priv)) && pipe == PIPE_A)
-			hsw_pipe_A_crc_wa(dev_priv, true);
-
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_PF_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_NONE:
@@ -418,8 +404,7 @@ static int skl_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 
 static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
-			       enum intel_pipe_crc_source *source, u32 *val,
-			       bool set_wa)
+			       enum intel_pipe_crc_source *source, u32 *val)
 {
 	if (IS_GEN(dev_priv, 2))
 		return i8xx_pipe_crc_ctl_reg(source, val);
@@ -430,7 +415,7 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_pipe_crc_ctl_reg(source, val);
 	else if (INTEL_GEN(dev_priv) < 9)
-		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val, set_wa);
+		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else
 		return skl_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 }
@@ -605,6 +590,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	intel_wakeref_t wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
+	bool enable;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
 		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
@@ -618,7 +604,11 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 		return -EIO;
 	}
 
-	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val, true);
+	enable = source != INTEL_PIPE_CRC_SOURCE_NONE;
+	if (enable)
+		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), true);
+
+	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val);
 	if (ret != 0)
 		goto out;
 
@@ -629,14 +619,14 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	if (!source) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
-		else if ((IS_HASWELL(dev_priv) ||
-			  IS_BROADWELL(dev_priv)) && crtc->index == PIPE_A)
-			hsw_pipe_A_crc_wa(dev_priv, false);
 	}
 
 	pipe_crc->skipped = 0;
 
 out:
+	if (!enable)
+		intel_crtc_crc_setup_workarounds(to_intel_crtc(crtc), false);
+
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 
 	return ret;
@@ -652,7 +642,7 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
 	if (!crtc->crc.opened)
 		return;
 
-	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val, false) < 0)
+	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val) < 0)
 		return;
 
 	/* Don't need pipe_crc->lock here, IRQs are not generated. */

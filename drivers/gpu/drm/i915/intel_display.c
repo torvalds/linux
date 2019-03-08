@@ -6714,7 +6714,13 @@ static bool hsw_compute_ips_config(struct intel_crtc_state *crtc_state)
 	if (!hsw_crtc_state_ips_capable(crtc_state))
 		return false;
 
-	if (crtc_state->ips_force_disable)
+	/*
+	 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
+	 * enabled and disabled dynamically based on package C states,
+	 * user space can't make reliable use of the CRCs, so let's just
+	 * completely disable it.
+	 */
+	if (crtc_state->crc_enabled)
 		return false;
 
 	/* IPS should be fine as long as at least one plane is enabled. */
@@ -11654,7 +11660,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	saved_state->shared_dpll = crtc_state->shared_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
 	saved_state->pch_pfit.force_thru = crtc_state->pch_pfit.force_thru;
-	saved_state->ips_force_disable = crtc_state->ips_force_disable;
+	saved_state->crc_enabled = crtc_state->crc_enabled;
 	if (IS_G4X(dev_priv) ||
 	    IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		saved_state->wm = crtc_state->wm;
