@@ -7,7 +7,7 @@
 set -e
 
 is_enabled() {
-	grep -q "^CONFIG_$1=y" $KCONFIG_CONFIG
+	grep -q "^$1=y" $KCONFIG_CONFIG
 }
 
 if_enabled_echo() {
@@ -31,23 +31,23 @@ set_debarch() {
 	x86_64)
 		debarch=amd64 ;;
 	sparc*)
-		debarch=sparc$(if_enabled_echo 64BIT 64) ;;
+		debarch=sparc$(if_enabled_echo CONFIG_64BIT 64) ;;
 	s390*)
 		debarch=s390x ;;
 	ppc*)
-		if is_enabled 64BIT; then
-			debarch=ppc64$(if_enabled_echo CPU_LITTLE_ENDIAN el)
+		if is_enabled CONFIG_64BIT; then
+			debarch=ppc64$(if_enabled_echo CONFIG_CPU_LITTLE_ENDIAN el)
 		else
-			debarch=powerpc$(if_enabled_echo SPE spe)
+			debarch=powerpc$(if_enabled_echo CONFIG_SPE spe)
 		fi
 		;;
 	parisc*)
 		debarch=hppa ;;
 	mips*)
-		if is_enabled CPU_LITTLE_ENDIAN; then
-			debarch=mips$(if_enabled_echo 64BIT 64)$(if_enabled_echo CPU_MIPSR6 r6)el
-		elif is_enabled CPU_MIPSR6; then
-			debarch=mips$(if_enabled_echo 64BIT 64)r6
+		if is_enabled CONFIG_CPU_LITTLE_ENDIAN; then
+			debarch=mips$(if_enabled_echo CONFIG_64BIT 64)$(if_enabled_echo CONFIG_CPU_MIPSR6 r6)el
+		elif is_enabled CONFIG_CPU_MIPSR6; then
+			debarch=mips$(if_enabled_echo CONFIG_64BIT 64)r6
 		else
 			debarch=mips
 		fi
@@ -55,8 +55,8 @@ set_debarch() {
 	aarch64|arm64)
 		debarch=arm64 ;;
 	arm*)
-		if is_enabled AEABI; then
-			debarch=arm$(if_enabled_echo VFP hf el)
+		if is_enabled CONFIG_AEABI; then
+			debarch=arm$(if_enabled_echo CONFIG_VFP hf el)
 		else
 			debarch=arm
 		fi
@@ -64,10 +64,10 @@ set_debarch() {
 	openrisc)
 		debarch=or1k ;;
 	sh)
-		if is_enabled CPU_SH3; then
-			debarch=sh3$(if_enabled_echo CPU_BIG_ENDIAN eb)
-		elif is_enabled CPU_SH4; then
-			debarch=sh4$(if_enabled_echo CPU_BIG_ENDIAN eb)
+		if is_enabled CONFIG_CPU_SH3; then
+			debarch=sh3$(if_enabled_echo CONFIG_CPU_BIG_ENDIAN eb)
+		elif is_enabled CONFIG_CPU_SH4; then
+			debarch=sh4$(if_enabled_echo CONFIG_CPU_BIG_ENDIAN eb)
 		fi
 		;;
 	esac
@@ -134,8 +134,8 @@ fi
 
 mkdir -p debian/
 echo $debarch > debian/arch
-extra_build_depends=", $(if_enabled_echo UNWINDER_ORC libelf-dev)"
-extra_build_depends="$extra_build_depends, $(if_enabled_echo SYSTEM_TRUSTED_KEYRING libssl-dev:native)"
+extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev)"
+extra_build_depends="$extra_build_depends, $(if_enabled_echo CONFIG_SYSTEM_TRUSTED_KEYRING libssl-dev:native)"
 
 # Generate a simple changelog template
 cat <<EOF > debian/changelog
