@@ -57,12 +57,8 @@ void vmemmap_remove_mapping(unsigned long start,
 
 static __ref void *early_alloc_pgtable(unsigned long size)
 {
-	void *pt;
-
-	pt = __va(memblock_alloc_base(size, size, __pa(MAX_DMA_ADDRESS)));
-	memset(pt, 0, size);
-
-	return pt;
+	return memblock_alloc_try_nid(size, size, MEMBLOCK_LOW_LIMIT,
+				      __pa(MAX_DMA_ADDRESS), NUMA_NO_NODE);
 }
 
 /*
