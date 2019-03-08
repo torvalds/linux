@@ -226,6 +226,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
+	GEM_BUG_ON(!list_empty(&ctx->active_engines));
 
 	release_hw_id(ctx);
 	i915_ppgtt_put(ctx->ppgtt);
@@ -241,6 +242,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	put_pid(ctx->pid);
 
 	list_del(&ctx->link);
+	mutex_destroy(&ctx->mutex);
 
 	kfree_rcu(ctx, rcu);
 }
@@ -353,6 +355,7 @@ intel_context_init(struct intel_context *ce,
 		   struct intel_engine_cs *engine)
 {
 	ce->gem_context = ctx;
+	ce->engine = engine;
 
 	INIT_LIST_HEAD(&ce->signal_link);
 	INIT_LIST_HEAD(&ce->signals);
@@ -381,6 +384,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
 	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
+	INIT_LIST_HEAD(&ctx->active_engines);
+	mutex_init(&ctx->mutex);
 
 	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++)
 		intel_context_init(&ctx->__engine[n], ctx, dev_priv->engine[n]);

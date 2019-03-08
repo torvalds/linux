@@ -1431,6 +1431,7 @@ static void intel_ring_context_unpin(struct intel_context *ce)
 	__context_unpin_ppgtt(ce->gem_context);
 	__context_unpin(ce);
 
+	list_del(&ce->active_link);
 	i915_gem_context_put(ce->gem_context);
 }
 
@@ -1510,6 +1511,10 @@ __ring_context_pin(struct intel_engine_cs *engine,
 {
 	int err;
 
+	/* One ringbuffer to rule them all */
+	GEM_BUG_ON(!engine->buffer);
+	ce->ring = engine->buffer;
+
 	if (!ce->state && engine->context_size) {
 		struct i915_vma *vma;
 
@@ -1530,12 +1535,11 @@ __ring_context_pin(struct intel_engine_cs *engine,
 	if (err)
 		goto err_unpin;
 
+	mutex_lock(&ctx->mutex);
+	list_add(&ce->active_link, &ctx->active_engines);
+	mutex_unlock(&ctx->mutex);
+
 	i915_gem_context_get(ctx);
-
-	/* One ringbuffer to rule them all */
-	GEM_BUG_ON(!engine->buffer);
-	ce->ring = engine->buffer;
-
 	return ce;
 
 err_unpin:

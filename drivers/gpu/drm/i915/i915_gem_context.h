@@ -163,6 +163,9 @@ struct i915_gem_context {
 	atomic_t hw_id_pin_count;
 	struct list_head hw_id_link;
 
+	struct list_head active_engines;
+	struct mutex mutex;
+
 	/**
 	 * @user_handle: userspace identifier
 	 *
@@ -176,7 +179,9 @@ struct i915_gem_context {
 	/** engine: per-engine logical HW state */
 	struct intel_context {
 		struct i915_gem_context *gem_context;
+		struct intel_engine_cs *engine;
 		struct intel_engine_cs *active;
+		struct list_head active_link;
 		struct list_head signal_link;
 		struct list_head signals;
 		struct i915_vma *state;

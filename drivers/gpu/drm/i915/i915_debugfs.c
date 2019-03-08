@@ -388,12 +388,9 @@ static void print_context_stats(struct seq_file *m,
 	struct i915_gem_context *ctx;
 
 	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		struct intel_engine_cs *engine;
-		enum intel_engine_id id;
+		struct intel_context *ce;
 
-		for_each_engine(engine, i915, id) {
-			struct intel_context *ce = to_intel_context(ctx, engine);
-
+		list_for_each_entry(ce, &ctx->active_engines, active_link) {
 			if (ce->state)
 				per_file_stats(0, ce->state->obj, &kstats);
 			if (ce->ring)
@@ -1880,9 +1877,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -1890,6 +1885,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		return ret;
 
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
+		struct intel_context *ce;
+
 		seq_puts(m, "HW context ");
 		if (!list_empty(&ctx->hw_id_link))
 			seq_printf(m, "%x [pin %u]", ctx->hw_id,
@@ -1912,11 +1909,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		seq_putc(m, ctx->remap_slice ? 'R' : 'r');
 		seq_putc(m, '\n');
 
-		for_each_engine(engine, dev_priv, id) {
-			struct intel_context *ce =
-				to_intel_context(ctx, engine);
-
-			seq_printf(m, "%s: ", engine->name);
+		list_for_each_entry(ce, &ctx->active_engines, active_link) {
+			seq_printf(m, "%s: ", ce->engine->name);
 			if (ce->state)
 				describe_obj(m, ce->state->obj);
 			if (ce->ring)

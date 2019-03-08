@@ -125,6 +125,7 @@ static void hw_delay_complete(struct timer_list *t)
 static void mock_context_unpin(struct intel_context *ce)
 {
 	mock_timeline_unpin(ce->ring->timeline);
+	list_del(&ce->active_link);
 	i915_gem_context_put(ce->gem_context);
 }
 
@@ -160,6 +161,11 @@ mock_context_pin(struct intel_engine_cs *engine,
 	mock_timeline_pin(ce->ring->timeline);
 
 	ce->ops = &mock_context_ops;
+
+	mutex_lock(&ctx->mutex);
+	list_add(&ce->active_link, &ctx->active_engines);
+	mutex_unlock(&ctx->mutex);
+
 	i915_gem_context_get(ctx);
 	return ce;
 

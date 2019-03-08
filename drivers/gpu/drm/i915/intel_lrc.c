@@ -1282,6 +1282,7 @@ static void execlists_context_unpin(struct intel_context *ce)
 	i915_gem_object_unpin_map(ce->state->obj);
 	i915_vma_unpin(ce->state);
 
+	list_del(&ce->active_link);
 	i915_gem_context_put(ce->gem_context);
 }
 
@@ -1366,6 +1367,11 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	__execlists_update_reg_state(engine, ce);
 
 	ce->state->obj->pin_global++;
+
+	mutex_lock(&ctx->mutex);
+	list_add(&ce->active_link, &ctx->active_engines);
+	mutex_unlock(&ctx->mutex);
+
 	i915_gem_context_get(ctx);
 	return ce;
 
@@ -2887,9 +2893,8 @@ error_deref_obj:
 
 void intel_lr_context_resume(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
-	enum intel_engine_id id;
+	struct intel_context *ce;
 
 	/*
 	 * Because we emit WA_TAIL_DWORDS there may be a disparity
@@ -2903,17 +2908,10 @@ void intel_lr_context_resume(struct drm_i915_private *i915)
 	 * simplicity, we just zero everything out.
 	 */
 	list_for_each_entry(ctx, &i915->contexts.list, link) {
-		for_each_engine(engine, i915, id) {
-			struct intel_context *ce =
-				to_intel_context(ctx, engine);
-
-			if (!ce->state)
-				continue;
-
+		list_for_each_entry(ce, &ctx->active_engines, active_link) {
+			GEM_BUG_ON(!ce->ring);
 			intel_ring_reset(ce->ring, 0);
-
-			if (ce->pin_count) /* otherwise done in context_pin */
-				__execlists_update_reg_state(engine, ce);
+			__execlists_update_reg_state(ce->engine, ce);
 		}
 	}
 }
