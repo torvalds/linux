@@ -185,7 +185,7 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
 			rc = wait_event_killable(server->request_q,
-					has_credits(server, &server->credits));
+				has_credits(server, &server->credits, 1));
 			cifs_num_waiters_dec(server);
 			if (rc)
 				return rc;
