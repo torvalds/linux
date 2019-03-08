@@ -444,6 +444,8 @@ xfs_dir2_leafn_add(
 
 	dp = args->dp;
 	leaf = bp->b_addr;
+	highstale = 0;
+	lowstale = 0;
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 
