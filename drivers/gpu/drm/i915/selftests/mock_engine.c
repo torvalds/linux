@@ -141,8 +141,12 @@ static struct intel_context *
 mock_context_pin(struct intel_engine_cs *engine,
 		 struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
+	struct intel_context *ce;
 	int err = -ENOMEM;
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
 
 	if (ce->pin_count++)
 		return ce;

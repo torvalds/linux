@@ -31,7 +31,6 @@
 #include "i915_scheduler.h"
 #include "intel_context.h"
 #include "intel_device_info.h"
-#include "intel_ringbuffer.h"
 
 struct drm_device;
 struct drm_file;

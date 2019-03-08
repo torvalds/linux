@@ -1349,15 +1349,20 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
+static void __ring_context_fini(struct intel_context *ce)
+{
+	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
+	i915_gem_object_put(ce->state->obj);
+}
+
 static void ring_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->pin_count);
 
-	if (!ce->state)
-		return;
+	if (ce->state)
+		__ring_context_fini(ce);
 
-	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
-	i915_gem_object_put(ce->state->obj);
+	intel_context_free(ce);
 }
 
 static int __context_pin_ppgtt(struct i915_gem_context *ctx)
@@ -1552,7 +1557,11 @@ err:
 static struct intel_context *
 ring_context_pin(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
+	struct intel_context *ce;
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 
@@ -1754,8 +1763,8 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		 * placeholder we use to flush other contexts.
 		 */
 		*cs++ = MI_SET_CONTEXT;
-		*cs++ = i915_ggtt_offset(to_intel_context(i915->kernel_context,
-							  engine)->state) |
+		*cs++ = i915_ggtt_offset(intel_context_lookup(i915->kernel_context,
+							      engine)->state) |
 			MI_MM_SPACE_GTT |
 			MI_RESTORE_INHIBIT;
 	}

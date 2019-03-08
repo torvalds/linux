@@ -95,7 +95,7 @@
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
 
-static struct i915_global_context {
+static struct i915_global_gem_context {
 	struct i915_global base;
 	struct kmem_cache *slab_luts;
 } global;
@@ -222,7 +222,7 @@ static void release_hw_id(struct i915_gem_context *ctx)
 
 static void i915_gem_context_free(struct i915_gem_context *ctx)
 {
-	unsigned int n;
+	struct intel_context *it, *n;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
@@ -231,12 +231,8 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	release_hw_id(ctx);
 	i915_ppgtt_put(ctx->ppgtt);
 
-	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
-		struct intel_context *ce = &ctx->__engine[n];
-
-		if (ce->ops)
-			ce->ops->destroy(ce);
-	}
+	rbtree_postorder_for_each_entry_safe(it, n, &ctx->hw_contexts, node)
+		it->ops->destroy(it);
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
@@ -340,40 +336,11 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	return desc;
 }
 
-static void intel_context_retire(struct i915_active_request *active,
-				 struct i915_request *rq)
-{
-	struct intel_context *ce =
-		container_of(active, typeof(*ce), active_tracker);
-
-	intel_context_unpin(ce);
-}
-
-void
-intel_context_init(struct intel_context *ce,
-		   struct i915_gem_context *ctx,
-		   struct intel_engine_cs *engine)
-{
-	ce->gem_context = ctx;
-	ce->engine = engine;
-	ce->ops = engine->cops;
-
-	INIT_LIST_HEAD(&ce->signal_link);
-	INIT_LIST_HEAD(&ce->signals);
-
-	/* Use the whole device by default */
-	ce->sseu = intel_device_default_sseu(ctx->i915);
-
-	i915_active_request_init(&ce->active_tracker,
-				 NULL, intel_context_retire);
-}
-
 static struct i915_gem_context *
 __create_hw_context(struct drm_i915_private *dev_priv,
 		    struct drm_i915_file_private *file_priv)
 {
 	struct i915_gem_context *ctx;
-	unsigned int n;
 	int ret;
 	int i;
 
@@ -388,8 +355,8 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	INIT_LIST_HEAD(&ctx->active_engines);
 	mutex_init(&ctx->mutex);
 
-	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++)
-		intel_context_init(&ctx->__engine[n], ctx, dev_priv->engine[n]);
+	ctx->hw_contexts = RB_ROOT;
+	spin_lock_init(&ctx->hw_contexts_lock);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
@@ -728,8 +695,6 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915,
 		struct intel_ring *ring;
 		struct i915_request *rq;
 
-		GEM_BUG_ON(!to_intel_context(i915->kernel_context, engine));
-
 		rq = i915_request_alloc(engine, i915->kernel_context);
 		if (IS_ERR(rq))
 			return PTR_ERR(rq);
@@ -865,12 +830,14 @@ static int get_sseu(struct i915_gem_context *ctx,
 	if (!engine)
 		return -EINVAL;
 
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
 	/* Only use for mutex here is to serialize get_param and set_param. */
 	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
 	if (ret)
 		return ret;
-
-	ce = to_intel_context(ctx, engine);
 
 	user_sseu.slice_mask = ce->sseu.slice_mask;
 	user_sseu.subslice_mask = ce->sseu.subslice_mask;
@@ -1037,11 +1004,15 @@ __i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
 				    struct intel_engine_cs *engine,
 				    struct intel_sseu sseu)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
+	struct intel_context *ce;
 	int ret = 0;
 
 	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
 	GEM_BUG_ON(engine->id != RCS0);
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
 
 	/* Nothing to do if unmodified. */
 	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
@@ -1375,22 +1346,22 @@ out_unlock:
 #include "selftests/i915_gem_context.c"
 #endif
 
-static void i915_global_context_shrink(void)
+static void i915_global_gem_context_shrink(void)
 {
 	kmem_cache_shrink(global.slab_luts);
 }
 
-static void i915_global_context_exit(void)
+static void i915_global_gem_context_exit(void)
 {
 	kmem_cache_destroy(global.slab_luts);
 }
 
-static struct i915_global_context global = { {
-	.shrink = i915_global_context_shrink,
-	.exit = i915_global_context_exit,
+static struct i915_global_gem_context global = { {
+	.shrink = i915_global_gem_context_shrink,
+	.exit = i915_global_gem_context_exit,
 } };
 
-int __init i915_global_context_init(void)
+int __init i915_global_gem_context_init(void)
 {
 	global.slab_luts = KMEM_CACHE(i915_lut_handle, 0);
 	if (!global.slab_luts)

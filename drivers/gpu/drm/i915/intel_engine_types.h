@@ -232,6 +232,11 @@ struct intel_engine_execlists {
 	u32 *csb_status;
 
 	/**
+	 * @preempt_context: the HW context for injecting preempt-to-idle
+	 */
+	struct intel_context *preempt_context;
+
+	/**
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;

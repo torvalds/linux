@@ -1740,11 +1740,11 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 
 	/* Update all contexts now that we've stalled the submission. */
 	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
+		struct intel_context *ce = intel_context_lookup(ctx, engine);
 		u32 *regs;
 
 		/* OA settings will be set upon first use */
-		if (!ce->state)
+		if (!ce || !ce->state)
 			continue;
 
 		regs = i915_gem_object_pin_map(ce->state->obj, map_type);

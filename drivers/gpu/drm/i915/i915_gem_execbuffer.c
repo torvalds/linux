@@ -794,8 +794,8 @@ static int eb_wait_for_ring(const struct i915_execbuffer *eb)
 	 * keeping all of their resources pinned.
 	 */
 
-	ce = to_intel_context(eb->ctx, eb->engine);
-	if (!ce->ring) /* first use, assume empty! */
+	ce = intel_context_lookup(eb->ctx, eb->engine);
+	if (!ce || !ce->ring) /* first use, assume empty! */
 		return 0;
 
 	rq = __eb_wait_for_ring(ce->ring);

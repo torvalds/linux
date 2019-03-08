@@ -494,7 +494,8 @@ static void switch_mmio(struct intel_vgpu *pre,
 			 * itself.
 			 */
 			if (mmio->in_context &&
-			    !is_inhibit_context(&s->shadow_ctx->__engine[ring_id]))
+			    !is_inhibit_context(intel_context_lookup(s->shadow_ctx,
+								     dev_priv->engine[ring_id])))
 				continue;
 
 			if (mmio->mask)

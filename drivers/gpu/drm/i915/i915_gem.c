@@ -4655,14 +4655,19 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	}
 
 	for_each_engine(engine, i915, id) {
+		struct intel_context *ce;
 		struct i915_vma *state;
 		void *vaddr;
 
-		GEM_BUG_ON(to_intel_context(ctx, engine)->pin_count);
+		ce = intel_context_lookup(ctx, engine);
+		if (!ce)
+			continue;
 
-		state = to_intel_context(ctx, engine)->state;
+		state = ce->state;
 		if (!state)
 			continue;
+
+		GEM_BUG_ON(ce->pin_count);
 
 		/*
 		 * As we will hold a reference to the logical state, it will

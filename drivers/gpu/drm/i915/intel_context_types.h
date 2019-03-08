@@ -8,6 +8,7 @@
 #define __INTEL_CONTEXT_TYPES__
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 #include <linux/types.h>
 
 #include "i915_active_types.h"
@@ -52,6 +53,7 @@ struct intel_context {
 	struct i915_active_request active_tracker;
 
 	const struct intel_context_ops *ops;
+	struct rb_node node;
 
 	/** sseu: Control eu/slice partitioning */
 	struct intel_sseu sseu;

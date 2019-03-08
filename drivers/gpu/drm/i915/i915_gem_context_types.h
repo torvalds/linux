@@ -13,10 +13,10 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 #include <linux/rcupdate.h>
 #include <linux/types.h>
 
-#include "i915_gem.h" /* I915_NUM_ENGINES */
 #include "i915_scheduler.h"
 #include "intel_context_types.h"
 
@@ -140,8 +140,9 @@ struct i915_gem_context {
 
 	struct i915_sched_attr sched;
 
-	/** engine: per-engine logical HW state */
-	struct intel_context __engine[I915_NUM_ENGINES];
+	/** hw_contexts: per-engine logical HW state */
+	struct rb_root hw_contexts;
+	spinlock_t hw_contexts_lock;
 
 	/** ring_size: size for allocating the per-engine ring buffer */
 	u32 ring_size;

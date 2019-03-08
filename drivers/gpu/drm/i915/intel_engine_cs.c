@@ -644,7 +644,7 @@ void intel_engines_set_scheduler_caps(struct drm_i915_private *i915)
 static void __intel_context_unpin(struct i915_gem_context *ctx,
 				  struct intel_engine_cs *engine)
 {
-	intel_context_unpin(to_intel_context(ctx, engine));
+	intel_context_unpin(intel_context_lookup(ctx, engine));
 }
 
 struct measure_breadcrumb {

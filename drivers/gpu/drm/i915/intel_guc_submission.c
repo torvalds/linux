@@ -382,7 +382,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 	desc->db_id = client->doorbell_id;
 
 	for_each_engine_masked(engine, dev_priv, client->engines, tmp) {
-		struct intel_context *ce = to_intel_context(ctx, engine);
+		struct intel_context *ce = intel_context_lookup(ctx, engine);
 		u32 guc_engine_id = engine->guc_id;
 		struct guc_execlist_context *lrc = &desc->lrc[guc_engine_id];
 
@@ -393,7 +393,7 @@ static void guc_stage_desc_init(struct intel_guc_client *client)
 		 * for now who owns a GuC client. But for future owner of GuC
 		 * client, need to make sure lrc is pinned prior to enter here.
 		 */
-		if (!ce->state)
+		if (!ce || !ce->state)
 			break;	/* XXX: continue? */
 
 		/*
@@ -567,7 +567,7 @@ static void inject_preempt_context(struct work_struct *work)
 					     preempt_work[engine->id]);
 	struct intel_guc_client *client = guc->preempt_client;
 	struct guc_stage_desc *stage_desc = __get_stage_desc(client);
-	struct intel_context *ce = to_intel_context(client->owner, engine);
+	struct intel_context *ce = intel_context_lookup(client->owner, engine);
 	u32 data[7];
 
 	if (!ce->ring->emit) { /* recreate upon load/resume */

@@ -628,8 +628,7 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 static void inject_preempt_context(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
-	struct intel_context *ce =
-		to_intel_context(engine->i915->preempt_context, engine);
+	struct intel_context *ce = execlists->preempt_context;
 	unsigned int n;
 
 	GEM_BUG_ON(execlists->preempt_complete_status !=
@@ -1237,17 +1236,22 @@ static void execlists_submit_request(struct i915_request *request)
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
 }
 
-static void execlists_context_destroy(struct intel_context *ce)
+static void __execlists_context_fini(struct intel_context *ce)
 {
-	GEM_BUG_ON(ce->pin_count);
-
-	if (!ce->state)
-		return;
-
 	intel_ring_free(ce->ring);
 
 	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
 	i915_gem_object_put(ce->state->obj);
+}
+
+static void execlists_context_destroy(struct intel_context *ce)
+{
+	GEM_BUG_ON(ce->pin_count);
+
+	if (ce->state)
+		__execlists_context_fini(ce);
+
+	intel_context_free(ce);
 }
 
 static void execlists_context_unpin(struct intel_context *ce)
@@ -1390,7 +1394,11 @@ static struct intel_context *
 execlists_context_pin(struct intel_engine_cs *engine,
 		      struct i915_gem_context *ctx)
 {
-	struct intel_context *ce = to_intel_context(ctx, engine);
+	struct intel_context *ce;
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
 	GEM_BUG_ON(!ctx->ppgtt);
@@ -2441,8 +2449,9 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	execlists->preempt_complete_status = ~0u;
 	if (i915->preempt_context) {
 		struct intel_context *ce =
-			to_intel_context(i915->preempt_context, engine);
+			intel_context_lookup(i915->preempt_context, engine);
 
+		execlists->preempt_context = ce;
 		execlists->preempt_complete_status =
 			upper_32_bits(ce->lrc_desc);
 	}
