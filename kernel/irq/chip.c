@@ -1340,6 +1340,17 @@ void irq_chip_mask_parent(struct irq_data *data)
 EXPORT_SYMBOL_GPL(irq_chip_mask_parent);
 
 /**
+ * irq_chip_mask_ack_parent - Mask and acknowledge the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ */
+void irq_chip_mask_ack_parent(struct irq_data *data)
+{
+	data = data->parent_data;
+	data->chip->irq_mask_ack(data);
+}
+EXPORT_SYMBOL_GPL(irq_chip_mask_ack_parent);
+
+/**
  * irq_chip_unmask_parent - Unmask the parent interrupt
  * @data:	Pointer to interrupt specific data
  */
@@ -1443,6 +1454,7 @@ int irq_chip_set_wake_parent(struct irq_data *data, unsigned int on)
 
 	return -ENOSYS;
 }
+EXPORT_SYMBOL_GPL(irq_chip_set_wake_parent);
 #endif
 
 /**

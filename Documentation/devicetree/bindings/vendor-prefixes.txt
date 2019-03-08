@@ -145,6 +145,7 @@ focaltech	FocalTech Systems Co.,Ltd
 friendlyarm	Guangzhou FriendlyARM Computer Tech Co., Ltd
 fsl	Freescale Semiconductor
 fujitsu	Fujitsu Ltd.
+gateworks	Gateworks Corporation
 gcw Game Consoles Worldwide
 ge	General Electric Company
 geekbuying	GeekBuying

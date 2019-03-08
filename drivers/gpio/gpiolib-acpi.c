@@ -29,7 +29,7 @@
  * @irq:	  Linux IRQ number for the event, for request_ / free_irq
  * @irqflags:     flags to pass to request_irq when requesting the IRQ
  * @irq_is_wake:  If the ACPI flags indicate the IRQ is a wakeup source
- * @is_requested: True if request_irq has been done
+ * @irq_requested:True if request_irq has been done
  * @desc:	  gpio_desc for the GPIO pin for this event
  */
 struct acpi_gpio_event {
@@ -469,6 +469,9 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 static int
 __acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 {
+	const enum gpiod_flags mask =
+		GPIOD_FLAGS_BIT_DIR_SET | GPIOD_FLAGS_BIT_DIR_OUT |
+		GPIOD_FLAGS_BIT_DIR_VAL;
 	int ret = 0;
 
 	/*
@@ -489,7 +492,7 @@ __acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 		if (((*flags & GPIOD_FLAGS_BIT_DIR_SET) && (diff & GPIOD_FLAGS_BIT_DIR_OUT)) ||
 		    ((*flags & GPIOD_FLAGS_BIT_DIR_OUT) && (diff & GPIOD_FLAGS_BIT_DIR_VAL)))
 			ret = -EINVAL;
-		*flags = update;
+		*flags = (*flags & ~mask) | (update & mask);
 	}
 	return ret;
 }
