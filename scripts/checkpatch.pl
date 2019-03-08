@@ -61,7 +61,7 @@ my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $conststructsfile = "$D/const_structs.checkpatch";
 my $typedefsfile = "";
 my $color = "auto";
-my $allow_c99_comments = 1;
+my $allow_c99_comments = 1; # Can be overridden by --ignore C99_COMMENT_TOLERANCE
 
 sub help {
 	my ($exitcode) = @_;
@@ -1021,6 +1021,7 @@ if ($git) {
 }
 
 my $vname;
+$allow_c99_comments = !defined $ignore_type{"C99_COMMENT_TOLERANCE"};
 for my $filename (@ARGV) {
 	my $FILE;
 	if ($git) {
