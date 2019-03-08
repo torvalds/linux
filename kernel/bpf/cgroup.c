@@ -778,6 +778,13 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * @head: sysctl table header
  * @table: sysctl table
  * @write: sysctl is being read (= 0) or written (= 1)
+ * @buf: pointer to buffer passed by user space
+ * @pcount: value-result argument: value is size of buffer pointed to by @buf,
+ *	result is size of @new_buf if program set new value, initial value
+ *	otherwise
+ * @new_buf: pointer to pointer to new buffer that will be allocated if program
+ *	overrides new value provided by user space on sysctl write
+ *	NOTE: it's caller responsibility to free *new_buf if it was set
  * @type: type of program to be executed
  *
  * Program is run when sysctl is being accessed, either read or written, and
@@ -788,7 +795,8 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 				   struct ctl_table *table, int write,
-				   enum bpf_attach_type type)
+				   void __user *buf, size_t *pcount,
+				   void **new_buf, enum bpf_attach_type type)
 {
 	struct bpf_sysctl_kern ctx = {
 		.head = head,
@@ -796,6 +804,9 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		.write = write,
 		.cur_val = NULL,
 		.cur_len = PAGE_SIZE,
+		.new_val = NULL,
+		.new_len = 0,
+		.new_updated = 0,
 	};
 	struct cgroup *cgrp;
 	int ret;
@@ -818,12 +829,31 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		ctx.cur_len = 0;
 	}
 
+	if (write && buf && *pcount) {
+		/* BPF program should be able to override new value with a
+		 * buffer bigger than provided by user.
+		 */
+		ctx.new_val = kmalloc_track_caller(PAGE_SIZE, GFP_KERNEL);
+		ctx.new_len = min(PAGE_SIZE, *pcount);
+		if (!ctx.new_val ||
+		    copy_from_user(ctx.new_val, buf, ctx.new_len))
+			/* Let BPF program decide how to proceed. */
+			ctx.new_len = 0;
+	}
+
 	rcu_read_lock();
 	cgrp = task_dfl_cgroup(current);
 	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], &ctx, BPF_PROG_RUN);
 	rcu_read_unlock();
 
 	kfree(ctx.cur_val);
+
+	if (ret == 1 && ctx.new_updated) {
+		*new_buf = ctx.new_val;
+		*pcount = ctx.new_len;
+	} else {
+		kfree(ctx.new_val);
+	}
 
 	return ret == 1 ? 0 : -EPERM;
 }
@@ -932,6 +962,51 @@ static const struct bpf_func_proto bpf_sysctl_get_current_value_proto = {
 	.arg3_type	= ARG_CONST_SIZE,
 };
 
+BPF_CALL_3(bpf_sysctl_get_new_value, struct bpf_sysctl_kern *, ctx, char *, buf,
+	   size_t, buf_len)
+{
+	if (!ctx->write) {
+		if (buf && buf_len)
+			memset(buf, '\0', buf_len);
+		return -EINVAL;
+	}
+	return copy_sysctl_value(buf, buf_len, ctx->new_val, ctx->new_len);
+}
+
+static const struct bpf_func_proto bpf_sysctl_get_new_value_proto = {
+	.func		= bpf_sysctl_get_new_value,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+};
+
+BPF_CALL_3(bpf_sysctl_set_new_value, struct bpf_sysctl_kern *, ctx,
+	   const char *, buf, size_t, buf_len)
+{
+	if (!ctx->write || !ctx->new_val || !ctx->new_len || !buf || !buf_len)
+		return -EINVAL;
+
+	if (buf_len > PAGE_SIZE - 1)
+		return -E2BIG;
+
+	memcpy(ctx->new_val, buf, buf_len);
+	ctx->new_len = buf_len;
+	ctx->new_updated = 1;
+
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_sysctl_set_new_value_proto = {
+	.func		= bpf_sysctl_set_new_value,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_MEM,
+	.arg3_type	= ARG_CONST_SIZE,
+};
+
 static const struct bpf_func_proto *
 sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -940,6 +1015,10 @@ sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sysctl_get_name_proto;
 	case BPF_FUNC_sysctl_get_current_value:
 		return &bpf_sysctl_get_current_value_proto;
+	case BPF_FUNC_sysctl_get_new_value:
+		return &bpf_sysctl_get_new_value_proto;
+	case BPF_FUNC_sysctl_set_new_value:
+		return &bpf_sysctl_set_new_value_proto;
 	default:
 		return cgroup_base_func_proto(func_id, prog);
 	}

@@ -1184,6 +1184,9 @@ struct bpf_sysctl_kern {
 	struct ctl_table *table;
 	void *cur_val;
 	size_t cur_len;
+	void *new_val;
+	size_t new_len;
+	int new_updated;
 	int write;
 };
 
