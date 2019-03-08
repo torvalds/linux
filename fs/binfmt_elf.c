@@ -57,8 +57,6 @@
 #endif
 
 static int load_elf_binary(struct linux_binprm *bprm);
-static unsigned long elf_map(struct file *, unsigned long, struct elf_phdr *,
-				int, int, unsigned long);
 
 #ifdef CONFIG_USELIB
 static int load_elf_library(struct file *);
@@ -347,7 +345,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 #ifndef elf_map
 
 static unsigned long elf_map(struct file *filep, unsigned long addr,
-		struct elf_phdr *eppnt, int prot, int type,
+		const struct elf_phdr *eppnt, int prot, int type,
 		unsigned long total_size)
 {
 	unsigned long map_addr;
@@ -387,7 +385,7 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
 
 #endif /* !elf_map */
 
-static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
+static unsigned long total_mapping_size(const struct elf_phdr *cmds, int nr)
 {
 	int i, first_idx = -1, last_idx = -1;
 
@@ -414,7 +412,7 @@ static unsigned long total_mapping_size(struct elf_phdr *cmds, int nr)
  * header pointed to by elf_ex, into a newly allocated array. The caller is
  * responsible for freeing the allocated data. Returns an ERR_PTR upon failure.
  */
-static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
+static struct elf_phdr *load_elf_phdrs(const struct elfhdr *elf_ex,
 				       struct file *elf_file)
 {
 	struct elf_phdr *elf_phdata = NULL;
