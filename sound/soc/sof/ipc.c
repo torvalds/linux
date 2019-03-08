@@ -177,7 +177,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 			void *reply_data)
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
-	struct sof_ipc_cmd_hdr *hdr = (struct sof_ipc_cmd_hdr *)msg->msg_data;
+	struct sof_ipc_cmd_hdr *hdr = msg->msg_data;
 	int ret;
 
 	/* wait for DSP IPC completion */
@@ -233,6 +233,10 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
 	int ret;
+
+	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
+	    reply_bytes > SOF_IPC_MSG_MAX_SIZE)
+		return -ENOBUFS;
 
 	/* Serialise IPC TX */
 	mutex_lock(&ipc->tx_mutex);
@@ -714,11 +718,13 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	msg->ipc_complete = true;
 
 	/* pre-allocate message data */
-	msg->msg_data = devm_kzalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+	msg->msg_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE,
+				     GFP_KERNEL);
 	if (!msg->msg_data)
 		return NULL;
 
-	msg->reply_data = devm_kzalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+	msg->reply_data = devm_kzalloc(sdev->dev, SOF_IPC_MSG_MAX_SIZE,
+				       GFP_KERNEL);
 	if (!msg->reply_data)
 		return NULL;
 

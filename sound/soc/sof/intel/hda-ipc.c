@@ -90,7 +90,7 @@ int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
 	int ret = 0;
 	u32 size;
 
-	hdr = (struct sof_ipc_cmd_hdr *)msg->msg_data;
+	hdr = msg->msg_data;
 	if (hdr->cmd == (SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CTX_SAVE)) {
 		/*
 		 * memory windows are powered off before sending IPC reply,
