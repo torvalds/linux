@@ -1318,8 +1318,6 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 		scsi_change_queue_depth(sdev, depth);
 	}
 
-	blk_queue_flush_queueable(q, false);
-
 	if (dev->flags & ATA_DFLAG_TRUSTED)
 		sdev->security_supported = 1;
 

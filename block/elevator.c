@@ -667,8 +667,11 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	/*
 	 * Special case for mq, turn off scheduling
 	 */
-	if (!strncmp(name, "none", 4))
+	if (!strncmp(name, "none", 4)) {
+		if (!q->elevator)
+			return 0;
 		return elevator_switch(q, NULL);
+	}
 
 	strlcpy(elevator_name, name, sizeof(elevator_name));
 	e = elevator_get(q, strstrip(elevator_name), true);

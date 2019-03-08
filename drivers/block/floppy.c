@@ -2230,7 +2230,6 @@ static void floppy_end_request(struct request *req, blk_status_t error)
 static void request_done(int uptodate)
 {
 	struct request *req = current_req;
-	struct request_queue *q;
 	int block;
 	char msg[sizeof("request done ") + sizeof(int) * 3];
 
@@ -2242,8 +2241,6 @@ static void request_done(int uptodate)
 		pr_info("floppy.c: no request in request_done\n");
 		return;
 	}
-
-	q = req->q;
 
 	if (uptodate) {
 		/* maintain values for invalidation on geometry

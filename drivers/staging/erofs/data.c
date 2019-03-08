@@ -20,8 +20,9 @@ static inline void read_endio(struct bio *bio)
 	int i;
 	struct bio_vec *bvec;
 	const blk_status_t err = bio->bi_status;
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i, iter_all) {
 		struct page *page = bvec->bv_page;
 
 		/* page is already locked */
