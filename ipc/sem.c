@@ -488,17 +488,13 @@ static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
 static struct sem_array *sem_alloc(size_t nsems)
 {
 	struct sem_array *sma;
-	size_t size;
 
 	if (nsems > (INT_MAX - sizeof(*sma)) / sizeof(sma->sems[0]))
 		return NULL;
 
-	size = sizeof(*sma) + nsems * sizeof(sma->sems[0]);
-	sma = kvmalloc(size, GFP_KERNEL);
+	sma = kvzalloc(struct_size(sma, sems, nsems), GFP_KERNEL);
 	if (unlikely(!sma))
 		return NULL;
-
-	memset(sma, 0, size);
 
 	return sma;
 }
