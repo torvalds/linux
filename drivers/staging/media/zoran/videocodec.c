@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * VIDEO MOTION CODECs internal API for video devices
  *
