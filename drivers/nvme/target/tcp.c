@@ -371,7 +371,8 @@ static void nvmet_setup_c2h_data_pdu(struct nvmet_tcp_cmd *cmd)
 	cmd->state = NVMET_TCP_SEND_DATA_PDU;
 
 	pdu->hdr.type = nvme_tcp_c2h_data;
-	pdu->hdr.flags = NVME_TCP_F_DATA_LAST;
+	pdu->hdr.flags = NVME_TCP_F_DATA_LAST | (queue->nvme_sq.sqhd_disabled ?
+						NVME_TCP_F_DATA_SUCCESS : 0);
 	pdu->hdr.hlen = sizeof(*pdu);
 	pdu->hdr.pdo = pdu->hdr.hlen + hdgst;
 	pdu->hdr.plen =
@@ -542,8 +543,19 @@ static int nvmet_try_send_data(struct nvmet_tcp_cmd *cmd)
 		cmd->state = NVMET_TCP_SEND_DDGST;
 		cmd->offset = 0;
 	} else {
-		nvmet_setup_response_pdu(cmd);
+		if (queue->nvme_sq.sqhd_disabled) {
+			cmd->queue->snd_cmd = NULL;
+			nvmet_tcp_put_cmd(cmd);
+		} else {
+			nvmet_setup_response_pdu(cmd);
+		}
 	}
+
+	if (queue->nvme_sq.sqhd_disabled) {
+		kfree(cmd->iov);
+		sgl_free(cmd->req.sg);
+	}
+
 	return 1;
 
 }
@@ -619,7 +631,13 @@ static int nvmet_try_send_ddgst(struct nvmet_tcp_cmd *cmd)
 		return ret;
 
 	cmd->offset += ret;
-	nvmet_setup_response_pdu(cmd);
+
+	if (queue->nvme_sq.sqhd_disabled) {
+		cmd->queue->snd_cmd = NULL;
+		nvmet_tcp_put_cmd(cmd);
+	} else {
+		nvmet_setup_response_pdu(cmd);
+	}
 	return 1;
 }
 
