@@ -71,7 +71,7 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 			  const struct net_device *dev,
 			  const char *fmt, ...);
 
-#define DEFINE_DYNAMIC_DEBUG_METADATA_KEY(name, fmt, key, init)	\
+#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)		\
 	static struct _ddebug  __aligned(8)			\
 	__attribute__((section("__verbose"))) name = {		\
 		.modname = KBUILD_MODNAME,			\
@@ -80,35 +80,27 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 		.format = (fmt),				\
 		.lineno = __LINE__,				\
 		.flags = _DPRINTK_FLAGS_DEFAULT,		\
-		dd_key_init(key, init)				\
+		_DPRINTK_KEY_INIT				\
 	}
 
 #ifdef CONFIG_JUMP_LABEL
 
-#define dd_key_init(key, init) key = (init)
-
 #ifdef DEBUG
-#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt) \
-	DEFINE_DYNAMIC_DEBUG_METADATA_KEY(name, fmt, .key.dd_key_true, \
-					  (STATIC_KEY_TRUE_INIT))
+
+#define _DPRINTK_KEY_INIT .key.dd_key_true = (STATIC_KEY_TRUE_INIT)
 
 #define DYNAMIC_DEBUG_BRANCH(descriptor) \
 	static_branch_likely(&descriptor.key.dd_key_true)
 #else
-#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt) \
-	DEFINE_DYNAMIC_DEBUG_METADATA_KEY(name, fmt, .key.dd_key_false, \
-					  (STATIC_KEY_FALSE_INIT))
+#define _DPRINTK_KEY_INIT .key.dd_key_false = (STATIC_KEY_FALSE_INIT)
 
 #define DYNAMIC_DEBUG_BRANCH(descriptor) \
 	static_branch_unlikely(&descriptor.key.dd_key_false)
 #endif
 
-#else
+#else /* !HAVE_JUMP_LABEL */
 
-#define dd_key_init(key, init)
-
-#define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt) \
-	DEFINE_DYNAMIC_DEBUG_METADATA_KEY(name, fmt, 0, 0)
+#define _DPRINTK_KEY_INIT
 
 #ifdef DEBUG
 #define DYNAMIC_DEBUG_BRANCH(descriptor) \
