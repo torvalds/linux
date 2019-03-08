@@ -536,6 +536,228 @@ static struct sysctl_test tests[] = {
 		.newval = "600", /* same as default, should fail anyway */
 		.result = OP_EPERM,
 	},
+	{
+		.descr = "sysctl_get_new_value sysctl:read EINVAL",
+		.insns = {
+			/* sysctl_get_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 8),
+
+			/* sysctl_get_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_new_value),
+
+			/* if (ret == expected) */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -EINVAL, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_new_value sysctl:write ok",
+		.insns = {
+			/* sysctl_get_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 4),
+
+			/* sysctl_get_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_new_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 3, 4),
+
+			/*     buf[0:4] == "606\0") */
+			BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_9, 0x00363036, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_WRONLY,
+		.newval = "606",
+		.result = OP_EPERM,
+	},
+	{
+		.descr = "sysctl_get_new_value sysctl:write ok long",
+		.insns = {
+			/* sysctl_get_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -24),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 24),
+
+			/* sysctl_get_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_new_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 23, 14),
+
+			/*     buf[0:8] == "3000000 " && */
+			BPF_LD_IMM64(BPF_REG_8, 0x2030303030303033ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 10),
+
+			/*     buf[8:16] == "4000000 " && */
+			BPF_LD_IMM64(BPF_REG_8, 0x2030303030303034ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 8),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 6),
+
+			/*     buf[16:24] == "6000000\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x0030303030303036ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 16),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_WRONLY,
+		.newval = "3000000 4000000 6000000",
+		.result = OP_EPERM,
+	},
+	{
+		.descr = "sysctl_get_new_value sysctl:write E2BIG",
+		.insns = {
+			/* sysctl_get_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_B, BPF_REG_7, BPF_REG_0, 3),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 3),
+
+			/* sysctl_get_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_new_value),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 4),
+
+			/*     buf[0:3] == "60\0") */
+			BPF_LDX_MEM(BPF_W, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_9, 0x003036, 2),
+
+			/* return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_JMP_A(1),
+
+			/* else return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_WRONLY,
+		.newval = "606",
+		.result = OP_EPERM,
+	},
+	{
+		.descr = "sysctl_set_new_value sysctl:read EINVAL",
+		.insns = {
+			/* sysctl_set_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0x00303036),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_set_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 3),
+
+			/* sysctl_set_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_set_new_value),
+
+			/* if (ret == expected) */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -EINVAL, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_set_new_value sysctl:write ok",
+		.fixup_value_insn = 2,
+		.insns = {
+			/* sysctl_set_new_value arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, FIXUP_SYSCTL_VALUE),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_set_new_value arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 3),
+
+			/* sysctl_set_new_value(ctx, buf, buf_len) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_set_new_value),
+
+			/* if (ret == expected) */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/route/mtu_expires",
+		.open_flags = O_WRONLY,
+		.newval = "606",
+		.result = SUCCESS,
+	},
 };
 
 static size_t probe_prog_length(const struct bpf_insn *fp)
