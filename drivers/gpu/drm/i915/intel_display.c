@@ -2677,6 +2677,24 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 		return DRM_FORMAT_RGB565;
 	case PLANE_CTL_FORMAT_NV12:
 		return DRM_FORMAT_NV12;
+	case PLANE_CTL_FORMAT_P010:
+		return DRM_FORMAT_P010;
+	case PLANE_CTL_FORMAT_P012:
+		return DRM_FORMAT_P012;
+	case PLANE_CTL_FORMAT_P016:
+		return DRM_FORMAT_P016;
+	case PLANE_CTL_FORMAT_Y210:
+		return DRM_FORMAT_Y210;
+	case PLANE_CTL_FORMAT_Y212:
+		return DRM_FORMAT_Y212;
+	case PLANE_CTL_FORMAT_Y216:
+		return DRM_FORMAT_Y216;
+	case PLANE_CTL_FORMAT_Y410:
+		return DRM_FORMAT_Y410;
+	case PLANE_CTL_FORMAT_Y412:
+		return DRM_FORMAT_Y412;
+	case PLANE_CTL_FORMAT_Y416:
+		return DRM_FORMAT_Y416;
 	default:
 	case PLANE_CTL_FORMAT_XRGB_8888:
 		if (rgb_order) {
@@ -3176,7 +3194,7 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	 * Handle the AUX surface first since
 	 * the main surface setup depends on it.
 	 */
-	if (fb->format->format == DRM_FORMAT_NV12) {
+	if (is_planar_yuv_format(fb->format->format)) {
 		ret = skl_check_nv12_aux_surface(plane_state);
 		if (ret)
 			return ret;
@@ -3600,6 +3618,24 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
 	case DRM_FORMAT_NV12:
 		return PLANE_CTL_FORMAT_NV12;
+	case DRM_FORMAT_P010:
+		return PLANE_CTL_FORMAT_P010;
+	case DRM_FORMAT_P012:
+		return PLANE_CTL_FORMAT_P012;
+	case DRM_FORMAT_P016:
+		return PLANE_CTL_FORMAT_P016;
+	case DRM_FORMAT_Y210:
+		return PLANE_CTL_FORMAT_Y210;
+	case DRM_FORMAT_Y212:
+		return PLANE_CTL_FORMAT_Y212;
+	case DRM_FORMAT_Y216:
+		return PLANE_CTL_FORMAT_Y216;
+	case DRM_FORMAT_Y410:
+		return PLANE_CTL_FORMAT_Y410;
+	case DRM_FORMAT_Y412:
+		return PLANE_CTL_FORMAT_Y412;
+	case DRM_FORMAT_Y416:
+		return PLANE_CTL_FORMAT_Y416;
 	default:
 		MISSING_CASE(pixel_format);
 	}
@@ -5036,9 +5072,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 		return 0;
 	}
 
-	if (format && format->format == DRM_FORMAT_NV12 &&
+	if (format && is_planar_yuv_format(format->format) &&
 	    (src_h < SKL_MIN_YUV_420_SRC_H || src_w < SKL_MIN_YUV_420_SRC_W)) {
-		DRM_DEBUG_KMS("NV12: src dimensions not met\n");
+		DRM_DEBUG_KMS("Planar YUV: src dimensions not met\n");
 		return -EINVAL;
 	}
 
@@ -5112,7 +5148,7 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 
 	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
 	if (!icl_is_hdr_plane(intel_plane) &&
-	    fb && fb->format->format == DRM_FORMAT_NV12)
+	    fb && is_planar_yuv_format(fb->format->format))
 		need_scaler = true;
 
 	ret = skl_update_scaler(crtc_state, force_detach,
@@ -5149,6 +5185,15 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+	case DRM_FORMAT_Y210:
+	case DRM_FORMAT_Y212:
+	case DRM_FORMAT_Y216:
+	case DRM_FORMAT_Y410:
+	case DRM_FORMAT_Y412:
+	case DRM_FORMAT_Y416:
 		break;
 	default:
 		DRM_DEBUG_KMS("[PLANE:%d:%s] FB:%d unsupported scaling format 0x%x\n",
@@ -11134,7 +11179,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		}
 
 		if (!linked_state) {
-			DRM_DEBUG_KMS("Need %d free Y planes for NV12\n",
+			DRM_DEBUG_KMS("Need %d free Y planes for planar YUV\n",
 				      hweight8(crtc_state->nv12_planes));
 
 			return -EINVAL;
@@ -13767,7 +13812,7 @@ skl_max_scale(const struct intel_crtc_state *crtc_state,
 	 *            or
 	 *    cdclk/crtc_clock
 	 */
-	mult = pixel_format == DRM_FORMAT_NV12 ? 2 : 3;
+	mult = is_planar_yuv_format(pixel_format) ? 2 : 3;
 	tmpclk1 = (1 << 16) * mult - 1;
 	tmpclk2 = (1 << 8) * ((max_dotclk << 8) / crtc_clock);
 	max_scale = min(tmpclk1, tmpclk2);
