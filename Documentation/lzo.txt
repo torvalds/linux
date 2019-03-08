@@ -88,6 +88,10 @@ length encoding. This improves speed for data with many zeros, which is a
 common case for zram. This modifies the bitstream in a backwards compatible way
 (v1 can correctly decompress v0 compressed data, but v0 cannot read v1 data).
 
+For maximum compatibility, both versions are available under different names
+(lzo and lzo-rle). Differences in the encoding are noted in this document with
+e.g.: version 1 only.
+
 Byte sequences
 ==============
 
@@ -99,8 +103,8 @@ Byte sequences
                 invalid at this place.
 
       17      : bitstream version. If the first byte is 17, the next byte
-                gives the bitstream version. If the first byte is not 17,
-                the bitstream version is 0.
+                gives the bitstream version (version 1 only). If the first byte
+                is not 17, the bitstream version is 0.
 
       18..21  : copy 0..3 literals
                 state = (byte - 17) = 0..3  [ copy <state> literals ]
@@ -154,8 +158,8 @@ Byte sequences
            state = S (copy S literals after this block)
            End of stream is reached if distance == 16384
 
-        In version 1, this instruction is also used to encode a run of zeros if
-        distance = 0xbfff, i.e. H = 1 and the D bits are all 1.
+        In version 1 only, this instruction is also used to encode a run of
+        zeros if distance = 0xbfff, i.e. H = 1 and the D bits are all 1.
            In this case, it is followed by a fourth byte, X.
            run length = ((X << 3) | (0 0 0 0 0 L L L)) + 4.
 
