@@ -137,41 +137,20 @@ static void mock_context_destroy(struct intel_context *ce)
 		mock_ring_free(ce->ring);
 }
 
-static struct intel_context *
-mock_context_pin(struct intel_engine_cs *engine,
-		 struct i915_gem_context *ctx)
+static int mock_context_pin(struct intel_context *ce)
 {
-	struct intel_context *ce;
-	int err = -ENOMEM;
-
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
-	if (ce->pin_count++)
-		return ce;
-
 	if (!ce->ring) {
-		ce->ring = mock_ring(engine);
+		ce->ring = mock_ring(ce->engine);
 		if (!ce->ring)
-			goto err;
+			return -ENOMEM;
 	}
 
 	mock_timeline_pin(ce->ring->timeline);
-
-	mutex_lock(&ctx->mutex);
-	list_add(&ce->active_link, &ctx->active_engines);
-	mutex_unlock(&ctx->mutex);
-
-	i915_gem_context_get(ctx);
-	return ce;
-
-err:
-	ce->pin_count = 0;
-	return ERR_PTR(err);
+	return 0;
 }
 
 static const struct intel_context_ops mock_context_ops = {
+	.pin = mock_context_pin,
 	.unpin = mock_context_unpin,
 	.destroy = mock_context_destroy,
 };
@@ -235,7 +214,6 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.status_page.addr = (void *)(engine + 1);
 
 	engine->base.cops = &mock_context_ops;
-	engine->base.context_pin = mock_context_pin;
 	engine->base.request_alloc = mock_request_alloc;
 	engine->base.emit_flush = mock_emit_flush;
 	engine->base.emit_fini_breadcrumb = mock_emit_breadcrumb;

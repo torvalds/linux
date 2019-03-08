@@ -1509,11 +1509,9 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static struct intel_context *
-__ring_context_pin(struct intel_engine_cs *engine,
-		   struct i915_gem_context *ctx,
-		   struct intel_context *ce)
+static int ring_context_pin(struct intel_context *ce)
 {
+	struct intel_engine_cs *engine = ce->engine;
 	int err;
 
 	/* One ringbuffer to rule them all */
@@ -1524,55 +1522,29 @@ __ring_context_pin(struct intel_engine_cs *engine,
 		struct i915_vma *vma;
 
 		vma = alloc_context_vma(engine);
-		if (IS_ERR(vma)) {
-			err = PTR_ERR(vma);
-			goto err;
-		}
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
 
 		ce->state = vma;
 	}
 
 	err = __context_pin(ce);
 	if (err)
-		goto err;
+		return err;
 
 	err = __context_pin_ppgtt(ce->gem_context);
 	if (err)
 		goto err_unpin;
 
-	mutex_lock(&ctx->mutex);
-	list_add(&ce->active_link, &ctx->active_engines);
-	mutex_unlock(&ctx->mutex);
-
-	i915_gem_context_get(ctx);
-	return ce;
+	return 0;
 
 err_unpin:
 	__context_unpin(ce);
-err:
-	ce->pin_count = 0;
-	return ERR_PTR(err);
-}
-
-static struct intel_context *
-ring_context_pin(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
-{
-	struct intel_context *ce;
-
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-
-	if (likely(ce->pin_count++))
-		return ce;
-	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
-
-	return __ring_context_pin(engine, ctx, ce);
+	return err;
 }
 
 static const struct intel_context_ops ring_context_ops = {
+	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
 	.destroy = ring_context_destroy,
 };
@@ -2283,7 +2255,6 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->reset.finish = reset_finish;
 
 	engine->cops = &ring_context_ops;
-	engine->context_pin = ring_context_pin;
 	engine->request_alloc = ring_request_alloc;
 
 	/*

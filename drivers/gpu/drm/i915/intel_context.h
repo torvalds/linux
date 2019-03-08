@@ -48,11 +48,8 @@ __intel_context_insert(struct i915_gem_context *ctx,
 void
 __intel_context_remove(struct intel_context *ce);
 
-static inline struct intel_context *
-intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
-{
-	return engine->context_pin(engine, ctx);
-}
+struct intel_context *
+intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine);
 
 static inline void __intel_context_pin(struct intel_context *ce)
 {

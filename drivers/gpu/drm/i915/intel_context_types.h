@@ -19,6 +19,7 @@ struct intel_context;
 struct intel_ring;
 
 struct intel_context_ops {
+	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
 	void (*destroy)(struct intel_context *ce);
 };

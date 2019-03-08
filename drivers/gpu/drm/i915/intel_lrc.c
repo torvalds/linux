@@ -166,9 +166,8 @@
 
 #define ACTIVE_PRIORITY (I915_PRIORITY_NEWCLIENT | I915_PRIORITY_NOSEMAPHORE)
 
-static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
-					    struct intel_engine_cs *engine,
-					    struct intel_context *ce);
+static int execlists_context_deferred_alloc(struct intel_context *ce,
+					    struct intel_engine_cs *engine);
 static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_context *ce,
 				     struct intel_engine_cs *engine,
@@ -330,11 +329,10 @@ assert_priority_queue(const struct i915_request *prev,
  * engine info, SW context ID and SW counter need to form a unique number
  * (Context ID) per lrc.
  */
-static void
-intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
-				   struct intel_engine_cs *engine,
-				   struct intel_context *ce)
+static u64
+lrc_descriptor(struct intel_context *ce, struct intel_engine_cs *engine)
 {
+	struct i915_gem_context *ctx = ce->gem_context;
 	u64 desc;
 
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > (BIT(GEN8_CTX_ID_WIDTH)));
@@ -352,7 +350,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 	 * Consider updating oa_get_render_ctx_id in i915_perf.c when changing
 	 * anything below.
 	 */
-	if (INTEL_GEN(ctx->i915) >= 11) {
+	if (INTEL_GEN(engine->i915) >= 11) {
 		GEM_BUG_ON(ctx->hw_id >= BIT(GEN11_SW_CTX_ID_WIDTH));
 		desc |= (u64)ctx->hw_id << GEN11_SW_CTX_ID_SHIFT;
 								/* bits 37-47 */
@@ -369,7 +367,7 @@ intel_lr_context_descriptor_update(struct i915_gem_context *ctx,
 		desc |= (u64)ctx->hw_id << GEN8_CTX_ID_SHIFT;	/* bits 32-52 */
 	}
 
-	ce->lrc_desc = desc;
+	return desc;
 }
 
 static void unwind_wa_tail(struct i915_request *rq)
@@ -1290,7 +1288,7 @@ static void execlists_context_unpin(struct intel_context *ce)
 	i915_gem_context_put(ce->gem_context);
 }
 
-static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
+static int __context_pin(struct i915_vma *vma)
 {
 	unsigned int flags;
 	int err;
@@ -1313,11 +1311,14 @@ static int __context_pin(struct i915_gem_context *ctx, struct i915_vma *vma)
 }
 
 static void
-__execlists_update_reg_state(struct intel_engine_cs *engine,
-			     struct intel_context *ce)
+__execlists_update_reg_state(struct intel_context *ce,
+			     struct intel_engine_cs *engine)
 {
-	u32 *regs = ce->lrc_reg_state;
 	struct intel_ring *ring = ce->ring;
+	u32 *regs = ce->lrc_reg_state;
+
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->head));
+	GEM_BUG_ON(!intel_ring_offset_valid(ring, ring->tail));
 
 	regs[CTX_RING_BUFFER_START + 1] = i915_ggtt_offset(ring->vma);
 	regs[CTX_RING_HEAD + 1] = ring->head;
@@ -1329,25 +1330,26 @@ __execlists_update_reg_state(struct intel_engine_cs *engine,
 			gen8_make_rpcs(engine->i915, &ce->sseu);
 }
 
-static struct intel_context *
-__execlists_context_pin(struct intel_engine_cs *engine,
-			struct i915_gem_context *ctx,
-			struct intel_context *ce)
+static int
+__execlists_context_pin(struct intel_context *ce,
+			struct intel_engine_cs *engine)
 {
 	void *vaddr;
 	int ret;
 
-	ret = execlists_context_deferred_alloc(ctx, engine, ce);
+	GEM_BUG_ON(!ce->gem_context->ppgtt);
+
+	ret = execlists_context_deferred_alloc(ce, engine);
 	if (ret)
 		goto err;
 	GEM_BUG_ON(!ce->state);
 
-	ret = __context_pin(ctx, ce->state);
+	ret = __context_pin(ce->state);
 	if (ret)
 		goto err;
 
 	vaddr = i915_gem_object_pin_map(ce->state->obj,
-					i915_coherent_map_type(ctx->i915) |
+					i915_coherent_map_type(engine->i915) |
 					I915_MAP_OVERRIDE);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
@@ -1358,26 +1360,16 @@ __execlists_context_pin(struct intel_engine_cs *engine,
 	if (ret)
 		goto unpin_map;
 
-	ret = i915_gem_context_pin_hw_id(ctx);
+	ret = i915_gem_context_pin_hw_id(ce->gem_context);
 	if (ret)
 		goto unpin_ring;
 
-	intel_lr_context_descriptor_update(ctx, engine, ce);
-
-	GEM_BUG_ON(!intel_ring_offset_valid(ce->ring, ce->ring->head));
-
+	ce->lrc_desc = lrc_descriptor(ce, engine);
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
-
-	__execlists_update_reg_state(engine, ce);
+	__execlists_update_reg_state(ce, engine);
 
 	ce->state->obj->pin_global++;
-
-	mutex_lock(&ctx->mutex);
-	list_add(&ce->active_link, &ctx->active_engines);
-	mutex_unlock(&ctx->mutex);
-
-	i915_gem_context_get(ctx);
-	return ce;
+	return 0;
 
 unpin_ring:
 	intel_ring_unpin(ce->ring);
@@ -1386,31 +1378,16 @@ unpin_map:
 unpin_vma:
 	__i915_vma_unpin(ce->state);
 err:
-	ce->pin_count = 0;
-	return ERR_PTR(ret);
+	return ret;
 }
 
-static struct intel_context *
-execlists_context_pin(struct intel_engine_cs *engine,
-		      struct i915_gem_context *ctx)
+static int execlists_context_pin(struct intel_context *ce)
 {
-	struct intel_context *ce;
-
-	ce = intel_context_instance(ctx, engine);
-	if (IS_ERR(ce))
-		return ce;
-
-	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
-	GEM_BUG_ON(!ctx->ppgtt);
-
-	if (likely(ce->pin_count++))
-		return ce;
-	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
-
-	return __execlists_context_pin(engine, ctx, ce);
+	return __execlists_context_pin(ce, ce->engine);
 }
 
 static const struct intel_context_ops execlists_context_ops = {
+	.pin = execlists_context_pin,
 	.unpin = execlists_context_unpin,
 	.destroy = execlists_context_destroy,
 };
@@ -2034,7 +2011,7 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	intel_ring_update_space(rq->ring);
 
 	execlists_init_reg_state(regs, rq->hw_context, engine, rq->ring);
-	__execlists_update_reg_state(engine, rq->hw_context);
+	__execlists_update_reg_state(rq->hw_context, engine);
 
 out_unlock:
 	spin_unlock_irqrestore(&engine->timeline.lock, flags);
@@ -2359,7 +2336,6 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->reset.finish = execlists_reset_finish;
 
 	engine->cops = &execlists_context_ops;
-	engine->context_pin = execlists_context_pin;
 	engine->request_alloc = execlists_request_alloc;
 
 	engine->emit_flush = gen8_emit_flush;
@@ -2836,9 +2812,13 @@ err_unpin_ctx:
 	return ret;
 }
 
-static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
-					    struct intel_engine_cs *engine,
-					    struct intel_context *ce)
+static struct i915_timeline *get_timeline(struct i915_gem_context *ctx)
+{
+	return i915_timeline_create(ctx->i915, ctx->name, NULL);
+}
+
+static int execlists_context_deferred_alloc(struct intel_context *ce,
+					    struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *ctx_obj;
 	struct i915_vma *vma;
@@ -2858,23 +2838,25 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 	 */
 	context_size += LRC_HEADER_PAGES * PAGE_SIZE;
 
-	ctx_obj = i915_gem_object_create(ctx->i915, context_size);
+	ctx_obj = i915_gem_object_create(engine->i915, context_size);
 	if (IS_ERR(ctx_obj))
 		return PTR_ERR(ctx_obj);
 
-	vma = i915_vma_instance(ctx_obj, &ctx->i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(ctx_obj, &engine->i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto error_deref_obj;
 	}
 
-	timeline = i915_timeline_create(ctx->i915, ctx->name, NULL);
+	timeline = get_timeline(ce->gem_context);
 	if (IS_ERR(timeline)) {
 		ret = PTR_ERR(timeline);
 		goto error_deref_obj;
 	}
 
-	ring = intel_engine_create_ring(engine, timeline, ctx->ring_size);
+	ring = intel_engine_create_ring(engine,
+					timeline,
+					ce->gem_context->ring_size);
 	i915_timeline_put(timeline);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
@@ -2919,7 +2901,7 @@ void intel_lr_context_resume(struct drm_i915_private *i915)
 		list_for_each_entry(ce, &ctx->active_engines, active_link) {
 			GEM_BUG_ON(!ce->ring);
 			intel_ring_reset(ce->ring, 0);
-			__execlists_update_reg_state(ce->engine, ce);
+			__execlists_update_reg_state(ce, ce->engine);
 		}
 	}
 }

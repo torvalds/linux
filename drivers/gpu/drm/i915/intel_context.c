@@ -126,6 +126,40 @@ intel_context_instance(struct i915_gem_context *ctx,
 	return pos;
 }
 
+struct intel_context *
+intel_context_pin(struct i915_gem_context *ctx,
+		  struct intel_engine_cs *engine)
+{
+	struct intel_context *ce;
+	int err;
+
+	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
+
+	ce = intel_context_instance(ctx, engine);
+	if (IS_ERR(ce))
+		return ce;
+
+	if (unlikely(!ce->pin_count++)) {
+		err = ce->ops->pin(ce);
+		if (err)
+			goto err_unpin;
+
+		mutex_lock(&ctx->mutex);
+		list_add(&ce->active_link, &ctx->active_engines);
+		mutex_unlock(&ctx->mutex);
+
+		i915_gem_context_get(ctx);
+		GEM_BUG_ON(ce->gem_context != ctx);
+	}
+	GEM_BUG_ON(!ce->pin_count); /* no overflow! */
+
+	return ce;
+
+err_unpin:
+	ce->pin_count = 0;
+	return ERR_PTR(err);
+}
+
 static void intel_context_retire(struct i915_active_request *active,
 				 struct i915_request *rq)
 {
