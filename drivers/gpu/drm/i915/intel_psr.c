@@ -452,6 +452,7 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	 * frames, we'll go with 9 frames for now
 	 */
 	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
+
 	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
 	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
@@ -853,6 +854,20 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	cancel_work_sync(&dev_priv->psr.work);
 }
 
+static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * Display WA #0884: all
+	 * This documented WA for bxt can be safely applied
+	 * broadly so we can force HW tracking to exit PSR
+	 * instead of disabling and re-enabling.
+	 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
+	 * but it makes more sense write to the current active
+	 * pipe.
+	 */
+	I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
+}
+
 /**
  * intel_psr_update - Update PSR state
  * @intel_dp: Intel DP
@@ -877,8 +892,13 @@ void intel_psr_update(struct intel_dp *intel_dp,
 	enable = crtc_state->has_psr && psr_global_enabled(psr->debug);
 	psr2_enable = intel_psr2_enabled(dev_priv, crtc_state);
 
-	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled)
+	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled) {
+		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
+		if (crtc_state->crc_enabled && psr->enabled)
+			psr_force_hw_tracking_exit(dev_priv);
+
 		goto unlock;
+	}
 
 	if (psr->enabled)
 		intel_psr_disable_locked(intel_dp);
@@ -1148,18 +1168,8 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 	/* By definition flush = invalidate + flush */
-	if (frontbuffer_bits) {
-		/*
-		 * Display WA #0884: all
-		 * This documented WA for bxt can be safely applied
-		 * broadly so we can force HW tracking to exit PSR
-		 * instead of disabling and re-enabling.
-		 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
-		 * but it makes more sense write to the current active
-		 * pipe.
-		 */
-		I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
-	}
+	if (frontbuffer_bits)
+		psr_force_hw_tracking_exit(dev_priv);
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
 		schedule_work(&dev_priv->psr.work);
