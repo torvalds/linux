@@ -306,6 +306,7 @@ retry:
 		goto put_state;
 	}
 
+	pipe_config->base.mode_changed = pipe_config->has_psr;
 	pipe_config->crc_enabled = enable;
 
 	if (IS_HASWELL(dev_priv) && crtc->pipe == PIPE_A) {

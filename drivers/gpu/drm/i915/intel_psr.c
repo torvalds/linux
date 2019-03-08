@@ -572,6 +572,11 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	if (crtc_state->crc_enabled) {
+		DRM_DEBUG_KMS("PSR2 not enabled because it would inhibit pipe CRC calculation\n");
+		return false;
+	}
+
 	return true;
 }
 
