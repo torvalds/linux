@@ -363,11 +363,30 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL,
 			  hstream->bufsize);
 
+	/*
+	 * Recommended hardware programming sequence for HDAudio DMA format
+	 *
+	 * 1. Put DMA into coupled mode by clearing PPCTL.PROCEN bit
+	 *    for corresponding stream index before the time of writing
+	 *    format to SDxFMT register.
+	 * 2. Write SDxFMT
+	 * 3. Set PPCTL.PROCEN bit for corresponding stream index to
+	 *    enable decoupled mode
+	 */
+
+	/* couple host and link DMA, disable DSP features */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, 0);
+
 	/* program stream format */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset +
 				SOF_HDA_ADSP_REG_CL_SD_FORMAT,
 				0xffff, hstream->format_val);
+
+	/* decouple host and link DMA, enable DSP features */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, mask);
 
 	/* program last valid index */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
