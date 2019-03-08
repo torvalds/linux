@@ -445,9 +445,10 @@ fail:
 
 }
 
-static void brcmf_usb_free_q(struct list_head *q, bool pending)
+static void brcmf_usb_free_q(struct list_head *q)
 {
 	struct brcmf_usbreq *req, *next;
+
 	int i = 0;
 	list_for_each_entry_safe(req, next, q, list) {
 		if (!req->urb) {
@@ -455,12 +456,8 @@ static void brcmf_usb_free_q(struct list_head *q, bool pending)
 			break;
 		}
 		i++;
-		if (pending) {
-			usb_kill_urb(req->urb);
-		} else {
-			usb_free_urb(req->urb);
-			list_del_init(&req->list);
-		}
+		usb_free_urb(req->urb);
+		list_del_init(&req->list);
 	}
 }
 
@@ -1029,8 +1026,8 @@ static void brcmf_usb_detach(struct brcmf_usbdev_info *devinfo)
 	brcmf_dbg(USB, "Enter, devinfo %p\n", devinfo);
 
 	/* free the URBS */
-	brcmf_usb_free_q(&devinfo->rx_freeq, false);
-	brcmf_usb_free_q(&devinfo->tx_freeq, false);
+	brcmf_usb_free_q(&devinfo->rx_freeq);
+	brcmf_usb_free_q(&devinfo->tx_freeq);
 
 	usb_free_urb(devinfo->ctl_urb);
 	usb_free_urb(devinfo->bulk_urb);
