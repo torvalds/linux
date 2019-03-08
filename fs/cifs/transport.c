@@ -487,11 +487,18 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 
 static int
 wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
-		      const int flags, unsigned int *instance)
+		      const int timeout, const int flags,
+		      unsigned int *instance)
 {
 	int rc;
 	int *credits;
 	int optype;
+	long int t;
+
+	if (timeout < 0)
+		t = MAX_JIFFY_OFFSET;
+	else
+		t = msecs_to_jiffies(timeout);
 
 	optype = flags & CIFS_OP_MASK;
 
@@ -516,11 +523,16 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 		if (*credits < num_credits) {
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
-			rc = wait_event_killable(server->request_q,
-				has_credits(server, credits, num_credits));
+			rc = wait_event_killable_timeout(server->request_q,
+				has_credits(server, credits, num_credits), t);
 			cifs_num_waiters_dec(server);
-			if (rc)
-				return rc;
+			if (!rc) {
+				cifs_dbg(VFS, "wait timed out after %d ms\n",
+					 timeout);
+				return -ENOTSUPP;
+			}
+			if (rc == -ERESTARTSYS)
+				return -ERESTARTSYS;
 			spin_lock(&server->req_lock);
 		} else {
 			if (server->tcpStatus == CifsExiting) {
@@ -546,12 +558,19 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			    *credits <= MAX_COMPOUND) {
 				spin_unlock(&server->req_lock);
 				cifs_num_waiters_inc(server);
-				rc = wait_event_killable(server->request_q,
+				rc = wait_event_killable_timeout(
+					server->request_q,
 					has_credits(server, credits,
-						    MAX_COMPOUND + 1));
+						    MAX_COMPOUND + 1),
+					t);
 				cifs_num_waiters_dec(server);
-				if (rc)
-					return rc;
+				if (!rc) {
+					cifs_dbg(VFS, "wait timed out after %d ms\n",
+						 timeout);
+					return -ENOTSUPP;
+				}
+				if (rc == -ERESTARTSYS)
+					return -ERESTARTSYS;
 				spin_lock(&server->req_lock);
 				continue;
 			}
@@ -578,7 +597,8 @@ static int
 wait_for_free_request(struct TCP_Server_Info *server, const int flags,
 		      unsigned int *instance)
 {
-	return wait_for_free_credits(server, 1, flags, instance);
+	return wait_for_free_credits(server, 1, -1, flags,
+				     instance);
 }
 
 int
