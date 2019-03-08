@@ -1162,14 +1162,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 		if (epi->next == EP_UNACTIVE_PTR) {
 			epi->next = READ_ONCE(ep->ovflist);
 			WRITE_ONCE(ep->ovflist, epi);
-			if (epi->ws) {
-				/*
-				 * Activate ep->ws since epi->ws may get
-				 * deactivated at any time.
-				 */
-				__pm_stay_awake(ep->ws);
-			}
-
+			ep_pm_stay_awake_rcu(epi);
 		}
 		goto out_unlock;
 	}
