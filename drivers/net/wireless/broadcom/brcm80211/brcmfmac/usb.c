@@ -682,12 +682,18 @@ static int brcmf_usb_up(struct device *dev)
 
 static void brcmf_cancel_all_urbs(struct brcmf_usbdev_info *devinfo)
 {
+	int i;
+
 	if (devinfo->ctl_urb)
 		usb_kill_urb(devinfo->ctl_urb);
 	if (devinfo->bulk_urb)
 		usb_kill_urb(devinfo->bulk_urb);
-	brcmf_usb_free_q(&devinfo->tx_postq, true);
-	brcmf_usb_free_q(&devinfo->rx_postq, true);
+	if (devinfo->tx_reqs)
+		for (i = 0; i < devinfo->bus_pub.ntxq; i++)
+			usb_kill_urb(devinfo->tx_reqs[i].urb);
+	if (devinfo->rx_reqs)
+		for (i = 0; i < devinfo->bus_pub.nrxq; i++)
+			usb_kill_urb(devinfo->rx_reqs[i].urb);
 }
 
 static void brcmf_usb_down(struct device *dev)
