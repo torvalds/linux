@@ -56,7 +56,7 @@ dirs=boot
 #
 # Try to install modules
 #
-if grep -q '^CONFIG_MODULES=y' "${KCONFIG_CONFIG}"; then
+if grep -q '^CONFIG_MODULES=y' include/config/auto.conf; then
 	make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
 	dirs="$dirs lib"
 fi

@@ -13,7 +13,7 @@
 set -e
 
 is_enabled() {
-	grep -q "^$1=y" $KCONFIG_CONFIG
+	grep -q "^$1=y" include/config/auto.conf
 }
 
 if_enabled_echo() {
