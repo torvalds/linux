@@ -61,6 +61,10 @@ Protocol 2.12:	(Kernel 3.8) Added the xloadflags field and extension fields
 		to struct boot_params for loading bzImage and ramdisk
 		above 4G in 64bit.
 
+Protocol 2.13:	(Kernel 3.14) Support 32- and 64-bit flags being set in
+		xloadflags to support booting a 64-bit kernel from 32-bit
+		EFI
+
 **** MEMORY LAYOUT
 
 The traditional memory map for the kernel loader, used for Image or
