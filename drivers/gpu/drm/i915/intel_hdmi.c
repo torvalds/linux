@@ -2204,7 +2204,7 @@ static bool hdmi_deep_color_possible(const struct intel_crtc_state *crtc_state,
 
 	/* Display Wa_1405510057:icl */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 &&
-	    bpc == 10 && IS_ICELAKE(dev_priv) &&
+	    bpc == 10 && INTEL_GEN(dev_priv) >= 11 &&
 	    (adjusted_mode->crtc_hblank_end -
 	     adjusted_mode->crtc_hblank_start) % 8 == 2)
 		return false;
@@ -2498,7 +2498,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
-	if (IS_ICELAKE(dev_priv) &&
+	if (INTEL_GEN(dev_priv) >= 11 &&
 	    !intel_digital_port_connected(encoder))
 		goto out;
 

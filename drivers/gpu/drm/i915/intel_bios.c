@@ -2094,8 +2094,8 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 		dvo_port = child->dvo_port;
 
 		if (dvo_port == DVO_PORT_MIPIA ||
-		    (dvo_port == DVO_PORT_MIPIB && IS_ICELAKE(dev_priv)) ||
-		    (dvo_port == DVO_PORT_MIPIC && !IS_ICELAKE(dev_priv))) {
+		    (dvo_port == DVO_PORT_MIPIB && INTEL_GEN(dev_priv) >= 11) ||
+		    (dvo_port == DVO_PORT_MIPIC && INTEL_GEN(dev_priv) < 11)) {
 			if (port)
 				*port = dvo_port - DVO_PORT_MIPIA;
 			return true;

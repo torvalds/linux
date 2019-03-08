@@ -841,7 +841,7 @@ void intel_color_init(struct intel_crtc *crtc)
 
 		dev_priv->display.color_commit = i9xx_color_commit;
 	} else {
-		if (IS_ICELAKE(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.load_luts = icl_load_luts;
 		else if (IS_CANNONLAKE(dev_priv) || IS_GEMINILAKE(dev_priv))
 			dev_priv->display.load_luts = glk_load_luts;

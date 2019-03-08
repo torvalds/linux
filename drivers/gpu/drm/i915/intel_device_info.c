@@ -740,7 +740,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	BUILD_BUG_ON(BITS_PER_TYPE(intel_engine_mask_t) < I915_NUM_ENGINES);
 
-	if (IS_GEN(dev_priv, 11))
+	if (INTEL_GEN(dev_priv) >= 11)
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_sprites[pipe] = 6;
 	else if (IS_GEN(dev_priv, 10) || IS_GEMINILAKE(dev_priv))

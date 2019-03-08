@@ -2881,7 +2881,7 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 
 	sysfs_attr_init(&dev_priv->perf.oa.test_config.sysfs_metric_id.attr);
 
-	if (IS_ICELAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		i915_perf_load_test_config_icl(dev_priv);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		i915_perf_load_test_config_cnl(dev_priv);
