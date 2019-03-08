@@ -20,7 +20,7 @@
 static noinline size_t
 lzo1x_1_do_compress(const unsigned char *in, size_t in_len,
 		    unsigned char *out, size_t *out_len,
-		    size_t ti, void *wrkmem)
+		    size_t ti, void *wrkmem, signed char *state_offset)
 {
 	const unsigned char *ip;
 	unsigned char *op;
@@ -35,27 +35,85 @@ lzo1x_1_do_compress(const unsigned char *in, size_t in_len,
 	ip += ti < 4 ? 4 - ti : 0;
 
 	for (;;) {
-		const unsigned char *m_pos;
+		const unsigned char *m_pos = NULL;
 		size_t t, m_len, m_off;
 		u32 dv;
+		u32 run_length = 0;
 literal:
 		ip += 1 + ((ip - ii) >> 5);
 next:
 		if (unlikely(ip >= ip_end))
 			break;
 		dv = get_unaligned_le32(ip);
-		t = ((dv * 0x1824429d) >> (32 - D_BITS)) & D_MASK;
-		m_pos = in + dict[t];
-		dict[t] = (lzo_dict_t) (ip - in);
-		if (unlikely(dv != get_unaligned_le32(m_pos)))
-			goto literal;
+
+		if (dv == 0) {
+			const unsigned char *ir = ip + 4;
+			const unsigned char *limit = ip_end
+				< (ip + MAX_ZERO_RUN_LENGTH + 1)
+				? ip_end : ip + MAX_ZERO_RUN_LENGTH + 1;
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && \
+	defined(LZO_FAST_64BIT_MEMORY_ACCESS)
+			u64 dv64;
+
+			for (; (ir + 32) <= limit; ir += 32) {
+				dv64 = get_unaligned((u64 *)ir);
+				dv64 |= get_unaligned((u64 *)ir + 1);
+				dv64 |= get_unaligned((u64 *)ir + 2);
+				dv64 |= get_unaligned((u64 *)ir + 3);
+				if (dv64)
+					break;
+			}
+			for (; (ir + 8) <= limit; ir += 8) {
+				dv64 = get_unaligned((u64 *)ir);
+				if (dv64) {
+#  if defined(__LITTLE_ENDIAN)
+					ir += __builtin_ctzll(dv64) >> 3;
+#  elif defined(__BIG_ENDIAN)
+					ir += __builtin_clzll(dv64) >> 3;
+#  else
+#    error "missing endian definition"
+#  endif
+					break;
+				}
+			}
+#else
+			while ((ir < (const unsigned char *)
+					ALIGN((uintptr_t)ir, 4)) &&
+					(ir < limit) && (*ir == 0))
+				ir++;
+			for (; (ir + 4) <= limit; ir += 4) {
+				dv = *((u32 *)ir);
+				if (dv) {
+#  if defined(__LITTLE_ENDIAN)
+					ir += __builtin_ctz(dv) >> 3;
+#  elif defined(__BIG_ENDIAN)
+					ir += __builtin_clz(dv) >> 3;
+#  else
+#    error "missing endian definition"
+#  endif
+					break;
+				}
+			}
+#endif
+			while (likely(ir < limit) && unlikely(*ir == 0))
+				ir++;
+			run_length = ir - ip;
+			if (run_length > MAX_ZERO_RUN_LENGTH)
+				run_length = MAX_ZERO_RUN_LENGTH;
+		} else {
+			t = ((dv * 0x1824429d) >> (32 - D_BITS)) & D_MASK;
+			m_pos = in + dict[t];
+			dict[t] = (lzo_dict_t) (ip - in);
+			if (unlikely(dv != get_unaligned_le32(m_pos)))
+				goto literal;
+		}
 
 		ii -= ti;
 		ti = 0;
 		t = ip - ii;
 		if (t != 0) {
 			if (t <= 3) {
-				op[-2] |= t;
+				op[*state_offset] |= t;
 				COPY4(op, ii);
 				op += t;
 			} else if (t <= 16) {
@@ -86,6 +144,17 @@ next:
 					*op++ = *ii++;
 				} while (--t > 0);
 			}
+		}
+
+		if (unlikely(run_length)) {
+			ip += run_length;
+			run_length -= MIN_ZERO_RUN_LENGTH;
+			put_unaligned_le32((run_length << 21) | 0xfffc18
+					   | (run_length & 0x7), op);
+			op += 4;
+			run_length = 0;
+			*state_offset = -3;
+			goto finished_writing_instruction;
 		}
 
 		m_len = 4;
@@ -170,7 +239,6 @@ m_len_done:
 
 		m_off = ip - m_pos;
 		ip += m_len;
-		ii = ip;
 		if (m_len <= M2_MAX_LEN && m_off <= M2_MAX_OFFSET) {
 			m_off -= 1;
 			*op++ = (((m_len - 1) << 5) | ((m_off & 7) << 2));
@@ -207,6 +275,9 @@ m_len_done:
 			*op++ = (m_off << 2);
 			*op++ = (m_off >> 6);
 		}
+		*state_offset = -2;
+finished_writing_instruction:
+		ii = ip;
 		goto next;
 	}
 	*out_len = op - out;
@@ -221,6 +292,12 @@ int lzo1x_1_compress(const unsigned char *in, size_t in_len,
 	unsigned char *op = out;
 	size_t l = in_len;
 	size_t t = 0;
+	signed char state_offset = -2;
+
+	// LZO v0 will never write 17 as first byte,
+	// so this is used to version the bitstream
+	*op++ = 17;
+	*op++ = LZO_VERSION;
 
 	while (l > 20) {
 		size_t ll = l <= (M4_MAX_OFFSET + 1) ? l : (M4_MAX_OFFSET + 1);
@@ -229,7 +306,8 @@ int lzo1x_1_compress(const unsigned char *in, size_t in_len,
 			break;
 		BUILD_BUG_ON(D_SIZE * sizeof(lzo_dict_t) > LZO1X_1_MEM_COMPRESS);
 		memset(wrkmem, 0, D_SIZE * sizeof(lzo_dict_t));
-		t = lzo1x_1_do_compress(ip, ll, op, out_len, t, wrkmem);
+		t = lzo1x_1_do_compress(ip, ll, op, out_len,
+					t, wrkmem, &state_offset);
 		ip += ll;
 		op += *out_len;
 		l  -= ll;
@@ -242,7 +320,7 @@ int lzo1x_1_compress(const unsigned char *in, size_t in_len,
 		if (op == out && t <= 238) {
 			*op++ = (17 + t);
 		} else if (t <= 3) {
-			op[-2] |= t;
+			op[state_offset] |= t;
 		} else if (t <= 18) {
 			*op++ = (t - 3);
 		} else {
