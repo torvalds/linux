@@ -649,7 +649,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
-			sizeof(struct btree_iter) * BTREE_ITER_MAX) ||
+			sizeof(struct btree_iter) * BTREE_ITER_MAX +
+			sizeof(struct btree_insert_entry) *
+			(BTREE_ITER_MAX + 4)) ||
 	    bch2_io_clock_init(&c->io_clock[READ]) ||
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ||
 	    bch2_fs_journal_init(&c->journal) ||

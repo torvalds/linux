@@ -232,18 +232,17 @@ struct btree_iter {
 	 */
 	struct bkey		k;
 
+	u64			id;
+
 	/*
 	 * Circular linked list of linked iterators: linked iterators share
 	 * locks (e.g. two linked iterators may have the same node intent
 	 * locked, or read and write locked, at the same time), and insertions
 	 * through one iterator won't invalidate the other linked iterators.
 	 */
-
 	/* Must come last: */
 	struct btree_iter	*next;
 };
-
-#define BTREE_ITER_MAX		8
 
 struct deferred_update {
 	struct journal_preres	res;
@@ -270,25 +269,29 @@ struct btree_insert_entry {
 	bool			deferred;
 };
 
+#define BTREE_ITER_MAX		64
+
 struct btree_trans {
 	struct bch_fs		*c;
 	size_t			nr_restarts;
 
+	u64			iters_live;
+	u64			iters_linked;
+
 	u8			nr_iters;
-	u8			iters_live;
-	u8			iters_linked;
 	u8			nr_updates;
+	u8			size;
+	unsigned		used_mempool:1;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;
 	void			*mem;
 
 	struct btree_iter	*iters;
-	u64			iter_ids[BTREE_ITER_MAX];
-
-	struct btree_insert_entry updates[BTREE_ITER_MAX];
+	struct btree_insert_entry *updates;
 
 	struct btree_iter	iters_onstack[2];
+	struct btree_insert_entry updates_onstack[6];
 };
 
 #define BTREE_FLAG(flag)						\

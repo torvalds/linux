@@ -148,7 +148,7 @@ static inline void
 bch2_trans_update(struct btree_trans *trans,
 		  struct btree_insert_entry entry)
 {
-	BUG_ON(trans->nr_updates >= ARRAY_SIZE(trans->updates));
+	BUG_ON(trans->nr_updates >= trans->nr_iters + 4);
 
 	trans->updates[trans->nr_updates++] = entry;
 }
