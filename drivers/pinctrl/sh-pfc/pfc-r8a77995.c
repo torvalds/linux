@@ -288,7 +288,7 @@
 #define IP10_23_20	FM(SSI_SDATA4_A)	FM(HTX0)		FM(SCL2_A)		FM(CAN1_RX_B)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP10_27_24	FM(SSI_WS4_A)		FM(HRX0)		FM(SDA2_A)		FM(CAN1_TX_B)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP10_31_28	FM(SCL1)		FM(CTS1_N)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP11_3_0	FM(SDA1)		FM(RTS1_N_TANS)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP11_3_0	FM(SDA1)		FM(RTS1_N)		F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_7_4	FM(MSIOF1_SCK)		FM(AVB0_AVTP_PPS_B)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_11_8	FM(MSIOF1_TXD)		FM(AVB0_AVTP_CAPTURE_B)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP11_15_12	FM(MSIOF1_RXD)		FM(AVB0_AVTP_MATCH_B)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -299,7 +299,7 @@
 
 /* IPSRx */		/* 0 */			/* 1 */			/* 2 */			/* 3 */		/* 4 */			/* 5 */		/* 6  - F */
 #define IP12_3_0	FM(RX1_A)		FM(CTS0_N)		FM(TPU0TO0_B)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP12_7_4	FM(TX1_A)		FM(RTS0_N_TANS)		FM(TPU0TO1_B)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP12_7_4	FM(TX1_A)		FM(RTS0_N)		FM(TPU0TO1_B)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP12_11_8	FM(SCK2)		FM(MSIOF1_SS1)		FM(TPU0TO3_B)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP12_15_12	FM(TPU0TO0_A)		FM(AVB0_AVTP_CAPTURE_A)	FM(HCTS0_N)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP12_19_16	FM(TPU0TO1_A)		FM(AVB0_AVTP_MATCH_A)	FM(HRTS0_N)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -858,7 +858,7 @@ static const u16 pinmux_data[] = {
 
 	/* IPSR11 */
 	PINMUX_IPSR_GPSR(IP11_3_0,	SDA1),
-	PINMUX_IPSR_GPSR(IP11_3_0,	RTS1_N_TANS),
+	PINMUX_IPSR_GPSR(IP11_3_0,	RTS1_N),
 
 	PINMUX_IPSR_GPSR(IP11_7_4,	MSIOF1_SCK),
 	PINMUX_IPSR_MSEL(IP11_7_4,	AVB0_AVTP_PPS_B, SEL_ETHERAVB_1),
@@ -893,7 +893,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_GPSR(IP12_3_0,	TPU0TO0_B),
 
 	PINMUX_IPSR_MSEL(IP12_7_4,	TX1_A, SEL_SCIF1_0),
-	PINMUX_IPSR_GPSR(IP12_7_4,	RTS0_N_TANS),
+	PINMUX_IPSR_GPSR(IP12_7_4,	RTS0_N),
 	PINMUX_IPSR_GPSR(IP12_7_4,	TPU0TO1_B),
 
 	PINMUX_IPSR_GPSR(IP12_11_8,	SCK2),
@@ -1705,7 +1705,7 @@ static const unsigned int scif0_ctrl_pins[] = {
 	RCAR_GP_PIN(4, 24), RCAR_GP_PIN(4, 23),
 };
 static const unsigned int scif0_ctrl_mux[] = {
-	RTS0_N_TANS_MARK, CTS0_N_MARK,
+	RTS0_N_MARK, CTS0_N_MARK,
 };
 /* - SCIF1 ------------------------------------------------------------------ */
 static const unsigned int scif1_data_a_pins[] = {
@@ -1741,7 +1741,7 @@ static const unsigned int scif1_ctrl_pins[] = {
 	RCAR_GP_PIN(4, 11), RCAR_GP_PIN(4, 10),
 };
 static const unsigned int scif1_ctrl_mux[] = {
-	RTS1_N_TANS_MARK, CTS1_N_MARK,
+	RTS1_N_MARK, CTS1_N_MARK,
 };
 
 /* - SCIF2 ------------------------------------------------------------------ */

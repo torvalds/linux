@@ -177,14 +177,14 @@
 #define IP3_3_0		FM(VI0_CLKENB)			FM(MSIOF2_RXD)		FM(RX3)		FM(RD_WR_N)	FM(HCTS3_N)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_7_4		FM(VI0_HSYNC_N)			FM(MSIOF2_TXD)		FM(TX3)		F_(0, 0)	FM(HRTS3_N)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_11_8	FM(VI0_VSYNC_N)			FM(MSIOF2_SYNC)		FM(CTS3_N)	F_(0, 0)	FM(HTX3)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP3_15_12	FM(VI0_DATA0)			FM(MSIOF2_SS1)		FM(RTS3_N_TANS)	F_(0, 0)	FM(HRX3)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP3_15_12	FM(VI0_DATA0)			FM(MSIOF2_SS1)		FM(RTS3_N)	F_(0, 0)	FM(HRX3)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_19_16	FM(VI0_DATA1)			FM(MSIOF2_SS2)		FM(SCK1)	F_(0, 0)	FM(SPEEDIN_A)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_23_20	FM(VI0_DATA2)			FM(AVB0_AVTP_PPS)	FM(SDA3_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_27_24	FM(VI0_DATA3)			FM(HSCK1)		FM(SCL3_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP3_31_28	FM(VI0_DATA4)			FM(HRTS1_N)		FM(RX1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP4_3_0		FM(VI0_DATA5)			FM(HCTS1_N)		FM(TX1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP4_7_4		FM(VI0_DATA6)			FM(HTX1)		FM(CTS1_N)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP4_11_8	FM(VI0_DATA7)			FM(HRX1)		FM(RTS1_N_TANS)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP4_11_8	FM(VI0_DATA7)			FM(HRX1)		FM(RTS1_N)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP4_15_12	FM(VI0_DATA8)			FM(HSCK2)		FM(PWM0_A)	FM(A22)		F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP4_19_16	FM(VI0_DATA9)			FM(HCTS2_N)		FM(PWM1_A)	FM(A23)		FM(FSO_CFE_0_N_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP4_23_20	FM(VI0_DATA10)			FM(HRTS2_N)		FM(PWM2_A)	FM(A24)		FM(FSO_CFE_1_N_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -203,14 +203,14 @@
 #define IP6_11_8	FM(VI1_DATA6)			F_(0,0)			FM(RX4)		FM(D9)		FM(MMC_CLK)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP6_15_12	FM(VI1_DATA7)			F_(0,0)			FM(TX4)		FM(D10)		FM(MMC_D4)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP6_19_16	FM(VI1_DATA8)			F_(0,0)			FM(CTS4_N)	FM(D11)		FM(MMC_D5)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP6_23_20	FM(VI1_DATA9)			F_(0,0)			FM(RTS4_N_TANS)	FM(D12)		FM(MMC_D6)		FM(SCL3_B)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP6_23_20	FM(VI1_DATA9)			F_(0,0)			FM(RTS4_N)	FM(D12)		FM(MMC_D6)		FM(SCL3_B)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP6_27_24	FM(VI1_DATA10)			F_(0,0)			F_(0, 0)	FM(D13)		FM(MMC_D7)		FM(SDA3_B)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP6_31_28	FM(VI1_DATA11)			FM(SCL4)		FM(IRQ4)	FM(D14)		FM(MMC_WP)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_3_0		FM(VI1_FIELD)			FM(SDA4)		FM(IRQ5)	FM(D15)		FM(MMC_CD)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_7_4		FM(SCL0)			FM(DU_DR0)		FM(TPU0TO0)	FM(CLKOUT)	F_(0, 0)		FM(MSIOF0_RXD)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_11_8	FM(SDA0)			FM(DU_DR1)		FM(TPU0TO1)	FM(BS_N)	FM(SCK0)		FM(MSIOF0_TXD)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_15_12	FM(SCL1)			FM(DU_DG0)		FM(TPU0TO2)	FM(RD_N)	FM(CTS0_N)		FM(MSIOF0_SCK)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP7_19_16	FM(SDA1)			FM(DU_DG1)		FM(TPU0TO3)	FM(WE0_N)	FM(RTS0_N_TANS)		FM(MSIOF0_SYNC)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP7_19_16	FM(SDA1)			FM(DU_DG1)		FM(TPU0TO3)	FM(WE0_N)	FM(RTS0_N)		FM(MSIOF0_SYNC)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_23_20	FM(SCL2)			FM(DU_DB0)		FM(TCLK1_A)	FM(WE1_N)	FM(RX0)			FM(MSIOF0_SS1)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_27_24	FM(SDA2)			FM(DU_DB1)		FM(TCLK2_A)	FM(EX_WAIT0)	FM(TX0)			FM(MSIOF0_SS2)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP7_31_28	FM(AVB0_AVTP_CAPTURE)		F_(0, 0)		F_(0, 0)	F_(0, 0)	FM(FSCLKST2_N_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -496,7 +496,7 @@ static const u16 pinmux_data[] = {
 
 	PINMUX_IPSR_GPSR(IP3_15_12,	VI0_DATA0),
 	PINMUX_IPSR_GPSR(IP3_15_12,	MSIOF2_SS1),
-	PINMUX_IPSR_GPSR(IP3_15_12,	RTS3_N_TANS),
+	PINMUX_IPSR_GPSR(IP3_15_12,	RTS3_N),
 	PINMUX_IPSR_GPSR(IP3_15_12,	HRX3),
 
 	PINMUX_IPSR_GPSR(IP3_19_16,	VI0_DATA1),
@@ -527,7 +527,7 @@ static const u16 pinmux_data[] = {
 
 	PINMUX_IPSR_GPSR(IP4_11_8,	VI0_DATA7),
 	PINMUX_IPSR_GPSR(IP4_11_8,	HRX1),
-	PINMUX_IPSR_GPSR(IP4_11_8,	RTS1_N_TANS),
+	PINMUX_IPSR_GPSR(IP4_11_8,	RTS1_N),
 
 	PINMUX_IPSR_GPSR(IP4_15_12,	VI0_DATA8),
 	PINMUX_IPSR_GPSR(IP4_15_12,	HSCK2),
@@ -617,7 +617,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_GPSR(IP6_19_16,	MMC_D5),
 
 	PINMUX_IPSR_GPSR(IP6_23_20,	VI1_DATA9),
-	PINMUX_IPSR_GPSR(IP6_23_20,	RTS4_N_TANS),
+	PINMUX_IPSR_GPSR(IP6_23_20,	RTS4_N),
 	PINMUX_IPSR_GPSR(IP6_23_20,	D12),
 	PINMUX_IPSR_GPSR(IP6_23_20,	MMC_D6),
 	PINMUX_IPSR_MSEL(IP6_23_20,	SCL3_B,	SEL_I2C3_1),
@@ -664,7 +664,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_GPSR(IP7_19_16,	DU_DG1),
 	PINMUX_IPSR_GPSR(IP7_19_16,	TPU0TO3),
 	PINMUX_IPSR_GPSR(IP7_19_16,	WE0_N),
-	PINMUX_IPSR_GPSR(IP7_19_16,	RTS0_N_TANS),
+	PINMUX_IPSR_GPSR(IP7_19_16,	RTS0_N),
 	PINMUX_IPSR_GPSR(IP7_19_16,	MSIOF0_SYNC),
 
 	PINMUX_IPSR_GPSR(IP7_23_20,	SCL2),
@@ -1468,7 +1468,7 @@ static const unsigned int scif0_ctrl_pins[] = {
 	RCAR_GP_PIN(4, 3), RCAR_GP_PIN(4, 2),
 };
 static const unsigned int scif0_ctrl_mux[] = {
-	RTS0_N_TANS_MARK, CTS0_N_MARK,
+	RTS0_N_MARK, CTS0_N_MARK,
 };
 
 /* - SCIF1 ------------------------------------------------------------------ */
@@ -1491,7 +1491,7 @@ static const unsigned int scif1_ctrl_pins[] = {
 	RCAR_GP_PIN(2, 11), RCAR_GP_PIN(2, 10),
 };
 static const unsigned int scif1_ctrl_mux[] = {
-	RTS1_N_TANS_MARK, CTS1_N_MARK,
+	RTS1_N_MARK, CTS1_N_MARK,
 };
 static const unsigned int scif1_data_b_pins[] = {
 	/* RX, TX */
@@ -1521,7 +1521,7 @@ static const unsigned int scif3_ctrl_pins[] = {
 	RCAR_GP_PIN(2, 4), RCAR_GP_PIN(2, 3),
 };
 static const unsigned int scif3_ctrl_mux[] = {
-	RTS3_N_TANS_MARK, CTS3_N_MARK,
+	RTS3_N_MARK, CTS3_N_MARK,
 };
 
 /* - SCIF4 ------------------------------------------------------------------ */
@@ -1544,7 +1544,7 @@ static const unsigned int scif4_ctrl_pins[] = {
 	RCAR_GP_PIN(3, 13), RCAR_GP_PIN(3, 12),
 };
 static const unsigned int scif4_ctrl_mux[] = {
-	RTS4_N_TANS_MARK, CTS4_N_MARK,
+	RTS4_N_MARK, CTS4_N_MARK,
 };
 
 /* - TMU -------------------------------------------------------------------- */
