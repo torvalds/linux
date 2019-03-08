@@ -31,6 +31,16 @@ _all:
 # descending is started. They are now explicitly listed as the
 # prepare rule.
 
+# Ugly workaround for Debian make-kpkg:
+# make-kpkg directly includes the top Makefile of Linux kernel. In such a case,
+# skip sub-make to support debian_* targets in ruleset/kernel_version.mk, but
+# displays warning to discourage such abusage.
+ifneq ($(word 2, $(MAKEFILE_LIST)),)
+$(warning Do not include top Makefile of Linux Kernel)
+sub-make-done := 1
+MAKEFLAGS += -rR
+endif
+
 ifneq ($(sub-make-done),1)
 
 # Do not use make's built-in rules and variables
