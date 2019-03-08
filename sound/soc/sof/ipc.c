@@ -391,9 +391,20 @@ EXPORT_SYMBOL(sof_ipc_drop_all);
 int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct snd_sof_ipc_msg *msg;
+	unsigned long flags;
+
+	/*
+	 * Protect against a theoretical race with ipc_tx_next_msg(): if the DSP
+	 * is fast enough to receive an IPC message, reply to it, and the host
+	 * interrupt processing calls this function on a different core from the
+	 * one, where the sending is taking place, the message might not yet be
+	 * on the .reply_list and sof_ipc_reply_find_msg() will return 0.
+	 */
+	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
 	msg = sof_ipc_reply_find_msg(sdev->ipc, msg_id);
 	if (!msg) {
+		spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 		dev_err(sdev->dev, "error: can't find message header 0x%x",
 			msg_id);
 		return -EINVAL;
@@ -401,6 +412,9 @@ int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 
 	/* wake up and return the error if we have waiters on this message ? */
 	sof_ipc_tx_msg_reply_complete(sdev->ipc, msg);
+
+	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_ipc_reply);
