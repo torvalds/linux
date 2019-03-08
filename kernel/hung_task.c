@@ -19,6 +19,7 @@
 #include <linux/utsname.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/sysctl.h>
 
 #include <trace/events/sched.h>
 
