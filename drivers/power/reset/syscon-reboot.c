@@ -27,6 +27,7 @@
 struct syscon_reboot_context {
 	struct regmap *map;
 	u32 offset;
+	u32 value;
 	u32 mask;
 	struct notifier_block restart_handler;
 };
@@ -39,7 +40,7 @@ static int syscon_restart_handle(struct notifier_block *this,
 					restart_handler);
 
 	/* Issue the reboot */
-	regmap_write(ctx->map, ctx->offset, ctx->mask);
+	regmap_update_bits(ctx->map, ctx->offset, ctx->mask, ctx->value);
 
 	mdelay(1000);
 
@@ -51,6 +52,7 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 {
 	struct syscon_reboot_context *ctx;
 	struct device *dev = &pdev->dev;
+	int mask_err, value_err;
 	int err;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -64,8 +66,21 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 	if (of_property_read_u32(pdev->dev.of_node, "offset", &ctx->offset))
 		return -EINVAL;
 
-	if (of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask))
+	value_err = of_property_read_u32(pdev->dev.of_node, "value", &ctx->value);
+	mask_err = of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask);
+	if (value_err && mask_err) {
+		dev_err(dev, "unable to read 'value' and 'mask'");
 		return -EINVAL;
+	}
+
+	if (value_err) {
+		/* support old binding */
+		ctx->value = ctx->mask;
+		ctx->mask = 0xFFFFFFFF;
+	} else if (mask_err) {
+		/* support value without mask*/
+		ctx->mask = 0xFFFFFFFF;
+	}
 
 	ctx->restart_handler.notifier_call = syscon_restart_handle;
 	ctx->restart_handler.priority = 192;
