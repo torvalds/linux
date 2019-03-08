@@ -838,6 +838,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			if (IS_ERR(obj->btf) || btf__load(obj->btf)) {
 				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
 					   BTF_ELF_SEC, PTR_ERR(obj->btf));
+				if (!IS_ERR(obj->btf))
+					btf__free(obj->btf);
 				obj->btf = NULL;
 			}
 		} else if (strcmp(name, BTF_EXT_ELF_SEC) == 0) {
