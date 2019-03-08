@@ -1,0 +1,18 @@
+Rockchip system monitor device tree bindings
+----------------------------------
+
+Required properties:
+- compatible: Should be one of the following.
+ - "rockchip,system-monitor"
+
+Optional properties:
+- rockchip,video-4k-offline-cpus: A string containing cpus which will be killed
+			when play 4k video.
+
+Example:
+
+system-monitor {
+	compatible = "rockchip,system-monitor";
+
+	rockchip,video-4k-offline-cpus = "2-3";
+};
