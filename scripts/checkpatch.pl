@@ -3037,6 +3037,14 @@ sub process {
 					$comment = '..';
 				}
 
+# check SPDX comment style for .[chsS] files
+				if ($realfile =~ /\.[chsS]$/ &&
+				    $rawline =~ /SPDX-License-Identifier:/ &&
+				    $rawline !~ /^\+\s*\Q$comment\E\s*/) {
+					WARN("SPDX_LICENSE_TAG",
+					     "Improper SPDX comment style for '$realfile', please use '$comment' instead\n" . $herecurr);
+				}
+
 				if ($comment !~ /^$/ &&
 				    $rawline !~ /^\+\Q$comment\E SPDX-License-Identifier: /) {
 					 WARN("SPDX_LICENSE_TAG",
