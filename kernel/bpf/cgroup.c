@@ -782,6 +782,9 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * @pcount: value-result argument: value is size of buffer pointed to by @buf,
  *	result is size of @new_buf if program set new value, initial value
  *	otherwise
+ * @ppos: value-result argument: value is position at which read from or write
+ *	to sysctl is happening, result is new position if program overrode it,
+ *	initial value otherwise
  * @new_buf: pointer to pointer to new buffer that will be allocated if program
  *	overrides new value provided by user space on sysctl write
  *	NOTE: it's caller responsibility to free *new_buf if it was set
@@ -796,12 +799,14 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 				   struct ctl_table *table, int write,
 				   void __user *buf, size_t *pcount,
-				   void **new_buf, enum bpf_attach_type type)
+				   loff_t *ppos, void **new_buf,
+				   enum bpf_attach_type type)
 {
 	struct bpf_sysctl_kern ctx = {
 		.head = head,
 		.table = table,
 		.write = write,
+		.ppos = ppos,
 		.cur_val = NULL,
 		.cur_len = PAGE_SIZE,
 		.new_val = NULL,
@@ -1030,14 +1035,22 @@ static bool sysctl_is_valid_access(int off, int size, enum bpf_access_type type,
 {
 	const int size_default = sizeof(__u32);
 
-	if (off < 0 || off + size > sizeof(struct bpf_sysctl) ||
-	    off % size || type != BPF_READ)
+	if (off < 0 || off + size > sizeof(struct bpf_sysctl) || off % size)
 		return false;
 
 	switch (off) {
 	case offsetof(struct bpf_sysctl, write):
+		if (type != BPF_READ)
+			return false;
 		bpf_ctx_record_field_size(info, size_default);
 		return bpf_ctx_narrow_access_ok(off, size, size_default);
+	case offsetof(struct bpf_sysctl, file_pos):
+		if (type == BPF_READ) {
+			bpf_ctx_record_field_size(info, size_default);
+			return bpf_ctx_narrow_access_ok(off, size, size_default);
+		} else {
+			return size == size_default;
+		}
 	default:
 		return false;
 	}
@@ -1058,6 +1071,41 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 				       FIELD_SIZEOF(struct bpf_sysctl_kern,
 						    write),
 				       target_size));
+		break;
+	case offsetof(struct bpf_sysctl, file_pos):
+		/* ppos is a pointer so it should be accessed via indirect
+		 * loads and stores. Also for stores additional temporary
+		 * register is used since neither src_reg nor dst_reg can be
+		 * overridden.
+		 */
+		if (type == BPF_WRITE) {
+			int treg = BPF_REG_9;
+
+			if (si->src_reg == treg || si->dst_reg == treg)
+				--treg;
+			if (si->src_reg == treg || si->dst_reg == treg)
+				--treg;
+			*insn++ = BPF_STX_MEM(
+				BPF_DW, si->dst_reg, treg,
+				offsetof(struct bpf_sysctl_kern, tmp_reg));
+			*insn++ = BPF_LDX_MEM(
+				BPF_FIELD_SIZEOF(struct bpf_sysctl_kern, ppos),
+				treg, si->dst_reg,
+				offsetof(struct bpf_sysctl_kern, ppos));
+			*insn++ = BPF_STX_MEM(
+				BPF_SIZEOF(u32), treg, si->src_reg, 0);
+			*insn++ = BPF_LDX_MEM(
+				BPF_DW, treg, si->dst_reg,
+				offsetof(struct bpf_sysctl_kern, tmp_reg));
+		} else {
+			*insn++ = BPF_LDX_MEM(
+				BPF_FIELD_SIZEOF(struct bpf_sysctl_kern, ppos),
+				si->dst_reg, si->src_reg,
+				offsetof(struct bpf_sysctl_kern, ppos));
+			*insn++ = BPF_LDX_MEM(
+				BPF_SIZE(si->code), si->dst_reg, si->dst_reg, 0);
+		}
+		*target_size = sizeof(u32);
 		break;
 	}
 

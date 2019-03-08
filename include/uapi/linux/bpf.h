@@ -3391,6 +3391,9 @@ struct bpf_sysctl {
 	__u32	write;		/* Sysctl is being read (= 0) or written (= 1).
 				 * Allows 1,2,4-byte read, but no write.
 				 */
+	__u32	file_pos;	/* Sysctl file position to read from, write to.
+				 * Allows 1,2,4-byte read an 4-byte write.
+				 */
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
