@@ -109,6 +109,10 @@ static void mock_retire_work_handler(struct work_struct *work)
 
 static void mock_idle_work_handler(struct work_struct *work)
 {
+	struct drm_i915_private *i915 =
+		container_of(work, typeof(*i915), gt.idle_work.work);
+
+	i915->gt.active_engines = 0;
 }
 
 static int pm_domain_resume(struct device *dev)

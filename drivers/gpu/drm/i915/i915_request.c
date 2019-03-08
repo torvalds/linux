@@ -1068,6 +1068,7 @@ void i915_request_add(struct i915_request *request)
 		GEM_TRACE("marking %s as active\n", ring->timeline->name);
 		list_add(&ring->active_link, &request->i915->gt.active_rings);
 	}
+	request->i915->gt.active_engines |= request->engine->mask;
 	request->emitted_jiffies = jiffies;
 
 	/*

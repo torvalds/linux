@@ -1106,6 +1106,9 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
+	if (!engine->context_size)
+		return true;
+
 	/*
 	 * Check the last context seen by the engine. If active, it will be
 	 * the last request that remains in the timeline. When idle, it is
@@ -1205,6 +1208,8 @@ void intel_engines_park(struct drm_i915_private *i915)
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 		engine->execlists.no_priolist = false;
 	}
+
+	i915->gt.active_engines = 0;
 }
 
 /**

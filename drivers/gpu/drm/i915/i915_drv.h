@@ -1995,6 +1995,7 @@ struct drm_i915_private {
 			struct list_head hwsp_free_list;
 		} timelines;
 
+		intel_engine_mask_t active_engines;
 		struct list_head active_rings;
 		struct list_head closed_vma;
 		u32 active_requests;

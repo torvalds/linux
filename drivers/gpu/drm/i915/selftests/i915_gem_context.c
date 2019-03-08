@@ -1512,7 +1512,8 @@ static int __igt_switch_to_kernel_context(struct drm_i915_private *i915,
 			}
 		}
 
-		err = i915_gem_switch_to_kernel_context(i915);
+		err = i915_gem_switch_to_kernel_context(i915,
+							i915->gt.active_engines);
 		if (err)
 			return err;
 

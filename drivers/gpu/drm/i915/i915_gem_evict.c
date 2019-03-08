@@ -62,7 +62,7 @@ static int ggtt_flush(struct drm_i915_private *i915)
 	 * the hopes that we can then remove contexts and the like only
 	 * bound by their active reference.
 	 */
-	err = i915_gem_switch_to_kernel_context(i915);
+	err = i915_gem_switch_to_kernel_context(i915, i915->gt.active_engines);
 	if (err)
 		return err;
 
