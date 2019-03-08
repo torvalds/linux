@@ -41,6 +41,11 @@
 #define N_REG			0xc
 #define D_REG			0x10
 
+#define RCG_CFG_OFFSET(rcg)	((rcg)->cmd_rcgr + (rcg)->cfg_off + CFG_REG)
+#define RCG_M_OFFSET(rcg)	((rcg)->cmd_rcgr + (rcg)->cfg_off + M_REG)
+#define RCG_N_OFFSET(rcg)	((rcg)->cmd_rcgr + (rcg)->cfg_off + N_REG)
+#define RCG_D_OFFSET(rcg)	((rcg)->cmd_rcgr + (rcg)->cfg_off + D_REG)
+
 /* Dynamic Frequency Scaling */
 #define MAX_PERF_LEVEL		8
 #define SE_CMD_DFSR_OFFSET	0x14
@@ -74,7 +79,7 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 	u32 cfg;
 	int i, ret;
 
-	ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG, &cfg);
+	ret = regmap_read(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg), &cfg);
 	if (ret)
 		goto err;
 
@@ -123,7 +128,7 @@ static int clk_rcg2_set_parent(struct clk_hw *hw, u8 index)
 	int ret;
 	u32 cfg = rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
 
-	ret = regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG,
+	ret = regmap_update_bits(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg),
 				 CFG_SRC_SEL_MASK, cfg);
 	if (ret)
 		return ret;
@@ -162,13 +167,13 @@ clk_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	u32 cfg, hid_div, m = 0, n = 0, mode = 0, mask;
 
-	regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG, &cfg);
+	regmap_read(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg), &cfg);
 
 	if (rcg->mnd_width) {
 		mask = BIT(rcg->mnd_width) - 1;
-		regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + M_REG, &m);
+		regmap_read(rcg->clkr.regmap, RCG_M_OFFSET(rcg), &m);
 		m &= mask;
-		regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + N_REG, &n);
+		regmap_read(rcg->clkr.regmap, RCG_N_OFFSET(rcg), &n);
 		n =  ~n;
 		n &= mask;
 		n += m;
@@ -263,17 +268,17 @@ static int __clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	if (rcg->mnd_width && f->n) {
 		mask = BIT(rcg->mnd_width) - 1;
 		ret = regmap_update_bits(rcg->clkr.regmap,
-				rcg->cmd_rcgr + M_REG, mask, f->m);
+				RCG_M_OFFSET(rcg), mask, f->m);
 		if (ret)
 			return ret;
 
 		ret = regmap_update_bits(rcg->clkr.regmap,
-				rcg->cmd_rcgr + N_REG, mask, ~(f->n - f->m));
+				RCG_N_OFFSET(rcg), mask, ~(f->n - f->m));
 		if (ret)
 			return ret;
 
 		ret = regmap_update_bits(rcg->clkr.regmap,
-				rcg->cmd_rcgr + D_REG, mask, ~f->n);
+				RCG_D_OFFSET(rcg), mask, ~f->n);
 		if (ret)
 			return ret;
 	}
@@ -284,8 +289,7 @@ static int __clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	cfg |= rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
 	if (rcg->mnd_width && f->n && (f->m != f->n))
 		cfg |= CFG_MODE_DUAL_EDGE;
-
-	return regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG,
+	return regmap_update_bits(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg),
 					mask, cfg);
 }
 
