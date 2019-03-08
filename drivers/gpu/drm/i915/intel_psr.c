@@ -880,15 +880,11 @@ void intel_psr_update(struct intel_dp *intel_dp,
 	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled)
 		goto unlock;
 
-	if (psr->enabled) {
-		if (!enable || psr2_enable != psr->psr2_enabled)
-			intel_psr_disable_locked(intel_dp);
-	}
+	if (psr->enabled)
+		intel_psr_disable_locked(intel_dp);
 
-	if (enable) {
-		if (!psr->enabled || psr2_enable != psr->psr2_enabled)
-			intel_psr_enable_locked(dev_priv, crtc_state);
-	}
+	if (enable)
+		intel_psr_enable_locked(dev_priv, crtc_state);
 
 unlock:
 	mutex_unlock(&dev_priv->psr.lock);
