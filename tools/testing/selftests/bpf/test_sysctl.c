@@ -128,6 +128,228 @@ static struct sysctl_test tests[] = {
 		.open_flags = O_RDONLY,
 		.result = LOAD_REJECT,
 	},
+	{
+		.descr = "sysctl_get_name sysctl_value:base ok",
+		.insns = {
+			/* sysctl_get_name arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_name arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 8),
+
+			/* sysctl_get_name arg4 (flags) */
+			BPF_MOV64_IMM(BPF_REG_4, BPF_F_SYSCTL_BASE_NAME),
+
+			/* sysctl_get_name(ctx, buf, buf_len, flags) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_name),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, sizeof("tcp_mem") - 1, 6),
+			/*     buf == "tcp_mem\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x006d656d5f706374ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_name sysctl_value:base E2BIG truncated",
+		.insns = {
+			/* sysctl_get_name arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_name arg3 (buf_len) too small */
+			BPF_MOV64_IMM(BPF_REG_3, 7),
+
+			/* sysctl_get_name arg4 (flags) */
+			BPF_MOV64_IMM(BPF_REG_4, BPF_F_SYSCTL_BASE_NAME),
+
+			/* sysctl_get_name(ctx, buf, buf_len, flags) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_name),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 6),
+
+			/*     buf[0:7] == "tcp_me\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x00656d5f706374ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_name sysctl:full ok",
+		.insns = {
+			/* sysctl_get_name arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -24),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 16),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_name arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 17),
+
+			/* sysctl_get_name arg4 (flags) */
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+
+			/* sysctl_get_name(ctx, buf, buf_len, flags) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_name),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 16, 14),
+
+			/*     buf[0:8] == "net/ipv4" && */
+			BPF_LD_IMM64(BPF_REG_8, 0x347670692f74656eULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 10),
+
+			/*     buf[8:16] == "/tcp_mem" && */
+			BPF_LD_IMM64(BPF_REG_8, 0x6d656d5f7063742fULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 8),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 6),
+
+			/*     buf[16:24] == "\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x0ULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 16),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_name sysctl:full E2BIG truncated",
+		.insns = {
+			/* sysctl_get_name arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -16),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 8),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_name arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 16),
+
+			/* sysctl_get_name arg4 (flags) */
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+
+			/* sysctl_get_name(ctx, buf, buf_len, flags) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_name),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 10),
+
+			/*     buf[0:8] == "net/ipv4" && */
+			BPF_LD_IMM64(BPF_REG_8, 0x347670692f74656eULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 6),
+
+			/*     buf[8:16] == "/tcp_me\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x00656d5f7063742fULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 8),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "sysctl_get_name sysctl:full E2BIG truncated small",
+		.insns = {
+			/* sysctl_get_name arg2 (buf) */
+			BPF_MOV64_REG(BPF_REG_7, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, -8),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_7, BPF_REG_0, 0),
+
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_7),
+
+			/* sysctl_get_name arg3 (buf_len) */
+			BPF_MOV64_IMM(BPF_REG_3, 7),
+
+			/* sysctl_get_name arg4 (flags) */
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+
+			/* sysctl_get_name(ctx, buf, buf_len, flags) */
+			BPF_EMIT_CALL(BPF_FUNC_sysctl_get_name),
+
+			/* if (ret == expected && */
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, -E2BIG, 6),
+
+			/*     buf[0:8] == "net/ip\0") */
+			BPF_LD_IMM64(BPF_REG_8, 0x000070692f74656eULL),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_9, BPF_REG_7, 0),
+			BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "net/ipv4/tcp_mem",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
 };
 
 static size_t probe_prog_length(const struct bpf_insn *fp)
