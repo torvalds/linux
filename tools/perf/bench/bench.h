@@ -33,6 +33,7 @@ extern struct timeval bench__start, bench__end, bench__runtime;
 int bench_numa(int argc, const char **argv);
 int bench_sched_messaging(int argc, const char **argv);
 int bench_sched_pipe(int argc, const char **argv);
+int bench_syscall_basic(int argc, const char **argv);
 int bench_mem_memcpy(int argc, const char **argv);
 int bench_mem_memset(int argc, const char **argv);
 int bench_futex_hash(int argc, const char **argv);
