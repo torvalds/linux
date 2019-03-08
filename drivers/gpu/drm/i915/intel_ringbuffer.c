@@ -1349,7 +1349,7 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
-static void intel_ring_context_destroy(struct intel_context *ce)
+static void ring_context_destroy(struct intel_context *ce)
 {
 	GEM_BUG_ON(ce->pin_count);
 
@@ -1426,7 +1426,7 @@ static void __context_unpin(struct intel_context *ce)
 	i915_vma_unpin(vma);
 }
 
-static void intel_ring_context_unpin(struct intel_context *ce)
+static void ring_context_unpin(struct intel_context *ce)
 {
 	__context_unpin_ppgtt(ce->gem_context);
 	__context_unpin(ce);
@@ -1549,14 +1549,8 @@ err:
 	return ERR_PTR(err);
 }
 
-static const struct intel_context_ops ring_context_ops = {
-	.unpin = intel_ring_context_unpin,
-	.destroy = intel_ring_context_destroy,
-};
-
 static struct intel_context *
-intel_ring_context_pin(struct intel_engine_cs *engine,
-		       struct i915_gem_context *ctx)
+ring_context_pin(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = to_intel_context(ctx, engine);
 
@@ -1566,10 +1560,13 @@ intel_ring_context_pin(struct intel_engine_cs *engine,
 		return ce;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
-	ce->ops = &ring_context_ops;
-
 	return __ring_context_pin(engine, ctx, ce);
 }
+
+static const struct intel_context_ops ring_context_ops = {
+	.unpin = ring_context_unpin,
+	.destroy = ring_context_destroy,
+};
 
 static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
@@ -2276,7 +2273,8 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->reset.reset = reset_ring;
 	engine->reset.finish = reset_finish;
 
-	engine->context_pin = intel_ring_context_pin;
+	engine->cops = &ring_context_ops;
+	engine->context_pin = ring_context_pin;
 	engine->request_alloc = ring_request_alloc;
 
 	/*

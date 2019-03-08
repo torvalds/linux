@@ -351,6 +351,7 @@ struct intel_engine_cs {
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
+	const struct intel_context_ops *cops;
 	struct intel_context *(*context_pin)(struct intel_engine_cs *engine,
 					     struct i915_gem_context *ctx);
 

@@ -137,11 +137,6 @@ static void mock_context_destroy(struct intel_context *ce)
 		mock_ring_free(ce->ring);
 }
 
-static const struct intel_context_ops mock_context_ops = {
-	.unpin = mock_context_unpin,
-	.destroy = mock_context_destroy,
-};
-
 static struct intel_context *
 mock_context_pin(struct intel_engine_cs *engine,
 		 struct i915_gem_context *ctx)
@@ -160,8 +155,6 @@ mock_context_pin(struct intel_engine_cs *engine,
 
 	mock_timeline_pin(ce->ring->timeline);
 
-	ce->ops = &mock_context_ops;
-
 	mutex_lock(&ctx->mutex);
 	list_add(&ce->active_link, &ctx->active_engines);
 	mutex_unlock(&ctx->mutex);
@@ -173,6 +166,11 @@ err:
 	ce->pin_count = 0;
 	return ERR_PTR(err);
 }
+
+static const struct intel_context_ops mock_context_ops = {
+	.unpin = mock_context_unpin,
+	.destroy = mock_context_destroy,
+};
 
 static int mock_request_alloc(struct i915_request *request)
 {
@@ -232,6 +230,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.mask = BIT(id);
 	engine->base.status_page.addr = (void *)(engine + 1);
 
+	engine->base.cops = &mock_context_ops;
 	engine->base.context_pin = mock_context_pin;
 	engine->base.request_alloc = mock_request_alloc;
 	engine->base.emit_flush = mock_emit_flush;

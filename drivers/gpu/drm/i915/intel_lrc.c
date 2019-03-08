@@ -1386,11 +1386,6 @@ err:
 	return ERR_PTR(ret);
 }
 
-static const struct intel_context_ops execlists_context_ops = {
-	.unpin = execlists_context_unpin,
-	.destroy = execlists_context_destroy,
-};
-
 static struct intel_context *
 execlists_context_pin(struct intel_engine_cs *engine,
 		      struct i915_gem_context *ctx)
@@ -1404,10 +1399,13 @@ execlists_context_pin(struct intel_engine_cs *engine,
 		return ce;
 	GEM_BUG_ON(!ce->pin_count); /* no overflow please! */
 
-	ce->ops = &execlists_context_ops;
-
 	return __execlists_context_pin(engine, ctx, ce);
 }
+
+static const struct intel_context_ops execlists_context_ops = {
+	.unpin = execlists_context_unpin,
+	.destroy = execlists_context_destroy,
+};
 
 static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 {
@@ -2352,6 +2350,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	engine->reset.reset = execlists_reset;
 	engine->reset.finish = execlists_reset_finish;
 
+	engine->cops = &execlists_context_ops;
 	engine->context_pin = execlists_context_pin;
 	engine->request_alloc = execlists_request_alloc;
 
