@@ -82,20 +82,20 @@ static int autofs_show_options(struct seq_file *m, struct dentry *root)
 	seq_printf(m, ",maxproto=%d", sbi->max_proto);
 
 	if (autofs_type_offset(sbi->type))
-		seq_printf(m, ",offset");
+		seq_puts(m, ",offset");
 	else if (autofs_type_direct(sbi->type))
-		seq_printf(m, ",direct");
+		seq_puts(m, ",direct");
 	else
-		seq_printf(m, ",indirect");
+		seq_puts(m, ",indirect");
 	if (sbi->flags & AUTOFS_SBI_STRICTEXPIRE)
-		seq_printf(m, ",strictexpire");
+		seq_puts(m, ",strictexpire");
 	if (sbi->flags & AUTOFS_SBI_IGNORE)
-		seq_printf(m, ",ignore");
+		seq_puts(m, ",ignore");
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	if (sbi->pipe)
 		seq_printf(m, ",pipe_ino=%ld", file_inode(sbi->pipe)->i_ino);
 	else
-		seq_printf(m, ",pipe_ino=-1");
+		seq_puts(m, ",pipe_ino=-1");
 #endif
 	return 0;
 }
