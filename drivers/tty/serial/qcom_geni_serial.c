@@ -1050,7 +1050,7 @@ static int __init qcom_geni_console_setup(struct console *co, char *options)
 {
 	struct uart_port *uport;
 	struct qcom_geni_serial_port *port;
-	int baud;
+	int baud = 9600;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
