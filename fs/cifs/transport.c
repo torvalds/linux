@@ -529,6 +529,34 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			}
 
 			/*
+			 * For normal commands, reserve the last MAX_COMPOUND
+			 * credits to compound requests.
+			 * Otherwise these compounds could be permanently
+			 * starved for credits by single-credit requests.
+			 *
+			 * To prevent spinning CPU, block this thread until
+			 * there are >MAX_COMPOUND credits available.
+			 * But only do this is we already have a lot of
+			 * credits in flight to avoid triggering this check
+			 * for servers that are slow to hand out credits on
+			 * new sessions.
+			 */
+			if (!optype && num_credits == 1 &&
+			    server->in_flight > 2 * MAX_COMPOUND &&
+			    *credits <= MAX_COMPOUND) {
+				spin_unlock(&server->req_lock);
+				cifs_num_waiters_inc(server);
+				rc = wait_event_killable(server->request_q,
+					has_credits(server, credits,
+						    MAX_COMPOUND + 1));
+				cifs_num_waiters_dec(server);
+				if (rc)
+					return rc;
+				spin_lock(&server->req_lock);
+				continue;
+			}
+
+			/*
 			 * Can not count locking commands against total
 			 * as they are allowed to block on server.
 			 */
