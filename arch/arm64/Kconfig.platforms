@@ -27,6 +27,7 @@ config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
 	select TIMER_OF
 	select GPIOLIB
+	select MFD_CORE
 	select PINCTRL
 	select PINCTRL_BCM2835
 	select ARM_AMBA
