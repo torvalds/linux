@@ -2828,23 +2828,6 @@ i915_gem_retire_work_handler(struct work_struct *work)
 				   round_jiffies_up_relative(HZ));
 }
 
-static void assert_kernel_context_is_current(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	if (i915_reset_failed(i915))
-		return;
-
-	i915_retire_requests(i915);
-
-	for_each_engine(engine, i915, id) {
-		GEM_BUG_ON(__i915_active_request_peek(&engine->timeline.last_request));
-		GEM_BUG_ON(engine->last_retired_context !=
-			   to_intel_context(i915->kernel_context, engine));
-	}
-}
-
 static bool switch_to_kernel_context_sync(struct drm_i915_private *i915,
 					  unsigned long mask)
 {
@@ -2864,9 +2847,7 @@ static bool switch_to_kernel_context_sync(struct drm_i915_private *i915,
 				   I915_GEM_IDLE_TIMEOUT))
 		result = false;
 
-	if (result) {
-		assert_kernel_context_is_current(i915);
-	} else {
+	if (!result) {
 		/* Forcibly cancel outstanding work and leave the gpu quiet. */
 		dev_err(i915->drm.dev,
 			"Failed to idle engines, declaring wedged!\n");
