@@ -8967,10 +8967,10 @@ F:	drivers/platform/x86/hp_accel.c
 
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
-M:	Jessica Yu <jeyu@kernel.org>
 M:	Jiri Kosina <jikos@kernel.org>
 M:	Miroslav Benes <mbenes@suse.cz>
-R:	Petr Mladek <pmladek@suse.com>
+M:	Petr Mladek <pmladek@suse.com>
+R:	Joe Lawrence <joe.lawrence@redhat.com>
 S:	Maintained
 F:	kernel/livepatch/
 F:	include/linux/livepatch.h
@@ -8979,8 +8979,9 @@ F:	arch/x86/kernel/livepatch.c
 F:	Documentation/livepatch/
 F:	Documentation/ABI/testing/sysfs-kernel-livepatch
 F:	samples/livepatch/
+F:	tools/testing/selftests/livepatch/
 L:	live-patching@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/livepatching.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/livepatching/livepatching.git
 
 LLC (802.2)
 L:	netdev@vger.kernel.org
