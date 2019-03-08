@@ -707,6 +707,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 
 	ret = rxrpc_wait_for_channel(call, gfp);
 	if (ret < 0) {
+		trace_rxrpc_client(call->conn, ret, rxrpc_client_chan_wait_failed);
 		rxrpc_disconnect_client_call(call);
 		goto out;
 	}
@@ -777,15 +778,21 @@ static void rxrpc_set_client_reap_timer(struct rxrpc_net *rxnet)
  */
 void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 {
-	unsigned int channel = call->cid & RXRPC_CHANNELMASK;
 	struct rxrpc_connection *conn = call->conn;
-	struct rxrpc_channel *chan = &conn->channels[channel];
+	struct rxrpc_channel *chan = NULL;
 	struct rxrpc_net *rxnet = conn->params.local->rxnet;
-
-	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
-	call->conn = NULL;
+	unsigned int channel = -1;
+	u32 cid;
 
 	spin_lock(&conn->channel_lock);
+
+	cid = call->cid;
+	if (cid) {
+		channel = cid & RXRPC_CHANNELMASK;
+		chan = &conn->channels[channel];
+	}
+	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
+	call->conn = NULL;
 
 	/* Calls that have never actually been assigned a channel can simply be
 	 * discarded.  If the conn didn't get used either, it will follow
@@ -810,7 +817,10 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 		goto out;
 	}
 
-	ASSERTCMP(rcu_access_pointer(chan->call), ==, call);
+	if (rcu_access_pointer(chan->call) != call) {
+		spin_unlock(&conn->channel_lock);
+		BUG();
+	}
 
 	/* If a client call was exposed to the world, we save the result for
 	 * retransmission.
