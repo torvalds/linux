@@ -28,7 +28,7 @@
 static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 				unsigned long limit, int cpu)
 {
-	unsigned long pa;
+	void *ptr;
 	int nid;
 
 	/*
@@ -43,17 +43,15 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 		nid = early_cpu_to_node(cpu);
 	}
 
-	pa = memblock_alloc_base_nid(size, align, limit, nid, MEMBLOCK_NONE);
-	if (!pa) {
-		pa = memblock_alloc_base(size, align, limit);
-		if (!pa)
-			panic("cannot allocate paca data");
-	}
+	ptr = memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
+				     limit, nid);
+	if (!ptr)
+		panic("cannot allocate paca data");
 
 	if (cpu == boot_cpuid)
 		memblock_set_bottom_up(false);
 
-	return __va(pa);
+	return ptr;
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -119,7 +117,6 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 	}
 
 	s = alloc_paca_data(sizeof(*s), L1_CACHE_BYTES, limit, cpu);
-	memset(s, 0, sizeof(*s));
 
 	s->persistent = cpu_to_be32(SLB_NUM_BOLTED);
 	s->buffer_length = cpu_to_be32(sizeof(*s));
@@ -223,7 +220,6 @@ void __init allocate_paca(int cpu)
 	paca = alloc_paca_data(sizeof(struct paca_struct), L1_CACHE_BYTES,
 				limit, cpu);
 	paca_ptrs[cpu] = paca;
-	memset(paca, 0, sizeof(struct paca_struct));
 
 	initialise_paca(paca, cpu);
 #ifdef CONFIG_PPC_PSERIES

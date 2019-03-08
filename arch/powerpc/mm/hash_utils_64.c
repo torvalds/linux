@@ -908,9 +908,9 @@ static void __init htab_initialize(void)
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	if (debug_pagealloc_enabled()) {
 		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
-		linear_map_hash_slots = __va(memblock_alloc_base(
-				linear_map_hash_count, 1, ppc64_rma_size));
-		memset(linear_map_hash_slots, 0, linear_map_hash_count);
+		linear_map_hash_slots = memblock_alloc_try_nid(
+				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
+				ppc64_rma_size,	NUMA_NO_NODE);
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
