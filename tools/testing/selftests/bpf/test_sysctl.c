@@ -30,6 +30,7 @@ struct sysctl_test {
 	const char *sysctl;
 	int open_flags;
 	const char *newval;
+	const char *oldval;
 	enum {
 		LOAD_REJECT,
 		ATTACH_REJECT,
@@ -129,6 +130,64 @@ static struct sysctl_test tests[] = {
 		.sysctl = "kernel/ostype",
 		.open_flags = O_RDONLY,
 		.result = LOAD_REJECT,
+	},
+	{
+		.descr = "ctx:file_pos sysctl:read read ok",
+		.insns = {
+			/* If (file_pos == X) */
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, file_pos)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "ctx:file_pos sysctl:read read ok narrow",
+		.insns = {
+			/* If (file_pos == X) */
+			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct bpf_sysctl, file_pos)),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_7, 0, 2),
+
+			/* return ALLOW; */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_JMP_A(1),
+
+			/* else return DENY; */
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.result = SUCCESS,
+	},
+	{
+		.descr = "ctx:file_pos sysctl:read write ok",
+		.insns = {
+			/* file_pos = X */
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_0,
+				    offsetof(struct bpf_sysctl, file_pos)),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.attach_type = BPF_CGROUP_SYSCTL,
+		.sysctl = "kernel/ostype",
+		.open_flags = O_RDONLY,
+		.oldval = "nux\n",
+		.result = SUCCESS,
 	},
 	{
 		.descr = "sysctl_get_name sysctl_value:base ok",
@@ -848,6 +907,11 @@ static int access_sysctl(const char *sysctl_path,
 
 		if (read(fd, buf, sizeof(buf)) == -1)
 			goto err;
+		if (test->oldval &&
+		    strncmp(buf, test->oldval, strlen(test->oldval))) {
+			log_err("Read value %s != %s", buf, test->oldval);
+			goto err;
+		}
 	} else if (test->open_flags == O_WRONLY) {
 		if (!test->newval) {
 			log_err("New value for sysctl is not set");
