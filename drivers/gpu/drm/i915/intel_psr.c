@@ -981,9 +981,7 @@ retry:
 
 		intel_crtc_state = to_intel_crtc_state(crtc_state);
 
-		if (crtc_state->active &&
-		    intel_crtc_has_type(intel_crtc_state, INTEL_OUTPUT_EDP) &&
-		    intel_crtc_state->has_psr) {
+		if (crtc_state->active && intel_crtc_state->has_psr) {
 			/* Mark mode as changed to trigger a pipe->update() */
 			crtc_state->mode_changed = true;
 			break;
