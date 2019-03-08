@@ -2710,6 +2710,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	enum dc_color_depth color_depth = pipe_ctx->
 		stream->timing.display_color_depth;
 	struct bit_depth_reduction_params params;
+	struct output_pixel_processor *opp = pipe_ctx->stream_res.opp;
 
 	memset(&params, 0, sizeof(params));
 
@@ -2749,8 +2750,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	{
 		/* disable bit depth reduction */
 		pipe_ctx->stream->bit_depth_params = params;
-		pipe_ctx->stream_res.opp->funcs->
-			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
+		opp->funcs->opp_program_bit_depth_reduction(opp, &params);
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
@@ -2759,11 +2759,9 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	case DP_TEST_PATTERN_VIDEO_MODE:
 	{
 		/* restore bitdepth reduction */
-		resource_build_bit_depth_reduction_params(pipe_ctx->stream,
-					&params);
+		resource_build_bit_depth_reduction_params(pipe_ctx->stream, &params);
 		pipe_ctx->stream->bit_depth_params = params;
-		pipe_ctx->stream_res.opp->funcs->
-			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
+		opp->funcs->opp_program_bit_depth_reduction(opp, &params);
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
