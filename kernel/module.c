@@ -2719,9 +2719,7 @@ static void dynamic_debug_setup(struct module *mod, struct _ddebug *debug, unsig
 {
 	if (!debug)
 		return;
-#ifdef CONFIG_DYNAMIC_DEBUG
 	ddebug_add_module(debug, num, mod->name);
-#endif
 }
 
 static void dynamic_debug_remove(struct module *mod, struct _ddebug *debug)

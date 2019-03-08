@@ -47,10 +47,10 @@ struct _ddebug {
 } __attribute__((aligned(8)));
 
 
-int ddebug_add_module(struct _ddebug *tab, unsigned int n,
-				const char *modname);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
+int ddebug_add_module(struct _ddebug *tab, unsigned int n,
+				const char *modname);
 extern int ddebug_remove_module(const char *mod_name);
 extern __printf(2, 3)
 void __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...);
@@ -151,6 +151,12 @@ do {								\
 
 #include <linux/string.h>
 #include <linux/errno.h>
+
+static inline int ddebug_add_module(struct _ddebug *tab, unsigned int n,
+				    const char *modname)
+{
+	return 0;
+}
 
 static inline int ddebug_remove_module(const char *mod)
 {
