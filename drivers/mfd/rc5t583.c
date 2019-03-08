@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -298,8 +297,6 @@ static const struct i2c_device_id rc5t583_i2c_id[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, rc5t583_i2c_id);
-
 static struct i2c_driver rc5t583_i2c_driver = {
 	.driver = {
 		   .name = "rc5t583",
@@ -313,14 +310,3 @@ static int __init rc5t583_i2c_init(void)
 	return i2c_add_driver(&rc5t583_i2c_driver);
 }
 subsys_initcall(rc5t583_i2c_init);
-
-static void __exit rc5t583_i2c_exit(void)
-{
-	i2c_del_driver(&rc5t583_i2c_driver);
-}
-
-module_exit(rc5t583_i2c_exit);
-
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("RICOH RC5T583 power management system device driver");
-MODULE_LICENSE("GPL v2");

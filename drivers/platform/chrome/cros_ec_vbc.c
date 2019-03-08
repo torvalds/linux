@@ -22,7 +22,10 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+
+#define DRV_NAME "cros-ec-vbc"
 
 static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *att, char *buf,
@@ -105,21 +108,6 @@ static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
 	return data_sz;
 }
 
-static umode_t cros_ec_vbc_is_visible(struct kobject *kobj,
-				      struct bin_attribute *a, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
-	struct device_node *np = ec->ec_dev->dev->of_node;
-
-	if (IS_ENABLED(CONFIG_OF) && np) {
-		if (of_property_read_bool(np, "google,has-vbc-nvram"))
-			return a->attr.mode;
-	}
-
-	return 0;
-}
-
 static BIN_ATTR_RW(vboot_context, 16);
 
 static struct bin_attribute *cros_ec_vbc_bin_attrs[] = {
@@ -130,6 +118,43 @@ static struct bin_attribute *cros_ec_vbc_bin_attrs[] = {
 struct attribute_group cros_ec_vbc_attr_group = {
 	.name = "vbc",
 	.bin_attrs = cros_ec_vbc_bin_attrs,
-	.is_bin_visible = cros_ec_vbc_is_visible,
 };
-EXPORT_SYMBOL(cros_ec_vbc_attr_group);
+
+static int cros_ec_vbc_probe(struct platform_device *pd)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
+	struct device *dev = &pd->dev;
+	int ret;
+
+	ret = sysfs_create_group(&ec_dev->class_dev.kobj,
+				 &cros_ec_vbc_attr_group);
+	if (ret < 0)
+		dev_err(dev, "failed to create %s attributes. err=%d\n",
+			cros_ec_vbc_attr_group.name, ret);
+
+	return ret;
+}
+
+static int cros_ec_vbc_remove(struct platform_device *pd)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
+
+	sysfs_remove_group(&ec_dev->class_dev.kobj,
+			   &cros_ec_vbc_attr_group);
+
+	return 0;
+}
+
+static struct platform_driver cros_ec_vbc_driver = {
+	.driver = {
+		.name = DRV_NAME,
+	},
+	.probe = cros_ec_vbc_probe,
+	.remove = cros_ec_vbc_remove,
+};
+
+module_platform_driver(cros_ec_vbc_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Expose the vboot context nvram to userspace");
+MODULE_ALIAS("platform:" DRV_NAME);

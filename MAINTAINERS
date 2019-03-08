@@ -3777,6 +3777,23 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/cirrus/ep93xx_eth.c
 
+CIRRUS LOGIC LOCHNAGAR DRIVER
+M:	Charles Keepax <ckeepax@opensource.cirrus.com>
+M:	Richard Fitzgerald <rf@opensource.cirrus.com>
+L:	patches@opensource.cirrus.com
+S:	Supported
+F:	drivers/clk/clk-lochnagar.c
+F:	drivers/mfd/lochnagar-i2c.c
+F:	drivers/pinctrl/cirrus/pinctrl-lochnagar.c
+F:	drivers/regulator/lochnagar-regulator.c
+F:	include/dt-bindings/clk/lochnagar.h
+F:	include/dt-bindings/pinctrl/lochnagar.h
+F:	include/linux/mfd/lochnagar*
+F:	Documentation/devicetree/bindings/mfd/cirrus,lochnagar.txt
+F:	Documentation/devicetree/bindings/clock/cirrus,lochnagar.txt
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,lochnagar.txt
+F:	Documentation/devicetree/bindings/regulator/cirrus,lochnagar.txt
+
 CISCO FCOE HBA DRIVER
 M:	Satish Kharat <satishkh@cisco.com>
 M:	Sesidhar Baddela <sebaddel@cisco.com>
