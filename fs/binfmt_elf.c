@@ -2030,7 +2030,6 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 			  struct elf_note_info *info,
 			  const kernel_siginfo_t *siginfo, struct pt_regs *regs)
 {
-	struct list_head *t;
 	struct core_thread *ct;
 	struct elf_thread_status *ets;
 
@@ -2047,10 +2046,9 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 		list_add(&ets->list, &info->thread_list);
 	}
 
-	list_for_each(t, &info->thread_list) {
+	list_for_each_entry(ets, &info->thread_list, list) {
 		int sz;
 
-		ets = list_entry(t, struct elf_thread_status, list);
 		sz = elf_dump_thread_status(siginfo->si_signo, ets);
 		info->thread_status_size += sz;
 	}
@@ -2114,20 +2112,17 @@ static size_t get_note_info_size(struct elf_note_info *info)
 static int write_note_info(struct elf_note_info *info,
 			   struct coredump_params *cprm)
 {
+	struct elf_thread_status *ets;
 	int i;
-	struct list_head *t;
 
 	for (i = 0; i < info->numnote; i++)
 		if (!writenote(info->notes + i, cprm))
 			return 0;
 
 	/* write out the thread status notes section */
-	list_for_each(t, &info->thread_list) {
-		struct elf_thread_status *tmp =
-				list_entry(t, struct elf_thread_status, list);
-
-		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], cprm))
+	list_for_each_entry(ets, &info->thread_list, list) {
+		for (i = 0; i < ets->num_notes; i++)
+			if (!writenote(&ets->notes[i], cprm))
 				return 0;
 	}
 
