@@ -211,12 +211,11 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
 	if (ret) {
-		if (of_property_read_bool(np, "ti,external-tia-resistor"))
-			val = 0;
-		else {
+		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
 			dev_err(dev, "no ti,tia-gain-ohm defined");
 			return ret;
 		}
+		val = 0;
 	}
 
 	ret = -EINVAL;
