@@ -965,7 +965,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 #endif
 
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-			  "%s(len=%d): ", __func__, len);
+			  "%s(len=%zu): ", __func__, len);
 
 	while (len) {
 		data = *(u16 *)buf;
