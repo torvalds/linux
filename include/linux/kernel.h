@@ -134,12 +134,10 @@
  *
  * Rounds @x up to next multiple of @y. If @y will always be a power
  * of 2, consider using the faster round_up().
- *
- * The `const' here prevents gcc-3.3 from calling __divdi3
  */
 #define roundup(x, y) (					\
 {							\
-	const typeof(y) __y = y;			\
+	typeof(y) __y = y;				\
 	(((x) + (__y - 1)) / __y) * __y;		\
 }							\
 )
