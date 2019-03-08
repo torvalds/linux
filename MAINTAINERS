@@ -12960,6 +12960,16 @@ M:	Alexandre Bounine <alex.bou9@gmail.com>
 S:	Maintained
 F:	drivers/rapidio/
 
+RAS INFRASTRUCTURE
+M:	Tony Luck <tony.luck@intel.com>
+M:	Borislav Petkov <bp@alien8.de>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/ras/
+F:	include/linux/ras.h
+F:	include/ras/ras_event.h
+F:	Documentation/admin-guide/ras.rst
+
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
