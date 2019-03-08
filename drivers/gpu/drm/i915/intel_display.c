@@ -11202,7 +11202,8 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 			return ret;
 	}
 
-	if (mode_changed || crtc_state->color_mgmt_changed) {
+	if (mode_changed || pipe_config->update_pipe ||
+	    crtc_state->color_mgmt_changed) {
 		ret = intel_color_check(pipe_config);
 		if (ret)
 			return ret;
