@@ -233,7 +233,8 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	timer_setup(&engine->hw_delay, hw_delay_complete, 0);
 	INIT_LIST_HEAD(&engine->hw_queue);
 
-	if (IS_ERR(intel_context_pin(i915->kernel_context, &engine->base)))
+	if (pin_context(i915->kernel_context, &engine->base,
+			&engine->base.kernel_context))
 		goto err_breadcrumbs;
 
 	return &engine->base;
@@ -276,7 +277,7 @@ void mock_engine_free(struct intel_engine_cs *engine)
 	if (ce)
 		intel_context_unpin(ce);
 
-	__intel_context_unpin(engine->i915->kernel_context, engine);
+	intel_context_unpin(engine->kernel_context);
 
 	intel_engine_fini_breadcrumbs(engine);
 	i915_timeline_fini(&engine->timeline);

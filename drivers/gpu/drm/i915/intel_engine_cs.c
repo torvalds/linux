@@ -641,12 +641,6 @@ void intel_engines_set_scheduler_caps(struct drm_i915_private *i915)
 		i915->caps.scheduler = 0;
 }
 
-static void __intel_context_unpin(struct i915_gem_context *ctx,
-				  struct intel_engine_cs *engine)
-{
-	intel_context_unpin(intel_context_lookup(ctx, engine));
-}
-
 struct measure_breadcrumb {
 	struct i915_request rq;
 	struct i915_timeline timeline;
@@ -697,6 +691,20 @@ out_frame:
 	return dw;
 }
 
+static int pin_context(struct i915_gem_context *ctx,
+		       struct intel_engine_cs *engine,
+		       struct intel_context **out)
+{
+	struct intel_context *ce;
+
+	ce = intel_context_pin(ctx, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	*out = ce;
+	return 0;
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -711,10 +719,7 @@ out_frame:
 int intel_engine_init_common(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct intel_context *ce;
 	int ret;
-
-	engine->set_default_submission(engine);
 
 	/* We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
@@ -723,36 +728,34 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
-	ce = intel_context_pin(i915->kernel_context, engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
+	ret = pin_context(i915->kernel_context, engine,
+			  &engine->kernel_context);
+	if (ret)
+		return ret;
 
 	/*
 	 * Similarly the preempt context must always be available so that
-	 * we can interrupt the engine at any time.
+	 * we can interrupt the engine at any time. However, as preemption
+	 * is optional, we allow it to fail.
 	 */
-	if (i915->preempt_context) {
-		ce = intel_context_pin(i915->preempt_context, engine);
-		if (IS_ERR(ce)) {
-			ret = PTR_ERR(ce);
-			goto err_unpin_kernel;
-		}
-	}
+	if (i915->preempt_context)
+		pin_context(i915->preempt_context, engine,
+			    &engine->preempt_context);
 
 	ret = measure_breadcrumb_dw(engine);
 	if (ret < 0)
-		goto err_unpin_preempt;
+		goto err_unpin;
 
 	engine->emit_fini_breadcrumb_dw = ret;
 
+	engine->set_default_submission(engine);
+
 	return 0;
 
-err_unpin_preempt:
-	if (i915->preempt_context)
-		__intel_context_unpin(i915->preempt_context, engine);
-
-err_unpin_kernel:
-	__intel_context_unpin(i915->kernel_context, engine);
+err_unpin:
+	if (engine->preempt_context)
+		intel_context_unpin(engine->preempt_context);
+	intel_context_unpin(engine->kernel_context);
 	return ret;
 }
 
@@ -765,8 +768,6 @@ err_unpin_kernel:
  */
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = engine->i915;
-
 	cleanup_status_page(engine);
 
 	intel_engine_fini_breadcrumbs(engine);
@@ -776,9 +777,9 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	if (i915->preempt_context)
-		__intel_context_unpin(i915->preempt_context, engine);
-	__intel_context_unpin(i915->kernel_context, engine);
+	if (engine->preempt_context)
+		intel_context_unpin(engine->preempt_context);
+	intel_context_unpin(engine->kernel_context);
 
 	i915_timeline_fini(&engine->timeline);
 

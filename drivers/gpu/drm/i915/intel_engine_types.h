@@ -232,11 +232,6 @@ struct intel_engine_execlists {
 	u32 *csb_status;
 
 	/**
-	 * @preempt_context: the HW context for injecting preempt-to-idle
-	 */
-	struct intel_context *preempt_context;
-
-	/**
 	 * @preempt_complete_status: expected CSB upon completing preemption
 	 */
 	u32 preempt_complete_status;
@@ -270,6 +265,9 @@ struct intel_engine_cs {
 	struct intel_ring *buffer;
 
 	struct i915_timeline timeline;
+
+	struct intel_context *kernel_context; /* pinned */
+	struct intel_context *preempt_context; /* pinned; optional */
 
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;

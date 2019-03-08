@@ -626,7 +626,7 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 static void inject_preempt_context(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists *execlists = &engine->execlists;
-	struct intel_context *ce = execlists->preempt_context;
+	struct intel_context *ce = engine->preempt_context;
 	unsigned int n;
 
 	GEM_BUG_ON(execlists->preempt_complete_status !=
@@ -2321,7 +2321,7 @@ void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
 
 	engine->flags |= I915_ENGINE_HAS_SEMAPHORES;
 	engine->flags |= I915_ENGINE_SUPPORTS_STATS;
-	if (engine->i915->preempt_context)
+	if (engine->preempt_context)
 		engine->flags |= I915_ENGINE_HAS_PREEMPTION;
 }
 
@@ -2423,14 +2423,9 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	}
 
 	execlists->preempt_complete_status = ~0u;
-	if (i915->preempt_context) {
-		struct intel_context *ce =
-			intel_context_lookup(i915->preempt_context, engine);
-
-		execlists->preempt_context = ce;
+	if (engine->preempt_context)
 		execlists->preempt_complete_status =
-			upper_32_bits(ce->lrc_desc);
-	}
+			upper_32_bits(engine->preempt_context->lrc_desc);
 
 	execlists->csb_status =
 		&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];

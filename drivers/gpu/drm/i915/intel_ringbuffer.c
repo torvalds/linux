@@ -1735,8 +1735,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		 * placeholder we use to flush other contexts.
 		 */
 		*cs++ = MI_SET_CONTEXT;
-		*cs++ = i915_ggtt_offset(intel_context_lookup(i915->kernel_context,
-							      engine)->state) |
+		*cs++ = i915_ggtt_offset(engine->kernel_context->state) |
 			MI_MM_SPACE_GTT |
 			MI_RESTORE_INHIBIT;
 	}
