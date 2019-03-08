@@ -823,6 +823,63 @@ fsck_err:
 
 /* journal replay: */
 
+static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
+{
+	/*
+	 * We might cause compressed extents to be
+	 * split, so we need to pass in a
+	 * disk_reservation:
+	 */
+	struct disk_reservation disk_res =
+		bch2_disk_reservation_init(c, 0);
+	BKEY_PADDED(k) split;
+	struct btree_iter iter;
+	int ret;
+
+	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
+			     bkey_start_pos(&k->k),
+			     BTREE_ITER_INTENT);
+	do {
+		ret = bch2_btree_iter_traverse(&iter);
+		if (ret)
+			break;
+
+		bkey_copy(&split.k, k);
+		bch2_cut_front(iter.pos, &split.k);
+		bch2_extent_trim_atomic(&split.k, &iter);
+
+		ret = bch2_disk_reservation_add(c, &disk_res,
+				split.k.k.size *
+				bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&split.k)),
+				BCH_DISK_RESERVATION_NOFAIL);
+		BUG_ON(ret);
+
+		ret = bch2_btree_insert_at(c, &disk_res, NULL,
+					   BTREE_INSERT_ATOMIC|
+					   BTREE_INSERT_NOFAIL|
+					   BTREE_INSERT_JOURNAL_REPLAY,
+					   BTREE_INSERT_ENTRY(&iter, &split.k));
+	} while ((!ret || ret == -EINTR) &&
+		 bkey_cmp(k->k.p, iter.pos));
+
+	bch2_disk_reservation_put(c, &disk_res);
+
+	/*
+	 * This isn't strictly correct - we should only be relying on the btree
+	 * node lock for synchronization with gc when we've got a write lock
+	 * held.
+	 *
+	 * but - there are other correctness issues if btree gc were to run
+	 * before journal replay finishes
+	 */
+	bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
+		      gc_pos_btree_node(iter.l[0].b),
+		      NULL, 0, 0);
+	bch2_btree_iter_unlock(&iter);
+
+	return ret;
+}
+
 int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 {
 	struct journal *j = &c->journal;
@@ -835,27 +892,20 @@ int bch2_journal_replay(struct bch_fs *c, struct list_head *list)
 		j->replay_journal_seq = le64_to_cpu(i->j.seq);
 
 		for_each_jset_key(k, _n, entry, &i->j) {
-
-			if (entry->btree_id == BTREE_ID_ALLOC) {
-				/*
-				 * allocation code handles replay for
-				 * BTREE_ID_ALLOC keys:
-				 */
+			switch (entry->btree_id) {
+			case BTREE_ID_ALLOC:
 				ret = bch2_alloc_replay_key(c, k);
-			} else {
-				/*
-				 * We might cause compressed extents to be
-				 * split, so we need to pass in a
-				 * disk_reservation:
-				 */
-				struct disk_reservation disk_res =
-					bch2_disk_reservation_init(c, 0);
-
+				break;
+			case BTREE_ID_EXTENTS:
+				ret = bch2_extent_replay_key(c, k);
+				break;
+			default:
 				ret = bch2_btree_insert(c, entry->btree_id, k,
-						&disk_res, NULL,
+						NULL, NULL,
 						BTREE_INSERT_NOFAIL|
 						BTREE_INSERT_JOURNAL_REPLAY|
 						BTREE_INSERT_NOMARK);
+				break;
 			}
 
 			if (ret) {
