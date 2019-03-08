@@ -267,7 +267,7 @@ static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
 		".l"[rdp->all_lazy],
 		".L"[!rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)],
-		".D"[!rdp->tick_nohz_enabled_snap]);
+		".D"[!!rdp->tick_nohz_enabled_snap]);
 }
 
 #else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
