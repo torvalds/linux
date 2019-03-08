@@ -342,9 +342,6 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 			ret);
 	}
 
-	/* drop all ipc */
-	sof_ipc_drop_all(sdev->ipc);
-
 	/* power down all DSP cores */
 	if (runtime_suspend)
 		ret = snd_sof_dsp_runtime_suspend(sdev, 0);

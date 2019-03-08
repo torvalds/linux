@@ -250,8 +250,6 @@ struct snd_sof_mailbox {
 
 /* IPC message descriptor for host <-> DSP IO */
 struct snd_sof_ipc_msg {
-	struct list_head list;
-
 	/* message data */
 	u32 header;
 	void *msg_data;
@@ -260,7 +258,7 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 
 	wait_queue_head_t waitq;
-	u32 ipc_complete;
+	bool ipc_complete;
 };
 
 /* PCM stream, mapped to FW component  */
@@ -489,7 +487,6 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 					   int *direction);
 struct snd_sof_pcm *snd_sof_find_spcm_pcm_id(struct snd_sof_dev *sdev,
 					     unsigned int pcm_id);
-void sof_ipc_drop_all(struct snd_sof_ipc *ipc);
 
 /*
  * Stream IPC

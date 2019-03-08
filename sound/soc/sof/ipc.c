@@ -22,7 +22,6 @@
  * TODO: allow platforms to set size and timeout.
  */
 #define IPC_TIMEOUT_MS		300
-#define IPC_EMPTY_LIST_SIZE	8
 
 static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id);
 static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd);
@@ -40,26 +39,8 @@ struct snd_sof_ipc {
 	/* disables further sending of ipc's */
 	bool disable_ipc_tx;
 
-	/* lists */
-	struct list_head tx_list;
-	struct list_head reply_list;
-	struct list_head empty_list;
+	struct snd_sof_ipc_msg msg;
 };
-
-/* locks held by caller */
-static struct snd_sof_ipc_msg *msg_get_empty(struct snd_sof_ipc *ipc)
-{
-	struct snd_sof_ipc_msg *msg = NULL;
-
-	/* get first empty message in the list */
-	if (!list_empty(&ipc->empty_list)) {
-		msg = list_first_entry(&ipc->empty_list, struct snd_sof_ipc_msg,
-				       list);
-		list_del(&msg->list);
-	}
-
-	return msg;
-}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_VERBOSE_IPC)
 static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
@@ -203,13 +184,6 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 	ret = wait_event_timeout(msg->waitq, msg->ipc_complete,
 				 msecs_to_jiffies(IPC_TIMEOUT_MS));
 
-	/*
-	 * ipc_lock is used to protect ipc message list shared by user
-	 * contexts and a workqueue. There is no need to save interrupt
-	 * status with spin_lock_irqsave.
-	 */
-	spin_lock_irq(&sdev->ipc_lock);
-
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: ipc timed out for 0x%x size 0x%x\n",
 			hdr->cmd, hdr->size);
@@ -228,11 +202,6 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 			ipc_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
 	}
 
-	/* return message body to empty list */
-	list_move(&msg->list, &ipc->empty_list);
-
-	spin_unlock_irq(&sdev->ipc_lock);
-
 	snd_sof_dsp_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 
 	return ret;
@@ -242,27 +211,16 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 static int ipc_tx_next_msg(struct snd_sof_ipc *ipc)
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
-	struct snd_sof_ipc_msg *msg;
-	int ret;
+	struct snd_sof_ipc_msg *msg = &ipc->msg;
+	int ret = snd_sof_dsp_send_msg(sdev, msg);
 
-	/* send first message in TX list */
-	msg = list_first_entry(&ipc->tx_list, struct snd_sof_ipc_msg, list);
-
-	ret = snd_sof_dsp_send_msg(sdev, msg);
-	if (ret < 0) {
-		/*
-		 * if ipc tx fails, the msg will be retained in the msg_list, so
-		 * that it can be re-tried until it succeeds or times-out.
-		 */
+	if (ret < 0)
+		/* So far IPC TX never fails, consider making the above void */
 		dev_err_ratelimited(sdev->dev,
 				    "error: ipc tx failed with error %d\n",
 				    ret);
-	} else {
-		/* message sent. move it to the reply list */
-		list_move(&msg->list, &ipc->reply_list);
-
+	else
 		ipc_log_header(sdev->dev, "ipc tx", msg->header);
-	}
 
 	return ret;
 }
@@ -290,31 +248,26 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	 */
 	spin_lock_irq(&sdev->ipc_lock);
 
-	/* get an empty message */
-	msg = msg_get_empty(ipc);
-	if (!msg) {
-		spin_unlock_irq(&sdev->ipc_lock);
-		ret = -EBUSY;
-		goto unlock;
-	}
+	/* initialise the message */
+	msg = &ipc->msg;
 
 	msg->header = header;
 	msg->msg_size = msg_bytes;
 	msg->reply_size = reply_bytes;
-	msg->ipc_complete = false;
 
 	/* attach any data */
 	if (msg_bytes)
 		memcpy(msg->msg_data, msg_data, msg_bytes);
 
-	/* add message to transmit list */
-	list_add_tail(&msg->list, &ipc->tx_list);
-
 	/* send the message if not busy */
-	if (snd_sof_dsp_is_ipc_ready(sdev))
+	if (snd_sof_dsp_is_ipc_ready(sdev)) {
 		ret = ipc_tx_next_msg(sdev->ipc);
-	else
+		/* Next reply that we receive will be related to this message */
+		if (!ret)
+			msg->ipc_complete = false;
+	} else {
 		ret = -EAGAIN;
+	}
 
 	spin_unlock_irq(&sdev->ipc_lock);
 
@@ -329,25 +282,6 @@ unlock:
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
 
-/* find original TX message from DSP reply */
-static struct snd_sof_ipc_msg *sof_ipc_reply_find_msg(struct snd_sof_ipc *ipc,
-						      u32 header)
-{
-	struct snd_sof_dev *sdev = ipc->sdev;
-	struct snd_sof_ipc_msg *msg;
-
-	header = SOF_IPC_MESSAGE_ID(header);
-
-	list_for_each_entry(msg, &ipc->reply_list, list) {
-		if (SOF_IPC_MESSAGE_ID(msg->header) == header)
-			return msg;
-	}
-
-	dev_err(sdev->dev, "error: rx list empty but received 0x%x\n",
-		header);
-	return NULL;
-}
-
 /* mark IPC message as complete - locks held by caller */
 static void sof_ipc_tx_msg_reply_complete(struct snd_sof_ipc *ipc,
 					  struct snd_sof_ipc_msg *msg)
@@ -356,33 +290,10 @@ static void sof_ipc_tx_msg_reply_complete(struct snd_sof_ipc *ipc,
 	wake_up(&msg->waitq);
 }
 
-/* drop all IPC messages in preparation for DSP stall/reset */
-void sof_ipc_drop_all(struct snd_sof_ipc *ipc)
-{
-	struct snd_sof_dev *sdev = ipc->sdev;
-	struct snd_sof_ipc_msg *msg, *tmp;
-
-	/* drop all TX and Rx messages before we stall + reset DSP */
-	spin_lock_irq(&sdev->ipc_lock);
-
-	list_for_each_entry_safe(msg, tmp, &ipc->tx_list, list) {
-		list_move(&msg->list, &ipc->empty_list);
-		dev_err(sdev->dev, "error: dropped msg %d\n", msg->header);
-	}
-
-	list_for_each_entry_safe(msg, tmp, &ipc->reply_list, list) {
-		list_move(&msg->list, &ipc->empty_list);
-		dev_err(sdev->dev, "error: dropped reply %d\n", msg->header);
-	}
-
-	spin_unlock_irq(&sdev->ipc_lock);
-}
-EXPORT_SYMBOL(sof_ipc_drop_all);
-
 /* handle reply message from DSP */
 int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 {
-	struct snd_sof_ipc_msg *msg;
+	struct snd_sof_ipc_msg *msg = &sdev->ipc->msg;
 	unsigned long flags;
 
 	/*
@@ -390,14 +301,13 @@ int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 	 * is fast enough to receive an IPC message, reply to it, and the host
 	 * interrupt processing calls this function on a different core from the
 	 * one, where the sending is taking place, the message might not yet be
-	 * on the .reply_list and sof_ipc_reply_find_msg() will return 0.
+	 * marked as expecting a reply.
 	 */
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
-	msg = sof_ipc_reply_find_msg(sdev->ipc, msg_id);
-	if (!msg) {
+	if (msg->ipc_complete) {
 		spin_unlock_irqrestore(&sdev->ipc_lock, flags);
-		dev_err(sdev->dev, "error: can't find message header 0x%x",
+		dev_err(sdev->dev, "error: no reply expected, received 0x%x",
 			msg_id);
 		return -EINVAL;
 	}
@@ -785,7 +695,6 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_ipc *ipc;
 	struct snd_sof_ipc_msg *msg;
-	int i;
 
 	/* check if mandatory ops required for ipc are defined */
 	if (!sof_ops(sdev)->is_ipc_ready || !sof_ops(sdev)->fw_ready) {
@@ -797,35 +706,23 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 	if (!ipc)
 		return NULL;
 
-	INIT_LIST_HEAD(&ipc->tx_list);
-	INIT_LIST_HEAD(&ipc->reply_list);
-	INIT_LIST_HEAD(&ipc->empty_list);
 	mutex_init(&ipc->tx_mutex);
 	ipc->sdev = sdev;
+	msg = &ipc->msg;
 
-	/* pre-allocate messages */
-	dev_dbg(sdev->dev, "pre-allocate %d IPC messages\n",
-		IPC_EMPTY_LIST_SIZE);
-	msg = devm_kzalloc(sdev->dev, sizeof(struct snd_sof_ipc_msg) *
-			   IPC_EMPTY_LIST_SIZE, GFP_KERNEL);
-	if (!msg)
-		return NULL;
+	/* Indicate, that we aren't sending a message ATM */
+	msg->ipc_complete = true;
 
 	/* pre-allocate message data */
-	for (i = 0; i < IPC_EMPTY_LIST_SIZE; i++) {
-		msg->msg_data = devm_kzalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
-		if (!msg->msg_data)
-			return NULL;
+	msg->msg_data = devm_kzalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+	if (!msg->msg_data)
+		return NULL;
 
-		msg->reply_data = devm_kzalloc(sdev->dev, PAGE_SIZE,
-					       GFP_KERNEL);
-		if (!msg->reply_data)
-			return NULL;
+	msg->reply_data = devm_kzalloc(sdev->dev, PAGE_SIZE, GFP_KERNEL);
+	if (!msg->reply_data)
+		return NULL;
 
-		init_waitqueue_head(&msg->waitq);
-		list_add(&msg->list, &ipc->empty_list);
-		msg++;
-	}
+	init_waitqueue_head(&msg->waitq);
 
 	return ipc;
 }
