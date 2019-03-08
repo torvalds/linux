@@ -283,11 +283,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 static int steam_input_open(struct input_dev *dev)
 {
 	struct steam_device *steam = input_get_drvdata(dev);
-	int ret;
-
-	ret = hid_hw_open(steam->hdev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&steam->mutex);
 	if (!steam->client_opened && lizard_mode)
@@ -304,8 +299,6 @@ static void steam_input_close(struct input_dev *dev)
 	if (!steam->client_opened && lizard_mode)
 		steam_set_lizard_mode(steam, true);
 	mutex_unlock(&steam->mutex);
-
-	hid_hw_close(steam->hdev);
 }
 
 static enum power_supply_property steam_battery_props[] = {
@@ -623,11 +616,6 @@ static void steam_client_ll_stop(struct hid_device *hdev)
 static int steam_client_ll_open(struct hid_device *hdev)
 {
 	struct steam_device *steam = hdev->driver_data;
-	int ret;
-
-	ret = hid_hw_open(steam->hdev);
-	if (ret)
-		return ret;
 
 	mutex_lock(&steam->mutex);
 	steam->client_opened = true;
@@ -635,7 +623,7 @@ static int steam_client_ll_open(struct hid_device *hdev)
 
 	steam_input_unregister(steam);
 
-	return ret;
+	return 0;
 }
 
 static void steam_client_ll_close(struct hid_device *hdev)
@@ -646,7 +634,6 @@ static void steam_client_ll_close(struct hid_device *hdev)
 	steam->client_opened = false;
 	mutex_unlock(&steam->mutex);
 
-	hid_hw_close(steam->hdev);
 	if (steam->connected) {
 		steam_set_lizard_mode(steam, lizard_mode);
 		steam_input_register(steam);
@@ -759,14 +746,15 @@ static int steam_probe(struct hid_device *hdev,
 	if (ret)
 		goto client_hdev_add_fail;
 
+	ret = hid_hw_open(hdev);
+	if (ret) {
+		hid_err(hdev,
+			"%s:hid_hw_open\n",
+			__func__);
+		goto hid_hw_open_fail;
+	}
+
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
-		ret = hid_hw_open(hdev);
-		if (ret) {
-			hid_err(hdev,
-				"%s:hid_hw_open for wireless\n",
-				__func__);
-			goto hid_hw_open_fail;
-		}
 		hid_info(hdev, "Steam wireless receiver connected");
 		steam_request_conn_status(steam);
 	} else {
@@ -781,8 +769,8 @@ static int steam_probe(struct hid_device *hdev,
 
 	return 0;
 
-hid_hw_open_fail:
 input_register_fail:
+hid_hw_open_fail:
 client_hdev_add_fail:
 	hid_hw_stop(hdev);
 hid_hw_start_fail:
@@ -809,8 +797,8 @@ static void steam_remove(struct hid_device *hdev)
 	cancel_work_sync(&steam->work_connect);
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
 		hid_info(hdev, "Steam wireless receiver disconnected");
-		hid_hw_close(hdev);
 	}
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 	steam_unregister(steam);
 }
