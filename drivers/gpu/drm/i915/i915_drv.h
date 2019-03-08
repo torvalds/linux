@@ -524,6 +524,7 @@ struct i915_psr {
 };
 
 enum intel_pch {
+	PCH_NOP = -1,	/* PCH without south display */
 	PCH_NONE = 0,	/* No PCH present */
 	PCH_IBX,	/* Ibexpeak PCH */
 	PCH_CPT,	/* Cougarpoint/Pantherpoint PCH */
@@ -532,7 +533,6 @@ enum intel_pch {
 	PCH_KBP,        /* Kaby Lake PCH */
 	PCH_CNP,        /* Cannon Lake PCH */
 	PCH_ICP,	/* Ice Lake PCH */
-	PCH_NOP,	/* PCH without south display */
 };
 
 enum intel_sbi_destination {
