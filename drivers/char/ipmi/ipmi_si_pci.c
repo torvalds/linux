@@ -107,10 +107,10 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	io.addr_source_data = pdev;
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
-		io.addr_type = IPMI_IO_ADDR_SPACE;
+		io.addr_space = IPMI_IO_ADDR_SPACE;
 		io.io_setup = ipmi_si_port_setup;
 	} else {
-		io.addr_type = IPMI_MEM_ADDR_SPACE;
+		io.addr_space = IPMI_MEM_ADDR_SPACE;
 		io.io_setup = ipmi_si_mem_setup;
 	}
 	io.addr_data = pci_resource_start(pdev, 0);

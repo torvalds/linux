@@ -107,11 +107,11 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (res) {
-		io->addr_type = IPMI_IO_ADDR_SPACE;
+		io->addr_space = IPMI_IO_ADDR_SPACE;
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (res)
-			io->addr_type = IPMI_MEM_ADDR_SPACE;
+			io->addr_space = IPMI_MEM_ADDR_SPACE;
 	}
 	if (!res) {
 		dev_err(&pdev->dev, "no I/O or memory address\n");
@@ -121,15 +121,13 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 
 	io->regspacing = DEFAULT_REGSPACING;
 	res_second = platform_get_resource(pdev,
-			       (io->addr_type == IPMI_IO_ADDR_SPACE) ?
+			       (io->addr_space == IPMI_IO_ADDR_SPACE) ?
 					IORESOURCE_IO : IORESOURCE_MEM,
 			       1);
 	if (res_second) {
 		if (res_second->start > io->addr_data)
 			io->regspacing = res_second->start - io->addr_data;
 	}
-	io->regsize = DEFAULT_REGSIZE;
-	io->regshift = 0;
 
 	return res;
 }
@@ -137,7 +135,7 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 static int platform_ipmi_probe(struct platform_device *pdev)
 {
 	struct si_sm_io io;
-	u8 type, slave_addr, addr_source;
+	u8 type, slave_addr, addr_source, regsize, regshift;
 	int rv;
 
 	rv = device_property_read_u8(&pdev->dev, "addr-source", &addr_source);
@@ -149,7 +147,7 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 	if (addr_source == SI_SMBIOS) {
 		if (!si_trydmi)
 			return -ENODEV;
-	} else {
+	} else if (addr_source != SI_HARDCODED) {
 		if (!si_tryplatform)
 			return -ENODEV;
 	}
@@ -169,10 +167,22 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 	case SI_BT:
 		io.si_type = type;
 		break;
+	case SI_TYPE_INVALID: /* User disabled this in hardcode. */
+		return -ENODEV;
 	default:
 		dev_err(&pdev->dev, "ipmi-type property is invalid\n");
 		return -EINVAL;
 	}
+
+	io.regsize = DEFAULT_REGSIZE;
+	rv = device_property_read_u8(&pdev->dev, "reg-size", &regsize);
+	if (!rv)
+		io.regsize = regsize;
+
+	io.regshift = 0;
+	rv = device_property_read_u8(&pdev->dev, "reg-shift", &regshift);
+	if (!rv)
+		io.regshift = regshift;
 
 	if (!ipmi_get_info_from_resources(pdev, &io))
 		return -EINVAL;
@@ -193,8 +203,9 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 
 	io.dev = &pdev->dev;
 
-	pr_info("ipmi_si: SMBIOS: %s %#lx regsize %d spacing %d irq %d\n",
-		(io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
+	pr_info("ipmi_si: %s: %s %#lx regsize %d spacing %d irq %d\n",
+		ipmi_addr_src_to_str(addr_source),
+		(io.addr_space == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
 		io.addr_data, io.regsize, io.regspacing, io.irq);
 
 	ipmi_si_add_smi(&io);
@@ -266,9 +277,9 @@ static int of_ipmi_probe(struct platform_device *pdev)
 	io.irq_setup	= ipmi_std_irq_setup;
 
 	if (resource.flags & IORESOURCE_IO)
-		io.addr_type = IPMI_IO_ADDR_SPACE;
+		io.addr_space = IPMI_IO_ADDR_SPACE;
 	else
-		io.addr_type = IPMI_MEM_ADDR_SPACE;
+		io.addr_space = IPMI_MEM_ADDR_SPACE;
 
 	io.addr_data	= resource.start;
 
@@ -296,15 +307,10 @@ static int of_ipmi_probe(struct platform_device *dev)
 static int find_slave_address(struct si_sm_io *io, int slave_addr)
 {
 #ifdef CONFIG_IPMI_DMI_DECODE
-	if (!slave_addr) {
-		u32 flags = IORESOURCE_IO;
-
-		if (io->addr_type == IPMI_MEM_ADDR_SPACE)
-			flags = IORESOURCE_MEM;
-
-		slave_addr = ipmi_dmi_get_slave_addr(io->si_type, flags,
+	if (!slave_addr)
+		slave_addr = ipmi_dmi_get_slave_addr(io->si_type,
+						     io->addr_space,
 						     io->addr_data);
-	}
 #endif
 
 	return slave_addr;
@@ -357,6 +363,9 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "unknown IPMI type %lld\n", tmp);
 		goto err_free;
 	}
+
+	io.regsize = DEFAULT_REGSIZE;
+	io.regshift = 0;
 
 	res = ipmi_get_info_from_resources(pdev, &io);
 	if (!res) {
@@ -419,9 +428,31 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
+static int pdev_match_name(struct device *dev, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	const char *name = data;
+
+	return strcmp(pdev->name, name) == 0;
+}
+
+void ipmi_remove_platform_device_by_name(char *name)
+{
+	struct device *dev;
+
+	while ((dev = bus_find_device(&platform_bus_type, NULL, name,
+				      pdev_match_name))) {
+		struct platform_device *pdev = to_platform_device(dev);
+
+		platform_device_unregister(pdev);
+	}
+}
+
 static const struct platform_device_id si_plat_ids[] = {
-    { "dmi-ipmi-si", 0 },
-    { }
+	{ "dmi-ipmi-si", 0 },
+	{ "hardcode-ipmi-si", 0 },
+	{ "hotmod-ipmi-si", 0 },
+	{ }
 };
 
 struct platform_driver ipmi_platform_driver = {
