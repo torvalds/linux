@@ -22,7 +22,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R8A774C0_CLK_CPEX,
+	LAST_DT_CORE_CLK = R8A774C0_CLK_CANFD,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -33,6 +33,7 @@ enum clk_ids {
 	CLK_PLL1,
 	CLK_PLL3,
 	CLK_PLL0D4,
+	CLK_PLL0D6,
 	CLK_PLL0D8,
 	CLK_PLL0D20,
 	CLK_PLL0D24,
@@ -61,6 +62,7 @@ static const struct cpg_core_clk r8a774c0_core_clks[] __initconst = {
 
 	DEF_FIXED(".pll0",     CLK_PLL0,           CLK_MAIN,	   1, 100),
 	DEF_FIXED(".pll0d4",   CLK_PLL0D4,         CLK_PLL0,       4, 1),
+	DEF_FIXED(".pll0d6",   CLK_PLL0D6,         CLK_PLL0,       6, 1),
 	DEF_FIXED(".pll0d8",   CLK_PLL0D8,         CLK_PLL0,       8, 1),
 	DEF_FIXED(".pll0d20",  CLK_PLL0D20,        CLK_PLL0,      20, 1),
 	DEF_FIXED(".pll0d24",  CLK_PLL0D24,        CLK_PLL0,      24, 1),
@@ -112,6 +114,7 @@ static const struct cpg_core_clk r8a774c0_core_clks[] __initconst = {
 	DEF_GEN3_PE("s3d2c",   R8A774C0_CLK_S3D2C, CLK_S3, 2, CLK_PE, 2),
 	DEF_GEN3_PE("s3d4c",   R8A774C0_CLK_S3D4C, CLK_S3, 4, CLK_PE, 4),
 
+	DEF_DIV6P1("canfd",    R8A774C0_CLK_CANFD, CLK_PLL0D6, 0x244),
 	DEF_DIV6P1("csi0",     R8A774C0_CLK_CSI0,  CLK_PLL1D2, 0x00c),
 	DEF_DIV6P1("mso",      R8A774C0_CLK_MSO,   CLK_PLL1D2, 0x014),
 
@@ -119,6 +122,11 @@ static const struct cpg_core_clk r8a774c0_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a774c0_mod_clks[] __initconst = {
+	DEF_MOD("tmu4",			 121,	R8A774C0_CLK_S0D6C),
+	DEF_MOD("tmu3",			 122,	R8A774C0_CLK_S3D2C),
+	DEF_MOD("tmu2",			 123,	R8A774C0_CLK_S3D2C),
+	DEF_MOD("tmu1",			 124,	R8A774C0_CLK_S3D2C),
+	DEF_MOD("tmu0",			 125,	R8A774C0_CLK_CP),
 	DEF_MOD("scif5",		 202,	R8A774C0_CLK_S3D4C),
 	DEF_MOD("scif4",		 203,	R8A774C0_CLK_S3D4C),
 	DEF_MOD("scif3",		 204,	R8A774C0_CLK_S3D4C),
@@ -172,8 +180,8 @@ static const struct mssr_mod_clk r8a774c0_mod_clks[] __initconst = {
 	DEF_MOD("ehci0",		 703,	R8A774C0_CLK_S3D4),
 	DEF_MOD("hsusb",		 704,	R8A774C0_CLK_S3D4),
 	DEF_MOD("csi40",		 716,	R8A774C0_CLK_CSI0),
-	DEF_MOD("du1",			 723,	R8A774C0_CLK_S2D1),
-	DEF_MOD("du0",			 724,	R8A774C0_CLK_S2D1),
+	DEF_MOD("du1",			 723,	R8A774C0_CLK_S1D1),
+	DEF_MOD("du0",			 724,	R8A774C0_CLK_S1D1),
 	DEF_MOD("lvds",			 727,	R8A774C0_CLK_S2D1),
 
 	DEF_MOD("vin5",			 806,	R8A774C0_CLK_S1D2),
@@ -187,6 +195,7 @@ static const struct mssr_mod_clk r8a774c0_mod_clks[] __initconst = {
 	DEF_MOD("gpio2",		 910,	R8A774C0_CLK_S3D4),
 	DEF_MOD("gpio1",		 911,	R8A774C0_CLK_S3D4),
 	DEF_MOD("gpio0",		 912,	R8A774C0_CLK_S3D4),
+	DEF_MOD("can-fd",		 914,	R8A774C0_CLK_S3D2),
 	DEF_MOD("can-if1",		 915,	R8A774C0_CLK_S3D4),
 	DEF_MOD("can-if0",		 916,	R8A774C0_CLK_S3D4),
 	DEF_MOD("i2c6",			 918,	R8A774C0_CLK_S3D2),
