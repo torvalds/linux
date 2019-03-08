@@ -80,9 +80,6 @@ static bool intel_psr2_enabled(struct drm_i915_private *dev_priv,
 	case I915_PSR_DEBUG_DISABLE:
 	case I915_PSR_DEBUG_FORCE_PSR1:
 		return false;
-	case I915_PSR_DEBUG_DEFAULT:
-		if (i915_modparams.enable_psr <= 0)
-			return false;
 	default:
 		return crtc_state->has_psr2;
 	}
