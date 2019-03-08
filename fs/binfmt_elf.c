@@ -418,8 +418,9 @@ static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
 				       struct file *elf_file)
 {
 	struct elf_phdr *elf_phdata = NULL;
-	int retval, size, err = -1;
+	int retval, err = -1;
 	loff_t pos = elf_ex->e_phoff;
+	unsigned int size;
 
 	/*
 	 * If the size of this structure has changed, then punt, since
@@ -429,13 +430,9 @@ static struct elf_phdr *load_elf_phdrs(struct elfhdr *elf_ex,
 		goto out;
 
 	/* Sanity check the number of program headers... */
-	if (elf_ex->e_phnum < 1 ||
-		elf_ex->e_phnum > 65536U / sizeof(struct elf_phdr))
-		goto out;
-
 	/* ...and their total size. */
 	size = sizeof(struct elf_phdr) * elf_ex->e_phnum;
-	if (size > ELF_MIN_ALIGN)
+	if (size == 0 || size > 65536 || size > ELF_MIN_ALIGN)
 		goto out;
 
 	elf_phdata = kmalloc(size, GFP_KERNEL);
