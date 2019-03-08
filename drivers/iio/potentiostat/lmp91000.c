@@ -255,8 +255,8 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 0);
 	regmap_write(data->regmap, LMP91000_REG_TIACN, reg);
-	regmap_write(data->regmap, LMP91000_REG_REFCN, LMP91000_REG_REFCN_EXT_REF
-					| LMP91000_REG_REFCN_50_ZERO);
+	regmap_write(data->regmap, LMP91000_REG_REFCN,
+		     LMP91000_REG_REFCN_EXT_REF | LMP91000_REG_REFCN_50_ZERO);
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 1);
 
 	return 0;
@@ -275,7 +275,6 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 
 static const struct iio_trigger_ops lmp91000_trigger_ops = {
 };
-
 
 static int lmp91000_buffer_preenable(struct iio_dev *indio_dev)
 {
