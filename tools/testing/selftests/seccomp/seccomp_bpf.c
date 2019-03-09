@@ -2611,6 +2611,7 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 {
 	long ret, sib;
 	void *status;
+	struct timespec delay = { .tv_nsec = 100000000 };
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
@@ -2664,7 +2665,7 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 	EXPECT_EQ(SIBLING_EXIT_UNKILLED, (long)status);
 	/* Poll for actual task death. pthread_join doesn't guarantee it. */
 	while (!kill(self->sibling[sib].system_tid, 0))
-		sleep(0.1);
+		nanosleep(&delay, NULL);
 	/* Switch to the remaining sibling */
 	sib = !sib;
 
@@ -2689,7 +2690,7 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 	EXPECT_EQ(0, (long)status);
 	/* Poll for actual task death. pthread_join doesn't guarantee it. */
 	while (!kill(self->sibling[sib].system_tid, 0))
-		sleep(0.1);
+		nanosleep(&delay, NULL);
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &self->apply_prog);
@@ -2971,6 +2972,12 @@ TEST(get_metadata)
 	struct seccomp_metadata md;
 	long ret;
 
+	/* Only real root can get metadata. */
+	if (geteuid()) {
+		XFAIL(return, "get_metadata requires real root");
+		return;
+	}
+
 	ASSERT_EQ(0, pipe(pipefd));
 
 	pid = fork();
@@ -2985,11 +2992,11 @@ TEST(get_metadata)
 		};
 
 		/* one with log, one without */
-		ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER,
+		EXPECT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER,
 				     SECCOMP_FILTER_FLAG_LOG, &prog));
-		ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog));
+		EXPECT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog));
 
-		ASSERT_EQ(0, close(pipefd[0]));
+		EXPECT_EQ(0, close(pipefd[0]));
 		ASSERT_EQ(1, write(pipefd[1], "1", 1));
 		ASSERT_EQ(0, close(pipefd[1]));
 
@@ -3062,6 +3069,11 @@ TEST(user_notification_basic)
 		.filter = filter,
 	};
 
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
 	pid = fork();
 	ASSERT_GE(pid, 0);
 
@@ -3077,7 +3089,7 @@ TEST(user_notification_basic)
 	EXPECT_EQ(true, WIFEXITED(status));
 	EXPECT_EQ(0, WEXITSTATUS(status));
 
-	/* Add some no-op filters so for grins. */
+	/* Add some no-op filters for grins. */
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
@@ -3143,6 +3155,11 @@ TEST(user_notification_kill_in_middle)
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
 	listener = user_trap_syscall(__NR_getpid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
@@ -3189,6 +3206,11 @@ TEST(user_notification_signal)
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 	char c;
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
 
 	ASSERT_EQ(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair), 0);
 
@@ -3255,6 +3277,11 @@ TEST(user_notification_closed_listener)
 	long ret;
 	int status, listener;
 
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
 	listener = user_trap_syscall(__NR_getpid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
@@ -3287,7 +3314,7 @@ TEST(user_notification_child_pid_ns)
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
 
-	ASSERT_EQ(unshare(CLONE_NEWPID), 0);
+	ASSERT_EQ(unshare(CLONE_NEWUSER | CLONE_NEWPID), 0);
 
 	listener = user_trap_syscall(__NR_getpid, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
@@ -3323,6 +3350,10 @@ TEST(user_notification_sibling_pid_ns)
 	int status, listener;
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
+
+	ASSERT_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
 
 	listener = user_trap_syscall(__NR_getpid, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
@@ -3385,6 +3416,8 @@ TEST(user_notification_fault_recv)
 	int status, listener;
 	struct seccomp_notif req = {};
 	struct seccomp_notif_resp resp = {};
+
+	ASSERT_EQ(unshare(CLONE_NEWUSER), 0);
 
 	listener = user_trap_syscall(__NR_getpid, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
