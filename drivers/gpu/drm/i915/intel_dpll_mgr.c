@@ -3193,10 +3193,9 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 }
 
 static void icl_pll_disable(struct drm_i915_private *dev_priv,
-			    struct intel_shared_dpll *pll)
+			    struct intel_shared_dpll *pll,
+			    i915_reg_t enable_reg)
 {
-	const enum intel_dpll_id id = pll->info->id;
-	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(id);
 	u32 val;
 
 	/* The first steps are done by intel_ddi_post_disable(). */
@@ -3213,7 +3212,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 
 	/* Timeout is actually 1us. */
 	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, 0, 1))
-		DRM_ERROR("PLL %d locked\n", id);
+		DRM_ERROR("PLL %d locked\n", pll->info->id);
 
 	/* DVFS post sequence would be here. See the comment above. */
 
@@ -3227,7 +3226,24 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	 */
 	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE, 0,
 				    1))
-		DRM_ERROR("PLL %d Power not disabled\n", id);
+		DRM_ERROR("PLL %d Power not disabled\n", pll->info->id);
+}
+
+static void combo_pll_disable(struct drm_i915_private *dev_priv,
+			      struct intel_shared_dpll *pll)
+{
+	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(pll->info->id);
+
+	icl_pll_disable(dev_priv, pll, enable_reg);
+}
+
+static void mg_pll_disable(struct drm_i915_private *dev_priv,
+			   struct intel_shared_dpll *pll)
+{
+	i915_reg_t enable_reg =
+		MG_PLL_ENABLE(icl_pll_id_to_tc_port(pll->info->id));
+
+	icl_pll_disable(dev_priv, pll, enable_reg);
 }
 
 static void icl_dump_hw_state(struct drm_i915_private *dev_priv,
@@ -3254,13 +3270,13 @@ static void icl_dump_hw_state(struct drm_i915_private *dev_priv,
 
 static const struct intel_shared_dpll_funcs icl_pll_funcs = {
 	.enable = combo_pll_enable,
-	.disable = icl_pll_disable,
+	.disable = combo_pll_disable,
 	.get_hw_state = icl_pll_get_hw_state,
 };
 
 static const struct intel_shared_dpll_funcs mg_pll_funcs = {
 	.enable = mg_pll_enable,
-	.disable = icl_pll_disable,
+	.disable = mg_pll_disable,
 	.get_hw_state = mg_pll_get_hw_state,
 };
 
