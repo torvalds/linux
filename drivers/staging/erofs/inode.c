@@ -270,6 +270,7 @@ struct inode *erofs_iget(struct super_block *sb,
 	if (inode->i_state & I_NEW) {
 		int err;
 		struct erofs_vnode *vi = EROFS_V(inode);
+
 		vi->nid = nid;
 
 		err = fill_inode(inode, isdir);
