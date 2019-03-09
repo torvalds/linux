@@ -333,10 +333,8 @@ static inline void rds_ib_dma_sync_sg_for_cpu(struct ib_device *dev,
 	unsigned int i;
 
 	for_each_sg(sglist, sg, sg_dma_len, i) {
-		ib_dma_sync_single_for_cpu(dev,
-				ib_sg_dma_address(dev, sg),
-				ib_sg_dma_len(dev, sg),
-				direction);
+		ib_dma_sync_single_for_cpu(dev, sg_dma_address(sg),
+					   sg_dma_len(sg), direction);
 	}
 }
 #define ib_dma_sync_sg_for_cpu	rds_ib_dma_sync_sg_for_cpu
@@ -350,10 +348,8 @@ static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
 	unsigned int i;
 
 	for_each_sg(sglist, sg, sg_dma_len, i) {
-		ib_dma_sync_single_for_device(dev,
-				ib_sg_dma_address(dev, sg),
-				ib_sg_dma_len(dev, sg),
-				direction);
+		ib_dma_sync_single_for_device(dev, sg_dma_address(sg),
+					      sg_dma_len(sg), direction);
 	}
 }
 #define ib_dma_sync_sg_for_device	rds_ib_dma_sync_sg_for_device

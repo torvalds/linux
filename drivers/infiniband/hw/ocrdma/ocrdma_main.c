@@ -118,7 +118,8 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
 }
@@ -127,7 +128,8 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
 }
@@ -177,6 +179,8 @@ static const struct ib_device_ops ocrdma_dev_ops = {
 	.reg_user_mr = ocrdma_reg_user_mr,
 	.req_notify_cq = ocrdma_arm_cq,
 	.resize_cq = ocrdma_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, ocrdma_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, ocrdma_ucontext, ibucontext),
 };
 
 static const struct ib_device_ops ocrdma_dev_srq_ops = {
@@ -243,7 +247,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	}
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
 	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
-	return ib_register_device(&dev->ibdev, "ocrdma%d", NULL);
+	return ib_register_device(&dev->ibdev, "ocrdma%d");
 }
 
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
@@ -295,7 +299,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	u8 lstate = 0;
 	struct ocrdma_dev *dev;
 
-	dev = (struct ocrdma_dev *)ib_alloc_device(sizeof(struct ocrdma_dev));
+	dev = ib_alloc_device(ocrdma_dev, ibdev);
 	if (!dev) {
 		pr_err("Unable to allocate ib device\n");
 		return NULL;

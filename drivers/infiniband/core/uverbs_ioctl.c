@@ -213,6 +213,7 @@ static int uverbs_process_idrs_array(struct bundle_priv *pbundle,
 			ret = PTR_ERR(attr->uobjects[i]);
 			break;
 		}
+		pbundle->bundle.context = attr->uobjects[i]->context;
 	}
 
 	attr->len = i;
@@ -330,6 +331,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 					uattr->data_s64);
 		if (IS_ERR(o_attr->uobject))
 			return PTR_ERR(o_attr->uobject);
+		pbundle->bundle.context = o_attr->uobject->context;
 		__set_bit(attr_bkey, pbundle->uobj_finalize);
 
 		if (spec->u.obj.access == UVERBS_ACCESS_NEW) {
@@ -592,6 +594,7 @@ static int ib_uverbs_cmd_verbs(struct ib_uverbs_file *ufile,
 	pbundle->method_elm = method_elm;
 	pbundle->method_key = attrs_iter.index;
 	pbundle->bundle.ufile = ufile;
+	pbundle->bundle.context = NULL; /* only valid if bundle has uobject */
 	pbundle->radix = &uapi->radix;
 	pbundle->radix_slots = slot;
 	pbundle->radix_slots_len = radix_tree_chunk_size(&attrs_iter);

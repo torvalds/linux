@@ -340,6 +340,10 @@ struct diag_pkt {
 
 #define HFI1_PSM_IOC_BASE_SEQ 0x0
 
+/* Number of BTH.PSN bits used for sequence number in expected rcvs */
+#define HFI1_KDETH_BTH_SEQ_SHIFT 11
+#define HFI1_KDETH_BTH_SEQ_MASK (BIT(HFI1_KDETH_BTH_SEQ_SHIFT) - 1)
+
 static inline __u64 rhf_to_cpu(const __le32 *rbuf)
 {
 	return __le64_to_cpu(*((__le64 *)rbuf));

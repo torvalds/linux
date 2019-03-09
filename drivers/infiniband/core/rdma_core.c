@@ -438,6 +438,38 @@ free:
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
+struct ib_uobject *_uobj_get_read(enum uverbs_default_objects type,
+				  u32 object_id,
+				  struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj;
+
+	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
+				       object_id, UVERBS_LOOKUP_READ);
+	if (IS_ERR(uobj))
+		return uobj;
+
+	attrs->context = uobj->context;
+
+	return uobj;
+}
+
+struct ib_uobject *_uobj_get_write(enum uverbs_default_objects type,
+				   u32 object_id,
+				   struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj;
+
+	uobj = rdma_lookup_get_uobject(uobj_get_type(attrs, type), attrs->ufile,
+				       object_id, UVERBS_LOOKUP_WRITE);
+
+	if (IS_ERR(uobj))
+		return uobj;
+
+	attrs->context = uobj->context;
+
+	return uobj;
+}
 
 static struct ib_uobject *
 alloc_begin_idr_uobject(const struct uverbs_api_object *obj,
@@ -801,6 +833,7 @@ void uverbs_close_fd(struct file *f)
 	/* Pairs with filp->private_data in alloc_begin_fd_uobject */
 	uverbs_uobject_put(uobj);
 }
+EXPORT_SYMBOL(uverbs_close_fd);
 
 /*
  * Drop the ucontext off the ufile and completely disconnect it from the
@@ -811,7 +844,6 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 {
 	struct ib_ucontext *ucontext = ufile->ucontext;
 	struct ib_device *ib_dev = ucontext->device;
-	int ret;
 
 	/*
 	 * If we are closing the FD then the user mmap VMAs must have
@@ -829,12 +861,8 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 
 	rdma_restrack_del(&ucontext->res);
 
-	/*
-	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
-	 * the error return.
-	 */
-	ret = ib_dev->ops.dealloc_ucontext(ucontext);
-	WARN_ON(ret);
+	ib_dev->ops.dealloc_ucontext(ucontext);
+	kfree(ucontext);
 
 	ufile->ucontext = NULL;
 }

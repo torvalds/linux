@@ -137,7 +137,8 @@ static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
-	struct qedr_dev *dev = dev_get_drvdata(device);
+	struct qedr_dev *dev =
+		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
 }
@@ -238,6 +239,8 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.reg_user_mr = qedr_reg_user_mr,
 	.req_notify_cq = qedr_arm_cq,
 	.resize_cq = qedr_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, qedr_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, qedr_ucontext, ibucontext),
 };
 
 static int qedr_register_device(struct qedr_dev *dev)
@@ -290,7 +293,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
 	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
-	return ib_register_device(&dev->ibdev, "qedr%d", NULL);
+	return ib_register_device(&dev->ibdev, "qedr%d");
 }
 
 /* This function allocates fast-path status block memory */
@@ -852,7 +855,7 @@ static struct qedr_dev *qedr_add(struct qed_dev *cdev, struct pci_dev *pdev,
 	struct qedr_dev *dev;
 	int rc = 0;
 
-	dev = (struct qedr_dev *)ib_alloc_device(sizeof(*dev));
+	dev = ib_alloc_device(qedr_dev, ibdev);
 	if (!dev) {
 		pr_err("Unable to allocate ib device\n");
 		return NULL;

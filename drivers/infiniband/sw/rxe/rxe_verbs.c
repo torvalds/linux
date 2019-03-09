@@ -33,6 +33,7 @@
 
 #include <linux/dma-mapping.h>
 #include <net/addrconf.h>
+#include <rdma/uverbs_ioctl.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
@@ -77,19 +78,6 @@ static int rxe_query_port(struct ib_device *dev,
 	mutex_unlock(&rxe->usdev_lock);
 
 	return rc;
-}
-
-static struct net_device *rxe_get_netdev(struct ib_device *device,
-					 u8 port_num)
-{
-	struct rxe_dev *rxe = to_rdev(device);
-
-	if (rxe->ndev) {
-		dev_hold(rxe->ndev);
-		return rxe->ndev;
-	}
-
-	return NULL;
 }
 
 static int rxe_query_pkey(struct ib_device *device,
@@ -154,22 +142,19 @@ static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
 	return rxe_link_layer(rxe, port_num);
 }
 
-static struct ib_ucontext *rxe_alloc_ucontext(struct ib_device *dev,
-					      struct ib_udata *udata)
+static int rxe_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
-	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_ucontext *uc;
+	struct rxe_dev *rxe = to_rdev(uctx->device);
+	struct rxe_ucontext *uc = to_ruc(uctx);
 
-	uc = rxe_alloc(&rxe->uc_pool);
-	return uc ? &uc->ibuc : ERR_PTR(-ENOMEM);
+	return rxe_add_to_pool(&rxe->uc_pool, &uc->pelem);
 }
 
-static int rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
+static void rxe_dealloc_ucontext(struct ib_ucontext *ibuc)
 {
 	struct rxe_ucontext *uc = to_ruc(ibuc);
 
 	rxe_drop_ref(uc);
-	return 0;
 }
 
 static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
@@ -191,30 +176,20 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	return 0;
 }
 
-static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata)
+static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context,
+			struct ib_udata *udata)
 {
-	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_pd *pd;
+	struct rxe_dev *rxe = to_rdev(ibpd->device);
+	struct rxe_pd *pd = to_rpd(ibpd);
 
-	pd = rxe_alloc(&rxe->pd_pool);
-	return pd ? &pd->ibpd : ERR_PTR(-ENOMEM);
+	return rxe_add_to_pool(&rxe->pd_pool, &pd->pelem);
 }
 
-static int rxe_dealloc_pd(struct ib_pd *ibpd)
+static void rxe_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 
 	rxe_drop_ref(pd);
-	return 0;
-}
-
-static void rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
-			struct rxe_av *av)
-{
-	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
-	rxe_av_fill_ip_info(av, attr);
 }
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
@@ -239,7 +214,7 @@ static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	ah->pd = pd;
 
-	rxe_init_av(rxe, attr, &ah->av);
+	rxe_init_av(attr, &ah->av);
 	return &ah->ibah;
 }
 
@@ -253,7 +228,7 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 	if (err)
 		return err;
 
-	rxe_init_av(rxe, attr, &ah->av);
+	rxe_init_av(attr, &ah->av);
 	return 0;
 }
 
@@ -330,8 +305,9 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
+	struct rxe_ucontext *ucontext =
+		rdma_udata_to_drv_context(udata, struct rxe_ucontext, ibuc);
 	struct rxe_srq *srq;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
 	if (udata) {
@@ -354,7 +330,7 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	srq->pd = pd;
 
-	err = rxe_srq_from_init(rxe, srq, init, context, uresp);
+	err = rxe_srq_from_init(rxe, srq, init, &ucontext->ibuc, uresp);
 	if (err)
 		goto err2;
 
@@ -1129,8 +1105,8 @@ static int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 static ssize_t parent_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	struct rxe_dev *rxe = container_of(device, struct rxe_dev,
-					   ib_dev.dev);
+	struct rxe_dev *rxe =
+		rdma_device_to_drv_device(device, struct rxe_dev, ib_dev);
 
 	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
 }
@@ -1146,6 +1122,15 @@ static const struct attribute_group rxe_attr_group = {
 	.attrs = rxe_dev_attributes,
 };
 
+static int rxe_enable_driver(struct ib_device *ib_dev)
+{
+	struct rxe_dev *rxe = container_of(ib_dev, struct rxe_dev, ib_dev);
+
+	rxe_set_port_state(rxe);
+	dev_info(&rxe->ib_dev.dev, "added %s\n", netdev_name(rxe->ndev));
+	return 0;
+}
+
 static const struct ib_device_ops rxe_dev_ops = {
 	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
 	.alloc_mr = rxe_alloc_mr,
@@ -1156,6 +1141,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.create_cq = rxe_create_cq,
 	.create_qp = rxe_create_qp,
 	.create_srq = rxe_create_srq,
+	.dealloc_driver = rxe_dealloc,
 	.dealloc_pd = rxe_dealloc_pd,
 	.dealloc_ucontext = rxe_dealloc_ucontext,
 	.dereg_mr = rxe_dereg_mr,
@@ -1164,10 +1150,10 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.destroy_qp = rxe_destroy_qp,
 	.destroy_srq = rxe_destroy_srq,
 	.detach_mcast = rxe_detach_mcast,
+	.enable_driver = rxe_enable_driver,
 	.get_dma_mr = rxe_get_dma_mr,
 	.get_hw_stats = rxe_ib_get_hw_stats,
 	.get_link_layer = rxe_get_link_layer,
-	.get_netdev = rxe_get_netdev,
 	.get_port_immutable = rxe_port_immutable,
 	.map_mr_sg = rxe_map_mr_sg,
 	.mmap = rxe_mmap,
@@ -1190,9 +1176,11 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.reg_user_mr = rxe_reg_user_mr,
 	.req_notify_cq = rxe_req_notify_cq,
 	.resize_cq = rxe_resize_cq,
+	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),
 };
 
-int rxe_register_device(struct rxe_dev *rxe)
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 {
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
@@ -1247,6 +1235,9 @@ int rxe_register_device(struct rxe_dev *rxe)
 	    ;
 
 	ib_set_device_ops(dev, &rxe_dev_ops);
+	err = ib_device_set_netdev(&rxe->ib_dev, rxe->ndev, 1);
+	if (err)
+		return err;
 
 	tfm = crypto_alloc_shash("crc32", 0, 0);
 	if (IS_ERR(tfm)) {
@@ -1258,23 +1249,13 @@ int rxe_register_device(struct rxe_dev *rxe)
 
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
 	dev->driver_id = RDMA_DRIVER_RXE;
-	err = ib_register_device(dev, "rxe%d", NULL);
-	if (err) {
+	err = ib_register_device(dev, ibdev_name);
+	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);
-		goto err1;
-	}
 
-	return 0;
-
-err1:
-	crypto_free_shash(rxe->tfm);
-
+	/*
+	 * Note that rxe may be invalid at this point if another thread
+	 * unregistered it.
+	 */
 	return err;
-}
-
-void rxe_unregister_device(struct rxe_dev *rxe)
-{
-	struct ib_device *dev = &rxe->ib_dev;
-
-	ib_unregister_device(dev);
 }

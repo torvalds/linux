@@ -46,8 +46,6 @@ struct mlx5_core_srq {
 	int wqe_shift;
 	void (*event)(struct mlx5_core_srq *srq, enum mlx5_event e);
 
-	atomic_t refcount;
-	struct completion free;
 	u16 uid;
 };
 

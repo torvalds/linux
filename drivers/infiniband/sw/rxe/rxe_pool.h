@@ -41,6 +41,7 @@ enum rxe_pool_flags {
 	RXE_POOL_ATOMIC		= BIT(0),
 	RXE_POOL_INDEX		= BIT(1),
 	RXE_POOL_KEY		= BIT(2),
+	RXE_POOL_NO_ALLOC	= BIT(4),
 };
 
 enum rxe_elem_type {
@@ -130,6 +131,9 @@ void rxe_pool_cleanup(struct rxe_pool *pool);
 
 /* allocate an object from pool */
 void *rxe_alloc(struct rxe_pool *pool);
+
+/* connect already allocated object to pool */
+int rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem);
 
 /* assign an index to an indexed object and insert object into
  *  pool's rb tree

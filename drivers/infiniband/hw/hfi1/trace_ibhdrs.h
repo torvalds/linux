@@ -79,6 +79,14 @@ __print_symbolic(opcode,                                   \
 	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
 	ib_opcode_name(RC_COMPARE_SWAP),                   \
 	ib_opcode_name(RC_FETCH_ADD),                      \
+	ib_opcode_name(TID_RDMA_WRITE_REQ),	           \
+	ib_opcode_name(TID_RDMA_WRITE_RESP),	           \
+	ib_opcode_name(TID_RDMA_WRITE_DATA),	           \
+	ib_opcode_name(TID_RDMA_WRITE_DATA_LAST),          \
+	ib_opcode_name(TID_RDMA_READ_REQ),	           \
+	ib_opcode_name(TID_RDMA_READ_RESP),	           \
+	ib_opcode_name(TID_RDMA_RESYNC),	           \
+	ib_opcode_name(TID_RDMA_ACK),                      \
 	ib_opcode_name(UC_SEND_FIRST),                     \
 	ib_opcode_name(UC_SEND_MIDDLE),                    \
 	ib_opcode_name(UC_SEND_LAST),                      \

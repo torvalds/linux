@@ -180,18 +180,44 @@ struct bnxt_qplib_ctx {
 	u64				hwrm_intf_ver;
 };
 
+struct bnxt_qplib_chip_ctx {
+	u16	chip_num;
+	u8	chip_rev;
+	u8	chip_metal;
+};
+
+#define CHIP_NUM_57500          0x1750
+
 struct bnxt_qplib_res {
 	struct pci_dev			*pdev;
+	struct bnxt_qplib_chip_ctx	*cctx;
 	struct net_device		*netdev;
 
 	struct bnxt_qplib_rcfw		*rcfw;
-
 	struct bnxt_qplib_pd_tbl	pd_tbl;
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
 	struct bnxt_qplib_pkey_tbl	pkey_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
 	bool				prio;
 };
+
+static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return (cctx->chip_num == CHIP_NUM_57500);
+}
+
+static inline u8 bnxt_qplib_get_hwq_type(struct bnxt_qplib_res *res)
+{
+	return bnxt_qplib_is_chip_gen_p5(res->cctx) ?
+					HWQ_TYPE_QUEUE : HWQ_TYPE_L2_CMPL;
+}
+
+static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return bnxt_qplib_is_chip_gen_p5(cctx) ?
+	       RING_ALLOC_REQ_RING_TYPE_NQ :
+	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
+}
 
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
@@ -226,5 +252,5 @@ void bnxt_qplib_free_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx);
 int bnxt_qplib_alloc_ctx(struct pci_dev *pdev,
 			 struct bnxt_qplib_ctx *ctx,
-			 bool virt_fn);
+			 bool virt_fn, bool is_p5);
 #endif /* __BNXT_QPLIB_RES_H__ */

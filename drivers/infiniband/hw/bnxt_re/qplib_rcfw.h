@@ -157,10 +157,46 @@ static inline u32 get_creq_idx(u32 val)
 #define CREQ_DB_CP_FLAGS		(CREQ_DB_KEY_CP |	\
 					 CREQ_DB_IDX_VALID |	\
 					 CREQ_DB_IRQ_DIS)
-#define CREQ_DB_REARM(db, raw_cons, cp_bit)			\
-	writel(CREQ_DB_CP_FLAGS_REARM | ((raw_cons) & ((cp_bit) - 1)), db)
-#define CREQ_DB(db, raw_cons, cp_bit)				\
-	writel(CREQ_DB_CP_FLAGS | ((raw_cons) & ((cp_bit) - 1)), db)
+
+static inline void bnxt_qplib_ring_creq_db64(void __iomem *db, u32 index,
+					     u32 xid, bool arm)
+{
+	u64 val = 0;
+
+	val = xid & DBC_DBC_XID_MASK;
+	val |= DBC_DBC_PATH_ROCE;
+	val |= arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
+	val <<= 32;
+	val |= index & DBC_DBC_INDEX_MASK;
+
+	writeq(val, db);
+}
+
+static inline void bnxt_qplib_ring_creq_db_rearm(void __iomem *db, u32 raw_cons,
+						 u32 max_elements, u32 xid,
+						 bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_creq_db64(db, index, xid, true);
+	else
+		writel(CREQ_DB_CP_FLAGS_REARM | (index & DBC_DBC32_XID_MASK),
+		       db);
+}
+
+static inline void bnxt_qplib_ring_creq_db(void __iomem *db, u32 raw_cons,
+					   u32 max_elements, u32 xid,
+					   bool gen_p5)
+{
+	u32 index = raw_cons & (max_elements - 1);
+
+	if (gen_p5)
+		bnxt_qplib_ring_creq_db64(db, index, xid, true);
+	else
+		writel(CREQ_DB_CP_FLAGS | (index & DBC_DBC32_XID_MASK),
+		       db);
+}
 
 #define CREQ_ENTRY_POLL_BUDGET		0x100
 
@@ -187,6 +223,7 @@ struct bnxt_qplib_qp_node {
 /* RCFW Communication Channels */
 struct bnxt_qplib_rcfw {
 	struct pci_dev		*pdev;
+	struct bnxt_qplib_res	*res;
 	int			vector;
 	struct tasklet_struct	worker;
 	bool			requested;
