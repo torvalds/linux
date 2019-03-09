@@ -63,7 +63,7 @@ struct codec_list {
 	struct codec_list *next;
 };
 
-static struct codec_list *codeclist_top = NULL;
+static struct codec_list *codeclist_top;
 
 /* ================================================= */
 /* function prototypes of the master/slave interface */
