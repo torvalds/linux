@@ -1,4 +1,9 @@
-Segmentation Offloads in the Linux Networking Stack
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================
+Segmentation Offloads
+=====================
+
 
 Introduction
 ============
@@ -14,6 +19,7 @@ The following technologies are described:
  * Generic Receive Offload - GRO
  * Partial Generic Segmentation Offload - GSO_PARTIAL
  * SCTP accelleration with GSO - GSO_BY_FRAGS
+
 
 TCP Segmentation Offload
 ========================
@@ -42,6 +48,7 @@ NETIF_F_TSO_MANGLEID set then the IP ID can be ignored when performing TSO
 and we will either increment the IP ID for all frames, or leave it at a
 static value based on driver preference.
 
+
 UDP Fragmentation Offload
 =========================
 
@@ -53,6 +60,7 @@ fragments should not increment as a single IPv4 datagram is fragmented.
 UFO is deprecated: modern kernels will no longer generate UFO skbs, but can
 still receive them from tuntap and similar devices. Offload of UDP-based
 tunnel protocols is still supported.
+
 
 IPIP, SIT, GRE, UDP Tunnel, and Remote Checksum Offloads
 ========================================================
@@ -71,17 +79,19 @@ refer to the tunnel headers as the outer headers, while the encapsulated
 data is normally referred to as the inner headers.  Below is the list of
 calls to access the given headers:
 
-IPIP/SIT Tunnel:
-		Outer			Inner
-MAC		skb_mac_header
-Network		skb_network_header	skb_inner_network_header
-Transport	skb_transport_header
+IPIP/SIT Tunnel::
 
-UDP/GRE Tunnel:
-		Outer			Inner
-MAC		skb_mac_header		skb_inner_mac_header
-Network		skb_network_header	skb_inner_network_header
-Transport	skb_transport_header	skb_inner_transport_header
+             Outer                  Inner
+  MAC        skb_mac_header
+  Network    skb_network_header     skb_inner_network_header
+  Transport  skb_transport_header
+
+UDP/GRE Tunnel::
+
+             Outer                  Inner
+  MAC        skb_mac_header         skb_inner_mac_header
+  Network    skb_network_header     skb_inner_network_header
+  Transport  skb_transport_header   skb_inner_transport_header
 
 In addition to the above tunnel types there are also SKB_GSO_GRE_CSUM and
 SKB_GSO_UDP_TUNNEL_CSUM.  These two additional tunnel types reflect the
@@ -92,6 +102,7 @@ Finally there is SKB_GSO_TUNNEL_REMCSUM which indicates that a given tunnel
 header has requested a remote checksum offload.  In this case the inner
 headers will be left with a partial checksum and only the outer header
 checksum will be computed.
+
 
 Generic Segmentation Offload
 ============================
@@ -106,6 +117,7 @@ Before enabling any hardware segmentation offload a corresponding software
 offload is required in GSO.  Otherwise it becomes possible for a frame to
 be re-routed between devices and end up being unable to be transmitted.
 
+
 Generic Receive Offload
 =======================
 
@@ -116,6 +128,7 @@ able to be reassembled back to the original by GRO.  The only exception to
 this is IPv4 ID in the case that the DF bit is set for a given IP header.
 If the value of the IPv4 ID is not sequentially incrementing it will be
 altered so that it is when a frame assembled via GRO is segmented via GSO.
+
 
 Partial Generic Segmentation Offload
 ====================================
@@ -133,6 +146,7 @@ values for if the header was simply duplicated.  The one exception to this
 is the outer IPv4 ID field.  It is up to the device drivers to guarantee
 that the IPv4 ID field is incremented in the case that a given header does
 not have the DF bit set.
+
 
 SCTP accelleration with GSO
 ===========================
@@ -157,14 +171,14 @@ appropriately.
 
 There are some helpers to make this easier:
 
- - skb_is_gso(skb) && skb_is_gso_sctp(skb) is the best way to see if
-   an skb is an SCTP GSO skb.
+- skb_is_gso(skb) && skb_is_gso_sctp(skb) is the best way to see if
+  an skb is an SCTP GSO skb.
 
- - For size checks, the skb_gso_validate_*_len family of helpers correctly
-   considers GSO_BY_FRAGS.
+- For size checks, the skb_gso_validate_*_len family of helpers correctly
+  considers GSO_BY_FRAGS.
 
- - For manipulating packets, skb_increase_gso_size and skb_decrease_gso_size
-   will check for GSO_BY_FRAGS and WARN if asked to manipulate these skbs.
+- For manipulating packets, skb_increase_gso_size and skb_decrease_gso_size
+  will check for GSO_BY_FRAGS and WARN if asked to manipulate these skbs.
 
 This also affects drivers with the NETIF_F_FRAGLIST & NETIF_F_GSO_SCTP bits
 set. Note also that NETIF_F_GSO_SCTP is included in NETIF_F_GSO_SOFTWARE.

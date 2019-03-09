@@ -530,8 +530,8 @@ that simply cannot make consistent memory.
 	dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		       dma_addr_t dma_handle, unsigned long attrs)
 
-Free memory allocated by the dma_alloc_attrs().  All parameters common
-parameters must identical to those otherwise passed to dma_fre_coherent,
+Free memory allocated by the dma_alloc_attrs().  All common
+parameters must be identical to those otherwise passed to dma_free_coherent,
 and the attrs argument must be identical to the attrs passed to
 dma_alloc_attrs().
 
@@ -717,7 +717,7 @@ dma-api/num_free_entries	The current number of free dma_debug_entries
 dma-api/nr_total_entries	The total number of dma_debug_entries in the
 				allocator, both free and used.
 
-dma-api/driver-filter		You can write a name of a driver into this file
+dma-api/driver_filter		You can write a name of a driver into this file
 				to limit the debug output to requests from that
 				particular driver. Write an empty string to
 				that file to disable the filter and see

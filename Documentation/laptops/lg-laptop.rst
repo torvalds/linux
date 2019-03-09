@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0+
+
 LG Gram laptop extra features
 =============================
 
@@ -9,6 +10,7 @@ Hotkeys
 -------
 
 The following FN keys are ignored by the kernel without this driver:
+
 - FN-F1 (LG control panel)   - Generates F15
 - FN-F5 (Touchpad toggle)    - Generates F13
 - FN-F6 (Airplane mode)      - Generates RFKILL
@@ -16,7 +18,7 @@ The following FN keys are ignored by the kernel without this driver:
   This key also changes keyboard backlight mode.
 - FN-F9 (Reader mode)        - Generates F14
 
-The rest of the FN key work without a need for a special driver.
+The rest of the FN keys work without a need for a special driver.
 
 
 Reader mode

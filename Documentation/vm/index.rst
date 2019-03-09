@@ -4,7 +4,7 @@ Linux Memory Management Documentation
 
 This is a collection of documents about the Linux memory management (mm)
 subsystem.  If you are looking for advice on simply allocating memory,
-see the :ref:`memory-allocation`.
+see the :ref:`memory_allocation`.
 
 User guides for MM features
 ===========================

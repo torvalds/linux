@@ -1,4 +1,8 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=====================================
 Scaling in the Linux Networking Stack
+=====================================
 
 
 Introduction
@@ -10,11 +14,11 @@ multi-processor systems.
 
 The following technologies are described:
 
-  RSS: Receive Side Scaling
-  RPS: Receive Packet Steering
-  RFS: Receive Flow Steering
-  Accelerated Receive Flow Steering
-  XPS: Transmit Packet Steering
+- RSS: Receive Side Scaling
+- RPS: Receive Packet Steering
+- RFS: Receive Flow Steering
+- Accelerated Receive Flow Steering
+- XPS: Transmit Packet Steering
 
 
 RSS: Receive Side Scaling
@@ -45,7 +49,9 @@ programmable filters. For example, webserver bound TCP port 80 packets
 can be directed to their own receive queue. Such “n-tuple” filters can
 be configured from ethtool (--config-ntuple).
 
-==== RSS Configuration
+
+RSS Configuration
+-----------------
 
 The driver for a multi-queue capable NIC typically provides a kernel
 module parameter for specifying the number of hardware queues to
@@ -63,7 +69,9 @@ commands (--show-rxfh-indir and --set-rxfh-indir). Modifying the
 indirection table could be done to give different queues different
 relative weights.
 
-== RSS IRQ Configuration
+
+RSS IRQ Configuration
+~~~~~~~~~~~~~~~~~~~~~
 
 Each receive queue has a separate IRQ associated with it. The NIC triggers
 this to notify a CPU when new packets arrive on the given queue. The
@@ -77,7 +85,9 @@ affinity of each interrupt see Documentation/IRQ-affinity.txt. Some systems
 will be running irqbalance, a daemon that dynamically optimizes IRQ
 assignments and as a result may override any manual settings.
 
-== Suggested Configuration
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 RSS should be enabled when latency is a concern or whenever receive
 interrupt processing forms a bottleneck. Spreading load between CPUs
@@ -105,10 +115,12 @@ Whereas RSS selects the queue and hence CPU that will run the hardware
 interrupt handler, RPS selects the CPU to perform protocol processing
 above the interrupt handler. This is accomplished by placing the packet
 on the desired CPU’s backlog queue and waking up the CPU for processing.
-RPS has some advantages over RSS: 1) it can be used with any NIC,
-2) software filters can easily be added to hash over new protocols,
+RPS has some advantages over RSS:
+
+1) it can be used with any NIC
+2) software filters can easily be added to hash over new protocols
 3) it does not increase hardware device interrupt rate (although it does
-introduce inter-processor interrupts (IPIs)).
+   introduce inter-processor interrupts (IPIs))
 
 RPS is called during bottom half of the receive interrupt handler, when
 a driver sends a packet up the network stack with netif_rx() or
@@ -135,21 +147,25 @@ packets have been queued to their backlog queue. The IPI wakes backlog
 processing on the remote CPU, and any queued packets are then processed
 up the networking stack.
 
-==== RPS Configuration
+
+RPS Configuration
+-----------------
 
 RPS requires a kernel compiled with the CONFIG_RPS kconfig symbol (on
 by default for SMP). Even when compiled in, RPS remains disabled until
 explicitly configured. The list of CPUs to which RPS may forward traffic
-can be configured for each receive queue using a sysfs file entry:
+can be configured for each receive queue using a sysfs file entry::
 
- /sys/class/net/<dev>/queues/rx-<n>/rps_cpus
+  /sys/class/net/<dev>/queues/rx-<n>/rps_cpus
 
 This file implements a bitmap of CPUs. RPS is disabled when it is zero
 (the default), in which case packets are processed on the interrupting
 CPU. Documentation/IRQ-affinity.txt explains how CPUs are assigned to
 the bitmap.
 
-== Suggested Configuration
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 For a single queue device, a typical RPS configuration would be to set
 the rps_cpus to the CPUs in the same memory domain of the interrupting
@@ -163,7 +179,9 @@ and unnecessary. If there are fewer hardware queues than CPUs, then
 RPS might be beneficial if the rps_cpus for each queue are the ones that
 share the same memory domain as the interrupting CPU for that queue.
 
-==== RPS Flow Limit
+
+RPS Flow Limit
+--------------
 
 RPS scales kernel receive processing across CPUs without introducing
 reordering. The trade-off to sending all packets from the same flow
@@ -187,29 +205,33 @@ No packets are dropped when the input packet queue length is below
 the threshold, so flow limit does not sever connections outright:
 even large flows maintain connectivity.
 
-== Interface
+
+Interface
+~~~~~~~~~
 
 Flow limit is compiled in by default (CONFIG_NET_FLOW_LIMIT), but not
 turned on. It is implemented for each CPU independently (to avoid lock
 and cache contention) and toggled per CPU by setting the relevant bit
 in sysctl net.core.flow_limit_cpu_bitmap. It exposes the same CPU
-bitmap interface as rps_cpus (see above) when called from procfs:
+bitmap interface as rps_cpus (see above) when called from procfs::
 
- /proc/sys/net/core/flow_limit_cpu_bitmap
+  /proc/sys/net/core/flow_limit_cpu_bitmap
 
 Per-flow rate is calculated by hashing each packet into a hashtable
 bucket and incrementing a per-bucket counter. The hash function is
 the same that selects a CPU in RPS, but as the number of buckets can
 be much larger than the number of CPUs, flow limit has finer-grained
 identification of large flows and fewer false positives. The default
-table has 4096 buckets. This value can be modified through sysctl
+table has 4096 buckets. This value can be modified through sysctl::
 
- net.core.flow_limit_table_len
+  net.core.flow_limit_table_len
 
 The value is only consulted when a new table is allocated. Modifying
 it does not update active tables.
 
-== Suggested Configuration
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Flow limit is useful on systems with many concurrent connections,
 where a single connection taking up 50% of a CPU indicates a problem.
@@ -280,10 +302,10 @@ table), the packet is enqueued onto that CPU’s backlog. If they differ,
 the current CPU is updated to match the desired CPU if one of the
 following is true:
 
-- The current CPU's queue head counter >= the recorded tail counter
-  value in rps_dev_flow[i]
-- The current CPU is unset (>= nr_cpu_ids)
-- The current CPU is offline
+  - The current CPU's queue head counter >= the recorded tail counter
+    value in rps_dev_flow[i]
+  - The current CPU is unset (>= nr_cpu_ids)
+  - The current CPU is offline
 
 After this check, the packet is sent to the (possibly updated) current
 CPU. These rules aim to ensure that a flow only moves to a new CPU when
@@ -291,19 +313,23 @@ there are no packets outstanding on the old CPU, as the outstanding
 packets could arrive later than those about to be processed on the new
 CPU.
 
-==== RFS Configuration
+
+RFS Configuration
+-----------------
 
 RFS is only available if the kconfig symbol CONFIG_RPS is enabled (on
 by default for SMP). The functionality remains disabled until explicitly
-configured. The number of entries in the global flow table is set through:
+configured. The number of entries in the global flow table is set through::
 
- /proc/sys/net/core/rps_sock_flow_entries
+  /proc/sys/net/core/rps_sock_flow_entries
 
-The number of entries in the per-queue flow table are set through:
+The number of entries in the per-queue flow table are set through::
 
- /sys/class/net/<dev>/queues/rx-<n>/rps_flow_cnt
+  /sys/class/net/<dev>/queues/rx-<n>/rps_flow_cnt
 
-== Suggested Configuration
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Both of these need to be set before RFS is enabled for a receive queue.
 Values for both are rounded up to the nearest power of two. The
@@ -347,7 +373,9 @@ functions in the cpu_rmap (“CPU affinity reverse map”) kernel library
 to populate the map. For each CPU, the corresponding queue in the map is
 set to be one whose processing CPU is closest in cache locality.
 
-==== Accelerated RFS Configuration
+
+Accelerated RFS Configuration
+-----------------------------
 
 Accelerated RFS is only available if the kernel is compiled with
 CONFIG_RFS_ACCEL and support is provided by the NIC device and driver.
@@ -356,10 +384,13 @@ of CPU to queues is automatically deduced from the IRQ affinities
 configured for each receive queue by the driver, so no additional
 configuration should be necessary.
 
-== Suggested Configuration
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 This technique should be enabled whenever one wants to use RFS and the
 NIC supports hardware acceleration.
+
 
 XPS: Transmit Packet Steering
 =============================
@@ -430,20 +461,25 @@ transport layer is responsible for setting ooo_okay appropriately. TCP,
 for instance, sets the flag when all data for a connection has been
 acknowledged.
 
-==== XPS Configuration
+XPS Configuration
+-----------------
 
 XPS is only available if the kconfig symbol CONFIG_XPS is enabled (on by
 default for SMP). The functionality remains disabled until explicitly
 configured. To enable XPS, the bitmap of CPUs/receive-queues that may
 use a transmit queue is configured using the sysfs file entry:
 
-For selection based on CPUs map:
-/sys/class/net/<dev>/queues/tx-<n>/xps_cpus
+For selection based on CPUs map::
 
-For selection based on receive-queues map:
-/sys/class/net/<dev>/queues/tx-<n>/xps_rxqs
+  /sys/class/net/<dev>/queues/tx-<n>/xps_cpus
 
-== Suggested Configuration
+For selection based on receive-queues map::
+
+  /sys/class/net/<dev>/queues/tx-<n>/xps_rxqs
+
+
+Suggested Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
 
 For a network device with a single transmission queue, XPS configuration
 has no effect, since there is no choice in this case. In a multi-queue
@@ -460,15 +496,17 @@ explicitly configured mapping receive-queue(s) to transmit queue(s). If the
 user configuration for receive-queue map does not apply, then the transmit
 queue is selected based on the CPUs map.
 
-Per TX Queue rate limitation:
-=============================
+
+Per TX Queue rate limitation
+============================
 
 These are rate-limitation mechanisms implemented by HW, where currently
-a max-rate attribute is supported, by setting a Mbps value to
+a max-rate attribute is supported, by setting a Mbps value to::
 
-/sys/class/net/<dev>/queues/tx-<n>/tx_maxrate
+  /sys/class/net/<dev>/queues/tx-<n>/tx_maxrate
 
 A value of zero means disabled, and this is the default.
+
 
 Further Information
 ===================
@@ -480,5 +518,6 @@ Accelerated RFS was introduced in 2.6.35. Original patches were
 submitted by Ben Hutchings (bwh@kernel.org)
 
 Authors:
-Tom Herbert (therbert@google.com)
-Willem de Bruijn (willemb@google.com)
+
+- Tom Herbert (therbert@google.com)
+- Willem de Bruijn (willemb@google.com)

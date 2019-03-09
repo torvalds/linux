@@ -234,7 +234,7 @@ il progetto Linux Cross-Reference, che è in grado di presentare codice
 sorgente in un formato autoreferenziale ed indicizzato. Un eccellente ed
 aggiornata fonte di consultazione del codice del kernel la potete trovare qui:
 
-	http://lxr.free-electrons.com/
+	https://elixir.bootlin.com/
 
 
 Il processo di sviluppo
@@ -244,7 +244,6 @@ e di molti altri rami per specifici sottosistemi. Questi rami sono:
 
   - I sorgenti kernel 4.x
   - I sorgenti stabili del kernel 4.x.y -stable
-  - Le modifiche in 4.x -git
   - Sorgenti dei sottosistemi del kernel e le loro modifiche
   - Il kernel 4.x -next per test d'integrazione
 
@@ -312,16 +311,6 @@ può determinare un rilascio immediato.
 Il file Documentation/process/stable-kernel-rules.rst (nei sorgenti) documenta
 quali tipologie di modifiche sono accettate per i sorgenti -stable, e come
 avviene il processo di rilascio.
-
-Le modifiche in 4.x -git
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Queste sono istantanee quotidiane del kernel di Linus e sono gestite in
-una repositorio git (da qui il nome). Queste modifiche sono solitamente
-rilasciate giornalmente e rappresentano l'attuale stato dei sorgenti di
-Linus. Queste sono da considerarsi più sperimentali di un -rc in quanto
-generate automaticamente senza nemmeno aver dato una rapida occhiata
-per verificarne lo stato.
 
 
 Sorgenti dei sottosistemi del kernel e le loro patch
