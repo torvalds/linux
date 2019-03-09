@@ -299,7 +299,8 @@ void bch2_fs_read_only(struct bch_fs *c)
 
 	if (!bch2_journal_error(&c->journal) &&
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
-	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
+	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags) &&
+	    test_bit(BCH_FS_STARTED, &c->flags))
 		bch2_fs_mark_clean(c, true);
 
 	if (c->state != BCH_FS_STOPPING)
