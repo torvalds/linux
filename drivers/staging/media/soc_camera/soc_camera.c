@@ -4,11 +4,11 @@
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
  *
  * This driver provides an interface between platform-specific camera
- * busses and camera devices. It should be used if the camera is
+ * buses and camera devices. It should be used if the camera is
  * connected not over a "proper" bus like PCI or USB, but over a
  * special bus, like, for example, the Quick Capture interface on PXA270
  * SoCs. Later it should also be used for i.MX31 SoCs from Freescale.
- * It can handle multiple cameras and / or multiple busses, which can
+ * It can handle multiple cameras and / or multiple buses, which can
  * be used, e.g., in stereo-vision applications.
  *
  * This program is free software; you can redistribute it and/or modify

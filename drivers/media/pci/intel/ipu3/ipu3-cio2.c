@@ -264,7 +264,7 @@ static void cio2_fbpt_exit(struct cio2_queue *q, struct device *dev)
  */
 
 /*
- * shift for keeping value range suitable for 32-bit integer arithmetics
+ * shift for keeping value range suitable for 32-bit integer arithmetic
  */
 #define LIMIT_SHIFT	8
 
@@ -1810,7 +1810,8 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	/* Register notifier for subdevices we care */
 	r = cio2_notifier_init(cio2);
-	if (r)
+	/* Proceed without sensors connected to allow the device to suspend. */
+	if (r && r != -ENODEV)
 		goto fail_cio2_queue_exit;
 
 	r = devm_request_irq(&pci_dev->dev, pci_dev->irq, cio2_irq,
@@ -2047,7 +2048,7 @@ module_pci_driver(cio2_pci_driver);
 
 MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Jian Xu Zheng <jian.xu.zheng@intel.com>");
+MODULE_AUTHOR("Jian Xu Zheng");
 MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");

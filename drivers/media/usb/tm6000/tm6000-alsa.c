@@ -58,7 +58,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable debug messages");
 
 /****************************************************************************
-			Module specific funtions
+			Module specific functions
  ****************************************************************************/
 
 /*

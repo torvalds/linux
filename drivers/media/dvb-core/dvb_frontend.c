@@ -1596,7 +1596,7 @@ static bool is_dvbv3_delsys(u32 delsys)
  *
  * Provides emulation for delivery systems that are compatible with the old
  * DVBv3 call. Among its usages, it provices support for ISDB-T, and allows
- * using a DVB-S2 only frontend just like it were a DVB-S, if the frontent
+ * using a DVB-S2 only frontend just like it were a DVB-S, if the frontend
  * parameters are compatible with DVB-S spec.
  */
 static int emulate_delivery_system(struct dvb_frontend *fe, u32 delsys)

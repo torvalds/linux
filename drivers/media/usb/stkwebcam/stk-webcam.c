@@ -1006,7 +1006,7 @@ static int stk_setup_format(struct stk_camera *dev)
 		stk_camera_write_reg(dev, 0x001c, 0x46);
 	/*
 	 * Registers 0x0115 0x0114 are the size of each line (bytes),
-	 * regs 0x0117 0x0116 are the heigth of the image.
+	 * regs 0x0117 0x0116 are the height of the image.
 	 */
 	stk_camera_write_reg(dev, 0x0115,
 		((stk_sizes[i].w * depth) >> 8) & 0xff);
@@ -1144,7 +1144,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 	sbuf->v4lbuf.sequence = ++dev->sequence;
-	v4l2_get_timestamp(&sbuf->v4lbuf.timestamp);
+	sbuf->v4lbuf.timestamp = ns_to_timeval(ktime_get_ns());
 
 	*buf = sbuf->v4lbuf;
 	return 0;

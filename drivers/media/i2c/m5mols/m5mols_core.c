@@ -291,7 +291,7 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
  * @reg: the I2C_REG() address of an 8-bit status register to check
  * @value: expected status register value
  * @mask: bit mask for the read status register value
- * @timeout: timeout in miliseconds, or -1 for default timeout
+ * @timeout: timeout in milliseconds, or -1 for default timeout
  *
  * The @reg register value is ORed with @mask before comparing with @value.
  *

@@ -56,7 +56,7 @@
 #define FWHT_MAGIC1 0x4f4f4f4f
 #define FWHT_MAGIC2 0xffffffff
 
-#define FWHT_VERSION 2
+#define FWHT_VERSION 3
 
 /* Set if this is an interlaced format */
 #define FWHT_FL_IS_INTERLACED		BIT(0)
@@ -76,10 +76,24 @@
 #define FWHT_FL_CHROMA_FULL_HEIGHT	BIT(7)
 #define FWHT_FL_CHROMA_FULL_WIDTH	BIT(8)
 #define FWHT_FL_ALPHA_IS_UNCOMPRESSED	BIT(9)
+#define FWHT_FL_I_FRAME			BIT(10)
 
 /* A 4-values flag - the number of components - 1 */
-#define FWHT_FL_COMPONENTS_NUM_MSK	GENMASK(17, 16)
+#define FWHT_FL_COMPONENTS_NUM_MSK	GENMASK(18, 16)
 #define FWHT_FL_COMPONENTS_NUM_OFFSET	16
+
+#define FWHT_FL_PIXENC_MSK	GENMASK(20, 19)
+#define FWHT_FL_PIXENC_OFFSET	19
+#define FWHT_FL_PIXENC_YUV	(1 << FWHT_FL_PIXENC_OFFSET)
+#define FWHT_FL_PIXENC_RGB	(2 << FWHT_FL_PIXENC_OFFSET)
+#define FWHT_FL_PIXENC_HSV	(3 << FWHT_FL_PIXENC_OFFSET)
+
+/*
+ * A macro to calculate the needed padding in order to make sure
+ * both luma and chroma components resolutions are rounded up to
+ * a multiple of 8
+ */
+#define vic_round_dim(dim, div) (round_up((dim) / (div), 8) * (div))
 
 struct fwht_cframe_hdr {
 	u32 magic1;
@@ -95,7 +109,6 @@ struct fwht_cframe_hdr {
 };
 
 struct fwht_cframe {
-	unsigned int width, height;
 	u16 i_frame_qp;
 	u16 p_frame_qp;
 	__be16 *rlc_data;
@@ -106,7 +119,6 @@ struct fwht_cframe {
 };
 
 struct fwht_raw_frame {
-	unsigned int width, height;
 	unsigned int width_div;
 	unsigned int height_div;
 	unsigned int luma_alpha_step;
@@ -125,8 +137,12 @@ struct fwht_raw_frame {
 u32 fwht_encode_frame(struct fwht_raw_frame *frm,
 		      struct fwht_raw_frame *ref_frm,
 		      struct fwht_cframe *cf,
-		      bool is_intra, bool next_is_intra);
-void fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
-		       u32 hdr_flags, unsigned int components_num);
+		      bool is_intra, bool next_is_intra,
+		      unsigned int width, unsigned int height,
+		      unsigned int stride, unsigned int chroma_stride);
+bool fwht_decode_frame(struct fwht_cframe *cf, struct fwht_raw_frame *ref,
+		       u32 hdr_flags, unsigned int components_num,
+		       unsigned int width, unsigned int height,
+		       unsigned int coded_width);
 
 #endif

@@ -8,15 +8,15 @@
 struct imgu_device;
 struct scatterlist;
 
-void *ipu3_dmamap_alloc(struct imgu_device *imgu, struct ipu3_css_map *map,
+void *imgu_dmamap_alloc(struct imgu_device *imgu, struct imgu_css_map *map,
 			size_t len);
-void ipu3_dmamap_free(struct imgu_device *imgu, struct ipu3_css_map *map);
+void imgu_dmamap_free(struct imgu_device *imgu, struct imgu_css_map *map);
 
-int ipu3_dmamap_map_sg(struct imgu_device *imgu, struct scatterlist *sglist,
-		       int nents, struct ipu3_css_map *map);
-void ipu3_dmamap_unmap(struct imgu_device *imgu, struct ipu3_css_map *map);
+int imgu_dmamap_map_sg(struct imgu_device *imgu, struct scatterlist *sglist,
+		       int nents, struct imgu_css_map *map);
+void imgu_dmamap_unmap(struct imgu_device *imgu, struct imgu_css_map *map);
 
-int ipu3_dmamap_init(struct imgu_device *imgu);
-void ipu3_dmamap_exit(struct imgu_device *imgu);
+int imgu_dmamap_init(struct imgu_device *imgu);
+void imgu_dmamap_exit(struct imgu_device *imgu);
 
 #endif

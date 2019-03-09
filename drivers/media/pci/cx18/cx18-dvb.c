@@ -120,8 +120,8 @@ static struct zl10353_config leadtek_dvr3100h_demod = {
 /*
  * Due to
  *
- * 1. an absence of information on how to prgram the MT352
- * 2. the Linux mt352 module pushing MT352 initialzation off onto us here
+ * 1. an absence of information on how to program the MT352
+ * 2. the Linux mt352 module pushing MT352 initialization off onto us here
  *
  * We have to use an init sequence that *you* must extract from the Windows
  * driver (yuanrap.sys) and which we load as a firmware.
@@ -458,7 +458,7 @@ void cx18_dvb_unregister(struct cx18_stream *stream)
 	dvb_unregister_adapter(dvb_adapter);
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card. cx18_dvb_start_feed() will also need changes.
  */
 static int dvb_register(struct cx18_stream *stream)

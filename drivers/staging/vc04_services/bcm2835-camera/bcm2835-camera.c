@@ -1370,10 +1370,6 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	return 0;
 }
 
-#define FRACT_CMP(a, OP, b)	\
-	((u64)(a).numerator * (b).denominator  OP  \
-	 (u64)(b).numerator * (a).denominator)
-
 static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *parm)
 {
@@ -1387,8 +1383,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 
 	/* tpf: {*, 0} resets timing; clip to [min, max]*/
 	tpf = tpf.denominator ? tpf : tpf_default;
-	tpf = FRACT_CMP(tpf, <, tpf_min) ? tpf_min : tpf;
-	tpf = FRACT_CMP(tpf, >, tpf_max) ? tpf_max : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, <, tpf_min) ? tpf_min : tpf;
+	tpf = V4L2_FRACT_COMPARE(tpf, >, tpf_max) ? tpf_max : tpf;
 
 	dev->capture.timeperframe = tpf;
 	parm->parm.capture.timeperframe = tpf;

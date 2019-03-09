@@ -32,7 +32,7 @@
 #define IMGU_NODE_STAT_3A		4 /* 3A statistics */
 #define IMGU_NODE_NUM			5
 
-#define file_to_intel_ipu3_node(__file) \
+#define file_to_intel_imgu_node(__file) \
 	container_of(video_devdata(__file), struct imgu_video_device, vdev)
 
 #define IPU3_INPUT_MIN_WIDTH		0U
@@ -44,7 +44,7 @@
 #define IPU3_OUTPUT_MAX_WIDTH		4480U
 #define IPU3_OUTPUT_MAX_HEIGHT		34004U
 
-struct ipu3_vb2_buffer {
+struct imgu_vb2_buffer {
 	/* Public fields */
 	struct vb2_v4l2_buffer vbb;	/* Must be the first field */
 
@@ -53,9 +53,9 @@ struct ipu3_vb2_buffer {
 };
 
 struct imgu_buffer {
-	struct ipu3_vb2_buffer vid_buf;	/* Must be the first field */
-	struct ipu3_css_buffer css_buf;
-	struct ipu3_css_map map;
+	struct imgu_vb2_buffer vid_buf;	/* Must be the first field */
+	struct imgu_css_buffer css_buf;
+	struct imgu_css_map map;
 };
 
 struct imgu_node_mapping {
@@ -107,8 +107,8 @@ struct imgu_media_pipe {
 
 	/* Internally enabled queues */
 	struct {
-		struct ipu3_css_map dmap;
-		struct ipu3_css_buffer dummybufs[IMGU_MAX_QUEUE_DEPTH];
+		struct imgu_css_map dmap;
+		struct imgu_css_buffer dummybufs[IMGU_MAX_QUEUE_DEPTH];
 	} queues[IPU3_CSS_QUEUES];
 	struct imgu_video_device nodes[IMGU_NODE_NUM];
 	bool queue_enabled[IMGU_NODE_NUM];
@@ -135,18 +135,18 @@ struct imgu_device {
 	struct v4l2_file_operations v4l2_file_ops;
 
 	/* MMU driver for css */
-	struct ipu3_mmu_info *mmu;
+	struct imgu_mmu_info *mmu;
 	struct iova_domain iova_domain;
 
 	/* css - Camera Sub-System */
-	struct ipu3_css css;
+	struct imgu_css css;
 
 	/*
 	 * Coarse-grained lock to protect
 	 * vid_buf.list and css->queue
 	 */
 	struct mutex lock;
-	/* Forbit streaming and buffer queuing during system suspend. */
+	/* Forbid streaming and buffer queuing during system suspend. */
 	atomic_t qbuf_barrier;
 	/* Indicate if system suspend take place while imgu is streaming. */
 	bool suspend_in_stream;

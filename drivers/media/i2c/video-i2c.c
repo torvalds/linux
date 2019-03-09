@@ -6,6 +6,7 @@
  *
  * Supported:
  * - Panasonic AMG88xx Grid-Eye Sensors
+ * - Melexis MLX90640 Thermal Cameras
  */
 
 #include <linux/delay.h>
@@ -18,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/nvmem-provider.h>
 #include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -66,10 +68,24 @@ static const struct v4l2_frmsize_discrete amg88xx_size = {
 	.height = 8,
 };
 
+static const struct v4l2_fmtdesc mlx90640_format = {
+	.pixelformat = V4L2_PIX_FMT_Y16_BE,
+};
+
+static const struct v4l2_frmsize_discrete mlx90640_size = {
+	.width = 32,
+	.height = 26, /* 24 lines of pixel data + 2 lines of processing data */
+};
+
 static const struct regmap_config amg88xx_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff
+};
+
+static const struct regmap_config mlx90640_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
 };
 
 struct video_i2c_chip {
@@ -88,6 +104,7 @@ struct video_i2c_chip {
 	unsigned int bpp;
 
 	const struct regmap_config *regmap_config;
+	struct nvmem_config *nvmem_config;
 
 	/* setup function */
 	int (*setup)(struct video_i2c_data *data);
@@ -100,6 +117,22 @@ struct video_i2c_chip {
 
 	/* hwmon init function */
 	int (*hwmon_init)(struct video_i2c_data *data);
+};
+
+static int mlx90640_nvram_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct video_i2c_data *data = priv;
+
+	return regmap_bulk_read(data->regmap, 0x2400 + offset, val, bytes);
+}
+
+static struct nvmem_config mlx90640_nvram_config = {
+	.name = "mlx90640_nvram",
+	.word_size = 2,
+	.stride = 1,
+	.size = 1664,
+	.reg_read = mlx90640_nvram_read,
 };
 
 /* Power control register */
@@ -122,9 +155,20 @@ struct video_i2c_chip {
 /* Temperature register */
 #define AMG88XX_REG_T01L	0x80
 
+/* Control register */
+#define MLX90640_REG_CTL1		0x800d
+#define MLX90640_REG_CTL1_MASK		0x0380
+#define MLX90640_REG_CTL1_MASK_SHIFT	7
+
 static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
 	return regmap_bulk_read(data->regmap, AMG88XX_REG_T01L, buf,
+				data->chip->buffer_size);
+}
+
+static int mlx90640_xfer(struct video_i2c_data *data, char *buf)
+{
+	return regmap_bulk_read(data->regmap, 0x400, buf,
 				data->chip->buffer_size);
 }
 
@@ -139,6 +183,27 @@ static int amg88xx_setup(struct video_i2c_data *data)
 		val = 0;
 
 	return regmap_update_bits(data->regmap, AMG88XX_REG_FPSC, mask, val);
+}
+
+static int mlx90640_setup(struct video_i2c_data *data)
+{
+	unsigned int n, idx;
+
+	for (n = 0; n < data->chip->num_frame_intervals - 1; n++) {
+		if (data->frame_interval.numerator
+				!= data->chip->frame_intervals[n].numerator)
+			continue;
+
+		if (data->frame_interval.denominator
+				== data->chip->frame_intervals[n].denominator)
+			break;
+	}
+
+	idx = data->chip->num_frame_intervals - n - 1;
+
+	return regmap_update_bits(data->regmap, MLX90640_REG_CTL1,
+				  MLX90640_REG_CTL1_MASK,
+				  idx << MLX90640_REG_CTL1_MASK_SHIFT);
 }
 
 static int amg88xx_set_power_on(struct video_i2c_data *data)
@@ -274,11 +339,25 @@ static int amg88xx_hwmon_init(struct video_i2c_data *data)
 #define	amg88xx_hwmon_init	NULL
 #endif
 
-#define AMG88XX		0
+enum {
+	AMG88XX,
+	MLX90640,
+};
 
 static const struct v4l2_fract amg88xx_frame_intervals[] = {
 	{ 1, 10 },
 	{ 1, 1 },
+};
+
+static const struct v4l2_fract mlx90640_frame_intervals[] = {
+	{ 1, 64 },
+	{ 1, 32 },
+	{ 1, 16 },
+	{ 1, 8 },
+	{ 1, 4 },
+	{ 1, 2 },
+	{ 1, 1 },
+	{ 2, 1 },
 };
 
 static const struct video_i2c_chip video_i2c_chip[] = {
@@ -294,6 +373,18 @@ static const struct video_i2c_chip video_i2c_chip[] = {
 		.xfer		= &amg88xx_xfer,
 		.set_power	= amg88xx_set_power,
 		.hwmon_init	= amg88xx_hwmon_init,
+	},
+	[MLX90640] = {
+		.size		= &mlx90640_size,
+		.format		= &mlx90640_format,
+		.frame_intervals	= mlx90640_frame_intervals,
+		.num_frame_intervals	= ARRAY_SIZE(mlx90640_frame_intervals),
+		.buffer_size	= 1664,
+		.bpp		= 16,
+		.regmap_config	= &mlx90640_regmap_config,
+		.nvmem_config	= &mlx90640_nvram_config,
+		.setup		= mlx90640_setup,
+		.xfer		= mlx90640_xfer,
 	},
 };
 
@@ -756,6 +847,21 @@ static int video_i2c_probe(struct i2c_client *client,
 		}
 	}
 
+	if (data->chip->nvmem_config) {
+		struct nvmem_config *config = data->chip->nvmem_config;
+		struct nvmem_device *device;
+
+		config->priv = data;
+		config->dev = &client->dev;
+
+		device = devm_nvmem_register(&client->dev, config);
+
+		if (IS_ERR(device)) {
+			dev_warn(&client->dev,
+				 "failed to register nvmem device\n");
+		}
+	}
+
 	ret = video_register_device(&data->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0)
 		goto error_pm_disable;
@@ -835,12 +941,14 @@ static const struct dev_pm_ops video_i2c_pm_ops = {
 
 static const struct i2c_device_id video_i2c_id_table[] = {
 	{ "amg88xx", AMG88XX },
+	{ "mlx90640", MLX90640 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, video_i2c_id_table);
 
 static const struct of_device_id video_i2c_of_match[] = {
 	{ .compatible = "panasonic,amg88xx", .data = &video_i2c_chip[AMG88XX] },
+	{ .compatible = "melexis,mlx90640", .data = &video_i2c_chip[MLX90640] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, video_i2c_of_match);

@@ -16,12 +16,6 @@
 #ifndef _CEDRUS_DEC_H_
 #define _CEDRUS_DEC_H_
 
-extern const struct v4l2_ioctl_ops cedrus_ioctl_ops;
-
-void cedrus_device_work(struct work_struct *work);
 void cedrus_device_run(void *priv);
-
-int cedrus_queue_init(void *priv, struct vb2_queue *src_vq,
-		      struct vb2_queue *dst_vq);
 
 #endif

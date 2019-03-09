@@ -298,7 +298,7 @@ enum isp_af_mode {
 #define ISP_FLASH_COMMAND_AUTO			2
 #define ISP_FLASH_COMMAND_TORCH			3 /* 3 sec */
 
-/* Flash red-eye commads */
+/* Flash red-eye commands */
 #define ISP_FLASH_REDEYE_DISABLE		0
 #define ISP_FLASH_REDEYE_ENABLE			1
 

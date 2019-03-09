@@ -1195,12 +1195,12 @@ static __poll_t dvb_demux_poll(struct file *file, poll_table *wait)
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	__poll_t mask = 0;
 
+	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
+
 	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return EPOLLERR;
 	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx))
 		return dvb_vb2_poll(&dmxdevfilter->vb2_ctx, file, wait);
-
-	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
 	if (dmxdevfilter->state != DMXDEV_STATE_GO &&
 	    dmxdevfilter->state != DMXDEV_STATE_DONE &&
@@ -1346,12 +1346,12 @@ static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 
 	dprintk("%s\n", __func__);
 
+	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
+
 	if (dmxdev->exit)
 		return EPOLLERR;
 	if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
 		return dvb_vb2_poll(&dmxdev->dvr_vb2_ctx, file, wait);
-
-	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
 	    dmxdev->may_do_mmap) {

@@ -1,11 +1,13 @@
-comment "soc_camera sensor drivers"
-
-config SOC_CAMERA_MT9M001
-	tristate "mt9m001 support"
-	depends on SOC_CAMERA && I2C
+config SOC_CAMERA
+	tristate "SoC camera support"
+	depends on VIDEO_V4L2 && HAS_DMA && I2C && BROKEN
+	select VIDEOBUF2_CORE
 	help
-	  This driver supports MT9M001 cameras from Micron, monochrome
-	  and colour models.
+	  SoC Camera is a common API to several cameras, not connecting
+	  over a bus like PCI or USB. For example some i2c camera connected
+	  directly to the data bus of an SoC.
+
+comment "soc_camera sensor drivers"
 
 config SOC_CAMERA_MT9M111
 	tristate "legacy soc_camera mt9m111, mt9m112 and mt9m131 support"
@@ -16,12 +18,6 @@ config SOC_CAMERA_MT9M111
 	  Micron/Aptina.
 	  This is the legacy configuration which shouldn't be used anymore,
 	  while VIDEO_MT9M111 should be used instead.
-
-config SOC_CAMERA_MT9T112
-	tristate "mt9t112 support"
-	depends on SOC_CAMERA && I2C
-	help
-	  This driver supports MT9T112 cameras from Aptina.
 
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 and mt9v024 support"
@@ -35,32 +31,20 @@ config SOC_CAMERA_OV5642
 	help
 	  This is a V4L2 camera driver for the OmniVision OV5642 sensor
 
-config SOC_CAMERA_OV772X
-	tristate "ov772x camera support"
-	depends on SOC_CAMERA && I2C
-	help
-	  This is a ov772x camera driver
-
-config SOC_CAMERA_OV9640
-	tristate "ov9640 camera support"
-	depends on SOC_CAMERA && I2C
-	help
-	  This is a ov9640 camera driver
-
 config SOC_CAMERA_OV9740
 	tristate "ov9740 camera support"
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov9740 camera driver
 
-config SOC_CAMERA_RJ54N1
-	tristate "rj54n1cb0c support"
+config SOC_CAMERA_IMX074
+	tristate "imx074 support (DEPRECATED)"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a rj54n1cb0c video driver
+	  This driver supports IMX074 cameras from Sony
 
-config SOC_CAMERA_TW9910
-	tristate "tw9910 support"
+config SOC_CAMERA_MT9T031
+	tristate "mt9t031 support (DEPRECATED)"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a tw9910 video driver
+	  This driver supports MT9T031 cameras from Micron.

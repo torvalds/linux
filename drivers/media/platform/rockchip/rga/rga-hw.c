@@ -256,7 +256,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	}
 
 	/*
-	 * Cacluate the up/down scaling mode/factor.
+	 * Calculate the up/down scaling mode/factor.
 	 *
 	 * RGA used to scale the picture first, and then rotate second,
 	 * so we need to swap the w/h when rotate degree is 90/270.
@@ -304,7 +304,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	}
 
 	/*
-	 * Cacluate the framebuffer virtual strides and active size,
+	 * Calculate the framebuffer virtual strides and active size,
 	 * note that the step of vir_stride / vir_width is 4 byte words
 	 */
 	src_vir_info.data.vir_stride = ctx->in.stride >> 2;
@@ -318,7 +318,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	dst_act_info.data.act_width = dst_w - 1;
 
 	/*
-	 * Cacluate the source framebuffer base address with offset pixel.
+	 * Calculate the source framebuffer base address with offset pixel.
 	 */
 	src_offsets = rga_get_addr_offset(&ctx->in, src_x, src_y,
 					  src_w, src_h);

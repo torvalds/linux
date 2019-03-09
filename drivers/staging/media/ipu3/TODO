@@ -8,11 +8,6 @@ staging directory.
 - Using ENABLED and IMMUTABLE link flags for the links where those are
   relevant. (Sakari)
 
-- Prefix imgu for all public APIs, i.e. change ipu3_v4l2_register() to
-  imgu_v4l2_register(). (Sakari)
-
-- Use V4L2_CTRL_TYPE_MENU for dual-pipe mode control. (Sakari)
-
 - IPU3 driver documentation (Laurent)
   Add diagram in driver rst to describe output capability.
   Comments on configuring v4l2 subdevs for CIO2 and ImgU.
@@ -32,3 +27,5 @@ staging directory.
 - Document different operation modes, and which buffer queues are relevant
   in each mode. To process an image, which queues require a buffer an in
   which ones is it optional?
+
+- Make sure it builds fine with no warnings with W=1

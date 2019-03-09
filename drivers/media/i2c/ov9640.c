@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * OmniVision OV96xx Camera Driver
  *
@@ -9,14 +10,11 @@
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
+ * transition from soc_camera to pxa_camera based on mt9m111
  *
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -27,10 +25,14 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
-#include <media/soc_camera.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
+
+#include <linux/gpio/consumer.h>
 
 #include "ov9640.h"
 
@@ -159,7 +161,7 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 	{ OV9640_MTXS,	0x65 },
 };
 
-static u32 ov9640_codes[] = {
+static const u32 ov9640_codes[] = {
 	MEDIA_BUS_FMT_UYVY8_2X8,
 	MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
 	MEDIA_BUS_FMT_RGB565_2X8_LE,
@@ -269,21 +271,23 @@ static int ov9640_s_stream(struct v4l2_subdev *sd, int enable)
 /* Set status of additional camera capabilities */
 static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ov9640_priv *priv = container_of(ctrl->handler, struct ov9640_priv, hdl);
+	struct ov9640_priv *priv = container_of(ctrl->handler,
+						struct ov9640_priv, hdl);
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		if (ctrl->val)
 			return ov9640_reg_rmw(client, OV9640_MVFP,
-							OV9640_MVFP_V, 0);
+					      OV9640_MVFP_V, 0);
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_V);
 	case V4L2_CID_HFLIP:
 		if (ctrl->val)
 			return ov9640_reg_rmw(client, OV9640_MVFP,
-							OV9640_MVFP_H, 0);
+					      OV9640_MVFP_H, 0);
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_H);
 	}
+
 	return -EINVAL;
 }
 
@@ -323,20 +327,33 @@ static int ov9640_set_register(struct v4l2_subdev *sd,
 
 static int ov9640_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
+	int ret = 0;
 
-	return soc_camera_set_power(&client->dev, ssdd, priv->clk, on);
+	if (on) {
+		gpiod_set_value(priv->gpio_power, 1);
+		usleep_range(1000, 2000);
+		ret = v4l2_clk_enable(priv->clk);
+		usleep_range(1000, 2000);
+		gpiod_set_value(priv->gpio_reset, 0);
+	} else {
+		gpiod_set_value(priv->gpio_reset, 1);
+		usleep_range(1000, 2000);
+		v4l2_clk_disable(priv->clk);
+		usleep_range(1000, 2000);
+		gpiod_set_value(priv->gpio_power, 0);
+	}
+
+	return ret;
 }
 
 /* select nearest higher resolution for capture */
 static void ov9640_res_roundup(u32 *width, u32 *height)
 {
-	int i;
+	unsigned int i;
 	enum { QQCIF, QQVGA, QCIF, QVGA, CIF, VGA, SXGA };
-	static const int res_x[] = { 88, 160, 176, 320, 352, 640, 1280 };
-	static const int res_y[] = { 72, 120, 144, 240, 288, 480, 960 };
+	static const u32 res_x[] = { 88, 160, 176, 320, 352, 640, 1280 };
+	static const u32 res_y[] = { 72, 120, 144, 240, 288, 480, 960 };
 
 	for (i = 0; i < ARRAY_SIZE(res_x); i++) {
 		if (res_x[i] >= *width && res_y[i] >= *height) {
@@ -379,8 +396,9 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 		u32 code, struct ov9640_reg_alt *alts)
 {
 	const struct ov9640_reg	*ov9640_regs, *matrix_regs;
-	int			ov9640_regs_len, matrix_regs_len;
-	int			i, ret;
+	unsigned int		ov9640_regs_len, matrix_regs_len;
+	unsigned int		i;
+	int			ret;
 	u8			val;
 
 	/* select register configuration for given resolution */
@@ -454,7 +472,7 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 	/* write color matrix configuration into the module */
 	for (i = 0; i < matrix_regs_len; i++) {
 		ret = ov9640_reg_write(client, matrix_regs[i].reg,
-						matrix_regs[i].val);
+				       matrix_regs[i].val);
 		if (ret)
 			return ret;
 	}
@@ -465,17 +483,18 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 /* program default register values */
 static int ov9640_prog_dflt(struct i2c_client *client)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(ov9640_regs_dflt); i++) {
 		ret = ov9640_reg_write(client, ov9640_regs_dflt[i].reg,
-						ov9640_regs_dflt[i].val);
+				       ov9640_regs_dflt[i].val);
 		if (ret)
 			return ret;
 	}
 
 	/* wait for the changes to actually happen, 140ms are not enough yet */
-	mdelay(150);
+	msleep(150);
 
 	return 0;
 }
@@ -529,6 +548,7 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 		return ov9640_s_fmt(sd, mf);
 
 	cfg->try_fmt = *mf;
+
 	return 0;
 }
 
@@ -540,6 +560,7 @@ static int ov9640_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	code->code = ov9640_codes[code->index];
+
 	return 0;
 }
 
@@ -630,14 +651,10 @@ static const struct v4l2_subdev_core_ops ov9640_core_ops = {
 static int ov9640_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
-
 	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -666,41 +683,62 @@ static int ov9640_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov9640_priv *priv;
-	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	int ret;
-
-	if (!ssdd) {
-		dev_err(&client->dev, "Missing platform_data for driver\n");
-		return -EINVAL;
-	}
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	priv->gpio_power = devm_gpiod_get(&client->dev, "Camera power",
+					  GPIOD_OUT_LOW);
+	if (IS_ERR_OR_NULL(priv->gpio_power)) {
+		ret = PTR_ERR(priv->gpio_power);
+		return ret;
+	}
+
+	priv->gpio_reset = devm_gpiod_get(&client->dev, "Camera reset",
+					  GPIOD_OUT_HIGH);
+	if (IS_ERR_OR_NULL(priv->gpio_reset)) {
+		ret = PTR_ERR(priv->gpio_reset);
+		return ret;
+	}
+
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov9640_subdev_ops);
 
 	v4l2_ctrl_handler_init(&priv->hdl, 2);
 	v4l2_ctrl_new_std(&priv->hdl, &ov9640_ctrl_ops,
-			V4L2_CID_VFLIP, 0, 1, 1, 0);
+			  V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov9640_ctrl_ops,
-			V4L2_CID_HFLIP, 0, 1, 1, 0);
+			  V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	if (priv->hdl.error) {
+		ret = priv->hdl.error;
+		goto ectrlinit;
+	}
+
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error)
-		return priv->hdl.error;
 
 	priv->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
-		goto eclkget;
+		goto ectrlinit;
 	}
 
 	ret = ov9640_video_probe(client);
-	if (ret) {
-		v4l2_clk_put(priv->clk);
-eclkget:
-		v4l2_ctrl_handler_free(&priv->hdl);
-	}
+	if (ret)
+		goto eprobe;
+
+	priv->subdev.dev = &client->dev;
+	ret = v4l2_async_register_subdev(&priv->subdev);
+	if (ret)
+		goto eprobe;
+
+	return 0;
+
+eprobe:
+	v4l2_clk_put(priv->clk);
+ectrlinit:
+	v4l2_ctrl_handler_free(&priv->hdl);
 
 	return ret;
 }
@@ -711,8 +749,9 @@ static int ov9640_remove(struct i2c_client *client)
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	v4l2_clk_put(priv->clk);
-	v4l2_device_unregister_subdev(&priv->subdev);
+	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
+
 	return 0;
 }
 

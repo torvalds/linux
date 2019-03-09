@@ -28,11 +28,12 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 	const struct vivid_fmt *vfmt = dev->fmt_out;
 	unsigned planes = vfmt->buffers;
 	unsigned h = dev->fmt_out_rect.height;
-	unsigned size = dev->bytesperline_out[0] * h;
+	unsigned int size = dev->bytesperline_out[0] * h + vfmt->data_offset[0];
 	unsigned p;
 
 	for (p = vfmt->buffers; p < vfmt->planes; p++)
-		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p] +
+			vfmt->data_offset[p];
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
@@ -62,12 +63,14 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 		if (sizes[0] < size)
 			return -EINVAL;
 		for (p = 1; p < planes; p++) {
-			if (sizes[p] < dev->bytesperline_out[p] * h)
+			if (sizes[p] < dev->bytesperline_out[p] * h +
+				       vfmt->data_offset[p])
 				return -EINVAL;
 		}
 	} else {
 		for (p = 0; p < planes; p++)
-			sizes[p] = p ? dev->bytesperline_out[p] * h : size;
+			sizes[p] = p ? dev->bytesperline_out[p] * h +
+				       vfmt->data_offset[p] : size;
 	}
 
 	if (vq->num_buffers + *nbuffers < 2)
@@ -81,20 +84,37 @@ static int vid_out_queue_setup(struct vb2_queue *vq,
 	return 0;
 }
 
-static int vid_out_buf_prepare(struct vb2_buffer *vb)
+static int vid_out_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
-	unsigned long size;
-	unsigned planes;
+
+	dprintk(dev, 1, "%s\n", __func__);
+
+	if (dev->field_out != V4L2_FIELD_ALTERNATE)
+		vbuf->field = dev->field_out;
+	else if (vbuf->field != V4L2_FIELD_TOP &&
+		 vbuf->field != V4L2_FIELD_BOTTOM)
+		return -EINVAL;
+	return 0;
+}
+
+static int vid_out_buf_prepare(struct vb2_buffer *vb)
+{
+	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+	const struct vivid_fmt *vfmt = dev->fmt_out;
+	unsigned int planes = vfmt->buffers;
+	unsigned int h = dev->fmt_out_rect.height;
+	unsigned int size = dev->bytesperline_out[0] * h;
 	unsigned p;
+
+	for (p = vfmt->buffers; p < vfmt->planes; p++)
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (WARN_ON(NULL == dev->fmt_out))
 		return -EINVAL;
-
-	planes = dev->fmt_out->planes;
 
 	if (dev->buf_prepare_error) {
 		/*
@@ -105,18 +125,13 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 
-	if (dev->field_out != V4L2_FIELD_ALTERNATE)
-		vbuf->field = dev->field_out;
-	else if (vbuf->field != V4L2_FIELD_TOP &&
-		 vbuf->field != V4L2_FIELD_BOTTOM)
-		return -EINVAL;
-
 	for (p = 0; p < planes; p++) {
-		size = dev->bytesperline_out[p] * dev->fmt_out_rect.height +
-			vb->planes[p].data_offset;
+		if (p)
+			size = dev->bytesperline_out[p] * h;
+		size += vb->planes[p].data_offset;
 
 		if (vb2_get_plane_payload(vb, p) < size) {
-			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %lu)\n",
+			dprintk(dev, 1, "%s the payload is too small for plane %u (%lu < %u)\n",
 					__func__, p, vb2_get_plane_payload(vb, p), size);
 			return -EINVAL;
 		}
@@ -188,6 +203,7 @@ static void vid_out_buf_request_complete(struct vb2_buffer *vb)
 
 const struct vb2_ops vivid_vid_out_qops = {
 	.queue_setup		= vid_out_queue_setup,
+	.buf_out_validate		= vid_out_buf_out_validate,
 	.buf_prepare		= vid_out_buf_prepare,
 	.buf_queue		= vid_out_buf_queue,
 	.start_streaming	= vid_out_start_streaming,
@@ -321,7 +337,8 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	for (p = 0; p < mp->num_planes; p++) {
 		mp->plane_fmt[p].bytesperline = dev->bytesperline_out[p];
 		mp->plane_fmt[p].sizeimage =
-			mp->plane_fmt[p].bytesperline * mp->height;
+			mp->plane_fmt[p].bytesperline * mp->height +
+			fmt->data_offset[p];
 	}
 	for (p = fmt->buffers; p < fmt->planes; p++) {
 		unsigned stride = dev->bytesperline_out[p];
@@ -399,7 +416,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 			pfmt[p].bytesperline = bytesperline;
 
 		pfmt[p].sizeimage = (pfmt[p].bytesperline * mp->height) /
-					fmt->vdownsampling[p];
+				fmt->vdownsampling[p] + fmt->data_offset[p];
 
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}

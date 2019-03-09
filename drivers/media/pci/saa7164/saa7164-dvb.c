@@ -529,7 +529,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 	return 0;
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card.
  */
 int saa7164_dvb_register(struct saa7164_port *port)
