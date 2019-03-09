@@ -1594,10 +1594,116 @@ out_unlock:
 	return err;
 }
 
+static void mock_barrier_task(void *data)
+{
+	unsigned int *counter = data;
+
+	++*counter;
+}
+
+static int mock_context_barrier(void *arg)
+{
+#undef pr_fmt
+#define pr_fmt(x) "context_barrier_task():" # x
+	struct drm_i915_private *i915 = arg;
+	struct i915_gem_context *ctx;
+	struct i915_request *rq;
+	intel_wakeref_t wakeref;
+	unsigned int counter;
+	int err;
+
+	/*
+	 * The context barrier provides us with a callback after it emits
+	 * a request; useful for retiring old state after loading new.
+	 */
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	ctx = mock_context(i915, "mock");
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto unlock;
+	}
+
+	counter = 0;
+	err = context_barrier_task(ctx, 0, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	if (counter == 0) {
+		pr_err("Did not retire immediately with 0 engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	counter = 0;
+	err = context_barrier_task(ctx,
+				   ALL_ENGINES, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	if (counter == 0) {
+		pr_err("Did not retire immediately for all inactive engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	rq = ERR_PTR(-ENODEV);
+	with_intel_runtime_pm(i915, wakeref)
+		rq = i915_request_alloc(i915->engine[RCS0], ctx);
+	if (IS_ERR(rq)) {
+		pr_err("Request allocation failed!\n");
+		goto out;
+	}
+	i915_request_add(rq);
+	GEM_BUG_ON(list_empty(&ctx->active_engines));
+
+	counter = 0;
+	context_barrier_inject_fault = BIT(RCS0);
+	err = context_barrier_task(ctx,
+				   ALL_ENGINES, mock_barrier_task, &counter);
+	context_barrier_inject_fault = 0;
+	if (err == -ENXIO)
+		err = 0;
+	else
+		pr_err("Did not hit fault injection!\n");
+	if (counter != 0) {
+		pr_err("Invoked callback on error!\n");
+		err = -EIO;
+	}
+	if (err)
+		goto out;
+
+	counter = 0;
+	err = context_barrier_task(ctx,
+				   ALL_ENGINES, mock_barrier_task, &counter);
+	if (err) {
+		pr_err("Failed at line %d, err=%d\n", __LINE__, err);
+		goto out;
+	}
+	mock_device_flush(i915);
+	if (counter == 0) {
+		pr_err("Did not retire on each active engines\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	mock_context_close(ctx);
+unlock:
+	mutex_unlock(&i915->drm.struct_mutex);
+	return err;
+#undef pr_fmt
+#define pr_fmt(x) x
+}
+
 int i915_gem_context_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_switch_to_kernel_context),
+		SUBTEST(mock_context_barrier),
 	};
 	struct drm_i915_private *i915;
 	int err;
