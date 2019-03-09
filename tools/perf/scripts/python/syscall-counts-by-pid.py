@@ -39,11 +39,10 @@ def trace_end():
 	print_syscall_totals()
 
 def raw_syscalls__sys_enter(event_name, context, common_cpu,
-	common_secs, common_nsecs, common_pid, common_comm,
-	common_callchain, id, args):
-
+		common_secs, common_nsecs, common_pid, common_comm,
+		common_callchain, id, args):
 	if (for_comm and common_comm != for_comm) or \
-	   (for_pid  and common_pid  != for_pid ):
+		(for_pid and common_pid != for_pid ):
 		return
 	try:
 		syscalls[common_comm][common_pid][id] += 1
@@ -51,26 +50,26 @@ def raw_syscalls__sys_enter(event_name, context, common_cpu,
 		syscalls[common_comm][common_pid][id] = 1
 
 def syscalls__sys_enter(event_name, context, common_cpu,
-	common_secs, common_nsecs, common_pid, common_comm,
-	id, args):
+		common_secs, common_nsecs, common_pid, common_comm,
+		id, args):
 	raw_syscalls__sys_enter(**locals())
 
 def print_syscall_totals():
-    if for_comm is not None:
-	    print("\nsyscall events for %s:\n" % (for_comm))
-    else:
-	    print("\nsyscall events by comm/pid:\n")
+	if for_comm is not None:
+		print("\nsyscall events for %s:\n" % (for_comm))
+	else:
+		print("\nsyscall events by comm/pid:\n")
 
-    print("%-40s  %10s" % ("comm [pid]/syscalls", "count"))
-    print("%-40s  %10s" % ("----------------------------------------",
-                            "----------"))
+	print("%-40s  %10s" % ("comm [pid]/syscalls", "count"))
+	print("%-40s  %10s" % ("----------------------------------------",
+				"----------"))
 
-    comm_keys = syscalls.keys()
-    for comm in comm_keys:
-	    pid_keys = syscalls[comm].keys()
-	    for pid in pid_keys:
-		    print("\n%s [%d]" % (comm, pid))
-		    id_keys = syscalls[comm][pid].keys()
-		    for id, val in sorted(syscalls[comm][pid].items(), \
-				  key = lambda kv: (kv[1], kv[0]),  reverse = True):
-			    print("  %-38s  %10d" % (syscall_name(id), val))
+	comm_keys = syscalls.keys()
+	for comm in comm_keys:
+		pid_keys = syscalls[comm].keys()
+		for pid in pid_keys:
+			print("\n%s [%d]" % (comm, pid))
+			id_keys = syscalls[comm][pid].keys()
+			for id, val in sorted(syscalls[comm][pid].items(),
+				key = lambda kv: (kv[1], kv[0]), reverse = True):
+				print("  %-38s  %10d" % (syscall_name(id), val))
