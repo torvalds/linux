@@ -81,10 +81,7 @@
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
-int __irq_offset_value;
-
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
 
 #ifdef CONFIG_TAU_INT
