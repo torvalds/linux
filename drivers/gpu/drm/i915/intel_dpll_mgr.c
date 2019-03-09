@@ -3117,10 +3117,10 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 }
 
 static void icl_pll_enable(struct drm_i915_private *dev_priv,
-			   struct intel_shared_dpll *pll)
+			   struct intel_shared_dpll *pll,
+			   i915_reg_t enable_reg)
 {
 	const enum intel_dpll_id id = pll->info->id;
-	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(id);
 	u32 val;
 
 	val = I915_READ(enable_reg);
@@ -3155,6 +3155,23 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 		DRM_ERROR("PLL %d not locked\n", id);
 
 	/* DVFS post sequence would be here. See the comment above. */
+}
+
+static void combo_pll_enable(struct drm_i915_private *dev_priv,
+			     struct intel_shared_dpll *pll)
+{
+	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(pll->info->id);
+
+	icl_pll_enable(dev_priv, pll, enable_reg);
+}
+
+static void mg_pll_enable(struct drm_i915_private *dev_priv,
+			  struct intel_shared_dpll *pll)
+{
+	i915_reg_t enable_reg =
+		MG_PLL_ENABLE(icl_pll_id_to_tc_port(pll->info->id));
+
+	icl_pll_enable(dev_priv, pll, enable_reg);
 }
 
 static void icl_pll_disable(struct drm_i915_private *dev_priv,
@@ -3218,13 +3235,13 @@ static void icl_dump_hw_state(struct drm_i915_private *dev_priv,
 }
 
 static const struct intel_shared_dpll_funcs icl_pll_funcs = {
-	.enable = icl_pll_enable,
+	.enable = combo_pll_enable,
 	.disable = icl_pll_disable,
 	.get_hw_state = icl_pll_get_hw_state,
 };
 
 static const struct intel_shared_dpll_funcs mg_pll_funcs = {
-	.enable = icl_pll_enable,
+	.enable = mg_pll_enable,
 	.disable = icl_pll_disable,
 	.get_hw_state = mg_pll_get_hw_state,
 };
