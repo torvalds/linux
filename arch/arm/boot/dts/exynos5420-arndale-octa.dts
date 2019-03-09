@@ -504,8 +504,8 @@
 
 			ldo23_reg: LDO23 {
 				regulator-name = "PVDD_MIFS_1V1";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
 				regulator-always-on;
 			};
 
@@ -530,8 +530,8 @@
 
 			ldo27_reg: LDO27 {
 				regulator-name = "PVDD_G3DS_1V0";
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
 			};
 
 			ldo28_reg: LDO28 {
