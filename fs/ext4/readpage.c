@@ -49,7 +49,7 @@
 
 static inline bool ext4_bio_encrypted(struct bio *bio)
 {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 	return unlikely(bio->bi_private != NULL);
 #else
 	return false;
@@ -243,8 +243,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 		if (bio == NULL) {
 			struct fscrypt_ctx *ctx = NULL;
 
-			if (ext4_encrypted_inode(inode) &&
-			    S_ISREG(inode->i_mode)) {
+			if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode)) {
 				ctx = fscrypt_get_ctx(inode, GFP_NOFS);
 				if (IS_ERR(ctx))
 					goto set_error_page;
