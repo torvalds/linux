@@ -155,7 +155,9 @@ static int retriveFromFile(char *path, u8 *buf, u32 sz)
 	struct file *fp;
 
 	if (path && buf) {
-		if (0 == (ret =openFile(&fp, path, O_RDONLY, 0))) {
+		ret = openFile(&fp, path, O_RDONLY, 0);
+
+		if (ret == 0) {
 			DBG_871X("%s openFile path:%s fp =%p\n", __func__, path , fp);
 
 			ret =readFile(fp, buf, sz);
