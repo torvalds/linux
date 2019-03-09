@@ -496,7 +496,7 @@ zr36057_overlay (struct zoran *zr,
 				KERN_ERR
 				"%s: zr36057_overlay() - video_stride not aligned\n",
 				ZR_DEVNAME(zr));
-		reg = (reg << ZR36057_VSSFGR_DispStride);
+		reg = reg << ZR36057_VSSFGR_DispStride;
 		reg |= ZR36057_VSSFGR_VidOvf;	/* clear overflow status */
 		btwrite(reg, ZR36057_VSSFGR);
 
@@ -1421,7 +1421,7 @@ zoran_irq (int             irq,
 					reg = 0;
 					if (zr->v4l_settings.height > BUZ_MAX_HEIGHT / 2)
 						reg += zr->v4l_settings.bytesperline;
-					reg = (reg << ZR36057_VSSFGR_DispStride);
+					reg = reg << ZR36057_VSSFGR_DispStride;
 					reg |= ZR36057_VSSFGR_VidOvf;
 					reg |= ZR36057_VSSFGR_SnapShot;
 					reg |= ZR36057_VSSFGR_FrameGrab;
