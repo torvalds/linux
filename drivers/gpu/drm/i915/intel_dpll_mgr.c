@@ -2649,11 +2649,6 @@ enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port)
 	return tc_port + DPLL_ID_ICL_MGPLL1;
 }
 
-bool intel_dpll_is_combophy(enum intel_dpll_id id)
-{
-	return id == DPLL_ID_ICL_DPLL0 || id == DPLL_ID_ICL_DPLL1;
-}
-
 static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 				     u32 *target_dco_khz,
 				     struct intel_dpll_hw_state *state)

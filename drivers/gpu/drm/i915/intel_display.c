@@ -9616,9 +9616,6 @@ static void icelake_get_ddi_pll(struct drm_i915_private *dev_priv,
 		temp = I915_READ(DPCLKA_CFGCR0_ICL) &
 		       DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
 		id = temp >> DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(port);
-
-		if (WARN_ON(!intel_dpll_is_combophy(id)))
-			return;
 	} else if (intel_port_is_tc(dev_priv, port)) {
 		id = icl_tc_port_to_pll_id(intel_port_to_tc(dev_priv, port));
 	} else {
