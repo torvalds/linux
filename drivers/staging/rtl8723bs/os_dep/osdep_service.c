@@ -241,7 +241,7 @@ RETURN:
 	return pnetdev;
 }
 
-void rtw_free_netdev(struct net_device * netdev)
+void rtw_free_netdev(struct net_device *netdev)
 {
 	struct rtw_netdev_priv_indicator *pnpi;
 
