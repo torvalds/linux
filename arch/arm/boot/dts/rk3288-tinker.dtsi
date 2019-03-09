@@ -5,6 +5,7 @@
 
 #include "rk3288.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/rockchip,rk808.h>
 
 / {
 	chosen {
@@ -59,6 +60,16 @@
 			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
 		};
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk808 RK808_CLKOUT1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable>;
+		reset-gpios = <&gpio4 RK_PD3 GPIO_ACTIVE_LOW>,
+			<&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
 	sound {
@@ -337,6 +348,7 @@
 	status = "okay";
 
 	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vcc_18>;
 };
 
 &pinctrl {
@@ -415,6 +427,13 @@
 			rockchip,pins = <7 8 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	sdio {
+		wifi_enable: wifi-enable {
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm0 {
@@ -437,6 +456,24 @@
 	status = "okay";
 	vmmc-supply = <&vcc33_sd>;
 	vqmmc-supply = <&vccio_sd>;
+};
+
+&sdio0 {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	max-frequency = <50000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4>, <&sdio0_cmd>, <&sdio0_clk>, <&sdio0_int>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	vmmc-supply = <&vcc_io>;
+	vqmmc-supply = <&vcc_18>;
+	status = "okay";
 };
 
 &tsadc {
