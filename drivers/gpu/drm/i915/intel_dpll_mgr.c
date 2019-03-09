@@ -3116,11 +3116,10 @@ static void icl_mg_pll_write(struct drm_i915_private *dev_priv,
 	POSTING_READ(MG_PLL_TDC_COLDST_BIAS(tc_port));
 }
 
-static void icl_pll_enable(struct drm_i915_private *dev_priv,
-			   struct intel_shared_dpll *pll,
-			   i915_reg_t enable_reg)
+static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll,
+				 i915_reg_t enable_reg)
 {
-	const enum intel_dpll_id id = pll->info->id;
 	u32 val;
 
 	val = I915_READ(enable_reg);
@@ -3133,28 +3132,23 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 	 */
 	if (intel_wait_for_register(dev_priv, enable_reg, PLL_POWER_STATE,
 				    PLL_POWER_STATE, 1))
-		DRM_ERROR("PLL %d Power not enabled\n", id);
+		DRM_ERROR("PLL %d Power not enabled\n", pll->info->id);
+}
 
-	if (intel_dpll_is_combophy(id) || id == DPLL_ID_ICL_TBTPLL)
-		icl_dpll_write(dev_priv, pll);
-	else
-		icl_mg_pll_write(dev_priv, pll);
-
-	/*
-	 * DVFS pre sequence would be here, but in our driver the cdclk code
-	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothign here.
-	 */
+static void icl_pll_enable(struct drm_i915_private *dev_priv,
+			   struct intel_shared_dpll *pll,
+			   i915_reg_t enable_reg)
+{
+	u32 val;
 
 	val = I915_READ(enable_reg);
 	val |= PLL_ENABLE;
 	I915_WRITE(enable_reg, val);
 
+	/* Timeout is actually 600us. */
 	if (intel_wait_for_register(dev_priv, enable_reg, PLL_LOCK, PLL_LOCK,
-				    1)) /* 600us actually. */
-		DRM_ERROR("PLL %d not locked\n", id);
-
-	/* DVFS post sequence would be here. See the comment above. */
+				    1))
+		DRM_ERROR("PLL %d not locked\n", pll->info->id);
 }
 
 static void combo_pll_enable(struct drm_i915_private *dev_priv,
@@ -3162,7 +3156,19 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 {
 	i915_reg_t enable_reg = icl_pll_id_to_enable_reg(pll->info->id);
 
+	icl_pll_power_enable(dev_priv, pll, enable_reg);
+
+	icl_dpll_write(dev_priv, pll);
+
+	/*
+	 * DVFS pre sequence would be here, but in our driver the cdclk code
+	 * paths should already be setting the appropriate voltage, hence we do
+	 * nothing here.
+	 */
+
 	icl_pll_enable(dev_priv, pll, enable_reg);
+
+	/* DVFS post sequence would be here. See the comment above. */
 }
 
 static void mg_pll_enable(struct drm_i915_private *dev_priv,
@@ -3171,7 +3177,19 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 	i915_reg_t enable_reg =
 		MG_PLL_ENABLE(icl_pll_id_to_tc_port(pll->info->id));
 
+	icl_pll_power_enable(dev_priv, pll, enable_reg);
+
+	icl_mg_pll_write(dev_priv, pll);
+
+	/*
+	 * DVFS pre sequence would be here, but in our driver the cdclk code
+	 * paths should already be setting the appropriate voltage, hence we do
+	 * nothing here.
+	 */
+
 	icl_pll_enable(dev_priv, pll, enable_reg);
+
+	/* DVFS post sequence would be here. See the comment above. */
 }
 
 static void icl_pll_disable(struct drm_i915_private *dev_priv,
