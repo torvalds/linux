@@ -132,7 +132,9 @@ else
         echo >&2 "Install lsb-release or set \$KDEB_CHANGELOG_DIST explicitly"
 fi
 
-mkdir -p debian/
+mkdir -p debian/source/
+echo "1.0" > debian/source/format
+
 echo $debarch > debian/arch
 extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev)"
 extra_build_depends="$extra_build_depends, $(if_enabled_echo CONFIG_SYSTEM_TRUSTED_KEYRING libssl-dev:native)"
@@ -223,5 +225,6 @@ clean:
 
 binary: binary-arch
 EOF
+chmod +x debian/rules
 
 exit 0
