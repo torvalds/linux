@@ -84,6 +84,59 @@ err:
 EXPORT_SYMBOL_GPL(pci_epc_get);
 
 /**
+ * pci_epc_get_first_free_bar() - helper to get first unreserved BAR
+ * @epc_features: pci_epc_features structure that holds the reserved bar bitmap
+ *
+ * Invoke to get the first unreserved BAR that can be used for endpoint
+ * function. For any incorrect value in reserved_bar return '0'.
+ */
+unsigned int pci_epc_get_first_free_bar(const struct pci_epc_features
+					*epc_features)
+{
+	int free_bar;
+
+	if (!epc_features)
+		return 0;
+
+	free_bar = ffz(epc_features->reserved_bar);
+	if (free_bar > 5)
+		return 0;
+
+	return free_bar;
+}
+EXPORT_SYMBOL_GPL(pci_epc_get_first_free_bar);
+
+/**
+ * pci_epc_get_features() - get the features supported by EPC
+ * @epc: the features supported by *this* EPC device will be returned
+ * @func_no: the features supported by the EPC device specific to the
+ *	     endpoint function with func_no will be returned
+ *
+ * Invoke to get the features provided by the EPC which may be
+ * specific to an endpoint function. Returns pci_epc_features on success
+ * and NULL for any failures.
+ */
+const struct pci_epc_features *pci_epc_get_features(struct pci_epc *epc,
+						    u8 func_no)
+{
+	const struct pci_epc_features *epc_features;
+	unsigned long flags;
+
+	if (IS_ERR_OR_NULL(epc) || func_no >= epc->max_functions)
+		return NULL;
+
+	if (!epc->ops->get_features)
+		return NULL;
+
+	spin_lock_irqsave(&epc->lock, flags);
+	epc_features = epc->ops->get_features(epc, func_no);
+	spin_unlock_irqrestore(&epc->lock, flags);
+
+	return epc_features;
+}
+EXPORT_SYMBOL_GPL(pci_epc_get_features);
+
+/**
  * pci_epc_stop() - stop the PCI link
  * @epc: the link of the EPC device that has to be stopped
  *

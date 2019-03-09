@@ -96,6 +96,14 @@
 	};
 };
 
+&aips2 {
+	pcie_phy: pcie-phy@306d0000 {
+		  compatible = "fsl,imx7d-pcie-phy";
+		  reg = <0x306d0000 0x10000>;
+		  status = "disabled";
+	};
+};
+
 &aips3 {
 	usbotg2: usb@30b20000 {
 		compatible = "fsl,imx7d-usb", "fsl,imx27-usb";
@@ -173,6 +181,7 @@
 			 <&src IMX7_RESET_PCIE_CTRL_APPS_EN>,
 			 <&src IMX7_RESET_PCIE_CTRL_APPS_TURNOFF>;
 		reset-names = "pciephy", "apps", "turnoff";
+		fsl,imx7d-pcie-phy = <&pcie_phy>;
 		status = "disabled";
 	};
 };
