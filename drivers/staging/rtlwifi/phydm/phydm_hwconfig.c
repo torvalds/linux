@@ -1790,7 +1790,7 @@ phydm_process_rssi_for_dm_new_type(struct phy_dm_struct *dm,
 
 		if (undecorated_smoothed_pwdb <= 0) {
 			accumulate_pwdb =
-				(phy_info->rx_pwdb_all << scaling_factor);
+				phy_info->rx_pwdb_all << scaling_factor;
 			undecorated_smoothed_pwdb = phy_info->rx_pwdb_all;
 		} else {
 			accumulate_pwdb = accumulate_pwdb -
