@@ -1237,9 +1237,6 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	aead_request_set_ad(req, vec->alen);
 	err = crypto_wait_req(enc ? crypto_aead_encrypt(req) :
 			      crypto_aead_decrypt(req), &wait);
-
-	aead_request_set_tfm(req, tfm); /* TODO: get rid of this */
-
 	if (err) {
 		if (err == -EBADMSG && vec->novrfy)
 			return 0;
