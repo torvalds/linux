@@ -340,7 +340,7 @@ config CRYPTO_MORUS640_GLUE
 	tristate
 	depends on X86
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
 	  Common glue for SIMD optimizations of the MORUS-640 dedicated AEAD
 	  algorithm.
