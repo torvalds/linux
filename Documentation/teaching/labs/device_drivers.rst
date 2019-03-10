@@ -33,8 +33,8 @@ disks, magnetic tape drives. For these devices, reading and writing is done at
 the data block level.
 
 For the two types of device drivers, the Linux kernel offers different APIs.
-If for device devices system calls go directly to device drivers, in case of
-block device devices, the drivers do not work directly with system calls. In
+If for character devices system calls go directly to device drivers, in case of
+block devices, the drivers do not work directly with system calls. In
 the case of block devices, communication between the user-space and the block
 device driver is mediated by the file management subsystem and the block device
 subsystem . The role of these subsystems is to prepare the device driver's
@@ -70,7 +70,7 @@ character ``b``. In columns ``5`` and ``6`` of the result  you can see the
 major, respectively the minor for each device.
 
 Certain major identifiers are statically assigned to devices (in the
-``Documentation/devices.txt`` file from the kernel sources). When choosing the
+``Documentation/admin-guide/devices.txt`` file from the kernel sources). When choosing the
 identifier for a new device, you can use two methods: static (choose a number
 that does not seem to be used already) or dynamically. In /proc/devices are the
 loaded devices, along with the major identifier.
@@ -104,11 +104,11 @@ system. Most driver operations use three important structures:
 :c:type:`struct file_operations`
 --------------------------------
 
-As mentioned above, the device device drivers receive unaltered system calls
+As mentioned above, the character device drivers receive unaltered system calls
 made by users over device-type files. Consequently, implementation of a character
-device drivers means implementing the system calls specific to files: ``open``,
+device driver means implementing the system calls specific to files: ``open``,
 ``close``, ``read``, ``write``, ``lseek``, ``mmap``, etc. These operations are
-described in the fields of the file_operations structure:
+described in the fields of the ``struct file_operations`` structure:
 
 .. code-block:: c
 
@@ -240,7 +240,7 @@ routines.
 Registration and unregistration of character devices
 ====================================================
 
-The registration/registration of a device is made by specifying the major and
+The registration/unregistration of a device is made by specifying the major and
 minor. The ``dev_t`` type is used to keep the identifiers of a device (both major
 and minor) and can be obtained using the MKDEV macro.
 
@@ -279,7 +279,7 @@ exceeded, move to the next major):
 .. **
 
 After assigning the identifiers, the character device will have to be
-initialized (cdev_init) and the cdev_add kernel will have to be notified. The
+initialized (``cdev_init``) and the kernel will have to be notified(``cdev_add``). The
 ``cdev_add`` function must be called only after the device is ready to receive
 calls. Removing a device is done using the ``cdev_del`` function.
 
@@ -342,7 +342,7 @@ The following sequence registers and initializes MY_MAX_MINORS devices:
 
 .. **
 
-While the following sequence deletes and registers them:
+While the following sequence deletes and unregisters them:
 
 .. code-block:: c
 
@@ -397,10 +397,10 @@ error and have the following roles:
      hardware platform);
    * ``get_user`` analogue to the previous function, only that val will be set to a
      value identical to the value at the user-space address given by address;
-   * ``copy_to_user`` copies from the kernel-space from the address referenced by
-     from in user-space to the address referenced by ``to``, ``byte size`` bytes;
-   * ``copy_from_user`` copies from user-space from the address referenced by from
-     in kernel-space to the address referenced by ``to``, ``byte size`` bytes.
+   * ``copy_to_user`` copies from the kernel-space, from the address referenced by
+     ``from`` in user-space to the address referenced by ``to``, ``n`` bytes;
+   * ``copy_from_user`` copies from user-space from the address referenced by
+     ``from`` in kernel-space to the address referenced by ``to``, ``n`` bytes.
 
 A common section of code that works with these functions is:
 
@@ -608,8 +608,8 @@ at 0, but it is recommended to use ``_IOC(dir, type, nr, size)`` macrodefinition
 to generate ioctl codes. The macrodefinition parameters are as follows:
 
    * ``dir`` represents the data transfer (``_IOC_NONE`` , ``_IOC_READ``,
-     ``_IOC_WRITE``.
-   * ``type`` represents the magic number (Documentation/ioctl-number.txt);
+     ``_IOC_WRITE``).
+   * ``type`` represents the magic number (``Documentation/ioctl/ioctl-number.txt``);
    * ``nr`` is the ioctl code for the device;
    * ``size`` is the size transferred data.
 
