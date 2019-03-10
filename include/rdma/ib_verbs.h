@@ -2994,8 +2994,8 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
 {
-	return (device->port_data[port_num].immutable.core_cap_flags &
-		RDMA_CORE_CAP_OPA_MAD) == RDMA_CORE_CAP_OPA_MAD;
+	return device->port_data[port_num].immutable.core_cap_flags &
+		RDMA_CORE_CAP_OPA_MAD;
 }
 
 /**
