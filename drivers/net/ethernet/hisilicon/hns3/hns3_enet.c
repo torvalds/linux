@@ -1850,7 +1850,9 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 
 	/* request the reset */
 	if (ae_dev->ops->reset_event) {
-		ae_dev->ops->reset_event(pdev, NULL);
+		if (!ae_dev->override_pci_need_reset)
+			ae_dev->ops->reset_event(pdev, NULL);
+
 		return PCI_ERS_RESULT_RECOVERED;
 	}
 
