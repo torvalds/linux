@@ -269,6 +269,10 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_mixer_control *mc =
 		(struct snd_soc_tplg_mixer_control *)hdr;
+	struct sof_ipc_ctrl_data *cdata;
+	int tlv[TLV_ITEMS];
+	unsigned int i;
+	int ret;
 
 	/* validate topology data */
 	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN)
@@ -286,11 +290,34 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
 
 	/* set cmd for mixer control */
-	if (mc->max > 1)
-		scontrol->cmd = SOF_CTRL_CMD_VOLUME;
-	else
+	if (mc->max == 1) {
 		scontrol->cmd = SOF_CTRL_CMD_SWITCH;
+		goto out;
+	}
 
+	scontrol->cmd = SOF_CTRL_CMD_VOLUME;
+
+	/* extract tlv data */
+	if (get_tlv_data(kc->tlv.p, tlv) < 0) {
+		dev_err(sdev->dev, "error: invalid TLV data\n");
+		return -EINVAL;
+	}
+
+	/* set up volume table */
+	ret = set_up_volume_table(scontrol, tlv, mc->max + 1);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: setting up volume table\n");
+		return ret;
+	}
+
+	/* set default volume values to 0dB in control */
+	cdata = scontrol->control_data;
+	for (i = 0; i < scontrol->num_channels; i++) {
+		cdata->chanv[i].channel = i;
+		cdata->chanv[i].value = VOL_ZERO_DB;
+	}
+
+out:
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
 
@@ -1359,14 +1386,7 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_private *private = &tw->priv;
 	struct sof_ipc_comp_volume *volume;
-	struct snd_soc_dapm_widget *widget = swidget->widget;
-	const struct snd_kcontrol_new *kc = NULL;
-	struct soc_mixer_control *sm;
-	struct snd_sof_control *scontrol;
-	struct sof_ipc_ctrl_data *cdata;
-	const unsigned int *p;
-	int ret, tlv[TLV_ITEMS];
-	unsigned int i;
+	int ret;
 
 	volume = kzalloc(sizeof(*volume), GFP_KERNEL);
 	if (!volume)
@@ -1376,30 +1396,6 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 		dev_err(sdev->dev, "error: invalid kcontrol count %d for volume\n",
 			tw->num_kcontrols);
 		ret = -EINVAL;
-		goto err;
-	}
-
-	/* set up volume gain tables for kcontrol */
-	kc = &widget->kcontrol_news[0];
-	sm = (struct soc_mixer_control *)kc->private_value;
-
-	/* get volume control */
-	scontrol = sm->dobj.private;
-
-	/* get topology tlv data */
-	p = kc->tlv.p;
-
-	/* extract tlv data */
-	if (get_tlv_data(p, tlv) < 0) {
-		dev_err(sdev->dev, "error: invalid TLV data\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	/* set up volume table */
-	ret = set_up_volume_table(scontrol, tlv, sm->max + 1);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: setting up volume table\n");
 		goto err;
 	}
 
@@ -1426,13 +1422,6 @@ static int sof_widget_load_pga(struct snd_soc_component *scomp, int index,
 		dev_err(sdev->dev, "error: parse volume.cfg tokens failed %d\n",
 			le32_to_cpu(private->size));
 		goto err;
-	}
-
-	/* set default volume values to 0dB in control */
-	cdata = scontrol->control_data;
-	for (i = 0; i < scontrol->num_channels; i++) {
-		cdata->chanv[i].channel = i;
-		cdata->chanv[i].value = VOL_ZERO_DB;
 	}
 
 	sof_dbg_comp_config(scomp, &volume->config);
