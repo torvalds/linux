@@ -574,7 +574,7 @@ xfs_dir2_leaf_addname(
 	xfs_dir2_data_unused_t	*dup;		/* data unused entry */
 	int			error;		/* error return value */
 	int			grown;		/* allocated new data block */
-	int			highstale;	/* index of next stale leaf */
+	int			highstale = 0;	/* index of next stale leaf */
 	int			i;		/* temporary, index */
 	int			index;		/* leaf table position */
 	struct xfs_buf		*lbp;		/* leaf's buffer */
@@ -583,7 +583,7 @@ xfs_dir2_leaf_addname(
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry table pointer */
 	int			lfloglow;	/* low leaf logging index */
 	int			lfloghigh;	/* high leaf logging index */
-	int			lowstale;	/* index of prev stale leaf */
+	int			lowstale = 0;	/* index of prev stale leaf */
 	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail pointer */
 	int			needbytes;	/* leaf block bytes needed */
 	int			needlog;	/* need to log data header */
