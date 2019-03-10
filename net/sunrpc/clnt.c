@@ -1867,6 +1867,9 @@ call_bind(struct rpc_task *task)
 	dprint_status(task);
 
 	task->tk_action = call_bind_status;
+	if (!xprt_prepare_transmit(task))
+		return;
+
 	task->tk_timeout = xprt->bind_timeout;
 	xprt->ops->rpcbind(task);
 }
@@ -1911,6 +1914,8 @@ call_bind_status(struct rpc_task *task)
 		task->tk_rebind_retry--;
 		rpc_delay(task, 3*HZ);
 		goto retry_timeout;
+	case -EAGAIN:
+		goto retry_timeout;
 	case -ETIMEDOUT:
 		dprintk("RPC: %5u rpcbind request timed out\n",
 				task->tk_pid);
@@ -1952,7 +1957,7 @@ call_bind_status(struct rpc_task *task)
 
 retry_timeout:
 	task->tk_status = 0;
-	task->tk_action = call_encode;
+	task->tk_action = call_bind;
 	rpc_check_timeout(task);
 }
 
@@ -1986,6 +1991,8 @@ call_connect(struct rpc_task *task)
 		rpc_exit(task, -ENOTCONN);
 		return;
 	}
+	if (!xprt_prepare_transmit(task))
+		return;
 	xprt_connect(task);
 }
 
