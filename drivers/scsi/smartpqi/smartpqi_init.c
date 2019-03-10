@@ -6043,7 +6043,8 @@ out:
 	return rc;
 }
 
-static int pqi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+static int pqi_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		     void __user *arg)
 {
 	int rc;
 	struct pqi_ctrl_info *ctrl_info;

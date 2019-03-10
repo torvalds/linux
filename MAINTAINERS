@@ -5990,7 +5990,7 @@ S:	Maintained
 F:	drivers/media/tuners/fc2580*
 
 FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
-M:	Johannes Thumshirn <jth@kernel.org>
+M:	Hannes Reinecke <hare@suse.de>
 L:	linux-scsi@vger.kernel.org
 W:	www.Open-FCoE.org
 S:	Supported
@@ -11629,13 +11629,6 @@ W:	http://www.nongnu.org/orinoco/
 S:	Orphan
 F:	drivers/net/wireless/intersil/orinoco/
 
-OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <ooo@electrozaur.com>
-S:	Maintained
-F:	drivers/scsi/osd/
-F:	include/scsi/osd_*
-F:	fs/exofs/
-
 OV2659 OMNIVISION SENSOR DRIVER
 M:	"Lad, Prabhakar" <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -13766,6 +13759,7 @@ M:	"James E.J. Bottomley" <jejb@linux.ibm.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi.git
 M:	"Martin K. Petersen" <martin.petersen@oracle.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
+Q:	https://patchwork.kernel.org/project/linux-scsi/list/
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/scsi/
@@ -13779,6 +13773,18 @@ S:	Maintained
 F:	Documentation/scsi/st.txt
 F:	drivers/scsi/st.*
 F:	drivers/scsi/st_*.h
+
+SCSI TARGET SUBSYSTEM
+M:	"Martin K. Petersen" <martin.petersen@oracle.com>
+L:	linux-scsi@vger.kernel.org
+L:	target-devel@vger.kernel.org
+W:	http://www.linux-iscsi.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
+Q:	https://patchwork.kernel.org/project/target-devel/list/
+S:	Supported
+F:	drivers/target/
+F:	include/target/
+F:	Documentation/target/
 
 SCTP PROTOCOL
 M:	Vlad Yasevich <vyasevich@gmail.com>
@@ -15051,18 +15057,6 @@ F:	Documentation/filesystems/sysv-fs.txt
 F:	fs/sysv/
 F:	include/linux/sysv_fs.h
 
-TARGET SUBSYSTEM
-M:	"Nicholas A. Bellinger" <nab@linux-iscsi.org>
-L:	linux-scsi@vger.kernel.org
-L:	target-devel@vger.kernel.org
-W:	http://www.linux-iscsi.org
-W:	http://groups.google.com/group/linux-iscsi-target-dev
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git master
-S:	Supported
-F:	drivers/target/
-F:	include/target/
-F:	Documentation/target/
-
 TASKSTATS STATISTICS INTERFACE
 M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
@@ -15960,14 +15954,16 @@ F:	drivers/visorbus/
 F:	drivers/staging/unisys/
 
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
-M:	Vinayak Holikatti <vinholikatti@gmail.com>
+R:	Alim Akhtar <alim.akhtar@samsung.com>
+R:	Avri Altman <avri.altman@wdc.com>
+R:	Pedro Sousa <pedrom.sousa@synopsys.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/ufs.txt
 F:	drivers/scsi/ufs/
 
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER DWC HOOKS
-M:	Joao Pinto <jpinto@synopsys.com>
+M:	Pedro Sousa <pedrom.sousa@synopsys.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/ufs/*dwc*

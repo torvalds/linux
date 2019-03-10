@@ -1274,7 +1274,7 @@ int esas2r_write_params(struct esas2r_adapter *a, struct esas2r_request *rq,
 
 
 /* This function only cares about ATTO-specific ioctls (atto_express_ioctl) */
-int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
+int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 {
 	struct atto_express_ioctl *ioctl = NULL;
 	struct esas2r_adapter *a;
@@ -1292,9 +1292,8 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 	ioctl = memdup_user(arg, sizeof(struct atto_express_ioctl));
 	if (IS_ERR(ioctl)) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "ioctl_handler access_ok failed for cmd %d, "
-			   "address %p", cmd,
-			   arg);
+			   "ioctl_handler access_ok failed for cmd %u, address %p",
+			   cmd, arg);
 		return PTR_ERR(ioctl);
 	}
 
@@ -1493,7 +1492,7 @@ int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg)
 ioctl_done:
 
 	if (err < 0) {
-		esas2r_log(ESAS2R_LOG_WARN, "err %d on ioctl cmd %d", err,
+		esas2r_log(ESAS2R_LOG_WARN, "err %d on ioctl cmd %u", err,
 			   cmd);
 
 		switch (err) {
@@ -1518,9 +1517,8 @@ ioctl_done:
 	err = __copy_to_user(arg, ioctl, sizeof(struct atto_express_ioctl));
 	if (err != 0) {
 		esas2r_log(ESAS2R_LOG_WARN,
-			   "ioctl_handler copy_to_user didn't copy "
-			   "everything (err %d, cmd %d)", err,
-			   cmd);
+			   "ioctl_handler copy_to_user didn't copy everything (err %d, cmd %u)",
+			   err, cmd);
 		kfree(ioctl);
 
 		return -EFAULT;
@@ -1531,7 +1529,7 @@ ioctl_done:
 	return 0;
 }
 
-int esas2r_ioctl(struct scsi_device *sd, int cmd, void __user *arg)
+int esas2r_ioctl(struct scsi_device *sd, unsigned int cmd, void __user *arg)
 {
 	return esas2r_ioctl_handler(sd->host->hostdata, cmd, arg);
 }

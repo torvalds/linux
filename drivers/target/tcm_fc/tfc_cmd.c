@@ -184,13 +184,6 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-int ft_write_pending_status(struct se_cmd *se_cmd)
-{
-	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-
-	return cmd->write_data_len != se_cmd->data_length;
-}
-
 /*
  * Send TX_RDY (transfer ready).
  */

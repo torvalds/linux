@@ -1404,11 +1404,6 @@ static int scsiback_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int scsiback_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
 {
 }
@@ -1818,7 +1813,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.sess_get_index			= scsiback_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= scsiback_write_pending,
-	.write_pending_status		= scsiback_write_pending_status,
 	.set_default_node_attributes	= scsiback_set_default_node_attrs,
 	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,

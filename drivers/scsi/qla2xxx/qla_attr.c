@@ -543,6 +543,9 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return 0;
 
+	if (qla2x00_chip_is_down(vha))
+		return 0;
+
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
 	    !ha->isp_ops->write_nvram)
 		return 0;
@@ -1002,7 +1005,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 /* Scsi_Host attributes. */
 
 static ssize_t
-qla2x00_drvr_version_show(struct device *dev,
+qla2x00_driver_version_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%s\n", qla2x00_version_str);
@@ -1632,6 +1635,92 @@ qla2x00_max_speed_sup_show(struct device *dev, struct device_attribute *attr,
 	    ha->max_speed_sup ? "32Gps" : "16Gps");
 }
 
+static ssize_t
+qla2x00_port_speed_store(struct device *dev, struct device_attribute *attr,
+    const char *buf, size_t count)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(dev));
+	ulong type, speed;
+	int oldspeed, rval;
+	int mode = QLA_SET_DATA_RATE_LR;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA27XX(vha->hw)) {
+		ql_log(ql_log_warn, vha, 0x70d8,
+		    "Speed setting not supported \n");
+		return -EINVAL;
+	}
+
+	rval = kstrtol(buf, 10, &type);
+	speed = type;
+	if (type == 40 || type == 80 || type == 160 ||
+	    type == 320) {
+		ql_dbg(ql_dbg_user, vha, 0x70d9,
+		    "Setting will be affected after a loss of sync\n");
+		type = type/10;
+		mode = QLA_SET_DATA_RATE_NOLR;
+	}
+
+	oldspeed = ha->set_data_rate;
+
+	switch (type) {
+	case 0:
+		ha->set_data_rate = PORT_SPEED_AUTO;
+		break;
+	case 4:
+		ha->set_data_rate = PORT_SPEED_4GB;
+		break;
+	case 8:
+		ha->set_data_rate = PORT_SPEED_8GB;
+		break;
+	case 16:
+		ha->set_data_rate = PORT_SPEED_16GB;
+		break;
+	case 32:
+		ha->set_data_rate = PORT_SPEED_32GB;
+		break;
+	default:
+		ql_log(ql_log_warn, vha, 0x1199,
+		    "Unrecognized speed setting:%lx. Setting Autoneg\n",
+		    speed);
+		ha->set_data_rate = PORT_SPEED_AUTO;
+	}
+
+	if (qla2x00_chip_is_down(vha) || (oldspeed == ha->set_data_rate))
+		return -EINVAL;
+
+	ql_log(ql_log_info, vha, 0x70da,
+	    "Setting speed to %lx Gbps \n", type);
+
+	rval = qla2x00_set_data_rate(vha, mode);
+	if (rval != QLA_SUCCESS)
+		return -EIO;
+
+	return strlen(buf);
+}
+
+static ssize_t
+qla2x00_port_speed_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	struct scsi_qla_host *vha = shost_priv(dev_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+	ssize_t rval;
+	char *spd[7] = {"0", "0", "0", "4", "8", "16", "32"};
+
+	rval = qla2x00_get_data_rate(vha);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0x70db,
+		    "Unable to get port speed rval:%zd\n", rval);
+		return -EINVAL;
+	}
+
+	ql_log(ql_log_info, vha, 0x70d6,
+	    "port speed:%d\n", ha->link_data_rate);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", spd[ha->link_data_rate]);
+}
+
 /* ----- */
 
 static ssize_t
@@ -2059,7 +2148,21 @@ ql2xiniexchg_store(struct device *dev, struct device_attribute *attr,
 	return strlen(buf);
 }
 
-static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
+static ssize_t
+qla2x00_dif_bundle_statistics_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	return scnprintf(buf, PAGE_SIZE,
+	    "cross=%llu read=%llu write=%llu kalloc=%llu dma_alloc=%llu unusable=%u\n",
+	    ha->dif_bundle_crossed_pages, ha->dif_bundle_reads,
+	    ha->dif_bundle_writes, ha->dif_bundle_kallocs,
+	    ha->dif_bundle_dma_allocs, ha->pool.unusable.count);
+}
+
+static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_driver_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
 static DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
@@ -2112,6 +2215,10 @@ static DEVICE_ATTR(zio_threshold, 0644,
 static DEVICE_ATTR_RW(qlini_mode);
 static DEVICE_ATTR_RW(ql2xexchoffld);
 static DEVICE_ATTR_RW(ql2xiniexchg);
+static DEVICE_ATTR(dif_bundle_statistics, 0444,
+    qla2x00_dif_bundle_statistics_show, NULL);
+static DEVICE_ATTR(port_speed, 0644, qla2x00_port_speed_show,
+    qla2x00_port_speed_store);
 
 
 struct device_attribute *qla2x00_host_attrs[] = {
@@ -2150,6 +2257,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_min_link_speed,
 	&dev_attr_max_speed_sup,
 	&dev_attr_zio_threshold,
+	&dev_attr_dif_bundle_statistics,
+	&dev_attr_port_speed,
 	NULL, /* reserve for qlini_mode */
 	NULL, /* reserve for ql2xiniexchg */
 	NULL, /* reserve for ql2xexchoffld */
