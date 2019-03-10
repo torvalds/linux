@@ -1116,15 +1116,22 @@ static void update_node_properties(struct device_node *np,
 	for (prop = np->properties; prop != NULL; prop = save_next) {
 		save_next = prop->next;
 		ret = of_add_property(dup, prop);
-		if (ret)
+		if (ret) {
+			if (ret == -EEXIST && !strcmp(prop->name, "name"))
+				continue;
 			pr_err("unittest internal error: unable to add testdata property %pOF/%s",
 			       np, prop->name);
+		}
 	}
 }
 
 /**
  *	attach_node_and_children - attaches nodes
- *	and its children to live tree
+ *	and its children to live tree.
+ *	CAUTION: misleading function name - if node @np already exists in
+ *	the live tree then children of @np are *not* attached to the live
+ *	tree.  This works for the current test devicetree nodes because such
+ *	nodes do not have child nodes.
  *
  *	@np:	Node to attach to live tree
  */
@@ -2514,6 +2521,10 @@ static int __init of_unittest(void)
 	int res;
 
 	/* adding data for unittest */
+
+	if (IS_ENABLED(CONFIG_UML))
+		unittest_unflatten_overlay_base();
+
 	res = unittest_data_add();
 	if (res)
 		return res;
