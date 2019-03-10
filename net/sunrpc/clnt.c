@@ -1812,12 +1812,35 @@ out:
 }
 
 /*
+ * Helpers to check if the task was already transmitted, and
+ * to take action when that is the case.
+ */
+static bool
+rpc_task_transmitted(struct rpc_task *task)
+{
+	return !test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate);
+}
+
+static void
+rpc_task_handle_transmitted(struct rpc_task *task)
+{
+	xprt_end_transmit(task);
+	task->tk_action = call_transmit_status;
+	call_transmit_status(task);
+}
+
+/*
  * 4.	Get the server port number if not yet set
  */
 static void
 call_bind(struct rpc_task *task)
 {
 	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
+
+	if (rpc_task_transmitted(task)) {
+		rpc_task_handle_transmitted(task);
+		return;
+	}
 
 	dprint_status(task);
 
@@ -1836,6 +1859,11 @@ static void
 call_bind_status(struct rpc_task *task)
 {
 	int status = -EIO;
+
+	if (rpc_task_transmitted(task)) {
+		rpc_task_handle_transmitted(task);
+		return;
+	}
 
 	if (task->tk_status >= 0) {
 		dprint_status(task);
@@ -1916,6 +1944,11 @@ call_connect(struct rpc_task *task)
 {
 	struct rpc_xprt *xprt = task->tk_rqstp->rq_xprt;
 
+	if (rpc_task_transmitted(task)) {
+		rpc_task_handle_transmitted(task);
+		return;
+	}
+
 	dprintk("RPC: %5u call_connect xprt %p %s connected\n",
 			task->tk_pid, xprt,
 			(xprt_connected(xprt) ? "is" : "is not"));
@@ -1942,10 +1975,8 @@ call_connect_status(struct rpc_task *task)
 	struct rpc_clnt *clnt = task->tk_client;
 	int status = task->tk_status;
 
-	/* Check if the task was already transmitted */
-	if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
-		xprt_end_transmit(task);
-		task->tk_action = call_transmit_status;
+	if (rpc_task_transmitted(task)) {
+		rpc_task_handle_transmitted(task);
 		return;
 	}
 
@@ -2001,6 +2032,11 @@ out_retry:
 static void
 call_transmit(struct rpc_task *task)
 {
+	if (rpc_task_transmitted(task)) {
+		rpc_task_handle_transmitted(task);
+		return;
+	}
+
 	dprint_status(task);
 
 	task->tk_action = call_transmit_status;
