@@ -428,7 +428,6 @@ struct mlx5e_xdpsq {
 	/* dirtied @completion */
 	u32                        xdpi_fifo_cc;
 	u16                        cc;
-	bool                       redirect_flush;
 
 	/* dirtied @xmit */
 	u32                        xdpi_fifo_pc ____cacheline_aligned_in_smp;
@@ -532,6 +531,7 @@ typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
 enum mlx5e_rq_flag {
 	MLX5E_RQ_FLAG_XDP_XMIT,
+	MLX5E_RQ_FLAG_XDP_REDIRECT,
 };
 
 struct mlx5e_rq_frag_info {
