@@ -1661,6 +1661,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	struct poll_iocb *req = container_of(wait, struct poll_iocb, wait);
 	struct aio_kiocb *iocb = container_of(req, struct aio_kiocb, poll);
 	__poll_t mask = key_to_poll(key);
+	unsigned long flags;
 
 	req->woken = true;
 
@@ -1669,10 +1670,15 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		if (!(mask & req->events))
 			return 0;
 
-		/* try to complete the iocb inline if we can: */
-		if (spin_trylock(&iocb->ki_ctx->ctx_lock)) {
+		/*
+		 * Try to complete the iocb inline if we can. Use
+		 * irqsave/irqrestore because not all filesystems (e.g. fuse)
+		 * call this function with IRQs disabled and because IRQs
+		 * have to be disabled before ctx_lock is obtained.
+		 */
+		if (spin_trylock_irqsave(&iocb->ki_ctx->ctx_lock, flags)) {
 			list_del(&iocb->ki_list);
-			spin_unlock(&iocb->ki_ctx->ctx_lock);
+			spin_unlock_irqrestore(&iocb->ki_ctx->ctx_lock, flags);
 
 			list_del_init(&req->wait.entry);
 			aio_poll_complete(iocb, mask);

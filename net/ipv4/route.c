@@ -2814,7 +2814,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 
 	if (tb[RTA_IP_PROTO]) {
 		err = rtm_getroute_parse_ip_proto(tb[RTA_IP_PROTO],
-						  &ip_proto, extack);
+						  &ip_proto, AF_INET, extack);
 		if (err)
 			return err;
 	}

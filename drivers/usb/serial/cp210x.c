@@ -61,6 +61,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x08e6, 0x5501) }, /* Gemalto Prox-PU/CU contactless smartcard reader */
 	{ USB_DEVICE(0x08FD, 0x000A) }, /* Digianswer A/S , ZigBee/802.15.4 MAC Device */
 	{ USB_DEVICE(0x0908, 0x01FF) }, /* Siemens RUGGEDCOM USB Serial Console */
+	{ USB_DEVICE(0x0B00, 0x3070) }, /* Ingenico 3070 */
 	{ USB_DEVICE(0x0BED, 0x1100) }, /* MEI (TM) Cashflow-SC Bill/Voucher Acceptor */
 	{ USB_DEVICE(0x0BED, 0x1101) }, /* MEI series 2000 Combo Acceptor */
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
@@ -1353,8 +1354,13 @@ static int cp210x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 	if (priv->partnum == CP210X_PARTNUM_CP2105)
 		req_type = REQTYPE_INTERFACE_TO_HOST;
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		return result;
+
 	result = cp210x_read_vendor_block(serial, req_type,
 					  CP210X_READ_LATCH, &buf, sizeof(buf));
+	usb_autopm_put_interface(serial->interface);
 	if (result < 0)
 		return result;
 
@@ -1375,6 +1381,10 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 
 	buf.mask = BIT(gpio);
 
+	result = usb_autopm_get_interface(serial->interface);
+	if (result)
+		goto out;
+
 	if (priv->partnum == CP210X_PARTNUM_CP2105) {
 		result = cp210x_write_vendor_block(serial,
 						   REQTYPE_HOST_TO_INTERFACE,
@@ -1392,6 +1402,8 @@ static void cp210x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int value)
 					 NULL, 0, USB_CTRL_SET_TIMEOUT);
 	}
 
+	usb_autopm_put_interface(serial->interface);
+out:
 	if (result < 0) {
 		dev_err(&serial->interface->dev, "failed to set GPIO value: %d\n",
 				result);

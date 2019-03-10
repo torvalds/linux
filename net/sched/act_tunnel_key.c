@@ -377,7 +377,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	return ret;
 
 release_tun_meta:
-	dst_release(&metadata->dst);
+	if (metadata)
+		dst_release(&metadata->dst);
 
 err_out:
 	if (exists)
