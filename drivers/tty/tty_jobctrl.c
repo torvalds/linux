@@ -44,7 +44,7 @@ int __tty_check_change(struct tty_struct *tty, int sig)
 	tty_pgrp = tty->pgrp;
 	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 
-	if (tty_pgrp && pgrp != tty->pgrp) {
+	if (tty_pgrp && pgrp != tty_pgrp) {
 		if (is_ignored(sig)) {
 			if (sig == SIGTTIN)
 				ret = -EIO;
