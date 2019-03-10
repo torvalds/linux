@@ -1253,23 +1253,9 @@ static const struct x86_cpu_id aesni_cpu_id[] = {
 };
 MODULE_DEVICE_TABLE(x86cpu, aesni_cpu_id);
 
-static void aesni_free_simds(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(aesni_simd_skciphers) &&
-		    aesni_simd_skciphers[i]; i++)
-		simd_skcipher_free(aesni_simd_skciphers[i]);
-}
-
 static int __init aesni_init(void)
 {
-	struct simd_skcipher_alg *simd;
-	const char *basename;
-	const char *algname;
-	const char *drvname;
 	int err;
-	int i;
 
 	if (!x86_match_cpu(aesni_cpu_id))
 		return -ENODEV;
@@ -1304,8 +1290,9 @@ static int __init aesni_init(void)
 	if (err)
 		return err;
 
-	err = crypto_register_skciphers(aesni_skciphers,
-					ARRAY_SIZE(aesni_skciphers));
+	err = simd_register_skciphers_compat(aesni_skciphers,
+					     ARRAY_SIZE(aesni_skciphers),
+					     aesni_simd_skciphers);
 	if (err)
 		goto unregister_algs;
 
@@ -1314,26 +1301,11 @@ static int __init aesni_init(void)
 	if (err)
 		goto unregister_skciphers;
 
-	for (i = 0; i < ARRAY_SIZE(aesni_skciphers); i++) {
-		algname = aesni_skciphers[i].base.cra_name + 2;
-		drvname = aesni_skciphers[i].base.cra_driver_name + 2;
-		basename = aesni_skciphers[i].base.cra_driver_name;
-		simd = simd_skcipher_create_compat(algname, drvname, basename);
-		err = PTR_ERR(simd);
-		if (IS_ERR(simd))
-			goto unregister_simds;
-
-		aesni_simd_skciphers[i] = simd;
-	}
-
 	return 0;
 
-unregister_simds:
-	aesni_free_simds();
-	crypto_unregister_aeads(aesni_aead_algs, ARRAY_SIZE(aesni_aead_algs));
 unregister_skciphers:
-	crypto_unregister_skciphers(aesni_skciphers,
-				    ARRAY_SIZE(aesni_skciphers));
+	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
+				  aesni_simd_skciphers);
 unregister_algs:
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
 	return err;
@@ -1341,10 +1313,9 @@ unregister_algs:
 
 static void __exit aesni_exit(void)
 {
-	aesni_free_simds();
 	crypto_unregister_aeads(aesni_aead_algs, ARRAY_SIZE(aesni_aead_algs));
-	crypto_unregister_skciphers(aesni_skciphers,
-				    ARRAY_SIZE(aesni_skciphers));
+	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
+				  aesni_simd_skciphers);
 	crypto_unregister_algs(aesni_algs, ARRAY_SIZE(aesni_algs));
 }
 
