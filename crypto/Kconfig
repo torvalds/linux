@@ -363,7 +363,7 @@ config CRYPTO_MORUS1280_GLUE
 	tristate
 	depends on X86
 	select CRYPTO_AEAD
-	select CRYPTO_CRYPTD
+	select CRYPTO_SIMD
 	help
 	  Common glue for SIMD optimizations of the MORUS-1280 dedicated AEAD
 	  algorithm.
