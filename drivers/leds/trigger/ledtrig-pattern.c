@@ -455,7 +455,7 @@ static void __exit pattern_trig_exit(void)
 module_init(pattern_trig_init);
 module_exit(pattern_trig_exit);
 
-MODULE_AUTHOR("Raphael Teysseyre <rteysseyre@gmail.com");
-MODULE_AUTHOR("Baolin Wang <baolin.wang@linaro.org");
+MODULE_AUTHOR("Raphael Teysseyre <rteysseyre@gmail.com>");
+MODULE_AUTHOR("Baolin Wang <baolin.wang@linaro.org>");
 MODULE_DESCRIPTION("LED Pattern trigger");
 MODULE_LICENSE("GPL v2");
