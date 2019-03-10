@@ -15,14 +15,14 @@ enum logical_chip_type sm750_get_chip_type(void)
 	return chip;
 }
 
-void sm750_set_chip_type(unsigned short devId, u8 revId)
+void sm750_set_chip_type(unsigned short dev_id, u8 rev_id)
 {
-	if (devId == 0x718) {
+	if (dev_id == 0x718) {
 		chip = SM718;
-	} else if (devId == 0x750) {
+	} else if (dev_id == 0x750) {
 		chip = SM750;
 		/* SM750 and SM750LE are different in their revision ID only. */
-		if (revId == SM750LE_REVISION_ID) {
+		if (rev_id == SM750LE_REVISION_ID) {
 			chip = SM750LE;
 			pr_info("found sm750le\n");
 		}
@@ -321,7 +321,7 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig,
 	int mini_diff;
 	unsigned int RN, quo, rem, fl_quo;
 	unsigned int input, request;
-	unsigned int tmpClock, ret;
+	unsigned int tmp_clock, ret;
 	const int max_OD = 3;
 	int max_d = 6;
 
@@ -365,8 +365,8 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig,
 			if (M < 256 && M > 0) {
 				unsigned int diff;
 
-				tmpClock = pll->inputFreq * M / N / X;
-				diff = abs(tmpClock - request_orig);
+				tmp_clock = pll->inputFreq * M / N / X;
+				diff = abs(tmp_clock - request_orig);
 				if (diff < mini_diff) {
 					pll->M = M;
 					pll->N = N;
@@ -375,7 +375,7 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig,
 						pll->POD = d - max_OD;
 					pll->OD = d - pll->POD;
 					mini_diff = diff;
-					ret = tmpClock;
+					ret = tmp_clock;
 				}
 			}
 		}
