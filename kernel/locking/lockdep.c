@@ -842,7 +842,9 @@ static bool class_lock_list_valid(struct lock_class *c, struct list_head *h)
 	return true;
 }
 
-static u16 chain_hlocks[];
+#ifdef CONFIG_PROVE_LOCKING
+static u16 chain_hlocks[MAX_LOCKDEP_CHAIN_HLOCKS];
+#endif
 
 static bool check_lock_chain_key(struct lock_chain *chain)
 {
@@ -980,15 +982,22 @@ static inline void check_data_structures(void) { }
  */
 static void init_data_structures_once(void)
 {
-	static bool initialization_happened;
+	static bool ds_initialized, rcu_head_initialized;
 	int i;
 
-	if (likely(initialization_happened))
+	if (likely(rcu_head_initialized))
 		return;
 
-	initialization_happened = true;
+	if (system_state >= SYSTEM_SCHEDULING) {
+		init_rcu_head(&delayed_free.rcu_head);
+		rcu_head_initialized = true;
+	}
 
-	init_rcu_head(&delayed_free.rcu_head);
+	if (ds_initialized)
+		return;
+
+	ds_initialized = true;
+
 	INIT_LIST_HEAD(&delayed_free.pf[0].zapped);
 	INIT_LIST_HEAD(&delayed_free.pf[1].zapped);
 
