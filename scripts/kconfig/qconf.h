@@ -291,6 +291,7 @@ protected:
 class ConfigMainWindow : public QMainWindow {
 	Q_OBJECT
 
+	char *configname;
 	static QAction *saveAction;
 	static void conf_changed(void);
 public:
