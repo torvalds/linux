@@ -58,22 +58,22 @@ def syscalls__sys_exit(event_name, context, common_cpu,
 	raw_syscalls__sys_exit(**locals())
 
 def print_error_totals():
-    if for_comm is not None:
-	    print("\nsyscall errors for %s:\n" % (for_comm))
-    else:
-	    print("\nsyscall errors:\n")
+	if for_comm is not None:
+		print("\nsyscall errors for %s:\n" % (for_comm))
+	else:
+		print("\nsyscall errors:\n")
 
-    print("%-30s  %10s" % ("comm [pid]", "count"))
-    print("%-30s  %10s" % ("------------------------------", "----------"))
+	print("%-30s  %10s" % ("comm [pid]", "count"))
+	print("%-30s  %10s" % ("------------------------------", "----------"))
 
-    comm_keys = syscalls.keys()
-    for comm in comm_keys:
-	    pid_keys = syscalls[comm].keys()
-	    for pid in pid_keys:
-		    print("\n%s [%d]" % (comm, pid))
-		    id_keys = syscalls[comm][pid].keys()
-		    for id in id_keys:
-			    print("  syscall: %-16s" % syscall_name(id))
-			    ret_keys = syscalls[comm][pid][id].keys()
-			    for ret, val in sorted(syscalls[comm][pid][id].items(), key = lambda kv: (kv[1], kv[0]),  reverse = True):
-				    print("    err = %-20s  %10d" % (strerror(ret), val))
+	comm_keys = syscalls.keys()
+	for comm in comm_keys:
+		pid_keys = syscalls[comm].keys()
+		for pid in pid_keys:
+			print("\n%s [%d]" % (comm, pid))
+			id_keys = syscalls[comm][pid].keys()
+			for id in id_keys:
+				print("  syscall: %-16s" % syscall_name(id))
+				ret_keys = syscalls[comm][pid][id].keys()
+				for ret, val in sorted(syscalls[comm][pid][id].items(), key = lambda kv: (kv[1], kv[0]), reverse = True):
+					print("    err = %-20s  %10d" % (strerror(ret), val))

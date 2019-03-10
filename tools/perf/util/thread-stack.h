@@ -55,6 +55,7 @@ enum {
  * @call_ref: external reference to 'call' sample (e.g. db_id)
  * @return_ref:  external reference to 'return' sample (e.g. db_id)
  * @db_id: id used for db-export
+ * @parent_db_id: id of parent call used for db-export
  * @flags: Call/Return flags
  */
 struct call_return {
@@ -67,6 +68,7 @@ struct call_return {
 	u64 call_ref;
 	u64 return_ref;
 	u64 db_id;
+	u64 parent_db_id;
 	u32 flags;
 };
 
@@ -79,7 +81,7 @@ struct call_return {
  */
 struct call_return_processor {
 	struct call_path_root *cpr;
-	int (*process)(struct call_return *cr, void *data);
+	int (*process)(struct call_return *cr, u64 *parent_db_id, void *data);
 	void *data;
 };
 
@@ -93,7 +95,7 @@ void thread_stack__free(struct thread *thread);
 size_t thread_stack__depth(struct thread *thread, int cpu);
 
 struct call_return_processor *
-call_return_processor__new(int (*process)(struct call_return *cr, void *data),
+call_return_processor__new(int (*process)(struct call_return *cr, u64 *parent_db_id, void *data),
 			   void *data);
 void call_return_processor__free(struct call_return_processor *crp);
 int thread_stack__process(struct thread *thread, struct comm *comm,

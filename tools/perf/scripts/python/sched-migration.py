@@ -14,10 +14,10 @@ import sys
 
 from collections import defaultdict
 try:
-    from UserList import UserList
+	from UserList import UserList
 except ImportError:
-    # Python 3: UserList moved to the collections package
-    from collections import UserList
+	# Python 3: UserList moved to the collections package
+	from collections import UserList
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')

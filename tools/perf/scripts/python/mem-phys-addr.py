@@ -44,12 +44,13 @@ def print_memory_type():
 	print("%-40s  %10s  %10s\n" % ("Memory type", "count", "percentage"), end='')
 	print("%-40s  %10s  %10s\n" % ("----------------------------------------",
 					"-----------", "-----------"),
-                                        end='');
+					end='');
 	total = sum(load_mem_type_cnt.values())
 	for mem_type, count in sorted(load_mem_type_cnt.most_common(), \
 					key = lambda kv: (kv[1], kv[0]), reverse = True):
-		print("%-40s  %10d  %10.1f%%\n" % (mem_type, count, 100 * count / total),
-                        end='')
+		print("%-40s  %10d  %10.1f%%\n" %
+			(mem_type, count, 100 * count / total),
+			end='')
 
 def trace_begin():
 	parse_iomem()
