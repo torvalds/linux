@@ -115,7 +115,9 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " type: CDROM ");
 	else
 		seq_printf(m, " type: %d ", dev_type);
-	if (tcon->seal)
+	if ((tcon->seal) ||
+	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
+	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
 		seq_printf(m, " Encrypted");
 	if (tcon->nocase)
 		seq_printf(m, " nocase");
@@ -371,6 +373,10 @@ skip_rdma:
 				atomic_read(&server->in_send),
 				atomic_read(&server->num_waiters));
 #endif
+			if (ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA)
+				seq_puts(m, " encrypted");
+			if (ses->sign)
+				seq_puts(m, " signed");
 
 			seq_puts(m, "\n\tShares:");
 			j = 0;
