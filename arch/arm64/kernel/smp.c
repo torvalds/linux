@@ -35,6 +35,7 @@
 #include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
+#include <linux/irqchip/arm-gic-v3.h>
 #include <linux/percpu.h>
 #include <linux/clockchips.h>
 #include <linux/completion.h>
@@ -180,6 +181,24 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return ret;
 }
 
+static void init_gic_priority_masking(void)
+{
+	u32 cpuflags;
+
+	if (WARN_ON(!gic_enable_sre()))
+		return;
+
+	cpuflags = read_sysreg(daif);
+
+	WARN_ON(!(cpuflags & PSR_I_BIT));
+
+	gic_write_pmr(GIC_PRIO_IRQOFF);
+
+	/* We can only unmask PSR.I if we can take aborts */
+	if (!(cpuflags & PSR_A_BIT))
+		write_sysreg(cpuflags & ~PSR_I_BIT, daif);
+}
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
@@ -205,6 +224,9 @@ asmlinkage notrace void secondary_start_kernel(void)
 	 * point to zero page to avoid speculatively fetching new entries.
 	 */
 	cpu_uninstall_idmap();
+
+	if (system_uses_irq_prio_masking())
+		init_gic_priority_masking();
 
 	preempt_disable();
 	trace_hardirqs_off();
@@ -419,6 +441,17 @@ void __init smp_prepare_boot_cpu(void)
 	 */
 	jump_label_init();
 	cpuinfo_store_boot_cpu();
+
+	/*
+	 * We now know enough about the boot CPU to apply the
+	 * alternatives that cannot wait until interrupt handling
+	 * and/or scheduling is enabled.
+	 */
+	apply_boot_alternatives();
+
+	/* Conditionally switch to GIC PMR for interrupt masking */
+	if (system_uses_irq_prio_masking())
+		init_gic_priority_masking();
 }
 
 static u64 __init of_get_cpu_mpidr(struct device_node *dn)

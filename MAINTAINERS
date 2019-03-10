@@ -366,6 +366,7 @@ M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 M:	Hanjun Guo <hanjun.guo@linaro.org>
 M:	Sudeep Holla <sudeep.holla@arm.com>
 L:	linux-acpi@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/acpi/arm64
 
@@ -1195,7 +1196,7 @@ F:	arch/arm*/include/asm/hw_breakpoint.h
 F:	arch/arm*/include/asm/perf_event.h
 F:	drivers/perf/*
 F:	include/linux/perf/arm_pmu.h
-F:	Documentation/devicetree/bindings/arm/pmu.txt
+F:	Documentation/devicetree/bindings/arm/pmu.yaml
 F:	Documentation/devicetree/bindings/perf/
 
 ARM PORT

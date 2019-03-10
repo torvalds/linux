@@ -1846,6 +1846,11 @@
 			to let secondary kernels in charge of setting up
 			LPIs.
 
+	irqchip.gicv3_pseudo_nmi= [ARM64]
+			Enables support for pseudo-NMIs in the kernel. This
+			requires the kernel to be built with
+			CONFIG_ARM64_PSEUDO_NMI.
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken

@@ -151,7 +151,7 @@ config ARCH_MVEBU
 config ARCH_MXC
 	bool "ARMv8 based NXP i.MX SoC family"
 	select ARM64_ERRATUM_843419
-	select ARM64_ERRATUM_845719
+	select ARM64_ERRATUM_845719 if COMPAT
 	select IMX_GPCV2
 	select IMX_GPCV2_PM_DOMAINS
 	select PM
