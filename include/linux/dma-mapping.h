@@ -130,6 +130,7 @@ struct dma_map_ops {
 			enum dma_data_direction direction);
 	int (*dma_supported)(struct device *dev, u64 mask);
 	u64 (*get_required_mask)(struct device *dev);
+	size_t (*max_mapping_size)(struct device *dev);
 };
 
 #define DMA_MAPPING_ERROR		(~(dma_addr_t)0)
@@ -258,6 +259,8 @@ static inline void dma_direct_sync_sg_for_cpu(struct device *dev,
 {
 }
 #endif
+
+size_t dma_direct_max_mapping_size(struct device *dev);
 
 #ifdef CONFIG_HAS_DMA
 #include <asm/dma-mapping.h>
@@ -463,6 +466,7 @@ int dma_supported(struct device *dev, u64 mask);
 int dma_set_mask(struct device *dev, u64 mask);
 int dma_set_coherent_mask(struct device *dev, u64 mask);
 u64 dma_get_required_mask(struct device *dev);
+size_t dma_max_mapping_size(struct device *dev);
 #else /* CONFIG_HAS_DMA */
 static inline dma_addr_t dma_map_page_attrs(struct device *dev,
 		struct page *page, size_t offset, size_t size,
@@ -561,6 +565,10 @@ static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
 	return -EIO;
 }
 static inline u64 dma_get_required_mask(struct device *dev)
+{
+	return 0;
+}
+static inline size_t dma_max_mapping_size(struct device *dev)
 {
 	return 0;
 }
