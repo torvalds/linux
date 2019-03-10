@@ -49,17 +49,6 @@ enum {
 	RDMA_NL_IWPM_NUM_OPS
 };
 
-struct rdma_cm_id_stats {
-	__u32	qp_num;
-	__u32	bound_dev_if;
-	__u32	port_space;
-	__s32	pid;
-	__u8	cm_state;
-	__u8	node_type;
-	__u8	port_num;
-	__u8	qp_type;
-};
-
 enum {
 	IWPM_NLA_REG_PID_UNSPEC = 0,
 	IWPM_NLA_REG_PID_SEQ,
