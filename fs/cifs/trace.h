@@ -713,6 +713,7 @@ DEFINE_EVENT(smb3_credit_class, smb3_##name,  \
 	TP_ARGS(currmid, hostname, credits))
 
 DEFINE_SMB3_CREDIT_EVENT(reconnect_with_invalid_credits);
+DEFINE_SMB3_CREDIT_EVENT(credit_timeout);
 
 #endif /* _CIFS_TRACE_H */
 
