@@ -1510,31 +1510,22 @@ static void drm_dp_destroy_port(struct kref *kref)
 		container_of(kref, struct drm_dp_mst_port, topology_kref);
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
 
-	if (!port->input) {
-		kfree(port->cached_edid);
-
-		/*
-		 * The only time we don't have a connector
-		 * on an output port is if the connector init
-		 * fails.
-		 */
-		if (port->connector) {
-			/* we can't destroy the connector here, as
-			 * we might be holding the mode_config.mutex
-			 * from an EDID retrieval */
-
-			mutex_lock(&mgr->delayed_destroy_lock);
-			list_add(&port->next, &mgr->destroy_port_list);
-			mutex_unlock(&mgr->delayed_destroy_lock);
-			schedule_work(&mgr->delayed_destroy_work);
-			return;
-		}
-		/* no need to clean up vcpi
-		 * as if we have no connector we never setup a vcpi */
-		drm_dp_port_teardown_pdt(port, port->pdt);
-		port->pdt = DP_PEER_DEVICE_NONE;
+	/* There's nothing that needs locking to destroy an input port yet */
+	if (port->input) {
+		drm_dp_mst_put_port_malloc(port);
+		return;
 	}
-	drm_dp_mst_put_port_malloc(port);
+
+	kfree(port->cached_edid);
+
+	/*
+	 * we can't destroy the connector here, as we might be holding the
+	 * mode_config.mutex from an EDID retrieval
+	 */
+	mutex_lock(&mgr->delayed_destroy_lock);
+	list_add(&port->next, &mgr->destroy_port_list);
+	mutex_unlock(&mgr->delayed_destroy_lock);
+	schedule_work(&mgr->delayed_destroy_work);
 }
 
 /**
@@ -3981,7 +3972,8 @@ static void drm_dp_tx_work(struct work_struct *work)
 static inline void
 drm_dp_delayed_destroy_port(struct drm_dp_mst_port *port)
 {
-	port->mgr->cbs->destroy_connector(port->mgr, port->connector);
+	if (port->connector)
+		port->mgr->cbs->destroy_connector(port->mgr, port->connector);
 
 	drm_dp_port_teardown_pdt(port, port->pdt);
 	port->pdt = DP_PEER_DEVICE_NONE;
