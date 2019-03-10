@@ -475,8 +475,7 @@ static int __init mx31moboard_init_cam(void)
 
 	ret = dma_declare_coherent_memory(&pdev->dev,
 					  mx3_camera_base, mx3_camera_base,
-					  MX3_CAMERA_BUF_SIZE,
-					  DMA_MEMORY_EXCLUSIVE);
+					  MX3_CAMERA_BUF_SIZE);
 	if (ret)
 		goto err;
 

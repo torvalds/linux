@@ -712,8 +712,8 @@ ccio_dma_supported(struct device *dev, u64 mask)
 		return 0;
 	}
 
-	/* only support 32-bit devices (ie PCI/GSC) */
-	return (int)(mask == 0xffffffffUL);
+	/* only support 32-bit or better devices (ie PCI/GSC) */
+	return (int)(mask >= 0xffffffffUL);
 }
 
 /**
