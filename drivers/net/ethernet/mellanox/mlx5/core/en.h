@@ -531,7 +531,7 @@ typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
 enum mlx5e_rq_flag {
-	MLX5E_RQ_FLAG_XDP_XMIT = BIT(0),
+	MLX5E_RQ_FLAG_XDP_XMIT,
 };
 
 struct mlx5e_rq_frag_info {
