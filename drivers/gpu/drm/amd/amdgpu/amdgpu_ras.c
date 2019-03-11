@@ -748,12 +748,10 @@ static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
 		.attr = {
 			.name = "features",
 			.mode = S_IRUGO,
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-			.ignore_lockdep = 1,
-#endif
 		},
 			.show = amdgpu_ras_sysfs_features_read,
 	};
+	sysfs_attr_init(attrs[0]);
 
 	return sysfs_create_group(&adev->dev->kobj, &group);
 }
@@ -793,12 +791,10 @@ int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 		.attr = {
 			.name = obj->fs_data.sysfs_name,
 			.mode = S_IRUGO,
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-			.ignore_lockdep = 1,
-#endif
 		},
 			.show = amdgpu_ras_sysfs_read,
 	};
+	sysfs_attr_init(&obj->sysfs_attr.attr);
 
 	if (sysfs_add_file_to_group(&adev->dev->kobj,
 				&obj->sysfs_attr.attr,
