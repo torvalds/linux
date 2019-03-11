@@ -55,7 +55,26 @@ static int init_inode_xattrs(struct inode *inode)
 		return 0;
 
 	vi = EROFS_V(inode);
-	BUG_ON(!vi->xattr_isize);
+
+	/*
+	 * bypass all xattr operations if ->xattr_isize is not greater than
+	 * sizeof(struct erofs_xattr_ibody_header), in detail:
+	 * 1) it is not enough to contain erofs_xattr_ibody_header then
+	 *    ->xattr_isize should be 0 (it means no xattr);
+	 * 2) it is just to contain erofs_xattr_ibody_header, which is on-disk
+	 *    undefined right now (maybe use later with some new sb feature).
+	 */
+	if (vi->xattr_isize == sizeof(struct erofs_xattr_ibody_header)) {
+		errln("xattr_isize %d of nid %llu is not supported yet",
+		      vi->xattr_isize, vi->nid);
+		return -ENOTSUPP;
+	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
+		if (unlikely(vi->xattr_isize)) {
+			DBG_BUGON(1);
+			return -EIO;	/* xattr ondisk layout error */
+		}
+		return -ENOATTR;
+	}
 
 	sbi = EROFS_I_SB(inode);
 	it.blkaddr = erofs_blknr(iloc(sbi, vi->nid) + vi->inode_isize);
@@ -414,7 +433,6 @@ static int erofs_xattr_generic_get(const struct xattr_handler *handler,
 		struct dentry *unused, struct inode *inode,
 		const char *name, void *buffer, size_t size)
 {
-	struct erofs_vnode *const vi = EROFS_V(inode);
 	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
 
 	switch (handler->flags) {
@@ -431,9 +449,6 @@ static int erofs_xattr_generic_get(const struct xattr_handler *handler,
 	default:
 		return -EINVAL;
 	}
-
-	if (!vi->xattr_isize)
-		return -ENOATTR;
 
 	return erofs_getxattr(inode, handler->flags, name, buffer, size);
 }
