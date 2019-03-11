@@ -274,15 +274,6 @@ configuration in the pin controller ops like this::
 		.confops = &foo_pconf_ops,
 	};
 
-Since some controllers have special logic for handling entire groups of pins
-they can exploit the special whole-group pin control function. The
-pin_config_group_set() callback is allowed to return the error code -EAGAIN,
-for groups it does not want to handle, or if it just wants to do some
-group-level handling and then fall through to iterate over all pins, in which
-case each individual pin will be treated by separate pin_config_set() calls as
-well.
-
-
 Interaction with the GPIO subsystem
 ===================================
 
