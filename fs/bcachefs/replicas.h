@@ -28,6 +28,7 @@ int bch2_mark_replicas(struct bch_fs *,
 
 bool bch2_bkey_replicas_marked_locked(struct bch_fs *,
 				      struct bkey_s_c, bool);
+void bch2_bkey_to_replicas(struct bch_replicas_entry *, struct bkey_s_c);
 bool bch2_bkey_replicas_marked(struct bch_fs *,
 			       struct bkey_s_c, bool);
 int bch2_mark_bkey_replicas(struct bch_fs *, struct bkey_s_c);

@@ -43,6 +43,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   POS_MIN, BTREE_ITER_PREFETCH);
@@ -95,6 +96,8 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 		if (ret)
 			break;
 	}
+
+	BUG_ON(ret == -EINTR);
 
 	bch2_trans_exit(&trans);
 

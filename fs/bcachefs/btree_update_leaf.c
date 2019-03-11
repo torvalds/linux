@@ -526,6 +526,22 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 		btree_insert_key_deferred(trans, insert);
 }
 
+static inline bool update_triggers_transactional(struct btree_trans *trans,
+						 struct btree_insert_entry *i)
+{
+	return likely(!(trans->flags & BTREE_INSERT_MARK_INMEM)) &&
+		(i->iter->btree_id == BTREE_ID_EXTENTS ||
+		 i->iter->btree_id == BTREE_ID_INODES);
+}
+
+static inline bool update_has_triggers(struct btree_trans *trans,
+				       struct btree_insert_entry *i)
+{
+	return likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
+		!i->deferred &&
+		btree_node_type_needs_gc(i->iter->btree_id);
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -538,29 +554,25 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct btree_iter *linked;
 	int ret;
 
+	if (likely(!(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS))) {
+		memset(&trans->fs_usage_deltas.fs_usage, 0,
+		       sizeof(trans->fs_usage_deltas.fs_usage));
+		trans->fs_usage_deltas.top = trans->fs_usage_deltas.d;
+	}
+
 	trans_for_each_update_iter(trans, i)
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
-	btree_trans_lock_write(c, trans);
-
-	if (likely(!(trans->flags & BTREE_INSERT_NOMARK))) {
-		trans_for_each_update_iter(trans, i) {
-			if (i->deferred ||
-			    !btree_node_type_needs_gc(i->iter->btree_id))
-				continue;
-
-			if (!fs_usage) {
-				percpu_down_read(&c->mark_lock);
-				fs_usage = bch2_fs_usage_scratch_get(c);
-			}
-
-			if (!bch2_bkey_replicas_marked_locked(c,
-					bkey_i_to_s_c(i->k), true)) {
-				ret = BTREE_INSERT_NEED_MARK_REPLICAS;
-				goto out;
-			}
+	trans_for_each_update_iter(trans, i)
+		if (update_has_triggers(trans, i) &&
+		    update_triggers_transactional(trans, i)) {
+			ret = bch2_trans_mark_update(trans, i,
+						&trans->fs_usage_deltas);
+			if (ret)
+				return ret;
 		}
-	}
+
+	btree_trans_lock_write(c, trans);
 
 	if (race_fault()) {
 		ret = -EINTR;
@@ -577,6 +589,23 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	ret = btree_trans_check_can_insert(trans, stopped_at);
 	if (ret)
 		goto out;
+
+	trans_for_each_update_iter(trans, i) {
+		if (i->deferred ||
+		    !btree_node_type_needs_gc(i->iter->btree_id))
+			continue;
+
+		if (!fs_usage) {
+			percpu_down_read(&c->mark_lock);
+			fs_usage = bch2_fs_usage_scratch_get(c);
+		}
+
+		if (!bch2_bkey_replicas_marked_locked(c,
+			bkey_i_to_s_c(i->k), true)) {
+			ret = BTREE_INSERT_NEED_MARK_REPLICAS;
+			goto out;
+		}
+	}
 
 	/*
 	 * Don't get journal reservation until after we know insert will
@@ -606,19 +635,23 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 				linked->flags |= BTREE_ITER_NOUNLOCK;
 	}
 
-	if (likely(!(trans->flags & BTREE_INSERT_NOMARK))) {
-		trans_for_each_update_iter(trans, i)
+	trans_for_each_update_iter(trans, i)
+		if (update_has_triggers(trans, i) &&
+		    !update_triggers_transactional(trans, i))
 			bch2_mark_update(trans, i, &fs_usage->u, 0);
-		if (fs_usage)
-			bch2_trans_fs_usage_apply(trans, fs_usage);
 
-		if (unlikely(c->gc_pos.phase)) {
-			trans_for_each_update_iter(trans, i)
-				if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
-					bch2_mark_update(trans, i, NULL,
-							 BCH_BUCKET_MARK_GC);
-		}
+	if (fs_usage) {
+		bch2_replicas_delta_list_apply(c, &fs_usage->u,
+					       &trans->fs_usage_deltas);
+		bch2_trans_fs_usage_apply(trans, fs_usage);
 	}
+
+	if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
+	    unlikely(c->gc_pos.phase))
+		trans_for_each_update_iter(trans, i)
+			if (gc_visited(c, gc_pos_btree_node(i->iter->l[0].b)))
+				bch2_mark_update(trans, i, NULL,
+						 BCH_BUCKET_MARK_GC);
 
 	trans_for_each_update(trans, i)
 		do_btree_insert_one(trans, i);
@@ -646,6 +679,19 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	unsigned flags = trans->flags;
+	struct btree_insert_entry *src, *dst;
+
+	src = dst = trans->updates;
+
+	while (src < trans->updates + trans->nr_updates) {
+		if (!src->triggered) {
+			*dst = *src;
+			dst++;
+		}
+		src++;
+	}
+
+	trans->nr_updates = dst - trans->updates;
 
 	/*
 	 * BTREE_INSERT_NOUNLOCK means don't unlock _after_ successful btree
@@ -808,6 +854,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
+	unsigned orig_mem_top = trans->mem_top;
 	int ret = 0;
 
 	if (!trans->nr_updates)
@@ -885,8 +932,16 @@ out_noupdates:
 	return ret;
 err:
 	ret = bch2_trans_commit_error(trans, i, ret);
-	if (!ret)
+
+	/* can't loop if it was passed in and we changed it: */
+	if (unlikely(trans->flags & BTREE_INSERT_NO_CLEAR_REPLICAS) && !ret)
+		ret = -EINTR;
+
+	if (!ret) {
+		/* free memory used by triggers, they'll be reexecuted: */
+		trans->mem_top = orig_mem_top;
 		goto retry;
+	}
 
 	goto out;
 }
@@ -969,6 +1024,7 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
 
@@ -1014,5 +1070,6 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	}
 
 	bch2_trans_exit(&trans);
+	BUG_ON(ret == -EINTR);
 	return ret;
 }

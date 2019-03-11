@@ -539,14 +539,17 @@ static int ec_stripe_mem_alloc(struct bch_fs *c,
 			       struct btree_iter *iter)
 {
 	size_t idx = iter->pos.offset;
+	int ret = 0;
 
 	if (!__ec_stripe_mem_alloc(c, idx, GFP_NOWAIT|__GFP_NOWARN))
-		return 0;
+		return ret;
 
 	bch2_btree_trans_unlock(iter->trans);
+	ret = -EINTR;
 
 	if (!__ec_stripe_mem_alloc(c, idx, GFP_KERNEL))
-		return -EINTR;
+		return ret;
+
 	return -ENOMEM;
 }
 
@@ -692,23 +695,22 @@ retry:
 
 	if (!ret)
 		ret = -ENOSPC;
-	goto out;
+	goto err;
 found_slot:
 	ret = ec_stripe_mem_alloc(c, iter);
-
-	if (ret == -EINTR)
-		goto retry;
 	if (ret)
-		return ret;
+		goto err;
 
 	stripe->k.p = iter->pos;
 
 	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &stripe->k_i));
 
 	ret = bch2_trans_commit(&trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_USE_RESERVE);
-out:
+				BTREE_INSERT_ATOMIC|
+				BTREE_INSERT_NOFAIL);
+err:
+	if (ret == -EINTR)
+		goto retry;
 	bch2_trans_exit(&trans);
 
 	return ret;
@@ -745,6 +747,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 	int ret = 0, dev, idx;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(pos),

@@ -212,11 +212,6 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 		bch2_disk_reservation_init(c, 0);
 	struct bkey_i *split;
 	bool split_compressed = false;
-	unsigned flags = BTREE_INSERT_ATOMIC|
-		BTREE_INSERT_NOFAIL|
-		BTREE_INSERT_LAZY_RW|
-		BTREE_INSERT_JOURNAL_REPLAY|
-		BTREE_INSERT_NOMARK;
 	int ret;
 
 	bch2_trans_init(&trans, c);
@@ -252,9 +247,6 @@ retry:
 					BCH_DISK_RESERVATION_NOFAIL);
 			BUG_ON(ret);
 
-			flags &= ~BTREE_INSERT_JOURNAL_REPLAY;
-			flags &= ~BTREE_INSERT_NOMARK;
-			flags |=  BTREE_INSERT_NOMARK_OVERWRITES;
 			split_compressed = true;
 		}
 
@@ -266,24 +258,31 @@ retry:
 		bch2_btree_iter_set_pos(iter, split->k.p);
 	} while (bkey_cmp(iter->pos, k->k.p) < 0);
 
-	ret = bch2_trans_commit(&trans, &disk_res, NULL, flags);
+	if (split_compressed) {
+		memset(&trans.fs_usage_deltas.fs_usage, 0,
+		       sizeof(trans.fs_usage_deltas.fs_usage));
+		trans.fs_usage_deltas.top = trans.fs_usage_deltas.d;
+
+		ret = bch2_trans_mark_key(&trans, bkey_i_to_s_c(k), false,
+					  -((s64) k->k.size),
+					  &trans.fs_usage_deltas) ?:
+		      bch2_trans_commit(&trans, &disk_res, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW|
+					BTREE_INSERT_NOMARK_OVERWRITES|
+					BTREE_INSERT_NO_CLEAR_REPLICAS);
+	} else {
+		ret = bch2_trans_commit(&trans, &disk_res, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_LAZY_RW|
+					BTREE_INSERT_JOURNAL_REPLAY|
+					BTREE_INSERT_NOMARK);
+	}
+
 	if (ret)
 		goto err;
-
-	if (split_compressed) {
-		/*
-		 * This isn't strictly correct - we should only be relying on
-		 * the btree node lock for synchronization with gc when we've
-		 * got a write lock held.
-		 *
-		 * but - there are other correctness issues if btree gc were to
-		 * run before journal replay finishes
-		 */
-		BUG_ON(c->gc_pos.phase);
-
-		bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
-			      NULL, 0, 0);
-	}
 err:
 	if (ret == -EINTR)
 		goto retry;
@@ -527,7 +526,7 @@ static int verify_superblock_clean(struct bch_fs *c,
 	struct bch_sb_field_clean *clean = *cleanp;
 	int ret = 0;
 
-	if (!clean || !j)
+	if (!c->sb.clean || !j)
 		return 0;
 
 	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
@@ -653,6 +652,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	u64 journal_seq;
 	LIST_HEAD(journal_entries);
 	struct journal_keys journal_keys = { NULL };
+	bool wrote = false, write_sb = false;
 	int ret;
 
 	if (c->sb.clean)
@@ -677,8 +677,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (ret)
 			goto err;
 
-		fsck_err_on(c->sb.clean && !journal_empty(&journal_entries), c,
-			    "filesystem marked clean but journal not empty");
+		if (mustfix_fsck_err_on(c->sb.clean && !journal_empty(&journal_entries), c,
+				"filesystem marked clean but journal not empty")) {
+			c->sb.compat &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_INFO);
+			SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+			c->sb.clean = false;
+		}
 
 		if (!c->sb.clean && list_empty(&journal_entries)) {
 			bch_err(c, "no journal entries found");
@@ -736,12 +740,15 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (ret)
 		goto err;
 
+	bch_verbose(c, "starting alloc read");
 	err = "error reading allocation information";
 	ret = bch2_alloc_read(c, &journal_keys);
 	if (ret)
 		goto err;
+	bch_verbose(c, "alloc read done");
 
 	bch_verbose(c, "starting stripes_read");
+	err = "error reading stripes";
 	ret = bch2_stripes_read(c, &journal_keys);
 	if (ret)
 		goto err;
@@ -749,11 +756,26 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
+	if ((c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) &&
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA))) {
+		/*
+		 * interior btree node updates aren't consistent with the
+		 * journal; after an unclean shutdown we have to walk all
+		 * pointers to metadata:
+		 */
+		bch_verbose(c, "starting metadata mark and sweep:");
+		err = "error in mark and sweep";
+		ret = bch2_gc(c, NULL, true, true);
+		if (ret)
+			goto err;
+		bch_verbose(c, "mark and sweep done");
+	}
+
 	if (c->opts.fsck ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bch_verbose(c, "starting mark and sweep:");
-		err = "error in recovery";
+		err = "error in mark and sweep";
 		ret = bch2_gc(c, &journal_keys, true, false);
 		if (ret)
 			goto err;
@@ -780,6 +802,16 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	bch_verbose(c, "journal replay done");
 
+	bch_verbose(c, "writing allocation info:");
+	err = "error writing out alloc info";
+	ret = bch2_stripes_write(c, BTREE_INSERT_LAZY_RW, &wrote) ?:
+		bch2_alloc_write(c, BTREE_INSERT_LAZY_RW, &wrote);
+	if (ret) {
+		bch_err(c, "error writing alloc info");
+		goto err;
+	}
+	bch_verbose(c, "alloc write done");
+
 	if (c->opts.norecovery)
 		goto out;
 
@@ -802,13 +834,23 @@ int bch2_fs_recovery(struct bch_fs *c)
 			c->disk_sb.sb->version_min =
 				le16_to_cpu(bcachefs_metadata_version_min);
 		c->disk_sb.sb->version = le16_to_cpu(bcachefs_metadata_version_current);
+		write_sb = true;
+	}
+
+	if (!test_bit(BCH_FS_ERROR, &c->flags)) {
+		c->disk_sb.sb->compat[0] |= 1ULL << BCH_COMPAT_FEAT_ALLOC_INFO;
+		write_sb = true;
 	}
 
 	if (c->opts.fsck &&
 	    !test_bit(BCH_FS_ERROR, &c->flags)) {
 		c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_ATOMIC_NLINK;
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
+		write_sb = true;
 	}
+
+	if (write_sb)
+		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	if (c->journal_seq_blacklist_table &&
@@ -821,7 +863,7 @@ out:
 	return ret;
 err:
 fsck_err:
-	pr_err("Error in recovery: %s (%i)", err, ret);
+	bch_err(c, "Error in recovery: %s (%i)", err, ret);
 	goto out;
 }
 

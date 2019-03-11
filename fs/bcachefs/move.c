@@ -62,6 +62,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 	int ret = 0;
 
 	bch2_trans_init(&trans, c);
+	bch2_trans_preload_iters(&trans);
 
 	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 				   bkey_start_pos(&bch2_keylist_front(keys)->k),
@@ -184,6 +185,7 @@ nomatch:
 	}
 out:
 	bch2_trans_exit(&trans);
+	BUG_ON(ret == -EINTR);
 	return ret;
 }
 

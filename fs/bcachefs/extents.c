@@ -903,15 +903,54 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_iter_verify(iter, l->b);
 }
 
+static unsigned bch2_bkey_nr_alloc_ptrs(struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	unsigned ret = 0;
+
+	bkey_extent_entry_for_each(ptrs, entry) {
+		switch (__extent_entry_type(entry)) {
+		case BCH_EXTENT_ENTRY_ptr:
+		case BCH_EXTENT_ENTRY_stripe_ptr:
+			ret++;
+		}
+	}
+
+	return ret;
+}
+
 static inline struct bpos
-bch2_extent_atomic_end(struct bkey_i *k, struct btree_iter *iter)
+bch2_extent_atomic_end(struct bkey_i *insert, struct btree_iter *iter)
 {
 	struct btree *b = iter->l[0].b;
+	struct btree_node_iter	node_iter = iter->l[0].iter;
+	struct bkey_packed	*_k;
+	unsigned		nr_alloc_ptrs =
+		bch2_bkey_nr_alloc_ptrs(bkey_i_to_s_c(insert));
 
 	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
-	BUG_ON(bkey_cmp(bkey_start_pos(&k->k), b->data->min_key) < 0);
+	BUG_ON(bkey_cmp(bkey_start_pos(&insert->k), b->data->min_key) < 0);
 
-	return bpos_min(k->k.p, b->key.k.p);
+	while ((_k = bch2_btree_node_iter_peek_filter(&node_iter, b,
+						      KEY_TYPE_discard))) {
+		struct bkey	unpacked;
+		struct bkey_s_c	k = bkey_disassemble(b, _k, &unpacked);
+
+		if (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) <= 0)
+			break;
+
+		nr_alloc_ptrs += bch2_bkey_nr_alloc_ptrs(k);
+
+		if (nr_alloc_ptrs > 20) {
+			BUG_ON(bkey_cmp(k.k->p, bkey_start_pos(&insert->k)) <= 0);
+			return bpos_min(insert->k.p, k.k->p);
+		}
+
+		bch2_btree_node_iter_advance(&node_iter, b);
+	}
+
+	return bpos_min(insert->k.p, b->key.k.p);
 }
 
 void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)

@@ -141,8 +141,8 @@ struct bkey_alloc_unpacked bch2_alloc_unpack(const struct bch_alloc *a)
 	return ret;
 }
 
-static void bch2_alloc_pack(struct bkey_i_alloc *dst,
-			    const struct bkey_alloc_unpacked src)
+void bch2_alloc_pack(struct bkey_i_alloc *dst,
+		     const struct bkey_alloc_unpacked src)
 {
 	unsigned idx = 0;
 	void *d = dst->v.data;
@@ -962,7 +962,6 @@ retry:
 
 	invalidating_cached_data = m.cached_sectors != 0;
 
-	//BUG_ON(u.dirty_sectors);
 	u.data_type	= 0;
 	u.dirty_sectors	= 0;
 	u.cached_sectors = 0;
@@ -974,6 +973,7 @@ retry:
 	 * we have to trust the in memory bucket @m, not the version in the
 	 * btree:
 	 */
+	//BUG_ON(u.dirty_sectors);
 	u.gen		= m.gen + 1;
 
 	a = bkey_alloc_init(&alloc_key.k);

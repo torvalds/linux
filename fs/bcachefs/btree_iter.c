@@ -1005,7 +1005,7 @@ retry_all:
 			goto retry_all;
 	}
 
-	ret = btree_trans_has_multiple_iters(trans) ? -EINTR : 0;
+	ret = hweight64(trans->iters_live) > 1 ? -EINTR : 0;
 out:
 	bch2_btree_cache_cannibalize_unlock(c);
 	return ret;
@@ -1102,8 +1102,6 @@ int __must_check bch2_btree_iter_traverse(struct btree_iter *iter)
 	ret = __bch2_btree_iter_traverse(iter);
 	if (unlikely(ret))
 		ret = __btree_iter_traverse_all(iter->trans, iter, ret);
-
-	BUG_ON(ret == -EINTR && !btree_trans_has_multiple_iters(iter->trans));
 
 	return ret;
 }

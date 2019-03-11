@@ -1300,6 +1300,7 @@ enum bch_sb_features {
 
 enum bch_sb_compat {
 	BCH_COMPAT_FEAT_ALLOC_INFO	= 0,
+	BCH_COMPAT_FEAT_ALLOC_METADATA	= 1,
 };
 
 /* options: */

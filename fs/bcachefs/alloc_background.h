@@ -14,6 +14,8 @@ struct bkey_alloc_unpacked {
 };
 
 struct bkey_alloc_unpacked bch2_alloc_unpack(const struct bch_alloc *);
+void bch2_alloc_pack(struct bkey_i_alloc *,
+		     const struct bkey_alloc_unpacked);
 
 #define ALLOC_SCAN_BATCH(ca)		max_t(size_t, 1, (ca)->mi.nbuckets >> 9)
 

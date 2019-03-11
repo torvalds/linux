@@ -93,6 +93,19 @@ struct bch_fs_usage_short {
 	u64			nr_inodes;
 };
 
+struct replicas_delta {
+	s64			delta;
+	struct bch_replicas_entry r;
+} __packed;
+
+struct replicas_delta_list {
+	struct bch_fs_usage	fs_usage;
+
+	struct replicas_delta	*top;
+	struct replicas_delta	d[0];
+	u8			pad[256];
+};
+
 /*
  * A reservation for space on disk:
  */

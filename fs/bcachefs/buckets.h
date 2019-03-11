@@ -100,7 +100,7 @@ static inline struct bucket_mark ptr_bucket_mark(struct bch_dev *ca,
 	struct bucket_mark m;
 
 	rcu_read_lock();
-	m = READ_ONCE(bucket(ca, PTR_BUCKET_NR(ca, ptr))->mark);
+	m = READ_ONCE(PTR_BUCKET(ca, ptr, 0)->mark);
 	rcu_read_unlock();
 
 	return m;
@@ -266,6 +266,15 @@ int bch2_mark_overwrite(struct btree_trans *, struct btree_iter *,
 			struct bch_fs_usage *, unsigned);
 int bch2_mark_update(struct btree_trans *, struct btree_insert_entry *,
 		     struct bch_fs_usage *, unsigned);
+
+void bch2_replicas_delta_list_apply(struct bch_fs *,
+				    struct bch_fs_usage *,
+				    struct replicas_delta_list *);
+int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c,
+			bool, s64, struct replicas_delta_list *);
+int bch2_trans_mark_update(struct btree_trans *,
+			   struct btree_insert_entry *,
+			   struct replicas_delta_list *);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage_online *);
 
 /* disk reservations: */
