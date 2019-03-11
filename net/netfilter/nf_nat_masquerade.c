@@ -11,7 +11,8 @@
 #include <net/netfilter/ipv6/nf_nat_masquerade.h>
 
 static DEFINE_MUTEX(masq_mutex);
-static unsigned int masq_refcnt __read_mostly;
+static unsigned int masq_refcnt4 __read_mostly;
+static unsigned int masq_refcnt6 __read_mostly;
 
 unsigned int
 nf_nat_masquerade_ipv4(struct sk_buff *skb, unsigned int hooknum,
@@ -141,8 +142,13 @@ int nf_nat_masquerade_ipv4_register_notifier(void)
 	int ret = 0;
 
 	mutex_lock(&masq_mutex);
+	if (WARN_ON_ONCE(masq_refcnt4 == UINT_MAX)) {
+		ret = -EOVERFLOW;
+		goto out_unlock;
+	}
+
 	/* check if the notifier was already set */
-	if (++masq_refcnt > 1)
+	if (++masq_refcnt4 > 1)
 		goto out_unlock;
 
 	/* Register for device down reports */
@@ -160,7 +166,7 @@ int nf_nat_masquerade_ipv4_register_notifier(void)
 err_unregister:
 	unregister_netdevice_notifier(&masq_dev_notifier);
 err_dec:
-	masq_refcnt--;
+	masq_refcnt4--;
 out_unlock:
 	mutex_unlock(&masq_mutex);
 	return ret;
@@ -171,7 +177,7 @@ void nf_nat_masquerade_ipv4_unregister_notifier(void)
 {
 	mutex_lock(&masq_mutex);
 	/* check if the notifier still has clients */
-	if (--masq_refcnt > 0)
+	if (--masq_refcnt4 > 0)
 		goto out_unlock;
 
 	unregister_netdevice_notifier(&masq_dev_notifier);
@@ -321,25 +327,23 @@ int nf_nat_masquerade_ipv6_register_notifier(void)
 	int ret = 0;
 
 	mutex_lock(&masq_mutex);
-	/* check if the notifier is already set */
-	if (++masq_refcnt > 1)
+	if (WARN_ON_ONCE(masq_refcnt6 == UINT_MAX)) {
+		ret = -EOVERFLOW;
 		goto out_unlock;
+	}
 
-	ret = register_netdevice_notifier(&masq_dev_notifier);
-	if (ret)
-		goto err_dec;
+	/* check if the notifier is already set */
+	if (++masq_refcnt6 > 1)
+		goto out_unlock;
 
 	ret = register_inet6addr_notifier(&masq_inet6_notifier);
 	if (ret)
-		goto err_unregister;
+		goto err_dec;
 
 	mutex_unlock(&masq_mutex);
 	return ret;
-
-err_unregister:
-	unregister_netdevice_notifier(&masq_dev_notifier);
 err_dec:
-	masq_refcnt--;
+	masq_refcnt6--;
 out_unlock:
 	mutex_unlock(&masq_mutex);
 	return ret;
@@ -350,11 +354,10 @@ void nf_nat_masquerade_ipv6_unregister_notifier(void)
 {
 	mutex_lock(&masq_mutex);
 	/* check if the notifier still has clients */
-	if (--masq_refcnt > 0)
+	if (--masq_refcnt6 > 0)
 		goto out_unlock;
 
 	unregister_inet6addr_notifier(&masq_inet6_notifier);
-	unregister_netdevice_notifier(&masq_dev_notifier);
 out_unlock:
 	mutex_unlock(&masq_mutex);
 }
