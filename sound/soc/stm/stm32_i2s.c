@@ -496,12 +496,6 @@ static int stm32_i2s_configure(struct snd_soc_dai *cpu_dai,
 	unsigned int fthlv;
 	int ret;
 
-	if ((params_channels(params) == 1) &&
-	    ((i2s->fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_DSP_A)) {
-		dev_err(cpu_dai->dev, "Mono mode supported only by DSP_A\n");
-		return -EINVAL;
-	}
-
 	switch (format) {
 	case 16:
 		cfgr = I2S_CGFR_DATLEN_SET(I2S_I2SMOD_DATLEN_16);
@@ -550,6 +544,10 @@ static int stm32_i2s_startup(struct snd_pcm_substream *substream,
 	spin_lock_irqsave(&i2s->irq_lock, flags);
 	i2s->substream = substream;
 	spin_unlock_irqrestore(&i2s->irq_lock, flags);
+
+	if ((i2s->fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_DSP_A)
+		snd_pcm_hw_constraint_single(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 
 	ret = clk_prepare_enable(i2s->i2sclk);
 	if (ret < 0) {
