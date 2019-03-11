@@ -99,7 +99,6 @@ struct fusb302_chip {
 	bool intr_comp_chng;
 
 	/* port status */
-	bool pull_up;
 	bool vconn_on;
 	bool vbus_on;
 	bool charge_on;
@@ -540,7 +539,6 @@ static int fusb302_set_cc_pull(struct fusb302_chip *chip,
 				     mask, data);
 	if (ret < 0)
 		return ret;
-	chip->pull_up = pull_up;
 
 	return ret;
 }
@@ -1226,38 +1224,36 @@ static const char * const cc_polarity_name[] = {
 	[TYPEC_POLARITY_CC2]	= "Polarity_CC2",
 };
 
-static int fusb302_set_cc_polarity(struct fusb302_chip *chip,
-				   enum typec_cc_polarity cc_polarity)
+static int fusb302_set_cc_polarity_and_pull(struct fusb302_chip *chip,
+					    enum typec_cc_polarity cc_polarity,
+					    bool pull_up, bool pull_down)
 {
 	int ret = 0;
-	u8 switches0_mask = FUSB_REG_SWITCHES0_CC1_PU_EN |
-			    FUSB_REG_SWITCHES0_CC2_PU_EN |
-			    FUSB_REG_SWITCHES0_VCONN_CC1 |
-			    FUSB_REG_SWITCHES0_VCONN_CC2 |
-			    FUSB_REG_SWITCHES0_MEAS_CC1 |
-			    FUSB_REG_SWITCHES0_MEAS_CC2;
 	u8 switches0_data = 0x00;
 	u8 switches1_mask = FUSB_REG_SWITCHES1_TXCC1_EN |
 			    FUSB_REG_SWITCHES1_TXCC2_EN;
 	u8 switches1_data = 0x00;
 
+	if (pull_down)
+		switches0_data |= FUSB_REG_SWITCHES0_CC1_PD_EN |
+				  FUSB_REG_SWITCHES0_CC2_PD_EN;
+
 	if (cc_polarity == TYPEC_POLARITY_CC1) {
-		switches0_data = FUSB_REG_SWITCHES0_MEAS_CC1;
+		switches0_data |= FUSB_REG_SWITCHES0_MEAS_CC1;
 		if (chip->vconn_on)
 			switches0_data |= FUSB_REG_SWITCHES0_VCONN_CC2;
-		if (chip->pull_up)
+		if (pull_up)
 			switches0_data |= FUSB_REG_SWITCHES0_CC1_PU_EN;
 		switches1_data = FUSB_REG_SWITCHES1_TXCC1_EN;
 	} else {
-		switches0_data = FUSB_REG_SWITCHES0_MEAS_CC2;
+		switches0_data |= FUSB_REG_SWITCHES0_MEAS_CC2;
 		if (chip->vconn_on)
 			switches0_data |= FUSB_REG_SWITCHES0_VCONN_CC1;
-		if (chip->pull_up)
+		if (pull_up)
 			switches0_data |= FUSB_REG_SWITCHES0_CC2_PU_EN;
 		switches1_data = FUSB_REG_SWITCHES1_TXCC2_EN;
 	}
-	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES0,
-				     switches0_mask, switches0_data);
+	ret = fusb302_i2c_write(chip, FUSB_REG_SWITCHES0, switches0_data);
 	if (ret < 0)
 		return ret;
 	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES1,
@@ -1278,16 +1274,10 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 	enum typec_cc_polarity cc_polarity;
 	enum typec_cc_status cc_status_active, cc1, cc2;
 
-	/* set pull_up, pull_down */
-	ret = fusb302_set_cc_pull(chip, false, true);
-	if (ret < 0) {
-		fusb302_log(chip, "cannot set cc to pull down, ret=%d", ret);
-		return ret;
-	}
-	/* set polarity */
+	/* set polarity and pull_up, pull_down */
 	cc_polarity = (togdone_result == FUSB_REG_STATUS1A_TOGSS_SNK1) ?
 		      TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2;
-	ret = fusb302_set_cc_polarity(chip, cc_polarity);
+	ret = fusb302_set_cc_polarity_and_pull(chip, cc_polarity, false, true);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot set cc polarity %s, ret=%d",
 			    cc_polarity_name[cc_polarity], ret);
@@ -1354,16 +1344,10 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	enum typec_cc_polarity cc_polarity;
 	enum typec_cc_status cc_status_active, cc1, cc2;
 
-	/* set pull_up, pull_down */
-	ret = fusb302_set_cc_pull(chip, true, false);
-	if (ret < 0) {
-		fusb302_log(chip, "cannot set cc to pull up, ret=%d", ret);
-		return ret;
-	}
-	/* set polarity */
+	/* set polarity and pull_up, pull_down */
 	cc_polarity = (togdone_result == FUSB_REG_STATUS1A_TOGSS_SRC1) ?
 		      TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2;
-	ret = fusb302_set_cc_polarity(chip, cc_polarity);
+	ret = fusb302_set_cc_polarity_and_pull(chip, cc_polarity, true, false);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot set cc polarity %s, ret=%d",
 			    cc_polarity_name[cc_polarity], ret);
