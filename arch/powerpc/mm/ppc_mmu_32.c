@@ -394,3 +394,16 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	else /* Anything else has 256M mapped */
 		memblock_set_current_limit(min_t(u64, first_memblock_size, 0x10000000));
 }
+
+#ifdef CONFIG_PPC_KUEP
+void __init setup_kuep(bool disabled)
+{
+	pr_info("Activating Kernel Userspace Execution Prevention\n");
+
+	if (cpu_has_feature(CPU_FTR_601))
+		pr_warn("KUEP is not working on powerpc 601 (No NX bit in Seg Regs)\n");
+
+	if (disabled)
+		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
+}
+#endif

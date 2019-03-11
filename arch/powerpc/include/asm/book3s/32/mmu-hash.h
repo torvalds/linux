@@ -63,6 +63,9 @@ typedef pte_t *pgtable_t;
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
 
+/* Values for Segment Registers */
+#define SR_NX	0x10000000	/* No Execute */
+
 #ifndef __ASSEMBLY__
 
 /*

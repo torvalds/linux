@@ -25,6 +25,7 @@ config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
 	select PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
+	select PPC_HAVE_KUEP
 
 config PPC_85xx
 	bool "Freescale 85xx"

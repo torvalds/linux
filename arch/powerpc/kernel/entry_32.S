@@ -162,6 +162,9 @@ transfer_to_handler:
 	andis.	r12,r12,DBCR0_IDM@h
 #endif
 	ACCOUNT_CPU_USER_ENTRY(r2, r11, r12)
+#ifdef CONFIG_PPC_BOOK3S_32
+	kuep_lock r11, r12
+#endif
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 	beq+	3f
 	/* From user and task is ptraced - load up global dbcr0 */
@@ -427,6 +430,9 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 	ACCOUNT_CPU_USER_EXIT(r2, r5, r7)
+#ifdef CONFIG_PPC_BOOK3S_32
+	kuep_unlock r5, r7
+#endif
 	kuap_check r2, r4
 	lwz	r4,_LINK(r1)
 	lwz	r5,_CCR(r1)
@@ -821,6 +827,9 @@ restore_user:
 	bnel-	load_dbcr0
 #endif
 	ACCOUNT_CPU_USER_EXIT(r2, r10, r11)
+#ifdef CONFIG_PPC_BOOK3S_32
+	kuep_unlock	r10, r11
+#endif
 
 	b	restore
 
