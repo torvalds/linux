@@ -622,7 +622,6 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 {
 	struct pxa_gpio_chip *pchip;
 	struct pxa_gpio_bank *c;
-	struct resource *res;
 	struct clk *clk;
 	struct pxa_gpio_platform_data *info;
 	void __iomem *gpio_reg_base;
@@ -665,11 +664,8 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 
 	pchip->irq0 = irq0;
 	pchip->irq1 = irq1;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-	gpio_reg_base = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
+
+	gpio_reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (!gpio_reg_base)
 		return -EINVAL;
 
