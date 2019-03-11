@@ -2234,6 +2234,12 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	nic->nicvf_rx_mode_wq = alloc_ordered_workqueue("nicvf_rx_mode_wq_VF%d",
 							WQ_MEM_RECLAIM,
 							nic->vf_id);
+	if (!nic->nicvf_rx_mode_wq) {
+		err = -ENOMEM;
+		dev_err(dev, "Failed to allocate work queue\n");
+		goto err_unregister_interrupts;
+	}
+
 	INIT_WORK(&nic->rx_mode_work.work, nicvf_set_rx_mode_task);
 	spin_lock_init(&nic->rx_mode_wq_lock);
 	mutex_init(&nic->rx_mode_mtx);
