@@ -6,7 +6,20 @@
 #include <asm/book3s/64/kup-radix.h>
 #endif
 
-#ifndef __ASSEMBLY__
+#ifdef __ASSEMBLY__
+#ifndef CONFIG_PPC_KUAP
+.macro kuap_save_and_lock	sp, thread, gpr1, gpr2, gpr3
+.endm
+
+.macro kuap_restore	sp, current, gpr1, gpr2, gpr3
+.endm
+
+.macro kuap_check	current, gpr
+.endm
+
+#endif
+
+#else /* !__ASSEMBLY__ */
 
 #include <asm/pgtable.h>
 

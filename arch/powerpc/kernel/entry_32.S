@@ -36,6 +36,7 @@
 #include <asm/asm-405.h>
 #include <asm/feature-fixups.h>
 #include <asm/barrier.h>
+#include <asm/kup.h>
 
 /*
  * MSR_KERNEL is > 0x10000 on 4xx/Book-E since it include MSR_CE.
@@ -150,8 +151,8 @@ transfer_to_handler:
 	stw	r12,_CTR(r11)
 	stw	r2,_XER(r11)
 	mfspr	r12,SPRN_SPRG_THREAD
-	addi	r2,r12,-THREAD
 	beq	2f			/* if from user, fix up THREAD.regs */
+	addi	r2, r12, -THREAD
 	addi	r11,r1,STACK_FRAME_OVERHEAD
 	stw	r11,PT_REGS(r12)
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
@@ -186,6 +187,8 @@ transfer_to_handler:
 2:	/* if from kernel, check interrupted DOZE/NAP mode and
          * check for stack overflow
          */
+	kuap_save_and_lock r11, r12, r9, r2, r0
+	addi	r2, r12, -THREAD
 	lwz	r9,KSP_LIMIT(r12)
 	cmplw	r1,r9			/* if r1 <= ksp_limit */
 	ble-	stack_ovf		/* then the kernel stack overflowed */
@@ -272,6 +275,7 @@ reenable_mmu:				/* re-enable mmu so we can */
 	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
 	rlwinm	r9,r9,0,~MSR_EE
 	lwz	r12,_LINK(r11)		/* and return to address in LR */
+	kuap_restore r11, r2, r3, r4, r5
 	b	fast_exception_return
 #endif
 
@@ -423,6 +427,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 	ACCOUNT_CPU_USER_EXIT(r2, r5, r7)
+	kuap_check r2, r4
 	lwz	r4,_LINK(r1)
 	lwz	r5,_CCR(r1)
 	mtlr	r4
@@ -673,6 +678,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 	stw	r10,_CCR(r1)
 	stw	r1,KSP(r3)	/* Set old stack pointer */
 
+	kuap_check r2, r4
 #ifdef CONFIG_SMP
 	/* We need a sync somewhere here to make sure that if the
 	 * previous task gets rescheduled on another CPU, it sees all
@@ -861,12 +867,12 @@ resume_kernel:
 	/* check current_thread_info->preempt_count */
 	lwz	r0,TI_PREEMPT(r2)
 	cmpwi	0,r0,0		/* if non-zero, just restore regs and return */
-	bne	restore
+	bne	restore_kuap
 	andi.	r8,r8,_TIF_NEED_RESCHED
-	beq+	restore
+	beq+	restore_kuap
 	lwz	r3,_MSR(r1)
 	andi.	r0,r3,MSR_EE	/* interrupts off? */
-	beq	restore		/* don't schedule if so */
+	beq	restore_kuap	/* don't schedule if so */
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* Lockdep thinks irqs are enabled, we need to call
 	 * preempt_schedule_irq with IRQs off, so we inform lockdep
@@ -885,6 +891,8 @@ resume_kernel:
 	bl	trace_hardirqs_on
 #endif
 #endif /* CONFIG_PREEMPT */
+restore_kuap:
+	kuap_restore r1, r2, r9, r10, r0
 
 	/* interrupts are hard-disabled at this point */
 restore:
