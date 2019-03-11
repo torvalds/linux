@@ -1249,6 +1249,62 @@ static int fusb302_handle_togdone_snk(struct fusb302_chip *chip,
 	return ret;
 }
 
+/* On error returns < 0, otherwise a typec_cc_status value */
+static int fusb302_get_src_cc_status(struct fusb302_chip *chip,
+				     enum typec_cc_polarity cc_polarity,
+				     enum typec_cc_status *cc)
+{
+	u8 ra_mda = ra_mda_value[chip->src_current_status];
+	u8 rd_mda = rd_mda_value[chip->src_current_status];
+	u8 switches0_data, status0;
+	int ret;
+
+	/* Step 1: Set switches so that we measure the right CC pin */
+	switches0_data = (cc_polarity == TYPEC_POLARITY_CC1) ?
+		FUSB_REG_SWITCHES0_CC1_PU_EN | FUSB_REG_SWITCHES0_MEAS_CC1 :
+		FUSB_REG_SWITCHES0_CC2_PU_EN | FUSB_REG_SWITCHES0_MEAS_CC2;
+	ret = fusb302_i2c_write(chip, FUSB_REG_SWITCHES0, switches0_data);
+	if (ret < 0)
+		return ret;
+
+	fusb302_i2c_read(chip, FUSB_REG_SWITCHES0, &status0);
+	fusb302_log(chip, "get_src_cc_status switches: 0x%0x", status0);
+
+	/* Step 2: Set compararator volt to differentiate between Open and Rd */
+	ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(50, 100);
+	ret = fusb302_i2c_read(chip, FUSB_REG_STATUS0, &status0);
+	if (ret < 0)
+		return ret;
+
+	fusb302_log(chip, "get_src_cc_status rd_mda status0: 0x%0x", status0);
+	if (status0 & FUSB_REG_STATUS0_COMP) {
+		*cc = TYPEC_CC_OPEN;
+		return 0;
+	}
+
+	/* Step 3: Set compararator input to differentiate between Rd and Ra. */
+	ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, ra_mda);
+	if (ret < 0)
+		return ret;
+
+	usleep_range(50, 100);
+	ret = fusb302_i2c_read(chip, FUSB_REG_STATUS0, &status0);
+	if (ret < 0)
+		return ret;
+
+	fusb302_log(chip, "get_src_cc_status ra_mda status0: 0x%0x", status0);
+	if (status0 & FUSB_REG_STATUS0_COMP)
+		*cc = TYPEC_CC_RD;
+	else
+		*cc = TYPEC_CC_RA;
+
+	return 0;
+}
+
 static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 				      u8 togdone_result)
 {
@@ -1259,70 +1315,61 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	 * - set I_COMP interrupt on
 	 */
 	int ret = 0;
-	u8 status0;
-	u8 ra_mda = ra_mda_value[chip->src_current_status];
 	u8 rd_mda = rd_mda_value[chip->src_current_status];
-	bool ra_comp, rd_comp;
+	enum toggling_mode toggling_mode = chip->toggling_mode;
 	enum typec_cc_polarity cc_polarity;
-	enum typec_cc_status cc_status_active, cc1, cc2;
+	enum typec_cc_status cc1, cc2;
 
+	/*
+	 * The toggle-engine will stop in a src state if it sees either Ra or
+	 * Rd. Determine the status for both CC pins, starting with the one
+	 * where toggling stopped, as that is where the switches point now.
+	 */
+	if (togdone_result == FUSB_REG_STATUS1A_TOGSS_SRC1)
+		ret = fusb302_get_src_cc_status(chip, TYPEC_POLARITY_CC1, &cc1);
+	else
+		ret = fusb302_get_src_cc_status(chip, TYPEC_POLARITY_CC2, &cc2);
+	if (ret < 0)
+		return ret;
+	/* we must turn off toggling before we can measure the other pin */
+	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
+	if (ret < 0) {
+		fusb302_log(chip, "cannot set toggling mode off, ret=%d", ret);
+		return ret;
+	}
+	/* get the status of the other pin */
+	if (togdone_result == FUSB_REG_STATUS1A_TOGSS_SRC1)
+		ret = fusb302_get_src_cc_status(chip, TYPEC_POLARITY_CC2, &cc2);
+	else
+		ret = fusb302_get_src_cc_status(chip, TYPEC_POLARITY_CC1, &cc1);
+	if (ret < 0)
+		return ret;
+
+	/* determine polarity based on the status of both pins */
+	if (cc1 == TYPEC_CC_RD &&
+			(cc2 == TYPEC_CC_OPEN || cc2 == TYPEC_CC_RA)) {
+		cc_polarity = TYPEC_POLARITY_CC1;
+	} else if (cc2 == TYPEC_CC_RD &&
+		    (cc1 == TYPEC_CC_OPEN || cc1 == TYPEC_CC_RA)) {
+		cc_polarity = TYPEC_POLARITY_CC2;
+	} else {
+		fusb302_log(chip, "unexpected CC status cc1=%s, cc2=%s, restarting toggling",
+			    typec_cc_status_name[cc1],
+			    typec_cc_status_name[cc2]);
+		return fusb302_set_toggling(chip, toggling_mode);
+	}
 	/* set polarity and pull_up, pull_down */
-	cc_polarity = (togdone_result == FUSB_REG_STATUS1A_TOGSS_SRC1) ?
-		      TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2;
 	ret = fusb302_set_cc_polarity_and_pull(chip, cc_polarity, true, false);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot set cc polarity %s, ret=%d",
 			    cc_polarity_name[cc_polarity], ret);
 		return ret;
 	}
-	/* fusb302_set_cc_polarity() has set the correct measure block */
-	ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
-	if (ret < 0)
-		return ret;
-	usleep_range(50, 100);
-	ret = fusb302_i2c_read(chip, FUSB_REG_STATUS0, &status0);
-	if (ret < 0)
-		return ret;
-	rd_comp = !!(status0 & FUSB_REG_STATUS0_COMP);
-	if (!rd_comp) {
-		ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, ra_mda);
-		if (ret < 0)
-			return ret;
-		usleep_range(50, 100);
-		ret = fusb302_i2c_read(chip, FUSB_REG_STATUS0, &status0);
-		if (ret < 0)
-			return ret;
-		ra_comp = !!(status0 & FUSB_REG_STATUS0_COMP);
-	}
-	if (rd_comp)
-		cc_status_active = TYPEC_CC_OPEN;
-	else if (ra_comp)
-		cc_status_active = TYPEC_CC_RD;
-	else
-		/* Ra is not supported, report as Open */
-		cc_status_active = TYPEC_CC_OPEN;
-	/* restart toggling if the cc status on the active line is OPEN */
-	if (cc_status_active == TYPEC_CC_OPEN) {
-		fusb302_log(chip, "restart toggling as CC_OPEN detected");
-		ret = fusb302_set_toggling(chip, chip->toggling_mode);
-		return ret;
-	}
 	/* update tcpm with the new cc value */
-	cc1 = (cc_polarity == TYPEC_POLARITY_CC1) ?
-	      cc_status_active : TYPEC_CC_OPEN;
-	cc2 = (cc_polarity == TYPEC_POLARITY_CC2) ?
-	      cc_status_active : TYPEC_CC_OPEN;
 	if ((chip->cc1 != cc1) || (chip->cc2 != cc2)) {
 		chip->cc1 = cc1;
 		chip->cc2 = cc2;
 		tcpm_cc_change(chip->tcpm_port);
-	}
-	/* turn off toggling */
-	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
-	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot set toggling mode off, ret=%d", ret);
-		return ret;
 	}
 	/* set MDAC to Rd threshold, and unmask I_COMP for unplug detection */
 	ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
@@ -1509,10 +1556,8 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 			    comp_result ? "true" : "false");
 		if (comp_result) {
 			/* cc level > Rd_threashold, detach */
-			if (chip->cc_polarity == TYPEC_POLARITY_CC1)
-				chip->cc1 = TYPEC_CC_OPEN;
-			else
-				chip->cc2 = TYPEC_CC_OPEN;
+			chip->cc1 = TYPEC_CC_OPEN;
+			chip->cc2 = TYPEC_CC_OPEN;
 			tcpm_cc_change(chip->tcpm_port);
 		}
 	}
