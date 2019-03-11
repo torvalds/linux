@@ -3076,7 +3076,7 @@ out:
 	return ret;
 }
 
-static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
+static inline void contiguous_readpages(struct extent_io_tree *tree,
 					     struct page *pages[], int nr_pages,
 					     u64 start, u64 end,
 					     struct extent_map **em_cached,
@@ -3105,46 +3105,6 @@ static inline void __do_contiguous_readpages(struct extent_io_tree *tree,
 				bio, 0, bio_flags, REQ_RAHEAD, prev_em_start);
 		put_page(pages[index]);
 	}
-}
-
-static void __extent_readpages(struct extent_io_tree *tree,
-			       struct page *pages[],
-			       int nr_pages,
-			       struct extent_map **em_cached,
-			       struct bio **bio, unsigned long *bio_flags,
-			       u64 *prev_em_start)
-{
-	u64 start = 0;
-	u64 end = 0;
-	u64 page_start;
-	int index;
-	int first_index = 0;
-
-	for (index = 0; index < nr_pages; index++) {
-		page_start = page_offset(pages[index]);
-		if (!end) {
-			start = page_start;
-			end = start + PAGE_SIZE - 1;
-			first_index = index;
-		} else if (end + 1 == page_start) {
-			end += PAGE_SIZE;
-		} else {
-			__do_contiguous_readpages(tree, &pages[first_index],
-						  index - first_index, start,
-						  end, em_cached,
-						  bio, bio_flags,
-						  prev_em_start);
-			start = page_start;
-			end = start + PAGE_SIZE - 1;
-			first_index = index;
-		}
-	}
-
-	if (end)
-		__do_contiguous_readpages(tree, &pages[first_index],
-					  index - first_index, start,
-					  end, em_cached, bio,
-					  bio_flags, prev_em_start);
 }
 
 static int __extent_read_full_page(struct extent_io_tree *tree,
@@ -4109,6 +4069,8 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 	u64 prev_em_start = (u64)-1;
 
 	while (!list_empty(pages)) {
+		u64 contig_end = 0;
+
 		for (nr = 0; nr < ARRAY_SIZE(pagepool) && !list_empty(pages);) {
 			struct page *page = lru_to_page(pages);
 
@@ -4117,14 +4079,22 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 			if (add_to_page_cache_lru(page, mapping, page->index,
 						readahead_gfp_mask(mapping))) {
 				put_page(page);
-				continue;
+				break;
 			}
 
 			pagepool[nr++] = page;
+			contig_end = page_offset(page) + PAGE_SIZE - 1;
 		}
 
-		__extent_readpages(tree, pagepool, nr, &em_cached, &bio,
-				   &bio_flags, &prev_em_start);
+		if (nr) {
+			u64 contig_start = page_offset(pagepool[0]);
+
+			ASSERT(contig_start + nr * PAGE_SIZE - 1 == contig_end);
+
+			contiguous_readpages(tree, pagepool, nr, contig_start,
+				     contig_end, &em_cached, &bio, &bio_flags,
+				     &prev_em_start);
+		}
 	}
 
 	if (em_cached)
