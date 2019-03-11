@@ -320,9 +320,9 @@ config BLK_DEV_OFFBOARD
 config BLK_DEV_GENERIC
 	tristate "Generic PCI IDE Chipset Support"
 	select BLK_DEV_IDEPCI
-        help
-          This option provides generic support for various PCI IDE Chipsets
-          which otherwise might not be supported.
+	help
+	  This option provides generic support for various PCI IDE Chipsets
+	  which otherwise might not be supported.
 
 config BLK_DEV_OPTI621
 	tristate "OPTi 82C621 chipset enhanced support"
@@ -516,7 +516,7 @@ config BLK_DEV_IT8213
 	tristate "IT8213 IDE support"
 	select BLK_DEV_IDEDMA_PCI
 	help
-	 This driver adds support for the ITE 8213 IDE controller.
+	  This driver adds support for the ITE 8213 IDE controller.
 
 config BLK_DEV_IT821X
 	tristate "IT821X IDE support"
@@ -671,20 +671,20 @@ config BLK_DEV_IDE_PMAC_ATA100FIRST
 	  hard disk and hdc for CD-ROM.
 
 config BLK_DEV_IDE_AU1XXX
-       bool "IDE for AMD Alchemy Au1200"
-       depends on MIPS_ALCHEMY
-       select IDE_XFER_MODE
+	bool "IDE for AMD Alchemy Au1200"
+	depends on MIPS_ALCHEMY
+	select IDE_XFER_MODE
 choice
-       prompt "IDE Mode for AMD Alchemy Au1200"
-       default BLK_DEV_IDE_AU1XXX_PIO_DBDMA
-       depends on BLK_DEV_IDE_AU1XXX
+	prompt "IDE Mode for AMD Alchemy Au1200"
+	default BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+	depends on BLK_DEV_IDE_AU1XXX
 
 config BLK_DEV_IDE_AU1XXX_PIO_DBDMA
-       bool "PIO+DbDMA IDE for AMD Alchemy Au1200"
+	bool "PIO+DbDMA IDE for AMD Alchemy Au1200"
 
 config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-       bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
-       depends on BLK_DEV_IDE_AU1XXX
+	bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
+	depends on BLK_DEV_IDE_AU1XXX
 endchoice
 
 config BLK_DEV_IDE_TX4938
