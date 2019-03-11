@@ -1664,6 +1664,7 @@ static int ov7670_s_power(struct v4l2_subdev *sd, int on)
 
 	if (on) {
 		ov7670_power_on (sd);
+		ov7670_init(sd, 0);
 		ov7670_apply_fmt(sd);
 		ov7675_apply_framerate(sd);
 		v4l2_ctrl_handler_setup(&info->hdl);
