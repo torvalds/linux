@@ -344,4 +344,10 @@ int ib_setup_port_attrs(struct ib_core_device *coredev,
 			bool alloc_hw_stats);
 
 int rdma_compatdev_set(u8 enable);
+
+int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
+				 struct kobject *kobj, struct kobj_type *ktype,
+				 const char *name);
+void ib_port_unregister_module_stat(struct kobject *kobj);
+
 #endif /* _CORE_PRIV_H */

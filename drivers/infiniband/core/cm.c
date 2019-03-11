@@ -52,6 +52,7 @@
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
 #include "cm_msgs.h"
+#include "core_priv.h"
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("InfiniBand CM");
@@ -220,7 +221,6 @@ struct cm_port {
 struct cm_device {
 	struct list_head list;
 	struct ib_device *ib_device;
-	struct device *device;
 	u8 ack_delay;
 	int going_down;
 	struct cm_port *port[0];
@@ -4272,18 +4272,6 @@ static struct kobj_type cm_counter_obj_type = {
 	.default_attrs = cm_counter_default_attrs
 };
 
-static void cm_release_port_obj(struct kobject *obj)
-{
-	struct cm_port *cm_port;
-
-	cm_port = container_of(obj, struct cm_port, port_obj);
-	kfree(cm_port);
-}
-
-static struct kobj_type cm_port_obj_type = {
-	.release = cm_release_port_obj
-};
-
 static char *cm_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode)
@@ -4302,19 +4290,12 @@ static int cm_create_port_fs(struct cm_port *port)
 {
 	int i, ret;
 
-	ret = kobject_init_and_add(&port->port_obj, &cm_port_obj_type,
-				   &port->cm_dev->device->kobj,
-				   "%d", port->port_num);
-	if (ret) {
-		kfree(port);
-		return ret;
-	}
-
 	for (i = 0; i < CM_COUNTER_GROUPS; i++) {
-		ret = kobject_init_and_add(&port->counter_group[i].obj,
-					   &cm_counter_obj_type,
-					   &port->port_obj,
-					   "%s", counter_group_names[i]);
+		ret = ib_port_register_module_stat(port->cm_dev->ib_device,
+						   port->port_num,
+						   &port->counter_group[i].obj,
+						   &cm_counter_obj_type,
+						   counter_group_names[i]);
 		if (ret)
 			goto error;
 	}
@@ -4323,8 +4304,7 @@ static int cm_create_port_fs(struct cm_port *port)
 
 error:
 	while (i--)
-		kobject_put(&port->counter_group[i].obj);
-	kobject_put(&port->port_obj);
+		ib_port_unregister_module_stat(&port->counter_group[i].obj);
 	return ret;
 
 }
@@ -4334,9 +4314,8 @@ static void cm_remove_port_fs(struct cm_port *port)
 	int i;
 
 	for (i = 0; i < CM_COUNTER_GROUPS; i++)
-		kobject_put(&port->counter_group[i].obj);
+		ib_port_unregister_module_stat(&port->counter_group[i].obj);
 
-	kobject_put(&port->port_obj);
 }
 
 static void cm_add_one(struct ib_device *ib_device)
@@ -4363,13 +4342,6 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->ib_device = ib_device;
 	cm_dev->ack_delay = ib_device->attrs.local_ca_ack_delay;
 	cm_dev->going_down = 0;
-	cm_dev->device = device_create(&cm_class, &ib_device->dev,
-				       MKDEV(0, 0), NULL,
-				       "%s", dev_name(&ib_device->dev));
-	if (IS_ERR(cm_dev->device)) {
-		kfree(cm_dev);
-		return;
-	}
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
@@ -4436,7 +4408,6 @@ error1:
 		cm_remove_port_fs(port);
 	}
 free:
-	device_unregister(cm_dev->device);
 	kfree(cm_dev);
 }
 
@@ -4490,7 +4461,6 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 		cm_remove_port_fs(port);
 	}
 
-	device_unregister(cm_dev->device);
 	kfree(cm_dev);
 }
 
