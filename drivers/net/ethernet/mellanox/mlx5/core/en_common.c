@@ -45,7 +45,9 @@ int mlx5e_create_tir(struct mlx5_core_dev *mdev,
 	if (err)
 		return err;
 
+	mutex_lock(&mdev->mlx5e_res.td.list_lock);
 	list_add(&tir->list, &mdev->mlx5e_res.td.tirs_list);
+	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
 
 	return 0;
 }
@@ -53,8 +55,10 @@ int mlx5e_create_tir(struct mlx5_core_dev *mdev,
 void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 		       struct mlx5e_tir *tir)
 {
+	mutex_lock(&mdev->mlx5e_res.td.list_lock);
 	mlx5_core_destroy_tir(mdev, tir->tirn);
 	list_del(&tir->list);
+	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
 }
 
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
@@ -114,6 +118,7 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 	}
 
 	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
+	mutex_init(&mdev->mlx5e_res.td.list_lock);
 
 	return 0;
 
@@ -159,6 +164,7 @@ int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
+	mutex_lock(&mdev->mlx5e_res.td.list_lock);
 	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
 		tirn = tir->tirn;
 		err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
@@ -170,6 +176,7 @@ out:
 	kvfree(in);
 	if (err)
 		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
+	mutex_unlock(&mdev->mlx5e_res.td.list_lock);
 
 	return err;
 }
