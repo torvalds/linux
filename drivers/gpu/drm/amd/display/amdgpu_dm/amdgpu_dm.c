@@ -2383,6 +2383,27 @@ fill_plane_tiling_attributes(struct amdgpu_device *adev,
 
 	memset(tiling_info, 0, sizeof(*tiling_info));
 	memset(dcc, 0, sizeof(*dcc));
+	memset(address, 0, sizeof(*address));
+
+	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+		address->type = PLN_ADDR_TYPE_GRAPHICS;
+		address->grph.addr.low_part = lower_32_bits(afb->address);
+		address->grph.addr.high_part = upper_32_bits(afb->address);
+	} else {
+		const struct drm_framebuffer *fb = &afb->base;
+		uint64_t awidth = ALIGN(fb->width, 64);
+		uint64_t chroma_addr = afb->address + awidth * fb->height;
+
+		address->type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
+		address->video_progressive.luma_addr.low_part =
+			lower_32_bits(afb->address);
+		address->video_progressive.luma_addr.high_part =
+			upper_32_bits(afb->address);
+		address->video_progressive.chroma_addr.low_part =
+			lower_32_bits(chroma_addr);
+		address->video_progressive.chroma_addr.high_part =
+			upper_32_bits(chroma_addr);
+	}
 
 	/* Fill GFX8 params */
 	if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == DC_ARRAY_2D_TILED_THIN1) {
@@ -2497,7 +2518,6 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 	memset(&plane_state->address, 0, sizeof(plane_state->address));
 
 	if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-		plane_state->address.type = PLN_ADDR_TYPE_GRAPHICS;
 		plane_state->plane_size.grph.surface_size.x = 0;
 		plane_state->plane_size.grph.surface_size.y = 0;
 		plane_state->plane_size.grph.surface_size.width = fb->width;
@@ -2509,7 +2529,7 @@ static int fill_plane_attributes_from_fb(struct amdgpu_device *adev,
 
 	} else {
 		awidth = ALIGN(fb->width, 64);
-		plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
+
 		plane_state->plane_size.video.luma_size.x = 0;
 		plane_state->plane_size.video.luma_size.y = 0;
 		plane_state->plane_size.video.luma_size.width = awidth;
@@ -3692,10 +3712,8 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *rbo;
-	uint64_t chroma_addr = 0;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
-	uint64_t tiling_flags, dcc_address;
-	unsigned int awidth;
+	uint64_t tiling_flags;
 	uint32_t domain;
 	int r;
 
@@ -3748,29 +3766,9 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 			dm_plane_state_old->dc_state != dm_plane_state_new->dc_state) {
 		struct dc_plane_state *plane_state = dm_plane_state_new->dc_state;
 
-		if (plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-			plane_state->address.grph.addr.low_part = lower_32_bits(afb->address);
-			plane_state->address.grph.addr.high_part = upper_32_bits(afb->address);
-
-			dcc_address =
-				get_dcc_address(afb->address, tiling_flags);
-			plane_state->address.grph.meta_addr.low_part =
-				lower_32_bits(dcc_address);
-			plane_state->address.grph.meta_addr.high_part =
-				upper_32_bits(dcc_address);
-		} else {
-			awidth = ALIGN(new_state->fb->width, 64);
-			plane_state->address.type = PLN_ADDR_TYPE_VIDEO_PROGRESSIVE;
-			plane_state->address.video_progressive.luma_addr.low_part
-							= lower_32_bits(afb->address);
-			plane_state->address.video_progressive.luma_addr.high_part
-							= upper_32_bits(afb->address);
-			chroma_addr = afb->address + (u64)awidth * new_state->fb->height;
-			plane_state->address.video_progressive.chroma_addr.low_part
-							= lower_32_bits(chroma_addr);
-			plane_state->address.video_progressive.chroma_addr.high_part
-							= upper_32_bits(chroma_addr);
-		}
+		fill_plane_tiling_attributes(
+			adev, afb, plane_state, &plane_state->tiling_info,
+			&plane_state->dcc, &plane_state->address, tiling_flags);
 	}
 
 	return 0;
@@ -4838,9 +4836,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
 		amdgpu_bo_unreserve(abo);
-
-		bundle->flip_addrs[planes_count].address.grph.addr.low_part = lower_32_bits(afb->address);
-		bundle->flip_addrs[planes_count].address.grph.addr.high_part = upper_32_bits(afb->address);
 
 		fill_plane_tiling_attributes(dm->adev, afb, dc_plane,
 			&bundle->plane_infos[planes_count].tiling_info,
