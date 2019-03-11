@@ -24,6 +24,7 @@
 #include <linux/ktime.h>
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
@@ -867,6 +868,25 @@ static void esdhc_set_uhs_signaling(struct sdhci_host *host,
 		sdhci_set_uhs_signaling(host, timing);
 }
 
+static u32 esdhc_irq(struct sdhci_host *host, u32 intmask)
+{
+	u32 command;
+
+	if (of_find_compatible_node(NULL, NULL,
+				"fsl,p2020-esdhc")) {
+		command = SDHCI_GET_CMD(sdhci_readw(host,
+					SDHCI_COMMAND));
+		if (command == MMC_WRITE_MULTIPLE_BLOCK &&
+				sdhci_readw(host, SDHCI_BLOCK_COUNT) &&
+				intmask & SDHCI_INT_DATA_END) {
+			intmask &= ~SDHCI_INT_DATA_END;
+			sdhci_writel(host, SDHCI_INT_DATA_END,
+					SDHCI_INT_STATUS);
+		}
+	}
+	return intmask;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static u32 esdhc_proctl;
 static int esdhc_of_suspend(struct device *dev)
@@ -914,6 +934,7 @@ static const struct sdhci_ops sdhci_esdhc_be_ops = {
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
+	.irq = esdhc_irq,
 };
 
 static const struct sdhci_ops sdhci_esdhc_le_ops = {
@@ -931,6 +952,7 @@ static const struct sdhci_ops sdhci_esdhc_le_ops = {
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
+	.irq = esdhc_irq,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_be_pdata = {
