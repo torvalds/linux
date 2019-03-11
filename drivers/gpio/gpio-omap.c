@@ -1562,7 +1562,6 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	const struct of_device_id *match;
 	const struct omap_gpio_platform_data *pdata;
-	struct resource *res;
 	struct gpio_bank *bank;
 	struct irq_chip *irqc;
 	int ret;
@@ -1648,8 +1647,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&bank->wa_lock);
 
 	/* Static mapping, never released */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	bank->base = devm_ioremap_resource(dev, res);
+	bank->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bank->base)) {
 		return PTR_ERR(bank->base);
 	}
