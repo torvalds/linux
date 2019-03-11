@@ -81,6 +81,9 @@ typedef int (*ras_ih_cb)(struct amdgpu_device *adev,
 
 struct amdgpu_ras {
 	/* ras infrastructure */
+	/* for ras itself. */
+	uint32_t hw_supported;
+	/* for IP to check its ras ability. */
 	uint32_t supported;
 	uint32_t features;
 	struct list_head head;

@@ -469,7 +469,9 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 static int amdgpu_ras_is_feature_allowed(struct amdgpu_device *adev,
 		struct ras_common_if *head)
 {
-	return amdgpu_ras_enable && (amdgpu_ras_mask & BIT(head->block));
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	return con->hw_supported & BIT(head->block);
 }
 
 static int amdgpu_ras_is_feature_enabled(struct amdgpu_device *adev,
@@ -490,6 +492,12 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
 
+	/* If hardware does not support ras, then do not create obj.
+	 * But if hardware support ras, we can create the obj.
+	 * Ras framework checks con->hw_supported to see if it need do
+	 * corresponding initialization.
+	 * IP checks con->support to see if it need disable ras.
+	 */
 	if (!amdgpu_ras_is_feature_allowed(adev, head))
 		return 0;
 	if (!(!!enable ^ !!amdgpu_ras_is_feature_enabled(adev, head)))
@@ -1334,27 +1342,36 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 }
 /* recovery end */
 
-static uint32_t amdgpu_ras_check_supported(struct amdgpu_device *adev)
+/*
+ * check hardware's ras ability which will be saved in hw_supported.
+ * if hardware does not support ras, we can skip some ras initializtion and
+ * forbid some ras operations from IP.
+ * if software itself, say boot parameter, limit the ras ability. We still
+ * need allow IP do some limited operations, like disable. In such case,
+ * we have to initialize ras as normal. but need check if operation is
+ * allowed or not in each function.
+ */
+static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
+		uint32_t *hw_supported, uint32_t *supported)
 {
-	uint32_t supported = 0;
+	*hw_supported = 0;
+	*supported = 0;
 
-	if (amdgpu_ras_enable == 0 ||
-			amdgpu_sriov_vf(adev) ||
+	if (amdgpu_sriov_vf(adev) ||
 			adev->asic_type != CHIP_VEGA20)
-		return 0;
+		return;
 
 	if (amdgpu_atomfirmware_mem_ecc_supported(adev) ||
-			amdgpu_atomfirmware_sram_ecc_supported(adev)) {
-		supported = AMDGPU_RAS_BLOCK_MASK;
-	}
+			amdgpu_atomfirmware_sram_ecc_supported(adev))
+		*hw_supported = AMDGPU_RAS_BLOCK_MASK;
 
-	return supported & amdgpu_ras_mask;
+	*supported = amdgpu_ras_enable == 0 ?
+				0 : *hw_supported & amdgpu_ras_mask;
 }
 
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	uint32_t supported = amdgpu_ras_check_supported(adev);
 
 	if (con)
 		return 0;
@@ -1369,7 +1386,8 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_set_context(adev, con);
 
-	con->supported = supported;
+	amdgpu_ras_check_supported(adev, &con->hw_supported,
+			&con->supported);
 	con->features = 0;
 	INIT_LIST_HEAD(&con->head);
 
