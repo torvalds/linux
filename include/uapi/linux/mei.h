@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
 /*
+ * Copyright(c) 2003-2015 Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
  * Intel MEI Interface Header
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  */
 #ifndef _LINUX_MEI_H
 #define _LINUX_MEI_H
