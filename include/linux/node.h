@@ -20,6 +20,32 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 
+/**
+ * struct node_hmem_attrs - heterogeneous memory performance attributes
+ *
+ * @read_bandwidth:	Read bandwidth in MB/s
+ * @write_bandwidth:	Write bandwidth in MB/s
+ * @read_latency:	Read latency in nanoseconds
+ * @write_latency:	Write latency in nanoseconds
+ */
+struct node_hmem_attrs {
+	unsigned int read_bandwidth;
+	unsigned int write_bandwidth;
+	unsigned int read_latency;
+	unsigned int write_latency;
+};
+
+#ifdef CONFIG_HMEM_REPORTING
+void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
+			 unsigned access);
+#else
+static inline void node_set_perf_attrs(unsigned int nid,
+				       struct node_hmem_attrs *hmem_attrs,
+				       unsigned access)
+{
+}
+#endif
+
 struct node {
 	struct device	dev;
 	struct list_head access_list;

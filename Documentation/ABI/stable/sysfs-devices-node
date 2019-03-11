@@ -114,3 +114,31 @@ Contact:	Keith Busch <keith.busch@intel.com>
 Description:
 		The directory containing symlinks to memory targets that
 		this initiator node has class "Y" access.
+
+What:		/sys/devices/system/node/nodeX/accessY/initiators/read_bandwidth
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		This node's read bandwidth in MB/s when accessed from
+		nodes found in this access class's linked initiators.
+
+What:		/sys/devices/system/node/nodeX/accessY/initiators/read_latency
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		This node's read latency in nanoseconds when accessed
+		from nodes found in this access class's linked initiators.
+
+What:		/sys/devices/system/node/nodeX/accessY/initiators/write_bandwidth
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		This node's write bandwidth in MB/s when accessed from
+		found in this access class's linked initiators.
+
+What:		/sys/devices/system/node/nodeX/accessY/initiators/write_latency
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		This node's write latency in nanoseconds when access
+		from nodes found in this class's linked initiators.
