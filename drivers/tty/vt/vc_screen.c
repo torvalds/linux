@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Provide access to virtual console memory.
- * /dev/vcs0: the screen as it is being viewed right now (possibly scrolled)
+ * /dev/vcs: the screen as it is being viewed right now (possibly scrolled)
  * /dev/vcsN: the screen of /dev/ttyN (1 <= N <= 63)
  *            [minor: N]
  *
