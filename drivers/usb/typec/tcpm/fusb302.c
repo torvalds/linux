@@ -518,31 +518,6 @@ static int tcpm_get_current_limit(struct tcpc_dev *dev)
 	return current_limit;
 }
 
-static int fusb302_set_cc_pull(struct fusb302_chip *chip,
-			       bool pull_up, bool pull_down)
-{
-	int ret = 0;
-	u8 data = 0x00;
-	u8 mask = FUSB_REG_SWITCHES0_CC1_PU_EN |
-		  FUSB_REG_SWITCHES0_CC2_PU_EN |
-		  FUSB_REG_SWITCHES0_CC1_PD_EN |
-		  FUSB_REG_SWITCHES0_CC2_PD_EN;
-
-	if (pull_up)
-		data |= (chip->cc_polarity == TYPEC_POLARITY_CC1) ?
-			FUSB_REG_SWITCHES0_CC1_PU_EN :
-			FUSB_REG_SWITCHES0_CC2_PU_EN;
-	if (pull_down)
-		data |= FUSB_REG_SWITCHES0_CC1_PD_EN |
-			FUSB_REG_SWITCHES0_CC2_PD_EN;
-	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES0,
-				     mask, data);
-	if (ret < 0)
-		return ret;
-
-	return ret;
-}
-
 static int fusb302_set_src_current(struct fusb302_chip *chip,
 				   enum src_current_status status)
 {
@@ -674,27 +649,30 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 {
 	struct fusb302_chip *chip = container_of(dev, struct fusb302_chip,
 						 tcpc_dev);
+	u8 switches0_mask = FUSB_REG_SWITCHES0_CC1_PU_EN |
+			    FUSB_REG_SWITCHES0_CC2_PU_EN |
+			    FUSB_REG_SWITCHES0_CC1_PD_EN |
+			    FUSB_REG_SWITCHES0_CC2_PD_EN;
+	u8 switches0_data = 0x00;
 	int ret = 0;
-	bool pull_up, pull_down;
 	enum toggling_mode mode;
 
 	mutex_lock(&chip->lock);
 	switch (cc) {
 	case TYPEC_CC_OPEN:
-		pull_up = false;
-		pull_down = false;
 		mode = TOGGLING_MODE_OFF;
 		break;
 	case TYPEC_CC_RD:
-		pull_up = false;
-		pull_down = true;
+		switches0_data |= FUSB_REG_SWITCHES0_CC1_PD_EN |
+				  FUSB_REG_SWITCHES0_CC2_PD_EN;
 		mode = TOGGLING_MODE_SNK;
 		break;
 	case TYPEC_CC_RP_DEF:
 	case TYPEC_CC_RP_1_5:
 	case TYPEC_CC_RP_3_0:
-		pull_up = true;
-		pull_down = false;
+		switches0_data |= (chip->cc_polarity == TYPEC_POLARITY_CC1) ?
+				  FUSB_REG_SWITCHES0_CC1_PU_EN :
+				  FUSB_REG_SWITCHES0_CC2_PU_EN;
 		mode = TOGGLING_MODE_SRC;
 		break;
 	default:
@@ -706,13 +684,10 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 
 	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
 
-	ret = fusb302_set_cc_pull(chip, pull_up, pull_down);
+	ret = fusb302_i2c_mask_write(chip, FUSB_REG_SWITCHES0,
+				     switches0_mask, switches0_data);
 	if (ret < 0) {
-		fusb302_log(chip,
-			    "cannot set cc pulling up %s, down %s, ret = %d",
-			    pull_up ? "True" : "False",
-			    pull_down ? "True" : "False",
-			    ret);
+		fusb302_log(chip, "cannot set pull-up/-down, ret = %d", ret);
 		goto done;
 	}
 	/* reset the cc status */
