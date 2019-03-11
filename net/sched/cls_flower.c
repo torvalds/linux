@@ -1348,6 +1348,24 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
+	if (tb[TCA_FLOWER_FLAGS]) {
+		fnew->flags = nla_get_u32(tb[TCA_FLOWER_FLAGS]);
+
+		if (!tc_flags_valid(fnew->flags)) {
+			err = -EINVAL;
+			goto errout;
+		}
+	}
+
+	err = fl_set_parms(net, tp, fnew, mask, base, tb, tca[TCA_RATE], ovr,
+			   tp->chain->tmplt_priv, extack);
+	if (err)
+		goto errout;
+
+	err = fl_check_assign_mask(head, fnew, fold, mask);
+	if (err)
+		goto errout;
+
 	if (!handle) {
 		handle = 1;
 		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
@@ -1358,36 +1376,18 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 				    handle, GFP_KERNEL);
 	}
 	if (err)
-		goto errout;
+		goto errout_mask;
 	fnew->handle = handle;
-
-	if (tb[TCA_FLOWER_FLAGS]) {
-		fnew->flags = nla_get_u32(tb[TCA_FLOWER_FLAGS]);
-
-		if (!tc_flags_valid(fnew->flags)) {
-			err = -EINVAL;
-			goto errout_idr;
-		}
-	}
-
-	err = fl_set_parms(net, tp, fnew, mask, base, tb, tca[TCA_RATE], ovr,
-			   tp->chain->tmplt_priv, extack);
-	if (err)
-		goto errout_idr;
-
-	err = fl_check_assign_mask(head, fnew, fold, mask);
-	if (err)
-		goto errout_idr;
 
 	if (!fold && __fl_lookup(fnew->mask, &fnew->mkey)) {
 		err = -EEXIST;
-		goto errout_mask;
+		goto errout_idr;
 	}
 
 	err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
 				     fnew->mask->filter_ht_params);
 	if (err)
-		goto errout_mask;
+		goto errout_idr;
 
 	if (!tc_skip_hw(fnew->flags)) {
 		err = fl_hw_replace_filter(tp, fnew, extack);
@@ -1426,12 +1426,13 @@ errout_mask_ht:
 	rhashtable_remove_fast(&fnew->mask->ht, &fnew->ht_node,
 			       fnew->mask->filter_ht_params);
 
-errout_mask:
-	fl_mask_put(head, fnew->mask, false);
-
 errout_idr:
 	if (!fold)
 		idr_remove(&head->handle_idr, fnew->handle);
+
+errout_mask:
+	fl_mask_put(head, fnew->mask, false);
+
 errout:
 	tcf_exts_destroy(&fnew->exts);
 	kfree(fnew);

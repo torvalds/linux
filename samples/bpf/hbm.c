@@ -18,7 +18,7 @@
  *		Default is /hbm1
  *    -r <rate>	Rate limit in Mbps
  *    -s	Get HBM stats (marked, dropped, etc.)
- *    -t <time>	Exit after specified seconds (deault is 0)
+ *    -t <time>	Exit after specified seconds (default is 0)
  *    -w	Work conserving flag. cgroup can increase its bandwidth
  *		beyond the rate limit specified while there is available
  *		bandwidth. Current implementation assumes there is only
@@ -376,7 +376,7 @@ static void Usage(void)
 	       "               Default is /hbm1\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
-	       "    -t <time>  Exit after specified seconds (deault is 0)\n"
+	       "    -t <time>  Exit after specified seconds (default is 0)\n"
 	       "    -w	       Work conserving flag. cgroup can increase\n"
 	       "               bandwidth beyond the rate limit specified\n"
 	       "               while there is available bandwidth. Current\n"
