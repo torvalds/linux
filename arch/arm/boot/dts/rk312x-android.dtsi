@@ -105,6 +105,7 @@
 };
 
 &dmc {
+	vop-dclk-mode = <1>;
 	status = "okay";
 };
 
