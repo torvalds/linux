@@ -94,7 +94,6 @@ struct intel_vgpu_fence {
 
 struct intel_vgpu_mmio {
 	void *vreg;
-	void *sreg;
 };
 
 #define INTEL_GVT_MAX_BAR_NUM 4
@@ -447,10 +446,6 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	(*(u64 *)(vgpu->mmio.vreg + i915_mmio_reg_offset(reg)))
 #define vgpu_vreg64(vgpu, offset) \
 	(*(u64 *)(vgpu->mmio.vreg + (offset)))
-#define vgpu_sreg_t(vgpu, reg) \
-	(*(u32 *)(vgpu->mmio.sreg + i915_mmio_reg_offset(reg)))
-#define vgpu_sreg(vgpu, offset) \
-	(*(u32 *)(vgpu->mmio.sreg + (offset)))
 
 #define for_each_active_vgpu(gvt, vgpu, id) \
 	idr_for_each_entry((&(gvt)->vgpu_idr), (vgpu), (id)) \

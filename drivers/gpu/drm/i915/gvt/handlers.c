@@ -3488,12 +3488,11 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 		return mmio_info->read(vgpu, offset, pdata, bytes);
 	else {
 		u64 ro_mask = mmio_info->ro_mask;
-		u32 old_vreg = 0, old_sreg = 0;
+		u32 old_vreg = 0;
 		u64 data = 0;
 
 		if (intel_gvt_mmio_has_mode_mask(gvt, mmio_info->offset)) {
 			old_vreg = vgpu_vreg(vgpu, offset);
-			old_sreg = vgpu_sreg(vgpu, offset);
 		}
 
 		if (likely(!ro_mask))
@@ -3515,8 +3514,6 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 
 			vgpu_vreg(vgpu, offset) = (old_vreg & ~mask)
 					| (vgpu_vreg(vgpu, offset) & mask);
-			vgpu_sreg(vgpu, offset) = (old_sreg & ~mask)
-					| (vgpu_sreg(vgpu, offset) & mask);
 		}
 	}
 
