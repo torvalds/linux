@@ -140,9 +140,7 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
  * Interrupt hander (VI), walk the IH ring.
  * Returns irq process return code.
  */
-int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
-		      void (*callback)(struct amdgpu_device *adev,
-				       struct amdgpu_ih_ring *ih))
+int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 {
 	u32 wptr;
 
@@ -162,7 +160,7 @@ restart_ih:
 	rmb();
 
 	while (ih->rptr != wptr) {
-		callback(adev, ih);
+		amdgpu_irq_dispatch(adev, ih);
 		ih->rptr &= ih->ptr_mask;
 	}
 

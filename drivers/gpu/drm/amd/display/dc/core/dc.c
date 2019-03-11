@@ -1138,6 +1138,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	/* pplib is notified if disp_num changed */
 	dc->hwss.optimize_bandwidth(dc, context);
 
+	for (i = 0; i < context->stream_count; i++)
+		context->streams[i]->mode_changed = false;
+
 	dc_release_state(dc->current_state);
 
 	dc->current_state = context;
@@ -1623,13 +1626,13 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					stream_update->adjust->v_total_min,
 					stream_update->adjust->v_total_max);
 
-			if (stream_update->periodic_vsync_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
-				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, VLINE0, &stream->periodic_vsync_config);
+			if (stream_update->periodic_interrupt0 &&
+					dc->hwss.setup_periodic_interrupt)
+				dc->hwss.setup_periodic_interrupt(pipe_ctx, VLINE0);
 
-			if (stream_update->enhanced_sync_config && pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
-				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
-					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, VLINE1, &stream->enhanced_sync_config);
+			if (stream_update->periodic_interrupt1 &&
+					dc->hwss.setup_periodic_interrupt)
+				dc->hwss.setup_periodic_interrupt(pipe_ctx, VLINE1);
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
