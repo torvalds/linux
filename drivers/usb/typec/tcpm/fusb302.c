@@ -676,7 +676,6 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 						 tcpc_dev);
 	int ret = 0;
 	bool pull_up, pull_down;
-	u8 rd_mda;
 	enum toggling_mode mode;
 
 	mutex_lock(&chip->lock);
@@ -684,16 +683,19 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	case TYPEC_CC_OPEN:
 		pull_up = false;
 		pull_down = false;
+		mode = TOGGLING_MODE_OFF;
 		break;
 	case TYPEC_CC_RD:
 		pull_up = false;
 		pull_down = true;
+		mode = TOGGLING_MODE_SNK;
 		break;
 	case TYPEC_CC_RP_DEF:
 	case TYPEC_CC_RP_1_5:
 	case TYPEC_CC_RP_3_0:
 		pull_up = true;
 		pull_down = false;
+		mode = TOGGLING_MODE_SRC;
 		break;
 	default:
 		fusb302_log(chip, "unsupported cc value %s",
@@ -701,11 +703,9 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 		ret = -EINVAL;
 		goto done;
 	}
-	ret = fusb302_set_toggling(chip, TOGGLING_MODE_OFF);
-	if (ret < 0) {
-		fusb302_log(chip, "cannot stop toggling, ret=%d", ret);
-		goto done;
-	}
+
+	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
+
 	ret = fusb302_set_cc_pull(chip, pull_up, pull_down);
 	if (ret < 0) {
 		fusb302_log(chip,
@@ -718,74 +718,19 @@ static int tcpm_set_cc(struct tcpc_dev *dev, enum typec_cc_status cc)
 	/* reset the cc status */
 	chip->cc1 = TYPEC_CC_OPEN;
 	chip->cc2 = TYPEC_CC_OPEN;
+
 	/* adjust current for SRC */
-	if (pull_up) {
-		ret = fusb302_set_src_current(chip, cc_src_current[cc]);
-		if (ret < 0) {
-			fusb302_log(chip, "cannot set src current %s, ret=%d",
-				    typec_cc_status_name[cc], ret);
-			goto done;
-		}
-	}
-	/* enable/disable interrupts, BC_LVL for SNK and COMP_CHNG for SRC */
-	if (pull_up) {
-		rd_mda = rd_mda_value[cc_src_current[cc]];
-		ret = fusb302_i2c_write(chip, FUSB_REG_MEASURE, rd_mda);
-		if (ret < 0) {
-			fusb302_log(chip,
-				    "cannot set SRC measure value, ret=%d",
-				    ret);
-			goto done;
-		}
-		ret = fusb302_i2c_mask_write(chip, FUSB_REG_MASK,
-					     FUSB_REG_MASK_BC_LVL |
-					     FUSB_REG_MASK_COMP_CHNG,
-					     FUSB_REG_MASK_COMP_CHNG);
-		if (ret < 0) {
-			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
-				    ret);
-			goto done;
-		}
-		chip->intr_bc_lvl = false;
-		chip->intr_comp_chng = true;
-	}
-	if (pull_down) {
-		ret = fusb302_i2c_mask_write(chip, FUSB_REG_MASK,
-					     FUSB_REG_MASK_BC_LVL |
-					     FUSB_REG_MASK_COMP_CHNG,
-					     FUSB_REG_MASK_BC_LVL);
-		if (ret < 0) {
-			fusb302_log(chip, "cannot set SRC interrupt, ret=%d",
-				    ret);
-			goto done;
-		}
-		chip->intr_bc_lvl = true;
-		chip->intr_comp_chng = false;
-	}
-	fusb302_log(chip, "cc := %s", typec_cc_status_name[cc]);
-
-	/* Enable detection for fixed SNK or SRC only roles */
-	switch (cc) {
-	case TYPEC_CC_RD:
-		mode = TOGGLING_MODE_SNK;
-		break;
-	case TYPEC_CC_RP_DEF:
-	case TYPEC_CC_RP_1_5:
-	case TYPEC_CC_RP_3_0:
-		mode = TOGGLING_MODE_SRC;
-		break;
-	default:
-		mode = TOGGLING_MODE_OFF;
-		break;
+	ret = fusb302_set_src_current(chip, cc_src_current[cc]);
+	if (ret < 0) {
+		fusb302_log(chip, "cannot set src current %s, ret=%d",
+			    typec_cc_status_name[cc], ret);
+		goto done;
 	}
 
-	if (mode != TOGGLING_MODE_OFF) {
-		ret = fusb302_set_toggling(chip, mode);
-		if (ret < 0)
-			fusb302_log(chip,
-				    "cannot set fixed role toggling mode, ret=%d",
-				    ret);
-	}
+	ret = fusb302_set_toggling(chip, mode);
+	if (ret < 0)
+		fusb302_log(chip, "cannot set toggling mode, ret=%d", ret);
+
 done:
 	mutex_unlock(&chip->lock);
 
