@@ -289,6 +289,10 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(port->clk_gpio);
 		if (ret)
 			return ret;
+		ret = devm_add_action_or_reset(dev, vf610_gpio_disable_clk,
+					       port->clk_gpio);
+		if (ret)
+			return ret;
 	} else if (port->clk_gpio == ERR_PTR(-EPROBE_DEFER)) {
 		return PTR_ERR(port->clk_gpio);
 	}
@@ -345,8 +349,6 @@ static int vf610_gpio_remove(struct platform_device *pdev)
 	struct vf610_gpio_port *port = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&port->gc);
-	if (!IS_ERR(port->clk_gpio))
-		clk_disable_unprepare(port->clk_gpio);
 
 	return 0;
 }
