@@ -22,7 +22,6 @@
 #include "meson_overlay.h"
 #include "meson_vpp.h"
 #include "meson_viu.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 /* VD1_IF0_GEN_REG */
@@ -349,13 +348,6 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 	bool interlace_mode;
 
 	DRM_DEBUG_DRIVER("\n");
-
-	/* Fallback is canvas provider is not available */
-	if (!priv->canvas) {
-		priv->canvas_id_vd1_0 = MESON_CANVAS_ID_VD1_0;
-		priv->canvas_id_vd1_1 = MESON_CANVAS_ID_VD1_1;
-		priv->canvas_id_vd1_2 = MESON_CANVAS_ID_VD1_2;
-	}
 
 	interlace_mode = state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE;
 

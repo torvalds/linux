@@ -37,7 +37,6 @@
 #include "meson_venc.h"
 #include "meson_vpp.h"
 #include "meson_viu.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 /* CRTC definition */
@@ -214,13 +213,7 @@ void meson_crtc_irq(struct meson_drm *priv)
 		writel_relaxed(priv->viu.osd_sc_v_ctrl0,
 				priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 
-		if (priv->canvas)
-			meson_canvas_config(priv->canvas, priv->canvas_id_osd1,
-				priv->viu.osd1_addr, priv->viu.osd1_stride,
-				priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
-				MESON_CANVAS_BLKMODE_LINEAR, 0);
-		else
-			meson_canvas_setup(priv, MESON_CANVAS_ID_OSD1,
+		meson_canvas_config(priv->canvas, priv->canvas_id_osd1,
 				priv->viu.osd1_addr, priv->viu.osd1_stride,
 				priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
 				MESON_CANVAS_BLKMODE_LINEAR, 0);
@@ -237,61 +230,34 @@ void meson_crtc_irq(struct meson_drm *priv)
 
 		switch (priv->viu.vd1_planes) {
 		case 3:
-			if (priv->canvas)
-				meson_canvas_config(priv->canvas,
-						    priv->canvas_id_vd1_2,
-						    priv->viu.vd1_addr2,
-						    priv->viu.vd1_stride2,
-						    priv->viu.vd1_height2,
-						    MESON_CANVAS_WRAP_NONE,
-						    MESON_CANVAS_BLKMODE_LINEAR,
-						    MESON_CANVAS_ENDIAN_SWAP64);
-			else
-				meson_canvas_setup(priv, MESON_CANVAS_ID_VD1_2,
-						   priv->viu.vd1_addr2,
-						   priv->viu.vd1_stride2,
-						   priv->viu.vd1_height2,
-						   MESON_CANVAS_WRAP_NONE,
-						   MESON_CANVAS_BLKMODE_LINEAR,
-						   MESON_CANVAS_ENDIAN_SWAP64);
+			meson_canvas_config(priv->canvas,
+					    priv->canvas_id_vd1_2,
+					    priv->viu.vd1_addr2,
+					    priv->viu.vd1_stride2,
+					    priv->viu.vd1_height2,
+					    MESON_CANVAS_WRAP_NONE,
+					    MESON_CANVAS_BLKMODE_LINEAR,
+					    MESON_CANVAS_ENDIAN_SWAP64);
 		/* fallthrough */
 		case 2:
-			if (priv->canvas)
-				meson_canvas_config(priv->canvas,
-						    priv->canvas_id_vd1_1,
-						    priv->viu.vd1_addr1,
-						    priv->viu.vd1_stride1,
-						    priv->viu.vd1_height1,
-						    MESON_CANVAS_WRAP_NONE,
-						    MESON_CANVAS_BLKMODE_LINEAR,
-						    MESON_CANVAS_ENDIAN_SWAP64);
-			else
-				meson_canvas_setup(priv, MESON_CANVAS_ID_VD1_1,
-						   priv->viu.vd1_addr2,
-						   priv->viu.vd1_stride2,
-						   priv->viu.vd1_height2,
-						   MESON_CANVAS_WRAP_NONE,
-						   MESON_CANVAS_BLKMODE_LINEAR,
-						   MESON_CANVAS_ENDIAN_SWAP64);
+			meson_canvas_config(priv->canvas,
+					    priv->canvas_id_vd1_1,
+					    priv->viu.vd1_addr1,
+					    priv->viu.vd1_stride1,
+					    priv->viu.vd1_height1,
+					    MESON_CANVAS_WRAP_NONE,
+					    MESON_CANVAS_BLKMODE_LINEAR,
+					    MESON_CANVAS_ENDIAN_SWAP64);
 		/* fallthrough */
 		case 1:
-			if (priv->canvas)
-				meson_canvas_config(priv->canvas,
-						    priv->canvas_id_vd1_0,
-						    priv->viu.vd1_addr0,
-						    priv->viu.vd1_stride0,
-						    priv->viu.vd1_height0,
-						    MESON_CANVAS_WRAP_NONE,
-						    MESON_CANVAS_BLKMODE_LINEAR,
-						    MESON_CANVAS_ENDIAN_SWAP64);
-			else
-				meson_canvas_setup(priv, MESON_CANVAS_ID_VD1_0,
-						   priv->viu.vd1_addr2,
-						   priv->viu.vd1_stride2,
-						   priv->viu.vd1_height2,
-						   MESON_CANVAS_WRAP_NONE,
-						   MESON_CANVAS_BLKMODE_LINEAR,
-						   MESON_CANVAS_ENDIAN_SWAP64);
+			meson_canvas_config(priv->canvas,
+					    priv->canvas_id_vd1_0,
+					    priv->viu.vd1_addr0,
+					    priv->viu.vd1_stride0,
+					    priv->viu.vd1_height0,
+					    MESON_CANVAS_WRAP_NONE,
+					    MESON_CANVAS_BLKMODE_LINEAR,
+					    MESON_CANVAS_ENDIAN_SWAP64);
 		};
 
 		writel_relaxed(priv->viu.vd1_if0_gen_reg,
