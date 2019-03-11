@@ -740,6 +740,9 @@ static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
 		.attr = {
 			.name = "features",
 			.mode = S_IRUGO,
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+			.ignore_lockdep = 1,
+#endif
 		},
 			.show = amdgpu_ras_sysfs_features_read,
 	};
@@ -782,6 +785,9 @@ int amdgpu_ras_sysfs_create(struct amdgpu_device *adev,
 		.attr = {
 			.name = obj->fs_data.sysfs_name,
 			.mode = S_IRUGO,
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+			.ignore_lockdep = 1,
+#endif
 		},
 			.show = amdgpu_ras_sysfs_read,
 	};
