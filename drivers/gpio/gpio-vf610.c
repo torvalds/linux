@@ -85,17 +85,15 @@ static int vf610_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct vf610_gpio_port *port = gpiochip_get_data(gc);
 	unsigned long mask = BIT(gpio);
-	void __iomem *addr;
+	unsigned long offset = GPIO_PDIR;
 
 	if (port->sdata && port->sdata->have_paddr) {
 		mask &= vf610_gpio_readl(port->gpio_base + GPIO_PDDR);
-		addr = mask ? port->gpio_base + GPIO_PDOR :
-			      port->gpio_base + GPIO_PDIR;
-		return !!(vf610_gpio_readl(addr) & BIT(gpio));
-	} else {
-		return !!(vf610_gpio_readl(port->gpio_base + GPIO_PDIR)
-					   & BIT(gpio));
+		if (mask)
+			offset = GPIO_PDOR;
 	}
+
+	return !!(vf610_gpio_readl(port->gpio_base + offset) & BIT(gpio));
 }
 
 static void vf610_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
