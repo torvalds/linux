@@ -4,4 +4,5 @@ config ACPI_HMAT
 	depends on ACPI_NUMA
 	help
 	 If set, this option has the kernel parse and report the
-	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table).
+	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
+	 and register memory initiators with their targets.
