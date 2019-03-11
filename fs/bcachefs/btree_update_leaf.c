@@ -585,7 +585,6 @@ got_journal_res:
 			break;
 		}
 	}
-	trans->did_work = true;
 
 	trans_for_each_entry(trans, i)
 		do_btree_insert_one(trans, i);
@@ -739,8 +738,7 @@ err:
 	 * BTREE_INSERT_NOUNLOCK means don't unlock _after_ successful btree
 	 * update; if we haven't done anything yet it doesn't apply
 	 */
-	if (!trans->did_work)
-		flags &= ~BTREE_INSERT_NOUNLOCK;
+	flags &= ~BTREE_INSERT_NOUNLOCK;
 
 	switch (ret) {
 	case BTREE_INSERT_BTREE_NODE_FULL:
@@ -756,8 +754,12 @@ err:
 		 * XXX:
 		 * split -> btree node merging (of parent node) might still drop
 		 * locks when we're not passing it BTREE_INSERT_NOUNLOCK
+		 *
+		 * we don't want to pass BTREE_INSERT_NOUNLOCK to split as that
+		 * will inhibit merging - but we don't have a reliable way yet
+		 * (do we?) of checking if we dropped locks in this path
 		 */
-		if (!ret && !trans->did_work)
+		if (!ret)
 			goto retry;
 #endif
 

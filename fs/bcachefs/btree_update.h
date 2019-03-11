@@ -30,7 +30,6 @@ struct btree_insert {
 	struct journal_preres	journal_preres;
 	u64			*journal_seq;
 	unsigned		flags;
-	bool			did_work;
 
 	unsigned short		nr;
 	struct btree_insert_entry  *entries;
