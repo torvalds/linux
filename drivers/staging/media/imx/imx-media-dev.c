@@ -50,12 +50,14 @@ int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 	int ret;
 
 	if (fwnode) {
-		asd = v4l2_async_notifier_add_fwnode_subdev(
-			&imxmd->notifier, fwnode, sizeof(*imxasd));
+		asd = v4l2_async_notifier_add_fwnode_subdev(&imxmd->notifier,
+							    fwnode,
+							    sizeof(*imxasd));
 	} else {
 		devname = dev_name(&pdev->dev);
-		asd = v4l2_async_notifier_add_devname_subdev(
-			&imxmd->notifier, devname, sizeof(*imxasd));
+		asd = v4l2_async_notifier_add_devname_subdev(&imxmd->notifier,
+							     devname,
+							     sizeof(*imxasd));
 	}
 
 	if (IS_ERR(asd)) {
@@ -266,10 +268,9 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		entity = &sd->entity;
-		vdev_lists = devm_kcalloc(
-			imxmd->md.dev,
-			entity->num_pads, sizeof(*vdev_lists),
-			GFP_KERNEL);
+		vdev_lists = devm_kcalloc(imxmd->md.dev,
+					  entity->num_pads, sizeof(*vdev_lists),
+					  GFP_KERNEL);
 		if (!vdev_lists)
 			return -ENOMEM;
 
