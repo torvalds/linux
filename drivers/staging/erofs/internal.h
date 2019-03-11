@@ -327,12 +327,17 @@ static inline erofs_off_t iloc(struct erofs_sb_info *sbi, erofs_nid_t nid)
 	return blknr_to_addr(sbi->meta_blkaddr) + (nid << sbi->islotbits);
 }
 
-#define inode_set_inited_xattr(inode)   (EROFS_V(inode)->flags |= 1)
-#define inode_has_inited_xattr(inode)   (EROFS_V(inode)->flags & 1)
+/* atomic flag definitions */
+#define EROFS_V_EA_INITED_BIT	0
+
+/* bitlock definitions (arranged in reverse order) */
+#define EROFS_V_BL_XATTR_BIT	(BITS_PER_LONG - 1)
 
 struct erofs_vnode {
 	erofs_nid_t nid;
-	unsigned int flags;
+
+	/* atomic flags (including bitlocks) */
+	unsigned long flags;
 
 	unsigned char data_mapping_mode;
 	/* inline size in bytes */
