@@ -733,8 +733,17 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_gem_object *gobj;
 	uint32_t handle;
+	u64 flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	u32 domain;
 	int r;
+
+	/*
+	 * The buffer returned from this function should be cleared, but
+	 * it can only be done if the ring is enabled or we'll fail to
+	 * create the buffer.
+	 */
+	if (adev->mman.buffer_funcs_enabled)
+		flags |= AMDGPU_GEM_CREATE_VRAM_CLEARED;
 
 	args->pitch = amdgpu_align_pitch(adev, args->width,
 					 DIV_ROUND_UP(args->bpp, 8), 0);
@@ -742,9 +751,7 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	args->size = ALIGN(args->size, PAGE_SIZE);
 	domain = amdgpu_bo_get_preferred_pin_domain(adev,
 				amdgpu_display_supported_domains(adev));
-	r = amdgpu_gem_object_create(adev, args->size, 0, domain,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CLEARED,
+	r = amdgpu_gem_object_create(adev, args->size, 0, domain, flags,
 				     ttm_bo_type_device, NULL, &gobj);
 	if (r)
 		return -ENOMEM;
