@@ -125,13 +125,13 @@ struct fusb302_chip {
  */
 
 #ifdef CONFIG_DEBUG_FS
-
 static bool fusb302_log_full(struct fusb302_chip *chip)
 {
 	return chip->logbuffer_tail ==
 		(chip->logbuffer_head + 1) % LOG_BUFFER_ENTRIES;
 }
 
+__printf(2, 0)
 static void _fusb302_log(struct fusb302_chip *chip, const char *fmt,
 			 va_list args)
 {
