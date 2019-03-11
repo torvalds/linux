@@ -770,17 +770,35 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 	}
 
 	dl->header->num_lists = num_lists;
+	dl->header->flags = 0;
 
-	if (!list_empty(&dl->chain) && !is_last) {
+	/*
+	 * Enable the interrupt for the end of each frame. In continuous mode
+	 * chained lists are used with one list per frame, so enable the
+	 * interrupt for each list. In singleshot mode chained lists are used
+	 * to partition a single frame, so enable the interrupt for the last
+	 * list only.
+	 */
+	if (!dlm->singleshot || is_last)
+		dl->header->flags |= VSP1_DLH_INT_ENABLE;
+
+	/*
+	 * In continuous mode enable auto-start for all lists, as the VSP must
+	 * loop on the same list until a new one is queued. In singleshot mode
+	 * enable auto-start for all lists but the last to chain processing of
+	 * partitions without software intervention.
+	 */
+	if (!dlm->singleshot || !is_last)
+		dl->header->flags |= VSP1_DLH_AUTO_START;
+
+	if (!is_last) {
 		/*
-		 * If this display list's chain is not empty, we are on a list,
-		 * and the next item is the display list that we must queue for
-		 * automatic processing by the hardware.
+		 * If this is not the last display list in the chain, queue the
+		 * next item for automatic processing by the hardware.
 		 */
 		struct vsp1_dl_list *next = list_next_entry(dl, chain);
 
 		dl->header->next_header = next->dma;
-		dl->header->flags = VSP1_DLH_AUTO_START;
 	} else if (!dlm->singleshot) {
 		/*
 		 * if the display list manager works in continuous mode, the VSP
@@ -788,13 +806,6 @@ static void vsp1_dl_list_fill_header(struct vsp1_dl_list *dl, bool is_last)
 		 * instructed to do otherwise.
 		 */
 		dl->header->next_header = dl->dma;
-		dl->header->flags = VSP1_DLH_INT_ENABLE | VSP1_DLH_AUTO_START;
-	} else {
-		/*
-		 * Otherwise, in mem-to-mem mode, we work in single-shot mode
-		 * and the next display list must not be started automatically.
-		 */
-		dl->header->flags = VSP1_DLH_INT_ENABLE;
 	}
 
 	if (!dl->extension)
