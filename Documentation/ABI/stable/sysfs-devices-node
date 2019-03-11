@@ -91,3 +91,26 @@ Contact:	Lee Schermerhorn <lee.schermerhorn@hp.com>
 Description:
 		The node's huge page size control/query attributes.
 		See Documentation/admin-guide/mm/hugetlbpage.rst
+
+What:		/sys/devices/system/node/nodeX/accessY/
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		The node's relationship to other nodes for access class "Y".
+
+What:		/sys/devices/system/node/nodeX/accessY/initiators/
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		The directory containing symlinks to memory initiator
+		nodes that have class "Y" access to this target node's
+		memory. CPUs and other memory initiators in nodes not in
+		the list accessing this node's memory may have different
+		performance.
+
+What:		/sys/devices/system/node/nodeX/accessY/targets/
+Date:		December 2018
+Contact:	Keith Busch <keith.busch@intel.com>
+Description:
+		The directory containing symlinks to memory targets that
+		this initiator node has class "Y" access.
