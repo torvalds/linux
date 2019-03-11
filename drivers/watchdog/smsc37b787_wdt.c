@@ -478,7 +478,7 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 			return -EINVAL;
 		timeout = new_timeout;
 		wb_smsc_wdt_set_timeout(timeout);
-		/* fall through and return the new timeout... */
+		/* fall through - and return the new timeout... */
 	case WDIOC_GETTIMEOUT:
 		new_timeout = timeout;
 		if (unit == UNIT_MINUTE)
