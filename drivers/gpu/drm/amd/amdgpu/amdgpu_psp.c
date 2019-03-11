@@ -707,10 +707,13 @@ static int psp_hw_start(struct psp_context *psp)
 				"XGMI: Failed to initialize XGMI session\n");
 	}
 
-	ret = psp_ras_initialize(psp);
-	if (ret)
-		dev_err(psp->adev->dev,
-				"RAS: Failed to initialize RAS\n");
+
+	if (psp->adev->psp.ta_fw) {
+		ret = psp_ras_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+					"RAS: Failed to initialize RAS\n");
+	}
 
 	return 0;
 }
@@ -963,7 +966,8 @@ static int psp_hw_fini(void *handle)
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
 
-	psp_ras_terminate(psp);
+	if (psp->adev->psp.ta_fw)
+		psp_ras_terminate(psp);
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
@@ -998,10 +1002,12 @@ static int psp_suspend(void *handle)
 		}
 	}
 
-	ret = psp_ras_terminate(psp);
-	if (ret) {
-		DRM_ERROR("Failed to terminate ras ta\n");
-		return ret;
+	if (psp->adev->psp.ta_fw) {
+		ret = psp_ras_terminate(psp);
+		if (ret) {
+			DRM_ERROR("Failed to terminate ras ta\n");
+			return ret;
+		}
 	}
 
 	ret = psp_ring_stop(psp, PSP_RING_TYPE__KM);
