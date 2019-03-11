@@ -97,7 +97,7 @@ static ssize_t acpi_table_aml_read(struct config_item *cfg,
 
 CONFIGFS_BIN_ATTR(acpi_table_, aml, NULL, MAX_ACPI_TABLE_SIZE);
 
-struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
+static struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
 	&acpi_table_attr_aml,
 	NULL,
 };
@@ -193,7 +193,7 @@ CONFIGFS_ATTR_RO(acpi_table_, oem_revision);
 CONFIGFS_ATTR_RO(acpi_table_, asl_compiler_id);
 CONFIGFS_ATTR_RO(acpi_table_, asl_compiler_revision);
 
-struct configfs_attribute *acpi_table_attrs[] = {
+static struct configfs_attribute *acpi_table_attrs[] = {
 	&acpi_table_attr_signature,
 	&acpi_table_attr_length,
 	&acpi_table_attr_revision,
@@ -233,7 +233,7 @@ static void acpi_table_drop_item(struct config_group *group,
 	acpi_tb_unload_table(table->index);
 }
 
-struct configfs_group_operations acpi_table_group_ops = {
+static struct configfs_group_operations acpi_table_group_ops = {
 	.make_item = acpi_table_make_item,
 	.drop_item = acpi_table_drop_item,
 };
