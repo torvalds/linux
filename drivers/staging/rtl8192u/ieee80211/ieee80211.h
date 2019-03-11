@@ -1586,7 +1586,7 @@ typedef enum {
 } country_code_type_t;
 
 #define RT_MAX_LD_SLOT_NUM	10
-typedef struct _RT_LINK_DETECT_T {
+struct rt_link_detect {
 
 	u32				NumRecvBcnInPeriod;
 	u32				NumRecvDataInPeriod;
@@ -1599,7 +1599,7 @@ typedef struct _RT_LINK_DETECT_T {
 	u32				NumTxOkInPeriod;
 	u32				NumRxOkInPeriod;
 	bool				bBusyTraffic;
-} RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
+};
 
 
 struct ieee80211_device {
@@ -1876,7 +1876,7 @@ struct ieee80211_device {
 	bool FwRWRF;
 
 	//added by amy for AP roaming
-	RT_LINK_DETECT_T       	LinkDetectInfo;
+	struct rt_link_detect LinkDetectInfo;
 	//added by amy for ps
 	struct rt_power_save_control PowerSaveControl;
 //}
