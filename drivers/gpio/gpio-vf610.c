@@ -251,7 +251,6 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct vf610_gpio_port *port;
-	struct resource *iores;
 	struct gpio_chip *gc;
 	int i;
 	int ret;
@@ -261,13 +260,11 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	port->sdata = of_device_get_match_data(dev);
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->base = devm_ioremap_resource(dev, iores);
+	port->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	port->gpio_base = devm_ioremap_resource(dev, iores);
+	port->gpio_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(port->gpio_base))
 		return PTR_ERR(port->gpio_base);
 
