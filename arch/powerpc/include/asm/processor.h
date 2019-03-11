@@ -164,6 +164,9 @@ struct thread_struct {
 	unsigned long	rtas_sp;	/* stack pointer for when in RTAS */
 #endif
 #endif
+#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
+	unsigned long	kuap;		/* opened segments for user access */
+#endif
 	/* Debug Registers */
 	struct debug_reg debug;
 	struct thread_fp_state	fp_state;

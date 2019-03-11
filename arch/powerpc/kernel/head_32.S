@@ -387,7 +387,11 @@ DataAccess:
 	EXCEPTION_PROLOG
 	mfspr	r10,SPRN_DSISR
 	stw	r10,_DSISR(r11)
+#ifdef CONFIG_PPC_KUAP
+	andis.	r0,r10,(DSISR_BAD_FAULT_32S | DSISR_DABRMATCH | DSISR_PROTFAULT)@h
+#else
 	andis.	r0,r10,(DSISR_BAD_FAULT_32S|DSISR_DABRMATCH)@h
+#endif
 	bne	1f			/* if not, try to put a PTE */
 	mfspr	r4,SPRN_DAR		/* into the hash table */
 	rlwinm	r3,r10,32-15,21,21	/* DSISR_STORE -> _PAGE_RW */
@@ -902,6 +906,9 @@ load_up_mmu:
 #ifdef CONFIG_PPC_KUEP
 	oris	r3, r3, SR_NX@h	/* Set Nx */
 #endif
+#ifdef CONFIG_PPC_KUAP
+	oris	r3, r3, SR_KS@h	/* Set Ks */
+#endif
 	li	r4,0
 3:	mtsrin	r3,r4
 	addi	r3,r3,0x111	/* increment VSID */
@@ -910,6 +917,7 @@ load_up_mmu:
 	li	r0, 16 - NUM_USER_SEGMENTS /* load up kernel segment registers */
 	mtctr	r0			/* for context 0 */
 	rlwinm	r3, r3, 0, ~SR_NX	/* Nx = 0 */
+	rlwinm	r3, r3, 0, ~SR_KS	/* Ks = 0 */
 	oris	r3, r3, SR_KP@h		/* Kp = 1 */
 3:	mtsrin	r3, r4
 	addi	r3, r3, 0x111	/* increment VSID */
@@ -1019,6 +1027,9 @@ _ENTRY(switch_mmu_context)
 	rlwinm	r3,r3,4,8,27	/* VSID = (context & 0xfffff) << 4 */
 #ifdef CONFIG_PPC_KUEP
 	oris	r3, r3, SR_NX@h	/* Set Nx */
+#endif
+#ifdef CONFIG_PPC_KUAP
+	oris	r3, r3, SR_KS@h	/* Set Ks */
 #endif
 	li	r0,NUM_USER_SEGMENTS
 	mtctr	r0

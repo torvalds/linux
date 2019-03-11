@@ -407,3 +407,13 @@ void __init setup_kuep(bool disabled)
 		pr_warn("KUEP cannot be disabled yet on 6xx when compiled in\n");
 }
 #endif
+
+#ifdef CONFIG_PPC_KUAP
+void __init setup_kuap(bool disabled)
+{
+	pr_info("Activating Kernel Userspace Access Protection\n");
+
+	if (disabled)
+		pr_warn("KUAP cannot be disabled yet on 6xx when compiled in\n");
+}
+#endif
