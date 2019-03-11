@@ -3,6 +3,7 @@ Device tree bindings for Goodix GT9xx series touchscreen controller
 Required properties:
 
  - compatible		: Should be "goodix,gt1151"
+				 or "goodix,gt5688"
 				 or "goodix,gt911"
 				 or "goodix,gt9110"
 				 or "goodix,gt912"
@@ -18,11 +19,14 @@ Optional properties:
  - irq-gpios		: GPIO pin used for IRQ. The driver uses the
 			  interrupt gpio pin as output to reset the device.
  - reset-gpios		: GPIO pin used for reset
+ - touchscreen-inverted-x
+ - touchscreen-inverted-y
+ - touchscreen-size-x
+ - touchscreen-size-y
+ - touchscreen-swapped-x-y
 
- - touchscreen-inverted-x  : X axis is inverted (boolean)
- - touchscreen-inverted-y  : Y axis is inverted (boolean)
- - touchscreen-swapped-x-y : X and Y axis are swapped (boolean)
-                             (swapping is done after inverting the axis)
+The touchscreen-* properties are documented in touchscreen.txt in this
+directory.
 
 Example:
 
