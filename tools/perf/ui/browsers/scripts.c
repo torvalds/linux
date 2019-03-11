@@ -17,36 +17,111 @@
  */
 #define SCRIPT_FULLPATH_LEN	256
 
+struct script_config {
+	const char **names;
+	char **paths;
+	int index;
+	const char *perf;
+	char extra_format[256];
+};
+
+void attr_to_script(char *extra_format, struct perf_event_attr *attr)
+{
+	extra_format[0] = 0;
+	if (attr->read_format & PERF_FORMAT_GROUP)
+		strcat(extra_format, " -F +metric");
+	if (attr->sample_type & PERF_SAMPLE_BRANCH_STACK)
+		strcat(extra_format, " -F +brstackinsn --xed");
+	if (attr->sample_type & PERF_SAMPLE_REGS_INTR)
+		strcat(extra_format, " -F +iregs");
+	if (attr->sample_type & PERF_SAMPLE_REGS_USER)
+		strcat(extra_format, " -F +uregs");
+	if (attr->sample_type & PERF_SAMPLE_PHYS_ADDR)
+		strcat(extra_format, " -F +phys_addr");
+}
+
+static int add_script_option(const char *name, const char *opt,
+			     struct script_config *c)
+{
+	c->names[c->index] = name;
+	if (asprintf(&c->paths[c->index],
+		     "%s script %s -F +metric %s %s",
+		     c->perf, opt, symbol_conf.inline_name ? " --inline" : "",
+		     c->extra_format) < 0)
+		return -1;
+	c->index++;
+	return 0;
+}
+
 /*
  * When success, will copy the full path of the selected script
  * into  the buffer pointed by script_name, and return 0.
  * Return -1 on failure.
  */
-static int list_scripts(char *script_name)
+static int list_scripts(char *script_name, bool *custom,
+			struct perf_evsel *evsel)
 {
-	char *buf, *names[SCRIPT_MAX_NO], *paths[SCRIPT_MAX_NO];
-	int i, num, choice, ret = -1;
+	char *buf, *paths[SCRIPT_MAX_NO], *names[SCRIPT_MAX_NO];
+	int i, num, choice;
+	int ret = 0;
+	int max_std, custom_perf;
+	char pbuf[256];
+	const char *perf = perf_exe(pbuf, sizeof pbuf);
+	struct script_config scriptc = {
+		.names = (const char **)names,
+		.paths = paths,
+		.perf = perf
+	};
+
+	script_name[0] = 0;
 
 	/* Preset the script name to SCRIPT_NAMELEN */
 	buf = malloc(SCRIPT_MAX_NO * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN));
 	if (!buf)
-		return ret;
+		return -1;
 
-	for (i = 0; i < SCRIPT_MAX_NO; i++) {
-		names[i] = buf + i * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN);
+	if (evsel)
+		attr_to_script(scriptc.extra_format, &evsel->attr);
+	add_script_option("Show individual samples", "", &scriptc);
+	add_script_option("Show individual samples with assembler", "-F +insn --xed",
+			  &scriptc);
+	add_script_option("Show individual samples with source", "-F +srcline,+srccode",
+			  &scriptc);
+	custom_perf = scriptc.index;
+	add_script_option("Show samples with custom perf script arguments", "", &scriptc);
+	i = scriptc.index;
+	max_std = i;
+
+	for (; i < SCRIPT_MAX_NO; i++) {
+		names[i] = buf + (i - max_std) * (SCRIPT_NAMELEN + SCRIPT_FULLPATH_LEN);
 		paths[i] = names[i] + SCRIPT_NAMELEN;
 	}
 
-	num = find_scripts(names, paths);
-	if (num > 0) {
-		choice = ui__popup_menu(num, names);
-		if (choice < num && choice >= 0) {
-			strcpy(script_name, paths[choice]);
-			ret = 0;
-		}
+	num = find_scripts(names + max_std, paths + max_std);
+	if (num < 0)
+		num = 0;
+	choice = ui__popup_menu(num + max_std, (char * const *)names);
+	if (choice < 0) {
+		ret = -1;
+		goto out;
 	}
+	if (choice == custom_perf) {
+		char script_args[50];
+		int key = ui_browser__input_window("perf script command",
+				"Enter perf script command line (without perf script prefix)",
+				script_args, "", 0);
+		if (key != K_ENTER)
+			return -1;
+		sprintf(script_name, "%s script %s", perf, script_args);
+	} else if (choice < num + max_std) {
+		strcpy(script_name, paths[choice]);
+	}
+	*custom = choice >= max_std;
 
+out:
 	free(buf);
+	for (i = 0; i < max_std; i++)
+		free(paths[i]);
 	return ret;
 }
 
@@ -66,27 +141,25 @@ static void run_script(char *cmd)
 	SLsmg_refresh();
 }
 
-int script_browse(const char *script_opt)
+int script_browse(const char *script_opt, struct perf_evsel *evsel)
 {
-	char cmd[SCRIPT_FULLPATH_LEN*2], script_name[SCRIPT_FULLPATH_LEN];
+	char *cmd, script_name[SCRIPT_FULLPATH_LEN];
+	bool custom = false;
 
 	memset(script_name, 0, SCRIPT_FULLPATH_LEN);
-	if (list_scripts(script_name))
+	if (list_scripts(script_name, &custom, evsel))
 		return -1;
 
-	sprintf(cmd, "perf script -s %s ", script_name);
-
-	if (script_opt)
-		strcat(cmd, script_opt);
-
-	if (input_name) {
-		strcat(cmd, " -i ");
-		strcat(cmd, input_name);
-	}
-
-	strcat(cmd, " 2>&1 | less");
+	if (asprintf(&cmd, "%s%s %s %s%s 2>&1 | less",
+			custom ? "perf script -s " : "",
+			script_name,
+			script_opt ? script_opt : "",
+			input_name ? "-i " : "",
+			input_name ? input_name : "") < 0)
+		return -1;
 
 	run_script(cmd);
+	free(cmd);
 
 	return 0;
 }

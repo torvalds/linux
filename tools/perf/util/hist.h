@@ -436,6 +436,8 @@ struct annotation_options;
 
 #ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"
+void attr_to_script(char *buf, struct perf_event_attr *attr);
+
 int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt,
 			     struct annotation_options *annotation_opts);
@@ -450,7 +452,8 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct perf_env *env,
 				  bool warn_lost_event,
 				  struct annotation_options *annotation_options);
-int script_browse(const char *script_opt);
+
+int script_browse(const char *script_opt, struct perf_evsel *evsel);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
@@ -479,7 +482,8 @@ static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
 	return 0;
 }
 
-static inline int script_browse(const char *script_opt __maybe_unused)
+static inline int script_browse(const char *script_opt __maybe_unused,
+				struct perf_evsel *evsel __maybe_unused)
 {
 	return 0;
 }

@@ -2344,6 +2344,7 @@ struct popup_action {
 	struct thread 		*thread;
 	struct map_symbol 	ms;
 	int			socket;
+	struct perf_evsel	*evsel;
 
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
 };
@@ -2566,7 +2567,7 @@ do_run_script(struct hist_browser *browser __maybe_unused,
 		n += snprintf(script_opt + n, len - n, " --time %s,%s", start, end);
 	}
 
-	script_browse(script_opt);
+	script_browse(script_opt, act->evsel);
 	free(script_opt);
 	return 0;
 }
@@ -2575,7 +2576,7 @@ static int
 add_script_opt_2(struct hist_browser *browser __maybe_unused,
 	       struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       const char *tstr)
+	       struct perf_evsel *evsel, const char *tstr)
 {
 
 	if (thread) {
@@ -2593,6 +2594,7 @@ add_script_opt_2(struct hist_browser *browser __maybe_unused,
 
 	act->thread = thread;
 	act->ms.sym = sym;
+	act->evsel = evsel;
 	act->fn = do_run_script;
 	return 1;
 }
@@ -2600,12 +2602,13 @@ add_script_opt_2(struct hist_browser *browser __maybe_unused,
 static int
 add_script_opt(struct hist_browser *browser,
 	       struct popup_action *act, char **optstr,
-	       struct thread *thread, struct symbol *sym)
+	       struct thread *thread, struct symbol *sym,
+	       struct perf_evsel *evsel)
 {
 	int n, j;
 	struct hist_entry *he;
 
-	n = add_script_opt_2(browser, act, optstr, thread, sym, "");
+	n = add_script_opt_2(browser, act, optstr, thread, sym, evsel, "");
 
 	he = hist_browser__selected_entry(browser);
 	if (sort_order && strstr(sort_order, "time")) {
@@ -2618,10 +2621,9 @@ add_script_opt(struct hist_browser *browser,
 					       sizeof tstr - j);
 		j += sprintf(tstr + j, "-");
 		timestamp__scnprintf_usec(he->time + symbol_conf.time_quantum,
-				          tstr + j,
-				          sizeof tstr - j);
+				          tstr + j, sizeof tstr - j);
 		n += add_script_opt_2(browser, act, optstr, thread, sym,
-					  tstr);
+					  evsel, tstr);
 		act->time = he->time;
 	}
 	return n;
@@ -3092,7 +3094,7 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     thread, NULL);
+							     thread, NULL, evsel);
 			}
 			/*
 			 * Note that browser->selection != NULL
@@ -3107,11 +3109,12 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     NULL, browser->selection->sym);
+							     NULL, browser->selection->sym,
+							     evsel);
 			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
-					     &options[nr_options], NULL, NULL);
+					     &options[nr_options], NULL, NULL, evsel);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
 skip_scripting:
