@@ -82,6 +82,7 @@ struct sdhci_esdhc {
 	bool quirk_limited_clk_division;
 	bool quirk_unreliable_pulse_detection;
 	bool quirk_fixup_tuning;
+	bool quirk_ignore_data_inhibit;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
 	u32 div_ratio;
@@ -145,6 +146,19 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	if (spec_reg == SDHCI_CAPABILITIES_1) {
 		ret = value & ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 				SDHCI_SUPPORT_DDR50);
+		return ret;
+	}
+
+	/*
+	 * Some controllers have unreliable Data Line Active
+	 * bit for commands with busy signal. This affects
+	 * Command Inhibit (data) bit. Just ignore it since
+	 * MMC core driver has already polled card status
+	 * with CMD13 after any command with busy siganl.
+	 */
+	if ((spec_reg == SDHCI_PRESENT_STATE) &&
+	(esdhc->quirk_ignore_data_inhibit == true)) {
+		ret = value & ~SDHCI_DATA_INHIBIT;
 		return ret;
 	}
 
@@ -1115,12 +1129,14 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "fsl,ls1021a-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
+	esdhc->quirk_ignore_data_inhibit = false;
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		/*
 		 * Freescale messed up with P2020 as it has a non-standard
 		 * host control register
 		 */
 		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HOST_CONTROL;
+		esdhc->quirk_ignore_data_inhibit = true;
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */
