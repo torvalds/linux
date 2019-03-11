@@ -3739,8 +3739,7 @@ static void __init rcu_init_geometry(void)
 		jiffies_till_first_fqs = d;
 	if (jiffies_till_next_fqs == ULONG_MAX)
 		jiffies_till_next_fqs = d;
-	if (jiffies_till_sched_qs == ULONG_MAX)
-		adjust_jiffies_till_sched_qs();
+	adjust_jiffies_till_sched_qs();
 
 	/* If the compile-time values are accurate, just leave. */
 	if (rcu_fanout_leaf == RCU_FANOUT_LEAF &&
