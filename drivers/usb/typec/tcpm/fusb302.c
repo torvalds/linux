@@ -23,6 +23,7 @@
 #include <linux/sched/clock.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/usb/typec.h>
@@ -78,15 +79,16 @@ struct fusb302_chip {
 
 	struct regulator *vbus;
 
+	spinlock_t irq_lock;
+	struct work_struct irq_work;
+	bool irq_suspended;
+	bool irq_while_suspended;
 	int gpio_int_n;
 	int gpio_int_n_irq;
 	struct extcon_dev *extcon;
 
 	struct workqueue_struct *wq;
 	struct delayed_work bc_lvl_handler;
-
-	atomic_t pm_suspend;
-	atomic_t i2c_busy;
 
 	/* lock for sharing chip states */
 	struct mutex lock;
@@ -233,43 +235,15 @@ static void fusb302_debugfs_exit(const struct fusb302_chip *chip) { }
 
 #endif
 
-#define FUSB302_RESUME_RETRY 10
-#define FUSB302_RESUME_RETRY_SLEEP 50
-
-static bool fusb302_is_suspended(struct fusb302_chip *chip)
-{
-	int retry_cnt;
-
-	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
-		if (atomic_read(&chip->pm_suspend)) {
-			dev_err(chip->dev, "i2c: pm suspend, retry %d/%d\n",
-				retry_cnt + 1, FUSB302_RESUME_RETRY);
-			msleep(FUSB302_RESUME_RETRY_SLEEP);
-		} else {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 static int fusb302_i2c_write(struct fusb302_chip *chip,
 			     u8 address, u8 data)
 {
 	int ret = 0;
 
-	atomic_set(&chip->i2c_busy, 1);
-
-	if (fusb302_is_suspended(chip)) {
-		atomic_set(&chip->i2c_busy, 0);
-		return -ETIMEDOUT;
-	}
-
 	ret = i2c_smbus_write_byte_data(chip->i2c_client, address, data);
 	if (ret < 0)
 		fusb302_log(chip, "cannot write 0x%02x to 0x%02x, ret=%d",
 			    data, address, ret);
-	atomic_set(&chip->i2c_busy, 0);
 
 	return ret;
 }
@@ -281,19 +255,12 @@ static int fusb302_i2c_block_write(struct fusb302_chip *chip, u8 address,
 
 	if (length <= 0)
 		return ret;
-	atomic_set(&chip->i2c_busy, 1);
-
-	if (fusb302_is_suspended(chip)) {
-		atomic_set(&chip->i2c_busy, 0);
-		return -ETIMEDOUT;
-	}
 
 	ret = i2c_smbus_write_i2c_block_data(chip->i2c_client, address,
 					     length, data);
 	if (ret < 0)
 		fusb302_log(chip, "cannot block write 0x%02x, len=%d, ret=%d",
 			    address, length, ret);
-	atomic_set(&chip->i2c_busy, 0);
 
 	return ret;
 }
@@ -303,18 +270,10 @@ static int fusb302_i2c_read(struct fusb302_chip *chip,
 {
 	int ret = 0;
 
-	atomic_set(&chip->i2c_busy, 1);
-
-	if (fusb302_is_suspended(chip)) {
-		atomic_set(&chip->i2c_busy, 0);
-		return -ETIMEDOUT;
-	}
-
 	ret = i2c_smbus_read_byte_data(chip->i2c_client, address);
 	*data = (u8)ret;
 	if (ret < 0)
 		fusb302_log(chip, "cannot read %02x, ret=%d", address, ret);
-	atomic_set(&chip->i2c_busy, 0);
 
 	return ret;
 }
@@ -326,12 +285,6 @@ static int fusb302_i2c_block_read(struct fusb302_chip *chip, u8 address,
 
 	if (length <= 0)
 		return ret;
-	atomic_set(&chip->i2c_busy, 1);
-
-	if (fusb302_is_suspended(chip)) {
-		atomic_set(&chip->i2c_busy, 0);
-		return -ETIMEDOUT;
-	}
 
 	ret = i2c_smbus_read_i2c_block_data(chip->i2c_client, address,
 					    length, data);
@@ -347,8 +300,6 @@ static int fusb302_i2c_block_read(struct fusb302_chip *chip, u8 address,
 	}
 
 done:
-	atomic_set(&chip->i2c_busy, 0);
-
 	return ret;
 }
 
@@ -1485,6 +1436,25 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 {
 	struct fusb302_chip *chip = dev_id;
+	unsigned long flags;
+
+	/* Disable our level triggered IRQ until our irq_work has cleared it */
+	disable_irq_nosync(chip->gpio_int_n_irq);
+
+	spin_lock_irqsave(&chip->irq_lock, flags);
+	if (chip->irq_suspended)
+		chip->irq_while_suspended = true;
+	else
+		schedule_work(&chip->irq_work);
+	spin_unlock_irqrestore(&chip->irq_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+void fusb302_irq_work(struct work_struct *work)
+{
+	struct fusb302_chip *chip = container_of(work, struct fusb302_chip,
+						 irq_work);
 	int ret = 0;
 	u8 interrupt;
 	u8 interrupta;
@@ -1613,8 +1583,7 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 	}
 done:
 	mutex_unlock(&chip->lock);
-
-	return IRQ_HANDLED;
+	enable_irq(chip->gpio_int_n_irq);
 }
 
 static int init_gpio(struct fusb302_chip *chip)
@@ -1730,6 +1699,8 @@ static int fusb302_probe(struct i2c_client *client,
 	if (!chip->wq)
 		return -ENOMEM;
 
+	spin_lock_init(&chip->irq_lock);
+	INIT_WORK(&chip->irq_work, fusb302_irq_work);
 	INIT_DELAYED_WORK(&chip->bc_lvl_handler, fusb302_bc_lvl_handler_work);
 	init_tcpc_dev(&chip->tcpc_dev);
 
@@ -1749,10 +1720,9 @@ static int fusb302_probe(struct i2c_client *client,
 		goto destroy_workqueue;
 	}
 
-	ret = devm_request_threaded_irq(chip->dev, chip->gpio_int_n_irq,
-					NULL, fusb302_irq_intn,
-					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-					"fsc_interrupt_int_n", chip);
+	ret = request_irq(chip->gpio_int_n_irq, fusb302_irq_intn,
+			  IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+			  "fsc_interrupt_int_n", chip);
 	if (ret < 0) {
 		dev_err(dev, "cannot request IRQ for GPIO Int_N, ret=%d", ret);
 		goto tcpm_unregister_port;
@@ -1775,6 +1745,10 @@ static int fusb302_remove(struct i2c_client *client)
 {
 	struct fusb302_chip *chip = i2c_get_clientdata(client);
 
+	disable_irq_wake(chip->gpio_int_n_irq);
+	free_irq(chip->gpio_int_n_irq, chip);
+	cancel_work_sync(&chip->irq_work);
+	cancel_delayed_work_sync(&chip->bc_lvl_handler);
 	tcpm_unregister_port(chip->tcpm_port);
 	destroy_workqueue(chip->wq);
 	fusb302_debugfs_exit(chip);
@@ -1785,19 +1759,29 @@ static int fusb302_remove(struct i2c_client *client)
 static int fusb302_pm_suspend(struct device *dev)
 {
 	struct fusb302_chip *chip = dev->driver_data;
+	unsigned long flags;
 
-	if (atomic_read(&chip->i2c_busy))
-		return -EBUSY;
-	atomic_set(&chip->pm_suspend, 1);
+	spin_lock_irqsave(&chip->irq_lock, flags);
+	chip->irq_suspended = true;
+	spin_unlock_irqrestore(&chip->irq_lock, flags);
 
+	/* Make sure any pending irq_work is finished before the bus suspends */
+	flush_work(&chip->irq_work);
 	return 0;
 }
 
 static int fusb302_pm_resume(struct device *dev)
 {
 	struct fusb302_chip *chip = dev->driver_data;
+	unsigned long flags;
 
-	atomic_set(&chip->pm_suspend, 0);
+	spin_lock_irqsave(&chip->irq_lock, flags);
+	if (chip->irq_while_suspended) {
+		schedule_work(&chip->irq_work);
+		chip->irq_while_suspended = false;
+	}
+	chip->irq_suspended = false;
+	spin_unlock_irqrestore(&chip->irq_lock, flags);
 
 	return 0;
 }
