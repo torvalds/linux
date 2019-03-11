@@ -196,6 +196,7 @@ config DEBUG_INFO_REDUCED
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
 	depends on DEBUG_INFO
+	depends on $(cc-option,-gsplit-dwarf)
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -211,6 +212,7 @@ config DEBUG_INFO_SPLIT
 config DEBUG_INFO_DWARF4
 	bool "Generate dwarf4 debuginfo"
 	depends on DEBUG_INFO
+	depends on $(cc-option,-gdwarf-4)
 	help
 	  Generate dwarf4 debug info. This requires recent versions
 	  of gcc and gdb. It makes the debug information larger.

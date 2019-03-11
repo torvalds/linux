@@ -154,13 +154,8 @@ more details, with real examples.
 
 	Kbuild compiles all the $(obj-y) files.  It then calls
 	"$(AR) rcSTP" to merge these files into one built-in.a file.
-	This is a thin archive without a symbol table, which makes it
-	unsuitable as a linker input.
-
-	The scripts/link-vmlinux.sh script later makes an aggregate
-	built-in.a with "${AR} rcsTP", which creates the thin archive
-	with a symbol table and an index, making it a valid input for
-	the final vmlinux link passes.
+	This is a thin archive without a symbol table. It will be later
+	linked into vmlinux by scripts/link-vmlinux.sh
 
 	The order of files in $(obj-y) is significant.  Duplicates in
 	the lists are allowed: the first instance will be linked into
@@ -503,23 +498,6 @@ more details, with real examples.
 
 	In the above example, -Wno-unused-but-set-variable will be added to
 	KBUILD_CFLAGS only if gcc really accepts it.
-
-    cc-version
-	cc-version returns a numerical version of the $(CC) compiler version.
-	The format is <major><minor> where both are two digits. So for example
-	gcc 3.41 would return 0341.
-	cc-version is useful when a specific $(CC) version is faulty in one
-	area, for example -mregparm=3 was broken in some gcc versions
-	even though the option was accepted by gcc.
-
-	Example:
-		#arch/x86/Makefile
-		cflags-y += $(shell \
-		if [ $(cc-version) -ge 0300 ] ; then \
-			echo "-mregparm=3"; fi ;)
-
-	In the above example, -mregparm=3 is only used for gcc version greater
-	than or equal to gcc 3.0.
 
     cc-ifversion
 	cc-ifversion tests the version of $(CC) and equals the fourth parameter
