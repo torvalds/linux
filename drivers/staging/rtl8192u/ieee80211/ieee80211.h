@@ -1506,9 +1506,9 @@ typedef enum _RT_JOIN_ACTION {
 	RT_NO_ACTION  = 4,
 } RT_JOIN_ACTION;
 
-typedef struct _IbssParms {
+struct ibss_parms {
 	u16   atimWin;
-} IbssParms, *PIbssParms;
+};
 #define MAX_NUM_RATES	264 // Max num of support rates element: 8,  Max num of ext. support rate: 255. 061122, by rcnjko.
 
 // RF state.
@@ -1554,7 +1554,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	struct octet_string			tmpSuppRateSet;
 	u8					tmpSuppRateBuf[MAX_NUM_RATES];
 	bool				bTmpSuppRate;
-	IbssParms				tmpIbpm;
+	struct ibss_parms			tmpIbpm;
 	bool				bTmpIbpm;
 
 	//
