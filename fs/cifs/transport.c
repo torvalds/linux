@@ -606,6 +606,31 @@ wait_for_free_request(struct TCP_Server_Info *server, const int flags,
 				     instance);
 }
 
+static int
+wait_for_compound_request(struct TCP_Server_Info *server, int num,
+			  const int flags, unsigned int *instance)
+{
+	int *credits;
+
+	credits = server->ops->get_credits_field(server, flags & CIFS_OP_MASK);
+
+	spin_lock(&server->req_lock);
+	if (*credits < num) {
+		/*
+		 * Return immediately if not too many requests in flight since
+		 * we will likely be stuck on waiting for credits.
+		 */
+		if (server->in_flight < num - *credits) {
+			spin_unlock(&server->req_lock);
+			return -ENOTSUPP;
+		}
+	}
+	spin_unlock(&server->req_lock);
+
+	return wait_for_free_credits(server, num, 60000, flags,
+				     instance);
+}
+
 int
 cifs_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 		      unsigned int *num, struct cifs_credits *credits)
@@ -934,7 +959,6 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		{ .value = 0, .instance = 0 }
 	};
 	unsigned int instance;
-	unsigned int first_instance = 0;
 	char *buf;
 
 	optype = flags & CIFS_OP_MASK;
@@ -950,80 +974,24 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if (ses->server->tcpStatus == CifsExiting)
 		return -ENOENT;
 
-	spin_lock(&ses->server->req_lock);
-	if (ses->server->credits < num_rqst) {
-		/*
-		 * Return immediately if not too many requests in flight since
-		 * we will likely be stuck on waiting for credits.
-		 */
-		if (ses->server->in_flight < num_rqst - ses->server->credits) {
-			spin_unlock(&ses->server->req_lock);
-			return -ENOTSUPP;
-		}
-	} else {
-		/* enough credits to send the whole compounded request */
-		ses->server->credits -= num_rqst;
-		ses->server->in_flight += num_rqst;
-		first_instance = ses->server->reconnect_instance;
-	}
-	spin_unlock(&ses->server->req_lock);
-
-	if (first_instance) {
-		cifs_dbg(FYI, "Acquired %d credits at once\n", num_rqst);
-		for (i = 0; i < num_rqst; i++) {
-			credits[i].value = 1;
-			credits[i].instance = first_instance;
-		}
-		goto setup_rqsts;
-	}
-
 	/*
-	 * There are not enough credits to send the whole compound request but
-	 * there are requests in flight that may bring credits from the server.
+	 * Wait for all the requests to become available.
 	 * This approach still leaves the possibility to be stuck waiting for
 	 * credits if the server doesn't grant credits to the outstanding
-	 * requests. This should be fixed by returning immediately and letting
-	 * a caller fallback to sequential commands instead of compounding.
-	 * Ensure we obtain 1 credit per request in the compound chain.
+	 * requests and if the client is completely idle, not generating any
+	 * other requests.
+	 * This can be handled by the eventual session reconnect.
 	 */
+	rc = wait_for_compound_request(ses->server, num_rqst, flags,
+				       &instance);
+	if (rc)
+		return rc;
+
 	for (i = 0; i < num_rqst; i++) {
-		rc = wait_for_free_request(ses->server, flags, &instance);
-
-		if (rc == 0) {
-			credits[i].value = 1;
-			credits[i].instance = instance;
-			/*
-			 * All parts of the compound chain must get credits from
-			 * the same session, otherwise we may end up using more
-			 * credits than the server granted. If there were
-			 * reconnects in between, return -EAGAIN and let callers
-			 * handle it.
-			 */
-			if (i == 0)
-				first_instance = instance;
-			else if (first_instance != instance) {
-				i++;
-				rc = -EAGAIN;
-			}
-		}
-
-		if (rc) {
-			/*
-			 * We haven't sent an SMB packet to the server yet but
-			 * we already obtained credits for i requests in the
-			 * compound chain - need to return those credits back
-			 * for future use. Note that we need to call add_credits
-			 * multiple times to match the way we obtained credits
-			 * in the first place and to account for in flight
-			 * requests correctly.
-			 */
-			for (j = 0; j < i; j++)
-				add_credits(ses->server, &credits[j], optype);
-			return rc;
-		}
+		credits[i].value = 1;
+		credits[i].instance = instance;
 	}
 
-setup_rqsts:
 	/*
 	 * Make sure that we sign in the same order that we send on this socket
 	 * and avoid races inside tcp sendmsg code that could cause corruption
@@ -1034,14 +1002,12 @@ setup_rqsts:
 
 	/*
 	 * All the parts of the compound chain belong obtained credits from the
-	 * same session (see the appropriate checks above). In the same time
-	 * there might be reconnects after those checks but before we acquired
-	 * the srv_mutex. We can not use credits obtained from the previous
+	 * same session. We can not use credits obtained from the previous
 	 * session to send this request. Check if there were reconnects after
 	 * we obtained credits and return -EAGAIN in such cases to let callers
 	 * handle it.
 	 */
-	if (first_instance != ses->server->reconnect_instance) {
+	if (instance != ses->server->reconnect_instance) {
 		mutex_unlock(&ses->server->srv_mutex);
 		for (j = 0; j < num_rqst; j++)
 			add_credits(ses->server, &credits[j], optype);
