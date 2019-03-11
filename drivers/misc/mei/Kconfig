@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
 	depends on X86 && PCI
