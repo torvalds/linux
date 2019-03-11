@@ -102,7 +102,7 @@ struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
 	NULL,
 };
 
-ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -112,7 +112,7 @@ ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->signature);
 }
 
-ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -122,7 +122,7 @@ ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->length);
 }
 
-ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -132,7 +132,7 @@ ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->revision);
 }
 
-ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -142,7 +142,7 @@ ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_OEM_ID_SIZE, h->oem_id);
 }
 
-ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -152,7 +152,7 @@ ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_OEM_TABLE_ID_SIZE, h->oem_table_id);
 }
 
-ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -162,7 +162,8 @@ ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->oem_revision);
 }
 
-ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg,
+					       char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -172,8 +173,8 @@ ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->asl_compiler_id);
 }
 
-ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
-					      char *str)
+static ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
+						     char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
