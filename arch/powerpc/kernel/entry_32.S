@@ -906,10 +906,7 @@ resume_kernel:
 	 */
 	bl	trace_hardirqs_off
 #endif
-1:	bl	preempt_schedule_irq
-	lwz	r3,TI_FLAGS(r2)
-	andi.	r0,r3,_TIF_NEED_RESCHED
-	bne-	1b
+	bl	preempt_schedule_irq
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* And now, to properly rebalance the above, we tell lockdep they
 	 * are being turned back on, which will happen when we return

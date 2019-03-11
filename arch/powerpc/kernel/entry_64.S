@@ -865,13 +865,7 @@ resume_kernel:
 	 * sure we are soft-disabled first and reconcile irq state.
 	 */
 	RECONCILE_IRQ_STATE(r3,r4)
-1:	bl	preempt_schedule_irq
-
-	/* Re-test flags and eventually loop */
-	ld	r9, PACA_THREAD_INFO(r13)
-	ld	r4,TI_FLAGS(r9)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	bne	1b
+	bl	preempt_schedule_irq
 
 	/*
 	 * arch_local_irq_restore() from preempt_schedule_irq above may
