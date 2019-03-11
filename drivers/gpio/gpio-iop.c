@@ -21,7 +21,6 @@
 
 static int iop3xx_gpio_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct gpio_chip *gc;
 	void __iomem *base;
 	int err;
@@ -30,8 +29,7 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 	if (!gc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
