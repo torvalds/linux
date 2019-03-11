@@ -111,7 +111,7 @@ struct extent_io_tree {
 	struct btrfs_fs_info *fs_info;
 	void *private_data;
 	u64 dirty_bytes;
-	int track_uptodate;
+	bool track_uptodate;
 	spinlock_t lock;
 	const struct extent_io_ops *ops;
 };
