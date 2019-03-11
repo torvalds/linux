@@ -615,6 +615,7 @@ struct ide_drive_s {
 
 	/* current sense rq and buffer */
 	bool sense_rq_armed;
+	bool sense_rq_active;
 	struct request *sense_rq;
 	struct request_sense sense_data;
 
@@ -1219,6 +1220,7 @@ extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 extern void ide_timer_expiry(struct timer_list *t);
 extern irqreturn_t ide_intr(int irq, void *dev_id);
 extern blk_status_t ide_queue_rq(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data *);
+extern blk_status_t ide_issue_rq(ide_drive_t *, struct request *, bool);
 extern void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);

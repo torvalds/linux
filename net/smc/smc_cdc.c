@@ -21,13 +21,6 @@
 
 /********************************** send *************************************/
 
-struct smc_cdc_tx_pend {
-	struct smc_connection	*conn;		/* socket connection */
-	union smc_host_cursor	cursor;	/* tx sndbuf cursor sent */
-	union smc_host_cursor	p_cursor;	/* rx RMBE cursor produced */
-	u16			ctrl_seq;	/* conn. tx sequence # */
-};
-
 /* handler for send/transmission completion of a CDC msg */
 static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       struct smc_link *link,
@@ -61,12 +54,14 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 
 int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_wr_buf **wr_buf,
+			  struct smc_rdma_wr **wr_rdma_buf,
 			  struct smc_cdc_tx_pend **pend)
 {
 	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 	int rc;
 
 	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
+				     wr_rdma_buf,
 				     (struct smc_wr_tx_pend_priv **)pend);
 	if (!conn->alert_token_local)
 		/* abnormal termination */
@@ -96,6 +91,7 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 		     struct smc_wr_buf *wr_buf,
 		     struct smc_cdc_tx_pend *pend)
 {
+	union smc_host_cursor cfed;
 	struct smc_link *link;
 	int rc;
 
@@ -107,10 +103,10 @@ int smc_cdc_msg_send(struct smc_connection *conn,
 	conn->local_tx_ctrl.seqno = conn->tx_cdc_seq;
 	smc_host_msg_to_cdc((struct smc_cdc_msg *)wr_buf,
 			    &conn->local_tx_ctrl, conn);
+	smc_curs_copy(&cfed, &((struct smc_host_cdc_msg *)wr_buf)->cons, conn);
 	rc = smc_wr_tx_send(link, (struct smc_wr_tx_pend_priv *)pend);
 	if (!rc)
-		smc_curs_copy(&conn->rx_curs_confirmed,
-			      &conn->local_tx_ctrl.cons, conn);
+		smc_curs_copy(&conn->rx_curs_confirmed, &cfed, conn);
 
 	return rc;
 }
@@ -121,11 +117,14 @@ static int smcr_cdc_get_slot_and_msg_send(struct smc_connection *conn)
 	struct smc_wr_buf *wr_buf;
 	int rc;
 
-	rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
+	rc = smc_cdc_get_free_slot(conn, &wr_buf, NULL, &pend);
 	if (rc)
 		return rc;
 
-	return smc_cdc_msg_send(conn, wr_buf, pend);
+	spin_lock_bh(&conn->send_lock);
+	rc = smc_cdc_msg_send(conn, wr_buf, pend);
+	spin_unlock_bh(&conn->send_lock);
+	return rc;
 }
 
 int smc_cdc_get_slot_and_msg_send(struct smc_connection *conn)

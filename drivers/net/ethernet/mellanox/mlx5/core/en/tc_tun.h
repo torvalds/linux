@@ -39,6 +39,6 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		       struct mlx5_flow_spec *spec,
 		       struct tc_cls_flower_offload *f,
 		       void *headers_c,
-		       void *headers_v);
+		       void *headers_v, u8 *match_level);
 
 #endif //__MLX5_EN_TC_TUNNEL_H__

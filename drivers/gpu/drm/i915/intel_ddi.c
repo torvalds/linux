@@ -1086,7 +1086,7 @@ static uint32_t icl_pll_to_ddi_pll_sel(struct intel_encoder *encoder,
 			return DDI_CLK_SEL_TBT_810;
 		default:
 			MISSING_CASE(clock);
-			break;
+			return DDI_CLK_SEL_NONE;
 		}
 	case DPLL_ID_ICL_MGPLL1:
 	case DPLL_ID_ICL_MGPLL2:

@@ -449,6 +449,7 @@ xfs_map_blocks(
 	}
 
 	wpc->imap = imap;
+	xfs_trim_extent_eof(&wpc->imap, ip);
 	trace_xfs_map_blocks_found(ip, offset, count, wpc->io_type, &imap);
 	return 0;
 allocate_blocks:
@@ -459,6 +460,7 @@ allocate_blocks:
 	ASSERT(whichfork == XFS_COW_FORK || cow_fsb == NULLFILEOFF ||
 	       imap.br_startoff + imap.br_blockcount <= cow_fsb);
 	wpc->imap = imap;
+	xfs_trim_extent_eof(&wpc->imap, ip);
 	trace_xfs_map_blocks_alloc(ip, offset, count, wpc->io_type, &imap);
 	return 0;
 }

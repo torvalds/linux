@@ -462,12 +462,16 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	sdkp->device->use_10_for_rw = 0;
 
 	/*
-	 * If something changed, revalidate the disk zone bitmaps once we have
-	 * the capacity, that is on the second revalidate execution during disk
-	 * scan and always during normal revalidate.
+	 * Revalidate the disk zone bitmaps once the block device capacity is
+	 * set on the second revalidate execution during disk scan and if
+	 * something changed when executing a normal revalidate.
 	 */
-	if (sdkp->first_scan)
+	if (sdkp->first_scan) {
+		sdkp->zone_blocks = zone_blocks;
+		sdkp->nr_zones = nr_zones;
 		return 0;
+	}
+
 	if (sdkp->zone_blocks != zone_blocks ||
 	    sdkp->nr_zones != nr_zones ||
 	    disk->queue->nr_zones != nr_zones) {

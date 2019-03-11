@@ -2579,9 +2579,10 @@ struct ib_device {
 
 	const struct uapi_definition   *driver_def;
 	enum rdma_driver_id		driver_id;
+
 	/*
-	 * Provides synchronization between device unregistration and netlink
-	 * commands on a device. To be used only by core.
+	 * Positive refcount indicates that the device is currently
+	 * registered and cannot be unregistered.
 	 */
 	refcount_t refcount;
 	struct completion unreg_completion;
@@ -3926,6 +3927,25 @@ static inline bool ib_access_writable(int access_flags)
 int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status);
 
+/**
+ * ib_device_try_get: Hold a registration lock
+ * device: The device to lock
+ *
+ * A device under an active registration lock cannot become unregistered. It
+ * is only possible to obtain a registration lock on a device that is fully
+ * registered, otherwise this function returns false.
+ *
+ * The registration lock is only necessary for actions which require the
+ * device to still be registered. Uses that only require the device pointer to
+ * be valid should use get_device(&ibdev->dev) to hold the memory.
+ *
+ */
+static inline bool ib_device_try_get(struct ib_device *dev)
+{
+	return refcount_inc_not_zero(&dev->refcount);
+}
+
+void ib_device_put(struct ib_device *device);
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);

@@ -2112,6 +2112,13 @@ int pcm_lib_apply_appl_ptr(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/* allow waiting for a capture stream that hasn't been started */
+#if IS_ENABLED(CONFIG_SND_PCM_OSS)
+#define wait_capture_start(substream)	((substream)->oss.oss)
+#else
+#define wait_capture_start(substream)	false
+#endif
+
 /* the common loop for read/write data */
 snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 				     void *data, bool interleaved,
@@ -2182,7 +2189,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 			err = snd_pcm_start(substream);
 			if (err < 0)
 				goto _end_unlock;
-		} else {
+		} else if (!wait_capture_start(substream)) {
 			/* nothing to do */
 			err = 0;
 			goto _end_unlock;
