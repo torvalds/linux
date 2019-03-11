@@ -441,19 +441,23 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 {
 	int i;
 
+	lockdep_assert_held(&dev->mt76.mutex);
+
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 
 	rcu_read_lock();
-
 	ieee80211_iter_keys_rcu(dev->mt76.hw, NULL, mt76x02_key_sync, NULL);
+	rcu_read_unlock();
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
-		struct mt76_wcid *wcid = rcu_dereference(dev->mt76.wcid[i]);
-		struct mt76x02_sta *msta;
 		struct ieee80211_sta *sta;
 		struct ieee80211_vif *vif;
+		struct mt76x02_sta *msta;
+		struct mt76_wcid *wcid;
 		void *priv;
 
+		wcid = rcu_dereference_protected(dev->mt76.wcid[i],
+					lockdep_is_held(&dev->mt76.mutex));
 		if (!wcid)
 			continue;
 
@@ -463,12 +467,9 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 		priv = msta->vif;
 		vif = container_of(priv, struct ieee80211_vif, drv_priv);
 
-		mt76_sta_state(dev->mt76.hw, vif, sta,
-			       IEEE80211_STA_NONE, IEEE80211_STA_NOTEXIST);
+		__mt76_sta_remove(&dev->mt76, vif, sta);
 		memset(msta, 0, sizeof(*msta));
 	}
-
-	rcu_read_unlock();
 
 	dev->vif_mask = 0;
 	dev->beacon_mask = 0;
@@ -489,10 +490,10 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
 
+	mutex_lock(&dev->mt76.mutex);
+
 	if (restart)
 		mt76x02_reset_state(dev);
-
-	mutex_lock(&dev->mt76.mutex);
 
 	if (dev->beacon_mask)
 		mt76_clear(dev, MT_BEACON_TIME_CFG,
