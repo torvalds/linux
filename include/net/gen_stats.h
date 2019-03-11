@@ -10,7 +10,7 @@
 struct gnet_stats_basic_cpu {
 	struct gnet_stats_basic_packed bstats;
 	struct u64_stats_sync syncp;
-};
+} __aligned(2 * sizeof(u64));
 
 struct net_rate_estimator;
 

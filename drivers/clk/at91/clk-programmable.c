@@ -17,19 +17,12 @@
 
 #include "pmc.h"
 
-#define PROG_SOURCE_MAX		5
 #define PROG_ID_MAX		7
 
 #define PROG_STATUS_MASK(id)	(1 << ((id) + 8))
 #define PROG_PRES_MASK		0x7
 #define PROG_PRES(layout, pckr)	((pckr >> layout->pres_shift) & PROG_PRES_MASK)
 #define PROG_MAX_RM9200_CSS	3
-
-struct clk_programmable_layout {
-	u8 pres_shift;
-	u8 css_mask;
-	u8 have_slck_mck;
-};
 
 struct clk_programmable {
 	struct clk_hw hw;
@@ -170,7 +163,7 @@ static const struct clk_ops programmable_ops = {
 	.set_rate = clk_programmable_set_rate,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap,
 			       const char *name, const char **parent_names,
 			       u8 num_parents, u8 id,
@@ -211,86 +204,20 @@ at91_clk_register_programmable(struct regmap *regmap,
 	return hw;
 }
 
-static const struct clk_programmable_layout at91rm9200_programmable_layout = {
+const struct clk_programmable_layout at91rm9200_programmable_layout = {
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 0,
 };
 
-static const struct clk_programmable_layout at91sam9g45_programmable_layout = {
+const struct clk_programmable_layout at91sam9g45_programmable_layout = {
 	.pres_shift = 2,
 	.css_mask = 0x3,
 	.have_slck_mck = 1,
 };
 
-static const struct clk_programmable_layout at91sam9x5_programmable_layout = {
+const struct clk_programmable_layout at91sam9x5_programmable_layout = {
 	.pres_shift = 4,
 	.css_mask = 0x7,
 	.have_slck_mck = 0,
 };
-
-static void __init
-of_at91_clk_prog_setup(struct device_node *np,
-		       const struct clk_programmable_layout *layout)
-{
-	int num;
-	u32 id;
-	struct clk_hw *hw;
-	unsigned int num_parents;
-	const char *parent_names[PROG_SOURCE_MAX];
-	const char *name;
-	struct device_node *progclknp;
-	struct regmap *regmap;
-
-	num_parents = of_clk_get_parent_count(np);
-	if (num_parents == 0 || num_parents > PROG_SOURCE_MAX)
-		return;
-
-	of_clk_parent_fill(np, parent_names, num_parents);
-
-	num = of_get_child_count(np);
-	if (!num || num > (PROG_ID_MAX + 1))
-		return;
-
-	regmap = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap))
-		return;
-
-	for_each_child_of_node(np, progclknp) {
-		if (of_property_read_u32(progclknp, "reg", &id))
-			continue;
-
-		if (of_property_read_string(np, "clock-output-names", &name))
-			name = progclknp->name;
-
-		hw = at91_clk_register_programmable(regmap, name,
-						     parent_names, num_parents,
-						     id, layout);
-		if (IS_ERR(hw))
-			continue;
-
-		of_clk_add_hw_provider(progclknp, of_clk_hw_simple_get, hw);
-	}
-}
-
-
-static void __init of_at91rm9200_clk_prog_setup(struct device_node *np)
-{
-	of_at91_clk_prog_setup(np, &at91rm9200_programmable_layout);
-}
-CLK_OF_DECLARE(at91rm9200_clk_prog, "atmel,at91rm9200-clk-programmable",
-	       of_at91rm9200_clk_prog_setup);
-
-static void __init of_at91sam9g45_clk_prog_setup(struct device_node *np)
-{
-	of_at91_clk_prog_setup(np, &at91sam9g45_programmable_layout);
-}
-CLK_OF_DECLARE(at91sam9g45_clk_prog, "atmel,at91sam9g45-clk-programmable",
-	       of_at91sam9g45_clk_prog_setup);
-
-static void __init of_at91sam9x5_clk_prog_setup(struct device_node *np)
-{
-	of_at91_clk_prog_setup(np, &at91sam9x5_programmable_layout);
-}
-CLK_OF_DECLARE(at91sam9x5_clk_prog, "atmel,at91sam9x5-clk-programmable",
-	       of_at91sam9x5_clk_prog_setup);

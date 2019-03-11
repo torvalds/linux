@@ -784,11 +784,11 @@ void *__radix_tree_lookup(const struct radix_tree_root *root,
 	while (radix_tree_is_internal_node(node)) {
 		unsigned offset;
 
-		if (node == RADIX_TREE_RETRY)
-			goto restart;
 		parent = entry_to_node(node);
 		offset = radix_tree_descend(parent, &node, index);
 		slot = parent->slots + offset;
+		if (node == RADIX_TREE_RETRY)
+			goto restart;
 		if (parent->shift == 0)
 			break;
 	}

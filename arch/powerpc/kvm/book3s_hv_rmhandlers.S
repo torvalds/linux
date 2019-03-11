@@ -58,6 +58,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 #define STACK_SLOT_DAWR		(SFS-56)
 #define STACK_SLOT_DAWRX	(SFS-64)
 #define STACK_SLOT_HFSCR	(SFS-72)
+#define STACK_SLOT_AMR		(SFS-80)
+#define STACK_SLOT_UAMOR	(SFS-88)
 /* the following is used by the P9 short path */
 #define STACK_SLOT_NVGPRS	(SFS-152)	/* 18 gprs */
 
@@ -726,11 +728,9 @@ BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_TIDR
 	mfspr	r6, SPRN_PSSCR
 	mfspr	r7, SPRN_PID
-	mfspr	r8, SPRN_IAMR
 	std	r5, STACK_SLOT_TID(r1)
 	std	r6, STACK_SLOT_PSSCR(r1)
 	std	r7, STACK_SLOT_PID(r1)
-	std	r8, STACK_SLOT_IAMR(r1)
 	mfspr	r5, SPRN_HFSCR
 	std	r5, STACK_SLOT_HFSCR(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
@@ -738,10 +738,17 @@ BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_CIABR
 	mfspr	r6, SPRN_DAWR
 	mfspr	r7, SPRN_DAWRX
+	mfspr	r8, SPRN_IAMR
 	std	r5, STACK_SLOT_CIABR(r1)
 	std	r6, STACK_SLOT_DAWR(r1)
 	std	r7, STACK_SLOT_DAWRX(r1)
+	std	r8, STACK_SLOT_IAMR(r1)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
+	mfspr	r5, SPRN_AMR
+	std	r5, STACK_SLOT_AMR(r1)
+	mfspr	r6, SPRN_UAMOR
+	std	r6, STACK_SLOT_UAMOR(r1)
 
 BEGIN_FTR_SECTION
 	/* Set partition DABR */
@@ -1631,22 +1638,25 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_PSPB, r0
 	mtspr	SPRN_WORT, r0
 BEGIN_FTR_SECTION
-	mtspr	SPRN_IAMR, r0
 	mtspr	SPRN_TCSCR, r0
 	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
 	li	r0, 1
 	sldi	r0, r0, 31
 	mtspr	SPRN_MMCRS, r0
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
-8:
 
-	/* Save and reset AMR and UAMOR before turning on the MMU */
+	/* Save and restore AMR, IAMR and UAMOR before turning on the MMU */
+	ld	r8, STACK_SLOT_IAMR(r1)
+	mtspr	SPRN_IAMR, r8
+
+8:	/* Power7 jumps back in here */
 	mfspr	r5,SPRN_AMR
 	mfspr	r6,SPRN_UAMOR
 	std	r5,VCPU_AMR(r9)
 	std	r6,VCPU_UAMOR(r9)
-	li	r6,0
-	mtspr	SPRN_AMR,r6
+	ld	r5,STACK_SLOT_AMR(r1)
+	ld	r6,STACK_SLOT_UAMOR(r1)
+	mtspr	SPRN_AMR, r5
 	mtspr	SPRN_UAMOR, r6
 
 	/* Switch DSCR back to host value */
@@ -1746,11 +1756,9 @@ BEGIN_FTR_SECTION
 	ld	r5, STACK_SLOT_TID(r1)
 	ld	r6, STACK_SLOT_PSSCR(r1)
 	ld	r7, STACK_SLOT_PID(r1)
-	ld	r8, STACK_SLOT_IAMR(r1)
 	mtspr	SPRN_TIDR, r5
 	mtspr	SPRN_PSSCR, r6
 	mtspr	SPRN_PID, r7
-	mtspr	SPRN_IAMR, r8
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 #ifdef CONFIG_PPC_RADIX_MMU
@@ -2826,49 +2834,15 @@ kvm_cede_exit:
 #endif /* CONFIG_KVM_XICS */
 3:	b	guest_exit_cont
 
-	/* Try to handle a machine check in real mode */
+	/* Try to do machine check recovery in real mode */
 machine_check_realmode:
 	mr	r3, r9		/* get vcpu pointer */
 	bl	kvmppc_realmode_machine_check
 	nop
+	/* all machine checks go to virtual mode for further handling */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	/*
-	 * For the guest that is FWNMI capable, deliver all the MCE errors
-	 * (handled/unhandled) by exiting the guest with KVM_EXIT_NMI exit
-	 * reason. This new approach injects machine check errors in guest
-	 * address space to guest with additional information in the form
-	 * of RTAS event, thus enabling guest kernel to suitably handle
-	 * such errors.
-	 *
-	 * For the guest that is not FWNMI capable (old QEMU) fallback
-	 * to old behaviour for backward compatibility:
-	 * Deliver unhandled/fatal (e.g. UE) MCE errors to guest either
-	 * through machine check interrupt (set HSRR0 to 0x200).
-	 * For handled errors (no-fatal), just go back to guest execution
-	 * with current HSRR0.
-	 * if we receive machine check with MSR(RI=0) then deliver it to
-	 * guest as machine check causing guest to crash.
-	 */
-	ld	r11, VCPU_MSR(r9)
-	rldicl.	r0, r11, 64-MSR_HV_LG, 63 /* check if it happened in HV mode */
-	bne	guest_exit_cont		/* if so, exit to host */
-	/* Check if guest is capable of handling NMI exit */
-	ld	r10, VCPU_KVM(r9)
-	lbz	r10, KVM_FWNMI(r10)
-	cmpdi	r10, 1			/* FWNMI capable? */
-	beq	guest_exit_cont		/* if so, exit with KVM_EXIT_NMI. */
-
-	/* if not, fall through for backward compatibility. */
-	andi.	r10, r11, MSR_RI	/* check for unrecoverable exception */
-	beq	1f			/* Deliver a machine check to guest */
-	ld	r10, VCPU_PC(r9)
-	cmpdi	r3, 0		/* Did we handle MCE ? */
-	bne	2f	/* Continue guest execution. */
-	/* If not, deliver a machine check.  SRR0/1 are already set */
-1:	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
-	bl	kvmppc_msr_interrupt
-2:	b	fast_interrupt_c_return
+	b	guest_exit_cont
 
 /*
  * Call C code to handle a HMI in real mode.

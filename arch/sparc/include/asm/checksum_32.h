@@ -87,7 +87,7 @@ static inline __wsum
 csum_partial_copy_to_user(const void *src, void __user *dst, int len,
 			  __wsum sum, int *err)
 {
-	if (!access_ok (VERIFY_WRITE, dst, len)) {
+	if (!access_ok(dst, len)) {
 		*err = -EFAULT;
 		return sum;
 	} else {

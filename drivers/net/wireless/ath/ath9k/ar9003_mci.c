@@ -1055,17 +1055,15 @@ void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
 static void ar9003_mci_send_2g5g_status(struct ath_hw *ah, bool wait_done)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
-	u32 new_flags, to_set, to_clear;
+	u32 to_set, to_clear;
 
 	if (!mci->update_2g5g || (mci->bt_state == MCI_BT_SLEEP))
 		return;
 
 	if (mci->is_2g) {
-		new_flags = MCI_2G_FLAGS;
 		to_clear = MCI_2G_FLAGS_CLEAR_MASK;
 		to_set = MCI_2G_FLAGS_SET_MASK;
 	} else {
-		new_flags = MCI_5G_FLAGS;
 		to_clear = MCI_5G_FLAGS_CLEAR_MASK;
 		to_set = MCI_5G_FLAGS_SET_MASK;
 	}

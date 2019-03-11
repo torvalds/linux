@@ -84,7 +84,7 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
-		pr_err("%s must have a parent\n", node->name);
+		pr_err("%pOFn must have a parent\n", node);
 		return;
 	}
 

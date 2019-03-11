@@ -54,6 +54,8 @@ void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj);
 void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int amdgpu_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
+extern const struct dma_buf_ops amdgpu_dmabuf_ops;
+
 /*
  * GEM objects.
  */

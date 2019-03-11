@@ -20,7 +20,7 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *kernfs_node_cache;
+struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
 
 static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
 {
@@ -196,8 +196,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		return dentry;
 
 	knparent = find_next_ancestor(kn, NULL);
-	if (WARN_ON(!knparent))
+	if (WARN_ON(!knparent)) {
+		dput(dentry);
 		return ERR_PTR(-EINVAL);
+	}
 
 	do {
 		struct dentry *dtmp;
@@ -206,8 +208,10 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		if (kn == knparent)
 			return dentry;
 		kntmp = find_next_ancestor(kn, knparent);
-		if (WARN_ON(!kntmp))
+		if (WARN_ON(!kntmp)) {
+			dput(dentry);
 			return ERR_PTR(-EINVAL);
+		}
 		dtmp = lookup_one_len_unlocked(kntmp->name, dentry,
 					       strlen(kntmp->name));
 		dput(dentry);
@@ -417,4 +421,9 @@ void __init kernfs_init(void)
 					      0,
 					      SLAB_PANIC | SLAB_TYPESAFE_BY_RCU,
 					      NULL);
+
+	/* Creates slab cache for kernfs inode attributes */
+	kernfs_iattrs_cache  = kmem_cache_create("kernfs_iattrs_cache",
+					      sizeof(struct kernfs_iattrs),
+					      0, SLAB_PANIC, NULL);
 }

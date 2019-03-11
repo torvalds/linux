@@ -78,7 +78,7 @@ static void cpsw_gmii_sel_am3352(struct cpsw_phy_sel_priv *priv,
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;
-	};
+	}
 
 	mask = GMII_SEL_MODE_MASK << (slave * 2) | BIT(slave + 6);
 	mask |= BIT(slave + 4);
@@ -133,7 +133,7 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;
-	};
+	}
 
 	switch (slave) {
 	case 0:

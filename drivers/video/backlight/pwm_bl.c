@@ -30,6 +30,7 @@ struct pwm_bl_data {
 	struct device		*dev;
 	unsigned int		lth_brightness;
 	unsigned int		*levels;
+	bool			enabled;
 	struct regulator	*power_supply;
 	struct gpio_desc	*enable_gpio;
 	unsigned int		scale;
@@ -50,7 +51,7 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 	int err;
 
 	pwm_get_state(pb->pwm, &state);
-	if (state.enabled)
+	if (pb->enabled)
 		return;
 
 	err = regulator_enable(pb->power_supply);
@@ -65,6 +66,8 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 
 	if (pb->enable_gpio)
 		gpiod_set_value_cansleep(pb->enable_gpio, 1);
+
+	pb->enabled = true;
 }
 
 static void pwm_backlight_power_off(struct pwm_bl_data *pb)
@@ -72,7 +75,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	struct pwm_state state;
 
 	pwm_get_state(pb->pwm, &state);
-	if (!state.enabled)
+	if (!pb->enabled)
 		return;
 
 	if (pb->enable_gpio)
@@ -86,6 +89,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	pwm_apply_state(pb->pwm, &state);
 
 	regulator_disable(pb->power_supply);
+	pb->enabled = false;
 }
 
 static int compute_duty_cycle(struct pwm_bl_data *pb, int brightness)
@@ -269,6 +273,16 @@ static int pwm_backlight_parse_dt(struct device *dev,
 	memset(data, 0, sizeof(*data));
 
 	/*
+	 * These values are optional and set as 0 by default, the out values
+	 * are modified only if a valid u32 value can be decoded.
+	 */
+	of_property_read_u32(node, "post-pwm-on-delay-ms",
+			     &data->post_pwm_on_delay);
+	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
+
+	data->enable_gpio = -EINVAL;
+
+	/*
 	 * Determine the number of brightness levels, if this property is not
 	 * set a default table of brightness levels will be used.
 	 */
@@ -380,15 +394,6 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		data->max_brightness--;
 	}
 
-	/*
-	 * These values are optional and set as 0 by default, the out values
-	 * are modified only if a valid u32 value can be decoded.
-	 */
-	of_property_read_u32(node, "post-pwm-on-delay-ms",
-			     &data->post_pwm_on_delay);
-	of_property_read_u32(node, "pwm-off-delay-ms", &data->pwm_off_delay);
-
-	data->enable_gpio = -EINVAL;
 	return 0;
 }
 
@@ -430,7 +435,7 @@ static int pwm_backlight_initial_power_state(const struct pwm_bl_data *pb)
 	 */
 
 	/* if the enable GPIO is disabled, do not enable the backlight */
-	if (pb->enable_gpio && gpiod_get_value(pb->enable_gpio) == 0)
+	if (pb->enable_gpio && gpiod_get_value_cansleep(pb->enable_gpio) == 0)
 		return FB_BLANK_POWERDOWN;
 
 	/* The regulator is disabled, do not enable the backlight */
@@ -483,6 +488,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->check_fb = data->check_fb;
 	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
+	pb->enabled = false;
 	pb->post_pwm_on_delay = data->post_pwm_on_delay;
 	pb->pwm_off_delay = data->pwm_off_delay;
 
@@ -562,7 +568,30 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	if (!data->levels) {
+	if (data->levels) {
+		/*
+		 * For the DT case, only when brightness levels is defined
+		 * data->levels is filled. For the non-DT case, data->levels
+		 * can come from platform data, however is not usual.
+		 */
+		for (i = 0; i <= data->max_brightness; i++) {
+			if (data->levels[i] > pb->scale)
+				pb->scale = data->levels[i];
+
+			pb->levels = data->levels;
+		}
+	} else if (!data->max_brightness) {
+		/*
+		 * If no brightness levels are provided and max_brightness is
+		 * not set, use the default brightness table. For the DT case,
+		 * max_brightness is set to 0 when brightness levels is not
+		 * specified. For the non-DT case, max_brightness is usually
+		 * set to some value.
+		 */
+
+		/* Get the PWM period (in nanoseconds) */
+		pwm_get_state(pb->pwm, &state);
+
 		ret = pwm_backlight_brightness_default(&pdev->dev, data,
 						       state.period);
 		if (ret < 0) {
@@ -570,13 +599,19 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 				"failed to setup default brightness table\n");
 			goto err_alloc;
 		}
-	}
 
-	for (i = 0; i <= data->max_brightness; i++) {
-		if (data->levels[i] > pb->scale)
-			pb->scale = data->levels[i];
+		for (i = 0; i <= data->max_brightness; i++) {
+			if (data->levels[i] > pb->scale)
+				pb->scale = data->levels[i];
 
-		pb->levels = data->levels;
+			pb->levels = data->levels;
+		}
+	} else {
+		/*
+		 * That only happens for the non-DT case, where platform data
+		 * sets the max_brightness value.
+		 */
+		pb->scale = data->max_brightness;
 	}
 
 	pb->lth_brightness = data->lth_brightness * (state.period / pb->scale);

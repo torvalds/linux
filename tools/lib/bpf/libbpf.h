@@ -16,6 +16,10 @@
 #include <sys/types.h>  // for size_t
 #include <linux/bpf.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
@@ -43,17 +47,16 @@ enum libbpf_errno {
 
 LIBBPF_API int libbpf_strerror(int err, char *buf, size_t size);
 
-/*
- * __printf is defined in include/linux/compiler-gcc.h. However,
- * it would be better if libbpf.h didn't depend on Linux header files.
- * So instead of __printf, here we use gcc attribute directly.
- */
-typedef int (*libbpf_print_fn_t)(const char *, ...)
-	__attribute__((format(printf, 1, 2)));
+enum libbpf_print_level {
+        LIBBPF_WARN,
+        LIBBPF_INFO,
+        LIBBPF_DEBUG,
+};
 
-LIBBPF_API void libbpf_set_print(libbpf_print_fn_t warn,
-				 libbpf_print_fn_t info,
-				 libbpf_print_fn_t debug);
+typedef int (*libbpf_print_fn_t)(enum libbpf_print_level level,
+				 const char *, va_list ap);
+
+LIBBPF_API void libbpf_set_print(libbpf_print_fn_t fn);
 
 /* Hide internal to user */
 struct bpf_object;
@@ -71,6 +74,13 @@ struct bpf_object *__bpf_object__open_xattr(struct bpf_object_open_attr *attr,
 LIBBPF_API struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 						      size_t obj_buf_sz,
 						      const char *name);
+LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
+LIBBPF_API int bpf_object__unpin_maps(struct bpf_object *obj,
+				      const char *path);
+LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
+					const char *path);
+LIBBPF_API int bpf_object__unpin_programs(struct bpf_object *obj,
+					  const char *path);
 LIBBPF_API int bpf_object__pin(struct bpf_object *object, const char *path);
 LIBBPF_API void bpf_object__close(struct bpf_object *object);
 
@@ -79,6 +89,9 @@ LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
 LIBBPF_API const char *bpf_object__name(struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(struct bpf_object *obj);
+
+struct btf;
+LIBBPF_API struct btf *bpf_object__btf(struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
 
 LIBBPF_API struct bpf_program *
@@ -112,6 +125,9 @@ LIBBPF_API struct bpf_program *bpf_program__next(struct bpf_program *prog,
 	     (pos) != NULL;				\
 	     (pos) = bpf_program__next((pos), (obj)))
 
+LIBBPF_API struct bpf_program *bpf_program__prev(struct bpf_program *prog,
+						 struct bpf_object *obj);
+
 typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
 					 void *);
 
@@ -131,7 +147,11 @@ LIBBPF_API int bpf_program__fd(struct bpf_program *prog);
 LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
 					 const char *path,
 					 int instance);
+LIBBPF_API int bpf_program__unpin_instance(struct bpf_program *prog,
+					   const char *path,
+					   int instance);
 LIBBPF_API int bpf_program__pin(struct bpf_program *prog, const char *path);
+LIBBPF_API int bpf_program__unpin(struct bpf_program *prog, const char *path);
 LIBBPF_API void bpf_program__unload(struct bpf_program *prog);
 
 struct bpf_insn;
@@ -246,6 +266,9 @@ struct bpf_map;
 LIBBPF_API struct bpf_map *
 bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
 
+LIBBPF_API int
+bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name);
+
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
  * in the BPF object file.
@@ -255,10 +278,14 @@ bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 LIBBPF_API struct bpf_map *
 bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
-#define bpf_map__for_each(pos, obj)		\
+#define bpf_object__for_each_map(pos, obj)		\
 	for ((pos) = bpf_map__next(NULL, (obj));	\
 	     (pos) != NULL;				\
 	     (pos) = bpf_map__next((pos), (obj)))
+#define bpf_map__for_each bpf_object__for_each_map
+
+LIBBPF_API struct bpf_map *
+bpf_map__prev(struct bpf_map *map, struct bpf_object *obj);
 
 LIBBPF_API int bpf_map__fd(struct bpf_map *map);
 LIBBPF_API const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
@@ -271,9 +298,13 @@ LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
 LIBBPF_API void *bpf_map__priv(struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
+LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 LIBBPF_API bool bpf_map__is_offload_neutral(struct bpf_map *map);
 LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
+LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
+
+LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
 
 LIBBPF_API long libbpf_get_error(const void *ptr);
 
@@ -290,6 +321,7 @@ LIBBPF_API int bpf_prog_load(const char *file, enum bpf_prog_type type,
 			     struct bpf_object **pobj, int *prog_fd);
 
 LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
+LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
 
 enum bpf_perf_event_ret {
 	LIBBPF_PERF_EVENT_DONE	= 0,
@@ -317,4 +349,36 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
 int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+
+struct bpf_prog_linfo;
+struct bpf_prog_info;
+
+LIBBPF_API void bpf_prog_linfo__free(struct bpf_prog_linfo *prog_linfo);
+LIBBPF_API struct bpf_prog_linfo *
+bpf_prog_linfo__new(const struct bpf_prog_info *info);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
+				__u64 addr, __u32 func_idx, __u32 nr_skip);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
+		      __u32 insn_off, __u32 nr_skip);
+
+/*
+ * Probe for supported system features
+ *
+ * Note that running many of these probes in a short amount of time can cause
+ * the kernel to reach the maximal size of lockable memory allowed for the
+ * user, causing subsequent probes to fail. In this case, the caller may want
+ * to adjust that limit with setrlimit().
+ */
+LIBBPF_API bool bpf_probe_prog_type(enum bpf_prog_type prog_type,
+				    __u32 ifindex);
+LIBBPF_API bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex);
+LIBBPF_API bool bpf_probe_helper(enum bpf_func_id id,
+				 enum bpf_prog_type prog_type, __u32 ifindex);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif /* __LIBBPF_LIBBPF_H */

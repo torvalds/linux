@@ -49,7 +49,7 @@
 			label = "sw4";
 			gpios = <&gpio 23 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 			autorepeat;
 		};
 	};
@@ -82,7 +82,7 @@
 			linux,default-trigger = "bluetooth-power";
 		};
 
-		vbus_det { /* U5 USB5744 VBUS detection via MIO25 */
+		vbus-det { /* U5 USB5744 VBUS detection via MIO25 */
 			label = "vbus_det";
 			gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
@@ -98,9 +98,10 @@
 		regulator-boot-on;
 	};
 
-	sdio_pwrseq: sdio_pwrseq {
+	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio 7 GPIO_ACTIVE_LOW>; /* WIFI_EN */
+		post-power-on-delay-ms = <10>;
 	};
 };
 

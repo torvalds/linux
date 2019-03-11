@@ -888,10 +888,10 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	}
 
 	/* No GRH for DR SMP */
-	ret = device->process_mad(device, 0, port_num, &mad_wc, NULL,
-				  (const struct ib_mad_hdr *)smp, mad_size,
-				  (struct ib_mad_hdr *)mad_priv->mad,
-				  &mad_size, &out_mad_pkey_index);
+	ret = device->ops.process_mad(device, 0, port_num, &mad_wc, NULL,
+				      (const struct ib_mad_hdr *)smp, mad_size,
+				      (struct ib_mad_hdr *)mad_priv->mad,
+				      &mad_size, &out_mad_pkey_index);
 	switch (ret)
 	{
 	case IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY:
@@ -2305,14 +2305,12 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	}
 
 	/* Give driver "right of first refusal" on incoming MAD */
-	if (port_priv->device->process_mad) {
-		ret = port_priv->device->process_mad(port_priv->device, 0,
-						     port_priv->port_num,
-						     wc, &recv->grh,
-						     (const struct ib_mad_hdr *)recv->mad,
-						     recv->mad_size,
-						     (struct ib_mad_hdr *)response->mad,
-						     &mad_size, &resp_mad_pkey_index);
+	if (port_priv->device->ops.process_mad) {
+		ret = port_priv->device->ops.process_mad(
+			port_priv->device, 0, port_priv->port_num, wc,
+			&recv->grh, (const struct ib_mad_hdr *)recv->mad,
+			recv->mad_size, (struct ib_mad_hdr *)response->mad,
+			&mad_size, &resp_mad_pkey_index);
 
 		if (opa)
 			wc->pkey_index = resp_mad_pkey_index;
@@ -3328,9 +3326,9 @@ error:
 
 static void ib_mad_remove_device(struct ib_device *device, void *client_data)
 {
-	int i;
+	unsigned int i;
 
-	for (i = rdma_start_port(device); i <= rdma_end_port(device); i++) {
+	rdma_for_each_port (device, i) {
 		if (!rdma_cap_ib_mad(device, i))
 			continue;
 

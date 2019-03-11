@@ -614,7 +614,6 @@ static int snd_dw_hdmi_suspend(struct device *dev)
 	struct snd_dw_hdmi *dw = dev_get_drvdata(dev);
 
 	snd_power_change_state(dw->card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(dw->pcm);
 
 	return 0;
 }

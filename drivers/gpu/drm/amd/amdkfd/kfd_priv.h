@@ -97,17 +97,29 @@
 #define KFD_CWSR_TBA_TMA_SIZE (PAGE_SIZE * 2)
 #define KFD_CWSR_TMA_OFFSET PAGE_SIZE
 
+#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
+	(KFD_MAX_NUM_OF_PROCESSES *			\
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
+
+#define KFD_KERNEL_QUEUE_SIZE 2048
+
+/*
+ * 512 = 0x200
+ * The doorbell index distance between SDMA RLC (2*i) and (2*i+1) in the
+ * same SDMA engine on SOC15, which has 8-byte doorbells for SDMA.
+ * 512 8-byte doorbell distance (i.e. one page away) ensures that SDMA RLC
+ * (2*i+1) doorbells (in terms of the lower 12 bit address) lie exactly in
+ * the OFFSET and SIZE set in registers like BIF_SDMA0_DOORBELL_RANGE.
+ */
+#define KFD_QUEUE_DOORBELL_MIRROR_OFFSET 512
+
+
 /*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
  */
 extern int max_num_of_queues_per_device;
 
-#define KFD_MAX_NUM_OF_QUEUES_PER_DEVICE		\
-	(KFD_MAX_NUM_OF_PROCESSES *			\
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
-
-#define KFD_KERNEL_QUEUE_SIZE 2048
 
 /* Kernel module parameter to specify the scheduling policy */
 extern int sched_policy;
@@ -265,14 +277,6 @@ struct kfd_dev {
 
 	bool pci_atomic_requested;
 };
-
-/* KGD2KFD callbacks */
-void kgd2kfd_exit(void);
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-			struct pci_dev *pdev, const struct kfd2kgd_calls *f2g);
-bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			const struct kgd2kfd_shared_resources *gpu_resources);
-void kgd2kfd_device_exit(struct kfd_dev *kfd);
 
 enum kfd_mempool {
 	KFD_MEMPOOL_SYSTEM_CACHEABLE = 1,
@@ -507,6 +511,7 @@ struct qcm_process_device {
 	 * All the memory management data should be here too
 	 */
 	uint64_t gds_context_area;
+	/* Contains page table flags such as AMDGPU_PTE_VALID since gfx9 */
 	uint64_t page_table_base;
 	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
@@ -539,11 +544,6 @@ struct qcm_process_device {
 #define PROCESS_BACK_OFF_TIME_MS 100
 /* Approx. time before evicting the process again */
 #define PROCESS_ACTIVE_TIME_MS 10
-
-int kgd2kfd_quiesce_mm(struct mm_struct *mm);
-int kgd2kfd_resume_mm(struct mm_struct *mm);
-int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
-					       struct dma_fence *fence);
 
 /* 8 byte handle containing GPU ID in the most significant 4 bytes and
  * idr_handle in the least significant 4 bytes
@@ -792,25 +792,17 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
+struct kfd_dev *kfd_device_by_kgd(const struct kgd_dev *kgd);
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
 
 /* Interrupts */
 int kfd_interrupt_init(struct kfd_dev *dev);
 void kfd_interrupt_exit(struct kfd_dev *dev);
-void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
 bool interrupt_is_wanted(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry,
 				uint32_t *patched_ihre, bool *flag);
-
-/* Power Management */
-void kgd2kfd_suspend(struct kfd_dev *kfd);
-int kgd2kfd_resume(struct kfd_dev *kfd);
-
-/* GPU reset */
-int kgd2kfd_pre_reset(struct kfd_dev *kfd);
-int kgd2kfd_post_reset(struct kfd_dev *kfd);
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);

@@ -12,10 +12,7 @@ struct i40e_rx_buffer *i40e_clean_programming_status(
 	union i40e_rx_desc *rx_desc,
 	u64 qw);
 void i40e_process_skb_fields(struct i40e_ring *rx_ring,
-			     union i40e_rx_desc *rx_desc, struct sk_buff *skb,
-			     u8 rx_ptype);
-void i40e_receive_skb(struct i40e_ring *rx_ring,
-		      struct sk_buff *skb, u16 vlan_tag);
+			     union i40e_rx_desc *rx_desc, struct sk_buff *skb);
 void i40e_xdp_ring_update_tail(struct i40e_ring *xdp_ring);
 void i40e_update_rx_stats(struct i40e_ring *rx_ring,
 			  unsigned int total_rx_bytes,

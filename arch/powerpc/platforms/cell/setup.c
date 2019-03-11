@@ -131,7 +131,7 @@ static int cell_setup_phb(struct pci_controller *phb)
 
 	np = phb->dn;
 	model = of_get_property(np, "model", NULL);
-	if (model == NULL || strcmp(np->name, "pci"))
+	if (model == NULL || !of_node_name_eq(np, "pci"))
 		return 0;
 
 	/* Setup workarounds for spider */
@@ -168,8 +168,7 @@ static int __init cell_publish_devices(void)
 	 * platform devices for the PCI host bridges
 	 */
 	for_each_child_of_node(root, np) {
-		if (np->type == NULL || (strcmp(np->type, "pci") != 0 &&
-					 strcmp(np->type, "pciex") != 0))
+		if (!of_node_is_type(np, "pci") && !of_node_is_type(np, "pciex"))
 			continue;
 		of_platform_device_create(np, NULL, NULL);
 	}

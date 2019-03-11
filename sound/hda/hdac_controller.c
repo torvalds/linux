@@ -376,7 +376,7 @@ void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus)
 {
 	unsigned long timeout;
 
-	snd_hdac_chip_updateb(bus, GCTL, 0, AZX_GCTL_RESET);
+	snd_hdac_chip_updateb(bus, GCTL, AZX_GCTL_RESET, AZX_GCTL_RESET);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 	while (!snd_hdac_chip_readb(bus, GCTL) && time_before(jiffies, timeout))
@@ -415,7 +415,7 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 	}
 
 	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, 0, AZX_GCTL_UNSOL);
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!bus->codec_mask) {
@@ -431,7 +431,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_reset_link);
 static void azx_int_enable(struct hdac_bus *bus)
 {
 	/* enable controller CIE and GIE */
-	snd_hdac_chip_updatel(bus, INTCTL, 0, AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
+	snd_hdac_chip_updatel(bus, INTCTL,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
 }
 
 /* disable interrupts */

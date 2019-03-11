@@ -421,15 +421,12 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
 	}
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	if (!priv->ap_11n_enabled ||
 	    (!mwifiex_11n_get_rx_reorder_tbl(priv, uap_rx_pd->priority, ta) &&
 	    (le16_to_cpu(uap_rx_pd->rx_pkt_type) != PKT_TYPE_AMSDU))) {
 		ret = mwifiex_handle_uap_rx_forward(priv, skb);
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		return ret;
 	}
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	/* Reorder and send to kernel */
 	pkt_type = (u8)le16_to_cpu(uap_rx_pd->rx_pkt_type);

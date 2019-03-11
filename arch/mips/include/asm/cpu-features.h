@@ -15,6 +15,7 @@
 #include <cpu-feature-overrides.h>
 
 #define __ase(ase)			(cpu_data[0].ases & (ase))
+#define __isa(isa)			(cpu_data[0].isa_level & (isa))
 #define __opt(opt)			(cpu_data[0].options & (opt))
 
 /*
@@ -51,6 +52,18 @@
  */
 #define __isa_lt_and_ase(isa, ase)	((MIPS_ISA_REV < (isa)) && __ase(ase))
 #define __isa_lt_and_opt(isa, opt)	((MIPS_ISA_REV < (isa)) && __opt(opt))
+
+/*
+ * Similarly allow for ISA level checks that take into account knowledge of the
+ * ISA targeted by the kernel build, provided by MIPS_ISA_REV.
+ */
+#define __isa_ge_and_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) && __isa(flag))
+#define __isa_ge_or_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) || __isa(flag))
+#define __isa_lt_and_flag(isa, flag)	((MIPS_ISA_REV < (isa)) && __isa(flag))
+#define __isa_range(ge, lt) \
+	((MIPS_ISA_REV >= (ge)) && (MIPS_ISA_REV < (lt)))
+#define __isa_range_or_flag(ge, lt, flag) \
+	(__isa_range(ge, lt) || ((MIPS_ISA_REV < (lt)) && __isa(flag)))
 
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
@@ -115,10 +128,15 @@
 #endif
 /* Don't override `cpu_has_fpu' to 1 or the "nofpu" option won't work.  */
 #ifndef cpu_has_fpu
-#define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
-#define raw_cpu_has_fpu		(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# ifdef CONFIG_MIPS_FP_SUPPORT
+#  define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
+#  define raw_cpu_has_fpu	(raw_current_cpu_data.options & MIPS_CPU_FPU)
+# else
+#  define cpu_has_fpu		0
+#  define raw_cpu_has_fpu	0
+# endif
 #else
-#define raw_cpu_has_fpu		cpu_has_fpu
+# define raw_cpu_has_fpu	cpu_has_fpu
 #endif
 #ifndef cpu_has_32fpr
 #define cpu_has_32fpr		__isa_ge_or_opt(1, MIPS_CPU_32FPR)
@@ -195,7 +213,9 @@
 #endif
 
 #ifndef cpu_has_mmips
-# ifdef CONFIG_SYS_SUPPORTS_MICROMIPS
+# if defined(__mips_micromips)
+#  define cpu_has_mmips		1
+# elif defined(CONFIG_SYS_SUPPORTS_MICROMIPS)
 #  define cpu_has_mmips		__opt(MIPS_CPU_MICROMIPS)
 # else
 #  define cpu_has_mmips		0
@@ -246,48 +266,38 @@
 #endif
 #endif
 
-/* __builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r */
-#if !((defined(cpu_has_mips32r1) && cpu_has_mips32r1) || \
-	  (defined(cpu_has_mips32r2) && cpu_has_mips32r2) || \
-	  (defined(cpu_has_mips32r6) && cpu_has_mips32r6) || \
-	  (defined(cpu_has_mips64r1) && cpu_has_mips64r1) || \
-	  (defined(cpu_has_mips64r2) && cpu_has_mips64r2) || \
-	  (defined(cpu_has_mips64r6) && cpu_has_mips64r6))
-#define CPU_NO_EFFICIENT_FFS 1
-#endif
-
 #ifndef cpu_has_mips_1
-# define cpu_has_mips_1		(!cpu_has_mips_r6)
+# define cpu_has_mips_1		(MIPS_ISA_REV < 6)
 #endif
 #ifndef cpu_has_mips_2
-# define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
+# define cpu_has_mips_2		__isa_lt_and_flag(6, MIPS_CPU_ISA_II)
 #endif
 #ifndef cpu_has_mips_3
-# define cpu_has_mips_3		(cpu_data[0].isa_level & MIPS_CPU_ISA_III)
+# define cpu_has_mips_3		__isa_lt_and_flag(6, MIPS_CPU_ISA_III)
 #endif
 #ifndef cpu_has_mips_4
-# define cpu_has_mips_4		(cpu_data[0].isa_level & MIPS_CPU_ISA_IV)
+# define cpu_has_mips_4		__isa_lt_and_flag(6, MIPS_CPU_ISA_IV)
 #endif
 #ifndef cpu_has_mips_5
-# define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
+# define cpu_has_mips_5		__isa_lt_and_flag(6, MIPS_CPU_ISA_V)
 #endif
 #ifndef cpu_has_mips32r1
-# define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
+# define cpu_has_mips32r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M32R1)
 #endif
 #ifndef cpu_has_mips32r2
-# define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
+# define cpu_has_mips32r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M32R2)
 #endif
 #ifndef cpu_has_mips32r6
-# define cpu_has_mips32r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R6)
+# define cpu_has_mips32r6	__isa_ge_or_flag(6, MIPS_CPU_ISA_M32R6)
 #endif
 #ifndef cpu_has_mips64r1
-# define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
+# define cpu_has_mips64r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M64R1)
 #endif
 #ifndef cpu_has_mips64r2
-# define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
+# define cpu_has_mips64r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2)
 #endif
 #ifndef cpu_has_mips64r6
-# define cpu_has_mips64r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R6)
+# define cpu_has_mips64r6	__isa_ge_and_flag(6, MIPS_CPU_ISA_M64R6)
 #endif
 
 /*
@@ -579,6 +589,19 @@
 #else
 # define cpu_has_mipsmt_pertccounters 0
 #endif /* CONFIG_MIPS_MT_SMP */
+
+/*
+ * We only enable MMID support for configurations which natively support 64 bit
+ * atomics because getting good performance from the allocator relies upon
+ * efficient atomic64_*() functions.
+ */
+#ifndef cpu_has_mmid
+# ifdef CONFIG_GENERIC_ATOMIC64
+#  define cpu_has_mmid		0
+# else
+#  define cpu_has_mmid		__isa_ge_and_opt(6, MIPS_CPU_MMID)
+# endif
+#endif
 
 /*
  * Guest capabilities

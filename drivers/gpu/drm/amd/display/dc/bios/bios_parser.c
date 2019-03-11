@@ -835,18 +835,6 @@ static enum bp_result bios_parser_enable_crtc(
 	return bp->cmd_tbl.enable_crtc(bp, id, enable);
 }
 
-static enum bp_result bios_parser_crtc_source_select(
-	struct dc_bios *dcb,
-	struct bp_crtc_source_select *bp_params)
-{
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-
-	if (!bp->cmd_tbl.select_crtc_source)
-		return BP_RESULT_FAILURE;
-
-	return bp->cmd_tbl.select_crtc_source(bp, bp_params);
-}
-
 static enum bp_result bios_parser_enable_disp_power_gating(
 	struct dc_bios *dcb,
 	enum controller_id controller_id,
@@ -2030,7 +2018,7 @@ static uint32_t get_src_obj_list(struct bios_parser *bp, ATOM_OBJECT *object,
 static struct device_id device_type_from_device_id(uint16_t device_id)
 {
 
-	struct device_id result_device_id;
+	struct device_id result_device_id = {0};
 
 	switch (device_id) {
 	case ATOM_DEVICE_LCD1_SUPPORT:
@@ -2841,8 +2829,6 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.enable_spread_spectrum_on_ppll = bios_parser_enable_spread_spectrum_on_ppll,
 
 	.program_crtc_timing = bios_parser_program_crtc_timing, /* still use.  should probably retire and program directly */
-
-	.crtc_source_select = bios_parser_crtc_source_select,  /* still use.  should probably retire and program directly */
 
 	.program_display_engine_pll = bios_parser_program_display_engine_pll,
 

@@ -65,7 +65,6 @@ enum _NIC_VERSION {
 #include <rtw_event.h>
 #include <rtw_mlme_ext.h>
 #include <rtw_ap.h>
-#include <rtw_efuse.h>
 #include <rtw_version.h>
 #include <rtw_odm.h>
 

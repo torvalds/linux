@@ -634,9 +634,9 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 
 		/* Alloc ring of descriptors */
 		size = BGMAC_TX_RING_SLOTS * sizeof(struct bgmac_dma_desc);
-		ring->cpu_base = dma_zalloc_coherent(dma_dev, size,
-						     &ring->dma_base,
-						     GFP_KERNEL);
+		ring->cpu_base = dma_alloc_coherent(dma_dev, size,
+						    &ring->dma_base,
+						    GFP_KERNEL);
 		if (!ring->cpu_base) {
 			dev_err(bgmac->dev, "Allocation of TX ring 0x%X failed\n",
 				ring->mmio_base);
@@ -659,9 +659,9 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 
 		/* Alloc ring of descriptors */
 		size = BGMAC_RX_RING_SLOTS * sizeof(struct bgmac_dma_desc);
-		ring->cpu_base = dma_zalloc_coherent(dma_dev, size,
-						     &ring->dma_base,
-						     GFP_KERNEL);
+		ring->cpu_base = dma_alloc_coherent(dma_dev, size,
+						    &ring->dma_base,
+						    GFP_KERNEL);
 		if (!ring->cpu_base) {
 			dev_err(bgmac->dev, "Allocation of RX ring 0x%X failed\n",
 				ring->mmio_base);
@@ -1446,7 +1446,7 @@ int bgmac_phy_connect_direct(struct bgmac *bgmac)
 	struct phy_device *phy_dev;
 	int err;
 
-	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, -1, NULL);
+	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
 	if (!phy_dev || IS_ERR(phy_dev)) {
 		dev_err(bgmac->dev, "Failed to register fixed PHY device\n");
 		return -ENODEV;

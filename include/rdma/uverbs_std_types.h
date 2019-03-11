@@ -37,15 +37,6 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
-#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-const struct uverbs_object_tree_def *uverbs_default_get_objects(void);
-#else
-static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
-{
-	return NULL;
-}
-#endif
-
 /* Returns _id, or causes a compile error if _id is not a u32.
  *
  * The uobj APIs should only be used with the write based uAPI to access
@@ -54,15 +45,18 @@ static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(vo
  */
 #define _uobj_check_id(_id) ((_id) * typecheck(u32, _id))
 
-#define uobj_get_type(_ufile, _object)                                         \
-	uapi_get_object((_ufile)->device->uapi, _object)
+#define uobj_get_type(_attrs, _object)                                         \
+	uapi_get_object((_attrs)->ufile->device->uapi, _object)
 
-#define uobj_get_read(_type, _id, _ufile)                                      \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
-				_uobj_check_id(_id), UVERBS_LOOKUP_READ)
+struct ib_uobject *_uobj_get_read(enum uverbs_default_objects type,
+				  u32 object_id,
+				  struct uverbs_attr_bundle *attrs);
 
-#define ufd_get_read(_type, _fdnum, _ufile)                                    \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
+#define uobj_get_read(_type, _id, _attrs)                                      \
+	_uobj_get_read(_type, _uobj_check_id(_id), _attrs)
+
+#define ufd_get_read(_type, _fdnum, _attrs)                                    \
+	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
 				(_fdnum)*typecheck(s32, _fdnum),               \
 				UVERBS_LOOKUP_READ)
 
@@ -72,26 +66,30 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 		return NULL;
 	return uobj->object;
 }
-#define uobj_get_obj_read(_object, _type, _id, _ufile)                         \
+#define uobj_get_obj_read(_object, _type, _id, _attrs)                         \
 	((struct ib_##_object *)_uobj_get_obj_read(                            \
-		uobj_get_read(_type, _id, _ufile)))
+		uobj_get_read(_type, _id, _attrs)))
 
-#define uobj_get_write(_type, _id, _ufile)                                     \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
-				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE)
+struct ib_uobject *_uobj_get_write(enum uverbs_default_objects type,
+				   u32 object_id,
+				   struct uverbs_attr_bundle *attrs);
+
+#define uobj_get_write(_type, _id, _attrs)                                     \
+	_uobj_get_write(_type, _uobj_check_id(_id), _attrs)
 
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   struct ib_uverbs_file *ufile, int success_res);
-#define uobj_perform_destroy(_type, _id, _ufile, _success_res)                 \
-	__uobj_perform_destroy(uobj_get_type(_ufile, _type),                   \
-			       _uobj_check_id(_id), _ufile, _success_res)
+			   const struct uverbs_attr_bundle *attrs);
+#define uobj_perform_destroy(_type, _id, _attrs)                               \
+	__uobj_perform_destroy(uobj_get_type(_attrs, _type),                   \
+			       _uobj_check_id(_id), _attrs)
 
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id, struct ib_uverbs_file *ufile);
+				      u32 id,
+				      const struct uverbs_attr_bundle *attrs);
 
-#define uobj_get_destroy(_type, _id, _ufile)                                   \
-	__uobj_get_destroy(uobj_get_type(_ufile, _type), _uobj_check_id(_id),  \
-			   _ufile)
+#define uobj_get_destroy(_type, _id, _attrs)                                   \
+	__uobj_get_destroy(uobj_get_type(_attrs, _type), _uobj_check_id(_id),  \
+			   _attrs)
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
@@ -111,14 +109,13 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
-static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj,
-						 int success_res)
+static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj)
 {
 	int ret = rdma_alloc_commit_uobject(uobj);
 
 	if (ret)
 		return ret;
-	return success_res;
+	return 0;
 }
 
 static inline void uobj_alloc_abort(struct ib_uobject *uobj)
@@ -127,18 +124,20 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj)
 }
 
 static inline struct ib_uobject *
-__uobj_alloc(const struct uverbs_api_object *obj, struct ib_uverbs_file *ufile,
-	     struct ib_device **ib_dev)
+__uobj_alloc(const struct uverbs_api_object *obj,
+	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)
 {
-	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, ufile);
+	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, attrs->ufile);
 
-	if (!IS_ERR(uobj))
+	if (!IS_ERR(uobj)) {
 		*ib_dev = uobj->context->device;
+		attrs->context = uobj->context;
+	}
 	return uobj;
 }
 
-#define uobj_alloc(_type, _ufile, _ib_dev)                                     \
-	__uobj_alloc(uobj_get_type(_ufile, _type), _ufile, _ib_dev)
+#define uobj_alloc(_type, _attrs, _ib_dev)                                     \
+	__uobj_alloc(uobj_get_type(_attrs, _type), _attrs, _ib_dev)
 
 static inline void uverbs_flow_action_fill_action(struct ib_flow_action *action,
 						  struct ib_uobject *uobj,
@@ -189,6 +188,18 @@ static inline void ib_set_flow(struct ib_uobject *uobj, struct ib_flow *ibflow,
 	ibflow->device = device;
 	uflow = container_of(uobj, typeof(*uflow), uobject);
 	uflow->resources = uflow_res;
+}
+
+struct uverbs_api_object {
+	const struct uverbs_obj_type *type_attrs;
+	const struct uverbs_obj_type_class *type_class;
+	u8 disabled:1;
+	u32 id;
+};
+
+static inline u32 uobj_get_object_id(struct ib_uobject *uobj)
+{
+	return uobj->uapi_object->id;
 }
 
 #endif

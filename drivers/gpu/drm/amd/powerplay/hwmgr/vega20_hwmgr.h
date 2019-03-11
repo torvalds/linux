@@ -328,6 +328,7 @@ struct vega20_registry_data {
 	uint8_t   disable_auto_wattman;
 	uint32_t  auto_wattman_debug;
 	uint32_t  auto_wattman_sample_period;
+	uint32_t  fclk_gfxclk_ratio;
 	uint8_t   auto_wattman_threshold;
 	uint8_t   log_avfs_param;
 	uint8_t   enable_enginess;
@@ -519,6 +520,9 @@ struct vega20_hwmgr {
 	/* ---- Gfxoff ---- */
 	bool                           gfxoff_allowed;
 	uint32_t                       counter_gfxoff;
+
+	unsigned long                  metrics_time;
+	SmuMetrics_t                   metrics_table;
 };
 
 #define VEGA20_DPM2_NEAR_TDP_DEC                      10

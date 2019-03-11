@@ -599,13 +599,8 @@ void odm_dig_init(void *dm_void)
 		       (DM_DIG_MAX_PAUSE_TYPE + 1));
 	dig_tab->pause_cckpd_level = 0;
 
-	if (dm->board_type & (ODM_BOARD_EXT_PA | ODM_BOARD_EXT_LNA)) {
-		dig_tab->rx_gain_range_max = DM_DIG_MAX_NIC;
-		dig_tab->rx_gain_range_min = DM_DIG_MIN_NIC;
-	} else {
-		dig_tab->rx_gain_range_max = DM_DIG_MAX_NIC;
-		dig_tab->rx_gain_range_min = DM_DIG_MIN_NIC;
-	}
+	dig_tab->rx_gain_range_max = DM_DIG_MAX_NIC;
+	dig_tab->rx_gain_range_min = DM_DIG_MIN_NIC;
 
 	dig_tab->enable_adjust_big_jump = 1;
 	if (dm->support_ic_type & ODM_RTL8822B) {

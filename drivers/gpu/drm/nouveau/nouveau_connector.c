@@ -33,6 +33,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic.h>
 
 #include "nouveau_reg.h"
@@ -403,6 +404,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	if (nv_connector->aux.transfer) {
 		drm_dp_cec_unregister_connector(&nv_connector->aux);
 		drm_dp_aux_unregister(&nv_connector->aux);
+		kfree(nv_connector->aux.name);
 	}
 	kfree(connector);
 }
@@ -1218,7 +1220,8 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_LVDS_SPWG: return DRM_MODE_CONNECTOR_LVDS;
 	case DCB_CONNECTOR_DMS59_DP0:
 	case DCB_CONNECTOR_DMS59_DP1:
-	case DCB_CONNECTOR_DP       : return DRM_MODE_CONNECTOR_DisplayPort;
+	case DCB_CONNECTOR_DP       :
+	case DCB_CONNECTOR_USB_C    : return DRM_MODE_CONNECTOR_DisplayPort;
 	case DCB_CONNECTOR_eDP      : return DRM_MODE_CONNECTOR_eDP;
 	case DCB_CONNECTOR_HDMI_0   :
 	case DCB_CONNECTOR_HDMI_1   :
@@ -1232,7 +1235,8 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 }
 
 struct drm_connector *
-nouveau_connector_create(struct drm_device *dev, int index)
+nouveau_connector_create(struct drm_device *dev,
+			 const struct dcb_output *dcbe)
 {
 	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -1240,6 +1244,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
+	char aux_name[48] = {0};
+	int index = dcbe->connector;
 	int type, ret = 0;
 	bool dummy;
 
@@ -1342,6 +1348,9 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	case DRM_MODE_CONNECTOR_eDP:
 		nv_connector->aux.dev = dev->dev;
 		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
+		snprintf(aux_name, sizeof(aux_name), "sor-%04x-%04x",
+			 dcbe->hasht, dcbe->hashm);
+		nv_connector->aux.name = kstrdup(aux_name, GFP_KERNEL);
 		ret = drm_dp_aux_register(&nv_connector->aux);
 		if (ret) {
 			NV_ERROR(drm, "failed to register aux channel\n");

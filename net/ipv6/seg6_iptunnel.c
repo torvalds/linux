@@ -146,6 +146,8 @@ int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh, int proto)
 	} else {
 		ip6_flow_hdr(hdr, 0, flowlabel);
 		hdr->hop_limit = ip6_dst_hoplimit(skb_dst(skb));
+
+		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
 	}
 
 	hdr->nexthdr = NEXTHDR_ROUTING;
@@ -347,6 +349,7 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
 		struct flowi6 fl6;
 
+		memset(&fl6, 0, sizeof(fl6));
 		fl6.daddr = hdr->daddr;
 		fl6.saddr = hdr->saddr;
 		fl6.flowlabel = ip6_flowinfo(hdr);

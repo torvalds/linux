@@ -75,7 +75,7 @@
 	/* Set rts delay after send, if needed: */
 	rs485conf.delay_rts_after_send = ...;
 
-	/* Set this flag if you want to receive data even whilst sending data */
+	/* Set this flag if you want to receive data even while sending data */
 	rs485conf.flags |= SER_RS485_RX_DURING_TX;
 
 	if (ioctl (fd, TIOCSRS485, &rs485conf) < 0) {

@@ -1,4 +1,5 @@
 #include <linux/dcache.h>
+#include "internal.h"
 
 unsigned name_to_int(const struct qstr *qstr)
 {

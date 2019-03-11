@@ -16,8 +16,6 @@ enum swiotlb_force {
 	SWIOTLB_NO_FORCE,	/* swiotlb=noforce */
 };
 
-extern enum swiotlb_force swiotlb_force;
-
 /*
  * Maximum allowable number of contiguous slabs to map,
  * must be a power of 2.  What is the appropriate value ?
@@ -46,9 +44,6 @@ enum dma_sync_target {
 	SYNC_FOR_DEVICE = 1,
 };
 
-/* define the last possible byte of physical address space as a mapping error */
-#define SWIOTLB_MAP_ERROR (~(phys_addr_t)0x0)
-
 extern phys_addr_t swiotlb_tbl_map_single(struct device *hwdev,
 					  dma_addr_t tbl_dma_addr,
 					  phys_addr_t phys, size_t size,
@@ -65,56 +60,52 @@ extern void swiotlb_tbl_sync_single(struct device *hwdev,
 				    size_t size, enum dma_data_direction dir,
 				    enum dma_sync_target target);
 
-/* Accessory functions. */
-
-extern dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
-				   unsigned long offset, size_t size,
-				   enum dma_data_direction dir,
-				   unsigned long attrs);
-extern void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
-			       size_t size, enum dma_data_direction dir,
-			       unsigned long attrs);
-
-extern int
-swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
-		     enum dma_data_direction dir,
-		     unsigned long attrs);
-
-extern void
-swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-		       int nelems, enum dma_data_direction dir,
-		       unsigned long attrs);
-
-extern void
-swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-			    size_t size, enum dma_data_direction dir);
-
-extern void
-swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			int nelems, enum dma_data_direction dir);
-
-extern void
-swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
-			       size_t size, enum dma_data_direction dir);
-
-extern void
-swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
-			   int nelems, enum dma_data_direction dir);
-
-extern int
-swiotlb_dma_supported(struct device *hwdev, u64 mask);
-
 #ifdef CONFIG_SWIOTLB
-extern void __init swiotlb_exit(void);
+extern enum swiotlb_force swiotlb_force;
+extern phys_addr_t io_tlb_start, io_tlb_end;
+
+static inline bool is_swiotlb_buffer(phys_addr_t paddr)
+{
+	return paddr >= io_tlb_start && paddr < io_tlb_end;
+}
+
+bool swiotlb_map(struct device *dev, phys_addr_t *phys, dma_addr_t *dma_addr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs);
+void __init swiotlb_exit(void);
 unsigned int swiotlb_max_segment(void);
+size_t swiotlb_max_mapping_size(struct device *dev);
+bool is_swiotlb_active(void);
 #else
-static inline void swiotlb_exit(void) { }
-static inline unsigned int swiotlb_max_segment(void) { return 0; }
-#endif
+#define swiotlb_force SWIOTLB_NO_FORCE
+static inline bool is_swiotlb_buffer(phys_addr_t paddr)
+{
+	return false;
+}
+static inline bool swiotlb_map(struct device *dev, phys_addr_t *phys,
+		dma_addr_t *dma_addr, size_t size, enum dma_data_direction dir,
+		unsigned long attrs)
+{
+	return false;
+}
+static inline void swiotlb_exit(void)
+{
+}
+static inline unsigned int swiotlb_max_segment(void)
+{
+	return 0;
+}
+static inline size_t swiotlb_max_mapping_size(struct device *dev)
+{
+	return SIZE_MAX;
+}
+
+static inline bool is_swiotlb_active(void)
+{
+	return false;
+}
+#endif /* CONFIG_SWIOTLB */
 
 extern void swiotlb_print_info(void);
 extern void swiotlb_set_max_segment(unsigned int);
-
-extern const struct dma_map_ops swiotlb_dma_ops;
 
 #endif /* __LINUX_SWIOTLB_H */

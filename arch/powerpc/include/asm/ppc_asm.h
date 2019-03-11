@@ -480,26 +480,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	ori	rd,rd,((KERNELBASE>>48)&0xFFFF);\
 	rotldi	rd,rd,48
 #else
-/*
- * On APUS (Amiga PowerPC cpu upgrade board), we don't know the
- * physical base address of RAM at compile time.
- */
 #define toreal(rd)	tophys(rd,rd)
 #define fromreal(rd)	tovirt(rd,rd)
 
-#define tophys(rd,rs)				\
-0:	addis	rd,rs,-PAGE_OFFSET@h;		\
-	.section ".vtop_fixup","aw";		\
-	.align  1;				\
-	.long   0b;				\
-	.previous
-
-#define tovirt(rd,rs)				\
-0:	addis	rd,rs,PAGE_OFFSET@h;		\
-	.section ".ptov_fixup","aw";		\
-	.align  1;				\
-	.long   0b;				\
-	.previous
+#define tophys(rd, rs)	addis	rd, rs, -PAGE_OFFSET@h
+#define tovirt(rd, rs)	addis	rd, rs, PAGE_OFFSET@h
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -820,5 +805,15 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 	stringify_in_c(.long (_fault) - . ;)	\
 	stringify_in_c(.long (_target) - . ;)	\
 	stringify_in_c(.previous)
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#define BTB_FLUSH(reg)			\
+	lis reg,BUCSR_INIT@h;		\
+	ori reg,reg,BUCSR_INIT@l;	\
+	mtspr SPRN_BUCSR,reg;		\
+	isync;
+#else
+#define BTB_FLUSH(reg)
+#endif /* CONFIG_PPC_FSL_BOOK3E */
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

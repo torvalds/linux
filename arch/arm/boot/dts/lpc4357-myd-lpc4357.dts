@@ -1,0 +1,619 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * MYIR Tech MYD-LPC4357 Development Board with 800x480 7" TFT panel
+ *
+ * Copyright (C) 2016-2018 Vladimir Zapolskiy <vz@mleia.com>
+ */
+
+/dts-v1/;
+
+#include "lpc18xx.dtsi"
+#include "lpc4357.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "MYIR Tech LPC4357 Development Board";
+	compatible = "myir,myd-lpc4357", "nxp,lpc4357";
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
+	memory@28000000 {
+		device_type = "memory";
+		reg = <0x28000000 0x2000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins>;
+
+		led1 {
+			gpios = <&gpio LPC_GPIO(6,15) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led2 {
+			gpios = <&gpio LPC_GPIO(6,16) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led3 {
+			gpios = <&gpio LPC_GPIO(6,17) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led4 {
+			gpios = <&gpio LPC_GPIO(6,10) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led5 {
+			gpios = <&gpio LPC_GPIO(7,14) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led6 {
+			gpios = <&gpio LPC_GPIO(6,14) GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	panel: panel {
+		compatible = "innolux,at070tn92";
+
+		port {
+			panel_input: endpoint {
+				remote-endpoint = <&lcdc_output>;
+			};
+		};
+	};
+
+	vcc: vcc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vmmc: vmmc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&pinctrl {
+	can0_pins: can0-pins {
+		can_rd_cfg {
+			pins = "p3_1";
+			function = "can0";
+			input-enable;
+		};
+
+		can_td_cfg {
+			pins = "p3_2";
+			function = "can0";
+		};
+	};
+
+	can1_pins: can1-pins {
+		can_rd_cfg {
+			pins = "pe_1";
+			function = "can1";
+			input-enable;
+		};
+
+		can_td_cfg {
+			pins = "pe_0";
+			function = "can1";
+		};
+	};
+
+	emc_pins: emc-pins {
+		emc_addr0_22_cfg {
+			pins = "p2_9",  "p2_10", "p2_11", "p2_12",
+			       "p2_13", "p1_0",  "p1_1",  "p1_2",
+			       "p2_8",  "p2_7",  "p2_6",  "p2_2",
+			       "p2_1",  "p2_0",  "p6_8",  "p6_7",
+			       "pd_16", "pd_15", "pe_0",  "pe_1",
+			       "pe_2",  "pe_3",  "pe_4";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_data0_15_cfg {
+			pins = "p1_7",  "p1_8",  "p1_9",  "p1_10",
+			       "p1_11", "p1_12", "p1_13", "p1_14",
+			       "p5_4",  "p5_5",  "p5_6",  "p5_7",
+			       "p5_0",  "p5_1",  "p5_2",  "p5_3";
+			function = "emc";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_we_oe_cfg {
+			pins = "p1_6", "p1_3";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_cs0_cfg {
+			pins = "p1_5";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_sdram_dqm0_1_cfg {
+			pins = "p6_12", "p6_10";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_sdram_ras_cas_cfg {
+			pins = "p6_5", "p6_4";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_sdram_dycs0_cfg {
+			pins = "p6_9";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_sdram_cke_cfg {
+			pins = "p6_11";
+			function = "emc";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		emc_sdram_clock_cfg {
+			pins = "clk0";
+			function = "emc";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+	};
+
+	enet_rmii_pins: enet-rmii-pins {
+		enet_rmii_rxd_cfg {
+			pins = "p1_15", "p0_0";
+			function = "enet";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		enet_rmii_txd_cfg {
+			pins = "p1_18", "p1_20";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		enet_rmii_rx_dv_cfg {
+			pins = "p1_16";
+			function = "enet";
+			input-enable;
+			input-schmitt-disable;
+			bias-disable;
+		};
+
+		enet_mdio_cfg {
+			pins = "p1_17";
+			function = "enet";
+			input-enable;
+			input-schmitt-disable;
+			bias-disable;
+		};
+
+		enet_mdc_cfg {
+			pins = "pc_1";
+			function = "enet";
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		enet_rmii_tx_en_cfg {
+			pins = "p0_1";
+			function = "enet";
+			bias-disable;
+		};
+
+		enet_ref_clk_cfg {
+			pins = "p1_19";
+			function = "enet";
+			slew-rate = <1>;
+			input-enable;
+			input-schmitt-disable;
+			bias-disable;
+		};
+	};
+
+	i2c0_pins: i2c0-pins {
+		i2c0_pins_cfg {
+			pins = "i2c0_scl", "i2c0_sda";
+			function = "i2c0";
+			input-enable;
+		};
+	};
+
+	i2c1_pins: i2c1-pins {
+		i2c1_pins_cfg {
+			pins = "pe_15", "pe_13";
+			function = "i2c1";
+			input-enable;
+		};
+	};
+
+	lcd_pins: lcd-pins {
+		lcd_vd0_23_cfg {
+			pins = "p4_1", "p4_4", "p4_3",  "p4_2",
+			       "p8_7", "p8_6", "p8_5",  "p8_4",
+			       "p7_5", "p4_8", "p4_10", "p4_9",
+			       "p8_3", "pb_6", "pb_5",  "pb_4",
+			       "p7_4", "p7_3", "p7_2",  "p7_1",
+			       "pb_3", "pb_2", "pb_1",  "pb_0";
+			function = "lcd";
+		};
+
+		lcd_vsync_en_dclk_lp_pwr_cfg {
+			pins = "p4_5", "p4_6", "p4_7", "p7_6", "p7_7";
+			function = "lcd";
+		};
+	};
+
+	led_pins: led-pins {
+		led_1_6_cfg {
+			pins = "pd_1", "pd_2", "pd_3", "pc_11", "pe_14", "pd_0";
+			function = "gpio";
+			bias-pull-down;
+		};
+	};
+
+	sdmmc_pins: sdmmc-pins {
+		sdmmc_clk_cfg {
+			pins = "pc_0";
+			function = "sdmmc";
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		sdmmc_cmd_dat0_3_cfg {
+			pins = "pc_4", "pc_5", "pc_6", "pc_7", "pc_10";
+			function = "sdmmc";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		sdmmc_cd_cfg {
+			pins = "pc_8";
+			function = "sdmmc";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	spifi_pins: spifi-pins {
+		spifi_sck_cfg {
+			pins = "p3_3";
+			function = "spifi";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		spifi_mosi_miso_sio2_sio3_cfg {
+			pins = "p3_7", "p3_6", "p3_5", "p3_4";
+			function = "spifi";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-disable;
+		};
+
+		spifi_cs_cfg {
+			pins = "p3_8";
+			function = "spifi";
+			bias-disable;
+		};
+	};
+
+	ssp1_pins: ssp1-pins {
+		ssp1_sck_cfg {
+			pins = "pf_4";
+			function = "ssp1";
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		ssp1_miso_cfg {
+			pins = "pf_6";
+			function = "ssp1";
+			input-enable;
+			input-schmitt-disable;
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		ssp1_mosi_cfg {
+			pins = "pf_7";
+			function = "ssp1";
+			slew-rate = <1>;
+			bias-pull-down;
+		};
+
+		ssp1_ssel_cfg {
+			pins = "pf_5";
+			function = "gpio";
+			bias-disable;
+		};
+	};
+
+	uart0_pins: uart0-pins {
+		uart0_rxd_cfg {
+			pins = "pf_11";
+			function = "uart0";
+			input-enable;
+			input-schmitt-disable;
+			bias-disable;
+		};
+
+		uart0_clk_dir_txd_cfg {
+			pins = "pf_8", "pf_9", "pf_10";
+			function = "uart0";
+			bias-pull-down;
+		};
+	};
+
+	uart1_pins: uart1-pins {
+		uart1_rxd_cfg {
+			pins = "pc_14";
+			function = "uart1";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		uart1_dtr_txd_cfg {
+			pins = "pc_12", "pc_13";
+			function = "uart1";
+			bias-pull-down;
+		};
+	};
+
+	uart2_pins: uart2-pins {
+		uart2_rxd_cfg {
+			pins = "pa_2";
+			function = "uart2";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		uart2_txd_cfg {
+			pins = "pa_1";
+			function = "uart2";
+			bias-pull-down;
+		};
+	};
+
+	uart3_pins: uart3-pins {
+		uart3_rx_cfg {
+			pins = "p2_4";
+			function = "uart3";
+			bias-disable;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		uart3_tx_cfg {
+			pins = "p2_3";
+			function = "uart3";
+			bias-pull-down;
+		};
+	};
+
+	usb0_pins: usb0-pins {
+		usb0_pwr_enable_cfg {
+			pins = "p6_3";
+			function = "usb0";
+		};
+
+		usb0_pwr_fault_cfg {
+			pins = "p8_0";
+			function = "usb0";
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+
+&adc1 {
+	status = "okay";
+	vref-supply = <&vcc>;
+};
+
+&can0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0_pins>;
+};
+
+/* Pin conflict with EMC, muxed by JP5 and JP6 */
+&can1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1_pins>;
+};
+
+&emc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&emc_pins>;
+
+	cs0 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		mpmc,cs = <0>;
+		mpmc,memory-width = <16>;
+		mpmc,byte-lane-low;
+		mpmc,write-enable-delay = <0>;
+		mpmc,output-enable-delay = <0>;
+		mpmc,read-access-delay = <70>;
+		mpmc,page-mode-read-delay = <70>;
+
+		/* SST/Microchip SST39VF1601 */
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x400000>;
+			bank-width = <2>;
+		};
+	};
+};
+
+&enet_tx_clk {
+	clock-frequency = <50000000>;
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <400000>;
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <400000>;
+
+	sensor@49 {
+		compatible = "lm75";
+		reg = <0x49>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c512";
+		reg = <0x50>;
+	};
+};
+
+&lcdc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_pins>;
+
+	max-memory-bandwidth = <92240000>;
+
+	port {
+		lcdc_output: endpoint {
+			remote-endpoint = <&panel_input>;
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		};
+	};
+};
+
+&mac {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&enet_rmii_pins>;
+	phy-handle = <&phy1>;
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+
+		phy1: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
+};
+
+&mmcsd {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_pins>;
+	bus-width = <4>;
+	vmmc-supply = <&vmmc>;
+};
+
+/* Pin conflict with SSP0, the latter is routed to J17 pin header */
+&spifi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spifi_pins>;
+
+	/* Atmel AT25DF321A */
+	flash {
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <51000000>;
+		spi-cpol;
+		spi-cpha;
+	};
+};
+
+&ssp1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssp1_pins>;
+	num-cs = <1>;
+	cs-gpios = <&gpio LPC_GPIO(7,19) GPIO_ACTIVE_LOW>;
+};
+
+/* Routed to J17 pin header */
+&uart0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+};
+
+/* RS485 */
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+};
+
+/* Routed to J17 pin header */
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+};
+
+&usb0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
+};

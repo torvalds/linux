@@ -39,8 +39,7 @@ static const struct vio_device_id tpm_ibmvtpm_device_table[] = {
 MODULE_DEVICE_TABLE(vio, tpm_ibmvtpm_device_table);
 
 /**
- *
- * ibmvtpm_send_crq_word - Send a CRQ request
+ * ibmvtpm_send_crq_word() - Send a CRQ request
  * @vdev:	vio device struct
  * @w1:		pre-constructed first word of tpm crq (second word is reserved)
  *
@@ -54,8 +53,7 @@ static int ibmvtpm_send_crq_word(struct vio_dev *vdev, u64 w1)
 }
 
 /**
- *
- * ibmvtpm_send_crq - Send a CRQ request
+ * ibmvtpm_send_crq() - Send a CRQ request
  *
  * @vdev:	vio device struct
  * @valid:	Valid field

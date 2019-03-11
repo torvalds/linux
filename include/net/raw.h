@@ -17,7 +17,7 @@
 #ifndef _RAW_H
 #define _RAW_H
 
-
+#include <net/inet_sock.h>
 #include <net/protocol.h>
 #include <linux/icmp.h>
 
@@ -61,6 +61,7 @@ void raw_seq_stop(struct seq_file *seq, void *v);
 
 int raw_hash_sk(struct sock *sk);
 void raw_unhash_sk(struct sock *sk);
+void raw_init(void);
 
 struct raw_sock {
 	/* inet_sock has to be the first member */
@@ -72,6 +73,17 @@ struct raw_sock {
 static inline struct raw_sock *raw_sk(const struct sock *sk)
 {
 	return (struct raw_sock *)sk;
+}
+
+static inline bool raw_sk_bound_dev_eq(struct net *net, int bound_dev_if,
+				       int dif, int sdif)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	return inet_bound_dev_eq(!!net->ipv4.sysctl_raw_l3mdev_accept,
+				 bound_dev_if, dif, sdif);
+#else
+	return inet_bound_dev_eq(true, bound_dev_if, dif, sdif);
+#endif
 }
 
 #endif	/* _RAW_H */

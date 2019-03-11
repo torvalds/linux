@@ -28,7 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -81,7 +81,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
-	vaddr = __get_free_pages(gfp, order);
+	vaddr = __get_free_pages(gfp | __GFP_ZERO, order);
 	if (!vaddr)
 		return NULL;
 

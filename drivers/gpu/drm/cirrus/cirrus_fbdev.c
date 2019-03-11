@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -169,7 +170,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	struct drm_mode_fb_cmd2 mode_cmd;
 	void *sysram;
 	struct drm_gem_object *gobj = NULL;
-	struct cirrus_bo *bo = NULL;
 	int size, ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -184,8 +184,6 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
 	}
-
-	bo = gem_to_cirrus_bo(gobj);
 
 	sysram = vmalloc(size);
 	if (!sysram)
@@ -258,6 +256,8 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 				struct cirrus_fbdev *gfbdev)
 {
 	struct drm_framebuffer *gfb = gfbdev->gfb;
+
+	drm_helper_force_disable_all(dev);
 
 	drm_fb_helper_unregister_fbi(&gfbdev->helper);
 

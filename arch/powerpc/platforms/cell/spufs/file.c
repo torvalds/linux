@@ -609,7 +609,7 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 	if (len < 4)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	udata = (void __user *)buf;
@@ -717,7 +717,7 @@ static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 	if (len < 4)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	udata = (void __user *)buf;
@@ -856,7 +856,7 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 		return -EINVAL;
 
 	udata = (void __user *)buf;
-	if (!access_ok(VERIFY_READ, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	if (__get_user(wbox_data, udata))
@@ -1994,7 +1994,7 @@ static ssize_t spufs_mbox_info_read(struct file *file, char __user *buf,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	ret = spu_acquire_saved(ctx);
@@ -2034,7 +2034,7 @@ static ssize_t spufs_ibox_info_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	ret = spu_acquire_saved(ctx);
@@ -2077,7 +2077,7 @@ static ssize_t spufs_wbox_info_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	ret = spu_acquire_saved(ctx);
@@ -2129,7 +2129,7 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	ret = spu_acquire_saved(ctx);
@@ -2160,7 +2160,7 @@ static ssize_t __spufs_proxydma_info_read(struct spu_context *ctx,
 	if (len < ret)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, len))
+	if (!access_ok(buf, len))
 		return -EFAULT;
 
 	info.proxydma_info_type = ctx->csa.prob.dma_querytype_RW;
@@ -2338,9 +2338,8 @@ static int spufs_switch_log_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	ctx->switch_log = kmalloc(sizeof(struct switch_log) +
-		SWITCH_LOG_BUFSIZE * sizeof(struct switch_log_entry),
-		GFP_KERNEL);
+	ctx->switch_log = kmalloc(struct_size(ctx->switch_log, log,
+				  SWITCH_LOG_BUFSIZE), GFP_KERNEL);
 
 	if (!ctx->switch_log) {
 		rc = -ENOMEM;

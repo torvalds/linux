@@ -236,10 +236,10 @@ ENTRY(__switch_to)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lghi	%r4,__TASK_stack
 	lghi	%r1,__TASK_thread
-	lg	%r5,0(%r4,%r3)			# start of kernel stack of next
+	llill	%r5,STACK_INIT
 	stg	%r15,__THREAD_ksp(%r1,%r2)	# store kernel stack of prev
-	lgr	%r15,%r5
-	aghi	%r15,STACK_INIT			# end of kernel stack of next
+	lg	%r15,0(%r4,%r3)			# start of kernel stack of next
+	agr	%r15,%r5			# end of kernel stack of next
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
@@ -1512,7 +1512,7 @@ cleanup_critical:
 	.quad   .Lsie_skip - .Lsie_entry
 #endif
 	.section .rodata, "a"
-#define SYSCALL(esame,emu)	.long esame
+#define SYSCALL(esame,emu)	.long __s390x_ ## esame
 	.globl	sys_call_table
 sys_call_table:
 #include "asm/syscall_table.h"
@@ -1520,7 +1520,7 @@ sys_call_table:
 
 #ifdef CONFIG_COMPAT
 
-#define SYSCALL(esame,emu)	.long emu
+#define SYSCALL(esame,emu)	.long __s390_ ## emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "asm/syscall_table.h"

@@ -62,12 +62,18 @@
 /* Error Codes */
 enum virtchnl_status_code {
 	VIRTCHNL_STATUS_SUCCESS				= 0,
-	VIRTCHNL_ERR_PARAM				= -5,
+	VIRTCHNL_STATUS_ERR_PARAM			= -5,
+	VIRTCHNL_STATUS_ERR_NO_MEMORY			= -18,
 	VIRTCHNL_STATUS_ERR_OPCODE_MISMATCH		= -38,
 	VIRTCHNL_STATUS_ERR_CQP_COMPL_ERROR		= -39,
 	VIRTCHNL_STATUS_ERR_INVALID_VF_ID		= -40,
-	VIRTCHNL_STATUS_NOT_SUPPORTED			= -64,
+	VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR		= -53,
+	VIRTCHNL_STATUS_ERR_NOT_SUPPORTED		= -64,
 };
+
+/* Backward compatibility */
+#define VIRTCHNL_ERR_PARAM VIRTCHNL_STATUS_ERR_PARAM
+#define VIRTCHNL_STATUS_NOT_SUPPORTED VIRTCHNL_STATUS_ERR_NOT_SUPPORTED
 
 #define VIRTCHNL_LINK_SPEED_100MB_SHIFT		0x1
 #define VIRTCHNL_LINK_SPEED_1000MB_SHIFT	0x2
@@ -165,7 +171,7 @@ struct virtchnl_msg {
 
 VIRTCHNL_CHECK_STRUCT_LEN(20, virtchnl_msg);
 
-/* Message descriptions and data structures.*/
+/* Message descriptions and data structures. */
 
 /* VIRTCHNL_OP_VERSION
  * VF posts its version number to the PF. PF responds with its version number
@@ -336,6 +342,8 @@ struct virtchnl_vsi_queue_config_info {
 	struct virtchnl_queue_pair_info qpair[1];
 };
 
+VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_vsi_queue_config_info);
+
 /* VIRTCHNL_OP_REQUEST_QUEUES
  * VF sends this message to request the PF to allocate additional queues to
  * this VF.  Each VF gets a guaranteed number of queues on init but asking for
@@ -350,8 +358,6 @@ struct virtchnl_vsi_queue_config_info {
 struct virtchnl_vf_res_request {
 	u16 num_queue_pairs;
 };
-
-VIRTCHNL_CHECK_STRUCT_LEN(72, virtchnl_vsi_queue_config_info);
 
 /* VIRTCHNL_OP_CONFIG_IRQ_MAP
  * VF uses this message to map vectors to queues.
@@ -813,8 +819,8 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_tc_info *vti =
 				(struct virtchnl_tc_info *)msg;
-			valid_len += vti->num_tc *
-				sizeof(struct virtchnl_channel_info);
+			valid_len += (vti->num_tc - 1) *
+				     sizeof(struct virtchnl_channel_info);
 			if (vti->num_tc == 0)
 				err_msg_format = true;
 		}
@@ -831,7 +837,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 	case VIRTCHNL_OP_EVENT:
 	case VIRTCHNL_OP_UNKNOWN:
 	default:
-		return VIRTCHNL_ERR_PARAM;
+		return VIRTCHNL_STATUS_ERR_PARAM;
 	}
 	/* few more checks */
 	if (err_msg_format || valid_len != msglen)

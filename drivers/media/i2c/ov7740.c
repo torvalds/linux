@@ -20,7 +20,7 @@
 #define REG_BGAIN	0x01	/* blue gain */
 #define REG_RGAIN	0x02	/* red gain */
 #define REG_GGAIN	0x03	/* green gain */
-#define REG_REG04	0x04	/* analog setting, dont change*/
+#define REG_REG04	0x04	/* analog setting, don't change*/
 #define REG_BAVG	0x05	/* b channel average */
 #define REG_GAVG	0x06	/* g channel average */
 #define REG_RAVG	0x07	/* r channel average */
@@ -322,7 +322,7 @@ static int ov7740_set_power(struct ov7740 *ov7740, int on)
 	return 0;
 }
 
-static struct v4l2_subdev_core_ops ov7740_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov7740_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ov7740_get_register,
@@ -648,7 +648,7 @@ static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
 	.s_frame_interval = ov7740_s_frame_interval,
 	.g_frame_interval = ov7740_g_frame_interval,
@@ -1101,6 +1101,9 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
+
 	ret = ov7740_detect(ov7740);
 	if (ret)
 		goto error_detect;
@@ -1123,8 +1126,6 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		goto error_async_register;
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
 	return 0;
@@ -1134,6 +1135,8 @@ error_async_register:
 error_init_controls:
 	ov7740_free_controls(ov7740);
 error_detect:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	ov7740_set_power(ov7740, 0);
 	media_entity_cleanup(&ov7740->subdev.entity);
 

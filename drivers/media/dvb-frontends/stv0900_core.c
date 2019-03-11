@@ -744,12 +744,12 @@ static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
 		/* DVB-S2 delineator errors count */
 
-		/* retreiving number for errnous headers */
+		/* retrieving number for errnous headers */
 		err_val1 = stv0900_read_reg(intp, BBFCRCKO1);
 		err_val0 = stv0900_read_reg(intp, BBFCRCKO0);
 		header_err_val = (err_val1 << 8) | err_val0;
 
-		/* retreiving number for errnous packets */
+		/* retrieving number for errnous packets */
 		err_val1 = stv0900_read_reg(intp, UPCRCKO1);
 		err_val0 = stv0900_read_reg(intp, UPCRCKO0);
 		*ucblocks = (err_val1 << 8) | err_val0;

@@ -771,14 +771,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define	FC_TM_REJECT                4
 #define FC_TM_FAILED                5
 
-#if (BITS_PER_LONG > 32) || defined(CONFIG_HIGHMEM64G)
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) ((((a) >> 16)>>16) & 0xffffffff)
-#else
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) 0
-#endif
-
 #define QLA_TGT_SENSE_VALID(sense)  ((sense != NULL) && \
 				(((const uint8_t *)(sense))[0] & 0x70) == 0x70)
 
@@ -936,6 +928,8 @@ struct qla_tgt_cmd {
 	uint64_t	lba;
 	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
 	uint32_t	a_ref_tag, e_ref_tag;
+#define DIF_BUNDL_DMA_VALID 1
+	uint16_t prot_flags;
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;

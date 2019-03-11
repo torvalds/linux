@@ -79,6 +79,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* stream register offsets from stream base */
 #define AZX_REG_SD_CTL			0x00
+#define AZX_REG_SD_CTL_3B		0x02 /* 3rd byte of SD_CTL register */
 #define AZX_REG_SD_STS			0x03
 #define AZX_REG_SD_LPIB			0x04
 #define AZX_REG_SD_CBL			0x08
@@ -165,6 +166,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define SD_INT_COMPLETE		0x04	/* completion interrupt */
 #define SD_INT_MASK		(SD_INT_DESC_ERR|SD_INT_FIFO_ERR|\
 				 SD_INT_COMPLETE)
+#define SD_CTL_STRIPE_MASK	0x3	/* stripe control mask */
 
 /* SD_STS */
 #define SD_STS_FIFO_READY	0x20	/* FIFO ready */

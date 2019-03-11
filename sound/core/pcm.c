@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/nospec.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/pcm.h>
@@ -129,6 +130,7 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 				return -EFAULT;
 			if (stream < 0 || stream > 1)
 				return -EINVAL;
+			stream = array_index_nospec(stream, 2);
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
 			mutex_lock(&register_mutex);
@@ -526,50 +528,42 @@ static int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr)
 	if (!entry)
 		return -ENOMEM;
 	entry->mode = S_IFDIR | 0555;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
 	pstr->proc_root = entry;
 	entry = snd_info_create_card_entry(pcm->card, "info", pstr->proc_root);
-	if (entry) {
+	if (entry)
 		snd_info_set_text_ops(entry, pstr, snd_pcm_stream_proc_info_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	pstr->proc_info_entry = entry;
-
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
 	entry = snd_info_create_card_entry(pcm->card, "xrun_debug",
 					   pstr->proc_root);
 	if (entry) {
-		entry->c.text.read = snd_pcm_xrun_debug_read;
+		snd_info_set_text_ops(entry, pstr, snd_pcm_xrun_debug_read);
 		entry->c.text.write = snd_pcm_xrun_debug_write;
 		entry->mode |= 0200;
-		entry->private_data = pstr;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	pstr->proc_xrun_debug_entry = entry;
 #endif
 	return 0;
 }
 
 static int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr)
 {
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	snd_info_free_entry(pstr->proc_xrun_debug_entry);
-	pstr->proc_xrun_debug_entry = NULL;
-#endif
-	snd_info_free_entry(pstr->proc_info_entry);
-	pstr->proc_info_entry = NULL;
 	snd_info_free_entry(pstr->proc_root);
 	pstr->proc_root = NULL;
 	return 0;
+}
+
+static struct snd_info_entry *
+create_substream_info_entry(struct snd_pcm_substream *substream,
+			    const char *name,
+			    void (*read)(struct snd_info_entry *,
+					 struct snd_info_buffer *))
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_card_entry(substream->pcm->card, name,
+					   substream->proc_root);
+	if (entry)
+		snd_info_set_text_ops(entry, substream, read);
+	return entry;
 }
 
 static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
@@ -586,100 +580,60 @@ static int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream)
 	if (!entry)
 		return -ENOMEM;
 	entry->mode = S_IFDIR | 0555;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
 	substream->proc_root = entry;
-	entry = snd_info_create_card_entry(card, "info", substream->proc_root);
-	if (entry) {
-		snd_info_set_text_ops(entry, substream,
-				      snd_pcm_substream_proc_info_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	substream->proc_info_entry = entry;
-	entry = snd_info_create_card_entry(card, "hw_params",
-					   substream->proc_root);
-	if (entry) {
-		snd_info_set_text_ops(entry, substream,
-				      snd_pcm_substream_proc_hw_params_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	substream->proc_hw_params_entry = entry;
-	entry = snd_info_create_card_entry(card, "sw_params",
-					   substream->proc_root);
-	if (entry) {
-		snd_info_set_text_ops(entry, substream,
-				      snd_pcm_substream_proc_sw_params_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	substream->proc_sw_params_entry = entry;
-	entry = snd_info_create_card_entry(card, "status",
-					   substream->proc_root);
-	if (entry) {
-		snd_info_set_text_ops(entry, substream,
-				      snd_pcm_substream_proc_status_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	substream->proc_status_entry = entry;
+
+	create_substream_info_entry(substream, "info",
+				    snd_pcm_substream_proc_info_read);
+	create_substream_info_entry(substream, "hw_params",
+				    snd_pcm_substream_proc_hw_params_read);
+	create_substream_info_entry(substream, "sw_params",
+				    snd_pcm_substream_proc_sw_params_read);
+	create_substream_info_entry(substream, "status",
+				    snd_pcm_substream_proc_status_read);
 
 #ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	entry = snd_info_create_card_entry(card, "xrun_injection",
-					   substream->proc_root);
+	entry = create_substream_info_entry(substream, "xrun_injection", NULL);
 	if (entry) {
-		entry->private_data = substream;
-		entry->c.text.read = NULL;
 		entry->c.text.write = snd_pcm_xrun_injection_write;
 		entry->mode = S_IFREG | 0200;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
-	substream->proc_xrun_injection_entry = entry;
 #endif /* CONFIG_SND_PCM_XRUN_DEBUG */
 
 	return 0;
 }
 
-static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
-{
-	snd_info_free_entry(substream->proc_info_entry);
-	substream->proc_info_entry = NULL;
-	snd_info_free_entry(substream->proc_hw_params_entry);
-	substream->proc_hw_params_entry = NULL;
-	snd_info_free_entry(substream->proc_sw_params_entry);
-	substream->proc_sw_params_entry = NULL;
-	snd_info_free_entry(substream->proc_status_entry);
-	substream->proc_status_entry = NULL;
-#ifdef CONFIG_SND_PCM_XRUN_DEBUG
-	snd_info_free_entry(substream->proc_xrun_injection_entry);
-	substream->proc_xrun_injection_entry = NULL;
-#endif
-	snd_info_free_entry(substream->proc_root);
-	substream->proc_root = NULL;
-	return 0;
-}
 #else /* !CONFIG_SND_VERBOSE_PROCFS */
 static inline int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr) { return 0; }
 static inline int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream) { return 0; }
-static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream) { return 0; }
 #endif /* CONFIG_SND_VERBOSE_PROCFS */
 
 static const struct attribute_group *pcm_dev_attr_groups[];
+
+/*
+ * PM callbacks: we need to deal only with suspend here, as the resume is
+ * triggered either from user-space or the driver's resume callback
+ */
+#ifdef CONFIG_PM_SLEEP
+static int do_pcm_suspend(struct device *dev)
+{
+	struct snd_pcm_str *pstr = container_of(dev, struct snd_pcm_str, dev);
+
+	if (!pstr->pcm->no_device_suspend)
+		snd_pcm_suspend_all(pstr->pcm);
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops pcm_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(do_pcm_suspend, NULL)
+};
+
+/* device type for PCM -- basically only for passing PM callbacks */
+static const struct device_type pcm_dev_type = {
+	.name = "pcm",
+	.pm = &pcm_dev_pm_ops,
+};
 
 /**
  * snd_pcm_new_stream - create a new PCM stream
@@ -711,6 +665,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 
 	snd_device_initialize(&pstr->dev, pcm->card);
 	pstr->dev.groups = pcm_dev_attr_groups;
+	pstr->dev.type = &pcm_dev_type;
 	dev_set_name(&pstr->dev, "pcmC%iD%i%c", pcm->card->number, pcm->device,
 		     stream == SNDRV_PCM_STREAM_PLAYBACK ? 'p' : 'c');
 
@@ -751,9 +706,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 			}
 		}
 		substream->group = &substream->self_group;
-		spin_lock_init(&substream->self_group.lock);
-		mutex_init(&substream->self_group.mutex);
-		INIT_LIST_HEAD(&substream->self_group.substreams);
+		snd_pcm_group_init(&substream->self_group);
 		list_add_tail(&substream->link_list, &substream->self_group.substreams);
 		atomic_set(&substream->mmap_count, 0);
 		prev = substream;
@@ -883,15 +836,17 @@ static void snd_pcm_free_stream(struct snd_pcm_str * pstr)
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	struct snd_pcm_oss_setup *setup, *setupn;
 #endif
+
+	/* free all proc files under the stream */
+	snd_pcm_stream_proc_done(pstr);
+
 	substream = pstr->substream;
 	while (substream) {
 		substream_next = substream->next;
 		snd_pcm_timer_done(substream);
-		snd_pcm_substream_proc_done(substream);
 		kfree(substream);
 		substream = substream_next;
 	}
-	snd_pcm_stream_proc_done(pstr);
 #if IS_ENABLED(CONFIG_SND_PCM_OSS)
 	for (setup = pstr->oss.setup_list; setup; setup = setupn) {
 		setupn = setup->next;

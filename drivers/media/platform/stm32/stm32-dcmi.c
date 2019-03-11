@@ -1544,7 +1544,7 @@ static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(dcmi->dev, "Removing %s\n", video_device_node_name(dcmi->vdev));
 
-	/* Checks internaly if vdev has been init or not */
+	/* Checks internally if vdev has been init or not */
 	video_unregister_device(dcmi->vdev);
 }
 

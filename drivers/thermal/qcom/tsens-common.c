@@ -114,6 +114,14 @@ int get_temp_common(struct tsens_device *tmdev, int id, int *temp)
 }
 
 static const struct regmap_config tsens_config = {
+	.name		= "tm",
+	.reg_bits	= 32,
+	.val_bits	= 32,
+	.reg_stride	= 4,
+};
+
+static const struct regmap_config tsens_srot_config = {
+	.name		= "srot",
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
@@ -136,13 +144,17 @@ int __init init_common(struct tsens_device *tmdev)
 		tmdev->tm_offset = 0;
 		res = platform_get_resource(op, IORESOURCE_MEM, 1);
 		srot_base = devm_ioremap_resource(&op->dev, res);
-		if (IS_ERR(srot_base))
-			return PTR_ERR(srot_base);
+		if (IS_ERR(srot_base)) {
+			ret = PTR_ERR(srot_base);
+			goto err_put_device;
+		}
 
-		tmdev->srot_map = devm_regmap_init_mmio(tmdev->dev,
-							srot_base, &tsens_config);
-		if (IS_ERR(tmdev->srot_map))
-			return PTR_ERR(tmdev->srot_map);
+		tmdev->srot_map = devm_regmap_init_mmio(tmdev->dev, srot_base,
+							&tsens_srot_config);
+		if (IS_ERR(tmdev->srot_map)) {
+			ret = PTR_ERR(tmdev->srot_map);
+			goto err_put_device;
+		}
 
 	} else {
 		/* old DTs where SROT and TM were in a contiguous 2K block */
@@ -151,22 +163,31 @@ int __init init_common(struct tsens_device *tmdev)
 
 	res = platform_get_resource(op, IORESOURCE_MEM, 0);
 	tm_base = devm_ioremap_resource(&op->dev, res);
-	if (IS_ERR(tm_base))
-		return PTR_ERR(tm_base);
+	if (IS_ERR(tm_base)) {
+		ret = PTR_ERR(tm_base);
+		goto err_put_device;
+	}
 
 	tmdev->tm_map = devm_regmap_init_mmio(tmdev->dev, tm_base, &tsens_config);
-	if (IS_ERR(tmdev->tm_map))
-		return PTR_ERR(tmdev->tm_map);
+	if (IS_ERR(tmdev->tm_map)) {
+		ret = PTR_ERR(tmdev->tm_map);
+		goto err_put_device;
+	}
 
 	if (tmdev->srot_map) {
 		ret = regmap_read(tmdev->srot_map, ctrl_offset, &code);
 		if (ret)
-			return ret;
+			goto err_put_device;
 		if (!(code & TSENS_EN)) {
 			dev_err(tmdev->dev, "tsens device is not enabled\n");
-			return -ENODEV;
+			ret = -ENODEV;
+			goto err_put_device;
 		}
 	}
 
 	return 0;
+
+err_put_device:
+	put_device(&op->dev);
+	return ret;
 }

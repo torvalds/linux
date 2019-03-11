@@ -1049,7 +1049,8 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		enquiry2->fw.firmware_type = '0';
 		enquiry2->fw.turn_id = 0;
 	}
-	sprintf(cb->fw_version, "%d.%02d-%c-%02d",
+	snprintf(cb->fw_version, sizeof(cb->fw_version),
+		"%d.%02d-%c-%02d",
 		enquiry2->fw.major_version,
 		enquiry2->fw.minor_version,
 		enquiry2->fw.firmware_type,
@@ -1527,6 +1528,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
+		/* fall through */
 	case WRITE_6:
 		lba = (((scmd->cmnd[1] & 0x1F) << 16) |
 		       (scmd->cmnd[2] << 8) |
@@ -1543,6 +1545,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
+		/* fall through */
 	case WRITE_10:
 	case VERIFY:		/* 0x2F */
 	case WRITE_VERIFY:	/* 0x2E */
@@ -1559,6 +1562,7 @@ static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
 			scmd->scsi_done(scmd);
 			return 0;
 		}
+		/* fall through */
 	case WRITE_12:
 	case VERIFY_12: /* 0xAF */
 	case WRITE_VERIFY_12:	/* 0xAE */

@@ -17,8 +17,10 @@
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
 
-struct bug_entry {
+#ifdef CONFIG_BUG
+
 #ifdef CONFIG_GENERIC_BUG
+struct bug_entry {
 #ifndef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
 	unsigned long	bug_addr;
 #else
@@ -33,10 +35,8 @@ struct bug_entry {
 	unsigned short	line;
 #endif
 	unsigned short	flags;
-#endif	/* CONFIG_GENERIC_BUG */
 };
-
-#ifdef CONFIG_BUG
+#endif	/* CONFIG_GENERIC_BUG */
 
 /*
  * Don't use BUG() or BUG_ON() unless there's really no way out; one
@@ -211,9 +211,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 /*
  * WARN_ON_SMP() is for cases that the warning is either
  * meaningless for !SMP or may even cause failures.
- * This is usually used for cases that we have
- * WARN_ON(!spin_is_locked(&lock)) checks, as spin_is_locked()
- * returns 0 for uniprocessor settings.
  * It can also be used with values that are only defined
  * on SMP:
  *

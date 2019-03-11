@@ -118,9 +118,31 @@
 #define SUN6I_YEAR_MAX				2033
 #define SUN6I_YEAR_OFF				(SUN6I_YEAR_MIN - 1900)
 
+/*
+ * There are other differences between models, including:
+ *
+ *   - number of GPIO pins that can be configured to hold a certain level
+ *   - crypto-key related registers (H5, H6)
+ *   - boot process related (super standby, secondary processor entry address)
+ *     registers (R40, H6)
+ *   - SYS power domain controls (R40)
+ *   - DCXO controls (H6)
+ *   - RC oscillator calibration (H6)
+ *
+ * These functions are not covered by this driver.
+ */
+struct sun6i_rtc_clk_data {
+	unsigned long rc_osc_rate;
+	unsigned int fixed_prescaler : 16;
+	unsigned int has_prescaler : 1;
+	unsigned int has_out_clk : 1;
+	unsigned int export_iosc : 1;
+};
+
 struct sun6i_rtc_dev {
 	struct rtc_device *rtc;
 	struct device *dev;
+	const struct sun6i_rtc_clk_data *data;
 	void __iomem *base;
 	int irq;
 	unsigned long alarm;
@@ -139,14 +161,19 @@ static unsigned long sun6i_rtc_osc_recalc_rate(struct clk_hw *hw,
 					       unsigned long parent_rate)
 {
 	struct sun6i_rtc_dev *rtc = container_of(hw, struct sun6i_rtc_dev, hw);
-	u32 val;
+	u32 val = 0;
 
 	val = readl(rtc->base + SUN6I_LOSC_CTRL);
 	if (val & SUN6I_LOSC_CTRL_EXT_OSC)
 		return parent_rate;
 
-	val = readl(rtc->base + SUN6I_LOSC_CLK_PRESCAL);
-	val &= GENMASK(4, 0);
+	if (rtc->data->fixed_prescaler)
+		parent_rate /= rtc->data->fixed_prescaler;
+
+	if (rtc->data->has_prescaler) {
+		val = readl(rtc->base + SUN6I_LOSC_CLK_PRESCAL);
+		val &= GENMASK(4, 0);
+	}
 
 	return parent_rate / (val + 1);
 }
@@ -185,13 +212,16 @@ static const struct clk_ops sun6i_rtc_osc_ops = {
 	.set_parent	= sun6i_rtc_osc_set_parent,
 };
 
-static void __init sun6i_rtc_clk_init(struct device_node *node)
+static void __init sun6i_rtc_clk_init(struct device_node *node,
+				      const struct sun6i_rtc_clk_data *data)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct sun6i_rtc_dev *rtc;
 	struct clk_init_data init = {
 		.ops		= &sun6i_rtc_osc_ops,
+		.name		= "losc",
 	};
+	const char *iosc_name = "rtc-int-osc";
 	const char *clkout_name = "osc32k-out";
 	const char *parents[2];
 
@@ -199,7 +229,8 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	if (!rtc)
 		return;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, 2), GFP_KERNEL);
+	rtc->data = data;
+	clk_data = kzalloc(struct_size(clk_data, hws, 3), GFP_KERNEL);
 	if (!clk_data) {
 		kfree(rtc);
 		return;
@@ -224,10 +255,15 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	if (!of_get_property(node, "clocks", NULL))
 		goto err;
 
+	/* Only read IOSC name from device tree if it is exported */
+	if (rtc->data->export_iosc)
+		of_property_read_string_index(node, "clock-output-names", 2,
+					      &iosc_name);
+
 	rtc->int_osc = clk_hw_register_fixed_rate_with_accuracy(NULL,
-								"rtc-int-osc",
+								iosc_name,
 								NULL, 0,
-								667000,
+								rtc->data->rc_osc_rate,
 								300000000);
 	if (IS_ERR(rtc->int_osc)) {
 		pr_crit("Couldn't register the internal oscillator\n");
@@ -264,14 +300,71 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	clk_data->num = 2;
 	clk_data->hws[0] = &rtc->hw;
 	clk_data->hws[1] = __clk_get_hw(rtc->ext_losc);
+	if (rtc->data->export_iosc) {
+		clk_data->hws[2] = rtc->int_osc;
+		clk_data->num = 3;
+	}
 	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 	return;
 
 err:
 	kfree(clk_data);
 }
-CLK_OF_DECLARE_DRIVER(sun6i_rtc_clk, "allwinner,sun6i-a31-rtc",
-		      sun6i_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun6i_a31_rtc_data = {
+	.rc_osc_rate = 667000, /* datasheet says 600 ~ 700 KHz */
+	.has_prescaler = 1,
+};
+
+static void __init sun6i_a31_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun6i_a31_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun6i_a31_rtc_clk, "allwinner,sun6i-a31-rtc",
+		      sun6i_a31_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun8i_a23_rtc_data = {
+	.rc_osc_rate = 667000, /* datasheet says 600 ~ 700 KHz */
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+};
+
+static void __init sun8i_a23_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_a23_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_a23_rtc_clk, "allwinner,sun8i-a23-rtc",
+		      sun8i_a23_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun8i_h3_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 32,
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+	.export_iosc = 1,
+};
+
+static void __init sun8i_h3_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_h3_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_h3_rtc_clk, "allwinner,sun8i-h3-rtc",
+		      sun8i_h3_rtc_clk_init);
+/* As far as we are concerned, clocks for H5 are the same as H3 */
+CLK_OF_DECLARE_DRIVER(sun50i_h5_rtc_clk, "allwinner,sun50i-h5-rtc",
+		      sun8i_h3_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun8i_v3_rtc_data = {
+	.rc_osc_rate = 32000,
+	.has_out_clk = 1,
+};
+
+static void __init sun8i_v3_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_v3_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_v3_rtc_clk, "allwinner,sun8i-v3-rtc",
+		      sun8i_v3_rtc_clk_init);
 
 static irqreturn_t sun6i_rtc_alarmirq(int irq, void *id)
 {
@@ -578,8 +671,18 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * As far as RTC functionality goes, all models are the same. The
+ * datasheets claim that different models have different number of
+ * registers available for non-volatile storage, but experiments show
+ * that all SoCs have 16 registers available for this purpose.
+ */
 static const struct of_device_id sun6i_rtc_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-rtc" },
+	{ .compatible = "allwinner,sun8i-a23-rtc" },
+	{ .compatible = "allwinner,sun8i-h3-rtc" },
+	{ .compatible = "allwinner,sun8i-v3-rtc" },
+	{ .compatible = "allwinner,sun50i-h5-rtc" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sun6i_rtc_dt_ids);

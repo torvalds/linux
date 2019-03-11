@@ -466,9 +466,9 @@ static int vce_v4_0_sw_init(void *handle)
 			 * so set unused location for other unused rings.
 			 */
 			if (i == 0)
-				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING0_1 * 2;
+				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring0_1 * 2;
 			else
-				ring->doorbell_index = AMDGPU_DOORBELL64_VCE_RING2_3 * 2 + 1;
+				ring->doorbell_index = adev->doorbell_index.uvd_vce.vce_ring2_3 * 2 + 1;
 		}
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vce.irq, 0);
 		if (r)
@@ -519,15 +519,10 @@ static int vce_v4_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
-
 	for (i = 0; i < adev->vce.num_rings; i++) {
-		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
 			return r;
-		else
-			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -549,7 +544,7 @@ static int vce_v4_0_hw_fini(void *handle)
 	}
 
 	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
+		adev->vce.ring[i].sched.ready = false;
 
 	return 0;
 }
@@ -951,9 +946,11 @@ static int vce_v4_0_set_powergating_state(void *handle,
 }
 #endif
 
-static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
+					struct amdgpu_ib *ib, uint32_t flags)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

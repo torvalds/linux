@@ -99,27 +99,6 @@ TRACE_EVENT(dpu_perf_set_ot,
 			__entry->vbif_idx)
 )
 
-TRACE_EVENT(dpu_perf_update_bus,
-	TP_PROTO(int client, unsigned long long ab_quota,
-	unsigned long long ib_quota),
-	TP_ARGS(client, ab_quota, ib_quota),
-	TP_STRUCT__entry(
-			__field(int, client)
-			__field(u64, ab_quota)
-			__field(u64, ib_quota)
-	),
-	TP_fast_assign(
-			__entry->client = client;
-			__entry->ab_quota = ab_quota;
-			__entry->ib_quota = ib_quota;
-	),
-	TP_printk("Request client:%d ab=%llu ib=%llu",
-			__entry->client,
-			__entry->ab_quota,
-			__entry->ib_quota)
-)
-
-
 TRACE_EVENT(dpu_cmd_release_bw,
 	TP_PROTO(u32 crtc_id),
 	TP_ARGS(crtc_id),
@@ -316,6 +295,10 @@ DEFINE_EVENT(dpu_drm_obj_template, dpu_kms_commit,
 	TP_ARGS(drm_id)
 );
 DEFINE_EVENT(dpu_drm_obj_template, dpu_kms_wait_for_commit_done,
+	TP_PROTO(uint32_t drm_id),
+	TP_ARGS(drm_id)
+);
+DEFINE_EVENT(dpu_drm_obj_template, dpu_crtc_runtime_resume,
 	TP_PROTO(uint32_t drm_id),
 	TP_ARGS(drm_id)
 );
@@ -539,10 +522,6 @@ DEFINE_EVENT(dpu_id_event_template, dpu_crtc_frame_event_cb,
 	TP_PROTO(uint32_t drm_id, u32 event),
 	TP_ARGS(drm_id, event)
 );
-DEFINE_EVENT(dpu_id_event_template, dpu_crtc_handle_power_event,
-	TP_PROTO(uint32_t drm_id, u32 event),
-	TP_ARGS(drm_id, event)
-);
 DEFINE_EVENT(dpu_id_event_template, dpu_crtc_frame_event_done,
 	TP_PROTO(uint32_t drm_id, u32 event),
 	TP_ARGS(drm_id, event)
@@ -749,24 +728,17 @@ TRACE_EVENT(dpu_crtc_vblank_enable,
 		__field(	uint32_t,		enc_id	)
 		__field(	bool,			enable	)
 		__field(	bool,			enabled )
-		__field(	bool,			suspend )
-		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enc_id = enc_id;
 		__entry->enable = enable;
 		__entry->enabled = crtc->enabled;
-		__entry->suspend = crtc->suspend;
-		__entry->vblank_requested = crtc->vblank_requested;
 	),
-	TP_printk("id:%u encoder:%u enable:%s state{enabled:%s suspend:%s "
-		  "vblank_req:%s}",
+	TP_printk("id:%u encoder:%u enable:%s state{enabled:%s}",
 		  __entry->drm_id, __entry->enc_id,
 		  __entry->enable ? "true" : "false",
-		  __entry->enabled ? "true" : "false",
-		  __entry->suspend ? "true" : "false",
-		  __entry->vblank_requested ? "true" : "false")
+		  __entry->enabled ? "true" : "false")
 );
 
 DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
@@ -776,25 +748,15 @@ DECLARE_EVENT_CLASS(dpu_crtc_enable_template,
 		__field(	uint32_t,		drm_id	)
 		__field(	bool,			enable	)
 		__field(	bool,			enabled )
-		__field(	bool,			suspend )
-		__field(	bool,			vblank_requested )
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->enable = enable;
 		__entry->enabled = crtc->enabled;
-		__entry->suspend = crtc->suspend;
-		__entry->vblank_requested = crtc->vblank_requested;
 	),
-	TP_printk("id:%u enable:%s state{enabled:%s suspend:%s vblank_req:%s}",
+	TP_printk("id:%u enable:%s state{enabled:%s}",
 		  __entry->drm_id, __entry->enable ? "true" : "false",
-		  __entry->enabled ? "true" : "false",
-		  __entry->suspend ? "true" : "false",
-		  __entry->vblank_requested ? "true" : "false")
-);
-DEFINE_EVENT(dpu_crtc_enable_template, dpu_crtc_set_suspend,
-	TP_PROTO(uint32_t drm_id, bool enable, struct dpu_crtc *crtc),
-	TP_ARGS(drm_id, enable, crtc)
+		  __entry->enabled ? "true" : "false")
 );
 DEFINE_EVENT(dpu_crtc_enable_template, dpu_crtc_enable,
 	TP_PROTO(uint32_t drm_id, bool enable, struct dpu_crtc *crtc),
@@ -869,48 +831,42 @@ TRACE_EVENT(dpu_plane_disable,
 );
 
 DECLARE_EVENT_CLASS(dpu_rm_iter_template,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id),
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		id	)
-		__field(	enum dpu_hw_blk_type,	type	)
 		__field(	uint32_t,		enc_id	)
 	),
 	TP_fast_assign(
 		__entry->id = id;
-		__entry->type = type;
 		__entry->enc_id = enc_id;
 	),
-	TP_printk("id:%d type:%d enc_id:%u", __entry->id, __entry->type,
-		  __entry->enc_id)
+	TP_printk("id:%d enc_id:%u", __entry->id, __entry->enc_id)
 );
 DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_intf,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id)
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id)
 );
 DEFINE_EVENT(dpu_rm_iter_template, dpu_rm_reserve_ctls,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id),
-	TP_ARGS(id, type, enc_id)
+	TP_PROTO(uint32_t id, uint32_t enc_id),
+	TP_ARGS(id, enc_id)
 );
 
 TRACE_EVENT(dpu_rm_reserve_lms,
-	TP_PROTO(uint32_t id, enum dpu_hw_blk_type type, uint32_t enc_id,
-		 uint32_t pp_id),
-	TP_ARGS(id, type, enc_id, pp_id),
+	TP_PROTO(uint32_t id, uint32_t enc_id, uint32_t pp_id),
+	TP_ARGS(id, enc_id, pp_id),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		id	)
-		__field(	enum dpu_hw_blk_type,	type	)
 		__field(	uint32_t,		enc_id	)
 		__field(	uint32_t,		pp_id	)
 	),
 	TP_fast_assign(
 		__entry->id = id;
-		__entry->type = type;
 		__entry->enc_id = enc_id;
 		__entry->pp_id = pp_id;
 	),
-	TP_printk("id:%d type:%d enc_id:%u pp_id:%u", __entry->id,
-		  __entry->type, __entry->enc_id, __entry->pp_id)
+	TP_printk("id:%d enc_id:%u pp_id:%u", __entry->id,
+		  __entry->enc_id, __entry->pp_id)
 );
 
 TRACE_EVENT(dpu_vbif_wait_xin_halt_fail,
@@ -1002,6 +958,53 @@ TRACE_EVENT(dpu_core_perf_update_clk,
 	),
 	TP_printk("dev:%s stop_req:%s clk_rate:%llu", __get_str(dev_name),
 		  __entry->stop_req ? "true" : "false", __entry->clk_rate)
+);
+
+TRACE_EVENT(dpu_hw_ctl_update_pending_flush,
+	TP_PROTO(u32 new_bits, u32 pending_mask),
+	TP_ARGS(new_bits, pending_mask),
+	TP_STRUCT__entry(
+		__field(	u32,			new_bits	)
+		__field(	u32,			pending_mask	)
+	),
+	TP_fast_assign(
+		__entry->new_bits = new_bits;
+		__entry->pending_mask = pending_mask;
+	),
+	TP_printk("new=%x existing=%x", __entry->new_bits,
+		  __entry->pending_mask)
+);
+
+DECLARE_EVENT_CLASS(dpu_hw_ctl_pending_flush_template,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush),
+	TP_STRUCT__entry(
+		__field(	u32,			pending_mask	)
+		__field(	u32,			ctl_flush	)
+	),
+	TP_fast_assign(
+		__entry->pending_mask = pending_mask;
+		__entry->ctl_flush = ctl_flush;
+	),
+	TP_printk("pending_mask=%x CTL_FLUSH=%x", __entry->pending_mask,
+		  __entry->ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_clear_pending_flush,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template,
+	     dpu_hw_ctl_trigger_pending_flush,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_trigger_prepare,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
+);
+DEFINE_EVENT(dpu_hw_ctl_pending_flush_template, dpu_hw_ctl_trigger_start,
+	TP_PROTO(u32 pending_mask, u32 ctl_flush),
+	TP_ARGS(pending_mask, ctl_flush)
 );
 
 #define DPU_ATRACE_END(name) trace_tracing_mark_write(current->tgid, name, 0)

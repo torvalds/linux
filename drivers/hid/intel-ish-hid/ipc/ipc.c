@@ -91,7 +91,10 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
 	} else {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_BXT);
-		interrupt_generated = IPC_INT_FROM_ISH_TO_HOST_BXT(pisr_val);
+		interrupt_generated = !!pisr_val;
+		/* only busy-clear bit is RW, others are RO */
+		if (pisr_val)
+			ish_reg_write(dev, IPC_REG_PISR_BXT, pisr_val);
 	}
 
 	return interrupt_generated;
@@ -256,33 +259,22 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	int	i;
 	void	(*ipc_send_compl)(void *);
 	void	*ipc_send_compl_prm;
-	static int	out_ipc_locked;
-	unsigned long	out_ipc_flags;
 
 	if (dev->dev_state == ISHTP_DEV_DISABLED)
-		return	-EINVAL;
-
-	spin_lock_irqsave(&dev->out_ipc_spinlock, out_ipc_flags);
-	if (out_ipc_locked) {
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	out_ipc_locked = 1;
-	if (!ish_is_input_ready(dev)) {
-		out_ipc_locked = 0;
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
+		return -EINVAL;
 
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
+	if (!ish_is_input_ready(dev)) {
+		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
+		return -EBUSY;
+	}
+
 	/*
 	 * if tx send list is empty - return 0;
 	 * may happen, as RX_COMPLETE handler doesn't check list emptiness.
 	 */
 	if (list_empty(&dev->wr_processing_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
-		out_ipc_locked = 0;
 		return	0;
 	}
 
@@ -325,15 +317,14 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 		memcpy(&reg, &r_buf[length >> 2], rem);
 		ish_reg_write(dev, reg_addr, reg);
 	}
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
+
 	/* Flush writes to msg registers and doorbell */
 	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	/* Update IPC counters */
 	++dev->ipc_tx_cnt;
 	dev->ipc_tx_bytes_cnt += IPC_HEADER_GET_LENGTH(doorbell_val);
-
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
-	out_ipc_locked = 0;
 
 	ipc_send_compl = ipc_link->ipc_send_compl;
 	ipc_send_compl_prm = ipc_link->ipc_send_compl_prm;
@@ -839,10 +830,10 @@ int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
 
+	set_host_ready(dev);
+
 	/* After that we can enable ISH DMA operation and wakeup ISHFW */
 	ish_wakeup(dev);
-
-	set_host_ready(dev);
 
 	/* wait for FW-initiated reset flow */
 	if (!dev->recvd_hw_ready)
@@ -914,7 +905,6 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_hw_ready);
 
 	spin_lock_init(&dev->wr_processing_spinlock);
-	spin_lock_init(&dev->out_ipc_spinlock);
 
 	/* Init IPC processing and free lists */
 	INIT_LIST_HEAD(&dev->wr_processing_list);

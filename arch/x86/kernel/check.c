@@ -9,6 +9,7 @@
 #include <linux/memblock.h>
 
 #include <asm/proto.h>
+#include <asm/setup.h>
 
 /*
  * Some BIOSes seem to corrupt the low 64k of memory during events
@@ -136,7 +137,7 @@ void __init setup_bios_corruption_check(void)
 }
 
 
-void check_for_bios_corruption(void)
+static void check_for_bios_corruption(void)
 {
 	int i;
 	int corruption = 0;

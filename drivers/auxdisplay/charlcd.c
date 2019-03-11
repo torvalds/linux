@@ -538,6 +538,9 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 	}
 	case 'x':	/* gotoxy : LxXXX[yYYY]; */
 	case 'y':	/* gotoxy : LyYYY[xXXX]; */
+		if (priv->esc_seq.buf[priv->esc_seq.len - 1] != ';')
+			break;
+
 		/* If the command is valid, move to the new address */
 		if (parse_xy(esc, &priv->addr.x, &priv->addr.y))
 			charlcd_gotoxy(lcd);

@@ -5,3 +5,4 @@ dtb-$(CONFIG_ARCH_VEXPRESS) += \
 dtb-$(CONFIG_ARCH_VEXPRESS) += juno.dtb juno-r1.dtb juno-r2.dtb
 dtb-$(CONFIG_ARCH_VEXPRESS) += rtsm_ve-aemv8a.dtb
 dtb-$(CONFIG_ARCH_VEXPRESS) += vexpress-v2f-1xv7-ca53x2.dtb
+dtb-$(CONFIG_ARCH_VEXPRESS) += fvp-base-revc.dtb

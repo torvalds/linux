@@ -133,15 +133,9 @@ static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    size_t count, unsigned int flags)
 {
-	ssize_t ret;
-
 	if (file_inode(file_in) == file_inode(file_out))
 		return -EINVAL;
-retry:
-	ret = nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
-	if (ret == -EAGAIN)
-		goto retry;
-	return ret;
+	return nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
 }
 
 static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
@@ -180,8 +174,9 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 	return nfs42_proc_allocate(filep, offset, len);
 }
 
-static int nfs42_clone_file_range(struct file *src_file, loff_t src_off,
-		struct file *dst_file, loff_t dst_off, u64 count)
+static loff_t nfs42_remap_file_range(struct file *src_file, loff_t src_off,
+		struct file *dst_file, loff_t dst_off, loff_t count,
+		unsigned int remap_flags)
 {
 	struct inode *dst_inode = file_inode(dst_file);
 	struct nfs_server *server = NFS_SERVER(dst_inode);
@@ -189,6 +184,9 @@ static int nfs42_clone_file_range(struct file *src_file, loff_t src_off,
 	unsigned int bs = server->clone_blksize;
 	bool same_inode = false;
 	int ret;
+
+	if (remap_flags & ~REMAP_FILE_ADVISORY)
+		return -EINVAL;
 
 	/* check alignment w.r.t. clone_blksize */
 	ret = -EINVAL;
@@ -240,7 +238,7 @@ out_unlock:
 		inode_unlock(src_inode);
 	}
 out:
-	return ret;
+	return ret < 0 ? ret : count;
 }
 #endif /* CONFIG_NFS_V4_2 */
 
@@ -262,7 +260,7 @@ const struct file_operations nfs4_file_operations = {
 	.copy_file_range = nfs4_copy_file_range,
 	.llseek		= nfs4_file_llseek,
 	.fallocate	= nfs42_fallocate,
-	.clone_file_range = nfs42_clone_file_range,
+	.remap_file_range = nfs42_remap_file_range,
 #else
 	.llseek		= nfs_file_llseek,
 #endif

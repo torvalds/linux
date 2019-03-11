@@ -422,8 +422,6 @@ static int cryptd_create_blkcipher(struct crypto_template *tmpl,
 	inst->alg.cra_ablkcipher.min_keysize = alg->cra_blkcipher.min_keysize;
 	inst->alg.cra_ablkcipher.max_keysize = alg->cra_blkcipher.max_keysize;
 
-	inst->alg.cra_ablkcipher.geniv = alg->cra_blkcipher.geniv;
-
 	inst->alg.cra_ctxsize = sizeof(struct cryptd_blkcipher_ctx);
 
 	inst->alg.cra_init = cryptd_blkcipher_init_tfm;
@@ -1174,7 +1172,7 @@ struct cryptd_ablkcipher *cryptd_alloc_ablkcipher(const char *alg_name,
 		return ERR_PTR(-EINVAL);
 	type = crypto_skcipher_type(type);
 	mask &= ~CRYPTO_ALG_TYPE_MASK;
-	mask |= (CRYPTO_ALG_GENIV | CRYPTO_ALG_TYPE_BLKCIPHER_MASK);
+	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 	tfm = crypto_alloc_base(cryptd_alg_name, type, mask);
 	if (IS_ERR(tfm))
 		return ERR_CAST(tfm);

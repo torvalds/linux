@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2011 - 2012 Cavium, Inc.
  */
 
@@ -86,8 +83,12 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 
 static int bcm87xx_config_init(struct phy_device *phydev)
 {
-	phydev->supported = SUPPORTED_10000baseR_FEC;
-	phydev->advertising = ADVERTISED_10000baseR_FEC;
+	linkmode_zero(phydev->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+			 phydev->supported);
+	linkmode_zero(phydev->advertising);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
+			 phydev->advertising);
 	phydev->state = PHY_NOLINK;
 	phydev->autoneg = AUTONEG_DISABLE;
 
@@ -193,7 +194,7 @@ static struct phy_driver bcm87xx_driver[] = {
 	.phy_id		= PHY_ID_BCM8706,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Broadcom BCM8706",
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FEC_FEATURES,
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
@@ -205,7 +206,7 @@ static struct phy_driver bcm87xx_driver[] = {
 	.phy_id		= PHY_ID_BCM8727,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Broadcom BCM8727",
-	.flags		= PHY_HAS_INTERRUPT,
+	.features	= PHY_10GBIT_FEC_FEATURES,
 	.config_init	= bcm87xx_config_init,
 	.config_aneg	= bcm87xx_config_aneg,
 	.read_status	= bcm87xx_read_status,
@@ -217,4 +218,4 @@ static struct phy_driver bcm87xx_driver[] = {
 
 module_phy_driver(bcm87xx_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

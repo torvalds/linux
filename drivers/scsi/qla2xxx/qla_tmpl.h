@@ -54,6 +54,9 @@ struct __packed qla27xx_fwdt_template {
 #define ENTRY_TYPE_PCICFG		273
 #define ENTRY_TYPE_GET_SHADOW		274
 #define ENTRY_TYPE_WRITE_BUF		275
+#define ENTRY_TYPE_CONDITIONAL		276
+#define ENTRY_TYPE_RDPEPREG		277
+#define ENTRY_TYPE_WRPEPREG		278
 
 #define CAPTURE_FLAG_PHYS_ONLY		BIT_0
 #define CAPTURE_FLAG_PHYS_VIRT		BIT_1
@@ -62,8 +65,8 @@ struct __packed qla27xx_fwdt_template {
 
 struct __packed qla27xx_fwdt_entry {
 	struct __packed {
-		uint32_t entry_type;
-		uint32_t entry_size;
+		uint32_t type;
+		uint32_t size;
 		uint32_t reserved_1;
 
 		uint8_t  capture_flags;
@@ -199,6 +202,24 @@ struct __packed qla27xx_fwdt_entry {
 			uint32_t length;
 			uint8_t  buffer[];
 		} t275;
+
+		struct __packed {
+			uint32_t cond1;
+			uint32_t cond2;
+		} t276;
+
+		struct __packed {
+			uint32_t cmd_addr;
+			uint32_t wr_cmd_data;
+			uint32_t data_addr;
+		} t277;
+
+		struct __packed {
+			uint32_t cmd_addr;
+			uint32_t wr_cmd_data;
+			uint32_t data_addr;
+			uint32_t wr_data;
+		} t278;
 	};
 };
 
@@ -206,6 +227,7 @@ struct __packed qla27xx_fwdt_entry {
 #define T262_RAM_AREA_EXTERNAL_RAM	2
 #define T262_RAM_AREA_SHARED_RAM	3
 #define T262_RAM_AREA_DDR_RAM		4
+#define T262_RAM_AREA_MISC		5
 
 #define T263_QUEUE_TYPE_REQ		1
 #define T263_QUEUE_TYPE_RSP		2

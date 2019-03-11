@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -106,7 +105,7 @@ struct tda_state {
 	s32   m_RF_B2[7];
 	u32   m_RF3[7];
 
-	u8    m_TMValue_RFCal;    /* Calibration temperatur */
+	u8    m_TMValue_RFCal;    /* Calibration temperature */
 
 	bool  m_bFMInput;         /* true to use Pin 8 for FM Radio */
 
@@ -401,7 +400,7 @@ static int CalibrateRF(struct tda_state *state,
 			break;
 
 		/* Switching off LT (as datasheet says) causes calibration on C1 to fail */
-		/* (Readout of Cprog is allways 255) */
+		/* (Readout of Cprog is always 255) */
 		if (state->m_Regs[ID] != 0x83)    /* C1: ID == 83, C2: ID == 84 */
 			state->m_Regs[EP3] |= 0x40; /* SM_LT = 1 */
 
@@ -645,7 +644,7 @@ static int PowerScan(struct tda_state *state,
 		if (status < 0)
 			break;
 		CID_Gain = Regs[EB10] & 0x3F;
-		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workarround in CalibrateRF) */
+		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workaround in CalibrateRF) */
 
 		*pRF_Out = RF_in;
 

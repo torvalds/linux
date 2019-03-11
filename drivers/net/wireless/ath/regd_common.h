@@ -483,6 +483,8 @@ static struct country_code_to_enum_rd allCountries[] = {
 	{CTRY_UAE, NULL1_WORLD, "AE"},
 	{CTRY_UNITED_KINGDOM, ETSI1_WORLD, "GB"},
 	{CTRY_UNITED_STATES, FCC3_FCCA, "US"},
+	{CTRY_UNITED_STATES2, FCC3_FCCA, "US"},
+	{CTRY_UNITED_STATES3, FCC3_FCCA, "US"},
 	/* This "PS" is for US public safety actually... to support this we
 	 * would need to assign new special alpha2 to CRDA db as with the world
 	 * regdomain and use another alpha2 */

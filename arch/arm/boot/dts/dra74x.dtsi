@@ -103,9 +103,9 @@
 	reg-names = "dss", "pll1_clkctrl", "pll1",
 		    "pll2_clkctrl", "pll2";
 
-	clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>,
-		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 12>,
-		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 13>;
+	clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 12>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 13>;
 	clock-names = "fck", "video1_clk", "video2_clk";
 };
 

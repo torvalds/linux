@@ -82,10 +82,8 @@ static void pci_p2pdma_percpu_release(struct percpu_ref *ref)
 	complete_all(&p2p->devmap_ref_done);
 }
 
-static void pci_p2pdma_percpu_kill(void *data)
+static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
 {
-	struct percpu_ref *ref = data;
-
 	/*
 	 * pci_p2pdma_add_resource() may be called multiple times
 	 * by a driver and may register the percpu_kill devm action multiple
@@ -198,6 +196,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	pgmap->type = MEMORY_DEVICE_PCI_P2PDMA;
 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
+	pgmap->kill = pci_p2pdma_percpu_kill;
 
 	addr = devm_memremap_pages(&pdev->dev, pgmap);
 	if (IS_ERR(addr)) {
@@ -208,11 +207,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	error = gen_pool_add_virt(pdev->p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
 			resource_size(&pgmap->res), dev_to_node(&pdev->dev));
-	if (error)
-		goto pgmap_free;
-
-	error = devm_add_action_or_reset(&pdev->dev, pci_p2pdma_percpu_kill,
-					  &pdev->p2pdma->devmap_ref);
 	if (error)
 		goto pgmap_free;
 
@@ -422,7 +416,7 @@ static int upstream_bridge_distance_warn(struct pci_dev *provider,
  *
  * Returns -1 if any of the clients are not compatible (behind the same
  * root port as the provider), otherwise returns a positive number where
- * a lower number is the preferrable choice. (If there's one client
+ * a lower number is the preferable choice. (If there's one client
  * that's the same as the provider it will return 0, which is best choice).
  *
  * For now, "compatible" means the provider and the clients are all behind
@@ -493,7 +487,7 @@ EXPORT_SYMBOL_GPL(pci_has_p2pmem);
  * @num_clients: number of client devices in the list
  *
  * If multiple devices are behind the same switch, the one "closest" to the
- * client devices in use will be chosen first. (So if one of the providers are
+ * client devices in use will be chosen first. (So if one of the providers is
  * the same as one of the clients, that provider will be used ahead of any
  * other providers that are unrelated). If multiple providers are an equal
  * distance away, one will be chosen at random.
@@ -580,7 +574,7 @@ EXPORT_SYMBOL_GPL(pci_alloc_p2pmem);
  * pci_free_p2pmem - free peer-to-peer DMA memory
  * @pdev: the device the memory was allocated from
  * @addr: address of the memory that was allocated
- * @size: number of bytes that was allocated
+ * @size: number of bytes that were allocated
  */
 void pci_free_p2pmem(struct pci_dev *pdev, void *addr, size_t size)
 {
@@ -617,7 +611,7 @@ EXPORT_SYMBOL_GPL(pci_p2pmem_virt_to_bus);
  * @nents: the number of SG entries in the list
  * @length: number of bytes to allocate
  *
- * Returns 0 on success
+ * Return: %NULL on error or &struct scatterlist pointer and @nents on success
  */
 struct scatterlist *pci_p2pmem_alloc_sgl(struct pci_dev *pdev,
 					 unsigned int *nents, u32 length)
@@ -673,7 +667,7 @@ EXPORT_SYMBOL_GPL(pci_p2pmem_free_sgl);
  *
  * Published memory can be used by other PCI device drivers for
  * peer-2-peer DMA operations. Non-published memory is reserved for
- * exlusive use of the device driver that registers the peer-to-peer
+ * exclusive use of the device driver that registers the peer-to-peer
  * memory.
  */
 void pci_p2pmem_publish(struct pci_dev *pdev, bool publish)
@@ -733,7 +727,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_map_sg);
  * @use_p2pdma: returns whether to enable p2pdma or not
  *
  * Parses an attribute value to decide whether to enable p2pdma.
- * The value can select a PCI device (using it's full BDF device
+ * The value can select a PCI device (using its full BDF device
  * name) or a boolean (in any format strtobool() accepts). A false
  * value disables p2pdma, a true value expects the caller
  * to automatically find a compatible device and specifying a PCI device
@@ -784,7 +778,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_enable_store);
  *		whether p2pdma is enabled
  * @page: contents of the stored value
  * @p2p_dev: the selected p2p device (NULL if no device is selected)
- * @use_p2pdma: whether p2pdme has been enabled
+ * @use_p2pdma: whether p2pdma has been enabled
  *
  * Attributes that use pci_p2pdma_enable_store() should use this function
  * to show the value of the attribute.

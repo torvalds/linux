@@ -1,15 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Vitesse PHYs
  *
  * Author: Kriston Carson
- *
- * Copyright (c) 2005, 2009, 2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -70,7 +63,6 @@
 #define PHY_ID_VSC8244			0x000fc6c0
 #define PHY_ID_VSC8514			0x00070670
 #define PHY_ID_VSC8572			0x000704d0
-#define PHY_ID_VSC8574			0x000704a0
 #define PHY_ID_VSC8601			0x00070420
 #define PHY_ID_VSC7385			0x00070450
 #define PHY_ID_VSC7388			0x00070480
@@ -303,7 +295,6 @@ static int vsc82xx_config_intr(struct phy_device *phydev)
 			 phydev->drv->phy_id == PHY_ID_VSC8244 ||
 			 phydev->drv->phy_id == PHY_ID_VSC8514 ||
 			 phydev->drv->phy_id == PHY_ID_VSC8572 ||
-			 phydev->drv->phy_id == PHY_ID_VSC8574 ||
 			 phydev->drv->phy_id == PHY_ID_VSC8601) ?
 				MII_VSC8244_IMASK_MASK :
 				MII_VSC8221_IMASK_MASK);
@@ -399,7 +390,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name           = "Vitesse VSC8234",
 	.phy_id_mask    = 0x000ffff0,
 	.features       = PHY_GBIT_FEATURES,
-	.flags          = PHY_HAS_INTERRUPT,
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
 	.ack_interrupt  = &vsc824x_ack_interrupt,
@@ -409,7 +399,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name		= "Vitesse VSC8244",
 	.phy_id_mask	= 0x000fffc0,
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= &vsc824x_config_init,
 	.config_aneg	= &vsc82x4_config_aneg,
 	.ack_interrupt	= &vsc824x_ack_interrupt,
@@ -419,7 +408,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name		= "Vitesse VSC8514",
 	.phy_id_mask	= 0x000ffff0,
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= &vsc824x_config_init,
 	.config_aneg	= &vsc82x4_config_aneg,
 	.ack_interrupt	= &vsc824x_ack_interrupt,
@@ -429,17 +417,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name           = "Vitesse VSC8572",
 	.phy_id_mask    = 0x000ffff0,
 	.features       = PHY_GBIT_FEATURES,
-	.flags          = PHY_HAS_INTERRUPT,
-	.config_init    = &vsc824x_config_init,
-	.config_aneg    = &vsc82x4_config_aneg,
-	.ack_interrupt  = &vsc824x_ack_interrupt,
-	.config_intr    = &vsc82xx_config_intr,
-}, {
-	.phy_id         = PHY_ID_VSC8574,
-	.name           = "Vitesse VSC8574",
-	.phy_id_mask    = 0x000ffff0,
-	.features       = PHY_GBIT_FEATURES,
-	.flags          = PHY_HAS_INTERRUPT,
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
 	.ack_interrupt  = &vsc824x_ack_interrupt,
@@ -449,7 +426,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name           = "Vitesse VSC8601",
 	.phy_id_mask    = 0x000ffff0,
 	.features       = PHY_GBIT_FEATURES,
-	.flags          = PHY_HAS_INTERRUPT,
 	.config_init    = &vsc8601_config_init,
 	.ack_interrupt  = &vsc824x_ack_interrupt,
 	.config_intr    = &vsc82xx_config_intr,
@@ -494,7 +470,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.name           = "Vitesse VSC8662",
 	.phy_id_mask    = 0x000ffff0,
 	.features       = PHY_GBIT_FEATURES,
-	.flags          = PHY_HAS_INTERRUPT,
 	.config_init    = &vsc824x_config_init,
 	.config_aneg    = &vsc82x4_config_aneg,
 	.ack_interrupt  = &vsc824x_ack_interrupt,
@@ -505,7 +480,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.phy_id_mask	= 0x000ffff0,
 	.name		= "Vitesse VSC8221",
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= &vsc8221_config_init,
 	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
@@ -515,7 +489,6 @@ static struct phy_driver vsc82xx_driver[] = {
 	.phy_id_mask	= 0x000ffff0,
 	.name		= "Vitesse VSC8211",
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= &vsc8221_config_init,
 	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
@@ -528,7 +501,6 @@ static struct mdio_device_id __maybe_unused vitesse_tbl[] = {
 	{ PHY_ID_VSC8244, 0x000fffc0 },
 	{ PHY_ID_VSC8514, 0x000ffff0 },
 	{ PHY_ID_VSC8572, 0x000ffff0 },
-	{ PHY_ID_VSC8574, 0x000ffff0 },
 	{ PHY_ID_VSC7385, 0x000ffff0 },
 	{ PHY_ID_VSC7388, 0x000ffff0 },
 	{ PHY_ID_VSC7395, 0x000ffff0 },

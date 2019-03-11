@@ -110,7 +110,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 			/*
 			 * Inherit the -EFAULT from rc's
 			 * initialization, but allow it to be
-			 * overriden by uv_pages above if it was an
+			 * overridden by uv_pages above if it was an
 			 * actual errno.
 			 */
 		} else {

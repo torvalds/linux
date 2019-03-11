@@ -220,6 +220,20 @@
 			};
 		};
 	};
+
+	vreg_wlan: wlan-regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wl-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 26 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_regulator_pin>;
+	};
 };
 
 &soc {
@@ -239,6 +253,30 @@
 				pins = "sdc1_cmd", "sdc1_data";
 				drive-strength = <10>;
 				bias-pull-up;
+			};
+		};
+
+		sdhc2_pin_a: sdhc2-pin-active {
+			clk {
+				pins = "sdc2_clk";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			cmd-data {
+				pins = "sdc2_cmd", "sdc2_data";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		i2c1_pins: i2c1 {
+			mux {
+				pins = "gpio2", "gpio3";
+				function = "blsp_i2c1";
+
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 
@@ -281,6 +319,32 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
+	};
+
+	sdhci@f98a4900 {
+		status = "ok";
+
+		max-frequency = <100000000>;
+		bus-width = <4>;
+		non-removable;
+		vmmc-supply = <&vreg_wlan>;
+		vqmmc-supply = <&pm8941_s3>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdhc2_pin_a>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		bcrmf@1 {
+			compatible = "brcm,bcm4339-fmac", "brcm,bcm4329-fmac";
+			reg = <1>;
+
+			brcm,drive-strength = <10>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&wlan_sleep_clk_pin>;
+		};
 	};
 
 	gpio-keys {
@@ -327,8 +391,7 @@
 				ak8963@f {
 					compatible = "asahi-kasei,ak8963";
 					reg = <0x0f>;
-					// Currently only works in polling mode.
-					// gpios = <&msmgpio 61 0>;
+					gpios = <&msmgpio 67 0>;
 					vid-supply = <&pm8941_lvs1>;
 					vdd-supply = <&pm8941_l17>;
 				};
@@ -340,6 +403,24 @@
 					vddd-supply = <&pm8941_l17>;
 				};
 			};
+		};
+	};
+
+	i2c@f9923000 {
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_pins>;
+		clock-frequency = <100000>;
+		qcom,src-freq = <50000000>;
+
+		charger: bq24192@6b {
+			compatible = "ti,bq24192";
+			reg = <0x6b>;
+			interrupts-extended = <&spmi_bus 0 0xd5 0 IRQ_TYPE_EDGE_FALLING>;
+
+			omit-battery-class;
+
+			usb_otg_vbus: usb-otg-vbus { };
 		};
 	};
 
@@ -360,6 +441,31 @@
 			amstaos,proximity-diodes = <0>;
 		};
 	};
+
+	usb@f9a55000 {
+		status = "ok";
+
+		phys = <&usb_hs1_phy>;
+		phy-select = <&tcsr 0xb000 0>;
+
+		extcon = <&charger>, <&usb_id>;
+		vbus-supply = <&usb_otg_vbus>;
+
+		hnp-disable;
+		srp-disable;
+		adp-disable;
+
+		ulpi {
+			phy@a {
+				status = "ok";
+
+				v1p8-supply = <&pm8941_l6>;
+				v3p3-supply = <&pm8941_l24>;
+
+				qcom,init-seq = /bits/ 8 <0x1 0x64>;
+			};
+		};
+	};
 };
 
 &spmi_bus {
@@ -371,6 +477,29 @@
 
 				bias-pull-up;
 				power-source = <PM8941_GPIO_S3>;
+			};
+
+			wlan_sleep_clk_pin: wl-sleep-clk {
+				pins = "gpio16";
+				function = "func2";
+
+				output-high;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			wlan_regulator_pin: wl-reg-active {
+				pins = "gpio17";
+				function = "normal";
+
+				bias-disable;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			otg {
+				gpio-hog;
+				gpios = <35 GPIO_ACTIVE_HIGH>;
+				output-high;
+				line-name = "otg-gpio";
 			};
 		};
 	};

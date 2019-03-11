@@ -26,7 +26,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/cache.h>
-#include <linux/bootmem.h>
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
@@ -59,7 +58,6 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
-#include <asm/memblock.h>
 #include <asm/efi.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/mmu_context.h>
@@ -217,8 +215,9 @@ static void __init request_standard_resources(void)
 	kernel_data.end     = __pa_symbol(_end - 1);
 
 	num_standard_resources = memblock.memory.cnt;
-	standard_resources = alloc_bootmem_low(num_standard_resources *
-					       sizeof(*standard_resources));
+	standard_resources = memblock_alloc_low(num_standard_resources *
+					        sizeof(*standard_resources),
+					        SMP_CACHE_BYTES);
 
 	for_each_memblock(memory, region) {
 		res = &standard_resources[i++];
@@ -339,6 +338,9 @@ void __init setup_arch(char **cmdline_p)
 	smp_init_cpus();
 	smp_build_mpidr_hash();
 
+	/* Init percpu seeds for random tags after cpus are set up. */
+	kasan_init_tags();
+
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Make sure init_thread_info.ttbr0 always generates translation
@@ -387,6 +389,7 @@ static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && offset > 0) {
 		pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
 			 offset, KIMAGE_VADDR);
+		pr_emerg("PHYS_OFFSET: 0x%llx\n", PHYS_OFFSET);
 	} else {
 		pr_emerg("Kernel Offset: disabled\n");
 	}

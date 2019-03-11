@@ -1014,7 +1014,7 @@ static int FillTSIdleBuffer(struct SRingBufferDescriptor *pIdleBuffer,
 	/* Point to first buffer entry */
 	struct SBufferHeader *Cur = pRingBuffer->Head;
 	int i;
-	/* Loop thru all buffer and set Buffer 2 pointers to TSIdlebuffer */
+	/* Loop through all buffer and set Buffer 2 pointers to TSIdlebuffer */
 	for (i = 0; i < n; i++) {
 		Cur->Buffer2 = pIdleBuffer->Head->Buffer1;
 		Cur->scList2 = pIdleBuffer->Head->scList1;

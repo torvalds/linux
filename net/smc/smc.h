@@ -113,9 +113,9 @@ struct smc_host_cdc_msg {		/* Connection Data Control message */
 } __aligned(8);
 
 enum smc_urg_state {
-	SMC_URG_VALID,			/* data present */
-	SMC_URG_NOTYET,			/* data pending */
-	SMC_URG_READ			/* data was already read */
+	SMC_URG_VALID	= 1,			/* data present */
+	SMC_URG_NOTYET	= 2,			/* data pending */
+	SMC_URG_READ	= 3,			/* data was already read */
 };
 
 struct smc_connection {
@@ -219,6 +219,10 @@ struct smc_sock {				/* smc sock container */
 						 * started, waiting for unsent
 						 * data to be sent
 						 */
+	struct mutex            clcsock_release_lock;
+						/* protects clcsock of a listen
+						 * socket
+						 * */
 };
 
 static inline struct smc_sock *smc_sk(const struct sock *sk)

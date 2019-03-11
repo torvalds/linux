@@ -20,7 +20,6 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 
 #include <asm/ptrace.h>
@@ -234,8 +233,7 @@ albacore_init_arch(void)
 			unsigned long size;
 
 			size = initrd_end - initrd_start;
-			free_bootmem_node(NODE_DATA(0), __pa(initrd_start),
-					  PAGE_ALIGN(size));
+			memblock_free(__pa(initrd_start), PAGE_ALIGN(size));
 			if (!move_initrd(pci_mem))
 				printk("irongate_init_arch: initrd too big "
 				       "(%ldK)\ndisabling initrd\n",

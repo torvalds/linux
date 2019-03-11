@@ -31,6 +31,7 @@
 
 #include "i915_gem.h"
 #include "i915_scheduler.h"
+#include "intel_device_info.h"
 
 struct pid;
 
@@ -51,6 +52,16 @@ struct intel_context;
 struct intel_context_ops {
 	void (*unpin)(struct intel_context *ce);
 	void (*destroy)(struct intel_context *ce);
+};
+
+/*
+ * Powergating configuration for a particular (context,engine).
+ */
+struct intel_sseu {
+	u8 slice_mask;
+	u8 subslice_mask;
+	u8 min_eus_per_subslice;
+	u8 max_eus_per_subslice;
 };
 
 /**
@@ -163,13 +174,25 @@ struct i915_gem_context {
 	/** engine: per-engine logical HW state */
 	struct intel_context {
 		struct i915_gem_context *gem_context;
+		struct intel_engine_cs *active;
+		struct list_head signal_link;
+		struct list_head signals;
 		struct i915_vma *state;
 		struct intel_ring *ring;
 		u32 *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
 
+		/**
+		 * active_tracker: Active tracker for the external rq activity
+		 * on this intel_context object.
+		 */
+		struct i915_active_request active_tracker;
+
 		const struct intel_context_ops *ops;
+
+		/** sseu: Control eu/slice partitioning */
+		struct intel_sseu sseu;
 	} __engine[I915_NUM_ENGINES];
 
 	/** ring_size: size for allocating the per-engine ring buffer */
@@ -362,5 +385,9 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 {
 	kref_put(&ctx->ref, i915_gem_context_release);
 }
+
+void intel_context_init(struct intel_context *ce,
+			struct i915_gem_context *ctx,
+			struct intel_engine_cs *engine);
 
 #endif /* !__I915_GEM_CONTEXT_H__ */

@@ -16,9 +16,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
@@ -32,15 +30,7 @@
 
 MODULE_LICENSE("GPL");
 
-enum {
-	CD_GPIO = 0,
-	WP_GPIO,
-	NUM_GPIOS,
-};
-
 struct of_mmc_spi {
-	int gpios[NUM_GPIOS];
-	bool alow_gpios[NUM_GPIOS];
 	int detect_irq;
 	struct mmc_spi_platform_data pdata;
 };
@@ -71,9 +61,6 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	struct device_node *np = dev->of_node;
 	struct of_mmc_spi *oms;
-	const __be32 *voltage_ranges;
-	int num_ranges;
-	int i;
 
 	if (dev->platform_data || !np)
 		return dev->platform_data;
@@ -82,49 +69,8 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	if (!oms)
 		return NULL;
 
-	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
-	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
-	if (!voltage_ranges || !num_ranges) {
-		dev_err(dev, "OF: voltage-ranges unspecified\n");
+	if (mmc_of_parse_voltage(np, &oms->pdata.ocr_mask) <= 0)
 		goto err_ocr;
-	}
-
-	for (i = 0; i < num_ranges; i++) {
-		const int j = i * 2;
-		u32 mask;
-
-		mask = mmc_vddrange_to_ocrmask(be32_to_cpu(voltage_ranges[j]),
-					       be32_to_cpu(voltage_ranges[j + 1]));
-		if (!mask) {
-			dev_err(dev, "OF: voltage-range #%d is invalid\n", i);
-			goto err_ocr;
-		}
-		oms->pdata.ocr_mask |= mask;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(oms->gpios); i++) {
-		enum of_gpio_flags gpio_flags;
-
-		oms->gpios[i] = of_get_gpio_flags(np, i, &gpio_flags);
-		if (!gpio_is_valid(oms->gpios[i]))
-			continue;
-
-		if (gpio_flags & OF_GPIO_ACTIVE_LOW)
-			oms->alow_gpios[i] = true;
-	}
-
-	if (gpio_is_valid(oms->gpios[CD_GPIO])) {
-		oms->pdata.cd_gpio = oms->gpios[CD_GPIO];
-		oms->pdata.flags |= MMC_SPI_USE_CD_GPIO;
-		if (!oms->alow_gpios[CD_GPIO])
-			oms->pdata.caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
-	}
-	if (gpio_is_valid(oms->gpios[WP_GPIO])) {
-		oms->pdata.ro_gpio = oms->gpios[WP_GPIO];
-		oms->pdata.flags |= MMC_SPI_USE_RO_GPIO;
-		if (!oms->alow_gpios[WP_GPIO])
-			oms->pdata.caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
-	}
 
 	oms->detect_irq = irq_of_parse_and_map(np, 0);
 	if (oms->detect_irq != 0) {

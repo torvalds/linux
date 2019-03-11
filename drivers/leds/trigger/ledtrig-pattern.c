@@ -75,8 +75,6 @@ static void pattern_trig_timer_function(struct timer_list *t)
 {
 	struct pattern_trig_data *data = from_timer(data, t, timer);
 
-	mutex_lock(&data->lock);
-
 	for (;;) {
 		if (!data->is_indefinite && !data->repeat)
 			break;
@@ -87,9 +85,10 @@ static void pattern_trig_timer_function(struct timer_list *t)
 					   data->curr->brightness);
 			mod_timer(&data->timer,
 				  jiffies + msecs_to_jiffies(data->curr->delta_t));
-
-			/* Skip the tuple with zero duration */
-			pattern_trig_update_patterns(data);
+			if (!data->next->delta_t) {
+				/* Skip the tuple with zero duration */
+				pattern_trig_update_patterns(data);
+			}
 			/* Select next tuple */
 			pattern_trig_update_patterns(data);
 		} else {
@@ -116,8 +115,6 @@ static void pattern_trig_timer_function(struct timer_list *t)
 
 		break;
 	}
-
-	mutex_unlock(&data->lock);
 }
 
 static int pattern_trig_start_pattern(struct led_classdev *led_cdev)
@@ -176,13 +173,9 @@ static ssize_t repeat_store(struct device *dev, struct device_attribute *attr,
 	if (res < -1 || res == 0)
 		return -EINVAL;
 
-	/*
-	 * Clear previous patterns' performence firstly, and remove the timer
-	 * without mutex lock to avoid dead lock.
-	 */
-	del_timer_sync(&data->timer);
-
 	mutex_lock(&data->lock);
+
+	del_timer_sync(&data->timer);
 
 	if (data->is_hw_pattern)
 		led_cdev->pattern_clear(led_cdev);
@@ -227,26 +220,10 @@ out:
 	return count;
 }
 
-static ssize_t pattern_trig_store_patterns(struct led_classdev *led_cdev,
-					   const char *buf, size_t count,
-					   bool hw_pattern)
+static int pattern_trig_store_patterns_string(struct pattern_trig_data *data,
+					      const char *buf, size_t count)
 {
-	struct pattern_trig_data *data = led_cdev->trigger_data;
-	int ccount, cr, offset = 0, err = 0;
-
-	/*
-	 * Clear previous patterns' performence firstly, and remove the timer
-	 * without mutex lock to avoid dead lock.
-	 */
-	del_timer_sync(&data->timer);
-
-	mutex_lock(&data->lock);
-
-	if (data->is_hw_pattern)
-		led_cdev->pattern_clear(led_cdev);
-
-	data->is_hw_pattern = hw_pattern;
-	data->npatterns = 0;
+	int ccount, cr, offset = 0;
 
 	while (offset < count - 1 && data->npatterns < MAX_PATTERNS) {
 		cr = 0;
@@ -255,13 +232,53 @@ static ssize_t pattern_trig_store_patterns(struct led_classdev *led_cdev,
 				&data->patterns[data->npatterns].delta_t, &cr);
 		if (ccount != 2) {
 			data->npatterns = 0;
-			err = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
 		offset += cr;
 		data->npatterns++;
 	}
+
+	return 0;
+}
+
+static int pattern_trig_store_patterns_int(struct pattern_trig_data *data,
+					   const u32 *buf, size_t count)
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i += 2) {
+		data->patterns[data->npatterns].brightness = buf[i];
+		data->patterns[data->npatterns].delta_t = buf[i + 1];
+		data->npatterns++;
+	}
+
+	return 0;
+}
+
+static ssize_t pattern_trig_store_patterns(struct led_classdev *led_cdev,
+					   const char *buf, const u32 *buf_int,
+					   size_t count, bool hw_pattern)
+{
+	struct pattern_trig_data *data = led_cdev->trigger_data;
+	int err = 0;
+
+	mutex_lock(&data->lock);
+
+	del_timer_sync(&data->timer);
+
+	if (data->is_hw_pattern)
+		led_cdev->pattern_clear(led_cdev);
+
+	data->is_hw_pattern = hw_pattern;
+	data->npatterns = 0;
+
+	if (buf)
+		err = pattern_trig_store_patterns_string(data, buf, count);
+	else
+		err = pattern_trig_store_patterns_int(data, buf_int, count);
+	if (err)
+		goto out;
 
 	err = pattern_trig_start_pattern(led_cdev);
 	if (err)
@@ -286,7 +303,7 @@ static ssize_t pattern_store(struct device *dev, struct device_attribute *attr,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
-	return pattern_trig_store_patterns(led_cdev, buf, count, false);
+	return pattern_trig_store_patterns(led_cdev, buf, NULL, count, false);
 }
 
 static DEVICE_ATTR_RW(pattern);
@@ -306,7 +323,7 @@ static ssize_t hw_pattern_store(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
-	return pattern_trig_store_patterns(led_cdev, buf, count, true);
+	return pattern_trig_store_patterns(led_cdev, buf, NULL, count, true);
 }
 
 static DEVICE_ATTR_RW(hw_pattern);
@@ -342,6 +359,30 @@ static const struct attribute_group *pattern_trig_groups[] = {
 	NULL,
 };
 
+static void pattern_init(struct led_classdev *led_cdev)
+{
+	unsigned int size = 0;
+	u32 *pattern;
+	int err;
+
+	pattern = led_get_default_pattern(led_cdev, &size);
+	if (!pattern)
+		return;
+
+	if (size % 2) {
+		dev_warn(led_cdev->dev, "Expected pattern of tuples\n");
+		goto out;
+	}
+
+	err = pattern_trig_store_patterns(led_cdev, NULL, pattern, size, false);
+	if (err < 0)
+		dev_warn(led_cdev->dev,
+			 "Pattern initialization failed with error %d\n", err);
+
+out:
+	kfree(pattern);
+}
+
 static int pattern_trig_activate(struct led_classdev *led_cdev)
 {
 	struct pattern_trig_data *data;
@@ -364,6 +405,15 @@ static int pattern_trig_activate(struct led_classdev *led_cdev)
 	led_set_trigger_data(led_cdev, data);
 	timer_setup(&data->timer, pattern_trig_timer_function, 0);
 	led_cdev->activated = true;
+
+	if (led_cdev->flags & LED_INIT_DEFAULT_TRIGGER) {
+		pattern_init(led_cdev);
+		/*
+		 * Mark as initialized even on pattern_init() error because
+		 * any consecutive call to it would produce the same error.
+		 */
+		led_cdev->flags &= ~LED_INIT_DEFAULT_TRIGGER;
+	}
 
 	return 0;
 }

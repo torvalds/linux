@@ -6,11 +6,12 @@
  * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
 #include <dt-bindings/clock/oxsemi,ox810se.h>
 #include <dt-bindings/reset/oxsemi,ox810se.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "oxsemi,ox810se";
 
 	cpus {
@@ -25,6 +26,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/* Max 256MB @ 0x48000000 */
 		reg = <0x48000000 0x10000000>;
 	};

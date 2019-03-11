@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2010-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2019  B.A.T.M.A.N. contributors:
  *
  * Sven Eckelmann
  *
@@ -15,8 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <linux/module.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"

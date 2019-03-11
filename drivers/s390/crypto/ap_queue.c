@@ -14,6 +14,9 @@
 #include <asm/facility.h>
 
 #include "ap_bus.h"
+#include "ap_debug.h"
+
+static void __ap_flush_queue(struct ap_queue *aq);
 
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP queue.
@@ -417,6 +420,10 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 		[AP_EVENT_POLL] = ap_sm_suspend_read,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
 	},
+	[AP_STATE_UNBOUND] = {
+		[AP_EVENT_POLL] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+	},
 	[AP_STATE_BORKED] = {
 		[AP_EVENT_POLL] = ap_sm_nop,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
@@ -541,7 +548,25 @@ static ssize_t reset_show(struct device *dev,
 	return rc;
 }
 
-static DEVICE_ATTR_RO(reset);
+static ssize_t reset_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+
+	spin_lock_bh(&aq->lock);
+	__ap_flush_queue(aq);
+	aq->state = AP_STATE_RESET_START;
+	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+	spin_unlock_bh(&aq->lock);
+
+	AP_DBF(DBF_INFO, "reset queue=%02x.%04x triggered by user\n",
+	       AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(reset);
 
 static ssize_t interrupt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -704,6 +729,7 @@ static void __ap_flush_queue(struct ap_queue *aq)
 		ap_msg->rc = -EAGAIN;
 		ap_msg->receive(aq, ap_msg, NULL);
 	}
+	aq->queue_count = 0;
 }
 
 void ap_flush_queue(struct ap_queue *aq)
@@ -718,5 +744,20 @@ void ap_queue_remove(struct ap_queue *aq)
 {
 	ap_flush_queue(aq);
 	del_timer_sync(&aq->timeout);
+
+	/* reset with zero, also clears irq registration */
+	spin_lock_bh(&aq->lock);
+	ap_zapq(aq->qid);
+	aq->state = AP_STATE_UNBOUND;
+	spin_unlock_bh(&aq->lock);
 }
 EXPORT_SYMBOL(ap_queue_remove);
+
+void ap_queue_reinit_state(struct ap_queue *aq)
+{
+	spin_lock_bh(&aq->lock);
+	aq->state = AP_STATE_RESET_START;
+	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+	spin_unlock_bh(&aq->lock);
+}
+EXPORT_SYMBOL(ap_queue_reinit_state);

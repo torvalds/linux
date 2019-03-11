@@ -1550,7 +1550,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	char name[MAX_NAME_LEN];
 	int rc;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_request_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_request_%p", info);
 	info->request_cache =
 		kmem_cache_create(
 			name,
@@ -1566,7 +1566,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	if (!info->request_mempool)
 		goto out1;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_response_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_response_%p", info);
 	info->response_cache =
 		kmem_cache_create(
 			name,
@@ -1582,7 +1582,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	if (!info->response_mempool)
 		goto out3;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_%p", info);
 	info->workqueue = create_workqueue(name);
 	if (!info->workqueue)
 		goto out4;
@@ -1724,7 +1724,7 @@ static struct smbd_connection *_smbd_get_connection(
 		info->responder_resources);
 
 	/* Need to send IRD/ORD in private data for iWARP */
-	info->id->device->get_port_immutable(
+	info->id->device->ops.get_port_immutable(
 		info->id->device, info->id->port_num, &port_immutable);
 	if (port_immutable.core_cap_flags & RDMA_CORE_PORT_IWARP) {
 		ird_ord_hdr[0] = info->responder_resources;
@@ -2054,14 +2054,22 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 
 	info->smbd_recv_pending++;
 
-	switch (msg->msg_iter.type) {
-	case READ | ITER_KVEC:
+	if (iov_iter_rw(&msg->msg_iter) == WRITE) {
+		/* It's a bug in upper layer to get there */
+		cifs_dbg(VFS, "CIFS: invalid msg iter dir %u\n",
+			 iov_iter_rw(&msg->msg_iter));
+		rc = -EINVAL;
+		goto out;
+	}
+
+	switch (iov_iter_type(&msg->msg_iter)) {
+	case ITER_KVEC:
 		buf = msg->msg_iter.kvec->iov_base;
 		to_read = msg->msg_iter.kvec->iov_len;
 		rc = smbd_recv_buf(info, buf, to_read);
 		break;
 
-	case READ | ITER_BVEC:
+	case ITER_BVEC:
 		page = msg->msg_iter.bvec->bv_page;
 		page_offset = msg->msg_iter.bvec->bv_offset;
 		to_read = msg->msg_iter.bvec->bv_len;
@@ -2071,10 +2079,11 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	default:
 		/* It's a bug in upper layer to get there */
 		cifs_dbg(VFS, "CIFS: invalid msg type %d\n",
-			msg->msg_iter.type);
+			 iov_iter_type(&msg->msg_iter));
 		rc = -EINVAL;
 	}
 
+out:
 	info->smbd_recv_pending--;
 	wake_up(&info->wait_smbd_recv_pending);
 

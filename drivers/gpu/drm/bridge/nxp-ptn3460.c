@@ -22,10 +22,10 @@
 #include <linux/of_gpio.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #define PTN3460_EDID_ADDR			0x0

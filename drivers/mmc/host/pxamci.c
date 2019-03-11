@@ -30,10 +30,9 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gfp.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_device.h>
 
 #include <asm/sizes.h>
@@ -63,6 +62,8 @@ struct pxamci_host {
 	unsigned int		imask;
 	unsigned int		power_mode;
 	unsigned long		detect_delay_ms;
+	bool			use_ro_gpio;
+	struct gpio_desc	*power;
 	struct pxamci_platform_data *pdata;
 
 	struct mmc_request	*mrq;
@@ -101,16 +102,13 @@ static inline int pxamci_set_power(struct pxamci_host *host,
 {
 	struct mmc_host *mmc = host->mmc;
 	struct regulator *supply = mmc->supply.vmmc;
-	int on;
 
 	if (!IS_ERR(supply))
 		return mmc_regulator_set_ocr(mmc, supply, vdd);
 
-	if (host->pdata &&
-	    gpio_is_valid(host->pdata->gpio_power)) {
-		on = ((1 << vdd) & host->pdata->ocr_mask);
-		gpio_set_value(host->pdata->gpio_power,
-			       !!on ^ host->pdata->gpio_power_invert);
+	if (host->power) {
+		bool on = !!((1 << vdd) & host->pdata->ocr_mask);
+		gpiod_set_value(host->power, on);
 	}
 
 	if (host->pdata && host->pdata->setpower)
@@ -432,7 +430,7 @@ static int pxamci_get_ro(struct mmc_host *mmc)
 {
 	struct pxamci_host *host = mmc_priv(mmc);
 
-	if (host->pdata && gpio_is_valid(host->pdata->gpio_card_ro))
+	if (host->use_ro_gpio)
 		return mmc_gpio_get_ro(mmc);
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
@@ -730,52 +728,38 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	if (host->pdata) {
-		int gpio_cd = host->pdata->gpio_card_detect;
-		int gpio_ro = host->pdata->gpio_card_ro;
-		int gpio_power = host->pdata->gpio_power;
-
 		host->detect_delay_ms = host->pdata->detect_delay_ms;
 
-		if (gpio_is_valid(gpio_power)) {
-			ret = devm_gpio_request(dev, gpio_power,
-						"mmc card power");
-			if (ret) {
-				dev_err(dev,
-					"Failed requesting gpio_power %d\n",
-					gpio_power);
-				goto out;
-			}
-			gpio_direction_output(gpio_power,
-					      host->pdata->gpio_power_invert);
-		}
-
-		if (gpio_is_valid(gpio_ro)) {
-			ret = mmc_gpio_request_ro(mmc, gpio_ro);
-			if (ret) {
-				dev_err(dev,
-					"Failed requesting gpio_ro %d\n",
-					gpio_ro);
-				goto out;
-			} else {
-				mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
-					0 : MMC_CAP2_RO_ACTIVE_HIGH;
-			}
-		}
-
-		if (gpio_is_valid(gpio_cd))
-			ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
-		if (ret) {
-			dev_err(dev, "Failed requesting gpio_cd %d\n",
-				gpio_cd);
+		host->power = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_LOW);
+		if (IS_ERR(host->power)) {
+			dev_err(dev, "Failed requesting gpio_power\n");
 			goto out;
+		}
+
+		/* FIXME: should we pass detection delay to debounce? */
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+		if (ret && ret != -ENOENT) {
+			dev_err(dev, "Failed requesting gpio_cd\n");
+			goto out;
+		}
+
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
+		if (ret && ret != -ENOENT) {
+			dev_err(dev, "Failed requesting gpio_ro\n");
+			goto out;
+		}
+		if (!ret) {
+			host->use_ro_gpio = true;
+			mmc->caps2 |= host->pdata->gpio_card_ro_invert ?
+				0 : MMC_CAP2_RO_ACTIVE_HIGH;
 		}
 
 		if (host->pdata->init)
 			host->pdata->init(dev, pxamci_detect_irq, mmc);
 
-		if (gpio_is_valid(gpio_power) && host->pdata->setpower)
+		if (host->power && host->pdata->setpower)
 			dev_warn(dev, "gpio_power and setpower() both defined\n");
-		if (gpio_is_valid(gpio_ro) && host->pdata->get_ro)
+		if (host->use_ro_gpio && host->pdata->get_ro)
 			dev_warn(dev, "gpio_ro and get_ro() both defined\n");
 	}
 

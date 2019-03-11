@@ -46,6 +46,7 @@ MODULE_FIRMWARE("amdgpu/tahiti_mc.bin");
 MODULE_FIRMWARE("amdgpu/pitcairn_mc.bin");
 MODULE_FIRMWARE("amdgpu/verde_mc.bin");
 MODULE_FIRMWARE("amdgpu/oland_mc.bin");
+MODULE_FIRMWARE("amdgpu/hainan_mc.bin");
 MODULE_FIRMWARE("amdgpu/si58_mc.bin");
 
 #define MC_SEQ_MISC0__MT__MASK   0xf0000000
@@ -358,7 +359,8 @@ static int gmc_v6_0_mc_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid)
+static void gmc_v6_0_flush_gpu_tlb(struct amdgpu_device *adev,
+				uint32_t vmid, uint32_t flush_type)
 {
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }
@@ -580,7 +582,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v6_0_set_fault_enable_default(adev, true);
 
-	gmc_v6_0_flush_gpu_tlb(adev, 0);
+	gmc_v6_0_flush_gpu_tlb(adev, 0, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);

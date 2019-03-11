@@ -43,26 +43,14 @@
 #undef barrier_before_unreachable
 #define barrier_before_unreachable() asm volatile(".insn")
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
-#define GCC_IMM_ASM() "n"
-#define GCC_REG_ACCUM "$0"
+#if !defined(CONFIG_CC_IS_GCC) || \
+    (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
+# define GCC_OFF_SMALL_ASM() "ZC"
+#elif defined(CONFIG_CPU_MICROMIPS)
+# error "microMIPS compilation unsupported with GCC older than 4.9"
 #else
-#define GCC_IMM_ASM() "rn"
-#define GCC_REG_ACCUM "accum"
+# define GCC_OFF_SMALL_ASM() "R"
 #endif
-
-#ifdef CONFIG_CPU_MIPSR6
-/* All MIPS R6 toolchains support the ZC constrain */
-#define GCC_OFF_SMALL_ASM() "ZC"
-#else
-#ifndef CONFIG_CPU_MICROMIPS
-#define GCC_OFF_SMALL_ASM() "R"
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#define GCC_OFF_SMALL_ASM() "ZC"
-#else
-#error "microMIPS compilation unsupported with GCC older than 4.9"
-#endif /* CONFIG_CPU_MICROMIPS */
-#endif /* CONFIG_CPU_MIPSR6 */
 
 #ifdef CONFIG_CPU_MIPSR6
 #define MIPS_ISA_LEVEL "mips64r6"

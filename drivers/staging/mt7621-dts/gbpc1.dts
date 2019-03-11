@@ -72,6 +72,7 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
+		broken-flash-reset;
 
 		partition@0 {
 			label = "u-boot";
@@ -135,8 +136,8 @@
 &pinctrl {
 	state_default: pinctrl0 {
 		gpio {
-			ralink,group = "wdt", "rgmii2", "uart3";
-			ralink,function = "gpio";
+			groups = "wdt", "rgmii2", "uart3";
+			function = "gpio";
 		};
 	};
 };

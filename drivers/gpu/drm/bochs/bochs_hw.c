@@ -69,6 +69,42 @@ static void bochs_hw_set_little_endian(struct bochs_device *bochs)
 #define bochs_hw_set_native_endian(_b) bochs_hw_set_little_endian(_b)
 #endif
 
+static int bochs_get_edid_block(void *data, u8 *buf,
+				unsigned int block, size_t len)
+{
+	struct bochs_device *bochs = data;
+	size_t i, start = block * EDID_LENGTH;
+
+	if (start + len > 0x400 /* vga register offset */)
+		return -1;
+
+	for (i = 0; i < len; i++) {
+		buf[i] = readb(bochs->mmio + start + i);
+	}
+	return 0;
+}
+
+int bochs_hw_load_edid(struct bochs_device *bochs)
+{
+	u8 header[8];
+
+	if (!bochs->mmio)
+		return -1;
+
+	/* check header to detect whenever edid support is enabled in qemu */
+	bochs_get_edid_block(bochs, header, 0, ARRAY_SIZE(header));
+	if (drm_edid_header_is_valid(header) != 8)
+		return -1;
+
+	kfree(bochs->edid);
+	bochs->edid = drm_do_get_edid(&bochs->connector,
+				      bochs_get_edid_block, bochs);
+	if (bochs->edid == NULL)
+		return -1;
+
+	return 0;
+}
+
 int bochs_hw_init(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
@@ -164,11 +200,11 @@ void bochs_hw_fini(struct drm_device *dev)
 	if (bochs->fb_map)
 		iounmap(bochs->fb_map);
 	pci_release_regions(dev->pdev);
+	kfree(bochs->edid);
 }
 
 void bochs_hw_setmode(struct bochs_device *bochs,
-		      struct drm_display_mode *mode,
-		      const struct drm_format_info *format)
+		      struct drm_display_mode *mode)
 {
 	bochs->xres = mode->hdisplay;
 	bochs->yres = mode->vdisplay;
@@ -176,12 +212,8 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 	bochs->stride = mode->hdisplay * (bochs->bpp / 8);
 	bochs->yres_virtual = bochs->fb_size / bochs->stride;
 
-	DRM_DEBUG_DRIVER("%dx%d @ %d bpp, format %c%c%c%c, vy %d\n",
+	DRM_DEBUG_DRIVER("%dx%d @ %d bpp, vy %d\n",
 			 bochs->xres, bochs->yres, bochs->bpp,
-			 (format->format >>  0) & 0xff,
-			 (format->format >>  8) & 0xff,
-			 (format->format >> 16) & 0xff,
-			 (format->format >> 24) & 0xff,
 			 bochs->yres_virtual);
 
 	bochs_vga_writeb(bochs, 0x3c0, 0x20); /* unblank */
@@ -199,6 +231,16 @@ void bochs_hw_setmode(struct bochs_device *bochs,
 
 	bochs_dispi_write(bochs, VBE_DISPI_INDEX_ENABLE,
 			  VBE_DISPI_ENABLED | VBE_DISPI_LFB_ENABLED);
+}
+
+void bochs_hw_setformat(struct bochs_device *bochs,
+			const struct drm_format_info *format)
+{
+	DRM_DEBUG_DRIVER("format %c%c%c%c\n",
+			 (format->format >>  0) & 0xff,
+			 (format->format >>  8) & 0xff,
+			 (format->format >> 16) & 0xff,
+			 (format->format >> 24) & 0xff);
 
 	switch (format->format) {
 	case DRM_FORMAT_XRGB8888:

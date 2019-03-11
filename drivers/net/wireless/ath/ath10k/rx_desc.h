@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _RX_DESC_H_
@@ -572,6 +561,7 @@ struct rx_msdu_start {
 #define RX_MSDU_END_INFO0_REPORTED_MPDU_LENGTH_LSB  0
 #define RX_MSDU_END_INFO0_FIRST_MSDU                BIT(14)
 #define RX_MSDU_END_INFO0_LAST_MSDU                 BIT(15)
+#define RX_MSDU_END_INFO0_MSDU_LIMIT_ERR            BIT(18)
 #define RX_MSDU_END_INFO0_PRE_DELIM_ERR             BIT(30)
 #define RX_MSDU_END_INFO0_RESERVED_3B               BIT(31)
 
@@ -675,6 +665,12 @@ struct rx_msdu_end {
  *last_msdu
  *		Indicates the last MSDU of the A-MSDU.  MPDU end status is
  *		only valid when last_msdu is set.
+ *
+ *msdu_limit_error
+ *		Indicates that the MSDU threshold was exceeded and thus
+ *		all the rest of the MSDUs will not be scattered and
+ *		will not be decapsulated but will be received in RAW format
+ *		as a single MSDU buffer.
  *
  *reserved_3a
  *		Reserved: HW should fill with zero.  FW should ignore.

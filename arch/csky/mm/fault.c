@@ -172,8 +172,6 @@ bad_area:
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
-		tsk->thread.address = address;
-		tsk->thread.error_code = write;
 		force_sig_fault(SIGSEGV, si_code, (void __user *)address, current);
 		return;
 	}
@@ -188,8 +186,8 @@ no_context:
 	 * terminate things with extreme prejudice.
 	 */
 	bust_spinlocks(1);
-	pr_alert("Unable to %s at vaddr: %08lx, epc: %08lx\n",
-		 __func__, address, regs->pc);
+	pr_alert("Unable to handle kernel paging request at virtual "
+		 "address 0x%08lx, pc: 0x%08lx\n", address, regs->pc);
 	die_if_kernel("Oops", regs, write);
 
 out_of_memory:
@@ -207,6 +205,5 @@ do_sigbus:
 	if (!user_mode(regs))
 		goto no_context;
 
-	tsk->thread.address = address;
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address, current);
 }

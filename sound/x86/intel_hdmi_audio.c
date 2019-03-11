@@ -1648,39 +1648,12 @@ static int had_create_jack(struct snd_intelhad *ctx,
  * PM callbacks
  */
 
-static int hdmi_lpe_audio_runtime_suspend(struct device *dev)
-{
-	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
-	int port;
-
-	for_each_port(card_ctx, port) {
-		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
-		struct snd_pcm_substream *substream;
-
-		substream = had_substream_get(ctx);
-		if (substream) {
-			snd_pcm_suspend(substream);
-			had_substream_put(ctx);
-		}
-	}
-
-	return 0;
-}
-
 static int __maybe_unused hdmi_lpe_audio_suspend(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
-	int err;
 
-	err = hdmi_lpe_audio_runtime_suspend(dev);
-	if (!err)
-		snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
-	return err;
-}
+	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D3hot);
 
-static int hdmi_lpe_audio_runtime_resume(struct device *dev)
-{
-	pm_runtime_mark_last_busy(dev);
 	return 0;
 }
 
@@ -1688,8 +1661,10 @@ static int __maybe_unused hdmi_lpe_audio_resume(struct device *dev)
 {
 	struct snd_intelhad_card *card_ctx = dev_get_drvdata(dev);
 
-	hdmi_lpe_audio_runtime_resume(dev);
+	pm_runtime_mark_last_busy(dev);
+
 	snd_power_change_state(card_ctx->card, SNDRV_CTL_POWER_D0);
+
 	return 0;
 }
 
@@ -1837,7 +1812,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		 * try to allocate 600k buffer as default which is large enough
 		 */
 		snd_pcm_lib_preallocate_pages_for_all(pcm,
-						      SNDRV_DMA_TYPE_DEV_UC, NULL,
+						      SNDRV_DMA_TYPE_DEV_UC,
+						      card->dev,
 						      HAD_DEFAULT_BUFFER, HAD_MAX_BUFFER);
 
 		/* create controls */
@@ -1877,7 +1853,6 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_mark_last_busy(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
 	for_each_port(card_ctx, port) {
@@ -1908,8 +1883,6 @@ static int hdmi_lpe_audio_remove(struct platform_device *pdev)
 
 static const struct dev_pm_ops hdmi_lpe_audio_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(hdmi_lpe_audio_suspend, hdmi_lpe_audio_resume)
-	SET_RUNTIME_PM_OPS(hdmi_lpe_audio_runtime_suspend,
-			   hdmi_lpe_audio_runtime_resume, NULL)
 };
 
 static struct platform_driver hdmi_lpe_audio_driver = {

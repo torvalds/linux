@@ -23,6 +23,8 @@
 #define VOP_MAJOR(version)		((version) >> 8)
 #define VOP_MINOR(version)		((version) & 0xff)
 
+#define NUM_YUV2YUV_COEFFICIENTS 12
+
 enum vop_data_format {
 	VOP_FMT_ARGB8888 = 0,
 	VOP_FMT_RGB888,
@@ -60,6 +62,7 @@ struct vop_output {
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
+	struct vop_reg mipi_dual_channel_en;
 	struct vop_reg rgb_en;
 };
 
@@ -123,6 +126,10 @@ struct vop_scl_regs {
 	struct vop_reg scale_cbcr_y;
 };
 
+struct vop_yuv2yuv_phy {
+	struct vop_reg y2r_coefficients[NUM_YUV2YUV_COEFFICIENTS];
+};
+
 struct vop_win_phy {
 	const struct vop_scl_regs *scl;
 	const uint32_t *data_formats;
@@ -139,10 +146,18 @@ struct vop_win_phy {
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;
 	struct vop_reg uv_vir;
+	struct vop_reg y_mir_en;
+	struct vop_reg x_mir_en;
 
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
 	struct vop_reg channel;
+};
+
+struct vop_win_yuv2yuv_data {
+	uint32_t base;
+	const struct vop_yuv2yuv_phy *phy;
+	struct vop_reg y2r_en;
 };
 
 struct vop_win_data {
@@ -158,6 +173,7 @@ struct vop_data {
 	const struct vop_misc *misc;
 	const struct vop_modeset *modeset;
 	const struct vop_output *output;
+	const struct vop_win_yuv2yuv_data *win_yuv2yuv;
 	const struct vop_win_data *win;
 	unsigned int win_size;
 
@@ -213,6 +229,9 @@ struct vop_data {
 #define ROCKCHIP_OUT_MODE_P565	2
 /* for use special outface */
 #define ROCKCHIP_OUT_MODE_AAAA	15
+
+/* output flags */
+#define ROCKCHIP_OUTPUT_DSI_DUAL	BIT(0)
 
 enum alpha_mode {
 	ALPHA_STRAIGHT,

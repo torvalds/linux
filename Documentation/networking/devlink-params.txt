@@ -40,3 +40,12 @@ msix_vec_per_pf_min	[DEVICE, GENERIC]
 			for the device initialization. Value is same across all
 			physical functions (PFs) in the device.
 			Type: u32
+
+fw_load_policy		[DEVICE, GENERIC]
+			Controls the device's firmware loading policy.
+			Valid values:
+			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER (0)
+			  Load firmware version preferred by the driver.
+			* DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH (1)
+			  Load firmware currently stored in flash.
+			Type: u8

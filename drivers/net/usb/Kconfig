@@ -613,4 +613,15 @@ config USB_NET_CH9200
 	  To compile this driver as a module, choose M here: the
 	  module will be called ch9200.
 
+config USB_NET_AQC111
+	tristate "Aquantia AQtion USB to 5/2.5GbE Controllers support"
+	depends on USB_USBNET
+	select CRC32
+	help
+	  This option adds support for Aquantia AQtion USB
+	  Ethernet adapters based on AQC111U/AQC112 chips.
+
+	  This driver should work with at least the following devices:
+	  * Aquantia AQtion USB to 5GbE
+
 endif # USB_NET_DRIVERS

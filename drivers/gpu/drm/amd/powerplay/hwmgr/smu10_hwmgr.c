@@ -139,12 +139,10 @@ static int smu10_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 static int smu10_init_dynamic_state_adjustment_rule_settings(
 							struct pp_hwmgr *hwmgr)
 {
-	uint32_t table_size =
-		sizeof(struct phm_clock_voltage_dependency_table) +
-		(7 * sizeof(struct phm_clock_voltage_dependency_record));
+	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	struct phm_clock_voltage_dependency_table *table_clk_vlt =
-					kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate memory!\n");
@@ -216,16 +214,44 @@ static inline uint32_t convert_10k_to_mhz(uint32_t clock)
 	return (clock + 99) / 100;
 }
 
-static int smu10_set_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
+static int smu10_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->need_min_deep_sleep_dcefclk &&
-	    smu10_data->deep_sleep_dcefclk != convert_10k_to_mhz(clock)) {
+		smu10_data->deep_sleep_dcefclk != convert_10k_to_mhz(clock)) {
 		smu10_data->deep_sleep_dcefclk = convert_10k_to_mhz(clock);
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinDeepSleepDcefclk,
 					smu10_data->deep_sleep_dcefclk);
+	}
+	return 0;
+}
+
+static int smu10_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+
+	if (smu10_data->dcf_actual_hard_min_freq &&
+		smu10_data->dcf_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
+		smu10_data->dcf_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinDcefclkByFreq,
+					smu10_data->dcf_actual_hard_min_freq);
+	}
+	return 0;
+}
+
+static int smu10_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+
+	if (smu10_data->f_actual_hard_min_freq &&
+		smu10_data->f_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
+		smu10_data->f_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetHardMinFclkByFreq,
+					smu10_data->f_actual_hard_min_freq);
 	}
 	return 0;
 }
@@ -1005,6 +1031,7 @@ static int smu10_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
 		break;
 	case amd_pp_dpp_clock:
 		pclk_vol_table = pinfo->vdd_dep_on_dppclk;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1206,7 +1233,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.get_max_high_clocks = smu10_get_max_high_clocks,
 	.read_sensor = smu10_read_sensor,
 	.set_active_display_count = smu10_set_active_display_count,
-	.set_deep_sleep_dcefclk = smu10_set_deep_sleep_dcefclk,
+	.set_min_deep_sleep_dcefclk = smu10_set_min_deep_sleep_dcefclk,
 	.dynamic_state_management_enable = smu10_enable_dpm_tasks,
 	.power_off_asic = smu10_power_off_asic,
 	.asic_setup = smu10_setup_asic_task,
@@ -1217,6 +1244,8 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 	.powergate_gfx = smu10_gfx_off_control,
 	.powergate_sdma = smu10_powergate_sdma,
+	.set_hard_min_dcefclk_by_freq = smu10_set_hard_min_dcefclk_by_freq,
+	.set_hard_min_fclk_by_freq = smu10_set_hard_min_fclk_by_freq,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

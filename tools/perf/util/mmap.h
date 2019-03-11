@@ -6,9 +6,13 @@
 #include <linux/types.h>
 #include <linux/ring_buffer.h>
 #include <stdbool.h>
+#ifdef HAVE_AIO_SUPPORT
+#include <aio.h>
+#endif
 #include "auxtrace.h"
 #include "event.h"
 
+struct aiocb;
 /**
  * struct perf_mmap - perf's ring buffer mmap details
  *
@@ -26,6 +30,15 @@ struct perf_mmap {
 	bool		 overwrite;
 	struct auxtrace_mmap auxtrace_mmap;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __aligned(8);
+#ifdef HAVE_AIO_SUPPORT
+	struct {
+		void		 **data;
+		struct aiocb	 *cblocks;
+		struct aiocb	 **aiocb;
+		int		 nr_cblocks;
+	} aio;
+#endif
+	cpu_set_t	affinity_mask;
 };
 
 /*
@@ -57,7 +70,7 @@ enum bkw_mmap_state {
 };
 
 struct mmap_params {
-	int			    prot, mask;
+	int			    prot, mask, nr_cblocks, affinity;
 	struct auxtrace_mmap_params auxtrace_mp;
 };
 
@@ -85,6 +98,18 @@ union perf_event *perf_mmap__read_event(struct perf_mmap *map);
 
 int perf_mmap__push(struct perf_mmap *md, void *to,
 		    int push(struct perf_mmap *map, void *to, void *buf, size_t size));
+#ifdef HAVE_AIO_SUPPORT
+int perf_mmap__aio_push(struct perf_mmap *md, void *to, int idx,
+			int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off),
+			off_t *off);
+#else
+static inline int perf_mmap__aio_push(struct perf_mmap *md __maybe_unused, void *to __maybe_unused, int idx __maybe_unused,
+	int push(void *to, struct aiocb *cblock, void *buf, size_t size, off_t off) __maybe_unused,
+	off_t *off __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 

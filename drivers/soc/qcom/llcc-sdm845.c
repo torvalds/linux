@@ -71,6 +71,11 @@ static struct llcc_slice_config sdm845_data[] =  {
 	SCT_ENTRY(LLCC_AUDHW,    22, 1024, 1, 1, 0xffc, 0x2,   0, 0, 1, 1, 0),
 };
 
+static int sdm845_qcom_llcc_remove(struct platform_device *pdev)
+{
+	return qcom_llcc_remove(pdev);
+}
+
 static int sdm845_qcom_llcc_probe(struct platform_device *pdev)
 {
 	return qcom_llcc_probe(pdev, sdm845_data, ARRAY_SIZE(sdm845_data));
@@ -87,6 +92,7 @@ static struct platform_driver sdm845_qcom_llcc_driver = {
 		.of_match_table = sdm845_qcom_llcc_of_match,
 	},
 	.probe = sdm845_qcom_llcc_probe,
+	.remove = sdm845_qcom_llcc_remove,
 };
 module_platform_driver(sdm845_qcom_llcc_driver);
 

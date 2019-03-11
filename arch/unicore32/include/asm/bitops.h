@@ -22,7 +22,7 @@
  * the cntlz instruction for much better code efficiency.
  */
 
-static inline int fls(int x)
+static inline int fls(unsigned int x)
 {
 	int ret;
 

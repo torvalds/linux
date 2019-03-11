@@ -116,7 +116,7 @@ config MMC_RICOH_MMC
 
 config MMC_SDHCI_ACPI
 	tristate "SDHCI support for ACPI enumerated SDHCI controllers"
-	depends on MMC_SDHCI && ACPI
+	depends on MMC_SDHCI && ACPI && PCI
 	select IOSF_MBI if X86
 	help
 	  This selects support for ACPI enumerated SDHCI controllers,
@@ -224,6 +224,7 @@ config MMC_SDHCI_ESDHC_IMX
 	depends on ARCH_MXC
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
 	help
 	  This selects the Freescale eSDHC/uSDHC controller support
 	  found on i.MX25, i.MX35 i.MX5x and i.MX6x.
@@ -250,6 +251,7 @@ config MMC_SDHCI_TEGRA
 	depends on ARCH_TEGRA
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_CQHCI
 	help
 	  This selects the Tegra SD/MMC controller. If you have a Tegra
 	  platform with SD or MMC devices, say Y or M here.
@@ -440,6 +442,13 @@ config MMC_WBSD
 	  SD/MMC card reader, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_ALCOR
+	tristate "Alcor Micro/Alcor Link SD/MMC controller"
+	depends on MISC_ALCOR_PCI
+	help
+	  Say Y here to include driver code to support SD/MMC card interface
+	  of Alcor Micro PCI-E card reader
 
 config MMC_AU1X
 	tristate "Alchemy AU1XX0 MMC Card Interface support"
@@ -646,13 +655,14 @@ config MMC_SDHI_SYS_DMAC
 
 config MMC_SDHI_INTERNAL_DMAC
 	tristate "DMA for SDHI SD/SDIO controllers using on-chip bus mastering"
-	depends on ARM64 || ARCH_R8A77470 || COMPILE_TEST
+	depends on ARM64 || ARCH_R7S9210 || ARCH_R8A77470 || COMPILE_TEST
 	depends on MMC_SDHI
-	default MMC_SDHI if (ARM64 || ARCH_R8A77470)
+	default MMC_SDHI if (ARM64 || ARCH_R7S9210 || ARCH_R8A77470)
 	help
 	  This provides DMA support for SDHI SD/SDIO controllers
 	  using on-chip bus mastering. This supports the controllers
-	  found in arm64 based SoCs.
+	  found in arm64 based SoCs. This controller is also found in
+	  some RZ family SoCs.
 
 config MMC_UNIPHIER
 	tristate "UniPhier SD/eMMC Host Controller support"
@@ -969,9 +979,23 @@ config MMC_SDHCI_XENON
 config MMC_SDHCI_OMAP
 	tristate "TI SDHCI Controller Support"
 	depends on MMC_SDHCI_PLTFM && OF
+	select THERMAL
+	imply TI_SOC_THERMAL
 	help
 	  This selects the Secure Digital Host Controller Interface (SDHCI)
 	  support present in TI's DRA7 SOCs. The controller supports
+	  SD/MMC/SDIO devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_AM654
+	tristate "Support for the SDHCI Controller in TI's AM654 SOCs"
+	depends on MMC_SDHCI_PLTFM && OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  support present in TI's AM654 SOCs. The controller supports
 	  SD/MMC/SDIO devices.
 
 	  If you have a controller with this interface, say Y or M here.

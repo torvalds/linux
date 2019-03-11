@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -1135,10 +1132,6 @@ static int vpfe_buffer_prepare(struct vb2_buffer *vb)
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_prepare\n");
 
-	if (vb->state != VB2_BUF_STATE_ACTIVE &&
-	    vb->state != VB2_BUF_STATE_PREPARED)
-		return 0;
-
 	/* Initialize buffer */
 	vb2_set_plane_payload(vb, 0, video->fmt.fmt.pix.sizeimage);
 	if (vb2_plane_vaddr(vb, 0) &&
@@ -1429,7 +1422,8 @@ static int vpfe_qbuf(struct file *file, void *priv,
 		return -EACCES;
 	}
 
-	return vb2_qbuf(&video->buffer_queue, p);
+	return vb2_qbuf(&video->buffer_queue,
+			video->video_dev.v4l2_dev->mdev, p);
 }
 
 /*

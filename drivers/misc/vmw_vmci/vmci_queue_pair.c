@@ -435,8 +435,8 @@ static int qp_alloc_ppn_set(void *prod_q,
 			    void *cons_q,
 			    u64 num_consume_pages, struct ppn_set *ppn_set)
 {
-	u32 *produce_ppns;
-	u32 *consume_ppns;
+	u64 *produce_ppns;
+	u64 *consume_ppns;
 	struct vmci_queue *produce_q = prod_q;
 	struct vmci_queue *consume_q = cons_q;
 	u64 i;
@@ -462,31 +462,13 @@ static int qp_alloc_ppn_set(void *prod_q,
 		return VMCI_ERROR_NO_MEM;
 	}
 
-	for (i = 0; i < num_produce_pages; i++) {
-		unsigned long pfn;
-
+	for (i = 0; i < num_produce_pages; i++)
 		produce_ppns[i] =
 			produce_q->kernel_if->u.g.pas[i] >> PAGE_SHIFT;
-		pfn = produce_ppns[i];
 
-		/* Fail allocation if PFN isn't supported by hypervisor. */
-		if (sizeof(pfn) > sizeof(*produce_ppns)
-		    && pfn != produce_ppns[i])
-			goto ppn_error;
-	}
-
-	for (i = 0; i < num_consume_pages; i++) {
-		unsigned long pfn;
-
+	for (i = 0; i < num_consume_pages; i++)
 		consume_ppns[i] =
 			consume_q->kernel_if->u.g.pas[i] >> PAGE_SHIFT;
-		pfn = consume_ppns[i];
-
-		/* Fail allocation if PFN isn't supported by hypervisor. */
-		if (sizeof(pfn) > sizeof(*consume_ppns)
-		    && pfn != consume_ppns[i])
-			goto ppn_error;
-	}
 
 	ppn_set->num_produce_pages = num_produce_pages;
 	ppn_set->num_consume_pages = num_consume_pages;
@@ -494,11 +476,6 @@ static int qp_alloc_ppn_set(void *prod_q,
 	ppn_set->consume_ppns = consume_ppns;
 	ppn_set->initialized = true;
 	return VMCI_SUCCESS;
-
- ppn_error:
-	kfree(produce_ppns);
-	kfree(consume_ppns);
-	return VMCI_ERROR_INVALID_ARGS;
 }
 
 /*
@@ -520,12 +497,28 @@ static void qp_free_ppn_set(struct ppn_set *ppn_set)
  */
 static int qp_populate_ppn_set(u8 *call_buf, const struct ppn_set *ppn_set)
 {
-	memcpy(call_buf, ppn_set->produce_ppns,
-	       ppn_set->num_produce_pages * sizeof(*ppn_set->produce_ppns));
-	memcpy(call_buf +
-	       ppn_set->num_produce_pages * sizeof(*ppn_set->produce_ppns),
-	       ppn_set->consume_ppns,
-	       ppn_set->num_consume_pages * sizeof(*ppn_set->consume_ppns));
+	if (vmci_use_ppn64()) {
+		memcpy(call_buf, ppn_set->produce_ppns,
+		       ppn_set->num_produce_pages *
+		       sizeof(*ppn_set->produce_ppns));
+		memcpy(call_buf +
+		       ppn_set->num_produce_pages *
+		       sizeof(*ppn_set->produce_ppns),
+		       ppn_set->consume_ppns,
+		       ppn_set->num_consume_pages *
+		       sizeof(*ppn_set->consume_ppns));
+	} else {
+		int i;
+		u32 *ppns = (u32 *) call_buf;
+
+		for (i = 0; i < ppn_set->num_produce_pages; i++)
+			ppns[i] = (u32) ppn_set->produce_ppns[i];
+
+		ppns = &ppns[ppn_set->num_produce_pages];
+
+		for (i = 0; i < ppn_set->num_consume_pages; i++)
+			ppns[i] = (u32) ppn_set->consume_ppns[i];
+	}
 
 	return VMCI_SUCCESS;
 }
@@ -951,13 +944,15 @@ static int qp_alloc_hypercall(const struct qp_guest_endpoint *entry)
 {
 	struct vmci_qp_alloc_msg *alloc_msg;
 	size_t msg_size;
+	size_t ppn_size;
 	int result;
 
 	if (!entry || entry->num_ppns <= 2)
 		return VMCI_ERROR_INVALID_ARGS;
 
+	ppn_size = vmci_use_ppn64() ? sizeof(u64) : sizeof(u32);
 	msg_size = sizeof(*alloc_msg) +
-	    (size_t) entry->num_ppns * sizeof(u32);
+	    (size_t) entry->num_ppns * ppn_size;
 	alloc_msg = kmalloc(msg_size, GFP_KERNEL);
 	if (!alloc_msg)
 		return VMCI_ERROR_NO_MEM;
@@ -3030,7 +3025,7 @@ ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&from, WRITE | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&from, WRITE, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3074,7 +3069,7 @@ ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&to, READ, &v, 1, buf_size);
 
 	qp_lock(qpair);
 
@@ -3119,7 +3114,7 @@ ssize_t vmci_qpair_peek(struct vmci_qp *qpair,
 	if (!qpair || !buf)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	iov_iter_kvec(&to, READ | ITER_KVEC, &v, 1, buf_size);
+	iov_iter_kvec(&to, READ, &v, 1, buf_size);
 
 	qp_lock(qpair);
 

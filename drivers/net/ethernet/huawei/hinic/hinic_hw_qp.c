@@ -336,9 +336,9 @@ static int alloc_rq_cqe(struct hinic_rq *rq)
 		goto err_cqe_dma_arr_alloc;
 
 	for (i = 0; i < wq->q_depth; i++) {
-		rq->cqe[i] = dma_zalloc_coherent(&pdev->dev,
-						 sizeof(*rq->cqe[i]),
-						 &rq->cqe_dma[i], GFP_KERNEL);
+		rq->cqe[i] = dma_alloc_coherent(&pdev->dev,
+						sizeof(*rq->cqe[i]),
+						&rq->cqe_dma[i], GFP_KERNEL);
 		if (!rq->cqe[i])
 			goto err_cqe_alloc;
 	}
@@ -415,8 +415,8 @@ int hinic_init_rq(struct hinic_rq *rq, struct hinic_hwif *hwif,
 
 	/* HW requirements: Must be at least 32 bit */
 	pi_size = ALIGN(sizeof(*rq->pi_virt_addr), sizeof(u32));
-	rq->pi_virt_addr = dma_zalloc_coherent(&pdev->dev, pi_size,
-					       &rq->pi_dma_addr, GFP_KERNEL);
+	rq->pi_virt_addr = dma_alloc_coherent(&pdev->dev, pi_size,
+					      &rq->pi_dma_addr, GFP_KERNEL);
 	if (!rq->pi_virt_addr) {
 		dev_err(&pdev->dev, "Failed to allocate PI address\n");
 		err = -ENOMEM;
@@ -532,7 +532,7 @@ void hinic_task_set_inner_l3(struct hinic_sq_task *task,
 }
 
 void hinic_task_set_tunnel_l4(struct hinic_sq_task *task,
-			      enum hinic_l4_offload_type l4_type,
+			      enum hinic_l4_tunnel_type l4_type,
 			      u32 tunnel_len)
 {
 	task->pkt_info2 |= HINIC_SQ_TASK_INFO2_SET(l4_type, TUNNEL_L4TYPE) |

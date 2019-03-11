@@ -19,18 +19,22 @@
  * is much larger than a sockaddr_in6.
  */
 struct svc_cacherep {
-	struct list_head	c_lru;
+	struct {
+		/* Keep often-read xid, csum in the same cache line: */
+		__be32			k_xid;
+		__wsum			k_csum;
+		u32			k_proc;
+		u32			k_prot;
+		u32			k_vers;
+		unsigned int		k_len;
+		struct sockaddr_in6	k_addr;
+	} c_key;
 
+	struct rb_node		c_node;
+	struct list_head	c_lru;
 	unsigned char		c_state,	/* unused, inprog, done */
 				c_type,		/* status, buffer */
 				c_secure : 1;	/* req came from port < 1024 */
-	struct sockaddr_in6	c_addr;
-	__be32			c_xid;
-	u32			c_prot;
-	u32			c_proc;
-	u32			c_vers;
-	unsigned int		c_len;
-	__wsum			c_csum;
 	unsigned long		c_timestamp;
 	union {
 		struct kvec	u_vec;

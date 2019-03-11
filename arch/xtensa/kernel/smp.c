@@ -83,7 +83,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned i;
 
-	for (i = 0; i < max_cpus; ++i)
+	for_each_possible_cpu(i)
 		set_cpu_present(i, true);
 }
 
@@ -95,6 +95,11 @@ void __init smp_init_cpus(void)
 
 	pr_info("%s: Core Count = %d\n", __func__, ncpus);
 	pr_info("%s: Core Id = %d\n", __func__, core_id);
+
+	if (ncpus > NR_CPUS) {
+		ncpus = NR_CPUS;
+		pr_info("%s: limiting core count by %d\n", __func__, ncpus);
+	}
 
 	for (i = 0; i < ncpus; ++i)
 		set_cpu_possible(i, true);
@@ -195,9 +200,11 @@ static int boot_secondary(unsigned int cpu, struct task_struct *ts)
 	int i;
 
 #ifdef CONFIG_HOTPLUG_CPU
-	cpu_start_id = cpu;
-	system_flush_invalidate_dcache_range(
-			(unsigned long)&cpu_start_id, sizeof(cpu_start_id));
+	WRITE_ONCE(cpu_start_id, cpu);
+	/* Pairs with the third memw in the cpu_restart */
+	mb();
+	system_flush_invalidate_dcache_range((unsigned long)&cpu_start_id,
+					     sizeof(cpu_start_id));
 #endif
 	smp_call_function_single(0, mx_cpu_start, (void *)cpu, 1);
 
@@ -206,18 +213,21 @@ static int boot_secondary(unsigned int cpu, struct task_struct *ts)
 			ccount = get_ccount();
 		while (!ccount);
 
-		cpu_start_ccount = ccount;
+		WRITE_ONCE(cpu_start_ccount, ccount);
 
-		while (time_before(jiffies, timeout)) {
+		do {
+			/*
+			 * Pairs with the first two memws in the
+			 * .Lboot_secondary.
+			 */
 			mb();
-			if (!cpu_start_ccount)
-				break;
-		}
+			ccount = READ_ONCE(cpu_start_ccount);
+		} while (ccount && time_before(jiffies, timeout));
 
-		if (cpu_start_ccount) {
+		if (ccount) {
 			smp_call_function_single(0, mx_cpu_stop,
-					(void *)cpu, 1);
-			cpu_start_ccount = 0;
+						 (void *)cpu, 1);
+			WRITE_ONCE(cpu_start_ccount, 0);
 			return -EIO;
 		}
 	}
@@ -237,6 +247,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	pr_debug("%s: Calling wakeup_secondary(cpu:%d, idle:%p, sp: %08lx)\n",
 			__func__, cpu, idle, start_info.stack);
 
+	init_completion(&cpu_running);
 	ret = boot_secondary(cpu, idle);
 	if (ret == 0) {
 		wait_for_completion_timeout(&cpu_running,
@@ -298,8 +309,10 @@ void __cpu_die(unsigned int cpu)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	while (time_before(jiffies, timeout)) {
 		system_invalidate_dcache_range((unsigned long)&cpu_start_id,
-				sizeof(cpu_start_id));
-		if (cpu_start_id == -cpu) {
+					       sizeof(cpu_start_id));
+		/* Pairs with the second memw in the cpu_restart */
+		mb();
+		if (READ_ONCE(cpu_start_id) == -cpu) {
 			platform_cpu_kill(cpu);
 			return;
 		}
@@ -359,8 +372,7 @@ static void send_ipi_message(const struct cpumask *callmask,
 	unsigned long mask = 0;
 
 	for_each_cpu(index, callmask)
-		if (index != smp_processor_id())
-			mask |= 1 << index;
+		mask |= 1 << index;
 
 	set_er(mask, MIPISET(msg_id));
 }
@@ -399,22 +411,31 @@ irqreturn_t ipi_interrupt(int irq, void *dev_id)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-	unsigned int msg;
-	unsigned i;
 
-	msg = get_er(MIPICAUSE(cpu));
-	for (i = 0; i < IPI_MAX; i++)
-		if (msg & (1 << i)) {
-			set_er(1 << i, MIPICAUSE(cpu));
-			++ipi->ipi_count[i];
+	for (;;) {
+		unsigned int msg;
+
+		msg = get_er(MIPICAUSE(cpu));
+		set_er(msg, MIPICAUSE(cpu));
+
+		if (!msg)
+			break;
+
+		if (msg & (1 << IPI_CALL_FUNC)) {
+			++ipi->ipi_count[IPI_CALL_FUNC];
+			generic_smp_call_function_interrupt();
 		}
 
-	if (msg & (1 << IPI_RESCHEDULE))
-		scheduler_ipi();
-	if (msg & (1 << IPI_CALL_FUNC))
-		generic_smp_call_function_interrupt();
-	if (msg & (1 << IPI_CPU_STOP))
-		ipi_cpu_stop(cpu);
+		if (msg & (1 << IPI_RESCHEDULE)) {
+			++ipi->ipi_count[IPI_RESCHEDULE];
+			scheduler_ipi();
+		}
+
+		if (msg & (1 << IPI_CPU_STOP)) {
+			++ipi->ipi_count[IPI_CPU_STOP];
+			ipi_cpu_stop(cpu);
+		}
+	}
 
 	return IRQ_HANDLED;
 }

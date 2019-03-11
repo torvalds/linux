@@ -35,13 +35,13 @@ Required properties:
 
   - fsl,sai-synchronous-rx: This is a boolean property. If present, indicating
 			  that SAI will work in the synchronous mode (sync Tx
-			  with Rx) which means both the transimitter and the
+			  with Rx) which means both the transmitter and the
 			  receiver will send and receive data by following
 			  receiver's bit clocks and frame sync clocks.
 
   - fsl,sai-asynchronous: This is a boolean property. If present, indicating
 			  that SAI will work in the asynchronous mode, which
-			  means both transimitter and receiver will send and
+			  means both transmitter and receiver will send and
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
 
@@ -58,8 +58,8 @@ Optional properties (for mx6ul):
 Note:
 - If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
   default synchronous mode (sync Rx with Tx) will be used, which means both
-  transimitter and receiver will send and receive data by following clocks
-  of transimitter.
+  transmitter and receiver will send and receive data by following clocks
+  of transmitter.
 - fsl,sai-asynchronous and fsl,sai-synchronous-rx are exclusive.
 
 Example:

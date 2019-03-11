@@ -258,7 +258,8 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	if (is_redirect) {
 		skb2->tc_redirected = 1;
 		skb2->tc_from_ingress = skb2->tc_at_ingress;
-
+		if (skb2->tc_from_ingress)
+			skb2->tstamp = 0;
 		/* let's the caller reinsert the packet, if possible */
 		if (use_reinsert) {
 			res->ingress = want_ingress;
@@ -399,7 +400,7 @@ static void tcf_mirred_put_dev(struct net_device *dev)
 
 static struct tc_action_ops act_mirred_ops = {
 	.kind		=	"mirred",
-	.type		=	TCA_ACT_MIRRED,
+	.id		=	TCA_ID_MIRRED,
 	.owner		=	THIS_MODULE,
 	.act		=	tcf_mirred_act,
 	.stats_update	=	tcf_stats_update,

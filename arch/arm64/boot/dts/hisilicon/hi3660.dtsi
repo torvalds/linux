@@ -56,7 +56,7 @@
 		};
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
@@ -70,7 +70,7 @@
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
@@ -79,10 +79,11 @@
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
@@ -91,10 +92,11 @@
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
@@ -103,10 +105,11 @@
 			capacity-dmips-mhz = <592>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER0>;
 			operating-points-v2 = <&cluster0_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu4: cpu@100 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
@@ -120,7 +123,7 @@
 		};
 
 		cpu5: cpu@101 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
@@ -129,10 +132,11 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu6: cpu@102 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x102>;
 			enable-method = "psci";
@@ -141,10 +145,11 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
 		};
 
 		cpu7: cpu@103 {
-			compatible = "arm,cortex-a73", "arm,armv8";
+			compatible = "arm,cortex-a73";
 			device_type = "cpu";
 			reg = <0x0 0x103>;
 			enable-method = "psci";
@@ -153,6 +158,7 @@
 			capacity-dmips-mhz = <1024>;
 			clocks = <&stub_clock HI3660_CLK_STUB_CLUSTER1>;
 			operating-points-v2 = <&cluster1_opp>;
+			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -1112,12 +1118,18 @@
 					map0 {
 						trip = <&target>;
 						contribution = <1024>;
-						cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					};
 					map1 {
 						trip = <&target>;
 						contribution = <512>;
-						cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+								 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					};
 				};
 			};

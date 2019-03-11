@@ -100,10 +100,6 @@
 	status = "okay";
 };
 
-&phy_sel {
-	rmii-clock-ext;
-};
-
 /* I2C Busses */
 &am33xx_pinmux {
 	i2c0_pins: pinmux_i2c0 {

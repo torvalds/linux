@@ -23,9 +23,25 @@
 #define rbmemptr(ring, member)  \
 	((ring)->memptrs_iova + offsetof(struct msm_rbmemptrs, member))
 
+#define rbmemptr_stats(ring, index, member) \
+	(rbmemptr((ring), stats) + \
+	 ((index) * sizeof(struct msm_gpu_submit_stats)) + \
+	 offsetof(struct msm_gpu_submit_stats, member))
+
+struct msm_gpu_submit_stats {
+	u64 cpcycles_start;
+	u64 cpcycles_end;
+	u64 alwayson_start;
+	u64 alwayson_end;
+};
+
+#define MSM_GPU_SUBMIT_STATS_COUNT 64
+
 struct msm_rbmemptrs {
 	volatile uint32_t rptr;
 	volatile uint32_t fence;
+
+	volatile struct msm_gpu_submit_stats stats[MSM_GPU_SUBMIT_STATS_COUNT];
 };
 
 struct msm_ringbuffer {

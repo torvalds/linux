@@ -55,7 +55,7 @@
 #define PRIo64 "o"
 
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
-#define apic_debug(fmt, arg...)
+#define apic_debug(fmt, arg...) do {} while (0)
 
 /* 14 is the version for Xeon and Pentium 8.4.8*/
 #define APIC_VERSION			(0x14UL | ((KVM_APIC_LVT_NUM - 1) << 16))
@@ -251,10 +251,9 @@ static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 
 	if (enabled != apic->sw_enabled) {
 		apic->sw_enabled = enabled;
-		if (enabled) {
+		if (enabled)
 			static_key_slow_dec_deferred(&apic_sw_disabled);
-			recalculate_apic_map(apic->vcpu->kvm);
-		} else
+		else
 			static_key_slow_inc(&apic_sw_disabled.key);
 	}
 }
@@ -575,6 +574,11 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
+
+	if (unlikely(!map)) {
+		count = -EOPNOTSUPP;
+		goto out;
+	}
 
 	if (min > map->max_apic_id)
 		goto out;
@@ -1031,6 +1035,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	switch (delivery_mode) {
 	case APIC_DM_LOWEST:
 		vcpu->arch.apic_arb_prio++;
+		/* fall through */
 	case APIC_DM_FIXED:
 		if (unlikely(trig_mode && !level))
 			break;
@@ -1870,6 +1875,7 @@ int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 
 	case APIC_LVT0:
 		apic_manage_nmi_watchdog(apic, val);
+		/* fall through */
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
 	case APIC_LVT1:
@@ -2409,7 +2415,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	r = kvm_apic_state_fixup(vcpu, s, true);
 	if (r)
 		return r;
-	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
+	memcpy(vcpu->arch.apic->regs, s->regs, sizeof(*s));
 
 	recalculate_apic_map(vcpu->kvm);
 	kvm_apic_set_version(vcpu);

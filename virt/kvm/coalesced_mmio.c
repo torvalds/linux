@@ -175,10 +175,14 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 {
 	struct kvm_coalesced_mmio_dev *dev, *tmp;
 
+	if (zone->pio != 1 && zone->pio != 0)
+		return -EINVAL;
+
 	mutex_lock(&kvm->slots_lock);
 
 	list_for_each_entry_safe(dev, tmp, &kvm->coalesced_zones, list)
-		if (coalesced_mmio_in_range(dev, zone->addr, zone->size)) {
+		if (zone->pio == dev->zone.pio &&
+		    coalesced_mmio_in_range(dev, zone->addr, zone->size)) {
 			kvm_io_bus_unregister_dev(kvm,
 				zone->pio ? KVM_PIO_BUS : KVM_MMIO_BUS, &dev->dev);
 			kvm_iodevice_destructor(&dev->dev);

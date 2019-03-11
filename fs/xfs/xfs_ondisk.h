@@ -125,6 +125,27 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_STRUCT_SIZE(struct xfs_inode_log_format,	56);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_qoff_logformat,	20);
 	XFS_CHECK_STRUCT_SIZE(struct xfs_trans_header,		16);
+
+	/*
+	 * The v5 superblock format extended several v4 header structures with
+	 * additional data. While new fields are only accessible on v5
+	 * superblocks, it's important that the v5 structures place original v4
+	 * fields/headers in the correct location on-disk. For example, we must
+	 * be able to find magic values at the same location in certain blocks
+	 * regardless of superblock version.
+	 *
+	 * The following checks ensure that various v5 data structures place the
+	 * subset of v4 metadata associated with the same type of block at the
+	 * start of the on-disk block. If there is no data structure definition
+	 * for certain types of v4 blocks, traverse down to the first field of
+	 * common metadata (e.g., magic value) and make sure it is at offset
+	 * zero.
+	 */
+	XFS_CHECK_OFFSET(struct xfs_dir3_leaf, hdr.info.hdr,	0);
+	XFS_CHECK_OFFSET(struct xfs_da3_intnode, hdr.info.hdr,	0);
+	XFS_CHECK_OFFSET(struct xfs_dir3_data_hdr, hdr.magic,	0);
+	XFS_CHECK_OFFSET(struct xfs_dir3_free, hdr.hdr.magic,	0);
+	XFS_CHECK_OFFSET(struct xfs_attr3_leafblock, hdr.info.hdr, 0);
 }
 
 #endif /* __XFS_ONDISK_H */

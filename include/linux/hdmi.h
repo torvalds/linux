@@ -27,6 +27,21 @@
 #include <linux/types.h>
 #include <linux/device.h>
 
+enum hdmi_packet_type {
+	HDMI_PACKET_TYPE_NULL = 0x00,
+	HDMI_PACKET_TYPE_AUDIO_CLOCK_REGEN = 0x01,
+	HDMI_PACKET_TYPE_AUDIO_SAMPLE = 0x02,
+	HDMI_PACKET_TYPE_GENERAL_CONTROL = 0x03,
+	HDMI_PACKET_TYPE_ACP = 0x04,
+	HDMI_PACKET_TYPE_ISRC1 = 0x05,
+	HDMI_PACKET_TYPE_ISRC2 = 0x06,
+	HDMI_PACKET_TYPE_ONE_BIT_AUDIO_SAMPLE = 0x07,
+	HDMI_PACKET_TYPE_DST_AUDIO = 0x08,
+	HDMI_PACKET_TYPE_HBR_AUDIO_STREAM = 0x09,
+	HDMI_PACKET_TYPE_GAMUT_METADATA = 0x0a,
+	/* + enum hdmi_infoframe_type */
+};
+
 enum hdmi_infoframe_type {
 	HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	HDMI_INFOFRAME_TYPE_AVI = 0x82,
@@ -163,6 +178,9 @@ struct hdmi_avi_infoframe {
 int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame);
 ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 				size_t size);
+ssize_t hdmi_avi_infoframe_pack_only(const struct hdmi_avi_infoframe *frame,
+				     void *buffer, size_t size);
+int hdmi_avi_infoframe_check(struct hdmi_avi_infoframe *frame);
 
 enum hdmi_spd_sdi {
 	HDMI_SPD_SDI_UNKNOWN,
@@ -194,6 +212,9 @@ int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
 			    const char *vendor, const char *product);
 ssize_t hdmi_spd_infoframe_pack(struct hdmi_spd_infoframe *frame, void *buffer,
 				size_t size);
+ssize_t hdmi_spd_infoframe_pack_only(const struct hdmi_spd_infoframe *frame,
+				     void *buffer, size_t size);
+int hdmi_spd_infoframe_check(struct hdmi_spd_infoframe *frame);
 
 enum hdmi_audio_coding_type {
 	HDMI_AUDIO_CODING_TYPE_STREAM,
@@ -272,6 +293,9 @@ struct hdmi_audio_infoframe {
 int hdmi_audio_infoframe_init(struct hdmi_audio_infoframe *frame);
 ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
 				  void *buffer, size_t size);
+ssize_t hdmi_audio_infoframe_pack_only(const struct hdmi_audio_infoframe *frame,
+				       void *buffer, size_t size);
+int hdmi_audio_infoframe_check(struct hdmi_audio_infoframe *frame);
 
 enum hdmi_3d_structure {
 	HDMI_3D_STRUCTURE_INVALID = -1,
@@ -299,6 +323,9 @@ struct hdmi_vendor_infoframe {
 int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame);
 ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 				   void *buffer, size_t size);
+ssize_t hdmi_vendor_infoframe_pack_only(const struct hdmi_vendor_infoframe *frame,
+					void *buffer, size_t size);
+int hdmi_vendor_infoframe_check(struct hdmi_vendor_infoframe *frame);
 
 union hdmi_vendor_any_infoframe {
 	struct {
@@ -330,10 +357,14 @@ union hdmi_infoframe {
 	struct hdmi_audio_infoframe audio;
 };
 
-ssize_t
-hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size);
-int hdmi_infoframe_unpack(union hdmi_infoframe *frame, void *buffer);
+ssize_t hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer,
+			    size_t size);
+ssize_t hdmi_infoframe_pack_only(const union hdmi_infoframe *frame,
+				 void *buffer, size_t size);
+int hdmi_infoframe_check(union hdmi_infoframe *frame);
+int hdmi_infoframe_unpack(union hdmi_infoframe *frame,
+			  const void *buffer, size_t size);
 void hdmi_infoframe_log(const char *level, struct device *dev,
-			union hdmi_infoframe *frame);
+			const union hdmi_infoframe *frame);
 
 #endif /* _DRM_HDMI_H */

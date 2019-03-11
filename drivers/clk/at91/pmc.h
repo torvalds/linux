@@ -19,6 +19,17 @@
 
 extern spinlock_t pmc_pcr_lock;
 
+struct pmc_data {
+	unsigned int ncore;
+	struct clk_hw **chws;
+	unsigned int nsystem;
+	struct clk_hw **shws;
+	unsigned int nperiph;
+	struct clk_hw **phws;
+	unsigned int ngck;
+	struct clk_hw **ghws;
+};
+
 struct clk_range {
 	unsigned long min;
 	unsigned long max;
@@ -26,8 +37,156 @@ struct clk_range {
 
 #define CLK_RANGE(MIN, MAX) {.min = MIN, .max = MAX,}
 
+struct clk_master_layout {
+	u32 mask;
+	u8 pres_shift;
+};
+
+extern const struct clk_master_layout at91rm9200_master_layout;
+extern const struct clk_master_layout at91sam9x5_master_layout;
+
+struct clk_master_characteristics {
+	struct clk_range output;
+	u32 divisors[4];
+	u8 have_div3_pres;
+};
+
+struct clk_pll_layout {
+	u32 pllr_mask;
+	u16 mul_mask;
+	u8 mul_shift;
+};
+
+extern const struct clk_pll_layout at91rm9200_pll_layout;
+extern const struct clk_pll_layout at91sam9g45_pll_layout;
+extern const struct clk_pll_layout at91sam9g20_pllb_layout;
+extern const struct clk_pll_layout sama5d3_pll_layout;
+
+struct clk_pll_characteristics {
+	struct clk_range input;
+	int num_output;
+	struct clk_range *output;
+	u16 *icpll;
+	u8 *out;
+};
+
+struct clk_programmable_layout {
+	u8 pres_shift;
+	u8 css_mask;
+	u8 have_slck_mck;
+};
+
+extern const struct clk_programmable_layout at91rm9200_programmable_layout;
+extern const struct clk_programmable_layout at91sam9g45_programmable_layout;
+extern const struct clk_programmable_layout at91sam9x5_programmable_layout;
+
+#define ndck(a, s) (a[s - 1].id + 1)
+#define nck(a) (a[ARRAY_SIZE(a) - 1].id + 1)
+struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
+				   unsigned int nperiph, unsigned int ngck);
+void pmc_data_free(struct pmc_data *pmc_data);
+
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
 			  struct clk_range *range);
+
+struct clk_hw *of_clk_hw_pmc_get(struct of_phandle_args *clkspec, void *data);
+
+struct clk_hw * __init
+at91_clk_register_audio_pll_frac(struct regmap *regmap, const char *name,
+				 const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
+				const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_register_audio_pll_pmc(struct regmap *regmap, const char *name,
+				const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
+			    const char *name, const char **parent_names,
+			    u8 num_parents, u8 id, bool pll_audio,
+			    const struct clk_range *range);
+
+struct clk_hw * __init
+at91_clk_register_h32mx(struct regmap *regmap, const char *name,
+			const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_i2s_mux_register(struct regmap *regmap, const char *name,
+			  const char * const *parent_names,
+			  unsigned int num_parents, u8 bus_id);
+
+struct clk_hw * __init
+at91_clk_register_main_rc_osc(struct regmap *regmap, const char *name,
+			      u32 frequency, u32 accuracy);
+struct clk_hw * __init
+at91_clk_register_main_osc(struct regmap *regmap, const char *name,
+			   const char *parent_name, bool bypass);
+struct clk_hw * __init
+at91_clk_register_rm9200_main(struct regmap *regmap,
+			      const char *name,
+			      const char *parent_name);
+struct clk_hw * __init
+at91_clk_register_sam9x5_main(struct regmap *regmap, const char *name,
+			      const char **parent_names, int num_parents);
+
+struct clk_hw * __init
+at91_clk_register_master(struct regmap *regmap, const char *name,
+			 int num_parents, const char **parent_names,
+			 const struct clk_master_layout *layout,
+			 const struct clk_master_characteristics *characteristics);
+
+struct clk_hw * __init
+at91_clk_register_peripheral(struct regmap *regmap, const char *name,
+			     const char *parent_name, u32 id);
+struct clk_hw * __init
+at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
+				    const char *name, const char *parent_name,
+				    u32 id, const struct clk_range *range);
+
+struct clk_hw * __init
+at91_clk_register_pll(struct regmap *regmap, const char *name,
+		      const char *parent_name, u8 id,
+		      const struct clk_pll_layout *layout,
+		      const struct clk_pll_characteristics *characteristics);
+struct clk_hw * __init
+at91_clk_register_plldiv(struct regmap *regmap, const char *name,
+			 const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_register_programmable(struct regmap *regmap, const char *name,
+			       const char **parent_names, u8 num_parents, u8 id,
+			       const struct clk_programmable_layout *layout);
+
+struct clk_hw * __init
+at91_clk_register_sam9260_slow(struct regmap *regmap,
+			       const char *name,
+			       const char **parent_names,
+			       int num_parents);
+
+struct clk_hw * __init
+at91sam9x5_clk_register_smd(struct regmap *regmap, const char *name,
+			    const char **parent_names, u8 num_parents);
+
+struct clk_hw * __init
+at91_clk_register_system(struct regmap *regmap, const char *name,
+			 const char *parent_name, u8 id);
+
+struct clk_hw * __init
+at91sam9x5_clk_register_usb(struct regmap *regmap, const char *name,
+			    const char **parent_names, u8 num_parents);
+struct clk_hw * __init
+at91sam9n12_clk_register_usb(struct regmap *regmap, const char *name,
+			     const char *parent_name);
+struct clk_hw * __init
+at91rm9200_clk_register_usb(struct regmap *regmap, const char *name,
+			    const char *parent_name, const u32 *divisors);
+
+struct clk_hw * __init
+at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
+		       const char *name, const char *parent_name);
 
 #ifdef CONFIG_PM
 void pmc_register_id(u8 id);

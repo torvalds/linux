@@ -14,8 +14,6 @@
 
 #include <linux/pkt_cls.h>
 
-#define TCA_ACT_TUNNEL_KEY 17
-
 #define TCA_TUNNEL_KEY_ACT_SET	    1
 #define TCA_TUNNEL_KEY_ACT_RELEASE  2
 

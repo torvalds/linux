@@ -406,10 +406,11 @@ static int afs_fill_super(struct super_block *sb,
 		inode = afs_iget_pseudo_dir(sb, true);
 		sb->s_flags	|= SB_RDONLY;
 	} else {
-		sprintf(sb->s_id, "%u", as->volume->vid);
+		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
 		fid.vid		= as->volume->vid;
 		fid.vnode	= 1;
+		fid.vnode_hi	= 0;
 		fid.unique	= 1;
 		inode = afs_iget(sb, params->key, &fid, NULL, NULL, NULL);
 	}
@@ -663,7 +664,7 @@ static void afs_destroy_inode(struct inode *inode)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 
-	_enter("%p{%x:%u}", inode, vnode->fid.vid, vnode->fid.vnode);
+	_enter("%p{%llx:%llu}", inode, vnode->fid.vid, vnode->fid.vnode);
 
 	_debug("DESTROY INODE %p", inode);
 

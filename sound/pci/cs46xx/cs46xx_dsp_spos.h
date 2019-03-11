@@ -177,22 +177,16 @@ struct dsp_spos_instance {
 	/* proc fs */  
 	struct snd_card *snd_card;
 	struct snd_info_entry * proc_dsp_dir;
-	struct snd_info_entry * proc_sym_info_entry;
-	struct snd_info_entry * proc_modules_info_entry;
-	struct snd_info_entry * proc_parameter_dump_info_entry;
-	struct snd_info_entry * proc_sample_dump_info_entry;
 
 	/* SCB's descriptors */
 	int nscb;
 	int scb_highest_frag_index;
 	struct dsp_scb_descriptor scbs[DSP_MAX_SCB_DESC];
-	struct snd_info_entry * proc_scb_info_entry;
 	struct dsp_scb_descriptor * the_null_scb;
 
 	/* Task's descriptors */
 	int ntask;
 	struct dsp_task_descriptor tasks[DSP_MAX_TASK_DESC];
-	struct snd_info_entry * proc_task_info_entry;
 
 	/* SPDIF status */
 	int spdif_status_out;

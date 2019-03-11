@@ -48,6 +48,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "srq.h"
 #include "vt.h"
@@ -77,6 +78,8 @@ struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 			      struct ib_udata *udata)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibpd->device);
+	struct rvt_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct rvt_ucontext, ibucontext);
 	struct rvt_srq *srq;
 	u32 sz;
 	struct ib_srq *ret;
@@ -119,7 +122,7 @@ struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip =
-		    rvt_create_mmap_info(dev, s, ibpd->uobject->context,
+		    rvt_create_mmap_info(dev, s, &ucontext->ibucontext,
 					 srq->rq.wq);
 		if (!srq->ip) {
 			ret = ERR_PTR(-ENOMEM);

@@ -1811,8 +1811,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		n_matches = 0;
 	}
 
-	net_detect = kzalloc(sizeof(*net_detect) +
-			     (n_matches * sizeof(net_detect->matches[0])),
+	net_detect = kzalloc(struct_size(net_detect, matches, n_matches),
 			     GFP_KERNEL);
 	if (!net_detect || !n_matches)
 		goto out_report_nd;
@@ -1827,8 +1826,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		for (j = 0; j < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; j++)
 			n_channels += hweight8(fw_match->matching_channels[j]);
 
-		match = kzalloc(sizeof(*match) +
-				(n_channels * sizeof(*match->channels)),
+		match = kzalloc(struct_size(match, channels, n_channels),
 				GFP_KERNEL);
 		if (!match)
 			goto out_report_nd;
@@ -1901,7 +1899,7 @@ static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 static int iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
-	u32 base = mvm->error_event_table[0];
+	u32 base = mvm->trans->lmac_error_event_table[0];
 	struct error_table_start {
 		/* cf. struct iwl_error_event_table */
 		u32 valid;
@@ -1956,7 +1954,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
 		iwl_mvm_dump_nic_error_log(mvm);
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
-					NULL, 0);
+					false, 0);
 		ret = 1;
 		goto err;
 	}
@@ -2127,7 +2125,6 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 
 	file->private_data = inode->i_private;
 
-	ieee80211_stop_queues(mvm->hw);
 	synchronize_net();
 
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
@@ -2142,10 +2139,9 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 	rtnl_unlock();
 	if (err > 0)
 		err = -EINVAL;
-	if (err) {
-		ieee80211_wake_queues(mvm->hw);
+	if (err)
 		return err;
-	}
+
 	mvm->d3_test_active = true;
 	mvm->keep_vif = NULL;
 	return 0;
@@ -2224,8 +2220,6 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_d3_test_disconn_work_iter, mvm->keep_vif);
-
-	ieee80211_wake_queues(mvm->hw);
 
 	return 0;
 }

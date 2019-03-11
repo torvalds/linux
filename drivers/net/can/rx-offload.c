@@ -211,7 +211,54 @@ int can_rx_offload_irq_offload_fifo(struct can_rx_offload *offload)
 }
 EXPORT_SYMBOL_GPL(can_rx_offload_irq_offload_fifo);
 
-int can_rx_offload_irq_queue_err_skb(struct can_rx_offload *offload, struct sk_buff *skb)
+int can_rx_offload_queue_sorted(struct can_rx_offload *offload,
+				struct sk_buff *skb, u32 timestamp)
+{
+	struct can_rx_offload_cb *cb;
+	unsigned long flags;
+
+	if (skb_queue_len(&offload->skb_queue) >
+	    offload->skb_queue_len_max)
+		return -ENOMEM;
+
+	cb = can_rx_offload_get_cb(skb);
+	cb->timestamp = timestamp;
+
+	spin_lock_irqsave(&offload->skb_queue.lock, flags);
+	__skb_queue_add_sort(&offload->skb_queue, skb, can_rx_offload_compare);
+	spin_unlock_irqrestore(&offload->skb_queue.lock, flags);
+
+	can_rx_offload_schedule(offload);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(can_rx_offload_queue_sorted);
+
+unsigned int can_rx_offload_get_echo_skb(struct can_rx_offload *offload,
+					 unsigned int idx, u32 timestamp)
+{
+	struct net_device *dev = offload->dev;
+	struct net_device_stats *stats = &dev->stats;
+	struct sk_buff *skb;
+	u8 len;
+	int err;
+
+	skb = __can_get_echo_skb(dev, idx, &len);
+	if (!skb)
+		return 0;
+
+	err = can_rx_offload_queue_sorted(offload, skb, timestamp);
+	if (err) {
+		stats->rx_errors++;
+		stats->tx_fifo_errors++;
+	}
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(can_rx_offload_get_echo_skb);
+
+int can_rx_offload_queue_tail(struct can_rx_offload *offload,
+			      struct sk_buff *skb)
 {
 	if (skb_queue_len(&offload->skb_queue) >
 	    offload->skb_queue_len_max)
@@ -222,7 +269,7 @@ int can_rx_offload_irq_queue_err_skb(struct can_rx_offload *offload, struct sk_b
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(can_rx_offload_irq_queue_err_skb);
+EXPORT_SYMBOL_GPL(can_rx_offload_queue_tail);
 
 static int can_rx_offload_init_queue(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight)
 {

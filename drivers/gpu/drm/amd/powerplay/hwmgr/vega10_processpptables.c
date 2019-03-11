@@ -32,6 +32,7 @@
 #include "vega10_pptable.h"
 
 #define NUM_DSPCLK_LEVELS 8
+#define VEGA10_ENGINECLOCK_HARDMAX 198000
 
 static void set_hw_cap(struct pp_hwmgr *hwmgr, bool enable,
 		enum phm_platform_caps cap)
@@ -122,6 +123,7 @@ static int init_thermal_controller(
 	const Vega10_PPTable_Generic_SubTable_Header *header;
 	const ATOM_Vega10_Fan_Table *fan_table_v1;
 	const ATOM_Vega10_Fan_Table_V2 *fan_table_v2;
+	const ATOM_Vega10_Fan_Table_V3 *fan_table_v3;
 
 	thermal_controller = (ATOM_Vega10_Thermal_Controller *)
 			(((unsigned long)powerplay_table) +
@@ -206,7 +208,7 @@ static int init_thermal_controller(
 				le16_to_cpu(fan_table_v1->usFanStopTemperature);
 		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
 				le16_to_cpu(fan_table_v1->usFanStartTemperature);
-	} else if (header->ucRevId > 10) {
+	} else if (header->ucRevId == 0xb) {
 		fan_table_v2 = (ATOM_Vega10_Fan_Table_V2 *)header;
 
 		hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
@@ -250,7 +252,54 @@ static int init_thermal_controller(
 				le16_to_cpu(fan_table_v2->usFanStopTemperature);
 		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
 				le16_to_cpu(fan_table_v2->usFanStartTemperature);
+	} else if (header->ucRevId > 0xb) {
+		fan_table_v3 = (ATOM_Vega10_Fan_Table_V3 *)header;
+
+		hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution =
+				fan_table_v3->ucFanParameters & ATOM_VEGA10_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
+		hwmgr->thermal_controller.fanInfo.ulMinRPM = fan_table_v3->ucFanMinRPM * 100UL;
+		hwmgr->thermal_controller.fanInfo.ulMaxRPM = fan_table_v3->ucFanMaxRPM * 100UL;
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_MicrocodeFanControl);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
+				le16_to_cpu(fan_table_v3->usFanOutputSensitivity);
+		hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM =
+				fan_table_v3->ucFanMaxRPM * 100UL;
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMMaxLimit =
+				le16_to_cpu(fan_table_v3->usThrottlingRPM);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit =
+				le16_to_cpu(fan_table_v3->usFanAcousticLimitRpm);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
+				le16_to_cpu(fan_table_v3->usTargetTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
+				le16_to_cpu(fan_table_v3->usMinimumPWMLimit);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulTargetGfxClk =
+				le16_to_cpu(fan_table_v3->usTargetGfxClk);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge =
+				le16_to_cpu(fan_table_v3->usFanGainEdge);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot =
+				le16_to_cpu(fan_table_v3->usFanGainHotspot);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid =
+				le16_to_cpu(fan_table_v3->usFanGainLiquid);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc =
+				le16_to_cpu(fan_table_v3->usFanGainVrVddc);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd =
+				le16_to_cpu(fan_table_v3->usFanGainVrMvdd);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx =
+				le16_to_cpu(fan_table_v3->usFanGainPlx);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm =
+				le16_to_cpu(fan_table_v3->usFanGainHbm);
+
+		hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM =
+				fan_table_v3->ucEnableZeroRPM;
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStopTemperature =
+				le16_to_cpu(fan_table_v3->usFanStopTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usZeroRPMStartTemperature =
+				le16_to_cpu(fan_table_v3->usFanStartTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.usMGpuThrottlingRPMLimit =
+				le16_to_cpu(fan_table_v3->usMGpuThrottlingRPM);
 	}
+
 	return 0;
 }
 
@@ -258,7 +307,26 @@ static int init_over_drive_limits(
 		struct pp_hwmgr *hwmgr,
 		const ATOM_Vega10_POWERPLAYTABLE *powerplay_table)
 {
-	hwmgr->platform_descriptor.overdriveLimit.engineClock =
+	const ATOM_Vega10_GFXCLK_Dependency_Table *gfxclk_dep_table =
+			(const ATOM_Vega10_GFXCLK_Dependency_Table *)
+			(((unsigned long) powerplay_table) +
+			le16_to_cpu(powerplay_table->usGfxclkDependencyTableOffset));
+	bool is_acg_enabled = false;
+	ATOM_Vega10_GFXCLK_Dependency_Record_V2 *patom_record_v2;
+
+	if (gfxclk_dep_table->ucRevId == 1) {
+		patom_record_v2 =
+			(ATOM_Vega10_GFXCLK_Dependency_Record_V2 *)gfxclk_dep_table->entries;
+		is_acg_enabled =
+			(bool)patom_record_v2[gfxclk_dep_table->ucNumEntries-1].ucACGEnable;
+	}
+
+	if (powerplay_table->ulMaxODEngineClock > VEGA10_ENGINECLOCK_HARDMAX &&
+		!is_acg_enabled)
+		hwmgr->platform_descriptor.overdriveLimit.engineClock =
+			VEGA10_ENGINECLOCK_HARDMAX;
+	else
+		hwmgr->platform_descriptor.overdriveLimit.engineClock =
 			le32_to_cpu(powerplay_table->ulMaxODEngineClock);
 	hwmgr->platform_descriptor.overdriveLimit.memoryClock =
 			le32_to_cpu(powerplay_table->ulMaxODMemoryClock);

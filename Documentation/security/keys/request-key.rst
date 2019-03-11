@@ -132,7 +132,7 @@ Negative Instantiation And Rejection
 Rather than instantiating a key, it is possible for the possessor of an
 authorisation key to negatively instantiate a key that's under construction.
 This is a short duration placeholder that causes any attempt at re-requesting
-the key whilst it exists to fail with error ENOKEY if negated or the specified
+the key while it exists to fail with error ENOKEY if negated or the specified
 error if rejected.
 
 This is provided to prevent excessive repeated spawning of /sbin/request-key

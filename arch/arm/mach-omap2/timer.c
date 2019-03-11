@@ -44,7 +44,6 @@
 #include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
-#include <asm/smp_twd.h>
 
 #include "omap_hwmod.h"
 #include "omap_device.h"

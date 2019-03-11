@@ -151,8 +151,9 @@ static void r852_dma_done(struct r852_device *dev, int error)
 	dev->dma_stage = 0;
 
 	if (dev->phys_dma_addr && dev->phys_dma_addr != dev->phys_bounce_buffer)
-		pci_unmap_single(dev->pci_dev, dev->phys_dma_addr, R852_DMA_LEN,
-			dev->dma_dir ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
+		dma_unmap_single(&dev->pci_dev->dev, dev->phys_dma_addr,
+			R852_DMA_LEN,
+			dev->dma_dir ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
 /*
@@ -197,11 +198,10 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 		bounce = 1;
 
 	if (!bounce) {
-		dev->phys_dma_addr = pci_map_single(dev->pci_dev, (void *)buf,
+		dev->phys_dma_addr = dma_map_single(&dev->pci_dev->dev, buf,
 			R852_DMA_LEN,
-			(do_read ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE));
-
-		if (pci_dma_mapping_error(dev->pci_dev, dev->phys_dma_addr))
+			do_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+		if (dma_mapping_error(&dev->pci_dev->dev, dev->phys_dma_addr))
 			bounce = 1;
 	}
 
@@ -369,8 +369,7 @@ static int r852_wait(struct nand_chip *chip)
 	unsigned long timeout;
 	u8 status;
 
-	timeout = jiffies + (chip->state == FL_ERASING ?
-		msecs_to_jiffies(400) : msecs_to_jiffies(20));
+	timeout = jiffies + msecs_to_jiffies(400);
 
 	while (time_before(jiffies, timeout))
 		if (chip->legacy.dev_ready(chip))
@@ -835,7 +834,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	pci_set_master(pci_dev);
 
-	error = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
+	error = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (error)
 		goto error2;
 
@@ -885,8 +884,8 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	dev->pci_dev = pci_dev;
 	pci_set_drvdata(pci_dev, dev);
 
-	dev->bounce_buffer = pci_alloc_consistent(pci_dev, R852_DMA_LEN,
-		&dev->phys_bounce_buffer);
+	dev->bounce_buffer = dma_alloc_coherent(&pci_dev->dev, R852_DMA_LEN,
+		&dev->phys_bounce_buffer, GFP_KERNEL);
 
 	if (!dev->bounce_buffer)
 		goto error6;
@@ -946,8 +945,8 @@ error9:
 error8:
 	pci_iounmap(pci_dev, dev->mmio);
 error7:
-	pci_free_consistent(pci_dev, R852_DMA_LEN,
-		dev->bounce_buffer, dev->phys_bounce_buffer);
+	dma_free_coherent(&pci_dev->dev, R852_DMA_LEN, dev->bounce_buffer,
+			  dev->phys_bounce_buffer);
 error6:
 	kfree(dev);
 error5:
@@ -980,8 +979,8 @@ static void r852_remove(struct pci_dev *pci_dev)
 	/* Cleanup */
 	kfree(dev->tmp_buffer);
 	pci_iounmap(pci_dev, dev->mmio);
-	pci_free_consistent(pci_dev, R852_DMA_LEN,
-		dev->bounce_buffer, dev->phys_bounce_buffer);
+	dma_free_coherent(&pci_dev->dev, R852_DMA_LEN, dev->bounce_buffer,
+			  dev->phys_bounce_buffer);
 
 	kfree(dev->chip);
 	kfree(dev);
@@ -1045,9 +1044,9 @@ static int r852_resume(struct device *device)
 	/* Otherwise, initialize the card */
 	if (dev->card_registered) {
 		r852_engine_enable(dev);
-		dev->chip->select_chip(dev->chip, 0);
+		nand_select_target(dev->chip, 0);
 		nand_reset_op(dev->chip);
-		dev->chip->select_chip(dev->chip, -1);
+		nand_deselect_target(dev->chip);
 	}
 
 	/* Program card detection IRQ */

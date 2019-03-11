@@ -187,32 +187,6 @@
 #define CLK_MIPI_HSI		349 /* Exynos4210 only */
 #define CLK_PIXELASYNCM0	351
 #define CLK_PIXELASYNCM1	352
-#define CLK_FIMC_LITE0		353 /* Exynos4x12 only */
-#define CLK_FIMC_LITE1		354 /* Exynos4x12 only */
-#define CLK_PPMUISPX		355 /* Exynos4x12 only */
-#define CLK_PPMUISPMX		356 /* Exynos4x12 only */
-#define CLK_FIMC_ISP		357 /* Exynos4x12 only */
-#define CLK_FIMC_DRC		358 /* Exynos4x12 only */
-#define CLK_FIMC_FD		359 /* Exynos4x12 only */
-#define CLK_MCUISP		360 /* Exynos4x12 only */
-#define CLK_GICISP		361 /* Exynos4x12 only */
-#define CLK_SMMU_ISP		362 /* Exynos4x12 only */
-#define CLK_SMMU_DRC		363 /* Exynos4x12 only */
-#define CLK_SMMU_FD		364 /* Exynos4x12 only */
-#define CLK_SMMU_LITE0		365 /* Exynos4x12 only */
-#define CLK_SMMU_LITE1		366 /* Exynos4x12 only */
-#define CLK_MCUCTL_ISP		367 /* Exynos4x12 only */
-#define CLK_MPWM_ISP		368 /* Exynos4x12 only */
-#define CLK_I2C0_ISP		369 /* Exynos4x12 only */
-#define CLK_I2C1_ISP		370 /* Exynos4x12 only */
-#define CLK_MTCADC_ISP		371 /* Exynos4x12 only */
-#define CLK_PWM_ISP		372 /* Exynos4x12 only */
-#define CLK_WDT_ISP		373 /* Exynos4x12 only */
-#define CLK_UART_ISP		374 /* Exynos4x12 only */
-#define CLK_ASYNCAXIM		375 /* Exynos4x12 only */
-#define CLK_SMMU_ISPCX		376 /* Exynos4x12 only */
-#define CLK_SPI0_ISP		377 /* Exynos4x12 only */
-#define CLK_SPI1_ISP		378 /* Exynos4x12 only */
 #define CLK_PWM_ISP_SCLK	379 /* Exynos4x12 only */
 #define CLK_SPI0_ISP_SCLK	380 /* Exynos4x12 only */
 #define CLK_SPI1_ISP_SCLK	381 /* Exynos4x12 only */
@@ -254,10 +228,6 @@
 #define CLK_PPMUACP		415
 
 /* div clocks */
-#define CLK_DIV_ISP0		450 /* Exynos4x12 only */
-#define CLK_DIV_ISP1		451 /* Exynos4x12 only */
-#define CLK_DIV_MCUISP0		452 /* Exynos4x12 only */
-#define CLK_DIV_MCUISP1		453 /* Exynos4x12 only */
 #define CLK_DIV_ACLK200		454 /* Exynos4x12 only */
 #define CLK_DIV_ACLK400_MCUISP	455 /* Exynos4x12 only */
 #define CLK_DIV_ACP		456

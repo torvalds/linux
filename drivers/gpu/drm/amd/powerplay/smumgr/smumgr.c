@@ -29,6 +29,10 @@
 #include <drm/amdgpu_drm.h>
 #include "smumgr.h"
 
+MODULE_FIRMWARE("amdgpu/bonaire_smc.bin");
+MODULE_FIRMWARE("amdgpu/bonaire_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_smc.bin");
+MODULE_FIRMWARE("amdgpu/hawaii_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
@@ -37,10 +41,13 @@ MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_k2_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_k_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_k2_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/vegam_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_smc.bin");
 MODULE_FIRMWARE("amdgpu/vega10_acg_smc.bin");

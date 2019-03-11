@@ -20,9 +20,9 @@
 #include <linux/of_device.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #include <sound/hdmi-codec.h>
@@ -125,7 +125,9 @@ static int zx_hdmi_config_video_avi(struct zx_hdmi *hdmi,
 	union hdmi_infoframe frame;
 	int ret;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       &hdmi->connector,
+						       mode);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get avi infoframe: %d\n",
 			      ret);

@@ -29,6 +29,7 @@
 #include "addr-map.h"
 #include "mfp-pxa168.h"
 #include "pxa168.h"
+#include "pxa910.h"
 #include "irqs.h"
 #include "common.h"
 
@@ -256,8 +257,14 @@ static void __init common_init(void)
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);
 
+#if IS_ENABLED(CONFIG_USB_SUPPORT)
+#if IS_ENABLED(CONFIG_PHY_PXA_USB)
+	platform_device_register(&pxa168_device_usb_phy);
+#endif
+
 #if IS_ENABLED(CONFIG_USB_EHCI_MV)
 	pxa168_add_usb_host(&pxa168_sph_pdata);
+#endif
 #endif
 }
 

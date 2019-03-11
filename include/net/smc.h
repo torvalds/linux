@@ -74,6 +74,7 @@ struct smcd_dev {
 	struct list_head vlan;
 	struct workqueue_struct *event_wq;
 	u8 pnetid[SMC_MAX_PNETID_LEN];
+	bool pnetid_by_user;
 };
 
 struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,

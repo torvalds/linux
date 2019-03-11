@@ -1,0 +1,41 @@
+Regulator driver for MAX77650 PMIC from Maxim Integrated.
+
+This module is part of the MAX77650 MFD device. For more details
+see Documentation/devicetree/bindings/mfd/max77650.txt.
+
+The regulator controller is represented as a sub-node of the PMIC node
+on the device tree.
+
+The device has a single LDO regulator and a SIMO buck-boost regulator with
+three independent power rails.
+
+Required properties:
+--------------------
+- compatible:		Must be "maxim,max77650-regulator"
+
+Each rail must be instantiated under the regulators subnode of the top PMIC
+node. Up to four regulators can be defined. For standard regulator properties
+refer to Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Available regulator compatible strings are: "ldo", "sbb0", "sbb1", "sbb2".
+
+Example:
+--------
+
+	regulators {
+		compatible = "maxim,max77650-regulator";
+
+		max77650_ldo: regulator@0 {
+			regulator-compatible = "ldo";
+			regulator-name = "max77650-ldo";
+			regulator-min-microvolt = <1350000>;
+			regulator-max-microvolt = <2937500>;
+		};
+
+		max77650_sbb0: regulator@1 {
+			regulator-compatible = "sbb0";
+			regulator-name = "max77650-sbb0";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1587500>;
+		};
+	};

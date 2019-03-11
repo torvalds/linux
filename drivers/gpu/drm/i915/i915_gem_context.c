@@ -86,10 +86,10 @@
  */
 
 #include <linux/log2.h>
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "intel_lrc_reg.h"
 #include "intel_workarounds.h"
 
 #define ALL_L3_SLICES(dev) (1 << NUM_L3_SLICES(dev)) - 1
@@ -311,7 +311,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 		address_mode = INTEL_LEGACY_64B_CONTEXT;
 	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
-	if (IS_GEN8(i915))
+	if (IS_GEN(i915, 8))
 		desc |= GEN8_CTX_L3LLC_COHERENT;
 
 	/* TODO: WaDisableLiteRestore when we start using semaphore
@@ -320,6 +320,32 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	 */
 
 	return desc;
+}
+
+static void intel_context_retire(struct i915_active_request *active,
+				 struct i915_request *rq)
+{
+	struct intel_context *ce =
+		container_of(active, typeof(*ce), active_tracker);
+
+	intel_context_unpin(ce);
+}
+
+void
+intel_context_init(struct intel_context *ce,
+		   struct i915_gem_context *ctx,
+		   struct intel_engine_cs *engine)
+{
+	ce->gem_context = ctx;
+
+	INIT_LIST_HEAD(&ce->signal_link);
+	INIT_LIST_HEAD(&ce->signals);
+
+	/* Use the whole device by default */
+	ce->sseu = intel_device_default_sseu(ctx->i915);
+
+	i915_active_request_init(&ce->active_tracker,
+				 NULL, intel_context_retire);
 }
 
 static struct i915_gem_context *
@@ -337,13 +363,10 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->contexts.list);
 	ctx->i915 = dev_priv;
-	ctx->sched.priority = I915_PRIORITY_NORMAL;
+	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 
-	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
-		struct intel_context *ce = &ctx->__engine[n];
-
-		ce->gem_context = ctx;
-	}
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++)
+		intel_context_init(&ctx->__engine[n], ctx, dev_priv->engine[n]);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
@@ -414,7 +437,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv,
 	if (IS_ERR(ctx))
 		return ctx;
 
-	if (USES_FULL_PPGTT(dev_priv)) {
+	if (HAS_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
 		ppgtt = i915_ppgtt_create(dev_priv, file_priv);
@@ -457,7 +480,7 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = __create_hw_context(to_i915(dev), NULL);
+	ctx = i915_gem_create_context(to_i915(dev), NULL);
 	if (IS_ERR(ctx))
 		goto out;
 
@@ -504,7 +527,7 @@ i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	ctx->sched.priority = prio;
+	ctx->sched.priority = I915_USER_PRIORITY(prio);
 	ctx->ring_size = PAGE_SIZE;
 
 	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
@@ -535,16 +558,12 @@ static bool needs_preempt_context(struct drm_i915_private *i915)
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
-	int ret;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
 
-	ret = intel_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
-
+	intel_engine_init_ctx_wa(dev_priv->engine[RCS]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */
@@ -650,10 +669,10 @@ last_request_on_engine(struct i915_timeline *timeline,
 
 	GEM_BUG_ON(timeline == &engine->timeline);
 
-	rq = i915_gem_active_raw(&timeline->last_request,
-				 &engine->i915->drm.struct_mutex);
+	rq = i915_active_request_raw(&timeline->last_request,
+				     &engine->i915->drm.struct_mutex);
 	if (rq && rq->engine == engine) {
-		GEM_TRACE("last request for %s on engine %s: %llx:%d\n",
+		GEM_TRACE("last request for %s on engine %s: %llx:%llu\n",
 			  timeline->name, engine->name,
 			  rq->fence.context, rq->fence.seqno);
 		GEM_BUG_ON(rq->timeline != timeline);
@@ -690,14 +709,14 @@ static bool engine_has_kernel_context_barrier(struct intel_engine_cs *engine)
 		 * switch-to-kernel-context?
 		 */
 		if (!i915_timeline_sync_is_later(barrier, &rq->fence)) {
-			GEM_TRACE("%s needs barrier for %llx:%d\n",
+			GEM_TRACE("%s needs barrier for %llx:%lld\n",
 				  ring->timeline->name,
 				  rq->fence.context,
 				  rq->fence.seqno);
 			return false;
 		}
 
-		GEM_TRACE("%s has barrier after %llx:%d\n",
+		GEM_TRACE("%s has barrier after %llx:%lld\n",
 			  ring->timeline->name,
 			  rq->fence.context,
 			  rq->fence.seqno);
@@ -753,7 +772,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *i915)
 			if (prev->gem_context == i915->kernel_context)
 				continue;
 
-			GEM_TRACE("add barrier on %s for %llx:%d\n",
+			GEM_TRACE("add barrier on %s for %llx:%lld\n",
 				  engine->name,
 				  prev->fence.context,
 				  prev->fence.seqno);
@@ -844,6 +863,56 @@ out:
 	return 0;
 }
 
+static int get_sseu(struct i915_gem_context *ctx,
+		    struct drm_i915_gem_context_param *args)
+{
+	struct drm_i915_gem_context_param_sseu user_sseu;
+	struct intel_engine_cs *engine;
+	struct intel_context *ce;
+	int ret;
+
+	if (args->size == 0)
+		goto out;
+	else if (args->size < sizeof(user_sseu))
+		return -EINVAL;
+
+	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
+			   sizeof(user_sseu)))
+		return -EFAULT;
+
+	if (user_sseu.flags || user_sseu.rsvd)
+		return -EINVAL;
+
+	engine = intel_engine_lookup_user(ctx->i915,
+					  user_sseu.engine_class,
+					  user_sseu.engine_instance);
+	if (!engine)
+		return -EINVAL;
+
+	/* Only use for mutex here is to serialize get_param and set_param. */
+	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
+	if (ret)
+		return ret;
+
+	ce = to_intel_context(ctx, engine);
+
+	user_sseu.slice_mask = ce->sseu.slice_mask;
+	user_sseu.subslice_mask = ce->sseu.subslice_mask;
+	user_sseu.min_eus_per_subslice = ce->sseu.min_eus_per_subslice;
+	user_sseu.max_eus_per_subslice = ce->sseu.max_eus_per_subslice;
+
+	mutex_unlock(&ctx->i915->drm.struct_mutex);
+
+	if (copy_to_user(u64_to_user_ptr(args->value), &user_sseu,
+			 sizeof(user_sseu)))
+		return -EFAULT;
+
+out:
+	args->size = sizeof(user_sseu);
+
+	return 0;
+}
+
 int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file)
 {
@@ -856,15 +925,17 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	if (!ctx)
 		return -ENOENT;
 
-	args->size = 0;
 	switch (args->param) {
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 		ret = -EINVAL;
 		break;
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+		args->size = 0;
 		args->value = test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags);
 		break;
 	case I915_CONTEXT_PARAM_GTT_SIZE:
+		args->size = 0;
+
 		if (ctx->ppgtt)
 			args->value = ctx->ppgtt->vm.total;
 		else if (to_i915(dev)->mm.aliasing_ppgtt)
@@ -873,13 +944,19 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 			args->value = to_i915(dev)->ggtt.vm.total;
 		break;
 	case I915_CONTEXT_PARAM_NO_ERROR_CAPTURE:
+		args->size = 0;
 		args->value = i915_gem_context_no_error_capture(ctx);
 		break;
 	case I915_CONTEXT_PARAM_BANNABLE:
+		args->size = 0;
 		args->value = i915_gem_context_is_bannable(ctx);
 		break;
 	case I915_CONTEXT_PARAM_PRIORITY:
-		args->value = ctx->sched.priority;
+		args->size = 0;
+		args->value = ctx->sched.priority >> I915_USER_PRIORITY_SHIFT;
+		break;
+	case I915_CONTEXT_PARAM_SSEU:
+		ret = get_sseu(ctx, args);
 		break;
 	default:
 		ret = -EINVAL;
@@ -888,6 +965,281 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 	i915_gem_context_put(ctx);
 	return ret;
+}
+
+static int gen8_emit_rpcs_config(struct i915_request *rq,
+				 struct intel_context *ce,
+				 struct intel_sseu sseu)
+{
+	u64 offset;
+	u32 *cs;
+
+	cs = intel_ring_begin(rq, 4);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	offset = i915_ggtt_offset(ce->state) +
+		 LRC_STATE_PN * PAGE_SIZE +
+		 (CTX_R_PWR_CLK_STATE + 1) * 4;
+
+	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
+	*cs++ = lower_32_bits(offset);
+	*cs++ = upper_32_bits(offset);
+	*cs++ = gen8_make_rpcs(rq->i915, &sseu);
+
+	intel_ring_advance(rq, cs);
+
+	return 0;
+}
+
+static int
+gen8_modify_rpcs_gpu(struct intel_context *ce,
+		     struct intel_engine_cs *engine,
+		     struct intel_sseu sseu)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_request *rq, *prev;
+	intel_wakeref_t wakeref;
+	int ret;
+
+	GEM_BUG_ON(!ce->pin_count);
+
+	lockdep_assert_held(&i915->drm.struct_mutex);
+
+	/* Submitting requests etc needs the hw awake. */
+	wakeref = intel_runtime_pm_get(i915);
+
+	rq = i915_request_alloc(engine, i915->kernel_context);
+	if (IS_ERR(rq)) {
+		ret = PTR_ERR(rq);
+		goto out_put;
+	}
+
+	/* Queue this switch after all other activity by this context. */
+	prev = i915_active_request_raw(&ce->ring->timeline->last_request,
+				       &i915->drm.struct_mutex);
+	if (prev && !i915_request_completed(prev)) {
+		ret = i915_request_await_dma_fence(rq, &prev->fence);
+		if (ret < 0)
+			goto out_add;
+	}
+
+	/* Order all following requests to be after. */
+	ret = i915_timeline_set_barrier(ce->ring->timeline, rq);
+	if (ret)
+		goto out_add;
+
+	ret = gen8_emit_rpcs_config(rq, ce, sseu);
+	if (ret)
+		goto out_add;
+
+	/*
+	 * Guarantee context image and the timeline remains pinned until the
+	 * modifying request is retired by setting the ce activity tracker.
+	 *
+	 * But we only need to take one pin on the account of it. Or in other
+	 * words transfer the pinned ce object to tracked active request.
+	 */
+	if (!i915_active_request_isset(&ce->active_tracker))
+		__intel_context_pin(ce);
+	__i915_active_request_set(&ce->active_tracker, rq);
+
+out_add:
+	i915_request_add(rq);
+out_put:
+	intel_runtime_pm_put(i915, wakeref);
+
+	return ret;
+}
+
+static int
+__i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
+				    struct intel_engine_cs *engine,
+				    struct intel_sseu sseu)
+{
+	struct intel_context *ce = to_intel_context(ctx, engine);
+	int ret = 0;
+
+	GEM_BUG_ON(INTEL_GEN(ctx->i915) < 8);
+	GEM_BUG_ON(engine->id != RCS);
+
+	/* Nothing to do if unmodified. */
+	if (!memcmp(&ce->sseu, &sseu, sizeof(sseu)))
+		return 0;
+
+	/*
+	 * If context is not idle we have to submit an ordered request to modify
+	 * its context image via the kernel context. Pristine and idle contexts
+	 * will be configured on pinning.
+	 */
+	if (ce->pin_count)
+		ret = gen8_modify_rpcs_gpu(ce, engine, sseu);
+
+	if (!ret)
+		ce->sseu = sseu;
+
+	return ret;
+}
+
+static int
+i915_gem_context_reconfigure_sseu(struct i915_gem_context *ctx,
+				  struct intel_engine_cs *engine,
+				  struct intel_sseu sseu)
+{
+	int ret;
+
+	ret = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = __i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+
+	mutex_unlock(&ctx->i915->drm.struct_mutex);
+
+	return ret;
+}
+
+static int
+user_to_context_sseu(struct drm_i915_private *i915,
+		     const struct drm_i915_gem_context_param_sseu *user,
+		     struct intel_sseu *context)
+{
+	const struct sseu_dev_info *device = &RUNTIME_INFO(i915)->sseu;
+
+	/* No zeros in any field. */
+	if (!user->slice_mask || !user->subslice_mask ||
+	    !user->min_eus_per_subslice || !user->max_eus_per_subslice)
+		return -EINVAL;
+
+	/* Max > min. */
+	if (user->max_eus_per_subslice < user->min_eus_per_subslice)
+		return -EINVAL;
+
+	/*
+	 * Some future proofing on the types since the uAPI is wider than the
+	 * current internal implementation.
+	 */
+	if (overflows_type(user->slice_mask, context->slice_mask) ||
+	    overflows_type(user->subslice_mask, context->subslice_mask) ||
+	    overflows_type(user->min_eus_per_subslice,
+			   context->min_eus_per_subslice) ||
+	    overflows_type(user->max_eus_per_subslice,
+			   context->max_eus_per_subslice))
+		return -EINVAL;
+
+	/* Check validity against hardware. */
+	if (user->slice_mask & ~device->slice_mask)
+		return -EINVAL;
+
+	if (user->subslice_mask & ~device->subslice_mask[0])
+		return -EINVAL;
+
+	if (user->max_eus_per_subslice > device->max_eus_per_subslice)
+		return -EINVAL;
+
+	context->slice_mask = user->slice_mask;
+	context->subslice_mask = user->subslice_mask;
+	context->min_eus_per_subslice = user->min_eus_per_subslice;
+	context->max_eus_per_subslice = user->max_eus_per_subslice;
+
+	/* Part specific restrictions. */
+	if (IS_GEN(i915, 11)) {
+		unsigned int hw_s = hweight8(device->slice_mask);
+		unsigned int hw_ss_per_s = hweight8(device->subslice_mask[0]);
+		unsigned int req_s = hweight8(context->slice_mask);
+		unsigned int req_ss = hweight8(context->subslice_mask);
+
+		/*
+		 * Only full subslice enablement is possible if more than one
+		 * slice is turned on.
+		 */
+		if (req_s > 1 && req_ss != hw_ss_per_s)
+			return -EINVAL;
+
+		/*
+		 * If more than four (SScount bitfield limit) subslices are
+		 * requested then the number has to be even.
+		 */
+		if (req_ss > 4 && (req_ss & 1))
+			return -EINVAL;
+
+		/*
+		 * If only one slice is enabled and subslice count is below the
+		 * device full enablement, it must be at most half of the all
+		 * available subslices.
+		 */
+		if (req_s == 1 && req_ss < hw_ss_per_s &&
+		    req_ss > (hw_ss_per_s / 2))
+			return -EINVAL;
+
+		/* ABI restriction - VME use case only. */
+
+		/* All slices or one slice only. */
+		if (req_s != 1 && req_s != hw_s)
+			return -EINVAL;
+
+		/*
+		 * Half subslices or full enablement only when one slice is
+		 * enabled.
+		 */
+		if (req_s == 1 &&
+		    (req_ss != hw_ss_per_s && req_ss != (hw_ss_per_s / 2)))
+			return -EINVAL;
+
+		/* No EU configuration changes. */
+		if ((user->min_eus_per_subslice !=
+		     device->max_eus_per_subslice) ||
+		    (user->max_eus_per_subslice !=
+		     device->max_eus_per_subslice))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int set_sseu(struct i915_gem_context *ctx,
+		    struct drm_i915_gem_context_param *args)
+{
+	struct drm_i915_private *i915 = ctx->i915;
+	struct drm_i915_gem_context_param_sseu user_sseu;
+	struct intel_engine_cs *engine;
+	struct intel_sseu sseu;
+	int ret;
+
+	if (args->size < sizeof(user_sseu))
+		return -EINVAL;
+
+	if (!IS_GEN(i915, 11))
+		return -ENODEV;
+
+	if (copy_from_user(&user_sseu, u64_to_user_ptr(args->value),
+			   sizeof(user_sseu)))
+		return -EFAULT;
+
+	if (user_sseu.flags || user_sseu.rsvd)
+		return -EINVAL;
+
+	engine = intel_engine_lookup_user(i915,
+					  user_sseu.engine_class,
+					  user_sseu.engine_instance);
+	if (!engine)
+		return -EINVAL;
+
+	/* Only render engine supports RPCS configuration. */
+	if (engine->class != RENDER_CLASS)
+		return -ENODEV;
+
+	ret = user_to_context_sseu(i915, &user_sseu, &sseu);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_context_reconfigure_sseu(ctx, engine, sseu);
+	if (ret)
+		return ret;
+
+	args->size = sizeof(user_sseu);
+
+	return 0;
 }
 
 int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
@@ -948,10 +1300,13 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				 !capable(CAP_SYS_NICE))
 				ret = -EPERM;
 			else
-				ctx->sched.priority = priority;
+				ctx->sched.priority =
+					I915_USER_PRIORITY(priority);
 		}
 		break;
-
+	case I915_CONTEXT_PARAM_SSEU:
+		ret = set_sseu(ctx, args);
+		break;
 	default:
 		ret = -EINVAL;
 		break;

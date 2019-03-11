@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -82,21 +83,10 @@
 #define AD5933_POLL_TIME_ms		10
 #define AD5933_INIT_EXCITATION_TIME_ms	100
 
-/**
- * struct ad5933_platform_data - platform specific data
- * @ext_clk_Hz:		the external clock frequency in Hz, if not set
- *			the driver uses the internal clock (16.776 MHz)
- * @vref_mv:		the external reference voltage in millivolt
- */
-
-struct ad5933_platform_data {
-	unsigned long			ext_clk_Hz;
-	unsigned short			vref_mv;
-};
-
 struct ad5933_state {
 	struct i2c_client		*client;
 	struct regulator		*reg;
+	struct clk			*mclk;
 	struct delayed_work		work;
 	struct mutex			lock; /* Protect sensor state */
 	unsigned long			mclk_hz;
@@ -110,10 +100,6 @@ struct ad5933_state {
 	unsigned int			freq_inc;
 	unsigned int			state;
 	unsigned int			poll_time_jiffies;
-};
-
-static struct ad5933_platform_data ad5933_default_pdata  = {
-	.vref_mv = 3300,
 };
 
 #define AD5933_CHANNEL(_type, _extend_name, _info_mask_separate, _address, \
@@ -210,7 +196,7 @@ static int ad5933_set_freq(struct ad5933_state *st,
 		u8 d8[4];
 	} dat;
 
-	freqreg = (u64) freq * (u64) (1 << 27);
+	freqreg = (u64)freq * (u64)(1 << 27);
 	do_div(freqreg, st->mclk_hz / 4);
 
 	switch (reg) {
@@ -267,7 +253,6 @@ static void ad5933_calc_out_ranges(struct ad5933_state *st)
 
 	for (i = 0; i < 4; i++)
 		st->range_avail[i] = normalized_3v3[i] * st->vref_mv / 3300;
-
 }
 
 /*
@@ -692,10 +677,10 @@ static void ad5933_work(struct work_struct *work)
 static int ad5933_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int ret, voltage_uv = 0;
-	struct ad5933_platform_data *pdata = dev_get_platdata(&client->dev);
+	int ret;
 	struct ad5933_state *st;
 	struct iio_dev *indio_dev;
+	unsigned long ext_clk_hz = 0;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (!indio_dev)
@@ -707,9 +692,6 @@ static int ad5933_probe(struct i2c_client *client,
 
 	mutex_init(&st->lock);
 
-	if (!pdata)
-		pdata = &ad5933_default_pdata;
-
 	st->reg = devm_regulator_get(&client->dev, "vdd");
 	if (IS_ERR(st->reg))
 		return PTR_ERR(st->reg);
@@ -719,15 +701,28 @@ static int ad5933_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
 		return ret;
 	}
-	voltage_uv = regulator_get_voltage(st->reg);
+	ret = regulator_get_voltage(st->reg);
 
-	if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		st->vref_mv = pdata->vref_mv;
+	if (ret < 0)
+		goto error_disable_reg;
 
-	if (pdata->ext_clk_Hz) {
-		st->mclk_hz = pdata->ext_clk_Hz;
+	st->vref_mv = ret / 1000;
+
+	st->mclk = devm_clk_get(&client->dev, "mclk");
+	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT) {
+		ret = PTR_ERR(st->mclk);
+		goto error_disable_reg;
+	}
+
+	if (!IS_ERR(st->mclk)) {
+		ret = clk_prepare_enable(st->mclk);
+		if (ret < 0)
+			goto error_disable_reg;
+		ext_clk_hz = clk_get_rate(st->mclk);
+	}
+
+	if (ext_clk_hz) {
+		st->mclk_hz = ext_clk_hz;
 		st->ctrl_lb = AD5933_CTRL_EXT_SYSCLK;
 	} else {
 		st->mclk_hz = AD5933_INT_OSC_FREQ_Hz;
@@ -747,7 +742,7 @@ static int ad5933_probe(struct i2c_client *client,
 
 	ret = ad5933_register_ring_funcs_and_init(indio_dev);
 	if (ret)
-		goto error_disable_reg;
+		goto error_disable_mclk;
 
 	ret = ad5933_setup(st);
 	if (ret)
@@ -761,6 +756,8 @@ static int ad5933_probe(struct i2c_client *client,
 
 error_unreg_ring:
 	iio_kfifo_free(indio_dev->buffer);
+error_disable_mclk:
+	clk_disable_unprepare(st->mclk);
 error_disable_reg:
 	regulator_disable(st->reg);
 
@@ -775,6 +772,7 @@ static int ad5933_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	iio_kfifo_free(indio_dev->buffer);
 	regulator_disable(st->reg);
+	clk_disable_unprepare(st->mclk);
 
 	return 0;
 }
@@ -787,9 +785,18 @@ static const struct i2c_device_id ad5933_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, ad5933_id);
 
+static const struct of_device_id ad5933_of_match[] = {
+	{ .compatible = "adi,ad5933" },
+	{ .compatible = "adi,ad5934" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, ad5933_of_match);
+
 static struct i2c_driver ad5933_driver = {
 	.driver = {
 		.name = "ad5933",
+		.of_match_table = ad5933_of_match,
 	},
 	.probe = ad5933_probe,
 	.remove = ad5933_remove,

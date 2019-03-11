@@ -81,10 +81,10 @@
  */
 static inline struct sock *icmpv6_sk(struct net *net)
 {
-	return net->ipv6.icmp_sk[smp_processor_id()];
+	return *this_cpu_ptr(net->ipv6.icmp_sk);
 }
 
-static void icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+static int icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		       u8 type, u8 code, int offset, __be32 info)
 {
 	/* icmpv6_notify checks 8 bytes can be pulled, icmp6hdr is 8 bytes */
@@ -100,6 +100,8 @@ static void icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!(type & ICMPV6_INFOMSG_MASK))
 		if (icmp6->icmp6_type == ICMPV6_ECHO_REQUEST)
 			ping_err(skb, offset, ntohl(info));
+
+	return 0;
 }
 
 static int icmpv6_rcv(struct sk_buff *skb);
@@ -421,10 +423,10 @@ static int icmp6_iif(const struct sk_buff *skb)
 static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		       const struct in6_addr *force_saddr)
 {
-	struct net *net = dev_net(skb->dev);
 	struct inet6_dev *idev = NULL;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct sock *sk;
+	struct net *net;
 	struct ipv6_pinfo *np;
 	const struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
@@ -435,12 +437,16 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	int iif = 0;
 	int addr_type = 0;
 	int len;
-	u32 mark = IP6_REPLY_MARK(net, skb->mark);
+	u32 mark;
 
 	if ((u8 *)hdr < skb->head ||
 	    (skb_network_header(skb) + sizeof(*hdr)) > skb_tail_pointer(skb))
 		return;
 
+	if (!skb->dev)
+		return;
+	net = dev_net(skb->dev);
+	mark = IP6_REPLY_MARK(net, skb->mark);
 	/*
 	 *	Make sure we respect the rules
 	 *	i.e. RFC 1885 2.4(e)
@@ -947,13 +953,21 @@ void icmpv6_flow_init(struct sock *sk, struct flowi6 *fl6,
 	security_sk_classify_flow(sk, flowi6_to_flowi(fl6));
 }
 
+static void __net_exit icmpv6_sk_exit(struct net *net)
+{
+	int i;
+
+	for_each_possible_cpu(i)
+		inet_ctl_sock_destroy(*per_cpu_ptr(net->ipv6.icmp_sk, i));
+	free_percpu(net->ipv6.icmp_sk);
+}
+
 static int __net_init icmpv6_sk_init(struct net *net)
 {
 	struct sock *sk;
-	int err, i, j;
+	int err, i;
 
-	net->ipv6.icmp_sk =
-		kcalloc(nr_cpu_ids, sizeof(struct sock *), GFP_KERNEL);
+	net->ipv6.icmp_sk = alloc_percpu(struct sock *);
 	if (!net->ipv6.icmp_sk)
 		return -ENOMEM;
 
@@ -966,7 +980,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 			goto fail;
 		}
 
-		net->ipv6.icmp_sk[i] = sk;
+		*per_cpu_ptr(net->ipv6.icmp_sk, i) = sk;
 
 		/* Enough space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.
@@ -976,20 +990,8 @@ static int __net_init icmpv6_sk_init(struct net *net)
 	return 0;
 
  fail:
-	for (j = 0; j < i; j++)
-		inet_ctl_sock_destroy(net->ipv6.icmp_sk[j]);
-	kfree(net->ipv6.icmp_sk);
+	icmpv6_sk_exit(net);
 	return err;
-}
-
-static void __net_exit icmpv6_sk_exit(struct net *net)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		inet_ctl_sock_destroy(net->ipv6.icmp_sk[i]);
-	}
-	kfree(net->ipv6.icmp_sk);
 }
 
 static struct pernet_operations icmpv6_sk_ops = {

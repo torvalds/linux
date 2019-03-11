@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/err.h>
-#include <linux/i2c.h>
 #include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
@@ -22,12 +21,7 @@
 
 struct pm8607_regulator_info {
 	struct regulator_desc	desc;
-	struct pm860x_chip	*chip;
-	struct regulator_dev	*regulator;
-	struct i2c_client	*i2c;
-	struct i2c_client	*i2c_8606;
 
-	unsigned int	*vol_table;
 	unsigned int	*vol_suspend;
 
 	int	slope_double;
@@ -210,13 +204,15 @@ static const unsigned int LDO14_suspend_table[] = {
 static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret = -EINVAL;
+	int ret;
 
-	if (info->vol_table && (index < rdev->desc->n_voltages)) {
-		ret = info->vol_table[index];
-		if (info->slope_double)
-			ret <<= 1;
-	}
+	ret = regulator_list_voltage_table(rdev, index);
+	if (ret < 0)
+		return ret;
+
+	if (info->slope_double)
+		ret <<= 1;
+
 	return ret;
 }
 
@@ -257,6 +253,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_##vreg,				\
 		.owner	= THIS_MODULE,					\
+		.volt_table = vreg##_table,				\
 		.n_voltages = ARRAY_SIZE(vreg##_table),			\
 		.vsel_reg = PM8607_##vreg,				\
 		.vsel_mask = ARRAY_SIZE(vreg##_table) - 1,		\
@@ -266,7 +263,6 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.enable_mask = 1 << (ebit),				\
 	},								\
 	.slope_double	= (0),						\
-	.vol_table	= (unsigned int *)&vreg##_table,		\
 	.vol_suspend	= (unsigned int *)&vreg##_suspend_table,	\
 }
 
@@ -278,6 +274,7 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= PM8607_ID_LDO##_id,				\
 		.owner	= THIS_MODULE,					\
+		.volt_table = LDO##_id##_table,				\
 		.n_voltages = ARRAY_SIZE(LDO##_id##_table),		\
 		.vsel_reg = PM8607_##vreg,				\
 		.vsel_mask = (ARRAY_SIZE(LDO##_id##_table) - 1) << (shift), \
@@ -285,7 +282,6 @@ static const struct regulator_ops pm8606_preg_ops = {
 		.enable_mask = 1 << (ebit),				\
 	},								\
 	.slope_double	= (0),						\
-	.vol_table	= (unsigned int *)&LDO##_id##_table,		\
 	.vol_suspend	= (unsigned int *)&LDO##_id##_suspend_table,	\
 }
 
@@ -328,7 +324,7 @@ static int pm8607_regulator_dt_init(struct platform_device *pdev,
 		return -ENODEV;
 	}
 	for_each_child_of_node(nproot, np) {
-		if (!of_node_cmp(np->name, info->desc.name)) {
+		if (of_node_name_eq(np, info->desc.name)) {
 			config->init_data =
 				of_get_regulator_init_data(&pdev->dev, np,
 							   &info->desc);
@@ -349,6 +345,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	struct pm8607_regulator_info *info = NULL;
 	struct regulator_init_data *pdata = dev_get_platdata(&pdev->dev);
 	struct regulator_config config = { };
+	struct regulator_dev *rdev;
 	struct resource *res;
 	int i;
 
@@ -371,13 +368,9 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 		/* i is used to check regulator ID */
 		i = -1;
 	}
-	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
-	info->i2c_8606 = (chip->id == CHIP_PM8607) ? chip->companion :
-			chip->client;
-	info->chip = chip;
 
 	/* check DVC ramp slope double */
-	if ((i == PM8607_ID_BUCK3) && info->chip->buck3_double)
+	if ((i == PM8607_ID_BUCK3) && chip->buck3_double)
 		info->slope_double = 1;
 
 	config.dev = &pdev->dev;
@@ -392,12 +385,11 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	else
 		config.regmap = chip->regmap_companion;
 
-	info->regulator = devm_regulator_register(&pdev->dev, &info->desc,
-						  &config);
-	if (IS_ERR(info->regulator)) {
+	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
+	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);
-		return PTR_ERR(info->regulator);
+		return PTR_ERR(rdev);
 	}
 
 	platform_set_drvdata(pdev, info);

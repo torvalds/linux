@@ -49,7 +49,7 @@ static enum fscache_checkaux afs_vnode_cache_check_aux(void *cookie_netfs_data,
 	struct afs_vnode *vnode = cookie_netfs_data;
 	struct afs_vnode_cache_aux aux;
 
-	_enter("{%x,%x,%llx},%p,%u",
+	_enter("{%llx,%x,%llx},%p,%u",
 	       vnode->fid.vnode, vnode->fid.unique, vnode->status.data_version,
 	       buffer, buflen);
 

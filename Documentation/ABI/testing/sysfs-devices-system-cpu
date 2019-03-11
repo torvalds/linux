@@ -145,6 +145,8 @@ What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/name
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/power
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/time
 		/sys/devices/system/cpu/cpuX/cpuidle/stateN/usage
+		/sys/devices/system/cpu/cpuX/cpuidle/stateN/above
+		/sys/devices/system/cpu/cpuX/cpuidle/stateN/below
 Date:		September 2007
 KernelVersion:	v2.6.24
 Contact:	Linux power management list <linux-pm@vger.kernel.org>
@@ -166,6 +168,11 @@ Description:
 
 		usage: (RO) Number of times this state was entered (a count).
 
+		above: (RO) Number of times this state was entered, but the
+		       observed CPU idle duration was too short for it (a count).
+
+		below: (RO) Number of times this state was entered, but the
+		       observed CPU idle duration was too long for it (a count).
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/desc
 Date:		February 2008

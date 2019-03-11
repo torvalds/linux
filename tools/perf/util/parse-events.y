@@ -311,7 +311,7 @@ value_sym '/' event_config '/'
 	$$ = list;
 }
 |
-value_sym sep_slash_dc
+value_sym sep_slash_slash_dc
 {
 	struct list_head *list;
 	int type = $1 >> 16;
@@ -702,7 +702,7 @@ PE_VALUE PE_ARRAY_RANGE PE_VALUE
 
 sep_dc: ':' |
 
-sep_slash_dc: '/' | ':' |
+sep_slash_slash_dc: '/' '/' | ':' |
 
 %%
 

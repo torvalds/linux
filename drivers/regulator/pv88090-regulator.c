@@ -42,10 +42,6 @@ enum {
 
 struct pv88090_regulator {
 	struct regulator_desc desc;
-	/* Current limiting */
-	unsigned int n_current_limits;
-	const int	*current_limits;
-	unsigned int limit_mask;
 	unsigned int conf;
 	unsigned int conf2;
 };
@@ -71,14 +67,14 @@ static const struct regmap_config pv88090_regmap_config = {
  *  Entry indexes corresponds to register values.
  */
 
-static const int pv88090_buck1_limits[] = {
+static const unsigned int pv88090_buck1_limits[] = {
 	 220000,  440000,  660000,  880000, 1100000, 1320000, 1540000, 1760000,
 	1980000, 2200000, 2420000, 2640000, 2860000, 3080000, 3300000, 3520000,
 	3740000, 3960000, 4180000, 4400000, 4620000, 4840000, 5060000, 5280000,
 	5500000, 5720000, 5940000, 6160000, 6380000, 6600000, 6820000, 7040000
 };
 
-static const int pv88090_buck23_limits[] = {
+static const unsigned int pv88090_buck23_limits[] = {
 	1496000, 2393000, 3291000, 4189000
 };
 
@@ -150,40 +146,6 @@ static int pv88090_buck_set_mode(struct regulator_dev *rdev,
 					PV88090_BUCK1_MODE_MASK, val);
 }
 
-static int pv88090_set_current_limit(struct regulator_dev *rdev, int min,
-				    int max)
-{
-	struct pv88090_regulator *info = rdev_get_drvdata(rdev);
-	int i;
-
-	/* search for closest to maximum */
-	for (i = info->n_current_limits; i >= 0; i--) {
-		if (min <= info->current_limits[i]
-			&& max >= info->current_limits[i]) {
-			return regmap_update_bits(rdev->regmap,
-				info->conf,
-				info->limit_mask,
-				i << PV88090_BUCK1_ILIM_SHIFT);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int pv88090_get_current_limit(struct regulator_dev *rdev)
-{
-	struct pv88090_regulator *info = rdev_get_drvdata(rdev);
-	unsigned int data;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, info->conf, &data);
-	if (ret < 0)
-		return ret;
-
-	data = (data & info->limit_mask) >> PV88090_BUCK1_ILIM_SHIFT;
-	return info->current_limits[data];
-}
-
 static const struct regulator_ops pv88090_buck_ops = {
 	.get_mode = pv88090_buck_get_mode,
 	.set_mode = pv88090_buck_set_mode,
@@ -193,8 +155,8 @@ static const struct regulator_ops pv88090_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	.set_current_limit = pv88090_set_current_limit,
-	.get_current_limit = pv88090_get_current_limit,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 };
 
 static const struct regulator_ops pv88090_ldo_ops = {
@@ -223,10 +185,11 @@ static const struct regulator_ops pv88090_ldo_ops = {
 		.enable_mask = PV88090_##regl_name##_EN, \
 		.vsel_reg = PV88090_REG_##regl_name##_CONF0, \
 		.vsel_mask = PV88090_V##regl_name##_MASK, \
+		.curr_table = limits_array, \
+		.n_current_limits = ARRAY_SIZE(limits_array), \
+		.csel_reg = PV88090_REG_##regl_name##_CONF1, \
+		.csel_mask = PV88090_##regl_name##_ILIM_MASK, \
 	},\
-	.current_limits = limits_array, \
-	.n_current_limits = ARRAY_SIZE(limits_array), \
-	.limit_mask = PV88090_##regl_name##_ILIM_MASK, \
 	.conf = PV88090_REG_##regl_name##_CONF1, \
 	.conf2 = PV88090_REG_##regl_name##_CONF2, \
 }

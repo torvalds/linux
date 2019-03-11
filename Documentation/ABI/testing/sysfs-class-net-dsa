@@ -1,4 +1,4 @@
-What:		/sys/class/net/<iface>/tagging
+What:		/sys/class/net/<iface>/dsa/tagging
 Date:		August 2018
 KernelVersion:	4.20
 Contact:	netdev@vger.kernel.org

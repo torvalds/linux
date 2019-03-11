@@ -908,9 +908,9 @@ static void __init htab_initialize(void)
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	if (debug_pagealloc_enabled()) {
 		linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
-		linear_map_hash_slots = __va(memblock_alloc_base(
-				linear_map_hash_count, 1, ppc64_rma_size));
-		memset(linear_map_hash_slots, 0, linear_map_hash_count);
+		linear_map_hash_slots = memblock_alloc_try_nid(
+				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
+				ppc64_rma_size,	NUMA_NO_NODE);
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
@@ -1889,12 +1889,12 @@ static int hpt_order_set(void *data, u64 val)
 	return mmu_hash_ops.resize_hpt(val);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
 
 static int __init hash64_debugfs(void)
 {
-	if (!debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root,
-				 NULL, &fops_hpt_order)) {
+	if (!debugfs_create_file_unsafe("hpt_order", 0600, powerpc_debugfs_root,
+					NULL, &fops_hpt_order)) {
 		pr_err("lpar: unable to create hpt_order debugsfs file\n");
 	}
 

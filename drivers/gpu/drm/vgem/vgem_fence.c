@@ -53,13 +53,13 @@ static void vgem_fence_release(struct dma_fence *base)
 
 static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%u", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqno);
 }
 
 static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
-	snprintf(str, size, "%u",
+	snprintf(str, size, "%llu",
 		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
 }
 
@@ -180,7 +180,7 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 	reservation_object_lock(resv, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
 		reservation_object_add_excl_fence(resv, fence);
-	else if ((ret = reservation_object_reserve_shared(resv)) == 0)
+	else if ((ret = reservation_object_reserve_shared(resv, 1)) == 0)
 		reservation_object_add_shared_fence(resv, fence);
 	reservation_object_unlock(resv);
 

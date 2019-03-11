@@ -10,11 +10,13 @@ config IA64
 	bool
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select PCI if (!IA64_HP_SIM)
 	select ACPI if (!IA64_HP_SIM)
 	select ARCH_SUPPORTS_ACPI if (!IA64_HP_SIM)
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT if ACPI
 	select ARCH_MIGHT_HAVE_ACPI_PDC if ACPI
+	select FORCE_PCI if (!IA64_HP_SIM)
+	select PCI_DOMAINS if PCI
+	select PCI_SYSCALL if PCI
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_EXIT_THREAD
 	select HAVE_IDE
@@ -26,12 +28,10 @@ config IA64
 	select HAVE_FUNCTION_TRACER
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
-	select NO_BOOTMEM
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select ARCH_HAS_DMA_MARK_CLEAN
-	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_DMA_COHERENT_TO_PFN if SWIOTLB
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
 	select VIRT_TO_BUS
 	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_IRQ_PROBE
@@ -263,7 +263,7 @@ config HZ
 endif
 
 if !IA64_HP_SIM
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 endif
 
 config IA64_BRL_EMU
@@ -541,30 +541,6 @@ endmenu
 endif
 
 endmenu
-
-if !IA64_HP_SIM
-
-menu "Bus options (PCI, PCMCIA)"
-
-config PCI
-	bool "PCI support"
-	help
-	  Real IA-64 machines all have PCI/PCI-X/PCI Express busses.  Say Y
-	  here unless you are using a simulator without PCI support.
-
-config PCI_DOMAINS
-	def_bool PCI
-
-config PCI_SYSCALL
-	def_bool PCI
-
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
-
-endmenu
-
-endif
 
 source "arch/ia64/hp/sim/Kconfig"
 

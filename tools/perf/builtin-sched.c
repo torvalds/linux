@@ -213,7 +213,7 @@ struct perf_sched {
 	u64		 all_runtime;
 	u64		 all_count;
 	u64		 cpu_last_switched[MAX_CPUS];
-	struct rb_root	 atom_root, sorted_atom_root, merged_atom_root;
+	struct rb_root_cached atom_root, sorted_atom_root, merged_atom_root;
 	struct list_head sort_list, cmp_pid;
 	bool force;
 	bool skip_merge;
@@ -271,7 +271,7 @@ struct evsel_runtime {
 struct idle_thread_runtime {
 	struct thread_runtime	tr;
 	struct thread		*last_thread;
-	struct rb_root		sorted_root;
+	struct rb_root_cached	sorted_root;
 	struct callchain_root	callchain;
 	struct callchain_cursor	cursor;
 };
@@ -950,10 +950,10 @@ thread_lat_cmp(struct list_head *list, struct work_atoms *l, struct work_atoms *
 }
 
 static struct work_atoms *
-thread_atoms_search(struct rb_root *root, struct thread *thread,
+thread_atoms_search(struct rb_root_cached *root, struct thread *thread,
 			 struct list_head *sort_list)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_node *node = root->rb_root.rb_node;
 	struct work_atoms key = { .thread = thread };
 
 	while (node) {
@@ -976,10 +976,11 @@ thread_atoms_search(struct rb_root *root, struct thread *thread,
 }
 
 static void
-__thread_latency_insert(struct rb_root *root, struct work_atoms *data,
+__thread_latency_insert(struct rb_root_cached *root, struct work_atoms *data,
 			 struct list_head *sort_list)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_node **new = &(root->rb_root.rb_node), *parent = NULL;
+	bool leftmost = true;
 
 	while (*new) {
 		struct work_atoms *this;
@@ -992,12 +993,14 @@ __thread_latency_insert(struct rb_root *root, struct work_atoms *data,
 
 		if (cmp > 0)
 			new = &((*new)->rb_left);
-		else
+		else {
 			new = &((*new)->rb_right);
+			leftmost = false;
+		}
 	}
 
 	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_insert_color_cached(&data->node, root, leftmost);
 }
 
 static int thread_atoms_insert(struct perf_sched *sched, struct thread *thread)
@@ -1447,15 +1450,15 @@ static int sort_dimension__add(const char *tok, struct list_head *list)
 static void perf_sched__sort_lat(struct perf_sched *sched)
 {
 	struct rb_node *node;
-	struct rb_root *root = &sched->atom_root;
+	struct rb_root_cached *root = &sched->atom_root;
 again:
 	for (;;) {
 		struct work_atoms *data;
-		node = rb_first(root);
+		node = rb_first_cached(root);
 		if (!node)
 			break;
 
-		rb_erase(node, root);
+		rb_erase_cached(node, root);
 		data = rb_entry(node, struct work_atoms, node);
 		__thread_latency_insert(&sched->sorted_atom_root, data, &sched->sort_list);
 	}
@@ -1782,11 +1785,9 @@ static int perf_sched__read_events(struct perf_sched *sched)
 	};
 	struct perf_session *session;
 	struct perf_data data = {
-		.file      = {
-			.path = input_name,
-		},
-		.mode      = PERF_DATA_MODE_READ,
-		.force     = sched->force,
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 	int rc = -1;
 
@@ -2762,12 +2763,12 @@ static size_t callchain__fprintf_folded(FILE *fp, struct callchain_node *node)
 	return ret;
 }
 
-static size_t timehist_print_idlehist_callchain(struct rb_root *root)
+static size_t timehist_print_idlehist_callchain(struct rb_root_cached *root)
 {
 	size_t ret = 0;
 	FILE *fp = stdout;
 	struct callchain_node *chain;
-	struct rb_node *rb_node = rb_first(root);
+	struct rb_node *rb_node = rb_first_cached(root);
 
 	printf("  %16s  %8s  %s\n", "Idle time (msec)", "Count", "Callchains");
 	printf("  %.16s  %.8s  %.50s\n", graph_dotted_line, graph_dotted_line,
@@ -2868,7 +2869,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 			if (itr == NULL)
 				continue;
 
-			callchain_param.sort(&itr->sorted_root, &itr->callchain,
+			callchain_param.sort(&itr->sorted_root.rb_root, &itr->callchain,
 					     0, &callchain_param);
 
 			printf("  CPU %2d:", i);
@@ -2955,11 +2956,9 @@ static int perf_sched__timehist(struct perf_sched *sched)
 		{ "sched:sched_migrate_task", timehist_migrate_task_event, },
 	};
 	struct perf_data data = {
-		.file      = {
-			.path = input_name,
-		},
-		.mode      = PERF_DATA_MODE_READ,
-		.force     = sched->force,
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 
 	struct perf_session *session;
@@ -3074,11 +3073,12 @@ static void print_bad_events(struct perf_sched *sched)
 	}
 }
 
-static void __merge_work_atoms(struct rb_root *root, struct work_atoms *data)
+static void __merge_work_atoms(struct rb_root_cached *root, struct work_atoms *data)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_node **new = &(root->rb_root.rb_node), *parent = NULL;
 	struct work_atoms *this;
 	const char *comm = thread__comm_str(data->thread), *this_comm;
+	bool leftmost = true;
 
 	while (*new) {
 		int cmp;
@@ -3092,6 +3092,7 @@ static void __merge_work_atoms(struct rb_root *root, struct work_atoms *data)
 			new = &((*new)->rb_left);
 		} else if (cmp < 0) {
 			new = &((*new)->rb_right);
+			leftmost = false;
 		} else {
 			this->num_merged++;
 			this->total_runtime += data->total_runtime;
@@ -3109,7 +3110,7 @@ static void __merge_work_atoms(struct rb_root *root, struct work_atoms *data)
 
 	data->num_merged++;
 	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_insert_color_cached(&data->node, root, leftmost);
 }
 
 static void perf_sched__merge_lat(struct perf_sched *sched)
@@ -3120,8 +3121,8 @@ static void perf_sched__merge_lat(struct perf_sched *sched)
 	if (sched->skip_merge)
 		return;
 
-	while ((node = rb_first(&sched->atom_root))) {
-		rb_erase(node, &sched->atom_root);
+	while ((node = rb_first_cached(&sched->atom_root))) {
+		rb_erase_cached(node, &sched->atom_root);
 		data = rb_entry(node, struct work_atoms, node);
 		__merge_work_atoms(&sched->merged_atom_root, data);
 	}
@@ -3143,7 +3144,7 @@ static int perf_sched__lat(struct perf_sched *sched)
 	printf("  Task                  |   Runtime ms  | Switches | Average delay ms | Maximum delay ms | Maximum delay at       |\n");
 	printf(" -----------------------------------------------------------------------------------------------------------------\n");
 
-	next = rb_first(&sched->sorted_atom_root);
+	next = rb_first_cached(&sched->sorted_atom_root);
 
 	while (next) {
 		struct work_atoms *work_list;
@@ -3336,7 +3337,7 @@ static int __cmd_record(int argc, const char **argv)
 
 int cmd_sched(int argc, const char **argv)
 {
-	const char default_sort_order[] = "avg, max, switch, runtime";
+	static const char default_sort_order[] = "avg, max, switch, runtime";
 	struct perf_sched sched = {
 		.tool = {
 			.sample		 = perf_sched__process_tracepoint_sample,

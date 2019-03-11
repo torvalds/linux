@@ -46,7 +46,7 @@ ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
  * @link_speed: variable containing the link_speed to be converted
  *
  * Convert link speed supported by HW to link speed supported by virtchnl.
- * If adv_link_support is true, then return link speed in Mbps.  Else return
+ * If adv_link_support is true, then return link speed in Mbps. Else return
  * link speed as a VIRTCHNL_LINK_SPEED_* casted to a u32. Note that the caller
  * needs to cast back to an enum virtchnl_link_speed in the case where
  * adv_link_support is false, but when adv_link_support is true the caller can
@@ -85,6 +85,12 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 		case ICE_AQ_LINK_SPEED_40GB:
 			speed = ICE_LINK_SPEED_40000MBPS;
 			break;
+		case ICE_AQ_LINK_SPEED_50GB:
+			speed = ICE_LINK_SPEED_50000MBPS;
+			break;
+		case ICE_AQ_LINK_SPEED_100GB:
+			speed = ICE_LINK_SPEED_100000MBPS;
+			break;
 		default:
 			speed = ICE_LINK_SPEED_UNKNOWN;
 			break;
@@ -116,6 +122,9 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 			break;
 		case ICE_AQ_LINK_SPEED_40GB:
 			/* fall through */
+		case ICE_AQ_LINK_SPEED_50GB:
+			/* fall through */
+		case ICE_AQ_LINK_SPEED_100GB:
 			speed = (u32)VIRTCHNL_LINK_SPEED_40GB;
 			break;
 		default:

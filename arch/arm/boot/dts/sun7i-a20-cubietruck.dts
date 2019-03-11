@@ -74,8 +74,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_cubietruck>;
 
 		blue {
 			label = "cubietruck:blue:usr";
@@ -100,9 +98,9 @@
 
 	mmc3_pwrseq: mmc3_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mmc3_pwrseq_pin_cubietruck>;
 		reset-gpios = <&pio 7 9 GPIO_ACTIVE_LOW>; /* PH9 WIFI_EN */
+		clocks = <&ccu CLK_OUT_A>;
+		clock-names = "ext_clock";
 	};
 
 	sound {
@@ -151,7 +149,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
 	phy = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
@@ -172,8 +170,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -185,25 +181,20 @@
 
 &i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
@@ -211,8 +202,6 @@
 };
 
 &mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&mmc3_pwrseq>;
 	bus-width = <4>;
@@ -228,11 +217,6 @@
 	};
 };
 
-&mmc3_pins_a {
-	/* AP6210 requires pull-up */
-	bias-pull-up;
-};
-
 &ohci0 {
 	status = "okay";
 };
@@ -246,45 +230,18 @@
 };
 
 &pio {
-	ahci_pwr_pin_cubietruck: ahci_pwr_pin@1 {
-		pins = "PH12";
-		function = "gpio_out";
-	};
-
-	led_pins_cubietruck: led_pins@0 {
-		pins = "PH7", "PH11", "PH20", "PH21";
-		function = "gpio_out";
-	};
-
-	mmc3_pwrseq_pin_cubietruck: mmc3_pwrseq_pin@0 {
-		pins = "PH9";
-		function = "gpio_out";
-	};
-
-	usb0_vbus_pin_a: usb0_vbus_pin@0 {
-		pins = "PH17";
-		function = "gpio_out";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PH19";
-		function = "gpio_in";
-	};
-
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		pins = "PH22";
-		function = "gpio_in";
-	};
+	/* Pin outputs low power clock for WiFi and BT */
+	pinctrl-0 = <&clk_out_a_pin>;
+	pinctrl-names = "default";
 };
 
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins_a>, <&pwm1_pins_a>;
+	pinctrl-0 = <&pwm0_pin>, <&pwm1_pin>;
 	status = "okay";
 };
 
 &reg_ahci_5v {
-	pinctrl-0 = <&ahci_pwr_pin_cubietruck>;
 	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -325,7 +282,6 @@
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&usb0_vbus_pin_a>;
 	gpio = <&pio 7 17 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -340,14 +296,31 @@
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_tx_pins_a>;
+	pinctrl-0 = <&spdif_tx_pin>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pi_pins>, <&uart2_cts_rts_pi_pins>;
+	uart-has-rtscts;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm20702a1";
+		clocks = <&ccu CLK_OUT_A>;
+		clock-names = "lpo";
+		device-wakeup-gpios = <&pio 7 24 GPIO_ACTIVE_LOW>; /* PH24 */
+		host-wakeup-gpios = <&pio 7 25 GPIO_ACTIVE_LOW>; /* PH25 */
+		shutdown-gpios = <&pio 7 18 GPIO_ACTIVE_HIGH>; /* PH18 */
+		max-speed = <1500000>;
+	};
 };
 
 &usb_otg {
@@ -360,8 +333,6 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
 	usb0_id_det-gpios = <&pio 7 19 GPIO_ACTIVE_HIGH>; /* PH19 */
 	usb0_vbus_det-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
 	usb0_vbus_power-supply = <&usb_power_supply>;

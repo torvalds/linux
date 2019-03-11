@@ -697,7 +697,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->legacy.read_byte = mpc5121_nfc_read_byte;
 	chip->legacy.read_buf = mpc5121_nfc_read_buf;
 	chip->legacy.write_buf = mpc5121_nfc_write_buf;
-	chip->select_chip = mpc5121_nfc_select_chip;
+	chip->legacy.select_chip = mpc5121_nfc_select_chip;
 	chip->legacy.set_features = nand_get_set_features_notsupp;
 	chip->legacy.get_features = nand_get_set_features_notsupp;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
@@ -712,7 +712,7 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 			return retval;
 		}
 
-		chip->select_chip = ads5121_select_chip;
+		chip->legacy.select_chip = ads5121_select_chip;
 	}
 
 	/* Enable NFC clock */

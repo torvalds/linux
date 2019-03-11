@@ -570,6 +570,8 @@ static int cpwd_probe(struct platform_device *op)
 	if (str_prop)
 		p->timeout = simple_strtoul(str_prop, NULL, 10);
 
+	of_node_put(options);
+
 	/* CP1400s seem to have broken PLD implementations-- the
 	 * interrupt_mask register cannot be written, so no timer
 	 * interrupts can be masked within the PLD.

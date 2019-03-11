@@ -93,7 +93,7 @@ long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait
 	long ret = 0;
 
 	raw_spin_lock_irqsave(&q->lock, flags);
-	if (unlikely(signal_pending_state(state, current))) {
+	if (signal_pending_state(state, current)) {
 		/*
 		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
 		 * must not see us.

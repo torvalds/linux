@@ -745,17 +745,18 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	} else
 		ifindex = ro->ifindex;
 
-	if (ro->fd_frames) {
-		if (unlikely(size != CANFD_MTU && size != CAN_MTU))
-			return -EINVAL;
-	} else {
-		if (unlikely(size != CAN_MTU))
-			return -EINVAL;
-	}
-
 	dev = dev_get_by_index(sock_net(sk), ifindex);
 	if (!dev)
 		return -ENXIO;
+
+	err = -EINVAL;
+	if (ro->fd_frames && dev->mtu == CANFD_MTU) {
+		if (unlikely(size != CANFD_MTU && size != CAN_MTU))
+			goto put_dev;
+	} else {
+		if (unlikely(size != CAN_MTU))
+			goto put_dev;
+	}
 
 	skb = sock_alloc_send_skb(sk, size + sizeof(struct can_skb_priv),
 				  msg->msg_flags & MSG_DONTWAIT, &err);
@@ -770,7 +771,7 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	if (err < 0)
 		goto free_skb;
 
-	sock_tx_timestamp(sk, sk->sk_tsflags, &skb_shinfo(skb)->tx_flags);
+	skb_setup_tx_timestamp(skb, sk->sk_tsflags);
 
 	skb->dev = dev;
 	skb->sk  = sk;

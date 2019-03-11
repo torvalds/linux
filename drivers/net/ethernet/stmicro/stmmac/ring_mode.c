@@ -140,7 +140,7 @@ static void clean_desc3(void *priv_ptr, struct dma_desc *p)
 static int set_16kib_bfsize(int mtu)
 {
 	int ret = 0;
-	if (unlikely(mtu >= BUF_SIZE_8KiB))
+	if (unlikely(mtu > BUF_SIZE_8KiB))
 		ret = BUF_SIZE_16KiB;
 	return ret;
 }

@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/log2.h>
+#include <linux/mmc/mmc.h>
 #include <linux/mmc/pm.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -274,6 +275,7 @@ static struct variant_data variant_stm32_sdmmc = {
 	.cmdreg_lrsp_crc	= MCI_CPSM_STM32_LRSP_CRC,
 	.cmdreg_srsp_crc	= MCI_CPSM_STM32_SRSP_CRC,
 	.cmdreg_srsp		= MCI_CPSM_STM32_SRSP,
+	.cmdreg_stop		= MCI_CPSM_STM32_CMDSTOP,
 	.data_cmd_enable	= MCI_CPSM_STM32_CMDTRANS,
 	.irq_pio_mask		= MCI_IRQ_PIO_STM32_MASK,
 	.datactrl_first		= true,
@@ -1100,6 +1102,10 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 		mmci_reg_delay(host);
 	}
 
+	if (host->variant->cmdreg_stop &&
+	    cmd->opcode == MMC_STOP_TRANSMISSION)
+		c |= host->variant->cmdreg_stop;
+
 	c |= cmd->opcode | host->variant->cmdreg_cpsm_enable;
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136)
@@ -1119,6 +1125,12 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 
 	writel(cmd->arg, base + MMCIARGUMENT);
 	writel(c, base + MMCICOMMAND);
+}
+
+static void mmci_stop_command(struct mmci_host *host)
+{
+	host->stop_abort.error = 0;
+	mmci_start_command(host, &host->stop_abort, 0);
 }
 
 static void
@@ -1190,7 +1202,12 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			/* The error clause is handled above, success! */
 			data->bytes_xfered = data->blksz * data->blocks;
 
-		if (!data->stop || host->mrq->sbc) {
+		if (!data->stop) {
+			if (host->variant->cmdreg_stop && data->error)
+				mmci_stop_command(host);
+			else
+				mmci_request_end(host, data->mrq);
+		} else if (host->mrq->sbc && !data->error) {
 			mmci_request_end(host, data->mrq);
 		} else {
 			mmci_start_command(host, data->stop, 0);
@@ -1293,6 +1310,10 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			mmci_dma_error(host);
 
 			mmci_stop_data(host);
+			if (host->variant->cmdreg_stop && cmd->error) {
+				mmci_stop_command(host);
+				return;
+			}
 		}
 		mmci_request_end(host, host->mrq);
 	} else if (sbc) {
@@ -1951,6 +1972,11 @@ static int mmci_probe(struct amba_device *dev,
 		mmc->max_busy_timeout = 0;
 	}
 
+	/* Prepare a CMD12 - needed to clear the DPSM on some variants. */
+	host->stop_abort.opcode = MMC_STOP_TRANSMISSION;
+	host->stop_abort.arg = 0;
+	host->stop_abort.flags = MMC_RSP_R1B | MMC_CMD_AC;
+
 	mmc->ops = &mmci_ops;
 
 	/* We support these PM capabilities. */
@@ -2006,7 +2032,7 @@ static int mmci_probe(struct amba_device *dev,
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 		if (ret == -EPROBE_DEFER)
 			goto clk_disable;
 	}

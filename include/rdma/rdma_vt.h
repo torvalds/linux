@@ -182,7 +182,13 @@ struct rvt_driver_params {
 	u32 max_mad_size;
 	u8 qos_shift;
 	u8 max_rdma_atomic;
+	u8 extra_rdma_atomic;
 	u8 reserved_operations;
+};
+
+/* User context */
+struct rvt_ucontext {
+	struct ib_ucontext ibucontext;
 };
 
 /* Protection domain */
@@ -250,9 +256,6 @@ struct rvt_driver_provided {
 	 */
 	void (*do_send)(struct rvt_qp *qp);
 
-	/* Passed to ib core registration. Callback to create syfs files */
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
-
 	/*
 	 * Returns a pointer to the undelying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
@@ -267,6 +270,13 @@ struct rvt_driver_provided {
 	 * pointer.
 	 */
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+
+	/*
+	 * Init a struture allocated with qp_priv_alloc(). This should be
+	 * called after all qp fields have been initialized in rdmavt.
+	 */
+	int (*qp_priv_init)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			    struct ib_qp_init_attr *init_attr);
 
 	/*
 	 * Free the driver's private qp structure.
@@ -515,7 +525,14 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
  */
 static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
 {
-	return rdi->dparms.max_rdma_atomic + 1;
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic + 1;
+}
+
+static inline unsigned int rvt_size_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic;
 }
 
 /*
@@ -562,9 +579,10 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 /**
  * rvt_mod_retry_timer - mod a retry timer
  * @qp - the QP
+ * @shift - timeout shift to wait for multiple packets
  * Modify a potentially already running retry timer
  */
-static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+static inline void rvt_mod_retry_timer_ext(struct rvt_qp *qp, u8 shift)
 {
 	struct ib_qp *ibqp = &qp->ibqp;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -572,8 +590,13 @@ static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_TIMER;
 	/* 4.096 usec. * (1 << qp->timeout) */
-	mod_timer(&qp->s_timer, jiffies + qp->timeout_jiffies +
-		  rdi->busy_jiffies);
+	mod_timer(&qp->s_timer, jiffies + rdi->busy_jiffies +
+		  (qp->timeout_jiffies << shift));
+}
+
+static inline void rvt_mod_retry_timer(struct rvt_qp *qp)
+{
+	return rvt_mod_retry_timer_ext(qp, 0);
 }
 
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);

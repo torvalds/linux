@@ -63,6 +63,11 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+	void (*hubp_setup_interdependent)(
+			struct hubp *hubp,
+			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
+			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
+
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			bool independent_64b_blks);
 	void (*mem_program_viewport)(
@@ -73,7 +78,8 @@ struct hubp_funcs {
 	bool (*hubp_program_surface_flip_and_addr)(
 		struct hubp *hubp,
 		const struct dc_plane_address *address,
-		bool flip_immediate);
+		bool flip_immediate,
+		uint8_t vmid);
 
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,
@@ -121,6 +127,7 @@ struct hubp_funcs {
 	void (*hubp_clk_cntl)(struct hubp *hubp, bool enable);
 	void (*hubp_vtg_sel)(struct hubp *hubp, uint32_t otg_inst);
 	void (*hubp_read_state)(struct hubp *hubp);
+	void (*hubp_clear_underflow)(struct hubp *hubp);
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
 

@@ -59,7 +59,7 @@ static int usbhs_rcar3_power_ctrl(struct platform_device *pdev,
 	if (enable) {
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, LPSTS_SUSPM);
 		/* The controller on R-Car Gen3 needs to wait up to 45 usec */
-		udelay(45);
+		usleep_range(45, 90);
 	} else {
 		usbhs_bset(priv, LPSTS, LPSTS_SUSPM, 0);
 	}

@@ -24,11 +24,6 @@
 				bank-width = <4>;
 			};
 
-			v2m_video_ram: vram@2,00000000 {
-				compatible = "arm,vexpress-vram";
-				reg = <2 0x00000000 0x00800000>;
-			};
-
 			ethernet@2,02000000 {
 				compatible = "smsc,lan91c111";
 				reg = <2 0x02000000 0x10000>;
@@ -91,7 +86,7 @@
 				mmci@50000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x050000 0x1000>;
-					interrupts = <9 10>;
+					interrupts = <9>, <10>;
 					cd-gpios = <&v2m_sysreg 0 0>;
 					wp-gpios = <&v2m_sysreg 1 0>;
 					max-frequency = <12000000>;
@@ -172,6 +167,12 @@
 					clock-names = "timclken1", "timclken2", "apb_pclk";
 				};
 
+				virtio-block@130000 {
+					compatible = "virtio,mmio";
+					reg = <0x130000 0x200>;
+					interrupts = <42>;
+				};
+
 				rtc@170000 {
 					compatible = "arm,pl031", "arm,primecell";
 					reg = <0x170000 0x1000>;
@@ -187,44 +188,16 @@
 					interrupts = <14>;
 					clocks = <&v2m_oscclk1>, <&v2m_clk24mhz>;
 					clock-names = "clcdclk", "apb_pclk";
-					arm,pl11x,framebuffer = <0x18000000 0x00180000>;
-					memory-region = <&v2m_video_ram>;
-					max-memory-bandwidth = <130000000>; /* 16bpp @ 63.5MHz */
+					/* 800x600 16bpp @36MHz works fine */
+					max-memory-bandwidth = <54000000>;
+					memory-region = <&vram>;
 
 					port {
-						v2m_clcd_pads: endpoint {
-							remote-endpoint = <&v2m_clcd_panel>;
+						clcd_pads: endpoint {
+							remote-endpoint = <&panel_in>;
 							arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
 						};
 					};
-
-					panel {
-						compatible = "panel-dpi";
-
-						port {
-							v2m_clcd_panel: endpoint {
-								remote-endpoint = <&v2m_clcd_pads>;
-							};
-						};
-
-						panel-timing {
-							clock-frequency = <63500127>;
-							hactive = <1024>;
-							hback-porch = <152>;
-							hfront-porch = <48>;
-							hsync-len = <104>;
-							vactive = <768>;
-							vback-porch = <23>;
-							vfront-porch = <3>;
-							vsync-len = <4>;
-						};
-					};
-				};
-
-				virtio-block@130000 {
-					compatible = "virtio,mmio";
-					reg = <0x130000 0x200>;
-					interrupts = <42>;
 				};
 			};
 

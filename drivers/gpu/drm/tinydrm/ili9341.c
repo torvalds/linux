@@ -15,7 +15,8 @@
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/tinydrm/mipi-dbi.h>
@@ -131,7 +132,7 @@ out_enable:
 static const struct drm_simple_display_pipe_funcs ili9341_pipe_funcs = {
 	.enable = yx240qv29_enable,
 	.disable = mipi_dbi_pipe_disable,
-	.update = tinydrm_display_pipe_update,
+	.update = mipi_dbi_pipe_update,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
@@ -144,7 +145,7 @@ DEFINE_DRM_GEM_CMA_FOPS(ili9341_fops);
 static struct drm_driver ili9341_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_ATOMIC,
 	.fops			= &ili9341_fops,
-	TINYDRM_GEM_DRIVER_OPS,
+	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9341",
 	.desc			= "Ilitek ILI9341",

@@ -8,7 +8,7 @@
  * option) any later version.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/bootinfo.h>
 #include <asm/traps.h>
 #include <asm/smp-ops.h>

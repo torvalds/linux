@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>

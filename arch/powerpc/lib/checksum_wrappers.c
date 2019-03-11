@@ -37,7 +37,7 @@ __wsum csum_and_copy_from_user(const void __user *src, void *dst,
 		goto out;
 	}
 
-	if (unlikely((len < 0) || !access_ok(VERIFY_READ, src, len))) {
+	if (unlikely((len < 0) || !access_ok(src, len))) {
 		*err_ptr = -EFAULT;
 		csum = (__force unsigned int)sum;
 		goto out;
@@ -78,7 +78,7 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
 		goto out;
 	}
 
-	if (unlikely((len < 0) || !access_ok(VERIFY_WRITE, dst, len))) {
+	if (unlikely((len < 0) || !access_ok(dst, len))) {
 		*err_ptr = -EFAULT;
 		csum = -1; /* invalid checksum */
 		goto out;

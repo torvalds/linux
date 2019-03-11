@@ -25,8 +25,8 @@
 #include <linux/reboot.h>
 #include <linux/sysfs.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
+unsigned int bch_cutoff_writeback;
+unsigned int bch_cutoff_writeback_sync;
 
 static const char bcache_magic[] = {
 	0xc6, 0x85, 0x73, 0xf6, 0x4e, 0x1a, 0x45, 0xca,
@@ -1510,8 +1510,7 @@ static void cache_set_free(struct closure *cl)
 	struct cache *ca;
 	unsigned int i;
 
-	if (!IS_ERR_OR_NULL(c->debug))
-		debugfs_remove(c->debug);
+	debugfs_remove(c->debug);
 
 	bch_open_buckets_free(c);
 	bch_btree_cache_free(c);
@@ -1616,21 +1615,21 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 		 */
 		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is dirty, stop it to avoid potential data corruption.",
 			d->disk->disk_name);
-			/*
-			 * There might be a small time gap that cache set is
-			 * released but bcache device is not. Inside this time
-			 * gap, regular I/O requests will directly go into
-			 * backing device as no cache set attached to. This
-			 * behavior may also introduce potential inconsistence
-			 * data in writeback mode while cache is dirty.
-			 * Therefore before calling bcache_device_stop() due
-			 * to a broken cache device, dc->io_disable should be
-			 * explicitly set to true.
-			 */
-			dc->io_disable = true;
-			/* make others know io_disable is true earlier */
-			smp_mb();
-			bcache_device_stop(d);
+		/*
+		 * There might be a small time gap that cache set is
+		 * released but bcache device is not. Inside this time
+		 * gap, regular I/O requests will directly go into
+		 * backing device as no cache set attached to. This
+		 * behavior may also introduce potential inconsistence
+		 * data in writeback mode while cache is dirty.
+		 * Therefore before calling bcache_device_stop() due
+		 * to a broken cache device, dc->io_disable should be
+		 * explicitly set to true.
+		 */
+		dc->io_disable = true;
+		/* make others know io_disable is true earlier */
+		smp_mb();
+		bcache_device_stop(d);
 	} else {
 		/*
 		 * dc->stop_when_cache_set_failed == BCH_CACHED_STOP_AUTO
@@ -2424,6 +2423,32 @@ static void bcache_exit(void)
 	mutex_destroy(&bch_register_lock);
 }
 
+/* Check and fixup module parameters */
+static void check_module_parameters(void)
+{
+	if (bch_cutoff_writeback_sync == 0)
+		bch_cutoff_writeback_sync = CUTOFF_WRITEBACK_SYNC;
+	else if (bch_cutoff_writeback_sync > CUTOFF_WRITEBACK_SYNC_MAX) {
+		pr_warn("set bch_cutoff_writeback_sync (%u) to max value %u",
+			bch_cutoff_writeback_sync, CUTOFF_WRITEBACK_SYNC_MAX);
+		bch_cutoff_writeback_sync = CUTOFF_WRITEBACK_SYNC_MAX;
+	}
+
+	if (bch_cutoff_writeback == 0)
+		bch_cutoff_writeback = CUTOFF_WRITEBACK;
+	else if (bch_cutoff_writeback > CUTOFF_WRITEBACK_MAX) {
+		pr_warn("set bch_cutoff_writeback (%u) to max value %u",
+			bch_cutoff_writeback, CUTOFF_WRITEBACK_MAX);
+		bch_cutoff_writeback = CUTOFF_WRITEBACK_MAX;
+	}
+
+	if (bch_cutoff_writeback > bch_cutoff_writeback_sync) {
+		pr_warn("set bch_cutoff_writeback (%u) to %u",
+			bch_cutoff_writeback, bch_cutoff_writeback_sync);
+		bch_cutoff_writeback = bch_cutoff_writeback_sync;
+	}
+}
+
 static int __init bcache_init(void)
 {
 	static const struct attribute *files[] = {
@@ -2431,6 +2456,8 @@ static int __init bcache_init(void)
 		&ksysfs_register_quiet.attr,
 		NULL
 	};
+
+	check_module_parameters();
 
 	mutex_init(&bch_register_lock);
 	init_waitqueue_head(&unregister_wait);
@@ -2468,5 +2495,18 @@ err:
 	return -ENOMEM;
 }
 
+/*
+ * Module hooks
+ */
 module_exit(bcache_exit);
 module_init(bcache_init);
+
+module_param(bch_cutoff_writeback, uint, 0);
+MODULE_PARM_DESC(bch_cutoff_writeback, "threshold to cutoff writeback");
+
+module_param(bch_cutoff_writeback_sync, uint, 0);
+MODULE_PARM_DESC(bch_cutoff_writeback_sync, "hard threshold to cutoff writeback");
+
+MODULE_DESCRIPTION("Bcache: a Linux block layer cache");
+MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
+MODULE_LICENSE("GPL");

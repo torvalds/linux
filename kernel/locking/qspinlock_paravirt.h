@@ -4,7 +4,7 @@
 #endif
 
 #include <linux/hash.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/debug_locks.h>
 
 /*

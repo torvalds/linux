@@ -268,10 +268,46 @@ static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+/**
+ * clk_divider_save_context - Save the divider value
+ * @hw: pointer  struct clk_hw
+ *
+ * Save the divider value
+ */
+static int clk_divider_save_context(struct clk_hw *hw)
+{
+	struct clk_omap_divider *divider = to_clk_omap_divider(hw);
+	u32 val;
+
+	val = ti_clk_ll_ops->clk_readl(&divider->reg) >> divider->shift;
+	divider->context = val & div_mask(divider);
+
+	return 0;
+}
+
+/**
+ * clk_divider_restore_context - restore the saved the divider value
+ * @hw: pointer  struct clk_hw
+ *
+ * Restore the saved the divider value
+ */
+static void clk_divider_restore_context(struct clk_hw *hw)
+{
+	struct clk_omap_divider *divider = to_clk_omap_divider(hw);
+	u32 val;
+
+	val = ti_clk_ll_ops->clk_readl(&divider->reg);
+	val &= ~(div_mask(divider) << divider->shift);
+	val |= divider->context << divider->shift;
+	ti_clk_ll_ops->clk_writel(val, &divider->reg);
+}
+
 const struct clk_ops ti_clk_divider_ops = {
 	.recalc_rate = ti_clk_divider_recalc_rate,
 	.round_rate = ti_clk_divider_round_rate,
 	.set_rate = ti_clk_divider_set_rate,
+	.save_context = clk_divider_save_context,
+	.restore_context = clk_divider_restore_context,
 };
 
 static struct clk *_register_divider(struct device *dev, const char *name,
@@ -367,8 +403,10 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 	num_dividers = i;
 
 	tmp = kcalloc(valid_div + 1, sizeof(*tmp), GFP_KERNEL);
-	if (!tmp)
+	if (!tmp) {
+		*table = ERR_PTR(-ENOMEM);
 		return -ENOMEM;
+	}
 
 	valid_div = 0;
 	*width = 0;
@@ -403,6 +441,7 @@ struct clk_hw *ti_clk_build_component_div(struct ti_clk_divider *setup)
 {
 	struct clk_omap_divider *div;
 	struct clk_omap_reg *reg;
+	int ret;
 
 	if (!setup)
 		return NULL;
@@ -422,6 +461,12 @@ struct clk_hw *ti_clk_build_component_div(struct ti_clk_divider *setup)
 		div->flags |= CLK_DIVIDER_POWER_OF_TWO;
 
 	div->table = _get_div_table_from_setup(setup, &div->width);
+	if (IS_ERR(div->table)) {
+		ret = PTR_ERR(div->table);
+		kfree(div);
+		return ERR_PTR(ret);
+	}
+
 
 	div->shift = setup->bit_shift;
 	div->latch = -EINVAL;
@@ -492,7 +537,7 @@ __init ti_clk_get_div_table(struct device_node *node)
 	}
 
 	if (!valid_div) {
-		pr_err("no valid dividers for %s table\n", node->name);
+		pr_err("no valid dividers for %pOFn table\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -530,7 +575,7 @@ static int _get_divider_width(struct device_node *node,
 			min_div = 1;
 
 		if (of_property_read_u32(node, "ti,max-div", &max_div)) {
-			pr_err("no max-div for %s!\n", node->name);
+			pr_err("no max-div for %pOFn!\n", node);
 			return -EINVAL;
 		}
 

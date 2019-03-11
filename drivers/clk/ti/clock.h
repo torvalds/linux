@@ -24,6 +24,7 @@ struct clk_omap_divider {
 	u8			flags;
 	s8			latch;
 	const struct clk_div_table	*table;
+	u32		context;
 };
 
 #define to_clk_omap_divider(_hw) container_of(_hw, struct clk_omap_divider, hw)
@@ -36,6 +37,7 @@ struct clk_omap_mux {
 	u8			shift;
 	s8			latch;
 	u8			flags;
+	u8			saved_parent;
 };
 
 #define to_clk_omap_mux(_hw) container_of(_hw, struct clk_omap_mux, hw)
@@ -184,9 +186,16 @@ struct omap_clkctrl_data {
 extern const struct omap_clkctrl_data omap4_clkctrl_data[];
 extern const struct omap_clkctrl_data omap5_clkctrl_data[];
 extern const struct omap_clkctrl_data dra7_clkctrl_data[];
+extern const struct omap_clkctrl_data dra7_clkctrl_compat_data[];
+extern struct ti_dt_clk dra7xx_compat_clks[];
 extern const struct omap_clkctrl_data am3_clkctrl_data[];
+extern const struct omap_clkctrl_data am3_clkctrl_compat_data[];
+extern struct ti_dt_clk am33xx_compat_clks[];
 extern const struct omap_clkctrl_data am4_clkctrl_data[];
+extern const struct omap_clkctrl_data am4_clkctrl_compat_data[];
+extern struct ti_dt_clk am43xx_compat_clks[];
 extern const struct omap_clkctrl_data am438x_clkctrl_data[];
+extern const struct omap_clkctrl_data am438x_clkctrl_compat_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
 
@@ -232,6 +241,8 @@ extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait;
 extern const struct clk_ops ti_clk_divider_ops;
 extern const struct clk_ops ti_clk_mux_ops;
 extern const struct clk_ops omap_gate_clk_ops;
+
+extern struct ti_clk_features ti_clk_features;
 
 void omap2_init_clk_clkdm(struct clk_hw *hw);
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);

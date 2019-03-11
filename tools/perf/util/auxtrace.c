@@ -27,6 +27,7 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 #include <linux/string.h>
+#include <linux/time64.h>
 
 #include <sys/param.h>
 #include <stdlib.h>
@@ -41,6 +42,7 @@
 #include "pmu.h"
 #include "evsel.h"
 #include "cpumap.h"
+#include "symbol.h"
 #include "thread_map.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
@@ -857,7 +859,7 @@ void auxtrace_buffer__free(struct auxtrace_buffer *buffer)
 
 void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
-			  const char *msg)
+			  const char *msg, u64 timestamp)
 {
 	size_t size;
 
@@ -869,7 +871,9 @@ void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
 	auxtrace_error->cpu = cpu;
 	auxtrace_error->pid = pid;
 	auxtrace_error->tid = tid;
+	auxtrace_error->fmt = 1;
 	auxtrace_error->ip = ip;
+	auxtrace_error->time = timestamp;
 	strlcpy(auxtrace_error->msg, msg, MAX_AUXTRACE_ERROR_MSG);
 
 	size = (void *)auxtrace_error->msg - (void *)auxtrace_error +
@@ -962,16 +966,23 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 #define PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ	64
 #define PERF_ITRACE_MAX_LAST_BRANCH_SZ		1024
 
-void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
+void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
+				    bool no_sample)
 {
-	synth_opts->instructions = true;
 	synth_opts->branches = true;
 	synth_opts->transactions = true;
 	synth_opts->ptwrites = true;
 	synth_opts->pwr_events = true;
 	synth_opts->errors = true;
-	synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
-	synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
+	if (no_sample) {
+		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
+		synth_opts->period = 1;
+		synth_opts->calls = true;
+	} else {
+		synth_opts->instructions = true;
+		synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
+		synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
+	}
 	synth_opts->callchain_sz = PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;
 	synth_opts->last_branch_sz = PERF_ITRACE_DEFAULT_LAST_BRANCH_SZ;
 	synth_opts->initial_skip = 0;
@@ -999,7 +1010,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 	}
 
 	if (!str) {
-		itrace_synth_opts__set_default(synth_opts);
+		itrace_synth_opts__set_default(synth_opts, false);
 		return 0;
 	}
 
@@ -1152,12 +1163,27 @@ static const char *auxtrace_error_name(int type)
 size_t perf_event__fprintf_auxtrace_error(union perf_event *event, FILE *fp)
 {
 	struct auxtrace_error_event *e = &event->auxtrace_error;
+	unsigned long long nsecs = e->time;
+	const char *msg = e->msg;
 	int ret;
 
 	ret = fprintf(fp, " %s error type %u",
 		      auxtrace_error_name(e->type), e->type);
+
+	if (e->fmt && nsecs) {
+		unsigned long secs = nsecs / NSEC_PER_SEC;
+
+		nsecs -= secs * NSEC_PER_SEC;
+		ret += fprintf(fp, " time %lu.%09llu", secs, nsecs);
+	} else {
+		ret += fprintf(fp, " time 0");
+	}
+
+	if (!e->fmt)
+		msg = (const char *)&e->time;
+
 	ret += fprintf(fp, " cpu %d pid %d tid %d ip %#"PRIx64" code %u: %s\n",
-		       e->cpu, e->pid, e->tid, e->ip, e->code, e->msg);
+		       e->cpu, e->pid, e->tid, e->ip, e->code, msg);
 	return ret;
 }
 
@@ -1271,9 +1297,9 @@ static int __auxtrace_mmap__read(struct perf_mmap *map,
 	}
 
 	/* padding must be written by fn() e.g. record__process_auxtrace() */
-	padding = size & 7;
+	padding = size & (PERF_AUXTRACE_RECORD_ALIGNMENT - 1);
 	if (padding)
-		padding = 8 - padding;
+		padding = PERF_AUXTRACE_RECORD_ALIGNMENT - padding;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.auxtrace.header.type = PERF_RECORD_AUXTRACE;
@@ -1892,7 +1918,8 @@ static struct dso *load_dso(const char *name)
 	if (!map)
 		return NULL;
 
-	map__load(map);
+	if (map__load(map) < 0)
+		pr_err("File '%s' not found or has no symbols.\n", name);
 
 	dso = dso__get(map->dso);
 
@@ -1976,17 +2003,14 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 
 static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
 {
-	struct symbol *first_sym = dso__first_symbol(dso);
-	struct symbol *last_sym = dso__last_symbol(dso);
-
-	if (!first_sym || !last_sym) {
-		pr_err("Failed to determine filter for %s\nNo symbols found.\n",
+	if (dso__data_file_size(dso, NULL)) {
+		pr_err("Failed to determine filter for %s\nCannot determine file size.\n",
 		       filt->filename);
 		return -EINVAL;
 	}
 
-	filt->addr = first_sym->start;
-	filt->size = last_sym->end - first_sym->start;
+	filt->addr = 0;
+	filt->size = dso->data.file_size;
 
 	return 0;
 }

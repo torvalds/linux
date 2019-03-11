@@ -170,7 +170,8 @@ enum vnic_devcmd_cmd {
 
 	/* variant of CMD_INIT, with provisioning info
 	 *     (u64)a0=paddr of vnic_devcmd_provinfo
-	 *     (u32)a1=sizeof provision info */
+	 *     (u32)a1=sizeof provision info
+	 */
 	CMD_INIT_PROV_INFO	= _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 27),
 
 	/* enable virtual link */
@@ -262,11 +263,131 @@ enum vnic_devcmd_cmd {
 	 *             non-zero for resetting vlan to the default
 	 * out: (u16)a0=old default vlan
 	 */
-	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46)
+	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46),
+
+	/* init_prov_info2:
+	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
+	 * the vnic until CMD_ENABLE2 is issued.
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info
+	 */
+	CMD_INIT_PROV_INFO2  = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 47),
+
+	/* enable2:
+	 *      (u32)a0=0                  ==> standby
+	 *             =CMD_ENABLE2_ACTIVE ==> active
+	 */
+	CMD_ENABLE2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 48),
+
+	/*
+	 * cmd_status:
+	 *     Returns the status of the specified command
+	 * Input:
+	 *     a0 = command for which status is being queried.
+	 *          Possible values are:
+	 *              CMD_SOFT_RESET
+	 *              CMD_HANG_RESET
+	 *              CMD_OPEN
+	 *              CMD_INIT
+	 *              CMD_INIT_PROV_INFO
+	 *              CMD_DEINIT
+	 *              CMD_INIT_PROV_INFO2
+	 *              CMD_ENABLE2
+	 * Output:
+	 *     if status == STAT_ERROR
+	 *        a0 = ERR_ENOTSUPPORTED - status for command in a0 is
+	 *                                 not supported
+	 *     if status == STAT_NONE
+	 *        a0 = status of the devcmd specified in a0 as follows.
+	 *             ERR_SUCCESS   - command in a0 completed successfully
+	 *             ERR_EINPROGRESS - command in a0 is still in progress
+	 */
+	CMD_STATUS = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 49),
+
+	/*
+	 * Returns interrupt coalescing timer conversion factors.
+	 * After calling this devcmd, ENIC driver can convert
+	 * interrupt coalescing timer in usec into CPU cycles as follows:
+	 *
+	 *   intr_timer_cycles = intr_timer_usec * multiplier / divisor
+	 *
+	 * Interrupt coalescing timer in usecs can be be converted/obtained
+	 * from CPU cycles as follows:
+	 *
+	 *   intr_timer_usec = intr_timer_cycles * divisor / multiplier
+	 *
+	 * in: none
+	 * out: (u32)a0 = multiplier
+	 *      (u32)a1 = divisor
+	 *      (u32)a2 = maximum timer value in usec
+	 */
+	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
+
+	/*
+	 * ISCSI DUMP API:
+	 * in: (u64)a0=paddr of the param or param itself
+	 *     (u32)a1=ISCSI_CMD_xxx
+	 */
+	CMD_ISCSI_DUMP_REQ = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 51),
+
+	/*
+	 * ISCSI DUMP STATUS API:
+	 * in: (u32)a0=cmd tag
+	 * in: (u32)a1=ISCSI_CMD_xxx
+	 * out: (u32)a0=cmd status
+	 */
+	CMD_ISCSI_DUMP_STATUS = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 52),
+
+	/*
+	 * Subvnic migration from MQ <--> VF.
+	 * Enable the LIF migration from MQ to VF and vice versa. MQ and VF
+	 * indexes are statically bound at the time of initialization.
+	 * Based on the
+	 * direction of migration, the resources of either MQ or the VF shall
+	 * be attached to the LIF.
+	 * in:        (u32)a0=Direction of Migration
+	 *					0=> Migrate to VF
+	 *					1=> Migrate to MQ
+	 *            (u32)a1=VF index (MQ index)
+	 */
+	CMD_MIGRATE_SUBVNIC = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 53),
+
+	/*
+	 * Register / Deregister the notification block for MQ subvnics
+	 * in:
+	 *   (u64)a0=paddr to notify (set paddr=0 to unset)
+	 *   (u32)a1 & 0x00000000ffffffff=sizeof(struct vnic_devcmd_notify)
+	 *   (u16)a1 & 0x0000ffff00000000=intr num (-1 for no intr)
+	 * out:
+	 *   (u32)a1 = effective size
+	 */
+	CMD_SUBVNIC_NOTIFY = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 54),
+
+	/*
+	 * Set the predefined mac address as default
+	 * in:
+	 *   (u48)a0=mac addr
+	 */
+	CMD_SET_MAC_ADDR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 55),
+
+	/* Update the provisioning info of the given VIF
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info
+	 */
+	CMD_PROV_INFO_UPDATE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 56),
+
+	/*
+	 * Initialization for the devcmd2 interface.
+	 * in: (u64) a0=host result buffer physical address
+	 * in: (u16) a1=number of entries in result buffer
+	 */
+	CMD_INITIALIZE_DEVCMD2 = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 57)
 };
 
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
+
+#define CMD_OPENF_RQ_ENABLE_THEN_POST   0x2
 
 /* flags for CMD_INIT */
 #define CMD_INITF_DEFAULT_MAC	0x1	/* init with default mac addr */
@@ -344,5 +465,40 @@ struct vnic_devcmd {
 	u32 cmd;			/* RW */
 	u64 args[VNIC_DEVCMD_NARGS];	/* RW cmd args (little-endian) */
 };
+
+/*
+ * Version 2 of the interface.
+ *
+ * Some things are carried over, notably the vnic_devcmd_cmd enum.
+ */
+
+/*
+ * Flags for vnic_devcmd2.flags
+ */
+
+#define DEVCMD2_FNORESULT	0x1 /* Don't copy result to host */
+
+#define VNIC_DEVCMD2_NARGS			VNIC_DEVCMD_NARGS
+
+struct vnic_devcmd2 {
+	u16 pad;
+	u16 flags;
+	u32 cmd;                /* same command #defines as original */
+	u64 args[VNIC_DEVCMD2_NARGS];
+};
+
+#define VNIC_DEVCMD2_NRESULTS			VNIC_DEVCMD_NARGS
+struct devcmd2_result {
+	u64 results[VNIC_DEVCMD2_NRESULTS];
+	u32 pad;
+	u16 completed_index;    /* into copy WQ */
+	u8  error;              /* same error codes as original */
+	u8  color;              /* 0 or 1 as with completion queues */
+};
+
+#define DEVCMD2_RING_SIZE			32
+#define DEVCMD2_DESC_SIZE			128
+
+#define DEVCMD2_RESULTS_SIZE_MAX		((1 << 16) - 1)
 
 #endif /* _VNIC_DEVCMD_H_ */

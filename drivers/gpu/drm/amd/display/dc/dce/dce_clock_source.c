@@ -108,28 +108,28 @@ static const struct spread_spectrum_data *get_ss_data_entry(
 }
 
 /**
-* Function: calculate_fb_and_fractional_fb_divider
-*
-* * DESCRIPTION: Calculates feedback and fractional feedback dividers values
-*
-*PARAMETERS:
-* targetPixelClock             Desired frequency in 10 KHz
-* ref_divider                  Reference divider (already known)
-* postDivider                  Post Divider (already known)
-* feedback_divider_param       Pointer where to store
-*					calculated feedback divider value
-* fract_feedback_divider_param Pointer where to store
-*					calculated fract feedback divider value
-*
-*RETURNS:
-* It fills the locations pointed by feedback_divider_param
-*					and fract_feedback_divider_param
-* It returns	- true if feedback divider not 0
-*		- false should never happen)
-*/
+ * Function: calculate_fb_and_fractional_fb_divider
+ *
+ * * DESCRIPTION: Calculates feedback and fractional feedback dividers values
+ *
+ *PARAMETERS:
+ * targetPixelClock             Desired frequency in 100 Hz
+ * ref_divider                  Reference divider (already known)
+ * postDivider                  Post Divider (already known)
+ * feedback_divider_param       Pointer where to store
+ *					calculated feedback divider value
+ * fract_feedback_divider_param Pointer where to store
+ *					calculated fract feedback divider value
+ *
+ *RETURNS:
+ * It fills the locations pointed by feedback_divider_param
+ *					and fract_feedback_divider_param
+ * It returns	- true if feedback divider not 0
+ *		- false should never happen)
+ */
 static bool calculate_fb_and_fractional_fb_divider(
 		struct calc_pll_clock_source *calc_pll_cs,
-		uint32_t target_pix_clk_khz,
+		uint32_t target_pix_clk_100hz,
 		uint32_t ref_divider,
 		uint32_t post_divider,
 		uint32_t *feedback_divider_param,
@@ -138,11 +138,11 @@ static bool calculate_fb_and_fractional_fb_divider(
 	uint64_t feedback_divider;
 
 	feedback_divider =
-		(uint64_t)target_pix_clk_khz * ref_divider * post_divider;
+		(uint64_t)target_pix_clk_100hz * ref_divider * post_divider;
 	feedback_divider *= 10;
 	/* additional factor, since we divide by 10 afterwards */
 	feedback_divider *= (uint64_t)(calc_pll_cs->fract_fb_divider_factor);
-	feedback_divider = div_u64(feedback_divider, calc_pll_cs->ref_freq_khz);
+	feedback_divider = div_u64(feedback_divider, calc_pll_cs->ref_freq_khz * 10ull);
 
 /*Round to the number of precision
  * The following code replace the old code (ullfeedbackDivider + 5)/10
@@ -195,36 +195,36 @@ static bool calc_fb_divider_checking_tolerance(
 {
 	uint32_t feedback_divider;
 	uint32_t fract_feedback_divider;
-	uint32_t actual_calculated_clock_khz;
+	uint32_t actual_calculated_clock_100hz;
 	uint32_t abs_err;
-	uint64_t actual_calc_clk_khz;
+	uint64_t actual_calc_clk_100hz;
 
 	calculate_fb_and_fractional_fb_divider(
 			calc_pll_cs,
-			pll_settings->adjusted_pix_clk,
+			pll_settings->adjusted_pix_clk_100hz,
 			ref_divider,
 			post_divider,
 			&feedback_divider,
 			&fract_feedback_divider);
 
 	/*Actual calculated value*/
-	actual_calc_clk_khz = (uint64_t)feedback_divider *
+	actual_calc_clk_100hz = (uint64_t)feedback_divider *
 					calc_pll_cs->fract_fb_divider_factor +
 							fract_feedback_divider;
-	actual_calc_clk_khz *= calc_pll_cs->ref_freq_khz;
-	actual_calc_clk_khz =
-		div_u64(actual_calc_clk_khz,
+	actual_calc_clk_100hz *= calc_pll_cs->ref_freq_khz * 10;
+	actual_calc_clk_100hz =
+		div_u64(actual_calc_clk_100hz,
 			ref_divider * post_divider *
 				calc_pll_cs->fract_fb_divider_factor);
 
-	actual_calculated_clock_khz = (uint32_t)(actual_calc_clk_khz);
+	actual_calculated_clock_100hz = (uint32_t)(actual_calc_clk_100hz);
 
-	abs_err = (actual_calculated_clock_khz >
-					pll_settings->adjusted_pix_clk)
-			? actual_calculated_clock_khz -
-					pll_settings->adjusted_pix_clk
-			: pll_settings->adjusted_pix_clk -
-						actual_calculated_clock_khz;
+	abs_err = (actual_calculated_clock_100hz >
+					pll_settings->adjusted_pix_clk_100hz)
+			? actual_calculated_clock_100hz -
+					pll_settings->adjusted_pix_clk_100hz
+			: pll_settings->adjusted_pix_clk_100hz -
+						actual_calculated_clock_100hz;
 
 	if (abs_err <= tolerance) {
 		/*found good values*/
@@ -233,10 +233,10 @@ static bool calc_fb_divider_checking_tolerance(
 		pll_settings->feedback_divider = feedback_divider;
 		pll_settings->fract_feedback_divider = fract_feedback_divider;
 		pll_settings->pix_clk_post_divider = post_divider;
-		pll_settings->calculated_pix_clk =
-			actual_calculated_clock_khz;
+		pll_settings->calculated_pix_clk_100hz =
+			actual_calculated_clock_100hz;
 		pll_settings->vco_freq =
-			actual_calculated_clock_khz * post_divider;
+			actual_calculated_clock_100hz * post_divider / 10;
 		return true;
 	}
 	return false;
@@ -257,8 +257,8 @@ static bool calc_pll_dividers_in_range(
 
 /* This is err_tolerance / 10000 = 0.0025 - acceptable error of 0.25%
  * This is errorTolerance / 10000 = 0.0001 - acceptable error of 0.01%*/
-	tolerance = (pll_settings->adjusted_pix_clk * err_tolerance) /
-									10000;
+	tolerance = (pll_settings->adjusted_pix_clk_100hz * err_tolerance) /
+									100000;
 	if (tolerance < CALC_PLL_CLK_SRC_ERR_TOLERANCE)
 		tolerance = CALC_PLL_CLK_SRC_ERR_TOLERANCE;
 
@@ -294,7 +294,7 @@ static uint32_t calculate_pixel_clock_pll_dividers(
 	uint32_t min_ref_divider;
 	uint32_t max_ref_divider;
 
-	if (pll_settings->adjusted_pix_clk == 0) {
+	if (pll_settings->adjusted_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s Bad requested pixel clock", __func__);
 		return MAX_PLL_CALC_ERROR;
@@ -306,21 +306,21 @@ static uint32_t calculate_pixel_clock_pll_dividers(
 		max_post_divider = pll_settings->pix_clk_post_divider;
 	} else {
 		min_post_divider = calc_pll_cs->min_pix_clock_pll_post_divider;
-		if (min_post_divider * pll_settings->adjusted_pix_clk <
-						calc_pll_cs->min_vco_khz) {
-			min_post_divider = calc_pll_cs->min_vco_khz /
-					pll_settings->adjusted_pix_clk;
+		if (min_post_divider * pll_settings->adjusted_pix_clk_100hz <
+						calc_pll_cs->min_vco_khz * 10) {
+			min_post_divider = calc_pll_cs->min_vco_khz * 10 /
+					pll_settings->adjusted_pix_clk_100hz;
 			if ((min_post_divider *
-					pll_settings->adjusted_pix_clk) <
-						calc_pll_cs->min_vco_khz)
+					pll_settings->adjusted_pix_clk_100hz) <
+						calc_pll_cs->min_vco_khz * 10)
 				min_post_divider++;
 		}
 
 		max_post_divider = calc_pll_cs->max_pix_clock_pll_post_divider;
-		if (max_post_divider * pll_settings->adjusted_pix_clk
-				> calc_pll_cs->max_vco_khz)
-			max_post_divider = calc_pll_cs->max_vco_khz /
-					pll_settings->adjusted_pix_clk;
+		if (max_post_divider * pll_settings->adjusted_pix_clk_100hz
+				> calc_pll_cs->max_vco_khz * 10)
+			max_post_divider = calc_pll_cs->max_vco_khz * 10 /
+					pll_settings->adjusted_pix_clk_100hz;
 	}
 
 /* 2) Find Reference divider ranges
@@ -392,47 +392,47 @@ static bool pll_adjust_pix_clk(
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
-	uint32_t actual_pix_clk_khz = 0;
-	uint32_t requested_clk_khz = 0;
+	uint32_t actual_pix_clk_100hz = 0;
+	uint32_t requested_clk_100hz = 0;
 	struct bp_adjust_pixel_clock_parameters bp_adjust_pixel_clock_params = {
 							0 };
 	enum bp_result bp_result;
 	switch (pix_clk_params->signal_type) {
 	case SIGNAL_TYPE_HDMI_TYPE_A: {
-		requested_clk_khz = pix_clk_params->requested_pix_clk;
+		requested_clk_100hz = pix_clk_params->requested_pix_clk_100hz;
 		if (pix_clk_params->pixel_encoding != PIXEL_ENCODING_YCBCR422) {
 			switch (pix_clk_params->color_depth) {
 			case COLOR_DEPTH_101010:
-				requested_clk_khz = (requested_clk_khz * 5) >> 2;
+				requested_clk_100hz = (requested_clk_100hz * 5) >> 2;
 				break; /* x1.25*/
 			case COLOR_DEPTH_121212:
-				requested_clk_khz = (requested_clk_khz * 6) >> 2;
+				requested_clk_100hz = (requested_clk_100hz * 6) >> 2;
 				break; /* x1.5*/
 			case COLOR_DEPTH_161616:
-				requested_clk_khz = requested_clk_khz * 2;
+				requested_clk_100hz = requested_clk_100hz * 2;
 				break; /* x2.0*/
 			default:
 				break;
 			}
 		}
-		actual_pix_clk_khz = requested_clk_khz;
+		actual_pix_clk_100hz = requested_clk_100hz;
 	}
 		break;
 
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_EDP:
-		requested_clk_khz = pix_clk_params->requested_sym_clk;
-		actual_pix_clk_khz = pix_clk_params->requested_pix_clk;
+		requested_clk_100hz = pix_clk_params->requested_sym_clk * 10;
+		actual_pix_clk_100hz = pix_clk_params->requested_pix_clk_100hz;
 		break;
 
 	default:
-		requested_clk_khz = pix_clk_params->requested_pix_clk;
-		actual_pix_clk_khz = pix_clk_params->requested_pix_clk;
+		requested_clk_100hz = pix_clk_params->requested_pix_clk_100hz;
+		actual_pix_clk_100hz = pix_clk_params->requested_pix_clk_100hz;
 		break;
 	}
 
-	bp_adjust_pixel_clock_params.pixel_clock = requested_clk_khz;
+	bp_adjust_pixel_clock_params.pixel_clock = requested_clk_100hz / 10;
 	bp_adjust_pixel_clock_params.
 		encoder_object_id = pix_clk_params->encoder_object_id;
 	bp_adjust_pixel_clock_params.signal_type = pix_clk_params->signal_type;
@@ -441,9 +441,9 @@ static bool pll_adjust_pix_clk(
 	bp_result = clk_src->bios->funcs->adjust_pixel_clock(
 			clk_src->bios, &bp_adjust_pixel_clock_params);
 	if (bp_result == BP_RESULT_OK) {
-		pll_settings->actual_pix_clk = actual_pix_clk_khz;
-		pll_settings->adjusted_pix_clk =
-			bp_adjust_pixel_clock_params.adjusted_pixel_clock;
+		pll_settings->actual_pix_clk_100hz = actual_pix_clk_100hz;
+		pll_settings->adjusted_pix_clk_100hz =
+			bp_adjust_pixel_clock_params.adjusted_pixel_clock * 10;
 		pll_settings->reference_divider =
 			bp_adjust_pixel_clock_params.reference_divider;
 		pll_settings->pix_clk_post_divider =
@@ -490,7 +490,7 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 		const struct spread_spectrum_data *ss_data = get_ss_data_entry(
 					clk_src,
 					pix_clk_params->signal_type,
-					pll_settings->adjusted_pix_clk);
+					pll_settings->adjusted_pix_clk_100hz / 10);
 
 		if (NULL != ss_data)
 			pll_settings->ss_percentage = ss_data->percentage;
@@ -502,13 +502,13 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 		 * to continue. */
 		DC_LOG_ERROR(
 			"%s: Failed to adjust pixel clock!!", __func__);
-		pll_settings->actual_pix_clk =
-				pix_clk_params->requested_pix_clk;
-		pll_settings->adjusted_pix_clk =
-				pix_clk_params->requested_pix_clk;
+		pll_settings->actual_pix_clk_100hz =
+				pix_clk_params->requested_pix_clk_100hz;
+		pll_settings->adjusted_pix_clk_100hz =
+				pix_clk_params->requested_pix_clk_100hz;
 
 		if (dc_is_dp_signal(pix_clk_params->signal_type))
-			pll_settings->adjusted_pix_clk = 100000;
+			pll_settings->adjusted_pix_clk_100hz = 1000000;
 	}
 
 	/* Calculate Dividers */
@@ -533,28 +533,28 @@ static void dce112_get_pix_clk_dividers_helper (
 		struct pll_settings *pll_settings,
 		struct pixel_clk_params *pix_clk_params)
 {
-	uint32_t actualPixelClockInKHz;
+	uint32_t actual_pixel_clock_100hz;
 
-	actualPixelClockInKHz = pix_clk_params->requested_pix_clk;
+	actual_pixel_clock_100hz = pix_clk_params->requested_pix_clk_100hz;
 	/* Calculate Dividers */
 	if (pix_clk_params->signal_type == SIGNAL_TYPE_HDMI_TYPE_A) {
 		switch (pix_clk_params->color_depth) {
 		case COLOR_DEPTH_101010:
-			actualPixelClockInKHz = (actualPixelClockInKHz * 5) >> 2;
+			actual_pixel_clock_100hz = (actual_pixel_clock_100hz * 5) >> 2;
 			break;
 		case COLOR_DEPTH_121212:
-			actualPixelClockInKHz = (actualPixelClockInKHz * 6) >> 2;
+			actual_pixel_clock_100hz = (actual_pixel_clock_100hz * 6) >> 2;
 			break;
 		case COLOR_DEPTH_161616:
-			actualPixelClockInKHz = actualPixelClockInKHz * 2;
+			actual_pixel_clock_100hz = actual_pixel_clock_100hz * 2;
 			break;
 		default:
 			break;
 		}
 	}
-	pll_settings->actual_pix_clk = actualPixelClockInKHz;
-	pll_settings->adjusted_pix_clk = actualPixelClockInKHz;
-	pll_settings->calculated_pix_clk = pix_clk_params->requested_pix_clk;
+	pll_settings->actual_pix_clk_100hz = actual_pixel_clock_100hz;
+	pll_settings->adjusted_pix_clk_100hz = actual_pixel_clock_100hz;
+	pll_settings->calculated_pix_clk_100hz = pix_clk_params->requested_pix_clk_100hz;
 }
 
 static uint32_t dce110_get_pix_clk_dividers(
@@ -567,7 +567,7 @@ static uint32_t dce110_get_pix_clk_dividers(
 	DC_LOGGER_INIT();
 
 	if (pix_clk_params == NULL || pll_settings == NULL
-			|| pix_clk_params->requested_pix_clk == 0) {
+			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
 		return pll_calc_error;
@@ -577,10 +577,10 @@ static uint32_t dce110_get_pix_clk_dividers(
 
 	if (cs->id == CLOCK_SOURCE_ID_DP_DTO ||
 			cs->id == CLOCK_SOURCE_ID_EXTERNAL) {
-		pll_settings->adjusted_pix_clk = clk_src->ext_clk_khz;
-		pll_settings->calculated_pix_clk = clk_src->ext_clk_khz;
-		pll_settings->actual_pix_clk =
-					pix_clk_params->requested_pix_clk;
+		pll_settings->adjusted_pix_clk_100hz = clk_src->ext_clk_khz * 10;
+		pll_settings->calculated_pix_clk_100hz = clk_src->ext_clk_khz * 10;
+		pll_settings->actual_pix_clk_100hz =
+					pix_clk_params->requested_pix_clk_100hz;
 		return 0;
 	}
 
@@ -599,7 +599,7 @@ static uint32_t dce112_get_pix_clk_dividers(
 	DC_LOGGER_INIT();
 
 	if (pix_clk_params == NULL || pll_settings == NULL
-			|| pix_clk_params->requested_pix_clk == 0) {
+			|| pix_clk_params->requested_pix_clk_100hz == 0) {
 		DC_LOG_ERROR(
 			"%s: Invalid parameters!!\n", __func__);
 		return -1;
@@ -609,10 +609,10 @@ static uint32_t dce112_get_pix_clk_dividers(
 
 	if (cs->id == CLOCK_SOURCE_ID_DP_DTO ||
 			cs->id == CLOCK_SOURCE_ID_EXTERNAL) {
-		pll_settings->adjusted_pix_clk = clk_src->ext_clk_khz;
-		pll_settings->calculated_pix_clk = clk_src->ext_clk_khz;
-		pll_settings->actual_pix_clk =
-					pix_clk_params->requested_pix_clk;
+		pll_settings->adjusted_pix_clk_100hz = clk_src->ext_clk_khz * 10;
+		pll_settings->calculated_pix_clk_100hz = clk_src->ext_clk_khz * 10;
+		pll_settings->actual_pix_clk_100hz =
+					pix_clk_params->requested_pix_clk_100hz;
 		return -1;
 	}
 
@@ -714,7 +714,7 @@ static bool enable_spread_spectrum(
 	ss_data = get_ss_data_entry(
 			clk_src,
 			signal,
-			pll_settings->calculated_pix_clk);
+			pll_settings->calculated_pix_clk_100hz / 10);
 
 /* Pixel clock PLL has been programmed to generate desired pixel clock,
  * now enable SS on pixel clock */
@@ -853,7 +853,7 @@ static bool dce110_program_pix_clk(
 	/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
 	bp_pc_params.controller_id = pix_clk_params->controller_id;
 	bp_pc_params.pll_id = clock_source->id;
-	bp_pc_params.target_pixel_clock = pll_settings->actual_pix_clk;
+	bp_pc_params.target_pixel_clock_100hz = pll_settings->actual_pix_clk_100hz;
 	bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
 	bp_pc_params.signal_type = pix_clk_params->signal_type;
 
@@ -903,12 +903,12 @@ static bool dce112_program_pix_clk(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-		unsigned dp_dto_ref_kHz = 700000;
-		unsigned clock_kHz = pll_settings->actual_pix_clk;
+		unsigned dp_dto_ref_100hz = 7000000;
+		unsigned clock_100hz = pll_settings->actual_pix_clk_100hz;
 
 		/* Set DTO values: phase = target clock, modulo = reference clock */
-		REG_WRITE(PHASE[inst], clock_kHz);
-		REG_WRITE(MODULO[inst], dp_dto_ref_kHz);
+		REG_WRITE(PHASE[inst], clock_100hz);
+		REG_WRITE(MODULO[inst], dp_dto_ref_100hz);
 
 		/* Enable DTO */
 		REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
@@ -927,7 +927,7 @@ static bool dce112_program_pix_clk(
 	/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
 	bp_pc_params.controller_id = pix_clk_params->controller_id;
 	bp_pc_params.pll_id = clock_source->id;
-	bp_pc_params.target_pixel_clock = pll_settings->actual_pix_clk;
+	bp_pc_params.target_pixel_clock_100hz = pll_settings->actual_pix_clk_100hz;
 	bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
 	bp_pc_params.signal_type = pix_clk_params->signal_type;
 
@@ -977,6 +977,28 @@ static bool dce110_clock_source_power_down(
 	return bp_result == BP_RESULT_OK;
 }
 
+static bool get_pixel_clk_frequency_100hz(
+		struct clock_source *clock_source,
+		unsigned int inst,
+		unsigned int *pixel_clk_khz)
+{
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
+	unsigned int clock_hz = 0;
+
+	if (clock_source->id == CLOCK_SOURCE_ID_DP_DTO) {
+		clock_hz = REG_READ(PHASE[inst]);
+
+		/* NOTE: There is agreement with VBIOS here that MODULO is
+		 * programmed equal to DPREFCLK, in which case PHASE will be
+		 * equivalent to pixel clock.
+		 */
+		*pixel_clk_khz = clock_hz / 100;
+		return true;
+	}
+
+	return false;
+}
+
 /*****************************************/
 /* Constructor                           */
 /*****************************************/
@@ -984,12 +1006,14 @@ static bool dce110_clock_source_power_down(
 static const struct clock_source_funcs dce112_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dce112_program_pix_clk,
-	.get_pix_clk_dividers = dce112_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce112_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 static const struct clock_source_funcs dce110_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dce110_program_pix_clk,
-	.get_pix_clk_dividers = dce110_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce110_get_pix_clk_dividers,
+	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
 
 

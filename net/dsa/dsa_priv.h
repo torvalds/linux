@@ -103,7 +103,8 @@ static inline void dsa_legacy_unregister(void) { }
 int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid,
-		       u16 flags);
+		       u16 flags,
+		       struct netlink_ext_ack *extack);
 int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 		       struct net_device *dev,
 		       const unsigned char *addr, u16 vid);
@@ -142,7 +143,7 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
 		       struct switchdev_trans *trans);
 int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy);
-void dsa_port_disable(struct dsa_port *dp, struct phy_device *phy);
+void dsa_port_disable(struct dsa_port *dp);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
 int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
@@ -159,6 +160,10 @@ int dsa_port_mdb_add(const struct dsa_port *dp,
 		     struct switchdev_trans *trans);
 int dsa_port_mdb_del(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb);
+int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			      struct switchdev_trans *trans);
+int dsa_port_bridge_flags(const struct dsa_port *dp, unsigned long flags,
+			  struct switchdev_trans *trans);
 int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct switchdev_trans *trans);
@@ -210,7 +215,8 @@ extern const struct dsa_device_ops edsa_netdev_ops;
 extern const struct dsa_device_ops gswip_netdev_ops;
 
 /* tag_ksz.c */
-extern const struct dsa_device_ops ksz_netdev_ops;
+extern const struct dsa_device_ops ksz9477_netdev_ops;
+extern const struct dsa_device_ops ksz9893_netdev_ops;
 
 /* tag_lan9303.c */
 extern const struct dsa_device_ops lan9303_netdev_ops;

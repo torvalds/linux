@@ -9,14 +9,15 @@
  *
  *      TCPv6 GSO/GRO support
  */
+#include <linux/indirect_call_wrapper.h>
 #include <linux/skbuff.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
-static struct sk_buff *tcp6_gro_receive(struct list_head *head,
-					struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *tcp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if (!NAPI_GRO_CB(skb)->flush &&
@@ -29,7 +30,7 @@ static struct sk_buff *tcp6_gro_receive(struct list_head *head,
 	return tcp_gro_receive(head, skb);
 }
 
-static int tcp6_gro_complete(struct sk_buff *skb, int thoff)
+INDIRECT_CALLABLE_SCOPE int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);

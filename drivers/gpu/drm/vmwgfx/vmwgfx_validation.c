@@ -104,10 +104,24 @@ void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
 		return NULL;
 
 	if (ctx->mem_size_left < size) {
-		struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		struct page *page;
 
+		if (ctx->vm && ctx->vm_size_left < PAGE_SIZE) {
+			int ret = ctx->vm->reserve_mem(ctx->vm, ctx->vm->gran);
+
+			if (ret)
+				return NULL;
+
+			ctx->vm_size_left += ctx->vm->gran;
+			ctx->total_mem += ctx->vm->gran;
+		}
+
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!page)
 			return NULL;
+
+		if (ctx->vm)
+			ctx->vm_size_left -= PAGE_SIZE;
 
 		list_add_tail(&page->lru, &ctx->page_list);
 		ctx->page_address = page_address(page);
@@ -138,6 +152,11 @@ static void vmw_validation_mem_free(struct vmw_validation_context *ctx)
 	}
 
 	ctx->mem_size_left = 0;
+	if (ctx->vm && ctx->total_mem) {
+		ctx->vm->unreserve_mem(ctx->vm, ctx->total_mem);
+		ctx->total_mem = 0;
+		ctx->vm_size_left = 0;
+	}
 }
 
 /**
@@ -266,7 +285,7 @@ int vmw_validation_add_bo(struct vmw_validation_context *ctx,
 		val_buf->bo = ttm_bo_get_unless_zero(&vbo->base);
 		if (!val_buf->bo)
 			return -ESRCH;
-		val_buf->shared = false;
+		val_buf->num_shared = 0;
 		list_add_tail(&val_buf->head, &ctx->bo_list);
 		bo_node->as_mob = as_mob;
 		bo_node->cpu_blit = cpu_blit;
@@ -609,8 +628,10 @@ void vmw_validation_unref_lists(struct vmw_validation_context *ctx)
 	struct vmw_validation_bo_node *entry;
 	struct vmw_validation_res_node *val;
 
-	list_for_each_entry(entry, &ctx->bo_list, base.head)
-		ttm_bo_unref(&entry->base.bo);
+	list_for_each_entry(entry, &ctx->bo_list, base.head) {
+		ttm_bo_put(entry->base.bo);
+		entry->base.bo = NULL;
+	}
 
 	list_splice_init(&ctx->resource_ctx_list, &ctx->resource_list);
 	list_for_each_entry(val, &ctx->resource_list, head)

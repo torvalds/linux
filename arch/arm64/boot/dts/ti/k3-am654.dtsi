@@ -34,7 +34,7 @@
 		};
 
 		cpu0: cpu@0 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x000>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -48,7 +48,7 @@
 		};
 
 		cpu1: cpu@1 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x001>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -62,7 +62,7 @@
 		};
 
 		cpu2: cpu@100 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -76,7 +76,7 @@
 		};
 
 		cpu3: cpu@101 {
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			device_type = "cpu";
 			enable-method = "psci";

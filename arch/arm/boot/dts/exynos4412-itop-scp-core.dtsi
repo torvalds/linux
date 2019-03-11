@@ -45,11 +45,15 @@
 			cooling-maps {
 				map0 {
 				     /* Corresponds to 800MHz at freq_table */
-				     cooling-device = <&cpu0 7 7>;
+				     cooling-device = <&cpu0 7 7>, <&cpu1 7 7>,
+						      <&cpu2 7 7>, <&cpu3 7 7>;
 				};
 				map1 {
 				     /* Corresponds to 200MHz at freq_table */
-				     cooling-device = <&cpu0 13 13>;
+				     cooling-device = <&cpu0 13 13>,
+						      <&cpu1 13 13>,
+						      <&cpu2 13 13>,
+						      <&cpu3 13 13>;
 			       };
 		       };
 		};
@@ -446,6 +450,7 @@
 		};
 
 		s5m8767_osc: clocks {
+			compatible = "samsung,s5m8767-clk";
 			#clock-cells = <1>;
 			clock-output-names = "s5m8767_ap",
 					"s5m8767_cp", "s5m8767_bt";

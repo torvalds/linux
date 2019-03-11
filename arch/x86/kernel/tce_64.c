@@ -30,7 +30,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/tce.h>
 #include <asm/calgary.h>
 #include <asm/proto.h>
@@ -173,7 +173,7 @@ void * __init alloc_tce_table(void)
 	size = table_size_to_number_of_entries(specified_table_size);
 	size *= TCE_ENTRY_SIZE;
 
-	return __alloc_bootmem_low(size, size, 0);
+	return memblock_alloc_low(size, size);
 }
 
 void __init free_tce_table(void *tbl)
@@ -186,5 +186,5 @@ void __init free_tce_table(void *tbl)
 	size = table_size_to_number_of_entries(specified_table_size);
 	size *= TCE_ENTRY_SIZE;
 
-	free_bootmem(__pa(tbl), size);
+	memblock_free(__pa(tbl), size);
 }

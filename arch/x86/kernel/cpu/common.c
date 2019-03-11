@@ -1,7 +1,7 @@
 /* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -353,7 +353,7 @@ static __always_inline void setup_umip(struct cpuinfo_x86 *c)
 
 	cr4_set_bits(X86_CR4_UMIP);
 
-	pr_info("x86/cpu: Activated the Intel User Mode Instruction Prevention (UMIP) CPU feature\n");
+	pr_info_once("x86/cpu: User Mode Instruction Prevention (UMIP) activated\n");
 
 	return;
 
@@ -1074,7 +1074,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 #endif
 	c->x86_cache_alignment = c->x86_clflush_size;
 
-	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	memset(&c->x86_capability, 0, sizeof(c->x86_capability));
 	c->extended_cpuid_level = 0;
 
 	if (!have_cpuid_p())
@@ -1317,7 +1317,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_virt_bits = 32;
 #endif
 	c->x86_cache_alignment = c->x86_clflush_size;
-	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	memset(&c->x86_capability, 0, sizeof(c->x86_capability));
 
 	generic_identify(c);
 

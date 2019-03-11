@@ -50,7 +50,7 @@ static int nft_osf_init(const struct nft_ctx *ctx,
 	int err;
 	u8 ttl;
 
-	if (nla_get_u8(tb[NFTA_OSF_TTL])) {
+	if (tb[NFTA_OSF_TTL]) {
 		ttl = nla_get_u8(tb[NFTA_OSF_TTL]);
 		if (ttl > 2)
 			return -EINVAL;

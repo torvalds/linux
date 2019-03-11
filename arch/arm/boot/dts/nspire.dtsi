@@ -9,9 +9,9 @@
  *
  */
 
-/include/ "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	interrupt-parent = <&intc>;
 
 	cpus {

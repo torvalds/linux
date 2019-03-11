@@ -397,12 +397,13 @@ static long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt,
 	return H_SUCCESS;
 }
 
-static void kvmppc_clear_tce(struct iommu_table *tbl, unsigned long entry)
+static void kvmppc_clear_tce(struct mm_struct *mm, struct iommu_table *tbl,
+		unsigned long entry)
 {
 	unsigned long hpa = 0;
 	enum dma_data_direction dir = DMA_NONE;
 
-	iommu_tce_xchg(tbl, entry, &hpa, &dir);
+	iommu_tce_xchg(mm, tbl, entry, &hpa, &dir);
 }
 
 static long kvmppc_tce_iommu_mapped_dec(struct kvm *kvm,
@@ -433,7 +434,7 @@ static long kvmppc_tce_iommu_do_unmap(struct kvm *kvm,
 	unsigned long hpa = 0;
 	long ret;
 
-	if (WARN_ON_ONCE(iommu_tce_xchg(tbl, entry, &hpa, &dir)))
+	if (WARN_ON_ONCE(iommu_tce_xchg(kvm->mm, tbl, entry, &hpa, &dir)))
 		return H_TOO_HARD;
 
 	if (dir == DMA_NONE)
@@ -441,7 +442,7 @@ static long kvmppc_tce_iommu_do_unmap(struct kvm *kvm,
 
 	ret = kvmppc_tce_iommu_mapped_dec(kvm, tbl, entry);
 	if (ret != H_SUCCESS)
-		iommu_tce_xchg(tbl, entry, &hpa, &dir);
+		iommu_tce_xchg(kvm->mm, tbl, entry, &hpa, &dir);
 
 	return ret;
 }
@@ -487,7 +488,7 @@ long kvmppc_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 	if (mm_iommu_mapped_inc(mem))
 		return H_TOO_HARD;
 
-	ret = iommu_tce_xchg(tbl, entry, &hpa, &dir);
+	ret = iommu_tce_xchg(kvm->mm, tbl, entry, &hpa, &dir);
 	if (WARN_ON_ONCE(ret)) {
 		mm_iommu_mapped_dec(mem);
 		return H_TOO_HARD;
@@ -566,7 +567,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 					entry, ua, dir);
 
 		if (ret != H_SUCCESS) {
-			kvmppc_clear_tce(stit->tbl, entry);
+			kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
 			goto unlock_exit;
 		}
 	}
@@ -655,7 +656,8 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 					iommu_tce_direction(tce));
 
 			if (ret != H_SUCCESS) {
-				kvmppc_clear_tce(stit->tbl, entry);
+				kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl,
+						entry);
 				goto unlock_exit;
 			}
 		}
@@ -704,7 +706,7 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 				return ret;
 
 			WARN_ON_ONCE(1);
-			kvmppc_clear_tce(stit->tbl, entry);
+			kvmppc_clear_tce(vcpu->kvm->mm, stit->tbl, entry);
 		}
 	}
 

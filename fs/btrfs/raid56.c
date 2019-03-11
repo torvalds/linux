@@ -1443,10 +1443,11 @@ static void set_bio_pages_uptodate(struct bio *bio)
 {
 	struct bio_vec *bvec;
 	int i;
+	struct bvec_iter_all iter_all;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 
-	bio_for_each_segment_all(bvec, bio, i)
+	bio_for_each_segment_all(bvec, bio, i, iter_all)
 		SetPageUptodate(bvec->bv_page);
 }
 
@@ -1980,7 +1981,7 @@ cleanup_io:
 		 * - In case of single failure, where rbio->failb == -1:
 		 *
 		 *   Cache this rbio iff the above read reconstruction is
-		 *   excuted without problems.
+		 *   executed without problems.
 		 */
 		if (err == BLK_STS_OK && rbio->failb < 0)
 			cache_rbio_pages(rbio);

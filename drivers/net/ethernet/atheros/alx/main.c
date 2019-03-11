@@ -49,7 +49,7 @@
 #include "hw.h"
 #include "reg.h"
 
-const char alx_drv_name[] = "alx";
+static const char alx_drv_name[] = "alx";
 
 static void alx_free_txbuf(struct alx_tx_queue *txq, int entry)
 {
@@ -660,10 +660,9 @@ static int alx_alloc_rings(struct alx_priv *alx)
 			    alx->num_txq +
 			    sizeof(struct alx_rrd) * alx->rx_ringsz +
 			    sizeof(struct alx_rfd) * alx->rx_ringsz;
-	alx->descmem.virt = dma_zalloc_coherent(&alx->hw.pdev->dev,
-						alx->descmem.size,
-						&alx->descmem.dma,
-						GFP_KERNEL);
+	alx->descmem.virt = dma_alloc_coherent(&alx->hw.pdev->dev,
+					       alx->descmem.size,
+					       &alx->descmem.dma, GFP_KERNEL);
 	if (!alx->descmem.virt)
 		return -ENOMEM;
 

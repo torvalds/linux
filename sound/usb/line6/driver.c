@@ -849,10 +849,8 @@ int line6_suspend(struct usb_interface *interface, pm_message_t message)
 	if (line6->properties->capabilities & LINE6_CAP_CONTROL)
 		line6_stop_listen(line6);
 
-	if (line6pcm != NULL) {
-		snd_pcm_suspend_all(line6pcm->pcm);
+	if (line6pcm != NULL)
 		line6pcm->flags = 0;
-	}
 
 	return 0;
 }

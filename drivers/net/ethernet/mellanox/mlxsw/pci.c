@@ -604,29 +604,31 @@ static void mlxsw_pci_cq_tasklet(unsigned long data)
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
 		u8 sendq = mlxsw_pci_cqe_sr_get(q->u.cq.v, cqe);
 		u8 dqn = mlxsw_pci_cqe_dqn_get(q->u.cq.v, cqe);
+		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
+
+		memcpy(ncqe, cqe, q->elem_size);
+		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 
 		if (sendq) {
 			struct mlxsw_pci_queue *sdq;
 
 			sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-						 wqe_counter, cqe);
+						 wqe_counter, ncqe);
 			q->u.cq.comp_sdq_count++;
 		} else {
 			struct mlxsw_pci_queue *rdq;
 
 			rdq = mlxsw_pci_rdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-						 wqe_counter, q->u.cq.v, cqe);
+						 wqe_counter, q->u.cq.v, ncqe);
 			q->u.cq.comp_rdq_count++;
 		}
 		if (++items == credits)
 			break;
 	}
-	if (items) {
-		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
+	if (items)
 		mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
-	}
 }
 
 static u16 mlxsw_pci_cq_elem_count(const struct mlxsw_pci_queue *q)
@@ -1037,42 +1039,6 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_cmd_mbox_config_profile_swid_config_mask_set(mbox, index, mask);
 }
 
-static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
-				     struct mlxsw_res *res)
-{
-	int index, i;
-	u64 data;
-	u16 id;
-	int err;
-
-	if (!res)
-		return 0;
-
-	mlxsw_cmd_mbox_zero(mbox);
-
-	for (index = 0; index < MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES;
-	     index++) {
-		err = mlxsw_cmd_query_resources(mlxsw_pci->core, mbox, index);
-		if (err)
-			return err;
-
-		for (i = 0; i < MLXSW_CMD_QUERY_RESOURCES_PER_QUERY; i++) {
-			id = mlxsw_cmd_mbox_query_resource_id_get(mbox, i);
-			data = mlxsw_cmd_mbox_query_resource_data_get(mbox, i);
-
-			if (id == MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID)
-				return 0;
-
-			mlxsw_res_parse(res, id, data);
-		}
-	}
-
-	/* If after MLXSW_RESOURCES_QUERY_MAX_QUERIES we still didn't get
-	 * MLXSW_RESOURCES_TABLE_END_ID, something went bad in the FW.
-	 */
-	return -EIO;
-}
-
 static int
 mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_pci *mlxsw_pci,
 				const struct mlxsw_config_profile *profile,
@@ -1365,10 +1331,10 @@ static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
 		u32 val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
 
 		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
-			break;
+			return 0;
 		cond_resched();
 	} while (time_before(jiffies, end));
-	return 0;
+	return -EBUSY;
 }
 
 static int mlxsw_pci_alloc_irq_vectors(struct mlxsw_pci *mlxsw_pci)
@@ -1457,7 +1423,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_boardinfo;
 
-	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res);
+	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 	if (err)
 		goto err_query_resources;
 
@@ -1720,7 +1686,6 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	const char *driver_name = pdev->driver->name;
 	struct mlxsw_pci *mlxsw_pci;
-	bool called_again = false;
 	int err;
 
 	mlxsw_pci = kzalloc(sizeof(*mlxsw_pci), GFP_KERNEL);
@@ -1777,18 +1742,10 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mlxsw_pci->bus_info.dev = &pdev->dev;
 	mlxsw_pci->id = id;
 
-again:
 	err = mlxsw_core_bus_device_register(&mlxsw_pci->bus_info,
 					     &mlxsw_pci_bus, mlxsw_pci, false,
 					     NULL);
-	/* -EAGAIN is returned in case the FW was updated. FW needs
-	 * a reset, so lets try to call mlxsw_core_bus_device_register()
-	 * again.
-	 */
-	if (err == -EAGAIN && !called_again) {
-		called_again = true;
-		goto again;
-	} else if (err) {
+	if (err) {
 		dev_err(&pdev->dev, "cannot register bus device\n");
 		goto err_bus_device_register;
 	}

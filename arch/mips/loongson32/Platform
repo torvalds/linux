@@ -1,4 +1,4 @@
-cflags-$(CONFIG_CPU_LOONGSON1)		+= -march=mips32 -Wa,--trap
+cflags-$(CONFIG_CPU_LOONGSON1)		+= -march=mips32r2 -Wa,--trap
 platform-$(CONFIG_MACH_LOONGSON32)	+= loongson32/
 cflags-$(CONFIG_MACH_LOONGSON32)	+= -I$(srctree)/arch/mips/include/asm/mach-loongson32
-load-$(CONFIG_CPU_LOONGSON1)		+= 0xffffffff80100000
+load-$(CONFIG_CPU_LOONGSON1)		+= 0xffffffff80200000

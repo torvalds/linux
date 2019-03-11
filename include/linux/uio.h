@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/thread_info.h>
+#include <crypto/hash.h>
 #include <uapi/linux/uio.h>
 
 struct page;
@@ -21,15 +22,16 @@ struct kvec {
 	size_t iov_len;
 };
 
-enum {
+enum iter_type {
 	ITER_IOVEC = 0,
 	ITER_KVEC = 2,
 	ITER_BVEC = 4,
 	ITER_PIPE = 8,
+	ITER_DISCARD = 16,
 };
 
 struct iov_iter {
-	int type;
+	unsigned int type;
 	size_t iov_offset;
 	size_t count;
 	union {
@@ -46,6 +48,41 @@ struct iov_iter {
 		};
 	};
 };
+
+static inline enum iter_type iov_iter_type(const struct iov_iter *i)
+{
+	return i->type & ~(READ | WRITE);
+}
+
+static inline bool iter_is_iovec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_IOVEC;
+}
+
+static inline bool iov_iter_is_kvec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_KVEC;
+}
+
+static inline bool iov_iter_is_bvec(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_BVEC;
+}
+
+static inline bool iov_iter_is_pipe(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_PIPE;
+}
+
+static inline bool iov_iter_is_discard(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_DISCARD;
+}
+
+static inline unsigned char iov_iter_rw(const struct iov_iter *i)
+{
+	return i->type & (READ | WRITE);
+}
 
 /*
  * Total number of bytes covered by an iovec.
@@ -74,7 +111,8 @@ static inline struct iovec iov_iter_iovec(const struct iov_iter *iter)
 }
 
 #define iov_for_each(iov, iter, start)				\
-	if (!((start).type & (ITER_BVEC | ITER_PIPE)))		\
+	if (iov_iter_type(start) == ITER_IOVEC ||		\
+	    iov_iter_type(start) == ITER_KVEC)			\
 	for (iter = (start);					\
 	     (iter).count &&					\
 	     ((iov = iov_iter_iovec(&(iter))), 1);		\
@@ -181,14 +219,15 @@ size_t copy_to_iter_mcsafe(void *addr, size_t bytes, struct iov_iter *i)
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
 unsigned long iov_iter_alignment(const struct iov_iter *i);
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i);
-void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
+void iov_iter_init(struct iov_iter *i, unsigned int direction, const struct iovec *iov,
 			unsigned long nr_segs, size_t count);
-void iov_iter_kvec(struct iov_iter *i, int direction, const struct kvec *kvec,
+void iov_iter_kvec(struct iov_iter *i, unsigned int direction, const struct kvec *kvec,
 			unsigned long nr_segs, size_t count);
-void iov_iter_bvec(struct iov_iter *i, int direction, const struct bio_vec *bvec,
+void iov_iter_bvec(struct iov_iter *i, unsigned int direction, const struct bio_vec *bvec,
 			unsigned long nr_segs, size_t count);
-void iov_iter_pipe(struct iov_iter *i, int direction, struct pipe_inode_info *pipe,
+void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_inode_info *pipe,
 			size_t count);
+void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
 ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
 			size_t maxsize, unsigned maxpages, size_t *start);
 ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
@@ -201,19 +240,6 @@ static inline size_t iov_iter_count(const struct iov_iter *i)
 {
 	return i->count;
 }
-
-static inline bool iter_is_iovec(const struct iov_iter *i)
-{
-	return !(i->type & (ITER_BVEC | ITER_KVEC | ITER_PIPE));
-}
-
-/*
- * Get one of READ or WRITE out of iter->type without any other flags OR'd in
- * with it.
- *
- * The ?: is just for type safety.
- */
-#define iov_iter_rw(i) ((0 ? (struct iov_iter *)0 : (i))->type & (READ | WRITE))
 
 /*
  * Cap the iov_iter by given limit; note that the second argument is
@@ -241,9 +267,11 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 {
 	i->count = count;
 }
-size_t csum_and_copy_to_iter(const void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
+size_t csum_and_copy_to_iter(const void *addr, size_t bytes, void *csump, struct iov_iter *i);
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
 bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i);
+size_t hash_and_copy_to_iter(const void *addr, size_t bytes, void *hashp,
+		struct iov_iter *i);
 
 int import_iovec(int type, const struct iovec __user * uvector,
 		 unsigned nr_segs, unsigned fast_segs,

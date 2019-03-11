@@ -1,5 +1,6 @@
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
+	imply NVMEM
 	help
 	  Memory Technology Devices are flash, RAM and similar chips, often
 	  used for solid state file systems on embedded devices. This option
@@ -21,56 +22,6 @@ config MTD_TESTS
 
 	  WARNING: some of the tests will ERASE entire MTD device which they
 	  test. Do not use these tests unless you really know what you do.
-
-config MTD_REDBOOT_PARTS
-	tristate "RedBoot partition table parsing"
-	help
-	  RedBoot is a ROM monitor and bootloader which deals with multiple
-	  'images' in flash devices by putting a table one of the erase
-	  blocks on the device, similar to a partition table, which gives
-	  the offsets, lengths and names of all the images stored in the
-	  flash.
-
-	  If you need code which can detect and parse this table, and register
-	  MTD 'partitions' corresponding to each image in the table, enable
-	  this option.
-
-	  You will still need the parsing functions to be called by the driver
-	  for your particular device. It won't happen automatically. The
-	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
-	  example.
-
-if MTD_REDBOOT_PARTS
-
-config MTD_REDBOOT_DIRECTORY_BLOCK
-	int "Location of RedBoot partition table"
-	default "-1"
-	help
-	  This option is the Linux counterpart to the
-	  CYGNUM_REDBOOT_FIS_DIRECTORY_BLOCK RedBoot compile time
-	  option.
-
-	  The option specifies which Flash sectors holds the RedBoot
-	  partition table.  A zero or positive value gives an absolute
-	  erase block number. A negative value specifies a number of
-	  sectors before the end of the device.
-
-	  For example "2" means block number 2, "-1" means the last
-	  block and "-2" means the penultimate block.
-
-config MTD_REDBOOT_PARTS_UNALLOCATED
-	bool "Include unallocated flash regions"
-	help
-	  If you need to register each unallocated flash region as a MTD
-	  'partition', enable this option.
-
-config MTD_REDBOOT_PARTS_READONLY
-	bool "Force read-only for RedBoot system images"
-	help
-	  If you need to force read-only for 'RedBoot', 'RedBoot Config' and
-	  'FIS directory' images, enable this option.
-
-endif # MTD_REDBOOT_PARTS
 
 config MTD_CMDLINE_PARTS
 	tristate "Command line partition table parsing"
@@ -144,7 +95,7 @@ config MTD_BCM63XX_PARTS
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	help
-	  This provides partions parsing for BCM63xx devices with CFE
+	  This provides partition parsing for BCM63xx devices with CFE
 	  bootloaders.
 
 config MTD_BCM47XX_PARTS

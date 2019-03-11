@@ -76,7 +76,8 @@ static int temperature_read_raw(struct iio_dev *indio_dev,
 			HID_USAGE_SENSOR_TEMPERATURE,
 			HID_USAGE_SENSOR_DATA_ENVIRONMENTAL_TEMPERATURE,
 			temp_st->temperature_attr.report_id,
-			SENSOR_HUB_SYNC);
+			SENSOR_HUB_SYNC,
+			temp_st->temperature_attr.logical_minimum < 0);
 		hid_sensor_power_state(
 				&temp_st->common_attributes,
 				false);

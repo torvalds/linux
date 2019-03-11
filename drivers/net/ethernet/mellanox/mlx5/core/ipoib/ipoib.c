@@ -87,7 +87,7 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 	netdev->mtu = max_mtu;
 
-	mlx5e_build_nic_params(mdev, &priv->channels.params,
+	mlx5e_build_nic_params(mdev, &priv->rss_params, &priv->channels.params,
 			       mlx5e_get_netdev_max_channels(netdev),
 			       netdev->mtu);
 	mlx5i_build_nic_params(mdev, &priv->channels.params);
@@ -446,11 +446,11 @@ static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu)
 
 	new_channels.params = *params;
 	new_channels.params.sw_mtu = new_mtu;
-	err = mlx5e_open_channels(priv, &new_channels);
+
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
 	if (err)
 		goto out;
 
-	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 	netdev->mtu = new_channels.params.sw_mtu;
 
 out:
@@ -560,9 +560,9 @@ static int mlx5i_close(struct net_device *netdev)
 
 	netif_carrier_off(epriv->netdev);
 	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
-	mlx5i_uninit_underlay_qp(epriv);
 	mlx5e_deactivate_priv_channels(epriv);
 	mlx5e_close_channels(&epriv->channels);
+	mlx5i_uninit_underlay_qp(epriv);
 unlock:
 	mutex_unlock(&epriv->state_lock);
 	return 0;

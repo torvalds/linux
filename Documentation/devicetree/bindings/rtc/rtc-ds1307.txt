@@ -35,7 +35,7 @@ Optional properties:
 	Should be given if internal trickle charger diode should be disabled
 
 Example:
-	rtc1: ds1339@68 {
+	ds1339: rtc@68 {
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 		interrupt-parent = <&gpio4>;

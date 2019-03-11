@@ -1199,7 +1199,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	/*
 	 * We must however always use iregs for the unwinder to stay sane; the
 	 * record BP,SP,IP can point into thin air when the record is from a
-	 * previous PMI context or an (I)RET happend between the record and
+	 * previous PMI context or an (I)RET happened between the record and
 	 * PMI.
 	 */
 	if (sample_type & PERF_SAMPLE_CALLCHAIN)
@@ -1628,6 +1628,8 @@ void __init intel_ds_init(void)
 	x86_pmu.bts  = boot_cpu_has(X86_FEATURE_BTS);
 	x86_pmu.pebs = boot_cpu_has(X86_FEATURE_PEBS);
 	x86_pmu.pebs_buffer_size = PEBS_BUFFER_SIZE;
+	if (x86_pmu.version <= 4)
+		x86_pmu.pebs_no_isolation = 1;
 	if (x86_pmu.pebs) {
 		char pebs_type = x86_pmu.intel_cap.pebs_trap ?  '+' : '-';
 		int format = x86_pmu.intel_cap.pebs_format;

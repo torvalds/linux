@@ -1,0 +1,7 @@
+config PCI_MT7621_PHY
+	tristate "MediaTek MT7621 PCI PHY Driver"
+	depends on RALINK && OF
+	select GENERIC_PHY
+	help
+	  Say 'Y' here to add support for MediaTek MT7621 PCI PHY driver,
+

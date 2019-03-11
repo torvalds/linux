@@ -4502,8 +4502,8 @@ void rtl8723b_stop_thread(struct adapter *padapter)
 
 	/*  stop xmit_buf_thread */
 	if (xmitpriv->SdioXmitThread) {
-		up(&xmitpriv->SdioXmitSema);
-		down(&xmitpriv->SdioXmitTerminateSema);
+		complete(&xmitpriv->SdioXmitStart);
+		wait_for_completion(&xmitpriv->SdioXmitTerminate);
 		xmitpriv->SdioXmitThread = NULL;
 	}
 #endif

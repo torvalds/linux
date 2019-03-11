@@ -15,10 +15,12 @@
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_vblank.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/platform_data/simplefb.h>
 
@@ -158,8 +160,6 @@ static void arc_pgu_crtc_atomic_begin(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 	.mode_valid	= arc_pgu_crtc_mode_valid,
-	.mode_set	= drm_helper_crtc_mode_set,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.mode_set_nofb	= arc_pgu_crtc_mode_set_nofb,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
 	.atomic_enable	= arc_pgu_crtc_atomic_enable,
@@ -186,7 +186,6 @@ static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
 
 static void arc_pgu_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 

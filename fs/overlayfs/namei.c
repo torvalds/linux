@@ -422,8 +422,10 @@ int ovl_verify_set_fh(struct dentry *dentry, const char *name,
 
 	fh = ovl_encode_real_fh(real, is_upper);
 	err = PTR_ERR(fh);
-	if (IS_ERR(fh))
+	if (IS_ERR(fh)) {
+		fh = NULL;
 		goto fail;
+	}
 
 	err = ovl_verify_fh(dentry, name, fh);
 	if (set && err == -ENODATA)

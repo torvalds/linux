@@ -337,15 +337,15 @@ static struct platform_device stargate2_flash_device = {
 	.num_resources = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_0_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_0_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_1_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_1_info = {
 	.num_chipselect = 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp_master_2_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_2_info = {
 	.num_chipselect = 1,
 };
 
@@ -436,9 +436,6 @@ static int imote2_mci_get_ro(struct device *dev)
 static struct pxamci_platform_data imote2_mci_platform_data = {
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* default anyway */
 	.get_ro = imote2_mci_get_ro,
-	.gpio_card_detect = -1,
-	.gpio_card_ro	= -1,
-	.gpio_power = -1,
 };
 
 static struct gpio_led imote2_led_pins[] = {

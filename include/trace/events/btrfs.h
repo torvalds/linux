@@ -92,7 +92,7 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 #define TP_STRUCT__entry_fsid __array(u8, fsid, BTRFS_FSID_SIZE)
 
 #define TP_fast_assign_fsid(fs_info)					\
-	memcpy(__entry->fsid, fs_info->fsid, BTRFS_FSID_SIZE)
+	memcpy(__entry->fsid, fs_info->fs_devices->fsid, BTRFS_FSID_SIZE)
 
 #define TP_STRUCT__entry_btrfs(args...)					\
 	TP_STRUCT__entry(						\
@@ -1048,7 +1048,10 @@ TRACE_EVENT(btrfs_trigger_flush,
 		{ FLUSH_DELAYED_ITEMS,		"FLUSH_DELAYED_ITEMS"},		\
 		{ FLUSH_DELALLOC,		"FLUSH_DELALLOC"},		\
 		{ FLUSH_DELALLOC_WAIT,		"FLUSH_DELALLOC_WAIT"},		\
+		{ FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR"},	\
+		{ FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS"},		\
 		{ ALLOC_CHUNK,			"ALLOC_CHUNK"},			\
+		{ ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE"},		\
 		{ COMMIT_TRANS,			"COMMIT_TRANS"})
 
 TRACE_EVENT(btrfs_flush_space,
@@ -1508,35 +1511,6 @@ DEFINE_EVENT(btrfs__qgroup_rsv_data, btrfs_qgroup_release_data,
 		 u64 reserved, int op),
 
 	TP_ARGS(inode, start, len, reserved, op)
-);
-
-DECLARE_EVENT_CLASS(btrfs__qgroup_delayed_ref,
-
-	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 u64 ref_root, u64 reserved),
-
-	TP_ARGS(fs_info, ref_root, reserved),
-
-	TP_STRUCT__entry_btrfs(
-		__field(	u64,		ref_root	)
-		__field(	u64,		reserved	)
-	),
-
-	TP_fast_assign_btrfs(fs_info,
-		__entry->ref_root	= ref_root;
-		__entry->reserved	= reserved;
-	),
-
-	TP_printk_btrfs("root=%llu reserved=%llu op=free",
-		  __entry->ref_root, __entry->reserved)
-);
-
-DEFINE_EVENT(btrfs__qgroup_delayed_ref, btrfs_qgroup_free_delayed_ref,
-
-	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 u64 ref_root, u64 reserved),
-
-	TP_ARGS(fs_info, ref_root, reserved)
 );
 
 DECLARE_EVENT_CLASS(btrfs_qgroup_extent,

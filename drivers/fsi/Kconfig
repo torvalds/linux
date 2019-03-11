@@ -46,6 +46,7 @@ config FSI_MASTER_AST_CF
 	tristate "FSI master based on Aspeed ColdFire coprocessor"
 	depends on GPIOLIB
 	depends on GPIO_ASPEED
+	select GENERIC_ALLOCATOR
 	---help---
 	This option enables a FSI master using the AST2400 and AST2500 GPIO
 	lines driven by the internal ColdFire coprocessor. This requires
@@ -63,5 +64,15 @@ config FSI_SBEFIFO
 	This option enables an FSI based SBEFIFO device driver. The SBEFIFO is
 	a pipe-like FSI device for communicating with the self boot engine
 	(SBE) on POWER processors.
+
+config FSI_OCC
+	tristate "OCC SBEFIFO client device driver"
+	depends on FSI_SBEFIFO
+	---help---
+	This option enables an SBEFIFO based On-Chip Controller (OCC) device
+	driver. The OCC is a device embedded on a POWER processor that collects
+	and aggregates sensor data from the processor and system. The OCC can
+	provide the raw sensor data as well as perform thermal and power
+	management on the system.
 
 endif

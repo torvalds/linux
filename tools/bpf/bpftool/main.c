@@ -1,37 +1,6 @@
-/*
- * Copyright (C) 2017-2018 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
-#include <bfd.h>
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
@@ -55,6 +24,7 @@ json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
 bool show_pinned;
+bool block_mount;
 int bpf_flags;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
@@ -86,7 +56,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup | perf | net }\n"
+		"       OBJECT := { prog | map | cgroup | perf | net | feature }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -217,6 +187,7 @@ static const struct cmd cmds[] = {
 	{ "cgroup",	do_cgroup },
 	{ "perf",	do_perf },
 	{ "net",	do_net },
+	{ "feature",	do_feature },
 	{ "version",	do_version },
 	{ 0 }
 };
@@ -344,6 +315,7 @@ int main(int argc, char **argv)
 		{ "version",	no_argument,	NULL,	'V' },
 		{ "bpffs",	no_argument,	NULL,	'f' },
 		{ "mapcompat",	no_argument,	NULL,	'm' },
+		{ "nomount",	no_argument,	NULL,	'n' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -352,13 +324,14 @@ int main(int argc, char **argv)
 	pretty_output = false;
 	json_output = false;
 	show_pinned = false;
+	block_mount = false;
 	bin_name = argv[0];
 
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "Vhpjfm",
+	while ((opt = getopt_long(argc, argv, "Vhpjfmn",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -385,6 +358,9 @@ int main(int argc, char **argv)
 		case 'm':
 			bpf_flags = MAPS_RELAX_COMPAT;
 			break;
+		case 'n':
+			block_mount = true;
+			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
 			if (json_output)
@@ -398,8 +374,6 @@ int main(int argc, char **argv)
 	argv += optind;
 	if (argc < 0)
 		usage();
-
-	bfd_init();
 
 	ret = cmd_select(cmds, argc, argv, do_help);
 

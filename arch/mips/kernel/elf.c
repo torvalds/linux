@@ -16,6 +16,8 @@
 #include <asm/cpu-features.h>
 #include <asm/cpu-info.h>
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
+
 /* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
 bool mips_use_nan_legacy;
 bool mips_use_nan_2008;
@@ -325,6 +327,8 @@ void mips_set_personality_nan(struct arch_elf_state *state)
 		BUG();
 	}
 }
+
+#endif /* CONFIG_MIPS_FP_SUPPORT */
 
 int mips_elf_read_implies_exec(void *elf_ex, int exstack)
 {

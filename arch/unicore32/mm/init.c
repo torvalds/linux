@@ -11,13 +11,12 @@
 #include <linux/errno.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
@@ -30,25 +29,6 @@
 #include <mach/map.h>
 
 #include "mm.h"
-
-static unsigned long phys_initrd_start __initdata = 0x01000000;
-static unsigned long phys_initrd_size __initdata = SZ_8M;
-
-static int __init early_initrd(char *p)
-{
-	unsigned long start, size;
-	char *endp;
-
-	start = memparse(p, &endp);
-	if (*endp == ',') {
-		size = memparse(endp + 1, NULL);
-
-		phys_initrd_start = start;
-		phys_initrd_size = size;
-	}
-	return 0;
-}
-early_param("initrd", early_initrd);
 
 /*
  * This keeps memory configuration data used by a couple memory
@@ -157,6 +137,11 @@ void __init uc32_memblock_init(struct meminfo *mi)
 	memblock_reserve(__pa(_text), _end - _text);
 
 #ifdef CONFIG_BLK_DEV_INITRD
+	if (!phys_initrd_size) {
+		phys_initrd_start = 0x01000000;
+		phys_initrd_size = SZ_8M;
+	}
+
 	if (phys_initrd_size) {
 		memblock_reserve(phys_initrd_start, phys_initrd_size);
 
@@ -238,7 +223,7 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * free the section of the memmap array.
 	 */
 	if (pg < pgend)
-		free_bootmem(pg, pgend - pg);
+		memblock_free(pg, pgend - pg);
 }
 
 /*
@@ -286,33 +271,9 @@ void __init mem_init(void)
 	free_unused_memmap(&meminfo);
 
 	/* this will put all unused low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
-	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
-		"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"      .init : 0x%p" " - 0x%p" "   (%4d kB)\n"
-		"      .text : 0x%p" " - 0x%p" "   (%4d kB)\n"
-		"      .data : 0x%p" " - 0x%p" "   (%4d kB)\n",
-
-		VECTORS_BASE, VECTORS_BASE + PAGE_SIZE,
-		DIV_ROUND_UP(PAGE_SIZE, SZ_1K),
-		VMALLOC_START, VMALLOC_END,
-		DIV_ROUND_UP((VMALLOC_END - VMALLOC_START), SZ_1M),
-		PAGE_OFFSET, (unsigned long)high_memory,
-		DIV_ROUND_UP(((unsigned long)high_memory - PAGE_OFFSET), SZ_1M),
-		MODULES_VADDR, MODULES_END,
-		DIV_ROUND_UP((MODULES_END - MODULES_VADDR), SZ_1M),
-
-		__init_begin, __init_end,
-		DIV_ROUND_UP((__init_end - __init_begin), SZ_1K),
-		_stext, _etext,
-		DIV_ROUND_UP((_etext - _stext), SZ_1K),
-		_sdata, _edata,
-		DIV_ROUND_UP((_edata - _sdata), SZ_1K));
 
 	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
 	BUG_ON(TASK_SIZE				> MODULES_VADDR);

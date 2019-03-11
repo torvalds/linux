@@ -342,6 +342,7 @@ static void ext2_xattr_update_super_block(struct super_block *sb)
 		return;
 
 	spin_lock(&EXT2_SB(sb)->s_lock);
+	ext2_update_dynamic_rev(sb);
 	EXT2_SET_COMPAT_FEATURE(sb, EXT2_FEATURE_COMPAT_EXT_ATTR);
 	spin_unlock(&EXT2_SB(sb)->s_lock);
 	mark_buffer_dirty(EXT2_SB(sb)->s_sbh);
@@ -612,9 +613,9 @@ skip_replace:
 	}
 
 cleanup:
-	brelse(bh);
 	if (!(bh && header == HDR(bh)))
 		kfree(header);
+	brelse(bh);
 	up_write(&EXT2_I(inode)->xattr_sem);
 
 	return error;
@@ -835,7 +836,8 @@ ext2_xattr_cache_insert(struct mb_cache *cache, struct buffer_head *bh)
 	__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
 	int error;
 
-	error = mb_cache_entry_create(cache, GFP_NOFS, hash, bh->b_blocknr, 1);
+	error = mb_cache_entry_create(cache, GFP_NOFS, hash, bh->b_blocknr,
+				      true);
 	if (error) {
 		if (error == -EBUSY) {
 			ea_bdebug(bh, "already in cache (%d cache entries)",

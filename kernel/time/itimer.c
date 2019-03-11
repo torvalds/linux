@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/itimer.c
- *
  * Copyright (C) 1992 Darren Senn
  */
 

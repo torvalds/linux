@@ -583,7 +583,8 @@ void ast_driver_unload(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 
 	ast_mm_fini(ast);
-	pci_iounmap(dev->pdev, ast->ioregs);
+	if (ast->ioregs != ast->regs + AST_IO_MM_OFFSET)
+		pci_iounmap(dev->pdev, ast->ioregs);
 	pci_iounmap(dev->pdev, ast->regs);
 	kfree(ast);
 }
@@ -638,13 +639,9 @@ int ast_dumb_create(struct drm_file *file,
 
 static void ast_bo_unref(struct ast_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(&((*bo)->bo));
 	*bo = NULL;
 }
 

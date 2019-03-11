@@ -29,7 +29,6 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
@@ -294,7 +293,7 @@ move_initrd(unsigned long mem_limit)
 	unsigned long size;
 
 	size = initrd_end - initrd_start;
-	start = __alloc_bootmem(PAGE_ALIGN(size), PAGE_SIZE, 0);
+	start = memblock_alloc_from(PAGE_ALIGN(size), PAGE_SIZE, 0);
 	if (!start || __pa(start) + size > mem_limit) {
 		initrd_start = initrd_end = 0;
 		return NULL;
@@ -635,6 +634,7 @@ setup_arch(char **cmdline_p)
 
 	/* Find our memory.  */
 	setup_memory(kernel_end);
+	memblock_set_bottom_up(true);
 
 	/* First guess at cpu cache sizes.  Do this before init_arch.  */
 	determine_cpu_caches(cpu->type);

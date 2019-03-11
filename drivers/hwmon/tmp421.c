@@ -88,7 +88,7 @@ static const struct of_device_id tmp421_of_match[] = {
 		.data = (void *)2
 	},
 	{
-		.compatible = "ti,tmp422",
+		.compatible = "ti,tmp442",
 		.data = (void *)3
 	},
 	{ },
@@ -187,9 +187,9 @@ static umode_t tmp421_is_visible(const void *data, enum hwmon_sensor_types type,
 	case hwmon_temp_fault:
 		if (channel == 0)
 			return 0;
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_input:
-		return S_IRUGO;
+		return 0444;
 	default:
 		return 0;
 	}

@@ -116,6 +116,10 @@
 	status = "okay";
 };
 
+&lpc_ctrl {
+	status = "okay";
+};
+
 &lpc_snoop {
 	status = "okay";
 	snoop-ports = <0x80>;
@@ -132,6 +136,10 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
+&uart1 {
+	status = "okay";
 };
 
 &uart5 {

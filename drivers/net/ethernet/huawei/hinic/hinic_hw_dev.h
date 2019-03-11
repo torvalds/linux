@@ -50,6 +50,8 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_LINK_STATE   = 24,
 
+	HINIC_PORT_CMD_SET_RX_CSUM	= 26,
+
 	HINIC_PORT_CMD_SET_PORT_STATE   = 41,
 
 	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
@@ -237,5 +239,8 @@ int hinic_hwdev_msix_set(struct hinic_hwdev *hwdev, u16 msix_index,
 
 int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 			       u8 pending_limit, u8 coalesc_timer);
+
+void hinic_hwdev_set_msix_state(struct hinic_hwdev *hwdev, u16 msix_index,
+				enum hinic_msix_state flag);
 
 #endif

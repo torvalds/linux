@@ -32,6 +32,7 @@
 
 #include <linux/mutex.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/vport.h>
 #include <linux/mlx5/eswitch.h>
 
 #include "mlx5_core.h"
@@ -397,6 +398,7 @@ static void del_hw_flow_table(struct fs_node *node)
 	fs_get_obj(ft, node);
 	dev = get_dev(&ft->node);
 	root = find_root(&ft->node);
+	trace_mlx5_fs_del_ft(ft);
 
 	if (node->active) {
 		err = root->cmds->destroy_flow_table(dev, ft);
@@ -452,7 +454,7 @@ static void del_sw_hw_rule(struct fs_node *node)
 
 	if ((fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
 	    --fte->dests_size) {
-		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST),
+		modify_mask = BIT(MLX5_SET_FTE_MODIFY_ENABLE_MASK_DESTINATION_LIST);
 		update_fte = true;
 	}
 out:
@@ -618,7 +620,8 @@ static struct mlx5_flow_group *alloc_flow_group(struct mlx5_flow_steering *steer
 	if (ret) {
 		kmem_cache_free(steering->fgs_cache, fg);
 		return ERR_PTR(ret);
-}
+	}
+
 	ida_init(&fg->fte_allocator);
 	fg->mask.match_criteria_enable = match_criteria_enable;
 	memcpy(&fg->mask.match_criteria, match_criteria,
@@ -1019,6 +1022,7 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	fs_prio->num_ft++;
 	up_write_ref_node(&fs_prio->node);
 	mutex_unlock(&root->chain_lock);
+	trace_mlx5_fs_add_ft(ft);
 	return ft;
 destroy_ft:
 	root->cmds->destroy_flow_table(root->dev, ft);
@@ -1373,7 +1377,10 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 {
 	if (d1->type == d2->type) {
 		if ((d1->type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
-		     d1->vport.num == d2->vport.num) ||
+		     d1->vport.num == d2->vport.num &&
+		     d1->vport.flags == d2->vport.flags &&
+		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID) ?
+		      (d1->vport.reformat_id == d2->vport.reformat_id) : true)) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&

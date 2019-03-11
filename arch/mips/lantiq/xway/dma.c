@@ -129,9 +129,9 @@ ltq_dma_alloc(struct ltq_dma_channel *ch)
 	unsigned long flags;
 
 	ch->desc = 0;
-	ch->desc_base = dma_zalloc_coherent(ch->dev,
-				LTQ_DESC_NUM * LTQ_DESC_SIZE,
-				&ch->phys, GFP_ATOMIC);
+	ch->desc_base = dma_alloc_coherent(ch->dev,
+					   LTQ_DESC_NUM * LTQ_DESC_SIZE,
+					   &ch->phys, GFP_ATOMIC);
 
 	spin_lock_irqsave(&ltq_dma_lock, flags);
 	ltq_dma_w32(ch->nr, LTQ_DMA_CS);

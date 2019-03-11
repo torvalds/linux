@@ -9,15 +9,19 @@
  */
 
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "ltdc.h"
 
@@ -26,7 +30,6 @@
 
 static const struct drm_mode_config_funcs drv_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -52,7 +55,6 @@ DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
 static struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
-	.lastclose = drm_fb_helper_lastclose,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
 	.date = "20170330",
@@ -72,6 +74,8 @@ static struct drm_driver drv_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	.get_scanout_position = ltdc_crtc_scanoutpos,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 };
 
 static int drv_load(struct drm_device *ddev)
@@ -108,12 +112,6 @@ static int drv_load(struct drm_device *ddev)
 	drm_mode_config_reset(ddev);
 	drm_kms_helper_poll_init(ddev);
 
-	if (ddev->mode_config.num_connector) {
-		ret = drm_fb_cma_fbdev_init(ddev, 16, 0);
-		if (ret)
-			DRM_DEBUG("Warning: fails to create fbdev\n");
-	}
-
 	platform_set_drvdata(pdev, ddev);
 
 	return 0;
@@ -126,7 +124,6 @@ static void drv_unload(struct drm_device *ddev)
 {
 	DRM_DEBUG("%s\n", __func__);
 
-	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
 	ltdc_unload(ddev);
 	drm_mode_config_cleanup(ddev);
@@ -153,6 +150,8 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
 		goto err_put;
+
+	drm_fbdev_generic_setup(ddev, 16);
 
 	return 0;
 

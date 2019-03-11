@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -318,9 +307,11 @@ static struct ath10k_hw_ce_ctrl1_upd wcn3990_ctrl1_upd = {
 };
 
 const struct ath10k_hw_ce_regs wcn3990_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
+	.sr_base_addr_hi	= 0x00000004,
 	.sr_size_addr		= 0x00000008,
-	.dr_base_addr		= 0x0000000c,
+	.dr_base_addr_lo	= 0x0000000c,
+	.dr_base_addr_hi	= 0x00000010,
 	.dr_size_addr		= 0x00000014,
 	.misc_ie_addr		= 0x00000034,
 	.sr_wr_index_addr	= 0x0000003c,
@@ -464,9 +455,9 @@ static struct ath10k_hw_ce_dst_src_wm_regs qcax_wm_dst_ring = {
 };
 
 const struct ath10k_hw_ce_regs qcax_ce_regs = {
-	.sr_base_addr		= 0x00000000,
+	.sr_base_addr_lo	= 0x00000000,
 	.sr_size_addr		= 0x00000004,
-	.dr_base_addr		= 0x00000008,
+	.dr_base_addr_lo	= 0x00000008,
 	.dr_size_addr		= 0x0000000c,
 	.ce_cmd_addr		= 0x00000018,
 	.misc_ie_addr		= 0x00000034,
@@ -1109,6 +1100,32 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 	return ret;
 }
 
+static int ath10k_htt_tx_rssi_enable(struct htt_resp *resp)
+{
+	return (resp->data_tx_completion.flags2 & HTT_TX_CMPL_FLAG_DATA_RSSI);
+}
+
+static int ath10k_htt_tx_rssi_enable_wcn3990(struct htt_resp *resp)
+{
+	return (resp->data_tx_completion.flags2 &
+		HTT_TX_DATA_RSSI_ENABLE_WCN3990);
+}
+
+static int ath10k_get_htt_tx_data_rssi_pad(struct htt_resp *resp)
+{
+	struct htt_data_tx_completion_ext extd;
+	int pad_bytes = 0;
+
+	if (resp->data_tx_completion.flags2 & HTT_TX_DATA_APPEND_RETRIES)
+		pad_bytes += sizeof(extd.a_retries) /
+			     sizeof(extd.msdus_rssi[0]);
+
+	if (resp->data_tx_completion.flags2 & HTT_TX_DATA_APPEND_TIMESTAMP)
+		pad_bytes += sizeof(extd.t_stamp) / sizeof(extd.msdus_rssi[0]);
+
+	return pad_bytes;
+}
+
 const struct ath10k_hw_ops qca988x_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 };
@@ -1119,13 +1136,24 @@ static int ath10k_qca99x0_rx_desc_get_l3_pad_bytes(struct htt_rx_desc *rxd)
 		  RX_MSDU_END_INFO1_L3_HDR_PAD);
 }
 
+static bool ath10k_qca99x0_rx_desc_msdu_limit_error(struct htt_rx_desc *rxd)
+{
+	return !!(rxd->msdu_end.common.info0 &
+		  __cpu_to_le32(RX_MSDU_END_INFO0_MSDU_LIMIT_ERR));
+}
+
 const struct ath10k_hw_ops qca99x0_ops = {
 	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_msdu_limit_error = ath10k_qca99x0_rx_desc_msdu_limit_error,
 };
 
 const struct ath10k_hw_ops qca6174_ops = {
 	.set_coverage_class = ath10k_hw_qca988x_set_coverage_class,
 	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
+	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 
-const struct ath10k_hw_ops wcn3990_ops = {};
+const struct ath10k_hw_ops wcn3990_ops = {
+	.tx_data_rssi_pad_bytes = ath10k_get_htt_tx_data_rssi_pad,
+	.is_rssi_enable = ath10k_htt_tx_rssi_enable_wcn3990,
+};

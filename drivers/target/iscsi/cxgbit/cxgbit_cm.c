@@ -641,8 +641,11 @@ static void cxgbit_send_halfclose(struct cxgbit_sock *csk)
 
 static void cxgbit_arp_failure_discard(void *handle, struct sk_buff *skb)
 {
+	struct cxgbit_sock *csk = handle;
+
 	pr_debug("%s cxgbit_device %p\n", __func__, handle);
 	kfree_skb(skb);
+	cxgbit_put_csk(csk);
 }
 
 static void cxgbit_abort_arp_failure(void *handle, struct sk_buff *skb)
@@ -932,8 +935,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 			goto out;
 		csk->mtu = ndev->mtu;
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
-						 cxgb4_port_viid(ndev));
+		csk->smac_idx =
+			       ((struct port_info *)netdev_priv(ndev))->smt_idx;
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nchan;
 		csk->txq_idx = cxgb4_port_idx(ndev) * step;
@@ -968,8 +971,8 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		port_id = cxgb4_port_idx(ndev);
 		csk->mtu = dst_mtu(dst);
 		csk->tx_chan = cxgb4_port_chan(ndev);
-		csk->smac_idx = cxgb4_tp_smt_idx(cdev->lldi.adapter_type,
-						 cxgb4_port_viid(ndev));
+		csk->smac_idx =
+			       ((struct port_info *)netdev_priv(ndev))->smt_idx;
 		step = cdev->lldi.ntxq /
 			cdev->lldi.nports;
 		csk->txq_idx = (port_id * step) +
@@ -1206,7 +1209,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, csk->ctrlq_idx);
-	t4_set_arp_err_handler(skb, NULL, cxgbit_arp_failure_discard);
+	t4_set_arp_err_handler(skb, csk, cxgbit_arp_failure_discard);
 	cxgbit_l2t_send(csk->com.cdev, skb, csk->l2t);
 }
 

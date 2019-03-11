@@ -1336,3 +1336,20 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	xfs_da_state_free(state);
 	return retval;
 }
+
+/* Returns true if the attribute entry name is valid. */
+bool
+xfs_attr_namecheck(
+	const void	*name,
+	size_t		length)
+{
+	/*
+	 * MAXNAMELEN includes the trailing null, but (name/length) leave it
+	 * out, so use >= for the length check.
+	 */
+	if (length >= MAXNAMELEN)
+		return false;
+
+	/* There shouldn't be any nulls here */
+	return !memchr(name, 0, length);
+}

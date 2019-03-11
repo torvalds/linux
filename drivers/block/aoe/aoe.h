@@ -100,6 +100,10 @@ enum {
 	MAX_TAINT = 1000,	/* cap on aoetgt taint */
 };
 
+struct aoe_req {
+	unsigned long nr_bios;
+};
+
 struct buf {
 	ulong nframesout;
 	struct bio *bio;

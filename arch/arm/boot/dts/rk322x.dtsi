@@ -493,12 +493,18 @@
 				map0 {
 					trip = <&cpu_alert0>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT 6>;
+						<&cpu0 THERMAL_NO_LIMIT 6>,
+						<&cpu1 THERMAL_NO_LIMIT 6>,
+						<&cpu2 THERMAL_NO_LIMIT 6>,
+						<&cpu3 THERMAL_NO_LIMIT 6>;
 				};
 				map1 {
 					trip = <&cpu_alert1>;
 					cooling-device =
-						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};

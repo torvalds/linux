@@ -825,32 +825,6 @@ static int hdmi5_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int hdmi_runtime_suspend(struct device *dev)
-{
-	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
-
-	dispc_runtime_put(hdmi->dss->dispc);
-
-	return 0;
-}
-
-static int hdmi_runtime_resume(struct device *dev)
-{
-	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
-	int r;
-
-	r = dispc_runtime_get(hdmi->dss->dispc);
-	if (r < 0)
-		return r;
-
-	return 0;
-}
-
-static const struct dev_pm_ops hdmi_pm_ops = {
-	.runtime_suspend = hdmi_runtime_suspend,
-	.runtime_resume = hdmi_runtime_resume,
-};
-
 static const struct of_device_id hdmi_of_match[] = {
 	{ .compatible = "ti,omap5-hdmi", },
 	{ .compatible = "ti,dra7-hdmi", },
@@ -862,7 +836,6 @@ struct platform_driver omapdss_hdmi5hw_driver = {
 	.remove		= hdmi5_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi5",
-		.pm	= &hdmi_pm_ops,
 		.of_match_table = hdmi_of_match,
 		.suppress_bind_attrs = true,
 	},

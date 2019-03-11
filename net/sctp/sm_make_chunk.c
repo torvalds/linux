@@ -495,7 +495,10 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	 *
 	 * [INIT ACK back to where the INIT came from.]
 	 */
-	retval->transport = chunk->transport;
+	if (chunk->transport)
+		retval->transport =
+			sctp_assoc_lookup_paddr(asoc,
+						&chunk->transport->ipaddr);
 
 	retval->subh.init_hdr =
 		sctp_addto_chunk(retval, sizeof(initack), &initack);
@@ -642,8 +645,10 @@ struct sctp_chunk *sctp_make_cookie_ack(const struct sctp_association *asoc,
 	 *
 	 * [COOKIE ACK back to where the COOKIE ECHO came from.]
 	 */
-	if (retval && chunk)
-		retval->transport = chunk->transport;
+	if (retval && chunk && chunk->transport)
+		retval->transport =
+			sctp_assoc_lookup_paddr(asoc,
+						&chunk->transport->ipaddr);
 
 	return retval;
 }
@@ -2461,6 +2466,9 @@ int sctp_process_init(struct sctp_association *asoc, struct sctp_chunk *chunk,
 	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
 			     asoc->c.sinit_max_instreams, gfp))
 		goto clean_up;
+
+	/* Update frag_point when stream_interleave may get changed. */
+	sctp_assoc_update_frag_point(asoc);
 
 	if (!asoc->temp && sctp_assoc_set_id(asoc, gfp))
 		goto clean_up;

@@ -174,6 +174,20 @@ mlxsw_sp_nve_mc_record_ops_arr[] = {
 	[MLXSW_SP_L3_PROTO_IPV6] = &mlxsw_sp_nve_mc_record_ipv6_ops,
 };
 
+int mlxsw_sp_nve_learned_ip_resolve(struct mlxsw_sp *mlxsw_sp, u32 uip,
+				    enum mlxsw_sp_l3proto proto,
+				    union mlxsw_sp_l3addr *addr)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		addr->addr4 = cpu_to_be32(uip);
+		return 0;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
 static struct mlxsw_sp_nve_mc_list *
 mlxsw_sp_nve_mc_list_find(struct mlxsw_sp *mlxsw_sp,
 			  const struct mlxsw_sp_nve_mc_list_key *key)
@@ -253,8 +267,8 @@ mlxsw_sp_nve_mc_record_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_nve_mc_record *mc_record;
 	int err;
 
-	mc_record = kzalloc(sizeof(*mc_record) + num_max_entries *
-			    sizeof(struct mlxsw_sp_nve_mc_entry), GFP_KERNEL);
+	mc_record = kzalloc(struct_size(mc_record, entries, num_max_entries),
+			    GFP_KERNEL);
 	if (!mc_record)
 		return ERR_PTR(-ENOMEM);
 
@@ -560,7 +574,7 @@ static void mlxsw_sp_nve_mc_list_ip_del(struct mlxsw_sp *mlxsw_sp,
 
 	mc_record = mlxsw_sp_nve_mc_record_find(mc_list, proto, addr,
 						&mc_entry);
-	if (WARN_ON(!mc_record))
+	if (!mc_record)
 		return;
 
 	mlxsw_sp_nve_mc_record_entry_del(mc_record, mc_entry);
@@ -647,7 +661,7 @@ void mlxsw_sp_nve_flood_ip_del(struct mlxsw_sp *mlxsw_sp,
 
 	key.fid_index = mlxsw_sp_fid_index(fid);
 	mc_list = mlxsw_sp_nve_mc_list_find(mlxsw_sp, &key);
-	if (WARN_ON(!mc_list))
+	if (!mc_list)
 		return;
 
 	mlxsw_sp_nve_fid_flood_index_clear(fid, mc_list);
@@ -775,6 +789,21 @@ static void mlxsw_sp_nve_fdb_flush_by_fid(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
 
+static void mlxsw_sp_nve_fdb_clear_offload(struct mlxsw_sp *mlxsw_sp,
+					   const struct mlxsw_sp_fid *fid,
+					   const struct net_device *nve_dev,
+					   __be32 vni)
+{
+	const struct mlxsw_sp_nve_ops *ops;
+	enum mlxsw_sp_nve_type type;
+
+	if (WARN_ON(mlxsw_sp_fid_nve_type(fid, &type)))
+		return;
+
+	ops = mlxsw_sp->nve->nve_ops_arr[type];
+	ops->fdb_clear_offload(nve_dev, vni);
+}
+
 int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 			    struct mlxsw_sp_nve_params *params,
 			    struct netlink_ext_ack *extack)
@@ -787,14 +816,14 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 	ops = nve->nve_ops_arr[params->type];
 
 	if (!ops->can_offload(nve, params->dev, extack))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	memset(&config, 0, sizeof(config));
 	ops->nve_config(nve, params->dev, &config);
 	if (nve->num_nve_tunnels &&
 	    memcmp(&config, &nve->config, sizeof(config))) {
 		NL_SET_ERR_MSG_MOD(extack, "Conflicting NVE tunnels configuration");
-		return -EOPNOTSUPP;
+		return -EINVAL;
 	}
 
 	err = mlxsw_sp_nve_tunnel_init(mlxsw_sp, &config);
@@ -803,7 +832,8 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		return err;
 	}
 
-	err = mlxsw_sp_fid_vni_set(fid, params->vni);
+	err = mlxsw_sp_fid_vni_set(fid, params->type, params->vni,
+				   params->dev->ifindex);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to set VNI on FID");
 		goto err_fid_vni_set;
@@ -811,8 +841,14 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	nve->config = config;
 
+	err = ops->fdb_replay(params->dev, params->vni, extack);
+	if (err)
+		goto err_fdb_replay;
+
 	return 0;
 
+err_fdb_replay:
+	mlxsw_sp_fid_vni_clear(fid);
 err_fid_vni_set:
 	mlxsw_sp_nve_tunnel_fini(mlxsw_sp);
 	return err;
@@ -822,9 +858,27 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_fid *fid)
 {
 	u16 fid_index = mlxsw_sp_fid_index(fid);
+	struct net_device *nve_dev;
+	int nve_ifindex;
+	__be32 vni;
 
 	mlxsw_sp_nve_flood_ip_flush(mlxsw_sp, fid);
 	mlxsw_sp_nve_fdb_flush_by_fid(mlxsw_sp, fid_index);
+
+	if (WARN_ON(mlxsw_sp_fid_nve_ifindex(fid, &nve_ifindex) ||
+		    mlxsw_sp_fid_vni(fid, &vni)))
+		goto out;
+
+	nve_dev = dev_get_by_index(&init_net, nve_ifindex);
+	if (!nve_dev)
+		goto out;
+
+	mlxsw_sp_nve_fdb_clear_offload(mlxsw_sp, fid, nve_dev, vni);
+	mlxsw_sp_fid_fdb_clear_offload(fid, nve_dev);
+
+	dev_put(nve_dev);
+
+out:
 	mlxsw_sp_fid_vni_clear(fid);
 	mlxsw_sp_nve_tunnel_fini(mlxsw_sp);
 }
@@ -977,6 +1031,6 @@ void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	WARN_ON(mlxsw_sp->nve->num_nve_tunnels);
 	rhashtable_destroy(&mlxsw_sp->nve->mc_list_ht);
-	mlxsw_sp->nve = NULL;
 	kfree(mlxsw_sp->nve);
+	mlxsw_sp->nve = NULL;
 }

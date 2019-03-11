@@ -149,6 +149,7 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		xfs_iunlink_destroy(pag);
 		xfs_buf_hash_destroy(pag);
 		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
@@ -227,6 +228,9 @@ xfs_initialize_perag(
 		/* first new pag is fully initialized */
 		if (first_initialised == NULLAGNUMBER)
 			first_initialised = index;
+		error = xfs_iunlink_init(pag);
+		if (error)
+			goto out_hash_destroy;
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -249,6 +253,7 @@ out_unwind_new_pags:
 		if (!pag)
 			break;
 		xfs_buf_hash_destroy(pag);
+		xfs_iunlink_destroy(pag);
 		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		kmem_free(pag);
 	}
@@ -798,6 +803,10 @@ xfs_mountfs(
 		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
 			mp->m_inode_cluster_size = new_size;
 	}
+	mp->m_blocks_per_cluster = xfs_icluster_size_fsb(mp);
+	mp->m_inodes_per_cluster = XFS_FSB_TO_INO(mp, mp->m_blocks_per_cluster);
+	mp->m_cluster_align = xfs_ialloc_cluster_alignment(mp);
+	mp->m_cluster_align_inodes = XFS_FSB_TO_INO(mp, mp->m_cluster_align);
 
 	/*
 	 * If enabled, sparse inode chunk alignment is expected to match the

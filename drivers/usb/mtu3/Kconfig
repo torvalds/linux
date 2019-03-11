@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+#
 # For MTK USB3.0 IP
 
 config USB_MTU3

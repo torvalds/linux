@@ -95,7 +95,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @queue: Wait queue for vblank waiters.
 	 */
-	wait_queue_head_t queue;	/**< VBLANK wait queue */
+	wait_queue_head_t queue;
 	/**
 	 * @disable_timer: Disable timer for the delayed vblank disabling
 	 * hysteresis logic. Vblank disabling is controlled through the
@@ -107,7 +107,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @seqlock: Protect vblank count and time.
 	 */
-	seqlock_t seqlock;		/* protects vblank count and time */
+	seqlock_t seqlock;
 
 	/**
 	 * @count: Current software vblank counter.
@@ -123,11 +123,31 @@ struct drm_vblank_crtc {
 	 * this refcount reaches 0 can the hardware interrupt be disabled using
 	 * @disable_timer.
 	 */
-	atomic_t refcount;		/* number of users of vblank interruptsper crtc */
+	atomic_t refcount;
 	/**
 	 * @last: Protected by &drm_device.vbl_lock, used for wraparound handling.
 	 */
 	u32 last;
+	/**
+	 * @max_vblank_count:
+	 *
+	 * Maximum value of the vblank registers for this crtc. This value +1
+	 * will result in a wrap-around of the vblank register. It is used
+	 * by the vblank core to handle wrap-arounds.
+	 *
+	 * If set to zero the vblank core will try to guess the elapsed vblanks
+	 * between times when the vblank interrupt is disabled through
+	 * high-precision timestamps. That approach is suffering from small
+	 * races and imprecision over longer time periods, hence exposing a
+	 * hardware vblank counter is always recommended.
+	 *
+	 * This is the runtime configurable per-crtc maximum set through
+	 * drm_crtc_set_max_vblank_count(). If this is used the driver
+	 * must leave the device wide &drm_device.max_vblank_count at zero.
+	 *
+	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
+	 */
+	u32 max_vblank_count;
 	/**
 	 * @inmodeset: Tracks whether the vblank is disabled due to a modeset.
 	 * For legacy driver bit 2 additionally tracks whether an additional
@@ -136,7 +156,7 @@ struct drm_vblank_crtc {
 	 * call drm_crtc_vblank_off() and drm_crtc_vblank_on(), which explicitly
 	 * save and restore the vblank count.
 	 */
-	unsigned int inmodeset;		/* Display driver is setting mode */
+	unsigned int inmodeset;
 	/**
 	 * @pipe: drm_crtc_index() of the &drm_crtc corresponding to this
 	 * structure.
@@ -206,4 +226,6 @@ bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode);
 wait_queue_head_t *drm_crtc_vblank_waitqueue(struct drm_crtc *crtc);
+void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
+				   u32 max_vblank_count);
 #endif

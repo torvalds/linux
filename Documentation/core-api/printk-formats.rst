@@ -13,6 +13,10 @@ Integer types
 
 	If variable is of Type,		use printk format specifier:
 	------------------------------------------------------------
+		char			%hhd or %hhx
+		unsigned char		%hhu or %hhx
+		short int		%hd or %hx
+		unsigned short int	%hu or %hx
 		int			%d or %x
 		unsigned int		%u or %x
 		long			%ld or %lx
@@ -21,6 +25,10 @@ Integer types
 		unsigned long long	%llu or %llx
 		size_t			%zu or %zx
 		ssize_t			%zd or %zx
+		s8			%hhd or %hhx
+		u8			%hhu or %hhx
+		s16			%hd or %hx
+		u16			%hu or %hx
 		s32			%d or %x
 		u32			%u or %x
 		s64			%lld or %llx
@@ -409,6 +417,24 @@ Examples::
 							d - detached
 							P - Populated
 							B - Populated bus
+
+Passed by reference.
+
+Time and date (struct rtc_time)
+-------------------------------
+
+::
+
+	%ptR		YYYY-mm-ddTHH:MM:SS
+	%ptRd		YYYY-mm-dd
+	%ptRt		HH:MM:SS
+	%ptR[dt][r]
+
+For printing date and time as represented by struct rtc_time structure in
+human readable format.
+
+By default year will be incremented by 1900 and month by 1. Use %ptRr (raw)
+to suppress this behaviour.
 
 Passed by reference.
 

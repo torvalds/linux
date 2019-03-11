@@ -282,8 +282,8 @@ int vmbus_open(struct vmbus_channel *newchannel,
 EXPORT_SYMBOL_GPL(vmbus_open);
 
 /* Used for Hyper-V Socket: a guest client's connect() to the host */
-int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
-				  const uuid_le *shv_host_servie_id)
+int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
+				  const guid_t *shv_host_servie_id)
 {
 	struct vmbus_channel_tl_connect_request conn_msg;
 	int ret;
@@ -516,6 +516,14 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	}
 	wait_for_completion(&msginfo->waitevent);
 
+	if (msginfo->response.gpadl_created.creation_status != 0) {
+		pr_err("Failed to establish GPADL: err = 0x%x\n",
+		       msginfo->response.gpadl_created.creation_status);
+
+		ret = -EDQUOT;
+		goto cleanup;
+	}
+
 	if (channel->rescind) {
 		ret = -ENODEV;
 		goto cleanup;
@@ -693,20 +701,12 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 int vmbus_disconnect_ring(struct vmbus_channel *channel)
 {
 	struct vmbus_channel *cur_channel, *tmp;
-	unsigned long flags;
-	LIST_HEAD(list);
 	int ret;
 
 	if (channel->primary_channel != NULL)
 		return -EINVAL;
 
-	/* Snapshot the list of subchannels */
-	spin_lock_irqsave(&channel->lock, flags);
-	list_splice_init(&channel->sc_list, &list);
-	channel->num_sc = 0;
-	spin_unlock_irqrestore(&channel->lock, flags);
-
-	list_for_each_entry_safe(cur_channel, tmp, &list, sc_list) {
+	list_for_each_entry_safe(cur_channel, tmp, &channel->sc_list, sc_list) {
 		if (cur_channel->rescind)
 			wait_for_completion(&cur_channel->rescind_event);
 

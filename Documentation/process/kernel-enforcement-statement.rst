@@ -1,4 +1,6 @@
-﻿Linux Kernel Enforcement Statement
+﻿.. _process_statement_kernel:
+
+Linux Kernel Enforcement Statement
 ----------------------------------
 
 As developers of the Linux kernel, we have a keen interest in how our software

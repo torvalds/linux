@@ -45,11 +45,8 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
 
-	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
-		struct intel_context *ce = &ctx->__engine[n];
-
-		ce->gem_context = ctx;
-	}
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++)
+		intel_context_init(&ctx->__engine[n], ctx, i915->engine[n]);
 
 	ret = i915_gem_context_pin_hw_id(ctx);
 	if (ret < 0)

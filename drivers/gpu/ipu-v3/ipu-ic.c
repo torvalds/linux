@@ -442,36 +442,40 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(ipu_ic_task_graphics_init);
 
-int ipu_ic_task_init(struct ipu_ic *ic,
-		     int in_width, int in_height,
-		     int out_width, int out_height,
-		     enum ipu_color_space in_cs,
-		     enum ipu_color_space out_cs)
+int ipu_ic_task_init_rsc(struct ipu_ic *ic,
+			 int in_width, int in_height,
+			 int out_width, int out_height,
+			 enum ipu_color_space in_cs,
+			 enum ipu_color_space out_cs,
+			 u32 rsc)
 {
 	struct ipu_ic_priv *priv = ic->priv;
-	u32 reg, downsize_coeff, resize_coeff;
+	u32 downsize_coeff, resize_coeff;
 	unsigned long flags;
 	int ret = 0;
 
-	/* Setup vertical resizing */
-	ret = calc_resize_coeffs(ic, in_height, out_height,
-				 &resize_coeff, &downsize_coeff);
-	if (ret)
-		return ret;
+	if (!rsc) {
+		/* Setup vertical resizing */
 
-	reg = (downsize_coeff << 30) | (resize_coeff << 16);
+		ret = calc_resize_coeffs(ic, in_height, out_height,
+					 &resize_coeff, &downsize_coeff);
+		if (ret)
+			return ret;
 
-	/* Setup horizontal resizing */
-	ret = calc_resize_coeffs(ic, in_width, out_width,
-				 &resize_coeff, &downsize_coeff);
-	if (ret)
-		return ret;
+		rsc = (downsize_coeff << 30) | (resize_coeff << 16);
 
-	reg |= (downsize_coeff << 14) | resize_coeff;
+		/* Setup horizontal resizing */
+		ret = calc_resize_coeffs(ic, in_width, out_width,
+					 &resize_coeff, &downsize_coeff);
+		if (ret)
+			return ret;
+
+		rsc |= (downsize_coeff << 14) | resize_coeff;
+	}
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ipu_ic_write(ic, reg, ic->reg->rsc);
+	ipu_ic_write(ic, rsc, ic->reg->rsc);
 
 	/* Setup color space conversion */
 	ic->in_cs = in_cs;
@@ -486,6 +490,16 @@ int ipu_ic_task_init(struct ipu_ic *ic,
 unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return ret;
+}
+
+int ipu_ic_task_init(struct ipu_ic *ic,
+		     int in_width, int in_height,
+		     int out_width, int out_height,
+		     enum ipu_color_space in_cs,
+		     enum ipu_color_space out_cs)
+{
+	return ipu_ic_task_init_rsc(ic, in_width, in_height, out_width,
+				    out_height, in_cs, out_cs, 0);
 }
 EXPORT_SYMBOL_GPL(ipu_ic_task_init);
 

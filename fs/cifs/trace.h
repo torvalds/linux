@@ -3,16 +3,6 @@
  *   Copyright (C) 2018, Microsoft Corporation.
  *
  *   Author(s): Steve French <stfrench@microsoft.com>
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cifs
@@ -68,6 +58,7 @@ DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
 
 DEFINE_SMB3_RW_ERR_EVENT(write_err);
 DEFINE_SMB3_RW_ERR_EVENT(read_err);
+DEFINE_SMB3_RW_ERR_EVENT(query_dir_err);
 
 
 /* For logging successful read or write */
@@ -110,8 +101,12 @@ DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
 		__u32	len),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len))
 
+DEFINE_SMB3_RW_DONE_EVENT(write_enter);
+DEFINE_SMB3_RW_DONE_EVENT(read_enter);
+DEFINE_SMB3_RW_DONE_EVENT(query_dir_enter);
 DEFINE_SMB3_RW_DONE_EVENT(write_done);
 DEFINE_SMB3_RW_DONE_EVENT(read_done);
+DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);
 
 /*
  * For handle based calls other than read and write, and get/set info
@@ -158,6 +153,48 @@ DEFINE_SMB3_FD_ERR_EVENT(close_err);
 /*
  * For handle based query/set info calls
  */
+DECLARE_EVENT_CLASS(smb3_inf_enter_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u8	infclass,
+		__u32	type),
+	TP_ARGS(xid, fid, tid, sesid, infclass, type),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u8, infclass)
+		__field(__u32, type)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->infclass = infclass;
+		__entry->type = type;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx class=%u type=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->infclass, __entry->type)
+)
+
+#define DEFINE_SMB3_INF_ENTER_EVENT(name)          \
+DEFINE_EVENT(smb3_inf_enter_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u8	infclass,		\
+		__u32	type),			\
+	TP_ARGS(xid, fid, tid, sesid, infclass, type))
+
+DEFINE_SMB3_INF_ENTER_EVENT(query_info_enter);
+DEFINE_SMB3_INF_ENTER_EVENT(query_info_done);
+
 DECLARE_EVENT_CLASS(smb3_inf_err_class,
 	TP_PROTO(unsigned int xid,
 		__u64	fid,
@@ -280,6 +317,7 @@ DEFINE_EVENT(smb3_cmd_done_class, smb3_##name,    \
 		__u64	mid),			\
 	TP_ARGS(tid, sesid, cmd, mid))
 
+DEFINE_SMB3_CMD_DONE_EVENT(cmd_enter);
 DEFINE_SMB3_CMD_DONE_EVENT(cmd_done);
 DEFINE_SMB3_CMD_DONE_EVENT(ses_expired);
 
@@ -374,8 +412,89 @@ DEFINE_SMB3_ENTER_EXIT_EVENT(enter);
 DEFINE_SMB3_ENTER_EXIT_EVENT(exit_done);
 
 /*
- * For smb2/smb3 open call
+ * For SMB2/SMB3 tree connect
  */
+
+DECLARE_EVENT_CLASS(smb3_tcon_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		const char *unc_name,
+		int	rc),
+	TP_ARGS(xid, tid, sesid, unc_name, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(const char *,  unc_name)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->unc_name = unc_name;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x unc_name=%s rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->unc_name, __entry->rc)
+)
+
+#define DEFINE_SMB3_TCON_EVENT(name)          \
+DEFINE_EVENT(smb3_tcon_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		const char *unc_name,		\
+		int	rc),			\
+	TP_ARGS(xid, tid, sesid, unc_name, rc))
+
+DEFINE_SMB3_TCON_EVENT(tcon);
+
+
+/*
+ * For smb2/smb3 open (including create and mkdir) calls
+ */
+
+DECLARE_EVENT_CLASS(smb3_open_enter_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		int	create_options,
+		int	desired_access),
+	TP_ARGS(xid, tid, sesid, create_options, desired_access),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(int, create_options)
+		__field(int, desired_access)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->create_options = create_options;
+		__entry->desired_access = desired_access;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x cr_opts=0x%x des_access=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->create_options, __entry->desired_access)
+)
+
+#define DEFINE_SMB3_OPEN_ENTER_EVENT(name)        \
+DEFINE_EVENT(smb3_open_enter_class, smb3_##name,  \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		int	create_options,		\
+		int	desired_access),	\
+	TP_ARGS(xid, tid, sesid, create_options, desired_access))
+
+DEFINE_SMB3_OPEN_ENTER_EVENT(open_enter);
+DEFINE_SMB3_OPEN_ENTER_EVENT(posix_mkdir_enter);
+
 DECLARE_EVENT_CLASS(smb3_open_err_class,
 	TP_PROTO(unsigned int xid,
 		__u32	tid,

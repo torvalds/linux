@@ -1147,7 +1147,7 @@ static void free_sm_ah(struct kref *kref)
 {
 	struct ib_sa_sm_ah *sm_ah = container_of(kref, struct ib_sa_sm_ah, ref);
 
-	rdma_destroy_ah(sm_ah->ah);
+	rdma_destroy_ah(sm_ah->ah, 0);
 	kfree(sm_ah);
 }
 
@@ -2276,7 +2276,8 @@ static void update_sm_ah(struct work_struct *work)
 					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
 	}
 
-	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);
+	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr,
+				    RDMA_CREATE_AH_SLEEPABLE);
 	if (IS_ERR(new_ah->ah)) {
 		pr_warn("Couldn't create new SM AH\n");
 		kfree(new_ah);
@@ -2341,9 +2342,7 @@ static void ib_sa_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	sa_dev = kzalloc(sizeof *sa_dev +
-			 (e - s + 1) * sizeof (struct ib_sa_port),
-			 GFP_KERNEL);
+	sa_dev = kzalloc(struct_size(sa_dev, port, e - s + 1), GFP_KERNEL);
 	if (!sa_dev)
 		return;
 

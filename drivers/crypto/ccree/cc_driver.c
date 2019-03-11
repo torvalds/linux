@@ -39,23 +39,38 @@ struct cc_hw_data {
 	char *name;
 	enum cc_hw_rev rev;
 	u32 sig;
+	int std_bodies;
 };
 
 /* Hardware revisions defs. */
 
+/* The 703 is a OSCCA only variant of the 713 */
+static const struct cc_hw_data cc703_hw = {
+	.name = "703", .rev = CC_HW_REV_713, .std_bodies = CC_STD_OSCCA
+};
+
+static const struct cc_hw_data cc713_hw = {
+	.name = "713", .rev = CC_HW_REV_713, .std_bodies = CC_STD_ALL
+};
+
 static const struct cc_hw_data cc712_hw = {
-	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U
+	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc710_hw = {
-	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U
+	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc630p_hw = {
-	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U
+	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct of_device_id arm_ccree_dev_of_match[] = {
+	{ .compatible = "arm,cryptocell-703-ree", .data = &cc703_hw },
+	{ .compatible = "arm,cryptocell-713-ree", .data = &cc713_hw },
 	{ .compatible = "arm,cryptocell-712-ree", .data = &cc712_hw },
 	{ .compatible = "arm,cryptocell-710-ree", .data = &cc710_hw },
 	{ .compatible = "arm,cryptocell-630p-ree", .data = &cc630p_hw },
@@ -88,10 +103,10 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
 	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
-	if (irr == 0) { /* Probably shared interrupt line */
-		dev_err(dev, "Got interrupt with empty IRR\n");
+
+	if (irr == 0) /* Probably shared interrupt line */
 		return IRQ_NONE;
-	}
+
 	imr = cc_ioread(drvdata, CC_REG(HOST_IMR));
 
 	/* clear interrupt - must be before processing events */
@@ -204,14 +219,13 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	hw_rev = (struct cc_hw_data *)dev_id->data;
 	new_drvdata->hw_rev_name = hw_rev->name;
 	new_drvdata->hw_rev = hw_rev->rev;
+	new_drvdata->std_bodies = hw_rev->std_bodies;
 
 	if (hw_rev->rev >= CC_HW_REV_712) {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
 		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_712);
 		new_drvdata->ver_offset = CC_REG(HOST_VERSION_712);
 	} else {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
 		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_630);
 		new_drvdata->ver_offset = CC_REG(HOST_VERSION_630);
@@ -297,15 +311,17 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return rc;
 	}
 
-	/* Verify correct mapping */
-	signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
-	if (signature_val != hw_rev->sig) {
-		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, hw_rev->sig);
-		rc = -EINVAL;
-		goto post_clk_err;
+	if (hw_rev->rev <= CC_HW_REV_712) {
+		/* Verify correct mapping */
+		signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
+		if (signature_val != hw_rev->sig) {
+			dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
+				signature_val, hw_rev->sig);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
 	}
-	dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
@@ -364,7 +380,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	rc = cc_ivgen_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "cc_ivgen_init failed\n");
-		goto post_power_mgr_err;
+		goto post_buf_mgr_err;
 	}
 
 	/* Allocate crypto algs */
@@ -387,6 +403,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_hash_err;
 	}
 
+	/* All set, we can allow autosuspend */
+	cc_pm_go(new_drvdata);
+
 	/* If we got here and FIPS mode is enabled
 	 * it means all FIPS test passed, so let TEE
 	 * know we're good.
@@ -401,8 +420,6 @@ post_cipher_err:
 	cc_cipher_free(new_drvdata);
 post_ivgen_err:
 	cc_ivgen_fini(new_drvdata);
-post_power_mgr_err:
-	cc_pm_fini(new_drvdata);
 post_buf_mgr_err:
 	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
@@ -461,6 +478,14 @@ int cc_clk_on(struct cc_drvdata *drvdata)
 	return 0;
 }
 
+unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata)
+{
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		return HASH_LEN_SIZE_712;
+	else
+		return HASH_LEN_SIZE_630;
+}
+
 void cc_clk_off(struct cc_drvdata *drvdata)
 {
 	struct clk *clk = drvdata->clk;
@@ -514,13 +539,8 @@ static struct platform_driver ccree_driver = {
 
 static int __init ccree_init(void)
 {
-	int ret;
-
 	cc_hash_global_init();
-
-	ret = cc_debugfs_global_init();
-	if (ret)
-		return ret;
+	cc_debugfs_global_init();
 
 	return platform_driver_register(&ccree_driver);
 }

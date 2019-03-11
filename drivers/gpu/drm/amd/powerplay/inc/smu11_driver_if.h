@@ -29,7 +29,7 @@
 // any structure is changed in this file
 #define SMU11_DRIVER_IF_VERSION 0x12
 
-#define PPTABLE_V20_SMU_VERSION 2
+#define PPTABLE_V20_SMU_VERSION 3
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_VCLK_DPM_LEVELS    8

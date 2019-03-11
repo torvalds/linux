@@ -17,7 +17,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 
 #include <asm/setup.h>
@@ -93,7 +93,7 @@ void __init paging_init(void)
 
 	high_memory = (void *) end_mem;
 
-	empty_zero_page = alloc_bootmem_pages(PAGE_SIZE);
+	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers (user data space).
@@ -140,7 +140,7 @@ static inline void init_pointer_tables(void)
 void __init mem_init(void)
 {
 	/* this will put all memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 	init_pointer_tables();
 	mem_init_print_info(NULL);
 }

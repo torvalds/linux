@@ -279,7 +279,7 @@ static void set_clock_divider(struct pxa168fb_info *fbi,
 
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
-		dev_warn(fbi->dev, "Warning: clock source is too slow."
+		dev_warn(fbi->dev, "Warning: clock source is too slow. "
 				"Try smaller resolution\n");
 		divider_int = 2;
 	}
@@ -405,9 +405,6 @@ static int pxa168fb_set_par(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_videomode mode;
 	u32 x;
-	struct pxa168fb_mach_info *mi;
-
-	mi = dev_get_platdata(fbi->dev);
 
 	/*
 	 * Set additional mode info.

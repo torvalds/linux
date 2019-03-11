@@ -8,6 +8,7 @@
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,8 +74,10 @@
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
 #include "fw/img.h"
+#include "iwl-dbg-tlv.h"
 #include "iwl-config.h"
 #include "iwl-modparams.h"
+#include "fw/api/alive.h"
 
 /******************************************************************************
  *
@@ -209,18 +213,15 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const struct iwl_cfg *cfg = drv->trans->cfg;
 	char tag[8];
-	const char *fw_pre_name;
 
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
-	    (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_B_STEP ||
-	     CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_C_STEP))
-		fw_pre_name = cfg->fw_name_pre_b_or_c_step;
-	else if (drv->trans->cfg->integrated &&
-		 CSR_HW_RFID_STEP(drv->trans->hw_rf_id) == SILICON_B_STEP &&
-		 cfg->fw_name_pre_rf_next_step)
-		fw_pre_name = cfg->fw_name_pre_rf_next_step;
-	else
-		fw_pre_name = cfg->fw_name_pre;
+	    (CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_B_STEP &&
+	     CSR_HW_REV_STEP(drv->trans->hw_rev) != SILICON_C_STEP)) {
+		IWL_ERR(drv,
+			"Only HW steps B and C are currently supported (0x%0x)\n",
+			drv->trans->hw_rev);
+		return -EINVAL;
+	}
 
 	if (first) {
 		drv->fw_index = cfg->ucode_api_max;
@@ -234,15 +235,13 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
-			IWL_ERR(drv, "%s%d is required\n", fw_pre_name,
+			IWL_ERR(drv, "%s%d is required\n", cfg->fw_name_pre,
 				cfg->ucode_api_max);
 		} else {
 			IWL_ERR(drv, "minimum version required: %s%d\n",
-				fw_pre_name,
-				cfg->ucode_api_min);
+				cfg->fw_name_pre, cfg->ucode_api_min);
 			IWL_ERR(drv, "maximum version supported: %s%d\n",
-				fw_pre_name,
-				cfg->ucode_api_max);
+				cfg->fw_name_pre, cfg->ucode_api_max);
 		}
 
 		IWL_ERR(drv,
@@ -251,7 +250,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	}
 
 	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%s.ucode",
-		 fw_pre_name, tag);
+		 cfg->fw_name_pre, tag);
 
 	IWL_DEBUG_INFO(drv, "attempting to load firmware '%s'\n",
 		       drv->firmware_name);
@@ -592,6 +591,8 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	return 0;
 }
 
+#define FW_ADDR_CACHE_CONTROL 0xC0000000
+
 static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				const struct firmware *ucode_raw,
 				struct iwl_firmware_pieces *pieces,
@@ -644,6 +645,9 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	data = ucode->data;
 
 	len -= sizeof(*ucode);
+
+	if (iwlwifi_mod_params.enable_ini)
+		iwl_alloc_dbg_tlv(drv->trans, len, data, false);
 
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
@@ -1086,6 +1090,60 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_RECOVERY_INFO: {
+			struct {
+				__le32 buf_addr;
+				__le32 buf_size;
+			} *recov_info = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*recov_info))
+				goto invalid_tlv_len;
+			capa->error_log_addr =
+				le32_to_cpu(recov_info->buf_addr);
+			capa->error_log_size =
+				le32_to_cpu(recov_info->buf_size);
+			}
+			break;
+		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
+			struct iwl_umac_debug_addrs *dbg_ptrs =
+				(void *)tlv_data;
+
+			if (tlv_len != sizeof(*dbg_ptrs))
+				goto invalid_tlv_len;
+			if (drv->trans->cfg->device_family <
+			    IWL_DEVICE_FAMILY_22000)
+				break;
+			drv->trans->umac_error_event_table =
+				le32_to_cpu(dbg_ptrs->error_info_addr) &
+				~FW_ADDR_CACHE_CONTROL;
+			drv->trans->error_event_table_tlv_status |=
+				IWL_ERROR_EVENT_TABLE_UMAC;
+			break;
+			}
+		case IWL_UCODE_TLV_LMAC_DEBUG_ADDRS: {
+			struct iwl_lmac_debug_addrs *dbg_ptrs =
+				(void *)tlv_data;
+
+			if (tlv_len != sizeof(*dbg_ptrs))
+				goto invalid_tlv_len;
+			if (drv->trans->cfg->device_family <
+			    IWL_DEVICE_FAMILY_22000)
+				break;
+			drv->trans->lmac_error_event_table[0] =
+				le32_to_cpu(dbg_ptrs->error_event_table_ptr) &
+				~FW_ADDR_CACHE_CONTROL;
+			drv->trans->error_event_table_tlv_status |=
+				IWL_ERROR_EVENT_TABLE_LMAC1;
+			break;
+			}
+		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
+		case IWL_UCODE_TLV_TYPE_HCMD:
+		case IWL_UCODE_TLV_TYPE_REGIONS:
+		case IWL_UCODE_TLV_TYPE_TRIGGERS:
+		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
+			if (iwlwifi_mod_params.enable_ini)
+				iwl_fw_dbg_copy_tlv(drv->trans, tlv, false);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1195,11 +1253,6 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	drv->dbgfs_op_mode = debugfs_create_dir(op->name,
 						drv->dbgfs_drv);
-	if (!drv->dbgfs_op_mode) {
-		IWL_ERR(drv,
-			"failed to create opmode debugfs directory\n");
-		return op_mode;
-	}
 	dbgfs_dir = drv->dbgfs_op_mode;
 #endif
 
@@ -1255,8 +1308,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
-	/* dump all fw memory areas by default except d3 debug data */
-	fw->dbg.dump_mask = 0xfffdffff;
+	/* dump all fw memory areas by default */
+	fw->dbg.dump_mask = 0xffffffff;
 
 	pieces = kzalloc(sizeof(*pieces), GFP_KERNEL);
 	if (!pieces)
@@ -1562,20 +1615,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 	drv->dbgfs_drv = debugfs_create_dir(dev_name(trans->dev),
 					    iwl_dbgfs_root);
 
-	if (!drv->dbgfs_drv) {
-		IWL_ERR(drv, "failed to create debugfs directory\n");
-		ret = -ENOMEM;
-		goto err_free_drv;
-	}
-
 	/* Create transport layer debugfs dir */
 	drv->trans->dbgfs_dir = debugfs_create_dir("trans", drv->dbgfs_drv);
-
-	if (!drv->trans->dbgfs_dir) {
-		IWL_ERR(drv, "failed to create transport debugfs directory\n");
-		ret = -ENOMEM;
-		goto err_free_dbgfs;
-	}
 #endif
 
 	ret = iwl_request_firmware(drv, true);
@@ -1588,9 +1629,8 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans)
 
 err_fw:
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-err_free_dbgfs:
 	debugfs_remove_recursive(drv->dbgfs_drv);
-err_free_drv:
+	iwl_fw_dbg_free(drv->trans);
 #endif
 	kfree(drv);
 err:
@@ -1616,8 +1656,12 @@ void iwl_drv_stop(struct iwl_drv *drv)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	drv->trans->ops->debugfs_cleanup(drv->trans);
+
 	debugfs_remove_recursive(drv->dbgfs_drv);
 #endif
+
+	iwl_fw_dbg_free(drv->trans);
 
 	kfree(drv);
 }
@@ -1696,9 +1740,6 @@ static int __init iwl_drv_init(void)
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the root of iwlwifi debugfs subsystem. */
 	iwl_dbgfs_root = debugfs_create_dir(DRV_NAME, NULL);
-
-	if (!iwl_dbgfs_root)
-		return -EFAULT;
 #endif
 
 	return iwl_pci_register_driver();
@@ -1749,6 +1790,10 @@ MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable, uint, 0644);
 MODULE_PARM_DESC(uapsd_disable,
 		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
+module_param_named(enable_ini, iwlwifi_mod_params.enable_ini,
+		   bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_ini,
+		 "Enable debug INI TLV FW debug infrastructure (default: 0");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer

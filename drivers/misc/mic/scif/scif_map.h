@@ -97,7 +97,7 @@ scif_ioremap(dma_addr_t phys, size_t size, struct scif_dev *scifdev)
 		out_virt = phys_to_virt(phys);
 	else
 		out_virt = (void __force *)
-			   sdev->hw_ops->ioremap(sdev, phys, size);
+			   sdev->hw_ops->remap(sdev, phys, size);
 	return out_virt;
 }
 
@@ -107,7 +107,7 @@ scif_iounmap(void *virt, size_t len, struct scif_dev *scifdev)
 	if (!scifdev_self(scifdev)) {
 		struct scif_hw_dev *sdev = scifdev->sdev;
 
-		sdev->hw_ops->iounmap(sdev, (void __force __iomem *)virt);
+		sdev->hw_ops->unmap(sdev, (void __force __iomem *)virt);
 	}
 }
 

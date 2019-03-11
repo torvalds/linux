@@ -33,6 +33,7 @@
 #include "kfd_mqd_manager.h"
 #include "cik_regs.h"
 #include "kfd_kernel_queue.h"
+#include "amdgpu_amdkfd.h"
 
 /* Size of the per-pipe EOP queue */
 #define CIK_HPD_EOP_BYTES_LOG2 11
@@ -133,12 +134,18 @@ static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 		 */
 		q->doorbell_id = q->properties.queue_id;
 	} else if (q->properties.type == KFD_QUEUE_TYPE_SDMA) {
-		/* For SDMA queues on SOC15, use static doorbell
-		 * assignments based on the engine and queue.
+		/* For SDMA queues on SOC15 with 8-byte doorbell, use static
+		 * doorbell assignments based on the engine and queue id.
+		 * The doobell index distance between RLC (2*i) and (2*i+1)
+		 * for a SDMA engine is 512.
 		 */
-		q->doorbell_id = dev->shared_resources.sdma_doorbell
-			[q->properties.sdma_engine_id]
-			[q->properties.sdma_queue_id];
+		uint32_t *idx_offset =
+				dev->shared_resources.sdma_doorbell_idx;
+
+		q->doorbell_id = idx_offset[q->properties.sdma_engine_id]
+			+ (q->properties.sdma_queue_id & 1)
+			* KFD_QUEUE_DOORBELL_MIRROR_OFFSET
+			+ (q->properties.sdma_queue_id >> 1);
 	} else {
 		/* For CP queues on SOC15 reserve a free doorbell ID */
 		unsigned int found;
@@ -219,7 +226,7 @@ static int flush_texture_cache_nocpsch(struct kfd_dev *kdev,
 	if (ret)
 		return ret;
 
-	return kdev->kfd2kgd->submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
+	return amdgpu_amdkfd_submit_ib(kdev->kgd, KGD_ENGINE_MEC1, qpd->vmid,
 				qpd->ib_base, (uint32_t *)qpd->ib_kaddr,
 				pmf->release_mem_size / sizeof(uint32_t));
 }
@@ -672,7 +679,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 
 	pdd = qpd_to_pdd(qpd);
 	/* Retrieve PD base */
-	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+	pd_base = amdgpu_amdkfd_gpuvm_get_process_page_dir(pdd->vm);
 
 	dqm_lock(dqm);
 	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
@@ -743,7 +750,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 	pdd = qpd_to_pdd(qpd);
 	/* Retrieve PD base */
-	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+	pd_base = amdgpu_amdkfd_gpuvm_get_process_page_dir(pdd->vm);
 
 	dqm_lock(dqm);
 	if (WARN_ON_ONCE(!qpd->evicted)) /* already restored, do nothing */
@@ -793,7 +800,7 @@ static int register_process(struct device_queue_manager *dqm,
 
 	pdd = qpd_to_pdd(qpd);
 	/* Retrieve PD base */
-	pd_base = dqm->dev->kfd2kgd->get_process_page_dir(pdd->vm);
+	pd_base = amdgpu_amdkfd_gpuvm_get_process_page_dir(pdd->vm);
 
 	dqm_lock(dqm);
 	list_add(&n->list, &dqm->queues);
@@ -805,7 +812,7 @@ static int register_process(struct device_queue_manager *dqm,
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 
 	if (dqm->processes_count++ == 0)
-		dqm->dev->kfd2kgd->set_compute_idle(dqm->dev->kgd, false);
+		amdgpu_amdkfd_set_compute_idle(dqm->dev->kgd, false);
 
 	dqm_unlock(dqm);
 
@@ -829,7 +836,7 @@ static int unregister_process(struct device_queue_manager *dqm,
 			list_del(&cur->list);
 			kfree(cur);
 			if (--dqm->processes_count == 0)
-				dqm->dev->kfd2kgd->set_compute_idle(
+				amdgpu_amdkfd_set_compute_idle(
 					dqm->dev->kgd, true);
 			goto out;
 		}
@@ -845,15 +852,8 @@ static int
 set_pasid_vmid_mapping(struct device_queue_manager *dqm, unsigned int pasid,
 			unsigned int vmid)
 {
-	uint32_t pasid_mapping;
-
-	pasid_mapping = (pasid == 0) ? 0 :
-		(uint32_t)pasid |
-		ATC_VMID_PASID_MAPPING_VALID;
-
 	return dqm->dev->kfd2kgd->set_pasid_vmid_mapping(
-						dqm->dev->kgd, pasid_mapping,
-						vmid);
+						dqm->dev->kgd, pasid, vmid);
 }
 
 static void init_interrupts(struct device_queue_manager *dqm)
@@ -1553,7 +1553,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)
 {
-	struct mqd_manager *mqd;
+	struct mqd_manager *mqd_mgr;
 	int r;
 
 	dqm_lock(dqm);
@@ -1564,19 +1564,19 @@ static int get_wave_state(struct device_queue_manager *dqm,
 		goto dqm_unlock;
 	}
 
-	mqd = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (!mqd) {
+	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
+	if (!mqd_mgr) {
 		r = -ENOMEM;
 		goto dqm_unlock;
 	}
 
-	if (!mqd->get_wave_state) {
+	if (!mqd_mgr->get_wave_state) {
 		r = -EINVAL;
 		goto dqm_unlock;
 	}
 
-	r = mqd->get_wave_state(mqd, q->mqd, ctl_stack, ctl_stack_used_size,
-				save_area_used_size);
+	r = mqd_mgr->get_wave_state(mqd_mgr, q->mqd, ctl_stack,
+			ctl_stack_used_size, save_area_used_size);
 
 dqm_unlock:
 	dqm_unlock(dqm);
@@ -1747,10 +1747,12 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_FIJI:
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		device_queue_manager_init_vi_tonga(&dqm->asic_ops);
 		break;
 
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_RAVEN:
 		device_queue_manager_init_v9(&dqm->asic_ops);
@@ -1796,7 +1798,7 @@ static void kfd_process_hw_exception(struct work_struct *work)
 {
 	struct device_queue_manager *dqm = container_of(work,
 			struct device_queue_manager, hw_exception_work);
-	dqm->dev->kfd2kgd->gpu_recover(dqm->dev->kgd);
+	amdgpu_amdkfd_gpu_reset(dqm->dev->kgd);
 }
 
 #if defined(CONFIG_DEBUG_FS)

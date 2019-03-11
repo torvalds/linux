@@ -7,21 +7,54 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
+
+#define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
+#define IRQ_RESOURCE_NONE	0
+#define IRQ_RESOURCE_GPIO	1
+#define IRQ_RESOURCE_APIC	2
 
 struct i2c_inst_data {
 	const char *type;
-	int gpio_irq_idx;
+	unsigned int flags;
+	int irq_idx;
 };
 
 struct i2c_multi_inst_data {
 	int num_clients;
 	struct i2c_client *clients[0];
 };
+
+static int i2c_multi_inst_count(struct acpi_resource *ares, void *data)
+{
+	struct acpi_resource_i2c_serialbus *sb;
+	int *count = data;
+
+	if (i2c_acpi_get_i2c_resource(ares, &sb))
+		*count = *count + 1;
+
+	return 1;
+}
+
+static int i2c_multi_inst_count_resources(struct acpi_device *adev)
+{
+	LIST_HEAD(r);
+	int count = 0;
+	int ret;
+
+	ret = acpi_dev_get_resources(adev, &r, i2c_multi_inst_count, &count);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&r);
+	return count;
+}
 
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
@@ -44,39 +77,58 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	adev = ACPI_COMPANION(dev);
 
 	/* Count number of clients to instantiate */
-	for (i = 0; inst_data[i].type; i++) {}
+	ret = i2c_multi_inst_count_resources(adev);
+	if (ret < 0)
+		return ret;
 
 	multi = devm_kmalloc(dev,
-			offsetof(struct i2c_multi_inst_data, clients[i]),
+			offsetof(struct i2c_multi_inst_data, clients[ret]),
 			GFP_KERNEL);
 	if (!multi)
 		return -ENOMEM;
 
-	multi->num_clients = i;
+	multi->num_clients = ret;
 
-	for (i = 0; i < multi->num_clients; i++) {
+	for (i = 0; i < multi->num_clients && inst_data[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
 		strlcpy(board_info.type, inst_data[i].type, I2C_NAME_SIZE);
-		snprintf(name, sizeof(name), "%s-%s", match->id,
-			 inst_data[i].type);
+		snprintf(name, sizeof(name), "%s-%s.%d", match->id,
+			 inst_data[i].type, i);
 		board_info.dev_name = name;
-		board_info.irq = 0;
-		if (inst_data[i].gpio_irq_idx != -1) {
-			ret = acpi_dev_gpio_irq_get(adev,
-						    inst_data[i].gpio_irq_idx);
+		switch (inst_data[i].flags & IRQ_RESOURCE_TYPE) {
+		case IRQ_RESOURCE_GPIO:
+			ret = acpi_dev_gpio_irq_get(adev, inst_data[i].irq_idx);
 			if (ret < 0) {
 				dev_err(dev, "Error requesting irq at index %d: %d\n",
-					inst_data[i].gpio_irq_idx, ret);
+					inst_data[i].irq_idx, ret);
 				goto error;
 			}
 			board_info.irq = ret;
+			break;
+		case IRQ_RESOURCE_APIC:
+			ret = platform_get_irq(pdev, inst_data[i].irq_idx);
+			if (ret < 0) {
+				dev_dbg(dev, "Error requesting irq at index %d: %d\n",
+					inst_data[i].irq_idx, ret);
+			}
+			board_info.irq = ret;
+			break;
+		default:
+			board_info.irq = 0;
+			break;
 		}
 		multi->clients[i] = i2c_acpi_new_device(dev, i, &board_info);
-		if (!multi->clients[i]) {
-			dev_err(dev, "Error creating i2c-client, idx %d\n", i);
-			ret = -ENODEV;
+		if (IS_ERR(multi->clients[i])) {
+			ret = PTR_ERR(multi->clients[i]);
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
+	}
+	if (i < multi->num_clients) {
+		dev_err(dev, "Error finding driver, idx %d\n", i);
+		ret = -ENODEV;
+		goto error;
 	}
 
 	platform_set_drvdata(pdev, multi);
@@ -101,9 +153,25 @@ static int i2c_multi_inst_remove(struct platform_device *pdev)
 }
 
 static const struct i2c_inst_data bsg1160_data[]  = {
-	{ "bmc150_accel", 0 },
-	{ "bmc150_magn", -1 },
-	{ "bmg160", -1 },
+	{ "bmc150_accel", IRQ_RESOURCE_GPIO, 0 },
+	{ "bmc150_magn" },
+	{ "bmg160" },
+	{}
+};
+
+static const struct i2c_inst_data bsg2150_data[]  = {
+	{ "bmc150_accel", IRQ_RESOURCE_GPIO, 0 },
+	{ "bmc150_magn" },
+	/* The resources describe a 3th client, but it is not really there. */
+	{ "bsg2150_dummy_dev" },
+	{}
+};
+
+static const struct i2c_inst_data int3515_data[]  = {
+	{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 2 },
+	{ "tps6598x", IRQ_RESOURCE_APIC, 3 },
 	{}
 };
 
@@ -113,6 +181,8 @@ static const struct i2c_inst_data bsg1160_data[]  = {
  */
 static const struct acpi_device_id i2c_multi_inst_acpi_ids[] = {
 	{ "BSG1160", (unsigned long)bsg1160_data },
+	{ "BSG2150", (unsigned long)bsg2150_data },
+	{ "INT3515", (unsigned long)int3515_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);

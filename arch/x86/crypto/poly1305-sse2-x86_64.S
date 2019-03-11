@@ -272,6 +272,10 @@ ENTRY(poly1305_block_sse2)
 	dec		%rcx
 	jnz		.Ldoblock
 
+	# Zeroing of key material
+	mov		%rcx,0x00(%rsp)
+	mov		%rcx,0x08(%rsp)
+
 	add		$0x10,%rsp
 	pop		%r12
 	pop		%rbx

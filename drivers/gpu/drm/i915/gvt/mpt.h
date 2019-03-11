@@ -50,11 +50,10 @@
  * Zero on success, negative error code if failed
  */
 static inline int intel_gvt_hypervisor_host_init(struct device *dev,
-			void *gvt, const void *ops)
+						 void *gvt, const void *ops)
 {
-	/* optional to provide */
 	if (!intel_gvt_host.mpt->host_init)
-		return 0;
+		return -ENODEV;
 
 	return intel_gvt_host.mpt->host_init(dev, gvt, ops);
 }
@@ -62,14 +61,13 @@ static inline int intel_gvt_hypervisor_host_init(struct device *dev,
 /**
  * intel_gvt_hypervisor_host_exit - exit GVT-g host side
  */
-static inline void intel_gvt_hypervisor_host_exit(struct device *dev,
-			void *gvt)
+static inline void intel_gvt_hypervisor_host_exit(struct device *dev)
 {
 	/* optional to provide */
 	if (!intel_gvt_host.mpt->host_exit)
 		return;
 
-	intel_gvt_host.mpt->host_exit(dev, gvt);
+	intel_gvt_host.mpt->host_exit(dev);
 }
 
 /**
@@ -101,7 +99,7 @@ static inline void intel_gvt_hypervisor_detach_vgpu(struct intel_vgpu *vgpu)
 	if (!intel_gvt_host.mpt->detach_vgpu)
 		return;
 
-	intel_gvt_host.mpt->detach_vgpu(vgpu->handle);
+	intel_gvt_host.mpt->detach_vgpu(vgpu);
 }
 
 #define MSI_CAP_CONTROL(offset) (offset + 2)
@@ -316,6 +314,23 @@ static inline int intel_gvt_hypervisor_set_opregion(struct intel_vgpu *vgpu)
 }
 
 /**
+ * intel_gvt_hypervisor_set_edid - Set EDID region for guest
+ * @vgpu: a vGPU
+ * @port_num: display port number
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_set_edid(struct intel_vgpu *vgpu,
+						int port_num)
+{
+	if (!intel_gvt_host.mpt->set_edid)
+		return 0;
+
+	return intel_gvt_host.mpt->set_edid(vgpu, port_num);
+}
+
+/**
  * intel_gvt_hypervisor_get_vfio_device - increase vfio device ref count
  * @vgpu: a vGPU
  *
@@ -361,5 +376,8 @@ static inline bool intel_gvt_hypervisor_is_valid_gfn(
 
 	return intel_gvt_host.mpt->is_valid_gfn(vgpu->handle, gfn);
 }
+
+int intel_gvt_register_hypervisor(struct intel_gvt_mpt *);
+void intel_gvt_unregister_hypervisor(void);
 
 #endif /* _GVT_MPT_H_ */

@@ -51,14 +51,16 @@ static const char *shdwc_wakeup_modes[] = {
 	[AT91_SHDW_WKMODE0_ANYLEVEL]	= "any",
 };
 
-static void __iomem *at91_shdwc_base;
-static struct clk *sclk;
-static void __iomem *mpddrc_base;
+static struct shdwc {
+	struct clk *sclk;
+	void __iomem *shdwc_base;
+	void __iomem *mpddrc_base;
+} at91_shdwc;
 
 static void __init at91_wakeup_status(struct platform_device *pdev)
 {
 	const char *reason;
-	u32 reg = readl(at91_shdwc_base + AT91_SHDW_SR);
+	u32 reg = readl(at91_shdwc.shdwc_base + AT91_SHDW_SR);
 
 	/* Simple power-on, just bail out */
 	if (!reg)
@@ -76,11 +78,6 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 
 static void at91_poweroff(void)
 {
-	writel(AT91_SHDW_KEY | AT91_SHDW_SHDW, at91_shdwc_base + AT91_SHDW_CR);
-}
-
-static void at91_lpddr_poweroff(void)
-{
 	asm volatile(
 		/* Align to cache lines */
 		".balign 32\n\t"
@@ -89,15 +86,17 @@ static void at91_lpddr_poweroff(void)
 		"	ldr	r6, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
 		/* Power down SDRAM0 */
+		"	tst	%0, #0\n\t"
+		"	beq	1f\n\t"
 		"	str	%1, [%0, #" __stringify(AT91_DDRSDRC_LPR) "]\n\t"
 		/* Shutdown CPU */
-		"	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
+		"1:	str	%3, [%2, #" __stringify(AT91_SHDW_CR) "]\n\t"
 
 		"	b	.\n\t"
 		:
-		: "r" (mpddrc_base),
+		: "r" (at91_shdwc.mpddrc_base),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPDDR2_PWOFF),
-		  "r" (at91_shdwc_base),
+		  "r" (at91_shdwc.shdwc_base),
 		  "r" cpu_to_le32(AT91_SHDW_KEY | AT91_SHDW_SHDW)
 		: "r6");
 }
@@ -147,7 +146,7 @@ static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 	if (of_property_read_bool(np, "atmel,wakeup-rtt-timer"))
 			mode |= AT91_SHDW_RTTWKEN;
 
-	writel(wakeup_mode | mode, at91_shdwc_base + AT91_SHDW_MR);
+	writel(wakeup_mode | mode, at91_shdwc.shdwc_base + AT91_SHDW_MR);
 }
 
 static int __init at91_poweroff_probe(struct platform_device *pdev)
@@ -158,15 +157,15 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	at91_shdwc_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(at91_shdwc_base))
-		return PTR_ERR(at91_shdwc_base);
+	at91_shdwc.shdwc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(at91_shdwc.shdwc_base))
+		return PTR_ERR(at91_shdwc.shdwc_base);
 
-	sclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sclk))
-		return PTR_ERR(sclk);
+	at91_shdwc.sclk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(at91_shdwc.sclk))
+		return PTR_ERR(at91_shdwc.sclk);
 
-	ret = clk_prepare_enable(sclk);
+	ret = clk_prepare_enable(at91_shdwc.sclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
 		return ret;
@@ -177,43 +176,46 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node)
 		at91_poweroff_dt_set_wakeup_mode(pdev);
 
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
+	if (np) {
+		at91_shdwc.mpddrc_base = of_iomap(np, 0);
+		of_node_put(np);
+
+		if (!at91_shdwc.mpddrc_base) {
+			ret = -ENOMEM;
+			goto clk_disable;
+		}
+
+		ddr_type = readl(at91_shdwc.mpddrc_base + AT91_DDRSDRC_MDR) &
+				 AT91_DDRSDRC_MD;
+		if (ddr_type != AT91_DDRSDRC_MD_LPDDR2 &&
+		    ddr_type != AT91_DDRSDRC_MD_LPDDR3) {
+			iounmap(at91_shdwc.mpddrc_base);
+			at91_shdwc.mpddrc_base = NULL;
+		}
+	}
+
 	pm_power_off = at91_poweroff;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
-	if (!np)
-		return 0;
-
-	mpddrc_base = of_iomap(np, 0);
-	of_node_put(np);
-
-	if (!mpddrc_base)
-		return 0;
-
-	ddr_type = readl(mpddrc_base + AT91_DDRSDRC_MDR) & AT91_DDRSDRC_MD;
-	if ((ddr_type == AT91_DDRSDRC_MD_LPDDR2) ||
-	    (ddr_type == AT91_DDRSDRC_MD_LPDDR3))
-		pm_power_off = at91_lpddr_poweroff;
-	else
-		iounmap(mpddrc_base);
-
 	return 0;
+
+clk_disable:
+	clk_disable_unprepare(at91_shdwc.sclk);
+	return ret;
 }
 
 static int __exit at91_poweroff_remove(struct platform_device *pdev)
 {
-	if (pm_power_off == at91_poweroff ||
-	    pm_power_off == at91_lpddr_poweroff)
+	if (pm_power_off == at91_poweroff)
 		pm_power_off = NULL;
 
-	clk_disable_unprepare(sclk);
+	if (at91_shdwc.mpddrc_base)
+		iounmap(at91_shdwc.mpddrc_base);
+
+	clk_disable_unprepare(at91_shdwc.sclk);
 
 	return 0;
 }
-
-static const struct of_device_id at91_ramc_of_match[] = {
-	{ .compatible = "atmel,sama5d3-ddramc", },
-	{ /* sentinel */ }
-};
 
 static const struct of_device_id at91_poweroff_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-shdwc", },

@@ -118,3 +118,55 @@ int afs_abort_to_error(u32 abort_code)
 	default:		return -EREMOTEIO;
 	}
 }
+
+/*
+ * Select the error to report from a set of errors.
+ */
+void afs_prioritise_error(struct afs_error *e, int error, u32 abort_code)
+{
+	switch (error) {
+	case 0:
+		return;
+	default:
+		if (e->error == -ETIMEDOUT ||
+		    e->error == -ETIME)
+			return;
+	case -ETIMEDOUT:
+	case -ETIME:
+		if (e->error == -ENOMEM ||
+		    e->error == -ENONET)
+			return;
+	case -ENOMEM:
+	case -ENONET:
+		if (e->error == -ERFKILL)
+			return;
+	case -ERFKILL:
+		if (e->error == -EADDRNOTAVAIL)
+			return;
+	case -EADDRNOTAVAIL:
+		if (e->error == -ENETUNREACH)
+			return;
+	case -ENETUNREACH:
+		if (e->error == -EHOSTUNREACH)
+			return;
+	case -EHOSTUNREACH:
+		if (e->error == -EHOSTDOWN)
+			return;
+	case -EHOSTDOWN:
+		if (e->error == -ECONNREFUSED)
+			return;
+	case -ECONNREFUSED:
+		if (e->error == -ECONNRESET)
+			return;
+	case -ECONNRESET: /* Responded, but call expired. */
+		if (e->responded)
+			return;
+		e->error = error;
+		return;
+
+	case -ECONNABORTED:
+		e->responded = true;
+		e->error = afs_abort_to_error(abort_code);
+		return;
+	}
+}

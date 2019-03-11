@@ -43,14 +43,14 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 0>;
 			next-level-cache = <&L2_0>;
 		};
 
 		cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0 1>;
 			next-level-cache = <&L2_0>;
 		};
@@ -63,6 +63,20 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0 0x80000000 0 0x80000000>; /* 2GB @ 2GB */
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* Chipselect 2 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0 0x18000000 0 0x00800000>;
+			no-map;
+		};
 	};
 
 	gic: interrupt-controller@2c001000 {

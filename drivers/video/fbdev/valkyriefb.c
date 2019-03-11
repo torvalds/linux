@@ -63,15 +63,8 @@
 #include "macmodes.h"
 #include "valkyriefb.h"
 
-#ifdef CONFIG_MAC
-/* We don't yet have functions to read the PRAM... perhaps we can
-   adapt them from the PPC code? */
-static int default_vmode = VMODE_CHOOSE;
-static int default_cmode = CMODE_8;
-#else
 static int default_vmode = VMODE_NVRAM;
 static int default_cmode = CMODE_NVRAM;
-#endif
 
 struct fb_par_valkyrie {
 	int	vmode, cmode;
@@ -283,24 +276,21 @@ static void __init valkyrie_choose_mode(struct fb_info_valkyrie *p)
 	printk(KERN_INFO "Monitor sense value = 0x%x\n", p->sense);
 
 	/* Try to pick a video mode out of NVRAM if we have one. */
-#if !defined(CONFIG_MAC) && defined(CONFIG_NVRAM)
-	if (default_vmode == VMODE_NVRAM) {
+#ifdef CONFIG_PPC_PMAC
+	if (IS_REACHABLE(CONFIG_NVRAM) && default_vmode == VMODE_NVRAM)
 		default_vmode = nvram_read_byte(NV_VMODE);
-		if (default_vmode <= 0
-		 || default_vmode > VMODE_MAX
-		 || !valkyrie_reg_init[default_vmode - 1])
-			default_vmode = VMODE_CHOOSE;
-	}
 #endif
-	if (default_vmode == VMODE_CHOOSE)
+	if (default_vmode <= 0 || default_vmode > VMODE_MAX ||
+	    !valkyrie_reg_init[default_vmode - 1]) {
 		default_vmode = mac_map_monitor_sense(p->sense);
-	if (!valkyrie_reg_init[default_vmode - 1])
-		default_vmode = VMODE_640_480_67;
-#if !defined(CONFIG_MAC) && defined(CONFIG_NVRAM)
-	if (default_cmode == CMODE_NVRAM)
+		if (!valkyrie_reg_init[default_vmode - 1])
+			default_vmode = VMODE_640_480_67;
+	}
+
+#ifdef CONFIG_PPC_PMAC
+	if (IS_REACHABLE(CONFIG_NVRAM) && default_cmode == CMODE_NVRAM)
 		default_cmode = nvram_read_byte(NV_CMODE);
 #endif
-
 	/*
 	 * Reduce the pixel size if we don't have enough VRAM or bandwidth.
 	 */

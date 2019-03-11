@@ -26,6 +26,7 @@
 #include <linux/bitmap.h>
 #include <linux/log2.h>
 #include <linux/ip.h>
+#include <linux/sctp.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
 #include <linux/avf/virtchnl.h>
@@ -52,7 +53,6 @@ extern const char ice_drv_ver[];
 #define ICE_MBXQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
-#define ICE_MAX_VSI_ALLOC	130
 #define ICE_MAX_TXQS		2048
 #define ICE_MAX_RXQS		2048
 #define ICE_VSI_MAP_CONTIG	0
@@ -76,12 +76,14 @@ extern const char ice_drv_ver[];
 #define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
 #define ICE_DFLT_INTR_PER_VF		(ICE_DFLT_QS_PER_VF + 1)
 
+#define ICE_MAX_RESET_WAIT		20
+
 #define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
 #define ICE_MAX_MTU	(ICE_AQ_SET_MAC_FRAME_SIZE_MAX - \
-			 ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
+			(ETH_HLEN + ETH_FCS_LEN + (VLAN_HLEN * 2)))
 
 #define ICE_UP_TABLE_TRANSLATE(val, i) \
 		(((val) << ICE_AQ_VSI_UP_TABLE_UP##i##_S) & \
@@ -95,23 +97,28 @@ extern const char ice_drv_ver[];
 #define ice_for_each_vsi(pf, i) \
 	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
 
-/* Macros for each tx/rx ring in a VSI */
+/* Macros for each Tx/Rx ring in a VSI */
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
 
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
-/* Macros for each allocated tx/rx ring whether used or not in a VSI */
+/* Macros for each allocated Tx/Rx ring whether used or not in a VSI */
 #define ice_for_each_alloc_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
 
 #define ice_for_each_alloc_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_rxq; (i)++)
 
+#define ice_for_each_q_vector(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_q_vectors; (i)++)
+
 struct ice_tc_info {
 	u16 qoffset;
-	u16 qcount;
+	u16 qcount_tx;
+	u16 qcount_rx;
+	u8 netdev_tc;
 };
 
 struct ice_tc_cfg {
@@ -124,6 +131,17 @@ struct ice_res_tracker {
 	u16 num_entries;
 	u16 search_hint;
 	u16 list[1];
+};
+
+struct ice_qs_cfg {
+	struct mutex *qs_mutex;  /* will be assgined to &pf->avail_q_mutex */
+	unsigned long *pf_map;
+	unsigned long pf_map_size;
+	unsigned int q_count;
+	unsigned int scatter_count;
+	u16 *vsi_map;
+	u16 vsi_map_offset;
+	u8 mapping_mode;
 };
 
 struct ice_sw {
@@ -147,10 +165,10 @@ enum ice_state {
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	/* When checking for the PF to be in a nominal operating state, the
 	 * bits that are grouped at the beginning of the list need to be
-	 * checked.  Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
-	 * be checked.  If you need to add a bit into consideration for nominal
+	 * checked. Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
+	 * be checked. If you need to add a bit into consideration for nominal
 	 * operating state, it must be added before
-	 * __ICE_STATE_NOMINAL_CHECK_BITS.  Do not move this entry's position
+	 * __ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
 	 * without appropriate consideration.
 	 */
 	__ICE_STATE_NOMINAL_CHECK_BITS,
@@ -180,8 +198,8 @@ struct ice_vsi {
 	struct ice_sw *vsw;		 /* switch this VSI is on */
 	struct ice_pf *back;		 /* back pointer to PF */
 	struct ice_port_info *port_info; /* back pointer to port_info */
-	struct ice_ring **rx_rings;	 /* rx ring array */
-	struct ice_ring **tx_rings;	 /* tx ring array */
+	struct ice_ring **rx_rings;	 /* Rx ring array */
+	struct ice_ring **tx_rings;	 /* Tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
 
 	irqreturn_t (*irq_handler)(int irq, void *data);
@@ -189,7 +207,6 @@ struct ice_vsi {
 	u64 tx_linearize;
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	DECLARE_BITMAP(flags, ICE_VSI_FLAG_NBITS);
-	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	unsigned int current_netdev_flags;
 	u32 tx_restart;
 	u32 tx_busy;
@@ -199,8 +216,8 @@ struct ice_vsi {
 	int sw_base_vector;		/* Irq base for OS reserved vectors */
 	int hw_base_vector;		/* HW (absolute) index of a vector */
 	enum ice_vsi_type type;
-	u16 vsi_num;			 /* HW (absolute) index of this VSI */
-	u16 idx;			 /* software index in pf->vsi[] */
+	u16 vsi_num;			/* HW (absolute) index of this VSI */
+	u16 idx;			/* software index in pf->vsi[] */
 
 	/* Interrupt thresholds */
 	u16 work_lmt;
@@ -253,8 +270,8 @@ struct ice_q_vector {
 	struct ice_ring_container tx;
 	struct irq_affinity_notify affinity_notify;
 	u16 v_idx;			/* index in the vsi->q_vector array. */
-	u8 num_ring_tx;			/* total number of tx rings in vector */
-	u8 num_ring_rx;			/* total number of rx rings in vector */
+	u8 num_ring_tx;			/* total number of Tx rings in vector */
+	u8 num_ring_rx;			/* total number of Rx rings in vector */
 	char name[ICE_INT_NAME_STR_LEN];
 	/* in usecs, need to use ice_intrl_to_usecs_reg() before writing this
 	 * value to the device
@@ -268,6 +285,7 @@ enum ice_pf_flags {
 	ICE_FLAG_RSS_ENA,
 	ICE_FLAG_SRIOV_ENA,
 	ICE_FLAG_SRIOV_CAPABLE,
+	ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
 };
 
@@ -306,10 +324,10 @@ struct ice_pf {
 	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
 	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
-	u16 num_lan_tx;		/* num lan tx queues setup */
-	u16 num_lan_rx;		/* num lan rx queues setup */
-	u16 q_left_tx;		/* remaining num tx queues left unclaimed */
-	u16 q_left_rx;		/* remaining num rx queues left unclaimed */
+	u16 num_lan_tx;		/* num lan Tx queues setup */
+	u16 num_lan_rx;		/* num lan Rx queues setup */
+	u16 q_left_tx;		/* remaining num Tx queues left unclaimed */
+	u16 q_left_rx;		/* remaining num Rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
 	u16 num_alloc_vsi;
 	u16 corer_count;	/* Core reset count */
@@ -369,5 +387,6 @@ int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
+void ice_napi_del(struct ice_vsi *vsi);
 
 #endif /* _ICE_H_ */

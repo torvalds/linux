@@ -486,7 +486,7 @@ sticky_done:
 				retv = -EFAULT;
 				break;
 		}
-		if (sk->sk_bound_dev_if && pkt.ipi6_ifindex != sk->sk_bound_dev_if)
+		if (!sk_dev_equal_l3scope(sk, pkt.ipi6_ifindex))
 			goto e_inval;
 
 		np->sticky_pktinfo.ipi6_ifindex = pkt.ipi6_ifindex;
@@ -786,6 +786,12 @@ done:
 		if (optlen < sizeof(int))
 			goto e_inval;
 		retv = ip6_ra_control(sk, val);
+		break;
+	case IPV6_ROUTER_ALERT_ISOLATE:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		np->rtalert_isolate = valbool;
+		retv = 0;
 		break;
 	case IPV6_MTU_DISCOVER:
 		if (optlen < sizeof(int))
@@ -1356,6 +1362,10 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_RECVFRAGSIZE:
 		val = np->rxopt.bits.recvfragsize;
+		break;
+
+	case IPV6_ROUTER_ALERT_ISOLATE:
+		val = np->rtalert_isolate;
 		break;
 
 	default:

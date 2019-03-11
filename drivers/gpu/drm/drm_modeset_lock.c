@@ -22,6 +22,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_lock.h>
 
@@ -55,6 +56,10 @@
  *     out:
  *     drm_modeset_drop_locks(ctx);
  *     drm_modeset_acquire_fini(ctx);
+ *
+ * For convenience this control flow is implemented in
+ * DRM_MODESET_LOCK_ALL_BEGIN() and DRM_MODESET_LOCK_ALL_END() for the case
+ * where all modeset locks need to be taken through drm_modeset_lock_all_ctx().
  *
  * If all that is needed is a single modeset lock, then the &struct
  * drm_modeset_acquire_ctx is not needed and the locking can be simplified
@@ -383,11 +388,14 @@ EXPORT_SYMBOL(drm_modeset_unlock);
  * Locks acquired with this function should be released by calling the
  * drm_modeset_drop_locks() function on @ctx.
  *
+ * See also: DRM_MODESET_LOCK_ALL_BEGIN() and DRM_MODESET_LOCK_ALL_END()
+ *
  * Returns: 0 on success or a negative error-code on failure.
  */
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_private_obj *privobj;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	int ret;
@@ -404,6 +412,12 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
 
 	drm_for_each_plane(plane, dev) {
 		ret = drm_modeset_lock(&plane->mutex, ctx);
+		if (ret)
+			return ret;
+	}
+
+	drm_for_each_privobj(privobj, dev) {
+		ret = drm_modeset_lock(&privobj->lock, ctx);
 		if (ret)
 			return ret;
 	}

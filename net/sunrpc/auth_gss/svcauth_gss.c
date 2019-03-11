@@ -76,6 +76,7 @@ struct rsi {
 	struct xdr_netobj	in_handle, in_token;
 	struct xdr_netobj	out_handle, out_token;
 	int			major_status, minor_status;
+	struct rcu_head		rcu_head;
 };
 
 static struct rsi *rsi_update(struct cache_detail *cd, struct rsi *new, struct rsi *old);
@@ -89,11 +90,19 @@ static void rsi_free(struct rsi *rsii)
 	kfree(rsii->out_token.data);
 }
 
+static void rsi_free_rcu(struct rcu_head *head)
+{
+	struct rsi *rsii = container_of(head, struct rsi, rcu_head);
+
+	rsi_free(rsii);
+	kfree(rsii);
+}
+
 static void rsi_put(struct kref *ref)
 {
 	struct rsi *rsii = container_of(ref, struct rsi, h.ref);
-	rsi_free(rsii);
-	kfree(rsii);
+
+	call_rcu(&rsii->rcu_head, rsi_free_rcu);
 }
 
 static inline int rsi_hash(struct rsi *item)
@@ -282,7 +291,7 @@ static struct rsi *rsi_lookup(struct cache_detail *cd, struct rsi *item)
 	struct cache_head *ch;
 	int hash = rsi_hash(item);
 
-	ch = sunrpc_cache_lookup(cd, &item->h, hash);
+	ch = sunrpc_cache_lookup_rcu(cd, &item->h, hash);
 	if (ch)
 		return container_of(ch, struct rsi, h);
 	else
@@ -330,6 +339,7 @@ struct rsc {
 	struct svc_cred		cred;
 	struct gss_svc_seq_data	seqdata;
 	struct gss_ctx		*mechctx;
+	struct rcu_head		rcu_head;
 };
 
 static struct rsc *rsc_update(struct cache_detail *cd, struct rsc *new, struct rsc *old);
@@ -343,12 +353,22 @@ static void rsc_free(struct rsc *rsci)
 	free_svc_cred(&rsci->cred);
 }
 
+static void rsc_free_rcu(struct rcu_head *head)
+{
+	struct rsc *rsci = container_of(head, struct rsc, rcu_head);
+
+	kfree(rsci->handle.data);
+	kfree(rsci);
+}
+
 static void rsc_put(struct kref *ref)
 {
 	struct rsc *rsci = container_of(ref, struct rsc, h.ref);
 
-	rsc_free(rsci);
-	kfree(rsci);
+	if (rsci->mechctx)
+		gss_delete_sec_context(&rsci->mechctx);
+	free_svc_cred(&rsci->cred);
+	call_rcu(&rsci->rcu_head, rsc_free_rcu);
 }
 
 static inline int
@@ -542,7 +562,7 @@ static struct rsc *rsc_lookup(struct cache_detail *cd, struct rsc *item)
 	struct cache_head *ch;
 	int hash = rsc_hash(item);
 
-	ch = sunrpc_cache_lookup(cd, &item->h, hash);
+	ch = sunrpc_cache_lookup_rcu(cd, &item->h, hash);
 	if (ch)
 		return container_of(ch, struct rsc, h);
 	else
@@ -1122,7 +1142,7 @@ static int svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	struct rsi *rsip, rsikey;
 	int ret;
-	struct sunrpc_net *sn = net_generic(rqstp->rq_xprt->xpt_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
 	memset(&rsikey, 0, sizeof(rsikey));
 	ret = gss_read_verf(gc, argv, authp,
@@ -1233,7 +1253,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	uint64_t handle;
 	int status;
 	int ret;
-	struct net *net = rqstp->rq_xprt->xpt_net;
+	struct net *net = SVC_NET(rqstp);
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	memset(&ud, 0, sizeof(ud));
@@ -1424,7 +1444,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 	__be32		*rpcstart;
 	__be32		*reject_stat = resv->iov_base + resv->iov_len;
 	int		ret;
-	struct sunrpc_net *sn = net_generic(rqstp->rq_xprt->xpt_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
 	dprintk("RPC:       svcauth_gss: argv->iov_len = %zd\n",
 			argv->iov_len);
@@ -1714,7 +1734,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	struct rpc_gss_wire_cred *gc = &gsd->clcred;
 	struct xdr_buf *resbuf = &rqstp->rq_res;
 	int stat = -EINVAL;
-	struct sunrpc_net *sn = net_generic(rqstp->rq_xprt->xpt_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(SVC_NET(rqstp), sunrpc_net_id);
 
 	if (gc->gc_proc != RPC_GSS_PROC_DATA)
 		goto out;
@@ -1764,12 +1784,19 @@ out_err:
 }
 
 static void
-svcauth_gss_domain_release(struct auth_domain *dom)
+svcauth_gss_domain_release_rcu(struct rcu_head *head)
 {
+	struct auth_domain *dom = container_of(head, struct auth_domain, rcu_head);
 	struct gss_domain *gd = container_of(dom, struct gss_domain, h);
 
 	kfree(dom->name);
 	kfree(gd);
+}
+
+static void
+svcauth_gss_domain_release(struct auth_domain *dom)
+{
+	call_rcu(&dom->rcu_head, svcauth_gss_domain_release_rcu);
 }
 
 static struct auth_ops svcauthops_gss = {

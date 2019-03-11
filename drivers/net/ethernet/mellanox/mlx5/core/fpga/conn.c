@@ -334,7 +334,7 @@ static void mlx5_fpga_conn_handle_cqe(struct mlx5_fpga_conn *conn,
 {
 	u8 opcode, status = 0;
 
-	opcode = cqe->op_own >> 4;
+	opcode = get_cqe_opcode(cqe);
 
 	switch (opcode) {
 	case MLX5_CQE_REQ_ERR:

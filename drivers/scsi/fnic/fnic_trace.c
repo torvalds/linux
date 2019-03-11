@@ -409,6 +409,9 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Last ISR time: %llu (%8llu.%09lu)\n"
 		  "Last ACK time: %llu (%8llu.%09lu)\n"
+		  "Max ISR jiffies: %llu\n"
+		  "Max ISR time (ms) (0 denotes < 1 ms): %llu\n"
+		  "Corr. work done: %llu\n"
 		  "Number of ISRs: %lld\n"
 		  "Maximum CQ Entries: %lld\n"
 		  "Number of ACK index out of range: %lld\n"
@@ -428,6 +431,9 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (s64)val1.tv_sec, val1.tv_nsec,
 		  (u64)stats->misc_stats.last_ack_time,
 		  (s64)val2.tv_sec, val2.tv_nsec,
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_jiffies),
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_time_ms),
+		  (u64)atomic64_read(&stats->misc_stats.corr_work_done),
 		  (u64)atomic64_read(&stats->misc_stats.isr_count),
 		  (u64)atomic64_read(&stats->misc_stats.max_cq_entries),
 		  (u64)atomic64_read(&stats->misc_stats.ack_index_out_of_range),
@@ -445,6 +451,11 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+			"Firmware reported port seed: %llu\n",
+			(u64)atomic64_read(
+				&stats->misc_stats.current_port_speed));
 
 	return len;
 
@@ -468,14 +479,13 @@ int fnic_trace_buf_init(void)
 	fnic_max_trace_entries = (trace_max_pages * PAGE_SIZE)/
 					  FNIC_ENTRY_SIZE_BYTES;
 
-	fnic_trace_buf_p = (unsigned long)vmalloc((trace_max_pages * PAGE_SIZE));
+	fnic_trace_buf_p = (unsigned long)vzalloc(trace_max_pages * PAGE_SIZE);
 	if (!fnic_trace_buf_p) {
 		printk(KERN_ERR PFX "Failed to allocate memory "
 				  "for fnic_trace_buf_p\n");
 		err = -ENOMEM;
 		goto err_fnic_trace_buf_init;
 	}
-	memset((void *)fnic_trace_buf_p, 0, (trace_max_pages * PAGE_SIZE));
 
 	fnic_trace_entries.page_offset =
 		vmalloc(array_size(fnic_max_trace_entries,
@@ -504,15 +514,10 @@ int fnic_trace_buf_init(void)
 		fnic_trace_entries.page_offset[i] = fnic_buf_head;
 		fnic_buf_head += FNIC_ENTRY_SIZE_BYTES;
 	}
-	err = fnic_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize debugfs for tracing\n");
-		goto err_fnic_trace_debugfs_init;
-	}
+	fnic_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized Trace Buffer\n");
 	return err;
-err_fnic_trace_debugfs_init:
-	fnic_trace_free();
+
 err_fnic_trace_buf_init:
 	return err;
 }
@@ -597,16 +602,10 @@ int fnic_fc_trace_init(void)
 		fc_trace_entries.page_offset[i] = fc_trace_buf_head;
 		fc_trace_buf_head += FC_TRC_SIZE_BYTES;
 	}
-	err = fnic_fc_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize FC_CTLR tracing.\n");
-		goto err_fnic_fc_ctlr_trace_debugfs_init;
-	}
+	fnic_fc_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized FC_CTLR Trace Buffer\n");
 	return err;
 
-err_fnic_fc_ctlr_trace_debugfs_init:
-	fnic_fc_trace_free();
 err_fnic_fc_ctlr_trace_buf_init:
 	return err;
 }

@@ -77,10 +77,12 @@ static size_t buf_size(struct page *page)
 }
 
 static void *
-bts_buffer_setup_aux(int cpu, void **pages, int nr_pages, bool overwrite)
+bts_buffer_setup_aux(struct perf_event *event, void **pages,
+		     int nr_pages, bool overwrite)
 {
 	struct bts_buffer *buf;
 	struct page *page;
+	int cpu = event->cpu;
 	int node = (cpu == -1) ? cpu : cpu_to_node(cpu);
 	unsigned long offset;
 	size_t size = nr_pages << PAGE_SHIFT;
@@ -589,7 +591,7 @@ static __init int bts_init(void)
 		 * the AUX buffer.
 		 *
 		 * However, since this driver supports per-CPU and per-task inherit
-		 * we cannot use the user mapping since it will not be availble
+		 * we cannot use the user mapping since it will not be available
 		 * if we're not running the owning process.
 		 *
 		 * With PTI we can't use the kernal map either, because its not

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Texas Instruments DP83822 PHY
  *
  * Copyright (C) 2017 Texas Instruments Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/ethtool.h>
@@ -318,7 +310,6 @@ static struct phy_driver dp83822_driver[] = {
 		.phy_id_mask = 0xfffffff0,
 		.name = "TI DP83822",
 		.features = PHY_BASIC_FEATURES,
-		.flags = PHY_HAS_INTERRUPT,
 		.config_init = dp83822_config_init,
 		.soft_reset = dp83822_phy_reset,
 		.get_wol = dp83822_get_wol,
@@ -339,4 +330,4 @@ MODULE_DEVICE_TABLE(mdio, dp83822_tbl);
 
 MODULE_DESCRIPTION("Texas Instruments DP83822 PHY driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

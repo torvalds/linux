@@ -98,14 +98,6 @@ extern void start_thread(struct pt_regs * regs, unsigned long pc,
 
 extern unsigned int get_wchan(struct task_struct *p);
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- * Should the PC register be read instead ? This macro does not seem to
- * be used in many places so this wont be all that bad.
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
-
 #endif /* !__ASSEMBLY__ */
 
 /*

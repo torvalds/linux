@@ -890,7 +890,7 @@ u8 DRXD_StartDiversityEnd[] = {
 	/* End demod, combining RF in and diversity in, MPEG TS out */
 	WR16(B_FE_CF_REG_IMP_VAL__A, 0x0),	/* disable impulse noise cruncher */
 	WR16(B_FE_AD_REG_INVEXT__A, 0x0),	/* clock inversion (for sohard board) */
-	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apperently no mb delay matching is best */
+	WR16(B_CP_REG_BR_STR_DEL__A, 10),	/* apparently no mb delay matching is best */
 
 	WR16(B_EQ_REG_RC_SEL_CAR__A, B_EQ_REG_RC_SEL_CAR_DIV_ON |	/* org = 0x81 combining enabled */
 	     B_EQ_REG_RC_SEL_CAR_MEAS_A_CC |

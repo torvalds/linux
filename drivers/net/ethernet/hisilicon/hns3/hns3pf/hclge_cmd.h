@@ -39,7 +39,7 @@ struct hclge_cmq_ring {
 enum hclge_cmd_return_status {
 	HCLGE_CMD_EXEC_SUCCESS	= 0,
 	HCLGE_CMD_NO_AUTH	= 1,
-	HCLGE_CMD_NOT_EXEC	= 2,
+	HCLGE_CMD_NOT_SUPPORTED	= 2,
 	HCLGE_CMD_QUEUE_FULL	= 3,
 };
 
@@ -82,15 +82,30 @@ enum hclge_opcode_type {
 	HCLGE_OPC_STATS_64_BIT		= 0x0030,
 	HCLGE_OPC_STATS_32_BIT		= 0x0031,
 	HCLGE_OPC_STATS_MAC		= 0x0032,
+	HCLGE_OPC_QUERY_MAC_REG_NUM	= 0x0033,
+	HCLGE_OPC_STATS_MAC_ALL		= 0x0034,
 
 	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
 	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
 	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
+	HCLGE_OPC_DFX_BD_NUM		= 0x0043,
+	HCLGE_OPC_DFX_BIOS_COMMON_REG	= 0x0044,
+	HCLGE_OPC_DFX_SSU_REG_0		= 0x0045,
+	HCLGE_OPC_DFX_SSU_REG_1		= 0x0046,
+	HCLGE_OPC_DFX_IGU_EGU_REG	= 0x0047,
+	HCLGE_OPC_DFX_RPU_REG_0		= 0x0048,
+	HCLGE_OPC_DFX_RPU_REG_1		= 0x0049,
+	HCLGE_OPC_DFX_NCSI_REG		= 0x004A,
+	HCLGE_OPC_DFX_RTC_REG		= 0x004B,
+	HCLGE_OPC_DFX_PPP_REG		= 0x004C,
+	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
+	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
+	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
+	HCLGE_OPC_DFX_QUERY_CHIP_CAP	= 0x0050,
 
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
 	HCLGE_OPC_CONFIG_AN_MODE	= 0x0304,
-	HCLGE_OPC_QUERY_AN_RESULT	= 0x0306,
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
@@ -126,6 +141,16 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_PRI_SCH_MODE_CFG   = 0x0813,
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
+	HCLGE_OPC_ETS_TC_WEIGHT		= 0x0843,
+	HCLGE_OPC_QSET_DFX_STS		= 0x0844,
+	HCLGE_OPC_PRI_DFX_STS		= 0x0845,
+	HCLGE_OPC_PG_DFX_STS		= 0x0846,
+	HCLGE_OPC_PORT_DFX_STS		= 0x0847,
+	HCLGE_OPC_SCH_NQ_CNT		= 0x0848,
+	HCLGE_OPC_SCH_RQ_CNT		= 0x0849,
+	HCLGE_OPC_TM_INTERNAL_STS	= 0x0850,
+	HCLGE_OPC_TM_INTERNAL_CNT	= 0x0851,
+	HCLGE_OPC_TM_INTERNAL_STS_1	= 0x0852,
 
 	/* Packet buffer allocate commands */
 	HCLGE_OPC_TX_BUFF_ALLOC		= 0x0901,
@@ -142,6 +167,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
 	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
+	HCLGE_OPC_TQP_TX_QUEUE_TC	= 0x0B04,
 	HCLGE_OPC_CFG_RX_QUEUE		= 0x0B11,
 	HCLGE_OPC_QUERY_RX_POINTER	= 0x0B12,
 	HCLGE_OPC_QUERY_RX_STATUS	= 0x0B13,
@@ -152,6 +178,7 @@ enum hclge_opcode_type {
 
 	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
+	HCLGE_OPC_GRO_GENERIC_CONFIG    = 0x0C10,
 
 	/* RSS commands */
 	HCLGE_OPC_RSS_GENERIC_CONFIG	= 0x0D01,
@@ -210,27 +237,34 @@ enum hclge_opcode_type {
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
 
+	/* SFP command */
+	HCLGE_OPC_SFP_GET_SPEED		= 0x7104,
+
 	/* Error INT commands */
+	HCLGE_MAC_COMMON_INT_EN		= 0x030E,
 	HCLGE_TM_SCH_ECC_INT_EN		= 0x0829,
-	HCLGE_TM_SCH_ECC_ERR_RINT_CMD	= 0x082d,
-	HCLGE_TM_SCH_ECC_ERR_RINT_CE	= 0x082f,
-	HCLGE_TM_SCH_ECC_ERR_RINT_NFE	= 0x0830,
-	HCLGE_TM_SCH_ECC_ERR_RINT_FE	= 0x0831,
-	HCLGE_TM_SCH_MBIT_ECC_INFO_CMD	= 0x0833,
+	HCLGE_SSU_ECC_INT_CMD		= 0x0989,
+	HCLGE_SSU_COMMON_INT_CMD	= 0x098C,
+	HCLGE_PPU_MPF_ECC_INT_CMD	= 0x0B40,
+	HCLGE_PPU_MPF_OTHER_INT_CMD	= 0x0B41,
+	HCLGE_PPU_PF_OTHER_INT_CMD	= 0x0B42,
 	HCLGE_COMMON_ECC_INT_CFG	= 0x1505,
-	HCLGE_IGU_EGU_TNL_INT_QUERY	= 0x1802,
+	HCLGE_QUERY_RAS_INT_STS_BD_NUM	= 0x1510,
+	HCLGE_QUERY_CLEAR_MPF_RAS_INT	= 0x1511,
+	HCLGE_QUERY_CLEAR_PF_RAS_INT	= 0x1512,
+	HCLGE_QUERY_MSIX_INT_STS_BD_NUM	= 0x1513,
+	HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT	= 0x1514,
+	HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT	= 0x1515,
+	HCLGE_CONFIG_ROCEE_RAS_INT_EN	= 0x1580,
+	HCLGE_QUERY_CLEAR_ROCEE_RAS_INT = 0x1581,
+	HCLGE_ROCEE_PF_RAS_INT_CMD	= 0x1584,
 	HCLGE_IGU_EGU_TNL_INT_EN	= 0x1803,
-	HCLGE_IGU_EGU_TNL_INT_CLR	= 0x1804,
-	HCLGE_IGU_COMMON_INT_QUERY	= 0x1805,
 	HCLGE_IGU_COMMON_INT_EN		= 0x1806,
-	HCLGE_IGU_COMMON_INT_CLR	= 0x1807,
 	HCLGE_TM_QCN_MEM_INT_CFG	= 0x1A14,
-	HCLGE_TM_QCN_MEM_INT_INFO_CMD	= 0x1A17,
 	HCLGE_PPP_CMD0_INT_CMD		= 0x2100,
 	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
-	HCLGE_NCSI_INT_QUERY		= 0x2400,
+	HCLGE_MAC_ETHERTYPE_IDX_RD      = 0x2105,
 	HCLGE_NCSI_INT_EN		= 0x2401,
-	HCLGE_NCSI_INT_CLR		= 0x2402,
 };
 
 #define HCLGE_TQP_REG_OFFSET		0x80000
@@ -278,16 +312,16 @@ struct hclge_ctrl_vector_chain_cmd {
 	u8 rsv;
 };
 
-#define HCLGE_TC_NUM		8
+#define HCLGE_MAX_TC_NUM		8
 #define HCLGE_TC0_PRI_BUF_EN_B	15 /* Bit 15 indicate enable or not */
 #define HCLGE_BUF_UNIT_S	7  /* Buf size is united by 128 bytes */
 struct hclge_tx_buff_alloc_cmd {
-	__le16 tx_pkt_buff[HCLGE_TC_NUM];
+	__le16 tx_pkt_buff[HCLGE_MAX_TC_NUM];
 	u8 tx_buff_rsv[8];
 };
 
 struct hclge_rx_priv_buff_cmd {
-	__le16 buf_num[HCLGE_TC_NUM];
+	__le16 buf_num[HCLGE_MAX_TC_NUM];
 	__le16 shared_buf;
 	u8 rsv[6];
 };
@@ -333,7 +367,6 @@ struct hclge_priv_buf {
 	u32 enable;	/* Enable TC private buffer or not */
 };
 
-#define HCLGE_MAX_TC_NUM	8
 struct hclge_shared_buf {
 	struct hclge_waterline self;
 	struct hclge_tc_thrd tc_thrd[HCLGE_MAX_TC_NUM];
@@ -388,7 +421,9 @@ struct hclge_pf_res_cmd {
 #define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
 	__le16 pf_intr_vector_number;
 	__le16 pf_own_fun_number;
-	__le32 rsv[3];
+	__le16 tx_buf_size;
+	__le16 dv_buf_size;
+	__le32 rsv[2];
 };
 
 #define HCLGE_CFG_OFFSET_S	0
@@ -542,20 +577,6 @@ struct hclge_config_mac_speed_dup_cmd {
 	u8 rsv[22];
 };
 
-#define HCLGE_QUERY_SPEED_S		3
-#define HCLGE_QUERY_AN_B		0
-#define HCLGE_QUERY_DUPLEX_B		2
-
-#define HCLGE_QUERY_SPEED_M		GENMASK(4, 0)
-#define HCLGE_QUERY_AN_M		BIT(HCLGE_QUERY_AN_B)
-#define HCLGE_QUERY_DUPLEX_M		BIT(HCLGE_QUERY_DUPLEX_B)
-
-struct hclge_query_an_speed_dup_cmd {
-	u8 an_syn_dup_speed;
-	u8 pause;
-	u8 rsv[23];
-};
-
 #define HCLGE_RING_ID_MASK		GENMASK(9, 0)
 #define HCLGE_TQP_ENABLE_B		0
 
@@ -570,6 +591,11 @@ struct hclge_query_an_speed_dup_cmd {
 struct hclge_config_auto_neg_cmd {
 	__le32  cfg_an_cmd_flag;
 	u8      rsv[20];
+};
+
+struct hclge_sfp_speed_cmd {
+	__le32	sfp_speed;
+	u32	rsv[5];
 };
 
 #define HCLGE_MAC_UPLINK_PORT		0x100
@@ -667,7 +693,9 @@ struct hclge_mac_vlan_remove_cmd {
 struct hclge_vlan_filter_ctrl_cmd {
 	u8 vlan_type;
 	u8 vlan_fe;
-	u8 rsv[22];
+	u8 rsv1[2];
+	u8 vf_id;
+	u8 rsv2[19];
 };
 
 struct hclge_vlan_filter_pf_cfg_cmd {
@@ -746,6 +774,24 @@ struct hclge_cfg_tx_queue_pointer_cmd {
 	u8 rsv[14];
 };
 
+#pragma pack(1)
+struct hclge_mac_ethertype_idx_rd_cmd {
+	u8	flags;
+	u8	resp_code;
+	__le16  vlan_tag;
+	u8      mac_add[6];
+	__le16  index;
+	__le16	ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	__le16  rev0;
+	u8	i_port_bitmap;
+	u8	i_port_direction;
+	u8	rev1[2];
+};
+
+#pragma pack()
+
 #define HCLGE_TSO_MSS_MIN_S	0
 #define HCLGE_TSO_MSS_MIN_M	GENMASK(13, 0)
 
@@ -756,6 +802,12 @@ struct hclge_cfg_tso_status_cmd {
 	__le16 tso_mss_min;
 	__le16 tso_mss_max;
 	u8 rsv[20];
+};
+
+#define HCLGE_GRO_EN_B		0
+struct hclge_cfg_gro_status_cmd {
+	__le16 gro_en;
+	u8 rsv[22];
 };
 
 #define HCLGE_TSO_MSS_MIN	256
@@ -792,6 +844,7 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
 #define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
+#define HCLGE_NON_DCB_ADDITIONAL_BUF	0x200	/* 512 byte */
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1
@@ -924,6 +977,6 @@ enum hclge_cmd_status hclge_cmd_mdio_write(struct hclge_hw *hw,
 enum hclge_cmd_status hclge_cmd_mdio_read(struct hclge_hw *hw,
 					  struct hclge_desc *desc);
 
-void hclge_destroy_cmd_queue(struct hclge_hw *hw);
+void hclge_cmd_uninit(struct hclge_dev *hdev);
 int hclge_cmd_queue_init(struct hclge_dev *hdev);
 #endif

@@ -1603,7 +1603,7 @@ static void doc_unregister_sysfs(struct platform_device *pdev,
 /*
  * Debug sysfs entries
  */
-static int dbg_flashctrl_show(struct seq_file *s, void *p)
+static int flashcontrol_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
@@ -1623,9 +1623,9 @@ static int dbg_flashctrl_show(struct seq_file *s, void *p)
 
 	return 0;
 }
-DEBUGFS_RO_ATTR(flashcontrol, dbg_flashctrl_show);
+DEFINE_SHOW_ATTRIBUTE(flashcontrol);
 
-static int dbg_asicmode_show(struct seq_file *s, void *p)
+static int asic_mode_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
@@ -1660,9 +1660,9 @@ static int dbg_asicmode_show(struct seq_file *s, void *p)
 	seq_puts(s, ")\n");
 	return 0;
 }
-DEBUGFS_RO_ATTR(asic_mode, dbg_asicmode_show);
+DEFINE_SHOW_ATTRIBUTE(asic_mode);
 
-static int dbg_device_id_show(struct seq_file *s, void *p)
+static int device_id_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 	int id;
@@ -1674,9 +1674,9 @@ static int dbg_device_id_show(struct seq_file *s, void *p)
 	seq_printf(s, "DeviceId = %d\n", id);
 	return 0;
 }
-DEBUGFS_RO_ATTR(device_id, dbg_device_id_show);
+DEFINE_SHOW_ATTRIBUTE(device_id);
 
-static int dbg_protection_show(struct seq_file *s, void *p)
+static int protection_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
@@ -1726,7 +1726,7 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 		   !!(dps1 & DOC_DPS_KEY_OK));
 	return 0;
 }
-DEBUGFS_RO_ATTR(protection, dbg_protection_show);
+DEFINE_SHOW_ATTRIBUTE(protection);
 
 static void __init doc_dbg_register(struct mtd_info *floor)
 {
@@ -1767,8 +1767,8 @@ static int __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 
 	switch (chip_id) {
 	case DOC_CHIPID_G3:
-		mtd->name = kasprintf(GFP_KERNEL, "docg3.%d",
-				      docg3->device_id);
+		mtd->name = devm_kasprintf(docg3->dev, GFP_KERNEL, "docg3.%d",
+					   docg3->device_id);
 		if (!mtd->name)
 			return -ENOMEM;
 		docg3->max_block = 2047;
@@ -1872,7 +1872,7 @@ nomem3:
 nomem2:
 	kfree(docg3);
 nomem1:
-	return ERR_PTR(ret);
+	return ret ? ERR_PTR(ret) : NULL;
 }
 
 /**
@@ -1886,7 +1886,6 @@ static void doc_release_device(struct mtd_info *mtd)
 	mtd_device_unregister(mtd);
 	kfree(docg3->bbt);
 	kfree(docg3);
-	kfree(mtd->name);
 	kfree(mtd);
 }
 

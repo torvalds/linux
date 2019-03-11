@@ -1071,7 +1071,9 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 
 	/* Second pass, allocate new skbs */
 	for (i = 0; i < NUM_RX_BUFF; ++i) {
-		struct sk_buff *skb = alloc_skb(rx_skb_size, GFP_ATOMIC);
+		struct sk_buff *skb;
+
+		skb = netdev_alloc_skb_ip_align(dev->ndev, rx_skb_size);
 		if (!skb) {
 			ret = -ENOMEM;
 			goto oom;
@@ -1080,10 +1082,10 @@ static int emac_resize_rx_ring(struct emac_instance *dev, int new_mtu)
 		BUG_ON(!dev->rx_skb[i]);
 		dev_kfree_skb(dev->rx_skb[i]);
 
-		skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
 		dev->rx_desc[i].data_ptr =
-		    dma_map_single(&dev->ofdev->dev, skb->data - 2, rx_sync_size,
-				   DMA_FROM_DEVICE) + 2;
+		    dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+				   rx_sync_size, DMA_FROM_DEVICE)
+				   + NET_IP_ALIGN;
 		dev->rx_skb[i] = skb;
 	}
  skip:
@@ -1174,25 +1176,44 @@ static void emac_clean_rx_ring(struct emac_instance *dev)
 	}
 }
 
-static inline int emac_alloc_rx_skb(struct emac_instance *dev, int slot,
-				    gfp_t flags)
+static int
+__emac_prepare_rx_skb(struct sk_buff *skb, struct emac_instance *dev, int slot)
 {
-	struct sk_buff *skb = alloc_skb(dev->rx_skb_size, flags);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
 	dev->rx_skb[slot] = skb;
 	dev->rx_desc[slot].data_len = 0;
 
-	skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
 	dev->rx_desc[slot].data_ptr =
-	    dma_map_single(&dev->ofdev->dev, skb->data - 2, dev->rx_sync_size,
-			   DMA_FROM_DEVICE) + 2;
+	    dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+			   dev->rx_sync_size, DMA_FROM_DEVICE) + NET_IP_ALIGN;
 	wmb();
 	dev->rx_desc[slot].ctrl = MAL_RX_CTRL_EMPTY |
 	    (slot == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
 
 	return 0;
+}
+
+static int
+emac_alloc_rx_skb(struct emac_instance *dev, int slot)
+{
+	struct sk_buff *skb;
+
+	skb = __netdev_alloc_skb_ip_align(dev->ndev, dev->rx_skb_size,
+					  GFP_KERNEL);
+
+	return __emac_prepare_rx_skb(skb, dev, slot);
+}
+
+static int
+emac_alloc_rx_skb_napi(struct emac_instance *dev, int slot)
+{
+	struct sk_buff *skb;
+
+	skb = napi_alloc_skb(&dev->mal->napi, dev->rx_skb_size);
+
+	return __emac_prepare_rx_skb(skb, dev, slot);
 }
 
 static void emac_print_link_status(struct emac_instance *dev)
@@ -1225,7 +1246,7 @@ static int emac_open(struct net_device *ndev)
 
 	/* Allocate RX ring */
 	for (i = 0; i < NUM_RX_BUFF; ++i)
-		if (emac_alloc_rx_skb(dev, i, GFP_KERNEL)) {
+		if (emac_alloc_rx_skb(dev, i)) {
 			printk(KERN_ERR "%s: failed to allocate RX ring\n",
 			       ndev->name);
 			goto oom;
@@ -1660,8 +1681,9 @@ static inline void emac_recycle_rx_skb(struct emac_instance *dev, int slot,
 	DBG2(dev, "recycle %d %d" NL, slot, len);
 
 	if (len)
-		dma_map_single(&dev->ofdev->dev, skb->data - 2,
-			       EMAC_DMA_ALIGN(len + 2), DMA_FROM_DEVICE);
+		dma_map_single(&dev->ofdev->dev, skb->data - NET_IP_ALIGN,
+			       SKB_DATA_ALIGN(len + NET_IP_ALIGN),
+			       DMA_FROM_DEVICE);
 
 	dev->rx_desc[slot].data_len = 0;
 	wmb();
@@ -1713,7 +1735,7 @@ static inline int emac_rx_sg_append(struct emac_instance *dev, int slot)
 		int len = dev->rx_desc[slot].data_len;
 		int tot_len = dev->rx_sg_skb->len + len;
 
-		if (unlikely(tot_len + 2 > dev->rx_skb_size)) {
+		if (unlikely(tot_len + NET_IP_ALIGN > dev->rx_skb_size)) {
 			++dev->estats.rx_dropped_mtu;
 			dev_kfree_skb(dev->rx_sg_skb);
 			dev->rx_sg_skb = NULL;
@@ -1769,16 +1791,18 @@ static int emac_poll_rx(void *param, int budget)
 		}
 
 		if (len && len < EMAC_RX_COPY_THRESH) {
-			struct sk_buff *copy_skb =
-			    alloc_skb(len + EMAC_RX_SKB_HEADROOM + 2, GFP_ATOMIC);
+			struct sk_buff *copy_skb;
+
+			copy_skb = napi_alloc_skb(&dev->mal->napi, len);
 			if (unlikely(!copy_skb))
 				goto oom;
 
-			skb_reserve(copy_skb, EMAC_RX_SKB_HEADROOM + 2);
-			memcpy(copy_skb->data - 2, skb->data - 2, len + 2);
+			memcpy(copy_skb->data - NET_IP_ALIGN,
+			       skb->data - NET_IP_ALIGN,
+			       len + NET_IP_ALIGN);
 			emac_recycle_rx_skb(dev, slot, len);
 			skb = copy_skb;
-		} else if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC)))
+		} else if (unlikely(emac_alloc_rx_skb_napi(dev, slot)))
 			goto oom;
 
 		skb_put(skb, len);
@@ -1799,7 +1823,7 @@ static int emac_poll_rx(void *param, int budget)
 	sg:
 		if (ctrl & MAL_RX_CTRL_FIRST) {
 			BUG_ON(dev->rx_sg_skb);
-			if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC))) {
+			if (unlikely(emac_alloc_rx_skb_napi(dev, slot))) {
 				DBG(dev, "rx OOM %d" NL, slot);
 				++dev->estats.rx_dropped_oom;
 				emac_recycle_rx_skb(dev, slot, 0);
@@ -2455,7 +2479,8 @@ static void emac_adjust_link(struct net_device *ndev)
 	dev->phy.duplex = phy->duplex;
 	dev->phy.pause = phy->pause;
 	dev->phy.asym_pause = phy->asym_pause;
-	dev->phy.advertising = phy->advertising;
+	ethtool_convert_link_mode_to_legacy_u32(&dev->phy.advertising,
+						phy->advertising);
 }
 
 static int emac_mii_bus_read(struct mii_bus *bus, int addr, int regnum)
@@ -2490,7 +2515,8 @@ static int emac_mdio_phy_start_aneg(struct mii_phy *phy,
 	phy_dev->autoneg = phy->autoneg;
 	phy_dev->speed = phy->speed;
 	phy_dev->duplex = phy->duplex;
-	phy_dev->advertising = phy->advertising;
+	ethtool_convert_legacy_u32_to_link_mode(phy_dev->advertising,
+						phy->advertising);
 	return phy_start_aneg(phy_dev);
 }
 
@@ -2624,7 +2650,8 @@ static int emac_dt_phy_connect(struct emac_instance *dev,
 	dev->phy.def->phy_id_mask = dev->phy_dev->drv->phy_id_mask;
 	dev->phy.def->name = dev->phy_dev->drv->name;
 	dev->phy.def->ops = &emac_dt_mdio_phy_ops;
-	dev->phy.features = dev->phy_dev->supported;
+	ethtool_convert_link_mode_to_legacy_u32(&dev->phy.features,
+						dev->phy_dev->supported);
 	dev->phy.address = dev->phy_dev->mdio.addr;
 	dev->phy.mode = dev->phy_dev->interface;
 	return 0;

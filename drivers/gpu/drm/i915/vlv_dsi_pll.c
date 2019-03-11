@@ -252,20 +252,12 @@ void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
-static void assert_bpp_mismatch(enum mipi_dsi_pixel_format fmt, int pipe_bpp)
-{
-	int bpp = mipi_dsi_pixel_format_to_bpp(fmt);
-
-	WARN(bpp != pipe_bpp,
-	     "bpp match assertion failure (expected %d, current %d)\n",
-	     bpp, pipe_bpp);
-}
-
-u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
 	u32 m = 0, p = 0, n;
@@ -319,15 +311,12 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 
 	dsi_clock = (m * refclk) / (p * n);
 
-	/* pixel_format and pipe_bpp should agree */
-	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
-
-	pclk = DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, pipe_bpp);
+	pclk = DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, bpp);
 
 	return pclk;
 }
 
-u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
+u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
 	u32 pclk;
@@ -335,12 +324,7 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 	u32 dsi_ratio;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	/* Divide by zero */
-	if (!pipe_bpp) {
-		DRM_ERROR("Invalid BPP(0)\n");
-		return 0;
-	}
+	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 	config->dsi_pll.ctrl = I915_READ(BXT_DSI_PLL_CTL);
 
@@ -348,10 +332,7 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder, int pipe_bpp,
 
 	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
 
-	/* pixel_format and pipe_bpp should agree */
-	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
-
-	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, pipe_bpp);
+	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, bpp);
 
 	DRM_DEBUG_DRIVER("Calculated pclk=%u\n", pclk);
 	return pclk;

@@ -2,8 +2,8 @@
 /*
  *	fs/bfs/dir.c
  *	BFS directory operations.
- *	Copyright (C) 1999,2000  Tigran Aivazian <tigran@veritas.com>
- *      Made endianness-clean by Andrew Stribblehill <ads@wompom.org> 2005
+ *	Copyright (C) 1999-2018  Tigran Aivazian <aivazian.tigran@gmail.com>
+ *  Made endianness-clean by Andrew Stribblehill <ads@wompom.org> 2005
  */
 
 #include <linux/time.h>

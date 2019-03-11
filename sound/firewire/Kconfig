@@ -41,6 +41,7 @@ config SND_OXFW
 	   * Mackie(Loud) U.420/U.420d
 	   * TASCAM FireOne
 	   * Stanton Controllers & Systems 1 Deck/Mixer
+	   * APOGEE duet FireWire
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxfw.
@@ -161,5 +162,7 @@ config SND_FIREFACE
 	help
 	 Say Y here to include support for RME fireface series.
 	  * Fireface 400
+	  * Fireface 800
+	  * Fireface UCX
 
 endif # SND_FIREWIRE

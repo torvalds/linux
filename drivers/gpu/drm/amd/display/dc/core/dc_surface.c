@@ -40,10 +40,14 @@ static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state
 	plane_state->ctx = ctx;
 
 	plane_state->gamma_correction = dc_create_gamma();
-	plane_state->gamma_correction->is_identity = true;
+	if (plane_state->gamma_correction != NULL)
+		plane_state->gamma_correction->is_identity = true;
 
 	plane_state->in_transfer_func = dc_create_transfer_func();
-	plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
+	if (plane_state->in_transfer_func != NULL) {
+		plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
+		plane_state->in_transfer_func->ctx = ctx;
+	}
 }
 
 static void destruct(struct dc_plane_state *plane_state)

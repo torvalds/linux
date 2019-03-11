@@ -59,6 +59,10 @@
 
 typedef __s32 sctp_assoc_t;
 
+#define SCTP_FUTURE_ASSOC	0
+#define SCTP_CURRENT_ASSOC	1
+#define SCTP_ALL_ASSOC		2
+
 /* The following symbols come from the Sockets API Extensions for
  * SCTP <draft-ietf-tsvwg-sctpsocket-07.txt>.
  */
@@ -129,6 +133,7 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_STREAM_SCHEDULER_VALUE	124
 #define SCTP_INTERLEAVING_SUPPORTED	125
 #define SCTP_SENDMSG_CONNECT	126
+#define SCTP_EVENT	127
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -568,6 +573,8 @@ struct sctp_assoc_reset_event {
 
 #define SCTP_ASSOC_CHANGE_DENIED	0x0004
 #define SCTP_ASSOC_CHANGE_FAILED	0x0008
+#define SCTP_STREAM_CHANGE_DENIED	SCTP_ASSOC_CHANGE_DENIED
+#define SCTP_STREAM_CHANGE_FAILED	SCTP_ASSOC_CHANGE_FAILED
 struct sctp_stream_change_event {
 	__u16 strchange_type;
 	__u16 strchange_flags;
@@ -630,7 +637,9 @@ union sctp_notification {
  */
 
 enum sctp_sn_type {
-	SCTP_SN_TYPE_BASE     = (1<<15),
+	SCTP_SN_TYPE_BASE	= (1<<15),
+	SCTP_DATA_IO_EVENT	= SCTP_SN_TYPE_BASE,
+#define SCTP_DATA_IO_EVENT		SCTP_DATA_IO_EVENT
 	SCTP_ASSOC_CHANGE,
 #define SCTP_ASSOC_CHANGE		SCTP_ASSOC_CHANGE
 	SCTP_PEER_ADDR_CHANGE,
@@ -655,6 +664,8 @@ enum sctp_sn_type {
 #define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
 	SCTP_STREAM_CHANGE_EVENT,
 #define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
+	SCTP_SN_TYPE_MAX	= SCTP_STREAM_CHANGE_EVENT,
+#define SCTP_SN_TYPE_MAX		SCTP_SN_TYPE_MAX
 };
 
 /* Notification error codes used to fill up the error fields in some
@@ -1148,9 +1159,16 @@ struct sctp_add_streams {
 	uint16_t sas_outstrms;
 };
 
+struct sctp_event {
+	sctp_assoc_t se_assoc_id;
+	uint16_t se_type;
+	uint8_t se_on;
+};
+
 /* SCTP Stream schedulers */
 enum sctp_sched_type {
 	SCTP_SS_FCFS,
+	SCTP_SS_DEFAULT = SCTP_SS_FCFS,
 	SCTP_SS_PRIO,
 	SCTP_SS_RR,
 	SCTP_SS_MAX = SCTP_SS_RR

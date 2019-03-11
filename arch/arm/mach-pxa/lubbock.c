@@ -136,9 +136,25 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
 
+/* GPIOs for SA1111 PCMCIA */
+static struct gpiod_lookup_table sa1111_pcmcia_gpio_table = {
+	.dev_id = "1800",
+	.table = {
+		{ "sa1111", 0, "a0vpp", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 1, "a1vpp", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 2, "a0vcc", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 3, "a1vcc", GPIO_ACTIVE_HIGH },
+		{ "lubbock", 14, "b0vcc", GPIO_ACTIVE_HIGH },
+		{ "lubbock", 15, "b1vcc", GPIO_ACTIVE_HIGH },
+		{ },
+	},
+};
+
 static void lubbock_init_pcmcia(void)
 {
 	struct clk *clk;
+
+	gpiod_add_lookup_table(&sa1111_pcmcia_gpio_table);
 
 	/* Add an alias for the SA1111 PCMCIA clock */
 	clk = clk_get_sys("pxa2xx-pcmcia", NULL);
@@ -181,7 +197,7 @@ static struct platform_device sa1111_device = {
  * (to J5) and poking board registers (as done below).  Else it's only useful
  * for the temperature sensors.
  */
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 
@@ -440,9 +456,6 @@ static struct pxamci_platform_data lubbock_mci_platform_data = {
 	.init 			= lubbock_mci_init,
 	.get_ro			= lubbock_mci_get_ro,
 	.exit 			= lubbock_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static void lubbock_irda_transceiver_mode(struct device *dev, int mode)

@@ -182,9 +182,11 @@ change five years from now.
 
 If your patch fixes a bug in a specific commit, e.g. you found an issue using
 ``git bisect``, please use the 'Fixes:' tag with the first 12 characters of
-the SHA-1 ID, and the one line summary.  For example::
+the SHA-1 ID, and the one line summary.  Do not split the tag across multiple
+lines, tags are exempt from the "wrap at 75 columns" rule in order to simplify
+parsing scripts.  For example::
 
-	Fixes: e21d2170f366 ("video: remove unnecessary platform_set_drvdata()")
+	Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
 
 The following ``git config`` settings can be used to add a pretty format for
 outputting the above style in the ``git log`` or ``git show`` commands::
@@ -510,7 +512,7 @@ tracking your trees, and to people trying to troubleshoot bugs in your
 tree.
 
 
-12) When to use Acked-by:, Cc:, and Co-Developed-by:
+12) When to use Acked-by:, Cc:, and Co-developed-by:
 -------------------------------------------------------
 
 The Signed-off-by: tag indicates that the signer was involved in the
@@ -543,7 +545,7 @@ person it names - but it should indicate that this person was copied on the
 patch.  This tag documents that potentially interested parties
 have been included in the discussion.
 
-A Co-Developed-by: states that the patch was also created by another developer
+A Co-developed-by: states that the patch was also created by another developer
 along with the original author.  This is useful at times when multiple people
 work on a single patch.  Note, this person also needs to have a Signed-off-by:
 line in the patch as well.

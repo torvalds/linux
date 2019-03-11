@@ -1404,11 +1404,6 @@ static int scsiback_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int scsiback_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
 {
 }
@@ -1712,11 +1707,6 @@ static struct configfs_attribute *scsiback_wwn_attrs[] = {
 	NULL,
 };
 
-static char *scsiback_get_fabric_name(void)
-{
-	return "xen-pvscsi";
-}
-
 static int scsiback_port_link(struct se_portal_group *se_tpg,
 			       struct se_lun *lun)
 {
@@ -1810,8 +1800,7 @@ static int scsiback_check_false(struct se_portal_group *se_tpg)
 
 static const struct target_core_fabric_ops scsiback_ops = {
 	.module				= THIS_MODULE,
-	.name				= "xen-pvscsi",
-	.get_fabric_name		= scsiback_get_fabric_name,
+	.fabric_name			= "xen-pvscsi",
 	.tpg_get_wwn			= scsiback_get_fabric_wwn,
 	.tpg_get_tag			= scsiback_get_tag,
 	.tpg_check_demo_mode		= scsiback_check_true,
@@ -1824,7 +1813,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.sess_get_index			= scsiback_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= scsiback_write_pending,
-	.write_pending_status		= scsiback_write_pending_status,
 	.set_default_node_attributes	= scsiback_set_default_node_attrs,
 	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,

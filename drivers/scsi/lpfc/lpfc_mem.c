@@ -330,7 +330,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 
 	/* Free memory used in mailbox queue back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq, list) {
-		mp = (struct lpfc_dmabuf *) (mbox->context1);
+		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
 		if (mp) {
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
@@ -340,7 +340,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 	}
 	/* Free memory used in mailbox cmpl list back to mailbox memory pool */
 	list_for_each_entry_safe(mbox, next_mbox, &psli->mboxq_cmpl, list) {
-		mp = (struct lpfc_dmabuf *) (mbox->context1);
+		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
 		if (mp) {
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
@@ -354,7 +354,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 	if (psli->mbox_active) {
 		mbox = psli->mbox_active;
-		mp = (struct lpfc_dmabuf *) (mbox->context1);
+		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
 		if (mp) {
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);

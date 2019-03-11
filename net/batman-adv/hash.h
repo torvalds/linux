@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2006-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2006-2019  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -21,6 +21,7 @@
 
 #include "main.h"
 
+#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
@@ -58,6 +59,9 @@ struct batadv_hashtable {
 
 	/** @size: size of hashtable */
 	u32 size;
+
+	/** @generation: current (generation) sequence number */
+	atomic_t generation;
 };
 
 /* allocates and clears the hash */
@@ -112,6 +116,7 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 
 	/* no duplicate found in list, add new element */
 	hlist_add_head_rcu(data_node, head);
+	atomic_inc(&hash->generation);
 
 	ret = 0;
 
@@ -154,6 +159,7 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 
 		data_save = node;
 		hlist_del_rcu(node);
+		atomic_inc(&hash->generation);
 		break;
 	}
 	spin_unlock_bh(&hash->list_locks[index]);

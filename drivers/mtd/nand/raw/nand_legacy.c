@@ -165,15 +165,14 @@ static void nand_read_buf16(struct nand_chip *chip, uint8_t *buf, int len)
 
 /**
  * panic_nand_wait_ready - [GENERIC] Wait for the ready pin after commands.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @timeo: Timeout
  *
  * Helper function for nand_wait_ready used when needing to wait in interrupt
  * context.
  */
-static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
+static void panic_nand_wait_ready(struct nand_chip *chip, unsigned long timeo)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	int i;
 
 	/* Wait for the device to get ready */
@@ -193,11 +192,10 @@ static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
  */
 void nand_wait_ready(struct nand_chip *chip)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned long timeo = 400;
 
 	if (in_interrupt() || oops_in_progress)
-		return panic_nand_wait_ready(mtd, timeo);
+		return panic_nand_wait_ready(chip, timeo);
 
 	/* Wait until command is processed or timeout occurs */
 	timeo = jiffies + msecs_to_jiffies(timeo);
@@ -214,14 +212,13 @@ EXPORT_SYMBOL_GPL(nand_wait_ready);
 
 /**
  * nand_wait_status_ready - [GENERIC] Wait for the ready status after commands.
- * @mtd: MTD device structure
+ * @chip: NAND chip object
  * @timeo: Timeout in ms
  *
  * Wait for status ready (i.e. command done) or timeout.
  */
-static void nand_wait_status_ready(struct mtd_info *mtd, unsigned long timeo)
+static void nand_wait_status_ready(struct nand_chip *chip, unsigned long timeo)
 {
-	register struct nand_chip *chip = mtd_to_nand(mtd);
 	int ret;
 
 	timeo = jiffies + msecs_to_jiffies(timeo);
@@ -321,7 +318,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
-		nand_wait_status_ready(mtd, 250);
+		nand_wait_status_ready(chip, 250);
 		return;
 
 		/* This applies to read commands */
@@ -334,6 +331,7 @@ static void nand_command(struct nand_chip *chip, unsigned int command,
 		 */
 		if (column == -1 && page_addr == -1)
 			return;
+		/* fall through */
 
 	default:
 		/*
@@ -367,7 +365,7 @@ static void nand_ccs_delay(struct nand_chip *chip)
 	 * Wait tCCS_min if it is correctly defined, otherwise wait 500ns
 	 * (which should be safe for all NANDs).
 	 */
-	if (chip->setup_data_interface)
+	if (nand_has_setup_data_iface(chip))
 		ndelay(chip->data_interface.timings.sdr.tCCS_min / 1000);
 	else
 		ndelay(500);
@@ -458,7 +456,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 		/* EZ-NAND can take upto 250ms as per ONFi v4.0 */
-		nand_wait_status_ready(mtd, 250);
+		nand_wait_status_ready(chip, 250);
 		return;
 
 	case NAND_CMD_RNDOUT:
@@ -486,7 +484,7 @@ static void nand_command_lp(struct nand_chip *chip, unsigned int command,
 		chip->legacy.cmd_ctrl(chip, NAND_CMD_NONE,
 				      NAND_NCE | NAND_CTRL_CHANGE);
 
-		/* This applies to read commands */
+		/* fall through - This applies to read commands */
 	default:
 		/*
 		 * If we don't have access to the busy pin, we apply the given
@@ -525,7 +523,6 @@ EXPORT_SYMBOL(nand_get_set_features_notsupp);
 
 /**
  * nand_wait - [DEFAULT] wait until the command is done
- * @mtd: MTD device structure
  * @chip: NAND chip structure
  *
  * Wait for command done. This applies to erase and program only.
@@ -581,7 +578,7 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 {
 	unsigned int busw = chip->options & NAND_BUSWIDTH_16;
 
-	if (chip->exec_op)
+	if (nand_has_exec_op(chip))
 		return;
 
 	/* check for proper chip_delay setup, set 20us if not */
@@ -589,15 +586,15 @@ void nand_legacy_set_defaults(struct nand_chip *chip)
 		chip->legacy.chip_delay = 20;
 
 	/* check, if a user supplied command function given */
-	if (!chip->legacy.cmdfunc && !chip->exec_op)
+	if (!chip->legacy.cmdfunc)
 		chip->legacy.cmdfunc = nand_command;
 
 	/* check, if a user supplied wait function given */
 	if (chip->legacy.waitfunc == NULL)
 		chip->legacy.waitfunc = nand_wait;
 
-	if (!chip->select_chip)
-		chip->select_chip = nand_select_chip;
+	if (!chip->legacy.select_chip)
+		chip->legacy.select_chip = nand_select_chip;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->legacy.read_byte || chip->legacy.read_byte == nand_read_byte)
@@ -625,14 +622,15 @@ int nand_legacy_check_hooks(struct nand_chip *chip)
 	 * ->legacy.cmdfunc() is legacy and will only be used if ->exec_op() is
 	 * not populated.
 	 */
-	if (chip->exec_op)
+	if (nand_has_exec_op(chip))
 		return 0;
 
 	/*
 	 * Default functions assigned for ->legacy.cmdfunc() and
-	 * ->select_chip() both expect ->legacy.cmd_ctrl() to be populated.
+	 * ->legacy.select_chip() both expect ->legacy.cmd_ctrl() to be
+	 *  populated.
 	 */
-	if ((!chip->legacy.cmdfunc || !chip->select_chip) &&
+	if ((!chip->legacy.cmdfunc || !chip->legacy.select_chip) &&
 	    !chip->legacy.cmd_ctrl) {
 		pr_err("->legacy.cmd_ctrl() should be provided\n");
 		return -EINVAL;

@@ -359,20 +359,24 @@
 
 &mmc3 {
 	vmmc-supply = <&wl12xx_vmmc>;
+	/* uart2_tx.sdmmc3_dat1 pad as wakeirq */
 	interrupts-extended = <&wakeupgen GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH
 			       &omap4_pmx_core 0xde>;
-
+	interrupt-names = "irq", "wakeup";
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
+	keep-power-in-suspend;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1285", "ti,wl1283";
 		reg = <2>;
-		interrupt-parent = <&gpio4>;
-		interrupts = <4 IRQ_TYPE_EDGE_RISING>; /* gpio100 */
+		/* gpio_100 with gpmc_wait2 pad as wakeirq */
+		interrupts-extended = <&gpio4 4 IRQ_TYPE_EDGE_RISING>,
+				      <&omap4_pmx_core 0x4e>;
+		interrupt-names = "irq", "wakeup";
 		ref-clock-frequency = <26000000>;
 		tcxo-clock-frequency = <26000000>;
 	};
@@ -642,6 +646,17 @@
 		OMAP4_IOPAD(0x040, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
 		>;
 	};
+};
+
+/* Configure pwm clock source for timers 8 & 9 */
+&timer8 {
+	assigned-clocks = <&abe_clkctrl OMAP4_TIMER8_CLKCTRL 24>;
+	assigned-clock-parents = <&sys_clkin_ck>;
+};
+
+&timer9 {
+	assigned-clocks = <&l4_per_clkctrl OMAP4_TIMER9_CLKCTRL 24>;
+	assigned-clock-parents = <&sys_clkin_ck>;
 };
 
 /*

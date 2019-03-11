@@ -145,13 +145,16 @@ config MACVTAP
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
 
+config IPVLAN_L3S
+	depends on NETFILTER
+	depends on IPVLAN
+	def_bool y
+	select NET_L3_MASTER_DEV
 
 config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
     depends on IPV6 || !IPV6
-    depends on NETFILTER
-    select NET_L3_MASTER_DEV
     ---help---
       This allows one to create virtual devices off of a main interface
       and packets will be delivered based on the dest L3 (IPv6/IPv4 addr)
@@ -197,9 +200,9 @@ config VXLAN
 
 config GENEVE
        tristate "Generic Network Virtualization Encapsulation"
-       depends on INET && NET_UDP_TUNNEL
+       depends on INET
        depends on IPV6 || !IPV6
-       select NET_IP_TUNNEL
+       select NET_UDP_TUNNEL
        select GRO_CELLS
        ---help---
 	  This allows one to create geneve virtual interfaces that provide
@@ -397,10 +400,10 @@ config NET_SB1000
 
 	  At present this driver only compiles as a module, so say M here if
 	  you have this card. The module will be called sb1000. Then read
-	  <file:Documentation/networking/README.sb1000> for information on how
-	  to use this module, as it needs special ppp scripts for establishing
-	  a connection. Further documentation and the necessary scripts can be
-	  found at:
+	  <file:Documentation/networking/device_drivers/sb1000.txt> for
+	  information on how to use this module, as it needs special ppp
+	  scripts for establishing a connection. Further documentation
+	  and the necessary scripts can be found at:
 
 	  <http://www.jacksonville.net/~fventuri/>
 	  <http://home.adelphia.net/~siglercm/sb1000.html>
@@ -502,7 +505,6 @@ source "drivers/net/hyperv/Kconfig"
 config NETDEVSIM
 	tristate "Simulated networking device"
 	depends on DEBUG_FS
-	depends on MAY_USE_DEVLINK
 	help
 	  This driver is a developer testing tool and software model that can
 	  be used to test various control path networking APIs, especially
@@ -519,7 +521,7 @@ config NET_FAILOVER
 	  and destroy a failover master netdev and manages a primary and
 	  standby slave netdevs that get registered via the generic failover
 	  infrastructure. This can be used by paravirtual drivers to enable
-	  an alternate low latency datapath. It alsoenables live migration of
+	  an alternate low latency datapath. It also enables live migration of
 	  a VM with direct attached VF by failing over to the paravirtual
 	  datapath when the VF is unplugged.
 

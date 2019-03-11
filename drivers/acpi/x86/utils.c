@@ -56,6 +56,11 @@ static const struct always_present_id always_present_ids[] = {
 	 */
 	ENTRY("80860F09", "1", ICPU(INTEL_FAM6_ATOM_SILVERMONT), {}),
 	ENTRY("80862288", "1", ICPU(INTEL_FAM6_ATOM_AIRMONT), {}),
+
+	/* Lenovo Yoga Book uses PWM2 for keyboard backlight control */
+	ENTRY("80862289", "2", ICPU(INTEL_FAM6_ATOM_AIRMONT), {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9"),
+		}),
 	/*
 	 * The INT0002 device is necessary to clear wakeup interrupt sources
 	 * on Cherry Trail devices, without it we get nobody cared IRQ msgs.

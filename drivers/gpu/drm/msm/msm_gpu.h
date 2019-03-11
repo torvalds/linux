@@ -19,6 +19,7 @@
 #define __MSM_GPU_H__
 
 #include <linux/clk.h>
+#include <linux/interconnect.h>
 #include <linux/regulator/consumer.h>
 
 #include "msm_drv.h"
@@ -31,7 +32,6 @@ struct msm_gpu_state;
 
 struct msm_gpu_config {
 	const char *ioname;
-	const char *irqname;
 	uint64_t va_start;
 	uint64_t va_end;
 	unsigned int nr_rings;
@@ -63,7 +63,7 @@ struct msm_gpu_funcs {
 	struct msm_ringbuffer *(*active_ring)(struct msm_gpu *gpu);
 	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 	/* show GPU status in debugfs: */
 	void (*show)(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			struct drm_printer *p);
@@ -118,6 +118,8 @@ struct msm_gpu {
 	int nr_clocks;
 	struct clk *ebi1_clk, *core_clk, *rbbmtimer_clk;
 	uint32_t fast_rate;
+
+	struct icc_path *icc_path;
 
 	/* Hang and Inactivity Detection:
 	 */
@@ -187,6 +189,7 @@ struct msm_gpu_state_bo {
 	u64 iova;
 	size_t size;
 	void *data;
+	bool encoded;
 };
 
 struct msm_gpu_state {
@@ -201,6 +204,7 @@ struct msm_gpu_state {
 		u32 wptr;
 		void *data;
 		int data_size;
+		bool encoded;
 	} ring[MSM_GPU_MAX_RINGS];
 
 	int nr_registers;

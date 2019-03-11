@@ -490,7 +490,7 @@ static void s5h1409_set_qam_amhum_mode(struct dvb_frontend *fe)
 
 	if (state->qam_state == QAM_STATE_QAM_OPTIMIZED_L3) {
 		/* We've already reached the maximum optimization level, so
-		   dont bother banging on the status registers */
+		   don't bother banging on the status registers */
 		return;
 	}
 

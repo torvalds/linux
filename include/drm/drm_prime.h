@@ -70,6 +70,7 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 			       struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 			       int *prime_fd);
+int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
 
@@ -93,9 +94,6 @@ void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 			   enum dma_data_direction dir);
 void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf);
 void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr);
-void *drm_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num);
-void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num,
-			   void *addr);
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
 
 int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,

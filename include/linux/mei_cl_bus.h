@@ -55,6 +55,8 @@ struct mei_cl_device {
 	void *priv_data;
 };
 
+#define to_mei_cl_device(d) container_of(d, struct mei_cl_device, dev)
+
 struct mei_cl_driver {
 	struct device_driver driver;
 	const char *name;

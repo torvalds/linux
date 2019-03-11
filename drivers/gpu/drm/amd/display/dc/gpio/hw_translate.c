@@ -76,6 +76,7 @@ bool dal_hw_translate_init(
 		dal_hw_translate_dce110_init(translate);
 		return true;
 	case DCE_VERSION_12_0:
+	case DCE_VERSION_12_1:
 		dal_hw_translate_dce120_init(translate);
 		return true;
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)

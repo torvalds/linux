@@ -662,7 +662,7 @@ static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	pr_debug("enter, keylen: %d\n", keylen);
 
 	/* Do we need to test against weak key? */
-	if (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+	if (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 		u32 tmp[DES_EXPKEY_WORDS];
 		int ret = des_ekey(tmp, key);
 
@@ -1069,7 +1069,6 @@ static int omap_des_probe(struct platform_device *pdev)
 			algp = &dd->pdata->algs_info[i].algs_list[j];
 
 			pr_debug("reg alg: %s\n", algp->cra_name);
-			INIT_LIST_HEAD(&algp->cra_list);
 
 			err = crypto_register_alg(algp);
 			if (err)

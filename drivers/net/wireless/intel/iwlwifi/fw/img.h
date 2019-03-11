@@ -65,6 +65,8 @@
 #define __iwl_fw_img_h__
 #include <linux/types.h>
 
+#include "api/dbg-tlv.h"
+
 #include "file.h"
 #include "error-dump.h"
 
@@ -103,6 +105,8 @@ struct iwl_ucode_capabilities {
 	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+	u32 error_log_addr;
+	u32 error_log_size;
 	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
 	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
 };
@@ -218,6 +222,27 @@ struct iwl_fw_dbg {
 	struct iwl_fw_dbg_mem_seg_tlv *mem_tlv;
 	size_t n_mem_tlv;
 	u32 dump_mask;
+};
+
+/**
+ * @tlv: the buffer allocation tlv
+ * @is_alloc: indicates if the buffer was already allocated
+ */
+struct iwl_fw_ini_allocation_data {
+	struct iwl_fw_ini_allocation_tlv tlv;
+	u32 is_alloc;
+} __packed;
+
+/**
+ * struct iwl_fw_ini_active_triggers
+ * @active: is this trigger active
+ * @size: allocated memory size of the trigger
+ * @trig: trigger
+ */
+struct iwl_fw_ini_active_triggers {
+	bool active;
+	size_t size;
+	struct iwl_fw_ini_trigger *trig;
 };
 
 /**

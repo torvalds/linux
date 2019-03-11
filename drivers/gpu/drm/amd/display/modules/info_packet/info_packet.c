@@ -25,6 +25,10 @@
 
 #include "mod_info_packet.h"
 #include "core_types.h"
+#include "dc_types.h"
+#include "mod_shared.h"
+
+#define HDMI_INFOFRAME_TYPE_VENDOR 0x81
 
 enum ColorimetryRGBDP {
 	ColorimetryRGB_DP_sRGB               = 0,
@@ -41,7 +45,7 @@ enum ColorimetryYCCDP {
 	ColorimetryYCC_DP_ITU2020YCbCr  = 7,
 };
 
-static void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
+void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		struct dc_info_packet *info_packet)
 {
 	unsigned int vscPacketRevision = 0;
@@ -159,7 +163,7 @@ static void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	 *   DPCD register is exposed in the new Extended Receiver Capability field for DPCD Rev. 1.4
 	 *   (and higher). When MISC1. bit 6. is Set to 1, a Source device uses a VSC SDP to indicate
 	 *   the Pixel Encoding/Colorimetry Format and that a Sink device must ignore MISC1, bit 7, and
-	 *   MISC0, bits 7:1 (MISC1, bit 7. and MISC0, bits 7:1 become “don’t care”).)
+	 *   MISC0, bits 7:1 (MISC1, bit 7. and MISC0, bits 7:1 become "don't care").)
 	 */
 	if (vscPacketRevision == 0x5) {
 		/* Secondary-data Packet ID = 0 */
@@ -318,12 +322,5 @@ static void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		info_packet->sb[18] = 0;
 	}
 
-}
-
-void mod_build_infopackets(struct info_packet_inputs *inputs,
-		struct info_packets *info_packets)
-{
-	if (info_packets->pVscInfoPacket != NULL)
-		mod_build_vsc_infopacket(inputs->pStream, info_packets->pVscInfoPacket);
 }
 

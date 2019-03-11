@@ -43,6 +43,7 @@
 #include <drm/drm_fb_helper.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 /*
  * KMS wrapper.
@@ -533,9 +534,7 @@ radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
 
 static struct drm_driver kms_driver = {
 	.driver_features =
-	    DRIVER_USE_AGP |
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-	    DRIVER_PRIME | DRIVER_RENDER,
+	    DRIVER_USE_AGP | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER,
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,

@@ -291,16 +291,6 @@ static int __init do_reset(void)
 	return 1;
 }
 
-static int __init maybe_link(void)
-{
-	if (nlink >= 2) {
-		char *old = find_link(major, minor, ino, mode, collected);
-		if (old)
-			return (ksys_link(old, collected) < 0) ? -1 : 1;
-	}
-	return 0;
-}
-
 static void __init clean_path(char *path, umode_t fmode)
 {
 	struct kstat st;
@@ -311,6 +301,18 @@ static void __init clean_path(char *path, umode_t fmode)
 		else
 			ksys_unlink(path);
 	}
+}
+
+static int __init maybe_link(void)
+{
+	if (nlink >= 2) {
+		char *old = find_link(major, minor, ino, mode, collected);
+		if (old) {
+			clean_path(collected, 0);
+			return (ksys_link(old, collected) < 0) ? -1 : 1;
+		}
+	}
+	return 0;
 }
 
 static __initdata int wfd;
@@ -429,7 +431,7 @@ static long __init flush_buffer(void *bufv, unsigned long len)
 			len -= written;
 			state = Reset;
 		} else
-			error("junk in compressed archive");
+			error("junk within compressed archive");
 	}
 	return origLen;
 }
@@ -486,9 +488,9 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 				message = msg_buf;
 			}
 		} else
-			error("junk in compressed archive");
+			error("invalid magic at start of compressed archive");
 		if (state != Reset)
-			error("junk in compressed archive");
+			error("junk at the end of compressed archive");
 		this_header = saved_offset + my_inptr;
 		buf += my_inptr;
 		len -= my_inptr;
@@ -644,12 +646,6 @@ static int __init populate_rootfs(void)
 #endif
 	}
 	flush_delayed_fput();
-	/*
-	 * Try loading default modules from initramfs.  This gives
-	 * us a chance to load before device_initcalls.
-	 */
-	load_default_modules();
-
 	return 0;
 }
 rootfs_initcall(populate_rootfs);

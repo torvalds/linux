@@ -26,7 +26,7 @@ struct drm_client_funcs {
 	 * @unregister:
 	 *
 	 * Called when &drm_device is unregistered. The client should respond by
-	 * releasing it's resources using drm_client_release().
+	 * releasing its resources using drm_client_release().
 	 *
 	 * This callback is optional.
 	 */

@@ -207,8 +207,8 @@ static const char * const tp_qmenu[] = {
 	"Vertical Stripe (555h / 000h)",
 	"Vertical Stripe (000h / FFFh)",
 	"Vertical Stripe (FFFh / 000h)",
-	"Horizontal Color Bars",
 	"Vertical Color Bars",
+	"Horizontal Color Bars",
 };
 
 /*
@@ -405,12 +405,12 @@ static const struct reg_8 imx274_start_2[] = {
  */
 static const struct reg_8 imx274_start_3[] = {
 	{0x30F4, 0x00},
-	{0x3018, 0xA2}, /* XHS VHS OUTUPT */
+	{0x3018, 0xA2}, /* XHS VHS OUTPUT */
 	{IMX274_TABLE_END, 0x00}
 };
 
 /*
- * imx274 register configuration for stoping stream
+ * imx274 register configuration for stopping stream
  */
 static const struct reg_8 imx274_stop[] = {
 	{IMX274_STANDBY_REG, 0x01},
@@ -615,21 +615,6 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 		range_vals[range_count++] = val;
 	}
 	return 0;
-}
-
-static inline int imx274_read_reg(struct stimx274 *priv, u16 addr, u8 *val)
-{
-	int err;
-
-	err = regmap_read(priv->regmap, addr, (unsigned int *)val);
-	if (err)
-		dev_err(&priv->client->dev,
-			"%s : i2c read failed, addr = %x\n", __func__, addr);
-	else
-		dev_dbg(&priv->client->dev,
-			"%s : addr 0x%x, val=0x%x\n", __func__,
-			addr, *val);
-	return err;
 }
 
 static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
@@ -1901,7 +1886,7 @@ static int imx274_probe(struct i2c_client *client,
 	imx274_reset(imx274, 1);
 
 	/* initialize controls */
-	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 2);
+	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 4);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"%s : ctrl handler init Failed\n", __func__);

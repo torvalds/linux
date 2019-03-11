@@ -245,8 +245,7 @@ struct gcov_info *gcov_info_dup(struct gcov_info *info)
 
 	/* Duplicate gcov_info. */
 	active = num_counter_active(info);
-	dup = kzalloc(sizeof(struct gcov_info) +
-		      sizeof(struct gcov_ctr_info) * active, GFP_KERNEL);
+	dup = kzalloc(struct_size(dup, counts, active), GFP_KERNEL);
 	if (!dup)
 		return NULL;
 	dup->version		= info->version;
@@ -364,8 +363,7 @@ struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 {
 	struct gcov_iterator *iter;
 
-	iter = kzalloc(sizeof(struct gcov_iterator) +
-		       num_counter_active(info) * sizeof(struct type_info),
+	iter = kzalloc(struct_size(iter, type_info, num_counter_active(info)),
 		       GFP_KERNEL);
 	if (iter)
 		iter->info = info;

@@ -45,10 +45,8 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 
 		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 		if (max_stat_ctxs <= BNXT_MIN_ROCE_STAT_CTXS ||
-		    bp->num_stat_ctxs == max_stat_ctxs)
+		    bp->cp_nr_rings == max_stat_ctxs)
 			return -ENOMEM;
-		bnxt_set_max_func_stat_ctxs(bp, max_stat_ctxs -
-					    BNXT_MIN_ROCE_STAT_CTXS);
 	}
 
 	atomic_set(&ulp->ref_count, 0);
@@ -79,14 +77,9 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 		netdev_err(bp->dev, "ulp id %d not registered\n", ulp_id);
 		return -EINVAL;
 	}
-	if (ulp_id == BNXT_ROCE_ULP) {
-		unsigned int max_stat_ctxs;
+	if (ulp_id == BNXT_ROCE_ULP && ulp->msix_requested)
+		edev->en_ops->bnxt_free_msix(edev, ulp_id);
 
-		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
-		bnxt_set_max_func_stat_ctxs(bp, max_stat_ctxs + 1);
-		if (ulp->msix_requested)
-			edev->en_ops->bnxt_free_msix(edev, ulp_id);
-	}
 	if (ulp->max_async_event_id)
 		bnxt_hwrm_func_rgtr_async_events(bp, NULL, 0);
 
@@ -165,7 +158,7 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, int ulp_id,
 	if (BNXT_NEW_RM(bp)) {
 		struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 
-		avail_msix = hw_resc->resv_cp_rings - bp->cp_nr_rings;
+		avail_msix = hw_resc->resv_irqs - bp->cp_nr_rings;
 		edev->ulp_tbl[ulp_id].msix_requested = avail_msix;
 	}
 	bnxt_fill_msix_vecs(bp, ent);
@@ -212,6 +205,14 @@ int bnxt_get_ulp_msix_base(struct bnxt *bp)
 		if (edev->ulp_tbl[BNXT_ROCE_ULP].msix_requested)
 			return edev->ulp_tbl[BNXT_ROCE_ULP].msix_base;
 	}
+	return 0;
+}
+
+int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
+{
+	if (bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP))
+		return BNXT_MIN_ROCE_STAT_CTXS;
+
 	return 0;
 }
 

@@ -3,7 +3,7 @@
  *
  * Module Name: psparse - Parser top level AML parse routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -479,6 +479,21 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				  "Completed one call to walk loop, %s State=%p\n",
 				  acpi_format_exception(status), walk_state));
 
+		if (walk_state->method_pathname && walk_state->method_is_nested) {
+
+			/* Optional object evaluation log */
+
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+					      "%-26s:  %*s%s\n",
+					      "   Exit nested method",
+					      (walk_state->
+					       method_nesting_depth + 1) * 3,
+					      " ",
+					      &walk_state->method_pathname[1]));
+
+			ACPI_FREE(walk_state->method_pathname);
+			walk_state->method_is_nested = FALSE;
+		}
 		if (status == AE_CTRL_TRANSFER) {
 			/*
 			 * A method call was detected.
@@ -508,12 +523,12 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			if (status == AE_ABORT_METHOD) {
 				acpi_ns_print_node_pathname(walk_state->
 							    method_node,
-							    "Method aborted:");
+							    "Aborting method");
 				acpi_os_printf("\n");
 			} else {
-				ACPI_ERROR_METHOD
-				    ("Method parse/execution failed",
-				     walk_state->method_node, NULL, status);
+				ACPI_ERROR_METHOD("Aborting method",
+						  walk_state->method_node, NULL,
+						  status);
 			}
 			acpi_ex_enter_interpreter();
 

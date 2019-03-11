@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/bitops.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>

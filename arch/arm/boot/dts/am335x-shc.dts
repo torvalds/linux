@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * support for the bosch am335x based shc c3 board
  *
  * Copyright, C) 2015 Heiko Schocher <hs@denx.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -138,7 +136,7 @@
 &epwmss1 {
 	status = "okay";
 
-	ehrpwm1: pwm@48302200 {
+	ehrpwm1: pwm@200 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&ehrpwm1_pins>;
 		status = "okay";
@@ -205,7 +203,7 @@
 	pinctrl-1 = <&cpsw_sleep>;
 	status = "okay";
 	slaves = <1>;
-	cpsw_emac0: slave@4a100200  {
+	cpsw_emac0: slave@200 {
 		phy-mode = "mii";
 		phy-handle = <&ethernetphy0>;
 	};
@@ -215,7 +213,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
 	bus-width = <0x4>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 	cd-inverted;
 	max-frequency = <26000000>;
 	vmmc-supply = <&vmmcsd_fixed>;

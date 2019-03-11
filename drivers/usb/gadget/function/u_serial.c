@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/tty.h>
@@ -26,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/console.h>
 #include <linux/kthread.h>
+#include <linux/workqueue.h>
 #include <linux/kfifo.h>
 
 #include "u_serial.h"
@@ -110,7 +110,7 @@ struct gs_port {
 	int read_allocated;
 	struct list_head	read_queue;
 	unsigned		n_read;
-	struct tasklet_struct	push;
+	struct delayed_work	push;
 
 	struct list_head	write_pool;
 	int write_started;
@@ -352,9 +352,10 @@ __acquires(&port->port_lock)
  * So QUEUE_SIZE packets plus however many the FIFO holds (usually two)
  * can be buffered before the TTY layer's buffers (currently 64 KB).
  */
-static void gs_rx_push(unsigned long _port)
+static void gs_rx_push(struct work_struct *work)
 {
-	struct gs_port		*port = (void *)_port;
+	struct delayed_work	*w = to_delayed_work(work);
+	struct gs_port		*port = container_of(w, struct gs_port, push);
 	struct tty_struct	*tty;
 	struct list_head	*queue = &port->read_queue;
 	bool			disconnect = false;
@@ -429,21 +430,13 @@ static void gs_rx_push(unsigned long _port)
 
 	/* We want our data queue to become empty ASAP, keeping data
 	 * in the tty and ldisc (not here).  If we couldn't push any
-	 * this time around, there may be trouble unless there's an
-	 * implicit tty_unthrottle() call on its way...
+	 * this time around, RX may be starved, so wait until next jiffy.
 	 *
-	 * REVISIT we should probably add a timer to keep the tasklet
-	 * from starving ... but it's not clear that case ever happens.
+	 * We may leave non-empty queue only when there is a tty, and
+	 * either it is throttled or there is no more room in flip buffer.
 	 */
-	if (!list_empty(queue) && tty) {
-		if (!tty_throttled(tty)) {
-			if (do_push)
-				tasklet_schedule(&port->push);
-			else
-				pr_warn("ttyGS%d: RX not scheduled?\n",
-					port->port_num);
-		}
-	}
+	if (!list_empty(queue) && !tty_throttled(tty))
+		schedule_delayed_work(&port->push, 1);
 
 	/* If we're still connected, refill the USB RX queue. */
 	if (!disconnect && port->port_usb)
@@ -459,7 +452,7 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 	/* Queue all received data until the tty layer is ready for it. */
 	spin_lock(&port->port_lock);
 	list_add_tail(&req->list, &port->read_queue);
-	tasklet_schedule(&port->push);
+	schedule_delayed_work(&port->push, 0);
 	spin_unlock(&port->port_lock);
 }
 
@@ -854,8 +847,8 @@ static void gs_unthrottle(struct tty_struct *tty)
 		 * rts/cts, or other handshaking with the host, but if the
 		 * read queue backs up enough we'll be NAKing OUT packets.
 		 */
-		tasklet_schedule(&port->push);
 		pr_vdebug("ttyGS%d: unthrottle\n", port->port_num);
+		schedule_delayed_work(&port->push, 0);
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
@@ -1159,7 +1152,7 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 	init_waitqueue_head(&port->drain_wait);
 	init_waitqueue_head(&port->close_wait);
 
-	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
+	INIT_DELAYED_WORK(&port->push, gs_rx_push);
 
 	INIT_LIST_HEAD(&port->read_pool);
 	INIT_LIST_HEAD(&port->read_queue);
@@ -1186,7 +1179,7 @@ static int gs_closed(struct gs_port *port)
 
 static void gserial_free_port(struct gs_port *port)
 {
-	tasklet_kill(&port->push);
+	cancel_delayed_work_sync(&port->push);
 	/* wait for old opens to finish */
 	wait_event(port->close_wait, gs_closed(port));
 	WARN_ON(port->port_usb != NULL);

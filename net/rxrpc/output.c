@@ -35,6 +35,21 @@ struct rxrpc_abort_buffer {
 static const char rxrpc_keepalive_string[] = "";
 
 /*
+ * Increase Tx backoff on transmission failure and clear it on success.
+ */
+static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
+{
+	if (ret < 0) {
+		u16 tx_backoff = READ_ONCE(call->tx_backoff);
+
+		if (tx_backoff < HZ)
+			WRITE_ONCE(call->tx_backoff, tx_backoff + 1);
+	} else {
+		WRITE_ONCE(call->tx_backoff, 0);
+	}
+}
+
+/*
  * Arrange for a keepalive ping a certain time after we last transmitted.  This
  * lets the far side know we're still interested in this call and helps keep
  * the route through any intervening firewall open.
@@ -210,6 +225,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 	else
 		trace_rxrpc_tx_packet(call->debug_id, &pkt->whdr,
 				      rxrpc_tx_point_call_ack);
+	rxrpc_tx_backoff(call, ret);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		if (ret < 0) {
@@ -218,7 +234,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, bool ping,
 			rxrpc_propose_ACK(call, pkt->ack.reason,
 					  ntohs(pkt->ack.maxSkew),
 					  ntohl(pkt->ack.serial),
-					  true, true,
+					  false, true,
 					  rxrpc_propose_ack_retry_tx);
 		} else {
 			spin_lock_bh(&call->lock);
@@ -300,7 +316,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	else
 		trace_rxrpc_tx_packet(call->debug_id, &pkt.whdr,
 				      rxrpc_tx_point_call_abort);
-
+	rxrpc_tx_backoff(call, ret);
 
 	rxrpc_put_connection(conn);
 	return ret;
@@ -413,6 +429,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	else
 		trace_rxrpc_tx_packet(call->debug_id, &whdr,
 				      rxrpc_tx_point_call_data_nofrag);
+	rxrpc_tx_backoff(call, ret);
 	if (ret == -EMSGSIZE)
 		goto send_fragmentable;
 
@@ -445,9 +462,18 @@ done:
 			rxrpc_reduce_call_timer(call, expect_rx_by, nowj,
 						rxrpc_timer_set_for_normal);
 		}
-	}
 
-	rxrpc_set_keepalive(call);
+		rxrpc_set_keepalive(call);
+	} else {
+		/* Cancel the call if the initial transmission fails,
+		 * particularly if that's due to network routing issues that
+		 * aren't going away anytime soon.  The layer above can arrange
+		 * the retransmission.
+		 */
+		if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags))
+			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
+						  RX_USER_ABORT, ret);
+	}
 
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;
@@ -506,6 +532,7 @@ send_fragmentable:
 	else
 		trace_rxrpc_tx_packet(call->debug_id, &whdr,
 				      rxrpc_tx_point_call_data_frag);
+	rxrpc_tx_backoff(call, ret);
 
 	up_write(&conn->params.local->defrag_sem);
 	goto done;

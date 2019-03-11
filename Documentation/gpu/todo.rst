@@ -28,22 +28,16 @@ them, but also all the virtual ones used by KVM, so everyone qualifies).
 
 Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
 
-Switch from reference/unreference to get/put
---------------------------------------------
 
-For some reason DRM core uses ``reference``/``unreference`` suffixes for
-refcounting functions, but kernel uses ``get``/``put`` (e.g.
-``kref_get``/``put()``). It would be good to switch over for consistency, and
-it's shorter. Needs to be done in 3 steps for each pair of functions:
+Remove custom dumb_map_offset implementations
+---------------------------------------------
 
-* Create new ``get``/``put`` functions, define the old names as compatibility
-  wrappers
-* Switch over each file/driver using a cocci-generated spatch.
-* Once all users of the old names are gone, remove them.
+All GEM based drivers should be using drm_gem_create_mmap_offset() instead.
+Audit each individual driver, make sure it'll work with the generic
+implementation (there's lots of outdated locking leftovers in various
+implementations), and then remove it.
 
-This way drivers/patches in the progress of getting merged won't break.
-
-Contact: Daniel Vetter
+Contact: Daniel Vetter, respective driver maintainers
 
 Convert existing KMS drivers to atomic modesetting
 --------------------------------------------------
@@ -87,30 +81,6 @@ One issue with the helpers is that they require that drivers handle completion
 events for atomic commits correctly. But fixing these bugs is good anyway.
 
 Contact: Daniel Vetter, respective driver maintainers
-
-Better manual-upload support for atomic
----------------------------------------
-
-This would be especially useful for tinydrm:
-
-- Add a struct drm_rect dirty_clip to drm_crtc_state. When duplicating the
-  crtc state, clear that to the max values, x/y = 0 and w/h = MAX_INT, in
-  __drm_atomic_helper_crtc_duplicate_state().
-
-- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm\_
-  prefix ofc and using drm_fb\_. drm_framebuffer.c makes sense since this
-  is a function useful to implement the fb->dirty function.
-
-- Create a new drm_fb_dirty function which does essentially what e.g.
-  mipi_dbi_fb_dirty does. You can use e.g. drm_atomic_helper_update_plane as the
-  template. But instead of doing a simple full-screen plane update, this new
-  helper also sets crtc_state->dirty_clip to the right coordinates. And of
-  course it needs to check whether the fb is actually active (and maybe where),
-  so there's some book-keeping involved. There's also some good fun involved in
-  scaling things appropriately. For that case we might simply give up and
-  declare the entire area covered by the plane as dirty.
-
-Contact: Noralf Trønnes, Daniel Vetter
 
 Fallout from atomic KMS
 -----------------------
@@ -215,6 +185,36 @@ Would be great to refactor this all into a set of small common helpers.
 
 Contact: Daniel Vetter
 
+Generic fbdev defio support
+---------------------------
+
+The defio support code in the fbdev core has some very specific requirements,
+which means drivers need to have a special framebuffer for fbdev. Which prevents
+us from using the generic fbdev emulation code everywhere. The main issue is
+that it uses some fields in struct page itself, which breaks shmem gem objects
+(and other things).
+
+Possible solution would be to write our own defio mmap code in the drm fbdev
+emulation. It would need to fully wrap the existing mmap ops, forwarding
+everything after it has done the write-protect/mkwrite trickery:
+
+- In the drm_fbdev_fb_mmap helper, if we need defio, change the
+  default page prots to write-protected with something like this::
+
+      vma->vm_page_prot = pgprot_wrprotect(vma->vm_page_prot);
+
+- Set the mkwrite and fsync callbacks with similar implementions to the core
+  fbdev defio stuff. These should all work on plain ptes, they don't actually
+  require a struct page.  uff. These should all work on plain ptes, they don't
+  actually require a struct page.
+
+- Track the dirty pages in a separate structure (bitfield with one bit per page
+  should work) to avoid clobbering struct page.
+
+Might be good to also have some igt testcases for this.
+
+Contact: Daniel Vetter, Noralf Tronnes
+
 Put a reservation_object into drm_gem_object
 --------------------------------------------
 
@@ -233,6 +233,72 @@ is never used. Switching to idr_init_base() for these would make the idr more
 efficient.
 
 Contact: Daniel Vetter
+
+Defaults for .gem_prime_import and export
+-----------------------------------------
+
+Most drivers don't need to set drm_driver->gem_prime_import and
+->gem_prime_export now that drm_gem_prime_import() and drm_gem_prime_export()
+are the default.
+
+struct drm_gem_object_funcs
+---------------------------
+
+GEM objects can now have a function table instead of having the callbacks on the
+DRM driver struct. This is now the preferred way and drivers can be moved over.
+
+Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
+---------------------------------------------------------
+
+For cases where drivers are attempting to grab the modeset locks with a local
+acquire context. Replace the boilerplate code surrounding
+drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
+DRM_MODESET_LOCK_ALL_END() instead.
+
+This should also be done for all places where drm_modest_lock_all() is still
+used.
+
+As a reference, take a look at the conversions already completed in drm core.
+
+Contact: Sean Paul, respective driver maintainers
+
+Rename CMA helpers to DMA helpers
+---------------------------------
+
+CMA (standing for contiguous memory allocator) is really a bit an accident of
+what these were used for first, a much better name would be DMA helpers. In the
+text these should even be called coherent DMA memory helpers (so maybe CDM, but
+no one knows what that means) since underneath they just use dma_alloc_coherent.
+
+Contact: Laurent Pinchart, Daniel Vetter
+
+Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
+----------------------------------------------------------------
+
+drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
+is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
+has helper which will use mode.vrefresh if it's !0 and will calculate it from
+the timings when it's 0.
+
+Use simple search/replace, or (more fun) cocci to replace instances of direct
+vrefresh access with a call to the helper. Check out
+https://lists.freedesktop.org/archives/dri-devel/2019-January/205186.html for
+inspiration.
+
+Once all instances of vrefresh have been converted, remove vrefresh from
+drm_display_mode to avoid future use.
+
+Contact: Sean Paul
+
+Remove drm_display_mode.hsync
+-----------------------------
+
+We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
+shouldn't/don't use this, remove this member to avoid any temptations to use it
+in the future. If there is any debug code using drm_display_mode.hsync, convert
+it to use drm_mode_hsync() instead.
+
+Contact: Sean Paul
 
 Core refactorings
 =================
@@ -332,12 +398,15 @@ KMS cleanups
 
 Some of these date from the very introduction of KMS in 2008 ...
 
-- drm_mode_config.crtc_idr is misnamed, since it contains all KMS object. Should
-  be renamed to drm_mode_config.object_idr.
+- Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
+  function tables in drivers, but before we can remove them we need to make sure
+  that all the users in helpers and drivers do correctly check for a NULL
+  vtable.
 
-- drm_display_mode doesn't need to be derived from drm_mode_object. That's
-  leftovers from older (never merged into upstream) KMS designs where modes
-  where set using their ID, including support to add/remove modes.
+- Cleanup up the various ->destroy callbacks. A lot of them just wrapt the
+  drm_*_cleanup implementations and can be removed. Some tack a kfree() at the
+  end, for which we could add drm_*_cleanup_kfree(). And then there's the (for
+  historical reasons) misnamed drm_primary_helper_destroy() function.
 
 Better Testing
 ==============
@@ -400,20 +469,9 @@ those drivers as simple as possible, so lots of room for refactoring:
   one of the ideas for having a shared dsi/dbi helper, abstracting away the
   transport details more.
 
-- tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
-  helpers, as a _vmapped variant (since not every driver needs the vmap).
-  And tinydrm_gem_cma_free_object could the be merged into
-  drm_gem_cma_free_object().
-
-- tinydrm_fb_create we could move into drm_simple_pipe, only need to add
-  the fb_create hook to drm_simple_pipe_funcs, which would again simplify a
-  bunch of things (since it gives you a one-stop vfunc for simple drivers).
-
 - Quick aside: The unregister devm stuff is kinda getting the lifetimes of
   a drm_device wrong. Doesn't matter, since everyone else gets it wrong
   too :-)
-
-- also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
 
 Contact: Noralf Trønnes, Daniel Vetter
 

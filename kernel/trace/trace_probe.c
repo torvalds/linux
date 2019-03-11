@@ -26,14 +26,12 @@ const char *reserved_field_names[] = {
 
 /* Printing  in basic type function template */
 #define DEFINE_BASIC_PRINT_TYPE_FUNC(tname, type, fmt)			\
-int PRINT_TYPE_FUNC_NAME(tname)(struct trace_seq *s, const char *name,	\
-				void *data, void *ent)			\
+int PRINT_TYPE_FUNC_NAME(tname)(struct trace_seq *s, void *data, void *ent)\
 {									\
-	trace_seq_printf(s, " %s=" fmt, name, *(type *)data);		\
+	trace_seq_printf(s, fmt, *(type *)data);			\
 	return !trace_seq_has_overflowed(s);				\
 }									\
-const char PRINT_TYPE_FMT_NAME(tname)[] = fmt;				\
-NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(tname));
+const char PRINT_TYPE_FMT_NAME(tname)[] = fmt;
 
 DEFINE_BASIC_PRINT_TYPE_FUNC(u8,  u8,  "%u")
 DEFINE_BASIC_PRINT_TYPE_FUNC(u16, u16, "%u")
@@ -48,193 +46,52 @@ DEFINE_BASIC_PRINT_TYPE_FUNC(x16, u16, "0x%x")
 DEFINE_BASIC_PRINT_TYPE_FUNC(x32, u32, "0x%x")
 DEFINE_BASIC_PRINT_TYPE_FUNC(x64, u64, "0x%Lx")
 
+int PRINT_TYPE_FUNC_NAME(symbol)(struct trace_seq *s, void *data, void *ent)
+{
+	trace_seq_printf(s, "%pS", (void *)*(unsigned long *)data);
+	return !trace_seq_has_overflowed(s);
+}
+const char PRINT_TYPE_FMT_NAME(symbol)[] = "%pS";
+
 /* Print type function for string type */
-int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,
-				 void *data, void *ent)
+int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, void *data, void *ent)
 {
 	int len = *(u32 *)data >> 16;
 
 	if (!len)
-		trace_seq_printf(s, " %s=(fault)", name);
+		trace_seq_puts(s, "(fault)");
 	else
-		trace_seq_printf(s, " %s=\"%s\"", name,
+		trace_seq_printf(s, "\"%s\"",
 				 (const char *)get_loc_data(data, ent));
 	return !trace_seq_has_overflowed(s);
 }
-NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(string));
 
 const char PRINT_TYPE_FMT_NAME(string)[] = "\\\"%s\\\"";
 
-#define CHECK_FETCH_FUNCS(method, fn)			\
-	(((FETCH_FUNC_NAME(method, u8) == fn) ||	\
-	  (FETCH_FUNC_NAME(method, u16) == fn) ||	\
-	  (FETCH_FUNC_NAME(method, u32) == fn) ||	\
-	  (FETCH_FUNC_NAME(method, u64) == fn) ||	\
-	  (FETCH_FUNC_NAME(method, string) == fn) ||	\
-	  (FETCH_FUNC_NAME(method, string_size) == fn)) \
-	 && (fn != NULL))
+/* Fetch type information table */
+static const struct fetch_type probe_fetch_types[] = {
+	/* Special types */
+	__ASSIGN_FETCH_TYPE("string", string, string, sizeof(u32), 1,
+			    "__data_loc char[]"),
+	/* Basic types */
+	ASSIGN_FETCH_TYPE(u8,  u8,  0),
+	ASSIGN_FETCH_TYPE(u16, u16, 0),
+	ASSIGN_FETCH_TYPE(u32, u32, 0),
+	ASSIGN_FETCH_TYPE(u64, u64, 0),
+	ASSIGN_FETCH_TYPE(s8,  u8,  1),
+	ASSIGN_FETCH_TYPE(s16, u16, 1),
+	ASSIGN_FETCH_TYPE(s32, u32, 1),
+	ASSIGN_FETCH_TYPE(s64, u64, 1),
+	ASSIGN_FETCH_TYPE_ALIAS(x8,  u8,  u8,  0),
+	ASSIGN_FETCH_TYPE_ALIAS(x16, u16, u16, 0),
+	ASSIGN_FETCH_TYPE_ALIAS(x32, u32, u32, 0),
+	ASSIGN_FETCH_TYPE_ALIAS(x64, u64, u64, 0),
+	ASSIGN_FETCH_TYPE_ALIAS(symbol, ADDR_FETCH_TYPE, ADDR_FETCH_TYPE, 0),
 
-/* Data fetch function templates */
-#define DEFINE_FETCH_reg(type)						\
-void FETCH_FUNC_NAME(reg, type)(struct pt_regs *regs, void *offset, void *dest)	\
-{									\
-	*(type *)dest = (type)regs_get_register(regs,			\
-				(unsigned int)((unsigned long)offset));	\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(reg, type));
-DEFINE_BASIC_FETCH_FUNCS(reg)
-/* No string on the register */
-#define fetch_reg_string	NULL
-#define fetch_reg_string_size	NULL
-
-#define DEFINE_FETCH_retval(type)					\
-void FETCH_FUNC_NAME(retval, type)(struct pt_regs *regs,		\
-				   void *dummy, void *dest)		\
-{									\
-	*(type *)dest = (type)regs_return_value(regs);			\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(retval, type));
-DEFINE_BASIC_FETCH_FUNCS(retval)
-/* No string on the retval */
-#define fetch_retval_string		NULL
-#define fetch_retval_string_size	NULL
-
-/* Dereference memory access function */
-struct deref_fetch_param {
-	struct fetch_param	orig;
-	long			offset;
-	fetch_func_t		fetch;
-	fetch_func_t		fetch_size;
+	ASSIGN_FETCH_TYPE_END
 };
 
-#define DEFINE_FETCH_deref(type)					\
-void FETCH_FUNC_NAME(deref, type)(struct pt_regs *regs,			\
-				  void *data, void *dest)		\
-{									\
-	struct deref_fetch_param *dprm = data;				\
-	unsigned long addr;						\
-	call_fetch(&dprm->orig, regs, &addr);				\
-	if (addr) {							\
-		addr += dprm->offset;					\
-		dprm->fetch(regs, (void *)addr, dest);			\
-	} else								\
-		*(type *)dest = 0;					\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(deref, type));
-DEFINE_BASIC_FETCH_FUNCS(deref)
-DEFINE_FETCH_deref(string)
-
-void FETCH_FUNC_NAME(deref, string_size)(struct pt_regs *regs,
-					 void *data, void *dest)
-{
-	struct deref_fetch_param *dprm = data;
-	unsigned long addr;
-
-	call_fetch(&dprm->orig, regs, &addr);
-	if (addr && dprm->fetch_size) {
-		addr += dprm->offset;
-		dprm->fetch_size(regs, (void *)addr, dest);
-	} else
-		*(string_size *)dest = 0;
-}
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(deref, string_size));
-
-static void update_deref_fetch_param(struct deref_fetch_param *data)
-{
-	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
-		update_deref_fetch_param(data->orig.data);
-	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
-		update_symbol_cache(data->orig.data);
-}
-NOKPROBE_SYMBOL(update_deref_fetch_param);
-
-static void free_deref_fetch_param(struct deref_fetch_param *data)
-{
-	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
-		free_deref_fetch_param(data->orig.data);
-	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
-		free_symbol_cache(data->orig.data);
-	kfree(data);
-}
-NOKPROBE_SYMBOL(free_deref_fetch_param);
-
-/* Bitfield fetch function */
-struct bitfield_fetch_param {
-	struct fetch_param	orig;
-	unsigned char		hi_shift;
-	unsigned char		low_shift;
-};
-
-#define DEFINE_FETCH_bitfield(type)					\
-void FETCH_FUNC_NAME(bitfield, type)(struct pt_regs *regs,		\
-				     void *data, void *dest)		\
-{									\
-	struct bitfield_fetch_param *bprm = data;			\
-	type buf = 0;							\
-	call_fetch(&bprm->orig, regs, &buf);				\
-	if (buf) {							\
-		buf <<= bprm->hi_shift;					\
-		buf >>= bprm->low_shift;				\
-	}								\
-	*(type *)dest = buf;						\
-}									\
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(bitfield, type));
-DEFINE_BASIC_FETCH_FUNCS(bitfield)
-#define fetch_bitfield_string		NULL
-#define fetch_bitfield_string_size	NULL
-
-static void
-update_bitfield_fetch_param(struct bitfield_fetch_param *data)
-{
-	/*
-	 * Don't check the bitfield itself, because this must be the
-	 * last fetch function.
-	 */
-	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
-		update_deref_fetch_param(data->orig.data);
-	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
-		update_symbol_cache(data->orig.data);
-}
-
-static void
-free_bitfield_fetch_param(struct bitfield_fetch_param *data)
-{
-	/*
-	 * Don't check the bitfield itself, because this must be the
-	 * last fetch function.
-	 */
-	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
-		free_deref_fetch_param(data->orig.data);
-	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
-		free_symbol_cache(data->orig.data);
-
-	kfree(data);
-}
-
-void FETCH_FUNC_NAME(comm, string)(struct pt_regs *regs,
-					  void *data, void *dest)
-{
-	int maxlen = get_rloc_len(*(u32 *)dest);
-	u8 *dst = get_rloc_data(dest);
-	long ret;
-
-	if (!maxlen)
-		return;
-
-	ret = strlcpy(dst, current->comm, maxlen);
-	*(u32 *)dest = make_data_rloc(ret, get_rloc_offs(*(u32 *)dest));
-}
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(comm, string));
-
-void FETCH_FUNC_NAME(comm, string_size)(struct pt_regs *regs,
-					       void *data, void *dest)
-{
-	*(u32 *)dest = strlen(current->comm) + 1;
-}
-NOKPROBE_SYMBOL(FETCH_FUNC_NAME(comm, string_size));
-
-static const struct fetch_type *find_fetch_type(const char *type,
-						const struct fetch_type *ftbl)
+static const struct fetch_type *find_fetch_type(const char *type)
 {
 	int i;
 
@@ -255,55 +112,24 @@ static const struct fetch_type *find_fetch_type(const char *type,
 
 		switch (bs) {
 		case 8:
-			return find_fetch_type("u8", ftbl);
+			return find_fetch_type("u8");
 		case 16:
-			return find_fetch_type("u16", ftbl);
+			return find_fetch_type("u16");
 		case 32:
-			return find_fetch_type("u32", ftbl);
+			return find_fetch_type("u32");
 		case 64:
-			return find_fetch_type("u64", ftbl);
+			return find_fetch_type("u64");
 		default:
 			goto fail;
 		}
 	}
 
-	for (i = 0; ftbl[i].name; i++) {
-		if (strcmp(type, ftbl[i].name) == 0)
-			return &ftbl[i];
+	for (i = 0; probe_fetch_types[i].name; i++) {
+		if (strcmp(type, probe_fetch_types[i].name) == 0)
+			return &probe_fetch_types[i];
 	}
 
 fail:
-	return NULL;
-}
-
-/* Special function : only accept unsigned long */
-static void fetch_kernel_stack_address(struct pt_regs *regs, void *dummy, void *dest)
-{
-	*(unsigned long *)dest = kernel_stack_pointer(regs);
-}
-NOKPROBE_SYMBOL(fetch_kernel_stack_address);
-
-static void fetch_user_stack_address(struct pt_regs *regs, void *dummy, void *dest)
-{
-	*(unsigned long *)dest = user_stack_pointer(regs);
-}
-NOKPROBE_SYMBOL(fetch_user_stack_address);
-
-static fetch_func_t get_fetch_size_function(const struct fetch_type *type,
-					    fetch_func_t orig_fn,
-					    const struct fetch_type *ftbl)
-{
-	int i;
-
-	if (type != &ftbl[FETCH_TYPE_STRING])
-		return NULL;	/* Only string type needs size function */
-
-	for (i = 0; i < FETCH_MTD_END; i++)
-		if (type->fetch[i] == orig_fn)
-			return ftbl[FETCH_TYPE_STRSIZE].fetch[i];
-
-	WARN_ON(1);	/* This should not happen */
-
 	return NULL;
 }
 
@@ -328,44 +154,75 @@ int traceprobe_split_symbol_offset(char *symbol, long *offset)
 	return 0;
 }
 
+/* @buf must has MAX_EVENT_NAME_LEN size */
+int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
+				char *buf)
+{
+	const char *slash, *event = *pevent;
+
+	slash = strchr(event, '/');
+	if (slash) {
+		if (slash == event) {
+			pr_info("Group name is not specified\n");
+			return -EINVAL;
+		}
+		if (slash - event + 1 > MAX_EVENT_NAME_LEN) {
+			pr_info("Group name is too long\n");
+			return -E2BIG;
+		}
+		strlcpy(buf, event, slash - event + 1);
+		*pgroup = buf;
+		*pevent = slash + 1;
+	}
+	if (strlen(event) == 0) {
+		pr_info("Event name is not specified\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 static int parse_probe_vars(char *arg, const struct fetch_type *t,
-			    struct fetch_param *f, bool is_return,
-			    bool is_kprobe)
+			    struct fetch_insn *code, unsigned int flags)
 {
-	int ret = 0;
 	unsigned long param;
+	int ret = 0;
+	int len;
 
 	if (strcmp(arg, "retval") == 0) {
-		if (is_return)
-			f->fn = t->fetch[FETCH_MTD_retval];
+		if (flags & TPARG_FL_RETURN)
+			code->op = FETCH_OP_RETVAL;
 		else
 			ret = -EINVAL;
-	} else if (strncmp(arg, "stack", 5) == 0) {
-		if (arg[5] == '\0') {
-			if (strcmp(t->name, DEFAULT_FETCH_TYPE_STR))
-				return -EINVAL;
-
-			if (is_kprobe)
-				f->fn = fetch_kernel_stack_address;
-			else
-				f->fn = fetch_user_stack_address;
-		} else if (isdigit(arg[5])) {
-			ret = kstrtoul(arg + 5, 10, &param);
-			if (ret || (is_kprobe && param > PARAM_MAX_STACK))
+	} else if ((len = str_has_prefix(arg, "stack"))) {
+		if (arg[len] == '\0') {
+			code->op = FETCH_OP_STACKP;
+		} else if (isdigit(arg[len])) {
+			ret = kstrtoul(arg + len, 10, &param);
+			if (ret || ((flags & TPARG_FL_KERNEL) &&
+				    param > PARAM_MAX_STACK))
 				ret = -EINVAL;
 			else {
-				f->fn = t->fetch[FETCH_MTD_stack];
-				f->data = (void *)param;
+				code->op = FETCH_OP_STACK;
+				code->param = (unsigned int)param;
 			}
 		} else
 			ret = -EINVAL;
 	} else if (strcmp(arg, "comm") == 0) {
-		if (strcmp(t->name, "string") != 0 &&
-		    strcmp(t->name, "string_size") != 0)
+		code->op = FETCH_OP_COMM;
+#ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
+	} else if (((flags & TPARG_FL_MASK) ==
+		    (TPARG_FL_KERNEL | TPARG_FL_FENTRY)) &&
+		   (len = str_has_prefix(arg, "arg"))) {
+		if (!isdigit(arg[len]))
 			return -EINVAL;
-		f->fn = t->fetch[FETCH_MTD_comm];
+		ret = kstrtoul(arg + len, 10, &param);
+		if (ret || !param || param > PARAM_MAX_STACK)
+			return -EINVAL;
+		code->op = FETCH_OP_ARG;
+		code->param = (unsigned int)param - 1;
+#endif
 	} else
 		ret = -EINVAL;
 
@@ -373,25 +230,27 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 }
 
 /* Recursive argument parser */
-static int parse_probe_arg(char *arg, const struct fetch_type *t,
-		     struct fetch_param *f, bool is_return, bool is_kprobe,
-		     const struct fetch_type *ftbl)
+static int
+parse_probe_arg(char *arg, const struct fetch_type *type,
+		struct fetch_insn **pcode, struct fetch_insn *end,
+		unsigned int flags)
 {
+	struct fetch_insn *code = *pcode;
 	unsigned long param;
-	long offset;
+	long offset = 0;
 	char *tmp;
 	int ret = 0;
 
 	switch (arg[0]) {
 	case '$':
-		ret = parse_probe_vars(arg + 1, t, f, is_return, is_kprobe);
+		ret = parse_probe_vars(arg + 1, type, code, flags);
 		break;
 
 	case '%':	/* named register */
 		ret = regs_query_register_offset(arg + 1);
 		if (ret >= 0) {
-			f->fn = t->fetch[FETCH_MTD_reg];
-			f->data = (void *)(unsigned long)ret;
+			code->op = FETCH_OP_REG;
+			code->param = (unsigned int)ret;
 			ret = 0;
 		}
 		break;
@@ -401,33 +260,42 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 			ret = kstrtoul(arg + 1, 0, &param);
 			if (ret)
 				break;
-
-			f->fn = t->fetch[FETCH_MTD_memory];
-			f->data = (void *)param;
+			/* load address */
+			code->op = FETCH_OP_IMM;
+			code->immediate = param;
 		} else if (arg[1] == '+') {
 			/* kprobes don't support file offsets */
-			if (is_kprobe)
+			if (flags & TPARG_FL_KERNEL)
 				return -EINVAL;
 
 			ret = kstrtol(arg + 2, 0, &offset);
 			if (ret)
 				break;
 
-			f->fn = t->fetch[FETCH_MTD_file_offset];
-			f->data = (void *)offset;
+			code->op = FETCH_OP_FOFFS;
+			code->immediate = (unsigned long)offset;  // imm64?
 		} else {
 			/* uprobes don't support symbols */
-			if (!is_kprobe)
+			if (!(flags & TPARG_FL_KERNEL))
 				return -EINVAL;
 
-			ret = traceprobe_split_symbol_offset(arg + 1, &offset);
-			if (ret)
-				break;
+			/* Preserve symbol for updating */
+			code->op = FETCH_NOP_SYMBOL;
+			code->data = kstrdup(arg + 1, GFP_KERNEL);
+			if (!code->data)
+				return -ENOMEM;
+			if (++code == end)
+				return -E2BIG;
 
-			f->data = alloc_symbol_cache(arg + 1, offset);
-			if (f->data)
-				f->fn = t->fetch[FETCH_MTD_symbol];
+			code->op = FETCH_OP_IMM;
+			code->immediate = 0;
 		}
+		/* These are fetching from memory */
+		if (++code == end)
+			return -E2BIG;
+		*pcode = code;
+		code->op = FETCH_OP_DEREF;
+		code->offset = offset;
 		break;
 
 	case '+':	/* deref memory */
@@ -435,11 +303,10 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
-			break;
+			return -EINVAL;
 
 		*tmp = '\0';
 		ret = kstrtol(arg, 0, &offset);
-
 		if (ret)
 			break;
 
@@ -447,36 +314,27 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 		tmp = strrchr(arg, ')');
 
 		if (tmp) {
-			struct deref_fetch_param	*dprm;
-			const struct fetch_type		*t2;
+			const struct fetch_type *t2 = find_fetch_type(NULL);
 
-			t2 = find_fetch_type(NULL, ftbl);
 			*tmp = '\0';
-			dprm = kzalloc(sizeof(struct deref_fetch_param), GFP_KERNEL);
-
-			if (!dprm)
-				return -ENOMEM;
-
-			dprm->offset = offset;
-			dprm->fetch = t->fetch[FETCH_MTD_memory];
-			dprm->fetch_size = get_fetch_size_function(t,
-							dprm->fetch, ftbl);
-			ret = parse_probe_arg(arg, t2, &dprm->orig, is_return,
-							is_kprobe, ftbl);
+			ret = parse_probe_arg(arg, t2, &code, end, flags);
 			if (ret)
-				kfree(dprm);
-			else {
-				f->fn = t->fetch[FETCH_MTD_deref];
-				f->data = (void *)dprm;
-			}
+				break;
+			if (code->op == FETCH_OP_COMM)
+				return -EINVAL;
+			if (++code == end)
+				return -E2BIG;
+			*pcode = code;
+
+			code->op = FETCH_OP_DEREF;
+			code->offset = offset;
 		}
 		break;
 	}
-	if (!ret && !f->fn) {	/* Parsed, but do not find fetch method */
-		pr_info("%s type has no corresponding fetch method.\n", t->name);
+	if (!ret && code->op == FETCH_OP_NOP) {
+		/* Parsed, but do not find fetch method */
 		ret = -EINVAL;
 	}
-
 	return ret;
 }
 
@@ -485,22 +343,15 @@ static int parse_probe_arg(char *arg, const struct fetch_type *t,
 /* Bitfield type needs to be parsed into a fetch function */
 static int __parse_bitfield_probe_arg(const char *bf,
 				      const struct fetch_type *t,
-				      struct fetch_param *f)
+				      struct fetch_insn **pcode)
 {
-	struct bitfield_fetch_param *bprm;
+	struct fetch_insn *code = *pcode;
 	unsigned long bw, bo;
 	char *tail;
 
 	if (*bf != 'b')
 		return 0;
 
-	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
-	if (!bprm)
-		return -ENOMEM;
-
-	bprm->orig = *f;
-	f->fn = t->fetch[FETCH_MTD_bitfield];
-	f->data = (void *)bprm;
 	bw = simple_strtoul(bf + 1, &tail, 0);	/* Use simple one */
 
 	if (bw == 0 || *tail != '@')
@@ -511,20 +362,26 @@ static int __parse_bitfield_probe_arg(const char *bf,
 
 	if (tail == bf || *tail != '/')
 		return -EINVAL;
+	code++;
+	if (code->op != FETCH_OP_NOP)
+		return -E2BIG;
+	*pcode = code;
 
-	bprm->hi_shift = BYTES_TO_BITS(t->size) - (bw + bo);
-	bprm->low_shift = bprm->hi_shift + bo;
+	code->op = FETCH_OP_MOD_BF;
+	code->lshift = BYTES_TO_BITS(t->size) - (bw + bo);
+	code->rshift = BYTES_TO_BITS(t->size) - bw;
+	code->basesize = t->size;
 
 	return (BYTES_TO_BITS(t->size) < (bw + bo)) ? -EINVAL : 0;
 }
 
 /* String length checking wrapper */
-int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
-		struct probe_arg *parg, bool is_return, bool is_kprobe,
-		const struct fetch_type *ftbl)
+static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
+		struct probe_arg *parg, unsigned int flags)
 {
-	const char *t;
-	int ret;
+	struct fetch_insn *code, *scode, *tmp = NULL;
+	char *t, *t2;
+	int ret, len;
 
 	if (strlen(arg) > MAX_ARGSTR_LEN) {
 		pr_info("Argument is too long.: %s\n",  arg);
@@ -535,43 +392,135 @@ int traceprobe_parse_probe_arg(char *arg, ssize_t *size,
 		pr_info("Failed to allocate memory for command '%s'.\n", arg);
 		return -ENOMEM;
 	}
-	t = strchr(parg->comm, ':');
+	t = strchr(arg, ':');
 	if (t) {
-		arg[t - parg->comm] = '\0';
-		t++;
+		*t = '\0';
+		t2 = strchr(++t, '[');
+		if (t2) {
+			*t2 = '\0';
+			parg->count = simple_strtoul(t2 + 1, &t2, 0);
+			if (strcmp(t2, "]") || parg->count == 0)
+				return -EINVAL;
+			if (parg->count > MAX_ARRAY_LEN)
+				return -E2BIG;
+		}
 	}
 	/*
 	 * The default type of $comm should be "string", and it can't be
 	 * dereferenced.
 	 */
 	if (!t && strcmp(arg, "$comm") == 0)
-		t = "string";
-	parg->type = find_fetch_type(t, ftbl);
+		parg->type = find_fetch_type("string");
+	else
+		parg->type = find_fetch_type(t);
 	if (!parg->type) {
 		pr_info("Unsupported type: %s\n", t);
 		return -EINVAL;
 	}
 	parg->offset = *size;
-	*size += parg->type->size;
-	ret = parse_probe_arg(arg, parg->type, &parg->fetch, is_return,
-			      is_kprobe, ftbl);
+	*size += parg->type->size * (parg->count ?: 1);
 
-	if (ret >= 0 && t != NULL)
-		ret = __parse_bitfield_probe_arg(t, parg->type, &parg->fetch);
-
-	if (ret >= 0) {
-		parg->fetch_size.fn = get_fetch_size_function(parg->type,
-							      parg->fetch.fn,
-							      ftbl);
-		parg->fetch_size.data = parg->fetch.data;
+	if (parg->count) {
+		len = strlen(parg->type->fmttype) + 6;
+		parg->fmt = kmalloc(len, GFP_KERNEL);
+		if (!parg->fmt)
+			return -ENOMEM;
+		snprintf(parg->fmt, len, "%s[%d]", parg->type->fmttype,
+			 parg->count);
 	}
+
+	code = tmp = kzalloc(sizeof(*code) * FETCH_INSN_MAX, GFP_KERNEL);
+	if (!code)
+		return -ENOMEM;
+	code[FETCH_INSN_MAX - 1].op = FETCH_OP_END;
+
+	ret = parse_probe_arg(arg, parg->type, &code, &code[FETCH_INSN_MAX - 1],
+			      flags);
+	if (ret)
+		goto fail;
+
+	/* Store operation */
+	if (!strcmp(parg->type->name, "string")) {
+		if (code->op != FETCH_OP_DEREF && code->op != FETCH_OP_IMM &&
+		    code->op != FETCH_OP_COMM) {
+			pr_info("string only accepts memory or address.\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+		if (code->op != FETCH_OP_DEREF || parg->count) {
+			/*
+			 * IMM and COMM is pointing actual address, those must
+			 * be kept, and if parg->count != 0, this is an array
+			 * of string pointers instead of string address itself.
+			 */
+			code++;
+			if (code->op != FETCH_OP_NOP) {
+				ret = -E2BIG;
+				goto fail;
+			}
+		}
+		code->op = FETCH_OP_ST_STRING;	/* In DEREF case, replace it */
+		code->size = parg->type->size;
+		parg->dynamic = true;
+	} else if (code->op == FETCH_OP_DEREF) {
+		code->op = FETCH_OP_ST_MEM;
+		code->size = parg->type->size;
+	} else {
+		code++;
+		if (code->op != FETCH_OP_NOP) {
+			ret = -E2BIG;
+			goto fail;
+		}
+		code->op = FETCH_OP_ST_RAW;
+		code->size = parg->type->size;
+	}
+	scode = code;
+	/* Modify operation */
+	if (t != NULL) {
+		ret = __parse_bitfield_probe_arg(t, parg->type, &code);
+		if (ret)
+			goto fail;
+	}
+	/* Loop(Array) operation */
+	if (parg->count) {
+		if (scode->op != FETCH_OP_ST_MEM &&
+		    scode->op != FETCH_OP_ST_STRING) {
+			pr_info("array only accepts memory or address\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+		code++;
+		if (code->op != FETCH_OP_NOP) {
+			ret = -E2BIG;
+			goto fail;
+		}
+		code->op = FETCH_OP_LP_ARRAY;
+		code->param = parg->count;
+	}
+	code++;
+	code->op = FETCH_OP_END;
+
+	/* Shrink down the code buffer */
+	parg->code = kzalloc(sizeof(*code) * (code - tmp + 1), GFP_KERNEL);
+	if (!parg->code)
+		ret = -ENOMEM;
+	else
+		memcpy(parg->code, tmp, sizeof(*code) * (code - tmp + 1));
+
+fail:
+	if (ret) {
+		for (code = tmp; code < tmp + FETCH_INSN_MAX; code++)
+			if (code->op == FETCH_NOP_SYMBOL)
+				kfree(code->data);
+	}
+	kfree(tmp);
 
 	return ret;
 }
 
 /* Return 1 if name is reserved or already used by another argument */
-int traceprobe_conflict_field_name(const char *name,
-			       struct probe_arg *args, int narg)
+static int traceprobe_conflict_field_name(const char *name,
+					  struct probe_arg *args, int narg)
 {
 	int i;
 
@@ -586,35 +535,104 @@ int traceprobe_conflict_field_name(const char *name,
 	return 0;
 }
 
-void traceprobe_update_arg(struct probe_arg *arg)
+int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, char *arg,
+				unsigned int flags)
 {
-	if (CHECK_FETCH_FUNCS(bitfield, arg->fetch.fn))
-		update_bitfield_fetch_param(arg->fetch.data);
-	else if (CHECK_FETCH_FUNCS(deref, arg->fetch.fn))
-		update_deref_fetch_param(arg->fetch.data);
-	else if (CHECK_FETCH_FUNCS(symbol, arg->fetch.fn))
-		update_symbol_cache(arg->fetch.data);
+	struct probe_arg *parg = &tp->args[i];
+	char *body;
+	int ret;
+
+	/* Increment count for freeing args in error case */
+	tp->nr_args++;
+
+	body = strchr(arg, '=');
+	if (body) {
+		parg->name = kmemdup_nul(arg, body - arg, GFP_KERNEL);
+		body++;
+	} else {
+		/* If argument name is omitted, set "argN" */
+		parg->name = kasprintf(GFP_KERNEL, "arg%d", i + 1);
+		body = arg;
+	}
+	if (!parg->name)
+		return -ENOMEM;
+
+	if (!is_good_name(parg->name)) {
+		pr_info("Invalid argument[%d] name: %s\n",
+			i, parg->name);
+		return -EINVAL;
+	}
+
+	if (traceprobe_conflict_field_name(parg->name, tp->args, i)) {
+		pr_info("Argument[%d]: '%s' conflicts with another field.\n",
+			i, parg->name);
+		return -EINVAL;
+	}
+
+	/* Parse fetch argument */
+	ret = traceprobe_parse_probe_arg_body(body, &tp->size, parg, flags);
+	if (ret)
+		pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
+	return ret;
 }
 
 void traceprobe_free_probe_arg(struct probe_arg *arg)
 {
-	if (CHECK_FETCH_FUNCS(bitfield, arg->fetch.fn))
-		free_bitfield_fetch_param(arg->fetch.data);
-	else if (CHECK_FETCH_FUNCS(deref, arg->fetch.fn))
-		free_deref_fetch_param(arg->fetch.data);
-	else if (CHECK_FETCH_FUNCS(symbol, arg->fetch.fn))
-		free_symbol_cache(arg->fetch.data);
+	struct fetch_insn *code = arg->code;
 
+	while (code && code->op != FETCH_OP_END) {
+		if (code->op == FETCH_NOP_SYMBOL)
+			kfree(code->data);
+		code++;
+	}
+	kfree(arg->code);
 	kfree(arg->name);
 	kfree(arg->comm);
+	kfree(arg->fmt);
 }
 
+int traceprobe_update_arg(struct probe_arg *arg)
+{
+	struct fetch_insn *code = arg->code;
+	long offset;
+	char *tmp;
+	char c;
+	int ret = 0;
+
+	while (code && code->op != FETCH_OP_END) {
+		if (code->op == FETCH_NOP_SYMBOL) {
+			if (code[1].op != FETCH_OP_IMM)
+				return -EINVAL;
+
+			tmp = strpbrk(code->data, "+-");
+			if (tmp)
+				c = *tmp;
+			ret = traceprobe_split_symbol_offset(code->data,
+							     &offset);
+			if (ret)
+				return ret;
+
+			code[1].immediate =
+				(unsigned long)kallsyms_lookup_name(code->data);
+			if (tmp)
+				*tmp = c;
+			if (!code[1].immediate)
+				return -ENOENT;
+			code[1].immediate += offset;
+		}
+		code++;
+	}
+	return 0;
+}
+
+/* When len=0, we just calculate the needed length */
+#define LEN_OR_ZERO (len ? len - pos : 0)
 static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 			   bool is_return)
 {
-	int i;
+	struct probe_arg *parg;
+	int i, j;
 	int pos = 0;
-
 	const char *fmt, *arg;
 
 	if (!is_return) {
@@ -625,35 +643,51 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
 	}
 
-	/* When len=0, we just calculate the needed length */
-#define LEN_OR_ZERO (len ? len - pos : 0)
-
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"%s", fmt);
 
 	for (i = 0; i < tp->nr_args; i++) {
-		pos += snprintf(buf + pos, LEN_OR_ZERO, " %s=%s",
-				tp->args[i].name, tp->args[i].type->fmt);
+		parg = tp->args + i;
+		pos += snprintf(buf + pos, LEN_OR_ZERO, " %s=", parg->name);
+		if (parg->count) {
+			pos += snprintf(buf + pos, LEN_OR_ZERO, "{%s",
+					parg->type->fmt);
+			for (j = 1; j < parg->count; j++)
+				pos += snprintf(buf + pos, LEN_OR_ZERO, ",%s",
+						parg->type->fmt);
+			pos += snprintf(buf + pos, LEN_OR_ZERO, "}");
+		} else
+			pos += snprintf(buf + pos, LEN_OR_ZERO, "%s",
+					parg->type->fmt);
 	}
 
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\", %s", arg);
 
 	for (i = 0; i < tp->nr_args; i++) {
-		if (strcmp(tp->args[i].type->name, "string") == 0)
+		parg = tp->args + i;
+		if (parg->count) {
+			if (strcmp(parg->type->name, "string") == 0)
+				fmt = ", __get_str(%s[%d])";
+			else
+				fmt = ", REC->%s[%d]";
+			for (j = 0; j < parg->count; j++)
+				pos += snprintf(buf + pos, LEN_OR_ZERO,
+						fmt, parg->name, j);
+		} else {
+			if (strcmp(parg->type->name, "string") == 0)
+				fmt = ", __get_str(%s)";
+			else
+				fmt = ", REC->%s";
 			pos += snprintf(buf + pos, LEN_OR_ZERO,
-					", __get_str(%s)",
-					tp->args[i].name);
-		else
-			pos += snprintf(buf + pos, LEN_OR_ZERO, ", REC->%s",
-					tp->args[i].name);
+					fmt, parg->name);
+		}
 	}
-
-#undef LEN_OR_ZERO
 
 	/* return the length of print_fmt */
 	return pos;
 }
+#undef LEN_OR_ZERO
 
-int set_print_fmt(struct trace_probe *tp, bool is_return)
+int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
 {
 	int len;
 	char *print_fmt;
@@ -668,5 +702,30 @@ int set_print_fmt(struct trace_probe *tp, bool is_return)
 	__set_print_fmt(tp, print_fmt, len + 1, is_return);
 	tp->call.print_fmt = print_fmt;
 
+	return 0;
+}
+
+int traceprobe_define_arg_fields(struct trace_event_call *event_call,
+				 size_t offset, struct trace_probe *tp)
+{
+	int ret, i;
+
+	/* Set argument names as fields */
+	for (i = 0; i < tp->nr_args; i++) {
+		struct probe_arg *parg = &tp->args[i];
+		const char *fmt = parg->type->fmttype;
+		int size = parg->type->size;
+
+		if (parg->fmt)
+			fmt = parg->fmt;
+		if (parg->count)
+			size *= parg->count;
+		ret = trace_define_field(event_call, fmt, parg->name,
+					 offset + parg->offset, size,
+					 parg->type->is_signed,
+					 FILTER_OTHER);
+		if (ret)
+			return ret;
+	}
 	return 0;
 }

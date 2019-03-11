@@ -277,11 +277,11 @@
 struct meye_grab_buffer {
 	int state;			/* state of buffer */
 	unsigned long size;		/* size of jpg frame */
-	struct timeval timestamp;	/* timestamp */
+	u64 ts;				/* timestamp */
 	unsigned long sequence;		/* sequence number */
 };
 
-/* size of kfifos containings buffer indices */
+/* size of kfifos containing buffer indices */
 #define MEYE_QUEUE_SIZE	MEYE_MAX_BUFNBRS
 
 /* Motion Eye device structure */

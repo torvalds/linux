@@ -40,7 +40,6 @@
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 
 #define MIXER_WIN_NR		3
 #define VP_DEFAULT_WIN		2
@@ -381,19 +380,16 @@ static void mixer_cfg_scan(struct mixer_context *ctx, int width, int height)
 	mixer_reg_writemask(ctx, MXR_CFG, val, MXR_CFG_SCAN_MASK);
 }
 
-static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
+static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, struct drm_display_mode *mode)
 {
+	enum hdmi_quantization_range range = drm_default_rgb_quant_range(mode);
 	u32 val;
 
-	switch (height) {
-	case 480:
-	case 576:
-		val = MXR_CFG_RGB601_0_255;
-		break;
-	case 720:
-	case 1080:
-	default:
-		val = MXR_CFG_RGB709_16_235;
+	if (mode->vdisplay < 720) {
+		val = MXR_CFG_RGB601;
+	} else {
+		val = MXR_CFG_RGB709;
+
 		/* Configure the BT.709 CSC matrix for full range RGB. */
 		mixer_reg_write(ctx, MXR_CM_COEFF_Y,
 			MXR_CSC_CT( 0.184,  0.614,  0.063) |
@@ -402,8 +398,12 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 			MXR_CSC_CT(-0.102, -0.338,  0.440));
 		mixer_reg_write(ctx, MXR_CM_COEFF_CR,
 			MXR_CSC_CT( 0.440, -0.399, -0.040));
-		break;
 	}
+
+	if (range == HDMI_QUANTIZATION_RANGE_FULL)
+		val |= MXR_CFG_QUANT_RANGE_FULL;
+	else
+		val |= MXR_CFG_QUANT_RANGE_LIMITED;
 
 	mixer_reg_writemask(ctx, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
 }
@@ -461,7 +461,7 @@ static void mixer_commit(struct mixer_context *ctx)
 	struct drm_display_mode *mode = &ctx->crtc->base.state->adjusted_mode;
 
 	mixer_cfg_scan(ctx, mode->hdisplay, mode->vdisplay);
-	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
+	mixer_cfg_rgb_fmt(ctx, mode);
 	mixer_run(ctx);
 }
 
@@ -878,12 +878,12 @@ static int mixer_initialize(struct mixer_context *mixer_ctx,
 		}
 	}
 
-	return drm_iommu_attach_device(drm_dev, mixer_ctx->dev);
+	return exynos_drm_register_dma(drm_dev, mixer_ctx->dev);
 }
 
 static void mixer_ctx_remove(struct mixer_context *mixer_ctx)
 {
-	drm_iommu_detach_device(mixer_ctx->drm_dev, mixer_ctx->dev);
+	exynos_drm_unregister_dma(mixer_ctx->drm_dev, mixer_ctx->dev);
 }
 
 static int mixer_enable_vblank(struct exynos_drm_crtc *crtc)

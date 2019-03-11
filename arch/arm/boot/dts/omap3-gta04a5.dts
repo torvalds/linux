@@ -82,7 +82,7 @@
 
 /*
  * for WL183x module see
- * http://lxr.free-electrons.com/source/Documentation/devicetree/bindings/net/wireless/ti,wlcore.txt
+ * Documentation/devicetree/bindings/net/wireless/ti,wlcore.txt
  */
 
 &wifi_pwrseq {

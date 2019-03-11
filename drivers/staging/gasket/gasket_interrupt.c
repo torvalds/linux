@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/printk.h>
-#include <linux/version.h>
 #ifdef GASKET_KERNEL_TRACE_SUPPORT
 #define CREATE_TRACE_POINTS
 #include <trace/events/gasket_interrupt.h>
@@ -184,7 +183,7 @@ gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 
 	interrupt_data->msix_entries =
 		kcalloc(interrupt_data->num_interrupts,
-			sizeof(struct msix_entry), GFP_KERNEL);
+			sizeof(*interrupt_data->msix_entries), GFP_KERNEL);
 	if (!interrupt_data->msix_entries)
 		return -ENOMEM;
 
@@ -322,8 +321,7 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 	const struct gasket_driver_desc *driver_desc =
 		gasket_get_driver_desc(gasket_dev);
 
-	interrupt_data = kzalloc(sizeof(struct gasket_interrupt_data),
-				 GFP_KERNEL);
+	interrupt_data = kzalloc(sizeof(*interrupt_data), GFP_KERNEL);
 	if (!interrupt_data)
 		return -ENOMEM;
 	gasket_dev->interrupt_data = interrupt_data;
@@ -336,17 +334,17 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 	interrupt_data->pack_width = driver_desc->interrupt_pack_width;
 	interrupt_data->num_configured = 0;
 
-	interrupt_data->eventfd_ctxs = kcalloc(driver_desc->num_interrupts,
-					       sizeof(struct eventfd_ctx *),
-					       GFP_KERNEL);
+	interrupt_data->eventfd_ctxs =
+		kcalloc(driver_desc->num_interrupts,
+			sizeof(*interrupt_data->eventfd_ctxs), GFP_KERNEL);
 	if (!interrupt_data->eventfd_ctxs) {
 		kfree(interrupt_data);
 		return -ENOMEM;
 	}
 
-	interrupt_data->interrupt_counts = kcalloc(driver_desc->num_interrupts,
-						   sizeof(ulong),
-						   GFP_KERNEL);
+	interrupt_data->interrupt_counts =
+		kcalloc(driver_desc->num_interrupts,
+			sizeof(*interrupt_data->interrupt_counts), GFP_KERNEL);
 	if (!interrupt_data->interrupt_counts) {
 		kfree(interrupt_data->eventfd_ctxs);
 		kfree(interrupt_data);

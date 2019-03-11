@@ -1085,7 +1085,14 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
 
-	return qed_spq_post(p_hwfn, p_ent, NULL);
+	rc = qed_spq_post(p_hwfn, p_ent, NULL);
+	if (rc)
+		return rc;
+
+	rc = qed_db_recovery_add(p_hwfn->cdev, p_tx->doorbell_addr,
+				 &p_tx->db_msg, DB_REC_WIDTH_32B,
+				 DB_REC_KERNEL);
+	return rc;
 }
 
 static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
@@ -1119,9 +1126,11 @@ static int qed_sp_ll2_rx_queue_stop(struct qed_hwfn *p_hwfn,
 static int qed_sp_ll2_tx_queue_stop(struct qed_hwfn *p_hwfn,
 				    struct qed_ll2_info *p_ll2_conn)
 {
+	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
 	int rc = -EINVAL;
+	qed_db_recovery_del(p_hwfn->cdev, p_tx->doorbell_addr, &p_tx->db_msg);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
@@ -1542,6 +1551,13 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle)
 	p_tx->doorbell_addr = (u8 __iomem *)p_hwfn->doorbells +
 					    qed_db_addr(p_ll2_conn->cid,
 							DQ_DEMS_LEGACY);
+	/* prepare db data */
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
+	SET_FIELD(p_tx->db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
+		  DQ_XCM_CORE_TX_BD_PROD_CMD);
+	p_tx->db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
+
 
 	rc = qed_ll2_establish_connection_rx(p_hwfn, p_ll2_conn);
 	if (rc)
@@ -1603,6 +1619,10 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 	cq_prod = qed_chain_get_prod_idx(&p_rx->rcq_chain);
 	rx_prod.bd_prod = cpu_to_le16(bd_prod);
 	rx_prod.cqe_prod = cpu_to_le16(cq_prod);
+
+	/* Make sure chain element is updated before ringing the doorbell */
+	dma_wmb();
+
 	DIRECT_REG_WR(p_rx->set_prod_addr, *((u32 *)&rx_prod));
 }
 
@@ -1780,7 +1800,6 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 	bool b_notify = p_ll2_conn->tx_queue.cur_send_packet->notify_fw;
 	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_ll2_tx_packet *p_pkt = NULL;
-	struct core_db_data db_msg = { 0, 0, 0 };
 	u16 bd_prod;
 
 	/* If there are missing BDs, don't do anything now */
@@ -1809,24 +1828,19 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 		list_move_tail(&p_pkt->list_entry, &p_tx->active_descq);
 	}
 
-	SET_FIELD(db_msg.params, CORE_DB_DATA_DEST, DB_DEST_XCM);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_CMD, DB_AGG_CMD_SET);
-	SET_FIELD(db_msg.params, CORE_DB_DATA_AGG_VAL_SEL,
-		  DQ_XCM_CORE_TX_BD_PROD_CMD);
-	db_msg.agg_flags = DQ_XCM_CORE_DQ_CF_CMD;
-	db_msg.spq_prod = cpu_to_le16(bd_prod);
+	p_tx->db_msg.spq_prod = cpu_to_le16(bd_prod);
 
 	/* Make sure the BDs data is updated before ringing the doorbell */
 	wmb();
 
-	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&db_msg));
+	DIRECT_REG_WR(p_tx->doorbell_addr, *((u32 *)&p_tx->db_msg));
 
 	DP_VERBOSE(p_hwfn,
 		   (NETIF_MSG_TX_QUEUED | QED_MSG_LL2),
 		   "LL2 [q 0x%02x cid 0x%08x type 0x%08x] Doorbelled [producer 0x%04x]\n",
 		   p_ll2_conn->queue_id,
 		   p_ll2_conn->cid,
-		   p_ll2_conn->input.conn_type, db_msg.spq_prod);
+		   p_ll2_conn->input.conn_type, p_tx->db_msg.spq_prod);
 }
 
 int qed_ll2_prepare_tx_packet(void *cxt,
@@ -2437,19 +2451,24 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 {
 	struct qed_ll2_tx_pkt_info pkt;
 	const skb_frag_t *frag;
+	u8 flags = 0, nr_frags;
 	int rc = -EINVAL, i;
 	dma_addr_t mapping;
 	u16 vlan = 0;
-	u8 flags = 0;
 
 	if (unlikely(skb->ip_summed != CHECKSUM_NONE)) {
 		DP_INFO(cdev, "Cannot transmit a checksummed packet\n");
 		return -EINVAL;
 	}
 
-	if (1 + skb_shinfo(skb)->nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET) {
+	/* Cache number of fragments from SKB since SKB may be freed by
+	 * the completion routine after calling qed_ll2_prepare_tx_packet()
+	 */
+	nr_frags = skb_shinfo(skb)->nr_frags;
+
+	if (1 + nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET) {
 		DP_ERR(cdev, "Cannot transmit a packet with %d fragments\n",
-		       1 + skb_shinfo(skb)->nr_frags);
+		       1 + nr_frags);
 		return -EINVAL;
 	}
 
@@ -2471,7 +2490,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	}
 
 	memset(&pkt, 0, sizeof(pkt));
-	pkt.num_of_bds = 1 + skb_shinfo(skb)->nr_frags;
+	pkt.num_of_bds = 1 + nr_frags;
 	pkt.vlan = vlan;
 	pkt.bd_flags = flags;
 	pkt.tx_dest = QED_LL2_TX_DEST_NW;
@@ -2482,12 +2501,17 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	    test_bit(QED_LL2_XMIT_FLAGS_FIP_DISCOVERY, &xmit_flags))
 		pkt.remove_stag = true;
 
+	/* qed_ll2_prepare_tx_packet() may actually send the packet if
+	 * there are no fragments in the skb and subsequently the completion
+	 * routine may run and free the SKB, so no dereferencing the SKB
+	 * beyond this point unless skb has any fragments.
+	 */
 	rc = qed_ll2_prepare_tx_packet(&cdev->hwfns[0], cdev->ll2->handle,
 				       &pkt, 1);
 	if (rc)
 		goto err;
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+	for (i = 0; i < nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
 
 		mapping = skb_frag_dma_map(&cdev->pdev->dev, frag, 0,
@@ -2496,6 +2520,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 		if (unlikely(dma_mapping_error(&cdev->pdev->dev, mapping))) {
 			DP_NOTICE(cdev,
 				  "Unable to map frag - dropping packet\n");
+			rc = -ENOMEM;
 			goto err;
 		}
 

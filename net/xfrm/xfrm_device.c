@@ -32,6 +32,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	struct softnet_data *sd;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (!xo)
 		return skb;
@@ -39,7 +40,8 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 	if (!(features & NETIF_F_HW_ESP))
 		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
 
-	x = skb->sp->xvec[skb->sp->len - 1];
+	sp = skb_sec_path(skb);
+	x = sp->xvec[sp->len - 1];
 	if (xo->flags & XFRM_GRO || x->xso.flags & XFRM_OFFLOAD_INBOUND)
 		return skb;
 

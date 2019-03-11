@@ -60,7 +60,6 @@
  * @awork: accept work item
  * @rcv_wq: receive workqueue
  * @send_wq: send workqueue
- * @max_rcvbuf_size: maximum permitted receive message length
  * @listener: topsrv listener socket
  * @name: server name
  */
@@ -72,7 +71,6 @@ struct tipc_topsrv {
 	struct work_struct awork;
 	struct workqueue_struct *rcv_wq;
 	struct workqueue_struct *send_wq;
-	int max_rcvbuf_size;
 	struct socket *listener;
 	char name[TIPC_SERVER_NAME_LEN];
 };
@@ -394,11 +392,11 @@ static int tipc_conn_rcv_from_sock(struct tipc_conn *con)
 	iov.iov_base = &s;
 	iov.iov_len = sizeof(s);
 	msg.msg_name = NULL;
-	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC, &iov, 1, iov.iov_len);
+	iov_iter_kvec(&msg.msg_iter, READ, &iov, 1, iov.iov_len);
 	ret = sock_recvmsg(con->sock, &msg, MSG_DONTWAIT);
 	if (ret == -EWOULDBLOCK)
 		return -EWOULDBLOCK;
-	if (ret > 0) {
+	if (ret == sizeof(s)) {
 		read_lock_bh(&sk->sk_callback_lock);
 		ret = tipc_conn_rcv_sub(srv, con, &s);
 		read_unlock_bh(&sk->sk_callback_lock);
@@ -648,7 +646,6 @@ int tipc_topsrv_start(struct net *net)
 		return -ENOMEM;
 
 	srv->net = net;
-	srv->max_rcvbuf_size = sizeof(struct tipc_subscr);
 	INIT_WORK(&srv->awork, tipc_topsrv_accept);
 
 	strscpy(srv->name, name, sizeof(srv->name));

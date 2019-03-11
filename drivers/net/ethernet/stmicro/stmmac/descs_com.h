@@ -31,7 +31,7 @@
 /* Enhanced descriptors */
 static inline void ehn_desc_rx_set_on_ring(struct dma_desc *p, int end)
 {
-	p->des1 |= cpu_to_le32(((BUF_SIZE_8KiB - 1)
+	p->des1 |= cpu_to_le32((BUF_SIZE_8KiB
 			<< ERDES1_BUFFER2_SIZE_SHIFT)
 		   & ERDES1_BUFFER2_SIZE_MASK);
 

@@ -43,7 +43,7 @@ gpio: gpio@20000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	porta: gpio-controller@0 {
+	porta: gpio@0 {
 		compatible = "snps,dw-apb-gpio-port";
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -55,7 +55,7 @@ gpio: gpio@20000 {
 		interrupts = <0>;
 	};
 
-	portb: gpio-controller@1 {
+	portb: gpio@1 {
 		compatible = "snps,dw-apb-gpio-port";
 		gpio-controller;
 		#gpio-cells = <2>;

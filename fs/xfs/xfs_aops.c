@@ -28,7 +28,8 @@
  */
 struct xfs_writepage_ctx {
 	struct xfs_bmbt_irec    imap;
-	unsigned int		io_type;
+	int			fork;
+	unsigned int		data_seq;
 	unsigned int		cow_seq;
 	struct xfs_ioend	*ioend;
 };
@@ -62,7 +63,7 @@ xfs_find_daxdev_for_inode(
 static void
 xfs_finish_page_writeback(
 	struct inode		*inode,
-	struct bio_vec		*bvec,
+	struct bio_vec	*bvec,
 	int			error)
 {
 	struct iomap_page	*iop = to_iomap_page(bvec->bv_page);
@@ -98,6 +99,7 @@ xfs_destroy_ioend(
 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
 		struct bio_vec	*bvec;
 		int		i;
+		struct bvec_iter_all iter_all;
 
 		/*
 		 * For the last bio, bi_private points to the ioend, so we
@@ -109,7 +111,7 @@ xfs_destroy_ioend(
 			next = bio->bi_private;
 
 		/* walk each page on bio, ending page IO on them */
-		bio_for_each_segment_all(bvec, bio, i)
+		bio_for_each_segment_all(bvec, bio, i, iter_all)
 			xfs_finish_page_writeback(inode, bvec, error);
 		bio_put(bio);
 	}
@@ -255,30 +257,20 @@ xfs_end_io(
 	 */
 	error = blk_status_to_errno(ioend->io_bio->bi_status);
 	if (unlikely(error)) {
-		switch (ioend->io_type) {
-		case XFS_IO_COW:
+		if (ioend->io_fork == XFS_COW_FORK)
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
-			break;
-		}
-
 		goto done;
 	}
 
 	/*
-	 * Success:  commit the COW or unwritten blocks if needed.
+	 * Success: commit the COW or unwritten blocks if needed.
 	 */
-	switch (ioend->io_type) {
-	case XFS_IO_COW:
+	if (ioend->io_fork == XFS_COW_FORK)
 		error = xfs_reflink_end_cow(ip, offset, size);
-		break;
-	case XFS_IO_UNWRITTEN:
-		/* writeback should never update isize */
+	else if (ioend->io_state == XFS_EXT_UNWRITTEN)
 		error = xfs_iomap_write_unwritten(ip, offset, size, false);
-		break;
-	default:
+	else
 		ASSERT(!xfs_ioend_is_append(ioend) || ioend->io_append_trans);
-		break;
-	}
 
 done:
 	if (ioend->io_append_trans)
@@ -293,12 +285,82 @@ xfs_end_bio(
 	struct xfs_ioend	*ioend = bio->bi_private;
 	struct xfs_mount	*mp = XFS_I(ioend->io_inode)->i_mount;
 
-	if (ioend->io_type == XFS_IO_UNWRITTEN || ioend->io_type == XFS_IO_COW)
+	if (ioend->io_fork == XFS_COW_FORK ||
+	    ioend->io_state == XFS_EXT_UNWRITTEN)
 		queue_work(mp->m_unwritten_workqueue, &ioend->io_work);
 	else if (ioend->io_append_trans)
 		queue_work(mp->m_data_workqueue, &ioend->io_work);
 	else
 		xfs_destroy_ioend(ioend, blk_status_to_errno(bio->bi_status));
+}
+
+/*
+ * Fast revalidation of the cached writeback mapping. Return true if the current
+ * mapping is valid, false otherwise.
+ */
+static bool
+xfs_imap_valid(
+	struct xfs_writepage_ctx	*wpc,
+	struct xfs_inode		*ip,
+	xfs_fileoff_t			offset_fsb)
+{
+	if (offset_fsb < wpc->imap.br_startoff ||
+	    offset_fsb >= wpc->imap.br_startoff + wpc->imap.br_blockcount)
+		return false;
+	/*
+	 * If this is a COW mapping, it is sufficient to check that the mapping
+	 * covers the offset. Be careful to check this first because the caller
+	 * can revalidate a COW mapping without updating the data seqno.
+	 */
+	if (wpc->fork == XFS_COW_FORK)
+		return true;
+
+	/*
+	 * This is not a COW mapping. Check the sequence number of the data fork
+	 * because concurrent changes could have invalidated the extent. Check
+	 * the COW fork because concurrent changes since the last time we
+	 * checked (and found nothing at this offset) could have added
+	 * overlapping blocks.
+	 */
+	if (wpc->data_seq != READ_ONCE(ip->i_df.if_seq))
+		return false;
+	if (xfs_inode_has_cow_data(ip) &&
+	    wpc->cow_seq != READ_ONCE(ip->i_cowfp->if_seq))
+		return false;
+	return true;
+}
+
+/*
+ * Pass in a dellalloc extent and convert it to real extents, return the real
+ * extent that maps offset_fsb in wpc->imap.
+ *
+ * The current page is held locked so nothing could have removed the block
+ * backing offset_fsb, although it could have moved from the COW to the data
+ * fork by another thread.
+ */
+static int
+xfs_convert_blocks(
+	struct xfs_writepage_ctx *wpc,
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		offset_fsb)
+{
+	int			error;
+
+	/*
+	 * Attempt to allocate whatever delalloc extent currently backs
+	 * offset_fsb and put the result into wpc->imap.  Allocate in a loop
+	 * because it may take several attempts to allocate real blocks for a
+	 * contiguous delalloc extent if free space is sufficiently fragmented.
+	 */
+	do {
+		error = xfs_bmapi_convert_delalloc(ip, wpc->fork, offset_fsb,
+				&wpc->imap, wpc->fork == XFS_COW_FORK ?
+					&wpc->cow_seq : &wpc->data_seq);
+		if (error)
+			return error;
+	} while (wpc->imap.br_startoff + wpc->imap.br_blockcount <= offset_fsb);
+
+	return 0;
 }
 
 STATIC int
@@ -310,26 +372,16 @@ xfs_map_blocks(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			count = i_blocksize(inode);
-	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset), end_fsb;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + count);
 	xfs_fileoff_t		cow_fsb = NULLFILEOFF;
 	struct xfs_bmbt_irec	imap;
-	int			whichfork = XFS_DATA_FORK;
 	struct xfs_iext_cursor	icur;
-	bool			imap_valid;
+	int			retries = 0;
 	int			error = 0;
 
-	/*
-	 * We have to make sure the cached mapping is within EOF to protect
-	 * against eofblocks trimming on file release leaving us with a stale
-	 * mapping. Otherwise, a page for a subsequent file extending buffered
-	 * write could get picked up by this writeback cycle and written to the
-	 * wrong blocks.
-	 *
-	 * Note that what we really want here is a generic mapping invalidation
-	 * mechanism to protect us from arbitrary extent modifying contexts, not
-	 * just eofblocks.
-	 */
-	xfs_trim_extent_eof(&wpc->imap, ip);
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
 
 	/*
 	 * COW fork blocks can overlap data fork blocks even if the blocks
@@ -346,16 +398,8 @@ xfs_map_blocks(
 	 * against concurrent updates and provides a memory barrier on the way
 	 * out that ensures that we always see the current value.
 	 */
-	imap_valid = offset_fsb >= wpc->imap.br_startoff &&
-		     offset_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount;
-	if (imap_valid &&
-	    (!xfs_inode_has_cow_data(ip) ||
-	     wpc->io_type == XFS_IO_COW ||
-	     wpc->cow_seq == READ_ONCE(ip->i_cowfp->if_seq)))
+	if (xfs_imap_valid(wpc, ip, offset_fsb))
 		return 0;
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
 
 	/*
 	 * If we don't have a valid map, now it's time to get a new one for this
@@ -363,14 +407,10 @@ xfs_map_blocks(
 	 * into real extents.  If we return without a valid map, it means we
 	 * landed in a hole and we skip the block.
 	 */
+retry:
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
-	ASSERT(offset <= mp->m_super->s_maxbytes);
-
-	if (offset > mp->m_super->s_maxbytes - count)
-		count = mp->m_super->s_maxbytes - offset;
-	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 
 	/*
 	 * Check if this is offset is covered by a COW extents, and if yes use
@@ -382,30 +422,16 @@ xfs_map_blocks(
 	if (cow_fsb != NULLFILEOFF && cow_fsb <= offset_fsb) {
 		wpc->cow_seq = READ_ONCE(ip->i_cowfp->if_seq);
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		/*
-		 * Truncate can race with writeback since writeback doesn't
-		 * take the iolock and truncate decreases the file size before
-		 * it starts truncating the pages between new_size and old_size.
-		 * Therefore, we can end up in the situation where writeback
-		 * gets a CoW fork mapping but the truncate makes the mapping
-		 * invalid and we end up in here trying to get a new mapping.
-		 * bail out here so that we simply never get a valid mapping
-		 * and so we drop the write altogether.  The page truncation
-		 * will kill the contents anyway.
-		 */
-		if (offset > i_size_read(inode)) {
-			wpc->io_type = XFS_IO_HOLE;
-			return 0;
-		}
-		whichfork = XFS_COW_FORK;
-		wpc->io_type = XFS_IO_COW;
+
+		wpc->fork = XFS_COW_FORK;
 		goto allocate_blocks;
 	}
 
 	/*
-	 * Map valid and no COW extent in the way?  We're done.
+	 * No COW extent overlap. Revalidate now that we may have updated
+	 * ->cow_seq. If the data mapping is still valid, we're done.
 	 */
-	if (imap_valid) {
+	if (xfs_imap_valid(wpc, ip, offset_fsb)) {
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		return 0;
 	}
@@ -417,49 +443,65 @@ xfs_map_blocks(
 	 */
 	if (!xfs_iext_lookup_extent(ip, &ip->i_df, offset_fsb, &icur, &imap))
 		imap.br_startoff = end_fsb;	/* fake a hole past EOF */
+	wpc->data_seq = READ_ONCE(ip->i_df.if_seq);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
+	wpc->fork = XFS_DATA_FORK;
+
+	/* landed in a hole or beyond EOF? */
 	if (imap.br_startoff > offset_fsb) {
-		/* landed in a hole or beyond EOF */
 		imap.br_blockcount = imap.br_startoff - offset_fsb;
 		imap.br_startoff = offset_fsb;
 		imap.br_startblock = HOLESTARTBLOCK;
-		wpc->io_type = XFS_IO_HOLE;
-	} else {
-		/*
-		 * Truncate to the next COW extent if there is one.  This is the
-		 * only opportunity to do this because we can skip COW fork
-		 * lookups for the subsequent blocks in the mapping; however,
-		 * the requirement to treat the COW range separately remains.
-		 */
-		if (cow_fsb != NULLFILEOFF &&
-		    cow_fsb < imap.br_startoff + imap.br_blockcount)
-			imap.br_blockcount = cow_fsb - imap.br_startoff;
-
-		if (isnullstartblock(imap.br_startblock)) {
-			/* got a delalloc extent */
-			wpc->io_type = XFS_IO_DELALLOC;
-			goto allocate_blocks;
-		}
-
-		if (imap.br_state == XFS_EXT_UNWRITTEN)
-			wpc->io_type = XFS_IO_UNWRITTEN;
-		else
-			wpc->io_type = XFS_IO_OVERWRITE;
+		imap.br_state = XFS_EXT_NORM;
 	}
 
+	/*
+	 * Truncate to the next COW extent if there is one.  This is the only
+	 * opportunity to do this because we can skip COW fork lookups for the
+	 * subsequent blocks in the mapping; however, the requirement to treat
+	 * the COW range separately remains.
+	 */
+	if (cow_fsb != NULLFILEOFF &&
+	    cow_fsb < imap.br_startoff + imap.br_blockcount)
+		imap.br_blockcount = cow_fsb - imap.br_startoff;
+
+	/* got a delalloc extent? */
+	if (imap.br_startblock != HOLESTARTBLOCK &&
+	    isnullstartblock(imap.br_startblock))
+		goto allocate_blocks;
+
 	wpc->imap = imap;
-	trace_xfs_map_blocks_found(ip, offset, count, wpc->io_type, &imap);
+	trace_xfs_map_blocks_found(ip, offset, count, wpc->fork, &imap);
 	return 0;
 allocate_blocks:
-	error = xfs_iomap_write_allocate(ip, whichfork, offset, &imap,
-			&wpc->cow_seq);
-	if (error)
+	error = xfs_convert_blocks(wpc, ip, offset_fsb);
+	if (error) {
+		/*
+		 * If we failed to find the extent in the COW fork we might have
+		 * raced with a COW to data fork conversion or truncate.
+		 * Restart the lookup to catch the extent in the data fork for
+		 * the former case, but prevent additional retries to avoid
+		 * looping forever for the latter case.
+		 */
+		if (error == -EAGAIN && wpc->fork == XFS_COW_FORK && !retries++)
+			goto retry;
+		ASSERT(error != -EAGAIN);
 		return error;
-	ASSERT(whichfork == XFS_COW_FORK || cow_fsb == NULLFILEOFF ||
-	       imap.br_startoff + imap.br_blockcount <= cow_fsb);
-	wpc->imap = imap;
-	trace_xfs_map_blocks_alloc(ip, offset, count, wpc->io_type, &imap);
+	}
+
+	/*
+	 * Due to merging the return real extent might be larger than the
+	 * original delalloc one.  Trim the return extent to the next COW
+	 * boundary again to force a re-lookup.
+	 */
+	if (wpc->fork != XFS_COW_FORK && cow_fsb != NULLFILEOFF &&
+	    cow_fsb < wpc->imap.br_startoff + wpc->imap.br_blockcount)
+		wpc->imap.br_blockcount = cow_fsb - wpc->imap.br_startoff;
+
+	ASSERT(wpc->imap.br_startoff <= offset_fsb);
+	ASSERT(wpc->imap.br_startoff + wpc->imap.br_blockcount > offset_fsb);
+	trace_xfs_map_blocks_alloc(ip, offset, count, wpc->fork, &imap);
 	return 0;
 }
 
@@ -484,7 +526,7 @@ xfs_submit_ioend(
 	int			status)
 {
 	/* Convert CoW extents to regular */
-	if (!status && ioend->io_type == XFS_IO_COW) {
+	if (!status && ioend->io_fork == XFS_COW_FORK) {
 		/*
 		 * Yuk. This can do memory allocation, but is not a
 		 * transactional operation so everything is done in GFP_KERNEL
@@ -502,7 +544,8 @@ xfs_submit_ioend(
 
 	/* Reserve log space if we might write beyond the on-disk inode size. */
 	if (!status &&
-	    ioend->io_type != XFS_IO_UNWRITTEN &&
+	    (ioend->io_fork == XFS_COW_FORK ||
+	     ioend->io_state != XFS_EXT_UNWRITTEN) &&
 	    xfs_ioend_is_append(ioend) &&
 	    !ioend->io_append_trans)
 		status = xfs_setfilesize_trans_alloc(ioend);
@@ -531,7 +574,8 @@ xfs_submit_ioend(
 static struct xfs_ioend *
 xfs_alloc_ioend(
 	struct inode		*inode,
-	unsigned int		type,
+	int			fork,
+	xfs_exntst_t		state,
 	xfs_off_t		offset,
 	struct block_device	*bdev,
 	sector_t		sector)
@@ -545,7 +589,8 @@ xfs_alloc_ioend(
 
 	ioend = container_of(bio, struct xfs_ioend, io_inline_bio);
 	INIT_LIST_HEAD(&ioend->io_list);
-	ioend->io_type = type;
+	ioend->io_fork = fork;
+	ioend->io_state = state;
 	ioend->io_inode = inode;
 	ioend->io_size = 0;
 	ioend->io_offset = offset;
@@ -606,21 +651,23 @@ xfs_add_to_ioend(
 	sector = xfs_fsb_to_db(ip, wpc->imap.br_startblock) +
 		((offset - XFS_FSB_TO_B(mp, wpc->imap.br_startoff)) >> 9);
 
-	if (!wpc->ioend || wpc->io_type != wpc->ioend->io_type ||
+	if (!wpc->ioend ||
+	    wpc->fork != wpc->ioend->io_fork ||
+	    wpc->imap.br_state != wpc->ioend->io_state ||
 	    sector != bio_end_sector(wpc->ioend->io_bio) ||
 	    offset != wpc->ioend->io_offset + wpc->ioend->io_size) {
 		if (wpc->ioend)
 			list_add(&wpc->ioend->io_list, iolist);
-		wpc->ioend = xfs_alloc_ioend(inode, wpc->io_type, offset,
-				bdev, sector);
+		wpc->ioend = xfs_alloc_ioend(inode, wpc->fork,
+				wpc->imap.br_state, offset, bdev, sector);
 	}
 
-	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff)) {
+	if (!__bio_try_merge_page(wpc->ioend->io_bio, page, len, poff, true)) {
 		if (iop)
 			atomic_inc(&iop->write_count);
 		if (bio_full(wpc->ioend->io_bio))
 			xfs_chain_bio(wpc->ioend, wbc, bdev, sector);
-		__bio_add_page(wpc->ioend->io_bio, page, len, poff);
+		bio_add_page(wpc->ioend->io_bio, page, len, poff);
 	}
 
 	wpc->ioend->io_size += len;
@@ -721,7 +768,7 @@ xfs_writepage_map(
 		error = xfs_map_blocks(wpc, inode, file_offset);
 		if (error)
 			break;
-		if (wpc->io_type == XFS_IO_HOLE)
+		if (wpc->imap.br_startblock == HOLESTARTBLOCK)
 			continue;
 		xfs_add_to_ioend(inode, file_offset, page, iop, wpc, wbc,
 				 &submit_list);
@@ -916,9 +963,7 @@ xfs_vm_writepage(
 	struct page		*page,
 	struct writeback_control *wbc)
 {
-	struct xfs_writepage_ctx wpc = {
-		.io_type = XFS_IO_HOLE,
-	};
+	struct xfs_writepage_ctx wpc = { };
 	int			ret;
 
 	ret = xfs_do_writepage(page, wbc, &wpc);
@@ -932,9 +977,7 @@ xfs_vm_writepages(
 	struct address_space	*mapping,
 	struct writeback_control *wbc)
 {
-	struct xfs_writepage_ctx wpc = {
-		.io_type = XFS_IO_HOLE,
-	};
+	struct xfs_writepage_ctx wpc = { };
 	int			ret;
 
 	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
@@ -981,7 +1024,7 @@ xfs_vm_bmap(
 	 * Since we don't pass back blockdev info, we can't return bmap
 	 * information for rt files either.
 	 */
-	if (xfs_is_reflink_inode(ip) || XFS_IS_REALTIME_INODE(ip))
+	if (xfs_is_cow_inode(ip) || XFS_IS_REALTIME_INODE(ip))
 		return 0;
 	return iomap_bmap(mapping, block, &xfs_iomap_ops);
 }

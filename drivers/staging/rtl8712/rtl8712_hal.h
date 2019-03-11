@@ -72,13 +72,13 @@ struct fw_priv {   /*8-bytes alignment required*/
 	unsigned char regulatory_class_3; /*regulatory class bit map 3*/
 	unsigned char rfintfs;    /* 0:SWSI, 1:HWSI, 2:HWPI*/
 	unsigned char def_nettype;
-	unsigned char turboMode;
-	unsigned char lowPowerMode;/* 0: normal mode, 1: low power mode*/
+	unsigned char turbo_mode;
+	unsigned char low_power_mode;/* 0: normal mode, 1: low power mode*/
 	/*--- long word 2 ----*/
 	unsigned char lbk_mode; /*0x00: normal, 0x03: MACLBK, 0x01: PHYLBK*/
 	unsigned char mp_mode; /* 1: for MP use, 0: for normal driver */
-	unsigned char vcsType; /* 0:off 1:on 2:auto */
-	unsigned char vcsMode; /* 1:RTS/CTS 2:CTS to self */
+	unsigned char vcs_type; /* 0:off 1:on 2:auto */
+	unsigned char vcs_mode; /* 1:RTS/CTS 2:CTS to self */
 	unsigned char rsvd022;
 	unsigned char rsvd023;
 	unsigned char rsvd024;

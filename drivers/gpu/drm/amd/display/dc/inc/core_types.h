@@ -82,7 +82,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
-#include "display_clock.h"
+#include "hw/clk_mgr.h"
 #include "transform.h"
 #include "dpp.h"
 
@@ -146,7 +146,7 @@ struct resource_pool {
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
-	struct aux_engine *engines[MAX_PIPES];
+	struct dce_aux *engines[MAX_PIPES];
 	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
 	bool i2c_hw_buffer_in_use;
@@ -169,6 +169,7 @@ struct resource_pool {
 	unsigned int audio_count;
 	struct audio_support audio_support;
 
+	struct clk_mgr *clk_mgr;
 	struct dccg *dccg;
 	struct irq_service *irqs;
 
@@ -179,13 +180,8 @@ struct resource_pool {
 	const struct resource_caps *res_cap;
 };
 
-struct dcn_fe_clocks {
-	int dppclk_khz;
-};
-
 struct dcn_fe_bandwidth {
-	struct dcn_fe_clocks calc;
-	struct dcn_fe_clocks cur;
+	int dppclk_khz;
 };
 
 struct stream_resource {
@@ -271,6 +267,17 @@ union bw_context {
 	struct dce_bw_output dce;
 };
 
+/**
+ * struct dc_state - The full description of a state requested by a user
+ *
+ * @streams: Stream properties
+ * @stream_status: The planes on a given stream
+ * @res_ctx: Persistent state of resources
+ * @bw: The output from bandwidth and watermark calculations
+ * @pp_display_cfg: PowerPlay clocks and settings
+ * @dcn_bw_vars: non-stack memory to support bandwidth calculations
+ *
+ */
 struct dc_state {
 	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
@@ -278,7 +285,6 @@ struct dc_state {
 
 	struct resource_context res_ctx;
 
-	/* The output from BW and WM calculations. */
 	union bw_context bw;
 
 	/* Note: these are big structures, do *not* put on stack! */
@@ -287,7 +293,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct dccg *dis_clk;
+	struct clk_mgr *dccg;
 
 	struct kref refcount;
 };

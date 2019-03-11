@@ -95,6 +95,11 @@ struct intel_guc {
 	void (*notify)(struct intel_guc *guc);
 };
 
+static inline bool intel_guc_is_alive(struct intel_guc *guc)
+{
+	return intel_uc_fw_is_loaded(&guc->fw);
+}
+
 static
 inline int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 {
@@ -186,5 +191,8 @@ static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
 	guc->msg_enabled_mask &= ~mask;
 	spin_unlock_irq(&guc->irq_lock);
 }
+
+int intel_guc_reset_engine(struct intel_guc *guc,
+			   struct intel_engine_cs *engine);
 
 #endif

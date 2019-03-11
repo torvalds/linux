@@ -997,6 +997,8 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 
 	task->tk_xprt = xprt_get(task_setup_data->rpc_xprt);
 
+	task->tk_op_cred = get_rpccred(task_setup_data->rpc_op_cred);
+
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
 
@@ -1054,6 +1056,7 @@ static void rpc_free_task(struct rpc_task *task)
 {
 	unsigned short tk_flags = task->tk_flags;
 
+	put_rpccred(task->tk_op_cred);
 	rpc_release_calldata(task->tk_ops, task->tk_calldata);
 
 	if (tk_flags & RPC_TASK_DYNAMIC) {
@@ -1071,7 +1074,7 @@ static void rpc_release_resources_task(struct rpc_task *task)
 {
 	xprt_release(task);
 	if (task->tk_msg.rpc_cred) {
-		put_rpccred(task->tk_msg.rpc_cred);
+		put_cred(task->tk_msg.rpc_cred);
 		task->tk_msg.rpc_cred = NULL;
 	}
 	rpc_task_release_client(task);

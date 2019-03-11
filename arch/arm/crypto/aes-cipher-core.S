@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 #include <asm/cache.h>
 
 	.text
@@ -41,7 +42,7 @@
 	.endif
 	.endm
 
-	.macro		__hround, out0, out1, in0, in1, in2, in3, t3, t4, enc, sz, op
+	.macro		__hround, out0, out1, in0, in1, in2, in3, t3, t4, enc, sz, op, oldcpsr
 	__select	\out0, \in0, 0
 	__select	t0, \in1, 1
 	__load		\out0, \out0, 0, \sz, \op
@@ -73,6 +74,14 @@
 	__load		t0, t0, 3, \sz, \op
 	__load		\t4, \t4, 3, \sz, \op
 
+	.ifnb		\oldcpsr
+	/*
+	 * This is the final round and we're done with all data-dependent table
+	 * lookups, so we can safely re-enable interrupts.
+	 */
+	restore_irqs	\oldcpsr
+	.endif
+
 	eor		\out1, \out1, t1, ror #24
 	eor		\out0, \out0, t2, ror #16
 	ldm		rk!, {t1, t2}
@@ -83,14 +92,14 @@
 	eor		\out1, \out1, t2
 	.endm
 
-	.macro		fround, out0, out1, out2, out3, in0, in1, in2, in3, sz=2, op
+	.macro		fround, out0, out1, out2, out3, in0, in1, in2, in3, sz=2, op, oldcpsr
 	__hround	\out0, \out1, \in0, \in1, \in2, \in3, \out2, \out3, 1, \sz, \op
-	__hround	\out2, \out3, \in2, \in3, \in0, \in1, \in1, \in2, 1, \sz, \op
+	__hround	\out2, \out3, \in2, \in3, \in0, \in1, \in1, \in2, 1, \sz, \op, \oldcpsr
 	.endm
 
-	.macro		iround, out0, out1, out2, out3, in0, in1, in2, in3, sz=2, op
+	.macro		iround, out0, out1, out2, out3, in0, in1, in2, in3, sz=2, op, oldcpsr
 	__hround	\out0, \out1, \in0, \in3, \in2, \in1, \out2, \out3, 0, \sz, \op
-	__hround	\out2, \out3, \in2, \in1, \in0, \in3, \in1, \in0, 0, \sz, \op
+	__hround	\out2, \out3, \in2, \in1, \in0, \in3, \in1, \in0, 0, \sz, \op, \oldcpsr
 	.endm
 
 	.macro		__rev, out, in
@@ -118,12 +127,13 @@
 	.macro		do_crypt, round, ttab, ltab, bsz
 	push		{r3-r11, lr}
 
+	// Load keys first, to reduce latency in case they're not cached yet.
+	ldm		rk!, {r8-r11}
+
 	ldr		r4, [in]
 	ldr		r5, [in, #4]
 	ldr		r6, [in, #8]
 	ldr		r7, [in, #12]
-
-	ldm		rk!, {r8-r11}
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	__rev		r4, r4
@@ -138,6 +148,25 @@
 	eor		r7, r7, r11
 
 	__adrl		ttab, \ttab
+	/*
+	 * Disable interrupts and prefetch the 1024-byte 'ft' or 'it' table into
+	 * L1 cache, assuming cacheline size >= 32.  This is a hardening measure
+	 * intended to make cache-timing attacks more difficult.  They may not
+	 * be fully prevented, however; see the paper
+	 * https://cr.yp.to/antiforgery/cachetiming-20050414.pdf
+	 * ("Cache-timing attacks on AES") for a discussion of the many
+	 * difficulties involved in writing truly constant-time AES software.
+	 */
+	 save_and_disable_irqs	t0
+	.set		i, 0
+	.rept		1024 / 128
+	ldr		r8, [ttab, #i + 0]
+	ldr		r9, [ttab, #i + 32]
+	ldr		r10, [ttab, #i + 64]
+	ldr		r11, [ttab, #i + 96]
+	.set		i, i + 128
+	.endr
+	push		{t0}		// oldcpsr
 
 	tst		rounds, #2
 	bne		1f
@@ -151,8 +180,21 @@
 	\round		r4, r5, r6, r7, r8, r9, r10, r11
 	b		0b
 
-2:	__adrl		ttab, \ltab
-	\round		r4, r5, r6, r7, r8, r9, r10, r11, \bsz, b
+2:	.ifb		\ltab
+	add		ttab, ttab, #1
+	.else
+	__adrl		ttab, \ltab
+	// Prefetch inverse S-box for final round; see explanation above
+	.set		i, 0
+	.rept		256 / 64
+	ldr		t0, [ttab, #i + 0]
+	ldr		t1, [ttab, #i + 32]
+	.set		i, i + 64
+	.endr
+	.endif
+
+	pop		{rounds}	// oldcpsr
+	\round		r4, r5, r6, r7, r8, r9, r10, r11, \bsz, b, rounds
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	__rev		r4, r4
@@ -175,7 +217,7 @@
 	.endm
 
 ENTRY(__aes_arm_encrypt)
-	do_crypt	fround, crypto_ft_tab, crypto_ft_tab + 1, 2
+	do_crypt	fround, crypto_ft_tab,, 2
 ENDPROC(__aes_arm_encrypt)
 
 	.align		5

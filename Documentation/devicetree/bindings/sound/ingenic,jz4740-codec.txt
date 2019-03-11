@@ -1,0 +1,20 @@
+Ingenic JZ4740 codec controller
+
+Required properties:
+- compatible : "ingenic,jz4740-codec"
+- reg : codec registers location and length
+- clocks : phandle to the AIC clock.
+- clock-names: must be set to "aic".
+- #sound-dai-cells: Must be set to 0.
+
+Example:
+
+codec: audio-codec@10020080 {
+	compatible = "ingenic,jz4740-codec";
+	reg = <0x10020080 0x8>;
+
+	#sound-dai-cells = <0>;
+
+	clocks = <&cgu JZ4740_CLK_AIC>;
+	clock-names = "aic";
+};

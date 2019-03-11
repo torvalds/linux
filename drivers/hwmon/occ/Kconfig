@@ -1,0 +1,31 @@
+#
+# On-Chip Controller configuration
+#
+
+config SENSORS_OCC_P8_I2C
+	tristate "POWER8 OCC through I2C"
+	depends on I2C
+	select SENSORS_OCC
+	help
+	 This option enables support for monitoring sensors provided by the
+	 On-Chip Controller (OCC) on a POWER8 processor. Communications with
+	 the OCC are established through I2C bus.
+
+	 This driver can also be built as a module. If so, the module will be
+	 called occ-p8-hwmon.
+
+config SENSORS_OCC_P9_SBE
+	tristate "POWER9 OCC through SBE"
+	depends on FSI_OCC
+	select SENSORS_OCC
+	help
+	 This option enables support for monitoring sensors provided by the
+	 On-Chip Controller (OCC) on a POWER9 processor. Communications with
+	 the OCC are established through SBE fifo on an FSI bus.
+
+	 This driver can also be built as a module. If so, the module will be
+	 called occ-p9-hwmon.
+
+config SENSORS_OCC
+	bool "POWER On-Chip Controller"
+	depends on SENSORS_OCC_P8_I2C || SENSORS_OCC_P9_SBE

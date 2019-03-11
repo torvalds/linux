@@ -20,6 +20,10 @@
 		display0 = &lcd0;
 	};
 
+	chosen {
+		stdout-path = &uart3;
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
@@ -228,7 +232,7 @@
 	vmmc-supply = <&vmmc_fixed>;
 	bus-width = <4>;
 	wp-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>; /* gpio_126 */
-	cd-gpios = <&gpio4 31 GPIO_ACTIVE_HIGH>; /* gpio_127 */
+	cd-gpios = <&gpio4 31 GPIO_ACTIVE_LOW>; /* gpio_127 */
 };
 
 &mmc3 {

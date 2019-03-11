@@ -53,7 +53,7 @@
 #ifndef SCIF_RMA_H
 #define SCIF_RMA_H
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/mmu_notifier.h>
 
 #include "../bus/scif_bus.h"
@@ -202,6 +202,19 @@ struct scif_pinned_pages {
 struct scif_status {
 	dma_addr_t src_dma_addr;
 	u64 val;
+	struct scif_endpt *ep;
+};
+
+/*
+ * struct scif_cb_arg - Stores the argument of the callback func
+ *
+ * @src_dma_addr: Source buffer DMA address
+ * @status: DMA status
+ * @ep: SCIF endpoint
+ */
+struct scif_cb_arg {
+	dma_addr_t src_dma_addr;
+	struct scif_status *status;
 	struct scif_endpt *ep;
 };
 

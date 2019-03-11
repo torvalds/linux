@@ -210,6 +210,9 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (!list_empty(&prev->list) || !list_empty(&next->list))
 		return 0;
 
+	ASSERT(next->block_start != EXTENT_MAP_DELALLOC &&
+	       prev->block_start != EXTENT_MAP_DELALLOC);
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -217,8 +220,6 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	      prev->block_start == EXTENT_MAP_HOLE) ||
 	     (next->block_start == EXTENT_MAP_INLINE &&
 	      prev->block_start == EXTENT_MAP_INLINE) ||
-	     (next->block_start == EXTENT_MAP_DELALLOC &&
-	      prev->block_start == EXTENT_MAP_DELALLOC) ||
 	     (next->block_start < EXTENT_MAP_LAST_BYTE - 1 &&
 	      next->block_start == extent_map_block_end(prev)))) {
 		return 1;
@@ -475,7 +476,8 @@ static struct extent_map *prev_extent_map(struct extent_map *em)
 	return container_of(prev, struct extent_map, rb_node);
 }
 
-/* helper for btfs_get_extent.  Given an existing extent in the tree,
+/*
+ * Helper for btrfs_get_extent.  Given an existing extent in the tree,
  * the existing extent is the nearest extent to map_start,
  * and an extent that you want to insert, deal with overlap and insert
  * the best fitted new extent into the tree.

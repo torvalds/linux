@@ -131,7 +131,7 @@ static struct engine_mmio gen9_engine_mmio_list[] __cacheline_aligned = {
 	{RCS, GAMT_CHKN_BIT_REG, 0x0, false}, /* 0x4ab8 */
 
 	{RCS, GEN9_GAMT_ECO_REG_RW_IA, 0x0, false}, /* 0x4ab0 */
-	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0x0, false}, /* 0x20d4 */
+	{RCS, GEN9_CSFE_CHICKEN1_RCS, 0xffff, false}, /* 0x20d4 */
 
 	{RCS, GEN8_GARBCNTL, 0x0, false}, /* 0xb004 */
 	{RCS, GEN7_FF_THREAD_MODE, 0x0, false}, /* 0x20a0 */
@@ -158,6 +158,8 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	int ring_id, i;
 
 	for (ring_id = 0; ring_id < ARRAY_SIZE(regs); ring_id++) {
+		if (!HAS_ENGINE(dev_priv, ring_id))
+			continue;
 		offset.reg = regs[ring_id];
 		for (i = 0; i < GEN9_MOCS_SIZE; i++) {
 			gen9_render_mocs.control_table[ring_id][i] =
@@ -351,8 +353,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	 */
 	fw = intel_uncore_forcewake_for_reg(dev_priv, reg,
 					    FW_REG_READ | FW_REG_WRITE);
-	if (ring_id == RCS && (IS_SKYLAKE(dev_priv) ||
-			IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv)))
+	if (ring_id == RCS && (INTEL_GEN(dev_priv) >= 9))
 		fw |= FORCEWAKE_RENDER;
 
 	intel_uncore_forcewake_get(dev_priv, fw);
@@ -389,7 +390,8 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
 		return;
 
-	if ((IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv)) && ring_id == RCS)
+	if ((IS_KABYLAKE(dev_priv)  || IS_BROXTON(dev_priv)
+		|| IS_COFFEELAKE(dev_priv)) && ring_id == RCS)
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -455,9 +457,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 	u32 old_v, new_v;
 
 	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
-	if (IS_SKYLAKE(dev_priv)
-		|| IS_KABYLAKE(dev_priv)
-		|| IS_BROXTON(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 9)
 		switch_mocs(pre, next, ring_id);
 
 	for (mmio = dev_priv->gvt->engine_mmio_list.mmio;
@@ -469,8 +469,8 @@ static void switch_mmio(struct intel_vgpu *pre,
 		 * state image on kabylake, it's initialized by lri command and
 		 * save or restore with context together.
 		 */
-		if ((IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv))
-			&& mmio->in_context)
+		if ((IS_KABYLAKE(dev_priv) || IS_BROXTON(dev_priv)
+			|| IS_COFFEELAKE(dev_priv)) && mmio->in_context)
 			continue;
 
 		// save
@@ -563,9 +563,7 @@ void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
 	struct engine_mmio *mmio;
 
-	if (IS_SKYLAKE(gvt->dev_priv) ||
-		IS_KABYLAKE(gvt->dev_priv) ||
-		IS_BROXTON(gvt->dev_priv))
+	if (INTEL_GEN(gvt->dev_priv) >= 9)
 		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 	else
 		gvt->engine_mmio_list.mmio = gen8_engine_mmio_list;

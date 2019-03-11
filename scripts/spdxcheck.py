@@ -175,7 +175,13 @@ class id_parser(object):
                 self.lines_checked += 1
                 if line.find("SPDX-License-Identifier:") < 0:
                     continue
-                expr = line.split(':')[1].replace('*/', '').strip()
+                expr = line.split(':')[1].strip()
+                # Remove trailing comment closure
+                if line.strip().endswith('*/'):
+                    expr = expr.rstrip('*/').strip()
+                # Special case for SH magic boot code files
+                if line.startswith('LIST \"'):
+                    expr = expr.rstrip('\"').strip()
                 self.parse(expr)
                 self.spdx_valid += 1
                 #
@@ -250,12 +256,13 @@ if __name__ == '__main__':
 
     try:
         if len(args.path) and args.path[0] == '-':
-            parser.parse_lines(sys.stdin, args.maxlines, '-')
+            stdin = os.fdopen(sys.stdin.fileno(), 'rb')
+            parser.parse_lines(stdin, args.maxlines, '-')
         else:
             if args.path:
                 for p in args.path:
                     if os.path.isfile(p):
-                        parser.parse_lines(open(p), args.maxlines, p)
+                        parser.parse_lines(open(p, 'rb'), args.maxlines, p)
                     elif os.path.isdir(p):
                         scan_git_subtree(repo.head.reference.commit.tree, p)
                     else:

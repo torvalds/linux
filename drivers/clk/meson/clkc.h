@@ -43,37 +43,29 @@ static inline void meson_parm_write(struct regmap *map, struct parm *p,
 }
 
 
-struct pll_rate_table {
-	unsigned long	rate;
+struct pll_params_table {
 	u16		m;
 	u16		n;
-	u16		od;
-	u16		od2;
-	u16		od3;
 };
 
-#define PLL_RATE(_r, _m, _n, _od)					\
+#define PLL_PARAMS(_m, _n)						\
 	{								\
-		.rate		= (_r),					\
 		.m		= (_m),					\
 		.n		= (_n),					\
-		.od		= (_od),				\
 	}
 
 #define CLK_MESON_PLL_ROUND_CLOSEST	BIT(0)
 
 struct meson_clk_pll_data {
+	struct parm en;
 	struct parm m;
 	struct parm n;
 	struct parm frac;
-	struct parm od;
-	struct parm od2;
-	struct parm od3;
 	struct parm l;
 	struct parm rst;
 	const struct reg_sequence *init_regs;
 	unsigned int init_count;
-	const struct pll_rate_table *table;
+	const struct pll_params_table *table;
 	u8 flags;
 };
 
@@ -98,6 +90,11 @@ struct meson_clk_phase_data {
 int meson_clk_degrees_from_val(unsigned int val, unsigned int width);
 unsigned int meson_clk_degrees_to_val(int degrees, unsigned int width);
 
+struct meson_vid_pll_div_data {
+	struct parm val;
+	struct parm sel;
+};
+
 #define MESON_GATE(_name, _reg, _bit)					\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data){				\
@@ -120,5 +117,11 @@ extern const struct clk_ops meson_clk_cpu_ops;
 extern const struct clk_ops meson_clk_mpll_ro_ops;
 extern const struct clk_ops meson_clk_mpll_ops;
 extern const struct clk_ops meson_clk_phase_ops;
+extern const struct clk_ops meson_vid_pll_div_ro_ops;
+
+struct clk_hw *meson_clk_hw_register_input(struct device *dev,
+					   const char *of_name,
+					   const char *clk_name,
+					   unsigned long flags);
 
 #endif /* __CLKC_H */

@@ -723,8 +723,22 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 
 	desc_phys = lower_32_bits(c->desc_phys);
 	desc_num = (desc_phys - cdd->descs_phys) / sizeof(struct cppi41_desc);
-	if (!cdd->chan_busy[desc_num])
+	if (!cdd->chan_busy[desc_num]) {
+		struct cppi41_channel *cc, *_ct;
+
+		/*
+		 * channels might still be in the pendling list if
+		 * cppi41_dma_issue_pending() is called after
+		 * cppi41_runtime_suspend() is called
+		 */
+		list_for_each_entry_safe(cc, _ct, &cdd->pending, node) {
+			if (cc != c)
+				continue;
+			list_del(&cc->node);
+			break;
+		}
 		return 0;
+	}
 
 	ret = cppi41_tear_down_chan(c);
 	if (ret)

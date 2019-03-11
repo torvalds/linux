@@ -13,6 +13,9 @@
 #define _ASM_UNISTD_H
 
 #include <uapi/asm/unistd.h>
+#include <asm/unistd_nr_n32.h>
+#include <asm/unistd_nr_n64.h>
+#include <asm/unistd_nr_o32.h>
 
 #ifdef CONFIG_MIPS32_N32
 #define NR_syscalls  (__NR_N32_Linux + __NR_N32_Linux_syscalls)
@@ -42,29 +45,16 @@
 #define __ARCH_WANT_SYS_SIGPROCMASK
 # ifdef CONFIG_32BIT
 #  define __ARCH_WANT_STAT64
-#  define __ARCH_WANT_SYS_TIME
+#  define __ARCH_WANT_SYS_TIME32
 # endif
 # ifdef CONFIG_MIPS32_O32
-#  define __ARCH_WANT_COMPAT_SYS_TIME
+#  define __ARCH_WANT_SYS_TIME32
 # endif
 #define __ARCH_WANT_SYS_FORK
 #define __ARCH_WANT_SYS_CLONE
 
 /* whitelists for checksyscalls */
-#define __IGNORE_select
-#define __IGNORE_vfork
-#define __IGNORE_time
-#define __IGNORE_uselib
 #define __IGNORE_fadvise64_64
-#define __IGNORE_getdents64
-#if _MIPS_SIM == _MIPS_SIM_NABI32
-#define __IGNORE_truncate64
-#define __IGNORE_ftruncate64
-#define __IGNORE_stat64
-#define __IGNORE_lstat64
-#define __IGNORE_fstat64
-#define __IGNORE_fstatat64
-#endif
 
 #endif /* !__ASSEMBLY__ */
 

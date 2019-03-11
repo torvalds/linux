@@ -7,24 +7,16 @@
 #include <asm/asm.h>
 
 #ifdef CONFIG_SMP
-.macro LOCK_PREFIX_HERE
+	.macro LOCK_PREFIX
+672:	lock
 	.pushsection .smp_locks,"a"
 	.balign 4
-	.long 671f - .		# offset
+	.long 672b - .
 	.popsection
-671:
-.endm
-
-.macro LOCK_PREFIX insn:vararg
-	LOCK_PREFIX_HERE
-	lock \insn
-.endm
+	.endm
 #else
-.macro LOCK_PREFIX_HERE
-.endm
-
-.macro LOCK_PREFIX insn:vararg
-.endm
+	.macro LOCK_PREFIX
+	.endm
 #endif
 
 /*

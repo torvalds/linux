@@ -319,6 +319,8 @@ int gem_ptp_txstamp(struct macb_queue *queue, struct sk_buff *skb,
 	desc_ptp = macb_ptp_desc(queue->bp, desc);
 	tx_timestamp = &queue->tx_timestamps[head];
 	tx_timestamp->skb = skb;
+	/* ensure ts_1/ts_2 is loaded after ctrl (TX_USED check) */
+	dma_rmb();
 	tx_timestamp->desc_ptp.ts_1 = desc_ptp->ts_1;
 	tx_timestamp->desc_ptp.ts_2 = desc_ptp->ts_2;
 	/* move head */

@@ -3781,12 +3781,6 @@ static int snd_cs46xx_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->in_suspend = 1;
-	snd_pcm_suspend_all(chip->pcm);
-#ifdef CONFIG_SND_CS46XX_NEW_DSP
-	snd_pcm_suspend_all(chip->pcm_rear);
-	snd_pcm_suspend_all(chip->pcm_center_lfe);
-	snd_pcm_suspend_all(chip->pcm_iec958);
-#endif
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
 

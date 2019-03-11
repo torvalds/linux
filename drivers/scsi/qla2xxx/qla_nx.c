@@ -2010,7 +2010,7 @@ qla82xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 
 /**
  * qla82xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
- * @irq:
+ * @irq: interrupt number
  * @dev_id: SCSI driver HA context
  *
  * Called by system whenever the host adapter generates an interrupt.

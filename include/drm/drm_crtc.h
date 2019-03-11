@@ -291,6 +291,15 @@ struct drm_crtc_state {
 	u32 pageflip_flags;
 
 	/**
+	 * @vrr_enabled:
+	 *
+	 * Indicates if variable refresh rate should be enabled for the CRTC.
+	 * Support for the requested vrr state will depend on driver and
+	 * hardware capabiltiy - lacking support is not treated as failure.
+	 */
+	bool vrr_enabled;
+
+	/**
 	 * @event:
 	 *
 	 * Optional pointer to a DRM event to signal upon completion of the
@@ -1139,9 +1148,6 @@ static inline uint32_t drm_crtc_mask(const struct drm_crtc *crtc)
 {
 	return 1 << drm_crtc_index(crtc);
 }
-
-int drm_crtc_force_disable(struct drm_crtc *crtc);
-int drm_crtc_force_disable_all(struct drm_device *dev);
 
 int drm_mode_set_config_internal(struct drm_mode_set *set);
 struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);

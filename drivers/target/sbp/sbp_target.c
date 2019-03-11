@@ -1694,11 +1694,6 @@ static int sbp_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static char *sbp_get_fabric_name(void)
-{
-	return "sbp";
-}
-
 static char *sbp_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct sbp_tpg *tpg = container_of(se_tpg, struct sbp_tpg, se_tpg);
@@ -1751,11 +1746,6 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 	}
 
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static int sbp_write_pending_status(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -2323,8 +2313,7 @@ static struct configfs_attribute *sbp_tpg_attrib_attrs[] = {
 
 static const struct target_core_fabric_ops sbp_ops = {
 	.module				= THIS_MODULE,
-	.name				= "sbp",
-	.get_fabric_name		= sbp_get_fabric_name,
+	.fabric_name			= "sbp",
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
 	.tpg_check_demo_mode		= sbp_check_true,
@@ -2335,7 +2324,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.release_cmd			= sbp_release_cmd,
 	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
-	.write_pending_status		= sbp_write_pending_status,
 	.set_default_node_attributes	= sbp_set_default_node_attrs,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,

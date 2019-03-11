@@ -58,7 +58,7 @@ struct s3c_irq_data {
 };
 
 /*
- * Sructure holding the controller data
+ * Structure holding the controller data
  * @reg_pending		register holding pending irqs
  * @reg_intpnd		special register intpnd in main intc
  * @reg_mask		mask register

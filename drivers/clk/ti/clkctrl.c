@@ -259,8 +259,13 @@ _ti_clkctrl_clk_register(struct omap_clkctrl_provider *provider,
 	struct omap_clkctrl_clk *clkctrl_clk;
 	int ret = 0;
 
-	init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d", node->parent->name,
-			      node->name, offset, bit);
+	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+		init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d",
+				      node->parent, node, offset,
+				      bit);
+	else
+		init.name = kasprintf(GFP_KERNEL, "%pOFn:%04x:%d", node,
+				      offset, bit);
 	clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 	if (!init.name || !clkctrl_clk) {
 		ret = -ENOMEM;
@@ -440,6 +445,11 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	const __be32 *addrp;
 	u32 addr;
 	int ret;
+	char *c;
+
+	if (!(ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) &&
+	    of_node_name_eq(node, "clk"))
+		ti_clk_features.flags |= TI_CLK_CLKCTRL_COMPAT;
 
 	addrp = of_get_address(node, 0, NULL, NULL);
 	addr = (u32)of_translate_address(node, addrp);
@@ -453,18 +463,35 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		data = omap5_clkctrl_data;
 #endif
 #ifdef CONFIG_SOC_DRA7XX
-	if (of_machine_is_compatible("ti,dra7"))
-		data = dra7_clkctrl_data;
+	if (of_machine_is_compatible("ti,dra7")) {
+		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+			data = dra7_clkctrl_compat_data;
+		else
+			data = dra7_clkctrl_data;
+	}
 #endif
 #ifdef CONFIG_SOC_AM33XX
-	if (of_machine_is_compatible("ti,am33xx"))
-		data = am3_clkctrl_data;
+	if (of_machine_is_compatible("ti,am33xx")) {
+		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+			data = am3_clkctrl_compat_data;
+		else
+			data = am3_clkctrl_data;
+	}
 #endif
 #ifdef CONFIG_SOC_AM43XX
-	if (of_machine_is_compatible("ti,am4372"))
-		data = am4_clkctrl_data;
-	if (of_machine_is_compatible("ti,am438x"))
-		data = am438x_clkctrl_data;
+	if (of_machine_is_compatible("ti,am4372")) {
+		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+			data = am4_clkctrl_compat_data;
+		else
+			data = am4_clkctrl_data;
+	}
+
+	if (of_machine_is_compatible("ti,am438x")) {
+		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+			data = am438x_clkctrl_compat_data;
+		else
+			data = am438x_clkctrl_data;
+	}
 #endif
 #ifdef CONFIG_SOC_TI81XX
 	if (of_machine_is_compatible("ti,dm814"))
@@ -492,20 +519,42 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 
 	provider->base = of_iomap(node, 0);
 
-	provider->clkdm_name = kmalloc(strlen(node->parent->name) + 3,
-				       GFP_KERNEL);
-	if (!provider->clkdm_name) {
-		kfree(provider);
-		return;
+	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) {
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFnxxx", node->parent);
+		if (!provider->clkdm_name) {
+			kfree(provider);
+			return;
+		}
+
+		/*
+		 * Create default clkdm name, replace _cm from end of parent
+		 * node name with _clkdm
+		 */
+		provider->clkdm_name[strlen(provider->clkdm_name) - 5] = 0;
+	} else {
+		provider->clkdm_name = kasprintf(GFP_KERNEL, "%pOFn", node);
+		if (!provider->clkdm_name) {
+			kfree(provider);
+			return;
+		}
+
+		/*
+		 * Create default clkdm name, replace _clkctrl from end of
+		 * node name with _clkdm
+		 */
+		provider->clkdm_name[strlen(provider->clkdm_name) - 7] = 0;
 	}
 
-	/*
-	 * Create default clkdm name, replace _cm from end of parent node
-	 * name with _clkdm
-	 */
-	strcpy(provider->clkdm_name, node->parent->name);
-	provider->clkdm_name[strlen(provider->clkdm_name) - 2] = 0;
 	strcat(provider->clkdm_name, "clkdm");
+
+	/* Replace any dash from the clkdm name with underscore */
+	c = provider->clkdm_name;
+
+	while (*c) {
+		if (*c == '-')
+			*c = '_';
+		c++;
+	}
 
 	INIT_LIST_HEAD(&provider->clocks);
 
@@ -539,9 +588,13 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		init.flags = 0;
 		if (reg_data->flags & CLKF_SET_RATE_PARENT)
 			init.flags |= CLK_SET_RATE_PARENT;
-		init.name = kasprintf(GFP_KERNEL, "%s:%s:%04x:%d",
-				      node->parent->name, node->name,
-				      reg_data->offset, 0);
+		if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
+			init.name = kasprintf(GFP_KERNEL, "%pOFn:%pOFn:%04x:%d",
+					      node->parent, node,
+					      reg_data->offset, 0);
+		else
+			init.name = kasprintf(GFP_KERNEL, "%pOFn:%04x:%d",
+					      node, reg_data->offset, 0);
 		clkctrl_clk = kzalloc(sizeof(*clkctrl_clk), GFP_KERNEL);
 		if (!init.name || !clkctrl_clk)
 			goto cleanup;

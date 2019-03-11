@@ -1019,6 +1019,11 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 					new_state : CAN_STATE_ERROR_ACTIVE;
 
 			can_change_state(netdev, cf, tx_state, rx_state);
+
+			if (priv->can.restart_ms &&
+			    old_state >= CAN_STATE_BUS_OFF &&
+			    new_state < CAN_STATE_BUS_OFF)
+				cf->can_id |= CAN_ERR_RESTARTED;
 		}
 
 		if (new_state == CAN_STATE_BUS_OFF) {
@@ -1028,11 +1033,6 @@ kvaser_usb_hydra_error_frame(struct kvaser_usb_net_priv *priv,
 
 			can_bus_off(netdev);
 		}
-
-		if (priv->can.restart_ms &&
-		    old_state >= CAN_STATE_BUS_OFF &&
-		    new_state < CAN_STATE_BUS_OFF)
-			cf->can_id |= CAN_ERR_RESTARTED;
 	}
 
 	if (!skb) {

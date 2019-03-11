@@ -166,7 +166,8 @@ static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
 
 	/* Apply trial address if we just left trial period */
 	if (!trial && !self) {
-		tipc_net_finalize(net, tn->trial_addr);
+		tipc_sched_net_finalize(net, tn->trial_addr);
+		msg_set_prevnode(buf_msg(d->skb), tn->trial_addr);
 		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
 	}
 
@@ -300,14 +301,12 @@ static void tipc_disc_timeout(struct timer_list *t)
 		goto exit;
 	}
 
-	/* Trial period over ? */
-	if (!time_before(jiffies, tn->addr_trial_end)) {
-		/* Did we just leave it ? */
-		if (!tipc_own_addr(net))
-			tipc_net_finalize(net, tn->trial_addr);
-
-		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
-		msg_set_prevnode(buf_msg(d->skb), tipc_own_addr(net));
+	/* Did we just leave trial period ? */
+	if (!time_before(jiffies, tn->addr_trial_end) && !tipc_own_addr(net)) {
+		mod_timer(&d->timer, jiffies + TIPC_DISC_INIT);
+		spin_unlock_bh(&d->lock);
+		tipc_sched_net_finalize(net, tn->trial_addr);
+		return;
 	}
 
 	/* Adjust timeout interval according to discovery phase */
@@ -319,6 +318,8 @@ static void tipc_disc_timeout(struct timer_list *t)
 			d->timer_intv = TIPC_DISC_SLOW;
 		else if (!d->num_nodes && d->timer_intv > TIPC_DISC_FAST)
 			d->timer_intv = TIPC_DISC_FAST;
+		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
+		msg_set_prevnode(buf_msg(d->skb), tn->trial_addr);
 	}
 
 	mod_timer(&d->timer, jiffies + d->timer_intv);

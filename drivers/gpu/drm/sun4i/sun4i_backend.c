@@ -14,10 +14,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include <linux/component.h>
 #include <linux/list.h>
@@ -43,24 +43,6 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x00000107, 0x00000204, 0x00000064, 0x00000108,
 	0x00003f69, 0x00003ed6, 0x000001c1, 0x00000808,
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
-};
-
-/*
- * These coefficients are taken from the A33 BSP from Allwinner.
- *
- * The formula is for each component, each coefficient being multiplied by
- * 1024 and each constant being multiplied by 16:
- * G = 1.164 * Y - 0.391 * U - 0.813 * V + 135
- * R = 1.164 * Y + 1.596 * V - 222
- * B = 1.164 * Y + 2.018 * U + 276
- *
- * This seems to be a conversion from Y[16:235] UV[16:240] to RGB[0:255],
- * following the BT601 spec.
- */
-static const u32 sunxi_bt601_yuv2rgb_coef[12] = {
-	0x000004a7, 0x00001e6f, 0x00001cbf, 0x00000877,
-	0x000004a7, 0x00000000, 0x00000662, 0x00003211,
-	0x000004a7, 0x00000812, 0x00000000, 0x00002eb1,
 };
 
 static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
@@ -155,6 +137,35 @@ static int sun4i_backend_drm_format_to_layer(u32 format, u32 *mode)
 	return 0;
 }
 
+static const uint32_t sun4i_backend_formats[] = {
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+};
+
+bool sun4i_backend_format_is_supported(uint32_t fmt, uint64_t modifier)
+{
+	unsigned int i;
+
+	if (modifier != DRM_FORMAT_MOD_LINEAR)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_backend_formats); i++)
+		if (sun4i_backend_formats[i] == fmt)
+			return true;
+
+	return false;
+}
+
 int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 				     int layer, struct drm_plane *plane)
 {
@@ -211,7 +222,8 @@ static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
 			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN);
 
 	/* TODO: Add support for the multi-planar YUV formats */
-	if (format->num_planes == 1)
+	if (drm_format_info_is_yuv_packed(format) &&
+	    drm_format_info_is_yuv_sampling_422(format))
 		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
 	else
 		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", fmt);
@@ -395,6 +407,15 @@ int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend, int layer,
 	return 0;
 }
 
+void sun4i_backend_cleanup_layer(struct sun4i_backend *backend,
+				 int layer)
+{
+	regmap_update_bits(backend->engine.regs,
+			   SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN |
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN, 0);
+}
+
 static bool sun4i_backend_plane_uses_scaler(struct drm_plane_state *state)
 {
 	u16 src_h = state->src_h >> 16;
@@ -413,11 +434,50 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 {
 	struct sun4i_layer *layer = plane_to_sun4i_layer(state->plane);
 	struct sun4i_backend *backend = layer->backend;
+	uint32_t format = state->fb->format->format;
+	uint64_t modifier = state->fb->modifier;
 
 	if (IS_ERR(backend->frontend))
 		return false;
 
-	return sun4i_backend_plane_uses_scaler(state);
+	if (!sun4i_frontend_format_is_supported(format, modifier))
+		return false;
+
+	if (!sun4i_backend_format_is_supported(format, modifier))
+		return true;
+
+	/*
+	 * TODO: The backend alone allows 2x and 4x integer scaling, including
+	 * support for an alpha component (which the frontend doesn't support).
+	 * Use the backend directly instead of the frontend in this case, with
+	 * another test to return false.
+	 */
+
+	if (sun4i_backend_plane_uses_scaler(state))
+		return true;
+
+	/*
+	 * Here the format is supported by both the frontend and the backend
+	 * and no frontend scaling is required, so use the backend directly.
+	 */
+	return false;
+}
+
+static bool sun4i_backend_plane_is_supported(struct drm_plane_state *state,
+					     bool *uses_frontend)
+{
+	if (sun4i_backend_plane_uses_frontend(state)) {
+		*uses_frontend = true;
+		return true;
+	}
+
+	*uses_frontend = false;
+
+	/* Scaling is not supported without the frontend. */
+	if (sun4i_backend_plane_uses_scaler(state))
+		return false;
+
+	return true;
 }
 
 static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
@@ -460,14 +520,19 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		struct drm_framebuffer *fb = plane_state->fb;
 		struct drm_format_name_buf format_name;
 
-		if (sun4i_backend_plane_uses_frontend(plane_state)) {
+		if (!sun4i_backend_plane_is_supported(plane_state,
+						      &layer_state->uses_frontend))
+			return -EINVAL;
+
+		if (layer_state->uses_frontend) {
 			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
 					 plane->index);
-
-			layer_state->uses_frontend = true;
 			num_frontend_planes++;
 		} else {
-			layer_state->uses_frontend = false;
+			if (fb->format->is_yuv) {
+				DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
+				num_yuv_planes++;
+			}
 		}
 
 		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
@@ -475,11 +540,6 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 						     &format_name));
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
-
-		if (fb->format->is_yuv) {
-			DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
-			num_yuv_planes++;
-		}
 
 		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
 				 plane_state->normalized_zpos);
@@ -704,17 +764,18 @@ static struct sun4i_frontend *sun4i_backend_find_frontend(struct sun4i_drv *drv,
 		remote = of_graph_get_remote_port_parent(ep);
 		if (!remote)
 			continue;
+		of_node_put(remote);
 
 		/* does this node match any registered engines? */
 		list_for_each_entry(frontend, &drv->frontend_list, list) {
 			if (remote == frontend->node) {
-				of_node_put(remote);
 				of_node_put(port);
+				of_node_put(ep);
 				return frontend;
 			}
 		}
 	}
-
+	of_node_put(port);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -950,6 +1011,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun7i-a20-display-backend",
 		.data = &sun7i_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun8i-a23-display-backend",
+		.data = &sun8i_a33_backend_quirks,
 	},
 	{
 		.compatible = "allwinner,sun8i-a33-display-backend",

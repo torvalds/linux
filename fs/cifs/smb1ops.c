@@ -117,11 +117,11 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 }
 
 static void
-cifs_add_credits(struct TCP_Server_Info *server, const unsigned int add,
-		 const int optype)
+cifs_add_credits(struct TCP_Server_Info *server,
+		 const struct cifs_credits *credits, const int optype)
 {
 	spin_lock(&server->req_lock);
-	server->credits += add;
+	server->credits += credits->value;
 	server->in_flight--;
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
@@ -308,7 +308,7 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	remaining = tgt_total_cnt - total_in_tgt;
 
 	if (remaining < 0) {
-		cifs_dbg(FYI, "Server sent too much data. tgt_total_cnt=%hu total_in_tgt=%hu\n",
+		cifs_dbg(FYI, "Server sent too much data. tgt_total_cnt=%hu total_in_tgt=%u\n",
 			 tgt_total_cnt, total_in_tgt);
 		return -EPROTO;
 	}
@@ -929,19 +929,18 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	int rc;
-	unsigned int num_referrals = 0;
-	struct dfs_info3_param *referrals = NULL;
+	struct dfs_info3_param referral = {0};
 
-	rc = get_dfs_path(xid, tcon->ses, searchName, nls_codepage,
-			  &num_referrals, &referrals, 0);
+	rc = get_dfs_path(xid, tcon->ses, searchName, nls_codepage, &referral,
+			  0);
 
-	if (!rc && num_referrals > 0) {
-		*symlinkinfo = kstrndup(referrals->node_name,
-					strlen(referrals->node_name),
+	if (!rc) {
+		*symlinkinfo = kstrndup(referral.node_name,
+					strlen(referral.node_name),
 					GFP_KERNEL);
+		free_dfs_info_param(&referral);
 		if (!*symlinkinfo)
 			rc = -ENOMEM;
-		free_dfs_info_array(referrals, num_referrals);
 	}
 	return rc;
 #else /* No DFS support */

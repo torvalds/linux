@@ -186,7 +186,7 @@ int ir_raw_event_store_with_filter(struct rc_dev *dev, struct ir_raw_event *ev)
 		dev->raw->this_ev = *ev;
 	}
 
-	/* Enter idle mode if nessesary */
+	/* Enter idle mode if necessary */
 	if (!ev->pulse && dev->timeout &&
 	    dev->raw->this_ev.duration >= dev->timeout)
 		ir_raw_event_set_idle(dev, true);

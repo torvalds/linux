@@ -821,9 +821,21 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 	/*
 	 * BPF_ARSH
 	 */
+	case BPF_ALU | BPF_ARSH | BPF_X: /* ((s32) dst) >>= src */
+		/* sra %dst,%dst,0(%src) */
+		EMIT4_DISP(0x8a000000, dst_reg, src_reg, 0);
+		EMIT_ZERO(dst_reg);
+		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_X: /* ((s64) dst) >>= src */
 		/* srag %dst,%dst,0(%src) */
 		EMIT6_DISP_LH(0xeb000000, 0x000a, dst_reg, dst_reg, src_reg, 0);
+		break;
+	case BPF_ALU | BPF_ARSH | BPF_K: /* ((s32) dst >> imm */
+		if (imm == 0)
+			break;
+		/* sra %dst,imm(%r0) */
+		EMIT4_DISP(0x8a000000, dst_reg, REG_0, imm);
+		EMIT_ZERO(dst_reg);
 		break;
 	case BPF_ALU64 | BPF_ARSH | BPF_K: /* ((s64) dst) >>= imm */
 		if (imm == 0)
@@ -1098,103 +1110,145 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i
 		mask = 0xf000; /* j */
 		goto branch_oc;
 	case BPF_JMP | BPF_JSGT | BPF_K: /* ((s64) dst > (s64) imm) */
+	case BPF_JMP32 | BPF_JSGT | BPF_K: /* ((s32) dst > (s32) imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSLT | BPF_K: /* ((s64) dst < (s64) imm) */
+	case BPF_JMP32 | BPF_JSLT | BPF_K: /* ((s32) dst < (s32) imm) */
 		mask = 0x4000; /* jl */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSGE | BPF_K: /* ((s64) dst >= (s64) imm) */
+	case BPF_JMP32 | BPF_JSGE | BPF_K: /* ((s32) dst >= (s32) imm) */
 		mask = 0xa000; /* jhe */
 		goto branch_ks;
 	case BPF_JMP | BPF_JSLE | BPF_K: /* ((s64) dst <= (s64) imm) */
+	case BPF_JMP32 | BPF_JSLE | BPF_K: /* ((s32) dst <= (s32) imm) */
 		mask = 0xc000; /* jle */
 		goto branch_ks;
 	case BPF_JMP | BPF_JGT | BPF_K: /* (dst_reg > imm) */
+	case BPF_JMP32 | BPF_JGT | BPF_K: /* ((u32) dst_reg > (u32) imm) */
 		mask = 0x2000; /* jh */
 		goto branch_ku;
 	case BPF_JMP | BPF_JLT | BPF_K: /* (dst_reg < imm) */
+	case BPF_JMP32 | BPF_JLT | BPF_K: /* ((u32) dst_reg < (u32) imm) */
 		mask = 0x4000; /* jl */
 		goto branch_ku;
 	case BPF_JMP | BPF_JGE | BPF_K: /* (dst_reg >= imm) */
+	case BPF_JMP32 | BPF_JGE | BPF_K: /* ((u32) dst_reg >= (u32) imm) */
 		mask = 0xa000; /* jhe */
 		goto branch_ku;
 	case BPF_JMP | BPF_JLE | BPF_K: /* (dst_reg <= imm) */
+	case BPF_JMP32 | BPF_JLE | BPF_K: /* ((u32) dst_reg <= (u32) imm) */
 		mask = 0xc000; /* jle */
 		goto branch_ku;
 	case BPF_JMP | BPF_JNE | BPF_K: /* (dst_reg != imm) */
+	case BPF_JMP32 | BPF_JNE | BPF_K: /* ((u32) dst_reg != (u32) imm) */
 		mask = 0x7000; /* jne */
 		goto branch_ku;
 	case BPF_JMP | BPF_JEQ | BPF_K: /* (dst_reg == imm) */
+	case BPF_JMP32 | BPF_JEQ | BPF_K: /* ((u32) dst_reg == (u32) imm) */
 		mask = 0x8000; /* je */
 		goto branch_ku;
 	case BPF_JMP | BPF_JSET | BPF_K: /* (dst_reg & imm) */
+	case BPF_JMP32 | BPF_JSET | BPF_K: /* ((u32) dst_reg & (u32) imm) */
 		mask = 0x7000; /* jnz */
-		/* lgfi %w1,imm (load sign extend imm) */
-		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* ngr %w1,%dst */
-		EMIT4(0xb9800000, REG_W1, dst_reg);
+		if (BPF_CLASS(insn->code) == BPF_JMP32) {
+			/* llilf %w1,imm (load zero extend imm) */
+			EMIT6_IMM(0xc00f0000, REG_W1, imm);
+			/* nr %w1,%dst */
+			EMIT2(0x1400, REG_W1, dst_reg);
+		} else {
+			/* lgfi %w1,imm (load sign extend imm) */
+			EMIT6_IMM(0xc0010000, REG_W1, imm);
+			/* ngr %w1,%dst */
+			EMIT4(0xb9800000, REG_W1, dst_reg);
+		}
 		goto branch_oc;
 
 	case BPF_JMP | BPF_JSGT | BPF_X: /* ((s64) dst > (s64) src) */
+	case BPF_JMP32 | BPF_JSGT | BPF_X: /* ((s32) dst > (s32) src) */
 		mask = 0x2000; /* jh */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSLT | BPF_X: /* ((s64) dst < (s64) src) */
+	case BPF_JMP32 | BPF_JSLT | BPF_X: /* ((s32) dst < (s32) src) */
 		mask = 0x4000; /* jl */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSGE | BPF_X: /* ((s64) dst >= (s64) src) */
+	case BPF_JMP32 | BPF_JSGE | BPF_X: /* ((s32) dst >= (s32) src) */
 		mask = 0xa000; /* jhe */
 		goto branch_xs;
 	case BPF_JMP | BPF_JSLE | BPF_X: /* ((s64) dst <= (s64) src) */
+	case BPF_JMP32 | BPF_JSLE | BPF_X: /* ((s32) dst <= (s32) src) */
 		mask = 0xc000; /* jle */
 		goto branch_xs;
 	case BPF_JMP | BPF_JGT | BPF_X: /* (dst > src) */
+	case BPF_JMP32 | BPF_JGT | BPF_X: /* ((u32) dst > (u32) src) */
 		mask = 0x2000; /* jh */
 		goto branch_xu;
 	case BPF_JMP | BPF_JLT | BPF_X: /* (dst < src) */
+	case BPF_JMP32 | BPF_JLT | BPF_X: /* ((u32) dst < (u32) src) */
 		mask = 0x4000; /* jl */
 		goto branch_xu;
 	case BPF_JMP | BPF_JGE | BPF_X: /* (dst >= src) */
+	case BPF_JMP32 | BPF_JGE | BPF_X: /* ((u32) dst >= (u32) src) */
 		mask = 0xa000; /* jhe */
 		goto branch_xu;
 	case BPF_JMP | BPF_JLE | BPF_X: /* (dst <= src) */
+	case BPF_JMP32 | BPF_JLE | BPF_X: /* ((u32) dst <= (u32) src) */
 		mask = 0xc000; /* jle */
 		goto branch_xu;
 	case BPF_JMP | BPF_JNE | BPF_X: /* (dst != src) */
+	case BPF_JMP32 | BPF_JNE | BPF_X: /* ((u32) dst != (u32) src) */
 		mask = 0x7000; /* jne */
 		goto branch_xu;
 	case BPF_JMP | BPF_JEQ | BPF_X: /* (dst == src) */
+	case BPF_JMP32 | BPF_JEQ | BPF_X: /* ((u32) dst == (u32) src) */
 		mask = 0x8000; /* je */
 		goto branch_xu;
 	case BPF_JMP | BPF_JSET | BPF_X: /* (dst & src) */
+	case BPF_JMP32 | BPF_JSET | BPF_X: /* ((u32) dst & (u32) src) */
+	{
+		bool is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+
 		mask = 0x7000; /* jnz */
-		/* ngrk %w1,%dst,%src */
-		EMIT4_RRF(0xb9e40000, REG_W1, dst_reg, src_reg);
+		/* nrk or ngrk %w1,%dst,%src */
+		EMIT4_RRF((is_jmp32 ? 0xb9f40000 : 0xb9e40000),
+			  REG_W1, dst_reg, src_reg);
 		goto branch_oc;
 branch_ks:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* lgfi %w1,imm (load sign extend imm) */
 		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* cgrj %dst,%w1,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0064, dst_reg, REG_W1, i, off, mask);
+		/* crj or cgrj %dst,%w1,mask,off */
+		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0076 : 0x0064),
+			    dst_reg, REG_W1, i, off, mask);
 		break;
 branch_ku:
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
 		/* lgfi %w1,imm (load sign extend imm) */
 		EMIT6_IMM(0xc0010000, REG_W1, imm);
-		/* clgrj %dst,%w1,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0065, dst_reg, REG_W1, i, off, mask);
+		/* clrj or clgrj %dst,%w1,mask,off */
+		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0077 : 0x0065),
+			    dst_reg, REG_W1, i, off, mask);
 		break;
 branch_xs:
-		/* cgrj %dst,%src,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0064, dst_reg, src_reg, i, off, mask);
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+		/* crj or cgrj %dst,%src,mask,off */
+		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0076 : 0x0064),
+			    dst_reg, src_reg, i, off, mask);
 		break;
 branch_xu:
-		/* clgrj %dst,%src,mask,off */
-		EMIT6_PCREL(0xec000000, 0x0065, dst_reg, src_reg, i, off, mask);
+		is_jmp32 = BPF_CLASS(insn->code) == BPF_JMP32;
+		/* clrj or clgrj %dst,%src,mask,off */
+		EMIT6_PCREL(0xec000000, (is_jmp32 ? 0x0077 : 0x0065),
+			    dst_reg, src_reg, i, off, mask);
 		break;
 branch_oc:
 		/* brc mask,jmp_off (branch instruction needs 4 bytes) */
 		jmp_off = addrs[i + off + 1] - (addrs[i + 1] - 4);
 		EMIT4_PCREL(0xa7040000 | mask << 8, jmp_off);
 		break;
+	}
 	default: /* too complex, give up */
 		pr_err("Unknown opcode %02x\n", insn->code);
 		return -1;

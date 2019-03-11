@@ -381,13 +381,6 @@ void __init mem_encrypt_init(void)
 	swiotlb_update_mem_attributes();
 
 	/*
-	 * With SEV, DMA operations cannot use encryption, we need to use
-	 * SWIOTLB to bounce buffer DMA operation.
-	 */
-	if (sev_active())
-		dma_ops = &swiotlb_dma_ops;
-
-	/*
 	 * With SEV, we need to unroll the rep string I/O instructions.
 	 */
 	if (sev_active())

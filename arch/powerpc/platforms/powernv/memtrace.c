@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
+#include <linux/numa.h>
 #include <asm/machdep.h>
 #include <asm/debugfs.h>
 
@@ -70,6 +71,7 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
 	return 0;
 }
 
+/* called with device_hotplug_lock held */
 static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 {
 	u64 end_pfn = start_pfn + nr_pages - 1;
@@ -110,6 +112,7 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	/* Trace memory needs to be aligned to the size */
 	end_pfn = round_down(end_pfn - nr_pages, nr_pages);
 
+	lock_device_hotplug();
 	for (base_pfn = end_pfn; base_pfn > start_pfn; base_pfn -= nr_pages) {
 		if (memtrace_offline_pages(nid, base_pfn, nr_pages) == true) {
 			/*
@@ -118,15 +121,15 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 			 * we never try to remove memory that spans two iomem
 			 * resources.
 			 */
-			lock_device_hotplug();
 			end_pfn = base_pfn + nr_pages;
 			for (pfn = base_pfn; pfn < end_pfn; pfn += bytes>> PAGE_SHIFT) {
-				remove_memory(nid, pfn << PAGE_SHIFT, bytes);
+				__remove_memory(nid, pfn << PAGE_SHIFT, bytes);
 			}
 			unlock_device_hotplug();
 			return base_pfn << PAGE_SHIFT;
 		}
 	}
+	unlock_device_hotplug();
 
 	return 0;
 }
@@ -221,7 +224,7 @@ static int memtrace_online(void)
 		ent = &memtrace_array[i];
 
 		/* We have onlined this chunk previously */
-		if (ent->nid == -1)
+		if (ent->nid == NUMA_NO_NODE)
 			continue;
 
 		/* Remove from io mappings */
@@ -242,9 +245,11 @@ static int memtrace_online(void)
 		 * we need to online the memory ourselves.
 		 */
 		if (!memhp_auto_online) {
+			lock_device_hotplug();
 			walk_memory_range(PFN_DOWN(ent->start),
 					  PFN_UP(ent->start + ent->size - 1),
 					  NULL, online_mem_block);
+			unlock_device_hotplug();
 		}
 
 		/*
@@ -253,7 +258,7 @@ static int memtrace_online(void)
 		 */
 		debugfs_remove_recursive(ent->dir);
 		pr_info("Added trace memory back to node %d\n", ent->nid);
-		ent->size = ent->start = ent->nid = -1;
+		ent->size = ent->start = ent->nid = NUMA_NO_NODE;
 	}
 	if (ret)
 		return ret;

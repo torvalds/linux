@@ -266,7 +266,7 @@ bool core_scsi3_ua_for_check_condition(struct se_cmd *cmd, u8 *key, u8 *asc,
 	pr_debug("[%s]: %s UNIT ATTENTION condition with"
 		" INTLCK_CTRL: %d, mapped LUN: %llu, got CDB: 0x%02x"
 		" reported ASC: 0x%02x, ASCQ: 0x%02x\n",
-		nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+		nacl->se_tpg->se_tpg_tfo->fabric_name,
 		(dev->dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
 		"Releasing", dev->dev_attrib.emulate_ua_intlck_ctrl,
 		cmd->orig_fe_lun, cmd->t_task_cdb[0], *asc, *ascq);
@@ -327,7 +327,7 @@ int core_scsi3_ua_clear_for_request_sense(
 
 	pr_debug("[%s]: Released UNIT ATTENTION condition, mapped"
 		" LUN: %llu, got REQUEST_SENSE reported ASC: 0x%02x,"
-		" ASCQ: 0x%02x\n", nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+		" ASCQ: 0x%02x\n", nacl->se_tpg->se_tpg_tfo->fabric_name,
 		cmd->orig_fe_lun, *asc, *ascq);
 
 	return (head) ? -EPERM : 0;

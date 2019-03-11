@@ -244,8 +244,7 @@ static void garbage_collect_irq_entries(void)
 			to_free = NULL;
 		}
 		walk = walk->next;
-		if (to_free != NULL)
-			kfree(to_free);
+		kfree(to_free);
 	}
 }
 
@@ -351,11 +350,6 @@ static void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 }
 
 
-void reactivate_fd(int fd, int irqnum)
-{
-	/** NOP - we do auto-EOI now **/
-}
-
 void deactivate_fd(int fd, int irqnum)
 {
 	struct irq_entry *to_free;
@@ -450,7 +444,6 @@ int um_request_irq(unsigned int irq, int fd, int type,
 }
 
 EXPORT_SYMBOL(um_request_irq);
-EXPORT_SYMBOL(reactivate_fd);
 
 /*
  * irq_chip must define at least enable/disable and ack when

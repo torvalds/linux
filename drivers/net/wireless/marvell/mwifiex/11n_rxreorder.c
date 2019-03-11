@@ -103,8 +103,6 @@ static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
  * There could be holes in the buffer, which are skipped by the function.
  * Since the buffer is linear, the function uses rotation to simulate
  * circular buffer.
- *
- * The caller must hold rx_reorder_tbl_lock spinlock.
  */
 static void
 mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
@@ -113,21 +111,25 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 {
 	int pkt_to_send, i;
 	void *rx_tmp_ptr;
+	unsigned long flags;
 
 	pkt_to_send = (start_win > tbl->start_win) ?
 		      min((start_win - tbl->start_win), tbl->win_size) :
 		      tbl->win_size;
 
 	for (i = 0; i < pkt_to_send; ++i) {
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		rx_tmp_ptr = NULL;
 		if (tbl->rx_reorder_ptr[i]) {
 			rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		if (rx_tmp_ptr)
 			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -138,6 +140,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 	}
 
 	tbl->start_win = start_win;
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
@@ -147,8 +150,6 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
  * The start window is adjusted automatically when a hole is located.
  * Since the buffer is linear, the function uses rotation to simulate
  * circular buffer.
- *
- * The caller must hold rx_reorder_tbl_lock spinlock.
  */
 static void
 mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
@@ -156,15 +157,22 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 {
 	int i, j, xchg;
 	void *rx_tmp_ptr;
+	unsigned long flags;
 
 	for (i = 0; i < tbl->win_size; ++i) {
-		if (!tbl->rx_reorder_ptr[i])
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+		if (!tbl->rx_reorder_ptr[i]) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			break;
+		}
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -177,6 +185,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		}
 	}
 	tbl->start_win = (tbl->start_win + i) & (MAX_TID_VALUE - 1);
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
@@ -184,8 +193,6 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
  *
  * The function stops the associated timer and dispatches all the
  * pending packets in the Rx reorder table before deletion.
- *
- * The caller must hold rx_reorder_tbl_lock spinlock.
  */
 static void
 mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
@@ -211,7 +218,11 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 
 	del_timer_sync(&tbl->timer_context.timer);
 	tbl->timer_context.timer_is_set = false;
+
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	list_del(&tbl->list);
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
+
 	kfree(tbl->rx_reorder_ptr);
 	kfree(tbl);
 
@@ -224,17 +235,22 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
 /*
  * This function returns the pointer to an entry in Rx reordering
  * table which matches the given TA/TID pair.
- *
- * The caller must hold rx_reorder_tbl_lock spinlock.
  */
 struct mwifiex_rx_reorder_tbl *
 mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 {
 	struct mwifiex_rx_reorder_tbl *tbl;
+	unsigned long flags;
 
-	list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list)
-		if (!memcmp(tbl->ta, ta, ETH_ALEN) && tbl->tid == tid)
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	list_for_each_entry(tbl, &priv->rx_reorder_tbl_ptr, list) {
+		if (!memcmp(tbl->ta, ta, ETH_ALEN) && tbl->tid == tid) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			return tbl;
+		}
+	}
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return NULL;
 }
@@ -251,9 +267,14 @@ void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta)
 		return;
 
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
-	list_for_each_entry_safe(tbl, tmp, &priv->rx_reorder_tbl_ptr, list)
-		if (!memcmp(tbl->ta, ta, ETH_ALEN))
+	list_for_each_entry_safe(tbl, tmp, &priv->rx_reorder_tbl_ptr, list) {
+		if (!memcmp(tbl->ta, ta, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			mwifiex_del_rx_reorder_entry(priv, tbl);
+			spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+		}
+	}
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return;
@@ -262,18 +283,24 @@ void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta)
 /*
  * This function finds the last sequence number used in the packets
  * buffered in Rx reordering table.
- *
- * The caller must hold rx_reorder_tbl_lock spinlock.
  */
 static int
 mwifiex_11n_find_last_seq_num(struct reorder_tmr_cnxt *ctx)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reorder_tbl_ptr = ctx->ptr;
+	struct mwifiex_private *priv = ctx->priv;
+	unsigned long flags;
 	int i;
 
-	for (i = rx_reorder_tbl_ptr->win_size - 1; i >= 0; --i)
-		if (rx_reorder_tbl_ptr->rx_reorder_ptr[i])
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	for (i = rx_reorder_tbl_ptr->win_size - 1; i >= 0; --i) {
+		if (rx_reorder_tbl_ptr->rx_reorder_ptr[i]) {
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			return i;
+		}
+	}
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	return -1;
 }
@@ -291,22 +318,17 @@ mwifiex_flush_data(struct timer_list *t)
 	struct reorder_tmr_cnxt *ctx =
 		from_timer(ctx, t, timer);
 	int start_win, seq_num;
-	unsigned long flags;
 
 	ctx->timer_is_set = false;
-	spin_lock_irqsave(&ctx->priv->rx_reorder_tbl_lock, flags);
 	seq_num = mwifiex_11n_find_last_seq_num(ctx);
 
-	if (seq_num < 0) {
-		spin_unlock_irqrestore(&ctx->priv->rx_reorder_tbl_lock, flags);
+	if (seq_num < 0)
 		return;
-	}
 
 	mwifiex_dbg(ctx->priv->adapter, INFO, "info: flush data %d\n", seq_num);
 	start_win = (ctx->ptr->start_win + seq_num + 1) & (MAX_TID_VALUE - 1);
 	mwifiex_11n_dispatch_pkt_until_start_win(ctx->priv, ctx->ptr,
 						 start_win);
-	spin_unlock_irqrestore(&ctx->priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
@@ -333,14 +355,11 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	 * If we get a TID, ta pair which is already present dispatch all the
 	 * the packets and move the window size until the ssn
 	 */
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (tbl) {
 		mwifiex_11n_dispatch_pkt_until_start_win(priv, tbl, seq_num);
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		return;
 	}
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 	/* if !tbl then create one */
 	new_node = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
 	if (!new_node)
@@ -551,20 +570,16 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	int prev_start_win, start_win, end_win, win_size;
 	u16 pkt_index;
 	bool init_window_shift = false;
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		if (pkt_type != PKT_TYPE_BAR)
 			mwifiex_11n_dispatch_pkt(priv, payload);
 		return ret;
 	}
 
 	if ((pkt_type == PKT_TYPE_AMSDU) && !tbl->amsdu) {
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		mwifiex_11n_dispatch_pkt(priv, payload);
 		return ret;
 	}
@@ -651,8 +666,6 @@ done:
 	if (!tbl->timer_context.timer_is_set ||
 	    prev_start_win != tbl->start_win)
 		mwifiex_11n_rxreorder_timer_restart(tbl);
-
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 	return ret;
 }
 
@@ -681,18 +694,14 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 		    peer_mac, tid, initiator);
 
 	if (cleanup_rx_reorder_tbl) {
-		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
 								 peer_mac);
 		if (!tbl) {
-			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
-					       flags);
 			mwifiex_dbg(priv->adapter, EVENT,
 				    "event: TID, TA not found in table\n");
 			return;
 		}
 		mwifiex_del_rx_reorder_entry(priv, tbl);
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 	} else {
 		ptx_tbl = mwifiex_get_ba_tbl(priv, tid, peer_mac);
 		if (!ptx_tbl) {
@@ -726,7 +735,6 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	int tid, win_size;
 	struct mwifiex_rx_reorder_tbl *tbl;
 	uint16_t block_ack_param_set;
-	unsigned long flags;
 
 	block_ack_param_set = le16_to_cpu(add_ba_rsp->block_ack_param_set);
 
@@ -740,20 +748,17 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 		mwifiex_dbg(priv->adapter, ERROR, "ADDBA RSP: failed %pM tid=%d)\n",
 			    add_ba_rsp->peer_mac_addr, tid);
 
-		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
 						     add_ba_rsp->peer_mac_addr);
 		if (tbl)
 			mwifiex_del_rx_reorder_entry(priv, tbl);
 
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		return 0;
 	}
 
 	win_size = (block_ack_param_set & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
 		    >> BLOCKACKPARAM_WINSIZE_POS;
 
-	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
 					     add_ba_rsp->peer_mac_addr);
 	if (tbl) {
@@ -764,7 +769,6 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 		else
 			tbl->amsdu = false;
 	}
-	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 	mwifiex_dbg(priv->adapter, CMD,
 		    "cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
@@ -804,8 +808,11 @@ void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
-				 &priv->rx_reorder_tbl_ptr, list)
+				 &priv->rx_reorder_tbl_ptr, list) {
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		mwifiex_del_rx_reorder_entry(priv, del_tbl_ptr);
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
+	}
 	INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
@@ -929,7 +936,6 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 	int tlv_buf_left = len;
 	int ret;
 	u8 *tmp;
-	unsigned long flags;
 
 	mwifiex_dbg_dump(priv->adapter, EVT_D, "RXBA_SYNC event:",
 			 event_buf, len);
@@ -949,18 +955,14 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 			    tlv_rxba->mac, tlv_rxba->tid, tlv_seq_num,
 			    tlv_bitmap_len);
 
-		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		rx_reor_tbl_ptr =
 			mwifiex_11n_get_rx_reorder_tbl(priv, tlv_rxba->tid,
 						       tlv_rxba->mac);
 		if (!rx_reor_tbl_ptr) {
-			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
-					       flags);
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "Can not find rx_reorder_tbl!");
 			return;
 		}
-		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 
 		for (i = 0; i < tlv_bitmap_len; i++) {
 			for (j = 0 ; j < 8; j++) {

@@ -224,6 +224,15 @@ config I2C_NFORCE2_S4985
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-nforce2-s4985.
 
+config I2C_NVIDIA_GPU
+	tristate "NVIDIA GPU I2C controller"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  NVIDIA GPU I2C controller which is used to communicate with the GPU's
+	  Type-C controller. This driver can also be built as a module called
+	  i2c-nvidia-gpu.
+
 config I2C_SIS5595
 	tristate "SiS 5595"
 	depends on PCI
@@ -752,7 +761,7 @@ config I2C_OCORES
 
 config I2C_OMAP
 	tristate "OMAP I2C adapter"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || ARCH_K3
 	default y if MACH_OMAP_H3 || MACH_OMAP_OSK
 	help
 	  If you say yes to this option, support will be included for the

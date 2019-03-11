@@ -27,6 +27,9 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
 	int nr;
 	struct page **pages;
 
+	if (gup->size > ULONG_MAX)
+		return -EINVAL;
+
 	nr_pages = gup->size / PAGE_SIZE;
 	pages = kvcalloc(nr_pages, sizeof(void *), GFP_KERNEL);
 	if (!pages)
@@ -119,12 +122,8 @@ static const struct file_operations gup_benchmark_fops = {
 
 static int gup_benchmark_init(void)
 {
-	void *ret;
-
-	ret = debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
-			&gup_benchmark_fops);
-	if (!ret)
-		pr_warn("Failed to create gup_benchmark in debugfs");
+	debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
+				   &gup_benchmark_fops);
 
 	return 0;
 }

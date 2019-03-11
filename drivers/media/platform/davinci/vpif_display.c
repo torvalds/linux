@@ -138,7 +138,7 @@ static int vpif_buffer_queue_setup(struct vb2_queue *vq,
  * vpif_buffer_queue : Callback function to add buffer to DMA queue
  * @vb: ptr to vb2_buffer
  *
- * This callback fucntion queues the buffer to DMA engine
+ * This callback function queues the buffer to DMA engine
  */
 static void vpif_buffer_queue(struct vb2_buffer *vb)
 {
@@ -635,7 +635,7 @@ static int vpif_try_fmt_vid_out(struct file *file, void *priv,
 	struct v4l2_pix_format *pixfmt = &fmt->fmt.pix;
 
 	/*
-	 * to supress v4l-compliance warnings silently correct
+	 * to suppress v4l-compliance warnings silently correct
 	 * the pixelformat
 	 */
 	if (pixfmt->pixelformat != V4L2_PIX_FMT_YUV422P)

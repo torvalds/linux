@@ -62,27 +62,28 @@ static int do_op_one_page(unsigned long addr, int len, int is_write,
 	jmp_buf buf;
 	struct page *page;
 	pte_t *pte;
-	int n, faulted;
+	int n;
 
 	pte = maybe_map(addr, is_write);
 	if (pte == NULL)
 		return -1;
 
 	page = pte_page(*pte);
+#ifdef CONFIG_64BIT
+	pagefault_disable();
+	addr = (unsigned long) page_address(page) +
+		(addr & ~PAGE_MASK);
+#else
 	addr = (unsigned long) kmap_atomic(page) +
 		(addr & ~PAGE_MASK);
+#endif
+	n = (*op)(addr, len, arg);
 
-	current->thread.fault_catcher = &buf;
-
-	faulted = UML_SETJMP(&buf);
-	if (faulted == 0)
-		n = (*op)(addr, len, arg);
-	else
-		n = -1;
-
-	current->thread.fault_catcher = NULL;
-
+#ifdef CONFIG_64BIT
+	pagefault_enable();
+#else
 	kunmap_atomic((void *)addr);
+#endif
 
 	return n;
 }

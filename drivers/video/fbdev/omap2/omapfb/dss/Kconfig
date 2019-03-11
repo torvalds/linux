@@ -10,7 +10,6 @@ config FB_OMAP2_DSS
 
 config FB_OMAP2_DSS_DEBUG
 	bool "Debug support"
-	default n
 	help
 	  This enables printing of debug messages. Alternatively, debug messages
 	  can also be enabled by setting CONFIG_DYNAMIC_DEBUG and then setting
@@ -19,7 +18,6 @@ config FB_OMAP2_DSS_DEBUG
 config FB_OMAP2_DSS_DEBUGFS
 	bool "Debugfs filesystem support"
 	depends on DEBUG_FS
-	default n
 	help
 	  This enables debugfs for OMAPDSS at <debugfs>/omapdss. This enables
 	  querying about clock configuration and register configuration of dss,
@@ -28,7 +26,6 @@ config FB_OMAP2_DSS_DEBUGFS
 config FB_OMAP2_DSS_COLLECT_IRQ_STATS
 	bool "Collect DSS IRQ statistics"
 	depends on FB_OMAP2_DSS_DEBUGFS
-	default n
 	help
 	  Collect DSS IRQ statistics, printable via debugfs.
 
@@ -45,7 +42,6 @@ config FB_OMAP2_DSS_DPI
 config FB_OMAP2_DSS_RFBI
 	bool "RFBI support"
 	depends on BROKEN
-        default n
 	help
 	  MIPI DBI support (RFBI, Remote Framebuffer Interface, in Texas
 	  Instrument's terminology).
@@ -73,7 +69,6 @@ config FB_OMAP4_DSS_HDMI
 
 config FB_OMAP5_DSS_HDMI
 	bool "HDMI support for OMAP5"
-	default n
 	select FB_OMAP2_DSS_HDMI_COMMON
 	help
 	  HDMI Interface for OMAP5 and similar cores. This adds the High
@@ -82,7 +77,6 @@ config FB_OMAP5_DSS_HDMI
 
 config FB_OMAP2_DSS_SDI
 	bool "SDI support"
-        default n
 	help
 	  SDI (Serial Display Interface) support.
 
@@ -91,7 +85,6 @@ config FB_OMAP2_DSS_SDI
 
 config FB_OMAP2_DSS_DSI
 	bool "DSI support"
-        default n
 	help
 	  MIPI DSI (Display Serial Interface) support.
 

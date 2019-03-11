@@ -47,6 +47,7 @@
 	compatible = "toradex,vf610-colibri_vf50", "fsl,vf500";
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x8000000>;
 	};
 

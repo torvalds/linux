@@ -34,6 +34,21 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 
 /**
+ * struct vmw_validation_mem - Custom interface to provide memory reservations
+ * for the validation code.
+ * @reserve_mem: Callback to reserve memory
+ * @unreserve_mem: Callback to unreserve memory
+ * @gran: Reservation granularity. Contains a hint how much memory should
+ * be reserved in each call to @reserve_mem(). A slow implementation may want
+ * reservation to be done in large batches.
+ */
+struct vmw_validation_mem {
+	int (*reserve_mem)(struct vmw_validation_mem *m, size_t size);
+	void (*unreserve_mem)(struct vmw_validation_mem *m, size_t size);
+	size_t gran;
+};
+
+/**
  * struct vmw_validation_context - Per command submission validation context
  * @ht: Hash table used to find resource- or buffer object duplicates
  * @resource_list: List head for resource validation metadata
@@ -47,6 +62,10 @@
  * buffer objects
  * @mem_size_left: Free memory left in the last page in @page_list
  * @page_address: Kernel virtual address of the last page in @page_list
+ * @vm: A pointer to the memory reservation interface or NULL if no
+ * memory reservation is needed.
+ * @vm_size_left: Amount of reserved memory that so far has not been allocated.
+ * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
 	struct drm_open_hash *ht;
@@ -59,6 +78,9 @@ struct vmw_validation_context {
 	unsigned int merge_dups;
 	unsigned int mem_size_left;
 	u8 *page_address;
+	struct vmw_validation_mem *vm;
+	size_t vm_size_left;
+	size_t total_mem;
 };
 
 struct vmw_buffer_object;
@@ -99,6 +121,21 @@ static inline bool
 vmw_validation_has_bos(struct vmw_validation_context *ctx)
 {
 	return !list_empty(&ctx->bo_list);
+}
+
+/**
+ * vmw_validation_set_val_mem - Register a validation mem object for
+ * validation memory reservation
+ * @ctx: The validation context
+ * @vm: Pointer to a struct vmw_validation_mem
+ *
+ * Must be set before the first attempt to allocate validation memory.
+ */
+static inline void
+vmw_validation_set_val_mem(struct vmw_validation_context *ctx,
+			   struct vmw_validation_mem *vm)
+{
+	ctx->vm = vm;
 }
 
 /**

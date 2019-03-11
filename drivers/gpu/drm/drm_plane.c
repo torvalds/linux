@@ -220,6 +220,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 			format_modifier_count++;
 	}
 
+	if (format_modifier_count)
+		config->allow_fb_modifiers = true;
+
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
 					 sizeof(format_modifiers[0]),
@@ -636,6 +639,29 @@ static int __setplane_check(struct drm_plane *plane,
 	return 0;
 }
 
+/**
+ * drm_any_plane_has_format - Check whether any plane supports this format and modifier combination
+ * @dev: DRM device
+ * @format: pixel format (DRM_FORMAT_*)
+ * @modifier: data layout modifier
+ *
+ * Returns:
+ * Whether at least one plane supports the specified format and modifier combination.
+ */
+bool drm_any_plane_has_format(struct drm_device *dev,
+			      u32 format, u64 modifier)
+{
+	struct drm_plane *plane;
+
+	drm_for_each_plane(plane, dev) {
+		if (drm_plane_check_pixel_format(plane, format, modifier) == 0)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_any_plane_has_format);
+
 /*
  * __setplane_internal - setplane handler for internal callers
  *
@@ -744,11 +770,8 @@ static int setplane_internal(struct drm_plane *plane,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
-	if (ret)
-		goto fail;
+	DRM_MODESET_LOCK_ALL_BEGIN(plane->dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	if (drm_drv_uses_atomic_modeset(plane->dev))
 		ret = __setplane_atomic(plane, crtc, fb,
@@ -759,14 +782,7 @@ retry:
 					  crtc_x, crtc_y, crtc_w, crtc_h,
 					  src_x, src_y, src_w, src_h, &ctx);
 
-fail:
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 
 	return ret;
 }

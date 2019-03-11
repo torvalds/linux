@@ -136,6 +136,14 @@ struct vivid_cec_work {
 struct vivid_dev {
 	unsigned			inst;
 	struct v4l2_device		v4l2_dev;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device		mdev;
+	struct media_pad		vid_cap_pad;
+	struct media_pad		vid_out_pad;
+	struct media_pad		vbi_cap_pad;
+	struct media_pad		vbi_out_pad;
+	struct media_pad		sdr_cap_pad;
+#endif
 	struct v4l2_ctrl_handler	ctrl_hdl_user_gen;
 	struct v4l2_ctrl_handler	ctrl_hdl_user_vid;
 	struct v4l2_ctrl_handler	ctrl_hdl_user_aud;
@@ -286,6 +294,7 @@ struct vivid_dev {
 	bool				buf_prepare_error;
 	bool				start_streaming_error;
 	bool				dqbuf_error;
+	bool				req_validate_error;
 	bool				seq_wrap;
 	bool				time_wrap;
 	u64				time_wrap_offset;
@@ -297,6 +306,7 @@ struct vivid_dev {
 
 	enum vivid_signal_mode		dv_timings_signal_mode;
 	char				**query_dv_timings_qmenu;
+	char				*query_dv_timings_qmenu_strings;
 	unsigned			query_dv_timings_size;
 	unsigned			query_dv_timings_last;
 	unsigned			query_dv_timings;
@@ -384,6 +394,9 @@ struct vivid_dev {
 	/* thread for generating video capture stream */
 	struct task_struct		*kthread_vid_cap;
 	unsigned long			jiffies_vid_cap;
+	u64				cap_stream_start;
+	u64				cap_frame_period;
+	u64				cap_frame_eof_offset;
 	u32				cap_seq_offset;
 	u32				cap_seq_count;
 	bool				cap_seq_resync;

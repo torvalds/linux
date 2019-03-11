@@ -337,6 +337,34 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	return match;
 }
 
+int sctp_bind_addrs_check(struct sctp_sock *sp,
+			  struct sctp_sock *sp2, int cnt2)
+{
+	struct sctp_bind_addr *bp2 = &sp2->ep->base.bind_addr;
+	struct sctp_bind_addr *bp = &sp->ep->base.bind_addr;
+	struct sctp_sockaddr_entry *laddr, *laddr2;
+	bool exist = false;
+	int cnt = 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		list_for_each_entry_rcu(laddr2, &bp2->address_list, list) {
+			if (sp->pf->af->cmp_addr(&laddr->a, &laddr2->a) &&
+			    laddr->valid && laddr2->valid) {
+				exist = true;
+				goto next;
+			}
+		}
+		cnt = 0;
+		break;
+next:
+		cnt++;
+	}
+	rcu_read_unlock();
+
+	return (cnt == cnt2) ? 0 : (exist ? -EEXIST : 1);
+}
+
 /* Does the address 'addr' conflict with any addresses in
  * the bp.
  */

@@ -130,75 +130,6 @@ static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
 }
 
 /**
- * avc_dump_av - Display an access vector in human-readable form.
- * @tclass: target security class
- * @av: access vector
- */
-static void avc_dump_av(struct audit_buffer *ab, u16 tclass, u32 av)
-{
-	const char **perms;
-	int i, perm;
-
-	if (av == 0) {
-		audit_log_format(ab, " null");
-		return;
-	}
-
-	BUG_ON(!tclass || tclass >= ARRAY_SIZE(secclass_map));
-	perms = secclass_map[tclass-1].perms;
-
-	audit_log_format(ab, " {");
-	i = 0;
-	perm = 1;
-	while (i < (sizeof(av) * 8)) {
-		if ((perm & av) && perms[i]) {
-			audit_log_format(ab, " %s", perms[i]);
-			av &= ~perm;
-		}
-		i++;
-		perm <<= 1;
-	}
-
-	if (av)
-		audit_log_format(ab, " 0x%x", av);
-
-	audit_log_format(ab, " }");
-}
-
-/**
- * avc_dump_query - Display a SID pair and a class in human-readable form.
- * @ssid: source security identifier
- * @tsid: target security identifier
- * @tclass: target security class
- */
-static void avc_dump_query(struct audit_buffer *ab, struct selinux_state *state,
-			   u32 ssid, u32 tsid, u16 tclass)
-{
-	int rc;
-	char *scontext;
-	u32 scontext_len;
-
-	rc = security_sid_to_context(state, ssid, &scontext, &scontext_len);
-	if (rc)
-		audit_log_format(ab, "ssid=%d", ssid);
-	else {
-		audit_log_format(ab, "scontext=%s", scontext);
-		kfree(scontext);
-	}
-
-	rc = security_sid_to_context(state, tsid, &scontext, &scontext_len);
-	if (rc)
-		audit_log_format(ab, " tsid=%d", tsid);
-	else {
-		audit_log_format(ab, " tcontext=%s", scontext);
-		kfree(scontext);
-	}
-
-	BUG_ON(!tclass || tclass >= ARRAY_SIZE(secclass_map));
-	audit_log_format(ab, " tclass=%s", secclass_map[tclass-1].name);
-}
-
-/**
  * avc_init - Initialize the AVC.
  *
  * Initialize the access vector cache.
@@ -735,11 +666,36 @@ out:
 static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
-	audit_log_format(ab, "avc:  %s ",
-			 ad->selinux_audit_data->denied ? "denied" : "granted");
-	avc_dump_av(ab, ad->selinux_audit_data->tclass,
-			ad->selinux_audit_data->audited);
-	audit_log_format(ab, " for ");
+	struct selinux_audit_data *sad = ad->selinux_audit_data;
+	u32 av = sad->audited;
+	const char **perms;
+	int i, perm;
+
+	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
+
+	if (av == 0) {
+		audit_log_format(ab, " null");
+		return;
+	}
+
+	perms = secclass_map[sad->tclass-1].perms;
+
+	audit_log_format(ab, " {");
+	i = 0;
+	perm = 1;
+	while (i < (sizeof(av) * 8)) {
+		if ((perm & av) && perms[i]) {
+			audit_log_format(ab, " %s", perms[i]);
+			av &= ~perm;
+		}
+		i++;
+		perm <<= 1;
+	}
+
+	if (av)
+		audit_log_format(ab, " 0x%x", av);
+
+	audit_log_format(ab, " } for ");
 }
 
 /**
@@ -751,14 +707,47 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
-	audit_log_format(ab, " ");
-	avc_dump_query(ab, ad->selinux_audit_data->state,
-		       ad->selinux_audit_data->ssid,
-		       ad->selinux_audit_data->tsid,
-		       ad->selinux_audit_data->tclass);
-	if (ad->selinux_audit_data->denied) {
-		audit_log_format(ab, " permissive=%u",
-				 ad->selinux_audit_data->result ? 0 : 1);
+	struct selinux_audit_data *sad = ad->selinux_audit_data;
+	char *scontext;
+	u32 scontext_len;
+	int rc;
+
+	rc = security_sid_to_context(sad->state, sad->ssid, &scontext,
+				     &scontext_len);
+	if (rc)
+		audit_log_format(ab, " ssid=%d", sad->ssid);
+	else {
+		audit_log_format(ab, " scontext=%s", scontext);
+		kfree(scontext);
+	}
+
+	rc = security_sid_to_context(sad->state, sad->tsid, &scontext,
+				     &scontext_len);
+	if (rc)
+		audit_log_format(ab, " tsid=%d", sad->tsid);
+	else {
+		audit_log_format(ab, " tcontext=%s", scontext);
+		kfree(scontext);
+	}
+
+	audit_log_format(ab, " tclass=%s", secclass_map[sad->tclass-1].name);
+
+	if (sad->denied)
+		audit_log_format(ab, " permissive=%u", sad->result ? 0 : 1);
+
+	/* in case of invalid context report also the actual context string */
+	rc = security_sid_to_context_inval(sad->state, sad->ssid, &scontext,
+					   &scontext_len);
+	if (!rc && scontext) {
+		audit_log_format(ab, " srawcon=%s", scontext);
+		kfree(scontext);
+	}
+
+	rc = security_sid_to_context_inval(sad->state, sad->tsid, &scontext,
+					   &scontext_len);
+	if (!rc && scontext) {
+		audit_log_format(ab, " trawcon=%s", scontext);
+		kfree(scontext);
 	}
 }
 
@@ -771,6 +760,9 @@ noinline int slow_avc_audit(struct selinux_state *state,
 {
 	struct common_audit_data stack_data;
 	struct selinux_audit_data sad;
+
+	if (WARN_ON(!tclass || tclass >= ARRAY_SIZE(secclass_map)))
+		return -EINVAL;
 
 	if (!a) {
 		a = &stack_data;
@@ -838,6 +830,7 @@ out:
  * @ssid,@tsid,@tclass : identifier of an AVC entry
  * @seqno : sequence number when decision was made
  * @xpd: extended_perms_decision to be added to the node
+ * @flags: the AVC_* flags, e.g. AVC_NONBLOCKING, AVC_EXTENDED_PERMS, or 0.
  *
  * if a valid AVC entry doesn't exist,this function returns -ENOENT.
  * if kmalloc() called internal returns NULL, this function returns -ENOMEM.
@@ -855,6 +848,22 @@ static int avc_update_node(struct selinux_avc *avc,
 	struct avc_node *pos, *node, *orig = NULL;
 	struct hlist_head *head;
 	spinlock_t *lock;
+
+	/*
+	 * If we are in a non-blocking code path, e.g. VFS RCU walk,
+	 * then we must not add permissions to a cache entry
+	 * because we cannot safely audit the denial.  Otherwise,
+	 * during the subsequent blocking retry (e.g. VFS ref walk), we
+	 * will find the permissions already granted in the cache entry
+	 * and won't audit anything at all, leading to silent denials in
+	 * permissive mode that only appear when in enforcing mode.
+	 *
+	 * See the corresponding handling in slow_avc_audit(), and the
+	 * logic in selinux_inode_permission for the MAY_NOT_BLOCK flag,
+	 * which is transliterated into AVC_NONBLOCKING.
+	 */
+	if (flags & AVC_NONBLOCKING)
+		return 0;
 
 	node = avc_alloc_node(avc);
 	if (!node) {
@@ -1050,7 +1059,8 @@ int avc_has_extended_perms(struct selinux_state *state,
 	int rc = 0, rc2;
 
 	xp_node = &local_xp_node;
-	BUG_ON(!requested);
+	if (WARN_ON(!requested))
+		return -EACCES;
 
 	rcu_read_lock();
 
@@ -1115,7 +1125,7 @@ decision:
  * @tsid: target security identifier
  * @tclass: target security class
  * @requested: requested permissions, interpreted based on @tclass
- * @flags:  AVC_STRICT or 0
+ * @flags:  AVC_STRICT, AVC_NONBLOCKING, or 0
  * @avd: access vector decisions
  *
  * Check the AVC to determine whether the @requested permissions are granted
@@ -1140,7 +1150,8 @@ inline int avc_has_perm_noaudit(struct selinux_state *state,
 	int rc = 0;
 	u32 denied;
 
-	BUG_ON(!requested);
+	if (WARN_ON(!requested))
+		return -EACCES;
 
 	rcu_read_lock();
 
@@ -1186,24 +1197,6 @@ int avc_has_perm(struct selinux_state *state, u32 ssid, u32 tsid, u16 tclass,
 
 	rc2 = avc_audit(state, ssid, tsid, tclass, requested, &avd, rc,
 			auditdata, 0);
-	if (rc2)
-		return rc2;
-	return rc;
-}
-
-int avc_has_perm_flags(struct selinux_state *state,
-		       u32 ssid, u32 tsid, u16 tclass, u32 requested,
-		       struct common_audit_data *auditdata,
-		       int flags)
-{
-	struct av_decision avd;
-	int rc, rc2;
-
-	rc = avc_has_perm_noaudit(state, ssid, tsid, tclass, requested, 0,
-				  &avd);
-
-	rc2 = avc_audit(state, ssid, tsid, tclass, requested, &avd, rc,
-			auditdata, flags);
 	if (rc2)
 		return rc2;
 	return rc;

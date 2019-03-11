@@ -248,7 +248,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	}
 	mb();
 	amdgpu_asic_flush_hdp(adev, NULL);
-	amdgpu_gmc_flush_gpu_tlb(adev, 0);
+	amdgpu_gmc_flush_gpu_tlb(adev, 0, 0);
 	return 0;
 }
 
@@ -259,6 +259,8 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
  * @offset: offset into the GPU's gart aperture
  * @pages: number of pages to bind
  * @dma_addr: DMA addresses of pages
+ * @flags: page table entry flags
+ * @dst: CPU address of the gart table
  *
  * Map the dma_addresses into GART entries (all asics).
  * Returns 0 for success, -EINVAL for failure.
@@ -331,7 +333,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 
 	mb();
 	amdgpu_asic_flush_hdp(adev, NULL);
-	amdgpu_gmc_flush_gpu_tlb(adev, 0);
+	amdgpu_gmc_flush_gpu_tlb(adev, 0, 0);
 	return 0;
 }
 

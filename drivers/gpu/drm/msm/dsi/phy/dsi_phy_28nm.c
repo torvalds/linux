@@ -76,7 +76,7 @@ static int dsi_28nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	DBG("");
 
 	if (msm_dsi_dphy_timing_calc(timing, clk_req)) {
-		dev_err(&phy->pdev->dev,
+		DRM_DEV_ERROR(&phy->pdev->dev,
 			"%s: D-PHY timing calculation failed\n", __func__);
 		return -EINVAL;
 	}

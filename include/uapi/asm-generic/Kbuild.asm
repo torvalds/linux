@@ -3,6 +3,7 @@
 #
 mandatory-y += auxvec.h
 mandatory-y += bitsperlong.h
+mandatory-y += bpf_perf_event.h
 mandatory-y += byteorder.h
 mandatory-y += errno.h
 mandatory-y += fcntl.h

@@ -31,10 +31,10 @@ struct driver_data {
 
 	/* SPI framework hookup */
 	enum pxa_ssp_type ssp_type;
-	struct spi_controller *master;
+	struct spi_controller *controller;
 
 	/* PXA hookup */
-	struct pxa2xx_spi_master *master_info;
+	struct pxa2xx_spi_controller *controller_info;
 
 	/* SSP register addresses */
 	void __iomem *ioaddr;
@@ -64,6 +64,9 @@ struct driver_data {
 
 	/* GPIOs for chip selects */
 	struct gpio_desc **cs_gpiods;
+
+	/* Optional slave FIFO ready signal */
+	struct gpio_desc *gpiod_ready;
 };
 
 struct chip_data {

@@ -15,7 +15,7 @@
 int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 		     struct socket **sockp)
 {
-	struct sockaddr_in6 udp6_addr;
+	struct sockaddr_in6 udp6_addr = {};
 	int err;
 	struct socket *sock = NULL;
 
@@ -31,6 +31,13 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 		if (err < 0)
 			goto error;
 	}
+	if (cfg->bind_ifindex) {
+		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
+					(void *)&cfg->bind_ifindex,
+					sizeof(cfg->bind_ifindex));
+		if (err < 0)
+			goto error;
+	}
 
 	udp6_addr.sin6_family = AF_INET6;
 	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
@@ -42,6 +49,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 		goto error;
 
 	if (cfg->peer_udp_port) {
+		memset(&udp6_addr, 0, sizeof(udp6_addr));
 		udp6_addr.sin6_family = AF_INET6;
 		memcpy(&udp6_addr.sin6_addr, &cfg->peer_ip6,
 		       sizeof(udp6_addr.sin6_addr));

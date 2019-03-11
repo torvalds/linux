@@ -319,16 +319,23 @@ int release_resource(struct resource *old)
 EXPORT_SYMBOL(release_resource);
 
 /**
- * Finds the lowest iomem resource that covers part of [start..end].  The
- * caller must specify start, end, flags, and desc (which may be
+ * Finds the lowest iomem resource that covers part of [@start..@end].  The
+ * caller must specify @start, @end, @flags, and @desc (which may be
  * IORES_DESC_NONE).
  *
- * If a resource is found, returns 0 and *res is overwritten with the part
- * of the resource that's within [start..end]; if none is found, returns
- * -1.
+ * If a resource is found, returns 0 and @*res is overwritten with the part
+ * of the resource that's within [@start..@end]; if none is found, returns
+ * -1 or -EINVAL for other invalid parameters.
  *
  * This function walks the whole tree and not just first level children
  * unless @first_lvl is true.
+ *
+ * @start:	start address of the resource searched for
+ * @end:	end address of same resource
+ * @flags:	flags which the resource must have
+ * @desc:	descriptor the resource must have
+ * @first_lvl:	walk only the first level children, if set
+ * @res:	return ptr, if resource found
  */
 static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 			       unsigned long flags, unsigned long desc,
@@ -399,6 +406,8 @@ static int __walk_iomem_res_desc(resource_size_t start, resource_size_t end,
  * @flags: I/O resource flags
  * @start: start addr
  * @end: end addr
+ * @arg: function argument for the callback @func
+ * @func: callback function that is called for each qualifying resource area
  *
  * NOTE: For a new descriptor search, define a new IORES_DESC in
  * <linux/ioport.h> and set it in 'desc' of a target resource entry.
@@ -439,8 +448,6 @@ int walk_mem_res(u64 start, u64 end, void *arg,
 				     arg, func);
 }
 
-#if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
-
 /*
  * This function calls the @func callback against all memory ranges of type
  * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
@@ -471,8 +478,6 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	}
 	return ret;
 }
-
-#endif
 
 static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
 {
@@ -1245,6 +1250,21 @@ int release_mem_region_adjustable(struct resource *parent,
 		if (res->start > start || res->end < end) {
 			p = &res->sibling;
 			continue;
+		}
+
+		/*
+		 * All memory regions added from memory-hotplug path have the
+		 * flag IORESOURCE_SYSTEM_RAM. If the resource does not have
+		 * this flag, we know that we are dealing with a resource coming
+		 * from HMM/devm. HMM/devm use another mechanism to add/release
+		 * a resource. This goes via devm_request_mem_region and
+		 * devm_release_mem_region.
+		 * HMM/devm take care to release their resources when they want,
+		 * so if we are dealing with them, let us just back off here.
+		 */
+		if (!(res->flags & IORESOURCE_SYSRAM)) {
+			ret = 0;
+			break;
 		}
 
 		if (!(res->flags & IORESOURCE_MEM))

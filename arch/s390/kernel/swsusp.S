@@ -30,10 +30,10 @@
 	.section .text
 ENTRY(swsusp_arch_suspend)
 	lg	%r1,__LC_NODAT_STACK
-	aghi	%r1,-STACK_FRAME_OVERHEAD
 	stmg	%r6,%r15,__SF_GPRS(%r1)
+	aghi	%r1,-STACK_FRAME_OVERHEAD
 	stg	%r15,__SF_BACKCHAIN(%r1)
-	lgr	%r1,%r15
+	lgr	%r15,%r1
 
 	/* Store FPU registers */
 	brasl	%r14,save_fpu_regs
@@ -124,12 +124,12 @@ ENTRY(swsusp_arch_resume)
 	lghi	%r2,1
 	brasl	%r14,arch_set_page_states
 
-	/* Deactivate DAT */
-	stnsm	__SF_EMPTY(%r15),0xfb
-
 	/* Set prefix page to zero */
 	xc	__SF_EMPTY(4,%r15),__SF_EMPTY(%r15)
 	spx	__SF_EMPTY(%r15)
+
+	/* Deactivate DAT */
+	stnsm	__SF_EMPTY(%r15),0xfb
 
 	/* Restore saved image */
 	larl	%r1,restore_pblist

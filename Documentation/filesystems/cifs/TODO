@@ -1,4 +1,4 @@
-Version 2.11 September 13, 2017
+Version 2.14 December 21, 2018
 
 A Partial List of Missing Features
 ==================================
@@ -7,7 +7,7 @@ Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
-a) SMB3 (and SMB3.02) missing optional features:
+a) SMB3 (and SMB3.1.1) missing optional features:
    - multichannel (started), integration with RDMA
    - directory leases (improved metadata caching), started (root dir only)
    - T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
@@ -21,8 +21,9 @@ using Directory Leases, currently only the root file handle is cached longer
 d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-e) Compounding (in progress) to reduce number of roundtrips, and also
-better optimize open to reduce redundant opens (using reference counts more).
+e) Additional use cases where we use "compoounding" (e.g. open/query/close
+and open/setinfo/close) to reduce the number of roundtrips, and also
+open to reduce redundant opens (using deferred close and reference counts more).
 
 f) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
@@ -43,11 +44,13 @@ exists. Also better integration with winbind for resolving SID owners
 
 k) Add tools to take advantage of more smb3 specific ioctls and features
 (passthrough ioctl/fsctl for sending various SMB3 fsctls to the server
-is in progress)
+is in progress, and a passthrough query_info call is already implemented
+in cifs.ko to allow smb3 info levels queries to be sent from userspace)
 
 l) encrypted file support
 
-m) improved stats gathering, tools (perhaps integration with nfsometer?)
+m) improved stats gathering tools (perhaps integration with nfsometer?)
+to extend and make easier to use what is currently in /proc/fs/cifs/Stats
 
 n) allow setting more NTFS/SMB3 file attributes remotely (currently limited to compressed
 file attribute via chflags) and improve user space tools for managing and
@@ -76,6 +79,9 @@ and simplify the code.
 v) POSIX Extensions for SMB3.1.1 (started, create and mkdir support added
 so far).
 
+w) Add support for additional strong encryption types, and additional spnego
+authentication mechanisms (see MS-SMB2)
+
 KNOWN BUGS
 ====================================
 See http://bugzilla.samba.org - search on product "CifsVFS" for
@@ -102,3 +108,11 @@ and when signing is disabled to request larger read sizes (larger than
 negotiated size) and send larger write sizes to modern servers.
 
 4) More exhaustively test against less common servers
+
+5) Continue to extend the smb3 "buildbot" which does automated xfstesting
+against Windows, Samba and Azure currently - to add additional tests and
+to allow the buildbot to execute the tests faster.
+
+6) Address various coverity warnings (most are not bugs per-se, but
+the more warnings are addressed, the easier it is to spot real
+problems that static analyzers will point out in the future).

@@ -17,8 +17,13 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 #include <drm/tinydrm/mipi-dbi.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
@@ -60,7 +65,7 @@ static const u8 st7586_lookup[] = { 0x7, 0x4, 0x2, 0x0 };
 
 static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 				       struct drm_framebuffer *fb,
-				       struct drm_clip_rect *clip)
+				       struct drm_rect *clip)
 {
 	size_t len = (clip->x2 - clip->x1) * (clip->y2 - clip->y1);
 	unsigned int x, y;
@@ -86,7 +91,7 @@ static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 }
 
 static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
-			   struct drm_clip_rect *clip)
+			   struct drm_rect *clip)
 {
 	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	struct dma_buf_attachment *import_attach = cma_obj->base.import_attach;
@@ -109,57 +114,62 @@ static int st7586_buf_copy(void *dst, struct drm_framebuffer *fb,
 	return ret;
 }
 
-static int st7586_fb_dirty(struct drm_framebuffer *fb,
-			   struct drm_file *file_priv, unsigned int flags,
-			   unsigned int color, struct drm_clip_rect *clips,
-			   unsigned int num_clips)
+static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
 	struct tinydrm_device *tdev = fb->dev->dev_private;
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
-	struct drm_clip_rect clip;
 	int start, end;
 	int ret = 0;
 
 	if (!mipi->enabled)
-		return 0;
-
-	tinydrm_merge_clips(&clip, clips, num_clips, flags, fb->width,
-			    fb->height);
+		return;
 
 	/* 3 pixels per byte, so grow clip to nearest multiple of 3 */
-	clip.x1 = rounddown(clip.x1, 3);
-	clip.x2 = roundup(clip.x2, 3);
+	rect->x1 = rounddown(rect->x1, 3);
+	rect->x2 = roundup(rect->x2, 3);
 
-	DRM_DEBUG("Flushing [FB:%d] x1=%u, x2=%u, y1=%u, y2=%u\n", fb->base.id,
-		  clip.x1, clip.x2, clip.y1, clip.y2);
+	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	ret = st7586_buf_copy(mipi->tx_buf, fb, &clip);
+	ret = st7586_buf_copy(mipi->tx_buf, fb, rect);
 	if (ret)
-		return ret;
+		goto err_msg;
 
 	/* Pixels are packed 3 per byte */
-	start = clip.x1 / 3;
-	end = clip.x2 / 3;
+	start = rect->x1 / 3;
+	end = rect->x2 / 3;
 
 	mipi_dbi_command(mipi, MIPI_DCS_SET_COLUMN_ADDRESS,
 			 (start >> 8) & 0xFF, start & 0xFF,
 			 (end >> 8) & 0xFF, (end - 1) & 0xFF);
 	mipi_dbi_command(mipi, MIPI_DCS_SET_PAGE_ADDRESS,
-			 (clip.y1 >> 8) & 0xFF, clip.y1 & 0xFF,
-			 (clip.y2 >> 8) & 0xFF, (clip.y2 - 1) & 0xFF);
+			 (rect->y1 >> 8) & 0xFF, rect->y1 & 0xFF,
+			 (rect->y2 >> 8) & 0xFF, (rect->y2 - 1) & 0xFF);
 
 	ret = mipi_dbi_command_buf(mipi, MIPI_DCS_WRITE_MEMORY_START,
 				   (u8 *)mipi->tx_buf,
-				   (end - start) * (clip.y2 - clip.y1));
-
-	return ret;
+				   (end - start) * (rect->y2 - rect->y1));
+err_msg:
+	if (ret)
+		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
 }
 
-static const struct drm_framebuffer_funcs st7586_fb_funcs = {
-	.destroy	= drm_gem_fb_destroy,
-	.create_handle	= drm_gem_fb_create_handle,
-	.dirty		= tinydrm_fb_dirty,
-};
+static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
+			       struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_rect rect;
+
+	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
+		st7586_fb_dirty(state->fb, &rect);
+
+	if (crtc->state->event) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+		crtc->state->event = NULL;
+	}
+}
 
 static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_crtc_state *crtc_state,
@@ -167,6 +177,13 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_rect rect = {
+		.x1 = 0,
+		.x2 = fb->width,
+		.y1 = 0,
+		.y2 = fb->height,
+	};
 	int ret;
 	u8 addr_mode;
 
@@ -223,9 +240,10 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
+	mipi->enabled = true;
+	st7586_fb_dirty(fb, &rect);
 
-	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
+	mipi_dbi_command(mipi, MIPI_DCS_SET_DISPLAY_ON);
 }
 
 static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
@@ -261,11 +279,9 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 	if (!mipi->tx_buf)
 		return -ENOMEM;
 
-	ret = devm_tinydrm_init(dev, tdev, &st7586_fb_funcs, driver);
+	ret = devm_tinydrm_init(dev, tdev, driver);
 	if (ret)
 		return ret;
-
-	tdev->fb_dirty = st7586_fb_dirty;
 
 	ret = tinydrm_display_pipe_init(tdev, pipe_funcs,
 					DRM_MODE_CONNECTOR_VIRTUAL,
@@ -274,6 +290,8 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 					mode, rotation);
 	if (ret)
 		return ret;
+
+	drm_plane_enable_fb_damage_clips(&tdev->pipe.plane);
 
 	tdev->drm->mode_config.preferred_depth = 32;
 	mipi->rotation = rotation;
@@ -289,7 +307,7 @@ static int st7586_init(struct device *dev, struct mipi_dbi *mipi,
 static const struct drm_simple_display_pipe_funcs st7586_pipe_funcs = {
 	.enable		= st7586_pipe_enable,
 	.disable	= st7586_pipe_disable,
-	.update		= tinydrm_display_pipe_update,
+	.update		= st7586_pipe_update,
 	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
@@ -303,7 +321,7 @@ static struct drm_driver st7586_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
 				  DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
-	TINYDRM_GEM_DRIVER_OPS,
+	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",

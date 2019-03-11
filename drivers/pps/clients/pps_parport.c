@@ -179,7 +179,7 @@ static void parport_attach(struct parport *port)
 
 	device->pps = pps_register_source(&info,
 			PPS_CAPTUREBOTH | PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
-	if (device->pps == NULL) {
+	if (IS_ERR(device->pps)) {
 		pr_err("couldn't register PPS source\n");
 		goto err_release_dev;
 	}

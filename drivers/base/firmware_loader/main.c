@@ -328,12 +328,12 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 		rc = kernel_read_file_from_path(path, &fw_priv->data, &size,
 						msize, id);
 		if (rc) {
-			if (rc == -ENOENT)
-				dev_dbg(device, "loading %s failed with error %d\n",
-					 path, rc);
-			else
+			if (rc != -ENOENT)
 				dev_warn(device, "loading %s failed with error %d\n",
 					 path, rc);
+			else
+				dev_dbg(device, "loading %s failed for no such file or directory.\n",
+					 path);
 			continue;
 		}
 		dev_dbg(device, "direct-loading %s\n", fw_priv->fw_name);

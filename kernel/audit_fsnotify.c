@@ -127,13 +127,11 @@ static void audit_mark_log_rule_change(struct audit_fsnotify_mark *audit_mark, c
 
 	if (!audit_enabled)
 		return;
-	ab = audit_log_start(NULL, GFP_NOFS, AUDIT_CONFIG_CHANGE);
+	ab = audit_log_start(audit_context(), GFP_NOFS, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return;
-	audit_log_format(ab, "auid=%u ses=%u op=%s",
-			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
-			 audit_get_sessionid(current), op);
-	audit_log_format(ab, " path=");
+	audit_log_session_info(ab);
+	audit_log_format(ab, " op=%s path=", op);
 	audit_log_untrustedstring(ab, audit_mark->path);
 	audit_log_key(ab, rule->filterkey);
 	audit_log_format(ab, " list=%d res=1", rule->listnr);

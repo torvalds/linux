@@ -200,7 +200,7 @@ int rds_tcp_accept_one(struct socket *sock)
 
 	conn = rds_conn_create(sock_net(sock->sk),
 			       my_addr, peer_addr,
-			       &rds_tcp_transport, GFP_KERNEL, dev_if);
+			       &rds_tcp_transport, 0, GFP_KERNEL, dev_if);
 
 	if (IS_ERR(conn)) {
 		ret = PTR_ERR(conn);

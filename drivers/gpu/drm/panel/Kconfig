@@ -77,6 +77,17 @@ config DRM_PANEL_JDI_LT070ME05000
 	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
 	  24 bit per pixel.
 
+config DRM_PANEL_KINGDISPLAY_KD097D04
+	tristate "Kingdisplay kd097d04 panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Kingdisplay kd097d04
+	  TFT-LCD modules. The panel has a 1536x2048 resolution and uses
+	  24 bit RGB per pixel. It provides a MIPI DSI interface to
+	  the host and has a built-in LED backlight.
+
 config DRM_PANEL_SAMSUNG_LD9040
 	tristate "Samsung LD9040 RGB/SPI panel"
 	depends on OF && SPI
@@ -89,6 +100,18 @@ config DRM_PANEL_LG_LG4573
 	help
 	  Say Y here if you want to enable support for LG4573 RGB panel.
 	  To compile this driver as a module, choose M here.
+
+config DRM_PANEL_OLIMEX_LCD_OLINUXINO
+	tristate "Olimex LCD-OLinuXino panel"
+	depends on OF
+	depends on I2C
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  The panel is used with different sizes LCDs, from 480x272 to
+	  1280x800, and 24 bit per pixel.
+
+	  Say Y here if you want to enable support for Olimex Ltd.
+	  LCD-OLinuXino panel.
 
 config DRM_PANEL_ORISETECH_OTM8009A
 	tristate "Orise Technology otm8009a 480x800 dsi 2dl panel"
@@ -125,6 +148,12 @@ config DRM_PANEL_RAYDIUM_RM68200
 	help
 	  Say Y here if you want to enable support for Raydium RM68200
 	  720x1280 DSI video mode panel.
+
+config DRM_PANEL_SAMSUNG_S6D16D0
+	tristate "Samsung S6D16D0 DSI video mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	select VIDEOMODE_HELPERS
 
 config DRM_PANEL_SAMSUNG_S6E3HA2
 	tristate "Samsung S6E3HA2 DSI video mode panel"
@@ -178,6 +207,16 @@ config DRM_PANEL_SHARP_LS043T1LE01
 	  Say Y here if you want to enable support for Sharp LS043T1LE01 qHD
 	  (540x960) DSI panel as found on the Qualcomm APQ8074 Dragonboard
 
+config DRM_PANEL_SITRONIX_ST7701
+	tristate "Sitronix ST7701 panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the Sitronix
+	  ST7701 controller for 480X864 LCD panels with MIPI/RGB/SPI
+	  system interfaces.
+
 config DRM_PANEL_SITRONIX_ST7789V
 	tristate "Sitronix ST7789V panel"
 	depends on OF && SPI
@@ -186,4 +225,20 @@ config DRM_PANEL_SITRONIX_ST7789V
 	  Say Y here if you want to enable support for the Sitronix
 	  ST7789V controller for 240x320 LCD panels
 
+config DRM_PANEL_TPO_TPG110
+	tristate "TPO TPG 800x400 panel"
+	depends on OF && SPI && GPIOLIB
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TPO TPG110
+	  400CH LTPS TFT LCD Single Chip Digital Driver for up to
+	  800x400 LCD panels.
+
+config DRM_PANEL_TRULY_NT35597_WQXGA
+	tristate "Truly WQXGA"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	help
+	  Say Y here if you want to enable support for Truly NT35597 WQXGA Dual DSI
+	  Video Mode panel
 endmenu

@@ -1193,7 +1193,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	else if (ret)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_ro(mmc, "wp", 0, 0, NULL);
 	if (ret == -EPROBE_DEFER)
 		return ret;
 

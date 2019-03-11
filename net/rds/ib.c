@@ -148,8 +148,8 @@ static void rds_ib_add_one(struct ib_device *device)
 
 	has_fr = (device->attrs.device_cap_flags &
 		  IB_DEVICE_MEM_MGT_EXTENSIONS);
-	has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-		   device->map_phys_fmr && device->unmap_fmr);
+	has_fmr = (device->ops.alloc_fmr && device->ops.dealloc_fmr &&
+		   device->ops.map_phys_fmr && device->ops.unmap_fmr);
 	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
 
 	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
@@ -301,6 +301,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
 	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
+	iinfo->tos = conn->c_tos;
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));
@@ -514,6 +515,15 @@ void rds_ib_exit(void)
 	rds_ib_mr_exit();
 }
 
+static u8 rds_ib_get_tos_map(u8 tos)
+{
+	/* 1:1 user to transport map for RDMA transport.
+	 * In future, if custom map is desired, hook can export
+	 * user configurable map.
+	 */
+	return tos;
+}
+
 struct rds_transport rds_ib_transport = {
 	.laddr_check		= rds_ib_laddr_check,
 	.xmit_path_complete	= rds_ib_xmit_path_complete,
@@ -536,6 +546,7 @@ struct rds_transport rds_ib_transport = {
 	.sync_mr		= rds_ib_sync_mr,
 	.free_mr		= rds_ib_free_mr,
 	.flush_mrs		= rds_ib_flush_mrs,
+	.get_tos_map		= rds_ib_get_tos_map,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
 	.t_unloading		= rds_ib_is_unloading,

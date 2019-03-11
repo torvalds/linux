@@ -4,7 +4,8 @@ config DRM_NOUVEAU
         select FW_LOADER
 	select DRM_KMS_HELPER
 	select DRM_TTM
-	select FB_BACKLIGHT if DRM_NOUVEAU_BACKLIGHT
+	select BACKLIGHT_CLASS_DEVICE if DRM_NOUVEAU_BACKLIGHT
+	select BACKLIGHT_LCD_SUPPORT if DRM_NOUVEAU_BACKLIGHT
 	select ACPI_VIDEO if ACPI && X86 && BACKLIGHT_CLASS_DEVICE && INPUT
 	select X86_PLATFORM_DEVICES if ACPI && X86
 	select ACPI_WMI if ACPI && X86
@@ -70,3 +71,15 @@ config DRM_NOUVEAU_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display
 	  (e.g. a laptop panel).
+
+config DRM_NOUVEAU_SVM
+	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
+	depends on ARCH_HAS_HMM
+	depends on DRM_NOUVEAU
+	depends on STAGING
+	select HMM_MIRROR
+	select DEVICE_PRIVATE
+	default n
+	help
+	  Say Y here if you want to enable experimental support for
+	  Shared Virtual Memory (SVM).

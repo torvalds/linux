@@ -180,6 +180,9 @@
 
 #define V4L2_CID_ADV_FAST_SWITCH	(V4L2_CID_USER_ADV7180_BASE + 0x00)
 
+/* Initial number of frames to skip to avoid possible garbage */
+#define ADV7180_NUM_OF_SKIP_FRAMES       2
+
 struct adv7180_state;
 
 #define ADV7180_FLAG_RESET_POWERED	BIT(0)
@@ -769,6 +772,13 @@ static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int adv7180_get_skip_frames(struct v4l2_subdev *sd, u32 *frames)
+{
+	*frames = ADV7180_NUM_OF_SKIP_FRAMES;
+
+	return 0;
+}
+
 static int adv7180_g_pixelaspect(struct v4l2_subdev *sd, struct v4l2_fract *aspect)
 {
 	struct adv7180_state *state = to_state(sd);
@@ -849,10 +859,15 @@ static const struct v4l2_subdev_pad_ops adv7180_pad_ops = {
 	.get_fmt = adv7180_get_pad_format,
 };
 
+static const struct v4l2_subdev_sensor_ops adv7180_sensor_ops = {
+	.g_skip_frames = adv7180_get_skip_frames,
+};
+
 static const struct v4l2_subdev_ops adv7180_ops = {
 	.core = &adv7180_core_ops,
 	.video = &adv7180_video_ops,
 	.pad = &adv7180_pad_ops,
+	.sensor = &adv7180_sensor_ops,
 };
 
 static irqreturn_t adv7180_irq(int irq, void *devid)

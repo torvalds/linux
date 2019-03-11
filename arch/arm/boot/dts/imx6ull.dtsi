@@ -30,6 +30,18 @@
 	>;
 };
 
+&ocotp {
+	compatible = "fsl,imx6ull-ocotp", "syscon";
+};
+
+&usdhc1 {
+	compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
+};
+
+&usdhc2 {
+	compatible = "fsl,imx6ull-usdhc", "fsl,imx6sx-usdhc";
+};
+
 / {
 	soc {
 		aips3: aips-bus@2200000 {
@@ -38,6 +50,16 @@
 			#size-cells = <1>;
 			reg = <0x02200000 0x100000>;
 			ranges;
+
+			dcp: crypto@2280000 {
+				compatible = "fsl,imx6ull-dcp", "fsl,imx28-dcp";
+				reg = <0x02280000 0x4000>;
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6ULL_CLK_DCP_CLK>;
+				clock-names = "dcp";
+			};
 
 			iomuxc_snvs: iomuxc-snvs@2290000 {
 				compatible = "fsl,imx6ull-iomuxc-snvs";

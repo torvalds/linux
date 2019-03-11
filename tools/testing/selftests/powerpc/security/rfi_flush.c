@@ -49,6 +49,7 @@ int rfi_flush_test(void)
 	struct perf_event_read v;
 	__u64 l1d_misses_total = 0;
 	unsigned long iterations = 100000, zero_size = 24 * 1024;
+	unsigned long l1d_misses_expected;
 	int rfi_flush_org, rfi_flush;
 
 	SKIP_IF(geteuid() != 0);
@@ -71,6 +72,12 @@ int rfi_flush_test(void)
 
 	iter = repetitions;
 
+	/*
+	 * We expect to see l1d miss for each cacheline access when rfi_flush
+	 * is set. Allow a small variation on this.
+	 */
+	l1d_misses_expected = iterations * (zero_size / CACHELINE_SIZE - 2);
+
 again:
 	FAIL_IF(perf_event_reset(fd));
 
@@ -78,10 +85,9 @@ again:
 
 	FAIL_IF(read(fd, &v, sizeof(v)) != sizeof(v));
 
-	/* Expect at least zero_size/CACHELINE_SIZE misses per iteration */
-	if (v.l1d_misses >= (iterations * zero_size / CACHELINE_SIZE) && rfi_flush)
+	if (rfi_flush && v.l1d_misses >= l1d_misses_expected)
 		passes++;
-	else if (v.l1d_misses < iterations && !rfi_flush)
+	else if (!rfi_flush && v.l1d_misses < (l1d_misses_expected / 2))
 		passes++;
 
 	l1d_misses_total += v.l1d_misses;
@@ -92,13 +98,15 @@ again:
 	if (passes < repetitions) {
 		printf("FAIL (L1D misses with rfi_flush=%d: %llu %c %lu) [%d/%d failures]\n",
 		       rfi_flush, l1d_misses_total, rfi_flush ? '<' : '>',
-		       rfi_flush ? (repetitions * iterations * zero_size / CACHELINE_SIZE) : iterations,
+		       rfi_flush ? repetitions * l1d_misses_expected :
+		       repetitions * l1d_misses_expected / 2,
 		       repetitions - passes, repetitions);
 		rc = 1;
 	} else
 		printf("PASS (L1D misses with rfi_flush=%d: %llu %c %lu) [%d/%d pass]\n",
 		       rfi_flush, l1d_misses_total, rfi_flush ? '>' : '<',
-		       rfi_flush ? (repetitions * iterations * zero_size / CACHELINE_SIZE) : iterations,
+		       rfi_flush ? repetitions * l1d_misses_expected :
+		       repetitions * l1d_misses_expected / 2,
 		       passes, repetitions);
 
 	if (rfi_flush == rfi_flush_org) {

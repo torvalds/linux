@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,8 +24,9 @@
 #include "wmi.h"
 #include "trace.h"
 
-static uint max_assoc_sta = WIL6210_MAX_CID;
-module_param(max_assoc_sta, uint, 0644);
+/* set the default max assoc sta to max supported by driver */
+uint max_assoc_sta = WIL6210_MAX_CID;
+module_param(max_assoc_sta, uint, 0444);
 MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
 int agg_wsize; /* = 0; */
@@ -770,6 +771,7 @@ static void wmi_evt_ready(struct wil6210_vif *vif, int id, void *d, int len)
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	struct wiphy *wiphy = wil_to_wiphy(wil);
 	struct wmi_ready_event *evt = d;
+	u8 fw_max_assoc_sta;
 
 	wil_info(wil, "FW ver. %s(SW %d); MAC %pM; %d MID's\n",
 		 wil->fw_version, le32_to_cpu(evt->sw_version),
@@ -787,6 +789,25 @@ static void wmi_evt_ready(struct wil6210_vif *vif, int id, void *d, int len)
 			    evt->rfc_read_calib_result);
 		wil->fw_calib_result = evt->rfc_read_calib_result;
 	}
+
+	fw_max_assoc_sta = WIL6210_RX_DESC_MAX_CID;
+	if (len > offsetof(struct wmi_ready_event, max_assoc_sta) &&
+	    evt->max_assoc_sta > 0) {
+		fw_max_assoc_sta = evt->max_assoc_sta;
+		wil_dbg_wmi(wil, "fw reported max assoc sta %d\n",
+			    fw_max_assoc_sta);
+
+		if (fw_max_assoc_sta > WIL6210_MAX_CID) {
+			wil_dbg_wmi(wil,
+				    "fw max assoc sta %d exceeds max driver supported %d\n",
+				    fw_max_assoc_sta, WIL6210_MAX_CID);
+			fw_max_assoc_sta = WIL6210_MAX_CID;
+		}
+	}
+
+	max_assoc_sta = min_t(uint, max_assoc_sta, fw_max_assoc_sta);
+	wil_dbg_wmi(wil, "setting max assoc sta to %d\n", max_assoc_sta);
+
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
 	/* let the reset sequence continue */
@@ -952,7 +973,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			evt->assoc_req_len, evt->assoc_resp_len);
 		return;
 	}
-	if (evt->cid >= WIL6210_MAX_CID) {
+	if (evt->cid >= max_assoc_sta) {
 		wil_err(wil, "Connect CID invalid : %d\n", evt->cid);
 		return;
 	}
@@ -1018,7 +1039,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
 			evt->cid, rc);
 		wmi_disconnect_sta(vif, wil->sta[evt->cid].addr,
-				   WLAN_REASON_UNSPECIFIED, false, false);
+				   WLAN_REASON_UNSPECIFIED, false);
 	} else {
 		wil_info(wil, "successful connection to CID %d\n", evt->cid);
 	}
@@ -1112,7 +1133,24 @@ static void wmi_evt_disconnect(struct wil6210_vif *vif, int id,
 	}
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, evt->bssid, reason_code, true);
+	wil6210_disconnect_complete(vif, evt->bssid, reason_code);
+	if (disable_ap_sme) {
+		struct wireless_dev *wdev = vif_to_wdev(vif);
+		struct net_device *ndev = vif_to_ndev(vif);
+
+		/* disconnect event in disable_ap_sme mode means link loss */
+		switch (wdev->iftype) {
+		/* AP-like interface */
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			/* notify hostapd about link loss */
+			cfg80211_cqm_pktloss_notify(ndev, evt->bssid, 0,
+						    GFP_KERNEL);
+			break;
+		default:
+			break;
+		}
+	}
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1254,9 +1292,16 @@ static void wmi_evt_addba_rx_req(struct wil6210_vif *vif, int id,
 				 void *d, int len)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
+	u8 cid, tid;
 	struct wmi_rcp_addba_req_event *evt = d;
 
-	wil_addba_rx_request(wil, vif->mid, evt->cidxtid, evt->dialog_token,
+	if (evt->cidxtid != CIDXTID_EXTENDED_CID_TID) {
+		parse_cidxtid(evt->cidxtid, &cid, &tid);
+	} else {
+		cid = evt->cid;
+		tid = evt->tid;
+	}
+	wil_addba_rx_request(wil, vif->mid, cid, tid, evt->dialog_token,
 			     evt->ba_param_set, evt->ba_timeout,
 			     evt->ba_seq_ctrl);
 }
@@ -1272,7 +1317,13 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	struct wil_tid_ampdu_rx *r;
 
 	might_sleep();
-	parse_cidxtid(evt->cidxtid, &cid, &tid);
+
+	if (evt->cidxtid != CIDXTID_EXTENDED_CID_TID) {
+		parse_cidxtid(evt->cidxtid, &cid, &tid);
+	} else {
+		cid = evt->cid;
+		tid = evt->tid;
+	}
 	wil_dbg_wmi(wil, "DELBA MID %d CID %d TID %d from %s reason %d\n",
 		    vif->mid, cid, tid,
 		    evt->from_initiator ? "originator" : "recipient",
@@ -1387,7 +1438,7 @@ static void wil_link_stats_store_basic(struct wil6210_vif *vif,
 	u8 cid = basic->cid;
 	struct wil_sta_info *sta;
 
-	if (cid < 0 || cid >= WIL6210_MAX_CID) {
+	if (cid < 0 || cid >= max_assoc_sta) {
 		wil_err(wil, "invalid cid %d\n", cid);
 		return;
 	}
@@ -1537,7 +1588,7 @@ static int wil_find_cid_ringid_sta(struct wil6210_priv *wil,
 			continue;
 
 		lcid = wil->ring2cid_tid[i][0];
-		if (lcid >= WIL6210_MAX_CID) /* skip BCAST */
+		if (lcid >= max_assoc_sta) /* skip BCAST */
 			continue;
 
 		wil_dbg_wmi(wil, "find sta -> ringid %d cid %d\n", i, lcid);
@@ -1637,7 +1688,7 @@ wmi_evt_auth_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 static void
@@ -1766,7 +1817,7 @@ wmi_evt_reassoc_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 /**
@@ -1949,16 +2000,17 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 {
 	int rc;
 	unsigned long remain;
+	ulong flags;
 
 	mutex_lock(&wil->wmi_mutex);
 
-	spin_lock(&wil->wmi_ev_lock);
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 	wil->reply_id = reply_id;
 	wil->reply_mid = mid;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
 	reinit_completion(&wil->wmi_call);
-	spin_unlock(&wil->wmi_ev_lock);
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 
 	rc = __wmi_send(wil, cmdid, mid, buf, len);
 	if (rc)
@@ -1978,12 +2030,12 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 	}
 
 out:
-	spin_lock(&wil->wmi_ev_lock);
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 	wil->reply_id = 0;
 	wil->reply_mid = U8_MAX;
 	wil->reply_buf = NULL;
 	wil->reply_size = 0;
-	spin_unlock(&wil->wmi_ev_lock);
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 
 	mutex_unlock(&wil->wmi_mutex);
 
@@ -2102,10 +2154,9 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 
 	if ((cmd.pcp_max_assoc_sta > WIL6210_MAX_CID) ||
 	    (cmd.pcp_max_assoc_sta <= 0)) {
-		wil_info(wil,
-			 "Requested connection limit %u, valid values are 1 - %d. Setting to %d\n",
-			 max_assoc_sta, WIL6210_MAX_CID, WIL6210_MAX_CID);
-		cmd.pcp_max_assoc_sta = WIL6210_MAX_CID;
+		wil_err(wil, "unexpected max_assoc_sta %d\n",
+			cmd.pcp_max_assoc_sta);
+		return -EOPNOTSUPP;
 	}
 
 	if (disable_ap_sme &&
@@ -2498,7 +2549,7 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring)
 		if (ch)
 			cmd.sniffer_cfg.channel = ch->hw_value - 1;
 		cmd.sniffer_cfg.phy_info_mode =
-			cpu_to_le32(ndev->type == ARPHRD_IEEE80211_RADIOTAP);
+			cpu_to_le32(WMI_SNIFFER_PHY_INFO_DISABLED);
 		cmd.sniffer_cfg.phy_support =
 			cpu_to_le32((wil->monitor_flags & MONITOR_FLAG_CONTROL)
 				    ? WMI_SNIFFER_CP : WMI_SNIFFER_BOTH_PHYS);
@@ -2560,12 +2611,11 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 	return 0;
 }
 
-int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
-		       u16 reason, bool full_disconnect, bool del_sta)
+int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac, u16 reason,
+		       bool del_sta)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
-	u16 reason_code;
 	struct wmi_disconnect_sta_cmd disc_sta_cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
@@ -2598,21 +2648,8 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 		wil_fw_error_recovery(wil);
 		return rc;
 	}
+	wil->sinfo_gen++;
 
-	if (full_disconnect) {
-		/* call event handler manually after processing wmi_call,
-		 * to avoid deadlock - disconnect event handler acquires
-		 * wil->mutex while it is already held here
-		 */
-		reason_code = le16_to_cpu(reply.evt.protocol_reason_status);
-
-		wil_dbg_wmi(wil, "Disconnect %pM reason [proto %d wmi %d]\n",
-			    reply.evt.bssid, reason_code,
-			    reply.evt.disconnect_reason);
-
-		wil->sinfo_gen++;
-		wil6210_disconnect(vif, reply.evt.bssid, reason_code, true);
-	}
 	return 0;
 }
 
@@ -2647,15 +2684,22 @@ int wmi_delba_tx(struct wil6210_priv *wil, u8 mid, u8 ringid, u16 reason)
 	return wmi_send(wil, WMI_RING_BA_DIS_CMDID, mid, &cmd, sizeof(cmd));
 }
 
-int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cidxtid, u16 reason)
+int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid, u16 reason)
 {
 	struct wmi_rcp_delba_cmd cmd = {
-		.cidxtid = cidxtid,
 		.reason = cpu_to_le16(reason),
 	};
 
-	wil_dbg_wmi(wil, "delba_rx: (CID %d TID %d reason %d)\n", cidxtid & 0xf,
-		    (cidxtid >> 4) & 0xf, reason);
+	if (cid >= WIL6210_RX_DESC_MAX_CID) {
+		cmd.cidxtid = CIDXTID_EXTENDED_CID_TID;
+		cmd.cid = cid;
+		cmd.tid = tid;
+	} else {
+		cmd.cidxtid = mk_cidxtid(cid, tid);
+	}
+
+	wil_dbg_wmi(wil, "delba_rx: (CID %d TID %d reason %d)\n", cid,
+		    tid, reason);
 
 	return wmi_send(wil, WMI_RCP_DELBA_CMDID, mid, &cmd, sizeof(cmd));
 }
@@ -2666,7 +2710,6 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil,
 {
 	int rc;
 	struct wmi_rcp_addba_resp_cmd cmd = {
-		.cidxtid = mk_cidxtid(cid, tid),
 		.dialog_token = token,
 		.status_code = cpu_to_le16(status),
 		/* bit 0: A-MSDU supported
@@ -2684,6 +2727,14 @@ int wmi_addba_rx_resp(struct wil6210_priv *wil,
 	} __packed reply = {
 		.evt = {.status = cpu_to_le16(WMI_FW_STATUS_FAILURE)},
 	};
+
+	if (cid >= WIL6210_RX_DESC_MAX_CID) {
+		cmd.cidxtid = CIDXTID_EXTENDED_CID_TID;
+		cmd.cid = cid;
+		cmd.tid = tid;
+	} else {
+		cmd.cidxtid = mk_cidxtid(cid, tid);
+	}
 
 	wil_dbg_wmi(wil,
 		    "ADDBA response for MID %d CID %d TID %d size %d timeout %d status %d AMSDU%s\n",
@@ -3145,7 +3196,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 
 		if (mid == MID_BROADCAST)
 			mid = 0;
-		if (mid >= wil->max_vifs) {
+		if (mid >= ARRAY_SIZE(wil->vifs) || mid >= wil->max_vifs) {
 			wil_dbg_wmi(wil, "invalid mid %d, event skipped\n",
 				    mid);
 			return;
