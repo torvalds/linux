@@ -482,6 +482,13 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (IS_ERR(ctx))
 		goto out;
 
+	ret = i915_gem_context_pin_hw_id(ctx);
+	if (ret) {
+		context_close(ctx);
+		ctx = ERR_PTR(ret);
+		goto out;
+	}
+
 	ctx->file_priv = ERR_PTR(-EBADF);
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
