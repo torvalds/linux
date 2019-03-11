@@ -406,7 +406,7 @@ static bool rcu_kick_kthreads;
  */
 static ulong jiffies_till_sched_qs = ULONG_MAX;
 module_param(jiffies_till_sched_qs, ulong, 0444);
-static ulong jiffies_to_sched_qs; /* Adjusted version of above if not default */
+static ulong jiffies_to_sched_qs; /* See adjust_jiffies_till_sched_qs(). */
 module_param(jiffies_to_sched_qs, ulong, 0444); /* Display only! */
 
 /*
@@ -424,6 +424,7 @@ static void adjust_jiffies_till_sched_qs(void)
 		WRITE_ONCE(jiffies_to_sched_qs, jiffies_till_sched_qs);
 		return;
 	}
+	/* Otherwise, set to third fqs scan, but bound below on large system. */
 	j = READ_ONCE(jiffies_till_first_fqs) +
 		      2 * READ_ONCE(jiffies_till_next_fqs);
 	if (j < HZ / 10 + nr_cpu_ids / RCU_JIFFIES_FQS_DIV)
