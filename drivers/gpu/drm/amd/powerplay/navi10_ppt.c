@@ -119,8 +119,8 @@ navi10_get_unallowed_feature_mask(struct smu_context *smu,
 	if (num > 2)
 		return -EINVAL;
 
-	feature_mask[0] = 0xffffffe4;
-	feature_mask[1] = 0xffffffff;	/* bit32~bit63 is Unsupported */
+	feature_mask[0] = 0xdc3f7f8c;
+	feature_mask[1] = 0xfffffcec;	/* bit32~bit63 is Unsupported */
 
 	return 0;
 }
