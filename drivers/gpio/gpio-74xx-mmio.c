@@ -106,7 +106,6 @@ static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 {
 	struct mmio_74xx_gpio_priv *priv;
-	struct resource *res;
 	void __iomem *dat;
 	int err;
 
@@ -116,8 +115,7 @@ static int mmio_74xx_gpio_probe(struct platform_device *pdev)
 
 	priv->flags = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dat = devm_ioremap_resource(&pdev->dev, res);
+	dat = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dat))
 		return PTR_ERR(dat);
 
