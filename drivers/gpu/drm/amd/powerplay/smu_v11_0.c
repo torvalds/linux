@@ -234,8 +234,8 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	if (ret)
 		goto err;
 
-	if (smu_version == SMU11_DRIVER_IF_VERSION)
-		return 0;
+	if (smu_version != smu->smc_if_version)
+		ret = -EINVAL;
 err:
 	return ret;
 }

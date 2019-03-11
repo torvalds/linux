@@ -401,6 +401,8 @@ struct smu_context
 	uint32_t workload_setting[WORKLOAD_POLICY_MAX];
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
+
+	uint32_t smc_if_version;
 };
 
 struct pptable_funcs {
