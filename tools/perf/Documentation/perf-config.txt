@@ -584,6 +584,12 @@ llvm.*::
 	llvm.opts::
 		Options passed to llc.
 
+samples.*::
+
+	samples.context::
+		Define how many ns worth of time to show
+		around samples in perf report sample context browser.
+
 SEE ALSO
 --------
 linkperf:perf[1]

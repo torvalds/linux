@@ -68,6 +68,7 @@ struct symbol_conf {
 	struct intlist	*pid_list,
 			*tid_list;
 	const char	*symfs;
+	int		res_sample;
 };
 
 extern struct symbol_conf symbol_conf;

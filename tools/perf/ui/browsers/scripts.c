@@ -125,7 +125,7 @@ out:
 	return ret;
 }
 
-static void run_script(char *cmd)
+void run_script(char *cmd)
 {
 	pr_debug("Running %s\n", cmd);
 	SLang_reset_tty();
