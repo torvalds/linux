@@ -84,9 +84,7 @@
 
 	onewire {
 		compatible = "w1-gpio";
-		gpios = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
-		pinctrl-names = "default";
-		pinctrl-0 = <&chip_w1_pin>;
+		gpios = <&pio 3 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PD2 */
 	};
 };
 
@@ -171,14 +169,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	chip_w1_pin: chip-w1-pin {
-		pins = "PD2";
-		function = "gpio_in";
-	        bias-pull-up;
-	};
 };
 
 &reg_dcdc2 {

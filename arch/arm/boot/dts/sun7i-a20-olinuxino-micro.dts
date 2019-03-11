@@ -252,18 +252,6 @@
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
-
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PH4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_vbus_detect_pin: usb0-vbus-detect-pin {
-		pins = "PH5";
-		function = "gpio_in";
-		bias-pull-down;
-	};
 };
 
 #include "axp209.dtsi"
@@ -355,10 +343,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
-	usb0_id_det-gpios = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
-	usb0_vbus_det-gpios = <&pio 7 5 GPIO_ACTIVE_HIGH>; /* PH5 */
+	usb0_id_det-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH4 */
+	usb0_vbus_det-gpios = <&pio 7 5 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* PH5 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	usb2_vbus-supply = <&reg_usb2_vbus>;
