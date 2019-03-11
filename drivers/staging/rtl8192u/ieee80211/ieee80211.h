@@ -1474,11 +1474,11 @@ struct bandwidth_autoswitch {
 
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
-typedef struct _RX_REORDER_ENTRY {
+struct rx_reorder_entry {
 	struct list_head	List;
 	u16			SeqNum;
 	struct ieee80211_rxb *prxb;
-} RX_REORDER_ENTRY, *PRX_REORDER_ENTRY;
+};
 //added by amy for order
 typedef enum _Fsync_State {
 	Default_Fsync,
@@ -1654,7 +1654,7 @@ struct ieee80211_device {
 	struct list_head		Rx_TS_Unused_List;
 	struct rx_ts_record		RxTsRecord[TOTAL_TS_NUM];
 //#ifdef TO_DO_LIST
-	RX_REORDER_ENTRY	RxReorderEntry[128];
+	struct rx_reorder_entry	RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
 //#endif
 	// Qos related. Added by Annie, 2005-11-01.
