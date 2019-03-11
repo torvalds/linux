@@ -118,6 +118,11 @@ const char *ras_block_string[] = {
 #define ras_err_str(i) (ras_error_string[ffs(i)])
 #define ras_block_str(i) (ras_block_string[i])
 
+enum amdgpu_ras_flags {
+	AMDGPU_RAS_FLAG_INIT_BY_VBIOS = 1,
+};
+#define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
+
 static void amdgpu_ras_self_test(struct amdgpu_device *adev)
 {
 	/* TODO */
@@ -1387,13 +1392,16 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			&con->supported);
 	con->features = 0;
 	INIT_LIST_HEAD(&con->head);
+	/* Might need get this flag from vbios. */
+	con->flags = RAS_DEFAULT_FLAGS;
 
 	if (amdgpu_ras_recovery_init(adev))
 		goto recovery_out;
 
 	amdgpu_ras_mask &= AMDGPU_RAS_BLOCK_MASK;
 
-	amdgpu_ras_enable_all_features(adev, 1);
+	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
+		amdgpu_ras_enable_all_features(adev, 1);
 
 	if (amdgpu_ras_fs_init(adev))
 		goto fs_out;
@@ -1411,6 +1419,30 @@ recovery_out:
 	kfree(con);
 
 	return -EINVAL;
+}
+
+/* do some init work after IP late init as dependence */
+void amdgpu_ras_post_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_manager *obj, *tmp;
+
+	if (!con)
+		return;
+
+	/* We enable ras on all hw_supported block, but as boot parameter might
+	 * disable some of them and one or more IP has not implemented yet.
+	 * So we disable them on behalf.
+	 */
+	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
+		list_for_each_entry_safe(obj, tmp, &con->head, node) {
+			if (!amdgpu_ras_is_supported(adev, obj->head.block)) {
+				amdgpu_ras_feature_enable(adev, &obj->head, 0);
+				/* there should be no any reference. */
+				WARN_ON(alive_obj(obj));
+			}
+		};
+	}
 }
 
 /* do some fini work before IP fini as dependence */

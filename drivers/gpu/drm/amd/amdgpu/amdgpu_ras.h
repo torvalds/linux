@@ -103,6 +103,8 @@ struct amdgpu_ras {
 	/* error handler data */
 	struct ras_err_handler_data *eh_data;
 	struct mutex recovery_lock;
+
+	uint32_t flags;
 };
 
 /* interfaces for IP */
@@ -197,6 +199,7 @@ static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
 
 /* called in ip_init and ip_fini */
 int amdgpu_ras_init(struct amdgpu_device *adev);
+void amdgpu_ras_post_init(struct amdgpu_device *adev);
 int amdgpu_ras_fini(struct amdgpu_device *adev);
 int amdgpu_ras_pre_fini(struct amdgpu_device *adev);
 
