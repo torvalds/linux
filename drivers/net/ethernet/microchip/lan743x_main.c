@@ -1905,7 +1905,17 @@ static int lan743x_rx_next_index(struct lan743x_rx *rx, int index)
 	return ((++index) % rx->ring_size);
 }
 
-static int lan743x_rx_allocate_ring_element(struct lan743x_rx *rx, int index)
+static struct sk_buff *lan743x_rx_allocate_skb(struct lan743x_rx *rx)
+{
+	int length = 0;
+
+	length = (LAN743X_MAX_FRAME_SIZE + ETH_HLEN + 4 + RX_HEAD_PADDING);
+	return __netdev_alloc_skb(rx->adapter->netdev,
+				  length, GFP_ATOMIC | GFP_DMA);
+}
+
+static int lan743x_rx_init_ring_element(struct lan743x_rx *rx, int index,
+					struct sk_buff *skb)
 {
 	struct lan743x_rx_buffer_info *buffer_info;
 	struct lan743x_rx_descriptor *descriptor;
@@ -1914,9 +1924,7 @@ static int lan743x_rx_allocate_ring_element(struct lan743x_rx *rx, int index)
 	length = (LAN743X_MAX_FRAME_SIZE + ETH_HLEN + 4 + RX_HEAD_PADDING);
 	descriptor = &rx->ring_cpu_ptr[index];
 	buffer_info = &rx->buffer_info[index];
-	buffer_info->skb = __netdev_alloc_skb(rx->adapter->netdev,
-					      length,
-					      GFP_ATOMIC | GFP_DMA);
+	buffer_info->skb = skb;
 	if (!(buffer_info->skb))
 		return -ENOMEM;
 	buffer_info->dma_ptr = dma_map_single(&rx->adapter->pdev->dev,
@@ -2063,7 +2071,18 @@ static int lan743x_rx_process_packet(struct lan743x_rx *rx)
 		/* packet is available */
 		if (first_index == last_index) {
 			/* single buffer packet */
+			struct sk_buff *new_skb = NULL;
 			int packet_length;
+
+			new_skb = lan743x_rx_allocate_skb(rx);
+			if (!new_skb) {
+				/* failed to allocate next skb.
+				 * Memory is very low.
+				 * Drop this packet and reuse buffer.
+				 */
+				lan743x_rx_reuse_ring_element(rx, first_index);
+				goto process_extension;
+			}
 
 			buffer_info = &rx->buffer_info[first_index];
 			skb = buffer_info->skb;
@@ -2084,7 +2103,7 @@ static int lan743x_rx_process_packet(struct lan743x_rx *rx)
 			skb_put(skb, packet_length - 4);
 			skb->protocol = eth_type_trans(skb,
 						       rx->adapter->netdev);
-			lan743x_rx_allocate_ring_element(rx, first_index);
+			lan743x_rx_init_ring_element(rx, first_index, new_skb);
 		} else {
 			int index = first_index;
 
@@ -2097,26 +2116,23 @@ static int lan743x_rx_process_packet(struct lan743x_rx *rx)
 			if (first_index <= last_index) {
 				while ((index >= first_index) &&
 				       (index <= last_index)) {
-					lan743x_rx_release_ring_element(rx,
-									index);
-					lan743x_rx_allocate_ring_element(rx,
-									 index);
+					lan743x_rx_reuse_ring_element(rx,
+								      index);
 					index = lan743x_rx_next_index(rx,
 								      index);
 				}
 			} else {
 				while ((index >= first_index) ||
 				       (index <= last_index)) {
-					lan743x_rx_release_ring_element(rx,
-									index);
-					lan743x_rx_allocate_ring_element(rx,
-									 index);
+					lan743x_rx_reuse_ring_element(rx,
+								      index);
 					index = lan743x_rx_next_index(rx,
 								      index);
 				}
 			}
 		}
 
+process_extension:
 		if (extension_index >= 0) {
 			descriptor = &rx->ring_cpu_ptr[extension_index];
 			buffer_info = &rx->buffer_info[extension_index];
@@ -2293,7 +2309,9 @@ static int lan743x_rx_ring_init(struct lan743x_rx *rx)
 
 	rx->last_head = 0;
 	for (index = 0; index < rx->ring_size; index++) {
-		ret = lan743x_rx_allocate_ring_element(rx, index);
+		struct sk_buff *new_skb = lan743x_rx_allocate_skb(rx);
+
+		ret = lan743x_rx_init_ring_element(rx, index, new_skb);
 		if (ret)
 			goto cleanup;
 	}
