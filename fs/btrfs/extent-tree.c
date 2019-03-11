@@ -2910,12 +2910,6 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 		goto done;
 	}
 
-	/*
-	 * trans->sync means that when we call end_transaction, we won't
-	 * wait on delayed refs
-	 */
-	trans->sync = true;
-
 	/* Don't bother flushing if we got into a different transaction */
 	if (trans->transid > async->transid)
 		goto end;
