@@ -297,8 +297,6 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(port->clk_gpio);
 	}
 
-	platform_set_drvdata(pdev, port);
-
 	gc = &port->gc;
 	gc->of_node = np;
 	gc->parent = dev;
@@ -321,7 +319,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	ic->irq_set_type = vf610_gpio_irq_set_type;
 	ic->irq_set_wake = vf610_gpio_irq_set_wake;
 
-	ret = gpiochip_add_data(gc, port);
+	ret = devm_gpiochip_add_data(dev, gc, port);
 	if (ret < 0)
 		return ret;
 
@@ -335,20 +333,10 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_irqchip_add(gc, ic, 0, handle_edge_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "failed to add irqchip\n");
-		gpiochip_remove(gc);
 		return ret;
 	}
 	gpiochip_set_chained_irqchip(gc, ic, port->irq,
 				     vf610_gpio_irq_handler);
-
-	return 0;
-}
-
-static int vf610_gpio_remove(struct platform_device *pdev)
-{
-	struct vf610_gpio_port *port = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&port->gc);
 
 	return 0;
 }
@@ -359,7 +347,6 @@ static struct platform_driver vf610_gpio_driver = {
 		.of_match_table = vf610_gpio_dt_ids,
 	},
 	.probe		= vf610_gpio_probe,
-	.remove		= vf610_gpio_remove,
 };
 
 builtin_platform_driver(vf610_gpio_driver);
