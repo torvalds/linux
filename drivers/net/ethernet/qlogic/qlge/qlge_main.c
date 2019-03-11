@@ -4681,6 +4681,11 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	 */
 	qdev->workqueue = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
 						  ndev->name);
+	if (!qdev->workqueue) {
+		err = -ENOMEM;
+		goto err_out2;
+	}
+
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
