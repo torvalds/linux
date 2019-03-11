@@ -1380,7 +1380,7 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 				     FUSB_REG_MASK_COMP_CHNG);
 	if (ret < 0) {
 		fusb302_log(chip,
-			    "cannot unmask bc_lcl interrupt, ret=%d", ret);
+			    "cannot unmask comp_chng interrupt, ret=%d", ret);
 		return ret;
 	}
 	chip->intr_comp_chng = true;
@@ -1555,7 +1555,7 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 		fusb302_log(chip, "IRQ: COMP_CHNG, comp=%s",
 			    comp_result ? "true" : "false");
 		if (comp_result) {
-			/* cc level > Rd_threashold, detach */
+			/* cc level > Rd_threshold, detach */
 			chip->cc1 = TYPEC_CC_OPEN;
 			chip->cc2 = TYPEC_CC_OPEN;
 			tcpm_cc_change(chip->tcpm_port);
