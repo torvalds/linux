@@ -639,4 +639,23 @@ done:
 	flush_delayed_fput();
 	return 0;
 }
+
+#if IS_BUILTIN(CONFIG_INITRD_ASYNC)
+#include <linux/kthread.h>
+#include <linux/async.h>
+
+static void __init unpack_rootfs_async(void *unused, async_cookie_t cookie)
+{
+	populate_rootfs();
+}
+
+static int __init populate_rootfs_async(void)
+{
+	async_schedule(unpack_rootfs_async, NULL);
+	return 0;
+}
+
+pure_initcall(populate_rootfs_async);
+#else
 rootfs_initcall(populate_rootfs);
+#endif

@@ -1550,6 +1550,10 @@ static noinline void __init kernel_init_freeable(void)
 
 	kunit_run_all_tests();
 
+#if IS_BUILTIN(CONFIG_INITRD_ASYNC)
+	async_synchronize_full();
+#endif
+
 	console_on_rootfs();
 
 	/*
