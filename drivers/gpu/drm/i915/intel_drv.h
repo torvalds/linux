@@ -2410,6 +2410,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 
 
 /* intel_sprite.c */
+bool is_planar_yuv_format(u32 pixelformat);
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs);
 struct intel_plane *intel_sprite_plane_create(struct drm_i915_private *dev_priv,

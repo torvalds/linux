@@ -154,6 +154,22 @@ extern "C" {
 #define DRM_FORMAT_XYUV8888		fourcc_code('X', 'Y', 'U', 'V') /* [31:0] X:Y:Cb:Cr 8:8:8:8 little endian */
 
 /*
+ * packed Y2xx indicate for each component, xx valid data occupy msb
+ * 16-xx padding occupy lsb
+ */
+#define DRM_FORMAT_Y210         fourcc_code('Y', '2', '1', '0') /* [63:0] Y0:x:Cb0:x:Y1:x:Cr1:x 10:6:10:6:10:6:10:6 little endian per 2 Y pixels */
+#define DRM_FORMAT_Y212         fourcc_code('Y', '2', '1', '2') /* [63:0] Y0:x:Cb0:x:Y1:x:Cr1:x 12:4:12:4:12:4:12:4 little endian per 2 Y pixels */
+#define DRM_FORMAT_Y216         fourcc_code('Y', '2', '1', '6') /* [63:0] Y0:Cb0:Y1:Cr1 16:16:16:16 little endian per 2 Y pixels */
+
+/*
+ * packed Y4xx indicate for each component, xx valid data occupy msb
+ * 16-xx padding occupy lsb except Y410
+ */
+#define DRM_FORMAT_Y410         fourcc_code('Y', '4', '1', '0') /* [31:0] X:V:Y:U 2:10:10:10 little endian */
+#define DRM_FORMAT_Y412         fourcc_code('Y', '4', '1', '2') /* [63:0] X:x:V:x:Y:x:U:x 12:4:12:4:12:4:12:4 little endian */
+#define DRM_FORMAT_Y416         fourcc_code('Y', '4', '1', '6') /* [63:0] X:V:Y:U 16:16:16:16 little endian */
+
+/*
  * packed YCbCr420 2x2 tiled formats
  * first 64 bits will contain Y,Cb,Cr components for a 2x2 tile
  */
