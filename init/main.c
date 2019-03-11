@@ -1160,6 +1160,10 @@ static noinline void __init kernel_init_freeable(void)
 
 	do_basic_setup();
 
+#if IS_BUILTIN(CONFIG_INITRD_ASYNC)
+	async_synchronize_full();
+#endif
+
 	/* Open the /dev/console on the rootfs, this should never fail */
 	if (ksys_open((const char __user *) "/dev/console", O_RDWR, 0) < 0)
 		pr_err("Warning: unable to open an initial console.\n");
