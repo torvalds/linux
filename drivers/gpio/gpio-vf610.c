@@ -248,7 +248,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	int i;
 	int ret;
 
-	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
@@ -267,7 +267,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 	if (port->irq < 0)
 		return port->irq;
 
-	port->clk_port = devm_clk_get(&pdev->dev, "port");
+	port->clk_port = devm_clk_get(dev, "port");
 	if (!IS_ERR(port->clk_port)) {
 		ret = clk_prepare_enable(port->clk_port);
 		if (ret)
@@ -284,7 +284,7 @@ static int vf610_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(port->clk_port);
 	}
 
-	port->clk_gpio = devm_clk_get(&pdev->dev, "gpio");
+	port->clk_gpio = devm_clk_get(dev, "gpio");
 	if (!IS_ERR(port->clk_gpio)) {
 		ret = clk_prepare_enable(port->clk_gpio);
 		if (ret)
