@@ -108,7 +108,6 @@ static struct platform_driver of_pmem_region_driver = {
 	.remove = of_pmem_region_remove,
 	.driver = {
 		.name = "of_pmem",
-		.owner = THIS_MODULE,
 		.of_match_table = of_pmem_region_match,
 	},
 };
