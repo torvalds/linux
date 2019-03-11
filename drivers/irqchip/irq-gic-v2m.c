@@ -446,7 +446,7 @@ static struct fwnode_handle *gicv2m_get_fwnode(struct device *dev)
 }
 
 static int __init
-acpi_parse_madt_msi(struct acpi_subtable_header *header,
+acpi_parse_madt_msi(union acpi_subtable_headers *header,
 		    const unsigned long end)
 {
 	int ret;
