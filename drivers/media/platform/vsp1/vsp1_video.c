@@ -825,7 +825,8 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity, pipe, pipe->stream_config);
-		vsp1_entity_configure_stream(entity, pipe, pipe->stream_config);
+		vsp1_entity_configure_stream(entity, pipe, NULL,
+					     pipe->stream_config);
 	}
 
 	return 0;

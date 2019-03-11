@@ -234,6 +234,7 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 
 static void wpf_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
