@@ -1757,7 +1757,7 @@ struct nvram_81xx {
 	uint16_t reserved_6_3[14];
 
 	/* Offset 192. */
-	uint8_t min_link_speed;
+	uint8_t min_supported_speed;
 	uint8_t reserved_7_0;
 	uint16_t reserved_7[31];
 

@@ -4223,8 +4223,8 @@ struct qla_hw_data {
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;
 	uint32_t fw_ability_mask;
-	uint16_t min_link_speed;
-	uint16_t max_speed_sup;
+	uint16_t min_supported_speed;
+	uint16_t max_supported_speed;
 
 	/* DMA pool for the DIF bundling buffers */
 	struct dma_pool *dif_bundl_pool;
@@ -4455,7 +4455,7 @@ typedef struct scsi_qla_host {
 	int fcport_count;
 	wait_queue_head_t fcport_waitQ;
 	wait_queue_head_t vref_waitq;
-	uint8_t min_link_speed_feat;
+	uint8_t min_supported_speed;
 	uint8_t n2n_node_name[WWN_SIZE];
 	uint8_t n2n_port_name[WWN_SIZE];
 	uint16_t	n2n_id;
@@ -4738,4 +4738,5 @@ struct sff_8247_a0 {
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
+
 #endif

@@ -1621,8 +1621,8 @@ qla2x00_pep_version_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-qla2x00_min_link_speed_show(struct device *dev, struct device_attribute *attr,
-    char *buf)
+qla2x00_min_supported_speed_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
@@ -1631,16 +1631,17 @@ qla2x00_min_link_speed_show(struct device *dev, struct device_attribute *attr,
 		return scnprintf(buf, PAGE_SIZE, "\n");
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
-	    ha->min_link_speed == 5 ? "32Gps" :
-	    ha->min_link_speed == 4 ? "16Gps" :
-	    ha->min_link_speed == 3 ? "8Gps" :
-	    ha->min_link_speed == 2 ? "4Gps" :
-	    ha->min_link_speed != 0 ? "unknown" : "");
+	    ha->min_supported_speed == 6 ? "64Gps" :
+	    ha->min_supported_speed == 5 ? "32Gps" :
+	    ha->min_supported_speed == 4 ? "16Gps" :
+	    ha->min_supported_speed == 3 ? "8Gps" :
+	    ha->min_supported_speed == 2 ? "4Gps" :
+	    ha->min_supported_speed != 0 ? "unknown" : "");
 }
 
 static ssize_t
-qla2x00_max_speed_sup_show(struct device *dev, struct device_attribute *attr,
-    char *buf)
+qla2x00_max_supported_speed_show(struct device *dev,
+    struct device_attribute *attr, char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
@@ -1649,7 +1650,9 @@ qla2x00_max_speed_sup_show(struct device *dev, struct device_attribute *attr,
 		return scnprintf(buf, PAGE_SIZE, "\n");
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
-	    ha->max_speed_sup ? "32Gps" : "16Gps");
+	    ha->max_supported_speed  == 2 ? "64Gps" :
+	    ha->max_supported_speed  == 1 ? "32Gps" :
+	    ha->max_supported_speed  == 0 ? "16Gps" : "unknown");
 }
 
 static ssize_t
@@ -2253,8 +2256,10 @@ static DEVICE_ATTR(allow_cna_fw_dump, S_IRUGO | S_IWUSR,
 		   qla2x00_allow_cna_fw_dump_show,
 		   qla2x00_allow_cna_fw_dump_store);
 static DEVICE_ATTR(pep_version, S_IRUGO, qla2x00_pep_version_show, NULL);
-static DEVICE_ATTR(min_link_speed, S_IRUGO, qla2x00_min_link_speed_show, NULL);
-static DEVICE_ATTR(max_speed_sup, S_IRUGO, qla2x00_max_speed_sup_show, NULL);
+static DEVICE_ATTR(min_supported_speed, 0444,
+		   qla2x00_min_supported_speed_show, NULL);
+static DEVICE_ATTR(max_supported_speed, 0444,
+		   qla2x00_max_supported_speed_show, NULL);
 static DEVICE_ATTR(zio_threshold, 0644,
     qla_zio_threshold_show,
     qla_zio_threshold_store);
@@ -2303,8 +2308,8 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_fw_dump_size,
 	&dev_attr_allow_cna_fw_dump,
 	&dev_attr_pep_version,
-	&dev_attr_min_link_speed,
-	&dev_attr_max_speed_sup,
+	&dev_attr_min_supported_speed,
+	&dev_attr_max_supported_speed,
 	&dev_attr_zio_threshold,
 	&dev_attr_dif_bundle_statistics,
 	&dev_attr_port_speed,
@@ -3033,7 +3038,7 @@ void
 qla2x00_init_host_attr(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
-	u32 speed = FC_PORTSPEED_UNKNOWN;
+	u32 speeds = FC_PORTSPEED_UNKNOWN;
 
 	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
@@ -3044,28 +3049,45 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
 	if (IS_CNA_CAPABLE(ha))
-		speed = FC_PORTSPEED_10GBIT;
-	else if (IS_QLA2031(ha))
-		speed = FC_PORTSPEED_16GBIT | FC_PORTSPEED_8GBIT |
-		    FC_PORTSPEED_4GBIT;
-	else if (IS_QLA25XX(ha))
-		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
-		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+		speeds = FC_PORTSPEED_10GBIT;
+	else if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
+		if (ha->max_supported_speed == 2) {
+			if (ha->min_supported_speed <= 6)
+				speeds |= FC_PORTSPEED_64GBIT;
+		}
+		if (ha->max_supported_speed == 2 ||
+		    ha->max_supported_speed == 1) {
+			if (ha->min_supported_speed <= 5)
+				speeds |= FC_PORTSPEED_32GBIT;
+		}
+		if (ha->max_supported_speed == 2 ||
+		    ha->max_supported_speed == 1 ||
+		    ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 4)
+				speeds |= FC_PORTSPEED_16GBIT;
+		}
+		if (ha->max_supported_speed == 1 ||
+		    ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 3)
+				speeds |= FC_PORTSPEED_8GBIT;
+		}
+		if (ha->max_supported_speed == 0) {
+			if (ha->min_supported_speed <= 2)
+				speeds |= FC_PORTSPEED_4GBIT;
+		}
+	} else if (IS_QLA2031(ha))
+		speeds = FC_PORTSPEED_16GBIT|FC_PORTSPEED_8GBIT|
+			FC_PORTSPEED_4GBIT;
+	else if (IS_QLA25XX(ha) || IS_QLAFX00(ha))
+		speeds = FC_PORTSPEED_8GBIT|FC_PORTSPEED_4GBIT|
+			FC_PORTSPEED_2GBIT|FC_PORTSPEED_1GBIT;
 	else if (IS_QLA24XX_TYPE(ha))
-		speed = FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
-		    FC_PORTSPEED_1GBIT;
+		speeds = FC_PORTSPEED_4GBIT|FC_PORTSPEED_2GBIT|
+			FC_PORTSPEED_1GBIT;
 	else if (IS_QLA23XX(ha))
-		speed = FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
-	else if (IS_QLAFX00(ha))
-		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
-		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
-	else if (IS_QLA27XX(ha))
-		speed = FC_PORTSPEED_32GBIT | FC_PORTSPEED_16GBIT |
-		    FC_PORTSPEED_8GBIT;
-	else if (IS_QLA28XX(ha))
-		speed = FC_PORTSPEED_64GBIT | FC_PORTSPEED_32GBIT |
-		    FC_PORTSPEED_16GBIT | FC_PORTSPEED_8GBIT;
+		speeds = FC_PORTSPEED_2GBIT|FC_PORTSPEED_1GBIT;
 	else
-		speed = FC_PORTSPEED_1GBIT;
-	fc_host_supported_speeds(vha->host) = speed;
+		speeds = FC_PORTSPEED_1GBIT;
+
+	fc_host_supported_speeds(vha->host) = speeds;
 }

@@ -737,13 +737,14 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			struct nvram_81xx *nv = ha->nvram;
 			/* set minimum speed if specified in nvram */
-			if (nv->min_link_speed >= 2 &&
-			    nv->min_link_speed <= 5) {
+			if (nv->min_supported_speed >= 2 &&
+			    nv->min_supported_speed <= 5) {
 				mcp->mb[4] |= BIT_4;
-				mcp->mb[11] = nv->min_link_speed;
+				mcp->mb[11] |= nv->min_supported_speed & 0xF;
 				mcp->out_mb |= MBX_11;
 				mcp->in_mb |= BIT_5;
-				vha->min_link_speed_feat = nv->min_link_speed;
+				vha->min_supported_speed =
+				    nv->min_supported_speed;
 			}
 		}
 
@@ -771,34 +772,38 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1026,
 		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
-	} else {
-		if (IS_FWI2_CAPABLE(ha)) {
-			ha->fw_ability_mask = mcp->mb[3] << 16 | mcp->mb[2];
-			ql_dbg(ql_dbg_mbx, vha, 0x119a,
-			    "fw_ability_mask=%x.\n", ha->fw_ability_mask);
-			ql_dbg(ql_dbg_mbx, vha, 0x1027,
-			    "exchanges=%x.\n", mcp->mb[1]);
-			if (IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
-			    IS_QLA28XX(ha)) {
-				ha->max_speed_sup = mcp->mb[2] & BIT_0;
-				ql_dbg(ql_dbg_mbx, vha, 0x119b,
-				    "Maximum speed supported=%s.\n",
-				    ha->max_speed_sup ? "32Gps" : "16Gps");
-				if (vha->min_link_speed_feat) {
-					ha->min_link_speed = mcp->mb[5];
-					ql_dbg(ql_dbg_mbx, vha, 0x119c,
-					    "Minimum speed set=%s.\n",
-					    mcp->mb[5] == 5 ? "32Gps" :
-					    mcp->mb[5] == 4 ? "16Gps" :
-					    mcp->mb[5] == 3 ? "8Gps" :
-					    mcp->mb[5] == 2 ? "4Gps" :
-						"unknown");
-				}
-			}
-		}
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
-		    "Done.\n");
+		return rval;
 	}
+
+	if (!IS_FWI2_CAPABLE(ha))
+		goto done;
+
+	ha->fw_ability_mask = mcp->mb[3] << 16 | mcp->mb[2];
+	ql_dbg(ql_dbg_mbx, vha, 0x119a,
+	    "fw_ability_mask=%x.\n", ha->fw_ability_mask);
+	ql_dbg(ql_dbg_mbx, vha, 0x1027, "exchanges=%x.\n", mcp->mb[1]);
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+		ha->max_supported_speed = mcp->mb[2] & (BIT_0|BIT_1);
+		ql_dbg(ql_dbg_mbx, vha, 0x119b, "max_supported_speed=%s.\n",
+		    ha->max_supported_speed == 0 ? "16Gps" :
+		    ha->max_supported_speed == 1 ? "32Gps" :
+		    ha->max_supported_speed == 2 ? "64Gps" : "unknown");
+		if (vha->min_supported_speed) {
+			ha->min_supported_speed = mcp->mb[5] &
+			    (BIT_0 | BIT_1 | BIT_2);
+			ql_dbg(ql_dbg_mbx, vha, 0x119c,
+			    "min_supported_speed=%s.\n",
+			    ha->min_supported_speed == 6 ? "64Gps" :
+			    ha->min_supported_speed == 5 ? "32Gps" :
+			    ha->min_supported_speed == 4 ? "16Gps" :
+			    ha->min_supported_speed == 3 ? "8Gps" :
+			    ha->min_supported_speed == 2 ? "4Gps" : "unknown");
+		}
+	}
+
+done:
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1028,
+	    "Done %s.\n", __func__);
 
 	return rval;
 }
