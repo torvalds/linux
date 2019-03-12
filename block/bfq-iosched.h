@@ -450,7 +450,7 @@ struct bfq_data {
 	 * weight-raised @bfq_queue (see the comments to the functions
 	 * bfq_weights_tree_[add|remove] for further details).
 	 */
-	struct rb_root queue_weights_tree;
+	struct rb_root_cached queue_weights_tree;
 
 	/*
 	 * Number of groups with at least one descendant process that
@@ -898,10 +898,10 @@ void bic_set_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq, bool is_sync);
 struct bfq_data *bic_to_bfqd(struct bfq_io_cq *bic);
 void bfq_pos_tree_add_move(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 void bfq_weights_tree_add(struct bfq_data *bfqd, struct bfq_queue *bfqq,
-			  struct rb_root *root);
+			  struct rb_root_cached *root);
 void __bfq_weights_tree_remove(struct bfq_data *bfqd,
 			       struct bfq_queue *bfqq,
-			       struct rb_root *root);
+			       struct rb_root_cached *root);
 void bfq_weights_tree_remove(struct bfq_data *bfqd,
 			     struct bfq_queue *bfqq);
 void bfq_bfqq_expire(struct bfq_data *bfqd, struct bfq_queue *bfqq,
