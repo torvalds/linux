@@ -362,7 +362,7 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 	r8712_fw_cmd(padapter, intcmd);
 }
 
-/**
+/*
  *
  * This function intends to handle the activation of an interface
  * i.e. when it is brought Up/Active from a Down state.
@@ -430,7 +430,7 @@ netdev_open_error:
 	return -1;
 }
 
-/**
+/*
  *
  * This function intends to handle the shutdown of an interface
  * i.e. when it is brought Down from an Up/Active state.

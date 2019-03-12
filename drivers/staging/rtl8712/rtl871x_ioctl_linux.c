@@ -1102,7 +1102,7 @@ static int r871x_wx_set_mlme(struct net_device *dev,
 	return ret;
 }
 
-/**
+/*
  *
  * This function intends to handle the Set Scan command.
  * Currently, the request comes via Wireless Extensions' SIOCSIWSCAN ioctl.
