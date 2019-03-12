@@ -315,6 +315,7 @@ struct kvm_mmu_page {
 };
 
 struct kvm_pio_request {
+	unsigned long linear_rip;
 	unsigned long count;
 	int in;
 	int port;
