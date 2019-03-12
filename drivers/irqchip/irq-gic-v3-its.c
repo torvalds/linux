@@ -1532,22 +1532,19 @@ static int alloc_lpi_range(u32 nr_lpis, u32 *base)
 static int free_lpi_range(u32 base, u32 nr_lpis)
 {
 	struct lpi_range *new;
-	int err = 0;
-
-	mutex_lock(&lpi_range_lock);
 
 	new = mk_lpi_range(base, nr_lpis);
-	if (!new) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!new)
+		return -ENOMEM;
+
+	mutex_lock(&lpi_range_lock);
 
 	list_add(&new->entry, &lpi_range_list);
 	list_sort(NULL, &lpi_range_list, lpi_range_cmp);
 	merge_lpi_ranges();
-out:
+
 	mutex_unlock(&lpi_range_lock);
-	return err;
+	return 0;
 }
 
 static int __init its_lpi_init(u32 id_bits)
