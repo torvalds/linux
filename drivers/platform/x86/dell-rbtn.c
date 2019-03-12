@@ -18,6 +18,8 @@
 #include <linux/rfkill.h>
 #include <linux/input.h>
 
+#include "dell-rbtn.h"
+
 enum rbtn_type {
 	RBTN_UNKNOWN,
 	RBTN_TOGGLE,
