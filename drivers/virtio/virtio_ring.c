@@ -1004,6 +1004,7 @@ static int virtqueue_add_indirect_packed(struct vring_virtqueue *vq,
 
 	if (unlikely(vq->vq.num_free < 1)) {
 		pr_debug("Can't add buf len 1 - avail = 0\n");
+		kfree(desc);
 		END_USE(vq);
 		return -ENOSPC;
 	}
