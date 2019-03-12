@@ -2071,8 +2071,8 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 				return &spi_nor_ids[tmp];
 		}
 	}
-	dev_err(nor->dev, "unrecognized JEDEC id bytes: %02x, %02x, %02x\n",
-		id[0], id[1], id[2]);
+	dev_err(nor->dev, "unrecognized JEDEC id bytes: %*ph\n",
+		SPI_NOR_MAX_ID_LEN, id);
 	return ERR_PTR(-ENODEV);
 }
 
