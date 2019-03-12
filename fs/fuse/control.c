@@ -35,7 +35,9 @@ static ssize_t fuse_conn_abort_write(struct file *file, const char __user *buf,
 {
 	struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 	if (fc) {
-		fuse_abort_conn(fc, true);
+		if (fc->abort_err)
+			fc->aborted = true;
+		fuse_abort_conn(fc);
 		fuse_conn_put(fc);
 	}
 	return count;
