@@ -2647,8 +2647,19 @@ static void complete_scsi_command(struct CommandList *cp)
 			decode_sense_data(ei->SenseInfo, sense_data_size,
 				&sense_key, &asc, &ascq);
 		if (ei->ScsiStatus == SAM_STAT_CHECK_CONDITION) {
-			if (sense_key == ABORTED_COMMAND) {
+			switch (sense_key) {
+			case ABORTED_COMMAND:
 				cmd->result |= DID_SOFT_ERROR << 16;
+				break;
+			case UNIT_ATTENTION:
+				if (asc == 0x3F && ascq == 0x0E)
+					h->drv_req_rescan = 1;
+				break;
+			case ILLEGAL_REQUEST:
+				if (asc == 0x25 && ascq == 0x00) {
+					dev->removed = 1;
+					cmd->result = DID_NO_CONNECT << 16;
+				}
 				break;
 			}
 			break;
