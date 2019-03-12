@@ -45,6 +45,13 @@ do
 			}
 		    ')
 		do
+			for lpackage_path in "$lpackage"_*.deb
+			do
+				break
+			done
+			if [ -f "$lpackage_path" ]; then
+				break
+			fi
 			url="$pool/$package_path"
 			wget "$url" && break || true
 			# No components in PPAs.
