@@ -286,6 +286,12 @@
 			status = "disabled";
 		};
 
+		memory-controller@40ab0000 {
+			compatible = "fsl,imx7ulp-mmdc", "fsl,imx6q-mmdc";
+			reg = <0x40ab0000 0x1000>;
+			clocks = <&pcc3 IMX7ULP_CLK_MMDC>;
+		};
+
 		iomuxc1: pinctrl@40ac0000 {
 			compatible = "fsl,imx7ulp-iomuxc1";
 			reg = <0x40ac0000 0x1000>;
