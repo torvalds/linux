@@ -37,6 +37,7 @@
 #include <linux/mm_types.h>
 #include <linux/init.h>
 #include <linux/capability.h>
+#include <linux/memory_hotplug.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -50,6 +51,10 @@
 
 #define BALLOON_CLASS_NAME "xen_memory"
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+u64 xen_saved_max_mem_size = 0;
+#endif
+
 static struct device balloon_dev;
 
 static int register_balloon(struct device *dev);
@@ -62,6 +67,12 @@ static void watch_target(struct xenbus_watch *watch,
 	int err;
 	static bool watch_fired;
 	static long target_diff;
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* The balloon driver will take care of adding memory now. */
+	if (xen_saved_max_mem_size)
+		max_mem_size = xen_saved_max_mem_size;
+#endif
 
 	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
 	if (err != 1) {
