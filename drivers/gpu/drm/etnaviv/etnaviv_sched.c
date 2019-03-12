@@ -153,7 +153,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 	mutex_lock(&submit->gpu->fence_lock);
 
 	ret = drm_sched_job_init(&submit->sched_job, sched_entity,
-				 submit->cmdbuf.ctx);
+				 submit->ctx);
 	if (ret)
 		goto out_unlock;
 
