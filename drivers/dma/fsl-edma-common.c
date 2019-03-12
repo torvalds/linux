@@ -6,6 +6,7 @@
 #include <linux/dmapool.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 
 #include "fsl-edma-common.h"
 
@@ -173,12 +174,62 @@ int fsl_edma_resume(struct dma_chan *chan)
 }
 EXPORT_SYMBOL_GPL(fsl_edma_resume);
 
+static void fsl_edma_unprep_slave_dma(struct fsl_edma_chan *fsl_chan)
+{
+	if (fsl_chan->dma_dir != DMA_NONE)
+		dma_unmap_resource(fsl_chan->vchan.chan.device->dev,
+				   fsl_chan->dma_dev_addr,
+				   fsl_chan->dma_dev_size,
+				   fsl_chan->dma_dir, 0);
+	fsl_chan->dma_dir = DMA_NONE;
+}
+
+static bool fsl_edma_prep_slave_dma(struct fsl_edma_chan *fsl_chan,
+				    enum dma_transfer_direction dir)
+{
+	struct device *dev = fsl_chan->vchan.chan.device->dev;
+	enum dma_data_direction dma_dir;
+	phys_addr_t addr = 0;
+	u32 size = 0;
+
+	switch (dir) {
+	case DMA_MEM_TO_DEV:
+		dma_dir = DMA_FROM_DEVICE;
+		addr = fsl_chan->cfg.dst_addr;
+		size = fsl_chan->cfg.dst_maxburst;
+		break;
+	case DMA_DEV_TO_MEM:
+		dma_dir = DMA_TO_DEVICE;
+		addr = fsl_chan->cfg.src_addr;
+		size = fsl_chan->cfg.src_maxburst;
+		break;
+	default:
+		dma_dir = DMA_NONE;
+		break;
+	}
+
+	/* Already mapped for this config? */
+	if (fsl_chan->dma_dir == dma_dir)
+		return true;
+
+	fsl_edma_unprep_slave_dma(fsl_chan);
+
+	fsl_chan->dma_dev_addr = dma_map_resource(dev, addr, size, dma_dir, 0);
+	if (dma_mapping_error(dev, fsl_chan->dma_dev_addr))
+		return false;
+	fsl_chan->dma_dev_size = size;
+	fsl_chan->dma_dir = dma_dir;
+
+	return true;
+}
+
 int fsl_edma_slave_config(struct dma_chan *chan,
 				 struct dma_slave_config *cfg)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
 
 	memcpy(&fsl_chan->cfg, cfg, sizeof(*cfg));
+	fsl_edma_unprep_slave_dma(fsl_chan);
 
 	return 0;
 }
@@ -339,9 +390,7 @@ static struct fsl_edma_desc *fsl_edma_alloc_desc(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_desc *fsl_desc;
 	int i;
 
-	fsl_desc = kzalloc(sizeof(*fsl_desc) +
-			   sizeof(struct fsl_edma_sw_tcd) *
-			   sg_len, GFP_NOWAIT);
+	fsl_desc = kzalloc(struct_size(fsl_desc, tcd, sg_len), GFP_NOWAIT);
 	if (!fsl_desc)
 		return NULL;
 
@@ -378,6 +427,9 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 	if (!is_slave_direction(direction))
 		return NULL;
 
+	if (!fsl_edma_prep_slave_dma(fsl_chan, direction))
+		return NULL;
+
 	sg_len = buf_len / period_len;
 	fsl_desc = fsl_edma_alloc_desc(fsl_chan, sg_len);
 	if (!fsl_desc)
@@ -409,11 +461,11 @@ struct dma_async_tx_descriptor *fsl_edma_prep_dma_cyclic(
 
 		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = dma_buf_next;
-			dst_addr = fsl_chan->cfg.dst_addr;
+			dst_addr = fsl_chan->dma_dev_addr;
 			soff = fsl_chan->cfg.dst_addr_width;
 			doff = 0;
 		} else {
-			src_addr = fsl_chan->cfg.src_addr;
+			src_addr = fsl_chan->dma_dev_addr;
 			dst_addr = dma_buf_next;
 			soff = 0;
 			doff = fsl_chan->cfg.src_addr_width;
@@ -444,6 +496,9 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 	if (!is_slave_direction(direction))
 		return NULL;
 
+	if (!fsl_edma_prep_slave_dma(fsl_chan, direction))
+		return NULL;
+
 	fsl_desc = fsl_edma_alloc_desc(fsl_chan, sg_len);
 	if (!fsl_desc)
 		return NULL;
@@ -468,11 +523,11 @@ struct dma_async_tx_descriptor *fsl_edma_prep_slave_sg(
 
 		if (direction == DMA_MEM_TO_DEV) {
 			src_addr = sg_dma_address(sg);
-			dst_addr = fsl_chan->cfg.dst_addr;
+			dst_addr = fsl_chan->dma_dev_addr;
 			soff = fsl_chan->cfg.dst_addr_width;
 			doff = 0;
 		} else {
-			src_addr = fsl_chan->cfg.src_addr;
+			src_addr = fsl_chan->dma_dev_addr;
 			dst_addr = sg_dma_address(sg);
 			soff = 0;
 			doff = fsl_chan->cfg.src_addr_width;
@@ -555,6 +610,7 @@ void fsl_edma_free_chan_resources(struct dma_chan *chan)
 	fsl_edma_chan_mux(fsl_chan, 0, false);
 	fsl_chan->edesc = NULL;
 	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
+	fsl_edma_unprep_slave_dma(fsl_chan);
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 
 	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
