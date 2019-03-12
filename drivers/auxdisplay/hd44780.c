@@ -271,7 +271,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	kfree(lcd);
+	charlcd_free(lcd);
 	return ret;
 }
 
@@ -281,7 +281,7 @@ static int hd44780_remove(struct platform_device *pdev)
 
 	charlcd_unregister(lcd);
 
-	kfree(lcd);
+	charlcd_free(lcd);
 	return 0;
 }
 
