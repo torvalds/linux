@@ -5265,23 +5265,6 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 	return false;
 }
 
-static int skl_update_pipe_wm(struct intel_crtc_state *cstate,
-			      const struct skl_pipe_wm *old_pipe_wm,
-			      struct skl_pipe_wm *pipe_wm, /* out */
-			      bool *changed /* out */)
-{
-	struct intel_crtc *crtc = to_intel_crtc(cstate->base.crtc);
-	int ret;
-
-	ret = skl_build_pipe_wm(cstate);
-	if (ret)
-		return ret;
-
-	*changed = !skl_pipe_wm_equals(crtc, old_pipe_wm, pipe_wm);
-
-	return 0;
-}
-
 static u32
 pipes_modified(struct intel_atomic_state *state)
 {
@@ -5620,10 +5603,9 @@ static int
 skl_compute_wm(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
-	struct intel_crtc_state *cstate;
+	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc_state *old_crtc_state;
 	struct skl_ddb_values *results = &state->wm_results;
-	struct skl_pipe_wm *pipe_wm;
 	bool changed = false;
 	int ret, i;
 
@@ -5641,12 +5623,8 @@ skl_compute_wm(struct intel_atomic_state *state)
 	 * pipe allocations had to change.
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    cstate, i) {
-		const struct skl_pipe_wm *old_pipe_wm =
-			&old_crtc_state->wm.skl.optimal;
-
-		pipe_wm = &cstate->wm.skl.optimal;
-		ret = skl_update_pipe_wm(cstate, old_pipe_wm, pipe_wm, &changed);
+					    new_crtc_state, i) {
+		ret = skl_build_pipe_wm(new_crtc_state);
 		if (ret)
 			return ret;
 
@@ -5654,7 +5632,9 @@ skl_compute_wm(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 
-		if (changed)
+		if (!skl_pipe_wm_equals(crtc,
+					&old_crtc_state->wm.skl.optimal,
+					&new_crtc_state->wm.skl.optimal))
 			results->dirty_pipes |= drm_crtc_mask(&crtc->base);
 	}
 
