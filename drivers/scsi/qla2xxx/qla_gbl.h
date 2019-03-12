@@ -613,8 +613,6 @@ extern void qla27xx_fwdump(scsi_qla_host_t *, int);
 extern ulong qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *);
 extern int qla27xx_fwdt_template_valid(void *);
 extern ulong qla27xx_fwdt_template_size(void *);
-extern const void *qla27xx_fwdt_template_default(void);
-extern ulong qla27xx_fwdt_template_default_size(void);
 
 extern void qla2x00_dump_regs(scsi_qla_host_t *);
 extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
