@@ -14,7 +14,7 @@ struct __packed qla27xx_fwdt_template {
 	__le32 template_type;
 	__le32 entry_offset;
 	uint32_t template_size;
-	uint32_t reserved_1;
+	uint32_t count;		/* borrow field for running/residual count */
 
 	__le32 entry_count;
 	uint32_t template_version;

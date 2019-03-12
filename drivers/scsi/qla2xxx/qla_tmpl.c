@@ -99,9 +99,9 @@ static inline void
 qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 	uint offset, uint32_t data, void *buf)
 {
-	__iomem void *window = (void __iomem *)reg + offset;
-
 	if (buf) {
+		void __iomem *window = (void __iomem *)reg + offset;
+
 		WRT_REG_DWORD(window, data);
 	}
 }
@@ -709,10 +709,10 @@ qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
 		goto done;
 	}
 	if (offset + length > size) {
+		length = size - offset;
 		ql_dbg(ql_dbg_misc, vha, 0xd030,
-		    "%s: buffer overflow\n", __func__);
-		qla27xx_skip_entry(ent, buf);
-		goto done;
+		    "%s: buffer overflow, truncate [%lx]\n", __func__, length);
+		ent->t275.length = cpu_to_le32(length);
 	}
 
 	qla27xx_insertbuf(buffer, length, buf, len);
@@ -724,17 +724,22 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t276(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	ulong cond1 = le32_to_cpu(ent->t276.cond1);
-	ulong cond2 = le32_to_cpu(ent->t276.cond2);
-	uint type = vha->hw->pdev->device >> 4 & 0xf;
-	uint func = vha->hw->port_no & 0x3;
-
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd214,
 	    "%s: cond [%lx]\n", __func__, *len);
 
-	if (type != cond1 || func != cond2) {
-		ent = qla27xx_next_entry(ent);
-		qla27xx_skip_entry(ent, buf);
+	if (buf) {
+		ulong cond1 = le32_to_cpu(ent->t276.cond1);
+		ulong cond2 = le32_to_cpu(ent->t276.cond2);
+		uint type = vha->hw->pdev->device >> 4 & 0xf;
+		uint func = vha->hw->port_no & 0x3;
+
+		if (type != cond1 || func != cond2) {
+			struct qla27xx_fwdt_template *tmp = buf;
+
+			tmp->count--;
+			ent = qla27xx_next_entry(ent);
+			qla27xx_skip_entry(ent, buf);
+		}
 	}
 
 	return qla27xx_next_entry(ent);
@@ -840,21 +845,21 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 {
 	struct qla27xx_fwdt_entry *ent = (void *)tmp +
 	    le32_to_cpu(tmp->entry_offset);
-	ulong count = le32_to_cpu(tmp->entry_count);
-	ulong type = 0;
+	ulong type;
 
+	tmp->count = le32_to_cpu(tmp->entry_count);
 	ql_dbg(ql_dbg_misc, vha, 0xd01a,
-	    "%s: entry count %lx\n", __func__, count);
-	while (count--) {
+	    "%s: entry count %u\n", __func__, tmp->count);
+	while (ent && tmp->count--) {
 		type = le32_to_cpu(ent->hdr.type);
 		ent = qla27xx_find_entry(type)(vha, ent, buf, len);
 		if (!ent)
 			break;
 	}
 
-	if (count)
+	if (tmp->count)
 		ql_dbg(ql_dbg_misc, vha, 0xd018,
-		    "%s: entry count residual=+%lu\n", __func__, count);
+		    "%s: entry count residual=+%u\n", __func__, tmp->count);
 
 	if (ent)
 		ql_dbg(ql_dbg_misc, vha, 0xd019,
