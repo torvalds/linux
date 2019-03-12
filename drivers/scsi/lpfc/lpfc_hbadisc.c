@@ -885,15 +885,9 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t          *mb;
 	int i;
 
-	if (phba->link_state == LPFC_LINK_DOWN) {
-		if (phba->sli4_hba.conf_trunk) {
-			phba->trunk_link.link0.state = 0;
-			phba->trunk_link.link1.state = 0;
-			phba->trunk_link.link2.state = 0;
-			phba->trunk_link.link3.state = 0;
-		}
+	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
-	}
+
 	/* Block all SCSI stack I/Os */
 	lpfc_scsi_dev_block(phba);
 
