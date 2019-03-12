@@ -92,48 +92,12 @@ static int wm831x_isink_is_enabled(struct regulator_dev *rdev)
 		return 0;
 }
 
-static int wm831x_isink_set_current(struct regulator_dev *rdev,
-				    int min_uA, int max_uA)
-{
-	struct wm831x_isink *isink = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = isink->wm831x;
-	int ret, i;
-
-	for (i = ARRAY_SIZE(wm831x_isinkv_values) - 1; i >= 0; i--) {
-		int val = wm831x_isinkv_values[i];
-		if (min_uA <= val && val <= max_uA) {
-			ret = wm831x_set_bits(wm831x, isink->reg,
-					      WM831X_CS1_ISEL_MASK, i);
-			return ret;
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int wm831x_isink_get_current(struct regulator_dev *rdev)
-{
-	struct wm831x_isink *isink = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = isink->wm831x;
-	int ret;
-
-	ret = wm831x_reg_read(wm831x, isink->reg);
-	if (ret < 0)
-		return ret;
-
-	ret &= WM831X_CS1_ISEL_MASK;
-	if (ret > WM831X_ISINK_MAX_ISEL)
-		ret = WM831X_ISINK_MAX_ISEL;
-
-	return wm831x_isinkv_values[ret];
-}
-
 static const struct regulator_ops wm831x_isink_ops = {
 	.is_enabled = wm831x_isink_is_enabled,
 	.enable = wm831x_isink_enable,
 	.disable = wm831x_isink_disable,
-	.set_current_limit = wm831x_isink_set_current,
-	.get_current_limit = wm831x_isink_get_current,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 };
 
 static irqreturn_t wm831x_isink_irq(int irq, void *data)
@@ -189,10 +153,15 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	isink->desc.ops = &wm831x_isink_ops;
 	isink->desc.type = REGULATOR_CURRENT;
 	isink->desc.owner = THIS_MODULE;
+	isink->desc.curr_table = wm831x_isinkv_values,
+	isink->desc.n_current_limits = ARRAY_SIZE(wm831x_isinkv_values),
+	isink->desc.csel_reg = isink->reg,
+	isink->desc.csel_mask = WM831X_CS1_ISEL_MASK,
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->isink[id];
 	config.driver_data = isink;
+	config.regmap = wm831x->regmap;
 
 	isink->regulator = devm_regulator_register(&pdev->dev, &isink->desc,
 						   &config);
