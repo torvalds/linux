@@ -4,6 +4,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernfs.h>
+#include <linux/fs_context.h>
 #include <linux/jump_label.h>
 
 #define MSR_IA32_L3_QOS_CFG		0xc81
@@ -39,6 +40,21 @@
 
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
+
+
+struct rdt_fs_context {
+	struct kernfs_fs_context	kfc;
+	bool				enable_cdpl2;
+	bool				enable_cdpl3;
+	bool				enable_mba_mbps;
+};
+
+static inline struct rdt_fs_context *rdt_fc2context(struct fs_context *fc)
+{
+	struct kernfs_fs_context *kfc = fc->fs_private;
+
+	return container_of(kfc, struct rdt_fs_context, kfc);
+}
 
 DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
 
