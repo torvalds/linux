@@ -427,14 +427,13 @@ struct lpfc_io_buf {
 		struct {
 			struct nvmefc_fcp_req *nvmeCmd;
 			uint16_t qidx;
-
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-			uint64_t ts_cmd_start;
-			uint64_t ts_last_cmd;
-			uint64_t ts_cmd_wqput;
-			uint64_t ts_isr_cmpl;
-			uint64_t ts_data_nvme;
-#endif
 		};
 	};
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	uint64_t ts_cmd_start;
+	uint64_t ts_last_cmd;
+	uint64_t ts_cmd_wqput;
+	uint64_t ts_isr_cmpl;
+	uint64_t ts_data_nvme;
+#endif
 };
