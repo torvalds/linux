@@ -952,11 +952,25 @@ static int vidioc_g_selection(struct file *file, void *priv,
 	 * encoder supports only cropping on the OUTPUT buffer
 	 * decoder supports only composing on the CAPTURE buffer
 	 */
-	if ((ctx->is_enc && s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) ||
-	    (!ctx->is_enc && s->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)) {
+	if (ctx->is_enc && s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		switch (s->target) {
+		case V4L2_SEL_TGT_CROP:
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = q_data->visible_width;
+			s->r.height = q_data->visible_height;
+			return 0;
+		case V4L2_SEL_TGT_CROP_DEFAULT:
+		case V4L2_SEL_TGT_CROP_BOUNDS:
+			s->r.left = 0;
+			s->r.top = 0;
+			s->r.width = q_data->coded_width;
+			s->r.height = q_data->coded_height;
+			return 0;
+		}
+	} else if (!ctx->is_enc && s->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		switch (s->target) {
 		case V4L2_SEL_TGT_COMPOSE:
-		case V4L2_SEL_TGT_CROP:
 			s->r.left = 0;
 			s->r.top = 0;
 			s->r.width = q_data->visible_width;
@@ -964,8 +978,6 @@ static int vidioc_g_selection(struct file *file, void *priv,
 			return 0;
 		case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 		case V4L2_SEL_TGT_COMPOSE_BOUNDS:
-		case V4L2_SEL_TGT_CROP_DEFAULT:
-		case V4L2_SEL_TGT_CROP_BOUNDS:
 			s->r.left = 0;
 			s->r.top = 0;
 			s->r.width = q_data->coded_width;
