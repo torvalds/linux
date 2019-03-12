@@ -19,7 +19,7 @@ built_using_record()
 	if [ ! -f "$subst" ]; then
 		touch "$subst"
 	fi
-	if ! grep -s "^linux:BuiltUsing=" "$subst"; then
+	if ! grep -q -s "^linux:BuiltUsing=" "$subst"; then
 		echo "linux:BuiltUsing=" >>"$subst"
 	fi
 	sed -i -e "s/^\(linux:BuiltUsing=.*\)/\1$built_using, /" "$subst"
