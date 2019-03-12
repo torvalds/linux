@@ -3670,7 +3670,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->cpucheck_on & LPFC_CHECK_SCSI_IO) {
 		cpu = smp_processor_id();
-		if (cpu < LPFC_CHECK_CPU_CNT)
+		if (cpu < LPFC_CHECK_CPU_CNT && phba->sli4_hba.hdwq)
 			phba->sli4_hba.hdwq[idx].cpucheck_cmpl_io[cpu]++;
 	}
 #endif
