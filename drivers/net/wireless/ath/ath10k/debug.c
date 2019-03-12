@@ -305,6 +305,9 @@ void ath10k_debug_fw_stats_process(struct ath10k *ar, struct sk_buff *skb)
 	if (is_end)
 		ar->debug.fw_stats_done = true;
 
+	if (stats.extended)
+		ar->debug.fw_stats.extended = true;
+
 	is_started = !list_empty(&ar->debug.fw_stats.pdevs);
 
 	if (is_started && !is_end) {

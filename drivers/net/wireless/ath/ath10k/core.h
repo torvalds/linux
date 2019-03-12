@@ -196,7 +196,7 @@ struct ath10k_fw_extd_stats_peer {
 	struct list_head list;
 
 	u8 peer_macaddr[ETH_ALEN];
-	u32 rx_duration;
+	u64 rx_duration;
 };
 
 struct ath10k_fw_stats_vdev {
