@@ -71,6 +71,7 @@
 #include <sysdev/fsl_pci.h>
 #include <asm/kprobes.h>
 #include <asm/stacktrace.h>
+#include <asm/nmi.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
