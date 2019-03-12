@@ -394,6 +394,9 @@ void __init hubdev_init_node(nodepda_t * npda, cnodeid_t node)
 	hubdev_info = (struct hubdev_info *)memblock_alloc_node(size,
 								SMP_CACHE_BYTES,
 								node);
+	if (!hubdev_info)
+		panic("%s: Failed to allocate %d bytes align=0x%x nid=%d\n",
+		      __func__, size, SMP_CACHE_BYTES, node);
 
 	npda->pdinfo = (void *)hubdev_info;
 }
