@@ -497,6 +497,9 @@ struct bfq_data {
 	/* number of requests dispatched and waiting for completion */
 	int rq_in_driver;
 
+	/* true if the device is non rotational and performs queueing */
+	bool nonrot_with_queueing;
+
 	/*
 	 * Maximum number of requests in driver in the last
 	 * @hw_tag_samples completed requests.
