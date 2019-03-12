@@ -7,13 +7,9 @@
 #include "qla_def.h"
 #include "qla_tmpl.h"
 
-#define IOBASE(reg)	offsetof(typeof(*reg), iobase_addr)
-
-static inline void __iomem *
-qla27xx_isp_reg(struct scsi_qla_host *vha)
-{
-	return &vha->hw->iobase->isp24;
-}
+#define ISPREG(vha)	(&(vha)->hw->iobase->isp24)
+#define IOBAR(reg)	offsetof(typeof(*(reg)), iobase_addr)
+#define IOBASE(vha)	IOBAR(ISPREG(vha))
 
 static inline void
 qla27xx_insert16(uint16_t value, void *buf, ulong *len)
@@ -114,7 +110,7 @@ qla27xx_read_window(__iomem struct device_reg_24xx *reg,
 	void __iomem *window = (void __iomem *)reg + offset;
 	void (*readn)(void __iomem*, void *, ulong *) = qla27xx_read_vector(width);
 
-	qla27xx_write_reg(reg, IOBASE_ADDR, addr, buf);
+	qla27xx_write_reg(reg, IOBAR(reg), addr, buf);
 	while (count--) {
 		qla27xx_insert32(addr, buf, len);
 		readn(window, buf, len);
@@ -163,7 +159,6 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t256(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = le32_to_cpu(ent->t256.base_addr);
 	uint offset = ent->t256.pci_offset;
 	ulong count = le16_to_cpu(ent->t256.reg_count);
@@ -171,7 +166,7 @@ qla27xx_fwdt_entry_t256(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd200,
 	    "%s: rdio t1 [%lx]\n", __func__, *len);
-	qla27xx_read_window(reg, addr, offset, count, width, buf, len);
+	qla27xx_read_window(ISPREG(vha), addr, offset, count, width, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -180,15 +175,14 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t257(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = le32_to_cpu(ent->t257.base_addr);
 	uint offset = ent->t257.pci_offset;
 	ulong data = le32_to_cpu(ent->t257.write_data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd201,
 	    "%s: wrio t1 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE(reg), addr, buf);
-	qla27xx_write_reg(reg, offset, data, buf);
+	qla27xx_write_reg(ISPREG(vha), IOBASE(vha), addr, buf);
+	qla27xx_write_reg(ISPREG(vha), offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -197,7 +191,6 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t258(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	uint banksel = ent->t258.banksel_offset;
 	ulong bank = le32_to_cpu(ent->t258.bank);
 	ulong addr = le32_to_cpu(ent->t258.base_addr);
@@ -207,8 +200,8 @@ qla27xx_fwdt_entry_t258(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd202,
 	    "%s: rdio t2 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, banksel, bank, buf);
-	qla27xx_read_window(reg, addr, offset, count, width, buf, len);
+	qla27xx_write_reg(ISPREG(vha), banksel, bank, buf);
+	qla27xx_read_window(ISPREG(vha), addr, offset, count, width, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -217,7 +210,6 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t259(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = le32_to_cpu(ent->t259.base_addr);
 	uint banksel = ent->t259.banksel_offset;
 	ulong bank = le32_to_cpu(ent->t259.bank);
@@ -226,9 +218,9 @@ qla27xx_fwdt_entry_t259(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc, vha, 0xd203,
 	    "%s: wrio t2 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE(reg), addr, buf);
-	qla27xx_write_reg(reg, banksel, bank, buf);
-	qla27xx_write_reg(reg, offset, data, buf);
+	qla27xx_write_reg(ISPREG(vha), IOBASE(vha), addr, buf);
+	qla27xx_write_reg(ISPREG(vha), banksel, bank, buf);
+	qla27xx_write_reg(ISPREG(vha), offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -237,13 +229,12 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t260(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	uint offset = ent->t260.pci_offset;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd204,
 	    "%s: rdpci [%lx]\n", __func__, *len);
 	qla27xx_insert32(offset, buf, len);
-	qla27xx_read_reg(reg, offset, buf, len);
+	qla27xx_read_reg(ISPREG(vha), offset, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -252,13 +243,12 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t261(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	uint offset = ent->t261.pci_offset;
 	ulong data = le32_to_cpu(ent->t261.write_data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd205,
 	    "%s: wrpci [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, offset, data, buf);
+	qla27xx_write_reg(ISPREG(vha), offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -424,12 +414,10 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t265(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
-
-	ql_dbg(ql_dbg_misc, vha, 0xd209,
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd209,
 	    "%s: pause risc [%lx]\n", __func__, *len);
 	if (buf)
-		qla24xx_pause_risc(reg, vha->hw);
+		qla24xx_pause_risc(ISPREG(vha), vha->hw);
 
 	return qla27xx_next_entry(ent);
 }
@@ -450,13 +438,12 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t267(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	uint offset = ent->t267.pci_offset;
 	ulong data = le32_to_cpu(ent->t267.data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20b,
 	    "%s: dis intr [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, offset, data, buf);
+	qla27xx_write_reg(ISPREG(vha), offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -552,17 +539,16 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = le32_to_cpu(ent->t270.addr);
 	ulong dwords = le32_to_cpu(ent->t270.count);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20e,
 	    "%s: rdremreg [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE_ADDR, 0x40, buf);
+	qla27xx_write_reg(ISPREG(vha), IOBASE_ADDR, 0x40, buf);
 	while (dwords--) {
-		qla27xx_write_reg(reg, 0xc0, addr|0x80000000, buf);
+		qla27xx_write_reg(ISPREG(vha), 0xc0, addr|0x80000000, buf);
 		qla27xx_insert32(addr, buf, len);
-		qla27xx_read_reg(reg, 0xc4, buf, len);
+		qla27xx_read_reg(ISPREG(vha), 0xc4, buf, len);
 		addr += sizeof(uint32_t);
 	}
 
@@ -573,15 +559,14 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t271(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong addr = le32_to_cpu(ent->t271.addr);
 	ulong data = le32_to_cpu(ent->t271.data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20f,
 	    "%s: wrremreg [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE_ADDR, 0x40, buf);
-	qla27xx_write_reg(reg, 0xc4, data, buf);
-	qla27xx_write_reg(reg, 0xc0, addr, buf);
+	qla27xx_write_reg(ISPREG(vha), IOBASE(vha), 0x40, buf);
+	qla27xx_write_reg(ISPREG(vha), 0xc4, data, buf);
+	qla27xx_write_reg(ISPREG(vha), 0xc0, addr, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -749,7 +734,6 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t277(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong cmd_addr = le32_to_cpu(ent->t277.cmd_addr);
 	ulong wr_cmd_data = le32_to_cpu(ent->t277.wr_cmd_data);
 	ulong data_addr = le32_to_cpu(ent->t277.data_addr);
@@ -757,8 +741,8 @@ qla27xx_fwdt_entry_t277(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd215,
 	    "%s: rdpep [%lx]\n", __func__, *len);
 	qla27xx_insert32(wr_cmd_data, buf, len);
-	qla27xx_write_reg(reg, cmd_addr, wr_cmd_data, buf);
-	qla27xx_read_reg(reg, data_addr, buf, len);
+	qla27xx_write_reg(ISPREG(vha), cmd_addr, wr_cmd_data, buf);
+	qla27xx_read_reg(ISPREG(vha), data_addr, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -767,7 +751,6 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t278(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
 	ulong cmd_addr = le32_to_cpu(ent->t278.cmd_addr);
 	ulong wr_cmd_data = le32_to_cpu(ent->t278.wr_cmd_data);
 	ulong data_addr = le32_to_cpu(ent->t278.data_addr);
@@ -775,8 +758,8 @@ qla27xx_fwdt_entry_t278(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd216,
 	    "%s: wrpep [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, data_addr, wr_data, buf);
-	qla27xx_write_reg(reg, cmd_addr, wr_cmd_data, buf);
+	qla27xx_write_reg(ISPREG(vha), data_addr, wr_data, buf);
+	qla27xx_write_reg(ISPREG(vha), cmd_addr, wr_cmd_data, buf);
 
 	return qla27xx_next_entry(ent);
 }
