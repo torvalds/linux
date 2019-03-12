@@ -3611,8 +3611,6 @@ lpfc_io_free(struct lpfc_hba *phba)
 	struct lpfc_sli4_hdw_queue *qp;
 	int idx;
 
-	spin_lock_irq(&phba->hbalock);
-
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
 		qp = &phba->sli4_hba.hdwq[idx];
 		/* Release all the lpfc_nvme_bufs maintained by this host. */
@@ -3642,8 +3640,6 @@ lpfc_io_free(struct lpfc_hba *phba)
 		}
 		spin_unlock(&qp->io_buf_list_get_lock);
 	}
-
-	spin_unlock_irq(&phba->hbalock);
 }
 
 /**
