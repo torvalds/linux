@@ -355,7 +355,7 @@ struct async_extent {
 	struct list_head list;
 };
 
-struct async_cow {
+struct async_chunk {
 	struct inode *inode;
 	struct btrfs_fs_info *fs_info;
 	struct page *locked_page;
@@ -364,9 +364,16 @@ struct async_cow {
 	unsigned int write_flags;
 	struct list_head extents;
 	struct btrfs_work work;
+	atomic_t *pending;
 };
 
-static noinline int add_async_extent(struct async_cow *cow,
+struct async_cow {
+	/* Number of chunks in flight; must be first in the structure */
+	atomic_t num_chunks;
+	struct async_chunk chunks[];
+};
+
+static noinline int add_async_extent(struct async_chunk *cow,
 				     u64 start, u64 ram_size,
 				     u64 compressed_size,
 				     struct page **pages,
@@ -436,7 +443,7 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 static noinline void compress_file_range(struct inode *inode,
 					struct page *locked_page,
 					u64 start, u64 end,
-					struct async_cow *async_cow,
+					struct async_chunk *async_cow,
 					int *num_added)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -702,7 +709,7 @@ static void free_async_extent_pages(struct async_extent *async_extent)
  * queued.  We walk all the async extents created by compress_file_range
  * and send them down to the disk.
  */
-static noinline void submit_compressed_extents(struct async_cow *async_cow)
+static noinline void submit_compressed_extents(struct async_chunk *async_cow)
 {
 	struct inode *inode = async_cow->inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -1121,9 +1128,10 @@ out_unlock:
  */
 static noinline void async_cow_start(struct btrfs_work *work)
 {
-	struct async_cow *async_cow;
+	struct async_chunk *async_cow;
 	int num_added = 0;
-	async_cow = container_of(work, struct async_cow, work);
+
+	async_cow = container_of(work, struct async_chunk, work);
 
 	compress_file_range(async_cow->inode, async_cow->locked_page,
 			    async_cow->start, async_cow->end, async_cow,
@@ -1140,10 +1148,10 @@ static noinline void async_cow_start(struct btrfs_work *work)
 static noinline void async_cow_submit(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info;
-	struct async_cow *async_cow;
+	struct async_chunk *async_cow;
 	unsigned long nr_pages;
 
-	async_cow = container_of(work, struct async_cow, work);
+	async_cow = container_of(work, struct async_chunk, work);
 
 	fs_info = async_cow->fs_info;
 	nr_pages = (async_cow->end - async_cow->start + PAGE_SIZE) >>
@@ -1166,11 +1174,17 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 
 static noinline void async_cow_free(struct btrfs_work *work)
 {
-	struct async_cow *async_cow;
-	async_cow = container_of(work, struct async_cow, work);
+	struct async_chunk *async_cow;
+
+	async_cow = container_of(work, struct async_chunk, work);
 	if (async_cow->inode)
 		btrfs_add_delayed_iput(async_cow->inode);
-	kfree(async_cow);
+	/*
+	 * Since the pointer to 'pending' is at the beginning of the array of
+	 * async_cow's, freeing it ensures the whole array has been freed.
+	 */
+	if (atomic_dec_and_test(async_cow->pending))
+		kfree(async_cow->pending);
 }
 
 static int cow_file_range_async(struct inode *inode, struct page *locked_page,
@@ -1179,45 +1193,71 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 				unsigned int write_flags)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct async_cow *async_cow;
+	struct async_cow *ctx;
+	struct async_chunk *async_chunk;
 	unsigned long nr_pages;
 	u64 cur_end;
+	u64 num_chunks = DIV_ROUND_UP(end - start, SZ_512K);
+	int i;
+	bool should_compress;
 
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED,
 			 1, 0, NULL);
-	while (start < end) {
-		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
-		BUG_ON(!async_cow); /* -ENOMEM */
+
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS &&
+	    !btrfs_test_opt(fs_info, FORCE_COMPRESS)) {
+		num_chunks = 1;
+		should_compress = false;
+	} else {
+		should_compress = true;
+	}
+
+	ctx = kmalloc(struct_size(ctx, chunks, num_chunks), GFP_NOFS);
+	if (!ctx) {
+		unsigned clear_bits = EXTENT_LOCKED | EXTENT_DELALLOC |
+			EXTENT_DELALLOC_NEW | EXTENT_DEFRAG |
+			EXTENT_DO_ACCOUNTING;
+		unsigned long page_ops = PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
+			PAGE_SET_WRITEBACK | PAGE_END_WRITEBACK |
+			PAGE_SET_ERROR;
+
+		extent_clear_unlock_delalloc(inode, start, end, 0, locked_page,
+					     clear_bits, page_ops);
+		return -ENOMEM;
+	}
+
+	async_chunk = ctx->chunks;
+	atomic_set(&ctx->num_chunks, num_chunks);
+
+	for (i = 0; i < num_chunks; i++) {
+		if (should_compress)
+			cur_end = min(end, start + SZ_512K - 1);
+		else
+			cur_end = end;
+
 		/*
 		 * igrab is called higher up in the call chain, take only the
 		 * lightweight reference for the callback lifetime
 		 */
 		ihold(inode);
-		async_cow->inode = inode;
-		async_cow->fs_info = fs_info;
-		async_cow->locked_page = locked_page;
-		async_cow->start = start;
-		async_cow->write_flags = write_flags;
+		async_chunk[i].pending = &ctx->num_chunks;
+		async_chunk[i].inode = inode;
+		async_chunk[i].start = start;
+		async_chunk[i].end = cur_end;
+		async_chunk[i].fs_info = fs_info;
+		async_chunk[i].locked_page = locked_page;
+		async_chunk[i].write_flags = write_flags;
+		INIT_LIST_HEAD(&async_chunk[i].extents);
 
-		if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS &&
-		    !btrfs_test_opt(fs_info, FORCE_COMPRESS))
-			cur_end = end;
-		else
-			cur_end = min(end, start + SZ_512K - 1);
-
-		async_cow->end = cur_end;
-		INIT_LIST_HEAD(&async_cow->extents);
-
-		btrfs_init_work(&async_cow->work,
+		btrfs_init_work(&async_chunk[i].work,
 				btrfs_delalloc_helper,
 				async_cow_start, async_cow_submit,
 				async_cow_free);
 
-		nr_pages = (cur_end - start + PAGE_SIZE) >>
-			PAGE_SHIFT;
+		nr_pages = DIV_ROUND_UP(cur_end - start, PAGE_SIZE);
 		atomic_add(nr_pages, &fs_info->async_delalloc_pages);
 
-		btrfs_queue_work(fs_info->delalloc_workers, &async_cow->work);
+		btrfs_queue_work(fs_info->delalloc_workers, &async_chunk[i].work);
 
 		*nr_written += nr_pages;
 		start = cur_end + 1;
