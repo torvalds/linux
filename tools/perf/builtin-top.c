@@ -1637,6 +1637,9 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
+	if (!top.record_opts.no_bpf_event)
+		bpf_event__add_sb_event(&sb_evlist, &perf_env);
+
 	if (perf_evlist__start_sb_thread(sb_evlist, target)) {
 		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
 		opts->no_bpf_event = true;
