@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #include <linux/btf.h>
+#include <linux/err.h>
 #include "bpf-event.h"
 #include "debug.h"
 #include "symbol.h"
@@ -49,99 +51,62 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 {
 	struct ksymbol_event *ksymbol_event = &event->ksymbol_event;
 	struct bpf_event *bpf_event = &event->bpf_event;
-	u32 sub_prog_cnt, i, func_info_rec_size = 0;
-	u8 (*prog_tags)[BPF_TAG_SIZE] = NULL;
-	struct bpf_prog_info info = { .type = 0, };
-	u32 info_len = sizeof(info);
-	void *func_infos = NULL;
-	u64 *prog_addrs = NULL;
+	struct bpf_prog_info_linear *info_linear;
+	struct bpf_prog_info *info;
 	struct btf *btf = NULL;
-	u32 *prog_lens = NULL;
 	bool has_btf = false;
-	char errbuf[512];
+	u32 sub_prog_cnt, i;
 	int err = 0;
+	u64 arrays;
 
-	/* Call bpf_obj_get_info_by_fd() to get sizes of arrays */
-	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
+	arrays = 1UL << BPF_PROG_INFO_JITED_KSYMS;
+	arrays |= 1UL << BPF_PROG_INFO_JITED_FUNC_LENS;
+	arrays |= 1UL << BPF_PROG_INFO_FUNC_INFO;
+	arrays |= 1UL << BPF_PROG_INFO_PROG_TAGS;
 
-	if (err) {
-		pr_debug("%s: failed to get BPF program info: %s, aborting\n",
-			 __func__, str_error_r(errno, errbuf, sizeof(errbuf)));
+	info_linear = bpf_program__get_prog_info_linear(fd, arrays);
+	if (IS_ERR_OR_NULL(info_linear)) {
+		info_linear = NULL;
+		pr_debug("%s: failed to get BPF program info. aborting\n", __func__);
 		return -1;
 	}
-	if (info_len < offsetof(struct bpf_prog_info, prog_tags)) {
+
+	if (info_linear->info_len < offsetof(struct bpf_prog_info, prog_tags)) {
 		pr_debug("%s: the kernel is too old, aborting\n", __func__);
 		return -2;
 	}
 
+	info = &info_linear->info;
+
 	/* number of ksyms, func_lengths, and tags should match */
-	sub_prog_cnt = info.nr_jited_ksyms;
-	if (sub_prog_cnt != info.nr_prog_tags ||
-	    sub_prog_cnt != info.nr_jited_func_lens)
+	sub_prog_cnt = info->nr_jited_ksyms;
+	if (sub_prog_cnt != info->nr_prog_tags ||
+	    sub_prog_cnt != info->nr_jited_func_lens)
 		return -1;
 
 	/* check BTF func info support */
-	if (info.btf_id && info.nr_func_info && info.func_info_rec_size) {
+	if (info->btf_id && info->nr_func_info && info->func_info_rec_size) {
 		/* btf func info number should be same as sub_prog_cnt */
-		if (sub_prog_cnt != info.nr_func_info) {
+		if (sub_prog_cnt != info->nr_func_info) {
 			pr_debug("%s: mismatch in BPF sub program count and BTF function info count, aborting\n", __func__);
-			return -1;
+			err = -1;
+			goto out;
 		}
-		if (btf__get_from_id(info.btf_id, &btf)) {
-			pr_debug("%s: failed to get BTF of id %u, aborting\n", __func__, info.btf_id);
-			return -1;
-		}
-		func_info_rec_size = info.func_info_rec_size;
-		func_infos = calloc(sub_prog_cnt, func_info_rec_size);
-		if (!func_infos) {
-			pr_debug("%s: failed to allocate memory for func_infos, aborting\n", __func__);
-			return -1;
+		if (btf__get_from_id(info->btf_id, &btf)) {
+			pr_debug("%s: failed to get BTF of id %u, aborting\n", __func__, info->btf_id);
+			err = -1;
+			btf = NULL;
+			goto out;
 		}
 		has_btf = true;
 	}
 
-	/*
-	 * We need address, length, and tag for each sub program.
-	 * Allocate memory and call bpf_obj_get_info_by_fd() again
-	 */
-	prog_addrs = calloc(sub_prog_cnt, sizeof(u64));
-	if (!prog_addrs) {
-		pr_debug("%s: failed to allocate memory for prog_addrs, aborting\n", __func__);
-		goto out;
-	}
-	prog_lens = calloc(sub_prog_cnt, sizeof(u32));
-	if (!prog_lens) {
-		pr_debug("%s: failed to allocate memory for prog_lens, aborting\n", __func__);
-		goto out;
-	}
-	prog_tags = calloc(sub_prog_cnt, BPF_TAG_SIZE);
-	if (!prog_tags) {
-		pr_debug("%s: failed to allocate memory for prog_tags, aborting\n", __func__);
-		goto out;
-	}
-
-	memset(&info, 0, sizeof(info));
-	info.nr_jited_ksyms = sub_prog_cnt;
-	info.nr_jited_func_lens = sub_prog_cnt;
-	info.nr_prog_tags = sub_prog_cnt;
-	info.jited_ksyms = ptr_to_u64(prog_addrs);
-	info.jited_func_lens = ptr_to_u64(prog_lens);
-	info.prog_tags = ptr_to_u64(prog_tags);
-	info_len = sizeof(info);
-	if (has_btf) {
-		info.nr_func_info = sub_prog_cnt;
-		info.func_info_rec_size = func_info_rec_size;
-		info.func_info = ptr_to_u64(func_infos);
-	}
-
-	err = bpf_obj_get_info_by_fd(fd, &info, &info_len);
-	if (err) {
-		pr_debug("%s: failed to get BPF program info, aborting\n", __func__);
-		goto out;
-	}
-
 	/* Synthesize PERF_RECORD_KSYMBOL */
 	for (i = 0; i < sub_prog_cnt; i++) {
+		u8 (*prog_tags)[BPF_TAG_SIZE] = (void *)(uintptr_t)(info->prog_tags);
+		__u32 *prog_lens  = (__u32 *)(uintptr_t)(info->jited_func_lens);
+		__u64 *prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
+		void *func_infos  = (void *)(uintptr_t)(info->func_info);
 		const struct bpf_func_info *finfo;
 		const char *short_name = NULL;
 		const struct btf_type *t;
@@ -163,13 +128,13 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 					 KSYM_NAME_LEN - name_len,
 					 prog_tags[i], BPF_TAG_SIZE);
 		if (has_btf) {
-			finfo = func_infos + i * info.func_info_rec_size;
+			finfo = func_infos + i * info->func_info_rec_size;
 			t = btf__type_by_id(btf, finfo->type_id);
 			short_name = btf__name_by_offset(btf, t->name_off);
 		} else if (i == 0 && sub_prog_cnt == 1) {
 			/* no subprog */
-			if (info.name[0])
-				short_name = info.name;
+			if (info->name[0])
+				short_name = info->name;
 		} else
 			short_name = "F";
 		if (short_name)
@@ -195,9 +160,9 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 			},
 			.type = PERF_BPF_EVENT_PROG_LOAD,
 			.flags = 0,
-			.id = info.id,
+			.id = info->id,
 		};
-		memcpy(bpf_event->tag, prog_tags[i], BPF_TAG_SIZE);
+		memcpy(bpf_event->tag, info->tag, BPF_TAG_SIZE);
 		memset((void *)event + event->header.size, 0, machine->id_hdr_size);
 		event->header.size += machine->id_hdr_size;
 		err = perf_tool__process_synth_event(tool, event,
@@ -205,10 +170,7 @@ static int perf_event__synthesize_one_bpf_prog(struct perf_tool *tool,
 	}
 
 out:
-	free(prog_tags);
-	free(prog_lens);
-	free(prog_addrs);
-	free(func_infos);
+	free(info_linear);
 	free(btf);
 	return err ? -1 : 0;
 }
