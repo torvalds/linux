@@ -893,7 +893,7 @@ static int io_import_iovec(struct io_ring_ctx *ctx, int rw,
 	opcode = READ_ONCE(sqe->opcode);
 	if (opcode == IORING_OP_READ_FIXED ||
 	    opcode == IORING_OP_WRITE_FIXED) {
-		ssize_t ret = io_import_fixed(ctx, rw, sqe, iter);
+		int ret = io_import_fixed(ctx, rw, sqe, iter);
 		*iovec = NULL;
 		return ret;
 	}
@@ -951,15 +951,15 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 	async_list->io_end = io_end;
 }
 
-static ssize_t io_read(struct io_kiocb *req, const struct sqe_submit *s,
-		       bool force_nonblock, struct io_submit_state *state)
+static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
+		   bool force_nonblock, struct io_submit_state *state)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	ssize_t ret;
+	int ret;
 
 	ret = io_prep_rw(req, s, force_nonblock, state);
 	if (ret)
@@ -1004,15 +1004,15 @@ out_fput:
 	return ret;
 }
 
-static ssize_t io_write(struct io_kiocb *req, const struct sqe_submit *s,
-			bool force_nonblock, struct io_submit_state *state)
+static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
+		    bool force_nonblock, struct io_submit_state *state)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw;
 	struct iov_iter iter;
 	struct file *file;
 	size_t iov_count;
-	ssize_t ret;
+	int ret;
 
 	ret = io_prep_rw(req, s, force_nonblock, state);
 	if (ret)
@@ -1396,8 +1396,7 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			   const struct sqe_submit *s, bool force_nonblock,
 			   struct io_submit_state *state)
 {
-	ssize_t ret;
-	int opcode;
+	int ret, opcode;
 
 	if (unlikely(s->index >= ctx->sq_entries))
 		return -EINVAL;
@@ -1623,7 +1622,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 			 struct io_submit_state *state)
 {
 	struct io_kiocb *req;
-	ssize_t ret;
+	int ret;
 
 	/* enforce forwards compatibility on users */
 	if (unlikely(s->sqe->flags & ~IOSQE_FIXED_FILE))
