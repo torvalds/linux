@@ -9135,6 +9135,20 @@ lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 void
 lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 {
+	/*
+	 * Set FREE_INIT before beginning to free the queues.
+	 * Wait until the users of queues to acknowledge to
+	 * release queues by clearing FREE_WAIT.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	phba->sli.sli_flag |= LPFC_QUEUE_FREE_INIT;
+	while (phba->sli.sli_flag & LPFC_QUEUE_FREE_WAIT) {
+		spin_unlock_irq(&phba->hbalock);
+		msleep(20);
+		spin_lock_irq(&phba->hbalock);
+	}
+	spin_unlock_irq(&phba->hbalock);
+
 	/* Release HBA eqs */
 	if (phba->sli4_hba.hdwq)
 		lpfc_sli4_release_hdwq(phba);
@@ -9173,6 +9187,11 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 
 	/* Everything on this list has been freed */
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_wq_list);
+
+	/* Done with freeing the queues */
+	spin_lock_irq(&phba->hbalock);
+	phba->sli.sli_flag &= ~LPFC_QUEUE_FREE_INIT;
+	spin_unlock_irq(&phba->hbalock);
 }
 
 int

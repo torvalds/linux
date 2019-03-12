@@ -327,6 +327,10 @@ struct lpfc_sli {
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 #define LPFC_SLI_SUPPRESS_RSP     0x4000 /* Suppress RSP feature is supported */
 #define LPFC_SLI_USE_EQDR         0x8000 /* EQ Delay Register is supported */
+#define LPFC_QUEUE_FREE_INIT	  0x10000 /* Queue freeing is in progress */
+#define LPFC_QUEUE_FREE_WAIT	  0x20000 /* Hold Queue free as it is being
+					   * used outside worker thread
+					   */
 
 	struct lpfc_sli_ring *sli3_ring;
 
