@@ -5025,8 +5025,7 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static int skl_build_plane_wm(struct skl_pipe_wm *pipe_wm,
-			      struct intel_crtc_state *crtc_state,
+static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
@@ -5052,8 +5051,7 @@ static int skl_build_plane_wm(struct skl_pipe_wm *pipe_wm,
 	return 0;
 }
 
-static int icl_build_plane_wm(struct skl_pipe_wm *pipe_wm,
-			      struct intel_crtc_state *crtc_state,
+static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	enum plane_id plane_id = to_intel_plane(plane_state->base.plane)->id;
@@ -5090,10 +5088,10 @@ static int icl_build_plane_wm(struct skl_pipe_wm *pipe_wm,
 	return 0;
 }
 
-static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
-			     struct skl_pipe_wm *pipe_wm)
+static int skl_build_pipe_wm(struct intel_crtc_state *cstate)
 {
 	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+	struct skl_pipe_wm *pipe_wm = &cstate->wm.skl.optimal;
 	struct drm_crtc_state *crtc_state = &cstate->base;
 	struct drm_plane *plane;
 	const struct drm_plane_state *pstate;
@@ -5110,11 +5108,9 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 						to_intel_plane_state(pstate);
 
 		if (INTEL_GEN(dev_priv) >= 11)
-			ret = icl_build_plane_wm(pipe_wm,
-						 cstate, intel_pstate);
+			ret = icl_build_plane_wm(cstate, intel_pstate);
 		else
-			ret = skl_build_plane_wm(pipe_wm,
-						 cstate, intel_pstate);
+			ret = skl_build_plane_wm(cstate, intel_pstate);
 		if (ret)
 			return ret;
 	}
@@ -5277,7 +5273,7 @@ static int skl_update_pipe_wm(struct intel_crtc_state *cstate,
 	struct intel_crtc *crtc = to_intel_crtc(cstate->base.crtc);
 	int ret;
 
-	ret = skl_build_pipe_wm(cstate, pipe_wm);
+	ret = skl_build_pipe_wm(cstate);
 	if (ret)
 		return ret;
 
