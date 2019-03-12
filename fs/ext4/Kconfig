@@ -97,7 +97,7 @@ config EXT4_FS_SECURITY
 	  extended attributes for file security labels, say N.
 
 config EXT4_DEBUG
-	bool "EXT4 debugging support"
+	bool "Ext4 debugging support"
 	depends on EXT4_FS
 	help
 	  Enables run-time debugging support for the ext4 filesystem.
