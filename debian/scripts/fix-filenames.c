@@ -48,7 +48,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	size = in_info.st_size;
-	printf("%s %ld bytes\n", in_name + prefix_len + 1, size);
+	printf("%s %ld bytes\n", in_name, size);
 
 	in = mmap((void *)0, size, PROT_READ|PROT_WRITE, MAP_SHARED, in_fd, (off_t)0);
 	if (!in) {
@@ -61,13 +61,21 @@ main(int argc, char *argv[])
 			continue;
 		if (strncmp(in, prefix, prefix_len) != 0)
 			continue;
-		length = strlen(in + prefix_len + 1) + 1;
+		/* In the case of an exact match there there is nothing to move. */
+		if (in[prefix_len] == '\0')
+			length = 0;
+		/* If this is a filename, strip the leading slash. */
+		else if (in[prefix_len] == '/')
+			length = strlen(in + prefix_len + 1) + 1;
+		/* Otherwise just keep the suffix. */
+		else
+			length = strlen(in + prefix_len) + 1;
 
 		/*
 		 * Copy the suffix portion down to the start and clear
 		 * the remainder of the space to 0.
 		 */
 		memmove(in, in + prefix_len + 1, length);
-		memset(in + length, '_', prefix_len);
+		memset(in + length, '\0', prefix_len);
 	}
 }
