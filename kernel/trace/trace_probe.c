@@ -13,7 +13,7 @@
 
 #include "trace_probe.h"
 
-const char *reserved_field_names[] = {
+static const char *reserved_field_names[] = {
 	"common_type",
 	"common_flags",
 	"common_preempt_count",
