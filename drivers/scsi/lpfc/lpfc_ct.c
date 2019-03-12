@@ -1463,7 +1463,7 @@ lpfc_vport_symbolic_node_name(struct lpfc_vport *vport, char *symbol,
 		return n;
 
 	/* Note :- OS name is "Linux" */
-	n += snprintf(symbol + n, size - n, " OS:%s\n",
+	n += snprintf(symbol + n, size - n, " OS:%s",
 		      init_utsname()->sysname);
 	return n;
 }
