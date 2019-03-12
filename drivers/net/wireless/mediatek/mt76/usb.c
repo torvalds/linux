@@ -645,7 +645,6 @@ static void mt76u_tx_tasklet(unsigned long data)
 			dev->drv->tx_complete_skb(dev, i, &entry);
 			spin_lock_bh(&q->lock);
 		}
-		mt76_txq_schedule(dev, sq);
 
 		wake = q->stopped && q->queued < q->ndesc - 8;
 		if (wake)
@@ -655,6 +654,8 @@ static void mt76u_tx_tasklet(unsigned long data)
 			wake_up(&dev->tx_wait);
 
 		spin_unlock_bh(&q->lock);
+
+		mt76_txq_schedule(dev, i);
 
 		if (!test_and_set_bit(MT76_READING_STATS, &dev->state))
 			ieee80211_queue_delayed_work(dev->hw,

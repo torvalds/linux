@@ -184,9 +184,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 			last = readl(&q->regs->dma_idx);
 	}
 
-	if (!flush)
-		mt76_txq_schedule(dev, sq);
-	else
+	if (flush)
 		mt76_dma_sync_idx(dev, q);
 
 	wake = wake && q->stopped &&
@@ -199,6 +197,8 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 
 	spin_unlock_bh(&q->lock);
 
+	if (!flush)
+		mt76_txq_schedule(dev, qid);
 	if (wake)
 		ieee80211_wake_queue(dev->hw, qid);
 }
