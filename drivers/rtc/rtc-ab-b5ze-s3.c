@@ -227,14 +227,12 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (ret) {
 		dev_err(dev, "%s: reading RTC time failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	/* If clock integrity is not guaranteed, do not return a time value */
-	if (regs[ABB5ZES3_REG_RTC_SC] & ABB5ZES3_REG_RTC_SC_OSC) {
-		ret = -ENODATA;
-		goto err;
-	}
+	if (regs[ABB5ZES3_REG_RTC_SC] & ABB5ZES3_REG_RTC_SC_OSC)
+		return -ENODATA;
 
 	tm->tm_sec = bcd2bin(regs[ABB5ZES3_REG_RTC_SC] & 0x7F);
 	tm->tm_min = bcd2bin(regs[ABB5ZES3_REG_RTC_MN]);
@@ -252,7 +250,6 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon  = bcd2bin(regs[ABB5ZES3_REG_RTC_MO]) - 1; /* starts at 1 */
 	tm->tm_year = bcd2bin(regs[ABB5ZES3_REG_RTC_YR]) + 100;
 
-err:
 	return ret;
 }
 
@@ -326,23 +323,23 @@ static int _abb5zes3_rtc_read_timer(struct device *dev,
 	if (ret) {
 		dev_err(dev, "%s: reading Timer A section failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	/* get current time ... */
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* ... convert to seconds ... */
 	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* ... add remaining timer A time ... */
 	ret = sec_from_timer_a(&timer_secs, regs[1], regs[2]);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* ... and convert back. */
 	rtc_time_to_tm(rtc_secs + timer_secs, alarm_tm);
@@ -351,13 +348,12 @@ static int _abb5zes3_rtc_read_timer(struct device *dev,
 	if (ret) {
 		dev_err(dev, "%s: reading ctrl reg failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	alarm->enabled = !!(reg & ABB5ZES3_REG_CTRL2_WTAIE);
 
-err:
-	return ret;
+	return 0;
 }
 
 /* Read alarm currently configured via a RTC alarm registers. */
@@ -376,7 +372,7 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	if (ret) {
 		dev_err(dev, "%s: reading alarm section failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	alarm_tm->tm_sec  = 0;
@@ -392,18 +388,18 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	 */
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
-		goto err;
+		return ret;
 
 	alarm_tm->tm_year = rtc_tm.tm_year;
 	alarm_tm->tm_mon = rtc_tm.tm_mon;
 
 	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (alarm_secs < rtc_secs) {
 		if (alarm_tm->tm_mon == 11) {
@@ -418,13 +414,12 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	if (ret) {
 		dev_err(dev, "%s: reading ctrl reg failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	alarm->enabled = !!(reg & ABB5ZES3_REG_CTRL1_AIE);
 
-err:
-	return ret;
+	return 0;
 }
 
 /*
@@ -465,15 +460,15 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* If alarm time is before current time, disable the alarm */
 	if (!alarm->enabled || alarm_secs <= rtc_secs) {
@@ -494,13 +489,12 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 		ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
 		if (ret)
-			goto err;
+			return ret;
 
 		if (alarm_secs > rtc_secs) {
 			dev_err(dev, "%s: alarm maximum is one month in the "
 				"future (%d)\n", __func__, ret);
-			ret = -EINVAL;
-			goto err;
+			return -EINVAL;
 		}
 	}
 
@@ -518,17 +512,14 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret < 0) {
 		dev_err(dev, "%s: writing ALARM section failed (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	/* Record currently configured alarm is not a timer */
 	data->timer_alarm = 0;
 
 	/* Enable or disable alarm interrupt generation */
-	ret = _abb5zes3_rtc_update_alarm(dev, enable);
-
-err:
-	return ret;
+	return _abb5zes3_rtc_update_alarm(dev, enable);
 }
 
 /*
@@ -549,7 +540,7 @@ static int _abb5zes3_rtc_set_timer(struct device *dev, struct rtc_wkalrm *alarm,
 				ABB5ZES3_TIMA_SEC_LEN);
 	if (ret < 0) {
 		dev_err(dev, "%s: writing timer section failed\n", __func__);
-		goto err;
+		return ret;
 	}
 
 	/* Configure Timer A as a watchdog timer */
@@ -562,10 +553,7 @@ static int _abb5zes3_rtc_set_timer(struct device *dev, struct rtc_wkalrm *alarm,
 	data->timer_alarm = 1;
 
 	/* Enable or disable timer interrupt generation */
-	ret = _abb5zes3_rtc_update_timer(dev, alarm->enabled);
-
-err:
-	return ret;
+	return _abb5zes3_rtc_update_timer(dev, alarm->enabled);
 }
 
 /*
@@ -584,28 +572,28 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* Let's first disable both the alarm and the timer interrupts */
 	ret = _abb5zes3_rtc_update_alarm(dev, false);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to disable alarm (%d)\n", __func__,
 			ret);
-		goto err;
+		return ret;
 	}
 	ret = _abb5zes3_rtc_update_timer(dev, false);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to disable timer (%d)\n", __func__,
 			ret);
-		goto err;
+		return ret;
 	}
 
 	data->timer_alarm = 0;
@@ -620,7 +608,6 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	else
 		ret = _abb5zes3_rtc_set_alarm(dev, alarm);
 
- err:
 	if (ret)
 		dev_err(dev, "%s: unable to configure alarm (%d)\n", __func__,
 			ret);
@@ -871,42 +858,38 @@ static int abb5zes3_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		ret = -ENODEV;
-		goto err;
-	}
+				     I2C_FUNC_SMBUS_I2C_BLOCK))
+		return -ENODEV;
 
 	regmap = devm_regmap_init_i2c(client, &abb5zes3_rtc_regmap_config);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(dev, "%s: regmap allocation failed: %d\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	ret = abb5zes3_i2c_validate_chip(regmap);
 	if (ret)
-		goto err;
+		return ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!data)
+		return -ENOMEM;
 
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
 
 	ret = abb5zes3_rtc_check_setup(dev);
 	if (ret)
-		goto err;
+		return ret;
 
 	data->rtc = devm_rtc_allocate_device(dev);
 	ret = PTR_ERR_OR_ZERO(data->rtc);
 	if (ret) {
 		dev_err(dev, "%s: unable to allocate RTC device (%d)\n",
 			__func__, ret);
-		goto err;
+		return ret;
 	}
 
 	if (client->irq > 0) {
@@ -943,7 +926,7 @@ static int abb5zes3_probe(struct i2c_client *client,
 	ret = rtc_register_device(data->rtc);
 
 err:
-	if (ret && data && data->irq)
+	if (ret && data->irq)
 		device_init_wakeup(dev, false);
 	return ret;
 }
