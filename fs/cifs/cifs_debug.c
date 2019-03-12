@@ -115,6 +115,9 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		seq_puts(m, " type: CDROM ");
 	else
 		seq_printf(m, " type: %d ", dev_type);
+
+	seq_printf(m, "Serial Number: 0x%x", tcon->vol_serial_number);
+
 	if ((tcon->seal) ||
 	    (tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
