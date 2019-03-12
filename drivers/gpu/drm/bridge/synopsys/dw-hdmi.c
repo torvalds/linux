@@ -151,6 +151,12 @@ static const u16 csc_coeff_rgb_in_eitu709[3][4] = {
 	{ 0x6756, 0x78ab, 0x2000, 0x0200 }
 };
 
+static const u16 csc_coeff_full_to_limited[3][4] = {
+	{ 0x36f7, 0x0000, 0x0000, 0x0040 },
+	{ 0x0000, 0x36f7, 0x0000, 0x0040 },
+	{ 0x0000, 0x0000, 0x36f7, 0x0040 }
+};
+
 struct hdmi_vmode {
 	bool mdataenablepolarity;
 
@@ -167,6 +173,7 @@ struct hdmi_data_info {
 	unsigned int enc_out_bus_format;
 	unsigned int enc_in_encoding;
 	unsigned int enc_out_encoding;
+	unsigned int quant_range;
 	unsigned int pix_repet_factor;
 	unsigned int hdcp_enable;
 	struct hdmi_vmode video_mode;
@@ -951,7 +958,25 @@ static void hdmi_video_sample(struct dw_hdmi *hdmi)
 
 static int is_color_space_conversion(struct dw_hdmi *hdmi)
 {
-	return hdmi->hdmi_data.enc_in_bus_format != hdmi->hdmi_data.enc_out_bus_format;
+	const struct drm_display_mode mode = hdmi->previous_mode;
+	bool is_cea_default;
+
+	is_cea_default = (drm_match_cea_mode(&mode) > 1) &&
+			 (hdmi->hdmi_data.quant_range ==
+			  HDMI_QUANTIZATION_RANGE_DEFAULT);
+
+	/*
+	 * When output is rgb limited range or default range with
+	 * cea mode, csc should be enabled.
+	 */
+	if (hdmi->hdmi_data.enc_in_bus_format !=
+	    hdmi->hdmi_data.enc_out_bus_format ||
+	    ((hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ||
+	      is_cea_default) &&
+	     hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_in_bus_format)))
+		return 1;
+
+	return 0;
 }
 
 static int is_color_space_decimation(struct dw_hdmi *hdmi)
@@ -983,16 +1008,22 @@ static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 	const u16 (*csc_coeff)[3][4] = &csc_coeff_default;
 	unsigned i;
 	u32 csc_scale = 1;
+	int enc_out_rgb, enc_in_rgb;
+
+	enc_out_rgb = hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format);
+	enc_in_rgb = hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_in_bus_format);
 
 	if (is_color_space_conversion(hdmi)) {
-		if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
+		if (enc_out_rgb && enc_in_rgb) {
+			csc_coeff = &csc_coeff_full_to_limited;
+			csc_scale = 0;
+		} else if (enc_out_rgb) {
 			if (hdmi->hdmi_data.enc_out_encoding ==
 						V4L2_YCBCR_ENC_601)
 				csc_coeff = &csc_coeff_rgb_out_eitu601;
 			else
 				csc_coeff = &csc_coeff_rgb_out_eitu709;
-		} else if (hdmi_bus_fmt_is_rgb(
-					hdmi->hdmi_data.enc_in_bus_format)) {
+		} else if (enc_in_rgb) {
 			if (hdmi->hdmi_data.enc_out_encoding ==
 						V4L2_YCBCR_ENC_601)
 				csc_coeff = &csc_coeff_rgb_in_eitu601;
@@ -1597,6 +1628,8 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	struct hdmi_avi_infoframe frame;
 	u8 val;
 	bool is_hdmi2 = false;
+	enum hdmi_quantization_range rgb_quant_range =
+		hdmi->hdmi_data.quant_range;
 
 	if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format) ||
 	    hdmi->connector.display_info.hdmi.scdc.supported)
@@ -1604,6 +1637,12 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 	/* Initialise info frame from DRM mode */
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, mode, is_hdmi2);
 
+	/*
+	 * Ignore monitor selectable quantization, use quantization set
+	 * by the user
+	 */
+	drm_hdmi_avi_infoframe_quant_range(&frame, mode, rgb_quant_range,
+					   true, is_hdmi2);
 	if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
 	else if (hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
@@ -2076,6 +2115,12 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 			hdmi->plat_data->input_bus_encoding;
 	else
 		hdmi->hdmi_data.enc_in_encoding = V4L2_YCBCR_ENC_DEFAULT;
+
+	if (hdmi->plat_data->get_quant_range)
+		hdmi->hdmi_data.quant_range =
+			hdmi->plat_data->get_quant_range(data);
+	else
+		hdmi->hdmi_data.quant_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
 
 	/*
 	 * According to the dw-hdmi specification 6.4.2
