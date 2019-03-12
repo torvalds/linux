@@ -258,13 +258,13 @@ struct lpfc_queue {
 };
 
 struct lpfc_sli4_link {
-	uint16_t speed;
+	uint32_t speed;
 	uint8_t duplex;
 	uint8_t status;
 	uint8_t type;
 	uint8_t number;
 	uint8_t fault;
-	uint16_t logical_speed;
+	uint32_t logical_speed;
 	uint16_t topology;
 };
 
