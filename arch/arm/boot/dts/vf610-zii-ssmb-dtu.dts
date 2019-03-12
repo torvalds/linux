@@ -37,7 +37,6 @@
 			label = "zii:green:debug1";
 			gpios = <&gpio2 18 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
-			max-brightness = <1>;
 		};
 	};
 
