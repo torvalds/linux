@@ -398,7 +398,7 @@ void pwmchip_sysfs_export(struct pwm_chip *chip)
 
 	/*
 	 * If device_create() fails the pwm_chip is still usable by
-	 * the kernel its just not exported.
+	 * the kernel it's just not exported.
 	 */
 	parent = device_create(&pwm_class, chip->dev, MKDEV(0, 0), chip,
 			       "pwmchip%d", chip->base);
