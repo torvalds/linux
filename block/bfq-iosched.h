@@ -405,6 +405,15 @@ struct bfq_io_cq {
 	bool was_in_burst_list;
 
 	/*
+	 * Save the weight when a merge occurs, to be able
+	 * to restore it in case of split. If the weight is not
+	 * correctly resumed when the queue is recycled,
+	 * then the weight of the recycled queue could differ
+	 * from the weight of the original queue.
+	 */
+	unsigned int saved_weight;
+
+	/*
 	 * Similar to previous fields: save wr information.
 	 */
 	unsigned long saved_wr_coeff;
