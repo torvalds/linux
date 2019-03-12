@@ -175,6 +175,7 @@ struct hdmi_data_info {
 	unsigned int enc_out_bus_format;
 	unsigned int enc_in_encoding;
 	unsigned int enc_out_encoding;
+	unsigned int quant_range;
 	unsigned int pix_repet_factor;
 	unsigned int hdcp_enable;
 	struct hdmi_vmode video_mode;
@@ -1179,6 +1180,15 @@ static bool is_csc_needed(struct dw_hdmi *hdmi)
 	       is_color_space_interpolation(hdmi);
 }
 
+static bool is_rgb_full_to_limited_needed(struct dw_hdmi *hdmi)
+{
+	if (hdmi->hdmi_data.quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ||
+	    (!hdmi->hdmi_data.quant_range && hdmi->hdmi_data.rgb_limited_range))
+		return true;
+
+	return false;
+}
+
 static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 {
 	const u16 (*csc_coeff)[3][4] = &csc_coeff_default;
@@ -1201,7 +1211,7 @@ static void dw_hdmi_update_csc_coeffs(struct dw_hdmi *hdmi)
 			csc_coeff = &csc_coeff_rgb_in_eitu709;
 		csc_scale = 0;
 	} else if (is_input_rgb && is_output_rgb &&
-		   hdmi->hdmi_data.rgb_limited_range) {
+		   is_rgb_full_to_limited_needed(hdmi)) {
 		csc_coeff = &csc_coeff_rgb_full_to_rgb_limited;
 	}
 
@@ -1837,10 +1847,15 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi,
 	drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
 
 	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
-		drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
-						   hdmi->hdmi_data.rgb_limited_range ?
-						   HDMI_QUANTIZATION_RANGE_LIMITED :
-						   HDMI_QUANTIZATION_RANGE_FULL);
+		/* default range */
+		if (!hdmi->hdmi_data.quant_range)
+			drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
+							   hdmi->hdmi_data.rgb_limited_range ?
+							   HDMI_QUANTIZATION_RANGE_LIMITED :
+							   HDMI_QUANTIZATION_RANGE_FULL);
+		else
+			drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
+							   hdmi->hdmi_data.quant_range);
 	} else {
 		frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
 		frame.ycc_quantization_range =
@@ -2383,6 +2398,11 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 			hdmi->plat_data->input_bus_encoding;
 	else
 		hdmi->hdmi_data.enc_in_encoding = V4L2_YCBCR_ENC_DEFAULT;
+
+
+	if (hdmi->plat_data->get_quant_range)
+		hdmi->hdmi_data.quant_range =
+			hdmi->plat_data->get_quant_range(data);
 
 	hdmi->hdmi_data.rgb_limited_range = hdmi->sink_is_hdmi &&
 		drm_default_rgb_quant_range(mode) ==
