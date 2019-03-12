@@ -27,6 +27,8 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/composite.h>
+
 
 #include "core.h"
 #include "hw.h"
@@ -1446,6 +1448,11 @@ static int dwc2_hsotg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return 0;
 	}
 
+	/* Change EP direction if status phase request is after data out */
+	if (!hs_ep->index && !req->length && !hs_ep->dir_in &&
+	    hs->ep0_state == DWC2_EP0_DATA_OUT)
+		hs_ep->dir_in = 1;
+
 	if (first) {
 		if (!hs_ep->isochronous) {
 			dwc2_hsotg_start_req(hs, hs_ep, hs_req, false);
@@ -1938,6 +1945,10 @@ static void dwc2_hsotg_process_control(struct dwc2_hsotg *hsotg,
 			dev_dbg(hsotg->dev, "driver->setup() ret %d\n", ret);
 	}
 
+	hsotg->delayed_status = false;
+	if (ret == USB_GADGET_DELAYED_STATUS)
+		hsotg->delayed_status = true;
+
 	/*
 	 * the request is either unhandlable, or is not formatted correctly
 	 * so respond with a STALL for the status stage to indicate failure.
@@ -2387,8 +2398,8 @@ static void dwc2_hsotg_handle_outdone(struct dwc2_hsotg *hsotg, int epnum)
 	if (!using_desc_dma(hsotg) && epnum == 0 &&
 	    hsotg->ep0_state == DWC2_EP0_DATA_OUT) {
 		/* Move to STATUS IN */
-		dwc2_hsotg_ep0_zlp(hsotg, true);
-		return;
+		if (!hsotg->delayed_status)
+			dwc2_hsotg_ep0_zlp(hsotg, true);
 	}
 
 	/*
@@ -3053,8 +3064,20 @@ static void dwc2_hsotg_epint(struct dwc2_hsotg *hsotg, unsigned int idx,
 		/* Safety check EP0 state when STSPHSERCVD asserted */
 		if (hsotg->ep0_state == DWC2_EP0_DATA_OUT) {
 			/* Move to STATUS IN for DDMA */
-			if (using_desc_dma(hsotg))
-				dwc2_hsotg_ep0_zlp(hsotg, true);
+			if (using_desc_dma(hsotg)) {
+				if (!hsotg->delayed_status)
+					dwc2_hsotg_ep0_zlp(hsotg, true);
+				else
+				/* In case of 3 stage Control Write with delayed
+				 * status, when Status IN transfer started
+				 * before STSPHSERCVD asserted, NAKSTS bit not
+				 * cleared by CNAK in dwc2_hsotg_start_req()
+				 * function. Clear now NAKSTS to allow complete
+				 * transfer.
+				 */
+					dwc2_set_bit(hsotg, DIEPCTL(0),
+						     DXEPCTL_CNAK);
+			}
 		}
 
 	}
