@@ -4378,7 +4378,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 			blocks += wm->uv_wm[level].min_ddb_alloc;
 		}
 
-		if (blocks < alloc_size) {
+		if (blocks <= alloc_size) {
 			alloc_size -= blocks;
 			break;
 		}
