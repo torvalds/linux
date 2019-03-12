@@ -439,6 +439,9 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
+	if (INTEL_GEN(dev_priv) >= 11)
+		val |= EDP_PSR_TP4_TIME_0US;
+
 	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
 		val |= EDP_PSR_TP1_TIME_0us;
 	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)

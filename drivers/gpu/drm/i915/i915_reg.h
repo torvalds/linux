@@ -4205,6 +4205,7 @@ enum {
 #define   EDP_PSR_TP2_TP3_TIME_100us		(1 << 8)
 #define   EDP_PSR_TP2_TP3_TIME_2500us		(2 << 8)
 #define   EDP_PSR_TP2_TP3_TIME_0us		(3 << 8)
+#define   EDP_PSR_TP4_TIME_0US			(3 << 6) /* ICL+ */
 #define   EDP_PSR_TP1_TIME_500us		(0 << 4)
 #define   EDP_PSR_TP1_TIME_100us		(1 << 4)
 #define   EDP_PSR_TP1_TIME_2500us		(2 << 4)
