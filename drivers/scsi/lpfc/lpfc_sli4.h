@@ -543,8 +543,9 @@ struct lpfc_sli4_lnk_info {
 #define LPFC_LNK_DAT_INVAL	0
 #define LPFC_LNK_DAT_VAL	1
 	uint8_t lnk_tp;
-#define LPFC_LNK_GE	0x0 /* FCoE */
-#define LPFC_LNK_FC	0x1 /* FC   */
+#define LPFC_LNK_GE		0x0 /* FCoE */
+#define LPFC_LNK_FC		0x1 /* FC */
+#define LPFC_LNK_FC_TRUNKED	0x2 /* FC_Trunked */
 	uint8_t lnk_no;
 	uint8_t optic_state;
 };
@@ -907,6 +908,18 @@ struct lpfc_sli4_hba {
 #define lpfc_conf_trunk_port3_WORD	conf_trunk
 #define lpfc_conf_trunk_port3_SHIFT	3
 #define lpfc_conf_trunk_port3_MASK	0x1
+#define lpfc_conf_trunk_port0_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port0_nd_SHIFT	4
+#define lpfc_conf_trunk_port0_nd_MASK	0x1
+#define lpfc_conf_trunk_port1_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port1_nd_SHIFT	5
+#define lpfc_conf_trunk_port1_nd_MASK	0x1
+#define lpfc_conf_trunk_port2_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port2_nd_SHIFT	6
+#define lpfc_conf_trunk_port2_nd_MASK	0x1
+#define lpfc_conf_trunk_port3_nd_WORD	conf_trunk
+#define lpfc_conf_trunk_port3_nd_SHIFT	7
+#define lpfc_conf_trunk_port3_nd_MASK	0x1
 };
 
 enum lpfc_sge_type {

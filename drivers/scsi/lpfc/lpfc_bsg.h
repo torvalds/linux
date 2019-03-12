@@ -68,6 +68,7 @@ struct send_mgmt_resp {
 };
 
 
+#define DISABLE_LOOP_BACK  0x0 /* disables loop back */
 #define INTERNAL_LOOP_BACK 0x1 /* adapter short cuts the loop internally */
 #define EXTERNAL_LOOP_BACK 0x2 /* requires an external loopback plug */
 
@@ -75,6 +76,7 @@ struct diag_mode_set {
 	uint32_t command;
 	uint32_t type;
 	uint32_t timeout;
+	uint32_t physical_link;
 };
 
 struct sli4_link_diag {
