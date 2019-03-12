@@ -332,9 +332,7 @@ static int _abb5zes3_rtc_read_timer(struct device *dev,
 		return ret;
 
 	/* ... convert to seconds ... */
-	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-	if (ret)
-		return ret;
+	rtc_secs = rtc_tm_to_time64(&rtc_tm);
 
 	/* ... add remaining timer A time ... */
 	ret = sec_from_timer_a(&timer_secs, regs[1], regs[2]);
@@ -342,7 +340,7 @@ static int _abb5zes3_rtc_read_timer(struct device *dev,
 		return ret;
 
 	/* ... and convert back. */
-	rtc_time_to_tm(rtc_secs + timer_secs, alarm_tm);
+	rtc_time64_to_tm(rtc_secs + timer_secs, alarm_tm);
 
 	ret = regmap_read(data->regmap, ABB5ZES3_REG_CTRL2, &reg);
 	if (ret) {
@@ -393,13 +391,8 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	alarm_tm->tm_year = rtc_tm.tm_year;
 	alarm_tm->tm_mon = rtc_tm.tm_mon;
 
-	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-	if (ret)
-		return ret;
-
-	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
-	if (ret)
-		return ret;
+	rtc_secs = rtc_tm_to_time64(&rtc_tm);
+	alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 	if (alarm_secs < rtc_secs) {
 		if (alarm_tm->tm_mon == 11) {
@@ -462,13 +455,8 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret)
 		return ret;
 
-	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-	if (ret)
-		return ret;
-
-	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
-	if (ret)
-		return ret;
+	rtc_secs = rtc_tm_to_time64(&rtc_tm);
+	alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 	/* If alarm time is before current time, disable the alarm */
 	if (!alarm->enabled || alarm_secs <= rtc_secs) {
@@ -487,9 +475,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 			rtc_tm.tm_mon += 1;
 		}
 
-		ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-		if (ret)
-			return ret;
+		rtc_secs = rtc_tm_to_time64(&rtc_tm);
 
 		if (alarm_secs > rtc_secs) {
 			dev_err(dev, "%s: alarm maximum is one month in the "
@@ -574,13 +560,8 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret)
 		return ret;
 
-	ret = rtc_tm_to_time(&rtc_tm, &rtc_secs);
-	if (ret)
-		return ret;
-
-	ret = rtc_tm_to_time(alarm_tm, &alarm_secs);
-	if (ret)
-		return ret;
+	rtc_secs = rtc_tm_to_time64(&rtc_tm);
+	alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 	/* Let's first disable both the alarm and the timer interrupts */
 	ret = _abb5zes3_rtc_update_alarm(dev, false);
