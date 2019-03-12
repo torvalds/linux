@@ -9272,7 +9272,7 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 		rc = lpfc_wq_create(phba, wq, cq, qtype);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6123 Fail setup fastpath WQ (%d), rc = 0x%x\n",
+				"4618 Fail setup fastpath WQ (%d), rc = 0x%x\n",
 				qidx, (uint32_t)rc);
 			/* no need to tear down cq - caller will do so */
 			return rc;

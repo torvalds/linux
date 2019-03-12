@@ -886,7 +886,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	if (lpfc_error_lost_link(irsp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "4101 NS query failed due to link event\n");
+				 "4166 NS query failed due to link event\n");
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		goto out;
@@ -907,7 +907,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * Re-issue the NS cmd
 		 */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "4102 Process Deferred RSCN Data: x%x x%x\n",
+				 "4167 Process Deferred RSCN Data: x%x x%x\n",
 				 vport->fc_flag, vport->fc_rscn_id_cnt);
 		lpfc_els_handle_rscn(vport);
 

@@ -5891,7 +5891,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					    phba, &lpfc_debugfs_op_lockstat);
 		if (!phba->debug_lockstat) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0913 Cant create debugfs lockstat\n");
+					 "4610 Cant create debugfs lockstat\n");
 			goto debug_failed;
 		}
 #endif
@@ -6134,7 +6134,7 @@ nvmeio_off:
 				    vport, &lpfc_debugfs_op_scsistat);
 	if (!vport->debug_scsistat) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0914 Cannot create debugfs scsistat\n");
+				 "4611 Cannot create debugfs scsistat\n");
 		goto debug_failed;
 	}
 
