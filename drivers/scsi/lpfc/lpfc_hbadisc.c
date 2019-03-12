@@ -4868,6 +4868,10 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 * accept PLOGIs after unreg_rpi_cmpl
 					 */
 					acc_plogi = 0;
+				} else if (vport->load_flag & FC_UNLOADING) {
+					mbox->ctx_ndlp = NULL;
+					mbox->mbox_cmpl =
+						lpfc_sli_def_mbox_cmpl;
 				} else {
 					mbox->ctx_ndlp = ndlp;
 					mbox->mbox_cmpl =
