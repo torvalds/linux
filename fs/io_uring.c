@@ -197,7 +197,7 @@ struct io_poll_iocb {
 	struct file			*file;
 	struct wait_queue_head		*head;
 	__poll_t			events;
-	bool				woken;
+	bool				done;
 	bool				canceled;
 	struct wait_queue_entry		wait;
 };
@@ -367,20 +367,25 @@ static void io_cqring_fill_event(struct io_ring_ctx *ctx, u64 ki_user_data,
 	}
 }
 
-static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 ki_user_data,
+static void io_cqring_ev_posted(struct io_ring_ctx *ctx)
+{
+	if (waitqueue_active(&ctx->wait))
+		wake_up(&ctx->wait);
+	if (waitqueue_active(&ctx->sqo_wait))
+		wake_up(&ctx->sqo_wait);
+}
+
+static void io_cqring_add_event(struct io_ring_ctx *ctx, u64 user_data,
 				long res, unsigned ev_flags)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
-	io_cqring_fill_event(ctx, ki_user_data, res, ev_flags);
+	io_cqring_fill_event(ctx, user_data, res, ev_flags);
 	io_commit_cqring(ctx);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
-	if (waitqueue_active(&ctx->wait))
-		wake_up(&ctx->wait);
-	if (waitqueue_active(&ctx->sqo_wait))
-		wake_up(&ctx->sqo_wait);
+	io_cqring_ev_posted(ctx);
 }
 
 static void io_ring_drop_ctx_refs(struct io_ring_ctx *ctx, unsigned refs)
@@ -1149,10 +1154,12 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static void io_poll_complete(struct io_kiocb *req, __poll_t mask)
+static void io_poll_complete(struct io_ring_ctx *ctx, struct io_kiocb *req,
+			     __poll_t mask)
 {
-	io_cqring_add_event(req->ctx, req->user_data, mangle_poll(mask), 0);
-	io_put_req(req);
+	req->poll.done = true;
+	io_cqring_fill_event(ctx, req->user_data, mangle_poll(mask), 0);
+	io_commit_cqring(ctx);
 }
 
 static void io_poll_complete_work(struct work_struct *work)
@@ -1180,9 +1187,11 @@ static void io_poll_complete_work(struct work_struct *work)
 		return;
 	}
 	list_del_init(&req->list);
+	io_poll_complete(ctx, req, mask);
 	spin_unlock_irq(&ctx->completion_lock);
 
-	io_poll_complete(req, mask);
+	io_cqring_ev_posted(ctx);
+	io_put_req(req);
 }
 
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
@@ -1193,29 +1202,25 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	struct io_kiocb *req = container_of(poll, struct io_kiocb, poll);
 	struct io_ring_ctx *ctx = req->ctx;
 	__poll_t mask = key_to_poll(key);
-
-	poll->woken = true;
+	unsigned long flags;
 
 	/* for instances that support it check for an event match first: */
-	if (mask) {
-		unsigned long flags;
-
-		if (!(mask & poll->events))
-			return 0;
-
-		/* try to complete the iocb inline if we can: */
-		if (spin_trylock_irqsave(&ctx->completion_lock, flags)) {
-			list_del(&req->list);
-			spin_unlock_irqrestore(&ctx->completion_lock, flags);
-
-			list_del_init(&poll->wait.entry);
-			io_poll_complete(req, mask);
-			return 1;
-		}
-	}
+	if (mask && !(mask & poll->events))
+		return 0;
 
 	list_del_init(&poll->wait.entry);
-	queue_work(ctx->sqo_wq, &req->work);
+
+	if (mask && spin_trylock_irqsave(&ctx->completion_lock, flags)) {
+		list_del(&req->list);
+		io_poll_complete(ctx, req, mask);
+		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+
+		io_cqring_ev_posted(ctx);
+		io_put_req(req);
+	} else {
+		queue_work(ctx->sqo_wq, &req->work);
+	}
+
 	return 1;
 }
 
@@ -1245,6 +1250,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_poll_iocb *poll = &req->poll;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_poll_table ipt;
+	bool cancel = false;
 	__poll_t mask;
 	u16 events;
 
@@ -1260,7 +1266,7 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP;
 
 	poll->head = NULL;
-	poll->woken = false;
+	poll->done = false;
 	poll->canceled = false;
 
 	ipt.pt._qproc = io_poll_queue_proc;
@@ -1273,41 +1279,36 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
 
 	mask = vfs_poll(poll->file, &ipt.pt) & poll->events;
-	if (unlikely(!poll->head)) {
-		/* we did not manage to set up a waitqueue, done */
-		goto out;
-	}
 
 	spin_lock_irq(&ctx->completion_lock);
-	spin_lock(&poll->head->lock);
-	if (poll->woken) {
-		/* wake_up context handles the rest */
-		mask = 0;
-		ipt.error = 0;
-	} else if (mask || ipt.error) {
-		/* if we get an error or a mask we are done */
-		WARN_ON_ONCE(list_empty(&poll->wait.entry));
-		list_del_init(&poll->wait.entry);
-	} else {
-		/* actually waiting for an event */
-		list_add_tail(&req->list, &ctx->cancel_list);
+	if (likely(poll->head)) {
+		spin_lock(&poll->head->lock);
+		if (unlikely(list_empty(&poll->wait.entry))) {
+			if (ipt.error)
+				cancel = true;
+			ipt.error = 0;
+			mask = 0;
+		}
+		if (mask || ipt.error)
+			list_del_init(&poll->wait.entry);
+		else if (cancel)
+			WRITE_ONCE(poll->canceled, true);
+		else if (!poll->done) /* actually waiting for an event */
+			list_add_tail(&req->list, &ctx->cancel_list);
+		spin_unlock(&poll->head->lock);
 	}
-	spin_unlock(&poll->head->lock);
+	if (mask) { /* no async, we'd stolen it */
+		req->error = mangle_poll(mask);
+		ipt.error = 0;
+		io_poll_complete(ctx, req, mask);
+	}
 	spin_unlock_irq(&ctx->completion_lock);
 
-out:
-	if (unlikely(ipt.error)) {
-		/*
-		 * Drop one of our refs to this req, __io_submit_sqe() will
-		 * drop the other one since we're returning an error.
-		 */
+	if (mask) {
+		io_cqring_ev_posted(ctx);
 		io_put_req(req);
-		return ipt.error;
 	}
-
-	if (mask)
-		io_poll_complete(req, mask);
-	return 0;
+	return ipt.error;
 }
 
 static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
