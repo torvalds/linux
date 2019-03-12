@@ -1844,8 +1844,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
 	 */
-	if (pci_channel_offline(phba->pcidev))
+	if (pci_channel_offline(phba->pcidev)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3166 pci channel is offline\n");
+		lpfc_sli4_offline_eratt(phba);
 		return;
+	}
 
 	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
@@ -1922,6 +1926,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3151 PCI bus read access failure: x%x\n",
 				readl(phba->sli4_hba.u.if_type2.STATUSregaddr));
+			lpfc_sli4_offline_eratt(phba);
 			return;
 		}
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
