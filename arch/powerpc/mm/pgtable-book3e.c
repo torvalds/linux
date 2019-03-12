@@ -57,8 +57,16 @@ void vmemmap_remove_mapping(unsigned long start,
 
 static __ref void *early_alloc_pgtable(unsigned long size)
 {
-	return memblock_alloc_try_nid(size, size, MEMBLOCK_LOW_LIMIT,
-				      __pa(MAX_DMA_ADDRESS), NUMA_NO_NODE);
+	void *ptr;
+
+	ptr = memblock_alloc_try_nid(size, size, MEMBLOCK_LOW_LIMIT,
+				     __pa(MAX_DMA_ADDRESS), NUMA_NO_NODE);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx max_addr=%lx\n",
+		      __func__, size, size, __pa(MAX_DMA_ADDRESS));
+
+	return ptr;
 }
 
 /*

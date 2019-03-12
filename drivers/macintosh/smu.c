@@ -493,6 +493,9 @@ int __init smu_init (void)
 	}
 
 	smu = memblock_alloc(sizeof(struct smu_device), SMP_CACHE_BYTES);
+	if (!smu)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(struct smu_device));
 
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);

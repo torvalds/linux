@@ -252,6 +252,11 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE,
 									   PAGE_SIZE);
+					if (!pte)
+						panic("%s: Failed to allocate %lu bytes align=%lx\n",
+						      __func__, PAGE_SIZE,
+						      PAGE_SIZE);
+
 					set_pmd(pmd, __pmd((unsigned long)pte));
 					BUG_ON(pte != pte_offset_kernel(pmd, 0));
 				}

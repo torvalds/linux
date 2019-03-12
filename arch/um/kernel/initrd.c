@@ -37,6 +37,8 @@ int __init read_initrd(void)
 	}
 
 	area = memblock_alloc(size, SMP_CACHE_BYTES);
+	if (!area)
+		panic("%s: Failed to allocate %llu bytes\n", __func__, size);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;

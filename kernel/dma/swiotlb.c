@@ -215,13 +215,13 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(int));
 	io_tlb_list = memblock_alloc(alloc_size, PAGE_SIZE);
 	if (!io_tlb_list)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t));
 	io_tlb_orig_addr = memblock_alloc(alloc_size, PAGE_SIZE);
 	if (!io_tlb_orig_addr)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
 	for (i = 0; i < io_tlb_nslabs; i++) {

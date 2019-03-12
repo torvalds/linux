@@ -138,6 +138,10 @@ void __init coherent_mem_init(phys_addr_t start, u32 size)
 
 	dma_bitmap = memblock_alloc(BITS_TO_LONGS(dma_pages) * sizeof(long),
 				    sizeof(long));
+	if (!dma_bitmap)
+		panic("%s: Failed to allocate %zu bytes align=0x%zx\n",
+		      __func__, BITS_TO_LONGS(dma_pages) * sizeof(long),
+		      sizeof(long));
 }
 
 static void c6x_dma_sync(struct device *dev, phys_addr_t paddr, size_t size,

@@ -83,6 +83,9 @@ mk_resource_name(int pe, int port, char *str)
 	
 	sprintf(tmp, "PCI %s PE %d PORT %d", str, pe, port);
 	name = memblock_alloc(strlen(tmp) + 1, SMP_CACHE_BYTES);
+	if (!name)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      strlen(tmp) + 1);
 	strcpy(name, tmp);
 
 	return name;
@@ -118,6 +121,9 @@ alloc_io7(unsigned int pe)
 	}
 
 	io7 = memblock_alloc(sizeof(*io7), SMP_CACHE_BYTES);
+	if (!io7)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*io7));
 	io7->pe = pe;
 	raw_spin_lock_init(&io7->irq_lock);
 

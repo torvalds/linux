@@ -965,6 +965,9 @@ void __init __register_nosave_region(unsigned long start_pfn,
 		/* This allocation cannot fail */
 		region = memblock_alloc(sizeof(struct nosave_region),
 					SMP_CACHE_BYTES);
+		if (!region)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct nosave_region));
 	}
 	region->start_pfn = start_pfn;
 	region->end_pfn = end_pfn;

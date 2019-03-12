@@ -197,6 +197,9 @@ void __init mmu_partition_table_init(void)
 	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
 	/* Initialize the Partition Table with no entries */
 	partition_tb = memblock_alloc(patb_size, patb_size);
+	if (!partition_tb)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, patb_size, patb_size);
 
 	/*
 	 * update partition table control register,

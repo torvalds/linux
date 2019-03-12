@@ -53,13 +53,20 @@ static __ref void *early_alloc_pgtable(unsigned long size, int nid,
 {
 	phys_addr_t min_addr = MEMBLOCK_LOW_LIMIT;
 	phys_addr_t max_addr = MEMBLOCK_ALLOC_ANYWHERE;
+	void *ptr;
 
 	if (region_start)
 		min_addr = region_start;
 	if (region_end)
 		max_addr = region_end;
 
-	return memblock_alloc_try_nid(size, size, min_addr, max_addr, nid);
+	ptr = memblock_alloc_try_nid(size, size, min_addr, max_addr, nid);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%pa max_addr=%pa\n",
+		      __func__, size, size, nid, &min_addr, &max_addr);
+
+	return ptr;
 }
 
 static int early_map_kernel_page(unsigned long ea, unsigned long pa,

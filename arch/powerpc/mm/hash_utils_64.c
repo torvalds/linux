@@ -915,6 +915,9 @@ static void __init htab_initialize(void)
 		linear_map_hash_slots = memblock_alloc_try_nid(
 				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
 				ppc64_rma_size,	NUMA_NO_NODE);
+		if (!linear_map_hash_slots)
+			panic("%s: Failed to allocate %lu bytes max_addr=%pa\n",
+			      __func__, linear_map_hash_count, &ppc64_rma_size);
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 

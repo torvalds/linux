@@ -83,8 +83,14 @@ static inline bool kasan_early_shadow_page_entry(pte_t pte)
 
 static __init void *early_alloc(size_t size, int node)
 {
-	return memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-					MEMBLOCK_ALLOC_ACCESSIBLE, node);
+	void *ptr = memblock_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
+					   MEMBLOCK_ALLOC_ACCESSIBLE, node);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %zu bytes align=%zx nid=%d from=%llx\n",
+		      __func__, size, size, node, (u64)__pa(MAX_DMA_ADDRESS));
+
+	return ptr;
 }
 
 static void __ref zero_pte_populate(pmd_t *pmd, unsigned long addr,
