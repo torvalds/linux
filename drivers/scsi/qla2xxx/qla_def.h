@@ -4023,6 +4023,7 @@ struct qla_hw_data {
 	uint8_t		fw_seriallink_options[4];
 	uint16_t	fw_seriallink_options24[4];
 
+	uint8_t		serdes_version[3];
 	uint8_t		mpi_version[3];
 	uint32_t	mpi_capabilities;
 	uint8_t		phy_version[3];
@@ -4034,7 +4035,8 @@ struct qla_hw_data {
 	/* Firmware dump information. */
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
-	int		fw_dumped;
+	bool		fw_dumped;
+	bool		fw_dump_mpi;
 	unsigned long	fw_dump_cap_flags;
 #define RISC_PAUSE_CMPL		0
 #define DMA_SHUTDOWN_CMPL	1

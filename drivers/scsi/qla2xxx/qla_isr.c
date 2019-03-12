@@ -714,7 +714,9 @@ skip_rio:
 		ql_log(ql_log_warn, vha, 0x5003,
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh "
 		    "mbx7=%xh.\n", mb[1], mb[2], mb[3], mbx);
-
+		ha->fw_dump_mpi =
+		    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
+		    RD_REG_WORD(&reg24->mailbox7) & BIT_8;
 		ha->isp_ops->fw_dump(vha, 1);
 		ha->flags.fw_init_done = 0;
 		QLA_FW_STOPPED(ha);

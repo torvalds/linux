@@ -1378,6 +1378,21 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 }
 
 static ssize_t
+qla2x00_serdes_version_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return scnprintf(buf, PAGE_SIZE, "\n");
+
+	return scnprintf(buf, PAGE_SIZE, "%d.%02d.%02d\n",
+	    ha->serdes_version[0], ha->serdes_version[1],
+	    ha->serdes_version[2]);
+}
+
+static ssize_t
 qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
@@ -2220,6 +2235,7 @@ static DEVICE_ATTR(84xx_fw_version, S_IRUGO, qla24xx_84xx_fw_version_show,
 		   NULL);
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
 		   NULL);
+static DEVICE_ATTR(serdes_version, 0444, qla2x00_serdes_version_show, NULL);
 static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
 static DEVICE_ATTR(phy_version, S_IRUGO, qla2x00_phy_version_show, NULL);
 static DEVICE_ATTR(flash_block_size, S_IRUGO, qla2x00_flash_block_size_show,
@@ -2272,6 +2288,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_optrom_fw_version,
 	&dev_attr_84xx_fw_version,
 	&dev_attr_total_isp_aborts,
+	&dev_attr_serdes_version,
 	&dev_attr_mpi_version,
 	&dev_attr_phy_version,
 	&dev_attr_flash_block_size,
@@ -2328,16 +2345,15 @@ qla2x00_get_host_port_id(struct Scsi_Host *shost)
 static void
 qla2x00_get_host_speed(struct Scsi_Host *shost)
 {
-	struct qla_hw_data *ha = ((struct scsi_qla_host *)
-					(shost_priv(shost)))->hw;
-	u32 speed = FC_PORTSPEED_UNKNOWN;
+	scsi_qla_host_t *vha = shost_priv(shost);
+	u32 speed;
 
-	if (IS_QLAFX00(ha)) {
+	if (IS_QLAFX00(vha->hw)) {
 		qlafx00_get_host_speed(shost);
 		return;
 	}
 
-	switch (ha->link_data_rate) {
+	switch (vha->hw->link_data_rate) {
 	case PORT_SPEED_1GB:
 		speed = FC_PORTSPEED_1GBIT;
 		break;
@@ -2362,7 +2378,11 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	case PORT_SPEED_64GB:
 		speed = FC_PORTSPEED_64GBIT;
 		break;
+	default:
+		speed = FC_PORTSPEED_UNKNOWN;
+		break;
 	}
+
 	fc_host_speed(shost) = speed;
 }
 
@@ -2370,7 +2390,7 @@ static void
 qla2x00_get_host_port_type(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	uint32_t port_type = FC_PORTTYPE_UNKNOWN;
+	uint32_t port_type;
 
 	if (vha->vp_idx) {
 		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
@@ -2389,7 +2409,11 @@ qla2x00_get_host_port_type(struct Scsi_Host *shost)
 	case ISP_CFG_F:
 		port_type = FC_PORTTYPE_NPORT;
 		break;
+	default:
+		port_type = FC_PORTTYPE_UNKNOWN;
+		break;
 	}
+
 	fc_host_port_type(shost) = port_type;
 }
 
@@ -2451,13 +2475,10 @@ qla2x00_get_starget_port_id(struct scsi_target *starget)
 	fc_starget_port_id(starget) = port_id;
 }
 
-static void
+static inline void
 qla2x00_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 {
-	if (timeout)
-		rport->dev_loss_tmo = timeout;
-	else
-		rport->dev_loss_tmo = 1;
+	rport->dev_loss_tmo = timeout ? timeout : 1;
 }
 
 static void
