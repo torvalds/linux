@@ -4584,57 +4584,45 @@ skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *cstate,
 }
 
 static int
-skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
-			    const struct intel_plane_state *intel_pstate,
-			    struct skl_wm_params *wp, int color_plane)
+skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
+		      int width, const struct drm_format_info *format,
+		      u64 modifier, unsigned int rotation,
+		      u32 plane_pixel_rate, struct skl_wm_params *wp,
+		      int color_plane)
 {
-	struct intel_plane *plane = to_intel_plane(intel_pstate->base.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_plane_state *pstate = &intel_pstate->base;
-	const struct drm_framebuffer *fb = pstate->fb;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 interm_pbpl;
 
 	/* only planar format has two planes */
-	if (color_plane == 1 && !is_planar_yuv_format(fb->format->format)) {
+	if (color_plane == 1 && !is_planar_yuv_format(format->format)) {
 		DRM_DEBUG_KMS("Non planar format have single plane\n");
 		return -EINVAL;
 	}
 
-	wp->y_tiled = fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-		      fb->modifier == I915_FORMAT_MOD_Yf_TILED ||
-		      fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-		      fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
-	wp->x_tiled = fb->modifier == I915_FORMAT_MOD_X_TILED;
-	wp->rc_surface = fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
-			 fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
-	wp->is_planar = is_planar_yuv_format(fb->format->format);
+	wp->y_tiled = modifier == I915_FORMAT_MOD_Y_TILED ||
+		      modifier == I915_FORMAT_MOD_Yf_TILED ||
+		      modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+		      modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
+	wp->x_tiled = modifier == I915_FORMAT_MOD_X_TILED;
+	wp->rc_surface = modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+			 modifier == I915_FORMAT_MOD_Yf_TILED_CCS;
+	wp->is_planar = is_planar_yuv_format(format->format);
 
-	if (plane->id == PLANE_CURSOR) {
-		wp->width = intel_pstate->base.crtc_w;
-	} else {
-		/*
-		 * Src coordinates are already rotated by 270 degrees for
-		 * the 90/270 degree plane rotation cases (to match the
-		 * GTT mapping), hence no need to account for rotation here.
-		 */
-		wp->width = drm_rect_width(&intel_pstate->base.src) >> 16;
-	}
-
+	wp->width = width;
 	if (color_plane == 1 && wp->is_planar)
 		wp->width /= 2;
 
-	wp->cpp = fb->format->cpp[color_plane];
-	wp->plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate,
-							     intel_pstate);
+	wp->cpp = format->cpp[color_plane];
+	wp->plane_pixel_rate = plane_pixel_rate;
 
 	if (INTEL_GEN(dev_priv) >= 11 &&
-	    fb->modifier == I915_FORMAT_MOD_Yf_TILED && wp->cpp == 1)
+	    modifier == I915_FORMAT_MOD_Yf_TILED  && wp->cpp == 1)
 		wp->dbuf_block_size = 256;
 	else
 		wp->dbuf_block_size = 512;
 
-	if (drm_rotation_90_or_270(pstate->rotation)) {
-
+	if (drm_rotation_90_or_270(rotation)) {
 		switch (wp->cpp) {
 		case 1:
 			wp->y_min_scanlines = 16;
@@ -4679,10 +4667,38 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 
 	wp->y_tile_minimum = mul_u32_fixed16(wp->y_min_scanlines,
 					     wp->plane_blocks_per_line);
+
 	wp->linetime_us = fixed16_to_u32_round_up(
-					intel_get_linetime_us(cstate));
+					intel_get_linetime_us(crtc_state));
 
 	return 0;
+}
+
+static int
+skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state,
+			    struct skl_wm_params *wp, int color_plane)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	int width;
+
+	if (plane->id == PLANE_CURSOR) {
+		width = plane_state->base.crtc_w;
+	} else {
+		/*
+		 * Src coordinates are already rotated by 270 degrees for
+		 * the 90/270 degree plane rotation cases (to match the
+		 * GTT mapping), hence no need to account for rotation here.
+		 */
+		width = drm_rect_width(&plane_state->base.src) >> 16;
+	}
+
+	return skl_compute_wm_params(crtc_state, width,
+				     fb->format, fb->modifier,
+				     plane_state->base.rotation,
+				     skl_adjusted_plane_pixel_rate(crtc_state, plane_state),
+				     wp, color_plane);
 }
 
 static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
