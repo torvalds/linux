@@ -126,8 +126,8 @@ static void xsk_set_umem_config(struct xsk_umem_config *cfg,
 	cfg->frame_headroom = usr_cfg->frame_headroom;
 }
 
-static void xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
-				      const struct xsk_socket_config *usr_cfg)
+static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
+				     const struct xsk_socket_config *usr_cfg)
 {
 	if (!usr_cfg) {
 		cfg->rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -135,14 +135,19 @@ static void xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
 		cfg->libbpf_flags = 0;
 		cfg->xdp_flags = 0;
 		cfg->bind_flags = 0;
-		return;
+		return 0;
 	}
+
+	if (usr_cfg->libbpf_flags & ~XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)
+		return -EINVAL;
 
 	cfg->rx_size = usr_cfg->rx_size;
 	cfg->tx_size = usr_cfg->tx_size;
 	cfg->libbpf_flags = usr_cfg->libbpf_flags;
 	cfg->xdp_flags = usr_cfg->xdp_flags;
 	cfg->bind_flags = usr_cfg->bind_flags;
+
+	return 0;
 }
 
 int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
@@ -557,7 +562,9 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	}
 	strncpy(xsk->ifname, ifname, IFNAMSIZ);
 
-	xsk_set_xdp_socket_config(&xsk->config, usr_config);
+	err = xsk_set_xdp_socket_config(&xsk->config, usr_config);
+	if (err)
+		goto out_socket;
 
 	if (rx) {
 		err = setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING,
