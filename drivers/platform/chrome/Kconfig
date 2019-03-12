@@ -152,4 +152,6 @@ config CROS_EC_SYSFS
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_sysfs.
 
+source "drivers/platform/chrome/wilco_ec/Kconfig"
+
 endif # CHROMEOS_PLATFORMS
