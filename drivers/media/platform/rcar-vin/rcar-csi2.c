@@ -865,7 +865,8 @@ static int rcsi2_phtw_write_mbps(struct rcar_csi2 *priv, unsigned int mbps,
 	return rcsi2_phtw_write(priv, value->reg, code);
 }
 
-static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
+static int __rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv,
+					unsigned int mbps)
 {
 	static const struct phtw_value step1[] = {
 		{ .data = 0xcc, .code = 0xe2 },
@@ -891,7 +892,7 @@ static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
 	if (ret)
 		return ret;
 
-	if (mbps <= 250) {
+	if (mbps != 0 && mbps <= 250) {
 		ret = rcsi2_phtw_write(priv, 0x39, 0x05);
 		if (ret)
 			return ret;
@@ -903,6 +904,16 @@ static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
 	}
 
 	return rcsi2_phtw_write_array(priv, step2);
+}
+
+static int rcsi2_init_phtw_h3_v3h_m3n(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	return __rcsi2_init_phtw_h3_v3h_m3n(priv, mbps);
+}
+
+static int rcsi2_init_phtw_h3es2(struct rcar_csi2 *priv, unsigned int mbps)
+{
+	return __rcsi2_init_phtw_h3_v3h_m3n(priv, 0);
 }
 
 static int rcsi2_init_phtw_v3m_e3(struct rcar_csi2 *priv, unsigned int mbps)
@@ -965,6 +976,14 @@ static const struct rcar_csi2_info rcar_csi2_info_r8a7795 = {
 static const struct rcar_csi2_info rcar_csi2_info_r8a7795es1 = {
 	.hsfreqrange = hsfreqrange_m3w_h3es1,
 	.num_channels = 4,
+};
+
+static const struct rcar_csi2_info rcar_csi2_info_r8a7795es2 = {
+	.init_phtw = rcsi2_init_phtw_h3es2,
+	.hsfreqrange = hsfreqrange_h3_v3h_m3n,
+	.csi0clkfreqrange = 0x20,
+	.num_channels = 4,
+	.clear_ulps = true,
 };
 
 static const struct rcar_csi2_info rcar_csi2_info_r8a7796 = {
@@ -1036,10 +1055,14 @@ static const struct of_device_id rcar_csi2_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, rcar_csi2_of_table);
 
-static const struct soc_device_attribute r8a7795es1[] = {
+static const struct soc_device_attribute r8a7795[] = {
 	{
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = &rcar_csi2_info_r8a7795es1,
+	},
+	{
+		.soc_id = "r8a7795", .revision = "ES2.*",
+		.data = &rcar_csi2_info_r8a7795es2,
 	},
 	{ /* sentinel */ },
 };
@@ -1058,10 +1081,10 @@ static int rcsi2_probe(struct platform_device *pdev)
 	priv->info = of_device_get_match_data(&pdev->dev);
 
 	/*
-	 * r8a7795 ES1.x behaves differently than the ES2.0+ but doesn't
-	 * have it's own compatible string.
+	 * The different ES versions of r8a7795 (H3) behave differently but
+	 * share the same compatible string.
 	 */
-	attr = soc_device_match(r8a7795es1);
+	attr = soc_device_match(r8a7795);
 	if (attr)
 		priv->info = attr->data;
 
