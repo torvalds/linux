@@ -14497,6 +14497,7 @@ lpfc_sli4_queue_free(struct lpfc_queue *queue)
  * @page_size: The size of a queue page
  * @entry_size: The size of each queue entry for this queue.
  * @entry count: The number of entries that this queue will handle.
+ * @cpu: The cpu that will primarily utilize this queue.
  *
  * This function allocates a queue structure and the DMAable memory used for
  * the host resident queue. This function must be called before creating the
@@ -14504,7 +14505,7 @@ lpfc_sli4_queue_free(struct lpfc_queue *queue)
  **/
 struct lpfc_queue *
 lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
-		      uint32_t entry_size, uint32_t entry_count)
+		      uint32_t entry_size, uint32_t entry_count, int cpu)
 {
 	struct lpfc_queue *queue;
 	struct lpfc_dmabuf *dmabuf;
@@ -14520,8 +14521,8 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	if (pgcnt > phba->sli4_hba.pc_sli4_params.wqpcnt)
 		pgcnt = phba->sli4_hba.pc_sli4_params.wqpcnt;
 
-	queue = kzalloc(sizeof(struct lpfc_queue) +
-			(sizeof(void *) * pgcnt), GFP_KERNEL);
+	queue = kzalloc_node(sizeof(*queue) + (sizeof(void *) * pgcnt),
+			     GFP_KERNEL, cpu_to_node(cpu));
 	if (!queue)
 		return NULL;
 
@@ -14544,7 +14545,8 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	queue->phba = phba;
 
 	for (x = 0; x < queue->page_count; x++) {
-		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+		dmabuf = kzalloc_node(sizeof(*dmabuf), GFP_KERNEL,
+				      dev_to_node(&phba->pcidev->dev));
 		if (!dmabuf)
 			goto out_fail;
 		dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,

@@ -989,8 +989,10 @@ int lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *, struct lpfcMboxq *,
 			       uint16_t);
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
-struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
-					 uint32_t, uint32_t);
+struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *phba,
+					 uint32_t page_size,
+					 uint32_t entry_size,
+					 uint32_t entry_count, int cpu);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
 int lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 void lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,

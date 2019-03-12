@@ -8634,10 +8634,12 @@ static int
 lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 {
 	struct lpfc_queue *qdesc;
+	int cpu;
 
+	cpu = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      LPFC_CQE_EXP_COUNT);
+				      LPFC_CQE_EXP_COUNT, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0508 Failed allocate fast-path NVME CQ (%d)\n",
@@ -8646,11 +8648,12 @@ lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
 	}
 	qdesc->qe_valid = 1;
 	qdesc->hdwq = wqidx;
-	qdesc->chann = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
+	qdesc->chann = cpu;
 	phba->sli4_hba.hdwq[wqidx].nvme_cq = qdesc;
 
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-				      LPFC_WQE128_SIZE, LPFC_WQE_EXP_COUNT);
+				      LPFC_WQE128_SIZE, LPFC_WQE_EXP_COUNT,
+				      cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0509 Failed allocate fast-path NVME WQ (%d)\n",
@@ -8669,18 +8672,20 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 {
 	struct lpfc_queue *qdesc;
 	uint32_t wqesize;
+	int cpu;
 
+	cpu = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
 	/* Create Fast Path FCP CQs */
 	if (phba->enab_exp_wqcq_pages)
 		/* Increase the CQ size when WQEs contain an embedded cdb */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      LPFC_CQE_EXP_COUNT);
+					      LPFC_CQE_EXP_COUNT, cpu);
 
 	else
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      phba->sli4_hba.cq_ecount);
+					      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0499 Failed allocate fast-path FCP CQ (%d)\n", wqidx);
@@ -8688,7 +8693,7 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 	}
 	qdesc->qe_valid = 1;
 	qdesc->hdwq = wqidx;
-	qdesc->chann = lpfc_find_cpu_handle(phba, wqidx, LPFC_FIND_BY_HDWQ);
+	qdesc->chann = cpu;
 	phba->sli4_hba.hdwq[wqidx].fcp_cq = qdesc;
 
 	/* Create Fast Path FCP WQs */
@@ -8698,11 +8703,11 @@ lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
 			LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
 					      wqesize,
-					      LPFC_WQE_EXP_COUNT);
+					      LPFC_WQE_EXP_COUNT, cpu);
 	} else
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.wq_esize,
-					      phba->sli4_hba.wq_ecount);
+					      phba->sli4_hba.wq_ecount, cpu);
 
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8735,7 +8740,7 @@ int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
-	int idx, eqidx;
+	int idx, eqidx, cpu;
 	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_eq_intr_info *eqi;
 
@@ -8822,13 +8827,15 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	/* Create HBA Event Queues (EQs) */
 	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		/* determine EQ affinity */
+		eqidx = lpfc_find_eq_handle(phba, idx);
+		cpu = lpfc_find_cpu_handle(phba, eqidx, LPFC_FIND_BY_EQ);
 		/*
 		 * If there are more Hardware Queues than available
-		 * CQs, multiple Hardware Queues may share a common EQ.
+		 * EQs, multiple Hardware Queues may share a common EQ.
 		 */
 		if (idx >= phba->cfg_irq_chann) {
 			/* Share an existing EQ */
-			eqidx = lpfc_find_eq_handle(phba, idx);
 			phba->sli4_hba.hdwq[idx].hba_eq =
 				phba->sli4_hba.hdwq[eqidx].hba_eq;
 			continue;
@@ -8836,7 +8843,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		/* Create an EQ */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.eq_esize,
-					      phba->sli4_hba.eq_ecount);
+					      phba->sli4_hba.eq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0497 Failed allocate EQ (%d)\n", idx);
@@ -8846,9 +8853,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		qdesc->hdwq = idx;
 
 		/* Save the CPU this EQ is affinitised to */
-		eqidx = lpfc_find_eq_handle(phba, idx);
-		qdesc->chann = lpfc_find_cpu_handle(phba, eqidx,
-						    LPFC_FIND_BY_EQ);
+		qdesc->chann = cpu;
 		phba->sli4_hba.hdwq[idx].hba_eq = qdesc;
 		qdesc->last_cpu = qdesc->chann;
 		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, qdesc->last_cpu);
@@ -8871,11 +8876,14 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 		if (phba->nvmet_support) {
 			for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
+				cpu = lpfc_find_cpu_handle(phba, idx,
+							   LPFC_FIND_BY_HDWQ);
 				qdesc = lpfc_sli4_queue_alloc(
 						      phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.cq_esize,
-						      phba->sli4_hba.cq_ecount);
+						      phba->sli4_hba.cq_ecount,
+						      cpu);
 				if (!qdesc) {
 					lpfc_printf_log(
 						phba, KERN_ERR, LOG_INIT,
@@ -8885,7 +8893,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				}
 				qdesc->qe_valid = 1;
 				qdesc->hdwq = idx;
-				qdesc->chann = idx;
+				qdesc->chann = cpu;
 				phba->sli4_hba.nvmet_cqset[idx] = qdesc;
 			}
 		}
@@ -8895,10 +8903,11 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	 * Create Slow Path Completion Queues (CQs)
 	 */
 
+	cpu = lpfc_find_cpu_handle(phba, 0, LPFC_FIND_BY_EQ);
 	/* Create slow-path Mailbox Command Complete Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
+				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0500 Failed allocate slow-path mailbox CQ\n");
@@ -8910,7 +8919,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create slow-path ELS Complete Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
+				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0501 Failed allocate slow-path ELS CQ\n");
@@ -8929,7 +8938,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.mq_esize,
-				      phba->sli4_hba.mq_ecount);
+				      phba->sli4_hba.mq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0505 Failed allocate slow-path MQ\n");
@@ -8945,7 +8954,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create slow-path ELS Work Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.wq_esize,
-				      phba->sli4_hba.wq_ecount);
+				      phba->sli4_hba.wq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0504 Failed allocate slow-path ELS WQ\n");
@@ -8959,7 +8968,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		/* Create NVME LS Complete Queue */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      phba->sli4_hba.cq_ecount);
+					      phba->sli4_hba.cq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"6079 Failed allocate NVME LS CQ\n");
@@ -8972,7 +8981,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		/* Create NVME LS Work Queue */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.wq_esize,
-					      phba->sli4_hba.wq_ecount);
+					      phba->sli4_hba.wq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"6080 Failed allocate NVME LS WQ\n");
@@ -8990,7 +8999,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create Receive Queue for header */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.rq_esize,
-				      phba->sli4_hba.rq_ecount);
+				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0506 Failed allocate receive HRQ\n");
@@ -9001,7 +9010,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create Receive Queue for data */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.rq_esize,
-				      phba->sli4_hba.rq_ecount);
+				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0507 Failed allocate receive DRQ\n");
@@ -9012,11 +9021,14 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
 	    phba->nvmet_support) {
 		for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
+			cpu = lpfc_find_cpu_handle(phba, idx,
+						   LPFC_FIND_BY_HDWQ);
 			/* Create NVMET Receive Queue for header */
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.rq_esize,
-						      LPFC_NVMET_RQE_DEF_COUNT);
+						      LPFC_NVMET_RQE_DEF_COUNT,
+						      cpu);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3146 Failed allocate "
@@ -9027,8 +9039,9 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			phba->sli4_hba.nvmet_mrq_hdr[idx] = qdesc;
 
 			/* Only needed for header of RQ pair */
-			qdesc->rqbp = kzalloc(sizeof(struct lpfc_rqb),
-					      GFP_KERNEL);
+			qdesc->rqbp = kzalloc_node(sizeof(*qdesc->rqbp),
+						   GFP_KERNEL,
+						   cpu_to_node(cpu));
 			if (qdesc->rqbp == NULL) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6131 Failed allocate "
@@ -9043,7 +9056,8 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.rq_esize,
-						      LPFC_NVMET_RQE_DEF_COUNT);
+						      LPFC_NVMET_RQE_DEF_COUNT,
+						      cpu);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3156 Failed allocate "
