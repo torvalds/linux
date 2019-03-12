@@ -1081,7 +1081,7 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 {
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
-	struct pipe_ctx *idle_pipe = find_idle_secondary_pipe(res_ctx, pool);
+	struct pipe_ctx *idle_pipe = find_idle_secondary_pipe(res_ctx, pool, head_pipe);
 
 	if (!head_pipe) {
 		ASSERT(0);

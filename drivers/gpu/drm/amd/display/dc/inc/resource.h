@@ -131,7 +131,8 @@ bool resource_attach_surfaces_to_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool);
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 
 bool resource_is_stream_unchanged(
 	struct dc_state *old_context, struct dc_stream_state *stream);
