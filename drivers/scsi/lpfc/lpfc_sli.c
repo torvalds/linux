@@ -8507,7 +8507,7 @@ lpfc_sli4_wait_bmbx_ready(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		bmbx_reg.word0 = readl(phba->sli4_hba.BMBXregaddr);
 		db_ready = bf_get(lpfc_bmbx_rdy, &bmbx_reg);
 		if (!db_ready)
-			msleep(2);
+			mdelay(2);
 
 		if (time_after(jiffies, timeout))
 			return MBXERR_ERROR;
