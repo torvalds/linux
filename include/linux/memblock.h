@@ -273,18 +273,6 @@ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
 	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
 			       nid, flags, p_start, p_end, p_nid)
 
-static inline void memblock_set_region_flags(struct memblock_region *r,
-					     enum memblock_flags flags)
-{
-	r->flags |= flags;
-}
-
-static inline void memblock_clear_region_flags(struct memblock_region *r,
-					       enum memblock_flags flags)
-{
-	r->flags &= ~flags;
-}
-
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 int memblock_set_node(phys_addr_t base, phys_addr_t size,
 		      struct memblock_type *type, int nid);

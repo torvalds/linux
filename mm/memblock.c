@@ -858,11 +858,14 @@ static int __init_memblock memblock_setclr_flag(phys_addr_t base,
 	if (ret)
 		return ret;
 
-	for (i = start_rgn; i < end_rgn; i++)
+	for (i = start_rgn; i < end_rgn; i++) {
+		struct memblock_region *r = &type->regions[i];
+
 		if (set)
-			memblock_set_region_flags(&type->regions[i], flag);
+			r->flags |= flag;
 		else
-			memblock_clear_region_flags(&type->regions[i], flag);
+			r->flags &= ~flag;
+	}
 
 	memblock_merge_regions(type);
 	return 0;
