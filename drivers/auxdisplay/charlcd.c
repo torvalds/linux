@@ -818,6 +818,12 @@ struct charlcd *charlcd_alloc(unsigned int drvdata_size)
 }
 EXPORT_SYMBOL_GPL(charlcd_alloc);
 
+void charlcd_free(struct charlcd *lcd)
+{
+	kfree(charlcd_to_priv(lcd));
+}
+EXPORT_SYMBOL_GPL(charlcd_free);
+
 static int panel_notify_sys(struct notifier_block *this, unsigned long code,
 			    void *unused)
 {
