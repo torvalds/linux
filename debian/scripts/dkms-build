@@ -45,7 +45,11 @@ do
 			}
 		    ')
 		do
-			wget "$pool/$package_path" && break || true
+			url="$pool/$package_path"
+			wget "$url" && break || true
+			# No components in PPAs.
+			url=$(echo "$url" | sed -e 's@/pool/[^/]*/@/pool/main/@')
+			wget "$url" && break || true
 		done
 		;;
 	http*:*)
