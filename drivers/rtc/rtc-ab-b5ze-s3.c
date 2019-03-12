@@ -438,28 +438,25 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
 	struct rtc_time *alarm_tm = &alarm->time;
-	unsigned long rtc_secs, alarm_secs;
 	u8 regs[ABB5ZES3_ALRM_SEC_LEN];
 	struct rtc_time rtc_tm;
 	int ret, enable = 1;
 
-	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
-	if (ret)
-		return ret;
-
-	rtc_secs = rtc_tm_to_time64(&rtc_tm);
-	alarm_secs = rtc_tm_to_time64(alarm_tm);
-
-	/* If alarm time is before current time, disable the alarm */
-	if (!alarm->enabled || alarm_secs <= rtc_secs) {
+	if (!alarm->enabled) {
 		enable = 0;
 	} else {
+		unsigned long rtc_secs, alarm_secs;
+
 		/*
 		 * Chip only support alarms up to one month in the future. Let's
 		 * return an error if we get something after that limit.
 		 * Comparison is done by incrementing rtc_tm month field by one
 		 * and checking alarm value is still below.
 		 */
+		ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
+		if (ret)
+			return ret;
+
 		if (rtc_tm.tm_mon == 11) { /* handle year wrapping */
 			rtc_tm.tm_mon = 0;
 			rtc_tm.tm_year += 1;
@@ -468,6 +465,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		}
 
 		rtc_secs = rtc_tm_to_time64(&rtc_tm);
+		alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 		if (alarm_secs > rtc_secs) {
 			dev_err(dev, "%s: alarm maximum is one month in the "
