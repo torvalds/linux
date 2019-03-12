@@ -460,23 +460,6 @@ static void mce_irq_work_cb(struct irq_work *entry)
 	mce_schedule_work();
 }
 
-static void mce_report_event(struct pt_regs *regs)
-{
-	if (regs->flags & (X86_VM_MASK|X86_EFLAGS_IF)) {
-		mce_notify_irq();
-		/*
-		 * Triggering the work queue here is just an insurance
-		 * policy in case the syscall exit notify handler
-		 * doesn't run soon enough or ends up running on the
-		 * wrong CPU (can happen when audit sleeps)
-		 */
-		mce_schedule_work();
-		return;
-	}
-
-	irq_work_queue(&mce_irq_work);
-}
-
 /*
  * Check if the address reported by the CPU is in a format we can parse.
  * It would be possible to add code for most other cases, but all would
@@ -1331,7 +1314,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		mce_panic("Fatal machine check on current CPU", &m, msg);
 
 	if (worst > 0)
-		mce_report_event(regs);
+		irq_work_queue(&mce_irq_work);
+
 	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
 
 	sync_core();
