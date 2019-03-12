@@ -47,9 +47,22 @@ grep /usr/bin/ld.bfd "$log" | sed -e "s@$build/@@g" \
 	elif [ "$sign" = "--lrm" ]; then
 		# We are in LRM build the package a copy in any signatures we can
 		# find for them.  These will be added after linking.
+		base="/usr/lib/linux/$abi_flavour"
+
+		# Check the GCC version we are using against that used in the kernel
+		# NOTE: that we treat this as only a warning, as if the binaries did come
+		# out differently then we will actually 
+		echo "II: checking gcc version ..."
+		cat "$base/compiler"
+		gcc --version
+		gcc_was=$(cat "$base/compiler" | sed -e 's/^GCC:/gcc/')
+		gcc_is=$(gcc --version | head -1)
+		if [ "$gcc_was" != "$gcc_is" ]; then
+			echo "WW: gcc version missmatch between linux and linux-restricted-modules"
+			echo "WW: was: $gcc_was  is: $gcc_is"
+		fi
 
 		# Apply any local signatures.
-		base="/usr/lib/linux/$abi_flavour"
 		echo "II: adding signatures from $base ..."
 		cp "$base/signatures/$package/"*".ko.sig" "$pkgdir/bits"
 		sha256sum -c "$base/signatures/$package/SHA256SUMS" || exit 1
