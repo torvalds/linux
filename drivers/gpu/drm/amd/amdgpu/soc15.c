@@ -461,7 +461,6 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
-	case CHIP_VEGA20:
 		soc15_asic_get_baco_capability(adev, &baco_reset);
 		break;
 	default:

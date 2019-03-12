@@ -724,7 +724,7 @@ static void build_vrr_infopacket_v1(enum signal_type signal,
 
 static void build_vrr_infopacket_v2(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
-		const enum color_transfer_func *app_tf,
+		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
 	unsigned int payload_size = 0;
@@ -732,8 +732,7 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
 	build_vrr_infopacket_data(vrr, infopacket);
 
-	if (app_tf != NULL)
-		build_vrr_infopacket_fs2_data(*app_tf, infopacket);
+	build_vrr_infopacket_fs2_data(app_tf, infopacket);
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
@@ -757,7 +756,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
-		const enum color_transfer_func *app_tf,
+		enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
 	/* SPD info packet for FreeSync

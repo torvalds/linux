@@ -947,10 +947,6 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		r = amdgpu_vm_clear_bo(adev, vm, pt, cursor.level, ats);
-		if (r)
-			goto error_free_pt;
-
 		if (vm->use_cpu_for_update) {
 			r = amdgpu_bo_kmap(pt, NULL);
 			if (r)
@@ -963,6 +959,10 @@ int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 		pt->parent = amdgpu_bo_ref(cursor.parent->base.bo);
 
 		amdgpu_vm_bo_base_init(&entry->base, vm, pt);
+
+		r = amdgpu_vm_clear_bo(adev, vm, pt, cursor.level, ats);
+		if (r)
+			goto error_free_pt;
 	}
 
 	return 0;
@@ -3033,13 +3033,14 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		goto error_unreserve;
 
+	amdgpu_vm_bo_base_init(&vm->root.base, vm, root);
+
 	r = amdgpu_vm_clear_bo(adev, vm, root,
 			       adev->vm_manager.root_level,
 			       vm->pte_support_ats);
 	if (r)
 		goto error_unreserve;
 
-	amdgpu_vm_bo_base_init(&vm->root.base, vm, root);
 	amdgpu_bo_unreserve(vm->root.base.bo);
 
 	if (pasid) {

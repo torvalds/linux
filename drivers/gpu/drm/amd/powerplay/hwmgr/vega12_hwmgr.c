@@ -2009,9 +2009,9 @@ static int vega12_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 		return ret;
 
 	features_to_disable =
-		(features_enabled ^ new_ppfeature_masks) & features_enabled;
+		features_enabled & ~new_ppfeature_masks;
 	features_to_enable =
-		(features_enabled ^ new_ppfeature_masks) ^ features_to_disable;
+		~features_enabled & new_ppfeature_masks;
 
 	pr_debug("features_to_disable 0x%llx\n", features_to_disable);
 	pr_debug("features_to_enable 0x%llx\n", features_to_enable);
