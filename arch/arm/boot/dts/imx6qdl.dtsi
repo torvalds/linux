@@ -1145,7 +1145,9 @@
 			};
 
 			mmdc1: memory-controller@21b4000 { /* MMDC1 */
+				compatible = "fsl,imx6q-mmdc";
 				reg = <0x021b4000 0x4000>;
+				status = "disabled";
 			};
 
 			weim: weim@21b8000 {
