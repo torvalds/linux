@@ -1153,7 +1153,10 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
 		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 
-	dma_async_device_register(dma_dev);
+	ret = dma_async_device_register(dma_dev);
+	if (ret)
+		goto err_free_irq;
+
 	return mv_chan;
 
 err_free_irq:
