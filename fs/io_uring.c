@@ -411,7 +411,8 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 
 	req->ctx = ctx;
 	req->flags = 0;
-	refcount_set(&req->refs, 0);
+	/* one is dropped after submission, the other at completion */
+	refcount_set(&req->refs, 2);
 	return req;
 out:
 	io_ring_drop_ctx_refs(ctx, 1);
@@ -429,10 +430,14 @@ static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
 
 static void io_free_req(struct io_kiocb *req)
 {
-	if (!refcount_read(&req->refs) || refcount_dec_and_test(&req->refs)) {
-		io_ring_drop_ctx_refs(req->ctx, 1);
-		kmem_cache_free(req_cachep, req);
-	}
+	io_ring_drop_ctx_refs(req->ctx, 1);
+	kmem_cache_free(req_cachep, req);
+}
+
+static void io_put_req(struct io_kiocb *req)
+{
+	if (refcount_dec_and_test(&req->refs))
+		io_free_req(req);
 }
 
 /*
@@ -453,7 +458,8 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		io_cqring_fill_event(ctx, req->user_data, req->error, 0);
 
-		reqs[to_free++] = req;
+		if (refcount_dec_and_test(&req->refs))
+			reqs[to_free++] = req;
 		(*nr_events)++;
 
 		/*
@@ -616,7 +622,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 
 	io_fput(req);
 	io_cqring_add_event(req->ctx, req->user_data, res, 0);
-	io_free_req(req);
+	io_put_req(req);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
@@ -1083,7 +1089,7 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 		io_fput(req);
 	}
 	io_cqring_add_event(ctx, user_data, err, 0);
-	io_free_req(req);
+	io_put_req(req);
 	return 0;
 }
 
@@ -1146,7 +1152,7 @@ static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	io_fput(req);
 	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
-	io_free_req(req);
+	io_put_req(req);
 	return 0;
 }
 
@@ -1204,7 +1210,7 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
-	io_free_req(req);
+	io_put_req(req);
 	return 0;
 }
 
@@ -1212,7 +1218,7 @@ static void io_poll_complete(struct io_kiocb *req, __poll_t mask)
 {
 	io_cqring_add_event(req->ctx, req->user_data, mangle_poll(mask), 0);
 	io_fput(req);
-	io_free_req(req);
+	io_put_req(req);
 }
 
 static void io_poll_complete_work(struct work_struct *work)
@@ -1346,9 +1352,6 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	INIT_LIST_HEAD(&poll->wait.entry);
 	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
 
-	/* one for removal from waitqueue, one for this function */
-	refcount_set(&req->refs, 2);
-
 	mask = vfs_poll(poll->file, &ipt.pt) & poll->events;
 	if (unlikely(!poll->head)) {
 		/* we did not manage to set up a waitqueue, done */
@@ -1380,13 +1383,12 @@ out:
 		 * Drop one of our refs to this req, __io_submit_sqe() will
 		 * drop the other one since we're returning an error.
 		 */
-		io_free_req(req);
+		io_put_req(req);
 		return ipt.error;
 	}
 
 	if (mask)
 		io_poll_complete(req, mask);
-	io_free_req(req);
 	return 0;
 }
 
@@ -1524,10 +1526,13 @@ restart:
 					break;
 				cond_resched();
 			} while (1);
+
+			/* drop submission reference */
+			io_put_req(req);
 		}
 		if (ret) {
 			io_cqring_add_event(ctx, sqe->user_data, ret, 0);
-			io_free_req(req);
+			io_put_req(req);
 		}
 
 		/* async context always use a copy of the sqe */
@@ -1649,11 +1654,22 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 				INIT_WORK(&req->work, io_sq_wq_submit_work);
 				queue_work(ctx->sqo_wq, &req->work);
 			}
-			ret = 0;
+
+			/*
+			 * Queued up for async execution, worker will release
+			 * submit reference when the iocb is actually
+			 * submitted.
+			 */
+			return 0;
 		}
 	}
+
+	/* drop submission reference */
+	io_put_req(req);
+
+	/* and drop final reference, if we failed */
 	if (ret)
-		io_free_req(req);
+		io_put_req(req);
 
 	return ret;
 }
