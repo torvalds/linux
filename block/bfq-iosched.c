@@ -2590,6 +2590,16 @@ bfq_merge_bfqqs(struct bfq_data *bfqd, struct bfq_io_cq *bic,
 	 *   assignment causes no harm).
 	 */
 	new_bfqq->bic = NULL;
+	/*
+	 * If the queue is shared, the pid is the pid of one of the associated
+	 * processes. Which pid depends on the exact sequence of merge events
+	 * the queue underwent. So printing such a pid is useless and confusing
+	 * because it reports a random pid between those of the associated
+	 * processes.
+	 * We mark such a queue with a pid -1, and then print SHARED instead of
+	 * a pid in logging messages.
+	 */
+	new_bfqq->pid = -1;
 	bfqq->bic = NULL;
 	/* release process reference to bfqq */
 	bfq_put_queue(bfqq);
