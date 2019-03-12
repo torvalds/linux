@@ -4344,7 +4344,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct skl_ddb_entry *alloc = &cstate->wm.skl.ddb;
-	struct skl_plane_wm *wm;
 	u16 alloc_size, start = 0;
 	u16 total[I915_MAX_PLANES] = {};
 	u16 uv_total[I915_MAX_PLANES] = {};
@@ -4401,7 +4400,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	for (level = ilk_wm_max_level(dev_priv); level >= 0; level--) {
 		blocks = 0;
 		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-			wm = &cstate->wm.skl.optimal.planes[plane_id];
+			const struct skl_plane_wm *wm =
+				&cstate->wm.skl.optimal.planes[plane_id];
 
 			if (plane_id == PLANE_CURSOR) {
 				if (WARN_ON(wm->wm[level].min_ddb_alloc >
@@ -4435,6 +4435,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 * proportional to its relative data rate.
 	 */
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+		const struct skl_plane_wm *wm =
+			&cstate->wm.skl.optimal.planes[plane_id];
 		u64 rate;
 		u16 extra;
 
@@ -4447,8 +4449,6 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		 */
 		if (total_data_rate == 0)
 			break;
-
-		wm = &cstate->wm.skl.optimal.planes[plane_id];
 
 		rate = plane_data_rate[plane_id];
 		extra = min_t(u16, alloc_size,
@@ -4474,13 +4474,13 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	/* Set the actual DDB start/end points for each plane */
 	start = alloc->start;
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-		struct skl_ddb_entry *plane_alloc, *uv_plane_alloc;
+		struct skl_ddb_entry *plane_alloc =
+			&cstate->wm.skl.plane_ddb_y[plane_id];
+		struct skl_ddb_entry *uv_plane_alloc =
+			&cstate->wm.skl.plane_ddb_uv[plane_id];
 
 		if (plane_id == PLANE_CURSOR)
 			continue;
-
-		plane_alloc = &cstate->wm.skl.plane_ddb_y[plane_id];
-		uv_plane_alloc = &cstate->wm.skl.plane_ddb_uv[plane_id];
 
 		/* Gen11+ uses a separate plane for UV watermarks */
 		WARN_ON(INTEL_GEN(dev_priv) >= 11 && uv_total[plane_id]);
@@ -4507,7 +4507,8 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 */
 	for (level++; level <= ilk_wm_max_level(dev_priv); level++) {
 		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-			wm = &cstate->wm.skl.optimal.planes[plane_id];
+			struct skl_plane_wm *wm =
+				&cstate->wm.skl.optimal.planes[plane_id];
 
 			/*
 			 * We only disable the watermarks for each plane if
@@ -4543,7 +4544,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 * don't have enough DDB blocks for it.
 	 */
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
-		wm = &cstate->wm.skl.optimal.planes[plane_id];
+		struct skl_plane_wm *wm =
+			&cstate->wm.skl.optimal.planes[plane_id];
+
 		if (wm->trans_wm.plane_res_b >= total[plane_id])
 			memset(&wm->trans_wm, 0, sizeof(wm->trans_wm));
 	}
