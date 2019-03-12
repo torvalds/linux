@@ -1515,6 +1515,18 @@ struct qla_flt_header {
 #define FLT_REG_VPD_SEC_27XX_2	0xD8
 #define FLT_REG_VPD_SEC_27XX_3	0xDA
 
+/* 28xx */
+#define FLT_REG_AUX_IMG_PRI_28XX	0x125
+#define FLT_REG_AUX_IMG_SEC_28XX	0x126
+#define FLT_REG_VPD_SEC_28XX_0		0x10C
+#define FLT_REG_VPD_SEC_28XX_1		0x10E
+#define FLT_REG_VPD_SEC_28XX_2		0x110
+#define FLT_REG_VPD_SEC_28XX_3		0x112
+#define FLT_REG_NVRAM_SEC_28XX_0	0x10D
+#define FLT_REG_NVRAM_SEC_28XX_1	0x10F
+#define FLT_REG_NVRAM_SEC_28XX_2	0x111
+#define FLT_REG_NVRAM_SEC_28XX_3	0x113
+
 struct qla_flt_region {
 	uint16_t code;
 	uint8_t attribute;

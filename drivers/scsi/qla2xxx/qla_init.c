@@ -7236,95 +7236,281 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	return (rval);
 }
 
-uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
+static void
+qla27xx_print_image(struct scsi_qla_host *vha, char *name,
+    struct qla27xx_image_status *image_status)
 {
-	struct qla27xx_image_status pri_image_status, sec_image_status;
-	bool valid_pri_image = true, valid_sec_image = true;
-	uint32_t *wptr;
-	uint chksum, cnt, size = sizeof(pri_image_status) / sizeof(*wptr);
+	ql_dbg(ql_dbg_init, vha, 0x018b,
+	    "%s %s: mask=%#02x gen=%#04x ver=%u.%u map=%#01x sum=%#08x sig=%#08x\n",
+	    name, "status",
+	    image_status->image_status_mask,
+	    le16_to_cpu(image_status->generation),
+	    image_status->ver_major,
+	    image_status->ver_minor,
+	    image_status->bitmap,
+	    le32_to_cpu(image_status->checksum),
+	    le32_to_cpu(image_status->signature));
+}
+
+static bool
+qla28xx_check_aux_image_status_signature(
+    struct qla27xx_image_status *image_status)
+{
+	ulong signature = le32_to_cpu(image_status->signature);
+
+	return signature != QLA28XX_AUX_IMG_STATUS_SIGN;
+}
+
+static bool
+qla27xx_check_image_status_signature(struct qla27xx_image_status *image_status)
+{
+	ulong signature = le32_to_cpu(image_status->signature);
+
+	return
+	    signature != QLA27XX_IMG_STATUS_SIGN &&
+	    signature != QLA28XX_IMG_STATUS_SIGN;
+}
+
+static ulong
+qla27xx_image_status_checksum(struct qla27xx_image_status *image_status)
+{
+	uint32_t *p = (void *)image_status;
+	uint n = sizeof(*image_status) / sizeof(*p);
+	uint32_t sum = 0;
+
+	for ( ; n--; p++)
+		sum += le32_to_cpup(p);
+
+	return sum;
+}
+
+static inline uint
+qla28xx_component_bitmask(struct qla27xx_image_status *aux, uint bitmask)
+{
+	return aux->bitmap & bitmask ?
+	    QLA27XX_SECONDARY_IMAGE : QLA27XX_PRIMARY_IMAGE;
+}
+
+static void
+qla28xx_component_status(
+    struct active_regions *active_regions, struct qla27xx_image_status *aux)
+{
+	active_regions->aux.board_config =
+	    qla28xx_component_bitmask(aux, QLA28XX_AUX_IMG_BOARD_CONFIG);
+
+	active_regions->aux.vpd_nvram =
+	    qla28xx_component_bitmask(aux, QLA28XX_AUX_IMG_VPD_NVRAM);
+
+	active_regions->aux.npiv_config_0_1 =
+	    qla28xx_component_bitmask(aux, QLA28XX_AUX_IMG_NPIV_CONFIG_0_1);
+
+	active_regions->aux.npiv_config_2_3 =
+	    qla28xx_component_bitmask(aux, QLA28XX_AUX_IMG_NPIV_CONFIG_2_3);
+}
+
+static int
+qla27xx_compare_image_generation(
+    struct qla27xx_image_status *pri_image_status,
+    struct qla27xx_image_status *sec_image_status)
+{
+	/* calculate generation delta as uint16 (this accounts for wrap) */
+	int16_t delta =
+	    le16_to_cpu(pri_image_status->generation) -
+	    le16_to_cpu(sec_image_status->generation);
+
+	ql_dbg(ql_dbg_init, NULL, 0x0180, "generation delta = %d\n", delta);
+
+	return delta;
+}
+
+void
+qla28xx_get_aux_images(
+	struct scsi_qla_host *vha, struct active_regions *active_regions)
+{
 	struct qla_hw_data *ha = vha->hw;
-	uint32_t signature;
+	struct qla27xx_image_status pri_aux_image_status, sec_aux_image_status;
+	bool valid_pri_image = false, valid_sec_image = false;
+	bool active_pri_image = false, active_sec_image = false;
 
-	ha->active_image = 0;
-
-	if (!ha->flt_region_img_status_pri) {
-		valid_pri_image = false;
+	if (!ha->flt_region_aux_img_status_pri) {
+		ql_dbg(ql_dbg_init, vha, 0x018a, "Primary aux image not addressed\n");
 		goto check_sec_image;
 	}
 
-	qla24xx_read_flash_data(vha, (uint32_t *)(&pri_image_status),
-	    ha->flt_region_img_status_pri, size);
+	qla24xx_read_flash_data(vha, (void *)&pri_aux_image_status,
+	    ha->flt_region_aux_img_status_pri,
+	    sizeof(pri_aux_image_status) >> 2);
+	qla27xx_print_image(vha, "Primary aux image", &pri_aux_image_status);
 
-	signature = le32_to_cpu(pri_image_status.signature);
-	if (signature != QLA27XX_IMG_STATUS_SIGN &&
-	    signature != QLA28XX_IMG_STATUS_SIGN) {
+	if (qla28xx_check_aux_image_status_signature(&pri_aux_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018b,
+		    "Primary aux image signature (%#x) not valid\n",
+		    le32_to_cpu(pri_aux_image_status.signature));
+		goto check_sec_image;
+	}
+
+	if (qla27xx_image_status_checksum(&pri_aux_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018c,
+		    "Primary aux image checksum failed\n");
+		goto check_sec_image;
+	}
+
+	valid_pri_image = true;
+
+	if (pri_aux_image_status.image_status_mask & 1) {
+		ql_dbg(ql_dbg_init, vha, 0x018d,
+		    "Primary aux image is active\n");
+		active_pri_image = true;
+	}
+
+check_sec_image:
+	if (!ha->flt_region_aux_img_status_sec) {
+		ql_dbg(ql_dbg_init, vha, 0x018a,
+		    "Secondary aux image not addressed\n");
+		goto check_valid_image;
+	}
+
+	qla24xx_read_flash_data(vha, (void *)&sec_aux_image_status,
+	    ha->flt_region_aux_img_status_sec,
+	    sizeof(sec_aux_image_status) >> 2);
+	qla27xx_print_image(vha, "Secondary aux image", &sec_aux_image_status);
+
+	if (qla28xx_check_aux_image_status_signature(&sec_aux_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018b,
+		    "Secondary aux image signature (%#x) not valid\n",
+		    le32_to_cpu(sec_aux_image_status.signature));
+		goto check_valid_image;
+	}
+
+	if (qla27xx_image_status_checksum(&sec_aux_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018c,
+		    "Secondary aux image checksum failed\n");
+		goto check_valid_image;
+	}
+
+	valid_sec_image = true;
+
+	if (sec_aux_image_status.image_status_mask & 1) {
+		ql_dbg(ql_dbg_init, vha, 0x018d,
+		    "Secondary aux image is active\n");
+		active_sec_image = true;
+	}
+
+check_valid_image:
+	if (valid_pri_image && active_pri_image &&
+	    valid_sec_image && active_sec_image) {
+		if (qla27xx_compare_image_generation(&pri_aux_image_status,
+		    &sec_aux_image_status) >= 0) {
+			qla28xx_component_status(active_regions,
+			    &pri_aux_image_status);
+		} else {
+			qla28xx_component_status(active_regions,
+			    &sec_aux_image_status);
+		}
+	} else if (valid_pri_image && active_pri_image) {
+		qla28xx_component_status(active_regions, &pri_aux_image_status);
+	} else if (valid_sec_image && active_sec_image) {
+		qla28xx_component_status(active_regions, &sec_aux_image_status);
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0x018f,
+	    "aux images active: BCFG=%u VPD/NVR=%u NPIV0/1=%u NPIV2/3=%u\n",
+	    active_regions->aux.board_config,
+	    active_regions->aux.vpd_nvram,
+	    active_regions->aux.npiv_config_0_1,
+	    active_regions->aux.npiv_config_2_3);
+}
+
+void
+qla27xx_get_active_image(struct scsi_qla_host *vha,
+    struct active_regions *active_regions)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct qla27xx_image_status pri_image_status, sec_image_status;
+	bool valid_pri_image = false, valid_sec_image = false;
+	bool active_pri_image = false, active_sec_image = false;
+
+	if (!ha->flt_region_img_status_pri) {
+		ql_dbg(ql_dbg_init, vha, 0x018a, "Primary image not addressed\n");
+		goto check_sec_image;
+	}
+
+	qla24xx_read_flash_data(vha, (void *)(&pri_image_status),
+	    ha->flt_region_img_status_pri, sizeof(pri_image_status) >> 2);
+	qla27xx_print_image(vha, "Primary image", &pri_image_status);
+
+	if (qla27xx_check_image_status_signature(&pri_image_status)) {
 		ql_dbg(ql_dbg_init, vha, 0x018b,
 		    "Primary image signature (%#x) not valid\n",
 		    le32_to_cpu(pri_image_status.signature));
-		valid_pri_image = false;
 		goto check_sec_image;
 	}
 
-	wptr = (uint32_t *)(&pri_image_status);
-	cnt = size;
-
-	for (chksum = 0; cnt--; wptr++)
-		chksum += le32_to_cpu(*wptr);
-
-	if (chksum) {
+	if (qla27xx_image_status_checksum(&pri_image_status)) {
 		ql_dbg(ql_dbg_init, vha, 0x018c,
-		    "Primary image checksum failed (%#x)\n", chksum);
-		valid_pri_image = false;
+		    "Primary image checksum failed\n");
+		goto check_sec_image;
+	}
+
+	valid_pri_image = true;
+
+	if (pri_image_status.image_status_mask & 1) {
+		ql_dbg(ql_dbg_init, vha, 0x018d,
+		    "Primary image is active\n");
+		active_pri_image = true;
 	}
 
 check_sec_image:
 	if (!ha->flt_region_img_status_sec) {
-		valid_sec_image = false;
+		ql_dbg(ql_dbg_init, vha, 0x018a, "Secondary image not addressed\n");
 		goto check_valid_image;
 	}
 
 	qla24xx_read_flash_data(vha, (uint32_t *)(&sec_image_status),
-	    ha->flt_region_img_status_sec, size);
+	    ha->flt_region_img_status_sec, sizeof(sec_image_status) >> 2);
+	qla27xx_print_image(vha, "Secondary image", &sec_image_status);
 
-	signature = le32_to_cpu(sec_image_status.signature);
-	if (signature != QLA27XX_IMG_STATUS_SIGN &&
-	    signature != QLA28XX_IMG_STATUS_SIGN) {
-		ql_dbg(ql_dbg_init, vha, 0x018d,
+	if (qla27xx_check_image_status_signature(&sec_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018b,
 		    "Secondary image signature (%#x) not valid\n",
 		    le32_to_cpu(sec_image_status.signature));
-		valid_sec_image = false;
 		goto check_valid_image;
 	}
 
-	wptr = (uint32_t *)(&sec_image_status);
-	cnt = size;
-	for (chksum = 0; cnt--; wptr++)
-		chksum += le32_to_cpu(*wptr);
-	if (chksum) {
-		ql_dbg(ql_dbg_init, vha, 0x018e,
-		    "Secondary image checksum failed (%#x)\n", chksum);
-		valid_sec_image = false;
+	if (qla27xx_image_status_checksum(&sec_image_status)) {
+		ql_dbg(ql_dbg_init, vha, 0x018c,
+		    "Secondary image checksum failed\n");
+		goto check_valid_image;
+	}
+
+	valid_sec_image = true;
+
+	if (sec_image_status.image_status_mask & 1) {
+		ql_dbg(ql_dbg_init, vha, 0x018d,
+		    "Secondary image is active\n");
+		active_sec_image = true;
 	}
 
 check_valid_image:
-	if (valid_pri_image && (pri_image_status.image_status_mask & 1))
-		ha->active_image = QLA27XX_PRIMARY_IMAGE;
+	if (valid_pri_image && active_pri_image)
+		active_regions->global = QLA27XX_PRIMARY_IMAGE;
 
-	if (valid_sec_image && (sec_image_status.image_status_mask & 1)) {
-		if (!ha->active_image ||
-		    le16_to_cpu(pri_image_status.generation) <
-		    le16_to_cpu(sec_image_status.generation)) {
-			ha->active_image = QLA27XX_SECONDARY_IMAGE;
+	if (valid_sec_image && active_sec_image) {
+		if (!active_regions->global ||
+		    qla27xx_compare_image_generation(
+			&pri_image_status, &sec_image_status) < 0) {
+			active_regions->global = QLA27XX_SECONDARY_IMAGE;
 		}
 	}
 
-	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x018f, "%s image\n",
-	    ha->active_image == 0 ? "default bootld and fw" :
-	    ha->active_image == 1 ? "primary" :
-	    ha->active_image == 2 ? "secondary" :
-	    "Invalid");
-
-	return ha->active_image;
+	ql_dbg(ql_dbg_init, vha, 0x018f, "active image %s (%u)\n",
+	    active_regions->global == QLA27XX_DEFAULT_IMAGE ?
+		"default (boot/fw)" :
+	    active_regions->global == QLA27XX_PRIMARY_IMAGE ?
+		"primary" :
+	    active_regions->global == QLA27XX_SECONDARY_IMAGE ?
+		"secondary" : "invalid",
+	    active_regions->global);
 }
 
 bool qla24xx_risc_firmware_invalid(uint32_t *dword)
@@ -7714,7 +7900,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 		dcode = fwdt->template;
 		for (i = 0; i < risc_size; i++)
-			dcode[i] = le32_to_cpu(fwcode[i]);
+			dcode[i] = fwcode[i];
 
 		if (!qla27xx_fwdt_template_valid(dcode)) {
 			ql_log(ql_log_warn, vha, 0x0175,
@@ -7777,6 +7963,7 @@ qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
+	struct active_regions active_regions = { };
 
 	if (ql2xfwloadbin == 2)
 		goto try_blob_fw;
@@ -7787,10 +7974,12 @@ qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	 * 3) Golden-Firmware residing in flash -- (limited operation).
 	 */
 
-	if (!IS_QLA27XX(ha) || !IS_QLA28XX(ha))
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		goto try_primary_fw;
 
-	if (qla27xx_find_valid_image(vha) != QLA27XX_SECONDARY_IMAGE)
+	qla27xx_get_active_image(vha, &active_regions);
+
+	if (active_regions.global != QLA27XX_SECONDARY_IMAGE)
 		goto try_primary_fw;
 
 	ql_dbg(ql_dbg_init, vha, 0x008b,
@@ -7986,6 +8175,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	uint32_t chksum;
 	uint16_t cnt;
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t faddr;
+	struct active_regions active_regions = { };
 
 	rval = QLA_SUCCESS;
 	icb = (struct init_cb_81xx *)ha->init_cb;
@@ -7997,14 +8188,35 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
 		ha->vpd_size = FA_VPD_SIZE_82XX;
 
+	if (IS_QLA28XX(ha))
+		qla28xx_get_aux_images(vha, &active_regions);
+
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
-	ha->isp_ops->read_optrom(vha, ha->vpd, ha->flt_region_vpd << 2,
-	    ha->vpd_size);
+
+	faddr = ha->flt_region_vpd;
+	if (IS_QLA28XX(ha)) {
+		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_vpd_sec;
+		ql_dbg(ql_dbg_init, vha, 0x0110,
+		    "Loading %s nvram image.\n",
+		    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
+		    "primary" : "secondary");
+	}
+	qla24xx_read_flash_data(vha, ha->vpd, faddr, ha->vpd_size >> 2);
 
 	/* Get NVRAM data into cache and calculate checksum. */
-	ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
-	    ha->nvram_size);
+	faddr = ha->flt_region_nvram;
+	if (IS_QLA28XX(ha)) {
+		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_nvram_sec;
+	}
+	ql_dbg(ql_dbg_init, vha, 0x0110,
+	    "Loading %s nvram image.\n",
+	    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
+	    "primary" : "secondary");
+	qla24xx_read_flash_data(vha, ha->nvram, faddr, ha->nvram_size >> 2);
+
 	dptr = (uint32_t *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);

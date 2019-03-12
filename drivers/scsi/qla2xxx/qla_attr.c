@@ -154,6 +154,8 @@ qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t faddr;
+	struct active_regions active_regions = { };
 
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
@@ -164,11 +166,21 @@ qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 		return -EAGAIN;
 	}
 
-	if (IS_NOCACHE_VPD_TYPE(ha))
-		ha->isp_ops->read_optrom(vha, ha->nvram, ha->flt_region_nvram << 2,
-		    ha->nvram_size);
+	if (!IS_NOCACHE_VPD_TYPE(ha)) {
+		mutex_unlock(&ha->optrom_mutex);
+		goto skip;
+	}
+
+	faddr = ha->flt_region_nvram;
+	if (IS_QLA28XX(ha)) {
+		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_nvram_sec;
+	}
+	ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2, ha->nvram_size);
+
 	mutex_unlock(&ha->optrom_mutex);
 
+skip:
 	return memory_read_from_buffer(buf, count, &off, ha->nvram,
 					ha->nvram_size);
 }
@@ -504,6 +516,7 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t faddr;
+	struct active_regions active_regions = { };
 
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return -EAGAIN;
@@ -516,9 +529,16 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 
 	faddr = ha->flt_region_vpd << 2;
 
-	if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
-	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
-		faddr = ha->flt_region_vpd_sec << 2;
+	if (IS_QLA28XX(ha)) {
+		qla28xx_get_aux_images(vha, &active_regions);
+		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
+			faddr = ha->flt_region_vpd_sec << 2;
+
+		ql_dbg(ql_dbg_init, vha, 0x7070,
+		    "Loading %s nvram image.\n",
+		    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
+		    "primary" : "secondary");
+	}
 
 	mutex_lock(&ha->optrom_mutex);
 	if (qla2x00_chip_is_down(vha)) {
@@ -528,6 +548,8 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 
 	ha->isp_ops->read_optrom(vha, ha->vpd, faddr, ha->vpd_size);
 	mutex_unlock(&ha->optrom_mutex);
+
+	ha->isp_ops->read_optrom(vha, ha->vpd, faddr, ha->vpd_size);
 skip:
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }

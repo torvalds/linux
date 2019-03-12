@@ -2389,6 +2389,45 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 }
 
 static int
+qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
+{
+	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_active_regions regions = { };
+	struct active_regions active_regions = { };
+
+	qla28xx_get_aux_images(vha, &active_regions);
+	regions.global_image = active_regions.global;
+
+	if (IS_QLA28XX(ha)) {
+		qla27xx_get_active_image(vha, &active_regions);
+		regions.board_config = active_regions.aux.board_config;
+		regions.vpd_nvram = active_regions.aux.vpd_nvram;
+		regions.npiv_config_0_1 = active_regions.aux.npiv_config_0_1;
+		regions.npiv_config_2_3 = active_regions.aux.npiv_config_2_3;
+	}
+
+	ql_dbg(ql_dbg_user, vha, 0x70e1,
+	    "%s(%lu): FW=%u BCFG=%u VPDNVR=%u NPIV01=%u NPIV02=%u\n",
+	    __func__, vha->host_no, regions.global_image,
+	    regions.board_config, regions.vpd_nvram,
+	    regions.npiv_config_0_1, regions.npiv_config_2_3);
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, &regions, sizeof(regions));
+
+	bsg_reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+	bsg_reply->reply_payload_rcv_len = sizeof(regions);
+	bsg_reply->result = DID_OK << 16;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_job_done(bsg_job, bsg_reply->result,
+	    bsg_reply->reply_payload_rcv_len);
+
+	return 0;
+}
+
+static int
 qla2x00_process_vendor_specific(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_request *bsg_request = bsg_job->request;
@@ -2460,6 +2499,9 @@ qla2x00_process_vendor_specific(struct bsg_job *bsg_job)
 
 	case QL_VND_DPORT_DIAGNOSTICS:
 		return qla2x00_do_dport_diagnostics(bsg_job);
+
+	case QL_VND_SS_GET_FLASH_IMAGE_STATUS:
+		return qla2x00_get_flash_image_status(bsg_job);
 
 	default:
 		return -ENOSYS;

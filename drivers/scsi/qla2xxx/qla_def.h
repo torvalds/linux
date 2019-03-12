@@ -1204,6 +1204,9 @@ struct mbx_cmd_32 {
 #define QLA27XX_IMG_STATUS_VER_MINOR    0x00
 #define QLA27XX_IMG_STATUS_SIGN   0xFACEFADE
 #define QLA28XX_IMG_STATUS_SIGN    0xFACEFADF
+#define QLA28XX_IMG_STATUS_SIGN		0xFACEFADF
+#define QLA28XX_AUX_IMG_STATUS_SIGN	0xFACEFAED
+#define QLA27XX_DEFAULT_IMAGE		0
 #define QLA27XX_PRIMARY_IMAGE  1
 #define QLA27XX_SECONDARY_IMAGE    2
 
@@ -4116,22 +4119,28 @@ struct qla_hw_data {
 	uint32_t	fdt_protect_sec_cmd;
 	uint32_t	fdt_wrt_sts_reg_cmd;
 
-	uint32_t        flt_region_flt;
-	uint32_t        flt_region_fdt;
-	uint32_t        flt_region_boot;
-	uint32_t        flt_region_boot_sec;
-	uint32_t        flt_region_fw;
-	uint32_t        flt_region_fw_sec;
-	uint32_t        flt_region_vpd_nvram;
-	uint32_t        flt_region_vpd;
-	uint32_t        flt_region_vpd_sec;
-	uint32_t        flt_region_nvram;
-	uint32_t        flt_region_npiv_conf;
-	uint32_t	flt_region_gold_fw;
-	uint32_t	flt_region_fcp_prio;
-	uint32_t	flt_region_bootload;
-	uint32_t	flt_region_img_status_pri;
-	uint32_t	flt_region_img_status_sec;
+	struct {
+		uint32_t	flt_region_flt;
+		uint32_t	flt_region_fdt;
+		uint32_t	flt_region_boot;
+		uint32_t	flt_region_boot_sec;
+		uint32_t	flt_region_fw;
+		uint32_t	flt_region_fw_sec;
+		uint32_t	flt_region_vpd_nvram;
+		uint32_t	flt_region_vpd_nvram_sec;
+		uint32_t	flt_region_vpd;
+		uint32_t	flt_region_vpd_sec;
+		uint32_t	flt_region_nvram;
+		uint32_t	flt_region_nvram_sec;
+		uint32_t	flt_region_npiv_conf;
+		uint32_t	flt_region_gold_fw;
+		uint32_t	flt_region_fcp_prio;
+		uint32_t	flt_region_bootload;
+		uint32_t	flt_region_img_status_pri;
+		uint32_t	flt_region_img_status_sec;
+		uint32_t	flt_region_aux_img_status_pri;
+		uint32_t	flt_region_aux_img_status_sec;
+	};
 	uint8_t         active_image;
 
 	/* Needed for BEACON */
@@ -4252,7 +4261,18 @@ struct qla_hw_data {
 
 	atomic_t zio_threshold;
 	uint16_t last_zio_threshold;
+
 #define DEFAULT_ZIO_THRESHOLD 5
+};
+
+struct active_regions {
+	uint8_t global;
+	struct {
+		uint8_t board_config;
+		uint8_t vpd_nvram;
+		uint8_t npiv_config_0_1;
+		uint8_t npiv_config_2_3;
+	} aux;
 };
 
 #define FW_ABILITY_MAX_SPEED_MASK	0xFUL
@@ -4469,12 +4489,19 @@ typedef struct scsi_qla_host {
 struct qla27xx_image_status {
 	uint8_t image_status_mask;
 	uint16_t generation;
-	uint8_t reserved[3];
-	uint8_t ver_minor;
 	uint8_t ver_major;
+	uint8_t ver_minor;
+	uint8_t bitmap;		/* 28xx only */
+	uint8_t reserved[2];
 	uint32_t checksum;
 	uint32_t signature;
 } __packed;
+
+/* 28xx aux image status bimap values */
+#define QLA28XX_AUX_IMG_BOARD_CONFIG		BIT_0
+#define QLA28XX_AUX_IMG_VPD_NVRAM		BIT_1
+#define QLA28XX_AUX_IMG_NPIV_CONFIG_0_1		BIT_2
+#define QLA28XX_AUX_IMG_NPIV_CONFIG_2_3		BIT_3
 
 #define SET_VP_IDX	1
 #define SET_AL_PA	2

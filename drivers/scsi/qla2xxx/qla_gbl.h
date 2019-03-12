@@ -93,7 +93,6 @@ extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 extern int
 qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
 extern int qla2x00_init_rings(scsi_qla_host_t *);
-extern uint8_t qla27xx_find_valid_image(struct scsi_qla_host *);
 extern struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *,
 	int, int, bool);
 extern int qla2xxx_delete_qpair(struct scsi_qla_host *, struct qla_qpair *);
@@ -107,6 +106,11 @@ int qla24xx_post_newsess_work(struct scsi_qla_host *, port_id_t *, u8 *, u8*,
 int qla24xx_fcport_handle_login(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_detect_sfp(scsi_qla_host_t *vha);
 int qla24xx_post_gpdb_work(struct scsi_qla_host *, fc_port_t *, u8);
+
+extern void qla28xx_get_aux_images(struct scsi_qla_host *,
+    struct active_regions *);
+extern void qla27xx_get_active_image(struct scsi_qla_host *,
+    struct active_regions *);
 
 void qla2x00_async_prlo_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
