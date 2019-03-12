@@ -983,7 +983,23 @@ static int __igt_reset_engines(struct drm_i915_private *i915,
 			count++;
 
 			if (rq) {
-				i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
+				if (i915_request_wait(rq, 0, HZ / 5) < 0) {
+					struct drm_printer p =
+						drm_info_printer(i915->drm.dev);
+
+					pr_err("i915_reset_engine(%s:%s):"
+					       " failed to complete request after reset\n",
+					       engine->name, test_name);
+					intel_engine_dump(engine, &p,
+							  "%s\n", engine->name);
+					i915_request_put(rq);
+
+					GEM_TRACE_DUMP();
+					i915_gem_set_wedged(i915);
+					err = -EIO;
+					break;
+				}
+
 				i915_request_put(rq);
 			}
 
