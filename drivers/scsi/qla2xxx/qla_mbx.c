@@ -1143,6 +1143,13 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		ha->fw_shared_ram_end = (mcp->mb[21] << 16) | mcp->mb[20];
 		ha->fw_ddr_ram_start = (mcp->mb[23] << 16) | mcp->mb[22];
 		ha->fw_ddr_ram_end = (mcp->mb[25] << 16) | mcp->mb[24];
+		if (IS_QLA28XX(ha)) {
+			if (mcp->mb[16] & BIT_10) {
+				ql_log(ql_log_info, vha, 0xffff,
+				    "FW support secure flash updates\n");
+				ha->flags.secure_fw = 1;
+			}
+		}
 	}
 
 failed:
@@ -4594,6 +4601,42 @@ qla81xx_fac_erase_sector(scsi_qla_host_t *vha, uint32_t start, uint32_t finish)
 }
 
 int
+qla81xx_fac_semaphore_access(scsi_qla_host_t *vha, int lock)
+{
+	int rval = QLA_SUCCESS;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+		return rval;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10e2,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_FLASH_ACCESS_CTRL;
+	mcp->mb[1] = (lock ? FAC_OPT_CMD_LOCK_SEMAPHORE :
+	    FAC_OPT_CMD_UNLOCK_SEMAPHORE);
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x10e3,
+		    "Failed=%x mb[0]=%x mb[1]=%x mb[2]=%x.\n",
+		    rval, mcp->mb[0], mcp->mb[1], mcp->mb[2]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10e4,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+int
 qla81xx_restart_mpi_firmware(scsi_qla_host_t *vha)
 {
 	int rval = 0;
@@ -6531,5 +6574,103 @@ int qla24xx_res_count_wait(struct scsi_qla_host *vha,
 			"%s:  done\n", __func__);
 	}
 done:
+	return rval;
+}
+
+int qla28xx_secure_flash_update(scsi_qla_host_t *vha, uint16_t opts,
+    uint16_t region, uint32_t len, dma_addr_t sfub_dma_addr,
+    uint32_t sfub_len)
+{
+	int		rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	mcp->mb[0] = MBC_SECURE_FLASH_UPDATE;
+	mcp->mb[1] = opts;
+	mcp->mb[2] = region;
+	mcp->mb[3] = MSW(len);
+	mcp->mb[4] = LSW(len);
+	mcp->mb[5] = MSW(sfub_dma_addr);
+	mcp->mb[6] = LSW(sfub_dma_addr);
+	mcp->mb[7] = MSW(MSD(sfub_dma_addr));
+	mcp->mb[8] = LSW(MSD(sfub_dma_addr));
+	mcp->mb[9] = sfub_len;
+	mcp->out_mb =
+	    MBX_9|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s(%ld): failed rval 0x%x, %x %x %x",
+			__func__, vha->host_no, rval, mcp->mb[0], mcp->mb[1],
+			mcp->mb[2]);
+	}
+
+	return rval;
+}
+
+int qla2xxx_write_remote_register(scsi_qla_host_t *vha, uint32_t addr,
+    uint32_t data)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10e8,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_WRITE_REMOTE_REG;
+	mcp->mb[1] = LSW(addr);
+	mcp->mb[2] = MSW(addr);
+	mcp->mb[3] = LSW(data);
+	mcp->mb[4] = MSW(data);
+	mcp->out_mb = MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x10e9,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10ea,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+int qla2xxx_read_remote_register(scsi_qla_host_t *vha, uint32_t addr,
+    uint32_t *data)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10e8,
+	    "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_READ_REMOTE_REG;
+	mcp->mb[1] = LSW(addr);
+	mcp->mb[2] = MSW(addr);
+	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	*data = (uint32_t)((((uint32_t)mcp->mb[4]) << 16) | mcp->mb[3]);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x10e9,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x10ea,
+		    "Done %s.\n", __func__);
+	}
+
 	return rval;
 }

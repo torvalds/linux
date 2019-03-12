@@ -18,14 +18,14 @@ extern int qla2100_pci_config(struct scsi_qla_host *);
 extern int qla2300_pci_config(struct scsi_qla_host *);
 extern int qla24xx_pci_config(scsi_qla_host_t *);
 extern int qla25xx_pci_config(scsi_qla_host_t *);
-extern void qla2x00_reset_chip(struct scsi_qla_host *);
-extern void qla24xx_reset_chip(struct scsi_qla_host *);
+extern int qla2x00_reset_chip(struct scsi_qla_host *);
+extern int qla24xx_reset_chip(struct scsi_qla_host *);
 extern int qla2x00_chip_diag(struct scsi_qla_host *);
 extern int qla24xx_chip_diag(struct scsi_qla_host *);
 extern void qla2x00_config_rings(struct scsi_qla_host *);
 extern void qla24xx_config_rings(struct scsi_qla_host *);
-extern void qla2x00_reset_adapter(struct scsi_qla_host *);
-extern void qla24xx_reset_adapter(struct scsi_qla_host *);
+extern int qla2x00_reset_adapter(struct scsi_qla_host *);
+extern int qla24xx_reset_adapter(struct scsi_qla_host *);
 extern int qla2x00_nvram_config(struct scsi_qla_host *);
 extern int qla24xx_nvram_config(struct scsi_qla_host *);
 extern int qla81xx_nvram_config(struct scsi_qla_host *);
@@ -471,6 +471,8 @@ qla81xx_fac_do_write_enable(scsi_qla_host_t *, int);
 extern int
 qla81xx_fac_erase_sector(scsi_qla_host_t *, uint32_t, uint32_t);
 
+extern int qla81xx_fac_semaphore_access(scsi_qla_host_t *, int);
+
 extern int
 qla2x00_get_xgmac_stats(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t *);
 
@@ -515,6 +517,14 @@ int qla24xx_get_port_login_templ(scsi_qla_host_t *, dma_addr_t,
 extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
 extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
 int qla24xx_res_count_wait(struct scsi_qla_host *, uint16_t *, int);
+
+extern int qla28xx_secure_flash_update(scsi_qla_host_t *, uint16_t, uint16_t,
+    uint32_t, dma_addr_t, uint32_t);
+
+extern int qla2xxx_read_remote_register(scsi_qla_host_t *, uint32_t,
+    uint32_t *);
+extern int qla2xxx_write_remote_register(scsi_qla_host_t *, uint32_t,
+    uint32_t);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.
@@ -721,7 +731,7 @@ extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 /* qlafx00 related functions */
 extern int qlafx00_pci_config(struct scsi_qla_host *);
 extern int qlafx00_initialize_adapter(struct scsi_qla_host *);
-extern void qlafx00_soft_reset(scsi_qla_host_t *);
+extern int qlafx00_soft_reset(scsi_qla_host_t *);
 extern int qlafx00_chip_diag(scsi_qla_host_t *);
 extern void qlafx00_config_rings(struct scsi_qla_host *);
 extern char *qlafx00_pci_info_str(struct scsi_qla_host *, char *);
@@ -764,7 +774,7 @@ extern int qla82xx_pci_region_offset(struct pci_dev *, int);
 extern int qla82xx_iospace_config(struct qla_hw_data *);
 
 /* Initialization related functions */
-extern void qla82xx_reset_chip(struct scsi_qla_host *);
+extern int qla82xx_reset_chip(struct scsi_qla_host *);
 extern void qla82xx_config_rings(struct scsi_qla_host *);
 extern void qla82xx_watchdog(scsi_qla_host_t *);
 extern int qla82xx_start_firmware(scsi_qla_host_t *);

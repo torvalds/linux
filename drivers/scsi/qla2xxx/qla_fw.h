@@ -1536,6 +1536,10 @@ struct qla_flt_region {
 	uint32_t end;
 };
 
+#define FLT_REGION_SIZE		16
+#define FLT_MAX_REGIONS		0xFF
+#define FLT_REGIONS_SIZE	(FLT_REGION_SIZE * FLT_MAX_REGIONS)
+
 /* Flash NPIV Configuration Table ********************************************/
 
 struct qla_npiv_header {
@@ -1724,6 +1728,10 @@ struct access_chip_rsp_84xx {
 #define LR_DIST_FW_POS		12
 #define LR_DIST_FW_SHIFT	(LR_DIST_FW_POS - LR_DIST_NV_POS)
 #define LR_DIST_FW_FIELD(x)	((x) << LR_DIST_FW_SHIFT & 0xf000)
+
+/* FAC semaphore defines */
+#define FAC_SEMAPHORE_UNLOCK    0
+#define FAC_SEMAPHORE_LOCK      1
 
 struct nvram_81xx {
 	/* NVRAM header. */

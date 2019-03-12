@@ -1033,6 +1033,7 @@ struct mbx_cmd_32 {
 #define MBC_GET_FIRMWARE_VERSION	8	/* Get firmware revision. */
 #define MBC_LOAD_RISC_RAM		9	/* Load RAM command. */
 #define MBC_DUMP_RISC_RAM		0xa	/* Dump RAM command. */
+#define MBC_SECURE_FLASH_UPDATE		0xa	/* Secure Flash Update(28xx) */
 #define MBC_LOAD_RISC_RAM_EXTENDED	0xb	/* Load RAM extended. */
 #define MBC_DUMP_RISC_RAM_EXTENDED	0xc	/* Dump RAM extended. */
 #define MBC_WRITE_RAM_WORD_EXTENDED	0xd	/* Write RAM word extended */
@@ -3135,10 +3136,10 @@ struct rsp_que;
 struct isp_operations {
 
 	int (*pci_config) (struct scsi_qla_host *);
-	void (*reset_chip) (struct scsi_qla_host *);
+	int (*reset_chip)(struct scsi_qla_host *);
 	int (*chip_diag) (struct scsi_qla_host *);
 	void (*config_rings) (struct scsi_qla_host *);
-	void (*reset_adapter) (struct scsi_qla_host *);
+	int (*reset_adapter)(struct scsi_qla_host *);
 	int (*nvram_config) (struct scsi_qla_host *);
 	void (*update_fw_options) (struct scsi_qla_host *);
 	int (*load_risc) (struct scsi_qla_host *, uint32_t *);
@@ -3627,6 +3628,8 @@ struct qla_hw_data {
 		uint32_t	rida_fmt2:1;
 		uint32_t	purge_mbox:1;
 		uint32_t        n2n_bigger:1;
+		uint32_t	secure_adapter:1;
+		uint32_t	secure_fw:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -3914,6 +3917,9 @@ struct qla_hw_data {
 #define SFP_BLOCK_SIZE  64
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
+
+	void		*flt;
+	dma_addr_t	flt_dma;
 
 #define XGMAC_DATA_SIZE	4096
 	void		*xgmac_data;
@@ -4362,6 +4368,7 @@ typedef struct scsi_qla_host {
 #define N2N_LOGIN_NEEDED	30
 #define IOCB_WORK_ACTIVE	31
 #define SET_ZIO_THRESHOLD_NEEDED 32
+#define ISP_ABORT_TO_ROM	33
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */
@@ -4548,6 +4555,24 @@ struct qla2_sgx {
 	_ha->queue_pair_map[i]->fw_started = 0;	\
 	}					\
 }
+
+
+#define SFUB_CHECKSUM_SIZE	4
+
+struct secure_flash_update_block {
+	uint32_t	block_info;
+	uint32_t	signature_lo;
+	uint32_t	signature_hi;
+	uint32_t	signature_upper[0x3e];
+};
+
+struct secure_flash_update_block_pk {
+	uint32_t	block_info;
+	uint32_t	signature_lo;
+	uint32_t	signature_hi;
+	uint32_t	signature_upper[0x3e];
+	uint32_t	public_key[0x41];
+};
 
 /*
  * Macros to help code, maintain, etc.
@@ -4748,6 +4773,8 @@ struct sff_8247_a0 {
 	(IS_QLA25XX(_vha->hw) || IS_QLA81XX(_vha->hw) ||\
 	IS_QLA83XX(_vha->hw) || IS_QLA27XX(_vha->hw) || \
 	 IS_QLA28XX(_vha->hw)))
+
+#define FLASH_SEMAPHORE_REGISTER_ADDR   0x00101016
 
 #define USER_CTRL_IRQ(_ha) (ql2xuctrlirq && QLA_TGT_MODE_ENABLED() && \
 	(IS_QLA27XX(_ha) || IS_QLA28XX(_ha) || IS_QLA83XX(_ha)))

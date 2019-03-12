@@ -1757,11 +1757,13 @@ qla82xx_pci_config(scsi_qla_host_t *vha)
  *
  * Returns 0 on success.
  */
-void
+int
 qla82xx_reset_chip(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	ha->isp_ops->disable_intrs(ha);
+
+	return QLA_SUCCESS;
 }
 
 void qla82xx_config_rings(struct scsi_qla_host *vha)

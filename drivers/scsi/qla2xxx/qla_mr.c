@@ -629,17 +629,20 @@ qlafx00_soc_cpu_reset(scsi_qla_host_t *vha)
  *
  * Returns 0 on success.
  */
-void
+int
 qlafx00_soft_reset(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+	int rval = QLA_FUNCTION_FAILED;
 
 	if (unlikely(pci_channel_offline(ha->pdev) &&
 	    ha->flags.pci_channel_io_perm_failure))
-		return;
+		return rval;
 
 	ha->isp_ops->disable_intrs(ha);
 	qlafx00_soc_cpu_reset(vha);
+
+	return QLA_SUCCESS;
 }
 
 /**
