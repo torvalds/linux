@@ -472,7 +472,7 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	GATE(ACLK_IEP, "aclk_iep", "aclk_vio1", 0, RK2928_CLKGATE_CON(9), 8, GFLAGS),
 	GATE(0, "aclk_vio1_niu", "aclk_vio1", CLK_IGNORE_UNUSED, RK2928_CLKGATE_CON(9), 10, GFLAGS),
 
-	GATE(HCLK_VIO_H2P, "hclk_vio_h2p", "hclk_vio", 0, RK2928_CLKGATE_CON(9), 5, GFLAGS),
+	GATE(HCLK_VIO_H2P, "hclk_vio_h2p", "hclk_vio", CLK_IS_CRITICAL, RK2928_CLKGATE_CON(9), 5, GFLAGS),
 	GATE(PCLK_MIPI, "pclk_mipi", "hclk_vio", 0, RK2928_CLKGATE_CON(9), 6, GFLAGS),
 	GATE(HCLK_RGA, "hclk_rga", "hclk_vio", 0, RK2928_CLKGATE_CON(6), 10, GFLAGS),
 	GATE(HCLK_LCDC0, "hclk_lcdc0", "hclk_vio", 0, RK2928_CLKGATE_CON(6), 1, GFLAGS),
