@@ -5402,7 +5402,7 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 }
 
 /**
- * lpfc_sli4_retrieve_pport_name - Retrieve SLI4 device physical port name
+ * lpfc_sli4_get_ctl_attr - Retrieve SLI4 device controller attributes
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine retrieves SLI4 device physical port name this PCI function
@@ -5410,40 +5410,30 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
  *
  * Return codes
  *      0 - successful
- *      otherwise - failed to retrieve physical port name
+ *      otherwise - failed to retrieve controller attributes
  **/
 static int
-lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
+lpfc_sli4_get_ctl_attr(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_mbx_get_cntl_attributes *mbx_cntl_attr;
 	struct lpfc_controller_attribute *cntl_attr;
-	struct lpfc_mbx_get_port_name *get_port_name;
 	void *virtaddr = NULL;
 	uint32_t alloclen, reqlen;
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
-	char cport_name = 0;
 	int rc;
-
-	/* We assume nothing at this point */
-	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
-	phba->sli4_hba.pport_name_sta = LPFC_SLI4_PPNAME_NON;
 
 	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
 		return -ENOMEM;
-	/* obtain link type and link number via READ_CONFIG */
-	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
-	lpfc_sli4_read_config(phba);
-	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL)
-		goto retrieve_ppname;
 
-	/* obtain link type and link number via COMMON_GET_CNTL_ATTRIBUTES */
+	/* Send COMMON_GET_CNTL_ATTRIBUTES mbox cmd */
 	reqlen = sizeof(struct lpfc_mbx_get_cntl_attributes);
 	alloclen = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
 			LPFC_MBOX_OPCODE_GET_CNTL_ATTRIBUTES, reqlen,
 			LPFC_SLI4_MBX_NEMBED);
+
 	if (alloclen < reqlen) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3084 Allocated DMA memory size (%d) is "
@@ -5469,16 +5459,71 @@ lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 		rc = -ENXIO;
 		goto out_free_mboxq;
 	}
+
 	cntl_attr = &mbx_cntl_attr->cntl_attr;
 	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_VAL;
 	phba->sli4_hba.lnk_info.lnk_tp =
 		bf_get(lpfc_cntl_attr_lnk_type, cntl_attr);
 	phba->sli4_hba.lnk_info.lnk_no =
 		bf_get(lpfc_cntl_attr_lnk_numb, cntl_attr);
+
+	memset(phba->BIOSVersion, 0, sizeof(phba->BIOSVersion));
+	strlcat(phba->BIOSVersion, (char *)cntl_attr->bios_ver_str,
+		sizeof(phba->BIOSVersion));
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"3086 lnk_type:%d, lnk_numb:%d\n",
+			"3086 lnk_type:%d, lnk_numb:%d, bios_ver:%s\n",
 			phba->sli4_hba.lnk_info.lnk_tp,
-			phba->sli4_hba.lnk_info.lnk_no);
+			phba->sli4_hba.lnk_info.lnk_no,
+			phba->BIOSVersion);
+out_free_mboxq:
+	if (rc != MBX_TIMEOUT) {
+		if (bf_get(lpfc_mqe_command, &mboxq->u.mqe) == MBX_SLI4_CONFIG)
+			lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		else
+			mempool_free(mboxq, phba->mbox_mem_pool);
+	}
+	return rc;
+}
+
+/**
+ * lpfc_sli4_retrieve_pport_name - Retrieve SLI4 device physical port name
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine retrieves SLI4 device physical port name this PCI function
+ * is attached to.
+ *
+ * Return codes
+ *      0 - successful
+ *      otherwise - failed to retrieve physical port name
+ **/
+static int
+lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mbx_get_port_name *get_port_name;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+	char cport_name = 0;
+	int rc;
+
+	/* We assume nothing at this point */
+	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
+	phba->sli4_hba.pport_name_sta = LPFC_SLI4_PPNAME_NON;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+	/* obtain link type and link number via READ_CONFIG */
+	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
+	lpfc_sli4_read_config(phba);
+	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL)
+		goto retrieve_ppname;
+
+	/* obtain link type and link number via COMMON_GET_CNTL_ATTRIBUTES */
+	rc = lpfc_sli4_get_ctl_attr(phba);
+	if (rc)
+		goto out_free_mboxq;
 
 retrieve_ppname:
 	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
@@ -7256,6 +7301,12 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
 				"3080 Successful retrieving SLI4 device "
 				"physical port name: %s.\n", phba->Port);
+
+	rc = lpfc_sli4_get_ctl_attr(phba);
+	if (!rc)
+		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
+				"8351 Successful retrieving SLI4 device "
+				"CTL ATTR\n");
 
 	/*
 	 * Evaluate the read rev and vpd data. Populate the driver

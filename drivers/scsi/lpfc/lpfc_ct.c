@@ -2304,7 +2304,8 @@ lpfc_fdmi_hba_attr_bios_ver(struct lpfc_vport *vport,
 	ae = (struct lpfc_fdmi_attr_entry *)&ad->AttrValue;
 	memset(ae, 0, 256);
 
-	lpfc_decode_firmware_rev(phba, ae->un.AttrString, 1);
+	strlcat(ae->un.AttrString, phba->BIOSVersion,
+		sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString,
 			  sizeof(ae->un.AttrString));
 	len += (len & 3) ? (4 - (len & 3)) : 4;
