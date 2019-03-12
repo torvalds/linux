@@ -313,7 +313,7 @@ void disassociate_ctty(int on_exit)
 	read_unlock(&tasklist_lock);
 }
 
-/**
+/*
  *
  *	no_tty	- Ensure the current process does not have a controlling tty
  */
