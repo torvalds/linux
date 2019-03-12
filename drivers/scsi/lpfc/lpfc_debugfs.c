@@ -4135,7 +4135,7 @@ lpfc_idiag_queacc_read_qe(char *pbuffer, int len, struct lpfc_queue *pque,
 			"QE-INDEX[%04d]:\n", index);
 
 	offset = 0;
-	pentry = pque->qe[index].address;
+	pentry = lpfc_sli4_qe(pque, index);
 	while (esize > 0) {
 		len += snprintf(pbuffer+len, LPFC_QUE_ACC_BUF_SIZE-len,
 				"%08x ", *pentry);
@@ -4485,7 +4485,7 @@ pass_check:
 		pque = (struct lpfc_queue *)idiag.ptr_private;
 		if (offset > pque->entry_size/sizeof(uint32_t) - 1)
 			goto error_out;
-		pentry = pque->qe[index].address;
+		pentry = lpfc_sli4_qe(pque, index);
 		pentry += offset;
 		if (idiag.cmd.opcode == LPFC_IDIAG_CMD_QUEACC_WR)
 			*pentry = value;

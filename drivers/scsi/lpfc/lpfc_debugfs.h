@@ -345,7 +345,7 @@ lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
 
 	esize = q->entry_size;
 	qe_word_cnt = esize / sizeof(uint32_t);
-	pword = q->qe[idx].address;
+	pword = lpfc_sli4_qe(q, idx);
 
 	len = 0;
 	len += snprintf(line_buf+len, LPFC_LBUF_SZ-len, "QE[%04d]: ", idx);

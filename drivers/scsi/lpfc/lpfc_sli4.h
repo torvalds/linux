@@ -117,21 +117,6 @@ enum lpfc_sli4_queue_subtype {
 	LPFC_USOL
 };
 
-union sli4_qe {
-	void *address;
-	struct lpfc_eqe *eqe;
-	struct lpfc_cqe *cqe;
-	struct lpfc_mcqe *mcqe;
-	struct lpfc_wcqe_complete *wcqe_complete;
-	struct lpfc_wcqe_release *wcqe_release;
-	struct sli4_wcqe_xri_aborted *wcqe_xri_aborted;
-	struct lpfc_rcqe_complete *rcqe_complete;
-	struct lpfc_mqe *mqe;
-	union  lpfc_wqe *wqe;
-	union  lpfc_wqe128 *wqe128;
-	struct lpfc_rqe *rqe;
-};
-
 /* RQ buffer list */
 struct lpfc_rqb {
 	uint16_t entry_count;	  /* Current number of RQ slots */
@@ -157,6 +142,7 @@ struct lpfc_queue {
 	struct list_head cpu_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
+	uint32_t entry_cnt_per_pg;
 	uint32_t notify_interval; /* Queue Notification Interval
 				   * For chip->host queues (EQ, CQ, RQ):
 				   *  specifies the interval (number of
@@ -254,7 +240,7 @@ struct lpfc_queue {
 	uint16_t last_cpu;	/* most recent cpu */
 	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
-	union sli4_qe qe[1];	/* array to index entries (must be last) */
+	void **q_pgs;	/* array to index entries per page */
 };
 
 struct lpfc_sli4_link {
@@ -1092,3 +1078,4 @@ int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_ras_dma_free(struct lpfc_hba *phba);
+inline void *lpfc_sli4_qe(struct lpfc_queue *, uint16_t);

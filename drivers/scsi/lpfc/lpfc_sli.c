@@ -151,7 +151,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return -ENOMEM;
-	temp_wqe = q->qe[q->host_index].wqe;
+	temp_wqe = lpfc_sli4_qe(q, q->host_index);
 
 	/* If the host has not yet processed the next entry then we are done */
 	idx = ((q->host_index + 1) % q->entry_count);
@@ -271,7 +271,7 @@ lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return -ENOMEM;
-	temp_mqe = q->qe[q->host_index].mqe;
+	temp_mqe = lpfc_sli4_qe(q, q->host_index);
 
 	/* If the host has not yet processed the next entry then we are done */
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
@@ -331,7 +331,7 @@ lpfc_sli4_eq_get(struct lpfc_queue *q)
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
-	eqe = q->qe[q->host_index].eqe;
+	eqe = lpfc_sli4_qe(q, q->host_index);
 
 	/* If the next EQE is not valid then we are done */
 	if (bf_get_le32(lpfc_eqe_valid, eqe) != q->qe_valid)
@@ -545,7 +545,7 @@ lpfc_sli4_cq_get(struct lpfc_queue *q)
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
-	cqe = q->qe[q->host_index].cqe;
+	cqe = lpfc_sli4_qe(q, q->host_index);
 
 	/* If the next CQE is not valid then we are done */
 	if (bf_get_le32(lpfc_cqe_valid, cqe) != q->qe_valid)
@@ -667,8 +667,8 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 		return -ENOMEM;
 	hq_put_index = hq->host_index;
 	dq_put_index = dq->host_index;
-	temp_hrqe = hq->qe[hq_put_index].rqe;
-	temp_drqe = dq->qe[dq_put_index].rqe;
+	temp_hrqe = lpfc_sli4_qe(hq, hq_put_index);
+	temp_drqe = lpfc_sli4_qe(dq, dq_put_index);
 
 	if (hq->type != LPFC_HRQ || dq->type != LPFC_DRQ)
 		return -EINVAL;
@@ -7878,8 +7878,9 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
 	mcq = phba->sli4_hba.mbx_cq;
 	idx = mcq->hba_index;
 	qe_valid = mcq->qe_valid;
-	while (bf_get_le32(lpfc_cqe_valid, mcq->qe[idx].cqe) == qe_valid) {
-		mcqe = (struct lpfc_mcqe *)mcq->qe[idx].cqe;
+	while (bf_get_le32(lpfc_cqe_valid,
+	       (struct lpfc_cqe *)lpfc_sli4_qe(mcq, idx)) == qe_valid) {
+		mcqe = (struct lpfc_mcqe *)(lpfc_sli4_qe(mcq, idx));
 		if (bf_get_le32(lpfc_trailer_completed, mcqe) &&
 		    (!bf_get_le32(lpfc_trailer_async, mcqe))) {
 			pending_completions = true;
@@ -14507,24 +14508,22 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 {
 	struct lpfc_queue *queue;
 	struct lpfc_dmabuf *dmabuf;
-	int x, total_qe_count;
-	void *dma_pointer;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
+	uint16_t x, pgcnt;
 
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = page_size;
 
-	queue = kzalloc(sizeof(struct lpfc_queue) +
-			(sizeof(union sli4_qe) * entry_count), GFP_KERNEL);
-	if (!queue)
-		return NULL;
-	queue->page_count = (ALIGN(entry_size * entry_count,
-			hw_page_size))/hw_page_size;
+	pgcnt = ALIGN(entry_size * entry_count, hw_page_size) / hw_page_size;
 
 	/* If needed, Adjust page count to match the max the adapter supports */
-	if (phba->sli4_hba.pc_sli4_params.wqpcnt &&
-	    (queue->page_count > phba->sli4_hba.pc_sli4_params.wqpcnt))
-		queue->page_count = phba->sli4_hba.pc_sli4_params.wqpcnt;
+	if (pgcnt > phba->sli4_hba.pc_sli4_params.wqpcnt)
+		pgcnt = phba->sli4_hba.pc_sli4_params.wqpcnt;
+
+	queue = kzalloc(sizeof(struct lpfc_queue) +
+			(sizeof(void *) * pgcnt), GFP_KERNEL);
+	if (!queue)
+		return NULL;
 
 	INIT_LIST_HEAD(&queue->list);
 	INIT_LIST_HEAD(&queue->wq_list);
@@ -14536,12 +14535,15 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 	/* Set queue parameters now.  If the system cannot provide memory
 	 * resources, the free routine needs to know what was allocated.
 	 */
+	queue->page_count = pgcnt;
+	queue->q_pgs = (void **)&queue[1];
+	queue->entry_cnt_per_pg = hw_page_size / entry_size;
 	queue->entry_size = entry_size;
 	queue->entry_count = entry_count;
 	queue->page_size = hw_page_size;
 	queue->phba = phba;
 
-	for (x = 0, total_qe_count = 0; x < queue->page_count; x++) {
+	for (x = 0; x < queue->page_count; x++) {
 		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
 		if (!dmabuf)
 			goto out_fail;
@@ -14554,13 +14556,8 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 		}
 		dmabuf->buffer_tag = x;
 		list_add_tail(&dmabuf->list, &queue->page_list);
-		/* initialize queue's entry array */
-		dma_pointer = dmabuf->virt;
-		for (; total_qe_count < entry_count &&
-		     dma_pointer < (hw_page_size + dmabuf->virt);
-		     total_qe_count++, dma_pointer += entry_size) {
-			queue->qe[total_qe_count].address = dma_pointer;
-		}
+		/* use lpfc_sli4_qe to index a paritcular entry in this page */
+		queue->q_pgs[x] = dmabuf->virt;
 	}
 	INIT_WORK(&queue->irqwork, lpfc_sli4_hba_process_cq);
 	INIT_WORK(&queue->spwork, lpfc_sli4_sp_process_cq);
@@ -14573,6 +14570,12 @@ lpfc_sli4_queue_alloc(struct lpfc_hba *phba, uint32_t page_size,
 out_fail:
 	lpfc_sli4_queue_free(queue);
 	return NULL;
+}
+
+inline void *lpfc_sli4_qe(struct lpfc_queue *q, uint16_t idx)
+{
+	return q->q_pgs[idx / q->entry_cnt_per_pg] +
+		(q->entry_size * (idx % q->entry_cnt_per_pg));
 }
 
 /**
