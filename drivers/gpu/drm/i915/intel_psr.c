@@ -434,6 +434,38 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, DP_SET_POWER_D0);
 }
 
+static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u32 val = 0;
+
+	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
+		val |= EDP_PSR_TP1_TIME_0us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP1_TIME_100us;
+	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP1_TIME_500us;
+	else
+		val |= EDP_PSR_TP1_TIME_2500us;
+
+	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+		val |= EDP_PSR_TP2_TP3_TIME_0us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+		val |= EDP_PSR_TP2_TP3_TIME_100us;
+	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+		val |= EDP_PSR_TP2_TP3_TIME_500us;
+	else
+		val |= EDP_PSR_TP2_TP3_TIME_2500us;
+
+	if (intel_dp_source_supports_hbr2(intel_dp) &&
+	    drm_dp_tps3_supported(intel_dp->dpcd))
+		val |= EDP_PSR_TP1_TP3_SEL;
+	else
+		val |= EDP_PSR_TP1_TP2_SEL;
+
+	return val;
+}
+
 static void hsw_activate_psr1(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -449,7 +481,6 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	 * frames, we'll go with 9 frames for now
 	 */
 	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
-
 	val |= idle_frames << EDP_PSR_IDLE_FRAME_SHIFT;
 
 	val |= max_sleep_time << EDP_PSR_MAX_SLEEP_TIME_SHIFT;
@@ -459,29 +490,7 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 	if (dev_priv->psr.link_standby)
 		val |= EDP_PSR_LINK_STANDBY;
 
-	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
-		val |=  EDP_PSR_TP1_TIME_0us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
-		val |= EDP_PSR_TP1_TIME_100us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
-		val |= EDP_PSR_TP1_TIME_500us;
-	else
-		val |= EDP_PSR_TP1_TIME_2500us;
-
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
-		val |=  EDP_PSR_TP2_TP3_TIME_0us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
-		val |= EDP_PSR_TP2_TP3_TIME_100us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
-		val |= EDP_PSR_TP2_TP3_TIME_500us;
-	else
-		val |= EDP_PSR_TP2_TP3_TIME_2500us;
-
-	if (intel_dp_source_supports_hbr2(intel_dp) &&
-	    drm_dp_tps3_supported(intel_dp->dpcd))
-		val |= EDP_PSR_TP1_TP3_SEL;
-	else
-		val |= EDP_PSR_TP1_TP2_SEL;
+	val |= intel_psr1_get_tp_time(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 8)
 		val |= EDP_PSR_CRC_ENABLE;
