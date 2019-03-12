@@ -4508,7 +4508,22 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	for (level++; level <= ilk_wm_max_level(dev_priv); level++) {
 		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
 			wm = &cstate->wm.skl.optimal.planes[plane_id];
-			memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
+
+			/*
+			 * We only disable the watermarks for each plane if
+			 * they exceed the ddb allocation of said plane. This
+			 * is done so that we don't end up touching cursor
+			 * watermarks needlessly when some other plane reduces
+			 * our max possible watermark level.
+			 *
+			 * Bspec has this to say about the PLANE_WM enable bit:
+			 * "All the watermarks at this level for all enabled
+			 *  planes must be enabled before the level will be used."
+			 * So this is actually safe to do.
+			 */
+			if (wm->wm[level].min_ddb_alloc > total[plane_id] ||
+			    wm->uv_wm[level].min_ddb_alloc > uv_total[plane_id])
+				memset(&wm->wm[level], 0, sizeof(wm->wm[level]));
 
 			/*
 			 * Wa_1408961008:icl
