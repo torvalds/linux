@@ -283,7 +283,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 				 * divider.
 				 */
 				fout = fvco / (1 << e) / div7;
-				div = DIV_ROUND_CLOSEST(fout, target);
+				div = max(1UL, DIV_ROUND_CLOSEST(fout, target));
 				diff = abs(fout / div - target);
 
 				if (diff < pll->diff) {
