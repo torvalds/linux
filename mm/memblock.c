@@ -76,8 +76,19 @@
  * :c:func:`memblock_set_node`. The :c:func:`memblock_add_node`
  * performs such an assignment directly.
  *
- * Once memblock is setup the memory can be allocated using either
- * memblock or bootmem APIs.
+ * Once memblock is setup the memory can be allocated using one of the
+ * API variants:
+ *
+ * * :c:func:`memblock_phys_alloc*` - these functions return the
+ *   **physical** address of the allocated memory
+ * * :c:func:`memblock_alloc*` - these functions return the **virtual**
+ *   address of the allocated memory.
+ *
+ * Note, that both API variants use implict assumptions about allowed
+ * memory ranges and the fallback methods. Consult the documentation
+ * of :c:func:`memblock_alloc_internal` and
+ * :c:func:`memblock_alloc_range_nid` functions for more elaboarte
+ * description.
  *
  * As the system boot progresses, the architecture specific
  * :c:func:`mem_init` function frees all the memory to the buddy page
@@ -435,17 +446,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type,
 	else
 		in_slab = &memblock_reserved_in_slab;
 
-	/* Try to find some space for it.
-	 *
-	 * WARNING: We assume that either slab_is_available() and we use it or
-	 * we use MEMBLOCK for allocations. That means that this is unsafe to
-	 * use when bootmem is currently active (unless bootmem itself is
-	 * implemented on top of MEMBLOCK which isn't the case yet)
-	 *
-	 * This should however not be an issue for now, as we currently only
-	 * call into MEMBLOCK while it's still active, or much later when slab
-	 * is active for memory hotplug operations
-	 */
+	/* Try to find some space for it */
 	if (use_slab) {
 		new_array = kmalloc(new_size, GFP_KERNEL);
 		addr = new_array ? __pa(new_array) : 0;
@@ -989,7 +990,7 @@ static bool should_skip_region(struct memblock_region *m, int nid, int flags)
 }
 
 /**
- * __next__mem_range - next function for for_each_free_mem_range() etc.
+ * __next_mem_range - next function for for_each_free_mem_range() etc.
  * @idx: pointer to u64 loop variable
  * @nid: node selector, %NUMA_NO_NODE for all nodes
  * @flags: pick from blocks based on memory attributes
@@ -1335,6 +1336,18 @@ done:
 	return found;
 }
 
+/**
+ * memblock_phys_alloc_range - allocate a memory block inside specified range
+ * @size: size of memory block to be allocated in bytes
+ * @align: alignment of the region and block's size
+ * @start: the lower bound of the memory region to allocate (physical address)
+ * @end: the upper bound of the memory region to allocate (physical address)
+ *
+ * Allocate @size bytes in the between @start and @end.
+ *
+ * Return: physical address of the allocated memory block on success,
+ * %0 on failure.
+ */
 phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
 					     phys_addr_t align,
 					     phys_addr_t start,
@@ -1343,6 +1356,19 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
 	return memblock_alloc_range_nid(size, align, start, end, NUMA_NO_NODE);
 }
 
+/**
+ * memblock_phys_alloc_try_nid - allocate a memory block from specified MUMA node
+ * @size: size of memory block to be allocated in bytes
+ * @align: alignment of the region and block's size
+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+ *
+ * Allocates memory block from the specified NUMA node. If the node
+ * has no available memory, attempts to allocated from any node in the
+ * system.
+ *
+ * Return: physical address of the allocated memory block on success,
+ * %0 on failure.
+ */
 phys_addr_t __init memblock_phys_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
 {
 	return memblock_alloc_range_nid(size, align, 0,
@@ -1469,13 +1495,13 @@ void * __init memblock_alloc_try_nid(
 }
 
 /**
- * __memblock_free_late - free bootmem block pages directly to buddy allocator
+ * __memblock_free_late - free pages directly to buddy allocator
  * @base: phys starting address of the  boot memory block
  * @size: size of the boot memory block in bytes
  *
- * This is only useful when the bootmem allocator has already been torn
+ * This is only useful when the memblock allocator has already been torn
  * down, but we are still initializing the system.  Pages are released directly
- * to the buddy allocator, no bootmem metadata is updated because it is gone.
+ * to the buddy allocator.
  */
 void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
 {
