@@ -308,10 +308,6 @@ static void *nft_rbtree_deactivate(const struct net *net,
 		else if (d > 0)
 			parent = parent->rb_right;
 		else {
-			if (!nft_set_elem_active(&rbe->ext, genmask)) {
-				parent = parent->rb_left;
-				continue;
-			}
 			if (nft_rbtree_interval_end(rbe) &&
 			    !nft_rbtree_interval_end(this)) {
 				parent = parent->rb_left;
@@ -319,6 +315,9 @@ static void *nft_rbtree_deactivate(const struct net *net,
 			} else if (!nft_rbtree_interval_end(rbe) &&
 				   nft_rbtree_interval_end(this)) {
 				parent = parent->rb_right;
+				continue;
+			} else if (!nft_set_elem_active(&rbe->ext, genmask)) {
+				parent = parent->rb_left;
 				continue;
 			}
 			nft_rbtree_flush(net, set, rbe);
