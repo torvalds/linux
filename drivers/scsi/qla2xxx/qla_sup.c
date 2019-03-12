@@ -2633,6 +2633,8 @@ qla25xx_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 		goto slow_read;
 
 try_fast:
+	if (offset & 0xff)
+		goto slow_read;
 	optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 	    &optrom_dma, GFP_KERNEL);
 	if (!optrom) {

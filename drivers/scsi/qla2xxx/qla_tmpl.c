@@ -38,7 +38,6 @@ qla27xx_insert32(uint32_t value, void *buf, ulong *len)
 static inline void
 qla27xx_insertbuf(void *mem, ulong size, void *buf, ulong *len)
 {
-
 	if (buf && mem && size) {
 		buf += *len;
 		memcpy(buf, mem, size);
@@ -855,23 +854,11 @@ qla27xx_walk_template(struct scsi_qla_host *vha,
 
 	if (count)
 		ql_dbg(ql_dbg_misc, vha, 0xd018,
-		    "%s: entry residual count (%lx)\n", __func__, count);
+		    "%s: entry count residual=+%lu\n", __func__, count);
 
 	if (ent)
 		ql_dbg(ql_dbg_misc, vha, 0xd019,
-		    "%s: missing end entry (%lx)\n", __func__, count);
-
-	if (buf && *len != vha->hw->fw_dump_len)
-		ql_dbg(ql_dbg_misc, vha, 0xd01b,
-		    "%s: length=%#lx residual=%+ld\n",
-		    __func__, *len, vha->hw->fw_dump_len - *len);
-
-	if (buf) {
-		ql_log(ql_log_warn, vha, 0xd015,
-		    "Firmware dump saved to temp buffer (%lu/%p)\n",
-		    vha->host_no, vha->hw->fw_dump);
-		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
-	}
+		    "%s: missing end entry\n", __func__);
 }
 
 static void
@@ -894,8 +881,8 @@ qla27xx_driver_info(struct qla27xx_fwdt_template *tmp)
 }
 
 static void
-qla27xx_firmware_info(struct qla27xx_fwdt_template *tmp,
-	struct scsi_qla_host *vha)
+qla27xx_firmware_info(struct scsi_qla_host *vha,
+    struct qla27xx_fwdt_template *tmp)
 {
 	tmp->firmware_version[0] = vha->hw->fw_major_version;
 	tmp->firmware_version[1] = vha->hw->fw_minor_version;
@@ -912,7 +899,7 @@ ql27xx_edit_template(struct scsi_qla_host *vha,
 {
 	qla27xx_time_stamp(tmp);
 	qla27xx_driver_info(tmp);
-	qla27xx_firmware_info(tmp, vha);
+	qla27xx_firmware_info(vha, tmp);
 }
 
 static inline uint32_t
@@ -943,26 +930,26 @@ qla27xx_verify_template_header(struct qla27xx_fwdt_template *tmp)
 	return le32_to_cpu(tmp->template_type) == TEMPLATE_TYPE_FWDUMP;
 }
 
-static void
-qla27xx_execute_fwdt_template(struct scsi_qla_host *vha)
+static ulong
+qla27xx_execute_fwdt_template(struct scsi_qla_host *vha,
+    struct qla27xx_fwdt_template *tmp, void *buf)
 {
-	struct qla27xx_fwdt_template *tmp = vha->hw->fw_dump_template;
-	ulong len;
+	ulong len = 0;
 
 	if (qla27xx_fwdt_template_valid(tmp)) {
 		len = tmp->template_size;
-		tmp = memcpy(vha->hw->fw_dump, tmp, len);
+		tmp = memcpy(buf, tmp, len);
 		ql27xx_edit_template(vha, tmp);
-		qla27xx_walk_template(vha, tmp, tmp, &len);
-		vha->hw->fw_dump_len = len;
-		vha->hw->fw_dumped = 1;
+		qla27xx_walk_template(vha, tmp, buf, &len);
 	}
+
+	return len;
 }
 
 ulong
-qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *vha)
+qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *vha, void *p)
 {
-	struct qla27xx_fwdt_template *tmp = vha->hw->fw_dump_template;
+	struct qla27xx_fwdt_template *tmp = p;
 	ulong len = 0;
 
 	if (qla27xx_fwdt_template_valid(tmp)) {
@@ -1012,17 +999,41 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
 #endif
 
-	if (!vha->hw->fw_dump)
-		ql_log(ql_log_warn, vha, 0xd01e, "fwdump buffer missing.\n");
-	else if (!vha->hw->fw_dump_template)
-		ql_log(ql_log_warn, vha, 0xd01f, "fwdump template missing.\n");
-	else if (vha->hw->fw_dumped)
-		ql_log(ql_log_warn, vha, 0xd300,
-		    "Firmware has been previously dumped (%p),"
-		    " -- ignoring request\n", vha->hw->fw_dump);
-	else {
-		QLA_FW_STOPPED(vha->hw);
-		qla27xx_execute_fwdt_template(vha);
+	if (!vha->hw->fw_dump) {
+		ql_log(ql_log_warn, vha, 0xd01e, "-> fwdump no buffer\n");
+	} else if (vha->hw->fw_dumped) {
+		ql_log(ql_log_warn, vha, 0xd01f,
+		    "-> Firmware already dumped (%p) -- ignoring request\n",
+		    vha->hw->fw_dump);
+	} else {
+		struct fwdt *fwdt = vha->hw->fwdt;
+		uint j;
+		ulong len;
+		void *buf = vha->hw->fw_dump;
+
+		for (j = 0; j < 2; j++, fwdt++, buf += len) {
+			ql_log(ql_log_warn, vha, 0xd011,
+			    "-> fwdt%u running...\n", j);
+			if (!fwdt->template) {
+				ql_log(ql_log_warn, vha, 0xd012,
+				    "-> fwdt%u no template\n", j);
+				break;
+			}
+			len = qla27xx_execute_fwdt_template(vha,
+			    fwdt->template, buf);
+			if (len != fwdt->dump_size) {
+				ql_log(ql_log_warn, vha, 0xd013,
+				    "-> fwdt%u fwdump residual=%+ld\n",
+				    j, fwdt->dump_size - len);
+			}
+		}
+		vha->hw->fw_dump_len = buf - (void *)vha->hw->fw_dump;
+		vha->hw->fw_dumped = 1;
+
+		ql_log(ql_log_warn, vha, 0xd015,
+		    "-> Firmware dump saved to buffer (%lu/%p) <%lx>\n",
+		    vha->host_no, vha->hw->fw_dump, vha->hw->fw_dump_cap_flags);
+		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
 
 #ifndef __CHECKER__

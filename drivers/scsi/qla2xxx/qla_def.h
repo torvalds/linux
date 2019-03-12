@@ -4030,9 +4030,11 @@ struct qla_hw_data {
 	uint8_t		pep_version[3];
 
 	/* Firmware dump template */
-	void		*fw_dump_template;
-	uint32_t	fw_dump_template_len;
-	/* Firmware dump information. */
+	struct fwdt {
+		void *template;
+		ulong length;
+		ulong dump_size;
+	} fwdt[2];
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
 	bool		fw_dumped;
@@ -4075,7 +4077,6 @@ struct qla_hw_data {
 	uint16_t	product_id[4];
 
 	uint8_t		model_number[16+1];
-#define BINZERO		"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 	char		model_desc[80];
 	uint8_t		adapter_id[16+1];
 
