@@ -3,13 +3,18 @@
 #define __PERF_BPF_EVENT_H
 
 #include <linux/compiler.h>
+#include <linux/rbtree.h>
 #include "event.h"
 
 struct machine;
 union perf_event;
 struct perf_sample;
-struct perf_tool;
 struct record_opts;
+
+struct bpf_prog_info_node {
+	struct bpf_prog_info_linear	*info_linear;
+	struct rb_node			rb_node;
+};
 
 #ifdef HAVE_LIBBPF_SUPPORT
 int machine__process_bpf_event(struct machine *machine, union perf_event *event,
