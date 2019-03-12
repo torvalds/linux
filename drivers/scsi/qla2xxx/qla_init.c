@@ -3018,7 +3018,7 @@ qla2x00_alloc_offload_mem(scsi_qla_host_t *vha)
 	if (IS_FWI2_CAPABLE(ha)) {
 		/* Allocate memory for Fibre Channel Event Buffer. */
 		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-		    !IS_QLA27XX(ha))
+		    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 			goto try_eft;
 
 		if (ha->fce)
@@ -3106,7 +3106,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		mem_size = (ha->fw_memory_size - 0x11000 + 1) *
 		    sizeof(uint16_t);
 	} else if (IS_FWI2_CAPABLE(ha)) {
-		if (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 			fixed_size = offsetof(struct qla83xx_fw_dump, ext_mem);
 		else if (IS_QLA81XX(ha))
 			fixed_size = offsetof(struct qla81xx_fw_dump, ext_mem);
@@ -3118,7 +3118,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
 		if (ha->mqenable) {
-			if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha))
+			if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha) &&
+			    !IS_QLA28XX(ha))
 				mq_size = sizeof(struct qla2xxx_mq_chain);
 			/*
 			 * Allocate maximum buffer size for all queues.
@@ -3133,7 +3134,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
 		/* Allocate memory for Fibre Channel Event Buffer. */
 		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-		    !IS_QLA27XX(ha))
+		    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 			goto try_eft;
 
 		fce_size = sizeof(struct qla2xxx_fce_chain) + FCE_SIZE;
@@ -3143,7 +3144,7 @@ try_eft:
 		eft_size = EFT_SIZE;
 	}
 
-	if (IS_QLA27XX(ha)) {
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 		if (!ha->fw_dump_template) {
 			ql_log(ql_log_warn, vha, 0x00ba,
 			    "Failed missing fwdump template\n");
@@ -3186,7 +3187,7 @@ allocate:
 			    "Allocated (%d KB) for firmware dump.\n",
 			    dump_size / 1024);
 
-			if (IS_QLA27XX(ha))
+			if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 				return;
 
 			ha->fw_dump->signature[0] = 'Q';
@@ -3498,7 +3499,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			if (rval == QLA_SUCCESS) {
 				qla24xx_detect_sfp(vha);
 
-				if ((IS_QLA83XX(ha) || IS_QLA27XX(ha)) &&
+				if ((IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+				    IS_QLA28XX(ha)) &&
 				    (ha->zio_mode == QLA_ZIO_MODE_6))
 					qla27xx_set_zio_threshold(vha,
 					    ha->last_zio_threshold);
@@ -3570,7 +3572,7 @@ enable_82xx_npiv:
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
-	if (IS_QLA27XX(ha))
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		ha->flags.fac_supported = 1;
 	else if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
 		uint32_t size;
@@ -3585,7 +3587,8 @@ enable_82xx_npiv:
 			    ha->fw_major_version, ha->fw_minor_version,
 			    ha->fw_subminor_version);
 
-			if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+			if (IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+			    IS_QLA28XX(ha)) {
 				ha->flags.fac_supported = 0;
 				rval = QLA_SUCCESS;
 			}
@@ -3738,7 +3741,7 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 
 	/* Move PUREX, ABTS RX & RIDA to ATIOQ */
 	if (ql2xmvasynctoatio &&
-	    (IS_QLA83XX(ha) || IS_QLA27XX(ha))) {
+	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))) {
 		if (qla_tgt_mode_enabled(vha) ||
 		    qla_dual_mode_enabled(vha))
 			ha->fw_options[2] |= BIT_11;
@@ -3746,7 +3749,8 @@ qla24xx_update_fw_options(scsi_qla_host_t *vha)
 			ha->fw_options[2] &= ~BIT_11;
 	}
 
-	if (IS_QLA25XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+	if (IS_QLA25XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+	    IS_QLA28XX(ha)) {
 		/*
 		 * Tell FW to track each exchange to prevent
 		 * driver from using stale exchange.
@@ -3843,7 +3847,8 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	if (IS_SHADOW_REG_CAPABLE(ha))
 		icb->firmware_options_2 |= cpu_to_le32(BIT_30|BIT_29);
 
-	if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+	if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+	    IS_QLA28XX(ha)) {
 		icb->qos = cpu_to_le16(QLA_DEFAULT_QUE_QOS);
 		icb->rid = cpu_to_le16(rid);
 		if (ha->flags.msix_enabled) {
@@ -7205,6 +7210,7 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 	uint32_t *wptr;
 	uint32_t cnt, chksum, size;
 	struct qla_hw_data *ha = vha->hw;
+	uint32_t signature;
 
 	valid_pri_image = valid_sec_image = 1;
 	ha->active_image = 0;
@@ -7218,7 +7224,9 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 	qla24xx_read_flash_data(vha, (uint32_t *)(&pri_image_status),
 	    ha->flt_region_img_status_pri, size);
 
-	if (pri_image_status.signature != QLA27XX_IMG_STATUS_SIGN) {
+	signature = le32_to_cpu(pri_image_status.signature);
+	if (signature != QLA27XX_IMG_STATUS_SIGN &&
+	    signature != QLA28XX_IMG_STATUS_SIGN) {
 		ql_dbg(ql_dbg_init, vha, 0x018b,
 		    "Primary image signature (0x%x) not valid\n",
 		    pri_image_status.signature);
@@ -7248,7 +7256,9 @@ check_sec_image:
 	qla24xx_read_flash_data(vha, (uint32_t *)(&sec_image_status),
 	    ha->flt_region_img_status_sec, size);
 
-	if (sec_image_status.signature != QLA27XX_IMG_STATUS_SIGN) {
+	signature = le32_to_cpu(sec_image_status.signature);
+	if (signature != QLA27XX_IMG_STATUS_SIGN &&
+	    signature != QLA28XX_IMG_STATUS_SIGN) {
 		ql_dbg(ql_dbg_init, vha, 0x018d,
 		    "Secondary image signature(0x%x) not valid\n",
 		    sec_image_status.signature);
@@ -7308,7 +7318,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 
-	if (IS_QLA27XX(ha) &&
+	if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
 	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
 		faddr = ha->flt_region_fw_sec;
 
@@ -7372,7 +7382,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		segments--;
 	}
 
-	if (!IS_QLA27XX(ha))
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		return rval;
 
 	if (ha->fw_dump_template)
@@ -7640,7 +7650,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		segments--;
 	}
 
-	if (!IS_QLA27XX(ha))
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		return rval;
 
 	if (ha->fw_dump_template)
@@ -8145,7 +8155,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		ha->login_retry_count = ql2xloginretrycount;
 
 	/* if not running MSI-X we need handshaking on interrupts */
-	if (!vha->hw->flags.msix_enabled && (IS_QLA83XX(ha) || IS_QLA27XX(ha)))
+	if (!vha->hw->flags.msix_enabled &&
+	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)))
 		icb->firmware_options_2 |= cpu_to_le32(BIT_22);
 
 	/* Enable ZIO. */
@@ -8178,7 +8189,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	/* N2N: driver will initiate Login instead of FW */
 	icb->firmware_options_3 |= BIT_8;
 
-	if (IS_QLA27XX(ha)) {
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 		icb->firmware_options_3 |= BIT_8;
 		ql_dbg(ql_log_info, vha, 0x0075,
 		    "Enabling direct connection.\n");
@@ -8591,7 +8602,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		qpair->msix->in_use = 1;
 		list_add_tail(&qpair->qp_list_elem, &vha->qp_list);
 		qpair->pdev = ha->pdev;
-		if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
+		if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
 			qpair->reqq_start_iocbs = qla_83xx_start_iocbs;
 
 		mutex_unlock(&ha->mq_lock);

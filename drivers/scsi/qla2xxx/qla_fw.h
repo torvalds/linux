@@ -2005,6 +2005,8 @@ struct ex_init_cb_81xx {
 
 #define FARX_ACCESS_FLASH_CONF_81XX	0x7FFD0000
 #define FARX_ACCESS_FLASH_DATA_81XX	0x7F800000
+#define FARX_ACCESS_FLASH_CONF_28XX	0x7FFD0000
+#define FARX_ACCESS_FLASH_DATA_28XX	0x7F7D0000
 
 /* FCP priority config defines *************************************/
 /* operations */
@@ -2079,6 +2081,7 @@ struct qla_fcp_prio_cfg {
 #define FA_NPIV_CONF1_ADDR_81	0xD2000
 
 /* 83XX Flash locations -- occupies second 8MB region. */
-#define FA_FLASH_LAYOUT_ADDR_83	0xFC400
+#define FA_FLASH_LAYOUT_ADDR_83	(0x3F1000/4)
+#define FA_FLASH_LAYOUT_ADDR_28	(0x11000/4)
 
 #endif

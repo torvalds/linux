@@ -6937,7 +6937,7 @@ qlt_24xx_config_rings(struct scsi_qla_host *vha)
 	RD_REG_DWORD(ISP_ATIO_Q_OUT(vha));
 
 	if (ha->flags.msix_enabled) {
-		if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			if (IS_QLA2071(ha)) {
 				/* 4 ports Baker: Enable Interrupt Handshake */
 				icb->msix_atio = 0;
@@ -6952,7 +6952,7 @@ qlt_24xx_config_rings(struct scsi_qla_host *vha)
 		}
 	} else {
 		/* INTx|MSI */
-		if (IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+		if (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			icb->msix_atio = 0;
 			icb->firmware_options_2 |= BIT_26;
 			ql_dbg(ql_dbg_init, vha, 0xf072,
@@ -7201,7 +7201,8 @@ qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 	if (!QLA_TGT_MODE_ENABLED())
 		return;
 
-	if  ((ql2xenablemsix == 0) || IS_QLA83XX(ha) || IS_QLA27XX(ha)) {
+	if  ((ql2xenablemsix == 0) || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+	    IS_QLA28XX(ha)) {
 		ISP_ATIO_Q_IN(base_vha) = &ha->mqiobase->isp25mq.atio_q_in;
 		ISP_ATIO_Q_OUT(base_vha) = &ha->mqiobase->isp25mq.atio_q_out;
 	} else {

@@ -1203,6 +1203,7 @@ struct mbx_cmd_32 {
 #define QLA27XX_IMG_STATUS_VER_MAJOR   0x01
 #define QLA27XX_IMG_STATUS_VER_MINOR    0x00
 #define QLA27XX_IMG_STATUS_SIGN   0xFACEFADE
+#define QLA28XX_IMG_STATUS_SIGN    0xFACEFADF
 #define QLA27XX_PRIMARY_IMAGE  1
 #define QLA27XX_SECONDARY_IMAGE    2
 
@@ -2672,6 +2673,7 @@ struct ct_fdmiv2_hba_attributes {
 #define FDMI_PORT_SPEED_8GB		0x10
 #define FDMI_PORT_SPEED_16GB		0x20
 #define FDMI_PORT_SPEED_32GB		0x40
+#define FDMI_PORT_SPEED_64GB		0x80
 #define FDMI_PORT_SPEED_UNKNOWN		0x8000
 
 #define FC_CLASS_2	0x04
@@ -3368,7 +3370,8 @@ struct qla_tc_param {
 #define QLA_MQ_SIZE 32
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
-	((ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha)) ? \
+	((ha->mqenable || IS_QLA83XX(ha) || \
+	  IS_QLA27XX(ha) || IS_QLA28XX(ha)) ? \
 	 ((void __iomem *)ha->mqiobase + (QLA_QUE_PAGE * id)) :\
 	 ((void __iomem *)ha->iobase))
 #define QLA_REQ_QUE_ID(tag) \
@@ -3703,6 +3706,7 @@ struct qla_hw_data {
 #define PORT_SPEED_8GB  0x04
 #define PORT_SPEED_16GB 0x05
 #define PORT_SPEED_32GB 0x06
+#define PORT_SPEED_64GB 0x07
 #define PORT_SPEED_10GB	0x13
 	uint16_t	link_data_rate;         /* F/W operating speed */
 	uint16_t	set_data_rate;		/* Set by user */
@@ -3729,6 +3733,11 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2071	0x2071
 #define PCI_DEVICE_ID_QLOGIC_ISP2271	0x2271
 #define PCI_DEVICE_ID_QLOGIC_ISP2261	0x2261
+#define PCI_DEVICE_ID_QLOGIC_ISP2061	0x2061
+#define PCI_DEVICE_ID_QLOGIC_ISP2081	0x2081
+#define PCI_DEVICE_ID_QLOGIC_ISP2089	0x2089
+#define PCI_DEVICE_ID_QLOGIC_ISP2281	0x2281
+#define PCI_DEVICE_ID_QLOGIC_ISP2289	0x2289
 
 	uint32_t	isp_type;
 #define DT_ISP2100                      BIT_0
@@ -3753,7 +3762,12 @@ struct qla_hw_data {
 #define DT_ISP2071			BIT_19
 #define DT_ISP2271			BIT_20
 #define DT_ISP2261			BIT_21
-#define DT_ISP_LAST			(DT_ISP2261 << 1)
+#define DT_ISP2061			BIT_22
+#define DT_ISP2081			BIT_23
+#define DT_ISP2089			BIT_24
+#define DT_ISP2281			BIT_25
+#define DT_ISP2289			BIT_26
+#define DT_ISP_LAST			(DT_ISP2289 << 1)
 
 	uint32_t	device_type;
 #define DT_T10_PI                       BIT_25
@@ -3788,6 +3802,8 @@ struct qla_hw_data {
 #define IS_QLA2071(ha)	(DT_MASK(ha) & DT_ISP2071)
 #define IS_QLA2271(ha)	(DT_MASK(ha) & DT_ISP2271)
 #define IS_QLA2261(ha)	(DT_MASK(ha) & DT_ISP2261)
+#define IS_QLA2081(ha)	(DT_MASK(ha) & DT_ISP2081)
+#define IS_QLA2281(ha)	(DT_MASK(ha) & DT_ISP2281)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
@@ -3797,6 +3813,7 @@ struct qla_hw_data {
 #define IS_QLA83XX(ha)	(IS_QLA2031(ha) || IS_QLA8031(ha))
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
 #define IS_QLA27XX(ha)  (IS_QLA2071(ha) || IS_QLA2271(ha) || IS_QLA2261(ha))
+#define IS_QLA28XX(ha)	(IS_QLA2081(ha) || IS_QLA2281(ha))
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
 #define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
@@ -3805,14 +3822,15 @@ struct qla_hw_data {
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
 				IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
 				IS_QLA82XX(ha) || IS_QLA83XX(ha) || \
-				IS_QLA8044(ha) || IS_QLA27XX(ha))
+				IS_QLA8044(ha) || IS_QLA27XX(ha) || \
+				IS_QLA28XX(ha))
 #define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha))
+				IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define IS_NOPOLLING_TYPE(ha)	(IS_QLA81XX(ha) && (ha)->flags.msix_enabled)
 #define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha))
+				IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha))
+				IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define IS_ALOGIO_CAPABLE(ha)	(IS_QLA23XX(ha) || IS_FWI2_CAPABLE(ha))
 
 #define IS_T10_PI_CAPABLE(ha)   ((ha)->device_type & DT_T10_PI)
@@ -3823,28 +3841,34 @@ struct qla_hw_data {
 #define HAS_EXTENDED_IDS(ha)    ((ha)->device_type & DT_EXTENDED_IDS)
 #define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
 #define IS_MQUE_CAPABLE(ha)	((ha)->mqenable || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha))
-#define IS_BIDI_CAPABLE(ha)	((IS_QLA25XX(ha) || IS_QLA2031(ha)))
+				IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_BIDI_CAPABLE(ha) \
+    (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
 #define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
 				((ha)->fw_attributes_ext[0] & BIT_0))
 #define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
 #define IS_PI_DIFB_DIX0_CAPABLE(ha)	(0)
-#define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
+					IS_QLA28XX(ha))
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
-#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
+				IS_QLA28XX(ha))
 #define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
-#define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha))
-#define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha))
-#define IS_FAWWN_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha))
+#define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
+				IS_QLA28XX(ha))
+#define IS_FAWWN_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
+				IS_QLA28XX(ha))
 #define IS_EXCHG_OFFLD_CAPABLE(ha) \
-	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define IS_EXLOGIN_OFFLD_CAPABLE(ha) \
-	(IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+	(IS_QLA25XX(ha) || IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
+	 IS_QLA27XX(ha) || IS_QLA28XX(ha))
 #define USE_ASYNC_SCAN(ha) (IS_QLA25XX(ha) || IS_QLA81XX(ha) ||\
-	IS_QLA83XX(ha) || IS_QLA27XX(ha))
+	IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -4595,6 +4619,7 @@ struct qla2_sgx {
 #define OPTROM_SIZE_81XX	0x400000
 #define OPTROM_SIZE_82XX	0x800000
 #define OPTROM_SIZE_83XX	0x1000000
+#define OPTROM_SIZE_28XX	0x2000000
 
 #define OPTROM_BURST_SIZE	0x1000
 #define OPTROM_BURST_DWORDS	(OPTROM_BURST_SIZE / 4)
@@ -4691,10 +4716,11 @@ struct sff_8247_a0 {
 #define AUTO_DETECT_SFP_SUPPORT(_vha)\
 	(ql2xautodetectsfp && !_vha->vp_idx &&		\
 	(IS_QLA25XX(_vha->hw) || IS_QLA81XX(_vha->hw) ||\
-	IS_QLA83XX(_vha->hw) || IS_QLA27XX(_vha->hw)))
+	IS_QLA83XX(_vha->hw) || IS_QLA27XX(_vha->hw) || \
+	 IS_QLA28XX(_vha->hw)))
 
 #define USER_CTRL_IRQ(_ha) (ql2xuctrlirq && QLA_TGT_MODE_ENABLED() && \
-	(IS_QLA27XX(_ha) || IS_QLA83XX(_ha)))
+	(IS_QLA27XX(_ha) || IS_QLA28XX(_ha) || IS_QLA83XX(_ha)))
 
 #define SAVE_TOPO(_ha) { \
 	if (_ha->current_topology)				\

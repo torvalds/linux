@@ -386,7 +386,7 @@ qla_dfs_naqp_write(struct file *file, const char __user *buffer,
 	int rc = 0;
 	unsigned long num_act_qp;
 
-	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha))) {
+	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))) {
 		pr_err("host%ld: this adapter does not support Multi Q.",
 		    vha->host_no);
 		return -EINVAL;
@@ -438,7 +438,7 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-	    !IS_QLA27XX(ha))
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		goto out;
 	if (!ha->fce)
 		goto out;
@@ -474,7 +474,7 @@ create_nodes:
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
 
-	if (IS_QLA27XX(ha) || IS_QLA83XX(ha))
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
 		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
 		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
 out:

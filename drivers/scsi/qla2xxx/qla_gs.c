@@ -1794,7 +1794,7 @@ qla2x00_fdmi_rpa(scsi_qla_host_t *vha)
 	if (IS_CNA_CAPABLE(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_10GB);
-	else if (IS_QLA27XX(ha))
+	else if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_32GB|
 		    FDMI_PORT_SPEED_16GB|
@@ -2373,7 +2373,7 @@ qla2x00_fdmiv2_rpa(scsi_qla_host_t *vha)
 	if (IS_CNA_CAPABLE(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_10GB);
-	else if (IS_QLA27XX(ha))
+	else if (IS_QLA27XX(ha) || IS_QLA28XX(ha))
 		eiter->a.sup_speed = cpu_to_be32(
 		    FDMI_PORT_SPEED_32GB|
 		    FDMI_PORT_SPEED_16GB|

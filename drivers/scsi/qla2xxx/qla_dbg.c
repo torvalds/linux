@@ -176,7 +176,8 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 			return rval;
 		}
 		for (j = 0; j < dwords; j++) {
-			ram[i + j] = IS_QLA27XX(ha) ?
+			ram[i + j] =
+			    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) ?
 			    chunk[j] : swab32(chunk[j]);
 		}
 	}
@@ -251,7 +252,8 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 			return rval;
 		}
 		for (j = 0; j < dwords; j++) {
-			ram[i + j] = IS_QLA27XX(ha) ?
+			ram[i + j] =
+			    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) ?
 			    chunk[j] : swab32(chunk[j]);
 		}
 	}
@@ -665,7 +667,8 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	struct qla2xxx_mq_chain *mq = ptr;
 	device_reg_t *reg;
 
-	if (!ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha))
+	if (!ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
+	    IS_QLA28XX(ha))
 		return ptr;
 
 	mq = ptr;
