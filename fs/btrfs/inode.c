@@ -717,7 +717,7 @@ static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
 	struct btrfs_key ins;
 	struct extent_map *em;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_io_tree *io_tree;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	int ret = 0;
 
 again:
@@ -725,9 +725,6 @@ again:
 		async_extent = list_entry(async_chunk->extents.next,
 					  struct async_extent, list);
 		list_del(&async_extent->list);
-
-		io_tree = &BTRFS_I(inode)->io_tree;
-
 retry:
 		/* did the compression code fall back to uncompressed IO? */
 		if (!async_extent->pages) {
