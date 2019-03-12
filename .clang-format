@@ -290,7 +290,6 @@ ForEachMacros:
   - 'idr_for_each_entry_ul'
   - 'inet_bind_bucket_for_each'
   - 'inet_lhash2_for_each_icsk_rcu'
-  - 'iov_for_each'
   - 'key_for_each'
   - 'key_for_each_safe'
   - 'klp_for_each_func'
