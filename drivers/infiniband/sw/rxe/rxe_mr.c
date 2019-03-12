@@ -199,6 +199,12 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		buf = map[0]->buf;
 
 		for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+			if (num_buf >= RXE_BUF_PER_MAP) {
+				map++;
+				buf = map[0]->buf;
+				num_buf = 0;
+			}
+
 			vaddr = page_address(sg_page_iter_page(&sg_iter));
 			if (!vaddr) {
 				pr_warn("null vaddr\n");
@@ -211,11 +217,6 @@ int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 			num_buf++;
 			buf++;
 
-			if (num_buf >= RXE_BUF_PER_MAP) {
-				map++;
-				buf = map[0]->buf;
-				num_buf = 0;
-			}
 		}
 	}
 
