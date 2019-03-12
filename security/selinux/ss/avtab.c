@@ -93,12 +93,10 @@ avtab_insert_node(struct avtab *h, int hvalue,
 		newnode->next = prev->next;
 		prev->next = newnode;
 	} else {
-		newnode->next = flex_array_get_ptr(h->htable, hvalue);
-		if (flex_array_put_ptr(h->htable, hvalue, newnode,
-				       GFP_KERNEL|__GFP_ZERO)) {
-			kmem_cache_free(avtab_node_cachep, newnode);
-			return NULL;
-		}
+		struct avtab_node **n = &h->htable[hvalue];
+
+		newnode->next = *n;
+		*n = newnode;
 	}
 
 	h->nel++;
@@ -111,11 +109,11 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 	struct avtab_node *prev, *cur, *newnode;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h || !h->htable)
+	if (!h)
 		return -EINVAL;
 
 	hvalue = avtab_hash(key, h->mask);
-	for (prev = NULL, cur = flex_array_get_ptr(h->htable, hvalue);
+	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
@@ -156,10 +154,10 @@ avtab_insert_nonunique(struct avtab *h, struct avtab_key *key, struct avtab_datu
 	struct avtab_node *prev, *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h || !h->htable)
+	if (!h)
 		return NULL;
 	hvalue = avtab_hash(key, h->mask);
-	for (prev = NULL, cur = flex_array_get_ptr(h->htable, hvalue);
+	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
@@ -186,11 +184,11 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h || !h->htable)
+	if (!h)
 		return NULL;
 
 	hvalue = avtab_hash(key, h->mask);
-	for (cur = flex_array_get_ptr(h->htable, hvalue); cur;
+	for (cur = h->htable[hvalue]; cur;
 	     cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
@@ -222,11 +220,11 @@ avtab_search_node(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h || !h->htable)
+	if (!h)
 		return NULL;
 
 	hvalue = avtab_hash(key, h->mask);
-	for (cur = flex_array_get_ptr(h->htable, hvalue); cur;
+	for (cur = h->htable[hvalue]; cur;
 	     cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
@@ -281,11 +279,11 @@ void avtab_destroy(struct avtab *h)
 	int i;
 	struct avtab_node *cur, *temp;
 
-	if (!h || !h->htable)
+	if (!h)
 		return;
 
 	for (i = 0; i < h->nslot; i++) {
-		cur = flex_array_get_ptr(h->htable, i);
+		cur = h->htable[i];
 		while (cur) {
 			temp = cur;
 			cur = cur->next;
@@ -295,7 +293,7 @@ void avtab_destroy(struct avtab *h)
 			kmem_cache_free(avtab_node_cachep, temp);
 		}
 	}
-	flex_array_free(h->htable);
+	kvfree(h->htable);
 	h->htable = NULL;
 	h->nslot = 0;
 	h->mask = 0;
@@ -303,6 +301,7 @@ void avtab_destroy(struct avtab *h)
 
 int avtab_init(struct avtab *h)
 {
+	kvfree(h->htable);
 	h->htable = NULL;
 	h->nel = 0;
 	return 0;
@@ -329,8 +328,7 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 		nslot = MAX_AVTAB_HASH_BUCKETS;
 	mask = nslot - 1;
 
-	h->htable = flex_array_alloc(sizeof(struct avtab_node *), nslot,
-				     GFP_KERNEL | __GFP_ZERO);
+	h->htable = kvcalloc(nslot, sizeof(void *), GFP_KERNEL);
 	if (!h->htable)
 		return -ENOMEM;
 
@@ -353,7 +351,7 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 	max_chain_len = 0;
 	chain2_len_sum = 0;
 	for (i = 0; i < h->nslot; i++) {
-		cur = flex_array_get_ptr(h->htable, i);
+		cur = h->htable[i];
 		if (cur) {
 			slots_used++;
 			chain_len = 0;
@@ -646,7 +644,7 @@ int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 		return rc;
 
 	for (i = 0; i < a->nslot; i++) {
-		for (cur = flex_array_get_ptr(a->htable, i); cur;
+		for (cur = a->htable[i]; cur;
 		     cur = cur->next) {
 			rc = avtab_write_item(p, cur, fp);
 			if (rc)
