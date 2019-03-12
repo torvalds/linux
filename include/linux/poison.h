@@ -83,9 +83,6 @@
 #define MUTEX_DEBUG_FREE	0x22
 #define MUTEX_POISON_WW_CTX	((void *) 0x500 + POISON_POINTER_DELTA)
 
-/********** lib/flex_array.c **********/
-#define FLEX_ARRAY_FREE	0x6c	/* for use-after-free poisoning */
-
 /********** security/ **********/
 #define KEY_DESTROY		0xbd
 
