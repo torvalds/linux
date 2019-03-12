@@ -1465,9 +1465,8 @@ static struct lpi_range *mk_lpi_range(u32 base, u32 span)
 {
 	struct lpi_range *range;
 
-	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	range = kmalloc(sizeof(*range), GFP_KERNEL);
 	if (range) {
-		INIT_LIST_HEAD(&range->entry);
 		range->base_id = base;
 		range->span = span;
 	}
