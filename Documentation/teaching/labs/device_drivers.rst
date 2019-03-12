@@ -13,7 +13,7 @@ Overview
 ========
 
 In UNIX, hardware devices are accessed by the user through special device
-files . These files are grouped into the /dev directory, and system calls
+files. These files are grouped into the /dev directory, and system calls
 ``open``, ``read``, ``write``, ``close``, ``lseek``, ``mmap`` etc. are
 redirected by the operating system to the device driver associated with the
 physical device. The device driver is a kernel component (usually a module)
@@ -37,7 +37,7 @@ If for character devices system calls go directly to device drivers, in case of
 block devices, the drivers do not work directly with system calls. In
 the case of block devices, communication between the user-space and the block
 device driver is mediated by the file management subsystem and the block device
-subsystem . The role of these subsystems is to prepare the device driver's
+subsystem. The role of these subsystems is to prepare the device driver's
 necessary resources (buffers), to keep the recently read data in the cache
 buffer, and to order the read and write operations for performance reasons.
 
@@ -84,14 +84,14 @@ named ``mycdev`` with the major ``42`` and minor ``0``, use the command:
 
    $ mknod /dev/mycdev c 42 0
 
-To create the block device with the name mybdev with the 240 and minor 0
-command used will be:
+To create the block device with the name ``mybdev`` with the major 240 and minor 0
+the command will be:
 
 .. code-block:: bash
 
    $ # mknod /dev/mybdev b 240 0
 
-Next, we'll refer drivers for character devices.
+Next, we'll refer to character devices as drivers.
 
 Data structures for a character device
 ======================================
@@ -127,6 +127,8 @@ described in the fields of the ``struct file_operations`` structure:
        int (*release) (struct inode *, struct file *);
        [...]
 
+.. **
+
 It can be noticed that the signature of the function differs from the system
 call that the user uses. The operating system sits between the user and
 the device driver to simplify implementation in the device driver.
@@ -150,11 +152,11 @@ Most parameters for the presented operations have a direct meaning:
 ``inode`` and ``file`` structures
 ---------------------------------
 
-An inode represents a file from the point of view of the file system. Attributes
+An ``inode`` represents a file from the point of view of the file system. Attributes
 of an inode are the size, rights, times associated with the file. An inode uniquely
 identifies a file in a file system.
 
-The file structure is still a file, but closer to the user's point of view.
+The ``file`` structure is still a file, but closer to the user's point of view.
 From the attributes of the file structure we list: the inode, the file name,
 the file opening attributes, the file position. All open files at a given time
 have associated a ``file`` structure.
@@ -162,7 +164,7 @@ have associated a ``file`` structure.
 To understand the differences between inode and file, we will use an analogy
 from object-oriented programming: if we consider a class inode, then the files
 are objects, that is, instances of the inode class. Inode represents the static
-image of the file (the inode has no state ), while the file represents the
+image of the file (the inode has no state), while the file represents the
 dynamic image of the file (the file has state).
 
 Returning to device drivers, the two entities have almost always standard ways
@@ -229,10 +231,10 @@ my_device_data:
 
 .. **
 
-A structure like my_device_data will contain the data associated with a device.
-The ``cdev`` field (cdev type) is a character-type device and is used to record it
-in the system and identify the device. The pointer to the cdev member can be
-found using the i_cdev field of the inode structure (using the ``container_of``
+A structure like ``my_device_data`` will contain the data associated with a device.
+The ``cdev`` field (``cdev`` type) is a character-type device and is used to record it
+in the system and identify the device. The pointer to the ``cdev`` member can be
+found using the ``i_cdev`` field of the ``inode`` structure (using the ``container_of``
 macro). In the private_data field of the file structure, information can be
 stored at open which is then available in the ``read``, ``write``, ``release``, etc.
 routines.
@@ -242,7 +244,7 @@ Registration and unregistration of character devices
 
 The registration/unregistration of a device is made by specifying the major and
 minor. The ``dev_t`` type is used to keep the identifiers of a device (both major
-and minor) and can be obtained using the MKDEV macro.
+and minor) and can be obtained using the ``MKDEV`` macro.
 
 For the static assignment and unallocation of device identifiers, the
 ``register_chrdev_region`` and ``unregister_chrdev_region`` functions are used:
@@ -269,7 +271,7 @@ exceeded, move to the next major):
    ...
 
    err = register_chrdev_region(MKDEV(my_major, my_first_minor), my_minor_count,
-				"my_device_driver");
+                                "my_device_driver");
    if (err != 0) {
        /* report error */
        return err;
@@ -304,40 +306,40 @@ The following sequence registers and initializes MY_MAX_MINORS devices:
     #define MY_MAX_MINORS  5
 
     struct my_device_data {
-	struct cdev cdev;
-	/* my data starts here */
-	//...
+        struct cdev cdev;
+        /* my data starts here */
+        //...
     };
 
     struct my_device_data devs[MY_MAX_MINORS];
 
     const struct file_operations my_fops = {
-	.owner = THIS_MODULE,
-	.open = my_open,
-	.read = my_read,
-	.write = my_write,
-	.release = my_release,
-	.unlocked_ioctl = my_ioctl
+        .owner = THIS_MODULE,
+        .open = my_open,
+        .read = my_read,
+        .write = my_write,
+        .release = my_release,
+        .unlocked_ioctl = my_ioctl
     };
 
     int init_module(void)
     {
-	int i, err;
+        int i, err;
 
-	err = register_chrdev_region(MKDEV(MY_MAJOR, 0), MY_MAX_MINORS,
-					  "my_device_driver");
-	if (err != 0) {
-	    /* report error */
-	    return err;
-	}
+        err = register_chrdev_region(MKDEV(MY_MAJOR, 0), MY_MAX_MINORS,
+                                     "my_device_driver");
+        if (err != 0) {
+            /* report error */
+            return err;
+        }
 
-	for(i = 0; i < MY_MAX_MINORS; i++) {
-	    /* initialize devs[i] fields */
-	    cdev_init(&devs[i].cdev, &my_fops);
-	    cdev_add(&devs[i].cdev, MKDEV(MY_MAJOR, i), 1);
-	}
+        for(i = 0; i < MY_MAX_MINORS; i++) {
+            /* initialize devs[i] fields */
+            cdev_init(&devs[i].cdev, &my_fops);
+            cdev_add(&devs[i].cdev, MKDEV(MY_MAJOR, i), 1);
+        }
 
-	return 0;
+        return 0;
     }
 
 .. **
@@ -351,20 +353,21 @@ While the following sequence deletes and unregisters them:
        int i;
 
        for(i = 0; i < MY_MAX_MINORS; i++) {
-	   /* release devs[i] fields */
-	   cdev_del(&devs[i].cdev);
+           /* release devs[i] fields */
+           cdev_del(&devs[i].cdev);
        }
        unregister_chrdev_region(MKDEV(MY_MAJOR, 0), MY_MAX_MINORS);
    }
 
+.. **
 
 .. note:: initialization of the struct my_fops used the initialization
-	  of members by name, defined in C99 standard (see designated
-	  initializers and the file_operations structure ). Structure
-	  members who do not explicitly appear in this initialization
-	  will be set to the default value for their type. For
-	  example, after the initialization above, my_fops.mmap will
-	  be NULL.
+          of members by name, defined in C99 standard (see designated
+          initializers and the file_operations structure). Structure
+          members who do not explicitly appear in this initialization
+          will be set to the default value for their type. For
+          example, after the initialization above, ``my_fops.mmap`` will
+          be NULL.
 
 Access to the address space of the process
 ==========================================
@@ -420,7 +423,7 @@ A common section of code that works with these functions is:
 Open and release
 ================
 
-The open function performs the initialization of a device. In most cases,
+The ``open`` function performs the initialization of a device. In most cases,
 these operations refer to initializing the device and filling in specific data
 (if it is the first open call). The release function is about releasing
 device-specific resources: unlocking specific data and closing the device if
@@ -433,7 +436,7 @@ In most cases, the open function will have the following structure:
    static int my_open(struct inode *inode, struct file *file)
    {
        struct my_device_data *my_data =
-	       container_of(inode->i_cdev, struct my_device_data, cdev);
+                container_of(inode->i_cdev, struct my_device_data, cdev);
 
        /* validate access to device */
        file->private_data = my_data;
@@ -448,10 +451,10 @@ In most cases, the open function will have the following structure:
 
 A problem that occurs when implementing the ``open`` function is access control.
 Sometimes a device needs to be opened once at a time; More specifically, do not
-allow the second open before the release . To implement this restriction, you
+allow the second open before the release. To implement this restriction, you
 choose a way to handle an open call for an already open device: it can return
 an error (``-EBUSY``), block open calls until a release operation, or shut down
-the device before do the open .
+the device before do the open.
 
 At the user-space call of the open and close functions on the device, call
 my_open and my_release in the driver. An example of a user-space call:
@@ -460,7 +463,7 @@ my_open and my_release in the driver. An example of a user-space call:
 
     int fd = open("/dev/my_device", O_RDONLY);
     if (fd < 0) {
-	/* handle error */
+        /* handle error */
     }
 
     /* do work */
@@ -479,18 +482,20 @@ result of a userpsace program calling the read of write system calls:
 .. code-block:: c
 
     if (read(fd, buffer, size) < 0) {
-	/* handle error */
+        /* handle error */
     }
 
     if (write(fd, buffer, size) < 0) {
-	/* handle error */
+        /* handle error */
     }
 
-The read and write functions transfer data between the device and the
+.. **
+
+The ``read`` and ``write`` functions transfer data between the device and the
 user-space: the read function reads the data from the device and transfers it
 to the user-space, while writing reads the user-space data and writes it to the
 device. The buffer received as a parameter is a user-space pointer, which is
-why it is necessary to use the copy_to_user or copy_from_user functions.
+why it is necessary to use the ``copy_to_user`` or ``copy_from_user`` functions.
 
 The value returned by read or write can be:
 
@@ -511,7 +516,7 @@ following operations should be performed:
     will be done from the offset received as a parameter);
   * update the offset received as a parameter to the position from which the
     next read / write data will begin;
-  * returns the number of bytes transferred.
+  * return the number of bytes transferred.
 
 The sequence below shows an example for the read function that takes
 into account the internal buffer size, user buffer size and the offset:
@@ -519,22 +524,23 @@ into account the internal buffer size, user buffer size and the offset:
 .. code-block:: c
 
    static int my_read(struct file *file, char __user *user_buffer,
-		      size_t size, loff_t *offset)
+                      size_t size, loff_t *offset)
    {
        struct my_device_data *my_data = (struct my_device_data *) file->private_data;
        ssize_t len = min(my_data->size - *offset, size);
 
        if (len <= 0)
-	   return 0;
+           return 0;
 
        /* read data from device in my_data->buffer */
        if (copy_to_user(user_buffer, my_data->buffer + *offset, len))
-	   return -EFAULT;
+           return -EFAULT;
 
        *offset += len;
        return len;
    }
 
+.. **
 
 The images below illustrate the read operation and how data is
 transferred between the userspace and the driver:
@@ -558,24 +564,26 @@ The structure of the write function is similar:
 .. code-block:: c
 
    static int my_write(struct file *file, const char __user *user_buffer,
-		       size_t size, loff_t * offset)
+                       size_t size, loff_t * offset)
    {
        struct my_device_data *my_data = (struct my_device_data *) file->private_data;
        ssize_t len = min(my_data->size - *offset, size);
 
        if (len <= 0)
-	   return 0;
+           return 0;
 
        /* read data from device in my_data->buffer */
        if (copy_to_user(user_buffer, my_data->buffer, len))
-	   return -EFAULT;
+           return -EFAULT;
 
        *offset += len;
        return len;
    }
 
+.. **
+
 The write operation will respond to a write request from userspace. In
-this case, depending on the maximum driver capacity (MAXSIZ), you can
+this case, depending on the maximum driver capacity (MAXSIZ), it can
 write more or less than the required size.
 
 .. image:: write.png
@@ -588,21 +596,23 @@ ioctl
 
 In addition to read and write operations, a driver needs the ability to perform
 certain physical device control tasks. These operations are accomplished by
-implementing a ioctl function. Initially, the ioctl system call used Big Kernel
+implementing a ``ioctl`` function. Initially, the ioctl system call used Big Kernel
 Lock. That's why the call was gradually replaced with its unlocked version
-called unlocked_ioctl . You can read more on LWN:
+called ``unlocked_ioctl``. You can read more on LWN:
 http://lwn.net/Articles/119652/
 
 .. code-block:: c
 
   static long my_ioctl (struct file *file, unsigned int cmd, unsigned long arg);
 
-cmd is the command sent from user-space. If a whole is being sent to the
-user-space call, it can be accessed directly. If a buffer is fetched, the arg
-value will be a pointer to it, and must be accessed through the copy_to_user or
-copy_from_user.
+.. **
 
-Before implementing the ioctl function, the numbers corresponding to the
+``cmd`` is the command sent from user-space. If a value is being sent to the
+user-space call, it can be accessed directly. If a buffer is fetched, the arg
+value will be a pointer to it, and must be accessed through the ``copy_to_user`` 
+or ``copy_from_user``.
+
+Before implementing the ``ioctl`` function, the numbers corresponding to the
 commands must be chosen. One method is to choose consecutive numbers starting
 at 0, but it is recommended to use ``_IOC(dir, type, nr, size)`` macrodefinition
 to generate ioctl codes. The macrodefinition parameters are as follows:
@@ -611,9 +621,9 @@ to generate ioctl codes. The macrodefinition parameters are as follows:
      ``_IOC_WRITE``).
    * ``type`` represents the magic number (``Documentation/ioctl/ioctl-number.txt``);
    * ``nr`` is the ioctl code for the device;
-   * ``size`` is the size transferred data.
+   * ``size`` is the size of the transferred data.
 
-The following example shows an implementation for a ioctl function:
+The following example shows an implementation for a ``ioctl`` function:
 
 .. code-block:: c
 
@@ -624,24 +634,26 @@ The following example shows an implementation for a ioctl function:
    static long my_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
    {
        struct my_device_data *my_data =
-	    (struct my_device_data*) file->private_data;
-       my_ioctl_data mid;
+            (struct my_device_data*) file->private_data;
+        my_ioctl_data mid;
 
-       switch(cmd) {
-       case MY_IOCTL_IN:
-	   if( copy_from_user(&mid, (my_ioctl_data *) arg,
-			      sizeof(my_ioctl_data)) )
-	       return -EFAULT;
+        sitch(cmd) {
+        case MY_IOCTL_IN:
+           if( copy_from_user(&mid, (my_ioctl_data *) arg,
+                              sizeof(my_ioctl_data)) )
+               return -EFAULT;
 
-	   /* process data and execute command */
+           /* process data and execute command */
 
-	   break;
+           break;
        default:
-	   return -ENOTTY;
+           return -ENOTTY;
        }
 
        return 0;
    }
+
+.. **
 
 At the user-space call for the ioctl function, the my_ioctl function of the
 driver will be called. An example of such a user-space call:
@@ -649,8 +661,10 @@ driver will be called. An example of such a user-space call:
 .. code-block:: c
 
     if (ioctl(fd, MY_IOCTL_IN, buffer) < 0) {
-	/* handle error */
+        /* handle error */
     }
+
+.. **
 
 Waiting queues
 ==============
@@ -658,7 +672,7 @@ Waiting queues
 It is often necessary for a thread to wait for an operation to finish,
 but it is desirable that this wait is not busy-waiting. Using waiting
 queues we can block a thread until an event occurs. When the condition
-is satisfied, elsewhere in the kernel, in another process, or
+is satisfied, elsewhere in the kernel, in another process, in an
 interrupt or deferrable work, we will wake-up the process.
 
 A waiting queue is a list of processes that are waiting for a specific
@@ -685,10 +699,12 @@ be used by the functions/macros:
 
    void wake_up_interruptible(wait_queue_head_t *q);
 
+.. **
+
 The roles of the macros / functions above are:
 
-   * :c:func:`init_waitqueue_head` initializes the queue; if you want to initialize the
-     queue to compile, you can use the c:macro:`DECLARE_WAIT_QUEUE_HEAD` macro;
+   * :c:func:`init_waitqueue_head` initializes the queue; to initialize the
+     queue at compile time, you can use the c:macro:`DECLARE_WAIT_QUEUE_HEAD` macro;
    * :c:func:`wait_event` and :c:func:`wait_event_interruptible` adds the current thread to the
      queue while the condition is false, sets it to TASK_UNINTERRUPTIBLE or
      TASK_INTERRUPTIBLE and calls the scheduler to schedule a new thread; Waiting
@@ -700,7 +716,7 @@ The roles of the macros / functions above are:
      TASK_UNINTERRUPTIBLE in TASK_RUNNING status; Remove these threads from the
      queue;
    * :c:func:`wake_up_interruptible` same action, but only threads with TASK_INTERRUPTIBLE
-     status are TASK_INTERRUPTIBLE .
+     status are woken up.
 
 A simple example is that of a thread waiting to change the value of a flag. The
 initializations are done by the sequence:
@@ -714,11 +730,15 @@ initializations are done by the sequence:
 
    init_waitqueue_head(&wq);
 
+.. **
+
 A thread will wait for the flag to be changed to a value other than zero:
 
 .. code-block:: c
 
    wait_event_interruptible(wq, flag != 0);
+
+.. **
 
 While another thread will change the flag value and wake up the waiting threads:
 
@@ -727,6 +747,7 @@ While another thread will change the flag value and wake up the waiting threads:
    flag = 1 ;
    wake_up_interruptible (&wq);
 
+.. **
 
 Exercises
 =========
@@ -735,11 +756,6 @@ Exercises
 
     .. include:: exercises-summary.hrst
     .. |LAB_NAME| replace:: device_drivers
-
-As a first step, you will need to create the /dev/so2_cdev character
-/dev/so2_cdev using the mknod utility.
-
-.. attention:: Read the Major and Minor ID in the lab.
 
 0. Intro
 --------
@@ -764,7 +780,7 @@ The driver will control a single device with the ``MY_MAJOR`` major and
       .. hint:: Read `Majors and minors`_ section in the lab.
 
    2. Implement the registration and deregistration of the device with the name
-      ``so2_cdev``, respectively in the init and exit module functions. Implement **TODO 1**
+      ``so2_cdev``, respectively in the init and exit module functions. Implement **TODO 1**.
 
       .. hint:: Read the section `Registration and unregistration of character devices`_
 
@@ -773,28 +789,28 @@ The driver will control a single device with the ``MY_MAJOR`` major and
 
       .. code-block:: bash
 
-	 $ insmod so2_cdev.ko
+         $ insmod so2_cdev.ko
 
       And see character devices in ``/proc/devices``:
 
       .. code-block:: bash
 
-	 $ cat /proc/devices | less
+         $ cat /proc/devices | less
 
       Identify the device type registered with major 42 . Note that ``/proc/devices``
       contains only the device types (major) but not the actual devices (i.e. minors).
 
       .. note:: Entries in /dev are not created by loading the module. These can be created
-	  in two ways:
+                in two ways:
 
-		* manually, using the ``mknod`` command as we will do in the following exercises.
-		* automatically using udev daemon
+                * manually, using the ``mknod`` command as we will do in the following exercises.
+                * automatically using udev daemon
 
    4. Unload the kernel module
 
       .. code-block:: bash
 
-	 rmmod so2_cdev
+         rmmod so2_cdev
 
 2. Register an already registered major
 ---------------------------------------
@@ -816,71 +832,74 @@ Follow comments marked with TODO 2 and implement them.
 
    1. Initialize your device
 
-      * add a cdev struct field to so2_device_data structure.
+      * add a cdev struct field to ``so2_device_data`` structure.
       * Read the section `Registration and unregistration of character devices`_ in the lab.
 
-   2. Implement the open and release in the driver.
-   3. Display a message in the open and release
-   4. Read again ``/dev/so2_cdev`` file. Follow the messages displayed by the kernel. We still get an error
-      because ``read`` function is not yet implemented.
+   2. Implement the open and release functions in the driver.
+   3. Display a message in the open and release functions.
+   4. Read again ``/dev/so2_cdev`` file. Follow the messages displayed by the kernel. 
+      We still get an error because ``read`` function is not yet implemented.
 
-.. note:: The prototype of a device driver's operations is in the file_operations
-	  structure. Read `Open and release`_ section.
+.. note:: The prototype of a device driver's operations is in the ``file_operations``
+          structure. Read `Open and release`_ section.
 
 4. Access restriction
 ---------------------
 
 Restrict access to the device with atomic variables, so that a single process
 can open the device at a time. The rest will receive the "device busy" error
-("-EBUSY"). Restricting access will be done in the open function displayed by
-the driver. Follow comments marked with TODO 3 and implement them.
+(``-EBUSY``). Restricting access will be done in the open function displayed by
+the driver. Follow comments marked with **TODO 3** and implement them.
 
-   1. Add an atomic_t variable to the device structure.
-   2. Initialize the variable at device initialization.
+   1. Add an ``atomic_t`` variable to the device structure.
+   2. Initialize the variable at module initialization.
    3. Use the variable in the open function to restrict access to the device. We
-      recommend using atomic_cmpxchg.
+      recommend using c:func:`atomic_cmpxchg`.
    4. Reset the variable in the release function to retrieve access to the device.
    5. To test your deployment, you'll need to simulate a long-term use of your
-      device. Call the scheduler at the end of the device opening:
+      device. To simulate a sleep, call the scheduler at the end of the device opening:
 
-      .. code-block:: bash
+.. code-block:: bash
 
-	 set_current_state(TASK_INTERRUPTIBLE);
-	 schedule_timeout(1000);
+         set_current_state(TASK_INTERRUPTIBLE);
+         schedule_timeout(1000);
+
+.. **
 
    6. Test using ``cat /dev/so2_cdev`` & ``cat /dev/so2_cdev``.
 
 
 .. note:: The advantage of the atomic_cmpxchg function is that it can check the
-	  old value of the variable and set it up to a new value, all in one
-	  atomic operation. Read more details about `atomic_cmpxchg <https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/atomic_cmpxchg.html>`_
-	  An example of use is `here <http://elixir.free-electrons.com/linux/v4.9/source/lib/dump_stack.c#L24>`_.
+          old value of the variable and set it up to a new value, all in one
+          atomic operation. Read more details about `atomic_cmpxchg <https://www.khronos.org/registry/OpenCL/sdk/1.1/docs/man/xhtml/atomic_cmpxchg.html>`_
+          An example of use is `here <http://elixir.free-electrons.com/linux/v4.9/source/lib/dump_stack.c#L24>`_.
 
 5. Read operation
 -----------------
 
 Implement the read function in the driver. Follow comments marked with ``TODO 4`` and implement them.
 
-   1. Keep a buffer in ``so2_device_data`` structure initialized with the value of MESSAGE macro.
-      Initializing this buffer will be done in module init function.
+   1. Keep a buffer in ``so2_device_data`` structure initialized with the value of ``MESSAGE`` macro.
+      Initializing this buffer will be done in module ``init`` function.
    2. At a read call, copy the contents of the kernel space buffer into the user
       space buffer.
 
-      * Use the copy_to_user function to copy information from kernel space to
-	user space.
+      * Use the c:func:`copy_to_user` function to copy information from kernel space to
+        user space.
       * Ignore the size and offset parameters at this time. You can assume that
-	the buffer in user space is large enough. You do not need to check the
-	validity of the size argument of the read function.
+        the buffer in user space is large enough. You do not need to check the
+        validity of the size argument of the read function.
       * The value returned by the read call is the number of bytes transmitted
-	from the kernel space buffer to the user space buffer.
-   3. After implementation, test using cat /dev/so2_cdev/
+        from the kernel space buffer to the user space buffer.
+
+   3. After implementation, test using ``cat /dev/so2_cdev``.
 
 .. note:: The command ``cat /dev/so2_cdev`` does not end (use Ctrl+C).
-	  Read the `read and write`_ sections and `Access to the address space of the process`_
-	  If you want to display the offset value use a construction of the form:
-	  ``pr_info("Offset: %lld \n", *offset)``; The data type loff_t (used by offset ) is a typedef for long long int.
+          Read the `read and write`_ sections and `Access to the address space of the process`_
+          If you want to display the offset value use a construction of the form:
+          ``pr_info("Offset: %lld \n", *offset)``; The data type loff_t (used by offset ) is a typedef for long long int.
 
-The command ``cat`` reads to the end of the file, and the end of the file is
+The ``cat`` command reads to the end of the file, and the end of the file is
 signaled by returning the value 0 in the read. Thus, for a correct implementation,
 you will need to update and use the offset received as a parameter in the read
 function and return the value 0 when the user has reached the end of the buffer.
@@ -893,8 +912,8 @@ Modify the driver so that the ``cat`` commands ends:
        into the user buffer.
 
 .. note:: By dereferencing the offset parameter it is possible to read and move the current
-	  position in the file. Its value needs to be updated every time a read is done
-	  successfully.
+          position in the file. Its value needs to be updated every time a read is done
+          successfully.
 
 6. Write operation
 ------------------
@@ -902,49 +921,53 @@ Modify the driver so that the ``cat`` commands ends:
 Add the ability to write a message into kernel buffer to replace the predefined message. Implement
 the write function in the driver. Follow comments marked with ``TODO 5``
 
-Ignore the offset parameter at a time. You can assume that the driver buffer is
-large enough. You do not need to check the validity of the write argument's
-size argument.
+Ignore the offset parameter at this time. You can assume that the driver buffer is
+large enough. You do not need to check the validity of the write function size
+argument.
 
 .. note:: The prototype of a device driver's operations is in the file_operations
-	  structure.
-	  Test using commands:
+          structure.
+          Test using commands:
 
-	  .. code-block:: bash
+          .. code-block:: bash
 
-	     echo "arpeggio"> /dev/so2_cdev
-	     cat /dev/so2_cdev
+             echo "arpeggio"> /dev/so2_cdev
+             cat /dev/so2_cdev
 
-	  Read the `read and write`_ sections and `Access to the address space of the process`_
+          Read the `read and write`_ sections and `Access to the address space of the process`_
 
 7. ioctl operation
 ------------------
 
-For this exercise, we want to add the ioctl MY_IOCTL_PRINT to display the
-message from the IOCTL_MESSAGE macro in the driver. Follow the comments marked with ``TODO 6``
+For this exercise, we want to add the ioctl ``MY_IOCTL_PRINT`` to display the
+message from the ``IOCTL_MESSAGE`` macro in the driver.
+Follow the comments marked with ``TODO 6``
 
 For this:
 
    1. Implement the ioctl function in the driver.
-   2. We need to use user/so2_cdev_test.c to call the
+   2. We need to use ``user/so2_cdev_test.c`` to call the
       ioctl function with the appropriate parameters.
 
-.. note:: The macro definition MY_IOCTL_PRINT is defined in the include/so2_cdev.h file
-	  Read the `ioctl`_ section in the lab.
+.. note:: The macro definition ``MY_IOCTL_PRINT`` is defined in the ``include/so2_cdev.h`` file
+          Read the `ioctl`_ section in the lab.
 
 .. note:: Because we need to compile the program for qemu machine which is 32 bit, if your host is 64 bit
-	  then you need to install ``gcc-multilib`` package.
+          then you need to install ``gcc-multilib`` package.
 
 .. Extra
    -----
 
-   Ioctl with messaging Add two ioctl operations to modify the
-   message associated with the driver. Use fixed-length buffer ( BUFFER_SIZE ).
+   Ioctl with messaging
+   --------------------
 
-      1. Add the ioctl function from the driver operations:
-	 * MY_IOCTL_SET_BUFFER for writing a message to the device;
-	 * MY_IOCTL_GET_BUFFER to read a message from your device.
-      2. Change the user-space program to allow for testing.
+   Add two ioctl operations to modify the message associated with the 
+   driver. Use fixed-length buffer ( BUFFER_SIZE ).
+
+      1. Add the ``ioctl`` function from the driver the following operations:
+         * ``MY_IOCTL_SET_BUFFER`` for writing a message to the device;
+         * ``MY_IOCTL_GET_BUFFER`` to read a message from your device.
+      2. Change the user-space program to allow testing.
 
    .. note:: Read the ioctl sections and Access to the address space of the lab process.
 
@@ -953,14 +976,14 @@ For this:
 
    Add two ioctl to the device driver for queuing.
 
-       1. Add the ioctl function from the driver operations:
-	  * MY_IOCTL_DOWN to add the process to a queue;
-	  * MY_IOCTL_UP to remove the process from a queue.
-       2. Fill the device structure with a wait_queue_head_t field and a
-	  wait_queue_head_t flag.
+       1. Add the ``ioctl`` function from the driver the following operations:
+          * MY_IOCTL_DOWN to add the process to a queue;
+          * MY_IOCTL_UP to remove the process from a queue.
+       2. Fill the device structure with a ``wait_queue_head_t`` field and a
+          ``wait_queue_head_t`` flag.
        3. Do not forget to initialize the wait queue and flag.
-       4. Remove xclusive access condition from previous exercise
-       5. Change the user-space program to allow for testing.
+       4. Remove exclusive access condition from previous exercise
+       5. Change the user-space program to allow testing.
 
    When the process is added to the queue, it will remain blocked in execution; To
    run the queue command open a new console in the virtual machine with Alt+F2 ;
