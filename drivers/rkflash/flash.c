@@ -4,6 +4,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "flash.h"
 #include "flash_com.h"
@@ -315,8 +316,8 @@ static s32 get_bad_blk_list(u16 *table, u32 die)
 #define FLASH_SPARE_SIZE	8
 
 static u16 bad_blk_list[1024];
-static u32 pwrite[FLASH_PAGE_SIZE / 4];
-static u32 pread[FLASH_PAGE_SIZE / 4];
+static u32 *pwrite;
+static u32 *pread;
 static u32 pspare_write[FLASH_SPARE_SIZE / 4];
 static u32 pspare_read[FLASH_SPARE_SIZE / 4];
 static u32 bad_blk_num;
@@ -329,6 +330,9 @@ static void flash_test(void)
 	u32 pages_num = 64;
 	u32 blk_addr = 64;
 	u32 is_bad_blk = 0;
+
+	pwrite = kzalloc(FLASH_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	pread = kzalloc(FLASH_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
 
 	PRINT_NANDC_E("%s\n", __func__);
 	bad_blk_num = 0;
@@ -375,8 +379,12 @@ static void flash_test(void)
 				PRINT_NANDC_E("ERR:page %x, ret= %x\n",
 					      page_addr,
 					      ret);
-				PRINT_NANDC_HEX("data:", pread, 4, 8);
-				PRINT_NANDC_HEX("spare:", pspare_read, 4, 2);
+				PRINT_NANDC_HEX("w data:", pwrite, 4, 512);
+				PRINT_NANDC_HEX("w spare:", pspare_write, 4, 4);
+				PRINT_NANDC_HEX("r data:", pread, 4, 512);
+				PRINT_NANDC_HEX("r spare:", pspare_read, 4, 5);
+				while (1)
+					;
 			}
 		}
 		flash_erase_block(0, blk * blk_addr);
@@ -387,6 +395,8 @@ static void flash_test(void)
 		      bad_blk_num, bad_page_num);
 
 	PRINT_NANDC_E("Flash Test Finish!!!\n");
+	kfree(pwrite);
+	kfree(pread);
 	while (1)
 		;
 }
