@@ -965,6 +965,29 @@ void __init_memblock __next_reserved_mem_region(u64 *idx,
 	*idx = ULLONG_MAX;
 }
 
+static bool should_skip_region(struct memblock_region *m, int nid, int flags)
+{
+	int m_nid = memblock_get_region_node(m);
+
+	/* only memory regions are associated with nodes, check it */
+	if (nid != NUMA_NO_NODE && nid != m_nid)
+		return true;
+
+	/* skip hotpluggable memory regions if needed */
+	if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
+		return true;
+
+	/* if we want mirror memory skip non-mirror memory regions */
+	if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
+		return true;
+
+	/* skip nomap memory unless we were asked for it explicitly */
+	if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
+		return true;
+
+	return false;
+}
+
 /**
  * __next__mem_range - next function for for_each_free_mem_range() etc.
  * @idx: pointer to u64 loop variable
@@ -1012,20 +1035,7 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
 		phys_addr_t m_end = m->base + m->size;
 		int	    m_nid = memblock_get_region_node(m);
 
-		/* only memory regions are associated with nodes, check it */
-		if (nid != NUMA_NO_NODE && nid != m_nid)
-			continue;
-
-		/* skip hotpluggable memory regions if needed */
-		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
-			continue;
-
-		/* if we want mirror memory skip non-mirror memory regions */
-		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
-			continue;
-
-		/* skip nomap memory unless we were asked for it explicitly */
-		if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
+		if (should_skip_region(m, nid, flags))
 			continue;
 
 		if (!type_b) {
@@ -1129,20 +1139,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 		phys_addr_t m_end = m->base + m->size;
 		int m_nid = memblock_get_region_node(m);
 
-		/* only memory regions are associated with nodes, check it */
-		if (nid != NUMA_NO_NODE && nid != m_nid)
-			continue;
-
-		/* skip hotpluggable memory regions if needed */
-		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
-			continue;
-
-		/* if we want mirror memory skip non-mirror memory regions */
-		if ((flags & MEMBLOCK_MIRROR) && !memblock_is_mirror(m))
-			continue;
-
-		/* skip nomap memory unless we were asked for it explicitly */
-		if (!(flags & MEMBLOCK_NOMAP) && memblock_is_nomap(m))
+		if (should_skip_region(m, nid, flags))
 			continue;
 
 		if (!type_b) {
