@@ -1796,8 +1796,6 @@ static const struct bpf_func_proto bpf_skb_pull_data_proto = {
 
 BPF_CALL_1(bpf_sk_fullsock, struct sock *, sk)
 {
-	sk = sk_to_full_sk(sk);
-
 	return sk_fullsock(sk) ? (unsigned long)sk : (unsigned long)NULL;
 }
 
@@ -5266,7 +5264,7 @@ static const struct bpf_func_proto bpf_sk_release_proto = {
 	.func		= bpf_sk_release,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_SOCKET,
+	.arg1_type	= ARG_PTR_TO_SOCK_COMMON,
 };
 
 BPF_CALL_5(bpf_xdp_sk_lookup_udp, struct xdp_buff *, ctx,
@@ -5407,8 +5405,6 @@ u32 bpf_tcp_sock_convert_ctx_access(enum bpf_access_type type,
 
 BPF_CALL_1(bpf_tcp_sock, struct sock *, sk)
 {
-	sk = sk_to_full_sk(sk);
-
 	if (sk_fullsock(sk) && sk->sk_protocol == IPPROTO_TCP)
 		return (unsigned long)sk;
 
