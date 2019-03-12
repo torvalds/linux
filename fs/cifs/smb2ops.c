@@ -619,6 +619,7 @@ smb2_close_cached_fid(struct kref *ref)
 		SMB2_close(0, cfid->tcon, cfid->fid->persistent_fid,
 			   cfid->fid->volatile_fid);
 		cfid->is_valid = false;
+		cfid->file_all_info_is_valid = false;
 	}
 }
 
@@ -643,9 +644,18 @@ smb2_cached_lease_break(struct work_struct *work)
  */
 int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 {
-	struct cifs_open_parms oparams;
-	int rc;
-	__le16 srch_path = 0; /* Null - since an open of top of share */
+	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server = ses->server;
+	struct cifs_open_parms oparms;
+	struct smb2_create_rsp *o_rsp = NULL;
+	struct smb2_query_info_rsp *qi_rsp = NULL;
+	int resp_buftype[2];
+	struct smb_rqst rqst[2];
+	struct kvec rsp_iov[2];
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	struct kvec qi_iov[1];
+	int rc, flags = 0;
+	__le16 utf16_path = 0; /* Null - since an open of top of share */
 	u8 oplock = SMB2_OPLOCK_LEVEL_II;
 
 	mutex_lock(&tcon->crfid.fid_mutex);
@@ -657,22 +667,89 @@ int open_shroot(unsigned int xid, struct cifs_tcon *tcon, struct cifs_fid *pfid)
 		return 0;
 	}
 
-	oparams.tcon = tcon;
-	oparams.create_options = 0;
-	oparams.desired_access = FILE_READ_ATTRIBUTES;
-	oparams.disposition = FILE_OPEN;
-	oparams.fid = pfid;
-	oparams.reconnect = false;
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
 
-	rc = SMB2_open(xid, &oparams, &srch_path, &oplock, NULL, NULL, NULL);
-	if (rc == 0) {
-		memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
-		tcon->crfid.tcon = tcon;
-		tcon->crfid.is_valid = true;
-		kref_init(&tcon->crfid.refcount);
-		kref_get(&tcon->crfid.refcount);
-	}
+	memset(rqst, 0, sizeof(rqst));
+	resp_buftype[0] = resp_buftype[1] = CIFS_NO_BUFFER;
+	memset(rsp_iov, 0, sizeof(rsp_iov));
+
+	/* Open */
+	memset(&open_iov, 0, sizeof(open_iov));
+	rqst[0].rq_iov = open_iov;
+	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
+
+	oparms.tcon = tcon;
+	oparms.create_options = 0;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.fid = pfid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open_init(tcon, &rqst[0], &oplock, &oparms, &utf16_path);
+	if (rc)
+		goto oshr_exit;
+	smb2_set_next_command(tcon, &rqst[0]);
+
+	memset(&qi_iov, 0, sizeof(qi_iov));
+	rqst[1].rq_iov = qi_iov;
+	rqst[1].rq_nvec = 1;
+
+	rc = SMB2_query_info_init(tcon, &rqst[1], COMPOUND_FID,
+				  COMPOUND_FID, FILE_ALL_INFORMATION,
+				  SMB2_O_INFO_FILE, 0,
+				  sizeof(struct smb2_file_all_info) +
+				  PATH_MAX * 2, 0, NULL);
+	if (rc)
+		goto oshr_exit;
+
+	smb2_set_related(&rqst[1]);
+
+	rc = compound_send_recv(xid, ses, flags, 2, rqst,
+				resp_buftype, rsp_iov);
+	if (rc)
+		goto oshr_exit;
+
+	o_rsp = (struct smb2_create_rsp *)rsp_iov[0].iov_base;
+	oparms.fid->persistent_fid = o_rsp->PersistentFileId;
+	oparms.fid->volatile_fid = o_rsp->VolatileFileId;
+#ifdef CONFIG_CIFS_DEBUG2
+	oparms.fid->mid = le64_to_cpu(o_rsp->sync_hdr.MessageId);
+#endif /* CIFS_DEBUG2 */
+
+	if (o_rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
+		oplock = smb2_parse_lease_state(server, o_rsp,
+						&oparms.fid->epoch,
+						oparms.fid->lease_key);
+	else
+		goto oshr_exit;
+
+
+	memcpy(tcon->crfid.fid, pfid, sizeof(struct cifs_fid));
+	tcon->crfid.tcon = tcon;
+	tcon->crfid.is_valid = true;
+	kref_init(&tcon->crfid.refcount);
+	kref_get(&tcon->crfid.refcount);
+
+
+	qi_rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
+	if (le32_to_cpu(qi_rsp->OutputBufferLength) < sizeof(struct smb2_file_all_info))
+		goto oshr_exit;
+	rc = smb2_validate_and_copy_iov(
+				le16_to_cpu(qi_rsp->OutputBufferOffset),
+				sizeof(struct smb2_file_all_info),
+				&rsp_iov[1], sizeof(struct smb2_file_all_info),
+				(char *)&tcon->crfid.file_all_info);
+	if (rc)
+		goto oshr_exit;
+	tcon->crfid.file_all_info_is_valid = 1;
+
+ oshr_exit:
 	mutex_unlock(&tcon->crfid.fid_mutex);
+	SMB2_open_free(&rqst[0]);
+	SMB2_query_info_free(&rqst[1]);
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	return rc;
 }
 

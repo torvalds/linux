@@ -309,12 +309,17 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		rc = open_shroot(xid, tcon, &fid);
 		if (rc)
 			goto out;
-		rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
-				     fid.volatile_fid, smb2_data);
+
+		if (tcon->crfid.file_all_info_is_valid) {
+			move_smb2_info_to_cifs(data,
+					       &tcon->crfid.file_all_info);
+		} else {
+			rc = SMB2_query_info(xid, tcon, fid.persistent_fid,
+					     fid.volatile_fid, smb2_data);
+			if (!rc)
+				move_smb2_info_to_cifs(data, smb2_data);
+		}
 		close_shroot(&tcon->crfid);
-		if (rc)
-			goto out;
-		move_smb2_info_to_cifs(data, smb2_data);
 		goto out;
 	}
 

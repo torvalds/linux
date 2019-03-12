@@ -223,6 +223,9 @@ extern int smb3_validate_negotiate(const unsigned int, struct cifs_tcon *);
 
 extern enum securityEnum smb2_select_sectype(struct TCP_Server_Info *,
 					enum securityEnum);
+extern __u8 smb2_parse_lease_state(struct TCP_Server_Info *server,
+				   struct smb2_create_rsp *rsp,
+				   unsigned int *epoch, char *lease_key);
 extern int smb3_encryption_required(const struct cifs_tcon *tcon);
 extern int smb2_validate_iov(unsigned int offset, unsigned int buffer_length,
 			     struct kvec *iov, unsigned int min_buf_size);

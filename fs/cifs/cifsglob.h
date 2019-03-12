@@ -962,11 +962,14 @@ cap_unix(struct cifs_ses *ses)
 
 struct cached_fid {
 	bool is_valid:1;	/* Do we have a useable root fid */
+	bool file_all_info_is_valid:1;
+
 	struct kref refcount;
 	struct cifs_fid *fid;
 	struct mutex fid_mutex;
 	struct cifs_tcon *tcon;
 	struct work_struct lease_break;
+	struct smb2_file_all_info file_all_info;
 };
 
 /*
