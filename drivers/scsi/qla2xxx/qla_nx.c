@@ -2658,8 +2658,8 @@ done:
 /*
  * Address and length are byte address
  */
-uint8_t *
-qla82xx_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+void *
+qla82xx_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	uint32_t offset, uint32_t length)
 {
 	scsi_block_requests(vha->host);
@@ -2767,15 +2767,14 @@ write_done:
 }
 
 int
-qla82xx_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+qla82xx_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 	uint32_t offset, uint32_t length)
 {
 	int rval;
 
 	/* Suspend HBA. */
 	scsi_block_requests(vha->host);
-	rval = qla82xx_write_flash_data(vha, (uint32_t *)buf, offset,
-		length >> 2);
+	rval = qla82xx_write_flash_data(vha, buf, offset, length >> 2);
 	scsi_unblock_requests(vha->host);
 
 	/* Convert return ISP82xx to generic */
@@ -3699,8 +3698,8 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		/* Wait for pending cmds (physical and virtual) to complete */
-		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
-		    WAIT_HOST)) {
+		if (!qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+		    WAIT_HOST) == QLA_SUCCESS) {
 			ql_dbg(ql_dbg_init, vha, 0x00b3,
 			    "Done wait for "
 			    "pending commands.\n");

@@ -223,9 +223,9 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 	}
 
 	/* Write NVRAM. */
-	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->nvram_base, count);
-	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->nvram, ha->nvram_base,
-	     count);
+	ha->isp_ops->write_nvram(vha, buf, ha->nvram_base, count);
+	ha->isp_ops->read_nvram(vha, ha->nvram, ha->nvram_base,
+	    count);
 	mutex_unlock(&ha->optrom_mutex);
 
 	ql_dbg(ql_dbg_user, vha, 0x7060,
@@ -511,22 +511,24 @@ qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EINVAL;
 
-	if (IS_NOCACHE_VPD_TYPE(ha)) {
-		faddr = ha->flt_region_vpd << 2;
+	if (IS_NOCACHE_VPD_TYPE(ha))
+		goto skip;
 
-		if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
-		    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
-			faddr = ha->flt_region_vpd_sec << 2;
+	faddr = ha->flt_region_vpd << 2;
 
-		mutex_lock(&ha->optrom_mutex);
-		if (qla2x00_chip_is_down(vha)) {
-			mutex_unlock(&ha->optrom_mutex);
-			return -EAGAIN;
-		}
-		ha->isp_ops->read_optrom(vha, ha->vpd, faddr,
-		    ha->vpd_size);
+	if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
+	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
+		faddr = ha->flt_region_vpd_sec << 2;
+
+	mutex_lock(&ha->optrom_mutex);
+	if (qla2x00_chip_is_down(vha)) {
 		mutex_unlock(&ha->optrom_mutex);
+		return -EAGAIN;
 	}
+
+	ha->isp_ops->read_optrom(vha, ha->vpd, faddr, ha->vpd_size);
+	mutex_unlock(&ha->optrom_mutex);
+skip:
 	return memory_read_from_buffer(buf, count, &off, ha->vpd, ha->vpd_size);
 }
 
@@ -563,8 +565,8 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 	}
 
 	/* Write NVRAM. */
-	ha->isp_ops->write_nvram(vha, (uint8_t *)buf, ha->vpd_base, count);
-	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd, ha->vpd_base, count);
+	ha->isp_ops->write_nvram(vha, buf, ha->vpd_base, count);
+	ha->isp_ops->read_nvram(vha, ha->vpd, ha->vpd_base, count);
 
 	/* Update flash version information for 4Gb & above. */
 	if (!IS_FWI2_CAPABLE(ha)) {
@@ -934,7 +936,7 @@ static struct bin_attribute sysfs_dcbx_tlv_attr = {
 static struct sysfs_entry {
 	char *name;
 	struct bin_attribute *attr;
-	int is4GBp_only;
+	int type;
 } bin_file_entries[] = {
 	{ "fw_dump", &sysfs_fw_dump_attr, },
 	{ "nvram", &sysfs_nvram_attr, },
@@ -957,11 +959,11 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 	int ret;
 
 	for (iter = bin_file_entries; iter->name; iter++) {
-		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(vha->hw))
+		if (iter->type && !IS_FWI2_CAPABLE(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
+		if (iter->type == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !(IS_CNA_CAPABLE(vha->hw)))
+		if (iter->type == 3 && !(IS_CNA_CAPABLE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -985,14 +987,14 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 	struct qla_hw_data *ha = vha->hw;
 
 	for (iter = bin_file_entries; iter->name; iter++) {
-		if (iter->is4GBp_only && !IS_FWI2_CAPABLE(ha))
+		if (iter->type && !IS_FWI2_CAPABLE(ha))
 			continue;
-		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
+		if (iter->type == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !(IS_CNA_CAPABLE(vha->hw)))
+		if (iter->type == 3 && !(IS_CNA_CAPABLE(ha)))
 			continue;
-		if (iter->is4GBp_only == 0x27 &&
-		    (!IS_QLA27XX(vha->hw) || !IS_QLA28XX(ha)))
+		if (iter->type == 0x27 &&
+		    (!IS_QLA27XX(ha) || !IS_QLA28XX(ha)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -1360,19 +1362,20 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int rval = QLA_SUCCESS;
-	uint16_t status[2] = {0, 0};
+	uint16_t status[2] = { 0 };
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_QLA84XX(ha))
 		return scnprintf(buf, PAGE_SIZE, "\n");
 
-	if (ha->cs84xx->op_fw_version == 0)
+	if (!ha->cs84xx->op_fw_version) {
 		rval = qla84xx_verify_chip(vha, status);
 
-	if ((rval == QLA_SUCCESS) && (status[0] == 0))
-		return scnprintf(buf, PAGE_SIZE, "%u\n",
-			(uint32_t)ha->cs84xx->op_fw_version);
+		if (!rval && !status[0])
+			return scnprintf(buf, PAGE_SIZE, "%u\n",
+			    (uint32_t)ha->cs84xx->op_fw_version);
+	}
 
 	return scnprintf(buf, PAGE_SIZE, "\n");
 }

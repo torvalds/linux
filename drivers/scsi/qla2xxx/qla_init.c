@@ -4419,9 +4419,8 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	    nv->nvram_version < 1) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_warn, vha, 0x0064,
-		    "Inconsistent NVRAM "
-		    "detected: checksum=0x%x id=%c version=0x%x.\n",
-		    chksum, nv->id[0], nv->nvram_version);
+		    "Inconsistent NVRAM detected: checksum=%#x id=%.4s version=%#x.\n",
+		    chksum, nv->id, nv->nvram_version);
 		ql_log(ql_log_warn, vha, 0x0065,
 		    "Falling back to "
 		    "functioning (yet invalid -- WWPN) defaults.\n");
@@ -7007,13 +7006,12 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)ha->vpd,
+	ha->isp_ops->read_nvram(vha, ha->vpd,
 	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
 
 	/* Get NVRAM data into cache and calculate checksum. */
 	dptr = (uint32_t *)nv;
-	ha->isp_ops->read_nvram(vha, (uint8_t *)dptr, ha->nvram_base,
-	    ha->nvram_size);
+	ha->isp_ops->read_nvram(vha, dptr, ha->nvram_base, ha->nvram_size);
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
 
@@ -7027,9 +7025,9 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	    le16_to_cpu(nv->nvram_version) < ICB_VERSION) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_warn, vha, 0x006b,
-		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
-		    "version=0x%x.\n", chksum, nv->id[0], nv->nvram_version);
-		ql_dump_buffer(ql_dbg_init, vha, 0x006b, nv, 32);
+		    "Inconsistent NVRAM checksum=%#x id=%.4s version=%#x.\n",
+		    chksum, nv->id, nv->nvram_version);
+		ql_dump_buffer(ql_dbg_init, vha, 0x006b, nv, sizeof(*nv));
 		ql_log(ql_log_warn, vha, 0x006c,
 		    "Falling back to functioning (yet invalid -- WWPN) "
 		    "defaults.\n");
@@ -7418,6 +7416,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		fwdt->template = NULL;
 		fwdt->length = 0;
 
+		dcode = (void *)req->ring;
 		qla24xx_read_flash_data(vha, dcode, faddr, 7);
 		risc_size = be32_to_cpu(dcode[2]);
 		ql_dbg(ql_dbg_init, vha, 0x0161,
@@ -8020,10 +8019,9 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	    le16_to_cpu(nv->nvram_version) < ICB_VERSION) {
 		/* Reset NVRAM data. */
 		ql_log(ql_log_info, vha, 0x0073,
-		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
-		    "version=0x%x.\n", chksum, nv->id[0],
-		    le16_to_cpu(nv->nvram_version));
-		ql_dump_buffer(ql_dbg_init, vha, 0x0073, nv, 32);
+		    "Inconsistent NVRAM checksum=%#x id=%.4s version=%#x.\n",
+		    chksum, nv->id, le16_to_cpu(nv->nvram_version));
+		ql_dump_buffer(ql_dbg_init, vha, 0x0073, nv, sizeof(*nv));
 		ql_log(ql_log_info, vha, 0x0074,
 		    "Falling back to functioning (yet invalid -- WWPN) "
 		    "defaults.\n");

@@ -559,12 +559,12 @@ exit_lock_error:
 /*
  * Address and length are byte address
  */
-uint8_t *
-qla8044_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+void *
+qla8044_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	uint32_t offset, uint32_t length)
 {
 	scsi_block_requests(vha->host);
-	if (qla8044_read_flash_data(vha, (uint8_t *)buf, offset, length / 4)
+	if (qla8044_read_flash_data(vha, buf, offset, length / 4)
 	    != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha,  0xb08d,
 		    "%s: Failed to read from flash\n",
@@ -3797,7 +3797,7 @@ qla8044_write_flash_dword_mode(scsi_qla_host_t *vha, uint32_t *dwptr,
 }
 
 int
-qla8044_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
+qla8044_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 			  uint32_t offset, uint32_t length)
 {
 	int rval = QLA_FUNCTION_FAILED, i, burst_iter_count;

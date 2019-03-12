@@ -3161,9 +3161,9 @@ struct isp_operations {
 	void *(*prep_ms_fdmi_iocb) (struct scsi_qla_host *, uint32_t,
 	    uint32_t);
 
-	uint8_t *(*read_nvram) (struct scsi_qla_host *, uint8_t *,
+	uint8_t *(*read_nvram)(struct scsi_qla_host *, void *,
 		uint32_t, uint32_t);
-	int (*write_nvram) (struct scsi_qla_host *, uint8_t *, uint32_t,
+	int (*write_nvram)(struct scsi_qla_host *, void *, uint32_t,
 		uint32_t);
 
 	void (*fw_dump) (struct scsi_qla_host *, int);
@@ -3172,9 +3172,9 @@ struct isp_operations {
 	int (*beacon_off) (struct scsi_qla_host *);
 	void (*beacon_blink) (struct scsi_qla_host *);
 
-	uint8_t * (*read_optrom) (struct scsi_qla_host *, uint8_t *,
+	void *(*read_optrom)(struct scsi_qla_host *, void *,
 		uint32_t, uint32_t);
-	int (*write_optrom) (struct scsi_qla_host *, uint8_t *, uint32_t,
+	int (*write_optrom)(struct scsi_qla_host *, void *, uint32_t,
 		uint32_t);
 
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
