@@ -1357,8 +1357,9 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 			adev->asic_type != CHIP_VEGA20)
 		return;
 
-	if (amdgpu_atomfirmware_mem_ecc_supported(adev) ||
-			amdgpu_atomfirmware_sram_ecc_supported(adev))
+	if (adev->is_atom_fw &&
+			(amdgpu_atomfirmware_mem_ecc_supported(adev) ||
+			 amdgpu_atomfirmware_sram_ecc_supported(adev)))
 		*hw_supported = AMDGPU_RAS_BLOCK_MASK;
 
 	*supported = amdgpu_ras_enable == 0 ?
@@ -1398,6 +1399,10 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		goto fs_out;
 
 	amdgpu_ras_self_test(adev);
+
+	DRM_INFO("RAS INFO: ras initialized successfully, "
+			"hardware ability[%x] ras_mask[%x]\n",
+			con->hw_supported, con->supported);
 	return 0;
 fs_out:
 	amdgpu_ras_recovery_fini(adev);
