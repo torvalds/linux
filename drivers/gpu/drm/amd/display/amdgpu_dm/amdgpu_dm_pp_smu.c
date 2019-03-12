@@ -509,30 +509,6 @@ bool dm_pp_get_static_clocks(
 	return true;
 }
 
-void pp_rv_set_display_requirement(struct pp_smu *pp,
-		struct pp_smu_display_requirement_rv *req)
-{
-	const struct dc_context *ctx = pp->dm;
-	struct amdgpu_device *adev = ctx->driver_context;
-	void *pp_handle = adev->powerplay.pp_handle;
-	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
-	struct pp_display_clock_request clock = {0};
-
-	clock.clock_type = amd_pp_dcf_clock;
-	clock.clock_freq_in_khz = req->hard_min_dcefclk_mhz * 1000;
-	if (pp_funcs && pp_funcs->display_clock_voltage_request)
-		pp_funcs->display_clock_voltage_request(pp_handle, &clock);
-	else if (adev->smu.funcs && adev->smu.funcs->display_clock_voltage_request)
-		smu_display_clock_voltage_request(&adev->smu, &clock);
-
-	clock.clock_type = amd_pp_f_clock;
-	clock.clock_freq_in_khz = req->hard_min_fclk_mhz * 1000;
-	if (pp_funcs && pp_funcs->display_clock_voltage_request)
-		pp_funcs->display_clock_voltage_request(pp_handle, &clock);
-	else if (adev->smu.funcs && adev->smu.funcs->display_clock_voltage_request)
-		smu_display_clock_voltage_request(&adev->smu, &clock);
-}
-
 void pp_rv_set_wm_ranges(struct pp_smu *pp,
 		struct pp_smu_wm_range_sets *ranges)
 {
@@ -659,7 +635,6 @@ void dm_pp_get_funcs(
 		struct pp_smu_funcs *funcs)
 {
 	funcs->rv_funcs.pp_smu.dm = ctx;
-	funcs->rv_funcs.set_display_requirement = pp_rv_set_display_requirement;
 	funcs->rv_funcs.set_wm_ranges = pp_rv_set_wm_ranges;
 	funcs->rv_funcs.set_pme_wa_enable = pp_rv_set_pme_wa_enable;
 	funcs->rv_funcs.set_display_count = pp_rv_set_active_display_count;

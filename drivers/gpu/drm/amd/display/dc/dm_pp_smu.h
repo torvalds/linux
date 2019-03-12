@@ -139,12 +139,6 @@ struct pp_smu_funcs_rv {
 	/* PME w/a */
 	void (*set_pme_wa_enable)(struct pp_smu *pp);
 
-	/*
-	 * Legacy functions.  Used for backwards comp. with existing
-	 * PPlib code.
-	 */
-	void (*set_display_requirement)(struct pp_smu *pp,
-			struct pp_smu_display_requirement_rv *req);
 };
 
 struct pp_smu_funcs {
