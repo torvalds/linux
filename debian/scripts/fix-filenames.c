@@ -48,7 +48,6 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	size = in_info.st_size;
-	printf("%s %ld bytes\n", in_name, size);
 
 	in = mmap((void *)0, size, PROT_READ|PROT_WRITE, MAP_SHARED, in_fd, (off_t)0);
 	if (!in) {
