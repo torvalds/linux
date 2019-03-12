@@ -3620,7 +3620,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
 	struct vmw_fence_obj *fence = NULL;
 	struct vmw_cmdbuf_header *header;
-	uint32_t handle;
+	uint32_t handle = 0;
 	int ret;
 	int32_t out_fence_fd = -1;
 	struct sync_file *sync_file = NULL;
