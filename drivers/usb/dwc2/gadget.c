@@ -2166,6 +2166,11 @@ static void dwc2_gadget_complete_isoc_request_ddma(struct dwc2_hsotg_ep *hs_ep)
 			 */
 			if (!hs_ep->dir_in && ureq->length & 0x3)
 				ureq->actual += 4 - (ureq->length & 0x3);
+
+			/* Set actual frame number for completed transfers */
+			ureq->frame_number =
+				(desc_sts & DEV_DMA_ISOC_FRNUM_MASK) >>
+				DEV_DMA_ISOC_FRNUM_SHIFT;
 		}
 
 		dwc2_hsotg_complete_request(hsotg, hs_ep, hs_req, 0);
