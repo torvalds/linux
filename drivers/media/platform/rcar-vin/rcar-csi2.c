@@ -14,6 +14,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/sys_soc.h>
 
 #include <media/v4l2-ctrls.h>
@@ -350,6 +351,7 @@ struct rcar_csi2 {
 	struct device *dev;
 	void __iomem *base;
 	const struct rcar_csi2_info *info;
+	struct reset_control *rstc;
 
 	struct v4l2_subdev subdev;
 	struct media_pad pads[NR_OF_RCAR_CSI2_PAD];
@@ -387,11 +389,19 @@ static void rcsi2_write(struct rcar_csi2 *priv, unsigned int reg, u32 data)
 	iowrite32(data, priv->base + reg);
 }
 
-static void rcsi2_reset(struct rcar_csi2 *priv)
+static void rcsi2_enter_standby(struct rcar_csi2 *priv)
 {
-	rcsi2_write(priv, SRST_REG, SRST_SRST);
+	rcsi2_write(priv, PHYCNT_REG, 0);
+	rcsi2_write(priv, PHTC_REG, PHTC_TESTCLR);
+	reset_control_assert(priv->rstc);
 	usleep_range(100, 150);
-	rcsi2_write(priv, SRST_REG, 0);
+	pm_runtime_put(priv->dev);
+}
+
+static void rcsi2_exit_standby(struct rcar_csi2 *priv)
+{
+	pm_runtime_get_sync(priv->dev);
+	reset_control_deassert(priv->rstc);
 }
 
 static int rcsi2_wait_phy_start(struct rcar_csi2 *priv)
@@ -462,7 +472,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
 	return mbps;
 }
 
-static int rcsi2_start(struct rcar_csi2 *priv)
+static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 {
 	const struct rcar_csi2_format *format;
 	u32 phycnt, vcdt = 0, vcdt2 = 0;
@@ -506,7 +516,6 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 
 	/* Init */
 	rcsi2_write(priv, TREF_REG, TREF_TREF);
-	rcsi2_reset(priv);
 	rcsi2_write(priv, PHTC_REG, 0);
 
 	/* Configure */
@@ -564,19 +573,36 @@ static int rcsi2_start(struct rcar_csi2 *priv)
 	return 0;
 }
 
+static int rcsi2_start(struct rcar_csi2 *priv)
+{
+	int ret;
+
+	rcsi2_exit_standby(priv);
+
+	ret = rcsi2_start_receiver(priv);
+	if (ret) {
+		rcsi2_enter_standby(priv);
+		return ret;
+	}
+
+	ret = v4l2_subdev_call(priv->remote, video, s_stream, 1);
+	if (ret) {
+		rcsi2_enter_standby(priv);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void rcsi2_stop(struct rcar_csi2 *priv)
 {
-	rcsi2_write(priv, PHYCNT_REG, 0);
-
-	rcsi2_reset(priv);
-
-	rcsi2_write(priv, PHTC_REG, PHTC_TESTCLR);
+	rcsi2_enter_standby(priv);
+	v4l2_subdev_call(priv->remote, video, s_stream, 0);
 }
 
 static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rcar_csi2 *priv = sd_to_csi2(sd);
-	struct v4l2_subdev *nextsd;
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
@@ -586,27 +612,12 @@ static int rcsi2_s_stream(struct v4l2_subdev *sd, int enable)
 		goto out;
 	}
 
-	nextsd = priv->remote;
-
 	if (enable && priv->stream_count == 0) {
-		pm_runtime_get_sync(priv->dev);
-
 		ret = rcsi2_start(priv);
-		if (ret) {
-			pm_runtime_put(priv->dev);
+		if (ret)
 			goto out;
-		}
-
-		ret = v4l2_subdev_call(nextsd, video, s_stream, 1);
-		if (ret) {
-			rcsi2_stop(priv);
-			pm_runtime_put(priv->dev);
-			goto out;
-		}
 	} else if (!enable && priv->stream_count == 1) {
 		rcsi2_stop(priv);
-		v4l2_subdev_call(nextsd, video, s_stream, 0);
-		pm_runtime_put(priv->dev);
 	}
 
 	priv->stream_count += enable ? 1 : -1;
@@ -935,6 +946,10 @@ static int rcsi2_probe_resources(struct rcar_csi2 *priv,
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
+
+	priv->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->rstc))
+		return PTR_ERR(priv->rstc);
 
 	return 0;
 }

@@ -3,6 +3,7 @@ config VIDEO_RCAR_CSI2
 	tristate "R-Car MIPI CSI-2 Receiver"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
+	select RESET_CONTROLLER
 	select V4L2_FWNODE
 	help
 	  Support for Renesas R-Car MIPI CSI-2 receiver.
