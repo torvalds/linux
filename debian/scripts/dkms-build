@@ -163,9 +163,14 @@ done
 # it the original source directory, destination package directory, the objects
 # as squirreled away, and the log in case it is useful.  Finally pass a formed
 # signing command line in case we need to do that.
-dkms_build="$srcdir/$0--$package"
-if [ -e "$dkms_build" ]; then
-	echo "II: dkms-build override $package found, executing"
+dkms_build_specific="$srcdir/$0--$package"
+dkms_build_generic=$(echo "$dkms_build_specific" | sed -e 's/-[0-9][0-9]*$/-N/')
+for dkms_build in "$dkms_build_specific" "$dkms_build_generic"
+do
+	if [ ! -e "$dkms_build" ]; then
+		continue
+	fi
+	echo "II: dkms-build override $(basename "$dkms_build") found, executing"
 	$SHELL "$dkms_build" \
 		"$srcdir" \
 		"$dkms_dir/build/$dkms_package/$dkms_version/objects" \
@@ -177,6 +182,7 @@ if [ -e "$dkms_build" ]; then
 		"$pkgdir" \
 		"$package" \
 		"$@" || exit 1
-fi
+	break
+done
 
 echo "II: dkms-build build $package complete"
