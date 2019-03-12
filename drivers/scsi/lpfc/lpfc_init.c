@@ -3250,6 +3250,13 @@ void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		lpfc_destroy_expedite_pool(phba);
 
+	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+		lpfc_sli_flush_fcp_rings(phba);
+
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+			lpfc_sli_flush_nvme_rings(phba);
+	}
+
 	hwq_count = phba->cfg_hdw_queue;
 
 	for (i = 0; i < hwq_count; i++) {
