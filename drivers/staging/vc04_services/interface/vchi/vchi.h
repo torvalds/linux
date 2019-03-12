@@ -67,8 +67,8 @@ struct opaque_vchi_service_t;
 // Descriptor for a held message. Allocated by client, initialised by vchi_msg_hold,
 // vchi_msg_iter_hold or vchi_msg_iter_hold_next. Fields are for internal VCHI use only.
 struct vchi_held_msg {
-   struct opaque_vchi_service_t *service;
-   void *message;
+	struct opaque_vchi_service_t *service;
+	void *message;
 };
 
 // structure used to provide the information needed to open a server or a client
