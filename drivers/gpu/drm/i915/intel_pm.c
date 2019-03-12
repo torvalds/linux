@@ -4695,14 +4695,12 @@ static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
 }
 
 static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
-				 const struct intel_plane_state *intel_pstate,
 				 int level,
 				 const struct skl_wm_params *wp,
 				 const struct skl_wm_level *result_prev,
 				 struct skl_wm_level *result /* out */)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(intel_pstate->base.plane->dev);
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
 	u32 latency = dev_priv->wm.skl_latency[level];
 	uint_fixed_16_16_t method1, method2;
 	uint_fixed_16_16_t selected_result;
@@ -4821,19 +4819,17 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 
 static void
 skl_compute_wm_levels(const struct intel_crtc_state *cstate,
-		      const struct intel_plane_state *intel_pstate,
 		      const struct skl_wm_params *wm_params,
 		      struct skl_wm_level *levels)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(intel_pstate->base.plane->dev);
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	struct skl_wm_level *result_prev = &levels[0];
 
 	for (level = 0; level <= max_level; level++) {
 		struct skl_wm_level *result = &levels[level];
 
-		skl_compute_plane_wm(cstate, intel_pstate, level, wm_params,
+		skl_compute_plane_wm(cstate, level, wm_params,
 				     result_prev, result);
 
 		result_prev = result;
@@ -4930,7 +4926,7 @@ static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	skl_compute_wm_levels(crtc_state, plane_state, &wm_params, wm->wm);
+	skl_compute_wm_levels(crtc_state, &wm_params, wm->wm);
 	skl_compute_transition_wm(crtc_state, &wm_params, wm);
 
 	return 0;
@@ -4952,7 +4948,7 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	skl_compute_wm_levels(crtc_state, plane_state, &wm_params, wm->uv_wm);
+	skl_compute_wm_levels(crtc_state, &wm_params, wm->uv_wm);
 
 	return 0;
 }
