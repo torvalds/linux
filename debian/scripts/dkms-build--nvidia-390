@@ -15,9 +15,12 @@ shift 6
 
 build="$( dirname "$objects" )/build"
 
-# Copy over the objects ready for reconstruction.
+# Copy over the objects ready for reconstruction.  The objects copy contains
+# the *.o files and the *.o-ur* retpoline files to allow the kernel to track
+# any retpoline sequences therein.  For our purposes we only want the *.o
+# files, elide the rest.
 mkdir -p "$pkgdir/bits/scripts"
-cp -rp "$objects"/* "$pkgdir/bits"
+(cd "$objects" && find -name \*.o | cpio -Lpd "$pkgdir/bits")
 
 # Install the support files we need.
 cp "$srcdir/scripts/module-common.lds" "$pkgdir/bits/scripts"
