@@ -332,7 +332,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt->idle_timeout = RPCRDMA_IDLE_DISC_TO;
 
 	xprt->resvport = 0;		/* privileged port not needed */
-	xprt->tsh_size = 0;		/* RPC-RDMA handles framing */
 	xprt->ops = &xprt_rdma_procs;
 
 	/*
@@ -738,7 +737,6 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 		goto drop_connection;
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
-	rqst->rq_bytes_sent = 0;
 
 	/* An RPC with no reply will throw off credit accounting,
 	 * so drop the connection to reset the credit grant.

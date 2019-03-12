@@ -235,7 +235,8 @@ out:
 		list_empty(&xprt->bc_pa_list) ? "true" : "false");
 }
 
-static struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt, __be32 xid)
+static struct rpc_rqst *xprt_get_bc_request(struct rpc_xprt *xprt, __be32 xid,
+		struct rpc_rqst *new)
 {
 	struct rpc_rqst *req = NULL;
 
@@ -243,22 +244,20 @@ static struct rpc_rqst *xprt_alloc_bc_request(struct rpc_xprt *xprt, __be32 xid)
 	if (atomic_read(&xprt->bc_free_slots) <= 0)
 		goto not_found;
 	if (list_empty(&xprt->bc_pa_list)) {
-		req = xprt_alloc_bc_req(xprt, GFP_ATOMIC);
-		if (!req)
+		if (!new)
 			goto not_found;
-		list_add_tail(&req->rq_bc_pa_list, &xprt->bc_pa_list);
+		list_add_tail(&new->rq_bc_pa_list, &xprt->bc_pa_list);
 		xprt->bc_alloc_count++;
 	}
 	req = list_first_entry(&xprt->bc_pa_list, struct rpc_rqst,
 				rq_bc_pa_list);
 	req->rq_reply_bytes_recvd = 0;
-	req->rq_bytes_sent = 0;
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
 			sizeof(req->rq_private_buf));
 	req->rq_xid = xid;
 	req->rq_connect_cookie = xprt->connect_cookie;
-not_found:
 	dprintk("RPC:       backchannel req=%p\n", req);
+not_found:
 	return req;
 }
 
@@ -321,18 +320,27 @@ void xprt_free_bc_rqst(struct rpc_rqst *req)
  */
 struct rpc_rqst *xprt_lookup_bc_request(struct rpc_xprt *xprt, __be32 xid)
 {
-	struct rpc_rqst *req;
+	struct rpc_rqst *req, *new = NULL;
 
-	spin_lock(&xprt->bc_pa_lock);
-	list_for_each_entry(req, &xprt->bc_pa_list, rq_bc_pa_list) {
-		if (req->rq_connect_cookie != xprt->connect_cookie)
-			continue;
-		if (req->rq_xid == xid)
-			goto found;
-	}
-	req = xprt_alloc_bc_request(xprt, xid);
+	do {
+		spin_lock(&xprt->bc_pa_lock);
+		list_for_each_entry(req, &xprt->bc_pa_list, rq_bc_pa_list) {
+			if (req->rq_connect_cookie != xprt->connect_cookie)
+				continue;
+			if (req->rq_xid == xid)
+				goto found;
+		}
+		req = xprt_get_bc_request(xprt, xid, new);
 found:
-	spin_unlock(&xprt->bc_pa_lock);
+		spin_unlock(&xprt->bc_pa_lock);
+		if (new) {
+			if (req != new)
+				xprt_free_bc_rqst(new);
+			break;
+		} else if (req)
+			break;
+		new = xprt_alloc_bc_req(xprt, GFP_KERNEL);
+	} while (new);
 	return req;
 }
 

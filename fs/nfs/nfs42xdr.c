@@ -51,6 +51,15 @@
 					1 /* opaque devaddr4 length */ + \
 					XDR_QUADLEN(PNFS_LAYOUTSTATS_MAXSIZE))
 #define decode_layoutstats_maxsz	(op_decode_hdr_maxsz)
+#define encode_device_error_maxsz	(XDR_QUADLEN(NFS4_DEVICEID4_SIZE) + \
+					1 /* status */ + 1 /* opnum */)
+#define encode_layouterror_maxsz	(op_decode_hdr_maxsz + \
+					2 /* offset */ + \
+					2 /* length */ + \
+					encode_stateid_maxsz + \
+					1 /* Array size */ + \
+					encode_device_error_maxsz)
+#define decode_layouterror_maxsz	(op_decode_hdr_maxsz)
 #define encode_clone_maxsz		(encode_stateid_maxsz + \
 					encode_stateid_maxsz + \
 					2 /* src offset */ + \
@@ -59,43 +68,53 @@
 #define decode_clone_maxsz		(op_decode_hdr_maxsz)
 
 #define NFS4_enc_allocate_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_allocate_maxsz + \
 					 encode_getattr_maxsz)
 #define NFS4_dec_allocate_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_allocate_maxsz + \
 					 decode_getattr_maxsz)
 #define NFS4_enc_copy_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_savefh_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_copy_maxsz + \
 					 encode_commit_maxsz)
 #define NFS4_dec_copy_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_savefh_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_copy_maxsz + \
 					 decode_commit_maxsz)
 #define NFS4_enc_offload_cancel_sz	(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_offload_cancel_maxsz)
 #define NFS4_dec_offload_cancel_sz	(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_offload_cancel_maxsz)
 #define NFS4_enc_deallocate_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_deallocate_maxsz + \
 					 encode_getattr_maxsz)
 #define NFS4_dec_deallocate_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_deallocate_maxsz + \
 					 decode_getattr_maxsz)
 #define NFS4_enc_seek_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_seek_maxsz)
 #define NFS4_dec_seek_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_seek_maxsz)
 #define NFS4_enc_layoutstats_sz		(compound_encode_hdr_maxsz + \
@@ -106,6 +125,16 @@
 					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 PNFS_LAYOUTSTATS_MAXDEV * decode_layoutstats_maxsz)
+#define NFS4_enc_layouterror_sz		(compound_encode_hdr_maxsz + \
+					 encode_sequence_maxsz + \
+					 encode_putfh_maxsz + \
+					 NFS42_LAYOUTERROR_MAX * \
+					 encode_layouterror_maxsz)
+#define NFS4_dec_layouterror_sz		(compound_decode_hdr_maxsz + \
+					 decode_sequence_maxsz + \
+					 decode_putfh_maxsz + \
+					 NFS42_LAYOUTERROR_MAX * \
+					 decode_layouterror_maxsz)
 #define NFS4_enc_clone_sz		(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
@@ -221,6 +250,34 @@ static void encode_clone(struct xdr_stream *xdr,
 	p = xdr_encode_hyper(p, args->src_offset);
 	p = xdr_encode_hyper(p, args->dst_offset);
 	xdr_encode_hyper(p, args->count);
+}
+
+static void encode_device_error(struct xdr_stream *xdr,
+				const struct nfs42_device_error *error)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, NFS4_DEVICEID4_SIZE + 2*4);
+	p = xdr_encode_opaque_fixed(p, error->dev_id.data,
+			NFS4_DEVICEID4_SIZE);
+	*p++ = cpu_to_be32(error->status);
+	*p = cpu_to_be32(error->opnum);
+}
+
+static void encode_layouterror(struct xdr_stream *xdr,
+			       const struct nfs42_layout_error *args,
+			       struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	encode_op_hdr(xdr, OP_LAYOUTERROR, decode_layouterror_maxsz, hdr);
+	p = reserve_space(xdr, 8 + 8);
+	p = xdr_encode_hyper(p, args->offset);
+	p = xdr_encode_hyper(p, args->length);
+	encode_nfs4_stateid(xdr, &args->stateid);
+	p = reserve_space(xdr, 4);
+	*p = cpu_to_be32(1);
+	encode_device_error(xdr, &args->errors[0]);
 }
 
 /*
@@ -381,6 +438,27 @@ static void nfs4_xdr_enc_clone(struct rpc_rqst *req,
 	encode_nops(&hdr);
 }
 
+/*
+ * Encode LAYOUTERROR request
+ */
+static void nfs4_xdr_enc_layouterror(struct rpc_rqst *req,
+				     struct xdr_stream *xdr,
+				     const void *data)
+{
+	const struct nfs42_layouterror_args *args = data;
+	struct compound_hdr hdr = {
+		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+	};
+	int i;
+
+	encode_compound_hdr(xdr, req, &hdr);
+	encode_sequence(xdr, &args->seq_args, &hdr);
+	encode_putfh(xdr, NFS_FH(args->inode), &hdr);
+	for (i = 0; i < args->num_errors; i++)
+		encode_layouterror(xdr, &args->errors[i], &hdr);
+	encode_nops(&hdr);
+}
+
 static int decode_allocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
 {
 	return decode_op_hdr(xdr, OP_ALLOCATE);
@@ -394,7 +472,7 @@ static int decode_write_response(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
-		goto out_overflow;
+		return -EIO;
 	count = be32_to_cpup(p);
 	if (count > 1)
 		return -EREMOTEIO;
@@ -402,18 +480,14 @@ static int decode_write_response(struct xdr_stream *xdr,
 		status = decode_opaque_fixed(xdr, &res->stateid,
 				NFS4_STATEID_SIZE);
 		if (unlikely(status))
-			goto out_overflow;
+			return -EIO;
 	}
 	p = xdr_inline_decode(xdr, 8 + 4);
 	if (unlikely(!p))
-		goto out_overflow;
+		return -EIO;
 	p = xdr_decode_hyper(p, &res->count);
 	res->verifier.committed = be32_to_cpup(p);
 	return decode_verifier(xdr, &res->verifier.verifier);
-
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 static int decode_copy_requirements(struct xdr_stream *xdr,
@@ -422,14 +496,11 @@ static int decode_copy_requirements(struct xdr_stream *xdr,
 
 	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(!p))
-		goto out_overflow;
+		return -EIO;
 
 	res->consecutive = be32_to_cpup(p++);
 	res->synchronous = be32_to_cpup(p++);
 	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 static int decode_copy(struct xdr_stream *xdr, struct nfs42_copy_res *res)
@@ -474,15 +545,11 @@ static int decode_seek(struct xdr_stream *xdr, struct nfs42_seek_res *res)
 
 	p = xdr_inline_decode(xdr, 4 + 8);
 	if (unlikely(!p))
-		goto out_overflow;
+		return -EIO;
 
 	res->sr_eof = be32_to_cpup(p++);
 	p = xdr_decode_hyper(p, &res->sr_offset);
 	return 0;
-
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 
 static int decode_layoutstats(struct xdr_stream *xdr)
@@ -493,6 +560,11 @@ static int decode_layoutstats(struct xdr_stream *xdr)
 static int decode_clone(struct xdr_stream *xdr)
 {
 	return decode_op_hdr(xdr, OP_CLONE);
+}
+
+static int decode_layouterror(struct xdr_stream *xdr)
+{
+	return decode_op_hdr(xdr, OP_LAYOUTERROR);
 }
 
 /*
@@ -699,6 +771,32 @@ static int nfs4_xdr_dec_clone(struct rpc_rqst *rqstp,
 		goto out;
 	status = decode_getfattr(xdr, res->dst_fattr, res->server);
 
+out:
+	res->rpc_status = status;
+	return status;
+}
+
+/*
+ * Decode LAYOUTERROR request
+ */
+static int nfs4_xdr_dec_layouterror(struct rpc_rqst *rqstp,
+				    struct xdr_stream *xdr,
+				    void *data)
+{
+	struct nfs42_layouterror_res *res = data;
+	struct compound_hdr hdr;
+	int status, i;
+
+	status = decode_compound_hdr(xdr, &hdr);
+	if (status)
+		goto out;
+	status = decode_sequence(xdr, &res->seq_res, rqstp);
+	if (status)
+		goto out;
+	status = decode_putfh(xdr);
+
+	for (i = 0; i < res->num_errors && status == 0; i++)
+		status = decode_layouterror(xdr);
 out:
 	res->rpc_status = status;
 	return status;

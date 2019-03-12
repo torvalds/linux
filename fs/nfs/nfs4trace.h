@@ -524,6 +524,31 @@ TRACE_EVENT(nfs4_setup_sequence,
 		)
 );
 
+TRACE_EVENT(nfs4_xdr_status,
+		TP_PROTO(
+			u32 op,
+			int error
+		),
+
+		TP_ARGS(op, error),
+
+		TP_STRUCT__entry(
+			__field(u32, op)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->op = op;
+			__entry->error = -error;
+		),
+
+		TP_printk(
+			"operation %d: nfs status %d (%s)",
+			__entry->op,
+			__entry->error, show_nfsv4_errors(__entry->error)
+		)
+);
+
 DECLARE_EVENT_CLASS(nfs4_open_event,
 		TP_PROTO(
 			const struct nfs_open_context *ctx,
