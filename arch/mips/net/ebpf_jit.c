@@ -22,6 +22,7 @@
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
 #include <asm/cpu-features.h>
+#include <asm/isa-rev.h>
 #include <asm/uasm.h>
 
 /* Registers used by JIT */
@@ -677,8 +678,12 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (insn->imm == 1) /* Mult by 1 is a nop */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
-		emit_instr(ctx, dmultu, MIPS_R_AT, dst);
-		emit_instr(ctx, mflo, dst);
+		if (MIPS_ISA_REV >= 6) {
+			emit_instr(ctx, dmulu, dst, dst, MIPS_R_AT);
+		} else {
+			emit_instr(ctx, dmultu, MIPS_R_AT, dst);
+			emit_instr(ctx, mflo, dst);
+		}
 		break;
 	case BPF_ALU64 | BPF_NEG | BPF_K: /* ALU64_IMM */
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
@@ -700,8 +705,12 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		if (insn->imm == 1) /* Mult by 1 is a nop */
 			break;
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
-		emit_instr(ctx, multu, dst, MIPS_R_AT);
-		emit_instr(ctx, mflo, dst);
+		if (MIPS_ISA_REV >= 6) {
+			emit_instr(ctx, mulu, dst, dst, MIPS_R_AT);
+		} else {
+			emit_instr(ctx, multu, dst, MIPS_R_AT);
+			emit_instr(ctx, mflo, dst);
+		}
 		break;
 	case BPF_ALU | BPF_NEG | BPF_K: /* ALU_IMM */
 		dst = ebpf_to_mips_reg(ctx, insn, dst_reg);
@@ -732,6 +741,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		}
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
+		if (MIPS_ISA_REV >= 6) {
+			if (bpf_op == BPF_DIV)
+				emit_instr(ctx, divu_r6, dst, dst, MIPS_R_AT);
+			else
+				emit_instr(ctx, modu, dst, dst, MIPS_R_AT);
+			break;
+		}
 		emit_instr(ctx, divu, dst, MIPS_R_AT);
 		if (bpf_op == BPF_DIV)
 			emit_instr(ctx, mflo, dst);
@@ -754,6 +770,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		}
 		gen_imm_to_reg(insn, MIPS_R_AT, ctx);
+		if (MIPS_ISA_REV >= 6) {
+			if (bpf_op == BPF_DIV)
+				emit_instr(ctx, ddivu_r6, dst, dst, MIPS_R_AT);
+			else
+				emit_instr(ctx, modu, dst, dst, MIPS_R_AT);
+			break;
+		}
 		emit_instr(ctx, ddivu, dst, MIPS_R_AT);
 		if (bpf_op == BPF_DIV)
 			emit_instr(ctx, mflo, dst);
@@ -819,11 +842,23 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			emit_instr(ctx, and, dst, dst, src);
 			break;
 		case BPF_MUL:
-			emit_instr(ctx, dmultu, dst, src);
-			emit_instr(ctx, mflo, dst);
+			if (MIPS_ISA_REV >= 6) {
+				emit_instr(ctx, dmulu, dst, dst, src);
+			} else {
+				emit_instr(ctx, dmultu, dst, src);
+				emit_instr(ctx, mflo, dst);
+			}
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
+			if (MIPS_ISA_REV >= 6) {
+				if (bpf_op == BPF_DIV)
+					emit_instr(ctx, ddivu_r6,
+							dst, dst, src);
+				else
+					emit_instr(ctx, modu, dst, dst, src);
+				break;
+			}
 			emit_instr(ctx, ddivu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
@@ -903,6 +938,13 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_DIV:
 		case BPF_MOD:
+			if (MIPS_ISA_REV >= 6) {
+				if (bpf_op == BPF_DIV)
+					emit_instr(ctx, divu_r6, dst, dst, src);
+				else
+					emit_instr(ctx, modu, dst, dst, src);
+				break;
+			}
 			emit_instr(ctx, divu, dst, src);
 			if (bpf_op == BPF_DIV)
 				emit_instr(ctx, mflo, dst);
@@ -1006,8 +1048,15 @@ static int build_one_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			emit_instr(ctx, dsubu, MIPS_R_T8, dst, src);
 			emit_instr(ctx, sltu, MIPS_R_AT, dst, src);
 			/* SP known to be non-zero, movz becomes boolean not */
-			emit_instr(ctx, movz, MIPS_R_T9, MIPS_R_SP, MIPS_R_T8);
-			emit_instr(ctx, movn, MIPS_R_T9, MIPS_R_ZERO, MIPS_R_T8);
+			if (MIPS_ISA_REV >= 6) {
+				emit_instr(ctx, seleqz, MIPS_R_T9,
+						MIPS_R_SP, MIPS_R_T8);
+			} else {
+				emit_instr(ctx, movz, MIPS_R_T9,
+						MIPS_R_SP, MIPS_R_T8);
+				emit_instr(ctx, movn, MIPS_R_T9,
+						MIPS_R_ZERO, MIPS_R_T8);
+			}
 			emit_instr(ctx, or, MIPS_R_AT, MIPS_R_T9, MIPS_R_AT);
 			cmp_eq = bpf_op == BPF_JGT;
 			dst = MIPS_R_AT;
@@ -1366,6 +1415,17 @@ jeq_common:
 		if (src < 0)
 			return src;
 		if (BPF_MODE(insn->code) == BPF_XADD) {
+			/*
+			 * If mem_off does not fit within the 9 bit ll/sc
+			 * instruction immediate field, use a temp reg.
+			 */
+			if (MIPS_ISA_REV >= 6 &&
+			    (mem_off >= BIT(8) || mem_off < -BIT(8))) {
+				emit_instr(ctx, daddiu, MIPS_R_T6,
+						dst, mem_off);
+				mem_off = 0;
+				dst = MIPS_R_T6;
+			}
 			switch (BPF_SIZE(insn->code)) {
 			case BPF_W:
 				if (get_reg_val_type(ctx, this_idx, insn->src_reg) == REG_32BIT) {
@@ -1720,7 +1780,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	unsigned int image_size;
 	u8 *image_ptr;
 
-	if (!prog->jit_requested || !cpu_has_mips64r2)
+	if (!prog->jit_requested || MIPS_ISA_REV < 2)
 		return prog;
 
 	tmp = bpf_jit_blind_constants(prog);
