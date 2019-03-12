@@ -185,10 +185,8 @@ static int xlr_net_fill_rx_ring(struct net_device *ndev)
 
 	for (i = 0; i < MAX_FRIN_SPILL / 4; i++) {
 		skb_data = xlr_alloc_skb();
-		if (!skb_data) {
-			netdev_err(ndev, "SKB allocation failed\n");
+		if (!skb_data)
 			return -ENOMEM;
-		}
 		send_to_rfr_fifo(priv, skb_data);
 	}
 	netdev_info(ndev, "Rx ring setup done\n");
