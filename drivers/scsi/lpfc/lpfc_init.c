@@ -1117,19 +1117,19 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 
 		}
 	}
+	spin_unlock_irq(&phba->hbalock);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		spin_lock_irq(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_splice_init(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 &nvmet_aborts);
-		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		spin_unlock_irq(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_for_each_entry_safe(ctxp, ctxp_next, &nvmet_aborts, list) {
 			ctxp->flag &= ~(LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP);
 			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 		}
 	}
 
-	spin_unlock_irq(&phba->hbalock);
 	lpfc_sli4_free_sp_events(phba);
 	return cnt;
 }
