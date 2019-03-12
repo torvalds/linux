@@ -35,7 +35,7 @@ static struct dyn_event_operations trace_kprobe_ops = {
 	.match = trace_kprobe_match,
 };
 
-/**
+/*
  * Kprobe event core functions
  */
 struct trace_kprobe {
