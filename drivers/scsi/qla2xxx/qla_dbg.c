@@ -111,30 +111,25 @@ int
 qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 	uint32_t ram_dwords, void **nxt)
 {
-	int rval;
-	uint32_t cnt, stat, timer, dwords, idx;
-	uint16_t mb0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t dump_dma = ha->gid_list_dma;
-	uint32_t *dump = (uint32_t *)ha->gid_list;
+	uint32_t *chunk = (void *)ha->gid_list;
+	uint32_t dwords = qla2x00_gid_list_size(ha) / 4;
+	uint32_t stat;
+	ulong i, j, timer = 6000000;
+	int rval = QLA_FUNCTION_FAILED;
 
-	rval = QLA_SUCCESS;
-	mb0 = 0;
-
-	WRT_REG_WORD(&reg->mailbox0, MBC_LOAD_DUMP_MPI_RAM);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+	for (i = 0; i < ram_dwords; i += dwords, addr += dwords) {
+		if (i + dwords > ram_dwords)
+			dwords = ram_dwords - i;
 
-	dwords = qla2x00_gid_list_size(ha) / 4;
-	for (cnt = 0; cnt < ram_dwords && rval == QLA_SUCCESS;
-	    cnt += dwords, addr += dwords) {
-		if (cnt + dwords > ram_dwords)
-			dwords = ram_dwords - cnt;
-
+		WRT_REG_WORD(&reg->mailbox0, MBC_LOAD_DUMP_MPI_RAM);
 		WRT_REG_WORD(&reg->mailbox1, LSW(addr));
 		WRT_REG_WORD(&reg->mailbox8, MSW(addr));
 
-		WRT_REG_WORD(&reg->mailbox2, MSW(dump_dma));
-		WRT_REG_WORD(&reg->mailbox3, LSW(dump_dma));
+		WRT_REG_WORD(&reg->mailbox2, MSW(LSD(dump_dma)));
+		WRT_REG_WORD(&reg->mailbox3, LSW(LSD(dump_dma)));
 		WRT_REG_WORD(&reg->mailbox6, MSW(MSD(dump_dma)));
 		WRT_REG_WORD(&reg->mailbox7, LSW(MSD(dump_dma)));
 
@@ -145,76 +140,75 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
 
 		ha->flags.mbox_int = 0;
-		for (timer = 6000000; timer; timer--) {
-			/* Check for pending interrupts. */
+		while (timer--) {
+			udelay(5);
+
 			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_INT) {
-				stat &= 0xff;
+			/* Check for pending interrupts. */
+			if (!(stat & HSRX_RISC_INT))
+				continue;
 
-				if (stat == 0x1 || stat == 0x2 ||
-				    stat == 0x10 || stat == 0x11) {
-					set_bit(MBX_INTERRUPT,
-					    &ha->mbx_cmd_flags);
-
-					mb0 = RD_REG_WORD(&reg->mailbox0);
-					RD_REG_WORD(&reg->mailbox1);
-
-					WRT_REG_DWORD(&reg->hccr,
-					    HCCRX_CLR_RISC_INT);
-					RD_REG_DWORD(&reg->hccr);
-					break;
-				}
+			stat &= 0xff;
+			if (stat != 0x1 && stat != 0x2 &&
+			    stat != 0x10 && stat != 0x11) {
 
 				/* Clear this intr; it wasn't a mailbox intr */
 				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 				RD_REG_DWORD(&reg->hccr);
+				continue;
 			}
-			udelay(5);
+
+			set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+			rval = RD_REG_WORD(&reg->mailbox0) & MBS_MASK;
+			WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+			RD_REG_DWORD(&reg->hccr);
+			break;
 		}
 		ha->flags.mbox_int = 1;
+		*nxt = ram + i;
 
-		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			rval = mb0 & MBS_MASK;
-			for (idx = 0; idx < dwords; idx++)
-				ram[cnt + idx] = IS_QLA27XX(ha) ?
-				    le32_to_cpu(dump[idx]) : swab32(dump[idx]);
-		} else {
-			rval = QLA_FUNCTION_FAILED;
+		if (!test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
+			/* no interrupt, timed out*/
+			return rval;
+		}
+		if (rval) {
+			/* error completion status */
+			return rval;
+		}
+		for (j = 0; j < dwords; j++) {
+			ram[i + j] = IS_QLA27XX(ha) ?
+			    chunk[j] : swab32(chunk[j]);
 		}
 	}
 
-	*nxt = rval == QLA_SUCCESS ? &ram[cnt] : NULL;
-	return rval;
+	*nxt = ram + i;
+	return QLA_SUCCESS;
 }
 
 int
 qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
     uint32_t ram_dwords, void **nxt)
 {
-	int rval;
-	uint32_t cnt, stat, timer, dwords, idx;
-	uint16_t mb0;
+	int rval = QLA_FUNCTION_FAILED;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t dump_dma = ha->gid_list_dma;
-	uint32_t *dump = (uint32_t *)ha->gid_list;
+	uint32_t *chunk = (void *)ha->gid_list;
+	uint32_t dwords = qla2x00_gid_list_size(ha) / 4;
+	uint32_t stat;
+	ulong i, j, timer = 6000000;
 
-	rval = QLA_SUCCESS;
-	mb0 = 0;
-
-	WRT_REG_WORD(&reg->mailbox0, MBC_DUMP_RISC_RAM_EXTENDED);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-	dwords = qla2x00_gid_list_size(ha) / 4;
-	for (cnt = 0; cnt < ram_dwords && rval == QLA_SUCCESS;
-	    cnt += dwords, addr += dwords) {
-		if (cnt + dwords > ram_dwords)
-			dwords = ram_dwords - cnt;
+	for (i = 0; i < ram_dwords; i += dwords, addr += dwords) {
+		if (i + dwords > ram_dwords)
+			dwords = ram_dwords - i;
 
+		WRT_REG_WORD(&reg->mailbox0, MBC_DUMP_RISC_RAM_EXTENDED);
 		WRT_REG_WORD(&reg->mailbox1, LSW(addr));
 		WRT_REG_WORD(&reg->mailbox8, MSW(addr));
 
-		WRT_REG_WORD(&reg->mailbox2, MSW(dump_dma));
-		WRT_REG_WORD(&reg->mailbox3, LSW(dump_dma));
+		WRT_REG_WORD(&reg->mailbox2, MSW(LSD(dump_dma)));
+		WRT_REG_WORD(&reg->mailbox3, LSW(LSD(dump_dma)));
 		WRT_REG_WORD(&reg->mailbox6, MSW(MSD(dump_dma)));
 		WRT_REG_WORD(&reg->mailbox7, LSW(MSD(dump_dma)));
 
@@ -223,45 +217,47 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
 
 		ha->flags.mbox_int = 0;
-		for (timer = 6000000; timer; timer--) {
-			/* Check for pending interrupts. */
+		while (timer--) {
+			udelay(5);
 			stat = RD_REG_DWORD(&reg->host_status);
-			if (stat & HSRX_RISC_INT) {
-				stat &= 0xff;
 
-				if (stat == 0x1 || stat == 0x2 ||
-				    stat == 0x10 || stat == 0x11) {
-					set_bit(MBX_INTERRUPT,
-					    &ha->mbx_cmd_flags);
+			/* Check for pending interrupts. */
+			if (!(stat & HSRX_RISC_INT))
+				continue;
 
-					mb0 = RD_REG_WORD(&reg->mailbox0);
-
-					WRT_REG_DWORD(&reg->hccr,
-					    HCCRX_CLR_RISC_INT);
-					RD_REG_DWORD(&reg->hccr);
-					break;
-				}
-
-				/* Clear this intr; it wasn't a mailbox intr */
+			stat &= 0xff;
+			if (stat != 0x1 && stat != 0x2 &&
+			    stat != 0x10 && stat != 0x11) {
 				WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 				RD_REG_DWORD(&reg->hccr);
+				continue;
 			}
-			udelay(5);
+
+			set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+			rval = RD_REG_WORD(&reg->mailbox0) & MBS_MASK;
+			WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+			RD_REG_DWORD(&reg->hccr);
+			break;
 		}
 		ha->flags.mbox_int = 1;
+		*nxt = ram + i;
 
-		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
-			rval = mb0 & MBS_MASK;
-			for (idx = 0; idx < dwords; idx++)
-				ram[cnt + idx] = IS_QLA27XX(ha) ?
-				    le32_to_cpu(dump[idx]) : swab32(dump[idx]);
-		} else {
-			rval = QLA_FUNCTION_FAILED;
+		if (!test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
+			/* no interrupt, timed out*/
+			return rval;
+		}
+		if (rval) {
+			/* error completion status */
+			return rval;
+		}
+		for (j = 0; j < dwords; j++) {
+			ram[i + j] = IS_QLA27XX(ha) ?
+			    chunk[j] : swab32(chunk[j]);
 		}
 	}
 
-	*nxt = rval == QLA_SUCCESS ? &ram[cnt]: NULL;
-	return rval;
+	*nxt = ram + i;
+	return QLA_SUCCESS;
 }
 
 static int
