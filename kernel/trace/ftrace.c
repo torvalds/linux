@@ -3702,6 +3702,31 @@ enter_record(struct ftrace_hash *hash, struct dyn_ftrace *rec, int clear_filter)
 }
 
 static int
+add_rec_by_index(struct ftrace_hash *hash, struct ftrace_glob *func_g,
+		 int clear_filter)
+{
+	long index = simple_strtoul(func_g->search, NULL, 0);
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+
+	/* The index starts at 1 */
+	if (--index < 0)
+		return 0;
+
+	do_for_each_ftrace_rec(pg, rec) {
+		if (pg->index <= index) {
+			index -= pg->index;
+			/* this is a double loop, break goes to the next page */
+			break;
+		}
+		rec = &pg->records[index];
+		enter_record(hash, rec, clear_filter);
+		return 1;
+	} while_for_each_ftrace_rec();
+	return 0;
+}
+
+static int
 ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 		struct ftrace_glob *mod_g, int exclude_mod)
 {
@@ -3768,6 +3793,11 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 
 	if (unlikely(ftrace_disabled))
 		goto out_unlock;
+
+	if (func_g.type == MATCH_INDEX) {
+		found = add_rec_by_index(hash, &func_g, clear_filter);
+		goto out_unlock;
+	}
 
 	do_for_each_ftrace_rec(pg, rec) {
 

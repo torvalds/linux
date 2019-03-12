@@ -187,8 +187,6 @@ void ring_buffer_set_clock(struct ring_buffer *buffer,
 void ring_buffer_set_time_stamp_abs(struct ring_buffer *buffer, bool abs);
 bool ring_buffer_time_stamp_abs(struct ring_buffer *buffer);
 
-size_t ring_buffer_page_len(void *page);
-
 size_t ring_buffer_nr_pages(struct ring_buffer *buffer, int cpu);
 size_t ring_buffer_nr_dirty_pages(struct ring_buffer *buffer, int cpu);
 
