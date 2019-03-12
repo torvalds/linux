@@ -1843,7 +1843,7 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 	struct lpfc_hba *phba = ctxp->phba;
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_nvmet_tgtport *tgtp;
-	uint32_t *payload;
+	uint32_t *payload, qno;
 	uint32_t rc;
 	unsigned long iflags;
 
@@ -1876,6 +1876,15 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 	/* Process FCP command */
 	if (rc == 0) {
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		if ((ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) ||
+		    (nvmebuf != ctxp->rqb_buffer)) {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+			return;
+		}
+		ctxp->rqb_buffer = NULL;
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
 		return;
 	}
 
@@ -1886,6 +1895,20 @@ lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
 				 ctxp->oxid, ctxp->size, ctxp->sid);
 		atomic_inc(&tgtp->rcv_fcp_cmd_out);
 		atomic_inc(&tgtp->defer_fod);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+			return;
+		}
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		/*
+		 * Post a replacement DMA buffer to RQ and defer
+		 * freeing rcv buffer till .defer_rcv callback
+		 */
+		qno = nvmebuf->idx;
+		lpfc_post_rq_buffer(
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
+			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
 		return;
 	}
 	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
