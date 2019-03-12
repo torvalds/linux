@@ -439,14 +439,14 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
  * are written in the same order that the flusher thread sent them
  * down.
  */
-static noinline void compress_file_range(struct inode *inode,
-					struct page *locked_page,
-					u64 start, u64 end,
-					struct async_chunk *async_chunk,
-					int *num_added)
+static noinline void compress_file_range(struct async_chunk *async_chunk,
+					 int *num_added)
 {
+	struct inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 blocksize = fs_info->sectorsize;
+	u64 start = async_chunk->start;
+	u64 end = async_chunk->end;
 	u64 actual_end;
 	int ret = 0;
 	struct page **pages = NULL;
@@ -665,9 +665,9 @@ cleanup_and_bail_uncompressed:
 	 * to our extent and set things up for the async work queue to run
 	 * cow_file_range to do the normal delalloc dance.
 	 */
-	if (page_offset(locked_page) >= start &&
-	    page_offset(locked_page) <= end)
-		__set_page_dirty_nobuffers(locked_page);
+	if (page_offset(async_chunk->locked_page) >= start &&
+	    page_offset(async_chunk->locked_page) <= end)
+		__set_page_dirty_nobuffers(async_chunk->locked_page);
 		/* unlocked later on in the async handlers */
 
 	if (redirty)
@@ -1132,9 +1132,7 @@ static noinline void async_cow_start(struct btrfs_work *work)
 
 	async_chunk = container_of(work, struct async_chunk, work);
 
-	compress_file_range(async_chunk->inode, async_chunk->locked_page,
-			    async_chunk->start, async_chunk->end, async_chunk,
-			    &num_added);
+	compress_file_range(async_chunk, &num_added);
 	if (num_added == 0) {
 		btrfs_add_delayed_iput(async_chunk->inode);
 		async_chunk->inode = NULL;
