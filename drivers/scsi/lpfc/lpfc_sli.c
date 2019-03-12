@@ -14019,7 +14019,7 @@ lpfc_sli4_nvmet_handle_rcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			return false;
 		}
 drop:
-		lpfc_in_buf_free(phba, &dma_buf->dbuf);
+		lpfc_rq_buf_free(phba, &dma_buf->hbuf);
 		break;
 	case FC_STATUS_INSUFF_BUF_FRM_DISC:
 		if (phba->nvmet_support) {
