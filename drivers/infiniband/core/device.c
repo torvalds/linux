@@ -668,19 +668,10 @@ static int assign_name(struct ib_device *device, const char *name)
 	}
 	strlcpy(device->name, dev_name(&device->dev), IB_DEVICE_NAME_MAX);
 
-	/* Cyclically allocate a user visible ID for the device */
-	device->index = last_id;
-	ret = xa_alloc(&devices, &device->index, INT_MAX, device, GFP_KERNEL);
-	if (ret == -ENOSPC) {
-		device->index = 0;
-		ret = xa_alloc(&devices, &device->index, INT_MAX, device,
-			       GFP_KERNEL);
-	}
-	if (ret)
-		goto out;
-	last_id = device->index + 1;
-
-	ret = 0;
+	ret = xa_alloc_cyclic(&devices, &device->index, device, xa_limit_31b,
+			&last_id, GFP_KERNEL);
+	if (ret > 0)
+		ret = 0;
 
 out:
 	up_write(&devices_rwsem);
@@ -1059,14 +1050,15 @@ static int assign_client_id(struct ib_client *client)
 	 * to get the LIFO order. The extra linked list can go away if xarray
 	 * learns to reverse iterate.
 	 */
-	if (list_empty(&client_list))
+	if (list_empty(&client_list)) {
 		client->client_id = 0;
-	else
-		client->client_id =
-			list_last_entry(&client_list, struct ib_client, list)
-				->client_id;
-	ret = xa_alloc(&clients, &client->client_id, INT_MAX, client,
-		       GFP_KERNEL);
+	} else {
+		struct ib_client *last;
+
+		last = list_last_entry(&client_list, struct ib_client, list);
+		client->client_id = last->client_id + 1;
+	}
+	ret = xa_insert(&clients, client->client_id, client, GFP_KERNEL);
 	if (ret)
 		goto out;
 
