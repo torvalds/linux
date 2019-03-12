@@ -240,6 +240,13 @@ struct bfq_queue {
 	/* next ioprio and ioprio class if a change is in progress */
 	unsigned short new_ioprio, new_ioprio_class;
 
+	/* last total-service-time sample, see bfq_update_inject_limit() */
+	u64 last_serv_time_ns;
+	/* limit for request injection */
+	unsigned int inject_limit;
+	/* last time the inject limit has been decreased, in jiffies */
+	unsigned long decrease_time_jif;
+
 	/*
 	 * Shared bfq_queue if queue is cooperating with one or more
 	 * other queues.
@@ -357,29 +364,6 @@ struct bfq_queue {
 
 	/* max service rate measured so far */
 	u32 max_service_rate;
-	/*
-	 * Ratio between the service received by bfqq while it is in
-	 * service, and the cumulative service (of requests of other
-	 * queues) that may be injected while bfqq is empty but still
-	 * in service. To increase precision, the coefficient is
-	 * measured in tenths of unit. Here are some example of (1)
-	 * ratios, (2) resulting percentages of service injected
-	 * w.r.t. to the total service dispatched while bfqq is in
-	 * service, and (3) corresponding values of the coefficient:
-	 * 1 (50%) -> 10
-	 * 2 (33%) -> 20
-	 * 10 (9%) -> 100
-	 * 9.9 (9%) -> 99
-	 * 1.5 (40%) -> 15
-	 * 0.5 (66%) -> 5
-	 * 0.1 (90%) -> 1
-	 *
-	 * So, if the coefficient is lower than 10, then
-	 * injected service is more than bfqq service.
-	 */
-	unsigned int inject_coeff;
-	/* amount of service injected in current service slot */
-	unsigned int injected_service;
 };
 
 /**
@@ -544,6 +528,26 @@ struct bfq_data {
 	/* time of last request completion (ns) */
 	u64 last_completion;
 
+	/* time of last transition from empty to non-empty (ns) */
+	u64 last_empty_occupied_ns;
+
+	/*
+	 * Flag set to activate the sampling of the total service time
+	 * of a just-arrived first I/O request (see
+	 * bfq_update_inject_limit()). This will cause the setting of
+	 * waited_rq when the request is finally dispatched.
+	 */
+	bool wait_dispatch;
+	/*
+	 *  If set, then bfq_update_inject_limit() is invoked when
+	 *  waited_rq is eventually completed.
+	 */
+	struct request *waited_rq;
+	/*
+	 * True if some request has been injected during the last service hole.
+	 */
+	bool rqs_injected;
+
 	/* time of first rq dispatch in current observation interval (ns) */
 	u64 first_dispatch;
 	/* time of last rq dispatch in current observation interval (ns) */
@@ -553,6 +557,7 @@ struct bfq_data {
 	ktime_t last_budget_start;
 	/* beginning of the last idle slice */
 	ktime_t last_idling_start;
+	unsigned long last_idling_start_jiffies;
 
 	/* number of samples in current observation interval */
 	int peak_rate_samples;
