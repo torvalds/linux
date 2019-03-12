@@ -71,6 +71,8 @@ struct mlx5e_sw_stats {
 	u64 rx_csum_unnecessary;
 	u64 rx_csum_none;
 	u64 rx_csum_complete;
+	u64 rx_csum_complete_tail;
+	u64 rx_csum_complete_tail_slow;
 	u64 rx_csum_unnecessary_inner;
 	u64 rx_xdp_drop;
 	u64 rx_xdp_redirect;
@@ -181,6 +183,8 @@ struct mlx5e_rq_stats {
 	u64 packets;
 	u64 bytes;
 	u64 csum_complete;
+	u64 csum_complete_tail;
+	u64 csum_complete_tail_slow;
 	u64 csum_unnecessary;
 	u64 csum_unnecessary_inner;
 	u64 csum_none;
