@@ -821,6 +821,8 @@ static int parse_options(struct super_block *sb, char *options)
 	}
 
 	if (test_opt(sbi, INLINE_XATTR_SIZE)) {
+		int min_size, max_size;
+
 		if (!f2fs_sb_has_extra_attr(sbi) ||
 			!f2fs_sb_has_flexible_inline_xattr(sbi)) {
 			f2fs_msg(sb, KERN_ERR,
@@ -834,15 +836,18 @@ static int parse_options(struct super_block *sb, char *options)
 					"set with inline_xattr option");
 			return -EINVAL;
 		}
-		if (F2FS_OPTION(sbi).inline_xattr_size <
-			sizeof(struct f2fs_xattr_header) / sizeof(__le32) ||
-			F2FS_OPTION(sbi).inline_xattr_size >
-			DEF_ADDRS_PER_INODE -
+
+		min_size = sizeof(struct f2fs_xattr_header) / sizeof(__le32);
+		max_size = DEF_ADDRS_PER_INODE -
 			F2FS_TOTAL_EXTRA_ATTR_SIZE / sizeof(__le32) -
 			DEF_INLINE_RESERVED_SIZE -
-			MIN_INLINE_DENTRY_SIZE / sizeof(__le32)) {
+			MIN_INLINE_DENTRY_SIZE / sizeof(__le32);
+
+		if (F2FS_OPTION(sbi).inline_xattr_size < min_size ||
+				F2FS_OPTION(sbi).inline_xattr_size > max_size) {
 			f2fs_msg(sb, KERN_ERR,
-					"inline xattr size is out of range");
+				"inline xattr size is out of range: %d ~ %d",
+				min_size, max_size);
 			return -EINVAL;
 		}
 	}
