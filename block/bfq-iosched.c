@@ -1075,8 +1075,18 @@ static void bfq_reset_burst_list(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 
 	hlist_for_each_entry_safe(item, n, &bfqd->burst_list, burst_list_node)
 		hlist_del_init(&item->burst_list_node);
-	hlist_add_head(&bfqq->burst_list_node, &bfqd->burst_list);
-	bfqd->burst_size = 1;
+
+	/*
+	 * Start the creation of a new burst list only if there is no
+	 * active queue. See comments on the conditional invocation of
+	 * bfq_handle_burst().
+	 */
+	if (bfq_tot_busy_queues(bfqd) == 0) {
+		hlist_add_head(&bfqq->burst_list_node, &bfqd->burst_list);
+		bfqd->burst_size = 1;
+	} else
+		bfqd->burst_size = 0;
+
 	bfqd->burst_parent_entity = bfqq->entity.parent;
 }
 
@@ -1132,7 +1142,8 @@ static void bfq_add_to_burst(struct bfq_data *bfqd, struct bfq_queue *bfqq)
  * many parallel threads/processes. Examples are systemd during boot,
  * or git grep. To help these processes get their job done as soon as
  * possible, it is usually better to not grant either weight-raising
- * or device idling to their queues.
+ * or device idling to their queues, unless these queues must be
+ * protected from the I/O flowing through other active queues.
  *
  * In this comment we describe, firstly, the reasons why this fact
  * holds, and, secondly, the next function, which implements the main
@@ -1144,7 +1155,10 @@ static void bfq_add_to_burst(struct bfq_data *bfqd, struct bfq_queue *bfqq)
  * cumulatively served, the sooner the target job of these queues gets
  * completed. As a consequence, weight-raising any of these queues,
  * which also implies idling the device for it, is almost always
- * counterproductive. In most cases it just lowers throughput.
+ * counterproductive, unless there are other active queues to isolate
+ * these new queues from. If there no other active queues, then
+ * weight-raising these new queues just lowers throughput in most
+ * cases.
  *
  * On the other hand, a burst of queue creations may be caused also by
  * the start of an application that does not consist of a lot of
@@ -1178,14 +1192,16 @@ static void bfq_add_to_burst(struct bfq_data *bfqd, struct bfq_queue *bfqq)
  * are very rare. They typically occur if some service happens to
  * start doing I/O exactly when the interactive task starts.
  *
- * Turning back to the next function, it implements all the steps
- * needed to detect the occurrence of a large burst and to properly
- * mark all the queues belonging to it (so that they can then be
- * treated in a different way). This goal is achieved by maintaining a
- * "burst list" that holds, temporarily, the queues that belong to the
- * burst in progress. The list is then used to mark these queues as
- * belonging to a large burst if the burst does become large. The main
- * steps are the following.
+ * Turning back to the next function, it is invoked only if there are
+ * no active queues (apart from active queues that would belong to the
+ * same, possible burst bfqq would belong to), and it implements all
+ * the steps needed to detect the occurrence of a large burst and to
+ * properly mark all the queues belonging to it (so that they can then
+ * be treated in a different way). This goal is achieved by
+ * maintaining a "burst list" that holds, temporarily, the queues that
+ * belong to the burst in progress. The list is then used to mark
+ * these queues as belonging to a large burst if the burst does become
+ * large. The main steps are the following.
  *
  * . when the very first queue is created, the queue is inserted into the
  *   list (as it could be the first queue in a possible burst)
@@ -5695,7 +5711,29 @@ static struct bfq_queue *bfq_init_rq(struct request *rq)
 		}
 	}
 
-	if (unlikely(bfq_bfqq_just_created(bfqq)))
+	/*
+	 * Consider bfqq as possibly belonging to a burst of newly
+	 * created queues only if:
+	 * 1) A burst is actually happening (bfqd->burst_size > 0)
+	 * or
+	 * 2) There is no other active queue. In fact, if, in
+	 *    contrast, there are active queues not belonging to the
+	 *    possible burst bfqq may belong to, then there is no gain
+	 *    in considering bfqq as belonging to a burst, and
+	 *    therefore in not weight-raising bfqq. See comments on
+	 *    bfq_handle_burst().
+	 *
+	 * This filtering also helps eliminating false positives,
+	 * occurring when bfqq does not belong to an actual large
+	 * burst, but some background task (e.g., a service) happens
+	 * to trigger the creation of new queues very close to when
+	 * bfqq and its possible companion queues are created. See
+	 * comments on bfq_handle_burst() for further details also on
+	 * this issue.
+	 */
+	if (unlikely(bfq_bfqq_just_created(bfqq) &&
+		     (bfqd->burst_size > 0 ||
+		      bfq_tot_busy_queues(bfqd) == 0)))
 		bfq_handle_burst(bfqd, bfqq);
 
 	return bfqq;
