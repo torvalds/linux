@@ -134,7 +134,7 @@ qla27xx_skip_entry(struct qla27xx_fwdt_entry *ent, void *buf)
 static inline struct qla27xx_fwdt_entry *
 qla27xx_next_entry(struct qla27xx_fwdt_entry *ent)
 {
-	return (void *)ent + ent->hdr.size;
+	return (void *)ent + le32_to_cpu(ent->hdr.size);
 }
 
 static struct qla27xx_fwdt_entry *
@@ -165,11 +165,14 @@ qla27xx_fwdt_entry_t256(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	ulong addr = le32_to_cpu(ent->t256.base_addr);
+	uint offset = ent->t256.pci_offset;
+	ulong count = le16_to_cpu(ent->t256.reg_count);
+	uint width = ent->t256.reg_width;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd200,
 	    "%s: rdio t1 [%lx]\n", __func__, *len);
-	qla27xx_read_window(reg, ent->t256.base_addr, ent->t256.pci_offset,
-	    ent->t256.reg_count, ent->t256.reg_width, buf, len);
+	qla27xx_read_window(reg, addr, offset, count, width, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -179,11 +182,14 @@ qla27xx_fwdt_entry_t257(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	ulong addr = le32_to_cpu(ent->t257.base_addr);
+	uint offset = ent->t257.pci_offset;
+	ulong data = le32_to_cpu(ent->t257.write_data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd201,
 	    "%s: wrio t1 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE_ADDR, ent->t257.base_addr, buf);
-	qla27xx_write_reg(reg, ent->t257.pci_offset, ent->t257.write_data, buf);
+	qla27xx_write_reg(reg, IOBASE(reg), addr, buf);
+	qla27xx_write_reg(reg, offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -193,12 +199,17 @@ qla27xx_fwdt_entry_t258(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	uint banksel = ent->t258.banksel_offset;
+	ulong bank = le32_to_cpu(ent->t258.bank);
+	ulong addr = le32_to_cpu(ent->t258.base_addr);
+	uint offset = ent->t258.pci_offset;
+	uint count = le16_to_cpu(ent->t258.reg_count);
+	uint width = ent->t258.reg_width;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd202,
 	    "%s: rdio t2 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, ent->t258.banksel_offset, ent->t258.bank, buf);
-	qla27xx_read_window(reg, ent->t258.base_addr, ent->t258.pci_offset,
-	    ent->t258.reg_count, ent->t258.reg_width, buf, len);
+	qla27xx_write_reg(reg, banksel, bank, buf);
+	qla27xx_read_window(reg, addr, offset, count, width, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -208,12 +219,17 @@ qla27xx_fwdt_entry_t259(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	ulong addr = le32_to_cpu(ent->t259.base_addr);
+	uint banksel = ent->t259.banksel_offset;
+	ulong bank = le32_to_cpu(ent->t259.bank);
+	uint offset = ent->t259.pci_offset;
+	ulong data = le32_to_cpu(ent->t259.write_data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd203,
 	    "%s: wrio t2 [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, IOBASE_ADDR, ent->t259.base_addr, buf);
-	qla27xx_write_reg(reg, ent->t259.banksel_offset, ent->t259.bank, buf);
-	qla27xx_write_reg(reg, ent->t259.pci_offset, ent->t259.write_data, buf);
+	qla27xx_write_reg(reg, IOBASE(reg), addr, buf);
+	qla27xx_write_reg(reg, banksel, bank, buf);
+	qla27xx_write_reg(reg, offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -223,11 +239,12 @@ qla27xx_fwdt_entry_t260(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	uint offset = ent->t260.pci_offset;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd204,
 	    "%s: rdpci [%lx]\n", __func__, *len);
-	qla27xx_insert32(ent->t260.pci_offset, buf, len);
-	qla27xx_read_reg(reg, ent->t260.pci_offset, buf, len);
+	qla27xx_insert32(offset, buf, len);
+	qla27xx_read_reg(reg, offset, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -237,10 +254,12 @@ qla27xx_fwdt_entry_t261(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	uint offset = ent->t261.pci_offset;
+	ulong data = le32_to_cpu(ent->t261.write_data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd205,
 	    "%s: wrpci [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, ent->t261.pci_offset, ent->t261.write_data, buf);
+	qla27xx_write_reg(reg, offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -249,51 +268,50 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
+	uint area = ent->t262.ram_area;
+	ulong start = le32_to_cpu(ent->t262.start_addr);
+	ulong end = le32_to_cpu(ent->t262.end_addr);
 	ulong dwords;
-	ulong start;
-	ulong end;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd206,
 	    "%s: rdram(%x) [%lx]\n", __func__, ent->t262.ram_area, *len);
-	start = ent->t262.start_addr;
-	end = ent->t262.end_addr;
 
-	if (ent->t262.ram_area == T262_RAM_AREA_CRITICAL_RAM) {
+	if (area == T262_RAM_AREA_CRITICAL_RAM) {
 		;
-	} else if (ent->t262.ram_area == T262_RAM_AREA_EXTERNAL_RAM) {
+	} else if (area == T262_RAM_AREA_EXTERNAL_RAM) {
 		end = vha->hw->fw_memory_size;
 		if (buf)
-			ent->t262.end_addr = end;
-	} else if (ent->t262.ram_area == T262_RAM_AREA_SHARED_RAM) {
+			ent->t262.end_addr = cpu_to_le32(end);
+	} else if (area == T262_RAM_AREA_SHARED_RAM) {
 		start = vha->hw->fw_shared_ram_start;
 		end = vha->hw->fw_shared_ram_end;
 		if (buf) {
-			ent->t262.start_addr = start;
-			ent->t262.end_addr = end;
+			ent->t262.start_addr = cpu_to_le32(start);
+			ent->t262.end_addr = cpu_to_le32(end);
 		}
-	} else if (ent->t262.ram_area == T262_RAM_AREA_DDR_RAM) {
+	} else if (area == T262_RAM_AREA_DDR_RAM) {
 		start = vha->hw->fw_ddr_ram_start;
 		end = vha->hw->fw_ddr_ram_end;
 		if (buf) {
-			ent->t262.start_addr = start;
-			ent->t262.end_addr = end;
+			ent->t262.start_addr = cpu_to_le32(start);
+			ent->t262.end_addr = cpu_to_le32(end);
 		}
-	} else if (ent->t262.ram_area == T262_RAM_AREA_MISC) {
+	} else if (area == T262_RAM_AREA_MISC) {
 		if (buf) {
-			ent->t262.start_addr = start;
-			ent->t262.end_addr = end;
+			ent->t262.start_addr = cpu_to_le32(start);
+			ent->t262.end_addr = cpu_to_le32(end);
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd022,
-		    "%s: unknown area %x\n", __func__, ent->t262.ram_area);
+		    "%s: unknown area %x\n", __func__, area);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
 
 	if (end < start || start == 0 || end == 0) {
 		ql_dbg(ql_dbg_misc, vha, 0xd023,
-		    "%s: unusable range (start=%x end=%x)\n", __func__,
-		    ent->t262.end_addr, ent->t262.start_addr);
+		    "%s: unusable range (start=%lx end=%lx)\n",
+		    __func__, start, end);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
@@ -312,13 +330,14 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
+	uint type = ent->t263.queue_type;
 	uint count = 0;
 	uint i;
 	uint length;
 
-	ql_dbg(ql_dbg_misc, vha, 0xd207,
-	    "%s: getq(%x) [%lx]\n", __func__, ent->t263.queue_type, *len);
-	if (ent->t263.queue_type == T263_QUEUE_TYPE_REQ) {
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd207,
+	    "%s: getq(%x) [%lx]\n", __func__, type, *len);
+	if (type == T263_QUEUE_TYPE_REQ) {
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
 
@@ -332,7 +351,7 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t263.queue_type == T263_QUEUE_TYPE_RSP) {
+	} else if (type == T263_QUEUE_TYPE_RSP) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
 
@@ -360,7 +379,7 @@ qla27xx_fwdt_entry_t263(struct scsi_qla_host *vha,
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd026,
-		    "%s: unknown queue %x\n", __func__, ent->t263.queue_type);
+		    "%s: unknown queue %x\n", __func__, type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -433,10 +452,12 @@ qla27xx_fwdt_entry_t267(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	uint offset = ent->t267.pci_offset;
+	ulong data = le32_to_cpu(ent->t267.data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20b,
 	    "%s: dis intr [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, ent->t267.pci_offset, ent->t267.data, buf);
+	qla27xx_write_reg(reg, offset, data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -533,8 +554,8 @@ qla27xx_fwdt_entry_t270(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
-	ulong dwords = ent->t270.count;
-	ulong addr = ent->t270.addr;
+	ulong addr = le32_to_cpu(ent->t270.addr);
+	ulong dwords = le32_to_cpu(ent->t270.count);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20e,
 	    "%s: rdremreg [%lx]\n", __func__, *len);
@@ -554,8 +575,8 @@ qla27xx_fwdt_entry_t271(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
-	ulong addr = ent->t271.addr;
-	ulong data = ent->t271.data;
+	ulong addr = le32_to_cpu(ent->t271.addr);
+	ulong data = le32_to_cpu(ent->t271.data);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd20f,
 	    "%s: wrremreg [%lx]\n", __func__, *len);
@@ -570,8 +591,8 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t272(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	ulong dwords = ent->t272.count;
-	ulong start = ent->t272.addr;
+	ulong dwords = le32_to_cpu(ent->t272.count);
+	ulong start = le32_to_cpu(ent->t272.addr);
 
 	ql_dbg(ql_dbg_misc, vha, 0xd210,
 	    "%s: rdremram [%lx]\n", __func__, *len);
@@ -590,8 +611,8 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t273(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
-	ulong dwords = ent->t273.count;
-	ulong addr = ent->t273.addr;
+	ulong dwords = le32_to_cpu(ent->t273.count);
+	ulong addr = le32_to_cpu(ent->t273.addr);
 	uint32_t value;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd211,
@@ -613,12 +634,13 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
+	ulong type = ent->t274.queue_type;
 	uint count = 0;
 	uint i;
 
-	ql_dbg(ql_dbg_misc, vha, 0xd212,
-	    "%s: getqsh(%x) [%lx]\n", __func__, ent->t274.queue_type, *len);
-	if (ent->t274.queue_type == T274_QUEUE_TYPE_REQ_SHAD) {
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd212,
+	    "%s: getqsh(%lx) [%lx]\n", __func__, type, *len);
+	if (type == T274_QUEUE_TYPE_REQ_SHAD) {
 		for (i = 0; i < vha->hw->max_req_queues; i++) {
 			struct req_que *req = vha->hw->req_q_map[i];
 
@@ -630,7 +652,7 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 				count++;
 			}
 		}
-	} else if (ent->t274.queue_type == T274_QUEUE_TYPE_RSP_SHAD) {
+	} else if (type == T274_QUEUE_TYPE_RSP_SHAD) {
 		for (i = 0; i < vha->hw->max_rsp_queues; i++) {
 			struct rsp_que *rsp = vha->hw->rsp_q_map[i];
 
@@ -656,7 +678,7 @@ qla27xx_fwdt_entry_t274(struct scsi_qla_host *vha,
 		}
 	} else {
 		ql_dbg(ql_dbg_misc, vha, 0xd02f,
-		    "%s: unknown queue %x\n", __func__, ent->t274.queue_type);
+		    "%s: unknown queue %lx\n", __func__, type);
 		qla27xx_skip_entry(ent, buf);
 	}
 
@@ -675,23 +697,26 @@ qla27xx_fwdt_entry_t275(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	ulong offset = offsetof(typeof(*ent), t275.buffer);
+	ulong length = le32_to_cpu(ent->t275.length);
+	ulong size = le32_to_cpu(ent->hdr.size);
+	void *buffer = ent->t275.buffer;
 
-	ql_dbg(ql_dbg_misc, vha, 0xd213,
-	    "%s: buffer(%x) [%lx]\n", __func__, ent->t275.length, *len);
-	if (!ent->t275.length) {
+	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd213,
+	    "%s: buffer(%lx) [%lx]\n", __func__, length, *len);
+	if (!length) {
 		ql_dbg(ql_dbg_misc, vha, 0xd020,
 		    "%s: buffer zero length\n", __func__);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
-	if (offset + ent->t275.length > ent->hdr.size) {
+	if (offset + length > size) {
 		ql_dbg(ql_dbg_misc, vha, 0xd030,
 		    "%s: buffer overflow\n", __func__);
 		qla27xx_skip_entry(ent, buf);
 		goto done;
 	}
 
-	qla27xx_insertbuf(ent->t275.buffer, ent->t275.length, buf, len);
+	qla27xx_insertbuf(buffer, length, buf, len);
 done:
 	return qla27xx_next_entry(ent);
 }
@@ -700,13 +725,15 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_t276(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
+	ulong cond1 = le32_to_cpu(ent->t276.cond1);
+	ulong cond2 = le32_to_cpu(ent->t276.cond2);
 	uint type = vha->hw->pdev->device >> 4 & 0xf;
 	uint func = vha->hw->port_no & 0x3;
 
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd214,
 	    "%s: cond [%lx]\n", __func__, *len);
 
-	if (type != ent->t276.cond1 || func != ent->t276.cond2) {
+	if (type != cond1 || func != cond2) {
 		ent = qla27xx_next_entry(ent);
 		qla27xx_skip_entry(ent, buf);
 	}
@@ -719,12 +746,15 @@ qla27xx_fwdt_entry_t277(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	ulong cmd_addr = le32_to_cpu(ent->t277.cmd_addr);
+	ulong wr_cmd_data = le32_to_cpu(ent->t277.wr_cmd_data);
+	ulong data_addr = le32_to_cpu(ent->t277.data_addr);
 
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd215,
 	    "%s: rdpep [%lx]\n", __func__, *len);
-	qla27xx_insert32(ent->t277.wr_cmd_data, buf, len);
-	qla27xx_write_reg(reg, ent->t277.cmd_addr, ent->t277.wr_cmd_data, buf);
-	qla27xx_read_reg(reg, ent->t277.data_addr, buf, len);
+	qla27xx_insert32(wr_cmd_data, buf, len);
+	qla27xx_write_reg(reg, cmd_addr, wr_cmd_data, buf);
+	qla27xx_read_reg(reg, data_addr, buf, len);
 
 	return qla27xx_next_entry(ent);
 }
@@ -734,11 +764,15 @@ qla27xx_fwdt_entry_t278(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
 	struct device_reg_24xx __iomem *reg = qla27xx_isp_reg(vha);
+	ulong cmd_addr = le32_to_cpu(ent->t278.cmd_addr);
+	ulong wr_cmd_data = le32_to_cpu(ent->t278.wr_cmd_data);
+	ulong data_addr = le32_to_cpu(ent->t278.data_addr);
+	ulong wr_data = le32_to_cpu(ent->t278.wr_data);
 
 	ql_dbg(ql_dbg_misc + ql_dbg_verbose, vha, 0xd216,
 	    "%s: wrpep [%lx]\n", __func__, *len);
-	qla27xx_write_reg(reg, ent->t278.data_addr, ent->t278.wr_data, buf);
-	qla27xx_write_reg(reg, ent->t278.cmd_addr, ent->t278.wr_cmd_data, buf);
+	qla27xx_write_reg(reg, data_addr, wr_data, buf);
+	qla27xx_write_reg(reg, cmd_addr, wr_cmd_data, buf);
 
 	return qla27xx_next_entry(ent);
 }
@@ -747,8 +781,10 @@ static struct qla27xx_fwdt_entry *
 qla27xx_fwdt_entry_other(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_entry *ent, void *buf, ulong *len)
 {
+	ulong type = le32_to_cpu(ent->hdr.type);
+
 	ql_dbg(ql_dbg_misc, vha, 0xd2ff,
-	    "%s: type %x [%lx]\n", __func__, ent->hdr.type, *len);
+	    "%s: other %lx [%lx]\n", __func__, type, *len);
 	qla27xx_skip_entry(ent, buf);
 
 	return qla27xx_next_entry(ent);
@@ -803,13 +839,16 @@ static void
 qla27xx_walk_template(struct scsi_qla_host *vha,
 	struct qla27xx_fwdt_template *tmp, void *buf, ulong *len)
 {
-	struct qla27xx_fwdt_entry *ent = (void *)tmp + tmp->entry_offset;
-	ulong count = tmp->entry_count;
+	struct qla27xx_fwdt_entry *ent = (void *)tmp +
+	    le32_to_cpu(tmp->entry_offset);
+	ulong count = le32_to_cpu(tmp->entry_count);
+	ulong type = 0;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd01a,
 	    "%s: entry count %lx\n", __func__, count);
 	while (count--) {
-		ent = qla27xx_find_entry(ent->hdr.type)(vha, ent, buf, len);
+		type = le32_to_cpu(ent->hdr.type);
+		ent = qla27xx_find_entry(type)(vha, ent, buf, len);
 		if (!ent)
 			break;
 	}
@@ -879,13 +918,13 @@ ql27xx_edit_template(struct scsi_qla_host *vha,
 static inline uint32_t
 qla27xx_template_checksum(void *p, ulong size)
 {
-	uint32_t *buf = p;
+	__le32 *buf = p;
 	uint64_t sum = 0;
 
 	size /= sizeof(*buf);
 
-	while (size--)
-		sum += *buf++;
+	for ( ; size--; buf++)
+		sum += le32_to_cpu(*buf);
 
 	sum = (sum & 0xffffffff) + (sum >> 32);
 
@@ -901,7 +940,7 @@ qla27xx_verify_template_checksum(struct qla27xx_fwdt_template *tmp)
 static inline int
 qla27xx_verify_template_header(struct qla27xx_fwdt_template *tmp)
 {
-	return tmp->template_type == TEMPLATE_TYPE_FWDUMP;
+	return le32_to_cpu(tmp->template_type) == TEMPLATE_TYPE_FWDUMP;
 }
 
 static void
@@ -949,7 +988,8 @@ qla27xx_fwdt_template_valid(void *p)
 
 	if (!qla27xx_verify_template_header(tmp)) {
 		ql_log(ql_log_warn, NULL, 0xd01c,
-		    "%s: template type %x\n", __func__, tmp->template_type);
+		    "%s: template type %x\n", __func__,
+		    le32_to_cpu(tmp->template_type));
 		return false;
 	}
 

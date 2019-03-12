@@ -1829,8 +1829,18 @@ qla2x00_init_firmware(scsi_qla_host_t *vha, uint16_t size)
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
 		ql_dbg(ql_dbg_mbx, vha, 0x104d,
-		    "Failed=%x mb[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x,.\n",
+		    "Failed=%x mb[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x.\n",
 		    rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3]);
+		if (ha->init_cb) {
+			ql_dbg(ql_dbg_mbx, vha, 0x104d, "init_cb:\n");
+			ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha,
+			    0x0104d, ha->init_cb, sizeof(*ha->init_cb));
+		}
+		if (ha->ex_init_cb && ha->ex_init_cb->ex_version) {
+			ql_dbg(ql_dbg_mbx, vha, 0x104d, "ex_init_cb:\n");
+			ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha,
+			    0x0104d, ha->ex_init_cb, sizeof(*ha->ex_init_cb));
+		}
 	} else {
 		if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			if (mcp->mb[2] == 6 || mcp->mb[3] == 2)
@@ -4243,7 +4253,7 @@ qla84xx_verify_chip(struct scsi_qla_host *vha, uint16_t *status)
 		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x111c,
 		    "Dump of Verify Request.\n");
 		ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x111e,
-		    (uint8_t *)mn, sizeof(*mn));
+		    mn, sizeof(*mn));
 
 		rval = qla2x00_issue_iocb_timeout(vha, mn, mn_dma, 0, 120);
 		if (rval != QLA_SUCCESS) {
@@ -4255,7 +4265,7 @@ qla84xx_verify_chip(struct scsi_qla_host *vha, uint16_t *status)
 		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1110,
 		    "Dump of Verify Response.\n");
 		ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1118,
-		    (uint8_t *)mn, sizeof(*mn));
+		    mn, sizeof(*mn));
 
 		status[0] = le16_to_cpu(mn->p.rsp.comp_status);
 		status[1] = status[0] == CS_VCS_CHIP_FAILURE ?

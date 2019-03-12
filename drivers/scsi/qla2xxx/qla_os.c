@@ -42,7 +42,7 @@ static struct kmem_cache *ctx_cachep;
 /*
  * error level for logging
  */
-int ql_errlev = ql_log_all;
+uint ql_errlev = ql_log_all;
 
 static int ql2xenableclass2;
 module_param(ql2xenableclass2, int, S_IRUGO|S_IRUSR);

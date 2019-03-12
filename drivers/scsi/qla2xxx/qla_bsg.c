@@ -1962,7 +1962,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 
 	/* Dump the vendor information */
 	ql_dump_buffer(ql_dbg_user + ql_dbg_verbose , vha, 0x70cf,
-	    (uint8_t *)piocb_rqst, sizeof(struct qla_mt_iocb_rqst_fx00));
+	    piocb_rqst, sizeof(*piocb_rqst));
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x70d0,
@@ -2324,8 +2324,8 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 	rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma, options);
 
 	if (rval == QLA_SUCCESS) {
-		ql_dump_buffer(ql_dbg_user + ql_dbg_verbose, vha, 0x70e3,
-		    (uint8_t *)stats, sizeof(*stats));
+		ql_dump_buffer(ql_dbg_user + ql_dbg_verbose, vha, 0x70e5,
+			stats, sizeof(*stats));
 		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
 			bsg_job->reply_payload.sg_cnt, stats, sizeof(*stats));
 	}

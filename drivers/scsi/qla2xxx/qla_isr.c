@@ -1375,7 +1375,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    le16_to_cpu(mbx->status_flags));
 
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5029,
-		    (uint8_t *)mbx, sizeof(*mbx));
+		    mbx, sizeof(*mbx));
 
 		goto logio_done;
 	}
@@ -1519,7 +1519,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 			    bsg_reply->reply_payload_rcv_len = 0;
 		    }
 		    ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5035,
-			(uint8_t *)pkt, sizeof(*pkt));
+			pkt, sizeof(*pkt));
 	    } else {
 		    res = DID_OK << 16;
 		    bsg_reply->reply_payload_rcv_len =
@@ -1659,7 +1659,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		memcpy(bsg_job->reply + sizeof(struct fc_bsg_reply),
 		       fw_status, sizeof(fw_status));
 		ql_dump_buffer(ql_dbg_user + ql_dbg_buffer, vha, 0x5056,
-				(uint8_t *)pkt, sizeof(*pkt));
+		    pkt, sizeof(*pkt));
 	}
 	else {
 		res =  DID_OK << 16;
@@ -1703,7 +1703,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 		    logio->entry_status);
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x504d,
-		    (uint8_t *)logio, sizeof(*logio));
+		    logio, sizeof(*logio));
 
 		goto logio_done;
 	}
@@ -1849,8 +1849,8 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	}
 
 	if (iocb->u.tmf.data != QLA_SUCCESS)
-		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5055,
-		    (uint8_t *)sts, sizeof(*sts));
+		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, sp->vha, 0x5055,
+		    sts, sizeof(*sts));
 
 	sp->done(sp, 0);
 }

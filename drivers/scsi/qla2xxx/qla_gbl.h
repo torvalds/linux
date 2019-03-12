@@ -118,6 +118,7 @@ int qla_post_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 void qla_do_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 int qla2x00_reserve_mgmt_server_loop_id(scsi_qla_host_t *);
 void qla_rscn_replay(fc_port_t *fcport);
+extern bool qla24xx_risc_firmware_invalid(uint32_t *);
 
 /*
  * Global Data in qla_os.c source file.
@@ -614,14 +615,9 @@ extern ulong qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *);
 extern int qla27xx_fwdt_template_valid(void *);
 extern ulong qla27xx_fwdt_template_size(void *);
 
-extern void qla2x00_dump_regs(scsi_qla_host_t *);
-extern void qla2x00_dump_buffer(uint8_t *, uint32_t);
-extern void qla2x00_dump_buffer_zipped(uint8_t *, uint32_t);
-extern void ql_dump_regs(uint32_t, scsi_qla_host_t *, int32_t);
-extern void ql_dump_buffer(uint32_t, scsi_qla_host_t *, int32_t,
-			   uint8_t *, uint32_t);
 extern void qla2xxx_dump_post_process(scsi_qla_host_t *, int);
-
+extern void ql_dump_regs(uint, scsi_qla_host_t *, uint);
+extern void ql_dump_buffer(uint, scsi_qla_host_t *, uint, void *, uint);
 /*
  * Global Function Prototypes in qla_gs.c source file.
  */

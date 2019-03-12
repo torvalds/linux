@@ -3650,8 +3650,7 @@ qla2x00_update_fw_options(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x0115,
 	    "Serial link options.\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0109,
-	    (uint8_t *)&ha->fw_seriallink_options,
-	    sizeof(ha->fw_seriallink_options));
+	    ha->fw_seriallink_options, sizeof(ha->fw_seriallink_options));
 
 	ha->fw_options[1] &= ~FO1_SET_EMPHASIS_SWING;
 	if (ha->fw_seriallink_options[3] & BIT_2) {
@@ -4362,7 +4361,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	rval = QLA_SUCCESS;
 
 	/* Determine NVRAM starting address. */
-	ha->nvram_size = sizeof(nvram_t);
+	ha->nvram_size = sizeof(*nv);
 	ha->nvram_base = 0;
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha))
 		if ((RD_REG_WORD(&reg->ctrl_status) >> 14) == 1)
@@ -4376,7 +4375,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x010f,
 	    "Contents of NVRAM.\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0110,
-	    (uint8_t *)nv, ha->nvram_size);
+	    nv, ha->nvram_size);
 
 	/* Bad NVRAM data, set defaults parameters. */
 	if (chksum || nv->id[0] != 'I' || nv->id[1] != 'S' ||
@@ -4948,8 +4947,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_disc, vha, 0x2011,
 	    "Entries in ID list (%d).\n", entries);
 	ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x2075,
-	    (uint8_t *)ha->gid_list,
-	    entries * sizeof(struct gid_list_info));
+	    ha->gid_list, entries * sizeof(*ha->gid_list));
 
 	if (entries == 0) {
 		spin_lock_irqsave(&vha->work_lock, flags);
@@ -6967,7 +6965,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
 	}
 
-	ha->nvram_size = sizeof(struct nvram_24xx);
+	ha->nvram_size = sizeof(*nv);
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
 
 	/* Get VPD data into cache */
@@ -6985,7 +6983,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x006a,
 	    "Contents of NVRAM\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x010d,
-	    (uint8_t *)nv, ha->nvram_size);
+	    nv, ha->nvram_size);
 
 	/* Bad NVRAM data, set defaults parameters. */
 	if (chksum || nv->id[0] != 'I' || nv->id[1] != 'S' || nv->id[2] != 'P'
@@ -6995,6 +6993,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		ql_log(ql_log_warn, vha, 0x006b,
 		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
 		    "version=0x%x.\n", chksum, nv->id[0], nv->nvram_version);
+		ql_dump_buffer(ql_dbg_init, vha, 0x006b, nv, 32);
 		ql_log(ql_log_warn, vha, 0x006c,
 		    "Falling back to functioning (yet invalid -- WWPN) "
 		    "defaults.\n");
@@ -7206,18 +7205,16 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 {
 	struct qla27xx_image_status pri_image_status, sec_image_status;
-	uint8_t valid_pri_image, valid_sec_image;
+	bool valid_pri_image = true, valid_sec_image = true;
 	uint32_t *wptr;
-	uint32_t cnt, chksum, size;
+	uint chksum, cnt, size = sizeof(pri_image_status) / sizeof(*wptr);
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t signature;
 
-	valid_pri_image = valid_sec_image = 1;
 	ha->active_image = 0;
-	size = sizeof(struct qla27xx_image_status) / sizeof(uint32_t);
 
 	if (!ha->flt_region_img_status_pri) {
-		valid_pri_image = 0;
+		valid_pri_image = false;
 		goto check_sec_image;
 	}
 
@@ -7228,9 +7225,9 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 	if (signature != QLA27XX_IMG_STATUS_SIGN &&
 	    signature != QLA28XX_IMG_STATUS_SIGN) {
 		ql_dbg(ql_dbg_init, vha, 0x018b,
-		    "Primary image signature (0x%x) not valid\n",
-		    pri_image_status.signature);
-		valid_pri_image = 0;
+		    "Primary image signature (%#x) not valid\n",
+		    le32_to_cpu(pri_image_status.signature));
+		valid_pri_image = false;
 		goto check_sec_image;
 	}
 
@@ -7242,14 +7239,13 @@ uint8_t qla27xx_find_valid_image(struct scsi_qla_host *vha)
 
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x018c,
-		    "Checksum validation failed for primary image (0x%x)\n",
-		    chksum);
-		valid_pri_image = 0;
+		    "Primary image checksum failed (%#x)\n", chksum);
+		valid_pri_image = false;
 	}
 
 check_sec_image:
 	if (!ha->flt_region_img_status_sec) {
-		valid_sec_image = 0;
+		valid_sec_image = false;
 		goto check_valid_image;
 	}
 
@@ -7260,9 +7256,9 @@ check_sec_image:
 	if (signature != QLA27XX_IMG_STATUS_SIGN &&
 	    signature != QLA28XX_IMG_STATUS_SIGN) {
 		ql_dbg(ql_dbg_init, vha, 0x018d,
-		    "Secondary image signature(0x%x) not valid\n",
-		    sec_image_status.signature);
-		valid_sec_image = 0;
+		    "Secondary image signature (%#x) not valid\n",
+		    le32_to_cpu(sec_image_status.signature));
+		valid_sec_image = false;
 		goto check_valid_image;
 	}
 
@@ -7272,19 +7268,20 @@ check_sec_image:
 		chksum += le32_to_cpu(*wptr);
 	if (chksum) {
 		ql_dbg(ql_dbg_init, vha, 0x018e,
-		    "Checksum validation failed for secondary image (0x%x)\n",
-		    chksum);
-		valid_sec_image = 0;
+		    "Secondary image checksum failed (%#x)\n", chksum);
+		valid_sec_image = false;
 	}
 
 check_valid_image:
-	if (valid_pri_image && (pri_image_status.image_status_mask & 0x1))
+	if (valid_pri_image && (pri_image_status.image_status_mask & 1))
 		ha->active_image = QLA27XX_PRIMARY_IMAGE;
-	if (valid_sec_image && (sec_image_status.image_status_mask & 0x1)) {
+
+	if (valid_sec_image && (sec_image_status.image_status_mask & 1)) {
 		if (!ha->active_image ||
-		    pri_image_status.generation_number <
-		    sec_image_status.generation_number)
+		    le16_to_cpu(pri_image_status.generation) <
+		    le16_to_cpu(sec_image_status.generation)) {
 			ha->active_image = QLA27XX_SECONDARY_IMAGE;
+		}
 	}
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x018f, "%s image\n",
@@ -7294,6 +7291,13 @@ check_valid_image:
 	    "Invalid");
 
 	return ha->active_image;
+}
+
+bool qla24xx_risc_firmware_invalid(uint32_t *dword)
+{
+	return
+	    !(dword[4] | dword[5] | dword[6] | dword[7]) ||
+	    !(~dword[4] | ~dword[5] | ~dword[6] | ~dword[7]);
 }
 
 static int
@@ -7312,24 +7316,9 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	ql_dbg(ql_dbg_init, vha, 0x008b,
 	    "FW: Loading firmware from flash (%x).\n", faddr);
 
-	rval = QLA_SUCCESS;
-
-	segments = FA_RISC_CODE_SEGMENTS;
-	dcode = (uint32_t *)req->ring;
-	*srisc_addr = 0;
-
-	if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
-	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
-		faddr = ha->flt_region_fw_sec;
-
-	/* Validate firmware image by checking version. */
-	qla24xx_read_flash_data(vha, dcode, faddr + 4, 4);
-	for (i = 0; i < 4; i++)
-		dcode[i] = be32_to_cpu(dcode[i]);
-	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
-	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
-	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
-		dcode[3] == 0)) {
+	dcode = (void *)req->ring;
+	qla24xx_read_flash_data(vha, dcode, faddr, 8);
+	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x008c,
 		    "Unable to verify the integrity of flash firmware "
 		    "image.\n");
@@ -7554,7 +7543,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	uint32_t risc_size;
 	uint32_t i;
 	struct fw_blob *blob;
-	const uint32_t *fwcode;
+	uint32_t *fwcode;
 	uint32_t fwclen;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
@@ -7571,19 +7560,9 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	ql_dbg(ql_dbg_init, vha, 0x0092,
-	    "FW: Loading via request-firmware.\n");
-
-	rval = QLA_SUCCESS;
-
-	segments = FA_RISC_CODE_SEGMENTS;
-	dcode = (uint32_t *)req->ring;
-	*srisc_addr = 0;
-	fwcode = (uint32_t *)blob->fw->data;
-	fwclen = 0;
-
-	/* Validate firmware image by checking version. */
-	if (blob->fw->size < 8 * sizeof(uint32_t)) {
+	fwcode = (void *)blob->fw->data;
+	dcode = fwcode;
+	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x0093,
 		    "Unable to verify integrity of firmware image (%zd).\n",
 		    blob->fw->size);
@@ -7740,28 +7719,43 @@ qla81xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	if (ql2xfwloadbin == 2)
 		goto try_blob_fw;
 
-	/*
-	 * FW Load priority:
+	/* FW Load priority:
 	 * 1) Firmware residing in flash.
 	 * 2) Firmware via request-firmware interface (.bin file).
-	 * 3) Golden-Firmware residing in flash -- limited operation.
+	 * 3) Golden-Firmware residing in flash -- (limited operation).
 	 */
+
+	if (!IS_QLA27XX(ha) || !IS_QLA28XX(ha))
+		goto try_primary_fw;
+
+	if (qla27xx_find_valid_image(vha) != QLA27XX_SECONDARY_IMAGE)
+		goto try_primary_fw;
+
+	ql_dbg(ql_dbg_init, vha, 0x008b,
+	    "Loading secondary firmware image.\n");
+	rval = qla24xx_load_risc_flash(vha, srisc_addr, ha->flt_region_fw_sec);
+	if (!rval)
+		return rval;
+
+try_primary_fw:
+	ql_dbg(ql_dbg_init, vha, 0x008b,
+	    "Loading primary firmware image.\n");
 	rval = qla24xx_load_risc_flash(vha, srisc_addr, ha->flt_region_fw);
-	if (rval == QLA_SUCCESS)
+	if (!rval)
 		return rval;
 
 try_blob_fw:
 	rval = qla24xx_load_risc_blob(vha, srisc_addr);
-	if (rval == QLA_SUCCESS || !ha->flt_region_gold_fw)
+	if (!rval || !ha->flt_region_gold_fw)
 		return rval;
 
 	ql_log(ql_log_info, vha, 0x0099,
 	    "Attempting to fallback to golden firmware.\n");
 	rval = qla24xx_load_risc_flash(vha, srisc_addr, ha->flt_region_gold_fw);
-	if (rval != QLA_SUCCESS)
+	if (rval)
 		return rval;
 
-	ql_log(ql_log_info, vha, 0x009a, "Update operational firmware.\n");
+	ql_log(ql_log_info, vha, 0x009a, "Need firmware flash update.\n");
 	ha->flags.running_gold_fw = 1;
 	return rval;
 }
@@ -7936,7 +7930,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	nv = ha->nvram;
 
 	/* Determine NVRAM starting address. */
-	ha->nvram_size = sizeof(struct nvram_81xx);
+	ha->nvram_size = sizeof(*nv);
 	ha->vpd_size = FA_NVRAM_VPD_SIZE;
 	if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
 		ha->vpd_size = FA_VPD_SIZE_82XX;
@@ -7956,7 +7950,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x0111,
 	    "Contents of NVRAM:\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0112,
-	    (uint8_t *)nv, ha->nvram_size);
+	    nv, ha->nvram_size);
 
 	/* Bad NVRAM data, set defaults parameters. */
 	if (chksum || nv->id[0] != 'I' || nv->id[1] != 'S' || nv->id[2] != 'P'
@@ -7967,6 +7961,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		    "Inconsistent NVRAM detected: checksum=0x%x id=%c "
 		    "version=0x%x.\n", chksum, nv->id[0],
 		    le16_to_cpu(nv->nvram_version));
+		ql_dump_buffer(ql_dbg_init, vha, 0x0073, nv, 32);
 		ql_log(ql_log_info, vha, 0x0074,
 		    "Falling back to functioning (yet invalid -- WWPN) "
 		    "defaults.\n");
@@ -8188,12 +8183,6 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* N2N: driver will initiate Login instead of FW */
 	icb->firmware_options_3 |= BIT_8;
-
-	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
-		icb->firmware_options_3 |= BIT_8;
-		ql_dbg(ql_log_info, vha, 0x0075,
-		    "Enabling direct connection.\n");
-	}
 
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0076,

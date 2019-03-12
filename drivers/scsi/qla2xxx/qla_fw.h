@@ -1516,7 +1516,9 @@ struct qla_flt_header {
 #define FLT_REG_VPD_SEC_27XX_3	0xDA
 
 struct qla_flt_region {
-	uint32_t code;
+	uint16_t code;
+	uint8_t attribute;
+	uint8_t reserved;
 	uint32_t size;
 	uint32_t start;
 	uint32_t end;

@@ -619,7 +619,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 		ql_log(ql_log_fatal, vha, 0x0045,
 		    "Inconsistent FLTL detected: checksum=0x%x.\n", chksum);
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x010e,
-		    buf, sizeof(struct qla_flt_location));
+		    fltl, sizeof(*fltl));
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -721,12 +721,12 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		/* Store addresses as DWORD offsets. */
 		start = le32_to_cpu(region->start) >> 2;
 		ql_dbg(ql_dbg_init, vha, 0x0049,
-		    "FLT[%02x]: start=0x%x "
-		    "end=0x%x size=0x%x.\n", le32_to_cpu(region->code) & 0xff,
+		    "FLT[%#x]: start=%#x end=%#x size=%#x.\n",
+		    le16_to_cpu(region->code),
 		    start, le32_to_cpu(region->end) >> 2,
 		    le32_to_cpu(region->size));
 
-		switch (le32_to_cpu(region->code) & 0xff) {
+		switch (le16_to_cpu(region->code)) {
 		case FLT_REG_FCOE_FW:
 			if (!IS_QLA8031(ha))
 				break;
@@ -941,7 +941,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 		    " checksum=0x%x id=%c version0x%x.\n", chksum,
 		    fdt->sig[0], le16_to_cpu(fdt->version));
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0113,
-		    (uint8_t *)fdt, sizeof(*fdt));
+		    fdt, sizeof(*fdt));
 		goto no_flash_data;
 	}
 
@@ -2879,7 +2879,7 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		    "Dumping fw "
 		    "ver from flash:.\n");
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x010b,
-		    (uint8_t *)dbyte, 8);
+		    dbyte, 8);
 
 		if ((dcode[0] == 0xffff && dcode[1] == 0xffff &&
 		    dcode[2] == 0xffff && dcode[3] == 0xffff) ||
@@ -3128,24 +3128,16 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	    qla27xx_find_valid_image(vha) == QLA27XX_SECONDARY_IMAGE)
 		faddr = ha->flt_region_fw_sec;
 
-	qla24xx_read_flash_data(vha, dcode, faddr + 4, 4);
-	for (i = 0; i < 4; i++)
-		dcode[i] = be32_to_cpu(dcode[i]);
-
-	if ((dcode[0] == 0xffffffff && dcode[1] == 0xffffffff &&
-	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
-	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
-	    dcode[3] == 0)) {
+	qla24xx_read_flash_data(vha, dcode, faddr, 8);
+	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_warn, vha, 0x005f,
 		    "Unrecognized fw revision at %x.\n",
 		    ha->flt_region_fw * 4);
 	} else {
-		ha->fw_revision[0] = dcode[0];
-		ha->fw_revision[1] = dcode[1];
-		ha->fw_revision[2] = dcode[2];
-		ha->fw_revision[3] = dcode[3];
+		for (i = 0; i < 4; i++)
+			ha->fw_revision[i] = be32_to_cpu(dcode[4+i]);
 		ql_dbg(ql_dbg_init, vha, 0x0060,
-		    "Firmware revision %d.%d.%d (%x).\n",
+		    "Firmware revision (flash) %d.%d.%d (%x).\n",
 		    ha->fw_revision[0], ha->fw_revision[1],
 		    ha->fw_revision[2], ha->fw_revision[3]);
 	}
@@ -3158,19 +3150,16 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 
 	memset(ha->gold_fw_version, 0, sizeof(ha->gold_fw_version));
 	dcode = mbuf;
-	ha->isp_ops->read_optrom(vha, (uint8_t *)dcode,
-	    ha->flt_region_gold_fw << 2, 32);
-
-	if (dcode[4] == 0xFFFFFFFF && dcode[5] == 0xFFFFFFFF &&
-	    dcode[6] == 0xFFFFFFFF && dcode[7] == 0xFFFFFFFF) {
+	qla24xx_read_flash_data(vha, dcode, ha->flt_region_gold_fw, 8);
+	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_warn, vha, 0x0056,
 		    "Unrecognized golden fw at 0x%x.\n",
 		    ha->flt_region_gold_fw * 4);
 		return ret;
 	}
 
-	for (i = 4; i < 8; i++)
-		ha->gold_fw_version[i-4] = be32_to_cpu(dcode[i]);
+	for (i = 0; i < 4; i++)
+		ha->gold_fw_version[i] = be32_to_cpu(dcode[4+i]);
 
 	return ret;
 }

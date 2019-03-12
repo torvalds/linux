@@ -4467,7 +4467,7 @@ typedef struct scsi_qla_host {
 
 struct qla27xx_image_status {
 	uint8_t image_status_mask;
-	uint16_t generation_number;
+	uint16_t generation;
 	uint8_t reserved[3];
 	uint8_t ver_minor;
 	uint8_t ver_major;
