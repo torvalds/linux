@@ -22,7 +22,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/rtc.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
@@ -128,7 +127,6 @@
 struct abb5zes3_rtc_data {
 	struct rtc_device *rtc;
 	struct regmap *regmap;
-	struct mutex lock;
 
 	int irq;
 
@@ -138,8 +136,7 @@ struct abb5zes3_rtc_data {
 
 /*
  * Try and match register bits w/ fixed null values to see whether we
- * are dealing with an ABB5ZES3. Note: this function is called early
- * during init and hence does need mutex protection.
+ * are dealing with an ABB5ZES3.
  */
 static int abb5zes3_i2c_validate_chip(struct regmap *regmap)
 {
@@ -273,12 +270,9 @@ static int abb5zes3_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	regs[ABB5ZES3_REG_RTC_MO] = bin2bcd(tm->tm_mon + 1);
 	regs[ABB5ZES3_REG_RTC_YR] = bin2bcd(tm->tm_year - 100);
 
-	mutex_lock(&data->lock);
 	ret = regmap_bulk_write(data->regmap, ABB5ZES3_REG_RTC_SC,
 				regs + ABB5ZES3_REG_RTC_SC,
 				ABB5ZES3_RTC_SEC_LEN);
-	mutex_unlock(&data->lock);
-
 
 	return ret;
 }
@@ -447,12 +441,10 @@ static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct abb5zes3_rtc_data *data = dev_get_drvdata(dev);
 	int ret;
 
-	mutex_lock(&data->lock);
 	if (data->timer_alarm)
 		ret = _abb5zes3_rtc_read_timer(dev, alarm);
 	else
 		ret = _abb5zes3_rtc_read_alarm(dev, alarm);
-	mutex_unlock(&data->lock);
 
 	return ret;
 }
@@ -590,7 +582,6 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct rtc_time rtc_tm;
 	int ret;
 
-	mutex_lock(&data->lock);
 	ret = _abb5zes3_rtc_read_time(dev, &rtc_tm);
 	if (ret)
 		goto err;
@@ -630,8 +621,6 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		ret = _abb5zes3_rtc_set_alarm(dev, alarm);
 
  err:
-	mutex_unlock(&data->lock);
-
 	if (ret)
 		dev_err(dev, "%s: unable to configure alarm (%d)\n", __func__,
 			ret);
@@ -650,8 +639,7 @@ static inline int _abb5zes3_rtc_battery_low_irq_enable(struct regmap *regmap,
 
 /*
  * Check current RTC status and enable/disable what needs to be. Return 0 if
- * everything went ok and a negative value upon error. Note: this function
- * is called early during init and hence does need mutex protection.
+ * everything went ok and a negative value upon error.
  */
 static int abb5zes3_rtc_check_setup(struct device *dev)
 {
@@ -788,12 +776,10 @@ static int abb5zes3_rtc_alarm_irq_enable(struct device *dev,
 	int ret = 0;
 
 	if (rtc_data->irq) {
-		mutex_lock(&rtc_data->lock);
 		if (rtc_data->timer_alarm)
 			ret = _abb5zes3_rtc_update_timer(dev, enable);
 		else
 			ret = _abb5zes3_rtc_update_alarm(dev, enable);
-		mutex_unlock(&rtc_data->lock);
 	}
 
 	return ret;
@@ -908,7 +894,6 @@ static int abb5zes3_probe(struct i2c_client *client,
 		goto err;
 	}
 
-	mutex_init(&data->lock);
 	data->regmap = regmap;
 	dev_set_drvdata(dev, data);
 
