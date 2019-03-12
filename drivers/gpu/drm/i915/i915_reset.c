@@ -98,6 +98,12 @@ static void context_mark_innocent(struct i915_gem_context *ctx)
 
 void i915_reset_request(struct i915_request *rq, bool guilty)
 {
+	GEM_TRACE("%s rq=%llx:%lld, guilty? %s\n",
+		  rq->engine->name,
+		  rq->fence.context,
+		  rq->fence.seqno,
+		  yesno(guilty));
+
 	lockdep_assert_held(&rq->engine->timeline.lock);
 	GEM_BUG_ON(i915_request_completed(rq));
 

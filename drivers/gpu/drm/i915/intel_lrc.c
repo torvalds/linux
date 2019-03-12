@@ -1957,7 +1957,6 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	/* Following the reset, we need to reload the CSB read/write pointers */
 	reset_csb_pointers(&engine->execlists);
 
-	GEM_TRACE("%s stalled? %s\n", engine->name, yesno(stalled));
 	if (!rq)
 		goto out_unlock;
 

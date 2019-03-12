@@ -757,8 +757,6 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 		}
 	}
 
-	GEM_TRACE("%s stalled? %s\n", engine->name, yesno(stalled));
-
 	/*
 	 * The guilty request will get skipped on a hung engine.
 	 *
