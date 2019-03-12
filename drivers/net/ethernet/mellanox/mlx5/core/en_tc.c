@@ -2978,12 +2978,16 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			if (netdev_port_same_parent_id(priv->netdev, out_dev)) {
 				struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 				struct net_device *uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-				struct net_device *uplink_upper = netdev_master_upper_dev_get(uplink_dev);
+				struct net_device *uplink_upper;
 
+				rcu_read_lock();
+				uplink_upper =
+					netdev_master_upper_dev_get_rcu(uplink_dev);
 				if (uplink_upper &&
 				    netif_is_lag_master(uplink_upper) &&
 				    uplink_upper == out_dev)
 					out_dev = uplink_dev;
+				rcu_read_unlock();
 
 				if (is_vlan_dev(out_dev)) {
 					err = add_vlan_push_action(priv, attr,
