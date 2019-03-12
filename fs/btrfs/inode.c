@@ -1196,8 +1196,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 	int i;
 	bool should_compress;
 
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, EXTENT_LOCKED,
-			 1, 0, NULL);
+	unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS &&
 	    !btrfs_test_opt(fs_info, FORCE_COMPRESS)) {
