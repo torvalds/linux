@@ -923,7 +923,7 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 		/* Use 8x RA size as a decent limiter for both reads/writes */
 		max_pages = filp->f_ra.ra_pages;
 		if (!max_pages)
-			max_pages = VM_MAX_READAHEAD >> (PAGE_SHIFT - 10);
+			max_pages = VM_READAHEAD_PAGES;
 		max_pages *= 8;
 
 		/* If max pages are exceeded, reset the state */

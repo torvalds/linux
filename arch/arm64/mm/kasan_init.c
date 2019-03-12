@@ -40,6 +40,11 @@ static phys_addr_t __init kasan_alloc_zeroed_page(int node)
 	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
 					      __pa(MAX_DMA_ADDRESS),
 					      MEMBLOCK_ALLOC_KASAN, node);
+	if (!p)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%llx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE, node,
+		      __pa(MAX_DMA_ADDRESS));
+
 	return __pa(p);
 }
 
@@ -48,6 +53,11 @@ static phys_addr_t __init kasan_alloc_raw_page(int node)
 	void *p = memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
 						__pa(MAX_DMA_ADDRESS),
 						MEMBLOCK_ALLOC_KASAN, node);
+	if (!p)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%llx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE, node,
+		      __pa(MAX_DMA_ADDRESS));
+
 	return __pa(p);
 }
 

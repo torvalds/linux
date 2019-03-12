@@ -351,6 +351,9 @@ void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
 	struct clk_iomap *io;
 
 	io = memblock_alloc(sizeof(*io), SMP_CACHE_BYTES);
+	if (!io)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*io));
 
 	io->mem = mem;
 

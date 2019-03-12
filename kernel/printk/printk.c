@@ -1143,14 +1143,7 @@ void __init setup_log_buf(int early)
 	if (!new_log_buf_len)
 		return;
 
-	if (early) {
-		new_log_buf =
-			memblock_alloc(new_log_buf_len, LOG_ALIGN);
-	} else {
-		new_log_buf = memblock_alloc_nopanic(new_log_buf_len,
-							  LOG_ALIGN);
-	}
-
+	new_log_buf = memblock_alloc(new_log_buf_len, LOG_ALIGN);
 	if (unlikely(!new_log_buf)) {
 		pr_err("log_buf_len: %lu bytes not available\n",
 			new_log_buf_len);

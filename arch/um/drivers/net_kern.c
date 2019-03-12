@@ -649,6 +649,9 @@ static int __init eth_setup(char *str)
 	}
 
 	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
+	if (!new)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*new));
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

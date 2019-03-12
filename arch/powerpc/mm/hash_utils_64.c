@@ -882,8 +882,12 @@ static void __init htab_initialize(void)
 		}
 #endif /* CONFIG_PPC_CELL */
 
-		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes,
-					    limit);
+		table = memblock_phys_alloc_range(htab_size_bytes,
+						  htab_size_bytes,
+						  0, limit);
+		if (!table)
+			panic("ERROR: Failed to allocate %pa bytes below %pa\n",
+			      &htab_size_bytes, &limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
@@ -911,6 +915,9 @@ static void __init htab_initialize(void)
 		linear_map_hash_slots = memblock_alloc_try_nid(
 				linear_map_hash_count, 1, MEMBLOCK_LOW_LIMIT,
 				ppc64_rma_size,	NUMA_NO_NODE);
+		if (!linear_map_hash_slots)
+			panic("%s: Failed to allocate %lu bytes max_addr=%pa\n",
+			      __func__, linear_map_hash_count, &ppc64_rma_size);
 	}
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 

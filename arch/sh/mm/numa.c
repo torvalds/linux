@@ -43,6 +43,10 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	/* Node-local pgdat */
 	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
 					     SMP_CACHE_BYTES, nid);
+	if (!NODE_DATA(nid))
+		panic("%s: Failed to allocate %zu bytes align=0x%x nid=%d\n",
+		      __func__, sizeof(struct pglist_data), SMP_CACHE_BYTES,
+		      nid);
 
 	NODE_DATA(nid)->node_start_pfn = start_pfn;
 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;

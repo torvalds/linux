@@ -161,7 +161,7 @@ static int __init alloc_node_page_ext(int nid)
 
 	table_size = get_entry_size() * nr_pages;
 
-	base = memblock_alloc_try_nid_nopanic(
+	base = memblock_alloc_try_nid(
 			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
 			MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	if (!base)

@@ -2643,23 +2643,25 @@ static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
 					int *valp,
 					int write, void *data)
 {
+	int tmp, ret;
 	struct do_proc_dointvec_minmax_conv_param *param = data;
+	/*
+	 * If writing, first do so via a temporary local int so we can
+	 * bounds-check it before touching *valp.
+	 */
+	int *ip = write ? &tmp : valp;
+
+	ret = do_proc_dointvec_conv(negp, lvalp, ip, write, data);
+	if (ret)
+		return ret;
+
 	if (write) {
-		int val = *negp ? -*lvalp : *lvalp;
-		if ((param->min && *param->min > val) ||
-		    (param->max && *param->max < val))
+		if ((param->min && *param->min > tmp) ||
+		    (param->max && *param->max < tmp))
 			return -EINVAL;
-		*valp = val;
-	} else {
-		int val = *valp;
-		if (val < 0) {
-			*negp = true;
-			*lvalp = -(unsigned long)val;
-		} else {
-			*negp = false;
-			*lvalp = (unsigned long)val;
-		}
+		*valp = tmp;
 	}
+
 	return 0;
 }
 
@@ -2708,22 +2710,22 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
 					 unsigned int *valp,
 					 int write, void *data)
 {
+	int ret;
+	unsigned int tmp;
 	struct do_proc_douintvec_minmax_conv_param *param = data;
+	/* write via temporary local uint for bounds-checking */
+	unsigned int *up = write ? &tmp : valp;
+
+	ret = do_proc_douintvec_conv(lvalp, up, write, data);
+	if (ret)
+		return ret;
 
 	if (write) {
-		unsigned int val = *lvalp;
-
-		if (*lvalp > UINT_MAX)
-			return -EINVAL;
-
-		if ((param->min && *param->min > val) ||
-		    (param->max && *param->max < val))
+		if ((param->min && *param->min > tmp) ||
+		    (param->max && *param->max < tmp))
 			return -ERANGE;
 
-		*valp = val;
-	} else {
-		unsigned int val = *valp;
-		*lvalp = (unsigned long) val;
+		*valp = tmp;
 	}
 
 	return 0;

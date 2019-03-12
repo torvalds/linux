@@ -165,6 +165,9 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
 void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 {
 	*mask = memblock_alloc(cpumask_size(), SMP_CACHE_BYTES);
+	if (!*mask)
+		panic("%s: Failed to allocate %u bytes\n", __func__,
+		      cpumask_size());
 }
 
 /**

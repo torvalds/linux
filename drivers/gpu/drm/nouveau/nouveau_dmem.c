@@ -261,7 +261,7 @@ static const struct migrate_vma_ops nouveau_dmem_fault_migrate_ops = {
 	.finalize_and_map	= nouveau_dmem_fault_finalize_and_map,
 };
 
-static int
+static vm_fault_t
 nouveau_dmem_fault(struct hmm_devmem *devmem,
 		   struct vm_area_struct *vma,
 		   unsigned long addr,

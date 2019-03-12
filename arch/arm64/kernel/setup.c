@@ -208,6 +208,7 @@ static void __init request_standard_resources(void)
 	struct memblock_region *region;
 	struct resource *res;
 	unsigned long i = 0;
+	size_t res_size;
 
 	kernel_code.start   = __pa_symbol(_text);
 	kernel_code.end     = __pa_symbol(__init_begin - 1);
@@ -215,9 +216,10 @@ static void __init request_standard_resources(void)
 	kernel_data.end     = __pa_symbol(_end - 1);
 
 	num_standard_resources = memblock.memory.cnt;
-	standard_resources = memblock_alloc_low(num_standard_resources *
-					        sizeof(*standard_resources),
-					        SMP_CACHE_BYTES);
+	res_size = num_standard_resources * sizeof(*standard_resources);
+	standard_resources = memblock_alloc_low(res_size, SMP_CACHE_BYTES);
+	if (!standard_resources)
+		panic("%s: Failed to allocate %zu bytes\n", __func__, res_size);
 
 	for_each_memblock(memory, region) {
 		res = &standard_resources[i++];

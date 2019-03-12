@@ -919,6 +919,9 @@ static void __init resource_init(void)
 			end = HIGHMEM_START - 1;
 
 		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      sizeof(struct resource));
 
 		res->start = start;
 		res->end = end;
