@@ -1587,6 +1587,9 @@ EXPORT_SYMBOL(find_lock_entry);
  *   @gfp_mask and added to the page cache and the VM's LRU
  *   list. The page is returned locked and with an increased
  *   refcount.
+ * - FGP_FOR_MMAP: Similar to FGP_CREAT, only we want to allow the caller to do
+ *   its own locking dance if the page is already in cache, or unlock the page
+ *   before returning if we had to add the page to pagecache.
  *
  * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
  * if the GFP flags specified for FGP_CREAT are atomic.
@@ -1641,7 +1644,7 @@ no_page:
 		if (!page)
 			return NULL;
 
-		if (WARN_ON_ONCE(!(fgp_flags & FGP_LOCK)))
+		if (WARN_ON_ONCE(!(fgp_flags & (FGP_LOCK | FGP_FOR_MMAP))))
 			fgp_flags |= FGP_LOCK;
 
 		/* Init accessed so avoid atomic mark_page_accessed later */
@@ -1655,6 +1658,13 @@ no_page:
 			if (err == -EEXIST)
 				goto repeat;
 		}
+
+		/*
+		 * add_to_page_cache_lru locks the page, and for mmap we expect
+		 * an unlocked page.
+		 */
+		if (page && (fgp_flags & FGP_FOR_MMAP))
+			unlock_page(page);
 	}
 
 	return page;
@@ -2379,41 +2389,6 @@ out:
 EXPORT_SYMBOL(generic_file_read_iter);
 
 #ifdef CONFIG_MMU
-/**
- * page_cache_read - adds requested page to the page cache if not already there
- * @file:	file to read
- * @offset:	page index
- * @gfp_mask:	memory allocation flags
- *
- * This adds the requested page to the page cache if it isn't already there,
- * and schedules an I/O to read in its contents from disk.
- *
- * Return: %0 on success, negative error code otherwise.
- */
-static int page_cache_read(struct file *file, pgoff_t offset, gfp_t gfp_mask)
-{
-	struct address_space *mapping = file->f_mapping;
-	struct page *page;
-	int ret;
-
-	do {
-		page = __page_cache_alloc(gfp_mask);
-		if (!page)
-			return -ENOMEM;
-
-		ret = add_to_page_cache_lru(page, mapping, offset, gfp_mask);
-		if (ret == 0)
-			ret = mapping->a_ops->readpage(file, page);
-		else if (ret == -EEXIST)
-			ret = 0; /* losing race to add is OK */
-
-		put_page(page);
-
-	} while (ret == AOP_TRUNCATED_PAGE);
-
-	return ret;
-}
-
 #define MMAP_LOTSAMISS  (100)
 
 /*
@@ -2539,9 +2514,11 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 		count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
 		ret = VM_FAULT_MAJOR;
 retry_find:
-		page = find_get_page(mapping, offset);
+		page = pagecache_get_page(mapping, offset,
+					  FGP_CREAT|FGP_FOR_MMAP,
+					  vmf->gfp_mask);
 		if (!page)
-			goto no_cached_page;
+			return vmf_error(-ENOMEM);
 	}
 
 	if (!lock_page_or_retry(page, vmf->vma->vm_mm, vmf->flags)) {
@@ -2577,28 +2554,6 @@ retry_find:
 
 	vmf->page = page;
 	return ret | VM_FAULT_LOCKED;
-
-no_cached_page:
-	/*
-	 * We're only likely to ever get here if MADV_RANDOM is in
-	 * effect.
-	 */
-	error = page_cache_read(file, offset, vmf->gfp_mask);
-
-	/*
-	 * The page we want has now been added to the page cache.
-	 * In the unlikely event that someone removed it in the
-	 * meantime, we'll just come back here and read it again.
-	 */
-	if (error >= 0)
-		goto retry_find;
-
-	/*
-	 * An error return from page_cache_read can result if the
-	 * system is low on memory, or a problem occurs while trying
-	 * to schedule I/O.
-	 */
-	return vmf_error(error);
 
 page_not_uptodate:
 	/*
