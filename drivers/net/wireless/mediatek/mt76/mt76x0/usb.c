@@ -332,7 +332,7 @@ static int __maybe_unused mt76x0_resume(struct usb_interface *usb_intf)
 		goto err;
 
 	tasklet_enable(&usb->rx_tasklet);
-	tasklet_enable(&usb->tx_tasklet);
+	tasklet_enable(&dev->mt76.tx_tasklet);
 
 	ret = mt76x0u_init_hardware(dev);
 	if (ret)

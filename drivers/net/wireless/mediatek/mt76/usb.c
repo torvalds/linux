@@ -702,7 +702,7 @@ static void mt76u_complete_tx(struct urb *urb)
 		dev_err(dev->dev, "tx urb failed: %d\n", urb->status);
 	e->done = true;
 
-	tasklet_schedule(&dev->usb.tx_tasklet);
+	tasklet_schedule(&dev->tx_tasklet);
 }
 
 static int
@@ -843,7 +843,7 @@ static void mt76u_stop_tx(struct mt76_dev *dev)
 void mt76u_stop_queues(struct mt76_dev *dev)
 {
 	tasklet_disable(&dev->usb.rx_tasklet);
-	tasklet_disable(&dev->usb.tx_tasklet);
+	tasklet_disable(&dev->tx_tasklet);
 
 	mt76u_stop_rx(dev);
 	mt76u_stop_tx(dev);
@@ -898,7 +898,7 @@ int mt76u_init(struct mt76_dev *dev,
 	struct mt76_usb *usb = &dev->usb;
 
 	tasklet_init(&usb->rx_tasklet, mt76u_rx_tasklet, (unsigned long)dev);
-	tasklet_init(&usb->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
+	tasklet_init(&dev->tx_tasklet, mt76u_tx_tasklet, (unsigned long)dev);
 	INIT_DELAYED_WORK(&usb->stat_work, mt76u_tx_status_data);
 	skb_queue_head_init(&dev->rx_skb[MT_RXQ_MAIN]);
 

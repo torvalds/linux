@@ -386,7 +386,6 @@ struct mt76_usb {
 	u8 data[32];
 
 	struct tasklet_struct rx_tasklet;
-	struct tasklet_struct tx_tasklet;
 	struct delayed_work stat_work;
 
 	u8 out_ep[__MT_EP_OUT_MAX];
@@ -447,6 +446,8 @@ struct mt76_dev {
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
 	int tx_dma_idx[4];
+
+	struct tasklet_struct tx_tasklet;
 
 	wait_queue_head_t tx_wait;
 	struct sk_buff_head status_list;

@@ -180,7 +180,8 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	if (!status_fifo)
 		return -ENOMEM;
 
-	tasklet_init(&dev->tx_tasklet, mt76x02_tx_tasklet, (unsigned long) dev);
+	tasklet_init(&dev->mt76.tx_tasklet, mt76x02_tx_tasklet,
+		     (unsigned long) dev);
 	tasklet_init(&dev->pre_tbtt_tasklet, mt76x02_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
@@ -250,7 +251,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	if (intr & MT_INT_TX_DONE_ALL) {
 		mt76x02_irq_disable(dev, MT_INT_TX_DONE_ALL);
-		tasklet_schedule(&dev->tx_tasklet);
+		tasklet_schedule(&dev->mt76.tx_tasklet);
 	}
 
 	if (intr & MT_INT_RX_DONE(0)) {
@@ -276,7 +277,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 
 	if (intr & MT_INT_TX_STAT) {
 		mt76x02_mac_poll_tx_status(dev, true);
-		tasklet_schedule(&dev->tx_tasklet);
+		tasklet_schedule(&dev->mt76.tx_tasklet);
 	}
 
 	if (intr & MT_INT_GPTIMER) {
@@ -306,7 +307,7 @@ static void mt76x02_dma_enable(struct mt76x02_dev *dev)
 
 void mt76x02_dma_cleanup(struct mt76x02_dev *dev)
 {
-	tasklet_kill(&dev->tx_tasklet);
+	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt76x02_dma_cleanup);
@@ -425,7 +426,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	tasklet_disable(&dev->pre_tbtt_tasklet);
-	tasklet_disable(&dev->tx_tasklet);
+	tasklet_disable(&dev->mt76.tx_tasklet);
 
 	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
 		napi_disable(&dev->mt76.napi[i]);
@@ -478,8 +479,8 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
-	tasklet_enable(&dev->tx_tasklet);
-	tasklet_schedule(&dev->tx_tasklet);
+	tasklet_enable(&dev->mt76.tx_tasklet);
+	tasklet_schedule(&dev->mt76.tx_tasklet);
 
 	tasklet_enable(&dev->pre_tbtt_tasklet);
 
