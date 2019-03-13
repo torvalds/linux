@@ -288,7 +288,7 @@ static int ctr_encrypt_sync(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct aesbs_ctr_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return aes_ctr_encrypt_fallback(&ctx->fallback, req);
 
 	return ctr_encrypt(req);

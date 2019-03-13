@@ -3,6 +3,7 @@
 #include <asm/neon.h>
 #include <asm/simd.h>
 #include <crypto/sm4.h>
+#include <crypto/internal/simd.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -20,7 +21,7 @@ static void sm4_ce_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (!may_use_simd()) {
+	if (!crypto_simd_usable()) {
 		crypto_sm4_encrypt(tfm, out, in);
 	} else {
 		kernel_neon_begin();
@@ -33,7 +34,7 @@ static void sm4_ce_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct crypto_sm4_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (!may_use_simd()) {
+	if (!crypto_simd_usable()) {
 		crypto_sm4_decrypt(tfm, out, in);
 	} else {
 		kernel_neon_begin();

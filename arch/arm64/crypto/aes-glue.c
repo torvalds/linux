@@ -405,7 +405,7 @@ static int ctr_encrypt_sync(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return aes_ctr_encrypt_fallback(ctx, req);
 
 	return ctr_encrypt(req);
@@ -642,7 +642,7 @@ static void mac_do_update(struct crypto_aes_ctx *ctx, u8 const in[], int blocks,
 {
 	int rounds = 6 + ctx->key_length / 4;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		kernel_neon_begin();
 		aes_mac_update(in, ctx->key_enc, rounds, blocks, dg, enc_before,
 			       enc_after);
