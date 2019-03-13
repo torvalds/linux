@@ -4921,10 +4921,6 @@ EXPORT_SYMBOL net/tipc/tipc 0x00000000	tipc_dump_done
 EXPORT_SYMBOL net/tipc/tipc 0x00000000	tipc_dump_start
 EXPORT_SYMBOL net/tipc/tipc 0x00000000	tipc_nl_sk_walk
 EXPORT_SYMBOL net/tipc/tipc 0x00000000	tipc_sk_fill_sock_diag
-EXPORT_SYMBOL net/tls/tls 0x00000000	tls_device_sk_destruct
-EXPORT_SYMBOL net/tls/tls 0x00000000	tls_get_record
-EXPORT_SYMBOL net/tls/tls 0x00000000	tls_register_device
-EXPORT_SYMBOL net/tls/tls 0x00000000	tls_unregister_device
 EXPORT_SYMBOL net/wimax/wimax 0x00000000	wimax_reset
 EXPORT_SYMBOL net/wimax/wimax 0x00000000	wimax_rfkill
 EXPORT_SYMBOL net/wireless/cfg80211 0x00000000	__cfg80211_alloc_event_skb
@@ -16561,7 +16557,6 @@ EXPORT_SYMBOL_GPL net/sunrpc/sunrpc 0x00000000	xprt_update_rtt
 EXPORT_SYMBOL_GPL net/sunrpc/sunrpc 0x00000000	xprt_wait_for_buffer_space
 EXPORT_SYMBOL_GPL net/sunrpc/sunrpc 0x00000000	xprt_wake_pending_tasks
 EXPORT_SYMBOL_GPL net/sunrpc/sunrpc 0x00000000	xprt_write_space
-EXPORT_SYMBOL_GPL net/tls/tls 0x00000000	tls_validate_xmit_skb
 EXPORT_SYMBOL_GPL net/vmw_vsock/vmw_vsock_virtio_transport_common 0x00000000	virtio_transport_connect
 EXPORT_SYMBOL_GPL net/vmw_vsock/vmw_vsock_virtio_transport_common 0x00000000	virtio_transport_deliver_tap_pkt
 EXPORT_SYMBOL_GPL net/vmw_vsock/vmw_vsock_virtio_transport_common 0x00000000	virtio_transport_destruct
@@ -18373,8 +18368,6 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	class_interface_register
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	class_interface_unregister
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	class_remove_file_ns
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	class_unregister
-EXPORT_SYMBOL_GPL vmlinux 0x00000000	clean_acked_data_disable
-EXPORT_SYMBOL_GPL vmlinux 0x00000000	clean_acked_data_enable
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	clear_foreign_p2m_mapping
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	clear_hv_tscchange_cb
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	clflush_cache_range

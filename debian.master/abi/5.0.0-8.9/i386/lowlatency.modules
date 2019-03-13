@@ -673,6 +673,7 @@ cdc_subset
 cdns-csi2rx
 cdns-csi2tx
 cdns-pltfrm
+cec-gpio
 ceph
 cfag12864b
 cfag12864bfb
@@ -700,7 +701,6 @@ chnl_net
 chromeos_laptop
 chromeos_pstore
 chromeos_tbmc
-chtls
 ci_hdrc
 ci_hdrc_msm
 ci_hdrc_pci
@@ -4807,7 +4807,6 @@ tinydrm
 tipc
 tlan
 tlclk
-tls
 tm2-touchkey
 tm6000
 tm6000-alsa
