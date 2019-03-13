@@ -75,6 +75,8 @@ struct mlx5_rep_uplink_priv {
 
 	struct mlx5_tun_entropy tun_entropy;
 
+	/* protects unready_flows */
+	struct mutex                unready_flows_lock;
 	struct list_head            unready_flows;
 	struct work_struct          reoffload_flows_work;
 };

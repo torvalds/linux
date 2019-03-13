@@ -1560,6 +1560,7 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		uplink_priv = &rpriv->uplink_priv;
 
+		mutex_init(&uplink_priv->unready_flows_lock);
 		INIT_LIST_HEAD(&uplink_priv->unready_flows);
 
 		/* init shared tc flow table */
@@ -1604,6 +1605,7 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 
 		/* delete shared tc flow table */
 		mlx5e_tc_esw_cleanup(&rpriv->uplink_priv.tc_ht);
+		mutex_destroy(&rpriv->uplink_priv.unready_flows_lock);
 	}
 }
 

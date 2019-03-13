@@ -996,6 +996,25 @@ mlx5e_tc_unoffload_from_slow_path(struct mlx5_eswitch *esw,
 	flow_flag_clear(flow, SLOW);
 }
 
+/* Caller must obtain uplink_priv->unready_flows_lock mutex before calling this
+ * function.
+ */
+static void unready_flow_add(struct mlx5e_tc_flow *flow,
+			     struct list_head *unready_flows)
+{
+	flow_flag_set(flow, NOT_READY);
+	list_add_tail(&flow->unready, unready_flows);
+}
+
+/* Caller must obtain uplink_priv->unready_flows_lock mutex before calling this
+ * function.
+ */
+static void unready_flow_del(struct mlx5e_tc_flow *flow)
+{
+	list_del(&flow->unready);
+	flow_flag_clear(flow, NOT_READY);
+}
+
 static void add_unready_flow(struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_rep_uplink_priv *uplink_priv;
@@ -1006,14 +1025,24 @@ static void add_unready_flow(struct mlx5e_tc_flow *flow)
 	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 	uplink_priv = &rpriv->uplink_priv;
 
-	flow_flag_set(flow, NOT_READY);
-	list_add_tail(&flow->unready, &uplink_priv->unready_flows);
+	mutex_lock(&uplink_priv->unready_flows_lock);
+	unready_flow_add(flow, &uplink_priv->unready_flows);
+	mutex_unlock(&uplink_priv->unready_flows_lock);
 }
 
 static void remove_unready_flow(struct mlx5e_tc_flow *flow)
 {
-	list_del(&flow->unready);
-	flow_flag_clear(flow, NOT_READY);
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *rpriv;
+	struct mlx5_eswitch *esw;
+
+	esw = flow->priv->mdev->priv.eswitch;
+	rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+	uplink_priv = &rpriv->uplink_priv;
+
+	mutex_lock(&uplink_priv->unready_flows_lock);
+	unready_flow_del(flow);
+	mutex_unlock(&uplink_priv->unready_flows_lock);
 }
 
 static int
@@ -3723,10 +3752,10 @@ void mlx5e_tc_reoffload_flows_work(struct work_struct *work)
 			     reoffload_flows_work);
 	struct mlx5e_tc_flow *flow, *tmp;
 
-	rtnl_lock();
+	mutex_lock(&rpriv->unready_flows_lock);
 	list_for_each_entry_safe(flow, tmp, &rpriv->unready_flows, unready) {
 		if (!mlx5e_tc_add_fdb_flow(flow->priv, flow, NULL))
-			remove_unready_flow(flow);
+			unready_flow_del(flow);
 	}
-	rtnl_unlock();
+	mutex_unlock(&rpriv->unready_flows_lock);
 }
