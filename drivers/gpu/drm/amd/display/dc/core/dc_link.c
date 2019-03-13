@@ -2576,7 +2576,8 @@ void core_link_enable_stream(
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
 			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
-			stream->output_color_space);
+			stream->output_color_space,
+			stream->link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
 
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(

@@ -272,7 +272,8 @@ static void dce110_update_hdmi_info_packet(
 static void dce110_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
-	enum dc_color_space output_color_space)
+	enum dc_color_space output_color_space,
+	uint32_t enable_sdp_splitting)
 {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	uint32_t h_active_start;
