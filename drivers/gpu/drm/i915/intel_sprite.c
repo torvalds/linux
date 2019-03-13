@@ -349,7 +349,7 @@ skl_program_scaler(struct intel_plane *plane,
 
 	/* TODO: handle sub-pixel coordinates */
 	if (is_planar_yuv_format(plane_state->base.fb->format->format) &&
-	    !icl_is_hdr_plane(plane)) {
+	    !icl_is_hdr_plane(dev_priv, plane->id)) {
 		y_hphase = skl_scaler_calc_phase(1, hscale, false);
 		y_vphase = skl_scaler_calc_phase(1, vscale, false);
 
@@ -531,7 +531,7 @@ skl_program_plane(struct intel_plane *plane,
 	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
 		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
 
-	if (icl_is_hdr_plane(plane)) {
+	if (icl_is_hdr_plane(dev_priv, plane_id)) {
 		u32 cus_ctl = 0;
 
 		if (linked) {
@@ -555,7 +555,7 @@ skl_program_plane(struct intel_plane *plane,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id), plane_color_ctl);
 
-	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
+	if (fb->format->is_yuv && icl_is_hdr_plane(dev_priv, plane_id))
 		icl_program_input_csc(plane, crtc_state, plane_state);
 
 	skl_write_plane_wm(plane, crtc_state);
