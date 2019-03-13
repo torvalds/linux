@@ -192,14 +192,23 @@ config PWM_IMG
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-img
 
-config PWM_IMX
-	tristate "i.MX PWM support"
+config PWM_IMX1
+	tristate "i.MX1 PWM support"
 	depends on ARCH_MXC
 	help
-	  Generic PWM framework driver for i.MX.
+	  Generic PWM framework driver for i.MX1 and i.MX21
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-imx.
+	  will be called pwm-imx1.
+
+config PWM_IMX27
+	tristate "i.MX27 PWM support"
+	depends on ARCH_MXC
+	help
+	  Generic PWM framework driver for i.MX27 and later i.MX SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-imx27.
 
 config PWM_JZ4740
 	tristate "Ingenic JZ47xx PWM support"
