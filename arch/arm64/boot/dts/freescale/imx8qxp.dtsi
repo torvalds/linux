@@ -369,6 +369,14 @@
 			#mbox-cells = <2>;
 		};
 
+		lsio_mu2: mailbox@5d1d0000 {
+			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
+			reg = <0x5d1d0000 0x10000>;
+			interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+			status = "disabled";
+		};
+
 		lsio_mu3: mailbox@5d1e0000 {
 			compatible = "fsl,imx8qxp-mu", "fsl,imx6sx-mu";
 			reg = <0x5d1e0000 0x10000>;
