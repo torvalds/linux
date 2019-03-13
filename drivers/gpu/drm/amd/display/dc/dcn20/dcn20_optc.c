@@ -191,6 +191,15 @@ void optc2_set_dsc_config(struct timing_generator *optc,
 					uint32_t dsc_slice_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t data_format = 0;
+	/* skip if dsc mode is not changed */
+	data_format = dm_read_reg(CTX, REG(OPTC_DATA_FORMAT_CONTROL));
+
+	data_format = data_format & 0x30; /* bit5:4 */
+	data_format = data_format >> 4;
+
+	if (data_format == dsc_mode)
+		return;
 
 	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL,
 		OPTC_DSC_MODE, dsc_mode);

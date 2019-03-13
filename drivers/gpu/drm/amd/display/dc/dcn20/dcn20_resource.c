@@ -670,7 +670,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.max_downscale_src_width = 5120,/*upto 5K*/
 		.disable_pplib_wm_range = false,
 		.scl_reset_length10 = true,
-		.sanity_checks = true,
+		.sanity_checks = false,
 		.disable_tri_buf = true,
 };
 
