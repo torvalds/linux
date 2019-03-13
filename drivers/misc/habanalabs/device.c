@@ -11,6 +11,8 @@
 #include <linux/sched/signal.h>
 #include <linux/hwmon.h>
 
+#define HL_PLDM_PENDING_RESET_PER_SEC	(HL_PENDING_RESET_PER_SEC * 10)
+
 bool hl_device_disabled_or_in_reset(struct hl_device *hdev)
 {
 	if ((hdev->disabled) || (atomic_read(&hdev->in_reset)))
@@ -462,8 +464,15 @@ static void hl_device_hard_reset_pending(struct work_struct *work)
 	struct hl_device_reset_work *device_reset_work =
 		container_of(work, struct hl_device_reset_work, reset_work);
 	struct hl_device *hdev = device_reset_work->hdev;
-	u16 pending_cnt = HL_PENDING_RESET_PER_SEC;
+	u16 pending_total, pending_cnt;
 	struct task_struct *task = NULL;
+
+	if (hdev->pldm)
+		pending_total = HL_PLDM_PENDING_RESET_PER_SEC;
+	else
+		pending_total = HL_PENDING_RESET_PER_SEC;
+
+	pending_cnt = pending_total;
 
 	/* Flush all processes that are inside hl_open */
 	mutex_lock(&hdev->fd_open_cnt_lock);
@@ -488,6 +497,19 @@ static void hl_device_hard_reset_pending(struct work_struct *work)
 			put_task_struct(task);
 		}
 	}
+
+	pending_cnt = pending_total;
+
+	while ((atomic_read(&hdev->fd_open_cnt)) && (pending_cnt)) {
+
+		pending_cnt--;
+
+		ssleep(1);
+	}
+
+	if (atomic_read(&hdev->fd_open_cnt))
+		dev_crit(hdev->dev,
+			"Going to hard reset with open user contexts\n");
 
 	mutex_unlock(&hdev->fd_open_cnt_lock);
 
