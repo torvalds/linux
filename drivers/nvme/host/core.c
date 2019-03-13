@@ -1531,7 +1531,8 @@ static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
 	u32 max_sectors;
 	unsigned short bs = 1 << ns->lba_shift;
 
-	if (!(ns->ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES))
+	if (!(ns->ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES) ||
+	    (ns->ctrl->quirks & NVME_QUIRK_DISABLE_WRITE_ZEROES))
 		return;
 	/*
 	 * Even though NVMe spec explicitly states that MDTS is not
