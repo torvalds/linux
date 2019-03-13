@@ -1152,11 +1152,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	thread_pkey_regs_restore(new_thread, old_thread);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
-#define CP_SIZE 128
-static const u8 dummy_copy_buffer[CP_SIZE] __attribute__((aligned(CP_SIZE)));
-#endif
-
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
