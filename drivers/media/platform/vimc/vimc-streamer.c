@@ -52,6 +52,7 @@ static void vimc_streamer_pipeline_terminate(struct vimc_stream *stream)
 	while (stream->pipe_size) {
 		stream->pipe_size--;
 		ved = stream->ved_pipeline[stream->pipe_size];
+		ved->stream = NULL;
 		stream->ved_pipeline[stream->pipe_size] = NULL;
 
 		if (!is_media_entity_v4l2_subdev(ved->ent))
@@ -87,6 +88,7 @@ static int vimc_streamer_pipeline_init(struct vimc_stream *stream,
 			return -EINVAL;
 		}
 		stream->ved_pipeline[stream->pipe_size++] = ved;
+		ved->stream = stream;
 
 		if (is_media_entity_v4l2_subdev(ved->ent)) {
 			sd = media_entity_to_v4l2_subdev(ved->ent);
