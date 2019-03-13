@@ -1526,7 +1526,7 @@ static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 		blk_queue_max_write_zeroes_sectors(queue, UINT_MAX);
 }
 
-static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
+static void nvme_config_write_zeroes(struct gendisk *disk, struct nvme_ns *ns)
 {
 	u32 max_sectors;
 	unsigned short bs = 1 << ns->lba_shift;
@@ -1549,7 +1549,7 @@ static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
 	else
 		max_sectors = ((u32)(ns->ctrl->max_hw_sectors + 1) * bs) >> 9;
 
-	blk_queue_max_write_zeroes_sectors(ns->queue, max_sectors);
+	blk_queue_max_write_zeroes_sectors(disk->queue, max_sectors);
 }
 
 static void nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
@@ -1607,7 +1607,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
 	set_capacity(disk, capacity);
 
 	nvme_config_discard(disk, ns);
-	nvme_config_write_zeroes(ns);
+	nvme_config_write_zeroes(disk, ns);
 
 	if (id->nsattr & (1 << 0))
 		set_disk_ro(disk, true);
