@@ -624,9 +624,7 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preamble_length)
 	retval = rf69_write_reg(spi, REG_PREAMBLE_MSB, msb);
 	if (retval)
 		return retval;
-	retval = rf69_write_reg(spi, REG_PREAMBLE_LSB, lsb);
-
-	return retval;
+	return rf69_write_reg(spi, REG_PREAMBLE_LSB, lsb);
 }
 
 int rf69_enable_sync(struct spi_device *spi)
