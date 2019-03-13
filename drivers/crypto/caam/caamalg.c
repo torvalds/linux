@@ -3455,7 +3455,6 @@ static int __init caam_algapi_init(void)
 {
 	struct device_node *dev_node;
 	struct platform_device *pdev;
-	struct device *ctrldev;
 	struct caam_drv_private *priv;
 	int i = 0, err = 0;
 	u32 aes_vid, aes_inst, des_inst, md_vid, md_inst, ccha_inst, ptha_inst;
@@ -3476,16 +3475,17 @@ static int __init caam_algapi_init(void)
 		return -ENODEV;
 	}
 
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
+	priv = dev_get_drvdata(&pdev->dev);
 	of_node_put(dev_node);
 
 	/*
 	 * If priv is NULL, it's probably because the caam driver wasn't
 	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
 	 */
-	if (!priv)
-		return -ENODEV;
+	if (!priv) {
+		err = -ENODEV;
+		goto out_put_dev;
+	}
 
 
 	/*
@@ -3626,6 +3626,8 @@ static int __init caam_algapi_init(void)
 	if (registered)
 		pr_info("caam algorithms registered in /proc/crypto\n");
 
+out_put_dev:
+	put_device(&pdev->dev);
 	return err;
 }
 

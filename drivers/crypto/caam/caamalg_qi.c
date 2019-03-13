@@ -2492,12 +2492,15 @@ static int __init caam_qi_algapi_init(void)
 	 * If priv is NULL, it's probably because the caam driver wasn't
 	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
 	 */
-	if (!priv || !priv->qi_present)
-		return -ENODEV;
+	if (!priv || !priv->qi_present) {
+		err = -ENODEV;
+		goto out_put_dev;
+	}
 
 	if (caam_dpaa2) {
 		dev_info(ctrldev, "caam/qi frontend driver not suitable for DPAA 2.x, aborting...\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto out_put_dev;
 	}
 
 	/*
@@ -2610,6 +2613,8 @@ static int __init caam_qi_algapi_init(void)
 	if (registered)
 		dev_info(priv->qidev, "algorithms registered in /proc/crypto\n");
 
+out_put_dev:
+	put_device(ctrldev);
 	return err;
 }
 
