@@ -493,7 +493,7 @@ static int nau8810_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int nau88l0_calc_pll(unsigned int pll_in,
+static int nau8810_calc_pll(unsigned int pll_in,
 	unsigned int fs, struct nau8810_pll *pll_param)
 {
 	u64 f2, f2_max, pll_ratio;
@@ -542,7 +542,7 @@ static int nau8810_set_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	int ret, fs;
 
 	fs = freq_out / 256;
-	ret = nau88l0_calc_pll(freq_in, fs, pll_param);
+	ret = nau8810_calc_pll(freq_in, fs, pll_param);
 	if (ret < 0) {
 		dev_err(nau8810->dev, "Unsupported input clock %d\n", freq_in);
 		return ret;
