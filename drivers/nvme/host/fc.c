@@ -2475,6 +2475,7 @@ static int
 nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 {
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
+	u32 prior_ioq_cnt = ctrl->ctrl.queue_count - 1;
 	unsigned int nr_io_queues;
 	int ret;
 
@@ -2485,6 +2486,13 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 		dev_info(ctrl->ctrl.device,
 			"set_queue_count failed: %d\n", ret);
 		return ret;
+	}
+
+	if (!nr_io_queues && prior_ioq_cnt) {
+		dev_info(ctrl->ctrl.device,
+			"Fail Reconnect: At least 1 io queue "
+			"required (was %d)\n", prior_ioq_cnt);
+		return -ENOSPC;
 	}
 
 	ctrl->ctrl.queue_count = nr_io_queues + 1;
@@ -2500,6 +2508,10 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (ret)
 		goto out_delete_hw_queues;
 
+	if (prior_ioq_cnt != nr_io_queues)
+		dev_info(ctrl->ctrl.device,
+			"reconnect: revising io queue count from %d to %d\n",
+			prior_ioq_cnt, nr_io_queues);
 	blk_mq_update_nr_hw_queues(&ctrl->tag_set, nr_io_queues);
 
 	return 0;
