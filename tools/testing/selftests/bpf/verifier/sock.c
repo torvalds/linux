@@ -342,7 +342,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "type=sock_common expected=sock",
+	.errstr = "reference has not been acquired before",
 },
 {
 	"bpf_sk_release(bpf_sk_fullsock(skb->sk))",
@@ -380,5 +380,5 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "type=tcp_sock expected=sock",
+	.errstr = "reference has not been acquired before",
 },
