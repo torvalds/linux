@@ -1495,10 +1495,10 @@ static void nvme_set_chunk_size(struct nvme_ns *ns)
 	blk_queue_chunk_sectors(ns->queue, rounddown_pow_of_two(chunk_size));
 }
 
-static void nvme_config_discard(struct nvme_ns *ns)
+static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
-	struct request_queue *queue = ns->queue;
+	struct request_queue *queue = disk->queue;
 	u32 size = queue_logical_block_size(queue);
 
 	if (!(ctrl->oncs & NVME_CTRL_ONCS_DSM)) {
@@ -1606,7 +1606,7 @@ static void nvme_update_disk_info(struct gendisk *disk,
 
 	set_capacity(disk, capacity);
 
-	nvme_config_discard(ns);
+	nvme_config_discard(disk, ns);
 	nvme_config_write_zeroes(ns);
 
 	if (id->nsattr & (1 << 0))
