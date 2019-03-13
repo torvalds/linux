@@ -1,32 +1,23 @@
-﻿Chinese translated version of Documentation/process/howto.rst
+﻿.. _cn_process_howto:
 
-If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have a problem
-communicating in English you can also ask the Chinese maintainer for
-help.  Contact the Chinese maintainer if this translation is outdated
-or if there is a problem with the translation.
+.. include:: ../disclaimer-zh_CN.rst
 
-Maintainer: Greg Kroah-Hartman <greg@kroah.com>
-Chinese maintainer: Li Yang <leoli@freescale.com>
----------------------------------------------------------------------
-Documentation/process/howto.rst 的中文翻译
+:Original: :ref:`Documentation/process/howto.rst <process_howto>`
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者。
+译存在问题，请联系中文版维护者::
 
-英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
-中文版维护者： 李阳  Li Yang <leoli@freescale.com>
-中文版翻译者： 李阳  Li Yang <leoli@freescale.com>
-中文版校译者： 钟宇  TripleX Chung <xxx.phy@gmail.com>
-               陈琦  Maggie Chen <chenqi@beyondsoft.com>
-               王聪  Wang Cong <xiyou.wangcong@gmail.com>
-
-以下为正文
----------------------------------------------------------------------
+    英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
+    中文版维护者： 李阳  Li Yang <leoli@freescale.com>
+    中文版翻译者： 李阳  Li Yang <leoli@freescale.com>
+    中文版校译者:
+                   钟宇  TripleX Chung <xxx.phy@gmail.com>
+                   陈琦  Maggie Chen <chenqi@beyondsoft.com>
+                   王聪  Wang Cong <xiyou.wangcong@gmail.com>
 
 如何参与Linux内核开发
----------------------
+=====================
 
 这是一篇将如何参与Linux内核开发的相关问题一网打尽的终极秘笈。它将指导你
 成为一名Linux内核开发者，并且学会如何同Linux内核开发社区合作。它尽可能不
@@ -114,6 +105,7 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     "The Perfect Patch"
         http://www.ozlabs.org/~akpm/stuff/tpp.txt
     "Linux kernel patch submission format"
+
         http://linux.yyz.us/patch-format.html
 
   Documentation/process/stable-api-nonsense.rst
@@ -510,7 +502,8 @@ Linux内核社区并不喜欢一下接收大段的代码。修改需要被恰当
 很多人已经做到了，而他们都曾经和现在的你站在同样的起点上。
 
 
----------------
+感谢
+----
 感谢Paolo Ciarrocchi允许“开发流程”部分基于他所写的文章
 (http://www.kerneltravel.net/newbie/2.6-development_process)，感谢Randy
 Dunlap和Gerrit Huizenga完善了应该说和不该说的列表。感谢Pat Mochel, Hanna
