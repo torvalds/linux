@@ -13,7 +13,7 @@
         中文版翻译者： 李阳  Li Yang <leoyang.li@nxp.com>
         中文版校译者： 陈琦 Maggie Chen <chenqi@beyondsoft.com>
                        王聪 Wang Cong <xiyou.wangcong@gmail.com>
-                       张巍 Zhang Wei <Wei.Zhang@freescale.com>
+                       张巍 Zhang Wei <wezhang@outlook.com>
 
 如何向 Linux 内核提交驱动程序
 =============================
