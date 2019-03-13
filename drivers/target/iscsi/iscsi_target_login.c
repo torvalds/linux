@@ -883,9 +883,6 @@ int iscsit_setup_np(
 		return -EINVAL;
 	}
 
-	np->np_ip_proto = IPPROTO_TCP;
-	np->np_sock_type = SOCK_STREAM;
-
 	ret = sock_create(sockaddr->ss_family, np->np_sock_type,
 			np->np_ip_proto, &sock);
 	if (ret < 0) {
