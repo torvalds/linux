@@ -750,7 +750,7 @@ static inline snd_pcm_uframes_t snd_pcm_playback_avail(struct snd_pcm_runtime *r
 }
 
 /**
- * snd_pcm_playback_avail - Get the available (readable) space for capture
+ * snd_pcm_capture_avail - Get the available (readable) space for capture
  * @runtime: PCM runtime instance
  *
  * Result is between 0 ... (boundary - 1)
