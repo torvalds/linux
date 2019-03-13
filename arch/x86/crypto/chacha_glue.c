@@ -12,10 +12,10 @@
 
 #include <crypto/algapi.h>
 #include <crypto/chacha.h>
+#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/fpu/api.h>
 #include <asm/simd.h>
 
 #define CHACHA_STATE_ALIGN 16
@@ -170,7 +170,7 @@ static int chacha_simd(struct skcipher_request *req)
 	struct skcipher_walk walk;
 	int err;
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_chacha_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, true);
@@ -193,7 +193,7 @@ static int xchacha_simd(struct skcipher_request *req)
 	u8 real_iv[16];
 	int err;
 
-	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
+	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !crypto_simd_usable())
 		return crypto_xchacha_crypt(req);
 
 	err = skcipher_walk_virt(&walk, req, true);
