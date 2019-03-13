@@ -57,6 +57,7 @@
 
 	cvbs-connector {
 		compatible = "composite-video-connector";
+		status = "disabled";
 
 		port {
 			cvbs_connector_in: endpoint {
