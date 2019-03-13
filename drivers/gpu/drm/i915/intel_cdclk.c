@@ -2668,7 +2668,7 @@ static int cnp_rawclk(struct drm_i915_private *dev_priv)
 
 		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
 							   fraction) - 1);
-		if (HAS_PCH_ICP(dev_priv))
+		if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 			rawclk |= ICP_RAWCLK_NUM(numerator);
 	}
 

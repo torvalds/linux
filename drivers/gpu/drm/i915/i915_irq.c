@@ -2829,7 +2829,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (HAS_PCH_ICP(dev_priv))
+			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 				icp_irq_handler(dev_priv, iir);
 			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 				spt_irq_handler(dev_priv, iir);
@@ -3413,7 +3413,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 	GEN3_IRQ_RESET(GEN11_GU_MISC_);
 	GEN3_IRQ_RESET(GEN8_PCU_);
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		GEN3_IRQ_RESET(SDE);
 }
 
@@ -3594,7 +3594,7 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 
 	gen11_hpd_detection_setup(dev_priv);
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_hpd_irq_setup(dev_priv);
 }
 
@@ -4050,7 +4050,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 gu_misc_masked = GEN11_GU_MISC_GSE;
 
-	if (HAS_PCH_ICP(dev_priv))
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		icp_irq_postinstall(dev);
 
 	gen11_gt_irq_postinstall(dev_priv);
