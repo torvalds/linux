@@ -2713,6 +2713,18 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 			return DRM_FORMAT_XBGR2101010;
 		else
 			return DRM_FORMAT_XRGB2101010;
+	case PLANE_CTL_FORMAT_XRGB_16161616F:
+		if (rgb_order) {
+			if (alpha)
+				return DRM_FORMAT_ABGR16161616F;
+			else
+				return DRM_FORMAT_XBGR16161616F;
+		} else {
+			if (alpha)
+				return DRM_FORMAT_ARGB16161616F;
+			else
+				return DRM_FORMAT_XRGB16161616F;
+		}
 	}
 }
 
@@ -3608,6 +3620,12 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 		return PLANE_CTL_FORMAT_XRGB_2101010;
 	case DRM_FORMAT_XBGR2101010:
 		return PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+		return PLANE_CTL_FORMAT_XRGB_16161616F | PLANE_CTL_ORDER_RGBX;
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
+		return PLANE_CTL_FORMAT_XRGB_16161616F;
 	case DRM_FORMAT_YUYV:
 		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
 	case DRM_FORMAT_YVYU:
@@ -3808,6 +3826,8 @@ u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
 u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
 	const struct drm_framebuffer *fb = plane_state->base.fb;
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	u32 plane_color_ctl = 0;
@@ -3815,7 +3835,7 @@ u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
 	plane_color_ctl |= PLANE_COLOR_PLANE_GAMMA_DISABLE;
 	plane_color_ctl |= glk_plane_color_ctl_alpha(plane_state);
 
-	if (fb->format->is_yuv && !icl_is_hdr_plane(plane)) {
+	if (fb->format->is_yuv && !icl_is_hdr_plane(dev_priv, plane->id)) {
 		if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 			plane_color_ctl |= PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709;
 		else
@@ -5141,13 +5161,14 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *intel_plane =
 		to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(intel_plane->base.dev);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	int ret;
 	bool force_detach = !fb || !plane_state->base.visible;
 	bool need_scaler = false;
 
 	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
-	if (!icl_is_hdr_plane(intel_plane) &&
+	if (!icl_is_hdr_plane(dev_priv, intel_plane->id) &&
 	    fb && is_planar_yuv_format(fb->format->format))
 		need_scaler = true;
 
@@ -5180,6 +5201,10 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:

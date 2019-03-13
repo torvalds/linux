@@ -2326,12 +2326,13 @@ static inline bool icl_is_nv12_y_plane(enum plane_id id)
 	return false;
 }
 
-static inline bool icl_is_hdr_plane(struct intel_plane *plane)
+static inline bool icl_is_hdr_plane(struct drm_i915_private *dev_priv,
+				    enum plane_id plane_id)
 {
-	if (INTEL_GEN(to_i915(plane->base.dev)) < 11)
+	if (INTEL_GEN(dev_priv) < 11)
 		return false;
 
-	return plane->id < PLANE_SPRITE2;
+	return plane_id < PLANE_SPRITE2;
 }
 
 /* intel_tv.c */

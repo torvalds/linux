@@ -235,10 +235,11 @@ static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_sta
 	if (plane_state && plane_state->base.fb &&
 	    plane_state->base.fb->format->is_yuv &&
 	    plane_state->base.fb->format->num_planes > 1) {
+		struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 		if (IS_GEN(dev_priv, 9) &&
 		    !IS_GEMINILAKE(dev_priv)) {
 			mode = SKL_PS_SCALER_MODE_NV12;
-		} else if (icl_is_hdr_plane(to_intel_plane(plane_state->base.plane))) {
+		} else if (icl_is_hdr_plane(dev_priv, plane->id)) {
 			/*
 			 * On gen11+'s HDR planes we only use the scaler for
 			 * scaling. They have a dedicated chroma upsampler, so
