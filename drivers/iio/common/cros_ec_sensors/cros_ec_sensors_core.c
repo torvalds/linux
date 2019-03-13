@@ -25,7 +25,6 @@
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 #include <linux/platform_device.h>
 
 static char *cros_ec_loc[] = {

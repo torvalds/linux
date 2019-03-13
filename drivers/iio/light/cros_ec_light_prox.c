@@ -13,7 +13,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/common/cros_ec_sensors_core.h>
@@ -28,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 /*
  * We only represent one entry for light or proximity. EC is merging different

@@ -16,7 +16,6 @@
  * EC about sensors data. Data access is presented through iio sysfs.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/common/cros_ec_sensors_core.h>
@@ -30,7 +29,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 #define CROS_EC_SENSORS_MAX_CHANNELS 4
 
