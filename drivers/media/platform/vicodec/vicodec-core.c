@@ -148,7 +148,6 @@ static struct vicodec_q_data *get_q_data(struct vicodec_ctx *ctx,
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		return &ctx->q_data[V4L2_M2M_DST];
 	default:
-		WARN_ON(1);
 		break;
 	}
 	return NULL;
