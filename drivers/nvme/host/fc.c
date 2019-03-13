@@ -2107,7 +2107,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 
 	freq->sg_cnt = 0;
 
-	if (!blk_rq_payload_bytes(rq))
+	if (!blk_rq_nr_phys_segments(rq))
 		return 0;
 
 	freq->sg_table.sgl = freq->first_sgl;
@@ -2304,12 +2304,23 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret)
 		return ret;
 
-	data_len = blk_rq_payload_bytes(rq);
-	if (data_len)
+	/*
+	 * nvme core doesn't quite treat the rq opaquely. Commands such
+	 * as WRITE ZEROES will return a non-zero rq payload_bytes yet
+	 * there is no actual payload to be transferred.
+	 * To get it right, key data transmission on there being 1 or
+	 * more physical segments in the sg list. If there is no
+	 * physical segments, there is no payload.
+	 */
+	if (blk_rq_nr_phys_segments(rq)) {
+		data_len = blk_rq_payload_bytes(rq);
 		io_dir = ((rq_data_dir(rq) == WRITE) ?
 					NVMEFC_FCP_WRITE : NVMEFC_FCP_READ);
-	else
+	} else {
+		data_len = 0;
 		io_dir = NVMEFC_FCP_NODATA;
+	}
+
 
 	return nvme_fc_start_fcp_op(ctrl, queue, op, data_len, io_dir);
 }
