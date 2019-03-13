@@ -2243,10 +2243,12 @@ SMB2_open_free(struct smb_rqst *rqst)
 {
 	int i;
 
-	cifs_small_buf_release(rqst->rq_iov[0].iov_base);
-	for (i = 1; i < rqst->rq_nvec; i++)
-		if (rqst->rq_iov[i].iov_base != smb2_padding)
-			kfree(rqst->rq_iov[i].iov_base);
+	if (rqst && rqst->rq_iov) {
+		cifs_small_buf_release(rqst->rq_iov[0].iov_base);
+		for (i = 1; i < rqst->rq_nvec; i++)
+			if (rqst->rq_iov[i].iov_base != smb2_padding)
+				kfree(rqst->rq_iov[i].iov_base);
+	}
 }
 
 int
@@ -2535,7 +2537,8 @@ SMB2_close_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 void
 SMB2_close_free(struct smb_rqst *rqst)
 {
-	cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
+	if (rqst && rqst->rq_iov)
+		cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
 }
 
 int
@@ -2685,7 +2688,8 @@ SMB2_query_info_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 void
 SMB2_query_info_free(struct smb_rqst *rqst)
 {
-	cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
+	if (rqst && rqst->rq_iov)
+		cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
 }
 
 static int
