@@ -19,6 +19,7 @@
  */
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -39,7 +40,7 @@ static int sha1_neon_update(struct shash_desc *desc, const u8 *data,
 {
 	struct sha1_state *sctx = shash_desc_ctx(desc);
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (sctx->count % SHA1_BLOCK_SIZE) + len < SHA1_BLOCK_SIZE)
 		return sha1_update_arm(desc, data, len);
 
@@ -54,7 +55,7 @@ static int sha1_neon_update(struct shash_desc *desc, const u8 *data,
 static int sha1_neon_finup(struct shash_desc *desc, const u8 *data,
 			   unsigned int len, u8 *out)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return sha1_finup_arm(desc, data, len, out);
 
 	kernel_neon_begin();
