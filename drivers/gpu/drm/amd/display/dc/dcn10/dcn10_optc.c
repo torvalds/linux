@@ -584,6 +584,13 @@ uint32_t optc1_get_vblank_counter(struct timing_generator *optc)
 void optc1_lock(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t regval = 0;
+
+	regval = REG_READ(OTG_CONTROL);
+
+	/* otg is not running, do not need to be locked */
+	if ((regval & 0x1) == 0x0)
+		return;
 
 	REG_SET(OTG_GLOBAL_CONTROL0, 0,
 			OTG_MASTER_UPDATE_LOCK_SEL, optc->inst);
@@ -591,10 +598,12 @@ void optc1_lock(struct timing_generator *optc)
 			OTG_MASTER_UPDATE_LOCK, 1);
 
 	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS) {
+
 		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
 				UPDATE_LOCK_STATUS, 1,
 				1, 10);
+	}
 }
 
 void optc1_unlock(struct timing_generator *optc)
