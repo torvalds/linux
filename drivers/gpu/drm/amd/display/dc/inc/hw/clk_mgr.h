@@ -42,6 +42,8 @@ struct clk_mgr_funcs {
 			bool safe_to_lower);
 
 	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
+
+	void (*init_clocks)(struct clk_mgr *clk_mgr);
 };
 
 #endif /* __DAL_CLK_MGR_H__ */
