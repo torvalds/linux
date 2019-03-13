@@ -245,6 +245,7 @@ int drm_connector_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
 	connector->edid_blob_ptr = NULL;
+	connector->tile_blob_ptr = NULL;
 	connector->status = connector_status_unknown;
 	connector->display_info.panel_orientation =
 		DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
@@ -271,6 +272,9 @@ int drm_connector_init(struct drm_device *dev,
 
 	drm_object_attach_property(&connector->base,
 				   config->non_desktop_property,
+				   0);
+	drm_object_attach_property(&connector->base,
+				   config->tile_property,
 				   0);
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
@@ -1712,6 +1716,8 @@ EXPORT_SYMBOL(drm_connector_set_path_property);
  * This looks up the tile information for a connector, and creates a
  * property for userspace to parse if it exists. The property is of
  * the form of 8 integers using ':' as a separator.
+ * This is used for dual port tiled displays with DisplayPort SST
+ * or DisplayPort MST connectors.
  *
  * Returns:
  * Zero on success, errno on failure.
@@ -1755,6 +1761,9 @@ EXPORT_SYMBOL(drm_connector_set_tile_property);
  *
  * This function creates a new blob modeset object and assigns its id to the
  * connector's edid property.
+ * Since we also parse tile information from EDID's displayID block, we also
+ * set the connector's tile property here. See drm_connector_set_tile_property()
+ * for more details.
  *
  * Returns:
  * Zero on success, negative errno on failure.
@@ -1796,7 +1805,9 @@ int drm_connector_update_edid_property(struct drm_connector *connector,
 	                                       edid,
 	                                       &connector->base,
 	                                       dev->mode_config.edid_property);
-	return ret;
+	if (ret)
+		return ret;
+	return drm_connector_set_tile_property(connector);
 }
 EXPORT_SYMBOL(drm_connector_update_edid_property);
 
