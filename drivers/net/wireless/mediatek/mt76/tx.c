@@ -595,7 +595,7 @@ void mt76_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
 		return;
 
-	mt76_txq_schedule(dev, txq->ac);
+	tasklet_schedule(&dev->tx_tasklet);
 }
 EXPORT_SYMBOL_GPL(mt76_wake_tx_queue);
 

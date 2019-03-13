@@ -162,6 +162,9 @@ static void mt76x02_tx_tasklet(unsigned long data)
 		mt76_queue_tx_cleanup(dev, i, false);
 
 	mt76x02_mac_poll_tx_status(dev, false);
+
+	mt76_txq_schedule_all(&dev->mt76);
+
 	mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
 }
 
