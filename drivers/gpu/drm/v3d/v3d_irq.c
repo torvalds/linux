@@ -87,7 +87,8 @@ v3d_irq(int irq, void *arg)
 	if (intsts & V3D_INT_OUTOMEM) {
 		/* Note that the OOM status is edge signaled, so the
 		 * interrupt won't happen again until the we actually
-		 * add more memory.
+		 * add more memory.  Also, as of V3D 4.1, FLDONE won't
+		 * be reported until any OOM state has been cleared.
 		 */
 		schedule_work(&v3d->overflow_mem_work);
 		status = IRQ_HANDLED;
