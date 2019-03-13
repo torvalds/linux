@@ -189,6 +189,10 @@ struct sqe_submit {
 	bool				needs_fixed_file;
 };
 
+/*
+ * First field must be the file pointer in all the
+ * iocb unions! See also 'struct kiocb' in <linux/fs.h>
+ */
 struct io_poll_iocb {
 	struct file			*file;
 	struct wait_queue_head		*head;
@@ -198,8 +202,15 @@ struct io_poll_iocb {
 	struct wait_queue_entry		wait;
 };
 
+/*
+ * NOTE! Each of the iocb union members has the file pointer
+ * as the first entry in their struct definition. So you can
+ * access the file pointer through any of the sub-structs,
+ * or directly as just 'ki_filp' in this struct.
+ */
 struct io_kiocb {
 	union {
+		struct file		*file;
 		struct kiocb		rw;
 		struct io_poll_iocb	poll;
 	};
@@ -431,6 +442,8 @@ static void io_free_req_many(struct io_ring_ctx *ctx, void **reqs, int *nr)
 
 static void io_free_req(struct io_kiocb *req)
 {
+	if (req->file && !(req->flags & REQ_F_FIXED_FILE))
+		fput(req->file);
 	io_ring_drop_ctx_refs(req->ctx, 1);
 	kmem_cache_free(req_cachep, req);
 }
@@ -448,45 +461,34 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 			       struct list_head *done)
 {
 	void *reqs[IO_IOPOLL_BATCH];
-	int file_count, to_free;
-	struct file *file = NULL;
 	struct io_kiocb *req;
+	int to_free;
 
-	file_count = to_free = 0;
+	to_free = 0;
 	while (!list_empty(done)) {
 		req = list_first_entry(done, struct io_kiocb, list);
 		list_del(&req->list);
 
 		io_cqring_fill_event(ctx, req->user_data, req->error, 0);
-
-		if (refcount_dec_and_test(&req->refs))
-			reqs[to_free++] = req;
 		(*nr_events)++;
 
-		/*
-		 * Batched puts of the same file, to avoid dirtying the
-		 * file usage count multiple times, if avoidable.
-		 */
-		if (!(req->flags & REQ_F_FIXED_FILE)) {
-			if (!file) {
-				file = req->rw.ki_filp;
-				file_count = 1;
-			} else if (file == req->rw.ki_filp) {
-				file_count++;
+		if (refcount_dec_and_test(&req->refs)) {
+			/* If we're not using fixed files, we have to pair the
+			 * completion part with the file put. Use regular
+			 * completions for those, only batch free for fixed
+			 * file.
+			 */
+			if (req->flags & REQ_F_FIXED_FILE) {
+				reqs[to_free++] = req;
+				if (to_free == ARRAY_SIZE(reqs))
+					io_free_req_many(ctx, reqs, &to_free);
 			} else {
-				fput_many(file, file_count);
-				file = req->rw.ki_filp;
-				file_count = 1;
+				io_free_req(req);
 			}
 		}
-
-		if (to_free == ARRAY_SIZE(reqs))
-			io_free_req_many(ctx, reqs, &to_free);
 	}
-	io_commit_cqring(ctx);
 
-	if (file)
-		fput_many(file, file_count);
+	io_commit_cqring(ctx);
 	io_free_req_many(ctx, reqs, &to_free);
 }
 
@@ -609,19 +611,12 @@ static void kiocb_end_write(struct kiocb *kiocb)
 	}
 }
 
-static void io_fput(struct io_kiocb *req)
-{
-	if (!(req->flags & REQ_F_FIXED_FILE))
-		fput(req->rw.ki_filp);
-}
-
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw);
 
 	kiocb_end_write(kiocb);
 
-	io_fput(req);
 	io_cqring_add_event(req->ctx, req->user_data, res, 0);
 	io_put_req(req);
 }
@@ -738,31 +733,18 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 	const struct io_uring_sqe *sqe = s->sqe;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct kiocb *kiocb = &req->rw;
-	unsigned ioprio, flags;
-	int fd, ret;
+	unsigned ioprio;
+	int ret;
 
+	if (!req->file)
+		return -EBADF;
 	/* For -EAGAIN retry, everything is already prepped */
 	if (req->flags & REQ_F_PREPPED)
 		return 0;
 
-	flags = READ_ONCE(sqe->flags);
-	fd = READ_ONCE(sqe->fd);
+	if (force_nonblock && !io_file_supports_async(req->file))
+		force_nonblock = false;
 
-	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->user_files ||
-		    (unsigned) fd >= ctx->nr_user_files))
-			return -EBADF;
-		kiocb->ki_filp = ctx->user_files[fd];
-		req->flags |= REQ_F_FIXED_FILE;
-	} else {
-		if (s->needs_fixed_file)
-			return -EBADF;
-		kiocb->ki_filp = io_file_get(state, fd);
-		if (unlikely(!kiocb->ki_filp))
-			return -EBADF;
-		if (force_nonblock && !io_file_supports_async(kiocb->ki_filp))
-			force_nonblock = false;
-	}
 	kiocb->ki_pos = READ_ONCE(sqe->off);
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
 	kiocb->ki_hint = ki_hint_validate(file_write_hint(kiocb->ki_filp));
@@ -771,7 +753,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 	if (ioprio) {
 		ret = ioprio_check_cap(ioprio);
 		if (ret)
-			goto out_fput;
+			return ret;
 
 		kiocb->ki_ioprio = ioprio;
 	} else
@@ -779,39 +761,26 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 
 	ret = kiocb_set_rw_flags(kiocb, READ_ONCE(sqe->rw_flags));
 	if (unlikely(ret))
-		goto out_fput;
+		return ret;
 	if (force_nonblock) {
 		kiocb->ki_flags |= IOCB_NOWAIT;
 		req->flags |= REQ_F_FORCE_NONBLOCK;
 	}
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
-		ret = -EOPNOTSUPP;
 		if (!(kiocb->ki_flags & IOCB_DIRECT) ||
 		    !kiocb->ki_filp->f_op->iopoll)
-			goto out_fput;
+			return -EOPNOTSUPP;
 
 		req->error = 0;
 		kiocb->ki_flags |= IOCB_HIPRI;
 		kiocb->ki_complete = io_complete_rw_iopoll;
 	} else {
-		if (kiocb->ki_flags & IOCB_HIPRI) {
-			ret = -EINVAL;
-			goto out_fput;
-		}
+		if (kiocb->ki_flags & IOCB_HIPRI)
+			return -EINVAL;
 		kiocb->ki_complete = io_complete_rw;
 	}
 	req->flags |= REQ_F_PREPPED;
 	return 0;
-out_fput:
-	if (!(flags & IOSQE_FIXED_FILE)) {
-		/*
-		 * in case of error, we didn't use this file reference. drop it.
-		 */
-		if (state)
-			state->used_refs--;
-		io_file_put(state, kiocb->ki_filp);
-	}
-	return ret;
 }
 
 static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
@@ -968,16 +937,14 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 		return ret;
 	file = kiocb->ki_filp;
 
-	ret = -EBADF;
 	if (unlikely(!(file->f_mode & FMODE_READ)))
-		goto out_fput;
-	ret = -EINVAL;
+		return -EBADF;
 	if (unlikely(!file->f_op->read_iter))
-		goto out_fput;
+		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, READ, s, &iovec, &iter);
 	if (ret)
-		goto out_fput;
+		return ret;
 
 	iov_count = iov_iter_count(&iter);
 	ret = rw_verify_area(READ, file, &kiocb->ki_pos, iov_count);
@@ -999,10 +966,6 @@ static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
 		}
 	}
 	kfree(iovec);
-out_fput:
-	/* Hold on to the file for -EAGAIN */
-	if (unlikely(ret && ret != -EAGAIN))
-		io_fput(req);
 	return ret;
 }
 
@@ -1020,17 +983,15 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	if (ret)
 		return ret;
 
-	ret = -EBADF;
 	file = kiocb->ki_filp;
 	if (unlikely(!(file->f_mode & FMODE_WRITE)))
-		goto out_fput;
-	ret = -EINVAL;
+		return -EBADF;
 	if (unlikely(!file->f_op->write_iter))
-		goto out_fput;
+		return -EINVAL;
 
 	ret = io_import_iovec(req->ctx, WRITE, s, &iovec, &iter);
 	if (ret)
-		goto out_fput;
+		return ret;
 
 	iov_count = iov_iter_count(&iter);
 
@@ -1062,10 +1023,6 @@ static int io_write(struct io_kiocb *req, const struct sqe_submit *s,
 	}
 out_free:
 	kfree(iovec);
-out_fput:
-	/* Hold on to the file for -EAGAIN */
-	if (unlikely(ret && ret != -EAGAIN))
-		io_fput(req);
 	return ret;
 }
 
@@ -1080,16 +1037,6 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 
-	/*
-	 * Twilight zone - it's possible that someone issued an opcode that
-	 * has a file attached, then got -EAGAIN on submission, and changed
-	 * the sqe before we retried it from async context. Avoid dropping
-	 * a file reference for this malicious case, and flag the error.
-	 */
-	if (req->rw.ki_filp) {
-		err = -EBADF;
-		io_fput(req);
-	}
 	io_cqring_add_event(ctx, user_data, err, 0);
 	io_put_req(req);
 	return 0;
@@ -1098,9 +1045,9 @@ static int io_nop(struct io_kiocb *req, u64 user_data)
 static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	unsigned flags;
-	int fd;
 
+	if (!req->file)
+		return -EBADF;
 	/* Prep already done (EAGAIN retry) */
 	if (req->flags & REQ_F_PREPPED)
 		return 0;
@@ -1109,20 +1056,6 @@ static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 	if (unlikely(sqe->addr || sqe->ioprio || sqe->buf_index))
 		return -EINVAL;
-
-	fd = READ_ONCE(sqe->fd);
-	flags = READ_ONCE(sqe->flags);
-
-	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->user_files || fd >= ctx->nr_user_files))
-			return -EBADF;
-		req->rw.ki_filp = ctx->user_files[fd];
-		req->flags |= REQ_F_FIXED_FILE;
-	} else {
-		req->rw.ki_filp = fget(fd);
-		if (unlikely(!req->rw.ki_filp))
-			return -EBADF;
-	}
 
 	req->flags |= REQ_F_PREPPED;
 	return 0;
@@ -1153,7 +1086,6 @@ static int io_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				end > 0 ? end : LLONG_MAX,
 				fsync_flags & IORING_FSYNC_DATASYNC);
 
-	io_fput(req);
 	io_cqring_add_event(req->ctx, sqe->user_data, ret, 0);
 	io_put_req(req);
 	return 0;
@@ -1220,7 +1152,6 @@ static int io_poll_remove(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static void io_poll_complete(struct io_kiocb *req, __poll_t mask)
 {
 	io_cqring_add_event(req->ctx, req->user_data, mangle_poll(mask), 0);
-	io_fput(req);
 	io_put_req(req);
 }
 
@@ -1314,33 +1245,19 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_poll_iocb *poll = &req->poll;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_poll_table ipt;
-	unsigned flags;
 	__poll_t mask;
 	u16 events;
-	int fd;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->addr || sqe->ioprio || sqe->off || sqe->len || sqe->buf_index)
 		return -EINVAL;
+	if (!poll->file)
+		return -EBADF;
 
 	INIT_WORK(&req->work, io_poll_complete_work);
 	events = READ_ONCE(sqe->poll_events);
 	poll->events = demangle_poll(events) | EPOLLERR | EPOLLHUP;
-
-	flags = READ_ONCE(sqe->flags);
-	fd = READ_ONCE(sqe->fd);
-
-	if (flags & IOSQE_FIXED_FILE) {
-		if (unlikely(!ctx->user_files || fd >= ctx->nr_user_files))
-			return -EBADF;
-		poll->file = ctx->user_files[fd];
-		req->flags |= REQ_F_FIXED_FILE;
-	} else {
-		poll->file = fget(fd);
-	}
-	if (unlikely(!poll->file))
-		return -EBADF;
 
 	poll->head = NULL;
 	poll->woken = false;
@@ -1380,8 +1297,6 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 out:
 	if (unlikely(ipt.error)) {
-		if (!(flags & IOSQE_FIXED_FILE))
-			fput(poll->file);
 		/*
 		 * Drop one of our refs to this req, __io_submit_sqe() will
 		 * drop the other one since we're returning an error.
@@ -1621,6 +1536,50 @@ static bool io_add_to_prev_work(struct async_list *list, struct io_kiocb *req)
 	return ret;
 }
 
+static bool io_op_needs_file(const struct io_uring_sqe *sqe)
+{
+	int op = READ_ONCE(sqe->opcode);
+
+	switch (op) {
+	case IORING_OP_NOP:
+	case IORING_OP_POLL_REMOVE:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static int io_req_set_file(struct io_ring_ctx *ctx, const struct sqe_submit *s,
+			   struct io_submit_state *state, struct io_kiocb *req)
+{
+	unsigned flags;
+	int fd;
+
+	flags = READ_ONCE(s->sqe->flags);
+	fd = READ_ONCE(s->sqe->fd);
+
+	if (!io_op_needs_file(s->sqe)) {
+		req->file = NULL;
+		return 0;
+	}
+
+	if (flags & IOSQE_FIXED_FILE) {
+		if (unlikely(!ctx->user_files ||
+		    (unsigned) fd >= ctx->nr_user_files))
+			return -EBADF;
+		req->file = ctx->user_files[fd];
+		req->flags |= REQ_F_FIXED_FILE;
+	} else {
+		if (s->needs_fixed_file)
+			return -EBADF;
+		req->file = io_file_get(state, fd);
+		if (unlikely(!req->file))
+			return -EBADF;
+	}
+
+	return 0;
+}
+
 static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 			 struct io_submit_state *state)
 {
@@ -1634,6 +1593,10 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	req = io_get_req(ctx, state);
 	if (unlikely(!req))
 		return -EAGAIN;
+
+	ret = io_req_set_file(ctx, s, state, req);
+	if (unlikely(ret))
+		goto out;
 
 	ret = __io_submit_sqe(ctx, req, s, true, state);
 	if (ret == -EAGAIN) {
@@ -1664,6 +1627,7 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 		}
 	}
 
+out:
 	/* drop submission reference */
 	io_put_req(req);
 
