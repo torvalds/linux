@@ -1390,15 +1390,27 @@ smb2_ioctl_query_info(const unsigned int xid,
 	smb2_set_next_command(tcon, &rqst[0]);
 
 	/* Query */
-	memset(&qi_iov, 0, sizeof(qi_iov));
-	rqst[1].rq_iov = qi_iov;
-	rqst[1].rq_nvec = 1;
+	if (qi.flags & PASSTHRU_FSCTL) {
+		/* Can eventually relax perm check since server enforces too */
+		if (!capable(CAP_SYS_ADMIN))
+			rc = -EPERM;
+		else  /* TBD: Add code to compound FSCTL */
+			rc = -EOPNOTSUPP;
+	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
+		memset(&qi_iov, 0, sizeof(qi_iov));
+		rqst[1].rq_iov = qi_iov;
+		rqst[1].rq_nvec = 1;
 
-	rc = SMB2_query_info_init(tcon, &rqst[1], COMPOUND_FID, COMPOUND_FID,
-				  qi.file_info_class, qi.info_type,
-				  qi.additional_information,
+		rc = SMB2_query_info_init(tcon, &rqst[1], COMPOUND_FID,
+				  COMPOUND_FID, qi.file_info_class,
+				  qi.info_type, qi.additional_information,
 				  qi.input_buffer_length,
 				  qi.output_buffer_length, buffer);
+	} else { /* unknown flags */
+		cifs_dbg(VFS, "invalid passthru query flags: 0x%x\n", qi.flags);
+		rc = -EINVAL;
+	}
+
 	if (rc)
 		goto iqinf_exit;
 	smb2_set_next_command(tcon, &rqst[1]);
