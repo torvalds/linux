@@ -242,6 +242,123 @@ DEFINE_SMB3_INF_ERR_EVENT(query_info_err);
 DEFINE_SMB3_INF_ERR_EVENT(set_info_err);
 DEFINE_SMB3_INF_ERR_EVENT(fsctl_err);
 
+DECLARE_EVENT_CLASS(smb3_inf_compound_enter_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		const char *full_path),
+	TP_ARGS(xid, tid, sesid, full_path),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__string(path, full_path)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__assign_str(path, full_path);
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x path=%s",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__get_str(path))
+)
+
+#define DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(name)     \
+DEFINE_EVENT(smb3_inf_compound_enter_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		const char *full_path),		\
+	TP_ARGS(xid, tid, sesid, full_path))
+
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(query_info_compound_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(hardlink_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rename_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rmdir_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_eof_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_info_compound_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(delete_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(mkdir_enter);
+
+
+DECLARE_EVENT_CLASS(smb3_inf_compound_done_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid),
+	TP_ARGS(xid, tid, sesid),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x",
+		__entry->xid, __entry->sesid, __entry->tid)
+)
+
+#define DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(name)     \
+DEFINE_EVENT(smb3_inf_compound_done_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid),			\
+	TP_ARGS(xid, tid, sesid))
+
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(query_info_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(hardlink_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rename_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rmdir_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_eof_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_info_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(delete_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mkdir_done);
+
+
+DECLARE_EVENT_CLASS(smb3_inf_compound_err_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		int	rc),
+	TP_ARGS(xid, tid, sesid, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->rc)
+)
+
+#define DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(name)     \
+DEFINE_EVENT(smb3_inf_compound_err_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		int rc),			\
+	TP_ARGS(xid, tid, sesid, rc))
+
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(query_info_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(hardlink_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rename_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rmdir_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_eof_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_info_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mkdir_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(delete_err);
+
 /*
  * For logging SMB3 Status code and Command for responses which return errors
  */
