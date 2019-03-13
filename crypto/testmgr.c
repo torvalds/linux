@@ -37,6 +37,7 @@
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
 #include <crypto/acompress.h>
+#include <crypto/internal/simd.h>
 
 #include "internal.h"
 
@@ -52,6 +53,9 @@ MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
+
+DEFINE_PER_CPU(bool, crypto_simd_disabled_for_test);
+EXPORT_PER_CPU_SYMBOL_GPL(crypto_simd_disabled_for_test);
 #endif
 
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
@@ -838,7 +842,27 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 
 	WARN_ON_ONCE(!valid_testvec_config(cfg));
 }
-#endif /* CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
+
+static void crypto_disable_simd_for_test(void)
+{
+	preempt_disable();
+	__this_cpu_write(crypto_simd_disabled_for_test, true);
+}
+
+static void crypto_reenable_simd_for_test(void)
+{
+	__this_cpu_write(crypto_simd_disabled_for_test, false);
+	preempt_enable();
+}
+#else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
+static void crypto_disable_simd_for_test(void)
+{
+}
+
+static void crypto_reenable_simd_for_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
 
 static int check_nonfinal_hash_op(const char *op, int err,
 				  u8 *result, unsigned int digestsize,
