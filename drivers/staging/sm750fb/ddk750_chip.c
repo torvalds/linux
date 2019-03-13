@@ -391,7 +391,6 @@ unsigned int sm750_format_pll_reg(struct pll_value *pPLL)
 	unsigned int OD = pPLL->OD;
 	unsigned int M = pPLL->M;
 	unsigned int N = pPLL->N;
-	unsigned int reg = 0;
 
 	/*
 	 * Note that all PLL's have the same format. Here, we just use
@@ -399,13 +398,11 @@ unsigned int sm750_format_pll_reg(struct pll_value *pPLL)
 	 * register. On returning a 32 bit number, the value can be
 	 * applied to any PLL in the calling function.
 	 */
-	reg = PLL_CTRL_POWER |
+	return PLL_CTRL_POWER |
 #ifndef VALIDATION_CHIP
 		((POD << PLL_CTRL_POD_SHIFT) & PLL_CTRL_POD_MASK) |
 #endif
 		((OD << PLL_CTRL_OD_SHIFT) & PLL_CTRL_OD_MASK) |
 		((N << PLL_CTRL_N_SHIFT) & PLL_CTRL_N_MASK) |
 		((M << PLL_CTRL_M_SHIFT) & PLL_CTRL_M_MASK);
-
-	return reg;
 }
