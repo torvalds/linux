@@ -894,18 +894,19 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 			continue;
 		}
 
+		/* create any TLV data */
+		soc_tplg_create_tlv(tplg, &kc, &mc->hdr);
+
 		/* pass control to driver for optional further init */
 		err = soc_tplg_init_kcontrol(tplg, &kc,
 			(struct snd_soc_tplg_ctl_hdr *) mc);
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
+			soc_tplg_free_tlv(tplg, &kc);
 			kfree(sm);
 			continue;
 		}
-
-		/* create any TLV data */
-		soc_tplg_create_tlv(tplg, &kc, &mc->hdr);
 
 		/* register control here */
 		err = soc_tplg_add_kcontrol(tplg, &kc,
@@ -1324,18 +1325,19 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 			continue;
 		}
 
+		/* create any TLV data */
+		soc_tplg_create_tlv(tplg, &kc[i], &mc->hdr);
+
 		/* pass control to driver for optional further init */
 		err = soc_tplg_init_kcontrol(tplg, &kc[i],
 			(struct snd_soc_tplg_ctl_hdr *)mc);
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
+			soc_tplg_free_tlv(tplg, &kc[i]);
 			kfree(sm);
 			continue;
 		}
-
-		/* create any TLV data */
-		soc_tplg_create_tlv(tplg, &kc[i], &mc->hdr);
 	}
 	return kc;
 
