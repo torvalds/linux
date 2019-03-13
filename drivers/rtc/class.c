@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, base class
  *
@@ -5,11 +6,7 @@
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * class skeleton from drivers/hwmon/hwmon.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
