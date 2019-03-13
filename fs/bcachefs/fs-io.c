@@ -287,6 +287,8 @@ static int bch2_extent_update(struct btree_trans *trans,
 			      bool direct,
 			      s64 *total_delta)
 {
+	struct bch_fs *c = trans->c;
+	struct btree_iter *inode_iter = NULL;
 	struct bch_inode_unpacked inode_u;
 	struct bkey_inode_buf inode_p;
 	bool allocating = false;
@@ -319,35 +321,62 @@ static int bch2_extent_update(struct btree_trans *trans,
 	/* XXX: inode->i_size locking */
 	if (i_sectors_delta ||
 	    new_i_size > inode->ei_inode.bi_size) {
-		bch2_btree_iter_unlock(extent_iter);
-		mutex_lock(&inode->ei_update_lock);
+		if (c->opts.new_inode_updates) {
+			bch2_btree_iter_unlock(extent_iter);
+			mutex_lock(&inode->ei_update_lock);
 
-		if (!bch2_btree_iter_relock(extent_iter)) {
-			mutex_unlock(&inode->ei_update_lock);
-			return -EINTR;
+			if (!bch2_btree_iter_relock(extent_iter)) {
+				mutex_unlock(&inode->ei_update_lock);
+				return -EINTR;
+			}
+
+			inode_locked = true;
+
+			if (!inode->ei_inode_update)
+				inode->ei_inode_update =
+					bch2_deferred_update_alloc(c,
+								BTREE_ID_INODES, 64);
+
+			inode_u = inode->ei_inode;
+			inode_u.bi_sectors += i_sectors_delta;
+
+			/* XXX: this is slightly suspect */
+			if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+			    new_i_size > inode_u.bi_size) {
+				inode_u.bi_size = new_i_size;
+				extended = true;
+			}
+
+			bch2_inode_pack(&inode_p, &inode_u);
+			bch2_trans_update(trans,
+				BTREE_INSERT_DEFERRED(inode->ei_inode_update,
+						      &inode_p.inode.k_i));
+		} else {
+			inode_iter = bch2_trans_get_iter(trans,
+				BTREE_ID_INODES,
+				POS(k->k.p.inode, 0),
+				BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			if (IS_ERR(inode_iter))
+				return PTR_ERR(inode_iter);
+
+			ret = bch2_btree_iter_traverse(inode_iter);
+			if (ret)
+				goto err;
+
+			inode_u = inode->ei_inode;
+			inode_u.bi_sectors += i_sectors_delta;
+
+			/* XXX: this is slightly suspect */
+			if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+			    new_i_size > inode_u.bi_size) {
+				inode_u.bi_size = new_i_size;
+				extended = true;
+			}
+
+			bch2_inode_pack(&inode_p, &inode_u);
+			bch2_trans_update(trans,
+				BTREE_INSERT_ENTRY(inode_iter, &inode_p.inode.k_i));
 		}
-
-		inode_locked = true;
-
-		if (!inode->ei_inode_update)
-			inode->ei_inode_update =
-				bch2_deferred_update_alloc(trans->c,
-							BTREE_ID_INODES, 64);
-
-		inode_u = inode->ei_inode;
-		inode_u.bi_sectors += i_sectors_delta;
-
-		/* XXX: this is slightly suspect */
-		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-		    new_i_size > inode_u.bi_size) {
-			inode_u.bi_size = new_i_size;
-			extended = true;
-		}
-
-		bch2_inode_pack(&inode_p, &inode_u);
-		bch2_trans_update(trans,
-			BTREE_INSERT_DEFERRED(inode->ei_inode_update,
-					      &inode_p.inode.k_i));
 	}
 
 	ret = bch2_trans_commit(trans, disk_res,
@@ -376,11 +405,13 @@ static int bch2_extent_update(struct btree_trans *trans,
 	}
 
 	if (direct)
-		i_sectors_acct(trans->c, inode, quota_res, i_sectors_delta);
+		i_sectors_acct(c, inode, quota_res, i_sectors_delta);
 
 	if (total_delta)
 		*total_delta += i_sectors_delta;
 err:
+	if (!IS_ERR_OR_NULL(inode_iter))
+		bch2_trans_iter_put(trans, inode_iter);
 	if (inode_locked)
 		mutex_unlock(&inode->ei_update_lock);
 

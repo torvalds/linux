@@ -163,22 +163,24 @@ int __must_check bch2_write_inode_trans(struct btree_trans *trans,
 
 	lockdep_assert_held(&inode->ei_update_lock);
 
+	if (c->opts.new_inode_updates) {
 	/* XXX: Don't do this with btree locks held */
 	if (!inode->ei_inode_update)
 		inode->ei_inode_update =
 			bch2_deferred_update_alloc(c, BTREE_ID_INODES, 64);
-#if 0
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
-			POS(inode->v.i_ino, 0),
-			BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
+	} else {
+		iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
+					   POS(inode->v.i_ino, 0),
+					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+		if (IS_ERR(iter))
+			return PTR_ERR(iter);
 
-	/* The btree node lock is our lock on the inode: */
-	ret = bch2_btree_iter_traverse(iter);
-	if (ret)
-		return ret;
-#endif
+		/* The btree node lock is our lock on the inode: */
+		ret = bch2_btree_iter_traverse(iter);
+		if (ret)
+			return ret;
+	}
+
 	*inode_u = inode->ei_inode;
 
 	if (set) {

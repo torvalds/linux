@@ -953,6 +953,13 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, u);
 
+	/*
+	 * XXX:
+	 * when using deferred btree updates, we have journal reclaim doing
+	 * btree updates and thus requiring the allocator to make forward
+	 * progress, and here the allocator is requiring space in the journal -
+	 * so we need a journal pre-reservation:
+	 */
 	ret = bch2_btree_insert_at(c, NULL,
 			invalidating_cached_data ? journal_seq : NULL,
 			BTREE_INSERT_ATOMIC|
@@ -960,7 +967,6 @@ retry:
 			BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_USE_RESERVE|
 			BTREE_INSERT_USE_ALLOC_RESERVE|
-			BTREE_INSERT_JOURNAL_RESERVED|
 			flags,
 			BTREE_INSERT_ENTRY(iter, &a->k_i));
 	if (ret == -EINTR)
