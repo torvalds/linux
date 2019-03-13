@@ -1,31 +1,21 @@
-Chinese translated version of Documentation/process/submitting-patches.rst
+.. _cn_process_submittingpatches:
 
-If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have a problem
-communicating in English you can also ask the Chinese maintainer for
-help.  Contact the Chinese maintainer if this translation is outdated
-or if there is a problem with the translation.
+.. include:: ../disclaimer-zh_CN.rst
 
-Chinese maintainer: TripleX Chung <triplex@zh-kernel.org>
----------------------------------------------------------------------
-Documentation/process/submitting-patches.rst 的中文翻译
+:Original: :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者。
+译存在问题，请联系中文版维护者::
 
-中文版维护者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
-中文版翻译者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
-中文版校译者： 李阳 Li Yang <leo@zh-kernel.org>
-               王聪 Wang Cong <xiyou.wangcong@gmail.com>
+        中文版维护者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
+        中文版翻译者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
+        中文版校译者： 李阳 Li Yang <leo@zh-kernel.org>
+                       王聪 Wang Cong <xiyou.wangcong@gmail.com>
 
-以下为正文
----------------------------------------------------------------------
 
-   如何让你的改动进入内核
-     或者
-  获得亲爱的 Linus Torvalds 的关注和处理
-----------------------------------
+如何让你的改动进入内核
+======================
 
 对于想要将改动提交到 Linux 内核的个人或者公司来说，如果不熟悉“规矩”，
 提交的流程会让人畏惧。本文档收集了一系列建议，这些建议可以大大的提高你
@@ -35,12 +25,12 @@ Documentation/process/submitting-patches.rst 的中文翻译
 Documentation/process/submitting-drivers.rst 。
 
 
---------------------------
+---------------------------
 第一节 - 创建并发送你的改动
---------------------------
+---------------------------
 
 1) "diff -up"
------------
+-------------
 
 使用 "diff -up" 或者 "diff -uprN" 来创建补丁。
 
