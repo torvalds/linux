@@ -268,6 +268,17 @@ static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
 	return 0;
 }
 
+/**
+ * cros_ec_sensors_read_lpc() - read acceleration data from EC shared memory.
+ * @indio_dev: pointer to IIO device.
+ * @scan_mask: bitmap of the sensor indices to scan.
+ * @data: location to store data.
+ *
+ * Note: this is the safe function for reading the EC data. It guarantees
+ * that the data sampled was not modified by the EC while being read.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
 {
