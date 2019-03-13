@@ -330,18 +330,6 @@ config GPIO_MM_LANTIQ
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
 
-config GPIO_MOCKUP
-	tristate "GPIO Testing Driver"
-	depends on GPIOLIB
-	select IRQ_SIM
-	help
-	  This enables GPIO Testing driver, which provides a way to test GPIO
-	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
-	  must be selected for this test.
-	  User could use it through the script in
-	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
-	  it.
-
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
@@ -1439,5 +1427,17 @@ config GPIO_VIPERBOARD
           of the module parameters.
 
 endmenu
+
+config GPIO_MOCKUP
+	tristate "GPIO Testing Driver"
+	depends on GPIOLIB
+	select IRQ_SIM
+	help
+	  This enables GPIO Testing driver, which provides a way to test GPIO
+	  subsystem through sysfs(or char device) and debugfs. GPIO_SYSFS
+	  must be selected for this test.
+	  User could use it through the script in
+	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
+	  it.
 
 endif
