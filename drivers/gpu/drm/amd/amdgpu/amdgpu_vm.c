@@ -899,17 +899,17 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 }
 
 /**
- * amdgpu_vm_alloc_pts - Allocate page tables.
+ * amdgpu_vm_alloc_pts - Allocate a specific page table
  *
  * @adev: amdgpu_device pointer
  * @vm: VM to allocate page tables for
- * @saddr: Start address which needs to be allocated
- * @size: Size from start address we need.
+ * @cursor: Which page table to allocate
  *
- * Make sure the page directories and page tables are allocated
+ * Make sure a specific page table or directory is allocated.
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 1 if page table needed to be allocated, 0 if page table was already
+ * allocated, negative errno if an error occurred.
  */
 static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			       struct amdgpu_vm *vm,
@@ -956,7 +956,7 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	if (r)
 		goto error_free_pt;
 
-	return 0;
+	return 1;
 
 error_free_pt:
 	amdgpu_bo_unref(&pt->shadow);
@@ -1621,10 +1621,12 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		unsigned shift, parent_shift, mask;
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
+		bool need_to_sync;
 
 		r = amdgpu_vm_alloc_pts(params->adev, params->vm, &cursor);
-		if (r)
+		if (r < 0)
 			return r;
+		need_to_sync = (r && params->vm->use_cpu_for_update);
 
 		pt = cursor.entry->base.bo;
 
@@ -1671,6 +1673,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		entry_end = (uint64_t)(mask + 1) << shift;
 		entry_end += cursor.pfn & ~(entry_end - 1);
 		entry_end = min(entry_end, end);
+
+		if (need_to_sync)
+			r = amdgpu_bo_sync_wait(params->vm->root.base.bo,
+						AMDGPU_FENCE_OWNER_VM, true);
 
 		do {
 			uint64_t upd_end = min(entry_end, frag_end);
