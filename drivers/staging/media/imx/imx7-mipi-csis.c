@@ -9,6 +9,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -889,8 +890,6 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-#include <linux/debugfs.h>
 
 static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 {
@@ -900,7 +899,7 @@ static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
-static int __init_or_module mipi_csis_debugfs_init(struct csi_state *state)
+static int mipi_csis_debugfs_init(struct csi_state *state)
 {
 	struct dentry *d;
 
@@ -933,17 +932,6 @@ static void mipi_csis_debugfs_exit(struct csi_state *state)
 {
 	debugfs_remove_recursive(state->debugfs_root);
 }
-
-#else
-static int mipi_csis_debugfs_init(struct csi_state *state __maybe_unused)
-{
-	return 0;
-}
-
-static void mipi_csis_debugfs_exit(struct csi_state *state __maybe_unused)
-{
-}
-#endif
 
 static int mipi_csis_probe(struct platform_device *pdev)
 {
