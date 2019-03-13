@@ -939,7 +939,7 @@ retry:
 	else
 		memset(&u, 0, sizeof(u));
 
-	invalidating_cached_data = u.cached_sectors != 0;
+	invalidating_cached_data = m.cached_sectors != 0;
 
 	//BUG_ON(u.dirty_sectors);
 	u.data_type	= 0;
@@ -947,7 +947,13 @@ retry:
 	u.cached_sectors = 0;
 	u.read_time	= c->bucket_clock[READ].hand;
 	u.write_time	= c->bucket_clock[WRITE].hand;
-	u.gen++;
+
+	/*
+	 * The allocator has to start before journal replay is finished - thus,
+	 * we have to trust the in memory bucket @m, not the version in the
+	 * btree:
+	 */
+	u.gen		= m.gen + 1;
 
 	a = bkey_alloc_init(&alloc_key.k);
 	a->k.p = iter->pos;
@@ -963,6 +969,7 @@ retry:
 	ret = bch2_btree_insert_at(c, NULL,
 			invalidating_cached_data ? journal_seq : NULL,
 			BTREE_INSERT_ATOMIC|
+			BTREE_INSERT_NOUNLOCK|
 			BTREE_INSERT_NOCHECK_RW|
 			BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_USE_RESERVE|
@@ -981,6 +988,10 @@ retry:
 
 		if (!top->nr)
 			heap_pop(&ca->alloc_heap, e, bucket_alloc_cmp, NULL);
+
+		/* with btree still locked: */
+		if (ca->buckets_written)
+			set_bit(b, ca->buckets_written);
 
 		/*
 		 * Make sure we flush the last journal entry that updated this
