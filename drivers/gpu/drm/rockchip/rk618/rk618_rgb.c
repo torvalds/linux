@@ -34,6 +34,7 @@ struct rk618_rgb {
 	struct regmap *regmap;
 	struct clk *clock;
 	struct rk618 *parent;
+	u32 bus_format;
 	u32 id;
 	struct rockchip_drm_sub_dev sub_dev;
 };
@@ -59,8 +60,21 @@ rk618_rgb_connector_best_encoder(struct drm_connector *connector)
 static int rk618_rgb_connector_get_modes(struct drm_connector *connector)
 {
 	struct rk618_rgb *rgb = connector_to_rgb(connector);
+	struct drm_display_info *info = &connector->display_info;
+	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	int num_modes = 0;
 
-	return drm_panel_get_modes(rgb->panel);
+	num_modes = drm_panel_get_modes(rgb->panel);
+
+	if (info->num_bus_formats)
+		rgb->bus_format = info->bus_formats[0];
+	else
+		rgb->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
+	drm_display_info_set_bus_formats(&connector->display_info,
+					 &bus_format, 1);
+
+	return num_modes;
 }
 
 static const struct drm_connector_helper_funcs
@@ -95,30 +109,12 @@ static const struct drm_connector_funcs rk618_rgb_connector_funcs = {
 static void rk618_rgb_bridge_enable(struct drm_bridge *bridge)
 {
 	struct rk618_rgb *rgb = bridge_to_rgb(bridge);
-	struct drm_connector *connector = &rgb->connector;
-	struct drm_display_info *info = &connector->display_info;
-	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	u32 value;
 
 	clk_prepare_enable(rgb->clock);
 
 	rk618_frc_dclk_invert(rgb->parent);
-
-	if (info->num_bus_formats)
-		bus_format = info->bus_formats[0];
-
-	switch (bus_format) {
-	case MEDIA_BUS_FMT_RGB666_1X18:
-	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
-		rk618_frc_dither_enable(rgb->parent, bus_format);
-		break;
-	case MEDIA_BUS_FMT_RGB888_1X24:
-	default:
-		rk618_frc_dither_disable(rgb->parent);
-		break;
-	}
-
-	dev_dbg(rgb->dev, "id=%d\n", rgb->id);
+	rk618_frc_dither_init(rgb->parent, rgb->bus_format);
 
 	if (rgb->id) {
 		value = LVDS_CON_CBG_POWER_DOWN | LVDS_CON_CHA1_POWER_DOWN |
