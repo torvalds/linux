@@ -466,6 +466,8 @@
 		#interrupt-cells = <2>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		rohm,ddr-backup-power = <0x1>;
+		rohm,rstbmode-level;
 	};
 };
 
