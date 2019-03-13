@@ -172,7 +172,7 @@ struct symbol {
  *         int "BAZ Value"
  *         range 1..255
  *
- * Please, also check zconf.y:print_symbol() when modifying the
+ * Please, also check parser.y:print_symbol() when modifying the
  * list of property types!
  */
 enum prop_type {
