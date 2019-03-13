@@ -1742,11 +1742,13 @@ static const struct v4l2_ctrl_config vicodec_ctrl_stateless_state = {
  */
 static int vicodec_open(struct file *file)
 {
+	const struct v4l2_fwht_pixfmt_info *info = v4l2_fwht_get_pixfmt(0);
 	struct video_device *vfd = video_devdata(file);
 	struct vicodec_dev *dev = video_drvdata(file);
 	struct vicodec_ctx *ctx = NULL;
 	struct v4l2_ctrl_handler *hdl;
-	unsigned int size;
+	unsigned int raw_size;
+	unsigned int comp_size;
 	int rc = 0;
 
 	if (mutex_lock_interruptible(vfd->lock))
@@ -1785,7 +1787,7 @@ static int vicodec_open(struct file *file)
 	v4l2_ctrl_handler_setup(hdl);
 
 	if (ctx->is_enc)
-		ctx->q_data[V4L2_M2M_SRC].info = v4l2_fwht_get_pixfmt(0);
+		ctx->q_data[V4L2_M2M_SRC].info = info;
 	else if (ctx->is_stateless)
 		ctx->q_data[V4L2_M2M_SRC].info = &pixfmt_stateless_fwht;
 	else
@@ -1794,22 +1796,22 @@ static int vicodec_open(struct file *file)
 	ctx->q_data[V4L2_M2M_SRC].coded_height = 720;
 	ctx->q_data[V4L2_M2M_SRC].visible_width = 1280;
 	ctx->q_data[V4L2_M2M_SRC].visible_height = 720;
-	size = 1280 * 720 * ctx->q_data[V4L2_M2M_SRC].info->sizeimage_mult /
-		ctx->q_data[V4L2_M2M_SRC].info->sizeimage_div;
+	raw_size = 1280 * 720 * info->sizeimage_mult / info->sizeimage_div;
+	comp_size = 1280 * 720 * pixfmt_fwht.sizeimage_mult /
+				 pixfmt_fwht.sizeimage_div;
 	if (ctx->is_enc || ctx->is_stateless)
-		ctx->q_data[V4L2_M2M_SRC].sizeimage = size;
+		ctx->q_data[V4L2_M2M_SRC].sizeimage = raw_size;
 	else
 		ctx->q_data[V4L2_M2M_SRC].sizeimage =
-			size + sizeof(struct fwht_cframe_hdr);
+			comp_size + sizeof(struct fwht_cframe_hdr);
+	ctx->q_data[V4L2_M2M_DST] = ctx->q_data[V4L2_M2M_SRC];
 	if (ctx->is_enc) {
-		ctx->q_data[V4L2_M2M_DST] = ctx->q_data[V4L2_M2M_SRC];
 		ctx->q_data[V4L2_M2M_DST].info = &pixfmt_fwht;
-		ctx->q_data[V4L2_M2M_DST].sizeimage = 1280 * 720 *
-			ctx->q_data[V4L2_M2M_DST].info->sizeimage_mult /
-			ctx->q_data[V4L2_M2M_DST].info->sizeimage_div +
-			sizeof(struct fwht_cframe_hdr);
+		ctx->q_data[V4L2_M2M_DST].sizeimage =
+			comp_size + sizeof(struct fwht_cframe_hdr);
 	} else {
-		ctx->q_data[V4L2_M2M_DST].info = NULL;
+		ctx->q_data[V4L2_M2M_DST].info = info;
+		ctx->q_data[V4L2_M2M_DST].sizeimage = raw_size;
 	}
 
 	ctx->state.colorspace = V4L2_COLORSPACE_REC709;
