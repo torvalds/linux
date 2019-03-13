@@ -1738,6 +1738,7 @@ require use of the stronger protocol */
  *  GlobalMid_Lock protects:
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
+ *      list operations on global DnotifyReqList
  *  tcp_ses_lock protects:
  *	list operations on tcp and SMB session lists
  *  tcon->open_file_lock protects the list of open files hanging off the tcon
