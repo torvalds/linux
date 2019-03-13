@@ -8,8 +8,8 @@
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
 译存在问题，请联系中文版维护者::
 
-        中文版维护者： 钟宇  TripleX Chung <triplex@zh-kernel.org>
-        中文版翻译者： 钟宇  TripleX Chung <triplex@zh-kernel.org>
+        中文版维护者： 钟宇  TripleX Chung <xxx.phy@gmail.com>
+        中文版翻译者： 钟宇  TripleX Chung <xxx.phy@gmail.com>
         中文版校译者：
             - 李阳  Li Yang <leoyang.li@nxp.com>
             - Kangkai Yin <e12051@motorola.com>
