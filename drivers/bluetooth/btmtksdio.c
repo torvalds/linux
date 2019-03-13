@@ -956,20 +956,7 @@ static struct sdio_driver btmtksdio_driver = {
 	.id_table	= btmtksdio_table,
 };
 
-static int __init btmtksdio_init(void)
-{
-	BT_INFO("MediaTek Bluetooth SDIO driver ver %s", VERSION);
-
-	return sdio_register_driver(&btmtksdio_driver);
-}
-
-static void __exit btmtksdio_exit(void)
-{
-	sdio_unregister_driver(&btmtksdio_driver);
-}
-
-module_init(btmtksdio_init);
-module_exit(btmtksdio_exit);
+module_sdio_driver(btmtksdio_driver);
 
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_DESCRIPTION("MediaTek Bluetooth SDIO driver ver " VERSION);
