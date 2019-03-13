@@ -2713,6 +2713,18 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 			return DRM_FORMAT_XBGR2101010;
 		else
 			return DRM_FORMAT_XRGB2101010;
+	case PLANE_CTL_FORMAT_XRGB_16161616F:
+		if (rgb_order) {
+			if (alpha)
+				return DRM_FORMAT_ABGR16161616F;
+			else
+				return DRM_FORMAT_XBGR16161616F;
+		} else {
+			if (alpha)
+				return DRM_FORMAT_ARGB16161616F;
+			else
+				return DRM_FORMAT_XRGB16161616F;
+		}
 	}
 }
 
@@ -3608,6 +3620,12 @@ static u32 skl_plane_ctl_format(u32 pixel_format)
 		return PLANE_CTL_FORMAT_XRGB_2101010;
 	case DRM_FORMAT_XBGR2101010:
 		return PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+		return PLANE_CTL_FORMAT_XRGB_16161616F | PLANE_CTL_ORDER_RGBX;
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
+		return PLANE_CTL_FORMAT_XRGB_16161616F;
 	case DRM_FORMAT_YUYV:
 		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
 	case DRM_FORMAT_YVYU:
@@ -5183,6 +5201,10 @@ static int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_ARGB16161616F:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
