@@ -163,7 +163,7 @@ struct v3d_job {
 	struct dma_fence *in_fence;
 
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
-	struct dma_fence *done_fence;
+	struct dma_fence *irq_fence;
 
 	/* GPU virtual addresses of the start/end of the CL job. */
 	u32 start, end;
@@ -210,7 +210,7 @@ struct v3d_tfu_job {
 	struct dma_fence *in_fence;
 
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
-	struct dma_fence *done_fence;
+	struct dma_fence *irq_fence;
 
 	struct v3d_dev *v3d;
 
