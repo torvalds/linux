@@ -1356,11 +1356,11 @@
 
 		sdmmc0 {
 			sdmmc0_clk: sdmmc0-clk {
-				rockchip,pins = <1 RK_PA6 1 &pcfg_pull_none_4ma>;
+				rockchip,pins = <1 RK_PA6 1 &pcfg_pull_none_8ma>;
 			};
 
 			sdmmc0_cmd: sdmmc0-cmd {
-				rockchip,pins = <1 RK_PA4 1 &pcfg_pull_up_4ma>;
+				rockchip,pins = <1 RK_PA4 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc0_dectn: sdmmc0-dectn {
@@ -1372,14 +1372,14 @@
 			};
 
 			sdmmc0_bus1: sdmmc0-bus1 {
-				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_up_4ma>;
+				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc0_bus4: sdmmc0-bus4 {
-				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_up_4ma>,
-						<1 RK_PA1 1 &pcfg_pull_up_4ma>,
-						<1 RK_PA2 1 &pcfg_pull_up_4ma>,
-						<1 RK_PA3 1 &pcfg_pull_up_4ma>;
+				rockchip,pins = <1 RK_PA0 1 &pcfg_pull_up_8ma>,
+						<1 RK_PA1 1 &pcfg_pull_up_8ma>,
+						<1 RK_PA2 1 &pcfg_pull_up_8ma>,
+						<1 RK_PA3 1 &pcfg_pull_up_8ma>;
 			};
 
 			sdmmc0_gpio: sdmmc0-gpio {
