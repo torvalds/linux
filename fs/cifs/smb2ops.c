@@ -2571,10 +2571,16 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
+        trace_smb3_zero_enter(xid, cfile->fid.persistent_fid, tcon->tid,
+			      ses->Suid, offset, len);
+
+
 	/* if file not oplocked can't be sure whether asking to extend size */
 	if (!CIFS_CACHE_READ(cifsi))
 		if (keep_size == false) {
 			rc = -EOPNOTSUPP;
+			trace_smb3_zero_err(xid, cfile->fid.persistent_fid,
+				tcon->tid, ses->Suid, offset, len, rc);
 			free_xid(xid);
 			return rc;
 		}
@@ -2585,6 +2591,8 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	 */
 	if (!(cifsi->cifsAttrs & FILE_ATTRIBUTE_SPARSE_FILE)) {
 		rc = -EOPNOTSUPP;
+		trace_smb3_zero_err(xid, cfile->fid.persistent_fid, tcon->tid,
+			      ses->Suid, offset, len, rc);
 		free_xid(xid);
 		return rc;
 	}
@@ -2644,6 +2652,12 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	free_xid(xid);
+	if (rc)
+		trace_smb3_zero_err(xid, cfile->fid.persistent_fid, tcon->tid,
+			      ses->Suid, offset, len, rc);
+	else
+		trace_smb3_zero_done(xid, cfile->fid.persistent_fid, tcon->tid,
+			      ses->Suid, offset, len);
 	return rc;
 }
 
@@ -2698,9 +2712,13 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
+	trace_smb3_falloc_enter(xid, cfile->fid.persistent_fid, tcon->tid,
+				tcon->ses->Suid, off, len);
 	/* if file not oplocked can't be sure whether asking to extend size */
 	if (!CIFS_CACHE_READ(cifsi))
 		if (keep_size == false) {
+			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
+				tcon->tid, tcon->ses->Suid, off, len, rc);
 			free_xid(xid);
 			return rc;
 		}
@@ -2720,6 +2738,12 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		/* BB: in future add else clause to extend file */
 		else
 			rc = -EOPNOTSUPP;
+		if (rc)
+			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
+				tcon->tid, tcon->ses->Suid, off, len, rc);
+		else
+			trace_smb3_falloc_done(xid, cfile->fid.persistent_fid,
+				tcon->tid, tcon->ses->Suid, off, len);
 		free_xid(xid);
 		return rc;
 	}
@@ -2735,6 +2759,8 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 		 */
 		if ((off > 8192) || (off + len + 8192 < i_size_read(inode))) {
 			rc = -EOPNOTSUPP;
+			trace_smb3_falloc_err(xid, cfile->fid.persistent_fid,
+				tcon->tid, tcon->ses->Suid, off, len, rc);
 			free_xid(xid);
 			return rc;
 		}
@@ -2743,6 +2769,12 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 	}
 	/* BB: else ... in future add code to extend file and set sparse */
 
+	if (rc)
+		trace_smb3_falloc_err(xid, cfile->fid.persistent_fid, tcon->tid,
+				tcon->ses->Suid, off, len, rc);
+	else
+		trace_smb3_falloc_done(xid, cfile->fid.persistent_fid, tcon->tid,
+				tcon->ses->Suid, off, len);
 
 	free_xid(xid);
 	return rc;
