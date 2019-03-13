@@ -585,8 +585,7 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 
 		if (adapter->csr.flags &
 		   LAN743X_CSR_FLAG_SUPPORTS_INTR_AUTO_SET_CLR) {
-			flags = LAN743X_VECTOR_FLAG_VECTOR_ENABLE_AUTO_CLEAR |
-				LAN743X_VECTOR_FLAG_VECTOR_ENABLE_AUTO_SET |
+			flags = LAN743X_VECTOR_FLAG_VECTOR_ENABLE_AUTO_SET |
 				LAN743X_VECTOR_FLAG_SOURCE_ENABLE_AUTO_SET |
 				LAN743X_VECTOR_FLAG_SOURCE_ENABLE_AUTO_CLEAR |
 				LAN743X_VECTOR_FLAG_SOURCE_STATUS_AUTO_CLEAR;
@@ -599,12 +598,6 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 			/* map TX interrupt to vector */
 			int_vec_map1 |= INT_VEC_MAP1_TX_VEC_(index, vector);
 			lan743x_csr_write(adapter, INT_VEC_MAP1, int_vec_map1);
-			if (flags &
-			    LAN743X_VECTOR_FLAG_VECTOR_ENABLE_AUTO_CLEAR) {
-				int_vec_en_auto_clr |= INT_VEC_EN_(vector);
-				lan743x_csr_write(adapter, INT_VEC_EN_AUTO_CLR,
-						  int_vec_en_auto_clr);
-			}
 
 			/* Remove TX interrupt from shared mask */
 			intr->vector_list[0].int_mask &= ~int_bit;
