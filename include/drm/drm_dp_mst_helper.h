@@ -55,8 +55,10 @@ struct drm_dp_vcpi {
  * @num_sdp_stream_sinks: Number of stream sinks
  * @available_pbn: Available bandwidth for this port.
  * @next: link to next port on this branch device
- * @mstb: branch device attach below this port
- * @aux: i2c aux transport to talk to device connected to this port.
+ * @mstb: branch device on this port, protected by
+ * &drm_dp_mst_topology_mgr.lock
+ * @aux: i2c aux transport to talk to device connected to this port, protected
+ * by &drm_dp_mst_topology_mgr.lock
  * @parent: branch device parent of this port
  * @vcpi: Virtual Channel Payload info for this port.
  * @connector: DRM connector this port is connected to.
