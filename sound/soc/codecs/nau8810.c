@@ -667,6 +667,24 @@ static int nau8810_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
 	int val_len = 0, val_rate = 0, ret = 0;
+	unsigned int ctrl_val, bclk_fs, bclk_div;
+
+	/* Select BCLK configuration if the codec as master. */
+	regmap_read(nau8810->regmap, NAU8810_REG_CLOCK, &ctrl_val);
+	if (ctrl_val & NAU8810_CLKIO_MASTER) {
+		/* get the bclk and fs ratio */
+		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);
+		if (bclk_fs <= 32)
+			bclk_div = NAU8810_BCLKDIV_8;
+		else if (bclk_fs <= 64)
+			bclk_div = NAU8810_BCLKDIV_4;
+		else if (bclk_fs <= 128)
+			bclk_div = NAU8810_BCLKDIV_2;
+		else
+			return -EINVAL;
+		regmap_update_bits(nau8810->regmap, NAU8810_REG_CLOCK,
+			NAU8810_BCLKSEL_MASK, bclk_div);
+	}
 
 	switch (params_width(params)) {
 	case 16:
