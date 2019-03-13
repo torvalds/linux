@@ -960,7 +960,7 @@ static struct clk_regmap g12a_sd_emmc_c_clk0 = {
 /* VPU Clock */
 
 static const char * const g12a_vpu_parent_names[] = {
-	"fclk_div4", "fclk_div3", "fclk_div5", "fclk_div7",
+	"fclk_div3", "fclk_div4", "fclk_div5", "fclk_div7",
 	"mpll1", "vid_pll", "hifi_pll", "gp0_pll",
 };
 
