@@ -1552,12 +1552,6 @@ static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
 	blk_queue_max_write_zeroes_sectors(ns->queue, max_sectors);
 }
 
-static inline void nvme_ns_config_oncs(struct nvme_ns *ns)
-{
-	nvme_config_discard(ns);
-	nvme_config_write_zeroes(ns);
-}
-
 static void nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
 		struct nvme_id_ns *id, struct nvme_ns_ids *ids)
 {
@@ -1611,7 +1605,9 @@ static void nvme_update_disk_info(struct gendisk *disk,
 		capacity = 0;
 
 	set_capacity(disk, capacity);
-	nvme_ns_config_oncs(ns);
+
+	nvme_config_discard(ns);
+	nvme_config_write_zeroes(ns);
 
 	if (id->nsattr & (1 << 0))
 		set_disk_ro(disk, true);
