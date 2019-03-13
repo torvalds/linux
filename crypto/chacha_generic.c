@@ -52,7 +52,7 @@ static int chacha_stream_xor(struct skcipher_request *req,
 		unsigned int nbytes = walk.nbytes;
 
 		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
+			nbytes = round_down(nbytes, CHACHA_BLOCK_SIZE);
 
 		chacha_docrypt(state, walk.dst.virt.addr, walk.src.virt.addr,
 			       nbytes, ctx->nrounds);
