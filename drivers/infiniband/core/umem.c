@@ -138,6 +138,11 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
 	mmgrab(mm);
 
 	if (access & IB_ACCESS_ON_DEMAND) {
+		if (WARN_ON_ONCE(!context->invalidate_range)) {
+			ret = -EINVAL;
+			goto umem_kfree;
+		}
+
 		ret = ib_umem_odp_get(to_ib_umem_odp(umem), access);
 		if (ret)
 			goto umem_kfree;
