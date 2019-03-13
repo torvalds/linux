@@ -214,6 +214,7 @@ struct io_kiocb {
 #define REQ_F_IOPOLL_COMPLETED	2	/* polled IO has completed */
 #define REQ_F_FIXED_FILE	4	/* ctx owns file */
 #define REQ_F_SEQ_PREV		8	/* sequential with previous */
+#define REQ_F_PREPPED		16	/* prep already done */
 	u64			user_data;
 	u64			error;
 
@@ -741,7 +742,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 	int fd, ret;
 
 	/* For -EAGAIN retry, everything is already prepped */
-	if (kiocb->ki_filp)
+	if (req->flags & REQ_F_PREPPED)
 		return 0;
 
 	flags = READ_ONCE(sqe->flags);
@@ -799,6 +800,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct sqe_submit *s,
 		}
 		kiocb->ki_complete = io_complete_rw;
 	}
+	req->flags |= REQ_F_PREPPED;
 	return 0;
 out_fput:
 	if (!(flags & IOSQE_FIXED_FILE)) {
@@ -1099,8 +1101,8 @@ static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	unsigned flags;
 	int fd;
 
-	/* Prep already done */
-	if (req->rw.ki_filp)
+	/* Prep already done (EAGAIN retry) */
+	if (req->flags & REQ_F_PREPPED)
 		return 0;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
@@ -1122,6 +1124,7 @@ static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			return -EBADF;
 	}
 
+	req->flags |= REQ_F_PREPPED;
 	return 0;
 }
 
@@ -1631,8 +1634,6 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct sqe_submit *s,
 	req = io_get_req(ctx, state);
 	if (unlikely(!req))
 		return -EAGAIN;
-
-	req->rw.ki_filp = NULL;
 
 	ret = __io_submit_sqe(ctx, req, s, true, state);
 	if (ret == -EAGAIN) {
