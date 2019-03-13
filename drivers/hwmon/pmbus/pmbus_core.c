@@ -612,6 +612,66 @@ static void pmbus_update_sensor_data(struct i2c_client *client, struct pmbus_sen
 }
 
 /*
+ * Convert ieee754 sensor values to milli- or micro-units
+ * depending on sensor type.
+ *
+ * ieee754 data format:
+ *	bit 15:		sign
+ *	bit 10..14:	exponent
+ *	bit 0..9:	mantissa
+ * exponent=0:
+ *	v=(−1)^signbit * 2^(−14) * 0.significantbits
+ * exponent=1..30:
+ *	v=(−1)^signbit * 2^(exponent - 15) * 1.significantbits
+ * exponent=31:
+ *	v=NaN
+ *
+ * Add the number mantissa bits into the calculations for simplicity.
+ * To do that, add '10' to the exponent. By doing that, we can just add
+ * 0x400 to normal values and get the expected result.
+ */
+static long pmbus_reg2data_ieee754(struct pmbus_data *data,
+				   struct pmbus_sensor *sensor)
+{
+	int exponent;
+	bool sign;
+	long val;
+
+	/* only support half precision for now */
+	sign = sensor->data & 0x8000;
+	exponent = (sensor->data >> 10) & 0x1f;
+	val = sensor->data & 0x3ff;
+
+	if (exponent == 0) {			/* subnormal */
+		exponent = -(14 + 10);
+	} else if (exponent ==  0x1f) {		/* NaN, convert to min/max */
+		exponent = 0;
+		val = 65504;
+	} else {
+		exponent -= (15 + 10);		/* normal */
+		val |= 0x400;
+	}
+
+	/* scale result to milli-units for all sensors except fans */
+	if (sensor->class != PSC_FAN)
+		val = val * 1000L;
+
+	/* scale result to micro-units for power sensors */
+	if (sensor->class == PSC_POWER)
+		val = val * 1000L;
+
+	if (exponent >= 0)
+		val <<= exponent;
+	else
+		val >>= -exponent;
+
+	if (sign)
+		val = -val;
+
+	return val;
+}
+
+/*
  * Convert linear sensor values to milli- or micro-units
  * depending on sensor type.
  */
@@ -741,6 +801,9 @@ static s64 pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 	case vid:
 		val = pmbus_reg2data_vid(data, sensor);
 		break;
+	case ieee754:
+		val = pmbus_reg2data_ieee754(data, sensor);
+		break;
 	case linear:
 	default:
 		val = pmbus_reg2data_linear(data, sensor);
@@ -749,8 +812,72 @@ static s64 pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 	return val;
 }
 
-#define MAX_MANTISSA	(1023 * 1000)
-#define MIN_MANTISSA	(511 * 1000)
+#define MAX_IEEE_MANTISSA	(0x7ff * 1000)
+#define MIN_IEEE_MANTISSA	(0x400 * 1000)
+
+static u16 pmbus_data2reg_ieee754(struct pmbus_data *data,
+				  struct pmbus_sensor *sensor, long val)
+{
+	u16 exponent = (15 + 10);
+	long mantissa;
+	u16 sign = 0;
+
+	/* simple case */
+	if (val == 0)
+		return 0;
+
+	if (val < 0) {
+		sign = 0x8000;
+		val = -val;
+	}
+
+	/* Power is in uW. Convert to mW before converting. */
+	if (sensor->class == PSC_POWER)
+		val = DIV_ROUND_CLOSEST(val, 1000L);
+
+	/*
+	 * For simplicity, convert fan data to milli-units
+	 * before calculating the exponent.
+	 */
+	if (sensor->class == PSC_FAN)
+		val = val * 1000;
+
+	/* Reduce large mantissa until it fits into 10 bit */
+	while (val > MAX_IEEE_MANTISSA && exponent < 30) {
+		exponent++;
+		val >>= 1;
+	}
+	/*
+	 * Increase small mantissa to generate valid 'normal'
+	 * number
+	 */
+	while (val < MIN_IEEE_MANTISSA && exponent > 1) {
+		exponent--;
+		val <<= 1;
+	}
+
+	/* Convert mantissa from milli-units to units */
+	mantissa = DIV_ROUND_CLOSEST(val, 1000);
+
+	/*
+	 * Ensure that the resulting number is within range.
+	 * Valid range is 0x400..0x7ff, where bit 10 reflects
+	 * the implied high bit in normalized ieee754 numbers.
+	 * Set the range to 0x400..0x7ff to reflect this.
+	 * The upper bit is then removed by the mask against
+	 * 0x3ff in the final assignment.
+	 */
+	if (mantissa > 0x7ff)
+		mantissa = 0x7ff;
+	else if (mantissa < 0x400)
+		mantissa = 0x400;
+
+	/* Convert to sign, 5 bit exponent, 10 bit mantissa */
+	return sign | (mantissa & 0x3ff) | ((exponent << 10) & 0x7c00);
+}
+
+#define MAX_LIN_MANTISSA	(1023 * 1000)
+#define MIN_LIN_MANTISSA	(511 * 1000)
 
 static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 				 struct pmbus_sensor *sensor, s64 val)
@@ -796,12 +923,12 @@ static u16 pmbus_data2reg_linear(struct pmbus_data *data,
 		val = val * 1000LL;
 
 	/* Reduce large mantissa until it fits into 10 bit */
-	while (val >= MAX_MANTISSA && exponent < 15) {
+	while (val >= MAX_LIN_MANTISSA && exponent < 15) {
 		exponent++;
 		val >>= 1;
 	}
 	/* Increase small mantissa to improve precision */
-	while (val < MIN_MANTISSA && exponent > -15) {
+	while (val < MIN_LIN_MANTISSA && exponent > -15) {
 		exponent--;
 		val <<= 1;
 	}
@@ -874,6 +1001,9 @@ static u16 pmbus_data2reg(struct pmbus_data *data,
 		break;
 	case vid:
 		regval = pmbus_data2reg_vid(data, sensor, val);
+		break;
+	case ieee754:
+		regval = pmbus_data2reg_ieee754(data, sensor, val);
 		break;
 	case linear:
 	default:
@@ -2367,6 +2497,10 @@ static int pmbus_identify_common(struct i2c_client *client,
 			break;
 		case 2:	/* direct mode      */
 			if (data->info->format[PSC_VOLTAGE_OUT] != direct)
+				return -ENODEV;
+			break;
+		case 3:	/* ieee 754 half precision */
+			if (data->info->format[PSC_VOLTAGE_OUT] != ieee754)
 				return -ENODEV;
 			break;
 		default:
