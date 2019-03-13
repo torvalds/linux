@@ -1,26 +1,21 @@
-Chinese translated version of Documentation/process/stable-api-nonsense.rst
+.. _cn_stable_api_nonsense:
 
-If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have problem
-communicating in English you can also ask the Chinese maintainer for help.
-Contact the Chinese maintainer, if this translation is outdated or there
-is problem with translation.
+.. include:: ../disclaimer-zh_CN.rst
 
-Maintainer: Greg Kroah-Hartman <greg@kroah.com>
-Chinese maintainer: TripleX Chung <zhongyu@18mail.cn>
----------------------------------------------------------------------
-Documentation/process/stable-api-nonsense.rst 的中文翻译
+:Original: :ref:`Documentation/process/stable-api-nonsense.rst
+           <stable_api_nonsense>`
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
-译存在问题，请联系中文版维护者。
+译存在问题，请联系中文版维护者::
 
-英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
-中文版维护者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
-中文版翻译者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
-中文版校译者： 李阳  Li Yang <leoli@freescale.com>
-以下为正文
----------------------------------------------------------------------
+        英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
+        中文版维护者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
+        中文版翻译者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
+        中文版校译者： 李阳  Li Yang <leoli@freescale.com>
+
+Linux 内核驱动接口
+==================
 
 写作本文档的目的，是为了解释为什么Linux既没有二进制内核接口，也没有稳定
 的内核接口。这里所说的内核接口，是指内核里的接口，而不是内核和用户空间
@@ -124,7 +119,7 @@ Linux能成为强壮，稳定，成熟的操作系统，这也是你最开始选
 
 
 要做什么
--------
+--------
 
 如果你写了一个Linux内核驱动，但是它还不在Linux源代码树里，作为一个开发
 者，你应该怎么做？为每个发布的每个版本提供一个二进制驱动，那简直是一个
@@ -150,7 +145,8 @@ Linux能成为强壮，稳定，成熟的操作系统，这也是你最开始选
 同体系结构的处理器上支持这些设备。这个经过考验的开发模式，必然是错不了
 的 :)
 
--------------
+感谢
+----
 感谢 Randy Dunlap, Andrew Morton, David Brownell, Hanna Linder,
 Robert Love, and Nishanth Aravamudan 对于本文档早期版本的评审和建议。
 
