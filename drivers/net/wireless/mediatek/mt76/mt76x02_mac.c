@@ -218,10 +218,17 @@ mt76x02_mac_tx_rate_val(struct mt76x02_dev *dev,
 void mt76x02_mac_wcid_set_rate(struct mt76x02_dev *dev, struct mt76_wcid *wcid,
 			       const struct ieee80211_tx_rate *rate)
 {
-	spin_lock_bh(&dev->mt76.lock);
-	wcid->tx_rate = mt76x02_mac_tx_rate_val(dev, rate, &wcid->tx_rate_nss);
-	wcid->tx_rate_set = true;
-	spin_unlock_bh(&dev->mt76.lock);
+	s8 max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, rate);
+	__le16 rateval;
+	u32 tx_info;
+	s8 nss;
+
+	rateval = mt76x02_mac_tx_rate_val(dev, rate, &nss);
+	tx_info = FIELD_PREP(MT_WCID_TX_INFO_RATE, rateval) |
+		  FIELD_PREP(MT_WCID_TX_INFO_NSS, nss) |
+		  FIELD_PREP(MT_WCID_TX_INFO_TXPWR_ADJ, max_txpwr_adj) |
+		  MT_WCID_TX_INFO_SET;
+	wcid->tx_info = tx_info;
 }
 
 void mt76x02_mac_set_short_preamble(struct mt76x02_dev *dev, bool enable)
@@ -323,6 +330,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	u32 wcid_tx_info;
 	u16 rate_ht_mask = FIELD_PREP(MT_RXWI_RATE_PHY, BIT(1) | BIT(2));
 	u16 txwi_flags = 0;
 	u8 nss;
@@ -357,16 +365,16 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->eiv = *((__le32 *)&ccmp_pn[4]);
 	}
 
-	spin_lock_bh(&dev->mt76.lock);
 	if (wcid && (rate->idx < 0 || !rate->count)) {
-		txwi->rate = wcid->tx_rate;
-		max_txpwr_adj = wcid->max_txpwr_adj;
-		nss = wcid->tx_rate_nss;
+		wcid_tx_info = wcid->tx_info;
+		txwi->rate = FIELD_GET(MT_WCID_TX_INFO_RATE, wcid_tx_info);
+		max_txpwr_adj = FIELD_GET(MT_WCID_TX_INFO_TXPWR_ADJ,
+					  wcid_tx_info);
+		nss = FIELD_GET(MT_WCID_TX_INFO_NSS, wcid_tx_info);
 	} else {
 		txwi->rate = mt76x02_mac_tx_rate_val(dev, rate, &nss);
 		max_txpwr_adj = mt76x02_tx_get_max_txpwr_adj(dev, rate);
 	}
-	spin_unlock_bh(&dev->mt76.lock);
 
 	txpwr_adj = mt76x02_tx_get_txpwr_adj(dev, dev->mt76.txpower_conf,
 					     max_txpwr_adj);

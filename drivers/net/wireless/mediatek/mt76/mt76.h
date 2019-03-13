@@ -188,6 +188,11 @@ enum mt76_wcid_flags {
 
 DECLARE_EWMA(signal, 10, 8);
 
+#define MT_WCID_TX_INFO_RATE		GENMASK(15, 0)
+#define MT_WCID_TX_INFO_NSS		GENMASK(17, 16)
+#define MT_WCID_TX_INFO_TXPWR_ADJ	GENMASK(25, 18)
+#define MT_WCID_TX_INFO_SET		BIT(31)
+
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
@@ -206,10 +211,7 @@ struct mt76_wcid {
 	u8 rx_check_pn;
 	u8 rx_key_pn[IEEE80211_NUM_TIDS][6];
 
-	__le16 tx_rate;
-	bool tx_rate_set;
-	u8 tx_rate_nss;
-	s8 max_txpwr_adj;
+	u32 tx_info;
 	bool sw_iv;
 
 	u8 packet_id;

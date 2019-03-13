@@ -717,11 +717,11 @@ void mt7603_wtbl_set_rates(struct mt7603_dev *dev, struct mt7603_sta *sta,
 		MT_WTBL_UPDATE_RATE_UPDATE |
 		MT_WTBL_UPDATE_TX_COUNT_CLEAR);
 
-	if (!sta->wcid.tx_rate_set)
+	if (!(sta->wcid.tx_info & MT_WCID_TX_INFO_SET))
 		mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY, 0, 5000);
 
 	sta->rate_count = 2 * MT7603_RATE_RETRY * n_rates;
-	sta->wcid.tx_rate_set = true;
+	sta->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 }
 
 static enum mt7603_cipher_type

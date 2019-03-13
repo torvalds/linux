@@ -266,7 +266,7 @@ mt76_tx(struct mt76_dev *dev, struct ieee80211_sta *sta,
 		skb_set_queue_mapping(skb, qid);
 	}
 
-	if (!wcid->tx_rate_set)
+	if (!(wcid->tx_info & MT_WCID_TX_INFO_SET))
 		ieee80211_get_tx_rates(info->control.vif, sta, skb,
 				       info->control.rates, 1);
 
@@ -412,7 +412,7 @@ mt76_txq_send_burst(struct mt76_dev *dev, struct mt76_sw_queue *sq,
 	}
 
 	info = IEEE80211_SKB_CB(skb);
-	if (!wcid->tx_rate_set)
+	if (!(wcid->tx_info & MT_WCID_TX_INFO_SET))
 		ieee80211_get_tx_rates(txq->vif, txq->sta, skb,
 				       info->control.rates, 1);
 	tx_rate = info->control.rates[0];
