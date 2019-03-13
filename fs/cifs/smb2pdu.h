@@ -959,6 +959,13 @@ struct duplicate_extents_to_file {
 	__le64 ByteCount;  /* Bytes to be copied */
 } __packed;
 
+/*
+ * Maximum number of iovs we need for an ioctl request.
+ * [0] : struct smb2_ioctl_req
+ * [1] : in_data
+ */
+#define SMB2_IOCTL_IOV_SIZE 2
+
 struct smb2_ioctl_req {
 	struct smb2_sync_hdr sync_hdr;
 	__le16 StructureSize;	/* Must be 57 */

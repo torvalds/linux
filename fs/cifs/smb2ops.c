@@ -2549,12 +2549,22 @@ get_smb2_acl(struct cifs_sb_info *cifs_sb,
 static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 			    loff_t offset, loff_t len, bool keep_size)
 {
+	struct cifs_ses *ses = tcon->ses;
 	struct inode *inode;
 	struct cifsInodeInfo *cifsi;
 	struct cifsFileInfo *cfile = file->private_data;
 	struct file_zero_data_information fsctl_buf;
+	struct smb_rqst rqst[2];
+	int resp_buftype[2];
+	struct kvec rsp_iov[2];
+	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
+	struct kvec si_iov[1];
+	unsigned int size[1];
+	void *data[1];
 	long rc;
 	unsigned int xid;
+	int num = 0, flags = 0;
+	__le64 eof;
 
 	xid = get_xid();
 
@@ -2579,28 +2589,60 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 		return rc;
 	}
 
-	/*
-	 * need to make sure we are not asked to extend the file since the SMB3
-	 * fsctl does not change the file size. In the future we could change
-	 * this to zero the first part of the range then set the file size
-	 * which for a non sparse file would zero the newly extended range
-	 */
-	if (keep_size == false)
-		if (i_size_read(inode) < offset + len) {
-			rc = -EOPNOTSUPP;
-			free_xid(xid);
-			return rc;
-		}
-
 	cifs_dbg(FYI, "offset %lld len %lld", offset, len);
 
 	fsctl_buf.FileOffset = cpu_to_le64(offset);
 	fsctl_buf.BeyondFinalZero = cpu_to_le64(offset + len);
 
-	rc = SMB2_ioctl(xid, tcon, cfile->fid.persistent_fid,
-			cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
-			true /* is_fctl */, (char *)&fsctl_buf,
-			sizeof(struct file_zero_data_information), NULL, NULL);
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
+	memset(rqst, 0, sizeof(rqst));
+	resp_buftype[0] = resp_buftype[1] = CIFS_NO_BUFFER;
+	memset(rsp_iov, 0, sizeof(rsp_iov));
+
+
+	memset(&io_iov, 0, sizeof(io_iov));
+	rqst[num].rq_iov = io_iov;
+	rqst[num].rq_nvec = SMB2_IOCTL_IOV_SIZE;
+	rc = SMB2_ioctl_init(tcon, &rqst[num++], cfile->fid.persistent_fid,
+			     cfile->fid.volatile_fid, FSCTL_SET_ZERO_DATA,
+			     true /* is_fctl */, (char *)&fsctl_buf,
+			     sizeof(struct file_zero_data_information));
+	if (rc)
+		goto zero_range_exit;
+
+	/*
+	 * do we also need to change the size of the file?
+	 */
+	if (keep_size == false && i_size_read(inode) < offset + len) {
+		smb2_set_next_command(tcon, &rqst[0]);
+
+		memset(&si_iov, 0, sizeof(si_iov));
+		rqst[num].rq_iov = si_iov;
+		rqst[num].rq_nvec = 1;
+
+		eof = cpu_to_le64(offset + len);
+		size[0] = 8; /* sizeof __le64 */
+		data[0] = &eof;
+
+		rc = SMB2_set_info_init(tcon, &rqst[num++],
+					cfile->fid.persistent_fid,
+					cfile->fid.persistent_fid,
+					current->tgid,
+					FILE_END_OF_FILE_INFORMATION,
+					SMB2_O_INFO_FILE, 0, data, size);
+		smb2_set_related(&rqst[1]);
+	}
+
+	rc = compound_send_recv(xid, ses, flags, num, rqst,
+				resp_buftype, rsp_iov);
+
+ zero_range_exit:
+	SMB2_ioctl_free(&rqst[0]);
+	SMB2_set_info_free(&rqst[1]);
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	free_xid(xid);
 	return rc;
 }
