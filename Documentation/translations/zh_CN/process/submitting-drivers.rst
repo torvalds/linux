@@ -9,8 +9,8 @@
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
 译存在问题，请联系中文版维护者::
 
-        中文版维护者： 李阳  Li Yang <leo@zh-kernel.org>
-        中文版翻译者： 李阳  Li Yang <leo@zh-kernel.org>
+        中文版维护者： 李阳  Li Yang <leoyang.li@nxp.com>
+        中文版翻译者： 李阳  Li Yang <leoyang.li@nxp.com>
         中文版校译者： 陈琦 Maggie Chen <chenqi@beyondsoft.com>
                        王聪 Wang Cong <xiyou.wangcong@gmail.com>
                        张巍 Zhang Wei <Wei.Zhang@freescale.com>

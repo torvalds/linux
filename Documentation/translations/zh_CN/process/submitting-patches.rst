@@ -10,7 +10,7 @@
 
         中文版维护者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
         中文版翻译者： 钟宇 TripleX Chung <triplex@zh-kernel.org>
-        中文版校译者： 李阳 Li Yang <leo@zh-kernel.org>
+        中文版校译者： 李阳 Li Yang <leoyang.li@nxp.com>
                        王聪 Wang Cong <xiyou.wangcong@gmail.com>
 
 

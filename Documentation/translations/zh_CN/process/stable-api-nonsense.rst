@@ -12,7 +12,7 @@
         英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
         中文版维护者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
         中文版翻译者： 钟宇  TripleX Chung <zhongyu@18mail.cn>
-        中文版校译者： 李阳  Li Yang <leoli@freescale.com>
+        中文版校译者： 李阳  Li Yang <leoyang.li@nxp.com>
 
 Linux 内核驱动接口
 ==================

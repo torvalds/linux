@@ -11,7 +11,7 @@
         中文版维护者： 钟宇  TripleX Chung <triplex@zh-kernel.org>
         中文版翻译者： 钟宇  TripleX Chung <triplex@zh-kernel.org>
         中文版校译者：
-            - 李阳  Li Yang <leo@zh-kernel.org>
+            - 李阳  Li Yang <leoyang.li@nxp.com>
             - Kangkai Yin <e12051@motorola.com>
 
 所有你想知道的事情 - 关于linux稳定版发布

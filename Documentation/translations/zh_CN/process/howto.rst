@@ -9,8 +9,8 @@
 译存在问题，请联系中文版维护者::
 
     英文版维护者： Greg Kroah-Hartman <greg@kroah.com>
-    中文版维护者： 李阳  Li Yang <leoli@freescale.com>
-    中文版翻译者： 李阳  Li Yang <leoli@freescale.com>
+    中文版维护者： 李阳  Li Yang <leoyang.li@nxp.com>
+    中文版翻译者： 李阳  Li Yang <leoyang.li@nxp.com>
     中文版校译者:
                    钟宇  TripleX Chung <xxx.phy@gmail.com>
                    陈琦  Maggie Chen <chenqi@beyondsoft.com>
