@@ -671,6 +671,97 @@ static int check_dev_item(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+/* Inode item error output has the same format as dir_item_err() */
+#define inode_item_err(fs_info, eb, slot, fmt, ...)			\
+	dir_item_err(fs_info, eb, slot, fmt, __VA_ARGS__)
+
+static int check_inode_item(struct btrfs_fs_info *fs_info,
+			    struct extent_buffer *leaf,
+			    struct btrfs_key *key, int slot)
+{
+	struct btrfs_inode_item *iitem;
+	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
+	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
+	u32 mode;
+
+	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
+	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
+	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
+	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
+		generic_err(fs_info, leaf, slot,
+	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+			    key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+			    BTRFS_FIRST_FREE_OBJECTID,
+			    BTRFS_LAST_FREE_OBJECTID,
+			    BTRFS_FREE_INO_OBJECTID);
+		return -EUCLEAN;
+	}
+	if (key->offset != 0) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid key offset: has %llu expect 0",
+			key->offset);
+		return -EUCLEAN;
+	}
+	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
+
+	/* Here we use super block generation + 1 to handle log tree */
+	if (btrfs_inode_generation(leaf, iitem) > super_gen + 1) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid inode generation: has %llu expect (0, %llu]",
+			       btrfs_inode_generation(leaf, iitem),
+			       super_gen + 1);
+		return -EUCLEAN;
+	}
+	/* Note for ROOT_TREE_DIR_ITEM, mkfs could set its transid 0 */
+	if (btrfs_inode_transid(leaf, iitem) > super_gen + 1) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid inode generation: has %llu expect [0, %llu]",
+			       btrfs_inode_transid(leaf, iitem), super_gen + 1);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * For size and nbytes it's better not to be too strict, as for dir
+	 * item its size/nbytes can easily get wrong, but doesn't affect
+	 * anything in the fs. So here we skip the check.
+	 */
+	mode = btrfs_inode_mode(leaf, iitem);
+	if (mode & ~valid_mask) {
+		inode_item_err(fs_info, leaf, slot,
+			       "unknown mode bit detected: 0x%x",
+			       mode & ~valid_mask);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * S_IFMT is not bit mapped so we can't completely rely on is_power_of_2,
+	 * but is_power_of_2() can save us from checking FIFO/CHR/DIR/REG.
+	 * Only needs to check BLK, LNK and SOCKS
+	 */
+	if (!is_power_of_2(mode & S_IFMT)) {
+		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
+			inode_item_err(fs_info, leaf, slot,
+			"invalid mode: has 0%o expect valid S_IF* bit(s)",
+				       mode & S_IFMT);
+			return -EUCLEAN;
+		}
+	}
+	if (S_ISDIR(mode) && btrfs_inode_nlink(leaf, iitem) > 1) {
+		inode_item_err(fs_info, leaf, slot,
+		       "invalid nlink: has %u expect no more than 1 for dir",
+			btrfs_inode_nlink(leaf, iitem));
+		return -EUCLEAN;
+	}
+	if (btrfs_inode_flags(leaf, iitem) & ~BTRFS_INODE_FLAG_MASK) {
+		inode_item_err(fs_info, leaf, slot,
+			       "unknown flags detected: 0x%llx",
+			       btrfs_inode_flags(leaf, iitem) &
+			       ~BTRFS_INODE_FLAG_MASK);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -703,6 +794,9 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 		break;
 	case BTRFS_DEV_ITEM_KEY:
 		ret = check_dev_item(fs_info, leaf, key, slot);
+		break;
+	case BTRFS_INODE_ITEM_KEY:
+		ret = check_inode_item(fs_info, leaf, key, slot);
 		break;
 	}
 	return ret;
