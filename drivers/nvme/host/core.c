@@ -1250,7 +1250,7 @@ static u32 nvme_passthru_start(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	if (ns) {
 		if (ctrl->effects)
 			effects = le32_to_cpu(ctrl->effects->iocs[opcode]);
-		if (effects & ~NVME_CMD_EFFECTS_CSUPP)
+		if (effects & ~(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC))
 			dev_warn(ctrl->device,
 				 "IO command:%02x has unhandled effects:%08x\n",
 				 opcode, effects);
