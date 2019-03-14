@@ -3,7 +3,6 @@ menu "Generic Driver Options"
 
 config UEVENT_HELPER
 	bool "Support for uevent helper"
-	default y
 	help
 	  The uevent helper program is forked by the kernel for
 	  every uevent.
