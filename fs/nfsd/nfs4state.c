@@ -2242,7 +2242,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	clp->cl_cb_session = NULL;
 	clp->net = net;
 	clp->cl_nfsd_dentry = nfsd_client_mkdir(nn, &clp->cl_nfsdfs,
-						clp->cl_clientid.cl_id);
+			clp->cl_clientid.cl_id - nn->clientid_base);
 	if (!clp->cl_nfsd_dentry) {
 		free_client(clp);
 		return NULL;
