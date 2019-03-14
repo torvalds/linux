@@ -2,8 +2,9 @@
 /*
  * DMA support for Internal DMAC with SDHI SD/SDIO controller
  *
- * Copyright (C) 2016-17 Renesas Electronics Corporation
+ * Copyright (C) 2016-19 Renesas Electronics Corporation
  * Copyright (C) 2016-17 Horms Solutions, Simon Horman
+ * Copyright (C) 2018-19 Sang Engineering, Wolfram Sang
  */
 
 #include <linux/bitops.h>
