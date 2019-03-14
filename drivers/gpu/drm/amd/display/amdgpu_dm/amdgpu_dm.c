@@ -111,7 +111,8 @@ amdgpu_dm_update_connector_after_detect(struct amdgpu_dm_connector *aconnector);
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				struct drm_plane *plane,
-				unsigned long possible_crtcs);
+				unsigned long possible_crtcs,
+				const struct dc_plane_cap *plane_cap);
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
 			       uint32_t link_index);
@@ -1961,7 +1962,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
 			    struct amdgpu_mode_info *mode_info, int plane_id,
-			    enum drm_plane_type plane_type)
+			    enum drm_plane_type plane_type,
+			    const struct dc_plane_cap *plane_cap)
 {
 	struct drm_plane *plane;
 	unsigned long possible_crtcs;
@@ -1984,7 +1986,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 	if (plane_id >= dm->dc->caps.max_streams)
 		possible_crtcs = 0xff;
 
-	ret = amdgpu_dm_plane_init(dm, plane, possible_crtcs);
+	ret = amdgpu_dm_plane_init(dm, plane, possible_crtcs, plane_cap);
 
 	if (ret) {
 		DRM_ERROR("KMS: Failed to initialize plane\n");
@@ -2037,32 +2039,15 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	int32_t overlay_planes, primary_planes;
+	int32_t primary_planes;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+	const struct dc_plane_cap *plane;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
 		DRM_ERROR("DM: Failed to initialize mode config\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * Determine the number of overlay planes supported.
-	 * Only support DCN for now, and cap so we don't encourage
-	 * userspace to use up all the planes.
-	 */
-	overlay_planes = 0;
-
-	for (i = 0; i < dm->dc->caps.max_planes; ++i) {
-		struct dc_plane_cap *plane = &dm->dc->caps.planes[i];
-
-		if (plane->type == DC_PLANE_TYPE_DCN_UNIVERSAL &&
-		    plane->blends_with_above && plane->blends_with_below &&
-		    plane->supports_argb8888)
-			overlay_planes += 1;
-	}
-
-	overlay_planes = min(overlay_planes, 1);
 
 	/* There is one primary plane per CRTC */
 	primary_planes = dm->dc->caps.max_streams;
@@ -2073,8 +2058,10 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	 * Order is reversed to match iteration order in atomic check.
 	 */
 	for (i = (primary_planes - 1); i >= 0; i--) {
+		plane = &dm->dc->caps.planes[i];
+
 		if (initialize_plane(dm, mode_info, i,
-				     DRM_PLANE_TYPE_PRIMARY)) {
+				     DRM_PLANE_TYPE_PRIMARY, plane)) {
 			DRM_ERROR("KMS: Failed to initialize primary plane\n");
 			goto fail;
 		}
@@ -2085,13 +2072,30 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	 * These planes have a higher DRM index than the primary planes since
 	 * they should be considered as having a higher z-order.
 	 * Order is reversed to match iteration order in atomic check.
+	 *
+	 * Only support DCN for now, and only expose one so we don't encourage
+	 * userspace to use up all the pipes.
 	 */
-	for (i = (overlay_planes - 1); i >= 0; i--) {
+	for (i = 0; i < dm->dc->caps.max_planes; ++i) {
+		struct dc_plane_cap *plane = &dm->dc->caps.planes[i];
+
+		if (plane->type != DC_PLANE_TYPE_DCN_UNIVERSAL)
+			continue;
+
+		if (!plane->blends_with_above || !plane->blends_with_below)
+			continue;
+
+		if (!plane->supports_argb8888)
+			continue;
+
 		if (initialize_plane(dm, NULL, primary_planes + i,
-				     DRM_PLANE_TYPE_OVERLAY)) {
+				     DRM_PLANE_TYPE_OVERLAY, plane)) {
 			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
+
+		/* Only create one overlay plane. */
+		break;
 	}
 
 	for (i = 0; i < dm->dc->caps.max_streams; i++)
@@ -4119,7 +4123,8 @@ static const u32 cursor_formats[] = {
 
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				struct drm_plane *plane,
-				unsigned long possible_crtcs)
+				unsigned long possible_crtcs,
+				const struct dc_plane_cap *plane_cap)
 {
 	int res = -EPERM;
 
@@ -4156,8 +4161,8 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		break;
 	}
 
-	/* TODO: Check DC plane caps explicitly here for adding propertes */
-	if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
+	if (plane->type == DRM_PLANE_TYPE_OVERLAY &&
+	    plane_cap && plane_cap->per_pixel_alpha) {
 		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 					  BIT(DRM_MODE_BLEND_PREMULTI);
 
@@ -4189,7 +4194,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 		goto fail;
 
 	cursor_plane->type = DRM_PLANE_TYPE_CURSOR;
-	res = amdgpu_dm_plane_init(dm, cursor_plane, 0);
+	res = amdgpu_dm_plane_init(dm, cursor_plane, 0, NULL);
 
 	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
 	if (!acrtc)
