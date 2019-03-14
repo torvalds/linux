@@ -2,10 +2,10 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 
-#define H_PTE_INDEX_SIZE  9
-#define H_PMD_INDEX_SIZE  7
-#define H_PUD_INDEX_SIZE  9
-#define H_PGD_INDEX_SIZE  9
+#define H_PTE_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x   4KB =   2MB
+#define H_PMD_INDEX_SIZE  7  // size: 8B << 7 = 1KB, maps: 2^7 x   2MB = 256MB
+#define H_PUD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 256MB = 128GB
+#define H_PGD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 128GB =  64TB
 
 /*
  * Each context is 512TB. But on 4k we restrict our max TASK size to 64TB

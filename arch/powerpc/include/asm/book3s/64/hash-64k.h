@@ -2,10 +2,11 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_64K_H
 
-#define H_PTE_INDEX_SIZE  8
-#define H_PMD_INDEX_SIZE  10
-#define H_PUD_INDEX_SIZE  10
-#define H_PGD_INDEX_SIZE  8
+#define H_PTE_INDEX_SIZE   8  // size: 8B <<  8 = 2KB, maps 2^8  x 64KB = 16MB
+#define H_PMD_INDEX_SIZE  10  // size: 8B << 10 = 8KB, maps 2^10 x 16MB = 16GB
+#define H_PUD_INDEX_SIZE  10  // size: 8B << 10 = 8KB, maps 2^10 x 16GB = 16TB
+#define H_PGD_INDEX_SIZE   8  // size: 8B <<  8 = 2KB, maps 2^8  x 16TB =  4PB
+
 
 /*
  * Each context is 512TB size. SLB miss for first context/default context
