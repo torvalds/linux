@@ -301,18 +301,23 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	if (!adev->gmc.xgmi.supported)
 		return 0;
 
-	ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Failed to get node id\n");
-		return ret;
-	}
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+		ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
+		if (ret) {
+			dev_err(adev->dev,
+				"XGMI: Failed to get hive id\n");
+			return ret;
+		}
 
-	ret = psp_xgmi_get_hive_id(&adev->psp, &adev->gmc.xgmi.hive_id);
-	if (ret) {
-		dev_err(adev->dev,
-			"XGMI: Failed to get hive id\n");
-		return ret;
+		ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
+		if (ret) {
+			dev_err(adev->dev,
+				"XGMI: Failed to get node id\n");
+			return ret;
+		}
+	} else {
+		adev->gmc.xgmi.hive_id = 16;
+		adev->gmc.xgmi.node_id = adev->gmc.xgmi.physical_node_id + 16;
 	}
 
 	hive = amdgpu_get_xgmi_hive(adev, 1);
