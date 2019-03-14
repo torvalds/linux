@@ -27,7 +27,7 @@ config DRM_AMD_DC_DCN2_0
 
 config DRM_AMD_DC_DSC_SUPPORT
 	bool "DSC support"
-	default n
+	default y
 	depends on DRM_AMD_DC && X86
 	depends on DRM_AMD_DC_DCN1_0
 	depends on DRM_AMD_DC_DCN2_0
