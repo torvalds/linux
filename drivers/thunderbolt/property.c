@@ -176,6 +176,10 @@ static struct tb_property_dir *__tb_property_parse_dir(const u32 *block,
 	} else {
 		dir->uuid = kmemdup(&block[dir_offset], sizeof(*dir->uuid),
 				    GFP_KERNEL);
+		if (!dir->uuid) {
+			tb_property_free_dir(dir);
+			return NULL;
+		}
 		content_offset = dir_offset + 4;
 		content_len = dir_len - 4; /* Length includes UUID */
 	}
