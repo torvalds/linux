@@ -391,8 +391,7 @@
 };
 
 &tcon0_out {
-	tcon0_out_lcd: endpoint@0 {
-		reg = <0>;
+	tcon0_out_lcd: endpoint {
 		remote-endpoint = <&panel_input>;
 	};
 };
