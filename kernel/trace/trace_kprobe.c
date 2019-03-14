@@ -693,9 +693,9 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	tk = alloc_trace_kprobe(group, event, addr, symbol, offset, maxactive,
 			       argc, is_return);
 	if (IS_ERR(tk)) {
-		pr_info("Failed to allocate trace_probe.(%d)\n",
-			(int)PTR_ERR(tk));
 		ret = PTR_ERR(tk);
+		/* This must return -ENOMEM otherwise there is a bug */
+		WARN_ON_ONCE(ret != -ENOMEM);
 		goto out;
 	}
 
