@@ -159,6 +159,7 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 				char *buf)
 {
 	const char *slash, *event = *pevent;
+	int len;
 
 	slash = strchr(event, '/');
 	if (slash) {
@@ -173,10 +174,15 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 		strlcpy(buf, event, slash - event + 1);
 		*pgroup = buf;
 		*pevent = slash + 1;
+		event = *pevent;
 	}
-	if (strlen(event) == 0) {
+	len = strlen(event);
+	if (len == 0) {
 		pr_info("Event name is not specified\n");
 		return -EINVAL;
+	} else if (len > MAX_EVENT_NAME_LEN) {
+		pr_info("Event name is too long\n");
+		return -E2BIG;
 	}
 	return 0;
 }
