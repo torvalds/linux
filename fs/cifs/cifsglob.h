@@ -479,6 +479,14 @@ struct smb_version_operations {
 				struct cifs_tcon *tcon,
 				__le16 *path, int is_dir,
 				unsigned long p);
+	/* make unix special files (block, char, fifo, socket) */
+	int (*make_node)(unsigned int xid,
+			 struct inode *inode,
+			 struct dentry *dentry,
+			 struct cifs_tcon *tcon,
+			 char *full_path,
+			 umode_t mode,
+			 dev_t device_number);
 };
 
 struct smb_version_values {
