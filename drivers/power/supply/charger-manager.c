@@ -1987,6 +1987,9 @@ static struct platform_driver charger_manager_driver = {
 static int __init charger_manager_init(void)
 {
 	cm_wq = create_freezable_workqueue("charger_manager");
+	if (unlikely(!cm_wq))
+		return -ENOMEM;
+
 	INIT_DELAYED_WORK(&cm_monitor_work, cm_monitor_poller);
 
 	return platform_driver_register(&charger_manager_driver);
