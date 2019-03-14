@@ -197,8 +197,6 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 
 	BUILD_BUG_ON((sizeof(struct hv_ring_buffer) != PAGE_SIZE));
 
-	memset(ring_info, 0, sizeof(struct hv_ring_buffer_info));
-
 	/*
 	 * First page holds struct hv_ring_buffer, do wraparound mapping for
 	 * the rest.
@@ -232,6 +230,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 		reciprocal_value(ring_info->ring_size / 10);
 	ring_info->ring_datasize = ring_info->ring_size -
 		sizeof(struct hv_ring_buffer);
+	ring_info->priv_read_index = 0;
 
 	spin_lock_init(&ring_info->ring_lock);
 
