@@ -2945,7 +2945,8 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	 * - dynamic constraint: handled by intel_get_excl_constraints()
 	 */
 	c2 = __intel_get_event_constraints(cpuc, idx, event);
-	if (c1 && (c1->flags & PERF_X86_EVENT_DYNAMIC)) {
+	if (c1) {
+	        WARN_ON_ONCE(!(c1->flags & PERF_X86_EVENT_DYNAMIC));
 		bitmap_copy(c1->idxmsk, c2->idxmsk, X86_PMC_IDX_MAX);
 		c1->weight = c2->weight;
 		c2 = c1;
