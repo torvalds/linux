@@ -52,7 +52,7 @@ enum vgt_g2v_type {
 /*
  * VGT capabilities type
  */
-#define VGT_CAPS_FULL_48BIT_PPGTT	BIT(2)
+#define VGT_CAPS_FULL_PPGTT		BIT(2)
 #define VGT_CAPS_HWSP_EMULATION		BIT(3)
 #define VGT_CAPS_HUGE_GTT		BIT(4)
 

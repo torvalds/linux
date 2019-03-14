@@ -1527,7 +1527,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 
 	if (HAS_PPGTT(dev_priv)) {
 		if (intel_vgpu_active(dev_priv) &&
-		    !intel_vgpu_has_full_48bit_ppgtt(dev_priv)) {
+		    !intel_vgpu_has_full_ppgtt(dev_priv)) {
 			i915_report_error(dev_priv,
 					  "incompatible vGPU found, support for isolated ppGTT required\n");
 			return -ENXIO;
