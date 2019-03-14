@@ -102,8 +102,6 @@ enum rcar_du_output {
 
 int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 			unsigned int hwindex);
-void rcar_du_crtc_suspend(struct rcar_du_crtc *rcrtc);
-void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc);
 
 void rcar_du_crtc_finish_page_flip(struct rcar_du_crtc *rcrtc);
 
