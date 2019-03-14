@@ -2292,7 +2292,18 @@ static int add_vlan_rewrite_action(struct mlx5e_priv *priv, int namespace,
 		.mangle.mask = ~(u32)be16_to_cpu(*(__be16 *)&mask16),
 		.mangle.val = (u32)be16_to_cpu(*(__be16 *)&val16),
 	};
+	void *headers_c, *headers_v;
 	int err;
+
+	headers_c = get_match_headers_criteria(*action, &parse_attr->spec);
+	headers_v = get_match_headers_value(*action, &parse_attr->spec);
+
+	if (!(MLX5_GET(fte_match_set_lyr_2_4, headers_c, cvlan_tag) &&
+	      MLX5_GET(fte_match_set_lyr_2_4, headers_v, cvlan_tag))) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "VLAN rewrite action must have VLAN protocol match");
+		return -EOPNOTSUPP;
+	}
 
 	if (act->vlan.prio) {
 		NL_SET_ERR_MSG_MOD(extack, "Setting VLAN prio is not supported");
