@@ -286,11 +286,10 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	struct mt76_queue_entry e;
 	struct mt76_txwi_cache *t;
 	struct mt76_queue_buf buf[32];
+	int len, n = 0, ret = -ENOMEM;
 	struct sk_buff *iter;
 	dma_addr_t addr;
-	int len;
 	u32 tx_info = 0;
-	int n, ret;
 
 	t = mt76_get_txwi(dev);
 	if (!t) {
@@ -302,23 +301,11 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (dev->drv->tx_aligned4_skbs)
 		mt76_insert_hdr_pad(skb);
 
-	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
-				DMA_TO_DEVICE);
-	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, qid, wcid, sta,
-				       &tx_info);
-	dma_sync_single_for_device(dev->dev, t->dma_addr, sizeof(t->txwi),
-				   DMA_TO_DEVICE);
-	if (ret < 0)
-		goto free;
-
-	len = skb->len - skb->data_len;
+	len = skb_headlen(skb);
 	addr = dma_map_single(dev->dev, skb->data, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(dev->dev, addr)) {
-		ret = -ENOMEM;
+	if (dma_mapping_error(dev->dev, addr))
 		goto free;
-	}
 
-	n = 0;
 	buf[n].addr = t->dma_addr;
 	buf[n++].len = dev->drv->txwi_size;
 	buf[n].addr = addr;
@@ -337,13 +324,23 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		buf[n++].len = iter->len;
 	}
 
-	if (q->queued + (n + 1) / 2 >= q->ndesc - 1)
+	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
+				DMA_TO_DEVICE);
+	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, qid, wcid, sta,
+				       &tx_info);
+	dma_sync_single_for_device(dev->dev, t->dma_addr, sizeof(t->txwi),
+				   DMA_TO_DEVICE);
+	if (ret < 0)
 		goto unmap;
+
+	if (q->queued + (n + 1) / 2 >= q->ndesc - 1) {
+		ret = -ENOMEM;
+		goto unmap;
+	}
 
 	return mt76_dma_add_buf(dev, q, buf, n, tx_info, skb, t);
 
 unmap:
-	ret = -ENOMEM;
 	for (n--; n > 0; n--)
 		dma_unmap_single(dev->dev, buf[n].addr, buf[n].len,
 				 DMA_TO_DEVICE);
