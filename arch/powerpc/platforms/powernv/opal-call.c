@@ -121,6 +121,8 @@ static int64_t opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 
 #define OPAL_CALL(name, opcode)					\
 int64_t name(int64_t a0, int64_t a1, int64_t a2, int64_t a3,	\
+	     int64_t a4, int64_t a5, int64_t a6, int64_t a7);	\
+int64_t name(int64_t a0, int64_t a1, int64_t a2, int64_t a3,	\
 	     int64_t a4, int64_t a5, int64_t a6, int64_t a7)	\
 {								\
 	return opal_call(a0, a1, a2, a3, a4, a5, a6, a7, opcode); \
