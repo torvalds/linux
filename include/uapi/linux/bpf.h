@@ -502,16 +502,6 @@ union bpf_attr {
  * 	Return
  * 		0 on success, or a negative error in case of failure.
  *
- * int bpf_map_push_elem(struct bpf_map *map, const void *value, u64 flags)
- * 	Description
- * 		Push an element *value* in *map*. *flags* is one of:
- *
- * 		**BPF_EXIST**
- * 		If the queue/stack is full, the oldest element is removed to
- * 		make room for this.
- * 	Return
- * 		0 on success, or a negative error in case of failure.
- *
  * int bpf_probe_read(void *dst, u32 size, const void *src)
  * 	Description
  * 		For tracing programs, safely attempt to read *size* bytes from
@@ -1435,14 +1425,14 @@ union bpf_attr {
  * u64 bpf_get_socket_cookie(struct bpf_sock_addr *ctx)
  * 	Description
  * 		Equivalent to bpf_get_socket_cookie() helper that accepts
- * 		*skb*, but gets socket from **struct bpf_sock_addr** contex.
+ * 		*skb*, but gets socket from **struct bpf_sock_addr** context.
  * 	Return
  * 		A 8-byte long non-decreasing number.
  *
  * u64 bpf_get_socket_cookie(struct bpf_sock_ops *ctx)
  * 	Description
  * 		Equivalent to bpf_get_socket_cookie() helper that accepts
- * 		*skb*, but gets socket from **struct bpf_sock_ops** contex.
+ * 		*skb*, but gets socket from **struct bpf_sock_ops** context.
  * 	Return
  * 		A 8-byte long non-decreasing number.
  *
@@ -2098,6 +2088,25 @@ union bpf_attr {
  *	Return
  * 		0 on success, or a negative error in case of failure.
  *
+ * int bpf_rc_repeat(void *ctx)
+ *	Description
+ *		This helper is used in programs implementing IR decoding, to
+ *		report a successfully decoded repeat key message. This delays
+ *		the generation of a key up event for previously generated
+ *		key down event.
+ *
+ *		Some IR protocols like NEC have a special IR message for
+ *		repeating last button, for when a button is held down.
+ *
+ *		The *ctx* should point to the lirc sample as passed into
+ *		the program.
+ *
+ *		This helper is only available is the kernel was compiled with
+ *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
+ *		"**y**".
+ *	Return
+ *		0
+ *
  * int bpf_rc_keydown(void *ctx, u32 protocol, u64 scancode, u32 toggle)
  *	Description
  *		This helper is used in programs implementing IR decoding, to
@@ -2124,26 +2133,7 @@ union bpf_attr {
  *	Return
  *		0
  *
- * int bpf_rc_repeat(void *ctx)
- *	Description
- *		This helper is used in programs implementing IR decoding, to
- *		report a successfully decoded repeat key message. This delays
- *		the generation of a key up event for previously generated
- *		key down event.
- *
- *		Some IR protocols like NEC have a special IR message for
- *		repeating last button, for when a button is held down.
- *
- *		The *ctx* should point to the lirc sample as passed into
- *		the program.
- *
- *		This helper is only available is the kernel was compiled with
- *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
- *		"**y**".
- *	Return
- *		0
- *
- * uint64_t bpf_skb_cgroup_id(struct sk_buff *skb)
+ * u64 bpf_skb_cgroup_id(struct sk_buff *skb)
  * 	Description
  * 		Return the cgroup v2 id of the socket associated with the *skb*.
  * 		This is roughly similar to the **bpf_get_cgroup_classid**\ ()
@@ -2159,30 +2149,12 @@ union bpf_attr {
  * 	Return
  * 		The id is returned or 0 in case the id could not be retrieved.
  *
- * u64 bpf_skb_ancestor_cgroup_id(struct sk_buff *skb, int ancestor_level)
- *	Description
- *		Return id of cgroup v2 that is ancestor of cgroup associated
- *		with the *skb* at the *ancestor_level*.  The root cgroup is at
- *		*ancestor_level* zero and each step down the hierarchy
- *		increments the level. If *ancestor_level* == level of cgroup
- *		associated with *skb*, then return value will be same as that
- *		of **bpf_skb_cgroup_id**\ ().
- *
- *		The helper is useful to implement policies based on cgroups
- *		that are upper in hierarchy than immediate cgroup associated
- *		with *skb*.
- *
- *		The format of returned id and helper limitations are same as in
- *		**bpf_skb_cgroup_id**\ ().
- *	Return
- *		The id is returned or 0 in case the id could not be retrieved.
- *
  * u64 bpf_get_current_cgroup_id(void)
  * 	Return
  * 		A 64-bit integer containing the current cgroup id based
  * 		on the cgroup within which the current task is running.
  *
- * void* get_local_storage(void *map, u64 flags)
+ * void *bpf_get_local_storage(void *map, u64 flags)
  *	Description
  *		Get the pointer to the local storage area.
  *		The type and the size of the local storage is defined
@@ -2208,6 +2180,24 @@ union bpf_attr {
  *		request in the socket buffer.
  *	Return
  *		0 on success, or a negative error in case of failure.
+ *
+ * u64 bpf_skb_ancestor_cgroup_id(struct sk_buff *skb, int ancestor_level)
+ *	Description
+ *		Return id of cgroup v2 that is ancestor of cgroup associated
+ *		with the *skb* at the *ancestor_level*.  The root cgroup is at
+ *		*ancestor_level* zero and each step down the hierarchy
+ *		increments the level. If *ancestor_level* == level of cgroup
+ *		associated with *skb*, then return value will be same as that
+ *		of **bpf_skb_cgroup_id**\ ().
+ *
+ *		The helper is useful to implement policies based on cgroups
+ *		that are upper in hierarchy than immediate cgroup associated
+ *		with *skb*.
+ *
+ *		The format of returned id and helper limitations are same as in
+ *		**bpf_skb_cgroup_id**\ ().
+ *	Return
+ *		The id is returned or 0 in case the id could not be retrieved.
  *
  * struct bpf_sock *bpf_sk_lookup_tcp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u64 netns, u64 flags)
  *	Description
@@ -2289,6 +2279,16 @@ union bpf_attr {
  *	Return
  *		0 on success, or a negative error in case of failure.
  *
+ * int bpf_map_push_elem(struct bpf_map *map, const void *value, u64 flags)
+ * 	Description
+ * 		Push an element *value* in *map*. *flags* is one of:
+ *
+ * 		**BPF_EXIST**
+ * 			If the queue/stack is full, the oldest element is
+ * 			removed to make room for this.
+ * 	Return
+ * 		0 on success, or a negative error in case of failure.
+ *
  * int bpf_map_pop_elem(struct bpf_map *map, void *value)
  * 	Description
  * 		Pop an element from *map*.
@@ -2346,33 +2346,35 @@ union bpf_attr {
  * struct bpf_sock *bpf_sk_fullsock(struct bpf_sock *sk)
  *	Description
  *		This helper gets a **struct bpf_sock** pointer such
- *		that all the fields in bpf_sock can be accessed.
+ *		that all the fields in this **bpf_sock** can be accessed.
  *	Return
- *		A **struct bpf_sock** pointer on success, or NULL in
+ *		A **struct bpf_sock** pointer on success, or **NULL** in
  *		case of failure.
  *
  * struct bpf_tcp_sock *bpf_tcp_sock(struct bpf_sock *sk)
  *	Description
  *		This helper gets a **struct bpf_tcp_sock** pointer from a
  *		**struct bpf_sock** pointer.
- *
  *	Return
- *		A **struct bpf_tcp_sock** pointer on success, or NULL in
+ *		A **struct bpf_tcp_sock** pointer on success, or **NULL** in
  *		case of failure.
  *
  * int bpf_skb_ecn_set_ce(struct sk_buf *skb)
- *     Description
- *             Sets ECN of IP header to ce (congestion encountered) if
- *             current value is ect (ECN capable). Works with IPv6 and IPv4.
- *     Return
- *             1 if set, 0 if not set.
+ *	Description
+ *		Set ECN (Explicit Congestion Notification) field of IP header
+ *		to **CE** (Congestion Encountered) if current value is **ECT**
+ *		(ECN Capable Transport). Otherwise, do nothing. Works with IPv6
+ *		and IPv4.
+ *	Return
+ *		1 if the **CE** flag is set (either by the current helper call
+ *		or because it was already present), 0 if it is not set.
  *
  * struct bpf_sock *bpf_get_listener_sock(struct bpf_sock *sk)
  *	Description
- *		Return a **struct bpf_sock** pointer in TCP_LISTEN state.
- *		bpf_sk_release() is unnecessary and not allowed.
+ *		Return a **struct bpf_sock** pointer in **TCP_LISTEN** state.
+ *		**bpf_sk_release**\ () is unnecessary and not allowed.
  *	Return
- *		A **struct bpf_sock** pointer on success, or NULL in
+ *		A **struct bpf_sock** pointer on success, or **NULL** in
  *		case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
