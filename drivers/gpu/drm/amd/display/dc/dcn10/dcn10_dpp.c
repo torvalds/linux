@@ -388,6 +388,10 @@ void dpp1_cnv_setup (
 	default:
 		break;
 	}
+
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
+
 	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
@@ -399,7 +403,7 @@ void dpp1_cnv_setup (
 		for (i = 0; i < 12; i++)
 			tbl_entry.regval[i] = input_csc_color_matrix.matrix[i];
 
-		tbl_entry.color_space = input_color_space;
+		tbl_entry.color_space = color_space;
 
 		if (color_space >= COLOR_SPACE_YCBCR601)
 			select = INPUT_CSC_SELECT_ICSC;
