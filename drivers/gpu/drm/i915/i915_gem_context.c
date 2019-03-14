@@ -321,7 +321,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	desc = GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
 
 	address_mode = INTEL_LEGACY_32B_CONTEXT;
-	if (ppgtt && i915_vm_is_48bit(&ppgtt->vm))
+	if (ppgtt && i915_vm_is_4lvl(&ppgtt->vm))
 		address_mode = INTEL_LEGACY_64B_CONTEXT;
 	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
 

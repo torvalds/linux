@@ -584,7 +584,7 @@ setup_scratch_page(struct i915_address_space *vm, gfp_t gfp)
 	 * for all.
 	 */
 	size = I915_GTT_PAGE_SIZE_4K;
-	if (i915_vm_is_48bit(vm) &&
+	if (i915_vm_is_4lvl(vm) &&
 	    HAS_PAGE_SIZES(vm->i915, I915_GTT_PAGE_SIZE_64K)) {
 		size = I915_GTT_PAGE_SIZE_64K;
 		gfp |= __GFP_NOWARN;
@@ -727,18 +727,13 @@ static void __pdp_fini(struct i915_page_directory_pointer *pdp)
 	pdp->page_directory = NULL;
 }
 
-static inline bool use_4lvl(const struct i915_address_space *vm)
-{
-	return i915_vm_is_48bit(vm);
-}
-
 static struct i915_page_directory_pointer *
 alloc_pdp(struct i915_address_space *vm)
 {
 	struct i915_page_directory_pointer *pdp;
 	int ret = -ENOMEM;
 
-	GEM_BUG_ON(!use_4lvl(vm));
+	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
 
 	pdp = kzalloc(sizeof(*pdp), GFP_KERNEL);
 	if (!pdp)
@@ -767,7 +762,7 @@ static void free_pdp(struct i915_address_space *vm,
 {
 	__pdp_fini(pdp);
 
-	if (!use_4lvl(vm))
+	if (!i915_vm_is_4lvl(vm))
 		return;
 
 	cleanup_px(vm, pdp);
@@ -871,7 +866,7 @@ static void gen8_ppgtt_set_pdpe(struct i915_address_space *vm,
 	gen8_ppgtt_pdpe_t *vaddr;
 
 	pdp->page_directory[pdpe] = pd;
-	if (!use_4lvl(vm))
+	if (!i915_vm_is_4lvl(vm))
 		return;
 
 	vaddr = kmap_atomic_px(pdp);
@@ -936,7 +931,7 @@ static void gen8_ppgtt_clear_4lvl(struct i915_address_space *vm,
 	struct i915_page_directory_pointer *pdp;
 	unsigned int pml4e;
 
-	GEM_BUG_ON(!use_4lvl(vm));
+	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
 
 	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		GEM_BUG_ON(pdp == vm->scratch_pdp);
@@ -1247,7 +1242,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 		goto free_pt;
 	}
 
-	if (use_4lvl(vm)) {
+	if (i915_vm_is_4lvl(vm)) {
 		vm->scratch_pdp = alloc_pdp(vm);
 		if (IS_ERR(vm->scratch_pdp)) {
 			ret = PTR_ERR(vm->scratch_pdp);
@@ -1257,7 +1252,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 
 	gen8_initialize_pt(vm, vm->scratch_pt);
 	gen8_initialize_pd(vm, vm->scratch_pd);
-	if (use_4lvl(vm))
+	if (i915_vm_is_4lvl(vm))
 		gen8_initialize_pdp(vm, vm->scratch_pdp);
 
 	return 0;
@@ -1279,7 +1274,7 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 	enum vgt_g2v_type msg;
 	int i;
 
-	if (use_4lvl(vm)) {
+	if (i915_vm_is_4lvl(vm)) {
 		const u64 daddr = px_dma(&ppgtt->pml4);
 
 		I915_WRITE(vgtif_reg(pdp[0].lo), lower_32_bits(daddr));
@@ -1309,7 +1304,7 @@ static void gen8_free_scratch(struct i915_address_space *vm)
 	if (!vm->scratch_page.daddr)
 		return;
 
-	if (use_4lvl(vm))
+	if (i915_vm_is_4lvl(vm))
 		free_pdp(vm, vm->scratch_pdp);
 	free_pd(vm, vm->scratch_pd);
 	free_pt(vm, vm->scratch_pt);
@@ -1355,7 +1350,7 @@ static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 	if (intel_vgpu_active(dev_priv))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
 
-	if (use_4lvl(vm))
+	if (i915_vm_is_4lvl(vm))
 		gen8_ppgtt_cleanup_4lvl(ppgtt);
 	else
 		gen8_ppgtt_cleanup_3lvl(&ppgtt->vm, &ppgtt->pdp);
@@ -1555,7 +1550,7 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	if (err)
 		goto err_free;
 
-	if (use_4lvl(&ppgtt->vm)) {
+	if (i915_vm_is_4lvl(&ppgtt->vm)) {
 		err = setup_px(&ppgtt->vm, &ppgtt->pml4);
 		if (err)
 			goto err_scratch;

@@ -1499,7 +1499,7 @@ static int execlists_request_alloc(struct i915_request *request)
 	 */
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
-	if (i915_vm_is_48bit(&request->gem_context->ppgtt->vm))
+	if (i915_vm_is_4lvl(&request->gem_context->ppgtt->vm))
 		ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
 	else
 		ret = emit_pdps(request);
@@ -2719,7 +2719,7 @@ static void execlists_init_reg_state(u32 *regs,
 	CTX_REG(regs, CTX_PDP0_UDW, GEN8_RING_PDP_UDW(engine, 0), 0);
 	CTX_REG(regs, CTX_PDP0_LDW, GEN8_RING_PDP_LDW(engine, 0), 0);
 
-	if (i915_vm_is_48bit(&ppgtt->vm)) {
+	if (i915_vm_is_4lvl(&ppgtt->vm)) {
 		/* 64b PPGTT (48bit canonical)
 		 * PDP0_DESCRIPTOR contains the base address to PML4 and
 		 * other PDP Descriptors are ignored.
