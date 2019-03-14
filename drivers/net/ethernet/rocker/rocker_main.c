@@ -2805,6 +2805,11 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		if (unlikely(!switchdev_work->fdb_info.addr)) {
+			kfree(switchdev_work);
+			return NOTIFY_BAD;
+		}
+
 		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
 				fdb_info->addr);
 		/* Take a reference on the rocker device */
