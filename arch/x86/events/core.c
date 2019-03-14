@@ -858,7 +858,6 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		x86_pmu.start_scheduling(cpuc);
 
 	for (i = 0, wmin = X86_PMC_IDX_MAX, wmax = 0; i < n; i++) {
-		cpuc->event_constraint[i] = NULL;
 		c = x86_pmu.get_event_constraints(cpuc, i, cpuc->event_list[i]);
 		cpuc->event_constraint[i] = c;
 
@@ -948,6 +947,8 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			 */
 			if (x86_pmu.put_event_constraints)
 				x86_pmu.put_event_constraints(cpuc, e);
+
+			cpuc->event_constraint[i] = NULL;
 		}
 	}
 
@@ -1411,6 +1412,7 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 		cpuc->event_list[i-1] = cpuc->event_list[i];
 		cpuc->event_constraint[i-1] = cpuc->event_constraint[i];
 	}
+	cpuc->event_constraint[i-1] = NULL;
 	--cpuc->n_events;
 
 	perf_event_update_userpage(event);
