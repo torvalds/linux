@@ -206,17 +206,15 @@ unsigned int cpufreq_generic_get(unsigned int cpu)
 EXPORT_SYMBOL_GPL(cpufreq_generic_get);
 
 /**
- * cpufreq_cpu_get: returns policy for a cpu and marks it busy.
+ * cpufreq_cpu_get - Return policy for a CPU and mark it as busy.
+ * @cpu: CPU to find the policy for.
  *
- * @cpu: cpu to find policy for.
+ * Call cpufreq_cpu_get_raw() to obtain a cpufreq policy for @cpu and increment
+ * the kobject reference counter of that policy.  Return a valid policy on
+ * success or NULL on failure.
  *
- * This returns policy for 'cpu', returns NULL if it doesn't exist.
- * It also increments the kobject reference count to mark it busy and so would
- * require a corresponding call to cpufreq_cpu_put() to decrement it back.
- * If corresponding call cpufreq_cpu_put() isn't made, the policy wouldn't be
- * freed as that depends on the kobj count.
- *
- * Return: A valid policy on success, otherwise NULL on failure.
+ * The policy returned by this function has to be released with the help of
+ * cpufreq_cpu_put() to balance its kobject reference counter properly.
  */
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 {
@@ -243,12 +241,8 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
 /**
- * cpufreq_cpu_put: Decrements the usage count of a policy
- *
- * @policy: policy earlier returned by cpufreq_cpu_get().
- *
- * This decrements the kobject reference count incremented earlier by calling
- * cpufreq_cpu_get().
+ * cpufreq_cpu_put - Decrement kobject usage counter for cpufreq policy.
+ * @policy: cpufreq policy returned by cpufreq_cpu_get().
  */
 void cpufreq_cpu_put(struct cpufreq_policy *policy)
 {
