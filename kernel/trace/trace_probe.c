@@ -172,6 +172,10 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 			return -E2BIG;
 		}
 		strlcpy(buf, event, slash - event + 1);
+		if (!is_good_name(buf)) {
+			pr_info("Group name must follow the same rules as C identifiers\n");
+			return -EINVAL;
+		}
 		*pgroup = buf;
 		*pevent = slash + 1;
 		event = *pevent;
@@ -183,6 +187,10 @@ int traceprobe_parse_event_name(const char **pevent, const char **pgroup,
 	} else if (len > MAX_EVENT_NAME_LEN) {
 		pr_info("Event name is too long\n");
 		return -E2BIG;
+	}
+	if (!is_good_name(event)) {
+		pr_info("Event name must follow the same rules as C identifiers\n");
+		return -EINVAL;
 	}
 	return 0;
 }

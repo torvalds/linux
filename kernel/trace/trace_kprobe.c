@@ -221,7 +221,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 
 	tk->rp.maxactive = maxactive;
 
-	if (!event || !is_good_name(event)) {
+	if (!event || !group) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -230,11 +230,6 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	tk->tp.call.name = kstrdup(event, GFP_KERNEL);
 	if (!tk->tp.call.name)
 		goto error;
-
-	if (!group || !is_good_name(group)) {
-		ret = -EINVAL;
-		goto error;
-	}
 
 	tk->tp.class.system = kstrdup(group, GFP_KERNEL);
 	if (!tk->tp.class.system)

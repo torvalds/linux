@@ -266,10 +266,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 {
 	struct trace_uprobe *tu;
 
-	if (!event || !is_good_name(event))
-		return ERR_PTR(-EINVAL);
-
-	if (!group || !is_good_name(group))
+	if (!event || !group)
 		return ERR_PTR(-EINVAL);
 
 	tu = kzalloc(SIZEOF_TRACE_UPROBE(nargs), GFP_KERNEL);
