@@ -890,7 +890,7 @@ bool bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
 }
 
 enum btree_insert_ret
-bch2_extent_can_insert(struct btree_insert *trans,
+bch2_extent_can_insert(struct btree_trans *trans,
 		       struct btree_insert_entry *insert,
 		       unsigned *u64s)
 {
@@ -1164,7 +1164,7 @@ next:
  * If the end of iter->pos is not the same as the end of insert, then
  * key insertion needs to continue/be retried.
  */
-void bch2_insert_fixup_extent(struct btree_insert *trans,
+void bch2_insert_fixup_extent(struct btree_trans *trans,
 			      struct btree_insert_entry *insert)
 {
 	struct bch_fs *c = trans->c;

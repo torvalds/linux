@@ -289,6 +289,13 @@ struct btree_trans {
 
 	struct btree_iter	*iters;
 	struct btree_insert_entry *updates;
+	struct disk_reservation *disk_res;
+
+	/* update path: */
+	struct journal_res	journal_res;
+	struct journal_preres	journal_preres;
+	u64			*journal_seq;
+	unsigned		flags;
 
 	struct btree_iter	iters_onstack[2];
 	struct btree_insert_entry updates_onstack[6];

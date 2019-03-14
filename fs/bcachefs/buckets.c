@@ -975,7 +975,7 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 	return ret;
 }
 
-void bch2_mark_update(struct btree_insert *trans,
+void bch2_mark_update(struct btree_trans *trans,
 		      struct btree_insert_entry *insert)
 {
 	struct bch_fs		*c = trans->c;

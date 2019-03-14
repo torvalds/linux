@@ -7,31 +7,18 @@
 
 struct bch_fs;
 struct btree;
-struct btree_insert;
 
 void bch2_btree_node_lock_for_insert(struct bch_fs *, struct btree *,
 				     struct btree_iter *);
 bool bch2_btree_bset_insert_key(struct btree_iter *, struct btree *,
 				struct btree_node_iter *, struct bkey_i *);
-void bch2_btree_journal_key(struct btree_insert *trans, struct btree_iter *,
+void bch2_btree_journal_key(struct btree_trans *, struct btree_iter *,
 			    struct bkey_i *);
 
 void bch2_deferred_update_free(struct bch_fs *,
 			       struct deferred_update *);
 struct deferred_update *
 bch2_deferred_update_alloc(struct bch_fs *, enum btree_id, unsigned);
-
-struct btree_insert {
-	struct bch_fs		*c;
-	struct disk_reservation *disk_res;
-	struct journal_res	journal_res;
-	struct journal_preres	journal_preres;
-	u64			*journal_seq;
-	unsigned		flags;
-
-	unsigned short		nr;
-	struct btree_insert_entry  *entries;
-};
 
 #define BTREE_INSERT_ENTRY(_iter, _k)					\
 	((struct btree_insert_entry) {					\

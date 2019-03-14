@@ -18,8 +18,8 @@
 
 #include <linux/sort.h>
 
-static bool btree_trans_relock(struct btree_insert *);
-static void btree_trans_unlock(struct btree_insert *);
+static bool btree_trans_relock(struct btree_trans *);
+static void btree_trans_unlock(struct btree_trans *);
 
 /* Inserting into a given leaf node (last stage of insert): */
 
@@ -130,7 +130,7 @@ static void btree_node_flush1(struct journal *j, struct journal_entry_pin *pin, 
 	return __btree_node_flush(j, pin, 1, seq);
 }
 
-static inline void __btree_journal_key(struct btree_insert *trans,
+static inline void __btree_journal_key(struct btree_trans *trans,
 				       enum btree_id btree_id,
 				       struct bkey_i *insert)
 {
@@ -151,7 +151,7 @@ static inline void __btree_journal_key(struct btree_insert *trans,
 		*trans->journal_seq = seq;
 }
 
-void bch2_btree_journal_key(struct btree_insert *trans,
+void bch2_btree_journal_key(struct btree_trans *trans,
 			   struct btree_iter *iter,
 			   struct bkey_i *insert)
 {
@@ -185,7 +185,7 @@ void bch2_btree_journal_key(struct btree_insert *trans,
 		set_btree_node_dirty(b);
 }
 
-static void bch2_insert_fixup_key(struct btree_insert *trans,
+static void bch2_insert_fixup_key(struct btree_trans *trans,
 				  struct btree_insert_entry *insert)
 {
 	struct btree_iter *iter = insert->iter;
@@ -203,7 +203,7 @@ static void bch2_insert_fixup_key(struct btree_insert *trans,
 /**
  * btree_insert_key - insert a key one key into a leaf node
  */
-static void btree_insert_key_leaf(struct btree_insert *trans,
+static void btree_insert_key_leaf(struct btree_trans *trans,
 				  struct btree_insert_entry *insert)
 {
 	struct bch_fs *c = trans->c;
@@ -286,7 +286,7 @@ static void deferred_update_flush(struct journal *j,
 		kfree(k);
 }
 
-static void btree_insert_key_deferred(struct btree_insert *trans,
+static void btree_insert_key_deferred(struct btree_trans *trans,
 				      struct btree_insert_entry *insert)
 {
 	struct bch_fs *c = trans->c;
@@ -356,24 +356,24 @@ bch2_deferred_update_alloc(struct bch_fs *c,
  * We sort transaction entries so that if multiple iterators point to the same
  * leaf node they'll be adjacent:
  */
-static bool same_leaf_as_prev(struct btree_insert *trans,
+static bool same_leaf_as_prev(struct btree_trans *trans,
 			      struct btree_insert_entry *i)
 {
-	return i != trans->entries &&
+	return i != trans->updates &&
 		!i->deferred &&
 		i[0].iter->l[0].b == i[-1].iter->l[0].b;
 }
 
 #define __trans_next_entry(_trans, _i, _filter)				\
 ({									\
-	while ((_i) < (_trans)->entries + (_trans->nr) && !(_filter))	\
+	while ((_i) < (_trans)->updates + (_trans->nr_updates) && !(_filter))\
 		(_i)++;							\
 									\
-	(_i) < (_trans)->entries + (_trans->nr);			\
+	(_i) < (_trans)->updates + (_trans->nr_updates);		\
 })
 
 #define __trans_for_each_entry(_trans, _i, _filter)			\
-	for ((_i) = (_trans)->entries;					\
+	for ((_i) = (_trans)->updates;					\
 	     __trans_next_entry(_trans, _i, _filter);			\
 	     (_i)++)
 
@@ -404,7 +404,7 @@ inline void bch2_btree_node_lock_for_insert(struct bch_fs *c, struct btree *b,
 		bch2_btree_init_next(c, b, iter);
 }
 
-static void multi_lock_write(struct bch_fs *c, struct btree_insert *trans)
+static void multi_lock_write(struct bch_fs *c, struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
 
@@ -412,7 +412,7 @@ static void multi_lock_write(struct bch_fs *c, struct btree_insert *trans)
 		bch2_btree_node_lock_for_insert(c, i->iter->l[0].b, i->iter);
 }
 
-static void multi_unlock_write(struct btree_insert *trans)
+static void multi_unlock_write(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
 
@@ -427,7 +427,7 @@ static inline int btree_trans_cmp(struct btree_insert_entry l,
 		btree_iter_cmp(l.iter, r.iter);
 }
 
-static bool btree_trans_relock(struct btree_insert *trans)
+static bool btree_trans_relock(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
 
@@ -436,7 +436,7 @@ static bool btree_trans_relock(struct btree_insert *trans)
 	return true;
 }
 
-static void btree_trans_unlock(struct btree_insert *trans)
+static void btree_trans_unlock(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
 
@@ -449,7 +449,7 @@ static void btree_trans_unlock(struct btree_insert *trans)
 /* Normal update interface: */
 
 static enum btree_insert_ret
-btree_key_can_insert(struct btree_insert *trans,
+btree_key_can_insert(struct btree_trans *trans,
 		     struct btree_insert_entry *insert,
 		     unsigned *u64s)
 {
@@ -477,7 +477,7 @@ btree_key_can_insert(struct btree_insert *trans,
 	return BTREE_INSERT_OK;
 }
 
-static inline void do_btree_insert_one(struct btree_insert *trans,
+static inline void do_btree_insert_one(struct btree_trans *trans,
 				       struct btree_insert_entry *insert)
 {
 	if (likely(!insert->deferred))
@@ -489,7 +489,7 @@ static inline void do_btree_insert_one(struct btree_insert *trans,
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
-static inline int do_btree_insert_at(struct btree_insert *trans,
+static inline int do_btree_insert_at(struct btree_trans *trans,
 				     struct btree_insert_entry **stopped_at)
 {
 	struct bch_fs *c = trans->c;
@@ -631,7 +631,7 @@ static inline void btree_insert_entry_checks(struct bch_fs *c,
  * -EROFS: filesystem read only
  * -EIO: journal or btree node IO error
  */
-static int __bch2_btree_insert_at(struct btree_insert *trans)
+static int __bch2_btree_insert_at(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
@@ -639,17 +639,17 @@ static int __bch2_btree_insert_at(struct btree_insert *trans)
 	unsigned flags, u64s = 0;
 	int ret;
 
-	BUG_ON(!trans->nr);
+	BUG_ON(!trans->nr_updates);
 
 	/* for the sake of sanity: */
-	BUG_ON(trans->nr > 1 && !(trans->flags & BTREE_INSERT_ATOMIC));
+	BUG_ON(trans->nr_updates > 1 && !(trans->flags & BTREE_INSERT_ATOMIC));
 
 	if (trans->flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
 
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
-	bubble_sort(trans->entries, trans->nr, btree_trans_cmp);
+	bubble_sort(trans->updates, trans->nr_updates, btree_trans_cmp);
 
 	trans_for_each_entry(trans, i)
 		btree_insert_entry_checks(c, i);
@@ -781,7 +781,7 @@ err:
 			goto out;
 		}
 
-		bch2_btree_iter_unlock(trans->entries[0].iter);
+		bch2_trans_unlock(trans);
 		ret = -EINTR;
 
 		trans_for_each_iter(trans, i) {
@@ -830,21 +830,20 @@ int bch2_trans_commit(struct btree_trans *trans,
 		      u64 *journal_seq,
 		      unsigned flags)
 {
-	struct btree_insert insert = {
-		.c		= trans->c,
-		.disk_res	= disk_res,
-		.journal_seq	= journal_seq,
-		.flags		= flags,
-		.nr		= trans->nr_updates,
-		.entries	= trans->updates,
-	};
+	int ret;
 
 	if (!trans->nr_updates)
 		return 0;
 
+	trans->disk_res		= disk_res;
+	trans->journal_seq	= journal_seq;
+	trans->flags		= flags;
+
+	ret = __bch2_btree_insert_at(trans);
+
 	trans->nr_updates = 0;
 
-	return __bch2_btree_insert_at(&insert);
+	return ret;
 }
 
 int bch2_btree_delete_at(struct btree_trans *trans,

@@ -7,7 +7,7 @@
 #include "extents_types.h"
 
 struct bch_fs;
-struct btree_insert;
+struct btree_trans;
 struct btree_insert_entry;
 
 /* extent entries: */
@@ -410,9 +410,9 @@ void bch2_extent_trim_atomic(struct bkey_i *, struct btree_iter *);
 bool bch2_extent_is_atomic(struct bkey_i *, struct btree_iter *);
 
 enum btree_insert_ret
-bch2_extent_can_insert(struct btree_insert *, struct btree_insert_entry *,
+bch2_extent_can_insert(struct btree_trans *, struct btree_insert_entry *,
 		       unsigned *);
-void bch2_insert_fixup_extent(struct btree_insert *,
+void bch2_insert_fixup_extent(struct btree_trans *,
 			      struct btree_insert_entry *);
 
 void bch2_extent_mark_replicas_cached(struct bch_fs *, struct bkey_s_extent,
