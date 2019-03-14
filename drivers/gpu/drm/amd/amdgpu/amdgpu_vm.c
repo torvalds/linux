@@ -1227,18 +1227,19 @@ static void amdgpu_vm_invalidate_pds(struct amdgpu_device *adev,
 }
 
 /*
- * amdgpu_vm_update_directories - make sure that all directories are valid
+ * amdgpu_vm_update_pdes - make sure that all directories are valid
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
+ * @direct: submit directly to the paging queue
  *
  * Makes sure all directories are up to date.
  *
  * Returns:
  * 0 for success, error for failure.
  */
-int amdgpu_vm_update_directories(struct amdgpu_device *adev,
-				 struct amdgpu_vm *vm)
+int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
+			  struct amdgpu_vm *vm, bool direct)
 {
 	struct amdgpu_vm_update_params params;
 	int r;
@@ -1249,6 +1250,7 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
 	params.vm = vm;
+	params.direct = direct;
 
 	r = vm->update_funcs->prepare(&params, AMDGPU_FENCE_OWNER_VM, NULL);
 	if (r)

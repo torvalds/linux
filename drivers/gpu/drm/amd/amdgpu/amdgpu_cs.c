@@ -847,7 +847,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 	if (r)
 		return r;
 
-	r = amdgpu_vm_update_directories(adev, vm);
+	r = amdgpu_vm_update_pdes(adev, vm, false);
 	if (r)
 		return r;
 
