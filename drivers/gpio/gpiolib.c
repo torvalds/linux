@@ -2565,8 +2565,20 @@ EXPORT_SYMBOL_GPL(gpiochip_free_own_desc);
 static int gpio_set_config(struct gpio_chip *gc, unsigned offset,
 			   enum pin_config_param mode)
 {
-	unsigned long config = { PIN_CONF_PACKED(mode, 0) };
+	unsigned long config;
+	unsigned arg;
 
+	switch (mode) {
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_UP:
+		arg = 1;
+		break;
+
+	default:
+		arg = 0;
+	}
+
+	config = PIN_CONF_PACKED(mode, arg);
 	return gc->set_config ? gc->set_config(gc, offset, config) : -ENOTSUPP;
 }
 
