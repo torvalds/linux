@@ -447,8 +447,7 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 					retval = -ENOMEM;
 					goto free_old_hdr;
 				}
-				retval =__copy_from_user
-				    (new_hdr, buf, SZ_SG_IO_HDR);
+				retval = get_sg_io_hdr(new_hdr, buf);
 				req_pack_id = new_hdr->pack_id;
 				kfree(new_hdr);
 				if (retval) {
@@ -589,10 +588,7 @@ sg_new_read(Sg_fd * sfp, char __user *buf, size_t count, Sg_request * srp)
 	}
 	if (hp->masked_status || hp->host_status || hp->driver_status)
 		hp->info |= SG_INFO_CHECK;
-	if (copy_to_user(buf, hp, SZ_SG_IO_HDR)) {
-		err = -EFAULT;
-		goto err_out;
-	}
+	err = put_sg_io_hdr(hp, buf);
 err_out:
 	err2 = sg_finish_rem_req(srp);
 	sg_remove_request(sfp, srp);
@@ -735,7 +731,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 	}
 	srp->sg_io_owned = sg_io_owned;
 	hp = &srp->header;
-	if (__copy_from_user(hp, buf, SZ_SG_IO_HDR)) {
+	if (get_sg_io_hdr(hp, buf)) {
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
@@ -1797,7 +1793,14 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 		struct iovec *iov = NULL;
 		struct iov_iter i;
 
-		res = import_iovec(rw, hp->dxferp, iov_count, 0, &iov, &i);
+#ifdef CONFIG_COMPAT
+		if (in_compat_syscall())
+			res = compat_import_iovec(rw, hp->dxferp, iov_count,
+						  0, &iov, &i);
+		else
+#endif
+			res = import_iovec(rw, hp->dxferp, iov_count,
+					   0, &iov, &i);
 		if (res < 0)
 			return res;
 
