@@ -52,13 +52,6 @@
 
 #include <linux/sort.h>
 
-#define convert_in_user(srcptr, dstptr)			\
-({							\
-	typeof(*srcptr) val;				\
-							\
-	get_user(val, srcptr) || put_user(val, dstptr);	\
-})
-
 static int do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int err;
