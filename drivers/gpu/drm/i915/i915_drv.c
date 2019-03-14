@@ -348,7 +348,7 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = HAS_WT(dev_priv);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = min_t(int, INTEL_PPGTT(dev_priv), I915_GEM_PPGTT_FULL);
+		value = INTEL_PPGTT(dev_priv);
 		break;
 	case I915_PARAM_HAS_SEMAPHORES:
 		value = !!(dev_priv->caps.scheduler & I915_SCHEDULER_CAP_SEMAPHORES);

@@ -498,7 +498,7 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_2M, \
 	.has_logical_ring_contexts = 1, \
-	.ppgtt_type = INTEL_PPGTT_FULL_4LVL, \
+	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_64bit_reloc = 1, \
 	.has_reset_engine = 1
@@ -621,7 +621,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
 	.has_guc = 1, \
-	.ppgtt_type = INTEL_PPGTT_FULL_4LVL, \
+	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
