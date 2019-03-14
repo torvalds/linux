@@ -165,7 +165,7 @@ int aa_audit(int type, struct aa_profile *profile, struct common_audit_data *sa,
 }
 
 struct aa_audit_rule {
-	struct aa_label *label;
+	char *profile;
 };
 
 void aa_audit_rule_free(void *vrule)
@@ -173,8 +173,7 @@ void aa_audit_rule_free(void *vrule)
 	struct aa_audit_rule *rule = vrule;
 
 	if (rule) {
-		if (!IS_ERR(rule->label))
-			aa_put_label(rule->label);
+		kfree(rule->profile);
 		kfree(rule);
 	}
 }
@@ -197,11 +196,13 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	if (!rule)
 		return -ENOMEM;
 
-	/* Currently rules are treated as coming from the root ns */
-	rule->label = aa_label_parse(&root_ns->unconfined->label, rulestr,
-				     GFP_KERNEL, true, false);
-	if (IS_ERR(rule->label))
-		return PTR_ERR(rule->label);
+	rule->profile = kstrdup(rulestr, GFP_KERNEL);
+
+	if (!rule->profile) {
+		kfree(rule);
+		return -ENOMEM;
+	}
+
 	*vrule = rule;
 
 	return 0;
@@ -228,6 +229,8 @@ int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 {
 	struct aa_audit_rule *rule = vrule;
 	struct aa_label *label;
+	struct label_it i;
+	struct aa_profile *profile;
 	int found = 0;
 
 	label = aa_secid_to_label(sid);
@@ -235,8 +238,12 @@ int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
 	if (!label)
 		return -ENOENT;
 
-	if (aa_label_is_subset(label, rule->label))
-		found = 1;
+	label_for_each(i, label, profile) {
+		if (strcmp(rule->profile, profile->base.hname) == 0) {
+			found = 1;
+			break;
+		}
+	}
 
 	switch (field) {
 	case AUDIT_SUBJ_ROLE:
