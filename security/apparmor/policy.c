@@ -269,7 +269,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 
 	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
-	if (!aa_label_init(&profile->label, 1, gfp))
+	if (!aa_label_init(&profile->label, 1))
 		goto fail;
 
 	/* update being set needed by fs interface */
