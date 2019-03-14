@@ -193,6 +193,7 @@ extern void hv_synic_clockevents_cleanup(void);
 
 /* Interface */
 
+void hv_ringbuffer_pre_init(struct vmbus_channel *channel);
 
 int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 		       struct page *pages, u32 pagecnt);

@@ -336,6 +336,8 @@ static struct vmbus_channel *alloc_channel(void)
 	tasklet_init(&channel->callback_event,
 		     vmbus_on_event, (unsigned long)channel);
 
+	hv_ringbuffer_pre_init(channel);
+
 	return channel;
 }
 

@@ -1410,7 +1410,7 @@ static void vmbus_chan_release(struct kobject *kobj)
 
 struct vmbus_chan_attribute {
 	struct attribute attr;
-	ssize_t (*show)(const struct vmbus_channel *chan, char *buf);
+	ssize_t (*show)(struct vmbus_channel *chan, char *buf);
 	ssize_t (*store)(struct vmbus_channel *chan,
 			 const char *buf, size_t count);
 };
@@ -1429,7 +1429,7 @@ static ssize_t vmbus_chan_attr_show(struct kobject *kobj,
 {
 	const struct vmbus_chan_attribute *attribute
 		= container_of(attr, struct vmbus_chan_attribute, attr);
-	const struct vmbus_channel *chan
+	struct vmbus_channel *chan
 		= container_of(kobj, struct vmbus_channel, kobj);
 
 	if (!attribute->show)
@@ -1442,57 +1442,81 @@ static const struct sysfs_ops vmbus_chan_sysfs_ops = {
 	.show = vmbus_chan_attr_show,
 };
 
-static ssize_t out_mask_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t out_mask_show(struct vmbus_channel *channel, char *buf)
 {
-	const struct hv_ring_buffer_info *rbi = &channel->outbound;
+	struct hv_ring_buffer_info *rbi = &channel->outbound;
+	ssize_t ret;
 
-	if (!rbi->ring_buffer)
+	mutex_lock(&rbi->ring_buffer_mutex);
+	if (!rbi->ring_buffer) {
+		mutex_unlock(&rbi->ring_buffer_mutex);
 		return -EINVAL;
+	}
 
-	return sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+	ret = sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+	mutex_unlock(&rbi->ring_buffer_mutex);
+	return ret;
 }
 static VMBUS_CHAN_ATTR_RO(out_mask);
 
-static ssize_t in_mask_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t in_mask_show(struct vmbus_channel *channel, char *buf)
 {
-	const struct hv_ring_buffer_info *rbi = &channel->inbound;
+	struct hv_ring_buffer_info *rbi = &channel->inbound;
+	ssize_t ret;
 
-	if (!rbi->ring_buffer)
+	mutex_lock(&rbi->ring_buffer_mutex);
+	if (!rbi->ring_buffer) {
+		mutex_unlock(&rbi->ring_buffer_mutex);
 		return -EINVAL;
+	}
 
-	return sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+	ret = sprintf(buf, "%u\n", rbi->ring_buffer->interrupt_mask);
+	mutex_unlock(&rbi->ring_buffer_mutex);
+	return ret;
 }
 static VMBUS_CHAN_ATTR_RO(in_mask);
 
-static ssize_t read_avail_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t read_avail_show(struct vmbus_channel *channel, char *buf)
 {
-	const struct hv_ring_buffer_info *rbi = &channel->inbound;
+	struct hv_ring_buffer_info *rbi = &channel->inbound;
+	ssize_t ret;
 
-	if (!rbi->ring_buffer)
+	mutex_lock(&rbi->ring_buffer_mutex);
+	if (!rbi->ring_buffer) {
+		mutex_unlock(&rbi->ring_buffer_mutex);
 		return -EINVAL;
+	}
 
-	return sprintf(buf, "%u\n", hv_get_bytes_to_read(rbi));
+	ret = sprintf(buf, "%u\n", hv_get_bytes_to_read(rbi));
+	mutex_unlock(&rbi->ring_buffer_mutex);
+	return ret;
 }
 static VMBUS_CHAN_ATTR_RO(read_avail);
 
-static ssize_t write_avail_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t write_avail_show(struct vmbus_channel *channel, char *buf)
 {
-	const struct hv_ring_buffer_info *rbi = &channel->outbound;
+	struct hv_ring_buffer_info *rbi = &channel->outbound;
+	ssize_t ret;
 
-	if (!rbi->ring_buffer)
+	mutex_lock(&rbi->ring_buffer_mutex);
+	if (!rbi->ring_buffer) {
+		mutex_unlock(&rbi->ring_buffer_mutex);
 		return -EINVAL;
+	}
 
-	return sprintf(buf, "%u\n", hv_get_bytes_to_write(rbi));
+	ret = sprintf(buf, "%u\n", hv_get_bytes_to_write(rbi));
+	mutex_unlock(&rbi->ring_buffer_mutex);
+	return ret;
 }
 static VMBUS_CHAN_ATTR_RO(write_avail);
 
-static ssize_t show_target_cpu(const struct vmbus_channel *channel, char *buf)
+static ssize_t show_target_cpu(struct vmbus_channel *channel, char *buf)
 {
 	return sprintf(buf, "%u\n", channel->target_cpu);
 }
 static VMBUS_CHAN_ATTR(cpu, S_IRUGO, show_target_cpu, NULL);
 
-static ssize_t channel_pending_show(const struct vmbus_channel *channel,
+static ssize_t channel_pending_show(struct vmbus_channel *channel,
 				    char *buf)
 {
 	return sprintf(buf, "%d\n",
@@ -1501,7 +1525,7 @@ static ssize_t channel_pending_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(pending, S_IRUGO, channel_pending_show, NULL);
 
-static ssize_t channel_latency_show(const struct vmbus_channel *channel,
+static ssize_t channel_latency_show(struct vmbus_channel *channel,
 				    char *buf)
 {
 	return sprintf(buf, "%d\n",
@@ -1510,19 +1534,19 @@ static ssize_t channel_latency_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(latency, S_IRUGO, channel_latency_show, NULL);
 
-static ssize_t channel_interrupts_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t channel_interrupts_show(struct vmbus_channel *channel, char *buf)
 {
 	return sprintf(buf, "%llu\n", channel->interrupts);
 }
 static VMBUS_CHAN_ATTR(interrupts, S_IRUGO, channel_interrupts_show, NULL);
 
-static ssize_t channel_events_show(const struct vmbus_channel *channel, char *buf)
+static ssize_t channel_events_show(struct vmbus_channel *channel, char *buf)
 {
 	return sprintf(buf, "%llu\n", channel->sig_events);
 }
 static VMBUS_CHAN_ATTR(events, S_IRUGO, channel_events_show, NULL);
 
-static ssize_t channel_intr_in_full_show(const struct vmbus_channel *channel,
+static ssize_t channel_intr_in_full_show(struct vmbus_channel *channel,
 					 char *buf)
 {
 	return sprintf(buf, "%llu\n",
@@ -1530,7 +1554,7 @@ static ssize_t channel_intr_in_full_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(intr_in_full, 0444, channel_intr_in_full_show, NULL);
 
-static ssize_t channel_intr_out_empty_show(const struct vmbus_channel *channel,
+static ssize_t channel_intr_out_empty_show(struct vmbus_channel *channel,
 					   char *buf)
 {
 	return sprintf(buf, "%llu\n",
@@ -1538,7 +1562,7 @@ static ssize_t channel_intr_out_empty_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(intr_out_empty, 0444, channel_intr_out_empty_show, NULL);
 
-static ssize_t channel_out_full_first_show(const struct vmbus_channel *channel,
+static ssize_t channel_out_full_first_show(struct vmbus_channel *channel,
 					   char *buf)
 {
 	return sprintf(buf, "%llu\n",
@@ -1546,7 +1570,7 @@ static ssize_t channel_out_full_first_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(out_full_first, 0444, channel_out_full_first_show, NULL);
 
-static ssize_t channel_out_full_total_show(const struct vmbus_channel *channel,
+static ssize_t channel_out_full_total_show(struct vmbus_channel *channel,
 					   char *buf)
 {
 	return sprintf(buf, "%llu\n",
@@ -1554,14 +1578,14 @@ static ssize_t channel_out_full_total_show(const struct vmbus_channel *channel,
 }
 static VMBUS_CHAN_ATTR(out_full_total, 0444, channel_out_full_total_show, NULL);
 
-static ssize_t subchannel_monitor_id_show(const struct vmbus_channel *channel,
+static ssize_t subchannel_monitor_id_show(struct vmbus_channel *channel,
 					  char *buf)
 {
 	return sprintf(buf, "%u\n", channel->offermsg.monitorid);
 }
 static VMBUS_CHAN_ATTR(monitor_id, S_IRUGO, subchannel_monitor_id_show, NULL);
 
-static ssize_t subchannel_id_show(const struct vmbus_channel *channel,
+static ssize_t subchannel_id_show(struct vmbus_channel *channel,
 				  char *buf)
 {
 	return sprintf(buf, "%u\n",
