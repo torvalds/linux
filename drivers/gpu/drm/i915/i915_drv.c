@@ -757,39 +757,6 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-#if !defined(CONFIG_VGA_CONSOLE)
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	return 0;
-}
-#elif !defined(CONFIG_DUMMY_CONSOLE)
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	return -ENODEV;
-}
-#else
-static int i915_kick_out_vgacon(struct drm_i915_private *dev_priv)
-{
-	int ret = 0;
-
-	DRM_INFO("Replacing VGA console driver\n");
-
-	console_lock();
-	if (con_is_bound(&vga_con))
-		ret = do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES - 1, 1);
-	if (ret == 0) {
-		ret = do_unregister_con_driver(&vga_con);
-
-		/* Ignore "already unregistered". */
-		if (ret == -ENODEV)
-			ret = 0;
-	}
-	console_unlock();
-
-	return ret;
-}
-#endif
-
 static void intel_init_dpio(struct drm_i915_private *dev_priv)
 {
 	/*
@@ -1420,7 +1387,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		goto err_ggtt;
 	}
 
-	ret = i915_kick_out_vgacon(dev_priv);
+	ret = vga_remove_vgacon(pdev);
 	if (ret) {
 		DRM_ERROR("failed to remove conflicting VGA console\n");
 		goto err_ggtt;
