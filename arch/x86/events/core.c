@@ -849,16 +849,33 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	struct event_constraint *c;
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	struct perf_event *e;
-	int i, wmin, wmax, unsched = 0;
+	int n0, i, wmin, wmax, unsched = 0;
 	struct hw_perf_event *hwc;
 
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
+
+	/*
+	 * Compute the number of events already present; see x86_pmu_add(),
+	 * validate_group() and x86_pmu_commit_txn(). For the former two
+	 * cpuc->n_events hasn't been updated yet, while for the latter
+	 * cpuc->n_txn contains the number of events added in the current
+	 * transaction.
+	 */
+	n0 = cpuc->n_events;
+	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
+		n0 -= cpuc->n_txn;
 
 	if (x86_pmu.start_scheduling)
 		x86_pmu.start_scheduling(cpuc);
 
 	for (i = 0, wmin = X86_PMC_IDX_MAX, wmax = 0; i < n; i++) {
 		c = cpuc->event_constraint[i];
+
+		/*
+		 * Previously scheduled events should have a cached constraint,
+		 * while new events should not have one.
+		 */
+		WARN_ON_ONCE((c && i >= n0) || (!c && i < n0));
 
 		/*
 		 * Request constraints for new events; or for those events that
@@ -937,18 +954,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 				x86_pmu.commit_scheduling(cpuc, i, assign[i]);
 		}
 	} else {
-		/*
-		 * Compute the number of events already present; see
-		 * x86_pmu_add(), validate_group() and x86_pmu_commit_txn().
-		 * For the former two cpuc->n_events hasn't been updated yet,
-		 * while for the latter cpuc->n_txn contains the number of
-		 * events added in the current transaction.
-		 */
-		i = cpuc->n_events;
-		if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
-			i -= cpuc->n_txn;
-
-		for (; i < n; i++) {
+		for (i = n0; i < n; i++) {
 			e = cpuc->event_list[i];
 
 			/*
