@@ -17,7 +17,9 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/export.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/remoteproc.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
@@ -316,6 +318,8 @@ static void rproc_virtio_dev_release(struct device *dev)
 	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
+	kfree(vdev);
+
 	kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	put_device(&rproc->dev);
@@ -333,10 +337,53 @@ static void rproc_virtio_dev_release(struct device *dev)
 int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 {
 	struct rproc *rproc = rvdev->rproc;
-	struct device *dev = &rproc->dev;
-	struct virtio_device *vdev = &rvdev->vdev;
+	struct device *dev = &rvdev->dev;
+	struct virtio_device *vdev;
+	struct rproc_mem_entry *mem;
 	int ret;
 
+	/* Try to find dedicated vdev buffer carveout */
+	mem = rproc_find_carveout_by_name(rproc, "vdev%dbuffer", rvdev->index);
+	if (mem) {
+		phys_addr_t pa;
+
+		if (mem->of_resm_idx != -1) {
+			struct device_node *np = rproc->dev.parent->of_node;
+
+			/* Associate reserved memory to vdev device */
+			ret = of_reserved_mem_device_init_by_idx(dev, np,
+								 mem->of_resm_idx);
+			if (ret) {
+				dev_err(dev, "Can't associate reserved memory\n");
+				goto out;
+			}
+		} else {
+			if (mem->va) {
+				dev_warn(dev, "vdev %d buffer already mapped\n",
+					 rvdev->index);
+				pa = rproc_va_to_pa(mem->va);
+			} else {
+				/* Use dma address as carveout no memmapped yet */
+				pa = (phys_addr_t)mem->dma;
+			}
+
+			/* Associate vdev buffer memory pool to vdev subdev */
+			ret = dma_declare_coherent_memory(dev, pa,
+							   mem->da,
+							   mem->len);
+			if (ret < 0) {
+				dev_err(dev, "Failed to associate buffer\n");
+				goto out;
+			}
+		}
+	}
+
+	/* Allocate virtio device */
+	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	if (!vdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	vdev->id.device	= id,
 	vdev->config = &rproc_virtio_config_ops,
 	vdev->dev.parent = dev;
@@ -370,11 +417,15 @@ out:
 
 /**
  * rproc_remove_virtio_dev() - remove an rproc-induced virtio device
- * @rvdev: the remote vdev
+ * @dev: the virtio device
+ * @data: must be null
  *
  * This function unregisters an existing virtio device.
  */
-void rproc_remove_virtio_dev(struct rproc_vdev *rvdev)
+int rproc_remove_virtio_dev(struct device *dev, void *data)
 {
-	unregister_virtio_device(&rvdev->vdev);
+	struct virtio_device *vdev = dev_to_virtio(dev);
+
+	unregister_virtio_device(vdev);
+	return 0;
 }
