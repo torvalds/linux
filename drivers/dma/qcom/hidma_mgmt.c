@@ -423,9 +423,8 @@ static int __init hidma_mgmt_init(void)
 		hidma_mgmt_of_populate_channels(child);
 	}
 #endif
-	platform_driver_register(&hidma_mgmt_driver);
+	return platform_driver_register(&hidma_mgmt_driver);
 
-	return 0;
 }
 module_init(hidma_mgmt_init);
 MODULE_LICENSE("GPL v2");
