@@ -925,19 +925,23 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	if (!unsched && assign) {
 		for (i = 0; i < n; i++) {
 			e = cpuc->event_list[i];
-			e->hw.flags |= PERF_X86_EVENT_COMMITTED;
 			if (x86_pmu.commit_scheduling)
 				x86_pmu.commit_scheduling(cpuc, i, assign[i]);
 		}
 	} else {
-		for (i = 0; i < n; i++) {
+		/*
+		 * Compute the number of events already present; see
+		 * x86_pmu_add(), validate_group() and x86_pmu_commit_txn().
+		 * For the former two cpuc->n_events hasn't been updated yet,
+		 * while for the latter cpuc->n_txn contains the number of
+		 * events added in the current transaction.
+		 */
+		i = cpuc->n_events;
+		if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
+			i -= cpuc->n_txn;
+
+		for (; i < n; i++) {
 			e = cpuc->event_list[i];
-			/*
-			 * do not put_constraint() on comitted events,
-			 * because they are good to go
-			 */
-			if ((e->hw.flags & PERF_X86_EVENT_COMMITTED))
-				continue;
 
 			/*
 			 * release events that failed scheduling
@@ -1370,11 +1374,6 @@ static void x86_pmu_del(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int i;
-
-	/*
-	 * event is descheduled
-	 */
-	event->hw.flags &= ~PERF_X86_EVENT_COMMITTED;
 
 	/*
 	 * If we're called during a txn, we only need to undo x86_pmu.add.
@@ -2079,8 +2078,7 @@ static int validate_group(struct perf_event *event)
 	if (n < 0)
 		goto out;
 
-	fake_cpuc->n_events = n;
-
+	fake_cpuc->n_events = 0;
 	ret = x86_pmu.schedule_events(fake_cpuc, n, NULL);
 
 out:
