@@ -473,6 +473,19 @@ static void rga2_printf_cmd_buf(u32 *cmd_buf)
 
 #endif
 
+static bool is_yuv422p_format(u32 format)
+{
+	bool ret = false;
+
+	switch (format) {
+	case RGA2_FORMAT_YCbCr_422_P:
+	case RGA2_FORMAT_YCrCb_422_P:
+		ret = true;
+		break;
+	}
+	return ret;
+}
+
 static inline void rga2_write(u32 b, u32 r)
 {
 	*((volatile unsigned int *)(rga2_drvdata->rga_base + r)) = b;
@@ -1117,12 +1130,18 @@ static int rga2_get_img_info(rga_img_info_t *img,
 			*psgt = sgt;
 			img->yrgb_addr = img->uv_addr;
 			img->uv_addr = img->yrgb_addr + (vir_w * vir_h);
-			img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
+			if (is_yuv422p_format(img->format))
+				img->v_addr = img->uv_addr + (vir_w * vir_h) / 2;
+			else
+				img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
 		}
 	} else {
 		img->yrgb_addr = img->uv_addr;
 		img->uv_addr = img->yrgb_addr + (vir_w * vir_h);
-		img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
+		if (is_yuv422p_format(img->format))
+			img->v_addr = img->uv_addr + (vir_w * vir_h) / 2;
+		else
+			img->v_addr = img->uv_addr + (vir_w * vir_h) / 4;
 	}
 
 	return ret;
@@ -1332,6 +1351,12 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 		req->src1.v_addr =
 			req->src1.uv_addr + (req->src1.vir_w * req->src1.vir_h) / 4;
 	}
+	if (is_yuv422p_format(req->src.format))
+		req->src.v_addr = req->src.uv_addr + (req->src_vir_w * req->src.vir_h) / 2;
+	if (is_yuv422p_format(req->dst.format))
+		req->dst.v_addr = req->dst.uv_addr + (req->dst_vir_w * req->dst.vir_h) / 2;
+	if (is_yuv422p_format(req->src1.format))
+		req->src1.v_addr = req->src1.uv_addr + (req->src1_vir_w * req->dst.vir_h) / 2;
 
 	return 0;
 }
