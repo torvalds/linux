@@ -2015,7 +2015,7 @@ static void intel_tfa_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int
 	/*
 	 * We're going to use PMC3, make sure TFA is set before we touch it.
 	 */
-	if (cntr == 3 && !cpuc->is_fake)
+	if (cntr == 3)
 		intel_set_tfa(cpuc, true);
 }
 
