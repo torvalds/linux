@@ -50,6 +50,10 @@
 #define GPU_FAULT_ADDRESS_LO		0x40
 #define GPU_FAULT_ADDRESS_HI		0x44
 
+#define GPU_PWR_KEY			0x050	/* (WO) Power manager key register */
+#define GPU_PWR_OVERRIDE0		0x054	/* (RW) Power manager override settings */
+#define GPU_PWR_OVERRIDE1		0x058	/* (RW) Power manager override settings */
+
 #define GPU_THREAD_MAX_THREADS		0x0A0	/* (RO) Maximum number of threads per core */
 #define GPU_THREAD_MAX_WORKGROUP_SIZE	0x0A4	/* (RO) Maximum workgroup size */
 #define GPU_THREAD_MAX_BARRIER_SIZE	0x0A8	/* (RO) Maximum threads waiting at a barrier */

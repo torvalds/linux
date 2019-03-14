@@ -7,7 +7,9 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/reset.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
 
@@ -55,7 +57,16 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 
 	gpu_write(pfdev, GPU_INT_MASK, 0);
 	gpu_write(pfdev, GPU_INT_CLEAR, GPU_IRQ_RESET_COMPLETED);
-	gpu_write(pfdev, GPU_CMD, GPU_CMD_SOFT_RESET);
+
+	if (of_device_is_compatible(pfdev->dev->of_node, "amlogic,meson-gxm-mali")) {
+		reset_control_assert(pfdev->rstc);
+		udelay(10);
+		reset_control_deassert(pfdev->rstc);
+
+		gpu_write(pfdev, GPU_PWR_KEY, 0x2968A819);
+		gpu_write(pfdev, GPU_PWR_OVERRIDE1, 0xfff | (0x20 << 16));
+	} else
+		gpu_write(pfdev, GPU_CMD, GPU_CMD_SOFT_RESET);
 
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + GPU_INT_RAWSTAT,
 		val, val & GPU_IRQ_RESET_COMPLETED, 100, 10000);
