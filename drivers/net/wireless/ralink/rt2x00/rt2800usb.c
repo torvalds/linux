@@ -562,13 +562,13 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 		 * stripped it from the frame. Signal this to mac80211.
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
-        
+
 		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS) {
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
 		} else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC) {
 			/*
 			 * In order to check the Michael Mic, the packet must have
-			 * been decrypted.  Mac80211 doesnt check the MMIC failure 
+			 * been decrypted.  Mac80211 doesnt check the MMIC failure
 			 * flag to initiate MMIC countermeasures if the decoded flag
 			 * has not been set.
 			 */
