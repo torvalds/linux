@@ -289,7 +289,7 @@
 		status = "disabled";
 	};
 
-	soc {
+	soc@20000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
