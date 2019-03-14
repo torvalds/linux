@@ -766,8 +766,9 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 		rcar_du_vsp_atomic_flush(rcrtc);
 }
 
-enum drm_mode_status rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
-				   const struct drm_display_mode *mode)
+static enum drm_mode_status
+rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
+			const struct drm_display_mode *mode)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 	struct rcar_du_device *rcdu = rcrtc->group->dev;
@@ -986,8 +987,8 @@ static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
 	return 0;
 }
 
-const char *const *rcar_du_crtc_get_crc_sources(struct drm_crtc *crtc,
-						size_t *count)
+static const char *const *
+rcar_du_crtc_get_crc_sources(struct drm_crtc *crtc, size_t *count)
 {
 	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
 
