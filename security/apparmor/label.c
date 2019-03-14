@@ -407,7 +407,8 @@ bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 	AA_BUG(!label);
 	AA_BUG(size < 1);
 
-	if (aa_alloc_secid(label, gfp) < 0)
+	label->secid = aa_alloc_secid(label, gfp);
+	if (label->secid == AA_SECID_INVALID)
 		return false;
 
 	label->size = size;			/* doesn't include null */
