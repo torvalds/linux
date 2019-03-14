@@ -530,14 +530,10 @@ static int sunxi_pconf_group_get(struct pinctrl_dev *pctldev,
 	return sunxi_pconf_get(pctldev, g->pin, config);
 }
 
-static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
-				 unsigned group,
-				 unsigned long *configs,
-				 unsigned num_configs)
+static int sunxi_pconf_set(struct pinctrl_dev *pctldev, unsigned pin,
+			   unsigned long *configs, unsigned num_configs)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct sunxi_pinctrl_group *g = &pctl->groups[group];
-	unsigned pin = g->pin - pctl->desc->pin_base;
 	int i;
 
 	for (i = 0; i < num_configs; i++) {
@@ -596,9 +592,20 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
+				 unsigned long *configs, unsigned num_configs)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	struct sunxi_pinctrl_group *g = &pctl->groups[group];
+
+	/* We only support 1 pin per group. Chain it to the pin callback */
+	return sunxi_pconf_set(pctldev, g->pin, configs, num_configs);
+}
+
 static const struct pinconf_ops sunxi_pconf_ops = {
 	.is_generic		= true,
 	.pin_config_get		= sunxi_pconf_get,
+	.pin_config_set		= sunxi_pconf_set,
 	.pin_config_group_get	= sunxi_pconf_group_get,
 	.pin_config_group_set	= sunxi_pconf_group_set,
 };
