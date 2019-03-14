@@ -1330,7 +1330,8 @@ smb2_ioctl_query_info(const unsigned int xid,
 	struct smb_query_info __user *pqi;
 	int rc = 0;
 	int flags = 0;
-	struct smb2_query_info_rsp *rsp = NULL;
+	struct smb2_query_info_rsp *qi_rsp = NULL;
+	struct smb2_ioctl_rsp *io_rsp = NULL;
 	void *buffer = NULL;
 	struct smb_rqst rqst[3];
 	int resp_buftype[3];
@@ -1340,6 +1341,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_fid fid;
 	struct kvec qi_iov[1];
+	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec close_iov[1];
 
 	memset(rqst, 0, sizeof(rqst));
@@ -1394,8 +1396,16 @@ smb2_ioctl_query_info(const unsigned int xid,
 		/* Can eventually relax perm check since server enforces too */
 		if (!capable(CAP_SYS_ADMIN))
 			rc = -EPERM;
-		else  /* TBD: Add code to compound FSCTL */
-			rc = -EOPNOTSUPP;
+		else  {
+			memset(&io_iov, 0, sizeof(io_iov));
+			rqst[1].rq_iov = io_iov;
+			rqst[1].rq_nvec = SMB2_IOCTL_IOV_SIZE;
+
+			rc = SMB2_ioctl_init(tcon, &rqst[1],
+					     COMPOUND_FID, COMPOUND_FID,
+					     qi.info_type, true, NULL,
+					     0);
+		}
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
 		memset(&qi_iov, 0, sizeof(qi_iov));
 		rqst[1].rq_iov = qi_iov;
@@ -1430,24 +1440,44 @@ smb2_ioctl_query_info(const unsigned int xid,
 				resp_buftype, rsp_iov);
 	if (rc)
 		goto iqinf_exit;
-	pqi = (struct smb_query_info __user *)arg;
-	rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
-	if (le32_to_cpu(rsp->OutputBufferLength) < qi.input_buffer_length)
-		qi.input_buffer_length = le32_to_cpu(rsp->OutputBufferLength);
-	if (copy_to_user(&pqi->input_buffer_length, &qi.input_buffer_length,
-			 sizeof(qi.input_buffer_length))) {
-		rc = -EFAULT;
-		goto iqinf_exit;
-	}
-	if (copy_to_user(pqi + 1, rsp->Buffer, qi.input_buffer_length)) {
-		rc = -EFAULT;
-		goto iqinf_exit;
+	if (qi.flags & PASSTHRU_FSCTL) {
+		pqi = (struct smb_query_info __user *)arg;
+		io_rsp = (struct smb2_ioctl_rsp *)rsp_iov[1].iov_base;
+		if (le32_to_cpu(io_rsp->OutputCount) < qi.input_buffer_length)
+			qi.input_buffer_length = le32_to_cpu(io_rsp->OutputCount);
+		if (copy_to_user(&pqi->input_buffer_length, &qi.input_buffer_length,
+				 sizeof(qi.input_buffer_length))) {
+			rc = -EFAULT;
+			goto iqinf_exit;
+		}
+		if (copy_to_user(pqi + 1, &io_rsp[1], qi.input_buffer_length)) {
+			rc = -EFAULT;
+			goto iqinf_exit;
+		}
+	} else {
+		pqi = (struct smb_query_info __user *)arg;
+		qi_rsp = (struct smb2_query_info_rsp *)rsp_iov[1].iov_base;
+		if (le32_to_cpu(qi_rsp->OutputBufferLength) < qi.input_buffer_length)
+			qi.input_buffer_length = le32_to_cpu(qi_rsp->OutputBufferLength);
+		if (copy_to_user(&pqi->input_buffer_length, &qi.input_buffer_length,
+				 sizeof(qi.input_buffer_length))) {
+			rc = -EFAULT;
+			goto iqinf_exit;
+		}
+		if (copy_to_user(pqi + 1, qi_rsp->Buffer, qi.input_buffer_length)) {
+			rc = -EFAULT;
+			goto iqinf_exit;
+		}
 	}
 
  iqinf_exit:
 	kfree(buffer);
 	SMB2_open_free(&rqst[0]);
-	SMB2_query_info_free(&rqst[1]);
+	if (qi.flags & PASSTHRU_FSCTL)
+		SMB2_ioctl_free(&rqst[1]);
+	else
+		SMB2_query_info_free(&rqst[1]);
+
 	SMB2_close_free(&rqst[2]);
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
