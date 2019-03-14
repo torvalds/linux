@@ -73,7 +73,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		memcpy_fromio(buf, dfse->io_mem + pos, size);
 #endif
 	} else {
-		memcpy(buf, dfse->buf + pos, size);
+		memcpy(buf, (void *)((u8 *)(dfse->buf) + pos), size);
 	}
 
 	/* copy to userspace */

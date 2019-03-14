@@ -429,7 +429,7 @@ struct sof_topology_token {
 static int get_token_u32(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_value_elem *velem = elem;
-	u32 *val = object + offset;
+	u32 *val = (u32 *)((u8 *)object + offset);
 
 	*val = le32_to_cpu(velem->value);
 	return 0;
@@ -438,7 +438,7 @@ static int get_token_u32(void *elem, void *object, u32 offset, u32 size)
 static int get_token_u16(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_value_elem *velem = elem;
-	u16 *val = object + offset;
+	u16 *val = (u16 *)((u8 *)object + offset);
 
 	*val = (u16)le32_to_cpu(velem->value);
 	return 0;
@@ -447,7 +447,7 @@ static int get_token_u16(void *elem, void *object, u32 offset, u32 size)
 static int get_token_comp_format(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
-	u32 *val = object + offset;
+	u32 *val = (u32 *)((u8 *)object + offset);
 
 	*val = find_format(velem->string);
 	return 0;
@@ -456,7 +456,7 @@ static int get_token_comp_format(void *elem, void *object, u32 offset, u32 size)
 static int get_token_dai_type(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
-	u32 *val = object + offset;
+	u32 *val = (u32 *)((u8 *)object + offset);
 
 	*val = find_dai(velem->string);
 	return 0;
@@ -465,7 +465,7 @@ static int get_token_dai_type(void *elem, void *object, u32 offset, u32 size)
 static int get_token_effect_type(void *elem, void *object, u32 offset, u32 size)
 {
 	struct snd_soc_tplg_vendor_string_elem *velem = elem;
-	u32 *val = object + offset;
+	u32 *val = (u32 *)((u8 *)object + offset);
 
 	*val = find_effect(velem->string);
 	return 0;
@@ -837,7 +837,8 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 		}
 
 		/* next array */
-		array = (void *)array + asize;
+		array = (struct snd_soc_tplg_vendor_array *)((u8 *)array
+			+ asize);
 	}
 	return 0;
 }

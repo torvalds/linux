@@ -53,8 +53,8 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 		/* read in ext structure */
 		offset += sizeof(*ext_hdr);
 		snd_sof_dsp_block_read(sdev, bar, offset,
-				       ext_data + sizeof(*ext_hdr),
-				       ext_hdr->hdr.size - sizeof(*ext_hdr));
+				   (void *)((u8 *)ext_data + sizeof(*ext_hdr)),
+				   ext_hdr->hdr.size - sizeof(*ext_hdr));
 
 		dev_dbg(sdev->dev, "found ext header type %d size 0x%x\n",
 			ext_hdr->type, ext_hdr->hdr.size);
@@ -100,7 +100,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 	dev_dbg(sdev->dev, "new module size 0x%x blocks 0x%x type 0x%x\n",
 		module->size, module->num_blocks, module->type);
 
-	block = (void *)module + sizeof(*module);
+	block = (struct snd_sof_blk_hdr *)((u8 *)module + sizeof(*module));
 
 	/* module->size doesn't include header size */
 	remaining = module->size;
@@ -145,13 +145,14 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 			return -EINVAL;
 		}
 		snd_sof_dsp_block_write(sdev, sdev->mmio_bar, offset,
-					(void *)block + sizeof(*block),
+					(void *)((u8 *)block + sizeof(*block)),
 					block->size);
 
 		/* minus body size of block */
 		remaining -= block->size;
 		/* next block */
-		block = (void *)block + sizeof(*block) + block->size;
+		block = (struct snd_sof_blk_hdr *)((u8 *)block + sizeof(*block)
+			+ block->size);
 	}
 
 	return 0;
@@ -200,7 +201,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 		return -EINVAL;
 
 	/* parse each module */
-	module = (void *)fw->data + sizeof(*header);
+	module = (struct snd_sof_mod_hdr *)((u8 *)(fw->data) + sizeof(*header));
 	remaining = fw->size - sizeof(*header);
 	for (count = 0; count < header->num_modules; count++) {
 		/* minus header size of module */
@@ -217,7 +218,8 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 		}
 		/* minus body size of module */
 		remaining -=  module->size;
-		module = (void *)module + sizeof(*module) + module->size;
+		module = (struct snd_sof_mod_hdr *)((u8 *)module
+			+ sizeof(*module) + module->size);
 	}
 
 	return 0;
