@@ -28,7 +28,7 @@ int mt76x02u_skb_dma_info(struct sk_buff *skb, int port, u32 flags);
 int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 			    struct sk_buff *skb, enum mt76_txq_id qid,
 			    struct mt76_wcid *wcid, struct ieee80211_sta *sta,
-			    u32 *tx_info);
+			    struct mt76_tx_info *tx_info);
 void mt76x02u_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 			      struct mt76_queue_entry *e);
 #endif /* __MT76x02_USB_H */

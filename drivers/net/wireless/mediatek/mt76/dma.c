@@ -283,13 +283,12 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 			  struct ieee80211_sta *sta)
 {
 	struct mt76_queue *q = dev->q_tx[qid].q;
+	struct mt76_tx_info tx_info = {};
+	int len, n = 0, ret = -ENOMEM;
 	struct mt76_queue_entry e;
 	struct mt76_txwi_cache *t;
-	struct mt76_queue_buf buf[32];
-	int len, n = 0, ret = -ENOMEM;
 	struct sk_buff *iter;
 	dma_addr_t addr;
-	u32 tx_info = 0;
 
 	t = mt76_get_txwi(dev);
 	if (!t) {
@@ -306,13 +305,13 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (dma_mapping_error(dev->dev, addr))
 		goto free;
 
-	buf[n].addr = t->dma_addr;
-	buf[n++].len = dev->drv->txwi_size;
-	buf[n].addr = addr;
-	buf[n++].len = len;
+	tx_info.buf[n].addr = t->dma_addr;
+	tx_info.buf[n++].len = dev->drv->txwi_size;
+	tx_info.buf[n].addr = addr;
+	tx_info.buf[n++].len = len;
 
 	skb_walk_frags(skb, iter) {
-		if (n == ARRAY_SIZE(buf))
+		if (n == ARRAY_SIZE(tx_info.buf))
 			goto unmap;
 
 		addr = dma_map_single(dev->dev, iter->data, iter->len,
@@ -320,9 +319,10 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 		if (dma_mapping_error(dev->dev, addr))
 			goto unmap;
 
-		buf[n].addr = addr;
-		buf[n++].len = iter->len;
+		tx_info.buf[n].addr = addr;
+		tx_info.buf[n++].len = iter->len;
 	}
+	tx_info.nbuf = n;
 
 	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
 				DMA_TO_DEVICE);
@@ -333,17 +333,18 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	if (ret < 0)
 		goto unmap;
 
-	if (q->queued + (n + 1) / 2 >= q->ndesc - 1) {
+	if (q->queued + (tx_info.nbuf + 1) / 2 >= q->ndesc - 1) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
 
-	return mt76_dma_add_buf(dev, q, buf, n, tx_info, skb, t);
+	return mt76_dma_add_buf(dev, q, tx_info.buf, tx_info.nbuf,
+				tx_info.info, skb, t);
 
 unmap:
 	for (n--; n > 0; n--)
-		dma_unmap_single(dev->dev, buf[n].addr, buf[n].len,
-				 DMA_TO_DEVICE);
+		dma_unmap_single(dev->dev, tx_info.buf[n].addr,
+				 tx_info.buf[n].len, DMA_TO_DEVICE);
 
 free:
 	e.skb = skb;
