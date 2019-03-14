@@ -392,7 +392,7 @@ calling the macros / functions below:
 
 .. **
 
-All macros / functions turn 0 in case of success and another value in case of
+All macros / functions return 0 in case of success and another value in case of
 error and have the following roles:
 
    * ``put_user`` put in the user-space at the address address value of the val;
@@ -400,10 +400,10 @@ error and have the following roles:
      hardware platform);
    * ``get_user`` analogue to the previous function, only that val will be set to a
      value identical to the value at the user-space address given by address;
-   * ``copy_to_user`` copies from the kernel-space, from the address referenced by
-     ``from`` in user-space to the address referenced by ``to``, ``n`` bytes;
-   * ``copy_from_user`` copies from user-space from the address referenced by
-     ``from`` in kernel-space to the address referenced by ``to``, ``n`` bytes.
+   * ``copy_to_user`` copies ``n`` bytes from the kernel-space, from the address
+     referenced by ``from`` in user-space to the address referenced by ``to``;
+   * ``copy_from_user`` copies ``n`` bytes from user-space from the address
+     referenced by ``from`` in kernel-space to the address referenced by ``to``.
 
 A common section of code that works with these functions is:
 
@@ -704,7 +704,7 @@ be used by the functions/macros:
 The roles of the macros / functions above are:
 
    * :c:func:`init_waitqueue_head` initializes the queue; to initialize the
-     queue at compile time, you can use the c:macro:`DECLARE_WAIT_QUEUE_HEAD` macro;
+     queue at compile time, you can use the :c:macro:`DECLARE_WAIT_QUEUE_HEAD` macro;
    * :c:func:`wait_event` and :c:func:`wait_event_interruptible` adds the current thread to the
      queue while the condition is false, sets it to TASK_UNINTERRUPTIBLE or
      TASK_INTERRUPTIBLE and calls the scheduler to schedule a new thread; Waiting
@@ -854,7 +854,7 @@ the driver. Follow comments marked with **TODO 3** and implement them.
    1. Add an ``atomic_t`` variable to the device structure.
    2. Initialize the variable at module initialization.
    3. Use the variable in the open function to restrict access to the device. We
-      recommend using c:func:`atomic_cmpxchg`.
+      recommend using :c:func:`atomic_cmpxchg`.
    4. Reset the variable in the release function to retrieve access to the device.
    5. To test your deployment, you'll need to simulate a long-term use of your
       device. To simulate a sleep, call the scheduler at the end of the device opening:
@@ -884,7 +884,7 @@ Implement the read function in the driver. Follow comments marked with ``TODO 4`
    2. At a read call, copy the contents of the kernel space buffer into the user
       space buffer.
 
-      * Use the c:func:`copy_to_user` function to copy information from kernel space to
+      * Use the :c:func:`copy_to_user` function to copy information from kernel space to
         user space.
       * Ignore the size and offset parameters at this time. You can assume that
         the buffer in user space is large enough. You do not need to check the
