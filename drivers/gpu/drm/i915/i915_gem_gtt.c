@@ -1513,6 +1513,23 @@ unwind:
 	return -ENOMEM;
 }
 
+static void ppgtt_init(struct drm_i915_private *i915,
+		       struct i915_hw_ppgtt *ppgtt)
+{
+	kref_init(&ppgtt->ref);
+
+	ppgtt->vm.i915 = i915;
+	ppgtt->vm.dma = &i915->drm.pdev->dev;
+	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
+
+	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
+
+	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;
+	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
+	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
+	ppgtt->vm.vma_ops.clear_pages = clear_pages;
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1529,16 +1546,10 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&ppgtt->ref);
-
-	ppgtt->vm.i915 = i915;
-	ppgtt->vm.dma = &i915->drm.pdev->dev;
-	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
+	ppgtt_init(i915, ppgtt);
 
 	/* From bdw, there is support for read-only pages in the PPGTT. */
 	ppgtt->vm.has_read_only = true;
-
-	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
@@ -1582,11 +1593,6 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 		gen8_ppgtt_notify_vgt(ppgtt, true);
 
 	ppgtt->vm.cleanup = gen8_ppgtt_cleanup;
-
-	ppgtt->vm.vma_ops.bind_vma    = ppgtt_bind_vma;
-	ppgtt->vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
-	ppgtt->vm.vma_ops.set_pages   = ppgtt_set_pages;
-	ppgtt->vm.vma_ops.clear_pages = clear_pages;
 
 	return ppgtt;
 
@@ -1979,23 +1985,12 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&ppgtt->base.ref);
-
-	ppgtt->base.vm.i915 = i915;
-	ppgtt->base.vm.dma = &i915->drm.pdev->dev;
-	ppgtt->base.vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
-
-	i915_address_space_init(&ppgtt->base.vm, VM_CLASS_PPGTT);
+	ppgtt_init(i915, &ppgtt->base);
 
 	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
 	ppgtt->base.vm.insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->base.vm.cleanup = gen6_ppgtt_cleanup;
-
-	ppgtt->base.vm.vma_ops.bind_vma    = ppgtt_bind_vma;
-	ppgtt->base.vm.vma_ops.unbind_vma  = ppgtt_unbind_vma;
-	ppgtt->base.vm.vma_ops.set_pages   = ppgtt_set_pages;
-	ppgtt->base.vm.vma_ops.clear_pages = clear_pages;
 
 	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
 
