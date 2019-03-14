@@ -624,7 +624,11 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	if (event)
 		event++;
 
-	if (is_return && isdigit(argv[0][1])) {
+	if (isdigit(argv[0][1])) {
+		if (!is_return) {
+			pr_info("Maxactive is not for kprobe");
+			return -EINVAL;
+		}
 		if (event)
 			len = event - &argv[0][1] - 1;
 		else
@@ -634,8 +638,8 @@ static int trace_kprobe_create(int argc, const char *argv[])
 		memcpy(buf, &argv[0][1], len);
 		buf[len] = '\0';
 		ret = kstrtouint(buf, 0, &maxactive);
-		if (ret) {
-			pr_info("Failed to parse maxactive.\n");
+		if (ret || !maxactive) {
+			pr_info("Invalid maxactive number\n");
 			return ret;
 		}
 		/* kretprobes instances are iterated over via a list. The
