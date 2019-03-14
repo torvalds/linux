@@ -50,7 +50,6 @@
 #include "mt6575_sd.h"
 #include <linux/seq_file.h>
 
-
 /* for debug zone */
 unsigned int sd_debug_zone[4] = {
 	0,
