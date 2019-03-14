@@ -532,7 +532,7 @@ into account the internal buffer size, user buffer size and the offset:
        if (len <= 0)
            return 0;
 
-       /* read data from device in my_data->buffer */
+       /* read data from my_data->buffer to user buffer */
        if (copy_to_user(user_buffer, my_data->buffer + *offset, len))
            return -EFAULT;
 
@@ -572,8 +572,8 @@ The structure of the write function is similar:
        if (len <= 0)
            return 0;
 
-       /* read data from device in my_data->buffer */
-       if (copy_from_user(my_data->buffer, user_buffer, len))
+       /* read data from user buffer to my_data->buffer */
+       if (copy_from_user(my_data->buffer + *offset, user_buffer, len))
            return -EFAULT;
 
        *offset += len;
