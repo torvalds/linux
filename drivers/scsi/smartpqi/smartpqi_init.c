@@ -5660,9 +5660,11 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
+/* Performs a reset at the LUN level. */
+
 #define PQI_LUN_RESET_RETRIES			3
 #define PQI_LUN_RESET_RETRY_INTERVAL_MSECS	10000
-/* Performs a reset at the LUN level. */
+#define PQI_LUN_RESET_PENDING_IO_TIMEOUT_SECS	120
 
 static int _pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
@@ -5673,12 +5675,12 @@ static int _pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 
 	for (retries = 0;;) {
 		rc = pqi_lun_reset(ctrl_info, device);
-		if (rc != -EAGAIN ||
-		    ++retries > PQI_LUN_RESET_RETRIES)
+		if (rc != -EAGAIN || ++retries > PQI_LUN_RESET_RETRIES)
 			break;
 		msleep(PQI_LUN_RESET_RETRY_INTERVAL_MSECS);
 	}
-	timeout_secs = rc ? PQI_LUN_RESET_TIMEOUT_SECS : NO_TIMEOUT;
+
+	timeout_secs = rc ? PQI_LUN_RESET_PENDING_IO_TIMEOUT_SECS : NO_TIMEOUT;
 
 	rc |= pqi_device_wait_for_pending_io(ctrl_info, device, timeout_secs);
 
@@ -5707,6 +5709,7 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 	pqi_device_reset_done(device);
 
 	mutex_unlock(&ctrl_info->lun_reset_mutex);
+
 	return rc;
 }
 
@@ -5737,6 +5740,7 @@ static int pqi_eh_device_reset_handler(struct scsi_cmnd *scmd)
 	pqi_wait_until_ofa_finished(ctrl_info);
 
 	rc = pqi_device_reset(ctrl_info, device);
+
 out:
 	dev_err(&ctrl_info->pci_dev->dev,
 		"reset of scsi %d:%d:%d:%d: %s\n",
