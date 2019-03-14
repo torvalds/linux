@@ -299,6 +299,9 @@ int mt76_dma_tx_queue_skb(struct mt76_dev *dev, enum mt76_txq_id qid,
 	}
 
 	skb->prev = skb->next = NULL;
+	if (dev->drv->tx_aligned4_skbs)
+		mt76_insert_hdr_pad(skb);
+
 	dma_sync_single_for_cpu(dev->dev, t->dma_addr, sizeof(t->txwi),
 				DMA_TO_DEVICE);
 	ret = dev->drv->tx_prepare_skb(dev, &t->txwi, skb, qid, wcid, sta,

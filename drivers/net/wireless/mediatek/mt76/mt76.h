@@ -288,6 +288,7 @@ struct mt76_hw_cap {
 };
 
 struct mt76_driver_ops {
+	bool tx_aligned4_skbs;
 	u16 txwi_size;
 
 	void (*update_survey)(struct mt76_dev *dev);
