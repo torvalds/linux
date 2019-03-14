@@ -105,6 +105,8 @@
 		TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT)
 #define TMIO_MASK_IRQ     (TMIO_MASK_READOP | TMIO_MASK_WRITEOP | TMIO_MASK_CMD)
 
+#define TMIO_MAX_BLK_SIZE 512
+
 struct tmio_mmc_data;
 struct tmio_mmc_host;
 
