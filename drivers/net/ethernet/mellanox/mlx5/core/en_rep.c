@@ -795,7 +795,8 @@ static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 
-	if (!mlx5e_tc_tun_device_to_offload(priv, netdev))
+	if (!mlx5e_tc_tun_device_to_offload(priv, netdev) &&
+	    !is_vlan_dev(netdev))
 		return NOTIFY_OK;
 
 	switch (event) {

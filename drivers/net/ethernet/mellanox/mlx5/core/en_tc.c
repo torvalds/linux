@@ -1541,11 +1541,23 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		if (match.mask->n_proto)
 			*match_level = MLX5_MATCH_L2;
 	}
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN) ||
+	    is_vlan_dev(filter_dev)) {
+		struct flow_dissector_key_vlan filter_dev_mask;
+		struct flow_dissector_key_vlan filter_dev_key;
 		struct flow_match_vlan match;
 
-		flow_rule_match_vlan(rule, &match);
+		if (is_vlan_dev(filter_dev)) {
+			match.key = &filter_dev_key;
+			match.key->vlan_id = vlan_dev_vlan_id(filter_dev);
+			match.key->vlan_tpid = vlan_dev_vlan_proto(filter_dev);
+			match.key->vlan_priority = 0;
+			match.mask = &filter_dev_mask;
+			memset(match.mask, 0xff, sizeof(*match.mask));
+			match.mask->vlan_priority = 0;
+		} else {
+			flow_rule_match_vlan(rule, &match);
+		}
 		if (match.mask->vlan_id ||
 		    match.mask->vlan_priority ||
 		    match.mask->vlan_tpid) {
@@ -2252,7 +2264,8 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 		actions = flow->nic_attr->action;
 
 	if (flow->flags & MLX5E_TC_FLOW_EGRESS &&
-	    !(actions & MLX5_FLOW_CONTEXT_ACTION_DECAP))
+	    !((actions & MLX5_FLOW_CONTEXT_ACTION_DECAP) ||
+	      (actions & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP)))
 		return false;
 
 	if (actions & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
@@ -2608,6 +2621,25 @@ static int add_vlan_push_action(struct mlx5e_priv *priv,
 	return err;
 }
 
+static int add_vlan_pop_action(struct mlx5e_priv *priv,
+			       struct mlx5_esw_flow_attr *attr,
+			       u32 *action)
+{
+	int nest_level = vlan_get_encap_level(attr->parse_attr->filter_dev);
+	struct flow_action_entry vlan_act = {
+		.id = FLOW_ACTION_VLAN_POP,
+	};
+	int err = 0;
+
+	while (nest_level--) {
+		err = parse_tc_vlan_action(priv, &vlan_act, attr, action);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -2692,6 +2724,12 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 					err = add_vlan_push_action(priv, attr,
 								   &out_dev,
 								   &action);
+					if (err)
+						return err;
+				}
+				if (is_vlan_dev(parse_attr->filter_dev)) {
+					err = add_vlan_pop_action(priv, attr,
+								  &action);
 					if (err)
 						return err;
 				}
