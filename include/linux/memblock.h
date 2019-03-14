@@ -140,6 +140,7 @@ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
 
 void __memblock_free_early(phys_addr_t base, phys_addr_t size);
 void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+void create_pgtable_mapping(phys_addr_t start, phys_addr_t end);
 
 /**
  * for_each_mem_range - iterate through memblock areas from type_a and not
