@@ -79,6 +79,7 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	struct aa_label *label = aa_secid_to_label(secid);
 	int len;
 
+	AA_BUG(!secdata);
 	AA_BUG(!seclen);
 
 	if (!label)
