@@ -399,13 +399,14 @@ static void io_ring_drop_ctx_refs(struct io_ring_ctx *ctx, unsigned refs)
 static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 				   struct io_submit_state *state)
 {
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	struct io_kiocb *req;
 
 	if (!percpu_ref_tryget(&ctx->refs))
 		return NULL;
 
 	if (!state) {
-		req = kmem_cache_alloc(req_cachep, __GFP_NOWARN);
+		req = kmem_cache_alloc(req_cachep, gfp);
 		if (unlikely(!req))
 			goto out;
 	} else if (!state->free_reqs) {
@@ -413,10 +414,18 @@ static struct io_kiocb *io_get_req(struct io_ring_ctx *ctx,
 		int ret;
 
 		sz = min_t(size_t, state->ios_left, ARRAY_SIZE(state->reqs));
-		ret = kmem_cache_alloc_bulk(req_cachep, __GFP_NOWARN, sz,
-						state->reqs);
-		if (unlikely(ret <= 0))
-			goto out;
+		ret = kmem_cache_alloc_bulk(req_cachep, gfp, sz, state->reqs);
+
+		/*
+		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
+		 * retry single alloc to be on the safe side.
+		 */
+		if (unlikely(ret <= 0)) {
+			state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
+			if (!state->reqs[0])
+				goto out;
+			ret = 1;
+		}
 		state->free_reqs = ret - 1;
 		state->cur_req = 1;
 		req = state->reqs[0];
