@@ -2718,6 +2718,7 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 	struct cifsFileInfo *cfile = file->private_data;
 	long rc = -EOPNOTSUPP;
 	unsigned int xid;
+	__le64 eof;
 
 	xid = get_xid();
 
@@ -2777,9 +2778,18 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 			return rc;
 		}
 
-		rc = smb2_set_sparse(xid, tcon, cfile, inode, false);
+		smb2_set_sparse(xid, tcon, cfile, inode, false);
+		rc = 0;
+	} else {
+		smb2_set_sparse(xid, tcon, cfile, inode, false);
+		rc = 0;
+		if (i_size_read(inode) < off + len) {
+			eof = cpu_to_le64(off + len);
+			rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
+					  cfile->fid.volatile_fid, cfile->pid,
+					  &eof);
+		}
 	}
-	/* BB: else ... in future add code to extend file and set sparse */
 
 	if (rc)
 		trace_smb3_falloc_err(xid, cfile->fid.persistent_fid, tcon->tid,
