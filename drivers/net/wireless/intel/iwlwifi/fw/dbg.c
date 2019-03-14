@@ -545,6 +545,7 @@ static const struct iwl_prph_range iwl_prph_dump_addr_22000[] = {
 	{ .start = 0x00a04590, .end = 0x00a04590 },
 	{ .start = 0x00a04598, .end = 0x00a04598 },
 	{ .start = 0x00a045c0, .end = 0x00a045f4 },
+	{ .start = 0x00a05c18, .end = 0x00a05c1c },
 	{ .start = 0x00a0c000, .end = 0x00a0c018 },
 	{ .start = 0x00a0c020, .end = 0x00a0c028 },
 	{ .start = 0x00a0c038, .end = 0x00a0c094 },
@@ -559,6 +560,7 @@ static const struct iwl_prph_range iwl_prph_dump_addr_22000[] = {
 
 static const struct iwl_prph_range iwl_prph_dump_addr_ax210[] = {
 	{ .start = 0x00d03c00, .end = 0x00d03c64 },
+	{ .start = 0x00d05c18, .end = 0x00d05c1c },
 	{ .start = 0x00d0c000, .end = 0x00d0c174 },
 };
 
