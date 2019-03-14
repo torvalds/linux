@@ -74,8 +74,6 @@
 
 	bridge {
 		compatible = "dumb-vga-dac";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		ports {
 			#address-cells = <1>;
