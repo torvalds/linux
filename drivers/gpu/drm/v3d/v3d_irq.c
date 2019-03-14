@@ -37,12 +37,14 @@ v3d_overflow_mem_work(struct work_struct *work)
 		container_of(work, struct v3d_dev, overflow_mem_work);
 	struct drm_device *dev = &v3d->drm;
 	struct v3d_bo *bo = v3d_bo_create(dev, NULL /* XXX: GMP */, 256 * 1024);
+	struct drm_gem_object *obj;
 	unsigned long irqflags;
 
 	if (IS_ERR(bo)) {
 		DRM_ERROR("Couldn't allocate binner overflow mem\n");
 		return;
 	}
+	obj = &bo->base.base;
 
 	/* We lost a race, and our work task came in after the bin job
 	 * completed and exited.  This can happen because the HW
@@ -59,15 +61,15 @@ v3d_overflow_mem_work(struct work_struct *work)
 		goto out;
 	}
 
-	drm_gem_object_get(&bo->base);
+	drm_gem_object_get(obj);
 	list_add_tail(&bo->unref_head, &v3d->bin_job->unref_list);
 	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
 	V3D_CORE_WRITE(0, V3D_PTB_BPOA, bo->node.start << PAGE_SHIFT);
-	V3D_CORE_WRITE(0, V3D_PTB_BPOS, bo->base.size);
+	V3D_CORE_WRITE(0, V3D_PTB_BPOS, obj->size);
 
 out:
-	drm_gem_object_put_unlocked(&bo->base);
+	drm_gem_object_put_unlocked(obj);
 }
 
 static irqreturn_t

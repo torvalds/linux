@@ -5,6 +5,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/gpu_scheduler.h>
 #include "uapi/drm/v3d_drm.h"
 
@@ -111,15 +112,9 @@ struct v3d_file_priv {
 };
 
 struct v3d_bo {
-	struct drm_gem_object base;
-
-	struct mutex lock;
+	struct drm_gem_shmem_object base;
 
 	struct drm_mm_node node;
-
-	u32 pages_refcount;
-	struct page **pages;
-	struct sg_table *sgt;
 
 	/* List entry for the BO's position in
 	 * v3d_exec_info->unref_list
@@ -258,6 +253,7 @@ static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 }
 
 /* v3d_bo.c */
+struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size);
 void v3d_free_object(struct drm_gem_object *gem_obj);
 struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 			     size_t size);
@@ -267,10 +263,6 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
-vm_fault_t v3d_gem_fault(struct vm_fault *vmf);
-int v3d_mmap(struct file *filp, struct vm_area_struct *vma);
-int v3d_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
-struct sg_table *v3d_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
