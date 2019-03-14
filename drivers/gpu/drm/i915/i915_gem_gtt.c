@@ -1538,10 +1538,7 @@ static struct i915_hw_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.dma = &i915->drm.pdev->dev;
-
-	ppgtt->vm.total = HAS_FULL_48BIT_PPGTT(i915) ?
-		1ULL << 48 :
-		1ULL << 32;
+	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
 
 	/* From bdw, there is support for read-only pages in the PPGTT. */
 	ppgtt->vm.has_read_only = true;
@@ -1991,8 +1988,7 @@ static struct i915_hw_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->base.vm.i915 = i915;
 	ppgtt->base.vm.dma = &i915->drm.pdev->dev;
-
-	ppgtt->base.vm.total = I915_PDES * GEN6_PTES * I915_GTT_PAGE_SIZE;
+	ppgtt->base.vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
 
 	i915_address_space_init(&ppgtt->base.vm, VM_CLASS_PPGTT);
 

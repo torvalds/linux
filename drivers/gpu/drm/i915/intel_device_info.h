@@ -76,7 +76,7 @@ enum intel_platform {
 	INTEL_MAX_PLATFORMS
 };
 
-enum intel_ppgtt {
+enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
 	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,
 	INTEL_PPGTT_FULL = I915_GEM_PPGTT_FULL,
@@ -162,7 +162,9 @@ struct intel_device_info {
 	enum intel_platform platform;
 	u32 platform_mask;
 
-	enum intel_ppgtt ppgtt;
+	enum intel_ppgtt_type ppgtt_type;
+	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
+
 	unsigned int page_sizes; /* page sizes supported by the HW */
 
 	u32 display_mmio_offset;

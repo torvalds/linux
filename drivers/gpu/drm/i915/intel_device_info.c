@@ -844,7 +844,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	if (IS_GEN(dev_priv, 6) && intel_vtd_active()) {
 		DRM_INFO("Disabling ppGTT for VT-d support\n");
-		info->ppgtt = INTEL_PPGTT_NONE;
+		info->ppgtt_type = INTEL_PPGTT_NONE;
 	}
 
 	/* Initialize command stream timestamp frequency */
