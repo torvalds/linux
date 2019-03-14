@@ -566,22 +566,6 @@ void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_rate_tbl_update);
 
-int mt76x02_insert_hdr_pad(struct sk_buff *skb)
-{
-	int len = ieee80211_get_hdrlen_from_skb(skb);
-
-	if (len % 4 == 0)
-		return 0;
-
-	skb_push(skb, 2);
-	memmove(skb->data, skb->data + 2, len);
-
-	skb->data[len] = 0;
-	skb->data[len + 1] = 0;
-	return 2;
-}
-EXPORT_SYMBOL_GPL(mt76x02_insert_hdr_pad);
-
 void mt76x02_remove_hdr_pad(struct sk_buff *skb, int len)
 {
 	int hdrlen;

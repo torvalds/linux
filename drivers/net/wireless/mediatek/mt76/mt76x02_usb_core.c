@@ -82,7 +82,7 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	enum mt76_qsel qsel;
 	u32 flags;
 
-	mt76x02_insert_hdr_pad(skb);
+	mt76_insert_hdr_pad(skb);
 
 	txwi = (struct mt76x02_txwi *)(skb->data - sizeof(struct mt76x02_txwi));
 	mt76x02_mac_write_txwi(dev, txwi, skb, wcid, sta, len);

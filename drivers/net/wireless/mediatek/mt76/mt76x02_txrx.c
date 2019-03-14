@@ -155,7 +155,6 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt76x02_txwi *txwi = txwi_ptr;
 	int qsel = MT_QSEL_EDCA;
 	int pid;
-	int ret;
 
 	if (qid == MT_TXQ_PSD && wcid && wcid->idx < 128)
 		mt76x02_mac_wcid_set_drop(dev, wcid->idx, false);
@@ -165,9 +164,7 @@ int mt76x02_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	pid = mt76_tx_status_skb_add(mdev, wcid, skb);
 	txwi->pktid = pid;
 
-	ret = mt76x02_insert_hdr_pad(skb);
-	if (ret < 0)
-		return ret;
+	mt76_insert_hdr_pad(skb);
 
 	if (pid >= MT_PACKET_ID_FIRST)
 		qsel = MT_QSEL_MGMT;
