@@ -2931,11 +2931,9 @@ static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
-	struct event_constraint *c1 = NULL;
-	struct event_constraint *c2;
+	struct event_constraint *c1, *c2;
 
-	if (idx >= 0) /* fake does < 0 */
-		c1 = cpuc->event_constraint[idx];
+	c1 = cpuc->event_constraint[idx];
 
 	/*
 	 * first time only
@@ -3410,7 +3408,7 @@ tfa_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	/*
 	 * Without TFA we must not use PMC3.
 	 */
-	if (!allow_tsx_force_abort && test_bit(3, c->idxmsk) && idx >= 0) {
+	if (!allow_tsx_force_abort && test_bit(3, c->idxmsk)) {
 		c = dyn_constraint(cpuc, c, idx);
 		c->idxmsk64 &= ~(1ULL << 3);
 		c->weight--;

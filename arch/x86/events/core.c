@@ -2031,7 +2031,7 @@ static int validate_event(struct perf_event *event)
 	if (IS_ERR(fake_cpuc))
 		return PTR_ERR(fake_cpuc);
 
-	c = x86_pmu.get_event_constraints(fake_cpuc, -1, event);
+	c = x86_pmu.get_event_constraints(fake_cpuc, 0, event);
 
 	if (!c || !c->weight)
 		ret = -EINVAL;
