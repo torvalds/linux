@@ -78,6 +78,7 @@ struct mlx5e_sw_stats {
 	u64 rx_xdp_redirect;
 	u64 rx_xdp_tx_xmit;
 	u64 rx_xdp_tx_mpwqe;
+	u64 rx_xdp_tx_inlnw;
 	u64 rx_xdp_tx_full;
 	u64 rx_xdp_tx_err;
 	u64 rx_xdp_tx_cqe;
@@ -93,6 +94,7 @@ struct mlx5e_sw_stats {
 	u64 tx_cqe_err;
 	u64 tx_xdp_xmit;
 	u64 tx_xdp_mpwqe;
+	u64 tx_xdp_inlnw;
 	u64 tx_xdp_full;
 	u64 tx_xdp_err;
 	u64 tx_xdp_cqes;
@@ -244,6 +246,7 @@ struct mlx5e_sq_stats {
 struct mlx5e_xdpsq_stats {
 	u64 xmit;
 	u64 mpwqe;
+	u64 inlnw;
 	u64 full;
 	u64 err;
 	/* dirtied @completion */

@@ -1532,7 +1532,7 @@ static int mlx5e_open_xdpsq(struct mlx5e_channel *c,
 			dseg->lkey = sq->mkey_be;
 
 			wi->num_wqebbs = 1;
-			wi->num_ds     = 1;
+			wi->num_pkts   = 1;
 		}
 	}
 

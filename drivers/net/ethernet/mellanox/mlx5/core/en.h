@@ -409,14 +409,17 @@ struct mlx5e_xdp_info_fifo {
 
 struct mlx5e_xdp_wqe_info {
 	u8 num_wqebbs;
-	u8 num_ds;
+	u8 num_pkts;
 };
 
 struct mlx5e_xdp_mpwqe {
 	/* Current MPWQE session */
 	struct mlx5e_tx_wqe *wqe;
 	u8                   ds_count;
+	u8                   pkt_count;
 	u8                   max_ds_count;
+	u8                   complete;
+	u8                   inline_on;
 };
 
 struct mlx5e_xdpsq;
