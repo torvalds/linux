@@ -1450,16 +1450,16 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
 	pctl->chip->owner = THIS_MODULE;
-	pctl->chip->request = gpiochip_generic_request,
-	pctl->chip->free = gpiochip_generic_free,
-	pctl->chip->direction_input = sunxi_pinctrl_gpio_direction_input,
-	pctl->chip->direction_output = sunxi_pinctrl_gpio_direction_output,
-	pctl->chip->get = sunxi_pinctrl_gpio_get,
-	pctl->chip->set = sunxi_pinctrl_gpio_set,
-	pctl->chip->of_xlate = sunxi_pinctrl_gpio_of_xlate,
-	pctl->chip->to_irq = sunxi_pinctrl_gpio_to_irq,
-	pctl->chip->of_gpio_n_cells = 3,
-	pctl->chip->can_sleep = false,
+	pctl->chip->request = gpiochip_generic_request;
+	pctl->chip->free = gpiochip_generic_free;
+	pctl->chip->direction_input = sunxi_pinctrl_gpio_direction_input;
+	pctl->chip->direction_output = sunxi_pinctrl_gpio_direction_output;
+	pctl->chip->get = sunxi_pinctrl_gpio_get;
+	pctl->chip->set = sunxi_pinctrl_gpio_set;
+	pctl->chip->of_xlate = sunxi_pinctrl_gpio_of_xlate;
+	pctl->chip->to_irq = sunxi_pinctrl_gpio_to_irq;
+	pctl->chip->of_gpio_n_cells = 3;
+	pctl->chip->can_sleep = false;
 	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK) -
 			    pctl->desc->pin_base;
 	pctl->chip->label = dev_name(&pdev->dev);
