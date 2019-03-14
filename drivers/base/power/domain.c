@@ -459,19 +459,19 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 
 	time_start = ktime_get();
 	ret = genpd->power_off(genpd);
-	if (ret == -EBUSY)
+	if (ret)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
 	if (elapsed_ns <= genpd->states[state_idx].power_off_latency_ns)
-		return ret;
+		return 0;
 
 	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -1768,7 +1768,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 		ret = genpd_set_default_power_state(genpd);
 		if (ret)
 			return ret;
-	} else if (!gov) {
+	} else if (!gov && genpd->state_count > 1) {
 		pr_warn("%s: no governor for states\n", genpd->name);
 	}
 
