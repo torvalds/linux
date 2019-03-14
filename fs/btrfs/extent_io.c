@@ -403,7 +403,7 @@ static void merge_state(struct extent_io_tree *tree,
 	struct extent_state *other;
 	struct rb_node *other_node;
 
-	if (state->state & (EXTENT_IOBITS | EXTENT_BOUNDARY))
+	if (state->state & (EXTENT_LOCKED | EXTENT_BOUNDARY))
 		return;
 
 	other_node = rb_prev(&state->rb_node);
@@ -622,7 +622,7 @@ int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	if (delete)
 		bits |= ~EXTENT_CTLBITS;
 
-	if (bits & (EXTENT_IOBITS | EXTENT_BOUNDARY))
+	if (bits & (EXTENT_LOCKED | EXTENT_BOUNDARY))
 		clear = 1;
 again:
 	if (!prealloc && gfpflags_allow_blocking(mask)) {
@@ -854,7 +854,7 @@ static void cache_state(struct extent_state *state,
 			struct extent_state **cached_ptr)
 {
 	return cache_state_if_flags(state, cached_ptr,
-				    EXTENT_IOBITS | EXTENT_BOUNDARY);
+				    EXTENT_LOCKED | EXTENT_BOUNDARY);
 }
 
 /*
@@ -4173,10 +4173,9 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 	u64 end = start + PAGE_SIZE - 1;
 	int ret = 1;
 
-	if (test_range_bit(tree, start, end,
-			   EXTENT_IOBITS, 0, NULL))
+	if (test_range_bit(tree, start, end, EXTENT_LOCKED, 0, NULL)) {
 		ret = 0;
-	else {
+	} else {
 		/*
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
