@@ -325,38 +325,22 @@ static struct regmap_config sun8i_mixer_regmap_config = {
 
 static int sun8i_mixer_of_get_id(struct device_node *node)
 {
-	struct device_node *port, *ep;
-	int ret = -EINVAL;
+	struct device_node *ep, *remote;
+	struct of_endpoint of_ep;
 
-	/* output is port 1 */
-	port = of_graph_get_port_by_id(node, 1);
-	if (!port)
+	/* Output port is 1, and we want the first endpoint. */
+	ep = of_graph_get_endpoint_by_regs(node, 1, -1);
+	if (!ep)
 		return -EINVAL;
 
-	/* try to find downstream endpoint */
-	for_each_available_child_of_node(port, ep) {
-		struct device_node *remote;
-		u32 reg;
+	remote = of_graph_get_remote_endpoint(ep);
+	of_node_put(ep);
+	if (!remote)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_endpoint(ep);
-		if (!remote)
-			continue;
-
-		ret = of_property_read_u32(remote, "reg", &reg);
-		if (!ret) {
-			of_node_put(remote);
-			of_node_put(ep);
-			of_node_put(port);
-
-			return reg;
-		}
-
-		of_node_put(remote);
-	}
-
-	of_node_put(port);
-
-	return ret;
+	of_graph_parse_endpoint(remote, &of_ep);
+	of_node_put(remote);
+	return of_ep.id;
 }
 
 static int sun8i_mixer_bind(struct device *dev, struct device *master,
