@@ -708,7 +708,8 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 			  struct qc_dqblk *qdq)
 {
 	struct bch_fs *c = sb->s_fs_info;
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_i_quota new_quota;
 	int ret;
@@ -719,9 +720,11 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	bkey_quota_init(&new_quota.k_i);
 	new_quota.k.p = POS(qid.type, from_kqid(&init_user_ns, qid));
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_QUOTAS, new_quota.k.p,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_QUOTAS, new_quota.k.p,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(iter);
 
 	ret = btree_iter_err(k);
 	if (unlikely(ret))
@@ -743,9 +746,11 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	if (qdq->d_fieldmask & QC_INO_HARD)
 		new_quota.v.c[Q_INO].hardlimit = cpu_to_le64(qdq->d_ino_hardlimit);
 
-	ret = bch2_btree_insert_at(c, NULL, NULL, 0,
-				   BTREE_INSERT_ENTRY(&iter, &new_quota.k_i));
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &new_quota.k_i));
+
+	ret = bch2_trans_commit(&trans, NULL, NULL, 0);
+
+	bch2_trans_exit(&trans);
 
 	if (ret)
 		return ret;

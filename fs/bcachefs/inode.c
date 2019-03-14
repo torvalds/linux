@@ -367,7 +367,8 @@ int bch2_inode_create(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_i_inode_generation delete;
 	struct bpos start = POS(inode_nr, 0);
 	struct bpos end = POS(inode_nr + 1, 0);
@@ -390,17 +391,17 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 	if (ret)
 		return ret;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_INODES, POS(inode_nr, 0),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(inode_nr, 0),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	do {
-		struct bkey_s_c k = bch2_btree_iter_peek_slot(&iter);
+		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
 		u32 bi_generation = 0;
 
 		ret = btree_iter_err(k);
-		if (ret) {
-			bch2_btree_iter_unlock(&iter);
-			return ret;
-		}
+		if (ret)
+			break;
 
 		bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_inode, c,
 					"inode %llu not found when deleting",
@@ -431,13 +432,15 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
 			delete.v.bi_generation = cpu_to_le32(bi_generation);
 		}
 
-		ret = bch2_btree_insert_at(c, NULL, NULL,
-				BTREE_INSERT_ATOMIC|
-				BTREE_INSERT_NOFAIL,
-				BTREE_INSERT_ENTRY(&iter, &delete.k_i));
+		bch2_trans_update(&trans,
+				  BTREE_INSERT_ENTRY(iter, &delete.k_i));
+
+		ret = bch2_trans_commit(&trans, NULL, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL);
 	} while (ret == -EINTR);
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 	return ret;
 }
 

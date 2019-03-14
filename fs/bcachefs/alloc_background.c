@@ -310,10 +310,53 @@ int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
 	return 0;
 }
 
-static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
+int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bch_dev *ca;
+	int ret;
+
+	if (k->k.p.inode >= c->sb.nr_devices ||
+	    !c->devs[k->k.p.inode])
+		return 0;
+
+	ca = bch_dev_bkey_exists(c, k->k.p.inode);
+
+	if (k->k.p.offset >= ca->mi.nbuckets)
+		return 0;
+
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, k->k.p,
+				   BTREE_ITER_INTENT);
+
+	ret = bch2_btree_iter_traverse(iter);
+	if (ret)
+		goto err;
+
+	/* check buckets_written with btree node locked: */
+	if (test_bit(k->k.p.offset, ca->buckets_written)) {
+		ret = 0;
+		goto err;
+	}
+
+	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, k));
+
+	ret = bch2_trans_commit(&trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_JOURNAL_REPLAY|
+				BTREE_INSERT_NOMARK);
+err:
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
+static int __bch2_alloc_write_key(struct btree_trans *trans, struct bch_dev *ca,
 				  size_t b, struct btree_iter *iter,
 				  u64 *journal_seq, unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 #if 0
 	__BKEY_PADDED(k, BKEY_ALLOC_VAL_U64s_MAX) alloc_key;
 #else
@@ -349,14 +392,15 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_btree_iter_cond_resched(iter);
 
-	ret = bch2_btree_insert_at(c, NULL, journal_seq,
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
+
+	ret = bch2_trans_commit(trans, NULL, journal_seq,
 				   BTREE_INSERT_NOCHECK_RW|
 				   BTREE_INSERT_NOFAIL|
 				   BTREE_INSERT_USE_RESERVE|
 				   BTREE_INSERT_USE_ALLOC_RESERVE|
 				   BTREE_INSERT_NOMARK|
-				   flags,
-				   BTREE_INSERT_ENTRY(iter, &a->k_i));
+				   flags);
 	if (ret)
 		return ret;
 
@@ -370,42 +414,6 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 	return 0;
 }
 
-int bch2_alloc_replay_key(struct bch_fs *c, struct bkey_i *k)
-{
-	struct bch_dev *ca;
-	struct btree_iter iter;
-	int ret;
-
-	if (k->k.p.inode >= c->sb.nr_devices ||
-	    !c->devs[k->k.p.inode])
-		return 0;
-
-	ca = bch_dev_bkey_exists(c, k->k.p.inode);
-
-	if (k->k.p.offset >= ca->mi.nbuckets)
-		return 0;
-
-	bch2_btree_iter_init(&iter, c, BTREE_ID_ALLOC, k->k.p,
-			     BTREE_ITER_INTENT);
-
-	ret = bch2_btree_iter_traverse(&iter);
-	if (ret)
-		goto err;
-
-	/* check buckets_written with btree node locked: */
-
-	ret = test_bit(k->k.p.offset, ca->buckets_written)
-		? 0
-		: bch2_btree_insert_at(c, NULL, NULL,
-				       BTREE_INSERT_NOFAIL|
-				       BTREE_INSERT_JOURNAL_REPLAY|
-				       BTREE_INSERT_NOMARK,
-				       BTREE_INSERT_ENTRY(&iter, k));
-err:
-	bch2_btree_iter_unlock(&iter);
-	return ret;
-}
-
 int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 {
 	struct bch_dev *ca;
@@ -415,12 +423,15 @@ int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 	*wrote = false;
 
 	for_each_rw_member(ca, c, i) {
-		struct btree_iter iter;
+		struct btree_trans trans;
+		struct btree_iter *iter;
 		struct bucket_array *buckets;
 		size_t b;
 
-		bch2_btree_iter_init(&iter, c, BTREE_ID_ALLOC, POS_MIN,
-				     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+		bch2_trans_init(&trans, c);
+
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
+					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 		down_read(&ca->bucket_lock);
 		buckets = bucket_array(ca);
@@ -431,7 +442,7 @@ int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 			if (!buckets->b[b].mark.dirty)
 				continue;
 
-			ret = __bch2_alloc_write_key(c, ca, b, &iter, NULL,
+			ret = __bch2_alloc_write_key(&trans, ca, b, iter, NULL,
 						     nowait
 						     ? BTREE_INSERT_NOWAIT
 						     : 0);
@@ -441,7 +452,8 @@ int bch2_alloc_write(struct bch_fs *c, bool nowait, bool *wrote)
 			*wrote = true;
 		}
 		up_read(&ca->bucket_lock);
-		bch2_btree_iter_unlock(&iter);
+
+		bch2_trans_exit(&trans);
 
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
@@ -887,7 +899,8 @@ static u64 bucket_journal_seq(struct bch_fs *c, struct bucket_mark m)
 	}
 }
 
-static int bch2_invalidate_one_bucket2(struct bch_fs *c, struct bch_dev *ca,
+static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
+				       struct bch_dev *ca,
 				       struct btree_iter *iter,
 				       u64 *journal_seq, unsigned flags)
 {
@@ -897,6 +910,7 @@ static int bch2_invalidate_one_bucket2(struct bch_fs *c, struct bch_dev *ca,
 	/* hack: */
 	__BKEY_PADDED(k, 8) alloc_key;
 #endif
+	struct bch_fs *c = trans->c;
 	struct bkey_i_alloc *a;
 	struct bkey_alloc_unpacked u;
 	struct bucket_mark m;
@@ -959,6 +973,8 @@ retry:
 	a->k.p = iter->pos;
 	bch2_alloc_pack(a, u);
 
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &a->k_i));
+
 	/*
 	 * XXX:
 	 * when using deferred btree updates, we have journal reclaim doing
@@ -966,16 +982,15 @@ retry:
 	 * progress, and here the allocator is requiring space in the journal -
 	 * so we need a journal pre-reservation:
 	 */
-	ret = bch2_btree_insert_at(c, NULL,
-			invalidating_cached_data ? journal_seq : NULL,
-			BTREE_INSERT_ATOMIC|
-			BTREE_INSERT_NOUNLOCK|
-			BTREE_INSERT_NOCHECK_RW|
-			BTREE_INSERT_NOFAIL|
-			BTREE_INSERT_USE_RESERVE|
-			BTREE_INSERT_USE_ALLOC_RESERVE|
-			flags,
-			BTREE_INSERT_ENTRY(iter, &a->k_i));
+	ret = bch2_trans_commit(trans, NULL,
+				invalidating_cached_data ? journal_seq : NULL,
+				BTREE_INSERT_ATOMIC|
+				BTREE_INSERT_NOUNLOCK|
+				BTREE_INSERT_NOCHECK_RW|
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_USE_RESERVE|
+				BTREE_INSERT_USE_ALLOC_RESERVE|
+				flags);
 	if (ret == -EINTR)
 		goto retry;
 
@@ -1049,23 +1064,27 @@ static bool bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
  */
 static int bch2_invalidate_buckets(struct bch_fs *c, struct bch_dev *ca)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	u64 journal_seq = 0;
 	int ret = 0;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_ALLOC, POS(ca->dev_idx, 0),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC,
+				   POS(ca->dev_idx, 0),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	/* Only use nowait if we've already invalidated at least one bucket: */
 	while (!ret &&
 	       !fifo_full(&ca->free_inc) &&
 	       ca->alloc_heap.used)
-		ret = bch2_invalidate_one_bucket2(c, ca, &iter, &journal_seq,
+		ret = bch2_invalidate_one_bucket2(&trans, ca, iter, &journal_seq,
 				BTREE_INSERT_GC_LOCK_HELD|
 				(!fifo_empty(&ca->free_inc)
 				 ? BTREE_INSERT_NOWAIT : 0));
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	/* If we used NOWAIT, don't return the error: */
 	if (!fifo_empty(&ca->free_inc))

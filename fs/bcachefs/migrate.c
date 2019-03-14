@@ -36,25 +36,29 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s k,
 
 static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	BKEY_PADDED(key) tmp;
-	struct btree_iter iter;
 	int ret = 0;
+
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   POS_MIN, BTREE_ITER_PREFETCH);
 
 	mutex_lock(&c->replicas_gc_lock);
 	bch2_replicas_gc_start(c, (1 << BCH_DATA_USER)|(1 << BCH_DATA_CACHED));
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     POS_MIN, BTREE_ITER_PREFETCH);
 
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
+	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = btree_iter_err(k))) {
 		if (!bkey_extent_is_data(k.k) ||
 		    !bch2_extent_has_device(bkey_s_c_to_extent(k), dev_idx)) {
 			ret = bch2_mark_bkey_replicas(c, k);
 			if (ret)
 				break;
-			bch2_btree_iter_next(&iter);
+			bch2_btree_iter_next(iter);
 			continue;
 		}
 
@@ -72,12 +76,14 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 		 */
 		bch2_extent_normalize(c, bkey_i_to_s(&tmp.key));
 
-		iter.pos = bkey_start_pos(&tmp.key.k);
+		/* XXX not sketchy at all */
+		iter->pos = bkey_start_pos(&tmp.key.k);
 
-		ret = bch2_btree_insert_at(c, NULL, NULL,
-					   BTREE_INSERT_ATOMIC|
-					   BTREE_INSERT_NOFAIL,
-					   BTREE_INSERT_ENTRY(&iter, &tmp.key));
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &tmp.key));
+
+		ret = bch2_trans_commit(&trans, NULL, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL);
 
 		/*
 		 * don't want to leave ret == -EINTR, since if we raced and
@@ -90,10 +96,10 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 			break;
 	}
 
-	bch2_btree_iter_unlock(&iter);
-
 	bch2_replicas_gc_end(c, ret);
 	mutex_unlock(&c->replicas_gc_lock);
+
+	bch2_trans_exit(&trans);
 
 	return ret;
 }

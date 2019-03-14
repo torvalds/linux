@@ -825,6 +825,8 @@ fsck_err:
 
 static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 {
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	/*
 	 * We might cause compressed extents to be
 	 * split, so we need to pass in a
@@ -833,20 +835,21 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 	struct disk_reservation disk_res =
 		bch2_disk_reservation_init(c, 0);
 	BKEY_PADDED(k) split;
-	struct btree_iter iter;
 	int ret;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     bkey_start_pos(&k->k),
-			     BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(&k->k),
+				   BTREE_ITER_INTENT);
 	do {
-		ret = bch2_btree_iter_traverse(&iter);
+		ret = bch2_btree_iter_traverse(iter);
 		if (ret)
 			break;
 
 		bkey_copy(&split.k, k);
-		bch2_cut_front(iter.pos, &split.k);
-		bch2_extent_trim_atomic(&split.k, &iter);
+		bch2_cut_front(iter->pos, &split.k);
+		bch2_extent_trim_atomic(&split.k, iter);
 
 		ret = bch2_disk_reservation_add(c, &disk_res,
 				split.k.k.size *
@@ -854,13 +857,13 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 				BCH_DISK_RESERVATION_NOFAIL);
 		BUG_ON(ret);
 
-		ret = bch2_btree_insert_at(c, &disk_res, NULL,
-					   BTREE_INSERT_ATOMIC|
-					   BTREE_INSERT_NOFAIL|
-					   BTREE_INSERT_JOURNAL_REPLAY,
-					   BTREE_INSERT_ENTRY(&iter, &split.k));
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &split.k));
+		ret = bch2_trans_commit(&trans, &disk_res, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_JOURNAL_REPLAY);
 	} while ((!ret || ret == -EINTR) &&
-		 bkey_cmp(k->k.p, iter.pos));
+		 bkey_cmp(k->k.p, iter->pos));
 
 	bch2_disk_reservation_put(c, &disk_res);
 
@@ -873,9 +876,9 @@ static int bch2_extent_replay_key(struct bch_fs *c, struct bkey_i *k)
 	 * before journal replay finishes
 	 */
 	bch2_mark_key(c, bkey_i_to_s_c(k), false, -((s64) k->k.size),
-		      gc_pos_btree_node(iter.l[0].b),
+		      gc_pos_btree_node(iter->l[0].b),
 		      NULL, 0, 0);
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	return ret;
 }

@@ -213,10 +213,10 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 }
 
 static __always_inline
-int __bch2_hash_set(struct btree_trans *trans,
-		    const struct bch_hash_desc desc,
-		    const struct bch_hash_info *info,
-		    u64 inode, struct bkey_i *insert, int flags)
+int bch2_hash_set(struct btree_trans *trans,
+		  const struct bch_hash_desc desc,
+		  const struct bch_hash_info *info,
+		  u64 inode, struct bkey_i *insert, int flags)
 {
 	struct btree_iter *iter, *slot = NULL;
 	struct bkey_s_c k;
@@ -265,17 +265,6 @@ found:
 	insert->k.p = iter->pos;
 	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, insert));
 	return 0;
-}
-
-static inline int bch2_hash_set(const struct bch_hash_desc desc,
-			       const struct bch_hash_info *info,
-			       struct bch_fs *c, u64 inode,
-			       u64 *journal_seq,
-			       struct bkey_i *insert, int flags)
-{
-	return bch2_trans_do(c, journal_seq, flags|BTREE_INSERT_ATOMIC,
-			__bch2_hash_set(&trans, desc, info,
-					inode, insert, flags));
 }
 
 static __always_inline

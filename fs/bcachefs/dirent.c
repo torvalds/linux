@@ -151,8 +151,8 @@ int __bch2_dirent_create(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	return __bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
-			       dir_inum, &dirent->k_i, flags);
+	return bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
+			     dir_inum, &dirent->k_i, flags);
 }
 
 int bch2_dirent_create(struct bch_fs *c, u64 dir_inum,

@@ -629,36 +629,12 @@ void bch2_stripes_heap_insert(struct bch_fs *c,
 
 /* stripe deletion */
 
-static void ec_stripe_delete(struct bch_fs *c, size_t idx)
+static int ec_stripe_delete(struct bch_fs *c, size_t idx)
 {
-	struct btree_iter iter;
-	struct bch_stripe *v = NULL;
-	struct bkey_s_c k;
-	struct bkey_i delete;
-	u64 journal_seq = 0;
-
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EC,
-			     POS(0, idx),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_slot(&iter);
-	if (btree_iter_err(k) || k.k->type != KEY_TYPE_stripe)
-		goto out;
-
-	v = kmalloc(bkey_val_bytes(k.k), GFP_KERNEL);
-	BUG_ON(!v);
-	memcpy(v, bkey_s_c_to_stripe(k).v, bkey_val_bytes(k.k));
-
-	bkey_init(&delete.k);
-	delete.k.p = iter.pos;
-
-	bch2_btree_insert_at(c, NULL, &journal_seq,
-			     BTREE_INSERT_NOFAIL|
-			     BTREE_INSERT_USE_RESERVE|
-			     BTREE_INSERT_NOUNLOCK,
-			     BTREE_INSERT_ENTRY(&iter, &delete));
-out:
-	bch2_btree_iter_unlock(&iter);
-	kfree(v);
+	return bch2_btree_delete_range(c, BTREE_ID_EC,
+				       POS(0, idx),
+				       POS(0, idx + 1),
+				       NULL);
 }
 
 static void ec_stripe_delete_work(struct work_struct *work)
@@ -690,39 +666,46 @@ static void ec_stripe_delete_work(struct work_struct *work)
 static int ec_stripe_bkey_insert(struct bch_fs *c,
 				 struct bkey_i_stripe *stripe)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret;
 
-	/* XXX: start pos hint */
+	bch2_trans_init(&trans, c);
 retry:
-	for_each_btree_key(&iter, c, BTREE_ID_EC, POS_MIN,
-			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k) {
-		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
-			bch2_btree_iter_unlock(&iter);
-			return -ENOSPC;
-		}
+	bch2_trans_begin(&trans);
+
+	/* XXX: start pos hint */
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
+	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k) {
+		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0)
+			break;
 
 		if (bkey_deleted(k.k))
 			goto found_slot;
 	}
 
-	return bch2_btree_iter_unlock(&iter) ?: -ENOSPC;
+	ret = -ENOSPC;
+	goto out;
 found_slot:
-	ret = ec_stripe_mem_alloc(c, &iter);
+	ret = ec_stripe_mem_alloc(c, iter);
 
 	if (ret == -EINTR)
 		goto retry;
 	if (ret)
 		return ret;
 
-	stripe->k.p = iter.pos;
+	stripe->k.p = iter->pos;
 
-	ret = bch2_btree_insert_at(c, NULL, NULL,
-				   BTREE_INSERT_NOFAIL|
-				   BTREE_INSERT_USE_RESERVE,
-				   BTREE_INSERT_ENTRY(&iter, &stripe->k_i));
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &stripe->k_i));
+
+	ret = bch2_trans_commit(&trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_USE_RESERVE);
+out:
+	bch2_trans_exit(&trans);
 
 	return ret;
 }
@@ -749,23 +732,26 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 				 struct ec_stripe_buf *s,
 				 struct bkey *pos)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_s_extent e;
 	struct bch_extent_ptr *ptr;
 	BKEY_PADDED(k) tmp;
 	int ret = 0, dev, idx;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     bkey_start_pos(pos),
-			     BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
 
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
-	       !btree_iter_err(k) &&
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(pos),
+				   BTREE_ITER_INTENT);
+
+	while ((k = bch2_btree_iter_peek(iter)).k &&
+	       !(ret = btree_iter_err(k)) &&
 	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
 		idx = extent_matches_stripe(c, &s->key.v, k);
 		if (idx < 0) {
-			bch2_btree_iter_next(&iter);
+			bch2_btree_iter_next(iter);
 			continue;
 		}
 
@@ -783,18 +769,21 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 		extent_stripe_ptr_add(e, s, ptr, idx);
 
-		ret = bch2_btree_insert_at(c, NULL, NULL,
-				BTREE_INSERT_ATOMIC|
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_USE_RESERVE,
-				BTREE_INSERT_ENTRY(&iter, &tmp.k));
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &tmp.k));
+
+		ret = bch2_trans_commit(&trans, NULL, NULL,
+					BTREE_INSERT_ATOMIC|
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_USE_RESERVE);
 		if (ret == -EINTR)
 			ret = 0;
 		if (ret)
 			break;
 	}
 
-	return bch2_btree_iter_unlock(&iter) ?: ret;
+	bch2_trans_exit(&trans);
+
+	return ret;
 }
 
 /*
@@ -1163,13 +1152,14 @@ unlock:
 	mutex_unlock(&c->ec_new_stripe_lock);
 }
 
-static int __bch2_stripe_write_key(struct bch_fs *c,
+static int __bch2_stripe_write_key(struct btree_trans *trans,
 				   struct btree_iter *iter,
 				   struct stripe *m,
 				   size_t idx,
 				   struct bkey_i_stripe *new_key,
 				   unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
 	unsigned i;
 	int ret;
@@ -1195,14 +1185,16 @@ static int __bch2_stripe_write_key(struct bch_fs *c,
 
 	spin_unlock(&c->ec_stripes_heap_lock);
 
-	return bch2_btree_insert_at(c, NULL, NULL,
-				   BTREE_INSERT_NOFAIL|flags,
-				   BTREE_INSERT_ENTRY(iter, &new_key->k_i));
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &new_key->k_i));
+
+	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_NOFAIL|flags);
 }
 
 int bch2_stripes_write(struct bch_fs *c, bool *wrote)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct genradix_iter giter;
 	struct bkey_i_stripe *new_key;
 	struct stripe *m;
@@ -1211,14 +1203,16 @@ int bch2_stripes_write(struct bch_fs *c, bool *wrote)
 	new_key = kmalloc(255 * sizeof(u64), GFP_KERNEL);
 	BUG_ON(!new_key);
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EC, POS_MIN,
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	genradix_for_each(&c->stripes[0], giter, m) {
 		if (!m->dirty)
 			continue;
 
-		ret = __bch2_stripe_write_key(c, &iter, m, giter.pos,
+		ret = __bch2_stripe_write_key(&trans, iter, m, giter.pos,
 					new_key, BTREE_INSERT_NOCHECK_RW);
 		if (ret)
 			break;
@@ -1226,7 +1220,7 @@ int bch2_stripes_write(struct bch_fs *c, bool *wrote)
 		*wrote = true;
 	}
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	kfree(new_key);
 

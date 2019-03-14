@@ -294,36 +294,43 @@ static void bch2_write_done(struct closure *cl)
 int bch2_write_index_default(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct keylist *keys = &op->insert_keys;
-	struct btree_iter iter;
 	int ret;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     bkey_start_pos(&bch2_keylist_front(keys)->k),
-			     BTREE_ITER_INTENT);
+	BUG_ON(bch2_keylist_empty(keys));
+	bch2_verify_keylist_sorted(keys);
+
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(&bch2_keylist_front(keys)->k),
+				   BTREE_ITER_INTENT);
 
 	do {
 		BKEY_PADDED(k) split;
 
 		bkey_copy(&split.k, bch2_keylist_front(keys));
 
-		bch2_extent_trim_atomic(&split.k, &iter);
+		bch2_extent_trim_atomic(&split.k, iter);
 
-		ret = bch2_btree_insert_at(c, &op->res,
-				op_journal_seq(op),
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_USE_RESERVE,
-				BTREE_INSERT_ENTRY(&iter, &split.k));
+		bch2_trans_update(&trans,
+				  BTREE_INSERT_ENTRY(iter, &split.k));
+
+		ret = bch2_trans_commit(&trans, &op->res, op_journal_seq(op),
+					BTREE_INSERT_NOFAIL|
+					BTREE_INSERT_USE_RESERVE);
 		if (ret)
 			break;
 
-		if (bkey_cmp(iter.pos, bch2_keylist_front(keys)->k.p) < 0)
-			bch2_cut_front(iter.pos, bch2_keylist_front(keys));
+		if (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) < 0)
+			bch2_cut_front(iter->pos, bch2_keylist_front(keys));
 		else
 			bch2_keylist_pop_front(keys);
 	} while (!bch2_keylist_empty(keys));
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 
 	return ret;
 }
@@ -1403,7 +1410,8 @@ static void bch2_rbio_error(struct bch_read_bio *rbio, int retry,
 static void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
 	struct bch_fs *c = rbio->c;
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	struct bkey_i_extent *e;
 	BKEY_PADDED(k) new;
@@ -1414,10 +1422,13 @@ static void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 	if (rbio->pick.crc.compression_type)
 		return;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS, rbio->pos,
-			     BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
 retry:
-	k = bch2_btree_iter_peek(&iter);
+	bch2_trans_begin(&trans);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, rbio->pos,
+				   BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek(iter);
 	if (IS_ERR_OR_NULL(k.k))
 		goto out;
 
@@ -1453,15 +1464,15 @@ retry:
 	if (!bch2_extent_narrow_crcs(e, new_crc))
 		goto out;
 
-	ret = bch2_btree_insert_at(c, NULL, NULL,
-				   BTREE_INSERT_ATOMIC|
-				   BTREE_INSERT_NOFAIL|
-				   BTREE_INSERT_NOWAIT,
-				   BTREE_INSERT_ENTRY(&iter, &e->k_i));
+	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &e->k_i));
+	ret = bch2_trans_commit(&trans, NULL, NULL,
+				BTREE_INSERT_ATOMIC|
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_NOWAIT);
 	if (ret == -EINTR)
 		goto retry;
 out:
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 }
 
 static bool should_narrow_crcs(struct bkey_s_c k,

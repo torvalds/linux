@@ -631,7 +631,7 @@ static inline void btree_insert_entry_checks(struct bch_fs *c,
  * -EROFS: filesystem read only
  * -EIO: journal or btree node IO error
  */
-int __bch2_btree_insert_at(struct btree_insert *trans)
+static int __bch2_btree_insert_at(struct btree_insert *trans)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
@@ -847,17 +847,18 @@ int bch2_trans_commit(struct btree_trans *trans,
 	return __bch2_btree_insert_at(&insert);
 }
 
-int bch2_btree_delete_at(struct btree_iter *iter, unsigned flags)
+int bch2_btree_delete_at(struct btree_trans *trans,
+			 struct btree_iter *iter, unsigned flags)
 {
 	struct bkey_i k;
 
 	bkey_init(&k.k);
 	k.k.p = iter->pos;
 
-	return bch2_btree_insert_at(iter->c, NULL, NULL,
-				    BTREE_INSERT_NOFAIL|
-				    BTREE_INSERT_USE_RESERVE|flags,
-				    BTREE_INSERT_ENTRY(iter, &k));
+	bch2_trans_update(trans, BTREE_INSERT_ENTRY(iter, &k));
+	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_USE_RESERVE|flags);
 }
 
 /**
@@ -872,14 +873,19 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 		     struct disk_reservation *disk_res,
 		     u64 *journal_seq, int flags)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	int ret;
 
-	bch2_btree_iter_init(&iter, c, id, bkey_start_pos(&k->k),
-			     BTREE_ITER_INTENT);
-	ret = bch2_btree_insert_at(c, disk_res, journal_seq, flags,
-				   BTREE_INSERT_ENTRY(&iter, k));
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, id, bkey_start_pos(&k->k),
+				   BTREE_ITER_INTENT);
+
+	bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, k));
+
+	ret = bch2_trans_commit(&trans, disk_res, journal_seq, flags);
+	bch2_trans_exit(&trans);
 
 	return ret;
 }
@@ -893,16 +899,18 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    struct bpos start, struct bpos end,
 			    u64 *journal_seq)
 {
-	struct btree_iter iter;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_btree_iter_init(&iter, c, id, start,
-			     BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
 
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
+	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
+
+	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = btree_iter_err(k)) &&
-	       bkey_cmp(iter.pos, end) < 0) {
+	       bkey_cmp(iter->pos, end) < 0) {
 		unsigned max_sectors = KEY_SIZE_MAX & (~0 << c->block_bits);
 		/* really shouldn't be using a bare, unpadded bkey_i */
 		struct bkey_i delete;
@@ -919,24 +927,25 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 		 * (bch2_btree_iter_peek() does guarantee that iter.pos >=
 		 * bkey_start_pos(k.k)).
 		 */
-		delete.k.p = iter.pos;
+		delete.k.p = iter->pos;
 
-		if (iter.flags & BTREE_ITER_IS_EXTENTS) {
+		if (iter->flags & BTREE_ITER_IS_EXTENTS) {
 			/* create the biggest key we can */
 			bch2_key_resize(&delete.k, max_sectors);
 			bch2_cut_back(end, &delete.k);
-			bch2_extent_trim_atomic(&delete, &iter);
+			bch2_extent_trim_atomic(&delete, iter);
 		}
 
-		ret = bch2_btree_insert_at(c, NULL, journal_seq,
-					   BTREE_INSERT_NOFAIL,
-					   BTREE_INSERT_ENTRY(&iter, &delete));
+		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &delete));
+
+		ret = bch2_trans_commit(&trans, NULL, journal_seq,
+					BTREE_INSERT_NOFAIL);
 		if (ret)
 			break;
 
-		bch2_btree_iter_cond_resched(&iter);
+		bch2_btree_iter_cond_resched(iter);
 	}
 
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 	return ret;
 }

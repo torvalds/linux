@@ -180,7 +180,7 @@ int bch2_xattr_set(struct btree_trans *trans, u64 inum,
 		memcpy(xattr->v.x_name, name, namelen);
 		memcpy(xattr_val(&xattr->v), value, size);
 
-		ret = __bch2_hash_set(trans, bch2_xattr_hash_desc, hash_info,
+		ret = bch2_hash_set(trans, bch2_xattr_hash_desc, hash_info,
 			      inum, &xattr->k_i,
 			      (flags & XATTR_CREATE ? BCH_HASH_SET_MUST_CREATE : 0)|
 			      (flags & XATTR_REPLACE ? BCH_HASH_SET_MUST_REPLACE : 0));

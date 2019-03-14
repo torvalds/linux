@@ -54,18 +54,21 @@ struct moving_context {
 static int bch2_migrate_index_update(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
+	struct btree_trans trans;
+	struct btree_iter *iter;
 	struct migrate_write *m =
 		container_of(op, struct migrate_write, op);
 	struct keylist *keys = &op->insert_keys;
-	struct btree_iter iter;
 	int ret = 0;
 
-	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
-			     bkey_start_pos(&bch2_keylist_front(keys)->k),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+	bch2_trans_init(&trans, c);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+				   bkey_start_pos(&bch2_keylist_front(keys)->k),
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	while (1) {
-		struct bkey_s_c k = bch2_btree_iter_peek_slot(&iter);
+		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
 		struct bkey_i_extent *insert, *new =
 			bkey_i_to_extent(bch2_keylist_front(keys));
 		BKEY_PADDED(k) _new, _insert;
@@ -74,10 +77,9 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bool did_work = false;
 		int nr;
 
-		if (btree_iter_err(k)) {
-			ret = bch2_btree_iter_unlock(&iter);
+		ret = btree_iter_err(k);
+		if (ret)
 			break;
-		}
 
 		if (bversion_cmp(k.k->version, new->k.version) ||
 		    !bkey_extent_is_data(k.k) ||
@@ -96,7 +98,7 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		bkey_copy(&_new.k, bch2_keylist_front(keys));
 		new = bkey_i_to_extent(&_new.k);
 
-		bch2_cut_front(iter.pos, &insert->k_i);
+		bch2_cut_front(iter->pos, &insert->k_i);
 		bch2_cut_back(new->k.p, &insert->k);
 		bch2_cut_back(insert->k.p, &new->k);
 
@@ -138,12 +140,6 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		if (insert->k.size < k.k->size &&
 		    bch2_extent_is_compressed(k) &&
 		    nr > 0) {
-			/*
-			 * can't call bch2_disk_reservation_add() with btree
-			 * locks held, at least not without a song and dance
-			 */
-			bch2_btree_iter_unlock(&iter);
-
 			ret = bch2_disk_reservation_add(c, &op->res,
 					keylist_sectors(keys) * nr, 0);
 			if (ret)
@@ -153,13 +149,15 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 			goto next;
 		}
 
-		ret = bch2_btree_insert_at(c, &op->res,
+		bch2_trans_update(&trans,
+				BTREE_INSERT_ENTRY(iter, &insert->k_i));
+
+		ret = bch2_trans_commit(&trans, &op->res,
 				op_journal_seq(op),
 				BTREE_INSERT_ATOMIC|
 				BTREE_INSERT_NOFAIL|
 				BTREE_INSERT_USE_RESERVE|
-				m->data_opts.btree_insert_flags,
-				BTREE_INSERT_ENTRY(&iter, &insert->k_i));
+				m->data_opts.btree_insert_flags);
 		if (!ret)
 			atomic_long_inc(&c->extent_migrate_done);
 		if (ret == -EINTR)
@@ -167,25 +165,25 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 		if (ret)
 			break;
 next:
-		while (bkey_cmp(iter.pos, bch2_keylist_front(keys)->k.p) >= 0) {
+		while (bkey_cmp(iter->pos, bch2_keylist_front(keys)->k.p) >= 0) {
 			bch2_keylist_pop_front(keys);
 			if (bch2_keylist_empty(keys))
 				goto out;
 		}
 
-		bch2_cut_front(iter.pos, bch2_keylist_front(keys));
+		bch2_cut_front(iter->pos, bch2_keylist_front(keys));
 		continue;
 nomatch:
 		if (m->ctxt)
-			atomic64_add(k.k->p.offset - iter.pos.offset,
+			atomic64_add(k.k->p.offset - iter->pos.offset,
 				     &m->ctxt->stats->sectors_raced);
 		atomic_long_inc(&c->extent_migrate_raced);
 		trace_move_race(&new->k);
-		bch2_btree_iter_next_slot(&iter);
+		bch2_btree_iter_next_slot(iter);
 		goto next;
 	}
 out:
-	bch2_btree_iter_unlock(&iter);
+	bch2_trans_exit(&trans);
 	return ret;
 }
 

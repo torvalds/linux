@@ -268,8 +268,8 @@ int bch2_set_acl_trans(struct btree_trans *trans,
 		if (IS_ERR(xattr))
 			return PTR_ERR(xattr);
 
-		ret = __bch2_hash_set(trans, bch2_xattr_hash_desc, hash_info,
-				      inode_u->bi_inum, &xattr->k_i, 0);
+		ret = bch2_hash_set(trans, bch2_xattr_hash_desc, hash_info,
+				    inode_u->bi_inum, &xattr->k_i, 0);
 	} else {
 		struct xattr_search_key search =
 			X_SEARCH(acl_to_xattr_type(type), "", 0);

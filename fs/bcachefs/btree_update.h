@@ -21,8 +21,6 @@ void bch2_deferred_update_free(struct bch_fs *,
 struct deferred_update *
 bch2_deferred_update_alloc(struct bch_fs *, enum btree_id, unsigned);
 
-/* Normal update interface: */
-
 struct btree_insert {
 	struct bch_fs		*c;
 	struct disk_reservation *disk_res;
@@ -34,8 +32,6 @@ struct btree_insert {
 	unsigned short		nr;
 	struct btree_insert_entry  *entries;
 };
-
-int __bch2_btree_insert_at(struct btree_insert *);
 
 #define BTREE_INSERT_ENTRY(_iter, _k)					\
 	((struct btree_insert_entry) {					\
@@ -49,30 +45,6 @@ int __bch2_btree_insert_at(struct btree_insert *);
 		.d		= (_d),					\
 		.deferred	= true,					\
 	})
-
-/**
- * bch_btree_insert_at - insert one or more keys at iterator positions
- * @iter:		btree iterator
- * @insert_key:		key to insert
- * @disk_res:		disk reservation
- * @hook:		extent insert callback
- *
- * Return values:
- * -EINTR: locking changed, this function should be called again. Only returned
- *  if passed BTREE_INSERT_ATOMIC.
- * -EROFS: filesystem read only
- * -EIO: journal or btree node IO error
- */
-#define bch2_btree_insert_at(_c, _disk_res, _journal_seq, _flags, ...)	\
-	__bch2_btree_insert_at(&(struct btree_insert) {			\
-		.c		= (_c),					\
-		.disk_res	= (_disk_res),				\
-		.journal_seq	= (_journal_seq),			\
-		.flags		= (_flags),				\
-		.nr		= COUNT_ARGS(__VA_ARGS__),		\
-		.entries	= (struct btree_insert_entry[]) {	\
-			__VA_ARGS__					\
-		}})
 
 enum {
 	__BTREE_INSERT_ATOMIC,
@@ -125,7 +97,7 @@ enum {
 #define BCH_HASH_SET_MUST_CREATE	(1 << __BCH_HASH_SET_MUST_CREATE)
 #define BCH_HASH_SET_MUST_REPLACE	(1 << __BCH_HASH_SET_MUST_REPLACE)
 
-int bch2_btree_delete_at(struct btree_iter *, unsigned);
+int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
 		     struct disk_reservation *, u64 *, int flags);
@@ -137,8 +109,6 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *,
 			    __le64, unsigned);
 int bch2_btree_node_update_key(struct bch_fs *, struct btree_iter *,
 			       struct btree *, struct bkey_i_btree_ptr *);
-
-/* new transactional interface: */
 
 static inline void
 bch2_trans_update(struct btree_trans *trans,
