@@ -217,25 +217,16 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 }
 
 /* send IPC message from host to DSP */
-int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
-		       void *msg_data, size_t msg_bytes, void *reply_data,
-		       size_t reply_bytes)
+static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
+				       void *msg_data, size_t msg_bytes,
+				       void *reply_data, size_t reply_bytes)
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
 	int ret;
 
-	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
-	    reply_bytes > SOF_IPC_MSG_MAX_SIZE)
-		return -ENOBUFS;
-
-	/* Serialise IPC TX */
-	mutex_lock(&ipc->tx_mutex);
-
-	if (ipc->disable_ipc_tx) {
-		ret = -ENODEV;
-		goto unlock;
-	}
+	if (ipc->disable_ipc_tx)
+		return -ENODEV;
 
 	/*
 	 * The spin-lock is also still needed to protect message objects against
@@ -266,7 +257,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 		dev_err_ratelimited(sdev->dev,
 				    "error: ipc tx failed with error %d\n",
 				    ret);
-		goto unlock;
+		return ret;
 	}
 
 	ipc_log_header(sdev->dev, "ipc tx", msg->header);
@@ -275,7 +266,26 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	if (!ret)
 		ret = tx_wait_done(ipc, msg, reply_data);
 
-unlock:
+	return ret;
+}
+
+/* send IPC message from host to DSP */
+int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
+		       void *msg_data, size_t msg_bytes, void *reply_data,
+		       size_t reply_bytes)
+{
+	int ret;
+
+	if (msg_bytes > SOF_IPC_MSG_MAX_SIZE ||
+	    reply_bytes > SOF_IPC_MSG_MAX_SIZE)
+		return -ENOBUFS;
+
+	/* Serialise IPC TX */
+	mutex_lock(&ipc->tx_mutex);
+
+	ret = sof_ipc_tx_message_unlocked(ipc, header, msg_data, msg_bytes,
+					  reply_data, reply_bytes);
+
 	mutex_unlock(&ipc->tx_mutex);
 
 	return ret;
