@@ -367,7 +367,7 @@ following operations will be executed:
    free_irq (MY_IRQ, my_data);
 
 
-During the initialization function (c:func:`init_module`), or in the
+During the initialization function (:c:func:`init_module`), or in the
 function that opens the device, interrupts must be activated for the
 device. This operation is dependent on the device, but most often
 involves setting a bit from the control register.
