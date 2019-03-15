@@ -228,7 +228,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
-		test_err("couldn't allocate inode");
+		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
 
@@ -829,7 +829,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
-		test_err("couldn't allocate inode");
+		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
 
@@ -929,7 +929,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
-		test_err("couldn't allocate inode");
+		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
 

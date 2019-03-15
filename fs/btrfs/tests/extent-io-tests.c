@@ -73,7 +73,7 @@ static int test_find_delalloc(u32 sectorsize)
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
-		test_err("failed to allocate test inode");
+		test_std_err(TEST_ALLOC_INODE);
 		return -ENOMEM;
 	}
 
