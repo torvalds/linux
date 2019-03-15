@@ -25,6 +25,7 @@ struct rcar_du_vsp;
 /**
  * struct rcar_du_crtc - the CRTC, representing a DU superposition processor
  * @crtc: base DRM CRTC
+ * @dev: the DU device
  * @clock: the CRTC functional clock
  * @extclock: external pixel dot clock (optional)
  * @mmio_offset: offset of the CRTC registers in the DU MMIO block
@@ -45,6 +46,7 @@ struct rcar_du_vsp;
 struct rcar_du_crtc {
 	struct drm_crtc crtc;
 
+	struct rcar_du_device *dev;
 	struct clk *clock;
 	struct clk *extclock;
 	unsigned int mmio_offset;
