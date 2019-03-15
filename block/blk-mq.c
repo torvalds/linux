@@ -1093,8 +1093,7 @@ static bool blk_mq_mark_tag_wait(struct blk_mq_hw_ctx *hctx,
 	bool ret;
 
 	if (!(hctx->flags & BLK_MQ_F_TAG_SHARED)) {
-		if (!test_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state))
-			set_bit(BLK_MQ_S_SCHED_RESTART, &hctx->state);
+		blk_mq_sched_mark_restart_hctx(hctx);
 
 		/*
 		 * It's possible that a tag was freed in the window between the
