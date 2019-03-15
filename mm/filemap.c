@@ -2428,6 +2428,11 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 	if (trylock_page(page))
 		return 1;
 
+	/*
+	 * NOTE! This will make us return with VM_FAULT_RETRY, but with
+	 * the mmap_sem still held. That's how FAULT_FLAG_RETRY_NOWAIT
+	 * is supposed to work. We have way too many special cases..
+	 */
 	if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 		return 0;
 
