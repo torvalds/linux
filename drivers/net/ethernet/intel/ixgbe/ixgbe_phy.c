@@ -905,12 +905,11 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	struct pci_dev *pdev = adapter->pdev;
 	struct device *dev = &adapter->netdev->dev;
 	struct mii_bus *bus;
+	int err = -ENODEV;
 
-	adapter->mii_bus = devm_mdiobus_alloc(dev);
-	if (!adapter->mii_bus)
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus)
 		return -ENOMEM;
-
-	bus = adapter->mii_bus;
 
 	switch (hw->device_id) {
 	/* C3000 SoCs */
@@ -949,12 +948,15 @@ s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw)
 	 */
 	hw->phy.mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22;
 
-	return mdiobus_register(bus);
+	err = mdiobus_register(bus);
+	if (!err) {
+		adapter->mii_bus = bus;
+		return 0;
+	}
 
 ixgbe_no_mii_bus:
 	devm_mdiobus_free(dev, bus);
-	adapter->mii_bus = NULL;
-	return -ENODEV;
+	return err;
 }
 
 /**
