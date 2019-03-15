@@ -1213,13 +1213,13 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 			   new.control) != old.control);
 
 	/*
-	 * Clear SN before reading the bitmap; this ensures that any
-	 * interrupt that comes after the bitmap is read sets ON.  The
-	 * VT-d firmware * writes the bitmap and reads SN atomically (5.2.3
-	 * in the spec), so it doesn't really have a memory barrier that
-	 * pairs with this.  However, we cannot do that and we need one.
+	 * Clear SN before reading the bitmap.  The VT-d firmware
+	 * writes the bitmap and reads SN atomically (5.2.3 in the
+	 * spec), so it doesn't really have a memory barrier that
+	 * pairs with this, but we cannot do that and we need one.
 	 */
 	smp_mb__after_atomic();
+
 	if (!bitmap_empty((unsigned long *)pi_desc->pir, NR_VECTORS))
 		pi_set_on(pi_desc);
 }
