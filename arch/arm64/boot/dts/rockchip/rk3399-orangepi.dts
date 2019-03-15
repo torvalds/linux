@@ -472,6 +472,7 @@
 		compatible = "asahi-kasei,ak09911";
 		reg = <0x0c>;
 		vdd-supply = <&vcc3v3_s3>;
+		vid-supply = <&vcc3v3_s3>;
 	};
 
 	mpu6500@68 {
