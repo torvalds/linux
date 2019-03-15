@@ -499,6 +499,7 @@ static void steam_battery_unregister(struct steam_device *steam)
 static int steam_register(struct steam_device *steam)
 {
 	int ret;
+	bool client_opened;
 
 	/*
 	 * This function can be called several times in a row with the
@@ -511,9 +512,11 @@ static int steam_register(struct steam_device *steam)
 		 * Unlikely, but getting the serial could fail, and it is not so
 		 * important, so make up a serial number and go on.
 		 */
+		mutex_lock(&steam->mutex);
 		if (steam_get_serial(steam) < 0)
 			strlcpy(steam->serial_no, "XXXXXXXXXX",
 					sizeof(steam->serial_no));
+		mutex_unlock(&steam->mutex);
 
 		hid_info(steam->hdev, "Steam Controller '%s' connected",
 				steam->serial_no);
@@ -528,13 +531,15 @@ static int steam_register(struct steam_device *steam)
 	}
 
 	mutex_lock(&steam->mutex);
-	if (!steam->client_opened) {
+	client_opened = steam->client_opened;
+	if (!client_opened)
 		steam_set_lizard_mode(steam, lizard_mode);
-		ret = steam_input_register(steam);
-	} else {
-		ret = 0;
-	}
 	mutex_unlock(&steam->mutex);
+
+	if (!client_opened)
+		ret = steam_input_register(steam);
+	else
+		ret = 0;
 
 	return ret;
 }
@@ -630,14 +635,21 @@ static void steam_client_ll_close(struct hid_device *hdev)
 {
 	struct steam_device *steam = hdev->driver_data;
 
+	unsigned long flags;
+	bool connected;
+
+	spin_lock_irqsave(&steam->lock, flags);
+	connected = steam->connected;
+	spin_unlock_irqrestore(&steam->lock, flags);
+
 	mutex_lock(&steam->mutex);
 	steam->client_opened = false;
+	if (connected)
+		steam_set_lizard_mode(steam, lizard_mode);
 	mutex_unlock(&steam->mutex);
 
-	if (steam->connected) {
-		steam_set_lizard_mode(steam, lizard_mode);
+	if (connected)
 		steam_input_register(steam);
-	}
 }
 
 static int steam_client_ll_raw_request(struct hid_device *hdev,
