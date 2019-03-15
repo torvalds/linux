@@ -312,7 +312,7 @@ config CRYPTO_AEGIS128_AESNI_SSE2
 	select CRYPTO_AEAD
 	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-128 dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-128 dedicated AEAD algorithm.
 
 config CRYPTO_AEGIS128L_AESNI_SSE2
 	tristate "AEGIS-128L AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
@@ -320,7 +320,7 @@ config CRYPTO_AEGIS128L_AESNI_SSE2
 	select CRYPTO_AEAD
 	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-128L dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-128L dedicated AEAD algorithm.
 
 config CRYPTO_AEGIS256_AESNI_SSE2
 	tristate "AEGIS-256 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
@@ -328,7 +328,7 @@ config CRYPTO_AEGIS256_AESNI_SSE2
 	select CRYPTO_AEAD
 	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGSI-256 dedicated AEAD algorithm.
+	 AESNI+SSE2 implementation of the AEGIS-256 dedicated AEAD algorithm.
 
 config CRYPTO_MORUS640
 	tristate "MORUS-640 AEAD algorithm"
