@@ -86,18 +86,17 @@ static void salsa20_docrypt(u32 *state, u8 *dst, const u8 *src,
 {
 	__le32 stream[SALSA20_BLOCK_SIZE / sizeof(__le32)];
 
-	if (dst != src)
-		memcpy(dst, src, bytes);
-
 	while (bytes >= SALSA20_BLOCK_SIZE) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, SALSA20_BLOCK_SIZE);
+		crypto_xor_cpy(dst, src, (const u8 *)stream,
+			       SALSA20_BLOCK_SIZE);
 		bytes -= SALSA20_BLOCK_SIZE;
 		dst += SALSA20_BLOCK_SIZE;
+		src += SALSA20_BLOCK_SIZE;
 	}
 	if (bytes) {
 		salsa20_block(state, stream);
-		crypto_xor(dst, (const u8 *)stream, bytes);
+		crypto_xor_cpy(dst, src, (const u8 *)stream, bytes);
 	}
 }
 
