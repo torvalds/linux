@@ -1254,15 +1254,18 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 	return crc;
 }
 
-static void ieee802_11_find_bssid_profile(const u8 *start, size_t len,
-					  struct ieee802_11_elems *elems,
-					  u8 *transmitter_bssid,
-					  u8 *bss_bssid)
+static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
+					    struct ieee802_11_elems *elems,
+					    u8 *transmitter_bssid,
+					    u8 *bss_bssid,
+					    u8 **nontransmitted_profile)
 {
 	const struct element *elem, *sub;
+	size_t profile_len = 0;
+	bool found = false;
 
 	if (!bss_bssid || !transmitter_bssid)
-		return;
+		return profile_len;
 
 	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, start, len) {
 		if (elem->datalen < 2)
@@ -1287,9 +1290,17 @@ static void ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 				continue;
 			}
 
+			memset(*nontransmitted_profile, 0, len);
+			profile_len = cfg80211_merge_profile(start, len,
+							     elem,
+							     sub,
+							     nontransmitted_profile,
+							     len);
+
 			/* found a Nontransmitted BSSID Profile */
 			index = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX,
-						 sub->data, sub->datalen);
+						 *nontransmitted_profile,
+						 profile_len);
 			if (!index || index[1] < 1 || index[2] == 0) {
 				/* Invalid MBSSID Index element */
 				continue;
@@ -1300,14 +1311,15 @@ static void ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 					       index[2],
 					       new_bssid);
 			if (ether_addr_equal(new_bssid, bss_bssid)) {
-				elems->nontransmitted_bssid_profile =
-					elem->data;
+				found = true;
 				elems->bssid_index_len = index[1];
 				elems->bssid_index = (void *)&index[2];
 				break;
 			}
 		}
 	}
+
+	return found ? profile_len : 0;
 }
 
 u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
@@ -1316,30 +1328,34 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			       u8 *bss_bssid)
 {
 	const struct element *non_inherit = NULL;
+	u8 *nontransmitted_profile;
+	int nontransmitted_profile_len = 0;
 
 	memset(elems, 0, sizeof(*elems));
 	elems->ie_start = start;
 	elems->total_len = len;
 
-	ieee802_11_find_bssid_profile(start, len, elems, transmitter_bssid,
-				      bss_bssid);
-
-	if (elems->nontransmitted_bssid_profile)
+	nontransmitted_profile = kmalloc(len, GFP_ATOMIC);
+	if (nontransmitted_profile) {
+		nontransmitted_profile_len =
+			ieee802_11_find_bssid_profile(start, len, elems,
+						      transmitter_bssid,
+						      bss_bssid,
+						      &nontransmitted_profile);
 		non_inherit =
 			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
-					       &elems->nontransmitted_bssid_profile[2],
-					       elems->nontransmitted_bssid_profile[1]);
+					       nontransmitted_profile,
+					       nontransmitted_profile_len);
+	}
 
 	crc = _ieee802_11_parse_elems_crc(start, len, action, elems, filter,
 					  crc, non_inherit);
 
 	/* Override with nontransmitted profile, if found */
-	if (transmitter_bssid && elems->nontransmitted_bssid_profile) {
-		const u8 *profile = elems->nontransmitted_bssid_profile;
-
-		_ieee802_11_parse_elems_crc(&profile[2], profile[1],
+	if (nontransmitted_profile_len)
+		_ieee802_11_parse_elems_crc(nontransmitted_profile,
+					    nontransmitted_profile_len,
 					    action, elems, 0, 0, NULL);
-	}
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;
@@ -1358,6 +1374,8 @@ u32 ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 	    elems->bssid_index_len >=
 	    offsetofend(struct ieee80211_bssid_index, dtim_count))
 		elems->dtim_count = elems->bssid_index->dtim_count;
+
+	kfree(nontransmitted_profile);
 
 	return crc;
 }
