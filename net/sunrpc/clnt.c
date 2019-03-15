@@ -1730,7 +1730,12 @@ call_allocate(struct rpc_task *task)
 	req->rq_callsize = RPC_CALLHDRSIZE + (auth->au_cslack << 1) +
 			   proc->p_arglen;
 	req->rq_callsize <<= 2;
-	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + proc->p_replen;
+	/*
+	 * Note: the reply buffer must at minimum allocate enough space
+	 * for the 'struct accepted_reply' from RFC5531.
+	 */
+	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + \
+			max_t(size_t, proc->p_replen, 2);
 	req->rq_rcvsize <<= 2;
 
 	status = xprt->ops->buf_alloc(task);
