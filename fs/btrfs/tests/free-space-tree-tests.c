@@ -463,7 +463,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	root->node = alloc_test_extent_buffer(root->fs_info, nodesize);
 	if (!root->node) {
-		test_err("couldn't allocate dummy buffer");
+		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
 		ret = -ENOMEM;
 		goto out;
 	}

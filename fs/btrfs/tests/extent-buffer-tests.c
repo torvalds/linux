@@ -50,7 +50,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	path->nodes[0] = eb = alloc_dummy_extent_buffer(fs_info, nodesize);
 	if (!eb) {
-		test_err("could not allocate dummy buffer");
+		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
 		ret = -ENOMEM;
 		goto out;
 	}

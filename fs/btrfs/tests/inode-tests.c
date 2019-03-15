@@ -250,7 +250,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 
 	root->node = alloc_dummy_extent_buffer(fs_info, nodesize);
 	if (!root->node) {
-		test_err("couldn't allocate dummy buffer");
+		test_std_err(TEST_ALLOC_ROOT);
 		goto out;
 	}
 
@@ -851,7 +851,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 
 	root->node = alloc_dummy_extent_buffer(fs_info, nodesize);
 	if (!root->node) {
-		test_err("couldn't allocate dummy buffer");
+		test_std_err(TEST_ALLOC_ROOT);
 		goto out;
 	}
 

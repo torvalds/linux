@@ -406,7 +406,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 
 	eb = __alloc_dummy_extent_buffer(fs_info, 0, len);
 	if (!eb) {
-		test_err("couldn't allocate test extent buffer");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -419,7 +419,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	free_extent_buffer(eb);
 	eb = __alloc_dummy_extent_buffer(NULL, nodesize / 2, len);
 	if (!eb) {
-		test_err("couldn't allocate test extent buffer");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
 		goto out;
 	}
