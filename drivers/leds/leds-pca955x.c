@@ -40,7 +40,6 @@
  *  bits the chip supports.
  */
 
-#include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -109,15 +108,6 @@ static const struct i2c_device_id pca955x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca955x_id);
-
-static const struct acpi_device_id pca955x_acpi_ids[] = {
-	{ "PCA9550",  pca9550 },
-	{ "PCA9551",  pca9551 },
-	{ "PCA9552",  pca9552 },
-	{ "PCA9553",  pca9553 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, pca955x_acpi_ids);
 
 struct pca955x {
 	struct mutex lock;
@@ -450,16 +440,7 @@ static int pca955x_probe(struct i2c_client *client,
 	struct pca955x_platform_data *pdata;
 	int ngpios = 0;
 
-	if (id) {
-		chip = &pca955x_chipdefs[id->driver_data];
-	} else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(pca955x_acpi_ids, &client->dev);
-		if (!acpi_id)
-			return -ENODEV;
-		chip = &pca955x_chipdefs[acpi_id->driver_data];
-	}
+	chip = &pca955x_chipdefs[id->driver_data];
 	adapter = to_i2c_adapter(client->dev.parent);
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
@@ -602,7 +583,6 @@ static int pca955x_probe(struct i2c_client *client,
 static struct i2c_driver pca955x_driver = {
 	.driver = {
 		.name	= "leds-pca955x",
-		.acpi_match_table = ACPI_PTR(pca955x_acpi_ids),
 		.of_match_table = of_match_ptr(of_pca955x_match),
 	},
 	.probe	= pca955x_probe,
