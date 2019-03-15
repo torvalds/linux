@@ -2392,9 +2392,6 @@ call_decode(struct rpc_task *task)
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
 				sizeof(req->rq_rcv_buf)) != 0);
 
-	if (req->rq_rcv_buf.len < 12)
-		goto out_retry;
-
 	xdr_init_decode(&xdr, &req->rq_rcv_buf,
 			req->rq_rcv_buf.head[0].iov_base, req);
 	switch (rpc_decode_header(task, &xdr)) {
@@ -2405,7 +2402,6 @@ call_decode(struct rpc_task *task)
 			task->tk_pid, __func__, task->tk_status);
 		return;
 	case -EAGAIN:
-out_retry:
 		task->tk_status = 0;
 		/* Note: rpc_decode_header() may have freed the RPC slot */
 		if (task->tk_rqstp == req) {
