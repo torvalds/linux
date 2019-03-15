@@ -29,12 +29,18 @@
 #include "cpufreq-dt.h"
 #ifdef CONFIG_ARCH_ROCKCHIP
 #include "rockchip-cpufreq.h"
+#include <soc/rockchip/rockchip_ipa.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 #endif
 
 struct private_data {
 	struct opp_table *opp_table;
 	struct device *cpu_dev;
 	struct thermal_cooling_device *cdev;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct monitor_dev_info *mdev_info;
+	struct monitor_dev_profile *mdevp;
+#endif
 	const char *reg_name;
 	bool have_static_opps;
 };
@@ -312,6 +318,23 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	em_register_perf_domain(policy->cpus, nr_opp, &em_cb);
 
 #ifdef CONFIG_ARCH_ROCKCHIP
+	priv->mdevp = kzalloc(sizeof(*priv->mdevp), GFP_KERNEL);
+	if (!priv->mdevp)
+		goto check_rate_volt;
+	priv->mdevp->type = MONITOR_TPYE_CPU;
+	priv->mdevp->low_temp_adjust = rockchip_monitor_cpu_low_temp_adjust;
+	priv->mdevp->high_temp_adjust = rockchip_monitor_cpu_high_temp_adjust;
+	cpumask_copy(&priv->mdevp->allowed_cpus, policy->cpus);
+	priv->mdev_info = rockchip_system_monitor_register(cpu_dev,
+							   priv->mdevp);
+	if (IS_ERR(priv->mdev_info)) {
+		kfree(priv->mdevp);
+		priv->mdevp = NULL;
+		dev_dbg(priv->cpu_dev,
+			"running cpufreq without system monitor\n");
+		priv->mdev_info = NULL;
+	}
+check_rate_volt:
 	rockchip_cpufreq_check_rate_volt(cpu_dev);
 #endif
 	return 0;
@@ -343,6 +366,8 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 		dev_pm_opp_put_regulators(priv->opp_table);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	rockchip_cpufreq_put_opp_info(priv->cpu_dev);
+	rockchip_system_monitor_unregister(priv->mdev_info);
+	kfree(priv->mdevp);
 #endif
 	clk_put(policy->clk);
 	kfree(priv);
