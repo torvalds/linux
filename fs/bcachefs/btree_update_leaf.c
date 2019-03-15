@@ -797,8 +797,13 @@ err:
 		}
 
 		bch2_btree_iter_unlock(trans->entries[0].iter);
-		ret = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(i->k))
-			?: -EINTR;
+		ret = -EINTR;
+
+		trans_for_each_iter(trans, i) {
+			int ret2 = bch2_mark_bkey_replicas(c, bkey_i_to_s_c(i->k));
+			if (ret2)
+				ret = ret2;
+		}
 		break;
 	default:
 		BUG_ON(ret >= 0);
