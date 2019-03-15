@@ -304,9 +304,9 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
 					mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
 				if (is_redirect) {
-					xdp_return_frame(xdpi.xdpf);
 					dma_unmap_single(sq->pdev, xdpi.dma_addr,
 							 xdpi.xdpf->len, DMA_TO_DEVICE);
+					xdp_return_frame(xdpi.xdpf);
 				} else {
 					/* Recycle RX page */
 					mlx5e_page_release(rq, &xdpi.di, true);
@@ -345,9 +345,9 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq)
 				mlx5e_xdpi_fifo_pop(xdpi_fifo);
 
 			if (is_redirect) {
-				xdp_return_frame(xdpi.xdpf);
 				dma_unmap_single(sq->pdev, xdpi.dma_addr,
 						 xdpi.xdpf->len, DMA_TO_DEVICE);
+				xdp_return_frame(xdpi.xdpf);
 			} else {
 				/* Recycle RX page */
 				mlx5e_page_release(rq, &xdpi.di, false);
