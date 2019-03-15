@@ -254,15 +254,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pdata);
 
-	if (pdata->irq >= 0) {
-		device_init_wakeup(&pdev->dev, 1);
-		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &mv_rtc_alarm_ops,
-						 THIS_MODULE);
-	} else {
-		pdata->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-						 &mv_rtc_ops, THIS_MODULE);
-	}
+	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(pdata->rtc)) {
 		ret = PTR_ERR(pdata->rtc);
 		goto out;
@@ -278,7 +270,16 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	return 0;
+	if (pdata->irq >= 0) {
+		device_init_wakeup(&pdev->dev, 1);
+		pdata->rtc->ops = &mv_rtc_alarm_ops;
+	} else {
+		pdata->rtc->ops = &mv_rtc_ops;
+	}
+
+	ret = rtc_register_device(pdata->rtc);
+	if (!ret)
+		return 0;
 out:
 	if (!IS_ERR(pdata->clk))
 		clk_disable_unprepare(pdata->clk);
