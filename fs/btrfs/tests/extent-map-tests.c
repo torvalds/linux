@@ -47,7 +47,7 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
  *                                    ->add_extent_mapping(0, 16K)
  *                                    -> #handle -EEXIST
  */
-static void test_case_1(struct btrfs_fs_info *fs_info,
+static int test_case_1(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
@@ -57,8 +57,7 @@ static void test_case_1(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em)
-		/* Skip the test on error. */
-		return;
+		return -ENOMEM;
 
 	/* Add [0, 16K) */
 	em->start = 0;
@@ -71,8 +70,10 @@ static void test_case_1(struct btrfs_fs_info *fs_info,
 
 	/* Add [16K, 20K) following [0, 16K)  */
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	em->start = SZ_16K;
 	em->len = SZ_4K;
@@ -83,8 +84,10 @@ static void test_case_1(struct btrfs_fs_info *fs_info,
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 8K), should return [0, 16K) instead. */
 	em->start = start;
@@ -102,9 +105,12 @@ static void test_case_1(struct btrfs_fs_info *fs_info,
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
 	free_extent_map(em);
+	ret = 0;
 out:
 	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -113,7 +119,7 @@ out:
  * Reading the inline ending up with EEXIST, ie. read an inline
  * extent and discard page cache and read it again.
  */
-static void test_case_2(struct btrfs_fs_info *fs_info,
+static int test_case_2(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
@@ -121,8 +127,7 @@ static void test_case_2(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em)
-		/* Skip the test on error. */
-		return;
+		return -ENOMEM;
 
 	/* Add [0, 1K) */
 	em->start = 0;
@@ -135,8 +140,10 @@ static void test_case_2(struct btrfs_fs_info *fs_info,
 
 	/* Add [4K, 4K) following [0, 1K)  */
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	em->start = SZ_4K;
 	em->len = SZ_4K;
@@ -147,8 +154,10 @@ static void test_case_2(struct btrfs_fs_info *fs_info,
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 1K) */
 	em->start = 0;
@@ -166,12 +175,15 @@ static void test_case_2(struct btrfs_fs_info *fs_info,
 			 ret, em->start, em->len, em->block_start,
 			 em->block_len);
 	free_extent_map(em);
+	ret = 0;
 out:
 	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
-static void __test_case_3(struct btrfs_fs_info *fs_info,
+static int __test_case_3(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree, u64 start)
 {
 	struct extent_map *em;
@@ -180,8 +192,7 @@ static void __test_case_3(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em)
-		/* Skip this test on error. */
-		return;
+		return -ENOMEM;
 
 	/* Add [4K, 8K) */
 	em->start = SZ_4K;
@@ -193,8 +204,10 @@ static void __test_case_3(struct btrfs_fs_info *fs_info,
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 16K) */
 	em->start = 0;
@@ -217,9 +230,12 @@ static void __test_case_3(struct btrfs_fs_info *fs_info,
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
 	free_extent_map(em);
+	ret = 0;
 out:
 	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -246,7 +262,7 @@ static void test_case_3(struct btrfs_fs_info *fs_info,
 	__test_case_3(fs_info, em_tree, (12 * 1024ULL));
 }
 
-static void __test_case_4(struct btrfs_fs_info *fs_info,
+static int __test_case_4(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree, u64 start)
 {
 	struct extent_map *em;
@@ -255,8 +271,7 @@ static void __test_case_4(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em)
-		/* Skip this test on error. */
-		return;
+		return -ENOMEM;
 
 	/* Add [0K, 8K) */
 	em->start = 0;
@@ -268,8 +283,10 @@ static void __test_case_4(struct btrfs_fs_info *fs_info,
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [8K, 24K) */
 	em->start = SZ_8K;
@@ -281,8 +298,10 @@ static void __test_case_4(struct btrfs_fs_info *fs_info,
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	/* Add [0K, 32K) */
 	em->start = 0;
 	em->len = SZ_32K;
@@ -299,9 +318,12 @@ static void __test_case_4(struct btrfs_fs_info *fs_info,
 			 start, len, ret, em->start, em->len, em->block_start,
 			 em->block_len);
 	free_extent_map(em);
+	ret = 0;
 out:
 	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -340,6 +362,7 @@ int btrfs_test_extent_map(void)
 {
 	struct btrfs_fs_info *fs_info = NULL;
 	struct extent_map_tree *em_tree;
+	int ret = 0;
 
 	test_msg("running extent_map tests");
 
@@ -354,9 +377,10 @@ int btrfs_test_extent_map(void)
 	}
 
 	em_tree = kzalloc(sizeof(*em_tree), GFP_KERNEL);
-	if (!em_tree)
-		/* Skip the test on error. */
+	if (!em_tree) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	extent_map_tree_init(em_tree);
 
@@ -369,5 +393,5 @@ int btrfs_test_extent_map(void)
 out:
 	btrfs_free_dummy_fs_info(fs_info);
 
-	return 0;
+	return ret;
 }
