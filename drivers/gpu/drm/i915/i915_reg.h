@@ -62,11 +62,11 @@
  * significant to least significant bit. Indent the register content macros
  * using two extra spaces between ``#define`` and the macro name.
  *
- * Define bit fields using ``REG_GENMASK(h, l)``. Define bit field contents so
- * that they are already shifted in place, and can be directly OR'd. For
- * convenience, function-like macros may be used to define bit fields, but do
- * note that the macros may be needed to read as well as write the register
- * contents.
+ * Define bit fields using ``REG_GENMASK(h, l)``. Define bit field contents
+ * using ``REG_FIELD_PREP(mask, value)``. This will define the values already
+ * shifted in place, so they can be directly OR'd together. For convenience,
+ * function-like macros may be used to define bit fields, but do note that the
+ * macros may be needed to read as well as write the register contents.
  *
  * Define bits using ``REG_BIT(N)``. Do **not** add ``_BIT`` suffix to the name.
  *
@@ -108,9 +108,9 @@
  *  #define FOO(pipe)                   _MMIO_PIPE(pipe, _FOO_A, _FOO_B)
  *  #define   FOO_ENABLE                REG_BIT(31)
  *  #define   FOO_MODE_MASK             REG_GENMASK(19, 16)
- *  #define   FOO_MODE_BAR              (0 << 16)
- *  #define   FOO_MODE_BAZ              (1 << 16)
- *  #define   FOO_MODE_QUX_SNB          (2 << 16)
+ *  #define   FOO_MODE_BAR              REG_FIELD_PREP(FOO_MODE_MASK, 0)
+ *  #define   FOO_MODE_BAZ              REG_FIELD_PREP(FOO_MODE_MASK, 1)
+ *  #define   FOO_MODE_QUX_SNB          REG_FIELD_PREP(FOO_MODE_MASK, 2)
  *
  *  #define BAR                         _MMIO(0xb000)
  *  #define GEN8_BAR                    _MMIO(0xb888)
@@ -144,17 +144,27 @@
 				 __builtin_constant_p(__low) &&		\
 				 ((__low) < 0 || (__high) > 31 || (__low) > (__high)))))
 
+/*
+ * Local integer constant expression version of is_power_of_2().
+ */
+#define IS_POWER_OF_2(__x)		((__x) && (((__x) & ((__x) - 1)) == 0))
+
 /**
  * REG_FIELD_PREP() - Prepare a u32 bitfield value
  * @__mask: shifted mask defining the field's length and position
  * @__val: value to put in the field
 
- * Local wrapper for FIELD_PREP() to force u32 and for consistency with
- * REG_FIELD_GET(), REG_BIT() and REG_GENMASK().
+ * Local copy of FIELD_PREP() to generate an integer constant expression, force
+ * u32 and for consistency with REG_FIELD_GET(), REG_BIT() and REG_GENMASK().
  *
  * @return: @__val masked and shifted into the field defined by @__mask.
  */
-#define REG_FIELD_PREP(__mask, __val)	((u32)FIELD_PREP(__mask, __val))
+#define REG_FIELD_PREP(__mask, __val)						\
+	((u32)((((typeof(__mask))(__val) << __bf_shf(__mask)) & (__mask)) +	\
+	       BUILD_BUG_ON_ZERO(!__builtin_constant_p(__mask)) +		\
+	       BUILD_BUG_ON_ZERO((__mask) == 0 || (__mask) > U32_MAX) +		\
+	       BUILD_BUG_ON_ZERO(!IS_POWER_OF_2((__mask) + (1ULL << __bf_shf(__mask)))) + \
+	       BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(__val), (~((__mask) >> __bf_shf(__mask)) & (__val)), 0))))
 
 /**
  * REG_FIELD_GET() - Extract a u32 bitfield value
@@ -4764,27 +4774,26 @@ enum {
  */
 #define   PP_READY			REG_BIT(30)
 #define   PP_SEQUENCE_MASK		REG_GENMASK(29, 28)
-#define   PP_SEQUENCE_NONE		(0 << 28)
-#define   PP_SEQUENCE_POWER_UP		(1 << 28)
-#define   PP_SEQUENCE_POWER_DOWN	(2 << 28)
+#define   PP_SEQUENCE_NONE		REG_FIELD_PREP(PP_SEQUENCE_MASK, 0)
+#define   PP_SEQUENCE_POWER_UP		REG_FIELD_PREP(PP_SEQUENCE_MASK, 1)
+#define   PP_SEQUENCE_POWER_DOWN	REG_FIELD_PREP(PP_SEQUENCE_MASK, 2)
 #define   PP_CYCLE_DELAY_ACTIVE		REG_BIT(27)
 #define   PP_SEQUENCE_STATE_MASK	REG_GENMASK(3, 0)
-#define   PP_SEQUENCE_STATE_OFF_IDLE	(0x0 << 0)
-#define   PP_SEQUENCE_STATE_OFF_S0_1	(0x1 << 0)
-#define   PP_SEQUENCE_STATE_OFF_S0_2	(0x2 << 0)
-#define   PP_SEQUENCE_STATE_OFF_S0_3	(0x3 << 0)
-#define   PP_SEQUENCE_STATE_ON_IDLE	(0x8 << 0)
-#define   PP_SEQUENCE_STATE_ON_S1_1	(0x9 << 0)
-#define   PP_SEQUENCE_STATE_ON_S1_2	(0xa << 0)
-#define   PP_SEQUENCE_STATE_ON_S1_3	(0xb << 0)
-#define   PP_SEQUENCE_STATE_RESET	(0xf << 0)
+#define   PP_SEQUENCE_STATE_OFF_IDLE	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x0)
+#define   PP_SEQUENCE_STATE_OFF_S0_1	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x1)
+#define   PP_SEQUENCE_STATE_OFF_S0_2	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x2)
+#define   PP_SEQUENCE_STATE_OFF_S0_3	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x3)
+#define   PP_SEQUENCE_STATE_ON_IDLE	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x8)
+#define   PP_SEQUENCE_STATE_ON_S1_1	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0x9)
+#define   PP_SEQUENCE_STATE_ON_S1_2	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0xa)
+#define   PP_SEQUENCE_STATE_ON_S1_3	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0xb)
+#define   PP_SEQUENCE_STATE_RESET	REG_FIELD_PREP(PP_SEQUENCE_STATE_MASK, 0xf)
 
 #define _PP_CONTROL			0x61204
 #define PP_CONTROL(pps_idx)		_MMIO_PPS(pps_idx, _PP_CONTROL)
 #define  PANEL_UNLOCK_MASK		REG_GENMASK(31, 16)
-#define  PANEL_UNLOCK_REGS		(0xabcd << 16)
+#define  PANEL_UNLOCK_REGS		REG_FIELD_PREP(PANEL_UNLOCK_MASK, 0xabcd)
 #define  BXT_POWER_CYCLE_DELAY_MASK	REG_GENMASK(8, 4)
-#define  BXT_POWER_CYCLE_DELAY_SHIFT	4
 #define  EDP_FORCE_VDD			REG_BIT(3)
 #define  EDP_BLC_ENABLE			REG_BIT(2)
 #define  PANEL_POWER_RESET		REG_BIT(1)
@@ -4793,11 +4802,11 @@ enum {
 #define _PP_ON_DELAYS			0x61208
 #define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
 #define  PANEL_PORT_SELECT_MASK		REG_GENMASK(31, 30)
-#define  PANEL_PORT_SELECT_LVDS		(0 << 30)
-#define  PANEL_PORT_SELECT_DPA		(1 << 30)
-#define  PANEL_PORT_SELECT_DPC		(2 << 30)
-#define  PANEL_PORT_SELECT_DPD		(3 << 30)
-#define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
+#define  PANEL_PORT_SELECT_LVDS		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 0)
+#define  PANEL_PORT_SELECT_DPA		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 1)
+#define  PANEL_PORT_SELECT_DPC		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 2)
+#define  PANEL_PORT_SELECT_DPD		REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, 3)
+#define  PANEL_PORT_SELECT_VLV(port)	REG_FIELD_PREP(PANEL_PORT_SELECT_MASK, port)
 #define  PANEL_POWER_UP_DELAY_MASK	REG_GENMASK(28, 16)
 #define  PANEL_LIGHT_ON_DELAY_MASK	REG_GENMASK(12, 0)
 
