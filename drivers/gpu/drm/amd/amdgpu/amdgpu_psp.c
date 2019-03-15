@@ -136,7 +136,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 
 	while (*((unsigned int *)psp->fence_buf) != index) {
 		if (--timeout == 0)
-			return -EINVAL;
+			break;
 		msleep(1);
 	}
 
@@ -147,12 +147,14 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	 * during psp initialization to avoid breaking hw_init and it doesn't
 	 * return -EINVAL.
 	 */
-	if (psp->cmd_buf_mem->resp.status) {
+	if (psp->cmd_buf_mem->resp.status || !timeout) {
 		if (ucode)
 			DRM_WARN("failed to load ucode id (%d) ",
 				  ucode->ucode_id);
 		DRM_WARN("psp command failed and response status is (%d)\n",
 			  psp->cmd_buf_mem->resp.status);
+		if (!timeout)
+			return -EINVAL;
 	}
 
 	/* get xGMI session id from response buffer */
@@ -677,25 +679,35 @@ static int psp_hw_start(struct psp_context *psp)
 
 	if (!amdgpu_sriov_vf(adev) || !adev->in_gpu_reset) {
 		ret = psp_bootloader_load_sysdrv(psp);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("PSP load sysdrv failed!\n");
 			return ret;
+		}
 
 		ret = psp_bootloader_load_sos(psp);
-		if (ret)
+		if (ret) {
+			DRM_ERROR("PSP load sos failed!\n");
 			return ret;
+		}
 	}
 
 	ret = psp_ring_create(psp, PSP_RING_TYPE__KM);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP create ring failed!\n");
 		return ret;
+	}
 
 	ret = psp_tmr_load(psp);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP load tmr failed!\n");
 		return ret;
+	}
 
 	ret = psp_asd_load(psp);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP load asd failed!\n");
 		return ret;
+	}
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
 		ret = psp_xgmi_initialize(psp);
@@ -890,16 +902,22 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	memset(psp->fence_buf, 0, PSP_FENCE_BUFFER_SIZE);
 
 	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP ring init failed!\n");
 		goto failed_mem;
+	}
 
 	ret = psp_tmr_init(psp);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP tmr init failed!\n");
 		goto failed_mem;
+	}
 
 	ret = psp_asd_init(psp);
-	if (ret)
+	if (ret) {
+		DRM_ERROR("PSP asd init failed!\n");
 		goto failed_mem;
+	}
 
 skip_memalloc:
 	ret = psp_hw_start(psp);
