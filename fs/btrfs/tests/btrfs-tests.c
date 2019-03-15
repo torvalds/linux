@@ -17,6 +17,16 @@
 
 static struct vfsmount *test_mnt = NULL;
 
+const char *test_error[] = {
+	[TEST_ALLOC_FS_INFO]	     = "cannot allocate fs_info",
+	[TEST_ALLOC_ROOT]	     = "cannot allocate root",
+	[TEST_ALLOC_EXTENT_BUFFER]   = "cannot extent buffer",
+	[TEST_ALLOC_PATH]	     = "cannot allocate path",
+	[TEST_ALLOC_INODE]	     = "cannot allocate inode",
+	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
+	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
+};
+
 static const struct super_operations btrfs_test_super_ops = {
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_test_destroy_inode,
