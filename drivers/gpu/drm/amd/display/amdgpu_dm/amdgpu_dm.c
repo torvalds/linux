@@ -809,6 +809,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_VEGA12:
 	case CHIP_VEGA20:
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		return 0;
 	case CHIP_RAVEN:
 		if (ASICREV_IS_PICASSO(adev->external_rev_id))
