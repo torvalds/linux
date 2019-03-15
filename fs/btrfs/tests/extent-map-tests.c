@@ -143,7 +143,10 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	if (ret < 0) {
+		test_err("cannot add extent range [0, 1K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	/* Add [4K, 4K) following [0, 1K)  */
@@ -158,7 +161,10 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	if (ret < 0) {
+		test_err("cannot add extent range [4K, 8K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
@@ -173,19 +179,21 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
-	if (ret)
+	if (ret) {
 		test_err("case2 [0 1K]: ret %d", ret);
+		goto out;
+	}
 	if (em &&
 	    (em->start != 0 || extent_map_end(em) != SZ_1K ||
-	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1))
+	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1)) {
 		test_err(
 "case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 ret, em->start, em->len, em->block_start,
 			 em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
-	ret = 0;
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
 
 	return ret;
