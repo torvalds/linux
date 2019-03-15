@@ -250,10 +250,11 @@ static int ad7192_of_clock_select(struct ad7192_state *st)
 	return clock_sel;
 }
 
-static int ad7192_setup(struct ad7192_state *st,
-			const struct ad7192_platform_data *pdata)
+static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(st->sd.spi);
+	bool rej60_en, sinc3_en, refin2_en, chop_en;
+	bool buf_en, bipolar, burnout_curr_en;
 	unsigned long long scale_uv;
 	int i, ret, id;
 
@@ -280,18 +281,22 @@ static int ad7192_setup(struct ad7192_state *st,
 
 	st->conf = AD7192_CONF_GAIN(0);
 
-	if (pdata->rej60_en)
+	rej60_en = of_property_read_bool(np, "adi,rejection-60-Hz-enable");
+	if (rej60_en)
 		st->mode |= AD7192_MODE_REJ60;
 
-	if (pdata->sinc3_en)
+	sinc3_en = of_property_read_bool(np, "adi,sinc3-filter-enable");
+	if (sinc3_en)
 		st->mode |= AD7192_MODE_SINC3;
 
-	if (pdata->refin2_en && st->devid != ID_AD7195)
+	refin2_en = of_property_read_bool(np, "adi,refin2-pins-enable");
+	if (refin2_en && st->devid != ID_AD7195)
 		st->conf |= AD7192_CONF_REFSEL;
 
-	if (pdata->chop_en) {
+	chop_en = of_property_read_bool(np, "adi,chop-enable");
+	if (chop_en) {
 		st->conf |= AD7192_CONF_CHOP;
-		if (pdata->sinc3_en)
+		if (sinc3_en)
 			st->f_order = 3; /* SINC 3rd order */
 		else
 			st->f_order = 4; /* SINC 4th order */
@@ -299,15 +304,19 @@ static int ad7192_setup(struct ad7192_state *st,
 		st->f_order = 1;
 	}
 
-	if (pdata->buf_en)
+	buf_en = of_property_read_bool(np, "adi,buffer-enable");
+	if (buf_en)
 		st->conf |= AD7192_CONF_BUF;
 
-	if (pdata->unipolar_en)
+	bipolar = of_property_read_bool(np, "bipolar");
+	if (!bipolar)
 		st->conf |= AD7192_CONF_UNIPOLAR;
 
-	if (pdata->burnout_curr_en && pdata->buf_en && !pdata->chop_en) {
+	burnout_curr_en = of_property_read_bool(np,
+						"adi,burnout-currents-enable");
+	if (burnout_curr_en && buf_en && !chop_en) {
 		st->conf |= AD7192_CONF_BURN;
-	} else if (pdata->burnout_curr_en) {
+	} else if (burnout_curr_en) {
 		dev_warn(&st->sd.spi->dev,
 			 "Can't enable burnout currents: see CHOP or buffer\n");
 	}
@@ -735,7 +744,7 @@ static int ad7192_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = ad7192_setup(st, pdata);
+	ret = ad7192_setup(st, spi->dev.of_node);
 	if (ret)
 		goto error_disable_clk;
 

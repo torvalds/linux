@@ -33,13 +33,6 @@
 
 struct ad7192_platform_data {
 	u16		vref_mv;
-	bool		refin2_en;
-	bool		rej60_en;
-	bool		sinc3_en;
-	bool		chop_en;
-	bool		buf_en;
-	bool		unipolar_en;
-	bool		burnout_curr_en;
 };
 
 #endif /* IIO_ADC_AD7192_H_ */
