@@ -216,8 +216,8 @@ static const struct ad_sd_calib_data ad7192_calib_arr[8] = {
 
 static int ad7192_calibrate_all(struct ad7192_state *st)
 {
-		return ad_sd_calibrate_all(&st->sd, ad7192_calib_arr,
-				ARRAY_SIZE(ad7192_calib_arr));
+	return ad_sd_calibrate_all(&st->sd, ad7192_calib_arr,
+				   ARRAY_SIZE(ad7192_calib_arr));
 }
 
 static inline bool ad7192_valid_external_frequency(u32 freq)
