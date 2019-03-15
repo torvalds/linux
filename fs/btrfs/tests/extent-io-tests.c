@@ -392,6 +392,10 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		? sectorsize * 4 : sectorsize;
 
 	fs_info = btrfs_alloc_dummy_fs_info(len, len);
+	if (!fs_info) {
+		test_err("could not allocate fs_info");
+		return -ENOMEM;
+	}
 
 	bitmap = kmalloc(len, GFP_KERNEL);
 	if (!bitmap) {
