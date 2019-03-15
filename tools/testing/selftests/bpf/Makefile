@@ -70,7 +70,7 @@ TEST_CUSTOM_PROGS = $(OUTPUT)/urandom_read
 all: $(TEST_CUSTOM_PROGS)
 
 $(OUTPUT)/urandom_read: $(OUTPUT)/%: %.c
-	$(CC) -o $@ -static $< -Wl,--build-id
+	$(CC) -o $@ $< -Wl,--build-id
 
 BPFOBJ := $(OUTPUT)/libbpf.a
 
