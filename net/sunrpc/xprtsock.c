@@ -453,7 +453,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 			goto out;
 		if (ret != want)
 			goto out;
-	} else
+	} else if (offset < seek_init)
 		offset = seek_init;
 	ret = -EMSGSIZE;
 out:
