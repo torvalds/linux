@@ -339,6 +339,11 @@ static int __init securityfs_init(void)
 #ifdef CONFIG_SECURITY
 	lsm_dentry = securityfs_create_file("lsm", 0444, NULL, NULL,
 						&lsm_ops);
+	if (IS_ERR(lsm_dentry)) {
+		unregister_filesystem(&fs_type);
+		sysfs_remove_mount_point(kernel_kobj, "security");
+		return PTR_ERR(lsm_dentry);
+	}
 #endif
 	return 0;
 }
