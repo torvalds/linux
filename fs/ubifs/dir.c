@@ -792,12 +792,6 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 		dentry, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
 
-	if (ubifs_crypt_is_encrypted(dir)) {
-		err = fscrypt_get_encryption_info(dir);
-		if (err && err != -ENOKEY)
-			return err;
-	}
-
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 1, &nm);
 	if (err)
 		return err;
@@ -901,12 +895,6 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	err = ubifs_check_dir_empty(d_inode(dentry));
 	if (err)
 		return err;
-
-	if (ubifs_crypt_is_encrypted(dir)) {
-		err = fscrypt_get_encryption_info(dir);
-		if (err && err != -ENOKEY)
-			return err;
-	}
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 1, &nm);
 	if (err)
