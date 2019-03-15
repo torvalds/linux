@@ -238,7 +238,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
-		test_err("couldn't allocate dummy fs info");
+		test_std_err(TEST_ALLOC_FS_INFO);
 		goto out;
 	}
 
@@ -839,7 +839,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
-		test_err("couldn't allocate dummy fs info");
+		test_std_err(TEST_ALLOC_FS_INFO);
 		goto out;
 	}
 
@@ -935,7 +935,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
-		test_err("couldn't allocate dummy fs info");
+		test_std_err(TEST_ALLOC_FS_INFO);
 		goto out;
 	}
 

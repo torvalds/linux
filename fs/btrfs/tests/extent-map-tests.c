@@ -349,7 +349,7 @@ int btrfs_test_extent_map(void)
 	 */
 	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);
 	if (!fs_info) {
-		test_msg("Couldn't allocate dummy fs info");
+		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
 	}
 

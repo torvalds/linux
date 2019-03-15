@@ -834,9 +834,10 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 
 	test_msg("running btrfs free space cache tests");
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
-	if (!fs_info)
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
-
+	}
 
 	/*
 	 * For ppc64 (with 64k page size), bytes per bitmap might be
