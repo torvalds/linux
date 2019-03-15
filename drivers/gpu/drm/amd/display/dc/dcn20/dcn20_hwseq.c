@@ -1323,9 +1323,10 @@ static void dcn20_apply_ctx_for_surface(
 			}
 		}
 
-		if (!pipe_ctx->plane_state &&
-			old_pipe_ctx->plane_state &&
-			old_pipe_ctx->stream_res.tg == tg) {
+		if ((!pipe_ctx->plane_state ||
+		     pipe_ctx->stream_res.tg != old_pipe_ctx->stream_res.tg) &&
+		     old_pipe_ctx->plane_state &&
+		     old_pipe_ctx->stream_res.tg == tg) {
 
 			dc->hwss.plane_atomic_disconnect(dc, old_pipe_ctx);
 			removed_pipe[i] = true;
