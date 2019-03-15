@@ -622,6 +622,9 @@ skl_disable_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
+	if (icl_is_hdr_plane(dev_priv, plane_id))
+		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), 0);
+
 	skl_write_plane_wm(plane, crtc_state);
 
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
