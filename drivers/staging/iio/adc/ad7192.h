@@ -33,8 +33,6 @@
 
 struct ad7192_platform_data {
 	u16		vref_mv;
-	u8		clock_source_sel;
-	u32		ext_clk_hz;
 	bool		refin2_en;
 	bool		rej60_en;
 	bool		sinc3_en;
