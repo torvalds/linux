@@ -619,7 +619,7 @@ static inline int kvmppc_xive_set_irq(struct kvm *kvm, int irq_source_id, u32 ir
 static inline void kvmppc_xive_push_vcpu(struct kvm_vcpu *vcpu) { }
 #endif /* CONFIG_KVM_XIVE */
 
-#ifdef CONFIG_PPC_POWERNV
+#if defined(CONFIG_PPC_POWERNV) && defined(CONFIG_KVM_BOOK3S_64_HANDLER)
 static inline bool xics_on_xive(void)
 {
 	return xive_enabled() && cpu_has_feature(CPU_FTR_HVMODE);
