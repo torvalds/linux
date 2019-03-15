@@ -486,7 +486,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
 		goto out;
 	}

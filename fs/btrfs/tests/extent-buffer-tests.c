@@ -43,7 +43,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("could not allocate path");
+		test_std_err(TEST_ALLOC_PATH);
 		ret = -ENOMEM;
 		goto out;
 	}

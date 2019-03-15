@@ -32,7 +32,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
@@ -82,7 +82,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
@@ -132,7 +132,7 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 	path->leave_spinning = 1;
@@ -166,7 +166,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		test_err("couldn't allocate path");
+		test_std_err(TEST_ALLOC_ROOT);
 		return -ENOMEM;
 	}
 
