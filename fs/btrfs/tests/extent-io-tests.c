@@ -417,7 +417,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(NULL, nodesize / 2, len);
+	eb = __alloc_dummy_extent_buffer(fs_info, nodesize / 2, len);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
