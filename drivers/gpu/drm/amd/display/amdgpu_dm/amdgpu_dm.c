@@ -4121,45 +4121,70 @@ static const u32 cursor_formats[] = {
 	DRM_FORMAT_ARGB8888
 };
 
+static int get_plane_formats(const struct drm_plane *plane,
+			     const struct dc_plane_cap *plane_cap,
+			     uint32_t *formats, int max_formats)
+{
+	int i, num_formats = 0;
+
+	/*
+	 * TODO: Query support for each group of formats directly from
+	 * DC plane caps. This will require adding more formats to the
+	 * caps list.
+	 */
+
+	switch (plane->type) {
+	case DRM_PLANE_TYPE_PRIMARY:
+		for (i = 0; i < ARRAY_SIZE(rgb_formats); ++i) {
+			if (num_formats >= max_formats)
+				break;
+
+			formats[num_formats++] = rgb_formats[i];
+		}
+
+		if (plane_cap && plane_cap->supports_nv12)
+			formats[num_formats++] = DRM_FORMAT_NV12;
+		break;
+
+	case DRM_PLANE_TYPE_OVERLAY:
+		for (i = 0; i < ARRAY_SIZE(overlay_formats); ++i) {
+			if (num_formats >= max_formats)
+				break;
+
+			formats[num_formats++] = overlay_formats[i];
+		}
+		break;
+
+	case DRM_PLANE_TYPE_CURSOR:
+		for (i = 0; i < ARRAY_SIZE(cursor_formats); ++i) {
+			if (num_formats >= max_formats)
+				break;
+
+			formats[num_formats++] = cursor_formats[i];
+		}
+		break;
+	}
+
+	return num_formats;
+}
+
 static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 				struct drm_plane *plane,
 				unsigned long possible_crtcs,
 				const struct dc_plane_cap *plane_cap)
 {
+	uint32_t formats[32];
+	int num_formats;
 	int res = -EPERM;
 
-	switch (plane->type) {
-	case DRM_PLANE_TYPE_PRIMARY:
-		res = drm_universal_plane_init(
-				dm->adev->ddev,
-				plane,
-				possible_crtcs,
-				&dm_plane_funcs,
-				rgb_formats,
-				ARRAY_SIZE(rgb_formats),
-				NULL, plane->type, NULL);
-		break;
-	case DRM_PLANE_TYPE_OVERLAY:
-		res = drm_universal_plane_init(
-				dm->adev->ddev,
-				plane,
-				possible_crtcs,
-				&dm_plane_funcs,
-				overlay_formats,
-				ARRAY_SIZE(overlay_formats),
-				NULL, plane->type, NULL);
-		break;
-	case DRM_PLANE_TYPE_CURSOR:
-		res = drm_universal_plane_init(
-				dm->adev->ddev,
-				plane,
-				possible_crtcs,
-				&dm_plane_funcs,
-				cursor_formats,
-				ARRAY_SIZE(cursor_formats),
-				NULL, plane->type, NULL);
-		break;
-	}
+	num_formats = get_plane_formats(plane, plane_cap, formats,
+					ARRAY_SIZE(formats));
+
+	res = drm_universal_plane_init(dm->adev->ddev, plane, possible_crtcs,
+				       &dm_plane_funcs, formats, num_formats,
+				       NULL, plane->type, NULL);
+	if (res)
+		return res;
 
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY &&
 	    plane_cap && plane_cap->per_pixel_alpha) {
@@ -4176,8 +4201,7 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	if (plane->funcs->reset)
 		plane->funcs->reset(plane);
 
-
-	return res;
+	return 0;
 }
 
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
