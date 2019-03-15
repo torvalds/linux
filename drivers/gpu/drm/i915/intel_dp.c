@@ -6438,29 +6438,19 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 	pp_off = I915_READ(regs.pp_off);
 
 	/* Pull timing values out of registers */
-	seq->t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
-		     PANEL_POWER_UP_DELAY_SHIFT;
-
-	seq->t8 = (pp_on & PANEL_LIGHT_ON_DELAY_MASK) >>
-		  PANEL_LIGHT_ON_DELAY_SHIFT;
-
-	seq->t9 = (pp_off & PANEL_LIGHT_OFF_DELAY_MASK) >>
-		  PANEL_LIGHT_OFF_DELAY_SHIFT;
-
-	seq->t10 = (pp_off & PANEL_POWER_DOWN_DELAY_MASK) >>
-		   PANEL_POWER_DOWN_DELAY_SHIFT;
+	seq->t1_t3 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, pp_on);
+	seq->t8 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, pp_on);
+	seq->t9 = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, pp_off);
+	seq->t10 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, pp_off);
 
 	if (i915_mmio_reg_valid(regs.pp_div)) {
 		u32 pp_div;
 
 		pp_div = I915_READ(regs.pp_div);
 
-		seq->t11_t12 = ((pp_div & PANEL_POWER_CYCLE_DELAY_MASK) >>
-				PANEL_POWER_CYCLE_DELAY_SHIFT) * 1000;
-
+		seq->t11_t12 = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, pp_div) * 1000;
 	} else {
-		seq->t11_t12 = ((pp_ctl & BXT_POWER_CYCLE_DELAY_MASK) >>
-				BXT_POWER_CYCLE_DELAY_SHIFT) * 1000;
+		seq->t11_t12 = REG_FIELD_GET(BXT_POWER_CYCLE_DELAY_MASK, pp_ctl) * 1000;
 	}
 }
 
@@ -6620,10 +6610,10 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 		I915_WRITE(regs.pp_ctrl, pp);
 	}
 
-	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
-		(seq->t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
-	pp_off = (seq->t9 << PANEL_LIGHT_OFF_DELAY_SHIFT) |
-		 (seq->t10 << PANEL_POWER_DOWN_DELAY_SHIFT);
+	pp_on = REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, seq->t1_t3) |
+		REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, seq->t8);
+	pp_off = REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, seq->t9) |
+		REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, seq->t10);
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
@@ -6655,19 +6645,15 @@ intel_dp_init_panel_power_sequencer_registers(struct intel_dp *intel_dp,
 	 * Compute the divisor for the pp clock, simply match the Bspec formula.
 	 */
 	if (i915_mmio_reg_valid(regs.pp_div)) {
-		u32 pp_div;
-
-		pp_div = ((100 * div) / 2 - 1) << PP_REFERENCE_DIVIDER_SHIFT;
-		pp_div |= (DIV_ROUND_UP(seq->t11_t12, 1000) <<
-			   PANEL_POWER_CYCLE_DELAY_SHIFT);
-		I915_WRITE(regs.pp_div, pp_div);
+		I915_WRITE(regs.pp_div,
+			   REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, (100 * div) / 2 - 1) |
+			   REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000)));
 	} else {
 		u32 pp_ctl;
 
 		pp_ctl = I915_READ(regs.pp_ctrl);
 		pp_ctl &= ~BXT_POWER_CYCLE_DELAY_MASK;
-		pp_ctl |= (DIV_ROUND_UP(seq->t11_t12, 1000) <<
-			   BXT_POWER_CYCLE_DELAY_SHIFT);
+		pp_ctl |= REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000));
 		I915_WRITE(regs.pp_ctrl, pp_ctl);
 	}
 

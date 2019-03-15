@@ -25,6 +25,7 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 
 /**
@@ -61,11 +62,11 @@
  * significant to least significant bit. Indent the register content macros
  * using two extra spaces between ``#define`` and the macro name.
  *
- * For bit fields, define a ``_MASK`` and a ``_SHIFT`` macro. Use
- * ``REG_GENMASK()`` to define _MASK. Define bit field contents so that they are
- * already shifted in place, and can be directly OR'd. For convenience,
- * function-like macros may be used to define bit fields, but do note that the
- * macros may be needed to read as well as write the register contents.
+ * Define bit fields using ``REG_GENMASK(h, l)``. Define bit field contents so
+ * that they are already shifted in place, and can be directly OR'd. For
+ * convenience, function-like macros may be used to define bit fields, but do
+ * note that the macros may be needed to read as well as write the register
+ * contents.
  *
  * Define bits using ``REG_BIT(N)``. Do **not** add ``_BIT`` suffix to the name.
  *
@@ -107,7 +108,6 @@
  *  #define FOO(pipe)                   _MMIO_PIPE(pipe, _FOO_A, _FOO_B)
  *  #define   FOO_ENABLE                REG_BIT(31)
  *  #define   FOO_MODE_MASK             REG_GENMASK(19, 16)
- *  #define   FOO_MODE_SHIFT            16
  *  #define   FOO_MODE_BAR              (0 << 16)
  *  #define   FOO_MODE_BAZ              (1 << 16)
  *  #define   FOO_MODE_QUX_SNB          (2 << 16)
@@ -143,6 +143,30 @@
 	       BUILD_BUG_ON_ZERO(__builtin_constant_p(__high) &&	\
 				 __builtin_constant_p(__low) &&		\
 				 ((__low) < 0 || (__high) > 31 || (__low) > (__high)))))
+
+/**
+ * REG_FIELD_PREP() - Prepare a u32 bitfield value
+ * @__mask: shifted mask defining the field's length and position
+ * @__val: value to put in the field
+
+ * Local wrapper for FIELD_PREP() to force u32 and for consistency with
+ * REG_FIELD_GET(), REG_BIT() and REG_GENMASK().
+ *
+ * @return: @__val masked and shifted into the field defined by @__mask.
+ */
+#define REG_FIELD_PREP(__mask, __val)	((u32)FIELD_PREP(__mask, __val))
+
+/**
+ * REG_FIELD_GET() - Extract a u32 bitfield value
+ * @__mask: shifted mask defining the field's length and position
+ * @__val: value to extract the bitfield value from
+ *
+ * Local wrapper for FIELD_GET() to force u32 and for consistency with
+ * REG_FIELD_PREP(), REG_BIT() and REG_GENMASK().
+ *
+ * @return: Masked and shifted value of the field defined by @__mask in @__val.
+ */
+#define REG_FIELD_GET(__mask, __val)	((u32)FIELD_GET(__mask, __val))
 
 typedef struct {
 	u32 reg;
@@ -4727,7 +4751,6 @@ enum {
 #define ICP_PP_CONTROL(x)		_MMIO(((x) == 1) ? _PP_CONTROL_1 : \
 					      _PP_CONTROL_2)
 #define  POWER_CYCLE_DELAY_MASK		REG_GENMASK(8, 4)
-#define  POWER_CYCLE_DELAY_SHIFT	4
 #define  VDD_OVERRIDE_FORCE		REG_BIT(3)
 #define  BACKLIGHT_ENABLE		REG_BIT(2)
 #define  PWR_DOWN_ON_RESET		REG_BIT(1)
@@ -4744,7 +4767,6 @@ enum {
 #define   PP_SEQUENCE_NONE		(0 << 28)
 #define   PP_SEQUENCE_POWER_UP		(1 << 28)
 #define   PP_SEQUENCE_POWER_DOWN	(2 << 28)
-#define   PP_SEQUENCE_SHIFT		28
 #define   PP_CYCLE_DELAY_ACTIVE		REG_BIT(27)
 #define   PP_SEQUENCE_STATE_MASK	REG_GENMASK(3, 0)
 #define   PP_SEQUENCE_STATE_OFF_IDLE	(0x0 << 0)
@@ -4770,7 +4792,6 @@ enum {
 
 #define _PP_ON_DELAYS			0x61208
 #define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
-#define  PANEL_PORT_SELECT_SHIFT	30
 #define  PANEL_PORT_SELECT_MASK		REG_GENMASK(31, 30)
 #define  PANEL_PORT_SELECT_LVDS		(0 << 30)
 #define  PANEL_PORT_SELECT_DPA		(1 << 30)
@@ -4778,23 +4799,17 @@ enum {
 #define  PANEL_PORT_SELECT_DPD		(3 << 30)
 #define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
 #define  PANEL_POWER_UP_DELAY_MASK	REG_GENMASK(28, 16)
-#define  PANEL_POWER_UP_DELAY_SHIFT	16
 #define  PANEL_LIGHT_ON_DELAY_MASK	REG_GENMASK(12, 0)
-#define  PANEL_LIGHT_ON_DELAY_SHIFT	0
 
 #define _PP_OFF_DELAYS			0x6120C
 #define PP_OFF_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_OFF_DELAYS)
 #define  PANEL_POWER_DOWN_DELAY_MASK	REG_GENMASK(28, 16)
-#define  PANEL_POWER_DOWN_DELAY_SHIFT	16
 #define  PANEL_LIGHT_OFF_DELAY_MASK	REG_GENMASK(12, 0)
-#define  PANEL_LIGHT_OFF_DELAY_SHIFT	0
 
 #define _PP_DIVISOR			0x61210
 #define PP_DIVISOR(pps_idx)		_MMIO_PPS(pps_idx, _PP_DIVISOR)
 #define  PP_REFERENCE_DIVIDER_MASK	REG_GENMASK(31, 8)
-#define  PP_REFERENCE_DIVIDER_SHIFT	8
 #define  PANEL_POWER_CYCLE_DELAY_MASK	REG_GENMASK(4, 0)
-#define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
 
 /* Panel fitting */
 #define PFIT_CONTROL	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61230)
