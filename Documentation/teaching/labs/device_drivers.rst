@@ -637,7 +637,7 @@ The following example shows an implementation for a ``ioctl`` function:
             (struct my_device_data*) file->private_data;
         my_ioctl_data mid;
 
-        sitch(cmd) {
+        switch(cmd) {
         case MY_IOCTL_IN:
            if( copy_from_user(&mid, (my_ioctl_data *) arg,
                               sizeof(my_ioctl_data)) )
