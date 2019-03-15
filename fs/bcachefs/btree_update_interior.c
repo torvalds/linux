@@ -1076,8 +1076,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 
 	mutex_lock(&c->btree_interior_update_lock);
 	percpu_down_read(&c->mark_lock);
-	preempt_disable();
-	fs_usage = bch2_fs_usage_get_scratch(c);
+	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
 		      true, 0,
@@ -1090,7 +1089,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 					   fs_usage);
 	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
 
-	preempt_enable();
+	bch2_fs_usage_scratch_put(c, fs_usage);
 	percpu_up_read(&c->mark_lock);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
@@ -1171,8 +1170,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 
 	mutex_lock(&c->btree_interior_update_lock);
 	percpu_down_read(&c->mark_lock);
-	preempt_disable();
-	fs_usage = bch2_fs_usage_get_scratch(c);
+	fs_usage = bch2_fs_usage_scratch_get(c);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
 			     true, 0,
@@ -1193,7 +1191,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 
 	bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
 
-	preempt_enable();
+	bch2_fs_usage_scratch_put(c, fs_usage);
 	percpu_up_read(&c->mark_lock);
 	mutex_unlock(&c->btree_interior_update_lock);
 
@@ -1987,7 +1985,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 
 		mutex_lock(&c->btree_interior_update_lock);
 		percpu_down_read(&c->mark_lock);
-		fs_usage = bch2_fs_usage_get_scratch(c);
+		fs_usage = bch2_fs_usage_scratch_get(c);
 
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
 			      true, 0,
@@ -1998,6 +1996,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 					   fs_usage);
 		bch2_fs_usage_apply(c, fs_usage, &as->reserve->disk_res);
 
+		bch2_fs_usage_scratch_put(c, fs_usage);
 		percpu_up_read(&c->mark_lock);
 		mutex_unlock(&c->btree_interior_update_lock);
 

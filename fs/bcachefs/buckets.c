@@ -144,6 +144,37 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 	percpu_up_write(&c->mark_lock);
 }
 
+void bch2_fs_usage_scratch_put(struct bch_fs *c, struct bch_fs_usage *fs_usage)
+{
+	if (fs_usage == c->usage_scratch)
+		mutex_unlock(&c->usage_scratch_lock);
+	else
+		kfree(fs_usage);
+}
+
+struct bch_fs_usage *bch2_fs_usage_scratch_get(struct bch_fs *c)
+{
+	struct bch_fs_usage *ret;
+	unsigned bytes = fs_usage_u64s(c) * sizeof(u64);
+
+	ret = kzalloc(bytes, GFP_NOWAIT);
+	if (ret)
+		return ret;
+
+	if (mutex_trylock(&c->usage_scratch_lock))
+		goto out_pool;
+
+	ret = kzalloc(bytes, GFP_NOFS);
+	if (ret)
+		return ret;
+
+	mutex_lock(&c->usage_scratch_lock);
+out_pool:
+	ret = c->usage_scratch;
+	memset(ret, 0, bytes);
+	return ret;
+}
+
 struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct bch_dev_usage ret;
@@ -906,31 +937,39 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 			   unsigned journal_seq, unsigned flags,
 			   bool gc)
 {
+	int ret = 0;
+
+	preempt_disable();
+
 	if (!fs_usage || gc)
 		fs_usage = this_cpu_ptr(c->usage[gc]);
 
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
-		return bch2_mark_alloc(c, k, inserting,
+		ret = bch2_mark_alloc(c, k, inserting,
 				fs_usage, journal_seq, flags, gc);
+		break;
 	case KEY_TYPE_btree_ptr:
-		return bch2_mark_extent(c, k, inserting
+		ret = bch2_mark_extent(c, k, inserting
 				?  c->opts.btree_node_size
 				: -c->opts.btree_node_size,
 				BCH_DATA_BTREE,
 				fs_usage, journal_seq, flags, gc);
+		break;
 	case KEY_TYPE_extent:
-		return bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
 				fs_usage, journal_seq, flags, gc);
+		break;
 	case KEY_TYPE_stripe:
-		return bch2_mark_stripe(c, k, inserting,
+		ret = bch2_mark_stripe(c, k, inserting,
 				fs_usage, journal_seq, flags, gc);
+		break;
 	case KEY_TYPE_inode:
 		if (inserting)
 			fs_usage->nr_inodes++;
 		else
 			fs_usage->nr_inodes--;
-		return 0;
+		break;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 
@@ -940,11 +979,13 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 
 		fs_usage->reserved				+= sectors;
 		fs_usage->persistent_reserved[replicas - 1]	+= sectors;
-		return 0;
+		break;
 	}
-	default:
-		return 0;
 	}
+
+	preempt_enable();
+
+	return ret;
 }
 
 int bch2_mark_key_locked(struct bch_fs *c,
@@ -976,24 +1017,18 @@ int bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 }
 
 void bch2_mark_update(struct btree_trans *trans,
-		      struct btree_insert_entry *insert)
+		      struct btree_insert_entry *insert,
+		      struct bch_fs_usage *fs_usage)
 {
 	struct bch_fs		*c = trans->c;
 	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
-	struct bch_fs_usage	*fs_usage;
 	struct gc_pos		pos = gc_pos_btree_node(b);
 	struct bkey_packed	*_k;
-	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
-	static int warned_disk_usage = 0;
 
 	if (!btree_node_type_needs_gc(iter->btree_id))
 		return;
-
-	percpu_down_read(&c->mark_lock);
-	preempt_disable();
-	fs_usage = bch2_fs_usage_get_scratch(c);
 
 	if (!(trans->flags & BTREE_INSERT_NOMARK))
 		bch2_mark_key_locked(c, bkey_i_to_s_c(insert->k), true,
@@ -1047,16 +1082,32 @@ void bch2_mark_update(struct btree_trans *trans,
 
 		bch2_btree_node_iter_advance(&node_iter, b);
 	}
+}
 
-	if (bch2_fs_usage_apply(c, fs_usage, trans->disk_res) &&
-	    !warned_disk_usage &&
-	    !xchg(&warned_disk_usage, 1)) {
-		char buf[200];
+void bch2_trans_fs_usage_apply(struct btree_trans *trans,
+			       struct bch_fs_usage *fs_usage)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_insert_entry *i;
+	static int warned_disk_usage = 0;
+	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
+	char buf[200];
 
-		pr_err("disk usage increased more than %llu sectors reserved", disk_res_sectors);
+	if (!bch2_fs_usage_apply(c, fs_usage, trans->disk_res) ||
+	    warned_disk_usage ||
+	    xchg(&warned_disk_usage, 1))
+		return;
+
+	pr_err("disk usage increased more than %llu sectors reserved", disk_res_sectors);
+
+	trans_for_each_update_iter(trans, i) {
+		struct btree_iter	*iter = i->iter;
+		struct btree		*b = iter->l[0].b;
+		struct btree_node_iter	node_iter = iter->l[0].iter;
+		struct bkey_packed	*_k;
 
 		pr_err("while inserting");
-		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(insert->k));
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(i->k));
 		pr_err("%s", buf);
 		pr_err("overlapping with");
 
@@ -1069,8 +1120,8 @@ void bch2_mark_update(struct btree_trans *trans,
 			k = bkey_disassemble(b, _k, &unpacked);
 
 			if (btree_node_is_extents(b)
-			    ? bkey_cmp(insert->k->k.p, bkey_start_pos(k.k)) <= 0
-			    : bkey_cmp(insert->k->k.p, k.k->p))
+			    ? bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) <= 0
+			    : bkey_cmp(i->k->k.p, k.k->p))
 				break;
 
 			bch2_bkey_val_to_text(&PBUF(buf), c, k);
@@ -1079,9 +1130,6 @@ void bch2_mark_update(struct btree_trans *trans,
 			bch2_btree_node_iter_advance(&node_iter, b);
 		}
 	}
-
-	preempt_enable();
-	percpu_up_read(&c->mark_lock);
 }
 
 /* Disk reservations: */

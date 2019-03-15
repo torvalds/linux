@@ -404,7 +404,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
-	free_percpu(c->usage_scratch);
+	kfree(c->usage_scratch);
 	free_percpu(c->usage[0]);
 	free_percpu(c->pcpu);
 	mempool_exit(&c->btree_iters_pool);
@@ -571,6 +571,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	INIT_LIST_HEAD(&c->btree_interior_update_list);
 	mutex_init(&c->btree_reserve_cache_lock);
 	mutex_init(&c->btree_interior_update_lock);
+
+	mutex_init(&c->usage_scratch_lock);
 
 	mutex_init(&c->bio_bounce_pages_lock);
 

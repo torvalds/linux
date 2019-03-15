@@ -219,13 +219,8 @@ static inline unsigned fs_usage_u64s(struct bch_fs *c)
 		READ_ONCE(c->replicas.nr);
 }
 
-static inline struct bch_fs_usage *bch2_fs_usage_get_scratch(struct bch_fs *c)
-{
-	struct bch_fs_usage *ret = this_cpu_ptr(c->usage_scratch);
-
-	memset(ret, 0, fs_usage_u64s(c) * sizeof(u64));
-	return ret;
-}
+void bch2_fs_usage_scratch_put(struct bch_fs *, struct bch_fs_usage *);
+struct bch_fs_usage *bch2_fs_usage_scratch_get(struct bch_fs *);
 
 struct bch_fs_usage *bch2_fs_usage_read(struct bch_fs *);
 
@@ -256,9 +251,12 @@ int bch2_mark_key_locked(struct bch_fs *, struct bkey_s_c,
 int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
 		  struct bch_fs_usage *, u64, unsigned);
-void bch2_mark_update(struct btree_trans *, struct btree_insert_entry *);
 int bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
 			struct disk_reservation *);
+
+void bch2_mark_update(struct btree_trans *, struct btree_insert_entry *,
+		      struct bch_fs_usage *);
+void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage *);
 
 /* disk reservations: */
 

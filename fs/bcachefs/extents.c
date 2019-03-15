@@ -1190,11 +1190,12 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 
 		if (s.deleting)
 			tmp.k.k.type = KEY_TYPE_discard;
-
+#if 0
+		/* disabled due to lock recursion - mark_lock: */
 		if (debug_check_bkeys(c))
 			bch2_bkey_debugcheck(c, iter->l[0].b,
 					     bkey_i_to_s_c(&tmp.k));
-
+#endif
 		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
 
 		extent_bset_insert(c, iter, &tmp.k);
