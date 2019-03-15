@@ -330,7 +330,7 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 	} else {
 		/*
 		 * if not enabled, power down it first and
-		 * then powerup and runthe core.
+		 * then powerup and run the core.
 		 */
 		ret = hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));
 		if (ret < 0) {
