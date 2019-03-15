@@ -2497,6 +2497,7 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 		error = -EOPNOTSUPP;
 		goto out_err;
 	case rpc_garbage_args:
+	case rpc_system_err:
 		trace_rpc__garbage_args(task);
 		error = -EIO;
 		break;
