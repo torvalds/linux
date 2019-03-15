@@ -847,7 +847,7 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 	cache = btrfs_alloc_dummy_block_group(fs_info,
 				      BITS_PER_BITMAP * sectorsize + PAGE_SIZE);
 	if (!cache) {
-		test_err("couldn't run the tests");
+		test_std_err(TEST_ALLOC_BLOCK_GROUP);
 		btrfs_free_dummy_fs_info(fs_info);
 		return 0;
 	}

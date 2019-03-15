@@ -473,7 +473,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	cache = btrfs_alloc_dummy_block_group(fs_info, 8 * alignment);
 	if (!cache) {
-		test_err("couldn't allocate dummy block group cache");
+		test_std_err(TEST_ALLOC_BLOCK_GROUP);
 		ret = -ENOMEM;
 		goto out;
 	}
