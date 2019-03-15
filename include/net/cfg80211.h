@@ -5543,6 +5543,20 @@ bool cfg80211_is_element_inherited(const struct element *element,
 				   const struct element *non_inherit_element);
 
 /**
+ * cfg80211_merge_profile - merges a MBSSID profile if it is split between IEs
+ * @ie: ies
+ * @ielen: length of IEs
+ * @mbssid_elem: current MBSSID element
+ * @sub_elem: current MBSSID subelement (profile)
+ * @merged_ie: location of the merged profile
+ * @max_copy_len: max merged profile length
+ */
+size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
+			      const struct element *mbssid_elem,
+			      const struct element *sub_elem,
+			      u8 **merged_ie, size_t max_copy_len);
+
+/**
  * enum cfg80211_bss_frame_type - frame type that the BSS data came from
  * @CFG80211_BSS_FTYPE_UNKNOWN: driver doesn't know whether the data is
  *	from a beacon or probe response
