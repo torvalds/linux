@@ -25,7 +25,6 @@
  * or by adding the 'nxp,hw-blink' property to the DTS.
  */
 
-#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/string.h>
@@ -96,15 +95,6 @@ static const struct i2c_device_id pca963x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca963x_id);
-
-static const struct acpi_device_id pca963x_acpi_ids[] = {
-	{ "PCA9632", pca9633 },
-	{ "PCA9633", pca9633 },
-	{ "PCA9634", pca9634 },
-	{ "PCA9635", pca9635 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, pca963x_acpi_ids);
 
 struct pca963x_led;
 
@@ -376,16 +366,7 @@ static int pca963x_probe(struct i2c_client *client,
 	struct pca963x_chipdef *chip;
 	int i, err;
 
-	if (id) {
-		chip = &pca963x_chipdefs[id->driver_data];
-	} else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(pca963x_acpi_ids, &client->dev);
-		if (!acpi_id)
-			return -ENODEV;
-		chip = &pca963x_chipdefs[acpi_id->driver_data];
-	}
+	chip = &pca963x_chipdefs[id->driver_data];
 	pdata = dev_get_platdata(&client->dev);
 
 	if (!pdata) {
@@ -496,7 +477,6 @@ static struct i2c_driver pca963x_driver = {
 	.driver = {
 		.name	= "leds-pca963x",
 		.of_match_table = of_match_ptr(of_pca963x_match),
-		.acpi_match_table = ACPI_PTR(pca963x_acpi_ids),
 	},
 	.probe	= pca963x_probe,
 	.remove	= pca963x_remove,
