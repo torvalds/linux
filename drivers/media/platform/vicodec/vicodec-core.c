@@ -1032,16 +1032,10 @@ static int vidioc_s_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 	default:
 		return -EINVAL;
 	}
-	if (q_data->visible_width > q_data->coded_width)
-		q_data->visible_width = q_data->coded_width;
-	if (q_data->visible_height > q_data->coded_height)
-		q_data->visible_height = q_data->coded_height;
-
 
 	dprintk(ctx->dev,
-		"Setting format for type %d, coded wxh: %dx%d, visible wxh: %dx%d, fourcc: %08x\n",
+		"Setting format for type %d, coded wxh: %dx%d, fourcc: 0x%08x\n",
 		f->type, q_data->coded_width, q_data->coded_height,
-		q_data->visible_width, q_data->visible_height,
 		q_data->info->id);
 
 	return 0;
@@ -1063,18 +1057,58 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct vicodec_ctx *ctx = file2ctx(file);
-	struct v4l2_pix_format_mplane *pix_mp;
+	struct vicodec_q_data *q_data;
+	struct vicodec_q_data *q_data_cap;
 	struct v4l2_pix_format *pix;
+	struct v4l2_pix_format_mplane *pix_mp;
+	u32 coded_w = 0, coded_h = 0;
+	unsigned int size = 0;
 	int ret;
+
+	q_data = get_q_data(ctx, f->type);
+	q_data_cap = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	ret = vidioc_try_fmt_vid_out(file, priv, f);
 	if (ret)
 		return ret;
 
+	if (ctx->is_enc) {
+		struct vb2_queue *vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
+		struct vb2_queue *vq_cap = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+							   V4L2_BUF_TYPE_VIDEO_CAPTURE);
+		const struct v4l2_fwht_pixfmt_info *info = ctx->is_stateless ?
+			&pixfmt_stateless_fwht : &pixfmt_fwht;
+
+		if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+			coded_w = f->fmt.pix.width;
+			coded_h = f->fmt.pix.height;
+		} else {
+			coded_w = f->fmt.pix_mp.width;
+			coded_h = f->fmt.pix_mp.height;
+		}
+		if (vb2_is_busy(vq) && (coded_w != q_data->coded_width ||
+					coded_h != q_data->coded_height))
+			return -EBUSY;
+		size = coded_w * coded_h *
+			info->sizeimage_mult / info->sizeimage_div;
+		if (!ctx->is_stateless)
+			size += sizeof(struct fwht_cframe_hdr);
+
+		if (vb2_is_busy(vq_cap) && size > q_data_cap->sizeimage)
+			return -EBUSY;
+	}
+
 	ret = vidioc_s_fmt(file2ctx(file), f);
 	if (!ret) {
+		if (ctx->is_enc) {
+			q_data->visible_width = coded_w;
+			q_data->visible_height = coded_h;
+			q_data_cap->coded_width = coded_w;
+			q_data_cap->coded_height = coded_h;
+			q_data_cap->sizeimage = size;
+		}
+
 		switch (f->type) {
-		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 			pix = &f->fmt.pix;
 			ctx->state.colorspace = pix->colorspace;
@@ -1082,7 +1116,6 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 			ctx->state.ycbcr_enc = pix->ycbcr_enc;
 			ctx->state.quantization = pix->quantization;
 			break;
-		case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 			pix_mp = &f->fmt.pix_mp;
 			ctx->state.colorspace = pix_mp->colorspace;
