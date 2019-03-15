@@ -832,6 +832,9 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->gamma_enable ||
 	    crtc_state_is_legacy_gamma(crtc_state)) {
 		crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
+		if (INTEL_GEN(dev_priv) >= 11 &&
+		    crtc_state->gamma_enable)
+			crtc_state->gamma_mode |= POST_CSC_GAMMA_ENABLE;
 		return 0;
 	}
 
