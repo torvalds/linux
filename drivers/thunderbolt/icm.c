@@ -798,9 +798,11 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = get_switch_at_route(tb->root_switch, route);
-	if (sw)
+	sw = tb_switch_find_by_route(tb, route);
+	if (sw) {
 		remove_switch(sw);
+		tb_switch_put(sw);
+	}
 
 	sw = tb_switch_find_by_link_depth(tb, link, depth);
 	if (!sw) {
@@ -1143,9 +1145,11 @@ icm_tr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	 * connected another host to the same port, remove the switch
 	 * first.
 	 */
-	sw = get_switch_at_route(tb->root_switch, route);
-	if (sw)
+	sw = tb_switch_find_by_route(tb, route);
+	if (sw) {
 		remove_switch(sw);
+		tb_switch_put(sw);
+	}
 
 	sw = tb_switch_find_by_route(tb, get_parent_route(route));
 	if (!sw) {
