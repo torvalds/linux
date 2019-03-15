@@ -1715,17 +1715,13 @@ static int igc_get_link_ksettings(struct net_device *netdev,
 			if (hw->mac.type == igc_i225 &&
 			    (status & IGC_STATUS_SPEED_2500)) {
 				speed = SPEED_2500;
-				hw_dbg("2500 Mbs, ");
 			} else {
 				speed = SPEED_1000;
-				hw_dbg("1000 Mbs, ");
 			}
 		} else if (status & IGC_STATUS_SPEED_100) {
 			speed = SPEED_100;
-			hw_dbg("100 Mbs, ");
 		} else {
 			speed = SPEED_10;
-			hw_dbg("10 Mbs, ");
 		}
 		if ((status & IGC_STATUS_FD) ||
 		    hw->phy.media_type != igc_media_type_copper)
