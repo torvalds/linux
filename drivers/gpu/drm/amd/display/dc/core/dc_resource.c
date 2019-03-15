@@ -1302,7 +1302,7 @@ struct pipe_ctx *dc_res_get_odm_bottom_pipe(struct pipe_ctx *pipe_ctx)
 	return bottom_pipe;
 }
 
-static bool dc_res_is_odm_bottom_pipe(struct pipe_ctx *pipe_ctx)
+bool dc_res_is_odm_head_pipe(struct pipe_ctx *pipe_ctx)
 {
 	struct pipe_ctx *top_pipe = pipe_ctx->top_pipe;
 	bool result = false;
@@ -1345,7 +1345,7 @@ bool dc_remove_plane_from_context(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state == plane_state) {
-			if (dc_res_is_odm_bottom_pipe(pipe_ctx)) {
+			if (dc_res_is_odm_head_pipe(pipe_ctx)) {
 				pipe_ctx->plane_state = NULL;
 				pipe_ctx->bottom_pipe = NULL;
 				continue;
