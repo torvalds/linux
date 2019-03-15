@@ -2454,7 +2454,7 @@ static noinline int
 rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
-	int error = -EACCES;
+	int error;
 	__be32 *p;
 
 	/* RFC-1014 says that the representation of XDR data must be a
@@ -2463,7 +2463,7 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 	 *   undefined results
 	 */
 	if (task->tk_rqstp->rq_rcv_buf.len & 3)
-		goto out_badlen;
+		goto out_unparsable;
 
 	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
 	if (!p)
@@ -2498,9 +2498,10 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 		goto out_err;
 	case rpc_garbage_args:
 		trace_rpc__garbage_args(task);
+		error = -EIO;
 		break;
 	default:
-		trace_rpc__unparsable(task);
+		goto out_unparsable;
 	}
 
 out_garbage:
@@ -2514,11 +2515,6 @@ out_err:
 	rpc_exit(task, error);
 	return error;
 
-out_badlen:
-	trace_rpc__unparsable(task);
-	error = -EIO;
-	goto out_err;
-
 out_unparsable:
 	trace_rpc__unparsable(task);
 	error = -EIO;
@@ -2529,6 +2525,7 @@ out_verifier:
 	goto out_garbage;
 
 out_msg_denied:
+	error = -EACCES;
 	p = xdr_inline_decode(xdr, sizeof(*p));
 	if (!p)
 		goto out_unparsable;
@@ -2540,9 +2537,7 @@ out_msg_denied:
 		error = -EPROTONOSUPPORT;
 		goto out_err;
 	default:
-		trace_rpc__unparsable(task);
-		error = -EIO;
-		goto out_err;
+		goto out_unparsable;
 	}
 
 	p = xdr_inline_decode(xdr, sizeof(*p));
@@ -2577,8 +2572,7 @@ out_msg_denied:
 			task->tk_xprt->servername);
 		break;
 	default:
-		trace_rpc__unparsable(task);
-		error = -EIO;
+		goto out_unparsable;
 	}
 	goto out_err;
 }
