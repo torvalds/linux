@@ -56,8 +56,10 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		return -ENOMEM;
+	}
 
 	/* Add [0, 16K) */
 	em->start = 0;
@@ -74,6 +76,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	/* Add [16K, 20K) following [0, 16K)  */
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -91,6 +94,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -134,8 +138,10 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		return -ENOMEM;
+	}
 
 	/* Add [0, 1K) */
 	em->start = 0;
@@ -152,6 +158,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	/* Add [4K, 4K) following [0, 1K)  */
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -169,6 +176,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -207,8 +215,10 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		return -ENOMEM;
+	}
 
 	/* Add [4K, 8K) */
 	em->start = SZ_4K;
@@ -224,6 +234,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -299,8 +310,10 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		return -ENOMEM;
+	}
 
 	/* Add [0K, 8K) */
 	em->start = 0;
@@ -316,6 +329,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -334,6 +348,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 
 	em = alloc_extent_map();
 	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
 		ret = -ENOMEM;
 		goto out;
 	}
