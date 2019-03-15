@@ -162,6 +162,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 		}
 		break;
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		break;
 	default:
 		BUG();
