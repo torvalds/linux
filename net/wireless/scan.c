@@ -179,12 +179,63 @@ static bool __cfg80211_unlink_bss(struct cfg80211_registered_device *rdev,
 	return true;
 }
 
+bool cfg80211_is_element_inherited(const struct element *elem,
+				   const struct element *non_inherit_elem)
+{
+	u8 id_len, ext_id_len, i, loop_len, id;
+	const u8 *list;
+
+	if (elem->id == WLAN_EID_MULTIPLE_BSSID)
+		return false;
+
+	if (!non_inherit_elem || non_inherit_elem->datalen < 2)
+		return true;
+
+	/*
+	 * non inheritance element format is:
+	 * ext ID (56) | IDs list len | list | extension IDs list len | list
+	 * Both lists are optional. Both lengths are mandatory.
+	 * This means valid length is:
+	 * elem_len = 1 (extension ID) + 2 (list len fields) + list lengths
+	 */
+	id_len = non_inherit_elem->data[1];
+	if (non_inherit_elem->datalen < 3 + id_len)
+		return true;
+
+	ext_id_len = non_inherit_elem->data[2 + id_len];
+	if (non_inherit_elem->datalen < 3 + id_len + ext_id_len)
+		return true;
+
+	if (elem->id == WLAN_EID_EXTENSION) {
+		if (!ext_id_len)
+			return true;
+		loop_len = ext_id_len;
+		list = &non_inherit_elem->data[3 + id_len];
+		id = elem->data[0];
+	} else {
+		if (!id_len)
+			return true;
+		loop_len = id_len;
+		list = &non_inherit_elem->data[2];
+		id = elem->id;
+	}
+
+	for (i = 0; i < loop_len; i++) {
+		if (list[i] == id)
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(cfg80211_is_element_inherited);
+
 static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 				  const u8 *subelement, size_t subie_len,
 				  u8 *new_ie, gfp_t gfp)
 {
 	u8 *pos, *tmp;
 	const u8 *tmp_old, *tmp_new;
+	const struct element *non_inherit_elem;
 	u8 *sub_copy;
 
 	/* copy subelement as we need to change its content to
@@ -203,6 +254,11 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 		memcpy(pos, tmp_new, tmp_new[1] + 2);
 		pos += (tmp_new[1] + 2);
 	}
+
+	/* get non inheritance list if exists */
+	non_inherit_elem =
+		cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+				       sub_copy, subie_len);
 
 	/* go through IEs in ie (skip SSID) and subelement,
 	 * merge them into new_ie
@@ -224,8 +280,11 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 						     subie_len);
 
 		if (!tmp) {
+			const struct element *old_elem = (void *)tmp_old;
+
 			/* ie in old ie but not in subelement */
-			if (tmp_old[0] != WLAN_EID_MULTIPLE_BSSID) {
+			if (cfg80211_is_element_inherited(old_elem,
+							  non_inherit_elem)) {
 				memcpy(pos, tmp_old, tmp_old[1] + 2);
 				pos += tmp_old[1] + 2;
 			}
