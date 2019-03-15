@@ -216,7 +216,10 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	if (ret < 0) {
+		test_err("cannot add extent range [4K, 8K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
@@ -231,24 +234,26 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em->block_start = 0;
 	em->block_len = SZ_16K;
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
-	if (ret)
+	if (ret) {
 		test_err("case3 [0x%llx 0x%llx): ret %d",
 			 start, start + len, ret);
+		goto out;
+	}
 	/*
 	 * Since bytes within em are contiguous, em->block_start is identical to
 	 * em->start.
 	 */
 	if (em &&
 	    (start < em->start || start + len > extent_map_end(em) ||
-	     em->start != em->block_start || em->len != em->block_len))
+	     em->start != em->block_start || em->len != em->block_len)) {
 		test_err(
 "case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
-	ret = 0;
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
 
 	return ret;
