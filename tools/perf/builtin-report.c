@@ -136,9 +136,6 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
 
-	hist__account_cycles(sample->branch_stack, al, sample,
-			     rep->nonany_branch_mode);
-
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
 		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
@@ -180,9 +177,6 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 
 	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
-
-	hist__account_cycles(sample->branch_stack, al, sample,
-			     rep->nonany_branch_mode);
 
 	bi = he->branch_info;
 	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
@@ -281,6 +275,11 @@ static int process_sample_event(struct perf_tool *tool,
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
+
+	if (ui__has_annotation() || rep->symbol_ipc) {
+		hist__account_cycles(sample->branch_stack, &al, sample,
+				     rep->nonany_branch_mode);
+	}
 
 	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
