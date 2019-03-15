@@ -36,7 +36,7 @@ static int test_btrfs_split_item(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("could not allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}

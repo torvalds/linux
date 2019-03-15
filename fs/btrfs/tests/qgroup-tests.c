@@ -463,7 +463,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}
@@ -495,7 +495,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_err("couldn't allocate a fs root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}
@@ -510,7 +510,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
-		test_err("couldn't allocate a fs root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(tmp_root);
 		goto out;
 	}

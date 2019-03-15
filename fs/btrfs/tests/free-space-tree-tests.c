@@ -451,7 +451,7 @@ static int run_test(test_func_t test_func, int bitmaps, u32 sectorsize,
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate dummy root");
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}

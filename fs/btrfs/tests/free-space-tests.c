@@ -854,6 +854,7 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
+		test_std_err(TEST_ALLOC_ROOT);
 		ret = PTR_ERR(root);
 		goto out;
 	}

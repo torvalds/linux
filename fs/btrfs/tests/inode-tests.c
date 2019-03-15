@@ -244,7 +244,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		goto out;
 	}
 
@@ -845,7 +845,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		goto out;
 	}
 
@@ -941,7 +941,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 
 	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
-		test_err("couldn't allocate root");
+		test_std_err(TEST_ALLOC_ROOT);
 		goto out;
 	}
 
