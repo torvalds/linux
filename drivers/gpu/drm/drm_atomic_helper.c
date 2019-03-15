@@ -3039,9 +3039,31 @@ commit:
 	return 0;
 }
 
-static int __drm_atomic_helper_disable_all(struct drm_device *dev,
-					   struct drm_modeset_acquire_ctx *ctx,
-					   bool clean_old_fbs)
+/**
+ * drm_atomic_helper_disable_all - disable all currently active outputs
+ * @dev: DRM device
+ * @ctx: lock acquisition context
+ *
+ * Loops through all connectors, finding those that aren't turned off and then
+ * turns them off by setting their DPMS mode to OFF and deactivating the CRTC
+ * that they are connected to.
+ *
+ * This is used for example in suspend/resume to disable all currently active
+ * functions when suspending. If you just want to shut down everything at e.g.
+ * driver unload, look at drm_atomic_helper_shutdown().
+ *
+ * Note that if callers haven't already acquired all modeset locks this might
+ * return -EDEADLK, which must be handled by calling drm_modeset_backoff().
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ *
+ * See also:
+ * drm_atomic_helper_suspend(), drm_atomic_helper_resume() and
+ * drm_atomic_helper_shutdown().
+ */
+int drm_atomic_helper_disable_all(struct drm_device *dev,
+				  struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_atomic_state *state;
 	struct drm_connector_state *conn_state;
@@ -3099,35 +3121,6 @@ free:
 	drm_atomic_state_put(state);
 	return ret;
 }
-
-/**
- * drm_atomic_helper_disable_all - disable all currently active outputs
- * @dev: DRM device
- * @ctx: lock acquisition context
- *
- * Loops through all connectors, finding those that aren't turned off and then
- * turns them off by setting their DPMS mode to OFF and deactivating the CRTC
- * that they are connected to.
- *
- * This is used for example in suspend/resume to disable all currently active
- * functions when suspending. If you just want to shut down everything at e.g.
- * driver unload, look at drm_atomic_helper_shutdown().
- *
- * Note that if callers haven't already acquired all modeset locks this might
- * return -EDEADLK, which must be handled by calling drm_modeset_backoff().
- *
- * Returns:
- * 0 on success or a negative error code on failure.
- *
- * See also:
- * drm_atomic_helper_suspend(), drm_atomic_helper_resume() and
- * drm_atomic_helper_shutdown().
- */
-int drm_atomic_helper_disable_all(struct drm_device *dev,
-				  struct drm_modeset_acquire_ctx *ctx)
-{
-	return __drm_atomic_helper_disable_all(dev, ctx, false);
-}
 EXPORT_SYMBOL(drm_atomic_helper_disable_all);
 
 /**
@@ -3148,7 +3141,7 @@ void drm_atomic_helper_shutdown(struct drm_device *dev)
 
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
-	ret = __drm_atomic_helper_disable_all(dev, &ctx, true);
+	ret = drm_atomic_helper_disable_all(dev, &ctx);
 	if (ret)
 		DRM_ERROR("Disabling all crtc's during unload failed with %i\n", ret);
 
