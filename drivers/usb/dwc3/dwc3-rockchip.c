@@ -128,7 +128,8 @@ static ssize_t dwc3_mode_store(struct device *device,
 	 * detection function in usb2 phy, this can help to trigger
 	 * the peripheral disconnect by software.
 	 */
-	if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL)
+	if (dwc->dr_mode == USB_DR_MODE_PERIPHERAL ||
+	    dwc->dr_mode == USB_DR_MODE_OTG)
 		phy_set_mode(dwc->usb2_generic_phy, PHY_MODE_INVALID);
 
 	dwc->dr_mode = USB_DR_MODE_OTG;
