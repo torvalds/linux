@@ -890,59 +890,52 @@ static int psp_load_fw(struct amdgpu_device *adev)
 					&psp->fence_buf_mc_addr,
 					&psp->fence_buf);
 	if (ret)
-		goto failed_mem2;
+		goto failed;
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_CMD_BUFFER_SIZE, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
 				      &psp->cmd_buf_bo, &psp->cmd_buf_mc_addr,
 				      (void **)&psp->cmd_buf_mem);
 	if (ret)
-		goto failed_mem1;
+		goto failed;
 
 	memset(psp->fence_buf, 0, PSP_FENCE_BUFFER_SIZE);
 
 	ret = psp_ring_init(psp, PSP_RING_TYPE__KM);
 	if (ret) {
 		DRM_ERROR("PSP ring init failed!\n");
-		goto failed_mem;
+		goto failed;
 	}
 
 	ret = psp_tmr_init(psp);
 	if (ret) {
 		DRM_ERROR("PSP tmr init failed!\n");
-		goto failed_mem;
+		goto failed;
 	}
 
 	ret = psp_asd_init(psp);
 	if (ret) {
 		DRM_ERROR("PSP asd init failed!\n");
-		goto failed_mem;
+		goto failed;
 	}
 
 skip_memalloc:
 	ret = psp_hw_start(psp);
 	if (ret)
-		goto failed_mem;
+		goto failed;
 
 	ret = psp_np_fw_load(psp);
 	if (ret)
-		goto failed_mem;
+		goto failed;
 
 	return 0;
 
-failed_mem:
-	amdgpu_bo_free_kernel(&psp->cmd_buf_bo,
-			      &psp->cmd_buf_mc_addr,
-			      (void **)&psp->cmd_buf_mem);
-failed_mem1:
-	amdgpu_bo_free_kernel(&psp->fence_buf_bo,
-			      &psp->fence_buf_mc_addr, &psp->fence_buf);
-failed_mem2:
-	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
-			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 failed:
-	kfree(psp->cmd);
-	psp->cmd = NULL;
+	/*
+	 * all cleanup jobs (xgmi terminate, ras terminate,
+	 * ring destroy, cmd/fence/fw buffers destory,
+	 * psp->cmd destory) are delayed to psp_hw_fini
+	 */
 	return ret;
 }
 
