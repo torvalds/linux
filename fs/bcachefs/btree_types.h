@@ -289,12 +289,12 @@ struct btree_trans {
 
 	struct btree_iter	*iters;
 	struct btree_insert_entry *updates;
-	struct disk_reservation *disk_res;
 
 	/* update path: */
 	struct journal_res	journal_res;
 	struct journal_preres	journal_preres;
 	u64			*journal_seq;
+	struct disk_reservation *disk_res;
 	unsigned		flags;
 
 	struct btree_iter	iters_onstack[2];
@@ -501,6 +501,7 @@ enum btree_insert_ret {
 	BTREE_INSERT_BTREE_NODE_FULL,
 	BTREE_INSERT_ENOSPC,
 	BTREE_INSERT_NEED_MARK_REPLICAS,
+	BTREE_INSERT_NEED_JOURNAL_RES,
 };
 
 enum btree_gc_coalesce_fail_reason {

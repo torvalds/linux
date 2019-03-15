@@ -128,4 +128,39 @@ int bch2_trans_commit(struct btree_trans *,
 	_ret;								\
 })
 
+/*
+ * We sort transaction entries so that if multiple iterators point to the same
+ * leaf node they'll be adjacent:
+ */
+static inline bool same_leaf_as_prev(struct btree_trans *trans,
+				     struct btree_insert_entry *i)
+{
+	return i != trans->updates &&
+		!i->deferred &&
+		i[0].iter->l[0].b == i[-1].iter->l[0].b;
+}
+
+#define __trans_next_update(_trans, _i, _filter)			\
+({									\
+	while ((_i) < (_trans)->updates + (_trans->nr_updates) && !(_filter))\
+		(_i)++;							\
+									\
+	(_i) < (_trans)->updates + (_trans->nr_updates);		\
+})
+
+#define __trans_for_each_update(_trans, _i, _filter)			\
+	for ((_i) = (_trans)->updates;					\
+	     __trans_next_update(_trans, _i, _filter);			\
+	     (_i)++)
+
+#define trans_for_each_update(trans, i)					\
+	__trans_for_each_update(trans, i, true)
+
+#define trans_for_each_update_iter(trans, i)				\
+	__trans_for_each_update(trans, i, !(i)->deferred)
+
+#define trans_for_each_update_leaf(trans, i)				\
+	__trans_for_each_update(trans, i, !(i)->deferred &&		\
+			       !same_leaf_as_prev(trans, i))
+
 #endif /* _BCACHEFS_BTREE_UPDATE_H */
