@@ -25,6 +25,8 @@
 #ifndef _I915_REG_H_
 #define _I915_REG_H_
 
+#include <linux/bits.h>
+
 /**
  * DOC: The i915 register macro definition style guide
  *
@@ -59,15 +61,13 @@
  * significant to least significant bit. Indent the register content macros
  * using two extra spaces between ``#define`` and the macro name.
  *
- * For bit fields, define a ``_MASK`` and a ``_SHIFT`` macro. Define bit field
- * contents so that they are already shifted in place, and can be directly
- * OR'd. For convenience, function-like macros may be used to define bit fields,
- * but do note that the macros may be needed to read as well as write the
- * register contents.
+ * For bit fields, define a ``_MASK`` and a ``_SHIFT`` macro. Use
+ * ``REG_GENMASK()`` to define _MASK. Define bit field contents so that they are
+ * already shifted in place, and can be directly OR'd. For convenience,
+ * function-like macros may be used to define bit fields, but do note that the
+ * macros may be needed to read as well as write the register contents.
  *
- * Define bits using ``(1 << N)`` instead of ``BIT(N)``. We may change this in
- * the future, but this is the prevailing style. Do **not** add ``_BIT`` suffix
- * to the name.
+ * Define bits using ``REG_BIT(N)``. Do **not** add ``_BIT`` suffix to the name.
  *
  * Group the register and its contents together without blank lines, separate
  * from other registers and their contents with one blank line.
@@ -105,8 +105,8 @@
  *  #define _FOO_A                      0xf000
  *  #define _FOO_B                      0xf001
  *  #define FOO(pipe)                   _MMIO_PIPE(pipe, _FOO_A, _FOO_B)
- *  #define   FOO_ENABLE                (1 << 31)
- *  #define   FOO_MODE_MASK             (0xf << 16)
+ *  #define   FOO_ENABLE                REG_BIT(31)
+ *  #define   FOO_MODE_MASK             REG_GENMASK(19, 16)
  *  #define   FOO_MODE_SHIFT            16
  *  #define   FOO_MODE_BAR              (0 << 16)
  *  #define   FOO_MODE_BAZ              (1 << 16)
@@ -115,6 +115,34 @@
  *  #define BAR                         _MMIO(0xb000)
  *  #define GEN8_BAR                    _MMIO(0xb888)
  */
+
+/**
+ * REG_BIT() - Prepare a u32 bit value
+ * @__n: 0-based bit number
+ *
+ * Local wrapper for BIT() to force u32, with compile time checks.
+ *
+ * @return: Value with bit @__n set.
+ */
+#define REG_BIT(__n)							\
+	((u32)(BIT(__n) +						\
+	       BUILD_BUG_ON_ZERO(__builtin_constant_p(__n) &&		\
+				 ((__n) < 0 || (__n) > 31))))
+
+/**
+ * REG_GENMASK() - Prepare a continuous u32 bitmask
+ * @__high: 0-based high bit
+ * @__low: 0-based low bit
+ *
+ * Local wrapper for GENMASK() to force u32, with compile time checks.
+ *
+ * @return: Continuous bitmask from @__high to @__low, inclusive.
+ */
+#define REG_GENMASK(__high, __low)					\
+	((u32)(GENMASK(__high, __low) +					\
+	       BUILD_BUG_ON_ZERO(__builtin_constant_p(__high) &&	\
+				 __builtin_constant_p(__low) &&		\
+				 ((__low) < 0 || (__high) > 31 || (__low) > (__high)))))
 
 typedef struct {
 	u32 reg;
@@ -4692,18 +4720,18 @@ enum {
 
 #define _PP_STATUS			0x61200
 #define PP_STATUS(pps_idx)		_MMIO_PPS(pps_idx, _PP_STATUS)
-#define   PP_ON				(1 << 31)
+#define   PP_ON				REG_BIT(31)
 
 #define _PP_CONTROL_1			0xc7204
 #define _PP_CONTROL_2			0xc7304
 #define ICP_PP_CONTROL(x)		_MMIO(((x) == 1) ? _PP_CONTROL_1 : \
 					      _PP_CONTROL_2)
-#define  POWER_CYCLE_DELAY_MASK	(0x1f << 4)
+#define  POWER_CYCLE_DELAY_MASK		REG_GENMASK(8, 4)
 #define  POWER_CYCLE_DELAY_SHIFT	4
-#define  VDD_OVERRIDE_FORCE		(1 << 3)
-#define  BACKLIGHT_ENABLE		(1 << 2)
-#define  PWR_DOWN_ON_RESET		(1 << 1)
-#define  PWR_STATE_TARGET		(1 << 0)
+#define  VDD_OVERRIDE_FORCE		REG_BIT(3)
+#define  BACKLIGHT_ENABLE		REG_BIT(2)
+#define  PWR_DOWN_ON_RESET		REG_BIT(1)
+#define  PWR_STATE_TARGET		REG_BIT(0)
 /*
  * Indicates that all dependencies of the panel are on:
  *
@@ -4711,14 +4739,14 @@ enum {
  * - pipe enabled
  * - LVDS/DVOB/DVOC on
  */
-#define   PP_READY			(1 << 30)
+#define   PP_READY			REG_BIT(30)
+#define   PP_SEQUENCE_MASK		REG_GENMASK(29, 28)
 #define   PP_SEQUENCE_NONE		(0 << 28)
 #define   PP_SEQUENCE_POWER_UP		(1 << 28)
 #define   PP_SEQUENCE_POWER_DOWN	(2 << 28)
-#define   PP_SEQUENCE_MASK		(3 << 28)
 #define   PP_SEQUENCE_SHIFT		28
-#define   PP_CYCLE_DELAY_ACTIVE		(1 << 27)
-#define   PP_SEQUENCE_STATE_MASK	0x0000000f
+#define   PP_CYCLE_DELAY_ACTIVE		REG_BIT(27)
+#define   PP_SEQUENCE_STATE_MASK	REG_GENMASK(3, 0)
 #define   PP_SEQUENCE_STATE_OFF_IDLE	(0x0 << 0)
 #define   PP_SEQUENCE_STATE_OFF_S0_1	(0x1 << 0)
 #define   PP_SEQUENCE_STATE_OFF_S0_2	(0x2 << 0)
@@ -4731,41 +4759,41 @@ enum {
 
 #define _PP_CONTROL			0x61204
 #define PP_CONTROL(pps_idx)		_MMIO_PPS(pps_idx, _PP_CONTROL)
+#define  PANEL_UNLOCK_MASK		REG_GENMASK(31, 16)
 #define  PANEL_UNLOCK_REGS		(0xabcd << 16)
-#define  PANEL_UNLOCK_MASK		(0xffff << 16)
-#define  BXT_POWER_CYCLE_DELAY_MASK	0x1f0
+#define  BXT_POWER_CYCLE_DELAY_MASK	REG_GENMASK(8, 4)
 #define  BXT_POWER_CYCLE_DELAY_SHIFT	4
-#define  EDP_FORCE_VDD			(1 << 3)
-#define  EDP_BLC_ENABLE			(1 << 2)
-#define  PANEL_POWER_RESET		(1 << 1)
-#define  PANEL_POWER_ON			(1 << 0)
+#define  EDP_FORCE_VDD			REG_BIT(3)
+#define  EDP_BLC_ENABLE			REG_BIT(2)
+#define  PANEL_POWER_RESET		REG_BIT(1)
+#define  PANEL_POWER_ON			REG_BIT(0)
 
 #define _PP_ON_DELAYS			0x61208
 #define PP_ON_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_ON_DELAYS)
 #define  PANEL_PORT_SELECT_SHIFT	30
-#define  PANEL_PORT_SELECT_MASK		(3 << 30)
+#define  PANEL_PORT_SELECT_MASK		REG_GENMASK(31, 30)
 #define  PANEL_PORT_SELECT_LVDS		(0 << 30)
 #define  PANEL_PORT_SELECT_DPA		(1 << 30)
 #define  PANEL_PORT_SELECT_DPC		(2 << 30)
 #define  PANEL_PORT_SELECT_DPD		(3 << 30)
 #define  PANEL_PORT_SELECT_VLV(port)	((port) << 30)
-#define  PANEL_POWER_UP_DELAY_MASK	0x1fff0000
+#define  PANEL_POWER_UP_DELAY_MASK	REG_GENMASK(28, 16)
 #define  PANEL_POWER_UP_DELAY_SHIFT	16
-#define  PANEL_LIGHT_ON_DELAY_MASK	0x1fff
+#define  PANEL_LIGHT_ON_DELAY_MASK	REG_GENMASK(12, 0)
 #define  PANEL_LIGHT_ON_DELAY_SHIFT	0
 
 #define _PP_OFF_DELAYS			0x6120C
 #define PP_OFF_DELAYS(pps_idx)		_MMIO_PPS(pps_idx, _PP_OFF_DELAYS)
-#define  PANEL_POWER_DOWN_DELAY_MASK	0x1fff0000
+#define  PANEL_POWER_DOWN_DELAY_MASK	REG_GENMASK(28, 16)
 #define  PANEL_POWER_DOWN_DELAY_SHIFT	16
-#define  PANEL_LIGHT_OFF_DELAY_MASK	0x1fff
+#define  PANEL_LIGHT_OFF_DELAY_MASK	REG_GENMASK(12, 0)
 #define  PANEL_LIGHT_OFF_DELAY_SHIFT	0
 
 #define _PP_DIVISOR			0x61210
 #define PP_DIVISOR(pps_idx)		_MMIO_PPS(pps_idx, _PP_DIVISOR)
-#define  PP_REFERENCE_DIVIDER_MASK	0xffffff00
+#define  PP_REFERENCE_DIVIDER_MASK	REG_GENMASK(31, 8)
 #define  PP_REFERENCE_DIVIDER_SHIFT	8
-#define  PANEL_POWER_CYCLE_DELAY_MASK	0x1f
+#define  PANEL_POWER_CYCLE_DELAY_MASK	REG_GENMASK(4, 0)
 #define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
 
 /* Panel fitting */
