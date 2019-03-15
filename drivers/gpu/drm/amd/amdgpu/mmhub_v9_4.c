@@ -195,7 +195,7 @@ static void mmhub_v9_4_init_cache_regs(struct amdgpu_device *adev, int hubid)
 	tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL,
 			    L2_PDE0_CACHE_TAG_GENERATION_MODE, 0);
 	tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL,
-			    PDE_FAULT_CLASSIFICATION, 1);
+			    PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL,
 			    CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, VML2PF0_VM_L2_CNTL,
