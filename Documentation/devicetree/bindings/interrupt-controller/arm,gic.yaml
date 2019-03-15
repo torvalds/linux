@@ -129,6 +129,7 @@ required:
 
 patternProperties:
   "^v2m@[0-9a-f]+$":
+    type: object
     description: |
       * GICv2m extension for MSI/MSI-x support (Optional)
 
