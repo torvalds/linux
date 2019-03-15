@@ -413,6 +413,8 @@ struct ide_disk_ops {
 				      sector_t);
 	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
 				 fmode_t, unsigned int, unsigned long);
+	int		(*compat_ioctl)(struct ide_drive_s *, struct block_device *,
+					fmode_t, unsigned int, unsigned long);
 };
 
 /* ATAPI device flags */
