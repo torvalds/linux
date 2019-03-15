@@ -363,9 +363,6 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 	struct dma_chan *chan = priv->dma_direction == DMA_FROM_DEVICE
 		? priv->dma_rx : priv->dma_tx;
 
-	/* Disable DMA Master Received/Transmitted */
-	rcar_i2c_write(priv, ICDMAER, 0);
-
 	dma_unmap_single(chan->device->dev, sg_dma_address(&priv->sg),
 			 sg_dma_len(&priv->sg), priv->dma_direction);
 
@@ -375,6 +372,9 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 		priv->flags |= ID_P_NO_RXDMA;
 
 	priv->dma_direction = DMA_NONE;
+
+	/* Disable DMA Master Received/Transmitted, must be last! */
+	rcar_i2c_write(priv, ICDMAER, 0);
 }
 
 static void rcar_i2c_cleanup_dma(struct rcar_i2c_priv *priv)
@@ -611,6 +611,15 @@ static bool rcar_i2c_slave_irq(struct rcar_i2c_priv *priv)
 	return true;
 }
 
+/*
+ * This driver has a lock-free design because there are IP cores (at least
+ * R-Car Gen2) which have an inherent race condition in their hardware design.
+ * There, we need to clear RCAR_BUS_MASK_DATA bits as soon as possible after
+ * the interrupt was generated, otherwise an unwanted repeated message gets
+ * generated. It turned out that taking a spinlock at the beginning of the ISR
+ * was already causing repeated messages. Thus, this driver was converted to
+ * the now lockless behaviour. Please keep this in mind when hacking the driver.
+ */
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
