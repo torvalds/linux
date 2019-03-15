@@ -908,6 +908,7 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
  */
 int kvm_alloc_stage2_pgd(struct kvm *kvm)
 {
+	phys_addr_t pgd_phys;
 	pgd_t *pgd;
 
 	if (kvm->arch.pgd != NULL) {
@@ -920,7 +921,12 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 	if (!pgd)
 		return -ENOMEM;
 
+	pgd_phys = virt_to_phys(pgd);
+	if (WARN_ON(pgd_phys & ~kvm_vttbr_baddr_mask(kvm)))
+		return -EINVAL;
+
 	kvm->arch.pgd = pgd;
+	kvm->arch.pgd_phys = pgd_phys;
 	return 0;
 }
 
@@ -1008,6 +1014,7 @@ void kvm_free_stage2_pgd(struct kvm *kvm)
 		unmap_stage2_range(kvm, 0, kvm_phys_size(kvm));
 		pgd = READ_ONCE(kvm->arch.pgd);
 		kvm->arch.pgd = NULL;
+		kvm->arch.pgd_phys = 0;
 	}
 	spin_unlock(&kvm->mmu_lock);
 
@@ -1396,14 +1403,6 @@ static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)
 	return false;
 }
 
-static bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
-{
-	if (kvm_vcpu_trap_is_iabt(vcpu))
-		return false;
-
-	return kvm_vcpu_dabt_iswrite(vcpu);
-}
-
 /**
  * stage2_wp_ptes - write protect PMD range
  * @pmd:	pointer to pmd entry
@@ -1598,14 +1597,13 @@ static void kvm_send_hwpoison_signal(unsigned long address,
 static bool fault_supports_stage2_pmd_mappings(struct kvm_memory_slot *memslot,
 					       unsigned long hva)
 {
-	gpa_t gpa_start, gpa_end;
+	gpa_t gpa_start;
 	hva_t uaddr_start, uaddr_end;
 	size_t size;
 
 	size = memslot->npages * PAGE_SIZE;
 
 	gpa_start = memslot->base_gfn << PAGE_SHIFT;
-	gpa_end = gpa_start + size;
 
 	uaddr_start = memslot->userspace_addr;
 	uaddr_end = uaddr_start + size;
@@ -2353,7 +2351,7 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 	return 0;
 }
 
-void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots)
+void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen)
 {
 }
 
