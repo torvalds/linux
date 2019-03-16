@@ -9881,7 +9881,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	 * The WQE can be either 64 or 128 bytes,
 	 */
 
-	lockdep_assert_held(&phba->hbalock);
+	lockdep_assert_held(&pring->ring_lock);
 
 	if (piocb->sli4_xritag == NO_XRI) {
 		if (piocb->iocb.ulpCommand == CMD_ABORT_XRI_CN ||
