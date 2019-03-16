@@ -3255,6 +3255,8 @@ static int __tipc_nl_add_sk_con(struct sk_buff *skb, struct tipc_sock *tsk)
 	peer_port = tsk_peer_port(tsk);
 
 	nest = nla_nest_start(skb, TIPC_NLA_SOCK_CON);
+	if (!nest)
+		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, TIPC_NLA_CON_NODE, peer_node))
 		goto msg_full;
