@@ -58,8 +58,11 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 	return "unknown";
 }
 
+#define fw_ack(d) readl((d)->reg_ack)
+#define fw_set(d, val) writel((val), (d)->reg_set)
+
 static inline void
-fw_domain_reset(struct drm_i915_private *i915,
+fw_domain_reset(const struct intel_uncore *uncore,
 		const struct intel_uncore_forcewake_domain *d)
 {
 	/*
@@ -67,7 +70,7 @@ fw_domain_reset(struct drm_i915_private *i915,
 	 * trying to reset here does exist at this point (engines could be fused
 	 * off in ICL+), so no waiting for acks
 	 */
-	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_reset);
+	fw_set(d, uncore->fw_reset);
 }
 
 static inline void
@@ -81,36 +84,32 @@ fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
 }
 
 static inline int
-__wait_for_ack(const struct drm_i915_private *i915,
-	       const struct intel_uncore_forcewake_domain *d,
+__wait_for_ack(const struct intel_uncore_forcewake_domain *d,
 	       const u32 ack,
 	       const u32 value)
 {
-	return wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) & ack) == value,
+	return wait_for_atomic((fw_ack(d) & ack) == value,
 			       FORCEWAKE_ACK_TIMEOUT_MS);
 }
 
 static inline int
-wait_ack_clear(const struct drm_i915_private *i915,
-	       const struct intel_uncore_forcewake_domain *d,
+wait_ack_clear(const struct intel_uncore_forcewake_domain *d,
 	       const u32 ack)
 {
-	return __wait_for_ack(i915, d, ack, 0);
+	return __wait_for_ack(d, ack, 0);
 }
 
 static inline int
-wait_ack_set(const struct drm_i915_private *i915,
-	     const struct intel_uncore_forcewake_domain *d,
+wait_ack_set(const struct intel_uncore_forcewake_domain *d,
 	     const u32 ack)
 {
-	return __wait_for_ack(i915, d, ack, ack);
+	return __wait_for_ack(d, ack, ack);
 }
 
 static inline void
-fw_domain_wait_ack_clear(const struct drm_i915_private *i915,
-			 const struct intel_uncore_forcewake_domain *d)
+fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_ack_clear(i915, d, FORCEWAKE_KERNEL))
+	if (wait_ack_clear(d, FORCEWAKE_KERNEL))
 		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
 }
@@ -121,8 +120,7 @@ enum ack_type {
 };
 
 static int
-fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
-				 const struct intel_uncore_forcewake_domain *d,
+fw_domain_wait_ack_with_fallback(const struct intel_uncore_forcewake_domain *d,
 				 const enum ack_type type)
 {
 	const u32 ack_bit = FORCEWAKE_KERNEL;
@@ -146,141 +144,140 @@ fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
 
 	pass = 1;
 	do {
-		wait_ack_clear(i915, d, FORCEWAKE_KERNEL_FALLBACK);
+		wait_ack_clear(d, FORCEWAKE_KERNEL_FALLBACK);
 
-		__raw_i915_write32(i915, d->reg_set,
-				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL_FALLBACK));
+		fw_set(d, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL_FALLBACK));
 		/* Give gt some time to relax before the polling frenzy */
 		udelay(10 * pass);
-		wait_ack_set(i915, d, FORCEWAKE_KERNEL_FALLBACK);
+		wait_ack_set(d, FORCEWAKE_KERNEL_FALLBACK);
 
-		ack_detected = (__raw_i915_read32(i915, d->reg_ack) & ack_bit) == value;
+		ack_detected = (fw_ack(d) & ack_bit) == value;
 
-		__raw_i915_write32(i915, d->reg_set,
-				   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL_FALLBACK));
+		fw_set(d, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL_FALLBACK));
 	} while (!ack_detected && pass++ < 10);
 
 	DRM_DEBUG_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
 			 intel_uncore_forcewake_domain_to_str(d->id),
 			 type == ACK_SET ? "set" : "clear",
-			 __raw_i915_read32(i915, d->reg_ack),
+			 fw_ack(d),
 			 pass);
 
 	return ack_detected ? 0 : -ETIMEDOUT;
 }
 
 static inline void
-fw_domain_wait_ack_clear_fallback(const struct drm_i915_private *i915,
-				  const struct intel_uncore_forcewake_domain *d)
+fw_domain_wait_ack_clear_fallback(const struct intel_uncore_forcewake_domain *d)
 {
-	if (likely(!wait_ack_clear(i915, d, FORCEWAKE_KERNEL)))
+	if (likely(!wait_ack_clear(d, FORCEWAKE_KERNEL)))
 		return;
 
-	if (fw_domain_wait_ack_with_fallback(i915, d, ACK_CLEAR))
-		fw_domain_wait_ack_clear(i915, d);
+	if (fw_domain_wait_ack_with_fallback(d, ACK_CLEAR))
+		fw_domain_wait_ack_clear(d);
 }
 
 static inline void
-fw_domain_get(struct drm_i915_private *i915,
+fw_domain_get(const struct intel_uncore *uncore,
 	      const struct intel_uncore_forcewake_domain *d)
 {
-	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_set);
+	fw_set(d, uncore->fw_set);
 }
 
 static inline void
-fw_domain_wait_ack_set(const struct drm_i915_private *i915,
-		       const struct intel_uncore_forcewake_domain *d)
+fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_ack_set(i915, d, FORCEWAKE_KERNEL))
+	if (wait_ack_set(d, FORCEWAKE_KERNEL))
 		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
 }
 
 static inline void
-fw_domain_wait_ack_set_fallback(const struct drm_i915_private *i915,
-				const struct intel_uncore_forcewake_domain *d)
+fw_domain_wait_ack_set_fallback(const struct intel_uncore_forcewake_domain *d)
 {
-	if (likely(!wait_ack_set(i915, d, FORCEWAKE_KERNEL)))
+	if (likely(!wait_ack_set(d, FORCEWAKE_KERNEL)))
 		return;
 
-	if (fw_domain_wait_ack_with_fallback(i915, d, ACK_SET))
-		fw_domain_wait_ack_set(i915, d);
+	if (fw_domain_wait_ack_with_fallback(d, ACK_SET))
+		fw_domain_wait_ack_set(d);
 }
 
 static inline void
-fw_domain_put(const struct drm_i915_private *i915,
+fw_domain_put(const struct intel_uncore *uncore,
 	      const struct intel_uncore_forcewake_domain *d)
 {
-	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_clear);
+	fw_set(d, uncore->fw_clear);
 }
 
 static void
 fw_domains_get(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
-		fw_domain_wait_ack_clear(i915, d);
-		fw_domain_get(i915, d);
+		fw_domain_wait_ack_clear(d);
+		fw_domain_get(uncore, d);
 	}
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_wait_ack_set(i915, d);
+		fw_domain_wait_ack_set(d);
 
-	i915->uncore.fw_domains_active |= fw_domains;
+	uncore->fw_domains_active |= fw_domains;
 }
 
 static void
 fw_domains_get_with_fallback(struct drm_i915_private *i915,
 			     enum forcewake_domains fw_domains)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
-		fw_domain_wait_ack_clear_fallback(i915, d);
-		fw_domain_get(i915, d);
+		fw_domain_wait_ack_clear_fallback(d);
+		fw_domain_get(uncore, d);
 	}
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_wait_ack_set_fallback(i915, d);
+		fw_domain_wait_ack_set_fallback(d);
 
-	i915->uncore.fw_domains_active |= fw_domains;
+	uncore->fw_domains_active |= fw_domains;
 }
 
 static void
 fw_domains_put(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_put(i915, d);
+		fw_domain_put(uncore, d);
 
-	i915->uncore.fw_domains_active &= ~fw_domains;
+	uncore->fw_domains_active &= ~fw_domains;
 }
 
 static void
 fw_domains_reset(struct drm_i915_private *i915,
 		 enum forcewake_domains fw_domains)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *d;
 	unsigned int tmp;
 
 	if (!fw_domains)
 		return;
 
-	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_reset(i915, d);
+		fw_domain_reset(uncore, d);
 }
 
 static inline u32 gt_thread_status(struct drm_i915_private *dev_priv)
@@ -1337,12 +1334,13 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 			   i915_reg_t reg_set,
 			   i915_reg_t reg_ack)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_uncore_forcewake_domain *d;
 
 	if (WARN_ON(domain_id >= FW_DOMAIN_ID_COUNT))
 		return;
 
-	d = &dev_priv->uncore.fw_domain[domain_id];
+	d = &uncore->fw_domain[domain_id];
 
 	WARN_ON(d->wake_count);
 
@@ -1350,8 +1348,8 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	WARN_ON(!i915_mmio_reg_valid(reg_ack));
 
 	d->wake_count = 0;
-	d->reg_set = reg_set;
-	d->reg_ack = reg_ack;
+	d->reg_set = dev_priv->regs + i915_mmio_reg_offset(reg_set);
+	d->reg_ack = dev_priv->regs + i915_mmio_reg_offset(reg_ack);
 
 	d->id = domain_id;
 
@@ -1371,9 +1369,9 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	hrtimer_init(&d->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	d->timer.function = intel_uncore_fw_release_timer;
 
-	dev_priv->uncore.fw_domains |= BIT(domain_id);
+	uncore->fw_domains |= BIT(domain_id);
 
-	fw_domain_reset(dev_priv, d);
+	fw_domain_reset(uncore, d);
 }
 
 static void fw_domain_fini(struct drm_i915_private *dev_priv,
