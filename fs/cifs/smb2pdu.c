@@ -1797,9 +1797,10 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 	return buf;
 }
 
-static __u8
-parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp,
-		  unsigned int *epoch, char *lease_key)
+__u8
+smb2_parse_lease_state(struct TCP_Server_Info *server,
+		       struct smb2_create_rsp *rsp,
+		       unsigned int *epoch, char *lease_key)
 {
 	char *data_offset;
 	struct create_context *cc;
@@ -2456,8 +2457,9 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	}
 
 	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
-		*oplock = parse_lease_state(server, rsp, &oparms->fid->epoch,
-					    oparms->fid->lease_key);
+		*oplock = smb2_parse_lease_state(server, rsp,
+						 &oparms->fid->epoch,
+						 oparms->fid->lease_key);
 	else
 		*oplock = rsp->OplockLevel;
 creat_exit:
@@ -2466,65 +2468,46 @@ creat_exit:
 	return rc;
 }
 
-/*
- *	SMB2 IOCTL is used for both IOCTLs and FSCTLs
- */
 int
-SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
-	   u64 volatile_fid, u32 opcode, bool is_fsctl,
-	   char *in_data, u32 indatalen,
-	   char **out_data, u32 *plen /* returned data len */)
+SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
+		u64 persistent_fid, u64 volatile_fid, u32 opcode,
+		bool is_fsctl, char *in_data, u32 indatalen)
 {
-	struct smb_rqst rqst;
 	struct smb2_ioctl_req *req;
-	struct smb2_ioctl_rsp *rsp;
-	struct cifs_ses *ses;
-	struct kvec iov[2];
-	struct kvec rsp_iov;
-	int resp_buftype;
-	int n_iov;
-	int rc = 0;
-	int flags = 0;
+	struct kvec *iov = rqst->rq_iov;
 	unsigned int total_len;
-
-	cifs_dbg(FYI, "SMB2 IOCTL\n");
-
-	if (out_data != NULL)
-		*out_data = NULL;
-
-	/* zero out returned data len, in case of error */
-	if (plen)
-		*plen = 0;
-
-	if (tcon)
-		ses = tcon->ses;
-	else
-		return -EIO;
-
-	if (!ses || !(ses->server))
-		return -EIO;
+	int rc;
 
 	rc = smb2_plain_req_init(SMB2_IOCTL, tcon, (void **) &req, &total_len);
 	if (rc)
 		return rc;
 
-	if (smb3_encryption_required(tcon))
-		flags |= CIFS_TRANSFORM_REQ;
-
 	req->CtlCode = cpu_to_le32(opcode);
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
 
+	iov[0].iov_base = (char *)req;
+	/*
+	 * If no input data, the size of ioctl struct in
+	 * protocol spec still includes a 1 byte data buffer,
+	 * but if input data passed to ioctl, we do not
+	 * want to double count this, so we do not send
+	 * the dummy one byte of data in iovec[0] if sending
+	 * input data (in iovec[1]).
+	 */
 	if (indatalen) {
 		req->InputCount = cpu_to_le32(indatalen);
 		/* do not set InputOffset if no input data */
 		req->InputOffset =
 		       cpu_to_le32(offsetof(struct smb2_ioctl_req, Buffer));
+		rqst->rq_nvec = 2;
+		iov[0].iov_len = total_len - 1;
 		iov[1].iov_base = in_data;
 		iov[1].iov_len = indatalen;
-		n_iov = 2;
-	} else
-		n_iov = 1;
+	} else {
+		rqst->rq_nvec = 1;
+		iov[0].iov_len = total_len;
+	}
 
 	req->OutputOffset = 0;
 	req->OutputCount = 0; /* MBZ */
@@ -2546,33 +2529,70 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	else
 		req->Flags = 0;
 
-	iov[0].iov_base = (char *)req;
-
-	/*
-	 * If no input data, the size of ioctl struct in
-	 * protocol spec still includes a 1 byte data buffer,
-	 * but if input data passed to ioctl, we do not
-	 * want to double count this, so we do not send
-	 * the dummy one byte of data in iovec[0] if sending
-	 * input data (in iovec[1]).
-	 */
-
-	if (indatalen) {
-		iov[0].iov_len = total_len - 1;
-	} else
-		iov[0].iov_len = total_len;
-
 	/* validate negotiate request must be signed - see MS-SMB2 3.2.5.5 */
 	if (opcode == FSCTL_VALIDATE_NEGOTIATE_INFO)
 		req->sync_hdr.Flags |= SMB2_FLAGS_SIGNED;
 
+	return 0;
+}
+
+void
+SMB2_ioctl_free(struct smb_rqst *rqst)
+{
+	if (rqst && rqst->rq_iov)
+		cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
+}
+
+/*
+ *	SMB2 IOCTL is used for both IOCTLs and FSCTLs
+ */
+int
+SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
+	   u64 volatile_fid, u32 opcode, bool is_fsctl,
+	   char *in_data, u32 indatalen,
+	   char **out_data, u32 *plen /* returned data len */)
+{
+	struct smb_rqst rqst;
+	struct smb2_ioctl_rsp *rsp = NULL;
+	struct cifs_ses *ses;
+	struct kvec iov[SMB2_IOCTL_IOV_SIZE];
+	struct kvec rsp_iov = {NULL, 0};
+	int resp_buftype = CIFS_NO_BUFFER;
+	int rc = 0;
+	int flags = 0;
+
+	cifs_dbg(FYI, "SMB2 IOCTL\n");
+
+	if (out_data != NULL)
+		*out_data = NULL;
+
+	/* zero out returned data len, in case of error */
+	if (plen)
+		*plen = 0;
+
+	if (tcon)
+		ses = tcon->ses;
+	else
+		return -EIO;
+
+	if (!ses || !(ses->server))
+		return -EIO;
+
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+
 	memset(&rqst, 0, sizeof(struct smb_rqst));
+	memset(&iov, 0, sizeof(iov));
 	rqst.rq_iov = iov;
-	rqst.rq_nvec = n_iov;
+	rqst.rq_nvec = SMB2_IOCTL_IOV_SIZE;
+
+	rc = SMB2_ioctl_init(tcon, &rqst, persistent_fid, volatile_fid,
+			     opcode, is_fsctl, in_data, indatalen);
+	if (rc)
+		goto ioctl_exit;
 
 	rc = cifs_send_recv(xid, ses, &rqst, &resp_buftype, flags,
 			    &rsp_iov);
-	cifs_small_buf_release(req);
 	rsp = (struct smb2_ioctl_rsp *)rsp_iov.iov_base;
 
 	if (rc != 0)
@@ -2622,6 +2642,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	}
 
 ioctl_exit:
+	SMB2_ioctl_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
