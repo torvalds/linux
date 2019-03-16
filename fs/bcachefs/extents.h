@@ -407,21 +407,13 @@ enum merge_result bch2_reservation_merge(struct bch_fs *,
 }
 
 void bch2_extent_trim_atomic(struct bkey_i *, struct btree_iter *);
-
-static inline bool bch2_extent_is_atomic(struct bkey *k,
-					 struct btree_iter *iter)
-{
-	struct btree *b = iter->l[0].b;
-
-	return bkey_cmp(k->p, b->key.k.p) <= 0 &&
-		bkey_cmp(bkey_start_pos(k), b->data->min_key) >= 0;
-}
+bool bch2_extent_is_atomic(struct bkey_i *, struct btree_iter *);
 
 enum btree_insert_ret
 bch2_extent_can_insert(struct btree_insert *, struct btree_insert_entry *,
 		       unsigned *);
-enum btree_insert_ret
-bch2_insert_fixup_extent(struct btree_insert *, struct btree_insert_entry *);
+void bch2_insert_fixup_extent(struct btree_insert *,
+			      struct btree_insert_entry *);
 
 void bch2_extent_mark_replicas_cached(struct bch_fs *, struct bkey_s_extent,
 				      unsigned, unsigned);

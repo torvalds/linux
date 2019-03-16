@@ -928,15 +928,25 @@ static void extent_insert_committed(struct extent_insert_state *s)
 	insert->k.needs_whiteout	= false;
 }
 
-void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
+static inline struct bpos
+bch2_extent_atomic_end(struct bkey_i *k, struct btree_iter *iter)
 {
 	struct btree *b = iter->l[0].b;
 
 	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
-
-	bch2_cut_back(b->key.k.p, &k->k);
-
 	BUG_ON(bkey_cmp(bkey_start_pos(&k->k), b->data->min_key) < 0);
+
+	return bpos_min(k->k.p, b->key.k.p);
+}
+
+void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
+{
+	bch2_cut_back(bch2_extent_atomic_end(k, iter), &k->k);
+}
+
+bool bch2_extent_is_atomic(struct bkey_i *k, struct btree_iter *iter)
+{
+	return !bkey_cmp(bch2_extent_atomic_end(k, iter), k->k.p);
 }
 
 enum btree_insert_ret
@@ -951,9 +961,6 @@ bch2_extent_can_insert(struct btree_insert *trans,
 	struct bkey unpacked;
 	struct bkey_s_c k;
 	int sectors;
-
-	BUG_ON(trans->flags & BTREE_INSERT_ATOMIC &&
-	       !bch2_extent_is_atomic(&insert->k->k, insert->iter));
 
 	/*
 	 * We avoid creating whiteouts whenever possible when deleting, but
@@ -1216,12 +1223,10 @@ next:
  * If the end of iter->pos is not the same as the end of insert, then
  * key insertion needs to continue/be retried.
  */
-enum btree_insert_ret
-bch2_insert_fixup_extent(struct btree_insert *trans,
-			 struct btree_insert_entry *insert)
+void bch2_insert_fixup_extent(struct btree_insert *trans,
+			      struct btree_insert_entry *insert)
 {
 	struct btree_iter *iter	= insert->iter;
-	struct btree *b		= iter->l[0].b;
 	struct extent_insert_state s = {
 		.trans		= trans,
 		.insert		= insert,
@@ -1248,16 +1253,9 @@ bch2_insert_fixup_extent(struct btree_insert *trans,
 
 	extent_insert_committed(&s);
 
+	BUG_ON(insert->k->k.size);
 	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
 	EBUG_ON(bkey_cmp(iter->pos, s.committed));
-
-	if (insert->k->k.size) {
-		/* got to the end of this leaf node */
-		BUG_ON(bkey_cmp(iter->pos, b->key.k.p));
-		return BTREE_INSERT_NEED_TRAVERSE;
-	}
-
-	return BTREE_INSERT_OK;
 }
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)

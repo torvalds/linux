@@ -490,8 +490,6 @@ struct btree_root {
 
 enum btree_insert_ret {
 	BTREE_INSERT_OK,
-	/* extent spanned multiple leaf nodes: have to traverse to next node: */
-	BTREE_INSERT_NEED_TRAVERSE,
 	/* leaf node needs to be split */
 	BTREE_INSERT_BTREE_NODE_FULL,
 	BTREE_INSERT_ENOSPC,

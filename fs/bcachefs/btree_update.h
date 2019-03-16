@@ -128,9 +128,6 @@ enum {
 
 int bch2_btree_delete_at(struct btree_iter *, unsigned);
 
-int bch2_btree_insert_list_at(struct btree_iter *, struct keylist *,
-			     struct disk_reservation *, u64 *, unsigned);
-
 int bch2_btree_insert(struct bch_fs *, enum btree_id, struct bkey_i *,
 		     struct disk_reservation *, u64 *, int flags);
 

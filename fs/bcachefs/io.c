@@ -293,18 +293,36 @@ static void bch2_write_done(struct closure *cl)
 
 int bch2_write_index_default(struct bch_write_op *op)
 {
+	struct bch_fs *c = op->c;
 	struct keylist *keys = &op->insert_keys;
 	struct btree_iter iter;
 	int ret;
 
-	bch2_btree_iter_init(&iter, op->c, BTREE_ID_EXTENTS,
+	bch2_btree_iter_init(&iter, c, BTREE_ID_EXTENTS,
 			     bkey_start_pos(&bch2_keylist_front(keys)->k),
 			     BTREE_ITER_INTENT);
 
-	ret = bch2_btree_insert_list_at(&iter, keys, &op->res,
-					op_journal_seq(op),
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_USE_RESERVE);
+	do {
+		BKEY_PADDED(k) split;
+
+		bkey_copy(&split.k, bch2_keylist_front(keys));
+
+		bch2_extent_trim_atomic(&split.k, &iter);
+
+		ret = bch2_btree_insert_at(c, &op->res,
+				op_journal_seq(op),
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_USE_RESERVE,
+				BTREE_INSERT_ENTRY(&iter, &split.k));
+		if (ret)
+			break;
+
+		if (bkey_cmp(iter.pos, bch2_keylist_front(keys)->k.p) < 0)
+			bch2_cut_front(iter.pos, bch2_keylist_front(keys));
+		else
+			bch2_keylist_pop_front(keys);
+	} while (!bch2_keylist_empty(keys));
+
 	bch2_btree_iter_unlock(&iter);
 
 	return ret;
