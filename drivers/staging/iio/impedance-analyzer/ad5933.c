@@ -474,7 +474,8 @@ static IIO_DEVICE_ATTR(out_voltage0_settling_cycles, 0644,
 			ad5933_store,
 			AD5933_OUT_SETTLING_CYCLES);
 
-/* note:
+/*
+ * note:
  * ideally we would handle the scale attributes via the iio_info
  * (read|write)_raw methods, however this part is a untypical since we
  * don't create dedicated sysfs channel attributes for out0 and in0.
@@ -572,7 +573,8 @@ static int ad5933_ring_postenable(struct iio_dev *indio_dev)
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
 
-	/* AD5933_CTRL_INIT_START_FREQ:
+	/*
+	 * AD5933_CTRL_INIT_START_FREQ:
 	 * High Q complex circuits require a long time to reach steady state.
 	 * To facilitate the measurement of such impedances, this mode allows
 	 * the user full control of the settling time requirement before
@@ -663,7 +665,8 @@ static void ad5933_work(struct work_struct *work)
 	}
 
 	if (status & AD5933_STAT_SWEEP_DONE) {
-		/* last sample received - power down do
+		/*
+		 * last sample received - power down do
 		 * nothing until the ring enable is toggled
 		 */
 		ad5933_cmd(st, AD5933_CTRL_POWER_DOWN);
