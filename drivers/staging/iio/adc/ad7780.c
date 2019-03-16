@@ -3,6 +3,7 @@
  * AD7170/AD7171 and AD7780/AD7781 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc.
+ * Copyright 2019 Renato Lui Geh
  */
 
 #include <linux/interrupt.h>
