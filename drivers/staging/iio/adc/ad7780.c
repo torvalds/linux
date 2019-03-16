@@ -42,6 +42,8 @@
 #define AD7780_GAIN_MIDPOINT	64
 #define AD7780_FILTER_MIDPOINT	13350
 
+static const unsigned int ad778x_gain[2] = { 1, 128 };
+
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
 	unsigned int		pattern_mask;
@@ -178,6 +180,9 @@ static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
 	if ((raw_sample & AD7780_ERR) ||
 	    ((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
+
+	if (chip_info->is_ad778x)
+		st->gain = ad778x_gain[raw_sample & AD7780_GAIN];
 
 	return 0;
 }
