@@ -39,6 +39,9 @@
 #define AD7170_PATTERN		(AD7780_PAT0 | AD7170_PAT2)
 #define AD7170_PATTERN_MASK	(AD7780_PAT0 | AD7780_PAT1 | AD7170_PAT2)
 
+#define AD7780_GAIN_MIDPOINT	64
+#define AD7780_FILTER_MIDPOINT	13350
+
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
 	unsigned int		pattern_mask;
@@ -50,7 +53,10 @@ struct ad7780_state {
 	const struct ad7780_chip_info	*chip_info;
 	struct regulator		*reg;
 	struct gpio_desc		*powerdown_gpio;
-	unsigned int	gain;
+	struct gpio_desc		*gain_gpio;
+	struct gpio_desc		*filter_gpio;
+	unsigned int			gain;
+	unsigned int			int_vref_mv;
 
 	struct ad_sigma_delta sd;
 };
@@ -104,8 +110,10 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 		voltage_uv = regulator_get_voltage(st->reg);
 		if (voltage_uv < 0)
 			return voltage_uv;
-		*val = (voltage_uv / 1000) * st->gain;
+		voltage_uv /= 1000;
+		*val = voltage_uv * st->gain;
 		*val2 = chan->scan_type.realbits - 1;
+		st->int_vref_mv = voltage_uv;
 		return IIO_VAL_FRACTIONAL_LOG2;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = -(1 << (chan->scan_type.realbits - 1));
@@ -113,6 +121,50 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 	}
 
 	return -EINVAL;
+}
+
+static int ad7780_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val,
+			    int val2,
+			    long m)
+{
+	struct ad7780_state *st = iio_priv(indio_dev);
+	const struct ad7780_chip_info *chip_info = st->chip_info;
+	unsigned long long vref;
+	unsigned int full_scale, gain;
+
+	if (!chip_info->is_ad778x)
+		return -EINVAL;
+
+	switch (m) {
+	case IIO_CHAN_INFO_SCALE:
+		if (val != 0)
+			return -EINVAL;
+
+		vref = st->int_vref_mv * 1000000LL;
+		full_scale = 1 << (chip_info->channel.scan_type.realbits - 1);
+		gain = DIV_ROUND_CLOSEST_ULL(vref, full_scale);
+		gain = DIV_ROUND_CLOSEST(gain, val2);
+		st->gain = gain;
+		if (gain < AD7780_GAIN_MIDPOINT)
+			gain = 0;
+		else
+			gain = 1;
+		gpiod_set_value(st->gain_gpio, gain);
+		break;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (1000*val + val2/1000 < AD7780_FILTER_MIDPOINT)
+			val = 0;
+		else
+			val = 1;
+		gpiod_set_value(st->filter_gpio, val);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
@@ -124,13 +176,6 @@ static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
 	if ((raw_sample & AD7780_ERR) ||
 	    ((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
-
-	if (chip_info->is_ad778x) {
-		if (raw_sample & AD7780_GAIN)
-			st->gain = 1;
-		else
-			st->gain = 128;
-	}
 
 	return 0;
 }
@@ -173,7 +218,46 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 
 static const struct iio_info ad7780_info = {
 	.read_raw = ad7780_read_raw,
+	.write_raw = ad7780_write_raw,
 };
+
+static int ad7780_init_gpios(struct device *dev, struct ad7780_state *st)
+{
+	int ret;
+
+	st->powerdown_gpio = devm_gpiod_get_optional(dev,
+						     "powerdown",
+						     GPIOD_OUT_LOW);
+	if (IS_ERR(st->powerdown_gpio)) {
+		ret = PTR_ERR(st->powerdown_gpio);
+		dev_err(dev, "Failed to request powerdown GPIO: %d\n", ret);
+		return ret;
+	}
+
+	if (!st->chip_info->is_ad778x)
+		return 0;
+
+
+	st->gain_gpio = devm_gpiod_get_optional(dev,
+						"adi,gain",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(st->gain_gpio)) {
+		ret = PTR_ERR(st->gain_gpio);
+		dev_err(dev, "Failed to request gain GPIO: %d\n", ret);
+		return ret;
+	}
+
+	st->filter_gpio = devm_gpiod_get_optional(dev,
+						  "adi,filter",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(st->filter_gpio)) {
+		ret = PTR_ERR(st->filter_gpio);
+		dev_err(dev, "Failed to request filter GPIO: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 static int ad7780_probe(struct spi_device *spi)
 {
@@ -212,15 +296,9 @@ static int ad7780_probe(struct spi_device *spi)
 	indio_dev->num_channels = 1;
 	indio_dev->info = &ad7780_info;
 
-	st->powerdown_gpio = devm_gpiod_get_optional(&spi->dev,
-						     "powerdown",
-						     GPIOD_OUT_LOW);
-	if (IS_ERR(st->powerdown_gpio)) {
-		ret = PTR_ERR(st->powerdown_gpio);
-		dev_err(&spi->dev, "Failed to request powerdown GPIO: %d\n",
-			ret);
-		goto error_disable_reg;
-	}
+	ret = ad7780_init_gpios(&spi->dev, st);
+	if (ret)
+		goto error_cleanup_buffer_and_trigger;
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)
