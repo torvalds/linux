@@ -505,16 +505,12 @@ MODULE_DEVICE_TABLE(of, cpcap_regulator_id_table);
 static int cpcap_regulator_probe(struct platform_device *pdev)
 {
 	struct cpcap_ddata *ddata;
-	const struct of_device_id *match;
+	const struct cpcap_regulator *match_data;
 	struct regulator_config config;
 	int i;
 
-	match = of_match_device(of_match_ptr(cpcap_regulator_id_table),
-				&pdev->dev);
-	if (!match)
-		return -EINVAL;
-
-	if (!match->data) {
+	match_data = of_device_get_match_data(&pdev->dev);
+	if (!match_data) {
 		dev_err(&pdev->dev, "no configuration data found\n");
 
 		return -ENODEV;
@@ -529,7 +525,7 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	ddata->dev = &pdev->dev;
-	ddata->soc = match->data;
+	ddata->soc = match_data;
 	platform_set_drvdata(pdev, ddata);
 
 	memset(&config, 0, sizeof(config));
