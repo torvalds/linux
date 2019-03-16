@@ -824,6 +824,8 @@ __SYSCALL(__NR_futex_time64, sys_futex)
 __SYSCALL(__NR_sched_rr_get_interval_time64, sys_sched_rr_get_interval)
 #endif
 
+#define __NR_pidfd_send_signal 424
+__SYSCALL(__NR_pidfd_send_signal, sys_pidfd_send_signal)
 #define __NR_io_uring_setup 425
 __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
 #define __NR_io_uring_enter 426
