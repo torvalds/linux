@@ -782,18 +782,6 @@ static bool extent_i_save(struct btree *b, struct bkey_packed *dst,
 	return true;
 }
 
-struct extent_insert_state {
-	struct btree_insert		*trans;
-	struct btree_insert_entry	*insert;
-	struct bpos			committed;
-
-	/* for deleting: */
-	struct bkey_i			whiteout;
-	bool				update_journal;
-	bool				update_btree;
-	bool				deleting;
-};
-
 static bool bch2_extent_merge_inline(struct bch_fs *,
 				     struct btree_iter *,
 				     struct bkey_packed *,
@@ -880,54 +868,6 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_iter_verify(iter, l->b);
 }
 
-static void extent_insert_committed(struct extent_insert_state *s)
-{
-	struct bch_fs *c = s->trans->c;
-	struct btree_iter *iter = s->insert->iter;
-	struct bkey_i *insert = s->insert->k;
-	BKEY_PADDED(k) split;
-
-	EBUG_ON(bkey_cmp(insert->k.p, s->committed) < 0);
-	EBUG_ON(bkey_cmp(s->committed, bkey_start_pos(&insert->k)) < 0);
-
-	bkey_copy(&split.k, insert);
-	if (s->deleting)
-		split.k.k.type = KEY_TYPE_discard;
-
-	bch2_cut_back(s->committed, &split.k.k);
-
-	if (!bkey_cmp(s->committed, iter->pos))
-		return;
-
-	bch2_btree_iter_set_pos_same_leaf(iter, s->committed);
-
-	if (s->update_btree) {
-		if (debug_check_bkeys(c))
-			bch2_bkey_debugcheck(c, iter->l[0].b,
-					     bkey_i_to_s_c(&split.k));
-
-		EBUG_ON(bkey_deleted(&split.k.k) || !split.k.k.size);
-
-		extent_bset_insert(c, iter, &split.k);
-	}
-
-	if (s->update_journal) {
-		bkey_copy(&split.k, !s->deleting ? insert : &s->whiteout);
-		if (s->deleting)
-			split.k.k.type = KEY_TYPE_discard;
-
-		bch2_cut_back(s->committed, &split.k.k);
-
-		EBUG_ON(bkey_deleted(&split.k.k) || !split.k.k.size);
-
-		bch2_btree_journal_key(s->trans, iter, &split.k);
-	}
-
-	bch2_cut_front(s->committed, insert);
-
-	insert->k.needs_whiteout	= false;
-}
-
 static inline struct bpos
 bch2_extent_atomic_end(struct bkey_i *k, struct btree_iter *iter)
 {
@@ -1005,12 +945,11 @@ bch2_extent_can_insert(struct btree_insert *trans,
 }
 
 static void
-extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
+extent_squash(struct bch_fs *c, struct btree_iter *iter,
+	      struct bkey_i *insert,
 	      struct bkey_packed *_k, struct bkey_s k,
 	      enum bch_extent_overlap overlap)
 {
-	struct bch_fs *c = s->trans->c;
-	struct btree_iter *iter = s->insert->iter;
 	struct btree_iter_level *l = &iter->l[0];
 
 	switch (overlap) {
@@ -1096,34 +1035,39 @@ extent_squash(struct extent_insert_state *s, struct bkey_i *insert,
 	}
 }
 
-static void __bch2_insert_fixup_extent(struct extent_insert_state *s)
+struct extent_insert_state {
+	struct bkey_i			whiteout;
+	bool				update_journal;
+	bool				update_btree;
+	bool				deleting;
+};
+
+static void __bch2_insert_fixup_extent(struct bch_fs *c,
+				       struct btree_iter *iter,
+				       struct bkey_i *insert,
+				       struct extent_insert_state *s)
 {
-	struct btree_iter *iter = s->insert->iter;
 	struct btree_iter_level *l = &iter->l[0];
 	struct bkey_packed *_k;
 	struct bkey unpacked;
-	struct bkey_i *insert = s->insert->k;
 
-	while (bkey_cmp(s->committed, insert->k.p) < 0 &&
-	       (_k = bch2_btree_node_iter_peek_filter(&l->iter, l->b,
+	while ((_k = bch2_btree_node_iter_peek_filter(&l->iter, l->b,
 						      KEY_TYPE_discard))) {
 		struct bkey_s k = __bkey_disassemble(l->b, _k, &unpacked);
-		enum bch_extent_overlap overlap = bch2_extent_overlap(&insert->k, k.k);
-
-		EBUG_ON(bkey_cmp(iter->pos, k.k->p) >= 0);
+		struct bpos cur_end = bpos_min(insert->k.p, k.k->p);
+		enum bch_extent_overlap overlap =
+			bch2_extent_overlap(&insert->k, k.k);
 
 		if (bkey_cmp(bkey_start_pos(k.k), insert->k.p) >= 0)
 			break;
-
-		s->committed = bpos_min(s->insert->k->k.p, k.k->p);
 
 		if (!bkey_whiteout(k.k))
 			s->update_journal = true;
 
 		if (!s->update_journal) {
-			bch2_cut_front(s->committed, insert);
-			bch2_cut_front(s->committed, &s->whiteout);
-			bch2_btree_iter_set_pos_same_leaf(iter, s->committed);
+			bch2_cut_front(cur_end, insert);
+			bch2_cut_front(cur_end, &s->whiteout);
+			bch2_btree_iter_set_pos_same_leaf(iter, cur_end);
 			goto next;
 		}
 
@@ -1157,18 +1101,15 @@ static void __bch2_insert_fixup_extent(struct extent_insert_state *s)
 			_k->needs_whiteout = false;
 		}
 
-		extent_squash(s, insert, _k, k, overlap);
+		extent_squash(c, iter, insert, _k, k, overlap);
 
 		if (!s->update_btree)
-			bch2_cut_front(s->committed, insert);
+			bch2_cut_front(cur_end, insert);
 next:
 		if (overlap == BCH_EXTENT_OVERLAP_FRONT ||
 		    overlap == BCH_EXTENT_OVERLAP_MIDDLE)
 			break;
 	}
-
-	if (bkey_cmp(s->committed, insert->k.p) < 0)
-		s->committed = bpos_min(s->insert->k->k.p, l->b->key.k.p);
 
 	/*
 	 * may have skipped past some deleted extents greater than the insert
@@ -1179,7 +1120,7 @@ next:
 		struct btree_node_iter node_iter = l->iter;
 
 		while ((_k = bch2_btree_node_iter_prev_all(&node_iter, l->b)) &&
-		       bkey_cmp_left_packed(l->b, _k, &s->committed) > 0)
+		       bkey_cmp_left_packed(l->b, _k, &insert->k.p) > 0)
 			l->iter = node_iter;
 	}
 }
@@ -1226,36 +1167,51 @@ next:
 void bch2_insert_fixup_extent(struct btree_insert *trans,
 			      struct btree_insert_entry *insert)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter *iter	= insert->iter;
 	struct extent_insert_state s = {
-		.trans		= trans,
-		.insert		= insert,
-		.committed	= iter->pos,
-
 		.whiteout	= *insert->k,
 		.update_journal	= !bkey_whiteout(&insert->k->k),
 		.update_btree	= !bkey_whiteout(&insert->k->k),
 		.deleting	= bkey_whiteout(&insert->k->k),
 	};
+	BKEY_PADDED(k) tmp;
 
 	EBUG_ON(iter->level);
 	EBUG_ON(!insert->k->k.size);
-
-	/*
-	 * As we process overlapping extents, we advance @iter->pos both to
-	 * signal to our caller (btree_insert_key()) how much of @insert->k has
-	 * been inserted, and also to keep @iter->pos consistent with
-	 * @insert->k and the node iterator that we're advancing:
-	 */
 	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
 
-	__bch2_insert_fixup_extent(&s);
+	__bch2_insert_fixup_extent(c, iter, insert->k, &s);
 
-	extent_insert_committed(&s);
+	bch2_btree_iter_set_pos_same_leaf(iter, insert->k->k.p);
 
-	BUG_ON(insert->k->k.size);
-	EBUG_ON(bkey_cmp(iter->pos, bkey_start_pos(&insert->k->k)));
-	EBUG_ON(bkey_cmp(iter->pos, s.committed));
+	if (s.update_btree) {
+		bkey_copy(&tmp.k, insert->k);
+
+		if (s.deleting)
+			tmp.k.k.type = KEY_TYPE_discard;
+
+		if (debug_check_bkeys(c))
+			bch2_bkey_debugcheck(c, iter->l[0].b,
+					     bkey_i_to_s_c(&tmp.k));
+
+		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
+
+		extent_bset_insert(c, iter, &tmp.k);
+	}
+
+	if (s.update_journal) {
+		bkey_copy(&tmp.k, !s.deleting ? insert->k : &s.whiteout);
+
+		if (s.deleting)
+			tmp.k.k.type = KEY_TYPE_discard;
+
+		EBUG_ON(bkey_deleted(&tmp.k.k) || !tmp.k.k.size);
+
+		bch2_btree_journal_key(trans, iter, &tmp.k);
+	}
+
+	bch2_cut_front(insert->k->k.p, insert->k);
 }
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
