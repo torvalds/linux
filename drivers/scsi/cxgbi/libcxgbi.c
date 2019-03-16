@@ -2310,7 +2310,6 @@ int cxgbi_get_ep_param(struct iscsi_endpoint *ep, enum iscsi_param param,
 {
 	struct cxgbi_endpoint *cep = ep->dd_data;
 	struct cxgbi_sock *csk;
-	int len;
 
 	log_debug(1 << CXGBI_DBG_ISCSI,
 		"cls_conn 0x%p, param %d.\n", ep, param);
@@ -2328,9 +2327,9 @@ int cxgbi_get_ep_param(struct iscsi_endpoint *ep, enum iscsi_param param,
 		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
 						 &csk->daddr, param, buf);
 	default:
-		return -ENOSYS;
+		break;
 	}
-	return len;
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(cxgbi_get_ep_param);
 
