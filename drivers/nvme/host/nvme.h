@@ -87,6 +87,11 @@ enum nvme_quirks {
 	 * Ignore device provided subnqn.
 	 */
 	NVME_QUIRK_IGNORE_DEV_SUBNQN		= (1 << 8),
+
+	/*
+	 * Broken Write Zeroes.
+	 */
+	NVME_QUIRK_DISABLE_WRITE_ZEROES		= (1 << 9),
 };
 
 /*

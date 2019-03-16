@@ -2107,7 +2107,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 
 	freq->sg_cnt = 0;
 
-	if (!blk_rq_payload_bytes(rq))
+	if (!blk_rq_nr_phys_segments(rq))
 		return 0;
 
 	freq->sg_table.sgl = freq->first_sgl;
@@ -2304,12 +2304,23 @@ nvme_fc_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (ret)
 		return ret;
 
-	data_len = blk_rq_payload_bytes(rq);
-	if (data_len)
+	/*
+	 * nvme core doesn't quite treat the rq opaquely. Commands such
+	 * as WRITE ZEROES will return a non-zero rq payload_bytes yet
+	 * there is no actual payload to be transferred.
+	 * To get it right, key data transmission on there being 1 or
+	 * more physical segments in the sg list. If there is no
+	 * physical segments, there is no payload.
+	 */
+	if (blk_rq_nr_phys_segments(rq)) {
+		data_len = blk_rq_payload_bytes(rq);
 		io_dir = ((rq_data_dir(rq) == WRITE) ?
 					NVMEFC_FCP_WRITE : NVMEFC_FCP_READ);
-	else
+	} else {
+		data_len = 0;
 		io_dir = NVMEFC_FCP_NODATA;
+	}
+
 
 	return nvme_fc_start_fcp_op(ctrl, queue, op, data_len, io_dir);
 }
@@ -2464,6 +2475,7 @@ static int
 nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 {
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
+	u32 prior_ioq_cnt = ctrl->ctrl.queue_count - 1;
 	unsigned int nr_io_queues;
 	int ret;
 
@@ -2474,6 +2486,13 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 		dev_info(ctrl->ctrl.device,
 			"set_queue_count failed: %d\n", ret);
 		return ret;
+	}
+
+	if (!nr_io_queues && prior_ioq_cnt) {
+		dev_info(ctrl->ctrl.device,
+			"Fail Reconnect: At least 1 io queue "
+			"required (was %d)\n", prior_ioq_cnt);
+		return -ENOSPC;
 	}
 
 	ctrl->ctrl.queue_count = nr_io_queues + 1;
@@ -2489,6 +2508,10 @@ nvme_fc_recreate_io_queues(struct nvme_fc_ctrl *ctrl)
 	if (ret)
 		goto out_delete_hw_queues;
 
+	if (prior_ioq_cnt != nr_io_queues)
+		dev_info(ctrl->ctrl.device,
+			"reconnect: revising io queue count from %d to %d\n",
+			prior_ioq_cnt, nr_io_queues);
 	blk_mq_update_nr_hw_queues(&ctrl->tag_set, nr_io_queues);
 
 	return 0;
@@ -3006,7 +3029,10 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ctrl->ctrl.opts = opts;
 	ctrl->ctrl.nr_reconnects = 0;
-	ctrl->ctrl.numa_node = dev_to_node(lport->dev);
+	if (lport->dev)
+		ctrl->ctrl.numa_node = dev_to_node(lport->dev);
+	else
+		ctrl->ctrl.numa_node = NUMA_NO_NODE;
 	INIT_LIST_HEAD(&ctrl->ctrl_list);
 	ctrl->lport = lport;
 	ctrl->rport = rport;

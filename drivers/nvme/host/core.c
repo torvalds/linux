@@ -179,8 +179,8 @@ static int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl)
 	int ret = 0;
 
 	/*
-	 * Keep a reference until the work is flushed since ->delete_ctrl
-	 * can free the controller.
+	 * Keep a reference until nvme_do_delete_ctrl() complete,
+	 * since ->delete_ctrl can free the controller.
 	 */
 	nvme_get_ctrl(ctrl);
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_DELETING))
@@ -1250,7 +1250,7 @@ static u32 nvme_passthru_start(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	if (ns) {
 		if (ctrl->effects)
 			effects = le32_to_cpu(ctrl->effects->iocs[opcode]);
-		if (effects & ~NVME_CMD_EFFECTS_CSUPP)
+		if (effects & ~(NVME_CMD_EFFECTS_CSUPP | NVME_CMD_EFFECTS_LBCC))
 			dev_warn(ctrl->device,
 				 "IO command:%02x has unhandled effects:%08x\n",
 				 opcode, effects);
@@ -1495,10 +1495,10 @@ static void nvme_set_chunk_size(struct nvme_ns *ns)
 	blk_queue_chunk_sectors(ns->queue, rounddown_pow_of_two(chunk_size));
 }
 
-static void nvme_config_discard(struct nvme_ns *ns)
+static void nvme_config_discard(struct gendisk *disk, struct nvme_ns *ns)
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
-	struct request_queue *queue = ns->queue;
+	struct request_queue *queue = disk->queue;
 	u32 size = queue_logical_block_size(queue);
 
 	if (!(ctrl->oncs & NVME_CTRL_ONCS_DSM)) {
@@ -1526,12 +1526,13 @@ static void nvme_config_discard(struct nvme_ns *ns)
 		blk_queue_max_write_zeroes_sectors(queue, UINT_MAX);
 }
 
-static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
+static void nvme_config_write_zeroes(struct gendisk *disk, struct nvme_ns *ns)
 {
 	u32 max_sectors;
 	unsigned short bs = 1 << ns->lba_shift;
 
-	if (!(ns->ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES))
+	if (!(ns->ctrl->oncs & NVME_CTRL_ONCS_WRITE_ZEROES) ||
+	    (ns->ctrl->quirks & NVME_QUIRK_DISABLE_WRITE_ZEROES))
 		return;
 	/*
 	 * Even though NVMe spec explicitly states that MDTS is not
@@ -1548,13 +1549,7 @@ static inline void nvme_config_write_zeroes(struct nvme_ns *ns)
 	else
 		max_sectors = ((u32)(ns->ctrl->max_hw_sectors + 1) * bs) >> 9;
 
-	blk_queue_max_write_zeroes_sectors(ns->queue, max_sectors);
-}
-
-static inline void nvme_ns_config_oncs(struct nvme_ns *ns)
-{
-	nvme_config_discard(ns);
-	nvme_config_write_zeroes(ns);
+	blk_queue_max_write_zeroes_sectors(disk->queue, max_sectors);
 }
 
 static void nvme_report_ns_ids(struct nvme_ctrl *ctrl, unsigned int nsid,
@@ -1610,7 +1605,9 @@ static void nvme_update_disk_info(struct gendisk *disk,
 		capacity = 0;
 
 	set_capacity(disk, capacity);
-	nvme_ns_config_oncs(ns);
+
+	nvme_config_discard(disk, ns);
+	nvme_config_write_zeroes(disk, ns);
 
 	if (id->nsattr & (1 << 0))
 		set_disk_ro(disk, true);
@@ -3304,6 +3301,7 @@ static int nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	mutex_lock(&ctrl->subsys->lock);
 	list_del_rcu(&ns->siblings);
 	mutex_unlock(&ctrl->subsys->lock);
+	nvme_put_ns_head(ns->head);
  out_free_id:
 	kfree(id);
  out_free_queue:
