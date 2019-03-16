@@ -507,7 +507,6 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 	struct cpcap_ddata *ddata;
 	const struct of_device_id *match;
 	struct regulator_config config;
-	struct regulator_init_data init_data;
 	int i;
 
 	match = of_match_device(of_match_ptr(cpcap_regulator_id_table),
@@ -534,10 +533,8 @@ static int cpcap_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 
 	memset(&config, 0, sizeof(config));
-	memset(&init_data, 0, sizeof(init_data));
 	config.dev = &pdev->dev;
 	config.regmap = ddata->reg;
-	config.init_data = &init_data;
 
 	for (i = 0; i < CPCAP_NR_REGULATORS; i++) {
 		const struct cpcap_regulator *regulator = &ddata->soc[i];
