@@ -30,6 +30,12 @@
 #define AD7780_ID0		BIT(3)
 #define AD7780_GAIN		BIT(2)
 
+#define AD7170_ID		0
+#define AD7171_ID		1
+#define AD7780_ID		1
+#define AD7781_ID		0
+
+#define AD7780_ID_MASK		(AD7780_ID0 | AD7780_ID1)
 
 #define AD7780_PATTERN_GOOD	1
 #define AD7780_PATTERN_MASK	GENMASK(1, 0)
