@@ -1189,23 +1189,19 @@ static int __cmd_top(struct perf_top *top)
 	pthread_t thread, thread_process;
 	int ret;
 
-	top->session = perf_session__new(NULL, false, NULL);
-	if (top->session == NULL)
-		return -1;
-
 	if (!top->annotation_opts.objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env,
 					       &top->annotation_opts.objdump_path);
 		if (ret)
-			goto out_delete;
+			return ret;
 	}
 
 	ret = callchain_param__setup_sample_type(&callchain_param);
 	if (ret)
-		goto out_delete;
+		return ret;
 
 	if (perf_session__register_idle_thread(top->session) < 0)
-		goto out_delete;
+		return ret;
 
 	if (top->nr_threads_synthesize > 1)
 		perf_set_multithreaded();
@@ -1227,13 +1223,18 @@ static int __cmd_top(struct perf_top *top)
 
 	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
-		if (ret < 0)
-			goto out_err_cpu_topo;
+		if (ret < 0) {
+			char errbuf[BUFSIZ];
+			const char *err = str_error_r(-ret, errbuf, sizeof(errbuf));
+
+			ui__error("Could not read the CPU topology map: %s\n", err);
+			return ret;
+		}
 	}
 
 	ret = perf_top__start_counters(top);
 	if (ret)
-		goto out_delete;
+		return ret;
 
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);
@@ -1252,7 +1253,7 @@ static int __cmd_top(struct perf_top *top)
 	ret = -1;
 	if (pthread_create(&thread_process, NULL, process_thread, top)) {
 		ui__error("Could not create process thread.\n");
-		goto out_delete;
+		return ret;
 	}
 
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
@@ -1296,19 +1297,7 @@ out_join:
 out_join_thread:
 	pthread_cond_signal(&top->qe.cond);
 	pthread_join(thread_process, NULL);
-out_delete:
-	perf_session__delete(top->session);
-	top->session = NULL;
-
 	return ret;
-
-out_err_cpu_topo: {
-	char errbuf[BUFSIZ];
-	const char *err = str_error_r(-ret, errbuf, sizeof(errbuf));
-
-	ui__error("Could not read the CPU topology map: %s\n", err);
-	goto out_delete;
-}
 }
 
 static int
@@ -1639,10 +1628,17 @@ int cmd_top(int argc, const char **argv)
 		signal(SIGWINCH, winch_sig);
 	}
 
+	top.session = perf_session__new(NULL, false, NULL);
+	if (top.session == NULL) {
+		status = -1;
+		goto out_delete_evlist;
+	}
+
 	status = __cmd_top(&top);
 
 out_delete_evlist:
 	perf_evlist__delete(top.evlist);
+	perf_session__delete(top.session);
 
 	return status;
 }
