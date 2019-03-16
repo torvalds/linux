@@ -81,7 +81,6 @@ struct as3722_regulator_config_data {
 struct as3722_regulators {
 	struct device *dev;
 	struct as3722 *as3722;
-	struct regulator_dev *rdevs[AS3722_REGULATOR_ID_MAX];
 	struct regulator_desc desc[AS3722_REGULATOR_ID_MAX];
 	struct as3722_regulator_config_data
 			reg_config_data[AS3722_REGULATOR_ID_MAX];
@@ -929,7 +928,6 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		as3722_regs->rdevs[id] = rdev;
 		if (reg_config->ext_control) {
 			ret = regulator_enable_regmap(rdev);
 			if (ret < 0) {
