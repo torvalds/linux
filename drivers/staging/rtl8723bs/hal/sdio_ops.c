@@ -428,9 +428,6 @@ static u32 sdio_read_port(
 	PSDIO_DATA psdio;
 	struct hal_com_data *hal;
 	u32 oldcnt;
-#ifdef SDIO_DYNAMIC_ALLOC_MEM
-	u8 *oldmem;
-#endif
 	s32 err;
 
 
@@ -446,13 +443,6 @@ static u32 sdio_read_port(
 /* 	cnt = sdio_align_size(cnt); */
 
 	err = _sd_read(intfhdl, addr, cnt, mem);
-
-#ifdef SDIO_DYNAMIC_ALLOC_MEM
-	if ((oldcnt != cnt) && (oldmem)) {
-		memcpy(oldmem, mem, oldcnt);
-		kfree(mem);
-	}
-#endif
 
 	if (err)
 		return _FAIL;
