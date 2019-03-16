@@ -155,6 +155,7 @@ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
 extern int d_set_mounted(struct dentry *dentry);
 extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
 extern struct dentry *d_alloc_cursor(struct dentry *);
+extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 
 /*
  * read_write.c
