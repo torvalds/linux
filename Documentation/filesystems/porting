@@ -638,3 +638,8 @@ in your dentry operations instead.
 	inode to d_splice_alias() will also do the right thing (equivalent of
 	d_add(dentry, NULL); return NULL;), so that kind of special cases
 	also doesn't need a separate treatment.
+--
+[mandatory]
+	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
+	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
+	business doing so.
