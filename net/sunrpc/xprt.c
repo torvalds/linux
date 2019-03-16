@@ -664,7 +664,7 @@ void xprt_disconnect_done(struct rpc_xprt *xprt)
 	spin_lock_bh(&xprt->transport_lock);
 	xprt_clear_connected(xprt);
 	xprt_clear_write_space_locked(xprt);
-	xprt_wake_pending_tasks(xprt, -EAGAIN);
+	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
 EXPORT_SYMBOL_GPL(xprt_disconnect_done);

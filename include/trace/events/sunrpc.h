@@ -712,7 +712,8 @@ TRACE_EVENT(xprt_transmit,
 
 	TP_fast_assign(
 		__entry->task_id = rqst->rq_task->tk_pid;
-		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->client_id = rqst->rq_task->tk_client ?
+			rqst->rq_task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->seqno = rqst->rq_seqno;
 		__entry->status = status;
@@ -742,7 +743,8 @@ TRACE_EVENT(xprt_enq_xmit,
 
 	TP_fast_assign(
 		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
+		__entry->client_id = task->tk_client ?
+			task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
 		__entry->seqno = task->tk_rqstp->rq_seqno;
 		__entry->stage = stage;

@@ -1889,7 +1889,7 @@ lookup_again:
 	    atomic_read(&lo->plh_outstanding) != 0) {
 		spin_unlock(&ino->i_lock);
 		lseg = ERR_PTR(wait_var_event_killable(&lo->plh_outstanding,
-					atomic_read(&lo->plh_outstanding)));
+					!atomic_read(&lo->plh_outstanding)));
 		if (IS_ERR(lseg) || !list_empty(&lo->plh_segs))
 			goto out_put_layout_hdr;
 		pnfs_put_layout_hdr(lo);

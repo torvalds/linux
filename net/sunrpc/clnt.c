@@ -1730,7 +1730,12 @@ call_allocate(struct rpc_task *task)
 	req->rq_callsize = RPC_CALLHDRSIZE + (auth->au_cslack << 1) +
 			   proc->p_arglen;
 	req->rq_callsize <<= 2;
-	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + proc->p_replen;
+	/*
+	 * Note: the reply buffer must at minimum allocate enough space
+	 * for the 'struct accepted_reply' from RFC5531.
+	 */
+	req->rq_rcvsize = RPC_REPHDRSIZE + auth->au_rslack + \
+			max_t(size_t, proc->p_replen, 2);
 	req->rq_rcvsize <<= 2;
 
 	status = xprt->ops->buf_alloc(task);
@@ -2387,9 +2392,6 @@ call_decode(struct rpc_task *task)
 	WARN_ON(memcmp(&req->rq_rcv_buf, &req->rq_private_buf,
 				sizeof(req->rq_rcv_buf)) != 0);
 
-	if (req->rq_rcv_buf.len < 12)
-		goto out_retry;
-
 	xdr_init_decode(&xdr, &req->rq_rcv_buf,
 			req->rq_rcv_buf.head[0].iov_base, req);
 	switch (rpc_decode_header(task, &xdr)) {
@@ -2400,7 +2402,6 @@ call_decode(struct rpc_task *task)
 			task->tk_pid, __func__, task->tk_status);
 		return;
 	case -EAGAIN:
-out_retry:
 		task->tk_status = 0;
 		/* Note: rpc_decode_header() may have freed the RPC slot */
 		if (task->tk_rqstp == req) {
@@ -2449,7 +2450,7 @@ static noinline int
 rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_clnt *clnt = task->tk_client;
-	int error = -EACCES;
+	int error;
 	__be32 *p;
 
 	/* RFC-1014 says that the representation of XDR data must be a
@@ -2458,7 +2459,7 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 	 *   undefined results
 	 */
 	if (task->tk_rqstp->rq_rcv_buf.len & 3)
-		goto out_badlen;
+		goto out_unparsable;
 
 	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
 	if (!p)
@@ -2492,10 +2493,12 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 		error = -EOPNOTSUPP;
 		goto out_err;
 	case rpc_garbage_args:
+	case rpc_system_err:
 		trace_rpc__garbage_args(task);
+		error = -EIO;
 		break;
 	default:
-		trace_rpc__unparsable(task);
+		goto out_unparsable;
 	}
 
 out_garbage:
@@ -2509,11 +2512,6 @@ out_err:
 	rpc_exit(task, error);
 	return error;
 
-out_badlen:
-	trace_rpc__unparsable(task);
-	error = -EIO;
-	goto out_err;
-
 out_unparsable:
 	trace_rpc__unparsable(task);
 	error = -EIO;
@@ -2524,6 +2522,7 @@ out_verifier:
 	goto out_garbage;
 
 out_msg_denied:
+	error = -EACCES;
 	p = xdr_inline_decode(xdr, sizeof(*p));
 	if (!p)
 		goto out_unparsable;
@@ -2535,9 +2534,7 @@ out_msg_denied:
 		error = -EPROTONOSUPPORT;
 		goto out_err;
 	default:
-		trace_rpc__unparsable(task);
-		error = -EIO;
-		goto out_err;
+		goto out_unparsable;
 	}
 
 	p = xdr_inline_decode(xdr, sizeof(*p));
@@ -2572,8 +2569,7 @@ out_msg_denied:
 			task->tk_xprt->servername);
 		break;
 	default:
-		trace_rpc__unparsable(task);
-		error = -EIO;
+		goto out_unparsable;
 	}
 	goto out_err;
 }
