@@ -282,7 +282,7 @@ mt7603_init_hardware(struct mt7603_dev *dev)
 		mt76_poll(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY, 0, 5000);
 	}
 
-	ret = mt7603_mcu_init(dev);
+	ret = mt7603_load_firmware(dev);
 	if (ret)
 		return ret;
 

@@ -170,8 +170,7 @@ mt7603_mcu_restart(struct mt7603_dev *dev)
 				   MCU_Q_NA);
 }
 
-static int
-mt7603_load_firmware(struct mt7603_dev *dev)
+int mt7603_load_firmware(struct mt7603_dev *dev)
 {
 	const struct firmware *fw;
 	const struct mt7603_fw_trailer *hdr;
@@ -267,13 +266,6 @@ out:
 	release_firmware(fw);
 
 	return ret;
-}
-
-int mt7603_mcu_init(struct mt7603_dev *dev)
-{
-	mutex_init(&dev->mt76.mmio.mcu.mutex);
-
-	return mt7603_load_firmware(dev);
 }
 
 void mt7603_mcu_exit(struct mt7603_dev *dev)
