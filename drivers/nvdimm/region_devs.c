@@ -1072,6 +1072,7 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	nd_region->flags = ndr_desc->flags;
 	nd_region->ro = ro;
 	nd_region->numa_node = ndr_desc->numa_node;
+	nd_region->target_node = ndr_desc->target_node;
 	ida_init(&nd_region->ns_ida);
 	ida_init(&nd_region->btt_ida);
 	ida_init(&nd_region->pfn_ida);
