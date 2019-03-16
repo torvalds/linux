@@ -42,7 +42,8 @@
 #define AD7780_GAIN_MIDPOINT	64
 #define AD7780_FILTER_MIDPOINT	13350
 
-static const unsigned int ad778x_gain[2] = { 1, 128 };
+static const unsigned int ad778x_gain[2]      = { 1, 128 };
+static const unsigned int ad778x_odr_avail[2] = { 10000, 16700 };
 
 struct ad7780_chip_info {
 	struct iio_chan_spec	channel;
@@ -58,6 +59,7 @@ struct ad7780_state {
 	struct gpio_desc		*gain_gpio;
 	struct gpio_desc		*filter_gpio;
 	unsigned int			gain;
+	unsigned int			odr;
 	unsigned int			int_vref_mv;
 
 	struct ad_sigma_delta sd;
@@ -120,6 +122,9 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OFFSET:
 		*val = -(1 << (chan->scan_type.realbits - 1));
 		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*val = st->odr;
+		return IIO_VAL_INT;
 	default:
 		break;
 	}
@@ -162,6 +167,7 @@ static int ad7780_write_raw(struct iio_dev *indio_dev,
 			val = 0;
 		else
 			val = 1;
+		st->odr = ad778x_odr_avail[val];
 		gpiod_set_value(st->filter_gpio, val);
 		break;
 	default:
@@ -181,8 +187,10 @@ static int ad7780_postprocess_sample(struct ad_sigma_delta *sigma_delta,
 	    ((raw_sample & chip_info->pattern_mask) != chip_info->pattern))
 		return -EIO;
 
-	if (chip_info->is_ad778x)
+	if (chip_info->is_ad778x) {
 		st->gain = ad778x_gain[raw_sample & AD7780_GAIN];
+		st->odr = ad778x_odr_avail[raw_sample & AD7780_FILTER];
+	}
 
 	return 0;
 }
@@ -194,17 +202,19 @@ static const struct ad_sigma_delta_info ad7780_sigma_delta_info = {
 };
 
 #define AD7780_CHANNEL(bits, wordsize) \
+	AD_SD_CHANNEL(1, 0, 0, bits, 32, wordsize - bits)
+#define AD7170_CHANNEL(bits, wordsize) \
 	AD_SD_CHANNEL_NO_SAMP_FREQ(1, 0, 0, bits, 32, wordsize - bits)
 
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7170] = {
-		.channel = AD7780_CHANNEL(12, 24),
+		.channel = AD7170_CHANNEL(12, 24),
 		.pattern = AD7170_PATTERN,
 		.pattern_mask = AD7170_PATTERN_MASK,
 		.is_ad778x = false,
 	},
 	[ID_AD7171] = {
-		.channel = AD7780_CHANNEL(16, 24),
+		.channel = AD7170_CHANNEL(16, 24),
 		.pattern = AD7170_PATTERN,
 		.pattern_mask = AD7170_PATTERN_MASK,
 		.is_ad778x = false,
