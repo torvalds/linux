@@ -3556,9 +3556,23 @@ static inline bool f2fs_hw_should_discard(struct f2fs_sb_info *sbi)
 	return f2fs_sb_has_blkzoned(sbi);
 }
 
+static inline bool f2fs_bdev_support_discard(struct block_device *bdev)
+{
+	return blk_queue_discard(bdev_get_queue(bdev)) ||
+	       bdev_is_zoned(bdev);
+}
+
 static inline bool f2fs_hw_support_discard(struct f2fs_sb_info *sbi)
 {
-	return blk_queue_discard(bdev_get_queue(sbi->sb->s_bdev));
+	int i;
+
+	if (!f2fs_is_multi_device(sbi))
+		return f2fs_bdev_support_discard(sbi->sb->s_bdev);
+
+	for (i = 0; i < sbi->s_ndevs; i++)
+		if (f2fs_bdev_support_discard(FDEV(i).bdev))
+			return true;
+	return false;
 }
 
 static inline bool f2fs_realtime_discard_enable(struct f2fs_sb_info *sbi)
