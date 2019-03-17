@@ -1907,39 +1907,73 @@ struct mlx5_fields {
 	u8  field;
 	u8  size;
 	u32 offset;
+	u32 match_offset;
 };
 
-#define OFFLOAD(fw_field, size, field, off) \
-		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, size, offsetof(struct pedit_headers, field) + (off)}
+#define OFFLOAD(fw_field, size, field, off, match_field) \
+		{MLX5_ACTION_IN_FIELD_OUT_ ## fw_field, size, \
+		 offsetof(struct pedit_headers, field) + (off), \
+		 MLX5_BYTE_OFF(fte_match_set_lyr_2_4, match_field)}
+
+static bool cmp_val_mask(void *valp, void *maskp, void *matchvalp,
+			 void *matchmaskp, int size)
+{
+	bool same = false;
+
+	switch (size) {
+	case sizeof(u8):
+		same = ((*(u8 *)valp) & (*(u8 *)maskp)) ==
+		       ((*(u8 *)matchvalp) & (*(u8 *)matchmaskp));
+		break;
+	case sizeof(u16):
+		same = ((*(u16 *)valp) & (*(u16 *)maskp)) ==
+		       ((*(u16 *)matchvalp) & (*(u16 *)matchmaskp));
+		break;
+	case sizeof(u32):
+		same = ((*(u32 *)valp) & (*(u32 *)maskp)) ==
+		       ((*(u32 *)matchvalp) & (*(u32 *)matchmaskp));
+		break;
+	}
+
+	return same;
+}
 
 static struct mlx5_fields fields[] = {
-	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0),
-	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0),
-	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0),
-	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0),
-	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0),
-	OFFLOAD(FIRST_VID,  2, vlan.h_vlan_TCI, 0),
+	OFFLOAD(DMAC_47_16, 4, eth.h_dest[0], 0, dmac_47_16),
+	OFFLOAD(DMAC_15_0,  2, eth.h_dest[4], 0, dmac_15_0),
+	OFFLOAD(SMAC_47_16, 4, eth.h_source[0], 0, smac_47_16),
+	OFFLOAD(SMAC_15_0,  2, eth.h_source[4], 0, smac_15_0),
+	OFFLOAD(ETHERTYPE,  2, eth.h_proto, 0, ethertype),
+	OFFLOAD(FIRST_VID,  2, vlan.h_vlan_TCI, 0, first_vid),
 
-	OFFLOAD(IP_TTL, 1, ip4.ttl,   0),
-	OFFLOAD(SIPV4,  4, ip4.saddr, 0),
-	OFFLOAD(DIPV4,  4, ip4.daddr, 0),
+	OFFLOAD(IP_TTL, 1, ip4.ttl,   0, ttl_hoplimit),
+	OFFLOAD(SIPV4,  4, ip4.saddr, 0, src_ipv4_src_ipv6.ipv4_layout.ipv4),
+	OFFLOAD(DIPV4,  4, ip4.daddr, 0, dst_ipv4_dst_ipv6.ipv4_layout.ipv4),
 
-	OFFLOAD(SIPV6_127_96, 4, ip6.saddr.s6_addr32[0], 0),
-	OFFLOAD(SIPV6_95_64,  4, ip6.saddr.s6_addr32[1], 0),
-	OFFLOAD(SIPV6_63_32,  4, ip6.saddr.s6_addr32[2], 0),
-	OFFLOAD(SIPV6_31_0,   4, ip6.saddr.s6_addr32[3], 0),
-	OFFLOAD(DIPV6_127_96, 4, ip6.daddr.s6_addr32[0], 0),
-	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0),
-	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0),
-	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0),
-	OFFLOAD(IPV6_HOPLIMIT, 1, ip6.hop_limit, 0),
+	OFFLOAD(SIPV6_127_96, 4, ip6.saddr.s6_addr32[0], 0,
+		src_ipv4_src_ipv6.ipv6_layout.ipv6[0]),
+	OFFLOAD(SIPV6_95_64,  4, ip6.saddr.s6_addr32[1], 0,
+		src_ipv4_src_ipv6.ipv6_layout.ipv6[4]),
+	OFFLOAD(SIPV6_63_32,  4, ip6.saddr.s6_addr32[2], 0,
+		src_ipv4_src_ipv6.ipv6_layout.ipv6[8]),
+	OFFLOAD(SIPV6_31_0,   4, ip6.saddr.s6_addr32[3], 0,
+		src_ipv4_src_ipv6.ipv6_layout.ipv6[12]),
+	OFFLOAD(DIPV6_127_96, 4, ip6.daddr.s6_addr32[0], 0,
+		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[0]),
+	OFFLOAD(DIPV6_95_64,  4, ip6.daddr.s6_addr32[1], 0,
+		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[4]),
+	OFFLOAD(DIPV6_63_32,  4, ip6.daddr.s6_addr32[2], 0,
+		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[8]),
+	OFFLOAD(DIPV6_31_0,   4, ip6.daddr.s6_addr32[3], 0,
+		dst_ipv4_dst_ipv6.ipv6_layout.ipv6[12]),
+	OFFLOAD(IPV6_HOPLIMIT, 1, ip6.hop_limit, 0, ttl_hoplimit),
 
-	OFFLOAD(TCP_SPORT, 2, tcp.source,  0),
-	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0),
-	OFFLOAD(TCP_FLAGS, 1, tcp.ack_seq, 5),
+	OFFLOAD(TCP_SPORT, 2, tcp.source,  0, tcp_sport),
+	OFFLOAD(TCP_DPORT, 2, tcp.dest,    0, tcp_dport),
+	OFFLOAD(TCP_FLAGS, 1, tcp.ack_seq, 5, tcp_flags),
 
-	OFFLOAD(UDP_SPORT, 2, udp.source, 0),
-	OFFLOAD(UDP_DPORT, 2, udp.dest,   0),
+	OFFLOAD(UDP_SPORT, 2, udp.source, 0, udp_sport),
+	OFFLOAD(UDP_DPORT, 2, udp.dest,   0, udp_dport),
 };
 
 /* On input attr->max_mod_hdr_actions tells how many HW actions can be parsed at
@@ -1948,9 +1982,14 @@ static struct mlx5_fields fields[] = {
  */
 static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 				struct mlx5e_tc_flow_parse_attr *parse_attr,
+				u32 *action_flags,
 				struct netlink_ext_ack *extack)
 {
 	struct pedit_headers *set_masks, *add_masks, *set_vals, *add_vals;
+	void *headers_c = get_match_headers_criteria(*action_flags,
+						     &parse_attr->spec);
+	void *headers_v = get_match_headers_value(*action_flags,
+						  &parse_attr->spec);
 	int i, action_size, nactions, max_actions, first, last, next_z;
 	void *s_masks_p, *a_masks_p, *vals_p;
 	struct mlx5_fields *f;
@@ -1974,6 +2013,8 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 	nactions = parse_attr->num_mod_hdr_actions;
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++) {
+		bool skip;
+
 		f = &fields[i];
 		/* avoid seeing bits set from previous iterations */
 		s_mask = 0;
@@ -2002,19 +2043,34 @@ static int offload_pedit_fields(struct pedit_headers_action *hdrs,
 			return -EOPNOTSUPP;
 		}
 
+		skip = false;
 		if (s_mask) {
+			void *match_mask = headers_c + f->match_offset;
+			void *match_val = headers_v + f->match_offset;
+
 			cmd  = MLX5_ACTION_TYPE_SET;
 			mask = s_mask;
 			vals_p = (void *)set_vals + f->offset;
+			/* don't rewrite if we have a match on the same value */
+			if (cmp_val_mask(vals_p, s_masks_p, match_val,
+					 match_mask, f->size))
+				skip = true;
 			/* clear to denote we consumed this field */
 			memset(s_masks_p, 0, f->size);
 		} else {
+			u32 zero = 0;
+
 			cmd  = MLX5_ACTION_TYPE_ADD;
 			mask = a_mask;
 			vals_p = (void *)add_vals + f->offset;
+			/* add 0 is no change */
+			if (!memcmp(vals_p, &zero, f->size))
+				skip = true;
 			/* clear to denote we consumed this field */
 			memset(a_masks_p, 0, f->size);
 		}
+		if (skip)
+			continue;
 
 		field_bsize = f->size * BITS_PER_BYTE;
 
@@ -2138,6 +2194,7 @@ out_err:
 static int alloc_tc_pedit_action(struct mlx5e_priv *priv, int namespace,
 				 struct mlx5e_tc_flow_parse_attr *parse_attr,
 				 struct pedit_headers_action *hdrs,
+				 u32 *action_flags,
 				 struct netlink_ext_ack *extack)
 {
 	struct pedit_headers *cmd_masks;
@@ -2150,7 +2207,7 @@ static int alloc_tc_pedit_action(struct mlx5e_priv *priv, int namespace,
 			goto out_err;
 	}
 
-	err = offload_pedit_fields(hdrs, parse_attr, extack);
+	err = offload_pedit_fields(hdrs, parse_attr, action_flags, extack);
 	if (err < 0)
 		goto out_dealloc_parsed_actions;
 
@@ -2425,9 +2482,14 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
 	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
 		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_KERNEL,
-					    parse_attr, hdrs, extack);
+					    parse_attr, hdrs, &action, extack);
 		if (err)
 			return err;
+		/* in case all pedit actions are skipped, remove the MOD_HDR
+		 * flag.
+		 */
+		if (parse_attr->num_mod_hdr_actions == 0)
+			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 	}
 
 	attr->action = action;
@@ -2833,9 +2895,19 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 	if (hdrs[TCA_PEDIT_KEY_EX_CMD_SET].pedits ||
 	    hdrs[TCA_PEDIT_KEY_EX_CMD_ADD].pedits) {
 		err = alloc_tc_pedit_action(priv, MLX5_FLOW_NAMESPACE_KERNEL,
-					    parse_attr, hdrs, extack);
+					    parse_attr, hdrs, &action, extack);
 		if (err)
 			return err;
+		/* in case all pedit actions are skipped, remove the MOD_HDR
+		 * flag. we might have set split_count either by pedit or
+		 * pop/push. if there is no pop/push either, reset it too.
+		 */
+		if (parse_attr->num_mod_hdr_actions == 0) {
+			action &= ~MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+			if (!((action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) ||
+			      (action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)))
+				attr->split_count = 0;
+		}
 	}
 
 	attr->action = action;
