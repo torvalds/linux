@@ -454,33 +454,6 @@ struct mlme_priv {
 	_lock	bcn_update_lock;
 	u8 update_bcn;
 
-#ifdef CONFIG_INTEL_WIDI
-	int	widi_state;
-	int	listen_state;
-	_timer	listen_timer;
-	atomic_t	rx_probe_rsp; /*  1:receive probe respone from RDS source. */
-	u8 *l2sdTaBuffer;
-	u8 channel_idx;
-	u8 group_cnt;	/* In WiDi 3.5, they specified another scan algo. for WFD/RDS co-existed */
-	u8 sa_ext[L2SDTA_SERVICE_VE_LEN];
-
-	u8 widi_enable;
-	/**
-	 * For WiDi 4; upper layer would set
-	 * p2p_primary_device_type_category_id
-	 * p2p_primary_device_type_sub_category_id
-	 * p2p_secondary_device_type_category_id
-	 * p2p_secondary_device_type_sub_category_id
-	 */
-	u16 p2p_pdt_cid;
-	u16 p2p_pdt_scid;
-	u8 num_p2p_sdt;
-	u16 p2p_sdt_cid[MAX_NUM_P2P_SDT];
-	u16 p2p_sdt_scid[MAX_NUM_P2P_SDT];
-	u8 p2p_reject_disable;	/* When starting NL80211 wpa_supplicant/hostapd, it will call netdev_close */
-							/* such that it will cause p2p disabled. Use this flag to reject. */
-#endif /*  CONFIG_INTEL_WIDI */
-
 	u8 NumOfBcnInfoChkFail;
 	unsigned long	timeBcnInfoChkStart;
 };
