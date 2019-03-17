@@ -233,6 +233,12 @@ $(obj)/%: $(src)/%_shipped
 quiet_cmd_ld = LD      $@
       cmd_ld = $(LD) $(ld_flags) $(real-prereqs) -o $@
 
+# Archive
+# ---------------------------------------------------------------------------
+
+quiet_cmd_ar = AR      $@
+      cmd_ar = rm -f $@; $(AR) rcsTP$(KBUILD_ARFLAGS) $@ $(real-prereqs)
+
 # Objcopy
 # ---------------------------------------------------------------------------
 
