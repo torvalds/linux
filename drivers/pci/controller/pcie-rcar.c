@@ -738,15 +738,15 @@ static irqreturn_t rcar_pcie_msi_irq(int irq, void *data)
 
 	while (reg) {
 		unsigned int index = find_first_bit(&reg, 32);
-		unsigned int irq;
+		unsigned int msi_irq;
 
 		/* clear the interrupt */
 		rcar_pci_write_reg(pcie, 1 << index, PCIEMSIFR);
 
-		irq = irq_find_mapping(msi->domain, index);
-		if (irq) {
+		msi_irq = irq_find_mapping(msi->domain, index);
+		if (msi_irq) {
 			if (test_bit(index, msi->used))
-				generic_handle_irq(irq);
+				generic_handle_irq(msi_irq);
 			else
 				dev_info(dev, "unhandled MSI\n");
 		} else {
