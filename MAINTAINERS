@@ -2796,6 +2796,7 @@ W:	https://www.open-mesh.org/
 B:	https://www.open-mesh.org/projects/batman-adv/issues
 C:	irc://chat.freenode.net/batman
 Q:	https://patchwork.open-mesh.org/project/batman/list/
+T:	git https://git.open-mesh.org/linux-merge.git
 S:	Maintained
 F:	Documentation/ABI/obsolete/sysfs-class-net-batman-adv
 F:	Documentation/ABI/obsolete/sysfs-class-net-mesh
