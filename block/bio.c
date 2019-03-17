@@ -648,7 +648,7 @@ struct bio *bio_clone_fast(struct bio *bio, gfp_t gfp_mask, struct bio_set *bs)
 EXPORT_SYMBOL(bio_clone_fast);
 
 /**
- *	bio_add_pc_page	-	attempt to add page to bio
+ *	bio_add_pc_page	-	attempt to add page to passthrough bio
  *	@q: the target queue
  *	@bio: destination bio
  *	@page: page to add
@@ -660,7 +660,7 @@ EXPORT_SYMBOL(bio_clone_fast);
  *	limitations. The target block device must allow bio's up to PAGE_SIZE,
  *	so it is always possible to add a single page to an empty bio.
  *
- *	This should only be used by REQ_PC bios.
+ *	This should only be used by passthrough bios.
  */
 int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 		    *page, unsigned int len, unsigned int offset)
@@ -683,11 +683,11 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 	 * a consecutive offset.  Optimize this special case.
 	 */
 	if (bio->bi_vcnt > 0) {
-		struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+		bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
 
-		if (page == prev->bv_page &&
-		    offset == prev->bv_offset + prev->bv_len) {
-			prev->bv_len += len;
+		if (page == bvec->bv_page &&
+		    offset == bvec->bv_offset + bvec->bv_len) {
+			bvec->bv_len += len;
 			bio->bi_iter.bi_size += len;
 			goto done;
 		}
@@ -696,7 +696,7 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
-		if (bvec_gap_to_prev(q, prev, offset))
+		if (bvec_gap_to_prev(q, bvec, offset))
 			return 0;
 	}
 
