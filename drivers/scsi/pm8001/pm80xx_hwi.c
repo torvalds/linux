@@ -1316,7 +1316,7 @@ pm80xx_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 
 static void pm80xx_hw_chip_rst(struct pm8001_hba_info *pm8001_ha)
 {
-	 u32 i;
+	u32 i;
 
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("chip reset start\n"));
@@ -4381,27 +4381,27 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 			sata_cmd.len = cpu_to_le32(task->total_xfer_len);
 			sata_cmd.esgl = 0;
 		}
-			/* scsi cdb */
-			sata_cmd.atapi_scsi_cdb[0] =
-				cpu_to_le32(((task->ata_task.atapi_packet[0]) |
-				(task->ata_task.atapi_packet[1] << 8) |
-				(task->ata_task.atapi_packet[2] << 16) |
-				(task->ata_task.atapi_packet[3] << 24)));
-			sata_cmd.atapi_scsi_cdb[1] =
-				cpu_to_le32(((task->ata_task.atapi_packet[4]) |
-				(task->ata_task.atapi_packet[5] << 8) |
-				(task->ata_task.atapi_packet[6] << 16) |
-				(task->ata_task.atapi_packet[7] << 24)));
-			sata_cmd.atapi_scsi_cdb[2] =
-				cpu_to_le32(((task->ata_task.atapi_packet[8]) |
-				(task->ata_task.atapi_packet[9] << 8) |
-				(task->ata_task.atapi_packet[10] << 16) |
-				(task->ata_task.atapi_packet[11] << 24)));
-			sata_cmd.atapi_scsi_cdb[3] =
-				cpu_to_le32(((task->ata_task.atapi_packet[12]) |
-				(task->ata_task.atapi_packet[13] << 8) |
-				(task->ata_task.atapi_packet[14] << 16) |
-				(task->ata_task.atapi_packet[15] << 24)));
+		/* scsi cdb */
+		sata_cmd.atapi_scsi_cdb[0] =
+			cpu_to_le32(((task->ata_task.atapi_packet[0]) |
+			(task->ata_task.atapi_packet[1] << 8) |
+			(task->ata_task.atapi_packet[2] << 16) |
+			(task->ata_task.atapi_packet[3] << 24)));
+		sata_cmd.atapi_scsi_cdb[1] =
+			cpu_to_le32(((task->ata_task.atapi_packet[4]) |
+			(task->ata_task.atapi_packet[5] << 8) |
+			(task->ata_task.atapi_packet[6] << 16) |
+			(task->ata_task.atapi_packet[7] << 24)));
+		sata_cmd.atapi_scsi_cdb[2] =
+			cpu_to_le32(((task->ata_task.atapi_packet[8]) |
+			(task->ata_task.atapi_packet[9] << 8) |
+			(task->ata_task.atapi_packet[10] << 16) |
+			(task->ata_task.atapi_packet[11] << 24)));
+		sata_cmd.atapi_scsi_cdb[3] =
+			cpu_to_le32(((task->ata_task.atapi_packet[12]) |
+			(task->ata_task.atapi_packet[13] << 8) |
+			(task->ata_task.atapi_packet[14] << 16) |
+			(task->ata_task.atapi_packet[15] << 24)));
 	}
 
 	/* Check for read log for failed drive and return */
