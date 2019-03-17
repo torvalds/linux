@@ -2590,10 +2590,6 @@ static int rtw_wps_start(struct net_device *dev,
 
 	DBG_871X("[%s] wps_start = %d\n", __func__, u32wps_start);
 
-#ifdef CONFIG_INTEL_WIDI
-	process_intel_widi_wps_status(padapter, u32wps_start);
-#endif /* CONFIG_INTEL_WIDI */
-
 exit:
 
 	return ret;
@@ -4791,17 +4787,6 @@ static const struct iw_priv_args rtw_private_args[] = {
 		IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 0x7FF, "test"
 	},
 
-#ifdef CONFIG_INTEL_WIDI
-	{
-		SIOCIWFIRSTPRIV + 0x1E,
-		IW_PRIV_TYPE_CHAR | 1024, 0, "widi_set"
-	},
-	{
-		SIOCIWFIRSTPRIV + 0x1F,
-		IW_PRIV_TYPE_CHAR | 128, 0, "widi_prob_req"
-	},
-#endif /*  CONFIG_INTEL_WIDI */
-
 #ifdef CONFIG_WOWLAN
 		{ MP_WOW_ENABLE , IW_PRIV_TYPE_CHAR | 1024, 0, "wow_mode" }, /* set */
 #endif
@@ -4852,10 +4837,6 @@ static iw_handler rtw_private_handler[] = {
 	rtw_mp_efuse_get,				/* 0x1B */
 	NULL,							/*  0x1C is reserved for hostapd */
 	rtw_test,						/*  0x1D */
-#ifdef CONFIG_INTEL_WIDI
-	rtw_widi_set,					/* 0x1E */
-	rtw_widi_set_probe_request,		/* 0x1F */
-#endif /*  CONFIG_INTEL_WIDI */
 };
 
 static struct iw_statistics *rtw_get_wireless_stats(struct net_device *dev)
