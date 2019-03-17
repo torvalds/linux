@@ -254,7 +254,7 @@ void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *Adapter)
 
       /* 1 Find MIN-RSSI */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta == NULL)
+	if (!psta)
 		goto skip_lps_dm;
 
 	pdmpriv->EntryMinUndecoratedSmoothedPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
