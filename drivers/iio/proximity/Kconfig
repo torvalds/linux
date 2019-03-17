@@ -45,6 +45,18 @@ config LIDAR_LITE_V2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pulsedlight-lite-v2
 
+config MB1232
+	tristate "MaxSonar I2CXL family ultrasonic sensors"
+	depends on I2C
+	help
+	  Say Y to build a driver for the ultrasonic sensors I2CXL of
+	  MaxBotix which have an i2c interface. It can be used to measure
+	  the distance of objects. Supported types are mb1202, mb1212,
+	  mb1222, mb1232, mb1242, mb7040, mb7137
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mb1232.
+
 config RFD77402
 	tristate "RFD77402 ToF sensor"
 	depends on I2C
