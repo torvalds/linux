@@ -776,6 +776,8 @@ bool __bio_try_merge_page(struct bio *bio, struct page *page,
 
 		if (vec_end_addr + 1 != page_addr + off)
 			return false;
+		if (xen_domain() && !xen_biovec_phys_mergeable(bv, page))
+			return false;
 		if (same_page && (vec_end_addr & PAGE_MASK) != page_addr)
 			return false;
 
