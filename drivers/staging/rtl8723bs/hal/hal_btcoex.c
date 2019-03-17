@@ -1584,7 +1584,7 @@ u32 hal_btcoex_GetDBG(struct adapter *padapter, u8 *pStrBuf, u32 bufSize)
 	u32 leftSize;
 
 
-	if (!pStrBuf || (0 == bufSize))
+	if (!pStrBuf || bufSize == 0)
 		return 0;
 
 	pstr = pStrBuf;
