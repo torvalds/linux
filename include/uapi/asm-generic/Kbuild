@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Headers that are mandatory in usr/include/asm/
-#
+# (This file is not included when SRCARCH=um since UML does not support UAPI.)
+
 mandatory-y += auxvec.h
 mandatory-y += bitsperlong.h
 mandatory-y += bpf_perf_event.h

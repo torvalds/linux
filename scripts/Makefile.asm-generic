@@ -12,6 +12,11 @@ all:
 src := $(subst /generated,,$(obj))
 -include $(src)/Kbuild
 
+# $(generic)/Kbuild lists mandatory-y. Exclude um since it is a special case.
+ifneq ($(SRCARCH),um)
+include $(generic)/Kbuild
+endif
+
 include scripts/Kbuild.include
 
 redundant := $(filter $(mandatory-y) $(generated-y), $(generic-y))
