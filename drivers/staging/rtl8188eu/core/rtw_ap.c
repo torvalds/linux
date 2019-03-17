@@ -368,7 +368,6 @@ void add_RATid(struct adapter *padapter, struct sta_info *psta, u8 rssi_level)
 	else
 		sta_band |= WIRELESS_11B;
 
-
 	psta->wireless_mode = sta_band;
 
 	raid = networktype_to_raid(sta_band);
