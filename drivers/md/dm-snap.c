@@ -77,7 +77,9 @@ struct dm_snapshot {
 
 	atomic_t pending_exceptions_count;
 
-	/* Protected by "lock" */
+	spinlock_t pe_allocation_lock;
+
+	/* Protected by "pe_allocation_lock" */
 	sector_t exception_start_sequence;
 
 	/* Protected by kcopyd single-threaded callback */
@@ -1245,6 +1247,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	s->snapshot_overflowed = 0;
 	s->active = 0;
 	atomic_set(&s->pending_exceptions_count, 0);
+	spin_lock_init(&s->pe_allocation_lock);
 	s->exception_start_sequence = 0;
 	s->exception_complete_sequence = 0;
 	s->out_of_order_tree = RB_ROOT;
@@ -1522,6 +1525,13 @@ static void __invalidate_snapshot(struct dm_snapshot *s, int err)
 	dm_table_event(s->ti->table);
 }
 
+static void invalidate_snapshot(struct dm_snapshot *s, int err)
+{
+	down_write(&s->lock);
+	__invalidate_snapshot(s, err);
+	up_write(&s->lock);
+}
+
 static void pending_complete(void *context, int success)
 {
 	struct dm_snap_pending_exception *pe = context;
@@ -1537,8 +1547,7 @@ static void pending_complete(void *context, int success)
 
 	if (!success) {
 		/* Read/write error - snapshot is unusable */
-		down_write(&s->lock);
-		__invalidate_snapshot(s, -EIO);
+		invalidate_snapshot(s, -EIO);
 		error = 1;
 
 		dm_exception_table_lock(&lock);
@@ -1547,8 +1556,7 @@ static void pending_complete(void *context, int success)
 
 	e = alloc_completed_exception(GFP_NOIO);
 	if (!e) {
-		down_write(&s->lock);
-		__invalidate_snapshot(s, -ENOMEM);
+		invalidate_snapshot(s, -ENOMEM);
 		error = 1;
 
 		dm_exception_table_lock(&lock);
@@ -1556,11 +1564,13 @@ static void pending_complete(void *context, int success)
 	}
 	*e = pe->e;
 
-	down_write(&s->lock);
+	down_read(&s->lock);
 	dm_exception_table_lock(&lock);
 	if (!s->valid) {
+		up_read(&s->lock);
 		free_completed_exception(e);
 		error = 1;
+
 		goto out;
 	}
 
@@ -1572,13 +1582,12 @@ static void pending_complete(void *context, int success)
 	 * merging can overwrite the chunk in origin.
 	 */
 	dm_insert_exception(&s->complete, e);
+	up_read(&s->lock);
 
 	/* Wait for conflicting reads to drain */
 	if (__chunk_is_tracked(s, pe->e.old_chunk)) {
 		dm_exception_table_unlock(&lock);
-		up_write(&s->lock);
 		__check_for_conflicting_io(s, pe->e.old_chunk);
-		down_write(&s->lock);
 		dm_exception_table_lock(&lock);
 	}
 
@@ -1594,8 +1603,6 @@ out:
 	if (full_bio)
 		full_bio->bi_end_io = pe->full_bio_end_io;
 	increment_pending_exceptions_done_count();
-
-	up_write(&s->lock);
 
 	/* Submit any pending write bios */
 	if (error) {
@@ -1738,8 +1745,8 @@ __lookup_pending_exception(struct dm_snapshot *s, chunk_t chunk)
 /*
  * Inserts a pending exception into the pending table.
  *
- * NOTE: a write lock must be held on snap->lock before calling
- * this.
+ * NOTE: a write lock must be held on the chunk's pending exception table slot
+ * before calling this.
  */
 static struct dm_snap_pending_exception *
 __insert_pending_exception(struct dm_snapshot *s,
@@ -1751,12 +1758,15 @@ __insert_pending_exception(struct dm_snapshot *s,
 	pe->started = 0;
 	pe->full_bio = NULL;
 
+	spin_lock(&s->pe_allocation_lock);
 	if (s->store->type->prepare_exception(s->store, &pe->e)) {
+		spin_unlock(&s->pe_allocation_lock);
 		free_pending_exception(pe);
 		return NULL;
 	}
 
 	pe->exception_sequence = s->exception_start_sequence++;
+	spin_unlock(&s->pe_allocation_lock);
 
 	dm_insert_exception(&s->pending, &pe->e);
 
@@ -1768,8 +1778,8 @@ __insert_pending_exception(struct dm_snapshot *s,
  * for this chunk, otherwise it allocates a new one and inserts
  * it into the pending table.
  *
- * NOTE: a write lock must be held on snap->lock before calling
- * this.
+ * NOTE: a write lock must be held on the chunk's pending exception table slot
+ * before calling this.
  */
 static struct dm_snap_pending_exception *
 __find_pending_exception(struct dm_snapshot *s,
@@ -1820,7 +1830,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	if (!s->valid)
 		return DM_MAPIO_KILL;
 
-	down_write(&s->lock);
+	down_read(&s->lock);
 	dm_exception_table_lock(&lock);
 
 	if (!s->valid || (unlikely(s->snapshot_overflowed) &&
@@ -1845,16 +1855,8 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 		pe = __lookup_pending_exception(s, chunk);
 		if (!pe) {
 			dm_exception_table_unlock(&lock);
-			up_write(&s->lock);
 			pe = alloc_pending_exception(s);
-			down_write(&s->lock);
 			dm_exception_table_lock(&lock);
-
-			if (!s->valid || s->snapshot_overflowed) {
-				free_pending_exception(pe);
-				r = DM_MAPIO_KILL;
-				goto out_unlock;
-			}
 
 			e = dm_lookup_exception(&s->complete, chunk);
 			if (e) {
@@ -1866,10 +1868,15 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 			pe = __find_pending_exception(s, pe, chunk);
 			if (!pe) {
 				dm_exception_table_unlock(&lock);
+				up_read(&s->lock);
+
+				down_write(&s->lock);
 
 				if (s->store->userspace_supports_overflow) {
-					s->snapshot_overflowed = 1;
-					DMERR("Snapshot overflowed: Unable to allocate exception.");
+					if (s->valid && !s->snapshot_overflowed) {
+						s->snapshot_overflowed = 1;
+						DMERR("Snapshot overflowed: Unable to allocate exception.");
+					}
 				} else
 					__invalidate_snapshot(s, -ENOMEM);
 				up_write(&s->lock);
@@ -1887,8 +1894,10 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 		    bio->bi_iter.bi_size ==
 		    (s->store->chunk_size << SECTOR_SHIFT)) {
 			pe->started = 1;
+
 			dm_exception_table_unlock(&lock);
-			up_write(&s->lock);
+			up_read(&s->lock);
+
 			start_full_bio(pe, bio);
 			goto out;
 		}
@@ -1896,10 +1905,12 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 		bio_list_add(&pe->snapshot_bios, bio);
 
 		if (!pe->started) {
-			/* this is protected by snap->lock */
+			/* this is protected by the exception table lock */
 			pe->started = 1;
+
 			dm_exception_table_unlock(&lock);
-			up_write(&s->lock);
+			up_read(&s->lock);
+
 			start_copy(pe);
 			goto out;
 		}
@@ -1910,7 +1921,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 
 out_unlock:
 	dm_exception_table_unlock(&lock);
-	up_write(&s->lock);
+	up_read(&s->lock);
 out:
 	return r;
 }
@@ -2234,7 +2245,7 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 		chunk = sector_to_chunk(snap->store, sector);
 		dm_exception_table_lock_init(snap, chunk, &lock);
 
-		down_write(&snap->lock);
+		down_read(&snap->lock);
 		dm_exception_table_lock(&lock);
 
 		/* Only deal with valid and active snapshots */
@@ -2253,15 +2264,8 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 				goto next_snapshot;
 
 			dm_exception_table_unlock(&lock);
-			up_write(&snap->lock);
 			pe = alloc_pending_exception(snap);
-			down_write(&snap->lock);
 			dm_exception_table_lock(&lock);
-
-			if (!snap->valid) {
-				free_pending_exception(pe);
-				goto next_snapshot;
-			}
 
 			pe2 = __lookup_pending_exception(snap, chunk);
 
@@ -2275,9 +2279,9 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 				pe = __insert_pending_exception(snap, pe, chunk);
 				if (!pe) {
 					dm_exception_table_unlock(&lock);
-					__invalidate_snapshot(snap, -ENOMEM);
-					up_write(&snap->lock);
+					up_read(&snap->lock);
 
+					invalidate_snapshot(snap, -ENOMEM);
 					continue;
 				}
 			} else {
@@ -2310,7 +2314,7 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 
 next_snapshot:
 		dm_exception_table_unlock(&lock);
-		up_write(&snap->lock);
+		up_read(&snap->lock);
 
 		if (pe_to_start_now) {
 			start_copy(pe_to_start_now);
