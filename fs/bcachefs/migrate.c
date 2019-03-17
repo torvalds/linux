@@ -96,10 +96,10 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 			break;
 	}
 
+	bch2_trans_exit(&trans);
+
 	bch2_replicas_gc_end(c, ret);
 	mutex_unlock(&c->replicas_gc_lock);
-
-	bch2_trans_exit(&trans);
 
 	return ret;
 }
