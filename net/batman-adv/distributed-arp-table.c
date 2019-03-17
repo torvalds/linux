@@ -655,7 +655,7 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
 }
 
 /**
- * batadv_dat_send_data() - send a payload to the selected candidates
+ * batadv_dat_forward_data() - copy and send payload to the selected candidates
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: payload to send
  * @ip: the DHT key
@@ -668,9 +668,9 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
  * Return: true if the packet is sent to at least one candidate, false
  * otherwise.
  */
-static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
-				 struct sk_buff *skb, __be32 ip,
-				 unsigned short vid, int packet_subtype)
+static bool batadv_dat_forward_data(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb, __be32 ip,
+				    unsigned short vid, int packet_subtype)
 {
 	int i;
 	bool ret = false;
@@ -1265,8 +1265,8 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 		ret = true;
 	} else {
 		/* Send the request to the DHT */
-		ret = batadv_dat_send_data(bat_priv, skb, ip_dst, vid,
-					   BATADV_P_DAT_DHT_GET);
+		ret = batadv_dat_forward_data(bat_priv, skb, ip_dst, vid,
+					      BATADV_P_DAT_DHT_GET);
 	}
 out:
 	if (dat_entry)
@@ -1380,8 +1380,10 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 	/* Send the ARP reply to the candidates for both the IP addresses that
 	 * the node obtained from the ARP reply
 	 */
-	batadv_dat_send_data(bat_priv, skb, ip_src, vid, BATADV_P_DAT_DHT_PUT);
-	batadv_dat_send_data(bat_priv, skb, ip_dst, vid, BATADV_P_DAT_DHT_PUT);
+	batadv_dat_forward_data(bat_priv, skb, ip_src, vid,
+				BATADV_P_DAT_DHT_PUT);
+	batadv_dat_forward_data(bat_priv, skb, ip_dst, vid,
+				BATADV_P_DAT_DHT_PUT);
 }
 
 /**
@@ -1696,8 +1698,10 @@ static void batadv_dat_put_dhcp(struct batadv_priv *bat_priv, u8 *chaddr,
 	batadv_dat_entry_add(bat_priv, yiaddr, chaddr, vid);
 	batadv_dat_entry_add(bat_priv, ip_dst, hw_dst, vid);
 
-	batadv_dat_send_data(bat_priv, skb, yiaddr, vid, BATADV_P_DAT_DHT_PUT);
-	batadv_dat_send_data(bat_priv, skb, ip_dst, vid, BATADV_P_DAT_DHT_PUT);
+	batadv_dat_forward_data(bat_priv, skb, yiaddr, vid,
+				BATADV_P_DAT_DHT_PUT);
+	batadv_dat_forward_data(bat_priv, skb, ip_dst, vid,
+				BATADV_P_DAT_DHT_PUT);
 
 	consume_skb(skb);
 
