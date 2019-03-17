@@ -1501,16 +1501,24 @@ static void pending_complete(void *context, int success)
 		goto out;
 	}
 
-	/* Check for conflicting reads */
-	__check_for_conflicting_io(s, pe->e.old_chunk);
-
 	/*
-	 * Add a proper exception, and remove the
-	 * in-flight exception from the list.
+	 * Add a proper exception. After inserting the completed exception all
+	 * subsequent snapshot reads to this chunk will be redirected to the
+	 * COW device.  This ensures that we do not starve. Moreover, as long
+	 * as the pending exception exists, neither origin writes nor snapshot
+	 * merging can overwrite the chunk in origin.
 	 */
 	dm_insert_exception(&s->complete, e);
 
+	/* Wait for conflicting reads to drain */
+	if (__chunk_is_tracked(s, pe->e.old_chunk)) {
+		mutex_unlock(&s->lock);
+		__check_for_conflicting_io(s, pe->e.old_chunk);
+		mutex_lock(&s->lock);
+	}
+
 out:
+	/* Remove the in-flight exception from the list */
 	dm_remove_exception(&pe->e);
 	snapshot_bios = bio_list_get(&pe->snapshot_bios);
 	origin_bios = bio_list_get(&pe->origin_bios);
@@ -1660,6 +1668,34 @@ __lookup_pending_exception(struct dm_snapshot *s, chunk_t chunk)
 }
 
 /*
+ * Inserts a pending exception into the pending table.
+ *
+ * NOTE: a write lock must be held on snap->lock before calling
+ * this.
+ */
+static struct dm_snap_pending_exception *
+__insert_pending_exception(struct dm_snapshot *s,
+			   struct dm_snap_pending_exception *pe, chunk_t chunk)
+{
+	pe->e.old_chunk = chunk;
+	bio_list_init(&pe->origin_bios);
+	bio_list_init(&pe->snapshot_bios);
+	pe->started = 0;
+	pe->full_bio = NULL;
+
+	if (s->store->type->prepare_exception(s->store, &pe->e)) {
+		free_pending_exception(pe);
+		return NULL;
+	}
+
+	pe->exception_sequence = s->exception_start_sequence++;
+
+	dm_insert_exception(&s->pending, &pe->e);
+
+	return pe;
+}
+
+/*
  * Looks to see if this snapshot already has a pending exception
  * for this chunk, otherwise it allocates a new one and inserts
  * it into the pending table.
@@ -1679,22 +1715,7 @@ __find_pending_exception(struct dm_snapshot *s,
 		return pe2;
 	}
 
-	pe->e.old_chunk = chunk;
-	bio_list_init(&pe->origin_bios);
-	bio_list_init(&pe->snapshot_bios);
-	pe->started = 0;
-	pe->full_bio = NULL;
-
-	if (s->store->type->prepare_exception(s->store, &pe->e)) {
-		free_pending_exception(pe);
-		return NULL;
-	}
-
-	pe->exception_sequence = s->exception_start_sequence++;
-
-	dm_insert_exception(&s->pending, &pe->e);
-
-	return pe;
+	return __insert_pending_exception(s, pe, chunk);
 }
 
 static void remap_exception(struct dm_snapshot *s, struct dm_exception *e,
@@ -2107,7 +2128,7 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 	int r = DM_MAPIO_REMAPPED;
 	struct dm_snapshot *snap;
 	struct dm_exception *e;
-	struct dm_snap_pending_exception *pe;
+	struct dm_snap_pending_exception *pe, *pe2;
 	struct dm_snap_pending_exception *pe_to_start_now = NULL;
 	struct dm_snap_pending_exception *pe_to_start_last = NULL;
 	chunk_t chunk;
@@ -2137,17 +2158,17 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 		 */
 		chunk = sector_to_chunk(snap->store, sector);
 
-		/*
-		 * Check exception table to see if block
-		 * is already remapped in this snapshot
-		 * and trigger an exception if not.
-		 */
-		e = dm_lookup_exception(&snap->complete, chunk);
-		if (e)
-			goto next_snapshot;
-
 		pe = __lookup_pending_exception(snap, chunk);
 		if (!pe) {
+			/*
+			 * Check exception table to see if block is already
+			 * remapped in this snapshot and trigger an exception
+			 * if not.
+			 */
+			e = dm_lookup_exception(&snap->complete, chunk);
+			if (e)
+				goto next_snapshot;
+
 			mutex_unlock(&snap->lock);
 			pe = alloc_pending_exception(snap);
 			mutex_lock(&snap->lock);
@@ -2157,16 +2178,23 @@ static int __origin_write(struct list_head *snapshots, sector_t sector,
 				goto next_snapshot;
 			}
 
-			e = dm_lookup_exception(&snap->complete, chunk);
-			if (e) {
-				free_pending_exception(pe);
-				goto next_snapshot;
-			}
+			pe2 = __lookup_pending_exception(snap, chunk);
 
-			pe = __find_pending_exception(snap, pe, chunk);
-			if (!pe) {
-				__invalidate_snapshot(snap, -ENOMEM);
-				goto next_snapshot;
+			if (!pe2) {
+				e = dm_lookup_exception(&snap->complete, chunk);
+				if (e) {
+					free_pending_exception(pe);
+					goto next_snapshot;
+				}
+
+				pe = __insert_pending_exception(snap, pe, chunk);
+				if (!pe) {
+					__invalidate_snapshot(snap, -ENOMEM);
+					goto next_snapshot;
+				}
+			} else {
+				free_pending_exception(pe);
+				pe = pe2;
 			}
 		}
 
