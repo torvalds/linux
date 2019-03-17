@@ -121,7 +121,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	}
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 	return IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
 		? AUDIT_ARCH_C6XBE : AUDIT_ARCH_C6X;

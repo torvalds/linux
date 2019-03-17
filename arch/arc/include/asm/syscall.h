@@ -70,7 +70,7 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 }
 
 static inline int
-syscall_get_arch(void)
+syscall_get_arch(struct task_struct *task)
 {
 	return IS_ENABLED(CONFIG_ISA_ARCOMPACT)
 		? (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
