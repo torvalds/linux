@@ -666,12 +666,13 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 }
 
 /**
- *	bio_add_pc_page	-	attempt to add page to passthrough bio
+ *	__bio_add_pc_page	- attempt to add page to passthrough bio
  *	@q: the target queue
  *	@bio: destination bio
  *	@page: page to add
  *	@len: vec entry length
  *	@offset: vec entry offset
+ *	@put_same_page: put the page if it is same with last added page
  *
  *	Attempt to add a page to the bio_vec maplist. This can fail for a
  *	number of reasons, such as the bio being full or target block device
@@ -680,8 +681,9 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
  *
  *	This should only be used by passthrough bios.
  */
-int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
-		    *page, unsigned int len, unsigned int offset)
+int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
+		struct page *page, unsigned int len, unsigned int offset,
+		bool put_same_page)
 {
 	int retried_segments = 0;
 	struct bio_vec *bvec;
@@ -705,6 +707,8 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 
 		if (page == bvec->bv_page &&
 		    offset == bvec->bv_offset + bvec->bv_len) {
+			if (put_same_page)
+				put_page(page);
 			bvec->bv_len += len;
 			bio->bi_iter.bi_size += len;
 			goto done;
@@ -762,6 +766,13 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page
 	bio->bi_iter.bi_size -= len;
 	blk_recount_segments(q, bio);
 	return 0;
+}
+EXPORT_SYMBOL(__bio_add_pc_page);
+
+int bio_add_pc_page(struct request_queue *q, struct bio *bio,
+		struct page *page, unsigned int len, unsigned int offset)
+{
+	return __bio_add_pc_page(q, bio, page, len, offset, false);
 }
 EXPORT_SYMBOL(bio_add_pc_page);
 
@@ -1397,20 +1408,13 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 			for (j = 0; j < npages; j++) {
 				struct page *page = pages[j];
 				unsigned int n = PAGE_SIZE - offs;
-				unsigned short prev_bi_vcnt = bio->bi_vcnt;
 
 				if (n > bytes)
 					n = bytes;
 
-				if (!bio_add_pc_page(q, bio, page, n, offs))
+				if (!__bio_add_pc_page(q, bio, page, n, offs,
+							true))
 					break;
-
-				/*
-				 * check if vector was merged with previous
-				 * drop page reference if needed
-				 */
-				if (bio->bi_vcnt == prev_bi_vcnt)
-					put_page(page);
 
 				added += n;
 				bytes -= n;
