@@ -17,6 +17,7 @@
 #ifndef __ASM_NIOS2_SYSCALL_H__
 #define __ASM_NIOS2_SYSCALL_H__
 
+#include <uapi/linux/audit.h>
 #include <linux/err.h>
 #include <linux/sched.h>
 
@@ -133,6 +134,11 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	default:
 		BUG();
 	}
+}
+
+static inline int syscall_get_arch(void)
+{
+	return AUDIT_ARCH_NIOS2;
 }
 
 #endif
