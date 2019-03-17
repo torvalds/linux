@@ -354,11 +354,11 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
 	struct bio_vec bv, bvprv = { NULL };
-	int prev = 0;
 	unsigned int seg_size, nr_phys_segs;
 	unsigned front_seg_size;
 	struct bio *fbio, *bbio;
 	struct bvec_iter iter;
+	bool new_bio = false;
 
 	if (!bio)
 		return 0;
@@ -379,7 +379,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	nr_phys_segs = 0;
 	for_each_bio(bio) {
 		bio_for_each_bvec(bv, bio, iter) {
-			if (prev) {
+			if (new_bio) {
 				if (seg_size + bv.bv_len
 				    > queue_max_segment_size(q))
 					goto new_segment;
@@ -387,7 +387,6 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					goto new_segment;
 
 				seg_size += bv.bv_len;
-				bvprv = bv;
 
 				if (nr_phys_segs == 1 && seg_size >
 						front_seg_size)
@@ -396,12 +395,13 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 				continue;
 			}
 new_segment:
-			bvprv = bv;
-			prev = 1;
 			bvec_split_segs(q, &bv, &nr_phys_segs, &seg_size,
 					&front_seg_size, NULL, UINT_MAX);
+			new_bio = false;
 		}
 		bbio = bio;
+		bvprv = bv;
+		new_bio = true;
 	}
 
 	fbio->bi_seg_front_size = front_seg_size;
@@ -501,29 +501,26 @@ static inline int __blk_bvec_map_sg(struct bio_vec bv,
 	return 1;
 }
 
-static inline void
-__blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
-		     struct scatterlist *sglist, struct bio_vec *bvprv,
-		     struct scatterlist **sg, int *nsegs)
+/* only try to merge bvecs into one sg if they are from two bios */
+static inline bool
+__blk_segment_map_sg_merge(struct request_queue *q, struct bio_vec *bvec,
+			   struct bio_vec *bvprv, struct scatterlist **sg)
 {
 
 	int nbytes = bvec->bv_len;
 
-	if (*sg) {
-		if ((*sg)->length + nbytes > queue_max_segment_size(q))
-			goto new_segment;
-		if (!biovec_phys_mergeable(q, bvprv, bvec))
-			goto new_segment;
+	if (!*sg)
+		return false;
 
-		(*sg)->length += nbytes;
-	} else {
-new_segment:
-		if (bvec->bv_offset + bvec->bv_len <= PAGE_SIZE) {
-			(*nsegs) += __blk_bvec_map_sg(*bvec, sglist, sg);
-		} else
-			(*nsegs) += blk_bvec_map_sg(q, bvec, sglist, sg);
-	}
-	*bvprv = *bvec;
+	if ((*sg)->length + nbytes > queue_max_segment_size(q))
+		return false;
+
+	if (!biovec_phys_mergeable(q, bvprv, bvec))
+		return false;
+
+	(*sg)->length += nbytes;
+
+	return true;
 }
 
 static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
@@ -533,11 +530,29 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 	struct bio_vec bvec, bvprv = { NULL };
 	struct bvec_iter iter;
 	int nsegs = 0;
+	bool new_bio = false;
 
-	for_each_bio(bio)
-		bio_for_each_bvec(bvec, bio, iter)
-			__blk_segment_map_sg(q, &bvec, sglist, &bvprv, sg,
-					     &nsegs);
+	for_each_bio(bio) {
+		bio_for_each_bvec(bvec, bio, iter) {
+			/*
+			 * Only try to merge bvecs from two bios given we
+			 * have done bio internal merge when adding pages
+			 * to bio
+			 */
+			if (new_bio &&
+			    __blk_segment_map_sg_merge(q, &bvec, &bvprv, sg))
+				goto next_bvec;
+
+			if (bvec.bv_offset + bvec.bv_len <= PAGE_SIZE)
+				nsegs += __blk_bvec_map_sg(bvec, sglist, sg);
+			else
+				nsegs += blk_bvec_map_sg(q, &bvec, sglist, sg);
+ next_bvec:
+			new_bio = false;
+		}
+		bvprv = bvec;
+		new_bio = true;
+	}
 
 	return nsegs;
 }
