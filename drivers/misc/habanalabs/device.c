@@ -663,17 +663,9 @@ again:
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev);
 
-	if (hard_reset) {
-		/* Release kernel context */
-		if (hl_ctx_put(hdev->kernel_ctx) != 1) {
-			dev_err(hdev->dev,
-				"kernel ctx is alive during hard reset\n");
-			rc = -EBUSY;
-			goto out_err;
-		}
-
+	/* Release kernel context */
+	if ((hard_reset) && (hl_ctx_put(hdev->kernel_ctx) == 1))
 		hdev->kernel_ctx = NULL;
-	}
 
 	/* Reset the H/W. It will be in idle state after this returns */
 	hdev->asic_funcs->hw_fini(hdev, hard_reset);
@@ -698,6 +690,13 @@ again:
 
 	if (hard_reset) {
 		hdev->device_cpu_disabled = false;
+
+		if (hdev->kernel_ctx) {
+			dev_crit(hdev->dev,
+				"kernel ctx was alive during hard reset, something is terribly wrong\n");
+			rc = -EBUSY;
+			goto out_err;
+		}
 
 		/* Allocate the kernel context */
 		hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx),
