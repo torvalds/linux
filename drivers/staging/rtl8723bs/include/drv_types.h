@@ -37,10 +37,6 @@ enum _NIC_VERSION {
 
 #include <rtw_ht.h>
 
-#ifdef CONFIG_INTEL_WIDI
-#include <rtw_intel_widi.h>
-#endif
-
 #include <rtw_cmd.h>
 #include <cmd_osdep.h>
 #include <rtw_security.h>
