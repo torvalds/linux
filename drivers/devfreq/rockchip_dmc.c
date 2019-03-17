@@ -50,6 +50,7 @@
 #include <soc/rockchip/rkfb_dmc.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/scpi.h>
@@ -1122,7 +1123,7 @@ struct rockchip_dmcfreq {
 	struct freq_map_table *vop_bw_tbl;
 	struct work_struct boost_work;
 	struct input_handler input_handler;
-	struct thermal_opp_info *opp_info;
+	struct monitor_dev_info *mdev_info;
 	struct rl_map_table *vop_pn_rl_tbl;
 	struct delayed_work msch_rl_work;
 
@@ -1169,12 +1170,6 @@ struct rockchip_dmcfreq {
 
 	int (*set_auto_self_refresh)(u32 en);
 	int (*set_msch_readlatency)(unsigned int rl);
-};
-
-static struct thermal_opp_device_data dmc_devdata = {
-	.type = THERMAL_OPP_TPYE_DEV,
-	.low_temp_adjust = rockchip_dev_low_temp_adjust,
-	.high_temp_adjust = rockchip_dev_high_temp_adjust,
 };
 
 static struct pm_qos_request pm_qos;
@@ -3409,6 +3404,12 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 	return 0;
 }
 
+static struct monitor_dev_profile dmc_mdevp = {
+	.type = MONITOR_TPYE_DEV,
+	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
+	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
+};
+
 static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 {
 	int ret;
@@ -3432,12 +3433,12 @@ static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 	if (ret)
 		dev_err(dmcfreq->dev, "failed to register fb nb\n");
 
-	dmc_devdata.data = dmcfreq->devfreq;
-	dmcfreq->opp_info = rockchip_register_thermal_notifier(dmcfreq->dev,
-							       &dmc_devdata);
-	if (IS_ERR(dmcfreq->opp_info)) {
-		dev_dbg(dmcfreq->dev, "without thermal notifier\n");
-		dmcfreq->opp_info = NULL;
+	dmc_mdevp.data = dmcfreq->devfreq;
+	dmcfreq->mdev_info = rockchip_system_monitor_register(dmcfreq->dev,
+							      &dmc_mdevp);
+	if (IS_ERR(dmcfreq->mdev_info)) {
+		dev_dbg(dmcfreq->dev, "without without system monitor\n");
+		dmcfreq->mdev_info = NULL;
 	}
 }
 
