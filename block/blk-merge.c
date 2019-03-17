@@ -520,7 +520,7 @@ new_segment:
 	*bvprv = *bvec;
 }
 
-static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+static inline int __blk_bvec_map_sg(struct bio_vec bv,
 		struct scatterlist *sglist, struct scatterlist **sg)
 {
 	*sg = sglist;
@@ -555,9 +555,9 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	int nsegs = 0;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
-		nsegs = __blk_bvec_map_sg(q, rq->special_vec, sglist, &sg);
+		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, &sg);
 	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
-		nsegs = __blk_bvec_map_sg(q, bio_iovec(rq->bio), sglist, &sg);
+		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, &sg);
 	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
