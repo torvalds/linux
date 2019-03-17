@@ -168,10 +168,10 @@ static u32 hclks[] = {50000000}; /* +/- by chhung */
 #define PHYSADDR(a)             ((a) & 0x1fffffff)
 #endif
 /* end of +++ */
-static unsigned int msdc_do_command(struct msdc_host   *host,
-				    struct mmc_command *cmd,
-				    int                 tune,
-				    unsigned long       timeout);
+static int msdc_do_command(struct msdc_host   *host,
+		           struct mmc_command *cmd,
+			   int                 tune,
+		           unsigned long       timeout);
 
 static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd);
 
@@ -535,10 +535,10 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 	return cmd->error;
 }
 
-static unsigned int msdc_do_command(struct msdc_host   *host,
-				    struct mmc_command *cmd,
-				    int                 tune,
-				    unsigned long       timeout)
+static int msdc_do_command(struct msdc_host   *host,
+			   struct mmc_command *cmd,
+			   int                 tune,
+		           unsigned long       timeout)
 {
 	if (msdc_command_start(host, cmd, timeout))
 		goto end;
