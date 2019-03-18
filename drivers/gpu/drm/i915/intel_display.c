@@ -1622,14 +1622,15 @@ static void ironlake_enable_pch_transcoder(const struct intel_crtc_state *crtc_s
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK) {
 		if (HAS_PCH_IBX(dev_priv) &&
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_SDVO))
 			val |= TRANS_LEGACY_INTERLACED_ILK;
 		else
 			val |= TRANS_INTERLACED;
-	else
+	} else {
 		val |= TRANS_PROGRESSIVE;
+	}
 
 	I915_WRITE(reg, val | TRANS_ENABLE);
 	if (intel_wait_for_register(dev_priv,
@@ -7760,8 +7761,9 @@ static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 			pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		else
 			pipeconf |= PIPECONF_INTERLACE_W_SYNC_SHIFT;
-	} else
+	} else {
 		pipeconf |= PIPECONF_PROGRESSIVE;
+	}
 
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	     crtc_state->limited_color_range)
@@ -8877,8 +8879,9 @@ static void ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		     dev_priv->vbt.lvds_ssc_freq == 100000) ||
 		    (HAS_PCH_IBX(dev_priv) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
-	} else if (crtc_state->sdvo_tv_clock)
+	} else if (crtc_state->sdvo_tv_clock) {
 		factor = 20;
+	}
 
 	fp = i9xx_dpll_compute_fp(&crtc_state->dpll);
 
