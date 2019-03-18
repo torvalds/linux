@@ -4574,6 +4574,9 @@ static int sctp_setsockopt_event(struct sock *sk, char __user *optval,
 	if (asoc)
 		return sctp_assoc_ulpevent_type_set(&param, asoc);
 
+	if (sctp_style(sk, TCP))
+		param.se_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (param.se_assoc_id == SCTP_FUTURE_ASSOC ||
 	    param.se_assoc_id == SCTP_ALL_ASSOC)
 		sctp_ulpevent_type_set(&sp->subscribe,
