@@ -13,7 +13,7 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_of.h>
 #include <linux/kernel.h>
 #include <linux/component.h>

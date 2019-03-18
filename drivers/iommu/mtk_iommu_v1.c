@@ -474,7 +474,7 @@ static int mtk_iommu_add_device(struct device *dev)
 		return err;
 	}
 
-	return iommu_device_link(&data->iommu, dev);;
+	return iommu_device_link(&data->iommu, dev);
 }
 
 static void mtk_iommu_remove_device(struct device *dev)

@@ -646,7 +646,7 @@ struct cx231xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
+	int interlaced;		/* 1=interlace fields, 0=just top fields */
 
 	struct cx231xx_audio adev;
 

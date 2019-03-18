@@ -4449,6 +4449,13 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 	if (cdev->p_iov_info && cdev->p_iov_info->num_vfs && pci_enabled)
 		pci_disable_sriov(cdev->pdev);
 
+	if (cdev->recov_in_prog) {
+		DP_VERBOSE(cdev,
+			   QED_MSG_IOV,
+			   "Skip SRIOV disable operations in the device since a recovery is in progress\n");
+		goto out;
+	}
+
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *hwfn = &cdev->hwfns[i];
 		struct qed_ptt *ptt = qed_ptt_acquire(hwfn);
@@ -4488,7 +4495,7 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 
 		qed_ptt_release(hwfn, ptt);
 	}
-
+out:
 	qed_iov_set_vfs_to_disable(cdev, false);
 
 	return 0;

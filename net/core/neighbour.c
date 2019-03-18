@@ -42,6 +42,8 @@
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
 
+#include <trace/events/neigh.h>
+
 #define DEBUG
 #define NEIGH_DEBUG 1
 #define neigh_dbg(level, fmt, ...)		\
@@ -102,6 +104,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 	if (neigh->parms->neigh_cleanup)
 		neigh->parms->neigh_cleanup(neigh);
 
+	trace_neigh_cleanup_and_release(neigh, 0);
 	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
@@ -1095,6 +1098,8 @@ out:
 	if (notify)
 		neigh_update_notify(neigh, 0);
 
+	trace_neigh_timer_handler(neigh, 0);
+
 	neigh_release(neigh);
 }
 
@@ -1165,6 +1170,7 @@ out_unlock_bh:
 	else
 		write_unlock(&neigh->lock);
 	local_bh_enable();
+	trace_neigh_event_send_done(neigh, rc);
 	return rc;
 
 out_dead:
@@ -1172,6 +1178,7 @@ out_dead:
 		goto out_unlock_bh;
 	write_unlock_bh(&neigh->lock);
 	kfree_skb(skb);
+	trace_neigh_event_send_dead(neigh, 1);
 	return 1;
 }
 EXPORT_SYMBOL(__neigh_event_send);
@@ -1226,6 +1233,8 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 	int notify = 0;
 	struct net_device *dev;
 	int update_isrouter = 0;
+
+	trace_neigh_update(neigh, lladdr, new, flags, nlmsg_pid);
 
 	write_lock_bh(&neigh->lock);
 
@@ -1392,6 +1401,8 @@ out:
 
 	if (notify)
 		neigh_update_notify(neigh, nlmsg_pid);
+
+	trace_neigh_update_done(neigh, err);
 
 	return err;
 }

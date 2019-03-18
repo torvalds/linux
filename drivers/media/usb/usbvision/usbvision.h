@@ -135,11 +135,11 @@
 
 #define MIN_FRAME_WIDTH			64
 #define MAX_USB_WIDTH			320  /* 384 */
-#define MAX_FRAME_WIDTH			320  /* 384 */			/* streching sometimes causes crashes*/
+#define MAX_FRAME_WIDTH			320  /* 384 */			/* stretching sometimes causes crashes*/
 
 #define MIN_FRAME_HEIGHT		48
 #define MAX_USB_HEIGHT			240  /* 288 */
-#define MAX_FRAME_HEIGHT		240  /* 288 */			/* Streching sometimes causes crashes*/
+#define MAX_FRAME_HEIGHT		240  /* 288 */			/* Stretching sometimes causes crashes*/
 
 #define MAX_FRAME_SIZE			(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * MAX_BYTES_PER_PIXEL)
 #define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) /* bytesize of clipmask */
@@ -177,7 +177,7 @@ enum {
  * G = 1.164*(Y-16) - 0.813*(U-128) - 0.391*(V-128)
  * R = 1.164*(Y-16) + 1.596*(U-128)
  *
- * If you fancy integer arithmetics (as you should), hear this:
+ * If you fancy integer arithmetic (as you should), hear this:
  *
  * 65536*B = 76284*(Y-16)		  + 132252*(V-128)
  * 65536*G = 76284*(Y-16) -  53281*(U-128) -  25625*(V-128)
@@ -316,7 +316,7 @@ struct usbvision_frame {
 	long bytes_read;				/* amount of scanlength that has been read from data */
 	struct usbvision_v4l2_format_st v4l2_format;	/* format the user needs*/
 	int v4l2_linesize;				/* bytes for one videoline*/
-	struct timeval timestamp;
+	u64 ts;
 	int sequence;					/* How many video frames we send to user */
 };
 
@@ -438,7 +438,7 @@ struct usb_usbvision {
 	int last_compr_level;						/* How strong (100) or weak (0) was compression */
 	int usb_bandwidth;						/* Mbit/s */
 
-	/* Statistics that can be overlayed on the screen */
+	/* Statistics that can be overlaid on the screen */
 	unsigned long isoc_urb_count;			/* How many URBs we received so far */
 	unsigned long urb_length;			/* Length of last URB */
 	unsigned long isoc_data_count;			/* How many bytes we received */

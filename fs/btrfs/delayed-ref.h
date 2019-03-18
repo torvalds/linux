@@ -103,17 +103,6 @@ struct btrfs_delayed_ref_head {
 	int ref_mod;
 
 	/*
-	 * For qgroup reserved space freeing.
-	 *
-	 * ref_root and reserved will be recorded after
-	 * BTRFS_ADD_DELAYED_EXTENT is called.
-	 * And will be used to free reserved qgroup space at
-	 * run_delayed_refs() time.
-	 */
-	u64 qgroup_ref_root;
-	u64 qgroup_reserved;
-
-	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
 	 * until the delayed ref is processed.  must_insert_reserved is

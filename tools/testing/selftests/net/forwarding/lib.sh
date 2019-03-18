@@ -17,6 +17,7 @@ NETIF_TYPE=${NETIF_TYPE:=veth}
 NETIF_CREATE=${NETIF_CREATE:=yes}
 MCD=${MCD:=smcrouted}
 MC_CLI=${MC_CLI:=smcroutectl}
+PING_TIMEOUT=${PING_TIMEOUT:=5}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -211,7 +212,7 @@ log_test()
 		return 1
 	fi
 
-	printf "TEST: %-60s  [PASS]\n" "$test_name $opt_str"
+	printf "TEST: %-60s  [ OK ]\n" "$test_name $opt_str"
 	return 0
 }
 
@@ -820,7 +821,8 @@ ping_do()
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name \
+		$PING $args $dip -c 10 -i 0.1 -w $PING_TIMEOUT &> /dev/null
 }
 
 ping_test()
@@ -840,7 +842,8 @@ ping6_do()
 	local vrf_name
 
 	vrf_name=$(master_name_get $if_name)
-	ip vrf exec $vrf_name $PING6 $args $dip -c 10 -i 0.1 -w 2 &> /dev/null
+	ip vrf exec $vrf_name \
+		$PING6 $args $dip -c 10 -i 0.1 -w $PING_TIMEOUT &> /dev/null
 }
 
 ping6_test()

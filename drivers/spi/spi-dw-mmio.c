@@ -18,7 +18,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/acpi.h>
 #include <linux/property.h>
@@ -184,27 +183,6 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "num-cs", &num_cs);
 
 	dws->num_cs = num_cs;
-
-	if (pdev->dev.of_node) {
-		int i;
-
-		for (i = 0; i < dws->num_cs; i++) {
-			int cs_gpio = of_get_named_gpio(pdev->dev.of_node,
-					"cs-gpios", i);
-
-			if (cs_gpio == -EPROBE_DEFER) {
-				ret = cs_gpio;
-				goto out;
-			}
-
-			if (gpio_is_valid(cs_gpio)) {
-				ret = devm_gpio_request(&pdev->dev, cs_gpio,
-						dev_name(&pdev->dev));
-				if (ret)
-					goto out;
-			}
-		}
-	}
 
 	init_func = device_get_match_data(&pdev->dev);
 	if (init_func) {

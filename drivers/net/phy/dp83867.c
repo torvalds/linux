@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Texas Instruments DP83867 PHY
  *
  * Copyright (C) 2015 Texas Instruments Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/ethtool.h>
@@ -19,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/phy.h>
+#include <linux/delay.h>
 
 #include <dt-bindings/net/ti-dp83867.h>
 
@@ -135,17 +128,13 @@ static int dp83867_config_port_mirroring(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 =
 		(struct dp83867_private *)phydev->priv;
-	u16 val;
-
-	val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4);
 
 	if (dp83867->port_mirroring == DP83867_PORT_MIRROING_EN)
-		val |= DP83867_CFG4_PORT_MIRROR_EN;
+		phy_set_bits_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4,
+				 DP83867_CFG4_PORT_MIRROR_EN);
 	else
-		val &= ~DP83867_CFG4_PORT_MIRROR_EN;
-
-	phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4, val);
-
+		phy_clear_bits_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4,
+				   DP83867_CFG4_PORT_MIRROR_EN);
 	return 0;
 }
 
@@ -230,11 +219,9 @@ static int dp83867_config_init(struct phy_device *phydev)
 	}
 
 	/* RX_DV/RX_CTRL strapped in mode 1 or mode 2 workaround */
-	if (dp83867->rxctrl_strap_quirk) {
-		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4);
-		val &= ~BIT(7);
-		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4, val);
-	}
+	if (dp83867->rxctrl_strap_quirk)
+		phy_clear_bits_mmd(phydev, DP83867_DEVADDR, DP83867_CFG4,
+				   BIT(7));
 
 	if (phy_interface_is_rgmii(phydev)) {
 		val = phy_read(phydev, MII_DP83867_PHYCTRL);
@@ -283,17 +270,11 @@ static int dp83867_config_init(struct phy_device *phydev)
 		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIIDCTL,
 			      delay);
 
-		if (dp83867->io_impedance >= 0) {
-			val = phy_read_mmd(phydev, DP83867_DEVADDR,
-					   DP83867_IO_MUX_CFG);
-
-			val &= ~DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL;
-			val |= dp83867->io_impedance &
-			       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL;
-
-			phy_write_mmd(phydev, DP83867_DEVADDR,
-				      DP83867_IO_MUX_CFG, val);
-		}
+		if (dp83867->io_impedance >= 0)
+			phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
+				       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL,
+				       dp83867->io_impedance &
+				       DP83867_IO_MUX_CFG_IO_IMPEDANCE_CTRL);
 	}
 
 	/* Enable Interrupt output INT_OE in CFG3 register */
@@ -307,12 +288,11 @@ static int dp83867_config_init(struct phy_device *phydev)
 		dp83867_config_port_mirroring(phydev);
 
 	/* Clock output selection if muxing property is set */
-	if (dp83867->clk_output_sel != DP83867_CLK_O_SEL_REF_CLK) {
-		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG);
-		val &= ~DP83867_IO_MUX_CFG_CLK_O_SEL_MASK;
-		val |= (dp83867->clk_output_sel << DP83867_IO_MUX_CFG_CLK_O_SEL_SHIFT);
-		phy_write_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG, val);
-	}
+	if (dp83867->clk_output_sel != DP83867_CLK_O_SEL_REF_CLK)
+		phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
+			       DP83867_IO_MUX_CFG_CLK_O_SEL_MASK,
+			       dp83867->clk_output_sel <<
+			       DP83867_IO_MUX_CFG_CLK_O_SEL_SHIFT);
 
 	return 0;
 }
@@ -324,6 +304,8 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 	err = phy_write(phydev, DP83867_CTRL, DP83867_SW_RESET);
 	if (err < 0)
 		return err;
+
+	usleep_range(10, 20);
 
 	return dp83867_config_init(phydev);
 }
@@ -357,4 +339,4 @@ MODULE_DEVICE_TABLE(mdio, dp83867_tbl);
 
 MODULE_DESCRIPTION("Texas Instruments DP83867 PHY driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -553,6 +553,10 @@ static int wcnss_probe(struct platform_device *pdev)
 
 	qcom_add_smd_subdev(rproc, &wcnss->smd_subdev);
 	wcnss->sysmon = qcom_add_sysmon_subdev(rproc, "wcnss", WCNSS_SSCTL_ID);
+	if (IS_ERR(wcnss->sysmon)) {
+		ret = PTR_ERR(wcnss->sysmon);
+		goto free_rproc;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -622,5 +626,5 @@ static void __exit wcnss_exit(void)
 }
 module_exit(wcnss_exit);
 
-MODULE_DESCRIPTION("Qualcomm Peripherial Image Loader for Wireless Subsystem");
+MODULE_DESCRIPTION("Qualcomm Peripheral Image Loader for Wireless Subsystem");
 MODULE_LICENSE("GPL v2");

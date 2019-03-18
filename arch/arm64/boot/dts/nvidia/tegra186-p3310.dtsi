@@ -34,7 +34,8 @@
 	ethernet@2490000 {
 		status = "okay";
 
-		phy-reset-gpios = <&gpio TEGRA_MAIN_GPIO(M, 4) GPIO_ACTIVE_LOW>;
+		phy-reset-gpios = <&gpio TEGRA186_MAIN_GPIO(M, 4)
+					 GPIO_ACTIVE_LOW>;
 		phy-handle = <&phy>;
 		phy-mode = "rgmii";
 
@@ -46,7 +47,8 @@
 				compatible = "ethernet-phy-ieee802.3-c22";
 				reg = <0x0>;
 				interrupt-parent = <&gpio>;
-				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_LOW>;
+				interrupts = <TEGRA186_MAIN_GPIO(M, 5)
+					      IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};
@@ -91,8 +93,8 @@
 
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
-		cd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
+		cd-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
 
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};

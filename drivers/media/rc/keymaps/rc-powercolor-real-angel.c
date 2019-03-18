@@ -26,7 +26,7 @@ static struct rc_map_table powercolor_real_angel[] = {
 	{ 0x07, KEY_7 },
 	{ 0x08, KEY_8 },
 	{ 0x09, KEY_9 },
-	{ 0x0a, KEY_DIGITS },		/* single, double, tripple digit */
+	{ 0x0a, KEY_DIGITS },		/* single, double, triple digit */
 	{ 0x29, KEY_PREVIOUS },		/* previous channel */
 	{ 0x12, KEY_BRIGHTNESSUP },
 	{ 0x13, KEY_BRIGHTNESSDOWN },

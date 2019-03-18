@@ -157,7 +157,7 @@
  *
  */
 
-#define BITS_PER_U64 (sizeof(u64) * BITS_PER_BYTE)
+#define BITS_PER_U128 (sizeof(u64) * BITS_PER_BYTE * 2)
 #define BITS_PER_BYTE_MASK (BITS_PER_BYTE - 1)
 #define BITS_PER_BYTE_MASKED(bits) ((bits) & BITS_PER_BYTE_MASK)
 #define BITS_ROUNDDOWN_BYTES(bits) ((bits) >> 3)
@@ -355,6 +355,11 @@ static bool btf_type_is_struct(const struct btf_type *t)
 	return kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION;
 }
 
+static bool __btf_type_is_struct(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_STRUCT;
+}
+
 static bool btf_type_is_array(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ARRAY;
@@ -525,7 +530,7 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 
 /*
  * Regular int is not a bit field and it must be either
- * u8/u16/u32/u64.
+ * u8/u16/u32/u64 or __int128.
  */
 static bool btf_type_int_is_regular(const struct btf_type *t)
 {
@@ -538,7 +543,8 @@ static bool btf_type_int_is_regular(const struct btf_type *t)
 	if (BITS_PER_BYTE_MASKED(nr_bits) ||
 	    BTF_INT_OFFSET(int_data) ||
 	    (nr_bytes != sizeof(u8) && nr_bytes != sizeof(u16) &&
-	     nr_bytes != sizeof(u32) && nr_bytes != sizeof(u64))) {
+	     nr_bytes != sizeof(u32) && nr_bytes != sizeof(u64) &&
+	     nr_bytes != (2 * sizeof(u64)))) {
 		return false;
 	}
 
@@ -1063,9 +1069,9 @@ static int btf_int_check_member(struct btf_verifier_env *env,
 	nr_copy_bits = BTF_INT_BITS(int_data) +
 		BITS_PER_BYTE_MASKED(struct_bits_off);
 
-	if (nr_copy_bits > BITS_PER_U64) {
+	if (nr_copy_bits > BITS_PER_U128) {
 		btf_verifier_log_member(env, struct_type, member,
-					"nr_copy_bits exceeds 64");
+					"nr_copy_bits exceeds 128");
 		return -EINVAL;
 	}
 
@@ -1119,9 +1125,9 @@ static int btf_int_check_kflag_member(struct btf_verifier_env *env,
 
 	bytes_offset = BITS_ROUNDDOWN_BYTES(struct_bits_off);
 	nr_copy_bits = nr_bits + BITS_PER_BYTE_MASKED(struct_bits_off);
-	if (nr_copy_bits > BITS_PER_U64) {
+	if (nr_copy_bits > BITS_PER_U128) {
 		btf_verifier_log_member(env, struct_type, member,
-					"nr_copy_bits exceeds 64");
+					"nr_copy_bits exceeds 128");
 		return -EINVAL;
 	}
 
@@ -1168,9 +1174,9 @@ static s32 btf_int_check_meta(struct btf_verifier_env *env,
 
 	nr_bits = BTF_INT_BITS(int_data) + BTF_INT_OFFSET(int_data);
 
-	if (nr_bits > BITS_PER_U64) {
+	if (nr_bits > BITS_PER_U128) {
 		btf_verifier_log_type(env, t, "nr_bits exceeds %zu",
-				      BITS_PER_U64);
+				      BITS_PER_U128);
 		return -EINVAL;
 	}
 
@@ -1211,31 +1217,93 @@ static void btf_int_log(struct btf_verifier_env *env,
 			 btf_int_encoding_str(BTF_INT_ENCODING(int_data)));
 }
 
+static void btf_int128_print(struct seq_file *m, void *data)
+{
+	/* data points to a __int128 number.
+	 * Suppose
+	 *     int128_num = *(__int128 *)data;
+	 * The below formulas shows what upper_num and lower_num represents:
+	 *     upper_num = int128_num >> 64;
+	 *     lower_num = int128_num & 0xffffffffFFFFFFFFULL;
+	 */
+	u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = *(u64 *)data;
+	lower_num = *(u64 *)(data + 8);
+#else
+	upper_num = *(u64 *)(data + 8);
+	lower_num = *(u64 *)data;
+#endif
+	if (upper_num == 0)
+		seq_printf(m, "0x%llx", lower_num);
+	else
+		seq_printf(m, "0x%llx%016llx", upper_num, lower_num);
+}
+
+static void btf_int128_shift(u64 *print_num, u16 left_shift_bits,
+			     u16 right_shift_bits)
+{
+	u64 upper_num, lower_num;
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	upper_num = print_num[0];
+	lower_num = print_num[1];
+#else
+	upper_num = print_num[1];
+	lower_num = print_num[0];
+#endif
+
+	/* shake out un-needed bits by shift/or operations */
+	if (left_shift_bits >= 64) {
+		upper_num = lower_num << (left_shift_bits - 64);
+		lower_num = 0;
+	} else {
+		upper_num = (upper_num << left_shift_bits) |
+			    (lower_num >> (64 - left_shift_bits));
+		lower_num = lower_num << left_shift_bits;
+	}
+
+	if (right_shift_bits >= 64) {
+		lower_num = upper_num >> (right_shift_bits - 64);
+		upper_num = 0;
+	} else {
+		lower_num = (lower_num >> right_shift_bits) |
+			    (upper_num << (64 - right_shift_bits));
+		upper_num = upper_num >> right_shift_bits;
+	}
+
+#ifdef __BIG_ENDIAN_BITFIELD
+	print_num[0] = upper_num;
+	print_num[1] = lower_num;
+#else
+	print_num[0] = lower_num;
+	print_num[1] = upper_num;
+#endif
+}
+
 static void btf_bitfield_seq_show(void *data, u8 bits_offset,
 				  u8 nr_bits, struct seq_file *m)
 {
 	u16 left_shift_bits, right_shift_bits;
 	u8 nr_copy_bytes;
 	u8 nr_copy_bits;
-	u64 print_num;
+	u64 print_num[2] = {};
 
 	nr_copy_bits = nr_bits + bits_offset;
 	nr_copy_bytes = BITS_ROUNDUP_BYTES(nr_copy_bits);
 
-	print_num = 0;
-	memcpy(&print_num, data, nr_copy_bytes);
+	memcpy(print_num, data, nr_copy_bytes);
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	left_shift_bits = bits_offset;
 #else
-	left_shift_bits = BITS_PER_U64 - nr_copy_bits;
+	left_shift_bits = BITS_PER_U128 - nr_copy_bits;
 #endif
-	right_shift_bits = BITS_PER_U64 - nr_bits;
+	right_shift_bits = BITS_PER_U128 - nr_bits;
 
-	print_num <<= left_shift_bits;
-	print_num >>= right_shift_bits;
-
-	seq_printf(m, "0x%llx", print_num);
+	btf_int128_shift(print_num, left_shift_bits, right_shift_bits);
+	btf_int128_print(m, print_num);
 }
 
 
@@ -1250,7 +1318,7 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 
 	/*
 	 * bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 64 bits.
+	 * BTF_INT_OFFSET() cannot exceed 128 bits.
 	 */
 	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
@@ -1274,6 +1342,9 @@ static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
 	}
 
 	switch (nr_bits) {
+	case 128:
+		btf_int128_print(m, data);
+		break;
 	case 64:
 		if (sign)
 			seq_printf(m, "%lld", *(s64 *)data);
@@ -1978,6 +2049,43 @@ static void btf_struct_log(struct btf_verifier_env *env,
 			   const struct btf_type *t)
 {
 	btf_verifier_log(env, "size=%u vlen=%u", t->size, btf_type_vlen(t));
+}
+
+/* find 'struct bpf_spin_lock' in map value.
+ * return >= 0 offset if found
+ * and < 0 in case of error
+ */
+int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t)
+{
+	const struct btf_member *member;
+	u32 i, off = -ENOENT;
+
+	if (!__btf_type_is_struct(t))
+		return -EINVAL;
+
+	for_each_member(i, t, member) {
+		const struct btf_type *member_type = btf_type_by_id(btf,
+								    member->type);
+		if (!__btf_type_is_struct(member_type))
+			continue;
+		if (member_type->size != sizeof(struct bpf_spin_lock))
+			continue;
+		if (strcmp(__btf_name_by_offset(btf, member_type->name_off),
+			   "bpf_spin_lock"))
+			continue;
+		if (off != -ENOENT)
+			/* only one 'struct bpf_spin_lock' is allowed */
+			return -E2BIG;
+		off = btf_member_bit_offset(t, member);
+		if (off % 8)
+			/* valid C code cannot generate such BTF */
+			return -EINVAL;
+		off /= 8;
+		if (off % __alignof__(struct bpf_spin_lock))
+			/* valid struct bpf_spin_lock will be 4 byte aligned */
+			return -EINVAL;
+	}
+	return off;
 }
 
 static void btf_struct_seq_show(const struct btf *btf, const struct btf_type *t,

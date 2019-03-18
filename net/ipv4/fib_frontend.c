@@ -710,6 +710,10 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 		case RTA_GATEWAY:
 			cfg->fc_gw = nla_get_be32(attr);
 			break;
+		case RTA_VIA:
+			NL_SET_ERR_MSG(extack, "IPv4 does not support RTA_VIA attribute");
+			err = -EINVAL;
+			goto errout;
 		case RTA_PRIORITY:
 			cfg->fc_priority = nla_get_u32(attr);
 			break;

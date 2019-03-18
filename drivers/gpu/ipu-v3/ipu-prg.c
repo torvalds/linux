@@ -347,6 +347,22 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 }
 EXPORT_SYMBOL_GPL(ipu_prg_channel_configure);
 
+bool ipu_prg_channel_configure_pending(struct ipuv3_channel *ipu_chan)
+{
+	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
+	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
+	struct ipu_prg_channel *chan;
+
+	if (prg_chan < 0)
+		return false;
+
+	chan = &prg->chan[prg_chan];
+	WARN_ON(!chan->enabled);
+
+	return ipu_pre_update_pending(prg->pres[chan->used_pre]);
+}
+EXPORT_SYMBOL_GPL(ipu_prg_channel_configure_pending);
+
 static int ipu_prg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;

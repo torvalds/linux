@@ -139,7 +139,7 @@ struct saa7146_dev
 	void				*ext_priv;	/* pointer for extension private use (most likely some private data) */
 	struct saa7146_ext_vv		*ext_vv_data;
 
-	/* per device video/vbi informations (if available) */
+	/* per device video/vbi information (if available) */
 	struct saa7146_vv	*vv_data;
 	void (*vv_callback)(struct saa7146_dev *dev, unsigned long status);
 

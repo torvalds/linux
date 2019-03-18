@@ -171,7 +171,7 @@ out:
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t hih6130_show_temperature(struct device *dev,
+static ssize_t hih6130_temperature_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -193,7 +193,7 @@ static ssize_t hih6130_show_temperature(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t hih6130_show_humidity(struct device *dev,
+static ssize_t hih6130_humidity_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct hih6130 *hih6130 = dev_get_drvdata(dev);
@@ -206,10 +206,8 @@ static ssize_t hih6130_show_humidity(struct device *dev,
 }
 
 /* sysfs attributes */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, hih6130_show_temperature,
-	NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, hih6130_show_humidity,
-	NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, hih6130_temperature, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, hih6130_humidity, 0);
 
 static struct attribute *hih6130_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -254,8 +252,17 @@ static const struct i2c_device_id hih6130_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);
 
+static const struct of_device_id hih6130_of_match[] = {
+	{ .compatible = "honeywell,hih6130", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hih6130_of_match);
+
 static struct i2c_driver hih6130_driver = {
-	.driver.name = "hih6130",
+	.driver = {
+		.name = "hih6130",
+		.of_match_table = of_match_ptr(hih6130_of_match),
+	},
 	.probe       = hih6130_probe,
 	.id_table    = hih6130_id,
 };

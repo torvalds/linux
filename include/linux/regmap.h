@@ -1131,10 +1131,36 @@ struct regmap_irq {
 		.reg_offset = (_id) / (_reg_bits),	\
 	}
 
+#define REGMAP_IRQ_MAIN_REG_OFFSET(arr)				\
+	{ .num_regs = ARRAY_SIZE((arr)), .offset = &(arr)[0] }
+
+struct regmap_irq_sub_irq_map {
+	unsigned int num_regs;
+	unsigned int *offset;
+};
+
 /**
  * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
  * @name:        Descriptive name for IRQ controller.
+ *
+ * @main_status: Base main status register address. For chips which have
+ *		 interrupts arranged in separate sub-irq blocks with own IRQ
+ *		 registers and which have a main IRQ registers indicating
+ *		 sub-irq blocks with unhandled interrupts. For such chips fill
+ *		 sub-irq register information in status_base, mask_base and
+ *		 ack_base.
+ * @num_main_status_bits: Should be given to chips where number of meaningfull
+ *			  main status bits differs from num_regs.
+ * @sub_reg_offsets: arrays of mappings from main register bits to sub irq
+ *		     registers. First item in array describes the registers
+ *		     for first main status bit. Second array for second bit etc.
+ *		     Offset is given as sub register status offset to
+ *		     status_base. Should contain num_regs arrays.
+ *		     Can be provided for chips with more complex mapping than
+ *		     1.st bit to 1.st sub-reg, 2.nd bit to 2.nd sub-reg, ...
+ * @num_main_regs: Number of 'main status' irq registers for chips which have
+ *		   main_status set.
  *
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
@@ -1180,6 +1206,11 @@ struct regmap_irq {
  */
 struct regmap_irq_chip {
 	const char *name;
+
+	unsigned int main_status;
+	unsigned int num_main_status_bits;
+	struct regmap_irq_sub_irq_map *sub_reg_offsets;
+	int num_main_regs;
 
 	unsigned int status_base;
 	unsigned int mask_base;

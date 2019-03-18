@@ -186,7 +186,7 @@ static unsigned int get_typical_interval(struct menu_device *data,
 	unsigned int min, max, thresh, avg;
 	uint64_t sum, variance;
 
-	thresh = UINT_MAX; /* Discard outliers above this value */
+	thresh = INT_MAX; /* Discard outliers above this value */
 
 again:
 

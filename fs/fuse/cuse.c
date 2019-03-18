@@ -141,10 +141,11 @@ static int cuse_open(struct inode *inode, struct file *file)
 
 static int cuse_release(struct inode *inode, struct file *file)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 
-	fuse_sync_release(ff, file->f_flags);
+	fuse_sync_release(fi, ff, file->f_flags);
 	fuse_conn_put(fc);
 
 	return 0;
@@ -407,7 +408,7 @@ err_unlock:
 err_region:
 	unregister_chrdev_region(devt, 1);
 err:
-	fuse_abort_conn(fc, false);
+	fuse_abort_conn(fc);
 	goto out;
 }
 
@@ -586,7 +587,7 @@ static ssize_t cuse_class_abort_store(struct device *dev,
 {
 	struct cuse_conn *cc = dev_get_drvdata(dev);
 
-	fuse_abort_conn(&cc->fc, false);
+	fuse_abort_conn(&cc->fc);
 	return count;
 }
 static DEVICE_ATTR(abort, 0200, NULL, cuse_class_abort_store);

@@ -91,7 +91,8 @@ enum ap_state {
 	AP_STATE_WORKING,
 	AP_STATE_QUEUE_FULL,
 	AP_STATE_SUSPEND_WAIT,
-	AP_STATE_BORKED,
+	AP_STATE_UNBOUND,	/* momentary not bound to a driver */
+	AP_STATE_BORKED,	/* broken */
 	NR_AP_STATES
 };
 

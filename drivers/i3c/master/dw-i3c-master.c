@@ -602,6 +602,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		ret = dw_i2c_clk_cfg(master);
 		if (ret)
 			return ret;
+		/* fall through */
 	case I3C_BUS_MODE_PURE:
 		ret = dw_i3c_clk_cfg(master);
 		if (ret)

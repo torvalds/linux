@@ -781,7 +781,7 @@ ipipe_set_3d_lut_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 	if (!lut_3d->en)
 		return;
 
-	/* valied table */
+	/* valid table */
 	tbl = lut_3d->table;
 	for (i = 0; i < VPFE_IPIPE_MAX_SIZE_3D_LUT; i++) {
 		/*

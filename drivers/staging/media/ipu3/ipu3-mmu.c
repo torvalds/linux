@@ -48,7 +48,7 @@
 #define REG_GP_HALT		(IMGU_REG_BASE + 0x5dc)
 #define REG_GP_HALTED		(IMGU_REG_BASE + 0x5e0)
 
-struct ipu3_mmu {
+struct imgu_mmu {
 	struct device *dev;
 	void __iomem *base;
 	/* protect access to l2pts, l1pt */
@@ -63,28 +63,28 @@ struct ipu3_mmu {
 	u32 **l2pts;
 	u32 *l1pt;
 
-	struct ipu3_mmu_info geometry;
+	struct imgu_mmu_info geometry;
 };
 
-static inline struct ipu3_mmu *to_ipu3_mmu(struct ipu3_mmu_info *info)
+static inline struct imgu_mmu *to_imgu_mmu(struct imgu_mmu_info *info)
 {
-	return container_of(info, struct ipu3_mmu, geometry);
+	return container_of(info, struct imgu_mmu, geometry);
 }
 
 /**
- * ipu3_mmu_tlb_invalidate - invalidate translation look-aside buffer
+ * imgu_mmu_tlb_invalidate - invalidate translation look-aside buffer
  * @mmu: MMU to perform the invalidate operation on
  *
  * This function invalidates the whole TLB. Must be called when the hardware
  * is powered on.
  */
-static void ipu3_mmu_tlb_invalidate(struct ipu3_mmu *mmu)
+static void imgu_mmu_tlb_invalidate(struct imgu_mmu *mmu)
 {
 	writel(TLB_INVALIDATE, mmu->base + REG_TLB_INVALIDATE);
 }
 
-static void call_if_ipu3_is_powered(struct ipu3_mmu *mmu,
-				    void (*func)(struct ipu3_mmu *mmu))
+static void call_if_imgu_is_powered(struct imgu_mmu *mmu,
+				    void (*func)(struct imgu_mmu *mmu))
 {
 	if (!pm_runtime_get_if_in_use(mmu->dev))
 		return;
@@ -94,14 +94,14 @@ static void call_if_ipu3_is_powered(struct ipu3_mmu *mmu,
 }
 
 /**
- * ipu3_mmu_set_halt - set CIO gate halt bit
+ * imgu_mmu_set_halt - set CIO gate halt bit
  * @mmu: MMU to set the CIO gate bit in.
  * @halt: Desired state of the gate bit.
  *
  * This function sets the CIO gate bit that controls whether external memory
  * accesses are allowed. Must be called when the hardware is powered on.
  */
-static void ipu3_mmu_set_halt(struct ipu3_mmu *mmu, bool halt)
+static void imgu_mmu_set_halt(struct imgu_mmu *mmu, bool halt)
 {
 	int ret;
 	u32 val;
@@ -116,12 +116,12 @@ static void ipu3_mmu_set_halt(struct ipu3_mmu *mmu, bool halt)
 }
 
 /**
- * ipu3_mmu_alloc_page_table - allocate a pre-filled page table
+ * imgu_mmu_alloc_page_table - allocate a pre-filled page table
  * @pteval: Value to initialize for page table entries with.
  *
  * Return: Pointer to allocated page table or NULL on failure.
  */
-static u32 *ipu3_mmu_alloc_page_table(u32 pteval)
+static u32 *imgu_mmu_alloc_page_table(u32 pteval)
 {
 	u32 *pt;
 	int pte;
@@ -139,10 +139,10 @@ static u32 *ipu3_mmu_alloc_page_table(u32 pteval)
 }
 
 /**
- * ipu3_mmu_free_page_table - free page table
+ * imgu_mmu_free_page_table - free page table
  * @pt: Page table to free.
  */
-static void ipu3_mmu_free_page_table(u32 *pt)
+static void imgu_mmu_free_page_table(u32 *pt)
 {
 	set_memory_wb((unsigned long int)pt, IPU3_PT_ORDER);
 	free_page((unsigned long)pt);
@@ -168,7 +168,7 @@ static inline void address_to_pte_idx(unsigned long iova, u32 *l1pt_idx,
 		*l1pt_idx = iova & IPU3_L1PT_MASK;
 }
 
-static u32 *ipu3_mmu_get_l2pt(struct ipu3_mmu *mmu, u32 l1pt_idx)
+static u32 *imgu_mmu_get_l2pt(struct imgu_mmu *mmu, u32 l1pt_idx)
 {
 	unsigned long flags;
 	u32 *l2pt, *new_l2pt;
@@ -182,7 +182,7 @@ static u32 *ipu3_mmu_get_l2pt(struct ipu3_mmu *mmu, u32 l1pt_idx)
 
 	spin_unlock_irqrestore(&mmu->lock, flags);
 
-	new_l2pt = ipu3_mmu_alloc_page_table(mmu->dummy_page_pteval);
+	new_l2pt = imgu_mmu_alloc_page_table(mmu->dummy_page_pteval);
 	if (!new_l2pt)
 		return NULL;
 
@@ -193,7 +193,7 @@ static u32 *ipu3_mmu_get_l2pt(struct ipu3_mmu *mmu, u32 l1pt_idx)
 
 	l2pt = mmu->l2pts[l1pt_idx];
 	if (l2pt) {
-		ipu3_mmu_free_page_table(new_l2pt);
+		imgu_mmu_free_page_table(new_l2pt);
 		goto done;
 	}
 
@@ -208,7 +208,7 @@ done:
 	return l2pt;
 }
 
-static int __ipu3_mmu_map(struct ipu3_mmu *mmu, unsigned long iova,
+static int __imgu_mmu_map(struct imgu_mmu *mmu, unsigned long iova,
 			  phys_addr_t paddr)
 {
 	u32 l1pt_idx, l2pt_idx;
@@ -220,7 +220,7 @@ static int __ipu3_mmu_map(struct ipu3_mmu *mmu, unsigned long iova,
 
 	address_to_pte_idx(iova, &l1pt_idx, &l2pt_idx);
 
-	l2pt = ipu3_mmu_get_l2pt(mmu, l1pt_idx);
+	l2pt = imgu_mmu_get_l2pt(mmu, l1pt_idx);
 	if (!l2pt)
 		return -ENOMEM;
 
@@ -238,11 +238,11 @@ static int __ipu3_mmu_map(struct ipu3_mmu *mmu, unsigned long iova,
 	return 0;
 }
 
-/**
+/*
  * The following four functions are implemented based on iommu.c
  * drivers/iommu/iommu.c/iommu_pgsize().
  */
-static size_t ipu3_mmu_pgsize(unsigned long pgsize_bitmap,
+static size_t imgu_mmu_pgsize(unsigned long pgsize_bitmap,
 			      unsigned long addr_merge, size_t size)
 {
 	unsigned int pgsize_idx;
@@ -276,10 +276,10 @@ static size_t ipu3_mmu_pgsize(unsigned long pgsize_bitmap,
 }
 
 /* drivers/iommu/iommu.c/iommu_map() */
-int ipu3_mmu_map(struct ipu3_mmu_info *info, unsigned long iova,
+int imgu_mmu_map(struct imgu_mmu_info *info, unsigned long iova,
 		 phys_addr_t paddr, size_t size)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	unsigned int min_pagesz;
 	int ret = 0;
 
@@ -301,13 +301,13 @@ int ipu3_mmu_map(struct ipu3_mmu_info *info, unsigned long iova,
 		iova, &paddr, size);
 
 	while (size) {
-		size_t pgsize = ipu3_mmu_pgsize(mmu->geometry.pgsize_bitmap,
+		size_t pgsize = imgu_mmu_pgsize(mmu->geometry.pgsize_bitmap,
 						iova | paddr, size);
 
 		dev_dbg(mmu->dev, "mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
 			iova, &paddr, pgsize);
 
-		ret = __ipu3_mmu_map(mmu, iova, paddr);
+		ret = __imgu_mmu_map(mmu, iova, paddr);
 		if (ret)
 			break;
 
@@ -316,16 +316,16 @@ int ipu3_mmu_map(struct ipu3_mmu_info *info, unsigned long iova,
 		size -= pgsize;
 	}
 
-	call_if_ipu3_is_powered(mmu, ipu3_mmu_tlb_invalidate);
+	call_if_imgu_is_powered(mmu, imgu_mmu_tlb_invalidate);
 
 	return ret;
 }
 
 /* drivers/iommu/iommu.c/default_iommu_map_sg() */
-size_t ipu3_mmu_map_sg(struct ipu3_mmu_info *info, unsigned long iova,
+size_t imgu_mmu_map_sg(struct imgu_mmu_info *info, unsigned long iova,
 		       struct scatterlist *sg, unsigned int nents)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	struct scatterlist *s;
 	size_t s_length, mapped = 0;
 	unsigned int i, min_pagesz;
@@ -345,25 +345,25 @@ size_t ipu3_mmu_map_sg(struct ipu3_mmu_info *info, unsigned long iova,
 		if (i == nents - 1 && !IS_ALIGNED(s->length, min_pagesz))
 			s_length = PAGE_ALIGN(s->length);
 
-		ret = ipu3_mmu_map(info, iova + mapped, phys, s_length);
+		ret = imgu_mmu_map(info, iova + mapped, phys, s_length);
 		if (ret)
 			goto out_err;
 
 		mapped += s_length;
 	}
 
-	call_if_ipu3_is_powered(mmu, ipu3_mmu_tlb_invalidate);
+	call_if_imgu_is_powered(mmu, imgu_mmu_tlb_invalidate);
 
 	return mapped;
 
 out_err:
 	/* undo mappings already done */
-	ipu3_mmu_unmap(info, iova, mapped);
+	imgu_mmu_unmap(info, iova, mapped);
 
 	return 0;
 }
 
-static size_t __ipu3_mmu_unmap(struct ipu3_mmu *mmu,
+static size_t __imgu_mmu_unmap(struct imgu_mmu *mmu,
 			       unsigned long iova, size_t size)
 {
 	u32 l1pt_idx, l2pt_idx;
@@ -395,10 +395,10 @@ static size_t __ipu3_mmu_unmap(struct ipu3_mmu *mmu,
 }
 
 /* drivers/iommu/iommu.c/iommu_unmap() */
-size_t ipu3_mmu_unmap(struct ipu3_mmu_info *info, unsigned long iova,
+size_t imgu_mmu_unmap(struct imgu_mmu_info *info, unsigned long iova,
 		      size_t size)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	size_t unmapped_page, unmapped = 0;
 	unsigned int min_pagesz;
 
@@ -423,10 +423,10 @@ size_t ipu3_mmu_unmap(struct ipu3_mmu_info *info, unsigned long iova,
 	 * or we hit an area that isn't mapped.
 	 */
 	while (unmapped < size) {
-		size_t pgsize = ipu3_mmu_pgsize(mmu->geometry.pgsize_bitmap,
+		size_t pgsize = imgu_mmu_pgsize(mmu->geometry.pgsize_bitmap,
 						iova, size - unmapped);
 
-		unmapped_page = __ipu3_mmu_unmap(mmu, iova, pgsize);
+		unmapped_page = __imgu_mmu_unmap(mmu, iova, pgsize);
 		if (!unmapped_page)
 			break;
 
@@ -437,20 +437,21 @@ size_t ipu3_mmu_unmap(struct ipu3_mmu_info *info, unsigned long iova,
 		unmapped += unmapped_page;
 	}
 
-	call_if_ipu3_is_powered(mmu, ipu3_mmu_tlb_invalidate);
+	call_if_imgu_is_powered(mmu, imgu_mmu_tlb_invalidate);
 
 	return unmapped;
 }
 
 /**
- * ipu3_mmu_init() - initialize IPU3 MMU block
+ * imgu_mmu_init() - initialize IPU3 MMU block
+ * @parent:	struct device parent
  * @base:	IOMEM base of hardware registers.
  *
  * Return: Pointer to IPU3 MMU private data pointer or ERR_PTR() on error.
  */
-struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base)
+struct imgu_mmu_info *imgu_mmu_init(struct device *parent, void __iomem *base)
 {
-	struct ipu3_mmu *mmu;
+	struct imgu_mmu *mmu;
 	u32 pteval;
 
 	mmu = kzalloc(sizeof(*mmu), GFP_KERNEL);
@@ -462,7 +463,7 @@ struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base)
 	spin_lock_init(&mmu->lock);
 
 	/* Disallow external memory access when having no valid page tables. */
-	ipu3_mmu_set_halt(mmu, true);
+	imgu_mmu_set_halt(mmu, true);
 
 	/*
 	 * The MMU does not have a "valid" bit, so we have to use a dummy
@@ -478,7 +479,7 @@ struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base)
 	 * Allocate a dummy L2 page table with all entries pointing to
 	 * the dummy page.
 	 */
-	mmu->dummy_l2pt = ipu3_mmu_alloc_page_table(pteval);
+	mmu->dummy_l2pt = imgu_mmu_alloc_page_table(pteval);
 	if (!mmu->dummy_l2pt)
 		goto fail_dummy_page;
 	pteval = IPU3_ADDR2PTE(virt_to_phys(mmu->dummy_l2pt));
@@ -493,14 +494,14 @@ struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base)
 		goto fail_l2pt;
 
 	/* Allocate the L1 page table. */
-	mmu->l1pt = ipu3_mmu_alloc_page_table(mmu->dummy_l2pt_pteval);
+	mmu->l1pt = imgu_mmu_alloc_page_table(mmu->dummy_l2pt_pteval);
 	if (!mmu->l1pt)
 		goto fail_l2pts;
 
 	pteval = IPU3_ADDR2PTE(virt_to_phys(mmu->l1pt));
 	writel(pteval, mmu->base + REG_L1_PHYS);
-	ipu3_mmu_tlb_invalidate(mmu);
-	ipu3_mmu_set_halt(mmu, false);
+	imgu_mmu_tlb_invalidate(mmu);
+	imgu_mmu_set_halt(mmu, false);
 
 	mmu->geometry.aperture_start = 0;
 	mmu->geometry.aperture_end = DMA_BIT_MASK(IPU3_MMU_ADDRESS_BITS);
@@ -511,7 +512,7 @@ struct ipu3_mmu_info *ipu3_mmu_init(struct device *parent, void __iomem *base)
 fail_l2pts:
 	vfree(mmu->l2pts);
 fail_l2pt:
-	ipu3_mmu_free_page_table(mmu->dummy_l2pt);
+	imgu_mmu_free_page_table(mmu->dummy_l2pt);
 fail_dummy_page:
 	free_page((unsigned long)mmu->dummy_page);
 fail_group:
@@ -521,41 +522,41 @@ fail_group:
 }
 
 /**
- * ipu3_mmu_exit() - clean up IPU3 MMU block
- * @mmu: IPU3 MMU private data
+ * imgu_mmu_exit() - clean up IPU3 MMU block
+ * @info: IPU3 MMU private data
  */
-void ipu3_mmu_exit(struct ipu3_mmu_info *info)
+void imgu_mmu_exit(struct imgu_mmu_info *info)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 
 	/* We are going to free our page tables, no more memory access. */
-	ipu3_mmu_set_halt(mmu, true);
-	ipu3_mmu_tlb_invalidate(mmu);
+	imgu_mmu_set_halt(mmu, true);
+	imgu_mmu_tlb_invalidate(mmu);
 
-	ipu3_mmu_free_page_table(mmu->l1pt);
+	imgu_mmu_free_page_table(mmu->l1pt);
 	vfree(mmu->l2pts);
-	ipu3_mmu_free_page_table(mmu->dummy_l2pt);
+	imgu_mmu_free_page_table(mmu->dummy_l2pt);
 	free_page((unsigned long)mmu->dummy_page);
 	kfree(mmu);
 }
 
-void ipu3_mmu_suspend(struct ipu3_mmu_info *info)
+void imgu_mmu_suspend(struct imgu_mmu_info *info)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 
-	ipu3_mmu_set_halt(mmu, true);
+	imgu_mmu_set_halt(mmu, true);
 }
 
-void ipu3_mmu_resume(struct ipu3_mmu_info *info)
+void imgu_mmu_resume(struct imgu_mmu_info *info)
 {
-	struct ipu3_mmu *mmu = to_ipu3_mmu(info);
+	struct imgu_mmu *mmu = to_imgu_mmu(info);
 	u32 pteval;
 
-	ipu3_mmu_set_halt(mmu, true);
+	imgu_mmu_set_halt(mmu, true);
 
 	pteval = IPU3_ADDR2PTE(virt_to_phys(mmu->l1pt));
 	writel(pteval, mmu->base + REG_L1_PHYS);
 
-	ipu3_mmu_tlb_invalidate(mmu);
-	ipu3_mmu_set_halt(mmu, false);
+	imgu_mmu_tlb_invalidate(mmu);
+	imgu_mmu_set_halt(mmu, false);
 }

@@ -150,7 +150,7 @@ void __show_regs(struct pt_regs *regs)
 		if ((domain & domain_mask(DOMAIN_USER)) ==
 		    domain_val(DOMAIN_USER, DOMAIN_NOACCESS))
 			segment = "none";
-		else if (fs == get_ds())
+		else if (fs == KERNEL_DS)
 			segment = "kernel";
 		else
 			segment = "user";

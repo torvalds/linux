@@ -95,6 +95,13 @@
 		sound-name-prefix = "MIC";
 	};
 
+	spdif_dir: audio-codec-4 {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dir";
+		status = "okay";
+		sound-name-prefix = "DIR";
+	};
+
 	emmc_pwrseq: emmc-pwrseq {
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
@@ -249,6 +256,9 @@
 				"TODDR_A IN 2", "TDMIN_C OUT",
 				"TODDR_B IN 2", "TDMIN_C OUT",
 				"TODDR_C IN 2", "TDMIN_C OUT",
+				"TODDR_A IN 3", "SPDIFIN Capture",
+				"TODDR_B IN 3", "SPDIFIN Capture",
+				"TODDR_C IN 3", "SPDIFIN Capture",
 				"TODDR_A IN 4", "PDM Capture",
 				"TODDR_B IN 4", "PDM Capture",
 				"TODDR_C IN 4", "PDM Capture",
@@ -326,6 +336,14 @@
 		};
 
 		dai-link-8 {
+			sound-dai = <&spdifin>;
+
+			codec {
+				sound-dai = <&spdif_dir>;
+			};
+		};
+
+		dai-link-9 {
 			sound-dai = <&pdm>;
 
 			codec {
@@ -446,7 +464,8 @@
 
 	bus-width = <4>;
 	cap-sd-highspeed;
-	max-frequency = <100000000>;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
 
@@ -469,9 +488,8 @@
 	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
-	cap-sd-highspeed;
 	cap-mmc-highspeed;
-	max-frequency = <180000000>;
+	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
 	mmc-ddr-1_8v;
@@ -481,6 +499,12 @@
 
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vddio_boot>;
+};
+
+&spdifin {
+	pinctrl-0 = <&spdif_in_a19_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &spdifout {

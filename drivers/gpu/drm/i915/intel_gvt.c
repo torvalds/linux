@@ -49,6 +49,9 @@ static bool is_supported_device(struct drm_i915_private *dev_priv)
 		return true;
 	if (IS_BROXTON(dev_priv))
 		return true;
+	if (IS_COFFEELAKE(dev_priv))
+		return true;
+
 	return false;
 }
 
@@ -103,15 +106,6 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 	if (USES_GUC_SUBMISSION(dev_priv)) {
 		DRM_ERROR("i915 GVT-g loading failed due to Graphics virtualization is not yet supported with GuC submission\n");
 		return -EIO;
-	}
-
-	/*
-	 * We're not in host or fail to find a MPT module, disable GVT-g
-	 */
-	ret = intel_gvt_init_host();
-	if (ret) {
-		DRM_DEBUG_DRIVER("Not in host or MPT modules not found\n");
-		goto bail;
 	}
 
 	ret = intel_gvt_init_device(dev_priv);

@@ -123,7 +123,7 @@ then ``EINVAL`` will be returned.
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` or calling :ref:`VIDIOC_REQBUFS`
    the check for this will be reset.
 
-   For :ref:`memory-to-memory devices <codec>` you can specify the
+   For :ref:`memory-to-memory devices <mem2mem>` you can specify the
    ``request_fd`` only for output buffers, not for capture buffers. Attempting
    to specify this for a capture buffer will result in an ``EACCES`` error.
 

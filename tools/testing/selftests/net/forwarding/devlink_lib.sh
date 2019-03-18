@@ -32,7 +32,7 @@ DEVLINK_VIDDID=$(lspci -s $(echo $DEVLINK_DEV | cut -d"/" -f2) \
 ##############################################################################
 # Sanity checks
 
-devlink -j resource show "$DEVLINK_DEV" &> /dev/null
+devlink help 2>&1 | grep resource &> /dev/null
 if [ $? -ne 0 ]; then
 	echo "SKIP: iproute2 too old, missing devlink resource support"
 	exit 1

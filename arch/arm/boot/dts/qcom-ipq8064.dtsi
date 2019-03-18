@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-#include "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
 #include <dt-bindings/clock/qcom,lcc-ipq806x.h>
@@ -11,6 +10,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm IPQ8064";
 	compatible = "qcom,ipq8064";
 	interrupt-parent = <&intc>;
@@ -43,6 +44,11 @@
 			compatible = "cache";
 			cache-level = <2>;
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
 	cpu-pmu {

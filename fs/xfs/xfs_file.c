@@ -507,7 +507,7 @@ xfs_file_dio_aio_write(
 		 * We can't properly handle unaligned direct I/O to reflink
 		 * files yet, as we can't unshare a partial block.
 		 */
-		if (xfs_is_reflink_inode(ip)) {
+		if (xfs_is_cow_inode(ip)) {
 			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
 			return -EREMCHG;
 		}
@@ -872,14 +872,27 @@ xfs_file_fallocate(
 				goto out_unlock;
 		}
 
-		if (mode & FALLOC_FL_ZERO_RANGE)
+		if (mode & FALLOC_FL_ZERO_RANGE) {
 			error = xfs_zero_file_space(ip, offset, len);
-		else {
-			if (mode & FALLOC_FL_UNSHARE_RANGE) {
-				error = xfs_reflink_unshare(ip, offset, len);
-				if (error)
-					goto out_unlock;
+		} else if (mode & FALLOC_FL_UNSHARE_RANGE) {
+			error = xfs_reflink_unshare(ip, offset, len);
+			if (error)
+				goto out_unlock;
+
+			if (!xfs_is_always_cow_inode(ip)) {
+				error = xfs_alloc_file_space(ip, offset, len,
+						XFS_BMAPI_PREALLOC);
 			}
+		} else {
+			/*
+			 * If always_cow mode we can't use preallocations and
+			 * thus should not create them.
+			 */
+			if (xfs_is_always_cow_inode(ip)) {
+				error = -EOPNOTSUPP;
+				goto out_unlock;
+			}
+
 			error = xfs_alloc_file_space(ip, offset, len,
 						     XFS_BMAPI_PREALLOC);
 		}
@@ -1068,10 +1081,10 @@ xfs_file_llseek(
 	default:
 		return generic_file_llseek(file, offset, whence);
 	case SEEK_HOLE:
-		offset = iomap_seek_hole(inode, offset, &xfs_iomap_ops);
+		offset = iomap_seek_hole(inode, offset, &xfs_seek_iomap_ops);
 		break;
 	case SEEK_DATA:
-		offset = iomap_seek_data(inode, offset, &xfs_iomap_ops);
+		offset = iomap_seek_data(inode, offset, &xfs_seek_iomap_ops);
 		break;
 	}
 
@@ -1203,6 +1216,7 @@ const struct file_operations xfs_file_operations = {
 	.write_iter	= xfs_file_write_iter,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
+	.iopoll		= iomap_dio_iopoll,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_ioctl,

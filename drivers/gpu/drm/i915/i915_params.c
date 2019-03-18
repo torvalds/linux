@@ -77,7 +77,7 @@ i915_param_named(error_capture, bool, 0600,
 	"triaging and debugging hangs.");
 #endif
 
-i915_param_named_unsafe(enable_hangcheck, bool, 0644,
+i915_param_named_unsafe(enable_hangcheck, bool, 0600,
 	"Periodically check GPU activity for detecting hangs. "
 	"WARNING: Disabling this can cause system wide hangs. "
 	"(default: true)");
@@ -97,8 +97,10 @@ i915_param_named_unsafe(disable_power_well, int, 0400,
 
 i915_param_named_unsafe(enable_ips, int, 0600, "Enable IPS (default: true)");
 
-i915_param_named(fastboot, bool, 0600,
-	"Try to skip unnecessary mode sets at boot time (default: false)");
+i915_param_named(fastboot, int, 0600,
+	"Try to skip unnecessary mode sets at boot time "
+	"(0=disabled, 1=enabled) "
+	"Default: -1 (use per-chip default)");
 
 i915_param_named_unsafe(prefault_disable, bool, 0600,
 	"Disable page prefaulting for pread/pwrite/reloc (default:false). "
@@ -202,4 +204,34 @@ void i915_params_dump(const struct i915_params *params, struct drm_printer *p)
 #define PRINT(T, x, ...) _print_param(p, #x, #T, &params->x);
 	I915_PARAMS_FOR_EACH(PRINT);
 #undef PRINT
+}
+
+static __always_inline void dup_param(const char *type, void *x)
+{
+	if (!__builtin_strcmp(type, "char *"))
+		*(void **)x = kstrdup(*(void **)x, GFP_ATOMIC);
+}
+
+void i915_params_copy(struct i915_params *dest, const struct i915_params *src)
+{
+	*dest = *src;
+#define DUP(T, x, ...) dup_param(#T, &dest->x);
+	I915_PARAMS_FOR_EACH(DUP);
+#undef DUP
+}
+
+static __always_inline void free_param(const char *type, void *x)
+{
+	if (!__builtin_strcmp(type, "char *")) {
+		kfree(*(void **)x);
+		*(void **)x = NULL;
+	}
+}
+
+/* free the allocated members, *not* the passed in params itself */
+void i915_params_free(struct i915_params *params)
+{
+#define FREE(T, x, ...) free_param(#T, &params->x);
+	I915_PARAMS_FOR_EACH(FREE);
+#undef FREE
 }

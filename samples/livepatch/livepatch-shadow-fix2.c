@@ -50,7 +50,7 @@ struct dummy {
 	unsigned long jiffies_expire;
 };
 
-bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
+static bool livepatch_fix2_dummy_check(struct dummy *d, unsigned long jiffies)
 {
 	int *shadow_count;
 
@@ -78,7 +78,7 @@ static void livepatch_fix2_dummy_leak_dtor(void *obj, void *shadow_data)
 			 __func__, d, *shadow_leak);
 }
 
-void livepatch_fix2_dummy_free(struct dummy *d)
+static void livepatch_fix2_dummy_free(struct dummy *d)
 {
 	void **shadow_leak;
 	int *shadow_count;
@@ -129,25 +129,13 @@ static struct klp_patch patch = {
 
 static int livepatch_shadow_fix2_init(void)
 {
-	int ret;
-
-	ret = klp_register_patch(&patch);
-	if (ret)
-		return ret;
-	ret = klp_enable_patch(&patch);
-	if (ret) {
-		WARN_ON(klp_unregister_patch(&patch));
-		return ret;
-	}
-	return 0;
+	return klp_enable_patch(&patch);
 }
 
 static void livepatch_shadow_fix2_exit(void)
 {
 	/* Cleanup any existing SV_COUNTER shadow variables */
 	klp_shadow_free_all(SV_COUNTER, NULL);
-
-	WARN_ON(klp_unregister_patch(&patch));
 }
 
 module_init(livepatch_shadow_fix2_init);

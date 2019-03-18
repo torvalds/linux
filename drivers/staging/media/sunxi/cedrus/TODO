@@ -5,8 +5,3 @@ Before this stateless decoder driver can leave the staging area:
 * Userspace support for the Request API needs to be reviewed;
 * Another stateless decoder driver should be submitted;
 * At least one stateless encoder driver should be submitted.
-* When queueing a request containing references to I frames, the
-  refcount of the memory for those I frames needs to be incremented
-  and decremented when the request is completed. This will likely
-  require some help from vb2. The driver should fail the request
-  if the memory/buffer is gone.
