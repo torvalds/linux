@@ -87,5 +87,12 @@ int ishtp_cl_flush_queues(struct ishtp_cl *cl);
 int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb);
 bool ishtp_cl_tx_empty(struct ishtp_cl *cl);
 struct ishtp_cl_rb *ishtp_cl_rx_get_rb(struct ishtp_cl *cl);
+void *ishtp_get_client_data(struct ishtp_cl *cl);
+void ishtp_set_client_data(struct ishtp_cl *cl, void *data);
+struct ishtp_device *ishtp_get_ishtp_device(struct ishtp_cl *cl);
+void ishtp_set_tx_ring_size(struct ishtp_cl *cl, int size);
+void ishtp_set_rx_ring_size(struct ishtp_cl *cl, int size);
+void ishtp_set_connection_state(struct ishtp_cl *cl, int state);
+void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id);
 
 #endif /* _INTEL_ISH_CLIENT_IF_H_ */
