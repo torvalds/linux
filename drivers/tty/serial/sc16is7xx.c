@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
@@ -1179,7 +1180,8 @@ static int sc16is7xx_probe(struct device *dev,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
 	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO / 2 };
-	unsigned long freq, *pfreq = dev_get_platdata(dev);
+	unsigned long freq = 0, *pfreq = dev_get_platdata(dev);
+	u32 uartclk = 0;
 	int i, ret;
 	struct sc16is7xx_port *s;
 
@@ -1193,10 +1195,17 @@ static int sc16is7xx_probe(struct device *dev,
 		return -ENOMEM;
 	}
 
+	/* Always ask for fixed clock rate from a property. */
+	device_property_read_u32(dev, "clock-frequency", &uartclk);
+
 	s->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(s->clk)) {
+		if (uartclk)
+			freq = uartclk;
 		if (pfreq)
 			freq = *pfreq;
+		if (freq)
+			dev_dbg(dev, "Clock frequency: %luHz\n", freq);
 		else
 			return PTR_ERR(s->clk);
 	} else {
