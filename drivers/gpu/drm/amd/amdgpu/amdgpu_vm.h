@@ -199,11 +199,6 @@ struct amdgpu_vm_update_params {
 	dma_addr_t *pages_addr;
 
 	/**
-	 * @src: address where to copy page table entries from
-	 */
-	uint64_t src;
-
-	/**
 	 * @job: job to used for hw submission
 	 */
 	struct amdgpu_job *job;
@@ -217,14 +212,6 @@ struct amdgpu_vm_update_params {
 	 * @num_dw_left: number of dw left for the IB
 	 */
 	unsigned int num_dw_left;
-
-	/**
-	 * @func: Function which actually does the update
-	 */
-	void (*func)(struct amdgpu_vm_update_params *params,
-		     struct amdgpu_bo *bo, uint64_t pe,
-		     uint64_t addr, unsigned count, uint32_t incr,
-		     uint64_t flags);
 };
 
 struct amdgpu_vm_update_funcs {
