@@ -279,12 +279,12 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	struct virtio_gpu_object *qobj;
 	struct drm_gem_object *obj;
 	uint32_t handle = 0;
-	uint32_t size;
 	struct list_head validate_list;
 	struct ttm_validate_buffer mainbuf;
 	struct virtio_gpu_fence *fence = NULL;
 	struct ww_acquire_ctx ticket;
 	struct virtio_gpu_resource_create_3d rc_3d;
+	struct virtio_gpu_object_params params = { 0 };
 
 	if (vgdev->has_virgl_3d == false) {
 		if (rc->depth > 1)
@@ -302,13 +302,13 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	INIT_LIST_HEAD(&validate_list);
 	memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
 
-	size = rc->size;
+	params.size = rc->size;
 
 	/* allocate a single page size object */
-	if (size == 0)
-		size = PAGE_SIZE;
+	if (params.size == 0)
+		params.size = PAGE_SIZE;
 
-	qobj = virtio_gpu_alloc_object(dev, size, false, false);
+	qobj = virtio_gpu_alloc_object(dev, &params);
 	if (IS_ERR(qobj))
 		return PTR_ERR(qobj);
 	obj = &qobj->gem_base;

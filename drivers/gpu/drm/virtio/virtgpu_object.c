@@ -74,39 +74,33 @@ static void virtio_gpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
-static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo,
-					  bool pinned)
+static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo)
 {
 	u32 c = 1;
-	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
 
 	vgbo->placement.placement = &vgbo->placement_code;
 	vgbo->placement.busy_placement = &vgbo->placement_code;
 	vgbo->placement_code.fpfn = 0;
 	vgbo->placement_code.lpfn = 0;
 	vgbo->placement_code.flags =
-		TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT | pflag;
+		TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT |
+		TTM_PL_FLAG_NO_EVICT;
 	vgbo->placement.num_placement = c;
 	vgbo->placement.num_busy_placement = c;
 
 }
 
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
-			     unsigned long size, bool kernel, bool pinned,
+			     struct virtio_gpu_object_params *params,
 			     struct virtio_gpu_object **bo_ptr)
 {
 	struct virtio_gpu_object *bo;
-	enum ttm_bo_type type;
 	size_t acc_size;
 	int ret;
 
-	if (kernel)
-		type = ttm_bo_type_kernel;
-	else
-		type = ttm_bo_type_device;
 	*bo_ptr = NULL;
 
-	acc_size = ttm_bo_dma_acc_size(&vgdev->mman.bdev, size,
+	acc_size = ttm_bo_dma_acc_size(&vgdev->mman.bdev, params->size,
 				       sizeof(struct virtio_gpu_object));
 
 	bo = kzalloc(sizeof(struct virtio_gpu_object), GFP_KERNEL);
@@ -117,19 +111,20 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		kfree(bo);
 		return ret;
 	}
-	size = roundup(size, PAGE_SIZE);
-	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, size);
+	params->size = roundup(params->size, PAGE_SIZE);
+	ret = drm_gem_object_init(vgdev->ddev, &bo->gem_base, params->size);
 	if (ret != 0) {
 		virtio_gpu_resource_id_put(vgdev, bo->hw_res_handle);
 		kfree(bo);
 		return ret;
 	}
 	bo->dumb = false;
-	virtio_gpu_init_ttm_placement(bo, pinned);
+	virtio_gpu_init_ttm_placement(bo);
 
-	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, size, type,
-			  &bo->placement, 0, !kernel, acc_size,
-			  NULL, NULL, &virtio_gpu_ttm_bo_destroy);
+	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, params->size,
+			  ttm_bo_type_device, &bo->placement, 0,
+			  true, acc_size, NULL, NULL,
+			  &virtio_gpu_ttm_bo_destroy);
 	/* ttm_bo_init failure will call the destroy */
 	if (ret != 0)
 		return ret;
