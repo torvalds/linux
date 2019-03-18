@@ -372,8 +372,6 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	const struct h4_recv_pkt *pkts = mtk_recv_pkts;
 	int pkts_count = ARRAY_SIZE(mtk_recv_pkts);
 	struct mtkbtsdio_hdr *sdio_hdr;
-	unsigned char *old_data;
-	unsigned int old_len;
 	int err, i, pad_size;
 	struct sk_buff *skb;
 	u16 dlen;
@@ -391,12 +389,6 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	err = sdio_readsb(bdev->func, skb->data, MTK_REG_CRDR, rx_size);
 	if (err < 0)
 		goto err_kfree_skb;
-
-	/* Keep old data for dump the content in case of some error is
-	 * caught in the following packet parsing.
-	 */
-	old_data = skb->data;
-	old_len = skb->len;
 
 	bdev->hdev->stat.byte_rx += rx_size;
 
@@ -467,8 +459,6 @@ static int btmtksdio_rx_packet(struct btmtksdio_dev *bdev, u16 rx_size)
 	return 0;
 
 err_kfree_skb:
-	print_hex_dump(KERN_ERR, "err sdio rx: ", DUMP_PREFIX_NONE, 4, 1,
-		       old_data, old_len, true);
 	kfree_skb(skb);
 
 	return err;
