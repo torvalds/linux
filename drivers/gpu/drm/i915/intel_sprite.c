@@ -1821,7 +1821,7 @@ static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static const uint32_t icl_plane_formats[] = {
+static const u32 icl_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1842,7 +1842,7 @@ static const uint32_t icl_plane_formats[] = {
 	DRM_FORMAT_Y416,
 };
 
-static const uint32_t icl_hdr_plane_formats[] = {
+static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1883,7 +1883,7 @@ static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_NV12,
 };
 
-static const uint32_t glk_planar_formats[] = {
+static const u32 glk_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1902,7 +1902,7 @@ static const uint32_t glk_planar_formats[] = {
 	DRM_FORMAT_P016,
 };
 
-static const uint32_t icl_planar_formats[] = {
+static const u32 icl_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -1927,7 +1927,7 @@ static const uint32_t icl_planar_formats[] = {
 	DRM_FORMAT_Y416,
 };
 
-static const uint32_t icl_hdr_planar_formats[] = {
+static const u32 icl_hdr_planar_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,

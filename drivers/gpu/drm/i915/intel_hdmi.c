@@ -1492,7 +1492,7 @@ static struct hdcp2_hdmi_msg_data {
 
 static
 int intel_hdmi_hdcp2_read_rx_status(struct intel_digital_port *intel_dig_port,
-				    uint8_t *rx_status)
+				    u8 *rx_status)
 {
 	return intel_hdmi_hdcp_read(intel_dig_port,
 				    HDCP_2_2_HDMI_REG_RXSTATUS_OFFSET,

@@ -363,7 +363,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static int skl_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				enum pipe pipe,
 				enum intel_pipe_crc_source *source,
-				uint32_t *val)
+				u32 *val)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
 		*source = INTEL_PIPE_CRC_SOURCE_PIPE;
