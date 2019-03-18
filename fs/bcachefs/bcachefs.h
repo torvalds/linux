@@ -302,8 +302,10 @@ do {									\
 	x(data_promote)				\
 	x(journal_write)			\
 	x(journal_delay)			\
-	x(journal_blocked)			\
-	x(journal_flush_seq)
+	x(journal_flush_seq)			\
+	x(blocked_journal)			\
+	x(blocked_allocate)			\
+	x(blocked_allocate_open_bucket)
 
 enum bch_time_stats {
 #define x(name) BCH_TIME_##name,
@@ -653,6 +655,8 @@ struct bch_fs {
 	/* ALLOCATOR */
 	spinlock_t		freelist_lock;
 	struct closure_waitlist	freelist_wait;
+	u64			blocked_allocate;
+	u64			blocked_allocate_open_bucket;
 	u8			open_buckets_freelist;
 	u8			open_buckets_nr_free;
 	struct closure_waitlist	open_buckets_wait;

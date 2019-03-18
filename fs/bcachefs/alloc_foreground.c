@@ -246,6 +246,10 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(reserve))) {
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
+
+		if (!c->blocked_allocate_open_bucket)
+			c->blocked_allocate_open_bucket = local_clock();
+
 		spin_unlock(&c->freelist_lock);
 		trace_open_bucket_alloc_fail(ca, reserve);
 		return ERR_PTR(-OPEN_BUCKETS_EMPTY);
@@ -276,6 +280,9 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 	if (cl)
 		closure_wait(&c->freelist_wait, cl);
 
+	if (!c->blocked_allocate)
+		c->blocked_allocate = local_clock();
+
 	spin_unlock(&c->freelist_lock);
 
 	trace_bucket_alloc_fail(ca, reserve);
@@ -300,6 +307,20 @@ out:
 	bucket_io_clock_reset(c, ca, bucket, READ);
 	bucket_io_clock_reset(c, ca, bucket, WRITE);
 	spin_unlock(&ob->lock);
+
+	if (c->blocked_allocate_open_bucket) {
+		bch2_time_stats_update(
+			&c->times[BCH_TIME_blocked_allocate_open_bucket],
+			c->blocked_allocate_open_bucket);
+		c->blocked_allocate_open_bucket = 0;
+	}
+
+	if (c->blocked_allocate) {
+		bch2_time_stats_update(
+			&c->times[BCH_TIME_blocked_allocate],
+			c->blocked_allocate);
+		c->blocked_allocate = 0;
+	}
 
 	spin_unlock(&c->freelist_lock);
 

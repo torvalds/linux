@@ -596,7 +596,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	c->journal.write_time	= &c->times[BCH_TIME_journal_write];
 	c->journal.delay_time	= &c->times[BCH_TIME_journal_delay];
-	c->journal.blocked_time	= &c->times[BCH_TIME_journal_blocked];
+	c->journal.blocked_time	= &c->times[BCH_TIME_blocked_journal];
 	c->journal.flush_seq_time = &c->times[BCH_TIME_journal_flush_seq];
 
 	bch2_fs_btree_cache_init_early(&c->btree_cache);
