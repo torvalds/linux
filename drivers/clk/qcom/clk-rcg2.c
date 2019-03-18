@@ -175,6 +175,16 @@ static int clk_rcg2_clear_force_enable(struct clk_hw *hw)
 					CMD_ROOT_EN, 0);
 }
 
+static bool clk_rcg2_is_force_enabled(struct clk_hw *hw)
+{
+	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+	u32 val = 0;
+
+	regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG, &val);
+
+	return val & CMD_ROOT_EN;
+}
+
 static int prepare_enable_rcg_srcs(struct clk *curr, struct clk *new)
 {
 	int rc = 0;
@@ -247,6 +257,7 @@ clk_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	const struct freq_tbl *f_curr;
 	u32 cfg, src, hid_div, m = 0, n = 0, mode = 0, mask;
+	unsigned long rrate = 0;
 
 	regmap_read(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg), &cfg);
 	src = cfg;
@@ -284,7 +295,16 @@ clk_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		hid_div &= mask;
 	}
 
-	return calc_rate(parent_rate, m, n, mode, hid_div);
+	rrate = calc_rate(parent_rate, m, n, mode, hid_div);
+
+	/*
+	 * Check to cover the case when the RCG has been initialized to a
+	 * non-CXO frequency before the clock driver has taken control of it.
+	 */
+	if (rcg->enable_safe_config && !rcg->current_freq)
+		rcg->current_freq = rrate;
+
+	return rrate;
 }
 
 static int _freq_tbl_determine_rate(struct clk_hw *hw, const struct freq_tbl *f,
@@ -434,6 +454,7 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 	const struct freq_tbl *f, *f_curr;
 	int ret, curr_src_index, new_src_index;
 	struct clk_hw *curr_src = NULL, *new_src = NULL;
+	bool force_enabled = false;
 
 	switch (policy) {
 	case FLOOR:
@@ -485,7 +506,11 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		/* The RCG could currently be disabled. Enable its parents. */
 		ret = prepare_enable_rcg_srcs(curr_src->clk, new_src->clk);
-		clk_rcg2_set_force_enable(hw);
+		if (ret)
+			return ret;
+		force_enabled = clk_rcg2_is_force_enabled(hw);
+		if (!force_enabled)
+			clk_rcg2_set_force_enable(hw);
 	}
 
 	ret = clk_rcg2_configure(rcg, f);
@@ -493,7 +518,8 @@ static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate,
 		return ret;
 
 	if (rcg->flags & FORCE_ENABLE_RCG) {
-		clk_rcg2_clear_force_enable(hw);
+		if (!force_enabled)
+			clk_rcg2_clear_force_enable(hw);
 		disable_unprepare_rcg_srcs(curr_src->clk, new_src->clk);
 	}
 
@@ -608,11 +634,10 @@ static int clk_rcg2_enable(struct clk_hw *hw)
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	unsigned long rate;
 	const struct freq_tbl *f;
+	int ret;
 
-	if (rcg->flags & FORCE_ENABLE_RCG) {
+	if (rcg->flags & FORCE_ENABLE_RCG)
 		clk_rcg2_set_force_enable(hw);
-		return 0;
-	}
 
 	if (!rcg->enable_safe_config)
 		return 0;
@@ -639,24 +664,27 @@ static int clk_rcg2_enable(struct clk_hw *hw)
 	if (rate == cxo_f.freq)
 		f = &cxo_f;
 
-	clk_rcg2_set_force_enable(hw);
-	clk_rcg2_configure(rcg, f);
-	clk_rcg2_clear_force_enable(hw);
+	if (!(rcg->flags & FORCE_ENABLE_RCG))
+		clk_rcg2_set_force_enable(hw);
 
-	return 0;
+	ret = clk_rcg2_configure(rcg, f);
+
+	if (!(rcg->flags & FORCE_ENABLE_RCG))
+		clk_rcg2_clear_force_enable(hw);
+
+	return ret;
 }
 
 static void clk_rcg2_disable(struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+	int ret;
 
-	if (rcg->flags & FORCE_ENABLE_RCG) {
-		clk_rcg2_clear_force_enable(hw);
+	if (!rcg->enable_safe_config) {
+		if (rcg->flags & FORCE_ENABLE_RCG)
+			clk_rcg2_clear_force_enable(hw);
 		return;
 	}
-
-	if (!rcg->enable_safe_config)
-		return;
 	/*
 	 * Park the RCG at a safe configuration - sourced off the CXO. This is
 	 * needed for 2 reasons: In the case of RCGs sourcing PSCBCs, due to a
@@ -674,7 +702,9 @@ static void clk_rcg2_disable(struct clk_hw *hw)
 	 * online. Therefore, the RCG can safely be switched.
 	 */
 	clk_rcg2_set_force_enable(hw);
-	clk_rcg2_configure(rcg, &cxo_f);
+	ret = clk_rcg2_configure(rcg, &cxo_f);
+	if (ret)
+		pr_err("%s: CXO configuration failed\n", clk_hw_get_name(hw));
 	clk_rcg2_clear_force_enable(hw);
 }
 
