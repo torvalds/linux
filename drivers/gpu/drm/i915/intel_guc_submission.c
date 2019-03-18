@@ -583,7 +583,8 @@ static void inject_preempt_context(struct work_struct *work)
 		} else {
 			cs = gen8_emit_ggtt_write(cs,
 						  GUC_PREEMPT_FINISHED,
-						  addr);
+						  addr,
+						  0);
 			*cs++ = MI_NOOP;
 			*cs++ = MI_NOOP;
 		}

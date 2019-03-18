@@ -173,12 +173,6 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
-static inline u32 intel_hws_hangcheck_address(struct intel_engine_cs *engine)
-{
-	return (i915_ggtt_offset(engine->status_page.vma) +
-		I915_GEM_HWS_HANGCHECK_ADDR);
-}
-
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
@@ -2214,11 +2208,14 @@ static u32 *gen8_emit_fini_breadcrumb(struct i915_request *request, u32 *cs)
 {
 	cs = gen8_emit_ggtt_write(cs,
 				  request->fence.seqno,
-				  request->timeline->hwsp_offset);
+				  request->timeline->hwsp_offset,
+				  0);
 
 	cs = gen8_emit_ggtt_write(cs,
 				  intel_engine_next_hangcheck_seqno(request->engine),
-				  intel_hws_hangcheck_address(request->engine));
+				  I915_GEM_HWS_HANGCHECK_ADDR,
+				  MI_FLUSH_DW_STORE_INDEX);
+
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -2242,8 +2239,8 @@ static u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 
 	cs = gen8_emit_ggtt_write_rcs(cs,
 				      intel_engine_next_hangcheck_seqno(request->engine),
-				      intel_hws_hangcheck_address(request->engine),
-				      0);
+				      I915_GEM_HWS_HANGCHECK_ADDR,
+				      PIPE_CONTROL_STORE_DATA_INDEX);
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;

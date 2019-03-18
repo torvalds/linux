@@ -408,14 +408,14 @@ gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 }
 
 static inline u32 *
-gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset)
+gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 {
 	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
 	GEM_BUG_ON(gtt_offset & (1 << 5));
 	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
 	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
 
-	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW;
+	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW | flags;
 	*cs++ = gtt_offset | MI_FLUSH_DW_USE_GTT;
 	*cs++ = 0;
 	*cs++ = value;

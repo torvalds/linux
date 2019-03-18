@@ -43,12 +43,6 @@
  */
 #define LEGACY_REQUEST_SIZE 200
 
-static inline u32 hws_hangcheck_address(struct intel_engine_cs *engine)
-{
-	return (i915_ggtt_offset(engine->status_page.vma) +
-		I915_GEM_HWS_HANGCHECK_ADDR);
-}
-
 unsigned int intel_ring_update_space(struct intel_ring *ring)
 {
 	unsigned int space;
@@ -317,8 +311,8 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	*cs++ = rq->fence.seqno;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
-	*cs++ = PIPE_CONTROL_QW_WRITE;
-	*cs++ = hws_hangcheck_address(rq->engine) | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_STORE_DATA_INDEX;
+	*cs++ = I915_GEM_HWS_HANGCHECK_ADDR | PIPE_CONTROL_GLOBAL_GTT;
 	*cs++ = intel_engine_next_hangcheck_seqno(rq->engine);
 
 	*cs++ = MI_USER_INTERRUPT;
@@ -423,8 +417,10 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	*cs++ = rq->fence.seqno;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
-	*cs++ = PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_GLOBAL_GTT_IVB;
-	*cs++ = hws_hangcheck_address(rq->engine);
+	*cs++ = (PIPE_CONTROL_QW_WRITE |
+		 PIPE_CONTROL_STORE_DATA_INDEX |
+		 PIPE_CONTROL_GLOBAL_GTT_IVB);
+	*cs++ = I915_GEM_HWS_HANGCHECK_ADDR;
 	*cs++ = intel_engine_next_hangcheck_seqno(rq->engine);
 
 	*cs++ = MI_USER_INTERRUPT;
