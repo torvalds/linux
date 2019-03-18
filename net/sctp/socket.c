@@ -4409,6 +4409,9 @@ static int sctp_setsockopt_scheduler(struct sock *sk,
 	if (asoc)
 		return sctp_sched_set_sched(asoc, params.assoc_value);
 
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
 		sp->default_ss = params.assoc_value;
