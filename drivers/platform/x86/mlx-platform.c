@@ -72,6 +72,7 @@
 #define MLXPLAT_CPLD_LPC_REG_FAN_CAP1_OFFSET	0xf5
 #define MLXPLAT_CPLD_LPC_REG_FAN_CAP2_OFFSET	0xf6
 #define MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET	0xf7
+#define MLXPLAT_CPLD_LPC_REG_TACHO_SPEED_OFFSET	0xf8
 #define MLXPLAT_CPLD_LPC_IO_RANGE		0x100
 #define MLXPLAT_CPLD_LPC_I2C_CH1_OFF		0xdb
 #define MLXPLAT_CPLD_LPC_I2C_CH2_OFF		0xda
@@ -1339,6 +1340,10 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_fan_data[] = {
 		.capability = MLXPLAT_CPLD_LPC_REG_FAN_CAP2_OFFSET,
 		.bit = BIT(3),
 	},
+	{
+		.label = "conf",
+		.capability = MLXPLAT_CPLD_LPC_REG_TACHO_SPEED_OFFSET,
+	},
 };
 
 static struct mlxreg_core_platform_data mlxplat_default_fan_data = {
@@ -1428,6 +1433,7 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_FAN_CAP1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_CAP2_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_TACHO_SPEED_OFFSET:
 		return true;
 	}
 	return false;
@@ -1484,6 +1490,7 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_FAN_CAP1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_CAP2_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_FAN_DRW_CAP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_TACHO_SPEED_OFFSET:
 		return true;
 	}
 	return false;
