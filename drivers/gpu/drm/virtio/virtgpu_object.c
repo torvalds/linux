@@ -23,6 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/ttm/ttm_execbuf_util.h>
+
 #include "virtgpu_drv.h"
 
 static int virtio_gpu_resource_id_get(struct virtio_gpu_device *vgdev,
@@ -92,7 +94,8 @@ static void virtio_gpu_init_ttm_placement(struct virtio_gpu_object *vgbo)
 
 int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object_params *params,
-			     struct virtio_gpu_object **bo_ptr)
+			     struct virtio_gpu_object **bo_ptr,
+			     struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_object *bo;
 	size_t acc_size;
@@ -118,9 +121,15 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		kfree(bo);
 		return ret;
 	}
-	bo->dumb = false;
-	virtio_gpu_init_ttm_placement(bo);
+	bo->dumb = params->dumb;
 
+	if (params->virgl) {
+		virtio_gpu_cmd_resource_create_3d(vgdev, bo, params, fence);
+	} else {
+		virtio_gpu_cmd_create_resource(vgdev, bo, params, fence);
+	}
+
+	virtio_gpu_init_ttm_placement(bo);
 	ret = ttm_bo_init(&vgdev->mman.bdev, &bo->tbo, params->size,
 			  ttm_bo_type_device, &bo->placement, 0,
 			  true, acc_size, NULL, NULL,
@@ -128,6 +137,38 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 	/* ttm_bo_init failure will call the destroy */
 	if (ret != 0)
 		return ret;
+
+	if (fence) {
+		struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
+		struct list_head validate_list;
+		struct ttm_validate_buffer mainbuf;
+		struct ww_acquire_ctx ticket;
+		unsigned long irq_flags;
+		bool signaled;
+
+		INIT_LIST_HEAD(&validate_list);
+		memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
+
+		/* use a gem reference since unref list undoes them */
+		drm_gem_object_get(&bo->gem_base);
+		mainbuf.bo = &bo->tbo;
+		list_add(&mainbuf.head, &validate_list);
+
+		ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
+		if (ret == 0) {
+			spin_lock_irqsave(&drv->lock, irq_flags);
+			signaled = virtio_fence_signaled(&fence->f);
+			if (!signaled)
+				/* virtio create command still in flight */
+				ttm_eu_fence_buffer_objects(&ticket, &validate_list,
+							    &fence->f);
+			spin_unlock_irqrestore(&drv->lock, irq_flags);
+			if (signaled)
+				/* virtio create command finished */
+				ttm_eu_backoff_reservation(&ticket, &validate_list);
+		}
+		virtio_gpu_unref_list(&validate_list);
+	}
 
 	*bo_ptr = bo;
 	return 0;

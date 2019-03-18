@@ -36,13 +36,14 @@ void virtio_gpu_gem_free_object(struct drm_gem_object *gem_obj)
 
 struct virtio_gpu_object*
 virtio_gpu_alloc_object(struct drm_device *dev,
-			struct virtio_gpu_object_params *params)
+			struct virtio_gpu_object_params *params,
+			struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_object *obj;
 	int ret;
 
-	ret = virtio_gpu_object_create(vgdev, params, &obj);
+	ret = virtio_gpu_object_create(vgdev, params, &obj, fence);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -59,7 +60,7 @@ int virtio_gpu_gem_create(struct drm_file *file,
 	int ret;
 	u32 handle;
 
-	obj = virtio_gpu_alloc_object(dev, params);
+	obj = virtio_gpu_alloc_object(dev, params, NULL);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -82,9 +83,7 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 				struct drm_device *dev,
 				struct drm_mode_create_dumb *args)
 {
-	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_gem_object *gobj;
-	struct virtio_gpu_object *obj;
 	struct virtio_gpu_object_params params = { 0 };
 	int ret;
 	uint32_t pitch;
@@ -100,20 +99,12 @@ int virtio_gpu_mode_dumb_create(struct drm_file *file_priv,
 	params.width = args->width;
 	params.height = args->height;
 	params.size = args->size;
+	params.dumb = true;
 	ret = virtio_gpu_gem_create(file_priv, dev, &params, &gobj,
 				    &args->handle);
 	if (ret)
 		goto fail;
 
-	obj = gem_to_virtio_gpu_obj(gobj);
-	virtio_gpu_cmd_create_resource(vgdev, obj, &params);
-
-	/* attach the object to the resource */
-	ret = virtio_gpu_object_attach(vgdev, obj, NULL);
-	if (ret)
-		goto fail;
-
-	obj->dumb = true;
 	args->pitch = pitch;
 	return ret;
 
