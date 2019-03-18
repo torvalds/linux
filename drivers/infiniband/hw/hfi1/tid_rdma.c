@@ -67,8 +67,6 @@ static u32 mask_generation(u32 a)
 #define TID_RDMA_DESTQP_FLOW_SHIFT      11
 #define TID_RDMA_DESTQP_FLOW_MASK       0x1f
 
-#define TID_FLOW_SW_PSN BIT(0)
-
 #define TID_OPFN_QP_CTXT_MASK 0xff
 #define TID_OPFN_QP_CTXT_SHIFT 56
 #define TID_OPFN_QP_KDETH_MASK 0xff
@@ -777,7 +775,6 @@ int hfi1_kern_setup_hw_flow(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp)
 		rcd->flows[fs->index].generation = fs->generation;
 	fs->generation = kern_setup_hw_flow(rcd, fs->index);
 	fs->psn = 0;
-	fs->flags = 0;
 	dequeue_tid_waiter(rcd, &rcd->flow_queue, qp);
 	/* get head before dropping lock */
 	fqp = first_qp(rcd, &rcd->flow_queue);
@@ -1808,6 +1805,7 @@ sync_check:
 			goto done;
 
 		hfi1_kern_clear_hw_flow(req->rcd, qp);
+		qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
 		req->state = TID_REQUEST_ACTIVE;
 	}
 
@@ -2476,8 +2474,13 @@ void hfi1_rc_rcv_tid_rdma_read_resp(struct hfi1_packet *packet)
 
 	flow = &req->flows[req->clear_tail];
 	/* When header suppression is disabled */
-	if (cmp_psn(ipsn, flow->flow_state.ib_lpsn))
+	if (cmp_psn(ipsn, flow->flow_state.ib_lpsn)) {
+		if (cmp_psn(kpsn, flow->flow_state.r_next_psn))
+			goto ack_done;
+		flow->flow_state.r_next_psn = mask_psn(kpsn + 1);
 		goto ack_done;
+	}
+	flow->flow_state.r_next_psn = mask_psn(kpsn + 1);
 	req->ack_pending--;
 	priv->pending_tid_r_segs--;
 	qp->s_num_rd_atomic--;
@@ -2519,6 +2522,7 @@ void hfi1_rc_rcv_tid_rdma_read_resp(struct hfi1_packet *packet)
 	     req->comp_seg == req->cur_seg) ||
 	    priv->tid_r_comp == priv->tid_r_reqs) {
 		hfi1_kern_clear_hw_flow(priv->rcd, qp);
+		priv->s_flags &= ~HFI1_R_TID_SW_PSN;
 		if (req->state == TID_REQUEST_SYNC)
 			req->state = TID_REQUEST_ACTIVE;
 	}
@@ -2768,9 +2772,9 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 				rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 				return ret;
 			}
-			if (priv->flow_state.flags & TID_FLOW_SW_PSN) {
+			if (priv->s_flags & HFI1_R_TID_SW_PSN) {
 				diff = cmp_psn(psn,
-					       priv->flow_state.r_next_psn);
+					       flow->flow_state.r_next_psn);
 				if (diff > 0) {
 					if (!(qp->r_flags & RVT_R_RDMAR_SEQ))
 						restart_tid_rdma_read_req(rcd,
@@ -2806,14 +2810,15 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 						qp->r_flags &=
 							~RVT_R_RDMAR_SEQ;
 				}
-				priv->flow_state.r_next_psn++;
+				flow->flow_state.r_next_psn =
+					mask_psn(psn + 1);
 			} else {
 				u32 last_psn;
 
 				last_psn = read_r_next_psn(dd, rcd->ctxt,
 							   flow->idx);
-				priv->flow_state.r_next_psn = last_psn;
-				priv->flow_state.flags |= TID_FLOW_SW_PSN;
+				flow->flow_state.r_next_psn = last_psn;
+				priv->s_flags |= HFI1_R_TID_SW_PSN;
 				/*
 				 * If no request has been restarted yet,
 				 * restart the current one.
@@ -2878,6 +2883,7 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 	struct rvt_ack_entry *e;
 	struct tid_rdma_request *req;
 	struct tid_rdma_flow *flow;
+	int diff = 0;
 
 	trace_hfi1_msg_handle_kdeth_eflags(NULL, "Kdeth error: rhf ",
 					   packet->rhf);
@@ -2977,10 +2983,12 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 				 * mismatch could be due to packets that were
 				 * already in flight.
 				 */
-				if (psn != flow->flow_state.r_next_psn) {
-					psn = flow->flow_state.r_next_psn;
+				diff = cmp_psn(psn,
+					       flow->flow_state.r_next_psn);
+				if (diff > 0)
 					goto nak_psn;
-				}
+				else if (diff < 0)
+					break;
 
 				qpriv->s_nak_state = 0;
 				/*
@@ -2991,8 +2999,10 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 				if (psn == full_flow_psn(flow,
 							 flow->flow_state.lpsn))
 					ret = false;
+				flow->flow_state.r_next_psn =
+					mask_psn(psn + 1);
 				qpriv->r_next_psn_kdeth =
-					++flow->flow_state.r_next_psn;
+					flow->flow_state.r_next_psn;
 			}
 			break;
 
@@ -3497,8 +3507,10 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		if (qpriv->r_tid_alloc == qpriv->r_tid_head) {
 			/* If all data has been received, clear the flow */
 			if (qpriv->flow_state.index < RXE_NUM_TID_FLOWS &&
-			    !qpriv->alloc_w_segs)
+			    !qpriv->alloc_w_segs) {
 				hfi1_kern_clear_hw_flow(rcd, qp);
+				qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
+			}
 			break;
 		}
 
@@ -3524,8 +3536,7 @@ static void hfi1_tid_write_alloc_resources(struct rvt_qp *qp, bool intr_ctx)
 		if (qpriv->sync_pt && !qpriv->alloc_w_segs) {
 			hfi1_kern_clear_hw_flow(rcd, qp);
 			qpriv->sync_pt = false;
-			if (qpriv->s_flags & HFI1_R_TID_SW_PSN)
-				qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
+			qpriv->s_flags &= ~HFI1_R_TID_SW_PSN;
 		}
 
 		/* Allocate flow if we don't have one */
@@ -4299,7 +4310,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 	if (cmp_psn(psn, full_flow_psn(flow, flow->flow_state.lpsn))) {
 		if (cmp_psn(psn, flow->flow_state.r_next_psn))
 			goto send_nak;
-		flow->flow_state.r_next_psn++;
+		flow->flow_state.r_next_psn = mask_psn(psn + 1);
 		goto exit;
 	}
 	flow->flow_state.r_next_psn = mask_psn(psn + 1);
