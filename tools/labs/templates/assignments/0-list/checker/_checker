@@ -23,7 +23,7 @@ EXIT_IF_FAIL=0
 test_do_fail()
 {
     points=$1
-    printf "failed  [  0/%02d]\n" "$max_points"
+    printf "failed  [00/%02d]\n" "$max_points"
     if test "x$EXIT_IF_FAIL" = "x1"; then
         exit 1
     fi
