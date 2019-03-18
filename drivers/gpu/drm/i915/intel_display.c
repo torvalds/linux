@@ -1442,6 +1442,14 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	}
 }
 
+static bool i9xx_has_pps(struct drm_i915_private *dev_priv)
+{
+	if (IS_I830(dev_priv))
+		return false;
+
+	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
 static void i9xx_enable_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *crtc_state)
 {
@@ -1453,7 +1461,7 @@ static void i9xx_enable_pll(struct intel_crtc *crtc,
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
 	/* PLL is protected by panel, make sure we can write it */
-	if (IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
+	if (i9xx_has_pps(dev_priv))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
 
 	/*
