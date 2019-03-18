@@ -2036,10 +2036,7 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 		if (psn != e->psn || len != req->total_len)
 			goto unlock;
 
-		if (e->rdma_sge.mr) {
-			rvt_put_mr(e->rdma_sge.mr);
-			e->rdma_sge.mr = NULL;
-		}
+		release_rdma_sge_mr(e);
 
 		rkey = be32_to_cpu(reth->rkey);
 		vaddr = get_ib_reth_vaddr(reth);
@@ -2285,10 +2282,7 @@ void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet)
 		update_ack_queue(qp, next);
 	}
 	e = &qp->s_ack_queue[qp->r_head_ack_queue];
-	if (e->rdma_sge.mr) {
-		rvt_put_mr(e->rdma_sge.mr);
-		e->rdma_sge.mr = NULL;
-	}
+	release_rdma_sge_mr(e);
 
 	rkey = be32_to_cpu(reth->rkey);
 	qp->r_len = len;
@@ -3751,10 +3745,7 @@ void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet)
 		goto update_head;
 	}
 
-	if (e->rdma_sge.mr) {
-		rvt_put_mr(e->rdma_sge.mr);
-		e->rdma_sge.mr = NULL;
-	}
+	release_rdma_sge_mr(e);
 
 	/* The length needs to be in multiples of PAGE_SIZE */
 	if (!len || len & ~PAGE_MASK)
@@ -4347,6 +4338,7 @@ void hfi1_rc_rcv_tid_rdma_write_data(struct hfi1_packet *packet)
 		priv->r_tid_ack = priv->r_tid_tail;
 
 	if (opcode == TID_OP(WRITE_DATA_LAST)) {
+		release_rdma_sge_mr(e);
 		for (next = priv->r_tid_tail + 1; ; next++) {
 			if (next > rvt_size_atomic(&dev->rdi))
 				next = 0;
