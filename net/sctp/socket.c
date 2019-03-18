@@ -4196,6 +4196,9 @@ static int sctp_setsockopt_default_prinfo(struct sock *sk,
 		goto out;
 	}
 
+	if (sctp_style(sk, TCP))
+		info.pr_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (info.pr_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.pr_assoc_id == SCTP_ALL_ASSOC) {
 		SCTP_PR_SET_POLICY(sp->default_flags, info.pr_policy);
