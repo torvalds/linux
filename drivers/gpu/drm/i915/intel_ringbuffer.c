@@ -1307,6 +1307,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 	if (!ring)
 		return ERR_PTR(-ENOMEM);
 
+	kref_init(&ring->ref);
 	INIT_LIST_HEAD(&ring->request_list);
 	ring->timeline = i915_timeline_get(timeline);
 
@@ -1331,9 +1332,9 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 	return ring;
 }
 
-void
-intel_ring_free(struct intel_ring *ring)
+void intel_ring_free(struct kref *ref)
 {
+	struct intel_ring *ring = container_of(ref, typeof(*ring), ref);
 	struct drm_i915_gem_object *obj = ring->vma->obj;
 
 	i915_vma_close(ring->vma);
@@ -1587,7 +1588,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 err_unpin:
 	intel_ring_unpin(ring);
 err_ring:
-	intel_ring_free(ring);
+	intel_ring_put(ring);
 err:
 	intel_engine_cleanup_common(engine);
 	return err;
@@ -1601,7 +1602,7 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 		(I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
 	intel_ring_unpin(engine->buffer);
-	intel_ring_free(engine->buffer);
+	intel_ring_put(engine->buffer);
 
 	if (engine->cleanup)
 		engine->cleanup(engine);

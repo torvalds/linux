@@ -57,6 +57,7 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 		return NULL;
 	}
 
+	kref_init(&ring->base.ref);
 	ring->base.size = sz;
 	ring->base.effective_size = sz;
 	ring->base.vaddr = (void *)(ring + 1);

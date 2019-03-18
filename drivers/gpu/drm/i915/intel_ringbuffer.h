@@ -231,7 +231,18 @@ int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 unsigned int intel_ring_update_space(struct intel_ring *ring);
 void intel_ring_unpin(struct intel_ring *ring);
-void intel_ring_free(struct intel_ring *ring);
+void intel_ring_free(struct kref *ref);
+
+static inline struct intel_ring *intel_ring_get(struct intel_ring *ring)
+{
+	kref_get(&ring->ref);
+	return ring;
+}
+
+static inline void intel_ring_put(struct intel_ring *ring)
+{
+	kref_put(&ring->ref, intel_ring_free);
+}
 
 void intel_engine_stop(struct intel_engine_cs *engine);
 void intel_engine_cleanup(struct intel_engine_cs *engine);

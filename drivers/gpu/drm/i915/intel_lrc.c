@@ -1230,7 +1230,7 @@ static void execlists_submit_request(struct i915_request *request)
 
 static void __execlists_context_fini(struct intel_context *ce)
 {
-	intel_ring_free(ce->ring);
+	intel_ring_put(ce->ring);
 
 	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
 	i915_gem_object_put(ce->state->obj);
@@ -2867,7 +2867,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 	return 0;
 
 error_ring_free:
-	intel_ring_free(ring);
+	intel_ring_put(ring);
 error_deref_obj:
 	i915_gem_object_put(ctx_obj);
 	return ret;

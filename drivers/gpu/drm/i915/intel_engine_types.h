@@ -9,6 +9,7 @@
 
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/types.h>
 
@@ -51,6 +52,7 @@ struct intel_engine_hangcheck {
 };
 
 struct intel_ring {
+	struct kref ref;
 	struct i915_vma *vma;
 	void *vaddr;
 

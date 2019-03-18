@@ -1332,8 +1332,12 @@ void i915_retire_requests(struct drm_i915_private *i915)
 	if (!i915->gt.active_requests)
 		return;
 
-	list_for_each_entry_safe(ring, tmp, &i915->gt.active_rings, active_link)
+	list_for_each_entry_safe(ring, tmp,
+				 &i915->gt.active_rings, active_link) {
+		intel_ring_get(ring); /* last rq holds reference! */
 		ring_retire_requests(ring);
+		intel_ring_put(ring);
+	}
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
