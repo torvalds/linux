@@ -516,7 +516,9 @@ bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 	 */
 	do_cnp = prescan ||
 		(opcode >= IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST &&
-		 opcode <= IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE);
+		 opcode <= IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE) ||
+		opcode == TID_OP(READ_RESP) ||
+		opcode == TID_OP(ACK);
 
 	/* Call appropriate CNP handler */
 	if (!ignore_fecn && do_cnp && fecn)
