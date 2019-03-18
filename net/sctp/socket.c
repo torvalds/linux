@@ -3540,6 +3540,9 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
 		sp->default_rcv_context = params.assoc_value;
