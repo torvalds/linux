@@ -328,8 +328,8 @@ static int esb_probe(struct pci_dev *pdev,
 		goto err_unmap;
 	}
 	dev_info(&pdev->dev,
-		"initialized (0x%p). heartbeat=%d sec (nowayout=%d)\n",
-		edev->base, edev->wdd.timeout, nowayout);
+		"initialized. heartbeat=%d sec (nowayout=%d)\n",
+		edev->wdd.timeout, nowayout);
 	return 0;
 
 err_unmap:
