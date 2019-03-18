@@ -856,6 +856,19 @@ struct device *ishtp_device(struct ishtp_cl_device *device)
 EXPORT_SYMBOL(ishtp_device);
 
 /**
+ * ishtp_get_pci_device() - Return PCI device dev pointer
+ * This interface is used to return PCI device pointer
+ * from ishtp_cl_device instance.
+ *
+ * Return: device *.
+ */
+struct device *ishtp_get_pci_device(struct ishtp_cl_device *device)
+{
+	return device->ishtp_dev->devc;
+}
+EXPORT_SYMBOL(ishtp_get_pci_device);
+
+/**
  * ishtp_trace_callback() - Return trace callback
  *
  * This interface is used to return trace callback function pointer.

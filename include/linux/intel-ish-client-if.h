@@ -77,6 +77,8 @@ int ishtp_register_event_cb(struct ishtp_cl_device *device,
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
 /* Trace interface for clients */
 void *ishtp_trace_callback(struct ishtp_cl_device *cl_device);
+/* Get device pointer of PCI device for DMA acces */
+struct device *ishtp_get_pci_device(struct ishtp_cl_device *cl_device);
 
 struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device);
 void ishtp_cl_free(struct ishtp_cl *cl);
