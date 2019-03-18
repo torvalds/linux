@@ -187,6 +187,26 @@ static void simple_parse_convert(struct device *dev,
 	of_node_put(node);
 }
 
+static void simple_parse_mclk_fs(struct device_node *top,
+				 struct device_node *cpu,
+				 struct device_node *codec,
+				 struct simple_dai_props *props,
+				 char *prefix)
+{
+	struct device_node *node = of_get_parent(cpu);
+	char prop[128];
+
+	snprintf(prop, sizeof(prop), "%smclk-fs", PREFIX);
+	of_property_read_u32(top,	prop, &props->mclk_fs);
+
+	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
+	of_property_read_u32(node,	prop, &props->mclk_fs);
+	of_property_read_u32(cpu,	prop, &props->mclk_fs);
+	of_property_read_u32(codec,	prop, &props->mclk_fs);
+
+	of_node_put(node);
+}
+
 static int simple_dai_link_of_dpcm(struct simple_priv *priv,
 				   struct device_node *np,
 				   struct device_node *codec,
@@ -200,7 +220,6 @@ static int simple_dai_link_of_dpcm(struct simple_priv *priv,
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	struct device_node *top = dev->of_node;
 	struct device_node *node = of_get_parent(np);
-	char prop[128];
 	char *prefix = "";
 	int ret;
 
@@ -296,17 +315,13 @@ static int simple_dai_link_of_dpcm(struct simple_priv *priv,
 	}
 
 	simple_parse_convert(dev, np, &dai_props->adata);
+	simple_parse_mclk_fs(top, np, codec, dai_props, prefix);
 
 	asoc_simple_card_canonicalize_platform(dai_link);
 
 	ret = asoc_simple_card_of_parse_tdm(np, dai);
 	if (ret)
 		return ret;
-
-	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
-	of_property_read_u32(top,  PREFIX "mclk-fs", &dai_props->mclk_fs);
-	of_property_read_u32(node, prop, &dai_props->mclk_fs);
-	of_property_read_u32(np,   prop, &dai_props->mclk_fs);
 
 	ret = asoc_simple_card_parse_daifmt(dev, node, codec,
 					    prefix, &dai_link->dai_fmt);
@@ -372,11 +387,7 @@ static int simple_dai_link_of(struct simple_priv *priv,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
-	of_property_read_u32(top,  PREFIX "mclk-fs", &dai_props->mclk_fs);
-	of_property_read_u32(node,  prop, &dai_props->mclk_fs);
-	of_property_read_u32(cpu,   prop, &dai_props->mclk_fs);
-	of_property_read_u32(codec, prop, &dai_props->mclk_fs);
+	simple_parse_mclk_fs(top, cpu, codec, dai_props, prefix);
 
 	ret = asoc_simple_card_parse_cpu(cpu, dai_link,
 					 DAI, CELL, &single_cpu);
