@@ -3024,6 +3024,9 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		info.sinfo_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (info.sinfo_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.sinfo_assoc_id == SCTP_ALL_ASSOC) {
 		sp->default_stream = info.sinfo_stream;
