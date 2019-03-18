@@ -754,9 +754,9 @@ struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv)
 	return NULL;
 }
 
-bool intel_is_dual_link_lvds(struct drm_device *dev)
+bool intel_is_dual_link_lvds(struct drm_i915_private *dev_priv)
 {
-	struct intel_encoder *encoder = intel_get_lvds_encoder(to_i915(dev));
+	struct intel_encoder *encoder = intel_get_lvds_encoder(dev_priv);
 
 	return encoder && to_lvds_encoder(&encoder->base)->is_dual_link;
 }
