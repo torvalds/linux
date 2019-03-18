@@ -372,6 +372,8 @@ static int record__mmap_flush_parse(const struct option *opt,
 	return 0;
 }
 
+static unsigned int comp_level_max = 22;
+
 static int record__comp_enabled(struct record *rec)
 {
 	return rec->opts.comp_level > 0;
@@ -587,7 +589,7 @@ static int record__mmap_evlist(struct record *rec,
 				 opts->auxtrace_mmap_pages,
 				 opts->auxtrace_snapshot_mode,
 				 opts->nr_cblocks, opts->affinity,
-				 opts->mmap_flush) < 0) {
+				 opts->mmap_flush, opts->comp_level) < 0) {
 		if (errno == EPERM) {
 			pr_err("Permission error mapping pages.\n"
 			       "Consider increasing "
@@ -2297,6 +2299,10 @@ int cmd_record(int argc, const char **argv)
 
 	pr_debug("affinity: %s\n", affinity_tags[rec->opts.affinity]);
 	pr_debug("mmap flush: %d\n", rec->opts.mmap_flush);
+
+	if (rec->opts.comp_level > comp_level_max)
+		rec->opts.comp_level = comp_level_max;
+	pr_debug("comp level: %d\n", rec->opts.comp_level);
 
 	err = __cmd_record(&record, argc, argv);
 out:
