@@ -3813,6 +3813,9 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 		goto out;
 	}
 
+	if (sctp_style(sk, TCP))
+		authkey->sca_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (authkey->sca_assoc_id == SCTP_FUTURE_ASSOC ||
 	    authkey->sca_assoc_id == SCTP_ALL_ASSOC) {
 		ret = sctp_auth_set_key(ep, asoc, authkey);
