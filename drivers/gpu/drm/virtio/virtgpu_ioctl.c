@@ -54,8 +54,8 @@ static int virtio_gpu_map_ioctl(struct drm_device *dev, void *data,
 					 &virtio_gpu_map->offset);
 }
 
-static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
-					   struct list_head *head)
+int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
+				    struct list_head *head)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct ttm_validate_buffer *buf;
@@ -79,7 +79,7 @@ static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	return 0;
 }
 
-static void virtio_gpu_unref_list(struct list_head *head)
+void virtio_gpu_unref_list(struct list_head *head)
 {
 	struct ttm_validate_buffer *buf;
 	struct ttm_buffer_object *bo;
@@ -275,14 +275,11 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_resource_create *rc = data;
+	struct virtio_gpu_fence *fence;
 	int ret;
 	struct virtio_gpu_object *qobj;
 	struct drm_gem_object *obj;
 	uint32_t handle = 0;
-	struct list_head validate_list;
-	struct ttm_validate_buffer mainbuf;
-	struct virtio_gpu_fence *fence = NULL;
-	struct ww_acquire_ctx ticket;
 	struct virtio_gpu_object_params params = { 0 };
 
 	if (vgdev->has_virgl_3d == false) {
@@ -298,14 +295,12 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 	}
 
-	INIT_LIST_HEAD(&validate_list);
-	memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
-
 	params.format = rc->format;
 	params.width = rc->width;
 	params.height = rc->height;
 	params.size = rc->size;
 	if (vgdev->has_virgl_3d) {
+		params.virgl = true;
 		params.target = rc->target;
 		params.bind = rc->bind;
 		params.depth = rc->depth;
@@ -318,72 +313,25 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 	if (params.size == 0)
 		params.size = PAGE_SIZE;
 
-	qobj = virtio_gpu_alloc_object(dev, &params);
+	fence = virtio_gpu_fence_alloc(vgdev);
+	if (!fence)
+		return -ENOMEM;
+	qobj = virtio_gpu_alloc_object(dev, &params, fence);
+	dma_fence_put(&fence->f);
 	if (IS_ERR(qobj))
 		return PTR_ERR(qobj);
 	obj = &qobj->gem_base;
 
-	if (!vgdev->has_virgl_3d) {
-		virtio_gpu_cmd_create_resource(vgdev, qobj, &params);
-
-		ret = virtio_gpu_object_attach(vgdev, qobj, NULL);
-	} else {
-		/* use a gem reference since unref list undoes them */
-		drm_gem_object_get(&qobj->gem_base);
-		mainbuf.bo = &qobj->tbo;
-		list_add(&mainbuf.head, &validate_list);
-
-		ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
-		if (ret) {
-			DRM_DEBUG("failed to validate\n");
-			goto fail_unref;
-		}
-
-		fence = virtio_gpu_fence_alloc(vgdev);
-		if (!fence) {
-			ret = -ENOMEM;
-			goto fail_backoff;
-		}
-
-		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &params);
-		ret = virtio_gpu_object_attach(vgdev, qobj, fence);
-		if (ret) {
-			dma_fence_put(&fence->f);
-			goto fail_backoff;
-		}
-		ttm_eu_fence_buffer_objects(&ticket, &validate_list, &fence->f);
-	}
-
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
 	if (ret) {
-
 		drm_gem_object_release(obj);
-		if (vgdev->has_virgl_3d) {
-			virtio_gpu_unref_list(&validate_list);
-			dma_fence_put(&fence->f);
-		}
 		return ret;
 	}
 	drm_gem_object_put_unlocked(obj);
 
 	rc->res_handle = qobj->hw_res_handle; /* similiar to a VM address */
 	rc->bo_handle = handle;
-
-	if (vgdev->has_virgl_3d) {
-		virtio_gpu_unref_list(&validate_list);
-		dma_fence_put(&fence->f);
-	}
 	return 0;
-fail_backoff:
-	ttm_eu_backoff_reservation(&ticket, &validate_list);
-fail_unref:
-	if (vgdev->has_virgl_3d) {
-		virtio_gpu_unref_list(&validate_list);
-		dma_fence_put(&fence->f);
-	}
-//fail_obj:
-//	drm_gem_object_handle_unreference_unlocked(obj);
-	return ret;
 }
 
 static int virtio_gpu_resource_info_ioctl(struct drm_device *dev, void *data,
