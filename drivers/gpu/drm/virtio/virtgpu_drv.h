@@ -55,6 +55,14 @@ struct virtio_gpu_object_params {
 	uint32_t width;
 	uint32_t height;
 	unsigned long size;
+	/* 3d */
+	uint32_t target;
+	uint32_t bind;
+	uint32_t depth;
+	uint32_t array_size;
+	uint32_t last_level;
+	uint32_t nr_samples;
+	uint32_t flags;
 };
 
 struct virtio_gpu_object {
@@ -309,7 +317,7 @@ void virtio_gpu_cmd_transfer_to_host_3d(struct virtio_gpu_device *vgdev,
 void
 virtio_gpu_cmd_resource_create_3d(struct virtio_gpu_device *vgdev,
 				  struct virtio_gpu_object *bo,
-				  struct virtio_gpu_resource_create_3d *rc_3d);
+				  struct virtio_gpu_object_params *params);
 void virtio_gpu_ctrl_ack(struct virtqueue *vq);
 void virtio_gpu_cursor_ack(struct virtqueue *vq);
 void virtio_gpu_fence_ack(struct virtqueue *vq);
