@@ -1925,7 +1925,7 @@ static int virtnet_vlan_rx_kill_vid(struct net_device *dev,
 	return 0;
 }
 
-static void virtnet_clean_affinity(struct virtnet_info *vi, long hcpu)
+static void virtnet_clean_affinity(struct virtnet_info *vi)
 {
 	int i;
 
@@ -1949,7 +1949,7 @@ static void virtnet_set_affinity(struct virtnet_info *vi)
 	int stride;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
-		virtnet_clean_affinity(vi, -1);
+		virtnet_clean_affinity(vi);
 		return;
 	}
 
@@ -1999,7 +1999,7 @@ static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
 	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
 						   node);
 
-	virtnet_clean_affinity(vi, cpu);
+	virtnet_clean_affinity(vi);
 	return 0;
 }
 
@@ -2735,7 +2735,7 @@ static void virtnet_del_vqs(struct virtnet_info *vi)
 {
 	struct virtio_device *vdev = vi->vdev;
 
-	virtnet_clean_affinity(vi, -1);
+	virtnet_clean_affinity(vi);
 
 	vdev->config->del_vqs(vdev);
 
