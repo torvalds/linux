@@ -90,7 +90,7 @@ static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
 
 /* crypto.c */
 extern void fscrypt_enqueue_decrypt_work(struct work_struct *);
-extern struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *, gfp_t);
+extern struct fscrypt_ctx *fscrypt_get_ctx(gfp_t);
 extern void fscrypt_release_ctx(struct fscrypt_ctx *);
 extern struct page *fscrypt_encrypt_page(const struct inode *, struct page *,
 						unsigned int, unsigned int,
@@ -247,8 +247,7 @@ static inline void fscrypt_enqueue_decrypt_work(struct work_struct *work)
 {
 }
 
-static inline struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode,
-						  gfp_t gfp_flags)
+static inline struct fscrypt_ctx *fscrypt_get_ctx(gfp_t gfp_flags)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
