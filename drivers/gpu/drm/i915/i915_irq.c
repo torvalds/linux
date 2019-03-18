@@ -748,13 +748,21 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 	POSTING_READ(reg);
 }
 
+static bool i915_has_asle(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->opregion.asle)
+		return false;
+
+	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
 /**
  * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
  * @dev_priv: i915 device private
  */
 static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->opregion.asle || !IS_MOBILE(dev_priv))
+	if (!i915_has_asle(dev_priv))
 		return;
 
 	spin_lock_irq(&dev_priv->irq_lock);
