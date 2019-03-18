@@ -155,7 +155,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	}
 	free_extent_map(em);
 
-	/* Add [4K, 4K) following [0, 1K)  */
+	/* Add [4K, 8K) following [0, 1K)  */
 	em = alloc_extent_map();
 	if (!em) {
 		test_std_err(TEST_ALLOC_EXTENT_MAP);
@@ -334,7 +334,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	/* Add [8K, 24K) */
+	/* Add [8K, 32K) */
 	em->start = SZ_8K;
 	em->len = 24 * SZ_1K;
 	em->block_start = SZ_16K; /* avoid merging */
