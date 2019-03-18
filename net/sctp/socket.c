@@ -2920,6 +2920,9 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.sack_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.sack_assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.sack_assoc_id == SCTP_ALL_ASSOC) {
 		if (params.sack_delay) {
