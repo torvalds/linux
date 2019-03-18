@@ -915,7 +915,8 @@ static int rt5682_headset_detect(struct snd_soc_component *component,
 	if (jack_insert) {
 
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
-			RT5682_PWR_VREF2, RT5682_PWR_VREF2);
+			RT5682_PWR_VREF2 | RT5682_PWR_MB,
+			RT5682_PWR_VREF2 | RT5682_PWR_MB);
 		snd_soc_component_update_bits(component,
 				RT5682_PWR_ANLG_1, RT5682_PWR_FV2, 0);
 		usleep_range(15000, 20000);
@@ -952,7 +953,7 @@ static int rt5682_headset_detect(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, RT5682_CBJ_CTRL_1,
 			RT5682_TRIG_JD_MASK, RT5682_TRIG_JD_LOW);
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_1,
-			RT5682_PWR_VREF2, 0);
+			RT5682_PWR_VREF2 | RT5682_PWR_MB, 0);
 		snd_soc_component_update_bits(component, RT5682_PWR_ANLG_3,
 			RT5682_PWR_CBJ, 0);
 
@@ -2301,16 +2302,13 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_1,
-			RT5682_PWR_MB | RT5682_PWR_BG,
-			RT5682_PWR_MB | RT5682_PWR_BG);
+			RT5682_PWR_BG, RT5682_PWR_BG);
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_DIG_1,
 			RT5682_DIG_GATE_CTRL | RT5682_PWR_LDO,
 			RT5682_DIG_GATE_CTRL | RT5682_PWR_LDO);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_1,
-			RT5682_PWR_MB, RT5682_PWR_MB);
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_DIG_1,
 			RT5682_DIG_GATE_CTRL, RT5682_DIG_GATE_CTRL);
 		break;
@@ -2318,7 +2316,7 @@ static int rt5682_set_bias_level(struct snd_soc_component *component,
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_DIG_1,
 			RT5682_DIG_GATE_CTRL | RT5682_PWR_LDO, 0);
 		regmap_update_bits(rt5682->regmap, RT5682_PWR_ANLG_1,
-			RT5682_PWR_MB | RT5682_PWR_BG, 0);
+			RT5682_PWR_BG, 0);
 		break;
 
 	default:
