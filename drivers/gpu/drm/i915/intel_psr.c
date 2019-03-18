@@ -51,7 +51,6 @@
  * must be correctly synchronized/cancelled when shutting down the pipe."
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 
 #include "intel_drv.h"
