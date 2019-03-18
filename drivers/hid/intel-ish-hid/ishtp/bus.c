@@ -220,6 +220,26 @@ static int ishtp_cl_device_probe(struct device *dev)
 }
 
 /**
+ * ishtp_cl_bus_match() - Bus match() callback
+ * @dev: the device structure
+ * @drv: the driver structure
+ *
+ * This is a bus match callback, called when a new ishtp_cl_device is
+ * registered during ishtp bus client enumeration. Use the guid_t in
+ * drv and dev to decide whether they match or not.
+ *
+ * Return: 1 if dev & drv matches, 0 otherwise.
+ */
+static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
+	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(drv);
+
+	return guid_equal(driver->guid,
+			  &device->fw_client->props.protocol_name);
+}
+
+/**
  * ishtp_cl_device_remove() - Bus remove() callback
  * @dev: the device structure
  *
@@ -372,6 +392,7 @@ static struct bus_type ishtp_cl_bus_type = {
 	.name		= "ishtp",
 	.dev_groups	= ishtp_cl_dev_groups,
 	.probe		= ishtp_cl_device_probe,
+	.match		= ishtp_cl_bus_match,
 	.remove		= ishtp_cl_device_remove,
 	.pm		= &ishtp_cl_bus_dev_pm_ops,
 	.uevent		= ishtp_cl_uevent,

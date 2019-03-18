@@ -64,6 +64,7 @@ struct ishtp_cl_device {
 struct ishtp_cl_driver {
 	struct device_driver driver;
 	const char *name;
+	const guid_t *guid;
 	int (*probe)(struct ishtp_cl_device *dev);
 	int (*remove)(struct ishtp_cl_device *dev);
 	int (*reset)(struct ishtp_cl_device *dev);

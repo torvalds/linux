@@ -803,10 +803,6 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	if (!cl_device)
 		return	-ENODEV;
 
-	if (!guid_equal(&hid_ishtp_guid,
-			&cl_device->fw_client->props.protocol_name))
-		return	-ENODEV;
-
 	client_data = devm_kzalloc(&cl_device->dev, sizeof(*client_data),
 				   GFP_KERNEL);
 	if (!client_data)
@@ -937,6 +933,7 @@ static const struct dev_pm_ops hid_ishtp_pm_ops = {
 
 static struct ishtp_cl_driver	hid_ishtp_cl_driver = {
 	.name = "ish-hid",
+	.guid = &hid_ishtp_guid,
 	.probe = hid_ishtp_cl_probe,
 	.remove = hid_ishtp_cl_remove,
 	.reset = hid_ishtp_cl_reset,
