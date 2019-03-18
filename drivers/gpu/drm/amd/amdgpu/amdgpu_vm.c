@@ -709,11 +709,9 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 {
 	struct ttm_operation_ctx ctx = { true, false };
 	unsigned level = adev->vm_manager.root_level;
+	struct amdgpu_vm_update_params params;
 	struct amdgpu_bo *ancestor = bo;
-	struct dma_fence *fence = NULL;
 	unsigned entries, ats_entries;
-	struct amdgpu_ring *ring;
-	struct amdgpu_job *job;
 	uint64_t addr;
 	int r;
 
@@ -748,8 +746,6 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		}
 	}
 
-	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
-
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (r)
 		return r;
@@ -770,60 +766,45 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	}
 
-	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
+	memset(&params, 0, sizeof(params));
+	params.adev = adev;
+	params.vm = vm;
+
+	r = vm->update_funcs->prepare(&params, AMDGPU_FENCE_OWNER_KFD, NULL);
 	if (r)
 		return r;
 
-	do {
-		addr = amdgpu_bo_gpu_offset(bo);
-		if (ats_entries) {
-			uint64_t ats_value;
+	addr = 0;
+	if (ats_entries) {
+		uint64_t ats_value;
 
-			ats_value = AMDGPU_PTE_DEFAULT_ATC;
-			if (level != AMDGPU_VM_PTB)
-				ats_value |= AMDGPU_PDE_PTE;
+		ats_value = AMDGPU_PTE_DEFAULT_ATC;
+		if (level != AMDGPU_VM_PTB)
+			ats_value |= AMDGPU_PDE_PTE;
 
-			amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-					      ats_entries, 0, ats_value);
-			addr += ats_entries * 8;
-		}
+		r = vm->update_funcs->update(&params, bo, addr, 0, ats_entries,
+					     0, ats_value);
+		if (r)
+			return r;
 
-		if (entries) {
-			uint64_t value = 0;
+		addr += ats_entries * 8;
+	}
 
-			/* Workaround for fault priority problem on GMC9 */
-			if (level == AMDGPU_VM_PTB &&
-			    adev->asic_type >= CHIP_VEGA10)
-				value = AMDGPU_PTE_EXECUTABLE;
+	if (entries) {
+		uint64_t value = 0;
 
-			amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-					      entries, 0, value);
-		}
+		/* Workaround for fault priority problem on GMC9 */
+		if (level == AMDGPU_VM_PTB &&
+		    adev->asic_type >= CHIP_VEGA10)
+			value = AMDGPU_PTE_EXECUTABLE;
 
-		bo = bo->shadow;
-	} while (bo);
+		r = vm->update_funcs->update(&params, bo, addr, 0, entries,
+					     0, value);
+		if (r)
+			return r;
+	}
 
-	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
-
-	WARN_ON(job->ibs[0].length_dw > 64);
-	r = amdgpu_sync_resv(adev, &job->sync, vm->root.base.bo->tbo.resv,
-			     AMDGPU_FENCE_OWNER_KFD, false);
-	if (r)
-		goto error_free;
-
-	r = amdgpu_job_submit(job, &vm->entity, AMDGPU_FENCE_OWNER_UNDEFINED,
-			      &fence);
-	if (r)
-		goto error_free;
-
-	amdgpu_bo_fence(vm->root.base.bo, fence, true);
-	dma_fence_put(fence);
-
-	return 0;
-
-error_free:
-	amdgpu_job_free(job);
-	return r;
+	return vm->update_funcs->commit(&params, NULL);
 }
 
 /**
@@ -911,7 +892,7 @@ static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 	if (r)
 		goto error_free_pt;
 
-	return 1;
+	return 0;
 
 error_free_pt:
 	amdgpu_bo_unref(&pt->shadow);
@@ -1419,12 +1400,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		unsigned shift, parent_shift, mask;
 		uint64_t incr, entry_end, pe_start;
 		struct amdgpu_bo *pt;
-		bool need_to_sync;
 
 		r = amdgpu_vm_alloc_pts(params->adev, params->vm, &cursor);
-		if (r < 0)
+		if (r)
 			return r;
-		need_to_sync = (r && params->vm->use_cpu_for_update);
 
 		pt = cursor.entry->base.bo;
 
@@ -1471,10 +1450,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 		entry_end = (uint64_t)(mask + 1) << shift;
 		entry_end += cursor.pfn & ~(entry_end - 1);
 		entry_end = min(entry_end, end);
-
-		if (need_to_sync)
-			r = amdgpu_bo_sync_wait(params->vm->root.base.bo,
-						AMDGPU_FENCE_OWNER_VM, true);
 
 		do {
 			uint64_t upd_end = min(entry_end, frag_end);
