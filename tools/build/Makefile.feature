@@ -67,6 +67,7 @@ FEATURE_TESTS_BASIC :=                  \
         sdt				\
         setns				\
         libaio				\
+        libzstd				\
         disassembler-four-args
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
@@ -120,6 +121,7 @@ FEATURE_DISPLAY ?=              \
          get_cpuid              \
          bpf			\
          libaio			\
+         libzstd		\
          disassembler-four-args
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
