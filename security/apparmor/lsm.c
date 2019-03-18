@@ -803,9 +803,9 @@ static struct path *UNIX_FS_CONN_PATH(struct sock *sk, struct sock *newsk)
 static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
 					struct sock *newsk)
 {
-	struct aa_sk_ctx *sk_ctx = SK_CTX(sk);
-	struct aa_sk_ctx *peer_ctx = SK_CTX(peer_sk);
-	struct aa_sk_ctx *new_ctx = SK_CTX(newsk);
+	struct aa_sk_ctx *sk_ctx = aa_sock(sk);
+	struct aa_sk_ctx *peer_ctx = aa_sock(peer_sk);
+	struct aa_sk_ctx *new_ctx = aa_sock(newsk);
 	struct aa_label *label;
 	struct path *path;
 	int error;
@@ -862,7 +862,7 @@ static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
  */
 static int apparmor_unix_may_send(struct socket *sock, struct socket *peer)
 {
-	struct aa_sk_ctx *peer_ctx = SK_CTX(peer->sk);
+	struct aa_sk_ctx *peer_ctx = aa_sock(peer->sk);
 	struct aa_label *label;
 	int error;
 
@@ -1121,7 +1121,7 @@ static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 static struct aa_label *sk_peer_label(struct sock *sk)
 {
 	struct sock *peer_sk;
-	struct aa_sk_ctx *ctx = SK_CTX(sk);
+	struct aa_sk_ctx *ctx = aa_sock(sk);
 	struct aa_label *label = ERR_PTR(-ENOPROTOOPT);
 
 	if (ctx->peer)
@@ -1135,7 +1135,7 @@ static struct aa_label *sk_peer_label(struct sock *sk)
 	 */
 	peer_sk = unix_peer_get(sk);
 	if (peer_sk) {
-		ctx = SK_CTX(peer_sk);
+		ctx = aa_sock(peer_sk);
 		if (ctx->label)
 			label = aa_get_label(ctx->label);
 		sock_put(peer_sk);

@@ -22,7 +22,7 @@
 #include "include/policy.h"
 #include "include/cred.h"
 
-static inline struct sock *aa_sock(struct unix_sock *u)
+static inline struct sock *aa_unixsock(struct unix_sock *u)
 {
 	return &u->sk;
 }
@@ -32,7 +32,7 @@ static inline int unix_fs_perm(const char *op, u32 mask, struct aa_label *label,
 {
 	AA_BUG(!label);
 	AA_BUG(!u);
-	AA_BUG(!UNIX_FS(aa_sock(u)));
+	AA_BUG(!UNIX_FS(aa_unixsock(u)));
 
 	if (unconfined(label) || !LABEL_MEDIATES(label, AA_CLASS_FILE))
 		return 0;
@@ -46,7 +46,7 @@ static inline int unix_fs_perm(const char *op, u32 mask, struct aa_label *label,
 		/* socket path has been cleared because it is being shutdown
 		 * can only fall back to original sun_path request
 		 */
-		struct aa_sk_ctx *ctx = SK_CTX(&u->sk);
+		struct aa_sk_ctx *ctx = aa_sock(&u->sk);
 		if (ctx->path.dentry)
 			return aa_path_perm(op, label, &ctx->path, flags, mask,
 					    &cond);
@@ -512,7 +512,7 @@ static int profile_peer_perm(struct aa_profile *profile, const char *op, u32 req
 
 	state = PROFILE_MEDIATES_AF(profile, AF_UNIX);
 	if (state) {
-		struct aa_sk_ctx *peer_ctx = SK_CTX(peer_sk);
+		struct aa_sk_ctx *peer_ctx = aa_sock(peer_sk);
 		struct aa_profile *peerp;
 		struct sockaddr_un *addr = NULL;
 		int len = 0;
@@ -547,9 +547,9 @@ int aa_unix_peer_perm(struct aa_label *label, const char *op, u32 request,
 	AA_BUG(!sk);
 	AA_BUG(!peer_sk);
 
-	if (UNIX_FS(aa_sock(peeru)))
+	if (UNIX_FS(aa_unixsock(peeru)))
 		return unix_fs_perm(op, request, label, peeru, 0);
-	else if (UNIX_FS(aa_sock(u)))
+	else if (UNIX_FS(aa_unixsock(u)))
 		return unix_fs_perm(op, request, label, u, 0);
 	else {
 		struct aa_profile *profile;
@@ -632,7 +632,7 @@ int aa_unix_file_perm(struct aa_label *label, const char *op, u32 request,
 		error = unix_fs_perm(op, request, label, unix_sk(peer_sk),
 				     PATH_SOCK_COND);
 	} else {
-		struct aa_sk_ctx *pctx = SK_CTX(peer_sk);
+		struct aa_sk_ctx *pctx = aa_sock(peer_sk);
 		if (sk_req)
 			error = aa_unix_label_sk_perm(label, op, sk_req,
 						      sock->sk);
