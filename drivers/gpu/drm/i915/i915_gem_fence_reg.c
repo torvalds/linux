@@ -585,8 +585,38 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (IS_MOBILE(dev_priv) ||
-		   IS_I915G(dev_priv) || IS_I945G(dev_priv)) {
+	} else if (IS_G45(dev_priv) || IS_I965G(dev_priv) || IS_G33(dev_priv)) {
+		/* The 965, G33, and newer, have a very flexible memory
+		 * configuration.  It will enable dual-channel mode
+		 * (interleaving) on as much memory as it can, and the GPU
+		 * will additionally sometimes enable different bit 6
+		 * swizzling for tiled objects from the CPU.
+		 *
+		 * Here's what I found on the G965:
+		 *    slot fill         memory size  swizzling
+		 * 0A   0B   1A   1B    1-ch   2-ch
+		 * 512  0    0    0     512    0     O
+		 * 512  0    512  0     16     1008  X
+		 * 512  0    0    512   16     1008  X
+		 * 0    512  0    512   16     1008  X
+		 * 1024 1024 1024 0     2048   1024  O
+		 *
+		 * We could probably detect this based on either the DRB
+		 * matching, which was the case for the swizzling required in
+		 * the table above, or from the 1-ch value being less than
+		 * the minimum size of a rank.
+		 *
+		 * Reports indicate that the swizzling actually
+		 * varies depending upon page placement inside the
+		 * channels, i.e. we see swizzled pages where the
+		 * banks of memory are paired and unswizzled on the
+		 * uneven portion, so leave that as unknown.
+		 */
+		if (I915_READ16(C0DRB3) == I915_READ16(C1DRB3)) {
+			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
+			swizzle_y = I915_BIT_6_SWIZZLE_9;
+		}
+	} else {
 		u32 dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is
@@ -635,37 +665,6 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 				  "Disabling tiling.\n");
 			swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 			swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
-		}
-	} else {
-		/* The 965, G33, and newer, have a very flexible memory
-		 * configuration.  It will enable dual-channel mode
-		 * (interleaving) on as much memory as it can, and the GPU
-		 * will additionally sometimes enable different bit 6
-		 * swizzling for tiled objects from the CPU.
-		 *
-		 * Here's what I found on the G965:
-		 *    slot fill         memory size  swizzling
-		 * 0A   0B   1A   1B    1-ch   2-ch
-		 * 512  0    0    0     512    0     O
-		 * 512  0    512  0     16     1008  X
-		 * 512  0    0    512   16     1008  X
-		 * 0    512  0    512   16     1008  X
-		 * 1024 1024 1024 0     2048   1024  O
-		 *
-		 * We could probably detect this based on either the DRB
-		 * matching, which was the case for the swizzling required in
-		 * the table above, or from the 1-ch value being less than
-		 * the minimum size of a rank.
-		 *
-		 * Reports indicate that the swizzling actually
-		 * varies depending upon page placement inside the
-		 * channels, i.e. we see swizzled pages where the
-		 * banks of memory are paired and unswizzled on the
-		 * uneven portion, so leave that as unknown.
-		 */
-		if (I915_READ16(C0DRB3) == I915_READ16(C1DRB3)) {
-			swizzle_x = I915_BIT_6_SWIZZLE_9_10;
-			swizzle_y = I915_BIT_6_SWIZZLE_9;
 		}
 	}
 
