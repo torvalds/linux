@@ -444,6 +444,5 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 
 	ret = test_eb_bitmaps(sectorsize, nodesize);
 out:
-	test_msg("extent I/O tests finished");
 	return ret;
 }

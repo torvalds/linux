@@ -876,6 +876,5 @@ out:
 	btrfs_free_dummy_block_group(cache);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);
-	test_msg("free space cache tests finished");
 	return ret;
 }
