@@ -149,7 +149,15 @@ enum xcan_reg {
 #define XCAN_FLAG_RX_FIFO_MULTI	0x0010
 #define XCAN_FLAG_CANFD_2	0x0020
 
+enum xcan_ip_type {
+	XAXI_CAN = 0,
+	XZYNQ_CANPS,
+	XAXI_CANFD,
+	XAXI_CANFD_2_0,
+};
+
 struct xcan_devtype_data {
+	enum xcan_ip_type cantype;
 	unsigned int flags;
 	const struct can_bittiming_const *bittiming_const;
 	const char *bus_clk_name;
@@ -1426,6 +1434,7 @@ static const struct dev_pm_ops xcan_dev_pm_ops = {
 };
 
 static const struct xcan_devtype_data xcan_zynq_data = {
+	.cantype = XZYNQ_CANPS,
 	.flags = XCAN_FLAG_TXFEMP,
 	.bittiming_const = &xcan_bittiming_const,
 	.btr_ts2_shift = XCAN_BTR_TS2_SHIFT,
@@ -1434,6 +1443,7 @@ static const struct xcan_devtype_data xcan_zynq_data = {
 };
 
 static const struct xcan_devtype_data xcan_axi_data = {
+	.cantype = XAXI_CAN,
 	.flags = XCAN_FLAG_TXFEMP,
 	.bittiming_const = &xcan_bittiming_const,
 	.btr_ts2_shift = XCAN_BTR_TS2_SHIFT,
@@ -1442,6 +1452,7 @@ static const struct xcan_devtype_data xcan_axi_data = {
 };
 
 static const struct xcan_devtype_data xcan_canfd_data = {
+	.cantype = XAXI_CANFD,
 	.flags = XCAN_FLAG_EXT_FILTERS |
 		 XCAN_FLAG_RXMNF |
 		 XCAN_FLAG_TX_MAILBOXES |
@@ -1453,6 +1464,7 @@ static const struct xcan_devtype_data xcan_canfd_data = {
 };
 
 static const struct xcan_devtype_data xcan_canfd2_data = {
+	.cantype = XAXI_CANFD_2_0,
 	.flags = XCAN_FLAG_EXT_FILTERS |
 		 XCAN_FLAG_RXMNF |
 		 XCAN_FLAG_TX_MAILBOXES |
