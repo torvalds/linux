@@ -171,6 +171,19 @@ struct ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
 EXPORT_SYMBOL(ishtp_fw_cl_get_client);
 
 /**
+ * ishtp_get_fw_client_id() - Get fw client id
+ *
+ * This interface is used to reset HW get FW client id.
+ *
+ * Return: firmware client id.
+ */
+int ishtp_get_fw_client_id(struct ishtp_fw_client *fw_client)
+{
+	return fw_client->client_id;
+}
+EXPORT_SYMBOL(ishtp_get_fw_client_id);
+
+/**
  * ishtp_fw_cl_by_id() - return index to fw_clients for client_id
  * @dev: the ishtp device structure
  * @client_id: fw client id to search
@@ -854,6 +867,19 @@ void *ishtp_trace_callback(struct ishtp_cl_device *cl_device)
 	return cl_device->ishtp_dev->print_log;
 }
 EXPORT_SYMBOL(ishtp_trace_callback);
+
+/**
+ * ish_hw_reset() - Call HW reset IPC callback
+ *
+ * This interface is used to reset HW in case of error.
+ *
+ * Return: value from IPC hw_reset callback
+ */
+int ish_hw_reset(struct ishtp_device *dev)
+{
+	return dev->ops->hw_reset(dev);
+}
+EXPORT_SYMBOL(ish_hw_reset);
 
 /**
  * ishtp_bus_register() - Function to register bus

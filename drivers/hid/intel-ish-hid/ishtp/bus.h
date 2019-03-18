@@ -80,16 +80,5 @@ void	ishtp_recv(struct ishtp_device *dev);
 void	ishtp_reset_handler(struct ishtp_device *dev);
 void	ishtp_reset_compl_handler(struct ishtp_device *dev);
 
-void	ishtp_put_device(struct ishtp_cl_device *);
-void	ishtp_get_device(struct ishtp_cl_device *);
-
-void	ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data);
-void	*ishtp_get_drvdata(struct ishtp_cl_device *cl_device);
-
-int	ishtp_register_event_cb(struct ishtp_cl_device *device,
-				void (*read_cb)(struct ishtp_cl_device *));
 int	ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *cuuid);
-struct	ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
-						const guid_t *uuid);
-
 #endif /* _LINUX_ISHTP_CL_BUS_H */

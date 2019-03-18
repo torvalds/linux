@@ -9,7 +9,9 @@
 #define _INTEL_ISH_CLIENT_IF_H_
 
 struct ishtp_cl_device;
+struct ishtp_device;
 struct ishtp_cl;
+struct ishtp_fw_client;
 
 /* Client state */
 enum cl_state {
@@ -95,4 +97,14 @@ void ishtp_set_rx_ring_size(struct ishtp_cl *cl, int size);
 void ishtp_set_connection_state(struct ishtp_cl *cl, int state);
 void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id);
 
+void ishtp_put_device(struct ishtp_cl_device *cl_dev);
+void ishtp_get_device(struct ishtp_cl_device *cl_dev);
+void ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data);
+void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device);
+int ishtp_register_event_cb(struct ishtp_cl_device *device,
+				void (*read_cb)(struct ishtp_cl_device *));
+struct	ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
+						const guid_t *uuid);
+int ishtp_get_fw_client_id(struct ishtp_fw_client *fw_client);
+int ish_hw_reset(struct ishtp_device *dev);
 #endif /* _INTEL_ISH_CLIENT_IF_H_ */

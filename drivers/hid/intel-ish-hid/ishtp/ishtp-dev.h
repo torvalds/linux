@@ -238,11 +238,6 @@ static inline int ish_ipc_reset(struct ishtp_device *dev)
 	return dev->ops->ipc_reset(dev);
 }
 
-static inline int ish_hw_reset(struct ishtp_device *dev)
-{
-	return dev->ops->hw_reset(dev);
-}
-
 /* Exported function */
 void	ishtp_device_init(struct ishtp_device *dev);
 int	ishtp_start(struct ishtp_device *dev);
