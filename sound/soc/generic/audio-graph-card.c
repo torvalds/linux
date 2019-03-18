@@ -176,9 +176,9 @@ static int graph_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static void graph_get_conversion(struct device *dev,
-				 struct device_node *ep,
-				 struct asoc_simple_card_data *adata)
+static void graph_parse_convert(struct device *dev,
+				struct device_node *ep,
+				struct asoc_simple_card_data *adata)
 {
 	struct device_node *top = dev->of_node;
 	struct device_node *port = of_get_parent(ep);
@@ -190,6 +190,10 @@ static void graph_get_conversion(struct device *dev,
 	asoc_simple_card_parse_convert(dev, ports, NULL,   adata);
 	asoc_simple_card_parse_convert(dev, port,  NULL,   adata);
 	asoc_simple_card_parse_convert(dev, ep,    NULL,   adata);
+
+	of_node_put(port);
+	of_node_put(ports);
+	of_node_put(node);
 }
 
 static int graph_dai_link_of_dpcm(struct graph_priv *priv,
@@ -227,7 +231,7 @@ static int graph_dai_link_of_dpcm(struct graph_priv *priv,
 	of_property_read_u32(port,  "mclk-fs", &dai_props->mclk_fs);
 	of_property_read_u32(ep,    "mclk-fs", &dai_props->mclk_fs);
 
-	graph_get_conversion(dev, ep, &dai_props->adata);
+	graph_parse_convert(dev, ep, &dai_props->adata);
 
 	of_node_put(ports);
 	of_node_put(port);
@@ -462,8 +466,8 @@ static int graph_for_each_link(struct graph_priv *priv,
 
 			/* get convert-xxx property */
 			memset(&adata, 0, sizeof(adata));
-			graph_get_conversion(dev, codec_ep, &adata);
-			graph_get_conversion(dev, cpu_ep,   &adata);
+			graph_parse_convert(dev, codec_ep, &adata);
+			graph_parse_convert(dev, cpu_ep,   &adata);
 
 			/*
 			 * It is DPCM
