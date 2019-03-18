@@ -172,9 +172,9 @@ static int simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static void simple_get_conversion(struct device *dev,
-				  struct device_node *np,
-				  struct asoc_simple_card_data *adata)
+static void simple_parse_convert(struct device *dev,
+				 struct device_node *np,
+				 struct asoc_simple_card_data *adata)
 {
 	struct device_node *top = dev->of_node;
 	struct device_node *node = of_get_parent(np);
@@ -295,7 +295,7 @@ static int simple_dai_link_of_dpcm(struct simple_priv *priv,
 					     "prefix");
 	}
 
-	simple_get_conversion(dev, np, &dai_props->adata);
+	simple_parse_convert(dev, np, &dai_props->adata);
 
 	asoc_simple_card_canonicalize_platform(dai_link);
 
@@ -471,7 +471,7 @@ static int simple_for_each_link(struct simple_priv *priv,
 		/* get convert-xxx property */
 		memset(&adata, 0, sizeof(adata));
 		for_each_child_of_node(node, np)
-			simple_get_conversion(dev, np, &adata);
+			simple_parse_convert(dev, np, &adata);
 
 		/* loop for all CPU/Codec node */
 		for_each_child_of_node(node, np) {
