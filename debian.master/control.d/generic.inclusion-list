@@ -161,6 +161,7 @@ drivers/scsi/sr_mod.ko
 drivers/scsi/virtio_scsi.ko
 drivers/scsi/vmw_pvscsi.ko
 drivers/target/target_core*.ko
+drivers/target/loopback/tcm_loop.ko
 drivers/tty/serial/jsm/*
 drivers/uio/uio.ko
 drivers/uio/uio_pdrv_genirq.ko
