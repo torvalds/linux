@@ -297,7 +297,7 @@ static int test_case_3(struct btrfs_fs_info *fs_info,
 	ret = __test_case_3(fs_info, em_tree, SZ_8K);
 	if (ret)
 		return ret;
-	ret = __test_case_3(fs_info, em_tree, (12 * 1024ULL));
+	ret = __test_case_3(fs_info, em_tree, (12 * SZ_1K));
 
 	return ret;
 }
@@ -336,9 +336,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 
 	/* Add [8K, 24K) */
 	em->start = SZ_8K;
-	em->len = 24 * 1024ULL;
+	em->len = 24 * SZ_1K;
 	em->block_start = SZ_16K; /* avoid merging */
-	em->block_len = 24 * 1024ULL;
+	em->block_len = 24 * SZ_1K;
 	ret = add_extent_mapping(em_tree, em, 0);
 	if (ret < 0) {
 		test_err("cannot add extent range [8K, 32K)");
