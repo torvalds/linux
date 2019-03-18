@@ -24,7 +24,7 @@
 #define	IS_RESPONSE	0x80
 
 /* Used to dump to Linux trace buffer, if enabled */
-#define hid_ishtp_trace(client, ...)	\
+#define hid_ishtp_trace(client, ...)   \
 	client->cl_device->ishtp_dev->print_log(\
 		client->cl_device->ishtp_dev, __VA_ARGS__)
 

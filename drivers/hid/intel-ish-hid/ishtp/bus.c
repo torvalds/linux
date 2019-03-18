@@ -828,6 +828,33 @@ int ishtp_use_dma_transfer(void)
 }
 
 /**
+ * ishtp_device() - Return device pointer
+ *
+ * This interface is used to return device pointer from ishtp_cl_device
+ * instance.
+ *
+ * Return: device *.
+ */
+struct device *ishtp_device(struct ishtp_cl_device *device)
+{
+	return &device->dev;
+}
+EXPORT_SYMBOL(ishtp_device);
+
+/**
+ * ishtp_trace_callback() - Return trace callback
+ *
+ * This interface is used to return trace callback function pointer.
+ *
+ * Return: void *.
+ */
+void *ishtp_trace_callback(struct ishtp_cl_device *cl_device)
+{
+	return cl_device->ishtp_dev->print_log;
+}
+EXPORT_SYMBOL(ishtp_trace_callback);
+
+/**
  * ishtp_bus_register() - Function to register bus
  *
  * This register ishtp bus

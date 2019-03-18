@@ -14,6 +14,7 @@
  */
 
 #include <linux/hid.h>
+#include <linux/intel-ish-client-if.h>
 #include <uapi/linux/input.h>
 #include "ishtp/client.h"
 #include "ishtp-hid.h"
@@ -241,7 +242,8 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 
 	hid->ll_driver = &ishtp_hid_ll_driver;
 	hid->bus = BUS_INTEL_ISHTP;
-	hid->dev.parent = &client_data->cl_device->dev;
+	hid->dev.parent = ishtp_device(client_data->cl_device);
+
 	hid->version = le16_to_cpu(ISH_HID_VERSION);
 	hid->vendor = le16_to_cpu(client_data->hid_devices[cur_hid_dev].vid);
 	hid->product = le16_to_cpu(client_data->hid_devices[cur_hid_dev].pid);

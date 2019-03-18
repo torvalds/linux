@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/hid.h>
+#include <linux/intel-ish-client-if.h>
 #include <linux/sched.h>
 #include "ishtp/ishtp-dev.h"
 #include "ishtp/client.h"
@@ -23,6 +24,8 @@
 /* Rx ring buffer pool size */
 #define HID_CL_RX_RING_SIZE	32
 #define HID_CL_TX_RING_SIZE	16
+
+#define cl_data_to_dev(client_data) ishtp_device(client_data->cl_device)
 
 /**
  * report_bad_packets() - Report bad packets
@@ -39,7 +42,7 @@ static void report_bad_packet(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 	struct hostif_msg *recv_msg = recv_buf;
 	struct ishtp_cl_data *client_data = hid_ishtp_cl->client_data;
 
-	dev_err(&client_data->cl_device->dev, "[hid-ish]: BAD packet %02X\n"
+	dev_err(cl_data_to_dev(client_data), "[hid-ish]: BAD packet %02X\n"
 		"total_bad=%u cur_pos=%u\n"
 		"[%02X %02X %02X %02X]\n"
 		"payload_len=%u\n"
@@ -85,7 +88,7 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 
 	do {
 		if (cur_pos + sizeof(struct hostif_msg) > total_len) {
-			dev_err(&client_data->cl_device->dev,
+			dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: error, received %u which is less than data header %u\n",
 				(unsigned int)data_len,
 				(unsigned int)sizeof(struct hostif_msg_hdr));
@@ -124,12 +127,12 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 			client_data->hid_dev_count = (unsigned int)*payload;
 			if (!client_data->hid_devices)
 				client_data->hid_devices = devm_kcalloc(
-						&client_data->cl_device->dev,
+						cl_data_to_dev(client_data),
 						client_data->hid_dev_count,
 						sizeof(struct device_info),
 						GFP_KERNEL);
 			if (!client_data->hid_devices) {
-				dev_err(&client_data->cl_device->dev,
+				dev_err(cl_data_to_dev(client_data),
 				"Mem alloc failed for hid device info\n");
 				wake_up_interruptible(&client_data->init_wait);
 				break;
@@ -137,7 +140,7 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 			for (i = 0; i < client_data->hid_dev_count; ++i) {
 				if (1 + sizeof(struct device_info) * i >=
 						payload_len) {
-					dev_err(&client_data->cl_device->dev,
+					dev_err(cl_data_to_dev(client_data),
 						"[hid-ish]: [ENUM_DEVICES]: content size %zu is bigger than payload_len %zu\n",
 						1 + sizeof(struct device_info)
 						* i, payload_len);
@@ -172,7 +175,7 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 			}
 			if (!client_data->hid_descr[curr_hid_dev])
 				client_data->hid_descr[curr_hid_dev] =
-				devm_kmalloc(&client_data->cl_device->dev,
+				devm_kmalloc(cl_data_to_dev(client_data),
 					     payload_len, GFP_KERNEL);
 			if (client_data->hid_descr[curr_hid_dev]) {
 				memcpy(client_data->hid_descr[curr_hid_dev],
@@ -197,7 +200,7 @@ static void process_recv(struct ishtp_cl *hid_ishtp_cl, void *recv_buf,
 			}
 			if (!client_data->report_descr[curr_hid_dev])
 				client_data->report_descr[curr_hid_dev] =
-				devm_kmalloc(&client_data->cl_device->dev,
+				devm_kmalloc(cl_data_to_dev(client_data),
 					     payload_len, GFP_KERNEL);
 			if (client_data->report_descr[curr_hid_dev])  {
 				memcpy(client_data->report_descr[curr_hid_dev],
@@ -516,12 +519,12 @@ static int ishtp_enum_enum_devices(struct ishtp_cl *hid_ishtp_cl)
 					   sizeof(struct hostif_msg));
 	}
 	if (!client_data->enum_devices_done) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"[hid-ish]: timed out waiting for enum_devices\n");
 		return -ETIMEDOUT;
 	}
 	if (!client_data->hid_devices) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"[hid-ish]: failed to allocate HID dev structures\n");
 		return -ENOMEM;
 	}
@@ -564,13 +567,13 @@ static int ishtp_get_hid_descriptor(struct ishtp_cl *hid_ishtp_cl, int index)
 						 client_data->hid_descr_done,
 						 3 * HZ);
 		if (!client_data->hid_descr_done) {
-			dev_err(&client_data->cl_device->dev,
+			dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: timed out for hid_descr_done\n");
 			return -EIO;
 		}
 
 		if (!client_data->hid_descr[index]) {
-			dev_err(&client_data->cl_device->dev,
+			dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: allocation HID desc fail\n");
 			return -ENOMEM;
 		}
@@ -611,12 +614,12 @@ static int ishtp_get_report_descriptor(struct ishtp_cl *hid_ishtp_cl,
 					 client_data->report_descr_done,
 					 3 * HZ);
 	if (!client_data->report_descr_done) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: timed out for report descr\n");
 		return -EIO;
 	}
 	if (!client_data->report_descr[index]) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"[hid-ish]: failed to alloc report descr\n");
 		return -ENOMEM;
 	}
@@ -646,12 +649,12 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 	int i;
 	int rv;
 
-	dev_dbg(&client_data->cl_device->dev, "%s\n", __func__);
+	dev_dbg(cl_data_to_dev(client_data), "%s\n", __func__);
 	hid_ishtp_trace(client_data,  "%s reset flag: %d\n", __func__, reset);
 
 	rv = ishtp_cl_link(hid_ishtp_cl, ISHTP_HOST_CLIENT_ID_ANY);
 	if (rv) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"ishtp_cl_link failed\n");
 		return	-ENOMEM;
 	}
@@ -666,7 +669,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 
 	fw_client = ishtp_fw_cl_get_client(dev, &hid_ishtp_guid);
 	if (!fw_client) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"ish client uuid not found\n");
 		return -ENOENT;
 	}
@@ -676,7 +679,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 
 	rv = ishtp_cl_connect(hid_ishtp_cl);
 	if (rv) {
-		dev_err(&client_data->cl_device->dev,
+		dev_err(cl_data_to_dev(client_data),
 			"client connect fail\n");
 		goto err_cl_unlink;
 	}
@@ -707,7 +710,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 		if (!reset) {
 			rv = ishtp_hid_probe(i, client_data);
 			if (rv) {
-				dev_err(&client_data->cl_device->dev,
+				dev_err(cl_data_to_dev(client_data),
 				"[hid-ish]: HID probe for #%u failed: %d\n",
 				i, rv);
 				goto err_cl_disconnect;
@@ -763,7 +766,7 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 
 	hid_ishtp_cl_deinit(hid_ishtp_cl);
 
-	hid_ishtp_cl = ishtp_cl_allocate(cl_device->ishtp_dev);
+	hid_ishtp_cl = ishtp_cl_allocate(cl_device);
 	if (!hid_ishtp_cl)
 		return;
 
@@ -777,14 +780,16 @@ static void hid_ishtp_cl_reset_handler(struct work_struct *work)
 		rv = hid_ishtp_cl_init(hid_ishtp_cl, 1);
 		if (!rv)
 			break;
-		dev_err(&client_data->cl_device->dev, "Retry reset init\n");
+		dev_err(cl_data_to_dev(client_data), "Retry reset init\n");
 	}
 	if (rv) {
-		dev_err(&client_data->cl_device->dev, "Reset Failed\n");
+		dev_err(cl_data_to_dev(client_data), "Reset Failed\n");
 		hid_ishtp_trace(client_data, "%s Failed hid_ishtp_cl %p\n",
 				__func__, hid_ishtp_cl);
 	}
 }
+
+void (*hid_print_trace)(void *dev, const char *format, ...);
 
 /**
  * hid_ishtp_cl_probe() - ISHTP client driver probe
@@ -803,12 +808,13 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	if (!cl_device)
 		return	-ENODEV;
 
-	client_data = devm_kzalloc(&cl_device->dev, sizeof(*client_data),
+	client_data = devm_kzalloc(ishtp_device(cl_device),
+				   sizeof(*client_data),
 				   GFP_KERNEL);
 	if (!client_data)
 		return -ENOMEM;
 
-	hid_ishtp_cl = ishtp_cl_allocate(cl_device->ishtp_dev);
+	hid_ishtp_cl = ishtp_cl_allocate(cl_device);
 	if (!hid_ishtp_cl)
 		return -ENOMEM;
 
@@ -821,6 +827,8 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	init_waitqueue_head(&client_data->ishtp_resume_wait);
 
 	INIT_WORK(&client_data->work, hid_ishtp_cl_reset_handler);
+
+	hid_print_trace = ishtp_trace_callback(cl_device);
 
 	rv = hid_ishtp_cl_init(hid_ishtp_cl, 0);
 	if (rv) {
@@ -848,7 +856,7 @@ static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
 			hid_ishtp_cl);
 
-	dev_dbg(&cl_device->dev, "%s\n", __func__);
+	dev_dbg(ishtp_device(cl_device), "%s\n", __func__);
 	hid_ishtp_cl->state = ISHTP_CL_DISCONNECTING;
 	ishtp_cl_disconnect(hid_ishtp_cl);
 	ishtp_put_device(cl_device);

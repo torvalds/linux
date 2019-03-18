@@ -126,7 +126,7 @@ static void ishtp_cl_init(struct ishtp_cl *cl, struct ishtp_device *dev)
  *
  * Return: The allocated client instance or NULL on failure
  */
-struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
+struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *cl;
 
@@ -134,7 +134,7 @@ struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
 	if (!cl)
 		return NULL;
 
-	ishtp_cl_init(cl, dev);
+	ishtp_cl_init(cl, cl_device->ishtp_dev);
 	return cl;
 }
 EXPORT_SYMBOL(ishtp_cl_allocate);

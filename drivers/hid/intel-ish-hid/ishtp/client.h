@@ -170,7 +170,7 @@ static inline bool ishtp_cl_cmp_id(const struct ishtp_cl *cl1,
 }
 
 /* exported functions from ISHTP under client management scope */
-struct ishtp_cl	*ishtp_cl_allocate(struct ishtp_device *dev);
+struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device);
 void ishtp_cl_free(struct ishtp_cl *cl);
 int ishtp_cl_link(struct ishtp_cl *cl, int id);
 void ishtp_cl_unlink(struct ishtp_cl *cl);
