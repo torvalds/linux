@@ -9,6 +9,16 @@
 #define _INTEL_ISH_CLIENT_IF_H_
 
 struct ishtp_cl_device;
+struct ishtp_cl;
+
+/* Client state */
+enum cl_state {
+	ISHTP_CL_INITIALIZING = 0,
+	ISHTP_CL_CONNECTING,
+	ISHTP_CL_CONNECTED,
+	ISHTP_CL_DISCONNECTING,
+	ISHTP_CL_DISCONNECTED
+};
 
 /**
  * struct ishtp_cl_device - ISHTP device handle
@@ -29,6 +39,32 @@ struct ishtp_cl_driver {
 	const struct dev_pm_ops *pm;
 };
 
+/**
+ * struct ishtp_msg_data - ISHTP message data struct
+ * @size:	Size of data in the *data
+ * @data:	Pointer to data
+ */
+struct ishtp_msg_data {
+	uint32_t size;
+	unsigned char *data;
+};
+
+/*
+ * struct ishtp_cl_rb - request block structure
+ * @list:	Link to list members
+ * @cl:		ISHTP client instance
+ * @buffer:	message header
+ * @buf_idx:	Index into buffer
+ * @read_time:	 unused at this time
+ */
+struct ishtp_cl_rb {
+	struct list_head list;
+	struct ishtp_cl *cl;
+	struct ishtp_msg_data buffer;
+	unsigned long buf_idx;
+	unsigned long read_time;
+};
+
 int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 			     struct module *owner);
 void ishtp_cl_driver_unregister(struct ishtp_cl_driver *driver);
@@ -39,5 +75,17 @@ int ishtp_register_event_cb(struct ishtp_cl_device *device,
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
 /* Trace interface for clients */
 void *ishtp_trace_callback(struct ishtp_cl_device *cl_device);
+
+struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device);
+void ishtp_cl_free(struct ishtp_cl *cl);
+int ishtp_cl_link(struct ishtp_cl *cl);
+void ishtp_cl_unlink(struct ishtp_cl *cl);
+int ishtp_cl_disconnect(struct ishtp_cl *cl);
+int ishtp_cl_connect(struct ishtp_cl *cl);
+int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length);
+int ishtp_cl_flush_queues(struct ishtp_cl *cl);
+int ishtp_cl_io_rb_recycle(struct ishtp_cl_rb *rb);
+bool ishtp_cl_tx_empty(struct ishtp_cl *cl);
+struct ishtp_cl_rb *ishtp_cl_rx_get_rb(struct ishtp_cl *cl);
 
 #endif /* _INTEL_ISH_CLIENT_IF_H_ */
