@@ -457,13 +457,13 @@ static void add_ignores(struct objtool_file *file)
  * But it at least allows objtool to understand the control flow *around* the
  * retpoline.
  */
-static int add_nospec_ignores(struct objtool_file *file)
+static int add_ignore_alternatives(struct objtool_file *file)
 {
 	struct section *sec;
 	struct rela *rela;
 	struct instruction *insn;
 
-	sec = find_section_by_name(file->elf, ".rela.discard.nospec");
+	sec = find_section_by_name(file->elf, ".rela.discard.ignore_alts");
 	if (!sec)
 		return 0;
 
@@ -475,7 +475,7 @@ static int add_nospec_ignores(struct objtool_file *file)
 
 		insn = find_insn(file, rela->sym->sec, rela->addend);
 		if (!insn) {
-			WARN("bad .discard.nospec entry");
+			WARN("bad .discard.ignore_alts entry");
 			return -1;
 		}
 
@@ -1239,7 +1239,7 @@ static int decode_sections(struct objtool_file *file)
 
 	add_ignores(file);
 
-	ret = add_nospec_ignores(file);
+	ret = add_ignore_alternatives(file);
 	if (ret)
 		return ret;
 
