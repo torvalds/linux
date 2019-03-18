@@ -1242,7 +1242,7 @@ static void amdgpu_vm_do_copy_ptes(struct amdgpu_vm_update_params *params,
  * Returns:
  * The pointer for the page table entry.
  */
-static uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
+uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr)
 {
 	uint64_t result;
 
@@ -3000,6 +3000,11 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			 vm->use_cpu_for_update ? "CPU" : "SDMA");
 	WARN_ONCE((vm->use_cpu_for_update && !amdgpu_gmc_vram_full_visible(&adev->gmc)),
 		  "CPU update of VM recommended only for large BAR system\n");
+
+	if (vm->use_cpu_for_update)
+		vm->update_funcs = &amdgpu_vm_cpu_funcs;
+	else
+		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	vm->last_update = NULL;
 
 	amdgpu_vm_bo_param(adev, vm, adev->vm_manager.root_level, &bp);

@@ -204,9 +204,19 @@ struct amdgpu_vm_update_params {
 	uint64_t src;
 
 	/**
+	 * @job: job to used for hw submission
+	 */
+	struct amdgpu_job *job;
+
+	/**
 	 * @ib: indirect buffer to fill with commands
 	 */
 	struct amdgpu_ib *ib;
+
+	/**
+	 * @num_dw_left: number of dw left for the IB
+	 */
+	unsigned int num_dw_left;
 
 	/**
 	 * @func: Function which actually does the update
@@ -215,6 +225,17 @@ struct amdgpu_vm_update_params {
 		     struct amdgpu_bo *bo, uint64_t pe,
 		     uint64_t addr, unsigned count, uint32_t incr,
 		     uint64_t flags);
+};
+
+struct amdgpu_vm_update_funcs {
+
+	int (*prepare)(struct amdgpu_vm_update_params *p, void * owner,
+		       struct dma_fence *exclusive);
+	int (*update)(struct amdgpu_vm_update_params *p,
+		      struct amdgpu_bo *bo, uint64_t pe, uint64_t addr,
+		      unsigned count, uint32_t incr, uint64_t flags);
+	int (*commit)(struct amdgpu_vm_update_params *p,
+		      struct dma_fence **fence);
 };
 
 struct amdgpu_vm {
@@ -252,7 +273,10 @@ struct amdgpu_vm {
 	struct amdgpu_vmid	*reserved_vmid[AMDGPU_MAX_VMHUBS];
 
 	/* Flag to indicate if VM tables are updated by CPU or GPU (SDMA) */
-	bool                    use_cpu_for_update;
+	bool					use_cpu_for_update;
+
+	/* Functions to use for VM table updates */
+	const struct amdgpu_vm_update_funcs	*update_funcs;
 
 	/* Flag to indicate ATS support from PTE for GFX9 */
 	bool			pte_support_ats;
@@ -319,6 +343,9 @@ struct amdgpu_vm_manager {
 #define amdgpu_vm_write_pte(adev, ib, pe, value, count, incr) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (value), (count), (incr)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
 
+extern const struct amdgpu_vm_update_funcs amdgpu_vm_cpu_funcs;
+extern const struct amdgpu_vm_update_funcs amdgpu_vm_sdma_funcs;
+
 void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 
@@ -348,6 +375,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			bool clear);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo, bool evicted);
+uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 				       struct amdgpu_bo *bo);
 struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
