@@ -338,7 +338,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = (usValue & 0xff00)>>8;
 
-		ICVer8192 = (IC_Version&0xf);
+		ICVer8192 = IC_Version & 0xf;
 		ICVer8256 = (IC_Version & 0xf0)>>4;
 		RT_TRACE(COMP_INIT, "\nICVer8192 = 0x%x\n", ICVer8192);
 		RT_TRACE(COMP_INIT, "\nICVer8256 = 0x%x\n", ICVer8256);
@@ -420,7 +420,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			if (!priv->AutoloadFailFlag) {
 				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
-				priv->EEPROMAntPwDiff = (usValue&0x0fff);
+				priv->EEPROMAntPwDiff = usValue & 0x0fff;
 				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
 							 >> 12);
 			} else {
@@ -475,15 +475,13 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			}
 			priv->LegacyHTTxPowerDiff =
 					 priv->EEPROMLegacyHTTxPowerDiff;
-			priv->AntennaTxPwDiff[0] = (priv->EEPROMAntPwDiff &
-						    0xf);
+			priv->AntennaTxPwDiff[0] = priv->EEPROMAntPwDiff & 0xf;
 			priv->AntennaTxPwDiff[1] = (priv->EEPROMAntPwDiff &
 							0xf0) >> 4;
 			priv->AntennaTxPwDiff[2] = (priv->EEPROMAntPwDiff &
 							0xf00) >> 8;
 			priv->CrystalCap = priv->EEPROMCrystalCap;
-			priv->ThermalMeter[0] = (priv->EEPROMThermalMeter &
-						 0xf);
+			priv->ThermalMeter[0] = priv->EEPROMThermalMeter & 0xf;
 			priv->ThermalMeter[1] = (priv->EEPROMThermalMeter &
 						     0xf0) >> 4;
 		} else if (priv->epromtype == EEPROM_93C56) {
@@ -540,8 +538,7 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->AntennaTxPwDiff[1] = 0;
 			priv->AntennaTxPwDiff[2] = 0;
 			priv->CrystalCap = priv->EEPROMCrystalCap;
-			priv->ThermalMeter[0] = (priv->EEPROMThermalMeter &
-						 0xf);
+			priv->ThermalMeter[0] = priv->EEPROMThermalMeter & 0xf;
 			priv->ThermalMeter[1] = (priv->EEPROMThermalMeter &
 						     0xf0) >> 4;
 		}
@@ -755,8 +752,8 @@ start:
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
-			ulRegRead = ((ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
-				     CPU_GEN_NO_LOOPBACK_SET);
+			ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
+				    CPU_GEN_NO_LOOPBACK_SET;
 		else if (priv->LoopbackMode == RTL819X_MAC_LOOPBACK)
 			ulRegRead |= CPU_CCK_LOOPBACK;
 		else
@@ -1424,7 +1421,7 @@ static u8 _rtl92e_rate_hw_to_mgn(bool bIsHT, u8 rate)
 			ret_rate = MGN_MCS15;
 			break;
 		case DESC90_RATEMCS32:
-			ret_rate = (0x80|0x20);
+			ret_rate = 0x80 | 0x20;
 			break;
 
 		default:
@@ -2044,7 +2041,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	}
 
 	stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
-	stats->RxBufShift = ((pdesc->Shift)&0x03);
+	stats->RxBufShift = (pdesc->Shift) & 0x03;
 	stats->Decrypted = !pdesc->SWDec;
 
 	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
