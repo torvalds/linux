@@ -36,6 +36,8 @@ struct ipl_parameter_block {
 
 #define IPL_MAX_SUPPORTED_VERSION (0)
 
+#define IPL_RB_CERT_UNKNOWN ((unsigned short)-1)
+
 #define DIAG308_VMPARM_SIZE (64)
 #define DIAG308_SCPDATA_OFFSET offsetof(struct ipl_parameter_block, \
 					fcp.scp_data)

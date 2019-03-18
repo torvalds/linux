@@ -12,6 +12,7 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/verification.h>
+#include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 
@@ -150,9 +151,9 @@ static int kexec_file_add_purgatory(struct kimage *image,
 	ret = kexec_load_purgatory(image, &buf);
 	if (ret)
 		return ret;
+	data->memsz += buf.memsz;
 
-	ret = kexec_file_update_purgatory(image, data);
-	return ret;
+	return kexec_file_update_purgatory(image, data);
 }
 
 static int kexec_file_add_initrd(struct kimage *image,
@@ -177,7 +178,60 @@ static int kexec_file_add_initrd(struct kimage *image,
 	data->memsz += buf.memsz;
 
 	ret = kexec_add_buffer(&buf);
-	return ret;
+	if (ret)
+		return ret;
+
+	return ipl_report_add_component(data->report, &buf, 0, 0);
+}
+
+static int kexec_file_add_ipl_report(struct kimage *image,
+				     struct s390_load_data *data)
+{
+	__u32 *lc_ipl_parmblock_ptr;
+	unsigned int len, ncerts;
+	struct kexec_buf buf;
+	unsigned long addr;
+	void *ptr, *end;
+
+	buf.image = image;
+
+	data->memsz = ALIGN(data->memsz, PAGE_SIZE);
+	buf.mem = data->memsz;
+	if (image->type == KEXEC_TYPE_CRASH)
+		buf.mem += crashk_res.start;
+
+	ptr = (void *)ipl_cert_list_addr;
+	end = ptr + ipl_cert_list_size;
+	ncerts = 0;
+	while (ptr < end) {
+		ncerts++;
+		len = *(unsigned int *)ptr;
+		ptr += sizeof(len);
+		ptr += len;
+	}
+
+	addr = data->memsz + data->report->size;
+	addr += ncerts * sizeof(struct ipl_rb_certificate_entry);
+	ptr = (void *)ipl_cert_list_addr;
+	while (ptr < end) {
+		len = *(unsigned int *)ptr;
+		ptr += sizeof(len);
+		ipl_report_add_certificate(data->report, ptr, addr, len);
+		addr += len;
+		ptr += len;
+	}
+
+	buf.buffer = ipl_report_finish(data->report);
+	buf.bufsz = data->report->size;
+	buf.memsz = buf.bufsz;
+
+	data->memsz += buf.memsz;
+
+	lc_ipl_parmblock_ptr =
+		data->kernel_buf + offsetof(struct lowcore, ipl_parmblock_ptr);
+	*lc_ipl_parmblock_ptr = (__u32)buf.mem;
+
+	return kexec_add_buffer(&buf);
 }
 
 void *kexec_file_add_components(struct kimage *image,
@@ -187,12 +241,18 @@ void *kexec_file_add_components(struct kimage *image,
 	struct s390_load_data data = {0};
 	int ret;
 
+	data.report = ipl_report_init(&ipl_block);
+	if (IS_ERR(data.report))
+		return data.report;
+
 	ret = add_kernel(image, &data);
 	if (ret)
-		return ERR_PTR(ret);
+		goto out;
 
-	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE)
-		return ERR_PTR(-EINVAL);
+	if (image->cmdline_buf_len >= ARCH_COMMAND_LINE_SIZE) {
+		ret = -EINVAL;
+		goto out;
+	}
 	memcpy(data.parm->command_line, image->cmdline_buf,
 	       image->cmdline_buf_len);
 
@@ -204,12 +264,12 @@ void *kexec_file_add_components(struct kimage *image,
 	if (image->initrd_buf) {
 		ret = kexec_file_add_initrd(image, &data);
 		if (ret)
-			return ERR_PTR(ret);
+			goto out;
 	}
 
 	ret = kexec_file_add_purgatory(image, &data);
 	if (ret)
-		return ERR_PTR(ret);
+		goto out;
 
 	if (data.kernel_mem == 0) {
 		unsigned long restart_psw =  0x0008000080000000UL;
@@ -218,7 +278,10 @@ void *kexec_file_add_components(struct kimage *image,
 		image->start = 0;
 	}
 
-	return NULL;
+	ret = kexec_file_add_ipl_report(image, &data);
+out:
+	ipl_report_free(data.report);
+	return ERR_PTR(ret);
 }
 
 int arch_kexec_apply_relocations_add(struct purgatory_info *pi,

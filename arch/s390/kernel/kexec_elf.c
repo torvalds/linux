@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
+#include <asm/ipl.h>
 #include <asm/setup.h>
 
 static int kexec_file_add_kernel_elf(struct kimage *image,
@@ -50,6 +51,10 @@ static int kexec_file_add_kernel_elf(struct kimage *image,
 			data->parm = buf.buffer + PARMAREA;
 		}
 
+		ipl_report_add_component(data->report, &buf,
+					 IPL_RB_COMPONENT_FLAG_SIGNED |
+					 IPL_RB_COMPONENT_FLAG_VERIFIED,
+					 IPL_RB_CERT_UNKNOWN);
 		ret = kexec_add_buffer(&buf);
 		if (ret)
 			return ret;
