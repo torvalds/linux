@@ -16,7 +16,6 @@
 #include <linux/hid.h>
 #include <linux/intel-ish-client-if.h>
 #include <uapi/linux/input.h>
-#include "ishtp/client.h"
 #include "ishtp-hid.h"
 
 /**
@@ -154,7 +153,6 @@ static void ishtp_hid_request(struct hid_device *hid, struct hid_report *rep,
 static int ishtp_wait_for_response(struct hid_device *hid)
 {
 	struct ishtp_hid_data *hid_data =  hid->driver_data;
-	struct ishtp_cl_data *client_data = hid_data->client_data;
 	int rv;
 
 	hid_ishtp_trace(client_data,  "%s hid %p\n", __func__, hid);
