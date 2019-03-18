@@ -2614,8 +2614,6 @@ static void end_bio_extent_readpage(struct bio *bio)
 			if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD,
 					       &eb->bflags))
 				btree_readahead_hook(eb, -EIO);
-
-			ret = -EIO;
 		}
 readpage_ok:
 		if (likely(uptodate)) {
