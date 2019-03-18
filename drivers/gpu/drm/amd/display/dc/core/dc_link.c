@@ -2660,11 +2660,17 @@ void core_link_enable_stream(
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	core_dc->hwss.blank_stream(pipe_ctx);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
+
+	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+		dal_ddc_service_write_scdc_data(
+			stream->link->ddc, 0,
+			stream->timing.flags.LTE_340MCSC_SCRAMBLE);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
