@@ -3871,6 +3871,9 @@ static int sctp_setsockopt_active_key(struct sock *sk,
 	if (asoc)
 		return sctp_auth_set_active_key(ep, asoc, val.scact_keynumber);
 
+	if (sctp_style(sk, TCP))
+		val.scact_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (val.scact_assoc_id == SCTP_FUTURE_ASSOC ||
 	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
 		ret = sctp_auth_set_active_key(ep, asoc, val.scact_keynumber);
