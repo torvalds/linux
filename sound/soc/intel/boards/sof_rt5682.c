@@ -117,7 +117,8 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	/* need to enable ASRC function for 24MHz mclk rate */
 	if ((sof_rt5682_quirk & SOF_RT5682_MCLK_EN) &&
 	    (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)) {
-		rt5682_sel_asrc_clk_src(component, RT5682_DA_STEREO1_FILTER,
+		rt5682_sel_asrc_clk_src(component, RT5682_DA_STEREO1_FILTER |
+					RT5682_AD_STEREO1_FILTER,
 					RT5682_CLK_SEL_I2S1_ASRC);
 	}
 
