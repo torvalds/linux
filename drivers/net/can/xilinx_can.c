@@ -483,6 +483,7 @@ static int xcan_do_set_mode(struct net_device *ndev, enum can_mode mode)
 
 /**
  * xcan_write_frame - Write a frame to HW
+ * @priv:		Driver private data structure
  * @skb:		sk_buff pointer that contains data to be Txed
  * @frame_offset:	Register offset to write the frame to
  */
@@ -544,6 +545,8 @@ static void xcan_write_frame(struct xcan_priv *priv, struct sk_buff *skb,
 
 /**
  * xcan_start_xmit_fifo - Starts the transmission (FIFO mode)
+ * @skb:	sk_buff pointer that contains data to be Txed
+ * @ndev:	Pointer to net_device structure
  *
  * Return: 0 on success, -ENOSPC if FIFO is full.
  */
@@ -580,6 +583,8 @@ static int xcan_start_xmit_fifo(struct sk_buff *skb, struct net_device *ndev)
 
 /**
  * xcan_start_xmit_mailbox - Starts the transmission (mailbox mode)
+ * @skb:	sk_buff pointer that contains data to be Txed
+ * @ndev:	Pointer to net_device structure
  *
  * Return: 0 on success, -ENOSPC if there is no space
  */
@@ -960,6 +965,7 @@ static void xcan_state_interrupt(struct net_device *ndev, u32 isr)
 
 /**
  * xcan_rx_fifo_get_next_frame - Get register offset of next RX frame
+ * @priv:	Driver private data structure
  *
  * Return: Register offset of the next frame in RX FIFO.
  */
