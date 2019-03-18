@@ -150,7 +150,12 @@ struct bcm2835_power {
 
 static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
 {
-	u64 start = ktime_get_ns();
+	u64 start;
+
+	if (!reg)
+		return 0;
+
+	start = ktime_get_ns();
 
 	/* Enable the module's async AXI bridges. */
 	ASB_WRITE(reg, ASB_READ(reg) & ~ASB_REQ_STOP);
@@ -165,7 +170,12 @@ static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
 
 static int bcm2835_asb_disable(struct bcm2835_power *power, u32 reg)
 {
-	u64 start = ktime_get_ns();
+	u64 start;
+
+	if (!reg)
+		return 0;
+
+	start = ktime_get_ns();
 
 	/* Enable the module's async AXI bridges. */
 	ASB_WRITE(reg, ASB_READ(reg) | ASB_REQ_STOP);
@@ -475,7 +485,7 @@ static int bcm2835_power_pd_power_off(struct generic_pm_domain *domain)
 	}
 }
 
-static void
+static int
 bcm2835_init_power_domain(struct bcm2835_power *power,
 			  int pd_xlate_index, const char *name)
 {
@@ -483,6 +493,17 @@ bcm2835_init_power_domain(struct bcm2835_power *power,
 	struct bcm2835_power_domain *dom = &power->domains[pd_xlate_index];
 
 	dom->clk = devm_clk_get(dev->parent, name);
+	if (IS_ERR(dom->clk)) {
+		int ret = PTR_ERR(dom->clk);
+
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
+		/* Some domains don't have a clk, so make sure that we
+		 * don't deref an error pointer later.
+		 */
+		dom->clk = NULL;
+	}
 
 	dom->base.name = name;
 	dom->base.power_on = bcm2835_power_pd_power_on;
@@ -495,6 +516,8 @@ bcm2835_init_power_domain(struct bcm2835_power *power,
 	pm_genpd_init(&dom->base, NULL, true);
 
 	power->pd_xlate.domains[pd_xlate_index] = &dom->base;
+
+	return 0;
 }
 
 /** bcm2835_reset_reset - Resets a block that has a reset line in the
@@ -592,7 +615,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 		{ BCM2835_POWER_DOMAIN_IMAGE_PERI, BCM2835_POWER_DOMAIN_CAM0 },
 		{ BCM2835_POWER_DOMAIN_IMAGE_PERI, BCM2835_POWER_DOMAIN_CAM1 },
 	};
-	int ret, i;
+	int ret = 0, i;
 	u32 id;
 
 	power = devm_kzalloc(dev, sizeof(*power), GFP_KERNEL);
@@ -619,8 +642,11 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 
 	power->pd_xlate.num_domains = ARRAY_SIZE(power_domain_names);
 
-	for (i = 0; i < ARRAY_SIZE(power_domain_names); i++)
-		bcm2835_init_power_domain(power, i, power_domain_names[i]);
+	for (i = 0; i < ARRAY_SIZE(power_domain_names); i++) {
+		ret = bcm2835_init_power_domain(power, i, power_domain_names[i]);
+		if (ret)
+			goto fail;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(domain_deps); i++) {
 		pm_genpd_add_subdomain(&power->domains[domain_deps[i].parent].base,
@@ -634,12 +660,21 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 
 	ret = devm_reset_controller_register(dev, &power->reset);
 	if (ret)
-		return ret;
+		goto fail;
 
 	of_genpd_add_provider_onecell(dev->parent->of_node, &power->pd_xlate);
 
 	dev_info(dev, "Broadcom BCM2835 power domains driver");
 	return 0;
+
+fail:
+	for (i = 0; i < ARRAY_SIZE(power_domain_names); i++) {
+		struct generic_pm_domain *dom = &power->domains[i].base;
+
+		if (dom->name)
+			pm_genpd_remove(dom);
+	}
+	return ret;
 }
 
 static int bcm2835_power_remove(struct platform_device *pdev)
