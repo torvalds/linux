@@ -126,8 +126,6 @@ static void hw_delay_complete(struct timer_list *t)
 static void mock_context_unpin(struct intel_context *ce)
 {
 	mock_timeline_unpin(ce->ring->timeline);
-	list_del(&ce->active_link);
-	i915_gem_context_put(ce->gem_context);
 }
 
 static void mock_context_destroy(struct intel_context *ce)

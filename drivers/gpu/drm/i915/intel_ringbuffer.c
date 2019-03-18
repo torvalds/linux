@@ -1430,9 +1430,6 @@ static void ring_context_unpin(struct intel_context *ce)
 {
 	__context_unpin_ppgtt(ce->gem_context);
 	__context_unpin(ce);
-
-	list_del(&ce->active_link);
-	i915_gem_context_put(ce->gem_context);
 }
 
 static struct i915_vma *

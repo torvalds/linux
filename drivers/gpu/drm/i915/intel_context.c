@@ -165,12 +165,12 @@ intel_context_pin(struct i915_gem_context *ctx,
 		if (err)
 			goto err;
 
+		i915_gem_context_get(ctx);
+		GEM_BUG_ON(ce->gem_context != ctx);
+
 		mutex_lock(&ctx->mutex);
 		list_add(&ce->active_link, &ctx->active_engines);
 		mutex_unlock(&ctx->mutex);
-
-		i915_gem_context_get(ctx);
-		GEM_BUG_ON(ce->gem_context != ctx);
 
 		smp_mb__before_atomic(); /* flush pin before it is visible */
 	}
@@ -194,8 +194,15 @@ void intel_context_unpin(struct intel_context *ce)
 	/* We may be called from inside intel_context_pin() to evict another */
 	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
 
-	if (likely(atomic_dec_and_test(&ce->pin_count)))
+	if (likely(atomic_dec_and_test(&ce->pin_count))) {
 		ce->ops->unpin(ce);
+
+		mutex_lock(&ce->gem_context->mutex);
+		list_del(&ce->active_link);
+		mutex_unlock(&ce->gem_context->mutex);
+
+		i915_gem_context_put(ce->gem_context);
+	}
 
 	mutex_unlock(&ce->pin_mutex);
 }

@@ -1277,9 +1277,6 @@ static void execlists_context_unpin(struct intel_context *ce)
 	ce->state->obj->pin_global--;
 	i915_gem_object_unpin_map(ce->state->obj);
 	i915_vma_unpin(ce->state);
-
-	list_del(&ce->active_link);
-	i915_gem_context_put(ce->gem_context);
 }
 
 static int __context_pin(struct i915_vma *vma)
