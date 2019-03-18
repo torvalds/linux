@@ -466,6 +466,7 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 	}
 
 	ishtp_device_ready = true;
+	dev_set_drvdata(&device->dev, device);
 
 	return device;
 }
