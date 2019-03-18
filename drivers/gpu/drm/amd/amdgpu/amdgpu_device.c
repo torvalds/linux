@@ -112,6 +112,7 @@ const char *amdgpu_asic_name[] = {
 	"NAVI10",
 	"NAVI14",
 	"NAVI12",
+	"SIENNA_CICHLID",
 	"LAST",
 };
 
