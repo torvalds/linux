@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) AES CMAC crypto API support
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2018 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *

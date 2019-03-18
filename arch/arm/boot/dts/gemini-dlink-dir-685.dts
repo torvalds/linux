@@ -443,7 +443,7 @@
 		};
 
 		display-controller@6a000000 {
-			status = "disabled";
+			status = "okay";
 
 			port@0 {
 				reg = <0>;

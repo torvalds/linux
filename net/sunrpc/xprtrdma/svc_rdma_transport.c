@@ -390,8 +390,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_qp_init_attr qp_attr;
 	unsigned int ctxts, rq_depth;
 	struct ib_device *dev;
-	struct sockaddr *sap;
 	int ret = 0;
+	RPC_IFDEBUG(struct sockaddr *sap);
 
 	listen_rdma = container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	clear_bit(XPT_CONN, &xprt->xpt_flags);
@@ -525,6 +525,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	if (ret)
 		goto errout;
 
+#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	dprintk("svcrdma: new connection %p accepted:\n", newxprt);
 	sap = (struct sockaddr *)&newxprt->sc_cm_id->route.addr.src_addr;
 	dprintk("    local address   : %pIS:%u\n", sap, rpc_get_port(sap));
@@ -535,6 +536,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	dprintk("    rdma_rw_ctxs    : %d\n", ctxts);
 	dprintk("    max_requests    : %d\n", newxprt->sc_max_requests);
 	dprintk("    ord             : %d\n", conn_param.initiator_depth);
+#endif
 
 	trace_svcrdma_xprt_accept(&newxprt->sc_xprt);
 	return &newxprt->sc_xprt;
@@ -587,11 +589,6 @@ static void __svc_rdma_free(struct work_struct *work)
 
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
-
-	/* We should only be called from kref_put */
-	if (kref_read(&xprt->xpt_ref) != 0)
-		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
-		       kref_read(&xprt->xpt_ref));
 
 	svc_rdma_flush_recv_queues(rdma);
 

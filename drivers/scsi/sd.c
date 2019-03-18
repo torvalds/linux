@@ -665,6 +665,68 @@ static int sd_sec_submit(void *data, u16 spsp, u8 secp, void *buffer,
 }
 #endif /* CONFIG_BLK_SED_OPAL */
 
+/*
+ * Look up the DIX operation based on whether the command is read or
+ * write and whether dix and dif are enabled.
+ */
+static unsigned int sd_prot_op(bool write, bool dix, bool dif)
+{
+	/* Lookup table: bit 2 (write), bit 1 (dix), bit 0 (dif) */
+	static const unsigned int ops[] = {	/* wrt dix dif */
+		SCSI_PROT_NORMAL,		/*  0	0   0  */
+		SCSI_PROT_READ_STRIP,		/*  0	0   1  */
+		SCSI_PROT_READ_INSERT,		/*  0	1   0  */
+		SCSI_PROT_READ_PASS,		/*  0	1   1  */
+		SCSI_PROT_NORMAL,		/*  1	0   0  */
+		SCSI_PROT_WRITE_INSERT,		/*  1	0   1  */
+		SCSI_PROT_WRITE_STRIP,		/*  1	1   0  */
+		SCSI_PROT_WRITE_PASS,		/*  1	1   1  */
+	};
+
+	return ops[write << 2 | dix << 1 | dif];
+}
+
+/*
+ * Returns a mask of the protection flags that are valid for a given DIX
+ * operation.
+ */
+static unsigned int sd_prot_flag_mask(unsigned int prot_op)
+{
+	static const unsigned int flag_mask[] = {
+		[SCSI_PROT_NORMAL]		= 0,
+
+		[SCSI_PROT_READ_STRIP]		= SCSI_PROT_TRANSFER_PI |
+						  SCSI_PROT_GUARD_CHECK |
+						  SCSI_PROT_REF_CHECK |
+						  SCSI_PROT_REF_INCREMENT,
+
+		[SCSI_PROT_READ_INSERT]		= SCSI_PROT_REF_INCREMENT |
+						  SCSI_PROT_IP_CHECKSUM,
+
+		[SCSI_PROT_READ_PASS]		= SCSI_PROT_TRANSFER_PI |
+						  SCSI_PROT_GUARD_CHECK |
+						  SCSI_PROT_REF_CHECK |
+						  SCSI_PROT_REF_INCREMENT |
+						  SCSI_PROT_IP_CHECKSUM,
+
+		[SCSI_PROT_WRITE_INSERT]	= SCSI_PROT_TRANSFER_PI |
+						  SCSI_PROT_REF_INCREMENT,
+
+		[SCSI_PROT_WRITE_STRIP]		= SCSI_PROT_GUARD_CHECK |
+						  SCSI_PROT_REF_CHECK |
+						  SCSI_PROT_REF_INCREMENT |
+						  SCSI_PROT_IP_CHECKSUM,
+
+		[SCSI_PROT_WRITE_PASS]		= SCSI_PROT_TRANSFER_PI |
+						  SCSI_PROT_GUARD_CHECK |
+						  SCSI_PROT_REF_CHECK |
+						  SCSI_PROT_REF_INCREMENT |
+						  SCSI_PROT_IP_CHECKSUM,
+	};
+
+	return flag_mask[prot_op];
+}
+
 static unsigned char sd_setup_protect_cmnd(struct scsi_cmnd *scmd,
 					   unsigned int dix, unsigned int dif)
 {
@@ -761,8 +823,8 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdp = cmd->device;
 	struct request *rq = cmd->request;
-	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
-	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	unsigned int data_len = 24;
 	char *buf;
 
@@ -781,13 +843,12 @@ static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
 	buf = page_address(rq->special_vec.bv_page);
 	put_unaligned_be16(6 + 16, &buf[0]);
 	put_unaligned_be16(16, &buf[2]);
-	put_unaligned_be64(sector, &buf[8]);
-	put_unaligned_be32(nr_sectors, &buf[16]);
+	put_unaligned_be64(lba, &buf[8]);
+	put_unaligned_be32(nr_blocks, &buf[16]);
 
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = SD_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
@@ -797,8 +858,8 @@ static blk_status_t sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd,
 {
 	struct scsi_device *sdp = cmd->device;
 	struct request *rq = cmd->request;
-	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
-	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	u32 data_len = sdp->sector_size;
 
 	rq->special_vec.bv_page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
@@ -813,13 +874,12 @@ static blk_status_t sd_setup_write_same16_cmnd(struct scsi_cmnd *cmd,
 	cmd->cmnd[0] = WRITE_SAME_16;
 	if (unmap)
 		cmd->cmnd[1] = 0x8; /* UNMAP */
-	put_unaligned_be64(sector, &cmd->cmnd[2]);
-	put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
+	put_unaligned_be64(lba, &cmd->cmnd[2]);
+	put_unaligned_be32(nr_blocks, &cmd->cmnd[10]);
 
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
@@ -829,8 +889,8 @@ static blk_status_t sd_setup_write_same10_cmnd(struct scsi_cmnd *cmd,
 {
 	struct scsi_device *sdp = cmd->device;
 	struct request *rq = cmd->request;
-	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
-	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	u32 data_len = sdp->sector_size;
 
 	rq->special_vec.bv_page = mempool_alloc(sd_page_pool, GFP_ATOMIC);
@@ -845,13 +905,12 @@ static blk_status_t sd_setup_write_same10_cmnd(struct scsi_cmnd *cmd,
 	cmd->cmnd[0] = WRITE_SAME;
 	if (unmap)
 		cmd->cmnd[1] = 0x8; /* UNMAP */
-	put_unaligned_be32(sector, &cmd->cmnd[2]);
-	put_unaligned_be16(nr_sectors, &cmd->cmnd[7]);
+	put_unaligned_be32(lba, &cmd->cmnd[2]);
+	put_unaligned_be16(nr_blocks, &cmd->cmnd[7]);
 
 	cmd->allowed = SD_MAX_RETRIES;
 	cmd->transfersize = data_len;
 	rq->timeout = unmap ? SD_TIMEOUT : SD_WRITE_SAME_TIMEOUT;
-	scsi_req(rq)->resid_len = data_len;
 
 	return scsi_init_io(cmd);
 }
@@ -861,8 +920,8 @@ static blk_status_t sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 	struct request *rq = cmd->request;
 	struct scsi_device *sdp = cmd->device;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
-	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
-	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
+	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 
 	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
 		switch (sdkp->zeroing_mode) {
@@ -876,7 +935,7 @@ static blk_status_t sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 	if (sdp->no_write_same)
 		return BLK_STS_TARGET;
 
-	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
+	if (sdkp->ws16 || lba > 0xffffffff || nr_blocks > 0xffff)
 		return sd_setup_write_same16_cmnd(cmd, false);
 
 	return sd_setup_write_same10_cmnd(cmd, false);
@@ -957,9 +1016,8 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	struct scsi_device *sdp = cmd->device;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	struct bio *bio = rq->bio;
-	sector_t sector = blk_rq_pos(rq);
-	unsigned int nr_sectors = blk_rq_sectors(rq);
-	unsigned int nr_bytes = blk_rq_bytes(rq);
+	u64 lba = sectors_to_logical(sdp, blk_rq_pos(rq));
+	u32 nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
 	blk_status_t ret;
 
 	if (sdkp->device->no_write_same)
@@ -967,21 +1025,18 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 
 	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
 
-	sector >>= ilog2(sdp->sector_size) - 9;
-	nr_sectors >>= ilog2(sdp->sector_size) - 9;
-
 	rq->timeout = SD_WRITE_SAME_TIMEOUT;
 
-	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff) {
+	if (sdkp->ws16 || lba > 0xffffffff || nr_blocks > 0xffff) {
 		cmd->cmd_len = 16;
 		cmd->cmnd[0] = WRITE_SAME_16;
-		put_unaligned_be64(sector, &cmd->cmnd[2]);
-		put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
+		put_unaligned_be64(lba, &cmd->cmnd[2]);
+		put_unaligned_be32(nr_blocks, &cmd->cmnd[10]);
 	} else {
 		cmd->cmd_len = 10;
 		cmd->cmnd[0] = WRITE_SAME;
-		put_unaligned_be32(sector, &cmd->cmnd[2]);
-		put_unaligned_be16(nr_sectors, &cmd->cmnd[7]);
+		put_unaligned_be32(lba, &cmd->cmnd[2]);
+		put_unaligned_be16(nr_blocks, &cmd->cmnd[7]);
 	}
 
 	cmd->transfersize = sdp->sector_size;
@@ -999,7 +1054,7 @@ static blk_status_t sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	 */
 	rq->__data_len = sdp->sector_size;
 	ret = scsi_init_io(cmd);
-	rq->__data_len = nr_bytes;
+	rq->__data_len = blk_rq_bytes(rq);
 
 	return ret;
 }
@@ -1020,224 +1075,186 @@ static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
 	return BLK_STS_OK;
 }
 
-static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
+static blk_status_t sd_setup_rw32_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
 {
-	struct request *rq = SCpnt->request;
-	struct scsi_device *sdp = SCpnt->device;
-	struct gendisk *disk = rq->rq_disk;
-	struct scsi_disk *sdkp = scsi_disk(disk);
-	sector_t block = blk_rq_pos(rq);
+	cmd->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
+	if (unlikely(cmd->cmnd == NULL))
+		return BLK_STS_RESOURCE;
+
+	cmd->cmd_len = SD_EXT_CDB_SIZE;
+	memset(cmd->cmnd, 0, cmd->cmd_len);
+
+	cmd->cmnd[0]  = VARIABLE_LENGTH_CMD;
+	cmd->cmnd[7]  = 0x18; /* Additional CDB len */
+	cmd->cmnd[9]  = write ? WRITE_32 : READ_32;
+	cmd->cmnd[10] = flags;
+	put_unaligned_be64(lba, &cmd->cmnd[12]);
+	put_unaligned_be32(lba, &cmd->cmnd[20]); /* Expected Indirect LBA */
+	put_unaligned_be32(nr_blocks, &cmd->cmnd[28]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw16_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
+{
+	cmd->cmd_len  = 16;
+	cmd->cmnd[0]  = write ? WRITE_16 : READ_16;
+	cmd->cmnd[1]  = flags;
+	cmd->cmnd[14] = 0;
+	cmd->cmnd[15] = 0;
+	put_unaligned_be64(lba, &cmd->cmnd[2]);
+	put_unaligned_be32(nr_blocks, &cmd->cmnd[10]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw10_cmnd(struct scsi_cmnd *cmd, bool write,
+				       sector_t lba, unsigned int nr_blocks,
+				       unsigned char flags)
+{
+	cmd->cmd_len = 10;
+	cmd->cmnd[0] = write ? WRITE_10 : READ_10;
+	cmd->cmnd[1] = flags;
+	cmd->cmnd[6] = 0;
+	cmd->cmnd[9] = 0;
+	put_unaligned_be32(lba, &cmd->cmnd[2]);
+	put_unaligned_be16(nr_blocks, &cmd->cmnd[7]);
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_rw6_cmnd(struct scsi_cmnd *cmd, bool write,
+				      sector_t lba, unsigned int nr_blocks,
+				      unsigned char flags)
+{
+	/* Avoid that 0 blocks gets translated into 256 blocks. */
+	if (WARN_ON_ONCE(nr_blocks == 0))
+		return BLK_STS_IOERR;
+
+	if (unlikely(flags & 0x8)) {
+		/*
+		 * This happens only if this drive failed 10byte rw
+		 * command with ILLEGAL_REQUEST during operation and
+		 * thus turned off use_10_for_rw.
+		 */
+		scmd_printk(KERN_ERR, cmd, "FUA write on READ/WRITE(6) drive\n");
+		return BLK_STS_IOERR;
+	}
+
+	cmd->cmd_len = 6;
+	cmd->cmnd[0] = write ? WRITE_6 : READ_6;
+	cmd->cmnd[1] = (lba >> 16) & 0x1f;
+	cmd->cmnd[2] = (lba >> 8) & 0xff;
+	cmd->cmnd[3] = lba & 0xff;
+	cmd->cmnd[4] = nr_blocks;
+	cmd->cmnd[5] = 0;
+
+	return BLK_STS_OK;
+}
+
+static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
+{
+	struct request *rq = cmd->request;
+	struct scsi_device *sdp = cmd->device;
+	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
+	sector_t lba = sectors_to_logical(sdp, blk_rq_pos(rq));
 	sector_t threshold;
-	unsigned int this_count = blk_rq_sectors(rq);
-	unsigned int dif, dix;
-	unsigned char protect;
+	unsigned int nr_blocks = sectors_to_logical(sdp, blk_rq_sectors(rq));
+	bool dif, dix;
+	unsigned int mask = logical_to_sectors(sdp, 1) - 1;
+	bool write = rq_data_dir(rq) == WRITE;
+	unsigned char protect, fua;
 	blk_status_t ret;
 
-	ret = scsi_init_io(SCpnt);
+	ret = scsi_init_io(cmd);
 	if (ret != BLK_STS_OK)
 		return ret;
-	WARN_ON_ONCE(SCpnt != rq->special);
 
-	SCSI_LOG_HLQUEUE(1,
-		scmd_printk(KERN_INFO, SCpnt,
-			"%s: block=%llu, count=%d\n",
-			__func__, (unsigned long long)block, this_count));
-
-	if (!sdp || !scsi_device_online(sdp) ||
-	    block + blk_rq_sectors(rq) > get_capacity(disk)) {
-		SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt,
-						"Finishing %u sectors\n",
-						blk_rq_sectors(rq)));
-		SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt,
-						"Retry with 0x%p\n", SCpnt));
+	if (!scsi_device_online(sdp) || sdp->changed) {
+		scmd_printk(KERN_ERR, cmd, "device offline or changed\n");
 		return BLK_STS_IOERR;
 	}
 
-	if (sdp->changed) {
-		/*
-		 * quietly refuse to do anything to a changed disc until 
-		 * the changed bit has been reset
-		 */
-		/* printk("SCSI disk has been changed or is not present. Prohibiting further I/O.\n"); */
+	if (blk_rq_pos(rq) + blk_rq_sectors(rq) > get_capacity(rq->rq_disk)) {
+		scmd_printk(KERN_ERR, cmd, "access beyond end of device\n");
+		return BLK_STS_IOERR;
+	}
+
+	if ((blk_rq_pos(rq) & mask) || (blk_rq_sectors(rq) & mask)) {
+		scmd_printk(KERN_ERR, cmd, "request not aligned to the logical block size\n");
 		return BLK_STS_IOERR;
 	}
 
 	/*
-	 * Some SD card readers can't handle multi-sector accesses which touch
-	 * the last one or two hardware sectors.  Split accesses as needed.
+	 * Some SD card readers can't handle accesses which touch the
+	 * last one or two logical blocks. Split accesses as needed.
 	 */
-	threshold = get_capacity(disk) - SD_LAST_BUGGY_SECTORS *
-		(sdp->sector_size / 512);
+	threshold = sdkp->capacity - SD_LAST_BUGGY_SECTORS;
 
-	if (unlikely(sdp->last_sector_bug && block + this_count > threshold)) {
-		if (block < threshold) {
+	if (unlikely(sdp->last_sector_bug && lba + nr_blocks > threshold)) {
+		if (lba < threshold) {
 			/* Access up to the threshold but not beyond */
-			this_count = threshold - block;
+			nr_blocks = threshold - lba;
 		} else {
-			/* Access only a single hardware sector */
-			this_count = sdp->sector_size / 512;
+			/* Access only a single logical block */
+			nr_blocks = 1;
 		}
 	}
 
-	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt, "block=%llu\n",
-					(unsigned long long)block));
+	fua = rq->cmd_flags & REQ_FUA ? 0x8 : 0;
+	dix = scsi_prot_sg_count(cmd);
+	dif = scsi_host_dif_capable(cmd->device->host, sdkp->protection_type);
 
-	/*
-	 * If we have a 1K hardware sectorsize, prevent access to single
-	 * 512 byte sectors.  In theory we could handle this - in fact
-	 * the scsi cdrom driver must be able to handle this because
-	 * we typically use 1K blocksizes, and cdroms typically have
-	 * 2K hardware sectorsizes.  Of course, things are simpler
-	 * with the cdrom, since it is read-only.  For performance
-	 * reasons, the filesystems should be able to handle this
-	 * and not force the scsi disk driver to use bounce buffers
-	 * for this.
-	 */
-	if (sdp->sector_size == 1024) {
-		if ((block & 1) || (blk_rq_sectors(rq) & 1)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		block = block >> 1;
-		this_count = this_count >> 1;
-	}
-	if (sdp->sector_size == 2048) {
-		if ((block & 3) || (blk_rq_sectors(rq) & 3)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		block = block >> 2;
-		this_count = this_count >> 2;
-	}
-	if (sdp->sector_size == 4096) {
-		if ((block & 7) || (blk_rq_sectors(rq) & 7)) {
-			scmd_printk(KERN_ERR, SCpnt,
-				    "Bad block number requested\n");
-			return BLK_STS_IOERR;
-		}
-		block = block >> 3;
-		this_count = this_count >> 3;
-	}
-	if (rq_data_dir(rq) == WRITE) {
-		SCpnt->cmnd[0] = WRITE_6;
-
-		if (blk_integrity_rq(rq))
-			t10_pi_prepare(SCpnt->request, sdkp->protection_type);
-
-	} else if (rq_data_dir(rq) == READ) {
-		SCpnt->cmnd[0] = READ_6;
-	} else {
-		scmd_printk(KERN_ERR, SCpnt, "Unknown command %d\n", req_op(rq));
-		return BLK_STS_IOERR;
-	}
-
-	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt,
-					"%s %d/%u 512 byte blocks.\n",
-					(rq_data_dir(rq) == WRITE) ?
-					"writing" : "reading", this_count,
-					blk_rq_sectors(rq)));
-
-	dix = scsi_prot_sg_count(SCpnt);
-	dif = scsi_host_dif_capable(SCpnt->device->host, sdkp->protection_type);
+	if (write && dix)
+		t10_pi_prepare(cmd->request, sdkp->protection_type);
 
 	if (dif || dix)
-		protect = sd_setup_protect_cmnd(SCpnt, dix, dif);
+		protect = sd_setup_protect_cmnd(cmd, dix, dif);
 	else
 		protect = 0;
 
 	if (protect && sdkp->protection_type == T10_PI_TYPE2_PROTECTION) {
-		SCpnt->cmnd = mempool_alloc(sd_cdb_pool, GFP_ATOMIC);
-
-		if (unlikely(!SCpnt->cmnd))
-			return BLK_STS_RESOURCE;
-
-		SCpnt->cmd_len = SD_EXT_CDB_SIZE;
-		memset(SCpnt->cmnd, 0, SCpnt->cmd_len);
-		SCpnt->cmnd[0] = VARIABLE_LENGTH_CMD;
-		SCpnt->cmnd[7] = 0x18;
-		SCpnt->cmnd[9] = (rq_data_dir(rq) == READ) ? READ_32 : WRITE_32;
-		SCpnt->cmnd[10] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-
-		/* LBA */
-		SCpnt->cmnd[12] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
-		SCpnt->cmnd[13] = sizeof(block) > 4 ? (unsigned char) (block >> 48) & 0xff : 0;
-		SCpnt->cmnd[14] = sizeof(block) > 4 ? (unsigned char) (block >> 40) & 0xff : 0;
-		SCpnt->cmnd[15] = sizeof(block) > 4 ? (unsigned char) (block >> 32) & 0xff : 0;
-		SCpnt->cmnd[16] = (unsigned char) (block >> 24) & 0xff;
-		SCpnt->cmnd[17] = (unsigned char) (block >> 16) & 0xff;
-		SCpnt->cmnd[18] = (unsigned char) (block >> 8) & 0xff;
-		SCpnt->cmnd[19] = (unsigned char) block & 0xff;
-
-		/* Expected Indirect LBA */
-		SCpnt->cmnd[20] = (unsigned char) (block >> 24) & 0xff;
-		SCpnt->cmnd[21] = (unsigned char) (block >> 16) & 0xff;
-		SCpnt->cmnd[22] = (unsigned char) (block >> 8) & 0xff;
-		SCpnt->cmnd[23] = (unsigned char) block & 0xff;
-
-		/* Transfer length */
-		SCpnt->cmnd[28] = (unsigned char) (this_count >> 24) & 0xff;
-		SCpnt->cmnd[29] = (unsigned char) (this_count >> 16) & 0xff;
-		SCpnt->cmnd[30] = (unsigned char) (this_count >> 8) & 0xff;
-		SCpnt->cmnd[31] = (unsigned char) this_count & 0xff;
-	} else if (sdp->use_16_for_rw || (this_count > 0xffff)) {
-		SCpnt->cmnd[0] += READ_16 - READ_6;
-		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-		SCpnt->cmnd[2] = sizeof(block) > 4 ? (unsigned char) (block >> 56) & 0xff : 0;
-		SCpnt->cmnd[3] = sizeof(block) > 4 ? (unsigned char) (block >> 48) & 0xff : 0;
-		SCpnt->cmnd[4] = sizeof(block) > 4 ? (unsigned char) (block >> 40) & 0xff : 0;
-		SCpnt->cmnd[5] = sizeof(block) > 4 ? (unsigned char) (block >> 32) & 0xff : 0;
-		SCpnt->cmnd[6] = (unsigned char) (block >> 24) & 0xff;
-		SCpnt->cmnd[7] = (unsigned char) (block >> 16) & 0xff;
-		SCpnt->cmnd[8] = (unsigned char) (block >> 8) & 0xff;
-		SCpnt->cmnd[9] = (unsigned char) block & 0xff;
-		SCpnt->cmnd[10] = (unsigned char) (this_count >> 24) & 0xff;
-		SCpnt->cmnd[11] = (unsigned char) (this_count >> 16) & 0xff;
-		SCpnt->cmnd[12] = (unsigned char) (this_count >> 8) & 0xff;
-		SCpnt->cmnd[13] = (unsigned char) this_count & 0xff;
-		SCpnt->cmnd[14] = SCpnt->cmnd[15] = 0;
-	} else if ((this_count > 0xff) || (block > 0x1fffff) ||
-		   scsi_device_protection(SCpnt->device) ||
-		   SCpnt->device->use_10_for_rw) {
-		SCpnt->cmnd[0] += READ_10 - READ_6;
-		SCpnt->cmnd[1] = protect | ((rq->cmd_flags & REQ_FUA) ? 0x8 : 0);
-		SCpnt->cmnd[2] = (unsigned char) (block >> 24) & 0xff;
-		SCpnt->cmnd[3] = (unsigned char) (block >> 16) & 0xff;
-		SCpnt->cmnd[4] = (unsigned char) (block >> 8) & 0xff;
-		SCpnt->cmnd[5] = (unsigned char) block & 0xff;
-		SCpnt->cmnd[6] = SCpnt->cmnd[9] = 0;
-		SCpnt->cmnd[7] = (unsigned char) (this_count >> 8) & 0xff;
-		SCpnt->cmnd[8] = (unsigned char) this_count & 0xff;
+		ret = sd_setup_rw32_cmnd(cmd, write, lba, nr_blocks,
+					 protect | fua);
+	} else if (sdp->use_16_for_rw || (nr_blocks > 0xffff)) {
+		ret = sd_setup_rw16_cmnd(cmd, write, lba, nr_blocks,
+					 protect | fua);
+	} else if ((nr_blocks > 0xff) || (lba > 0x1fffff) ||
+		   sdp->use_10_for_rw || protect) {
+		ret = sd_setup_rw10_cmnd(cmd, write, lba, nr_blocks,
+					 protect | fua);
 	} else {
-		if (unlikely(rq->cmd_flags & REQ_FUA)) {
-			/*
-			 * This happens only if this drive failed
-			 * 10byte rw command with ILLEGAL_REQUEST
-			 * during operation and thus turned off
-			 * use_10_for_rw.
-			 */
-			scmd_printk(KERN_ERR, SCpnt,
-				    "FUA write on READ/WRITE(6) drive\n");
-			return BLK_STS_IOERR;
-		}
-
-		SCpnt->cmnd[1] |= (unsigned char) ((block >> 16) & 0x1f);
-		SCpnt->cmnd[2] = (unsigned char) ((block >> 8) & 0xff);
-		SCpnt->cmnd[3] = (unsigned char) block & 0xff;
-		SCpnt->cmnd[4] = (unsigned char) this_count;
-		SCpnt->cmnd[5] = 0;
+		ret = sd_setup_rw6_cmnd(cmd, write, lba, nr_blocks,
+					protect | fua);
 	}
-	SCpnt->sdb.length = this_count * sdp->sector_size;
+
+	if (unlikely(ret != BLK_STS_OK))
+		return ret;
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
 	 * host adapter, it's safe to assume that we can at least transfer
 	 * this many bytes between each connect / disconnect.
 	 */
-	SCpnt->transfersize = sdp->sector_size;
-	SCpnt->underflow = this_count << 9;
-	SCpnt->allowed = SD_MAX_RETRIES;
+	cmd->transfersize = sdp->sector_size;
+	cmd->underflow = nr_blocks << 9;
+	cmd->allowed = SD_MAX_RETRIES;
+	cmd->sdb.length = nr_blocks * sdp->sector_size;
+
+	SCSI_LOG_HLQUEUE(1,
+			 scmd_printk(KERN_INFO, cmd,
+				     "%s: block=%llu, count=%d\n", __func__,
+				     (unsigned long long)blk_rq_pos(rq),
+				     blk_rq_sectors(rq)));
+	SCSI_LOG_HLQUEUE(2,
+			 scmd_printk(KERN_INFO, cmd,
+				     "%s %d/%u 512 byte blocks.\n",
+				     write ? "writing" : "reading", nr_blocks,
+				     blk_rq_sectors(rq)));
 
 	/*
 	 * This indicates that the command is ready from our end to be
@@ -2549,25 +2566,25 @@ sd_print_capacity(struct scsi_disk *sdkp,
 	int sector_size = sdkp->device->sector_size;
 	char cap_str_2[10], cap_str_10[10];
 
+	if (!sdkp->first_scan && old_capacity == sdkp->capacity)
+		return;
+
 	string_get_size(sdkp->capacity, sector_size,
 			STRING_UNITS_2, cap_str_2, sizeof(cap_str_2));
 	string_get_size(sdkp->capacity, sector_size,
-			STRING_UNITS_10, cap_str_10,
-			sizeof(cap_str_10));
+			STRING_UNITS_10, cap_str_10, sizeof(cap_str_10));
 
-	if (sdkp->first_scan || old_capacity != sdkp->capacity) {
+	sd_printk(KERN_NOTICE, sdkp,
+		  "%llu %d-byte logical blocks: (%s/%s)\n",
+		  (unsigned long long)sdkp->capacity,
+		  sector_size, cap_str_10, cap_str_2);
+
+	if (sdkp->physical_block_size != sector_size)
 		sd_printk(KERN_NOTICE, sdkp,
-			  "%llu %d-byte logical blocks: (%s/%s)\n",
-			  (unsigned long long)sdkp->capacity,
-			  sector_size, cap_str_10, cap_str_2);
+			  "%u-byte physical blocks\n",
+			  sdkp->physical_block_size);
 
-		if (sdkp->physical_block_size != sector_size)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "%u-byte physical blocks\n",
-				  sdkp->physical_block_size);
-
-		sd_zbc_print_zones(sdkp);
-	}
+	sd_zbc_print_zones(sdkp);
 }
 
 /* called with buffer of length 512 */
@@ -3047,6 +3064,55 @@ static void sd_read_security(struct scsi_disk *sdkp, unsigned char *buffer)
 		sdkp->security = 1;
 }
 
+/*
+ * Determine the device's preferred I/O size for reads and writes
+ * unless the reported value is unreasonably small, large, not a
+ * multiple of the physical block size, or simply garbage.
+ */
+static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
+				      unsigned int dev_max)
+{
+	struct scsi_device *sdp = sdkp->device;
+	unsigned int opt_xfer_bytes =
+		logical_to_bytes(sdp, sdkp->opt_xfer_blocks);
+
+	if (sdkp->opt_xfer_blocks > dev_max) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Optimal transfer size %u logical blocks " \
+				"> dev_max (%u logical blocks)\n",
+				sdkp->opt_xfer_blocks, dev_max);
+		return false;
+	}
+
+	if (sdkp->opt_xfer_blocks > SD_DEF_XFER_BLOCKS) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Optimal transfer size %u logical blocks " \
+				"> sd driver limit (%u logical blocks)\n",
+				sdkp->opt_xfer_blocks, SD_DEF_XFER_BLOCKS);
+		return false;
+	}
+
+	if (opt_xfer_bytes < PAGE_SIZE) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Optimal transfer size %u bytes < " \
+				"PAGE_SIZE (%u bytes)\n",
+				opt_xfer_bytes, (unsigned int)PAGE_SIZE);
+		return false;
+	}
+
+	if (opt_xfer_bytes & (sdkp->physical_block_size - 1)) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Optimal transfer size %u bytes not a " \
+				"multiple of physical block size (%u bytes)\n",
+				opt_xfer_bytes, sdkp->physical_block_size);
+		return false;
+	}
+
+	sd_first_printk(KERN_INFO, sdkp, "Optimal transfer size %u bytes\n",
+			opt_xfer_bytes);
+	return true;
+}
+
 /**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
@@ -3125,15 +3191,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	dev_max = min_not_zero(dev_max, sdkp->max_xfer_blocks);
 	q->limits.max_dev_sectors = logical_to_sectors(sdp, dev_max);
 
-	/*
-	 * Determine the device's preferred I/O size for reads and writes
-	 * unless the reported value is unreasonably small, large, or
-	 * garbage.
-	 */
-	if (sdkp->opt_xfer_blocks &&
-	    sdkp->opt_xfer_blocks <= dev_max &&
-	    sdkp->opt_xfer_blocks <= SD_DEF_XFER_BLOCKS &&
-	    logical_to_bytes(sdp, sdkp->opt_xfer_blocks) >= PAGE_SIZE) {
+	if (sd_validate_opt_xfer_size(sdkp, dev_max)) {
 		q->limits.io_opt = logical_to_bytes(sdp, sdkp->opt_xfer_blocks);
 		rw_max = logical_to_sectors(sdp, sdkp->opt_xfer_blocks);
 	} else

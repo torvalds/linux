@@ -3,6 +3,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "radeon.h"
 #include "atom.h"
@@ -320,19 +321,10 @@ static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	DRM_DEBUG_KMS("\n");
 }
 
-static void radeon_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
-{
-	struct radeon_connector *master = container_of(mgr, struct radeon_connector, mst_mgr);
-	struct drm_device *dev = master->base.dev;
-
-	drm_kms_helper_hotplug_event(dev);
-}
-
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = radeon_dp_add_mst_connector,
 	.register_connector = radeon_dp_register_mst_connector,
 	.destroy_connector = radeon_dp_destroy_mst_connector,
-	.hotplug = radeon_dp_mst_hotplug,
 };
 
 static struct

@@ -34,6 +34,7 @@ struct vmcs_host_state {
 	unsigned long cr4;	/* May not match real cr4 */
 	unsigned long gs_base;
 	unsigned long fs_base;
+	unsigned long rsp;
 
 	u16           fs_sel, gs_sel, ldt_sel;
 #ifdef CONFIG_X86_64

@@ -2265,12 +2265,12 @@ static int asus_wmi_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!wmi_has_guid(ASUS_WMI_MGMT_GUID)) {
-		pr_warn("Management GUID not found\n");
+		pr_warn("ASUS Management GUID not found\n");
 		return -ENODEV;
 	}
 
 	if (wdrv->event_guid && !wmi_has_guid(wdrv->event_guid)) {
-		pr_warn("Event GUID not found\n");
+		pr_warn("ASUS Event GUID not found\n");
 		return -ENODEV;
 	}
 
@@ -2320,11 +2320,6 @@ EXPORT_SYMBOL_GPL(asus_wmi_unregister_driver);
 
 static int __init asus_wmi_init(void)
 {
-	if (!wmi_has_guid(ASUS_WMI_MGMT_GUID)) {
-		pr_info("Asus Management GUID not found\n");
-		return -ENODEV;
-	}
-
 	pr_info("ASUS WMI generic driver loaded\n");
 	return 0;
 }

@@ -75,9 +75,9 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"27.101.00.00"
+#define MPT3SAS_DRIVER_VERSION		"27.102.00.00"
 #define MPT3SAS_MAJOR_VERSION		27
-#define MPT3SAS_MINOR_VERSION		101
+#define MPT3SAS_MINOR_VERSION		102
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
 
@@ -192,6 +192,9 @@ struct mpt3sas_nvme_cmd {
 
 #define SAS2_PCI_DEVICE_B0_REVISION	(0x01)
 #define SAS3_PCI_DEVICE_C0_REVISION	(0x02)
+
+/* Atlas PCIe Switch Management Port */
+#define MPI26_ATLAS_PCIe_SWITCH_DEVID	(0x00B2)
 
 /*
  * Intel HBA branding

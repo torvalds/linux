@@ -454,6 +454,8 @@ void xenvif_init_hash(struct xenvif *vif)
 	if (xenvif_hash_cache_size == 0)
 		return;
 
+	BUG_ON(vif->hash.cache.count);
+
 	spin_lock_init(&vif->hash.cache.lock);
 	INIT_LIST_HEAD(&vif->hash.cache.list);
 }

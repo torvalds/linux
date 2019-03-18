@@ -420,7 +420,7 @@ qca8k_mib_init(struct qca8k_priv *priv)
 static int
 qca8k_set_pad_ctrl(struct qca8k_priv *priv, int port, int mode)
 {
-	u32 reg;
+	u32 reg, val;
 
 	switch (port) {
 	case 0:
@@ -439,15 +439,19 @@ qca8k_set_pad_ctrl(struct qca8k_priv *priv, int port, int mode)
 	 */
 	switch (mode) {
 	case PHY_INTERFACE_MODE_RGMII:
-		qca8k_write(priv, reg,
-			    QCA8K_PORT_PAD_RGMII_EN |
-			    QCA8K_PORT_PAD_RGMII_TX_DELAY(3) |
-			    QCA8K_PORT_PAD_RGMII_RX_DELAY(3));
-
-		/* According to the datasheet, RGMII delay is enabled through
+		/* RGMII mode means no delay so don't enable the delay */
+		val = QCA8K_PORT_PAD_RGMII_EN;
+		qca8k_write(priv, reg, val);
+		break;
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		/* RGMII_ID needs internal delay. This is enabled through
 		 * PORT5_PAD_CTRL for all ports, rather than individual port
 		 * registers
 		 */
+		qca8k_write(priv, reg,
+			    QCA8K_PORT_PAD_RGMII_EN |
+			    QCA8K_PORT_PAD_RGMII_TX_DELAY(QCA8K_MAX_DELAY) |
+			    QCA8K_PORT_PAD_RGMII_RX_DELAY(QCA8K_MAX_DELAY));
 		qca8k_write(priv, QCA8K_REG_PORT5_PAD_CTRL,
 			    QCA8K_PORT_PAD_RGMII_RX_DELAY_EN);
 		break;
@@ -797,8 +801,7 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_port_disable(struct dsa_switch *ds, int port,
-		   struct phy_device *phy)
+qca8k_port_disable(struct dsa_switch *ds, int port)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 

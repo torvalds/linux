@@ -311,7 +311,13 @@ static dma_addr_t __vmw_piter_dma_addr(struct vmw_piter *viter)
 
 static dma_addr_t __vmw_piter_sg_addr(struct vmw_piter *viter)
 {
-	return sg_page_iter_dma_address(&viter->iter);
+	/*
+	 * FIXME: This driver wrongly mixes DMA and CPU SG list iteration and
+	 * needs revision. See
+	 * https://lore.kernel.org/lkml/20190104223531.GA1705@ziepe.ca/
+	 */
+	return sg_page_iter_dma_address(
+		container_of(&viter->iter, struct sg_dma_page_iter, base));
 }
 
 

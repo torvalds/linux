@@ -270,14 +270,12 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 			goto err_clk;
 		}
 
-		device_init_wakeup(dev, true);
+		device_set_wakeup_capable(dev, true);
 		ret = dev_pm_set_dedicated_wake_irq(dev, ipcc->wkp);
 		if (ret) {
 			dev_err(dev, "Failed to set wake up irq\n");
 			goto err_init_wkp;
 		}
-	} else {
-		device_init_wakeup(dev, false);
 	}
 
 	/* mailbox controller */

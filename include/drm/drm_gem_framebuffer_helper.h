@@ -25,6 +25,9 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 struct drm_framebuffer *
 drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 		  const struct drm_mode_fb_cmd2 *mode_cmd);
+struct drm_framebuffer *
+drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
+			     const struct drm_mode_fb_cmd2 *mode_cmd);
 
 int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state);

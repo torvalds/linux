@@ -28,6 +28,7 @@
 
 #include "asp.h"
 #include "cpuidle.h"
+#include "irqs.h"
 #include "sram.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
@@ -64,7 +65,7 @@ void __iomem *da8xx_syscfg1_base;
 static struct plat_serial8250_port da8xx_serial0_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART0_BASE,
-		.irq		= IRQ_DA8XX_UARTINT0,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_DA8XX_UARTINT0),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 					UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
@@ -77,7 +78,7 @@ static struct plat_serial8250_port da8xx_serial0_pdata[] = {
 static struct plat_serial8250_port da8xx_serial1_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART1_BASE,
-		.irq		= IRQ_DA8XX_UARTINT1,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_DA8XX_UARTINT1),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 					UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
@@ -90,7 +91,7 @@ static struct plat_serial8250_port da8xx_serial1_pdata[] = {
 static struct plat_serial8250_port da8xx_serial2_pdata[] = {
 	{
 		.mapbase	= DA8XX_UART2_BASE,
-		.irq		= IRQ_DA8XX_UARTINT2,
+		.irq		= DAVINCI_INTC_IRQ(IRQ_DA8XX_UARTINT2),
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 					UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
@@ -171,12 +172,12 @@ static struct resource da8xx_edma0_resources[] = {
 	},
 	{
 		.name	= "edma3_ccint",
-		.start	= IRQ_DA8XX_CCINT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_CCINT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "edma3_ccerrint",
-		.start	= IRQ_DA8XX_CCERRINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -196,12 +197,12 @@ static struct resource da850_edma1_resources[] = {
 	},
 	{
 		.name	= "edma3_ccint",
-		.start	= IRQ_DA850_CCINT1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA850_CCINT1),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= "edma3_ccerrint",
-		.start	= IRQ_DA850_CCERRINT1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA850_CCERRINT1),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -306,8 +307,8 @@ static struct resource da8xx_i2c_resources0[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DA8XX_I2CINT0,
-		.end	= IRQ_DA8XX_I2CINT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_I2CINT0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_I2CINT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -326,8 +327,8 @@ static struct resource da8xx_i2c_resources1[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DA8XX_I2CINT1,
-		.end	= IRQ_DA8XX_I2CINT1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_I2CINT1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_I2CINT1),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -382,23 +383,23 @@ static struct resource da8xx_emac_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DA8XX_C0_RX_THRESH_PULSE,
-		.end	= IRQ_DA8XX_C0_RX_THRESH_PULSE,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_RX_THRESH_PULSE),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_RX_THRESH_PULSE),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_C0_RX_PULSE,
-		.end	= IRQ_DA8XX_C0_RX_PULSE,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_RX_PULSE),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_RX_PULSE),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_C0_TX_PULSE,
-		.end	= IRQ_DA8XX_C0_TX_PULSE,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_TX_PULSE),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_TX_PULSE),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_C0_MISC_PULSE,
-		.end	= IRQ_DA8XX_C0_MISC_PULSE,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_MISC_PULSE),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_C0_MISC_PULSE),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -470,7 +471,7 @@ static struct resource da830_mcasp1_resources[] = {
 	},
 	{
 		.name	= "common",
-		.start	= IRQ_DA8XX_MCASPINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_MCASPINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -505,7 +506,7 @@ static struct resource da830_mcasp2_resources[] = {
 	},
 	{
 		.name	= "common",
-		.start	= IRQ_DA8XX_MCASPINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_MCASPINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -540,7 +541,7 @@ static struct resource da850_mcasp_resources[] = {
 	},
 	{
 		.name	= "common",
-		.start	= IRQ_DA8XX_MCASPINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_MCASPINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -588,43 +589,43 @@ static struct resource da8xx_pruss_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT0,
-		.end	= IRQ_DA8XX_EVTOUT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT1,
-		.end	= IRQ_DA8XX_EVTOUT1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT1),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT2,
-		.end	= IRQ_DA8XX_EVTOUT2,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT2),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT2),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT3,
-		.end	= IRQ_DA8XX_EVTOUT3,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT3),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT3),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT4,
-		.end	= IRQ_DA8XX_EVTOUT4,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT4),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT4),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT5,
-		.end	= IRQ_DA8XX_EVTOUT5,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT5),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT5),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT6,
-		.end	= IRQ_DA8XX_EVTOUT6,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT6),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT6),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_EVTOUT7,
-		.end	= IRQ_DA8XX_EVTOUT7,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT7),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_EVTOUT7),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -674,8 +675,8 @@ static struct resource da8xx_lcdc_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = { /* interrupt */
-		.start  = IRQ_DA8XX_LCDINT,
-		.end    = IRQ_DA8XX_LCDINT,
+		.start  = DAVINCI_INTC_IRQ(IRQ_DA8XX_LCDINT),
+		.end    = DAVINCI_INTC_IRQ(IRQ_DA8XX_LCDINT),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -700,48 +701,48 @@ static struct resource da8xx_gpio_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{ /* interrupt */
-		.start	= IRQ_DA8XX_GPIO0,
-		.end	= IRQ_DA8XX_GPIO0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO1,
-		.end	= IRQ_DA8XX_GPIO1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO1),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO2,
-		.end	= IRQ_DA8XX_GPIO2,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO2),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO2),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO3,
-		.end	= IRQ_DA8XX_GPIO3,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO3),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO3),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO4,
-		.end	= IRQ_DA8XX_GPIO4,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO4),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO4),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO5,
-		.end	= IRQ_DA8XX_GPIO5,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO5),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO5),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO6,
-		.end	= IRQ_DA8XX_GPIO6,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO6),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO6),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO7,
-		.end	= IRQ_DA8XX_GPIO7,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO7),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO7),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= IRQ_DA8XX_GPIO8,
-		.end	= IRQ_DA8XX_GPIO8,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO8),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_GPIO8),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -766,8 +767,8 @@ static struct resource da8xx_mmcsd0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{		/* interrupt */
-		.start	= IRQ_DA8XX_MMCSDINT0,
-		.end	= IRQ_DA8XX_MMCSDINT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_MMCSDINT0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_MMCSDINT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -793,8 +794,8 @@ static struct resource da850_mmcsd1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{		/* interrupt */
-		.start	= IRQ_DA850_MMCSDINT0_1,
-		.end	= IRQ_DA850_MMCSDINT0_1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA850_MMCSDINT0_1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA850_MMCSDINT0_1),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -845,8 +846,8 @@ static struct resource da8xx_rproc_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{ /* dsp irq */
-		.start		= IRQ_DA8XX_CHIPINT0,
-		.end		= IRQ_DA8XX_CHIPINT0,
+		.start		= DAVINCI_INTC_IRQ(IRQ_DA8XX_CHIPINT0),
+		.end		= DAVINCI_INTC_IRQ(IRQ_DA8XX_CHIPINT0),
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -936,13 +937,13 @@ static struct resource da8xx_rtc_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{ /* timer irq */
-		.start		= IRQ_DA8XX_RTC,
-		.end		= IRQ_DA8XX_RTC,
+		.start		= DAVINCI_INTC_IRQ(IRQ_DA8XX_RTC),
+		.end		= DAVINCI_INTC_IRQ(IRQ_DA8XX_RTC),
 		.flags		= IORESOURCE_IRQ,
 	},
 	{ /* alarm irq */
-		.start		= IRQ_DA8XX_RTC,
-		.end		= IRQ_DA8XX_RTC,
+		.start		= DAVINCI_INTC_IRQ(IRQ_DA8XX_RTC),
+		.end		= DAVINCI_INTC_IRQ(IRQ_DA8XX_RTC),
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -1009,8 +1010,8 @@ static struct resource da8xx_spi0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_DA8XX_SPINT0,
-		.end	= IRQ_DA8XX_SPINT0,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_SPINT0),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_SPINT0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1022,8 +1023,8 @@ static struct resource da8xx_spi1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= IRQ_DA8XX_SPINT1,
-		.end	= IRQ_DA8XX_SPINT1,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA8XX_SPINT1),
+		.end	= DAVINCI_INTC_IRQ(IRQ_DA8XX_SPINT1),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1103,7 +1104,7 @@ static struct resource da850_sata_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IRQ_DA850_SATAINT,
+		.start	= DAVINCI_INTC_IRQ(IRQ_DA850_SATAINT),
 		.flags	= IORESOURCE_IRQ,
 	},
 };

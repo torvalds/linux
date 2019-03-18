@@ -2088,7 +2088,7 @@ static int atl1_intr_tx(struct atl1_adapter *adapter)
 		}
 
 		if (buffer_info->skb) {
-			dev_kfree_skb_irq(buffer_info->skb);
+			dev_consume_skb_irq(buffer_info->skb);
 			buffer_info->skb = NULL;
 		}
 

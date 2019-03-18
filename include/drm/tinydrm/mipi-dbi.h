@@ -14,6 +14,7 @@
 
 #include <drm/tinydrm/tinydrm.h>
 
+struct drm_rect;
 struct spi_device;
 struct gpio_desc;
 struct regulator;
@@ -67,6 +68,8 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
 		  struct drm_driver *driver,
 		  const struct drm_display_mode *mode, unsigned int rotation);
+void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
+			  struct drm_plane_state *old_state);
 void mipi_dbi_enable_flush(struct mipi_dbi *mipi,
 			   struct drm_crtc_state *crtc_state,
 			   struct drm_plane_state *plan_state);
@@ -80,7 +83,7 @@ u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
-		      struct drm_clip_rect *clip, bool swap);
+		      struct drm_rect *clip, bool swap);
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)
  * @mipi: MIPI structure

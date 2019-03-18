@@ -226,8 +226,6 @@ static void __init kasan_enable_dat(void)
 
 static void __init kasan_early_detect_facilities(void)
 {
-	__stfle(S390_lowcore.stfle_fac_list,
-		ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 	if (test_facility(8)) {
 		has_edat = true;
 		__ctl_set_bit(0, 23);

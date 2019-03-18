@@ -63,7 +63,7 @@ config SPI_ALTERA
 
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
-	depends on ATH79 && GPIOLIB
+	depends on ATH79 || COMPILE_TEST
 	select SPI_BITBANG
 	help
 	  This enables support for the SPI controller present on the
@@ -268,6 +268,27 @@ config SPI_FSL_LPSPI
 	help
 	  This enables Freescale i.MX LPSPI controllers in master mode.
 
+config SPI_FSL_QUADSPI
+	tristate "Freescale QSPI controller"
+	depends on ARCH_MXC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables support for the Quad SPI controller in master mode.
+	  Up to four flash chips can be connected on two buses with two
+	  chipselects each.
+	  This controller does not support generic SPI messages. It only
+	  supports the high-level SPI memory interface.
+
+config SPI_NXP_FLEXSPI
+	tristate "NXP Flex SPI controller"
+	depends on ARCH_LAYERSCAPE || HAS_IOMEM
+	help
+	  This enables support for the Flex SPI controller in master mode.
+	  Up to four slave devices can be connected on two buses with two
+	  chipselects each.
+	  This controller does not support generic SPI messages and only
+	  supports the high-level SPI memory interface.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GPIOLIB || COMPILE_TEST
@@ -296,8 +317,7 @@ config SPI_IMX
 	depends on ARCH_MXC || COMPILE_TEST
 	select SPI_BITBANG
 	help
-	  This enables using the Freescale i.MX SPI controllers in master
-	  mode.
+	  This enables support for the Freescale i.MX SPI controllers.
 
 config SPI_JCORE
 	tristate "J-Core SPI Master"
@@ -372,7 +392,7 @@ config SPI_FSL_DSPI
 	depends on SOC_VF610 || SOC_LS1021A || ARCH_LAYERSCAPE || M5441x || COMPILE_TEST
 	help
 	  This enables support for the Freescale DSPI controller in master
-	  mode. VF610 platform uses the controller.
+	  mode. VF610, LS1021A and ColdFire platforms uses the controller.
 
 config SPI_FSL_ESPI
 	tristate "Freescale eSPI controller"
@@ -631,6 +651,12 @@ config SPI_SH_HSPI
 	help
 	  SPI driver for SuperH HSPI blocks.
 
+config SPI_SIFIVE
+	tristate "SiFive SPI controller"
+	depends on HAS_IOMEM
+	help
+	  This exposes the SPI controller IP from SiFive.
+
 config SPI_SIRF
 	tristate "CSR SiRFprimaII SPI controller"
 	depends on SIRF_DMA
@@ -665,7 +691,7 @@ config SPI_STM32
 	tristate "STMicroelectronics STM32 SPI controller"
 	depends on ARCH_STM32 || COMPILE_TEST
 	help
-	  SPI driver for STMicroelectonics STM32 SoCs.
+	  SPI driver for STMicroelectronics STM32 SoCs.
 
 	  STM32 SPI controller supports DMA and PIO modes. When DMA
 	  is not available, the driver automatically falls back to

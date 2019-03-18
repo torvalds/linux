@@ -63,12 +63,49 @@ enum {
 #define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
 #define TC_ACT_EXT_OPCODE_MAX	TC_ACT_GOTO_CHAIN
 
+/* These macros are put here for binary compatibility with userspace apps that
+ * make use of them. For kernel code and new userspace apps, use the TCA_ID_*
+ * versions.
+ */
+#define TCA_ACT_GACT 5
+#define TCA_ACT_IPT 6
+#define TCA_ACT_PEDIT 7
+#define TCA_ACT_MIRRED 8
+#define TCA_ACT_NAT 9
+#define TCA_ACT_XT 10
+#define TCA_ACT_SKBEDIT 11
+#define TCA_ACT_VLAN 12
+#define TCA_ACT_BPF 13
+#define TCA_ACT_CONNMARK 14
+#define TCA_ACT_SKBMOD 15
+#define TCA_ACT_CSUM 16
+#define TCA_ACT_TUNNEL_KEY 17
+#define TCA_ACT_SIMP 22
+#define TCA_ACT_IFE 25
+#define TCA_ACT_SAMPLE 26
+
 /* Action type identifiers*/
-enum {
-	TCA_ID_UNSPEC=0,
-	TCA_ID_POLICE=1,
+enum tca_id {
+	TCA_ID_UNSPEC = 0,
+	TCA_ID_POLICE = 1,
+	TCA_ID_GACT = TCA_ACT_GACT,
+	TCA_ID_IPT = TCA_ACT_IPT,
+	TCA_ID_PEDIT = TCA_ACT_PEDIT,
+	TCA_ID_MIRRED = TCA_ACT_MIRRED,
+	TCA_ID_NAT = TCA_ACT_NAT,
+	TCA_ID_XT = TCA_ACT_XT,
+	TCA_ID_SKBEDIT = TCA_ACT_SKBEDIT,
+	TCA_ID_VLAN = TCA_ACT_VLAN,
+	TCA_ID_BPF = TCA_ACT_BPF,
+	TCA_ID_CONNMARK = TCA_ACT_CONNMARK,
+	TCA_ID_SKBMOD = TCA_ACT_SKBMOD,
+	TCA_ID_CSUM = TCA_ACT_CSUM,
+	TCA_ID_TUNNEL_KEY = TCA_ACT_TUNNEL_KEY,
+	TCA_ID_SIMP = TCA_ACT_SIMP,
+	TCA_ID_IFE = TCA_ACT_IFE,
+	TCA_ID_SAMPLE = TCA_ACT_SAMPLE,
 	/* other actions go here */
-	__TCA_ID_MAX=255
+	__TCA_ID_MAX = 255
 };
 
 #define TCA_ID_MAX __TCA_ID_MAX
@@ -333,12 +370,19 @@ enum {
 
 /* Basic filter */
 
+struct tc_basic_pcnt {
+	__u64 rcnt;
+	__u64 rhit;
+};
+
 enum {
 	TCA_BASIC_UNSPEC,
 	TCA_BASIC_CLASSID,
 	TCA_BASIC_EMATCHES,
 	TCA_BASIC_ACT,
 	TCA_BASIC_POLICE,
+	TCA_BASIC_PCNT,
+	TCA_BASIC_PAD,
 	__TCA_BASIC_MAX
 };
 
@@ -527,11 +571,17 @@ enum {
 
 /* Match-all classifier */
 
+struct tc_matchall_pcnt {
+	__u64 rhit;
+};
+
 enum {
 	TCA_MATCHALL_UNSPEC,
 	TCA_MATCHALL_CLASSID,
 	TCA_MATCHALL_ACT,
 	TCA_MATCHALL_FLAGS,
+	TCA_MATCHALL_PCNT,
+	TCA_MATCHALL_PAD,
 	__TCA_MATCHALL_MAX,
 };
 

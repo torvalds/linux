@@ -91,7 +91,7 @@ A request must contain at least one buffer, otherwise ``ENOENT`` is returned.
 A queued request cannot be modified anymore.
 
 .. caution::
-   For :ref:`memory-to-memory devices <codec>` you can use requests only for
+   For :ref:`memory-to-memory devices <mem2mem>` you can use requests only for
    output buffers, not for capture buffers. Attempting to add a capture buffer
    to a request will result in an ``EACCES`` error.
 
@@ -152,7 +152,7 @@ if it had just been allocated.
 Example for a Codec Device
 --------------------------
 
-For use-cases such as :ref:`codecs <codec>`, the request API can be used
+For use-cases such as :ref:`codecs <mem2mem>`, the request API can be used
 to associate specific controls to
 be applied by the driver for the OUTPUT buffer, allowing user-space
 to queue many such buffers in advance. It can also take advantage of requests'

@@ -33,7 +33,7 @@ enum tda10046_xtal {
 
 enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
-	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
+	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negative */
 	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
 	TDA10046_AGC_TDA827X,		/* IF AGC only, special setup for tda827x */
 };

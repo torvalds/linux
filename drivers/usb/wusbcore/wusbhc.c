@@ -80,17 +80,13 @@ static ssize_t wusb_chid_show(struct device *dev,
 {
 	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
 	const struct wusb_ckhdid *chid;
-	ssize_t result = 0;
 
 	if (wusbhc->wuie_host_info != NULL)
 		chid = &wusbhc->wuie_host_info->CHID;
 	else
 		chid = &wusb_ckhdid_zero;
 
-	result += ckhdid_printf(buf, PAGE_SIZE, chid);
-	result += sprintf(buf + result, "\n");
-
-	return result;
+	return sprintf(buf, "%16ph\n", chid->data);
 }
 
 /*

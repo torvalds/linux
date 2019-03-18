@@ -1039,42 +1039,6 @@ mlxsw_pci_config_profile_swid_config(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_cmd_mbox_config_profile_swid_config_mask_set(mbox, index, mask);
 }
 
-static int mlxsw_pci_resources_query(struct mlxsw_pci *mlxsw_pci, char *mbox,
-				     struct mlxsw_res *res)
-{
-	int index, i;
-	u64 data;
-	u16 id;
-	int err;
-
-	if (!res)
-		return 0;
-
-	mlxsw_cmd_mbox_zero(mbox);
-
-	for (index = 0; index < MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES;
-	     index++) {
-		err = mlxsw_cmd_query_resources(mlxsw_pci->core, mbox, index);
-		if (err)
-			return err;
-
-		for (i = 0; i < MLXSW_CMD_QUERY_RESOURCES_PER_QUERY; i++) {
-			id = mlxsw_cmd_mbox_query_resource_id_get(mbox, i);
-			data = mlxsw_cmd_mbox_query_resource_data_get(mbox, i);
-
-			if (id == MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID)
-				return 0;
-
-			mlxsw_res_parse(res, id, data);
-		}
-	}
-
-	/* If after MLXSW_RESOURCES_QUERY_MAX_QUERIES we still didn't get
-	 * MLXSW_RESOURCES_TABLE_END_ID, something went bad in the FW.
-	 */
-	return -EIO;
-}
-
 static int
 mlxsw_pci_profile_get_kvd_sizes(const struct mlxsw_pci *mlxsw_pci,
 				const struct mlxsw_config_profile *profile,
@@ -1459,7 +1423,7 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_boardinfo;
 
-	err = mlxsw_pci_resources_query(mlxsw_pci, mbox, res);
+	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 	if (err)
 		goto err_query_resources;
 

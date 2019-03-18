@@ -1301,11 +1301,10 @@ static const struct file_operations fw_logger_ops = {
 	.llseek = default_llseek,
 };
 
-static int wl1271_debugfs_add_files(struct wl1271 *wl,
-				    struct dentry *rootdir)
+static void wl1271_debugfs_add_files(struct wl1271 *wl,
+				     struct dentry *rootdir)
 {
-	int ret = 0;
-	struct dentry *entry, *streaming;
+	struct dentry *streaming;
 
 	DEBUGFS_ADD(tx_queue_len, rootdir);
 	DEBUGFS_ADD(retry_count, rootdir);
@@ -1330,23 +1329,11 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(fw_logger, rootdir);
 
 	streaming = debugfs_create_dir("rx_streaming", rootdir);
-	if (!streaming || IS_ERR(streaming))
-		goto err;
 
 	DEBUGFS_ADD_PREFIX(rx_streaming, interval, streaming);
 	DEBUGFS_ADD_PREFIX(rx_streaming, always, streaming);
 
 	DEBUGFS_ADD_PREFIX(dev, mem, rootdir);
-
-	return 0;
-
-err:
-	if (IS_ERR(entry))
-		ret = PTR_ERR(entry);
-	else
-		ret = -ENOMEM;
-
-	return ret;
 }
 
 void wl1271_debugfs_reset(struct wl1271 *wl)
@@ -1367,11 +1354,6 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 	rootdir = debugfs_create_dir(KBUILD_MODNAME,
 				     wl->hw->wiphy->debugfsdir);
 
-	if (IS_ERR(rootdir)) {
-		ret = PTR_ERR(rootdir);
-		goto out;
-	}
-
 	wl->stats.fw_stats = kzalloc(wl->stats.fw_stats_len, GFP_KERNEL);
 	if (!wl->stats.fw_stats) {
 		ret = -ENOMEM;
@@ -1380,9 +1362,7 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 
 	wl->stats.fw_stats_update = jiffies;
 
-	ret = wl1271_debugfs_add_files(wl, rootdir);
-	if (ret < 0)
-		goto out_exit;
+	wl1271_debugfs_add_files(wl, rootdir);
 
 	ret = wlcore_debugfs_init(wl, rootdir);
 	if (ret < 0)

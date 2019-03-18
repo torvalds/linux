@@ -1550,7 +1550,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	char name[MAX_NAME_LEN];
 	int rc;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_request_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_request_%p", info);
 	info->request_cache =
 		kmem_cache_create(
 			name,
@@ -1566,7 +1566,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	if (!info->request_mempool)
 		goto out1;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_response_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_response_%p", info);
 	info->response_cache =
 		kmem_cache_create(
 			name,
@@ -1582,7 +1582,7 @@ static int allocate_caches_and_workqueue(struct smbd_connection *info)
 	if (!info->response_mempool)
 		goto out3;
 
-	snprintf(name, MAX_NAME_LEN, "smbd_%p", info);
+	scnprintf(name, MAX_NAME_LEN, "smbd_%p", info);
 	info->workqueue = create_workqueue(name);
 	if (!info->workqueue)
 		goto out4;

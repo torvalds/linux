@@ -61,7 +61,7 @@ my $codespellfile = "/usr/share/codespell/dictionary.txt";
 my $conststructsfile = "$D/const_structs.checkpatch";
 my $typedefsfile = "";
 my $color = "auto";
-my $allow_c99_comments = 1;
+my $allow_c99_comments = 1; # Can be overridden by --ignore C99_COMMENT_TOLERANCE
 
 sub help {
 	my ($exitcode) = @_;
@@ -464,6 +464,16 @@ our $logFunctions = qr{(?x:
 	panic|
 	MODULE_[A-Z_]+|
 	seq_vprintf|seq_printf|seq_puts
+)};
+
+our $allocFunctions = qr{(?x:
+	(?:(?:devm_)?
+		(?:kv|k|v)[czm]alloc(?:_node|_array)? |
+		kstrdup(?:_const)? |
+		kmemdup(?:_nul)?) |
+	(?:\w+)?alloc_skb(?:ip_align)? |
+				# dev_alloc_skb/netdev_alloc_skb, et al
+	dma_alloc_coherent
 )};
 
 our $signature_tags = qr{(?xi:
@@ -1011,6 +1021,7 @@ if ($git) {
 }
 
 my $vname;
+$allow_c99_comments = !defined $ignore_type{"C99_COMMENT_TOLERANCE"};
 for my $filename (@ARGV) {
 	my $FILE;
 	if ($git) {
@@ -3037,6 +3048,14 @@ sub process {
 					$comment = '..';
 				}
 
+# check SPDX comment style for .[chsS] files
+				if ($realfile =~ /\.[chsS]$/ &&
+				    $rawline =~ /SPDX-License-Identifier:/ &&
+				    $rawline !~ /^\+\s*\Q$comment\E\s*/) {
+					WARN("SPDX_LICENSE_TAG",
+					     "Improper SPDX comment style for '$realfile', please use '$comment' instead\n" . $herecurr);
+				}
+
 				if ($comment !~ /^$/ &&
 				    $rawline !~ /^\+\Q$comment\E SPDX-License-Identifier: /) {
 					 WARN("SPDX_LICENSE_TAG",
@@ -3053,6 +3072,14 @@ sub process {
 
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|sh|dtsi|dts)$/);
+
+# check for using SPDX-License-Identifier on the wrong line number
+		if ($realline != $checklicenseline &&
+		    $rawline =~ /\bSPDX-License-Identifier:/ &&
+		    substr($line, @-, @+ - @-) eq "$;" x (@+ - @-)) {
+			WARN("SPDX_LICENSE_TAG",
+			     "Misplaced SPDX-License-Identifier tag - use line $checklicenseline instead\n" . $herecurr);
+		}
 
 # line length limit (with some exclusions)
 #
@@ -5545,7 +5572,8 @@ sub process {
 			my ($s, $c) = ctx_statement_block($linenr - 3, $realcnt, 0);
 #			print("line: <$line>\nprevline: <$prevline>\ns: <$s>\nc: <$c>\n\n\n");
 
-			if ($s =~ /(?:^|\n)[ \+]\s*(?:$Type\s*)?\Q$testval\E\s*=\s*(?:\([^\)]*\)\s*)?\s*(?:devm_)?(?:[kv][czm]alloc(?:_node|_array)?\b|kstrdup|kmemdup|(?:dev_)?alloc_skb)/) {
+			if ($s =~ /(?:^|\n)[ \+]\s*(?:$Type\s*)?\Q$testval\E\s*=\s*(?:\([^\)]*\)\s*)?\s*$allocFunctions\s*\(/ &&
+			    $s !~ /\b__GFP_NOWARN\b/ ) {
 				WARN("OOM_MESSAGE",
 				     "Possible unnecessary 'out of memory' message\n" . $hereprev);
 			}
@@ -6196,8 +6224,8 @@ sub process {
 			}
 		}
 
-# check for pointless casting of kmalloc return
-		if ($line =~ /\*\s*\)\s*[kv][czm]alloc(_node){0,1}\b/) {
+# check for pointless casting of alloc functions
+		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
 			WARN("UNNECESSARY_CASTS",
 			     "unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
 		}
@@ -6205,7 +6233,7 @@ sub process {
 # alloc style
 # p = alloc(sizeof(struct foo), ...) should be p = alloc(sizeof(*p), ...)
 		if ($perl_version_ok &&
-		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*([kv][mz]alloc(?:_node)?)\s*\(\s*(sizeof\s*\(\s*struct\s+$Lval\s*\))/) {
+		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*((?:kv|k|v)[mz]alloc(?:_node)?)\s*\(\s*(sizeof\s*\(\s*struct\s+$Lval\s*\))/) {
 			CHK("ALLOC_SIZEOF_STRUCT",
 			    "Prefer $3(sizeof(*$1)...) over $3($4...)\n" . $herecurr);
 		}
@@ -6366,19 +6394,6 @@ sub process {
 ##				    "Using comparison to $otype is error prone.  Perhaps use '${lead}${op}${arg}${trail}'\n" . $herecurr);
 
 			}
-		}
-
-# check for bool bitfields
-		if ($sline =~ /^.\s+bool\s*$Ident\s*:\s*\d+\s*;/) {
-			WARN("BOOL_BITFIELD",
-			     "Avoid using bool as bitfield.  Prefer bool bitfields as unsigned int or u<8|16|32>\n" . $herecurr);
-		}
-
-# check for bool use in .h files
-		if ($realfile =~ /\.h$/ &&
-		    $sline =~ /^.\s+bool\s*$Ident\s*(?::\s*d+\s*)?;/) {
-			CHK("BOOL_MEMBER",
-			    "Avoid using bool structure members because of possible alignment issues - see: https://lkml.org/lkml/2017/11/21/384\n" . $herecurr);
 		}
 
 # check for semaphores initialized locked

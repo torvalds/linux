@@ -369,7 +369,7 @@ static int dib7000m_sad_calib(struct dib7000m_state *state)
 {
 
 /* internal */
-//	dib7000m_write_word(state, 928, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is writting in set_bandwidth
+//	dib7000m_write_word(state, 928, (3 << 14) | (1 << 12) | (524 << 0)); // sampling clock of the SAD is writing in set_bandwidth
 	dib7000m_write_word(state, 929, (0 << 1) | (0 << 0));
 	dib7000m_write_word(state, 930, 776); // 0.625*3.3 / 4096
 
@@ -928,7 +928,7 @@ static void dib7000m_set_channel(struct dib7000m_state *state, struct dtv_fronte
 	}
 	state->div_sync_wait = (value * 3) / 2 + 32; // add 50% SFN margin + compensate for one DVSY-fifo TODO
 
-	/* deactive the possibility of diversity reception if extended interleave - not for 7000MC */
+	/* deactivate the possibility of diversity reception if extended interleave - not for 7000MC */
 	/* P_dvsy_sync_mode = 0, P_dvsy_sync_enable=1, P_dvcb_comb_mode=2 */
 	if (1 == 1 || state->revision > 0x4000)
 		state->div_force_off = 0;
