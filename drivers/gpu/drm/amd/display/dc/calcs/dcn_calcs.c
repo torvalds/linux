@@ -247,6 +247,53 @@ static enum dcn_bw_defs tl_pixel_format_to_bw_defs(enum surface_pixel_format for
 	}
 }
 
+enum source_macro_tile_size swizzle_mode_to_macro_tile_size(enum swizzle_mode_values sw_mode)
+{
+	switch (sw_mode) {
+	/* for 4/8/16 high tiles */
+	case DC_SW_LINEAR:
+		return dm_4k_tile;
+	case DC_SW_4KB_S:
+	case DC_SW_4KB_S_X:
+		return dm_4k_tile;
+	case DC_SW_64KB_S:
+	case DC_SW_64KB_S_X:
+	case DC_SW_64KB_S_T:
+		return dm_64k_tile;
+	case DC_SW_VAR_S:
+	case DC_SW_VAR_S_X:
+		return dm_256k_tile;
+
+	/* For 64bpp 2 high tiles */
+	case DC_SW_4KB_D:
+	case DC_SW_4KB_D_X:
+		return dm_4k_tile;
+	case DC_SW_64KB_D:
+	case DC_SW_64KB_D_X:
+	case DC_SW_64KB_D_T:
+		return dm_64k_tile;
+	case DC_SW_VAR_D:
+	case DC_SW_VAR_D_X:
+		return dm_256k_tile;
+
+	case DC_SW_4KB_R:
+	case DC_SW_4KB_R_X:
+		return dm_4k_tile;
+	case DC_SW_64KB_R:
+	case DC_SW_64KB_R_X:
+		return dm_64k_tile;
+	case DC_SW_VAR_R:
+	case DC_SW_VAR_R_X:
+		return dm_256k_tile;
+
+	/* Unsupported swizzle modes for dcn */
+	case DC_SW_256B_S:
+	default:
+		ASSERT(0); /* Not supported */
+		return 0;
+	}
+}
+
 static void pipe_ctx_to_e2e_pipe_params (
 		const struct pipe_ctx *pipe,
 		struct _vcs_dpi_display_pipe_params_st *input)
@@ -287,46 +334,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	input->src.cur0_src_width      = 128; /* TODO: Cursor calcs, not curently stored */
 	input->src.cur0_bpp            = 32;
 
-	switch (pipe->plane_state->tiling_info.gfx9.swizzle) {
-	/* for 4/8/16 high tiles */
-	case DC_SW_LINEAR:
-		input->src.macro_tile_size = dm_4k_tile;
-		break;
-	case DC_SW_4KB_S:
-	case DC_SW_4KB_S_X:
-		input->src.macro_tile_size = dm_4k_tile;
-		break;
-	case DC_SW_64KB_S:
-	case DC_SW_64KB_S_X:
-	case DC_SW_64KB_S_T:
-		input->src.macro_tile_size = dm_64k_tile;
-		break;
-	case DC_SW_VAR_S:
-	case DC_SW_VAR_S_X:
-		input->src.macro_tile_size = dm_256k_tile;
-		break;
-
-	/* For 64bpp 2 high tiles */
-	case DC_SW_4KB_D:
-	case DC_SW_4KB_D_X:
-		input->src.macro_tile_size = dm_4k_tile;
-		break;
-	case DC_SW_64KB_D:
-	case DC_SW_64KB_D_X:
-	case DC_SW_64KB_D_T:
-		input->src.macro_tile_size = dm_64k_tile;
-		break;
-	case DC_SW_VAR_D:
-	case DC_SW_VAR_D_X:
-		input->src.macro_tile_size = dm_256k_tile;
-		break;
-
-	/* Unsupported swizzle modes for dcn */
-	case DC_SW_256B_S:
-	default:
-		ASSERT(0); /* Not supported */
-		break;
-	}
+	input->src.macro_tile_size = swizzle_mode_to_macro_tile_size(pipe->plane_state->tiling_info.gfx9.swizzle);
 
 	switch (pipe->plane_state->rotation) {
 	case ROTATION_ANGLE_0:
