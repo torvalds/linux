@@ -3682,6 +3682,9 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
 		sp->max_burst = params.assoc_value;
