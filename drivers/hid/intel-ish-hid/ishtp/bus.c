@@ -485,7 +485,7 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
 }
 
 /**
- * __ishtp_cl_driver_register() - Client driver register
+ * ishtp_cl_driver_register() - Client driver register
  * @driver:	the client driver instance
  * @owner:	Owner of this driver module
  *
@@ -494,8 +494,8 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
  *
  * Return: Return value of driver_register or -ENODEV if not ready
  */
-int __ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
-			       struct module *owner)
+int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
+			     struct module *owner)
 {
 	int err;
 
@@ -512,7 +512,7 @@ int __ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(__ishtp_cl_driver_register);
+EXPORT_SYMBOL(ishtp_cl_driver_register);
 
 /**
  * ishtp_cl_driver_unregister() - Client driver unregister

@@ -953,7 +953,7 @@ static int __init ish_hid_init(void)
 	int	rv;
 
 	/* Register ISHTP client device driver with ISHTP Bus */
-	rv = ishtp_cl_driver_register(&hid_ishtp_cl_driver);
+	rv = ishtp_cl_driver_register(&hid_ishtp_cl_driver, THIS_MODULE);
 
 	return rv;
 
