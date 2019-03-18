@@ -73,17 +73,7 @@ unsigned int dml_get_voltage_level(
 		fetch_pipe_params(mode_lib);
 		PixelClockAdjustmentForProgressiveToInterlaceUnit(mode_lib);
 	}
-		mode_lib->funcs.validate(mode_lib);
-
-	/* check if Mode Support Validation failed */
-	if (mode_lib->vba.VoltageLevel > mode_lib->vba.soc.num_states) {
-		/* get the validation status for highest voltage level and output console message */
-		enum dm_validation_status status = mode_lib->vba.ValidationStatus[mode_lib->vba.soc.num_states];
-		if (status != DML_FAIL_PITCH_SUPPORT) {
-			/*AlignedYPitch is based on swizzle mode, so it is normal if some swizzle mode not supported*/
-			dm_output_to_console("Mode Validation Error: %s failed validation.\n", dml_get_status_message(status));
-		}
-	}
+	mode_lib->funcs.validate(mode_lib);
 
 	return mode_lib->vba.VoltageLevel;
 }

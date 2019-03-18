@@ -1880,6 +1880,7 @@ bool dcn20_validate_bandwidth(struct dc *dc,
 	int split_threshold = dc->res_pool->pipe_count / 2;
 	bool avoid_split = dc->debug.pipe_split_policy != MPC_SPLIT_DYNAMIC;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	ASSERT(pipes);
 	if (!pipes)
@@ -2183,6 +2184,8 @@ validate_pass:
 	return true;
 
 validate_fail:
+	DC_LOG_WARNING("Mode Validation Warning: %s failed validation.\n",
+		dml_get_status_message(context->bw_ctx.dml.vba.ValidationStatus[context->bw_ctx.dml.vba.soc.num_states]));
 	kfree(pipes);
 	return false;
 }
