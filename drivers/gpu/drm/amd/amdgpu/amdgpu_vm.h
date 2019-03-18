@@ -165,11 +165,6 @@ struct amdgpu_vm_pte_funcs {
 			    uint32_t incr, uint64_t flags);
 };
 
-#define AMDGPU_VM_FAULT(pasid, addr) (((u64)(pasid) << 48) | (addr))
-#define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
-#define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
-
-
 struct amdgpu_task_info {
 	char	process_name[TASK_COMM_LEN];
 	char	task_name[TASK_COMM_LEN];
