@@ -528,6 +528,9 @@ static int meson_nfc_read_buf(struct nand_chip *nand, u8 *buf, int len)
 	u8 *info;
 
 	info = kzalloc(PER_INFO_BYTE, GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
 	ret = meson_nfc_dma_buffer_setup(nand, buf, len, info,
 					 PER_INFO_BYTE, DMA_FROM_DEVICE);
 	if (ret)
