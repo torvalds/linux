@@ -149,7 +149,7 @@ void tick_setup_periodic(struct clock_event_device *dev, int broadcast)
 	    !tick_broadcast_oneshot_active()) {
 		clockevents_switch_state(dev, CLOCK_EVT_STATE_PERIODIC);
 	} else {
-		unsigned long seq;
+		unsigned int seq;
 		ktime_t next;
 
 		do {
