@@ -210,6 +210,8 @@ int rtw_init_evt_priv(struct evt_priv *pevtpriv)
 	_init_workitem(&pevtpriv->c2h_wk, c2h_wk_callback, NULL);
 	pevtpriv->c2h_wk_alive = false;
 	pevtpriv->c2h_queue = rtw_cbuf_alloc(C2H_QUEUE_MAX_LEN+1);
+	if (!pevtpriv->c2h_queue)
+		return -ENOMEM;
 
 	return 0;
 }
