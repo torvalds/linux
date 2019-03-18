@@ -103,7 +103,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 
 	BUG_ON(inode->i_sb->s_blocksize != PAGE_SIZE);
 
-	ctx = fscrypt_get_ctx(inode, GFP_NOFS);
+	ctx = fscrypt_get_ctx(GFP_NOFS);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
