@@ -313,12 +313,12 @@ static int z_erofs_vle_work_add_page(
 
 	/* give priority for the compressed data storage */
 	if (builder->role >= Z_EROFS_VLE_WORK_PRIMARY &&
-		type == Z_EROFS_PAGE_TYPE_EXCLUSIVE &&
-		try_to_reuse_as_compressed_page(builder, page))
+	    type == Z_EROFS_PAGE_TYPE_EXCLUSIVE &&
+	    try_to_reuse_as_compressed_page(builder, page))
 		return 0;
 
 	ret = z_erofs_pagevec_ctor_enqueue(&builder->vector,
-		page, type, &occupied);
+					   page, type, &occupied);
 	builder->work->vcnt += (unsigned int)ret;
 
 	return ret ? 0 : -EAGAIN;
@@ -464,10 +464,9 @@ z_erofs_vle_work_register(const struct z_erofs_vle_work_finder *f,
 	grp->obj.index = f->idx;
 	grp->llen = map->m_llen;
 
-	z_erofs_vle_set_workgrp_fmt(grp,
-		(map->m_flags & EROFS_MAP_ZIPPED) ?
-			Z_EROFS_VLE_WORKGRP_FMT_LZ4 :
-			Z_EROFS_VLE_WORKGRP_FMT_PLAIN);
+	z_erofs_vle_set_workgrp_fmt(grp, (map->m_flags & EROFS_MAP_ZIPPED) ?
+				    Z_EROFS_VLE_WORKGRP_FMT_LZ4 :
+				    Z_EROFS_VLE_WORKGRP_FMT_PLAIN);
 
 	/* new workgrps have been claimed as type 1 */
 	WRITE_ONCE(grp->next, *f->owned_head);
@@ -554,7 +553,8 @@ repeat:
 		return PTR_ERR(work);
 got_it:
 	z_erofs_pagevec_ctor_init(&builder->vector,
-		Z_EROFS_VLE_INLINE_PAGEVECS, work->pagevec, work->vcnt);
+				  Z_EROFS_VLE_INLINE_PAGEVECS,
+				  work->pagevec, work->vcnt);
 
 	if (builder->role >= Z_EROFS_VLE_WORK_PRIMARY) {
 		/* enable possibly in-place decompression */
@@ -594,8 +594,9 @@ void erofs_workgroup_free_rcu(struct erofs_workgroup *grp)
 	call_rcu(&work->rcu, z_erofs_rcu_callback);
 }
 
-static void __z_erofs_vle_work_release(struct z_erofs_vle_workgroup *grp,
-	struct z_erofs_vle_work *work __maybe_unused)
+static void
+__z_erofs_vle_work_release(struct z_erofs_vle_workgroup *grp,
+			   struct z_erofs_vle_work *work __maybe_unused)
 {
 	erofs_workgroup_put(&grp->obj);
 }
@@ -715,7 +716,7 @@ repeat:
 
 	/* lucky, within the range of the current map_blocks */
 	if (offset + cur >= map->m_la &&
-		offset + cur < map->m_la + map->m_llen) {
+	    offset + cur < map->m_la + map->m_llen) {
 		/* didn't get a valid unzip work previously (very rare) */
 		if (!builder->work)
 			goto restart_now;
@@ -781,8 +782,8 @@ retry:
 		struct page *const newpage =
 			__stagingpage_alloc(page_pool, GFP_NOFS);
 
-		err = z_erofs_vle_work_add_page(builder,
-			newpage, Z_EROFS_PAGE_TYPE_EXCLUSIVE);
+		err = z_erofs_vle_work_add_page(builder, newpage,
+						Z_EROFS_PAGE_TYPE_EXCLUSIVE);
 		if (likely(!err))
 			goto retry;
 	}
@@ -890,8 +891,8 @@ static struct page *z_pagemap_global[Z_EROFS_VLE_VMAP_GLOBAL_PAGES];
 static DEFINE_MUTEX(z_pagemap_global_lock);
 
 static int z_erofs_vle_unzip(struct super_block *sb,
-	struct z_erofs_vle_workgroup *grp,
-	struct list_head *page_pool)
+			     struct z_erofs_vle_workgroup *grp,
+			     struct list_head *page_pool)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	const unsigned int clusterpages = erofs_clusterpages(sbi);
@@ -919,12 +920,12 @@ static int z_erofs_vle_unzip(struct super_block *sb,
 	if (likely(nr_pages <= Z_EROFS_VLE_VMAP_ONSTACK_PAGES))
 		pages = pages_onstack;
 	else if (nr_pages <= Z_EROFS_VLE_VMAP_GLOBAL_PAGES &&
-		mutex_trylock(&z_pagemap_global_lock))
+		 mutex_trylock(&z_pagemap_global_lock))
 		pages = z_pagemap_global;
 	else {
 repeat:
-		pages = kvmalloc_array(nr_pages,
-			sizeof(struct page *), GFP_KERNEL);
+		pages = kvmalloc_array(nr_pages, sizeof(struct page *),
+				       GFP_KERNEL);
 
 		/* fallback to global pagemap for the lowmem scenario */
 		if (unlikely(!pages)) {
@@ -940,8 +941,8 @@ repeat:
 	for (i = 0; i < nr_pages; ++i)
 		pages[i] = NULL;
 
-	z_erofs_pagevec_ctor_init(&ctor,
-		Z_EROFS_VLE_INLINE_PAGEVECS, work->pagevec, 0);
+	z_erofs_pagevec_ctor_init(&ctor, Z_EROFS_VLE_INLINE_PAGEVECS,
+				  work->pagevec, 0);
 
 	for (i = 0; i < work->vcnt; ++i) {
 		unsigned int pagenr;
@@ -1005,7 +1006,7 @@ repeat:
 
 	if (z_erofs_vle_workgrp_fmt(grp) == Z_EROFS_VLE_WORKGRP_FMT_PLAIN) {
 		err = z_erofs_vle_plain_copy(compressed_pages, clusterpages,
-			pages, nr_pages, work->pageofs);
+					     pages, nr_pages, work->pageofs);
 		goto out;
 	}
 
@@ -1030,8 +1031,8 @@ repeat:
 skip_allocpage:
 	vout = erofs_vmap(pages, nr_pages);
 
-	err = z_erofs_vle_unzip_vmap(compressed_pages,
-		clusterpages, vout, llen, work->pageofs, overlapped);
+	err = z_erofs_vle_unzip_vmap(compressed_pages, clusterpages, vout,
+				     llen, work->pageofs, overlapped);
 
 	erofs_vunmap(vout, nr_pages);
 
@@ -1567,7 +1568,7 @@ static int z_erofs_vle_normalaccess_readpages(struct file *filp,
 			struct erofs_vnode *vi = EROFS_V(inode);
 
 			errln("%s, readahead error at page %lu of nid %llu",
-				__func__, page->index, vi->nid);
+			      __func__, page->index, vi->nid);
 		}
 
 		put_page(page);
@@ -1722,8 +1723,8 @@ vle_get_logical_extent_head(const struct vle_map_blocks_iter_ctx *ctx,
 }
 
 int z_erofs_map_blocks_iter(struct inode *inode,
-	struct erofs_map_blocks *map,
-	int flags)
+			    struct erofs_map_blocks *map,
+			    int flags)
 {
 	void *kaddr;
 	const struct vle_map_blocks_iter_ctx ctx = {
@@ -1830,7 +1831,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		/* logical cluster number should be >= 1 */
 		if (unlikely(!lcn)) {
 			errln("invalid logical cluster 0 at nid %llu",
-				EROFS_V(inode)->nid);
+			      EROFS_V(inode)->nid);
 			err = -EIO;
 			goto unmap_out;
 		}
@@ -1850,7 +1851,7 @@ int z_erofs_map_blocks_iter(struct inode *inode,
 		break;
 	default:
 		errln("unknown cluster type %u at offset %llu of nid %llu",
-			cluster_type, ofs, EROFS_V(inode)->nid);
+		      cluster_type, ofs, EROFS_V(inode)->nid);
 		err = -EIO;
 		goto unmap_out;
 	}

@@ -221,7 +221,7 @@ repeat:
 	erofs_workstn_lock(sbi);
 
 	found = radix_tree_gang_lookup(&sbi->workstn_tree,
-		batch, first_index, PAGEVEC_SIZE);
+				       batch, first_index, PAGEVEC_SIZE);
 
 	for (i = 0; i < found; ++i) {
 		struct erofs_workgroup *grp = xa_untag_pointer(batch[i]);
