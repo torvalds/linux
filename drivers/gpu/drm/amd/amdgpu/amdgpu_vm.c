@@ -1390,7 +1390,7 @@ restart:
 
 		params.func = amdgpu_vm_cpu_set_ptes;
 	} else {
-		ndw = 512 * 8;
+		ndw = 512;
 		r = amdgpu_job_alloc_with_ib(adev, ndw * 4, &job);
 		if (r)
 			return r;
