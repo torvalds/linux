@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 
 #define	DA9063_REG_EVENT_A_OFFSET	0
 #define	DA9063_REG_EVENT_B_OFFSET	1

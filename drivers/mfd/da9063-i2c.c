@@ -17,7 +17,6 @@
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
 #include <linux/of.h>
