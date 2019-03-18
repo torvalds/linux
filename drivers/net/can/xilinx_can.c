@@ -183,7 +183,7 @@ struct xcan_priv {
 	struct napi_struct napi;
 	u32 (*read_reg)(const struct xcan_priv *priv, enum xcan_reg reg);
 	void (*write_reg)(const struct xcan_priv *priv, enum xcan_reg reg,
-			u32 val);
+			  u32 val);
 	struct device *dev;
 	void __iomem *reg_base;
 	unsigned long irq_flags;
@@ -238,7 +238,7 @@ static const struct can_bittiming_const xcan_bittiming_const_canfd2 = {
  * Write data to the paricular CAN register
  */
 static void xcan_write_reg_le(const struct xcan_priv *priv, enum xcan_reg reg,
-			u32 val)
+			      u32 val)
 {
 	iowrite32(val, priv->reg_base + reg);
 }
@@ -265,7 +265,7 @@ static u32 xcan_read_reg_le(const struct xcan_priv *priv, enum xcan_reg reg)
  * Write data to the paricular CAN register
  */
 static void xcan_write_reg_be(const struct xcan_priv *priv, enum xcan_reg reg,
-			u32 val)
+			      u32 val)
 {
 	iowrite32be(val, priv->reg_base + reg);
 }
@@ -373,8 +373,8 @@ static int xcan_set_bittiming(struct net_device *ndev)
 	priv->write_reg(priv, XCAN_BTR_OFFSET, btr1);
 
 	netdev_dbg(ndev, "BRPR=0x%08x, BTR=0x%08x\n",
-			priv->read_reg(priv, XCAN_BRPR_OFFSET),
-			priv->read_reg(priv, XCAN_BTR_OFFSET));
+		   priv->read_reg(priv, XCAN_BRPR_OFFSET),
+		   priv->read_reg(priv, XCAN_BTR_OFFSET));
 
 	return 0;
 }
@@ -439,12 +439,12 @@ static int xcan_chip_start(struct net_device *ndev)
 	while (!(priv->read_reg(priv, XCAN_SR_OFFSET) & reg_sr_mask)) {
 		if (time_after(jiffies, timeout)) {
 			netdev_warn(ndev,
-				"timed out for correct mode\n");
+				    "timed out for correct mode\n");
 			return -ETIMEDOUT;
 		}
 	}
 	netdev_dbg(ndev, "status:#x%08x\n",
-			priv->read_reg(priv, XCAN_SR_OFFSET));
+		   priv->read_reg(priv, XCAN_SR_OFFSET));
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
 	return 0;
@@ -498,7 +498,7 @@ static void xcan_write_frame(struct xcan_priv *priv, struct sk_buff *skb,
 		id = ((cf->can_id & CAN_EFF_MASK) << XCAN_IDR_ID2_SHIFT) &
 			XCAN_IDR_ID2_MASK;
 		id |= (((cf->can_id & CAN_EFF_MASK) >>
-			(CAN_EFF_ID_BITS-CAN_SFF_ID_BITS)) <<
+			(CAN_EFF_ID_BITS - CAN_SFF_ID_BITS)) <<
 			XCAN_IDR_ID1_SHIFT) & XCAN_IDR_ID1_MASK;
 
 		/* The substibute remote TX request bit should be "1"
@@ -934,7 +934,7 @@ static void xcan_err_interrupt(struct net_device *ndev, u32 isr)
 	}
 
 	netdev_dbg(ndev, "%s: error status register:0x%x\n",
-			__func__, priv->read_reg(priv, XCAN_ESR_OFFSET));
+		   __func__, priv->read_reg(priv, XCAN_ESR_OFFSET));
 }
 
 /**
@@ -982,9 +982,11 @@ static int xcan_rx_fifo_get_next_frame(struct xcan_priv *priv)
 			return -ENOENT;
 
 		if (priv->devtype.flags & XCAN_FLAG_CANFD_2)
-			offset = XCAN_RXMSG_2_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
+			offset =
+			  XCAN_RXMSG_2_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
 		else
-			offset = XCAN_RXMSG_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
+			offset =
+			  XCAN_RXMSG_FRAME_OFFSET(fsr & XCAN_FSR_RI_MASK);
 
 	} else {
 		/* check if RX FIFO is empty */
@@ -1094,8 +1096,10 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 		 *     via TXFEMP handling as we read TXFEMP *after* TXOK
 		 *     clear to satisfy (1).
 		 */
-		while ((isr & XCAN_IXR_TXOK_MASK) && !WARN_ON(++retries == 100)) {
-			priv->write_reg(priv, XCAN_ICR_OFFSET, XCAN_IXR_TXOK_MASK);
+		while ((isr & XCAN_IXR_TXOK_MASK) &&
+		       !WARN_ON(++retries == 100)) {
+			priv->write_reg(priv, XCAN_ICR_OFFSET,
+					XCAN_IXR_TXOK_MASK);
 			isr = priv->read_reg(priv, XCAN_ISR_OFFSET);
 		}
 
@@ -1208,12 +1212,12 @@ static int xcan_open(struct net_device *ndev)
 	ret = pm_runtime_get_sync(priv->dev);
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
-				__func__, ret);
+			   __func__, ret);
 		return ret;
 	}
 
 	ret = request_irq(ndev->irq, xcan_interrupt, priv->irq_flags,
-			ndev->name, ndev);
+			  ndev->name, ndev);
 	if (ret < 0) {
 		netdev_err(ndev, "irq allocation for CAN failed\n");
 		goto err;
@@ -1284,7 +1288,7 @@ static int xcan_close(struct net_device *ndev)
  * Return: 0 on success and failure value on error
  */
 static int xcan_get_berr_counter(const struct net_device *ndev,
-					struct can_berr_counter *bec)
+				 struct can_berr_counter *bec)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
 	int ret;
@@ -1292,7 +1296,7 @@ static int xcan_get_berr_counter(const struct net_device *ndev,
 	ret = pm_runtime_get_sync(priv->dev);
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
-				__func__, ret);
+			   __func__, ret);
 		return ret;
 	}
 
@@ -1304,7 +1308,6 @@ static int xcan_get_berr_counter(const struct net_device *ndev,
 
 	return 0;
 }
-
 
 static const struct net_device_ops xcan_netdev_ops = {
 	.ndo_open	= xcan_open,
@@ -1589,7 +1592,7 @@ static int xcan_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		netdev_err(ndev, "%s: pm_runtime_get failed(%d)\n",
-			__func__, ret);
+			   __func__, ret);
 		goto err_pmdisable;
 	}
 
