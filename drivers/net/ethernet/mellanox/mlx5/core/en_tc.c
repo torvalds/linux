@@ -2384,15 +2384,22 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 	return 0;
 }
 
-static inline int cmp_encap_info(struct ip_tunnel_key *a,
-				 struct ip_tunnel_key *b)
+struct encap_key {
+	struct ip_tunnel_key *ip_tun_key;
+	int tunnel_type;
+};
+
+static inline int cmp_encap_info(struct encap_key *a,
+				 struct encap_key *b)
 {
-	return memcmp(a, b, sizeof(*a));
+	return memcmp(a->ip_tun_key, b->ip_tun_key, sizeof(*a->ip_tun_key)) ||
+	       a->tunnel_type != b->tunnel_type;
 }
 
-static inline int hash_encap_info(struct ip_tunnel_key *key)
+static inline int hash_encap_info(struct encap_key *key)
 {
-	return jhash(key, sizeof(*key), 0);
+	return jhash(key->ip_tun_key, sizeof(*key->ip_tun_key),
+		     key->tunnel_type);
 }
 
 
@@ -2423,7 +2430,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct ip_tunnel_info *tun_info;
-	struct ip_tunnel_key *key;
+	struct encap_key key, e_key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
 	uintptr_t hash_key;
@@ -2433,13 +2440,16 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	parse_attr = attr->parse_attr;
 	tun_info = &parse_attr->tun_info[out_index];
 	family = ip_tunnel_info_af(tun_info);
-	key = &tun_info->key;
+	key.ip_tun_key = &tun_info->key;
+	key.tunnel_type = mlx5e_tc_tun_get_type(mirred_dev);
 
-	hash_key = hash_encap_info(key);
+	hash_key = hash_encap_info(&key);
 
 	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
 				   encap_hlist, hash_key) {
-		if (!cmp_encap_info(&e->tun_info.key, key)) {
+		e_key.ip_tun_key = &e->tun_info.key;
+		e_key.tunnel_type = e->tunnel_type;
+		if (!cmp_encap_info(&e_key, &key)) {
 			found = true;
 			break;
 		}
