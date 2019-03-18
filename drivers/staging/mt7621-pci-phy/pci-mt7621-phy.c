@@ -14,69 +14,69 @@
 #include <mt7621.h>
 #include <ralink_regs.h>
 
-#define RALINK_CLKCFG1			0x30
-#define CHIP_REV_MT7621_E2		0x0101
+#define RALINK_CLKCFG1				0x30
+#define CHIP_REV_MT7621_E2			0x0101
 
-#define PCIE_PORT_CLK_EN(x)		BIT(24 + (x))
+#define PCIE_PORT_CLK_EN(x)			BIT(24 + (x))
 
-#define RG_PE1_PIPE_REG			0x02c
-#define RG_PE1_PIPE_RST			BIT(12)
-#define RG_PE1_PIPE_CMD_FRC		BIT(4)
+#define RG_PE1_PIPE_REG				0x02c
+#define RG_PE1_PIPE_RST				BIT(12)
+#define RG_PE1_PIPE_CMD_FRC			BIT(4)
 
-#define RG_P0_TO_P1_WIDTH		0x100
-#define RG_PE1_H_LCDDS_REG		0x49c
-#define RG_PE1_H_LCDDS_PCW		GENMASK(30, 0)
-#define RG_PE1_H_LCDDS_PCW_VAL(x)	((0x7fffffff & (x)) << 0)
+#define RG_P0_TO_P1_WIDTH			0x100
+#define RG_PE1_H_LCDDS_REG			0x49c
+#define RG_PE1_H_LCDDS_PCW			GENMASK(30, 0)
+#define RG_PE1_H_LCDDS_PCW_VAL(x)		((0x7fffffff & (x)) << 0)
 
-#define RG_PE1_FRC_H_XTAL_REG		0x400
-#define RG_PE1_FRC_H_XTAL_TYPE          BIT(8)
-#define RG_PE1_H_XTAL_TYPE              GENMASK(10, 9)
-#define RG_PE1_H_XTAL_TYPE_VAL(x)       ((0x3 & (x)) << 9)
+#define RG_PE1_FRC_H_XTAL_REG			0x400
+#define RG_PE1_FRC_H_XTAL_TYPE			BIT(8)
+#define RG_PE1_H_XTAL_TYPE			GENMASK(10, 9)
+#define RG_PE1_H_XTAL_TYPE_VAL(x)		((0x3 & (x)) << 9)
 
-#define RG_PE1_FRC_PHY_REG		0x000
-#define RG_PE1_FRC_PHY_EN               BIT(4)
-#define RG_PE1_PHY_EN                   BIT(5)
+#define RG_PE1_FRC_PHY_REG			0x000
+#define RG_PE1_FRC_PHY_EN			BIT(4)
+#define RG_PE1_PHY_EN				BIT(5)
 
-#define RG_PE1_H_PLL_REG		0x490
-#define RG_PE1_H_PLL_BC			GENMASK(23, 22)
-#define RG_PE1_H_PLL_BC_VAL(x)		((0x3 & (x)) << 22)
-#define RG_PE1_H_PLL_BP			GENMASK(21, 18)
-#define RG_PE1_H_PLL_BP_VAL(x)		((0xf & (x)) << 18)
-#define RG_PE1_H_PLL_IR			GENMASK(15, 12)
-#define RG_PE1_H_PLL_IR_VAL(x)		((0xf & (x)) << 12)
-#define RG_PE1_H_PLL_IC			GENMASK(11, 8)
-#define RG_PE1_H_PLL_IC_VAL(x)		((0xf & (x)) << 8)
-#define RG_PE1_H_PLL_PREDIV             GENMASK(7, 6)
-#define RG_PE1_H_PLL_PREDIV_VAL(x)      ((0x3 & (x)) << 6)
-#define RG_PE1_PLL_DIVEN		GENMASK(3, 1)
-#define RG_PE1_PLL_DIVEN_VAL(x)		((0x7 & (x)) << 1)
+#define RG_PE1_H_PLL_REG			0x490
+#define RG_PE1_H_PLL_BC				GENMASK(23, 22)
+#define RG_PE1_H_PLL_BC_VAL(x)			((0x3 & (x)) << 22)
+#define RG_PE1_H_PLL_BP				GENMASK(21, 18)
+#define RG_PE1_H_PLL_BP_VAL(x)			((0xf & (x)) << 18)
+#define RG_PE1_H_PLL_IR				GENMASK(15, 12)
+#define RG_PE1_H_PLL_IR_VAL(x)			((0xf & (x)) << 12)
+#define RG_PE1_H_PLL_IC				GENMASK(11, 8)
+#define RG_PE1_H_PLL_IC_VAL(x)			((0xf & (x)) << 8)
+#define RG_PE1_H_PLL_PREDIV			GENMASK(7, 6)
+#define RG_PE1_H_PLL_PREDIV_VAL(x)		((0x3 & (x)) << 6)
+#define RG_PE1_PLL_DIVEN			GENMASK(3, 1)
+#define RG_PE1_PLL_DIVEN_VAL(x)			((0x7 & (x)) << 1)
 
-#define RG_PE1_H_PLL_FBKSEL_REG		0x4bc
-#define RG_PE1_H_PLL_FBKSEL             GENMASK(5, 4)
-#define RG_PE1_H_PLL_FBKSEL_VAL(x)      ((0x3 & (x)) << 4)
+#define RG_PE1_H_PLL_FBKSEL_REG			0x4bc
+#define RG_PE1_H_PLL_FBKSEL			GENMASK(5, 4)
+#define RG_PE1_H_PLL_FBKSEL_VAL(x)		((0x3 & (x)) << 4)
 
-#define	RG_PE1_H_LCDDS_SSC_PRD_REG	0x4a4
-#define RG_PE1_H_LCDDS_SSC_PRD          GENMASK(15, 0)
-#define RG_PE1_H_LCDDS_SSC_PRD_VAL(x)   ((0xffff & (x)) << 0)
+#define	RG_PE1_H_LCDDS_SSC_PRD_REG		0x4a4
+#define RG_PE1_H_LCDDS_SSC_PRD			GENMASK(15, 0)
+#define RG_PE1_H_LCDDS_SSC_PRD_VAL(x)		((0xffff & (x)) << 0)
 
-#define RG_PE1_H_LCDDS_SSC_DELTA_REG	0x4a8
-#define RG_PE1_H_LCDDS_SSC_DELTA        GENMASK(11, 0)
-#define RG_PE1_H_LCDDS_SSC_DELTA_VAL(x) ((0xfff & (x)) << 0)
-#define RG_PE1_H_LCDDS_SSC_DELTA1       GENMASK(27, 16)
-#define RG_PE1_H_LCDDS_SSC_DELTA1_VAL(x) ((0xff & (x)) << 16)
+#define RG_PE1_H_LCDDS_SSC_DELTA_REG		0x4a8
+#define RG_PE1_H_LCDDS_SSC_DELTA		GENMASK(11, 0)
+#define RG_PE1_H_LCDDS_SSC_DELTA_VAL(x)		((0xfff & (x)) << 0)
+#define RG_PE1_H_LCDDS_SSC_DELTA1		GENMASK(27, 16)
+#define RG_PE1_H_LCDDS_SSC_DELTA1_VAL(x)	((0xff & (x)) << 16)
 
-#define RG_PE1_LCDDS_CLK_PH_INV_REG	0x4a0
-#define RG_PE1_LCDDS_CLK_PH_INV		BIT(5)
+#define RG_PE1_LCDDS_CLK_PH_INV_REG		0x4a0
+#define RG_PE1_LCDDS_CLK_PH_INV			BIT(5)
 
-#define RG_PE1_H_PLL_BR_REG		0x4ac
-#define RG_PE1_H_PLL_BR			GENMASK(18, 16)
-#define RG_PE1_H_PLL_BR_VAL(x)		((0x7 & (x)) << 16)
+#define RG_PE1_H_PLL_BR_REG			0x4ac
+#define RG_PE1_H_PLL_BR				GENMASK(18, 16)
+#define RG_PE1_H_PLL_BR_VAL(x)			((0x7 & (x)) << 16)
 
-#define	RG_PE1_MSTCKDIV_REG		0x414
-#define RG_PE1_MSTCKDIV			GENMASK(7, 6)
-#define RG_PE1_MSTCKDIV_VAL(x)		((0x3 & (x)) << 6)
+#define	RG_PE1_MSTCKDIV_REG			0x414
+#define RG_PE1_MSTCKDIV				GENMASK(7, 6)
+#define RG_PE1_MSTCKDIV_VAL(x)			((0x3 & (x)) << 6)
 
-#define RG_PE1_FRC_MSTCKDIV		BIT(5)
+#define RG_PE1_FRC_MSTCKDIV			BIT(5)
 
 /**
  * struct mt7621_pci_phy_instance - Mt7621 Pcie PHY device
