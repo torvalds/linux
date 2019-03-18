@@ -271,7 +271,7 @@ static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 }
 
 /* this hardware doesn't support "don't care" alarm fields */
-static int tm2bcd(struct rtc_time *tm)
+static void tm2bcd(struct rtc_time *tm)
 {
 	tm->tm_sec = bin2bcd(tm->tm_sec);
 	tm->tm_min = bin2bcd(tm->tm_min);
@@ -279,13 +279,7 @@ static int tm2bcd(struct rtc_time *tm)
 	tm->tm_mday = bin2bcd(tm->tm_mday);
 
 	tm->tm_mon = bin2bcd(tm->tm_mon + 1);
-
-	/* epoch == 1900 */
-	if (tm->tm_year < 100 || tm->tm_year > 199)
-		return -EINVAL;
 	tm->tm_year = bin2bcd(tm->tm_year - 100);
-
-	return 0;
 }
 
 static void bcd2tm(struct rtc_time *tm)
@@ -328,8 +322,7 @@ static int omap_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
 
-	if (tm2bcd(tm) < 0)
-		return -EINVAL;
+	tm2bcd(tm);
 
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
@@ -378,8 +371,7 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
 	u8 reg, irqwake_reg = 0;
 
-	if (tm2bcd(&alm->time) < 0)
-		return -EINVAL;
+	tm2bcd(&alm->time);
 
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
@@ -444,11 +436,7 @@ again:
 	rtc_tm_to_time(&tm, &now);
 	rtc_time_to_tm(now + 1, &tm);
 
-	if (tm2bcd(&tm) < 0) {
-		dev_err(&rtc->rtc->dev, "power off failed\n");
-		rtc->type->lock(rtc);
-		return;
-	}
+	tm2bcd(&tm);
 
 	rtc_wait_not_busy(rtc);
 
@@ -845,6 +833,8 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtc->ops = &omap_rtc_ops;
+	rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	omap_rtc_nvmem_config.priv = rtc;
 
 	/* handle periodic and alarm irqs */
