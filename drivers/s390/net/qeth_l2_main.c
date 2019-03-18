@@ -629,8 +629,7 @@ static netdev_tx_t qeth_l2_hard_start_xmit(struct sk_buff *skb,
 	} /* else fall through */
 
 	QETH_TXQ_STAT_INC(queue, tx_dropped);
-	QETH_TXQ_STAT_INC(queue, tx_errors);
-	dev_kfree_skb_any(skb);
+	kfree_skb(skb);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
 }
