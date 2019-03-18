@@ -1518,10 +1518,8 @@ static int rk1608_probe(struct spi_device *spi)
 	}
 
 	ret = rk1608_get_remote_node_dev(rk1608);
-	if (ret) {
-		dev_err(rk1608->dev, "Get remote node dev err %x\n", ret);
-		return ret;
-	}
+	if (ret)
+		dev_info(rk1608->dev, "remote node dev is NULL\n");
 
 	rk1608->sensor_cnt = 0;
 	mutex_init(&rk1608->sensor_lock);
