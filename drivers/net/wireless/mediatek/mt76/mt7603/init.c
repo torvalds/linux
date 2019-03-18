@@ -513,7 +513,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 
 	spin_lock_init(&dev->ps_lock);
 
-	INIT_DELAYED_WORK(&dev->mac_work, mt7603_mac_work);
+	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7603_mac_work);
 	tasklet_init(&dev->pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 

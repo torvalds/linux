@@ -85,7 +85,7 @@ static void mt76x0u_mac_stop(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	cancel_delayed_work_sync(&dev->cal_work);
-	cancel_delayed_work_sync(&dev->mac_work);
+	cancel_delayed_work_sync(&dev->mt76.mac_work);
 	mt76u_stop_stat_wk(&dev->mt76);
 	mt76x02u_exit_beacon_config(dev);
 
@@ -113,7 +113,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 		goto out;
 
 	mt76x0_phy_calibrate(dev, true);
-	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mac_work,
+	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
