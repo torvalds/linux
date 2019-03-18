@@ -94,7 +94,7 @@ static int ir_xmp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			n = data->durations;
 			/*
 			 * the 4th nibble should be 15 so base the divider on this
-			 * to transform durations into nibbles. Substract 2000 from
+			 * to transform durations into nibbles. Subtract 2000 from
 			 * the divider to compensate for fluctuations in the signal
 			 */
 			divider = (n[3] - XMP_NIBBLE_PREFIX) / 15 - 2000;

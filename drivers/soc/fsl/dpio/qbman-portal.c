@@ -169,9 +169,9 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 				3, /* RPM: Valid bit mode, RCR in array mode */
 				2, /* DCM: Discrete consumption ack mode */
 				3, /* EPM: Valid bit mode, EQCR in array mode */
-				0, /* mem stashing drop enable == FALSE */
+				1, /* mem stashing drop enable == TRUE */
 				1, /* mem stashing priority == TRUE */
-				0, /* mem stashing enable == FALSE */
+				1, /* mem stashing enable == TRUE */
 				1, /* dequeue stashing priority == TRUE */
 				0, /* dequeue stashing enable == FALSE */
 				0); /* EQCR_CI stashing priority == FALSE */
@@ -180,6 +180,7 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 	reg = qbman_read_register(p, QBMAN_CINH_SWP_CFG);
 	if (!reg) {
 		pr_err("qbman: the portal is not enabled!\n");
+		kfree(p);
 		return NULL;
 	}
 

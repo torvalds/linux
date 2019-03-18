@@ -297,10 +297,8 @@ char *get_fdinfo(int fd, const char *key)
 	snprintf(path, sizeof(path), "/proc/self/fdinfo/%d", fd);
 
 	fdi = fopen(path, "r");
-	if (!fdi) {
-		p_err("can't open fdinfo: %s", strerror(errno));
+	if (!fdi)
 		return NULL;
-	}
 
 	while ((n = getline(&line, &line_n, fdi)) > 0) {
 		char *value;
@@ -313,7 +311,6 @@ char *get_fdinfo(int fd, const char *key)
 
 		value = strchr(line, '\t');
 		if (!value || !value[1]) {
-			p_err("malformed fdinfo!?");
 			free(line);
 			return NULL;
 		}
@@ -326,7 +323,6 @@ char *get_fdinfo(int fd, const char *key)
 		return line;
 	}
 
-	p_err("key '%s' not found in fdinfo", key);
 	free(line);
 	fclose(fdi);
 	return NULL;

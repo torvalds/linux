@@ -191,7 +191,7 @@ static inline void littleton_init_lcd(void) {};
 #endif /* CONFIG_FB_PXA || CONFIG_FB_PXA_MODULE */
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static struct pxa2xx_spi_master littleton_spi_info = {
+static struct pxa2xx_spi_controller littleton_spi_info = {
 	.num_chipselect		= 1,
 };
 

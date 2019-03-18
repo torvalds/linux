@@ -499,7 +499,7 @@ Example: Changing controls
 .. [#f1]
    The use of ``V4L2_CID_PRIVATE_BASE`` is problematic because different
    drivers may use the same ``V4L2_CID_PRIVATE_BASE`` ID for different
-   controls. This makes it hard to programatically set such controls
+   controls. This makes it hard to programmatically set such controls
    since the meaning of the control with that ID is driver dependent. In
    order to resolve this drivers use unique IDs and the
    ``V4L2_CID_PRIVATE_BASE`` IDs are mapped to those unique IDs by the

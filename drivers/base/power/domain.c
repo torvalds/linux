@@ -6,6 +6,8 @@
  * This file is released under the GPLv2.
  */
 
+#define pr_fmt(fmt) "PM: " fmt
+
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -457,19 +459,19 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 
 	time_start = ktime_get();
 	ret = genpd->power_off(genpd);
-	if (ret == -EBUSY)
+	if (ret)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
 	if (elapsed_ns <= genpd->states[state_idx].power_off_latency_ns)
-		return ret;
+		return 0;
 
 	genpd->states[state_idx].power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
 		 genpd->name, "off", elapsed_ns);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -1657,8 +1659,8 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 	genpd_lock_nested(genpd, SINGLE_DEPTH_NESTING);
 
 	if (!list_empty(&subdomain->master_links) || subdomain->device_count) {
-		pr_warn("%s: unable to remove subdomain %s\n", genpd->name,
-			subdomain->name);
+		pr_warn("%s: unable to remove subdomain %s\n",
+			genpd->name, subdomain->name);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1766,8 +1768,8 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 		ret = genpd_set_default_power_state(genpd);
 		if (ret)
 			return ret;
-	} else if (!gov) {
-		pr_warn("%s : no governor for states\n", genpd->name);
+	} else if (!gov && genpd->state_count > 1) {
+		pr_warn("%s: no governor for states\n", genpd->name);
 	}
 
 	device_initialize(&genpd->dev);
@@ -2483,7 +2485,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
  * power-domain-names DT property. For further description see
  * genpd_dev_pm_attach_by_id().
  */
-struct device *genpd_dev_pm_attach_by_name(struct device *dev, char *name)
+struct device *genpd_dev_pm_attach_by_name(struct device *dev, const char *name)
 {
 	int index;
 
@@ -2514,7 +2516,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 						&entry_latency);
 	if (err) {
 		pr_debug(" * %pOF missing entry-latency-us property\n",
-						state_node);
+			 state_node);
 		return -EINVAL;
 	}
 
@@ -2522,7 +2524,7 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 						&exit_latency);
 	if (err) {
 		pr_debug(" * %pOF missing exit-latency-us property\n",
-						state_node);
+			 state_node);
 		return -EINVAL;
 	}
 
@@ -2948,18 +2950,11 @@ static int __init genpd_debug_init(void)
 
 	genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
 
-	if (!genpd_debugfs_dir)
-		return -ENOMEM;
-
-	d = debugfs_create_file("pm_genpd_summary", S_IRUGO,
-			genpd_debugfs_dir, NULL, &summary_fops);
-	if (!d)
-		return -ENOMEM;
+	debugfs_create_file("pm_genpd_summary", S_IRUGO, genpd_debugfs_dir,
+			    NULL, &summary_fops);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
 		d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
-		if (!d)
-			return -ENOMEM;
 
 		debugfs_create_file("current_state", 0444,
 				d, genpd, &status_fops);

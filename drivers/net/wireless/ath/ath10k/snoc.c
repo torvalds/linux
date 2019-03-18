@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2018 The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/clk.h>
@@ -30,6 +19,7 @@
 
 #define ATH10K_SNOC_RX_POST_RETRY_MS 50
 #define CE_POLL_PIPE 4
+#define ATH10K_SNOC_WAKE_IRQ 2
 
 static char *const ce_name[] = {
 	"WLAN_CE_0",
@@ -66,7 +56,7 @@ static void ath10k_snoc_pktlog_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ath10k_snoc_drv_priv drv_priv = {
 	.hw_rev = ATH10K_HW_WCN3990,
-	.dma_mask = DMA_BIT_MASK(37),
+	.dma_mask = DMA_BIT_MASK(35),
 	.msa_size = 0x100000,
 };
 
@@ -875,13 +865,11 @@ static void ath10k_snoc_tx_pipe_cleanup(struct ath10k_snoc_pipe *snoc_pipe)
 {
 	struct ath10k_ce_pipe *ce_pipe;
 	struct ath10k_ce_ring *ce_ring;
-	struct ath10k_snoc *ar_snoc;
 	struct sk_buff *skb;
 	struct ath10k *ar;
 	int i;
 
 	ar = snoc_pipe->hif_ce_state;
-	ar_snoc = ath10k_snoc_priv(ar);
 	ce_pipe = snoc_pipe->ce_hdl;
 	ce_ring = ce_pipe->src_ring;
 
@@ -958,7 +946,8 @@ static int ath10k_snoc_init_pipes(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_snoc_wlan_enable(struct ath10k *ar)
+static int ath10k_snoc_wlan_enable(struct ath10k *ar,
+				   enum ath10k_firmware_mode fw_mode)
 {
 	struct ath10k_tgt_pipe_cfg tgt_cfg[CE_COUNT_MAX];
 	struct ath10k_qmi_wlan_enable_cfg cfg;
@@ -992,7 +981,17 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 	cfg.shadow_reg_cfg = (struct ath10k_shadow_reg_cfg *)
 		&target_shadow_reg_cfg_map;
 
-	mode = QMI_WLFW_MISSION_V01;
+	switch (fw_mode) {
+	case ATH10K_FIRMWARE_MODE_NORMAL:
+		mode = QMI_WLFW_MISSION_V01;
+		break;
+	case ATH10K_FIRMWARE_MODE_UTF:
+		mode = QMI_WLFW_FTM_V01;
+		break;
+	default:
+		ath10k_err(ar, "invalid firmware mode %d\n", fw_mode);
+		return -EINVAL;
+	}
 
 	return ath10k_qmi_wlan_enable(ar, &cfg, mode,
 				       NULL);
@@ -1000,7 +999,16 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
-	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+
+	/* If both ATH10K_FLAG_CRASH_FLUSH and ATH10K_SNOC_FLAG_RECOVERY
+	 * flags are not set, it means that the driver has restarted
+	 * due to a crash inject via debugfs. In this case, the driver
+	 * needs to restart the firmware and hence send qmi wlan disable,
+	 * during the driver restart sequence.
+	 */
+	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags) ||
+	    !test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
 		ath10k_qmi_wlan_disable(ar);
 }
 
@@ -1012,14 +1020,15 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 	ath10k_ce_free_rri(ar);
 }
 
-static int ath10k_snoc_hif_power_up(struct ath10k *ar)
+static int ath10k_snoc_hif_power_up(struct ath10k *ar,
+				    enum ath10k_firmware_mode fw_mode)
 {
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
 		   __func__, ar->state);
 
-	ret = ath10k_snoc_wlan_enable(ar);
+	ret = ath10k_snoc_wlan_enable(ar, fw_mode);
 	if (ret) {
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
 		return ret;
@@ -1041,6 +1050,46 @@ err_wlan_enable:
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int ath10k_snoc_hif_suspend(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	int ret;
+
+	if (!device_may_wakeup(ar->dev))
+		return -EPERM;
+
+	ret = enable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
+	if (ret) {
+		ath10k_err(ar, "failed to enable wakeup irq :%d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device suspended\n");
+
+	return ret;
+}
+
+static int ath10k_snoc_hif_resume(struct ath10k *ar)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	int ret;
+
+	if (!device_may_wakeup(ar->dev))
+		return -EPERM;
+
+	ret = disable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
+	if (ret) {
+		ath10k_err(ar, "failed to disable wakeup irq: %d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device resumed\n");
+
+	return ret;
+}
+#endif
+
 static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.read32		= ath10k_snoc_read32,
 	.write32	= ath10k_snoc_write32,
@@ -1054,6 +1103,10 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.send_complete_check	= ath10k_snoc_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_snoc_hif_get_free_queue_number,
 	.get_target_info	= ath10k_snoc_hif_get_target_info,
+#ifdef CONFIG_PM
+	.suspend                = ath10k_snoc_hif_suspend,
+	.resume                 = ath10k_snoc_hif_resume,
+#endif
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {

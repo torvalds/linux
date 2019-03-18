@@ -48,7 +48,9 @@
 #define DA9055_ID_LDO6		7
 
 /* DA9055 BUCK current limit */
-static const int da9055_current_limits[] = { 500000, 600000, 700000, 800000 };
+static const unsigned int da9055_current_limits[] = {
+	500000, 600000, 700000, 800000
+};
 
 struct da9055_conf_reg {
 	int reg;
@@ -167,39 +169,6 @@ static int da9055_ldo_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	return da9055_reg_update(regulator->da9055, volt.reg_b,
 				 1 << volt.sl_shift,
 				 val << volt.sl_shift);
-}
-
-static int da9055_buck_get_current_limit(struct regulator_dev *rdev)
-{
-	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9055_regulator_info *info = regulator->info;
-	int ret;
-
-	ret = da9055_reg_read(regulator->da9055, DA9055_REG_BUCK_LIM);
-	if (ret < 0)
-		return ret;
-
-	ret &= info->mode.mask;
-	return da9055_current_limits[ret >> info->mode.shift];
-}
-
-static int da9055_buck_set_current_limit(struct regulator_dev *rdev, int min_uA,
-					 int max_uA)
-{
-	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9055_regulator_info *info = regulator->info;
-	int i;
-
-	for (i = ARRAY_SIZE(da9055_current_limits) - 1; i >= 0; i--) {
-		if ((min_uA <= da9055_current_limits[i]) &&
-		    (da9055_current_limits[i] <= max_uA))
-			return da9055_reg_update(regulator->da9055,
-						 DA9055_REG_BUCK_LIM,
-						 info->mode.mask,
-						 i << info->mode.shift);
-	}
-
-	return -EINVAL;
 }
 
 static int da9055_regulator_get_voltage_sel(struct regulator_dev *rdev)
@@ -329,8 +298,8 @@ static const struct regulator_ops da9055_buck_ops = {
 	.get_mode = da9055_buck_get_mode,
 	.set_mode = da9055_buck_set_mode,
 
-	.get_current_limit = da9055_buck_get_current_limit,
-	.set_current_limit = da9055_buck_set_current_limit,
+	.get_current_limit = regulator_get_current_limit_regmap,
+	.set_current_limit = regulator_set_current_limit_regmap,
 
 	.get_voltage_sel = da9055_regulator_get_voltage_sel,
 	.set_voltage_sel = da9055_regulator_set_voltage_sel,
@@ -407,6 +376,10 @@ static const struct regulator_ops da9055_ldo_ops = {
 		.uV_step = (step) * 1000,\
 		.linear_min_sel = (voffset),\
 		.owner = THIS_MODULE,\
+		.curr_table = da9055_current_limits,\
+		.n_current_limits = ARRAY_SIZE(da9055_current_limits),\
+		.csel_reg = DA9055_REG_BUCK_LIM,\
+		.csel_mask = (mbits),\
 	},\
 	.conf = {\
 		.reg = DA9055_REG_BCORE_CONT + DA9055_ID_##_id, \
@@ -457,7 +430,6 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 		int gpio_mux = pdata->gpio_ren[id];
 
 		config->ena_gpiod = pdata->ena_gpiods[id];
-		config->ena_gpio_invert = 1;
 
 		/*
 		 * GPI pin is muxed with regulator to control the

@@ -1962,7 +1962,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 			this = &txbase[elem];
 		}
 
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 		dev->stats.tx_packets++;
 	}
 	hp->tx_old = elem;

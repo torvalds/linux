@@ -1337,7 +1337,7 @@ static irqreturn_t hamachi_interrupt(int irq, void *dev_instance)
 							leXX_to_cpu(hmp->tx_ring[entry].addr),
 							skb->len,
 							PCI_DMA_TODEVICE);
-						dev_kfree_skb_irq(skb);
+						dev_consume_skb_irq(skb);
 						hmp->tx_skbuff[entry] = NULL;
 					}
 					hmp->tx_ring[entry].status_n_length = 0;

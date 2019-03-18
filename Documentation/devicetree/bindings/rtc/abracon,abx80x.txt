@@ -16,6 +16,7 @@ Required properties:
         "abracon,ab1803"
         "abracon,ab1804"
         "abracon,ab1805"
+        "microcrystal,rv1805"
 	Using "abracon,abx80x" will enable chip autodetection.
  - "reg": I2C bus address of the device
 

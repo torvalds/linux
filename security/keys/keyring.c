@@ -246,6 +246,7 @@ static unsigned long keyring_get_key_chunk(const void *data, int level)
 				    (ASSOC_ARRAY_KEY_CHUNK_SIZE - 8));
 		n--;
 		offset = 1;
+		/* fall through */
 	default:
 		offset += sizeof(chunk) - 1;
 		offset += (level - 3) * sizeof(chunk);
@@ -661,9 +662,6 @@ static bool search_nested_keyrings(struct key *keyring,
 	BUG_ON((ctx->flags & STATE_CHECKS) == 0 ||
 	       (ctx->flags & STATE_CHECKS) == STATE_CHECKS);
 
-	if (ctx->index_key.description)
-		ctx->index_key.desc_len = strlen(ctx->index_key.description);
-
 	/* Check to see if this top-level keyring is what we are looking for
 	 * and whether it is valid or not.
 	 */
@@ -914,6 +912,7 @@ key_ref_t keyring_search(key_ref_t keyring,
 	struct keyring_search_context ctx = {
 		.index_key.type		= type,
 		.index_key.description	= description,
+		.index_key.desc_len	= strlen(description),
 		.cred			= current_cred(),
 		.match_data.cmp		= key_default_cmp,
 		.match_data.raw_data	= description,

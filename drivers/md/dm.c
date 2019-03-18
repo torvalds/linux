@@ -158,9 +158,6 @@ struct table_device {
 	struct dm_dev dm_dev;
 };
 
-static struct kmem_cache *_rq_tio_cache;
-static struct kmem_cache *_rq_cache;
-
 /*
  * Bio-based DM's mempools' reserved IOs set by the user.
  */
@@ -222,20 +219,11 @@ static unsigned dm_get_numa_node(void)
 
 static int __init local_init(void)
 {
-	int r = -ENOMEM;
-
-	_rq_tio_cache = KMEM_CACHE(dm_rq_target_io, 0);
-	if (!_rq_tio_cache)
-		return r;
-
-	_rq_cache = kmem_cache_create("dm_old_clone_request", sizeof(struct request),
-				      __alignof__(struct request), 0, NULL);
-	if (!_rq_cache)
-		goto out_free_rq_tio_cache;
+	int r;
 
 	r = dm_uevent_init();
 	if (r)
-		goto out_free_rq_cache;
+		return r;
 
 	deferred_remove_workqueue = alloc_workqueue("kdmremove", WQ_UNBOUND, 1);
 	if (!deferred_remove_workqueue) {
@@ -257,10 +245,6 @@ out_free_workqueue:
 	destroy_workqueue(deferred_remove_workqueue);
 out_uevent_exit:
 	dm_uevent_exit();
-out_free_rq_cache:
-	kmem_cache_destroy(_rq_cache);
-out_free_rq_tio_cache:
-	kmem_cache_destroy(_rq_tio_cache);
 
 	return r;
 }
@@ -270,8 +254,6 @@ static void local_exit(void)
 	flush_scheduled_work();
 	destroy_workqueue(deferred_remove_workqueue);
 
-	kmem_cache_destroy(_rq_cache);
-	kmem_cache_destroy(_rq_tio_cache);
 	unregister_blkdev(_major, _name);
 	dm_uevent_exit();
 
@@ -699,7 +681,7 @@ static void end_io_acct(struct dm_io *io)
 				    true, duration, &io->stats_aux);
 
 	/* nudge anyone waiting on suspend queue */
-	if (unlikely(waitqueue_active(&md->wait)))
+	if (unlikely(wq_has_sleeper(&md->wait)))
 		wake_up(&md->wait);
 }
 
@@ -1336,7 +1318,11 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 			return r;
 	}
 
-	bio_trim(clone, sector - clone->bi_iter.bi_sector, len);
+	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
+	clone->bi_iter.bi_size = to_bytes(len);
+
+	if (bio_integrity(bio))
+		bio_integrity_trim(clone);
 
 	return 0;
 }
@@ -1474,17 +1460,10 @@ static unsigned get_num_write_zeroes_bios(struct dm_target *ti)
 	return ti->num_write_zeroes_bios;
 }
 
-typedef bool (*is_split_required_fn)(struct dm_target *ti);
-
-static bool is_split_required_for_discard(struct dm_target *ti)
-{
-	return ti->split_discard_bios;
-}
-
 static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-				       unsigned num_bios, bool is_split_required)
+				       unsigned num_bios)
 {
-	unsigned len;
+	unsigned len = ci->sector_count;
 
 	/*
 	 * Even though the device advertised support for this type of
@@ -1494,11 +1473,6 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 	 */
 	if (!num_bios)
 		return -EOPNOTSUPP;
-
-	if (!is_split_required)
-		len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
-	else
-		len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
 
 	__send_duplicate_bios(ci, ti, num_bios, &len);
 
@@ -1510,23 +1484,38 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 
 static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti),
-					   is_split_required_for_discard(ti));
+	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti));
 }
 
 static int __send_secure_erase(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti));
 }
 
 static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti));
 }
 
 static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti), false);
+	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti));
+}
+
+static bool is_abnormal_io(struct bio *bio)
+{
+	bool r = false;
+
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_SAME:
+	case REQ_OP_WRITE_ZEROES:
+		r = true;
+		break;
+	}
+
+	return r;
 }
 
 static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
@@ -1561,7 +1550,7 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
-	if (unlikely(__process_abnormal_io(ci, ti, &r)))
+	if (__process_abnormal_io(ci, ti, &r))
 		return r;
 
 	len = min_t(sector_t, max_io_len(ci->sector, ti), ci->sector_count);
@@ -1596,13 +1585,6 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 	struct clone_info ci;
 	blk_qc_t ret = BLK_QC_T_NONE;
 	int error = 0;
-
-	if (unlikely(!map)) {
-		bio_io_error(bio);
-		return ret;
-	}
-
-	blk_queue_split(md->queue, &bio);
 
 	init_clone_info(&ci, md, map, bio);
 
@@ -1671,17 +1653,12 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
  * Optimized variant of __split_and_process_bio that leverages the
  * fact that targets that use it do _not_ have a need to split bios.
  */
-static blk_qc_t __process_bio(struct mapped_device *md,
-			      struct dm_table *map, struct bio *bio)
+static blk_qc_t __process_bio(struct mapped_device *md, struct dm_table *map,
+			      struct bio *bio, struct dm_target *ti)
 {
 	struct clone_info ci;
 	blk_qc_t ret = BLK_QC_T_NONE;
 	int error = 0;
-
-	if (unlikely(!map)) {
-		bio_io_error(bio);
-		return ret;
-	}
 
 	init_clone_info(&ci, md, map, bio);
 
@@ -1700,21 +1677,11 @@ static blk_qc_t __process_bio(struct mapped_device *md,
 		error = __send_empty_flush(&ci);
 		/* dec_pending submits any data associated with flush */
 	} else {
-		struct dm_target *ti = md->immutable_target;
 		struct dm_target_io *tio;
-
-		/*
-		 * Defend against IO still getting in during teardown
-		 * - as was seen for a time with nvme-fcloop
-		 */
-		if (WARN_ON_ONCE(!ti || !dm_target_is_valid(ti))) {
-			error = -EIO;
-			goto out;
-		}
 
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
-		if (unlikely(__process_abnormal_io(&ci, ti, &error)))
+		if (__process_abnormal_io(&ci, ti, &error))
 			goto out;
 
 		tio = alloc_tio(&ci, ti, 0, GFP_NOIO);
@@ -1726,11 +1693,55 @@ out:
 	return ret;
 }
 
+static void dm_queue_split(struct mapped_device *md, struct dm_target *ti, struct bio **bio)
+{
+	unsigned len, sector_count;
+
+	sector_count = bio_sectors(*bio);
+	len = min_t(sector_t, max_io_len((*bio)->bi_iter.bi_sector, ti), sector_count);
+
+	if (sector_count > len) {
+		struct bio *split = bio_split(*bio, len, GFP_NOIO, &md->queue->bio_split);
+
+		bio_chain(split, *bio);
+		trace_block_split(md->queue, split, (*bio)->bi_iter.bi_sector);
+		generic_make_request(*bio);
+		*bio = split;
+	}
+}
+
 static blk_qc_t dm_process_bio(struct mapped_device *md,
 			       struct dm_table *map, struct bio *bio)
 {
+	blk_qc_t ret = BLK_QC_T_NONE;
+	struct dm_target *ti = md->immutable_target;
+
+	if (unlikely(!map)) {
+		bio_io_error(bio);
+		return ret;
+	}
+
+	if (!ti) {
+		ti = dm_table_find_target(map, bio->bi_iter.bi_sector);
+		if (unlikely(!ti || !dm_target_is_valid(ti))) {
+			bio_io_error(bio);
+			return ret;
+		}
+	}
+
+	/*
+	 * If in ->make_request_fn we need to use blk_queue_split(), otherwise
+	 * queue_limits for abnormal requests (e.g. discard, writesame, etc)
+	 * won't be imposed.
+	 */
+	if (current->bio_list) {
+		blk_queue_split(md->queue, &bio);
+		if (!is_abnormal_io(bio))
+			dm_queue_split(md, ti, &bio);
+	}
+
 	if (dm_get_md_type(md) == DM_TYPE_NVME_BIO_BASED)
-		return __process_bio(md, map, bio);
+		return __process_bio(md, map, bio, ti);
 	else
 		return __split_and_process_bio(md, map, bio);
 }

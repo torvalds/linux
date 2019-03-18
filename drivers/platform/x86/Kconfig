@@ -905,6 +905,7 @@ config TOSHIBA_WMI
 config ACPI_CMPC
 	tristate "CMPC Laptop Extras"
 	depends on ACPI && INPUT
+	depends on BACKLIGHT_LCD_SUPPORT
 	depends on RFKILL || RFKILL=n
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -1128,6 +1129,7 @@ config INTEL_OAKTRAIL
 config SAMSUNG_Q10
 	tristate "Samsung Q10 Extras"
 	depends on ACPI
+	depends on BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver provides support for backlight control on Samsung Q10
@@ -1300,6 +1302,20 @@ config HUAWEI_WMI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called huawei-wmi.
+
+config PCENGINES_APU2
+	tristate "PC Engines APUv2/3 front button and LEDs driver"
+	depends on INPUT && INPUT_KEYBOARD
+	depends on LEDS_CLASS
+	select GPIO_AMD_FCH
+	select KEYBOARD_GPIO_POLLED
+	select LEDS_GPIO
+	help
+	  This driver provides support for the front button and LEDs on
+	  PC Engines APUv2/APUv3 board.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pcengines-apuv2.
 
 endif # X86_PLATFORM_DEVICES
 

@@ -1323,7 +1323,7 @@ static struct list_head *qh_urb_transaction(struct oxu_hcd *oxu,
 	}
 
 	/* by default, enable interrupt on urb completion */
-		qtd->hw_token |= cpu_to_le32(QTD_IOC);
+	qtd->hw_token |= cpu_to_le32(QTD_IOC);
 	return head;
 
 cleanup:
@@ -2253,16 +2253,12 @@ static void scan_periodic(struct oxu_hcd *oxu)
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__le32			type, *hw_p;
-		unsigned		uframes;
 
 		/* don't scan past the live uframe */
 		frame = now_uframe >> 3;
-		if (frame == (clock >> 3))
-			uframes = now_uframe & 0x07;
-		else {
+		if (frame != (clock >> 3)) {
 			/* safe to scan the whole frame at once */
 			now_uframe |= 0x07;
-			uframes = 8;
 		}
 
 restart:
@@ -2832,7 +2828,6 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 {
 	struct oxu_hcd *oxu = hcd_to_oxu(hcd);
 	int num, rem;
-	int transfer_buffer_length;
 	void *transfer_buffer;
 	struct urb *murb;
 	int i, ret;
@@ -2843,7 +2838,6 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Otherwise we should verify the USB transfer buffer size! */
 	transfer_buffer = urb->transfer_buffer;
-	transfer_buffer_length = urb->transfer_buffer_length;
 
 	num = urb->transfer_buffer_length / 4096;
 	rem = urb->transfer_buffer_length % 4096;

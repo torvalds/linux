@@ -16,8 +16,6 @@
 #ifndef __TW9910_H__
 #define __TW9910_H__
 
-#include <media/soc_camera.h>
-
 /**
  * tw9910_mpout_pin - MPOUT (multi-purpose output) pin functions
  */

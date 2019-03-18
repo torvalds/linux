@@ -68,48 +68,65 @@ static u64 hws_address(const struct i915_vma *hws,
 	return hws->node.start + seqno_offset(rq->fence.context);
 }
 
-static int emit_recurse_batch(struct igt_spinner *spin,
-			      struct i915_request *rq,
-			      u32 arbitration_command)
+static int move_to_active(struct i915_vma *vma,
+			  struct i915_request *rq,
+			  unsigned int flags)
 {
-	struct i915_address_space *vm = &rq->gem_context->ppgtt->vm;
-	struct i915_vma *hws, *vma;
-	u32 *batch;
 	int err;
 
-	vma = i915_vma_instance(spin->obj, vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	hws = i915_vma_instance(spin->hws, vm, NULL);
-	if (IS_ERR(hws))
-		return PTR_ERR(hws);
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	err = i915_vma_move_to_active(vma, rq, flags);
 	if (err)
 		return err;
-
-	err = i915_vma_pin(hws, 0, 0, PIN_USER);
-	if (err)
-		goto unpin_vma;
-
-	err = i915_vma_move_to_active(vma, rq, 0);
-	if (err)
-		goto unpin_hws;
 
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	err = i915_vma_move_to_active(hws, rq, 0);
-	if (err)
-		goto unpin_hws;
+	return 0;
+}
 
-	if (!i915_gem_object_has_active_reference(hws->obj)) {
-		i915_gem_object_get(hws->obj);
-		i915_gem_object_set_active_reference(hws->obj);
+struct i915_request *
+igt_spinner_create_request(struct igt_spinner *spin,
+			   struct i915_gem_context *ctx,
+			   struct intel_engine_cs *engine,
+			   u32 arbitration_command)
+{
+	struct i915_address_space *vm = &ctx->ppgtt->vm;
+	struct i915_request *rq = NULL;
+	struct i915_vma *hws, *vma;
+	u32 *batch;
+	int err;
+
+	vma = i915_vma_instance(spin->obj, vm, NULL);
+	if (IS_ERR(vma))
+		return ERR_CAST(vma);
+
+	hws = i915_vma_instance(spin->hws, vm, NULL);
+	if (IS_ERR(hws))
+		return ERR_CAST(hws);
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		return ERR_PTR(err);
+
+	err = i915_vma_pin(hws, 0, 0, PIN_USER);
+	if (err)
+		goto unpin_vma;
+
+	rq = i915_request_alloc(engine, ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto unpin_hws;
 	}
+
+	err = move_to_active(vma, rq, 0);
+	if (err)
+		goto cancel_rq;
+
+	err = move_to_active(hws, rq, 0);
+	if (err)
+		goto cancel_rq;
 
 	batch = spin->batch;
 
@@ -127,35 +144,18 @@ static int emit_recurse_batch(struct igt_spinner *spin,
 
 	i915_gem_chipset_flush(spin->i915);
 
-	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
+	err = engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
 
+cancel_rq:
+	if (err) {
+		i915_request_skip(rq, err);
+		i915_request_add(rq);
+	}
 unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
-	return err;
-}
-
-struct i915_request *
-igt_spinner_create_request(struct igt_spinner *spin,
-			   struct i915_gem_context *ctx,
-			   struct intel_engine_cs *engine,
-			   u32 arbitration_command)
-{
-	struct i915_request *rq;
-	int err;
-
-	rq = i915_request_alloc(engine, ctx);
-	if (IS_ERR(rq))
-		return rq;
-
-	err = emit_recurse_batch(spin, rq, arbitration_command);
-	if (err) {
-		i915_request_add(rq);
-		return ERR_PTR(err);
-	}
-
-	return rq;
+	return err ? ERR_PTR(err) : rq;
 }
 
 static u32
@@ -185,11 +185,6 @@ void igt_spinner_fini(struct igt_spinner *spin)
 
 bool igt_wait_for_spinner(struct igt_spinner *spin, struct i915_request *rq)
 {
-	if (!wait_event_timeout(rq->execute,
-				READ_ONCE(rq->global_seqno),
-				msecs_to_jiffies(10)))
-		return false;
-
 	return !(wait_for_us(i915_seqno_passed(hws_seqno(spin, rq),
 					       rq->fence.seqno),
 			     10) &&

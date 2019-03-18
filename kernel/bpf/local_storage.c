@@ -131,13 +131,25 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 	struct bpf_cgroup_storage *storage;
 	struct bpf_storage_buffer *new;
 
-	if (flags != BPF_ANY && flags != BPF_EXIST)
+	if (unlikely(flags & ~(BPF_F_LOCK | BPF_EXIST | BPF_NOEXIST)))
+		return -EINVAL;
+
+	if (unlikely(flags & BPF_NOEXIST))
+		return -EINVAL;
+
+	if (unlikely((flags & BPF_F_LOCK) &&
+		     !map_value_has_spin_lock(map)))
 		return -EINVAL;
 
 	storage = cgroup_storage_lookup((struct bpf_cgroup_storage_map *)map,
 					key, false);
 	if (!storage)
 		return -ENOENT;
+
+	if (flags & BPF_F_LOCK) {
+		copy_map_value_locked(map, storage->buf->data, value, false);
+		return 0;
+	}
 
 	new = kmalloc_node(sizeof(struct bpf_storage_buffer) +
 			   map->value_size,
@@ -147,6 +159,7 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 		return -ENOMEM;
 
 	memcpy(&new->data[0], value, map->value_size);
+	check_and_init_map_lock(map, new->data);
 
 	new = xchg(&storage->buf, new);
 	kfree_rcu(new, rcu);
@@ -483,6 +496,7 @@ struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 		storage->buf = kmalloc_node(size, flags, map->numa_node);
 		if (!storage->buf)
 			goto enomem;
+		check_and_init_map_lock(map, storage->buf->data);
 	} else {
 		storage->percpu_buf = __alloc_percpu_gfp(size, 8, flags);
 		if (!storage->percpu_buf)

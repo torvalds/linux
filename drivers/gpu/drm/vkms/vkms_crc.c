@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0+
+
 #include "vkms_drv.h"
 #include <linux/crc32.h>
 #include <drm/drm_atomic.h>

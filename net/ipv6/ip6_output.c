@@ -300,6 +300,12 @@ static int ip6_call_ra_chain(struct sk_buff *skb, int sel)
 		if (sk && ra->sel == sel &&
 		    (!sk->sk_bound_dev_if ||
 		     sk->sk_bound_dev_if == skb->dev->ifindex)) {
+			struct ipv6_pinfo *np = inet6_sk(sk);
+
+			if (np && np->rtalert_isolate &&
+			    !net_eq(sock_net(sk), dev_net(skb->dev))) {
+				continue;
+			}
 			if (last) {
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2)

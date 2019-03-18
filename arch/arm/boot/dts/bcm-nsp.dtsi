@@ -34,9 +34,9 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/bcm-nsp.h>
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "brcm,nsp";
 	model = "Broadcom Northstar Plus SoC";
 	interrupt-parent = <&gic>;

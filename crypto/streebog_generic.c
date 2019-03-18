@@ -960,7 +960,7 @@ static int streebog_init(struct shash_desc *desc)
 	memset(ctx, 0, sizeof(struct streebog_state));
 	for (i = 0; i < 8; i++) {
 		if (digest_size == STREEBOG256_DIGEST_SIZE)
-			ctx->h.qword[i] = 0x0101010101010101ULL;
+			ctx->h.qword[i] = cpu_to_le64(0x0101010101010101ULL);
 	}
 	return 0;
 }

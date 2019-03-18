@@ -204,6 +204,9 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 		debug_reg = 0x408;
 		falcon->has_emem = true;
 		break;
+	case NVKM_SUBDEV_GSP:
+		debug_reg = 0x0; /*XXX*/
+		break;
 	default:
 		nvkm_warn(subdev, "unsupported falcon %s!\n",
 			  nvkm_subdev_name[subdev->index]);

@@ -71,7 +71,7 @@ void fsnotify_destroy_event(struct fsnotify_group *group,
 			    struct fsnotify_event *event)
 {
 	/* Overflow events are per-group and we don't want to free them */
-	if (!event || event->mask == FS_Q_OVERFLOW)
+	if (!event || event == group->overflow_event)
 		return;
 	/*
 	 * If the event is still queued, we have a problem... Do an unreliable
@@ -141,6 +141,18 @@ queue:
 	return ret;
 }
 
+void fsnotify_remove_queued_event(struct fsnotify_group *group,
+				  struct fsnotify_event *event)
+{
+	assert_spin_locked(&group->notification_lock);
+	/*
+	 * We need to init list head for the case of overflow event so that
+	 * check in fsnotify_add_event() works
+	 */
+	list_del_init(&event->list);
+	group->q_len--;
+}
+
 /*
  * Remove and return the first event from the notification list.  It is the
  * responsibility of the caller to destroy the obtained event
@@ -155,13 +167,7 @@ struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group *group)
 
 	event = list_first_entry(&group->notification_list,
 				 struct fsnotify_event, list);
-	/*
-	 * We need to init list head for the case of overflow event so that
-	 * check in fsnotify_add_event() works
-	 */
-	list_del_init(&event->list);
-	group->q_len--;
-
+	fsnotify_remove_queued_event(group, event);
 	return event;
 }
 
@@ -193,24 +199,4 @@ void fsnotify_flush_notify(struct fsnotify_group *group)
 		spin_lock(&group->notification_lock);
 	}
 	spin_unlock(&group->notification_lock);
-}
-
-/*
- * fsnotify_create_event - Allocate a new event which will be sent to each
- * group's handle_event function if the group was interested in this
- * particular event.
- *
- * @inode the inode which is supposed to receive the event (sometimes a
- *	parent of the inode to which the event happened.
- * @mask what actually happened.
- * @data pointer to the object which was actually affected
- * @data_type flag indication if the data is a file, path, inode, nothing...
- * @name the filename, if available
- */
-void fsnotify_init_event(struct fsnotify_event *event, struct inode *inode,
-			 u32 mask)
-{
-	INIT_LIST_HEAD(&event->list);
-	event->inode = inode;
-	event->mask = mask;
 }

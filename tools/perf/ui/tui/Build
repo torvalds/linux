@@ -1,4 +1,4 @@
-libperf-y += setup.o
-libperf-y += util.o
-libperf-y += helpline.o
-libperf-y += progress.o
+perf-y += setup.o
+perf-y += util.o
+perf-y += helpline.o
+perf-y += progress.o

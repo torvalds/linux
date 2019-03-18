@@ -1,4 +1,1 @@
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += shmparam.h
 generic-y += ucontext.h

@@ -976,12 +976,11 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem)
 {
 	struct device *dev = hr_dev->dev;
-	struct scatterlist *sg;
+	struct sg_dma_page_iter sg_iter;
 	unsigned int order;
-	int i, k, entry;
 	int npage = 0;
 	int ret = 0;
-	int len;
+	int i;
 	u64 page_addr;
 	u64 *pages;
 	u32 bt_page_size;
@@ -1014,29 +1013,25 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 
 	i = n = 0;
 
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (k = 0; k < len; ++k) {
-			page_addr =
-				sg_dma_address(sg) + (k << umem->page_shift);
-			if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
-				if (page_addr & ((1 << mtt->page_shift) - 1)) {
-					dev_err(dev, "page_addr 0x%llx is not page_shift %d alignment!\n",
-						page_addr, mtt->page_shift);
-					ret = -EINVAL;
-					goto out;
-				}
-				pages[i++] = page_addr;
+	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		page_addr = sg_page_iter_dma_address(&sg_iter);
+		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
+			if (page_addr & ((1 << mtt->page_shift) - 1)) {
+				dev_err(dev,
+					"page_addr 0x%llx is not page_shift %d alignment!\n",
+					page_addr, mtt->page_shift);
+				ret = -EINVAL;
+				goto out;
 			}
-			npage++;
-			if (i == bt_page_size / sizeof(u64)) {
-				ret = hns_roce_write_mtt(hr_dev, mtt, n, i,
-							 pages);
-				if (ret)
-					goto out;
-				n += i;
-				i = 0;
-			}
+			pages[i++] = page_addr;
+		}
+		npage++;
+		if (i == bt_page_size / sizeof(u64)) {
+			ret = hns_roce_write_mtt(hr_dev, mtt, n, i, pages);
+			if (ret)
+				goto out;
+			n += i;
+			i = 0;
 		}
 	}
 
@@ -1052,10 +1047,8 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 				     struct hns_roce_mr *mr,
 				     struct ib_umem *umem)
 {
-	struct scatterlist *sg;
-	int i = 0, j = 0, k;
-	int entry;
-	int len;
+	struct sg_dma_page_iter sg_iter;
+	int i = 0, j = 0;
 	u64 page_addr;
 	u32 pbl_bt_sz;
 
@@ -1063,27 +1056,22 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 		return 0;
 
 	pbl_bt_sz = 1 << (hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT);
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (k = 0; k < len; ++k) {
-			page_addr = sg_dma_address(sg) +
-				    (k << umem->page_shift);
+	for_each_sg_dma_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+		page_addr = sg_page_iter_dma_address(&sg_iter);
+		if (!hr_dev->caps.pbl_hop_num) {
+			mr->pbl_buf[i++] = page_addr >> 12;
+		} else if (hr_dev->caps.pbl_hop_num == 1) {
+			mr->pbl_buf[i++] = page_addr;
+		} else {
+			if (hr_dev->caps.pbl_hop_num == 2)
+				mr->pbl_bt_l1[i][j] = page_addr;
+			else if (hr_dev->caps.pbl_hop_num == 3)
+				mr->pbl_bt_l2[i][j] = page_addr;
 
-			if (!hr_dev->caps.pbl_hop_num) {
-				mr->pbl_buf[i++] = page_addr >> 12;
-			} else if (hr_dev->caps.pbl_hop_num == 1) {
-				mr->pbl_buf[i++] = page_addr;
-			} else {
-				if (hr_dev->caps.pbl_hop_num == 2)
-					mr->pbl_bt_l1[i][j] = page_addr;
-				else if (hr_dev->caps.pbl_hop_num == 3)
-					mr->pbl_bt_l2[i][j] = page_addr;
-
-				j++;
-				if (j >= (pbl_bt_sz / 8)) {
-					i++;
-					j = 0;
-				}
+			j++;
+			if (j >= (pbl_bt_sz / 8)) {
+				i++;
+				j = 0;
 			}
 		}
 	}
@@ -1110,8 +1098,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(pd->uobject->context, start, length,
-			       access_flags, 0);
+	mr->umem = ib_umem_get(udata, start, length, access_flags, 0);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);
 		goto err_free;
@@ -1220,8 +1207,8 @@ int hns_roce_rereg_user_mr(struct ib_mr *ibmr, int flags, u64 start, u64 length,
 		}
 		ib_umem_release(mr->umem);
 
-		mr->umem = ib_umem_get(ibmr->uobject->context, start, length,
-				       mr_access_flags, 0);
+		mr->umem =
+			ib_umem_get(udata, start, length, mr_access_flags, 0);
 		if (IS_ERR(mr->umem)) {
 			ret = PTR_ERR(mr->umem);
 			mr->umem = NULL;

@@ -9,7 +9,6 @@ typedef struct {
 } mm_segment_t;
 
 #define KERNEL_DS		((mm_segment_t) { 0xFFFFFFFF })
-#define get_ds()		KERNEL_DS
 
 #define USER_DS			((mm_segment_t) { 0x80000000UL })
 #define get_fs()		(current_thread_info()->addr_limit)

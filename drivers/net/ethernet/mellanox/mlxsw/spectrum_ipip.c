@@ -145,6 +145,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_ipip_entry *ipip_entry)
 {
 	u16 rif_index = mlxsw_sp_ipip_lb_rif_index(ipip_entry->ol_lb);
+	u16 ul_rif_id = mlxsw_sp_ipip_lb_ul_rif_id(ipip_entry->ol_lb);
 	char rtdp_pl[MLXSW_REG_RTDP_LEN];
 	struct ip_tunnel_parm parms;
 	unsigned int type_check;
@@ -157,6 +158,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 	ikey = mlxsw_sp_ipip_parms4_ikey(parms);
 
 	mlxsw_reg_rtdp_pack(rtdp_pl, MLXSW_REG_RTDP_TYPE_IPIP, tunnel_index);
+	mlxsw_reg_rtdp_egress_router_interface_set(rtdp_pl, ul_rif_id);
 
 	type_check = has_ikey ?
 		MLXSW_REG_RTDP_IPIP_TYPE_CHECK_ALLOW_GRE_KEY :

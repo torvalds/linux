@@ -41,12 +41,14 @@
  * struct ftgpio_gpio - Gemini GPIO state container
  * @dev: containing device for this instance
  * @gc: gpiochip for this instance
+ * @irq: irqchip for this instance
  * @base: remapped I/O-memory base
  * @clk: silicon clock
  */
 struct ftgpio_gpio {
 	struct device *dev;
 	struct gpio_chip gc;
+	struct irq_chip irq;
 	void __iomem *base;
 	struct clk *clk;
 };
@@ -133,14 +135,6 @@ static int ftgpio_gpio_set_irq_type(struct irq_data *d, unsigned int type)
 
 	return 0;
 }
-
-static struct irq_chip ftgpio_gpio_irqchip = {
-	.name = "FTGPIO010",
-	.irq_ack = ftgpio_gpio_ack_irq,
-	.irq_mask = ftgpio_gpio_mask_irq,
-	.irq_unmask = ftgpio_gpio_unmask_irq,
-	.irq_set_type = ftgpio_gpio_set_irq_type,
-};
 
 static void ftgpio_gpio_irq_handler(struct irq_desc *desc)
 {
@@ -297,14 +291,20 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 	/* Clear any use of debounce */
 	writel(0x0, g->base + GPIO_DEBOUNCE_EN);
 
-	ret = gpiochip_irqchip_add(&g->gc, &ftgpio_gpio_irqchip,
+	g->irq.name = "FTGPIO010";
+	g->irq.irq_ack = ftgpio_gpio_ack_irq;
+	g->irq.irq_mask = ftgpio_gpio_mask_irq;
+	g->irq.irq_unmask = ftgpio_gpio_unmask_irq;
+	g->irq.irq_set_type = ftgpio_gpio_set_irq_type;
+
+	ret = gpiochip_irqchip_add(&g->gc, &g->irq,
 				   0, handle_bad_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_info(dev, "could not add irqchip\n");
 		goto dis_clk;
 	}
-	gpiochip_set_chained_irqchip(&g->gc, &ftgpio_gpio_irqchip,
+	gpiochip_set_chained_irqchip(&g->gc, &g->irq,
 				     irq, ftgpio_gpio_irq_handler);
 
 	platform_set_drvdata(pdev, g);

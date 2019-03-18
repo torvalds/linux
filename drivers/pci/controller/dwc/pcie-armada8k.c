@@ -22,7 +22,6 @@
 #include <linux/resource.h>
 #include <linux/of_pci.h>
 #include <linux/of_irq.h>
-#include <linux/gpio/consumer.h>
 
 #include "pcie-designware.h"
 
@@ -30,7 +29,6 @@ struct armada8k_pcie {
 	struct dw_pcie *pci;
 	struct clk *clk;
 	struct clk *clk_reg;
-	struct gpio_desc *reset_gpio;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
@@ -139,12 +137,6 @@ static int armada8k_pcie_host_init(struct pcie_port *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct armada8k_pcie *pcie = to_armada8k_pcie(pci);
 
-	if (pcie->reset_gpio) {
-		/* assert and then deassert the reset signal */
-		gpiod_set_value_cansleep(pcie->reset_gpio, 1);
-		msleep(100);
-		gpiod_set_value_cansleep(pcie->reset_gpio, 0);
-	}
 	dw_pcie_setup_rc(pp);
 	armada8k_pcie_establish_link(pcie);
 
@@ -254,14 +246,6 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pci->dbi_base)) {
 		dev_err(dev, "couldn't remap regs base %p\n", base);
 		ret = PTR_ERR(pci->dbi_base);
-		goto fail_clkreg;
-	}
-
-	/* Get reset gpio signal and hold asserted (logically high) */
-	pcie->reset_gpio = devm_gpiod_get_optional(dev, "reset",
-						   GPIOD_OUT_HIGH);
-	if (IS_ERR(pcie->reset_gpio)) {
-		ret = PTR_ERR(pcie->reset_gpio);
 		goto fail_clkreg;
 	}
 

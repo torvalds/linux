@@ -19,6 +19,7 @@
 #include <linux/security.h>
 #include <linux/user_namespace.h>
 #include <linux/uaccess.h>
+#include <keys/request_key_auth-type.h>
 #include "internal.h"
 
 /* Session keyring create vs join semaphore */
@@ -379,6 +380,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -403,6 +405,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -423,6 +426,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 		case -EAGAIN: /* no key */
 			if (ret)
 				break;
+			/* fall through */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;

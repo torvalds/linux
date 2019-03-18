@@ -310,6 +310,7 @@ int mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mbox_flush);
 
 /**
  * mbox_request_channel - Request a mailbox channel.

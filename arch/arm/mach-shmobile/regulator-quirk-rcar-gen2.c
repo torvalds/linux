@@ -40,6 +40,7 @@
 struct regulator_quirk {
 	struct list_head		list;
 	const struct of_device_id	*id;
+	struct device_node		*np;
 	struct of_phandle_args		irq_args;
 	struct i2c_msg			i2c_msg;
 	bool				shared;	/* IRQ line is shared */
@@ -99,6 +100,9 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 	 */
 	list_for_each_entry(pos, &quirk_list, list) {
 		if (!pos->shared)
+			continue;
+
+		if (pos->np->parent != client->dev.parent->of_node)
 			continue;
 
 		dev_info(&client->dev, "clearing %s@0x%02x interrupts\n",
@@ -165,6 +169,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 		memcpy(&quirk->i2c_msg, id->data, sizeof(quirk->i2c_msg));
 
 		quirk->id = id;
+		quirk->np = np;
 		quirk->i2c_msg.addr = addr;
 
 		ret = of_irq_parse_one(np, 0, argsa);

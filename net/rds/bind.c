@@ -78,10 +78,10 @@ struct rds_sock *rds_find_bound(const struct in6_addr *addr, __be16 port,
 	__rds_create_bind_key(key, addr, port, scope_id);
 	rcu_read_lock();
 	rs = rhashtable_lookup(&bind_hash_table, key, ht_parms);
-	if (rs && !sock_flag(rds_rs_to_sk(rs), SOCK_DEAD))
-		rds_sock_addref(rs);
-	else
+	if (rs && (sock_flag(rds_rs_to_sk(rs), SOCK_DEAD) ||
+		   !refcount_inc_not_zero(&rds_rs_to_sk(rs)->sk_refcnt)))
 		rs = NULL;
+
 	rcu_read_unlock();
 
 	rdsdebug("returning rs %p for %pI6c:%u\n", rs, addr,

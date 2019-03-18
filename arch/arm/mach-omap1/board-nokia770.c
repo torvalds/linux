@@ -10,6 +10,7 @@
 #include <linux/clkdev.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -25,7 +26,6 @@
 #include <linux/platform_data/keypad-omap.h>
 #include <linux/platform_data/lcd-mipid.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <linux/platform_data/i2c-cbus-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -217,18 +217,19 @@ static inline void nokia770_mmc_init(void)
 #endif
 
 #if IS_ENABLED(CONFIG_I2C_CBUS_GPIO)
-static struct i2c_cbus_platform_data nokia770_cbus_data = {
-	.clk_gpio = OMAP_MPUIO(9),
-	.dat_gpio = OMAP_MPUIO(10),
-	.sel_gpio = OMAP_MPUIO(11),
+static struct gpiod_lookup_table nokia770_cbus_gpio_table = {
+	.dev_id = "i2c-cbus-gpio.2",
+	.table = {
+		GPIO_LOOKUP_IDX("mpuio", 9, NULL, 0, 0), /* clk */
+		GPIO_LOOKUP_IDX("mpuio", 10, NULL, 1, 0), /* dat */
+		GPIO_LOOKUP_IDX("mpuio", 11, NULL, 2, 0), /* sel */
+		{ },
+	},
 };
 
 static struct platform_device nokia770_cbus_device = {
 	.name   = "i2c-cbus-gpio",
 	.id     = 2,
-	.dev    = {
-		.platform_data = &nokia770_cbus_data,
-	},
 };
 
 static struct i2c_board_info nokia770_i2c_board_info_2[] __initdata = {
@@ -257,6 +258,7 @@ static void __init nokia770_cbus_init(void)
 	nokia770_i2c_board_info_2[1].irq = gpio_to_irq(tahvo_irq_gpio);
 	i2c_register_board_info(2, nokia770_i2c_board_info_2,
 				ARRAY_SIZE(nokia770_i2c_board_info_2));
+	gpiod_add_lookup_table(&nokia770_cbus_gpio_table);
 	platform_device_register(&nokia770_cbus_device);
 }
 #else /* CONFIG_I2C_CBUS_GPIO */

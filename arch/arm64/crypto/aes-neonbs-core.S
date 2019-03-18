@@ -971,18 +971,22 @@ CPU_LE(	rev		x8, x8		)
 
 8:	next_ctr	v0
 	st1		{v0.16b}, [x24]
-	cbz		x23, 0f
+	cbz		x23, .Lctr_done
 
 	cond_yield_neon	98b
 	b		99b
 
-0:	frame_pop
+.Lctr_done:
+	frame_pop
 	ret
 
 	/*
 	 * If we are handling the tail of the input (x6 != NULL), return the
 	 * final keystream block back to the caller.
 	 */
+0:	cbz		x25, 8b
+	st1		{v0.16b}, [x25]
+	b		8b
 1:	cbz		x25, 8b
 	st1		{v1.16b}, [x25]
 	b		8b

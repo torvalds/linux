@@ -24,15 +24,15 @@
  *
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/i915_drm.h>
 #include <linux/gpio/consumer.h>
+#include <linux/mfd/intel_soc_pmic.h>
 #include <linux/slab.h>
 #include <video/mipi_display.h>
 #include <asm/intel-mid.h>
-#include <video/mipi_display.h>
+#include <asm/unaligned.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_dsi.h"
@@ -393,7 +393,25 @@ static const u8 *mipi_exec_spi(struct intel_dsi *intel_dsi, const u8 *data)
 
 static const u8 *mipi_exec_pmic(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	DRM_DEBUG_KMS("Skipping PMIC element execution\n");
+#ifdef CONFIG_PMIC_OPREGION
+	u32 value, mask, reg_address;
+	u16 i2c_address;
+	int ret;
+
+	/* byte 0 aka PMIC Flag is reserved */
+	i2c_address	= get_unaligned_le16(data + 1);
+	reg_address	= get_unaligned_le32(data + 3);
+	value		= get_unaligned_le32(data + 7);
+	mask		= get_unaligned_le32(data + 11);
+
+	ret = intel_soc_pmic_exec_mipi_pmic_seq_element(i2c_address,
+							reg_address,
+							value, mask);
+	if (ret)
+		DRM_ERROR("%s failed, error: %d\n", __func__, ret);
+#else
+	DRM_ERROR("Your hardware requires CONFIG_PMIC_OPREGION and it is not set\n");
+#endif
 
 	return data + 15;
 }

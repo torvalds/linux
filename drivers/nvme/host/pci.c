@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * NVM Express device driver
  * Copyright (c) 2011-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/aer.h>
@@ -157,6 +149,8 @@ static int queue_count_set(const char *val, const struct kernel_param *kp)
 	int n = 0, ret;
 
 	ret = kstrtoint(val, 10, &n);
+	if (ret)
+		return ret;
 	if (n > num_possible_cpus())
 		n = num_possible_cpus();
 
@@ -2041,53 +2035,52 @@ static int nvme_setup_host_mem(struct nvme_dev *dev)
 	return ret;
 }
 
-/* irq_queues covers admin queue */
-static void nvme_calc_io_queues(struct nvme_dev *dev, unsigned int irq_queues)
+/*
+ * nirqs is the number of interrupts available for write and read
+ * queues. The core already reserved an interrupt for the admin queue.
+ */
+static void nvme_calc_irq_sets(struct irq_affinity *affd, unsigned int nrirqs)
 {
-	unsigned int this_w_queues = write_queues;
-
-	WARN_ON(!irq_queues);
-
-	/*
-	 * Setup read/write queue split, assign admin queue one independent
-	 * irq vector if irq_queues is > 1.
-	 */
-	if (irq_queues <= 2) {
-		dev->io_queues[HCTX_TYPE_DEFAULT] = 1;
-		dev->io_queues[HCTX_TYPE_READ] = 0;
-		return;
-	}
+	struct nvme_dev *dev = affd->priv;
+	unsigned int nr_read_queues;
 
 	/*
-	 * If 'write_queues' is set, ensure it leaves room for at least
-	 * one read queue and one admin queue
+	 * If there is no interupt available for queues, ensure that
+	 * the default queue is set to 1. The affinity set size is
+	 * also set to one, but the irq core ignores it for this case.
+	 *
+	 * If only one interrupt is available or 'write_queue' == 0, combine
+	 * write and read queues.
+	 *
+	 * If 'write_queues' > 0, ensure it leaves room for at least one read
+	 * queue.
 	 */
-	if (this_w_queues >= irq_queues)
-		this_w_queues = irq_queues - 2;
-
-	/*
-	 * If 'write_queues' is set to zero, reads and writes will share
-	 * a queue set.
-	 */
-	if (!this_w_queues) {
-		dev->io_queues[HCTX_TYPE_DEFAULT] = irq_queues - 1;
-		dev->io_queues[HCTX_TYPE_READ] = 0;
+	if (!nrirqs) {
+		nrirqs = 1;
+		nr_read_queues = 0;
+	} else if (nrirqs == 1 || !write_queues) {
+		nr_read_queues = 0;
+	} else if (write_queues >= nrirqs) {
+		nr_read_queues = 1;
 	} else {
-		dev->io_queues[HCTX_TYPE_DEFAULT] = this_w_queues;
-		dev->io_queues[HCTX_TYPE_READ] = irq_queues - this_w_queues - 1;
+		nr_read_queues = nrirqs - write_queues;
 	}
+
+	dev->io_queues[HCTX_TYPE_DEFAULT] = nrirqs - nr_read_queues;
+	affd->set_size[HCTX_TYPE_DEFAULT] = nrirqs - nr_read_queues;
+	dev->io_queues[HCTX_TYPE_READ] = nr_read_queues;
+	affd->set_size[HCTX_TYPE_READ] = nr_read_queues;
+	affd->nr_sets = nr_read_queues ? 2 : 1;
 }
 
 static int nvme_setup_irqs(struct nvme_dev *dev, unsigned int nr_io_queues)
 {
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	int irq_sets[2];
 	struct irq_affinity affd = {
-		.pre_vectors = 1,
-		.nr_sets = ARRAY_SIZE(irq_sets),
-		.sets = irq_sets,
+		.pre_vectors	= 1,
+		.calc_sets	= nvme_calc_irq_sets,
+		.priv		= dev,
 	};
-	int result = 0;
 	unsigned int irq_queues, this_p_queues;
 
 	/*
@@ -2103,51 +2096,12 @@ static int nvme_setup_irqs(struct nvme_dev *dev, unsigned int nr_io_queues)
 	}
 	dev->io_queues[HCTX_TYPE_POLL] = this_p_queues;
 
-	/*
-	 * For irq sets, we have to ask for minvec == maxvec. This passes
-	 * any reduction back to us, so we can adjust our queue counts and
-	 * IRQ vector needs.
-	 */
-	do {
-		nvme_calc_io_queues(dev, irq_queues);
-		irq_sets[0] = dev->io_queues[HCTX_TYPE_DEFAULT];
-		irq_sets[1] = dev->io_queues[HCTX_TYPE_READ];
-		if (!irq_sets[1])
-			affd.nr_sets = 1;
+	/* Initialize for the single interrupt case */
+	dev->io_queues[HCTX_TYPE_DEFAULT] = 1;
+	dev->io_queues[HCTX_TYPE_READ] = 0;
 
-		/*
-		 * If we got a failure and we're down to asking for just
-		 * 1 + 1 queues, just ask for a single vector. We'll share
-		 * that between the single IO queue and the admin queue.
-		 * Otherwise, we assign one independent vector to admin queue.
-		 */
-		if (irq_queues > 1)
-			irq_queues = irq_sets[0] + irq_sets[1] + 1;
-
-		result = pci_alloc_irq_vectors_affinity(pdev, irq_queues,
-				irq_queues,
-				PCI_IRQ_ALL_TYPES | PCI_IRQ_AFFINITY, &affd);
-
-		/*
-		 * Need to reduce our vec counts. If we get ENOSPC, the
-		 * platform should support mulitple vecs, we just need
-		 * to decrease our ask. If we get EINVAL, the platform
-		 * likely does not. Back down to ask for just one vector.
-		 */
-		if (result == -ENOSPC) {
-			irq_queues--;
-			if (!irq_queues)
-				return result;
-			continue;
-		} else if (result == -EINVAL) {
-			irq_queues = 1;
-			continue;
-		} else if (result <= 0)
-			return -EIO;
-		break;
-	} while (1);
-
-	return result;
+	return pci_alloc_irq_vectors_affinity(pdev, 1, irq_queues,
+			      PCI_IRQ_ALL_TYPES | PCI_IRQ_AFFINITY, &affd);
 }
 
 static void nvme_disable_io_queues(struct nvme_dev *dev)
@@ -2557,6 +2511,27 @@ static void nvme_reset_work(struct work_struct *work)
 	if (dev->ctrl.ctrl_config & NVME_CC_ENABLE)
 		nvme_dev_disable(dev, false);
 
+	mutex_lock(&dev->shutdown_lock);
+	result = nvme_pci_enable(dev);
+	if (result)
+		goto out_unlock;
+
+	result = nvme_pci_configure_admin_queue(dev);
+	if (result)
+		goto out_unlock;
+
+	result = nvme_alloc_admin_tags(dev);
+	if (result)
+		goto out_unlock;
+
+	/*
+	 * Limit the max command size to prevent iod->sg allocations going
+	 * over a single page.
+	 */
+	dev->ctrl.max_hw_sectors = NVME_MAX_KB_SZ << 1;
+	dev->ctrl.max_segments = NVME_MAX_SEGS;
+	mutex_unlock(&dev->shutdown_lock);
+
 	/*
 	 * Introduce CONNECTING state from nvme-fc/rdma transports to mark the
 	 * initializing procedure here.
@@ -2566,25 +2541,6 @@ static void nvme_reset_work(struct work_struct *work)
 			"failed to mark controller CONNECTING\n");
 		goto out;
 	}
-
-	result = nvme_pci_enable(dev);
-	if (result)
-		goto out;
-
-	result = nvme_pci_configure_admin_queue(dev);
-	if (result)
-		goto out;
-
-	result = nvme_alloc_admin_tags(dev);
-	if (result)
-		goto out;
-
-	/*
-	 * Limit the max command size to prevent iod->sg allocations going
-	 * over a single page.
-	 */
-	dev->ctrl.max_hw_sectors = NVME_MAX_KB_SZ << 1;
-	dev->ctrl.max_segments = NVME_MAX_SEGS;
 
 	result = nvme_init_identify(&dev->ctrl);
 	if (result)
@@ -2649,6 +2605,8 @@ static void nvme_reset_work(struct work_struct *work)
 	nvme_start_ctrl(&dev->ctrl);
 	return;
 
+ out_unlock:
+	mutex_unlock(&dev->shutdown_lock);
  out:
 	nvme_remove_dead_ctrl(dev, result);
 }
@@ -2979,7 +2937,8 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_VDEVICE(INTEL, 0xf1a6),	/* Intel 760p/Pro 7600p */
 		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN, },
 	{ PCI_VDEVICE(INTEL, 0x5845),	/* Qemu emulated controller */
-		.driver_data = NVME_QUIRK_IDENTIFY_CNS, },
+		.driver_data = NVME_QUIRK_IDENTIFY_CNS |
+				NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x1bb1, 0x0100),   /* Seagate Nytro Flash Storage */
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY, },
 	{ PCI_DEVICE(0x1c58, 0x0003),	/* HGST adapter */
@@ -3020,6 +2979,7 @@ static struct pci_driver nvme_driver = {
 
 static int __init nvme_init(void)
 {
+	BUILD_BUG_ON(IRQ_AFFINITY_MAX_SETS < 2);
 	return pci_register_driver(&nvme_driver);
 }
 

@@ -77,6 +77,7 @@
 
 #ifndef mmBIOS_SCRATCH_2
 	#define mmBIOS_SCRATCH_2 0x05CB
+	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
 #endif
 
@@ -358,6 +359,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 };
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
 
@@ -467,7 +469,7 @@ static struct output_pixel_processor *dce80_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dce80_aux_engine_create(
+struct dce_aux *dce80_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -790,9 +792,22 @@ bool dce80_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context)
 {
-	/* TODO implement when needed but for now hardcode max value*/
-	context->bw.dce.dispclk_khz = 681000;
-	context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
+	int i;
+	bool at_least_one_pipe = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			at_least_one_pipe = true;
+	}
+
+	if (at_least_one_pipe) {
+		/* TODO implement when needed but for now hardcode max value*/
+		context->bw.dce.dispclk_khz = 681000;
+		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
+	} else {
+		context->bw.dce.dispclk_khz = 0;
+		context->bw.dce.yclk_khz = 0;
+	}
 
 	return true;
 }

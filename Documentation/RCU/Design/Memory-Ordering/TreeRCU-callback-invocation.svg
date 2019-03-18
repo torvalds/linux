@@ -349,7 +349,7 @@
        font-weight="bold"
        font-size="192"
        id="text202-7-5"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_check_callbacks()</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_sched_clock_irq()</text>
     <rect
        x="7069.6187"
        y="5087.4678"

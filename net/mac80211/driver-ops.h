@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 Intel Corporation
+* Copyright (C) 2018 - 2019 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -1052,6 +1052,35 @@ drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
 	return ret;
 }
 
+static inline void
+drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_abort_channel_switch(local, sdata);
+
+	if (local->ops->abort_channel_switch)
+		local->ops->abort_channel_switch(&local->hw, &sdata->vif);
+}
+
+static inline void
+drv_channel_switch_rx_beacon(struct ieee80211_sub_if_data *sdata,
+			     struct ieee80211_channel_switch *ch_switch)
+{
+	struct ieee80211_local *local = sdata->local;
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_channel_switch_rx_beacon(local, sdata, ch_switch);
+	if (local->ops->channel_switch_rx_beacon)
+		local->ops->channel_switch_rx_beacon(&local->hw, &sdata->vif,
+						     ch_switch);
+}
+
 static inline int drv_join_ibss(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
 {
@@ -1171,6 +1200,13 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 
 	trace_drv_wake_tx_queue(local, sdata, txq);
 	local->ops->wake_tx_queue(&local->hw, &txq->txq);
+}
+
+static inline void schedule_and_wake_txq(struct ieee80211_local *local,
+					 struct txq_info *txqi)
+{
+	ieee80211_schedule_txq(&local->hw, &txqi->txq);
+	drv_wake_tx_queue(local, txqi);
 }
 
 static inline int drv_can_aggregate_in_amsdu(struct ieee80211_local *local,

@@ -846,9 +846,9 @@ static int clusterip_net_init(struct net *net)
 
 static void clusterip_net_exit(struct net *net)
 {
+#ifdef CONFIG_PROC_FS
 	struct clusterip_net *cn = clusterip_pernet(net);
 
-#ifdef CONFIG_PROC_FS
 	mutex_lock(&cn->mutex);
 	proc_remove(cn->procdir);
 	cn->procdir = NULL;
@@ -864,7 +864,7 @@ static struct pernet_operations clusterip_net_ops = {
 	.size = sizeof(struct clusterip_net),
 };
 
-struct notifier_block cip_netdev_notifier = {
+static struct notifier_block cip_netdev_notifier = {
 	.notifier_call = clusterip_netdev_event
 };
 

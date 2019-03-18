@@ -1,11 +1,44 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# This test uses standard topology for testing gretap. See
-# mirror_gre_topo_lib.sh for more details.
-#
 # Test for "tc action mirred egress mirror" when the underlay route points at a
 # vlan device on top of a bridge device with vlan filtering (802.1q).
+#
+#   +---------------------+                             +---------------------+
+#   | H1                  |                             |                  H2 |
+#   |     + $h1           |                             |           $h2 +     |
+#   |     | 192.0.2.1/28  |                             |  192.0.2.2/28 |     |
+#   +-----|---------------+                             +---------------|-----+
+#         |                                                             |
+#   +-----|-------------------------------------------------------------|-----+
+#   | SW  o--> mirred egress mirror dev {gt4,gt6}                       |     |
+#   |     |                                                             |     |
+#   | +---|-------------------------------------------------------------|---+ |
+#   | |   + $swp1                    br1                          $swp2 +   | |
+#   | |                                                                     | |
+#   | |   + $swp3                                                           | |
+#   | +---|-----------------------------------------------------------------+ |
+#   |     |                        |                                          |
+#   |     |                        + br1.555                                  |
+#   |     |                          192.0.2.130/28                           |
+#   |     |                          2001:db8:2::2/64                         |
+#   |     |                                                                   |
+#   |     |                     + gt6 (ip6gretap)      + gt4 (gretap)         |
+#   |     |                     : loc=2001:db8:2::1    : loc=192.0.2.129      |
+#   |     |                     : rem=2001:db8:2::2    : rem=192.0.2.130      |
+#   |     |                     : ttl=100              : ttl=100              |
+#   |     |                     : tos=inherit          : tos=inherit          |
+#   |     |                     :                      :                      |
+#   +-----|---------------------:----------------------:----------------------+
+#         |                     :                      :
+#   +-----|---------------------:----------------------:----------------------+
+#   | H3  + $h3                 + h3-gt6 (ip6gretap)   + h3-gt4 (gretap)      |
+#   |     |                       loc=2001:db8:2::2      loc=192.0.2.130      |
+#   |     + $h3.555               rem=2001:db8:2::1      rem=192.0.2.129      |
+#   |       192.0.2.130/28        ttl=100                ttl=100              |
+#   |       2001:db8:2::2/64      tos=inherit            tos=inherit          |
+#   |                                                                         |
+#   +-------------------------------------------------------------------------+
 
 ALL_TESTS="
 	test_gretap
@@ -29,6 +62,15 @@ source mirror_gre_lib.sh
 source mirror_gre_topo_lib.sh
 
 require_command $ARPING
+
+h3_addr_add_del()
+{
+	local add_del=$1; shift
+	local dev=$1; shift
+
+	ip addr $add_del dev $dev 192.0.2.130/28
+	ip addr $add_del dev $dev 2001:db8:2::2/64
+}
 
 setup_prepare()
 {
@@ -55,7 +97,8 @@ setup_prepare()
 	ip route rep 192.0.2.130/32 dev br1.555
 	ip -6 route rep 2001:db8:2::2/128 dev br1.555
 
-	vlan_create $h3 555 v$h3 192.0.2.130/28 2001:db8:2::2/64
+	vlan_create $h3 555 v$h3
+	h3_addr_add_del add $h3.555
 
 	ip link set dev $swp3 master br1
 	bridge vlan add dev $swp3 vid 555
@@ -68,6 +111,8 @@ cleanup()
 
 	ip link set dev $swp2 nomaster
 	ip link set dev $swp3 nomaster
+
+	h3_addr_add_del del $h3.555
 	vlan_destroy $h3 555
 	vlan_destroy br1 555
 
@@ -182,13 +227,19 @@ test_span_gre_untagged_egress()
 	quick_test_span_gre_dir $tundev ingress
 	quick_test_span_vlan_dir $h3 555 ingress
 
+	h3_addr_add_del del $h3.555
 	bridge vlan add dev $swp3 vid 555 pvid untagged
-	sleep 1
+	h3_addr_add_del add $h3
+	sleep 5
+
 	quick_test_span_gre_dir $tundev ingress
 	fail_test_span_vlan_dir $h3 555 ingress
 
+	h3_addr_add_del del $h3
 	bridge vlan add dev $swp3 vid 555
-	sleep 1
+	h3_addr_add_del add $h3.555
+	sleep 5
+
 	quick_test_span_gre_dir $tundev ingress
 	quick_test_span_vlan_dir $h3 555 ingress
 
@@ -218,12 +269,25 @@ test_span_gre_fdb_roaming()
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 	quick_test_span_gre_dir $tundev ingress
 
-	bridge fdb del dev $swp3 $h3mac vlan 555 master
-	bridge fdb add dev $swp2 $h3mac vlan 555 master
-	sleep 1
-	fail_test_span_gre_dir $tundev ingress
+	while ((RET == 0)); do
+		bridge fdb del dev $swp3 $h3mac vlan 555 master 2>/dev/null
+		bridge fdb add dev $swp2 $h3mac vlan 555 master
+		sleep 1
+		fail_test_span_gre_dir $tundev ingress
 
-	bridge fdb del dev $swp2 $h3mac vlan 555 master
+		if ! bridge fdb sh dev $swp2 vlan 555 master \
+		    | grep -q $h3mac; then
+			printf "TEST: %-60s  [RETRY]\n" \
+				"$what: MAC roaming ($tcflags)"
+			# ARP or ND probably reprimed the FDB while the test
+			# was running. We would get a spurious failure.
+			RET=0
+			continue
+		fi
+		break
+	done
+
+	bridge fdb del dev $swp2 $h3mac vlan 555 master 2>/dev/null
 	# Re-prime FDB
 	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1

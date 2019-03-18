@@ -192,7 +192,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	if (unlikely(!max_data)) {
 		max_data = sctp_min_frag_point(sctp_sk(asoc->base.sk),
 					       sctp_datachk_len(&asoc->stream));
-		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%Zu)",
+		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%zu)",
 				    __func__, asoc, max_data);
 	}
 

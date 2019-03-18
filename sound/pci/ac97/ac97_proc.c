@@ -436,25 +436,20 @@ void snd_ac97_proc_init(struct snd_ac97 * ac97)
 		return;
 	prefix = ac97_is_audio(ac97) ? "ac97" : "mc97";
 	sprintf(name, "%s#%d-%d", prefix, ac97->addr, ac97->num);
-	if ((entry = snd_info_create_card_entry(ac97->bus->card, name, ac97->bus->proc)) != NULL) {
+	entry = snd_info_create_card_entry(ac97->bus->card, name,
+					   ac97->bus->proc);
+	if (entry)
 		snd_info_set_text_ops(entry, ac97, snd_ac97_proc_read);
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
 	ac97->proc = entry;
 	sprintf(name, "%s#%d-%d+regs", prefix, ac97->addr, ac97->num);
-	if ((entry = snd_info_create_card_entry(ac97->bus->card, name, ac97->bus->proc)) != NULL) {
+	entry = snd_info_create_card_entry(ac97->bus->card, name,
+					   ac97->bus->proc);
+	if (entry) {
 		snd_info_set_text_ops(entry, ac97, snd_ac97_proc_regs_read);
 #ifdef CONFIG_SND_DEBUG
 		entry->mode |= 0200;
 		entry->c.text.write = snd_ac97_proc_regs_write;
 #endif
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
 	ac97->proc_regs = entry;
 }
@@ -473,13 +468,10 @@ void snd_ac97_bus_proc_init(struct snd_ac97_bus * bus)
 	char name[32];
 
 	sprintf(name, "codec97#%d", bus->num);
-	if ((entry = snd_info_create_card_entry(bus->card, name, bus->card->proc_root)) != NULL) {
+	entry = snd_info_create_card_entry(bus->card, name,
+					   bus->card->proc_root);
+	if (entry)
 		entry->mode = S_IFDIR | 0555;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
 	bus->proc = entry;
 }
 

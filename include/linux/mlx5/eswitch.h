@@ -22,6 +22,12 @@ enum {
 	NUM_REP_TYPES,
 };
 
+enum {
+	REP_UNREGISTERED,
+	REP_REGISTERED,
+	REP_LOADED,
+};
+
 struct mlx5_eswitch_rep;
 struct mlx5_eswitch_rep_if {
 	int		       (*load)(struct mlx5_core_dev *dev,
@@ -29,7 +35,7 @@ struct mlx5_eswitch_rep_if {
 	void		       (*unload)(struct mlx5_eswitch_rep *rep);
 	void		       *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
 	void			*priv;
-	bool		       valid;
+	u8			state;
 };
 
 struct mlx5_eswitch_rep {
@@ -40,13 +46,10 @@ struct mlx5_eswitch_rep {
 	u32		       vlan_refcount;
 };
 
-void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
-				     int vport_index,
-				     struct mlx5_eswitch_rep_if *rep_if,
-				     u8 rep_type);
-void mlx5_eswitch_unregister_vport_rep(struct mlx5_eswitch *esw,
-				       int vport_index,
-				       u8 rep_type);
+void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
+				      struct mlx5_eswitch_rep_if *rep_if,
+				      u8 rep_type);
+void mlx5_eswitch_unregister_vport_reps(struct mlx5_eswitch *esw, u8 rep_type);
 void *mlx5_eswitch_get_proto_dev(struct mlx5_eswitch *esw,
 				 int vport,
 				 u8 rep_type);

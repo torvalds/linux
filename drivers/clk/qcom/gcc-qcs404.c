@@ -678,6 +678,7 @@ static struct clk_rcg2 blsp1_uart3_apps_clk_src = {
 	.cmd_rcgr = 0x4014,
 	.mnd_width = 16,
 	.hid_width = 5,
+	.cfg_off = 0x20,
 	.parent_map = gcc_parent_map_0,
 	.freq_tbl = ftbl_blsp1_uart0_apps_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
@@ -2692,6 +2693,8 @@ static const struct qcom_cc_desc gcc_qcs404_desc = {
 	.num_clks = ARRAY_SIZE(gcc_qcs404_clocks),
 	.resets = gcc_qcs404_resets,
 	.num_resets = ARRAY_SIZE(gcc_qcs404_resets),
+	.clk_hws = gcc_qcs404_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_qcs404_hws),
 };
 
 static const struct of_device_id gcc_qcs404_match_table[] = {
@@ -2703,19 +2706,12 @@ MODULE_DEVICE_TABLE(of, gcc_qcs404_match_table);
 static int gcc_qcs404_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
-	int ret, i;
 
 	regmap = qcom_cc_map(pdev, &gcc_qcs404_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	clk_alpha_pll_configure(&gpll3_out_main, regmap, &gpll3_config);
-
-	for (i = 0; i < ARRAY_SIZE(gcc_qcs404_hws); i++) {
-		ret = devm_clk_hw_register(&pdev->dev, gcc_qcs404_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_qcs404_desc, regmap);
 }

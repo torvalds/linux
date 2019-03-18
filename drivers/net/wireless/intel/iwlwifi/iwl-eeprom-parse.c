@@ -850,8 +850,7 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	if (WARN_ON(!cfg || !cfg->eeprom_params))
 		return NULL;
 
-	data = kzalloc(sizeof(*data) +
-		       sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
+	data = kzalloc(struct_size(data, channels, IWL_NUM_CHANNELS),
 		       GFP_KERNEL);
 	if (!data)
 		return NULL;

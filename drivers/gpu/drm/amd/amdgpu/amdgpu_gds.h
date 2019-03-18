@@ -37,6 +37,8 @@ struct amdgpu_gds {
 	struct amdgpu_gds_asic_info	mem;
 	struct amdgpu_gds_asic_info	gws;
 	struct amdgpu_gds_asic_info	oa;
+	uint32_t			gds_compute_max_wave_id;
+
 	/* At present, GDS, GWS and OA resources for gfx (graphics)
 	 * is always pre-allocated and available for graphics operation.
 	 * Such resource is shared between all gfx clients.

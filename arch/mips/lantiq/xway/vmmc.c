@@ -31,8 +31,8 @@ static int vmmc_probe(struct platform_device *pdev)
 	dma_addr_t dma;
 
 	cp1_base =
-		(void *) CPHYSADDR(dma_alloc_coherent(NULL, CP1_SIZE,
-						    &dma, GFP_ATOMIC));
+		(void *) CPHYSADDR(dma_alloc_coherent(&pdev->dev, CP1_SIZE,
+						    &dma, GFP_KERNEL));
 
 	gpio_count = of_gpio_count(pdev->dev.of_node);
 	while (gpio_count > 0) {

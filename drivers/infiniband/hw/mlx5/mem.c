@@ -111,7 +111,6 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	*count = i;
 }
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
 {
 	u64 mtt_entry = umem_dma & ODP_DMA_ADDR_MASK;
@@ -123,7 +122,6 @@ static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
 
 	return mtt_entry;
 }
-#endif
 
 /*
  * Populate the given array with bus addresses from the umem.
@@ -151,7 +149,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	int len;
 	struct scatterlist *sg;
 	int entry;
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+
 	if (umem->is_odp) {
 		WARN_ON(shift != 0);
 		WARN_ON(access_flags != (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE));
@@ -164,7 +162,6 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 		}
 		return;
 	}
-#endif
 
 	i = 0;
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {

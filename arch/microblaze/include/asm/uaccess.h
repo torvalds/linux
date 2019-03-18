@@ -42,7 +42,6 @@
 #  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
 #  endif
 
-# define get_ds()	(KERNEL_DS)
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 

@@ -33,12 +33,18 @@
 			interface@0 {
 				ethernet@0 {
 					phy-handle = <&phy7>;
+					rx-delay = <0>;
+					tx-delay = <0x10>;
 				};
 				ethernet@1 {
 					phy-handle = <&phy6>;
+					rx-delay = <0>;
+					tx-delay = <0x10>;
 				};
 				ethernet@2 {
 					phy-handle = <&phy5>;
+					rx-delay = <0>;
+					tx-delay = <0x10>;
 				};
 			};
 		};

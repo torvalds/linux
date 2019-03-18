@@ -390,9 +390,9 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 		vq->indirect = kmalloc_array(UIO_MAXIOV,
 					     sizeof(*vq->indirect),
 					     GFP_KERNEL);
-		vq->log = kmalloc_array(UIO_MAXIOV, sizeof(*vq->log),
+		vq->log = kmalloc_array(dev->iov_limit, sizeof(*vq->log),
 					GFP_KERNEL);
-		vq->heads = kmalloc_array(UIO_MAXIOV, sizeof(*vq->heads),
+		vq->heads = kmalloc_array(dev->iov_limit, sizeof(*vq->heads),
 					  GFP_KERNEL);
 		if (!vq->indirect || !vq->log || !vq->heads)
 			goto err_nomem;
@@ -414,7 +414,7 @@ static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 }
 
 void vhost_dev_init(struct vhost_dev *dev,
-		    struct vhost_virtqueue **vqs, int nvqs)
+		    struct vhost_virtqueue **vqs, int nvqs, int iov_limit)
 {
 	struct vhost_virtqueue *vq;
 	int i;
@@ -427,6 +427,7 @@ void vhost_dev_init(struct vhost_dev *dev,
 	dev->iotlb = NULL;
 	dev->mm = NULL;
 	dev->worker = NULL;
+	dev->iov_limit = iov_limit;
 	init_llist_head(&dev->work_list);
 	init_waitqueue_head(&dev->wait);
 	INIT_LIST_HEAD(&dev->read_list);
@@ -1187,7 +1188,7 @@ static bool vq_access_ok(struct vhost_virtqueue *vq, unsigned int num,
 			 struct vring_used __user *used)
 
 {
-	size_t s = vhost_has_feature(vq, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
+	size_t s __maybe_unused = vhost_has_feature(vq, VIRTIO_RING_F_EVENT_IDX) ? 2 : 0;
 
 	return access_ok(desc, num * sizeof *desc) &&
 	       access_ok(avail,
@@ -1787,7 +1788,7 @@ static int log_used(struct vhost_virtqueue *vq, u64 used_offset, u64 len)
 
 	ret = translate_desc(vq, (uintptr_t)vq->used + used_offset,
 			     len, iov, 64, VHOST_ACCESS_WO);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < ret; i++) {
