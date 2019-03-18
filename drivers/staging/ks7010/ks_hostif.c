@@ -362,6 +362,8 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 	     (auth_type == TYPE_GMK2 &&
 	      priv->wpa.group_suite == IW_AUTH_CIPHER_TKIP)) &&
 	    key->key_len) {
+		int ret;
+
 		netdev_dbg(priv->net_dev, "TKIP: protocol=%04X: size=%u\n",
 			   eth_proto, priv->rx_size);
 		/* MIC save */
@@ -369,15 +371,11 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 		       (priv->rxp) + ((priv->rx_size) - sizeof(recv_mic)),
 		       sizeof(recv_mic));
 		priv->rx_size = priv->rx_size - sizeof(recv_mic);
-		if (auth_type > 0 && auth_type < 4) {	/* auth_type check */
-			int ret;
 
-			ret = michael_mic(key->rx_mic_key,
-					  priv->rxp, priv->rx_size,
-					  0, mic);
-			if (ret < 0)
-				return ret;
-		}
+		ret = michael_mic(key->rx_mic_key, priv->rxp, priv->rx_size,
+				  0, mic);
+		if (ret < 0)
+			return ret;
 		if (memcmp(mic, recv_mic, sizeof(mic)) != 0) {
 			now = jiffies;
 			mic_failure = &priv->wpa.mic_failure;
