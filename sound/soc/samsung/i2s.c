@@ -1130,11 +1130,11 @@ static const struct snd_soc_dapm_widget samsung_i2s_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route samsung_i2s_dapm_routes[] = {
-	{ "Playback Mixer", NULL, "Primary" },
-	{ "Playback Mixer", NULL, "Secondary" },
+	{ "Playback Mixer", NULL, "Primary Playback" },
+	{ "Playback Mixer", NULL, "Secondary Playback" },
 
 	{ "Mixer DAI TX", NULL, "Playback Mixer" },
-	{ "Playback Mixer", NULL, "Mixer DAI RX" },
+	{ "Primary Capture", NULL, "Mixer DAI RX" },
 };
 
 static const struct snd_soc_component_driver samsung_i2s_component = {
@@ -1155,7 +1155,8 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 			  int num_dais)
 {
 	static const char *dai_names[] = { "samsung-i2s", "samsung-i2s-sec" };
-	static const char *stream_names[] = { "Primary", "Secondary" };
+	static const char *stream_names[] = { "Primary Playback",
+					      "Secondary Playback" };
 	struct snd_soc_dai_driver *dai_drv;
 	struct i2s_dai *dai;
 	int i;
@@ -1201,6 +1202,7 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 	dai_drv->capture.channels_max = 2;
 	dai_drv->capture.rates = i2s_dai_data->pcm_rates;
 	dai_drv->capture.formats = SAMSUNG_I2S_FMTS;
+	dai_drv->capture.stream_name = "Primary Capture";
 
 	return 0;
 }
