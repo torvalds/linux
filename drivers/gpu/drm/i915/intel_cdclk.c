@@ -234,7 +234,8 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 	else
 		return 0;
 
-	tmp = I915_READ(IS_MOBILE(dev_priv) ? HPLLVCO_MOBILE : HPLLVCO);
+	tmp = I915_READ(IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv) ?
+			HPLLVCO_MOBILE : HPLLVCO);
 
 	vco = vco_table[tmp & 0x7];
 	if (vco == 0)
