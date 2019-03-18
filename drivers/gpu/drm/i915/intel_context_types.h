@@ -7,6 +7,7 @@
 #ifndef __INTEL_CONTEXT_TYPES__
 #define __INTEL_CONTEXT_TYPES__
 
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
@@ -22,7 +23,8 @@ struct intel_ring;
 struct intel_context_ops {
 	int (*pin)(struct intel_context *ce);
 	void (*unpin)(struct intel_context *ce);
-	void (*destroy)(struct intel_context *ce);
+
+	void (*destroy)(struct kref *kref);
 };
 
 /*
@@ -36,6 +38,8 @@ struct intel_sseu {
 };
 
 struct intel_context {
+	struct kref ref;
+
 	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *active;

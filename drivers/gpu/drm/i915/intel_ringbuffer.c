@@ -1350,8 +1350,10 @@ static void __ring_context_fini(struct intel_context *ce)
 	i915_gem_object_put(ce->state->obj);
 }
 
-static void ring_context_destroy(struct intel_context *ce)
+static void ring_context_destroy(struct kref *ref)
 {
+	struct intel_context *ce = container_of(ref, typeof(*ce), ref);
+
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->state)

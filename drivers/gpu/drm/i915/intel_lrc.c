@@ -1236,8 +1236,10 @@ static void __execlists_context_fini(struct intel_context *ce)
 	i915_gem_object_put(ce->state->obj);
 }
 
-static void execlists_context_destroy(struct intel_context *ce)
+static void execlists_context_destroy(struct kref *kref)
 {
+	struct intel_context *ce = container_of(kref, typeof(*ce), ref);
+
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->state)

@@ -128,12 +128,16 @@ static void mock_context_unpin(struct intel_context *ce)
 	mock_timeline_unpin(ce->ring->timeline);
 }
 
-static void mock_context_destroy(struct intel_context *ce)
+static void mock_context_destroy(struct kref *ref)
 {
+	struct intel_context *ce = container_of(ref, typeof(*ce), ref);
+
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->ring)
 		mock_ring_free(ce->ring);
+
+	intel_context_free(ce);
 }
 
 static int mock_context_pin(struct intel_context *ce)
@@ -151,6 +155,7 @@ static int mock_context_pin(struct intel_context *ce)
 static const struct intel_context_ops mock_context_ops = {
 	.pin = mock_context_pin,
 	.unpin = mock_context_unpin,
+
 	.destroy = mock_context_destroy,
 };
 

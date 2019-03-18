@@ -172,6 +172,7 @@ intel_context_pin(struct i915_gem_context *ctx,
 		list_add(&ce->active_link, &ctx->active_engines);
 		mutex_unlock(&ctx->mutex);
 
+		intel_context_get(ce);
 		smp_mb__before_atomic(); /* flush pin before it is visible */
 	}
 
@@ -192,6 +193,7 @@ void intel_context_unpin(struct intel_context *ce)
 		return;
 
 	/* We may be called from inside intel_context_pin() to evict another */
+	intel_context_get(ce);
 	mutex_lock_nested(&ce->pin_mutex, SINGLE_DEPTH_NESTING);
 
 	if (likely(atomic_dec_and_test(&ce->pin_count))) {
@@ -202,9 +204,11 @@ void intel_context_unpin(struct intel_context *ce)
 		mutex_unlock(&ce->gem_context->mutex);
 
 		i915_gem_context_put(ce->gem_context);
+		intel_context_put(ce);
 	}
 
 	mutex_unlock(&ce->pin_mutex);
+	intel_context_put(ce);
 }
 
 static void intel_context_retire(struct i915_active_request *active,
@@ -221,6 +225,8 @@ intel_context_init(struct intel_context *ce,
 		   struct i915_gem_context *ctx,
 		   struct intel_engine_cs *engine)
 {
+	kref_init(&ce->ref);
+
 	ce->gem_context = ctx;
 	ce->engine = engine;
 	ce->ops = engine->cops;

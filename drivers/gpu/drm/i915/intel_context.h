@@ -73,4 +73,15 @@ static inline void __intel_context_pin(struct intel_context *ce)
 
 void intel_context_unpin(struct intel_context *ce);
 
+static inline struct intel_context *intel_context_get(struct intel_context *ce)
+{
+	kref_get(&ce->ref);
+	return ce;
+}
+
+static inline void intel_context_put(struct intel_context *ce)
+{
+	kref_put(&ce->ref, ce->ops->destroy);
+}
+
 #endif /* __INTEL_CONTEXT_H__ */

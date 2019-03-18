@@ -232,7 +232,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	i915_ppgtt_put(ctx->ppgtt);
 
 	rbtree_postorder_for_each_entry_safe(it, n, &ctx->hw_contexts, node)
-		it->ops->destroy(it);
+		intel_context_put(it);
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
