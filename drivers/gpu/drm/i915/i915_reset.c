@@ -863,9 +863,11 @@ static void __i915_gem_set_wedged(struct drm_i915_private *i915)
 void i915_gem_set_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
+	intel_wakeref_t wakeref;
 
 	mutex_lock(&error->wedge_mutex);
-	__i915_gem_set_wedged(i915);
+	with_intel_runtime_pm(i915, wakeref)
+		__i915_gem_set_wedged(i915);
 	mutex_unlock(&error->wedge_mutex);
 }
 

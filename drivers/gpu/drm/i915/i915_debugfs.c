@@ -3888,12 +3888,9 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	intel_wakeref_t wakeref;
-	int ret = 0;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
-	wakeref = intel_runtime_pm_get(i915);
 
 	if (val & DROP_RESET_ACTIVE &&
 	    wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT))
@@ -3902,9 +3899,11 @@ i915_drop_caches_set(void *data, u64 val)
 	/* No need to check and wait for gpu resets, only libdrm auto-restarts
 	 * on ioctls on -EAGAIN. */
 	if (val & (DROP_ACTIVE | DROP_RETIRE | DROP_RESET_SEQNO)) {
+		int ret;
+
 		ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 		if (ret)
-			goto out;
+			return ret;
 
 		if (val & DROP_ACTIVE)
 			ret = i915_gem_wait_for_idle(i915,
@@ -3943,10 +3942,7 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
 
-out:
-	intel_runtime_pm_put(i915, wakeref);
-
-	return ret;
+	return 0;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
