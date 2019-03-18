@@ -3087,6 +3087,9 @@ static int sctp_setsockopt_default_sndinfo(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		info.snd_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (info.snd_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.snd_assoc_id == SCTP_ALL_ASSOC) {
 		sp->default_stream = info.snd_sid;
