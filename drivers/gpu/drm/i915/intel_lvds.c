@@ -742,20 +742,21 @@ static const struct dmi_system_id intel_dual_link_lvds[] = {
 	{ }	/* terminating entry */
 };
 
-struct intel_encoder *intel_get_lvds_encoder(struct drm_device *dev)
+struct intel_encoder *intel_get_lvds_encoder(struct drm_i915_private *dev_priv)
 {
-	struct intel_encoder *intel_encoder;
+	struct intel_encoder *encoder;
 
-	for_each_intel_encoder(dev, intel_encoder)
-		if (intel_encoder->type == INTEL_OUTPUT_LVDS)
-			return intel_encoder;
+	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		if (encoder->type == INTEL_OUTPUT_LVDS)
+			return encoder;
+	}
 
 	return NULL;
 }
 
 bool intel_is_dual_link_lvds(struct drm_device *dev)
 {
-	struct intel_encoder *encoder = intel_get_lvds_encoder(dev);
+	struct intel_encoder *encoder = intel_get_lvds_encoder(to_i915(dev));
 
 	return encoder && to_lvds_encoder(&encoder->base)->is_dual_link;
 }

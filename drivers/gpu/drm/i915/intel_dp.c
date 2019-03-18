@@ -7073,7 +7073,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 * eDP and LVDS bail out early in this case to prevent interfering
 	 * with an already powered-on LVDS power sequencer.
 	 */
-	if (intel_get_lvds_encoder(&dev_priv->drm)) {
+	if (intel_get_lvds_encoder(dev_priv)) {
 		WARN_ON(!(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
 		DRM_INFO("LVDS was detected, not registering eDP\n");
 
