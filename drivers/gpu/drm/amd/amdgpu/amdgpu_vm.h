@@ -172,6 +172,51 @@ struct amdgpu_task_info {
 	pid_t	tgid;
 };
 
+/**
+ * struct amdgpu_vm_update_params
+ *
+ * Encapsulate some VM table update parameters to reduce
+ * the number of function parameters
+ *
+ */
+struct amdgpu_vm_update_params {
+
+	/**
+	 * @adev: amdgpu device we do this update for
+	 */
+	struct amdgpu_device *adev;
+
+	/**
+	 * @vm: optional amdgpu_vm we do this update for
+	 */
+	struct amdgpu_vm *vm;
+
+	/**
+	 * @pages_addr:
+	 *
+	 * DMA addresses to use for mapping
+	 */
+	dma_addr_t *pages_addr;
+
+	/**
+	 * @src: address where to copy page table entries from
+	 */
+	uint64_t src;
+
+	/**
+	 * @ib: indirect buffer to fill with commands
+	 */
+	struct amdgpu_ib *ib;
+
+	/**
+	 * @func: Function which actually does the update
+	 */
+	void (*func)(struct amdgpu_vm_update_params *params,
+		     struct amdgpu_bo *bo, uint64_t pe,
+		     uint64_t addr, unsigned count, uint32_t incr,
+		     uint64_t flags);
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
