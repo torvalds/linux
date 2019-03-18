@@ -1,2 +1,1 @@
-generic-y += kvm_para.h
 generic-y += ucontext.h
