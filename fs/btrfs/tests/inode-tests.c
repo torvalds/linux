@@ -226,6 +226,8 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	u64 offset;
 	int ret = -ENOMEM;
 
+	test_msg("running btrfs_get_extent tests");
+
 	inode = btrfs_new_test_inode();
 	if (!inode) {
 		test_std_err(TEST_ALLOC_INODE);
@@ -827,6 +829,8 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 	struct extent_map *em = NULL;
 	int ret = -ENOMEM;
 
+	test_msg("running hole first btrfs_get_extent test");
+
 	inode = btrfs_new_test_inode();
 	if (!inode) {
 		test_std_err(TEST_ALLOC_INODE);
@@ -926,6 +930,8 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	struct inode *inode = NULL;
 	struct btrfs_root *root = NULL;
 	int ret = -ENOMEM;
+
+	test_msg("running outstanding_extents tests");
 
 	inode = btrfs_new_test_inode();
 	if (!inode) {
@@ -1110,17 +1116,16 @@ int btrfs_test_inodes(u32 sectorsize, u32 nodesize)
 {
 	int ret;
 
+	test_msg("running inode tests");
+
 	set_bit(EXTENT_FLAG_COMPRESSED, &compressed_only);
 	set_bit(EXTENT_FLAG_PREALLOC, &prealloc_only);
 
-	test_msg("running btrfs_get_extent tests");
 	ret = test_btrfs_get_extent(sectorsize, nodesize);
 	if (ret)
 		return ret;
-	test_msg("running hole first btrfs_get_extent test");
 	ret = test_hole_first(sectorsize, nodesize);
 	if (ret)
 		return ret;
-	test_msg("running outstanding_extents tests");
 	return test_extent_accounting(sectorsize, nodesize);
 }

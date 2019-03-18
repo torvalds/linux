@@ -404,7 +404,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group_cache *cache,
 	};
 	const struct btrfs_free_space_op *orig_free_space_ops;
 
-	test_msg("running space stealing from bitmap to extent");
+	test_msg("running space stealing from bitmap to extent tests");
 
 	/*
 	 * For this test, we want to ensure we end up with an extent entry

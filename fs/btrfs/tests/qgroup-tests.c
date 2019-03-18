@@ -215,7 +215,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root,
 
 	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("qgroup basic add");
+	test_msg("running qgroup add/remove tests");
 	ret = btrfs_create_qgroup(&trans, BTRFS_FS_TREE_OBJECTID);
 	if (ret) {
 		test_err("couldn't create a qgroup %d", ret);
@@ -316,7 +316,7 @@ static int test_multiple_refs(struct btrfs_root *root,
 
 	btrfs_init_dummy_trans(&trans, fs_info);
 
-	test_msg("qgroup multiple refs test");
+	test_msg("running qgroup multiple refs test");
 
 	/*
 	 * We have BTRFS_FS_TREE_OBJECTID created already from the
