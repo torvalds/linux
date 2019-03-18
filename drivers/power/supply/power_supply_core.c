@@ -620,9 +620,9 @@ int power_supply_get_battery_info(struct power_supply *psy,
 			     &info->precharge_current_ua);
 	of_property_read_u32(battery_np, "charge-term-current-microamp",
 			     &info->charge_term_current_ua);
-	of_property_read_u32(battery_np, "constant_charge_current_max_microamp",
+	of_property_read_u32(battery_np, "constant-charge-current-max-microamp",
 			     &info->constant_charge_current_max_ua);
-	of_property_read_u32(battery_np, "constant_charge_voltage_max_microvolt",
+	of_property_read_u32(battery_np, "constant-charge-voltage-max-microvolt",
 			     &info->constant_charge_voltage_max_uv);
 	of_property_read_u32(battery_np, "factory-internal-resistance-micro-ohms",
 			     &info->factory_internal_resistance_uohm);
