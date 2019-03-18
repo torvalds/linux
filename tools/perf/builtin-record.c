@@ -133,6 +133,8 @@ static int record__write(struct record *rec, struct perf_mmap *map __maybe_unuse
 	return 0;
 }
 
+static int record__aio_enabled(struct record *rec);
+static int record__comp_enabled(struct record *rec);
 static size_t zstd_compress(struct perf_session *session, void *dst, size_t dst_size,
 			    void *src, size_t src_size);
 
@@ -186,9 +188,9 @@ static int record__aio_complete(struct perf_mmap *md, struct aiocb *cblock)
 	if (rem_size == 0) {
 		cblock->aio_fildes = -1;
 		/*
-		 * md->refcount is incremented in perf_mmap__push() for
-		 * every enqueued aio write request so decrement it because
-		 * the request is now complete.
+		 * md->refcount is incremented in record__aio_pushfn() for
+		 * every aio write request started in record__aio_push() so
+		 * decrement it because the request is now complete.
 		 */
 		perf_mmap__put(md);
 		rc = 1;
@@ -243,18 +245,89 @@ static int record__aio_sync(struct perf_mmap *md, bool sync_all)
 	} while (1);
 }
 
-static int record__aio_pushfn(void *to, struct aiocb *cblock, void *bf, size_t size, off_t off)
+struct record_aio {
+	struct record	*rec;
+	void		*data;
+	size_t		size;
+};
+
+static int record__aio_pushfn(struct perf_mmap *map, void *to, void *buf, size_t size)
 {
-	struct record *rec = to;
-	int ret, trace_fd = rec->session->data->file.fd;
+	struct record_aio *aio = to;
+
+	/*
+	 * map->base data pointed by buf is copied into free map->aio.data[] buffer
+	 * to release space in the kernel buffer as fast as possible, calling
+	 * perf_mmap__consume() from perf_mmap__push() function.
+	 *
+	 * That lets the kernel to proceed with storing more profiling data into
+	 * the kernel buffer earlier than other per-cpu kernel buffers are handled.
+	 *
+	 * Coping can be done in two steps in case the chunk of profiling data
+	 * crosses the upper bound of the kernel buffer. In this case we first move
+	 * part of data from map->start till the upper bound and then the reminder
+	 * from the beginning of the kernel buffer till the end of the data chunk.
+	 */
+
+	if (record__comp_enabled(aio->rec)) {
+		size = zstd_compress(aio->rec->session, aio->data + aio->size,
+				     perf_mmap__mmap_len(map) - aio->size,
+				     buf, size);
+	} else {
+		memcpy(aio->data + aio->size, buf, size);
+	}
+
+	if (!aio->size) {
+		/*
+		 * Increment map->refcount to guard map->aio.data[] buffer
+		 * from premature deallocation because map object can be
+		 * released earlier than aio write request started on
+		 * map->aio.data[] buffer is complete.
+		 *
+		 * perf_mmap__put() is done at record__aio_complete()
+		 * after started aio request completion or at record__aio_push()
+		 * if the request failed to start.
+		 */
+		perf_mmap__get(map);
+	}
+
+	aio->size += size;
+
+	return size;
+}
+
+static int record__aio_push(struct record *rec, struct perf_mmap *map, off_t *off)
+{
+	int ret, idx;
+	int trace_fd = rec->session->data->file.fd;
+	struct record_aio aio = { .rec = rec, .size = 0 };
+
+	/*
+	 * Call record__aio_sync() to wait till map->aio.data[] buffer
+	 * becomes available after previous aio write operation.
+	 */
+
+	idx = record__aio_sync(map, false);
+	aio.data = map->aio.data[idx];
+	ret = perf_mmap__push(map, &aio, record__aio_pushfn);
+	if (ret != 0) /* ret > 0 - no data, ret < 0 - error */
+		return ret;
 
 	rec->samples++;
-
-	ret = record__aio_write(cblock, trace_fd, bf, size, off);
+	ret = record__aio_write(&(map->aio.cblocks[idx]), trace_fd, aio.data, aio.size, *off);
 	if (!ret) {
-		rec->bytes_written += size;
+		*off += aio.size;
+		rec->bytes_written += aio.size;
 		if (switch_output_size(rec))
 			trigger_hit(&switch_output_trigger);
+	} else {
+		/*
+		 * Decrement map->refcount incremented in record__aio_pushfn()
+		 * back if record__aio_write() operation failed to start, otherwise
+		 * map->refcount is decremented in record__aio_complete() after
+		 * aio write operation finishes successfully.
+		 */
+		perf_mmap__put(map);
 	}
 
 	return ret;
@@ -276,7 +349,7 @@ static void record__aio_mmap_read_sync(struct record *rec)
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_mmap *maps = evlist->mmap;
 
-	if (!rec->opts.nr_cblocks)
+	if (!record__aio_enabled(rec))
 		return;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
@@ -310,13 +383,8 @@ static int record__aio_parse(const struct option *opt,
 #else /* HAVE_AIO_SUPPORT */
 static int nr_cblocks_max = 0;
 
-static int record__aio_sync(struct perf_mmap *md __maybe_unused, bool sync_all __maybe_unused)
-{
-	return -1;
-}
-
-static int record__aio_pushfn(void *to __maybe_unused, struct aiocb *cblock __maybe_unused,
-		void *bf __maybe_unused, size_t size __maybe_unused, off_t off __maybe_unused)
+static int record__aio_push(struct record *rec __maybe_unused, struct perf_mmap *map __maybe_unused,
+			    off_t *off __maybe_unused)
 {
 	return -1;
 }
@@ -825,7 +893,7 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 	int rc = 0;
 	struct perf_mmap *maps;
 	int trace_fd = rec->data.file.fd;
-	off_t off;
+	off_t off = 0;
 
 	if (!evlist)
 		return 0;
@@ -851,20 +919,14 @@ static int record__mmap_read_evlist(struct record *rec, struct perf_evlist *evli
 				map->flush = 1;
 			}
 			if (!record__aio_enabled(rec)) {
-				if (perf_mmap__push(map, rec, record__pushfn) != 0) {
+				if (perf_mmap__push(map, rec, record__pushfn) < 0) {
 					if (synch)
 						map->flush = flush;
 					rc = -1;
 					goto out;
 				}
 			} else {
-				int idx;
-				/*
-				 * Call record__aio_sync() to wait till map->data buffer
-				 * becomes available after previous aio write request.
-				 */
-				idx = record__aio_sync(map, false);
-				if (perf_mmap__aio_push(map, rec, idx, record__aio_pushfn, &off) != 0) {
+				if (record__aio_push(rec, map, &off) < 0) {
 					record__aio_set_pos(trace_fd, off);
 					if (synch)
 						map->flush = flush;
