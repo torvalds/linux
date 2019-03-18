@@ -128,6 +128,7 @@ static int make_tid_rdma_ack(struct rvt_qp *qp,
 			     struct ib_other_headers *ohdr,
 			     struct hfi1_pkt_state *ps);
 static void hfi1_do_tid_send(struct rvt_qp *qp);
+static u32 read_r_next_psn(struct hfi1_devdata *dd, u8 ctxt, u8 fidx);
 
 static u64 tid_rdma_opfn_encode(struct tid_rdma_params *p)
 {
@@ -2807,18 +2808,10 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 				}
 				priv->flow_state.r_next_psn++;
 			} else {
-				u64 reg;
 				u32 last_psn;
 
-				/*
-				 * The only sane way to get the amount of
-				 * progress is to read the HW flow state.
-				 */
-				reg = read_uctxt_csr(dd, rcd->ctxt,
-						     RCV_TID_FLOW_TABLE +
-						     (8 * flow->idx));
-				last_psn = mask_psn(reg);
-
+				last_psn = read_r_next_psn(dd, rcd->ctxt,
+							   flow->idx);
 				priv->flow_state.r_next_psn = last_psn;
 				priv->flow_state.flags |= TID_FLOW_SW_PSN;
 				/*
@@ -2968,17 +2961,10 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		switch (rte) {
 		case RHF_RTE_EXPECTED_FLOW_SEQ_ERR:
 			if (!(qpriv->s_flags & HFI1_R_TID_SW_PSN)) {
-				u64 reg;
-
 				qpriv->s_flags |= HFI1_R_TID_SW_PSN;
-				/*
-				 * The only sane way to get the amount of
-				 * progress is to read the HW flow state.
-				 */
-				reg = read_uctxt_csr(dd, rcd->ctxt,
-						     RCV_TID_FLOW_TABLE +
-						     (8 * flow->idx));
-				flow->flow_state.r_next_psn = mask_psn(reg);
+				flow->flow_state.r_next_psn =
+					read_r_next_psn(dd, rcd->ctxt,
+							flow->idx);
 				qpriv->r_next_psn_kdeth =
 					flow->flow_state.r_next_psn;
 				goto nak_psn;
@@ -5455,4 +5441,16 @@ bool hfi1_tid_rdma_ack_interlock(struct rvt_qp *qp, struct rvt_ack_entry *e)
 		}
 	}
 	return false;
+}
+
+static u32 read_r_next_psn(struct hfi1_devdata *dd, u8 ctxt, u8 fidx)
+{
+	u64 reg;
+
+	/*
+	 * The only sane way to get the amount of
+	 * progress is to read the HW flow state.
+	 */
+	reg = read_uctxt_csr(dd, ctxt, RCV_TID_FLOW_TABLE + (8 * fidx));
+	return mask_psn(reg);
 }
