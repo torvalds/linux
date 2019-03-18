@@ -433,8 +433,8 @@ again:
 	omap_rtc_read_time_raw(rtc, &tm);
 	seconds = tm.tm_sec;
 	bcd2tm(&tm);
-	rtc_tm_to_time(&tm, &now);
-	rtc_time_to_tm(now + 1, &tm);
+	now = rtc_tm_to_time64(&tm);
+	rtc_time64_to_tm(now + 1, &tm);
 
 	tm2bcd(&tm);
 
