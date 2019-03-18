@@ -406,9 +406,10 @@ bch2_deferred_update_alloc(struct bch_fs *c,
 
 /* Normal update interface: */
 
-static inline void btree_insert_entry_checks(struct bch_fs *c,
+static inline void btree_insert_entry_checks(struct btree_trans *trans,
 					     struct btree_insert_entry *i)
 {
+	struct bch_fs *c = trans->c;
 	enum btree_id btree_id = !i->deferred
 		? i->iter->btree_id
 		: i->d->btree_id;
@@ -418,6 +419,9 @@ static inline void btree_insert_entry_checks(struct bch_fs *c,
 		BUG_ON(bkey_cmp(bkey_start_pos(&i->k->k), i->iter->pos));
 		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
 			!bch2_extent_is_atomic(i->k, i->iter));
+
+		EBUG_ON((i->iter->flags & BTREE_ITER_IS_EXTENTS) &&
+			!(trans->flags & BTREE_INSERT_ATOMIC));
 
 		bch2_btree_iter_verify_locks(i->iter);
 	}
@@ -840,7 +844,7 @@ int bch2_trans_commit(struct btree_trans *trans,
 	bubble_sort(trans->updates, trans->nr_updates, btree_trans_cmp);
 
 	trans_for_each_update(trans, i)
-		btree_insert_entry_checks(c, i);
+		btree_insert_entry_checks(trans, i);
 
 	if (unlikely(!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
 		     !percpu_ref_tryget(&c->writes)))
@@ -954,7 +958,10 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 		bch2_trans_update(&trans, BTREE_INSERT_ENTRY(iter, &delete));
 
 		ret = bch2_trans_commit(&trans, NULL, journal_seq,
+					BTREE_INSERT_ATOMIC|
 					BTREE_INSERT_NOFAIL);
+		if (ret == -EINTR)
+			ret = 0;
 		if (ret)
 			break;
 
