@@ -168,9 +168,6 @@ EXPORT_SYMBOL(ishtp_cl_free);
 /**
  * ishtp_cl_link() - Reserve a host id and link the client instance
  * @cl: client device instance
- * @id: host client id to use. It can be ISHTP_HOST_CLIENT_ID_ANY if any
- *	id from the available can be used
- *
  *
  * This allocates a single bit in the hostmap. This function will make sure
  * that not many client sessions are opened at the same time. Once allocated
@@ -179,11 +176,11 @@ EXPORT_SYMBOL(ishtp_cl_free);
  *
  * Return: 0 or error code on failure
  */
-int ishtp_cl_link(struct ishtp_cl *cl, int id)
+int ishtp_cl_link(struct ishtp_cl *cl)
 {
 	struct ishtp_device *dev;
-	unsigned long	flags, flags_cl;
-	int	ret = 0;
+	unsigned long flags, flags_cl;
+	int id, ret = 0;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -197,10 +194,7 @@ int ishtp_cl_link(struct ishtp_cl *cl, int id)
 		goto unlock_dev;
 	}
 
-	/* If Id is not assigned get one*/
-	if (id == ISHTP_HOST_CLIENT_ID_ANY)
-		id = find_first_zero_bit(dev->host_clients_map,
-			ISHTP_CLIENTS_MAX);
+	id = find_first_zero_bit(dev->host_clients_map, ISHTP_CLIENTS_MAX);
 
 	if (id >= ISHTP_CLIENTS_MAX) {
 		spin_unlock_irqrestore(&dev->device_lock, flags);

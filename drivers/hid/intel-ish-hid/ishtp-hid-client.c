@@ -652,7 +652,7 @@ static int hid_ishtp_cl_init(struct ishtp_cl *hid_ishtp_cl, int reset)
 	dev_dbg(cl_data_to_dev(client_data), "%s\n", __func__);
 	hid_ishtp_trace(client_data,  "%s reset flag: %d\n", __func__, reset);
 
-	rv = ishtp_cl_link(hid_ishtp_cl, ISHTP_HOST_CLIENT_ID_ANY);
+	rv = ishtp_cl_link(hid_ishtp_cl);
 	if (rv) {
 		dev_err(cl_data_to_dev(client_data),
 			"ishtp_cl_link failed\n");
