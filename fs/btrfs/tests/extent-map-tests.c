@@ -275,12 +275,20 @@ out:
  *   -> add_extent_mapping()
  *                            -> add_extent_mapping()
  */
-static void test_case_3(struct btrfs_fs_info *fs_info,
+static int test_case_3(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree)
 {
-	__test_case_3(fs_info, em_tree, 0);
-	__test_case_3(fs_info, em_tree, SZ_8K);
-	__test_case_3(fs_info, em_tree, (12 * 1024ULL));
+	int ret;
+
+	ret = __test_case_3(fs_info, em_tree, 0);
+	if (ret)
+		return ret;
+	ret = __test_case_3(fs_info, em_tree, SZ_8K);
+	if (ret)
+		return ret;
+	ret = __test_case_3(fs_info, em_tree, (12 * 1024ULL));
+
+	return ret;
 }
 
 static int __test_case_4(struct btrfs_fs_info *fs_info,
@@ -379,11 +387,17 @@ out:
  *                                             # handle -EEXIST when adding
  *                                             # [0, 32K)
  */
-static void test_case_4(struct btrfs_fs_info *fs_info,
+static int test_case_4(struct btrfs_fs_info *fs_info,
 		struct extent_map_tree *em_tree)
 {
-	__test_case_4(fs_info, em_tree, 0);
-	__test_case_4(fs_info, em_tree, SZ_4K);
+	int ret;
+
+	ret = __test_case_4(fs_info, em_tree, 0);
+	if (ret)
+		return ret;
+	ret = __test_case_4(fs_info, em_tree, SZ_4K);
+
+	return ret;
 }
 
 int btrfs_test_extent_map(void)
@@ -412,13 +426,19 @@ int btrfs_test_extent_map(void)
 
 	extent_map_tree_init(em_tree);
 
-	test_case_1(fs_info, em_tree);
-	test_case_2(fs_info, em_tree);
-	test_case_3(fs_info, em_tree);
-	test_case_4(fs_info, em_tree);
+	ret = test_case_1(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_2(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_3(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_4(fs_info, em_tree);
 
-	kfree(em_tree);
 out:
+	kfree(em_tree);
 	btrfs_free_dummy_fs_info(fs_info);
 
 	return ret;
