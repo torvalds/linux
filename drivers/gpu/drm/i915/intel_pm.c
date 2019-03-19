@@ -3924,12 +3924,43 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	alloc->end = ddb_size * (width_before_pipe + pipe_width) / total_width;
 }
 
-static unsigned int skl_cursor_allocation(int num_active)
-{
-	if (num_active == 1)
-		return 32;
+static int skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
+				 int width, const struct drm_format_info *format,
+				 u64 modifier, unsigned int rotation,
+				 u32 plane_pixel_rate, struct skl_wm_params *wp,
+				 int color_plane);
+static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
+				 int level,
+				 const struct skl_wm_params *wp,
+				 const struct skl_wm_level *result_prev,
+				 struct skl_wm_level *result /* out */);
 
-	return 8;
+static unsigned int
+skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
+		      int num_active)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	int level, max_level = ilk_wm_max_level(dev_priv);
+	struct skl_wm_level wm = {};
+	int ret, min_ddb_alloc = 0;
+	struct skl_wm_params wp;
+
+	ret = skl_compute_wm_params(crtc_state, 256,
+				    drm_format_info(DRM_FORMAT_ARGB8888),
+				    DRM_FORMAT_MOD_LINEAR,
+				    DRM_MODE_ROTATE_0,
+				    crtc_state->pixel_rate, &wp, 0);
+	WARN_ON(ret);
+
+	for (level = 0; level <= max_level; level++) {
+		skl_compute_plane_wm(crtc_state, 7, &wp, &wm, &wm);
+		if (wm.min_ddb_alloc == U16_MAX)
+			break;
+
+		min_ddb_alloc = wm.min_ddb_alloc;
+	}
+
+	return max(num_active == 1 ? 32 : 8, min_ddb_alloc);
 }
 
 static void skl_ddb_entry_init_from_hw(struct drm_i915_private *dev_priv,
@@ -4354,7 +4385,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 		return 0;
 
 	/* Allocate fixed number of blocks for cursor. */
-	total[PLANE_CURSOR] = skl_cursor_allocation(num_active);
+	total[PLANE_CURSOR] = skl_cursor_allocation(cstate, num_active);
 	alloc_size -= total[PLANE_CURSOR];
 	cstate->wm.skl.plane_ddb_y[PLANE_CURSOR].start =
 		alloc->end - total[PLANE_CURSOR];
