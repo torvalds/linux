@@ -2920,6 +2920,9 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.sack_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.sack_assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.sack_assoc_id == SCTP_ALL_ASSOC) {
 		if (params.sack_delay) {
@@ -3024,6 +3027,9 @@ static int sctp_setsockopt_default_send_param(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		info.sinfo_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (info.sinfo_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.sinfo_assoc_id == SCTP_ALL_ASSOC) {
 		sp->default_stream = info.sinfo_stream;
@@ -3080,6 +3086,9 @@ static int sctp_setsockopt_default_sndinfo(struct sock *sk,
 
 		return 0;
 	}
+
+	if (sctp_style(sk, TCP))
+		info.snd_assoc_id = SCTP_FUTURE_ASSOC;
 
 	if (info.snd_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.snd_assoc_id == SCTP_ALL_ASSOC) {
@@ -3531,6 +3540,9 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
 		sp->default_rcv_context = params.assoc_value;
@@ -3670,6 +3682,9 @@ static int sctp_setsockopt_maxburst(struct sock *sk,
 		return 0;
 	}
 
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
 		sp->max_burst = params.assoc_value;
@@ -3798,6 +3813,9 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 		goto out;
 	}
 
+	if (sctp_style(sk, TCP))
+		authkey->sca_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (authkey->sca_assoc_id == SCTP_FUTURE_ASSOC ||
 	    authkey->sca_assoc_id == SCTP_ALL_ASSOC) {
 		ret = sctp_auth_set_key(ep, asoc, authkey);
@@ -3853,6 +3871,9 @@ static int sctp_setsockopt_active_key(struct sock *sk,
 	if (asoc)
 		return sctp_auth_set_active_key(ep, asoc, val.scact_keynumber);
 
+	if (sctp_style(sk, TCP))
+		val.scact_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (val.scact_assoc_id == SCTP_FUTURE_ASSOC ||
 	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
 		ret = sctp_auth_set_active_key(ep, asoc, val.scact_keynumber);
@@ -3904,6 +3925,9 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 	if (asoc)
 		return sctp_auth_del_key_id(ep, asoc, val.scact_keynumber);
 
+	if (sctp_style(sk, TCP))
+		val.scact_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (val.scact_assoc_id == SCTP_FUTURE_ASSOC ||
 	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
 		ret = sctp_auth_del_key_id(ep, asoc, val.scact_keynumber);
@@ -3953,6 +3977,9 @@ static int sctp_setsockopt_deactivate_key(struct sock *sk, char __user *optval,
 
 	if (asoc)
 		return sctp_auth_deact_key_id(ep, asoc, val.scact_keynumber);
+
+	if (sctp_style(sk, TCP))
+		val.scact_assoc_id = SCTP_FUTURE_ASSOC;
 
 	if (val.scact_assoc_id == SCTP_FUTURE_ASSOC ||
 	    val.scact_assoc_id == SCTP_ALL_ASSOC) {
@@ -4169,6 +4196,9 @@ static int sctp_setsockopt_default_prinfo(struct sock *sk,
 		goto out;
 	}
 
+	if (sctp_style(sk, TCP))
+		info.pr_assoc_id = SCTP_FUTURE_ASSOC;
+
 	if (info.pr_assoc_id == SCTP_FUTURE_ASSOC ||
 	    info.pr_assoc_id == SCTP_ALL_ASSOC) {
 		SCTP_PR_SET_POLICY(sp->default_flags, info.pr_policy);
@@ -4250,6 +4280,9 @@ static int sctp_setsockopt_enable_strreset(struct sock *sk,
 		asoc->strreset_enable = params.assoc_value;
 		goto out;
 	}
+
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
@@ -4375,6 +4408,9 @@ static int sctp_setsockopt_scheduler(struct sock *sk,
 
 	if (asoc)
 		return sctp_sched_set_sched(asoc, params.assoc_value);
+
+	if (sctp_style(sk, TCP))
+		params.assoc_id = SCTP_FUTURE_ASSOC;
 
 	if (params.assoc_id == SCTP_FUTURE_ASSOC ||
 	    params.assoc_id == SCTP_ALL_ASSOC)
@@ -4540,6 +4576,9 @@ static int sctp_setsockopt_event(struct sock *sk, char __user *optval,
 
 	if (asoc)
 		return sctp_assoc_ulpevent_type_set(&param, asoc);
+
+	if (sctp_style(sk, TCP))
+		param.se_assoc_id = SCTP_FUTURE_ASSOC;
 
 	if (param.se_assoc_id == SCTP_FUTURE_ASSOC ||
 	    param.se_assoc_id == SCTP_ALL_ASSOC)
