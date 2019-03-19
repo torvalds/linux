@@ -70,6 +70,7 @@ struct wm_adsp {
 	struct wm_adsp_ops *ops;
 
 	unsigned int base;
+	unsigned int base_sysinfo;
 	unsigned int sysclk_reg;
 	unsigned int sysclk_mask;
 	unsigned int sysclk_shift;
@@ -78,6 +79,7 @@ struct wm_adsp {
 
 	unsigned int fw_id;
 	unsigned int fw_id_version;
+	unsigned int fw_vendor_id;
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
@@ -110,12 +112,16 @@ struct wm_adsp {
 };
 
 struct wm_adsp_ops {
+	unsigned int sys_config_size;
+
 	bool (*validate_version)(struct wm_adsp *dsp, unsigned int version);
 	unsigned int (*parse_sizes)(struct wm_adsp *dsp,
 				    const char * const file,
 				    unsigned int pos,
 				    const struct firmware *firmware);
 	int (*setup_algs)(struct wm_adsp *dsp);
+	unsigned int (*region_to_reg)(struct wm_adsp_region const *mem,
+				      unsigned int offset);
 
 	void (*show_fw_status)(struct wm_adsp *dsp);
 	void (*stop_watchdog)(struct wm_adsp *dsp);
@@ -160,6 +166,8 @@ int wm_adsp2_init(struct wm_adsp *dsp);
 void wm_adsp2_remove(struct wm_adsp *dsp);
 int wm_adsp2_component_probe(struct wm_adsp *dsp, struct snd_soc_component *component);
 int wm_adsp2_component_remove(struct wm_adsp *dsp, struct snd_soc_component *component);
+int wm_halo_init(struct wm_adsp *dsp);
+
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 
