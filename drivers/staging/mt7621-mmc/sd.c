@@ -209,7 +209,6 @@ static void msdc_tasklet_card(struct work_struct *work)
 	host->card_inserted = inserted;
 
 	if (!host->suspend) {
-		host->mmc->f_max = HOST_MAX_MCLK;
 		mmc_detect_change(host->mmc, msecs_to_jiffies(20));
 	}
 
