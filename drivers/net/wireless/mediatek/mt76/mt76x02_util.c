@@ -424,6 +424,16 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
 		return -EOPNOTSUPP;
 
+	/*
+	 * In USB AP mode, broadcast/multicast frames are setup in beacon
+	 * data registers and sent via HW beacons engine, they require to
+	 * be already encrypted.
+	 */
+	if (mt76_is_usb(dev) &&
+	    vif->type == NL80211_IFTYPE_AP &&
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		return -EOPNOTSUPP;
+
 	msta = sta ? (struct mt76x02_sta *) sta->drv_priv : NULL;
 	wcid = msta ? &msta->wcid : &mvif->group_wcid;
 
