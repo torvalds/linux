@@ -5179,6 +5179,7 @@ T:	git git://people.freedesktop.org/~thomash/linux
 S:	Supported
 F:	drivers/gpu/drm/vmwgfx/
 F:	include/uapi/drm/vmwgfx_drm.h
+F:	mm/as_dirty_helpers.c
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
