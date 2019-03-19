@@ -790,14 +790,12 @@ enc28j60_setlink(struct net_device *ndev, u8 autoneg, u16 speed, u8 duplex)
 			priv->full_duplex = (duplex == DUPLEX_FULL);
 		else {
 			if (netif_msg_link(priv))
-				dev_warn(&ndev->dev,
-					"unsupported link setting\n");
+				netdev_warn(ndev, "unsupported link setting\n");
 			ret = -EOPNOTSUPP;
 		}
 	} else {
 		if (netif_msg_link(priv))
-			dev_warn(&ndev->dev, "Warning: hw must be disabled "
-				"to set link mode\n");
+			netdev_warn(ndev, "Warning: hw must be disabled to set link mode\n");
 		ret = -EBUSY;
 	}
 	return ret;
@@ -912,9 +910,8 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 
 	if (unlikely(priv->next_pk_ptr > RXEND_INIT)) {
 		if (netif_msg_rx_err(priv))
-			dev_err(&ndev->dev,
-				"%s() Invalid packet address!! 0x%04x\n",
-				__func__, priv->next_pk_ptr);
+			netdev_err(ndev, "%s() Invalid packet address!! 0x%04x\n",
+				   __func__, priv->next_pk_ptr);
 		/* packet address corrupted: reset RX logic */
 		mutex_lock(&priv->lock);
 		nolock_reg_bfclr(priv, ECON1, ECON1_RXEN);
@@ -947,7 +944,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 
 	if (!RSV_GETBIT(rxstat, RSV_RXOK) || len > MAX_FRAMELEN) {
 		if (netif_msg_rx_err(priv))
-			dev_err(&ndev->dev, "Rx Error (%04x)\n", rxstat);
+			netdev_err(ndev, "Rx Error (%04x)\n", rxstat);
 		ndev->stats.rx_errors++;
 		if (RSV_GETBIT(rxstat, RSV_CRCERROR))
 			ndev->stats.rx_crc_errors++;
@@ -959,8 +956,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 		skb = netdev_alloc_skb(ndev, len + NET_IP_ALIGN);
 		if (!skb) {
 			if (netif_msg_rx_err(priv))
-				dev_err(&ndev->dev,
-					"out of memory for Rx'd frame\n");
+				netdev_err(ndev, "out of memory for Rx'd frame\n");
 			ndev->stats.rx_dropped++;
 		} else {
 			skb_reserve(skb, NET_IP_ALIGN);
@@ -1056,11 +1052,11 @@ static void enc28j60_check_link_status(struct net_device *ndev)
 	if (reg & PHSTAT2_LSTAT) {
 		netif_carrier_on(ndev);
 		if (netif_msg_ifup(priv))
-			dev_info(&ndev->dev, "link up - %s\n",
-				duplex ? "Full duplex" : "Half duplex");
+			netdev_info(ndev, "link up - %s\n",
+				    duplex ? "Full duplex" : "Half duplex");
 	} else {
 		if (netif_msg_ifdown(priv))
-			dev_info(&ndev->dev, "link down\n");
+			netdev_info(ndev, "link down\n");
 		netif_carrier_off(ndev);
 	}
 }
@@ -1156,8 +1152,7 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 			priv->tx_retry_count = 0;
 			if (locked_regb_read(priv, ESTAT) & ESTAT_TXABRT) {
 				if (netif_msg_tx_err(priv))
-					dev_err(&ndev->dev,
-						"Tx Error (aborted)\n");
+					netdev_err(ndev, "Tx Error (aborted)\n");
 				err = true;
 			}
 			if (netif_msg_tx_done(priv)) {
@@ -1327,7 +1322,7 @@ static void enc28j60_tx_timeout(struct net_device *ndev)
 	struct enc28j60_net *priv = netdev_priv(ndev);
 
 	if (netif_msg_timer(priv))
-		dev_err(&ndev->dev, DRV_NAME " tx timeout\n");
+		netdev_err(ndev, "tx timeout\n");
 
 	ndev->stats.tx_errors++;
 	/* can't restart safely under softirq */
@@ -1348,8 +1343,7 @@ static int enc28j60_net_open(struct net_device *dev)
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		if (netif_msg_ifup(priv))
-			dev_err(&dev->dev, "invalid MAC address %pM\n",
-				dev->dev_addr);
+			netdev_err(dev, "invalid MAC address %pM\n", dev->dev_addr);
 		return -EADDRNOTAVAIL;
 	}
 	/* Reset the hardware here (and take it out of low power mode) */
@@ -1357,7 +1351,7 @@ static int enc28j60_net_open(struct net_device *dev)
 	enc28j60_hw_disable(priv);
 	if (!enc28j60_hw_init(priv)) {
 		if (netif_msg_ifup(priv))
-			dev_err(&dev->dev, "hw_reset() failed\n");
+			netdev_err(dev, "hw_reset() failed\n");
 		return -EINVAL;
 	}
 	/* Update the MAC address (in case user has changed it) */
@@ -1399,16 +1393,16 @@ static void enc28j60_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		if (netif_msg_link(priv))
-			dev_info(&dev->dev, "promiscuous mode\n");
+			netdev_info(dev, "promiscuous mode\n");
 		priv->rxfilter = RXFILTER_PROMISC;
 	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		if (netif_msg_link(priv))
-			dev_info(&dev->dev, "%smulticast mode\n",
-				(dev->flags & IFF_ALLMULTI) ? "all-" : "");
+			netdev_info(dev, "%smulticast mode\n",
+				    (dev->flags & IFF_ALLMULTI) ? "all-" : "");
 		priv->rxfilter = RXFILTER_MULTI;
 	} else {
 		if (netif_msg_link(priv))
-			dev_info(&dev->dev, "normal mode\n");
+			netdev_info(dev, "normal mode\n");
 		priv->rxfilter = RXFILTER_NORMAL;
 	}
 
@@ -1452,7 +1446,7 @@ static void enc28j60_restart_work_handler(struct work_struct *work)
 		enc28j60_net_close(ndev);
 		ret = enc28j60_net_open(ndev);
 		if (unlikely(ret)) {
-			dev_info(&ndev->dev, " could not restart %d\n", ret);
+			netdev_info(ndev, "could not restart %d\n", ret);
 			dev_close(ndev);
 		}
 	}
