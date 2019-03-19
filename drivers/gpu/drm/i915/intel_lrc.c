@@ -2409,12 +2409,12 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	intel_engine_init_workarounds(engine);
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
-		execlists->submit_reg = i915->regs +
+		execlists->submit_reg = i915->uncore.regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
-		execlists->ctrl_reg = i915->regs +
+		execlists->ctrl_reg = i915->uncore.regs +
 			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(engine));
 	} else {
-		execlists->submit_reg = i915->regs +
+		execlists->submit_reg = i915->uncore.regs +
 			i915_mmio_reg_offset(RING_ELSP(engine));
 	}
 

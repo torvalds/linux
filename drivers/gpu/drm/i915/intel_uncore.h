@@ -93,6 +93,8 @@ struct intel_forcewake_range {
 };
 
 struct intel_uncore {
+	void __iomem *regs;
+
 	spinlock_t lock; /** lock is also taken in irq contexts. */
 
 	const struct intel_forcewake_range *fw_domains_table;
@@ -142,7 +144,7 @@ forcewake_domain_to_uncore(const struct intel_uncore_forcewake_domain *d)
 }
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv);
-void intel_uncore_init(struct intel_uncore *uncore);
+int intel_uncore_init(struct intel_uncore *uncore);
 void intel_uncore_prune(struct intel_uncore *uncore);
 bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv);
 bool intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv);

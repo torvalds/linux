@@ -968,46 +968,6 @@ static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_engines_cleanup(dev_priv);
 }
 
-static int i915_mmio_setup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-	int mmio_bar;
-	int mmio_size;
-
-	mmio_bar = IS_GEN(dev_priv, 2) ? 1 : 0;
-	/*
-	 * Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (INTEL_GEN(dev_priv) < 5)
-		mmio_size = 512 * 1024;
-	else
-		mmio_size = 2 * 1024 * 1024;
-	dev_priv->regs = pci_iomap(pdev, mmio_bar, mmio_size);
-	if (dev_priv->regs == NULL) {
-		DRM_ERROR("failed to map registers\n");
-
-		return -EIO;
-	}
-
-	/* Try to make sure MCHBAR is enabled before poking at it */
-	intel_setup_mchbar(dev_priv);
-
-	return 0;
-}
-
-static void i915_mmio_cleanup(struct drm_i915_private *dev_priv)
-{
-	struct pci_dev *pdev = dev_priv->drm.pdev;
-
-	intel_teardown_mchbar(dev_priv);
-	pci_iounmap(pdev, dev_priv->regs);
-}
-
 /**
  * i915_driver_init_mmio - setup device MMIO
  * @dev_priv: device private
@@ -1027,11 +987,12 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (i915_get_bridge_dev(dev_priv))
 		return -EIO;
 
-	ret = i915_mmio_setup(dev_priv);
+	ret = intel_uncore_init(&dev_priv->uncore);
 	if (ret < 0)
 		goto err_bridge;
 
-	intel_uncore_init(&dev_priv->uncore);
+	/* Try to make sure MCHBAR is enabled before poking at it */
+	intel_setup_mchbar(dev_priv);
 
 	intel_device_info_init_mmio(dev_priv);
 
@@ -1048,8 +1009,8 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uncore:
+	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini(&dev_priv->uncore);
-	i915_mmio_cleanup(dev_priv);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 
@@ -1062,8 +1023,8 @@ err_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
+	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini(&dev_priv->uncore);
-	i915_mmio_cleanup(dev_priv);
 	pci_dev_put(dev_priv->bridge_dev);
 }
 

@@ -1505,8 +1505,6 @@ struct drm_i915_private {
 	 */
 	resource_size_t stolen_usable_size;	/* Total size minus reserved ranges */
 
-	void __iomem *regs;
-
 	struct intel_uncore uncore;
 
 	struct i915_virtual_gpu vgpu;
@@ -3489,14 +3487,14 @@ static inline u64 intel_rc6_residency_us(struct drm_i915_private *dev_priv,
 static inline uint##x##_t __raw_i915_read##x(const struct drm_i915_private *dev_priv, \
 					     i915_reg_t reg) \
 { \
-	return read##s(dev_priv->regs + i915_mmio_reg_offset(reg)); \
+	return read##s(dev_priv->uncore.regs + i915_mmio_reg_offset(reg)); \
 }
 
 #define __raw_write(x, s) \
 static inline void __raw_i915_write##x(const struct drm_i915_private *dev_priv, \
 				       i915_reg_t reg, uint##x##_t val) \
 { \
-	write##s(val, dev_priv->regs + i915_mmio_reg_offset(reg)); \
+	write##s(val, dev_priv->uncore.regs + i915_mmio_reg_offset(reg)); \
 }
 __raw_read(8, b)
 __raw_read(16, w)

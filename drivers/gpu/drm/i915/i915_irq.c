@@ -268,7 +268,7 @@ static bool gen11_reset_one_iir(struct drm_i915_private * const i915,
 				const unsigned int bank,
 				const unsigned int bit)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 dw;
 
 	lockdep_assert_held(&i915->irq_lock);
@@ -1479,7 +1479,7 @@ gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 static void gen8_gt_irq_ack(struct drm_i915_private *i915,
 			    u32 master_ctl, u32 gt_iir[4])
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 
 #define GEN8_GT_IRQS (GEN8_GT_RCS_IRQ | \
 		      GEN8_GT_BCS_IRQ | \
@@ -2876,7 +2876,7 @@ static inline void gen8_master_intr_enable(void __iomem * const regs)
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = to_i915(arg);
-	void __iomem * const regs = dev_priv->regs;
+	void __iomem * const regs = dev_priv->uncore.regs;
 	u32 master_ctl;
 	u32 gt_iir[4];
 
@@ -2910,7 +2910,7 @@ static u32
 gen11_gt_engine_identity(struct drm_i915_private * const i915,
 			 const unsigned int bank, const unsigned int bit)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 timeout_ts;
 	u32 ident;
 
@@ -2994,7 +2994,7 @@ static void
 gen11_gt_bank_handler(struct drm_i915_private * const i915,
 		      const unsigned int bank)
 {
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	unsigned long intr_dw;
 	unsigned int bit;
 
@@ -3037,7 +3037,7 @@ gen11_gt_irq_handler(struct drm_i915_private * const i915,
 static u32
 gen11_gu_misc_irq_ack(struct drm_i915_private *dev_priv, const u32 master_ctl)
 {
-	void __iomem * const regs = dev_priv->regs;
+	void __iomem * const regs = dev_priv->uncore.regs;
 	u32 iir;
 
 	if (!(master_ctl & GEN11_GU_MISC_IRQ))
@@ -3078,7 +3078,7 @@ static inline void gen11_master_intr_enable(void __iomem * const regs)
 static irqreturn_t gen11_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private * const i915 = to_i915(arg);
-	void __iomem * const regs = i915->regs;
+	void __iomem * const regs = i915->uncore.regs;
 	u32 master_ctl;
 	u32 gu_misc_iir;
 
@@ -3359,7 +3359,7 @@ static void gen8_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int pipe;
 
-	gen8_master_intr_disable(dev_priv->regs);
+	gen8_master_intr_disable(dev_priv->uncore.regs);
 
 	gen8_gt_irq_reset(dev_priv);
 
@@ -3401,7 +3401,7 @@ static void gen11_irq_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	gen11_master_intr_disable(dev_priv->regs);
+	gen11_master_intr_disable(dev_priv->uncore.regs);
 
 	gen11_gt_irq_reset(dev_priv);
 
@@ -4006,7 +4006,7 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev);
 
-	gen8_master_intr_enable(dev_priv->regs);
+	gen8_master_intr_enable(dev_priv->uncore.regs);
 
 	return 0;
 }
@@ -4068,7 +4068,7 @@ static int gen11_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	gen11_master_intr_enable(dev_priv->regs);
+	gen11_master_intr_enable(dev_priv->uncore.regs);
 	POSTING_READ(GEN11_GFX_MSTR_IRQ);
 
 	return 0;

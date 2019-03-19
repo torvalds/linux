@@ -1330,7 +1330,6 @@ static void fw_domain_init(struct intel_uncore *uncore,
 			   i915_reg_t reg_ack)
 {
 	struct intel_uncore_forcewake_domain *d;
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 
 	if (WARN_ON(domain_id >= FW_DOMAIN_ID_COUNT))
 		return;
@@ -1343,8 +1342,8 @@ static void fw_domain_init(struct intel_uncore *uncore,
 	WARN_ON(!i915_mmio_reg_valid(reg_ack));
 
 	d->wake_count = 0;
-	d->reg_set = i915->regs + i915_mmio_reg_offset(reg_set);
-	d->reg_ack = i915->regs + i915_mmio_reg_offset(reg_ack);
+	d->reg_set = uncore->regs + i915_mmio_reg_offset(reg_set);
+	d->reg_ack = uncore->regs + i915_mmio_reg_offset(reg_ack);
 
 	d->id = domain_id;
 
@@ -1539,9 +1538,53 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-void intel_uncore_init(struct intel_uncore *uncore)
+static int uncore_mmio_setup(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct pci_dev *pdev = i915->drm.pdev;
+	int mmio_bar;
+	int mmio_size;
+
+	mmio_bar = IS_GEN(i915, 2) ? 1 : 0;
+	/*
+	 * Before gen4, the registers and the GTT are behind different BARs.
+	 * However, from gen4 onwards, the registers and the GTT are shared
+	 * in the same BAR, so we want to restrict this ioremap from
+	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
+	 * the register BAR remains the same size for all the earlier
+	 * generations up to Ironlake.
+	 */
+	if (INTEL_GEN(i915) < 5)
+		mmio_size = 512 * 1024;
+	else
+		mmio_size = 2 * 1024 * 1024;
+	uncore->regs = pci_iomap(pdev, mmio_bar, mmio_size);
+	if (uncore->regs == NULL) {
+		DRM_ERROR("failed to map registers\n");
+
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void uncore_mmio_cleanup(struct intel_uncore *uncore)
+{
+	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	pci_iounmap(pdev, uncore->regs);
+}
+
+
+int intel_uncore_init(struct intel_uncore *uncore)
+{
+	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	int ret;
+
+	ret = uncore_mmio_setup(uncore);
+	if (ret)
+		return ret;
 
 	i915_check_vgpu(i915);
 
@@ -1589,6 +1632,8 @@ void intel_uncore_init(struct intel_uncore *uncore)
 	}
 
 	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+
+	return 0;
 }
 
 /*
@@ -1637,6 +1682,7 @@ void intel_uncore_fini(struct intel_uncore *uncore)
 		&uncore->pmic_bus_access_nb);
 	intel_uncore_forcewake_reset(uncore);
 	iosf_mbi_punit_release();
+	uncore_mmio_cleanup(uncore);
 }
 
 static const struct reg_whitelist {
