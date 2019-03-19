@@ -106,7 +106,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_TX_SW_CFG1,		0x00010000 },
 		{ MT_TX_SW_CFG2,		0x00000000 },
 		{ MT_TXOP_CTRL_CFG,		0x0400583f },
-		{ MT_TX_RTS_CFG,		0x00100020 },
+		{ MT_TX_RTS_CFG,		0x00ffff20 },
 		{ MT_TX_TIMEOUT_CFG,		0x000a2290 },
 		{ MT_TX_RETRY_CFG,		0x47f01f0f },
 		{ MT_EXP_ACK_TIME,		0x002c00dc },
