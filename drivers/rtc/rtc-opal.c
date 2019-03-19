@@ -224,7 +224,7 @@ exit:
 	return rc;
 }
 
-int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
+static int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct rtc_wkalrm alarm = { .enabled = 0 };
 
