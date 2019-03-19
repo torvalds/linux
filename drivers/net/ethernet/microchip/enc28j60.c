@@ -929,8 +929,8 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 	int len;
 
 	if (netif_msg_rx_status(priv))
-		printk(KERN_DEBUG DRV_NAME ": RX pk_addr:0x%04x\n",
-			priv->next_pk_ptr);
+		netdev_printk(KERN_DEBUG, ndev, "RX pk_addr:0x%04x\n",
+			      priv->next_pk_ptr);
 
 	if (unlikely(priv->next_pk_ptr > RXEND_INIT)) {
 		if (netif_msg_rx_err(priv))
@@ -1030,6 +1030,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
  */
 static int enc28j60_get_free_rxfifo(struct enc28j60_net *priv)
 {
+	struct net_device *ndev = priv->netdev;
 	int epkcnt, erxst, erxnd, erxwr, erxrd;
 	int free_space;
 
@@ -1052,8 +1053,8 @@ static int enc28j60_get_free_rxfifo(struct enc28j60_net *priv)
 	}
 	mutex_unlock(&priv->lock);
 	if (netif_msg_rx_status(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() free_space = %d\n",
-			__func__, free_space);
+		netdev_printk(KERN_DEBUG, ndev, "%s() free_space = %d\n",
+			      __func__, free_space);
 	return free_space;
 }
 
@@ -1120,13 +1121,14 @@ static int enc28j60_rx_interrupt(struct net_device *ndev)
 
 	pk_counter = locked_regb_read(priv, EPKTCNT);
 	if (pk_counter && netif_msg_intr(priv))
-		printk(KERN_DEBUG DRV_NAME ": intRX, pk_cnt: %d\n", pk_counter);
+		netdev_printk(KERN_DEBUG, ndev, "intRX, pk_cnt: %d\n",
+			      pk_counter);
 	if (pk_counter > priv->max_pk_counter) {
 		/* update statistics */
 		priv->max_pk_counter = pk_counter;
 		if (netif_msg_rx_status(priv) && priv->max_pk_counter > 1)
-			printk(KERN_DEBUG DRV_NAME ": RX max_pk_cnt: %d\n",
-				priv->max_pk_counter);
+			netdev_printk(KERN_DEBUG, ndev, "RX max_pk_cnt: %d\n",
+				      priv->max_pk_counter);
 	}
 	ret = pk_counter;
 	while (pk_counter-- > 0)
@@ -1152,16 +1154,16 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 		if ((intflags & EIR_DMAIF) != 0) {
 			loop++;
 			if (netif_msg_intr(priv))
-				printk(KERN_DEBUG DRV_NAME
-					": intDMA(%d)\n", loop);
+				netdev_printk(KERN_DEBUG, ndev, "intDMA(%d)\n",
+					      loop);
 			locked_reg_bfclr(priv, EIR, EIR_DMAIF);
 		}
 		/* LINK changed handler */
 		if ((intflags & EIR_LINKIF) != 0) {
 			loop++;
 			if (netif_msg_intr(priv))
-				printk(KERN_DEBUG DRV_NAME
-					": intLINK(%d)\n", loop);
+				netdev_printk(KERN_DEBUG, ndev, "intLINK(%d)\n",
+					      loop);
 			enc28j60_check_link_status(ndev);
 			/* read PHIR to clear the flag */
 			enc28j60_phy_read(priv, PHIR);
@@ -1172,8 +1174,8 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 			bool err = false;
 			loop++;
 			if (netif_msg_intr(priv))
-				printk(KERN_DEBUG DRV_NAME
-					": intTX(%d)\n", loop);
+				netdev_printk(KERN_DEBUG, ndev, "intTX(%d)\n",
+					      loop);
 			priv->tx_retry_count = 0;
 			if (locked_regb_read(priv, ESTAT) & ESTAT_TXABRT) {
 				if (netif_msg_tx_err(priv))
@@ -1194,8 +1196,8 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 
 			loop++;
 			if (netif_msg_intr(priv))
-				printk(KERN_DEBUG DRV_NAME
-					": intTXErr(%d)\n", loop);
+				netdev_printk(KERN_DEBUG, ndev, "intTXErr(%d)\n",
+					      loop);
 			locked_reg_bfclr(priv, ECON1, ECON1_TXRTS);
 			enc28j60_read_tsv(priv, tsv);
 			if (netif_msg_tx_err(priv))
@@ -1209,9 +1211,9 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 			/* Transmit Late collision check for retransmit */
 			if (TSV_GETBIT(tsv, TSV_TXLATECOLLISION)) {
 				if (netif_msg_tx_err(priv))
-					printk(KERN_DEBUG DRV_NAME
-						": LateCollision TXErr (%d)\n",
-						priv->tx_retry_count);
+					netdev_printk(KERN_DEBUG, ndev,
+						      "LateCollision TXErr (%d)\n",
+						      priv->tx_retry_count);
 				if (priv->tx_retry_count++ < MAX_TX_RETRYCOUNT)
 					locked_reg_bfset(priv, ECON1,
 							   ECON1_TXRTS);
@@ -1225,13 +1227,12 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 		if ((intflags & EIR_RXERIF) != 0) {
 			loop++;
 			if (netif_msg_intr(priv))
-				printk(KERN_DEBUG DRV_NAME
-					": intRXErr(%d)\n", loop);
+				netdev_printk(KERN_DEBUG, ndev, "intRXErr(%d)\n",
+					      loop);
 			/* Check free FIFO space to flag RX overrun */
 			if (enc28j60_get_free_rxfifo(priv) <= 0) {
 				if (netif_msg_rx_err(priv))
-					printk(KERN_DEBUG DRV_NAME
-						": RX Overrun\n");
+					netdev_printk(KERN_DEBUG, ndev, "RX Overrun\n");
 				ndev->stats.rx_dropped++;
 			}
 			locked_reg_bfclr(priv, EIR, EIR_RXERIF);
@@ -1252,11 +1253,13 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
  */
 static void enc28j60_hw_tx(struct enc28j60_net *priv)
 {
+	struct net_device *ndev = priv->netdev;
+
 	BUG_ON(!priv->tx_skb);
 
 	if (netif_msg_tx_queued(priv))
-		printk(KERN_DEBUG DRV_NAME
-			": Tx Packet Len:%d\n", priv->tx_skb->len);
+		netdev_printk(KERN_DEBUG, ndev, "Tx Packet Len:%d\n",
+			      priv->tx_skb->len);
 
 	if (netif_msg_pktdata(priv))
 		dump_packet(__func__,
