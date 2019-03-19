@@ -63,7 +63,6 @@ unsigned int dump_only;
 unsigned int do_snb_cstates;
 unsigned int do_knl_cstates;
 unsigned int do_slm_cstates;
-unsigned int do_cnl_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
@@ -4701,9 +4700,8 @@ void process_cpuid()
 	}
 	do_slm_cstates = is_slm(family, model);
 	do_knl_cstates  = is_knl(family, model);
-	do_cnl_cstates = is_cnl(family, model);
 
-	if (do_slm_cstates || do_knl_cstates || do_cnl_cstates)
+	if (do_slm_cstates || do_knl_cstates || is_cnl(family, model))
 		BIC_NOT_PRESENT(BIC_CPU_c3);
 
 	if (!quiet)
