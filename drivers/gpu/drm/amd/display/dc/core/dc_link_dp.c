@@ -2304,8 +2304,8 @@ static void get_active_converter_info(
 					hdmi_caps = {.raw = det_caps[3] };
 				union dwnstream_port_caps_byte2
 					hdmi_color_caps = {.raw = det_caps[2] };
-				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk =
-					det_caps[1] * 25000;
+				link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk_in_khz =
+					det_caps[1] * 2500;
 
 				link->dpcd_caps.dongle_caps.is_dp_hdmi_s3d_converter =
 					hdmi_caps.bits.FRAME_SEQ_TO_FRAME_PACK;
@@ -2322,7 +2322,7 @@ static void get_active_converter_info(
 					translate_dpcd_max_bpc(
 						hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
 
-				if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk != 0)
+				if (link->dpcd_caps.dongle_caps.dp_hdmi_max_pixel_clk_in_khz != 0)
 					link->dpcd_caps.dongle_caps.extendedCapValid = true;
 			}
 
