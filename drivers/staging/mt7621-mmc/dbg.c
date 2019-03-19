@@ -232,7 +232,6 @@ static ssize_t msdc_debug_proc_write(struct file *file,
 
 	int cmd, p1, p2;
 	int id, zone;
-	int mode, size;
 
 	if (count == 0)
 		return -1;
