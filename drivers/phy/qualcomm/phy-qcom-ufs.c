@@ -459,7 +459,7 @@ out:
 }
 
 /* Turn OFF M-PHY RMMI interface clocks */
-void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
+static void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
 {
 	if (phy->is_iface_clk_enabled) {
 		clk_disable_unprepare(phy->tx_iface_clk);
