@@ -77,6 +77,10 @@ test_create_empty()
 test_create_read()
 {
 	local file=$efivarfs_mount/$FUNCNAME-$test_guid
+	if [ -f $file]; then
+		chattr -i $file
+		rm -rf $file
+	fi
 	./create-read $file
 }
 
