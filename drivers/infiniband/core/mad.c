@@ -467,6 +467,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 	spin_unlock_irq(&port_priv->reg_lock);
 
+	trace_ib_mad_create_agent(mad_agent_priv);
 	return &mad_agent_priv->agent;
 error6:
 	spin_unlock_irq(&port_priv->reg_lock);
@@ -622,6 +623,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	struct ib_mad_port_private *port_priv;
 
 	/* Note that we could still be handling received MADs */
+	trace_ib_mad_unregister_agent(mad_agent_priv);
 
 	/*
 	 * Canceling all sends results in dropping received response
@@ -2354,6 +2356,7 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	mad_agent = find_mad_agent(port_priv, (const struct ib_mad_hdr *)recv->mad);
 	if (mad_agent) {
+		trace_ib_mad_recv_done_agent(mad_agent);
 		ib_mad_complete_recv(mad_agent, &recv->header.recv_wc);
 		/*
 		 * recv is freed up in error cases in ib_mad_complete_recv
@@ -2518,6 +2521,7 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	send_queue = mad_list->mad_queue;
 	qp_info = send_queue->qp_info;
 
+	trace_ib_mad_send_done_agent(mad_send_wr->mad_agent_priv);
 	trace_ib_mad_send_done_handler(mad_send_wr, wc);
 
 retry:
