@@ -176,6 +176,7 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp);
+irqreturn_t wm_halo_wdt_expire(int irq, void *data);
 
 int wm_adsp_event(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
