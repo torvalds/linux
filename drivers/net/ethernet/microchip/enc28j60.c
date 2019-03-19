@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
+#include <linux/property.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -28,7 +29,6 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/of_net.h>
 
 #include "enc28j60_hw.h"
 
@@ -1552,9 +1552,9 @@ static const struct net_device_ops enc28j60_netdev_ops = {
 
 static int enc28j60_probe(struct spi_device *spi)
 {
+	unsigned char macaddr[ETH_ALEN];
 	struct net_device *dev;
 	struct enc28j60_net *priv;
-	const void *macaddr;
 	int ret = 0;
 
 	if (netif_msg_drv(&debug))
@@ -1587,8 +1587,7 @@ static int enc28j60_probe(struct spi_device *spi)
 		goto error_irq;
 	}
 
-	macaddr = of_get_mac_address(spi->dev.of_node);
-	if (macaddr)
+	if (device_get_mac_address(&spi->dev, macaddr, sizeof(macaddr)))
 		ether_addr_copy(dev->dev_addr, macaddr);
 	else
 		eth_hw_addr_random(dev);
