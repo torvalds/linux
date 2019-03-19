@@ -4524,10 +4524,12 @@ static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
 					unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int i;
 
-	data[0] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->eeprom_buffer[CR_CHAN(insn->chanspec)];
 
-	return 1;
+	return insn->n;
 }
 
 static unsigned int ni_old_get_pfi_routing(struct comedi_device *dev,
