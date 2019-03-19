@@ -82,6 +82,18 @@ struct freesync_hdr_tf_params {
 	unsigned int skip_tm; // skip tm
 };
 
+union tm3dlut_flags {
+	unsigned int raw;
+	struct {
+		unsigned int dochroma_scale			:1;
+		unsigned int spec_version			:3;
+		unsigned int less_than_dcip3			:1;
+		unsigned int exp_shaper_max			:6;
+		unsigned int zero_display_black			:1;
+		unsigned int reseved				:20;
+	} bits;
+};
+
 void setup_x_points_distribution(void);
 void precompute_pq(void);
 void precompute_de_pq(void);
