@@ -1094,7 +1094,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		}
 
 		/* RPSTAT1 is in the GT power well */
-		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
 		if (INTEL_GEN(dev_priv) >= 9)
@@ -1122,7 +1122,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		cagf = intel_gpu_freq(dev_priv,
 				      intel_get_cagf(dev_priv, rpstat));
 
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		if (INTEL_GEN(dev_priv) >= 11) {
 			pm_ier = I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE);
@@ -2060,12 +2060,12 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
 
-		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 		rpup = I915_READ_FW(GEN6_RP_CUR_UP) & GEN6_RP_EI_MASK;
 		rpupei = I915_READ_FW(GEN6_RP_CUR_UP_EI) & GEN6_RP_EI_MASK;
 		rpdown = I915_READ_FW(GEN6_RP_CUR_DOWN) & GEN6_RP_EI_MASK;
 		rpdownei = I915_READ_FW(GEN6_RP_CUR_DOWN_EI) & GEN6_RP_EI_MASK;
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
 			   rps_power_to_str(rps->power.mode));
@@ -4251,7 +4251,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 		return 0;
 
 	file->private_data = (void *)(uintptr_t)intel_runtime_pm_get(i915);
-	intel_uncore_forcewake_user_get(i915);
+	intel_uncore_forcewake_user_get(&i915->uncore);
 
 	return 0;
 }
@@ -4263,7 +4263,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	intel_uncore_forcewake_user_put(i915);
+	intel_uncore_forcewake_user_put(&i915->uncore);
 	intel_runtime_pm_put(i915,
 			     (intel_wakeref_t)(uintptr_t)file->private_data);
 

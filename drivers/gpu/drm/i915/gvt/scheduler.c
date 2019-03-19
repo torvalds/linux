@@ -988,7 +988,7 @@ static int workload_thread(void *priv)
 				workload->ring_id, workload);
 
 		if (need_force_wake)
-			intel_uncore_forcewake_get(gvt->dev_priv,
+			intel_uncore_forcewake_get(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
 
 		ret = dispatch_workload(workload);
@@ -1010,7 +1010,7 @@ complete:
 		complete_current_workload(gvt, ring_id);
 
 		if (need_force_wake)
-			intel_uncore_forcewake_put(gvt->dev_priv,
+			intel_uncore_forcewake_put(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
 
 		intel_runtime_pm_put_unchecked(gvt->dev_priv);

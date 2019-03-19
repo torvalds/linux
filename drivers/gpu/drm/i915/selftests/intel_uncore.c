@@ -199,9 +199,9 @@ static int live_forcewake_ops(void *arg)
 			goto out_rpm;
 		}
 
-		intel_uncore_forcewake_get(i915, fw_domains);
+		intel_uncore_forcewake_get(uncore, fw_domains);
 		val = readl(reg);
-		intel_uncore_forcewake_put(i915, fw_domains);
+		intel_uncore_forcewake_put(uncore, fw_domains);
 
 		/* Flush the forcewake release (delayed onto a timer) */
 		for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
@@ -263,7 +263,7 @@ static int live_forcewake_domains(void *arg)
 	if (!valid)
 		return -ENOMEM;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	check_for_unclaimed_mmio(dev_priv);
 	for (offset = 0; offset < FW_RANGE; offset += 4) {
@@ -274,7 +274,7 @@ static int live_forcewake_domains(void *arg)
 			set_bit(offset, valid);
 	}
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	err = 0;
 	for_each_set_bit(offset, valid, FW_RANGE) {

@@ -569,7 +569,7 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 	 * If the power well sleeps during the reset, the reset
 	 * request may be dropped and never completes (causing -EIO).
 	 */
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	for (retry = 0; ret == -ETIMEDOUT && retry < retries; retry++) {
 		/*
 		 * We stop engines, otherwise we might get failed reset and a
@@ -593,7 +593,7 @@ int intel_gpu_reset(struct drm_i915_private *i915, unsigned int engine_mask)
 		ret = reset(i915, engine_mask, retry);
 		preempt_enable();
 	}
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -622,9 +622,9 @@ int intel_reset_guc(struct drm_i915_private *i915)
 
 	GEM_BUG_ON(!HAS_GUC(i915));
 
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 	ret = gen6_hw_domain_reset(i915, guc_domain);
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -642,7 +642,7 @@ static void reset_prepare_engine(struct intel_engine_cs *engine)
 	 * written to the powercontext is undefined and so we may lose
 	 * GPU state upon resume, i.e. fail to restart after a reset.
 	 */
-	intel_uncore_forcewake_get(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&engine->i915->uncore, FORCEWAKE_ALL);
 	engine->reset.prepare(engine);
 }
 
@@ -713,7 +713,7 @@ static int gt_reset(struct drm_i915_private *i915, unsigned int stalled_mask)
 static void reset_finish_engine(struct intel_engine_cs *engine)
 {
 	engine->reset.finish(engine);
-	intel_uncore_forcewake_put(engine->i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&engine->i915->uncore, FORCEWAKE_ALL);
 }
 
 struct i915_gpu_restart {

@@ -163,20 +163,20 @@ intel_uncore_forcewake_for_reg(struct drm_i915_private *dev_priv,
 #define FW_REG_READ  (1)
 #define FW_REG_WRITE (2)
 
-void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
-void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
 /* Like above but the caller must manage the uncore.lock itself.
  * Must be used with I915_READ_FW and friends.
  */
-void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,
 					enum forcewake_domains domains);
-void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_put__locked(struct intel_uncore *uncore,
 					enum forcewake_domains domains);
 
-void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv);
-void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv);
+void intel_uncore_forcewake_user_get(struct intel_uncore *uncore);
+void intel_uncore_forcewake_user_put(struct intel_uncore *uncore);
 
 int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 			      i915_reg_t reg,

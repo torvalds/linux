@@ -640,7 +640,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	struct intel_ring *ring = engine->buffer;
 	int ret = 0;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
@@ -727,7 +727,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	/* Papering over lost _interrupts_ immediately following the restart */
 	intel_engine_queue_breadcrumbs(engine);
 out:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -2075,7 +2075,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 {
 	struct drm_i915_private *dev_priv = request->i915;
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
        /* Every tail move must follow the sequence below */
 
@@ -2105,7 +2105,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	I915_WRITE_FW(GEN6_BSD_SLEEP_PSMI_CONTROL,
 		      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
 
 static int mi_flush_dw(struct i915_request *rq, u32 flags)

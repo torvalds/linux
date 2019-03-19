@@ -356,7 +356,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	if (ring_id == RCS0 && INTEL_GEN(dev_priv) >= 9)
 		fw |= FORCEWAKE_RENDER;
 
-	intel_uncore_forcewake_get(dev_priv, fw);
+	intel_uncore_forcewake_get(&dev_priv->uncore, fw);
 
 	I915_WRITE_FW(reg, 0x1);
 
@@ -365,7 +365,7 @@ static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 	else
 		vgpu_vreg_t(vgpu, reg) = 0;
 
-	intel_uncore_forcewake_put(dev_priv, fw);
+	intel_uncore_forcewake_put(&dev_priv->uncore, fw);
 
 	gvt_dbg_core("invalidate TLB for ring %d\n", ring_id);
 }
@@ -552,9 +552,9 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 	 * performace for batch mmio read/write, so we need
 	 * handle forcewake mannually.
 	 */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 	switch_mmio(pre, next, ring_id);
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
 
 /**

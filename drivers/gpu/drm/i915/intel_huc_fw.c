@@ -112,7 +112,7 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 
 	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
 
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
 	offset = intel_guc_ggtt_offset(&dev_priv->guc, vma) +
@@ -140,7 +140,7 @@ static int huc_fw_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	/* Disable the bits once DMA is over */
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_DISABLE(HUC_UKERNEL));
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }

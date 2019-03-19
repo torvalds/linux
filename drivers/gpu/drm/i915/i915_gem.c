@@ -4318,7 +4318,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	GEM_TRACE("\n");
 
 	wakeref = intel_runtime_pm_get(i915);
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 
 	/*
 	 * As we have just resumed the machine and woken the device up from
@@ -4339,7 +4339,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	 */
 	intel_engines_sanitize(i915, false);
 
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(i915, wakeref);
 
 	mutex_lock(&i915->drm.struct_mutex);
@@ -4438,7 +4438,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	WARN_ON(i915->gt.awake);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	intel_uncore_forcewake_get(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 
 	i915_gem_restore_gtt_mappings(i915);
 	i915_gem_restore_fences(i915);
@@ -4460,7 +4460,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 		goto err_wedged;
 
 out_unlock:
-	intel_uncore_forcewake_put(i915, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return;
 
@@ -4549,7 +4549,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	dev_priv->gt.last_init_time = ktime_get();
 
 	/* Double layer security blanket, see i915_gem_init() */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	if (HAS_EDRAM(dev_priv) && INTEL_GEN(dev_priv) < 9)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
@@ -4604,14 +4604,14 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto cleanup_uc;
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return 0;
 
 cleanup_uc:
 	intel_uc_fini_hw(dev_priv);
 out:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	return ret;
 }
@@ -4815,7 +4815,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 * just magically go away.
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	ret = i915_gem_init_ggtt(dev_priv);
 	if (ret) {
@@ -4877,7 +4877,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		goto err_init_hw;
 	}
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
@@ -4912,7 +4912,7 @@ err_scratch:
 	i915_gem_fini_scratch(dev_priv);
 err_ggtt:
 err_unlock:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 err_uc_misc:

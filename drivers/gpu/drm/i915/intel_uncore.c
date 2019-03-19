@@ -610,7 +610,7 @@ static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
 
 /**
  * intel_uncore_forcewake_get - grab forcewake domain references
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  * @fw_domains: forcewake domains to get reference on
  *
  * This function can be used get GT's forcewake domain references.
@@ -621,16 +621,15 @@ static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
  * call to intel_unforce_forcewake_put(). Usually caller wants all the domains
  * to be kept awake so the @fw_domains would be then FORCEWAKE_ALL.
  */
-void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 				enum forcewake_domains fw_domains)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned long irqflags;
 
 	if (!uncore->funcs.force_wake_get)
 		return;
 
-	assert_rpm_wakelock_held(dev_priv);
+	assert_rpm_wakelock_held(uncore_to_i915(uncore));
 
 	spin_lock_irqsave(&uncore->lock, irqflags);
 	__intel_uncore_forcewake_get(uncore, fw_domains);
@@ -639,19 +638,17 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 
 /**
  * intel_uncore_forcewake_user_get - claim forcewake on behalf of userspace
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  *
  * This function is a wrapper around intel_uncore_forcewake_get() to acquire
  * the GT powerwell and in the process disable our debugging for the
  * duration of userspace's bypass.
  */
-void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
+void intel_uncore_forcewake_user_get(struct intel_uncore *uncore)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-
 	spin_lock_irq(&uncore->lock);
 	if (!uncore->user_forcewake.count++) {
-		intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get__locked(uncore, FORCEWAKE_ALL);
 
 		/* Save and disable mmio debugging for the user bypass */
 		uncore->user_forcewake.saved_mmio_check =
@@ -667,19 +664,19 @@ void intel_uncore_forcewake_user_get(struct drm_i915_private *dev_priv)
 
 /**
  * intel_uncore_forcewake_user_put - release forcewake on behalf of userspace
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  *
  * This function complements intel_uncore_forcewake_user_get() and releases
  * the GT powerwell taken on behalf of the userspace bypass.
  */
-void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv)
+void intel_uncore_forcewake_user_put(struct intel_uncore *uncore)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct drm_i915_private *i915 = uncore_to_i915(uncore);
 
 	spin_lock_irq(&uncore->lock);
 	if (!--uncore->user_forcewake.count) {
-		if (intel_uncore_unclaimed_mmio(dev_priv))
-			dev_info(dev_priv->drm.dev,
+		if (intel_uncore_unclaimed_mmio(i915))
+			dev_info(i915->drm.dev,
 				 "Invalid mmio detected during user access\n");
 
 		uncore->unclaimed_mmio_check =
@@ -687,24 +684,22 @@ void intel_uncore_forcewake_user_put(struct drm_i915_private *dev_priv)
 		i915_modparams.mmio_debug =
 			uncore->user_forcewake.saved_mmio_debug;
 
-		intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put__locked(uncore, FORCEWAKE_ALL);
 	}
 	spin_unlock_irq(&uncore->lock);
 }
 
 /**
  * intel_uncore_forcewake_get__locked - grab forcewake domain references
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  * @fw_domains: forcewake domains to get reference on
  *
  * See intel_uncore_forcewake_get(). This variant places the onus
  * on the caller to explicitly handle the dev_priv->uncore.lock spinlock.
  */
-void intel_uncore_forcewake_get__locked(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,
 					enum forcewake_domains fw_domains)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-
 	lockdep_assert_held(&uncore->lock);
 
 	if (!uncore->funcs.force_wake_get)
@@ -736,16 +731,15 @@ static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
 
 /**
  * intel_uncore_forcewake_put - release a forcewake domain reference
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  * @fw_domains: forcewake domains to put references
  *
  * This function drops the device-level forcewakes for specified
  * domains obtained by intel_uncore_forcewake_get().
  */
-void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 				enum forcewake_domains fw_domains)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned long irqflags;
 
 	if (!uncore->funcs.force_wake_put)
@@ -758,17 +752,15 @@ void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 
 /**
  * intel_uncore_forcewake_put__locked - grab forcewake domain references
- * @dev_priv: i915 device instance
+ * @uncore: the intel_uncore structure
  * @fw_domains: forcewake domains to get reference on
  *
  * See intel_uncore_forcewake_put(). This variant places the onus
  * on the caller to explicitly handle the dev_priv->uncore.lock spinlock.
  */
-void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
+void intel_uncore_forcewake_put__locked(struct intel_uncore *uncore,
 					enum forcewake_domains fw_domains)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-
 	lockdep_assert_held(&uncore->lock);
 
 	if (!uncore->funcs.force_wake_put)
@@ -1535,11 +1527,11 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		 * the access.
 		 */
 		disable_rpm_wakeref_asserts(dev_priv);
-		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 		enable_rpm_wakeref_asserts(dev_priv);
 		break;
 	case MBI_PMIC_BUS_ACCESS_END:
-		intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 		break;
 	}
 
@@ -1796,13 +1788,13 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 	might_sleep_if(slow_timeout_ms);
 
 	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, fw);
+	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw);
 
 	ret = __intel_wait_for_register_fw(dev_priv,
 					   reg, mask, value,
 					   fast_timeout_us, 0, &reg_value);
 
-	intel_uncore_forcewake_put__locked(dev_priv, fw);
+	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	if (ret && slow_timeout_ms)

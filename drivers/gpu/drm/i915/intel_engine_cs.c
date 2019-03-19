@@ -919,7 +919,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 						     FW_REG_READ | FW_REG_WRITE);
 
 	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, fw_domains);
+	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw_domains);
 
 	mcr = I915_READ_FW(GEN8_MCR_SELECTOR);
 
@@ -937,7 +937,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 
 	I915_WRITE_FW(GEN8_MCR_SELECTOR, mcr);
 
-	intel_uncore_forcewake_put__locked(dev_priv, fw_domains);
+	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw_domains);
 	spin_unlock_irq(&dev_priv->uncore.lock);
 
 	return ret;

@@ -369,14 +369,14 @@ void intel_guc_init_params(struct intel_guc *guc)
 	 * they are power context saved so it's ok to release forcewake
 	 * when we are done here and take it again at xfer time.
 	 */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_BLITTER);
 
 	I915_WRITE(SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		I915_WRITE(SOFT_SCRATCH(1 + i), params[i]);
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_BLITTER);
 }
 
 int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
@@ -414,7 +414,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
 	mutex_lock(&guc->send_mutex);
-	intel_uncore_forcewake_get(dev_priv, guc->send_regs.fw_domains);
+	intel_uncore_forcewake_get(&dev_priv->uncore, guc->send_regs.fw_domains);
 
 	for (i = 0; i < len; i++)
 		I915_WRITE(guc_send_reg(guc, i), action[i]);
@@ -454,7 +454,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	ret = INTEL_GUC_MSG_TO_DATA(status);
 
 out:
-	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);
+	intel_uncore_forcewake_put(&dev_priv->uncore, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;

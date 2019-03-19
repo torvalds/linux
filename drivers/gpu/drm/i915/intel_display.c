@@ -9519,7 +9519,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	 * Make sure we're not on PC8 state before disabling PC8, otherwise
 	 * we'll hang the machine. To prevent PC8 state, just enable force_wake.
 	 */
-	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
@@ -9551,7 +9551,7 @@ static void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
 
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	intel_update_cdclk(dev_priv);
 	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
