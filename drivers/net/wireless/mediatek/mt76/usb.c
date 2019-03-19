@@ -792,8 +792,13 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 	struct mt76_queue *q;
 	int i, j;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+	for (i = 0; i <= MT_TXQ_PSD; i++) {
 		INIT_LIST_HEAD(&dev->q_tx[i].swq);
+
+		if (i >= IEEE80211_NUM_ACS) {
+			dev->q_tx[i].q = dev->q_tx[0].q;
+			continue;
+		}
 
 		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
 		if (!q)
