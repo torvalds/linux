@@ -186,9 +186,6 @@ static int spi_write_op(struct enc28j60_net *priv, u8 op,
 
 static void enc28j60_soft_reset(struct enc28j60_net *priv)
 {
-	if (netif_msg_hw(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
-
 	spi_write_op(priv, ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
 	/* Errata workaround #1, CLKRDY check is unreliable,
 	 * delay at least 1 mS instead */
@@ -1124,8 +1121,6 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 	struct net_device *ndev = priv->netdev;
 	int intflags, loop;
 
-	if (netif_msg_intr(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
 	/* disable further interrupts */
 	locked_reg_bfclr(priv, EIE, EIE_INTIE);
 
@@ -1228,8 +1223,6 @@ static void enc28j60_irq_work_handler(struct work_struct *work)
 
 	/* re-enable interrupts */
 	locked_reg_bfset(priv, EIE, EIE_INTIE);
-	if (netif_msg_intr(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() exit\n", __func__);
 }
 
 /*
@@ -1286,9 +1279,6 @@ static netdev_tx_t enc28j60_send_packet(struct sk_buff *skb,
 					struct net_device *dev)
 {
 	struct enc28j60_net *priv = netdev_priv(dev);
-
-	if (netif_msg_tx_queued(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
 
 	/* If some error occurs while trying to transmit this
 	 * packet, you should return '1' from this function.
@@ -1356,9 +1346,6 @@ static int enc28j60_net_open(struct net_device *dev)
 {
 	struct enc28j60_net *priv = netdev_priv(dev);
 
-	if (netif_msg_drv(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
-
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		if (netif_msg_ifup(priv))
 			dev_err(&dev->dev, "invalid MAC address %pM\n",
@@ -1391,9 +1378,6 @@ static int enc28j60_net_open(struct net_device *dev)
 static int enc28j60_net_close(struct net_device *dev)
 {
 	struct enc28j60_net *priv = netdev_priv(dev);
-
-	if (netif_msg_drv(priv))
-		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
 
 	enc28j60_hw_disable(priv);
 	enc28j60_lowpower(priv, true);
@@ -1619,7 +1603,6 @@ static int enc28j60_probe(struct spi_device *spi)
 				" failed (ret = %d)\n", ret);
 		goto error_register;
 	}
-	dev_info(&dev->dev, DRV_NAME " driver registered\n");
 
 	return 0;
 
@@ -1634,9 +1617,6 @@ error_alloc:
 static int enc28j60_remove(struct spi_device *spi)
 {
 	struct enc28j60_net *priv = spi_get_drvdata(spi);
-
-	if (netif_msg_drv(priv))
-		printk(KERN_DEBUG DRV_NAME ": remove\n");
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);
