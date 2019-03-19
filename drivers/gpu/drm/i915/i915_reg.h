@@ -9205,7 +9205,7 @@ enum skl_power_gate {
 #define TRANS_DDI_FUNC_CTL2(tran)	_MMIO_TRANS2(tran, \
 						     _TRANS_DDI_FUNC_CTL2_A)
 #define  PORT_SYNC_MODE_ENABLE			(1 << 4)
-#define  PORT_SYNC_MODE_MASTER_SELECT(x)	((x) < 0)
+#define  PORT_SYNC_MODE_MASTER_SELECT(x)	((x) << 0)
 #define  PORT_SYNC_MODE_MASTER_SELECT_MASK	(0x7 << 0)
 #define  PORT_SYNC_MODE_MASTER_SELECT_SHIFT	0
 
