@@ -58,7 +58,6 @@
  ******************************************************************************/
 
 enum {
-	LINK_RATE_REF_FREQ_IN_MHZ = 27,
 	PEAK_FACTOR_X1000 = 1006,
 	/*
 	* Some receivers fail to train on first try and are good
@@ -2289,14 +2288,13 @@ void core_link_resume(struct dc_link *link)
 
 static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 {
-	struct dc_link_settings *link_settings =
-			&stream->link->cur_link_settings;
-	uint32_t link_rate_in_mbps =
-			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
-	struct fixed31_32 mbps = dc_fixpt_from_int(
-			link_rate_in_mbps * link_settings->lane_count);
+	struct fixed31_32 mbytes_per_sec;
+	uint32_t link_rate_in_mbytes_per_sec = dc_link_bandwidth_kbps(stream->link, &stream->link->cur_link_settings);
+	link_rate_in_mbytes_per_sec /= 8000; /* Kbits to MBytes */
 
-	return dc_fixpt_div_int(mbps, 54);
+	mbytes_per_sec = dc_fixpt_from_int(link_rate_in_mbytes_per_sec);
+
+	return dc_fixpt_div_int(mbytes_per_sec, 54);
 }
 
 static int get_color_depth(enum dc_color_depth color_depth)

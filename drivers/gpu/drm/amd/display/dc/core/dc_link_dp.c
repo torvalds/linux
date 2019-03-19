@@ -1533,22 +1533,6 @@ static bool decide_fallback_link_setting(
 	return true;
 }
 
-static uint32_t bandwidth_in_kbps_from_link_settings(
-	const struct dc_link_settings *link_setting)
-{
-	uint32_t link_rate_in_kbps = link_setting->link_rate *
-		LINK_RATE_REF_FREQ_IN_KHZ;
-
-	uint32_t lane_count  = link_setting->lane_count;
-	uint32_t kbps = link_rate_in_kbps;
-
-	kbps *= lane_count;
-	kbps *= 8;   /* 8 bits per byte*/
-
-	return kbps;
-
-}
-
 bool dp_validate_mode_timing(
 	struct dc_link *link,
 	const struct dc_crtc_timing *timing)
@@ -1574,7 +1558,7 @@ bool dp_validate_mode_timing(
 	*/
 
 	req_bw = dc_bandwidth_in_kbps_from_timing(timing);
-	max_bw = bandwidth_in_kbps_from_link_settings(link_setting);
+	max_bw = dc_link_bandwidth_kbps(link, link_setting);
 
 	if (req_bw <= max_bw) {
 		/* remember the biggest mode here, during
@@ -1609,7 +1593,8 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = bandwidth_in_kbps_from_link_settings(
+		link_bw = dc_link_bandwidth_kbps(
+				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
 			*link_setting = current_link_setting;
@@ -1660,7 +1645,8 @@ static bool decide_edp_link_settings(struct dc_link *link, struct dc_link_settin
 	 */
 	while (current_link_setting.link_rate <=
 			link->verified_link_cap.link_rate) {
-		link_bw = bandwidth_in_kbps_from_link_settings(
+		link_bw = dc_link_bandwidth_kbps(
+				link,
 				&current_link_setting);
 		if (req_bw <= link_bw) {
 			*link_setting = current_link_setting;

@@ -584,6 +584,19 @@ void dc_link_set_test_pattern(struct dc_link *link,
 			cust_pattern_size);
 }
 
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting)
+{
+	uint32_t link_bw_kbps = link_setting->link_rate * LINK_RATE_REF_FREQ_IN_KHZ; /* bytes per sec */
+
+	link_bw_kbps *= 8;   /* 8 bits per byte*/
+	link_bw_kbps *= link_setting->lane_count;
+
+	return link_bw_kbps;
+
+}
+
 static void destruct(struct dc *dc)
 {
 	dc_release_state(dc->current_state);

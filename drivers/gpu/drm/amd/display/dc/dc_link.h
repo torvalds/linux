@@ -246,6 +246,9 @@ void dc_link_set_test_pattern(struct dc_link *link,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
+uint32_t dc_link_bandwidth_kbps(
+	const struct dc_link *link,
+	const struct dc_link_settings *link_setting);
 
 bool dc_submit_i2c(
 		struct dc *dc,
