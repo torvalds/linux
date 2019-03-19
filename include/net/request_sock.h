@@ -106,15 +106,19 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	return req;
 }
 
-static inline void reqsk_free(struct request_sock *req)
+static inline void __reqsk_free(struct request_sock *req)
 {
-	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
-
 	req->rsk_ops->destructor(req);
 	if (req->rsk_listener)
 		sock_put(req->rsk_listener);
 	kfree(req->saved_syn);
 	kmem_cache_free(req->rsk_ops->slab, req);
+}
+
+static inline void reqsk_free(struct request_sock *req)
+{
+	WARN_ON_ONCE(refcount_read(&req->rsk_refcnt) != 0);
+	__reqsk_free(req);
 }
 
 static inline void reqsk_put(struct request_sock *req)

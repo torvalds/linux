@@ -6502,8 +6502,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 			reqsk_fastopen_remove(fastopen_sk, req, false);
 			bh_unlock_sock(fastopen_sk);
 			sock_put(fastopen_sk);
-			reqsk_put(req);
-			goto drop;
+			goto drop_and_free;
 		}
 		sk->sk_data_ready(sk);
 		bh_unlock_sock(fastopen_sk);
@@ -6527,7 +6526,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 drop_and_release:
 	dst_release(dst);
 drop_and_free:
-	reqsk_free(req);
+	__reqsk_free(req);
 drop:
 	tcp_listendrop(sk);
 	return 0;
