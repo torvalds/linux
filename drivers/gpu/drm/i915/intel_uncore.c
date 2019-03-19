@@ -313,6 +313,7 @@ static inline u32 fifo_free_entries(struct drm_i915_private *dev_priv)
 
 static void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 n;
 
 	/* On VLV, FIFO will be shared by both SW and HW.
@@ -320,7 +321,7 @@ static void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv))
 		n = fifo_free_entries(dev_priv);
 	else
-		n = dev_priv->uncore.fifo_count;
+		n = uncore->fifo_count;
 
 	if (n <= GT_FIFO_NUM_RESERVED_ENTRIES) {
 		if (wait_for_atomic((n = fifo_free_entries(dev_priv)) >
@@ -331,7 +332,7 @@ static void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	dev_priv->uncore.fifo_count = n - 1;
+	uncore->fifo_count = n - 1;
 }
 
 static enum hrtimer_restart
@@ -795,7 +796,7 @@ void assert_forcewakes_active(struct intel_uncore *uncore,
 #define GEN11_NEEDS_FORCE_WAKE(reg) \
 	((reg) < 0x40000 || ((reg) >= 0x1c0000 && (reg) < 0x1dc000))
 
-#define __gen6_reg_read_fw_domains(offset) \
+#define __gen6_reg_read_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd; \
 	if (NEEDS_FORCE_WAKE(offset)) \
@@ -881,19 +882,19 @@ static const struct intel_forcewake_range __vlv_fw_ranges[] = {
 	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
 };
 
-#define __fwtable_reg_read_fw_domains(offset) \
+#define __fwtable_reg_read_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(&dev_priv->uncore, offset); \
+		__fwd = find_fw_domain(uncore, offset); \
 	__fwd; \
 })
 
-#define __gen11_fwtable_reg_read_fw_domains(offset) \
+#define __gen11_fwtable_reg_read_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (GEN11_NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(&dev_priv->uncore, offset); \
+		__fwd = find_fw_domain(uncore, offset); \
 	__fwd; \
 })
 
@@ -945,7 +946,7 @@ static bool is_gen##x##_shadowed(u32 offset) \
 __is_genX_shadowed(8)
 __is_genX_shadowed(11)
 
-#define __gen8_reg_write_fw_domains(offset) \
+#define __gen8_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd; \
 	if (NEEDS_FORCE_WAKE(offset) && !is_gen8_shadowed(offset)) \
@@ -975,19 +976,19 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	GEN_FW_RANGE(0x30000, 0x37fff, FORCEWAKE_MEDIA),
 };
 
-#define __fwtable_reg_write_fw_domains(offset) \
+#define __fwtable_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (NEEDS_FORCE_WAKE((offset)) && !is_gen8_shadowed(offset)) \
-		__fwd = find_fw_domain(&dev_priv->uncore, offset); \
+		__fwd = find_fw_domain(uncore, offset); \
 	__fwd; \
 })
 
-#define __gen11_fwtable_reg_write_fw_domains(offset) \
+#define __gen11_fwtable_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd = 0; \
 	if (GEN11_NEEDS_FORCE_WAKE((offset)) && !is_gen11_shadowed(offset)) \
-		__fwd = find_fw_domain(&dev_priv->uncore, offset); \
+		__fwd = find_fw_domain(uncore, offset); \
 	__fwd; \
 })
 
@@ -1137,16 +1138,17 @@ __gen2_read(64)
 #undef GEN2_READ_HEADER
 
 #define GEN6_READ_HEADER(x) \
+	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	u##x val = 0; \
 	assert_rpm_wakelock_held(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(dev_priv, reg, true, true)
 
 #define GEN6_READ_FOOTER \
 	unclaimed_reg_debug(dev_priv, reg, true, false); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags); \
+	spin_unlock_irqrestore(&uncore->lock, irqflags); \
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
@@ -1183,9 +1185,9 @@ static u##x \
 func##_read##x(struct drm_i915_private *dev_priv, i915_reg_t reg, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_READ_HEADER(x); \
-	fw_engine = __##func##_reg_read_fw_domains(offset); \
+	fw_engine = __##func##_reg_read_fw_domains(uncore, offset); \
 	if (fw_engine) \
-		__force_wake_auto(&dev_priv->uncore, fw_engine); \
+		__force_wake_auto(uncore, fw_engine); \
 	val = __raw_i915_read##x(dev_priv, reg); \
 	GEN6_READ_FOOTER; \
 }
@@ -1249,16 +1251,17 @@ __gen2_write(32)
 #undef GEN2_WRITE_HEADER
 
 #define GEN6_WRITE_HEADER \
+	struct intel_uncore *uncore = &dev_priv->uncore; \
 	u32 offset = i915_mmio_reg_offset(reg); \
 	unsigned long irqflags; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val), trace); \
 	assert_rpm_wakelock_held(dev_priv); \
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags); \
+	spin_lock_irqsave(&uncore->lock, irqflags); \
 	unclaimed_reg_debug(dev_priv, reg, false, true)
 
 #define GEN6_WRITE_FOOTER \
 	unclaimed_reg_debug(dev_priv, reg, false, false); \
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags)
+	spin_unlock_irqrestore(&uncore->lock, irqflags)
 
 #define __gen6_write(x) \
 static void \
@@ -1275,9 +1278,9 @@ static void \
 func##_write##x(struct drm_i915_private *dev_priv, i915_reg_t reg, u##x val, bool trace) { \
 	enum forcewake_domains fw_engine; \
 	GEN6_WRITE_HEADER; \
-	fw_engine = __##func##_reg_write_fw_domains(offset); \
+	fw_engine = __##func##_reg_write_fw_domains(uncore, offset); \
 	if (fw_engine) \
-		__force_wake_auto(&dev_priv->uncore, fw_engine); \
+		__force_wake_auto(uncore, fw_engine); \
 	__raw_i915_write##x(dev_priv, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
@@ -1781,6 +1784,7 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 			    unsigned int slow_timeout_ms,
 			    u32 *out_value)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	unsigned fw =
 		intel_uncore_forcewake_for_reg(dev_priv, reg, FW_REG_READ);
 	u32 reg_value;
@@ -1788,15 +1792,15 @@ int __intel_wait_for_register(struct drm_i915_private *dev_priv,
 
 	might_sleep_if(slow_timeout_ms);
 
-	spin_lock_irq(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(&dev_priv->uncore, fw);
+	spin_lock_irq(&uncore->lock);
+	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	ret = __intel_wait_for_register_fw(dev_priv,
 					   reg, mask, value,
 					   fast_timeout_us, 0, &reg_value);
 
-	intel_uncore_forcewake_put__locked(&dev_priv->uncore, fw);
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_put__locked(uncore, fw);
+	spin_unlock_irq(&uncore->lock);
 
 	if (ret && slow_timeout_ms)
 		ret = __wait_for(reg_value = I915_READ_NOTRACE(reg),
@@ -1820,11 +1824,12 @@ bool intel_uncore_unclaimed_mmio(struct drm_i915_private *dev_priv)
 bool
 intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	bool ret = false;
 
-	spin_lock_irq(&dev_priv->uncore.lock);
+	spin_lock_irq(&uncore->lock);
 
-	if (unlikely(dev_priv->uncore.unclaimed_mmio_check <= 0))
+	if (unlikely(uncore->unclaimed_mmio_check <= 0))
 		goto out;
 
 	if (unlikely(intel_uncore_unclaimed_mmio(dev_priv))) {
@@ -1834,12 +1839,12 @@ intel_uncore_arm_unclaimed_mmio_detection(struct drm_i915_private *dev_priv)
 				  "Please use i915.mmio_debug=N for more information.\n");
 			i915_modparams.mmio_debug++;
 		}
-		dev_priv->uncore.unclaimed_mmio_check--;
+		uncore->unclaimed_mmio_check--;
 		ret = true;
 	}
 
 out:
-	spin_unlock_irq(&dev_priv->uncore.lock);
+	spin_unlock_irq(&uncore->lock);
 
 	return ret;
 }
@@ -1848,21 +1853,22 @@ static enum forcewake_domains
 intel_uncore_forcewake_for_read(struct drm_i915_private *dev_priv,
 				i915_reg_t reg)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 offset = i915_mmio_reg_offset(reg);
 	enum forcewake_domains fw_domains;
 
 	if (INTEL_GEN(dev_priv) >= 11) {
-		fw_domains = __gen11_fwtable_reg_read_fw_domains(offset);
+		fw_domains = __gen11_fwtable_reg_read_fw_domains(uncore, offset);
 	} else if (HAS_FWTABLE(dev_priv)) {
-		fw_domains = __fwtable_reg_read_fw_domains(offset);
+		fw_domains = __fwtable_reg_read_fw_domains(uncore, offset);
 	} else if (INTEL_GEN(dev_priv) >= 6) {
-		fw_domains = __gen6_reg_read_fw_domains(offset);
+		fw_domains = __gen6_reg_read_fw_domains(uncore, offset);
 	} else {
 		WARN_ON(!IS_GEN_RANGE(dev_priv, 2, 5));
 		fw_domains = 0;
 	}
 
-	WARN_ON(fw_domains & ~dev_priv->uncore.fw_domains);
+	WARN_ON(fw_domains & ~uncore->fw_domains);
 
 	return fw_domains;
 }
@@ -1871,15 +1877,16 @@ static enum forcewake_domains
 intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 				 i915_reg_t reg)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 offset = i915_mmio_reg_offset(reg);
 	enum forcewake_domains fw_domains;
 
 	if (INTEL_GEN(dev_priv) >= 11) {
-		fw_domains = __gen11_fwtable_reg_write_fw_domains(offset);
+		fw_domains = __gen11_fwtable_reg_write_fw_domains(uncore, offset);
 	} else if (HAS_FWTABLE(dev_priv) && !IS_VALLEYVIEW(dev_priv)) {
-		fw_domains = __fwtable_reg_write_fw_domains(offset);
+		fw_domains = __fwtable_reg_write_fw_domains(uncore, offset);
 	} else if (IS_GEN(dev_priv, 8)) {
-		fw_domains = __gen8_reg_write_fw_domains(offset);
+		fw_domains = __gen8_reg_write_fw_domains(uncore, offset);
 	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		fw_domains = FORCEWAKE_RENDER;
 	} else {
@@ -1887,7 +1894,7 @@ intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 		fw_domains = 0;
 	}
 
-	WARN_ON(fw_domains & ~dev_priv->uncore.fw_domains);
+	WARN_ON(fw_domains & ~uncore->fw_domains);
 
 	return fw_domains;
 }
