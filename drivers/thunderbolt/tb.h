@@ -80,8 +80,7 @@ struct tb_switch_nvm {
  * @depth: Depth in the chain this switch is connected (ICM only)
  *
  * When the switch is being added or removed to the domain (other
- * switches) you need to have domain lock held. For switch authorization
- * internal switch_lock is enough.
+ * switches) you need to have domain lock held.
  */
 struct tb_switch {
 	struct device dev;
