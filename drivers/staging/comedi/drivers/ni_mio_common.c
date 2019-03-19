@@ -4394,9 +4394,13 @@ static int ni_calib_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	ni_write_caldac(dev, CR_CHAN(insn->chanspec), data[0]);
+	if (insn->n) {
+		/* only bother writing the last sample to the channel */
+		ni_write_caldac(dev, CR_CHAN(insn->chanspec),
+				data[insn->n - 1]);
+	}
 
-	return 1;
+	return insn->n;
 }
 
 static int ni_calib_insn_read(struct comedi_device *dev,
