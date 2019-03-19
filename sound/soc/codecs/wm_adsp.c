@@ -228,6 +228,12 @@
 #define WM_ADSP_FW_EVENT_SHUTDOWN            0x000001
 
 /*
+ * HALO system info
+ */
+#define HALO_AHBM_WINDOW_DEBUG_0             0x02040
+#define HALO_AHBM_WINDOW_DEBUG_1             0x02044
+
+/*
  * HALO core
  */
 #define HALO_SCRATCH1                        0x005c0
@@ -260,7 +266,20 @@
 #define HALO_MPU_WINDOW_ACCESS_3             0x43050
 #define HALO_MPU_XREG_ACCESS_3               0x43054
 #define HALO_MPU_YREG_ACCESS_3               0x4305C
+#define HALO_MPU_XM_VIO_ADDR                 0x43100
+#define HALO_MPU_XM_VIO_STATUS               0x43104
+#define HALO_MPU_YM_VIO_ADDR                 0x43108
+#define HALO_MPU_YM_VIO_STATUS               0x4310C
+#define HALO_MPU_PM_VIO_ADDR                 0x43110
+#define HALO_MPU_PM_VIO_STATUS               0x43114
 #define HALO_MPU_LOCK_CONFIG                 0x43140
+
+/*
+ * HALO_AHBM_WINDOW_DEBUG_1
+ */
+#define HALO_AHBM_CORE_ERR_ADDR_MASK         0x0fffff00
+#define HALO_AHBM_CORE_ERR_ADDR_SHIFT                 8
+#define HALO_AHBM_FLAGS_ERR_MASK             0x000000ff
 
 /*
  * HALO_CCM_CORE_CONTROL
@@ -271,6 +290,15 @@
  * HALO_CORE_SOFT_RESET
  */
 #define HALO_CORE_SOFT_RESET_MASK           0x00000001
+
+/*
+ * HALO_MPU_?M_VIO_STATUS
+ */
+#define HALO_MPU_VIO_STS_MASK               0x007e0000
+#define HALO_MPU_VIO_STS_SHIFT                      17
+#define HALO_MPU_VIO_ERR_WR_MASK            0x00008000
+#define HALO_MPU_VIO_ERR_SRC_MASK           0x00007fff
+#define HALO_MPU_VIO_ERR_SRC_SHIFT                   0
 
 struct wm_adsp_ops wm_adsp1_ops;
 struct wm_adsp_ops wm_adsp2_ops[];
@@ -4294,6 +4322,62 @@ error:
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_bus_error);
+
+irqreturn_t wm_halo_bus_error(struct wm_adsp *dsp)
+{
+	struct regmap *regmap = dsp->regmap;
+	unsigned int fault[6];
+	struct reg_sequence clear[] = {
+		{ dsp->base + HALO_MPU_XM_VIO_STATUS,     0x0 },
+		{ dsp->base + HALO_MPU_YM_VIO_STATUS,     0x0 },
+		{ dsp->base + HALO_MPU_PM_VIO_STATUS,     0x0 },
+	};
+	int ret;
+
+	mutex_lock(&dsp->pwr_lock);
+
+	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_1,
+			  fault);
+	if (ret) {
+		adsp_warn(dsp, "Failed to read AHB DEBUG_1: %d\n", ret);
+		goto exit_unlock;
+	}
+
+	adsp_warn(dsp, "AHB: STATUS: 0x%x ADDR: 0x%x\n",
+		  *fault & HALO_AHBM_FLAGS_ERR_MASK,
+		  (*fault & HALO_AHBM_CORE_ERR_ADDR_MASK) >>
+		  HALO_AHBM_CORE_ERR_ADDR_SHIFT);
+
+	ret = regmap_read(regmap, dsp->base_sysinfo + HALO_AHBM_WINDOW_DEBUG_0,
+			  fault);
+	if (ret) {
+		adsp_warn(dsp, "Failed to read AHB DEBUG_0: %d\n", ret);
+		goto exit_unlock;
+	}
+
+	adsp_warn(dsp, "AHB: SYS_ADDR: 0x%x\n", *fault);
+
+	ret = regmap_bulk_read(regmap, dsp->base + HALO_MPU_XM_VIO_ADDR,
+			       fault, ARRAY_SIZE(fault));
+	if (ret) {
+		adsp_warn(dsp, "Failed to read MPU fault info: %d\n", ret);
+		goto exit_unlock;
+	}
+
+	adsp_warn(dsp, "XM: STATUS:0x%x ADDR:0x%x\n", fault[1], fault[0]);
+	adsp_warn(dsp, "YM: STATUS:0x%x ADDR:0x%x\n", fault[3], fault[2]);
+	adsp_warn(dsp, "PM: STATUS:0x%x ADDR:0x%x\n", fault[5], fault[4]);
+
+	ret = regmap_multi_reg_write(dsp->regmap, clear, ARRAY_SIZE(clear));
+	if (ret)
+		adsp_warn(dsp, "Failed to clear MPU status: %d\n", ret);
+
+exit_unlock:
+	mutex_unlock(&dsp->pwr_lock);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(wm_halo_bus_error);
 
 struct wm_adsp_ops wm_adsp1_ops = {
 	.validate_version = wm_adsp_validate_version,
