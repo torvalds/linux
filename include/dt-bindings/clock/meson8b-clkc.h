@@ -103,7 +103,6 @@
 #define CLKID_MPLL1		94
 #define CLKID_MPLL2		95
 #define CLKID_NAND_CLK		112
-#define CLKID_ABP		124
 #define CLKID_APB		124
 #define CLKID_PERIPH		126
 #define CLKID_AXI		128
