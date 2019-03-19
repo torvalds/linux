@@ -4409,10 +4409,12 @@ static int ni_calib_insn_read(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned int i;
 
-	data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[0] = devpriv->caldacs[CR_CHAN(insn->chanspec)];
 
-	return 1;
+	return insn->n;
 }
 
 static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
