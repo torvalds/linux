@@ -40,7 +40,8 @@
 	(NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN | NETIF_MSG_LINK)
 
 /* Buffer size required for the largest SPI transfer (i.e., reading a
- * frame). */
+ * frame).
+ */
 #define SPI_TRANSFER_BUF_LEN	(4 + MAX_FRAMELEN)
 
 #define TX_TIMEOUT	(4 * HZ)
@@ -82,7 +83,7 @@ static struct {
 
 /*
  * SPI read buffer
- * wait for the SPI transfer and copy received data to destination
+ * Wait for the SPI transfer and copy received data to destination.
  */
 static int
 spi_read_buf(struct enc28j60_net *priv, int len, u8 *data)
@@ -191,7 +192,7 @@ static void enc28j60_soft_reset(struct enc28j60_net *priv)
 {
 	spi_write_op(priv, ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
 	/* Errata workaround #1, CLKRDY check is unreliable,
-	 * delay at least 1 mS instead */
+	 * delay at least 1 ms instead */
 	udelay(2000);
 }
 
@@ -203,7 +204,7 @@ static void enc28j60_set_bank(struct enc28j60_net *priv, u8 addr)
 	u8 b = (addr & BANK_MASK) >> 5;
 
 	/* These registers (EIE, EIR, ESTAT, ECON2, ECON1)
-	 * are present in all banks, no need to switch bank
+	 * are present in all banks, no need to switch bank.
 	 */
 	if (addr >= EIE && addr <= ECON1)
 		return;
@@ -364,7 +365,7 @@ static void locked_regw_write(struct enc28j60_net *priv,
 
 /*
  * Buffer memory read
- * Select the starting address and execute a SPI buffer read
+ * Select the starting address and execute a SPI buffer read.
  */
 static void enc28j60_mem_read(struct enc28j60_net *priv,
 				     u16 addr, int len, u8 *data)
@@ -452,7 +453,7 @@ static int wait_phy_ready(struct enc28j60_net *priv)
 
 /*
  * PHY register read
- * PHY registers are not accessed directly, but through the MII
+ * PHY registers are not accessed directly, but through the MII.
  */
 static u16 enc28j60_phy_read(struct enc28j60_net *priv, u8 address)
 {
@@ -639,8 +640,8 @@ static void nolock_txfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
 
 /*
  * Low power mode shrinks power consumption about 100x, so we'd like
- * the chip to be in that mode whenever it's inactive.  (However, we
- * can't stay in lowpower mode during suspend with WOL active.)
+ * the chip to be in that mode whenever it's inactive. (However, we
+ * can't stay in low power mode during suspend with WOL active.)
  */
 static void enc28j60_lowpower(struct enc28j60_net *priv, bool is_low)
 {
@@ -693,7 +694,7 @@ static int enc28j60_hw_init(struct enc28j60_net *priv)
 	/*
 	 * Check the RevID.
 	 * If it's 0x00 or 0xFF probably the enc28j60 is not mounted or
-	 * damaged
+	 * damaged.
 	 */
 	reg = locked_regb_read(priv, EREVID);
 	if (netif_msg_drv(priv))
@@ -734,7 +735,7 @@ static int enc28j60_hw_init(struct enc28j60_net *priv)
 	/*
 	 * MACLCON1 (default)
 	 * MACLCON2 (default)
-	 * Set the maximum packet size which the controller will accept
+	 * Set the maximum packet size which the controller will accept.
 	 */
 	locked_regw_write(priv, MAMXFLL, MAX_FRAMELEN);
 
@@ -785,7 +786,7 @@ static void enc28j60_hw_enable(struct enc28j60_net *priv)
 static void enc28j60_hw_disable(struct enc28j60_net *priv)
 {
 	mutex_lock(&priv->lock);
-	/* disable interrutps and packet reception */
+	/* disable interrupts and packet reception */
 	nolock_regb_write(priv, EIE, 0x00);
 	nolock_reg_bfclr(priv, ECON1, ECON1_RXEN);
 	priv->hw_enable = false;
@@ -999,7 +1000,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 	/*
 	 * Move the RX read pointer to the start of the next
 	 * received packet.
-	 * This frees the memory we just read out
+	 * This frees the memory we just read out.
 	 */
 	erxrdpt = erxrdpt_workaround(next_packet, RXSTART_INIT, RXEND_INIT);
 	if (netif_msg_hw(priv))
@@ -1107,8 +1108,8 @@ static void enc28j60_tx_clear(struct net_device *ndev, bool err)
 
 /*
  * RX handler
- * ignore PKTIF because is unreliable! (look at the errata datasheet)
- * check EPKTCNT is the suggested workaround.
+ * Ignore PKTIF because is unreliable! (Look at the errata datasheet)
+ * Check EPKTCNT is the suggested workaround.
  * We don't need to clear interrupt flag, automatically done when
  * enc28j60_hw_rx() decrements the packet counter.
  * Returns how many packet processed.
@@ -1305,7 +1306,7 @@ static netdev_tx_t enc28j60_send_packet(struct sk_buff *skb,
 	 * packet, you should return '1' from this function.
 	 * In such a case you _may not_ do anything to the
 	 * SKB, it is still owned by the network queueing
-	 * layer when an error is returned.  This means you
+	 * layer when an error is returned. This means you
 	 * may not modify any SKB fields, you may not free
 	 * the SKB, etc.
 	 */
