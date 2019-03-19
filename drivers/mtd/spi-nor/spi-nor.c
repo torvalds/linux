@@ -744,7 +744,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	u8 erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
 
 	/*
-	 * Erase types are ordered by size, with the biggest erase type at
+	 * Erase types are ordered by size, with the smallest erase type at
 	 * index 0.
 	 */
 	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
