@@ -31,12 +31,14 @@
  * struct zynqmp_clk_divider - adjustable divider clock
  * @hw:		handle between common and hardware-specific interfaces
  * @flags:	Hardware specific flags
+ * @is_frac:	The divider is a fractional divider
  * @clk_id:	Id of clock
  * @div_type:	divisor type (TYPE_DIV1 or TYPE_DIV2)
  */
 struct zynqmp_clk_divider {
 	struct clk_hw hw;
 	u8 flags;
+	bool is_frac;
 	u32 clk_id;
 	u32 div_type;
 };
@@ -116,8 +118,7 @@ static long zynqmp_clk_divider_round_rate(struct clk_hw *hw,
 
 	bestdiv = zynqmp_divider_get_val(*prate, rate);
 
-	if ((clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) &&
-	    (divider->flags & CLK_FRAC))
+	if ((clk_hw_get_flags(hw) & CLK_SET_RATE_PARENT) && divider->is_frac)
 		bestdiv = rate % *prate ? 1 : bestdiv;
 	*prate = rate * bestdiv;
 
@@ -195,11 +196,13 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 
 	init.name = name;
 	init.ops = &zynqmp_clk_divider_ops;
-	init.flags = nodes->flag;
+	/* CLK_FRAC is not defined in the common clk framework */
+	init.flags = nodes->flag & ~CLK_FRAC;
 	init.parent_names = parents;
 	init.num_parents = 1;
 
 	/* struct clk_divider assignments */
+	div->is_frac = !!(nodes->flag & CLK_FRAC);
 	div->flags = nodes->type_flag;
 	div->hw.init = &init;
 	div->clk_id = clk_id;
