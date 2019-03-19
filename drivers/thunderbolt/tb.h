@@ -277,6 +277,8 @@ static inline struct tb_port *tb_port_at(u64 route, struct tb_switch *sw)
 static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 			     enum tb_cfg_space space, u32 offset, u32 length)
 {
+	if (sw->is_unplugged)
+		return -ENODEV;
 	return tb_cfg_read(sw->tb->ctl,
 			   buffer,
 			   tb_route(sw),
@@ -289,6 +291,8 @@ static inline int tb_sw_read(struct tb_switch *sw, void *buffer,
 static inline int tb_sw_write(struct tb_switch *sw, void *buffer,
 			      enum tb_cfg_space space, u32 offset, u32 length)
 {
+	if (sw->is_unplugged)
+		return -ENODEV;
 	return tb_cfg_write(sw->tb->ctl,
 			    buffer,
 			    tb_route(sw),
@@ -301,6 +305,8 @@ static inline int tb_sw_write(struct tb_switch *sw, void *buffer,
 static inline int tb_port_read(struct tb_port *port, void *buffer,
 			       enum tb_cfg_space space, u32 offset, u32 length)
 {
+	if (port->sw->is_unplugged)
+		return -ENODEV;
 	return tb_cfg_read(port->sw->tb->ctl,
 			   buffer,
 			   tb_route(port->sw),
@@ -313,6 +319,8 @@ static inline int tb_port_read(struct tb_port *port, void *buffer,
 static inline int tb_port_write(struct tb_port *port, const void *buffer,
 				enum tb_cfg_space space, u32 offset, u32 length)
 {
+	if (port->sw->is_unplugged)
+		return -ENODEV;
 	return tb_cfg_write(port->sw->tb->ctl,
 			    buffer,
 			    tb_route(port->sw),
