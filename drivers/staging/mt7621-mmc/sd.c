@@ -100,7 +100,6 @@ static int cd_active_low = 1;
 struct msdc_hw msdc0_hw = {
 	.clk_src        = 0,
 	.flags          = MSDC_CD_PIN_EN | MSDC_REMOVABLE,
-//	.flags          = MSDC_WP_PIN_EN | MSDC_CD_PIN_EN | MSDC_REMOVABLE,
 };
 
 /* end of +++ */
@@ -1669,7 +1668,6 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->timeout_clks = DEFAULT_DTOC * 65536;
 
 	host->mrq = NULL;
-	//init_MUTEX(&host->sem); /* we don't need to support multiple threads access */
 
 	dma_coerce_mask_and_coherent(mmc_dev(mmc), DMA_BIT_MASK(32));
 

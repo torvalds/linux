@@ -39,8 +39,6 @@
 #include <linux/bitops.h>
 #include <linux/mmc/host.h>
 
-// #include <mach/mt6575_reg_base.h> /* --- by chhung */
-
 /*--------------------------------------------------------------------------*/
 /* Common Definition                                                        */
 /*--------------------------------------------------------------------------*/
@@ -418,7 +416,6 @@ struct msdc_host {
 
 	int                         error;
 	spinlock_t                  lock;           /* mutex */
-	struct semaphore            sem;
 
 	u32                         blksz;          /* host block size */
 	void __iomem                *base;           /* host base address */
