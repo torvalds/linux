@@ -205,6 +205,12 @@ static const struct ingenic_cgu_clk_info jz4725b_cgu_clocks[] = {
 		.parents = { JZ4725B_CLK_EXT512, JZ4725B_CLK_OSC32K, -1, -1 },
 		.mux = { CGU_REG_OPCR, 2, 1},
 	},
+
+	[JZ4725B_CLK_UDC_PHY] = {
+		"udc_phy", CGU_CLK_GATE,
+		.parents = { JZ4725B_CLK_EXT, -1, -1, -1 },
+		.gate = { CGU_REG_OPCR, 6, true },
+	},
 };
 
 static void __init jz4725b_cgu_init(struct device_node *np)
