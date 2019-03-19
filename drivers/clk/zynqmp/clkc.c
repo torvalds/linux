@@ -415,7 +415,7 @@ static int zynqmp_clock_get_topology(u32 clk_id,
 }
 
 /**
- * __zynqmp_clock_get_topology() - Get parents info of clock from firmware
+ * __zynqmp_clock_get_parents() - Get parents info of clock from firmware
  *				   response data
  * @parents:		Clock parents
  * @data:		Clock parents data received from firmware
