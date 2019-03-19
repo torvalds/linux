@@ -151,6 +151,15 @@ static void mt76x02u_restart_pre_tbtt_timer(struct mt76x02_dev *dev)
 	hrtimer_start(&dev->pre_tbtt_timer, time, HRTIMER_MODE_REL);
 }
 
+static void mt76x02u_stop_pre_tbtt_timer(struct mt76x02_dev *dev)
+{
+	do {
+		hrtimer_cancel(&dev->pre_tbtt_timer);
+		cancel_work_sync(&dev->pre_tbtt_work);
+		/* Timer can be rearmed by work. */
+	} while (hrtimer_active(&dev->pre_tbtt_timer));
+}
+
 static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev =
@@ -173,10 +182,21 @@ static enum hrtimer_restart mt76x02u_pre_tbtt_interrupt(struct hrtimer *timer)
 
 static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
 {
+	if (en && dev->beacon_mask && !hrtimer_active(&dev->pre_tbtt_timer))
+		mt76x02u_start_pre_tbtt_timer(dev);
+	if (!en)
+		mt76x02u_stop_pre_tbtt_timer(dev);
 }
 
 static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 {
+	if (WARN_ON_ONCE(!dev->beacon_int))
+		return;
+
+	if (en)
+		mt76x02u_start_pre_tbtt_timer(dev);
+
+	/* Nothing to do on disable as timer is already stopped */
 }
 
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
@@ -194,3 +214,16 @@ void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
 	mt76x02_init_beacon_config(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_init_beacon_config);
+
+void mt76x02u_exit_beacon_config(struct mt76x02_dev *dev)
+{
+	if (!test_bit(MT76_REMOVED, &dev->mt76.state))
+		mt76_clear(dev, MT_BEACON_TIME_CFG,
+			   MT_BEACON_TIME_CFG_TIMER_EN |
+			   MT_BEACON_TIME_CFG_SYNC_MODE |
+			   MT_BEACON_TIME_CFG_TBTT_EN |
+			   MT_BEACON_TIME_CFG_BEACON_TX);
+
+	mt76x02u_stop_pre_tbtt_timer(dev);
+}
+EXPORT_SYMBOL_GPL(mt76x02u_exit_beacon_config);
