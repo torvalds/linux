@@ -1914,11 +1914,11 @@
 			rgmii_pins: rgmii-pins {
 				rockchip,pins =
 					/* rgmii_txen */
-					<2 RK_PA1 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA1 2 &pcfg_pull_none_4ma>,
 					/* rgmii_txd1 */
-					<2 RK_PA2 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA2 2 &pcfg_pull_none_4ma>,
 					/* rgmii_txd0 */
-					<2 RK_PA3 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA3 2 &pcfg_pull_none_4ma>,
 					/* rgmii_rxd0 */
 					<2 RK_PA4 2 &pcfg_pull_none>,
 					/* rgmii_rxd1 */
@@ -1926,13 +1926,13 @@
 					/* rgmii_rxdv */
 					<2 RK_PA7 2 &pcfg_pull_none>,
 					/* rgmii_mdio */
-					<2 RK_PB0 2 &pcfg_pull_none>,
+					<2 RK_PB0 2 &pcfg_pull_none_2ma>,
 					/* rgmii_mdc */
-					<2 RK_PB2 2 &pcfg_pull_none>,
+					<2 RK_PB2 2 &pcfg_pull_none_2ma>,
 					/* rgmii_txd3 */
-					<2 RK_PB3 2 &pcfg_pull_none_8ma>,
+					<2 RK_PB3 2 &pcfg_pull_none_4ma>,
 					/* rgmii_txd2 */
-					<2 RK_PB4 2 &pcfg_pull_none_8ma>,
+					<2 RK_PB4 2 &pcfg_pull_none_4ma>,
 					/* rgmii_rxd2 */
 					<2 RK_PB5 2 &pcfg_pull_none>,
 					/* rgmii_rxd3 */
@@ -1940,7 +1940,7 @@
 					/* rgmii_clk */
 					<2 RK_PB7 2 &pcfg_pull_none>,
 					/* rgmii_txclk */
-					<2 RK_PC1 2 &pcfg_pull_none_8ma>,
+					<2 RK_PC1 2 &pcfg_pull_none_4ma>,
 					/* rgmii_rxclk */
 					<2 RK_PC2 2 &pcfg_pull_none>;
 			};
@@ -1948,11 +1948,11 @@
 			rmii_pins: rmii-pins {
 				rockchip,pins =
 					/* rmii_txen */
-					<2 RK_PA1 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA1 2 &pcfg_pull_none_4ma>,
 					/* rmii_txd1 */
-					<2 RK_PA2 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA2 2 &pcfg_pull_none_4ma>,
 					/* rmii_txd0 */
-					<2 RK_PA3 2 &pcfg_pull_none_8ma>,
+					<2 RK_PA3 2 &pcfg_pull_none_4ma>,
 					/* rmii_rxd0 */
 					<2 RK_PA4 2 &pcfg_pull_none>,
 					/* rmii_rxd1 */
@@ -1962,9 +1962,9 @@
 					/* rmii_rxdv */
 					<2 RK_PA7 2 &pcfg_pull_none>,
 					/* rmii_mdio */
-					<2 RK_PB0 2 &pcfg_pull_none>,
+					<2 RK_PB0 2 &pcfg_pull_none_2ma>,
 					/* rmii_mdc */
-					<2 RK_PB2 2 &pcfg_pull_none>,
+					<2 RK_PB2 2 &pcfg_pull_none_2ma>,
 					/* rmii_clk */
 					<2 RK_PB7 2 &pcfg_pull_none>;
 			};
