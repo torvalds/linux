@@ -17,22 +17,16 @@
 #include "trace.h"
 #include "trace_output.h"
 
+static struct trace_iterator iter;
+static struct ring_buffer_iter *buffer_iter[CONFIG_NR_CPUS];
+
 static void ftrace_dump_buf(int skip_entries, long cpu_file)
 {
-	/* use static because iter can be a bit big for the stack */
-	static struct trace_iterator iter;
-	static struct ring_buffer_iter *buffer_iter[CONFIG_NR_CPUS];
 	struct trace_array *tr;
 	unsigned int old_userobj;
 	int cnt = 0, cpu;
 
-	trace_init_global_iter(&iter);
-	iter.buffer_iter = buffer_iter;
 	tr = iter.tr;
-
-	for_each_tracing_cpu(cpu) {
-		atomic_inc(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
-	}
 
 	old_userobj = tr->trace_flags;
 
@@ -40,6 +34,8 @@ static void ftrace_dump_buf(int skip_entries, long cpu_file)
 	tr->trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
 	kdb_printf("Dumping ftrace buffer:\n");
+	if (skip_entries)
+		kdb_printf("(skipping %d entries)\n", skip_entries);
 
 	/* reset all but tr, trace, and overruns */
 	memset(&iter.seq, 0,
@@ -90,10 +86,6 @@ out:
 	tr->trace_flags = old_userobj;
 
 	for_each_tracing_cpu(cpu) {
-		atomic_dec(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
-	}
-
-	for_each_tracing_cpu(cpu) {
 		if (iter.buffer_iter[cpu]) {
 			ring_buffer_read_finish(iter.buffer_iter[cpu]);
 			iter.buffer_iter[cpu] = NULL;
@@ -109,6 +101,8 @@ static int kdb_ftdump(int argc, const char **argv)
 	int skip_entries = 0;
 	long cpu_file;
 	char *cp;
+	int cnt;
+	int cpu;
 
 	if (argc > 2)
 		return KDB_ARGCOUNT;
@@ -129,7 +123,29 @@ static int kdb_ftdump(int argc, const char **argv)
 	}
 
 	kdb_trap_printk++;
+
+	trace_init_global_iter(&iter);
+	iter.buffer_iter = buffer_iter;
+
+	for_each_tracing_cpu(cpu) {
+		atomic_inc(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
+	}
+
+	/* A negative skip_entries means skip all but the last entries */
+	if (skip_entries < 0) {
+		if (cpu_file == RING_BUFFER_ALL_CPUS)
+			cnt = trace_total_entries(NULL);
+		else
+			cnt = trace_total_entries_cpu(NULL, cpu_file);
+		skip_entries = max(cnt + skip_entries, 0);
+	}
+
 	ftrace_dump_buf(skip_entries, cpu_file);
+
+	for_each_tracing_cpu(cpu) {
+		atomic_dec(&per_cpu_ptr(iter.trace_buffer->data, cpu)->disabled);
+	}
+
 	kdb_trap_printk--;
 
 	return 0;
@@ -138,7 +154,8 @@ static int kdb_ftdump(int argc, const char **argv)
 static __init int kdb_ftrace_register(void)
 {
 	kdb_register_flags("ftdump", kdb_ftdump, "[skip_#entries] [cpu]",
-			    "Dump ftrace log", 0, KDB_ENABLE_ALWAYS_SAFE);
+			    "Dump ftrace log; -skip dumps last #entries", 0,
+			    KDB_ENABLE_ALWAYS_SAFE);
 	return 0;
 }
 
