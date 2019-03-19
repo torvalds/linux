@@ -377,11 +377,16 @@ struct ibmvnic_phys_parms {
 	u8 flags2;
 #define IBMVNIC_LOGICAL_LNK_ACTIVE 0x80
 	__be32 speed;
-#define IBMVNIC_AUTONEG		0x80
-#define IBMVNIC_10MBPS		0x40
-#define IBMVNIC_100MBPS		0x20
-#define IBMVNIC_1GBPS		0x10
-#define IBMVNIC_10GBPS		0x08
+#define IBMVNIC_AUTONEG		0x80000000
+#define IBMVNIC_10MBPS		0x40000000
+#define IBMVNIC_100MBPS		0x20000000
+#define IBMVNIC_1GBPS		0x10000000
+#define IBMVNIC_10GBP		0x08000000
+#define IBMVNIC_40GBPS		0x04000000
+#define IBMVNIC_100GBPS		0x02000000
+#define IBMVNIC_25GBPS		0x01000000
+#define IBMVNIC_50GBPS		0x00800000
+#define IBMVNIC_200GBPS		0x00400000
 	__be32 mtu;
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
@@ -998,6 +1003,9 @@ struct ibmvnic_adapter {
 
 	int phys_link_state;
 	int logical_link_state;
+
+	u32 speed;
+	u8 duplex;
 
 	/* login data */
 	struct ibmvnic_login_buffer *login_buf;
