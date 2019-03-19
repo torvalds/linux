@@ -619,68 +619,6 @@ void mt76x02_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta,
 }
 EXPORT_SYMBOL_GPL(mt76x02_sta_ps);
 
-const u16 mt76x02_beacon_offsets[16] = {
-	/* 1024 byte per beacon */
-	0xc000,
-	0xc400,
-	0xc800,
-	0xcc00,
-	0xd000,
-	0xd400,
-	0xd800,
-	0xdc00,
-	/* BSS idx 8-15 not used for beacons */
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-};
-
-static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
-{
-	u16 val, base = MT_BEACON_BASE;
-	u32 regs[4] = {};
-	int i;
-
-	for (i = 0; i < 16; i++) {
-		val = mt76x02_beacon_offsets[i] - base;
-		regs[i / 4] |= (val / 64) << (8 * (i % 4));
-	}
-
-	for (i = 0; i < 4; i++)
-		mt76_wr(dev, MT_BCN_OFFSET(i), regs[i]);
-}
-
-void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
-{
-	int i;
-
-	if (mt76_is_mmio(dev)) {
-		/* Fire a pre-TBTT interrupt 8 ms before TBTT */
-		mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT,
-			       8 << 4);
-		mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
-			       MT_DFS_GP_INTERVAL);
-		mt76_wr(dev, MT_INT_TIMER_EN, 0);
-	}
-
-	mt76_clear(dev, MT_BEACON_TIME_CFG, (MT_BEACON_TIME_CFG_TIMER_EN |
-					     MT_BEACON_TIME_CFG_TBTT_EN |
-					     MT_BEACON_TIME_CFG_BEACON_TX));
-	mt76_set(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_SYNC_MODE);
-	mt76_wr(dev, MT_BCN_BYPASS_MASK, 0xffff);
-
-	for (i = 0; i < 8; i++)
-		mt76x02_mac_set_beacon(dev, i, NULL);
-
-	mt76x02_set_beacon_offsets(dev);
-}
-EXPORT_SYMBOL_GPL(mt76x02_init_beacon_config);
-
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info,

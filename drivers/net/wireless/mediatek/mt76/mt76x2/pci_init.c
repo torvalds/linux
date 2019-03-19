@@ -120,7 +120,7 @@ int mt76x2_mac_reset(struct mt76x02_dev *dev, bool hard)
 	mt76_clear(dev, MT_FCE_L2_STUFF, MT_FCE_L2_STUFF_WR_MPDU_LEN_EN);
 
 	mt76x02_mac_setaddr(dev, macaddr);
-	mt76x02_init_beacon_config(dev);
+	mt76x02e_init_beacon_config(dev);
 	if (!hard)
 		return 0;
 

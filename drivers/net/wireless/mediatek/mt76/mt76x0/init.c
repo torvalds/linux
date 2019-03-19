@@ -259,7 +259,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x0_phy_init(dev);
-	mt76x02_init_beacon_config(dev);
 
 	return 0;
 }

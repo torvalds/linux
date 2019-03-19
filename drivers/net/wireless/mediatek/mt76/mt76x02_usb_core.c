@@ -104,3 +104,9 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 	return mt76x02u_skb_dma_info(skb, WLAN_PORT, flags);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);
+
+void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
+{
+	mt76x02_init_beacon_config(dev);
+}
+EXPORT_SYMBOL_GPL(mt76x02u_init_beacon_config);

@@ -186,6 +186,7 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 
 extern const u16 mt76x02_beacon_offsets[16];
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
+void mt76x02e_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);

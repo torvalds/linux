@@ -128,6 +128,8 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
+	mt76x02e_init_beacon_config(dev);
+
 	if (mt76_chip(&dev->mt76) == 0x7610) {
 		u16 val;
 

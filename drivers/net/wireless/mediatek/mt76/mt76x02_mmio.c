@@ -152,6 +152,18 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	spin_unlock_bh(&q->lock);
 }
 
+void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
+{
+	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT, 8 << 4);
+	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,
+		       MT_DFS_GP_INTERVAL);
+	mt76_wr(dev, MT_INT_TIMER_EN, 0);
+
+	mt76x02_init_beacon_config(dev);
+}
+EXPORT_SYMBOL_GPL(mt76x02e_init_beacon_config);
+
 static int
 mt76x02_init_tx_queue(struct mt76x02_dev *dev, struct mt76_sw_queue *q,
 		      int idx, int n_desc)

@@ -175,6 +175,8 @@ static int mt76x0u_init_hardware(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
+	mt76x02u_init_beacon_config(dev);
+
 	mt76_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 	mt76_wr(dev, MT_TXOP_CTRL_CFG,
 		FIELD_PREP(MT_TXOP_TRUN_EN, 0x3f) |
