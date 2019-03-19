@@ -265,9 +265,24 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 			  sta ? sta->sta.addr : bcast_addr, ret);
 }
 
+int ieee80211_set_tx_key(struct ieee80211_key *key)
+{
+	struct sta_info *sta = key->sta;
+	struct ieee80211_local *local = key->local;
+	struct ieee80211_key *old;
+
+	assert_key_lock(local);
+
+	old = key_mtx_dereference(local, sta->ptk[sta->ptk_idx]);
+	sta->ptk_idx = key->conf.keyidx;
+	ieee80211_check_fast_xmit(sta);
+
+	return 0;
+}
+
 static int ieee80211_hw_key_replace(struct ieee80211_key *old_key,
 				    struct ieee80211_key *new_key,
-				    bool ptk0rekey)
+				    bool pairwise)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local;
@@ -284,8 +299,9 @@ static int ieee80211_hw_key_replace(struct ieee80211_key *old_key,
 	assert_key_lock(old_key->local);
 	sta = old_key->sta;
 
-	/* PTK only using key ID 0 needs special handling on rekey */
-	if (new_key && sta && ptk0rekey) {
+	/* Unicast rekey without Extended Key ID needs special handling */
+	if (new_key && sta && pairwise &&
+	    rcu_access_pointer(sta->ptk[sta->ptk_idx]) == old_key) {
 		local = old_key->local;
 		sdata = old_key->sdata;
 
@@ -401,10 +417,6 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 
 	if (old) {
 		idx = old->conf.keyidx;
-		/* TODO: proper implement and test "Extended Key ID for
-		 * Individually Addressed Frames" from IEEE 802.11-2016.
-		 * Till then always assume only key ID 0 is used for
-		 * pairwise keys.*/
 		ret = ieee80211_hw_key_replace(old, new, pairwise);
 	} else {
 		/* new must be provided in case old is not */
@@ -421,15 +433,20 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	if (sta) {
 		if (pairwise) {
 			rcu_assign_pointer(sta->ptk[idx], new);
-			sta->ptk_idx = idx;
-			if (new) {
+			if (new &&
+			    !(new->conf.flags & IEEE80211_KEY_FLAG_NO_AUTO_TX)) {
+				sta->ptk_idx = idx;
 				clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 				ieee80211_check_fast_xmit(sta);
 			}
 		} else {
 			rcu_assign_pointer(sta->gtk[idx], new);
 		}
-		if (new)
+		/* Only needed for transition from no key -> key.
+		 * Still triggers unnecessary when using Extended Key ID
+		 * and installing the second key ID the first time.
+		 */
+		if (new && !old)
 			ieee80211_check_fast_rx(sta);
 	} else {
 		defunikey = old &&
@@ -745,16 +762,34 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	 * can cause warnings to appear.
 	 */
 	bool delay_tailroom = sdata->vif.type == NL80211_IFTYPE_STATION;
-	int ret;
+	int ret = -EOPNOTSUPP;
 
 	mutex_lock(&sdata->local->key_mtx);
 
-	if (sta && pairwise)
+	if (sta && pairwise) {
+		struct ieee80211_key *alt_key;
+
 		old_key = key_mtx_dereference(sdata->local, sta->ptk[idx]);
-	else if (sta)
+		alt_key = key_mtx_dereference(sdata->local, sta->ptk[idx ^ 1]);
+
+		/* The rekey code assumes that the old and new key are using
+		 * the same cipher. Enforce the assumption for pairwise keys.
+		 */
+		if (key &&
+		    ((alt_key && alt_key->conf.cipher != key->conf.cipher) ||
+		     (old_key && old_key->conf.cipher != key->conf.cipher)))
+			goto out;
+	} else if (sta) {
 		old_key = key_mtx_dereference(sdata->local, sta->gtk[idx]);
-	else
+	} else {
 		old_key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
+	}
+
+	/* Non-pairwise keys must also not switch the cipher on rekey */
+	if (!pairwise) {
+		if (key && old_key && old_key->conf.cipher != key->conf.cipher)
+			goto out;
+	}
 
 	/*
 	 * Silently accept key re-installation without really installing the

@@ -3001,23 +3001,15 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		switch (build.key->conf.cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
 		case WLAN_CIPHER_SUITE_CCMP_256:
-			/* add fixed key ID */
-			if (gen_iv) {
-				(build.hdr + build.hdr_len)[3] =
-					0x20 | (build.key->conf.keyidx << 6);
+			if (gen_iv)
 				build.pn_offs = build.hdr_len;
-			}
 			if (gen_iv || iv_spc)
 				build.hdr_len += IEEE80211_CCMP_HDR_LEN;
 			break;
 		case WLAN_CIPHER_SUITE_GCMP:
 		case WLAN_CIPHER_SUITE_GCMP_256:
-			/* add fixed key ID */
-			if (gen_iv) {
-				(build.hdr + build.hdr_len)[3] =
-					0x20 | (build.key->conf.keyidx << 6);
+			if (gen_iv)
 				build.pn_offs = build.hdr_len;
-			}
 			if (gen_iv || iv_spc)
 				build.hdr_len += IEEE80211_GCMP_HDR_LEN;
 			break;
@@ -3388,6 +3380,7 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 			pn = atomic64_inc_return(&key->conf.tx_pn);
 			crypto_hdr[0] = pn;
 			crypto_hdr[1] = pn >> 8;
+			crypto_hdr[3] = 0x20 | (key->conf.keyidx << 6);
 			crypto_hdr[4] = pn >> 16;
 			crypto_hdr[5] = pn >> 24;
 			crypto_hdr[6] = pn >> 32;

@@ -347,6 +347,15 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sta.max_rx_aggregation_subframes =
 		local->hw.max_rx_aggregation_subframes;
 
+	/* Extended Key ID needs to install keys for keyid 0 and 1 Rx-only.
+	 * The Tx path starts to use a key as soon as the key slot ptk_idx
+	 * references to is not NULL. To not use the initial Rx-only key
+	 * prematurely for Tx initialize ptk_idx to an impossible PTK keyid
+	 * which always will refer to a NULL key.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(sta->ptk) <= INVALID_PTK_KEYIDX);
+	sta->ptk_idx = INVALID_PTK_KEYIDX;
+
 	sta->local = local;
 	sta->sdata = sdata;
 	sta->rx_stats.last_rx = jiffies;
