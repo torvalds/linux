@@ -2616,6 +2616,20 @@ static void iwl_fw_dbg_update_triggers(struct iwl_fw_runtime *fwrt,
 			active->trig->occurrences = cpu_to_le32(-1);
 
 		active->active = true;
+
+		if (id == IWL_FW_TRIGGER_ID_PERIODIC_TRIGGER) {
+			u32 collect_interval = le32_to_cpu(trig->trigger_data);
+
+			/* the minimum allowed interval is 50ms */
+			if (collect_interval < 50) {
+				collect_interval = 50;
+				trig->trigger_data =
+					cpu_to_le32(collect_interval);
+			}
+
+			mod_timer(&fwrt->dump.periodic_trig,
+				  jiffies + msecs_to_jiffies(collect_interval));
+		}
 next:
 		iter += sizeof(*trig) + trig_regs_size;
 
@@ -2696,8 +2710,34 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_apply_point);
 
 void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt)
 {
+	del_timer(&fwrt->dump.periodic_trig);
 	iwl_fw_dbg_collect_sync(fwrt);
 
 	iwl_trans_stop_device(fwrt->trans);
 }
 IWL_EXPORT_SYMBOL(iwl_fwrt_stop_device);
+
+void iwl_fw_dbg_periodic_trig_handler(struct timer_list *t)
+{
+	struct iwl_fw_runtime *fwrt;
+	enum iwl_fw_ini_trigger_id id = IWL_FW_TRIGGER_ID_PERIODIC_TRIGGER;
+	int ret;
+	typeof(fwrt->dump) *dump_ptr = container_of(t, typeof(fwrt->dump),
+						    periodic_trig);
+
+	fwrt = container_of(dump_ptr, typeof(*fwrt), dump);
+
+	ret = _iwl_fw_dbg_ini_collect(fwrt, id);
+	if (!ret || ret == -EBUSY) {
+		struct iwl_fw_ini_trigger *trig =
+			fwrt->dump.active_trigs[id].trig;
+		u32 occur = le32_to_cpu(trig->occurrences);
+		u32 collect_interval = le32_to_cpu(trig->trigger_data);
+
+		if (!occur)
+			return;
+
+		mod_timer(&fwrt->dump.periodic_trig,
+			  jiffies + msecs_to_jiffies(collect_interval));
+	}
+}
