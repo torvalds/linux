@@ -220,7 +220,7 @@ config SND_SOC_SOF_HDA_LINK
 	help
           This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
 		  for Intel(R) platforms.
-          Say Y if you want to enble HDA links with SOF.
+          Say Y if you want to enable HDA links with SOF.
           If unsure select "N".
 
 config SND_SOC_SOF_HDA_AUDIO_CODEC
@@ -229,7 +229,7 @@ config SND_SOC_SOF_HDA_AUDIO_CODEC
 	help
           This adds support for HDAudio codecs with Sound Open Firmware
 		  for Intel(R) platforms.
-          Say Y if you want to enble HDAudio codecs with SOF.
+          Say Y if you want to enable HDAudio codecs with SOF.
           If unsure select "N".
 
 endif ## SND_SOC_SOF_HDA_COMMON
