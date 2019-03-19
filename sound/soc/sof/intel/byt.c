@@ -389,11 +389,10 @@ static int byt_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 		if (reply.hdr.size != msg->reply_size) {
 			dev_err(sdev->dev, "error: reply expected 0x%zx got 0x%x bytes\n",
 				msg->reply_size, reply.hdr.size);
-			size = msg->reply_size;
 			ret = -EINVAL;
-		} else {
-			size = reply.hdr.size;
 		}
+
+		size = msg->reply_size;
 	}
 
 	/* read the message */
