@@ -2936,17 +2936,17 @@ void dm_shadow_init(struct net_device *dev)
 
 	for (page = 0; page < 5; page++)
 		for (offset = 0; offset < 256; offset++) {
-			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
+			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
 			/*DbgPrint("P-%d/O-%02x=%02x\r\n", page, offset, DM_Shadow[page][offset]);*/
 		}
 
 	for (page = 8; page < 11; page++)
 		for (offset = 0; offset < 256; offset++)
-			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
+			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
 
 	for (page = 12; page < 15; page++)
 		for (offset = 0; offset < 256; offset++)
-			read_nic_byte(dev, offset+page*256, &dm_shadow[page][offset]);
+			read_nic_byte(dev, offset + page * 256, &dm_shadow[page][offset]);
 
 }   /* dm_shadow_init */
 
