@@ -24,7 +24,7 @@
 #define __AMDGPU_SOCBB_H__
 
 struct gpu_info_voltage_scaling_v1_0 {
-	int state;
+	uint32_t state;
 	uint32_t dscclk_mhz;
 	uint32_t dcfclk_mhz;
 	uint32_t socclk_mhz;
@@ -49,7 +49,7 @@ struct gpu_info_soc_bounding_box_v1_0 {
 	uint32_t pct_ideal_dram_sdp_bw_after_urgent_vm_only;
 	uint32_t max_avg_sdp_bw_use_normal_percent;
 	uint32_t max_avg_dram_bw_use_normal_percent;
-	unsigned int max_request_size_bytes;
+	uint32_t max_request_size_bytes;
 	uint32_t downspread_percent;
 	uint32_t dram_page_open_time_ns;
 	uint32_t dram_rw_turnaround_time_ns;
@@ -59,23 +59,23 @@ struct gpu_info_soc_bounding_box_v1_0 {
 	uint32_t dcn_downspread_percent;
 	uint32_t dispclk_dppclk_vco_speed_mhz;
 	uint32_t dfs_vco_period_ps;
-	unsigned int urgent_out_of_order_return_per_channel_pixel_only_bytes;
-	unsigned int urgent_out_of_order_return_per_channel_pixel_and_vm_bytes;
-	unsigned int urgent_out_of_order_return_per_channel_vm_only_bytes;
-	unsigned int round_trip_ping_latency_dcfclk_cycles;
-	unsigned int urgent_out_of_order_return_per_channel_bytes;
-	unsigned int channel_interleave_bytes;
-	unsigned int num_banks;
-	unsigned int num_chans;
-	unsigned int vmm_page_size_bytes;
+	uint32_t urgent_out_of_order_return_per_channel_pixel_only_bytes;
+	uint32_t urgent_out_of_order_return_per_channel_pixel_and_vm_bytes;
+	uint32_t urgent_out_of_order_return_per_channel_vm_only_bytes;
+	uint32_t round_trip_ping_latency_dcfclk_cycles;
+	uint32_t urgent_out_of_order_return_per_channel_bytes;
+	uint32_t channel_interleave_bytes;
+	uint32_t num_banks;
+	uint32_t num_chans;
+	uint32_t vmm_page_size_bytes;
 	uint32_t dram_clock_change_latency_us;
 	uint32_t writeback_dram_clock_change_latency_us;
-	unsigned int return_bus_width_bytes;
-	unsigned int voltage_override;
+	uint32_t return_bus_width_bytes;
+	uint32_t voltage_override;
 	uint32_t xfc_bus_transport_time_us;
 	uint32_t xfc_xbuf_latency_tolerance_us;
-	int use_urgent_burst_bw;
-	unsigned int num_states;
+	uint32_t use_urgent_burst_bw;
+	uint32_t num_states;
 	struct gpu_info_voltage_scaling_v1_0 clock_limits[8];
 };
 
