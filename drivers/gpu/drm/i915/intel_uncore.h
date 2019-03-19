@@ -32,6 +32,7 @@
 #include "i915_reg.h"
 
 struct drm_i915_private;
+struct intel_uncore;
 
 enum forcewake_domain_id {
 	FW_DOMAIN_ID_RENDER = 0,
@@ -62,9 +63,9 @@ enum forcewake_domains {
 };
 
 struct intel_uncore_funcs {
-	void (*force_wake_get)(struct drm_i915_private *dev_priv,
+	void (*force_wake_get)(struct intel_uncore *uncore,
 			       enum forcewake_domains domains);
-	void (*force_wake_put)(struct drm_i915_private *dev_priv,
+	void (*force_wake_put)(struct intel_uncore *uncore,
 			       enum forcewake_domains domains);
 
 	u8 (*mmio_readb)(struct drm_i915_private *dev_priv,
@@ -127,12 +128,12 @@ struct intel_uncore {
 };
 
 /* Iterate over initialised fw domains */
-#define for_each_fw_domain_masked(domain__, mask__, dev_priv__, tmp__) \
+#define for_each_fw_domain_masked(domain__, mask__, uncore__, tmp__) \
 	for (tmp__ = (mask__); \
-	     tmp__ ? (domain__ = &(dev_priv__)->uncore.fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
+	     tmp__ ? (domain__ = &(uncore__)->fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
 
-#define for_each_fw_domain(domain__, dev_priv__, tmp__) \
-	for_each_fw_domain_masked(domain__, (dev_priv__)->uncore.fw_domains, dev_priv__, tmp__)
+#define for_each_fw_domain(domain__, uncore__, tmp__) \
+	for_each_fw_domain_masked(domain__, (uncore__)->fw_domains, uncore__, tmp__)
 
 static inline struct intel_uncore *
 forcewake_domain_to_uncore(const struct intel_uncore_forcewake_domain *d)
@@ -151,8 +152,8 @@ void intel_uncore_resume_early(struct drm_i915_private *dev_priv);
 void intel_uncore_runtime_resume(struct drm_i915_private *dev_priv);
 
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
-void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
-void assert_forcewakes_active(struct drm_i915_private *dev_priv,
+void assert_forcewakes_inactive(struct intel_uncore *uncore);
+void assert_forcewakes_active(struct intel_uncore *uncore,
 			      enum forcewake_domains fw_domains);
 const char *intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id);
 

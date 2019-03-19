@@ -140,6 +140,7 @@ static int live_forcewake_ops(void *arg)
 	const struct reg *r;
 	struct drm_i915_private *i915 = arg;
 	struct intel_uncore_forcewake_domain *domain;
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
@@ -166,7 +167,7 @@ static int live_forcewake_ops(void *arg)
 
 	wakeref = intel_runtime_pm_get(i915);
 
-	for_each_fw_domain(domain, i915, tmp) {
+	for_each_fw_domain(domain, uncore, tmp) {
 		smp_store_mb(domain->active, false);
 		if (!hrtimer_cancel(&domain->timer))
 			continue;
@@ -188,7 +189,7 @@ static int live_forcewake_ops(void *arg)
 		if (!fw_domains)
 			continue;
 
-		for_each_fw_domain_masked(domain, fw_domains, i915, tmp) {
+		for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
 			if (!domain->wake_count)
 				continue;
 
@@ -203,7 +204,7 @@ static int live_forcewake_ops(void *arg)
 		intel_uncore_forcewake_put(i915, fw_domains);
 
 		/* Flush the forcewake release (delayed onto a timer) */
-		for_each_fw_domain_masked(domain, fw_domains, i915, tmp) {
+		for_each_fw_domain_masked(domain, fw_domains, uncore, tmp) {
 			smp_store_mb(domain->active, false);
 			if (hrtimer_cancel(&domain->timer))
 				intel_uncore_fw_release_timer(&domain->timer);
@@ -280,7 +281,7 @@ static int live_forcewake_domains(void *arg)
 		i915_reg_t reg = { offset };
 
 		iosf_mbi_punit_acquire();
-		intel_uncore_forcewake_reset(dev_priv);
+		intel_uncore_forcewake_reset(&dev_priv->uncore);
 		iosf_mbi_punit_release();
 
 		check_for_unclaimed_mmio(dev_priv);

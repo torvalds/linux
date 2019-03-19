@@ -2952,7 +2952,7 @@ static int intel_runtime_suspend(struct device *kdev)
 		intel_opregion_notify_adapter(dev_priv, PCI_D1);
 	}
 
-	assert_forcewakes_inactive(dev_priv);
+	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_poll_init(dev_priv);

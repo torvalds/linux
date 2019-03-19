@@ -1414,13 +1414,14 @@ static int ironlake_drpc_info(struct seq_file *m)
 static int i915_forcewake_domains(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_uncore *uncore = &i915->uncore;
 	struct intel_uncore_forcewake_domain *fw_domain;
 	unsigned int tmp;
 
 	seq_printf(m, "user.bypass_count = %u\n",
-		   i915->uncore.user_forcewake.count);
+		   uncore->user_forcewake.count);
 
-	for_each_fw_domain(fw_domain, i915, tmp)
+	for_each_fw_domain(fw_domain, uncore, tmp)
 		seq_printf(m, "%s.wake_count = %u\n",
 			   intel_uncore_forcewake_domain_to_str(fw_domain->id),
 			   READ_ONCE(fw_domain->wake_count));
