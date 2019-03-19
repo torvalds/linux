@@ -195,6 +195,28 @@ static inline void regmap_calc_tot_len(struct regmap *map,
 	}
 }
 
+static int regmap_next_readable_reg(struct regmap *map, int reg)
+{
+	struct regmap_debugfs_off_cache *c;
+	int ret = -EINVAL;
+
+	if (regmap_printable(map, reg + map->reg_stride)) {
+		ret = reg + map->reg_stride;
+	} else {
+		mutex_lock(&map->cache_lock);
+		list_for_each_entry(c, &map->debugfs_off_cache, list) {
+			if (reg > c->max_reg)
+				continue;
+			if (reg < c->base_reg) {
+				ret = c->base_reg;
+				break;
+			}
+		}
+		mutex_unlock(&map->cache_lock);
+	}
+	return ret;
+}
+
 static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 				   unsigned int to, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -218,9 +240,8 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	/* Work out which register we're starting at */
 	start_reg = regmap_debugfs_get_dump_start(map, from, *ppos, &p);
 
-	for (i = start_reg; i <= to; i += map->reg_stride) {
-		if (!regmap_printable(map, i))
-			continue;
+	for (i = start_reg; i >= 0 && i <= to;
+	     i = regmap_next_readable_reg(map, i)) {
 
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
