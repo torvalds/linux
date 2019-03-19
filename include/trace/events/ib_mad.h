@@ -295,6 +295,96 @@ DEFINE_EVENT(ib_mad_agent_template, ib_mad_unregister_agent,
 	TP_ARGS(agent));
 
 
+
+DECLARE_EVENT_CLASS(ib_mad_opa_smi_template,
+	TP_PROTO(struct opa_smp *smp),
+	TP_ARGS(smp),
+
+	TP_STRUCT__entry(
+		__field(u64,            mkey)
+		__field(u32,            dr_slid)
+		__field(u32,            dr_dlid)
+		__field(u8,             hop_ptr)
+		__field(u8,             hop_cnt)
+		__array(u8,             initial_path, OPA_SMP_MAX_PATH_HOPS)
+		__array(u8,             return_path, OPA_SMP_MAX_PATH_HOPS)
+	),
+
+	TP_fast_assign(
+		__entry->hop_ptr = smp->hop_ptr;
+		__entry->hop_cnt = smp->hop_cnt;
+		__entry->mkey = smp->mkey;
+		__entry->dr_slid = smp->route.dr.dr_slid;
+		__entry->dr_dlid = smp->route.dr.dr_dlid;
+		memcpy(__entry->initial_path, smp->route.dr.initial_path,
+			OPA_SMP_MAX_PATH_HOPS);
+		memcpy(__entry->return_path, smp->route.dr.return_path,
+			OPA_SMP_MAX_PATH_HOPS);
+	),
+
+	TP_printk("OPA SMP: hop_ptr %d hop_cnt %d " \
+		  "mkey 0x%016llx dr_slid 0x%08x dr_dlid 0x%08x " \
+		  "initial_path %*ph return_path %*ph ",
+		__entry->hop_ptr, __entry->hop_cnt,
+		be64_to_cpu(__entry->mkey), be32_to_cpu(__entry->dr_slid),
+		be32_to_cpu(__entry->dr_dlid),
+		OPA_SMP_MAX_PATH_HOPS, __entry->initial_path,
+		OPA_SMP_MAX_PATH_HOPS, __entry->return_path
+	)
+);
+
+DEFINE_EVENT(ib_mad_opa_smi_template, ib_mad_handle_opa_smi,
+	TP_PROTO(struct opa_smp *smp),
+	TP_ARGS(smp));
+DEFINE_EVENT(ib_mad_opa_smi_template, ib_mad_handle_out_opa_smi,
+	TP_PROTO(struct opa_smp *smp),
+	TP_ARGS(smp));
+
+
+DECLARE_EVENT_CLASS(ib_mad_opa_ib_template,
+	TP_PROTO(struct ib_smp *smp),
+	TP_ARGS(smp),
+
+	TP_STRUCT__entry(
+		__field(u64,            mkey)
+		__field(u32,            dr_slid)
+		__field(u32,            dr_dlid)
+		__field(u8,             hop_ptr)
+		__field(u8,             hop_cnt)
+		__array(u8,             initial_path, IB_SMP_MAX_PATH_HOPS)
+		__array(u8,             return_path, IB_SMP_MAX_PATH_HOPS)
+	),
+
+	TP_fast_assign(
+		__entry->hop_ptr = smp->hop_ptr;
+		__entry->hop_cnt = smp->hop_cnt;
+		__entry->mkey = smp->mkey;
+		__entry->dr_slid = smp->dr_slid;
+		__entry->dr_dlid = smp->dr_dlid;
+		memcpy(__entry->initial_path, smp->initial_path,
+			IB_SMP_MAX_PATH_HOPS);
+		memcpy(__entry->return_path, smp->return_path,
+			IB_SMP_MAX_PATH_HOPS);
+	),
+
+	TP_printk("OPA SMP: hop_ptr %d hop_cnt %d " \
+		  "mkey 0x%016llx dr_slid 0x%04x dr_dlid 0x%04x " \
+		  "initial_path %*ph return_path %*ph ",
+		__entry->hop_ptr, __entry->hop_cnt,
+		be64_to_cpu(__entry->mkey), be16_to_cpu(__entry->dr_slid),
+		be16_to_cpu(__entry->dr_dlid),
+		IB_SMP_MAX_PATH_HOPS, __entry->initial_path,
+		IB_SMP_MAX_PATH_HOPS, __entry->return_path
+	)
+);
+
+DEFINE_EVENT(ib_mad_opa_ib_template, ib_mad_handle_ib_smi,
+	TP_PROTO(struct ib_smp *smp),
+	TP_ARGS(smp));
+DEFINE_EVENT(ib_mad_opa_ib_template, ib_mad_handle_out_ib_smi,
+	TP_PROTO(struct ib_smp *smp),
+	TP_ARGS(smp));
+
 #endif /* _TRACE_IB_MAD_H */
 
 #include <trace/define_trace.h>

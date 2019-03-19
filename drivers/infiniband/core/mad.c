@@ -841,6 +841,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	if (opa && smp->class_version == OPA_SM_CLASS_VERSION) {
 		u32 opa_drslid;
 
+		trace_ib_mad_handle_out_opa_smi(opa_smp);
+
 		if ((opa_get_smp_direction(opa_smp)
 		     ? opa_smp->route.dr.dr_dlid : opa_smp->route.dr.dr_slid) ==
 		     OPA_LID_PERMISSIVE &&
@@ -866,6 +868,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		    opa_smi_check_local_returning_smp(opa_smp, device) == IB_SMI_DISCARD)
 			goto out;
 	} else {
+		trace_ib_mad_handle_out_ib_smi(smp);
+
 		if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
 		     IB_LID_PERMISSIVE &&
 		     smi_handle_dr_smp_send(smp, rdma_cap_ib_switch(device), port_num) ==
@@ -2098,6 +2102,8 @@ static enum smi_action handle_ib_smi(const struct ib_mad_port_private *port_priv
 	enum smi_forward_action retsmi;
 	struct ib_smp *smp = (struct ib_smp *)recv->mad;
 
+	trace_ib_mad_handle_ib_smi(smp);
+
 	if (smi_handle_dr_smp_recv(smp,
 				   rdma_cap_ib_switch(port_priv->device),
 				   port_num,
@@ -2182,6 +2188,8 @@ handle_opa_smi(struct ib_mad_port_private *port_priv,
 {
 	enum smi_forward_action retsmi;
 	struct opa_smp *smp = (struct opa_smp *)recv->mad;
+
+	trace_ib_mad_handle_opa_smi(smp);
 
 	if (opa_smi_handle_dr_smp_recv(smp,
 				   rdma_cap_ib_switch(port_priv->device),
