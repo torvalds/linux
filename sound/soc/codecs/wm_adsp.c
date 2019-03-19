@@ -2905,6 +2905,8 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (wm_adsp_fw[dsp->fw].num_caps != 0)
 			wm_adsp_buffer_free(dsp);
 
+		dsp->fatal_error = false;
+
 		mutex_unlock(&dsp->pwr_lock);
 
 		adsp_dbg(dsp, "Execution stopped\n");
@@ -2999,6 +3001,9 @@ static inline int wm_adsp_compr_attached(struct wm_adsp_compr *compr)
 static int wm_adsp_compr_attach(struct wm_adsp_compr *compr)
 {
 	struct wm_adsp_compr_buf *buf = NULL, *tmp;
+
+	if (compr->dsp->fatal_error)
+		return -EINVAL;
 
 	list_for_each_entry(tmp, &compr->dsp->buffer_list, list) {
 		if (!tmp->name || !strcmp(compr->name, tmp->name)) {
@@ -3916,6 +3921,21 @@ int wm_adsp2_lock(struct wm_adsp *dsp, unsigned int lock_regions)
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_lock);
 
+static void wm_adsp_fatal_error(struct wm_adsp *dsp)
+{
+	struct wm_adsp_compr *compr;
+
+	dsp->fatal_error = true;
+
+	list_for_each_entry(compr, &dsp->compr_list, list) {
+		if (compr->stream) {
+			snd_compr_stop_error(compr->stream,
+					     SNDRV_PCM_STATE_XRUN);
+			snd_compr_fragment_elapsed(compr->stream);
+		}
+	}
+}
+
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 {
 	unsigned int val;
@@ -3934,6 +3954,7 @@ irqreturn_t wm_adsp2_bus_error(struct wm_adsp *dsp)
 	if (val & ADSP2_WDT_TIMEOUT_STS_MASK) {
 		adsp_err(dsp, "watchdog timeout error\n");
 		wm_adsp_stop_watchdog(dsp);
+		wm_adsp_fatal_error(dsp);
 	}
 
 	if (val & (ADSP2_SLAVE_ERR_MASK | ADSP2_REGION_LOCK_ERR_MASK)) {
