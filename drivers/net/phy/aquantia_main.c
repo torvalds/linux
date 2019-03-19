@@ -178,8 +178,24 @@ static int aqr_read_status(struct phy_device *phydev)
 	return genphy_c45_read_status(phydev);
 }
 
+static int aqr107_config_init(struct phy_device *phydev)
+{
+	/* Check that the PHY interface type is compatible */
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
+	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
+		return -ENODEV;
+
+	return 0;
+}
+
 static int aqcs109_config_init(struct phy_device *phydev)
 {
+	/* Check that the PHY interface type is compatible */
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
+		return -ENODEV;
+
 	/* AQCS109 belongs to a chip family partially supporting 10G and 5G.
 	 * PMA speed ability bits are the same for all members of the family,
 	 * AQCS109 however supports speeds up to 2.5G only.
@@ -234,6 +250,7 @@ static struct phy_driver aqr_driver[] = {
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
 	.probe		= aqr_hwmon_probe,
+	.config_init	= aqr107_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
