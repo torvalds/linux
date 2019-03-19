@@ -57,7 +57,7 @@ struct cmd_nvme {
 	uint64_t rsvd;
 
 	uint16_t control_flags;         /* Control Flags */
-#define CF_NVME_ENABLE                  BIT_9
+#define CF_NVME_FIRST_BURST_ENABLE	BIT_11
 #define CF_DIF_SEG_DESCR_ENABLE         BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE        BIT_2
 #define CF_READ_DATA                    BIT_1

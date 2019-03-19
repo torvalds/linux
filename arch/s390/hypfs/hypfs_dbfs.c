@@ -78,14 +78,11 @@ static const struct file_operations dbfs_ops = {
 	.unlocked_ioctl = dbfs_ioctl,
 };
 
-int hypfs_dbfs_create_file(struct hypfs_dbfs_file *df)
+void hypfs_dbfs_create_file(struct hypfs_dbfs_file *df)
 {
 	df->dentry = debugfs_create_file(df->name, 0400, dbfs_dir, df,
 					 &dbfs_ops);
-	if (IS_ERR(df->dentry))
-		return PTR_ERR(df->dentry);
 	mutex_init(&df->lock);
-	return 0;
 }
 
 void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
@@ -93,10 +90,9 @@ void hypfs_dbfs_remove_file(struct hypfs_dbfs_file *df)
 	debugfs_remove(df->dentry);
 }
 
-int hypfs_dbfs_init(void)
+void hypfs_dbfs_init(void)
 {
 	dbfs_dir = debugfs_create_dir("s390_hypfs", NULL);
-	return PTR_ERR_OR_ZERO(dbfs_dir);
 }
 
 void hypfs_dbfs_exit(void)

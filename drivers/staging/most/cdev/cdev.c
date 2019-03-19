@@ -453,7 +453,9 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	c->devno = MKDEV(comp.major, current_minor);
 	cdev_init(&c->cdev, &channel_fops);
 	c->cdev.owner = THIS_MODULE;
-	cdev_add(&c->cdev, c->devno, 1);
+	retval = cdev_add(&c->cdev, c->devno, 1);
+	if (retval < 0)
+		goto err_free_c;
 	c->iface = iface;
 	c->cfg = cfg;
 	c->channel_id = channel_id;
@@ -485,6 +487,7 @@ err_free_kfifo_and_del_list:
 	list_del(&c->list);
 err_del_cdev_and_free_channel:
 	cdev_del(&c->cdev);
+err_free_c:
 	kfree(c);
 err_remove_ida:
 	ida_simple_remove(&comp.minor_id, current_minor);

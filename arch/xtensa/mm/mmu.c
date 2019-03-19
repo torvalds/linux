@@ -32,6 +32,9 @@ static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 		 __func__, vaddr, n_pages);
 
 	pte = memblock_alloc_low(n_pages * sizeof(pte_t), PAGE_SIZE);
+	if (!pte)
+		panic("%s: Failed to allocate %zu bytes align=%lx\n",
+		      __func__, n_pages * sizeof(pte_t), PAGE_SIZE);
 
 	for (i = 0; i < n_pages; ++i)
 		pte_clear(NULL, 0, pte + i);

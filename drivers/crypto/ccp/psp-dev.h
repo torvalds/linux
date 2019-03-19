@@ -1,7 +1,7 @@
 /*
  * AMD Platform Security Processor (PSP) interface driver
  *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2017-2018 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *

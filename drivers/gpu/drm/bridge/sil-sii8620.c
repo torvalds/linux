@@ -1104,8 +1104,7 @@ static void sii8620_set_infoframes(struct sii8620 *ctx,
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
-						       mode,
-						       true);
+						       NULL, mode);
 	if (ctx->use_packed_pixel)
 		frm.avi.colorspace = HDMI_COLORSPACE_YUV422;
 

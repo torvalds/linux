@@ -1,0 +1,18 @@
+Mediatek MT6358 Audio Codec
+
+The communication between MT6358 and SoC is through Mediatek PMIC wrapper.
+For more detail, please visit Mediatek PMIC wrapper documentation.
+
+Must be a child node of PMIC wrapper.
+
+Required properties:
+
+- compatible : "mediatek,mt6358-sound".
+- Avdd-supply : power source of AVDD
+
+Example:
+
+mt6358_snd {
+	compatible = "mediatek,mt6358-sound";
+	Avdd-supply = <&mt6358_vaud28_reg>;
+};

@@ -147,7 +147,7 @@ out:
 	if (MLX5_ESWITCH_MANAGER(dev))
 		mlx5_eswitch_disable_sriov(dev->priv.eswitch);
 
-	if (mlx5_wait_for_vf_pages(dev))
+	if (mlx5_wait_for_pages(dev, &dev->priv.vfs_pages))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");
 }
 

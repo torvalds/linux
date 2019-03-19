@@ -273,16 +273,19 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 				}
 			}
 
+			/* fall through */
 		case KEY_REQKEY_DEFL_THREAD_KEYRING:
 			dest_keyring = key_get(cred->thread_keyring);
 			if (dest_keyring)
 				break;
 
+			/* fall through */
 		case KEY_REQKEY_DEFL_PROCESS_KEYRING:
 			dest_keyring = key_get(cred->process_keyring);
 			if (dest_keyring)
 				break;
 
+			/* fall through */
 		case KEY_REQKEY_DEFL_SESSION_KEYRING:
 			rcu_read_lock();
 			dest_keyring = key_get(
@@ -292,6 +295,7 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 			if (dest_keyring)
 				break;
 
+			/* fall through */
 		case KEY_REQKEY_DEFL_USER_SESSION_KEYRING:
 			dest_keyring =
 				key_get(cred->user->session_keyring);

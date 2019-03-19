@@ -8,14 +8,6 @@ config SND_SIMPLE_CARD
 	  This option enables generic simple sound card support
 	  It also support DPCM of multi CPU single Codec ststem.
 
-config SND_SIMPLE_SCU_CARD
-	tristate "ASoC Simple SCU sound card support"
-	depends on OF
-	select SND_SIMPLE_CARD_UTILS
-	help
-	  This option enables generic simple SCU sound card support.
-	  It supports DPCM of multi CPU single Codec system.
-
 config SND_AUDIO_GRAPH_CARD
 	tristate "ASoC Audio Graph sound card support"
 	depends on OF
@@ -24,12 +16,3 @@ config SND_AUDIO_GRAPH_CARD
 	  This option enables generic simple sound card support
 	  with OF-graph DT bindings.
 	  It also support DPCM of multi CPU single Codec ststem.
-
-config SND_AUDIO_GRAPH_SCU_CARD
-	tristate "ASoC Audio Graph SCU sound card support"
-	depends on OF
-	select SND_SIMPLE_CARD_UTILS
-	help
-	  This option enables generic simple SCU sound card support
-	  with OF-graph DT bindings.
-	  It supports DPCM of multi CPU single Codec ststem.

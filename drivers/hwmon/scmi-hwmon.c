@@ -57,7 +57,7 @@ scmi_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_types type,
 
 	sensor = *(scmi_sensors->info[type] + channel);
 	if (sensor)
-		return S_IRUGO;
+		return 0444;
 
 	return 0;
 }

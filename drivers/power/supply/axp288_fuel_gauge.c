@@ -307,22 +307,12 @@ static int fuel_gauge_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fuel_gauge_debug_show, inode->i_private);
-}
-
-static const struct file_operations fg_debug_fops = {
-	.open       = debug_open,
-	.read       = seq_read,
-	.llseek     = seq_lseek,
-	.release    = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fuel_gauge_debug);
 
 static void fuel_gauge_create_debugfs(struct axp288_fg_info *info)
 {
 	info->debug_file = debugfs_create_file("fuelgauge", 0666, NULL,
-		info, &fg_debug_fops);
+		info, &fuel_gauge_debug_fops);
 }
 
 static void fuel_gauge_remove_debugfs(struct axp288_fg_info *info)

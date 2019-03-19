@@ -276,12 +276,14 @@
 			cooling-maps {
 				map@0 {
 					trip = <&target>;
-					cooling-device = <&cpu0 0 0>;
+					cooling-device = <&cpu0 0 0>,
+							 <&cpu1 0 0>;
 					contribution = <3072>;
 				};
 				map@1 {
 					trip = <&target>;
-					cooling-device = <&cpu2 0 0>;
+					cooling-device = <&cpu2 0 0>,
+							 <&cpu3 0 0>;
 					contribution = <1024>;
 				};
 			};

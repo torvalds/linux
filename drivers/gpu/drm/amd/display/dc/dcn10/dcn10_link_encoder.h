@@ -271,7 +271,7 @@ void dcn10_link_encoder_setup(
 	struct link_encoder *enc,
 	enum signal_type signal);
 
-void configure_encoder(
+void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings);
 
@@ -335,6 +335,8 @@ void dcn10_psr_program_secondary_packet(struct link_encoder *enc,
 			unsigned int sdp_transmit_line_num_deadline);
 
 bool dcn10_is_dig_enabled(struct link_encoder *enc);
+
+unsigned int dcn10_get_dig_frontend(struct link_encoder *enc);
 
 void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 

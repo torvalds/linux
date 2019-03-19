@@ -48,7 +48,6 @@ static struct netdev_queue *txring_txq(const struct ice_ring *ring)
  */
 void ice_clean_tx_ring(struct ice_ring *tx_ring)
 {
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -59,8 +58,7 @@ void ice_clean_tx_ring(struct ice_ring *tx_ring)
 	for (i = 0; i < tx_ring->count; i++)
 		ice_unmap_and_free_tx_buf(tx_ring, &tx_ring->tx_buf[i]);
 
-	size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	memset(tx_ring->tx_buf, 0, size);
+	memset(tx_ring->tx_buf, 0, sizeof(*tx_ring->tx_buf) * tx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(tx_ring->desc, 0, tx_ring->size);
@@ -226,21 +224,21 @@ static bool ice_clean_tx_irq(struct ice_vsi *vsi, struct ice_ring *tx_ring,
 int ice_setup_tx_ring(struct ice_ring *tx_ring)
 {
 	struct device *dev = tx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(tx_ring->tx_buf);
-	bi_size = sizeof(struct ice_tx_buf) * tx_ring->count;
-	tx_ring->tx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	tx_ring->tx_buf =
+		devm_kzalloc(dev, sizeof(*tx_ring->tx_buf) * tx_ring->count,
+			     GFP_KERNEL);
 	if (!tx_ring->tx_buf)
 		return -ENOMEM;
 
 	/* round up to nearest 4K */
-	tx_ring->size = tx_ring->count * sizeof(struct ice_tx_desc);
-	tx_ring->size = ALIGN(tx_ring->size, 4096);
+	tx_ring->size = ALIGN(tx_ring->count * sizeof(struct ice_tx_desc),
+			      4096);
 	tx_ring->desc = dmam_alloc_coherent(dev, tx_ring->size, &tx_ring->dma,
 					    GFP_KERNEL);
 	if (!tx_ring->desc) {
@@ -267,7 +265,6 @@ err:
 void ice_clean_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	unsigned long size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -292,8 +289,7 @@ void ice_clean_rx_ring(struct ice_ring *rx_ring)
 		rx_buf->page_offset = 0;
 	}
 
-	size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	memset(rx_ring->rx_buf, 0, size);
+	memset(rx_ring->rx_buf, 0, sizeof(*rx_ring->rx_buf) * rx_ring->count);
 
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
@@ -331,15 +327,15 @@ void ice_free_rx_ring(struct ice_ring *rx_ring)
 int ice_setup_rx_ring(struct ice_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int bi_size;
 
 	if (!dev)
 		return -ENOMEM;
 
 	/* warn if we are about to overwrite the pointer */
 	WARN_ON(rx_ring->rx_buf);
-	bi_size = sizeof(struct ice_rx_buf) * rx_ring->count;
-	rx_ring->rx_buf = devm_kzalloc(dev, bi_size, GFP_KERNEL);
+	rx_ring->rx_buf =
+		devm_kzalloc(dev, sizeof(*rx_ring->rx_buf) * rx_ring->count,
+			     GFP_KERNEL);
 	if (!rx_ring->rx_buf)
 		return -ENOMEM;
 
@@ -1053,6 +1049,69 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 }
 
 /**
+ * ice_buildreg_itr - build value for writing to the GLINT_DYN_CTL register
+ * @itr_idx: interrupt throttling index
+ * @reg_itr: interrupt throttling value adjusted based on ITR granularity
+ */
+static u32 ice_buildreg_itr(int itr_idx, u16 reg_itr)
+{
+	return GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
+		(itr_idx << GLINT_DYN_CTL_ITR_INDX_S) |
+		(reg_itr << GLINT_DYN_CTL_INTERVAL_S);
+}
+
+/**
+ * ice_update_ena_itr - Update ITR and re-enable MSIX interrupt
+ * @vsi: the VSI associated with the q_vector
+ * @q_vector: q_vector for which ITR is being updated and interrupt enabled
+ */
+static void
+ice_update_ena_itr(struct ice_vsi *vsi, struct ice_q_vector *q_vector)
+{
+	struct ice_hw *hw = &vsi->back->hw;
+	struct ice_ring_container *rc;
+	u32 itr_val;
+
+	/* This block of logic allows us to get away with only updating
+	 * one ITR value with each interrupt. The idea is to perform a
+	 * pseudo-lazy update with the following criteria.
+	 *
+	 * 1. Rx is given higher priority than Tx if both are in same state
+	 * 2. If we must reduce an ITR that is given highest priority.
+	 * 3. We then give priority to increasing ITR based on amount.
+	 */
+	if (q_vector->rx.target_itr < q_vector->rx.current_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be reduced, this is highest priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if ((q_vector->tx.target_itr < q_vector->tx.current_itr) ||
+		   ((q_vector->rx.target_itr - q_vector->rx.current_itr) <
+		    (q_vector->tx.target_itr - q_vector->tx.current_itr))) {
+		rc = &q_vector->tx;
+		/* Tx ITR needs to be reduced, this is second priority
+		 * Tx ITR needs to be increased more than Rx, fourth priority
+		 */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else if (q_vector->rx.current_itr != q_vector->rx.target_itr) {
+		rc = &q_vector->rx;
+		/* Rx ITR needs to be increased, third priority */
+		itr_val = ice_buildreg_itr(rc->itr_idx, rc->target_itr);
+		rc->current_itr = rc->target_itr;
+	} else {
+		/* Still have to re-enable the interrupts */
+		itr_val = ice_buildreg_itr(ICE_ITR_NONE, 0);
+	}
+
+	if (!test_bit(__ICE_DOWN, vsi->state)) {
+		int vector = vsi->hw_base_vector + q_vector->v_idx;
+
+		wr32(hw, GLINT_DYN_CTL(vector), itr_val);
+	}
+}
+
+/**
  * ice_napi_poll - NAPI polling Rx/Tx cleanup routine
  * @napi: napi struct with our devices info in it
  * @budget: amount of work driver is allowed to do this pass, in packets
@@ -1108,9 +1167,9 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
 		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-			ice_irq_dynamic_ena(&vsi->back->hw, vsi, q_vector);
+			ice_update_ena_itr(vsi, q_vector);
 
-	return min(work_done, budget - 1);
+	return min_t(int, work_done, budget - 1);
 }
 
 /* helper function for building cmd/type/offset */
@@ -1402,6 +1461,12 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
 		break;
 	case IPPROTO_SCTP:
+		/* enable SCTP checksum offload */
+		cmd |= ICE_TX_DESC_CMD_L4T_EOFT_SCTP;
+		l4_len = sizeof(struct sctphdr) >> 2;
+		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
+		break;
+
 	default:
 		if (first->tx_flags & ICE_TX_FLAGS_TSO)
 			return -1;

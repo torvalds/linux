@@ -21,8 +21,8 @@
 #include "dpu_encoder.h"
 #include "dpu_trace.h"
 
-#define RESERVED_BY_OTHER(h, r) \
-	((h)->rsvp && ((h)->rsvp->enc_id != (r)->enc_id))
+#define RESERVED_BY_OTHER(h, r)  \
+		((h)->enc_id && (h)->enc_id != r)
 
 /**
  * struct dpu_rm_requirements - Reservation requirements parameter bundle
@@ -34,89 +34,20 @@ struct dpu_rm_requirements {
 	struct dpu_encoder_hw_resources hw_res;
 };
 
-/**
- * struct dpu_rm_rsvp - Use Case Reservation tagging structure
- *	Used to tag HW blocks as reserved by a CRTC->Encoder->Connector chain
- *	By using as a tag, rather than lists of pointers to HW blocks used
- *	we can avoid some list management since we don't know how many blocks
- *	of each type a given use case may require.
- * @list:	List head for list of all reservations
- * @seq:	Global RSVP sequence number for debugging, especially for
- *		differentiating differenct allocations for same encoder.
- * @enc_id:	Reservations are tracked by Encoder DRM object ID.
- *		CRTCs may be connected to multiple Encoders.
- *		An encoder or connector id identifies the display path.
- */
-struct dpu_rm_rsvp {
-	struct list_head list;
-	uint32_t seq;
-	uint32_t enc_id;
-};
 
 /**
  * struct dpu_rm_hw_blk - hardware block tracking list member
  * @list:	List head for list of all hardware blocks tracking items
- * @rsvp:	Pointer to use case reservation if reserved by a client
- * @rsvp_nxt:	Temporary pointer used during reservation to the incoming
- *		request. Will be swapped into rsvp if proposal is accepted
- * @type:	Type of hardware block this structure tracks
  * @id:		Hardware ID number, within it's own space, ie. LM_X
- * @catalog:	Pointer to the hardware catalog entry for this block
+ * @enc_id:	Encoder id to which this blk is binded
  * @hw:		Pointer to the hardware register access object for this block
  */
 struct dpu_rm_hw_blk {
 	struct list_head list;
-	struct dpu_rm_rsvp *rsvp;
-	struct dpu_rm_rsvp *rsvp_nxt;
-	enum dpu_hw_blk_type type;
 	uint32_t id;
+	uint32_t enc_id;
 	struct dpu_hw_blk *hw;
 };
-
-/**
- * dpu_rm_dbg_rsvp_stage - enum of steps in making reservation for event logging
- */
-enum dpu_rm_dbg_rsvp_stage {
-	DPU_RM_STAGE_BEGIN,
-	DPU_RM_STAGE_AFTER_CLEAR,
-	DPU_RM_STAGE_AFTER_RSVPNEXT,
-	DPU_RM_STAGE_FINAL
-};
-
-static void _dpu_rm_print_rsvps(
-		struct dpu_rm *rm,
-		enum dpu_rm_dbg_rsvp_stage stage)
-{
-	struct dpu_rm_rsvp *rsvp;
-	struct dpu_rm_hw_blk *blk;
-	enum dpu_hw_blk_type type;
-
-	DPU_DEBUG("%d\n", stage);
-
-	list_for_each_entry(rsvp, &rm->rsvps, list) {
-		DRM_DEBUG_KMS("%d rsvp[s%ue%u]\n", stage, rsvp->seq,
-			      rsvp->enc_id);
-	}
-
-	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
-		list_for_each_entry(blk, &rm->hw_blks[type], list) {
-			if (!blk->rsvp && !blk->rsvp_nxt)
-				continue;
-
-			DRM_DEBUG_KMS("%d rsvp[s%ue%u->s%ue%u] %d %d\n", stage,
-				(blk->rsvp) ? blk->rsvp->seq : 0,
-				(blk->rsvp) ? blk->rsvp->enc_id : 0,
-				(blk->rsvp_nxt) ? blk->rsvp_nxt->seq : 0,
-				(blk->rsvp_nxt) ? blk->rsvp_nxt->enc_id : 0,
-				blk->type, blk->id);
-		}
-	}
-}
-
-struct dpu_hw_mdp *dpu_rm_get_mdp(struct dpu_rm *rm)
-{
-	return rm->hw_mdp;
-}
 
 void dpu_rm_init_hw_iter(
 		struct dpu_rm_hw_iter *iter,
@@ -148,15 +79,7 @@ static bool _dpu_rm_get_hw_locked(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
 	i->blk = list_prepare_entry(i->blk, blk_list, list);
 
 	list_for_each_entry_continue(i->blk, blk_list, list) {
-		struct dpu_rm_rsvp *rsvp = i->blk->rsvp;
-
-		if (i->blk->type != i->type) {
-			DPU_ERROR("found incorrect block type %d on %d list\n",
-					i->blk->type, i->type);
-			return false;
-		}
-
-		if ((i->enc_id == 0) || (rsvp && rsvp->enc_id == i->enc_id)) {
+		if (i->enc_id == i->blk->enc_id) {
 			i->hw = i->blk->hw;
 			DPU_DEBUG("found type %d id %d for enc %d\n",
 					i->type, i->blk->id, i->enc_id);
@@ -208,33 +131,17 @@ static void _dpu_rm_hw_destroy(enum dpu_hw_blk_type type, void *hw)
 
 int dpu_rm_destroy(struct dpu_rm *rm)
 {
-
-	struct dpu_rm_rsvp *rsvp_cur, *rsvp_nxt;
 	struct dpu_rm_hw_blk *hw_cur, *hw_nxt;
 	enum dpu_hw_blk_type type;
-
-	if (!rm) {
-		DPU_ERROR("invalid rm\n");
-		return -EINVAL;
-	}
-
-	list_for_each_entry_safe(rsvp_cur, rsvp_nxt, &rm->rsvps, list) {
-		list_del(&rsvp_cur->list);
-		kfree(rsvp_cur);
-	}
-
 
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
 		list_for_each_entry_safe(hw_cur, hw_nxt, &rm->hw_blks[type],
 				list) {
 			list_del(&hw_cur->list);
-			_dpu_rm_hw_destroy(hw_cur->type, hw_cur->hw);
+			_dpu_rm_hw_destroy(type, hw_cur->hw);
 			kfree(hw_cur);
 		}
 	}
-
-	dpu_hw_mdp_destroy(rm->hw_mdp);
-	rm->hw_mdp = NULL;
 
 	mutex_destroy(&rm->rm_lock);
 
@@ -250,10 +157,7 @@ static int _dpu_rm_hw_blk_create(
 		void *hw_catalog_info)
 {
 	struct dpu_rm_hw_blk *blk;
-	struct dpu_hw_mdp *hw_mdp;
 	void *hw;
-
-	hw_mdp = rm->hw_mdp;
 
 	switch (type) {
 	case DPU_HW_BLK_LM:
@@ -290,9 +194,9 @@ static int _dpu_rm_hw_blk_create(
 		return -ENOMEM;
 	}
 
-	blk->type = type;
 	blk->id = id;
 	blk->hw = hw;
+	blk->enc_id = 0;
 	list_add_tail(&blk->list, &rm->hw_blks[type]);
 
 	return 0;
@@ -300,13 +204,12 @@ static int _dpu_rm_hw_blk_create(
 
 int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_mdss_cfg *cat,
-		void __iomem *mmio,
-		struct drm_device *dev)
+		void __iomem *mmio)
 {
 	int rc, i;
 	enum dpu_hw_blk_type type;
 
-	if (!rm || !cat || !mmio || !dev) {
+	if (!rm || !cat || !mmio) {
 		DPU_ERROR("invalid kms\n");
 		return -EINVAL;
 	}
@@ -316,20 +219,8 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	mutex_init(&rm->rm_lock);
 
-	INIT_LIST_HEAD(&rm->rsvps);
 	for (type = 0; type < DPU_HW_BLK_MAX; type++)
 		INIT_LIST_HEAD(&rm->hw_blks[type]);
-
-	rm->dev = dev;
-
-	/* Some of the sub-blocks require an mdptop to be created */
-	rm->hw_mdp = dpu_hw_mdptop_init(MDP_TOP, mmio, cat);
-	if (IS_ERR_OR_NULL(rm->hw_mdp)) {
-		rc = PTR_ERR(rm->hw_mdp);
-		rm->hw_mdp = NULL;
-		DPU_ERROR("failed: mdp hw not available\n");
-		goto fail;
-	}
 
 	/* Interrogate HW catalog and create tracking items for hw blocks */
 	for (i = 0; i < cat->mixer_count; i++) {
@@ -410,7 +301,7 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  *	proposed use case requirements, incl. hardwired dependent blocks like
  *	pingpong
  * @rm: dpu resource manager handle
- * @rsvp: reservation currently being created
+ * @enc_id: encoder id requesting for allocation
  * @reqs: proposed use case requirements
  * @lm: proposed layer mixer, function checks if lm, and all other hardwired
  *      blocks connected to the lm (pp) is available and appropriate
@@ -422,7 +313,7 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  */
 static bool _dpu_rm_check_lm_and_get_connected_blks(
 		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
+		uint32_t enc_id,
 		struct dpu_rm_requirements *reqs,
 		struct dpu_rm_hw_blk *lm,
 		struct dpu_rm_hw_blk **pp,
@@ -449,7 +340,7 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(
 	}
 
 	/* Already reserved? */
-	if (RESERVED_BY_OTHER(lm, rsvp)) {
+	if (RESERVED_BY_OTHER(lm, enc_id)) {
 		DPU_DEBUG("lm %d already reserved\n", lm_cfg->id);
 		return false;
 	}
@@ -467,7 +358,7 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(
 		return false;
 	}
 
-	if (RESERVED_BY_OTHER(*pp, rsvp)) {
+	if (RESERVED_BY_OTHER(*pp, enc_id)) {
 		DPU_DEBUG("lm %d pp %d already reserved\n", lm->id,
 				(*pp)->id);
 		return false;
@@ -476,10 +367,8 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(
 	return true;
 }
 
-static int _dpu_rm_reserve_lms(
-		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
-		struct dpu_rm_requirements *reqs)
+static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
+			       struct dpu_rm_requirements *reqs)
 
 {
 	struct dpu_rm_hw_blk *lm[MAX_BLOCKS];
@@ -504,7 +393,7 @@ static int _dpu_rm_reserve_lms(
 		lm[lm_count] = iter_i.blk;
 
 		if (!_dpu_rm_check_lm_and_get_connected_blks(
-				rm, rsvp, reqs, lm[lm_count],
+				rm, enc_id, reqs, lm[lm_count],
 				&pp[lm_count], NULL))
 			continue;
 
@@ -519,7 +408,7 @@ static int _dpu_rm_reserve_lms(
 				continue;
 
 			if (!_dpu_rm_check_lm_and_get_connected_blks(
-					rm, rsvp, reqs, iter_j.blk,
+					rm, enc_id, reqs, iter_j.blk,
 					&pp[lm_count], iter_i.blk))
 				continue;
 
@@ -537,11 +426,10 @@ static int _dpu_rm_reserve_lms(
 		if (!lm[i])
 			break;
 
-		lm[i]->rsvp_nxt = rsvp;
-		pp[i]->rsvp_nxt = rsvp;
+		lm[i]->enc_id = enc_id;
+		pp[i]->enc_id = enc_id;
 
-		trace_dpu_rm_reserve_lms(lm[i]->id, lm[i]->type, rsvp->enc_id,
-					 pp[i]->id);
+		trace_dpu_rm_reserve_lms(lm[i]->id, enc_id, pp[i]->id);
 	}
 
 	return rc;
@@ -549,7 +437,7 @@ static int _dpu_rm_reserve_lms(
 
 static int _dpu_rm_reserve_ctls(
 		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
+		uint32_t enc_id,
 		const struct msm_display_topology *top)
 {
 	struct dpu_rm_hw_blk *ctls[MAX_BLOCKS];
@@ -570,7 +458,7 @@ static int _dpu_rm_reserve_ctls(
 		unsigned long features = ctl->caps->features;
 		bool has_split_display;
 
-		if (RESERVED_BY_OTHER(iter.blk, rsvp))
+		if (RESERVED_BY_OTHER(iter.blk, enc_id))
 			continue;
 
 		has_split_display = BIT(DPU_CTL_SPLIT_DISPLAY) & features;
@@ -591,9 +479,8 @@ static int _dpu_rm_reserve_ctls(
 		return -ENAVAIL;
 
 	for (i = 0; i < ARRAY_SIZE(ctls) && i < num_ctls; i++) {
-		ctls[i]->rsvp_nxt = rsvp;
-		trace_dpu_rm_reserve_ctls(ctls[i]->id, ctls[i]->type,
-					  rsvp->enc_id);
+		ctls[i]->enc_id = enc_id;
+		trace_dpu_rm_reserve_ctls(ctls[i]->id, enc_id);
 	}
 
 	return 0;
@@ -601,7 +488,7 @@ static int _dpu_rm_reserve_ctls(
 
 static int _dpu_rm_reserve_intf(
 		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
+		uint32_t enc_id,
 		uint32_t id,
 		enum dpu_hw_blk_type type)
 {
@@ -614,14 +501,13 @@ static int _dpu_rm_reserve_intf(
 		if (iter.blk->id != id)
 			continue;
 
-		if (RESERVED_BY_OTHER(iter.blk, rsvp)) {
+		if (RESERVED_BY_OTHER(iter.blk, enc_id)) {
 			DPU_ERROR("type %d id %d already reserved\n", type, id);
 			return -ENAVAIL;
 		}
 
-		iter.blk->rsvp_nxt = rsvp;
-		trace_dpu_rm_reserve_intf(iter.blk->id, iter.blk->type,
-					  rsvp->enc_id);
+		iter.blk->enc_id = enc_id;
+		trace_dpu_rm_reserve_intf(iter.blk->id, enc_id);
 		break;
 	}
 
@@ -636,7 +522,7 @@ static int _dpu_rm_reserve_intf(
 
 static int _dpu_rm_reserve_intf_related_hw(
 		struct dpu_rm *rm,
-		struct dpu_rm_rsvp *rsvp,
+		uint32_t enc_id,
 		struct dpu_encoder_hw_resources *hw_res)
 {
 	int i, ret = 0;
@@ -646,7 +532,7 @@ static int _dpu_rm_reserve_intf_related_hw(
 		if (hw_res->intfs[i] == INTF_MODE_NONE)
 			continue;
 		id = i + INTF_0;
-		ret = _dpu_rm_reserve_intf(rm, rsvp, id,
+		ret = _dpu_rm_reserve_intf(rm, enc_id, id,
 				DPU_HW_BLK_INTF);
 		if (ret)
 			return ret;
@@ -655,33 +541,27 @@ static int _dpu_rm_reserve_intf_related_hw(
 	return ret;
 }
 
-static int _dpu_rm_make_next_rsvp(
+static int _dpu_rm_make_reservation(
 		struct dpu_rm *rm,
 		struct drm_encoder *enc,
 		struct drm_crtc_state *crtc_state,
-		struct dpu_rm_rsvp *rsvp,
 		struct dpu_rm_requirements *reqs)
 {
 	int ret;
 
-	/* Create reservation info, tag reserved blocks with it as we go */
-	rsvp->seq = ++rm->rsvp_next_seq;
-	rsvp->enc_id = enc->base.id;
-	list_add_tail(&rsvp->list, &rm->rsvps);
-
-	ret = _dpu_rm_reserve_lms(rm, rsvp, reqs);
+	ret = _dpu_rm_reserve_lms(rm, enc->base.id, reqs);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate mixers\n");
 		return ret;
 	}
 
-	ret = _dpu_rm_reserve_ctls(rm, rsvp, &reqs->topology);
+	ret = _dpu_rm_reserve_ctls(rm, enc->base.id, &reqs->topology);
 	if (ret) {
 		DPU_ERROR("unable to find appropriate CTL\n");
 		return ret;
 	}
 
-	ret = _dpu_rm_reserve_intf_related_hw(rm, rsvp, &reqs->hw_res);
+	ret = _dpu_rm_reserve_intf_related_hw(rm, enc->base.id, &reqs->hw_res);
 	if (ret)
 		return ret;
 
@@ -706,106 +586,29 @@ static int _dpu_rm_populate_requirements(
 	return 0;
 }
 
-static struct dpu_rm_rsvp *_dpu_rm_get_rsvp(
-		struct dpu_rm *rm,
-		struct drm_encoder *enc)
+static void _dpu_rm_release_reservation(struct dpu_rm *rm, uint32_t enc_id)
 {
-	struct dpu_rm_rsvp *i;
-
-	if (!rm || !enc) {
-		DPU_ERROR("invalid params\n");
-		return NULL;
-	}
-
-	if (list_empty(&rm->rsvps))
-		return NULL;
-
-	list_for_each_entry(i, &rm->rsvps, list)
-		if (i->enc_id == enc->base.id)
-			return i;
-
-	return NULL;
-}
-
-/**
- * _dpu_rm_release_rsvp - release resources and release a reservation
- * @rm:	KMS handle
- * @rsvp:	RSVP pointer to release and release resources for
- */
-static void _dpu_rm_release_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
-{
-	struct dpu_rm_rsvp *rsvp_c, *rsvp_n;
 	struct dpu_rm_hw_blk *blk;
 	enum dpu_hw_blk_type type;
 
-	if (!rsvp)
-		return;
-
-	DPU_DEBUG("rel rsvp %d enc %d\n", rsvp->seq, rsvp->enc_id);
-
-	list_for_each_entry_safe(rsvp_c, rsvp_n, &rm->rsvps, list) {
-		if (rsvp == rsvp_c) {
-			list_del(&rsvp_c->list);
-			break;
-		}
-	}
-
 	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
 		list_for_each_entry(blk, &rm->hw_blks[type], list) {
-			if (blk->rsvp == rsvp) {
-				blk->rsvp = NULL;
-				DPU_DEBUG("rel rsvp %d enc %d %d %d\n",
-						rsvp->seq, rsvp->enc_id,
-						blk->type, blk->id);
-			}
-			if (blk->rsvp_nxt == rsvp) {
-				blk->rsvp_nxt = NULL;
-				DPU_DEBUG("rel rsvp_nxt %d enc %d %d %d\n",
-						rsvp->seq, rsvp->enc_id,
-						blk->type, blk->id);
+			if (blk->enc_id == enc_id) {
+				blk->enc_id = 0;
+				DPU_DEBUG("rel enc %d %d %d\n", enc_id,
+					  type, blk->id);
 			}
 		}
 	}
-
-	kfree(rsvp);
 }
 
 void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc)
 {
-	struct dpu_rm_rsvp *rsvp;
-
-	if (!rm || !enc) {
-		DPU_ERROR("invalid params\n");
-		return;
-	}
-
 	mutex_lock(&rm->rm_lock);
 
-	rsvp = _dpu_rm_get_rsvp(rm, enc);
-	if (!rsvp) {
-		DPU_ERROR("failed to find rsvp for enc %d\n", enc->base.id);
-		goto end;
-	}
+	_dpu_rm_release_reservation(rm, enc->base.id);
 
-	_dpu_rm_release_rsvp(rm, rsvp);
-end:
 	mutex_unlock(&rm->rm_lock);
-}
-
-static void _dpu_rm_commit_rsvp(struct dpu_rm *rm, struct dpu_rm_rsvp *rsvp)
-{
-	struct dpu_rm_hw_blk *blk;
-	enum dpu_hw_blk_type type;
-
-	/* Swap next rsvp to be the active */
-	for (type = 0; type < DPU_HW_BLK_MAX; type++) {
-		list_for_each_entry(blk, &rm->hw_blks[type], list) {
-			if (blk->rsvp_nxt) {
-				blk->rsvp = blk->rsvp_nxt;
-				blk->rsvp_nxt = NULL;
-			}
-		}
-	}
 }
 
 int dpu_rm_reserve(
@@ -815,7 +618,6 @@ int dpu_rm_reserve(
 		struct msm_display_topology topology,
 		bool test_only)
 {
-	struct dpu_rm_rsvp *rsvp_cur, *rsvp_nxt;
 	struct dpu_rm_requirements reqs;
 	int ret;
 
@@ -828,8 +630,6 @@ int dpu_rm_reserve(
 
 	mutex_lock(&rm->rm_lock);
 
-	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_BEGIN);
-
 	ret = _dpu_rm_populate_requirements(rm, enc, crtc_state, &reqs,
 					    topology);
 	if (ret) {
@@ -837,49 +637,16 @@ int dpu_rm_reserve(
 		goto end;
 	}
 
-	/*
-	 * We only support one active reservation per-hw-block. But to implement
-	 * transactional semantics for test-only, and for allowing failure while
-	 * modifying your existing reservation, over the course of this
-	 * function we can have two reservations:
-	 * Current: Existing reservation
-	 * Next: Proposed reservation. The proposed reservation may fail, or may
-	 *       be discarded if in test-only mode.
-	 * If reservation is successful, and we're not in test-only, then we
-	 * replace the current with the next.
-	 */
-	rsvp_nxt = kzalloc(sizeof(*rsvp_nxt), GFP_KERNEL);
-	if (!rsvp_nxt) {
-		ret = -ENOMEM;
-		goto end;
-	}
-
-	rsvp_cur = _dpu_rm_get_rsvp(rm, enc);
-
-	/* Check the proposed reservation, store it in hw's "next" field */
-	ret = _dpu_rm_make_next_rsvp(rm, enc, crtc_state, rsvp_nxt, &reqs);
-
-	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_AFTER_RSVPNEXT);
-
+	ret = _dpu_rm_make_reservation(rm, enc, crtc_state, &reqs);
 	if (ret) {
 		DPU_ERROR("failed to reserve hw resources: %d\n", ret);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt);
+		_dpu_rm_release_reservation(rm, enc->base.id);
 	} else if (test_only) {
-		/*
-		 * Normally, if test_only, test the reservation and then undo
-		 * However, if the user requests LOCK, then keep the reservation
-		 * made during the atomic_check phase.
-		 */
-		DPU_DEBUG("test_only: discard test rsvp[s%de%d]\n",
-				rsvp_nxt->seq, rsvp_nxt->enc_id);
-		_dpu_rm_release_rsvp(rm, rsvp_nxt);
-	} else {
-		_dpu_rm_release_rsvp(rm, rsvp_cur);
-
-		_dpu_rm_commit_rsvp(rm, rsvp_nxt);
+		 /* test_only: test the reservation and then undo */
+		DPU_DEBUG("test_only: discard test [enc: %d]\n",
+				enc->base.id);
+		_dpu_rm_release_reservation(rm, enc->base.id);
 	}
-
-	_dpu_rm_print_rsvps(rm, DPU_RM_STAGE_FINAL);
 
 end:
 	mutex_unlock(&rm->rm_lock);

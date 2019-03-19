@@ -181,8 +181,8 @@ static int rds_ib_map_frmr(struct rds_ib_device *rds_ibdev,
 
 	ret = -EINVAL;
 	for (i = 0; i < ibmr->sg_dma_len; ++i) {
-		unsigned int dma_len = ib_sg_dma_len(dev, &ibmr->sg[i]);
-		u64 dma_addr = ib_sg_dma_address(dev, &ibmr->sg[i]);
+		unsigned int dma_len = sg_dma_len(&ibmr->sg[i]);
+		u64 dma_addr = sg_dma_address(&ibmr->sg[i]);
 
 		frmr->sg_byte_len += dma_len;
 		if (dma_addr & ~PAGE_MASK) {

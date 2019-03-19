@@ -28,6 +28,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include "../../codecs/max98090.h"
 #include "../atom/sst-atom-controls.h"
@@ -420,6 +421,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	int ret_val = 0;
 	struct cht_mc_private *drv;
 	const char *mclk_name;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	int quirks = 0;
 
 	dmi_id = dmi_first_match(cht_max98090_quirk_table);
@@ -441,6 +444,15 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		if (ret_val)
 			dev_dbg(dev, "Unable to add GPIO mapping table\n");
 	}
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(&snd_soc_card_cht,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	/* register the soc card */
 	snd_soc_card_cht.dev = &pdev->dev;

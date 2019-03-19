@@ -343,7 +343,7 @@ static int __init dsa_loop_init(void)
 	unsigned int i;
 
 	for (i = 0; i < NUM_FIXED_PHYS; i++)
-		phydevs[i] = fixed_phy_register(PHY_POLL, &status, -1, NULL);
+		phydevs[i] = fixed_phy_register(PHY_POLL, &status, NULL);
 
 	return mdio_driver_register(&dsa_loop_drv);
 }

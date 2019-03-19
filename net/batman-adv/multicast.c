@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2014-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2014-2019  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
  *
@@ -674,7 +674,7 @@ static void batadv_mcast_mla_update(struct work_struct *work)
  */
 static bool batadv_mcast_is_report_ipv4(struct sk_buff *skb)
 {
-	if (ip_mc_check_igmp(skb, NULL) < 0)
+	if (ip_mc_check_igmp(skb) < 0)
 		return false;
 
 	switch (igmp_hdr(skb)->type) {
@@ -741,7 +741,7 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
  */
 static bool batadv_mcast_is_report_ipv6(struct sk_buff *skb)
 {
-	if (ipv6_mc_check_mld(skb, NULL) < 0)
+	if (ipv6_mc_check_mld(skb) < 0)
 		return false;
 
 	switch (icmp6_hdr(skb)->icmp6_type) {

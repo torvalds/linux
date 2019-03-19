@@ -17,6 +17,12 @@
 /**
  * DOC: dsc helpers
  *
+ * VESA specification for DP 1.4 adds a new feature called Display Stream
+ * Compression (DSC) used to compress the pixel bits before sending it on
+ * DP/eDP/MIPI DSI interface. DSC is required to be enabled so that the existing
+ * display interfaces can support high resolutions at higher frames rates uisng
+ * the maximum available link capacity of these interfaces.
+ *
  * These functions contain some common logic and helpers to deal with VESA
  * Display Stream Compression standard required for DSC on Display Port/eDP or
  * MIPI display interfaces.
@@ -26,6 +32,13 @@
  * drm_dsc_dp_pps_header_init() - Initializes the PPS Header
  * for DisplayPort as per the DP 1.4 spec.
  * @pps_sdp: Secondary data packet for DSC Picture Parameter Set
+ *           as defined in &struct drm_dsc_pps_infoframe
+ *
+ * DP 1.4 spec defines the secondary data packet for sending the
+ * picture parameter infoframes from the source to the sink.
+ * This function populates the pps header defined in
+ * &struct drm_dsc_pps_infoframe as per the header bytes defined
+ * in &struct dp_sdp_header.
  */
 void drm_dsc_dp_pps_header_init(struct drm_dsc_pps_infoframe *pps_sdp)
 {
@@ -38,15 +51,20 @@ EXPORT_SYMBOL(drm_dsc_dp_pps_header_init);
 
 /**
  * drm_dsc_pps_infoframe_pack() - Populates the DSC PPS infoframe
- * using the DSC configuration parameters in the order expected
- * by the DSC Display Sink device. For the DSC, the sink device
- * expects the PPS payload in the big endian format for the fields
- * that span more than 1 byte.
  *
  * @pps_sdp:
- * Secondary data packet for DSC Picture Parameter Set
+ * Secondary data packet for DSC Picture Parameter Set. This is defined
+ * by &struct drm_dsc_pps_infoframe
  * @dsc_cfg:
- * DSC Configuration data filled by driver
+ * DSC Configuration data filled by driver as defined by
+ * &struct drm_dsc_config
+ *
+ * DSC source device sends a secondary data packet filled with all the
+ * picture parameter set (PPS) information required by the sink to decode
+ * the compressed frame. Driver populates the dsC PPS infoframe using the DSC
+ * configuration parameters in the order expected by the DSC Display Sink
+ * device. For the DSC, the sink device expects the PPS payload in the big
+ * endian format for the fields that span more than 1 byte.
  */
 void drm_dsc_pps_infoframe_pack(struct drm_dsc_pps_infoframe *pps_sdp,
 				const struct drm_dsc_config *dsc_cfg)

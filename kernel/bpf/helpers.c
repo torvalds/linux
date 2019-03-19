@@ -221,6 +221,102 @@ const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.arg2_type	= ARG_CONST_SIZE,
 };
 
+#if defined(CONFIG_QUEUED_SPINLOCKS) || defined(CONFIG_BPF_ARCH_SPINLOCK)
+
+static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
+{
+	arch_spinlock_t *l = (void *)lock;
+	union {
+		__u32 val;
+		arch_spinlock_t lock;
+	} u = { .lock = __ARCH_SPIN_LOCK_UNLOCKED };
+
+	compiletime_assert(u.val == 0, "__ARCH_SPIN_LOCK_UNLOCKED not 0");
+	BUILD_BUG_ON(sizeof(*l) != sizeof(__u32));
+	BUILD_BUG_ON(sizeof(*lock) != sizeof(__u32));
+	arch_spin_lock(l);
+}
+
+static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
+{
+	arch_spinlock_t *l = (void *)lock;
+
+	arch_spin_unlock(l);
+}
+
+#else
+
+static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
+{
+	atomic_t *l = (void *)lock;
+
+	BUILD_BUG_ON(sizeof(*l) != sizeof(*lock));
+	do {
+		atomic_cond_read_relaxed(l, !VAL);
+	} while (atomic_xchg(l, 1));
+}
+
+static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
+{
+	atomic_t *l = (void *)lock;
+
+	atomic_set_release(l, 0);
+}
+
+#endif
+
+static DEFINE_PER_CPU(unsigned long, irqsave_flags);
+
+notrace BPF_CALL_1(bpf_spin_lock, struct bpf_spin_lock *, lock)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__bpf_spin_lock(lock);
+	__this_cpu_write(irqsave_flags, flags);
+	return 0;
+}
+
+const struct bpf_func_proto bpf_spin_lock_proto = {
+	.func		= bpf_spin_lock,
+	.gpl_only	= false,
+	.ret_type	= RET_VOID,
+	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
+};
+
+notrace BPF_CALL_1(bpf_spin_unlock, struct bpf_spin_lock *, lock)
+{
+	unsigned long flags;
+
+	flags = __this_cpu_read(irqsave_flags);
+	__bpf_spin_unlock(lock);
+	local_irq_restore(flags);
+	return 0;
+}
+
+const struct bpf_func_proto bpf_spin_unlock_proto = {
+	.func		= bpf_spin_unlock,
+	.gpl_only	= false,
+	.ret_type	= RET_VOID,
+	.arg1_type	= ARG_PTR_TO_SPIN_LOCK,
+};
+
+void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
+			   bool lock_src)
+{
+	struct bpf_spin_lock *lock;
+
+	if (lock_src)
+		lock = src + map->spin_lock_off;
+	else
+		lock = dst + map->spin_lock_off;
+	preempt_disable();
+	____bpf_spin_lock(lock);
+	copy_map_value(map, dst, src);
+	____bpf_spin_unlock(lock);
+	preempt_enable();
+}
+
 #ifdef CONFIG_CGROUPS
 BPF_CALL_0(bpf_get_current_cgroup_id)
 {

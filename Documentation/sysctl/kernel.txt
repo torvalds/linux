@@ -79,6 +79,7 @@ show up in /proc/sys/kernel:
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
 - rtsig-nr
+- sched_energy_aware
 - seccomp/                    ==> Documentation/userspace-api/seccomp_filter.rst
 - sem
 - sem_next_id		      [ sysv ipc ]
@@ -94,7 +95,7 @@ show up in /proc/sys/kernel:
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
-- tainted
+- tainted                     ==> Documentation/admin-guide/tainted-kernels.rst
 - threads-max
 - unknown_nmi_panic
 - watchdog
@@ -890,6 +891,17 @@ rtsig-nr shows the number of RT signals currently queued.
 
 ==============================================================
 
+sched_energy_aware:
+
+Enables/disables Energy Aware Scheduling (EAS). EAS starts
+automatically on platforms where it can run (that is,
+platforms with asymmetric CPU topologies and having an Energy
+Model available). If your platform happens to meet the
+requirements for EAS but you do not want to use it, change
+this value to 0.
+
+==============================================================
+
 sched_schedstats:
 
 Enables/disables scheduler statistics. Enabling this feature
@@ -1019,39 +1031,33 @@ compilation sees a 1% slowdown, other systems and workloads may vary.
 
   1: kernel stack erasing is enabled (default), it is performed before
      returning to the userspace at the end of syscalls.
-
 ==============================================================
 
-tainted:
+tainted
 
 Non-zero if the kernel has been tainted. Numeric values, which can be
 ORed together. The letters are seen in "Tainted" line of Oops reports.
 
-     1 (P):  A module with a non-GPL license has been loaded, this
-             includes modules with no license.
-             Set by modutils >= 2.4.9 and module-init-tools.
-     2 (F): A module was force loaded by insmod -f.
-            Set by modutils >= 2.4.9 and module-init-tools.
-     4 (S): Unsafe SMP processors: SMP with CPUs not designed for SMP.
-     8 (R): A module was forcibly unloaded from the system by rmmod -f.
-    16 (M): A hardware machine check error occurred on the system.
-    32 (B): A bad page was discovered on the system.
-    64 (U): The user has asked that the system be marked "tainted". This
-            could be because they are running software that directly modifies
-            the hardware, or for other reasons.
-   128 (D): The system has died.
-   256 (A): The ACPI DSDT has been overridden with one supplied by the user
-            instead of using the one provided by the hardware.
-   512 (W): A kernel warning has occurred.
-  1024 (C): A module from drivers/staging was loaded.
-  2048 (I): The system is working around a severe firmware bug.
-  4096 (O): An out-of-tree module has been loaded.
-  8192 (E): An unsigned module has been loaded in a kernel supporting module
-            signature.
- 16384 (L): A soft lockup has previously occurred on the system.
- 32768 (K): The kernel has been live patched.
- 65536 (X): Auxiliary taint, defined and used by for distros.
-131072 (T): The kernel was built with the struct randomization plugin.
+     1 (P): proprietary module was loaded
+     2 (F): module was force loaded
+     4 (S): SMP kernel oops on an officially SMP incapable processor
+     8 (R): module was force unloaded
+    16 (M): processor reported a Machine Check Exception (MCE)
+    32 (B): bad page referenced or some unexpected page flags
+    64 (U): taint requested by userspace application
+   128 (D): kernel died recently, i.e. there was an OOPS or BUG
+   256 (A): an ACPI table was overridden by user
+   512 (W): kernel issued warning
+  1024 (C): staging driver was loaded
+  2048 (I): workaround for bug in platform firmware applied
+  4096 (O): externally-built ("out-of-tree") module was loaded
+  8192 (E): unsigned module was loaded
+ 16384 (L): soft lockup occurred
+ 32768 (K): kernel has been live patched
+ 65536 (X): Auxiliary taint, defined and used by for distros
+131072 (T): The kernel was built with the struct randomization plugin
+
+See Documentation/admin-guide/tainted-kernels.rst for more information.
 
 ==============================================================
 

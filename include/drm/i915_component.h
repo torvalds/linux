@@ -26,6 +26,11 @@
 
 #include "drm_audio_component.h"
 
+enum i915_component_type {
+	I915_COMPONENT_AUDIO = 1,
+	I915_COMPONENT_HDCP,
+};
+
 /* MAX_PORT is the number of port
  * It must be sync with I915_MAX_PORTS defined i915_drv.h
  */

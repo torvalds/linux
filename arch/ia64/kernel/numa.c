@@ -74,7 +74,7 @@ void __init build_cpu_to_node_map(void)
 		cpumask_clear(&node_to_cpu_mask[node]);
 
 	for_each_possible_early_cpu(cpu) {
-		node = -1;
+		node = NUMA_NO_NODE;
 		for (i = 0; i < NR_CPUS; ++i)
 			if (cpu_physical_id(cpu) == node_cpuid[i].phys_id) {
 				node = node_cpuid[i].nid;

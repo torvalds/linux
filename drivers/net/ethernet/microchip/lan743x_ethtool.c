@@ -14,60 +14,137 @@
 #define EEPROM_INDICATOR_1		    (0xA5)
 #define EEPROM_INDICATOR_2		    (0xAA)
 #define EEPROM_MAC_OFFSET		    (0x01)
-#define MAX_EEPROM_SIZE			    512
+#define MAX_EEPROM_SIZE			    (512)
+#define MAX_OTP_SIZE			    (1024)
 #define OTP_INDICATOR_1			    (0xF3)
 #define OTP_INDICATOR_2			    (0xF7)
+
+static int lan743x_otp_power_up(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, OTP_PWR_DN);
+
+	if (reg_value & OTP_PWR_DN_PWRDN_N_) {
+		/* clear it and wait to be cleared */
+		reg_value &= ~OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, OTP_PWR_DN, reg_value);
+
+		usleep_range(100, 20000);
+	}
+
+	return 0;
+}
+
+static void lan743x_otp_power_down(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, OTP_PWR_DN);
+	if (!(reg_value & OTP_PWR_DN_PWRDN_N_)) {
+		/* set power down bit */
+		reg_value |= OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, OTP_PWR_DN, reg_value);
+	}
+}
+
+static void lan743x_otp_set_address(struct lan743x_adapter *adapter,
+				    u32 address)
+{
+	lan743x_csr_write(adapter, OTP_ADDR_HIGH, (address >> 8) & 0x03);
+	lan743x_csr_write(adapter, OTP_ADDR_LOW, address & 0xFF);
+}
+
+static void lan743x_otp_read_go(struct lan743x_adapter *adapter)
+{
+	lan743x_csr_write(adapter, OTP_FUNC_CMD, OTP_FUNC_CMD_READ_);
+	lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
+}
+
+static int lan743x_otp_wait_till_not_busy(struct lan743x_adapter *adapter)
+{
+	unsigned long timeout;
+	u32 reg_val;
+
+	timeout = jiffies + HZ;
+	do {
+		if (time_after(jiffies, timeout)) {
+			netif_warn(adapter, drv, adapter->netdev,
+				   "Timeout on OTP_STATUS completion\n");
+			return -EIO;
+		}
+		udelay(1);
+		reg_val = lan743x_csr_read(adapter, OTP_STATUS);
+	} while (reg_val & OTP_STATUS_BUSY_);
+
+	return 0;
+}
+
+static int lan743x_otp_read(struct lan743x_adapter *adapter, u32 offset,
+			    u32 length, u8 *data)
+{
+	int ret;
+	int i;
+
+	if (offset + length > MAX_OTP_SIZE)
+		return -EINVAL;
+
+	ret = lan743x_otp_power_up(adapter);
+	if (ret < 0)
+		return ret;
+
+	ret = lan743x_otp_wait_till_not_busy(adapter);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < length; i++) {
+		lan743x_otp_set_address(adapter, offset + i);
+
+		lan743x_otp_read_go(adapter);
+		ret = lan743x_otp_wait_till_not_busy(adapter);
+		if (ret < 0)
+			return ret;
+		data[i] = lan743x_csr_read(adapter, OTP_READ_DATA);
+	}
+
+	lan743x_otp_power_down(adapter);
+
+	return 0;
+}
 
 static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 			     u32 length, u8 *data)
 {
-	unsigned long timeout;
-	u32 buf;
+	int ret;
 	int i;
 
-	buf = lan743x_csr_read(adapter, OTP_PWR_DN);
+	if (offset + length > MAX_OTP_SIZE)
+		return -EINVAL;
 
-	if (buf & OTP_PWR_DN_PWRDN_N_) {
-		/* clear it and wait to be cleared */
-		lan743x_csr_write(adapter, OTP_PWR_DN, 0);
+	ret = lan743x_otp_power_up(adapter);
+	if (ret < 0)
+		return ret;
 
-		timeout = jiffies + HZ;
-		do {
-			udelay(1);
-			buf = lan743x_csr_read(adapter, OTP_PWR_DN);
-			if (time_after(jiffies, timeout)) {
-				netif_warn(adapter, drv, adapter->netdev,
-					   "timeout on OTP_PWR_DN completion\n");
-				return -EIO;
-			}
-		} while (buf & OTP_PWR_DN_PWRDN_N_);
-	}
+	ret = lan743x_otp_wait_till_not_busy(adapter);
+	if (ret < 0)
+		return ret;
 
 	/* set to BYTE program mode */
 	lan743x_csr_write(adapter, OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
 
 	for (i = 0; i < length; i++) {
-		lan743x_csr_write(adapter, OTP_ADDR1,
-				  ((offset + i) >> 8) &
-				  OTP_ADDR1_15_11_MASK_);
-		lan743x_csr_write(adapter, OTP_ADDR2,
-				  ((offset + i) &
-				  OTP_ADDR2_10_3_MASK_));
+		lan743x_otp_set_address(adapter, offset + i);
+
 		lan743x_csr_write(adapter, OTP_PRGM_DATA, data[i]);
 		lan743x_csr_write(adapter, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
 		lan743x_csr_write(adapter, OTP_CMD_GO, OTP_CMD_GO_GO_);
 
-		timeout = jiffies + HZ;
-		do {
-			udelay(1);
-			buf = lan743x_csr_read(adapter, OTP_STATUS);
-			if (time_after(jiffies, timeout)) {
-				netif_warn(adapter, drv, adapter->netdev,
-					   "Timeout on OTP_STATUS completion\n");
-				return -EIO;
-			}
-		} while (buf & OTP_STATUS_BUSY_);
+		ret = lan743x_otp_wait_till_not_busy(adapter);
+		if (ret < 0)
+			return ret;
 	}
+
+	lan743x_otp_power_down(adapter);
 
 	return 0;
 }
@@ -120,6 +197,9 @@ static int lan743x_eeprom_read(struct lan743x_adapter *adapter,
 	u32 val;
 	int i;
 
+	if (offset + length > MAX_EEPROM_SIZE)
+		return -EINVAL;
+
 	retval = lan743x_eeprom_confirm_not_busy(adapter);
 	if (retval)
 		return retval;
@@ -147,6 +227,9 @@ static int lan743x_eeprom_write(struct lan743x_adapter *adapter,
 	int retval;
 	u32 val;
 	int i;
+
+	if (offset + length > MAX_EEPROM_SIZE)
+		return -EINVAL;
 
 	retval = lan743x_eeprom_confirm_not_busy(adapter);
 	if (retval)
@@ -207,6 +290,11 @@ static void lan743x_ethtool_set_msglevel(struct net_device *netdev,
 
 static int lan743x_ethtool_get_eeprom_len(struct net_device *netdev)
 {
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP)
+		return MAX_OTP_SIZE;
+
 	return MAX_EEPROM_SIZE;
 }
 
@@ -214,8 +302,14 @@ static int lan743x_ethtool_get_eeprom(struct net_device *netdev,
 				      struct ethtool_eeprom *ee, u8 *data)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
 
-	return lan743x_eeprom_read(adapter, ee->offset, ee->len, data);
+	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP)
+		ret = lan743x_otp_read(adapter, ee->offset, ee->len, data);
+	else
+		ret = lan743x_eeprom_read(adapter, ee->offset, ee->len, data);
+
+	return ret;
 }
 
 static int lan743x_ethtool_set_eeprom(struct net_device *netdev,
@@ -224,17 +318,18 @@ static int lan743x_ethtool_set_eeprom(struct net_device *netdev,
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 	int ret = -EINVAL;
 
-	if (ee->magic == LAN743X_EEPROM_MAGIC)
-		ret = lan743x_eeprom_write(adapter, ee->offset, ee->len,
-					   data);
-	/* Beware!  OTP is One Time Programming ONLY!
-	 * So do some strict condition check before messing up
-	 */
-	else if ((ee->magic == LAN743X_OTP_MAGIC) &&
-		 (ee->offset == 0) &&
-		 (ee->len == MAX_EEPROM_SIZE) &&
-		 (data[0] == OTP_INDICATOR_1))
-		ret = lan743x_otp_write(adapter, ee->offset, ee->len, data);
+	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP) {
+		/* Beware!  OTP is One Time Programming ONLY! */
+		if (ee->magic == LAN743X_OTP_MAGIC) {
+			ret = lan743x_otp_write(adapter, ee->offset,
+						ee->len, data);
+		}
+	} else {
+		if (ee->magic == LAN743X_EEPROM_MAGIC) {
+			ret = lan743x_eeprom_write(adapter, ee->offset,
+						   ee->len, data);
+		}
+	}
 
 	return ret;
 }
@@ -360,6 +455,10 @@ static const u32 lan743x_set2_hw_cnt_addr[] = {
 	STAT_TX_COUNTER_ROLLOVER_STATUS
 };
 
+static const char lan743x_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"OTP_ACCESS",
+};
+
 static void lan743x_ethtool_get_strings(struct net_device *netdev,
 					u32 stringset, u8 *data)
 {
@@ -374,6 +473,10 @@ static void lan743x_ethtool_get_strings(struct net_device *netdev,
 		       sizeof(lan743x_set1_sw_cnt_strings)],
 		       lan743x_set2_hw_cnt_strings,
 		       sizeof(lan743x_set2_hw_cnt_strings));
+		break;
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(data, lan743x_priv_flags_strings,
+		       sizeof(lan743x_priv_flags_strings));
 		break;
 	}
 }
@@ -399,6 +502,22 @@ static void lan743x_ethtool_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
+static u32 lan743x_ethtool_get_priv_flags(struct net_device *netdev)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->flags;
+}
+
+static int lan743x_ethtool_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
+	adapter->flags = flags;
+
+	return 0;
+}
+
 static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 {
 	switch (sset) {
@@ -411,6 +530,8 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 		ret += ARRAY_SIZE(lan743x_set2_hw_cnt_strings);
 		return ret;
 	}
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(lan743x_priv_flags_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -705,6 +826,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_eeprom = lan743x_ethtool_set_eeprom,
 	.get_strings = lan743x_ethtool_get_strings,
 	.get_ethtool_stats = lan743x_ethtool_get_ethtool_stats,
+	.get_priv_flags = lan743x_ethtool_get_priv_flags,
+	.set_priv_flags = lan743x_ethtool_set_priv_flags,
 	.get_sset_count = lan743x_ethtool_get_sset_count,
 	.get_rxnfc = lan743x_ethtool_get_rxnfc,
 	.get_rxfh_key_size = lan743x_ethtool_get_rxfh_key_size,

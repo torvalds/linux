@@ -1,6 +1,6 @@
 config INFINIBAND_NES
 	tristate "NetEffect RNIC Driver"
-	depends on PCI && INET && INFINIBAND
+	depends on PCI && INET
 	select LIBCRC32C
 	---help---
 	  This is the RDMA Network Interface Card (RNIC) driver for
