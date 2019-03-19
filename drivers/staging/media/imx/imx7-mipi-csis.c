@@ -1027,8 +1027,7 @@ disable_clock:
 
 static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *mipi_sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *mipi_sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	int ret = 0;
 
@@ -1052,8 +1051,7 @@ unlock:
 
 static int mipi_csis_pm_resume(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *mipi_sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *mipi_sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csis_state(mipi_sd);
 	int ret = 0;
 
