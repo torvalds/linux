@@ -849,15 +849,11 @@ bool dc_check_and_fit_timing_into_bandwidth_with_dsc_legacy(
 {
 	int requiredBandwidth_Kbps;
 	bool stream_fits_into_bandwidth = false;
-	int link_rate_kbytes_per_sec = link->verified_link_cap.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	int total_link_bandwdith_kbps = link->verified_link_cap.lane_count * link_rate_kbytes_per_sec * 8;
+	int total_link_bandwdith_kbps = dc_link_bandwidth_kbps(link, &link->verified_link_cap);
 
-	if (link->preferred_link_setting.lane_count !=
-			LANE_COUNT_UNKNOWN &&
-			link->preferred_link_setting.link_rate !=
-					LINK_RATE_UNKNOWN) {
-		link_rate_kbytes_per_sec =  link->preferred_link_setting.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-		total_link_bandwdith_kbps =  link->preferred_link_setting.lane_count * link_rate_kbytes_per_sec * 8;
+	if (link->preferred_link_setting.lane_count != LANE_COUNT_UNKNOWN &&
+			link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN) {
+		total_link_bandwdith_kbps = dc_link_bandwidth_kbps(link, &link->preferred_link_setting);
 	}
 
 	timing->flags.DSC = 0;

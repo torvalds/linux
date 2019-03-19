@@ -2390,11 +2390,6 @@ static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 			&stream->link->cur_link_settings);
 	link_rate_in_mbytes_per_sec /= 8000; /* Kbits to MBytes */
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (stream->link->fec_state != dc_link_fec_not_ready)
-		link_rate_in_mbytes_per_sec = (link_rate_in_mbytes_per_sec * 970)/1000;
-#endif
-
 	mbytes_per_sec = dc_fixpt_from_int(link_rate_in_mbytes_per_sec);
 
 	return dc_fixpt_div_int(mbytes_per_sec, 54);

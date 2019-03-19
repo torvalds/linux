@@ -225,6 +225,7 @@ static void dsc2_disable(struct display_stream_compressor *dsc)
 static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps)
 {
 	int i;
+	int bits_per_pixel = pps->bits_per_pixel;
 
 	DC_LOG_DSC("programming DSC Picture Parameter Set (PPS):");
 	DC_LOG_DSC("\tdsc_version_major %d", pps->dsc_version_major);
@@ -235,7 +236,7 @@ static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_co
 	DC_LOG_DSC("\tconvert_rgb %d", pps->convert_rgb);
 	DC_LOG_DSC("\tsimple_422 %d", pps->simple_422);
 	DC_LOG_DSC("\tvbr_enable %d", pps->vbr_enable);
-	DC_LOG_DSC("\tbits_per_pixel %d", pps->bits_per_pixel);
+	DC_LOG_DSC("\tbits_per_pixel %d (%d.%04d)", bits_per_pixel, bits_per_pixel / 16, ((bits_per_pixel % 16) * 10000) / 16);
 	DC_LOG_DSC("\tpic_height %d", pps->pic_height);
 	DC_LOG_DSC("\tpic_width %d", pps->pic_width);
 	DC_LOG_DSC("\tslice_height %d", pps->slice_height);
