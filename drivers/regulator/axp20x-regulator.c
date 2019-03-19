@@ -367,16 +367,14 @@ static const int axp209_dcdc2_ldo3_slew_rates[] = {
 static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc;
+	int id = rdev_get_id(rdev);
 	u8 reg, mask, enable, cfg = 0xff;
 	const int *slew_rates;
 	int rate_count = 0;
 
-	desc = rdev->desc;
-
 	switch (axp20x->variant) {
 	case AXP209_ID:
-		if (desc->id == AXP20X_DCDC2) {
+		if (id == AXP20X_DCDC2) {
 			slew_rates = axp209_dcdc2_ldo3_slew_rates;
 			rate_count = ARRAY_SIZE(axp209_dcdc2_ldo3_slew_rates);
 			reg = AXP20X_DCDC2_LDO3_V_RAMP;
@@ -388,7 +386,7 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 			break;
 		}
 
-		if (desc->id == AXP20X_LDO3) {
+		if (id == AXP20X_LDO3) {
 			slew_rates = axp209_dcdc2_ldo3_slew_rates;
 			rate_count = ARRAY_SIZE(axp209_dcdc2_ldo3_slew_rates);
 			reg = AXP20X_DCDC2_LDO3_V_RAMP;
@@ -435,13 +433,11 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 static int axp20x_regulator_enable_regmap(struct regulator_dev *rdev)
 {
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
-	const struct regulator_desc *desc;
-
-	desc = rdev->desc;
+	int id = rdev_get_id(rdev);
 
 	switch (axp20x->variant) {
 	case AXP209_ID:
-		if ((desc->id == AXP20X_LDO3) &&
+		if ((id == AXP20X_LDO3) &&
 		    rdev->constraints && rdev->constraints->soft_start) {
 			int v_out;
 			int ret;
