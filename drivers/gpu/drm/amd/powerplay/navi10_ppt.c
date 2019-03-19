@@ -112,15 +112,29 @@ static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 	return val;
 }
 
+#define FEATURE_MASK(feature) (1UL << feature)
 static int
-navi10_get_unallowed_feature_mask(struct smu_context *smu,
+navi10_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	if (num > 2)
 		return -EINVAL;
 
-	feature_mask[0] = 0xdc3f7f8c;
-	feature_mask[1] = 0xfffffcec;	/* bit32~bit63 is Unsupported */
+	memset(feature_mask, 0, sizeof(uint32_t) * num);
+
+	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
+				| FEATURE_MASK(FEATURE_GFX_ULV_BIT)
+				| FEATURE_MASK(FEATURE_RSMU_SMN_CG_BIT)
+				| FEATURE_MASK(FEATURE_PPT_BIT)
+				| FEATURE_MASK(FEATURE_TDC_BIT)
+				| FEATURE_MASK(FEATURE_GFX_EDC_BIT)
+				| FEATURE_MASK(FEATURE_VR0HOT_BIT)
+				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
+				| FEATURE_MASK(FEATURE_THERMAL_BIT)
+				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
+				| FEATURE_MASK(FEATURE_MMHUB_PG);
 
 	return 0;
 }
@@ -298,7 +312,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.check_powerplay_table = navi10_check_powerplay_table,
 	.append_powerplay_table = navi10_append_powerplay_table,
 	.get_smu_msg_index = navi10_get_smu_msg_index,
-	.get_unallowed_feature_mask = navi10_get_unallowed_feature_mask,
+	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 };
 

@@ -402,16 +402,42 @@ static int vega20_run_btc_afll(struct smu_context *smu)
 	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
 }
 
+#define FEATURE_MASK(feature) (1UL << feature)
 static int
-vega20_get_unallowed_feature_mask(struct smu_context *smu,
+vega20_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
 	if (num > 2)
 		return -EINVAL;
 
-	feature_mask[0] = 0xE0041C00;
-	feature_mask[1] = 0xFFFFFFFE; /* bit32~bit63 is Unsupported */
+	memset(feature_mask, 0, sizeof(uint32_t) * num);
 
+	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
+				| FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_UVD_BIT)
+				| FEATURE_MASK(FEATURE_DPM_VCE_BIT)
+				| FEATURE_MASK(FEATURE_ULV_BIT)
+				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_LINK_BIT)
+				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)
+				| FEATURE_MASK(FEATURE_PPT_BIT)
+				| FEATURE_MASK(FEATURE_TDC_BIT)
+				| FEATURE_MASK(FEATURE_THERMAL_BIT)
+				| FEATURE_MASK(FEATURE_GFX_PER_CU_CG_BIT)
+				| FEATURE_MASK(FEATURE_RM_BIT)
+				| FEATURE_MASK(FEATURE_ACDC_BIT)
+				| FEATURE_MASK(FEATURE_VR0HOT_BIT)
+				| FEATURE_MASK(FEATURE_VR1HOT_BIT)
+				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
+				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
+				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
+				| FEATURE_MASK(FEATURE_GFX_EDC_BIT)
+				| FEATURE_MASK(FEATURE_GFXOFF_BIT)
+				| FEATURE_MASK(FEATURE_CG_BIT)
+				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
+				| FEATURE_MASK(FEATURE_XGMI_BIT);
 	return 0;
 }
 
@@ -2822,7 +2848,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.append_powerplay_table = vega20_append_powerplay_table,
 	.get_smu_msg_index = vega20_get_smu_msg_index,
 	.run_afll_btc = vega20_run_btc_afll,
-	.get_unallowed_feature_mask = vega20_get_unallowed_feature_mask,
+	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,
 	.set_default_dpm_table = vega20_set_default_dpm_table,
 	.set_power_state = NULL,

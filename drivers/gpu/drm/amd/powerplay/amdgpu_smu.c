@@ -233,22 +233,22 @@ int smu_feature_init_dpm(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
-	uint32_t unallowed_feature_mask[SMU_FEATURE_MAX/32];
+	uint32_t allowed_feature_mask[SMU_FEATURE_MAX/32];
 
 	if (!smu->pm_enabled)
 		return ret;
 	mutex_lock(&feature->mutex);
-	bitmap_fill(feature->allowed, SMU_FEATURE_MAX);
+	bitmap_zero(feature->allowed, SMU_FEATURE_MAX);
 	mutex_unlock(&feature->mutex);
 
-	ret = smu_get_unallowed_feature_mask(smu, unallowed_feature_mask,
+	ret = smu_get_allowed_feature_mask(smu, allowed_feature_mask,
 					     SMU_FEATURE_MAX/32);
 	if (ret)
 		return ret;
 
 	mutex_lock(&feature->mutex);
-	bitmap_andnot(feature->allowed, feature->allowed,
-		      (unsigned long *)unallowed_feature_mask,
+	bitmap_or(feature->allowed, feature->allowed,
+		      (unsigned long *)allowed_feature_mask,
 		      feature->feature_num);
 	mutex_unlock(&feature->mutex);
 
