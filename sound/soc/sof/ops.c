@@ -86,7 +86,6 @@ bool snd_sof_dsp_update_bits64_unlocked(struct snd_sof_dev *sdev, u32 bar,
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits64_unlocked);
 
-
 /* This is for registers bits with attribute RWC */
 bool snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			     u32 mask, u32 value)

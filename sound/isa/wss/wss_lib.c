@@ -1943,7 +1943,7 @@ int snd_wss_pcm(struct snd_wss *chip, int device)
 	strcpy(pcm->name, snd_wss_chip_id(chip));
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      chip->card->dev,
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
