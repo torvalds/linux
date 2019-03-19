@@ -1438,6 +1438,26 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static void *get_match_headers_criteria(u32 flags,
+					struct mlx5_flow_spec *spec)
+{
+	return (flags & MLX5_FLOW_CONTEXT_ACTION_DECAP) ?
+		MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+			     inner_headers) :
+		MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
+			     outer_headers);
+}
+
+static void *get_match_headers_value(u32 flags,
+				     struct mlx5_flow_spec *spec)
+{
+	return (flags & MLX5_FLOW_CONTEXT_ACTION_DECAP) ?
+		MLX5_ADDR_OF(fte_match_param, spec->match_value,
+			     inner_headers) :
+		MLX5_ADDR_OF(fte_match_param, spec->match_value,
+			     outer_headers);
+}
+
 static int __parse_cls_flower(struct mlx5e_priv *priv,
 			      struct mlx5_flow_spec *spec,
 			      struct tc_cls_flower_offload *f,
@@ -1503,10 +1523,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		/* In decap flow, header pointers should point to the inner
 		 * headers, outer header were already set by parse_tunnel_attr
 		 */
-		headers_c = MLX5_ADDR_OF(fte_match_param, spec->match_criteria,
-					 inner_headers);
-		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
-					 inner_headers);
+		headers_c = get_match_headers_criteria(MLX5_FLOW_CONTEXT_ACTION_DECAP,
+						       spec);
+		headers_v = get_match_headers_value(MLX5_FLOW_CONTEXT_ACTION_DECAP,
+						    spec);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -2184,11 +2204,7 @@ static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 	u16 ethertype;
 	int i;
 
-	if (actions & MLX5_FLOW_CONTEXT_ACTION_DECAP)
-		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, inner_headers);
-	else
-		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
-
+	headers_v = get_match_headers_value(actions, spec);
 	ethertype = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ethertype);
 
 	/* for non-IP we only re-write MACs, so we're okay */
