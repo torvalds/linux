@@ -1820,12 +1820,6 @@ static struct platform_driver mt_msdc_driver = {
 static int __init mt_msdc_init(void)
 {
 	int ret;
-	u32 reg;
-
-	// Set the pins for sdxc to sdxc mode
-	//FIXME: this should be done by pinctl and not by the sd driver
-	reg = readl((void __iomem *)(RALINK_SYSCTL_BASE + 0x60)) & ~(0x3 << 18);
-	writel(reg, (void __iomem *)(RALINK_SYSCTL_BASE + 0x60));
 
 	ret = platform_driver_register(&mt_msdc_driver);
 	if (ret) {
