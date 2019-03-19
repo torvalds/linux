@@ -164,9 +164,32 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev =
 		container_of(work, struct mt76x02_dev, pre_tbtt_work);
+	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
+	struct beacon_bc_data data = {};
+	struct sk_buff *skb;
+	int i, nbeacons;
 
 	if (!dev->beacon_mask)
 		return;
+
+	mt76x02_resync_beacon_timer(dev);
+
+	ieee80211_iterate_active_interfaces(mt76_hw(dev),
+		IEEE80211_IFACE_ITER_RESUME_ALL,
+		mt76x02_update_beacon_iter, dev);
+
+	nbeacons = hweight8(dev->beacon_mask);
+	mt76x02_enqueue_buffered_bc(dev, &data, 8 - nbeacons);
+
+	for (i = nbeacons; i < 8; i++) {
+		skb = __skb_dequeue(&data.q);
+		if (skb && skb->len >= beacon_len) {
+			dev_kfree_skb(skb);
+			skb = NULL;
+		}
+		mt76x02_mac_set_beacon(dev, i, skb);
+	}
+
 	mt76x02u_restart_pre_tbtt_timer(dev);
 }
 
@@ -190,13 +213,20 @@ static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
 
 static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 {
+	int i;
+
 	if (WARN_ON_ONCE(!dev->beacon_int))
 		return;
 
-	if (en)
+	if (en) {
 		mt76x02u_start_pre_tbtt_timer(dev);
-
-	/* Nothing to do on disable as timer is already stopped */
+	} else {
+		/* Timer is already stopped, only clean up
+		 * PS buffered frames if any.
+		 */
+		for (i = 0; i < 8; i++)
+			mt76x02_mac_set_beacon(dev, i, NULL);
+	}
 }
 
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)

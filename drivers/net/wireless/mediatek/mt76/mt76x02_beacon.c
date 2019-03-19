@@ -38,6 +38,7 @@ const u16 mt76x02_beacon_offsets[16] = {
 	0xc000,
 	0xc000,
 };
+EXPORT_SYMBOL_GPL(mt76x02_beacon_offsets);
 
 static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 {
@@ -134,6 +135,7 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 		       bcn_idx - 1);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt76x02_mac_set_beacon);
 
 static void
 __mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
