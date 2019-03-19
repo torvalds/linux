@@ -1536,8 +1536,7 @@ static int enc28j60_probe(struct spi_device *spi)
 	int ret = 0;
 
 	if (netif_msg_drv(&debug))
-		dev_info(&spi->dev, DRV_NAME " Ethernet driver %s loaded\n",
-			DRV_VERSION);
+		dev_info(&spi->dev, "Ethernet driver %s loaded\n", DRV_VERSION);
 
 	dev = alloc_etherdev(sizeof(struct enc28j60_net));
 	if (!dev) {
@@ -1560,7 +1559,7 @@ static int enc28j60_probe(struct spi_device *spi)
 
 	if (!enc28j60_chipset_init(dev)) {
 		if (netif_msg_probe(priv))
-			dev_info(&spi->dev, DRV_NAME " chip not found\n");
+			dev_info(&spi->dev, "chip not found\n");
 		ret = -EIO;
 		goto error_irq;
 	}
@@ -1577,8 +1576,8 @@ static int enc28j60_probe(struct spi_device *spi)
 	ret = request_irq(spi->irq, enc28j60_irq, 0, DRV_NAME, priv);
 	if (ret < 0) {
 		if (netif_msg_probe(priv))
-			dev_err(&spi->dev, DRV_NAME ": request irq %d failed "
-				"(ret = %d)\n", spi->irq, ret);
+			dev_err(&spi->dev, "request irq %d failed (ret = %d)\n",
+				spi->irq, ret);
 		goto error_irq;
 	}
 
@@ -1593,8 +1592,8 @@ static int enc28j60_probe(struct spi_device *spi)
 	ret = register_netdev(dev);
 	if (ret) {
 		if (netif_msg_probe(priv))
-			dev_err(&spi->dev, "register netdev " DRV_NAME
-				" failed (ret = %d)\n", ret);
+			dev_err(&spi->dev, "register netdev failed (ret = %d)\n",
+				ret);
 		goto error_register;
 	}
 
