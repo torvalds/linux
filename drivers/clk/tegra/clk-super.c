@@ -121,7 +121,7 @@ out:
 	return err;
 }
 
-const struct clk_ops tegra_clk_super_mux_ops = {
+static const struct clk_ops tegra_clk_super_mux_ops = {
 	.get_parent = clk_super_get_parent,
 	.set_parent = clk_super_set_parent,
 };
