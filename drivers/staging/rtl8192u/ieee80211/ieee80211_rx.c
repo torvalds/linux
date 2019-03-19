@@ -151,7 +151,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 		 * should have already been received */
 		entry = ieee80211_frag_cache_find(ieee, seq, frag, tid,hdr->addr2,
 						  hdr->addr1);
-		if (entry != NULL) {
+		if (entry) {
 			entry->last_frag = frag;
 			skb = entry->skb;
 		}
@@ -190,7 +190,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 	entry = ieee80211_frag_cache_find(ieee, seq, -1, tid, hdr->addr2,
 					  hdr->addr1);
 
-	if (entry == NULL) {
+	if (!entry) {
 		IEEE80211_DEBUG_FRAG(
 			"could not invalidate fragment cache "
 			"entry (seq=%u)\n", seq);
