@@ -417,11 +417,9 @@ enc28j60_packet_write(struct enc28j60_net *priv, int len, const u8 *data)
 	mutex_unlock(&priv->lock);
 }
 
-static unsigned long msec20_to_jiffies;
-
 static int poll_ready(struct enc28j60_net *priv, u8 reg, u8 mask, u8 val)
 {
-	unsigned long timeout = jiffies + msec20_to_jiffies;
+	unsigned long timeout = jiffies + msecs_to_jiffies(20);
 
 	/* 20 msec timeout read */
 	while ((nolock_regb_read(priv, reg) & mask) != val) {
@@ -1632,22 +1630,7 @@ static struct spi_driver enc28j60_driver = {
 	.probe = enc28j60_probe,
 	.remove = enc28j60_remove,
 };
-
-static int __init enc28j60_init(void)
-{
-	msec20_to_jiffies = msecs_to_jiffies(20);
-
-	return spi_register_driver(&enc28j60_driver);
-}
-
-module_init(enc28j60_init);
-
-static void __exit enc28j60_exit(void)
-{
-	spi_unregister_driver(&enc28j60_driver);
-}
-
-module_exit(enc28j60_exit);
+module_spi_driver(enc28j60_driver);
 
 MODULE_DESCRIPTION(DRV_NAME " ethernet driver");
 MODULE_AUTHOR("Claudio Lanconelli <lanconelli.claudio@eptar.com>");
