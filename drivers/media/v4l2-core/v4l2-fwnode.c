@@ -828,7 +828,10 @@ error:
  * underneath the fwnode identified by the previous tuple, etc. until you
  * reached the fwnode you need.
  *
- * An example with a graph, as defined in Documentation/acpi/dsd/graph.txt:
+ * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO NOT USE IT AS A
+ * REFERENCE IN HOW ACPI TABLES SHOULD BE WRITTEN!! See documentation under
+ * Documentation/acpi/dsd instead and especially graph.txt,
+ * data-node-references.txt and leds.txt .
  *
  *	Scope (\_SB.PCI0.I2C2)
  *	{
