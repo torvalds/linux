@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <api/fd/array.h>
 #include "event.h"
+#include <stdio.h>
 
 struct machine;
 union perf_event;
@@ -38,7 +39,9 @@ int perf_event__synthesize_bpf_events(struct perf_session *session,
 				      struct record_opts *opts);
 int bpf_event__add_sb_event(struct perf_evlist **evlist,
 				 struct perf_env *env);
-
+void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
+				    struct perf_env *env,
+				    FILE *fp);
 #else
 static inline int machine__process_bpf_event(struct machine *machine __maybe_unused,
 					     union perf_event *event __maybe_unused,
@@ -61,5 +64,11 @@ static inline int bpf_event__add_sb_event(struct perf_evlist **evlist __maybe_un
 	return 0;
 }
 
+static inline void bpf_event__print_bpf_prog_info(struct bpf_prog_info *info __maybe_unused,
+						  struct perf_env *env __maybe_unused,
+						  FILE *fp __maybe_unused)
+{
+
+}
 #endif // HAVE_LIBBPF_SUPPORT
 #endif
