@@ -1174,8 +1174,7 @@ static void snd_cs4281_proc_init(struct cs4281 *chip)
 {
 	struct snd_info_entry *entry;
 
-	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
+	snd_card_ro_proc_new(chip->card, "cs4281", chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;
@@ -2002,8 +2001,6 @@ static int cs4281_suspend(struct device *dev)
 	unsigned int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-
 	snd_ac97_suspend(chip->ac97);
 	snd_ac97_suspend(chip->ac97_secondary);
 

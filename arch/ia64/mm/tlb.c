@@ -61,8 +61,14 @@ mmu_context_init (void)
 {
 	ia64_ctx.bitmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3,
 					 SMP_CACHE_BYTES);
+	if (!ia64_ctx.bitmap)
+		panic("%s: Failed to allocate %u bytes\n", __func__,
+		      (ia64_ctx.max_ctx + 1) >> 3);
 	ia64_ctx.flushmap = memblock_alloc((ia64_ctx.max_ctx + 1) >> 3,
 					   SMP_CACHE_BYTES);
+	if (!ia64_ctx.flushmap)
+		panic("%s: Failed to allocate %u bytes\n", __func__,
+		      (ia64_ctx.max_ctx + 1) >> 3);
 }
 
 /*

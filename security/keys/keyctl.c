@@ -1752,7 +1752,7 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			return -EINVAL;
 		return keyctl_pkey_query((key_serial_t)arg2,
 					 (const char __user *)arg4,
-					 (struct keyctl_pkey_query *)arg5);
+					 (struct keyctl_pkey_query __user *)arg5);
 
 	case KEYCTL_PKEY_ENCRYPT:
 	case KEYCTL_PKEY_DECRYPT:

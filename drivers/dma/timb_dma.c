@@ -643,8 +643,8 @@ static int td_probe(struct platform_device *pdev)
 		DRIVER_NAME))
 		return -EBUSY;
 
-	td  = kzalloc(sizeof(struct timb_dma) +
-		sizeof(struct timb_dma_chan) * pdata->nr_channels, GFP_KERNEL);
+	td  = kzalloc(struct_size(td, channels, pdata->nr_channels),
+		      GFP_KERNEL);
 	if (!td) {
 		err = -ENOMEM;
 		goto err_release_region;

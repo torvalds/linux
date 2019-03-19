@@ -18,7 +18,7 @@
 #include <linux/seq_file.h>
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "omap_dmm_tiler.h"

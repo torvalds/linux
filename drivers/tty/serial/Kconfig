@@ -335,6 +335,28 @@ config SERIAL_TEGRA
 	  are enabled). This driver uses the APB DMA to achieve higher baudrate
 	  and better performance.
 
+config SERIAL_TEGRA_TCU
+	tristate "NVIDIA Tegra Combined UART"
+	depends on ARCH_TEGRA && TEGRA_HSP_MBOX
+	select SERIAL_CORE
+	help
+	  Support for the mailbox-based TCU (Tegra Combined UART) serial port.
+	  TCU is a virtual serial port that allows multiplexing multiple data
+	  streams into a single hardware serial port.
+
+config SERIAL_TEGRA_TCU_CONSOLE
+	bool "Support for console on a Tegra TCU serial port"
+	depends on SERIAL_TEGRA_TCU=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a the Tegra TCU as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  If unsure, say Y.
+
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
 	depends on SPI

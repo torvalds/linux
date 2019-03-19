@@ -215,7 +215,7 @@ enum {
 	 */
 
 	/* :0 s 38 01 1700 0003 0001 1 = 00
-	 * VIDEO STANDARD or FREQUNCY 0 = 60hz, 1 = 50hz
+	 * VIDEO STANDARD or FREQUENCY 0 = 60hz, 1 = 50hz
 	 */
 
 	/* :0 s 38 01 3100 0003 0004 4 = 03030000

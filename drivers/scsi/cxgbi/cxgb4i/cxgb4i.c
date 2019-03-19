@@ -1210,7 +1210,8 @@ static void do_rx_iscsi_hdr(struct cxgbi_device *cdev, struct sk_buff *skb)
 		csk->skb_ulp_lhdr = skb;
 		cxgbi_skcb_set_flag(skb, SKCBF_RX_HDR);
 
-		if (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt) {
+		if ((CHELSIO_CHIP_VERSION(lldi->adapter_type) <= CHELSIO_T5) &&
+		    (cxgbi_skcb_tcp_seq(skb) != csk->rcv_nxt)) {
 			pr_info("tid %u, CPL_ISCSI_HDR, bad seq, 0x%x/0x%x.\n",
 				csk->tid, cxgbi_skcb_tcp_seq(skb),
 				csk->rcv_nxt);
@@ -2134,8 +2135,7 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 	cdev->itp = &cxgb4i_iscsi_transport;
 	cdev->owner = THIS_MODULE;
 
-	cdev->pfvf = FW_VIID_PFN_G(cxgb4_port_viid(lldi->ports[0]))
-			<< FW_VIID_PFN_S;
+	cdev->pfvf = FW_PFVF_CMD_PFN_V(lldi->pf);
 	pr_info("cdev 0x%p,%s, pfvf %u.\n",
 		cdev, lldi->ports[0]->name, cdev->pfvf);
 

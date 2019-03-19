@@ -21,6 +21,12 @@
 typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, libbpf_dump_nlmsg_t,
 			      void *cookie);
 
+struct xdp_id_md {
+	int ifindex;
+	__u32 flags;
+	__u32 id;
+};
+
 int libbpf_netlink_open(__u32 *nl_pid)
 {
 	struct sockaddr_nl sa;
@@ -194,6 +200,85 @@ static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 		return -LIBBPF_ERRNO__NLPARSE;
 
 	return dump_link_nlmsg(cookie, ifi, tb);
+}
+
+static unsigned char get_xdp_id_attr(unsigned char mode, __u32 flags)
+{
+	if (mode != XDP_ATTACHED_MULTI)
+		return IFLA_XDP_PROG_ID;
+	if (flags & XDP_FLAGS_DRV_MODE)
+		return IFLA_XDP_DRV_PROG_ID;
+	if (flags & XDP_FLAGS_HW_MODE)
+		return IFLA_XDP_HW_PROG_ID;
+	if (flags & XDP_FLAGS_SKB_MODE)
+		return IFLA_XDP_SKB_PROG_ID;
+
+	return IFLA_XDP_UNSPEC;
+}
+
+static int get_xdp_id(void *cookie, void *msg, struct nlattr **tb)
+{
+	struct nlattr *xdp_tb[IFLA_XDP_MAX + 1];
+	struct xdp_id_md *xdp_id = cookie;
+	struct ifinfomsg *ifinfo = msg;
+	unsigned char mode, xdp_attr;
+	int ret;
+
+	if (xdp_id->ifindex && xdp_id->ifindex != ifinfo->ifi_index)
+		return 0;
+
+	if (!tb[IFLA_XDP])
+		return 0;
+
+	ret = libbpf_nla_parse_nested(xdp_tb, IFLA_XDP_MAX, tb[IFLA_XDP], NULL);
+	if (ret)
+		return ret;
+
+	if (!xdp_tb[IFLA_XDP_ATTACHED])
+		return 0;
+
+	mode = libbpf_nla_getattr_u8(xdp_tb[IFLA_XDP_ATTACHED]);
+	if (mode == XDP_ATTACHED_NONE)
+		return 0;
+
+	xdp_attr = get_xdp_id_attr(mode, xdp_id->flags);
+	if (!xdp_attr || !xdp_tb[xdp_attr])
+		return 0;
+
+	xdp_id->id = libbpf_nla_getattr_u32(xdp_tb[xdp_attr]);
+
+	return 0;
+}
+
+int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
+{
+	struct xdp_id_md xdp_id = {};
+	int sock, ret;
+	__u32 nl_pid;
+	__u32 mask;
+
+	if (flags & ~XDP_FLAGS_MASK)
+		return -EINVAL;
+
+	/* Check whether the single {HW,DRV,SKB} mode is set */
+	flags &= (XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE | XDP_FLAGS_HW_MODE);
+	mask = flags - 1;
+	if (flags && flags & mask)
+		return -EINVAL;
+
+	sock = libbpf_netlink_open(&nl_pid);
+	if (sock < 0)
+		return sock;
+
+	xdp_id.ifindex = ifindex;
+	xdp_id.flags = flags;
+
+	ret = libbpf_nl_get_link(sock, nl_pid, get_xdp_id, &xdp_id);
+	if (!ret)
+		*prog_id = xdp_id.id;
+
+	close(sock);
+	return ret;
 }
 
 int libbpf_nl_get_link(int sock, unsigned int nl_pid,

@@ -95,7 +95,7 @@
 		add	r2, r2, r1
 		mov	r0, #0			@ zero the buffer
 9002:		teq	r2, r1
-		strneb	r0, [r1], #1
+		strbne	r0, [r1], #1
 		bne	9002b
 		load_regs
 		.popsection

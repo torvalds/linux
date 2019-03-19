@@ -2699,10 +2699,6 @@ snd_azf3328_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
-	/* same pcm object for playback/capture */
-	snd_pcm_suspend_all(chip->pcm[AZF_CODEC_PLAYBACK]);
-	snd_pcm_suspend_all(chip->pcm[AZF_CODEC_I2S_OUT]);
-
 	snd_azf3328_suspend_ac97(chip);
 
 	snd_azf3328_suspend_regs(chip, chip->ctrl_io,

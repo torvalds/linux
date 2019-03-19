@@ -6,7 +6,8 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_drv.h>
+
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
@@ -585,35 +586,6 @@ TRACE_EVENT(i915_gem_evict_vm,
 	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
 );
 
-TRACE_EVENT(i915_gem_ring_sync_to,
-	    TP_PROTO(struct i915_request *to, struct i915_request *from),
-	    TP_ARGS(to, from),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, from_class)
-			     __field(u32, from_instance)
-			     __field(u32, to_class)
-			     __field(u32, to_instance)
-			     __field(u32, seqno)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = from->i915->drm.primary->index;
-			   __entry->from_class = from->engine->uabi_class;
-			   __entry->from_instance = from->engine->instance;
-			   __entry->to_class = to->engine->uabi_class;
-			   __entry->to_instance = to->engine->instance;
-			   __entry->seqno = from->global_seqno;
-			   ),
-
-	    TP_printk("dev=%u, sync-from=%u:%u, sync-to=%u:%u, seqno=%u",
-		      __entry->dev,
-		      __entry->from_class, __entry->from_instance,
-		      __entry->to_class, __entry->to_instance,
-		      __entry->seqno)
-);
-
 TRACE_EVENT(i915_request_queue,
 	    TP_PROTO(struct i915_request *rq, u32 flags),
 	    TP_ARGS(rq, flags),
@@ -779,31 +751,6 @@ trace_i915_request_out(struct i915_request *rq)
 }
 #endif
 #endif
-
-TRACE_EVENT(intel_engine_notify,
-	    TP_PROTO(struct intel_engine_cs *engine, bool waiters),
-	    TP_ARGS(engine, waiters),
-
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u16, class)
-			     __field(u16, instance)
-			     __field(u32, seqno)
-			     __field(bool, waiters)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->dev = engine->i915->drm.primary->index;
-			   __entry->class = engine->uabi_class;
-			   __entry->instance = engine->instance;
-			   __entry->seqno = intel_engine_get_seqno(engine);
-			   __entry->waiters = waiters;
-			   ),
-
-	    TP_printk("dev=%u, engine=%u:%u, seqno=%u, waiters=%u",
-		      __entry->dev, __entry->class, __entry->instance,
-		      __entry->seqno, __entry->waiters)
-);
 
 DEFINE_EVENT(i915_request, i915_request_retire,
 	    TP_PROTO(struct i915_request *rq),

@@ -6,6 +6,7 @@
  */
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
@@ -110,10 +111,17 @@ static const struct acpi_device_id bme680_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bme680_acpi_match);
 
+static const struct of_device_id bme680_of_spi_match[] = {
+	{ .compatible = "bosch,bme680", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bme680_of_spi_match);
+
 static struct spi_driver bme680_spi_driver = {
 	.driver = {
 		.name			= "bme680_spi",
 		.acpi_match_table	= ACPI_PTR(bme680_acpi_match),
+		.of_match_table		= bme680_of_spi_match,
 	},
 	.probe = bme680_spi_probe,
 	.id_table = bme680_spi_id,

@@ -681,7 +681,7 @@ size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
 
 #undef COMMA
 
-	pr_debug("cpumask list: %s\n", buf);
+	pr_debug2("cpumask list: %s\n", buf);
 	return ret;
 }
 
@@ -729,4 +729,14 @@ size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
 
 	buf[size - 1] = '\0';
 	return ptr - buf;
+}
+
+const struct cpu_map *cpu_map__online(void) /* thread unsafe */
+{
+	static const struct cpu_map *online = NULL;
+
+	if (!online)
+		online = cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
+
+	return online;
 }

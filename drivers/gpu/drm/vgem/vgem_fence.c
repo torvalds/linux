@@ -53,13 +53,13 @@ static void vgem_fence_release(struct dma_fence *base)
 
 static void vgem_fence_value_str(struct dma_fence *fence, char *str, int size)
 {
-	snprintf(str, size, "%u", fence->seqno);
+	snprintf(str, size, "%llu", fence->seqno);
 }
 
 static void vgem_fence_timeline_value_str(struct dma_fence *fence, char *str,
 					  int size)
 {
-	snprintf(str, size, "%u",
+	snprintf(str, size, "%llu",
 		 dma_fence_is_signaled(fence) ? fence->seqno : 0);
 }
 

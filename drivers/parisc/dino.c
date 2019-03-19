@@ -59,6 +59,7 @@
 #include <asm/hardware.h>
 
 #include "gsc.h"
+#include "iommu.h"
 
 #undef DINO_DEBUG
 
@@ -153,12 +154,10 @@ struct dino_device
 #endif
 };
 
-/* Looks nice and keeps the compiler happy */
-#define DINO_DEV(d) ({				\
-	void *__pdata = d;			\
-	BUG_ON(!__pdata);			\
-	(struct dino_device *)__pdata; })
-
+static inline struct dino_device *DINO_DEV(struct pci_hba_data *hba)
+{
+	return container_of(hba, struct dino_device, hba);
+}
 
 /*
  * Dino Configuration Space Accessor Functions

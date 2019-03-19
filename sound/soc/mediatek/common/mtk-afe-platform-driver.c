@@ -126,9 +126,9 @@ int mtk_afe_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
 
 	size = afe->mtk_afe_hardware->buffer_bytes_max;
-	return snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						     afe->dev,
-						     size, size);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      afe->dev, size, size);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mtk_afe_pcm_new);
 

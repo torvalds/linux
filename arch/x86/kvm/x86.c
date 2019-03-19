@@ -3879,7 +3879,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (!lapic_in_kernel(vcpu))
 			goto out;
-		u.lapic = kzalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
+		u.lapic = kzalloc(sizeof(struct kvm_lapic_state),
+				GFP_KERNEL_ACCOUNT);
 
 		r = -ENOMEM;
 		if (!u.lapic)
@@ -4066,7 +4067,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_XSAVE: {
-		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL_ACCOUNT);
 		r = -ENOMEM;
 		if (!u.xsave)
 			break;
@@ -4090,7 +4091,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_XCRS: {
-		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL_ACCOUNT);
 		r = -ENOMEM;
 		if (!u.xcrs)
 			break;
@@ -7055,6 +7056,13 @@ static void kvm_pv_kick_cpu_op(struct kvm *kvm, unsigned long flags, int apicid)
 
 void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
 {
+	if (!lapic_in_kernel(vcpu)) {
+		WARN_ON_ONCE(vcpu->arch.apicv_active);
+		return;
+	}
+	if (!vcpu->arch.apicv_active)
+		return;
+
 	vcpu->arch.apicv_active = false;
 	kvm_x86_ops->refresh_apicv_exec_ctrl(vcpu);
 }
@@ -9005,7 +9013,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	struct page *page;
 	int r;
 
-	vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
 	vcpu->arch.emulate_ctxt.ops = &emulate_ops;
 	if (!irqchip_in_kernel(vcpu->kvm) || kvm_vcpu_is_reset_bsp(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -9026,6 +9033,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		goto fail_free_pio_data;
 
 	if (irqchip_in_kernel(vcpu->kvm)) {
+		vcpu->arch.apicv_active = kvm_x86_ops->get_enable_apicv(vcpu);
 		r = kvm_create_lapic(vcpu);
 		if (r < 0)
 			goto fail_mmu_destroy;
@@ -9033,14 +9041,15 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		static_key_slow_inc(&kvm_no_apic_vcpu);
 
 	vcpu->arch.mce_banks = kzalloc(KVM_MAX_MCE_BANKS * sizeof(u64) * 4,
-				       GFP_KERNEL);
+				       GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.mce_banks) {
 		r = -ENOMEM;
 		goto fail_free_lapic;
 	}
 	vcpu->arch.mcg_cap = KVM_MAX_MCE_BANKS;
 
-	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask,
+				GFP_KERNEL_ACCOUNT)) {
 		r = -ENOMEM;
 		goto fail_free_mce_banks;
 	}
@@ -9104,7 +9113,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	INIT_HLIST_HEAD(&kvm->arch.mask_notifier_list);
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
-	INIT_LIST_HEAD(&kvm->arch.zapped_obsolete_pages);
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
 	atomic_set(&kvm->arch.noncoherent_dma_count, 0);
 
@@ -9299,13 +9307,13 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 		slot->arch.rmap[i] =
 			kvcalloc(lpages, sizeof(*slot->arch.rmap[i]),
-				 GFP_KERNEL);
+				 GFP_KERNEL_ACCOUNT);
 		if (!slot->arch.rmap[i])
 			goto out_free;
 		if (i == 0)
 			continue;
 
-		linfo = kvcalloc(lpages, sizeof(*linfo), GFP_KERNEL);
+		linfo = kvcalloc(lpages, sizeof(*linfo), GFP_KERNEL_ACCOUNT);
 		if (!linfo)
 			goto out_free;
 
@@ -9348,13 +9356,13 @@ out_free:
 	return -ENOMEM;
 }
 
-void kvm_arch_memslots_updated(struct kvm *kvm, struct kvm_memslots *slots)
+void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen)
 {
 	/*
 	 * memslots->generation has been incremented.
 	 * mmio generation may have reached its maximum value.
 	 */
-	kvm_mmu_invalidate_mmio_sptes(kvm, slots);
+	kvm_mmu_invalidate_mmio_sptes(kvm, gen);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -9462,7 +9470,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
-	kvm_mmu_invalidate_zap_all_pages(kvm);
+	kvm_mmu_zap_all(kvm);
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,

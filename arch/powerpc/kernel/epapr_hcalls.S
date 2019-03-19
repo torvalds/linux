@@ -21,10 +21,9 @@
 #ifndef CONFIG_PPC64
 /* epapr_ev_idle() was derived from e500_idle() */
 _GLOBAL(epapr_ev_idle)
-	CURRENT_THREAD_INFO(r3, r1)
-	PPC_LL	r4, TI_LOCAL_FLAGS(r3)	/* set napping bit */
+	PPC_LL	r4, TI_LOCAL_FLAGS(r2)	/* set napping bit */
 	ori	r4, r4,_TLF_NAPPING	/* so when we take an exception */
-	PPC_STL	r4, TI_LOCAL_FLAGS(r3)	/* it will return to our caller */
+	PPC_STL	r4, TI_LOCAL_FLAGS(r2)	/* it will return to our caller */
 
 	wrteei	1
 

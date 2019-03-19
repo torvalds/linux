@@ -1314,8 +1314,7 @@ static int qpti_sbus_probe(struct platform_device *op)
 	qpti->qhost = host;
 	qpti->op = op;
 	qpti->qpti_id = nqptis;
-	strcpy(qpti->prom_name, op->dev.of_node->name);
-	qpti->is_pti = strcmp(qpti->prom_name, "QLGC,isp");
+	qpti->is_pti = !of_node_name_eq(op->dev.of_node, "QLGC,isp");
 
 	if (qpti_map_regs(qpti) < 0)
 		goto fail_unlink;

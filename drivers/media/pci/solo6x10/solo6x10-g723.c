@@ -360,13 +360,11 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 	     ss; ss = ss->next, i++)
 		sprintf(ss->name, "Camera #%d Audio", i);
 
-	ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
 					snd_dma_continuous_data(GFP_KERNEL),
 					G723_PERIOD_BYTES * PERIODS,
 					G723_PERIOD_BYTES * PERIODS);
-	if (ret < 0)
-		return ret;
 
 	solo_dev->snd_pcm = pcm;
 

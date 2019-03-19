@@ -119,31 +119,20 @@ static void crypto_aegis256_aesni_process_ad(
 }
 
 static void crypto_aegis256_aesni_process_crypt(
-		struct aegis_state *state, struct aead_request *req,
+		struct aegis_state *state, struct skcipher_walk *walk,
 		const struct aegis_crypt_ops *ops)
 {
-	struct skcipher_walk walk;
-	u8 *src, *dst;
-	unsigned int chunksize, base;
+	while (walk->nbytes >= AEGIS256_BLOCK_SIZE) {
+		ops->crypt_blocks(state,
+				  round_down(walk->nbytes, AEGIS256_BLOCK_SIZE),
+				  walk->src.virt.addr, walk->dst.virt.addr);
+		skcipher_walk_done(walk, walk->nbytes % AEGIS256_BLOCK_SIZE);
+	}
 
-	ops->skcipher_walk_init(&walk, req, false);
-
-	while (walk.nbytes) {
-		src = walk.src.virt.addr;
-		dst = walk.dst.virt.addr;
-		chunksize = walk.nbytes;
-
-		ops->crypt_blocks(state, chunksize, src, dst);
-
-		base = chunksize & ~(AEGIS256_BLOCK_SIZE - 1);
-		src += base;
-		dst += base;
-		chunksize &= AEGIS256_BLOCK_SIZE - 1;
-
-		if (chunksize > 0)
-			ops->crypt_tail(state, chunksize, src, dst);
-
-		skcipher_walk_done(&walk, 0);
+	if (walk->nbytes) {
+		ops->crypt_tail(state, walk->nbytes, walk->src.virt.addr,
+				walk->dst.virt.addr);
+		skcipher_walk_done(walk, 0);
 	}
 }
 
@@ -186,13 +175,16 @@ static void crypto_aegis256_aesni_crypt(struct aead_request *req,
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct aegis_ctx *ctx = crypto_aegis256_aesni_ctx(tfm);
+	struct skcipher_walk walk;
 	struct aegis_state state;
+
+	ops->skcipher_walk_init(&walk, req, true);
 
 	kernel_fpu_begin();
 
 	crypto_aegis256_aesni_init(&state, ctx->key, req->iv);
 	crypto_aegis256_aesni_process_ad(&state, req->src, req->assoclen);
-	crypto_aegis256_aesni_process_crypt(&state, req, ops);
+	crypto_aegis256_aesni_process_crypt(&state, &walk, ops);
 	crypto_aegis256_aesni_final(&state, tag_xor, req->assoclen, cryptlen);
 
 	kernel_fpu_end();

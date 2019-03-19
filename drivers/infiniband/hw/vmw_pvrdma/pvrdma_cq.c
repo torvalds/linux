@@ -141,7 +141,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 			goto err_cq;
 		}
 
-		cq->umem = ib_umem_get(context, ucmd.buf_addr, ucmd.buf_size,
+		cq->umem = ib_umem_get(udata, ucmd.buf_addr, ucmd.buf_size,
 				       IB_ACCESS_LOCAL_WRITE, 1);
 		if (IS_ERR(cq->umem)) {
 			ret = PTR_ERR(cq->umem);

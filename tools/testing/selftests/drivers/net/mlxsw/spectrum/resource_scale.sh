@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 NUM_NETIFS=6
-source ../../../../net/forwarding/lib.sh
 source ../../../../net/forwarding/tc_common.sh
 source devlink_lib_spectrum.sh
 

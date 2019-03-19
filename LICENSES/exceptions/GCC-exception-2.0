@@ -1,0 +1,18 @@
+SPDX-Exception-Identifier: GCC-exception-2.0
+SPDX-URL: https://spdx.org/licenses/GCC-exception-2.0.html
+SPDX-Licenses: GPL-2.0, GPL-2.0+, GPL-2.0-only, GPL-2.0-or-later
+Usage-Guide:
+  This exception is used together with one of the above SPDX-Licenses to
+  allow linking the compiled version of code to non GPL compliant code.
+  To use this exception add it with the keyword WITH to one of the
+  identifiers in the SPDX-Licenses tag:
+    SPDX-License-Identifier: <SPDX-License> WITH GCC-exception-2.0
+License-Text:
+
+In addition to the permissions in the GNU Library General Public License,
+the Free Software Foundation gives you unlimited permission to link the
+compiled version of this file into combinations with other programs, and to
+distribute those programs without any restriction coming from the use of
+this file. (The General Public License restrictions do apply in other
+respects; for example, they cover modification of the file, and
+distribution when not linked into another program.)

@@ -252,9 +252,9 @@ static int cb_pcimdas_di_insn_bits(struct comedi_device *dev,
 }
 
 static int cb_pcimdas_do_insn_bits(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
 

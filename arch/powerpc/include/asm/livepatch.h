@@ -21,6 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/ftrace.h>
+#include <linux/sched/task_stack.h>
 
 #ifdef CONFIG_LIVEPATCH
 static inline int klp_check_compiler_support(void)
@@ -43,13 +44,13 @@ static inline unsigned long klp_get_ftrace_location(unsigned long faddr)
 	return ftrace_location_range(faddr, faddr + 16);
 }
 
-static inline void klp_init_thread_info(struct thread_info *ti)
+static inline void klp_init_thread_info(struct task_struct *p)
 {
 	/* + 1 to account for STACK_END_MAGIC */
-	ti->livepatch_sp = (unsigned long *)(ti + 1) + 1;
+	task_thread_info(p)->livepatch_sp = end_of_stack(p) + 1;
 }
 #else
-static void klp_init_thread_info(struct thread_info *ti) { }
+static inline void klp_init_thread_info(struct task_struct *p) { }
 #endif /* CONFIG_LIVEPATCH */
 
 #endif /* _ASM_POWERPC_LIVEPATCH_H */

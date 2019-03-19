@@ -305,6 +305,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				struct amdgpu_iv_entry *entry)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[entry->vmid_src];
+	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0;
 	u64 addr;
 
@@ -320,13 +321,16 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	}
 
 	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info = { 0 };
+		struct amdgpu_task_info task_info;
 
+		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
 		dev_err(adev->dev,
-			"[%s] VMC page fault (src_id:%u ring:%u vmid:%u pasid:%u, for process %s pid %d thread %s pid %d)\n",
+			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
+			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
 			entry->vmid_src ? "mmhub" : "gfxhub",
+			retry_fault ? "retry" : "no-retry",
 			entry->src_id, entry->ring_id, entry->vmid,
 			entry->pasid, task_info.process_name, task_info.tgid,
 			task_info.task_name, task_info.pid);
@@ -961,7 +965,11 @@ static int gmc_v9_0_sw_init(void *handle)
 		 * vm size is 256TB (48bit), maximum size of Vega10,
 		 * block size 512 (9bit)
 		 */
-		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
+		/* sriov restrict max_pfn below AMDGPU_GMC_HOLE */
+		if (amdgpu_sriov_vf(adev))
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 47);
+		else
+			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		break;
 	default:
 		break;

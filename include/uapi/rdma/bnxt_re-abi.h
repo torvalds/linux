@@ -44,6 +44,14 @@
 
 #define BNXT_RE_ABI_VERSION	1
 
+#define BNXT_RE_CHIP_ID0_CHIP_NUM_SFT		0x00
+#define BNXT_RE_CHIP_ID0_CHIP_REV_SFT		0x10
+#define BNXT_RE_CHIP_ID0_CHIP_MET_SFT		0x18
+
+enum {
+	BNXT_RE_UCNTX_CMASK_HAVE_CCTX = 0x1ULL
+};
+
 struct bnxt_re_uctx_resp {
 	__u32 dev_id;
 	__u32 max_qp;
@@ -51,6 +59,9 @@ struct bnxt_re_uctx_resp {
 	__u32 cqe_sz;
 	__u32 max_cqd;
 	__u32 rsvd;
+	__aligned_u64 comp_mask;
+	__u32 chip_id0;
+	__u32 chip_id1;
 };
 
 /*

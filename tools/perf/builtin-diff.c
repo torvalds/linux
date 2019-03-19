@@ -19,11 +19,20 @@
 #include "util/util.h"
 #include "util/data.h"
 #include "util/config.h"
+#include "util/time-utils.h"
 
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <math.h>
+
+struct perf_diff {
+	struct perf_tool		 tool;
+	const char			*time_str;
+	struct perf_time_interval	*ptime_range;
+	int				 range_size;
+	int				 range_num;
+};
 
 /* Diff command specific HPP columns. */
 enum {
@@ -73,6 +82,9 @@ static unsigned int sort_compute = 1;
 
 static s64 compute_wdiff_w1;
 static s64 compute_wdiff_w2;
+
+static const char		*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
 enum {
 	COMPUTE_DELTA,
@@ -323,20 +335,31 @@ static int formula_fprintf(struct hist_entry *he, struct hist_entry *pair,
 	return -1;
 }
 
-static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
+static int diff__process_sample_event(struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct machine *machine)
 {
+	struct perf_diff *pdiff = container_of(tool, struct perf_diff, tool);
 	struct addr_location al;
 	struct hists *hists = evsel__hists(evsel);
 	int ret = -1;
+
+	if (perf_time__ranges_skip_sample(pdiff->ptime_range, pdiff->range_num,
+					  sample->time)) {
+		return 0;
+	}
 
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
+	}
+
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap)) {
+		ret = 0;
+		goto out_put;
 	}
 
 	if (!hists__add_entry(hists, &al, NULL, NULL, NULL, sample, true)) {
@@ -359,17 +382,19 @@ out_put:
 	return ret;
 }
 
-static struct perf_tool tool = {
-	.sample	= diff__process_sample_event,
-	.mmap	= perf_event__process_mmap,
-	.mmap2	= perf_event__process_mmap2,
-	.comm	= perf_event__process_comm,
-	.exit	= perf_event__process_exit,
-	.fork	= perf_event__process_fork,
-	.lost	= perf_event__process_lost,
-	.namespaces = perf_event__process_namespaces,
-	.ordered_events = true,
-	.ordering_requires_timestamps = true,
+static struct perf_diff pdiff = {
+	.tool = {
+		.sample	= diff__process_sample_event,
+		.mmap	= perf_event__process_mmap,
+		.mmap2	= perf_event__process_mmap2,
+		.comm	= perf_event__process_comm,
+		.exit	= perf_event__process_exit,
+		.fork	= perf_event__process_fork,
+		.lost	= perf_event__process_lost,
+		.namespaces = perf_event__process_namespaces,
+		.ordered_events = true,
+		.ordering_requires_timestamps = true,
+	},
 };
 
 static struct perf_evsel *evsel_match(struct perf_evsel *evsel,
@@ -429,7 +454,7 @@ get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
 
 static void hists__baseline_only(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -437,13 +462,13 @@ static void hists__baseline_only(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
 
 		next = rb_next(&he->rb_node_in);
 		if (!hist_entry__next_pair(he)) {
-			rb_erase(&he->rb_node_in, root);
+			rb_erase_cached(&he->rb_node_in, root);
 			hist_entry__delete(he);
 		}
 	}
@@ -451,7 +476,7 @@ static void hists__baseline_only(struct hists *hists)
 
 static void hists__precompute(struct hists *hists)
 {
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *next;
 
 	if (hists__has(hists, need_collapse))
@@ -459,7 +484,7 @@ static void hists__precompute(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	next = rb_first(root);
+	next = rb_first_cached(root);
 	while (next != NULL) {
 		struct hist_entry *he, *pair;
 		struct data__file *d;
@@ -708,7 +733,7 @@ static void data__fprintf(void)
 
 	data__for_each_file(i, d)
 		fprintf(stdout, "#  [%d] %s %s\n",
-			d->idx, d->data.file.path,
+			d->idx, d->data.path,
 			!d->idx ? "(Baseline)" : "");
 
 	fprintf(stdout, "#\n");
@@ -771,26 +796,127 @@ static void data__free(struct data__file *d)
 	}
 }
 
+static int abstime_str_dup(char **pstr)
+{
+	char *str = NULL;
+
+	if (pdiff.time_str && strchr(pdiff.time_str, ':')) {
+		str = strdup(pdiff.time_str);
+		if (!str)
+			return -ENOMEM;
+	}
+
+	*pstr = str;
+	return 0;
+}
+
+static int parse_absolute_time(struct data__file *d, char **pstr)
+{
+	char *p = *pstr;
+	int ret;
+
+	/*
+	 * Absolute timestamp for one file has the format: a.b,c.d
+	 * For multiple files, the format is: a.b,c.d:a.b,c.d
+	 */
+	p = strchr(*pstr, ':');
+	if (p) {
+		if (p == *pstr) {
+			pr_err("Invalid time string\n");
+			return -EINVAL;
+		}
+
+		*p = 0;
+		p++;
+		if (*p == 0) {
+			pr_err("Invalid time string\n");
+			return -EINVAL;
+		}
+	}
+
+	ret = perf_time__parse_for_ranges(*pstr, d->session,
+					  &pdiff.ptime_range,
+					  &pdiff.range_size,
+					  &pdiff.range_num);
+	if (ret < 0)
+		return ret;
+
+	if (!p || *p == 0)
+		*pstr = NULL;
+	else
+		*pstr = p;
+
+	return ret;
+}
+
+static int parse_percent_time(struct data__file *d)
+{
+	int ret;
+
+	ret = perf_time__parse_for_ranges(pdiff.time_str, d->session,
+					  &pdiff.ptime_range,
+					  &pdiff.range_size,
+					  &pdiff.range_num);
+	return ret;
+}
+
+static int parse_time_str(struct data__file *d, char *abstime_ostr,
+			   char **pabstime_tmp)
+{
+	int ret = 0;
+
+	if (abstime_ostr)
+		ret = parse_absolute_time(d, pabstime_tmp);
+	else if (pdiff.time_str)
+		ret = parse_percent_time(d);
+
+	return ret;
+}
+
 static int __cmd_diff(void)
 {
 	struct data__file *d;
-	int ret = -EINVAL, i;
+	int ret, i;
+	char *abstime_ostr, *abstime_tmp;
+
+	ret = abstime_str_dup(&abstime_ostr);
+	if (ret)
+		return ret;
+
+	abstime_tmp = abstime_ostr;
+	ret = -EINVAL;
 
 	data__for_each_file(i, d) {
-		d->session = perf_session__new(&d->data, false, &tool);
+		d->session = perf_session__new(&d->data, false, &pdiff.tool);
 		if (!d->session) {
-			pr_err("Failed to open %s\n", d->data.file.path);
+			pr_err("Failed to open %s\n", d->data.path);
 			ret = -1;
 			goto out_delete;
 		}
 
+		if (pdiff.time_str) {
+			ret = parse_time_str(d, abstime_ostr, &abstime_tmp);
+			if (ret < 0)
+				goto out_delete;
+		}
+
+		if (cpu_list) {
+			ret = perf_session__cpu_bitmap(d->session, cpu_list,
+						       cpu_bitmap);
+			if (ret < 0)
+				goto out_delete;
+		}
+
 		ret = perf_session__process_events(d->session);
 		if (ret) {
-			pr_err("Failed to process %s\n", d->data.file.path);
+			pr_err("Failed to process %s\n", d->data.path);
 			goto out_delete;
 		}
 
 		perf_evlist__collapse_resort(d->session->evlist);
+
+		if (pdiff.ptime_range)
+			zfree(&pdiff.ptime_range);
 	}
 
 	data_process();
@@ -802,6 +928,13 @@ static int __cmd_diff(void)
 	}
 
 	free(data__files);
+
+	if (pdiff.ptime_range)
+		zfree(&pdiff.ptime_range);
+
+	if (abstime_ostr)
+		free(abstime_ostr);
+
 	return ret;
 }
 
@@ -849,6 +982,13 @@ static const struct option options[] = {
 	OPT_UINTEGER('o', "order", &sort_compute, "Specify compute sorting."),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "How to display percentage of filtered entries", parse_filter_percentage),
+	OPT_STRING(0, "time", &pdiff.time_str, "str",
+		   "Time span (time percent or absolute timestamp)"),
+	OPT_STRING(0, "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING(0, "pid", &symbol_conf.pid_list_str, "pid[,pid...]",
+		   "only consider symbols in these pids"),
+	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
+		   "only consider symbols in these tids"),
 	OPT_END()
 };
 
@@ -1289,9 +1429,9 @@ static int data_init(int argc, const char **argv)
 	data__for_each_file(i, d) {
 		struct perf_data *data = &d->data;
 
-		data->file.path = use_default ? defaults[i] : argv[i];
-		data->mode      = PERF_DATA_MODE_READ,
-		data->force     = force,
+		data->path  = use_default ? defaults[i] : argv[i];
+		data->mode  = PERF_DATA_MODE_READ,
+		data->force = force,
 
 		d->idx  = i;
 	}

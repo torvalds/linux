@@ -37,6 +37,8 @@
 #include "../../perf.h"
 #include "../callchain.h"
 #include "../machine.h"
+#include "../map.h"
+#include "../symbol.h"
 #include "../thread.h"
 #include "../event.h"
 #include "../trace-event.h"

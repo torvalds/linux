@@ -53,6 +53,7 @@ void startup_kernel(void)
 	sclp_early_read_info();
 	store_ipl_parmblock();
 	setup_boot_command_line();
+	parse_boot_command_line();
 	setup_memory_end();
 	detect_memory();
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {

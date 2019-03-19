@@ -30,9 +30,9 @@
  */
 
 #define STATUS_SEVERITY_SUCCESS __constant_cpu_to_le32(0x0000)
-#define STATUS_SEVERITY_INFORMATIONAL __constanst_cpu_to_le32(0x0001)
-#define STATUS_SEVERITY_WARNING __constanst_cpu_to_le32(0x0002)
-#define STATUS_SEVERITY_ERROR __constanst_cpu_to_le32(0x0003)
+#define STATUS_SEVERITY_INFORMATIONAL cpu_to_le32(0x0001)
+#define STATUS_SEVERITY_WARNING cpu_to_le32(0x0002)
+#define STATUS_SEVERITY_ERROR cpu_to_le32(0x0003)
 
 struct ntstatus {
 	/* Facility is the high 12 bits of the following field */

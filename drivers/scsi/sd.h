@@ -132,7 +132,7 @@ static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
 
 #define sd_first_printk(prefix, sdsk, fmt, a...)			\
 	do {								\
-		if ((sdkp)->first_scan)					\
+		if ((sdsk)->first_scan)					\
 			sd_printk(prefix, sdsk, fmt, ##a);		\
 	} while (0)
 
@@ -186,68 +186,6 @@ static inline sector_t bytes_to_logical(struct scsi_device *sdev, unsigned int b
 static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sector)
 {
 	return sector >> (ilog2(sdev->sector_size) - 9);
-}
-
-/*
- * Look up the DIX operation based on whether the command is read or
- * write and whether dix and dif are enabled.
- */
-static inline unsigned int sd_prot_op(bool write, bool dix, bool dif)
-{
-	/* Lookup table: bit 2 (write), bit 1 (dix), bit 0 (dif) */
-	const unsigned int ops[] = {	/* wrt dix dif */
-		SCSI_PROT_NORMAL,	/*  0	0   0  */
-		SCSI_PROT_READ_STRIP,	/*  0	0   1  */
-		SCSI_PROT_READ_INSERT,	/*  0	1   0  */
-		SCSI_PROT_READ_PASS,	/*  0	1   1  */
-		SCSI_PROT_NORMAL,	/*  1	0   0  */
-		SCSI_PROT_WRITE_INSERT, /*  1	0   1  */
-		SCSI_PROT_WRITE_STRIP,	/*  1	1   0  */
-		SCSI_PROT_WRITE_PASS,	/*  1	1   1  */
-	};
-
-	return ops[write << 2 | dix << 1 | dif];
-}
-
-/*
- * Returns a mask of the protection flags that are valid for a given DIX
- * operation.
- */
-static inline unsigned int sd_prot_flag_mask(unsigned int prot_op)
-{
-	const unsigned int flag_mask[] = {
-		[SCSI_PROT_NORMAL]		= 0,
-
-		[SCSI_PROT_READ_STRIP]		= SCSI_PROT_TRANSFER_PI |
-						  SCSI_PROT_GUARD_CHECK |
-						  SCSI_PROT_REF_CHECK |
-						  SCSI_PROT_REF_INCREMENT,
-
-		[SCSI_PROT_READ_INSERT]		= SCSI_PROT_REF_INCREMENT |
-						  SCSI_PROT_IP_CHECKSUM,
-
-		[SCSI_PROT_READ_PASS]		= SCSI_PROT_TRANSFER_PI |
-						  SCSI_PROT_GUARD_CHECK |
-						  SCSI_PROT_REF_CHECK |
-						  SCSI_PROT_REF_INCREMENT |
-						  SCSI_PROT_IP_CHECKSUM,
-
-		[SCSI_PROT_WRITE_INSERT]	= SCSI_PROT_TRANSFER_PI |
-						  SCSI_PROT_REF_INCREMENT,
-
-		[SCSI_PROT_WRITE_STRIP]		= SCSI_PROT_GUARD_CHECK |
-						  SCSI_PROT_REF_CHECK |
-						  SCSI_PROT_REF_INCREMENT |
-						  SCSI_PROT_IP_CHECKSUM,
-
-		[SCSI_PROT_WRITE_PASS]		= SCSI_PROT_TRANSFER_PI |
-						  SCSI_PROT_GUARD_CHECK |
-						  SCSI_PROT_REF_CHECK |
-						  SCSI_PROT_REF_INCREMENT |
-						  SCSI_PROT_IP_CHECKSUM,
-	};
-
-	return flag_mask[prot_op];
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY

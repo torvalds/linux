@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Extensible Firmware Interface
  *
  * Based on Extensible Firmware Interface Specification version 2.4
  *
  * Copyright (C) 2013, 2014 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/dmi.h>
@@ -46,10 +42,10 @@ static struct ptdump_info efi_ptdump_info = {
 
 static int __init ptdump_init(void)
 {
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
-		return 0;
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
+		ptdump_debugfs_register(&efi_ptdump_info, "efi_page_tables");
 
-	return ptdump_debugfs_register(&efi_ptdump_info, "efi_page_tables");
+	return 0;
 }
 device_initcall(ptdump_init);
 

@@ -306,7 +306,7 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 	b[3] = 28;
 
 	/* upload dsp code in 32 byte steps (36 didn't work for me ...) */
-	/* 32 is max packet size, no messages should be splitted. */
+	/* 32 is max packet size, no messages should be split. */
 	for (i = 0; i < fw->size; i += 28) {
 		memcpy(&b[4], &fw->data[i], 28);
 

@@ -730,33 +730,41 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	res->sr_slot = NULL;
 }
 
+static void nfs4_slot_sequence_record_sent(struct nfs4_slot *slot,
+		u32 seqnr)
+{
+	if ((s32)(seqnr - slot->seq_nr_highest_sent) > 0)
+		slot->seq_nr_highest_sent = seqnr;
+}
+static void nfs4_slot_sequence_acked(struct nfs4_slot *slot,
+		u32 seqnr)
+{
+	slot->seq_nr_highest_sent = seqnr;
+	slot->seq_nr_last_acked = seqnr;
+}
+
 static int nfs41_sequence_process(struct rpc_task *task,
 		struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
 	struct nfs4_slot *slot = res->sr_slot;
 	struct nfs_client *clp;
-	bool interrupted = false;
 	int ret = 1;
 
 	if (slot == NULL)
 		goto out_noaction;
 	/* don't increment the sequence number if the task wasn't sent */
-	if (!RPC_WAS_SENT(task))
+	if (!RPC_WAS_SENT(task) || slot->seq_done)
 		goto out;
 
 	session = slot->table->session;
-
-	if (slot->interrupted) {
-		if (res->sr_status != -NFS4ERR_DELAY)
-			slot->interrupted = 0;
-		interrupted = true;
-	}
 
 	trace_nfs4_sequence_done(session, res);
 	/* Check the SEQUENCE operation status */
 	switch (res->sr_status) {
 	case 0:
+		/* Mark this sequence number as having been acked */
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		/* Update the slot's sequence and clientid lease timer */
 		slot->seq_done = 1;
 		clp = session->clp;
@@ -771,9 +779,9 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 * sr_status remains 1 if an RPC level error occurred.
 		 * The server may or may not have processed the sequence
 		 * operation..
-		 * Mark the slot as having hosted an interrupted RPC call.
 		 */
-		slot->interrupted = 1;
+		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
+		slot->seq_done = 1;
 		goto out;
 	case -NFS4ERR_DELAY:
 		/* The server detected a resend of the RPC call and
@@ -784,6 +792,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 			__func__,
 			slot->slot_nr,
 			slot->seq_nr);
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		goto out_retry;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 	case -NFS4ERR_SEQ_FALSE_RETRY:
@@ -791,6 +800,7 @@ static int nfs41_sequence_process(struct rpc_task *task,
 		 * The server thinks we tried to replay a request.
 		 * Retry the call after bumping the sequence ID.
 		 */
+		nfs4_slot_sequence_acked(slot, slot->seq_nr);
 		goto retry_new_seq;
 	case -NFS4ERR_BADSLOT:
 		/*
@@ -801,21 +811,28 @@ static int nfs41_sequence_process(struct rpc_task *task,
 			goto session_recover;
 		goto retry_nowait;
 	case -NFS4ERR_SEQ_MISORDERED:
+		nfs4_slot_sequence_record_sent(slot, slot->seq_nr);
 		/*
-		 * Was the last operation on this sequence interrupted?
-		 * If so, retry after bumping the sequence number.
+		 * Were one or more calls using this slot interrupted?
+		 * If the server never received the request, then our
+		 * transmitted slot sequence number may be too high.
 		 */
-		if (interrupted)
-			goto retry_new_seq;
-		/*
-		 * Could this slot have been previously retired?
-		 * If so, then the server may be expecting seq_nr = 1!
-		 */
-		if (slot->seq_nr != 1) {
-			slot->seq_nr = 1;
+		if ((s32)(slot->seq_nr - slot->seq_nr_last_acked) > 1) {
+			slot->seq_nr--;
 			goto retry_nowait;
 		}
-		goto session_recover;
+		/*
+		 * RFC5661:
+		 * A retry might be sent while the original request is
+		 * still in progress on the replier. The replier SHOULD
+		 * deal with the issue by returning NFS4ERR_DELAY as the
+		 * reply to SEQUENCE or CB_SEQUENCE operation, but
+		 * implementations MAY return NFS4ERR_SEQ_MISORDERED.
+		 *
+		 * Restart the search after a delay.
+		 */
+		slot->seq_nr = slot->seq_nr_highest_sent;
+		goto out_retry;
 	default:
 		/* Just update the slot sequence no. */
 		slot->seq_done = 1;
@@ -906,17 +923,6 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-static void
-nfs4_sequence_process_interrupted(struct nfs_client *client,
-		struct nfs4_slot *slot, const struct cred *cred)
-{
-	struct rpc_task *task;
-
-	task = _nfs41_proc_sequence(client, cred, slot, true);
-	if (!IS_ERR(task))
-		rpc_put_task_async(task);
-}
-
 #else	/* !CONFIG_NFS_V4_1 */
 
 static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
@@ -937,15 +943,14 @@ int nfs4_sequence_done(struct rpc_task *task,
 }
 EXPORT_SYMBOL_GPL(nfs4_sequence_done);
 
-static void
-nfs4_sequence_process_interrupted(struct nfs_client *client,
-		struct nfs4_slot *slot, const struct cred *cred)
-{
-	WARN_ON_ONCE(1);
-	slot->interrupted = 0;
-}
-
 #endif	/* !CONFIG_NFS_V4_1 */
+
+static void nfs41_sequence_res_init(struct nfs4_sequence_res *res)
+{
+	res->sr_timestamp = jiffies;
+	res->sr_status_flags = 0;
+	res->sr_status = 1;
+}
 
 static
 void nfs4_sequence_attach_slot(struct nfs4_sequence_args *args,
@@ -958,10 +963,6 @@ void nfs4_sequence_attach_slot(struct nfs4_sequence_args *args,
 	args->sa_slot = slot;
 
 	res->sr_slot = slot;
-	res->sr_timestamp = jiffies;
-	res->sr_status_flags = 0;
-	res->sr_status = 1;
-
 }
 
 int nfs4_setup_sequence(struct nfs_client *client,
@@ -982,31 +983,25 @@ int nfs4_setup_sequence(struct nfs_client *client,
 		task->tk_timeout = 0;
 	}
 
-	for (;;) {
-		spin_lock(&tbl->slot_tbl_lock);
-		/* The state manager will wait until the slot table is empty */
-		if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
-			goto out_sleep;
+	spin_lock(&tbl->slot_tbl_lock);
+	/* The state manager will wait until the slot table is empty */
+	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
+		goto out_sleep;
 
-		slot = nfs4_alloc_slot(tbl);
-		if (IS_ERR(slot)) {
-			/* Try again in 1/4 second */
-			if (slot == ERR_PTR(-ENOMEM))
-				task->tk_timeout = HZ >> 2;
-			goto out_sleep;
-		}
-		spin_unlock(&tbl->slot_tbl_lock);
-
-		if (likely(!slot->interrupted))
-			break;
-		nfs4_sequence_process_interrupted(client,
-				slot, task->tk_msg.rpc_cred);
+	slot = nfs4_alloc_slot(tbl);
+	if (IS_ERR(slot)) {
+		/* Try again in 1/4 second */
+		if (slot == ERR_PTR(-ENOMEM))
+			task->tk_timeout = HZ >> 2;
+		goto out_sleep;
 	}
+	spin_unlock(&tbl->slot_tbl_lock);
 
 	nfs4_sequence_attach_slot(args, res, slot);
 
 	trace_nfs4_setup_sequence(session, args);
 out_start:
+	nfs41_sequence_res_init(res);
 	rpc_call_start(task);
 	return 0;
 
@@ -1555,6 +1550,10 @@ static void nfs_clear_open_stateid(struct nfs4_state *state,
 
 static void nfs_set_open_stateid_locked(struct nfs4_state *state,
 		const nfs4_stateid *stateid, nfs4_stateid *freeme)
+	__must_hold(&state->owner->so_lock)
+	__must_hold(&state->seqlock)
+	__must_hold(RCU)
+
 {
 	DEFINE_WAIT(wait);
 	int status = 0;
@@ -5963,7 +5962,7 @@ out:
 /**
  * nfs4_proc_setclientid_confirm - Confirm client ID
  * @clp: state data structure
- * @res: result of a previous SETCLIENTID
+ * @arg: result of a previous SETCLIENTID
  * @cred: credential to use for this call
  *
  * Returns zero, a negative errno, or a negative NFS4ERR status code.
@@ -7527,7 +7526,7 @@ int nfs4_proc_fsid_present(struct inode *inode, const struct cred *cred)
 	return status;
 }
 
-/**
+/*
  * If 'use_integrity' is true and the state managment nfs_client
  * cl_rpcclient is using krb5i/p, use the integrity protected cl_rpcclient
  * and the machine credential as per RFC3530bis and RFC5661 Security
@@ -8937,10 +8936,12 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout)
 	if (status != 0)
 		goto out;
 
-	/* if layoutp->len is 0, nfs4_layoutget_prepare called rpc_exit */
-	if (task->tk_status < 0 || lgp->res.layoutp->len == 0) {
+	if (task->tk_status < 0) {
 		status = nfs4_layoutget_handle_exception(task, lgp, &exception);
 		*timeout = exception.timeout;
+	} else if (lgp->res.layoutp->len == 0) {
+		status = -EAGAIN;
+		*timeout = nfs4_update_delay(&exception.timeout);
 	} else
 		lseg = pnfs_layout_process(lgp);
 out:
@@ -9219,7 +9220,7 @@ nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data, bool sync)
 	return status;
 }
 
-/**
+/*
  * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
  * possible) as per RFC3530bis and RFC5661 Security Considerations sections
  */
@@ -9484,7 +9485,7 @@ static const struct rpc_call_ops nfs41_free_stateid_ops = {
  * @server: server / transport on which to perform the operation
  * @stateid: state ID to release
  * @cred: credential
- * @is_recovery: set to true if this call needs to be privileged
+ * @privileged: set to true if this call needs to be privileged
  *
  * Note: this function is always asynchronous.
  */
@@ -9691,7 +9692,8 @@ static const struct nfs4_minor_version_ops nfs_v4_2_minor_ops = {
 		| NFS_CAP_DEALLOCATE
 		| NFS_CAP_SEEK
 		| NFS_CAP_LAYOUTSTATS
-		| NFS_CAP_CLONE,
+		| NFS_CAP_CLONE
+		| NFS_CAP_LAYOUTERROR,
 	.init_client = nfs41_init_client,
 	.shutdown_client = nfs41_shutdown_client,
 	.match_stateid = nfs41_match_stateid,

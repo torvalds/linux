@@ -44,7 +44,8 @@
 28	common	sigaltstack		sys_sigaltstack			compat_sys_sigaltstack
 29	32    	pause			sys_pause
 29	64    	pause			sys_nis_syscall
-30	common	utime			sys_utime			compat_sys_utime
+30	32	utime			sys_utime32
+30	64	utime			sys_utime
 31	32    	lchown32		sys_lchown
 32	32    	fchown32		sys_fchown
 33	common	access			sys_access
@@ -128,7 +129,8 @@
 102	common	rt_sigaction		sys_rt_sigaction		compat_sys_rt_sigaction
 103	common	rt_sigprocmask		sys_rt_sigprocmask		compat_sys_rt_sigprocmask
 104	common	rt_sigpending		sys_rt_sigpending		compat_sys_rt_sigpending
-105	common	rt_sigtimedwait		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait
+105	32	rt_sigtimedwait		sys_rt_sigtimedwait_time32	compat_sys_rt_sigtimedwait_time32
+105	64	rt_sigtimedwait		sys_rt_sigtimedwait
 106	common	rt_sigqueueinfo		sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
 107	common	rt_sigsuspend		sys_rt_sigsuspend		compat_sys_rt_sigsuspend
 108	32	setresuid32		sys_setresuid
@@ -168,11 +170,13 @@
 135	common	socketpair		sys_socketpair
 136	common	mkdir			sys_mkdir
 137	common	rmdir			sys_rmdir
-138	common	utimes			sys_utimes			compat_sys_utimes
+138	32	utimes			sys_utimes_time32
+138	64	utimes			sys_utimes
 139	common	stat64			sys_stat64			compat_sys_stat64
 140	common	sendfile64		sys_sendfile64
 141	common	getpeername		sys_getpeername
-142	common	futex			sys_futex			compat_sys_futex
+142	32	futex			sys_futex_time32
+142	64	futex			sys_futex
 143	common	gettid			sys_gettid
 144	common	getrlimit		sys_getrlimit			compat_sys_getrlimit
 145	common	setrlimit		sys_setrlimit			compat_sys_setrlimit
@@ -258,7 +262,8 @@
 216	64	sigreturn		sys_nis_syscall
 217	common	clone			sys_clone
 218	common	ioprio_get		sys_ioprio_get
-219	common	adjtimex		sys_adjtimex			compat_sys_adjtimex
+219	32	adjtimex		sys_adjtimex_time32
+219	64	adjtimex		sys_sparc_adjtimex
 220	32	sigprocmask		sys_sigprocmask			compat_sys_sigprocmask
 220	64	sigprocmask		sys_nis_syscall
 221	common	create_module		sys_ni_syscall
@@ -271,9 +276,10 @@
 228	common	setfsuid		sys_setfsuid16
 229	common	setfsgid		sys_setfsgid16
 230	common	_newselect		sys_select			compat_sys_select
-231	32	time			sys_time			compat_sys_time
+231	32	time			sys_time32
 232	common	splice			sys_splice
-233	common	stime			sys_stime			compat_sys_stime
+233	32	stime			sys_stime32
+233	64	stime			sys_stime
 234	common	statfs64		sys_statfs64			compat_sys_statfs64
 235	common	fstatfs64		sys_fstatfs64			compat_sys_fstatfs64
 236	common	_llseek			sys_llseek
@@ -288,8 +294,10 @@
 245	common	sched_yield		sys_sched_yield
 246	common	sched_get_priority_max	sys_sched_get_priority_max
 247	common	sched_get_priority_min	sys_sched_get_priority_min
-248	common	sched_rr_get_interval	sys_sched_rr_get_interval	compat_sys_sched_rr_get_interval
-249	common	nanosleep		sys_nanosleep			compat_sys_nanosleep
+248	32	sched_rr_get_interval	sys_sched_rr_get_interval_time32
+248	64	sched_rr_get_interval	sys_sched_rr_get_interval
+249	32	nanosleep		sys_nanosleep_time32
+249	64	nanosleep		sys_nanosleep
 250	32	mremap			sys_mremap
 250	64	mremap			sys_64_mremap
 251	common	_sysctl			sys_sysctl			compat_sys_sysctl
@@ -298,14 +306,20 @@
 254	32	nfsservctl		sys_ni_syscall			sys_nis_syscall
 254	64	nfsservctl		sys_nis_syscall
 255	common	sync_file_range		sys_sync_file_range		compat_sys_sync_file_range
-256	common	clock_settime		sys_clock_settime		compat_sys_clock_settime
-257	common	clock_gettime		sys_clock_gettime		compat_sys_clock_gettime
-258	common	clock_getres		sys_clock_getres		compat_sys_clock_getres
-259	common	clock_nanosleep		sys_clock_nanosleep		compat_sys_clock_nanosleep
+256	32	clock_settime		sys_clock_settime32
+256	64	clock_settime		sys_clock_settime
+257	32	clock_gettime		sys_clock_gettime32
+257	64	clock_gettime		sys_clock_gettime
+258	32	clock_getres		sys_clock_getres_time32
+258	64	clock_getres		sys_clock_getres
+259	32	clock_nanosleep		sys_clock_nanosleep_time32
+259	64	clock_nanosleep		sys_clock_nanosleep
 260	common	sched_getaffinity	sys_sched_getaffinity		compat_sys_sched_getaffinity
 261	common	sched_setaffinity	sys_sched_setaffinity		compat_sys_sched_setaffinity
-262	common	timer_settime		sys_timer_settime		compat_sys_timer_settime
-263	common	timer_gettime		sys_timer_gettime		compat_sys_timer_gettime
+262	32	timer_settime		sys_timer_settime32
+262	64	timer_settime		sys_timer_settime
+263	32	timer_gettime		sys_timer_gettime32
+263	64	timer_gettime		sys_timer_gettime
 264	common	timer_getoverrun	sys_timer_getoverrun
 265	common	timer_delete		sys_timer_delete
 266	common	timer_create		sys_timer_create		compat_sys_timer_create
@@ -315,11 +329,14 @@
 269	common	io_destroy		sys_io_destroy
 270	common	io_submit		sys_io_submit			compat_sys_io_submit
 271	common	io_cancel		sys_io_cancel
-272	common	io_getevents		sys_io_getevents		compat_sys_io_getevents
+272	32	io_getevents		sys_io_getevents_time32
+272	64	io_getevents		sys_io_getevents
 273	common	mq_open			sys_mq_open			compat_sys_mq_open
 274	common	mq_unlink		sys_mq_unlink
-275	common	mq_timedsend		sys_mq_timedsend		compat_sys_mq_timedsend
-276	common	mq_timedreceive		sys_mq_timedreceive		compat_sys_mq_timedreceive
+275	32	mq_timedsend		sys_mq_timedsend_time32
+275	64	mq_timedsend		sys_mq_timedsend
+276	32	mq_timedreceive		sys_mq_timedreceive_time32
+276	64	mq_timedreceive		sys_mq_timedreceive
 277	common	mq_notify		sys_mq_notify			compat_sys_mq_notify
 278	common	mq_getsetattr		sys_mq_getsetattr		compat_sys_mq_getsetattr
 279	common	waitid			sys_waitid			compat_sys_waitid
@@ -331,7 +348,8 @@
 285	common	mkdirat			sys_mkdirat
 286	common	mknodat			sys_mknodat
 287	common	fchownat		sys_fchownat
-288	common	futimesat		sys_futimesat			compat_sys_futimesat
+288	32	futimesat		sys_futimesat_time32
+288	64	futimesat		sys_futimesat
 289	common	fstatat64		sys_fstatat64			compat_sys_fstatat64
 290	common	unlinkat		sys_unlinkat
 291	common	renameat		sys_renameat
@@ -340,8 +358,10 @@
 294	common	readlinkat		sys_readlinkat
 295	common	fchmodat		sys_fchmodat
 296	common	faccessat		sys_faccessat
-297	common	pselect6		sys_pselect6			compat_sys_pselect6
-298	common	ppoll			sys_ppoll			compat_sys_ppoll
+297	32	pselect6		sys_pselect6_time32		compat_sys_pselect6_time32
+297	64	pselect6		sys_pselect6
+298	32	ppoll			sys_ppoll_time32		compat_sys_ppoll_time32
+298	64	ppoll			sys_ppoll
 299	common	unshare			sys_unshare
 300	common	set_robust_list		sys_set_robust_list		compat_sys_set_robust_list
 301	common	get_robust_list		sys_get_robust_list		compat_sys_get_robust_list
@@ -353,13 +373,16 @@
 307	common	move_pages		sys_move_pages			compat_sys_move_pages
 308	common	getcpu			sys_getcpu
 309	common	epoll_pwait		sys_epoll_pwait			compat_sys_epoll_pwait
-310	common	utimensat		sys_utimensat			compat_sys_utimensat
+310	32	utimensat		sys_utimensat_time32
+310	64	utimensat		sys_utimensat
 311	common	signalfd		sys_signalfd			compat_sys_signalfd
 312	common	timerfd_create		sys_timerfd_create
 313	common	eventfd			sys_eventfd
 314	common	fallocate		sys_fallocate			compat_sys_fallocate
-315	common	timerfd_settime		sys_timerfd_settime		compat_sys_timerfd_settime
-316	common	timerfd_gettime		sys_timerfd_gettime		compat_sys_timerfd_gettime
+315	32	timerfd_settime		sys_timerfd_settime32
+315	64	timerfd_settime		sys_timerfd_settime
+316	32	timerfd_gettime		sys_timerfd_gettime32
+316	64	timerfd_gettime		sys_timerfd_gettime
 317	common	signalfd4		sys_signalfd4			compat_sys_signalfd4
 318	common	eventfd2		sys_eventfd2
 319	common	epoll_create1		sys_epoll_create1
@@ -371,13 +394,15 @@
 325	common	pwritev			sys_pwritev			compat_sys_pwritev
 326	common	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
 327	common	perf_event_open		sys_perf_event_open
-328	common	recvmmsg		sys_recvmmsg			compat_sys_recvmmsg
+328	32	recvmmsg		sys_recvmmsg_time32		compat_sys_recvmmsg_time32
+328	64	recvmmsg		sys_recvmmsg
 329	common	fanotify_init		sys_fanotify_init
 330	common	fanotify_mark		sys_fanotify_mark		compat_sys_fanotify_mark
 331	common	prlimit64		sys_prlimit64
 332	common	name_to_handle_at	sys_name_to_handle_at
 333	common	open_by_handle_at	sys_open_by_handle_at		compat_sys_open_by_handle_at
-334	common	clock_adjtime		sys_clock_adjtime		compat_sys_clock_adjtime
+334	32	clock_adjtime		sys_clock_adjtime32
+334	64	clock_adjtime		sys_sparc_clock_adjtime
 335	common	syncfs			sys_syncfs
 336	common	sendmmsg		sys_sendmmsg			compat_sys_sendmmsg
 337	common	setns			sys_setns
@@ -406,4 +431,41 @@
 358	common	preadv2			sys_preadv2			compat_sys_preadv2
 359	common	pwritev2		sys_pwritev2			compat_sys_pwritev2
 360	common	statx			sys_statx
-361	common	io_pgetevents		sys_io_pgetevents		compat_sys_io_pgetevents
+361	32	io_pgetevents		sys_io_pgetevents_time32	compat_sys_io_pgetevents
+361	64	io_pgetevents		sys_io_pgetevents
+362	common	pkey_mprotect		sys_pkey_mprotect
+363	common	pkey_alloc		sys_pkey_alloc
+364	common	pkey_free		sys_pkey_free
+365	common	rseq			sys_rseq
+# room for arch specific syscalls
+392	64	semtimedop			sys_semtimedop
+393	common	semget			sys_semget
+394	common	semctl			sys_semctl			compat_sys_semctl
+395	common	shmget			sys_shmget
+396	common	shmctl			sys_shmctl			compat_sys_shmctl
+397	common	shmat			sys_shmat			compat_sys_shmat
+398	common	shmdt			sys_shmdt
+399	common	msgget			sys_msgget
+400	common	msgsnd			sys_msgsnd			compat_sys_msgsnd
+401	common	msgrcv			sys_msgrcv			compat_sys_msgrcv
+402	common	msgctl			sys_msgctl			compat_sys_msgctl
+403	32	clock_gettime64			sys_clock_gettime		sys_clock_gettime
+404	32	clock_settime64			sys_clock_settime		sys_clock_settime
+405	32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
+406	32	clock_getres_time64		sys_clock_getres		sys_clock_getres
+407	32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+408	32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
+409	32	timer_settime64			sys_timer_settime		sys_timer_settime
+410	32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
+411	32	timerfd_settime64		sys_timerfd_settime		sys_timerfd_settime
+412	32	utimensat_time64		sys_utimensat			sys_utimensat
+413	32	pselect6_time64			sys_pselect6			compat_sys_pselect6_time64
+414	32	ppoll_time64			sys_ppoll			compat_sys_ppoll_time64
+416	32	io_pgetevents_time64		sys_io_pgetevents		sys_io_pgetevents
+417	32	recvmmsg_time64			sys_recvmmsg			compat_sys_recvmmsg_time64
+418	32	mq_timedsend_time64		sys_mq_timedsend		sys_mq_timedsend
+419	32	mq_timedreceive_time64		sys_mq_timedreceive		sys_mq_timedreceive
+420	32	semtimedop_time64		sys_semtimedop			sys_semtimedop
+421	32	rt_sigtimedwait_time64		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait_time64
+422	32	futex_time64			sys_futex			sys_futex
+423	32	sched_rr_get_interval_time64	sys_sched_rr_get_interval	sys_sched_rr_get_interval

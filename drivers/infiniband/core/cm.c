@@ -4052,8 +4052,7 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 	atomic_long_inc(&port->counter_group[CM_RECV].
 			counter[attr_id - CM_ATTR_ID_OFFSET]);
 
-	work = kmalloc(sizeof(*work) + sizeof(struct sa_path_rec) * paths,
-		       GFP_KERNEL);
+	work = kmalloc(struct_size(work, path, paths), GFP_KERNEL);
 	if (!work) {
 		ib_free_recv_mad(mad_recv_wc);
 		return;

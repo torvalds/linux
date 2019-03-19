@@ -471,7 +471,7 @@ static int rtl2832_sdr_buf_prepare(struct vb2_buffer *vb)
 {
 	struct rtl2832_sdr_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 
-	/* Don't allow queing new buffers after device disconnection */
+	/* Don't allow queueing new buffers after device disconnection */
 	if (!dev->udev)
 		return -ENODEV;
 

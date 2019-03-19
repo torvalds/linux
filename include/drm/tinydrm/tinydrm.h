@@ -10,14 +10,9 @@
 #ifndef __LINUX_TINYDRM_H
 #define __LINUX_TINYDRM_H
 
-#include <linux/mutex.h>
 #include <drm/drm_simple_kms_helper.h>
 
-struct drm_clip_rect;
 struct drm_driver;
-struct drm_file;
-struct drm_framebuffer;
-struct drm_framebuffer_funcs;
 
 /**
  * struct tinydrm_device - tinydrm device
@@ -32,24 +27,6 @@ struct tinydrm_device {
 	 * @pipe: Display pipe structure
 	 */
 	struct drm_simple_display_pipe pipe;
-
-	/**
-	 * @dirty_lock: Serializes framebuffer flushing
-	 */
-	struct mutex dirty_lock;
-
-	/**
-	 * @fb_funcs: Framebuffer functions used when creating framebuffers
-	 */
-	const struct drm_framebuffer_funcs *fb_funcs;
-
-	/**
-	 * @fb_dirty: Framebuffer dirty callback
-	 */
-	int (*fb_dirty)(struct drm_framebuffer *framebuffer,
-			struct drm_file *file_priv, unsigned flags,
-			unsigned color, struct drm_clip_rect *clips,
-			unsigned num_clips);
 };
 
 static inline struct tinydrm_device *
@@ -82,13 +59,10 @@ pipe_to_tinydrm(struct drm_simple_display_pipe *pipe)
 	.clock = 1 /* pass validation */
 
 int devm_tinydrm_init(struct device *parent, struct tinydrm_device *tdev,
-		      const struct drm_framebuffer_funcs *fb_funcs,
 		      struct drm_driver *driver);
 int devm_tinydrm_register(struct tinydrm_device *tdev);
 void tinydrm_shutdown(struct tinydrm_device *tdev);
 
-void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
-				 struct drm_plane_state *old_state);
 int
 tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 			  const struct drm_simple_display_pipe_funcs *funcs,

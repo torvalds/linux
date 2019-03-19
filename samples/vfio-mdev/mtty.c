@@ -156,15 +156,15 @@ static const struct file_operations vd_fops = {
 
 /* function prototypes */
 
-static int mtty_trigger_interrupt(uuid_le uuid);
+static int mtty_trigger_interrupt(const guid_t *uuid);
 
 /* Helper functions */
-static struct mdev_state *find_mdev_state_by_uuid(uuid_le uuid)
+static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
 {
 	struct mdev_state *mds;
 
 	list_for_each_entry(mds, &mdev_devices_list, next) {
-		if (uuid_le_cmp(mdev_uuid(mds->mdev), uuid) == 0)
+		if (guid_equal(mdev_uuid(mds->mdev), uuid))
 			return mds;
 	}
 
@@ -1032,7 +1032,7 @@ static int mtty_set_irqs(struct mdev_device *mdev, uint32_t flags,
 	return ret;
 }
 
-static int mtty_trigger_interrupt(uuid_le uuid)
+static int mtty_trigger_interrupt(const guid_t *uuid)
 {
 	int ret = -1;
 	struct mdev_state *mdev_state;
@@ -1442,7 +1442,8 @@ static int __init mtty_dev_init(void)
 
 	idr_init(&mtty_dev.vd_idr);
 
-	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MINORMASK, MTTY_NAME);
+	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MINORMASK + 1,
+				  MTTY_NAME);
 
 	if (ret < 0) {
 		pr_err("Error: failed to register mtty_dev, err:%d\n", ret);
@@ -1450,7 +1451,7 @@ static int __init mtty_dev_init(void)
 	}
 
 	cdev_init(&mtty_dev.vd_cdev, &vd_fops);
-	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MINORMASK);
+	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MINORMASK + 1);
 
 	pr_info("major_number:%d\n", MAJOR(mtty_dev.vd_devt));
 
@@ -1487,7 +1488,7 @@ failed2:
 
 failed1:
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK);
+	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
 
 all_done:
 	return ret;
@@ -1501,7 +1502,7 @@ static void __exit mtty_dev_exit(void)
 	device_unregister(&mtty_dev.dev);
 	idr_destroy(&mtty_dev.vd_idr);
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK);
+	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
 	class_destroy(mtty_dev.vd_class);
 	mtty_dev.vd_class = NULL;
 	pr_info("mtty_dev: Unloaded!\n");

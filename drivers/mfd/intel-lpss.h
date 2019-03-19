@@ -14,6 +14,8 @@
 #ifndef __MFD_INTEL_LPSS_H
 #define __MFD_INTEL_LPSS_H
 
+#include <linux/pm.h>
+
 struct device;
 struct resource;
 struct property_entry;

@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2019 Logic PD, Inc.
+
+/dts-v1/;
+#include "imx6q.dtsi"
+#include "imx6-logicpd-som.dtsi"
+#include "imx6-logicpd-baseboard.dtsi"
+
+/ {
+	model = "Logic PD i.MX6QD SOM-M3";
+	compatible = "fsl,imx6q";
+
+	backlight: backlight-lvds {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 20000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+		power-supply = <&reg_lcd>;
+	};
+
+	panel-lvds0 {
+		compatible = "okaya,rs800480t-7x0gp";
+
+		port {
+			panel_in_lvds0: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+
+	reg_lcd: regulator-lcd {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_panel_pwr";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		vin-supply = <&reg_3v3>;
+		startup-delay-us = <500000>;
+	};
+
+	reg_lcd_reset: regulator-lcd-reset {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lcd_reset>;
+		compatible = "regulator-fixed";
+		regulator-name = "nLCD_RESET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+		vin-supply = <&reg_lcd>;
+	};
+};
+
+&clks {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+			  <&clks IMX6QDL_CLK_IPU1_DI0_PRE_SEL>,
+			  <&clks IMX6QDL_CLK_IPU2_DI0_PRE_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL5_VIDEO_DIV>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>;
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
+&ldb {
+	status = "okay";
+
+	lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <24>;
+		status = "okay";
+
+		port@4 {
+			reg = <4>;
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
+	};
+
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&reg_hdmi {
+	regulator-always-on;	/* Without this, the level shifter on HDMI doesn't turn on */
+};
+
+&iomuxc {
+	pinctrl_lcd_reg: lcdreg {
+		fsl,pins = <
+			MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b0	/* R_LCD_PANEL_PWR */
+		>;
+	};
+
+	pinctrl_lcd_reset: lcdreset {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_A25__GPIO5_IO02	0x100b0	/* LCD_nRESET */
+		>;
+	};
+
+	pinctrl_touchscreen: touchscreengrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06	0x1b0b0	/* TOUCH_nPINTDAV */
+		>;
+	};
+};
