@@ -1086,7 +1086,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
-int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
+static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_cmq_desc *desc, int num)
 {
 	int retval;
