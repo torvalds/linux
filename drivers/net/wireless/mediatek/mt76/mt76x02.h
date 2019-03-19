@@ -195,8 +195,19 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_bss_conf *info, u32 changed);
 
 extern const u16 mt76x02_beacon_offsets[16];
+struct beacon_bc_data {
+	struct mt76x02_dev *dev;
+	struct sk_buff_head q;
+	struct sk_buff *tail[8];
+};
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev);
 void mt76x02e_init_beacon_config(struct mt76x02_dev *dev);
+void mt76x02_resync_beacon_timer(struct mt76x02_dev *dev);
+void mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
+void mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev,
+				 struct beacon_bc_data *data,
+				 int max_nframes);
+
 void mt76x02_mac_start(struct mt76x02_dev *dev);
 
 void mt76x02_init_debugfs(struct mt76x02_dev *dev);

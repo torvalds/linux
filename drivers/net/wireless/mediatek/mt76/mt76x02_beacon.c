@@ -184,6 +184,108 @@ void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev,
 	dev->beacon_ops->pre_tbtt_enable(dev, true);
 }
 
+void
+mt76x02_resync_beacon_timer(struct mt76x02_dev *dev)
+{
+	u32 timer_val = dev->beacon_int << 4;
+
+	dev->tbtt_count++;
+
+	/*
+	 * Beacon timer drifts by 1us every tick, the timer is configured
+	 * in 1/16 TU (64us) units.
+	 */
+	if (dev->tbtt_count < 63)
+		return;
+
+	/*
+	 * The updated beacon interval takes effect after two TBTT, because
+	 * at this point the original interval has already been loaded into
+	 * the next TBTT_TIMER value
+	 */
+	if (dev->tbtt_count == 63)
+		timer_val -= 1;
+
+	mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
+		       MT_BEACON_TIME_CFG_INTVAL, timer_val);
+
+	if (dev->tbtt_count >= 64) {
+		dev->tbtt_count = 0;
+		return;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_resync_beacon_timer);
+
+void
+mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct mt76x02_dev *dev = (struct mt76x02_dev *)priv;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	struct sk_buff *skb = NULL;
+
+	if (!(dev->beacon_mask & BIT(mvif->idx)))
+		return;
+
+	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+	if (!skb)
+		return;
+
+	mt76x02_mac_set_beacon(dev, mvif->idx, skb);
+}
+EXPORT_SYMBOL_GPL(mt76x02_update_beacon_iter);
+
+static void
+mt76x02_add_buffered_bc(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct beacon_bc_data *data = priv;
+	struct mt76x02_dev *dev = data->dev;
+	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
+	struct ieee80211_tx_info *info;
+	struct sk_buff *skb;
+
+	if (!(dev->beacon_mask & BIT(mvif->idx)))
+		return;
+
+	skb = ieee80211_get_buffered_bc(mt76_hw(dev), vif);
+	if (!skb)
+		return;
+
+	info = IEEE80211_SKB_CB(skb);
+	info->control.vif = vif;
+	info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
+	mt76_skb_set_moredata(skb, true);
+	__skb_queue_tail(&data->q, skb);
+	data->tail[mvif->idx] = skb;
+}
+
+void
+mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev, struct beacon_bc_data *data,
+			    int max_nframes)
+{
+	int i, nframes;
+
+	data->dev = dev;
+	__skb_queue_head_init(&data->q);
+
+	do {
+		nframes = skb_queue_len(&data->q);
+		ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
+			IEEE80211_IFACE_ITER_RESUME_ALL,
+			mt76x02_add_buffered_bc, data);
+	} while (nframes != skb_queue_len(&data->q) &&
+		 skb_queue_len(&data->q) < max_nframes);
+
+	if (!skb_queue_len(&data->q))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(data->tail); i++) {
+		if (!data->tail[i])
+			continue;
+		mt76_skb_set_moredata(data->tail[i], false);
+	}
+}
+EXPORT_SYMBOL_GPL(mt76x02_enqueue_buffered_bc);
+
 void mt76x02_init_beacon_config(struct mt76x02_dev *dev)
 {
 	int i;
