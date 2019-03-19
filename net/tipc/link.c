@@ -2197,6 +2197,8 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 	struct nlattr *attrs;
 	struct nlattr *prop;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	u32 bc_mode = tipc_bcast_get_broadcast_mode(net);
+	u32 bc_ratio = tipc_bcast_get_broadcast_ratio(net);
 	struct tipc_link *bcl = tn->bcl;
 
 	if (!bcl)
@@ -2233,6 +2235,12 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 		goto attr_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, bcl->window))
 		goto prop_msg_full;
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_BROADCAST, bc_mode))
+		goto prop_msg_full;
+	if (bc_mode & BCLINK_MODE_SEL)
+		if (nla_put_u32(msg->skb, TIPC_NLA_PROP_BROADCAST_RATIO,
+				bc_ratio))
+			goto prop_msg_full;
 	nla_nest_end(msg->skb, prop);
 
 	err = __tipc_nl_add_bc_link_stat(msg->skb, &bcl->stats);

@@ -48,6 +48,10 @@ extern const char tipc_bclink_name[];
 
 #define TIPC_METHOD_EXPIRE msecs_to_jiffies(5000)
 
+#define BCLINK_MODE_BCAST  0x1
+#define BCLINK_MODE_RCAST  0x2
+#define BCLINK_MODE_SEL    0x4
+
 struct tipc_nlist {
 	struct list_head list;
 	u32 self;
@@ -91,6 +95,9 @@ int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 int tipc_bclink_reset_stats(struct net *net);
+
+u32 tipc_bcast_get_broadcast_mode(struct net *net);
+u32 tipc_bcast_get_broadcast_ratio(struct net *net);
 
 static inline void tipc_bcast_lock(struct net *net)
 {
