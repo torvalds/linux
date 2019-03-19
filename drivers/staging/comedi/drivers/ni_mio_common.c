@@ -4507,9 +4507,15 @@ static int ni_eeprom_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	data[0] = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
+	unsigned int val;
+	unsigned int i;
 
-	return 1;
+	if (insn->n) {
+		val = ni_read_eeprom(dev, CR_CHAN(insn->chanspec));
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
+	return insn->n;
 }
 
 static int ni_m_series_eeprom_insn_read(struct comedi_device *dev,
