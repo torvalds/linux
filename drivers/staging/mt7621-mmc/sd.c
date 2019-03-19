@@ -686,7 +686,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		/* then wait command done */
 		if (msdc_command_resp(host, cmd, 1, CMD_TIMEOUT) != 0)
-			goto done;
+			goto unmap;
 
 		/* for read, the data coming too fast, then CRC error
 		 *  start DMA no business with CRC.
@@ -724,18 +724,17 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		/* Last: stop transfer */
 		if (data->stop) {
 			if (msdc_do_command(host, data->stop, 0, CMD_TIMEOUT) != 0)
-				goto done;
+				goto unmap;
 		}
-	}
 
-done:
-	if (data) {
+unmap:
 		host->data = NULL;
 		dma_unmap_sg(mmc_dev(mmc), data->sg, data->sg_len,
 			     mmc_get_dma_dir(data));
 		host->blksz = 0;
 	}
 
+done:
 	if (mrq->cmd->error)
 		host->error = 0x001;
 	if (mrq->data && mrq->data->error)
