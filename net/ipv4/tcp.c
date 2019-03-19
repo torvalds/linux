@@ -1901,6 +1901,11 @@ static int tcp_inq_hint(struct sock *sk)
 		inq = tp->rcv_nxt - tp->copied_seq;
 		release_sock(sk);
 	}
+	/* After receiving a FIN, tell the user-space to continue reading
+	 * by returning a non-zero inq.
+	 */
+	if (inq == 0 && sock_flag(sk, SOCK_DONE))
+		inq = 1;
 	return inq;
 }
 
