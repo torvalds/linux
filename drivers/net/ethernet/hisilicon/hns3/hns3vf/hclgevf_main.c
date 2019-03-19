@@ -404,7 +404,7 @@ void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state)
 	}
 }
 
-void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
+static void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_ADVERTISING 0
 #define HCLGEVF_SUPPORTED   1
