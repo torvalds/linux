@@ -31,25 +31,11 @@ _all:
 # descending is started. They are now explicitly listed as the
 # prepare rule.
 
-# Ugly workaround for Debian make-kpkg:
-# make-kpkg directly includes the top Makefile of Linux kernel. In such a case,
-# skip sub-make to support debian_* targets in ruleset/kernel_version.mk, but
-# displays warning to discourage such abusage.
-ifneq ($(word 2, $(MAKEFILE_LIST)),)
-$(warning Do not include top Makefile of Linux Kernel)
-sub-make-done := 1
-MAKEFLAGS += -rR
-endif
-
 ifneq ($(sub-make-done),1)
 
 # Do not use make's built-in rules and variables
 # (this increases performance and avoids hard-to-debug behaviour)
 MAKEFLAGS += -rR
-
-# 'MAKEFLAGS += -rR' does not become immediately effective for old
-# GNU Make versions. Cancel implicit rules for this Makefile.
-$(lastword $(MAKEFILE_LIST)): ;
 
 # Avoid funny character set dependencies
 unexport LC_ALL
@@ -153,12 +139,23 @@ $(if $(KBUILD_OUTPUT),, \
 # 'sub-make' below.
 MAKEFLAGS += --include-dir=$(CURDIR)
 
+need-sub-make := 1
 else
 
 # Do not print "Entering directory ..." at all for in-tree build.
 MAKEFLAGS += --no-print-directory
 
 endif # ifneq ($(KBUILD_OUTPUT),)
+
+ifneq ($(filter 3.%,$(MAKE_VERSION)),)
+# 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
+# We need to invoke sub-make to avoid implicit rules in the top Makefile.
+need-sub-make := 1
+# Cancel implicit rules for this Makefile.
+$(lastword $(MAKEFILE_LIST)): ;
+endif
+
+ifeq ($(need-sub-make),1)
 
 PHONY += $(MAKECMDGOALS) sub-make
 
@@ -171,8 +168,11 @@ sub-make:
 	$(if $(KBUILD_OUTPUT),-C $(KBUILD_OUTPUT) KBUILD_SRC=$(CURDIR)) \
 	-f $(CURDIR)/Makefile $(filter-out _all sub-make,$(MAKECMDGOALS))
 
-else # sub-make-done
+endif # need-sub-make
+endif # sub-make-done
+
 # We process the rest of the Makefile if this is the final invocation of make
+ifeq ($(need-sub-make),)
 
 # Do not print "Entering directory ...",
 # but we want to display it when entering to the output directory
@@ -1757,7 +1757,7 @@ existing-targets := $(wildcard $(sort $(targets)))
 
 endif   # ifeq ($(config-targets),1)
 endif   # ifeq ($(mixed-targets),1)
-endif   # sub-make-done
+endif   # need-sub-make
 
 PHONY += FORCE
 FORCE:
