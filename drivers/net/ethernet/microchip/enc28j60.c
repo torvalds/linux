@@ -419,14 +419,14 @@ enc28j60_packet_write(struct enc28j60_net *priv, int len, const u8 *data)
 
 static int poll_ready(struct enc28j60_net *priv, u8 reg, u8 mask, u8 val)
 {
+	struct device *dev = &priv->spi->dev;
 	unsigned long timeout = jiffies + msecs_to_jiffies(20);
 
 	/* 20 msec timeout read */
 	while ((nolock_regb_read(priv, reg) & mask) != val) {
 		if (time_after(jiffies, timeout)) {
 			if (netif_msg_drv(priv))
-				dev_dbg(&priv->spi->dev,
-					"reg %02x ready timeout!\n", reg);
+				dev_dbg(dev, "reg %02x ready timeout!\n", reg);
 			return -ETIMEDOUT;
 		}
 		cpu_relax();
@@ -489,13 +489,13 @@ static int enc28j60_set_hw_macaddr(struct net_device *ndev)
 {
 	int ret;
 	struct enc28j60_net *priv = netdev_priv(ndev);
+	struct device *dev = &priv->spi->dev;
 
 	mutex_lock(&priv->lock);
 	if (!priv->hw_enable) {
 		if (netif_msg_drv(priv))
-			printk(KERN_INFO DRV_NAME
-				": %s: Setting MAC address to %pM\n",
-				ndev->name, ndev->dev_addr);
+			dev_info(dev, "%s: Setting MAC address to %pM\n",
+				 ndev->name, ndev->dev_addr);
 		/* NOTE: MAC address in ENC28J60 is byte-backward */
 		nolock_regb_write(priv, MAADR5, ndev->dev_addr[0]);
 		nolock_regb_write(priv, MAADR4, ndev->dev_addr[1]);
@@ -594,12 +594,13 @@ static u16 rx_packet_start(u16 ptr)
 
 static void nolock_rxfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
 {
+	struct device *dev = &priv->spi->dev;
 	u16 erxrdpt;
 
 	if (start > 0x1FFF || end > 0x1FFF || start > end) {
 		if (netif_msg_drv(priv))
-			printk(KERN_ERR DRV_NAME ": %s(%d, %d) RXFIFO "
-				"bad parameters!\n", __func__, start, end);
+			dev_err(dev, "%s(%d, %d) RXFIFO bad parameters!\n",
+				__func__, start, end);
 		return;
 	}
 	/* set receive buffer start + end */
@@ -612,10 +613,12 @@ static void nolock_rxfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
 
 static void nolock_txfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
 {
+	struct device *dev = &priv->spi->dev;
+
 	if (start > 0x1FFF || end > 0x1FFF || start > end) {
 		if (netif_msg_drv(priv))
-			printk(KERN_ERR DRV_NAME ": %s(%d, %d) TXFIFO "
-				"bad parameters!\n", __func__, start, end);
+			dev_err(dev, "%s(%d, %d) TXFIFO bad parameters!\n",
+				__func__, start, end);
 		return;
 	}
 	/* set transmit buffer start + end */
@@ -630,9 +633,10 @@ static void nolock_txfifo_init(struct enc28j60_net *priv, u16 start, u16 end)
  */
 static void enc28j60_lowpower(struct enc28j60_net *priv, bool is_low)
 {
+	struct device *dev = &priv->spi->dev;
+
 	if (netif_msg_drv(priv))
-		dev_dbg(&priv->spi->dev, "%s power...\n",
-				is_low ? "low" : "high");
+		dev_dbg(dev, "%s power...\n", is_low ? "low" : "high");
 
 	mutex_lock(&priv->lock);
 	if (is_low) {
@@ -651,6 +655,7 @@ static void enc28j60_lowpower(struct enc28j60_net *priv, bool is_low)
 
 static int enc28j60_hw_init(struct enc28j60_net *priv)
 {
+	struct device *dev = &priv->spi->dev;
 	u8 reg;
 
 	if (netif_msg_drv(priv))
@@ -681,7 +686,7 @@ static int enc28j60_hw_init(struct enc28j60_net *priv)
 	 */
 	reg = locked_regb_read(priv, EREVID);
 	if (netif_msg_drv(priv))
-		printk(KERN_INFO DRV_NAME ": chip RevID: 0x%02x\n", reg);
+		dev_info(dev, "chip RevID: 0x%02x\n", reg);
 	if (reg == 0x00 || reg == 0xff) {
 		if (netif_msg_drv(priv))
 			printk(KERN_DEBUG DRV_NAME ": %s() Invalid RevId %d\n",
