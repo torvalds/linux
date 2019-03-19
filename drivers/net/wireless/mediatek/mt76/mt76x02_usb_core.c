@@ -105,8 +105,78 @@ int mt76x02u_tx_prepare_skb(struct mt76_dev *mdev, void *data,
 }
 EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);
 
+/* Trigger pre-TBTT event 8 ms before TBTT */
+#define PRE_TBTT_USEC 8000
+static void mt76x02u_start_pre_tbtt_timer(struct mt76x02_dev *dev)
+{
+	u64 time;
+	u32 tbtt;
+
+	/* Get remaining TBTT in usec */
+	tbtt = mt76_get_field(dev, MT_TBTT_TIMER, MT_TBTT_TIMER_VAL);
+	tbtt *= 32;
+
+	if (tbtt <= PRE_TBTT_USEC) {
+		queue_work(system_highpri_wq, &dev->pre_tbtt_work);
+		return;
+	}
+
+	time = (tbtt - PRE_TBTT_USEC) * 1000ull;
+	hrtimer_start(&dev->pre_tbtt_timer, time, HRTIMER_MODE_REL);
+}
+
+static void mt76x02u_restart_pre_tbtt_timer(struct mt76x02_dev *dev)
+{
+	u32 tbtt, dw0, dw1;
+	u64 tsf, time;
+
+	/* Get remaining TBTT in usec */
+	tbtt = mt76_get_field(dev, MT_TBTT_TIMER, MT_TBTT_TIMER_VAL);
+	tbtt *= 32;
+
+	dw0 = mt76_rr(dev, MT_TSF_TIMER_DW0);
+	dw1 = mt76_rr(dev, MT_TSF_TIMER_DW1);
+	tsf = (u64)dw0 << 32 | dw1;
+	dev_dbg(dev->mt76.dev, "TSF: %llu us TBTT %u us\n", tsf, tbtt);
+
+	/* Convert beacon interval in TU (1024 usec) to nsec */
+	time = ((1000000000ull * dev->beacon_int) >> 10);
+
+	/* Adjust time to trigger hrtimer 8ms before TBTT */
+	if (tbtt < PRE_TBTT_USEC)
+		time -= (PRE_TBTT_USEC - tbtt) * 1000ull;
+	else
+		time += (tbtt - PRE_TBTT_USEC) * 1000ull;
+
+	hrtimer_start(&dev->pre_tbtt_timer, time, HRTIMER_MODE_REL);
+}
+
+static void mt76x02u_pre_tbtt_work(struct work_struct *work)
+{
+	struct mt76x02_dev *dev =
+		container_of(work, struct mt76x02_dev, pre_tbtt_work);
+
+	if (!dev->beacon_mask)
+		return;
+	mt76x02u_restart_pre_tbtt_timer(dev);
+}
+
+static enum hrtimer_restart mt76x02u_pre_tbtt_interrupt(struct hrtimer *timer)
+{
+	struct mt76x02_dev *dev =
+	    container_of(timer, struct mt76x02_dev, pre_tbtt_timer);
+
+	queue_work(system_highpri_wq, &dev->pre_tbtt_work);
+
+	return HRTIMER_NORESTART;
+}
+
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
 {
+	hrtimer_init(&dev->pre_tbtt_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	dev->pre_tbtt_timer.function = mt76x02u_pre_tbtt_interrupt;
+	INIT_WORK(&dev->pre_tbtt_work, mt76x02u_pre_tbtt_work);
+
 	mt76x02_init_beacon_config(dev);
 }
 EXPORT_SYMBOL_GPL(mt76x02u_init_beacon_config);

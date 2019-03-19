@@ -88,6 +88,9 @@ struct mt76x02_dev {
 	struct delayed_work mac_work;
 	struct delayed_work wdt_work;
 
+	struct hrtimer pre_tbtt_timer;
+	struct work_struct pre_tbtt_work;
+
 	u32 aggr_stats[32];
 
 	struct sk_buff *beacons[8];
