@@ -11,3 +11,20 @@ config MTD_NAND_JZ4780
 	help
 	  Enables support for NAND Flash connected to the NEMC on JZ4780 SoC
 	  based boards, using the BCH controller for hardware error correction.
+
+if MTD_NAND_JZ4780
+
+config MTD_NAND_INGENIC_ECC
+	tristate
+
+config MTD_NAND_JZ4780_BCH
+	tristate "Hardware BCH support for JZ4780 SoC"
+	select MTD_NAND_INGENIC_ECC
+	help
+	  Enable this driver to support the BCH error-correction hardware
+	  present on the JZ4780 SoC from Ingenic.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called jz4780-bch.
+
+endif # MTD_NAND_JZ4780

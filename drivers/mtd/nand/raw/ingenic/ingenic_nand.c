@@ -22,7 +22,7 @@
 
 #include <linux/jz4780-nemc.h>
 
-#include "jz4780_bch.h"
+#include "ingenic_ecc.h"
 
 #define DRV_NAME	"ingenic-nand"
 
@@ -40,7 +40,7 @@ struct ingenic_nand_cs {
 
 struct ingenic_nfc {
 	struct device *dev;
-	struct jz4780_bch *bch;
+	struct ingenic_ecc *ecc;
 	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
@@ -124,11 +124,11 @@ static int ingenic_nand_ecc_calculate(struct nand_chip *chip, const u8 *dat,
 {
 	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
 	struct ingenic_nfc *nfc = to_ingenic_nfc(nand->chip.controller);
-	struct jz4780_bch_params params;
+	struct ingenic_ecc_params params;
 
 	/*
-	 * Don't need to generate the ECC when reading, BCH does it for us as
-	 * part of decoding/correction.
+	 * Don't need to generate the ECC when reading, the ECC engine does it
+	 * for us as part of decoding/correction.
 	 */
 	if (nand->reading)
 		return 0;
@@ -137,7 +137,7 @@ static int ingenic_nand_ecc_calculate(struct nand_chip *chip, const u8 *dat,
 	params.bytes = nand->chip.ecc.bytes;
 	params.strength = nand->chip.ecc.strength;
 
-	return jz4780_bch_calculate(nfc->bch, &params, dat, ecc_code);
+	return ingenic_ecc_calculate(nfc->ecc, &params, dat, ecc_code);
 }
 
 static int ingenic_nand_ecc_correct(struct nand_chip *chip, u8 *dat,
@@ -145,13 +145,13 @@ static int ingenic_nand_ecc_correct(struct nand_chip *chip, u8 *dat,
 {
 	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
 	struct ingenic_nfc *nfc = to_ingenic_nfc(nand->chip.controller);
-	struct jz4780_bch_params params;
+	struct ingenic_ecc_params params;
 
 	params.size = nand->chip.ecc.size;
 	params.bytes = nand->chip.ecc.bytes;
 	params.strength = nand->chip.ecc.strength;
 
-	return jz4780_bch_correct(nfc->bch, &params, dat, read_ecc);
+	return ingenic_ecc_correct(nfc->ecc, &params, dat, read_ecc);
 }
 
 static int ingenic_nand_attach_chip(struct nand_chip *chip)
@@ -165,8 +165,8 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 
 	switch (chip->ecc.mode) {
 	case NAND_ECC_HW:
-		if (!nfc->bch) {
-			dev_err(nfc->dev, "HW BCH selected, but BCH controller not found\n");
+		if (!nfc->ecc) {
+			dev_err(nfc->dev, "HW ECC selected, but ECC controller not found\n");
 			return -ENODEV;
 		}
 
@@ -176,7 +176,7 @@ static int ingenic_nand_attach_chip(struct nand_chip *chip)
 		/* fall through */
 	case NAND_ECC_SOFT:
 		dev_info(nfc->dev, "using %s (strength %d, size %d, bytes %d)\n",
-			 (nfc->bch) ? "hardware BCH" : "software ECC",
+			 (nfc->ecc) ? "hardware ECC" : "software ECC",
 			 chip->ecc.strength, chip->ecc.size, chip->ecc.bytes);
 		break;
 	case NAND_ECC_NONE:
@@ -354,12 +354,12 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/*
-	 * Check for BCH HW before we call nand_scan_ident, to prevent us from
-	 * having to call it again if the BCH driver returns -EPROBE_DEFER.
+	 * Check for ECC HW before we call nand_scan_ident, to prevent us from
+	 * having to call it again if the ECC driver returns -EPROBE_DEFER.
 	 */
-	nfc->bch = of_jz4780_bch_get(dev->of_node);
-	if (IS_ERR(nfc->bch))
-		return PTR_ERR(nfc->bch);
+	nfc->ecc = of_ingenic_ecc_get(dev->of_node);
+	if (IS_ERR(nfc->ecc))
+		return PTR_ERR(nfc->ecc);
 
 	nfc->dev = dev;
 	nfc->num_banks = num_banks;
@@ -369,8 +369,8 @@ static int ingenic_nand_probe(struct platform_device *pdev)
 
 	ret = ingenic_nand_init_chips(nfc, pdev);
 	if (ret) {
-		if (nfc->bch)
-			jz4780_bch_release(nfc->bch);
+		if (nfc->ecc)
+			ingenic_ecc_release(nfc->ecc);
 		return ret;
 	}
 
@@ -382,8 +382,8 @@ static int ingenic_nand_remove(struct platform_device *pdev)
 {
 	struct ingenic_nfc *nfc = platform_get_drvdata(pdev);
 
-	if (nfc->bch)
-		jz4780_bch_release(nfc->bch);
+	if (nfc->ecc)
+		ingenic_ecc_release(nfc->ecc);
 
 	ingenic_nand_cleanup_chips(nfc);
 
