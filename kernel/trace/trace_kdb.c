@@ -17,7 +17,7 @@
 #include "trace.h"
 #include "trace_output.h"
 
-static void ftrace_dump_buf(int skip_lines, long cpu_file)
+static void ftrace_dump_buf(int skip_entries, long cpu_file)
 {
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
@@ -70,11 +70,11 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 			kdb_printf("---------------------------------\n");
 		cnt++;
 
-		if (!skip_lines) {
+		if (!skip_entries) {
 			print_trace_line(&iter);
 			trace_printk_seq(&iter.seq);
 		} else {
-			skip_lines--;
+			skip_entries--;
 		}
 
 		if (KDB_FLAG(CMD_INTERRUPT))
@@ -106,7 +106,7 @@ out:
  */
 static int kdb_ftdump(int argc, const char **argv)
 {
-	int skip_lines = 0;
+	int skip_entries = 0;
 	long cpu_file;
 	char *cp;
 
@@ -114,9 +114,9 @@ static int kdb_ftdump(int argc, const char **argv)
 		return KDB_ARGCOUNT;
 
 	if (argc) {
-		skip_lines = simple_strtol(argv[1], &cp, 0);
+		skip_entries = simple_strtol(argv[1], &cp, 0);
 		if (*cp)
-			skip_lines = 0;
+			skip_entries = 0;
 	}
 
 	if (argc == 2) {
@@ -129,7 +129,7 @@ static int kdb_ftdump(int argc, const char **argv)
 	}
 
 	kdb_trap_printk++;
-	ftrace_dump_buf(skip_lines, cpu_file);
+	ftrace_dump_buf(skip_entries, cpu_file);
 	kdb_trap_printk--;
 
 	return 0;
@@ -137,7 +137,7 @@ static int kdb_ftdump(int argc, const char **argv)
 
 static __init int kdb_ftrace_register(void)
 {
-	kdb_register_flags("ftdump", kdb_ftdump, "[skip_#lines] [cpu]",
+	kdb_register_flags("ftdump", kdb_ftdump, "[skip_#entries] [cpu]",
 			    "Dump ftrace log", 0, KDB_ENABLE_ALWAYS_SAFE);
 	return 0;
 }
