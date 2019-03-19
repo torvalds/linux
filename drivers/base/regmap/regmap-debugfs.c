@@ -219,10 +219,7 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	start_reg = regmap_debugfs_get_dump_start(map, from, *ppos, &p);
 
 	for (i = start_reg; i <= to; i += map->reg_stride) {
-		if (!regmap_readable(map, i) && !regmap_cached(map, i))
-			continue;
-
-		if (regmap_precious(map, i))
+		if (!regmap_printable(map, i))
 			continue;
 
 		/* If we're in the region the user is trying to read */
