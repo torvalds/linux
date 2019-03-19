@@ -43,6 +43,7 @@
 #include "net.h"
 #include "socket.h"
 #include "bcast.h"
+#include "node.h"
 
 #include <linux/module.h>
 
@@ -59,6 +60,7 @@ static int __net_init tipc_init_net(struct net *net)
 	tn->node_addr = 0;
 	tn->trial_addr = 0;
 	tn->addr_trial_end = 0;
+	tn->capabilities = TIPC_NODE_CAPABILITIES;
 	memset(tn->node_id, 0, sizeof(tn->node_id));
 	memset(tn->node_id_string, 0, sizeof(tn->node_id_string));
 	tn->mon_threshold = TIPC_DEF_MON_THRESHOLD;
