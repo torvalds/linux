@@ -347,30 +347,6 @@ static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
 	return 0;
 }
 
-static ssize_t
-ad7192_show_scale_available(struct device *dev,
-			    struct device_attribute *attr, char *buf)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ad7192_state *st = iio_priv(indio_dev);
-	int i, len = 0;
-
-	for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
-		len += sprintf(buf + len, "%d.%09u ", st->scale_avail[i][0],
-			       st->scale_avail[i][1]);
-
-	len += sprintf(buf + len, "\n");
-
-	return len;
-}
-
-static IIO_DEVICE_ATTR_NAMED(in_v_m_v_scale_available,
-			     in_voltage-voltage_scale_available,
-			     0444, ad7192_show_scale_available, NULL, 0);
-
-static IIO_DEVICE_ATTR(in_voltage_scale_available, 0444,
-		       ad7192_show_scale_available, NULL, 0);
-
 static ssize_t ad7192_show_ac_excitation(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -445,8 +421,6 @@ static IIO_DEVICE_ATTR(ac_excitation_en, 0644,
 		       AD7192_REG_MODE);
 
 static struct attribute *ad7192_attributes[] = {
-	&iio_dev_attr_in_v_m_v_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
 	&iio_dev_attr_bridge_switch_en.dev_attr.attr,
 	&iio_dev_attr_ac_excitation_en.dev_attr.attr,
 	NULL
@@ -457,8 +431,6 @@ static const struct attribute_group ad7192_attribute_group = {
 };
 
 static struct attribute *ad7195_attributes[] = {
-	&iio_dev_attr_in_v_m_v_scale_available.dev_attr.attr,
-	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
 	&iio_dev_attr_bridge_switch_en.dev_attr.attr,
 	NULL
 };
@@ -589,10 +561,31 @@ static int ad7192_write_raw_get_fmt(struct iio_dev *indio_dev,
 	}
 }
 
+static int ad7192_read_avail(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     const int **vals, int *type, int *length,
+			     long mask)
+{
+	struct ad7192_state *st = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = (int *)st->scale_avail;
+		*type = IIO_VAL_INT_PLUS_NANO;
+		/* Values are stored in a 2D matrix  */
+		*length = ARRAY_SIZE(st->scale_avail) * 2;
+
+		return IIO_AVAIL_LIST;
+	}
+
+	return -EINVAL;
+}
+
 static const struct iio_info ad7192_info = {
 	.read_raw = ad7192_read_raw,
 	.write_raw = ad7192_write_raw,
 	.write_raw_get_fmt = ad7192_write_raw_get_fmt,
+	.read_avail = ad7192_read_avail,
 	.attrs = &ad7192_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
 };
@@ -601,6 +594,7 @@ static const struct iio_info ad7195_info = {
 	.read_raw = ad7192_read_raw,
 	.write_raw = ad7192_write_raw,
 	.write_raw_get_fmt = ad7192_write_raw_get_fmt,
+	.read_avail = ad7192_read_avail,
 	.attrs = &ad7195_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
 };
@@ -634,6 +628,42 @@ static const struct iio_chan_spec ad7193_channels[] = {
 	AD_SD_CHANNEL(13, 8, AD7193_CH_AIN8, 24, 32, 0),
 	IIO_CHAN_SOFT_TIMESTAMP(14),
 };
+
+static int ad7192_channels_config(struct iio_dev *indio_dev)
+{
+	struct ad7192_state *st = iio_priv(indio_dev);
+	const struct iio_chan_spec *channels;
+	struct iio_chan_spec *chan;
+	int i;
+
+	switch (st->devid) {
+	case ID_AD7193:
+		channels = ad7193_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ad7193_channels);
+		break;
+	default:
+		channels = ad7192_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
+		break;
+	}
+
+	chan = devm_kcalloc(indio_dev->dev.parent, indio_dev->num_channels,
+			    sizeof(*chan), GFP_KERNEL);
+	if (!chan)
+		return -ENOMEM;
+
+	indio_dev->channels = chan;
+
+	for (i = 0; i < indio_dev->num_channels; i++) {
+		*chan = channels[i];
+		if (chan->type != IIO_TEMP)
+			chan->info_mask_shared_by_type_available |=
+				BIT(IIO_CHAN_INFO_SCALE);
+		chan++;
+	}
+
+	return 0;
+}
 
 static int ad7192_probe(struct spi_device *spi)
 {
@@ -697,16 +727,9 @@ static int ad7192_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	switch (st->devid) {
-	case ID_AD7193:
-		indio_dev->channels = ad7193_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ad7193_channels);
-		break;
-	default:
-		indio_dev->channels = ad7192_channels;
-		indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
-		break;
-	}
+	ret = ad7192_channels_config(indio_dev);
+	if (ret < 0)
+		goto error_disable_dvdd;
 
 	if (st->devid == ID_AD7195)
 		indio_dev->info = &ad7195_info;
