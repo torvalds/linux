@@ -3,7 +3,7 @@
  * Copyright (c) 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
  * Copyright (c) 2009 HNR Consulting. All rights reserved.
- * Copyright (c) 2014 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2014,2018 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -50,6 +50,32 @@
 #include "smi.h"
 #include "opa_smi.h"
 #include "agent.h"
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/ib_mad.h>
+
+#ifdef CONFIG_TRACEPOINTS
+static void create_mad_addr_info(struct ib_mad_send_wr_private *mad_send_wr,
+			  struct ib_mad_qp_info *qp_info,
+			  struct trace_event_raw_ib_mad_send_template *entry)
+{
+	u16 pkey;
+	struct ib_device *dev = qp_info->port_priv->device;
+	u8 pnum = qp_info->port_priv->port_num;
+	struct ib_ud_wr *wr = &mad_send_wr->send_wr;
+	struct rdma_ah_attr attr = {};
+
+	rdma_query_ah(wr->ah, &attr);
+
+	/* These are common */
+	entry->sl = attr.sl;
+	ib_query_pkey(dev, pnum, wr->pkey_index, &pkey);
+	entry->pkey = pkey;
+	entry->rqpn = wr->remote_qpn;
+	entry->rqkey = wr->remote_qkey;
+	entry->dlid = rdma_ah_get_dlid(&attr);
+}
+#endif
 
 static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
 static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
@@ -1215,6 +1241,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
+		trace_ib_mad_ib_send_mad(mad_send_wr, qp_info);
 		ret = ib_post_send(mad_agent->qp, &mad_send_wr->send_wr.wr,
 				   NULL);
 		list = &qp_info->send_queue.list;
@@ -2488,6 +2515,8 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	send_queue = mad_list->mad_queue;
 	qp_info = send_queue->qp_info;
 
+	trace_ib_mad_send_done_handler(mad_send_wr, wc);
+
 retry:
 	ib_dma_unmap_single(mad_send_wr->send_buf.mad_agent->device,
 			    mad_send_wr->header_mapping,
@@ -2519,6 +2548,7 @@ retry:
 	ib_mad_complete_send_wr(mad_send_wr, &mad_send_wc);
 
 	if (queued_send_wr) {
+		trace_ib_mad_send_done_resend(queued_send_wr, qp_info);
 		ret = ib_post_send(qp_info->qp, &queued_send_wr->send_wr.wr,
 				   NULL);
 		if (ret) {
@@ -2566,6 +2596,7 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 		if (mad_send_wr->retry) {
 			/* Repost send */
 			mad_send_wr->retry = 0;
+			trace_ib_mad_error_handler(mad_send_wr, qp_info);
 			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
 					   NULL);
 			if (!ret)
