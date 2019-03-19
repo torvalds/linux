@@ -89,6 +89,13 @@ MODULE_FIRMWARE("amdgpu/navi12_mec.bin");
 MODULE_FIRMWARE("amdgpu/navi12_mec2.bin");
 MODULE_FIRMWARE("amdgpu/navi12_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_ce.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_pfp.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_me.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_mec.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_mec2.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_rlc.bin");
+
 static const struct soc15_reg_golden golden_settings_gc_10_1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_4, 0xffffffff, 0x00400014),
@@ -3462,6 +3469,9 @@ static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVI12:
 		chip_name = "navi12";
+		break;
+	case CHIP_SIENNA_CICHLID:
+		chip_name = "sienna_cichlid";
 		break;
 	default:
 		BUG();
