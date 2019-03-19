@@ -4726,16 +4726,15 @@ static void set_linv_wr(struct mlx5_ib_qp *qp, void **seg, int *size,
 static void dump_wqe(struct mlx5_ib_qp *qp, u32 idx, int size_16)
 {
 	__be32 *p = NULL;
-	u32 tidx = idx;
 	int i, j;
 
 	pr_debug("dump WQE index %u:\n", idx);
 	for (i = 0, j = 0; i < size_16 * 4; i += 4, j += 4) {
 		if ((i & 0xf) == 0) {
-			tidx = (tidx + 1) & (qp->sq.wqe_cnt - 1);
-			p = mlx5_frag_buf_get_wqe(&qp->sq.fbc, tidx);
+			p = mlx5_frag_buf_get_wqe(&qp->sq.fbc, idx);
 			pr_debug("WQBB at %p:\n", (void *)p);
 			j = 0;
+			idx = (idx + 1) & (qp->sq.wqe_cnt - 1);
 		}
 		pr_debug("%08x %08x %08x %08x\n", be32_to_cpu(p[j]),
 			 be32_to_cpu(p[j + 1]), be32_to_cpu(p[j + 2]),
