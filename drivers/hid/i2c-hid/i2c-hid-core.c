@@ -50,7 +50,7 @@
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 #define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
 #define I2C_HID_QUIRK_DELAY_AFTER_SLEEP		BIT(3)
-#define I2C_HID_QUIRK_BOGUS_IRQ			BIT(4)
+#define I2C_HID_QUIRK_FORCE_TRIGGER_FALLING	BIT(4)
 
 /* flags */
 #define I2C_HID_STARTED		0
@@ -182,8 +182,8 @@ static const struct i2c_hid_quirks {
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
 	{ I2C_VENDOR_ID_GOODIX, I2C_DEVICE_ID_GOODIX_01F0,
 		I2C_HID_QUIRK_NO_RUNTIME_PM },
-	{ USB_VENDOR_ID_ELAN, HID_ANY_ID,
-		 I2C_HID_QUIRK_BOGUS_IRQ },
+	{ USB_VENDOR_ID_ELAN, I2C_PRODUCT_ID_ELAN_TOUCHPAD,
+		I2C_HID_QUIRK_FORCE_TRIGGER_FALLING },
 	{ 0, 0 }
 };
 
@@ -505,12 +505,6 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 		/* host or device initiated RESET completed */
 		if (test_and_clear_bit(I2C_HID_RESET_PENDING, &ihid->flags))
 			wake_up(&ihid->wait);
-		return;
-	}
-
-	if (ihid->quirks & I2C_HID_QUIRK_BOGUS_IRQ && ret_size == 0xffff) {
-		dev_warn_once(&ihid->client->dev, "%s: IRQ triggered but "
-			      "there's no data\n", __func__);
 		return;
 	}
 
@@ -854,6 +848,8 @@ static int i2c_hid_init_irq(struct i2c_client *client)
 
 	if (!irq_get_trigger_type(client->irq))
 		irqflags = IRQF_TRIGGER_LOW;
+	if (ihid->quirks & I2C_HID_QUIRK_FORCE_TRIGGER_FALLING)
+		irqflags = IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(client->irq, NULL, i2c_hid_irq,
 				   irqflags | IRQF_ONESHOT, client->name, ihid);
@@ -1123,10 +1119,6 @@ static int i2c_hid_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto err_pm;
 
-	ret = i2c_hid_init_irq(client);
-	if (ret < 0)
-		goto err_pm;
-
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
 		ret = PTR_ERR(hid);
@@ -1148,6 +1140,10 @@ static int i2c_hid_probe(struct i2c_client *client,
 	strlcpy(hid->phys, dev_name(&client->dev), sizeof(hid->phys));
 
 	ihid->quirks = i2c_hid_lookup_quirk(hid->vendor, hid->product);
+
+	ret = i2c_hid_init_irq(client);
+	if (ret < 0)
+		goto err_pm;
 
 	ret = hid_add_device(hid);
 	if (ret) {
