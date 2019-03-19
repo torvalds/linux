@@ -159,7 +159,7 @@
 		};
 	};
 
-	display-subsystem {
+	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
 		ports = <&vopl_out>, <&vopb_out>;
 		clocks = <&cru PLL_VPLL>, <&cru PLL_CPLL>;
