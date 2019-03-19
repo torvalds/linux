@@ -1344,7 +1344,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	if (intsts & MSDC_INT_CDSC) {
 		if (host->mmc->caps & MMC_CAP_NEEDS_POLL)
 			return IRQ_HANDLED;
-		schedule_delayed_work(&host->card_delaywork, HZ);
+		schedule_delayed_work(&host->card_delaywork, 0);
 		/* tuning when plug card ? */
 	}
 
