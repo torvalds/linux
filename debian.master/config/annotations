@@ -10490,7 +10490,7 @@ CONFIG_CRC32_SARWATE                            policy<{'amd64': 'n', 'arm64': '
 CONFIG_CRC32_BIT                                policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
 
 # Menu: Library routines >> Select compiled-in fonts
-CONFIG_FONTS                                    policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'y', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
+CONFIG_FONTS                                    policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_FONT_8x8                                 policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_FONT_8x16                                policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_FONT_6x11                                policy<{'armhf': 'n'}>
@@ -10502,7 +10502,7 @@ CONFIG_FONT_6x10                                policy<{'armhf': 'y'}>
 CONFIG_FONT_10x18                               policy<{'armhf': 'n'}>
 CONFIG_FONT_SUN8x16                             policy<{'armhf': 'n'}>
 CONFIG_FONT_SUN12x22                            policy<{'armhf': 'n'}>
-CONFIG_FONT_TER16x32                            policy<{'armhf': 'n'}>
+CONFIG_FONT_TER16x32                            policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 
 # Menu: Library routines >> XZ decompression support
 CONFIG_XZ_DEC                                   policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
