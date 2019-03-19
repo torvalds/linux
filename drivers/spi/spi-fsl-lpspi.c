@@ -780,7 +780,7 @@ static irqreturn_t fsl_lpspi_isr(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-int fsl_lpspi_runtime_resume(struct device *dev)
+static int fsl_lpspi_runtime_resume(struct device *dev)
 {
 	struct fsl_lpspi_data *fsl_lpspi = dev_get_drvdata(dev);
 	int ret;
@@ -798,7 +798,7 @@ int fsl_lpspi_runtime_resume(struct device *dev)
 	return 0;
 }
 
-int fsl_lpspi_runtime_suspend(struct device *dev)
+static int fsl_lpspi_runtime_suspend(struct device *dev)
 {
 	struct fsl_lpspi_data *fsl_lpspi = dev_get_drvdata(dev);
 
