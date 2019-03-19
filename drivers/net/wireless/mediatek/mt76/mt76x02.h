@@ -68,6 +68,11 @@ struct mt76x02_calibration {
 	s8 tssi_dc;
 };
 
+struct mt76x02_beacon_ops {
+	void (*pre_tbtt_enable) (struct mt76x02_dev *, bool);
+	void (*beacon_enable) (struct mt76x02_dev *, bool);
+};
+
 struct mt76x02_dev {
 	struct mt76_dev mt76; /* must be first */
 
@@ -90,6 +95,8 @@ struct mt76x02_dev {
 
 	struct hrtimer pre_tbtt_timer;
 	struct work_struct pre_tbtt_work;
+
+	const struct mt76x02_beacon_ops *beacon_ops;
 
 	u32 aggr_stats[32];
 

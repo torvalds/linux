@@ -152,8 +152,32 @@ static void mt76x02_pre_tbtt_tasklet(unsigned long arg)
 	spin_unlock_bh(&q->lock);
 }
 
+static void mt76x02e_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
+{
+	if (en)
+		tasklet_enable(&dev->pre_tbtt_tasklet);
+	else
+		tasklet_disable(&dev->pre_tbtt_tasklet);
+}
+
+static void mt76x02e_beacon_enable(struct mt76x02_dev *dev, bool en)
+{
+	mt76_rmw_field(dev, MT_INT_TIMER_EN, MT_INT_TIMER_EN_PRE_TBTT_EN, en);
+	if (en)
+		mt76x02_irq_enable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
+	else
+		mt76x02_irq_disable(dev, MT_INT_PRE_TBTT | MT_INT_TBTT);
+}
+
 void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 {
+	static const struct mt76x02_beacon_ops beacon_ops = {
+		.pre_tbtt_enable = mt76x02e_pre_tbtt_enable,
+		.beacon_enable = mt76x02e_beacon_enable,
+	};
+
+	dev->beacon_ops = &beacon_ops;
+
 	/* Fire a pre-TBTT interrupt 8 ms before TBTT */
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_PRE_TBTT, 8 << 4);
 	mt76_rmw_field(dev, MT_INT_TIMER_CFG, MT_INT_TIMER_CFG_GP_TIMER,

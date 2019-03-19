@@ -171,8 +171,22 @@ static enum hrtimer_restart mt76x02u_pre_tbtt_interrupt(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static void mt76x02u_pre_tbtt_enable(struct mt76x02_dev *dev, bool en)
+{
+}
+
+static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
+{
+}
+
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
 {
+	static const struct mt76x02_beacon_ops beacon_ops = {
+		.pre_tbtt_enable = mt76x02u_pre_tbtt_enable,
+		.beacon_enable = mt76x02u_beacon_enable,
+	};
+	dev->beacon_ops = &beacon_ops;
+
 	hrtimer_init(&dev->pre_tbtt_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	dev->pre_tbtt_timer.function = mt76x02u_pre_tbtt_interrupt;
 	INIT_WORK(&dev->pre_tbtt_work, mt76x02u_pre_tbtt_work);

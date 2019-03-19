@@ -57,12 +57,16 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 
 	mt76_set_channel(&dev->mt76);
 
+	dev->beacon_ops->pre_tbtt_enable(dev, false);
+
 	mt76x2_mac_stop(dev, false);
 
 	err = mt76x2u_phy_set_channel(dev, chandef);
 
 	mt76x2_mac_resume(dev);
 	mt76x02_edcca_init(dev, true);
+
+	dev->beacon_ops->pre_tbtt_enable(dev, true);
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 	mt76_txq_schedule_all(&dev->mt76);
