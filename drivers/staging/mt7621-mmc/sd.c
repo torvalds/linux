@@ -493,7 +493,7 @@ static unsigned int msdc_command_resp(struct msdc_host   *host,
 	//sdr_set_bits(host->base + MSDC_INTEN, wints);
 
 	spin_unlock(&host->lock);
-	if (!wait_for_completion_timeout(&host->cmd_done, 10 * timeout)) {
+	if (!wait_for_completion_io_timeout(&host->cmd_done, 10 * timeout)) {
 		dev_err(mmc_dev(host->mmc),
 			"%d -> XXX CMD<%d> wait_for_completion timeout ARG<0x%.8x>\n",
 			host->id, opcode, cmd->arg);
@@ -696,7 +696,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		msdc_dma_start(host);
 
 		spin_unlock(&host->lock);
-		if (!wait_for_completion_timeout(&host->xfer_done, DAT_TIMEOUT)) {
+		if (!wait_for_completion_io_timeout(&host->xfer_done, DAT_TIMEOUT)) {
 			dev_err(mmc_dev(host->mmc),
 				"%d -> XXX CMD<%d> wait xfer_done<%d> timeout!!\n",
 				host->id, cmd->opcode,
