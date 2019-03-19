@@ -86,6 +86,14 @@
 		};
 	};
 
+	usbphy0: usbphy-0 {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
+		status = "okay";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -197,7 +205,8 @@
 				compatible = "fsl,imx50-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
-				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
+				clocks = <&clks IMX5_CLK_USBOH3_GATE>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
