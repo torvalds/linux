@@ -270,7 +270,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			data->inject.value = value;
 		}
 	} else {
-		if (size < sizeof(data))
+		if (size < sizeof(*data))
 			return -EINVAL;
 
 		if (copy_from_user(data, buf, sizeof(*data)))
@@ -1208,14 +1208,15 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		unsigned long *bps, int pages)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_err_handler_data *data = con->eh_data;
+	struct ras_err_handler_data *data;
 	int i = pages;
 	int ret = 0;
 
-	if (!con || !data || !bps || pages <= 0)
+	if (!con || !con->eh_data || !bps || pages <= 0)
 		return 0;
 
 	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
 	if (!data)
 		goto out;
 
@@ -1239,15 +1240,18 @@ out:
 int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_err_handler_data *data = con->eh_data;
+	struct ras_err_handler_data *data;
 	uint64_t bp;
 	struct amdgpu_bo *bo;
 	int i;
 
-	if (!con || !data)
+	if (!con || !con->eh_data)
 		return 0;
 
 	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
+	if (!data)
+		goto out;
 	/* reserve vram at driver post stage. */
 	for (i = data->last_reserved; i < data->count; i++) {
 		bp = data->bps[i].bp;
@@ -1259,6 +1263,7 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 		data->bps[i].bo = bo;
 		data->last_reserved = i + 1;
 	}
+out:
 	mutex_unlock(&con->recovery_lock);
 	return 0;
 }
@@ -1267,14 +1272,18 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 static int amdgpu_ras_release_bad_pages(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_err_handler_data *data = con->eh_data;
+	struct ras_err_handler_data *data;
 	struct amdgpu_bo *bo;
 	int i;
 
-	if (!con || !data)
+	if (!con || !con->eh_data)
 		return 0;
 
 	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
+	if (!data)
+		goto out;
+
 	for (i = data->last_reserved - 1; i >= 0; i--) {
 		bo = data->bps[i].bo;
 
@@ -1283,6 +1292,7 @@ static int amdgpu_ras_release_bad_pages(struct amdgpu_device *adev)
 		data->bps[i].bo = bo;
 		data->last_reserved = i;
 	}
+out:
 	mutex_unlock(&con->recovery_lock);
 	return 0;
 }
