@@ -2128,7 +2128,7 @@
 		power-off-delay-ms = <200>;
 		status = "disabled";
 
-		power_model {
+		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
 			voltage = <900>;
 			frequency = <500>;
