@@ -181,6 +181,73 @@ TRACE_EVENT(ib_mad_send_done_handler,
 	)
 );
 
+TRACE_EVENT(ib_mad_recv_done_handler,
+	TP_PROTO(struct ib_mad_qp_info *qp_info, struct ib_wc *wc,
+		 struct ib_mad_hdr *mad_hdr),
+	TP_ARGS(qp_info, wc, mad_hdr),
+
+	TP_STRUCT__entry(
+		__field(u8,             base_version)
+		__field(u8,             mgmt_class)
+		__field(u8,             class_version)
+		__field(u8,             port_num)
+		__field(u32,            qp_num)
+		__field(u16,            status)
+		__field(u16,            class_specific)
+		__field(u32,            length)
+		__field(u64,            tid)
+		__field(u8,             method)
+		__field(u8,             sl)
+		__field(u16,            attr_id)
+		__field(u32,            attr_mod)
+		__field(u16,            src_qp)
+		__field(u16,            wc_status)
+		__field(u32,            slid)
+		__field(u32,            dev_index)
+		__field(u16,            pkey)
+	),
+
+	TP_fast_assign(
+		__entry->dev_index = qp_info->port_priv->device->index;
+		__entry->port_num = qp_info->port_priv->port_num;
+		__entry->qp_num = qp_info->qp->qp_num;
+		__entry->length = wc->byte_len;
+		__entry->base_version = mad_hdr->base_version;
+		__entry->mgmt_class = mad_hdr->mgmt_class;
+		__entry->class_version = mad_hdr->class_version;
+		__entry->method = mad_hdr->method;
+		__entry->status = mad_hdr->status;
+		__entry->class_specific = mad_hdr->class_specific;
+		__entry->tid = mad_hdr->tid;
+		__entry->attr_id = mad_hdr->attr_id;
+		__entry->attr_mod = mad_hdr->attr_mod;
+		__entry->slid = wc->slid;
+		__entry->src_qp = wc->src_qp;
+		__entry->sl = wc->sl;
+		ib_query_pkey(qp_info->port_priv->device,
+			      qp_info->port_priv->port_num,
+			      wc->pkey_index, &__entry->pkey);
+		__entry->wc_status = wc->status;
+	),
+
+	TP_printk("%d:%d QP%d : RECV WC Status %d : length %d : hdr : " \
+		  "base_ver 0x%02x class 0x%02x class_ver 0x%02x " \
+		  "method 0x%02x status 0x%04x class_specific 0x%04x " \
+		  "tid 0x%016llx attr_id 0x%04x attr_mod 0x%08x " \
+		  "slid 0x%08x src QP%d, sl %d pkey 0x%04x",
+		__entry->dev_index, __entry->port_num, __entry->qp_num,
+		__entry->wc_status,
+		__entry->length,
+		__entry->base_version, __entry->mgmt_class,
+		__entry->class_version, __entry->method,
+		be16_to_cpu(__entry->status),
+		be16_to_cpu(__entry->class_specific),
+		be64_to_cpu(__entry->tid), be16_to_cpu(__entry->attr_id),
+		be32_to_cpu(__entry->attr_mod),
+		__entry->slid, __entry->src_qp, __entry->sl, __entry->pkey
+	)
+);
+
 
 #endif /* _TRACE_IB_MAD_H */
 

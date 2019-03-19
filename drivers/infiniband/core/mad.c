@@ -2305,6 +2305,9 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (!validate_mad((const struct ib_mad_hdr *)recv->mad, qp_info, opa))
 		goto out;
 
+	trace_ib_mad_recv_done_handler(qp_info, wc,
+				       (struct ib_mad_hdr *)recv->mad);
+
 	mad_size = recv->mad_size;
 	response = alloc_mad_private(mad_size, GFP_KERNEL);
 	if (!response)
