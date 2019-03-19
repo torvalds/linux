@@ -198,6 +198,37 @@ static void mock_submit_request(struct i915_request *request)
 	spin_unlock_irqrestore(&engine->hw_lock, flags);
 }
 
+static void mock_reset_prepare(struct intel_engine_cs *engine)
+{
+}
+
+static void mock_reset(struct intel_engine_cs *engine, bool stalled)
+{
+	GEM_BUG_ON(stalled);
+}
+
+static void mock_reset_finish(struct intel_engine_cs *engine)
+{
+}
+
+static void mock_cancel_requests(struct intel_engine_cs *engine)
+{
+	struct i915_request *request;
+	unsigned long flags;
+
+	spin_lock_irqsave(&engine->timeline.lock, flags);
+
+	/* Mark all submitted requests as skipped. */
+	list_for_each_entry(request, &engine->timeline.requests, sched.link) {
+		if (!i915_request_signaled(request))
+			dma_fence_set_error(&request->fence, -EIO);
+
+		i915_request_mark_complete(request);
+	}
+
+	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+}
+
 struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 				    const char *name,
 				    int id)
@@ -222,6 +253,11 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.emit_flush = mock_emit_flush;
 	engine->base.emit_fini_breadcrumb = mock_emit_breadcrumb;
 	engine->base.submit_request = mock_submit_request;
+
+	engine->base.reset.prepare = mock_reset_prepare;
+	engine->base.reset.reset = mock_reset;
+	engine->base.reset.finish = mock_reset_finish;
+	engine->base.cancel_requests = mock_cancel_requests;
 
 	if (i915_timeline_init(i915,
 			       &engine->base.timeline,
