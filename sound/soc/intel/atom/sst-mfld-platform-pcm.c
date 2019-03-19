@@ -687,20 +687,15 @@ static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	int retval = 0;
 
 	if (dai->driver->playback.channels_min ||
 			dai->driver->capture.channels_min) {
-		retval =  snd_pcm_lib_preallocate_pages_for_all(pcm,
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
 			snd_dma_continuous_data(GFP_DMA),
 			SST_MIN_BUFFER, SST_MAX_BUFFER);
-		if (retval) {
-			dev_err(rtd->dev, "dma buffer allocation failure\n");
-			return retval;
-		}
 	}
-	return retval;
+	return 0;
 }
 
 static int sst_soc_probe(struct snd_soc_component *component)
