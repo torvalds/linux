@@ -323,8 +323,6 @@ static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
-static int cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
-					const char *devname, bool is_smb3);
 static char *extract_hostname(const char *unc);
 
 /*
@@ -2904,8 +2902,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 	return NULL;
 }
 
-static void
-cifs_put_smb_ses(struct cifs_ses *ses)
+void cifs_put_smb_ses(struct cifs_ses *ses)
 {
 	unsigned int rc, xid;
 	struct TCP_Server_Info *server = ses->server;
@@ -3082,7 +3079,7 @@ cifs_set_cifscreds(struct smb_vol *vol __attribute__((unused)),
  * already got a server reference (server refcount +1). See
  * cifs_get_tcon() for refcount explanations.
  */
-static struct cifs_ses *
+struct cifs_ses *
 cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 {
 	int rc = -ENOMEM;
@@ -4389,7 +4386,7 @@ static int mount_do_dfs_failover(const char *path,
 }
 #endif
 
-static int
+int
 cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 			const char *devname, bool is_smb3)
 {
@@ -4543,7 +4540,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	struct cifs_tcon *tcon = NULL;
 	struct TCP_Server_Info *server;
 	char *root_path = NULL, *full_path = NULL;
-	char *old_mountdata;
+	char *old_mountdata, *origin_mountdata = NULL;
 	int count;
 
 	rc = mount_get_conns(vol, cifs_sb, &xid, &server, &ses, &tcon);
@@ -4599,6 +4596,14 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 
 	if (cifs_sb->mountdata == NULL) {
 		rc = -ENOENT;
+		goto error;
+	}
+
+	/* Save DFS root volume information for DFS refresh worker */
+	origin_mountdata = kstrndup(cifs_sb->mountdata,
+				    strlen(cifs_sb->mountdata), GFP_KERNEL);
+	if (!origin_mountdata) {
+		rc = -ENOMEM;
 		goto error;
 	}
 
@@ -4710,7 +4715,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	rc = dfs_cache_add_vol(vol, cifs_sb->origin_fullpath);
+	rc = dfs_cache_add_vol(origin_mountdata, vol, cifs_sb->origin_fullpath);
 	if (rc) {
 		kfree(cifs_sb->origin_fullpath);
 		goto error;
@@ -4728,6 +4733,7 @@ out:
 error:
 	kfree(full_path);
 	kfree(root_path);
+	kfree(origin_mountdata);
 	mount_put_conns(cifs_sb, xid, server, ses, tcon);
 	return rc;
 }
