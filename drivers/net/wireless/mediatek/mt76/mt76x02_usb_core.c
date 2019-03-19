@@ -107,6 +107,13 @@ EXPORT_SYMBOL_GPL(mt76x02u_tx_prepare_skb);
 
 /* Trigger pre-TBTT event 8 ms before TBTT */
 #define PRE_TBTT_USEC 8000
+
+/* Beacon SRAM memory is limited to 8kB. We need to send PS buffered frames
+ * (which can be 1500 bytes big) via beacon memory. That make limit of number
+ * of slots to 5. TODO: dynamically calculate offsets in beacon SRAM.
+ */
+#define N_BCN_SLOTS 5
+
 static void mt76x02u_start_pre_tbtt_timer(struct mt76x02_dev *dev)
 {
 	u64 time;
@@ -164,7 +171,6 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev =
 		container_of(work, struct mt76x02_dev, pre_tbtt_work);
-	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i, nbeacons;
@@ -179,14 +185,10 @@ static void mt76x02u_pre_tbtt_work(struct work_struct *work)
 		mt76x02_update_beacon_iter, dev);
 
 	nbeacons = hweight8(dev->beacon_mask);
-	mt76x02_enqueue_buffered_bc(dev, &data, 8 - nbeacons);
+	mt76x02_enqueue_buffered_bc(dev, &data, N_BCN_SLOTS - nbeacons);
 
-	for (i = nbeacons; i < 8; i++) {
+	for (i = nbeacons; i < N_BCN_SLOTS; i++) {
 		skb = __skb_dequeue(&data.q);
-		if (skb && skb->len >= beacon_len) {
-			dev_kfree_skb(skb);
-			skb = NULL;
-		}
 		mt76x02_mac_set_beacon(dev, i, skb);
 	}
 
@@ -224,7 +226,7 @@ static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 		/* Timer is already stopped, only clean up
 		 * PS buffered frames if any.
 		 */
-		for (i = 0; i < 8; i++)
+		for (i = 0; i < N_BCN_SLOTS; i++)
 			mt76x02_mac_set_beacon(dev, i, NULL);
 	}
 }
@@ -232,6 +234,8 @@ static void mt76x02u_beacon_enable(struct mt76x02_dev *dev, bool en)
 void mt76x02u_init_beacon_config(struct mt76x02_dev *dev)
 {
 	static const struct mt76x02_beacon_ops beacon_ops = {
+		.nslots = N_BCN_SLOTS,
+		.slot_size = (8192 / N_BCN_SLOTS) & ~63,
 		.pre_tbtt_enable = mt76x02u_pre_tbtt_enable,
 		.beacon_enable = mt76x02u_beacon_enable,
 	};

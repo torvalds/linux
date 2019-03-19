@@ -69,6 +69,8 @@ struct mt76x02_calibration {
 };
 
 struct mt76x02_beacon_ops {
+	unsigned int nslots;
+	unsigned int slot_size;
 	void (*pre_tbtt_enable) (struct mt76x02_dev *, bool);
 	void (*beacon_enable) (struct mt76x02_dev *, bool);
 };
@@ -194,7 +196,6 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info, u32 changed);
 
-extern const u16 mt76x02_beacon_offsets[16];
 struct beacon_bc_data {
 	struct mt76x02_dev *dev;
 	struct sk_buff_head q;

@@ -18,36 +18,14 @@
 
 #include "mt76x02.h"
 
-const u16 mt76x02_beacon_offsets[16] = {
-	/* 1024 byte per beacon */
-	0xc000,
-	0xc400,
-	0xc800,
-	0xcc00,
-	0xd000,
-	0xd400,
-	0xd800,
-	0xdc00,
-	/* BSS idx 8-15 not used for beacons */
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-	0xc000,
-};
-EXPORT_SYMBOL_GPL(mt76x02_beacon_offsets);
-
 static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 {
-	u16 val, base = MT_BEACON_BASE;
 	u32 regs[4] = {};
+	u16 val;
 	int i;
 
-	for (i = 0; i < 16; i++) {
-		val = mt76x02_beacon_offsets[i] - base;
+	for (i = 0; i < dev->beacon_ops->nslots; i++) {
+		val = i * dev->beacon_ops->slot_size;
 		regs[i / 4] |= (val / 64) << (8 * (i % 4));
 	}
 
@@ -58,7 +36,7 @@ static void mt76x02_set_beacon_offsets(struct mt76x02_dev *dev)
 static int
 mt76x02_write_beacon(struct mt76x02_dev *dev, int offset, struct sk_buff *skb)
 {
-	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
+	int beacon_len = dev->beacon_ops->slot_size;
 	struct mt76x02_txwi txwi;
 
 	if (WARN_ON_ONCE(beacon_len < skb->len + sizeof(struct mt76x02_txwi)))
@@ -77,8 +55,8 @@ static int
 __mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 bcn_idx,
 			 struct sk_buff *skb)
 {
-	int beacon_len = mt76x02_beacon_offsets[1] - mt76x02_beacon_offsets[0];
-	int beacon_addr = mt76x02_beacon_offsets[bcn_idx];
+	int beacon_len = dev->beacon_ops->slot_size;
+	int beacon_addr = MT_BEACON_BASE + (beacon_len * bcn_idx);
 	int ret = 0;
 	int i;
 

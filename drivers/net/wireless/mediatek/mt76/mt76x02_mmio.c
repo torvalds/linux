@@ -85,6 +85,8 @@ static void mt76x02e_beacon_enable(struct mt76x02_dev *dev, bool en)
 void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 {
 	static const struct mt76x02_beacon_ops beacon_ops = {
+		.nslots = 8,
+		.slot_size = 1024,
 		.pre_tbtt_enable = mt76x02e_pre_tbtt_enable,
 		.beacon_enable = mt76x02e_beacon_enable,
 	};
