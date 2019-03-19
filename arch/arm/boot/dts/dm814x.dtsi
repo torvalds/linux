@@ -222,6 +222,30 @@
 				#interrupt-cells = <2>;
 			};
 
+			gpio3: gpio@1ac000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio3";
+				ti,gpio-always-on;
+				reg = <0x1ac000 0x2000>;
+				interrupts = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio4: gpio@1ae000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio4";
+				ti,gpio-always-on;
+				reg = <0x1ae000 0x2000>;
+				interrupts = <62>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
 			i2c2: i2c@2a000 {
 				compatible = "ti,omap4-i2c";
 				#address-cells = <1>;
@@ -240,8 +264,46 @@
 				ti,spi-num-cs = <4>;
 				ti,hwmods = "mcspi1";
 				dmas = <&edma 16 0 &edma 17 0
-					&edma 18 0 &edma 19 0>;
+					&edma 18 0 &edma 19 0
+					&edma 20 0 &edma 21 0
+					&edma 22 0 &edma 23 0>;
+
+				dma-names = "tx0", "rx0", "tx1", "rx1",
+					"tx2", "rx2", "tx3", "rx3";
+			};
+
+			mcspi2: spi@1a0000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a0000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <125>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi2";
+				dmas = <&edma 42 0 &edma 43 0
+					&edma 44 0 &edma 45 0>;
 				dma-names = "tx0", "rx0", "tx1", "rx1";
+			};
+
+			/* Board must configure dmas with edma_xbar for EDMA */
+			mcspi3: spi@1a2000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a2000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <126>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi3";
+			};
+
+			mcspi4: spi@1a4000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a4000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <127>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi4";
 			};
 
 			timer1: timer@2e000 {
@@ -342,6 +404,12 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 					ranges = <0 0 0x800>;
+
+					phy_gmii_sel: phy-gmii-sel {
+						compatible = "ti,dm814-phy-gmii-sel";
+						reg = <0x650 0x4>;
+						#phy-cells = <1>;
+					};
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -549,17 +617,14 @@
 			cpsw_emac0: slave@4a100200 {
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
+				phys = <&phy_gmii_sel 1>;
+
 			};
 
 			cpsw_emac1: slave@4a100300 {
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
-			};
-
-			phy_sel: cpsw-phy-sel@48140650 {
-				compatible = "ti,am3352-cpsw-phy-sel";
-				reg= <0x48140650 0x4>;
-				reg-names = "gmii-sel";
+				phys = <&phy_gmii_sel 2>;
 			};
 		};
 

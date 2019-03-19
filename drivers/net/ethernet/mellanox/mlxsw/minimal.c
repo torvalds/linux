@@ -34,6 +34,18 @@ struct mlxsw_m_port {
 	u8 module;
 };
 
+static int mlxsw_m_base_mac_get(struct mlxsw_m *mlxsw_m)
+{
+	char spad_pl[MLXSW_REG_SPAD_LEN] = {0};
+	int err;
+
+	err = mlxsw_reg_query(mlxsw_m->core, MLXSW_REG(spad), spad_pl);
+	if (err)
+		return err;
+	mlxsw_reg_spad_base_mac_memcpy_from(spad_pl, mlxsw_m->base_mac);
+	return 0;
+}
+
 static int mlxsw_m_port_dummy_open_stop(struct net_device *dev)
 {
 	return 0;
@@ -313,6 +325,12 @@ static int mlxsw_m_init(struct mlxsw_core *mlxsw_core,
 
 	mlxsw_m->core = mlxsw_core;
 	mlxsw_m->bus_info = mlxsw_bus_info;
+
+	err = mlxsw_m_base_mac_get(mlxsw_m);
+	if (err) {
+		dev_err(mlxsw_m->bus_info->dev, "Failed to get base mac\n");
+		return err;
+	}
 
 	err = mlxsw_m_ports_create(mlxsw_m);
 	if (err) {

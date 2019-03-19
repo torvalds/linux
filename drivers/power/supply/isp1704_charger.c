@@ -30,13 +30,12 @@
 #include <linux/power_supply.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 
+#include <linux/gpio/consumer.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/power/isp1704_charger.h>
 
 /* Vendor specific Power Control register */
 #define ISP1704_PWR_CTRL		0x3d
@@ -60,6 +59,7 @@ struct isp1704_charger {
 	struct device			*dev;
 	struct power_supply		*psy;
 	struct power_supply_desc	psy_desc;
+	struct gpio_desc		*enable_gpio;
 	struct usb_phy			*phy;
 	struct notifier_block		nb;
 	struct work_struct		work;
@@ -81,18 +81,9 @@ static inline int isp1704_write(struct isp1704_charger *isp, u32 reg, u32 val)
 	return usb_phy_io_write(isp->phy, val, reg);
 }
 
-/*
- * Disable/enable the power from the isp1704 if a function for it
- * has been provided with platform data.
- */
 static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
 {
-	struct isp1704_charger_data	*board = isp->dev->platform_data;
-
-	if (board && board->set_power)
-		board->set_power(on);
-	else if (board)
-		gpio_set_value(board->enable_gpio, on);
+	gpiod_set_value(isp->enable_gpio, on);
 }
 
 /*
@@ -405,46 +396,19 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	int			ret = -ENODEV;
 	struct power_supply_config psy_cfg = {};
 
-	struct isp1704_charger_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np) {
-		int gpio = of_get_named_gpio(np, "nxp,enable-gpio", 0);
-
-		if (gpio < 0) {
-			dev_err(&pdev->dev, "missing DT GPIO nxp,enable-gpio\n");
-			return gpio;
-		}
-
-		pdata = devm_kzalloc(&pdev->dev,
-			sizeof(struct isp1704_charger_data), GFP_KERNEL);
-		if (!pdata) {
-			ret = -ENOMEM;
-			goto fail0;
-		}
-		pdata->enable_gpio = gpio;
-
-		dev_info(&pdev->dev, "init gpio %d\n", pdata->enable_gpio);
-
-		ret = devm_gpio_request_one(&pdev->dev, pdata->enable_gpio,
-					GPIOF_OUT_INIT_HIGH, "isp1704_reset");
-		if (ret) {
-			dev_err(&pdev->dev, "gpio request failed\n");
-			goto fail0;
-		}
-	}
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "missing platform data!\n");
-		return -ENODEV;
-	}
-
-
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
 
-	if (np)
+	isp->enable_gpio = devm_gpiod_get(&pdev->dev, "nxp,enable",
+					  GPIOD_OUT_HIGH);
+	if (IS_ERR(isp->enable_gpio)) {
+		ret = PTR_ERR(isp->enable_gpio);
+		dev_err(&pdev->dev, "Could not get reset gpio: %d\n", ret);
+		return ret;
+	}
+
+	if (pdev->dev.of_node)
 		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	else
 		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);

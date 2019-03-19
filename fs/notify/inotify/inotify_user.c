@@ -189,7 +189,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	 */
 	pad_name_len = round_event_name_len(fsn_event);
 	inotify_event.len = pad_name_len;
-	inotify_event.mask = inotify_mask_to_arg(fsn_event->mask);
+	inotify_event.mask = inotify_mask_to_arg(event->mask);
 	inotify_event.wd = event->wd;
 	inotify_event.cookie = event->sync_cookie;
 
@@ -634,7 +634,8 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 		return ERR_PTR(-ENOMEM);
 	}
 	group->overflow_event = &oevent->fse;
-	fsnotify_init_event(group->overflow_event, NULL, FS_Q_OVERFLOW);
+	fsnotify_init_event(group->overflow_event, NULL);
+	oevent->mask = FS_Q_OVERFLOW;
 	oevent->wd = -1;
 	oevent->sync_cookie = 0;
 	oevent->name_len = 0;

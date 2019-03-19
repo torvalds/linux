@@ -616,7 +616,8 @@ static struct device_attribute *aac_dev_attrs[] = {
 	NULL,
 };
 
-static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
+static int aac_ioctl(struct scsi_device *sdev, unsigned int cmd,
+		     void __user *arg)
 {
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
 	if (!capable(CAP_SYS_RAWIO))
@@ -852,8 +853,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
 
 	address = (u64)fib->hw_error_pa;
 	rst->error_ptr_hi = cpu_to_le32((u32)(address >> 32));
-	rst->error_ptr_lo = cpu_to_le32
-		((u32)(address & 0xffffffff));
+	rst->error_ptr_lo = cpu_to_le32((u32)(address & 0xffffffff));
 	rst->error_length = cpu_to_le32(FW_ERROR_BUFFER_SIZE);
 	fib->hbacmd_size = sizeof(*rst);
 
@@ -1206,7 +1206,8 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 	return ret;
 }
 
-static int aac_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
+static int aac_compat_ioctl(struct scsi_device *sdev, unsigned int cmd,
+			    void __user *arg)
 {
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
 	if (!capable(CAP_SYS_RAWIO))

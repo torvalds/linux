@@ -184,7 +184,7 @@ static int ene_hw_detect(struct ene_device *dev)
 	return 0;
 }
 
-/* Read properities of hw sample buffer */
+/* Read properties of hw sample buffer */
 static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 {
 	u16 tmp;

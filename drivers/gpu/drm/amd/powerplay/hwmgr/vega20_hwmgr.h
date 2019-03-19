@@ -520,6 +520,9 @@ struct vega20_hwmgr {
 	/* ---- Gfxoff ---- */
 	bool                           gfxoff_allowed;
 	uint32_t                       counter_gfxoff;
+
+	unsigned long                  metrics_time;
+	SmuMetrics_t                   metrics_table;
 };
 
 #define VEGA20_DPM2_NEAR_TDP_DEC                      10

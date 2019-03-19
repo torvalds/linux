@@ -288,12 +288,12 @@ struct smb2_encryption_neg_context {
 	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
 } __packed;
 
-#define POSIX_CTXT_DATA_LEN	8
+#define POSIX_CTXT_DATA_LEN	16
 struct smb2_posix_neg_context {
 	__le16	ContextType; /* 0x100 */
 	__le16	DataLength;
 	__le32	Reserved;
-	__le64	Reserved1; /* In case needed for future (eg version or caps) */
+	__u8	Name[16]; /* POSIX ctxt GUID 93AD25509CB411E7B42383DE968BCD7C */
 } __packed;
 
 struct smb2_negotiate_rsp {

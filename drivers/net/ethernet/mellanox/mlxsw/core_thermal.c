@@ -111,7 +111,6 @@ struct mlxsw_thermal {
 	struct mlxsw_thermal_trip trips[MLXSW_THERMAL_NUM_TRIPS];
 	enum thermal_device_mode mode;
 	struct mlxsw_thermal_module *tz_module_arr;
-	unsigned int tz_module_num;
 };
 
 static inline u8 mlxsw_state_to_duty(int state)
@@ -711,6 +710,9 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 
 	module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
 	module_tz = &thermal->tz_module_arr[module];
+	/* Skip if parent is already set (case of port split). */
+	if (module_tz->parent)
+		return 0;
 	module_tz->module = module;
 	module_tz->parent = thermal;
 	memcpy(module_tz->trips, default_thermal_trips,
@@ -718,13 +720,7 @@ mlxsw_thermal_module_init(struct device *dev, struct mlxsw_core *core,
 	/* Initialize all trip point. */
 	mlxsw_thermal_module_trips_reset(module_tz);
 	/* Update trip point according to the module data. */
-	err = mlxsw_thermal_module_trips_update(dev, core, module_tz);
-	if (err)
-		return err;
-
-	thermal->tz_module_num++;
-
-	return 0;
+	return mlxsw_thermal_module_trips_update(dev, core, module_tz);
 }
 
 static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
@@ -732,6 +728,7 @@ static void mlxsw_thermal_module_fini(struct mlxsw_thermal_module *module_tz)
 	if (module_tz && module_tz->tzdev) {
 		mlxsw_thermal_module_tz_fini(module_tz->tzdev);
 		module_tz->tzdev = NULL;
+		module_tz->parent = NULL;
 	}
 }
 
@@ -740,6 +737,7 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 			   struct mlxsw_thermal *thermal)
 {
 	unsigned int module_count = mlxsw_core_max_ports(core);
+	struct mlxsw_thermal_module *module_tz;
 	int i, err;
 
 	thermal->tz_module_arr = kcalloc(module_count,
@@ -754,8 +752,11 @@ mlxsw_thermal_modules_init(struct device *dev, struct mlxsw_core *core,
 			goto err_unreg_tz_module_arr;
 	}
 
-	for (i = 0; i < thermal->tz_module_num; i++) {
-		err = mlxsw_thermal_module_tz_init(&thermal->tz_module_arr[i]);
+	for (i = 0; i < module_count - 1; i++) {
+		module_tz = &thermal->tz_module_arr[i];
+		if (!module_tz->parent)
+			continue;
+		err = mlxsw_thermal_module_tz_init(module_tz);
 		if (err)
 			goto err_unreg_tz_module_arr;
 	}

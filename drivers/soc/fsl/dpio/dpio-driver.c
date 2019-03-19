@@ -14,6 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/sys_soc.h>
 
 #include <linux/fsl/mc.h>
 #include <soc/fsl/dpaa2-io.h>
@@ -31,6 +32,46 @@ struct dpio_priv {
 };
 
 static cpumask_var_t cpus_unused_mask;
+
+static const struct soc_device_attribute ls1088a_soc[] = {
+	{.family = "QorIQ LS1088A"},
+	{ /* sentinel */ }
+};
+
+static const struct soc_device_attribute ls2080a_soc[] = {
+	{.family = "QorIQ LS2080A"},
+	{ /* sentinel */ }
+};
+
+static const struct soc_device_attribute ls2088a_soc[] = {
+	{.family = "QorIQ LS2088A"},
+	{ /* sentinel */ }
+};
+
+static const struct soc_device_attribute lx2160a_soc[] = {
+	{.family = "QorIQ LX2160A"},
+	{ /* sentinel */ }
+};
+
+static int dpaa2_dpio_get_cluster_sdest(struct fsl_mc_device *dpio_dev, int cpu)
+{
+	int cluster_base, cluster_size;
+
+	if (soc_device_match(ls1088a_soc)) {
+		cluster_base = 2;
+		cluster_size = 4;
+	} else if (soc_device_match(ls2080a_soc) ||
+		   soc_device_match(ls2088a_soc) ||
+		   soc_device_match(lx2160a_soc)) {
+		cluster_base = 0;
+		cluster_size = 2;
+	} else {
+		dev_err(&dpio_dev->dev, "unknown SoC version\n");
+		return -1;
+	}
+
+	return cluster_base + cpu / cluster_size;
+}
 
 static irqreturn_t dpio_irq_handler(int irq_num, void *arg)
 {
@@ -89,6 +130,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	int err = -ENOMEM;
 	struct device *dev = &dpio_dev->dev;
 	int possible_next_cpu;
+	int sdest;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -144,6 +186,16 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	}
 	desc.cpu = possible_next_cpu;
 	cpumask_clear_cpu(possible_next_cpu, cpus_unused_mask);
+
+	sdest = dpaa2_dpio_get_cluster_sdest(dpio_dev, desc.cpu);
+	if (sdest >= 0) {
+		err = dpio_set_stashing_destination(dpio_dev->mc_io, 0,
+						    dpio_dev->mc_handle,
+						    sdest);
+		if (err)
+			dev_err(dev, "dpio_set_stashing_destination failed for cpu%d\n",
+				desc.cpu);
+	}
 
 	/*
 	 * Set the CENA regs to be the cache inhibited area of the portal to
@@ -220,12 +272,12 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 
 	dev = &dpio_dev->dev;
 	priv = dev_get_drvdata(dev);
+	cpu = dpaa2_io_get_cpu(priv->io);
 
 	dpaa2_io_down(priv->io);
 
 	dpio_teardown_irqs(dpio_dev);
 
-	cpu = dpaa2_io_get_cpu(priv->io);
 	cpumask_set_cpu(cpu, cpus_unused_mask);
 
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,

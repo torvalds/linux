@@ -238,6 +238,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_RDMA_NETDEV_OPA_VNIC		= (1ULL << 35),
 	/* The device supports padding incoming writes to cacheline. */
 	IB_DEVICE_PCI_WRITE_END_PADDING		= (1ULL << 36),
+	IB_DEVICE_ALLOW_USER_UNREG		= (1ULL << 37),
 };
 
 enum ib_signature_prot_cap {
@@ -268,6 +269,7 @@ enum ib_odp_transport_cap_bits {
 	IB_ODP_SUPPORT_WRITE	= 1 << 2,
 	IB_ODP_SUPPORT_READ	= 1 << 3,
 	IB_ODP_SUPPORT_ATOMIC	= 1 << 4,
+	IB_ODP_SUPPORT_SRQ_RECV	= 1 << 5,
 };
 
 struct ib_odp_caps {
@@ -276,6 +278,7 @@ struct ib_odp_caps {
 		uint32_t  rc_odp_caps;
 		uint32_t  uc_odp_caps;
 		uint32_t  ud_odp_caps;
+		uint32_t  xrc_odp_caps;
 	} per_transport_caps;
 };
 
@@ -1504,12 +1507,10 @@ struct ib_ucontext {
 
 	bool cleanup_retryable;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	void (*invalidate_range)(struct ib_umem_odp *umem_odp,
 				 unsigned long start, unsigned long end);
 	struct mutex per_mm_list_lock;
 	struct list_head per_mm_list;
-#endif
 
 	struct ib_rdmacg_object	cg_obj;
 	/*
@@ -2186,7 +2187,6 @@ struct ib_port_cache {
 struct ib_cache {
 	rwlock_t                lock;
 	struct ib_event_handler event_handler;
-	struct ib_port_cache   *ports;
 };
 
 struct iw_cm_verbs;
@@ -2196,6 +2196,21 @@ struct ib_port_immutable {
 	int                           gid_tbl_len;
 	u32                           core_cap_flags;
 	u32                           max_mad_size;
+};
+
+struct ib_port_data {
+	struct ib_device *ib_dev;
+
+	struct ib_port_immutable immutable;
+
+	spinlock_t pkey_list_lock;
+	struct list_head pkey_list;
+
+	struct ib_port_cache cache;
+
+	spinlock_t netdev_lock;
+	struct net_device __rcu *netdev;
+	struct hlist_node ndev_hash_link;
 };
 
 /* rdma netdev type - specifies protocol type */
@@ -2243,12 +2258,6 @@ struct rdma_netdev_alloc_params {
 				      struct net_device *netdev, void *param);
 };
 
-struct ib_port_pkey_list {
-	/* Lock to hold while modifying the list. */
-	spinlock_t                    list_lock;
-	struct list_head              pkey_list;
-};
-
 struct ib_counters {
 	struct ib_device	*device;
 	struct ib_uobject	*uobject;
@@ -2263,6 +2272,19 @@ struct ib_counters_read_attr {
 };
 
 struct uverbs_attr_bundle;
+
+#define INIT_RDMA_OBJ_SIZE(ib_struct, drv_struct, member)                      \
+	.size_##ib_struct =                                                    \
+		(sizeof(struct drv_struct) +                                   \
+		 BUILD_BUG_ON_ZERO(offsetof(struct drv_struct, member)) +      \
+		 BUILD_BUG_ON_ZERO(                                            \
+			 !__same_type(((struct drv_struct *)NULL)->member,     \
+				      struct ib_struct)))
+
+#define rdma_zalloc_drv_obj(ib_dev, ib_type)                                   \
+	((struct ib_type *)kzalloc(ib_dev->ops.size_##ib_type, GFP_KERNEL))
+
+#define DECLARE_RDMA_OBJ_SIZE(ib_struct) size_t size_##ib_struct
 
 /**
  * struct ib_device_ops - InfiniBand device operations
@@ -2367,15 +2389,14 @@ struct ib_device_ops {
 	int (*del_gid)(const struct ib_gid_attr *attr, void **context);
 	int (*query_pkey)(struct ib_device *device, u8 port_num, u16 index,
 			  u16 *pkey);
-	struct ib_ucontext *(*alloc_ucontext)(struct ib_device *device,
-					      struct ib_udata *udata);
-	int (*dealloc_ucontext)(struct ib_ucontext *context);
+	int (*alloc_ucontext)(struct ib_ucontext *context,
+			      struct ib_udata *udata);
+	void (*dealloc_ucontext)(struct ib_ucontext *context);
 	int (*mmap)(struct ib_ucontext *context, struct vm_area_struct *vma);
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
-	struct ib_pd *(*alloc_pd)(struct ib_device *device,
-				  struct ib_ucontext *context,
-				  struct ib_udata *udata);
-	int (*dealloc_pd)(struct ib_pd *pd);
+	int (*alloc_pd)(struct ib_pd *pd, struct ib_ucontext *context,
+			struct ib_udata *udata);
+	void (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *(*create_ah)(struct ib_pd *pd,
 				   struct rdma_ah_attr *ah_attr, u32 flags,
 				   struct ib_udata *udata);
@@ -2506,33 +2527,56 @@ struct ib_device_ops {
 	 */
 	int (*get_hw_stats)(struct ib_device *device,
 			    struct rdma_hw_stats *stats, u8 port, int index);
+	/*
+	 * This function is called once for each port when a ib device is
+	 * registered.
+	 */
+	int (*init_port)(struct ib_device *device, u8 port_num,
+			 struct kobject *port_sysfs);
+	/**
+	 * Allows rdma drivers to add their own restrack attributes.
+	 */
+	int (*fill_res_entry)(struct sk_buff *msg,
+			      struct rdma_restrack_entry *entry);
+
+	/* Device lifecycle callbacks */
+	/*
+	 * Called after the device becomes registered, before clients are
+	 * attached
+	 */
+	int (*enable_driver)(struct ib_device *dev);
+	/*
+	 * This is called as part of ib_dealloc_device().
+	 */
+	void (*dealloc_driver)(struct ib_device *dev);
+
+	DECLARE_RDMA_OBJ_SIZE(ib_pd);
+	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };
+
+struct rdma_restrack_root;
 
 struct ib_device {
 	/* Do not access @dma_device directly from ULP nor from HW drivers. */
 	struct device                *dma_device;
 	struct ib_device_ops	     ops;
 	char                          name[IB_DEVICE_NAME_MAX];
+	struct rcu_head rcu_head;
 
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
-	rwlock_t			client_data_lock;
-	struct list_head              core_list;
-	/* Access to the client_data_list is protected by the client_data_lock
-	 * rwlock and the lists_rwsem read-write semaphore
-	 */
-	struct list_head              client_data_list;
+	struct rw_semaphore	      client_data_rwsem;
+	struct xarray                 client_data;
+	struct mutex                  unregistration_lock;
 
 	struct ib_cache               cache;
 	/**
-	 * port_immutable is indexed by port number
+	 * port_data is indexed by port number
 	 */
-	struct ib_port_immutable     *port_immutable;
+	struct ib_port_data *port_data;
 
 	int			      num_comp_vectors;
-
-	struct ib_port_pkey_list     *port_pkey_list;
 
 	struct iw_cm_verbs	     *iwcm;
 
@@ -2547,12 +2591,6 @@ struct ib_device {
 	struct kobject			*ports_kobj;
 	struct list_head             port_list;
 
-	enum {
-		IB_DEV_UNINITIALIZED,
-		IB_DEV_REGISTERED,
-		IB_DEV_UNREGISTERED
-	}                            reg_state;
-
 	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
 	u64			     uverbs_ex_cmd_mask;
@@ -2561,6 +2599,8 @@ struct ib_device {
 	__be64			     node_guid;
 	u32			     local_dma_lkey;
 	u16                          is_switch:1;
+	/* Indicates kernel verbs support, should not be used in drivers */
+	u16                          kverbs_provider:1;
 	u8                           node_type;
 	u8                           phys_port_cnt;
 	struct ib_device_attr        attrs;
@@ -2572,10 +2612,7 @@ struct ib_device {
 #endif
 
 	u32                          index;
-	/*
-	 * Implementation details of the RDMA core, don't use in drivers
-	 */
-	struct rdma_restrack_root     res;
+	struct rdma_restrack_root *res;
 
 	const struct uapi_definition   *driver_def;
 	enum rdma_driver_id		driver_id;
@@ -2586,10 +2623,13 @@ struct ib_device {
 	 */
 	refcount_t refcount;
 	struct completion unreg_completion;
+	struct work_struct unregistration_work;
+
+	const struct rdma_link_ops *link_ops;
 };
 
 struct ib_client {
-	char  *name;
+	const char *name;
 	void (*add)   (struct ib_device *);
 	void (*remove)(struct ib_device *, void *client_data);
 
@@ -2616,22 +2656,47 @@ struct ib_client {
 			const struct sockaddr *addr,
 			void *client_data);
 	struct list_head list;
+	u32 client_id;
+
+	/* kverbs are not required by the client */
+	u8 no_kverbs_req:1;
 };
 
-struct ib_device *ib_alloc_device(size_t size);
+struct ib_device *_ib_alloc_device(size_t size);
+#define ib_alloc_device(drv_struct, member)                                    \
+	container_of(_ib_alloc_device(sizeof(struct drv_struct) +              \
+				      BUILD_BUG_ON_ZERO(offsetof(              \
+					      struct drv_struct, member))),    \
+		     struct drv_struct, member)
+
 void ib_dealloc_device(struct ib_device *device);
 
 void ib_get_device_fw_str(struct ib_device *device, char *str);
 
-int ib_register_device(struct ib_device *device, const char *name,
-		       int (*port_callback)(struct ib_device *, u8,
-					    struct kobject *));
+int ib_register_device(struct ib_device *device, const char *name);
 void ib_unregister_device(struct ib_device *device);
+void ib_unregister_driver(enum rdma_driver_id driver_id);
+void ib_unregister_device_and_put(struct ib_device *device);
+void ib_unregister_device_queued(struct ib_device *ib_dev);
 
 int ib_register_client   (struct ib_client *client);
 void ib_unregister_client(struct ib_client *client);
 
-void *ib_get_client_data(struct ib_device *device, struct ib_client *client);
+/**
+ * ib_get_client_data - Get IB client context
+ * @device:Device to get context for
+ * @client:Client to get context for
+ *
+ * ib_get_client_data() returns the client context data set with
+ * ib_set_client_data(). This can only be called while the client is
+ * registered to the device, once the ib_client remove() callback returns this
+ * cannot be called.
+ */
+static inline void *ib_get_client_data(struct ib_device *device,
+				       struct ib_client *client)
+{
+	return xa_load(&device->client_data, client->client_id);
+}
 void  ib_set_client_data(struct ib_device *device, struct ib_client *client,
 			 void *data);
 void ib_set_device_ops(struct ib_device *device,
@@ -2790,6 +2855,16 @@ static inline u8 rdma_start_port(const struct ib_device *device)
 }
 
 /**
+ * rdma_for_each_port - Iterate over all valid port numbers of the IB device
+ * @device - The struct ib_device * to iterate over
+ * @iter - The unsigned int to store the port number
+ */
+#define rdma_for_each_port(device, iter)                                       \
+	for (iter = rdma_start_port(device + BUILD_BUG_ON_ZERO(!__same_type(   \
+						     unsigned int, iter)));    \
+	     iter <= rdma_end_port(device); (iter)++)
+
+/**
  * rdma_end_port - Return the last valid port number for the device
  * specified
  *
@@ -2812,34 +2887,38 @@ static inline int rdma_is_port_valid(const struct ib_device *device,
 static inline bool rdma_is_grh_required(const struct ib_device *device,
 					u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags &
-		RDMA_CORE_PORT_IB_GRH_REQUIRED;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_PORT_IB_GRH_REQUIRED;
 }
 
 static inline bool rdma_protocol_ib(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_IB;
 }
 
 static inline bool rdma_protocol_roce(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags &
-		(RDMA_CORE_CAP_PROT_ROCE | RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP);
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       (RDMA_CORE_CAP_PROT_ROCE | RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP);
 }
 
 static inline bool rdma_protocol_roce_udp_encap(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP;
 }
 
 static inline bool rdma_protocol_roce_eth_encap(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_ROCE;
 }
 
 static inline bool rdma_protocol_iwarp(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_IWARP;
 }
 
 static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
@@ -2850,12 +2929,14 @@ static inline bool rdma_ib_or_roce(const struct ib_device *device, u8 port_num)
 
 static inline bool rdma_protocol_raw_packet(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_RAW_PACKET;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_RAW_PACKET;
 }
 
 static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_USNIC;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_PROT_USNIC;
 }
 
 /**
@@ -2872,7 +2953,8 @@ static inline bool rdma_protocol_usnic(const struct ib_device *device, u8 port_n
  */
 static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_MAD;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_MAD;
 }
 
 /**
@@ -2896,8 +2978,8 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
 {
-	return (device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_OPA_MAD)
-		== RDMA_CORE_CAP_OPA_MAD;
+	return (device->port_data[port_num].immutable.core_cap_flags &
+		RDMA_CORE_CAP_OPA_MAD) == RDMA_CORE_CAP_OPA_MAD;
 }
 
 /**
@@ -2922,7 +3004,8 @@ static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SMI;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_SMI;
 }
 
 /**
@@ -2942,7 +3025,8 @@ static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_CM;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_CM;
 }
 
 /**
@@ -2959,7 +3043,8 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IW_CM;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IW_CM;
 }
 
 /**
@@ -2979,7 +3064,8 @@ static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SA;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_IB_SA;
 }
 
 /**
@@ -3019,7 +3105,8 @@ static inline bool rdma_cap_ib_mcast(const struct ib_device *device, u8 port_num
  */
 static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_AF_IB;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_AF_IB;
 }
 
 /**
@@ -3040,7 +3127,8 @@ static inline bool rdma_cap_af_ib(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_ETH_AH;
+	return device->port_data[port_num].immutable.core_cap_flags &
+	       RDMA_CORE_CAP_ETH_AH;
 }
 
 /**
@@ -3054,7 +3142,7 @@ static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
 {
-	return (device->port_immutable[port_num].core_cap_flags &
+	return (device->port_data[port_num].immutable.core_cap_flags &
 		RDMA_CORE_CAP_OPA_AH) == RDMA_CORE_CAP_OPA_AH;
 }
 
@@ -3072,7 +3160,7 @@ static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
  */
 static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_num)
 {
-	return device->port_immutable[port_num].max_mad_size;
+	return device->port_data[port_num].immutable.max_mad_size;
 }
 
 /**
@@ -3686,32 +3774,18 @@ static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 {
 	dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction, dma_attrs);
 }
-/**
- * ib_sg_dma_address - Return the DMA address from a scatter/gather entry
- * @dev: The device for which the DMA addresses were created
- * @sg: The scatter/gather entry
- *
- * Note: this function is obsolete. To do: change all occurrences of
- * ib_sg_dma_address() into sg_dma_address().
- */
-static inline u64 ib_sg_dma_address(struct ib_device *dev,
-				    struct scatterlist *sg)
-{
-	return sg_dma_address(sg);
-}
 
 /**
- * ib_sg_dma_len - Return the DMA length from a scatter/gather entry
- * @dev: The device for which the DMA addresses were created
- * @sg: The scatter/gather entry
+ * ib_dma_max_seg_size - Return the size limit of a single DMA transfer
+ * @dev: The device to query
  *
- * Note: this function is obsolete. To do: change all occurrences of
- * ib_sg_dma_len() into sg_dma_len().
+ * The returned value represents a size in bytes.
  */
-static inline unsigned int ib_sg_dma_len(struct ib_device *dev,
-					 struct scatterlist *sg)
+static inline unsigned int ib_dma_max_seg_size(struct ib_device *dev)
 {
-	return sg_dma_len(sg);
+	struct device_dma_parameters *p = dev->dma_device->dma_parms;
+
+	return p ? p->max_segment_size : UINT_MAX;
 }
 
 /**
@@ -3946,9 +4020,17 @@ static inline bool ib_device_try_get(struct ib_device *dev)
 }
 
 void ib_device_put(struct ib_device *device);
+struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
+					  enum rdma_driver_id driver_id);
+struct ib_device *ib_device_get_by_name(const char *name,
+					enum rdma_driver_id driver_id);
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
+int ib_device_set_netdev(struct ib_device *ib_dev, struct net_device *ndev,
+			 unsigned int port);
+struct net_device *ib_device_netdev(struct ib_device *dev, u8 port);
+
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr);
 int ib_destroy_wq(struct ib_wq *wq);
@@ -4222,7 +4304,6 @@ void rdma_roce_rescan_device(struct ib_device *ibdev);
 
 struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 
-
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs);
 
 struct net_device *rdma_alloc_netdev(struct ib_device *device, u8 port_num,
@@ -4258,4 +4339,27 @@ rdma_set_device_sysfs_group(struct ib_device *dev,
 	dev->groups[1] = group;
 }
 
+/**
+ * rdma_device_to_ibdev - Get ib_device pointer from device pointer
+ *
+ * @device:	device pointer for which ib_device pointer to retrieve
+ *
+ * rdma_device_to_ibdev() retrieves ib_device pointer from device.
+ *
+ */
+static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
+{
+	return container_of(device, struct ib_device, dev);
+}
+
+/**
+ * rdma_device_to_drv_device - Helper macro to reach back to driver's
+ *			       ib_device holder structure from device pointer.
+ *
+ * NOTE: New drivers should not make use of this API; This API is only for
+ * existing drivers who have exposed sysfs entries using
+ * rdma_set_device_sysfs_group().
+ */
+#define rdma_device_to_drv_device(dev, drv_dev_struct, ibdev_member)           \
+	container_of(rdma_device_to_ibdev(dev), drv_dev_struct, ibdev_member)
 #endif /* IB_VERBS_H */

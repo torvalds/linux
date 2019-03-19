@@ -111,9 +111,9 @@ int dpaa2_io_service_enqueue_fq(struct dpaa2_io *d, u32 fqid,
 				const struct dpaa2_fd *fd);
 int dpaa2_io_service_enqueue_qd(struct dpaa2_io *d, u32 qdid, u8 prio,
 				u16 qdbin, const struct dpaa2_fd *fd);
-int dpaa2_io_service_release(struct dpaa2_io *d, u32 bpid,
+int dpaa2_io_service_release(struct dpaa2_io *d, u16 bpid,
 			     const u64 *buffers, unsigned int num_buffers);
-int dpaa2_io_service_acquire(struct dpaa2_io *d, u32 bpid,
+int dpaa2_io_service_acquire(struct dpaa2_io *d, u16 bpid,
 			     u64 *buffers, unsigned int num_buffers);
 
 struct dpaa2_io_store *dpaa2_io_store_create(unsigned int max_frames,

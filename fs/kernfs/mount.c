@@ -20,17 +20,7 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *kernfs_node_cache;
-
-static int kernfs_sop_remount_fs(struct super_block *sb, int *flags, char *data)
-{
-	struct kernfs_root *root = kernfs_info(sb)->root;
-	struct kernfs_syscall_ops *scops = root->syscall_ops;
-
-	if (scops && scops->remount_fs)
-		return scops->remount_fs(root, flags, data);
-	return 0;
-}
+struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {
@@ -60,7 +50,6 @@ const struct super_operations kernfs_sops = {
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= kernfs_evict_inode,
 
-	.remount_fs	= kernfs_sop_remount_fs,
 	.show_options	= kernfs_sop_show_options,
 	.show_path	= kernfs_sop_show_path,
 };
@@ -222,7 +211,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	} while (true);
 }
 
-static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
+static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *kfc)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
 	struct inode *inode;
@@ -233,7 +222,7 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
-	sb->s_magic = magic;
+	sb->s_magic = kfc->magic;
 	sb->s_op = &kernfs_sops;
 	sb->s_xattr = kernfs_xattr_handlers;
 	if (info->root->flags & KERNFS_ROOT_SUPPORT_EXPORTOP)
@@ -263,21 +252,20 @@ static int kernfs_fill_super(struct super_block *sb, unsigned long magic)
 	return 0;
 }
 
-static int kernfs_test_super(struct super_block *sb, void *data)
+static int kernfs_test_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct kernfs_super_info *sb_info = kernfs_info(sb);
-	struct kernfs_super_info *info = data;
+	struct kernfs_super_info *info = fc->s_fs_info;
 
 	return sb_info->root == info->root && sb_info->ns == info->ns;
 }
 
-static int kernfs_set_super(struct super_block *sb, void *data)
+static int kernfs_set_super(struct super_block *sb, struct fs_context *fc)
 {
-	int error;
-	error = set_anon_super(sb, data);
-	if (!error)
-		sb->s_fs_info = data;
-	return error;
+	struct kernfs_fs_context *kfc = fc->fs_private;
+
+	kfc->ns_tag = NULL;
+	return set_anon_super_fc(sb, fc);
 }
 
 /**
@@ -294,63 +282,60 @@ const void *kernfs_super_ns(struct super_block *sb)
 }
 
 /**
- * kernfs_mount_ns - kernfs mount helper
- * @fs_type: file_system_type of the fs being mounted
- * @flags: mount flags specified for the mount
- * @root: kernfs_root of the hierarchy being mounted
- * @magic: file system specific magic number
- * @new_sb_created: tell the caller if we allocated a new superblock
- * @ns: optional namespace tag of the mount
+ * kernfs_get_tree - kernfs filesystem access/retrieval helper
+ * @fc: The filesystem context.
  *
- * This is to be called from each kernfs user's file_system_type->mount()
- * implementation, which should pass through the specified @fs_type and
- * @flags, and specify the hierarchy and namespace tag to mount via @root
- * and @ns, respectively.
- *
- * The return value can be passed to the vfs layer verbatim.
+ * This is to be called from each kernfs user's fs_context->ops->get_tree()
+ * implementation, which should set the specified ->@fs_type and ->@flags, and
+ * specify the hierarchy and namespace tag to mount via ->@root and ->@ns,
+ * respectively.
  */
-struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-				struct kernfs_root *root, unsigned long magic,
-				bool *new_sb_created, const void *ns)
+int kernfs_get_tree(struct fs_context *fc)
 {
+	struct kernfs_fs_context *kfc = fc->fs_private;
 	struct super_block *sb;
 	struct kernfs_super_info *info;
 	int error;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	info->root = root;
-	info->ns = ns;
+	info->root = kfc->root;
+	info->ns = kfc->ns_tag;
 	INIT_LIST_HEAD(&info->node);
 
-	sb = sget_userns(fs_type, kernfs_test_super, kernfs_set_super, flags,
-			 &init_user_ns, info);
-	if (IS_ERR(sb) || sb->s_fs_info != info)
-		kfree(info);
+	fc->s_fs_info = info;
+	sb = sget_fc(fc, kernfs_test_super, kernfs_set_super);
 	if (IS_ERR(sb))
-		return ERR_CAST(sb);
-
-	if (new_sb_created)
-		*new_sb_created = !sb->s_root;
+		return PTR_ERR(sb);
 
 	if (!sb->s_root) {
 		struct kernfs_super_info *info = kernfs_info(sb);
 
-		error = kernfs_fill_super(sb, magic);
+		kfc->new_sb_created = true;
+
+		error = kernfs_fill_super(sb, kfc);
 		if (error) {
 			deactivate_locked_super(sb);
-			return ERR_PTR(error);
+			return error;
 		}
 		sb->s_flags |= SB_ACTIVE;
 
 		mutex_lock(&kernfs_mutex);
-		list_add(&info->node, &root->supers);
+		list_add(&info->node, &info->root->supers);
 		mutex_unlock(&kernfs_mutex);
 	}
 
-	return dget(sb->s_root);
+	fc->root = dget(sb->s_root);
+	return 0;
+}
+
+void kernfs_free_fs_context(struct fs_context *fc)
+{
+	/* Note that we don't deal with kfc->ns_tag here. */
+	kfree(fc->s_fs_info);
+	fc->s_fs_info = NULL;
 }
 
 /**
@@ -377,36 +362,6 @@ void kernfs_kill_sb(struct super_block *sb)
 	kfree(info);
 }
 
-/**
- * kernfs_pin_sb: try to pin the superblock associated with a kernfs_root
- * @kernfs_root: the kernfs_root in question
- * @ns: the namespace tag
- *
- * Pin the superblock so the superblock won't be destroyed in subsequent
- * operations.  This can be used to block ->kill_sb() which may be useful
- * for kernfs users which dynamically manage superblocks.
- *
- * Returns NULL if there's no superblock associated to this kernfs_root, or
- * -EINVAL if the superblock is being freed.
- */
-struct super_block *kernfs_pin_sb(struct kernfs_root *root, const void *ns)
-{
-	struct kernfs_super_info *info;
-	struct super_block *sb = NULL;
-
-	mutex_lock(&kernfs_mutex);
-	list_for_each_entry(info, &root->supers, node) {
-		if (info->ns == ns) {
-			sb = info->sb;
-			if (!atomic_inc_not_zero(&info->sb->s_active))
-				sb = ERR_PTR(-EINVAL);
-			break;
-		}
-	}
-	mutex_unlock(&kernfs_mutex);
-	return sb;
-}
-
 void __init kernfs_init(void)
 {
 
@@ -421,4 +376,9 @@ void __init kernfs_init(void)
 					      0,
 					      SLAB_PANIC | SLAB_TYPESAFE_BY_RCU,
 					      NULL);
+
+	/* Creates slab cache for kernfs inode attributes */
+	kernfs_iattrs_cache  = kmem_cache_create("kernfs_iattrs_cache",
+					      sizeof(struct kernfs_iattrs),
+					      0, SLAB_PANIC, NULL);
 }

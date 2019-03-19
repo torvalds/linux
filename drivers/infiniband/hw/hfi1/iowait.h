@@ -100,6 +100,7 @@ struct iowait_work {
  * @sleep: no space callback
  * @wakeup: space callback wakeup
  * @sdma_drained: sdma count drained
+ * @init_priority: callback to manipulate priority
  * @lock: lock protected head of wait queue
  * @iowork: workqueue overhead
  * @wait_dma: wait for sdma_busy == 0
@@ -109,7 +110,7 @@ struct iowait_work {
  * @tx_limit: limit for overflow queuing
  * @tx_count: number of tx entry's in tx_head'ed list
  * @flags: wait flags (one per QP)
- * @wait: SE array
+ * @wait: SE array for multiple legs
  *
  * This is to be embedded in user's state structure
  * (QP or PQ).
@@ -120,10 +121,13 @@ struct iowait_work {
  * are callbacks for the ULP to implement
  * what ever queuing/dequeuing of
  * the embedded iowait and its containing struct
- * when a resource shortage like SDMA ring space is seen.
+ * when a resource shortage like SDMA ring space
+ * or PIO credit space is seen.
  *
  * Both potentially have locks help
- * so sleeping is not allowed.
+ * so sleeping is not allowed and it is not
+ * supported to submit txreqs from the wakeup
+ * call directly because of lock conflicts.
  *
  * The wait_dma member along with the iow
  *
@@ -143,6 +147,7 @@ struct iowait {
 		);
 	void (*wakeup)(struct iowait *wait, int reason);
 	void (*sdma_drained)(struct iowait *wait);
+	void (*init_priority)(struct iowait *wait);
 	seqlock_t *lock;
 	wait_queue_head_t wait_dma;
 	wait_queue_head_t wait_pio;
@@ -152,6 +157,7 @@ struct iowait {
 	u32 tx_limit;
 	u32 tx_count;
 	u8 starved_cnt;
+	u8 priority;
 	unsigned long flags;
 	struct iowait_work wait[IOWAIT_SES];
 };
@@ -171,7 +177,8 @@ void iowait_init(struct iowait *wait, u32 tx_limit,
 			      uint seq,
 			      bool pkts_sent),
 		 void (*wakeup)(struct iowait *wait, int reason),
-		 void (*sdma_drained)(struct iowait *wait));
+		 void (*sdma_drained)(struct iowait *wait),
+		 void (*init_priority)(struct iowait *wait));
 
 /**
  * iowait_schedule() - schedule the default send engine work
@@ -183,6 +190,18 @@ static inline bool iowait_schedule(struct iowait *wait,
 				   struct workqueue_struct *wq, int cpu)
 {
 	return !!queue_work_on(cpu, wq, &wait->wait[IOWAIT_IB_SE].iowork);
+}
+
+/**
+ * iowait_tid_schedule - schedule the tid SE
+ * @wait: the iowait structure
+ * @wq: the work queue
+ * @cpu: the cpu
+ */
+static inline bool iowait_tid_schedule(struct iowait *wait,
+				       struct workqueue_struct *wq, int cpu)
+{
+	return !!queue_work_on(cpu, wq, &wait->wait[IOWAIT_TID_SE].iowork);
 }
 
 /**
@@ -327,6 +346,8 @@ static inline u16 iowait_get_desc(struct iowait_work *w)
 		tx = list_first_entry(&w->tx_head, struct sdma_txreq,
 				      list);
 		num_desc = tx->num_desc;
+		if (tx->flags & SDMA_TXREQ_F_VIP)
+			w->iow->priority++;
 	}
 	return num_desc;
 }
@@ -338,6 +359,37 @@ static inline u32 iowait_get_all_desc(struct iowait *w)
 	num_desc = iowait_get_desc(&w->wait[IOWAIT_IB_SE]);
 	num_desc += iowait_get_desc(&w->wait[IOWAIT_TID_SE]);
 	return num_desc;
+}
+
+static inline void iowait_update_priority(struct iowait_work *w)
+{
+	struct sdma_txreq *tx = NULL;
+
+	if (!list_empty(&w->tx_head)) {
+		tx = list_first_entry(&w->tx_head, struct sdma_txreq,
+				      list);
+		if (tx->flags & SDMA_TXREQ_F_VIP)
+			w->iow->priority++;
+	}
+}
+
+static inline void iowait_update_all_priority(struct iowait *w)
+{
+	iowait_update_priority(&w->wait[IOWAIT_IB_SE]);
+	iowait_update_priority(&w->wait[IOWAIT_TID_SE]);
+}
+
+static inline void iowait_init_priority(struct iowait *w)
+{
+	w->priority = 0;
+	if (w->init_priority)
+		w->init_priority(w);
+}
+
+static inline void iowait_get_priority(struct iowait *w)
+{
+	iowait_init_priority(w);
+	iowait_update_all_priority(w);
 }
 
 /**
@@ -356,14 +408,18 @@ static inline void iowait_queue(bool pkts_sent, struct iowait *w,
 	/*
 	 * To play fair, insert the iowait at the tail of the wait queue if it
 	 * has already sent some packets; Otherwise, put it at the head.
+	 * However, if it has priority packets to send, also put it at the
+	 * head.
 	 */
-	if (pkts_sent) {
-		list_add_tail(&w->list, wait_head);
+	if (pkts_sent)
 		w->starved_cnt = 0;
-	} else {
-		list_add(&w->list, wait_head);
+	else
 		w->starved_cnt++;
-	}
+
+	if (w->priority > 0 || !pkts_sent)
+		list_add(&w->list, wait_head);
+	else
+		list_add_tail(&w->list, wait_head);
 }
 
 /**
@@ -380,27 +436,10 @@ static inline void iowait_starve_clear(bool pkts_sent, struct iowait *w)
 		w->starved_cnt = 0;
 }
 
-/**
- * iowait_starve_find_max - Find the maximum of the starve count
- * @w: the iowait struct
- * @max: a variable containing the max starve count
- * @idx: the index of the current iowait in an array
- * @max_idx: a variable containing the array index for the
- *         iowait entry that has the max starve count
- *
- * This function is called to compare the starve count of a
- * given iowait with the given max starve count. The max starve
- * count and the index will be updated if the iowait's start
- * count is larger.
- */
-static inline void iowait_starve_find_max(struct iowait *w, u8 *max,
-					  uint idx, uint *max_idx)
-{
-	if (w->starved_cnt > *max) {
-		*max = w->starved_cnt;
-		*max_idx = idx;
-	}
-}
+/* Update the top priority index */
+uint iowait_priority_update_top(struct iowait *w,
+				struct iowait *top,
+				uint idx, uint top_idx);
 
 /**
  * iowait_packet_queued() - determine if a packet is queued

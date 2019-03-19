@@ -1145,17 +1145,6 @@ static __printf(2,3) void svc_printk(struct svc_rqst *rqstp, const char *fmt, ..
 #endif
 
 /*
- * Setup response header for TCP, it has a 4B record length field.
- */
-static void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
-{
-	struct kvec *resv = &rqstp->rq_res.head[0];
-
-	/* tcp needs a space for the record length... */
-	svc_putnl(resv, 0);
-}
-
-/*
  * Common routine for processing the RPC request.
  */
 static int
@@ -1181,10 +1170,6 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 	/* Will be turned off only when NFSv4 Sessions are used */
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	clear_bit(RQ_DROPME, &rqstp->rq_flags);
-
-	/* Setup reply header */
-	if (rqstp->rq_prot == IPPROTO_TCP)
-		svc_tcp_prep_reply_hdr(rqstp);
 
 	svc_putu32(resv, rqstp->rq_xid);
 
@@ -1442,6 +1427,10 @@ svc_process(struct svc_rqst *rqstp)
 		serv->sv_stats->rpcbadfmt++;
 		goto out_drop;
 	}
+
+	/* Reserve space for the record marker */
+	if (rqstp->rq_prot == IPPROTO_TCP)
+		svc_putnl(resv, 0);
 
 	/* Returns 1 for send, 0 for drop */
 	if (likely(svc_process_common(rqstp, argv, resv)))

@@ -104,7 +104,7 @@ struct mod_vrr_params_fixed_refresh {
 
 struct mod_vrr_params {
 	bool supported;
-	bool send_vsif;
+	bool send_info_frame;
 	enum mod_vrr_state state;
 
 	uint32_t min_refresh_in_uhz;

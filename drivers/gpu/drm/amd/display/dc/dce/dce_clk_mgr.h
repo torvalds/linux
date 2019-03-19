@@ -94,11 +94,37 @@ struct dce_clk_mgr {
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency */
 	int dfs_bypass_disp_clk;
 
-	/* Flag for Enabled SS on DPREFCLK */
+	/**
+	 * @ss_on_dprefclk:
+	 *
+	 * True if spread spectrum is enabled on the DP ref clock.
+	 */
 	bool ss_on_dprefclk;
-	/* DPREFCLK SS percentage (if down-spread enabled) */
+
+	/**
+	 * @xgmi_enabled:
+	 *
+	 * True if xGMI is enabled. On VG20, both audio and display clocks need
+	 * to be adjusted with the WAFL link's SS info if xGMI is enabled.
+	 */
+	bool xgmi_enabled;
+
+	/**
+	 * @dprefclk_ss_percentage:
+	 *
+	 * DPREFCLK SS percentage (if down-spread enabled).
+	 *
+	 * Note that if XGMI is enabled, the SS info (percentage and divider)
+	 * from the WAFL link is used instead. This is decided during
+	 * dce_clk_mgr initialization.
+	 */
 	int dprefclk_ss_percentage;
-	/* DPREFCLK SS percentage Divider (100 or 1000) */
+
+	/**
+	 * @dprefclk_ss_divider:
+	 *
+	 * DPREFCLK SS percentage Divider (100 or 1000).
+	 */
 	int dprefclk_ss_divider;
 	int dprefclk_khz;
 
@@ -162,6 +188,9 @@ struct clk_mgr *dce112_clk_mgr_create(
 	const struct clk_mgr_mask *clk_mask);
 
 struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx);
+
+struct clk_mgr *dce121_clk_mgr_create(struct dc_context *ctx);
+void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr);
 
 void dce_clk_mgr_destroy(struct clk_mgr **clk_mgr);
 

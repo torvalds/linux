@@ -623,7 +623,7 @@ static int esas2r_proc_major;
 long esas2r_proc_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	return esas2r_ioctl_handler(esas2r_proc_host->hostdata,
-				    (int)cmd, (void __user *)arg);
+				    cmd, (void __user *)arg);
 }
 
 static void __exit esas2r_exit(void)

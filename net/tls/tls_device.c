@@ -558,9 +558,6 @@ void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 					     MSG_DONTWAIT | MSG_NOSIGNAL);
 		sk->sk_allocation = sk_allocation;
 	}
-
-	if (!rc)
-		ctx->sk_write_space(sk);
 }
 
 void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)

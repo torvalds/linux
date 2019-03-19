@@ -2191,11 +2191,11 @@ SYSCALL_DEFINE6(io_pgetevents_time32,
 
 #if defined(CONFIG_COMPAT_32BIT_TIME)
 
-COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
-		       compat_long_t, min_nr,
-		       compat_long_t, nr,
-		       struct io_event __user *, events,
-		       struct old_timespec32 __user *, timeout)
+SYSCALL_DEFINE5(io_getevents_time32, __u32, ctx_id,
+		__s32, min_nr,
+		__s32, nr,
+		struct io_event __user *, events,
+		struct old_timespec32 __user *, timeout)
 {
 	struct timespec64 t;
 	int ret;

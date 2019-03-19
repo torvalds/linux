@@ -65,7 +65,6 @@ struct wilc_wfi_p2p_listen_params {
 	struct ieee80211_channel *listen_ch;
 	u32 listen_duration;
 	u64 listen_cookie;
-	u32 listen_session_id;
 };
 
 struct wilc_p2p_var {
@@ -137,7 +136,6 @@ struct wilc_priv {
 	u64 tx_cookie;
 
 	bool cfg_scanning;
-	u32 rcvd_ch_cnt;
 
 	u8 associated_bss[ETH_ALEN];
 	struct sta_info assoc_stainfo;
@@ -155,8 +153,6 @@ struct wilc_priv {
 	/* mutexes */
 	struct mutex scan_req_lock;
 	bool p2p_listen_state;
-	struct timer_list aging_timer;
-	struct network_info scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
 	int scanned_cnt;
 	struct wilc_p2p_var p2p;
 
@@ -164,6 +160,7 @@ struct wilc_priv {
 	struct ieee80211_rate bitrates[ARRAY_SIZE(wilc_bitrates)];
 	struct ieee80211_supported_band band;
 	u32 cipher_suites[ARRAY_SIZE(wilc_cipher_suites)];
+	u64 inc_roc_cookie;
 };
 
 struct frame_reg {
@@ -251,7 +248,7 @@ struct wilc {
 	struct mutex cfg_cmd_lock;
 	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
-	int cfg_seq_no;
+	u8 cfg_seq_no;
 
 	u8 *rx_buffer;
 	u32 rx_buffer_offset;
@@ -273,13 +270,18 @@ struct wilc {
 	enum chip_ps_states chip_ps_state;
 	struct wilc_cfg cfg;
 	void *bus_data;
+	struct net_device *monitor_dev;
+	/* deinit lock */
+	struct mutex deinit_lock;
+	u8 sta_ch;
+	u8 op_ch;
 };
 
 struct wilc_wfi_mon_priv {
 	struct net_device *real_ndev;
 };
 
-void wilc_frmw_to_linux(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
+void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
 int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,

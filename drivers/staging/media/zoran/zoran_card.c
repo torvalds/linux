@@ -1470,7 +1470,7 @@ static int __init zoran_init(void)
 		v4l_nbufs = 2;
 	if (v4l_nbufs > VIDEO_MAX_FRAME)
 		v4l_nbufs = VIDEO_MAX_FRAME;
-	/* The user specfies the in KB, we want them in byte
+	/* The user specifies the in KB, we want them in byte
 	 * (and page aligned) */
 	v4l_bufsize = PAGE_ALIGN(v4l_bufsize * 1024);
 	if (v4l_bufsize < 32768)

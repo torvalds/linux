@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. include:: <isonum.txt>
 
 ===============================================================
@@ -355,10 +357,157 @@ https://chromium.googlesource.com/chromiumos/platform/arc-camera/+/master/
 
 The source can be located under hal/intel directory.
 
+Overview of IPU3 pipeline
+=========================
+
+IPU3 pipeline has a number of image processing stages, each of which takes a
+set of parameters as input. The major stages of pipelines are shown here:
+
+.. kernel-render:: DOT
+   :alt: IPU3 ImgU Pipeline
+   :caption: IPU3 ImgU Pipeline Diagram
+
+   digraph "IPU3 ImgU" {
+       node [shape=box]
+       splines="ortho"
+       rankdir="LR"
+
+       a [label="Raw pixels"]
+       b [label="Bayer Downscaling"]
+       c [label="Optical Black Correction"]
+       d [label="Linearization"]
+       e [label="Lens Shading Correction"]
+       f [label="White Balance / Exposure / Focus Apply"]
+       g [label="Bayer Noise Reduction"]
+       h [label="ANR"]
+       i [label="Demosaicing"]
+       j [label="Color Correction Matrix"]
+       k [label="Gamma correction"]
+       l [label="Color Space Conversion"]
+       m [label="Chroma Down Scaling"]
+       n [label="Chromatic Noise Reduction"]
+       o [label="Total Color Correction"]
+       p [label="XNR3"]
+       q [label="TNR"]
+       r [label="DDR"]
+
+       { rank=same; a -> b -> c -> d -> e -> f }
+       { rank=same; g -> h -> i -> j -> k -> l }
+       { rank=same; m -> n -> o -> p -> q -> r }
+
+       a -> g -> m [style=invis, weight=10]
+
+       f -> g
+       l -> m
+   }
+
+The table below presents a description of the above algorithms.
+
+======================== =======================================================
+Name			 Description
+======================== =======================================================
+Optical Black Correction Optical Black Correction block subtracts a pre-defined
+			 value from the respective pixel values to obtain better
+			 image quality.
+			 Defined in :c:type:`ipu3_uapi_obgrid_param`.
+Linearization		 This algo block uses linearization parameters to
+			 address non-linearity sensor effects. The Lookup table
+			 table is defined in
+			 :c:type:`ipu3_uapi_isp_lin_vmem_params`.
+SHD			 Lens shading correction is used to correct spatial
+			 non-uniformity of the pixel response due to optical
+			 lens shading. This is done by applying a different gain
+			 for each pixel. The gain, black level etc are
+			 configured in :c:type:`ipu3_uapi_shd_config_static`.
+BNR			 Bayer noise reduction block removes image noise by
+			 applying a bilateral filter.
+			 See :c:type:`ipu3_uapi_bnr_static_config` for details.
+ANR			 Advanced Noise Reduction is a block based algorithm
+			 that performs noise reduction in the Bayer domain. The
+			 convolution matrix etc can be found in
+			 :c:type:`ipu3_uapi_anr_config`.
+DM			 Demosaicing converts raw sensor data in Bayer format
+			 into RGB (Red, Green, Blue) presentation. Then add
+			 outputs of estimation of Y channel for following stream
+			 processing by Firmware. The struct is defined as
+			 :c:type:`ipu3_uapi_dm_config`.
+Color Correction	 Color Correction algo transforms sensor specific color
+			 space to the standard "sRGB" color space. This is done
+			 by applying 3x3 matrix defined in
+			 :c:type:`ipu3_uapi_ccm_mat_config`.
+Gamma correction	 Gamma correction :c:type:`ipu3_uapi_gamma_config` is a
+			 basic non-linear tone mapping correction that is
+			 applied per pixel for each pixel component.
+CSC			 Color space conversion transforms each pixel from the
+			 RGB primary presentation to YUV (Y: brightness,
+			 UV: Luminance) presentation. This is done by applying
+			 a 3x3 matrix defined in
+			 :c:type:`ipu3_uapi_csc_mat_config`
+CDS			 Chroma down sampling
+			 After the CSC is performed, the Chroma Down Sampling
+			 is applied for a UV plane down sampling by a factor
+			 of 2 in each direction for YUV 4:2:0 using a 4x2
+			 configurable filter :c:type:`ipu3_uapi_cds_params`.
+CHNR			 Chroma noise reduction
+			 This block processes only the chrominance pixels and
+			 performs noise reduction by cleaning the high
+			 frequency noise.
+			 See struct :c:type:`ipu3_uapi_yuvp1_chnr_config`.
+TCC			 Total color correction as defined in struct
+			 :c:type:`ipu3_uapi_yuvp2_tcc_static_config`.
+XNR3			 eXtreme Noise Reduction V3 is the third revision of
+			 noise reduction algorithm used to improve image
+			 quality. This removes the low frequency noise in the
+			 captured image. Two related structs are  being defined,
+			 :c:type:`ipu3_uapi_isp_xnr3_params` for ISP data memory
+			 and :c:type:`ipu3_uapi_isp_xnr3_vmem_params` for vector
+			 memory.
+TNR			 Temporal Noise Reduction block compares successive
+			 frames in time to remove anomalies / noise in pixel
+			 values. :c:type:`ipu3_uapi_isp_tnr3_vmem_params` and
+			 :c:type:`ipu3_uapi_isp_tnr3_params` are defined for ISP
+			 vector and data memory respectively.
+======================== =======================================================
+
+Other often encountered acronyms not listed in above table:
+
+	ACC
+		Accelerator cluster
+	AWB_FR
+		Auto white balance filter response statistics
+	BDS
+		Bayer downscaler parameters
+	CCM
+		Color correction matrix coefficients
+	IEFd
+		Image enhancement filter directed
+	Obgrid
+		Optical black level compensation
+	OSYS
+		Output system configuration
+	ROI
+		Region of interest
+	YDS
+		Y down sampling
+	YTM
+		Y-tone mapping
+
+A few stages of the pipeline will be executed by firmware running on the ISP
+processor, while many others will use a set of fixed hardware blocks also
+called accelerator cluster (ACC) to crunch pixel data and produce statistics.
+
+ACC parameters of individual algorithms, as defined by
+:c:type:`ipu3_uapi_acc_param`, can be chosen to be applied by the user
+space through struct :c:type:`ipu3_uapi_flags` embedded in
+:c:type:`ipu3_uapi_params` structure. For parameters that are configured as
+not enabled by the user space, the corresponding structs are ignored by the
+driver, in which case the existing configuration of the algorithm will be
+preserved.
+
 References
 ==========
 
-.. [#f5] include/uapi/linux/intel-ipu3.h
+.. [#f5] drivers/staging/media/ipu3/include/intel-ipu3.h
 
 .. [#f1] https://github.com/intel/nvt
 

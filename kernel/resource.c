@@ -448,8 +448,6 @@ int walk_mem_res(u64 start, u64 end, void *arg,
 				     arg, func);
 }
 
-#if !defined(CONFIG_ARCH_HAS_WALK_MEMORY)
-
 /*
  * This function calls the @func callback against all memory ranges of type
  * System RAM which are marked as IORESOURCE_SYSTEM_RAM and IORESOUCE_BUSY.
@@ -480,8 +478,6 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	}
 	return ret;
 }
-
-#endif
 
 static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
 {

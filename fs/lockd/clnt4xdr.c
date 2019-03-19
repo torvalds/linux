@@ -75,17 +75,6 @@ static void nlm4_compute_offsets(const struct nlm_lock *lock,
 }
 
 /*
- * Handle decode buffer overflows out-of-line.
- */
-static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
-{
-	dprintk("lockd: %s prematurely hit the end of our receive buffer. "
-		"Remaining buffer length is %tu words.\n",
-		func, xdr->end - xdr->p);
-}
-
-
-/*
  * Encode/decode NLMv4 basic data types
  *
  * Basic NLMv4 data types are defined in Appendix II, section 6.1.4
@@ -176,7 +165,6 @@ out_size:
 	dprintk("NFS: returned cookie was too long: %u\n", length);
 	return -EIO;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 
@@ -236,7 +224,6 @@ out_bad_xdr:
 			__func__, be32_to_cpup(p));
 	return -EIO;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 
@@ -309,7 +296,6 @@ static int decode_nlm4_holder(struct xdr_stream *xdr, struct nlm_res *result)
 out:
 	return error;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 

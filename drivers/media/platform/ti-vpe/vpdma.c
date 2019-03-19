@@ -404,7 +404,7 @@ EXPORT_SYMBOL(vpdma_map_desc_buf);
 
 /*
  * unmap descriptor/payload DMA buffer, disabling DMA access and
- * allowing the main processor to acces the data
+ * allowing the main processor to access the data
  */
 void vpdma_unmap_desc_buf(struct vpdma_data *vpdma, struct vpdma_buf *buf)
 {
@@ -501,7 +501,7 @@ void vpdma_reset_desc_list(struct vpdma_desc_list *list)
 EXPORT_SYMBOL(vpdma_reset_desc_list);
 
 /*
- * free the buffer allocated fot the VPDMA descriptor list, this should be
+ * free the buffer allocated for the VPDMA descriptor list, this should be
  * called when the user doesn't want to use VPDMA any more.
  */
 void vpdma_free_desc_list(struct vpdma_desc_list *list)
@@ -790,7 +790,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * append an outbound data transfer descriptor to the given descriptor list,
  * this sets up a 'client to memory' VPDMA transfer for the given VPDMA channel
  *
- * @list: vpdma desc list to which we add this decriptor
+ * @list: vpdma desc list to which we add this descriptor
  * @width: width of the image in pixels in memory
  * @c_rect: compose params of output image
  * @fmt: vpdma data format of the buffer
@@ -798,7 +798,7 @@ static void dump_dtd(struct vpdma_dtd *dtd)
  * max_width: enum for maximum width of data transfer
  * max_height: enum for maximum height of data transfer
  * chan: VPDMA channel
- * flags: VPDMA flags to configure some descriptor fileds
+ * flags: VPDMA flags to configure some descriptor fields
  */
 void vpdma_add_out_dtd(struct vpdma_desc_list *list, int width,
 		int stride, const struct v4l2_rect *c_rect,
@@ -863,14 +863,14 @@ EXPORT_SYMBOL(vpdma_rawchan_add_out_dtd);
  * append an inbound data transfer descriptor to the given descriptor list,
  * this sets up a 'memory to client' VPDMA transfer for the given VPDMA channel
  *
- * @list: vpdma desc list to which we add this decriptor
+ * @list: vpdma desc list to which we add this descriptor
  * @width: width of the image in pixels in memory(not the cropped width)
  * @c_rect: crop params of input image
  * @fmt: vpdma data format of the buffer
  * dma_addr: dma address as seen by VPDMA
  * chan: VPDMA channel
  * field: top or bottom field info of the input image
- * flags: VPDMA flags to configure some descriptor fileds
+ * flags: VPDMA flags to configure some descriptor fields
  * frame_width/height: the complete width/height of the image presented to the
  *			client (this makes sense when multiple channels are
  *			connected to the same client, forming a larger frame)
@@ -1008,7 +1008,7 @@ unsigned int vpdma_get_list_mask(struct vpdma_data *vpdma, int irq_num)
 }
 EXPORT_SYMBOL(vpdma_get_list_mask);
 
-/* clear previosuly occured list intterupts in the LIST_STAT register */
+/* clear previously occurred list interrupts in the LIST_STAT register */
 void vpdma_clear_list_stat(struct vpdma_data *vpdma, int irq_num,
 			   int list_num)
 {

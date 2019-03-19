@@ -39,6 +39,7 @@ nfs_free_unlinkdata(struct nfs_unlinkdata *data)
 /**
  * nfs_async_unlink_done - Sillydelete post-processing
  * @task: rpc_task of the sillydelete
+ * @calldata: pointer to nfs_unlinkdata
  *
  * Do the directory attribute update.
  */
@@ -54,7 +55,7 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 
 /**
  * nfs_async_unlink_release - Release the sillydelete data.
- * @task: rpc_task of the sillydelete
+ * @calldata: struct nfs_unlinkdata to release
  *
  * We need to call nfs_put_unlinkdata as a 'tk_release' task since the
  * rpc_task would be freed too.
@@ -159,8 +160,8 @@ static int nfs_call_unlink(struct dentry *dentry, struct inode *inode, struct nf
 
 /**
  * nfs_async_unlink - asynchronous unlinking of a file
- * @dir: parent directory of dentry
- * @dentry: dentry to unlink
+ * @dentry: parent directory of dentry
+ * @name: name of dentry to unlink
  */
 static int
 nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
@@ -324,6 +325,7 @@ static const struct rpc_call_ops nfs_rename_ops = {
  * @new_dir: target directory for the rename
  * @old_dentry: original dentry to be renamed
  * @new_dentry: dentry to which the old_dentry should be renamed
+ * @complete: Function to run on successful completion
  *
  * It's expected that valid references to the dentries and inodes are held
  */

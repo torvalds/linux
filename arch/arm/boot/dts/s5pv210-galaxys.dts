@@ -11,13 +11,6 @@
 
 	chosen {
 		stdout-path = &uart2;
-		/*
-		 * It's hard to change those parameters in stock bootloader,
-		 * since it requires special hardware/cable.
-		 * Let's hardocde bootargs for now, till u-boot port is finished,
-		 * with which it should be easier.
-		 */
-		bootargs = "root=/dev/mmcblk2p1 rw rootwait ignore_loglevel earlyprintk";
 	};
 
 	nand_pwrseq: nand-pwrseq {

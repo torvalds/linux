@@ -205,13 +205,15 @@ EOF
 cat <<EOF > debian/rules
 #!$(command -v $MAKE) -f
 
+srctree ?= .
+
 build:
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} KBUILD_SRC=
+	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile
 
 binary-arch:
 	\$(MAKE) KERNELRELEASE=${version} ARCH=${ARCH} \
-	KBUILD_BUILD_VERSION=${revision} KBUILD_SRC= intdeb-pkg
+	KBUILD_BUILD_VERSION=${revision} -f \$(srctree)/Makefile intdeb-pkg
 
 clean:
 	rm -rf debian/*tmp debian/files

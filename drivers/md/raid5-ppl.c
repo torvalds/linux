@@ -16,7 +16,6 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/crc32c.h>
-#include <linux/flex_array.h>
 #include <linux/async_tx.h>
 #include <linux/raid/md_p.h>
 #include "md.h"
@@ -165,7 +164,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 		       struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **srcs = flex_array_get(percpu->scribble, 0);
+	struct page **srcs = percpu->scribble;
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
@@ -196,8 +195,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST, tx,
-			  NULL, sh, flex_array_get(percpu->scribble, 0)
-			  + sizeof(struct page *) * (sh->disks + 2));
+			  NULL, sh, (void *) (srcs + sh->disks + 2));
 
 	if (count == 1)
 		tx = async_memcpy(sh->ppl_page, srcs[0], 0, 0, PAGE_SIZE,

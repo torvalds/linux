@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2011-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _NVME_H
@@ -252,6 +244,11 @@ struct nvme_ctrl {
 	unsigned long discard_page_busy;
 };
 
+enum nvme_iopolicy {
+	NVME_IOPOLICY_NUMA,
+	NVME_IOPOLICY_RR,
+};
+
 struct nvme_subsystem {
 	int			instance;
 	struct device		dev;
@@ -271,6 +268,9 @@ struct nvme_subsystem {
 	u8			cmic;
 	u16			vendor_id;
 	struct ida		ns_ida;
+#ifdef CONFIG_NVME_MULTIPATH
+	enum nvme_iopolicy	iopolicy;
+#endif
 };
 
 /*
@@ -364,7 +364,6 @@ struct nvme_ctrl_ops {
 	void (*submit_async_event)(struct nvme_ctrl *ctrl);
 	void (*delete_ctrl)(struct nvme_ctrl *ctrl);
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
-	void (*stop_ctrl)(struct nvme_ctrl *ctrl);
 };
 
 #ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
@@ -459,7 +458,6 @@ void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
-int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
 
 int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp,
 		void *log, size_t size, u64 offset);
@@ -492,6 +490,7 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 
 extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
+extern struct device_attribute subsys_attr_iopolicy;
 
 #else
 static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
