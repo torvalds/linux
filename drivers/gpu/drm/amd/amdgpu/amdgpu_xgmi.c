@@ -200,7 +200,6 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lo
 
 	if (lock)
 		mutex_lock(&tmp->hive_lock);
-	tmp->pstate = -1;
 
 	mutex_unlock(&xgmi_mutex);
 
@@ -321,18 +320,4 @@ void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
 		mutex_unlock(&hive->hive_lock);
 	}
-}
-
-int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
-{
-	int ret = 0;
-	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
-
-	if (!hive)
-		return 0;
-
-	if (hive->pstate == pstate)
-		return 0;
-	/* Todo : sent the message to SMU for pstate change */
-	return ret;
 }

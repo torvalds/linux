@@ -928,9 +928,6 @@ struct amdgpu_device {
 	int asic_reset_res;
 	struct work_struct		xgmi_reset_work;
 
-	/* counter of mapped memory through xgmi */
-	atomic_t			xgmi_map_counter;
-
 	bool                            in_baco_reset;
 };
 

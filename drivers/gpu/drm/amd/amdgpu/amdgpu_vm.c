@@ -34,7 +34,6 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gmc.h"
-#include "amdgpu_xgmi.h"
 
 /**
  * DOC: GPUVM
@@ -1709,9 +1708,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	struct ttm_mem_reg *mem;
 	struct drm_mm_node *nodes;
 	struct dma_fence *exclusive, **last_update;
-	struct amdgpu_device *bo_adev = adev;
-	bool is_xgmi = false;
 	uint64_t flags;
+	struct amdgpu_device *bo_adev = adev;
 	int r;
 
 	if (clear || !bo) {
@@ -1733,10 +1731,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	if (bo) {
 		flags = amdgpu_ttm_tt_pte_flags(adev, bo->tbo.ttm, mem);
 		bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
-		if (adev != bo_adev &&
-		    adev->gmc.xgmi.hive_id &&
-		    adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id)
-			is_xgmi = true;
 	} else {
 		flags = 0x0;
 	}
@@ -1755,19 +1749,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	}
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
-		if (mapping->is_xgmi != is_xgmi) {
-			if (is_xgmi) {
-				/* Adding an XGMI mapping to the PT */
-				if (atomic_inc_return(&adev->xgmi_map_counter) == 1)
-					amdgpu_xgmi_set_pstate(adev, 1);
-			} else {
-				/* Removing an XGMI mapping from the PT */
-				if (atomic_dec_return(&adev->xgmi_map_counter) == 0)
-					amdgpu_xgmi_set_pstate(adev, 0);
-			}
-			mapping->is_xgmi = is_xgmi;
-		}
-
 		r = amdgpu_vm_bo_split_mapping(adev, exclusive, pages_addr, vm,
 					       mapping, flags, bo_adev, nodes,
 					       last_update);
@@ -1985,13 +1966,6 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 		r = amdgpu_vm_bo_update_mapping(adev, NULL, NULL, vm,
 						mapping->start, mapping->last,
 						init_pte_value, 0, &f);
-
-		if (mapping->is_xgmi) {
-			/* Removing an XGMI mapping from the PT */
-			if (atomic_dec_return(&adev->xgmi_map_counter) == 0)
-				amdgpu_xgmi_set_pstate(adev, 0);
-		}
-
 		amdgpu_vm_free_mapping(adev, vm, mapping, f);
 		if (r) {
 			dma_fence_put(f);
@@ -2188,7 +2162,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	mapping->last = eaddr;
 	mapping->offset = offset;
 	mapping->flags = flags;
-	mapping->is_xgmi = false;
 
 	amdgpu_vm_bo_insert_map(adev, bo_va, mapping);
 
