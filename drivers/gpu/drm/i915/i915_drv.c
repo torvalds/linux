@@ -1031,11 +1031,11 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto err_bridge;
 
-	intel_uncore_init(dev_priv);
+	intel_uncore_init(&dev_priv->uncore);
 
 	intel_device_info_init_mmio(dev_priv);
 
-	intel_uncore_prune(dev_priv);
+	intel_uncore_prune(&dev_priv->uncore);
 
 	intel_uc_init_mmio(dev_priv);
 
@@ -1048,7 +1048,7 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_uncore:
-	intel_uncore_fini(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 	i915_mmio_cleanup(dev_priv);
 err_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1062,7 +1062,7 @@ err_bridge:
  */
 static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 {
-	intel_uncore_fini(dev_priv);
+	intel_uncore_fini(&dev_priv->uncore);
 	i915_mmio_cleanup(dev_priv);
 	pci_dev_put(dev_priv->bridge_dev);
 }
@@ -2124,7 +2124,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 	i915_gem_suspend_late(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	intel_power_domains_suspend(dev_priv,
 				    get_suspend_mode(dev_priv, hibernation));
@@ -2320,7 +2320,9 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
 			  ret);
 
-	intel_uncore_resume_early(dev_priv);
+	intel_uncore_resume_early(&dev_priv->uncore);
+
+	i915_check_and_clear_faults(dev_priv);
 
 	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);
@@ -2890,7 +2892,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
-	intel_uncore_suspend(dev_priv);
+	intel_uncore_suspend(&dev_priv->uncore);
 
 	ret = 0;
 	if (INTEL_GEN(dev_priv) >= 11) {
@@ -2907,7 +2909,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
-		intel_uncore_runtime_resume(dev_priv);
+		intel_uncore_runtime_resume(&dev_priv->uncore);
 
 		intel_runtime_pm_enable_interrupts(dev_priv);
 
@@ -3004,7 +3006,7 @@ static int intel_runtime_resume(struct device *kdev)
 		ret = vlv_resume_prepare(dev_priv, true);
 	}
 
-	intel_uncore_runtime_resume(dev_priv);
+	intel_uncore_runtime_resume(&dev_priv->uncore);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
 

@@ -25,6 +25,6 @@
 #ifndef __MOCK_UNCORE_H
 #define __MOCK_UNCORE_H
 
-void mock_uncore_init(struct drm_i915_private *i915);
+void mock_uncore_init(struct intel_uncore *uncore);
 
 #endif /* !__MOCK_UNCORE_H */
