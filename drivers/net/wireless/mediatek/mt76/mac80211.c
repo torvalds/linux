@@ -789,3 +789,10 @@ void mt76_csa_check(struct mt76_dev *dev)
 		__mt76_csa_check, dev);
 }
 EXPORT_SYMBOL_GPL(mt76_csa_check);
+
+int
+mt76_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_set_tim);

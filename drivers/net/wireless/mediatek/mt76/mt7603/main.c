@@ -664,12 +664,6 @@ static void mt7603_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *cont
 	mt76_tx(&dev->mt76, control->sta, wcid, skb);
 }
 
-static int
-mt7603_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
-{
-	return 0;
-}
-
 const struct ieee80211_ops mt7603_ops = {
 	.tx = mt7603_tx,
 	.start = mt7603_start,
@@ -691,7 +685,7 @@ const struct ieee80211_ops mt7603_ops = {
 	.sta_rate_tbl_update = mt7603_sta_rate_tbl_update,
 	.release_buffered_frames = mt7603_release_buffered_frames,
 	.set_coverage_class = mt7603_set_coverage_class,
-	.set_tim = mt7603_set_tim,
+	.set_tim = mt76_set_tim,
 	.get_survey = mt76_get_survey,
 };
 

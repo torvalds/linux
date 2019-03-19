@@ -74,13 +74,6 @@ mt76x0e_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 }
 
-static int
-mt76x0e_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-		bool set)
-{
-	return 0;
-}
-
 static const struct ieee80211_ops mt76x0e_ops = {
 	.tx = mt76x02_tx,
 	.start = mt76x0e_start,
@@ -101,7 +94,7 @@ static const struct ieee80211_ops mt76x0e_ops = {
 	.get_survey = mt76_get_survey,
 	.get_txpower = mt76_get_txpower,
 	.flush = mt76x0e_flush,
-	.set_tim = mt76x0e_set_tim,
+	.set_tim = mt76_set_tim,
 	.release_buffered_frames = mt76_release_buffered_frames,
 	.set_coverage_class = mt76x02_set_coverage_class,
 	.set_rts_threshold = mt76x02_set_rts_threshold,
