@@ -4639,7 +4639,7 @@ static void mwl8k_tx_poll(unsigned long data)
 
 	limit = 32;
 
-	spin_lock_bh(&priv->tx_lock);
+	spin_lock(&priv->tx_lock);
 
 	for (i = 0; i < mwl8k_tx_queues(priv); i++)
 		limit -= mwl8k_txq_reclaim(hw, i, limit, 0);
@@ -4649,7 +4649,7 @@ static void mwl8k_tx_poll(unsigned long data)
 		priv->tx_wait = NULL;
 	}
 
-	spin_unlock_bh(&priv->tx_lock);
+	spin_unlock(&priv->tx_lock);
 
 	if (limit) {
 		writel(~MWL8K_A2H_INT_TX_DONE,
