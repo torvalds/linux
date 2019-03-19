@@ -77,7 +77,7 @@ static int cs47l24_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	wm_adsp2_set_dspclk(w, v);
 
-	return wm_adsp2_early_event(w, kcontrol, event);
+	return wm_adsp_early_event(w, kcontrol, event);
 }
 
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);

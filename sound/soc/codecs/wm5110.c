@@ -213,7 +213,7 @@ static int wm5110_adsp_power_ev(struct snd_soc_dapm_widget *w,
 
 	wm_adsp2_set_dspclk(w, v);
 
-	return wm_adsp2_early_event(w, kcontrol, event);
+	return wm_adsp_early_event(w, kcontrol, event);
 }
 
 static const struct reg_sequence wm5110_no_dre_left_enable[] = {
