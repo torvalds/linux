@@ -437,9 +437,6 @@ static int axp20x_regulator_enable_regmap(struct regulator_dev *rdev)
 	struct axp20x_dev *axp20x = rdev_get_drvdata(rdev);
 	const struct regulator_desc *desc;
 
-	if (!rdev)
-		return -EINVAL;
-
 	desc = rdev->desc;
 
 	switch (axp20x->variant) {
