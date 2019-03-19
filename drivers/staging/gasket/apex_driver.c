@@ -439,9 +439,7 @@ static int apex_reset(struct gasket_dev *gasket_dev)
 		if (ret)
 			return ret;
 	}
-	ret = apex_quit_reset(gasket_dev);
-
-	return ret;
+	return apex_quit_reset(gasket_dev);
 }
 
 /*
