@@ -221,4 +221,3 @@ struct clk_hw *zynqmp_clk_register_divider(const char *name,
 
 	return hw;
 }
-EXPORT_SYMBOL_GPL(zynqmp_clk_register_divider);
