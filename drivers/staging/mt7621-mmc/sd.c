@@ -620,8 +620,8 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	}
 
 	sdr_set_field(host->base + MSDC_DMA_CFG, MSDC_DMA_CFG_DECSEN, 1);
-	sdr_set_field(host->base + MSDC_DMA_CTRL, MSDC_DMA_CTRL_BRUSTSZ,
-		      MSDC_BRUST_64B);
+	sdr_set_field(host->base + MSDC_DMA_CTRL, MSDC_DMA_CTRL_BURSTSZ,
+		      MSDC_BURST_64B);
 	sdr_set_field(host->base + MSDC_DMA_CTRL, MSDC_DMA_CTRL_MODE, 1);
 
 	writel(PHYSADDR((u32)dma->gpd_addr), host->base + MSDC_DMA_SA);

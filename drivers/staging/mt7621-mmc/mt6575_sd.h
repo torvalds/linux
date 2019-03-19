@@ -53,10 +53,10 @@
 #define MSDC_BUS_4BITS          (1)
 #define MSDC_BUS_8BITS          (2)
 
-#define MSDC_BRUST_8B           (3)
-#define MSDC_BRUST_16B          (4)
-#define MSDC_BRUST_32B          (5)
-#define MSDC_BRUST_64B          (6)
+#define MSDC_BURST_8B           (3)
+#define MSDC_BURST_16B          (4)
+#define MSDC_BURST_32B          (5)
+#define MSDC_BURST_64B          (6)
 
 #define MSDC_PIN_PULL_NONE      (0)
 #define MSDC_PIN_PULL_DOWN      (1)
@@ -280,7 +280,7 @@ enum {
 #define MSDC_DMA_CTRL_RESUME    (0x1  << 2)     /* W */
 #define MSDC_DMA_CTRL_MODE      (0x1  << 8)     /* RW */
 #define MSDC_DMA_CTRL_LASTBUF   (0x1  << 10)    /* RW */
-#define MSDC_DMA_CTRL_BRUSTSZ   (0x7  << 12)    /* RW */
+#define MSDC_DMA_CTRL_BURSTSZ   (0x7  << 12)    /* RW */
 #define MSDC_DMA_CTRL_XFERSZ    (0xffffUL << 16)/* RW */
 
 /* MSDC_DMA_CFG mask */
