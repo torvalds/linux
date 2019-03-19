@@ -588,6 +588,7 @@ static void gfx_v9_0_check_if_need_gfxoff(struct amdgpu_device *adev)
 		if (adev->rev_id >= 0x8 || adev->pdev->device == 0x15d8)
 			break;
 		if ((adev->gfx.rlc_fw_version < 531) ||
+		    (adev->gfx.rlc_fw_version == 53815) ||
 		    (adev->gfx.rlc_feature_version < 1) ||
 		    !adev->gfx.rlc.is_rlc_v2_1)
 			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
