@@ -141,7 +141,6 @@ int wm_adsp2_early_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event,
 			 unsigned int freq);
 
-int wm_adsp2_lock(struct wm_adsp *adsp, unsigned int regions);
 irqreturn_t wm_adsp2_bus_error(struct wm_adsp *adsp);
 
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
