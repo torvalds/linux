@@ -44,7 +44,7 @@
  */
 #define SPI_TRANSFER_BUF_LEN	(4 + MAX_FRAMELEN)
 
-#define TX_TIMEOUT	(4 * HZ)
+#define TX_TIMEOUT		(4 * HZ)
 
 /* Max TX retries in case of collision as suggested by errata datasheet */
 #define MAX_TX_RETRYCOUNT	16
@@ -123,8 +123,7 @@ spi_read_buf(struct enc28j60_net *priv, int len, u8 *data)
 /*
  * SPI write buffer
  */
-static int spi_write_buf(struct enc28j60_net *priv, int len,
-			 const u8 *data)
+static int spi_write_buf(struct enc28j60_net *priv, int len, const u8 *data)
 {
 	struct device *dev = &priv->spi->dev;
 	int ret;
@@ -145,8 +144,7 @@ static int spi_write_buf(struct enc28j60_net *priv, int len,
 /*
  * basic SPI read operation
  */
-static u8 spi_read_op(struct enc28j60_net *priv, u8 op,
-			   u8 addr)
+static u8 spi_read_op(struct enc28j60_net *priv, u8 op, u8 addr)
 {
 	struct device *dev = &priv->spi->dev;
 	u8 tx_buf[2];
@@ -173,8 +171,7 @@ static u8 spi_read_op(struct enc28j60_net *priv, u8 op,
 /*
  * basic SPI write operation
  */
-static int spi_write_op(struct enc28j60_net *priv, u8 op,
-			u8 addr, u8 val)
+static int spi_write_op(struct enc28j60_net *priv, u8 op, u8 addr, u8 val)
 {
 	struct device *dev = &priv->spi->dev;
 	int ret;
@@ -243,15 +240,13 @@ static void enc28j60_set_bank(struct enc28j60_net *priv, u8 addr)
 /*
  * Register bit field Set
  */
-static void nolock_reg_bfset(struct enc28j60_net *priv,
-				      u8 addr, u8 mask)
+static void nolock_reg_bfset(struct enc28j60_net *priv, u8 addr, u8 mask)
 {
 	enc28j60_set_bank(priv, addr);
 	spi_write_op(priv, ENC28J60_BIT_FIELD_SET, addr, mask);
 }
 
-static void locked_reg_bfset(struct enc28j60_net *priv,
-				      u8 addr, u8 mask)
+static void locked_reg_bfset(struct enc28j60_net *priv, u8 addr, u8 mask)
 {
 	mutex_lock(&priv->lock);
 	nolock_reg_bfset(priv, addr, mask);
@@ -261,15 +256,13 @@ static void locked_reg_bfset(struct enc28j60_net *priv,
 /*
  * Register bit field Clear
  */
-static void nolock_reg_bfclr(struct enc28j60_net *priv,
-				      u8 addr, u8 mask)
+static void nolock_reg_bfclr(struct enc28j60_net *priv, u8 addr, u8 mask)
 {
 	enc28j60_set_bank(priv, addr);
 	spi_write_op(priv, ENC28J60_BIT_FIELD_CLR, addr, mask);
 }
 
-static void locked_reg_bfclr(struct enc28j60_net *priv,
-				      u8 addr, u8 mask)
+static void locked_reg_bfclr(struct enc28j60_net *priv, u8 addr, u8 mask)
 {
 	mutex_lock(&priv->lock);
 	nolock_reg_bfclr(priv, addr, mask);
@@ -279,15 +272,13 @@ static void locked_reg_bfclr(struct enc28j60_net *priv,
 /*
  * Register byte read
  */
-static int nolock_regb_read(struct enc28j60_net *priv,
-				     u8 address)
+static int nolock_regb_read(struct enc28j60_net *priv, u8 address)
 {
 	enc28j60_set_bank(priv, address);
 	return spi_read_op(priv, ENC28J60_READ_CTRL_REG, address);
 }
 
-static int locked_regb_read(struct enc28j60_net *priv,
-				     u8 address)
+static int locked_regb_read(struct enc28j60_net *priv, u8 address)
 {
 	int ret;
 
@@ -301,8 +292,7 @@ static int locked_regb_read(struct enc28j60_net *priv,
 /*
  * Register word read
  */
-static int nolock_regw_read(struct enc28j60_net *priv,
-				     u8 address)
+static int nolock_regw_read(struct enc28j60_net *priv, u8 address)
 {
 	int rl, rh;
 
@@ -313,8 +303,7 @@ static int nolock_regw_read(struct enc28j60_net *priv,
 	return (rh << 8) | rl;
 }
 
-static int locked_regw_read(struct enc28j60_net *priv,
-				     u8 address)
+static int locked_regw_read(struct enc28j60_net *priv, u8 address)
 {
 	int ret;
 
@@ -328,15 +317,13 @@ static int locked_regw_read(struct enc28j60_net *priv,
 /*
  * Register byte write
  */
-static void nolock_regb_write(struct enc28j60_net *priv,
-				       u8 address, u8 data)
+static void nolock_regb_write(struct enc28j60_net *priv, u8 address, u8 data)
 {
 	enc28j60_set_bank(priv, address);
 	spi_write_op(priv, ENC28J60_WRITE_CTRL_REG, address, data);
 }
 
-static void locked_regb_write(struct enc28j60_net *priv,
-				       u8 address, u8 data)
+static void locked_regb_write(struct enc28j60_net *priv, u8 address, u8 data)
 {
 	mutex_lock(&priv->lock);
 	nolock_regb_write(priv, address, data);
@@ -346,8 +333,7 @@ static void locked_regb_write(struct enc28j60_net *priv,
 /*
  * Register word write
  */
-static void nolock_regw_write(struct enc28j60_net *priv,
-				       u8 address, u16 data)
+static void nolock_regw_write(struct enc28j60_net *priv, u8 address, u16 data)
 {
 	enc28j60_set_bank(priv, address);
 	spi_write_op(priv, ENC28J60_WRITE_CTRL_REG, address, (u8) data);
@@ -355,8 +341,7 @@ static void nolock_regw_write(struct enc28j60_net *priv,
 		     (u8) (data >> 8));
 }
 
-static void locked_regw_write(struct enc28j60_net *priv,
-				       u8 address, u16 data)
+static void locked_regw_write(struct enc28j60_net *priv, u8 address, u16 data)
 {
 	mutex_lock(&priv->lock);
 	nolock_regw_write(priv, address, data);
@@ -367,8 +352,8 @@ static void locked_regw_write(struct enc28j60_net *priv,
  * Buffer memory read
  * Select the starting address and execute a SPI buffer read.
  */
-static void enc28j60_mem_read(struct enc28j60_net *priv,
-				     u16 addr, int len, u8 *data)
+static void enc28j60_mem_read(struct enc28j60_net *priv, u16 addr, int len,
+			      u8 *data)
 {
 	mutex_lock(&priv->lock);
 	nolock_regw_write(priv, ERDPTL, addr);
@@ -469,7 +454,7 @@ static u16 enc28j60_phy_read(struct enc28j60_net *priv, u8 address)
 	/* quit reading */
 	nolock_regb_write(priv, MICMD, 0x00);
 	/* return the data */
-	ret  = nolock_regw_read(priv, MIRDL);
+	ret = nolock_regw_read(priv, MIRDL);
 	mutex_unlock(&priv->lock);
 
 	return ret;
@@ -834,7 +819,7 @@ static void enc28j60_read_tsv(struct enc28j60_net *priv, u8 tsv[TSV_SIZE])
 }
 
 static void enc28j60_dump_tsv(struct enc28j60_net *priv, const char *msg,
-				u8 tsv[TSV_SIZE])
+			      u8 tsv[TSV_SIZE])
 {
 	struct device *dev = &priv->spi->dev;
 	u16 tmp1, tmp2;
@@ -1575,8 +1560,7 @@ static int enc28j60_probe(struct spi_device *spi)
 
 	priv->netdev = dev;	/* priv to netdev reference */
 	priv->spi = spi;	/* priv to spi reference */
-	priv->msg_enable = netif_msg_init(debug.msg_enable,
-						ENC28J60_MSG_DEFAULT);
+	priv->msg_enable = netif_msg_init(debug.msg_enable, ENC28J60_MSG_DEFAULT);
 	mutex_init(&priv->lock);
 	INIT_WORK(&priv->tx_work, enc28j60_tx_work_handler);
 	INIT_WORK(&priv->setrx_work, enc28j60_setrx_work_handler);
