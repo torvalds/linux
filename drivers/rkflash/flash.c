@@ -514,7 +514,8 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			    id_byte[0][1] != 0xDA &&
 			    id_byte[0][1] != 0xD1 &&
 			    id_byte[0][1] != 0x95 &&
-			    id_byte[0][1] != 0xDC)
+			    id_byte[0][1] != 0xDC &&
+			    id_byte[0][1] != 0x48)
 
 				return FTL_UNSUPPORTED_FLASH;
 		}
@@ -538,6 +539,11 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			nand_para.plane_per_die = 2;
 			nand_para.blk_per_plane = 2048;
 		}
+	} else if (id_byte[0][1] == 0x48) {
+		nand_para.sec_per_page = 8;
+		nand_para.page_per_blk = 128;
+		nand_para.plane_per_die = 2;
+		nand_para.blk_per_plane = 2048;
 	}
 	flash_die_info_init();
 	flash_bch_sel(nand_para.ecc_bits);
