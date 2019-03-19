@@ -736,4 +736,7 @@ config ARCH_HAS_PTE_SPECIAL
 config ARCH_HAS_HUGEPD
 	bool
 
+config MAPPING_DIRTY_HELPERS
+        bool
+
 endmenu
