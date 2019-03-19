@@ -2145,6 +2145,9 @@ int _iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 		return 0;
 	}
 
+	if (test_and_set_bit(IWL_FWRT_STATUS_DUMPING, &fwrt->status))
+		return -EBUSY;
+
 	fwrt->dump.ini_trig_id = id;
 
 	IWL_WARN(fwrt, "WRT: collecting data: ini trigger %d fired.\n", id);
