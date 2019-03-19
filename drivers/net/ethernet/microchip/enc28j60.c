@@ -21,7 +21,6 @@
 #include <linux/property.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
