@@ -1839,7 +1839,7 @@ static void __exit pasemi_mac_cleanup_module(void)
 	pci_unregister_driver(&pasemi_mac_driver);
 }
 
-int pasemi_mac_init_module(void)
+static int pasemi_mac_init_module(void)
 {
 	int err;
 
