@@ -2608,8 +2608,9 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 		input_report_rel(mydata->input, REL_Y, v);
 
 		v = hid_snto32(data[6], 8);
-		hidpp_scroll_counter_handle_scroll(
-				&hidpp->vertical_wheel_counter, v);
+		if (v != 0)
+			hidpp_scroll_counter_handle_scroll(
+					&hidpp->vertical_wheel_counter, v);
 
 		input_sync(mydata->input);
 	}
