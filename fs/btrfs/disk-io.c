@@ -541,7 +541,8 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 		return -EUCLEAN;
 
 	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
-			btrfs_header_fsid(), BTRFS_FSID_SIZE) == 0);
+				    offsetof(struct btrfs_header, fsid),
+				    BTRFS_FSID_SIZE) == 0);
 
 	if (csum_tree_block(eb, result))
 		return -EINVAL;
@@ -571,7 +572,8 @@ static int check_tree_block_fsid(struct extent_buffer *eb)
 	u8 fsid[BTRFS_FSID_SIZE];
 	int ret = 1;
 
-	read_extent_buffer(eb, fsid, btrfs_header_fsid(), BTRFS_FSID_SIZE);
+	read_extent_buffer(eb, fsid, offsetof(struct btrfs_header, fsid),
+			   BTRFS_FSID_SIZE);
 	while (fs_devices) {
 		u8 *metadata_uuid;
 
