@@ -681,26 +681,6 @@ enum ht_cap_ampdu_factor {
 #define	WPS_CM_SW_DISPLAY_P		0x2008
 #define	WPS_CM_LCD_DISPLAY_P		0x4008
 
-/*	=====================WFD Section===================== */
-/*	For Wi-Fi Display */
-#define	WFD_ATTR_DEVICE_INFO		0x00
-#define	WFD_ATTR_ASSOC_BSSID		0x01
-#define	WFD_ATTR_COUPLED_SINK_INFO	0x06
-#define	WFD_ATTR_LOCAL_IP_ADDR		0x08
-#define	WFD_ATTR_SESSION_INFO		0x09
-#define	WFD_ATTR_ALTER_MAC		0x0a
-
-/*	For WFD Device Information Attribute */
-#define	WFD_DEVINFO_SOURCE			0x0000
-#define	WFD_DEVINFO_PSINK			0x0001
-#define	WFD_DEVINFO_SSINK			0x0002
-#define	WFD_DEVINFO_DUAL			0x0003
-
-#define	WFD_DEVINFO_SESSION_AVAIL		0x0010
-#define	WFD_DEVINFO_WSD				0x0040
-#define	WFD_DEVINFO_PC_TDLS			0x0080
-#define	WFD_DEVINFO_HDCP_SUPPORT		0x0100
-
 #define IP_MCAST_MAC(mac)				\
 	((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))
 #define ICMPV6_MCAST_MAC(mac)				\
