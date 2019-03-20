@@ -1039,8 +1039,7 @@ fail:
 	return -1;
 }
 
-static noinline_for_stack int
-write_pinned_extent_entries(struct btrfs_fs_info *fs_info,
+static noinline_for_stack int write_pinned_extent_entries(
 			    struct btrfs_block_group_cache *block_group,
 			    struct btrfs_io_ctl *io_ctl,
 			    int *entries)
@@ -1059,7 +1058,7 @@ write_pinned_extent_entries(struct btrfs_fs_info *fs_info,
 	 * We shouldn't have switched the pinned extents yet so this is the
 	 * right one
 	 */
-	unpin = fs_info->pinned_extents;
+	unpin = block_group->fs_info->pinned_extents;
 
 	start = block_group->key.objectid;
 
@@ -1235,7 +1234,6 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 				   struct btrfs_io_ctl *io_ctl,
 				   struct btrfs_trans_handle *trans)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_state *cached_state = NULL;
 	LIST_HEAD(bitmap_list);
 	int entries = 0;
@@ -1293,8 +1291,7 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * If this changes while we are working we'll get added back to
 	 * the dirty list and redo it.  No locking needed
 	 */
-	ret = write_pinned_extent_entries(fs_info, block_group,
-					  io_ctl, &entries);
+	ret = write_pinned_extent_entries(block_group, io_ctl, &entries);
 	if (ret)
 		goto out_nospc_locked;
 
