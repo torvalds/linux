@@ -147,24 +147,6 @@ struct shash_desc *__ubifs_hash_get_desc(const struct ubifs_info *c)
 }
 
 /**
- * __ubifs_shash_final - finalize shash
- * @c: UBIFS file-system description object
- * @desc: the descriptor
- * @out: the output hash
- *
- * Simple wrapper around crypto_shash_final(), safe to be called with
- * disabled authentication.
- */
-int __ubifs_shash_final(const struct ubifs_info *c, struct shash_desc *desc,
-			u8 *out)
-{
-	if (ubifs_authenticated(c))
-		return crypto_shash_final(desc, out);
-
-	return 0;
-}
-
-/**
  * ubifs_bad_hash - Report hash mismatches
  * @c: UBIFS file-system description object
  * @node: the node
