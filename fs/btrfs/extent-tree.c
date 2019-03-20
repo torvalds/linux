@@ -2950,8 +2950,7 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	extent_op->is_data = is_data ? true : false;
 	extent_op->level = level;
 
-	ret = btrfs_add_delayed_extent_op(fs_info, trans, bytenr,
-					  num_bytes, extent_op);
+	ret = btrfs_add_delayed_extent_op(trans, bytenr, num_bytes, extent_op);
 	if (ret)
 		btrfs_free_delayed_extent_op(extent_op);
 	return ret;
