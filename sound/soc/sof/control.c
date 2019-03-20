@@ -46,7 +46,8 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: volume get failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: volume get failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -66,7 +67,8 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: volume get failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: volume get failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -84,7 +86,8 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: volume put failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: volume put failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -106,7 +109,8 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: volume put failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: volume put failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -124,7 +128,8 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: switch get failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: switch get failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -142,7 +147,8 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: switch get failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: switch get failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -160,7 +166,8 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: switch put failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: switch put failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -180,7 +187,8 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: switch put failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: switch put failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -198,7 +206,8 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: enum get failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: enum get failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -216,7 +225,8 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: enum get failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: enum get failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -234,7 +244,8 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: enum put failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: enum put failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -254,7 +265,8 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: enum put failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: enum put failed to idle %d\n",
 				    err);
 	return 0;
 }
@@ -272,14 +284,16 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	int ret, err;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
-		dev_err_ratelimited(sdev->dev, "error: data max %d exceeds ucontrol data array size\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: data max %d exceeds ucontrol data array size\n",
 				    be->max);
 		return -EINVAL;
 	}
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: bytes get failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes get failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -290,7 +304,8 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 				  SOF_CTRL_TYPE_DATA_GET, scontrol->cmd);
 	size = data->size + sizeof(*data);
 	if (size > be->max) {
-		dev_err_ratelimited(sdev->dev, "error: DSP sent %zu bytes max is %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: DSP sent %zu bytes max is %d\n",
 				    size, be->max);
 		ret = -EINVAL;
 		goto out;
@@ -303,7 +318,8 @@ out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: bytes get failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes get failed to idle %d\n",
 				    err);
 	return ret;
 }
@@ -320,20 +336,23 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	int ret, err;
 
 	if (be->max > sizeof(ucontrol->value.bytes.data)) {
-		dev_err_ratelimited(sdev->dev, "error: data max %d exceeds ucontrol data array size\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: data max %d exceeds ucontrol data array size\n",
 				    be->max);
 		return -EINVAL;
 	}
 
 	if (data->size > be->max) {
-		dev_err_ratelimited(sdev->dev, "error: size too big %d bytes max is %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: size too big %d bytes max is %d\n",
 				    data->size, be->max);
 		return -EINVAL;
 	}
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: bytes put failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes put failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -349,7 +368,8 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: bytes put failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes put failed to idle %d\n",
 				    err);
 	return ret;
 }
@@ -386,14 +406,16 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	if (be->max < max_size) /* min() not used to avoid sparse warnings */
 		max_size = be->max;
 	if (header.length > max_size) {
-		dev_err_ratelimited(sdev->dev, "error: Bytes data size %d exceeds max %d.\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: Bytes data size %d exceeds max %d.\n",
 				    header.length, max_size);
 		return -EINVAL;
 	}
 
 	/* Check that header id matches the command */
 	if (header.numid != scontrol->cmd) {
-		dev_err_ratelimited(sdev->dev, "error: incorrect numid %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: incorrect numid %d\n",
 				    header.numid);
 		return -EINVAL;
 	}
@@ -402,7 +424,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EFAULT;
 
 	if (cdata->data->magic != SOF_ABI_MAGIC) {
-		dev_err_ratelimited(sdev->dev, "error: Wrong ABI magic 0x%08x.\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: Wrong ABI magic 0x%08x.\n",
 				    cdata->data->magic);
 		return -EINVAL;
 	}
@@ -414,13 +437,15 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (cdata->data->size + sizeof(const struct sof_abi_hdr) > max_size) {
-		dev_err_ratelimited(sdev->dev, "error: Mismatch in ABI data size (truncated?).\n");
+		dev_err_ratelimited(sdev->dev,
+				    "error: Mismatch in ABI data size (truncated?).\n");
 		return -EINVAL;
 	}
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: bytes_ext put failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes_ext put failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -433,7 +458,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: bytes_ext put failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes_ext put failed to idle %d\n",
 				    err);
 
 	return ret;
@@ -459,7 +485,8 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err_ratelimited(sdev->dev, "error: bytes_ext get failed to resume %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes_ext get failed to resume %d\n",
 				    ret);
 		pm_runtime_put_noidle(sdev->dev);
 		return ret;
@@ -489,7 +516,8 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	if (be->max < max_size)
 		max_size = be->max;
 	if (data_size > max_size) {
-		dev_err_ratelimited(sdev->dev, "error: user data size %d exceeds max size %d.\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: user data size %d exceeds max size %d.\n",
 				    data_size, max_size);
 		ret = -EINVAL;
 		goto out;
@@ -509,7 +537,8 @@ out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "error: bytes_ext get failed to idle %d\n",
+		dev_err_ratelimited(sdev->dev,
+				    "error: bytes_ext get failed to idle %d\n",
 				    err);
 	return ret;
 }
