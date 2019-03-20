@@ -88,10 +88,11 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	return inode;
 }
 
-struct inode *lookup_free_space_inode(struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_group_cache
-				      *block_group, struct btrfs_path *path)
+struct inode *lookup_free_space_inode(
+		struct btrfs_block_group_cache *block_group,
+		struct btrfs_path *path)
 {
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct inode *inode = NULL;
 	u32 flags = BTRFS_INODE_NODATASUM | BTRFS_INODE_NODATACOW;
 
@@ -857,7 +858,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	 * once created get their ->cached field set to BTRFS_CACHE_FINISHED so
 	 * we will never try to read their inode item while the fs is mounted.
 	 */
-	inode = lookup_free_space_inode(fs_info, block_group, path);
+	inode = lookup_free_space_inode(block_group, path);
 	if (IS_ERR(inode)) {
 		btrfs_free_path(path);
 		return 0;
@@ -1385,7 +1386,7 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 	}
 	spin_unlock(&block_group->lock);
 
-	inode = lookup_free_space_inode(fs_info, block_group, path);
+	inode = lookup_free_space_inode(block_group, path);
 	if (IS_ERR(inode))
 		return 0;
 
