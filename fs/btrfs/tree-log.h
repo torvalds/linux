@@ -36,10 +36,9 @@ static inline void btrfs_set_log_full_commit(struct btrfs_fs_info *fs_info,
 	WRITE_ONCE(fs_info->last_trans_log_full_commit, trans->transid);
 }
 
-static inline int btrfs_need_log_full_commit(struct btrfs_fs_info *fs_info,
-					     struct btrfs_trans_handle *trans)
+static inline int btrfs_need_log_full_commit(struct btrfs_trans_handle *trans)
 {
-	return READ_ONCE(fs_info->last_trans_log_full_commit) ==
+	return READ_ONCE(trans->fs_info->last_trans_log_full_commit) ==
 		trans->transid;
 }
 

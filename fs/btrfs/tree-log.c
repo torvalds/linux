@@ -139,7 +139,7 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 	mutex_lock(&root->log_mutex);
 
 	if (root->log_root) {
-		if (btrfs_need_log_full_commit(fs_info, trans)) {
+		if (btrfs_need_log_full_commit(trans)) {
 			ret = -EAGAIN;
 			goto out;
 		}
@@ -3077,7 +3077,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 
 	/* bail out if we need to do a full commit */
-	if (btrfs_need_log_full_commit(fs_info, trans)) {
+	if (btrfs_need_log_full_commit(trans)) {
 		ret = -EAGAIN;
 		mutex_unlock(&root->log_mutex);
 		goto out;
@@ -3184,7 +3184,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * now that we've moved on to the tree of log tree roots,
 	 * check the full commit flag again
 	 */
-	if (btrfs_need_log_full_commit(fs_info, trans)) {
+	if (btrfs_need_log_full_commit(trans)) {
 		blk_finish_plug(&plug);
 		btrfs_wait_tree_log_extents(log, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
