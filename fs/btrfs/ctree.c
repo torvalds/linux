@@ -726,11 +726,11 @@ tree_mod_log_search(struct btrfs_fs_info *fs_info, u64 start, u64 min_seq)
 	return __tree_mod_log_search(fs_info, start, min_seq, 0);
 }
 
-static noinline int
-tree_mod_log_eb_copy(struct btrfs_fs_info *fs_info, struct extent_buffer *dst,
+static noinline int tree_mod_log_eb_copy(struct extent_buffer *dst,
 		     struct extent_buffer *src, unsigned long dst_offset,
 		     unsigned long src_offset, int nr_items)
 {
+	struct btrfs_fs_info *fs_info = dst->fs_info;
 	int ret = 0;
 	struct tree_mod_elem **tm_list = NULL;
 	struct tree_mod_elem **tm_list_add, **tm_list_rem;
@@ -3249,8 +3249,7 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 	} else
 		push_items = min(src_nritems - 8, push_items);
 
-	ret = tree_mod_log_eb_copy(fs_info, dst, src, dst_nritems, 0,
-				   push_items);
+	ret = tree_mod_log_eb_copy(dst, src, dst_nritems, 0, push_items);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
@@ -3325,8 +3324,8 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 				      (dst_nritems) *
 				      sizeof(struct btrfs_key_ptr));
 
-	ret = tree_mod_log_eb_copy(fs_info, dst, src, 0,
-				   src_nritems - push_items, push_items);
+	ret = tree_mod_log_eb_copy(dst, src, 0, src_nritems - push_items,
+				   push_items);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
@@ -3511,7 +3510,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	root_add_used(root, fs_info->nodesize);
 	ASSERT(btrfs_header_level(c) == level);
 
-	ret = tree_mod_log_eb_copy(fs_info, split, c, 0, mid, c_nritems - mid);
+	ret = tree_mod_log_eb_copy(split, c, 0, mid, c_nritems - mid);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
