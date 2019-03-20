@@ -9,6 +9,11 @@
 #define ONE_PT_CALIB		0x1
 #define ONE_PT_CALIB2		0x2
 #define TWO_PT_CALIB		0x3
+#define CAL_DEGC_PT1		30
+#define CAL_DEGC_PT2		120
+#define SLOPE_FACTOR		1000
+#define SLOPE_DEFAULT		3200
+
 
 #include <linux/thermal.h>
 #include <linux/regmap.h>

@@ -12,11 +12,6 @@
 #include <linux/regmap.h>
 #include "tsens.h"
 
-#define CAL_DEGC_PT1		30
-#define CAL_DEGC_PT2		120
-#define SLOPE_FACTOR		1000
-#define SLOPE_DEFAULT		3200
-
 char *qfprom_read(struct device *dev, const char *cname)
 {
 	struct nvmem_cell *cell;
