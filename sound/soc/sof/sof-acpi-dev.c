@@ -13,8 +13,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc-acpi.h>
-#include <linux/pm_domain.h>
-#include <linux/dmi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
 #ifdef CONFIG_X86
@@ -168,26 +166,6 @@ static const struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 
 #endif
 
-/* BYT Minnowboard quirk table */
-static const struct dmi_system_id byt_quirk_table[] = {
-	{
-		/* Minnowboard Max B3 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
-			DMI_MATCH(DMI_PRODUCT_NAME,
-				  "Minnowboard Max B3 PLATFORM"),
-		},
-	},
-	{
-		/* Minnowboard Turbot */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ADI"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
-		},
-	},
-	{}
-};
-
 static const struct dev_pm_ops sof_acpi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
@@ -212,18 +190,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	dev_dbg(&pdev->dev, "ACPI DSP detected");
-
-	/*
-	 * Minnowboard has a known issue with the BIOS that prevents the DSP
-	 * from resuming back to D0 when the system resumes from S3 to S0.
-	 * So, detach the platform device from the pm_domain to prevent
-	 * the DSP from entering D3. The @power_off argument to the
-	 * dev_pm_domain_detach() call indicates that the DSP should be
-	 * left powered on.
-	 */
-	if (dmi_check_system(byt_quirk_table))
-		if (dev->pm_domain)
-			dev_pm_domain_detach(dev, false);
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);
 	if (!sof_pdata)
