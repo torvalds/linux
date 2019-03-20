@@ -2548,11 +2548,11 @@ void rcu_sched_clock_irq(int user)
 }
 
 /*
- * Scan the leaf rcu_node structures, processing dyntick state for any that
- * have not yet encountered a quiescent state, using the function specified.
- * Also initiate boosting for any threads blocked on the root rcu_node.
- *
- * The caller must have suppressed start of new grace periods.
+ * Scan the leaf rcu_node structures.  For each structure on which all
+ * CPUs have reported a quiescent state and on which there are tasks
+ * blocking the current grace period, initiate RCU priority boosting.
+ * Otherwise, invoke the specified function to check dyntick state for
+ * each CPU that has not yet reported a quiescent state.
  */
 static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
 {
