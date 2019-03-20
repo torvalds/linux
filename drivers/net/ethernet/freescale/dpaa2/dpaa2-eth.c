@@ -1817,7 +1817,7 @@ static int dpaa2_eth_xdp_xmit_frame(struct net_device *net_dev,
 	dpaa2_fd_set_format(&fd, dpaa2_fd_single);
 	dpaa2_fd_set_ctrl(&fd, FD_CTRL_PTA);
 
-	fq = &priv->fq[smp_processor_id()];
+	fq = &priv->fq[smp_processor_id() % dpaa2_eth_queue_count(priv)];
 	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
 		err = priv->enqueue(priv, fq, &fd, 0);
 		if (err != -EBUSY)
