@@ -58,8 +58,6 @@ struct mt7621_spi {
 	unsigned int		speed;
 	struct clk		*clk;
 	int			pending_write;
-
-	struct mt7621_spi_ops	*ops;
 };
 
 static inline struct mt7621_spi *spidev_to_mt7621_spi(struct spi_device *spi)
@@ -330,13 +328,11 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	struct resource *r;
 	int status = 0;
 	struct clk *clk;
-	struct mt7621_spi_ops *ops;
 	int ret;
 
 	match = of_match_device(mt7621_spi_match, &pdev->dev);
 	if (!match)
 		return -EINVAL;
-	ops = (struct mt7621_spi_ops *)match->data;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, r);
@@ -375,7 +371,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	rs->clk = clk;
 	rs->master = master;
 	rs->sys_freq = clk_get_rate(rs->clk);
-	rs->ops = ops;
 	rs->pending_write = 0;
 	dev_info(&pdev->dev, "sys_freq: %u\n", rs->sys_freq);
 
