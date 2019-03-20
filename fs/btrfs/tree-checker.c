@@ -41,12 +41,12 @@
  * Append generic "corrupt leaf/node root=%llu block=%llu slot=%d: " to @fmt.
  * Allows callers to customize the output.
  */
-__printf(4, 5)
+__printf(3, 4)
 __cold
-static void generic_err(const struct btrfs_fs_info *fs_info,
-			const struct extent_buffer *eb, int slot,
+static void generic_err(const struct extent_buffer *eb, int slot,
 			const char *fmt, ...)
 {
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct va_format vaf;
 	va_list args;
 
@@ -196,19 +196,19 @@ static int check_csum_item(struct btrfs_fs_info *fs_info,
 	u32 csumsize = btrfs_super_csum_size(fs_info->super_copy);
 
 	if (key->objectid != BTRFS_EXTENT_CSUM_OBJECTID) {
-		generic_err(fs_info, leaf, slot,
+		generic_err(leaf, slot,
 		"invalid key objectid for csum item, have %llu expect %llu",
 			key->objectid, BTRFS_EXTENT_CSUM_OBJECTID);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(key->offset, sectorsize)) {
-		generic_err(fs_info, leaf, slot,
+		generic_err(leaf, slot,
 	"unaligned key offset for csum item, have %llu should be aligned to %u",
 			key->offset, sectorsize);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(btrfs_item_size_nr(leaf, slot), csumsize)) {
-		generic_err(fs_info, leaf, slot,
+		generic_err(leaf, slot,
 	"unaligned item size for csum item, have %u should be aligned to %u",
 			btrfs_item_size_nr(leaf, slot), csumsize);
 		return -EUCLEAN;
@@ -695,7 +695,7 @@ static int check_inode_item(struct btrfs_fs_info *fs_info,
 	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
 	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
 	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
-		generic_err(fs_info, leaf, slot,
+		generic_err(leaf, slot,
 	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
 			    key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
 			    BTRFS_FIRST_FREE_OBJECTID,
@@ -819,7 +819,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 	int slot;
 
 	if (btrfs_header_level(leaf) != 0) {
-		generic_err(fs_info, leaf, 0,
+		generic_err(leaf, 0,
 			"invalid level for leaf, have %d expect 0",
 			btrfs_header_level(leaf));
 		return -EUCLEAN;
@@ -844,7 +844,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 		    owner == BTRFS_DEV_TREE_OBJECTID ||
 		    owner == BTRFS_FS_TREE_OBJECTID ||
 		    owner == BTRFS_DATA_RELOC_TREE_OBJECTID) {
-			generic_err(fs_info, leaf, 0,
+			generic_err(leaf, 0,
 			"invalid root, root %llu must never be empty",
 				    owner);
 			return -EUCLEAN;
@@ -864,7 +864,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 			eb = btrfs_root_node(check_root);
 			/* if leaf is the root, then it's fine */
 			if (leaf != eb) {
-				generic_err(fs_info, leaf, 0,
+				generic_err(leaf, 0,
 		"invalid nritems, have %u should not be 0 for non-root leaf",
 					nritems);
 				free_extent_buffer(eb);
@@ -897,7 +897,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 
 		/* Make sure the keys are in the right order */
 		if (btrfs_comp_cpu_keys(&prev_key, &key) >= 0) {
-			generic_err(fs_info, leaf, slot,
+			generic_err(leaf, slot,
 	"bad key order, prev (%llu %u %llu) current (%llu %u %llu)",
 				prev_key.objectid, prev_key.type,
 				prev_key.offset, key.objectid, key.type,
@@ -916,7 +916,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 			item_end_expected = btrfs_item_offset_nr(leaf,
 								 slot - 1);
 		if (btrfs_item_end_nr(leaf, slot) != item_end_expected) {
-			generic_err(fs_info, leaf, slot,
+			generic_err(leaf, slot,
 				"unexpected item end, have %u expect %u",
 				btrfs_item_end_nr(leaf, slot),
 				item_end_expected);
@@ -930,7 +930,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 		 */
 		if (btrfs_item_end_nr(leaf, slot) >
 		    BTRFS_LEAF_DATA_SIZE(fs_info)) {
-			generic_err(fs_info, leaf, slot,
+			generic_err(leaf, slot,
 			"slot end outside of leaf, have %u expect range [0, %u]",
 				btrfs_item_end_nr(leaf, slot),
 				BTRFS_LEAF_DATA_SIZE(fs_info));
@@ -940,7 +940,7 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 		/* Also check if the item pointer overlaps with btrfs item. */
 		if (btrfs_item_nr_offset(slot) + sizeof(struct btrfs_item) >
 		    btrfs_item_ptr_offset(leaf, slot)) {
-			generic_err(fs_info, leaf, slot,
+			generic_err(leaf, slot,
 		"slot overlaps with its data, item end %lu data start %lu",
 				btrfs_item_nr_offset(slot) +
 				sizeof(struct btrfs_item),
@@ -988,7 +988,7 @@ int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
 	int ret = 0;
 
 	if (level <= 0 || level >= BTRFS_MAX_LEVEL) {
-		generic_err(fs_info, node, 0,
+		generic_err(node, 0,
 			"invalid level for node, have %d expect [1, %d]",
 			level, BTRFS_MAX_LEVEL - 1);
 		return -EUCLEAN;
@@ -1008,13 +1008,13 @@ int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
 		btrfs_node_key_to_cpu(node, &next_key, slot + 1);
 
 		if (!bytenr) {
-			generic_err(fs_info, node, slot,
+			generic_err(node, slot,
 				"invalid NULL node pointer");
 			ret = -EUCLEAN;
 			goto out;
 		}
 		if (!IS_ALIGNED(bytenr, fs_info->sectorsize)) {
-			generic_err(fs_info, node, slot,
+			generic_err(node, slot,
 			"unaligned pointer, have %llu should be aligned to %u",
 				bytenr, fs_info->sectorsize);
 			ret = -EUCLEAN;
@@ -1022,7 +1022,7 @@ int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
 		}
 
 		if (btrfs_comp_cpu_keys(&key, &next_key) >= 0) {
-			generic_err(fs_info, node, slot,
+			generic_err(node, slot,
 	"bad key order, current (%llu %u %llu) next (%llu %u %llu)",
 				key.objectid, key.type, key.offset,
 				next_key.objectid, next_key.type,
