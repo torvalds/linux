@@ -807,9 +807,9 @@ static int check_leaf_item(struct extent_buffer *leaf,
 	return ret;
 }
 
-static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
-		      bool check_item_data)
+static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	/* No valid key type is 0, so all key should be larger than this key */
 	struct btrfs_key prev_key = {0, 0, 0};
 	struct btrfs_key key;
@@ -967,13 +967,13 @@ static int check_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *leaf,
 int btrfs_check_leaf_full(struct btrfs_fs_info *fs_info,
 			  struct extent_buffer *leaf)
 {
-	return check_leaf(fs_info, leaf, true);
+	return check_leaf(leaf, true);
 }
 
 int btrfs_check_leaf_relaxed(struct btrfs_fs_info *fs_info,
 			     struct extent_buffer *leaf)
 {
-	return check_leaf(fs_info, leaf, false);
+	return check_leaf(leaf, false);
 }
 
 int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
