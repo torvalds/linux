@@ -2018,6 +2018,10 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	r = amdgpu_device_enable_mgpu_fan_boost();
 	if (r)
 		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
+
+	/*set to low pstate by default */
+	amdgpu_xgmi_set_pstate(adev, 0);
+
 }
 
 static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
