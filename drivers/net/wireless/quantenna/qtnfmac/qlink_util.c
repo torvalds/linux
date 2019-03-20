@@ -182,3 +182,58 @@ void qlink_acl_data_cfg2q(const struct cfg80211_acl_data *acl,
 	memcpy(qacl->mac_addrs, acl->mac_addrs,
 	       acl->n_acl_entries * sizeof(*qacl->mac_addrs));
 }
+
+enum qlink_band qlink_utils_band_cfg2q(enum nl80211_band band)
+{
+	switch (band) {
+	case NL80211_BAND_2GHZ:
+		return QLINK_BAND_2GHZ;
+	case NL80211_BAND_5GHZ:
+		return QLINK_BAND_5GHZ;
+	case NL80211_BAND_60GHZ:
+		return QLINK_BAND_60GHZ;
+	default:
+		return -EINVAL;
+	}
+}
+
+enum qlink_dfs_state qlink_utils_dfs_state_cfg2q(enum nl80211_dfs_state state)
+{
+	switch (state) {
+	case NL80211_DFS_USABLE:
+		return QLINK_DFS_USABLE;
+	case NL80211_DFS_AVAILABLE:
+		return QLINK_DFS_AVAILABLE;
+	case NL80211_DFS_UNAVAILABLE:
+	default:
+		return QLINK_DFS_UNAVAILABLE;
+	}
+}
+
+u32 qlink_utils_chflags_cfg2q(u32 cfgflags)
+{
+	u32 flags = 0;
+
+	if (cfgflags & IEEE80211_CHAN_DISABLED)
+		flags |= QLINK_CHAN_DISABLED;
+
+	if (cfgflags & IEEE80211_CHAN_NO_IR)
+		flags |= QLINK_CHAN_NO_IR;
+
+	if (cfgflags & IEEE80211_CHAN_RADAR)
+		flags |= QLINK_CHAN_RADAR;
+
+	if (cfgflags & IEEE80211_CHAN_NO_HT40PLUS)
+		flags |= QLINK_CHAN_NO_HT40PLUS;
+
+	if (cfgflags & IEEE80211_CHAN_NO_HT40MINUS)
+		flags |= QLINK_CHAN_NO_HT40MINUS;
+
+	if (cfgflags & IEEE80211_CHAN_NO_80MHZ)
+		flags |= QLINK_CHAN_NO_80MHZ;
+
+	if (cfgflags & IEEE80211_CHAN_NO_160MHZ)
+		flags |= QLINK_CHAN_NO_160MHZ;
+
+	return flags;
+}

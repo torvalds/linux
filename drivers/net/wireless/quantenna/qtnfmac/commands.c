@@ -1709,21 +1709,7 @@ int qtnf_cmd_band_info_get(struct qtnf_wmac *mac,
 	struct qlink_resp_band_info_get *resp;
 	size_t info_len = 0;
 	int ret = 0;
-	u8 qband;
-
-	switch (band->band) {
-	case NL80211_BAND_2GHZ:
-		qband = QLINK_BAND_2GHZ;
-		break;
-	case NL80211_BAND_5GHZ:
-		qband = QLINK_BAND_5GHZ;
-		break;
-	case NL80211_BAND_60GHZ:
-		qband = QLINK_BAND_60GHZ;
-		break;
-	default:
-		return -EINVAL;
-	}
+	u8 qband = qlink_utils_band_cfg2q(band->band);
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0,
 					    QLINK_CMD_BAND_INFO_GET,
@@ -2107,22 +2093,23 @@ out:
 static void qtnf_cmd_channel_tlv_add(struct sk_buff *cmd_skb,
 				     const struct ieee80211_channel *sc)
 {
-	struct qlink_tlv_channel *qchan;
-	u32 flags = 0;
+	struct qlink_tlv_channel *tlv;
+	struct qlink_channel *qch;
 
-	qchan = skb_put_zero(cmd_skb, sizeof(*qchan));
-	qchan->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
-	qchan->hdr.len = cpu_to_le16(sizeof(*qchan) - sizeof(qchan->hdr));
-	qchan->chan.center_freq = cpu_to_le16(sc->center_freq);
-	qchan->chan.hw_value = cpu_to_le16(sc->hw_value);
+	tlv = skb_put_zero(cmd_skb, sizeof(*tlv));
+	qch = &tlv->chan;
+	tlv->hdr.type = cpu_to_le16(QTN_TLV_ID_CHANNEL);
+	tlv->hdr.len = cpu_to_le16(sizeof(*qch));
 
-	if (sc->flags & IEEE80211_CHAN_NO_IR)
-		flags |= QLINK_CHAN_NO_IR;
-
-	if (sc->flags & IEEE80211_CHAN_RADAR)
-		flags |= QLINK_CHAN_RADAR;
-
-	qchan->chan.flags = cpu_to_le32(flags);
+	qch->center_freq = cpu_to_le16(sc->center_freq);
+	qch->hw_value = cpu_to_le16(sc->hw_value);
+	qch->band = qlink_utils_band_cfg2q(sc->band);
+	qch->max_power = sc->max_power;
+	qch->max_reg_power = sc->max_reg_power;
+	qch->max_antenna_gain = sc->max_antenna_gain;
+	qch->beacon_found = sc->beacon_found;
+	qch->dfs_state = qlink_utils_dfs_state_cfg2q(sc->dfs_state);
+	qch->flags = cpu_to_le32(qlink_utils_chflags_cfg2q(sc->flags));
 }
 
 static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
