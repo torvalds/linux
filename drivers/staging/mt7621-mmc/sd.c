@@ -1825,14 +1825,15 @@ static int __init mt_msdc_init(void)
 		return ret;
 	}
 
-#if defined(MT6575_SD_DEBUG)
 	msdc_debug_proc_init();
-#endif
+
 	return 0;
 }
 
 static void __exit mt_msdc_exit(void)
 {
+	msdc_debug_proc_deinit();
+
 	platform_driver_unregister(&mt_msdc_driver);
 }
 

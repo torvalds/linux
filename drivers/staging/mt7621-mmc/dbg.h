@@ -92,8 +92,13 @@ enum msdc_dbg {
 #define DBG_EVT_MASK        (DBG_EVT_ALL)
 
 extern unsigned int sd_debug_zone[4];
-#define TAG "msdc"
-void msdc_debug_proc_init(void);
+#ifdef MT6575_SD_DEBUG
+void __init msdc_debug_proc_init(void);
+void __exit msdc_debug_proc_deinit(void);
+#else
+static inline void msdc_debug_proc_init(void) {}
+static inline void msdc_debug_proc_deinit(void) {}
+#endif
 
 u32 msdc_time_calc(u32 old_L32, u32 old_H32, u32 new_L32, u32 new_H32);
 void msdc_performance(u32 opcode, u32 sizes, u32 bRx, u32 ticks);
