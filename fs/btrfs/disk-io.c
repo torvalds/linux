@@ -394,10 +394,10 @@ static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-int btrfs_verify_level_key(struct btrfs_fs_info *fs_info,
-			   struct extent_buffer *eb, int level,
+int btrfs_verify_level_key(struct extent_buffer *eb, int level,
 			   struct btrfs_key *first_key, u64 parent_transid)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int found_level;
 	struct btrfs_key found_key;
 	int ret;
@@ -471,7 +471,7 @@ static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
 			if (verify_parent_transid(io_tree, eb,
 						   parent_transid, 0))
 				ret = -EIO;
-			else if (btrfs_verify_level_key(fs_info, eb, level,
+			else if (btrfs_verify_level_key(eb, level,
 						first_key, parent_transid))
 				ret = -EUCLEAN;
 			else

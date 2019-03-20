@@ -2420,7 +2420,7 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			 * being cached, read from scrub, or have multiple
 			 * parents (shared tree blocks).
 			 */
-			if (btrfs_verify_level_key(fs_info, tmp,
+			if (btrfs_verify_level_key(tmp,
 					parent_level - 1, &first_key, gen)) {
 				free_extent_buffer(tmp);
 				return -EUCLEAN;
