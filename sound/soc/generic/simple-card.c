@@ -26,18 +26,6 @@ struct link_info {
 #define CELL	"#sound-dai-cells"
 #define PREFIX	"simple-audio-card,"
 
-static void simple_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props =
-		simple_priv_to_props(priv, rtd->num);
-
-	asoc_simple_card_clk_disable(dai_props->cpu_dai);
-
-	asoc_simple_card_clk_disable(dai_props->codec_dai);
-}
-
 static int simple_set_clk_rate(struct asoc_simple_dai *simple_dai,
 			       unsigned long rate)
 {
@@ -96,7 +84,7 @@ err:
 
 static const struct snd_soc_ops simple_ops = {
 	.startup	= asoc_simple_startup,
-	.shutdown	= simple_shutdown,
+	.shutdown	= asoc_simple_shutdown,
 	.hw_params	= simple_hw_params,
 };
 
