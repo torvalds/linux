@@ -134,7 +134,6 @@ void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *trans,
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
 				  struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
-				     struct btrfs_fs_info *fs_info,
 				     u64 objectid);
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));

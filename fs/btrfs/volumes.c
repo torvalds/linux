@@ -4620,8 +4620,7 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	uuid_root = btrfs_create_tree(trans, fs_info,
-				      BTRFS_UUID_TREE_OBJECTID);
+	uuid_root = btrfs_create_tree(trans, BTRFS_UUID_TREE_OBJECTID);
 	if (IS_ERR(uuid_root)) {
 		ret = PTR_ERR(uuid_root);
 		btrfs_abort_transaction(trans, ret);
