@@ -217,22 +217,22 @@ int mlx5_fpga_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
 	void *cmd;
 	int ret;
 
-	rcu_read_lock();
-	flow = idr_find(&mdev->fpga->tls->rx_idr, ntohl(handle));
-	rcu_read_unlock();
-
-	if (!flow) {
-		WARN_ONCE(1, "Received NULL pointer for handle\n");
-		return -EINVAL;
-	}
-
 	buf = kzalloc(size, GFP_ATOMIC);
 	if (!buf)
 		return -ENOMEM;
 
 	cmd = (buf + 1);
 
+	rcu_read_lock();
+	flow = idr_find(&mdev->fpga->tls->rx_idr, ntohl(handle));
+	if (unlikely(!flow)) {
+		rcu_read_unlock();
+		WARN_ONCE(1, "Received NULL pointer for handle\n");
+		kfree(buf);
+		return -EINVAL;
+	}
 	mlx5_fpga_tls_flow_to_cmd(flow, cmd);
+	rcu_read_unlock();
 
 	MLX5_SET(tls_cmd, cmd, swid, ntohl(handle));
 	MLX5_SET64(tls_cmd, cmd, tls_rcd_sn, be64_to_cpu(rcd_sn));
