@@ -1663,7 +1663,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!dquots[cnt])
 			continue;
-		if (flags & DQUOT_SPACE_RESERVE) {
+		if (reserve) {
 			ret = dquot_add_space(dquots[cnt], 0, number, flags,
 					      &warn[cnt]);
 		} else {
@@ -1676,7 +1676,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 				if (!dquots[cnt])
 					continue;
 				spin_lock(&dquots[cnt]->dq_dqb_lock);
-				if (flags & DQUOT_SPACE_RESERVE) {
+				if (reserve) {
 					dquots[cnt]->dq_dqb.dqb_rsvspace -=
 									number;
 				} else {
