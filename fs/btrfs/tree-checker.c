@@ -963,8 +963,7 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 	return 0;
 }
 
-int btrfs_check_leaf_full(struct btrfs_fs_info *fs_info,
-			  struct extent_buffer *leaf)
+int btrfs_check_leaf_full(struct extent_buffer *leaf)
 {
 	return check_leaf(leaf, true);
 }
