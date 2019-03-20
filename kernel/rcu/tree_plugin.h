@@ -11,29 +11,7 @@
  *	   Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
-#include <linux/delay.h>
-#include <linux/gfp.h>
-#include <linux/oom.h>
-#include <linux/sched/debug.h>
-#include <linux/smpboot.h>
-#include <linux/sched/isolation.h>
-#include <uapi/linux/sched/types.h>
-#include "../time/tick-internal.h"
-
-#ifdef CONFIG_RCU_BOOST
 #include "../locking/rtmutex_common.h"
-#else /* #ifdef CONFIG_RCU_BOOST */
-
-/*
- * Some architectures do not define rt_mutexes, but if !CONFIG_RCU_BOOST,
- * all uses are in dead code.  Provide a definition to keep the compiler
- * happy, but add WARN_ON_ONCE() to complain if used in the wrong place.
- * This probably needs to be excluded from -rt builds.
- */
-#define rt_mutex_owner(a) ({ WARN_ON_ONCE(1); NULL; })
-#define rt_mutex_futex_unlock(x) WARN_ON_ONCE(1)
-
-#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 static cpumask_var_t rcu_nocb_mask; /* CPUs to have callbacks offloaded. */
@@ -94,6 +72,8 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (!use_softirq)
+		pr_info("\tRCU_SOFTIRQ processing moved to rcuc kthreads.\n");
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
 		pr_info("\tRCU debug extended QS entry/exit.\n");
 	rcupdate_announce_bootup_oddness();
@@ -627,7 +607,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 	if (preempt_bh_were_disabled || irqs_were_disabled) {
 		WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, false);
 		/* Need to defer quiescent state until everything is enabled. */
-		if (irqs_were_disabled) {
+		if (irqs_were_disabled && use_softirq) {
 			/* Enabling irqs does not reschedule, so... */
 			raise_softirq_irqoff(RCU_SOFTIRQ);
 		} else {
@@ -944,17 +924,20 @@ dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
 
-#ifdef CONFIG_RCU_BOOST
-
-static void rcu_wake_cond(struct task_struct *t, int status)
+/*
+ * If boosting, set rcuc kthreads to realtime priority.
+ */
+static void rcu_cpu_kthread_setup(unsigned int cpu)
 {
-	/*
-	 * If the thread is yielding, only wake it when this
-	 * is invoked from idle
-	 */
-	if (status != RCU_KTHREAD_YIELDING || is_idle_task(current))
-		wake_up_process(t);
+#ifdef CONFIG_RCU_BOOST
+	struct sched_param sp;
+
+	sp.sched_priority = kthread_prio;
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
+#endif /* #ifdef CONFIG_RCU_BOOST */
 }
+
+#ifdef CONFIG_RCU_BOOST
 
 /*
  * Carry out RCU priority boosting on the task indicated by ->exp_tasks
@@ -1091,23 +1074,6 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 }
 
 /*
- * Wake up the per-CPU kthread to invoke RCU callbacks.
- */
-static void invoke_rcu_callbacks_kthread(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
-	if (__this_cpu_read(rcu_data.rcu_cpu_kthread_task) != NULL &&
-	    current != __this_cpu_read(rcu_data.rcu_cpu_kthread_task)) {
-		rcu_wake_cond(__this_cpu_read(rcu_data.rcu_cpu_kthread_task),
-			      __this_cpu_read(rcu_data.rcu_cpu_kthread_status));
-	}
-	local_irq_restore(flags);
-}
-
-/*
  * Is the current CPU running the RCU-callbacks kthread?
  * Caller must have preemption disabled.
  */
@@ -1160,59 +1126,6 @@ static int rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 	return 0;
 }
 
-static void rcu_cpu_kthread_setup(unsigned int cpu)
-{
-	struct sched_param sp;
-
-	sp.sched_priority = kthread_prio;
-	sched_setscheduler_nocheck(current, SCHED_FIFO, &sp);
-}
-
-static void rcu_cpu_kthread_park(unsigned int cpu)
-{
-	per_cpu(rcu_data.rcu_cpu_kthread_status, cpu) = RCU_KTHREAD_OFFCPU;
-}
-
-static int rcu_cpu_kthread_should_run(unsigned int cpu)
-{
-	return __this_cpu_read(rcu_data.rcu_cpu_has_work);
-}
-
-/*
- * Per-CPU kernel thread that invokes RCU callbacks.  This replaces
- * the RCU softirq used in configurations of RCU that do not support RCU
- * priority boosting.
- */
-static void rcu_cpu_kthread(unsigned int cpu)
-{
-	unsigned int *statusp = this_cpu_ptr(&rcu_data.rcu_cpu_kthread_status);
-	char work, *workp = this_cpu_ptr(&rcu_data.rcu_cpu_has_work);
-	int spincnt;
-
-	for (spincnt = 0; spincnt < 10; spincnt++) {
-		trace_rcu_utilization(TPS("Start CPU kthread@rcu_wait"));
-		local_bh_disable();
-		*statusp = RCU_KTHREAD_RUNNING;
-		local_irq_disable();
-		work = *workp;
-		*workp = 0;
-		local_irq_enable();
-		if (work)
-			rcu_do_batch(this_cpu_ptr(&rcu_data));
-		local_bh_enable();
-		if (*workp == 0) {
-			trace_rcu_utilization(TPS("End CPU kthread@rcu_wait"));
-			*statusp = RCU_KTHREAD_WAITING;
-			return;
-		}
-	}
-	*statusp = RCU_KTHREAD_YIELDING;
-	trace_rcu_utilization(TPS("Start CPU kthread@rcu_yield"));
-	schedule_timeout_interruptible(2);
-	trace_rcu_utilization(TPS("End CPU kthread@rcu_yield"));
-	*statusp = RCU_KTHREAD_WAITING;
-}
-
 /*
  * Set the per-rcu_node kthread's affinity to cover all CPUs that are
  * served by the rcu_node in question.  The CPU hotplug lock is still
@@ -1243,27 +1156,13 @@ static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 	free_cpumask_var(cm);
 }
 
-static struct smp_hotplug_thread rcu_cpu_thread_spec = {
-	.store			= &rcu_data.rcu_cpu_kthread_task,
-	.thread_should_run	= rcu_cpu_kthread_should_run,
-	.thread_fn		= rcu_cpu_kthread,
-	.thread_comm		= "rcuc/%u",
-	.setup			= rcu_cpu_kthread_setup,
-	.park			= rcu_cpu_kthread_park,
-};
-
 /*
  * Spawn boost kthreads -- called as soon as the scheduler is running.
  */
 static void __init rcu_spawn_boost_kthreads(void)
 {
 	struct rcu_node *rnp;
-	int cpu;
 
-	for_each_possible_cpu(cpu)
-		per_cpu(rcu_data.rcu_cpu_has_work, cpu) = 0;
-	if (WARN_ONCE(smpboot_register_percpu_thread(&rcu_cpu_thread_spec), "%s: Could not start rcub kthread, OOM is now expected behavior\n", __func__))
-		return;
 	rcu_for_each_leaf_node(rnp)
 		(void)rcu_spawn_one_boost_kthread(rnp);
 }
@@ -1284,11 +1183,6 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	__releases(rnp->lock)
 {
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-}
-
-static void invoke_rcu_callbacks_kthread(void)
-{
-	WARN_ON_ONCE(1);
 }
 
 static bool rcu_is_callbacks_kthread(void)
