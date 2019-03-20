@@ -7003,7 +7003,7 @@ static int e1000_set_features(struct net_device *netdev,
 	else
 		e1000e_reset(adapter);
 
-	return 0;
+	return 1;
 }
 
 static const struct net_device_ops e1000e_netdev_ops = {
@@ -7350,7 +7350,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
 
-	if (pci_dev_run_wake(pdev))
+	if (pci_dev_run_wake(pdev) && hw->mac.type < e1000_pch_cnp)
 		pm_runtime_put_noidle(&pdev->dev);
 
 	return 0;

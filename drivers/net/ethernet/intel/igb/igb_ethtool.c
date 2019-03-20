@@ -3158,8 +3158,8 @@ static int igb_set_eee(struct net_device *netdev,
 	} else if (!edata->eee_enabled) {
 		dev_err(&adapter->pdev->dev,
 			"Setting EEE options are not supported with EEE disabled\n");
-			return -EINVAL;
-		}
+		return -EINVAL;
+	}
 
 	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised);
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
