@@ -468,8 +468,8 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		alarm_secs = rtc_tm_to_time64(alarm_tm);
 
 		if (alarm_secs > rtc_secs) {
-			dev_err(dev, "%s: alarm maximum is one month in the "
-				"future (%d)\n", __func__, ret);
+			dev_err(dev, "%s: alarm maximum is one month in the future (%d)\n",
+				__func__, ret);
 			return -EINVAL;
 		}
 	}
@@ -621,8 +621,9 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 		ABB5ZES3_REG_TIM_CLK_COF1 | ABB5ZES3_REG_TIM_CLK_COF2 |
 		ABB5ZES3_REG_TIM_CLK_TBM | ABB5ZES3_REG_TIM_CLK_TAM);
 	ret = regmap_update_bits(regmap, ABB5ZES3_REG_TIM_CLK, mask,
-		ABB5ZES3_REG_TIM_CLK_COF0 | ABB5ZES3_REG_TIM_CLK_COF1 |
-		ABB5ZES3_REG_TIM_CLK_COF2);
+				 ABB5ZES3_REG_TIM_CLK_COF0 |
+				 ABB5ZES3_REG_TIM_CLK_COF1 |
+				 ABB5ZES3_REG_TIM_CLK_COF2);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to initialize clkout register (%d)\n",
 			__func__, ret);
@@ -675,9 +676,9 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	 * switchover flag but not battery low flag. The latter is checked
 	 * later below.
 	 */
-	mask = (ABB5ZES3_REG_CTRL3_PM0 | ABB5ZES3_REG_CTRL3_PM1 |
-		ABB5ZES3_REG_CTRL3_PM2 | ABB5ZES3_REG_CTRL3_BLIE |
-		ABB5ZES3_REG_CTRL3_BSIE| ABB5ZES3_REG_CTRL3_BSF);
+	mask = (ABB5ZES3_REG_CTRL3_PM0  | ABB5ZES3_REG_CTRL3_PM1 |
+		ABB5ZES3_REG_CTRL3_PM2  | ABB5ZES3_REG_CTRL3_BLIE |
+		ABB5ZES3_REG_CTRL3_BSIE | ABB5ZES3_REG_CTRL3_BSF);
 	ret = regmap_update_bits(regmap, ABB5ZES3_REG_CTRL3, mask, 0);
 	if (ret < 0) {
 		dev_err(dev, "%s: unable to initialize CTRL3 register (%d)\n",
@@ -694,10 +695,8 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	}
 
 	if (reg & ABB5ZES3_REG_RTC_SC_OSC) {
-		dev_err(dev, "clock integrity not guaranteed. Osc. has stopped "
-			"or has been interrupted.\n");
-		dev_err(dev, "change battery (if not already done) and  "
-			"then set time to reset osc. failure flag.\n");
+		dev_err(dev, "clock integrity not guaranteed. Osc. has stopped or has been interrupted.\n");
+		dev_err(dev, "change battery (if not already done) and then set time to reset osc. failure flag.\n");
 	}
 
 	/*
@@ -715,13 +714,12 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 
 	data->battery_low = reg & ABB5ZES3_REG_CTRL3_BLF;
 	if (data->battery_low) {
-		dev_err(dev, "RTC battery is low; please, consider "
-			"changing it!\n");
+		dev_err(dev, "RTC battery is low; please, consider changing it!\n");
 
 		ret = _abb5zes3_rtc_battery_low_irq_enable(regmap, false);
 		if (ret)
-			dev_err(dev, "%s: disabling battery low interrupt "
-				"generation failed (%d)\n", __func__, ret);
+			dev_err(dev, "%s: disabling battery low interrupt generation failed (%d)\n",
+				__func__, ret);
 	}
 
 	return ret;
@@ -866,7 +864,7 @@ static int abb5zes3_probe(struct i2c_client *client,
 	if (client->irq > 0) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						_abb5zes3_rtc_interrupt,
-						IRQF_SHARED|IRQF_ONESHOT,
+						IRQF_SHARED | IRQF_ONESHOT,
 						DRV_NAME, client);
 		if (!ret) {
 			device_init_wakeup(dev, true);
@@ -888,8 +886,8 @@ static int abb5zes3_probe(struct i2c_client *client,
 	if (!data->battery_low && data->irq) {
 		ret = _abb5zes3_rtc_battery_low_irq_enable(regmap, true);
 		if (ret) {
-			dev_err(dev, "%s: enabling battery low interrupt "
-				"generation failed (%d)\n", __func__, ret);
+			dev_err(dev, "%s: enabling battery low interrupt generation failed (%d)\n",
+				__func__, ret);
 			goto err;
 		}
 	}
