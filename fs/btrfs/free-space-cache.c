@@ -1369,11 +1369,11 @@ out_unlock:
 	goto out;
 }
 
-int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
-			  struct btrfs_trans_handle *trans,
+int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct inode *inode;
 	int ret = 0;

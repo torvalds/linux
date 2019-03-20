@@ -55,8 +55,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 			struct btrfs_block_group_cache *block_group,
 			struct btrfs_path *path);
-int btrfs_write_out_cache(struct btrfs_fs_info *fs_info,
-			  struct btrfs_trans_handle *trans,
+int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 			  struct btrfs_block_group_cache *block_group,
 			  struct btrfs_path *path);
 struct inode *lookup_free_ino_inode(struct btrfs_root *root,
