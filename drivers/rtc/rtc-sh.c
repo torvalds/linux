@@ -530,6 +530,10 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 		rtc->clk = NULL;
 	}
 
+	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
+
 	clk_enable(rtc->clk);
 
 	rtc->capabilities = RTC_DEF_CAPABILITIES;
@@ -593,14 +597,12 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	sh_rtc_setaie(&pdev->dev, 0);
 	sh_rtc_setcie(&pdev->dev, 0);
 
-	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, "sh",
-					   &sh_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc->rtc_dev)) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_unmap;
-	}
-
+	rtc->rtc_dev->ops = &sh_rtc_ops;
 	rtc->rtc_dev->max_user_freq = 256;
+
+	ret = rtc_register_device(rtc->rtc_dev);
+	if (ret)
+		goto err_unmap;
 
 	device_init_wakeup(&pdev->dev, 1);
 	return 0;
