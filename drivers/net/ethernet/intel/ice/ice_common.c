@@ -1415,13 +1415,15 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 }
 
 /**
- * ice_get_guar_num_vsi - determine number of guar VSI for a PF
+ * ice_get_num_per_func - determine number of resources per PF
  * @hw: pointer to the hw structure
+ * @max: value to be evenly split between each PF
  *
  * Determine the number of valid functions by going through the bitmap returned
- * from parsing capabilities and use this to calculate the number of VSI per PF.
+ * from parsing capabilities and use this to calculate the number of resources
+ * per PF based on the max value passed in.
  */
-static u32 ice_get_guar_num_vsi(struct ice_hw *hw)
+static u32 ice_get_num_per_func(struct ice_hw *hw, u32 max)
 {
 	u8 funcs;
 
@@ -1432,7 +1434,7 @@ static u32 ice_get_guar_num_vsi(struct ice_hw *hw)
 	if (!funcs)
 		return 0;
 
-	return ICE_MAX_VSI / funcs;
+	return max / funcs;
 }
 
 /**
@@ -1512,7 +1514,8 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 					  "HW caps: Dev.VSI cnt = %d\n",
 					  dev_p->num_vsi_allocd_to_host);
 			} else if (func_p) {
-				func_p->guar_num_vsi = ice_get_guar_num_vsi(hw);
+				func_p->guar_num_vsi =
+					ice_get_num_per_func(hw, ICE_MAX_VSI);
 				ice_debug(hw, ICE_DBG_INIT,
 					  "HW caps: Func.VSI cnt = %d\n",
 					  number);
@@ -1929,6 +1932,15 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	if (!cfg)
 		return ICE_ERR_PARAM;
 
+	/* Ensure that only valid bits of cfg->caps can be turned on. */
+	if (cfg->caps & ~ICE_AQ_PHY_ENA_VALID_MASK) {
+		ice_debug(hw, ICE_DBG_PHY,
+			  "Invalid bit is set in ice_aqc_set_phy_cfg_data->caps : 0x%x\n",
+			  cfg->caps);
+
+		cfg->caps &= ICE_AQ_PHY_ENA_VALID_MASK;
+	}
+
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_phy_cfg);
 	desc.params.set_phy.lport_num = lport;
 	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
@@ -2027,8 +2039,10 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	/* clear the old pause settings */
 	cfg.caps = pcaps->caps & ~(ICE_AQC_PHY_EN_TX_LINK_PAUSE |
 				   ICE_AQC_PHY_EN_RX_LINK_PAUSE);
+
 	/* set the new capabilities */
 	cfg.caps |= pause_mask;
+
 	/* If the capabilities have changed, then set the new config */
 	if (cfg.caps != pcaps->caps) {
 		int retry_count, retry_max = 10;

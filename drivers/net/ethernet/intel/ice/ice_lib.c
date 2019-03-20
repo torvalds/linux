@@ -175,17 +175,14 @@ static int ice_pf_rxq_wait(struct ice_pf *pf, int pf_q, bool ena)
 	int i;
 
 	for (i = 0; i < ICE_Q_WAIT_MAX_RETRY; i++) {
-		u32 rx_reg = rd32(&pf->hw, QRX_CTRL(pf_q));
-
-		if (ena == !!(rx_reg & QRX_CTRL_QENA_STAT_M))
-			break;
+		if (ena == !!(rd32(&pf->hw, QRX_CTRL(pf_q)) &
+			      QRX_CTRL_QENA_STAT_M))
+			return 0;
 
 		usleep_range(20, 40);
 	}
-	if (i >= ICE_Q_WAIT_MAX_RETRY)
-		return -ETIMEDOUT;
 
-	return 0;
+	return -ETIMEDOUT;
 }
 
 /**
@@ -279,7 +276,26 @@ err_txrings:
 }
 
 /**
- * ice_vsi_set_num_qs - Set num queues, descriptors and vectors for a VSI
+ * ice_vsi_set_num_desc - Set number of descriptors for queues on this VSI
+ * @vsi: the VSI being configured
+ */
+static void ice_vsi_set_num_desc(struct ice_vsi *vsi)
+{
+	switch (vsi->type) {
+	case ICE_VSI_PF:
+		vsi->num_rx_desc = ICE_DFLT_NUM_RX_DESC;
+		vsi->num_tx_desc = ICE_DFLT_NUM_TX_DESC;
+		break;
+	default:
+		dev_dbg(&vsi->back->pdev->dev,
+			"Not setting number of Tx/Rx descriptors for VSI type %d\n",
+			vsi->type);
+		break;
+	}
+}
+
+/**
+ * ice_vsi_set_num_qs - Set number of queues, descriptors and vectors for a VSI
  * @vsi: the VSI being configured
  *
  * Return 0 on success and a negative value on error
@@ -292,7 +308,6 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 	case ICE_VSI_PF:
 		vsi->alloc_txq = pf->num_lan_tx;
 		vsi->alloc_rxq = pf->num_lan_rx;
-		vsi->num_desc = ALIGN(ICE_DFLT_NUM_DESC, ICE_REQ_DESC_MULTIPLE);
 		vsi->num_q_vectors = max_t(int, pf->num_lan_rx, pf->num_lan_tx);
 		break;
 	case ICE_VSI_VF:
@@ -310,6 +325,8 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi)
 			 vsi->type);
 		break;
 	}
+
+	ice_vsi_set_num_desc(vsi);
 }
 
 /**
@@ -1215,7 +1232,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->ring_active = false;
 		ring->vsi = vsi;
 		ring->dev = &pf->pdev->dev;
-		ring->count = vsi->num_desc;
+		ring->count = vsi->num_tx_desc;
 		vsi->tx_rings[i] = ring;
 	}
 
@@ -1234,7 +1251,7 @@ static int ice_vsi_alloc_rings(struct ice_vsi *vsi)
 		ring->vsi = vsi;
 		ring->netdev = vsi->netdev;
 		ring->dev = &pf->pdev->dev;
-		ring->count = vsi->num_desc;
+		ring->count = vsi->num_rx_desc;
 		vsi->rx_rings[i] = ring;
 	}
 
@@ -1717,6 +1734,37 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 }
 
 /**
+ * ice_cfg_itr_gran - set the ITR granularity to 2 usecs if not already set
+ * @hw: board specific structure
+ */
+static void ice_cfg_itr_gran(struct ice_hw *hw)
+{
+	u32 regval = rd32(hw, GLINT_CTL);
+
+	/* no need to update global register if ITR gran is already set */
+	if (!(regval & GLINT_CTL_DIS_AUTOMASK_M) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_200_M) >>
+	     GLINT_CTL_ITR_GRAN_200_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_100_M) >>
+	     GLINT_CTL_ITR_GRAN_100_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_50_M) >>
+	     GLINT_CTL_ITR_GRAN_50_S) == ICE_ITR_GRAN_US) &&
+	    (((regval & GLINT_CTL_ITR_GRAN_25_M) >>
+	      GLINT_CTL_ITR_GRAN_25_S) == ICE_ITR_GRAN_US))
+		return;
+
+	regval = ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_200_S) &
+		  GLINT_CTL_ITR_GRAN_200_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_100_S) &
+		  GLINT_CTL_ITR_GRAN_100_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_50_S) &
+		  GLINT_CTL_ITR_GRAN_50_M) |
+		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_25_S) &
+		  GLINT_CTL_ITR_GRAN_25_M);
+	wr32(hw, GLINT_CTL, regval);
+}
+
+/**
  * ice_cfg_itr - configure the initial interrupt throttle values
  * @hw: pointer to the HW structure
  * @q_vector: interrupt vector that's being configured
@@ -1728,6 +1776,8 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 static void
 ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 {
+	ice_cfg_itr_gran(hw);
+
 	if (q_vector->num_ring_rx) {
 		struct ice_ring_container *rc = &q_vector->rx;
 

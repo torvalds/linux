@@ -322,7 +322,7 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
 
 	clear_bit(ICE_FLAG_FLTR_SYNC, pf->flags);
 
-	for (v = 0; v < pf->num_alloc_vsi; v++)
+	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v] && ice_vsi_fltr_changed(pf->vsi[v]) &&
 		    ice_vsi_sync_fltr(pf->vsi[v])) {
 			/* come back and try again later */
@@ -394,6 +394,7 @@ static void ice_do_reset(struct ice_pf *pf, enum ice_reset_req reset_type)
 		ice_rebuild(pf);
 		clear_bit(__ICE_PREPARED_FOR_RESET, pf->state);
 		clear_bit(__ICE_PFR_REQ, pf->state);
+		ice_reset_all_vfs(pf, true);
 	}
 }
 
@@ -436,6 +437,7 @@ static void ice_reset_subtask(struct ice_pf *pf)
 			clear_bit(__ICE_PFR_REQ, pf->state);
 			clear_bit(__ICE_CORER_REQ, pf->state);
 			clear_bit(__ICE_GLOBR_REQ, pf->state);
+			ice_reset_all_vfs(pf, true);
 		}
 
 		return;
@@ -642,7 +644,7 @@ static void ice_watchdog_subtask(struct ice_pf *pf)
 	 * can look at updated numbers whenever it cares to
 	 */
 	ice_update_pf_stats(pf);
-	for (i = 0; i < pf->num_alloc_vsi; i++)
+	ice_for_each_vsi(pf, i)
 		if (pf->vsi[i] && pf->vsi[i]->netdev)
 			ice_update_vsi_stats(pf->vsi[i]);
 }
@@ -2033,23 +2035,6 @@ static int ice_init_interrupt_scheme(struct ice_pf *pf)
 }
 
 /**
- * ice_verify_itr_gran - verify driver's assumption of ITR granularity
- * @pf: pointer to the PF structure
- *
- * There is no error returned here because the driver will be able to handle a
- * different ITR granularity, but interrupt moderation will not be accurate if
- * the driver's assumptions are not verified. This assumption is made so we can
- * use constants in the hot path instead of accessing structure members.
- */
-static void ice_verify_itr_gran(struct ice_pf *pf)
-{
-	if (pf->hw.itr_gran != (ICE_ITR_GRAN_S << 1))
-		dev_warn(&pf->pdev->dev,
-			 "%d ITR granularity assumption is invalid, actual ITR granularity is %d. Interrupt moderation will be inaccurate!\n",
-			 (ICE_ITR_GRAN_S << 1), pf->hw.itr_gran);
-}
-
-/**
  * ice_verify_cacheline_size - verify driver's assumption of 64 Byte cache lines
  * @pf: pointer to the PF structure
  *
@@ -2075,6 +2060,7 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
 static int ice_probe(struct pci_dev *pdev,
 		     const struct pci_device_id __always_unused *ent)
 {
+	struct device *dev = &pdev->dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	int err;
@@ -2086,20 +2072,20 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = pcim_iomap_regions(pdev, BIT(ICE_BAR0), pci_name(pdev));
 	if (err) {
-		dev_err(&pdev->dev, "BAR0 I/O map error %d\n", err);
+		dev_err(dev, "BAR0 I/O map error %d\n", err);
 		return err;
 	}
 
-	pf = devm_kzalloc(&pdev->dev, sizeof(*pf), GFP_KERNEL);
+	pf = devm_kzalloc(dev, sizeof(*pf), GFP_KERNEL);
 	if (!pf)
 		return -ENOMEM;
 
 	/* set up for high or low dma */
-	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (err)
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "DMA configuration failed: 0x%x\n", err);
+		dev_err(dev, "DMA configuration failed: 0x%x\n", err);
 		return err;
 	}
 
@@ -2133,12 +2119,12 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_init_hw(hw);
 	if (err) {
-		dev_err(&pdev->dev, "ice_init_hw failed: %d\n", err);
+		dev_err(dev, "ice_init_hw failed: %d\n", err);
 		err = -EIO;
 		goto err_exit_unroll;
 	}
 
-	dev_info(&pdev->dev, "firmware %d.%d.%05d api %d.%d\n",
+	dev_info(dev, "firmware %d.%d.%05d api %d.%d\n",
 		 hw->fw_maj_ver, hw->fw_min_ver, hw->fw_build,
 		 hw->api_maj_ver, hw->api_min_ver);
 
@@ -2152,8 +2138,8 @@ static int ice_probe(struct pci_dev *pdev,
 		goto err_init_pf_unroll;
 	}
 
-	pf->vsi = devm_kcalloc(&pdev->dev, pf->num_alloc_vsi,
-			       sizeof(*pf->vsi), GFP_KERNEL);
+	pf->vsi = devm_kcalloc(dev, pf->num_alloc_vsi, sizeof(*pf->vsi),
+			       GFP_KERNEL);
 	if (!pf->vsi) {
 		err = -ENOMEM;
 		goto err_init_pf_unroll;
@@ -2161,8 +2147,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_init_interrupt_scheme(pf);
 	if (err) {
-		dev_err(&pdev->dev,
-			"ice_init_interrupt_scheme failed: %d\n", err);
+		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
 		err = -EIO;
 		goto err_init_interrupt_unroll;
 	}
@@ -2178,15 +2163,13 @@ static int ice_probe(struct pci_dev *pdev,
 	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags)) {
 		err = ice_req_irq_msix_misc(pf);
 		if (err) {
-			dev_err(&pdev->dev,
-				"setup of misc vector failed: %d\n", err);
+			dev_err(dev, "setup of misc vector failed: %d\n", err);
 			goto err_init_interrupt_unroll;
 		}
 	}
 
 	/* create switch struct for the switch element created by FW on boot */
-	pf->first_sw = devm_kzalloc(&pdev->dev, sizeof(*pf->first_sw),
-				    GFP_KERNEL);
+	pf->first_sw = devm_kzalloc(dev, sizeof(*pf->first_sw), GFP_KERNEL);
 	if (!pf->first_sw) {
 		err = -ENOMEM;
 		goto err_msix_misc_unroll;
@@ -2204,8 +2187,7 @@ static int ice_probe(struct pci_dev *pdev,
 
 	err = ice_setup_pf_sw(pf);
 	if (err) {
-		dev_err(&pdev->dev,
-			"probe failed due to setup pf switch:%d\n", err);
+		dev_err(dev, "probe failed due to setup pf switch:%d\n", err);
 		goto err_alloc_sw_unroll;
 	}
 
@@ -2215,7 +2197,6 @@ static int ice_probe(struct pci_dev *pdev,
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
 
 	ice_verify_cacheline_size(pf);
-	ice_verify_itr_gran(pf);
 
 	return 0;
 
@@ -2227,7 +2208,7 @@ err_msix_misc_unroll:
 	ice_free_irq_msix_misc(pf);
 err_init_interrupt_unroll:
 	ice_clear_interrupt_scheme(pf);
-	devm_kfree(&pdev->dev, pf->vsi);
+	devm_kfree(dev, pf->vsi);
 err_init_pf_unroll:
 	ice_deinit_pf(pf);
 	ice_deinit_hw(hw);
@@ -3276,7 +3257,7 @@ static void ice_vsi_release_all(struct ice_pf *pf)
 	if (!pf->vsi)
 		return;
 
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		if (!pf->vsi[i])
 			continue;
 
@@ -3375,14 +3356,10 @@ static int ice_vsi_rebuild_all(struct ice_pf *pf)
 	int i;
 
 	/* loop through pf->vsi array and reinit the VSI if found */
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		int err;
 
 		if (!pf->vsi[i])
-			continue;
-
-		/* VF VSI rebuild isn't supported yet */
-		if (pf->vsi[i]->type == ICE_VSI_VF)
 			continue;
 
 		err = ice_vsi_rebuild(pf->vsi[i]);
@@ -3412,7 +3389,7 @@ static int ice_vsi_replay_all(struct ice_pf *pf)
 	int i;
 
 	/* loop through pf->vsi array and replay the VSI if found */
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		if (!pf->vsi[i])
 			continue;
 
@@ -3521,9 +3498,7 @@ static void ice_rebuild(struct ice_pf *pf)
 		goto err_vsi_rebuild;
 	}
 
-	ice_reset_all_vfs(pf, true);
-
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
+	ice_for_each_vsi(pf, i) {
 		bool link_up;
 
 		if (!pf->vsi[i] || pf->vsi[i]->type != ICE_VSI_PF)
