@@ -12261,14 +12261,9 @@ CONFIG_ALLOW_LOCKDOWN_LIFT_BY_SYSRQ             mark<ENFORCED>
 CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT             mark<ENFORCED>
 CONFIG_LOCK_DOWN_KERNEL                         mark<ENFORCED> flag<REVIEW>
 
-# Menu: Security options >> Default security module
-CONFIG_DEFAULT_SECURITY_SELINUX                 policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-CONFIG_DEFAULT_SECURITY_SMACK                   policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-CONFIG_DEFAULT_SECURITY_TOMOYO                  policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-CONFIG_DEFAULT_SECURITY_APPARMOR                policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
-CONFIG_DEFAULT_SECURITY_DAC                     policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
-#
-CONFIG_DEFAULT_SECURITY_APPARMOR                mark<ENFORCED>
+# Menu: Security options >> Default security modules
+CONFIG_LSM                                      policy<{'amd64': '"yama,loadpin,integrity,apparmor"', 'arm64': '"yama,loadpin,integrity,apparmor"', 'armhf': '"yama,loadpin,integrity,apparmor"', 'i386': '"yama,loadpin,integrity,apparmor"', 'ppc64el': '"yama,loadpin,integrity,apparmor"', 's390x': '"yama,loadpin,integrity,apparmor"'}>
+CONFIG_LSM                                      mark<ENFORCED>
 
 # Menu: Security options >> Enable access key retention support
 CONFIG_KEYS                                     policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
@@ -12294,7 +12289,6 @@ CONFIG_SECURITY_YAMA                            mark<ENFORCED>
 
 # Menu: Security options >> Enable different security models >> AppArmor support
 CONFIG_SECURITY_APPARMOR                        policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
-CONFIG_SECURITY_APPARMOR_BOOTPARAM_VALUE        policy<{'amd64': '1', 'arm64': '1', 'armhf': '1', 'i386': '1', 'ppc64el': '1', 's390x': '1'}>
 CONFIG_SECURITY_APPARMOR_HASH                   policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_SECURITY_APPARMOR_HASH_DEFAULT           policy<{'amd64': 'y', 'arm64': 'y', 'armhf': 'y', 'i386': 'y', 'ppc64el': 'y', 's390x': 'y'}>
 CONFIG_SECURITY_APPARMOR_DEBUG                  policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
