@@ -467,8 +467,7 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
  */
 int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev,
 			 struct snd_sof_ipc_msg *msg);
-int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
-			  struct snd_sof_ipc_msg *msg);
+void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev);
 int hda_dsp_ipc_fw_ready(struct snd_sof_dev *sdev, u32 msg_id);
 irqreturn_t hda_dsp_ipc_irq_handler(int irq, void *context);
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context);

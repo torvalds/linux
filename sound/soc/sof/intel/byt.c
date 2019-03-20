@@ -106,6 +106,7 @@ static const struct snd_sof_debugfs_map cht_debugfs[] = {
 };
 
 static int byt_cmd_done(struct snd_sof_dev *sdev, int dir);
+static void byt_get_reply(struct snd_sof_dev *sdev);
 
 /*
  * IPC Firmware ready.
@@ -334,6 +335,7 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
+		byt_get_reply(sdev);
 		if (snd_sof_ipc_reply(sdev, ipcx))
 			byt_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 	}
@@ -373,14 +375,19 @@ static int byt_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	return 0;
 }
 
-static int byt_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+static void byt_get_reply(struct snd_sof_dev *sdev)
 {
+	struct snd_sof_ipc_msg *msg = sdev->msg;
 	struct sof_ipc_reply reply;
+	unsigned long flags;
 	int ret = 0;
 	u32 size;
 
 	/* get reply */
 	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
+
+	spin_lock_irqsave(&sdev->ipc_lock, flags);
+
 	if (reply.error < 0) {
 		size = sizeof(reply);
 		ret = reply.error;
@@ -400,7 +407,9 @@ static int byt_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 		sof_mailbox_read(sdev, sdev->host_box.offset, msg->reply_data,
 				 size);
 
-	return ret;
+	msg->reply_error = ret;
+
+	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 }
 
 static int byt_cmd_done(struct snd_sof_dev *sdev, int dir)
@@ -602,7 +611,6 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 
 	/* ipc */
 	.send_msg	= byt_send_msg,
-	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
 	.cmd_done	= byt_cmd_done,
 
@@ -763,7 +771,6 @@ const struct snd_sof_dsp_ops sof_byt_ops = {
 
 	/* ipc */
 	.send_msg	= byt_send_msg,
-	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
 	.cmd_done	= byt_cmd_done,
 
@@ -819,7 +826,6 @@ const struct snd_sof_dsp_ops sof_cht_ops = {
 
 	/* ipc */
 	.send_msg	= byt_send_msg,
-	.get_reply	= byt_get_reply,
 	.fw_ready	= byt_fw_ready,
 	.cmd_done	= byt_cmd_done,
 

@@ -211,7 +211,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 		ret = -ETIMEDOUT;
 	} else {
 		/* copy the data returned from DSP */
-		ret = snd_sof_dsp_get_reply(sdev, msg);
+		ret = msg->reply_error;
 		if (msg->reply_size)
 			memcpy(reply_data, msg->reply_data, msg->reply_size);
 		if (ret < 0)
@@ -250,10 +250,13 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 	msg->header = header;
 	msg->msg_size = msg_bytes;
 	msg->reply_size = reply_bytes;
+	msg->reply_error = 0;
 
 	/* attach any data */
 	if (msg_bytes)
 		memcpy(msg->msg_data, msg_data, msg_bytes);
+
+	sdev->msg = msg;
 
 	ret = snd_sof_dsp_send_msg(sdev, msg);
 	/* Next reply that we receive will be related to this message */

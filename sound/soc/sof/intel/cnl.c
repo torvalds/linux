@@ -69,6 +69,7 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
+		hda_dsp_ipc_get_reply(sdev);
 		if (snd_sof_ipc_reply(sdev, msg))
 			cnl_ipc_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 
@@ -193,7 +194,6 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 
 	/* ipc */
 	.send_msg	= cnl_ipc_send_msg,
-	.get_reply	= hda_dsp_ipc_get_reply,
 	.fw_ready	= hda_dsp_ipc_fw_ready,
 	.cmd_done	= cnl_ipc_cmd_done,
 
