@@ -1021,7 +1021,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		 * (See include/linux/mfd/axp20x.h)
 		 */
 		reg = AXP803_DCDC_FREQ_CTRL;
-		/* Fall through to the check below.*/
+		/* Fall through - to the check below.*/
 	case AXP806_ID:
 		/*
 		 * AXP806 also have DCDC work frequency setting register at a
@@ -1112,12 +1112,12 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		break;
 
 	case AXP806_ID:
-		reg = AXP806_DCDC_MODE_CTRL2;
 		/*
 		 * AXP806 DCDC regulator IDs have the same range as AXP22X.
-		 * Fall through to the check below.
 		 * (See include/linux/mfd/axp20x.h)
 		 */
+		reg = AXP806_DCDC_MODE_CTRL2;
+		 /* Fall through - to the check below. */
 	case AXP221_ID:
 	case AXP223_ID:
 	case AXP809_ID:
