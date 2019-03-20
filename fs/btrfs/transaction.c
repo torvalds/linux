@@ -1132,7 +1132,7 @@ again:
 	}
 
 	while (!list_empty(dirty_bgs) || !list_empty(io_bgs)) {
-		ret = btrfs_write_dirty_block_groups(trans, fs_info);
+		ret = btrfs_write_dirty_block_groups(trans);
 		if (ret)
 			return ret;
 		ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
