@@ -539,9 +539,9 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	return 0;
 }
 
-static int check_tree_block_fsid(struct btrfs_fs_info *fs_info,
-				 struct extent_buffer *eb)
+static int check_tree_block_fsid(struct extent_buffer *eb)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	u8 fsid[BTRFS_FSID_SIZE];
 	int ret = 1;
@@ -611,7 +611,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 		ret = -EIO;
 		goto err;
 	}
-	if (check_tree_block_fsid(fs_info, eb)) {
+	if (check_tree_block_fsid(eb)) {
 		btrfs_err_rl(fs_info, "bad fsid on block %llu",
 			     eb->start);
 		ret = -EIO;
