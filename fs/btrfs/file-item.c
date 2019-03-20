@@ -828,11 +828,11 @@ again:
 		u32 diff;
 		u32 free_space;
 
-		if (btrfs_leaf_free_space(fs_info, leaf) <
+		if (btrfs_leaf_free_space(leaf) <
 				 sizeof(struct btrfs_item) + csum_size * 2)
 			goto insert;
 
-		free_space = btrfs_leaf_free_space(fs_info, leaf) -
+		free_space = btrfs_leaf_free_space(leaf) -
 					 sizeof(struct btrfs_item) - csum_size;
 		tmp = sums->len - total_bytes;
 		tmp >>= fs_info->sb->s_blocksize_bits;
