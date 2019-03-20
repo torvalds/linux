@@ -3681,10 +3681,10 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
 }
 
 static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
-			struct btrfs_fs_info *fs_info,
 			struct writeback_control *wbc,
 			struct extent_page_data *epd)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct block_device *bdev = fs_info->fs_devices->latest_bdev;
 	struct extent_io_tree *tree = &BTRFS_I(fs_info->btree_inode)->io_tree;
 	u64 offset = eb->start;
@@ -3753,7 +3753,6 @@ int btree_write_cache_pages(struct address_space *mapping,
 				   struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
-	struct btrfs_fs_info *fs_info = BTRFS_I(mapping->host)->root->fs_info;
 	struct extent_buffer *eb, *prev_eb = NULL;
 	struct extent_page_data epd = {
 		.bio = NULL,
@@ -3834,7 +3833,7 @@ retry:
 				continue;
 			}
 
-			ret = write_one_eb(eb, fs_info, wbc, &epd);
+			ret = write_one_eb(eb, wbc, &epd);
 			if (ret) {
 				done = 1;
 				free_extent_buffer(eb);
