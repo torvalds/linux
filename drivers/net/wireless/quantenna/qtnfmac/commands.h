@@ -57,7 +57,7 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif,
 			     u16 reason_code);
 int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,
 			      bool up);
-int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req);
+int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req);
 int qtnf_cmd_get_chan_stats(struct qtnf_wmac *mac, u16 channel,
 			    struct qtnf_chan_stats *stats);
 int qtnf_cmd_send_chan_switch(struct qtnf_vif *vif,

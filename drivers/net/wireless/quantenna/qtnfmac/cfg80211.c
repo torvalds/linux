@@ -993,20 +993,17 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 #endif
 };
 
-static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
+static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 				       struct regulatory_request *req)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy_in);
-	struct qtnf_bus *bus = mac->bus;
-	struct wiphy *wiphy;
-	unsigned int mac_idx;
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	enum nl80211_band band;
 	int ret;
 
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	ret = qtnf_cmd_reg_notify(bus, req);
+	ret = qtnf_cmd_reg_notify(mac, req);
 	if (ret) {
 		if (ret == -EOPNOTSUPP) {
 			pr_warn("reg update not supported\n");
@@ -1021,25 +1018,14 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 		return;
 	}
 
-	for (mac_idx = 0; mac_idx < QTNF_MAX_MAC; ++mac_idx) {
-		if (!(bus->hw_info.mac_bitmap & (1 << mac_idx)))
+	for (band = 0; band < NUM_NL80211_BANDS; ++band) {
+		if (!wiphy->bands[band])
 			continue;
 
-		mac = bus->mac[mac_idx];
-		if (!mac)
-			continue;
-
-		wiphy = priv_to_wiphy(mac);
-
-		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
-			if (!wiphy->bands[band])
-				continue;
-
-			ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
-			if (ret)
-				pr_err("failed to get chan info for mac %u band %u\n",
-				       mac_idx, band);
-		}
+		ret = qtnf_cmd_band_info_get(mac, wiphy->bands[band]);
+		if (ret)
+			pr_err("MAC%u: failed to update band %u\n",
+			       mac->macid, band);
 	}
 }
 

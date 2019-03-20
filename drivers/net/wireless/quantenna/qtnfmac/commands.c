@@ -2404,13 +2404,14 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req)
+int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req)
 {
+	struct qtnf_bus *bus = mac->bus;
 	struct sk_buff *cmd_skb;
 	int ret;
 	struct qlink_cmd_reg_notify *cmd;
 
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_REG_NOTIFY,
 					    sizeof(*cmd));
 	if (!cmd_skb)
@@ -2449,10 +2450,6 @@ int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req)
 
 	qtnf_bus_lock(bus);
 	ret = qtnf_cmd_send(bus, cmd_skb);
-	if (ret)
-		goto out;
-
-out:
 	qtnf_bus_unlock(bus);
 
 	return ret;
