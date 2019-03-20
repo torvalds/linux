@@ -1941,10 +1941,9 @@ static void update_dev_time(const char *path_name)
 	filp_close(filp, NULL);
 }
 
-static int btrfs_rm_dev_item(struct btrfs_fs_info *fs_info,
-			     struct btrfs_device *device)
+static int btrfs_rm_dev_item(struct btrfs_device *device)
 {
-	struct btrfs_root *root = fs_info->chunk_root;
+	struct btrfs_root *root = device->fs_info->chunk_root;
 	int ret;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -2145,7 +2144,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 	 * counter although write_all_supers() is not locked out. This
 	 * could give a filesystem state which requires a degraded mount.
 	 */
-	ret = btrfs_rm_dev_item(fs_info, device);
+	ret = btrfs_rm_dev_item(device);
 	if (ret)
 		goto error_undo;
 
