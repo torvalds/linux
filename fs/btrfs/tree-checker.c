@@ -244,10 +244,10 @@ static void dir_item_err(const struct extent_buffer *eb, int slot,
 	va_end(args);
 }
 
-static int check_dir_item(struct btrfs_fs_info *fs_info,
-			  struct extent_buffer *leaf,
+static int check_dir_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_dir_item *di;
 	u32 item_size = btrfs_item_size_nr(leaf, slot);
 	u32 cur = 0;
@@ -789,7 +789,7 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 	case BTRFS_DIR_ITEM_KEY:
 	case BTRFS_DIR_INDEX_KEY:
 	case BTRFS_XATTR_ITEM_KEY:
-		ret = check_dir_item(fs_info, leaf, key, slot);
+		ret = check_dir_item(leaf, key, slot);
 		break;
 	case BTRFS_BLOCK_GROUP_ITEM_KEY:
 		ret = check_block_group_item(fs_info, leaf, key, slot);
