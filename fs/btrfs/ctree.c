@@ -5224,9 +5224,7 @@ out:
 	return ret;
 }
 
-static int tree_move_down(struct btrfs_fs_info *fs_info,
-			   struct btrfs_path *path,
-			   int *level)
+static int tree_move_down(struct btrfs_path *path, int *level)
 {
 	struct extent_buffer *eb;
 
@@ -5282,7 +5280,7 @@ static int tree_advance(struct btrfs_fs_info *fs_info,
 	if (*level == 0 || !allow_down) {
 		ret = tree_move_next_or_upnext(path, level, root_level);
 	} else {
-		ret = tree_move_down(fs_info, path, level);
+		ret = tree_move_down(path, level);
 	}
 	if (ret >= 0) {
 		if (*level == 0)
