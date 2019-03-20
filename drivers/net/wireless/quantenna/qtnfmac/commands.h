@@ -27,8 +27,8 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 			   const struct cfg80211_ap_settings *s);
 int qtnf_cmd_send_stop_ap(struct qtnf_vif *vif);
 int qtnf_cmd_send_register_mgmt(struct qtnf_vif *vif, u16 frame_type, bool reg);
-int qtnf_cmd_send_mgmt_frame(struct qtnf_vif *vif, u32 cookie, u16 flags,
-			     u16 freq, const u8 *buf, size_t len);
+int qtnf_cmd_send_frame(struct qtnf_vif *vif, u32 cookie, u16 flags,
+			u16 freq, const u8 *buf, size_t len);
 int qtnf_cmd_send_mgmt_set_appie(struct qtnf_vif *vif, u8 frame_type,
 				 const u8 *buf, size_t len);
 int qtnf_cmd_get_sta_info(struct qtnf_vif *vif, const u8 *sta_mac,

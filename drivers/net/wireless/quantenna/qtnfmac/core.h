@@ -63,6 +63,8 @@ struct qtnf_vif {
 	struct qtnf_wmac *mac;
 
 	struct work_struct reset_work;
+	struct work_struct high_pri_tx_work;
+	struct sk_buff_head high_pri_tx_queue;
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
 	int generation;
@@ -149,6 +151,7 @@ void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 
 void qtnf_netdev_updown(struct net_device *ndev, bool up);
 void qtnf_scan_done(struct qtnf_wmac *mac, bool aborted);
+void qtnf_packet_send_hi_pri(struct sk_buff *skb);
 
 static inline struct qtnf_vif *qtnf_netdev_get_priv(struct net_device *dev)
 {

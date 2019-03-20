@@ -49,6 +49,7 @@ struct qtnf_bus {
 	struct napi_struct mux_napi;
 	struct net_device mux_dev;
 	struct workqueue_struct *workqueue;
+	struct workqueue_struct *hprio_workqueue;
 	struct work_struct fw_work;
 	struct work_struct event_work;
 	struct mutex bus_lock; /* lock during command/event processing */

@@ -144,6 +144,7 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 {
 	struct net_device *netdev =  wdev->netdev;
 	struct qtnf_vif *vif;
+	struct sk_buff *skb;
 
 	if (WARN_ON(!netdev))
 		return -EFAULT;
@@ -156,6 +157,11 @@ int qtnf_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	netif_tx_stop_all_queues(netdev);
 	if (netif_carrier_ok(netdev))
 		netif_carrier_off(netdev);
+
+	while ((skb = skb_dequeue(&vif->high_pri_tx_queue)))
+		dev_kfree_skb_any(skb);
+
+	cancel_work_sync(&vif->high_pri_tx_work);
 
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdevice(netdev);
@@ -424,13 +430,13 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	*cookie = short_cookie;
 
 	if (params->offchan)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_OFFCHAN;
+		flags |= QLINK_FRAME_TX_FLAG_OFFCHAN;
 
 	if (params->no_cck)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_NO_CCK;
+		flags |= QLINK_FRAME_TX_FLAG_NO_CCK;
 
 	if (params->dont_wait_for_ack)
-		flags |= QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT;
+		flags |= QLINK_FRAME_TX_FLAG_ACK_NOWAIT;
 
 	/* If channel is not specified, pass "freq = 0" to tell device
 	 * firmware to use current channel.
@@ -445,9 +451,8 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 le16_to_cpu(mgmt_frame->frame_control), mgmt_frame->da,
 		 params->len, short_cookie, flags);
 
-	return qtnf_cmd_send_mgmt_frame(vif, short_cookie, flags,
-					freq,
-					params->buf, params->len);
+	return qtnf_cmd_send_frame(vif, short_cookie, flags,
+				   freq, params->buf, params->len);
 }
 
 static int

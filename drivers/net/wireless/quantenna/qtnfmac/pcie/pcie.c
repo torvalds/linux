@@ -354,6 +354,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pcie_priv->pcie_irq_count = 0;
 	pcie_priv->tx_reclaim_done = 0;
 	pcie_priv->tx_reclaim_req = 0;
+	pcie_priv->tx_eapol = 0;
 
 	pcie_priv->workqueue = create_singlethread_workqueue("QTNF_PCIE");
 	if (!pcie_priv->workqueue) {

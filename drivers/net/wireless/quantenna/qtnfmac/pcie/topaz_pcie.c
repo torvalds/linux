@@ -498,6 +498,13 @@ static int qtnf_pcie_data_tx(struct qtnf_bus *bus, struct sk_buff *skb)
 	int len;
 	int i;
 
+	if (unlikely(skb->protocol == htons(ETH_P_PAE))) {
+		qtnf_packet_send_hi_pri(skb);
+		qtnf_update_tx_stats(skb->dev, skb);
+		priv->tx_eapol++;
+		return NETDEV_TX_OK;
+	}
+
 	spin_lock_irqsave(&priv->tx_lock, flags);
 
 	if (!qtnf_tx_queue_ready(ts)) {
@@ -761,6 +768,7 @@ static int qtnf_dbg_pkt_stats(struct seq_file *s, void *data)
 	seq_printf(s, "tx_done_count(%u)\n", priv->tx_done_count);
 	seq_printf(s, "tx_reclaim_done(%u)\n", priv->tx_reclaim_done);
 	seq_printf(s, "tx_reclaim_req(%u)\n", priv->tx_reclaim_req);
+	seq_printf(s, "tx_eapol(%u)\n", priv->tx_eapol);
 
 	seq_printf(s, "tx_bd_r_index(%u)\n", priv->tx_bd_r_index);
 	seq_printf(s, "tx_done_index(%u)\n", tx_done_index);

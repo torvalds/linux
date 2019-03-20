@@ -206,6 +206,8 @@ struct qlink_sta_info_state {
  * execution status (one of &enum qlink_cmd_result). Reply message
  * may also contain data payload specific to the command type.
  *
+ * @QLINK_CMD_SEND_FRAME: send specified frame over the air; firmware will
+ *	encapsulate 802.3 packet into 802.11 frame automatically.
  * @QLINK_CMD_BAND_INFO_GET: for the specified MAC and specified band, get
  *	the band's description including number of operational channels and
  *	info on each channel, HT/VHT capabilities, supported rates etc.
@@ -220,7 +222,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
 	QLINK_CMD_FW_DEINIT		= 0x0002,
 	QLINK_CMD_REGISTER_MGMT		= 0x0003,
-	QLINK_CMD_SEND_MGMT_FRAME	= 0x0004,
+	QLINK_CMD_SEND_FRAME		= 0x0004,
 	QLINK_CMD_MGMT_SET_APPIE	= 0x0005,
 	QLINK_CMD_PHY_PARAMS_GET	= 0x0011,
 	QLINK_CMD_PHY_PARAMS_SET	= 0x0012,
@@ -321,22 +323,26 @@ struct qlink_cmd_mgmt_frame_register {
 	u8 do_register;
 } __packed;
 
-enum qlink_mgmt_frame_tx_flags {
-	QLINK_MGMT_FRAME_TX_FLAG_NONE		= 0,
-	QLINK_MGMT_FRAME_TX_FLAG_OFFCHAN	= BIT(0),
-	QLINK_MGMT_FRAME_TX_FLAG_NO_CCK		= BIT(1),
-	QLINK_MGMT_FRAME_TX_FLAG_ACK_NOWAIT	= BIT(2),
+/**
+ * @QLINK_FRAME_TX_FLAG_8023: frame has a 802.3 header; if not set, frame
+ *	is a 802.11 encapsulated.
+ */
+enum qlink_frame_tx_flags {
+	QLINK_FRAME_TX_FLAG_OFFCHAN	= BIT(0),
+	QLINK_FRAME_TX_FLAG_NO_CCK	= BIT(1),
+	QLINK_FRAME_TX_FLAG_ACK_NOWAIT	= BIT(2),
+	QLINK_FRAME_TX_FLAG_8023	= BIT(3),
 };
 
 /**
- * struct qlink_cmd_mgmt_frame_tx - data for QLINK_CMD_SEND_MGMT_FRAME command
+ * struct qlink_cmd_frame_tx - data for QLINK_CMD_SEND_FRAME command
  *
  * @cookie: opaque request identifier.
  * @freq: Frequency to use for frame transmission.
- * @flags: Transmission flags, one of &enum qlink_mgmt_frame_tx_flags.
+ * @flags: Transmission flags, one of &enum qlink_frame_tx_flags.
  * @frame_data: frame to transmit.
  */
-struct qlink_cmd_mgmt_frame_tx {
+struct qlink_cmd_frame_tx {
 	struct qlink_cmd chdr;
 	__le32 cookie;
 	__le16 freq;
