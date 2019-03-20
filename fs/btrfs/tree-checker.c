@@ -447,13 +447,13 @@ static int check_block_group_item(struct extent_buffer *leaf,
 	return 0;
 }
 
-__printf(5, 6)
+__printf(4, 5)
 __cold
-static void chunk_err(const struct btrfs_fs_info *fs_info,
-		      const struct extent_buffer *leaf,
+static void chunk_err(const struct extent_buffer *leaf,
 		      const struct btrfs_chunk *chunk, u64 logical,
 		      const char *fmt, ...)
 {
+	const struct btrfs_fs_info *fs_info = leaf->fs_info;
 	bool is_sb;
 	struct va_format vaf;
 	va_list args;
@@ -517,37 +517,37 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	type = btrfs_chunk_type(leaf, chunk);
 
 	if (!num_stripes) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "invalid chunk num_stripes, have %u", num_stripes);
 		return -EUCLEAN;
 	}
 	if (!IS_ALIGNED(logical, fs_info->sectorsize)) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 		"invalid chunk logical, have %llu should aligned to %u",
 			  logical, fs_info->sectorsize);
 		return -EUCLEAN;
 	}
 	if (btrfs_chunk_sector_size(leaf, chunk) != fs_info->sectorsize) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "invalid chunk sectorsize, have %u expect %u",
 			  btrfs_chunk_sector_size(leaf, chunk),
 			  fs_info->sectorsize);
 		return -EUCLEAN;
 	}
 	if (!length || !IS_ALIGNED(length, fs_info->sectorsize)) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "invalid chunk length, have %llu", length);
 		return -EUCLEAN;
 	}
 	if (!is_power_of_2(stripe_len) || stripe_len != BTRFS_STRIPE_LEN) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "invalid chunk stripe length: %llu",
 			  stripe_len);
 		return -EUCLEAN;
 	}
 	if (~(BTRFS_BLOCK_GROUP_TYPE_MASK | BTRFS_BLOCK_GROUP_PROFILE_MASK) &
 	    type) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "unrecognized chunk type: 0x%llx",
 			  ~(BTRFS_BLOCK_GROUP_TYPE_MASK |
 			    BTRFS_BLOCK_GROUP_PROFILE_MASK) &
@@ -557,13 +557,13 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 
 	if (!is_power_of_2(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
 	    (type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 		"invalid chunk profile flag: 0x%llx, expect 0 or 1 bit set",
 			  type & BTRFS_BLOCK_GROUP_PROFILE_MASK);
 		return -EUCLEAN;
 	}
 	if ((type & BTRFS_BLOCK_GROUP_TYPE_MASK) == 0) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 	"missing chunk type flag, have 0x%llx one bit must be set in 0x%llx",
 			  type, BTRFS_BLOCK_GROUP_TYPE_MASK);
 		return -EUCLEAN;
@@ -571,7 +571,7 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 
 	if ((type & BTRFS_BLOCK_GROUP_SYSTEM) &&
 	    (type & (BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA))) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			  "system chunk with data or metadata type: 0x%llx",
 			  type);
 		return -EUCLEAN;
@@ -584,7 +584,7 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	if (!mixed) {
 		if ((type & BTRFS_BLOCK_GROUP_METADATA) &&
 		    (type & BTRFS_BLOCK_GROUP_DATA)) {
-			chunk_err(fs_info, leaf, chunk, logical,
+			chunk_err(leaf, chunk, logical,
 			"mixed chunk type in non-mixed mode: 0x%llx", type);
 			return -EUCLEAN;
 		}
@@ -596,7 +596,7 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	    (type & BTRFS_BLOCK_GROUP_RAID6 && num_stripes < 3) ||
 	    (type & BTRFS_BLOCK_GROUP_DUP && num_stripes != 2) ||
 	    ((type & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0 && num_stripes != 1)) {
-		chunk_err(fs_info, leaf, chunk, logical,
+		chunk_err(leaf, chunk, logical,
 			"invalid num_stripes:sub_stripes %u:%u for profile %llu",
 			num_stripes, sub_stripes,
 			type & BTRFS_BLOCK_GROUP_PROFILE_MASK);
