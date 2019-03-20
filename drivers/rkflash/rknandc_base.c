@@ -139,15 +139,19 @@ static int rknandc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rknandc_suspend(struct platform_device *pdev, pm_message_t state)
+static int __maybe_unused rknandc_suspend(struct device *dev)
 {
 	return rkflash_dev_suspend();
 }
 
-static int rknandc_resume(struct platform_device *pdev)
+static int __maybe_unused rknandc_resume(struct device *dev)
 {
 	return rkflash_dev_resume(g_nandc_info.reg_base);
 }
+
+static SIMPLE_DEV_PM_OPS(rknandc_pmops,
+			 rknandc_suspend,
+			 rknandc_resume);
 
 static void rknandc_shutdown(struct platform_device *pdev)
 {
@@ -164,14 +168,13 @@ static const struct of_device_id of_rknandc_match[] = {
 
 static struct platform_driver rknandc_driver = {
 	.probe		= rknandc_probe,
-	.suspend	= rknandc_suspend,
-	.resume		= rknandc_resume,
 	.shutdown	= rknandc_shutdown,
 	.driver		= {
 		.name	= "rknandc",
 #ifdef CONFIG_OF
 		.of_match_table	= of_rknandc_match,
 #endif
+		.pm		= &rknandc_pmops,
 	},
 };
 
