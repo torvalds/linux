@@ -153,6 +153,7 @@ struct pca953x_chip {
 	u8 irq_trig_fall[MAX_BANK];
 	struct irq_chip irq_chip;
 #endif
+	atomic_t wakeup_path;
 
 	struct i2c_client *client;
 	struct gpio_chip gpio_chip;
@@ -580,6 +581,11 @@ static int pca953x_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
+
+	if (on)
+		atomic_inc(&chip->wakeup_path);
+	else
+		atomic_dec(&chip->wakeup_path);
 
 	return irq_set_irq_wake(chip->client->irq, on);
 }
@@ -1100,7 +1106,10 @@ static int pca953x_suspend(struct device *dev)
 
 	regcache_cache_only(chip->regmap, true);
 
-	regulator_disable(chip->regulator);
+	if (atomic_read(&chip->wakeup_path))
+		device_set_wakeup_path(dev);
+	else
+		regulator_disable(chip->regulator);
 
 	return 0;
 }
@@ -1110,10 +1119,12 @@ static int pca953x_resume(struct device *dev)
 	struct pca953x_chip *chip = dev_get_drvdata(dev);
 	int ret;
 
-	ret = regulator_enable(chip->regulator);
-	if (ret != 0) {
-		dev_err(dev, "Failed to enable regulator: %d\n", ret);
-		return 0;
+	if (!atomic_read(&chip->wakeup_path)) {
+		ret = regulator_enable(chip->regulator);
+		if (ret != 0) {
+			dev_err(dev, "Failed to enable regulator: %d\n", ret);
+			return 0;
+		}
 	}
 
 	regcache_cache_only(chip->regmap, false);
