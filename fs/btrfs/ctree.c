@@ -4639,8 +4639,7 @@ void btrfs_truncate_item(struct btrfs_path *path, u32 new_size, int from_end)
 /*
  * make the item pointed to by the path bigger, data_size is the added size.
  */
-void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
-		       u32 data_size)
+void btrfs_extend_item(struct btrfs_path *path, u32 data_size)
 {
 	int slot;
 	struct extent_buffer *leaf;
@@ -4669,7 +4668,7 @@ void btrfs_extend_item(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 	BUG_ON(slot < 0);
 	if (slot >= nritems) {
 		btrfs_print_leaf(leaf);
-		btrfs_crit(fs_info, "slot %d too large, nritems %d",
+		btrfs_crit(leaf->fs_info, "slot %d too large, nritems %d",
 			   slot, nritems);
 		BUG();
 	}

@@ -1705,7 +1705,7 @@ void setup_inline_extent_backref(struct btrfs_fs_info *fs_info,
 	type = extent_ref_type(parent, owner);
 	size = btrfs_extent_inline_ref_size(type);
 
-	btrfs_extend_item(fs_info, path, size);
+	btrfs_extend_item(path, size);
 
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	refs = btrfs_extent_refs(leaf, ei);

@@ -344,7 +344,6 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 				   struct extent_buffer *eb, int slot,
 				   struct btrfs_key *key)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	u32 item_size;
 	u64 saved_i_size = 0;
@@ -467,8 +466,7 @@ insert:
 		if (found_size > item_size)
 			btrfs_truncate_item(path, item_size, 1);
 		else if (found_size < item_size)
-			btrfs_extend_item(fs_info, path,
-					  item_size - found_size);
+			btrfs_extend_item(path, item_size - found_size);
 	} else if (ret) {
 		return ret;
 	}
