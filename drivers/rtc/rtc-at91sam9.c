@@ -425,6 +425,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtcdev->ops = &at91_rtc_ops;
+	rtc->rtcdev->range_max = U32_MAX;
 
 	/* register irq handler after we know what name we'll use */
 	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
