@@ -23,6 +23,7 @@ config SND_SOC_SOF_INTEL_PCI
 	select SND_SOC_SOF_APOLLOLAKE  if SND_SOC_SOF_APOLLOLAKE_SUPPORT
 	select SND_SOC_SOF_GEMINILAKE  if SND_SOC_SOF_GEMINILAKE_SUPPORT
 	select SND_SOC_SOF_CANNONLAKE  if SND_SOC_SOF_CANNONLAKE_SUPPORT
+	select SND_SOC_SOF_COFFEELAKE  if SND_SOC_SOF_COFFEELAKE_SUPPORT
 	select SND_SOC_SOF_KABYLAKE    if SND_SOC_SOF_KABYLAKE_SUPPORT
 	select SND_SOC_SOF_SKYLAKE     if SND_SOC_SOF_SKYLAKE_SUPPORT
 	select SND_SOC_SOF_ICELAKE     if SND_SOC_SOF_ICELAKE_SUPPORT
@@ -152,6 +153,21 @@ config SND_SOC_SOF_CANNONLAKE_SUPPORT
           If unsure select "N".
 
 config SND_SOC_SOF_CANNONLAKE
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+config SND_SOC_SOF_COFFEELAKE_SUPPORT
+	bool "SOF support for CoffeeLake"
+	help
+          This adds support for Sound Open Firmware for Intel(R) platforms
+          using the Coffeelake processors.
+          Say Y if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_SOF_COFFEELAKE
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	help
