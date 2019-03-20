@@ -94,7 +94,7 @@ static void file_extent_err(const struct extent_buffer *eb, int slot,
  * Return 0 if the btrfs_file_extent_##name is aligned to @alignment
  * Else return 1
  */
-#define CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, name, alignment)	      \
+#define CHECK_FE_ALIGNED(leaf, slot, fi, name, alignment)		      \
 ({									      \
 	if (!IS_ALIGNED(btrfs_file_extent_##name((leaf), (fi)), (alignment))) \
 		file_extent_err((leaf), (slot),				      \
@@ -179,11 +179,11 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 			item_size, sizeof(*fi));
 		return -EUCLEAN;
 	}
-	if (CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, ram_bytes, sectorsize) ||
-	    CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, disk_bytenr, sectorsize) ||
-	    CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, disk_num_bytes, sectorsize) ||
-	    CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, offset, sectorsize) ||
-	    CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, num_bytes, sectorsize))
+	if (CHECK_FE_ALIGNED(leaf, slot, fi, ram_bytes, sectorsize) ||
+	    CHECK_FE_ALIGNED(leaf, slot, fi, disk_bytenr, sectorsize) ||
+	    CHECK_FE_ALIGNED(leaf, slot, fi, disk_num_bytes, sectorsize) ||
+	    CHECK_FE_ALIGNED(leaf, slot, fi, offset, sectorsize) ||
+	    CHECK_FE_ALIGNED(leaf, slot, fi, num_bytes, sectorsize))
 		return -EUCLEAN;
 	return 0;
 }
