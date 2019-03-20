@@ -271,12 +271,13 @@ config BCM87XX_PHY
 
 config BCM_CYGNUS_PHY
 	tristate "Broadcom Cygnus SoC internal PHY"
-	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MDIO_BCM_IPROC
+	tristate "Broadcom Cygnus/Omega SoC internal PHY"
 	select BCM_NET_PHYLIB
 	---help---
 	  This PHY driver is for the 1G internal PHYs of the Broadcom
-	  Cygnus Family SoC.
+	  Cygnus and Omega Family SoC.
 
 	  Currently supports internal PHY's used in the BCM11300,
 	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
