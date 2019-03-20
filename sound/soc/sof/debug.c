@@ -39,7 +39,8 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		count = size - pos;
 
 	/* intermediate buffer size must be u32 multiple */
-	size = round_up(count, 4);
+	size = ALIGN(count, 4);
+
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -73,7 +74,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		memcpy_fromio(buf, dfse->io_mem + pos, size);
 #endif
 	} else {
-		memcpy(buf, (void *)((u8 *)(dfse->buf) + pos), size);
+		memcpy(buf, ((u8 *)(dfse->buf) + pos), size);
 	}
 
 	/* copy to userspace */
