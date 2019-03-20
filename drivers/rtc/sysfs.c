@@ -11,7 +11,6 @@
 
 #include "rtc-core.h"
 
-
 /* device attributes */
 
 /*
@@ -83,7 +82,7 @@ max_user_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static ssize_t
 max_user_freq_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t n)
+		    const char *buf, size_t n)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
 	unsigned long val;
@@ -113,12 +112,11 @@ hctosys_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 #ifdef CONFIG_RTC_HCTOSYS_DEVICE
 	if (rtc_hctosys_ret == 0 &&
-			strcmp(dev_name(&to_rtc_device(dev)->dev),
-				CONFIG_RTC_HCTOSYS_DEVICE) == 0)
+	    strcmp(dev_name(&to_rtc_device(dev)->dev),
+		   CONFIG_RTC_HCTOSYS_DEVICE) == 0)
 		return sprintf(buf, "1\n");
-	else
 #endif
-		return sprintf(buf, "0\n");
+	return sprintf(buf, "0\n");
 }
 static DEVICE_ATTR_RO(hctosys);
 
@@ -172,15 +170,15 @@ wakealarm_store(struct device *dev, struct device_attribute *attr,
 		if (*buf_ptr == '=') {
 			buf_ptr++;
 			push = 1;
-		} else
+		} else {
 			adjust = 1;
+		}
 	}
 	retval = kstrtos64(buf_ptr, 0, &alarm);
 	if (retval)
 		return retval;
-	if (adjust) {
+	if (adjust)
 		alarm += now;
-	}
 	if (alarm > now || push) {
 		/* Avoid accidentally clobbering active alarms; we can't
 		 * entirely prevent that here, without even the minimal

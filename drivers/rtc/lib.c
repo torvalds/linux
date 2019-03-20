@@ -22,7 +22,7 @@ static const unsigned short rtc_ydays[2][13] = {
 	{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 }
 };
 
-#define LEAPS_THRU_END_OF(y) ((y)/4 - (y)/100 + (y)/400)
+#define LEAPS_THRU_END_OF(y) ((y) / 4 - (y) / 100 + (y) / 400)
 
 /*
  * The number of days in the month.
@@ -38,10 +38,9 @@ EXPORT_SYMBOL(rtc_month_days);
  */
 int rtc_year_days(unsigned int day, unsigned int month, unsigned int year)
 {
-	return rtc_ydays[is_leap_year(year)][month] + day-1;
+	return rtc_ydays[is_leap_year(year)][month] + day - 1;
 }
 EXPORT_SYMBOL(rtc_year_days);
-
 
 /*
  * rtc_time64_to_tm - Converts time64_t to rtc_time.
@@ -94,13 +93,14 @@ EXPORT_SYMBOL(rtc_time64_to_tm);
  */
 int rtc_valid_tm(struct rtc_time *tm)
 {
-	if (tm->tm_year < 70
-		|| ((unsigned)tm->tm_mon) >= 12
-		|| tm->tm_mday < 1
-		|| tm->tm_mday > rtc_month_days(tm->tm_mon, ((unsigned)tm->tm_year + 1900))
-		|| ((unsigned)tm->tm_hour) >= 24
-		|| ((unsigned)tm->tm_min) >= 60
-		|| ((unsigned)tm->tm_sec) >= 60)
+	if (tm->tm_year < 70 ||
+	    ((unsigned int)tm->tm_mon) >= 12 ||
+	    tm->tm_mday < 1 ||
+	    tm->tm_mday > rtc_month_days(tm->tm_mon,
+					 ((unsigned int)tm->tm_year + 1900)) ||
+	    ((unsigned int)tm->tm_hour) >= 24 ||
+	    ((unsigned int)tm->tm_min) >= 60 ||
+	    ((unsigned int)tm->tm_sec) >= 60)
 		return -EINVAL;
 
 	return 0;
@@ -113,7 +113,7 @@ EXPORT_SYMBOL(rtc_valid_tm);
  */
 time64_t rtc_tm_to_time64(struct rtc_time *tm)
 {
-	return mktime64(((unsigned)tm->tm_year + 1900), tm->tm_mon + 1,
+	return mktime64(((unsigned int)tm->tm_year + 1900), tm->tm_mon + 1,
 			tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
 }
 EXPORT_SYMBOL(rtc_tm_to_time64);

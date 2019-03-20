@@ -57,17 +57,17 @@ static int rtc_proc_show(struct seq_file *seq, void *offset)
 		seq_printf(seq, "alrm_time\t: %ptRt\n", &alrm.time);
 		seq_printf(seq, "alrm_date\t: %ptRd\n", &alrm.time);
 		seq_printf(seq, "alarm_IRQ\t: %s\n",
-				alrm.enabled ? "yes" : "no");
+			   alrm.enabled ? "yes" : "no");
 		seq_printf(seq, "alrm_pending\t: %s\n",
-				alrm.pending ? "yes" : "no");
+			   alrm.pending ? "yes" : "no");
 		seq_printf(seq, "update IRQ enabled\t: %s\n",
-			(rtc->uie_rtctimer.enabled) ? "yes" : "no");
+			   (rtc->uie_rtctimer.enabled) ? "yes" : "no");
 		seq_printf(seq, "periodic IRQ enabled\t: %s\n",
-			(rtc->pie_enabled) ? "yes" : "no");
+			   (rtc->pie_enabled) ? "yes" : "no");
 		seq_printf(seq, "periodic IRQ frequency\t: %d\n",
-			rtc->irq_freq);
+			   rtc->irq_freq);
 		seq_printf(seq, "max user IRQ frequency\t: %d\n",
-			rtc->max_user_freq);
+			   rtc->max_user_freq);
 	}
 
 	seq_printf(seq, "24hr\t\t: yes\n");
@@ -82,7 +82,7 @@ void rtc_proc_add_device(struct rtc_device *rtc)
 {
 	if (is_rtc_hctosys(rtc))
 		proc_create_single_data("driver/rtc", 0, NULL, rtc_proc_show,
-				rtc);
+					rtc);
 }
 
 void rtc_proc_del_device(struct rtc_device *rtc)

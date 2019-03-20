@@ -43,7 +43,7 @@ static int rtc_nvram_register(struct rtc_device *rtc,
 {
 	int err;
 
-	rtc->nvram = kzalloc(sizeof(struct bin_attribute), GFP_KERNEL);
+	rtc->nvram = kzalloc(sizeof(*rtc->nvram), GFP_KERNEL);
 	if (!rtc->nvram)
 		return -ENOMEM;
 
