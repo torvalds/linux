@@ -640,7 +640,7 @@ static const struct hwmon_channel_info ntc_chip = {
 };
 
 static const u32 ntc_temp_config[] = {
-	HWMON_T_INPUT, HWMON_T_TYPE,
+	HWMON_T_INPUT | HWMON_T_TYPE,
 	0
 };
 
