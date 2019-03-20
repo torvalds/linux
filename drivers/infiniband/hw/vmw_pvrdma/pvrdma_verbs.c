@@ -70,8 +70,6 @@ int pvrdma_query_device(struct ib_device *ibdev,
 	if (uhw->inlen || uhw->outlen)
 		return -EINVAL;
 
-	memset(props, 0, sizeof(*props));
-
 	props->fw_ver = dev->dsr->caps.fw_ver;
 	props->sys_image_guid = dev->dsr->caps.sys_image_guid;
 	props->max_mr_size = dev->dsr->caps.max_mr_size;
