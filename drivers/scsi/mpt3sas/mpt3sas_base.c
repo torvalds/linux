@@ -1523,8 +1523,8 @@ _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 				reply_q->irq_poll_scheduled = true;
 				irq_poll_sched(&reply_q->irqpoll);
 			}
-				atomic_dec(&reply_q->busy);
-				return completed_cmds;
+			atomic_dec(&reply_q->busy);
+			return completed_cmds;
 		}
 		if (request_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			goto out;
