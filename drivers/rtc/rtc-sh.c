@@ -600,6 +600,14 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->ops = &sh_rtc_ops;
 	rtc->rtc_dev->max_user_freq = 256;
 
+	if (rtc->capabilities & RTC_CAP_4_DIGIT_YEAR) {
+		rtc->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_1900;
+		rtc->rtc_dev->range_max = RTC_TIMESTAMP_END_9999;
+	} else {
+		rtc->rtc_dev->range_min = mktime64(1999, 1, 1, 0, 0, 0);
+		rtc->rtc_dev->range_max = mktime64(2098, 12, 31, 23, 59, 59);
+	}
+
 	ret = rtc_register_device(rtc->rtc_dev);
 	if (ret)
 		goto err_unmap;
