@@ -1005,16 +1005,8 @@ static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
 
 	ret = qtnf_cmd_reg_notify(mac, req);
 	if (ret) {
-		if (ret == -EOPNOTSUPP) {
-			pr_warn("reg update not supported\n");
-		} else if (ret == -EALREADY) {
-			pr_info("regulatory domain is already set to %c%c",
-				req->alpha2[0], req->alpha2[1]);
-		} else {
-			pr_err("failed to update reg domain to %c%c\n",
-			       req->alpha2[0], req->alpha2[1]);
-		}
-
+		pr_err("MAC%u: failed to update region to %c%c: %d\n",
+		       mac->macid, req->alpha2[0], req->alpha2[1], ret);
 		return;
 	}
 
