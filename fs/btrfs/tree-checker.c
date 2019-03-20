@@ -606,10 +606,9 @@ int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-__printf(4, 5)
+__printf(3, 4)
 __cold
-static void dev_item_err(const struct btrfs_fs_info *fs_info,
-			 const struct extent_buffer *eb, int slot,
+static void dev_item_err(const struct extent_buffer *eb, int slot,
 			 const char *fmt, ...)
 {
 	struct btrfs_key key;
@@ -622,7 +621,7 @@ static void dev_item_err(const struct btrfs_fs_info *fs_info,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	btrfs_crit(fs_info,
+	btrfs_crit(eb->fs_info,
 	"corrupt %s: root=%llu block=%llu slot=%d devid=%llu %pV",
 		btrfs_header_level(eb) == 0 ? "leaf" : "node",
 		btrfs_header_owner(eb), btrfs_header_bytenr(eb), slot,
@@ -638,20 +637,20 @@ static int check_dev_item(struct btrfs_fs_info *fs_info,
 	u64 max_devid = max(BTRFS_MAX_DEVS(fs_info), BTRFS_MAX_DEVS_SYS_CHUNK);
 
 	if (key->objectid != BTRFS_DEV_ITEMS_OBJECTID) {
-		dev_item_err(fs_info, leaf, slot,
+		dev_item_err(leaf, slot,
 			     "invalid objectid: has=%llu expect=%llu",
 			     key->objectid, BTRFS_DEV_ITEMS_OBJECTID);
 		return -EUCLEAN;
 	}
 	if (key->offset > max_devid) {
-		dev_item_err(fs_info, leaf, slot,
+		dev_item_err(leaf, slot,
 			     "invalid devid: has=%llu expect=[0, %llu]",
 			     key->offset, max_devid);
 		return -EUCLEAN;
 	}
 	ditem = btrfs_item_ptr(leaf, slot, struct btrfs_dev_item);
 	if (btrfs_device_id(leaf, ditem) != key->offset) {
-		dev_item_err(fs_info, leaf, slot,
+		dev_item_err(leaf, slot,
 			     "devid mismatch: key has=%llu item has=%llu",
 			     key->offset, btrfs_device_id(leaf, ditem));
 		return -EUCLEAN;
@@ -664,7 +663,7 @@ static int check_dev_item(struct btrfs_fs_info *fs_info,
 	 */
 	if (btrfs_device_bytes_used(leaf, ditem) >
 	    btrfs_device_total_bytes(leaf, ditem)) {
-		dev_item_err(fs_info, leaf, slot,
+		dev_item_err(leaf, slot,
 			     "invalid bytes used: have %llu expect [0, %llu]",
 			     btrfs_device_bytes_used(leaf, ditem),
 			     btrfs_device_total_bytes(leaf, ditem));
