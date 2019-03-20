@@ -205,11 +205,11 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 	if (rtcdrv->irq < 0)
 		return -ENODEV;
 
-	rtcdrv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					       &goldfish_rtc_ops,
-					       THIS_MODULE);
+	rtcdrv->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtcdrv->rtc))
 		return PTR_ERR(rtcdrv->rtc);
+
+	rtcdrv->rtc->ops = &goldfish_rtc_ops;
 
 	err = devm_request_irq(&pdev->dev, rtcdrv->irq,
 			       goldfish_rtc_interrupt,
@@ -217,7 +217,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return 0;
+	return rtc_register_device(rtcdrv->rtc);
 }
 
 static const struct of_device_id goldfish_rtc_of_match[] = {
