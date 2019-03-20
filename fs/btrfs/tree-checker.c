@@ -378,8 +378,7 @@ static void block_group_err(const struct extent_buffer *eb, int slot,
 	va_end(args);
 }
 
-static int check_block_group_item(struct btrfs_fs_info *fs_info,
-				  struct extent_buffer *leaf,
+static int check_block_group_item(struct extent_buffer *leaf,
 				  struct btrfs_key *key, int slot)
 {
 	struct btrfs_block_group_item bgi;
@@ -792,7 +791,7 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 		ret = check_dir_item(leaf, key, slot);
 		break;
 	case BTRFS_BLOCK_GROUP_ITEM_KEY:
-		ret = check_block_group_item(fs_info, leaf, key, slot);
+		ret = check_block_group_item(leaf, key, slot);
 		break;
 	case BTRFS_CHUNK_ITEM_KEY:
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
