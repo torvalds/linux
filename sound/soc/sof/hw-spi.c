@@ -167,20 +167,6 @@ static irqreturn_t spi_irq_handler(int irq __maybe_unused, void *context)
 	return IRQ_NONE;
 }
 
-static irqreturn_t spi_irq_thread(int irq __maybe_unused, void *context __maybe_unused)
-{
-	// read SPI data into local buffer and determine IPC cmd or reply
-
-	/*
-	 * if reply. Handle Immediate reply from DSP Core and set DSP
-	 * state to ready
-	 */
-
-	/* if cmd, Handle messages from DSP Core */
-
-	return IRQ_HANDLED;
-}
-
 static int spi_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	/* send the message */
@@ -219,6 +205,23 @@ static int spi_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 				 size);
 
 	return ret;
+}
+
+static irqreturn_t spi_irq_thread(int irq __maybe_unused, void *context __maybe_unused)
+{
+	struct snd_sof_dev *sdev = context;
+
+	// read SPI data into local buffer and determine IPC cmd or reply
+
+	/*
+	 * if reply. Handle Immediate reply from DSP Core and set DSP
+	 * state to ready
+	 */
+
+	/* if cmd, Handle messages from DSP Core */
+	spi_get_reply(sdev, sdev->msg);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -290,7 +293,6 @@ const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 
 	/* ipc */
 	.send_msg	= spi_send_msg,
-	.get_reply	= spi_get_reply,
 	.fw_ready	= spi_fw_ready,
 	.cmd_done	= spi_cmd_done,
 
