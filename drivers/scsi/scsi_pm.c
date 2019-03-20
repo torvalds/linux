@@ -55,9 +55,6 @@ static int scsi_dev_type_suspend(struct device *dev,
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int err;
 
-	/* flush pending in-flight resume operations, suspend is synchronous */
-	async_synchronize_full_domain(&scsi_sd_pm_domain);
-
 	err = scsi_device_quiesce(to_scsi_device(dev));
 	if (err == 0) {
 		err = cb(dev, pm);
@@ -154,18 +151,7 @@ static int scsi_bus_resume_common(struct device *dev,
 	else
 		fn = NULL;
 
-	if (fn) {
-		async_schedule_domain(fn, dev, &scsi_sd_pm_domain);
-
-		/*
-		 * If a user has disabled async probing a likely reason
-		 * is due to a storage enclosure that does not inject
-		 * staggered spin-ups.  For safety, make resume
-		 * synchronous as well in that case.
-		 */
-		if (strncmp(scsi_scan_type, "async", 5) != 0)
-			async_synchronize_full_domain(&scsi_sd_pm_domain);
-	} else {
+	if (!fn) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
@@ -175,11 +161,7 @@ static int scsi_bus_resume_common(struct device *dev,
 
 static int scsi_bus_prepare(struct device *dev)
 {
-	if (scsi_is_sdev_device(dev)) {
-		/* sd probing uses async_schedule.  Wait until it finishes. */
-		async_synchronize_full_domain(&scsi_sd_probe_domain);
-
-	} else if (scsi_is_host_device(dev)) {
+	if (scsi_is_host_device(dev)) {
 		/* Wait until async scanning is finished */
 		scsi_complete_async_scans();
 	}
