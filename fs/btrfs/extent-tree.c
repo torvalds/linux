@@ -1577,12 +1577,12 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	int ret;
 	int err = 0;
-	int metadata = !extent_op->is_data;
+	int metadata = 1;
 
 	if (TRANS_ABORTED(trans))
 		return 0;
 
-	if (metadata && !btrfs_fs_incompat(fs_info, SKINNY_METADATA))
+	if (!btrfs_fs_incompat(fs_info, SKINNY_METADATA))
 		metadata = 0;
 
 	path = btrfs_alloc_path();
@@ -2192,7 +2192,6 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	extent_op->flags_to_set = flags;
 	extent_op->update_flags = true;
 	extent_op->update_key = false;
-	extent_op->is_data = false;
 	extent_op->level = level;
 
 	ret = btrfs_add_delayed_extent_op(trans, eb->start, eb->len, extent_op);
@@ -4951,7 +4950,6 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		extent_op->flags_to_set = flags;
 		extent_op->update_key = skinny_metadata ? false : true;
 		extent_op->update_flags = true;
-		extent_op->is_data = false;
 		extent_op->level = level;
 
 		btrfs_init_generic_ref(&generic_ref, BTRFS_ADD_DELAYED_EXTENT,
