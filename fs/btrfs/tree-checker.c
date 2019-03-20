@@ -66,12 +66,12 @@ static void generic_err(const struct extent_buffer *eb, int slot,
  * Customized reporter for extent data item, since its key objectid and
  * offset has its own meaning.
  */
-__printf(4, 5)
+__printf(3, 4)
 __cold
-static void file_extent_err(const struct btrfs_fs_info *fs_info,
-			    const struct extent_buffer *eb, int slot,
+static void file_extent_err(const struct extent_buffer *eb, int slot,
 			    const char *fmt, ...)
 {
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_key key;
 	struct va_format vaf;
 	va_list args;
@@ -97,7 +97,7 @@ static void file_extent_err(const struct btrfs_fs_info *fs_info,
 #define CHECK_FE_ALIGNED(fs_info, leaf, slot, fi, name, alignment)	      \
 ({									      \
 	if (!IS_ALIGNED(btrfs_file_extent_##name((leaf), (fi)), (alignment))) \
-		file_extent_err((fs_info), (leaf), (slot),		      \
+		file_extent_err((leaf), (slot),				      \
 	"invalid %s for file extent, have %llu, should be aligned to %u",     \
 			(#name), btrfs_file_extent_##name((leaf), (fi)),      \
 			(alignment));					      \
@@ -113,7 +113,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	u32 item_size = btrfs_item_size_nr(leaf, slot);
 
 	if (!IS_ALIGNED(key->offset, sectorsize)) {
-		file_extent_err(fs_info, leaf, slot,
+		file_extent_err(leaf, slot,
 "unaligned file_offset for file extent, have %llu should be aligned to %u",
 			key->offset, sectorsize);
 		return -EUCLEAN;
@@ -122,7 +122,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
 	if (btrfs_file_extent_type(leaf, fi) > BTRFS_FILE_EXTENT_TYPES) {
-		file_extent_err(fs_info, leaf, slot,
+		file_extent_err(leaf, slot,
 		"invalid type for file extent, have %u expect range [0, %u]",
 			btrfs_file_extent_type(leaf, fi),
 			BTRFS_FILE_EXTENT_TYPES);
@@ -134,14 +134,14 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	 * and must be caught in open_ctree().
 	 */
 	if (btrfs_file_extent_compression(leaf, fi) > BTRFS_COMPRESS_TYPES) {
-		file_extent_err(fs_info, leaf, slot,
+		file_extent_err(leaf, slot,
 	"invalid compression for file extent, have %u expect range [0, %u]",
 			btrfs_file_extent_compression(leaf, fi),
 			BTRFS_COMPRESS_TYPES);
 		return -EUCLEAN;
 	}
 	if (btrfs_file_extent_encryption(leaf, fi)) {
-		file_extent_err(fs_info, leaf, slot,
+		file_extent_err(leaf, slot,
 			"invalid encryption for file extent, have %u expect 0",
 			btrfs_file_extent_encryption(leaf, fi));
 		return -EUCLEAN;
@@ -149,7 +149,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 	if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE) {
 		/* Inline extent must have 0 as key offset */
 		if (key->offset) {
-			file_extent_err(fs_info, leaf, slot,
+			file_extent_err(leaf, slot,
 		"invalid file_offset for inline file extent, have %llu expect 0",
 				key->offset);
 			return -EUCLEAN;
@@ -163,7 +163,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 		/* Uncompressed inline extent size must match item size */
 		if (item_size != BTRFS_FILE_EXTENT_INLINE_DATA_START +
 		    btrfs_file_extent_ram_bytes(leaf, fi)) {
-			file_extent_err(fs_info, leaf, slot,
+			file_extent_err(leaf, slot,
 	"invalid ram_bytes for uncompressed inline extent, have %u expect %llu",
 				item_size, BTRFS_FILE_EXTENT_INLINE_DATA_START +
 				btrfs_file_extent_ram_bytes(leaf, fi));
@@ -174,7 +174,7 @@ static int check_extent_data_item(struct btrfs_fs_info *fs_info,
 
 	/* Regular or preallocated extent has fixed item size */
 	if (item_size != sizeof(*fi)) {
-		file_extent_err(fs_info, leaf, slot,
+		file_extent_err(leaf, slot,
 	"invalid item size for reg/prealloc file extent, have %u expect %zu",
 			item_size, sizeof(*fi));
 		return -EUCLEAN;
