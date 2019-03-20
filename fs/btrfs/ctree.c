@@ -343,7 +343,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			int level = btrfs_header_level(buf);
 
 			ret = btrfs_set_disk_extent_flags(trans, buf,
-							  new_flags, level, 0);
+							  new_flags, level);
 			if (ret)
 				return ret;
 		}
