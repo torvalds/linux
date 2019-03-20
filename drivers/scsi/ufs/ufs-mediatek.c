@@ -93,7 +93,7 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 				enum ufs_notify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
-	int ret;
+	int ret = -EINVAL;
 
 	/*
 	 * In case ufs_mtk_init() is not yet done, simply ignore.
@@ -111,9 +111,6 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 	case POST_CHANGE:
 		if (on)
 			ret = phy_power_on(host->mphy);
-		break;
-	default:
-		ret = -EINVAL;
 		break;
 	}
 
