@@ -143,14 +143,13 @@ int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_card_name);
 
-int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
+static int asoc_simple_card_clk_enable(struct asoc_simple_dai *dai)
 {
 	if (dai)
 		return clk_prepare_enable(dai->clk);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_clk_enable);
 
 void asoc_simple_card_clk_disable(struct asoc_simple_dai *dai)
 {
@@ -205,6 +204,25 @@ int asoc_simple_card_parse_clk(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_clk);
+
+int asoc_simple_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
+	int ret;
+
+	ret = asoc_simple_card_clk_enable(dai_props->cpu_dai);
+	if (ret)
+		return ret;
+
+	ret = asoc_simple_card_clk_enable(dai_props->codec_dai);
+	if (ret)
+		asoc_simple_card_clk_disable(dai_props->cpu_dai);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_startup);
 
 int asoc_simple_card_parse_dai(struct device_node *node,
 				    struct snd_soc_dai_link_component *dlc,

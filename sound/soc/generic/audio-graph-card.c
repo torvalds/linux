@@ -56,24 +56,6 @@ static const struct snd_soc_dapm_widget graph_dapm_widgets[] = {
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
 
-static int graph_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
-	int ret;
-
-	ret = asoc_simple_card_clk_enable(dai_props->cpu_dai);
-	if (ret)
-		return ret;
-
-	ret = asoc_simple_card_clk_enable(dai_props->codec_dai);
-	if (ret)
-		asoc_simple_card_clk_disable(dai_props->cpu_dai);
-
-	return ret;
-}
-
 static void graph_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -117,7 +99,7 @@ err:
 }
 
 static const struct snd_soc_ops graph_ops = {
-	.startup	= graph_startup,
+	.startup	= asoc_simple_startup,
 	.shutdown	= graph_shutdown,
 	.hw_params	= graph_hw_params,
 };
