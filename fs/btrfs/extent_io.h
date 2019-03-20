@@ -502,8 +502,7 @@ int clean_io_failure(struct btrfs_fs_info *fs_info,
 		     struct extent_io_tree *io_tree, u64 start,
 		     struct page *page, u64 ino, unsigned int pg_offset);
 void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
-int repair_eb_io_failure(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, int mirror_num);
+int btrfs_repair_eb_io_failure(struct extent_buffer *eb, int mirror_num);
 
 /*
  * When IO fails, either with EIO or csum verification fails, we
