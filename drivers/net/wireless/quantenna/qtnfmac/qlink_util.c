@@ -237,3 +237,65 @@ u32 qlink_utils_chflags_cfg2q(u32 cfgflags)
 
 	return flags;
 }
+
+static u32 qtnf_reg_rule_flags_parse(u32 qflags)
+{
+	u32 flags = 0;
+
+	if (qflags & QLINK_RRF_NO_OFDM)
+		flags |= NL80211_RRF_NO_OFDM;
+
+	if (qflags & QLINK_RRF_NO_CCK)
+		flags |= NL80211_RRF_NO_CCK;
+
+	if (qflags & QLINK_RRF_NO_INDOOR)
+		flags |= NL80211_RRF_NO_INDOOR;
+
+	if (qflags & QLINK_RRF_NO_OUTDOOR)
+		flags |= NL80211_RRF_NO_OUTDOOR;
+
+	if (qflags & QLINK_RRF_DFS)
+		flags |= NL80211_RRF_DFS;
+
+	if (qflags & QLINK_RRF_PTP_ONLY)
+		flags |= NL80211_RRF_PTP_ONLY;
+
+	if (qflags & QLINK_RRF_PTMP_ONLY)
+		flags |= NL80211_RRF_PTMP_ONLY;
+
+	if (qflags & QLINK_RRF_NO_IR)
+		flags |= NL80211_RRF_NO_IR;
+
+	if (qflags & QLINK_RRF_AUTO_BW)
+		flags |= NL80211_RRF_AUTO_BW;
+
+	if (qflags & QLINK_RRF_IR_CONCURRENT)
+		flags |= NL80211_RRF_IR_CONCURRENT;
+
+	if (qflags & QLINK_RRF_NO_HT40MINUS)
+		flags |= NL80211_RRF_NO_HT40MINUS;
+
+	if (qflags & QLINK_RRF_NO_HT40PLUS)
+		flags |= NL80211_RRF_NO_HT40PLUS;
+
+	if (qflags & QLINK_RRF_NO_80MHZ)
+		flags |= NL80211_RRF_NO_80MHZ;
+
+	if (qflags & QLINK_RRF_NO_160MHZ)
+		flags |= NL80211_RRF_NO_160MHZ;
+
+	return flags;
+}
+
+void qlink_utils_regrule_q2nl(struct ieee80211_reg_rule *rule,
+			      const struct qlink_tlv_reg_rule *tlv)
+{
+	rule->freq_range.start_freq_khz = le32_to_cpu(tlv->start_freq_khz);
+	rule->freq_range.end_freq_khz = le32_to_cpu(tlv->end_freq_khz);
+	rule->freq_range.max_bandwidth_khz =
+		le32_to_cpu(tlv->max_bandwidth_khz);
+	rule->power_rule.max_antenna_gain = le32_to_cpu(tlv->max_antenna_gain);
+	rule->power_rule.max_eirp = le32_to_cpu(tlv->max_eirp);
+	rule->dfs_cac_ms = le32_to_cpu(tlv->dfs_cac_ms);
+	rule->flags = qtnf_reg_rule_flags_parse(le32_to_cpu(tlv->flags));
+}

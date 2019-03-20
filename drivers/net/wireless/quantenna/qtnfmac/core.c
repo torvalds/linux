@@ -499,6 +499,8 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	qtnf_mac_iface_comb_free(mac);
 	qtnf_mac_ext_caps_free(mac);
 	kfree(mac->macinfo.wowlan);
+	kfree(mac->rd);
+	mac->rd = NULL;
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
 }
@@ -664,9 +666,6 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 		flush_workqueue(bus->workqueue);
 		destroy_workqueue(bus->workqueue);
 	}
-
-	kfree(bus->hw_info.rd);
-	bus->hw_info.rd = NULL;
 
 	qtnf_trans_free(bus);
 }

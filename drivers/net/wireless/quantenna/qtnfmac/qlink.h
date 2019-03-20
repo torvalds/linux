@@ -6,7 +6,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		14
+#define QLINK_PROTO_VER		15
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -771,6 +771,18 @@ struct qlink_resp {
 } __packed;
 
 /**
+ * enum qlink_dfs_regions - regulatory DFS regions
+ *
+ * Corresponds to &enum nl80211_dfs_regions.
+ */
+enum qlink_dfs_regions {
+	QLINK_DFS_UNSET	= 0,
+	QLINK_DFS_FCC	= 1,
+	QLINK_DFS_ETSI	= 2,
+	QLINK_DFS_JP	= 3,
+};
+
+/**
  * struct qlink_resp_get_mac_info - response for QLINK_CMD_MAC_INFO command
  *
  * Data describing specific physical device providing wireless MAC
@@ -785,6 +797,10 @@ struct qlink_resp {
  * @bands_cap: wireless bands WMAC can operate in, bitmap of &enum qlink_band.
  * @max_ap_assoc_sta: Maximum number of associations supported by WMAC.
  * @radar_detect_widths: bitmask of channels BW for which WMAC can detect radar.
+ * @alpha2: country code ID firmware is configured to.
+ * @n_reg_rules: number of regulatory rules TLVs in variable portion of the
+ *	message.
+ * @dfs_region: regulatory DFS region, one of @enum qlink_dfs_region.
  * @var_info: variable-length WMAC info data.
  */
 struct qlink_resp_get_mac_info {
@@ -798,21 +814,12 @@ struct qlink_resp_get_mac_info {
 	__le16 radar_detect_widths;
 	__le32 max_acl_mac_addrs;
 	u8 bands_cap;
+	u8 alpha2[2];
+	u8 n_reg_rules;
+	u8 dfs_region;
 	u8 rsvd[1];
 	u8 var_info[0];
 } __packed;
-
-/**
- * enum qlink_dfs_regions - regulatory DFS regions
- *
- * Corresponds to &enum nl80211_dfs_regions.
- */
-enum qlink_dfs_regions {
-	QLINK_DFS_UNSET	= 0,
-	QLINK_DFS_FCC	= 1,
-	QLINK_DFS_ETSI	= 2,
-	QLINK_DFS_JP	= 3,
-};
 
 /**
  * struct qlink_resp_get_hw_info - response for QLINK_CMD_GET_HW_INFO command
@@ -826,11 +833,7 @@ enum qlink_dfs_regions {
  * @mac_bitmap: Bitmap of MAC IDs that are active and can be used in firmware.
  * @total_tx_chains: total number of transmit chains used by device.
  * @total_rx_chains: total number of receive chains.
- * @alpha2: country code ID firmware is configured to.
- * @n_reg_rules: number of regulatory rules TLVs in variable portion of the
- *	message.
- * @dfs_region: regulatory DFS region, one of @enum qlink_dfs_region.
- * @info: variable-length HW info, can contain QTN_TLV_ID_REG_RULE.
+ * @info: variable-length HW info.
  */
 struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
@@ -844,9 +847,6 @@ struct qlink_resp_get_hw_info {
 	u8 mac_bitmap;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
-	u8 alpha2[2];
-	u8 n_reg_rules;
-	u8 dfs_region;
 	u8 info[0];
 } __packed;
 

@@ -831,55 +831,6 @@ out:
 	return ret;
 }
 
-static u32 qtnf_cmd_resp_reg_rule_flags_parse(u32 qflags)
-{
-	u32 flags = 0;
-
-	if (qflags & QLINK_RRF_NO_OFDM)
-		flags |= NL80211_RRF_NO_OFDM;
-
-	if (qflags & QLINK_RRF_NO_CCK)
-		flags |= NL80211_RRF_NO_CCK;
-
-	if (qflags & QLINK_RRF_NO_INDOOR)
-		flags |= NL80211_RRF_NO_INDOOR;
-
-	if (qflags & QLINK_RRF_NO_OUTDOOR)
-		flags |= NL80211_RRF_NO_OUTDOOR;
-
-	if (qflags & QLINK_RRF_DFS)
-		flags |= NL80211_RRF_DFS;
-
-	if (qflags & QLINK_RRF_PTP_ONLY)
-		flags |= NL80211_RRF_PTP_ONLY;
-
-	if (qflags & QLINK_RRF_PTMP_ONLY)
-		flags |= NL80211_RRF_PTMP_ONLY;
-
-	if (qflags & QLINK_RRF_NO_IR)
-		flags |= NL80211_RRF_NO_IR;
-
-	if (qflags & QLINK_RRF_AUTO_BW)
-		flags |= NL80211_RRF_AUTO_BW;
-
-	if (qflags & QLINK_RRF_IR_CONCURRENT)
-		flags |= NL80211_RRF_IR_CONCURRENT;
-
-	if (qflags & QLINK_RRF_NO_HT40MINUS)
-		flags |= NL80211_RRF_NO_HT40MINUS;
-
-	if (qflags & QLINK_RRF_NO_HT40PLUS)
-		flags |= NL80211_RRF_NO_HT40PLUS;
-
-	if (qflags & QLINK_RRF_NO_80MHZ)
-		flags |= NL80211_RRF_NO_80MHZ;
-
-	if (qflags & QLINK_RRF_NO_160MHZ)
-		flags |= NL80211_RRF_NO_160MHZ;
-
-	return flags;
-}
-
 static int
 qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 			   const struct qlink_resp_get_hw_info *resp,
@@ -887,7 +838,6 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 {
 	struct qtnf_hw_info *hwinfo = &bus->hw_info;
 	const struct qlink_tlv_hdr *tlv;
-	const struct qlink_tlv_reg_rule *tlv_rule;
 	const char *bld_name = NULL;
 	const char *bld_rev = NULL;
 	const char *bld_type = NULL;
@@ -898,19 +848,8 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	const char *calibration_ver = NULL;
 	const char *uboot_ver = NULL;
 	u32 hw_ver = 0;
-	struct ieee80211_reg_rule *rule;
 	u16 tlv_type;
 	u16 tlv_value_len;
-	unsigned int rule_idx = 0;
-
-	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
-		return -E2BIG;
-
-	hwinfo->rd = kzalloc(struct_size(hwinfo->rd, reg_rules,
-					 resp->n_reg_rules), GFP_KERNEL);
-
-	if (!hwinfo->rd)
-		return -ENOMEM;
 
 	hwinfo->num_mac = resp->num_mac;
 	hwinfo->mac_bitmap = resp->mac_bitmap;
@@ -919,29 +858,10 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 	hwinfo->total_tx_chain = resp->total_tx_chain;
 	hwinfo->total_rx_chain = resp->total_rx_chain;
 	hwinfo->hw_capab = le32_to_cpu(resp->hw_capab);
-	hwinfo->rd->n_reg_rules = resp->n_reg_rules;
-	hwinfo->rd->alpha2[0] = resp->alpha2[0];
-	hwinfo->rd->alpha2[1] = resp->alpha2[1];
 
 	bld_tmstamp = le32_to_cpu(resp->bld_tmstamp);
 	plat_id = le32_to_cpu(resp->plat_id);
 	hw_ver = le32_to_cpu(resp->hw_ver);
-
-	switch (resp->dfs_region) {
-	case QLINK_DFS_FCC:
-		hwinfo->rd->dfs_region = NL80211_DFS_FCC;
-		break;
-	case QLINK_DFS_ETSI:
-		hwinfo->rd->dfs_region = NL80211_DFS_ETSI;
-		break;
-	case QLINK_DFS_JP:
-		hwinfo->rd->dfs_region = NL80211_DFS_JP;
-		break;
-	case QLINK_DFS_UNSET:
-	default:
-		hwinfo->rd->dfs_region = NL80211_DFS_UNSET;
-		break;
-	}
 
 	tlv = (const struct qlink_tlv_hdr *)resp->info;
 
@@ -956,37 +876,6 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		}
 
 		switch (tlv_type) {
-		case QTN_TLV_ID_REG_RULE:
-			if (rule_idx >= resp->n_reg_rules) {
-				pr_warn("unexpected number of rules: %u\n",
-					resp->n_reg_rules);
-				return -EINVAL;
-			}
-
-			if (tlv_value_len != sizeof(*tlv_rule) - sizeof(*tlv)) {
-				pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
-					tlv_type, tlv_value_len);
-				return -EINVAL;
-			}
-
-			tlv_rule = (const struct qlink_tlv_reg_rule *)tlv;
-			rule = &hwinfo->rd->reg_rules[rule_idx++];
-
-			rule->freq_range.start_freq_khz =
-				le32_to_cpu(tlv_rule->start_freq_khz);
-			rule->freq_range.end_freq_khz =
-				le32_to_cpu(tlv_rule->end_freq_khz);
-			rule->freq_range.max_bandwidth_khz =
-				le32_to_cpu(tlv_rule->max_bandwidth_khz);
-			rule->power_rule.max_antenna_gain =
-				le32_to_cpu(tlv_rule->max_antenna_gain);
-			rule->power_rule.max_eirp =
-				le32_to_cpu(tlv_rule->max_eirp);
-			rule->dfs_cac_ms =
-				le32_to_cpu(tlv_rule->dfs_cac_ms);
-			rule->flags = qtnf_cmd_resp_reg_rule_flags_parse(
-					le32_to_cpu(tlv_rule->flags));
-			break;
 		case QTN_TLV_ID_BUILD_NAME:
 			bld_name = (const void *)tlv->val;
 			break;
@@ -1019,17 +908,8 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
 
-	if (rule_idx != resp->n_reg_rules) {
-		pr_warn("unexpected number of rules: expected %u got %u\n",
-			resp->n_reg_rules, rule_idx);
-		kfree(hwinfo->rd);
-		hwinfo->rd = NULL;
-		return -EINVAL;
-	}
-
-	pr_info("fw_version=%d, MACs map %#x, alpha2=\"%c%c\", chains Tx=%u Rx=%u, capab=0x%x\n",
+	pr_info("fw_version=%d, MACs map %#x, chains Tx=%u Rx=%u, capab=0x%x\n",
 		hwinfo->fw_ver, hwinfo->mac_bitmap,
-		hwinfo->rd->alpha2[0], hwinfo->rd->alpha2[1],
 		hwinfo->total_tx_chain, hwinfo->total_rx_chain,
 		hwinfo->hw_capab);
 
@@ -1085,9 +965,12 @@ qtnf_parse_wowlan_info(struct qtnf_wmac *mac,
 	}
 }
 
-static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
-					const u8 *tlv_buf, size_t tlv_buf_size)
+static int
+qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
+			     const struct qlink_resp_get_mac_info *resp,
+			     size_t tlv_buf_size)
 {
+	const u8 *tlv_buf = resp->var_info;
 	struct ieee80211_iface_combination *comb = NULL;
 	size_t n_comb = 0;
 	struct ieee80211_iface_limit *limits;
@@ -1105,6 +988,38 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	u8 ext_capa_len = 0;
 	u8 ext_capa_mask_len = 0;
 	int i = 0;
+	struct ieee80211_reg_rule *rule;
+	unsigned int rule_idx = 0;
+	const struct qlink_tlv_reg_rule *tlv_rule;
+
+	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
+		return -E2BIG;
+
+	mac->rd = kzalloc(sizeof(*mac->rd) +
+			  sizeof(struct ieee80211_reg_rule) *
+			  resp->n_reg_rules, GFP_KERNEL);
+	if (!mac->rd)
+		return -ENOMEM;
+
+	mac->rd->n_reg_rules = resp->n_reg_rules;
+	mac->rd->alpha2[0] = resp->alpha2[0];
+	mac->rd->alpha2[1] = resp->alpha2[1];
+
+	switch (resp->dfs_region) {
+	case QLINK_DFS_FCC:
+		mac->rd->dfs_region = NL80211_DFS_FCC;
+		break;
+	case QLINK_DFS_ETSI:
+		mac->rd->dfs_region = NL80211_DFS_ETSI;
+		break;
+	case QLINK_DFS_JP:
+		mac->rd->dfs_region = NL80211_DFS_JP;
+		break;
+	case QLINK_DFS_UNSET:
+	default:
+		mac->rd->dfs_region = NL80211_DFS_UNSET;
+		break;
+	}
 
 	tlv = (const struct qlink_tlv_hdr *)tlv_buf;
 	while (tlv_buf_size >= sizeof(struct qlink_tlv_hdr)) {
@@ -1225,6 +1140,23 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 			mac->macinfo.wowlan = NULL;
 			qtnf_parse_wowlan_info(mac, wowlan);
 			break;
+		case QTN_TLV_ID_REG_RULE:
+			if (rule_idx >= resp->n_reg_rules) {
+				pr_warn("unexpected number of rules: %u\n",
+					resp->n_reg_rules);
+				return -EINVAL;
+			}
+
+			if (tlv_value_len != sizeof(*tlv_rule) - sizeof(*tlv)) {
+				pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
+					tlv_type, tlv_value_len);
+				return -EINVAL;
+			}
+
+			tlv_rule = (const struct qlink_tlv_reg_rule *)tlv;
+			rule = &mac->rd->reg_rules[rule_idx++];
+			qlink_utils_regrule_q2nl(rule, tlv_rule);
+			break;
 		default:
 			pr_warn("MAC%u: unknown TLV type %u\n",
 				mac->macid, tlv_type);
@@ -1250,6 +1182,12 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	if (ext_capa_len != ext_capa_mask_len) {
 		pr_err("MAC%u: ext_capa/_mask lengths mismatch: %u != %u\n",
 		       mac->macid, ext_capa_len, ext_capa_mask_len);
+		return -EINVAL;
+	}
+
+	if (rule_idx != resp->n_reg_rules) {
+		pr_warn("unexpected number of rules: expected %u got %u\n",
+			resp->n_reg_rules, rule_idx);
 		return -EINVAL;
 	}
 
@@ -1663,7 +1601,7 @@ int qtnf_cmd_get_mac_info(struct qtnf_wmac *mac)
 
 	resp = (const struct qlink_resp_get_mac_info *)resp_skb->data;
 	qtnf_cmd_resp_proc_mac_info(mac, resp);
-	ret = qtnf_parse_variable_mac_info(mac, resp->var_info, var_data_len);
+	ret = qtnf_parse_variable_mac_info(mac, resp, var_data_len);
 
 out:
 	qtnf_bus_unlock(mac->bus);

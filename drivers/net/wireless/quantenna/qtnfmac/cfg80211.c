@@ -1145,17 +1145,16 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->wowlan = macinfo->wowlan;
 #endif
 
-	regdomain_is_known = isalpha(hw_info->rd->alpha2[0]) &&
-		isalpha(hw_info->rd->alpha2[1]);
+	regdomain_is_known = isalpha(mac->rd->alpha2[0]) &&
+				isalpha(mac->rd->alpha2[1]);
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
 
-		if (hw_info->rd->alpha2[0] == '9' &&
-		    hw_info->rd->alpha2[1] == '9') {
+		if (mac->rd->alpha2[0] == '9' && mac->rd->alpha2[1] == '9') {
 			wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 				REGULATORY_STRICT_REG;
-			wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
+			wiphy_apply_custom_regulatory(wiphy, mac->rd);
 		} else if (regdomain_is_known) {
 			wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
 		}
@@ -1181,9 +1180,9 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		goto out;
 
 	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
-		ret = regulatory_set_wiphy_regd(wiphy, hw_info->rd);
+		ret = regulatory_set_wiphy_regd(wiphy, mac->rd);
 	else if (regdomain_is_known)
-		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
+		ret = regulatory_hint(wiphy, mac->rd->alpha2);
 
 out:
 	return ret;
