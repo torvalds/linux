@@ -247,7 +247,7 @@ void xfrm_dev_resume(struct sk_buff *skb)
 	unsigned long flags;
 
 	rcu_read_lock();
-	txq = netdev_pick_tx(dev, skb, NULL);
+	txq = netdev_core_pick_tx(dev, skb, NULL);
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
 	if (!netif_xmit_frozen_or_stopped(txq))
