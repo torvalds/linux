@@ -3497,11 +3497,10 @@ void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
  * Return >0 is same as 0, except bio is not submitted
  * Return <0 if something went wrong, no page is locked
  */
-static noinline_for_stack int
-lock_extent_buffer_for_io(struct extent_buffer *eb,
-			  struct btrfs_fs_info *fs_info,
+static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb,
 			  struct extent_page_data *epd)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	int i, num_pages, failed_page_nr;
 	int flush = 0;
 	int ret = 0;
@@ -3829,7 +3828,7 @@ retry:
 				continue;
 
 			prev_eb = eb;
-			ret = lock_extent_buffer_for_io(eb, fs_info, &epd);
+			ret = lock_extent_buffer_for_io(eb, &epd);
 			if (!ret) {
 				free_extent_buffer(eb);
 				continue;
