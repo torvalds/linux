@@ -7470,7 +7470,6 @@ static int find_free_extent_clustered(struct btrfs_block_group_cache *bg,
 		struct find_free_extent_ctl *ffe_ctl,
 		struct btrfs_block_group_cache **cluster_bg_ret)
 {
-	struct btrfs_fs_info *fs_info = bg->fs_info;
 	struct btrfs_block_group_cache *cluster_bg;
 	u64 aligned_cluster;
 	u64 offset;
@@ -7530,9 +7529,8 @@ refill_cluster:
 	aligned_cluster = max_t(u64,
 			ffe_ctl->empty_cluster + ffe_ctl->empty_size,
 			bg->full_stripe_len);
-	ret = btrfs_find_space_cluster(fs_info, bg, last_ptr,
-			ffe_ctl->search_start, ffe_ctl->num_bytes,
-			aligned_cluster);
+	ret = btrfs_find_space_cluster(bg, last_ptr, ffe_ctl->search_start,
+			ffe_ctl->num_bytes, aligned_cluster);
 	if (ret == 0) {
 		/* Now pull our allocation out of this cluster */
 		offset = btrfs_alloc_from_cluster(bg, last_ptr,
