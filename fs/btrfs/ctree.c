@@ -21,7 +21,6 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      const struct btrfs_key *ins_key, struct btrfs_path *path,
 		      int data_size, int extend);
 static int push_node_left(struct btrfs_trans_handle *trans,
-			  struct btrfs_fs_info *fs_info,
 			  struct extent_buffer *dst,
 			  struct extent_buffer *src, int empty);
 static int balance_node_right(struct btrfs_trans_handle *trans,
@@ -1935,7 +1934,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	/* first, try to make some room in the middle buffer */
 	if (left) {
 		orig_slot += btrfs_header_nritems(left);
-		wret = push_node_left(trans, fs_info, left, mid, 1);
+		wret = push_node_left(trans, left, mid, 1);
 		if (wret < 0)
 			ret = wret;
 	}
@@ -1944,7 +1943,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 	 * then try to empty the right most buffer into the middle
 	 */
 	if (right) {
-		wret = push_node_left(trans, fs_info, mid, right, 1);
+		wret = push_node_left(trans, mid, right, 1);
 		if (wret < 0 && wret != -ENOSPC)
 			ret = wret;
 		if (btrfs_header_nritems(right) == 0) {
@@ -1986,7 +1985,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 		if (wret == 1) {
-			wret = push_node_left(trans, fs_info, left, mid, 1);
+			wret = push_node_left(trans, left, mid, 1);
 			if (wret < 0)
 				ret = wret;
 		}
@@ -2097,8 +2096,7 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 			if (ret)
 				wret = 1;
 			else {
-				wret = push_node_left(trans, fs_info,
-						      left, mid, 0);
+				wret = push_node_left(trans, left, mid, 0);
 			}
 		}
 		if (wret < 0)
@@ -3211,10 +3209,10 @@ void btrfs_set_item_key_safe(struct btrfs_fs_info *fs_info,
  * error, and > 0 if there was no room in the left hand block.
  */
 static int push_node_left(struct btrfs_trans_handle *trans,
-			  struct btrfs_fs_info *fs_info,
 			  struct extent_buffer *dst,
 			  struct extent_buffer *src, int empty)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int push_items = 0;
 	int src_nritems;
 	int dst_nritems;
