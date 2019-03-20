@@ -680,10 +680,10 @@ static int check_dev_item(struct extent_buffer *leaf,
 #define inode_item_err(fs_info, eb, slot, fmt, ...)			\
 	dir_item_err(eb, slot, fmt, __VA_ARGS__)
 
-static int check_inode_item(struct btrfs_fs_info *fs_info,
-			    struct extent_buffer *leaf,
+static int check_inode_item(struct extent_buffer *leaf,
 			    struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_inode_item *iitem;
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
@@ -800,7 +800,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		ret = check_dev_item(leaf, key, slot);
 		break;
 	case BTRFS_INODE_ITEM_KEY:
-		ret = check_inode_item(leaf->fs_info, leaf, key, slot);
+		ret = check_inode_item(leaf, key, slot);
 		break;
 	}
 	return ret;
