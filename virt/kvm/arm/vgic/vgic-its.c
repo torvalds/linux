@@ -1736,8 +1736,8 @@ static void vgic_its_destroy(struct kvm_device *kvm_dev)
 	kfree(its);
 }
 
-int vgic_its_has_attr_regs(struct kvm_device *dev,
-			   struct kvm_device_attr *attr)
+static int vgic_its_has_attr_regs(struct kvm_device *dev,
+				  struct kvm_device_attr *attr)
 {
 	const struct vgic_register_region *region;
 	gpa_t offset = attr->attr;
@@ -1757,9 +1757,9 @@ int vgic_its_has_attr_regs(struct kvm_device *dev,
 	return 0;
 }
 
-int vgic_its_attr_regs_access(struct kvm_device *dev,
-			      struct kvm_device_attr *attr,
-			      u64 *reg, bool is_write)
+static int vgic_its_attr_regs_access(struct kvm_device *dev,
+				     struct kvm_device_attr *attr,
+				     u64 *reg, bool is_write)
 {
 	const struct vgic_register_region *region;
 	struct vgic_its *its;
