@@ -4399,8 +4399,7 @@ err:
 	return ret;
 }
 
-static noinline int split_item(struct btrfs_fs_info *fs_info,
-			       struct btrfs_path *path,
+static noinline int split_item(struct btrfs_path *path,
 			       const struct btrfs_key *new_key,
 			       unsigned long split_offset)
 {
@@ -4496,7 +4495,7 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = split_item(root->fs_info, path, new_key, split_offset);
+	ret = split_item(path, new_key, split_offset);
 	return ret;
 }
 
