@@ -6180,6 +6180,9 @@ bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
 	if (port == PORT_NONE)
 		return false;
 
+	if (IS_ELKHARTLAKE(dev_priv))
+		return port <= PORT_C;
+
 	if (INTEL_GEN(dev_priv) >= 11)
 		return port <= PORT_B;
 
@@ -6188,7 +6191,7 @@ bool intel_port_is_combophy(struct drm_i915_private *dev_priv, enum port port)
 
 bool intel_port_is_tc(struct drm_i915_private *dev_priv, enum port port)
 {
-	if (INTEL_GEN(dev_priv) >= 11)
+	if (INTEL_GEN(dev_priv) >= 11 && !IS_ELKHARTLAKE(dev_priv))
 		return port >= PORT_C && port <= PORT_F;
 
 	return false;
