@@ -17,6 +17,7 @@
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_tunnel_key.h>
 #include <net/tc_act/tc_tunnel_key.h>
@@ -217,6 +218,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	struct nlattr *tb[TCA_TUNNEL_KEY_MAX + 1];
 	struct tcf_tunnel_key_params *params_new;
 	struct metadata_dst *metadata = NULL;
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_tunnel_key *parm;
 	struct tcf_tunnel_key *t;
 	bool exists = false;
@@ -360,6 +362,12 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		goto release_tun_meta;
 	}
 
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0) {
+		ret = err;
+		exists = true;
+		goto release_tun_meta;
+	}
 	t = to_tunnel_key(*a);
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
@@ -367,22 +375,28 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
 		ret = -ENOMEM;
 		exists = true;
-		goto release_tun_meta;
+		goto put_chain;
 	}
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
 	spin_lock_bh(&t->tcf_lock);
-	t->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(t->params, params_new,
 			   lockdep_is_held(&t->tcf_lock));
 	spin_unlock_bh(&t->tcf_lock);
 	tunnel_key_release_params(params_new);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 release_tun_meta:
 	if (metadata)
