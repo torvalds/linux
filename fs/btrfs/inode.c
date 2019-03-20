@@ -9454,7 +9454,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* Reference for the source. */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		/* force full log commit if subvolume involved. */
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 	} else {
 		btrfs_pin_log_trans(root);
 		root_log_pinned = true;
@@ -9471,7 +9471,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	/* And now for the dest. */
 	if (new_ino == BTRFS_FIRST_FREE_OBJECTID) {
 		/* force full log commit if subvolume involved. */
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 	} else {
 		btrfs_pin_log_trans(dest);
 		dest_log_pinned = true;
@@ -9607,7 +9607,7 @@ out_fail:
 		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
 		    (new_inode &&
 		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
-			btrfs_set_log_full_commit(fs_info, trans);
+			btrfs_set_log_full_commit(trans);
 
 		if (root_log_pinned) {
 			btrfs_end_log_trans(root);
@@ -9793,7 +9793,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	BTRFS_I(old_inode)->dir_index = 0ULL;
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		/* force full log commit if subvolume involved. */
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 	} else {
 		btrfs_pin_log_trans(root);
 		log_pinned = true;
@@ -9914,7 +9914,7 @@ out_fail:
 		    btrfs_inode_in_log(BTRFS_I(old_inode), fs_info->generation) ||
 		    (new_inode &&
 		     btrfs_inode_in_log(BTRFS_I(new_inode), fs_info->generation)))
-			btrfs_set_log_full_commit(fs_info, trans);
+			btrfs_set_log_full_commit(trans);
 
 		btrfs_end_log_trans(root);
 		log_pinned = false;

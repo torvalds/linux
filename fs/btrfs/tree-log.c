@@ -3096,7 +3096,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	if (ret) {
 		blk_finish_plug(&plug);
 		btrfs_abort_transaction(trans, ret);
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		mutex_unlock(&root->log_mutex);
 		goto out;
 	}
@@ -3138,7 +3138,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			list_del_init(&root_log_ctx.list);
 
 		blk_finish_plug(&plug);
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 
 		if (ret != -ENOSPC) {
 			btrfs_abort_transaction(trans, ret);
@@ -3197,7 +3197,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 					 EXTENT_DIRTY | EXTENT_NEW);
 	blk_finish_plug(&plug);
 	if (ret) {
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		btrfs_abort_transaction(trans, ret);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
@@ -3207,7 +3207,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		ret = btrfs_wait_tree_log_extents(log_root_tree,
 						  EXTENT_NEW | EXTENT_DIRTY);
 	if (ret) {
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out_wake_log_root;
 	}
@@ -3229,7 +3229,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	ret = write_all_supers(fs_info, 1);
 	if (ret) {
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		btrfs_abort_transaction(trans, ret);
 		goto out_wake_log_root;
 	}
@@ -3433,7 +3433,7 @@ fail:
 out_unlock:
 	mutex_unlock(&dir->log_mutex);
 	if (ret == -ENOSPC) {
-		btrfs_set_log_full_commit(root->fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		ret = 0;
 	} else if (ret < 0)
 		btrfs_abort_transaction(trans, ret);
@@ -3449,7 +3449,6 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 			       const char *name, int name_len,
 			       struct btrfs_inode *inode, u64 dirid)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *log;
 	u64 index;
 	int ret;
@@ -3467,7 +3466,7 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				  dirid, &index);
 	mutex_unlock(&inode->log_mutex);
 	if (ret == -ENOSPC) {
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		ret = 0;
 	} else if (ret < 0 && ret != -ENOENT)
 		btrfs_abort_transaction(trans, ret);
@@ -5453,7 +5452,7 @@ static bool btrfs_must_commit_transaction(struct btrfs_trans_handle *trans,
 		 * Make sure any commits to the log are forced to be full
 		 * commits.
 		 */
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		ret = true;
 	}
 	mutex_unlock(&inode->log_mutex);
@@ -6006,7 +6005,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 end_trans:
 	dput(old_parent);
 	if (ret < 0) {
-		btrfs_set_log_full_commit(fs_info, trans);
+		btrfs_set_log_full_commit(trans);
 		ret = 1;
 	}
 

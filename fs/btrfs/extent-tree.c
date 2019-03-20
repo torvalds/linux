@@ -10640,7 +10640,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	struct btrfs_block_group_cache *cache;
 	int ret;
 
-	btrfs_set_log_full_commit(fs_info, trans);
+	btrfs_set_log_full_commit(trans);
 
 	cache = btrfs_create_block_group_cache(fs_info, chunk_offset, size);
 	if (!cache)
