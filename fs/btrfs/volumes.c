@@ -6877,10 +6877,10 @@ out:
 	return fs_devices;
 }
 
-static int read_one_dev(struct btrfs_fs_info *fs_info,
-			struct extent_buffer *leaf,
+static int read_one_dev(struct extent_buffer *leaf,
 			struct btrfs_dev_item *dev_item)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
 	u64 devid;
@@ -7210,7 +7210,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 			struct btrfs_dev_item *dev_item;
 			dev_item = btrfs_item_ptr(leaf, slot,
 						  struct btrfs_dev_item);
-			ret = read_one_dev(fs_info, leaf, dev_item);
+			ret = read_one_dev(leaf, dev_item);
 			if (ret)
 				goto error;
 			total_dev++;
