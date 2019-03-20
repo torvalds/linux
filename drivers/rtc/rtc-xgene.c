@@ -7,15 +7,15 @@
  *         Loc Ho <lho@apm.com>
  */
 
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/clk.h>
-#include <linux/delay.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 
 /* RTC CSR Registers */
 #define RTC_CCVR		0x00
@@ -58,7 +58,7 @@ static int xgene_rtc_set_mmss(struct device *dev, unsigned long secs)
 	 * NOTE: After the following write, the RTC_CCVR is only reflected
 	 *       after the update cycle of 1 seconds.
 	 */
-	writel((u32) secs, pdata->csr_base + RTC_CLR);
+	writel((u32)secs, pdata->csr_base + RTC_CLR);
 	readl(pdata->csr_base + RTC_CLR); /* Force a barrier */
 
 	return 0;
@@ -106,7 +106,7 @@ static int xgene_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	rtc_tm_to_time(&alrm->time, &alarm_time);
 	pdata->alarm_time = alarm_time;
-	writel((u32) pdata->alarm_time, pdata->csr_base + RTC_CMR);
+	writel((u32)pdata->alarm_time, pdata->csr_base + RTC_CMR);
 
 	xgene_rtc_alarm_irq_enable(dev, alrm->enabled);
 
@@ -123,7 +123,7 @@ static const struct rtc_class_ops xgene_rtc_ops = {
 
 static irqreturn_t xgene_rtc_interrupt(int irq, void *id)
 {
-	struct xgene_rtc_dev *pdata = (struct xgene_rtc_dev *) id;
+	struct xgene_rtc_dev *pdata = id;
 
 	/* Check if interrupt asserted */
 	if (!(readl(pdata->csr_base + RTC_STAT) & RTC_STAT_BIT))
