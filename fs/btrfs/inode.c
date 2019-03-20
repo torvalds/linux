@@ -4669,7 +4669,7 @@ search_again:
 
 				btrfs_set_file_extent_ram_bytes(leaf, fi, size);
 				size = btrfs_file_extent_calc_inline_size(size);
-				btrfs_truncate_item(root->fs_info, path, size, 1);
+				btrfs_truncate_item(path, size, 1);
 			} else if (!del_item) {
 				/*
 				 * We have to bail so the last_size is set to

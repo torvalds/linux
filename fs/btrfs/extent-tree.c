@@ -1780,7 +1780,6 @@ void update_inline_extent_backref(struct btrfs_path *path,
 				  int *last_ref)
 {
 	struct extent_buffer *leaf = path->nodes[0];
-	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_extent_item *ei;
 	struct btrfs_extent_data_ref *dref = NULL;
 	struct btrfs_shared_data_ref *sref = NULL;
@@ -1835,7 +1834,7 @@ void update_inline_extent_backref(struct btrfs_path *path,
 			memmove_extent_buffer(leaf, ptr, ptr + size,
 					      end - ptr - size);
 		item_size -= size;
-		btrfs_truncate_item(fs_info, path, item_size, 1);
+		btrfs_truncate_item(path, item_size, 1);
 	}
 	btrfs_mark_buffer_dirty(leaf);
 }
