@@ -137,6 +137,24 @@
 		};
 	};
 
+	a53_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <900000>;
+			clock-latency-ns = <150000>;
+		};
+
+		opp-1000000000 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <150000>;
+			opp-suspend;
+		};
+	};
+
 	pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
@@ -836,25 +854,6 @@
 			assigned-clock-rates = <100000000>;
 			#phy-cells = <0>;
 			status = "disabled";
-		};
-
-
-		a53_opp_table: opp-table {
-			compatible = "operating-points-v2";
-			opp-shared;
-
-			opp-800000000 {
-				opp-hz = /bits/ 64 <800000000>;
-				opp-microvolt = <900000>;
-				clock-latency-ns = <150000>;
-			};
-
-			opp-1000000000 {
-				opp-hz = /bits/ 64 <1000000000>;
-				opp-microvolt = <1000000>;
-				clock-latency-ns = <150000>;
-				opp-suspend;
-			};
 		};
 
 		gic: interrupt-controller@38800000 {
