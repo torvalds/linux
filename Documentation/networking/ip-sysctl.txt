@@ -81,6 +81,11 @@ fib_multipath_hash_policy - INTEGER
 	0 - Layer 3
 	1 - Layer 4
 
+fib_sync_mem - UNSIGNED INTEGER
+	Amount of dirty memory from fib entries that can be backlogged before
+	synchronize_rcu is forced.
+	  Default: 512kB   Minimum: 64kB   Maximum: 64MB
+
 ip_forward_update_priority - INTEGER
 	Whether to update SKB priority from "TOS" field in IPv4 header after it
 	is forwarded. The new SKB priority is mapped from TOS field value
