@@ -75,6 +75,8 @@ static inline bool kvm_stage2_has_pud(struct kvm *kvm)
 
 #define S2_PMD_MASK				PMD_MASK
 #define S2_PMD_SIZE				PMD_SIZE
+#define S2_PUD_MASK				PUD_MASK
+#define S2_PUD_SIZE				PUD_SIZE
 
 static inline bool kvm_stage2_has_pmd(struct kvm *kvm)
 {
