@@ -37,76 +37,9 @@
 #define MII_BCM7XXX_SHD_3_TL4		0x23
 #define  MII_BCM7XXX_TL4_RST_MSK	(BIT(2) | BIT(1))
 
-/* 28nm only register definitions */
-#define MISC_ADDR(base, channel)	base, channel
-
-#define DSP_TAP10			MISC_ADDR(0x0a, 0)
-#define PLL_PLLCTRL_1			MISC_ADDR(0x32, 1)
-#define PLL_PLLCTRL_2			MISC_ADDR(0x32, 2)
-#define PLL_PLLCTRL_4			MISC_ADDR(0x33, 0)
-
-#define AFE_RXCONFIG_0			MISC_ADDR(0x38, 0)
-#define AFE_RXCONFIG_1			MISC_ADDR(0x38, 1)
-#define AFE_RXCONFIG_2			MISC_ADDR(0x38, 2)
-#define AFE_RX_LP_COUNTER		MISC_ADDR(0x38, 3)
-#define AFE_TX_CONFIG			MISC_ADDR(0x39, 0)
-#define AFE_VDCA_ICTRL_0		MISC_ADDR(0x39, 1)
-#define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
-#define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
-
 struct bcm7xxx_phy_priv {
 	u64	*stats;
 };
-
-static void r_rc_cal_reset(struct phy_device *phydev)
-{
-	/* Reset R_CAL/RC_CAL Engine */
-	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0010);
-
-	/* Disable Reset R_AL/RC_CAL Engine */
-	bcm_phy_write_exp_sel(phydev, 0x00b0, 0x0000);
-}
-
-static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
-{
-	/* Increase VCO range to prevent unlocking problem of PLL at low
-	 * temp
-	 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_1, 0x0048);
-
-	/* Change Ki to 011 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_2, 0x021b);
-
-	/* Disable loading of TVCO buffer to bandgap, set bandgap trim
-	 * to 111
-	 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_4, 0x0e20);
-
-	/* Adjust bias current trim by -3 */
-	bcm_phy_write_misc(phydev, DSP_TAP10, 0x690b);
-
-	/* Switch to CORE_BASE1E */
-	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0xd);
-
-	r_rc_cal_reset(phydev);
-
-	/* write AFE_RXCONFIG_0 */
-	bcm_phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
-
-	/* write AFE_RXCONFIG_1 */
-	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
-
-	/* write AFE_RX_LP_COUNTER */
-	bcm_phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
-
-	/* write AFE_HPF_TRIM_OTHERS */
-	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
-
-	/* write AFTE_TX_CONFIG */
-	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x0800);
-
-	return 0;
-}
 
 static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 {
@@ -143,7 +76,7 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -171,7 +104,7 @@ static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -196,7 +129,7 @@ static int bcm7xxx_28nm_a0_patch_afe_config_init(struct phy_device *phydev)
 	/* Enable ffe zero detection for Vitesse interoperability */
 	bcm_phy_write_misc(phydev, 0x26, 0x2, 0x0015);
 
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -227,7 +160,7 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	switch (rev) {
 	case 0xa0:
 	case 0xb0:
-		ret = bcm7xxx_28nm_b0_afe_config_init(phydev);
+		ret = bcm_phy_28nm_a0b0_afe_config_init(phydev);
 		break;
 	case 0xd0:
 		ret = bcm7xxx_28nm_d0_afe_config_init(phydev);
