@@ -1133,7 +1133,8 @@ error_lock:
 error_mutex:
 	mutex_unlock(&epfile->mutex);
 error:
-	ffs_free_buffer(io_data);
+	if (ret != -EIOCBQUEUED) /* don't free if there is iocb queued */
+		ffs_free_buffer(io_data);
 	return ret;
 }
 
