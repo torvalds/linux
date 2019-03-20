@@ -1859,8 +1859,7 @@ static int process_recv_indicatepkts(struct adapter *padapter,
 			/*  including perform A-MPDU Rx Ordering Buffer Control */
 			if ((!padapter->bDriverStopped) &&
 			    (!padapter->bSurpriseRemoved)) {
-				retval = _FAIL;
-				return retval;
+				return _FAIL;
 			}
 		}
 	} else { /* B/G mode */
@@ -1879,8 +1878,7 @@ static int process_recv_indicatepkts(struct adapter *padapter,
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("@@@@ %s- recv_func free_indicatepkt\n", __func__));
 
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_, ("recv_func:bDriverStopped(%d) OR bSurpriseRemoved(%d)", padapter->bDriverStopped, padapter->bSurpriseRemoved));
-			retval = _FAIL;
-			return retval;
+			return _FAIL;
 		}
 	}
 
