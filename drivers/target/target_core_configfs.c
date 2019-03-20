@@ -1267,7 +1267,8 @@ static ssize_t target_wwn_vendor_id_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_VENDOR_LEN + 2];
 	char *stripped = NULL;
-	size_t len, ret;
+	size_t len;
+	ssize_t ret;
 
 	len = strlcpy(buf, page, sizeof(buf));
 	if (len < sizeof(buf)) {
@@ -1322,7 +1323,8 @@ static ssize_t target_wwn_product_id_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_MODEL_LEN + 2];
 	char *stripped = NULL;
-	size_t len, ret;
+	size_t len;
+	ssize_t ret;
 
 	len = strlcpy(buf, page, sizeof(buf));
 	if (len < sizeof(buf)) {
@@ -1377,7 +1379,8 @@ static ssize_t target_wwn_revision_store(struct config_item *item,
 	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
 	unsigned char buf[INQUIRY_REVISION_LEN + 2];
 	char *stripped = NULL;
-	size_t len, ret;
+	size_t len;
+	ssize_t ret;
 
 	len = strlcpy(buf, page, sizeof(buf));
 	if (len < sizeof(buf)) {
