@@ -47,13 +47,15 @@ static int __init ps3_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = devm_rtc_device_register(&dev->dev, "rtc-ps3", &ps3_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&dev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->ops = &ps3_rtc_ops;
+
 	platform_set_drvdata(dev, rtc);
-	return 0;
+
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver ps3_rtc_driver = {
