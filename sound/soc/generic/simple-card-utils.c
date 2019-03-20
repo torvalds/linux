@@ -436,8 +436,8 @@ int asoc_simple_card_parse_graph_dai(struct device_node *ep,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_card_parse_graph_dai);
 
-int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
-			      struct asoc_simple_dai *simple_dai)
+static int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
+				     struct asoc_simple_dai *simple_dai)
 {
 	int ret;
 
@@ -467,7 +467,26 @@ int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_card_init_dai);
+
+int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
+	int ret;
+
+	ret = asoc_simple_card_init_dai(rtd->codec_dai,
+					dai_props->codec_dai);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_card_init_dai(rtd->cpu_dai,
+					dai_props->cpu_dai);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 
 void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link)
 {

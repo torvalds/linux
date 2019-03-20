@@ -88,6 +88,7 @@ int asoc_simple_startup(struct snd_pcm_substream *substream);
 void asoc_simple_shutdown(struct snd_pcm_substream *substream);
 int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params);
+int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd);
 
 #define asoc_simple_card_parse_cpu(node, dai_link,				\
 				   list_name, cells_name, is_single_link)	\
@@ -129,9 +130,6 @@ int asoc_simple_card_parse_graph_dai(struct device_node *ep,
 					&(dai)->rx_slot_mask,	\
 					&(dai)->slots,		\
 					&(dai)->slot_width);
-
-int asoc_simple_card_init_dai(struct snd_soc_dai *dai,
-			      struct asoc_simple_dai *simple_dai);
 
 void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link);
 void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,

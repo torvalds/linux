@@ -62,25 +62,6 @@ static const struct snd_soc_ops graph_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
-static int graph_dai_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
-	int ret = 0;
-
-	ret = asoc_simple_card_init_dai(rtd->codec_dai,
-					dai_props->codec_dai);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_card_init_dai(rtd->cpu_dai,
-					dai_props->cpu_dai);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int graph_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				    struct snd_pcm_hw_params *params)
 {
@@ -255,7 +236,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &graph_ops;
-	dai_link->init			= graph_dai_init;
+	dai_link->init			= asoc_simple_dai_init;
 
 	return 0;
 }
@@ -327,7 +308,7 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 		return ret;
 
 	dai_link->ops = &graph_ops;
-	dai_link->init = graph_dai_init;
+	dai_link->init = asoc_simple_dai_init;
 
 	asoc_simple_card_canonicalize_platform(dai_link);
 	asoc_simple_card_canonicalize_cpu(dai_link,

@@ -32,25 +32,6 @@ static const struct snd_soc_ops simple_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
-static int simple_dai_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
-	int ret;
-
-	ret = asoc_simple_card_init_dai(rtd->codec_dai,
-					dai_props->codec_dai);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_card_init_dai(rtd->cpu_dai,
-					dai_props->cpu_dai);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_pcm_hw_params *params)
 {
@@ -221,7 +202,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &simple_ops;
-	dai_link->init			= simple_dai_init;
+	dai_link->init			= asoc_simple_dai_init;
 
 	return 0;
 }
@@ -316,7 +297,7 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 		goto dai_link_of_err;
 
 	dai_link->ops = &simple_ops;
-	dai_link->init = simple_dai_init;
+	dai_link->init = asoc_simple_dai_init;
 
 	asoc_simple_card_canonicalize_cpu(dai_link, single_cpu);
 	asoc_simple_card_canonicalize_platform(dai_link);
@@ -694,7 +675,7 @@ static int simple_probe(struct platform_device *pdev)
 		dai_link->stream_name	= cinfo->name;
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->dai_fmt	= cinfo->daifmt;
-		dai_link->init		= simple_dai_init;
+		dai_link->init		= asoc_simple_dai_init;
 		memcpy(priv->dai_props->cpu_dai, &cinfo->cpu_dai,
 					sizeof(*priv->dai_props->cpu_dai));
 		memcpy(priv->dai_props->codec_dai, &cinfo->codec_dai,
