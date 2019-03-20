@@ -276,6 +276,9 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int sec128, sec2, yr, yr100, cf_bit;
 
+	if (!(readb(rtc->regbase + RCR2) & RCR2_RTCEN))
+		return -EINVAL;
+
 	do {
 		unsigned int tmp;
 
@@ -466,7 +469,6 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc;
 	struct resource *res;
-	struct rtc_time r;
 	char clk_name[6];
 	int clk_id, ret;
 
@@ -599,12 +601,6 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtc_dev->max_user_freq = 256;
-
-	/* reset rtc to epoch 0 if time is invalid */
-	if (rtc_read_time(rtc->rtc_dev, &r) < 0) {
-		rtc_time_to_tm(0, &r);
-		rtc_set_time(rtc->rtc_dev, &r);
-	}
 
 	device_init_wakeup(&pdev->dev, 1);
 	return 0;
