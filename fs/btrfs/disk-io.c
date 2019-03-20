@@ -4101,7 +4101,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	 * So here we should only check item pointers, not item data.
 	 */
 	if (btrfs_header_level(buf) == 0 &&
-	    btrfs_check_leaf_relaxed(fs_info, buf)) {
+	    btrfs_check_leaf_relaxed(buf)) {
 		btrfs_print_leaf(buf);
 		ASSERT(0);
 	}
