@@ -50,7 +50,7 @@
 #define I2C_HID_QUIRK_NO_IRQ_AFTER_RESET	BIT(1)
 #define I2C_HID_QUIRK_NO_RUNTIME_PM		BIT(2)
 #define I2C_HID_QUIRK_DELAY_AFTER_SLEEP		BIT(3)
-#define I2C_HID_QUIRK_BOGUS_IRQ				BIT(4)
+#define I2C_HID_QUIRK_BOGUS_IRQ			BIT(4)
 #define I2C_HID_QUIRK_FORCE_TRIGGER_FALLING	BIT(5)
 
 /* flags */
@@ -1131,7 +1131,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
 		ret = PTR_ERR(hid);
-		goto err_irq;
+		goto err_pm;
 	}
 
 	ihid->hid = hid;
@@ -1152,13 +1152,13 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)
-		goto err_pm;
+		goto err_mem_free;
 
 	ret = hid_add_device(hid);
 	if (ret) {
 		if (ret != -ENODEV)
 			hid_err(client, "can't add hid device: %d\n", ret);
-		goto err_mem_free;
+		goto err_irq;
 	}
 
 	if (!(ihid->quirks & I2C_HID_QUIRK_NO_RUNTIME_PM))
@@ -1166,11 +1166,11 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	return 0;
 
+err_irq:
+    free_irq(client->irq, ihid);
+
 err_mem_free:
 	hid_destroy_device(hid);
-
-err_irq:
-	free_irq(client->irq, ihid);
 
 err_pm:
 	pm_runtime_put_noidle(&client->dev);
