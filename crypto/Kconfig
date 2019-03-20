@@ -27,8 +27,8 @@ config CRYPTO_FIPS
 	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && !CRYPTO_MANAGER_DISABLE_TESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
-	  This options enables the fips boot option which is
-	  required if you want to system to operate in a FIPS 200
+	  This option enables the fips boot option which is
+	  required if you want the system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
 	  this is.
 
