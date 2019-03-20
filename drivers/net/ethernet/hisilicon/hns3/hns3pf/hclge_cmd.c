@@ -411,7 +411,7 @@ static void hclge_destroy_queue(struct hclge_cmq_ring *ring)
 	spin_unlock(&ring->lock);
 }
 
-void hclge_destroy_cmd_queue(struct hclge_hw *hw)
+static void hclge_destroy_cmd_queue(struct hclge_hw *hw)
 {
 	hclge_destroy_queue(&hw->cmq.csq);
 	hclge_destroy_queue(&hw->cmq.crq);
