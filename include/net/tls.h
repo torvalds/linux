@@ -60,6 +60,17 @@
 #define TLS_AAD_SPACE_SIZE		13
 #define TLS_DEVICE_NAME_MAX		32
 
+#define MAX_IV_SIZE			16
+
+/* For AES-CCM, the full 16-bytes of IV is made of '4' fields of given sizes.
+ *
+ * IV[16] = b0[1] || implicit nonce[4] || explicit nonce[8] || length[3]
+ *
+ * The field 'length' is encoded in field 'b0' as '(length width - 1)'.
+ * Hence b0 contains (3 - 1) = 2.
+ */
+#define TLS_AES_CCM_IV_B0_BYTE		2
+
 /*
  * This structure defines the routines for Inline TLS driver.
  * The following routines are optional and filled with a
@@ -123,8 +134,7 @@ struct tls_rec {
 	struct scatterlist sg_content_type;
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
-	u8 iv_data[TLS_CIPHER_AES_GCM_128_IV_SIZE +
-		   TLS_CIPHER_AES_GCM_128_SALT_SIZE];
+	u8 iv_data[MAX_IV_SIZE];
 	struct aead_request aead_req;
 	u8 aead_req_ctx[];
 };
@@ -219,6 +229,7 @@ struct tls_prot_info {
 	u16 tag_size;
 	u16 overhead_size;
 	u16 iv_size;
+	u16 salt_size;
 	u16 rec_seq_size;
 	u16 aad_size;
 	u16 tail_size;
