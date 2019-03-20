@@ -15,7 +15,7 @@
 static int tsens_get_temp(void *data, int *temp)
 {
 	const struct tsens_sensor *s = data;
-	struct tsens_device *tmdev = s->tmdev;
+	struct tsens_priv *tmdev = s->tmdev;
 
 	return tmdev->ops->get_temp(tmdev, s->id, temp);
 }
@@ -23,7 +23,7 @@ static int tsens_get_temp(void *data, int *temp)
 static int tsens_get_trend(void *p, int trip, enum thermal_trend *trend)
 {
 	const struct tsens_sensor *s = p;
-	struct tsens_device *tmdev = s->tmdev;
+	struct tsens_priv *tmdev = s->tmdev;
 
 	if (tmdev->ops->get_trend)
 		return  tmdev->ops->get_trend(tmdev, s->id, trend);
@@ -33,7 +33,7 @@ static int tsens_get_trend(void *p, int trip, enum thermal_trend *trend)
 
 static int  __maybe_unused tsens_suspend(struct device *dev)
 {
-	struct tsens_device *tmdev = dev_get_drvdata(dev);
+	struct tsens_priv *tmdev = dev_get_drvdata(dev);
 
 	if (tmdev->ops && tmdev->ops->suspend)
 		return tmdev->ops->suspend(tmdev);
@@ -43,7 +43,7 @@ static int  __maybe_unused tsens_suspend(struct device *dev)
 
 static int __maybe_unused tsens_resume(struct device *dev)
 {
-	struct tsens_device *tmdev = dev_get_drvdata(dev);
+	struct tsens_priv *tmdev = dev_get_drvdata(dev);
 
 	if (tmdev->ops && tmdev->ops->resume)
 		return tmdev->ops->resume(tmdev);
@@ -76,7 +76,7 @@ static const struct thermal_zone_of_device_ops tsens_of_ops = {
 	.get_trend = tsens_get_trend,
 };
 
-static int tsens_register(struct tsens_device *tmdev)
+static int tsens_register(struct tsens_priv *tmdev)
 {
 	int i;
 	struct thermal_zone_device *tzd;
@@ -101,7 +101,7 @@ static int tsens_probe(struct platform_device *pdev)
 	int ret, i;
 	struct device *dev;
 	struct device_node *np;
-	struct tsens_device *tmdev;
+	struct tsens_priv *tmdev;
 	const struct tsens_plat_data *data;
 	const struct of_device_id *id;
 	u32 num_sensors;
@@ -174,7 +174,7 @@ static int tsens_probe(struct platform_device *pdev)
 
 static int tsens_remove(struct platform_device *pdev)
 {
-	struct tsens_device *tmdev = platform_get_drvdata(pdev);
+	struct tsens_priv *tmdev = platform_get_drvdata(pdev);
 
 	if (tmdev->ops->disable)
 		tmdev->ops->disable(tmdev);

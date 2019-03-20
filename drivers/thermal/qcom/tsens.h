@@ -12,7 +12,7 @@
 
 #include <linux/thermal.h>
 
-struct tsens_device;
+struct tsens_priv;
 
 /**
  * struct tsens_sensor - data for each sensor connected to the tsens device
@@ -25,7 +25,7 @@ struct tsens_device;
  * @status: 8960-specific variable to track 8960 and 8660 status register offset
  */
 struct tsens_sensor {
-	struct tsens_device		*tmdev;
+	struct tsens_priv		*tmdev;
 	struct thermal_zone_device	*tzd;
 	int				offset;
 	int				id;
@@ -47,15 +47,15 @@ struct tsens_sensor {
  */
 struct tsens_ops {
 	/* mandatory callbacks */
-	int (*init)(struct tsens_device *);
-	int (*calibrate)(struct tsens_device *);
-	int (*get_temp)(struct tsens_device *, int, int *);
+	int (*init)(struct tsens_priv *);
+	int (*calibrate)(struct tsens_priv *);
+	int (*get_temp)(struct tsens_priv *, int, int *);
 	/* optional callbacks */
-	int (*enable)(struct tsens_device *, int);
-	void (*disable)(struct tsens_device *);
-	int (*suspend)(struct tsens_device *);
-	int (*resume)(struct tsens_device *);
-	int (*get_trend)(struct tsens_device *, int, enum thermal_trend *);
+	int (*enable)(struct tsens_priv *, int);
+	void (*disable)(struct tsens_priv *);
+	int (*suspend)(struct tsens_priv *);
+	int (*resume)(struct tsens_priv *);
+	int (*get_trend)(struct tsens_priv *, int, enum thermal_trend *);
 };
 
 enum reg_list {
@@ -87,7 +87,7 @@ struct tsens_context {
 };
 
 /**
- * struct tsens_device - private data for each instance of the tsens IP
+ * struct tsens_priv - private data for each instance of the tsens IP
  * @dev: pointer to struct device
  * @num_sensors: number of sensors enabled on this device
  * @tm_map: pointer to TM register address space
@@ -99,7 +99,7 @@ struct tsens_context {
  * @ops: pointer to list of callbacks supported by this device
  * @sensor: list of sensors attached to this device
  */
-struct tsens_device {
+struct tsens_priv {
 	struct device			*dev;
 	u32				num_sensors;
 	struct regmap			*tm_map;
@@ -112,9 +112,9 @@ struct tsens_device {
 };
 
 char *qfprom_read(struct device *, const char *);
-void compute_intercept_slope(struct tsens_device *, u32 *, u32 *, u32);
-int init_common(struct tsens_device *);
-int get_temp_common(struct tsens_device *, int, int *);
+void compute_intercept_slope(struct tsens_priv *, u32 *, u32 *, u32);
+int init_common(struct tsens_priv *);
+int get_temp_common(struct tsens_priv *, int, int *);
 
 /* TSENS v1 targets */
 extern const struct tsens_plat_data data_8916, data_8974, data_8960;

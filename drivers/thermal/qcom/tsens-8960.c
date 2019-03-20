@@ -56,7 +56,7 @@
 #define TRDY_MASK		BIT(7)
 #define TIMEOUT_US		100
 
-static int suspend_8960(struct tsens_device *tmdev)
+static int suspend_8960(struct tsens_priv *tmdev)
 {
 	int ret;
 	unsigned int mask;
@@ -82,7 +82,7 @@ static int suspend_8960(struct tsens_device *tmdev)
 	return 0;
 }
 
-static int resume_8960(struct tsens_device *tmdev)
+static int resume_8960(struct tsens_priv *tmdev)
 {
 	int ret;
 	struct regmap *map = tmdev->tm_map;
@@ -112,7 +112,7 @@ static int resume_8960(struct tsens_device *tmdev)
 	return 0;
 }
 
-static int enable_8960(struct tsens_device *tmdev, int id)
+static int enable_8960(struct tsens_priv *tmdev, int id)
 {
 	int ret;
 	u32 reg, mask;
@@ -138,7 +138,7 @@ static int enable_8960(struct tsens_device *tmdev, int id)
 	return 0;
 }
 
-static void disable_8960(struct tsens_device *tmdev)
+static void disable_8960(struct tsens_priv *tmdev)
 {
 	int ret;
 	u32 reg_cntl;
@@ -162,7 +162,7 @@ static void disable_8960(struct tsens_device *tmdev)
 	regmap_write(tmdev->tm_map, CNTL_ADDR, reg_cntl);
 }
 
-static int init_8960(struct tsens_device *tmdev)
+static int init_8960(struct tsens_priv *tmdev)
 {
 	int ret, i;
 	u32 reg_cntl;
@@ -212,7 +212,7 @@ static int init_8960(struct tsens_device *tmdev)
 	return 0;
 }
 
-static int calibrate_8960(struct tsens_device *tmdev)
+static int calibrate_8960(struct tsens_priv *tmdev)
 {
 	int i;
 	char *data;
@@ -243,7 +243,7 @@ static inline int code_to_mdegC(u32 adc_code, const struct tsens_sensor *s)
 	return adc_code * slope + offset;
 }
 
-static int get_temp_8960(struct tsens_device *tmdev, int id, int *temp)
+static int get_temp_8960(struct tsens_priv *tmdev, int id, int *temp)
 {
 	int ret;
 	u32 code, trdy;

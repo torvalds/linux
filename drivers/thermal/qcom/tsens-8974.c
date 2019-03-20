@@ -91,7 +91,7 @@
 
 #define BIT_APPEND		0x3
 
-static int calibrate_8974(struct tsens_device *tmdev)
+static int calibrate_8974(struct tsens_priv *tmdev)
 {
 	int base1 = 0, base2 = 0, i;
 	u32 p1[11], p2[11];

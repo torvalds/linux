@@ -39,7 +39,7 @@
 #define CAL_SEL_MASK	0xe0000000
 #define CAL_SEL_SHIFT	29
 
-static int calibrate_8916(struct tsens_device *tmdev)
+static int calibrate_8916(struct tsens_priv *tmdev)
 {
 	int base0 = 0, base1 = 0, i;
 	u32 p1[5], p2[5];

@@ -46,7 +46,7 @@ char *qfprom_read(struct device *dev, const char *cname)
  * and offset values are derived from tz->tzp->slope and tz->tzp->offset
  * resp.
  */
-void compute_intercept_slope(struct tsens_device *tmdev, u32 *p1,
+void compute_intercept_slope(struct tsens_priv *tmdev, u32 *p1,
 			     u32 *p2, u32 mode)
 {
 	int i;
@@ -95,7 +95,7 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
 	return degc;
 }
 
-int get_temp_common(struct tsens_device *tmdev, int id, int *temp)
+int get_temp_common(struct tsens_priv *tmdev, int id, int *temp)
 {
 	struct tsens_sensor *s = &tmdev->sensor[id];
 	u32 code;
@@ -127,7 +127,7 @@ static const struct regmap_config tsens_srot_config = {
 	.reg_stride	= 4,
 };
 
-int __init init_common(struct tsens_device *tmdev)
+int __init init_common(struct tsens_priv *tmdev)
 {
 	void __iomem *tm_base, *srot_base;
 	struct resource *res;
