@@ -65,13 +65,13 @@ enum reg_list {
 };
 
 /**
- * struct tsens_data - tsens platform data
+ * struct tsens_plat_data - tsens compile-time platform data
  * @num_sensors: Number of sensors supported by platform
  * @ops: operations the tsens instance supports
  * @hw_ids: Subset of sensors ids supported by platform, if not the first n
  * @reg_offsets: Register offsets for commonly used registers
  */
-struct tsens_data {
+struct tsens_plat_data {
 	const u32		num_sensors;
 	const struct tsens_ops	*ops;
 	const u16		reg_offsets[REG_ARRAY_SIZE];
@@ -117,8 +117,8 @@ int init_common(struct tsens_device *);
 int get_temp_common(struct tsens_device *, int, int *);
 
 /* TSENS v1 targets */
-extern const struct tsens_data data_8916, data_8974, data_8960;
+extern const struct tsens_plat_data data_8916, data_8974, data_8960;
 /* TSENS v2 targets */
-extern const struct tsens_data data_8996, data_tsens_v2;
+extern const struct tsens_plat_data data_8996, data_tsens_v2;
 
 #endif /* __QCOM_TSENS_H__ */

@@ -97,7 +97,7 @@ static const struct tsens_ops ops_8916 = {
 	.get_temp	= get_temp_common,
 };
 
-const struct tsens_data data_8916 = {
+const struct tsens_plat_data data_8916 = {
 	.num_sensors	= 5,
 	.ops		= &ops_8916,
 	.reg_offsets	= { [SROT_CTRL_OFFSET] = 0x0 },

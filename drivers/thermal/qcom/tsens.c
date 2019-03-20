@@ -102,7 +102,7 @@ static int tsens_probe(struct platform_device *pdev)
 	struct device *dev;
 	struct device_node *np;
 	struct tsens_device *tmdev;
-	const struct tsens_data *data;
+	const struct tsens_plat_data *data;
 	const struct of_device_id *id;
 	u32 num_sensors;
 
