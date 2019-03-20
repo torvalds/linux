@@ -1058,12 +1058,12 @@ void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
 int lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba);
 int lpfc_sli4_init_vpi(struct lpfc_vport *);
-inline void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
+void lpfc_sli4_eq_clr_intr(struct lpfc_queue *);
 void lpfc_sli4_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			   uint32_t count, bool arm);
 void lpfc_sli4_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			   uint32_t count, bool arm);
-inline void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
+void lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q);
 void lpfc_sli4_if6_write_cq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
 			       uint32_t count, bool arm);
 void lpfc_sli4_if6_write_eq_db(struct lpfc_hba *phba, struct lpfc_queue *q,
