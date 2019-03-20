@@ -1325,7 +1325,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 	struct list_head *plist, *phead;
 	u8 wlanhdr_offset;
 	u8	curfragnum;
-	struct recv_frame *pfhdr, *pnfhdr;
+	struct recv_frame *pnfhdr;
 	struct recv_frame *prframe, *pnextrframe;
 	struct __queue *pfree_recv_queue;
 
@@ -1334,11 +1334,10 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	phead = get_list_head(defrag_q);
 	plist = phead->next;
-	pfhdr = list_entry(plist, struct recv_frame, list);
-	prframe = pfhdr;
+	prframe = list_entry(plist, struct recv_frame, list);
 	list_del_init(&prframe->list);
 
-	if (curfragnum != pfhdr->attrib.frag_num) {
+	if (curfragnum != prframe->attrib.frag_num) {
 		/* the first fragment number must be 0 */
 		/* free the whole queue */
 		rtw_free_recvframe(prframe, pfree_recv_queue);
@@ -1377,15 +1376,15 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 		skb_pull(pnextrframe->pkt, wlanhdr_offset);
 
 		/* append  to first fragment frame's tail (if privacy frame, pull the ICV) */
-		skb_trim(prframe->pkt, prframe->pkt->len - pfhdr->attrib.icv_len);
+		skb_trim(prframe->pkt, prframe->pkt->len - prframe->attrib.icv_len);
 
 		/* memcpy */
-		memcpy(skb_tail_pointer(pfhdr->pkt), pnfhdr->pkt->data,
+		memcpy(skb_tail_pointer(prframe->pkt), pnfhdr->pkt->data,
 		       pnfhdr->pkt->len);
 
 		skb_put(prframe->pkt, pnfhdr->pkt->len);
 
-		pfhdr->attrib.icv_len = pnfhdr->attrib.icv_len;
+		prframe->attrib.icv_len = pnfhdr->attrib.icv_len;
 		plist = plist->next;
 	}
 
