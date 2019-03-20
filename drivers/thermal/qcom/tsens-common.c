@@ -12,13 +12,6 @@
 #include <linux/regmap.h>
 #include "tsens.h"
 
-/* SROT */
-#define TSENS_EN		BIT(0)
-
-/* TM */
-#define STATUS_OFFSET		0x30
-#define SN_ADDR_OFFSET		0x4
-#define SN_ST_TEMP_MASK		0x3ff
 #define CAL_DEGC_PT1		30
 #define CAL_DEGC_PT2		120
 #define SLOPE_FACTOR		1000
@@ -95,18 +88,14 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
 	return degc;
 }
 
-int get_temp_common(struct tsens_priv *priv, int id, int *temp)
+int get_temp_common(struct tsens_priv *priv, int i, int *temp)
 {
-	struct tsens_sensor *s = &priv->sensor[id];
-	u32 code;
-	unsigned int status_reg;
+	struct tsens_sensor *s = &priv->sensor[i];
 	int last_temp = 0, ret;
 
-	status_reg = priv->tm_offset + STATUS_OFFSET + s->hw_id * SN_ADDR_OFFSET;
-	ret = regmap_read(priv->tm_map, status_reg, &code);
+	ret = regmap_field_read(priv->rf[LAST_TEMP_0 + s->hw_id], &last_temp);
 	if (ret)
 		return ret;
-	last_temp = code & SN_ST_TEMP_MASK;
 
 	*temp = code_to_degc(last_temp, s) * 1000;
 
@@ -131,10 +120,9 @@ int __init init_common(struct tsens_priv *priv)
 {
 	void __iomem *tm_base, *srot_base;
 	struct resource *res;
-	u32 code;
-	int ret;
+	u32 enabled;
+	int ret, i, j;
 	struct platform_device *op = of_find_device_by_node(priv->dev->of_node);
-	u16 ctrl_offset = priv->reg_offsets[SROT_CTRL_OFFSET];
 
 	if (!op)
 		return -EINVAL;
@@ -173,13 +161,41 @@ int __init init_common(struct tsens_priv *priv)
 		goto err_put_device;
 	}
 
-	if (priv->srot_map) {
-		ret = regmap_read(priv->srot_map, ctrl_offset, &code);
-		if (ret)
+	priv->rf[TSENS_EN] = devm_regmap_field_alloc(priv->dev, priv->srot_map,
+						     priv->fields[TSENS_EN]);
+	if (IS_ERR(priv->rf[TSENS_EN])) {
+		ret = PTR_ERR(priv->rf[TSENS_EN]);
+		goto err_put_device;
+	}
+	ret = regmap_field_read(priv->rf[TSENS_EN], &enabled);
+	if (ret)
+		goto err_put_device;
+	if (!enabled) {
+		dev_err(priv->dev, "tsens device is not enabled\n");
+		ret = -ENODEV;
+		goto err_put_device;
+	}
+
+	priv->rf[SENSOR_EN] = devm_regmap_field_alloc(priv->dev, priv->srot_map,
+						      priv->fields[SENSOR_EN]);
+	if (IS_ERR(priv->rf[SENSOR_EN])) {
+		ret = PTR_ERR(priv->rf[SENSOR_EN]);
+		goto err_put_device;
+	}
+	/* now alloc regmap_fields in tm_map */
+	for (i = 0, j = LAST_TEMP_0; i < priv->num_sensors; i++, j++) {
+		priv->rf[j] = devm_regmap_field_alloc(priv->dev, priv->tm_map,
+						      priv->fields[j]);
+		if (IS_ERR(priv->rf[j])) {
+			ret = PTR_ERR(priv->rf[j]);
 			goto err_put_device;
-		if (!(code & TSENS_EN)) {
-			dev_err(priv->dev, "tsens device is not enabled\n");
-			ret = -ENODEV;
+		}
+	}
+	for (i = 0, j = VALID_0; i < priv->num_sensors; i++, j++) {
+		priv->rf[j] = devm_regmap_field_alloc(priv->dev, priv->tm_map,
+						      priv->fields[j]);
+		if (IS_ERR(priv->rf[j])) {
+			ret = PTR_ERR(priv->rf[j]);
 			goto err_put_device;
 		}
 	}

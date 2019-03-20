@@ -6,6 +6,15 @@
 #include <linux/platform_device.h>
 #include "tsens.h"
 
+/* ----- SROT ------ */
+#define SROT_CTRL_OFF 0x0000
+
+/* ----- TM ------ */
+#define TM_INT_EN_OFF				0x0000
+#define TM_Sn_UPPER_LOWER_STATUS_CTRL_OFF	0x0004
+#define TM_Sn_STATUS_OFF			0x0030
+#define TM_TRDY_OFF				0x005c
+
 /* eeprom layout data for 8916 */
 #define MSM8916_BASE0_MASK	0x0000007f
 #define MSM8916_BASE1_MASK	0xfe000000
@@ -308,6 +317,40 @@ static int calibrate_8974(struct tsens_priv *priv)
 	return 0;
 }
 
+/* v0.1: 8916, 8974 */
+
+static const struct tsens_features tsens_v0_1_feat = {
+	.ver_major	= VER_0_1,
+	.crit_int	= 0,
+	.adc		= 1,
+	.srot_split	= 1,
+};
+
+static const struct reg_field tsens_v0_1_regfields[MAX_REGFIELDS] = {
+	/* ----- SROT ------ */
+	/* No VERSION information */
+
+	/* CTRL_OFFSET */
+	[TSENS_EN]     = REG_FIELD(SROT_CTRL_OFF, 0,  0),
+	[TSENS_SW_RST] = REG_FIELD(SROT_CTRL_OFF, 1,  1),
+
+	/* ----- TM ------ */
+	/* INTERRUPT ENABLE */
+	[INT_EN] = REG_FIELD(TM_INT_EN_OFF, 0, 0),
+
+	/* Sn_STATUS */
+	REG_FIELD_FOR_EACH_SENSOR11(LAST_TEMP,    TM_Sn_STATUS_OFF,  0,  9),
+	/* No VALID field on v0.1 */
+	REG_FIELD_FOR_EACH_SENSOR11(MIN_STATUS,   TM_Sn_STATUS_OFF, 10, 10),
+	REG_FIELD_FOR_EACH_SENSOR11(LOWER_STATUS, TM_Sn_STATUS_OFF, 11, 11),
+	REG_FIELD_FOR_EACH_SENSOR11(UPPER_STATUS, TM_Sn_STATUS_OFF, 12, 12),
+	/* No CRITICAL field on v0.1 */
+	REG_FIELD_FOR_EACH_SENSOR11(MAX_STATUS,   TM_Sn_STATUS_OFF, 13, 13),
+
+	/* TRDY: 1=ready, 0=in progress */
+	[TRDY] = REG_FIELD(TM_TRDY_OFF, 0, 0),
+};
+
 static const struct tsens_ops ops_8916 = {
 	.init		= init_common,
 	.calibrate	= calibrate_8916,
@@ -317,8 +360,10 @@ static const struct tsens_ops ops_8916 = {
 const struct tsens_plat_data data_8916 = {
 	.num_sensors	= 5,
 	.ops		= &ops_8916,
-	.reg_offsets	= { [SROT_CTRL_OFFSET] = 0x0 },
 	.hw_ids		= (unsigned int []){0, 1, 2, 4, 5 },
+
+	.feat		= &tsens_v0_1_feat,
+	.fields	= tsens_v0_1_regfields,
 };
 
 static const struct tsens_ops ops_8974 = {
@@ -330,5 +375,6 @@ static const struct tsens_ops ops_8974 = {
 const struct tsens_plat_data data_8974 = {
 	.num_sensors	= 11,
 	.ops		= &ops_8974,
-	.reg_offsets	= { [SROT_CTRL_OFFSET] = 0x0 },
+	.feat		= &tsens_v0_1_feat,
+	.fields	= tsens_v0_1_regfields,
 };
