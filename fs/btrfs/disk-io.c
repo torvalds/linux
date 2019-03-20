@@ -657,7 +657,7 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 		ret = -EIO;
 	}
 
-	if (found_level > 0 && btrfs_check_node(fs_info, eb))
+	if (found_level > 0 && btrfs_check_node(eb))
 		ret = -EIO;
 
 	if (!ret)

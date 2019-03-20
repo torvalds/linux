@@ -973,8 +973,9 @@ int btrfs_check_leaf_relaxed(struct extent_buffer *leaf)
 	return check_leaf(leaf, false);
 }
 
-int btrfs_check_node(struct btrfs_fs_info *fs_info, struct extent_buffer *node)
+int btrfs_check_node(struct extent_buffer *node)
 {
+	struct btrfs_fs_info *fs_info = node->fs_info;
 	unsigned long nr = btrfs_header_nritems(node);
 	struct btrfs_key key, next_key;
 	int slot;
