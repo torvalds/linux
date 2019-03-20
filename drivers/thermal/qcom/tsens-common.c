@@ -46,18 +46,18 @@ char *qfprom_read(struct device *dev, const char *cname)
  * and offset values are derived from tz->tzp->slope and tz->tzp->offset
  * resp.
  */
-void compute_intercept_slope(struct tsens_priv *tmdev, u32 *p1,
+void compute_intercept_slope(struct tsens_priv *priv, u32 *p1,
 			     u32 *p2, u32 mode)
 {
 	int i;
 	int num, den;
 
-	for (i = 0; i < tmdev->num_sensors; i++) {
-		dev_dbg(tmdev->dev,
+	for (i = 0; i < priv->num_sensors; i++) {
+		dev_dbg(priv->dev,
 			"sensor%d - data_point1:%#x data_point2:%#x\n",
 			i, p1[i], p2[i]);
 
-		tmdev->sensor[i].slope = SLOPE_DEFAULT;
+		priv->sensor[i].slope = SLOPE_DEFAULT;
 		if (mode == TWO_PT_CALIB) {
 			/*
 			 * slope (m) = adc_code2 - adc_code1 (y2 - y1)/
@@ -66,13 +66,13 @@ void compute_intercept_slope(struct tsens_priv *tmdev, u32 *p1,
 			num = p2[i] - p1[i];
 			num *= SLOPE_FACTOR;
 			den = CAL_DEGC_PT2 - CAL_DEGC_PT1;
-			tmdev->sensor[i].slope = num / den;
+			priv->sensor[i].slope = num / den;
 		}
 
-		tmdev->sensor[i].offset = (p1[i] * SLOPE_FACTOR) -
+		priv->sensor[i].offset = (p1[i] * SLOPE_FACTOR) -
 				(CAL_DEGC_PT1 *
-				tmdev->sensor[i].slope);
-		dev_dbg(tmdev->dev, "offset:%d\n", tmdev->sensor[i].offset);
+				priv->sensor[i].slope);
+		dev_dbg(priv->dev, "offset:%d\n", priv->sensor[i].offset);
 	}
 }
 
@@ -95,15 +95,15 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
 	return degc;
 }
 
-int get_temp_common(struct tsens_priv *tmdev, int id, int *temp)
+int get_temp_common(struct tsens_priv *priv, int id, int *temp)
 {
-	struct tsens_sensor *s = &tmdev->sensor[id];
+	struct tsens_sensor *s = &priv->sensor[id];
 	u32 code;
 	unsigned int status_reg;
 	int last_temp = 0, ret;
 
-	status_reg = tmdev->tm_offset + STATUS_OFFSET + s->hw_id * SN_ADDR_OFFSET;
-	ret = regmap_read(tmdev->tm_map, status_reg, &code);
+	status_reg = priv->tm_offset + STATUS_OFFSET + s->hw_id * SN_ADDR_OFFSET;
+	ret = regmap_read(priv->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	last_temp = code & SN_ST_TEMP_MASK;
@@ -127,21 +127,21 @@ static const struct regmap_config tsens_srot_config = {
 	.reg_stride	= 4,
 };
 
-int __init init_common(struct tsens_priv *tmdev)
+int __init init_common(struct tsens_priv *priv)
 {
 	void __iomem *tm_base, *srot_base;
 	struct resource *res;
 	u32 code;
 	int ret;
-	struct platform_device *op = of_find_device_by_node(tmdev->dev->of_node);
-	u16 ctrl_offset = tmdev->reg_offsets[SROT_CTRL_OFFSET];
+	struct platform_device *op = of_find_device_by_node(priv->dev->of_node);
+	u16 ctrl_offset = priv->reg_offsets[SROT_CTRL_OFFSET];
 
 	if (!op)
 		return -EINVAL;
 
 	if (op->num_resources > 1) {
 		/* DT with separate SROT and TM address space */
-		tmdev->tm_offset = 0;
+		priv->tm_offset = 0;
 		res = platform_get_resource(op, IORESOURCE_MEM, 1);
 		srot_base = devm_ioremap_resource(&op->dev, res);
 		if (IS_ERR(srot_base)) {
@@ -149,16 +149,15 @@ int __init init_common(struct tsens_priv *tmdev)
 			goto err_put_device;
 		}
 
-		tmdev->srot_map = devm_regmap_init_mmio(tmdev->dev, srot_base,
+		priv->srot_map = devm_regmap_init_mmio(priv->dev, srot_base,
 							&tsens_srot_config);
-		if (IS_ERR(tmdev->srot_map)) {
-			ret = PTR_ERR(tmdev->srot_map);
+		if (IS_ERR(priv->srot_map)) {
+			ret = PTR_ERR(priv->srot_map);
 			goto err_put_device;
 		}
-
 	} else {
 		/* old DTs where SROT and TM were in a contiguous 2K block */
-		tmdev->tm_offset = 0x1000;
+		priv->tm_offset = 0x1000;
 	}
 
 	res = platform_get_resource(op, IORESOURCE_MEM, 0);
@@ -168,18 +167,18 @@ int __init init_common(struct tsens_priv *tmdev)
 		goto err_put_device;
 	}
 
-	tmdev->tm_map = devm_regmap_init_mmio(tmdev->dev, tm_base, &tsens_config);
-	if (IS_ERR(tmdev->tm_map)) {
-		ret = PTR_ERR(tmdev->tm_map);
+	priv->tm_map = devm_regmap_init_mmio(priv->dev, tm_base, &tsens_config);
+	if (IS_ERR(priv->tm_map)) {
+		ret = PTR_ERR(priv->tm_map);
 		goto err_put_device;
 	}
 
-	if (tmdev->srot_map) {
-		ret = regmap_read(tmdev->srot_map, ctrl_offset, &code);
+	if (priv->srot_map) {
+		ret = regmap_read(priv->srot_map, ctrl_offset, &code);
 		if (ret)
 			goto err_put_device;
 		if (!(code & TSENS_EN)) {
-			dev_err(tmdev->dev, "tsens device is not enabled\n");
+			dev_err(priv->dev, "tsens device is not enabled\n");
 			ret = -ENODEV;
 			goto err_put_device;
 		}

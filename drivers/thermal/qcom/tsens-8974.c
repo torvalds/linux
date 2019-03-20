@@ -91,7 +91,7 @@
 
 #define BIT_APPEND		0x3
 
-static int calibrate_8974(struct tsens_priv *tmdev)
+static int calibrate_8974(struct tsens_priv *priv)
 {
 	int base1 = 0, base2 = 0, i;
 	u32 p1[11], p2[11];
@@ -99,11 +99,11 @@ static int calibrate_8974(struct tsens_priv *tmdev)
 	u32 *calib, *bkp;
 	u32 calib_redun_sel;
 
-	calib = (u32 *)qfprom_read(tmdev->dev, "calib");
+	calib = (u32 *)qfprom_read(priv->dev, "calib");
 	if (IS_ERR(calib))
 		return PTR_ERR(calib);
 
-	bkp = (u32 *)qfprom_read(tmdev->dev, "calib_backup");
+	bkp = (u32 *)qfprom_read(priv->dev, "calib_backup");
 	if (IS_ERR(bkp))
 		return PTR_ERR(bkp);
 
@@ -184,25 +184,25 @@ static int calibrate_8974(struct tsens_priv *tmdev)
 
 	switch (mode) {
 	case ONE_PT_CALIB:
-		for (i = 0; i < tmdev->num_sensors; i++)
+		for (i = 0; i < priv->num_sensors; i++)
 			p1[i] += (base1 << 2) | BIT_APPEND;
 		break;
 	case TWO_PT_CALIB:
-		for (i = 0; i < tmdev->num_sensors; i++) {
+		for (i = 0; i < priv->num_sensors; i++) {
 			p2[i] += base2;
 			p2[i] <<= 2;
 			p2[i] |= BIT_APPEND;
 		}
 		/* Fall through */
 	case ONE_PT_CALIB2:
-		for (i = 0; i < tmdev->num_sensors; i++) {
+		for (i = 0; i < priv->num_sensors; i++) {
 			p1[i] += base1;
 			p1[i] <<= 2;
 			p1[i] |= BIT_APPEND;
 		}
 		break;
 	default:
-		for (i = 0; i < tmdev->num_sensors; i++)
+		for (i = 0; i < priv->num_sensors; i++)
 			p2[i] = 780;
 		p1[0] = 502;
 		p1[1] = 509;
@@ -218,7 +218,7 @@ static int calibrate_8974(struct tsens_priv *tmdev)
 		break;
 	}
 
-	compute_intercept_slope(tmdev, p1, p2, mode);
+	compute_intercept_slope(priv, p1, p2, mode);
 
 	return 0;
 }

@@ -12,16 +12,16 @@
 #define LAST_TEMP_MASK		0xfff
 #define STATUS_VALID_BIT	BIT(21)
 
-static int get_temp_tsens_v2(struct tsens_priv *tmdev, int id, int *temp)
+static int get_temp_tsens_v2(struct tsens_priv *priv, int id, int *temp)
 {
-	struct tsens_sensor *s = &tmdev->sensor[id];
+	struct tsens_sensor *s = &priv->sensor[id];
 	u32 code;
 	unsigned int status_reg;
 	u32 last_temp = 0, last_temp2 = 0, last_temp3 = 0;
 	int ret;
 
-	status_reg = tmdev->tm_offset + STATUS_OFFSET + s->hw_id * 4;
-	ret = regmap_read(tmdev->tm_map, status_reg, &code);
+	status_reg = priv->tm_offset + STATUS_OFFSET + s->hw_id * 4;
+	ret = regmap_read(priv->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	last_temp = code & LAST_TEMP_MASK;
@@ -29,7 +29,7 @@ static int get_temp_tsens_v2(struct tsens_priv *tmdev, int id, int *temp)
 		goto done;
 
 	/* Try a second time */
-	ret = regmap_read(tmdev->tm_map, status_reg, &code);
+	ret = regmap_read(priv->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	if (code & STATUS_VALID_BIT) {
@@ -40,7 +40,7 @@ static int get_temp_tsens_v2(struct tsens_priv *tmdev, int id, int *temp)
 	}
 
 	/* Try a third/last time */
-	ret = regmap_read(tmdev->tm_map, status_reg, &code);
+	ret = regmap_read(priv->tm_map, status_reg, &code);
 	if (ret)
 		return ret;
 	if (code & STATUS_VALID_BIT) {

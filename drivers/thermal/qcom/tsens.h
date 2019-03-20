@@ -16,7 +16,7 @@ struct tsens_priv;
 
 /**
  * struct tsens_sensor - data for each sensor connected to the tsens device
- * @tmdev: tsens device instance that this sensor is connected to
+ * @priv: tsens device instance that this sensor is connected to
  * @tzd: pointer to the thermal zone that this sensor is in
  * @offset: offset of temperature adjustment curve
  * @id: Sensor ID
@@ -25,7 +25,7 @@ struct tsens_priv;
  * @status: 8960-specific variable to track 8960 and 8660 status register offset
  */
 struct tsens_sensor {
-	struct tsens_priv		*tmdev;
+	struct tsens_priv		*priv;
 	struct thermal_zone_device	*tzd;
 	int				offset;
 	int				id;
