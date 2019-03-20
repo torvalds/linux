@@ -87,8 +87,7 @@ static inline unsigned char *xlr_alloc_skb(void)
 	if (!skb)
 		return NULL;
 	skb_data = skb->data;
-	skb_put(skb, MAC_SKB_BACK_PTR_SIZE);
-	skb_pull(skb, MAC_SKB_BACK_PTR_SIZE);
+	skb_reserve(skb, MAC_SKB_BACK_PTR_SIZE);
 	memcpy(skb_data, &skb, buf_len);
 
 	return skb->data;
