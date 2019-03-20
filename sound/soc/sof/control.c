@@ -48,6 +48,7 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: volume get failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -85,6 +86,7 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: volume put failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -124,6 +126,7 @@ int snd_sof_switch_get(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: switch get failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -159,6 +162,7 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: switch put failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -196,6 +200,7 @@ int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: enum get failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -231,6 +236,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: enum put failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -275,6 +281,7 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: bytes get failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -328,6 +335,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: bytes put failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -414,6 +422,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: bytes_ext put failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 
@@ -452,6 +461,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: bytes_ext get failed to resume %d\n",
 				    ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 

@@ -408,6 +408,7 @@ static int sof_pcm_open(struct snd_pcm_substream *substream)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: pcm open failed to resume %d\n",
 			ret);
+		pm_runtime_put_noidle(sdev->dev);
 		return ret;
 	}
 

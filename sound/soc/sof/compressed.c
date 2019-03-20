@@ -28,9 +28,11 @@ static int sof_compressed_open(struct snd_compr_stream *cstream)
 	int ret;
 
 	ret = pm_runtime_get_sync(sdev->dev);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "error: comp open failed to resume %d\n",
 			ret);
+		pm_runtime_put_noidle(sdev->dev);
+	}
 	return ret;
 }
 
