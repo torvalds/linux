@@ -418,12 +418,13 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	mr &= ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
 	rtt_writel(rtc, MR, mr);
 
-	rtc->rtcdev = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&at91_rtc_ops, THIS_MODULE);
+	rtc->rtcdev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtcdev)) {
 		ret = PTR_ERR(rtc->rtcdev);
 		goto err_clk;
 	}
+
+	rtc->rtcdev->ops = &at91_rtc_ops;
 
 	/* register irq handler after we know what name we'll use */
 	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
@@ -444,7 +445,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
 				dev_name(&rtc->rtcdev->dev));
 
-	return 0;
+	return rtc_register_device(rtc->rtcdev);
 
 err_clk:
 	clk_disable_unprepare(rtc->sclk);
