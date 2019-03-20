@@ -76,7 +76,7 @@ static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
 	 */
 	down_read(&pci_bus_sem);
 	list_for_each_entry(dev, &port->subordinate->devices, bus_list)
-		__pcie_print_link_status(dev, false);
+		pcie_report_downtraining(dev);
 	up_read(&pci_bus_sem);
 
 	return IRQ_HANDLED;
