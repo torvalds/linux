@@ -1696,8 +1696,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 }
 
 u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
-		      struct net_device *sb_dev,
-		      select_queue_fallback_t fallback)
+		      struct net_device *sb_dev)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int total_txq;
@@ -1705,7 +1704,7 @@ u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 	total_txq = QEDE_TSS_COUNT(edev) * edev->dev_info.num_tc;
 
 	return QEDE_TSS_COUNT(edev) ?
-		fallback(dev, skb, NULL) % total_txq :  0;
+		netdev_pick_tx(dev, skb, NULL) % total_txq :  0;
 }
 
 /* 8B udp header + 8B base tunnel header + 32B option length */

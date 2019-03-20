@@ -287,8 +287,7 @@ static u16 packet_pick_tx_queue(struct sk_buff *skb)
 #endif
 	skb_record_rx_queue(skb, cpu % dev->real_num_tx_queues);
 	if (ops->ndo_select_queue) {
-		queue_index = ops->ndo_select_queue(dev, skb, NULL,
-						    netdev_pick_tx);
+		queue_index = ops->ndo_select_queue(dev, skb, NULL);
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	} else {
 		queue_index = netdev_pick_tx(dev, skb, NULL);

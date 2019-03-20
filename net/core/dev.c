@@ -3689,16 +3689,14 @@ get_cpus_map:
 }
 
 u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
-		     struct net_device *sb_dev,
-		     select_queue_fallback_t fallback)
+		     struct net_device *sb_dev)
 {
 	return 0;
 }
 EXPORT_SYMBOL(dev_pick_tx_zero);
 
 u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev,
-		       select_queue_fallback_t fallback)
+		       struct net_device *sb_dev)
 {
 	return (u16)raw_smp_processor_id() % dev->real_num_tx_queues;
 }
@@ -3748,8 +3746,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
-							    netdev_pick_tx);
+			queue_index = ops->ndo_select_queue(dev, skb, sb_dev);
 		else
 			queue_index = netdev_pick_tx(dev, skb, sb_dev);
 
