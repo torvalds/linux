@@ -3256,10 +3256,10 @@ fail:
 
 }
 
-static struct btrfs_block_group_cache *
-next_block_group(struct btrfs_fs_info *fs_info,
-		 struct btrfs_block_group_cache *cache)
+static struct btrfs_block_group_cache *next_block_group(
+		struct btrfs_block_group_cache *cache)
 {
+	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct rb_node *node;
 
 	spin_lock(&fs_info->block_group_cache_lock);
@@ -10050,7 +10050,7 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 			if (block_group->iref)
 				break;
 			spin_unlock(&block_group->lock);
-			block_group = next_block_group(info, block_group);
+			block_group = next_block_group(block_group);
 		}
 		if (!block_group) {
 			if (last == 0)
@@ -11296,7 +11296,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 	int ret = 0;
 
 	cache = btrfs_lookup_first_block_group(fs_info, range->start);
-	for (; cache; cache = next_block_group(fs_info, cache)) {
+	for (; cache; cache = next_block_group(cache)) {
 		if (cache->key.objectid >= (range->start + range->len)) {
 			btrfs_put_block_group(cache);
 			break;
