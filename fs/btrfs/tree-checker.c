@@ -354,12 +354,12 @@ static int check_dir_item(struct extent_buffer *leaf,
 	return 0;
 }
 
-__printf(4, 5)
+__printf(3, 4)
 __cold
-static void block_group_err(const struct btrfs_fs_info *fs_info,
-			    const struct extent_buffer *eb, int slot,
+static void block_group_err(const struct extent_buffer *eb, int slot,
 			    const char *fmt, ...)
 {
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_key key;
 	struct va_format vaf;
 	va_list args;
@@ -392,13 +392,13 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	 * handle it.  We care more about the size.
 	 */
 	if (key->offset == 0) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 				"invalid block group size 0");
 		return -EUCLEAN;
 	}
 
 	if (item_size != sizeof(bgi)) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 			"invalid item size, have %u expect %zu",
 				item_size, sizeof(bgi));
 		return -EUCLEAN;
@@ -408,7 +408,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 			   sizeof(bgi));
 	if (btrfs_block_group_chunk_objectid(&bgi) !=
 	    BTRFS_FIRST_CHUNK_TREE_OBJECTID) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 		"invalid block group chunk objectid, have %llu expect %llu",
 				btrfs_block_group_chunk_objectid(&bgi),
 				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
@@ -416,7 +416,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	}
 
 	if (btrfs_block_group_used(&bgi) > key->offset) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 			"invalid block group used, have %llu expect [0, %llu)",
 				btrfs_block_group_used(&bgi), key->offset);
 		return -EUCLEAN;
@@ -424,7 +424,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 
 	flags = btrfs_block_group_flags(&bgi);
 	if (hweight64(flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) > 1) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 "invalid profile flags, have 0x%llx (%lu bits set) expect no more than 1 bit set",
 			flags & BTRFS_BLOCK_GROUP_PROFILE_MASK,
 			hweight64(flags & BTRFS_BLOCK_GROUP_PROFILE_MASK));
@@ -437,7 +437,7 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	    type != BTRFS_BLOCK_GROUP_SYSTEM &&
 	    type != (BTRFS_BLOCK_GROUP_METADATA |
 			   BTRFS_BLOCK_GROUP_DATA)) {
-		block_group_err(fs_info, leaf, slot,
+		block_group_err(leaf, slot,
 "invalid type, have 0x%llx (%lu bits set) expect either 0x%llx, 0x%llx, 0x%llx or 0x%llx",
 			type, hweight64(type),
 			BTRFS_BLOCK_GROUP_DATA, BTRFS_BLOCK_GROUP_METADATA,
