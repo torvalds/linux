@@ -57,7 +57,7 @@ static int goldfish_rtc_read_alarm(struct device *dev,
 	do_div(rtc_alarm, NSEC_PER_SEC);
 	memset(alrm, 0, sizeof(struct rtc_wkalrm));
 
-	rtc_time_to_tm(rtc_alarm, &alrm->time);
+	rtc_time64_to_tm(rtc_alarm, &alrm->time);
 
 	if (readl(base + TIMER_ALARM_STATUS))
 		alrm->enabled = 1;
@@ -71,21 +71,15 @@ static int goldfish_rtc_set_alarm(struct device *dev,
 				  struct rtc_wkalrm *alrm)
 {
 	struct goldfish_rtc *rtcdrv;
-	unsigned long rtc_alarm;
 	u64 rtc_alarm64;
 	u64 rtc_status_reg;
 	void __iomem *base;
-	int ret = 0;
 
 	rtcdrv = dev_get_drvdata(dev);
 	base = rtcdrv->base;
 
 	if (alrm->enabled) {
-		ret = rtc_tm_to_time(&alrm->time, &rtc_alarm);
-		if (ret != 0)
-			return ret;
-
-		rtc_alarm64 = rtc_alarm * NSEC_PER_SEC;
+		rtc_alarm64 = rtc_tm_to_time64(&alrm->time) * NSEC_PER_SEC;
 		writel((rtc_alarm64 >> 32), base + TIMER_ALARM_HIGH);
 		writel(rtc_alarm64, base + TIMER_ALARM_LOW);
 	} else {
@@ -99,7 +93,7 @@ static int goldfish_rtc_set_alarm(struct device *dev,
 			writel(1, base + TIMER_CLEAR_ALARM);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int goldfish_rtc_alarm_irq_enable(struct device *dev,
@@ -148,7 +142,7 @@ static int goldfish_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	do_div(time, NSEC_PER_SEC);
 
-	rtc_time_to_tm(time, tm);
+	rtc_time64_to_tm(time, tm);
 
 	return 0;
 }
@@ -157,21 +151,16 @@ static int goldfish_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct goldfish_rtc *rtcdrv;
 	void __iomem *base;
-	unsigned long now;
 	u64 now64;
-	int ret;
 
 	rtcdrv = dev_get_drvdata(dev);
 	base = rtcdrv->base;
 
-	ret = rtc_tm_to_time(tm, &now);
-	if (ret == 0) {
-		now64 = now * NSEC_PER_SEC;
-		writel((now64 >> 32), base + TIMER_TIME_HIGH);
-		writel(now64, base + TIMER_TIME_LOW);
-	}
+	now64 = rtc_tm_to_time64(tm) * NSEC_PER_SEC;
+	writel((now64 >> 32), base + TIMER_TIME_HIGH);
+	writel(now64, base + TIMER_TIME_LOW);
 
-	return ret;
+	return 0;
 }
 
 static const struct rtc_class_ops goldfish_rtc_ops = {
