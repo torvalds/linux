@@ -1147,7 +1147,8 @@ out:
 	kfree(buf_head);
 }
 
-void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
+static void audit_log_cap(struct audit_buffer *ab, char *prefix,
+			  kernel_cap_t *cap)
 {
 	int i;
 
@@ -1905,8 +1906,9 @@ static inline int audit_copy_fcaps(struct audit_names *name,
 }
 
 /* Copy inode data into an audit_names. */
-void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
-		      struct inode *inode, unsigned int flags)
+static void audit_copy_inode(struct audit_names *name,
+			     const struct dentry *dentry,
+			     struct inode *inode, unsigned int flags)
 {
 	name->ino   = inode->i_ino;
 	name->dev   = inode->i_sb->s_dev;
