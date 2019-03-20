@@ -629,29 +629,9 @@ static umode_t ntc_is_visible(const void *data, enum hwmon_sensor_types type,
 	return 0;
 }
 
-static const u32 ntc_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0
-};
-
-static const struct hwmon_channel_info ntc_chip = {
-	.type = hwmon_chip,
-	.config = ntc_chip_config,
-};
-
-static const u32 ntc_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_TYPE,
-	0
-};
-
-static const struct hwmon_channel_info ntc_temp = {
-	.type = hwmon_temp,
-	.config = ntc_temp_config,
-};
-
 static const struct hwmon_channel_info *ntc_info[] = {
-	&ntc_chip,
-	&ntc_temp,
+	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_TYPE),
 	NULL
 };
 
