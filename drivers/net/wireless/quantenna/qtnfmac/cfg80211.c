@@ -1106,7 +1106,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
 			WIPHY_FLAG_AP_UAPSD |
 			WIPHY_FLAG_HAS_CHANNEL_SWITCH |
-			WIPHY_FLAG_4ADDR_STATION;
+			WIPHY_FLAG_4ADDR_STATION |
+			WIPHY_FLAG_NETNS_OK;
 	wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_DFS_OFFLOAD)
