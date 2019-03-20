@@ -60,6 +60,13 @@ struct asoc_simple_priv {
 #define simple_priv_to_dev(priv)	(simple_priv_to_card(priv)->dev)
 #define simple_priv_to_link(priv, i)	(simple_priv_to_card(priv)->dai_link + (i))
 
+struct link_info {
+	int dais; /* number of dai  */
+	int link; /* number of link */
+	int conf; /* number of codec_conf */
+	int cpu;  /* turn for CPU / Codec */
+};
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,
@@ -153,7 +160,8 @@ int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
 int asoc_simple_card_init_jack(struct snd_soc_card *card,
 			       struct asoc_simple_jack *sjack,
 			       int is_hp, char *prefix);
-
+int asoc_simple_card_init_priv(struct asoc_simple_priv *priv,
+			       struct link_info *li);
 
 #ifdef DEBUG
 inline void asoc_simple_debug_dai(struct asoc_simple_priv *priv,

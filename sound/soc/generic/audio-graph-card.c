@@ -20,13 +20,6 @@
 #include <linux/string.h>
 #include <sound/simple_card_utils.h>
 
-struct link_info {
-	int dais; /* number of dai  */
-	int link; /* number of link */
-	int conf; /* number of codec_conf */
-	int cpu;  /* turn for CPU / Codec */
-};
-
 #define PREFIX	"audio-graph-card,"
 
 static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
@@ -526,14 +519,10 @@ static int graph_card_probe(struct snd_soc_card *card)
 static int graph_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
-	struct snd_soc_dai_link *dai_link;
-	struct simple_dai_props *dai_props;
-	struct asoc_simple_dai *dais;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
-	struct snd_soc_codec_conf *cconf;
 	struct link_info li;
-	int ret, i;
+	int ret;
 
 	/* Allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -552,25 +541,9 @@ static int graph_probe(struct platform_device *pdev)
 	if (!li.link || !li.dais)
 		return -EINVAL;
 
-	dai_props = devm_kcalloc(dev, li.link, sizeof(*dai_props), GFP_KERNEL);
-	dai_link  = devm_kcalloc(dev, li.link, sizeof(*dai_link),  GFP_KERNEL);
-	dais      = devm_kcalloc(dev, li.dais, sizeof(*dais),      GFP_KERNEL);
-	cconf     = devm_kcalloc(dev, li.conf, sizeof(*cconf),     GFP_KERNEL);
-	if (!dai_props || !dai_link || !dais)
-		return -ENOMEM;
-
-	/*
-	 * Use snd_soc_dai_link_component instead of legacy style
-	 * It is codec only. but cpu/platform will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 */
-	for (i = 0; i < li.link; i++) {
-		dai_link[i].codecs	= &dai_props[i].codecs;
-		dai_link[i].num_codecs	= 1;
-		dai_link[i].platforms	= &dai_props[i].platforms;
-		dai_link[i].num_platforms = 1;
-	}
+	ret = asoc_simple_card_init_priv(priv, &li);
+	if (ret < 0)
+		return ret;
 
 	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->pa_gpio)) {
@@ -578,16 +551,6 @@ static int graph_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
 		return ret;
 	}
-
-	priv->dai_props		= dai_props;
-	priv->dai_link		= dai_link;
-	priv->dais		= dais;
-	priv->codec_conf	= cconf;
-
-	card->dai_link		= dai_link;
-	card->num_links		= li.link;
-	card->codec_conf	= cconf;
-	card->num_configs	= li.conf;
 
 	ret = graph_parse_of(priv);
 	if (ret < 0) {

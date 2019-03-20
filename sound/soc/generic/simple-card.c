@@ -15,13 +15,6 @@
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
 
-struct link_info {
-	int dais; /* number of dai  */
-	int link; /* number of link */
-	int conf; /* number of codec_conf */
-	int cpu;  /* turn for CPU / Codec */
-};
-
 #define DAI	"sound-dai"
 #define CELL	"#sound-dai-cells"
 #define PREFIX	"simple-audio-card,"
@@ -564,15 +557,11 @@ static int simple_soc_probe(struct snd_soc_card *card)
 static int simple_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
-	struct snd_soc_dai_link *dai_link;
-	struct simple_dai_props *dai_props;
-	struct asoc_simple_dai *dais;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct snd_soc_card *card;
-	struct snd_soc_codec_conf *cconf;
 	struct link_info li;
-	int ret, i;
+	int ret;
 
 	/* Allocate the private data and the DAI link array */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -589,35 +578,9 @@ static int simple_probe(struct platform_device *pdev)
 	if (!li.link || !li.dais)
 		return -EINVAL;
 
-	dai_props = devm_kcalloc(dev, li.link, sizeof(*dai_props), GFP_KERNEL);
-	dai_link  = devm_kcalloc(dev, li.link, sizeof(*dai_link),  GFP_KERNEL);
-	dais      = devm_kcalloc(dev, li.dais, sizeof(*dais),      GFP_KERNEL);
-	cconf     = devm_kcalloc(dev, li.conf, sizeof(*cconf),     GFP_KERNEL);
-	if (!dai_props || !dai_link || !dais)
-		return -ENOMEM;
-
-	/*
-	 * Use snd_soc_dai_link_component instead of legacy style
-	 * It is codec only. but cpu/platform will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 */
-	for (i = 0; i < li.link; i++) {
-		dai_link[i].codecs	= &dai_props[i].codecs;
-		dai_link[i].num_codecs	= 1;
-		dai_link[i].platforms	= &dai_props[i].platforms;
-		dai_link[i].num_platforms = 1;
-	}
-
-	priv->dai_props		= dai_props;
-	priv->dai_link		= dai_link;
-	priv->dais		= dais;
-	priv->codec_conf	= cconf;
-
-	card->dai_link		= priv->dai_link;
-	card->num_links		= li.link;
-	card->codec_conf	= cconf;
-	card->num_configs	= li.conf;
+	ret = asoc_simple_card_init_priv(priv, &li);
+	if (ret < 0)
+		return ret;
 
 	if (np && of_device_is_available(np)) {
 
@@ -632,6 +595,9 @@ static int simple_probe(struct platform_device *pdev)
 		struct asoc_simple_card_info *cinfo;
 		struct snd_soc_dai_link_component *codecs;
 		struct snd_soc_dai_link_component *platform;
+		struct snd_soc_dai_link *dai_link = priv->dai_link;
+		struct simple_dai_props *dai_props = priv->dai_props;
+
 		int dai_idx = 0;
 
 		cinfo = dev->platform_data;
@@ -665,10 +631,10 @@ static int simple_probe(struct platform_device *pdev)
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->dai_fmt	= cinfo->daifmt;
 		dai_link->init		= asoc_simple_dai_init;
-		memcpy(priv->dai_props->cpu_dai, &cinfo->cpu_dai,
-					sizeof(*priv->dai_props->cpu_dai));
-		memcpy(priv->dai_props->codec_dai, &cinfo->codec_dai,
-					sizeof(*priv->dai_props->codec_dai));
+		memcpy(dai_props->cpu_dai, &cinfo->cpu_dai,
+					sizeof(*dai_props->cpu_dai));
+		memcpy(dai_props->codec_dai, &cinfo->codec_dai,
+					sizeof(*dai_props->codec_dai));
 	}
 
 	snd_soc_card_set_drvdata(card, priv);
