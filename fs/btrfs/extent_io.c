@@ -4510,8 +4510,7 @@ try_submit_last:
  * In this case, the first extent range will be cached but not emitted.
  * So we must emit it before ending extent_fiemap().
  */
-static int emit_last_fiemap_cache(struct btrfs_fs_info *fs_info,
-				  struct fiemap_extent_info *fieinfo,
+static int emit_last_fiemap_cache(struct fiemap_extent_info *fieinfo,
 				  struct fiemap_cache *cache)
 {
 	int ret;
@@ -4718,7 +4717,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	}
 out_free:
 	if (!ret)
-		ret = emit_last_fiemap_cache(root->fs_info, fieinfo, &cache);
+		ret = emit_last_fiemap_cache(fieinfo, &cache);
 	free_extent_map(em);
 out:
 	btrfs_free_path(path);
