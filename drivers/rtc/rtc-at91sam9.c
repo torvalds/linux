@@ -340,13 +340,6 @@ static const struct rtc_class_ops at91_rtc_ops = {
 	.alarm_irq_enable = at91_rtc_alarm_irq_enable,
 };
 
-static const struct regmap_config gpbr_regmap_config = {
-	.name = "gpbr",
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-};
-
 /*
  * Initialize and install RTC driver
  */
@@ -357,6 +350,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	int		ret, irq;
 	u32		mr;
 	unsigned int	sclk_rate;
+	struct of_phandle_args args;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -382,34 +376,14 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(rtc->rtt))
 		return PTR_ERR(rtc->rtt);
 
-	if (!pdev->dev.of_node) {
-		/*
-		 * TODO: Remove this code chunk when removing non DT board
-		 * support. Remember to remove the gpbr_regmap_config
-		 * variable too.
-		 */
-		void __iomem *gpbr;
+	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+					"atmel,rtt-rtc-time-reg", 1, 0,
+					&args);
+	if (ret)
+		return ret;
 
-		r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		gpbr = devm_ioremap_resource(&pdev->dev, r);
-		if (IS_ERR(gpbr))
-			return PTR_ERR(gpbr);
-
-		rtc->gpbr = regmap_init_mmio(NULL, gpbr,
-					     &gpbr_regmap_config);
-	} else {
-		struct of_phandle_args args;
-
-		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-						"atmel,rtt-rtc-time-reg", 1, 0,
-						&args);
-		if (ret)
-			return ret;
-
-		rtc->gpbr = syscon_node_to_regmap(args.np);
-		rtc->gpbr_offset = args.args[0];
-	}
-
+	rtc->gpbr = syscon_node_to_regmap(args.np);
+	rtc->gpbr_offset = args.args[0];
 	if (IS_ERR(rtc->gpbr)) {
 		dev_err(&pdev->dev, "failed to retrieve gpbr regmap, aborting.\n");
 		return -ENOMEM;
@@ -561,13 +535,11 @@ static int at91_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
-#ifdef CONFIG_OF
 static const struct of_device_id at91_rtc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9260-rtt" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
-#endif
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
