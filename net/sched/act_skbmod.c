@@ -16,6 +16,7 @@
 #include <linux/rtnetlink.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 #include <linux/tc_act/tc_skbmod.h>
 #include <net/tc_act/tc_skbmod.h>
@@ -88,6 +89,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
 	struct nlattr *tb[TCA_SKBMOD_MAX + 1];
 	struct tcf_skbmod_params *p, *p_old;
+	struct tcf_chain *goto_ch = NULL;
 	struct tc_skbmod *parm;
 	struct tcf_skbmod *d;
 	bool exists = false;
@@ -154,21 +156,24 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	d = to_skbmod(*a);
 
 	p = kzalloc(sizeof(struct tcf_skbmod_params), GFP_KERNEL);
 	if (unlikely(!p)) {
-		tcf_idr_release(*a, bind);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto put_chain;
 	}
 
 	p->flags = lflags;
-	d->tcf_action = parm->action;
 
 	if (ovr)
 		spin_lock_bh(&d->tcf_lock);
 	/* Protected by tcf_lock if overwriting existing action. */
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	p_old = rcu_dereference_protected(d->skbmod_p, 1);
 
 	if (lflags & SKBMOD_F_DMAC)
@@ -184,10 +189,18 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 
 	if (p_old)
 		kfree_rcu(p_old, rcu);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 
 	if (ret == ACT_P_CREATED)
 		tcf_idr_insert(tn, *a);
 	return ret;
+put_chain:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static void tcf_skbmod_cleanup(struct tc_action *a)
