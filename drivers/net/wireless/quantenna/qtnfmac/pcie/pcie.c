@@ -128,32 +128,23 @@ static int qtnf_dbg_shm_stats(struct seq_file *s, void *data)
 	return 0;
 }
 
-void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success)
+int qtnf_pcie_fw_boot_done(struct qtnf_bus *bus)
 {
-	struct qtnf_pcie_bus_priv *priv = get_bus_priv(bus);
-	struct pci_dev *pdev = priv->pdev;
 	int ret;
 
-	if (boot_success) {
-		bus->fw_state = QTNF_FW_STATE_FW_DNLD_DONE;
-
-		ret = qtnf_core_attach(bus);
-		if (ret) {
-			pr_err("failed to attach core\n");
-			boot_success = false;
-		}
-	}
-
-	if (boot_success) {
+	bus->fw_state = QTNF_FW_STATE_FW_DNLD_DONE;
+	ret = qtnf_core_attach(bus);
+	if (ret) {
+		pr_err("failed to attach core\n");
+		bus->fw_state = QTNF_FW_STATE_DETACHED;
+	} else {
 		qtnf_debugfs_init(bus, DRV_NAME);
 		qtnf_debugfs_add_entry(bus, "mps", qtnf_dbg_mps_show);
 		qtnf_debugfs_add_entry(bus, "msi_enabled", qtnf_dbg_msi_show);
 		qtnf_debugfs_add_entry(bus, "shm_stats", qtnf_dbg_shm_stats);
-	} else {
-		bus->fw_state = QTNF_FW_STATE_DETACHED;
 	}
 
-	put_device(&pdev->dev);
+	return ret;
 }
 
 static void qtnf_tune_pcie_mps(struct pci_dev *pdev)

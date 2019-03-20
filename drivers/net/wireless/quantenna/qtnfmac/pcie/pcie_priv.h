@@ -70,7 +70,7 @@ struct qtnf_pcie_bus_priv {
 
 int qtnf_pcie_control_tx(struct qtnf_bus *bus, struct sk_buff *skb);
 int qtnf_pcie_alloc_skb_array(struct qtnf_pcie_bus_priv *priv);
-void qtnf_pcie_fw_boot_done(struct qtnf_bus *bus, bool boot_success);
+int qtnf_pcie_fw_boot_done(struct qtnf_bus *bus);
 void qtnf_pcie_init_shm_ipc(struct qtnf_pcie_bus_priv *priv,
 			    struct qtnf_shm_ipc_region __iomem *ipc_tx_reg,
 			    struct qtnf_shm_ipc_region __iomem *ipc_rx_reg,
