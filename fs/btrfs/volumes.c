@@ -2149,7 +2149,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info, const char *device_path,
 		goto error_undo;
 
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
-	btrfs_scrub_cancel_dev(fs_info, device);
+	btrfs_scrub_cancel_dev(device);
 
 	/*
 	 * the device list mutex makes sure that we don't change

@@ -3999,9 +3999,9 @@ int btrfs_scrub_cancel(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
-			   struct btrfs_device *dev)
+int btrfs_scrub_cancel_dev(struct btrfs_device *dev)
 {
+	struct btrfs_fs_info *fs_info = dev->fs_info;
 	struct scrub_ctx *sctx;
 
 	mutex_lock(&fs_info->scrub_lock);
