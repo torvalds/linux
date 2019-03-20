@@ -7,7 +7,7 @@ config VIDEO_CX231XX
 	select VIDEO_CX25840
 	select VIDEO_CX2341X
 
-	---help---
+	help
 	  This is a video4linux driver for Conexant 231xx USB based TV cards.
 
 	  To compile this driver as a module, choose M here: the
@@ -18,7 +18,7 @@ config VIDEO_CX231XX_RC
 	depends on RC_CORE=y || RC_CORE=VIDEO_CX231XX
 	depends on VIDEO_CX231XX
 	default y
-	---help---
+	help
 	  cx231xx hardware has a builtin RX/TX support. However, a few
 	  designs opted to not use it, but, instead, some other hardware.
 	  This module enables the usage of those other hardware, like the
@@ -31,7 +31,7 @@ config VIDEO_CX231XX_ALSA
 	depends on VIDEO_CX231XX && SND
 	select SND_PCM
 
-	---help---
+	help
 	  This is an ALSA driver for Cx231xx USB based TV cards.
 
 	  To compile this driver as a module, choose M here: the
@@ -52,6 +52,6 @@ config VIDEO_CX231XX_DVB
 	select DVB_MN88473 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_R820T if MEDIA_SUBDRV_AUTOSELECT
 
-	---help---
+	help
 	  This adds support for DVB cards based on the
 	  Conexant cx231xx chips.

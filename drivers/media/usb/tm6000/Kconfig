@@ -18,7 +18,7 @@ config VIDEO_TM6000_ALSA
 	tristate "TV Master TM5600/6000/6010 audio support"
 	depends on VIDEO_TM6000 && SND
 	select SND_PCM
-	---help---
+	help
 	  This is a video4linux driver for direct (DMA) audio for
 	  TM5600/TM6000/TM6010 USB Devices.
 
@@ -29,5 +29,5 @@ config VIDEO_TM6000_DVB
 	tristate "DVB Support for tm6000 based TV cards"
 	depends on VIDEO_TM6000 && DVB_CORE && USB
 	select DVB_ZL10353
-	---help---
+	help
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.

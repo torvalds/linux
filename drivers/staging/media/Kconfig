@@ -1,7 +1,7 @@
 menuconfig STAGING_MEDIA
 	bool "Media staging drivers"
 	default n
-	---help---
+	help
 	  This option allows you to select a number of media drivers that
 	  don't have the "normal" Linux kernel quality level.
 	  Most of them don't follow properly the V4L, DVB and/or RC API's,

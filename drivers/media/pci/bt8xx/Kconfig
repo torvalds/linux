@@ -13,7 +13,7 @@ config VIDEO_BT848
 	select VIDEO_SAA6588 if MEDIA_SUBDRV_AUTOSELECT
 	select RADIO_ADAPTERS
 	select RADIO_TEA575X
-	---help---
+	help
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in
 	  <file:Documentation/media/v4l-drivers/bttv.rst> for more information.

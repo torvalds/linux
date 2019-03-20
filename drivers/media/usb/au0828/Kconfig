@@ -9,7 +9,7 @@ config VIDEO_AU0828
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MXL5007T if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a hybrid analog/digital tv capture driver for
 	  Auvitek's AU0828 USB device.
 
@@ -23,7 +23,7 @@ config VIDEO_AU0828_V4L2
 	select DVB_AU8522_V4L if MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_TUNER
 	default y
-	---help---
+	help
 	  This is a video4linux driver for Auvitek's USB device.
 
 	  Choose Y here to include support for v4l2 analog video
@@ -34,5 +34,5 @@ config VIDEO_AU0828_RC
 	depends on RC_CORE
 	depends on !(RC_CORE=m && VIDEO_AU0828=y)
 	depends on VIDEO_AU0828
-	---help---
+	help
 	   Enables Remote Controller support on au0828 driver.

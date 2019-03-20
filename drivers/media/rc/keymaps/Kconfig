@@ -3,7 +3,7 @@ config RC_MAP
 	depends on RC_CORE
 	default y
 
-	---help---
+	help
 	   This option enables the compilation of lots of Remote
 	   Controller tables. They are short tables, but if you
 	   don't use a remote controller, or prefer to load the

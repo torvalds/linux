@@ -5,7 +5,7 @@ config VIDEO_IPU3_IMGU
 	depends on X86
 	select IOMMU_IOVA
 	select VIDEOBUF2_DMA_SG
-	---help---
+	help
 	  This is the Video4Linux2 driver for Intel IPU3 image processing unit,
 	  found in Intel Skylake and Kaby Lake SoCs and used for processing
 	  images and video.
