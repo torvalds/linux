@@ -418,8 +418,8 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 /*
  * Describe a pinmux configuration in which a pin is physically multiplexed
  * with other pins.
- *   - ipsr: IPSR field
- *   - fn: Function name, also referring to the IPSR field
+ *   - ipsr: IPSR field (unused, for documentation purposes only)
+ *   - fn: Function name
  *   - psel: Physical multiplexing selector
  */
 #define PINMUX_IPSR_PHYS(ipsr, fn, psel) \
