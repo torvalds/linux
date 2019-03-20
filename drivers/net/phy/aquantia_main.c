@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/bitfield.h>
 #include <linux/phy.h>
 
 #include "aquantia.h"
@@ -21,6 +22,13 @@
 #define PHY_ID_AQR107	0x03a1b4e0
 #define PHY_ID_AQCS109	0x03a1b5c2
 #define PHY_ID_AQR405	0x03a1b4b0
+
+#define MDIO_PHYXS_VEND_IF_STATUS		0xe812
+#define MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK	GENMASK(7, 3)
+#define MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR	0
+#define MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI	2
+#define MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII	6
+#define MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII	10
 
 #define MDIO_AN_VEND_PROV			0xc400
 #define MDIO_AN_VEND_PROV_1000BASET_FULL	BIT(15)
@@ -178,8 +186,58 @@ static int aqr_read_status(struct phy_device *phydev)
 	return genphy_c45_read_status(phydev);
 }
 
+static int aqr107_read_status(struct phy_device *phydev)
+{
+	int val, ret;
+
+	ret = aqr_read_status(phydev);
+	if (ret)
+		return ret;
+
+	if (!phydev->link)
+		return 0;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PHYXS, MDIO_PHYXS_VEND_IF_STATUS);
+	if (val < 0)
+		return val;
+
+	switch (FIELD_GET(MDIO_PHYXS_VEND_IF_STATUS_TYPE_MASK, val)) {
+	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_KR:
+	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_XFI:
+		phydev->interface = PHY_INTERFACE_MODE_10GKR;
+		break;
+	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_SGMII:
+		phydev->interface = PHY_INTERFACE_MODE_SGMII;
+		break;
+	case MDIO_PHYXS_VEND_IF_STATUS_TYPE_OCSGMII:
+		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
+		break;
+	default:
+		phydev->interface = PHY_INTERFACE_MODE_NA;
+		break;
+	}
+
+	return 0;
+}
+
+static int aqr107_config_init(struct phy_device *phydev)
+{
+	/* Check that the PHY interface type is compatible */
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX &&
+	    phydev->interface != PHY_INTERFACE_MODE_10GKR)
+		return -ENODEV;
+
+	return 0;
+}
+
 static int aqcs109_config_init(struct phy_device *phydev)
 {
+	/* Check that the PHY interface type is compatible */
+	if (phydev->interface != PHY_INTERFACE_MODE_SGMII &&
+	    phydev->interface != PHY_INTERFACE_MODE_2500BASEX)
+		return -ENODEV;
+
 	/* AQCS109 belongs to a chip family partially supporting 10G and 5G.
 	 * PMA speed ability bits are the same for all members of the family,
 	 * AQCS109 however supports speeds up to 2.5G only.
@@ -234,10 +292,11 @@ static struct phy_driver aqr_driver[] = {
 	.aneg_done	= genphy_c45_aneg_done,
 	.get_features	= genphy_c45_pma_read_abilities,
 	.probe		= aqr_hwmon_probe,
+	.config_init	= aqr107_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
-	.read_status	= aqr_read_status,
+	.read_status	= aqr107_read_status,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQCS109),
@@ -249,7 +308,7 @@ static struct phy_driver aqr_driver[] = {
 	.config_aneg    = aqr_config_aneg,
 	.config_intr	= aqr_config_intr,
 	.ack_interrupt	= aqr_ack_interrupt,
-	.read_status	= aqr_read_status,
+	.read_status	= aqr107_read_status,
 },
 {
 	PHY_ID_MATCH_MODEL(PHY_ID_AQR405),
