@@ -210,6 +210,7 @@ static void tunnel_key_release_params(struct tcf_tunnel_key_params *p)
 static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   int ovr, int bind, bool rtnl_held,
+			   struct tcf_proto *tp,
 			   struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, tunnel_key_net_id);

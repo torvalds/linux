@@ -90,7 +90,7 @@ struct tc_action_ops {
 	int     (*lookup)(struct net *net, struct tc_action **a, u32 index);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
-			int bind, bool rtnl_held,
+			int bind, bool rtnl_held, struct tcf_proto *tp,
 			struct netlink_ext_ack *extack);
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int,
@@ -181,6 +181,11 @@ int tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int, int);
 int tcf_action_copy_stats(struct sk_buff *, struct tc_action *, int);
 
+int tcf_action_check_ctrlact(int action, struct tcf_proto *tp,
+			     struct tcf_chain **handle,
+			     struct netlink_ext_ack *newchain);
+struct tcf_chain *tcf_action_set_ctrlact(struct tc_action *a, int action,
+					 struct tcf_chain *newchain);
 #endif /* CONFIG_NET_CLS_ACT */
 
 static inline void tcf_action_stats_update(struct tc_action *a, u64 bytes,
