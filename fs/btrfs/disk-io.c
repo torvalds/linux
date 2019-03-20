@@ -3106,7 +3106,8 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	chunk_root->commit_root = btrfs_root_node(chunk_root);
 
 	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
-	   btrfs_header_chunk_tree_uuid(chunk_root->node), BTRFS_UUID_SIZE);
+			   offsetof(struct btrfs_header, chunk_tree_uuid),
+			   BTRFS_UUID_SIZE);
 
 	ret = btrfs_read_chunk_tree(fs_info);
 	if (ret) {
