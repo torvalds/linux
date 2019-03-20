@@ -2406,10 +2406,13 @@ out:
 
 int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req)
 {
+	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_bus *bus = mac->bus;
 	struct sk_buff *cmd_skb;
 	int ret;
 	struct qlink_cmd_reg_notify *cmd;
+	enum nl80211_band band;
+	const struct ieee80211_supported_band *cfg_band;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
 					    QLINK_CMD_REG_NOTIFY,
@@ -2446,6 +2449,23 @@ int qtnf_cmd_reg_notify(struct qtnf_wmac *mac, struct regulatory_request *req)
 	case NL80211_USER_REG_HINT_INDOOR:
 		cmd->user_reg_hint_type = QLINK_USER_REG_HINT_INDOOR;
 		break;
+	}
+
+	cmd->num_channels = 0;
+
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		unsigned int i;
+
+		cfg_band = wiphy->bands[band];
+		if (!cfg_band)
+			continue;
+
+		cmd->num_channels += cfg_band->n_channels;
+
+		for (i = 0; i < cfg_band->n_channels; ++i) {
+			qtnf_cmd_channel_tlv_add(cmd_skb,
+						 &cfg_band->channels[i]);
+		}
 	}
 
 	qtnf_bus_lock(bus);

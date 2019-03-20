@@ -6,7 +6,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		13
+#define QLINK_PROTO_VER		14
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -580,12 +580,18 @@ enum qlink_user_reg_hint_type {
  * @initiator: which entity sent the request, one of &enum qlink_reg_initiator.
  * @user_reg_hint_type: type of hint for QLINK_REGDOM_SET_BY_USER request, one
  *	of &enum qlink_user_reg_hint_type.
+ * @num_channels: number of &struct qlink_tlv_channel in a variable portion of a
+ *	payload.
+ * @info: variable portion of regulatory notifier callback.
  */
 struct qlink_cmd_reg_notify {
 	struct qlink_cmd chdr;
 	u8 alpha2[2];
 	u8 initiator;
 	u8 user_reg_hint_type;
+	u8 num_channels;
+	u8 rsvd[3];
+	u8 info[0];
 } __packed;
 
 /**
