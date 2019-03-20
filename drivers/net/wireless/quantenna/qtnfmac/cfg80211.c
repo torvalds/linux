@@ -1073,6 +1073,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	struct wiphy *wiphy = priv_to_wiphy(mac);
 	struct qtnf_mac_info *macinfo = &mac->macinfo;
 	int ret;
+	bool regdomain_is_known;
 
 	if (!wiphy) {
 		pr_err("invalid wiphy pointer\n");
@@ -1144,11 +1145,20 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 		wiphy->wowlan = macinfo->wowlan;
 #endif
 
+	regdomain_is_known = isalpha(hw_info->rd->alpha2[0]) &&
+		isalpha(hw_info->rd->alpha2[1]);
+
 	if (hw_info->hw_capab & QLINK_HW_CAPAB_REG_UPDATE) {
-		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
-			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
-		wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
+
+		if (hw_info->rd->alpha2[0] == '9' &&
+		    hw_info->rd->alpha2[1] == '9') {
+			wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+				REGULATORY_STRICT_REG;
+			wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
+		} else if (regdomain_is_known) {
+			wiphy->regulatory_flags |= REGULATORY_STRICT_REG;
+		}
 	} else {
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
@@ -1172,8 +1182,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
 		ret = regulatory_set_wiphy_regd(wiphy, hw_info->rd);
-	else if (isalpha(hw_info->rd->alpha2[0]) &&
-		 isalpha(hw_info->rd->alpha2[1]))
+	else if (regdomain_is_known)
 		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
 
 out:
