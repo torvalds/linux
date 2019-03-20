@@ -556,6 +556,9 @@ struct intel_atomic_state {
 		 * state only when all crtc's are DPMS off.
 		 */
 		struct intel_cdclk_state actual;
+
+		int force_min_cdclk;
+		bool force_min_cdclk_changed;
 	} cdclk;
 
 	bool dpll_set, modeset;
