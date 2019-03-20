@@ -273,9 +273,9 @@ error:
  * called from commit_transaction. Writes changed device replace state to
  * disk.
  */
-int btrfs_run_dev_replace(struct btrfs_trans_handle *trans,
-			  struct btrfs_fs_info *fs_info)
+int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
 	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct btrfs_path *path;
