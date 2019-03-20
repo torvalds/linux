@@ -324,6 +324,7 @@ static const struct tsens_features tsens_v0_1_feat = {
 	.crit_int	= 0,
 	.adc		= 1,
 	.srot_split	= 1,
+	.max_sensors	= 11,
 };
 
 static const struct reg_field tsens_v0_1_regfields[MAX_REGFIELDS] = {
