@@ -2465,9 +2465,9 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 /*
  * Store the expected generation for seed devices in device items.
  */
-static int btrfs_finish_sprout(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info)
+static int btrfs_finish_sprout(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root = fs_info->chunk_root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -2684,7 +2684,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (seeding_dev) {
 		char fsid_buf[BTRFS_UUID_UNPARSED_SIZE];
 
-		ret = btrfs_finish_sprout(trans, fs_info);
+		ret = btrfs_finish_sprout(trans);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto error_sysfs;
