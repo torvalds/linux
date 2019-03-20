@@ -127,16 +127,15 @@ static int dm355evm_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-					&dm355evm_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
-			PTR_ERR(rtc));
+	rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	}
+
 	platform_set_drvdata(pdev, rtc);
 
-	return 0;
+	rtc->ops = &dm355evm_rtc_ops;
+
+	return rtc_register_device(rtc);
 }
 
 /*
