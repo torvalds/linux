@@ -6351,9 +6351,9 @@ void btrfs_delalloc_release_space(struct inode *inode,
 }
 
 static int update_block_group(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *info, u64 bytenr,
-			      u64 num_bytes, int alloc)
+			      u64 bytenr, u64 num_bytes, int alloc)
 {
+	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_block_group_cache *cache = NULL;
 	u64 total = num_bytes;
 	u64 old_val;
@@ -7188,7 +7188,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			goto out;
 		}
 
-		ret = update_block_group(trans, info, bytenr, num_bytes, 0);
+		ret = update_block_group(trans, bytenr, num_bytes, 0);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -8360,7 +8360,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = update_block_group(trans, fs_info, ins->objectid, ins->offset, 1);
+	ret = update_block_group(trans, ins->objectid, ins->offset, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
 			ins->objectid, ins->offset);
@@ -8450,7 +8450,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = update_block_group(trans, fs_info, extent_key.objectid,
+	ret = update_block_group(trans, extent_key.objectid,
 				 fs_info->nodesize, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
