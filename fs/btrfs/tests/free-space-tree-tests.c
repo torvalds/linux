@@ -30,7 +30,7 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 	unsigned int i;
 	int ret;
 
-	info = search_free_space_info(trans, fs_info, cache, path, 0);
+	info = search_free_space_info(trans, cache, path, 0);
 	if (IS_ERR(info)) {
 		test_err("could not find free space info");
 		ret = PTR_ERR(info);
@@ -115,7 +115,7 @@ static int check_free_space_extents(struct btrfs_trans_handle *trans,
 	u32 flags;
 	int ret;
 
-	info = search_free_space_info(trans, fs_info, cache, path, 0);
+	info = search_free_space_info(trans, cache, path, 0);
 	if (IS_ERR(info)) {
 		test_err("could not find free space info");
 		btrfs_release_path(path);
