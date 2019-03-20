@@ -598,9 +598,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		return;
 
 	/* Rx Reorder initialize condition.*/
-	if (pTS->rx_indicate_seq == 0xffff) {
+	if (pTS->rx_indicate_seq == 0xffff)
 		pTS->rx_indicate_seq = SeqNum;
-	}
 
 	/* Drop out the packet which SeqNum is smaller than WinStart */
 	if (SN_LESS(SeqNum, pTS->rx_indicate_seq)) {
