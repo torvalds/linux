@@ -1923,6 +1923,11 @@ echo_ignore_multicast - BOOLEAN
 	requests sent to it over the IPv6 protocol via multicast.
 	Default: 0
 
+echo_ignore_anycast - BOOLEAN
+	If set non-zero, then the kernel will ignore all ICMP ECHO
+	requests sent to it over the IPv6 protocol destined to anycast address.
+	Default: 0
+
 xfrm6_gc_thresh - INTEGER
 	The threshold at which we will start garbage collecting for IPv6
 	destination cache entries.  At twice this value the system will

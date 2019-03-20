@@ -34,6 +34,7 @@ struct netns_sysctl_ipv6 {
 	int icmpv6_time;
 	int icmpv6_echo_ignore_all;
 	int icmpv6_echo_ignore_multicast;
+	int icmpv6_echo_ignore_anycast;
 	int anycast_src_echo_reply;
 	int ip_nonlocal_bind;
 	int fwmark_reflect;
