@@ -8,7 +8,9 @@
 # is provided, this is assumed to be a hardware test, and the output is
 # assumed to be in file.HW.litmus.out, where "HW" is the --hw argument.
 # In addition, non-Sometimes verification results will be noted, but
-# forgiven.
+# forgiven.  Furthermore, if there is no "Result:" comment but there is
+# an LKMM .litmus.out file, the observation in that file will be used
+# to judge the assembly-language verification.
 #
 # Usage:
 #	judgelitmus.sh file.litmus
@@ -32,9 +34,11 @@ fi
 if test -z "$LKMM_HW_MAP_FILE"
 then
 	litmusout=$litmus.out
+	lkmmout=
 else
 	litmusout="`echo $litmus |
 		sed -e 's/\.litmus$/.'${LKMM_HW_MAP_FILE}'.litmus/'`.out"
+	lkmmout=$litmus.out
 fi
 if test -f "$LKMM_DESTDIR/$litmusout" -a -r "$LKMM_DESTDIR/$litmusout"
 then
@@ -46,6 +50,9 @@ fi
 if grep -q '^ \* Result: ' $litmus
 then
 	outcome=`grep -m 1 '^ \* Result: ' $litmus | awk '{ print $3 }'`
+elif test -n "$LKMM_HW_MAP_FILE" && grep -q '^Observation' $LKMM_DESTDIR/$lkmmout > /dev/null 2>&1
+then
+	outcome=`grep -m 1 '^Observation ' $LKMM_DESTDIR/$lkmmout | awk '{ print $3 }'`
 else
 	outcome=specified
 fi
