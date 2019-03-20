@@ -49,13 +49,18 @@ int fscrypt_file_open(struct inode *inode, struct file *filp)
 }
 EXPORT_SYMBOL_GPL(fscrypt_file_open);
 
-int __fscrypt_prepare_link(struct inode *inode, struct inode *dir)
+int __fscrypt_prepare_link(struct inode *inode, struct inode *dir,
+			   struct dentry *dentry)
 {
 	int err;
 
 	err = fscrypt_require_key(dir);
 	if (err)
 		return err;
+
+	/* ... in case we looked up ciphertext name before key was added */
+	if (dentry->d_flags & DCACHE_ENCRYPTED_NAME)
+		return -ENOKEY;
 
 	if (!fscrypt_has_permitted_context(dir, inode))
 		return -EXDEV;
@@ -77,6 +82,11 @@ int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
 	err = fscrypt_require_key(new_dir);
 	if (err)
 		return err;
+
+	/* ... in case we looked up ciphertext name(s) before key was added */
+	if ((old_dentry->d_flags | new_dentry->d_flags) &
+	    DCACHE_ENCRYPTED_NAME)
+		return -ENOKEY;
 
 	if (old_dir != new_dir) {
 		if (IS_ENCRYPTED(new_dir) &&
