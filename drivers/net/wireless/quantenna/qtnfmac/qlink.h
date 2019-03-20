@@ -1162,6 +1162,13 @@ struct qlink_event_external_auth {
  *	carried by QTN_TLV_ID_STA_STATS_MAP.
  * @QTN_TLV_ID_MAX_SCAN_SSIDS: maximum number of SSIDs the device can scan
  *	for in any given scan.
+ * @QTN_TLV_ID_SCAN_DWELL_ACTIVE: time spent on a single channel for an active
+ *	scan.
+ * @QTN_TLV_ID_SCAN_DWELL_PASSIVE: time spent on a single channel for a passive
+ *	scan.
+ * @QTN_TLV_ID_SCAN_SAMPLE_DURATION: total duration of sampling a single channel
+ *	during a scan including off-channel dwell time and operating channel
+ *	time.
  */
 enum qlink_tlv_id {
 	QTN_TLV_ID_FRAG_THRESH		= 0x0201,
@@ -1194,7 +1201,9 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_WOWLAN_CAPAB		= 0x0410,
 	QTN_TLV_ID_WOWLAN_PATTERN	= 0x0411,
 	QTN_TLV_ID_SCAN_FLUSH		= 0x0412,
-	QTN_TLV_ID_SCAN_DWELL		= 0x0413,
+	QTN_TLV_ID_SCAN_DWELL_ACTIVE	= 0x0413,
+	QTN_TLV_ID_SCAN_DWELL_PASSIVE	= 0x0416,
+	QTN_TLV_ID_SCAN_SAMPLE_DURATION	= 0x0417,
 };
 
 struct qlink_tlv_hdr {

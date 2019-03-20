@@ -11,6 +11,13 @@
 #include "bus.h"
 #include "commands.h"
 
+#define QTNF_SCAN_TIME_AUTO	0
+
+/* Let device itself to select best values for current conditions */
+#define QTNF_SCAN_DWELL_ACTIVE_DEFAULT		QTNF_SCAN_TIME_AUTO
+#define QTNF_SCAN_DWELL_PASSIVE_DEFAULT		QTNF_SCAN_TIME_AUTO
+#define QTNF_SCAN_SAMPLE_DURATION_DEFAULT	QTNF_SCAN_TIME_AUTO
+
 static int qtnf_cmd_check_reply_header(const struct qlink_resp *resp,
 				       u16 cmd_id, u8 mac_id, u8 vif_id,
 				       size_t resp_size)
@@ -938,7 +945,7 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		"\nHardware ID:           %s"  \
 		"\nCalibration version:   %s"  \
 		"\nU-Boot version:        %s"  \
-		"\nHardware version:      0x%08x",
+		"\nHardware version:      0x%08x\n",
 		bld_name, bld_rev, bld_type, bld_label,
 		(unsigned long)bld_tmstamp,
 		(unsigned long)plat_id,
@@ -2082,6 +2089,35 @@ static void qtnf_cmd_randmac_tlv_add(struct sk_buff *cmd_skb,
 	memcpy(randmac->mac_addr_mask, mac_addr_mask, ETH_ALEN);
 }
 
+static void qtnf_cmd_scan_set_dwell(struct qtnf_wmac *mac,
+				    struct sk_buff *cmd_skb)
+{
+	struct cfg80211_scan_request *scan_req = mac->scan_req;
+	u16 dwell_active = QTNF_SCAN_DWELL_ACTIVE_DEFAULT;
+	u16 dwell_passive = QTNF_SCAN_DWELL_PASSIVE_DEFAULT;
+	u16 duration = QTNF_SCAN_SAMPLE_DURATION_DEFAULT;
+
+	if (scan_req->duration) {
+		dwell_active = scan_req->duration;
+		dwell_passive = scan_req->duration;
+	}
+
+	pr_debug("MAC%u: %s scan dwell active=%u, passive=%u, duration=%u\n",
+		 mac->macid,
+		 scan_req->duration_mandatory ? "mandatory" : "max",
+		 dwell_active, dwell_passive, duration);
+
+	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+				 QTN_TLV_ID_SCAN_DWELL_ACTIVE,
+				 dwell_active);
+	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+				 QTN_TLV_ID_SCAN_DWELL_PASSIVE,
+				 dwell_passive);
+	qtnf_cmd_skb_put_tlv_u16(cmd_skb,
+				 QTN_TLV_ID_SCAN_SAMPLE_DURATION,
+				 duration);
+}
+
 int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 {
 	struct sk_buff *cmd_skb;
@@ -2133,6 +2169,8 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 		}
 	}
 
+	qtnf_cmd_scan_set_dwell(mac, cmd_skb);
+
 	if (scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
 		pr_debug("MAC%u: scan with random addr=%pM, mask=%pM\n",
 			 mac->macid,
@@ -2146,15 +2184,6 @@ int qtnf_cmd_send_scan(struct qtnf_wmac *mac)
 		pr_debug("MAC%u: flush cache before scan\n", mac->macid);
 
 		qtnf_cmd_skb_put_tlv_tag(cmd_skb, QTN_TLV_ID_SCAN_FLUSH);
-	}
-
-	if (scan_req->duration) {
-		pr_debug("MAC%u: %s scan duration %u\n", mac->macid,
-			 scan_req->duration_mandatory ? "mandatory" : "max",
-			 scan_req->duration);
-
-		qtnf_cmd_skb_put_tlv_u16(cmd_skb, QTN_TLV_ID_SCAN_DWELL,
-					 scan_req->duration);
 	}
 
 	ret = qtnf_cmd_send(mac->bus, cmd_skb);
