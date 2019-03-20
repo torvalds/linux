@@ -122,4 +122,34 @@ struct sof_ipc_ctrl_data {
 	};
 } __packed;
 
+/** Event type */
+enum sof_ipc_ctrl_event_type {
+	SOF_CTRL_EVENT_GENERIC = 0,	/**< generic event */
+	SOF_CTRL_EVENT_GENERIC_METADATA,	/**< generic event with metadata */
+	SOF_CTRL_EVENT_KD,	/**< keyword detection event */
+	SOF_CTRL_EVENT_VAD,	/**< voice activity detection event */
+};
+
+/**
+ * Generic notification data.
+ */
+struct sof_ipc_comp_event {
+	struct sof_ipc_reply rhdr;
+	uint16_t src_comp_type;	/**< COMP_TYPE_ */
+	uint32_t src_comp_id;	/**< source component id */
+	uint32_t event_type;	/**< event type - SOF_CTRL_EVENT_* */
+	uint32_t num_elems;	/**< in array elems or bytes for data type */
+
+	/* reserved for future use */
+	uint32_t reserved[8];
+
+	/* control data - add new types if needed */
+	union {
+		/* data can be used by binary controls */
+		struct sof_abi_hdr data[0];
+		/* event specific values */
+		uint32_t event_value;
+	};
+} __packed;
+
 #endif

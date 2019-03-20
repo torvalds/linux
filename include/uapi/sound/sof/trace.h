@@ -50,6 +50,10 @@ struct system_time {
 #define TRACE_CLASS_POWER	(23 << 24)
 #define TRACE_CLASS_IDC		(24 << 24)
 #define TRACE_CLASS_CPU		(25 << 24)
+#define TRACE_CLASS_EDF		(27 << 24)
+#define TRACE_CLASS_KPB		(28 << 24)
+#define TRACE_CLASS_SELECTOR	(29 << 24)
+#define TRACE_CLASS_SCHEDULE	(30 << 24)
 
 #define LOG_ENABLE		1  /* Enable logging */
 #define LOG_DISABLE		0  /* Disable logging */

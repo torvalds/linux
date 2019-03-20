@@ -158,13 +158,13 @@ struct sof_eq_iir_biquad_df2t {
 #define SOF_EQ_IIR_DF2T_BIQUADS_MAX 11
 
 /* The number of int32_t words in sof_eq_iir_header_df2t:
- *     num_sections, num_sections_in_series, reserved[4]
+ *	num_sections, num_sections_in_series, reserved[4]
  */
 #define SOF_EQ_IIR_NHEADER_DF2T \
 	(sizeof(struct sof_eq_iir_header_df2t) / sizeof(int32_t))
 
 /* The number of int32_t words in sof_eq_iir_biquad_df2t:
- *     a2, a1, b2, b1, b0, output_shift, output_gain
+ *	a2, a1, b2, b1, b0, output_shift, output_gain
  */
 #define SOF_EQ_IIR_NBIQUAD_DF2T \
 	(sizeof(struct sof_eq_iir_biquad_df2t) / sizeof(int32_t))

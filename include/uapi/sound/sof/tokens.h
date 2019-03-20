@@ -34,7 +34,9 @@
 #define SOF_TKN_BUF_CAPS			101
 
 /* DAI */
-#define	SOF_TKN_DAI_DMAC_CONFIG			153
+/* Token retired with ABI 3.2, do not use for new capabilities
+ * #define	SOF_TKN_DAI_DMAC_CONFIG			153
+ */
 #define SOF_TKN_DAI_TYPE			154
 #define SOF_TKN_DAI_INDEX			155
 #define SOF_TKN_DAI_DIRECTION			156
@@ -62,7 +64,9 @@
 #define SOF_TKN_COMP_PERIOD_SINK_COUNT		400
 #define SOF_TKN_COMP_PERIOD_SOURCE_COUNT	401
 #define SOF_TKN_COMP_FORMAT			402
-#define SOF_TKN_COMP_PRELOAD_COUNT		403
+/* Token retired with ABI 3.2, do not use for new capabilities
+ * #define SOF_TKN_COMP_PRELOAD_COUNT		403
+ */
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500
