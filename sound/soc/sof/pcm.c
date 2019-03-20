@@ -73,12 +73,18 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 			params_buffer_bytes(params), spcm->pcm.pcm_id);
 		return ret;
 	}
-
-	/* create compressed page table for audio firmware */
-	ret = create_page_table(substream, runtime->dma_area,
-				runtime->dma_bytes);
-	if (ret < 0)
-		return ret;
+	if (ret) {
+		/*
+		 * ret == 1 means the buffer is changed
+		 * create compressed page table for audio firmware
+		 * ret == 0 means the buffer is not changed
+		 * so no need to regenerate the page table
+		 */
+		ret = create_page_table(substream, runtime->dma_area,
+					runtime->dma_bytes);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* number of pages should be rounded up */
 	pcm.params.buffer.pages = PFN_UP(runtime->dma_bytes);
