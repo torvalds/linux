@@ -1270,8 +1270,6 @@ static void dcn20_pipe_control_lock(
 	}
 }
 
-
-
 static void dcn20_apply_ctx_for_surface(
 		struct dc *dc,
 		const struct dc_stream_state *stream,
@@ -1282,6 +1280,7 @@ static void dcn20_apply_ctx_for_surface(
 	int i;
 	struct timing_generator *tg;
 	bool removed_pipe[6] = { false };
+	bool interdependent_update = false;
 	struct pipe_ctx *top_pipe_to_program =
 			find_top_pipe_for_stream(dc, context, stream);
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -1291,7 +1290,13 @@ static void dcn20_apply_ctx_for_surface(
 
 	tg = top_pipe_to_program->stream_res.tg;
 
-	dcn20_pipe_control_lock(dc, top_pipe_to_program, true);
+	interdependent_update = top_pipe_to_program->plane_state &&
+		top_pipe_to_program->plane_state->update_flags.bits.full_update;
+
+	if (interdependent_update)
+		lock_all_pipes(dc, context, true);
+	else
+		dcn20_pipe_control_lock(dc, top_pipe_to_program, true);
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
@@ -1311,16 +1316,9 @@ static void dcn20_apply_ctx_for_surface(
 		 */
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
 			if (old_pipe_ctx->stream_res.tg == tg &&
-				old_pipe_ctx->plane_res.hubp &&
-				old_pipe_ctx->plane_res.hubp->opp_id != 0xf) {
+			    old_pipe_ctx->plane_res.hubp &&
+			    old_pipe_ctx->plane_res.hubp->opp_id != 0xf)
 				dcn20_disable_plane(dc, old_pipe_ctx);
-
-				/*
-				 * power down fe will unlock when calling reset, need
-				 * to lock it back here. Messy, need rework.
-				 */
-				pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
-			}
 		}
 
 		if ((!pipe_ctx->plane_state ||
@@ -1343,19 +1341,14 @@ static void dcn20_apply_ctx_for_surface(
 	if ((stream->num_wb_info > 0) && (dc->hwss.program_all_writeback_pipes_in_tree))
 		dc->hwss.program_all_writeback_pipes_in_tree(dc, stream, context);
 
-	dcn20_pipe_control_lock(dc, top_pipe_to_program, false);
-
-	if (top_pipe_to_program->plane_state &&
-			top_pipe_to_program->plane_state->update_flags.bits.full_update)
+	if (interdependent_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 			/* Skip inactive pipes and ones already updated */
-			if (!pipe_ctx->stream || pipe_ctx->stream == stream
-					|| !pipe_ctx->plane_state)
+			if (!pipe_ctx->stream || pipe_ctx->stream == stream ||
+			    !pipe_ctx->plane_state || !tg->funcs->is_tg_enabled(tg))
 				continue;
-
-			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 
 			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
 				pipe_ctx->plane_res.hubp,
@@ -1363,15 +1356,10 @@ static void dcn20_apply_ctx_for_surface(
 				&pipe_ctx->ttu_regs);
 		}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe_ctx->stream || pipe_ctx->stream == stream
-				|| !pipe_ctx->plane_state)
-			continue;
-
-		dcn20_pipe_control_lock(dc, pipe_ctx, false);
-	}
+	if (interdependent_update)
+		lock_all_pipes(dc, context, false);
+	else
+		dcn20_pipe_control_lock(dc, top_pipe_to_program, false);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (removed_pipe[i])

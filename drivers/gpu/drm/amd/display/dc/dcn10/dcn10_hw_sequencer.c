@@ -2457,6 +2457,11 @@ static void dcn10_apply_ctx_for_surface(
 	if (num_planes > 0)
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	/* Program secondary blending tree and writeback pipes */
+	if ((stream->num_wb_info > 0) && (dc->hwss.program_all_writeback_pipes_in_tree))
+		dc->hwss.program_all_writeback_pipes_in_tree(dc, stream, context);
+#endif
 	if (interdependent_update)
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -2470,12 +2475,6 @@ static void dcn10_apply_ctx_for_surface(
 				&pipe_ctx->dlg_regs,
 				&pipe_ctx->ttu_regs);
 		}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	/* Program secondary blending tree and writeback pipes */
-	if ((stream->num_wb_info > 0) && (dc->hwss.program_all_writeback_pipes_in_tree))
-		dc->hwss.program_all_writeback_pipes_in_tree(dc, stream, context);
-#endif
 
 	if (interdependent_update)
 		lock_all_pipes(dc, context, false);
