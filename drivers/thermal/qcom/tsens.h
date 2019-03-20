@@ -47,15 +47,15 @@ struct tsens_sensor {
  */
 struct tsens_ops {
 	/* mandatory callbacks */
-	int (*init)(struct tsens_priv *);
-	int (*calibrate)(struct tsens_priv *);
-	int (*get_temp)(struct tsens_priv *, int, int *);
+	int (*init)(struct tsens_priv *priv);
+	int (*calibrate)(struct tsens_priv *priv);
+	int (*get_temp)(struct tsens_priv *priv, int i, int *temp);
 	/* optional callbacks */
-	int (*enable)(struct tsens_priv *, int);
-	void (*disable)(struct tsens_priv *);
-	int (*suspend)(struct tsens_priv *);
-	int (*resume)(struct tsens_priv *);
-	int (*get_trend)(struct tsens_priv *, int, enum thermal_trend *);
+	int (*enable)(struct tsens_priv *priv, int i);
+	void (*disable)(struct tsens_priv *priv);
+	int (*suspend)(struct tsens_priv *priv);
+	int (*resume)(struct tsens_priv *priv);
+	int (*get_trend)(struct tsens_priv *priv, int i, enum thermal_trend *trend);
 };
 
 enum reg_list {
@@ -111,10 +111,10 @@ struct tsens_priv {
 	struct tsens_sensor		sensor[0];
 };
 
-char *qfprom_read(struct device *, const char *);
-void compute_intercept_slope(struct tsens_priv *, u32 *, u32 *, u32);
-int init_common(struct tsens_priv *);
-int get_temp_common(struct tsens_priv *, int, int *);
+char *qfprom_read(struct device *dev, const char *cname);
+void compute_intercept_slope(struct tsens_priv *priv, u32 *pt1, u32 *pt2, u32 mode);
+int init_common(struct tsens_priv *priv);
+int get_temp_common(struct tsens_priv *priv, int i, int *temp);
 
 /* TSENS v1 targets */
 extern const struct tsens_plat_data data_8916, data_8974, data_8960;
