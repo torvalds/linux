@@ -20,36 +20,12 @@
 #include <linux/string.h>
 #include <sound/simple_card_utils.h>
 
-struct graph_priv {
-	struct snd_soc_card snd_card;
-	struct graph_dai_props {
-		struct asoc_simple_dai *cpu_dai;
-		struct asoc_simple_dai *codec_dai;
-		struct snd_soc_dai_link_component codecs; /* single codec */
-		struct snd_soc_dai_link_component platforms;
-		struct asoc_simple_card_data adata;
-		struct snd_soc_codec_conf *codec_conf;
-		unsigned int mclk_fs;
-	} *dai_props;
-	struct asoc_simple_jack hp_jack;
-	struct asoc_simple_jack mic_jack;
-	struct snd_soc_dai_link *dai_link;
-	struct asoc_simple_dai *dais;
-	struct snd_soc_codec_conf *codec_conf;
-	struct gpio_desc *pa_gpio;
-};
-
 struct link_info {
 	int dais; /* number of dai  */
 	int link; /* number of link */
 	int conf; /* number of codec_conf */
 	int cpu;  /* turn for CPU / Codec */
 };
-
-#define graph_priv_to_card(priv) (&(priv)->snd_card)
-#define graph_priv_to_props(priv, i) ((priv)->dai_props + (i))
-#define graph_priv_to_dev(priv) (graph_priv_to_card(priv)->dev)
-#define graph_priv_to_link(priv, i) (graph_priv_to_card(priv)->dai_link + (i))
 
 #define PREFIX	"audio-graph-card,"
 
@@ -58,7 +34,7 @@ static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 			      int event)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct graph_priv *priv = snd_soc_card_get_drvdata(dapm->card);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(dapm->card);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -83,8 +59,8 @@ static const struct snd_soc_dapm_widget graph_dapm_widgets[] = {
 static int graph_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct graph_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 	int ret;
 
 	ret = asoc_simple_card_clk_enable(dai_props->cpu_dai);
@@ -101,8 +77,8 @@ static int graph_startup(struct snd_pcm_substream *substream)
 static void graph_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct graph_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 
 	asoc_simple_card_clk_disable(dai_props->cpu_dai);
 
@@ -115,8 +91,8 @@ static int graph_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct graph_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 	unsigned int mclk, mclk_fs = 0;
 	int ret = 0;
 
@@ -148,8 +124,8 @@ static const struct snd_soc_ops graph_ops = {
 
 static int graph_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct graph_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 	int ret = 0;
 
 	ret = asoc_simple_card_init_dai(rtd->codec_dai,
@@ -168,8 +144,8 @@ static int graph_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int graph_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				    struct snd_pcm_hw_params *params)
 {
-	struct graph_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, rtd->num);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->num);
 
 	asoc_simple_card_convert_fixup(&dai_props->adata, params);
 
@@ -198,7 +174,7 @@ static void graph_parse_convert(struct device *dev,
 
 static void graph_parse_mclk_fs(struct device_node *top,
 				struct device_node *ep,
-				struct graph_dai_props *props)
+				struct simple_dai_props *props)
 {
 	struct device_node *port	= of_get_parent(ep);
 	struct device_node *ports	= of_get_parent(port);
@@ -214,15 +190,15 @@ static void graph_parse_mclk_fs(struct device_node *top,
 	of_node_put(node);
 }
 
-static int graph_dai_link_of_dpcm(struct graph_priv *priv,
+static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 				  struct device_node *cpu_ep,
 				  struct device_node *codec_ep,
 				  struct link_info *li,
 				  int dup_codec)
 {
-	struct device *dev = graph_priv_to_dev(priv);
-	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, li->link);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, li->link);
+	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *top = dev->of_node;
 	struct device_node *ep = li->cpu ? cpu_ep : codec_ep;
 	struct device_node *port;
@@ -344,14 +320,14 @@ static int graph_dai_link_of_dpcm(struct graph_priv *priv,
 	return 0;
 }
 
-static int graph_dai_link_of(struct graph_priv *priv,
+static int graph_dai_link_of(struct asoc_simple_priv *priv,
 			     struct device_node *cpu_ep,
 			     struct device_node *codec_ep,
 			     struct link_info *li)
 {
-	struct device *dev = graph_priv_to_dev(priv);
-	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, li->link);
-	struct graph_dai_props *dai_props = graph_priv_to_props(priv, li->link);
+	struct device *dev = simple_priv_to_dev(priv);
+	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
+	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct device_node *top = dev->of_node;
 	struct asoc_simple_dai *cpu_dai;
 	struct asoc_simple_dai *codec_dai;
@@ -420,19 +396,19 @@ static int graph_dai_link_of(struct graph_priv *priv,
 	return 0;
 }
 
-static int graph_for_each_link(struct graph_priv *priv,
+static int graph_for_each_link(struct asoc_simple_priv *priv,
 			struct link_info *li,
-			int (*func_noml)(struct graph_priv *priv,
+			int (*func_noml)(struct asoc_simple_priv *priv,
 					 struct device_node *cpu_ep,
 					 struct device_node *codec_ep,
 					 struct link_info *li),
-			int (*func_dpcm)(struct graph_priv *priv,
+			int (*func_dpcm)(struct asoc_simple_priv *priv,
 					 struct device_node *cpu_ep,
 					 struct device_node *codec_ep,
 					 struct link_info *li, int dup_codec))
 {
 	struct of_phandle_iterator it;
-	struct device *dev = graph_priv_to_dev(priv);
+	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *node = dev->of_node;
 	struct device_node *cpu_port;
 	struct device_node *cpu_ep;
@@ -488,9 +464,9 @@ static int graph_for_each_link(struct graph_priv *priv,
 	return 0;
 }
 
-static int graph_parse_of(struct graph_priv *priv)
+static int graph_parse_of(struct asoc_simple_priv *priv)
 {
-	struct snd_soc_card *card = graph_priv_to_card(priv);
+	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct link_info li;
 	int ret;
 
@@ -526,12 +502,12 @@ static int graph_parse_of(struct graph_priv *priv)
 	return asoc_simple_card_parse_card_name(card, NULL);
 }
 
-static int graph_count_noml(struct graph_priv *priv,
+static int graph_count_noml(struct asoc_simple_priv *priv,
 			    struct device_node *cpu_ep,
 			    struct device_node *codec_ep,
 			    struct link_info *li)
 {
-	struct device *dev = graph_priv_to_dev(priv);
+	struct device *dev = simple_priv_to_dev(priv);
 
 	li->link += 1; /* 1xCPU-Codec */
 	li->dais += 2; /* 1xCPU + 1xCodec */
@@ -541,13 +517,13 @@ static int graph_count_noml(struct graph_priv *priv,
 	return 0;
 }
 
-static int graph_count_dpcm(struct graph_priv *priv,
+static int graph_count_dpcm(struct asoc_simple_priv *priv,
 			    struct device_node *cpu_ep,
 			    struct device_node *codec_ep,
 			    struct link_info *li,
 			    int dup_codec)
 {
-	struct device *dev = graph_priv_to_dev(priv);
+	struct device *dev = simple_priv_to_dev(priv);
 
 	li->link++; /* 1xCPU-dummy */
 	li->dais++; /* 1xCPU */
@@ -563,10 +539,10 @@ static int graph_count_dpcm(struct graph_priv *priv,
 	return 0;
 }
 
-static void graph_get_dais_count(struct graph_priv *priv,
+static void graph_get_dais_count(struct asoc_simple_priv *priv,
 				 struct link_info *li)
 {
-	struct device *dev = graph_priv_to_dev(priv);
+	struct device *dev = simple_priv_to_dev(priv);
 
 	/*
 	 * link_num :	number of links.
@@ -623,7 +599,7 @@ static void graph_get_dais_count(struct graph_priv *priv,
 
 static int graph_card_probe(struct snd_soc_card *card)
 {
-	struct graph_priv *priv = snd_soc_card_get_drvdata(card);
+	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
 	int ret;
 
 	ret = asoc_simple_card_init_hp(card, &priv->hp_jack, NULL);
@@ -639,9 +615,9 @@ static int graph_card_probe(struct snd_soc_card *card)
 
 static int graph_probe(struct platform_device *pdev)
 {
-	struct graph_priv *priv;
+	struct asoc_simple_priv *priv;
 	struct snd_soc_dai_link *dai_link;
-	struct graph_dai_props *dai_props;
+	struct simple_dai_props *dai_props;
 	struct asoc_simple_dai *dais;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
@@ -654,7 +630,7 @@ static int graph_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	card = graph_priv_to_card(priv);
+	card = simple_priv_to_card(priv);
 	card->owner		= THIS_MODULE;
 	card->dev		= dev;
 	card->dapm_widgets	= graph_dapm_widgets;

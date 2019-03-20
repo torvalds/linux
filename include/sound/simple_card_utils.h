@@ -37,6 +37,29 @@ struct asoc_simple_jack {
 	struct snd_soc_jack_gpio gpio;
 };
 
+struct asoc_simple_priv {
+	struct snd_soc_card snd_card;
+	struct simple_dai_props {
+		struct asoc_simple_dai *cpu_dai;
+		struct asoc_simple_dai *codec_dai;
+		struct snd_soc_dai_link_component codecs; /* single codec */
+		struct snd_soc_dai_link_component platforms;
+		struct asoc_simple_card_data adata;
+		struct snd_soc_codec_conf *codec_conf;
+		unsigned int mclk_fs;
+	} *dai_props;
+	struct asoc_simple_jack hp_jack;
+	struct asoc_simple_jack mic_jack;
+	struct snd_soc_dai_link *dai_link;
+	struct asoc_simple_dai *dais;
+	struct snd_soc_codec_conf *codec_conf;
+	struct gpio_desc *pa_gpio;
+};
+#define simple_priv_to_card(priv)	(&(priv)->snd_card)
+#define simple_priv_to_props(priv, i)	((priv)->dai_props + (i))
+#define simple_priv_to_dev(priv)	(simple_priv_to_card(priv)->dev)
+#define simple_priv_to_link(priv, i)	(simple_priv_to_card(priv)->dai_link + (i))
+
 int asoc_simple_card_parse_daifmt(struct device *dev,
 				  struct device_node *node,
 				  struct device_node *codec,
