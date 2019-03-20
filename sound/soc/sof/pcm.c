@@ -695,17 +695,11 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 
 	/*
 	 * Some platforms in SOF, ex: BYT, may not have their platform PM
-	 * callbacks set. Skip decrementing the usage count so as to
-	 * prevent their runtime PM callbacks from being invoked.
+	 * callbacks set. Increment the usage count so as to
+	 * prevent the device entering runtime suspend.
 	 */
 	if (!sof_ops(sdev)->runtime_suspend || !sof_ops(sdev)->runtime_resume)
-		return ret;
-
-	/*
-	 * Decrement the usage count to enable the device to enter
-	 * runtime suspend after probe() completes.
-	 */
-	pm_runtime_put_noidle(sdev->dev);
+		pm_runtime_get_noresume(sdev->dev);
 
 	return ret;
 }
