@@ -154,15 +154,19 @@ static int rksfc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int rksfc_suspend(struct platform_device *pdev, pm_message_t state)
+static int __maybe_unused rksfc_suspend(struct device *dev)
 {
 	return rkflash_dev_suspend();
 }
 
-static int rksfc_resume(struct platform_device *pdev)
+static int __maybe_unused rksfc_resume(struct device *dev)
 {
 	return rkflash_dev_resume(g_sfc_info.reg_base);
 }
+
+static SIMPLE_DEV_PM_OPS(rksfc_pmops,
+			 rksfc_suspend,
+			 rksfc_resume);
 
 static void rksfc_shutdown(struct platform_device *pdev)
 {
@@ -178,14 +182,13 @@ static const struct of_device_id of_rksfc_match[] = {
 
 static struct platform_driver rksfc_driver = {
 	.probe		= rksfc_probe,
-	.suspend	= rksfc_suspend,
-	.resume		= rksfc_resume,
 	.shutdown	= rksfc_shutdown,
 	.driver		= {
 		.name	= "rksfc",
 #ifdef CONFIG_OF
 		.of_match_table	= of_rksfc_match,
 #endif
+		.pm		= &rksfc_pmops,
 	},
 };
 
