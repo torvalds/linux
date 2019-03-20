@@ -50,8 +50,7 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group_cache *block_group,
 				    struct inode *inode);
-int load_free_space_cache(struct btrfs_fs_info *fs_info,
-			  struct btrfs_block_group_cache *block_group);
+int load_free_space_cache(struct btrfs_block_group_cache *block_group);
 int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 			struct btrfs_block_group_cache *block_group,
 			struct btrfs_path *path);

@@ -812,9 +812,9 @@ free_cache:
 	goto out;
 }
 
-int load_free_space_cache(struct btrfs_fs_info *fs_info,
-			  struct btrfs_block_group_cache *block_group)
+int load_free_space_cache(struct btrfs_block_group_cache *block_group)
 {
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct inode *inode;
 	struct btrfs_path *path;

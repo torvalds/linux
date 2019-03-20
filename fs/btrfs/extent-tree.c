@@ -643,7 +643,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 
 	if (btrfs_test_opt(fs_info, SPACE_CACHE)) {
 		mutex_lock(&caching_ctl->mutex);
-		ret = load_free_space_cache(fs_info, cache);
+		ret = load_free_space_cache(cache);
 
 		spin_lock(&cache->lock);
 		if (ret == 1) {
