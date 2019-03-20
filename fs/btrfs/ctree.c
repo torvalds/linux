@@ -3819,12 +3819,12 @@ out_unlock:
  * item at 'max_slot' won't be touched.  Use (u32)-1 to make us do all the
  * items
  */
-static noinline int __push_leaf_left(struct btrfs_fs_info *fs_info,
-				     struct btrfs_path *path, int data_size,
+static noinline int __push_leaf_left(struct btrfs_path *path, int data_size,
 				     int empty, struct extent_buffer *left,
 				     int free_space, u32 right_nritems,
 				     u32 max_slot)
 {
+	struct btrfs_fs_info *fs_info = left->fs_info;
 	struct btrfs_disk_key disk_key;
 	struct extent_buffer *right = path->nodes[0];
 	int i;
@@ -3976,7 +3976,6 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, struct btrfs_path *path, int min_data_size,
 			  int data_size, int empty, u32 max_slot)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *right = path->nodes[0];
 	struct extent_buffer *left;
 	int slot;
@@ -4029,7 +4028,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	return __push_leaf_left(fs_info, path, min_data_size,
+	return __push_leaf_left(path, min_data_size,
 			       empty, left, free_space, right_nritems,
 			       max_slot);
 out:
