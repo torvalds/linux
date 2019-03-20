@@ -25,6 +25,52 @@ static const struct snd_soc_ops simple_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
+static int asoc_simple_card_parse_dai(struct device_node *node,
+				      struct snd_soc_dai_link_component *dlc,
+				      struct device_node **dai_of_node,
+				      const char **dai_name,
+				      int *is_single_link)
+{
+	struct of_phandle_args args;
+	int ret;
+
+	if (!node)
+		return 0;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
+
+	/*
+	 * Get node via "sound-dai = <&phandle port>"
+	 * it will be used as xxx_of_node on soc_bind_dai_link()
+	 */
+	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
+	if (ret)
+		return ret;
+
+	/* Get dai->name */
+	if (dai_name) {
+		ret = snd_soc_of_get_dai_name(node, dai_name);
+		if (ret < 0)
+			return ret;
+	}
+
+	*dai_of_node = args.np;
+
+	if (is_single_link)
+		*is_single_link = !args.args_count;
+
+	return 0;
+}
+
 static void simple_parse_convert(struct device *dev,
 				 struct device_node *np,
 				 struct asoc_simple_card_data *adata)
@@ -110,8 +156,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai =
 		dai_props->cpu_dai	= &priv->dais[li->dais++];
 
-		ret = asoc_simple_card_parse_cpu(np, dai_link, DAI, CELL,
-						 &is_single_links);
+		ret = asoc_simple_card_parse_cpu(np, dai_link, &is_single_links);
 		if (ret)
 			return ret;
 
@@ -144,7 +189,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		cconf =
 		dai_props->codec_conf	= &priv->codec_conf[li->conf++];
 
-		ret = asoc_simple_card_parse_codec(np, dai_link, DAI, CELL);
+		ret = asoc_simple_card_parse_codec(np, dai_link);
 		if (ret < 0)
 			return ret;
 
@@ -242,16 +287,15 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 
 	simple_parse_mclk_fs(top, cpu, codec, dai_props, prefix);
 
-	ret = asoc_simple_card_parse_cpu(cpu, dai_link,
-					 DAI, CELL, &single_cpu);
+	ret = asoc_simple_card_parse_cpu(cpu, dai_link, &single_cpu);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_card_parse_codec(codec, dai_link, DAI, CELL);
+	ret = asoc_simple_card_parse_codec(codec, dai_link);
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	ret = asoc_simple_card_parse_platform(plat, dai_link, DAI, CELL);
+	ret = asoc_simple_card_parse_platform(plat, dai_link);
 	if (ret < 0)
 		goto dai_link_of_err;
 

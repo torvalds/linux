@@ -99,40 +99,17 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd);
 int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params);
 
-#define asoc_simple_card_parse_cpu(node, dai_link,				\
-				   list_name, cells_name, is_single_link)	\
-	asoc_simple_card_parse_dai(node, NULL,					\
-		&dai_link->cpu_of_node,						\
-		&dai_link->cpu_dai_name, list_name, cells_name, is_single_link)
-#define asoc_simple_card_parse_codec(node, dai_link, list_name, cells_name)	\
+#define asoc_simple_card_parse_cpu(node, dai_link, is_single_link)	\
+	asoc_simple_card_parse_dai(node, NULL,				\
+		&dai_link->cpu_of_node,					\
+		&dai_link->cpu_dai_name, is_single_link)
+#define asoc_simple_card_parse_codec(node, dai_link)	\
 	asoc_simple_card_parse_dai(node, dai_link->codecs,			\
 				   &dai_link->codec_of_node,			\
-				   &dai_link->codec_dai_name,			\
-				   list_name, cells_name, NULL)
-#define asoc_simple_card_parse_platform(node, dai_link, list_name, cells_name)	\
+				   &dai_link->codec_dai_name, NULL)
+#define asoc_simple_card_parse_platform(node, dai_link)	\
 	asoc_simple_card_parse_dai(node, dai_link->platforms,			\
-		&dai_link->platform_of_node,					\
-		NULL, list_name, cells_name, NULL)
-int asoc_simple_card_parse_dai(struct device_node *node,
-				  struct snd_soc_dai_link_component *dlc,
-				  struct device_node **endpoint_np,
-				  const char **dai_name,
-				  const char *list_name,
-				  const char *cells_name,
-				  int *is_single_links);
-
-#define asoc_simple_card_parse_graph_cpu(ep, dai_link)			\
-	asoc_simple_card_parse_graph_dai(ep, NULL,			\
-					 &dai_link->cpu_of_node,	\
-					 &dai_link->cpu_dai_name)
-#define asoc_simple_card_parse_graph_codec(ep, dai_link)		\
-	asoc_simple_card_parse_graph_dai(ep, dai_link->codecs,		\
-					 &dai_link->codec_of_node,	\
-					 &dai_link->codec_dai_name)
-int asoc_simple_card_parse_graph_dai(struct device_node *ep,
-				     struct snd_soc_dai_link_component *dlc,
-				     struct device_node **endpoint_np,
-				     const char **dai_name);
+		&dai_link->platform_of_node, NULL, NULL)
 
 #define asoc_simple_card_of_parse_tdm(np, dai)			\
 	snd_soc_of_parse_tdm_slot(np,	&(dai)->tx_slot_mask,	\

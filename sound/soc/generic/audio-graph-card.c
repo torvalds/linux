@@ -55,6 +55,103 @@ static const struct snd_soc_ops graph_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
+static int graph_get_dai_id(struct device_node *ep)
+{
+	struct device_node *node;
+	struct device_node *endpoint;
+	struct of_endpoint info;
+	int i, id;
+	int ret;
+
+	/* use driver specified DAI ID if exist */
+	ret = snd_soc_get_dai_id(ep);
+	if (ret != -ENOTSUPP)
+		return ret;
+
+	/* use endpoint/port reg if exist */
+	ret = of_graph_parse_endpoint(ep, &info);
+	if (ret == 0) {
+		/*
+		 * Because it will count port/endpoint if it doesn't have "reg".
+		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * only of_graph_parse_endpoint().
+		 * We need to check "reg" property
+		 */
+		if (of_get_property(ep,   "reg", NULL))
+			return info.id;
+
+		node = of_get_parent(ep);
+		of_node_put(node);
+		if (of_get_property(node, "reg", NULL))
+			return info.port;
+	}
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * Non HDMI sound case, counting port/endpoint on its DT
+	 * is enough. Let's count it.
+	 */
+	i = 0;
+	id = -1;
+	for_each_endpoint_of_node(node, endpoint) {
+		if (endpoint == ep)
+			id = i;
+		i++;
+	}
+
+	of_node_put(node);
+
+	if (id < 0)
+		return -ENODEV;
+
+	return id;
+}
+
+static int asoc_simple_card_parse_dai(struct device_node *ep,
+				      struct snd_soc_dai_link_component *dlc,
+				      struct device_node **dai_of_node,
+				      const char **dai_name,
+				      int *is_single_link)
+{
+	struct device_node *node;
+	struct of_phandle_args args;
+	int ret;
+
+	/*
+	 * Use snd_soc_dai_link_component instead of legacy style.
+	 * It is only for codec, but cpu will be supported in the future.
+	 * see
+	 *	soc-core.c :: snd_soc_init_multicodec()
+	 */
+	if (dlc) {
+		dai_name	= &dlc->dai_name;
+		dai_of_node	= &dlc->of_node;
+	}
+
+	if (!ep)
+		return 0;
+	if (!dai_name)
+		return 0;
+
+	node = of_graph_get_port_parent(ep);
+
+	/* Get dai->name */
+	args.np		= node;
+	args.args[0]	= graph_get_dai_id(ep);
+	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
+
+	ret = snd_soc_get_dai_name(&args, dai_name);
+	if (ret < 0)
+		return ret;
+
+	*dai_of_node = node;
+
+	if (is_single_link)
+		*is_single_link = of_graph_get_endpoint_count(node) == 1;
+
+	return 0;
+}
+
 static void graph_parse_convert(struct device *dev,
 				struct device_node *ep,
 				struct asoc_simple_card_data *adata)
@@ -128,6 +225,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	of_node_put(node);
 
 	if (li->cpu) {
+		int is_single_links = 0;
 
 		/* BE is dummy */
 		codecs->of_node		= NULL;
@@ -141,7 +239,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai =
 		dai_props->cpu_dai	= &priv->dais[li->dais++];
 
-		ret = asoc_simple_card_parse_graph_cpu(ep, dai_link);
+		ret = asoc_simple_card_parse_cpu(ep, dai_link, &is_single_links);
 		if (ret)
 			return ret;
 
@@ -156,8 +254,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 			return ret;
 
 		/* card->num_links includes Codec */
-		asoc_simple_card_canonicalize_cpu(dai_link,
-			of_graph_get_endpoint_count(dai_link->cpu_of_node) == 1);
+		asoc_simple_card_canonicalize_cpu(dai_link, is_single_links);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -176,7 +273,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		cconf =
 		dai_props->codec_conf	= &priv->codec_conf[li->conf++];
 
-		ret = asoc_simple_card_parse_graph_codec(ep, dai_link);
+		ret = asoc_simple_card_parse_codec(ep, dai_link);
 		if (ret < 0)
 			return ret;
 
@@ -234,7 +331,7 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	struct device_node *top = dev->of_node;
 	struct asoc_simple_dai *cpu_dai;
 	struct asoc_simple_dai *codec_dai;
-	int ret;
+	int ret, single_cpu;
 
 	/* Do it only CPU turn */
 	if (!li->cpu)
@@ -258,11 +355,11 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_graph_cpu(cpu_ep, dai_link);
+	ret = asoc_simple_card_parse_cpu(cpu_ep, dai_link, &single_cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_graph_codec(codec_ep, dai_link);
+	ret = asoc_simple_card_parse_codec(codec_ep, dai_link);
 	if (ret < 0)
 		return ret;
 
@@ -293,8 +390,7 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->init = asoc_simple_dai_init;
 
 	asoc_simple_card_canonicalize_platform(dai_link);
-	asoc_simple_card_canonicalize_cpu(dai_link,
-		of_graph_get_endpoint_count(dai_link->cpu_of_node) == 1);
+	asoc_simple_card_canonicalize_cpu(dai_link, single_cpu);
 
 	return 0;
 }
