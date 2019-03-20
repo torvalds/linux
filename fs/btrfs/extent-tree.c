@@ -3411,8 +3411,7 @@ again:
 		if (block_group->ro)
 			goto out_free;
 
-		ret = create_free_space_inode(fs_info, trans, block_group,
-					      path);
+		ret = create_free_space_inode(trans, block_group, path);
 		if (ret)
 			goto out_free;
 		goto again;

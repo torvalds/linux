@@ -41,8 +41,7 @@ struct btrfs_io_ctl;
 struct inode *lookup_free_space_inode(struct btrfs_fs_info *fs_info,
 				      struct btrfs_block_group_cache
 				      *block_group, struct btrfs_path *path);
-int create_free_space_inode(struct btrfs_fs_info *fs_info,
-			    struct btrfs_trans_handle *trans,
+int create_free_space_inode(struct btrfs_trans_handle *trans,
 			    struct btrfs_block_group_cache *block_group,
 			    struct btrfs_path *path);
 
