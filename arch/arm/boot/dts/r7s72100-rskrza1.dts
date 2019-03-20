@@ -34,11 +34,22 @@
 	};
 
 	leds {
-		status = "okay";
 		compatible = "gpio-leds";
 
 		led0 {
 			gpios = <&port7 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led1 {
+			gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led2 {
+			gpios = <&io_expander1 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led3 {
+			gpios = <&io_expander1 2 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
