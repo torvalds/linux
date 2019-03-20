@@ -1494,7 +1494,7 @@ static void ibmvfc_log_error(struct ibmvfc_event *evt)
 	if (rsp->flags & FCP_RSP_LEN_VALID)
 		rsp_code = rsp->data.info.rsp_code;
 
-	scmd_printk(KERN_ERR, cmnd, "Command (%02X) failed: %s (%x:%x) "
+	scmd_printk(KERN_ERR, cmnd, "Command (%02X) : %s (%x:%x) "
 		    "flags: %x fcp_rsp: %x, resid=%d, scsi_status: %x\n",
 		    cmnd->cmnd[0], err, vfc_cmd->status, vfc_cmd->error,
 		    rsp->flags, rsp_code, scsi_get_resid(cmnd), rsp->scsi_status);
