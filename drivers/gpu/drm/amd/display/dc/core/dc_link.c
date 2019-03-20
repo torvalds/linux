@@ -1399,7 +1399,7 @@ static enum dc_status enable_link_dp(
 
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
 			link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
-	state->dccg->funcs->update_clocks(state->dccg, state, false);
+	state->clk_mgr->funcs->update_clocks(state->clk_mgr, state, false);
 
 	dp_enable_link_phy(
 		link,

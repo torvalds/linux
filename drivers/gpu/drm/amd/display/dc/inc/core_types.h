@@ -301,7 +301,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct clk_mgr *dccg;
+	struct clk_mgr *clk_mgr;
 
 	struct {
 		bool full_update_needed : 1;

@@ -1166,8 +1166,8 @@ static void build_audio_output(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-				state->dccg->funcs->get_dp_ref_clk_frequency(
-						state->dccg);
+				state->clk_mgr->funcs->get_dp_ref_clk_frequency(
+						state->clk_mgr);
 	}
 
 	audio_output->pll_info.feed_back_divider =
