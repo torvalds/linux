@@ -142,6 +142,12 @@ struct ks8851_net {
 
 static int msg_enable;
 
+/* SPI frame opcodes */
+#define KS_SPIOP_RD	(0x00)
+#define KS_SPIOP_WR	(0x40)
+#define KS_SPIOP_RXFIFO	(0x80)
+#define KS_SPIOP_TXFIFO	(0xC0)
+
 /* shift for byte-enable data */
 #define BYTE_EN(_x)	((_x) << 2)
 

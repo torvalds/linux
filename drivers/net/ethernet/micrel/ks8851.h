@@ -11,9 +11,15 @@
 */
 
 #define KS_CCR					0x08
+#define CCR_LE					(1 << 10)   /* KSZ8851-16MLL */
 #define CCR_EEPROM				(1 << 9)
-#define CCR_SPI					(1 << 8)
-#define CCR_32PIN				(1 << 0)
+#define CCR_SPI					(1 << 8)    /* KSZ8851SNL    */
+#define CCR_8BIT				(1 << 7)    /* KSZ8851-16MLL */
+#define CCR_16BIT				(1 << 6)    /* KSZ8851-16MLL */
+#define CCR_32BIT				(1 << 5)    /* KSZ8851-16MLL */
+#define CCR_SHARED				(1 << 4)    /* KSZ8851-16MLL */
+#define CCR_48PIN				(1 << 1)    /* KSZ8851-16MLL */
+#define CCR_32PIN				(1 << 0)    /* KSZ8851SNL    */
 
 /* MAC address registers */
 #define KS_MAR(_m)				(0x15 - (_m))
@@ -112,13 +118,13 @@
 #define RXCR1_RXE				(1 << 0)
 
 #define KS_RXCR2				0x76
-#define RXCR2_SRDBL_MASK			(0x7 << 5)
-#define RXCR2_SRDBL_SHIFT			(5)
-#define RXCR2_SRDBL_4B				(0x0 << 5)
-#define RXCR2_SRDBL_8B				(0x1 << 5)
-#define RXCR2_SRDBL_16B				(0x2 << 5)
-#define RXCR2_SRDBL_32B				(0x3 << 5)
-#define RXCR2_SRDBL_FRAME			(0x4 << 5)
+#define RXCR2_SRDBL_MASK			(0x7 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_SHIFT			(5)	    /* KSZ8851SNL    */
+#define RXCR2_SRDBL_4B				(0x0 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_8B				(0x1 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_16B				(0x2 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_32B				(0x3 << 5)  /* KSZ8851SNL    */
+#define RXCR2_SRDBL_FRAME			(0x4 << 5)  /* KSZ8851SNL    */
 #define RXCR2_IUFFP				(1 << 4)
 #define RXCR2_RXIUFCEZ				(1 << 3)
 #define RXCR2_UDPLFE				(1 << 2)
@@ -143,8 +149,10 @@
 #define RXFSHR_RXCE				(1 << 0)
 
 #define KS_RXFHBCR				0x7E
+#define RXFHBCR_CNT_MASK			(0xfff << 0)
+
 #define KS_TXQCR				0x80
-#define TXQCR_AETFE				(1 << 2)
+#define TXQCR_AETFE				(1 << 2)    /* KSZ8851SNL    */
 #define TXQCR_TXQMAM				(1 << 1)
 #define TXQCR_METFE				(1 << 0)
 
@@ -167,6 +175,10 @@
 
 #define KS_RXFDPR				0x86
 #define RXFDPR_RXFPAI				(1 << 14)
+#define RXFDPR_WST				(1 << 12)   /* KSZ8851-16MLL */
+#define RXFDPR_EMS				(1 << 11)   /* KSZ8851-16MLL */
+#define RXFDPR_RXFP_MASK			(0x7ff << 0)
+#define RXFDPR_RXFP_SHIFT			(0)
 
 #define KS_RXDTTR				0x8C
 #define KS_RXDBCTR				0x8E
@@ -184,7 +196,7 @@
 #define IRQ_RXMPDI				(1 << 4)
 #define IRQ_LDI					(1 << 3)
 #define IRQ_EDI					(1 << 2)
-#define IRQ_SPIBEI				(1 << 1)
+#define IRQ_SPIBEI				(1 << 1)    /* KSZ8851SNL    */
 #define IRQ_DEDI				(1 << 0)
 
 #define KS_RXFCTR				0x9C
@@ -288,13 +300,6 @@
 #define P1SR_PNTR_10BT_HDX			(1 << 0)
 
 /* TX Frame control */
-
 #define TXFR_TXIC				(1 << 15)
 #define TXFR_TXFID_MASK				(0x3f << 0)
 #define TXFR_TXFID_SHIFT			(0)
-
-/* SPI frame opcodes */
-#define KS_SPIOP_RD				(0x00)
-#define KS_SPIOP_WR				(0x40)
-#define KS_SPIOP_RXFIFO				(0x80)
-#define KS_SPIOP_TXFIFO				(0xC0)
