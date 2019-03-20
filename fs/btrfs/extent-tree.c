@@ -2933,7 +2933,6 @@ out:
 }
 
 int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
-				struct btrfs_fs_info *fs_info,
 				u64 bytenr, u64 num_bytes, u64 flags,
 				int level, int is_data)
 {
@@ -8804,7 +8803,7 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 		BUG_ON(ret); /* -ENOMEM */
 		ret = btrfs_dec_ref(trans, root, eb, 0);
 		BUG_ON(ret); /* -ENOMEM */
-		ret = btrfs_set_disk_extent_flags(trans, fs_info, eb->start,
+		ret = btrfs_set_disk_extent_flags(trans, eb->start,
 						  eb->len, flag,
 						  btrfs_header_level(eb), 0);
 		BUG_ON(ret); /* -ENOMEM */
