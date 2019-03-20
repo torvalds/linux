@@ -2024,6 +2024,6 @@ void smu_v11_0_set_smu_funcs(struct smu_context *smu)
 		vega20_set_ppt_funcs(smu);
 		break;
 	default:
-		pr_warn("Unknow asic for smu11\n");
+		pr_warn("Unknown asic for smu11\n");
 	}
 }
