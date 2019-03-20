@@ -210,6 +210,7 @@ static int goldfish_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtcdrv->rtc);
 
 	rtcdrv->rtc->ops = &goldfish_rtc_ops;
+	rtcdrv->rtc->range_max = U64_MAX / NSEC_PER_SEC;
 
 	err = devm_request_irq(&pdev->dev, rtcdrv->irq,
 			       goldfish_rtc_interrupt,
