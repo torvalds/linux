@@ -152,7 +152,8 @@ static int __init test_init(void)
 {
 	int i, err;
 
-	if ((err = platform_driver_register(&test_driver)))
+	err = platform_driver_register(&test_driver);
+	if (err)
 		return err;
 
 	err = -ENOMEM;
