@@ -49,7 +49,7 @@ static int xgene_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-static int xgene_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int xgene_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
 
@@ -57,7 +57,7 @@ static int xgene_rtc_set_mmss(struct device *dev, unsigned long secs)
 	 * NOTE: After the following write, the RTC_CCVR is only reflected
 	 *       after the update cycle of 1 seconds.
 	 */
-	writel((u32)secs, pdata->csr_base + RTC_CLR);
+	writel((u32)rtc_tm_to_time64(tm), pdata->csr_base + RTC_CLR);
 	readl(pdata->csr_base + RTC_CLR); /* Force a barrier */
 
 	return 0;
@@ -112,7 +112,7 @@ static int xgene_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static const struct rtc_class_ops xgene_rtc_ops = {
 	.read_time	= xgene_rtc_read_time,
-	.set_mmss	= xgene_rtc_set_mmss,
+	.set_time	= xgene_rtc_set_time,
 	.read_alarm	= xgene_rtc_read_alarm,
 	.set_alarm	= xgene_rtc_set_alarm,
 	.alarm_irq_enable = xgene_rtc_alarm_irq_enable,
