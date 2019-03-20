@@ -3589,13 +3589,13 @@ noinline int btrfs_leaf_free_space(struct extent_buffer *leaf)
  * min slot controls the lowest index we're willing to push to the
  * right.  We'll push up to and including min_slot, but no lower
  */
-static noinline int __push_leaf_right(struct btrfs_fs_info *fs_info,
-				      struct btrfs_path *path,
+static noinline int __push_leaf_right(struct btrfs_path *path,
 				      int data_size, int empty,
 				      struct extent_buffer *right,
 				      int free_space, u32 left_nritems,
 				      u32 min_slot)
 {
+	struct btrfs_fs_info *fs_info = right->fs_info;
 	struct extent_buffer *left = path->nodes[0];
 	struct extent_buffer *upper = path->nodes[1];
 	struct btrfs_map_token token;
@@ -3743,7 +3743,6 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 			   int min_data_size, int data_size,
 			   int empty, u32 min_slot)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *left = path->nodes[0];
 	struct extent_buffer *right;
 	struct extent_buffer *upper;
@@ -3804,7 +3803,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 		return 0;
 	}
 
-	return __push_leaf_right(fs_info, path, min_data_size, empty,
+	return __push_leaf_right(path, min_data_size, empty,
 				right, free_space, left_nritems, min_slot);
 out_unlock:
 	btrfs_tree_unlock(right);
