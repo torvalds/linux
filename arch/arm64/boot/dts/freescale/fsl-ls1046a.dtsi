@@ -215,8 +215,6 @@
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "qspi_en", "qspi";
 			clocks = <&clockgen 4 1>, <&clockgen 4 1>;
-			big-endian;
-			fsl,qspi-has-second-chip;
 			status = "disabled";
 		};
 
