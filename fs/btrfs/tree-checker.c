@@ -629,10 +629,10 @@ static void dev_item_err(const struct extent_buffer *eb, int slot,
 	va_end(args);
 }
 
-static int check_dev_item(struct btrfs_fs_info *fs_info,
-			  struct extent_buffer *leaf,
+static int check_dev_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_dev_item *ditem;
 	u64 max_devid = max(BTRFS_MAX_DEVS(fs_info), BTRFS_MAX_DEVS_SYS_CHUNK);
 
@@ -797,7 +797,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 					      key->offset);
 		break;
 	case BTRFS_DEV_ITEM_KEY:
-		ret = check_dev_item(leaf->fs_info, leaf, key, slot);
+		ret = check_dev_item(leaf, key, slot);
 		break;
 	case BTRFS_INODE_ITEM_KEY:
 		ret = check_inode_item(leaf->fs_info, leaf, key, slot);
