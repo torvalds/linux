@@ -5269,8 +5269,7 @@ static int tree_move_next_or_upnext(struct btrfs_path *path,
  * Returns 1 if it had to move up and next. 0 is returned if it moved only next
  * or down.
  */
-static int tree_advance(struct btrfs_fs_info *fs_info,
-			struct btrfs_path *path,
+static int tree_advance(struct btrfs_path *path,
 			int *level, int root_level,
 			int allow_down,
 			struct btrfs_key *key)
@@ -5457,7 +5456,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 
 	while (1) {
 		if (advance_left && !left_end_reached) {
-			ret = tree_advance(fs_info, left_path, &left_level,
+			ret = tree_advance(left_path, &left_level,
 					left_root_level,
 					advance_left != ADVANCE_ONLY_NEXT,
 					&left_key);
@@ -5468,7 +5467,7 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 			advance_left = 0;
 		}
 		if (advance_right && !right_end_reached) {
-			ret = tree_advance(fs_info, right_path, &right_level,
+			ret = tree_advance(right_path, &right_level,
 					right_root_level,
 					advance_right != ADVANCE_ONLY_NEXT,
 					&right_key);
