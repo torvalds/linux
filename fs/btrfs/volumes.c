@@ -6710,7 +6710,7 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 	 * as chunk item in tree block is already verified by tree-checker.
 	 */
 	if (leaf->start == BTRFS_SUPER_INFO_OFFSET) {
-		ret = btrfs_check_chunk_valid(fs_info, leaf, chunk, logical);
+		ret = btrfs_check_chunk_valid(leaf, chunk, logical);
 		if (ret)
 			return ret;
 	}

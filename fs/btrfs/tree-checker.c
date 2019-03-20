@@ -498,10 +498,10 @@ static void chunk_err(const struct extent_buffer *leaf,
  * Return -EUCLEAN if anything is corrupted.
  * Return 0 if everything is OK.
  */
-int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
-			    struct extent_buffer *leaf,
+int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 			    struct btrfs_chunk *chunk, u64 logical)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	u64 length;
 	u64 stripe_len;
 	u16 num_stripes;
@@ -793,8 +793,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_CHUNK_ITEM_KEY:
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
-		ret = btrfs_check_chunk_valid(leaf->fs_info, leaf, chunk,
-					      key->offset);
+		ret = btrfs_check_chunk_valid(leaf, chunk, key->offset);
 		break;
 	case BTRFS_DEV_ITEM_KEY:
 		ret = check_dev_item(leaf, key, slot);
