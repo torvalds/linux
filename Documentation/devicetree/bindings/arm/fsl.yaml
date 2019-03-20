@@ -90,6 +90,7 @@ properties:
       - description: i.MX6DL based Boards
         items:
           - enum:
+              - eckelmann,imx6dl-ci4x10
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
               - technologic,imx6dl-ts4900
