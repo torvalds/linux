@@ -105,7 +105,7 @@ int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
 	}
 
 	/* read the message */
-	if (msg->msg_data && size > 0)
+	if (size > 0)
 		sof_mailbox_read(sdev, sdev->host_box.offset,
 				 msg->reply_data, size);
 
