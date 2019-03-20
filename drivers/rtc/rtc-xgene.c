@@ -45,7 +45,7 @@ static int xgene_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
 
-	rtc_time_to_tm(readl(pdata->csr_base + RTC_CCVR), tm);
+	rtc_time64_to_tm(readl(pdata->csr_base + RTC_CCVR), tm);
 	return 0;
 }
 
@@ -68,7 +68,7 @@ static int xgene_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
 
 	/* If possible, CMR should be read here */
-	rtc_time_to_tm(0, &alrm->time);
+	rtc_time64_to_tm(0, &alrm->time);
 	alrm->enabled = readl(pdata->csr_base + RTC_CCR) & RTC_CCR_IE;
 
 	return 0;
@@ -102,10 +102,8 @@ static int xgene_rtc_alarm_irq_enabled(struct device *dev)
 static int xgene_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
-	unsigned long alarm_time;
 
-	rtc_tm_to_time(&alrm->time, &alarm_time);
-	writel((u32)alarm_time, pdata->csr_base + RTC_CMR);
+	writel((u32)rtc_tm_to_time64(&alrm->time), pdata->csr_base + RTC_CMR);
 
 	xgene_rtc_alarm_irq_enable(dev, alrm->enabled);
 
