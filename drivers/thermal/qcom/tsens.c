@@ -159,7 +159,8 @@ static int tsens_probe(struct platform_device *pdev)
 	if (priv->ops->calibrate) {
 		ret = priv->ops->calibrate(priv);
 		if (ret < 0) {
-			dev_err(dev, "tsens calibration failed\n");
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "tsens calibration failed\n");
 			return ret;
 		}
 	}
