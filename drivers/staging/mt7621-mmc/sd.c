@@ -591,8 +591,6 @@ static void msdc_dma_setup(struct msdc_host *host, struct msdc_dma *dma,
 	struct bd *bd;
 	u32 j;
 
-	BUG_ON(sglen > MAX_BD_NUM); /* not support currently */
-
 	gpd = dma->gpd;
 	bd  = dma->bd;
 
@@ -681,6 +679,13 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		data->sg_count = dma_map_sg(mmc_dev(mmc), data->sg,
 					    data->sg_len,
 					    mmc_get_dma_dir(data));
+
+		if (data->sg_count == 0) {
+			dev_err(mmc_dev(host->mmc), "failed to map DMA for transfer\n");
+			data->error = -ENOMEM;
+			goto done;
+		}
+
 		msdc_dma_setup(host, &host->dma, data->sg,
 			       data->sg_count);
 
