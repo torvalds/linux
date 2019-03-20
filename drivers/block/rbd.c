@@ -924,23 +924,6 @@ static void rbd_put_client(struct rbd_client *rbdc)
 		kref_put(&rbdc->kref, rbd_client_release);
 }
 
-static int wait_for_latest_osdmap(struct ceph_client *client)
-{
-	u64 newest_epoch;
-	int ret;
-
-	ret = ceph_monc_get_version(&client->monc, "osdmap", &newest_epoch);
-	if (ret)
-		return ret;
-
-	if (client->osdc.osdmap->epoch >= newest_epoch)
-		return 0;
-
-	ceph_osdc_maybe_request_map(&client->osdc);
-	return ceph_monc_wait_osdmap(&client->monc, newest_epoch,
-				     client->options->mount_timeout);
-}
-
 /*
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.  Either way, ceph_opts is consumed by this
@@ -960,7 +943,8 @@ static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 		 * Using an existing client.  Make sure ->pg_pools is up to
 		 * date before we look up the pool id in do_rbd_add().
 		 */
-		ret = wait_for_latest_osdmap(rbdc->client);
+		ret = ceph_wait_for_latest_osdmap(rbdc->client,
+					rbdc->client->options->mount_timeout);
 		if (ret) {
 			rbd_warn(NULL, "failed to get latest osdmap: %d", ret);
 			rbd_put_client(rbdc);
