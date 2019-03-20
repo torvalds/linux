@@ -52,6 +52,7 @@ static int __init ps3_rtc_probe(struct platform_device *dev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &ps3_rtc_ops;
+	rtc->range_max = U64_MAX;
 
 	platform_set_drvdata(dev, rtc);
 
