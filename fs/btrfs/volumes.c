@@ -6401,9 +6401,15 @@ static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
 	length = btrfs_chunk_length(leaf, chunk);
 	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
 
-	ret = btrfs_check_chunk_valid(fs_info, leaf, chunk, logical);
-	if (ret)
-		return ret;
+	/*
+	 * Only need to verify chunk item if we're reading from sys chunk array,
+	 * as chunk item in tree block is already verified by tree-checker.
+	 */
+	if (leaf->start == BTRFS_SUPER_INFO_OFFSET) {
+		ret = btrfs_check_chunk_valid(fs_info, leaf, chunk, logical);
+		if (ret)
+			return ret;
+	}
 
 	read_lock(&map_tree->map_tree.lock);
 	em = lookup_extent_mapping(&map_tree->map_tree, logical, 1);
