@@ -381,7 +381,6 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 	struct sof_ipc_reply reply;
 	unsigned long flags;
 	int ret = 0;
-	u32 size;
 
 	/* get reply */
 	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
@@ -389,7 +388,7 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
 	if (reply.error < 0) {
-		size = sizeof(reply);
+		memcpy(msg->reply_data, &reply, sizeof(reply));
 		ret = reply.error;
 	} else {
 		/* reply correct size ? */
@@ -399,13 +398,11 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 			ret = -EINVAL;
 		}
 
-		size = msg->reply_size;
+		/* read the message */
+		if (msg->reply_size > 0)
+			sof_mailbox_read(sdev, sdev->host_box.offset,
+					 msg->reply_data, msg->reply_size);
 	}
-
-	/* read the message */
-	if (size > 0)
-		sof_mailbox_read(sdev, sdev->host_box.offset, msg->reply_data,
-				 size);
 
 	msg->reply_error = ret;
 
