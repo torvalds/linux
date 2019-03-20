@@ -43,21 +43,21 @@
  * registers available, likewise usable for more than "RTC" support.
  */
 
-#define AT91_RTT_MR		0x00			/* Real-time Mode Register */
-#define AT91_RTT_RTPRES		(0xffff << 0)		/* Real-time Timer Prescaler Value */
-#define AT91_RTT_ALMIEN		(1 << 16)		/* Alarm Interrupt Enable */
-#define AT91_RTT_RTTINCIEN	(1 << 17)		/* Real Time Timer Increment Interrupt Enable */
-#define AT91_RTT_RTTRST		(1 << 18)		/* Real Time Timer Restart */
+#define AT91_RTT_MR		0x00		/* Real-time Mode Register */
+#define AT91_RTT_RTPRES		(0xffff << 0)	/* Timer Prescaler Value */
+#define AT91_RTT_ALMIEN		BIT(16)		/* Alarm Interrupt Enable */
+#define AT91_RTT_RTTINCIEN	BIT(17)		/* Increment Interrupt Enable */
+#define AT91_RTT_RTTRST		BIT(18)		/* Timer Restart */
 
-#define AT91_RTT_AR		0x04			/* Real-time Alarm Register */
-#define AT91_RTT_ALMV		(0xffffffff)		/* Alarm Value */
+#define AT91_RTT_AR		0x04		/* Real-time Alarm Register */
+#define AT91_RTT_ALMV		(0xffffffff)	/* Alarm Value */
 
-#define AT91_RTT_VR		0x08			/* Real-time Value Register */
-#define AT91_RTT_CRTV		(0xffffffff)		/* Current Real-time Value */
+#define AT91_RTT_VR		0x08		/* Real-time Value Register */
+#define AT91_RTT_CRTV		(0xffffffff)	/* Current Real-time Value */
 
-#define AT91_RTT_SR		0x0c			/* Real-time Status Register */
-#define AT91_RTT_ALMS		(1 << 0)		/* Real-time Alarm Status */
-#define AT91_RTT_RTTINC		(1 << 1)		/* Real-time Timer Increment */
+#define AT91_RTT_SR		0x0c		/* Real-time Status Register */
+#define AT91_RTT_ALMS		BIT(0)		/* Alarm Status */
+#define AT91_RTT_RTTINC		BIT(1)		/* Timer Increment */
 
 /*
  * We store ALARM_DISABLED in ALMV to record that no alarm is set.
@@ -65,14 +65,13 @@
  */
 #define ALARM_DISABLED	((u32)~0)
 
-
 struct sam9_rtc {
 	void __iomem		*rtt;
 	struct rtc_device	*rtcdev;
 	u32			imr;
 	struct regmap		*gpbr;
 	unsigned int		gpbr_offset;
-	int 			irq;
+	int			irq;
 	struct clk		*sclk;
 	bool			suspended;
 	unsigned long		events;
@@ -253,7 +252,7 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 	u32 mr = rtt_readl(rtc, MR);
 
 	seq_printf(seq, "update_IRQ\t: %s\n",
-			(mr & AT91_RTT_RTTINCIEN) ? "yes" : "no");
+		   (mr & AT91_RTT_RTTINCIEN) ? "yes" : "no");
 	return 0;
 }
 
@@ -289,7 +288,7 @@ static void at91_rtc_flush_events(struct sam9_rtc *rtc)
 	rtc->events = 0;
 
 	pr_debug("%s: num=%ld, events=0x%02lx\n", __func__,
-		rtc->events >> 8, rtc->events & 0x000000FF);
+		 rtc->events >> 8, rtc->events & 0x000000FF);
 }
 
 /*
@@ -367,8 +366,8 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc->rtt);
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-					"atmel,rtt-rtc-time-reg", 1, 0,
-					&args);
+					       "atmel,rtt-rtc-time-reg", 1, 0,
+					       &args);
 	if (ret)
 		return ret;
 
@@ -434,7 +433,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	if (gpbr_readl(rtc) == 0)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
-				dev_name(&rtc->rtcdev->dev));
+			 dev_name(&rtc->rtcdev->dev));
 
 	return rtc_register_device(rtc->rtcdev);
 
@@ -494,8 +493,9 @@ static int at91_rtc_suspend(struct device *dev)
 			/* don't let RTTINC cause wakeups */
 			if (mr & AT91_RTT_RTTINCIEN)
 				rtt_writel(rtc, MR, mr & ~AT91_RTT_RTTINCIEN);
-		} else
+		} else {
 			rtt_writel(rtc, MR, mr & ~rtc->imr);
+		}
 	}
 
 	return 0;
