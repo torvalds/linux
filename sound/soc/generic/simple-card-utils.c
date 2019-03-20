@@ -495,15 +495,20 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link;
 	struct simple_dai_props *dai_props;
 	struct asoc_simple_dai *dais;
-	struct snd_soc_codec_conf *cconf;
+	struct snd_soc_codec_conf *cconf = NULL;
 	int i;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
 	dais      = devm_kcalloc(dev, li->dais, sizeof(*dais),      GFP_KERNEL);
-	cconf     = devm_kcalloc(dev, li->conf, sizeof(*cconf),     GFP_KERNEL);
 	if (!dai_props || !dai_link || !dais)
 		return -ENOMEM;
+
+	if (li->conf) {
+		cconf = devm_kcalloc(dev, li->conf, sizeof(*cconf), GFP_KERNEL);
+		if (!cconf)
+			return -ENOMEM;
+	}
 
 	/*
 	 * Use snd_soc_dai_link_component instead of legacy style
