@@ -8,11 +8,25 @@ Required properties:
 Optional properties:
 - rockchip,video-4k-offline-cpus: A string containing cpus which will be killed
 			when play 4k video.
+- rockchip,thermal-zone: A thermal zone node containing thermal sensor,
+			it's used to get the current temperature.
+- rockchip,polling-delay: The maximum number of milliseconds to wait
+			between polls.
+- rockchip,offline-cpu-temp: An integer indicating the trip temperature level.
+- rockchip,temp-hysteresis: A low hysteresis value on rockchip,offline-cpu-temp
+			property (above).
+- rockchip,temp-offline-cpus: A string containing cpus which will be killed
+			when temperature is high.
 
 Example:
 
 system-monitor {
 	compatible = "rockchip,system-monitor";
+
+	rockchip,thermal-zone = "soc-thermal";
+	rockchip,polling-delay = <200>; /* milliseconds */
+	rockchip,offline-cpu-temp = <110000>; /* millicelsius */
+	rockchip,temp-offline-cpus = "2-3";
 
 	rockchip,video-4k-offline-cpus = "2-3";
 };
