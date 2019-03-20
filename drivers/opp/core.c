@@ -711,7 +711,7 @@ static int _set_required_opps(struct device *dev,
 
 	/* Single genpd case */
 	if (!genpd_virt_devs) {
-		pstate = opp->required_opps[0]->pstate;
+		pstate = likely(opp) ? opp->required_opps[0]->pstate : 0;
 		ret = dev_pm_genpd_set_performance_state(dev, pstate);
 		if (ret) {
 			dev_err(dev, "Failed to set performance state of %s: %d (%d)\n",
@@ -729,7 +729,7 @@ static int _set_required_opps(struct device *dev,
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
 
 	for (i = 0; i < opp_table->required_opp_count; i++) {
-		pstate = opp->required_opps[i]->pstate;
+		pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
 
 		if (!genpd_virt_devs[i])
 			continue;
@@ -765,16 +765,21 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	struct clk *clk;
 	int ret;
 
-	if (unlikely(!target_freq)) {
-		dev_err(dev, "%s: Invalid target frequency %lu\n", __func__,
-			target_freq);
-		return -EINVAL;
-	}
-
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
 		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
 		return PTR_ERR(opp_table);
+	}
+
+	if (unlikely(!target_freq)) {
+		if (opp_table->required_opp_tables) {
+			ret = _set_required_opps(dev, opp_table, NULL);
+		} else {
+			dev_err(dev, "target frequency can't be 0\n");
+			ret = -EINVAL;
+		}
+
+		goto put_opp_table;
 	}
 
 	clk = opp_table->clk;
