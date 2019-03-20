@@ -89,8 +89,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 
 	pr_debug("VIF%u.%u cmd=0x%.4X\n", mac_id, vif_id, cmd_id);
 
-	if (bus->fw_state != QTNF_FW_STATE_ACTIVE &&
-	    cmd_id != QLINK_CMD_FW_INIT) {
+	if (!qtnf_fw_is_up(bus) && cmd_id != QLINK_CMD_FW_INIT) {
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
 			mac_id, vif_id, cmd_id, bus->fw_state);
 		dev_kfree_skb(cmd_skb);

@@ -589,8 +589,6 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 	int ret;
 
 	qtnf_trans_init(bus);
-
-	bus->fw_state = QTNF_FW_STATE_BOOT_DONE;
 	qtnf_bus_data_rx_start(bus);
 
 	bus->workqueue = alloc_ordered_workqueue("QTNF_BUS", 0);
@@ -639,6 +637,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		}
 	}
 
+	bus->fw_state = QTNF_FW_STATE_RUNNING;
 	return 0;
 
 error:
@@ -657,7 +656,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	for (macid = 0; macid < QTNF_MAX_MAC; macid++)
 		qtnf_core_mac_detach(bus, macid);
 
-	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
+	if (qtnf_fw_is_up(bus))
 		qtnf_cmd_send_deinit_fw(bus);
 
 	bus->fw_state = QTNF_FW_STATE_DETACHED;
@@ -682,6 +681,9 @@ struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
 	struct net_device *ndev = NULL;
 	struct qtnf_wmac *mac;
 	struct qtnf_vif *vif;
+
+	if (unlikely(bus->fw_state != QTNF_FW_STATE_RUNNING))
+		return NULL;
 
 	meta = (struct qtnf_frame_meta_info *)
 		(skb_tail_pointer(skb) - sizeof(*meta));

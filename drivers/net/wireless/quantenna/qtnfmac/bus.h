@@ -13,12 +13,11 @@
 #define QTNF_MAX_MAC		3
 
 enum qtnf_fw_state {
-	QTNF_FW_STATE_RESET,
-	QTNF_FW_STATE_FW_DNLD_DONE,
+	QTNF_FW_STATE_DETACHED,
 	QTNF_FW_STATE_BOOT_DONE,
 	QTNF_FW_STATE_ACTIVE,
-	QTNF_FW_STATE_DETACHED,
-	QTNF_FW_STATE_EP_DEAD,
+	QTNF_FW_STATE_RUNNING,
+	QTNF_FW_STATE_DEAD,
 };
 
 struct qtnf_bus;
@@ -57,6 +56,23 @@ struct qtnf_bus {
 	/* bus private data */
 	char bus_priv[0] __aligned(sizeof(void *));
 };
+
+static inline bool qtnf_fw_is_up(struct qtnf_bus *bus)
+{
+	enum qtnf_fw_state state = bus->fw_state;
+
+	return ((state == QTNF_FW_STATE_ACTIVE) ||
+		(state == QTNF_FW_STATE_RUNNING));
+}
+
+static inline bool qtnf_fw_is_attached(struct qtnf_bus *bus)
+{
+	enum qtnf_fw_state state = bus->fw_state;
+
+	return ((state == QTNF_FW_STATE_ACTIVE) ||
+		(state == QTNF_FW_STATE_RUNNING) ||
+		(state == QTNF_FW_STATE_DEAD));
+}
 
 static inline void *get_bus_priv(struct qtnf_bus *bus)
 {
