@@ -14,7 +14,6 @@
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 #include <linux/string.h>
-#include <linux/version.h>
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
