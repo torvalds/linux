@@ -450,11 +450,11 @@ int btrfs_verify_level_key(struct btrfs_fs_info *fs_info,
  * @level:		expected level, mandatory check
  * @first_key:		expected key of first slot, skip check if NULL
  */
-static int btree_read_extent_buffer_pages(struct btrfs_fs_info *fs_info,
-					  struct extent_buffer *eb,
+static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
 					  u64 parent_transid, int level,
 					  struct btrfs_key *first_key)
 {
+	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct extent_io_tree *io_tree;
 	int failed = 0;
 	int ret;
@@ -1097,7 +1097,7 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 	if (IS_ERR(buf))
 		return buf;
 
-	ret = btree_read_extent_buffer_pages(fs_info, buf, parent_transid,
+	ret = btree_read_extent_buffer_pages(buf, parent_transid,
 					     level, first_key);
 	if (ret) {
 		free_extent_buffer_stale(buf);
@@ -4158,10 +4158,7 @@ void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info)
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid, int level,
 		      struct btrfs_key *first_key)
 {
-	struct btrfs_root *root = BTRFS_I(buf->pages[0]->mapping->host)->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-
-	return btree_read_extent_buffer_pages(fs_info, buf, parent_transid,
+	return btree_read_extent_buffer_pages(buf, parent_transid,
 					      level, first_key);
 }
 
