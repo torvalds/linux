@@ -94,6 +94,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_JZ4725B_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
+	select SND_SOC_LOCHNAGAR_SC
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
@@ -687,6 +688,13 @@ config SND_SOC_ISABELLE
 
 config SND_SOC_LM49453
 	tristate
+
+config SND_SOC_LOCHNAGAR_SC
+	tristate "Lochnagar Sound Card"
+	depends on MFD_LOCHNAGAR
+	help
+	  This driver support the sound card functionality of the Cirrus
+	  Logic Lochnagar audio development board.
 
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
