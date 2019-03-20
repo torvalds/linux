@@ -220,12 +220,12 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
  * Customized reported for dir_item, only important new info is key->objectid,
  * which represents inode number
  */
-__printf(4, 5)
+__printf(3, 4)
 __cold
-static void dir_item_err(const struct btrfs_fs_info *fs_info,
-			 const struct extent_buffer *eb, int slot,
+static void dir_item_err(const struct extent_buffer *eb, int slot,
 			 const char *fmt, ...)
 {
+	const struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_key key;
 	struct va_format vaf;
 	va_list args;
@@ -263,7 +263,7 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 
 		/* header itself should not cross item boundary */
 		if (cur + sizeof(*di) > item_size) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 		"dir item header crosses item boundary, have %zu boundary %u",
 				cur + sizeof(*di), item_size);
 			return -EUCLEAN;
@@ -272,7 +272,7 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 		/* dir type check */
 		dir_type = btrfs_dir_type(leaf, di);
 		if (dir_type >= BTRFS_FT_MAX) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 			"invalid dir item type, have %u expect [0, %u)",
 				dir_type, BTRFS_FT_MAX);
 			return -EUCLEAN;
@@ -280,14 +280,14 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 
 		if (key->type == BTRFS_XATTR_ITEM_KEY &&
 		    dir_type != BTRFS_FT_XATTR) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 		"invalid dir item type for XATTR key, have %u expect %u",
 				dir_type, BTRFS_FT_XATTR);
 			return -EUCLEAN;
 		}
 		if (dir_type == BTRFS_FT_XATTR &&
 		    key->type != BTRFS_XATTR_ITEM_KEY) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 			"xattr dir type found for non-XATTR key");
 			return -EUCLEAN;
 		}
@@ -300,13 +300,13 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 		name_len = btrfs_dir_name_len(leaf, di);
 		data_len = btrfs_dir_data_len(leaf, di);
 		if (name_len > max_name_len) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 			"dir item name len too long, have %u max %u",
 				name_len, max_name_len);
 			return -EUCLEAN;
 		}
 		if (name_len + data_len > BTRFS_MAX_XATTR_SIZE(fs_info)) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 			"dir item name and data len too long, have %u max %u",
 				name_len + data_len,
 				BTRFS_MAX_XATTR_SIZE(fs_info));
@@ -314,7 +314,7 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 		}
 
 		if (data_len && dir_type != BTRFS_FT_XATTR) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 			"dir item with invalid data len, have %u expect 0",
 				data_len);
 			return -EUCLEAN;
@@ -324,7 +324,7 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 
 		/* header and name/data should not cross item boundary */
 		if (cur + total_size > item_size) {
-			dir_item_err(fs_info, leaf, slot,
+			dir_item_err(leaf, slot,
 		"dir item data crosses item boundary, have %u boundary %u",
 				cur + total_size, item_size);
 			return -EUCLEAN;
@@ -342,7 +342,7 @@ static int check_dir_item(struct btrfs_fs_info *fs_info,
 					(unsigned long)(di + 1), name_len);
 			name_hash = btrfs_name_hash(namebuf, name_len);
 			if (key->offset != name_hash) {
-				dir_item_err(fs_info, leaf, slot,
+				dir_item_err(leaf, slot,
 		"name hash mismatch with key, have 0x%016x expect 0x%016llx",
 					name_hash, key->offset);
 				return -EUCLEAN;
@@ -680,7 +680,7 @@ static int check_dev_item(struct btrfs_fs_info *fs_info,
 
 /* Inode item error output has the same format as dir_item_err() */
 #define inode_item_err(fs_info, eb, slot, fmt, ...)			\
-	dir_item_err(fs_info, eb, slot, fmt, __VA_ARGS__)
+	dir_item_err(eb, slot, fmt, __VA_ARGS__)
 
 static int check_inode_item(struct btrfs_fs_info *fs_info,
 			    struct extent_buffer *leaf,
