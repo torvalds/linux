@@ -57,7 +57,7 @@ struct netns_xfrm {
 	struct list_head	inexact_bins;
 
 
-	struct sock		__rcu *nlsk;
+	struct sock		*nlsk;
 	struct sock		*nlsk_stash;
 
 	u32			sysctl_aevent_etime;

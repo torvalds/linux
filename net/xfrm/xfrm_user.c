@@ -1071,22 +1071,6 @@ static inline int xfrm_nlmsg_multicast(struct net *net, struct sk_buff *skb,
 	return nlmsg_multicast(nlsk, skb, pid, group, GFP_ATOMIC);
 }
 
-/* A similar wrapper like xfrm_nlmsg_multicast checking that nlsk is still
- * available.
- */
-static inline int xfrm_nlmsg_unicast(struct net *net, struct sk_buff *skb,
-				     u32 pid)
-{
-	struct sock *nlsk = rcu_dereference(net->xfrm.nlsk);
-
-	if (!nlsk) {
-		kfree_skb(skb);
-		return -EPIPE;
-	}
-
-	return nlmsg_unicast(nlsk, skb, pid);
-}
-
 static inline unsigned int xfrm_spdinfo_msgsize(void)
 {
 	return NLMSG_ALIGN(4)
@@ -1211,7 +1195,7 @@ static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = build_spdinfo(r_skb, net, sportid, seq, *flags);
 	BUG_ON(err < 0);
 
-	return xfrm_nlmsg_unicast(net, r_skb, sportid);
+	return nlmsg_unicast(net->xfrm.nlsk, r_skb, sportid);
 }
 
 static inline unsigned int xfrm_sadinfo_msgsize(void)
@@ -1270,7 +1254,7 @@ static int xfrm_get_sadinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = build_sadinfo(r_skb, net, sportid, seq, *flags);
 	BUG_ON(err < 0);
 
-	return xfrm_nlmsg_unicast(net, r_skb, sportid);
+	return nlmsg_unicast(net->xfrm.nlsk, r_skb, sportid);
 }
 
 static int xfrm_get_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -1290,7 +1274,7 @@ static int xfrm_get_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (IS_ERR(resp_skb)) {
 		err = PTR_ERR(resp_skb);
 	} else {
-		err = xfrm_nlmsg_unicast(net, resp_skb, NETLINK_CB(skb).portid);
+		err = nlmsg_unicast(net->xfrm.nlsk, resp_skb, NETLINK_CB(skb).portid);
 	}
 	xfrm_state_put(x);
 out_noput:
@@ -1353,7 +1337,7 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 	}
 
-	err = xfrm_nlmsg_unicast(net, resp_skb, NETLINK_CB(skb).portid);
+	err = nlmsg_unicast(net->xfrm.nlsk, resp_skb, NETLINK_CB(skb).portid);
 
 out:
 	xfrm_state_put(x);
@@ -1919,8 +1903,8 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (IS_ERR(resp_skb)) {
 			err = PTR_ERR(resp_skb);
 		} else {
-			err = xfrm_nlmsg_unicast(net, resp_skb,
-						 NETLINK_CB(skb).portid);
+			err = nlmsg_unicast(net->xfrm.nlsk, resp_skb,
+					    NETLINK_CB(skb).portid);
 		}
 	} else {
 		xfrm_audit_policy_delete(xp, err ? 0 : 1, true);
@@ -2078,7 +2062,7 @@ static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = build_aevent(r_skb, x, &c);
 	BUG_ON(err < 0);
 
-	err = xfrm_nlmsg_unicast(net, r_skb, NETLINK_CB(skb).portid);
+	err = nlmsg_unicast(net->xfrm.nlsk, r_skb, NETLINK_CB(skb).portid);
 	spin_unlock_bh(&x->lock);
 	xfrm_state_put(x);
 	return err;
