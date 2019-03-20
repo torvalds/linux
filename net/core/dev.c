@@ -3689,23 +3689,21 @@ get_cpus_map:
 }
 
 u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
-		     struct net_device *sb_dev,
-		     select_queue_fallback_t fallback)
+		     struct net_device *sb_dev)
 {
 	return 0;
 }
 EXPORT_SYMBOL(dev_pick_tx_zero);
 
 u16 dev_pick_tx_cpu_id(struct net_device *dev, struct sk_buff *skb,
-		       struct net_device *sb_dev,
-		       select_queue_fallback_t fallback)
+		       struct net_device *sb_dev)
 {
 	return (u16)raw_smp_processor_id() % dev->real_num_tx_queues;
 }
 EXPORT_SYMBOL(dev_pick_tx_cpu_id);
 
-static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev)
+u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
+		     struct net_device *sb_dev)
 {
 	struct sock *sk = skb->sk;
 	int queue_index = sk_tx_queue_get(sk);
@@ -3729,10 +3727,11 @@ static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 
 	return queue_index;
 }
+EXPORT_SYMBOL(netdev_pick_tx);
 
-struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb,
-				    struct net_device *sb_dev)
+struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
+					 struct sk_buff *skb,
+					 struct net_device *sb_dev)
 {
 	int queue_index = 0;
 
@@ -3747,10 +3746,9 @@ struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb, sb_dev,
-							    __netdev_pick_tx);
+			queue_index = ops->ndo_select_queue(dev, skb, sb_dev);
 		else
-			queue_index = __netdev_pick_tx(dev, skb, sb_dev);
+			queue_index = netdev_pick_tx(dev, skb, sb_dev);
 
 		queue_index = netdev_cap_txqueue(dev, queue_index);
 	}
@@ -3824,7 +3822,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	else
 		skb_dst_force(skb);
 
-	txq = netdev_pick_tx(dev, skb, sb_dev);
+	txq = netdev_core_pick_tx(dev, skb, sb_dev);
 	q = rcu_dereference_bh(txq->qdisc);
 
 	trace_net_dev_queue(skb);
@@ -4429,7 +4427,7 @@ void generic_xdp_tx(struct sk_buff *skb, struct bpf_prog *xdp_prog)
 	bool free_skb = true;
 	int cpu, rc;
 
-	txq = netdev_pick_tx(dev, skb, NULL);
+	txq = netdev_core_pick_tx(dev, skb, NULL);
 	cpu = smp_processor_id();
 	HARD_TX_LOCK(dev, txq, cpu);
 	if (!netif_xmit_stopped(txq)) {

@@ -606,8 +606,7 @@ static u16 tun_ebpf_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 }
 
 static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev,
-			    select_queue_fallback_t fallback)
+			    struct net_device *sb_dev)
 {
 	struct tun_struct *tun = netdev_priv(dev);
 	u16 ret;

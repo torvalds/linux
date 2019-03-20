@@ -543,8 +543,7 @@ static int xennet_count_skb_slots(struct sk_buff *skb)
 }
 
 static u16 xennet_select_queue(struct net_device *dev, struct sk_buff *skb,
-			       struct net_device *sb_dev,
-			       select_queue_fallback_t fallback)
+			       struct net_device *sb_dev)
 {
 	unsigned int num_queues = dev->real_num_tx_queues;
 	u32 hash;

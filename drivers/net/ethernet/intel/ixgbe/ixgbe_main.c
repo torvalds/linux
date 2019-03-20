@@ -8483,8 +8483,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 
 #ifdef IXGBE_FCOE
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
-			      struct net_device *sb_dev,
-			      select_queue_fallback_t fallback)
+			      struct net_device *sb_dev)
 {
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_ring_feature *f;
@@ -8514,7 +8513,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb,
 			break;
 		/* fall through */
 	default:
-		return fallback(dev, skb, sb_dev);
+		return netdev_pick_tx(dev, skb, sb_dev);
 	}
 
 	f = &adapter->ring_feature[RING_F_FCOE];

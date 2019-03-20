@@ -2258,8 +2258,7 @@ error_drop_packet:
 }
 
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    struct net_device *sb_dev,
-			    select_queue_fallback_t fallback)
+			    struct net_device *sb_dev)
 {
 	u16 qid;
 	/* we suspect that this is good for in--kernel network services that
@@ -2269,7 +2268,7 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (skb_rx_queue_recorded(skb))
 		qid = skb_get_rx_queue(skb);
 	else
-		qid = fallback(dev, skb, NULL);
+		qid = netdev_pick_tx(dev, skb, NULL);
 
 	return qid;
 }
