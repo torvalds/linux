@@ -84,6 +84,8 @@ struct msm_gem_object {
 
 	struct list_head vmas;    /* list of msm_gem_vma */
 
+	struct llist_node freed;
+
 	/* normally (resv == &_resv) except for imported bo's */
 	struct reservation_object *resv;
 	struct reservation_object _resv;
@@ -133,6 +135,7 @@ enum msm_gem_lock {
 
 void msm_gem_purge(struct drm_gem_object *obj, enum msm_gem_lock subclass);
 void msm_gem_vunmap(struct drm_gem_object *obj, enum msm_gem_lock subclass);
+void msm_gem_free_work(struct work_struct *work);
 
 /* Created per submit-ioctl, to track bo's and cmdstream bufs, etc,
  * associated with the cmdstream submission for synchronization (and

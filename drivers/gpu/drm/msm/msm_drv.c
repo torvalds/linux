@@ -458,6 +458,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
 
+	INIT_WORK(&priv->free_work, msm_gem_free_work);
+	init_llist_head(&priv->free_list);
+
 	INIT_LIST_HEAD(&priv->inactive_list);
 
 	drm_mode_config_init(ddev);
@@ -1026,7 +1029,7 @@ static struct drm_driver msm_driver = {
 	.irq_uninstall      = msm_irq_uninstall,
 	.enable_vblank      = msm_enable_vblank,
 	.disable_vblank     = msm_disable_vblank,
-	.gem_free_object    = msm_gem_free_object,
+	.gem_free_object_unlocked = msm_gem_free_object,
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,

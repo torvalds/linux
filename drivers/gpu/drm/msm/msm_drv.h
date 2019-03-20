@@ -185,6 +185,10 @@ struct msm_drm_private {
 	/* list of GEM objects: */
 	struct list_head inactive_list;
 
+	/* worker for delayed free of objects: */
+	struct work_struct free_work;
+	struct llist_head free_list;
+
 	struct workqueue_struct *wq;
 
 	unsigned int num_planes;
@@ -325,6 +329,7 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 		struct msm_gem_address_space *aspace, bool locked);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
+void msm_gem_free_work(struct work_struct *work);
 
 __printf(2, 3)
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...);

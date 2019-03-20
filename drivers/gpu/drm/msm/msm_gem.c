@@ -853,8 +853,18 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 /* don't call directly!  Use drm_gem_object_put() and friends */
 void msm_gem_free_object(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+
+	if (llist_add(&msm_obj->freed, &priv->free_list))
+		queue_work(priv->wq, &priv->free_work);
+}
+
+static void free_object(struct msm_gem_object *msm_obj)
+{
+	struct drm_gem_object *obj = &msm_obj->base;
+	struct drm_device *dev = obj->dev;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -890,6 +900,29 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 
 	mutex_unlock(&msm_obj->lock);
 	kfree(msm_obj);
+}
+
+void msm_gem_free_work(struct work_struct *work)
+{
+	struct msm_drm_private *priv =
+		container_of(work, struct msm_drm_private, free_work);
+	struct drm_device *dev = priv->dev;
+	struct llist_node *freed;
+	struct msm_gem_object *msm_obj, *next;
+
+	while ((freed = llist_del_all(&priv->free_list))) {
+
+		mutex_lock(&dev->struct_mutex);
+
+		llist_for_each_entry_safe(msm_obj, next,
+					  freed, freed)
+			free_object(msm_obj);
+
+		mutex_unlock(&dev->struct_mutex);
+
+		if (need_resched())
+			break;
+	}
 }
 
 /* convenience method to construct a GEM buffer object, and userspace handle */
