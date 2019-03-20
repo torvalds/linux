@@ -12,16 +12,19 @@
 #define __SOUND_SOC_SOF_PRIV_H
 
 #include <linux/device.h>
-#include <sound/soc.h>
+
 #include <sound/hdaudio.h>
-#include <sound/sof/stream.h>
+#include <sound/soc.h>
+
+#include <sound/sof.h>
+#include <sound/sof/stream.h> /* needs to be included before control.h */
 #include <sound/sof/control.h>
 #include <sound/sof/dai.h>
-#include <sound/sof/trace.h>
-#include <sound/sof/topology.h>
 #include <sound/sof/info.h>
 #include <sound/sof/pm.h>
-#include <sound/sof.h>
+#include <sound/sof/topology.h>
+#include <sound/sof/trace.h>
+
 #include <uapi/sound/sof/fw.h>
 
 /* debug flags */
@@ -187,8 +190,7 @@ struct sof_arch_ops {
 			  u32 *stack, u32 stack_words);
 };
 
-#define sof_arch_ops(sdev) \
-	((sdev)->pdata->desc->arch_ops)
+#define sof_arch_ops(sdev) ((sdev)->pdata->desc->arch_ops)
 
 /* DSP device HW descriptor mapping between bus ID and ops */
 struct sof_ops_table {

@@ -50,8 +50,7 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_sof_dev *sdev,
 	struct snd_sof_pcm *spcm = NULL;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id ==
-			comp_id) {
+		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].comp_id == comp_id) {
 			*direction = SNDRV_PCM_STREAM_PLAYBACK;
 			return spcm;
 		}
@@ -103,8 +102,7 @@ struct snd_sof_widget *snd_sof_find_swidget_sname(struct snd_sof_dev *sdev,
 		type = snd_soc_dapm_aif_out;
 
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		if (!strcmp(pcm_name, swidget->widget->sname) &&
-		    swidget->id == type)
+		if (!strcmp(pcm_name, swidget->widget->sname) && swidget->id == type)
 			return swidget;
 	}
 
@@ -163,8 +161,7 @@ int snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 		return 0; /* no fault ? */
 	}
 
-	code = panic_code &
-		(SOF_IPC_PANIC_MAGIC_MASK | SOF_IPC_PANIC_CODE_MASK);
+	code = panic_code & (SOF_IPC_PANIC_MAGIC_MASK | SOF_IPC_PANIC_CODE_MASK);
 
 	for (i = 0; i < ARRAY_SIZE(panic_msg); i++) {
 		if (panic_msg[i].id == code) {
@@ -252,29 +249,29 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 static int sof_machine_check(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct snd_soc_acpi_mach *machine;
+	int ret;
 
-	if (!plat_data->machine) {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-		struct snd_soc_acpi_mach *machine;
-		int ret;
+	if (plat_data->machine)
+		return 0;
 
-		/* fallback to nocodec mode */
-		dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
-		machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
-		if (!machine)
-			return -ENOMEM;
-
-		ret = sof_nocodec_setup(sdev->dev, plat_data, machine,
-					plat_data->desc, plat_data->desc->ops);
-		if (ret < 0)
-			return ret;
-
-		plat_data->machine = machine;
-#else
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
 		dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
 		return -ENODEV;
-#endif
 	}
+
+	/* fallback to nocodec mode */
+	dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
+	machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
+	if (!machine)
+		return -ENOMEM;
+
+	ret = sof_nocodec_setup(sdev->dev, plat_data, machine,
+				plat_data->desc, plat_data->desc->ops);
+	if (ret < 0)
+		return ret;
+
+	plat_data->machine = machine;
 
 	return 0;
 }
@@ -309,9 +306,9 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	ret = snd_sof_dbg_init(sdev);
 	if (ret < 0) {
 		/*
-		 * errors can only happen due to memory allocation.
-		 * we cannot rely on debugfs so debugfs issues are only
-		 * logged and we don't stop execution
+		 * debugfs issues are suppressed in snd_sof_dbg_init() since
+		 * we cannot rely on debugfs
+		 * here we trap errors due to memory allocation only.
 		 */
 		dev_err(sdev->dev, "error: failed to init DSP trace/debug %d\n",
 			ret);
@@ -398,21 +395,18 @@ dbg_err:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
 static void sof_probe_work(struct work_struct *work)
 {
 	struct snd_sof_dev *sdev =
 		container_of(work, struct snd_sof_dev, probe_work);
 	int ret;
 
-	dev_dbg(sdev->dev, "%s entry\n", __func__);
 	ret = sof_probe_continue(sdev);
 	if (ret < 0) {
 		/* errors cannot be propagated, log */
 		dev_err(sdev->dev, "error: %s failed err: %d\n", __func__, ret);
 	}
 }
-#endif
 
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 {
@@ -421,8 +415,6 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
 		return -ENOMEM;
-
-	dev_dbg(dev, "probing SOF DSP device....\n");
 
 	/* initialize sof device */
 	sdev->dev = dev;
@@ -439,9 +431,8 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	spin_lock_init(&sdev->ipc_lock);
 	spin_lock_init(&sdev->hw_lock);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)
-	INIT_WORK(&sdev->probe_work, sof_probe_work);
-#endif
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
+		INIT_WORK(&sdev->probe_work, sof_probe_work);
 
 	/* set default timeouts if none provided */
 	if (plat_data->desc->ipc_timeout == 0)
