@@ -6686,10 +6686,10 @@ static u64 calc_stripe_length(u64 type, u64 chunk_len, int num_stripes)
 	return div_u64(chunk_len, data_stripes);
 }
 
-static int read_one_chunk(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
-			  struct extent_buffer *leaf,
+static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 			  struct btrfs_chunk *chunk)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct map_lookup *map;
 	struct extent_map *em;
@@ -7069,7 +7069,7 @@ int btrfs_read_sys_array(struct btrfs_fs_info *fs_info)
 			if (cur_offset + len > array_size)
 				goto out_short_read;
 
-			ret = read_one_chunk(fs_info, &key, sb, chunk);
+			ret = read_one_chunk(&key, sb, chunk);
 			if (ret)
 				break;
 		} else {
@@ -7217,7 +7217,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
 		} else if (found_key.type == BTRFS_CHUNK_ITEM_KEY) {
 			struct btrfs_chunk *chunk;
 			chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
-			ret = read_one_chunk(fs_info, &found_key, leaf, chunk);
+			ret = read_one_chunk(&found_key, leaf, chunk);
 			if (ret)
 				goto error;
 		}
