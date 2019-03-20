@@ -10,10 +10,10 @@
 
 #include <sound/soc.h>
 
-#define asoc_simple_card_init_hp(card, sjack, prefix) \
-	asoc_simple_card_init_jack(card, sjack, 1, prefix)
-#define asoc_simple_card_init_mic(card, sjack, prefix) \
-	asoc_simple_card_init_jack(card, sjack, 0, prefix)
+#define asoc_simple_init_hp(card, sjack, prefix) \
+	asoc_simple_init_jack(card, sjack, 1, prefix)
+#define asoc_simple_init_mic(card, sjack, prefix) \
+	asoc_simple_init_jack(card, sjack, 0, prefix)
 
 struct asoc_simple_dai {
 	const char *name;
@@ -26,7 +26,7 @@ struct asoc_simple_dai {
 	struct clk *clk;
 };
 
-struct asoc_simple_card_data {
+struct asoc_simple_data {
 	u32 convert_rate;
 	u32 convert_channels;
 };
@@ -44,7 +44,7 @@ struct asoc_simple_priv {
 		struct asoc_simple_dai *codec_dai;
 		struct snd_soc_dai_link_component codecs; /* single codec */
 		struct snd_soc_dai_link_component platforms;
-		struct asoc_simple_card_data adata;
+		struct asoc_simple_data adata;
 		struct snd_soc_codec_conf *codec_conf;
 		unsigned int mclk_fs;
 	} *dai_props;
@@ -67,30 +67,30 @@ struct link_info {
 	int cpu;  /* turn for CPU / Codec */
 };
 
-int asoc_simple_card_parse_daifmt(struct device *dev,
-				  struct device_node *node,
-				  struct device_node *codec,
-				  char *prefix,
-				  unsigned int *retfmt);
+int asoc_simple_parse_daifmt(struct device *dev,
+			     struct device_node *node,
+			     struct device_node *codec,
+			     char *prefix,
+			     unsigned int *retfmt);
 __printf(3, 4)
-int asoc_simple_card_set_dailink_name(struct device *dev,
-				      struct snd_soc_dai_link *dai_link,
-				      const char *fmt, ...);
-int asoc_simple_card_parse_card_name(struct snd_soc_card *card,
-				     char *prefix);
+int asoc_simple_set_dailink_name(struct device *dev,
+				 struct snd_soc_dai_link *dai_link,
+				 const char *fmt, ...);
+int asoc_simple_parse_card_name(struct snd_soc_card *card,
+				char *prefix);
 
-#define asoc_simple_card_parse_clk_cpu(dev, node, dai_link, simple_dai)		\
-	asoc_simple_card_parse_clk(dev, node, dai_link->cpu_of_node, simple_dai, \
+#define asoc_simple_parse_clk_cpu(dev, node, dai_link, simple_dai)		\
+	asoc_simple_parse_clk(dev, node, dai_link->cpu_of_node, simple_dai, \
 				   dai_link->cpu_dai_name, NULL)
-#define asoc_simple_card_parse_clk_codec(dev, node, dai_link, simple_dai)	\
-	asoc_simple_card_parse_clk(dev, node, dai_link->codec_of_node, simple_dai,\
+#define asoc_simple_parse_clk_codec(dev, node, dai_link, simple_dai)	\
+	asoc_simple_parse_clk(dev, node, dai_link->codec_of_node, simple_dai,\
 				   dai_link->codec_dai_name, dai_link->codecs)
-int asoc_simple_card_parse_clk(struct device *dev,
-			       struct device_node *node,
-			       struct device_node *dai_of_node,
-			       struct asoc_simple_dai *simple_dai,
-			       const char *dai_name,
-			       struct snd_soc_dai_link_component *dlc);
+int asoc_simple_parse_clk(struct device *dev,
+			  struct device_node *node,
+			  struct device_node *dai_of_node,
+			  struct asoc_simple_dai *simple_dai,
+			  const char *dai_name,
+			  struct snd_soc_dai_link_component *dlc);
 int asoc_simple_startup(struct snd_pcm_substream *substream);
 void asoc_simple_shutdown(struct snd_pcm_substream *substream);
 int asoc_simple_hw_params(struct snd_pcm_substream *substream,
@@ -99,45 +99,45 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd);
 int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params);
 
-#define asoc_simple_card_parse_cpu(node, dai_link, is_single_link)	\
-	asoc_simple_card_parse_dai(node, NULL,				\
+#define asoc_simple_parse_cpu(node, dai_link, is_single_link)	\
+	asoc_simple_parse_dai(node, NULL,				\
 		&dai_link->cpu_of_node,					\
 		&dai_link->cpu_dai_name, is_single_link)
-#define asoc_simple_card_parse_codec(node, dai_link)	\
-	asoc_simple_card_parse_dai(node, dai_link->codecs,			\
+#define asoc_simple_parse_codec(node, dai_link)	\
+	asoc_simple_parse_dai(node, dai_link->codecs,			\
 				   &dai_link->codec_of_node,			\
 				   &dai_link->codec_dai_name, NULL)
-#define asoc_simple_card_parse_platform(node, dai_link)	\
-	asoc_simple_card_parse_dai(node, dai_link->platforms,			\
+#define asoc_simple_parse_platform(node, dai_link)	\
+	asoc_simple_parse_dai(node, dai_link->platforms,			\
 		&dai_link->platform_of_node, NULL, NULL)
 
-#define asoc_simple_card_of_parse_tdm(np, dai)			\
+#define asoc_simple_parse_tdm(np, dai)			\
 	snd_soc_of_parse_tdm_slot(np,	&(dai)->tx_slot_mask,	\
 					&(dai)->rx_slot_mask,	\
 					&(dai)->slots,		\
 					&(dai)->slot_width);
 
-void asoc_simple_card_canonicalize_platform(struct snd_soc_dai_link *dai_link);
-void asoc_simple_card_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link);
+void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 				      int is_single_links);
 
-int asoc_simple_card_clean_reference(struct snd_soc_card *card);
+int asoc_simple_clean_reference(struct snd_soc_card *card);
 
-void asoc_simple_card_convert_fixup(struct asoc_simple_card_data *data,
+void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 				      struct snd_pcm_hw_params *params);
-void asoc_simple_card_parse_convert(struct device *dev,
-				    struct device_node *np, char *prefix,
-				    struct asoc_simple_card_data *data);
+void asoc_simple_parse_convert(struct device *dev,
+			       struct device_node *np, char *prefix,
+			       struct asoc_simple_data *data);
 
-int asoc_simple_card_of_parse_routing(struct snd_soc_card *card,
+int asoc_simple_parse_routing(struct snd_soc_card *card,
 				      char *prefix);
-int asoc_simple_card_of_parse_widgets(struct snd_soc_card *card,
+int asoc_simple_parse_widgets(struct snd_soc_card *card,
 				      char *prefix);
 
-int asoc_simple_card_init_jack(struct snd_soc_card *card,
+int asoc_simple_init_jack(struct snd_soc_card *card,
 			       struct asoc_simple_jack *sjack,
 			       int is_hp, char *prefix);
-int asoc_simple_card_init_priv(struct asoc_simple_priv *priv,
+int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			       struct link_info *li);
 
 #ifdef DEBUG

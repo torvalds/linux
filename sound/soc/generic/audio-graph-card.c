@@ -107,11 +107,11 @@ static int graph_get_dai_id(struct device_node *ep)
 	return id;
 }
 
-static int asoc_simple_card_parse_dai(struct device_node *ep,
-				      struct snd_soc_dai_link_component *dlc,
-				      struct device_node **dai_of_node,
-				      const char **dai_name,
-				      int *is_single_link)
+static int asoc_simple_parse_dai(struct device_node *ep,
+				 struct snd_soc_dai_link_component *dlc,
+				 struct device_node **dai_of_node,
+				 const char **dai_name,
+				 int *is_single_link)
 {
 	struct device_node *node;
 	struct of_phandle_args args;
@@ -154,18 +154,18 @@ static int asoc_simple_card_parse_dai(struct device_node *ep,
 
 static void graph_parse_convert(struct device *dev,
 				struct device_node *ep,
-				struct asoc_simple_card_data *adata)
+				struct asoc_simple_data *adata)
 {
 	struct device_node *top = dev->of_node;
 	struct device_node *port = of_get_parent(ep);
 	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 
-	asoc_simple_card_parse_convert(dev, top,   NULL,   adata);
-	asoc_simple_card_parse_convert(dev, node,  PREFIX, adata);
-	asoc_simple_card_parse_convert(dev, ports, NULL,   adata);
-	asoc_simple_card_parse_convert(dev, port,  NULL,   adata);
-	asoc_simple_card_parse_convert(dev, ep,    NULL,   adata);
+	asoc_simple_parse_convert(dev, top,   NULL,   adata);
+	asoc_simple_parse_convert(dev, node,  PREFIX, adata);
+	asoc_simple_parse_convert(dev, ports, NULL,   adata);
+	asoc_simple_parse_convert(dev, port,  NULL,   adata);
+	asoc_simple_parse_convert(dev, ep,    NULL,   adata);
 
 	of_node_put(port);
 	of_node_put(ports);
@@ -239,22 +239,22 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		dai =
 		dai_props->cpu_dai	= &priv->dais[li->dais++];
 
-		ret = asoc_simple_card_parse_cpu(ep, dai_link, &is_single_links);
+		ret = asoc_simple_parse_cpu(ep, dai_link, &is_single_links);
 		if (ret)
 			return ret;
 
-		ret = asoc_simple_card_parse_clk_cpu(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk_cpu(dev, ep, dai_link, dai);
 		if (ret < 0)
 			return ret;
 
-		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
-							"fe.%s",
-							dai_link->cpu_dai_name);
+		ret = asoc_simple_set_dailink_name(dev, dai_link,
+						   "fe.%s",
+						   dai_link->cpu_dai_name);
 		if (ret < 0)
 			return ret;
 
 		/* card->num_links includes Codec */
-		asoc_simple_card_canonicalize_cpu(dai_link, is_single_links);
+		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
@@ -273,17 +273,17 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		cconf =
 		dai_props->codec_conf	= &priv->codec_conf[li->conf++];
 
-		ret = asoc_simple_card_parse_codec(ep, dai_link);
+		ret = asoc_simple_parse_codec(ep, dai_link);
 		if (ret < 0)
 			return ret;
 
-		ret = asoc_simple_card_parse_clk_codec(dev, ep, dai_link, dai);
+		ret = asoc_simple_parse_clk_codec(dev, ep, dai_link, dai);
 		if (ret < 0)
 			return ret;
 
-		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
-							"be.%s",
-							codecs->dai_name);
+		ret = asoc_simple_set_dailink_name(dev, dai_link,
+						   "be.%s",
+						   codecs->dai_name);
 		if (ret < 0)
 			return ret;
 
@@ -301,14 +301,14 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	graph_parse_convert(dev, ep, &dai_props->adata);
 	graph_parse_mclk_fs(top, ep, dai_props);
 
-	asoc_simple_card_canonicalize_platform(dai_link);
+	asoc_simple_canonicalize_platform(dai_link);
 
-	ret = asoc_simple_card_of_parse_tdm(ep, dai);
+	ret = asoc_simple_parse_tdm(ep, dai);
 	if (ret)
 		return ret;
 
-	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
-					    NULL, &dai_link->dai_fmt);
+	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
+				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
 		return ret;
 
@@ -350,47 +350,47 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	graph_parse_mclk_fs(top, cpu_ep,   dai_props);
 	graph_parse_mclk_fs(top, codec_ep, dai_props);
 
-	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
-					    NULL, &dai_link->dai_fmt);
+	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
+				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_cpu(cpu_ep, dai_link, &single_cpu);
+	ret = asoc_simple_parse_cpu(cpu_ep, dai_link, &single_cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_codec(codec_ep, dai_link);
+	ret = asoc_simple_parse_codec(codec_ep, dai_link);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_of_parse_tdm(cpu_ep, cpu_dai);
+	ret = asoc_simple_parse_tdm(cpu_ep, cpu_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_of_parse_tdm(codec_ep, codec_dai);
+	ret = asoc_simple_parse_tdm(codec_ep, codec_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_clk_cpu(dev, cpu_ep, dai_link, cpu_dai);
+	ret = asoc_simple_parse_clk_cpu(dev, cpu_ep, dai_link, cpu_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_parse_clk_codec(dev, codec_ep, dai_link, codec_dai);
+	ret = asoc_simple_parse_clk_codec(dev, codec_ep, dai_link, codec_dai);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_set_dailink_name(dev, dai_link,
-						"%s-%s",
-						dai_link->cpu_dai_name,
-						dai_link->codecs->dai_name);
+	ret = asoc_simple_set_dailink_name(dev, dai_link,
+					   "%s-%s",
+					   dai_link->cpu_dai_name,
+					   dai_link->codecs->dai_name);
 	if (ret < 0)
 		return ret;
 
 	dai_link->ops = &graph_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_card_canonicalize_platform(dai_link);
-	asoc_simple_card_canonicalize_cpu(dai_link, single_cpu);
+	asoc_simple_canonicalize_cpu(dai_link, single_cpu);
+	asoc_simple_canonicalize_platform(dai_link);
 
 	return 0;
 }
@@ -414,7 +414,7 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 	struct device_node *codec_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old = NULL;
-	struct asoc_simple_card_data adata;
+	struct asoc_simple_data adata;
 	int rc, ret;
 
 	/* loop for all listed CPU port */
@@ -469,11 +469,11 @@ static int graph_parse_of(struct asoc_simple_priv *priv)
 	struct link_info li;
 	int ret;
 
-	ret = asoc_simple_card_of_parse_widgets(card, NULL);
+	ret = asoc_simple_parse_widgets(card, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_of_parse_routing(card, NULL);
+	ret = asoc_simple_parse_routing(card, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -498,7 +498,7 @@ static int graph_parse_of(struct asoc_simple_priv *priv)
 			return ret;
 	}
 
-	return asoc_simple_card_parse_card_name(card, NULL);
+	return asoc_simple_parse_card_name(card, NULL);
 }
 
 static int graph_count_noml(struct asoc_simple_priv *priv,
@@ -601,11 +601,11 @@ static int graph_card_probe(struct snd_soc_card *card)
 	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(card);
 	int ret;
 
-	ret = asoc_simple_card_init_hp(card, &priv->hp_jack, NULL);
+	ret = asoc_simple_init_hp(card, &priv->hp_jack, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_card_init_mic(card, &priv->mic_jack, NULL);
+	ret = asoc_simple_init_mic(card, &priv->mic_jack, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -637,7 +637,7 @@ static int graph_probe(struct platform_device *pdev)
 	if (!li.link || !li.dais)
 		return -EINVAL;
 
-	ret = asoc_simple_card_init_priv(priv, &li);
+	ret = asoc_simple_init_priv(priv, &li);
 	if (ret < 0)
 		return ret;
 
@@ -665,7 +665,7 @@ static int graph_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	asoc_simple_card_clean_reference(card);
+	asoc_simple_clean_reference(card);
 
 	return ret;
 }
@@ -674,7 +674,7 @@ static int graph_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return asoc_simple_card_clean_reference(card);
+	return asoc_simple_clean_reference(card);
 }
 
 static const struct of_device_id graph_of_match[] = {
