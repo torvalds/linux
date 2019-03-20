@@ -42,6 +42,16 @@ struct snd_sof_ipc {
 	struct snd_sof_ipc_msg msg;
 };
 
+struct sof_ipc_ctrl_data_params {
+	size_t msg_bytes;
+	size_t hdr_bytes;
+	size_t pl_size;
+	size_t elems;
+	u32 num_msg;
+	u8 *src;
+	u8 *dst;
+};
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_VERBOSE_IPC)
 static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 {
@@ -558,6 +568,103 @@ int snd_sof_ipc_stream_posn(struct snd_sof_dev *sdev,
 }
 EXPORT_SYMBOL(snd_sof_ipc_stream_posn);
 
+static int sof_get_ctrl_copy_params(enum sof_ipc_ctrl_type ctrl_type,
+				    struct sof_ipc_ctrl_data *src,
+				    struct sof_ipc_ctrl_data *dst,
+				    struct sof_ipc_ctrl_data_params *sparams)
+{
+	switch (ctrl_type) {
+	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
+	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
+		sparams->src = (u8 *)src->chanv;
+		sparams->dst = (u8 *)dst->chanv;
+		break;
+	case SOF_CTRL_TYPE_VALUE_COMP_GET:
+	case SOF_CTRL_TYPE_VALUE_COMP_SET:
+		sparams->src = (u8 *)src->compv;
+		sparams->dst = (u8 *)dst->compv;
+		break;
+	case SOF_CTRL_TYPE_DATA_GET:
+	case SOF_CTRL_TYPE_DATA_SET:
+		sparams->src = (u8 *)src->data->data;
+		sparams->dst = (u8 *)dst->data->data;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* calculate payload size and number of messages */
+	sparams->pl_size = SOF_IPC_MSG_MAX_SIZE - sparams->hdr_bytes;
+	sparams->num_msg = DIV_ROUND_UP(sparams->msg_bytes, sparams->pl_size);
+
+	return 0;
+}
+
+static int sof_set_get_large_ctrl_data(struct snd_sof_dev *sdev,
+				       struct sof_ipc_ctrl_data *cdata,
+				       struct sof_ipc_ctrl_data_params *sparams,
+				       bool send)
+{
+	struct sof_ipc_ctrl_data *partdata;
+	size_t send_bytes;
+	size_t offset = 0;
+	size_t msg_bytes;
+	size_t pl_size;
+	int err = 0;
+	int i;
+
+	/* allocate max ipc size because we have at least one */
+	partdata = kzalloc(SOF_IPC_MSG_MAX_SIZE, GFP_KERNEL);
+	if (!partdata)
+		return -ENOMEM;
+
+	if (send)
+		sof_get_ctrl_copy_params(cdata->type, cdata, partdata, sparams);
+	else
+		sof_get_ctrl_copy_params(cdata->type, partdata, cdata, sparams);
+
+	msg_bytes = sparams->msg_bytes;
+	pl_size = sparams->pl_size;
+
+	/* copy the header data */
+	memcpy(partdata, cdata, sparams->hdr_bytes);
+
+	/* Serialise IPC TX */
+	mutex_lock(&sdev->ipc->tx_mutex);
+
+	/* copy the payload data in a loop */
+	for (i = 0; i < sparams->num_msg; i++) {
+		send_bytes = min(msg_bytes, pl_size);
+		partdata->num_elems = send_bytes;
+		partdata->rhdr.hdr.size = sparams->hdr_bytes + send_bytes;
+		partdata->msg_index = i;
+		msg_bytes -= send_bytes;
+		partdata->elems_remaining = msg_bytes;
+
+		if (send)
+			memcpy(sparams->dst, sparams->src + offset, send_bytes);
+
+		err = sof_ipc_tx_message_unlocked(sdev->ipc,
+						  partdata->rhdr.hdr.cmd,
+						  partdata,
+						  partdata->rhdr.hdr.size,
+						  partdata,
+						  partdata->rhdr.hdr.size);
+		if (err < 0)
+			break;
+
+		if (!send)
+			memcpy(sparams->dst + offset, sparams->src, send_bytes);
+
+		offset += pl_size;
+	}
+
+	mutex_unlock(&sdev->ipc->tx_mutex);
+
+	kfree(partdata);
+	return err;
+}
+
 /*
  * IPC get()/set() for kcontrols.
  */
@@ -568,8 +675,11 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 				  enum sof_ipc_ctrl_cmd ctrl_cmd,
 				  bool send)
 {
-	struct snd_sof_dev *sdev = ipc->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
+	struct snd_sof_dev *sdev = ipc->sdev;
+	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
+	struct sof_ipc_fw_version *v = &ready->version;
+	struct sof_ipc_ctrl_data_params sparams;
 	size_t send_bytes;
 	int err = 0;
 
@@ -593,23 +703,67 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 	cdata->rhdr.hdr.cmd = SOF_IPC_GLB_COMP_MSG | ipc_cmd;
 	cdata->cmd = ctrl_cmd;
 	cdata->type = ctrl_type;
-	cdata->rhdr.hdr.size = scontrol->size;
 	cdata->comp_id = scontrol->comp_id;
-	cdata->num_elems = scontrol->num_channels;
+	cdata->msg_index = 0;
 
-	/* write value via slower IPC */
-	if (cdata->rhdr.hdr.size > SOF_IPC_MSG_MAX_SIZE) {
-		dev_err(sdev->dev, "error: set/get size %d too big comp %d\n",
-			cdata->rhdr.hdr.size, cdata->comp_id);
+	/* calculate header and data size */
+	switch (cdata->type) {
+	case SOF_CTRL_TYPE_VALUE_CHAN_GET:
+	case SOF_CTRL_TYPE_VALUE_CHAN_SET:
+		sparams.msg_bytes = scontrol->num_channels *
+			sizeof(struct sof_ipc_ctrl_value_chan);
+		sparams.hdr_bytes = sizeof(struct sof_ipc_ctrl_data);
+		sparams.elems = scontrol->num_channels;
+		break;
+	case SOF_CTRL_TYPE_VALUE_COMP_GET:
+	case SOF_CTRL_TYPE_VALUE_COMP_SET:
+		sparams.msg_bytes = scontrol->num_channels *
+			sizeof(struct sof_ipc_ctrl_value_comp);
+		sparams.hdr_bytes = sizeof(struct sof_ipc_ctrl_data);
+		sparams.elems = scontrol->num_channels;
+		break;
+	case SOF_CTRL_TYPE_DATA_GET:
+	case SOF_CTRL_TYPE_DATA_SET:
+		sparams.msg_bytes = cdata->data->size;
+		sparams.hdr_bytes = sizeof(struct sof_ipc_ctrl_data) +
+			sizeof(struct sof_abi_hdr);
+		sparams.elems = cdata->data->size;
+		break;
+	default:
 		return -EINVAL;
 	}
 
-	err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
-				 cdata->rhdr.hdr.size, cdata,
-				 cdata->rhdr.hdr.size);
+	cdata->rhdr.hdr.size = sparams.msg_bytes + sparams.hdr_bytes;
+	cdata->num_elems = sparams.elems;
+	cdata->elems_remaining = 0;
+
+	/* send normal size ipc in one part */
+	if (cdata->rhdr.hdr.size <= SOF_IPC_MSG_MAX_SIZE) {
+		err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
+					 cdata->rhdr.hdr.size, cdata,
+					 cdata->rhdr.hdr.size);
+
+		if (err < 0)
+			dev_err(sdev->dev, "error: set/get ctrl ipc comp %d\n",
+				cdata->comp_id);
+
+		return err;
+	}
+
+	/* data is bigger than max ipc size, chop to smaller pieces */
+	dev_dbg(sdev->dev, "large ipc size %u, control size %u\n",
+		cdata->rhdr.hdr.size, scontrol->size);
+
+	/* large messages is only supported from abi 3.3.0 onwards */
+	if (v->abi_version < SOF_ABI_VER(3, 3, 0)) {
+		dev_err(sdev->dev, "error: incompatible FW ABI version\n");
+		return -EINVAL;
+	}
+
+	err = sof_set_get_large_ctrl_data(sdev, cdata, &sparams, send);
 
 	if (err < 0)
-		dev_err(sdev->dev, "error: set/get control ipc comp %d\n",
+		dev_err(sdev->dev, "error: set/get large ctrl ipc comp %d\n",
 			cdata->comp_id);
 
 	return err;
