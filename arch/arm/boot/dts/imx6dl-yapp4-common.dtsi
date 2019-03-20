@@ -114,9 +114,9 @@
 			reg = <2>;
 		};
 
-		switch@0 {
+		switch@10 {
 			compatible = "qca,qca8334";
-			reg = <0>;
+			reg = <10>;
 
 			switch_ports: ports {
 				#address-cells = <1>;
