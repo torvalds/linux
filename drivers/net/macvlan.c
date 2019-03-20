@@ -24,6 +24,7 @@
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/net_tstamp.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
@@ -34,6 +35,7 @@
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
 #include <linux/netpoll.h>
+#include <linux/phy.h>
 
 #define MACVLAN_HASH_BITS	8
 #define MACVLAN_HASH_SIZE	(1<<MACVLAN_HASH_BITS)
@@ -822,6 +824,30 @@ static int macvlan_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int macvlan_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct net_device *real_dev = macvlan_dev_real_dev(dev);
+	const struct net_device_ops *ops = real_dev->netdev_ops;
+	struct ifreq ifrr;
+	int err = -EOPNOTSUPP;
+
+	strncpy(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
+	ifrr.ifr_ifru = ifr->ifr_ifru;
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+	case SIOCGHWTSTAMP:
+		if (netif_device_present(real_dev) && ops->ndo_do_ioctl)
+			err = ops->ndo_do_ioctl(real_dev, &ifrr, cmd);
+		break;
+	}
+
+	if (!err)
+		ifr->ifr_ifru = ifrr.ifr_ifru;
+
+	return err;
+}
+
 /*
  * macvlan network devices have devices nesting below it and are a special
  * "super class" of normal network devices; split their locks off into a
@@ -1020,6 +1046,26 @@ static int macvlan_ethtool_get_link_ksettings(struct net_device *dev,
 	return __ethtool_get_link_ksettings(vlan->lowerdev, cmd);
 }
 
+static int macvlan_ethtool_get_ts_info(struct net_device *dev,
+				       struct ethtool_ts_info *info)
+{
+	struct net_device *real_dev = macvlan_dev_real_dev(dev);
+	const struct ethtool_ops *ops = real_dev->ethtool_ops;
+	struct phy_device *phydev = real_dev->phydev;
+
+	if (phydev && phydev->drv && phydev->drv->ts_info) {
+		 return phydev->drv->ts_info(phydev, info);
+	} else if (ops->get_ts_info) {
+		return ops->get_ts_info(real_dev, info);
+	} else {
+		info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE;
+		info->phc_index = -1;
+	}
+
+	return 0;
+}
+
 static netdev_features_t macvlan_fix_features(struct net_device *dev,
 					      netdev_features_t features)
 {
@@ -1094,6 +1140,7 @@ static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= macvlan_ethtool_get_link_ksettings,
 	.get_drvinfo		= macvlan_ethtool_get_drvinfo,
+	.get_ts_info		= macvlan_ethtool_get_ts_info,
 };
 
 static const struct net_device_ops macvlan_netdev_ops = {
@@ -1103,6 +1150,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_stop		= macvlan_stop,
 	.ndo_start_xmit		= macvlan_start_xmit,
 	.ndo_change_mtu		= macvlan_change_mtu,
+	.ndo_do_ioctl		= macvlan_do_ioctl,
 	.ndo_fix_features	= macvlan_fix_features,
 	.ndo_change_rx_flags	= macvlan_change_rx_flags,
 	.ndo_set_mac_address	= macvlan_set_mac_address,
