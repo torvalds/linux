@@ -30,6 +30,8 @@ static void pcie_enable_link_bandwidth_notification(struct pci_dev *dev)
 {
 	u16 lnk_ctl;
 
+	pcie_capability_write_word(dev, PCI_EXP_LNKSTA, PCI_EXP_LNKSTA_LBMS);
+
 	pcie_capability_read_word(dev, PCI_EXP_LNKCTL, &lnk_ctl);
 	lnk_ctl |= PCI_EXP_LNKCTL_LBMIE;
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, lnk_ctl);
