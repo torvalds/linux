@@ -59,18 +59,19 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 }
 
 #define fw_ack(d) readl((d)->reg_ack)
-#define fw_set(d, val) writel((val), (d)->reg_set)
+#define fw_set(d, val) writel(_MASKED_BIT_ENABLE((val)), (d)->reg_set)
+#define fw_clear(d, val) writel(_MASKED_BIT_DISABLE((val)), (d)->reg_set)
 
 static inline void
-fw_domain_reset(const struct intel_uncore *uncore,
-		const struct intel_uncore_forcewake_domain *d)
+fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 {
 	/*
 	 * We don't really know if the powerwell for the forcewake domain we are
 	 * trying to reset here does exist at this point (engines could be fused
 	 * off in ICL+), so no waiting for acks
 	 */
-	fw_set(d, uncore->fw_reset);
+	/* WaRsClearFWBitsAtReset:bdw,skl */
+	fw_clear(d, 0xffff);
 }
 
 static inline void
@@ -146,14 +147,14 @@ fw_domain_wait_ack_with_fallback(const struct intel_uncore_forcewake_domain *d,
 	do {
 		wait_ack_clear(d, FORCEWAKE_KERNEL_FALLBACK);
 
-		fw_set(d, _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL_FALLBACK));
+		fw_set(d, FORCEWAKE_KERNEL_FALLBACK);
 		/* Give gt some time to relax before the polling frenzy */
 		udelay(10 * pass);
 		wait_ack_set(d, FORCEWAKE_KERNEL_FALLBACK);
 
 		ack_detected = (fw_ack(d) & ack_bit) == value;
 
-		fw_set(d, _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL_FALLBACK));
+		fw_clear(d, FORCEWAKE_KERNEL_FALLBACK);
 	} while (!ack_detected && pass++ < 10);
 
 	DRM_DEBUG_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
@@ -176,10 +177,9 @@ fw_domain_wait_ack_clear_fallback(const struct intel_uncore_forcewake_domain *d)
 }
 
 static inline void
-fw_domain_get(const struct intel_uncore *uncore,
-	      const struct intel_uncore_forcewake_domain *d)
+fw_domain_get(const struct intel_uncore_forcewake_domain *d)
 {
-	fw_set(d, uncore->fw_set);
+	fw_set(d, FORCEWAKE_KERNEL);
 }
 
 static inline void
@@ -201,10 +201,9 @@ fw_domain_wait_ack_set_fallback(const struct intel_uncore_forcewake_domain *d)
 }
 
 static inline void
-fw_domain_put(const struct intel_uncore *uncore,
-	      const struct intel_uncore_forcewake_domain *d)
+fw_domain_put(const struct intel_uncore_forcewake_domain *d)
 {
-	fw_set(d, uncore->fw_clear);
+	fw_clear(d, FORCEWAKE_KERNEL);
 }
 
 static void
@@ -218,7 +217,7 @@ fw_domains_get(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
 		fw_domain_wait_ack_clear(d);
-		fw_domain_get(uncore, d);
+		fw_domain_get(d);
 	}
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
@@ -239,7 +238,7 @@ fw_domains_get_with_fallback(struct drm_i915_private *i915,
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
 		fw_domain_wait_ack_clear_fallback(d);
-		fw_domain_get(uncore, d);
+		fw_domain_get(d);
 	}
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
@@ -258,7 +257,7 @@ fw_domains_put(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_put(uncore, d);
+		fw_domain_put(d);
 
 	uncore->fw_domains_active &= ~fw_domains;
 }
@@ -277,7 +276,7 @@ fw_domains_reset(struct drm_i915_private *i915,
 	GEM_BUG_ON(fw_domains & ~uncore->fw_domains);
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_reset(uncore, d);
+		fw_domain_reset(d);
 }
 
 static inline u32 gt_thread_status(struct drm_i915_private *dev_priv)
@@ -1371,7 +1370,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 
 	uncore->fw_domains |= BIT(domain_id);
 
-	fw_domain_reset(uncore, d);
+	fw_domain_reset(d);
 }
 
 static void fw_domain_fini(struct drm_i915_private *dev_priv,
@@ -1395,17 +1394,6 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
-
-	if (IS_GEN(dev_priv, 6)) {
-		dev_priv->uncore.fw_reset = 0;
-		dev_priv->uncore.fw_set = FORCEWAKE_KERNEL;
-		dev_priv->uncore.fw_clear = 0;
-	} else {
-		/* WaRsClearFWBitsAtReset:bdw,skl */
-		dev_priv->uncore.fw_reset = _MASKED_BIT_DISABLE(0xffff);
-		dev_priv->uncore.fw_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
-		dev_priv->uncore.fw_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
-	}
 
 	if (INTEL_GEN(dev_priv) >= 11) {
 		int i;

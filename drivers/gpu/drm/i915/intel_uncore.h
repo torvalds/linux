@@ -106,10 +106,6 @@ struct intel_uncore {
 	enum forcewake_domains fw_domains_active;
 	enum forcewake_domains fw_domains_saved; /* user domains saved for S3 */
 
-	u32 fw_set;
-	u32 fw_clear;
-	u32 fw_reset;
-
 	struct intel_uncore_forcewake_domain {
 		enum forcewake_domain_id id;
 		enum forcewake_domains mask;
