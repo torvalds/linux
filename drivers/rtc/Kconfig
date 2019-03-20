@@ -1857,7 +1857,8 @@ config RTC_DRV_HID_SENSOR_TIME
 
 config RTC_DRV_GOLDFISH
 	tristate "Goldfish Real Time Clock"
-	depends on MIPS && (GOLDFISH || COMPILE_TEST)
+	depends on OF && HAS_IOMEM
+	depends on GOLDFISH || COMPILE_TEST
 	help
 	  Say yes to enable RTC driver for the Goldfish based virtual platform.
 
