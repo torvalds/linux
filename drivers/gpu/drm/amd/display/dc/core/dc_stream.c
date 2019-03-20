@@ -29,7 +29,9 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dcn10/dcn10_hw_sequencer.h"
+#endif
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -199,6 +201,7 @@ struct dc_stream_status *dc_stream_get_status(
 
 static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 {
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	unsigned int vupdate_line;
 	unsigned int lines_to_vupdate, us_to_vupdate, vpos, nvpos;
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -221,6 +224,7 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 		if (us_to_vupdate < 70)
 			udelay(us_to_vupdate);
 	}
+#endif
 }
 
 /**
