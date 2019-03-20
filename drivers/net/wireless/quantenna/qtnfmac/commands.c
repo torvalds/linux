@@ -786,8 +786,25 @@ int qtnf_cmd_send_change_intf_type(struct qtnf_vif *vif,
 				   int use4addr,
 				   u8 *mac_addr)
 {
-	return qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
-					     QLINK_CMD_CHANGE_INTF);
+	int ret;
+
+	ret = qtnf_cmd_send_add_change_intf(vif, iftype, use4addr, mac_addr,
+					    QLINK_CMD_CHANGE_INTF);
+
+	/* Regulatory settings may be different for different interface types */
+	if (ret == 0 && vif->wdev.iftype != iftype) {
+		enum nl80211_band band;
+		struct wiphy *wiphy = priv_to_wiphy(vif->mac);
+
+		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
+			if (!wiphy->bands[band])
+				continue;
+
+			qtnf_cmd_band_info_get(vif->mac, wiphy->bands[band]);
+		}
+	}
+
+	return ret;
 }
 
 int qtnf_cmd_send_del_intf(struct qtnf_vif *vif)
