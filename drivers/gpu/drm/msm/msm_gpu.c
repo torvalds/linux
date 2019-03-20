@@ -450,21 +450,8 @@ static void recover_worker(struct work_struct *work)
 		task = get_pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
 			comm = kstrdup(task->comm, GFP_KERNEL);
-
-			/*
-			 * So slightly annoying, in other paths like
-			 * mmap'ing gem buffers, mmap_sem is acquired
-			 * before struct_mutex, which means we can't
-			 * hold struct_mutex across the call to
-			 * get_cmdline().  But submits are retired
-			 * from the same in-order workqueue, so we can
-			 * safely drop the lock here without worrying
-			 * about the submit going away.
-			 */
-			mutex_unlock(&dev->struct_mutex);
 			cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
 			put_task_struct(task);
-			mutex_lock(&dev->struct_mutex);
 		}
 
 		if (comm && cmd) {
