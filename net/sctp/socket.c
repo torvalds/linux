@@ -999,7 +999,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
 
-	kaddrs = vmemdup_user(addrs, addrs_size);
+	kaddrs = memdup_user(addrs, addrs_size);
 	if (unlikely(IS_ERR(kaddrs)))
 		return PTR_ERR(kaddrs);
 
@@ -1007,7 +1007,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	addr_buf = kaddrs;
 	while (walk_size < addrs_size) {
 		if (walk_size + sizeof(sa_family_t) > addrs_size) {
-			kvfree(kaddrs);
+			kfree(kaddrs);
 			return -EINVAL;
 		}
 
@@ -1018,7 +1018,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 		 * causes the address buffer to overflow return EINVAL.
 		 */
 		if (!af || (walk_size + af->sockaddr_len) > addrs_size) {
-			kvfree(kaddrs);
+			kfree(kaddrs);
 			return -EINVAL;
 		}
 		addrcnt++;
@@ -1054,7 +1054,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 	}
 
 out:
-	kvfree(kaddrs);
+	kfree(kaddrs);
 
 	return err;
 }
@@ -1329,7 +1329,7 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 	if (unlikely(addrs_size <= 0))
 		return -EINVAL;
 
-	kaddrs = vmemdup_user(addrs, addrs_size);
+	kaddrs = memdup_user(addrs, addrs_size);
 	if (unlikely(IS_ERR(kaddrs)))
 		return PTR_ERR(kaddrs);
 
@@ -1349,7 +1349,7 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 	err = __sctp_connect(sk, kaddrs, addrs_size, flags, assoc_id);
 
 out_free:
-	kvfree(kaddrs);
+	kfree(kaddrs);
 
 	return err;
 }
